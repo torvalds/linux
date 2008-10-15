@@ -36,16 +36,13 @@
 #include <linux/spi/flash.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#if defined(CONFIG_USB_MUSB_HDRC) || defined(CONFIG_USB_MUSB_HDRC_MODULE)
 #include <linux/usb/musb.h>
-#endif
 #include <asm/bfin5xx_spi.h>
-#include <asm/cplb.h>
 #include <asm/dma.h>
 #include <asm/gpio.h>
 #include <asm/nand.h>
 #include <asm/portmux.h>
-#include <asm/mach/bf54x_keys.h>
+#include <mach/bf54x_keys.h>
 #include <asm/dpmc.h>
 #include <linux/input.h>
 #include <linux/spi/ad7877.h>
@@ -61,7 +58,7 @@ const char bfin_board_name[] = "Bluetechnix CM-BF548";
 
 #if defined(CONFIG_FB_BF54X_LQ043) || defined(CONFIG_FB_BF54X_LQ043_MODULE)
 
-#include <asm/mach/bf54x-lq043.h>
+#include <mach/bf54x-lq043.h>
 
 static struct bfin_bf54xfb_mach_info bf54x_lq043_data = {
 	.width =	480,
@@ -175,6 +172,7 @@ static struct resource bfin_uart_resources[] = {
 	{
 		.start = 0xFFC03100,
 		.end = 0xFFC031FF,
+		.flags = IORESOURCE_MEM,
 	},
 #endif
 };
@@ -268,6 +266,16 @@ static struct resource musb_resources[] = {
 	},
 };
 
+static struct musb_hdrc_config musb_config = {
+	.multipoint	= 0,
+	.dyn_fifo	= 0,
+	.soft_con	= 1,
+	.dma		= 1,
+	.num_eps	= 7,
+	.dma_channels	= 7,
+	.gpio_vrsel	= GPIO_PH6,
+};
+
 static struct musb_hdrc_platform_data musb_plat = {
 #if defined(CONFIG_USB_MUSB_OTG)
 	.mode		= MUSB_OTG,
@@ -276,7 +284,7 @@ static struct musb_hdrc_platform_data musb_plat = {
 #elif defined(CONFIG_USB_GADGET_MUSB_HDRC)
 	.mode		= MUSB_PERIPHERAL,
 #endif
-	.multipoint	= 0,
+	.config		= &musb_config,
 };
 
 static u64 musb_dmamask = ~(u32)0;
@@ -319,14 +327,14 @@ static struct platform_device bfin_atapi_device = {
 #if defined(CONFIG_MTD_NAND_BF5XX) || defined(CONFIG_MTD_NAND_BF5XX_MODULE)
 static struct mtd_partition partition_info[] = {
 	{
-		.name = "Linux Kernel",
+		.name = "linux kernel(nand)",
 		.offset = 0,
-		.size = 4 * SIZE_1M,
+		.size = 4 * 1024 * 1024,
 	},
 	{
-		.name = "File System",
-		.offset = 4 * SIZE_1M,
-		.size = (256 - 4) * SIZE_1M,
+		.name = "file system(nand)",
+		.offset = 4 * 1024 * 1024,
+		.size = (256 - 4) * 1024 * 1024,
 	},
 };
 
@@ -377,12 +385,12 @@ static struct platform_device bf54x_sdh_device = {
 /* SPI flash chip (m25p16) */
 static struct mtd_partition bfin_spi_flash_partitions[] = {
 	{
-		.name = "bootloader",
+		.name = "bootloader(spi)",
 		.size = 0x00040000,
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
 	}, {
-		.name = "linux kernel",
+		.name = "linux kernel(spi)",
 		.size = 0x1c0000,
 		.offset = 0x40000
 	}

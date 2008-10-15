@@ -65,7 +65,7 @@ lookup_exec_domain(u_long personality)
 				goto out;
 	}
 
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 	read_unlock(&exec_domains_lock);
 	request_module("personality-%ld", pers);
 	read_lock(&exec_domains_lock);
@@ -168,7 +168,6 @@ __set_personality(u_long personality)
 	current->personality = personality;
 	oep = current_thread_info()->exec_domain;
 	current_thread_info()->exec_domain = ep;
-	set_fs_altroot();
 
 	module_put(oep->module);
 	return 0;

@@ -38,6 +38,9 @@
 
 struct e1000_hw;
 
+#define E1000_DEV_ID_82576                    0x10C9
+#define E1000_DEV_ID_82576_FIBER              0x10E6
+#define E1000_DEV_ID_82576_SERDES             0x10E7
 #define E1000_DEV_ID_82575EB_COPPER           0x10A7
 #define E1000_DEV_ID_82575EB_FIBER_SERDES     0x10A9
 #define E1000_DEV_ID_82575GB_QUAD_COPPER      0x10D6
@@ -50,6 +53,7 @@ struct e1000_hw;
 enum e1000_mac_type {
 	e1000_undefined = 0,
 	e1000_82575,
+	e1000_82576,
 	e1000_num_macs  /* List is 1-based, so subtract 1 for true count. */
 };
 
@@ -410,6 +414,7 @@ struct e1000_mac_operations {
 	s32  (*check_for_link)(struct e1000_hw *);
 	s32  (*reset_hw)(struct e1000_hw *);
 	s32  (*init_hw)(struct e1000_hw *);
+	bool (*check_mng_mode)(struct e1000_hw *);
 	s32  (*setup_physical_interface)(struct e1000_hw *);
 	void (*rar_set)(struct e1000_hw *, u8 *, u32);
 	s32  (*read_mac_addr)(struct e1000_hw *);
@@ -418,6 +423,7 @@ struct e1000_mac_operations {
 
 struct e1000_phy_operations {
 	s32  (*acquire_phy)(struct e1000_hw *);
+	s32  (*check_reset_block)(struct e1000_hw *);
 	s32  (*force_speed_duplex)(struct e1000_hw *);
 	s32  (*get_cfg_done)(struct e1000_hw *hw);
 	s32  (*get_cable_length)(struct e1000_hw *);
@@ -586,14 +592,10 @@ struct e1000_hw {
 
 #ifdef DEBUG
 extern char *igb_get_hw_dev_name(struct e1000_hw *hw);
-#define hw_dbg(hw, format, arg...) \
+#define hw_dbg(format, arg...) \
 	printk(KERN_DEBUG "%s: " format, igb_get_hw_dev_name(hw), ##arg)
 #else
-static inline int __attribute__ ((format (printf, 2, 3)))
-hw_dbg(struct e1000_hw *hw, const char *format, ...)
-{
-	return 0;
-}
+#define hw_dbg(format, arg...)
 #endif
 
 #endif

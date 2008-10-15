@@ -160,7 +160,7 @@ sys_pipe (void)
 	int fd[2];
 	int retval;
 
-	retval = do_pipe(fd);
+	retval = do_pipe_flags(fd, 0);
 	if (retval)
 		goto out;
 	retval = fd[0];

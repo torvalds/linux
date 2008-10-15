@@ -24,4 +24,7 @@ static inline void of_device_free(struct of_device *dev)
 	of_release_dev(&dev->dev);
 }
 
+extern ssize_t of_device_get_modalias(struct of_device *ofdev,
+					char *str, ssize_t len);
+
 #endif /* _LINUX_OF_DEVICE_H */

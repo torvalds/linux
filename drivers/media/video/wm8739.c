@@ -27,7 +27,7 @@
 #include <asm/uaccess.h>
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/v4l2-i2c-drv.h>
@@ -274,10 +274,8 @@ static int wm8739_probe(struct i2c_client *client,
 			client->addr << 1, client->adapter->name);
 
 	state = kmalloc(sizeof(struct wm8739_state), GFP_KERNEL);
-	if (state == NULL) {
-		kfree(client);
+	if (state == NULL)
 		return -ENOMEM;
-	}
 	state->vol_l = 0x17; /* 0dB */
 	state->vol_r = 0x17; /* 0dB */
 	state->muted = 0;
@@ -327,4 +325,3 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.remove = wm8739_remove,
 	.id_table = wm8739_id,
 };
-

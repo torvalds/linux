@@ -15,6 +15,8 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
+#include "internal.h"
+
 extern wait_queue_head_t log_wait;
 
 extern int do_syslog(int type, char __user *bug, int count);

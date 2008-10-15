@@ -1,6 +1,0 @@
-/*
-  See copyright and licensing conditions in ambassador.* files.
-*/
-  { 0x00000080,  993, },
-  { 0xa0d0d500,   80, },
-  { 0xa0d0f000,  978, },

@@ -72,7 +72,6 @@ dev_fsm_final_state(struct ccw_device *cdev)
 }
 
 extern struct workqueue_struct *ccw_device_work;
-extern struct workqueue_struct *ccw_device_notify_work;
 extern wait_queue_head_t ccw_device_init_wq;
 extern atomic_t ccw_device_init_count;
 
@@ -87,8 +86,7 @@ int ccw_device_is_orphan(struct ccw_device *);
 int ccw_device_recognition(struct ccw_device *);
 int ccw_device_online(struct ccw_device *);
 int ccw_device_offline(struct ccw_device *);
-
-void ccw_device_schedule_recovery(void);
+int ccw_purge_blacklisted(void);
 
 /* Function prototypes for device status and basic sense stuff. */
 void ccw_device_accumulate_irb(struct ccw_device *, struct irb *);
@@ -117,6 +115,12 @@ void ccw_device_disband_done(struct ccw_device *, int);
 int ccw_device_call_handler(struct ccw_device *);
 
 int ccw_device_stlck(struct ccw_device *);
+
+/* Helper function for machine check handling. */
+void ccw_device_trigger_reprobe(struct ccw_device *);
+void ccw_device_kill_io(struct ccw_device *);
+int ccw_device_notify(struct ccw_device *, int);
+void ccw_device_set_notoper(struct ccw_device *cdev);
 
 /* qdio needs this. */
 void ccw_device_set_timeout(struct ccw_device *, int);

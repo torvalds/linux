@@ -16,11 +16,6 @@ enum {
 };
 
 enum {
-	NO_WAIT = 0,
-	WAIT = 1,
-};
-
-enum {
 	NO_FORCE = 0,
 	FORCE = 1,
 };

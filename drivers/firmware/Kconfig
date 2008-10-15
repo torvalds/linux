@@ -26,6 +26,16 @@ config EDD_OFF
 	  kernel. Say N if you want EDD enabled by default. EDD can be dynamically set
 	  using the kernel parameter 'edd={on|skipmbr|off}'.
 
+config FIRMWARE_MEMMAP
+    bool "Add firmware-provided memory map to sysfs" if EMBEDDED
+    default (X86_64 || X86_32)
+    help
+      Add the firmware-provided (unmodified) memory map to /sys/firmware/memmap.
+      That memory map is used for example by kexec to set up parameter area
+      for the next kernel, but can also be used for debugging purposes.
+
+      See also Documentation/ABI/testing/sysfs-firmware-memmap.
+
 config EFI_VARS
 	tristate "EFI Variable Support via sysfs"
 	depends on EFI

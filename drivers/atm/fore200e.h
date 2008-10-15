@@ -754,7 +754,6 @@ typedef enum fore200e_state {
     FORE200E_STATE_CONFIGURE,     /* bus interface configured          */
     FORE200E_STATE_MAP,           /* board space mapped in host memory */
     FORE200E_STATE_RESET,         /* board resetted                    */
-    FORE200E_STATE_LOAD_FW,       /* firmware loaded                   */
     FORE200E_STATE_START_FW,      /* firmware started                  */
     FORE200E_STATE_INITIALIZE,    /* initialize command successful     */
     FORE200E_STATE_INIT_CMDQ,     /* command queue initialized         */
@@ -779,9 +778,9 @@ typedef struct fore200e_pca_regs {
 /* SBA-200E registers */
 
 typedef struct fore200e_sba_regs {
-    volatile u32 __iomem *hcr;    /* address of host control register              */
-    volatile u32 __iomem *bsr;    /* address of burst transfer size register       */
-    volatile u32 __iomem *isr;    /* address of interrupt level selection register */
+    u32 __iomem *hcr;    /* address of host control register              */
+    u32 __iomem *bsr;    /* address of burst transfer size register       */
+    u32 __iomem *isr;    /* address of interrupt level selection register */
 } fore200e_sba_regs_t;
 
 
@@ -803,8 +802,6 @@ typedef struct fore200e_bus {
     int                  descr_alignment;     /* tpd/rpd/rbd DMA alignment requirement  */
     int                  buffer_alignment;    /* rx buffers DMA alignment requirement   */
     int                  status_alignment;    /* status words DMA alignment requirement */
-    const unsigned char* fw_data;             /* address of firmware data start         */
-    const unsigned int*  fw_size;             /* address of firmware data size          */
     u32                  (*read)(volatile u32 __iomem *);
     void                 (*write)(u32, volatile u32 __iomem *);
     u32                  (*dma_map)(struct fore200e*, void*, int, int);
@@ -813,7 +810,6 @@ typedef struct fore200e_bus {
     void                 (*dma_sync_for_device)(struct fore200e*, u32, int, int);
     int                  (*dma_chunk_alloc)(struct fore200e*, struct chunk*, int, int, int);
     void                 (*dma_chunk_free)(struct fore200e*, struct chunk*);
-    struct fore200e*     (*detect)(const struct fore200e_bus*, int);
     int                  (*configure)(struct fore200e*); 
     int                  (*map)(struct fore200e*); 
     void                 (*reset)(struct fore200e*);

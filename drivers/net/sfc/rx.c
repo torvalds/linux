@@ -212,8 +212,8 @@ void efx_lro_fini(struct net_lro_mgr *lro_mgr)
  * and populates a struct efx_rx_buffer with the relevant
  * information.  Return a negative error code or 0 on success.
  */
-static inline int efx_init_rx_buffer_skb(struct efx_rx_queue *rx_queue,
-					 struct efx_rx_buffer *rx_buf)
+static int efx_init_rx_buffer_skb(struct efx_rx_queue *rx_queue,
+				  struct efx_rx_buffer *rx_buf)
 {
 	struct efx_nic *efx = rx_queue->efx;
 	struct net_device *net_dev = efx->net_dev;
@@ -233,7 +233,7 @@ static inline int efx_init_rx_buffer_skb(struct efx_rx_queue *rx_queue,
 					  rx_buf->data, rx_buf->len,
 					  PCI_DMA_FROMDEVICE);
 
-	if (unlikely(pci_dma_mapping_error(rx_buf->dma_addr))) {
+	if (unlikely(pci_dma_mapping_error(efx->pci_dev, rx_buf->dma_addr))) {
 		dev_kfree_skb_any(rx_buf->skb);
 		rx_buf->skb = NULL;
 		return -EIO;
@@ -252,8 +252,8 @@ static inline int efx_init_rx_buffer_skb(struct efx_rx_queue *rx_queue,
  * and populates a struct efx_rx_buffer with the relevant
  * information.  Return a negative error code or 0 on success.
  */
-static inline int efx_init_rx_buffer_page(struct efx_rx_queue *rx_queue,
-					  struct efx_rx_buffer *rx_buf)
+static int efx_init_rx_buffer_page(struct efx_rx_queue *rx_queue,
+				   struct efx_rx_buffer *rx_buf)
 {
 	struct efx_nic *efx = rx_queue->efx;
 	int bytes, space, offset;
@@ -275,7 +275,7 @@ static inline int efx_init_rx_buffer_page(struct efx_rx_queue *rx_queue,
 					0, efx_rx_buf_size(efx),
 					PCI_DMA_FROMDEVICE);
 
-		if (unlikely(pci_dma_mapping_error(dma_addr))) {
+		if (unlikely(pci_dma_mapping_error(efx->pci_dev, dma_addr))) {
 			__free_pages(rx_buf->page, efx->rx_buffer_order);
 			rx_buf->page = NULL;
 			return -EIO;
@@ -319,8 +319,8 @@ static inline int efx_init_rx_buffer_page(struct efx_rx_queue *rx_queue,
  * and populates a struct efx_rx_buffer with the relevant
  * information.
  */
-static inline int efx_init_rx_buffer(struct efx_rx_queue *rx_queue,
-				     struct efx_rx_buffer *new_rx_buf)
+static int efx_init_rx_buffer(struct efx_rx_queue *rx_queue,
+			      struct efx_rx_buffer *new_rx_buf)
 {
 	int rc = 0;
 
@@ -340,8 +340,8 @@ static inline int efx_init_rx_buffer(struct efx_rx_queue *rx_queue,
 	return rc;
 }
 
-static inline void efx_unmap_rx_buffer(struct efx_nic *efx,
-				       struct efx_rx_buffer *rx_buf)
+static void efx_unmap_rx_buffer(struct efx_nic *efx,
+				struct efx_rx_buffer *rx_buf)
 {
 	if (rx_buf->page) {
 		EFX_BUG_ON_PARANOID(rx_buf->skb);
@@ -357,8 +357,8 @@ static inline void efx_unmap_rx_buffer(struct efx_nic *efx,
 	}
 }
 
-static inline void efx_free_rx_buffer(struct efx_nic *efx,
-				      struct efx_rx_buffer *rx_buf)
+static void efx_free_rx_buffer(struct efx_nic *efx,
+			       struct efx_rx_buffer *rx_buf)
 {
 	if (rx_buf->page) {
 		__free_pages(rx_buf->page, efx->rx_buffer_order);
@@ -369,8 +369,8 @@ static inline void efx_free_rx_buffer(struct efx_nic *efx,
 	}
 }
 
-static inline void efx_fini_rx_buffer(struct efx_rx_queue *rx_queue,
-				      struct efx_rx_buffer *rx_buf)
+static void efx_fini_rx_buffer(struct efx_rx_queue *rx_queue,
+			       struct efx_rx_buffer *rx_buf)
 {
 	efx_unmap_rx_buffer(rx_queue->efx, rx_buf);
 	efx_free_rx_buffer(rx_queue->efx, rx_buf);
@@ -506,10 +506,10 @@ void efx_rx_work(struct work_struct *data)
 		efx_schedule_slow_fill(rx_queue, 1);
 }
 
-static inline void efx_rx_packet__check_len(struct efx_rx_queue *rx_queue,
-					    struct efx_rx_buffer *rx_buf,
-					    int len, int *discard,
-					    int *leak_packet)
+static void efx_rx_packet__check_len(struct efx_rx_queue *rx_queue,
+				     struct efx_rx_buffer *rx_buf,
+				     int len, bool *discard,
+				     bool *leak_packet)
 {
 	struct efx_nic *efx = rx_queue->efx;
 	unsigned max_len = rx_buf->len - efx->type->rx_buffer_padding;
@@ -520,7 +520,7 @@ static inline void efx_rx_packet__check_len(struct efx_rx_queue *rx_queue,
 	/* The packet must be discarded, but this is only a fatal error
 	 * if the caller indicated it was
 	 */
-	*discard = 1;
+	*discard = true;
 
 	if ((len > rx_buf->len) && EFX_WORKAROUND_8071(efx)) {
 		EFX_ERR_RL(efx, " RX queue %d seriously overlength "
@@ -546,8 +546,8 @@ static inline void efx_rx_packet__check_len(struct efx_rx_queue *rx_queue,
  * Handles driverlink veto, and passes the fragment up via
  * the appropriate LRO method
  */
-static inline void efx_rx_packet_lro(struct efx_channel *channel,
-				     struct efx_rx_buffer *rx_buf)
+static void efx_rx_packet_lro(struct efx_channel *channel,
+			      struct efx_rx_buffer *rx_buf)
 {
 	struct net_lro_mgr *lro_mgr = &channel->lro_mgr;
 	void *priv = channel;
@@ -574,9 +574,9 @@ static inline void efx_rx_packet_lro(struct efx_channel *channel,
 }
 
 /* Allocate and construct an SKB around a struct page.*/
-static inline struct sk_buff *efx_rx_mk_skb(struct efx_rx_buffer *rx_buf,
-					    struct efx_nic *efx,
-					    int hdr_len)
+static struct sk_buff *efx_rx_mk_skb(struct efx_rx_buffer *rx_buf,
+				     struct efx_nic *efx,
+				     int hdr_len)
 {
 	struct sk_buff *skb;
 
@@ -621,11 +621,11 @@ static inline struct sk_buff *efx_rx_mk_skb(struct efx_rx_buffer *rx_buf,
 }
 
 void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
-		   unsigned int len, int checksummed, int discard)
+		   unsigned int len, bool checksummed, bool discard)
 {
 	struct efx_nic *efx = rx_queue->efx;
 	struct efx_rx_buffer *rx_buf;
-	int leak_packet = 0;
+	bool leak_packet = false;
 
 	rx_buf = efx_rx_buffer(rx_queue, index);
 	EFX_BUG_ON_PARANOID(!rx_buf->data);
@@ -683,11 +683,11 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 
 /* Handle a received packet.  Second half: Touches packet payload. */
 void __efx_rx_packet(struct efx_channel *channel,
-		     struct efx_rx_buffer *rx_buf, int checksummed)
+		     struct efx_rx_buffer *rx_buf, bool checksummed)
 {
 	struct efx_nic *efx = channel->efx;
 	struct sk_buff *skb;
-	int lro = efx->net_dev->features & NETIF_F_LRO;
+	bool lro = !!(efx->net_dev->features & NETIF_F_LRO);
 
 	/* If we're in loopback test, then pass the packet directly to the
 	 * loopback layer, and free the rx_buf here
@@ -789,27 +789,18 @@ int efx_probe_rx_queue(struct efx_rx_queue *rx_queue)
 	/* Allocate RX buffers */
 	rxq_size = (efx->type->rxd_ring_mask + 1) * sizeof(*rx_queue->buffer);
 	rx_queue->buffer = kzalloc(rxq_size, GFP_KERNEL);
-	if (!rx_queue->buffer) {
-		rc = -ENOMEM;
-		goto fail1;
-	}
+	if (!rx_queue->buffer)
+		return -ENOMEM;
 
 	rc = falcon_probe_rx(rx_queue);
-	if (rc)
-		goto fail2;
-
-	return 0;
-
- fail2:
-	kfree(rx_queue->buffer);
-	rx_queue->buffer = NULL;
- fail1:
-	rx_queue->used = 0;
-
+	if (rc) {
+		kfree(rx_queue->buffer);
+		rx_queue->buffer = NULL;
+	}
 	return rc;
 }
 
-int efx_init_rx_queue(struct efx_rx_queue *rx_queue)
+void efx_init_rx_queue(struct efx_rx_queue *rx_queue)
 {
 	struct efx_nic *efx = rx_queue->efx;
 	unsigned int max_fill, trigger, limit;
@@ -833,7 +824,7 @@ int efx_init_rx_queue(struct efx_rx_queue *rx_queue)
 	rx_queue->fast_fill_limit = limit;
 
 	/* Set up RX descriptor ring */
-	return falcon_init_rx(rx_queue);
+	falcon_init_rx(rx_queue);
 }
 
 void efx_fini_rx_queue(struct efx_rx_queue *rx_queue)
@@ -872,7 +863,6 @@ void efx_remove_rx_queue(struct efx_rx_queue *rx_queue)
 
 	kfree(rx_queue->buffer);
 	rx_queue->buffer = NULL;
-	rx_queue->used = 0;
 }
 
 void efx_flush_lro(struct efx_channel *channel)

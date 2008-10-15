@@ -137,7 +137,7 @@ static int kvmppc_emul_tlbwe(struct kvm_vcpu *vcpu, u32 inst)
 	if (tlbe->word0 & PPC44x_TLB_VALID) {
 		eaddr = get_tlb_eaddr(tlbe);
 		asid = (tlbe->word0 & PPC44x_TLB_TS) | tlbe->tid;
-		kvmppc_mmu_invalidate(vcpu, eaddr, asid);
+		kvmppc_mmu_invalidate(vcpu, eaddr, get_tlb_end(tlbe), asid);
 	}
 
 	switch (ws) {

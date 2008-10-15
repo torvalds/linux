@@ -107,11 +107,10 @@ acpi_status acpi_tb_verify_table(struct acpi_table_desc *table_desc)
  ******************************************************************************/
 
 acpi_status
-acpi_tb_add_table(struct acpi_table_desc *table_desc,
-		  acpi_native_uint * table_index)
+acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index)
 {
-	acpi_native_uint i;
-	acpi_native_uint length;
+	u32 i;
+	u32 length;
 	acpi_status status = AE_OK;
 
 	ACPI_FUNCTION_TRACE(tb_add_table);
@@ -207,8 +206,8 @@ acpi_status acpi_tb_resize_root_table_list(void)
 
 	/* Increase the Table Array size */
 
-	tables = ACPI_ALLOCATE_ZEROED((acpi_gbl_root_table_list.size +
-				       ACPI_ROOT_TABLE_SIZE_INCREMENT)
+	tables = ACPI_ALLOCATE_ZEROED(((acpi_size) acpi_gbl_root_table_list.
+				       size + ACPI_ROOT_TABLE_SIZE_INCREMENT)
 				      * sizeof(struct acpi_table_desc));
 	if (!tables) {
 		ACPI_ERROR((AE_INFO,
@@ -220,7 +219,7 @@ acpi_status acpi_tb_resize_root_table_list(void)
 
 	if (acpi_gbl_root_table_list.tables) {
 		ACPI_MEMCPY(tables, acpi_gbl_root_table_list.tables,
-			    acpi_gbl_root_table_list.size *
+			    (acpi_size) acpi_gbl_root_table_list.size *
 			    sizeof(struct acpi_table_desc));
 
 		if (acpi_gbl_root_table_list.flags & ACPI_ROOT_ORIGIN_ALLOCATED) {
@@ -253,7 +252,7 @@ acpi_status acpi_tb_resize_root_table_list(void)
 acpi_status
 acpi_tb_store_table(acpi_physical_address address,
 		    struct acpi_table_header *table,
-		    u32 length, u8 flags, acpi_native_uint * table_index)
+		    u32 length, u8 flags, u32 *table_index)
 {
 	acpi_status status = AE_OK;
 
@@ -334,7 +333,7 @@ void acpi_tb_delete_table(struct acpi_table_desc *table_desc)
 
 void acpi_tb_terminate(void)
 {
-	acpi_native_uint i;
+	u32 i;
 
 	ACPI_FUNCTION_TRACE(tb_terminate);
 
@@ -374,7 +373,7 @@ void acpi_tb_terminate(void)
  *
  ******************************************************************************/
 
-void acpi_tb_delete_namespace_by_owner(acpi_native_uint table_index)
+void acpi_tb_delete_namespace_by_owner(u32 table_index)
 {
 	acpi_owner_id owner_id;
 
@@ -403,7 +402,7 @@ void acpi_tb_delete_namespace_by_owner(acpi_native_uint table_index)
  *
  ******************************************************************************/
 
-acpi_status acpi_tb_allocate_owner_id(acpi_native_uint table_index)
+acpi_status acpi_tb_allocate_owner_id(u32 table_index)
 {
 	acpi_status status = AE_BAD_PARAMETER;
 
@@ -431,7 +430,7 @@ acpi_status acpi_tb_allocate_owner_id(acpi_native_uint table_index)
  *
  ******************************************************************************/
 
-acpi_status acpi_tb_release_owner_id(acpi_native_uint table_index)
+acpi_status acpi_tb_release_owner_id(u32 table_index)
 {
 	acpi_status status = AE_BAD_PARAMETER;
 
@@ -462,8 +461,7 @@ acpi_status acpi_tb_release_owner_id(acpi_native_uint table_index)
  *
  ******************************************************************************/
 
-acpi_status
-acpi_tb_get_owner_id(acpi_native_uint table_index, acpi_owner_id * owner_id)
+acpi_status acpi_tb_get_owner_id(u32 table_index, acpi_owner_id *owner_id)
 {
 	acpi_status status = AE_BAD_PARAMETER;
 
@@ -490,7 +488,7 @@ acpi_tb_get_owner_id(acpi_native_uint table_index, acpi_owner_id * owner_id)
  *
  ******************************************************************************/
 
-u8 acpi_tb_is_table_loaded(acpi_native_uint table_index)
+u8 acpi_tb_is_table_loaded(u32 table_index)
 {
 	u8 is_loaded = FALSE;
 
@@ -518,7 +516,7 @@ u8 acpi_tb_is_table_loaded(acpi_native_uint table_index)
  *
  ******************************************************************************/
 
-void acpi_tb_set_table_loaded_flag(acpi_native_uint table_index, u8 is_loaded)
+void acpi_tb_set_table_loaded_flag(u32 table_index, u8 is_loaded)
 {
 
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);

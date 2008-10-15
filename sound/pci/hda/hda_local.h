@@ -368,12 +368,15 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 #define AMP_OUT_UNMUTE	0xb000
 #define AMP_OUT_ZERO	0xb000
 /* pinctl values */
-#define PIN_IN		0x20
-#define PIN_VREF80	0x24
-#define PIN_VREF50	0x21
-#define PIN_OUT		0x40
-#define PIN_HP		0xc0
-#define PIN_HP_AMP	0x80
+#define PIN_IN			(AC_PINCTL_IN_EN)
+#define PIN_VREFHIZ	(AC_PINCTL_IN_EN | AC_PINCTL_VREF_HIZ)
+#define PIN_VREF50		(AC_PINCTL_IN_EN | AC_PINCTL_VREF_50)
+#define PIN_VREFGRD	(AC_PINCTL_IN_EN | AC_PINCTL_VREF_GRD)
+#define PIN_VREF80		(AC_PINCTL_IN_EN | AC_PINCTL_VREF_80)
+#define PIN_VREF100	(AC_PINCTL_IN_EN | AC_PINCTL_VREF_100)
+#define PIN_OUT		(AC_PINCTL_OUT_EN)
+#define PIN_HP			(AC_PINCTL_OUT_EN | AC_PINCTL_HP_EN)
+#define PIN_HP_AMP		(AC_PINCTL_HP_EN)
 
 /*
  * get widget capabilities
@@ -417,5 +420,14 @@ int snd_hda_check_amp_list_power(struct hda_codec *codec,
 				 struct hda_loopback_check *check,
 				 hda_nid_t nid);
 #endif /* CONFIG_SND_HDA_POWER_SAVE */
+
+/*
+ * AMP control callbacks
+ */
+/* retrieve parameters from private_value */
+#define get_amp_nid(kc)		((kc)->private_value & 0xffff)
+#define get_amp_channels(kc)	(((kc)->private_value >> 16) & 0x3)
+#define get_amp_direction(kc)	(((kc)->private_value >> 18) & 0x1)
+#define get_amp_index(kc)	(((kc)->private_value >> 19) & 0xf)
 
 #endif /* __SOUND_HDA_LOCAL_H */

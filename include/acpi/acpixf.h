@@ -98,7 +98,7 @@ void acpi_free(void *address);
  */
 acpi_status acpi_reallocate_root_table(void);
 
-acpi_status acpi_find_root_pointer(acpi_native_uint * rsdp_address);
+acpi_status acpi_find_root_pointer(acpi_size *rsdp_address);
 
 acpi_status acpi_load_tables(void);
 
@@ -108,15 +108,15 @@ acpi_status acpi_unload_table_id(acpi_owner_id id);
 
 acpi_status
 acpi_get_table_header(acpi_string signature,
-		      acpi_native_uint instance,
+		      u32 instance,
 		      struct acpi_table_header *out_table_header);
 
 acpi_status
 acpi_get_table(acpi_string signature,
-	       acpi_native_uint instance, struct acpi_table_header **out_table);
+	       u32 instance, struct acpi_table_header **out_table);
 
 acpi_status
-acpi_get_table_by_index(acpi_native_uint table_index,
+acpi_get_table_by_index(u32 table_index,
 			struct acpi_table_header **out_table);
 
 acpi_status
@@ -248,9 +248,7 @@ acpi_status acpi_disable_event(u32 event, u32 flags);
 
 acpi_status acpi_clear_event(u32 event);
 
-#ifdef ACPI_FUTURE_USAGE
 acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status);
-#endif				/*  ACPI_FUTURE_USAGE  */
 
 acpi_status acpi_set_gpe_type(acpi_handle gpe_device, u32 gpe_number, u8 type);
 
@@ -260,12 +258,10 @@ acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags);
 
 acpi_status acpi_clear_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags);
 
-#ifdef ACPI_FUTURE_USAGE
 acpi_status
 acpi_get_gpe_status(acpi_handle gpe_device,
 		    u32 gpe_number,
 		    u32 flags, acpi_event_status * event_status);
-#endif				/*  ACPI_FUTURE_USAGE  */
 
 acpi_status
 acpi_install_gpe_block(acpi_handle gpe_device,

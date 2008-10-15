@@ -39,7 +39,7 @@
 #define POWERDOWN_FREQ		(HZ / 4)
 #define PANIC_FREQ		(HZ / 8)
 
-static struct timer_list power_timer, blink_timer, debounce_timer, volume_timer;
+static struct timer_list power_timer, blink_timer, debounce_timer;
 
 #define MACHINE_PANICED		1
 #define MACHINE_SHUTTING_DOWN	2
@@ -139,36 +139,6 @@ static inline void power_button(void)
 	add_timer(&power_timer);
 }
 
-void (*indy_volume_button)(int) = NULL;
-
-EXPORT_SYMBOL(indy_volume_button);
-
-static inline void volume_up_button(unsigned long data)
-{
-	del_timer(&volume_timer);
-
-	if (indy_volume_button)
-		indy_volume_button(1);
-
-	if (sgint->istat1 & SGINT_ISTAT1_PWR) {
-		volume_timer.expires = jiffies + (HZ / 100);
-		add_timer(&volume_timer);
-	}
-}
-
-static inline void volume_down_button(unsigned long data)
-{
-	del_timer(&volume_timer);
-
-	if (indy_volume_button)
-		indy_volume_button(-1);
-
-	if (sgint->istat1 & SGINT_ISTAT1_PWR) {
-		volume_timer.expires = jiffies + (HZ / 100);
-		add_timer(&volume_timer);
-	}
-}
-
 static irqreturn_t panel_int(int irq, void *dev_id)
 {
 	unsigned int buttons;
@@ -190,25 +160,8 @@ static irqreturn_t panel_int(int irq, void *dev_id)
 	 * House. Only lowest 2 bits are used. Guiness uses upper four bits
 	 * for volume control". This is not true, all bits are pulled high
 	 * on fullhouse */
-	if (ip22_is_fullhouse() || !(buttons & SGIOC_PANEL_POWERINTR)) {
+	if (!(buttons & SGIOC_PANEL_POWERINTR))
 		power_button();
-		return IRQ_HANDLED;
-	}
-	/* TODO: mute/unmute */
-	/* Volume up button was pressed */
-	if (!(buttons & SGIOC_PANEL_VOLUPINTR)) {
-		init_timer(&volume_timer);
-		volume_timer.function = volume_up_button;
-		volume_timer.expires = jiffies + (HZ / 100);
-		add_timer(&volume_timer);
-	}
-	/* Volume down button was pressed */
-	if (!(buttons & SGIOC_PANEL_VOLDNINTR)) {
-		init_timer(&volume_timer);
-		volume_timer.function = volume_down_button;
-		volume_timer.expires = jiffies + (HZ / 100);
-		add_timer(&volume_timer);
-	}
 
 	return IRQ_HANDLED;
 }

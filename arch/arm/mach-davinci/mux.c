@@ -11,9 +11,9 @@
 #include <linux/io.h>
 #include <linux/spinlock.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
-#include <asm/arch/mux.h>
+#include <mach/mux.h>
 
 /* System control register offsets */
 #define PINMUX0         0x00

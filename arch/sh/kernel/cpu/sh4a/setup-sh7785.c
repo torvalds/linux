@@ -238,13 +238,18 @@ static struct intc_sense_reg sense_registers[] __initdata = {
 					    IRQ4, IRQ5, IRQ6, IRQ7 } },
 };
 
-static DECLARE_INTC_DESC(intc_desc_irq0123, "sh7785-irq0123", vectors_irq0123,
-			 NULL, mask_registers, prio_registers,
-			 sense_registers);
+static struct intc_mask_reg ack_registers[] __initdata = {
+	{ 0xffd00024, 0, 32, /* INTREQ */
+	  { IRQ0, IRQ1, IRQ2, IRQ3, IRQ4, IRQ5, IRQ6, IRQ7 } },
+};
 
-static DECLARE_INTC_DESC(intc_desc_irq4567, "sh7785-irq4567", vectors_irq4567,
-			 NULL, mask_registers, prio_registers,
-			 sense_registers);
+static DECLARE_INTC_DESC_ACK(intc_desc_irq0123, "sh7785-irq0123",
+			     vectors_irq0123, NULL, mask_registers,
+			     prio_registers, sense_registers, ack_registers);
+
+static DECLARE_INTC_DESC_ACK(intc_desc_irq4567, "sh7785-irq4567",
+			     vectors_irq4567, NULL, mask_registers,
+			     prio_registers, sense_registers, ack_registers);
 
 /* External interrupt pins in IRL mode */
 

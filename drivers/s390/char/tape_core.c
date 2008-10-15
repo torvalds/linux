@@ -215,12 +215,12 @@ tape_med_state_set(struct tape_device *device, enum tape_medium_state newstate)
 	case MS_UNLOADED:
 		device->tape_generic_status |= GMT_DR_OPEN(~0);
 		PRINT_INFO("(%s): Tape is unloaded\n",
-			   device->cdev->dev.bus_id);
+			   dev_name(&device->cdev->dev));
 		break;
 	case MS_LOADED:
 		device->tape_generic_status &= ~GMT_DR_OPEN(~0);
 		PRINT_INFO("(%s): Tape has been mounted\n",
-			   device->cdev->dev.bus_id);
+			   dev_name(&device->cdev->dev));
 		break;
 	default:
 		// print nothing
@@ -415,7 +415,7 @@ tape_generic_offline(struct tape_device *device)
 				device->cdev_id);
 			PRINT_WARN("(%s): Set offline failed "
 				"- drive in use.\n",
-				device->cdev->dev.bus_id);
+				dev_name(&device->cdev->dev));
 			spin_unlock_irq(get_ccwdev_lock(device->cdev));
 			return -EBUSY;
 	}
@@ -538,7 +538,8 @@ tape_generic_probe(struct ccw_device *cdev)
 	ret = sysfs_create_group(&cdev->dev.kobj, &tape_attr_group);
 	if (ret) {
 		tape_put_device(device);
-		PRINT_ERR("probe failed for tape device %s\n", cdev->dev.bus_id);
+		PRINT_ERR("probe failed for tape device %s\n",
+			  dev_name(&cdev->dev));
 		return ret;
 	}
 	cdev->dev.driver_data = device;
@@ -546,7 +547,7 @@ tape_generic_probe(struct ccw_device *cdev)
 	device->cdev = cdev;
 	ccw_device_get_id(cdev, &dev_id);
 	device->cdev_id = devid_to_int(&dev_id);
-	PRINT_INFO("tape device %s found\n", cdev->dev.bus_id);
+	PRINT_INFO("tape device %s found\n", dev_name(&cdev->dev));
 	return ret;
 }
 
@@ -616,7 +617,7 @@ tape_generic_remove(struct ccw_device *cdev)
 				device->cdev_id);
 			PRINT_WARN("(%s): Drive in use vanished - "
 				"expect trouble!\n",
-				device->cdev->dev.bus_id);
+				dev_name(&device->cdev->dev));
 			PRINT_WARN("State was %i\n", device->tape_state);
 			tape_state_set(device, TS_NOT_OPER);
 			__tape_discard_requests(device);
@@ -839,8 +840,8 @@ tape_dump_sense(struct tape_device* device, struct tape_request *request,
 
 	PRINT_INFO("-------------------------------------------------\n");
 	PRINT_INFO("DSTAT : %02x  CSTAT: %02x	CPA: %04x\n",
-		   irb->scsw.dstat, irb->scsw.cstat, irb->scsw.cpa);
-	PRINT_INFO("DEVICE: %s\n", device->cdev->dev.bus_id);
+		   irb->scsw.cmd.dstat, irb->scsw.cmd.cstat, irb->scsw.cmd.cpa);
+	PRINT_INFO("DEVICE: %s\n", dev_name(&device->cdev->dev));
 	if (request != NULL)
 		PRINT_INFO("OP	  : %s\n", tape_op_verbose[request->op]);
 
@@ -867,7 +868,7 @@ tape_dump_sense_dbf(struct tape_device *device, struct tape_request *request,
 	else
 		op = "---";
 	DBF_EVENT(3, "DSTAT : %02x   CSTAT: %02x\n",
-		  irb->scsw.dstat,irb->scsw.cstat);
+		  irb->scsw.cmd.dstat, irb->scsw.cmd.cstat);
 	DBF_EVENT(3, "DEVICE: %08x OP\t: %s\n", device->cdev_id, op);
 	sptr = (unsigned int *) irb->ecw;
 	DBF_EVENT(3, "%08x %08x\n", sptr[0], sptr[1]);
@@ -1051,7 +1052,7 @@ __tape_do_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	device = (struct tape_device *) cdev->dev.driver_data;
 	if (device == NULL) {
 		PRINT_ERR("could not get device structure for %s "
-			  "in interrupt\n", cdev->dev.bus_id);
+			  "in interrupt\n", dev_name(&cdev->dev));
 		return;
 	}
 	request = (struct tape_request *) intparm;
@@ -1064,13 +1065,13 @@ __tape_do_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 		switch (PTR_ERR(irb)) {
 			case -ETIMEDOUT:
 				PRINT_WARN("(%s): Request timed out\n",
-					cdev->dev.bus_id);
+					dev_name(&cdev->dev));
 			case -EIO:
 				__tape_end_request(device, request, -EIO);
 				break;
 			default:
 				PRINT_ERR("(%s): Unexpected i/o error %li\n",
-					cdev->dev.bus_id,
+					dev_name(&cdev->dev),
 					PTR_ERR(irb));
 		}
 		return;
@@ -1083,10 +1084,11 @@ __tape_do_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	 * error might still apply. So we just schedule the request to be
 	 * started later.
 	 */
-	if (irb->scsw.cc != 0 && (irb->scsw.fctl & SCSW_FCTL_START_FUNC) &&
+	if (irb->scsw.cmd.cc != 0 &&
+	    (irb->scsw.cmd.fctl & SCSW_FCTL_START_FUNC) &&
 	    (request->status == TAPE_REQUEST_IN_IO)) {
 		DBF_EVENT(3,"(%08x): deferred cc=%i, fctl=%i. restarting\n",
-			device->cdev_id, irb->scsw.cc, irb->scsw.fctl);
+			device->cdev_id, irb->scsw.cmd.cc, irb->scsw.cmd.fctl);
 		request->status = TAPE_REQUEST_QUEUED;
 		schedule_delayed_work(&device->tape_dnr, HZ);
 		return;
@@ -1094,8 +1096,8 @@ __tape_do_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 
 	/* May be an unsolicited irq */
 	if(request != NULL)
-		request->rescnt = irb->scsw.count;
-	else if ((irb->scsw.dstat == 0x85 || irb->scsw.dstat == 0x80) &&
+		request->rescnt = irb->scsw.cmd.count;
+	else if ((irb->scsw.cmd.dstat == 0x85 || irb->scsw.cmd.dstat == 0x80) &&
 		 !list_empty(&device->req_queue)) {
 		/* Not Ready to Ready after long busy ? */
 		struct tape_request *req;
@@ -1111,7 +1113,7 @@ __tape_do_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 			return;
 		}
 	}
-	if (irb->scsw.dstat != 0x0c) {
+	if (irb->scsw.cmd.dstat != 0x0c) {
 		/* Set the 'ONLINE' flag depending on sense byte 1 */
 		if(*(((__u8 *) irb->ecw) + 1) & SENSE_DRIVE_ONLINE)
 			device->tape_generic_status |= GMT_ONLINE(~0);

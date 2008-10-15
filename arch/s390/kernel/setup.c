@@ -54,6 +54,7 @@
 #include <asm/sections.h>
 #include <asm/ebcdic.h>
 #include <asm/compat.h>
+#include <asm/kvm_virtio.h>
 
 long psw_kernel_bits	= (PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_PRIMARY |
 			   PSW_MASK_MCHECK | PSW_DEFAULT_KEY);
@@ -77,7 +78,7 @@ unsigned long machine_flags;
 unsigned long elf_hwcap = 0;
 char elf_platform[ELF_PLATFORM_SIZE];
 
-struct mem_chunk __meminitdata memory_chunk[MEMORY_CHUNKS];
+struct mem_chunk __initdata memory_chunk[MEMORY_CHUNKS];
 volatile int __cpu_logical_map[NR_CPUS]; /* logical cpu to cpu address */
 static unsigned long __initdata memory_end;
 
@@ -205,12 +206,6 @@ static void __init conmode_default(void)
 			SET_CONSOLE_SCLP;
 #endif
 		}
-        } else if (MACHINE_IS_P390) {
-#if defined(CONFIG_TN3215_CONSOLE)
-		SET_CONSOLE_3215;
-#elif defined(CONFIG_TN3270_CONSOLE)
-		SET_CONSOLE_3270;
-#endif
 	} else {
 #if defined(CONFIG_SCLP_CONSOLE) || defined(CONFIG_SCLP_VT220_CONSOLE)
 		SET_CONSOLE_SCLP;
@@ -221,18 +216,17 @@ static void __init conmode_default(void)
 #if defined(CONFIG_ZFCPDUMP) || defined(CONFIG_ZFCPDUMP_MODULE)
 static void __init setup_zfcpdump(unsigned int console_devno)
 {
-	static char str[64];
+	static char str[41];
 
 	if (ipl_info.type != IPL_TYPE_FCP_DUMP)
 		return;
 	if (console_devno != -1)
-		sprintf(str, "cio_ignore=all,!0.0.%04x,!0.0.%04x",
+		sprintf(str, " cio_ignore=all,!0.0.%04x,!0.0.%04x",
 			ipl_info.data.fcp.dev_id.devno, console_devno);
 	else
-		sprintf(str, "cio_ignore=all,!0.0.%04x",
+		sprintf(str, " cio_ignore=all,!0.0.%04x",
 			ipl_info.data.fcp.dev_id.devno);
-	strcat(COMMAND_LINE, " ");
-	strcat(COMMAND_LINE, str);
+	strcat(boot_command_line, str);
 	console_loglevel = 2;
 }
 #else
@@ -288,32 +282,6 @@ static int __init early_parse_mem(char *p)
 	return 0;
 }
 early_param("mem", early_parse_mem);
-
-/*
- * "ipldelay=XXX[sm]" sets ipl delay in seconds or minutes
- */
-static int __init early_parse_ipldelay(char *p)
-{
-	unsigned long delay = 0;
-
-	delay = simple_strtoul(p, &p, 0);
-
-	switch (*p) {
-	case 's':
-	case 'S':
-		delay *= 1000000;
-		break;
-	case 'm':
-	case 'M':
-		delay *= 60 * 1000000;
-	}
-
-	/* now wait for the requested amount of time */
-	udelay(delay);
-
-	return 0;
-}
-early_param("ipldelay", early_parse_ipldelay);
 
 #ifdef CONFIG_S390_SWITCH_AMODE
 #ifdef CONFIG_PGSTE
@@ -799,16 +767,15 @@ setup_arch(char **cmdline_p)
 		printk("We are running under VM (64 bit mode)\n");
 	else if (MACHINE_IS_KVM) {
 		printk("We are running under KVM (64 bit mode)\n");
-		add_preferred_console("ttyS", 1, NULL);
+		add_preferred_console("hvc", 0, NULL);
+		s390_virtio_console_init();
 	} else
 		printk("We are running native (64 bit mode)\n");
 #endif /* CONFIG_64BIT */
 
-	/* Save unparsed command line copy for /proc/cmdline */
-	strlcpy(boot_command_line, COMMAND_LINE, COMMAND_LINE_SIZE);
-
-	*cmdline_p = COMMAND_LINE;
-	*(*cmdline_p + COMMAND_LINE_SIZE - 1) = '\0';
+	/* Have one command line that is parsed and saved in /proc/cmdline */
+	/* boot_command_line has been already set up in early.c */
+	*cmdline_p = boot_command_line;
 
         ROOT_DEV = Root_RAM0;
 

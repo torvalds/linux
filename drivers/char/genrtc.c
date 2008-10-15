@@ -51,6 +51,7 @@
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
+#include <linux/smp_lock.h>
 #include <linux/workqueue.h>
 
 #include <asm/uaccess.h>
@@ -338,12 +339,16 @@ static int gen_rtc_ioctl(struct inode *inode, struct file *file,
 
 static int gen_rtc_open(struct inode *inode, struct file *file)
 {
-	if (gen_rtc_status & RTC_IS_OPEN)
+	lock_kernel();
+	if (gen_rtc_status & RTC_IS_OPEN) {
+		unlock_kernel();
 		return -EBUSY;
+	}
 
 	gen_rtc_status |= RTC_IS_OPEN;
 	gen_rtc_irq_data = 0;
 	irq_active = 0;
+	unlock_kernel();
 
 	return 0;
 }

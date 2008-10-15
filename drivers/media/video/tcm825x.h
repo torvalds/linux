@@ -182,6 +182,7 @@ struct tcm825x_platform_data {
 	int (*needs_reset)(struct v4l2_int_device *s, void *buf,
 			   struct v4l2_pix_format *fmt);
 	int (*ifparm)(struct v4l2_ifparm *p);
+	int (*is_upside_down)(void);
 };
 
 /* Array of image sizes supported by TCM825X.  These must be ordered from

@@ -43,8 +43,9 @@ static const char *ieee80211_modes[] = {
 
 #define MAX_CUSTOM_LEN 64
 static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
-					   char *start, char *stop,
-					   struct ieee80211_network *network)
+				      char *start, char *stop,
+				      struct ieee80211_network *network,
+				      struct iw_request_info *info)
 {
 	char custom[MAX_CUSTOM_LEN];
 	char *p;
@@ -57,7 +58,7 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 	iwe.cmd = SIOCGIWAP;
 	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
 	memcpy(iwe.u.ap_addr.sa_data, network->bssid, ETH_ALEN);
-	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_ADDR_LEN);
+	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_ADDR_LEN);
 
 	/* Remaining entries will be displayed in the order we provide them */
 
@@ -66,17 +67,19 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 	iwe.u.data.flags = 1;
 	if (network->flags & NETWORK_EMPTY_ESSID) {
 		iwe.u.data.length = sizeof("<hidden>");
-		start = iwe_stream_add_point(start, stop, &iwe, "<hidden>");
+		start = iwe_stream_add_point(info, start, stop,
+					     &iwe, "<hidden>");
 	} else {
 		iwe.u.data.length = min(network->ssid_len, (u8) 32);
-		start = iwe_stream_add_point(start, stop, &iwe, network->ssid);
+		start = iwe_stream_add_point(info, start, stop,
+					     &iwe, network->ssid);
 	}
 
 	/* Add the protocol name */
 	iwe.cmd = SIOCGIWNAME;
 	snprintf(iwe.u.name, IFNAMSIZ, "IEEE 802.11%s",
 		 ieee80211_modes[network->mode]);
-	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_CHAR_LEN);
+	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_CHAR_LEN);
 
 	/* Add mode */
 	iwe.cmd = SIOCGIWMODE;
@@ -86,7 +89,8 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 		else
 			iwe.u.mode = IW_MODE_ADHOC;
 
-		start = iwe_stream_add_event(start, stop, &iwe, IW_EV_UINT_LEN);
+		start = iwe_stream_add_event(info, start, stop,
+					     &iwe, IW_EV_UINT_LEN);
 	}
 
 	/* Add channel and frequency */
@@ -95,7 +99,7 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 	iwe.u.freq.m = ieee80211_channel_to_freq(ieee, network->channel);
 	iwe.u.freq.e = 6;
 	iwe.u.freq.i = 0;
-	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_FREQ_LEN);
+	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_FREQ_LEN);
 
 	/* Add encryption capability */
 	iwe.cmd = SIOCGIWENCODE;
@@ -104,12 +108,13 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 	else
 		iwe.u.data.flags = IW_ENCODE_DISABLED;
 	iwe.u.data.length = 0;
-	start = iwe_stream_add_point(start, stop, &iwe, network->ssid);
+	start = iwe_stream_add_point(info, start, stop,
+				     &iwe, network->ssid);
 
 	/* Add basic and extended rates */
 	/* Rate : stuffing multiple values in a single event require a bit
 	 * more of magic - Jean II */
-	current_val = start + IW_EV_LCP_LEN;
+	current_val = start + iwe_stream_lcp_len(info);
 	iwe.cmd = SIOCGIWRATE;
 	/* Those two flags are ignored... */
 	iwe.u.bitrate.fixed = iwe.u.bitrate.disabled = 0;
@@ -124,17 +129,19 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 		/* Bit rate given in 500 kb/s units (+ 0x80) */
 		iwe.u.bitrate.value = ((rate & 0x7f) * 500000);
 		/* Add new value to event */
-		current_val = iwe_stream_add_value(start, current_val, stop, &iwe, IW_EV_PARAM_LEN);
+		current_val = iwe_stream_add_value(info, start, current_val,
+						   stop, &iwe, IW_EV_PARAM_LEN);
 	}
 	for (; j < network->rates_ex_len; j++) {
 		rate = network->rates_ex[j] & 0x7F;
 		/* Bit rate given in 500 kb/s units (+ 0x80) */
 		iwe.u.bitrate.value = ((rate & 0x7f) * 500000);
 		/* Add new value to event */
-		current_val = iwe_stream_add_value(start, current_val, stop, &iwe, IW_EV_PARAM_LEN);
+		current_val = iwe_stream_add_value(info, start, current_val,
+						   stop, &iwe, IW_EV_PARAM_LEN);
 	}
 	/* Check if we added any rate */
-	if((current_val - start) > IW_EV_LCP_LEN)
+	if ((current_val - start) > iwe_stream_lcp_len(info))
 		start = current_val;
 
 	/* Add quality statistics */
@@ -181,14 +188,14 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 		iwe.u.qual.level = network->stats.signal;
 	}
 
-	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_QUAL_LEN);
+	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_QUAL_LEN);
 
 	iwe.cmd = IWEVCUSTOM;
 	p = custom;
 
 	iwe.u.data.length = p - custom;
 	if (iwe.u.data.length)
-		start = iwe_stream_add_point(start, stop, &iwe, custom);
+		start = iwe_stream_add_point(info, start, stop, &iwe, custom);
 
 	memset(&iwe, 0, sizeof(iwe));
 	if (network->wpa_ie_len) {
@@ -196,7 +203,7 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 		memcpy(buf, network->wpa_ie, network->wpa_ie_len);
 		iwe.cmd = IWEVGENIE;
 		iwe.u.data.length = network->wpa_ie_len;
-		start = iwe_stream_add_point(start, stop, &iwe, buf);
+		start = iwe_stream_add_point(info, start, stop, &iwe, buf);
 	}
 
 	memset(&iwe, 0, sizeof(iwe));
@@ -205,7 +212,7 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 		memcpy(buf, network->rsn_ie, network->rsn_ie_len);
 		iwe.cmd = IWEVGENIE;
 		iwe.u.data.length = network->rsn_ie_len;
-		start = iwe_stream_add_point(start, stop, &iwe, buf);
+		start = iwe_stream_add_point(info, start, stop, &iwe, buf);
 	}
 
 	/* Add EXTRA: Age to display seconds since last beacon/probe response
@@ -217,7 +224,7 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 		      jiffies_to_msecs(jiffies - network->last_scanned));
 	iwe.u.data.length = p - custom;
 	if (iwe.u.data.length)
-		start = iwe_stream_add_point(start, stop, &iwe, custom);
+		start = iwe_stream_add_point(info, start, stop, &iwe, custom);
 
 	/* Add spectrum management information */
 	iwe.cmd = -1;
@@ -238,7 +245,7 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 
 	if (iwe.cmd == IWEVCUSTOM) {
 		iwe.u.data.length = p - custom;
-		start = iwe_stream_add_point(start, stop, &iwe, custom);
+		start = iwe_stream_add_point(info, start, stop, &iwe, custom);
 	}
 
 	return start;
@@ -272,7 +279,8 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 
 		if (ieee->scan_age == 0 ||
 		    time_after(network->last_scanned + ieee->scan_age, jiffies))
-			ev = ieee80211_translate_scan(ieee, ev, stop, network);
+			ev = ieee80211_translate_scan(ieee, ev, stop, network,
+						      info);
 		else
 			IEEE80211_DEBUG_SCAN("Not showing network '%s ("
 					     "%s)' due to age (%dms).\n",
@@ -744,98 +752,9 @@ int ieee80211_wx_get_encodeext(struct ieee80211_device *ieee,
 	return 0;
 }
 
-int ieee80211_wx_set_auth(struct net_device *dev,
-			  struct iw_request_info *info,
-			  union iwreq_data *wrqu,
-			  char *extra)
-{
-	struct ieee80211_device *ieee = netdev_priv(dev);
-	unsigned long flags;
-	int err = 0;
-
-	spin_lock_irqsave(&ieee->lock, flags);
-
-	switch (wrqu->param.flags & IW_AUTH_INDEX) {
-	case IW_AUTH_WPA_VERSION:
-	case IW_AUTH_CIPHER_PAIRWISE:
-	case IW_AUTH_CIPHER_GROUP:
-	case IW_AUTH_KEY_MGMT:
-		/*
-		 * Host AP driver does not use these parameters and allows
-		 * wpa_supplicant to control them internally.
-		 */
-		break;
-	case IW_AUTH_TKIP_COUNTERMEASURES:
-		break;		/* FIXME */
-	case IW_AUTH_DROP_UNENCRYPTED:
-		ieee->drop_unencrypted = !!wrqu->param.value;
-		break;
-	case IW_AUTH_80211_AUTH_ALG:
-		break;		/* FIXME */
-	case IW_AUTH_WPA_ENABLED:
-		ieee->privacy_invoked = ieee->wpa_enabled = !!wrqu->param.value;
-		break;
-	case IW_AUTH_RX_UNENCRYPTED_EAPOL:
-		ieee->ieee802_1x = !!wrqu->param.value;
-		break;
-	case IW_AUTH_PRIVACY_INVOKED:
-		ieee->privacy_invoked = !!wrqu->param.value;
-		break;
-	default:
-		err = -EOPNOTSUPP;
-		break;
-	}
-	spin_unlock_irqrestore(&ieee->lock, flags);
-	return err;
-}
-
-int ieee80211_wx_get_auth(struct net_device *dev,
-			  struct iw_request_info *info,
-			  union iwreq_data *wrqu,
-			  char *extra)
-{
-	struct ieee80211_device *ieee = netdev_priv(dev);
-	unsigned long flags;
-	int err = 0;
-
-	spin_lock_irqsave(&ieee->lock, flags);
-
-	switch (wrqu->param.flags & IW_AUTH_INDEX) {
-	case IW_AUTH_WPA_VERSION:
-	case IW_AUTH_CIPHER_PAIRWISE:
-	case IW_AUTH_CIPHER_GROUP:
-	case IW_AUTH_KEY_MGMT:
-	case IW_AUTH_TKIP_COUNTERMEASURES:		/* FIXME */
-	case IW_AUTH_80211_AUTH_ALG:			/* FIXME */
-		/*
-		 * Host AP driver does not use these parameters and allows
-		 * wpa_supplicant to control them internally.
-		 */
-		err = -EOPNOTSUPP;
-		break;
-	case IW_AUTH_DROP_UNENCRYPTED:
-		wrqu->param.value = ieee->drop_unencrypted;
-		break;
-	case IW_AUTH_WPA_ENABLED:
-		wrqu->param.value = ieee->wpa_enabled;
-		break;
-	case IW_AUTH_RX_UNENCRYPTED_EAPOL:
-		wrqu->param.value = ieee->ieee802_1x;
-		break;
-	default:
-		err = -EOPNOTSUPP;
-		break;
-	}
-	spin_unlock_irqrestore(&ieee->lock, flags);
-	return err;
-}
-
 EXPORT_SYMBOL(ieee80211_wx_set_encodeext);
 EXPORT_SYMBOL(ieee80211_wx_get_encodeext);
 
 EXPORT_SYMBOL(ieee80211_wx_get_scan);
 EXPORT_SYMBOL(ieee80211_wx_set_encode);
 EXPORT_SYMBOL(ieee80211_wx_get_encode);
-
-EXPORT_SYMBOL_GPL(ieee80211_wx_set_auth);
-EXPORT_SYMBOL_GPL(ieee80211_wx_get_auth);

@@ -4,8 +4,6 @@
  *	Authors:
  *	Pedro Roque		<roque@di.fc.ul.pt>
  *
- *	$Id: ipv6.h,v 1.1 2002/05/20 15:13:07 jgrimm Exp $
- *
  *	This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
  *      as published by the Free Software Foundation; either version
@@ -112,49 +110,42 @@ struct frag_hdr {
 extern int sysctl_mld_max_msf;
 extern struct ctl_path net_ipv6_ctl_path[];
 
-#define _DEVINC(statname, modifier, idev, field)			\
+#define _DEVINC(net, statname, modifier, idev, field)			\
 ({									\
 	struct inet6_dev *_idev = (idev);				\
 	if (likely(_idev != NULL))					\
 		SNMP_INC_STATS##modifier((_idev)->stats.statname, (field)); \
-	SNMP_INC_STATS##modifier(statname##_statistics, (field));	\
+	SNMP_INC_STATS##modifier((net)->mib.statname##_statistics, (field));\
 })
 
-#define _DEVADD(statname, modifier, idev, field, val)			\
+#define _DEVADD(net, statname, modifier, idev, field, val)		\
 ({									\
 	struct inet6_dev *_idev = (idev);				\
 	if (likely(_idev != NULL))					\
 		SNMP_ADD_STATS##modifier((_idev)->stats.statname, (field), (val)); \
-	SNMP_ADD_STATS##modifier(statname##_statistics, (field), (val));\
+	SNMP_ADD_STATS##modifier((net)->mib.statname##_statistics, (field), (val));\
 })
 
 /* MIBs */
-DECLARE_SNMP_STAT(struct ipstats_mib, ipv6_statistics);
 
-#define IP6_INC_STATS(idev,field)	_DEVINC(ipv6, , idev, field)
-#define IP6_INC_STATS_BH(idev,field)	_DEVINC(ipv6, _BH, idev, field)
-#define IP6_INC_STATS_USER(idev,field)	_DEVINC(ipv6, _USER, idev, field)
-#define IP6_ADD_STATS_BH(idev,field,val) _DEVADD(ipv6, _BH, idev, field, val)
+#define IP6_INC_STATS(net, idev,field)		\
+		_DEVINC(net, ipv6, , idev, field)
+#define IP6_INC_STATS_BH(net, idev,field)	\
+		_DEVINC(net, ipv6, _BH, idev, field)
+#define IP6_ADD_STATS_BH(net, idev,field,val)	\
+		_DEVADD(net, ipv6, _BH, idev, field, val)
 
-DECLARE_SNMP_STAT(struct icmpv6_mib, icmpv6_statistics);
-DECLARE_SNMP_STAT(struct icmpv6msg_mib, icmpv6msg_statistics);
+#define ICMP6_INC_STATS(net, idev, field)	\
+		_DEVINC(net, icmpv6, , idev, field)
+#define ICMP6_INC_STATS_BH(net, idev, field)	\
+		_DEVINC(net, icmpv6, _BH, idev, field)
 
-#define ICMP6_INC_STATS(idev, field)	_DEVINC(icmpv6, , idev, field)
-#define ICMP6_INC_STATS_BH(idev, field)	_DEVINC(icmpv6, _BH, idev, field)
-#define ICMP6_INC_STATS_USER(idev, field) _DEVINC(icmpv6, _USER, idev, field)
-
-#define ICMP6MSGOUT_INC_STATS(idev, field) \
-	_DEVINC(icmpv6msg, , idev, field +256)
-#define ICMP6MSGOUT_INC_STATS_BH(idev, field) \
-	_DEVINC(icmpv6msg, _BH, idev, field +256)
-#define ICMP6MSGOUT_INC_STATS_USER(idev, field) \
-	_DEVINC(icmpv6msg, _USER, idev, field +256)
-#define ICMP6MSGIN_INC_STATS(idev, field) \
-	 _DEVINC(icmpv6msg, , idev, field)
-#define ICMP6MSGIN_INC_STATS_BH(idev, field) \
-	_DEVINC(icmpv6msg, _BH, idev, field)
-#define ICMP6MSGIN_INC_STATS_USER(idev, field) \
-	_DEVINC(icmpv6msg, _USER, idev, field)
+#define ICMP6MSGOUT_INC_STATS(net, idev, field)		\
+	_DEVINC(net, icmpv6msg, , idev, field +256)
+#define ICMP6MSGOUT_INC_STATS_BH(net, idev, field)	\
+	_DEVINC(net, icmpv6msg, _BH, idev, field +256)
+#define ICMP6MSGIN_INC_STATS_BH(net, idev, field)	\
+	_DEVINC(net, icmpv6msg, _BH, idev, field)
 
 struct ip6_ra_chain
 {
@@ -229,9 +220,7 @@ static inline void fl6_sock_release(struct ip6_flowlabel *fl)
 		atomic_dec(&fl->users);
 }
 
-extern int 			ip6_ra_control(struct sock *sk, int sel,
-					       void (*destructor)(struct sock *));
-
+extern int 			ip6_ra_control(struct sock *sk, int sel);
 
 extern int			ipv6_parse_hopopts(struct sk_buff *skb);
 
@@ -586,6 +575,8 @@ extern int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf);
 extern int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
 			 struct group_filter __user *optval,
 			 int __user *optlen);
+extern unsigned int inet6_hash_frag(__be32 id, const struct in6_addr *saddr,
+				    const struct in6_addr *daddr, u32 rnd);
 
 #ifdef CONFIG_PROC_FS
 extern int  ac6_proc_init(struct net *net);
@@ -618,6 +609,8 @@ extern struct ctl_table *ipv6_icmp_sysctl_init(struct net *net);
 extern struct ctl_table *ipv6_route_sysctl_init(struct net *net);
 extern int ipv6_sysctl_register(void);
 extern void ipv6_sysctl_unregister(void);
+extern int ipv6_static_sysctl_register(void);
+extern void ipv6_static_sysctl_unregister(void);
 #endif
 
 #endif /* __KERNEL__ */

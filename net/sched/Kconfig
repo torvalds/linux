@@ -106,16 +106,14 @@ config NET_SCH_PRIO
 	  To compile this code as a module, choose M here: the
 	  module will be called sch_prio.
 
-config NET_SCH_RR
-	tristate "Multi Band Round Robin Queuing (RR)"
-	select NET_SCH_PRIO
+config NET_SCH_MULTIQ
+	tristate "Hardware Multiqueue-aware Multi Band Queuing (MULTIQ)"
 	---help---
-	  Say Y here if you want to use an n-band round robin packet
-	  scheduler.
+	  Say Y here if you want to use an n-band queue packet scheduler
+	  to support devices that have multiple hardware transmit queues.
 
-	  The module uses sch_prio for its framework and is aliased as
-	  sch_rr, so it will load sch_prio, although it is referred
-	  to using sch_rr.
+	  To compile this code as a module, choose M here: the
+	  module will be called sch_multiq.
 
 config NET_SCH_RED
 	tristate "Random Early Detection (RED)"
@@ -486,6 +484,17 @@ config NET_ACT_SIMP
 
 	  To compile this code as a module, choose M here: the
 	  module will be called simple.
+
+config NET_ACT_SKBEDIT
+        tristate "SKB Editing"
+        depends on NET_CLS_ACT
+        ---help---
+	  Say Y here to change skb priority or queue_mapping settings.
+
+	  If unsure, say N.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called skbedit.
 
 config NET_CLS_IND
 	bool "Incoming device classification"

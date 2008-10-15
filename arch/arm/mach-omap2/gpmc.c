@@ -15,10 +15,10 @@
 #include <linux/clk.h>
 #include <linux/ioport.h>
 #include <linux/spinlock.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/mach-types.h>
-#include <asm/arch/gpmc.h>
+#include <mach/gpmc.h>
 
 #undef DEBUG
 
@@ -42,7 +42,7 @@
 #define GPMC_STATUS		0x54
 #define GPMC_PREFETCH_CONFIG1	0x1e0
 #define GPMC_PREFETCH_CONFIG2	0x1e4
-#define GPMC_PREFETCH_CONTROL	0x1e8
+#define GPMC_PREFETCH_CONTROL	0x1ec
 #define GPMC_PREFETCH_STATUS	0x1f0
 #define GPMC_ECC_CONFIG		0x1f4
 #define GPMC_ECC_CONTROL	0x1f8

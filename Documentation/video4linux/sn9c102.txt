@@ -157,7 +157,7 @@ Loading can be done as shown below:
 
 	[root@localhost home]# modprobe sn9c102
 
-Note that the module is called "sn9c102" for historic reasons, althought it
+Note that the module is called "sn9c102" for historic reasons, although it
 does not just support the SN9C102.
 
 At this point all the devices supported by the driver and connected to the USB

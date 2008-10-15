@@ -23,7 +23,7 @@
 #include <linux/init.h>
 #include <linux/input.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/hardware/iomd.h>

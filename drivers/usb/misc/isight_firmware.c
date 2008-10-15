@@ -41,14 +41,15 @@ static int isight_firmware_load(struct usb_interface *intf,
 	const struct firmware *firmware;
 	unsigned char *buf = kmalloc(50, GFP_KERNEL);
 	unsigned char data[4];
-	u8 *ptr;
+	const u8 *ptr;
 
 	if (!buf)
 		return -ENOMEM;
 
 	if (request_firmware(&firmware, "isight.fw", &dev->dev) != 0) {
 		printk(KERN_ERR "Unable to load isight firmware\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto out;
 	}
 
 	ptr = firmware->data;
@@ -91,7 +92,6 @@ static int isight_firmware_load(struct usb_interface *intf,
 			     buf, llen, 300) != llen) {
 				printk(KERN_ERR
 				       "Failed to load isight firmware\n");
-				kfree(buf);
 				ret = -ENODEV;
 				goto out;
 			}

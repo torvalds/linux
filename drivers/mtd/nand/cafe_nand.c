@@ -1,6 +1,9 @@
 /*
  * Driver for One Laptop Per Child ‘CAFÉ’ controller, aka Marvell 88ALP01
  *
+ * The data sheet for this device can be found at:
+ *    http://www.marvell.com/products/pcconn/88ALP01.jsp
+ *
  * Copyright © 2006 Red Hat, Inc.
  * Copyright © 2006 David Woodhouse <dwmw2@infradead.org>
  */
@@ -626,10 +629,12 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 {
 	struct mtd_info *mtd;
 	struct cafe_priv *cafe;
-	struct mtd_partition *parts;
 	uint32_t ctrl;
-	int nr_parts;
 	int err = 0;
+#ifdef CONFIG_MTD_PARTITIONS
+	struct mtd_partition *parts;
+	int nr_parts;
+#endif
 
 	/* Very old versions shared the same PCI ident for all three
 	   functions on the chip. Verify the class too... */
@@ -840,7 +845,8 @@ static void __devexit cafe_nand_remove(struct pci_dev *pdev)
 }
 
 static struct pci_device_id cafe_nand_tbl[] = {
-	{ 0x11ab, 0x4100, PCI_ANY_ID, PCI_ANY_ID },
+	{ PCI_VENDOR_ID_MARVELL, PCI_DEVICE_ID_MARVELL_88ALP01_NAND,
+	  PCI_ANY_ID, PCI_ANY_ID },
 	{ }
 };
 

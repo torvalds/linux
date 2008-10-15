@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/module.h>
+#include <linux/pci-aspm.h>
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
 #include <acpi/acresrc.h>
@@ -21,11 +22,18 @@
 
 struct acpi_osc_data {
 	acpi_handle handle;
-	u32 ctrlset_buf[3];
-	u32 global_ctrlsets;
+	u32 support_set;
+	u32 control_set;
+	int is_queried;
+	u32 query_result;
 	struct list_head sibiling;
 };
 static LIST_HEAD(acpi_osc_data_list);
+
+struct acpi_osc_args {
+	u32 capbuf[3];
+	u32 query_result;
+};
 
 static struct acpi_osc_data *acpi_get_osc_data(acpi_handle handle)
 {
@@ -44,25 +52,80 @@ static struct acpi_osc_data *acpi_get_osc_data(acpi_handle handle)
 	return data;
 }
 
-static u8 OSC_UUID[16] = {0x5B, 0x4D, 0xDB, 0x33, 0xF7, 0x1F, 0x1C, 0x40, 0x96, 0x57, 0x74, 0x41, 0xC0, 0x3D, 0xD7, 0x66};
+static u8 OSC_UUID[16] = {0x5B, 0x4D, 0xDB, 0x33, 0xF7, 0x1F, 0x1C, 0x40,
+			  0x96, 0x57, 0x74, 0x41, 0xC0, 0x3D, 0xD7, 0x66};
 
-static acpi_status  
-acpi_query_osc (
-	acpi_handle	handle,
-	u32		level,
-	void		*context,
-	void		**retval )
+static acpi_status acpi_run_osc(acpi_handle handle,
+				struct acpi_osc_args *osc_args)
 {
-	acpi_status		status;
-	struct acpi_object_list	input;
-	union acpi_object 	in_params[4];
-	struct acpi_buffer	output = {ACPI_ALLOCATE_BUFFER, NULL};
-	union acpi_object 	*out_obj;
-	u32			osc_dw0;
-	acpi_status *ret_status = (acpi_status *)retval;
+	acpi_status status;
+	struct acpi_object_list input;
+	union acpi_object in_params[4];
+	struct acpi_buffer output = {ACPI_ALLOCATE_BUFFER, NULL};
+	union acpi_object *out_obj;
+	u32 osc_dw0, flags = osc_args->capbuf[OSC_QUERY_TYPE];
+
+	/* Setting up input parameters */
+	input.count = 4;
+	input.pointer = in_params;
+	in_params[0].type 		= ACPI_TYPE_BUFFER;
+	in_params[0].buffer.length 	= 16;
+	in_params[0].buffer.pointer	= OSC_UUID;
+	in_params[1].type 		= ACPI_TYPE_INTEGER;
+	in_params[1].integer.value 	= 1;
+	in_params[2].type 		= ACPI_TYPE_INTEGER;
+	in_params[2].integer.value	= 3;
+	in_params[3].type		= ACPI_TYPE_BUFFER;
+	in_params[3].buffer.length 	= 12;
+	in_params[3].buffer.pointer 	= (u8 *)osc_args->capbuf;
+
+	status = acpi_evaluate_object(handle, "_OSC", &input, &output);
+	if (ACPI_FAILURE(status))
+		return status;
+
+	out_obj = output.pointer;
+	if (out_obj->type != ACPI_TYPE_BUFFER) {
+		printk(KERN_DEBUG "Evaluate _OSC returns wrong type\n");
+		status = AE_TYPE;
+		goto out_kfree;
+	}
+	osc_dw0 = *((u32 *)out_obj->buffer.pointer);
+	if (osc_dw0) {
+		if (osc_dw0 & OSC_REQUEST_ERROR)
+			printk(KERN_DEBUG "_OSC request fails\n"); 
+		if (osc_dw0 & OSC_INVALID_UUID_ERROR)
+			printk(KERN_DEBUG "_OSC invalid UUID\n"); 
+		if (osc_dw0 & OSC_INVALID_REVISION_ERROR)
+			printk(KERN_DEBUG "_OSC invalid revision\n"); 
+		if (osc_dw0 & OSC_CAPABILITIES_MASK_ERROR) {
+			if (flags & OSC_QUERY_ENABLE)
+				goto out_success;
+			printk(KERN_DEBUG "_OSC FW not grant req. control\n");
+			status = AE_SUPPORT;
+			goto out_kfree;
+		}
+		status = AE_ERROR;
+		goto out_kfree;
+	}
+out_success:
+	if (flags & OSC_QUERY_ENABLE)
+		osc_args->query_result =
+			*((u32 *)(out_obj->buffer.pointer + 8));
+	status = AE_OK;
+
+out_kfree:
+	kfree(output.pointer);
+	return status;
+}
+
+static acpi_status acpi_query_osc(acpi_handle handle,
+				  u32 level, void *context, void **retval)
+{
+	acpi_status status;
 	struct acpi_osc_data *osc_data;
-	u32 flags = (unsigned long)context, temp;
+	u32 flags = (unsigned long)context, support_set;
 	acpi_handle tmp;
+	struct acpi_osc_args osc_args;
 
 	status = acpi_get_handle(handle, "_OSC", &tmp);
 	if (ACPI_FAILURE(status))
@@ -74,134 +137,19 @@ acpi_query_osc (
 		return AE_ERROR;
 	}
 
-	osc_data->ctrlset_buf[OSC_SUPPORT_TYPE] |= (flags & OSC_SUPPORT_MASKS);
-
 	/* do _OSC query for all possible controls */
-	temp = osc_data->ctrlset_buf[OSC_CONTROL_TYPE];
-	osc_data->ctrlset_buf[OSC_QUERY_TYPE] = OSC_QUERY_ENABLE;
-	osc_data->ctrlset_buf[OSC_CONTROL_TYPE] = OSC_CONTROL_MASKS;
+	support_set = osc_data->support_set | (flags & OSC_SUPPORT_MASKS);
+	osc_args.capbuf[OSC_QUERY_TYPE] = OSC_QUERY_ENABLE;
+	osc_args.capbuf[OSC_SUPPORT_TYPE] = support_set;
+	osc_args.capbuf[OSC_CONTROL_TYPE] = OSC_CONTROL_MASKS;
 
-	/* Setting up input parameters */
-	input.count = 4;
-	input.pointer = in_params;
-	in_params[0].type 		= ACPI_TYPE_BUFFER;
-	in_params[0].buffer.length 	= 16;
-	in_params[0].buffer.pointer	= OSC_UUID;
-	in_params[1].type 		= ACPI_TYPE_INTEGER;
-	in_params[1].integer.value 	= 1;
-	in_params[2].type 		= ACPI_TYPE_INTEGER;
-	in_params[2].integer.value	= 3;
-	in_params[3].type		= ACPI_TYPE_BUFFER;
-	in_params[3].buffer.length 	= 12;
-	in_params[3].buffer.pointer 	= (u8 *)osc_data->ctrlset_buf;
-
-	status = acpi_evaluate_object(handle, "_OSC", &input, &output);
-	if (ACPI_FAILURE(status))
-		goto out_nofree;
-	out_obj = output.pointer;
-
-	if (out_obj->type != ACPI_TYPE_BUFFER) {
-		printk(KERN_DEBUG  
-			"Evaluate _OSC returns wrong type\n");
-		status = AE_TYPE;
-		goto query_osc_out;
-	}
-	osc_dw0 = *((u32 *) out_obj->buffer.pointer);
-	if (osc_dw0) {
-		if (osc_dw0 & OSC_REQUEST_ERROR)
-			printk(KERN_DEBUG "_OSC request fails\n"); 
-		if (osc_dw0 & OSC_INVALID_UUID_ERROR)
-			printk(KERN_DEBUG "_OSC invalid UUID\n"); 
-		if (osc_dw0 & OSC_INVALID_REVISION_ERROR)
-			printk(KERN_DEBUG "_OSC invalid revision\n"); 
-		if (osc_dw0 & OSC_CAPABILITIES_MASK_ERROR) {
-			/* Update Global Control Set */
-			osc_data->global_ctrlsets =
-				*((u32 *)(out_obj->buffer.pointer + 8));
-			status = AE_OK;
-			goto query_osc_out;
-		}
-		status = AE_ERROR;
-		goto query_osc_out;
+	status = acpi_run_osc(handle, &osc_args);
+	if (ACPI_SUCCESS(status)) {
+		osc_data->support_set = support_set;
+		osc_data->query_result = osc_args.query_result;
+		osc_data->is_queried = 1;
 	}
 
-	/* Update Global Control Set */
-	osc_data->global_ctrlsets = *((u32 *)(out_obj->buffer.pointer + 8));
-	status = AE_OK;
-
-query_osc_out:
-	kfree(output.pointer);
-out_nofree:
-	*ret_status = status;
-
-	osc_data->ctrlset_buf[OSC_QUERY_TYPE] = !OSC_QUERY_ENABLE;
-	osc_data->ctrlset_buf[OSC_CONTROL_TYPE] = temp;
-	if (ACPI_FAILURE(status)) {
-		/* no osc support at all */
-		osc_data->ctrlset_buf[OSC_SUPPORT_TYPE] = 0;
-	}
-
-	return status;
-}
-
-
-static acpi_status  
-acpi_run_osc (
-	acpi_handle	handle,
-	void		*context)
-{
-	acpi_status		status;
-	struct acpi_object_list	input;
-	union acpi_object 	in_params[4];
-	struct acpi_buffer	output = {ACPI_ALLOCATE_BUFFER, NULL};
-	union acpi_object 	*out_obj;
-	u32			osc_dw0;
-
-	/* Setting up input parameters */
-	input.count = 4;
-	input.pointer = in_params;
-	in_params[0].type 		= ACPI_TYPE_BUFFER;
-	in_params[0].buffer.length 	= 16;
-	in_params[0].buffer.pointer	= OSC_UUID;
-	in_params[1].type 		= ACPI_TYPE_INTEGER;
-	in_params[1].integer.value 	= 1;
-	in_params[2].type 		= ACPI_TYPE_INTEGER;
-	in_params[2].integer.value	= 3;
-	in_params[3].type		= ACPI_TYPE_BUFFER;
-	in_params[3].buffer.length 	= 12;
-	in_params[3].buffer.pointer 	= (u8 *)context;
-
-	status = acpi_evaluate_object(handle, "_OSC", &input, &output);
-	if (ACPI_FAILURE (status))
-		return status;
-
-	out_obj = output.pointer;
-	if (out_obj->type != ACPI_TYPE_BUFFER) {
-		printk(KERN_DEBUG  
-			"Evaluate _OSC returns wrong type\n");
-		status = AE_TYPE;
-		goto run_osc_out;
-	}
-	osc_dw0 = *((u32 *) out_obj->buffer.pointer);
-	if (osc_dw0) {
-		if (osc_dw0 & OSC_REQUEST_ERROR)
-			printk(KERN_DEBUG "_OSC request fails\n"); 
-		if (osc_dw0 & OSC_INVALID_UUID_ERROR)
-			printk(KERN_DEBUG "_OSC invalid UUID\n"); 
-		if (osc_dw0 & OSC_INVALID_REVISION_ERROR)
-			printk(KERN_DEBUG "_OSC invalid revision\n"); 
-		if (osc_dw0 & OSC_CAPABILITIES_MASK_ERROR) {
-			printk(KERN_DEBUG "_OSC FW not grant req. control\n");
-			status = AE_SUPPORT;
-			goto run_osc_out;
-		}
-		status = AE_ERROR;
-		goto run_osc_out;
-	}
-	status = AE_OK;
-
-run_osc_out:
-	kfree(output.pointer);
 	return status;
 }
 
@@ -215,15 +163,11 @@ run_osc_out:
  **/
 acpi_status __pci_osc_support_set(u32 flags, const char *hid)
 {
-	acpi_status retval = AE_NOT_FOUND;
-
-	if (!(flags & OSC_SUPPORT_MASKS)) {
+	if (!(flags & OSC_SUPPORT_MASKS))
 		return AE_TYPE;
-	}
-	acpi_get_devices(hid,
-			acpi_query_osc,
-			(void *)(unsigned long)flags,
-			(void **) &retval );
+
+	acpi_get_devices(hid, acpi_query_osc,
+			 (void *)(unsigned long)flags, NULL);
 	return AE_OK;
 }
 
@@ -236,10 +180,11 @@ acpi_status __pci_osc_support_set(u32 flags, const char *hid)
  **/
 acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 {
-	acpi_status	status;
-	u32		ctrlset;
+	acpi_status status;
+	u32 ctrlset, control_set;
 	acpi_handle tmp;
 	struct acpi_osc_data *osc_data;
+	struct acpi_osc_args osc_args;
 
 	status = acpi_get_handle(handle, "_OSC", &tmp);
 	if (ACPI_FAILURE(status))
@@ -252,24 +197,25 @@ acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 	}
 
 	ctrlset = (flags & OSC_CONTROL_MASKS);
-	if (!ctrlset) {
+	if (!ctrlset)
 		return AE_TYPE;
-	}
-	if (osc_data->ctrlset_buf[OSC_SUPPORT_TYPE] &&
-		((osc_data->global_ctrlsets & ctrlset) != ctrlset)) {
+
+	if (osc_data->is_queried &&
+	    ((osc_data->query_result & ctrlset) != ctrlset))
 		return AE_SUPPORT;
-	}
-	osc_data->ctrlset_buf[OSC_CONTROL_TYPE] |= ctrlset;
-	status = acpi_run_osc(handle, osc_data->ctrlset_buf);
-	if (ACPI_FAILURE (status)) {
-		osc_data->ctrlset_buf[OSC_CONTROL_TYPE] &= ~ctrlset;
-	}
-	
+
+	control_set = osc_data->control_set | ctrlset;
+	osc_args.capbuf[OSC_QUERY_TYPE] = 0;
+	osc_args.capbuf[OSC_SUPPORT_TYPE] = osc_data->support_set;
+	osc_args.capbuf[OSC_CONTROL_TYPE] = control_set;
+	status = acpi_run_osc(handle, &osc_args);
+	if (ACPI_SUCCESS(status))
+		osc_data->control_set = control_set;
+
 	return status;
 }
 EXPORT_SYMBOL(pci_osc_control_set);
 
-#ifdef CONFIG_ACPI_SLEEP
 /*
  * _SxD returns the D-state with the highest power
  * (lowest D-state number) supported in the S-state "x".
@@ -293,13 +239,11 @@ EXPORT_SYMBOL(pci_osc_control_set);
  * 	choose highest power _SxD or any lower power
  */
 
-static pci_power_t acpi_pci_choose_state(struct pci_dev *pdev,
-	pm_message_t state)
+static pci_power_t acpi_pci_choose_state(struct pci_dev *pdev)
 {
 	int acpi_state;
 
-	acpi_state = acpi_pm_device_sleep_state(&pdev->dev,
-		device_may_wakeup(&pdev->dev), NULL);
+	acpi_state = acpi_pm_device_sleep_state(&pdev->dev, NULL);
 	if (acpi_state < 0)
 		return PCI_POWER_ERROR;
 
@@ -315,7 +259,13 @@ static pci_power_t acpi_pci_choose_state(struct pci_dev *pdev,
 	}
 	return PCI_POWER_ERROR;
 }
-#endif
+
+static bool acpi_pci_power_manageable(struct pci_dev *dev)
+{
+	acpi_handle handle = DEVICE_ACPI_HANDLE(&dev->dev);
+
+	return handle ? acpi_bus_power_manageable(handle) : false;
+}
 
 static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 {
@@ -328,12 +278,11 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 		[PCI_D3hot] = ACPI_STATE_D3,
 		[PCI_D3cold] = ACPI_STATE_D3
 	};
+	int error = -EINVAL;
 
-	if (!handle)
-		return -ENODEV;
 	/* If the ACPI device has _EJ0, ignore the device */
-	if (ACPI_SUCCESS(acpi_get_handle(handle, "_EJ0", &tmp)))
-		return 0;
+	if (!handle || ACPI_SUCCESS(acpi_get_handle(handle, "_EJ0", &tmp)))
+		return -ENODEV;
 
 	switch (state) {
 	case PCI_D0:
@@ -341,11 +290,41 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	case PCI_D2:
 	case PCI_D3hot:
 	case PCI_D3cold:
-		return acpi_bus_set_power(handle, state_conv[state]);
+		error = acpi_bus_set_power(handle, state_conv[state]);
 	}
-	return -EINVAL;
+
+	if (!error)
+		dev_printk(KERN_INFO, &dev->dev,
+				"power state changed by ACPI to D%d\n", state);
+
+	return error;
 }
 
+static bool acpi_pci_can_wakeup(struct pci_dev *dev)
+{
+	acpi_handle handle = DEVICE_ACPI_HANDLE(&dev->dev);
+
+	return handle ? acpi_bus_can_wakeup(handle) : false;
+}
+
+static int acpi_pci_sleep_wake(struct pci_dev *dev, bool enable)
+{
+	int error = acpi_pm_device_sleep_wake(&dev->dev, enable);
+
+	if (!error)
+		dev_printk(KERN_INFO, &dev->dev,
+				"wake-up capability %s by ACPI\n",
+				enable ? "enabled" : "disabled");
+	return error;
+}
+
+static struct pci_platform_pm_ops acpi_pci_platform_pm = {
+	.is_manageable = acpi_pci_power_manageable,
+	.set_state = acpi_pci_set_power_state,
+	.choose_state = acpi_pci_choose_state,
+	.can_wakeup = acpi_pci_can_wakeup,
+	.sleep_wake = acpi_pci_sleep_wake,
+};
 
 /* ACPI bus type */
 static int acpi_pci_find_device(struct device *dev, acpi_handle *handle)
@@ -394,13 +373,16 @@ static int __init acpi_pci_init(void)
 		printk(KERN_INFO"ACPI FADT declares the system doesn't support MSI, so disable it\n");
 		pci_no_msi();
 	}
+
+	if (acpi_gbl_FADT.boot_flags & BAF_PCIE_ASPM_CONTROL) {
+		printk(KERN_INFO"ACPI FADT declares the system doesn't support PCIe ASPM, so disable it\n");
+		pcie_no_aspm();
+	}
+
 	ret = register_acpi_bus_type(&acpi_pci_bus);
 	if (ret)
 		return 0;
-#ifdef	CONFIG_ACPI_SLEEP
-	platform_pci_choose_state = acpi_pci_choose_state;
-#endif
-	platform_pci_set_power_state = acpi_pci_set_power_state;
+	pci_set_platform_pm(&acpi_pci_platform_pm);
 	return 0;
 }
 arch_initcall(acpi_pci_init);

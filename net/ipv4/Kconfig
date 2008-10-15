@@ -356,10 +356,8 @@ config INET_ESP
 
 config INET_IPCOMP
 	tristate "IP: IPComp transformation"
-	select XFRM
 	select INET_XFRM_TUNNEL
-	select CRYPTO
-	select CRYPTO_DEFLATE
+	select XFRM_IPCOMP
 	---help---
 	  Support for IP Payload Compression Protocol (IPComp) (RFC3173),
 	  typically needed for IPsec.
@@ -631,6 +629,4 @@ config TCP_MD5SIG
 	  on the Internet.
 
 	  If unsure, say N.
-
-source "net/ipv4/ipvs/Kconfig"
 

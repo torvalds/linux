@@ -14,13 +14,13 @@
 #include <linux/timer.h>
 #include <linux/jiffies.h>
 #include <linux/bootmem.h>
+#include <linux/termios.h>
 #include <linux/err.h>
+#include <linux/reboot.h>
 
 #include "sclp.h"
 #include "sclp_rw.h"
 #include "sclp_tty.h"
-
-#define SCLP_CON_PRINT_HEADER "sclp console driver: "
 
 #define sclp_console_major 4		/* TTYAUX_MAJOR */
 #define sclp_console_minor 64
@@ -173,7 +173,7 @@ sclp_console_device(struct console *c, int *index)
  * will be flushed to the SCLP.
  */
 static void
-sclp_console_unblank(void)
+sclp_console_flush(void)
 {
 	unsigned long flags;
 
@@ -189,6 +189,24 @@ sclp_console_unblank(void)
 	spin_unlock_irqrestore(&sclp_con_lock, flags);
 }
 
+static int
+sclp_console_notify(struct notifier_block *self,
+			  unsigned long event, void *data)
+{
+	sclp_console_flush();
+	return NOTIFY_OK;
+}
+
+static struct notifier_block on_panic_nb = {
+	.notifier_call = sclp_console_notify,
+	.priority = 1,
+};
+
+static struct notifier_block on_reboot_nb = {
+	.notifier_call = sclp_console_notify,
+	.priority = 1,
+};
+
 /*
  * used to register the SCLP console to the kernel and to
  * give printk necessary information
@@ -198,7 +216,6 @@ static struct console sclp_console =
 	.name = sclp_console_name,
 	.write = sclp_console_write,
 	.device = sclp_console_device,
-	.unblank = sclp_console_unblank,
 	.flags = CON_PRINTBUFFER,
 	.index = 0 /* ttyS0 */
 };
@@ -222,8 +239,6 @@ sclp_console_init(void)
 	INIT_LIST_HEAD(&sclp_con_pages);
 	for (i = 0; i < MAX_CONSOLE_PAGES; i++) {
 		page = alloc_bootmem_low_pages(PAGE_SIZE);
-		if (page == NULL)
-			return -ENOMEM;
 		list_add_tail((struct list_head *) page, &sclp_con_pages);
 	}
 	INIT_LIST_HEAD(&sclp_con_outqueue);
@@ -244,6 +259,8 @@ sclp_console_init(void)
 	sclp_con_width_htab = 8;
 
 	/* enable printk-access to this driver */
+	atomic_notifier_chain_register(&panic_notifier_list, &on_panic_nb);
+	register_reboot_notifier(&on_reboot_nb);
 	register_console(&sclp_console);
 	return 0;
 }

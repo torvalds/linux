@@ -11,14 +11,13 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
- *
- *  $Id: if_tun.h,v 1.2 2001/06/01 18:39:47 davem Exp $
  */
 
 #ifndef __IF_TUN_H
 #define __IF_TUN_H
 
 #include <linux/types.h>
+#include <linux/if_ether.h>
 
 /* Read queue size */
 #define TUN_READQ_SIZE	500
@@ -33,6 +32,7 @@
 #define TUN_NO_PI	0x0040
 #define TUN_ONE_QUEUE	0x0080
 #define TUN_PERSIST 	0x0100	
+#define TUN_VNET_HDR 	0x0200
 
 /* Ioctl defines */
 #define TUNSETNOCSUM  _IOW('T', 200, int) 
@@ -42,17 +42,44 @@
 #define TUNSETOWNER   _IOW('T', 204, int)
 #define TUNSETLINK    _IOW('T', 205, int)
 #define TUNSETGROUP   _IOW('T', 206, int)
+#define TUNGETFEATURES _IOR('T', 207, unsigned int)
+#define TUNSETOFFLOAD  _IOW('T', 208, unsigned int)
+#define TUNSETTXFILTER _IOW('T', 209, unsigned int)
+#define TUNGETIFF      _IOR('T', 210, unsigned int)
 
 /* TUNSETIFF ifr flags */
 #define IFF_TUN		0x0001
 #define IFF_TAP		0x0002
 #define IFF_NO_PI	0x1000
 #define IFF_ONE_QUEUE	0x2000
+#define IFF_VNET_HDR	0x4000
 
+/* Features for GSO (TUNSETOFFLOAD). */
+#define TUN_F_CSUM	0x01	/* You can hand me unchecksummed packets. */
+#define TUN_F_TSO4	0x02	/* I can handle TSO for IPv4 packets */
+#define TUN_F_TSO6	0x04	/* I can handle TSO for IPv6 packets */
+#define TUN_F_TSO_ECN	0x08	/* I can handle TSO with ECN bits. */
+
+/* Protocol info prepended to the packets (when IFF_NO_PI is not set) */
+#define TUN_PKT_STRIP	0x0001
 struct tun_pi {
-	unsigned short flags;
+	__u16  flags;
 	__be16 proto;
 };
-#define TUN_PKT_STRIP	0x0001
+
+/*
+ * Filter spec (used for SETXXFILTER ioctls)
+ * This stuff is applicable only to the TAP (Ethernet) devices.
+ * If the count is zero the filter is disabled and the driver accepts
+ * all packets (promisc mode).
+ * If the filter is enabled in order to accept broadcast packets
+ * broadcast addr must be explicitly included in the addr list.
+ */
+#define TUN_FLT_ALLMULTI 0x0001 /* Accept all multicast packets */
+struct tun_filter {
+	__u16  flags; /* TUN_FLT_ flags see above */
+	__u16  count; /* Number of addresses */
+	__u8   addr[0][ETH_ALEN];
+};
 
 #endif /* __IF_TUN_H */

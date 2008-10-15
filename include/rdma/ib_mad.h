@@ -32,11 +32,9 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * $Id: ib_mad.h 5596 2006-03-03 01:00:07Z sean.hefty $
  */
 
-#if !defined( IB_MAD_H )
+#if !defined(IB_MAD_H)
 #define IB_MAD_H
 
 #include <linux/list.h>
@@ -194,8 +192,7 @@ struct ib_vendor_mad {
 	u8			data[IB_MGMT_VENDOR_DATA];
 };
 
-struct ib_class_port_info
-{
+struct ib_class_port_info {
 	u8			base_version;
 	u8			class_version;
 	__be16			capability_mask;
@@ -614,11 +611,11 @@ int ib_process_mad_wc(struct ib_mad_agent *mad_agent,
  * any class specific header, and MAD data area.
  * If @rmpp_active is set, the RMPP header will be initialized for sending.
  */
-struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
-					    u32 remote_qpn, u16 pkey_index,
-					    int rmpp_active,
-					    int hdr_len, int data_len,
-					    gfp_t gfp_mask);
+struct ib_mad_send_buf *ib_create_send_mad(struct ib_mad_agent *mad_agent,
+					   u32 remote_qpn, u16 pkey_index,
+					   int rmpp_active,
+					   int hdr_len, int data_len,
+					   gfp_t gfp_mask);
 
 /**
  * ib_is_mad_class_rmpp - returns whether given management class

@@ -35,11 +35,12 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/hdreg.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/ide.h>
 #include <linux/dma-mapping.h>
+
+#define DRV_NAME "cs5520"
 
 struct pio_clocks
 {
@@ -61,8 +62,6 @@ static void cs5520_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	ide_hwif_t *hwif = HWIF(drive);
 	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 	int controller = drive->dn > 1 ? 1 : 0;
-
-	/* FIXME: if DMA = 1 do we need to set the DMA bit here ? */
 
 	/* 8bit CAT/CRT - 8bit command timing for channel */
 	pci_write_config_byte(pdev, 0x62 + controller, 
@@ -89,52 +88,17 @@ static void cs5520_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	cs5520_set_pio_mode(drive, 0);
 }
 
-/*
- *	We wrap the DMA activate to set the vdma flag. This is needed
- *	so that the IDE DMA layer issues PIO not DMA commands over the
- *	DMA channel
- *
- *	ATAPI is harder so disable it for now using IDE_HFLAG_NO_ATAPI_DMA
- */
-
-static void cs5520_dma_host_set(ide_drive_t *drive, int on)
-{
-	drive->vdma = on;
-	ide_dma_host_set(drive, on);
-}
-
 static const struct ide_port_ops cs5520_port_ops = {
 	.set_pio_mode		= cs5520_set_pio_mode,
 	.set_dma_mode		= cs5520_set_dma_mode,
 };
 
-static const struct ide_dma_ops cs5520_dma_ops = {
-	.dma_host_set		= cs5520_dma_host_set,
-	.dma_setup		= ide_dma_setup,
-	.dma_exec_cmd		= ide_dma_exec_cmd,
-	.dma_start		= ide_dma_start,
-	.dma_end		= __ide_dma_end,
-	.dma_test_irq		= ide_dma_test_irq,
-	.dma_lost_irq		= ide_dma_lost_irq,
-	.dma_timeout		= ide_dma_timeout,
-};
-
-/* FIXME: VDMA is disabled because it caused system hangs */
-#define DECLARE_CS_DEV(name_str)				\
-	{							\
-		.name		= name_str,			\
-		.port_ops	= &cs5520_port_ops,		\
-		.dma_ops	= &cs5520_dma_ops,		\
-		.host_flags	= IDE_HFLAG_ISA_PORTS |		\
-				  IDE_HFLAG_CS5520 |		\
-				  IDE_HFLAG_NO_ATAPI_DMA |	\
-				  IDE_HFLAG_ABUSE_SET_DMA_MODE, \
-		.pio_mask	= ATA_PIO4,			\
-	}
-
-static const struct ide_port_info cyrix_chipsets[] __devinitdata = {
-	/* 0 */ DECLARE_CS_DEV("Cyrix 5510"),
-	/* 1 */ DECLARE_CS_DEV("Cyrix 5520")
+static const struct ide_port_info cyrix_chipset __devinitdata = {
+	.name		= DRV_NAME,
+	.enablebits	= { { 0x60, 0x01, 0x01 }, { 0x60, 0x02, 0x02 } },
+	.port_ops	= &cs5520_port_ops,
+	.host_flags	= IDE_HFLAG_ISA_PORTS | IDE_HFLAG_CS5520,
+	.pio_mask	= ATA_PIO4,
 };
 
 /*
@@ -145,8 +109,8 @@ static const struct ide_port_info cyrix_chipsets[] __devinitdata = {
  
 static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	const struct ide_port_info *d = &cyrix_chipsets[id->driver_data];
-	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+	const struct ide_port_info *d = &cyrix_chipset;
+	hw_regs_t hw[4], *hws[] = { NULL, NULL, NULL, NULL };
 
 	ide_setup_pci_noise(dev, d);
 
@@ -159,7 +123,8 @@ static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_devic
 	}
 	pci_set_master(dev);
 	if (pci_set_dma_mask(dev, DMA_32BIT_MASK)) {
-		printk(KERN_WARNING "cs5520: No suitable DMA available.\n");
+		printk(KERN_WARNING "%s: No suitable DMA available.\n",
+			d->name);
 		return -ENODEV;
 	}
 
@@ -168,11 +133,9 @@ static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_devic
 	 *	do all the device setup for us
 	 */
 
-	ide_pci_setup_ports(dev, d, 14, &idx[0]);
+	ide_pci_setup_ports(dev, d, 14, &hw[0], &hws[0]);
 
-	ide_device_add(idx, d);
-
-	return 0;
+	return ide_host_add(d, hws, NULL);
 }
 
 static const struct pci_device_id cs5520_pci_tbl[] = {
@@ -182,15 +145,17 @@ static const struct pci_device_id cs5520_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, cs5520_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver cs5520_pci_driver = {
 	.name		= "Cyrix_IDE",
 	.id_table	= cs5520_pci_tbl,
 	.probe		= cs5520_init_one,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init cs5520_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&cs5520_pci_driver);
 }
 
 module_init(cs5520_ide_init);

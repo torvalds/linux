@@ -1,194 +1,98 @@
 # ==========================================================================
 # Installing headers
 #
-# header-y files will be installed verbatim
-# unifdef-y are the files where unifdef will be run before installing files
-# objhdr-y are generated files that will be installed verbatim
+# header-y  - list files to be installed. They are preprocessed
+#             to remove __KERNEL__ section of the file
+# unifdef-y - Same as header-y. Obsolete
+# objhdr-y  - Same as header-y but for generated files
 #
 # ==========================================================================
 
-UNIFDEF := scripts/unifdef -U__KERNEL__
-
-# Eliminate the contents of (and inclusions of) compiler.h
-HDRSED  := sed 	-e "s/ inline / __inline__ /g" \
-		-e "s/[[:space:]]__user[[:space:]]\{1,\}/ /g" \
-		-e "s/(__user[[:space:]]\{1,\}/ (/g" \
-		-e "s/[[:space:]]__force[[:space:]]\{1,\}/ /g" \
-		-e "s/(__force[[:space:]]\{1,\}/ (/g" \
-		-e "s/[[:space:]]__iomem[[:space:]]\{1,\}/ /g" \
-		-e "s/(__iomem[[:space:]]\{1,\}/ (/g" \
-		-e "s/[[:space:]]__attribute_const__[[:space:]]\{1,\}/\ /g" \
-		-e "s/[[:space:]]__attribute_const__$$//" \
-		-e "/^\#include <linux\/compiler.h>/d"
-
+# called may set destination dir (when installing to asm/)
 _dst := $(if $(dst),$(dst),$(obj))
 
-ifeq (,$(patsubst include/asm/%,,$(obj)/))
-# For producing the generated stuff in include/asm for biarch builds, include
-# both sets of Kbuild files; we'll generate anything which is mentioned in
-# _either_ arch, and recurse into subdirectories which are mentioned in either
-# arch. Since some directories may exist in one but not the other, we must
-# use $(wildcard...). 
-GENASM := 1
-archasm	   := $(subst include/asm,asm-$(ARCH),$(obj))
-altarchasm := $(subst include/asm,asm-$(ALTARCH),$(obj))
-KBUILDFILES := $(wildcard $(srctree)/include/$(archasm)/Kbuild $(srctree)/include/$(altarchasm)/Kbuild)
-else
-KBUILDFILES := $(srctree)/$(obj)/Kbuild
-endif
+kbuild-file := $(srctree)/$(obj)/Kbuild
+include $(kbuild-file)
 
-include $(KBUILDFILES)
+include scripts/Kbuild.include
 
-include scripts/Kbuild.include 
+install       := $(INSTALL_HDR_PATH)/$(_dst)
 
-# If this is include/asm-$(ARCH) and there's no $(ALTARCH), then
-# override $(_dst) so that we install to include/asm directly.
-# Unless $(BIASMDIR) is set, in which case we're probably doing
-# a 'headers_install_all' build and we should keep the -$(ARCH)
-# in the directory name.
-ifeq ($(obj)$(ALTARCH),include/asm-$(ARCH)$(BIASMDIR))
-     _dst := include/asm
-endif
+header-y      := $(sort $(header-y) $(unifdef-y))
+subdirs       := $(patsubst %/,%,$(filter %/, $(header-y)))
+header-y      := $(filter-out %/, $(header-y))
 
-header-y	:= $(sort $(header-y))
-unifdef-y	:= $(sort $(unifdef-y))
-subdir-y	:= $(patsubst %/,%,$(filter %/, $(header-y)))
-header-y	:= $(filter-out %/, $(header-y))
-header-y	:= $(filter-out $(unifdef-y),$(header-y))
+# files used to track state of install/check
+install-file  := $(install)/.install
+check-file    := $(install)/.check
 
-# stamp files for header checks
-check-y		:= $(patsubst %,.check.%,$(header-y) $(unifdef-y) $(objhdr-y))
+# all headers files for this dir
+all-files     := $(header-y) $(objhdr-y)
+input-files   := $(addprefix $(srctree)/$(obj)/,$(header-y)) \
+                 $(addprefix $(objtree)/$(obj)/,$(objhdr-y))
+output-files  := $(addprefix $(install)/, $(all-files))
 
 # Work out what needs to be removed
-oldheaders	:= $(patsubst $(INSTALL_HDR_PATH)/$(_dst)/%,%,$(wildcard $(INSTALL_HDR_PATH)/$(_dst)/*.h))
-unwanted	:= $(filter-out $(header-y) $(unifdef-y) $(objhdr-y),$(oldheaders))
+oldheaders    := $(patsubst $(install)/%,%,$(wildcard $(install)/*.h))
+unwanted      := $(filter-out $(all-files),$(oldheaders))
 
-oldcheckstamps	:= $(patsubst $(INSTALL_HDR_PATH)/$(_dst)/%,%,$(wildcard $(INSTALL_HDR_PATH)/$(_dst)/.check.*.h))
-unwanted	+= $(filter-out $(check-y),$(oldcheckstamps))
+# Prefix unwanted with full paths to $(INSTALL_HDR_PATH)
+unwanted-file := $(addprefix $(install)/, $(unwanted))
 
-# Prefix them all with full paths to $(INSTALL_HDR_PATH)
-header-y 	:= $(patsubst %,$(INSTALL_HDR_PATH)/$(_dst)/%,$(header-y))
-unifdef-y 	:= $(patsubst %,$(INSTALL_HDR_PATH)/$(_dst)/%,$(unifdef-y))
-objhdr-y 	:= $(patsubst %,$(INSTALL_HDR_PATH)/$(_dst)/%,$(objhdr-y))
-check-y 	:= $(patsubst %,$(INSTALL_HDR_PATH)/$(_dst)/%,$(check-y))
+printdir = $(patsubst $(INSTALL_HDR_PATH)/%/,%,$(dir $@))
 
+quiet_cmd_install = INSTALL $(printdir) ($(words $(all-files))\
+                            file$(if $(word 2, $(all-files)),s))
+      cmd_install = \
+        $(PERL) $< $(srctree)/$(obj) $(install) $(SRCARCH) $(header-y); \
+        $(PERL) $< $(objtree)/$(obj) $(install) $(SRCARCH) $(objhdr-y); \
+        touch $@
 
-ifdef ALTARCH
-ifeq ($(obj),include/asm-$(ARCH))
-altarch-y	:= altarch-dir
-endif
-endif
+quiet_cmd_remove = REMOVE  $(unwanted)
+      cmd_remove = rm -f $(unwanted-file)
 
-# Make the definitions visible for recursive make invocations
-export ALTARCH
-export ARCHDEF
-export ALTARCHDEF
+quiet_cmd_check = CHECK   $(printdir) ($(words $(all-files)) files)
+      cmd_check = $(PERL) $< $(INSTALL_HDR_PATH)/include $(SRCARCH) \
+                  $(addprefix $(install)/, $(all-files));           \
+	          touch $@
 
-quiet_cmd_o_hdr_install   = INSTALL $(patsubst $(INSTALL_HDR_PATH)/%,%,$@)
-      cmd_o_hdr_install   = cp $(patsubst $(INSTALL_HDR_PATH)/$(_dst)/%,$(objtree)/$(obj)/%,$@) \
-			    $(INSTALL_HDR_PATH)/$(_dst)
+PHONY += __headersinst __headerscheck
 
-quiet_cmd_headers_install = INSTALL $(patsubst $(INSTALL_HDR_PATH)/%,%,$@)
-      cmd_headers_install = $(HDRSED) $(patsubst $(INSTALL_HDR_PATH)/$(_dst)/%,$(srctree)/$(obj)/%,$@)	\
-			    > $@
-
-quiet_cmd_unifdef	  = UNIFDEF $(patsubst $(INSTALL_HDR_PATH)/%,%,$@)
-      cmd_unifdef	  = $(UNIFDEF) $(patsubst $(INSTALL_HDR_PATH)/$(_dst)/%,$(srctree)/$(obj)/%,$@) \
-				   | $(HDRSED) > $@ || :
-
-quiet_cmd_check		  = CHECK   $(patsubst $(INSTALL_HDR_PATH)/$(_dst)/.check.%,$(_dst)/%,$@)
-      cmd_check		  = $(CONFIG_SHELL) $(srctree)/scripts/hdrcheck.sh \
-                              $(INSTALL_HDR_PATH)/include $(subst /.check.,/,$@) $@
-
-quiet_cmd_remove	  = REMOVE  $(_dst)/$@
-      cmd_remove	  = rm -f $(INSTALL_HDR_PATH)/$(_dst)/$@
-
-quiet_cmd_mkdir		  = MKDIR   $(patsubst $(INSTALL_HDR_PATH)/%,%,$@)
-      cmd_mkdir		  = mkdir -p $@
-
-quiet_cmd_gen		  = GEN     $(patsubst $(INSTALL_HDR_PATH)/%,%,$@)
-      cmd_gen		  = \
-FNAME=$(patsubst $(INSTALL_HDR_PATH)/$(_dst)/%,%,$@);			\
-STUBDEF=__ASM_STUB_`echo $$FNAME | tr a-z.- A-Z__`;			\
-(echo "/* File autogenerated by 'make headers_install' */" ;		\
-echo "\#ifndef $$STUBDEF" ;						\
-echo "\#define $$STUBDEF" ;						\
-echo "\# if $(ARCHDEF)" ;						\
-if [ -r $(subst /$(_dst)/,/include/$(archasm)/,$@) ]; then		\
-	echo "\#  include <$(archasm)/$$FNAME>" ;			\
-else									\
-	echo "\#  error $(archasm)/$$FNAME does not exist in"		\
-			"the $(ARCH) architecture" ;			\
-fi ;									\
-echo "\# elif $(ALTARCHDEF)" ;						\
-if [ -r $(subst /$(_dst)/,/include/$(altarchasm)/,$@) ]; then		\
-	echo "\#  include <$(altarchasm)/$$FNAME>" ;			\
-else									\
-	echo "\#  error $(altarchasm)/$$FNAME does not exist in"	\
-			"the $(ALTARCH) architecture" ;			\
-fi ;									\
-echo "\# else" ;							\
-echo "\#  warning This machine appears to be"				\
-		 "neither $(ARCH) nor $(ALTARCH)." ;			\
-echo "\# endif" ;							\
-echo "\#endif /* $$STUBDEF */" ;					\
-) > $@
-
-.PHONY: __headersinst __headerscheck
-
-ifdef HDRCHECK
-__headerscheck: $(subdir-y) $(check-y)
-	@true
-
-$(check-y) : $(INSTALL_HDR_PATH)/$(_dst)/.check.%.h : $(INSTALL_HDR_PATH)/$(_dst)/%.h 
-	$(call cmd,check)
-
-# Other dependencies for $(check-y)
-include /dev/null $(wildcard $(check-y))
-
-# ... but leave $(check-y) as .PHONY for now until those deps are actually correct.
-.PHONY: $(check-y)
-
-else
+ifndef HDRCHECK
 # Rules for installing headers
-__headersinst: $(subdir-y) $(header-y) $(unifdef-y) $(altarch-y) $(objhdr-y)
-	@true
+__headersinst: $(subdirs) $(install-file)
+	@:
 
-$(objhdr-y) $(subdir-y) $(header-y) $(unifdef-y): | $(INSTALL_HDR_PATH)/$(_dst) $(unwanted)
-
-$(INSTALL_HDR_PATH)/$(_dst):
-	$(call cmd,mkdir)
-
-.PHONY: $(unwanted)
-$(unwanted):
-	$(call cmd,remove)
-
-ifdef GENASM
-$(objhdr-y) $(header-y) $(unifdef-y): $(KBUILDFILES)
-	$(call cmd,gen)
+targets += $(install-file)
+$(install-file): scripts/headers_install.pl $(input-files) FORCE
+	$(if $(unwanted),$(call cmd,remove),)
+	$(if $(wildcard $(dir $@)),,$(shell mkdir -p $(dir $@)))
+	$(call if_changed,install)
 
 else
-$(objhdr-y) :		$(INSTALL_HDR_PATH)/$(_dst)/%.h: $(objtree)/$(obj)/%.h $(KBUILDFILES)
-	$(call cmd,o_hdr_install)
+__headerscheck: $(subdirs) $(check-file)
+	@:
 
-$(header-y) :		$(INSTALL_HDR_PATH)/$(_dst)/%.h: $(srctree)/$(obj)/%.h $(KBUILDFILES)
-	$(call cmd,headers_install)
+targets += $(check-file)
+$(check-file): scripts/headers_check.pl $(output-files) FORCE
+	$(call if_changed,check)
 
-$(unifdef-y) :		$(INSTALL_HDR_PATH)/$(_dst)/%.h: $(srctree)/$(obj)/%.h $(KBUILDFILES)
-	$(call cmd,unifdef)
 endif
-endif
-
-hdrinst := -rR -f $(srctree)/scripts/Makefile.headersinst obj
-
-.PHONY: altarch-dir
-# All the files in the normal arch dir must be created first, since we test
-# for their existence.
-altarch-dir: $(subdir-y) $(header-y) $(unifdef-y) $(objhdr-y)
-	$(Q)$(MAKE) $(hdrinst)=include/asm-$(ALTARCH) dst=include/asm-$(ALTARCH)
-	$(Q)$(MAKE) $(hdrinst)=include/asm dst=include/asm$(BIASMDIR)
 
 # Recursion
-.PHONY: $(subdir-y)
-$(subdir-y):
-	$(Q)$(MAKE) $(hdrinst)=$(obj)/$@ dst=$(_dst)/$@ rel=../$(rel)
+hdr-inst := -rR -f $(srctree)/scripts/Makefile.headersinst obj
+.PHONY: $(subdirs)
+$(subdirs):
+	$(Q)$(MAKE) $(hdr-inst)=$(obj)/$@ dst=$(_dst)/$@
+
+targets := $(wildcard $(sort $(targets)))
+cmd_files := $(wildcard \
+             $(foreach f,$(targets),$(dir $(f)).$(notdir $(f)).cmd))
+
+ifneq ($(cmd_files),)
+	include $(cmd_files)
+endif
+
+.PHONY: $(PHONY)
+PHONY += FORCE
+FORCE: ;

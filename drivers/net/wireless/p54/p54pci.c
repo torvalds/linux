@@ -3,6 +3,7 @@
  * Linux device driver for PCI based Prism54
  *
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
+ * Copyright (c) 2008, Christian Lamparter <chunkeey@web.de>
  *
  * Based on the islsm (softmac prism54) driver, which is:
  * Copyright 2004-2006 Jean-Baptiste Note <jean-baptiste.note@m4x.org>, et al.
@@ -71,16 +72,18 @@ static int p54p_upload_firmware(struct ieee80211_hw *dev)
 	P54P_WRITE(ctrl_stat, reg);
 	wmb();
 
-	mdelay(50);
-
 	err = request_firmware(&fw_entry, "isl3886", &priv->pdev->dev);
 	if (err) {
-		printk(KERN_ERR "%s (prism54pci): cannot find firmware "
+		printk(KERN_ERR "%s (p54pci): cannot find firmware "
 		       "(isl3886)\n", pci_name(priv->pdev));
 		return err;
 	}
 
-	p54_parse_firmware(dev, fw_entry);
+	err = p54_parse_firmware(dev, fw_entry);
+	if (err) {
+		release_firmware(fw_entry);
+		return err;
+	}
 
 	data = (__le32 *) fw_entry->data;
 	remains = fw_entry->size;
@@ -121,162 +124,147 @@ static int p54p_upload_firmware(struct ieee80211_hw *dev)
 	wmb();
 	udelay(10);
 
+	/* wait for the firmware to boot properly */
+	mdelay(100);
+
 	return 0;
 }
 
-static irqreturn_t p54p_simple_interrupt(int irq, void *dev_id)
-{
-	struct p54p_priv *priv = (struct p54p_priv *) dev_id;
-	__le32 reg;
-
-	reg = P54P_READ(int_ident);
-	P54P_WRITE(int_ack, reg);
-
-	if (reg & P54P_READ(int_enable))
-		complete(&priv->boot_comp);
-
-	return IRQ_HANDLED;
-}
-
-static int p54p_read_eeprom(struct ieee80211_hw *dev)
+static void p54p_refill_rx_ring(struct ieee80211_hw *dev,
+	int ring_index, struct p54p_desc *ring, u32 ring_limit,
+	struct sk_buff **rx_buf)
 {
 	struct p54p_priv *priv = dev->priv;
 	struct p54p_ring_control *ring_control = priv->ring_control;
-	int err;
-	struct p54_control_hdr *hdr;
-	void *eeprom;
-	dma_addr_t rx_mapping, tx_mapping;
-	u16 alen;
+	u32 limit, idx, i;
 
-	init_completion(&priv->boot_comp);
-	err = request_irq(priv->pdev->irq, &p54p_simple_interrupt,
-			  IRQF_SHARED, "prism54pci", priv);
-	if (err) {
-		printk(KERN_ERR "%s (prism54pci): failed to register IRQ handler\n",
-		       pci_name(priv->pdev));
-		return err;
-	}
+	idx = le32_to_cpu(ring_control->host_idx[ring_index]);
+	limit = idx;
+	limit -= le32_to_cpu(ring_control->device_idx[ring_index]);
+	limit = ring_limit - limit;
 
-	eeprom = kmalloc(0x2010 + EEPROM_READBACK_LEN, GFP_KERNEL);
-	if (!eeprom) {
-		printk(KERN_ERR "%s (prism54pci): no memory for eeprom!\n",
-		       pci_name(priv->pdev));
-		err = -ENOMEM;
-		goto out;
-	}
-
-	memset(ring_control, 0, sizeof(*ring_control));
-	P54P_WRITE(ring_control_base, cpu_to_le32(priv->ring_control_dma));
-	P54P_READ(ring_control_base);
-	udelay(10);
-
-	P54P_WRITE(int_enable, cpu_to_le32(ISL38XX_INT_IDENT_INIT));
-	P54P_READ(int_enable);
-	udelay(10);
-
-	P54P_WRITE(dev_int, cpu_to_le32(ISL38XX_DEV_INT_RESET));
-
-	if (!wait_for_completion_interruptible_timeout(&priv->boot_comp, HZ)) {
-		printk(KERN_ERR "%s (prism54pci): Cannot boot firmware!\n",
-		       pci_name(priv->pdev));
-		err = -EINVAL;
-		goto out;
-	}
-
-	P54P_WRITE(int_enable, cpu_to_le32(ISL38XX_INT_IDENT_UPDATE));
-	P54P_READ(int_enable);
-
-	hdr = eeprom + 0x2010;
-	p54_fill_eeprom_readback(hdr);
-	hdr->req_id = cpu_to_le32(priv->common.rx_start);
-
-	rx_mapping = pci_map_single(priv->pdev, eeprom,
-				    0x2010, PCI_DMA_FROMDEVICE);
-	tx_mapping = pci_map_single(priv->pdev, (void *)hdr,
-				    EEPROM_READBACK_LEN, PCI_DMA_TODEVICE);
-
-	ring_control->rx_mgmt[0].host_addr = cpu_to_le32(rx_mapping);
-	ring_control->rx_mgmt[0].len = cpu_to_le16(0x2010);
-	ring_control->tx_data[0].host_addr = cpu_to_le32(tx_mapping);
-	ring_control->tx_data[0].device_addr = hdr->req_id;
-	ring_control->tx_data[0].len = cpu_to_le16(EEPROM_READBACK_LEN);
-
-	ring_control->host_idx[2] = cpu_to_le32(1);
-	ring_control->host_idx[1] = cpu_to_le32(1);
-
-	wmb();
-	mdelay(100);
-	P54P_WRITE(dev_int, cpu_to_le32(ISL38XX_DEV_INT_UPDATE));
-
-	wait_for_completion_interruptible_timeout(&priv->boot_comp, HZ);
-	wait_for_completion_interruptible_timeout(&priv->boot_comp, HZ);
-
-	pci_unmap_single(priv->pdev, tx_mapping,
-			 EEPROM_READBACK_LEN, PCI_DMA_TODEVICE);
-	pci_unmap_single(priv->pdev, rx_mapping,
-			 0x2010, PCI_DMA_FROMDEVICE);
-
-	alen = le16_to_cpu(ring_control->rx_mgmt[0].len);
-	if (le32_to_cpu(ring_control->device_idx[2]) != 1 ||
-	    alen < 0x10) {
-		printk(KERN_ERR "%s (prism54pci): Cannot read eeprom!\n",
-		       pci_name(priv->pdev));
-		err = -EINVAL;
-		goto out;
-	}
-
-	p54_parse_eeprom(dev, (u8 *)eeprom + 0x10, alen - 0x10);
-
- out:
-	kfree(eeprom);
-	P54P_WRITE(int_enable, cpu_to_le32(0));
-	P54P_READ(int_enable);
-	udelay(10);
-	free_irq(priv->pdev->irq, priv);
-	P54P_WRITE(dev_int, cpu_to_le32(ISL38XX_DEV_INT_RESET));
-	return err;
-}
-
-static void p54p_refill_rx_ring(struct ieee80211_hw *dev)
-{
-	struct p54p_priv *priv = dev->priv;
-	struct p54p_ring_control *ring_control = priv->ring_control;
-	u32 limit, host_idx, idx;
-
-	host_idx = le32_to_cpu(ring_control->host_idx[0]);
-	limit = host_idx;
-	limit -= le32_to_cpu(ring_control->device_idx[0]);
-	limit = ARRAY_SIZE(ring_control->rx_data) - limit;
-
-	idx = host_idx % ARRAY_SIZE(ring_control->rx_data);
+	i = idx % ring_limit;
 	while (limit-- > 1) {
-		struct p54p_desc *desc = &ring_control->rx_data[idx];
+		struct p54p_desc *desc = &ring[i];
 
 		if (!desc->host_addr) {
 			struct sk_buff *skb;
 			dma_addr_t mapping;
-			skb = dev_alloc_skb(MAX_RX_SIZE);
+			skb = dev_alloc_skb(priv->common.rx_mtu + 32);
 			if (!skb)
 				break;
 
 			mapping = pci_map_single(priv->pdev,
 						 skb_tail_pointer(skb),
-						 MAX_RX_SIZE,
+						 priv->common.rx_mtu + 32,
 						 PCI_DMA_FROMDEVICE);
 			desc->host_addr = cpu_to_le32(mapping);
 			desc->device_addr = 0;	// FIXME: necessary?
-			desc->len = cpu_to_le16(MAX_RX_SIZE);
+			desc->len = cpu_to_le16(priv->common.rx_mtu + 32);
 			desc->flags = 0;
-			priv->rx_buf[idx] = skb;
+			rx_buf[i] = skb;
 		}
 
+		i++;
 		idx++;
-		host_idx++;
-		idx %= ARRAY_SIZE(ring_control->rx_data);
+		i %= ring_limit;
 	}
 
 	wmb();
-	ring_control->host_idx[0] = cpu_to_le32(host_idx);
+	ring_control->host_idx[ring_index] = cpu_to_le32(idx);
+}
+
+static void p54p_check_rx_ring(struct ieee80211_hw *dev, u32 *index,
+	int ring_index, struct p54p_desc *ring, u32 ring_limit,
+	struct sk_buff **rx_buf)
+{
+	struct p54p_priv *priv = dev->priv;
+	struct p54p_ring_control *ring_control = priv->ring_control;
+	struct p54p_desc *desc;
+	u32 idx, i;
+
+	i = (*index) % ring_limit;
+	(*index) = idx = le32_to_cpu(ring_control->device_idx[ring_index]);
+	idx %= ring_limit;
+	while (i != idx) {
+		u16 len;
+		struct sk_buff *skb;
+		desc = &ring[i];
+		len = le16_to_cpu(desc->len);
+		skb = rx_buf[i];
+
+		if (!skb) {
+			i++;
+			i %= ring_limit;
+			continue;
+		}
+		skb_put(skb, len);
+
+		if (p54_rx(dev, skb)) {
+			pci_unmap_single(priv->pdev,
+					 le32_to_cpu(desc->host_addr),
+					 priv->common.rx_mtu + 32,
+					 PCI_DMA_FROMDEVICE);
+			rx_buf[i] = NULL;
+			desc->host_addr = 0;
+		} else {
+			skb_trim(skb, 0);
+			desc->len = cpu_to_le16(priv->common.rx_mtu + 32);
+		}
+
+		i++;
+		i %= ring_limit;
+	}
+
+	p54p_refill_rx_ring(dev, ring_index, ring, ring_limit, rx_buf);
+}
+
+/* caller must hold priv->lock */
+static void p54p_check_tx_ring(struct ieee80211_hw *dev, u32 *index,
+	int ring_index, struct p54p_desc *ring, u32 ring_limit,
+	void **tx_buf)
+{
+	struct p54p_priv *priv = dev->priv;
+	struct p54p_ring_control *ring_control = priv->ring_control;
+	struct p54p_desc *desc;
+	u32 idx, i;
+
+	i = (*index) % ring_limit;
+	(*index) = idx = le32_to_cpu(ring_control->device_idx[1]);
+	idx %= ring_limit;
+
+	while (i != idx) {
+		desc = &ring[i];
+		kfree(tx_buf[i]);
+		tx_buf[i] = NULL;
+
+		pci_unmap_single(priv->pdev, le32_to_cpu(desc->host_addr),
+				 le16_to_cpu(desc->len), PCI_DMA_TODEVICE);
+
+		desc->host_addr = 0;
+		desc->device_addr = 0;
+		desc->len = 0;
+		desc->flags = 0;
+
+		i++;
+		i %= ring_limit;
+	}
+}
+
+static void p54p_rx_tasklet(unsigned long dev_id)
+{
+	struct ieee80211_hw *dev = (struct ieee80211_hw *)dev_id;
+	struct p54p_priv *priv = dev->priv;
+	struct p54p_ring_control *ring_control = priv->ring_control;
+
+	p54p_check_rx_ring(dev, &priv->rx_idx_mgmt, 2, ring_control->rx_mgmt,
+		ARRAY_SIZE(ring_control->rx_mgmt), priv->rx_buf_mgmt);
+
+	p54p_check_rx_ring(dev, &priv->rx_idx_data, 0, ring_control->rx_data,
+		ARRAY_SIZE(ring_control->rx_data), priv->rx_buf_data);
+
+	wmb();
+	P54P_WRITE(dev_int, cpu_to_le32(ISL38XX_DEV_INT_UPDATE));
 }
 
 static irqreturn_t p54p_interrupt(int irq, void *dev_id)
@@ -298,65 +286,18 @@ static irqreturn_t p54p_interrupt(int irq, void *dev_id)
 	reg &= P54P_READ(int_enable);
 
 	if (reg & cpu_to_le32(ISL38XX_INT_IDENT_UPDATE)) {
-		struct p54p_desc *desc;
-		u32 idx, i;
-		i = priv->tx_idx;
-		i %= ARRAY_SIZE(ring_control->tx_data);
-		priv->tx_idx = idx = le32_to_cpu(ring_control->device_idx[1]);
-		idx %= ARRAY_SIZE(ring_control->tx_data);
+		p54p_check_tx_ring(dev, &priv->tx_idx_mgmt,
+				   3, ring_control->tx_mgmt,
+				   ARRAY_SIZE(ring_control->tx_mgmt),
+				   priv->tx_buf_mgmt);
 
-		while (i != idx) {
-			desc = &ring_control->tx_data[i];
-			if (priv->tx_buf[i]) {
-				kfree(priv->tx_buf[i]);
-				priv->tx_buf[i] = NULL;
-			}
+		p54p_check_tx_ring(dev, &priv->tx_idx_data,
+				   1, ring_control->tx_data,
+				   ARRAY_SIZE(ring_control->tx_data),
+				   priv->tx_buf_data);
 
-			pci_unmap_single(priv->pdev, le32_to_cpu(desc->host_addr),
-					 le16_to_cpu(desc->len), PCI_DMA_TODEVICE);
+		tasklet_schedule(&priv->rx_tasklet);
 
-			desc->host_addr = 0;
-			desc->device_addr = 0;
-			desc->len = 0;
-			desc->flags = 0;
-
-			i++;
-			i %= ARRAY_SIZE(ring_control->tx_data);
-		}
-
-		i = priv->rx_idx;
-		i %= ARRAY_SIZE(ring_control->rx_data);
-		priv->rx_idx = idx = le32_to_cpu(ring_control->device_idx[0]);
-		idx %= ARRAY_SIZE(ring_control->rx_data);
-		while (i != idx) {
-			u16 len;
-			struct sk_buff *skb;
-			desc = &ring_control->rx_data[i];
-			len = le16_to_cpu(desc->len);
-			skb = priv->rx_buf[i];
-
-			skb_put(skb, len);
-
-			if (p54_rx(dev, skb)) {
-				pci_unmap_single(priv->pdev,
-						 le32_to_cpu(desc->host_addr),
-						 MAX_RX_SIZE, PCI_DMA_FROMDEVICE);
-
-				priv->rx_buf[i] = NULL;
-				desc->host_addr = 0;
-			} else {
-				skb_trim(skb, 0);
-				desc->len = cpu_to_le16(MAX_RX_SIZE);
-			}
-
-			i++;
-			i %= ARRAY_SIZE(ring_control->rx_data);
-		}
-
-		p54p_refill_rx_ring(dev);
-
-		wmb();
-		P54P_WRITE(dev_int, cpu_to_le32(ISL38XX_DEV_INT_UPDATE));
 	} else if (reg & cpu_to_le32(ISL38XX_INT_IDENT_INIT))
 		complete(&priv->boot_comp);
 
@@ -392,7 +333,7 @@ static void p54p_tx(struct ieee80211_hw *dev, struct p54_control_hdr *data,
 	ring_control->host_idx[1] = cpu_to_le32(idx + 1);
 
 	if (free_on_tx)
-		priv->tx_buf[i] = data;
+		priv->tx_buf_data[i] = data;
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -412,7 +353,7 @@ static int p54p_open(struct ieee80211_hw *dev)
 
 	init_completion(&priv->boot_comp);
 	err = request_irq(priv->pdev->irq, &p54p_interrupt,
-			  IRQF_SHARED, "prism54pci", dev);
+			  IRQF_SHARED, "p54pci", dev);
 	if (err) {
 		printk(KERN_ERR "%s: failed to register IRQ handler\n",
 		       wiphy_name(dev->wiphy));
@@ -420,10 +361,19 @@ static int p54p_open(struct ieee80211_hw *dev)
 	}
 
 	memset(priv->ring_control, 0, sizeof(*priv->ring_control));
-	priv->rx_idx = priv->tx_idx = 0;
-	p54p_refill_rx_ring(dev);
+	err = p54p_upload_firmware(dev);
+	if (err) {
+		free_irq(priv->pdev->irq, dev);
+		return err;
+	}
+	priv->rx_idx_data = priv->tx_idx_data = 0;
+	priv->rx_idx_mgmt = priv->tx_idx_mgmt = 0;
 
-	p54p_upload_firmware(dev);
+	p54p_refill_rx_ring(dev, 0, priv->ring_control->rx_data,
+		ARRAY_SIZE(priv->ring_control->rx_data), priv->rx_buf_data);
+
+	p54p_refill_rx_ring(dev, 2, priv->ring_control->rx_mgmt,
+		ARRAY_SIZE(priv->ring_control->rx_mgmt), priv->rx_buf_mgmt);
 
 	P54P_WRITE(ring_control_base, cpu_to_le32(priv->ring_control_dma));
 	P54P_READ(ring_control_base);
@@ -465,6 +415,8 @@ static void p54p_stop(struct ieee80211_hw *dev)
 	unsigned int i;
 	struct p54p_desc *desc;
 
+	tasklet_kill(&priv->rx_tasklet);
+
 	P54P_WRITE(int_enable, cpu_to_le32(0));
 	P54P_READ(int_enable);
 	udelay(10);
@@ -473,26 +425,53 @@ static void p54p_stop(struct ieee80211_hw *dev)
 
 	P54P_WRITE(dev_int, cpu_to_le32(ISL38XX_DEV_INT_RESET));
 
-	for (i = 0; i < ARRAY_SIZE(priv->rx_buf); i++) {
+	for (i = 0; i < ARRAY_SIZE(priv->rx_buf_data); i++) {
 		desc = &ring_control->rx_data[i];
 		if (desc->host_addr)
-			pci_unmap_single(priv->pdev, le32_to_cpu(desc->host_addr),
-					 MAX_RX_SIZE, PCI_DMA_FROMDEVICE);
-		kfree_skb(priv->rx_buf[i]);
-		priv->rx_buf[i] = NULL;
+			pci_unmap_single(priv->pdev,
+					 le32_to_cpu(desc->host_addr),
+					 priv->common.rx_mtu + 32,
+					 PCI_DMA_FROMDEVICE);
+		kfree_skb(priv->rx_buf_data[i]);
+		priv->rx_buf_data[i] = NULL;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(priv->tx_buf); i++) {
+	for (i = 0; i < ARRAY_SIZE(priv->rx_buf_mgmt); i++) {
+		desc = &ring_control->rx_mgmt[i];
+		if (desc->host_addr)
+			pci_unmap_single(priv->pdev,
+					 le32_to_cpu(desc->host_addr),
+					 priv->common.rx_mtu + 32,
+					 PCI_DMA_FROMDEVICE);
+		kfree_skb(priv->rx_buf_mgmt[i]);
+		priv->rx_buf_mgmt[i] = NULL;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(priv->tx_buf_data); i++) {
 		desc = &ring_control->tx_data[i];
 		if (desc->host_addr)
-			pci_unmap_single(priv->pdev, le32_to_cpu(desc->host_addr),
-					 le16_to_cpu(desc->len), PCI_DMA_TODEVICE);
+			pci_unmap_single(priv->pdev,
+					 le32_to_cpu(desc->host_addr),
+					 le16_to_cpu(desc->len),
+					 PCI_DMA_TODEVICE);
 
-		kfree(priv->tx_buf[i]);
-		priv->tx_buf[i] = NULL;
+		kfree(priv->tx_buf_data[i]);
+		priv->tx_buf_data[i] = NULL;
 	}
 
-	memset(ring_control, 0, sizeof(ring_control));
+	for (i = 0; i < ARRAY_SIZE(priv->tx_buf_mgmt); i++) {
+		desc = &ring_control->tx_mgmt[i];
+		if (desc->host_addr)
+			pci_unmap_single(priv->pdev,
+					 le32_to_cpu(desc->host_addr),
+					 le16_to_cpu(desc->len),
+					 PCI_DMA_TODEVICE);
+
+		kfree(priv->tx_buf_mgmt[i]);
+		priv->tx_buf_mgmt[i] = NULL;
+	}
+
+	memset(ring_control, 0, sizeof(*ring_control));
 }
 
 static int __devinit p54p_probe(struct pci_dev *pdev,
@@ -506,7 +485,7 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		printk(KERN_ERR "%s (prism54pci): Cannot enable new PCI device\n",
+		printk(KERN_ERR "%s (p54pci): Cannot enable new PCI device\n",
 		       pci_name(pdev));
 		return err;
 	}
@@ -514,22 +493,22 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 	mem_addr = pci_resource_start(pdev, 0);
 	mem_len = pci_resource_len(pdev, 0);
 	if (mem_len < sizeof(struct p54p_csr)) {
-		printk(KERN_ERR "%s (prism54pci): Too short PCI resources\n",
+		printk(KERN_ERR "%s (p54pci): Too short PCI resources\n",
 		       pci_name(pdev));
 		pci_disable_device(pdev);
 		return err;
 	}
 
-	err = pci_request_regions(pdev, "prism54pci");
+	err = pci_request_regions(pdev, "p54pci");
 	if (err) {
-		printk(KERN_ERR "%s (prism54pci): Cannot obtain PCI resources\n",
+		printk(KERN_ERR "%s (p54pci): Cannot obtain PCI resources\n",
 		       pci_name(pdev));
 		return err;
 	}
 
 	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) ||
 	    pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK)) {
-		printk(KERN_ERR "%s (prism54pci): No suitable DMA available\n",
+		printk(KERN_ERR "%s (p54pci): No suitable DMA available\n",
 		       pci_name(pdev));
 		goto err_free_reg;
 	}
@@ -542,7 +521,7 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 
 	dev = p54_init_common(sizeof(*priv));
 	if (!dev) {
-		printk(KERN_ERR "%s (prism54pci): ieee80211 alloc failed\n",
+		printk(KERN_ERR "%s (p54pci): ieee80211 alloc failed\n",
 		       pci_name(pdev));
 		err = -ENOMEM;
 		goto err_free_reg;
@@ -556,7 +535,7 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 
 	priv->map = ioremap(mem_addr, mem_len);
 	if (!priv->map) {
-		printk(KERN_ERR "%s (prism54pci): Cannot map device memory\n",
+		printk(KERN_ERR "%s (p54pci): Cannot map device memory\n",
 		       pci_name(pdev));
 		err = -EINVAL;	// TODO: use a better error code?
 		goto err_free_dev;
@@ -565,38 +544,30 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 	priv->ring_control = pci_alloc_consistent(pdev, sizeof(*priv->ring_control),
 						  &priv->ring_control_dma);
 	if (!priv->ring_control) {
-		printk(KERN_ERR "%s (prism54pci): Cannot allocate rings\n",
+		printk(KERN_ERR "%s (p54pci): Cannot allocate rings\n",
 		       pci_name(pdev));
 		err = -ENOMEM;
 		goto err_iounmap;
 	}
-	memset(priv->ring_control, 0, sizeof(*priv->ring_control));
-
-	err = p54p_upload_firmware(dev);
-	if (err)
-		goto err_free_desc;
-
-	err = p54p_read_eeprom(dev);
-	if (err)
-		goto err_free_desc;
-
 	priv->common.open = p54p_open;
 	priv->common.stop = p54p_stop;
 	priv->common.tx = p54p_tx;
 
 	spin_lock_init(&priv->lock);
+	tasklet_init(&priv->rx_tasklet, p54p_rx_tasklet, (unsigned long)dev);
+
+	p54p_open(dev);
+	err = p54_read_eeprom(dev);
+	p54p_stop(dev);
+	if (err)
+		goto err_free_desc;
 
 	err = ieee80211_register_hw(dev);
 	if (err) {
-		printk(KERN_ERR "%s (prism54pci): Cannot register netdevice\n",
+		printk(KERN_ERR "%s (p54pci): Cannot register netdevice\n",
 		       pci_name(pdev));
 		goto err_free_common;
 	}
-
-	printk(KERN_INFO "%s: hwaddr %s, isl38%02x\n",
-	       wiphy_name(dev->wiphy),
-	       print_mac(mac, dev->wiphy->perm_addr),
-	       priv->common.version);
 
 	return 0;
 
@@ -645,7 +616,7 @@ static int p54p_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct ieee80211_hw *dev = pci_get_drvdata(pdev);
 	struct p54p_priv *priv = dev->priv;
 
-	if (priv->common.mode != IEEE80211_IF_TYPE_INVALID) {
+	if (priv->common.mode != NL80211_IFTYPE_UNSPECIFIED) {
 		ieee80211_stop_queues(dev);
 		p54p_stop(dev);
 	}
@@ -663,9 +634,9 @@ static int p54p_resume(struct pci_dev *pdev)
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 
-	if (priv->common.mode != IEEE80211_IF_TYPE_INVALID) {
+	if (priv->common.mode != NL80211_IFTYPE_UNSPECIFIED) {
 		p54p_open(dev);
-		ieee80211_start_queues(dev);
+		ieee80211_wake_queues(dev);
 	}
 
 	return 0;
@@ -673,7 +644,7 @@ static int p54p_resume(struct pci_dev *pdev)
 #endif /* CONFIG_PM */
 
 static struct pci_driver p54p_driver = {
-	.name		= "prism54pci",
+	.name		= "p54pci",
 	.id_table	= p54p_table,
 	.probe		= p54p_probe,
 	.remove		= __devexit_p(p54p_remove),

@@ -70,7 +70,7 @@ acpi_status
 acpi_ds_result_pop(union acpi_operand_object **object,
 		   struct acpi_walk_state *walk_state)
 {
-	acpi_native_uint index;
+	u32 index;
 	union acpi_generic_state *state;
 	acpi_status status;
 
@@ -122,7 +122,7 @@ acpi_ds_result_pop(union acpi_operand_object **object,
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 			  "Obj=%p [%s] Index=%X State=%p Num=%X\n", *object,
 			  acpi_ut_get_object_type_name(*object),
-			  (u32) index, walk_state, walk_state->result_count));
+			  index, walk_state, walk_state->result_count));
 
 	return (AE_OK);
 }
@@ -146,7 +146,7 @@ acpi_ds_result_push(union acpi_operand_object * object,
 {
 	union acpi_generic_state *state;
 	acpi_status status;
-	acpi_native_uint index;
+	u32 index;
 
 	ACPI_FUNCTION_NAME(ds_result_push);
 
@@ -400,7 +400,7 @@ void
 acpi_ds_obj_stack_pop_and_delete(u32 pop_count,
 				 struct acpi_walk_state *walk_state)
 {
-	acpi_native_int i;
+	s32 i;
 	union acpi_operand_object *obj_desc;
 
 	ACPI_FUNCTION_NAME(ds_obj_stack_pop_and_delete);
@@ -409,7 +409,7 @@ acpi_ds_obj_stack_pop_and_delete(u32 pop_count,
 		return;
 	}
 
-	for (i = (acpi_native_int) (pop_count - 1); i >= 0; i--) {
+	for (i = (s32) pop_count - 1; i >= 0; i--) {
 		if (walk_state->num_operands == 0) {
 			return;
 		}
@@ -615,14 +615,8 @@ acpi_ds_init_aml_walk(struct acpi_walk_state *walk_state,
 	walk_state->pass_number = pass_number;
 
 	if (info) {
-		if (info->parameter_type == ACPI_PARAM_GPE) {
-			walk_state->gpe_event_info =
-			    ACPI_CAST_PTR(struct acpi_gpe_event_info,
-					  info->parameters);
-		} else {
-			walk_state->params = info->parameters;
-			walk_state->caller_return_desc = &info->return_object;
-		}
+		walk_state->params = info->parameters;
+		walk_state->caller_return_desc = &info->return_object;
 	}
 
 	status = acpi_ps_init_scope(&walk_state->parser_state, op);

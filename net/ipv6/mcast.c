@@ -5,8 +5,6 @@
  *	Authors:
  *	Pedro Roque		<roque@di.fc.ul.pt>
  *
- *	$Id: mcast.c,v 1.40 2002/02/08 03:57:19 davem Exp $
- *
  *	Based on linux/ipv4/igmp.c and linux/ipv4/ip_sockglue.c
  *
  *	This program is free software; you can redistribute it and/or
@@ -153,7 +151,7 @@ static int ip6_mc_leave_src(struct sock *sk, struct ipv6_mc_socklist *iml,
 #define IGMP6_UNSOLICITED_IVAL	(10*HZ)
 #define MLD_QRV_DEFAULT		2
 
-#define MLD_V1_SEEN(idev) (ipv6_devconf.force_mld_version == 1 || \
+#define MLD_V1_SEEN(idev) (dev_net((idev)->dev)->ipv6.devconf_all->force_mld_version == 1 || \
 		(idev)->cnf.force_mld_version == 1 || \
 		((idev)->mc_v1_seen && \
 		time_before(jiffies, (idev)->mc_v1_seen)))
@@ -164,7 +162,6 @@ static int ip6_mc_leave_src(struct sock *sk, struct ipv6_mc_socklist *iml,
 	((MLDV2_MASK(value, nbmant) | (1<<(nbmant))) << \
 	(MLDV2_MASK((value) >> (nbmant), nbexp) + (nbexp))))
 
-#define MLDV2_QQIC(value) MLDV2_EXP(0x80, 4, 3, value)
 #define MLDV2_MRC(value) MLDV2_EXP(0x8000, 12, 3, value)
 
 #define IPV6_MLD_MAX_MSF	64
@@ -369,10 +366,6 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 	int leavegroup = 0;
 	int pmclocked = 0;
 	int err;
-
-	if (pgsr->gsr_group.ss_family != AF_INET6 ||
-	    pgsr->gsr_source.ss_family != AF_INET6)
-		return -EINVAL;
 
 	source = &((struct sockaddr_in6 *)&pgsr->gsr_source)->sin6_addr;
 	group = &((struct sockaddr_in6 *)&pgsr->gsr_group)->sin6_addr;
@@ -1453,7 +1446,7 @@ static void mld_sendpack(struct sk_buff *skb)
 	int err;
 	struct flowi fl;
 
-	IP6_INC_STATS(idev, IPSTATS_MIB_OUTREQUESTS);
+	IP6_INC_STATS(net, idev, IPSTATS_MIB_OUTREQUESTS);
 	payload_len = (skb->tail - skb->network_header) - sizeof(*pip6);
 	mldlen = skb->tail - skb->transport_header;
 	pip6->payload_len = htons(payload_len);
@@ -1481,11 +1474,11 @@ static void mld_sendpack(struct sk_buff *skb)
 		      dst_output);
 out:
 	if (!err) {
-		ICMP6MSGOUT_INC_STATS_BH(idev, ICMPV6_MLD2_REPORT);
-		ICMP6_INC_STATS_BH(idev, ICMP6_MIB_OUTMSGS);
-		IP6_INC_STATS_BH(idev, IPSTATS_MIB_OUTMCASTPKTS);
+		ICMP6MSGOUT_INC_STATS_BH(net, idev, ICMPV6_MLD2_REPORT);
+		ICMP6_INC_STATS_BH(net, idev, ICMP6_MIB_OUTMSGS);
+		IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_OUTMCASTPKTS);
 	} else
-		IP6_INC_STATS_BH(idev, IPSTATS_MIB_OUTDISCARDS);
+		IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_OUTDISCARDS);
 
 	if (likely(idev != NULL))
 		in6_dev_put(idev);
@@ -1778,7 +1771,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	struct flowi fl;
 
 	rcu_read_lock();
-	IP6_INC_STATS(__in6_dev_get(dev),
+	IP6_INC_STATS(net, __in6_dev_get(dev),
 		      IPSTATS_MIB_OUTREQUESTS);
 	rcu_read_unlock();
 	if (type == ICMPV6_MGM_REDUCTION)
@@ -1794,7 +1787,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 
 	if (skb == NULL) {
 		rcu_read_lock();
-		IP6_INC_STATS(__in6_dev_get(dev),
+		IP6_INC_STATS(net, __in6_dev_get(dev),
 			      IPSTATS_MIB_OUTDISCARDS);
 		rcu_read_unlock();
 		return;
@@ -1846,11 +1839,11 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 		      dst_output);
 out:
 	if (!err) {
-		ICMP6MSGOUT_INC_STATS(idev, type);
-		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTMSGS);
-		IP6_INC_STATS(idev, IPSTATS_MIB_OUTMCASTPKTS);
+		ICMP6MSGOUT_INC_STATS(net, idev, type);
+		ICMP6_INC_STATS(net, idev, ICMP6_MIB_OUTMSGS);
+		IP6_INC_STATS(net, idev, IPSTATS_MIB_OUTMCASTPKTS);
 	} else
-		IP6_INC_STATS(idev, IPSTATS_MIB_OUTDISCARDS);
+		IP6_INC_STATS(net, idev, IPSTATS_MIB_OUTDISCARDS);
 
 	if (likely(idev != NULL))
 		in6_dev_put(idev);

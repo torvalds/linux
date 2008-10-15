@@ -1,0 +1,28 @@
+Freescale Localbus UPM programmed to work with NAND flash
+
+Required properties:
+- compatible : "fsl,upm-nand".
+- reg : should specify localbus chip select and size used for the chip.
+- fsl,upm-addr-offset : UPM pattern offset for the address latch.
+- fsl,upm-cmd-offset : UPM pattern offset for the command latch.
+- gpios : may specify optional GPIO connected to the Ready-Not-Busy pin.
+
+Example:
+
+upm@1,0 {
+	compatible = "fsl,upm-nand";
+	reg = <1 0 1>;
+	fsl,upm-addr-offset = <16>;
+	fsl,upm-cmd-offset = <8>;
+	gpios = <&qe_pio_e 18 0>;
+
+	flash {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "...";
+
+		partition@0 {
+			...
+		};
+	};
+};

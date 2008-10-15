@@ -17,8 +17,6 @@
  * 2002-05-12   Tomas Kasparek  another code cleanup
  */
 
-/* $Id: uda1341.c,v 1.18 2005/11/17 14:17:21 tiwai Exp $ */
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -773,7 +771,8 @@ int __init snd_chip_uda1341_mixer_new(struct snd_card *card, struct l3_client **
 	struct l3_client *clnt;
 	int idx, err;
 
-	snd_assert(card != NULL, return -EINVAL);
+	if (snd_BUG_ON(!card))
+		return -EINVAL;
 
 	clnt = kzalloc(sizeof(*clnt), GFP_KERNEL);
 	if (clnt == NULL)

@@ -238,7 +238,7 @@ asmlinkage long sys32_pipe(int __user *fd)
 	int retval;
 	int fds[2];
 
-	retval = do_pipe(fds);
+	retval = do_pipe_flags(fds, 0);
 	if (retval)
 		goto out;
 	if (copy_to_user(fd, fds, sizeof(fds)))
@@ -555,15 +555,6 @@ asmlinkage long sys32_rt_sigqueueinfo(int pid, int sig,
 	set_fs(old_fs);
 	return ret;
 }
-
-/* These are here just in case some old ia32 binary calls it. */
-asmlinkage long sys32_pause(void)
-{
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
-	return -ERESTARTNOHAND;
-}
-
 
 #ifdef CONFIG_SYSCTL_SYSCALL
 struct sysctl_ia32 {

@@ -96,7 +96,7 @@ static void ipath_ud_loopback(struct ipath_qp *sqp, struct ipath_swqe *swqe)
 
 	if (swqe->wr.opcode == IB_WR_SEND_WITH_IMM) {
 		wc.wc_flags = IB_WC_WITH_IMM;
-		wc.imm_data = swqe->wr.ex.imm_data;
+		wc.ex.imm_data = swqe->wr.ex.imm_data;
 	}
 
 	/*
@@ -267,6 +267,7 @@ int ipath_make_ud_req(struct ipath_qp *qp)
 	u16 lrh0;
 	u16 lid;
 	int ret = 0;
+	int next_cur;
 
 	spin_lock_irqsave(&qp->s_lock, flags);
 
@@ -290,8 +291,9 @@ int ipath_make_ud_req(struct ipath_qp *qp)
 		goto bail;
 
 	wqe = get_swqe_ptr(qp, qp->s_cur);
-	if (++qp->s_cur >= qp->s_size)
-		qp->s_cur = 0;
+	next_cur = qp->s_cur + 1;
+	if (next_cur >= qp->s_size)
+		next_cur = 0;
 
 	/* Construct the header. */
 	ah_attr = &to_iah(wqe->wr.wr.ud.ah)->attr;
@@ -315,6 +317,7 @@ int ipath_make_ud_req(struct ipath_qp *qp)
 				qp->s_flags |= IPATH_S_WAIT_DMA;
 				goto bail;
 			}
+			qp->s_cur = next_cur;
 			spin_unlock_irqrestore(&qp->s_lock, flags);
 			ipath_ud_loopback(qp, wqe);
 			spin_lock_irqsave(&qp->s_lock, flags);
@@ -323,6 +326,7 @@ int ipath_make_ud_req(struct ipath_qp *qp)
 		}
 	}
 
+	qp->s_cur = next_cur;
 	extra_bytes = -wqe->length & 3;
 	nwords = (wqe->length + extra_bytes) >> 2;
 
@@ -492,14 +496,14 @@ void ipath_ud_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	if (qp->ibqp.qp_num > 1 &&
 	    opcode == IB_OPCODE_UD_SEND_ONLY_WITH_IMMEDIATE) {
 		if (header_in_data) {
-			wc.imm_data = *(__be32 *) data;
+			wc.ex.imm_data = *(__be32 *) data;
 			data += sizeof(__be32);
 		} else
-			wc.imm_data = ohdr->u.ud.imm_data;
+			wc.ex.imm_data = ohdr->u.ud.imm_data;
 		wc.wc_flags = IB_WC_WITH_IMM;
 		hdrsize += sizeof(u32);
 	} else if (opcode == IB_OPCODE_UD_SEND_ONLY) {
-		wc.imm_data = 0;
+		wc.ex.imm_data = 0;
 		wc.wc_flags = 0;
 	} else {
 		dev->n_pkt_drops++;

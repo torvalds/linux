@@ -59,15 +59,10 @@ apicid values in those tables for disabled apics. In the event BIOS doesn't
 mark such hot-pluggable cpus as disabled entries, one could use this
 parameter "additional_cpus=x" to represent those cpus in the cpu_possible_map.
 
-s390 uses the number of cpus it detects at IPL time to also the number of bits
-in cpu_possible_map. If it is desired to add additional cpus at a later time
-the number should be specified using this option or the possible_cpus option.
-
 possible_cpus=n		[s390 only] use this to set hotpluggable cpus.
 			This option sets possible_cpus bits in
 			cpu_possible_map. Thus keeping the numbers of bits set
 			constant even if the machine gets rebooted.
-			This option overrides additional_cpus.
 
 CPU maps and such
 -----------------

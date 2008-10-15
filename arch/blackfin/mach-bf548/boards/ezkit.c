@@ -38,17 +38,14 @@
 #include <linux/irq.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
-#if defined(CONFIG_USB_MUSB_HDRC) || defined(CONFIG_USB_MUSB_HDRC_MODULE)
 #include <linux/usb/musb.h>
-#endif
 #include <asm/bfin5xx_spi.h>
-#include <asm/cplb.h>
 #include <asm/dma.h>
 #include <asm/gpio.h>
 #include <asm/nand.h>
 #include <asm/dpmc.h>
 #include <asm/portmux.h>
-#include <asm/mach/bf54x_keys.h>
+#include <mach/bf54x_keys.h>
 #include <linux/input.h>
 #include <linux/spi/ad7877.h>
 
@@ -61,9 +58,52 @@ const char bfin_board_name[] = "ADSP-BF548-EZKIT";
  *  Driver needs to know address, irq and flag pin.
  */
 
+#if defined(CONFIG_USB_ISP1760_HCD) || defined(CONFIG_USB_ISP1760_HCD_MODULE)
+static struct resource bfin_isp1761_resources[] = {
+	[0] = {
+		.name	= "isp1761-regs",
+		.start  = 0x2C0C0000,
+		.end    = 0x2C0C0000 + 0xfffff,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = IRQ_PG7,
+		.end    = IRQ_PG7,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device bfin_isp1761_device = {
+	.name           = "isp1761",
+	.id             = 0,
+	.num_resources  = ARRAY_SIZE(bfin_isp1761_resources),
+	.resource       = bfin_isp1761_resources,
+};
+
+static struct platform_device *bfin_isp1761_devices[] = {
+	&bfin_isp1761_device,
+};
+
+int __init bfin_isp1761_init(void)
+{
+	unsigned int num_devices = ARRAY_SIZE(bfin_isp1761_devices);
+
+	printk(KERN_INFO "%s(): registering device resources\n", __func__);
+	set_irq_type(bfin_isp1761_resources[1].start, IRQF_TRIGGER_FALLING);
+
+	return platform_add_devices(bfin_isp1761_devices, num_devices);
+}
+
+void __exit bfin_isp1761_exit(void)
+{
+	platform_device_unregister(&bfin_isp1761_device);
+}
+arch_initcall(bfin_isp1761_init);
+#endif
+
 #if defined(CONFIG_FB_BF54X_LQ043) || defined(CONFIG_FB_BF54X_LQ043_MODULE)
 
-#include <asm/mach/bf54x-lq043.h>
+#include <mach/bf54x-lq043.h>
 
 static struct bfin_bf54xfb_mach_info bf54x_lq043_data = {
 	.width =	480,
@@ -143,6 +183,37 @@ static struct platform_device bf54x_kpad_device = {
 };
 #endif
 
+#if defined(CONFIG_JOYSTICK_BFIN_ROTARY) || defined(CONFIG_JOYSTICK_BFIN_ROTARY_MODULE)
+#include <asm/bfin_rotary.h>
+
+static struct bfin_rotary_platform_data bfin_rotary_data = {
+	/*.rotary_up_key     = KEY_UP,*/
+	/*.rotary_down_key   = KEY_DOWN,*/
+	.rotary_rel_code   = REL_WHEEL,
+	.rotary_button_key = KEY_ENTER,
+	.debounce	   = 10,	/* 0..17 */
+	.mode		   = ROT_QUAD_ENC | ROT_DEBE,
+};
+
+static struct resource bfin_rotary_resources[] = {
+	{
+		.start = IRQ_CNT,
+		.end = IRQ_CNT,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device bfin_rotary_device = {
+	.name		= "bfin-rotary",
+	.id		= -1,
+	.num_resources 	= ARRAY_SIZE(bfin_rotary_resources),
+	.resource 	= bfin_rotary_resources,
+	.dev		= {
+		.platform_data = &bfin_rotary_data,
+	},
+};
+#endif
+
 #if defined(CONFIG_RTC_DRV_BFIN) || defined(CONFIG_RTC_DRV_BFIN_MODULE)
 static struct platform_device rtc_device = {
 	.name = "rtc-bfin",
@@ -177,6 +248,7 @@ static struct resource bfin_uart_resources[] = {
 	{
 		.start = 0xFFC03100,
 		.end = 0xFFC031FF,
+		.flags = IORESOURCE_MEM,
 	},
 #endif
 };
@@ -270,6 +342,16 @@ static struct resource musb_resources[] = {
 	},
 };
 
+static struct musb_hdrc_config musb_config = {
+	.multipoint	= 0,
+	.dyn_fifo	= 0,
+	.soft_con	= 1,
+	.dma		= 1,
+	.num_eps	= 7,
+	.dma_channels	= 7,
+	.gpio_vrsel	= GPIO_PE7,
+};
+
 static struct musb_hdrc_platform_data musb_plat = {
 #if defined(CONFIG_USB_MUSB_OTG)
 	.mode		= MUSB_OTG,
@@ -278,7 +360,7 @@ static struct musb_hdrc_platform_data musb_plat = {
 #elif defined(CONFIG_USB_GADGET_MUSB_HDRC)
 	.mode		= MUSB_PERIPHERAL,
 #endif
-	.multipoint	= 0,
+	.config		= &musb_config,
 };
 
 static u64 musb_dmamask = ~(u32)0;
@@ -321,12 +403,12 @@ static struct platform_device bfin_atapi_device = {
 #if defined(CONFIG_MTD_NAND_BF5XX) || defined(CONFIG_MTD_NAND_BF5XX_MODULE)
 static struct mtd_partition partition_info[] = {
 	{
-		.name = "Linux Kernel",
+		.name = "linux kernel(nand)",
 		.offset = 0,
-		.size = 4 * SIZE_1M,
+		.size = 4 * 1024 * 1024,
 	},
 	{
-		.name = "File System",
+		.name = "file system(nand)",
 		.offset = MTDPART_OFS_APPEND,
 		.size = MTDPART_SIZ_FULL,
 	},
@@ -375,15 +457,15 @@ static struct platform_device bf54x_sdh_device = {
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 static struct mtd_partition ezkit_partitions[] = {
 	{
-		.name       = "Bootloader",
+		.name       = "bootloader(nor)",
 		.size       = 0x40000,
 		.offset     = 0,
 	}, {
-		.name       = "Kernel",
-		.size       = 0x1C0000,
+		.name       = "linux kernel(nor)",
+		.size       = 0x400000,
 		.offset     = MTDPART_OFS_APPEND,
 	}, {
-		.name       = "RootFS",
+		.name       = "file system(nor)",
 		.size       = MTDPART_SIZ_FULL,
 		.offset     = MTDPART_OFS_APPEND,
 	}
@@ -397,7 +479,7 @@ static struct physmap_flash_data ezkit_flash_data = {
 
 static struct resource ezkit_flash_resource = {
 	.start = 0x20000000,
-	.end   = 0x20ffffff,
+	.end   = 0x21ffffff,
 	.flags = IORESOURCE_MEM,
 };
 
@@ -417,12 +499,12 @@ static struct platform_device ezkit_flash_device = {
 /* SPI flash chip (m25p16) */
 static struct mtd_partition bfin_spi_flash_partitions[] = {
 	{
-		.name = "bootloader",
+		.name = "bootloader(spi)",
 		.size = 0x00040000,
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
 	}, {
-		.name = "linux kernel",
+		.name = "linux kernel(spi)",
 		.size = MTDPART_SIZ_FULL,
 		.offset = MTDPART_OFS_APPEND,
 	}
@@ -507,7 +589,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 {
 	.modalias		= "ad7877",
 	.platform_data		= &bfin_ad7877_ts_info,
-	.irq			= IRQ_PJ11,
+	.irq			= IRQ_PJ11,	/* newer boards (Rev 1.4+) use IRQ_PB4 */
 	.max_speed_hz		= 12500000,     /* max spi clock (SCK) speed in HZ */
 	.bus_num		= 0,
 	.chip_select  		= 2,
@@ -764,6 +846,10 @@ static struct platform_device *ezkit_devices[] __initdata = {
 
 #if defined(CONFIG_KEYBOARD_BFIN) || defined(CONFIG_KEYBOARD_BFIN_MODULE)
 	&bf54x_kpad_device,
+#endif
+
+#if defined(CONFIG_JOYSTICK_BFIN_ROTARY) || defined(CONFIG_JOYSTICK_BFIN_ROTARY_MODULE)
+	&bfin_rotary_device,
 #endif
 
 #if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)

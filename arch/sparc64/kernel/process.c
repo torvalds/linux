@@ -15,7 +15,6 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/kallsyms.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/smp.h>
@@ -23,7 +22,6 @@
 #include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <linux/user.h>
-#include <linux/reboot.h>
 #include <linux/delay.h>
 #include <linux/compat.h>
 #include <linux/tick.h>
@@ -32,7 +30,6 @@
 #include <linux/elfcore.h>
 #include <linux/sysrq.h>
 
-#include <asm/oplib.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/page.h>
@@ -47,13 +44,11 @@
 #include <asm/mmu_context.h>
 #include <asm/unistd.h>
 #include <asm/hypervisor.h>
-#include <asm/sstate.h>
-#include <asm/reboot.h>
 #include <asm/syscalls.h>
 #include <asm/irq_regs.h>
 #include <asm/smp.h>
 
-/* #define VERBOSE_SHOWREGS */
+#include "kstack.h"
 
 static void sparc64_yield(int cpu)
 {
@@ -97,7 +92,7 @@ void cpu_idle(void)
 	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	while(1) {
-		tick_nohz_stop_sched_tick();
+		tick_nohz_stop_sched_tick(1);
 
 		while (!need_resched() && !cpu_is_offline(cpu))
 			sparc64_yield(cpu);
@@ -114,35 +109,6 @@ void cpu_idle(void)
 		schedule();
 		preempt_disable();
 	}
-}
-
-void machine_halt(void)
-{
-	sstate_halt();
-	prom_halt();
-	panic("Halt failed!");
-}
-
-void machine_alt_power_off(void)
-{
-	sstate_poweroff();
-	prom_halt_power_off();
-	panic("Power-off failed!");
-}
-
-void machine_restart(char * cmd)
-{
-	char *p;
-	
-	sstate_reboot();
-	p = strchr (reboot_command, '\n');
-	if (p) *p = 0;
-	if (cmd)
-		prom_reboot(cmd);
-	if (*reboot_command)
-		prom_reboot(reboot_command);
-	prom_reboot("");
-	panic("Reboot failed!");
 }
 
 #ifdef CONFIG_COMPAT
@@ -211,28 +177,14 @@ static void show_regwindow(struct pt_regs *regs)
 	printk("i4: %016lx i5: %016lx i6: %016lx i7: %016lx\n",
 	       rwk->ins[4], rwk->ins[5], rwk->ins[6], rwk->ins[7]);
 	if (regs->tstate & TSTATE_PRIV)
-		print_symbol("I7: <%s>\n", rwk->ins[7]);
+		printk("I7: <%pS>\n", (void *) rwk->ins[7]);
 }
 
-#ifdef CONFIG_SMP
-static DEFINE_SPINLOCK(regdump_lock);
-#endif
-
-void __show_regs(struct pt_regs * regs)
+void show_regs(struct pt_regs *regs)
 {
-#ifdef CONFIG_SMP
-	unsigned long flags;
-
-	/* Protect against xcall ipis which might lead to livelock on the lock */
-	__asm__ __volatile__("rdpr      %%pstate, %0\n\t"
-			     "wrpr      %0, %1, %%pstate"
-			     : "=r" (flags)
-			     : "i" (PSTATE_IE));
-	spin_lock(&regdump_lock);
-#endif
 	printk("TSTATE: %016lx TPC: %016lx TNPC: %016lx Y: %08x    %s\n", regs->tstate,
 	       regs->tpc, regs->tnpc, regs->y, print_tainted());
-	print_symbol("TPC: <%s>\n", regs->tpc);
+	printk("TPC: <%pS>\n", (void *) regs->tpc);
 	printk("g0: %016lx g1: %016lx g2: %016lx g3: %016lx\n",
 	       regs->u_regs[0], regs->u_regs[1], regs->u_regs[2],
 	       regs->u_regs[3]);
@@ -245,63 +197,10 @@ void __show_regs(struct pt_regs * regs)
 	printk("o4: %016lx o5: %016lx sp: %016lx ret_pc: %016lx\n",
 	       regs->u_regs[12], regs->u_regs[13], regs->u_regs[14],
 	       regs->u_regs[15]);
-	print_symbol("RPC: <%s>\n", regs->u_regs[15]);
+	printk("RPC: <%pS>\n", (void *) regs->u_regs[15]);
 	show_regwindow(regs);
-#ifdef CONFIG_SMP
-	spin_unlock(&regdump_lock);
-	__asm__ __volatile__("wrpr	%0, 0, %%pstate"
-			     : : "r" (flags));
-#endif
 }
 
-#ifdef VERBOSE_SHOWREGS
-static void idump_from_user (unsigned int *pc)
-{
-	int i;
-	int code;
-	
-	if((((unsigned long) pc) & 3))
-		return;
-	
-	pc -= 3;
-	for(i = -3; i < 6; i++) {
-		get_user(code, pc);
-		printk("%c%08x%c",i?' ':'<',code,i?' ':'>');
-		pc++;
-	}
-	printk("\n");
-}
-#endif
-
-void show_regs(struct pt_regs *regs)
-{
-#ifdef VERBOSE_SHOWREGS
-	extern long etrap, etraptl1;
-#endif
-	__show_regs(regs);
-#if 0
-#ifdef CONFIG_SMP
-	{
-		extern void smp_report_regs(void);
-
-		smp_report_regs();
-	}
-#endif
-#endif
-
-#ifdef VERBOSE_SHOWREGS	
-	if (regs->tpc >= &etrap && regs->tpc < &etraptl1 &&
-	    regs->u_regs[14] >= (long)current - PAGE_SIZE &&
-	    regs->u_regs[14] < (long)current + 6 * PAGE_SIZE) {
-		printk ("*********parent**********\n");
-		__show_regs((struct pt_regs *)(regs->u_regs[14] + PTREGS_OFF));
-		idump_from_user(((struct pt_regs *)(regs->u_regs[14] + PTREGS_OFF))->tpc);
-		printk ("*********endpar**********\n");
-	}
-#endif
-}
-
-#ifdef CONFIG_MAGIC_SYSRQ
 struct global_reg_snapshot global_reg_snapshot[NR_CPUS];
 static DEFINE_SPINLOCK(global_reg_snapshot_lock);
 
@@ -320,10 +219,17 @@ static void __global_reg_self(struct thread_info *tp, struct pt_regs *regs,
 
 		rw = (struct reg_window *)
 			(regs->u_regs[UREG_FP] + STACK_BIAS);
-		global_reg_snapshot[this_cpu].i7 = rw->ins[6];
-	} else
+		if (kstack_valid(tp, (unsigned long) rw)) {
+			global_reg_snapshot[this_cpu].i7 = rw->ins[7];
+			rw = (struct reg_window *)
+				(rw->ins[6] + STACK_BIAS);
+			if (kstack_valid(tp, (unsigned long) rw))
+				global_reg_snapshot[this_cpu].rpc = rw->ins[7];
+		}
+	} else {
 		global_reg_snapshot[this_cpu].i7 = 0;
-
+		global_reg_snapshot[this_cpu].rpc = 0;
+	}
 	global_reg_snapshot[this_cpu].thread = tp;
 }
 
@@ -342,13 +248,10 @@ static void __global_reg_poll(struct global_reg_snapshot *gp)
 	}
 }
 
-static void sysrq_handle_globreg(int key, struct tty_struct *tty)
+void __trigger_all_cpu_backtrace(void)
 {
 	struct thread_info *tp = current_thread_info();
 	struct pt_regs *regs = get_irq_regs();
-#ifdef CONFIG_KALLSYMS
-	char buffer[KSYM_SYMBOL_LEN];
-#endif
 	unsigned long flags;
 	int this_cpu, cpu;
 
@@ -367,7 +270,6 @@ static void sysrq_handle_globreg(int key, struct tty_struct *tty)
 
 	for_each_online_cpu(cpu) {
 		struct global_reg_snapshot *gp = &global_reg_snapshot[cpu];
-		struct thread_info *tp;
 
 		__global_reg_poll(gp);
 
@@ -377,25 +279,29 @@ static void sysrq_handle_globreg(int key, struct tty_struct *tty)
 		       gp->tstate, gp->tpc, gp->tnpc,
 		       ((tp && tp->task) ? tp->task->comm : "NULL"),
 		       ((tp && tp->task) ? tp->task->pid : -1));
-#ifdef CONFIG_KALLSYMS
+
 		if (gp->tstate & TSTATE_PRIV) {
-			sprint_symbol(buffer, gp->tpc);
-			printk("             TPC[%s] ", buffer);
-			sprint_symbol(buffer, gp->o7);
-			printk("O7[%s] ", buffer);
-			sprint_symbol(buffer, gp->i7);
-			printk("I7[%s]\n", buffer);
-		} else
-#endif
-		{
-			printk("             TPC[%lx] O7[%lx] I7[%lx]\n",
-			       gp->tpc, gp->o7, gp->i7);
+			printk("             TPC[%pS] O7[%pS] I7[%pS] RPC[%pS]\n",
+			       (void *) gp->tpc,
+			       (void *) gp->o7,
+			       (void *) gp->i7,
+			       (void *) gp->rpc);
+		} else {
+			printk("             TPC[%lx] O7[%lx] I7[%lx] RPC[%lx]\n",
+			       gp->tpc, gp->o7, gp->i7, gp->rpc);
 		}
 	}
 
 	memset(global_reg_snapshot, 0, sizeof(global_reg_snapshot));
 
 	spin_unlock_irqrestore(&global_reg_snapshot_lock, flags);
+}
+
+#ifdef CONFIG_MAGIC_SYSRQ
+
+static void sysrq_handle_globreg(int key, struct tty_struct *tty)
+{
+	__trigger_all_cpu_backtrace();
 }
 
 static struct sysrq_key_op sparc_globalreg_op = {
@@ -691,9 +597,9 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 		  ((unsigned long) child_sf) - STACK_BIAS;
 
 		/* Special case, if we are spawning a kernel thread from
-		 * a userspace task (via KMOD, NFS, or similar) we must
-		 * disable performance counters in the child because the
-		 * address space and protection realm are changing.
+		 * a userspace task (usermode helper, NFS or similar), we
+		 * must disable performance counters in the child because
+		 * the address space and protection realm are changing.
 		 */
 		if (t->flags & _TIF_PERFCTR) {
 			t->user_cntd0 = t->user_cntd1 = NULL;
@@ -876,7 +782,7 @@ out:
 unsigned long get_wchan(struct task_struct *task)
 {
 	unsigned long pc, fp, bias = 0;
-	unsigned long thread_info_base;
+	struct thread_info *tp;
 	struct reg_window *rw;
         unsigned long ret = 0;
 	int count = 0; 
@@ -885,14 +791,12 @@ unsigned long get_wchan(struct task_struct *task)
             task->state == TASK_RUNNING)
 		goto out;
 
-	thread_info_base = (unsigned long) task_stack_page(task);
+	tp = task_thread_info(task);
 	bias = STACK_BIAS;
 	fp = task_thread_info(task)->ksp + bias;
 
 	do {
-		/* Bogus frame pointer? */
-		if (fp < (thread_info_base + sizeof(struct thread_info)) ||
-		    fp >= (thread_info_base + THREAD_SIZE))
+		if (!kstack_valid(tp, fp))
 			break;
 		rw = (struct reg_window *) fp;
 		pc = rw->ins[7];

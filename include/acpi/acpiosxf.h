@@ -144,7 +144,7 @@ void acpi_os_release_mutex(acpi_mutex handle);
 void *acpi_os_allocate(acpi_size size);
 
 void __iomem *acpi_os_map_memory(acpi_physical_address where,
-				 acpi_native_uint length);
+				acpi_size length);
 
 void acpi_os_unmap_memory(void __iomem * logical_address, acpi_size size);
 

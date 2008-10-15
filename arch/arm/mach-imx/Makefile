@@ -4,7 +4,7 @@
 
 # Object file lists.
 
-obj-y			+= irq.o time.o dma.o generic.o
+obj-y			+= irq.o time.o dma.o generic.o clock.o
 
 obj-$(CONFIG_CPU_FREQ_IMX)	+= cpufreq.o
 

@@ -65,15 +65,18 @@ static int pcxhr_init_board(struct pcxhr_mgr *mgr)
 	if (err)
 		return err;
 	/* test 8 or 12 phys out */
-	snd_assert((rmh.stat[0] & MASK_FIRST_FIELD) == mgr->playback_chips*2,
-		   return -EINVAL);
+	if ((rmh.stat[0] & MASK_FIRST_FIELD) != mgr->playback_chips * 2)
+		return -EINVAL;
 	/* test 8 or 2 phys in */
-	snd_assert(((rmh.stat[0] >> (2*FIELD_SIZE)) & MASK_FIRST_FIELD) ==
-		   mgr->capture_chips * 2, return -EINVAL);
+	if (((rmh.stat[0] >> (2 * FIELD_SIZE)) & MASK_FIRST_FIELD) !=
+	    mgr->capture_chips * 2)
+		return -EINVAL;
 	/* test max nb substream per board */
-	snd_assert((rmh.stat[1] & 0x5F) >= card_streams, return -EINVAL);
+	if ((rmh.stat[1] & 0x5F) < card_streams)
+		return -EINVAL;
 	/* test max nb substream per pipe */
-	snd_assert(((rmh.stat[1]>>7)&0x5F) >= PCXHR_PLAYBACK_STREAMS, return -EINVAL);
+	if (((rmh.stat[1] >> 7) & 0x5F) < PCXHR_PLAYBACK_STREAMS)
+		return -EINVAL;
 
 	pcxhr_init_rmh(&rmh, CMD_VERSION);
 	/* firmware num for DSP */
@@ -394,7 +397,7 @@ static int pcxhr_hwdep_dsp_load(struct snd_hwdep *hw,
 			   (unsigned long)fw.size);
 		return -ENOMEM;
 	}
-	if (copy_from_user(fw.data, dsp->image, dsp->length)) {
+	if (copy_from_user((void *)fw.data, dsp->image, dsp->length)) {
 		vfree(fw.data);
 		return -EFAULT;
 	}

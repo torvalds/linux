@@ -474,7 +474,8 @@ static int load_firmware(struct echoaudio *chip)
 	const struct firmware *fw;
 	int box_type, err;
 
-	snd_assert(chip->dsp_code_to_load && chip->comm_page, return -EPERM);
+	if (snd_BUG_ON(!chip->dsp_code_to_load || !chip->comm_page))
+		return -EPERM;
 
 	/* See if the ASIC is present and working - only if the DSP is already loaded */
 	if (chip->dsp_code) {
@@ -512,8 +513,8 @@ static int load_firmware(struct echoaudio *chip)
 /* Set the nominal level for an input or output bus (true = -10dBV, false = +4dBu) */
 static int set_nominal_level(struct echoaudio *chip, u16 index, char consumer)
 {
-	snd_assert(index < num_busses_out(chip) + num_busses_in(chip),
-		   return -EINVAL);
+	if (snd_BUG_ON(index >= num_busses_out(chip) + num_busses_in(chip)))
+		return -EINVAL;
 
 	/* Wait for the handshake (OK even if ASIC is not loaded) */
 	if (wait_handshake(chip))
@@ -536,7 +537,8 @@ static int set_nominal_level(struct echoaudio *chip, u16 index, char consumer)
 /* Set the gain for a single physical output channel (dB). */
 static int set_output_gain(struct echoaudio *chip, u16 channel, s8 gain)
 {
-	snd_assert(channel < num_busses_out(chip), return -EINVAL);
+	if (snd_BUG_ON(channel >= num_busses_out(chip)))
+		return -EINVAL;
 
 	if (wait_handshake(chip))
 		return -EIO;
@@ -554,8 +556,9 @@ static int set_output_gain(struct echoaudio *chip, u16 channel, s8 gain)
 static int set_monitor_gain(struct echoaudio *chip, u16 output, u16 input,
 			    s8 gain)
 {
-	snd_assert(output < num_busses_out(chip) &&
-		   input < num_busses_in(chip), return -EINVAL);
+	if (snd_BUG_ON(output >= num_busses_out(chip) ||
+		    input >= num_busses_in(chip)))
+		return -EINVAL;
 
 	if (wait_handshake(chip))
 		return -EIO;
@@ -1065,8 +1068,10 @@ static int free_pipes(struct echoaudio *chip, struct audiopipe *pipe)
 	int i;
 
 	DE_ACT(("free_pipes: Pipe %d\n", pipe->index));
-	snd_assert(is_pipe_allocated(chip, pipe->index), return -EINVAL);
-	snd_assert(pipe->state == PIPE_STATE_STOPPED, return -EINVAL);
+	if (snd_BUG_ON(!is_pipe_allocated(chip, pipe->index)))
+		return -EINVAL;
+	if (snd_BUG_ON(pipe->state != PIPE_STATE_STOPPED))
+		return -EINVAL;
 
 	for (channel_mask = i = 0; i < pipe->interleave; i++)
 		channel_mask |= 1 << (pipe->index + i);

@@ -111,6 +111,8 @@ struct mmc_card {
 	unsigned		num_info;	/* number of info strings */
 	const char		**info;		/* info strings */
 	struct sdio_func_tuple	*tuples;	/* unknown common tuples */
+
+	struct dentry		*debugfs_root;
 };
 
 #define mmc_card_mmc(c)		((c)->type == MMC_TYPE_MMC)

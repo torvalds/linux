@@ -87,9 +87,11 @@ static u8 FSCPOS_REG_TEMP_STATE[] = { 0x71, 0x81, 0x91 };
 /*
  * Functions declaration
  */
-static int fscpos_attach_adapter(struct i2c_adapter *adapter);
-static int fscpos_detect(struct i2c_adapter *adapter, int address, int kind);
-static int fscpos_detach_client(struct i2c_client *client);
+static int fscpos_probe(struct i2c_client *client,
+			const struct i2c_device_id *id);
+static int fscpos_detect(struct i2c_client *client, int kind,
+			 struct i2c_board_info *info);
+static int fscpos_remove(struct i2c_client *client);
 
 static int fscpos_read_value(struct i2c_client *client, u8 reg);
 static int fscpos_write_value(struct i2c_client *client, u8 reg, u8 value);
@@ -101,19 +103,27 @@ static void reset_fan_alarm(struct i2c_client *client, int nr);
 /*
  * Driver data (common to all clients)
  */
+static const struct i2c_device_id fscpos_id[] = {
+	{ "fscpos", fscpos },
+	{ }
+};
+
 static struct i2c_driver fscpos_driver = {
+	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "fscpos",
 	},
-	.attach_adapter	= fscpos_attach_adapter,
-	.detach_client	= fscpos_detach_client,
+	.probe		= fscpos_probe,
+	.remove		= fscpos_remove,
+	.id_table	= fscpos_id,
+	.detect		= fscpos_detect,
+	.address_data	= &addr_data,
 };
 
 /*
  * Client data (each client gets its own)
  */
 struct fscpos_data {
-	struct i2c_client client;
 	struct device *hwmon_dev;
 	struct mutex update_lock;
 	char valid; 		/* 0 until following fields are valid */
@@ -470,39 +480,14 @@ static const struct attribute_group fscpos_group = {
 	.attrs = fscpos_attributes,
 };
 
-static int fscpos_attach_adapter(struct i2c_adapter *adapter)
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static int fscpos_detect(struct i2c_client *new_client, int kind,
+			 struct i2c_board_info *info)
 {
-	if (!(adapter->class & I2C_CLASS_HWMON))
-		return 0;
-	return i2c_probe(adapter, &addr_data, fscpos_detect);
-}
-
-static int fscpos_detect(struct i2c_adapter *adapter, int address, int kind)
-{
-	struct i2c_client *new_client;
-	struct fscpos_data *data;
-	int err = 0;
+	struct i2c_adapter *adapter = new_client->adapter;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		goto exit;
-
-	/*
-	 * OK. For now, we presume we have a valid client. We now create the
-	 * client structure, even though we cannot fill it completely yet.
-	 * But it allows us to access fscpos_{read,write}_value.
-	 */
-
-	if (!(data = kzalloc(sizeof(struct fscpos_data), GFP_KERNEL))) {
-		err = -ENOMEM;
-		goto exit;
-	}
-
-	new_client = &data->client;
-	i2c_set_clientdata(new_client, data);
-	new_client->addr = address;
-	new_client->adapter = adapter;
-	new_client->driver = &fscpos_driver;
-	new_client->flags = 0;
+		return -ENODEV;
 
 	/* Do the remaining detection unless force or force_fscpos parameter */
 	if (kind < 0) {
@@ -512,21 +497,29 @@ static int fscpos_detect(struct i2c_adapter *adapter, int address, int kind)
 			!= 0x45) /* 'E' */
 		|| (fscpos_read_value(new_client, FSCPOS_REG_IDENT_2)
 			!= 0x47))/* 'G' */
-		{
-			dev_dbg(&new_client->dev, "fscpos detection failed\n");
-			goto exit_free;
-		}
+			return -ENODEV;
 	}
 
-	/* Fill in the remaining client fields and put it in the global list */
-	strlcpy(new_client->name, "fscpos", I2C_NAME_SIZE);
+	strlcpy(info->type, "fscpos", I2C_NAME_SIZE);
 
+	return 0;
+}
+
+static int fscpos_probe(struct i2c_client *new_client,
+			const struct i2c_device_id *id)
+{
+	struct fscpos_data *data;
+	int err;
+
+	data = kzalloc(sizeof(struct fscpos_data), GFP_KERNEL);
+	if (!data) {
+		err = -ENOMEM;
+		goto exit;
+	}
+
+	i2c_set_clientdata(new_client, data);
 	data->valid = 0;
 	mutex_init(&data->update_lock);
-
-	/* Tell the I2C layer a new client has arrived */
-	if ((err = i2c_attach_client(new_client)))
-		goto exit_free;
 
 	/* Inizialize the fscpos chip */
 	fscpos_init_client(new_client);
@@ -536,7 +529,7 @@ static int fscpos_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	/* Register sysfs hooks */
 	if ((err = sysfs_create_group(&new_client->dev.kobj, &fscpos_group)))
-		goto exit_detach;
+		goto exit_free;
 
 	data->hwmon_dev = hwmon_device_register(&new_client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -548,24 +541,19 @@ static int fscpos_detect(struct i2c_adapter *adapter, int address, int kind)
 
 exit_remove_files:
 	sysfs_remove_group(&new_client->dev.kobj, &fscpos_group);
-exit_detach:
-	i2c_detach_client(new_client);
 exit_free:
 	kfree(data);
 exit:
 	return err;
 }
 
-static int fscpos_detach_client(struct i2c_client *client)
+static int fscpos_remove(struct i2c_client *client)
 {
 	struct fscpos_data *data = i2c_get_clientdata(client);
-	int err;
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &fscpos_group);
 
-	if ((err = i2c_detach_client(client)))
-		return err;
 	kfree(data);
 	return 0;
 }

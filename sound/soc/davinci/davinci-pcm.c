@@ -1,7 +1,7 @@
 /*
  * ALSA PCM interface for the TI DAVINCI processor
  *
- * Author:      Vladimir Barinov, <vbarinov@ru.mvista.com>
+ * Author:      Vladimir Barinov, <vbarinov@embeddedalley.com>
  * Copyright:   (C) 2007 MontaVista Software, Inc., <source@mvista.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -350,7 +350,7 @@ static void davinci_pcm_free(struct snd_pcm *pcm)
 static u64 davinci_pcm_dmamask = 0xffffffff;
 
 static int davinci_pcm_new(struct snd_card *card,
-			   struct snd_soc_codec_dai *dai, struct snd_pcm *pcm)
+			   struct snd_soc_dai *dai, struct snd_pcm *pcm)
 {
 	int ret;
 

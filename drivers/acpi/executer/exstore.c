@@ -343,12 +343,6 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 			    acpi_ut_get_object_type_name(dest_desc),
 			    dest_desc));
 
-		ACPI_DUMP_STACK_ENTRY(source_desc);
-		ACPI_DUMP_STACK_ENTRY(dest_desc);
-		ACPI_DUMP_OPERANDS(&dest_desc, ACPI_IMODE_EXECUTE, "ExStore",
-				   2,
-				   "Target is not a Reference or Constant object");
-
 		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 	}
 

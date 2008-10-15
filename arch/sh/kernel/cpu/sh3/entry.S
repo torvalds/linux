@@ -14,7 +14,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
-#include <asm/cpu/mmu_context.h>
+#include <cpu/mmu_context.h>
 #include <asm/page.h>
 
 ! NOTE:

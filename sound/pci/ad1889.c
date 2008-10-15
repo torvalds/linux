@@ -549,7 +549,8 @@ snd_ad1889_playback_pointer(struct snd_pcm_substream *ss)
 	ptr = ad1889_readl(chip, AD_DMA_WAVCA);
 	ptr -= chip->wave.addr;
 	
-	snd_assert((ptr >= 0) && (ptr < chip->wave.size), return 0);
+	if (snd_BUG_ON(ptr >= chip->wave.size))
+		return 0;
 	
 	return bytes_to_frames(ss->runtime, ptr);
 }
@@ -567,7 +568,8 @@ snd_ad1889_capture_pointer(struct snd_pcm_substream *ss)
 	ptr = ad1889_readl(chip, AD_DMA_ADCCA);
 	ptr -= chip->ramc.addr;
 
-	snd_assert((ptr >= 0) && (ptr < chip->ramc.size), return 0);
+	if (snd_BUG_ON(ptr >= chip->ramc.size))
+		return 0;
 	
 	return bytes_to_frames(ss->runtime, ptr);
 }

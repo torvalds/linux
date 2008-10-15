@@ -14,6 +14,7 @@
 
 #ifdef __KERNEL__
 #include <linux/mutex.h>
+#include <linux/tty.h>
 
 struct real_driver {
   void                    (*disable_tx_interrupts) (void *);
@@ -33,17 +34,12 @@ struct real_driver {
 
 struct gs_port {
   int                     magic;
+  struct tty_port	  port;
   unsigned char           *xmit_buf; 
   int                     xmit_head;
   int                     xmit_tail;
   int                     xmit_cnt;
   struct mutex            port_write_mutex;
-  int                     flags;
-  wait_queue_head_t       open_wait;
-  wait_queue_head_t       close_wait;
-  int                     count;
-  int                     blocked_open;
-  struct tty_struct       *tty;
   unsigned long           event;
   unsigned short          closing_wait;
   int                     close_delay;

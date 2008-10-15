@@ -8,7 +8,6 @@
 #include <linux/kernel_stat.h>
 #include <linux/mc146818rtc.h>
 #include <linux/cache.h>
-#include <linux/interrupt.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
 
@@ -21,6 +20,8 @@
 
 #ifdef CONFIG_X86_32
 #include <mach_apic.h>
+#include <mach_ipi.h>
+
 /*
  * the following functions deal with sending IPIs between CPUs.
  *
@@ -71,7 +72,7 @@ void __send_IPI_shortcut(unsigned int shortcut, int vector)
 	/*
 	 * Send the IPI. The write to APIC_ICR fires this off.
 	 */
-	apic_write_around(APIC_ICR, cfg);
+	apic_write(APIC_ICR, cfg);
 }
 
 void send_IPI_self(int vector)
@@ -99,7 +100,7 @@ static inline void __send_IPI_dest_field(unsigned long mask, int vector)
 	 * prepare target chip field
 	 */
 	cfg = __prepare_ICR2(mask);
-	apic_write_around(APIC_ICR2, cfg);
+	apic_write(APIC_ICR2, cfg);
 
 	/*
 	 * program the ICR
@@ -109,7 +110,7 @@ static inline void __send_IPI_dest_field(unsigned long mask, int vector)
 	/*
 	 * Send the IPI. The write to APIC_ICR fires this off.
 	 */
-	apic_write_around(APIC_ICR, cfg);
+	apic_write(APIC_ICR, cfg);
 }
 
 /*
@@ -148,7 +149,6 @@ void send_IPI_mask_sequence(cpumask_t mask, int vector)
 }
 
 /* must come after the send_IPI functions above for inlining */
-#include <mach_ipi.h>
 static int convert_apicid_to_cpu(int apic_id)
 {
 	int i;

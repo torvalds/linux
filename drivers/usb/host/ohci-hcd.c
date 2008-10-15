@@ -86,6 +86,21 @@ static void ohci_stop (struct usb_hcd *hcd);
 static int ohci_restart (struct ohci_hcd *ohci);
 #endif
 
+#ifdef CONFIG_PCI
+static void quirk_amd_pll(int state);
+static void amd_iso_dev_put(void);
+#else
+static inline void quirk_amd_pll(int state)
+{
+	return;
+}
+static inline void amd_iso_dev_put(void)
+{
+	return;
+}
+#endif
+
+
 #include "ohci-hub.c"
 #include "ohci-dbg.c"
 #include "ohci-mem.c"
@@ -483,6 +498,9 @@ static int ohci_init (struct ohci_hcd *ohci)
 	int ret;
 	struct usb_hcd *hcd = ohci_to_hcd(ohci);
 
+	if (distrust_firmware)
+		ohci->flags |= OHCI_QUIRK_HUB_POWER;
+
 	disable (ohci);
 	ohci->regs = hcd->regs;
 
@@ -689,7 +707,8 @@ retry:
 		temp |= RH_A_NOCP;
 		temp &= ~(RH_A_POTPGT | RH_A_NPS);
 		ohci_writel (ohci, temp, &ohci->regs->roothub.a);
-	} else if ((ohci->flags & OHCI_QUIRK_AMD756) || distrust_firmware) {
+	} else if ((ohci->flags & OHCI_QUIRK_AMD756) ||
+			(ohci->flags & OHCI_QUIRK_HUB_POWER)) {
 		/* hub power always on; required for AMD-756 and some
 		 * Mac platforms.  ganged overcurrent reporting, if any.
 		 */
@@ -882,6 +901,8 @@ static void ohci_stop (struct usb_hcd *hcd)
 
 	if (quirk_zfmicro(ohci))
 		del_timer(&ohci->unlink_watchdog);
+	if (quirk_amdiso(ohci))
+		amd_iso_dev_put();
 
 	remove_debug_files (ohci);
 	ohci_mem_cleanup (ohci);
@@ -974,7 +995,7 @@ MODULE_LICENSE ("GPL");
 #define PCI_DRIVER		ohci_pci_driver
 #endif
 
-#ifdef CONFIG_SA1111
+#if defined(CONFIG_ARCH_SA1100) && defined(CONFIG_SA1111)
 #include "ohci-sa1111.c"
 #define SA1111_DRIVER		ohci_hcd_sa1111_driver
 #endif
@@ -1054,7 +1075,7 @@ MODULE_LICENSE ("GPL");
 
 #ifdef CONFIG_MFD_SM501
 #include "ohci-sm501.c"
-#define PLATFORM_DRIVER		ohci_hcd_sm501_driver
+#define SM501_OHCI_DRIVER	ohci_hcd_sm501_driver
 #endif
 
 #if	!defined(PCI_DRIVER) &&		\
@@ -1062,6 +1083,7 @@ MODULE_LICENSE ("GPL");
 	!defined(OF_PLATFORM_DRIVER) &&	\
 	!defined(SA1111_DRIVER) &&	\
 	!defined(PS3_SYSTEM_BUS_DRIVER) && \
+	!defined(SM501_OHCI_DRIVER) && \
 	!defined(SSB_OHCI_DRIVER)
 #error "missing bus glue for ohci-hcd"
 #endif
@@ -1121,9 +1143,18 @@ static int __init ohci_hcd_mod_init(void)
 		goto error_ssb;
 #endif
 
+#ifdef SM501_OHCI_DRIVER
+	retval = platform_driver_register(&SM501_OHCI_DRIVER);
+	if (retval < 0)
+		goto error_sm501;
+#endif
+
 	return retval;
 
 	/* Error path */
+#ifdef SM501_OHCI_DRIVER
+ error_sm501:
+#endif
 #ifdef SSB_OHCI_DRIVER
  error_ssb:
 #endif
@@ -1159,6 +1190,9 @@ module_init(ohci_hcd_mod_init);
 
 static void __exit ohci_hcd_mod_exit(void)
 {
+#ifdef SM501_OHCI_DRIVER
+	platform_driver_unregister(&SM501_OHCI_DRIVER);
+#endif
 #ifdef SSB_OHCI_DRIVER
 	ssb_driver_unregister(&SSB_OHCI_DRIVER);
 #endif

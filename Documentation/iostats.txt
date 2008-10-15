@@ -143,7 +143,7 @@ disk and partition statistics are consistent again. Since we still don't
 keep record of the partition-relative address, an operation is attributed to
 the partition which contains the first sector of the request after the
 eventual merges. As requests can be merged across partition, this could lead
-to some (probably insignificant) innacuracy.
+to some (probably insignificant) inaccuracy.
 
 Additional notes
 ----------------

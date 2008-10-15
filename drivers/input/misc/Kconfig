@@ -189,6 +189,16 @@ config INPUT_UINPUT
 	  To compile this driver as a module, choose M here: the
 	  module will be called uinput.
 
+config INPUT_SGI_BTNS
+	tristate "SGI Indy/O2 volume button interface"
+	depends on SGI_IP22 || SGI_IP32
+	select INPUT_POLLDEV
+	help
+	  Say Y here if you want to support SGI Indy/O2 volume button interface.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sgi_btns.
+
 config HP_SDC_RTC
 	tristate "HP SDC Real Time Clock"
 	depends on GSC || HP300

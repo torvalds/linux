@@ -1,6 +1,6 @@
 /*
  * lm92 - Hardware monitoring driver
- * Copyright (C) 2005  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2005-2008  Jean Delvare <khali@linux-fr.org>
  *
  * Based on the lm90 driver, with some ideas taken from the lm_sensors
  * lm92 driver as well.
@@ -96,7 +96,6 @@ static struct i2c_driver lm92_driver;
 
 /* Client data (each client gets its own) */
 struct lm92_data {
-	struct i2c_client client;
 	struct device *hwmon_dev;
 	struct mutex update_lock;
 	char valid; /* zero until following fields are valid */
@@ -319,32 +318,15 @@ static const struct attribute_group lm92_group = {
 	.attrs = lm92_attributes,
 };
 
-/* The following function does more than just detection. If detection
-   succeeds, it also registers the new chip. */
-static int lm92_detect(struct i2c_adapter *adapter, int address, int kind)
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static int lm92_detect(struct i2c_client *new_client, int kind,
+		       struct i2c_board_info *info)
 {
-	struct i2c_client *new_client;
-	struct lm92_data *data;
-	int err = 0;
-	char *name;
+	struct i2c_adapter *adapter = new_client->adapter;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA
 					    | I2C_FUNC_SMBUS_WORD_DATA))
-		goto exit;
-
-	if (!(data = kzalloc(sizeof(struct lm92_data), GFP_KERNEL))) {
-		err = -ENOMEM;
-		goto exit;
-	}
-
-	/* Fill in enough client fields so that we can read from the chip,
-	   which is required for identication */
-	new_client = &data->client;
-	i2c_set_clientdata(new_client, data);
-	new_client->addr = address;
-	new_client->adapter = adapter;
-	new_client->driver = &lm92_driver;
-	new_client->flags = 0;
+		return -ENODEV;
 
 	/* A negative kind means that the driver was loaded with no force
 	   parameter (default), so we must identify the chip. */
@@ -364,34 +346,36 @@ static int lm92_detect(struct i2c_adapter *adapter, int address, int kind)
 			kind = lm92; /* No separate prefix */
 		}
 		else
-			goto exit_free;
-	} else
-	if (kind == 0) /* Default to an LM92 if forced */
-		kind = lm92;
-
-	/* Give it the proper name */
-	if (kind == lm92) {
-		name = "lm92";
-	} else { /* Supposedly cannot happen */
-		dev_dbg(&new_client->dev, "Kind out of range?\n");
-		goto exit_free;
+			return -ENODEV;
 	}
 
-	/* Fill in the remaining client fields */
-	strlcpy(new_client->name, name, I2C_NAME_SIZE);
+	strlcpy(info->type, "lm92", I2C_NAME_SIZE);
+
+	return 0;
+}
+
+static int lm92_probe(struct i2c_client *new_client,
+		      const struct i2c_device_id *id)
+{
+	struct lm92_data *data;
+	int err;
+
+	data = kzalloc(sizeof(struct lm92_data), GFP_KERNEL);
+	if (!data) {
+		err = -ENOMEM;
+		goto exit;
+	}
+
+	i2c_set_clientdata(new_client, data);
 	data->valid = 0;
 	mutex_init(&data->update_lock);
-
-	/* Tell the i2c subsystem a new client has arrived */
-	if ((err = i2c_attach_client(new_client)))
-		goto exit_free;
 
 	/* Initialize the chipset */
 	lm92_init_client(new_client);
 
 	/* Register sysfs hooks */
 	if ((err = sysfs_create_group(&new_client->dev.kobj, &lm92_group)))
-		goto exit_detach;
+		goto exit_free;
 
 	data->hwmon_dev = hwmon_device_register(&new_client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -403,31 +387,18 @@ static int lm92_detect(struct i2c_adapter *adapter, int address, int kind)
 
 exit_remove:
 	sysfs_remove_group(&new_client->dev.kobj, &lm92_group);
-exit_detach:
-	i2c_detach_client(new_client);
 exit_free:
 	kfree(data);
 exit:
 	return err;
 }
 
-static int lm92_attach_adapter(struct i2c_adapter *adapter)
-{
-	if (!(adapter->class & I2C_CLASS_HWMON))
-		return 0;
-	return i2c_probe(adapter, &addr_data, lm92_detect);
-}
-
-static int lm92_detach_client(struct i2c_client *client)
+static int lm92_remove(struct i2c_client *client)
 {
 	struct lm92_data *data = i2c_get_clientdata(client);
-	int err;
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &lm92_group);
-
-	if ((err = i2c_detach_client(client)))
-		return err;
 
 	kfree(data);
 	return 0;
@@ -438,12 +409,23 @@ static int lm92_detach_client(struct i2c_client *client)
  * Module and driver stuff
  */
 
+static const struct i2c_device_id lm92_id[] = {
+	{ "lm92", lm92 },
+	/* max6635 could be added here */
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, lm92_id);
+
 static struct i2c_driver lm92_driver = {
+	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "lm92",
 	},
-	.attach_adapter	= lm92_attach_adapter,
-	.detach_client	= lm92_detach_client,
+	.probe		= lm92_probe,
+	.remove		= lm92_remove,
+	.id_table	= lm92_id,
+	.detect		= lm92_detect,
+	.address_data	= &addr_data,
 };
 
 static int __init sensors_lm92_init(void)

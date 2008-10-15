@@ -59,7 +59,7 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 
 	P9_DPRINTK(P9_DEBUG_VFS, "inode: %p file: %p \n", inode, file);
 	v9ses = v9fs_inode2v9ses(inode);
-	omode = v9fs_uflags2omode(file->f_flags);
+	omode = v9fs_uflags2omode(file->f_flags, v9fs_extended(v9ses));
 	fid = file->private_data;
 	if (!fid) {
 		fid = v9fs_fid_clone(file->f_path.dentry);
@@ -75,6 +75,8 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 			inode->i_size = 0;
 			inode->i_blocks = 0;
 		}
+		if ((file->f_flags & O_APPEND) && (!v9fs_extended(v9ses)))
+			generic_file_llseek(file, 0, SEEK_END);
 	}
 
 	file->private_data = fid;

@@ -503,11 +503,11 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 		 */
 		second_desc = obj_desc->common.next_object;
 		second_desc->extra.aml_start =
-		    ((union acpi_parse_object *)(info->data_register_node))->
-		    named.data;
+		    ACPI_CAST_PTR(union acpi_parse_object,
+				  info->data_register_node)->named.data;
 		second_desc->extra.aml_length =
-		    ((union acpi_parse_object *)(info->data_register_node))->
-		    named.length;
+		    ACPI_CAST_PTR(union acpi_parse_object,
+				  info->data_register_node)->named.length;
 
 		break;
 

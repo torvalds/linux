@@ -9,9 +9,9 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
+#include <linux/of_device.h>
 
 #include <asm/prom.h>
-#include <asm/of_device.h>
 #include <asm/io.h>
 #include <asm/auxio.h>
 
@@ -109,7 +109,7 @@ void auxio_set_lte(int on)
 	}
 }
 
-static struct of_device_id auxio_match[] = {
+static struct of_device_id __initdata auxio_match[] = {
 	{
 		.name = "auxio",
 	},

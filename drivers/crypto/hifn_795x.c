@@ -29,7 +29,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
 #include <linux/highmem.h>
-#include <linux/interrupt.h>
 #include <linux/crypto.h>
 #include <linux/hw_random.h>
 #include <linux/ktime.h>
@@ -369,7 +368,9 @@ static atomic_t hifn_dev_number;
 #define	HIFN_D_DST_RSIZE		80*4
 #define	HIFN_D_RES_RSIZE		24*4
 
-#define HIFN_QUEUE_LENGTH		HIFN_D_CMD_RSIZE-5
+#define HIFN_D_DST_DALIGN		4
+
+#define HIFN_QUEUE_LENGTH		HIFN_D_CMD_RSIZE-1
 
 #define AES_MIN_KEY_SIZE		16
 #define AES_MAX_KEY_SIZE		32
@@ -535,10 +536,10 @@ struct hifn_crypt_command
  */
 struct hifn_mac_command
 {
-	volatile u16 		masks;
-	volatile u16 		header_skip;
-	volatile u16 		source_count;
-	volatile u16 		reserved;
+	volatile __le16 	masks;
+	volatile __le16 	header_skip;
+	volatile __le16 	source_count;
+	volatile __le16 	reserved;
 };
 
 #define	HIFN_MAC_CMD_ALG_MASK		0x0001
@@ -564,10 +565,10 @@ struct hifn_mac_command
 
 struct hifn_comp_command
 {
-	volatile u16 		masks;
-	volatile u16 		header_skip;
-	volatile u16 		source_count;
-	volatile u16 		reserved;
+	volatile __le16 	masks;
+	volatile __le16 	header_skip;
+	volatile __le16 	source_count;
+	volatile __le16 	reserved;
 };
 
 #define	HIFN_COMP_CMD_SRCLEN_M		0xc000
@@ -583,10 +584,10 @@ struct hifn_comp_command
 
 struct hifn_base_result
 {
-	volatile u16 		flags;
-	volatile u16 		session;
-	volatile u16 		src_cnt;		/* 15:0 of source count */
-	volatile u16 		dst_cnt;		/* 15:0 of dest count */
+	volatile __le16 	flags;
+	volatile __le16 	session;
+	volatile __le16 	src_cnt;		/* 15:0 of source count */
+	volatile __le16 	dst_cnt;		/* 15:0 of dest count */
 };
 
 #define	HIFN_BASE_RES_DSTOVERRUN	0x0200	/* destination overrun */
@@ -597,8 +598,8 @@ struct hifn_base_result
 
 struct hifn_comp_result
 {
-	volatile u16 		flags;
-	volatile u16 		crc;
+	volatile __le16		flags;
+	volatile __le16		crc;
 };
 
 #define	HIFN_COMP_RES_LCB_M		0xff00	/* longitudinal check byte */
@@ -609,8 +610,8 @@ struct hifn_comp_result
 
 struct hifn_mac_result
 {
-	volatile u16 		flags;
-	volatile u16 		reserved;
+	volatile __le16 	flags;
+	volatile __le16 	reserved;
 	/* followed by 0, 6, 8, or 10 u16's of the MAC, then crypt */
 };
 
@@ -619,8 +620,8 @@ struct hifn_mac_result
 
 struct hifn_crypt_result
 {
-	volatile u16 		flags;
-	volatile u16 		reserved;
+	volatile __le16		flags;
+	volatile __le16		reserved;
 };
 
 #define	HIFN_CRYPT_RES_SRC_NOTZERO	0x0001	/* source expired */
@@ -686,12 +687,12 @@ static inline u32 hifn_read_1(struct hifn_device *dev, u32 reg)
 
 static inline void hifn_write_0(struct hifn_device *dev, u32 reg, u32 val)
 {
-	writel(val, dev->bar[0] + reg);
+	writel((__force u32)cpu_to_le32(val), dev->bar[0] + reg);
 }
 
 static inline void hifn_write_1(struct hifn_device *dev, u32 reg, u32 val)
 {
-	writel(val, dev->bar[1] + reg);
+	writel((__force u32)cpu_to_le32(val), dev->bar[1] + reg);
 }
 
 static void hifn_wait_puc(struct hifn_device *dev)
@@ -894,7 +895,7 @@ static int hifn_enable_crypto(struct hifn_device *dev)
 	char *offtbl = NULL;
 	int i;
 
-	for (i = 0; i < sizeof(pci2id)/sizeof(pci2id[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(pci2id); i++) {
 		if (pci2id[i].pci_vendor == dev->pdev->vendor &&
 				pci2id[i].pci_prod == dev->pdev->device) {
 			offtbl = pci2id[i].card_id;
@@ -1037,14 +1038,14 @@ static void hifn_init_registers(struct hifn_device *dev)
 	hifn_write_0(dev, HIFN_0_PUIER, HIFN_PUIER_DSTOVER);
 
 	/* write all 4 ring address registers */
-	hifn_write_1(dev, HIFN_1_DMA_CRAR, __cpu_to_le32(dptr +
-				offsetof(struct hifn_dma, cmdr[0])));
-	hifn_write_1(dev, HIFN_1_DMA_SRAR, __cpu_to_le32(dptr +
-				offsetof(struct hifn_dma, srcr[0])));
-	hifn_write_1(dev, HIFN_1_DMA_DRAR, __cpu_to_le32(dptr +
-				offsetof(struct hifn_dma, dstr[0])));
-	hifn_write_1(dev, HIFN_1_DMA_RRAR, __cpu_to_le32(dptr +
-				offsetof(struct hifn_dma, resr[0])));
+	hifn_write_1(dev, HIFN_1_DMA_CRAR, dptr +
+				offsetof(struct hifn_dma, cmdr[0]));
+	hifn_write_1(dev, HIFN_1_DMA_SRAR, dptr +
+				offsetof(struct hifn_dma, srcr[0]));
+	hifn_write_1(dev, HIFN_1_DMA_DRAR, dptr +
+				offsetof(struct hifn_dma, dstr[0]));
+	hifn_write_1(dev, HIFN_1_DMA_RRAR, dptr +
+				offsetof(struct hifn_dma, resr[0]));
 
 	mdelay(2);
 #if 0
@@ -1166,109 +1167,15 @@ static int hifn_setup_crypto_command(struct hifn_device *dev,
 	return cmd_len;
 }
 
-static int hifn_setup_src_desc(struct hifn_device *dev, struct page *page,
-		unsigned int offset, unsigned int size)
-{
-	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
-	int idx;
-	dma_addr_t addr;
-
-	addr = pci_map_page(dev->pdev, page, offset, size, PCI_DMA_TODEVICE);
-
-	idx = dma->srci;
-
-	dma->srcr[idx].p = __cpu_to_le32(addr);
-	dma->srcr[idx].l = __cpu_to_le32(size) | HIFN_D_VALID |
-			HIFN_D_MASKDONEIRQ | HIFN_D_NOINVALID | HIFN_D_LAST;
-
-	if (++idx == HIFN_D_SRC_RSIZE) {
-		dma->srcr[idx].l = __cpu_to_le32(HIFN_D_VALID |
-				HIFN_D_JUMP |
-				HIFN_D_MASKDONEIRQ | HIFN_D_LAST);
-		idx = 0;
-	}
-
-	dma->srci = idx;
-	dma->srcu++;
-
-	if (!(dev->flags & HIFN_FLAG_SRC_BUSY)) {
-		hifn_write_1(dev, HIFN_1_DMA_CSR, HIFN_DMACSR_S_CTRL_ENA);
-		dev->flags |= HIFN_FLAG_SRC_BUSY;
-	}
-
-	return size;
-}
-
-static void hifn_setup_res_desc(struct hifn_device *dev)
-{
-	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
-
-	dma->resr[dma->resi].l = __cpu_to_le32(HIFN_USED_RESULT |
-			HIFN_D_VALID | HIFN_D_LAST);
-	/*
-	 * dma->resr[dma->resi].l = __cpu_to_le32(HIFN_MAX_RESULT | HIFN_D_VALID |
-	 *					HIFN_D_LAST | HIFN_D_NOINVALID);
-	 */
-
-	if (++dma->resi == HIFN_D_RES_RSIZE) {
-		dma->resr[HIFN_D_RES_RSIZE].l = __cpu_to_le32(HIFN_D_VALID |
-				HIFN_D_JUMP | HIFN_D_MASKDONEIRQ | HIFN_D_LAST);
-		dma->resi = 0;
-	}
-
-	dma->resu++;
-
-	if (!(dev->flags & HIFN_FLAG_RES_BUSY)) {
-		hifn_write_1(dev, HIFN_1_DMA_CSR, HIFN_DMACSR_R_CTRL_ENA);
-		dev->flags |= HIFN_FLAG_RES_BUSY;
-	}
-}
-
-static void hifn_setup_dst_desc(struct hifn_device *dev, struct page *page,
-		unsigned offset, unsigned size)
-{
-	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
-	int idx;
-	dma_addr_t addr;
-
-	addr = pci_map_page(dev->pdev, page, offset, size, PCI_DMA_FROMDEVICE);
-
-	idx = dma->dsti;
-	dma->dstr[idx].p = __cpu_to_le32(addr);
-	dma->dstr[idx].l = __cpu_to_le32(size |	HIFN_D_VALID |
-			HIFN_D_MASKDONEIRQ | HIFN_D_NOINVALID | HIFN_D_LAST);
-
-	if (++idx == HIFN_D_DST_RSIZE) {
-		dma->dstr[idx].l = __cpu_to_le32(HIFN_D_VALID |
-				HIFN_D_JUMP | HIFN_D_MASKDONEIRQ |
-				HIFN_D_LAST | HIFN_D_NOINVALID);
-		idx = 0;
-	}
-	dma->dsti = idx;
-	dma->dstu++;
-
-	if (!(dev->flags & HIFN_FLAG_DST_BUSY)) {
-		hifn_write_1(dev, HIFN_1_DMA_CSR, HIFN_DMACSR_D_CTRL_ENA);
-		dev->flags |= HIFN_FLAG_DST_BUSY;
-	}
-}
-
-static int hifn_setup_dma(struct hifn_device *dev, struct page *spage, unsigned int soff,
-		struct page *dpage, unsigned int doff, unsigned int nbytes, void *priv,
-		struct hifn_context *ctx)
+static int hifn_setup_cmd_desc(struct hifn_device *dev,
+		struct hifn_context *ctx, void *priv, unsigned int nbytes)
 {
 	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
 	int cmd_len, sa_idx;
 	u8 *buf, *buf_pos;
 	u16 mask;
 
-	dprintk("%s: spage: %p, soffset: %u, dpage: %p, doffset: %u, nbytes: %u, priv: %p, ctx: %p.\n",
-			dev->name, spage, soff, dpage, doff, nbytes, priv, ctx);
-
-	sa_idx = dma->resi;
-
-	hifn_setup_src_desc(dev, spage, soff, nbytes);
-
+	sa_idx = dma->cmdi;
 	buf_pos = buf = dma->command_bufs[dma->cmdi];
 
 	mask = 0;
@@ -1370,14 +1277,111 @@ static int hifn_setup_dma(struct hifn_device *dev, struct page *spage, unsigned 
 		hifn_write_1(dev, HIFN_1_DMA_CSR, HIFN_DMACSR_C_CTRL_ENA);
 		dev->flags |= HIFN_FLAG_CMD_BUSY;
 	}
-
-	hifn_setup_dst_desc(dev, dpage, doff, nbytes);
-	hifn_setup_res_desc(dev);
-
 	return 0;
 
 err_out:
 	return -EINVAL;
+}
+
+static int hifn_setup_src_desc(struct hifn_device *dev, struct page *page,
+		unsigned int offset, unsigned int size)
+{
+	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
+	int idx;
+	dma_addr_t addr;
+
+	addr = pci_map_page(dev->pdev, page, offset, size, PCI_DMA_TODEVICE);
+
+	idx = dma->srci;
+
+	dma->srcr[idx].p = __cpu_to_le32(addr);
+	dma->srcr[idx].l = __cpu_to_le32(size | HIFN_D_VALID |
+			HIFN_D_MASKDONEIRQ | HIFN_D_LAST);
+
+	if (++idx == HIFN_D_SRC_RSIZE) {
+		dma->srcr[idx].l = __cpu_to_le32(HIFN_D_VALID |
+				HIFN_D_JUMP |
+				HIFN_D_MASKDONEIRQ | HIFN_D_LAST);
+		idx = 0;
+	}
+
+	dma->srci = idx;
+	dma->srcu++;
+
+	if (!(dev->flags & HIFN_FLAG_SRC_BUSY)) {
+		hifn_write_1(dev, HIFN_1_DMA_CSR, HIFN_DMACSR_S_CTRL_ENA);
+		dev->flags |= HIFN_FLAG_SRC_BUSY;
+	}
+
+	return size;
+}
+
+static void hifn_setup_res_desc(struct hifn_device *dev)
+{
+	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
+
+	dma->resr[dma->resi].l = __cpu_to_le32(HIFN_USED_RESULT |
+			HIFN_D_VALID | HIFN_D_LAST);
+	/*
+	 * dma->resr[dma->resi].l = __cpu_to_le32(HIFN_MAX_RESULT | HIFN_D_VALID |
+	 *					HIFN_D_LAST);
+	 */
+
+	if (++dma->resi == HIFN_D_RES_RSIZE) {
+		dma->resr[HIFN_D_RES_RSIZE].l = __cpu_to_le32(HIFN_D_VALID |
+				HIFN_D_JUMP | HIFN_D_MASKDONEIRQ | HIFN_D_LAST);
+		dma->resi = 0;
+	}
+
+	dma->resu++;
+
+	if (!(dev->flags & HIFN_FLAG_RES_BUSY)) {
+		hifn_write_1(dev, HIFN_1_DMA_CSR, HIFN_DMACSR_R_CTRL_ENA);
+		dev->flags |= HIFN_FLAG_RES_BUSY;
+	}
+}
+
+static void hifn_setup_dst_desc(struct hifn_device *dev, struct page *page,
+		unsigned offset, unsigned size)
+{
+	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
+	int idx;
+	dma_addr_t addr;
+
+	addr = pci_map_page(dev->pdev, page, offset, size, PCI_DMA_FROMDEVICE);
+
+	idx = dma->dsti;
+	dma->dstr[idx].p = __cpu_to_le32(addr);
+	dma->dstr[idx].l = __cpu_to_le32(size |	HIFN_D_VALID |
+			HIFN_D_MASKDONEIRQ | HIFN_D_LAST);
+
+	if (++idx == HIFN_D_DST_RSIZE) {
+		dma->dstr[idx].l = __cpu_to_le32(HIFN_D_VALID |
+				HIFN_D_JUMP | HIFN_D_MASKDONEIRQ |
+				HIFN_D_LAST);
+		idx = 0;
+	}
+	dma->dsti = idx;
+	dma->dstu++;
+
+	if (!(dev->flags & HIFN_FLAG_DST_BUSY)) {
+		hifn_write_1(dev, HIFN_1_DMA_CSR, HIFN_DMACSR_D_CTRL_ENA);
+		dev->flags |= HIFN_FLAG_DST_BUSY;
+	}
+}
+
+static int hifn_setup_dma(struct hifn_device *dev, struct page *spage, unsigned int soff,
+		struct page *dpage, unsigned int doff, unsigned int nbytes, void *priv,
+		struct hifn_context *ctx)
+{
+	dprintk("%s: spage: %p, soffset: %u, dpage: %p, doffset: %u, nbytes: %u, priv: %p, ctx: %p.\n",
+			dev->name, spage, soff, dpage, doff, nbytes, priv, ctx);
+
+	hifn_setup_src_desc(dev, spage, soff, nbytes);
+	hifn_setup_cmd_desc(dev, ctx, priv, nbytes);
+	hifn_setup_dst_desc(dev, dpage, doff, nbytes);
+	hifn_setup_res_desc(dev);
+	return 0;
 }
 
 static int ablkcipher_walk_init(struct ablkcipher_walk *w,
@@ -1431,7 +1435,7 @@ static int ablkcipher_add(void *daddr, unsigned int *drestp, struct scatterlist 
 		return -EINVAL;
 
 	while (size) {
-		copy = min(drest, src->length);
+		copy = min(drest, min(size, src->length));
 
 		saddr = kmap_atomic(sg_page(src), KM_SOFTIRQ1);
 		memcpy(daddr, saddr + src->offset, copy);
@@ -1458,10 +1462,6 @@ static int ablkcipher_add(void *daddr, unsigned int *drestp, struct scatterlist 
 static int ablkcipher_walk(struct ablkcipher_request *req,
 		struct ablkcipher_walk *w)
 {
-	unsigned blocksize =
-		crypto_ablkcipher_blocksize(crypto_ablkcipher_reqtfm(req));
-	unsigned alignmask =
-		crypto_ablkcipher_alignmask(crypto_ablkcipher_reqtfm(req));
 	struct scatterlist *src, *dst, *t;
 	void *daddr;
 	unsigned int nbytes = req->nbytes, offset, copy, diff;
@@ -1477,16 +1477,14 @@ static int ablkcipher_walk(struct ablkcipher_request *req,
 		dst = &req->dst[idx];
 
 		dprintk("\n%s: slen: %u, dlen: %u, soff: %u, doff: %u, offset: %u, "
-				"blocksize: %u, nbytes: %u.\n",
+				"nbytes: %u.\n",
 				__func__, src->length, dst->length, src->offset,
-				dst->offset, offset, blocksize, nbytes);
+				dst->offset, offset, nbytes);
 
-		if (src->length & (blocksize - 1) ||
-				src->offset & (alignmask - 1) ||
-				dst->length & (blocksize - 1) ||
-				dst->offset & (alignmask - 1) ||
-				offset) {
-			unsigned slen = src->length - offset;
+		if (!IS_ALIGNED(dst->offset, HIFN_D_DST_DALIGN) ||
+		    !IS_ALIGNED(dst->length, HIFN_D_DST_DALIGN) ||
+		    offset) {
+			unsigned slen = min(src->length - offset, nbytes);
 			unsigned dlen = PAGE_SIZE;
 
 			t = &w->cache[idx];
@@ -1498,8 +1496,8 @@ static int ablkcipher_walk(struct ablkcipher_request *req,
 
 			idx += err;
 
-			copy = slen & ~(blocksize - 1);
-			diff = slen & (blocksize - 1);
+			copy = slen & ~(HIFN_D_DST_DALIGN - 1);
+			diff = slen & (HIFN_D_DST_DALIGN - 1);
 
 			if (dlen < nbytes) {
 				/*
@@ -1507,7 +1505,7 @@ static int ablkcipher_walk(struct ablkcipher_request *req,
 				 * to put there additional blocksized chunk,
 				 * so we mark that page as containing only
 				 * blocksize aligned chunks:
-				 * 	t->length = (slen & ~(blocksize - 1));
+				 * 	t->length = (slen & ~(HIFN_D_DST_DALIGN - 1));
 				 * and increase number of bytes to be processed
 				 * in next chunk:
 				 * 	nbytes += diff;
@@ -1544,7 +1542,7 @@ static int ablkcipher_walk(struct ablkcipher_request *req,
 
 			kunmap_atomic(daddr, KM_SOFTIRQ0);
 		} else {
-			nbytes -= src->length;
+			nbytes -= min(src->length, nbytes);
 			idx++;
 		}
 
@@ -1563,14 +1561,10 @@ static int hifn_setup_session(struct ablkcipher_request *req)
 	struct hifn_context *ctx = crypto_tfm_ctx(req->base.tfm);
 	struct hifn_device *dev = ctx->dev;
 	struct page *spage, *dpage;
-	unsigned long soff, doff, flags;
+	unsigned long soff, doff, dlen, flags;
 	unsigned int nbytes = req->nbytes, idx = 0, len;
 	int err = -EINVAL, sg_num;
 	struct scatterlist *src, *dst, *t;
-	unsigned blocksize =
-		crypto_ablkcipher_blocksize(crypto_ablkcipher_reqtfm(req));
-	unsigned alignmask =
-		crypto_ablkcipher_alignmask(crypto_ablkcipher_reqtfm(req));
 
 	if (ctx->iv && !ctx->ivsize && ctx->mode != ACRYPTO_MODE_ECB)
 		goto err_out_exit;
@@ -1578,17 +1572,14 @@ static int hifn_setup_session(struct ablkcipher_request *req)
 	ctx->walk.flags = 0;
 
 	while (nbytes) {
-		src = &req->src[idx];
 		dst = &req->dst[idx];
+		dlen = min(dst->length, nbytes);
 
-		if (src->length & (blocksize - 1) ||
-				src->offset & (alignmask - 1) ||
-				dst->length & (blocksize - 1) ||
-				dst->offset & (alignmask - 1)) {
+		if (!IS_ALIGNED(dst->offset, HIFN_D_DST_DALIGN) ||
+		    !IS_ALIGNED(dlen, HIFN_D_DST_DALIGN))
 			ctx->walk.flags |= ASYNC_FLAGS_MISALIGNED;
-		}
 
-		nbytes -= src->length;
+		nbytes -= dlen;
 		idx++;
 	}
 
@@ -1602,7 +1593,10 @@ static int hifn_setup_session(struct ablkcipher_request *req)
 	idx = 0;
 
 	sg_num = ablkcipher_walk(req, &ctx->walk);
-
+	if (sg_num < 0) {
+		err = sg_num;
+		goto err_out_exit;
+	}
 	atomic_set(&ctx->sg_num, sg_num);
 
 	spin_lock_irqsave(&dev->lock, flags);
@@ -1640,7 +1634,7 @@ static int hifn_setup_session(struct ablkcipher_request *req)
 		if (err)
 			goto err_out;
 
-		nbytes -= len;
+		nbytes -= min(len, nbytes);
 	}
 
 	dev->active = HIFN_DEFAULT_ACTIVE_NUM;
@@ -1651,7 +1645,7 @@ static int hifn_setup_session(struct ablkcipher_request *req)
 err_out:
 	spin_unlock_irqrestore(&dev->lock, flags);
 err_out_exit:
-	if (err && printk_ratelimit())
+	if (err)
 		dprintk("%s: iv: %p [%d], key: %p [%d], mode: %u, op: %u, "
 				"type: %u, err: %d.\n",
 			dev->name, ctx->iv, ctx->ivsize,
@@ -1745,8 +1739,7 @@ static int ablkcipher_get(void *saddr, unsigned int *srestp, unsigned int offset
 		return -EINVAL;
 
 	while (size) {
-
-		copy = min(dst->length, srest);
+		copy = min(srest, min(dst->length, size));
 
 		daddr = kmap_atomic(sg_page(dst), KM_IRQ0);
 		memcpy(daddr + dst->offset + offset, saddr, copy);
@@ -1803,7 +1796,7 @@ static void hifn_process_ready(struct ablkcipher_request *req, int error)
 					sg_page(dst), dst->length, nbytes);
 
 				if (!t->length) {
-					nbytes -= dst->length;
+					nbytes -= min(dst->length, nbytes);
 					idx++;
 					continue;
 				}
@@ -2202,9 +2195,9 @@ static int hifn_setup_crypto(struct ablkcipher_request *req, u8 op,
 		return err;
 
 	if (dev->started < HIFN_QUEUE_LENGTH &&	dev->queue.qlen)
-		err = hifn_process_queue(dev);
+		hifn_process_queue(dev);
 
-	return err;
+	return -EINPROGRESS;
 }
 
 /*
@@ -2364,7 +2357,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 	 * 3DES ECB, CBC, CFB and OFB modes.
 	 */
 	{
-		.name = "cfb(des3_ede)", .drv_name = "hifn-3des", .bsize = 8,
+		.name = "cfb(des3_ede)", .drv_name = "cfb-3des", .bsize = 8,
 		.ablkcipher = {
 			.min_keysize	=	HIFN_3DES_KEY_LENGTH,
 			.max_keysize	=	HIFN_3DES_KEY_LENGTH,
@@ -2374,7 +2367,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 		},
 	},
 	{
-		.name = "ofb(des3_ede)", .drv_name = "hifn-3des", .bsize = 8,
+		.name = "ofb(des3_ede)", .drv_name = "ofb-3des", .bsize = 8,
 		.ablkcipher = {
 			.min_keysize	=	HIFN_3DES_KEY_LENGTH,
 			.max_keysize	=	HIFN_3DES_KEY_LENGTH,
@@ -2384,8 +2377,9 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 		},
 	},
 	{
-		.name = "cbc(des3_ede)", .drv_name = "hifn-3des", .bsize = 8,
+		.name = "cbc(des3_ede)", .drv_name = "cbc-3des", .bsize = 8,
 		.ablkcipher = {
+			.ivsize		=	HIFN_IV_LENGTH,
 			.min_keysize	=	HIFN_3DES_KEY_LENGTH,
 			.max_keysize	=	HIFN_3DES_KEY_LENGTH,
 			.setkey		=	hifn_setkey,
@@ -2394,7 +2388,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 		},
 	},
 	{
-		.name = "ecb(des3_ede)", .drv_name = "hifn-3des", .bsize = 8,
+		.name = "ecb(des3_ede)", .drv_name = "ecb-3des", .bsize = 8,
 		.ablkcipher = {
 			.min_keysize	=	HIFN_3DES_KEY_LENGTH,
 			.max_keysize	=	HIFN_3DES_KEY_LENGTH,
@@ -2408,7 +2402,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 	 * DES ECB, CBC, CFB and OFB modes.
 	 */
 	{
-		.name = "cfb(des)", .drv_name = "hifn-des", .bsize = 8,
+		.name = "cfb(des)", .drv_name = "cfb-des", .bsize = 8,
 		.ablkcipher = {
 			.min_keysize	=	HIFN_DES_KEY_LENGTH,
 			.max_keysize	=	HIFN_DES_KEY_LENGTH,
@@ -2418,7 +2412,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 		},
 	},
 	{
-		.name = "ofb(des)", .drv_name = "hifn-des", .bsize = 8,
+		.name = "ofb(des)", .drv_name = "ofb-des", .bsize = 8,
 		.ablkcipher = {
 			.min_keysize	=	HIFN_DES_KEY_LENGTH,
 			.max_keysize	=	HIFN_DES_KEY_LENGTH,
@@ -2428,8 +2422,9 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 		},
 	},
 	{
-		.name = "cbc(des)", .drv_name = "hifn-des", .bsize = 8,
+		.name = "cbc(des)", .drv_name = "cbc-des", .bsize = 8,
 		.ablkcipher = {
+			.ivsize		=	HIFN_IV_LENGTH,
 			.min_keysize	=	HIFN_DES_KEY_LENGTH,
 			.max_keysize	=	HIFN_DES_KEY_LENGTH,
 			.setkey		=	hifn_setkey,
@@ -2438,7 +2433,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 		},
 	},
 	{
-		.name = "ecb(des)", .drv_name = "hifn-des", .bsize = 8,
+		.name = "ecb(des)", .drv_name = "ecb-des", .bsize = 8,
 		.ablkcipher = {
 			.min_keysize	=	HIFN_DES_KEY_LENGTH,
 			.max_keysize	=	HIFN_DES_KEY_LENGTH,
@@ -2452,7 +2447,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 	 * AES ECB, CBC, CFB and OFB modes.
 	 */
 	{
-		.name = "ecb(aes)", .drv_name = "hifn-aes", .bsize = 16,
+		.name = "ecb(aes)", .drv_name = "ecb-aes", .bsize = 16,
 		.ablkcipher = {
 			.min_keysize	=	AES_MIN_KEY_SIZE,
 			.max_keysize	=	AES_MAX_KEY_SIZE,
@@ -2462,8 +2457,9 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 		},
 	},
 	{
-		.name = "cbc(aes)", .drv_name = "hifn-aes", .bsize = 16,
+		.name = "cbc(aes)", .drv_name = "cbc-aes", .bsize = 16,
 		.ablkcipher = {
+			.ivsize		=	HIFN_AES_IV_LENGTH,
 			.min_keysize	=	AES_MIN_KEY_SIZE,
 			.max_keysize	=	AES_MAX_KEY_SIZE,
 			.setkey		=	hifn_setkey,
@@ -2472,7 +2468,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 		},
 	},
 	{
-		.name = "cfb(aes)", .drv_name = "hifn-aes", .bsize = 16,
+		.name = "cfb(aes)", .drv_name = "cfb-aes", .bsize = 16,
 		.ablkcipher = {
 			.min_keysize	=	AES_MIN_KEY_SIZE,
 			.max_keysize	=	AES_MAX_KEY_SIZE,
@@ -2482,7 +2478,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 		},
 	},
 	{
-		.name = "ofb(aes)", .drv_name = "hifn-aes", .bsize = 16,
+		.name = "ofb(aes)", .drv_name = "ofb-aes", .bsize = 16,
 		.ablkcipher = {
 			.min_keysize	=	AES_MIN_KEY_SIZE,
 			.max_keysize	=	AES_MAX_KEY_SIZE,
@@ -2514,15 +2510,14 @@ static int hifn_alg_alloc(struct hifn_device *dev, struct hifn_alg_template *t)
 		return -ENOMEM;
 
 	snprintf(alg->alg.cra_name, CRYPTO_MAX_ALG_NAME, "%s", t->name);
-	snprintf(alg->alg.cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s", t->drv_name);
+	snprintf(alg->alg.cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s-%s",
+		 t->drv_name, dev->name);
 
 	alg->alg.cra_priority = 300;
 	alg->alg.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC;
 	alg->alg.cra_blocksize = t->bsize;
 	alg->alg.cra_ctxsize = sizeof(struct hifn_context);
-	alg->alg.cra_alignmask = 15;
-	if (t->bsize == 8)
-		alg->alg.cra_alignmask = 3;
+	alg->alg.cra_alignmask = 0;
 	alg->alg.cra_type = &crypto_ablkcipher_type;
 	alg->alg.cra_module = THIS_MODULE;
 	alg->alg.cra_u.ablkcipher = t->ablkcipher;

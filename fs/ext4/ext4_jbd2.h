@@ -51,6 +51,14 @@
 					 EXT4_XATTR_TRANS_BLOCKS - 2 + \
 					 2*EXT4_QUOTA_TRANS_BLOCKS(sb))
 
+/*
+ * Define the number of metadata blocks we need to account to modify data.
+ *
+ * This include super block, inode block, quota blocks and xattr blocks
+ */
+#define EXT4_META_TRANS_BLOCKS(sb)	(EXT4_XATTR_TRANS_BLOCKS + \
+					2*EXT4_QUOTA_TRANS_BLOCKS(sb))
+
 /* Delete operations potentially hit one directory's namespace plus an
  * entire inode, plus arbitrary amounts of bitmap/indirection data.  Be
  * generous.  We can grow the delete transaction later if necessary. */
@@ -142,19 +150,17 @@ int __ext4_journal_dirty_metadata(const char *where,
 				handle_t *handle, struct buffer_head *bh);
 
 #define ext4_journal_get_undo_access(handle, bh) \
-	__ext4_journal_get_undo_access(__FUNCTION__, (handle), (bh))
+	__ext4_journal_get_undo_access(__func__, (handle), (bh))
 #define ext4_journal_get_write_access(handle, bh) \
-	__ext4_journal_get_write_access(__FUNCTION__, (handle), (bh))
+	__ext4_journal_get_write_access(__func__, (handle), (bh))
 #define ext4_journal_revoke(handle, blocknr, bh) \
-	__ext4_journal_revoke(__FUNCTION__, (handle), (blocknr), (bh))
+	__ext4_journal_revoke(__func__, (handle), (blocknr), (bh))
 #define ext4_journal_get_create_access(handle, bh) \
-	__ext4_journal_get_create_access(__FUNCTION__, (handle), (bh))
+	__ext4_journal_get_create_access(__func__, (handle), (bh))
 #define ext4_journal_dirty_metadata(handle, bh) \
-	__ext4_journal_dirty_metadata(__FUNCTION__, (handle), (bh))
+	__ext4_journal_dirty_metadata(__func__, (handle), (bh))
 #define ext4_journal_forget(handle, bh) \
-	__ext4_journal_forget(__FUNCTION__, (handle), (bh))
-
-int ext4_journal_dirty_data(handle_t *handle, struct buffer_head *bh);
+	__ext4_journal_forget(__func__, (handle), (bh))
 
 handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks);
 int __ext4_journal_stop(const char *where, handle_t *handle);
@@ -165,7 +171,7 @@ static inline handle_t *ext4_journal_start(struct inode *inode, int nblocks)
 }
 
 #define ext4_journal_stop(handle) \
-	__ext4_journal_stop(__FUNCTION__, (handle))
+	__ext4_journal_stop(__func__, (handle))
 
 static inline handle_t *ext4_journal_current_handle(void)
 {
@@ -190,6 +196,11 @@ static inline int ext4_journal_blocks_per_page(struct inode *inode)
 static inline int ext4_journal_force_commit(journal_t *journal)
 {
 	return jbd2_journal_force_commit(journal);
+}
+
+static inline int ext4_jbd2_file_inode(handle_t *handle, struct inode *inode)
+{
+	return jbd2_journal_file_inode(handle, &EXT4_I(inode)->jinode);
 }
 
 /* super.c */

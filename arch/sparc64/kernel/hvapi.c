@@ -9,7 +9,6 @@
 
 #include <asm/hypervisor.h>
 #include <asm/oplib.h>
-#include <asm/sstate.h>
 
 /* If the hypervisor indicates that the API setting
  * calls are unsupported, by returning HV_EBADTRAP or
@@ -34,8 +33,12 @@ static struct api_info api_table[] = {
 	{ .group = HV_GRP_LDOM,					},
 	{ .group = HV_GRP_SVC_CHAN,	.flags = FLAG_PRE_API	},
 	{ .group = HV_GRP_NCS,		.flags = FLAG_PRE_API	},
+	{ .group = HV_GRP_RNG,					},
 	{ .group = HV_GRP_NIAG_PERF,	.flags = FLAG_PRE_API	},
 	{ .group = HV_GRP_FIRE_PERF,				},
+	{ .group = HV_GRP_N2_CPU,				},
+	{ .group = HV_GRP_NIU,					},
+	{ .group = HV_GRP_VF_CPU,				},
 	{ .group = HV_GRP_DIAG,		.flags = FLAG_PRE_API	},
 };
 
@@ -179,8 +182,6 @@ void __init sun4v_hvapi_init(void)
 	minor = 1;
 	if (sun4v_hvapi_register(group, major, &minor))
 		goto bad;
-
-	sun4v_sstate_init();
 
 	return;
 

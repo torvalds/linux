@@ -18,8 +18,8 @@
 #include <linux/mtd/partitions.h>
 #include <asm/io.h>
 #include <asm/sizes.h>
-#include <asm/arch/hardware.h>
-#include <asm/plat-orion/orion_nand.h>
+#include <mach/hardware.h>
+#include <plat/orion_nand.h>
 
 #ifdef CONFIG_MTD_CMDLINE_PARTS
 static const char *part_probes[] = { "cmdlinepart", NULL };
@@ -84,6 +84,9 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	nc->IO_ADDR_R = nc->IO_ADDR_W = io_base;
 	nc->cmd_ctrl = orion_nand_cmd_ctrl;
 	nc->ecc.mode = NAND_ECC_SOFT;
+
+	if (board->chip_delay)
+		nc->chip_delay = board->chip_delay;
 
 	if (board->width == 16)
 		nc->options |= NAND_BUSWIDTH_16;

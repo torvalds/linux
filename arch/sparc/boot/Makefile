@@ -19,6 +19,9 @@ quiet_cmd_sysmap        = SYSMAP  $(obj)/System.map
       cmd_sysmap        = $(CONFIG_SHELL) $(srctree)/scripts/mksysmap
 quiet_cmd_image = LD      $@
       cmd_image = $(LD) $(LDFLAGS) $(EXTRA_LDFLAGS) $(LDFLAGS_$(@F)) -o $@
+quiet_cmd_strip = STRIP   $@
+      cmd_strip = $(STRIP) -R .comment -R .note -K sun4u_init -K _end -K _start $(obj)/image -o $@
+
 
 define rule_image
 	$(if $($(quiet)cmd_image),               \
@@ -48,6 +51,9 @@ LDFLAGS_image := -T arch/sparc/kernel/vmlinux.lds $(BTOBJS) \
 # these files being recompiled for each build.
 $(obj)/image: $(obj)/btfix.o FORCE
 	$(call if_changed_rule,image)
+
+$(obj)/zImage: $(obj)/image
+	$(call if_changed,strip)
 
 $(obj)/tftpboot.img: $(obj)/piggyback $(obj)/System.map $(obj)/image FORCE
 	$(call if_changed,elftoaout)

@@ -243,29 +243,41 @@ static int i2o_device_add(struct i2o_controller *c, i2o_lct_entry *entry)
 
 	/* create user entries for this device */
 	tmp = i2o_iop_find_device(i2o_dev->iop, i2o_dev->lct_data.user_tid);
-	if (tmp && (tmp != i2o_dev))
-		sysfs_create_link(&i2o_dev->device.kobj, &tmp->device.kobj,
-				  "user");
+	if (tmp && (tmp != i2o_dev)) {
+		rc = sysfs_create_link(&i2o_dev->device.kobj,
+				       &tmp->device.kobj, "user");
+		if (rc)
+			goto unreg_dev;
+	}
 
 	/* create user entries refering to this device */
 	list_for_each_entry(tmp, &c->devices, list)
 	    if ((tmp->lct_data.user_tid == i2o_dev->lct_data.tid)
-		&& (tmp != i2o_dev))
-		sysfs_create_link(&tmp->device.kobj,
-				  &i2o_dev->device.kobj, "user");
+		&& (tmp != i2o_dev)) {
+		rc = sysfs_create_link(&tmp->device.kobj,
+				       &i2o_dev->device.kobj, "user");
+		if (rc)
+			goto rmlink1;
+	}
 
 	/* create parent entries for this device */
 	tmp = i2o_iop_find_device(i2o_dev->iop, i2o_dev->lct_data.parent_tid);
-	if (tmp && (tmp != i2o_dev))
-		sysfs_create_link(&i2o_dev->device.kobj, &tmp->device.kobj,
-				  "parent");
+	if (tmp && (tmp != i2o_dev)) {
+		rc = sysfs_create_link(&i2o_dev->device.kobj,
+				       &tmp->device.kobj, "parent");
+		if (rc)
+			goto rmlink1;
+	}
 
 	/* create parent entries refering to this device */
 	list_for_each_entry(tmp, &c->devices, list)
 	    if ((tmp->lct_data.parent_tid == i2o_dev->lct_data.tid)
-		&& (tmp != i2o_dev))
-		sysfs_create_link(&tmp->device.kobj,
-				  &i2o_dev->device.kobj, "parent");
+		&& (tmp != i2o_dev)) {
+		rc = sysfs_create_link(&tmp->device.kobj,
+				       &i2o_dev->device.kobj, "parent");
+		if (rc)
+			goto rmlink2;
+	}
 
 	i2o_driver_notify_device_add_all(i2o_dev);
 
@@ -273,6 +285,24 @@ static int i2o_device_add(struct i2o_controller *c, i2o_lct_entry *entry)
 
 	return 0;
 
+rmlink2:
+	/* If link creating failed halfway, we loop whole list to cleanup.
+	 * And we don't care wrong removing of link, because sysfs_remove_link
+	 * will take care of it.
+	 */
+	list_for_each_entry(tmp, &c->devices, list) {
+		if (tmp->lct_data.parent_tid == i2o_dev->lct_data.tid)
+			sysfs_remove_link(&tmp->device.kobj, "parent");
+	}
+	sysfs_remove_link(&i2o_dev->device.kobj, "parent");
+rmlink1:
+	list_for_each_entry(tmp, &c->devices, list)
+		if (tmp->lct_data.user_tid == i2o_dev->lct_data.tid)
+			sysfs_remove_link(&tmp->device.kobj, "user");
+	sysfs_remove_link(&i2o_dev->device.kobj, "user");
+unreg_dev:
+	list_del(&i2o_dev->list);
+	device_unregister(&i2o_dev->device);
 err:
 	kfree(i2o_dev);
 	return rc;

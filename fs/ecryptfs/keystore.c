@@ -44,15 +44,15 @@ static int process_request_key_err(long err_code)
 	int rc = 0;
 
 	switch (err_code) {
-	case ENOKEY:
+	case -ENOKEY:
 		ecryptfs_printk(KERN_WARNING, "No key\n");
 		rc = -ENOENT;
 		break;
-	case EKEYEXPIRED:
+	case -EKEYEXPIRED:
 		ecryptfs_printk(KERN_WARNING, "Key expired\n");
 		rc = -ETIME;
 		break;
-	case EKEYREVOKED:
+	case -EKEYREVOKED:
 		ecryptfs_printk(KERN_WARNING, "Key revoked\n");
 		rc = -EINVAL;
 		break;
@@ -963,8 +963,7 @@ int ecryptfs_keyring_auth_tok_for_sig(struct key **auth_tok_key,
 	if (!(*auth_tok_key) || IS_ERR(*auth_tok_key)) {
 		printk(KERN_ERR "Could not find key with description: [%s]\n",
 		       sig);
-		process_request_key_err(PTR_ERR(*auth_tok_key));
-		rc = -EINVAL;
+		rc = process_request_key_err(PTR_ERR(*auth_tok_key));
 		goto out;
 	}
 	(*auth_tok) = ecryptfs_get_key_payload_data(*auth_tok_key);

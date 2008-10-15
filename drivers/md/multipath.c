@@ -147,6 +147,7 @@ static int multipath_make_request (struct request_queue *q, struct bio * bio)
 	struct multipath_bh * mp_bh;
 	struct multipath_info *multipath;
 	const int rw = bio_data_dir(bio);
+	int cpu;
 
 	if (unlikely(bio_barrier(bio))) {
 		bio_endio(bio, -EOPNOTSUPP);
@@ -158,8 +159,11 @@ static int multipath_make_request (struct request_queue *q, struct bio * bio)
 	mp_bh->master_bio = bio;
 	mp_bh->mddev = mddev;
 
-	disk_stat_inc(mddev->gendisk, ios[rw]);
-	disk_stat_add(mddev->gendisk, sectors[rw], bio_sectors(bio));
+	cpu = part_stat_lock();
+	part_stat_inc(cpu, &mddev->gendisk->part0, ios[rw]);
+	part_stat_add(cpu, &mddev->gendisk->part0, sectors[rw],
+		      bio_sectors(bio));
+	part_stat_unlock();
 
 	mp_bh->path = multipath_map(conf);
 	if (mp_bh->path < 0) {
@@ -281,13 +285,18 @@ static int multipath_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 {
 	multipath_conf_t *conf = mddev->private;
 	struct request_queue *q;
-	int found = 0;
+	int err = -EEXIST;
 	int path;
 	struct multipath_info *p;
+	int first = 0;
+	int last = mddev->raid_disks - 1;
+
+	if (rdev->raid_disk >= 0)
+		first = last = rdev->raid_disk;
 
 	print_multipath_conf(conf);
 
-	for (path=0; path<mddev->raid_disks; path++) 
+	for (path = first; path <= last; path++)
 		if ((p=conf->multipaths+path)->rdev == NULL) {
 			q = rdev->bdev->bd_disk->queue;
 			blk_queue_stack_limits(mddev->queue, q);
@@ -307,11 +316,13 @@ static int multipath_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 			rdev->raid_disk = path;
 			set_bit(In_sync, &rdev->flags);
 			rcu_assign_pointer(p->rdev, rdev);
-			found = 1;
+			err = 0;
+			break;
 		}
 
 	print_multipath_conf(conf);
-	return found;
+
+	return err;
 }
 
 static int multipath_remove_disk(mddev_t *mddev, int number)
@@ -497,7 +508,7 @@ static int multipath_run (mddev_t *mddev)
 	/*
 	 * Ok, everything is just fine now
 	 */
-	mddev->array_size = mddev->size;
+	mddev->array_sectors = mddev->size * 2;
 
 	mddev->queue->unplug_fn = multipath_unplug;
 	mddev->queue->backing_dev_info.congested_fn = multipath_congested;

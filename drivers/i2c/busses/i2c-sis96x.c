@@ -1,7 +1,4 @@
 /*
-    sis96x.c - Part of lm_sensors, Linux kernel modules for hardware
-              monitoring
-
     Copyright (c) 2003 Mark M. Hoffman <mhoffman@lightlink.com>
 
     This program is free software; you can redistribute it and/or modify
@@ -40,6 +37,7 @@
 #include <linux/ioport.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
+#include <linux/acpi.h>
 #include <asm/io.h>
 
 /* base address register in PCI config space */
@@ -111,7 +109,7 @@ static int sis96x_transaction(int size)
 		/* check it again */
 		if (((temp = sis96x_read(SMB_CNT)) & 0x03) != 0x00) {
 			dev_dbg(&sis96x_adapter.dev, "Failed (0x%02x)\n", temp);
-			return -1;
+			return -EBUSY;
 		} else {
 			dev_dbg(&sis96x_adapter.dev, "Successful\n");
 		}
@@ -136,19 +134,19 @@ static int sis96x_transaction(int size)
 	/* If the SMBus is still busy, we give up */
 	if (timeout >= MAX_TIMEOUT) {
 		dev_dbg(&sis96x_adapter.dev, "SMBus Timeout! (0x%02x)\n", temp);
-		result = -1;
+		result = -ETIMEDOUT;
 	}
 
 	/* device error - probably missing ACK */
 	if (temp & 0x02) {
 		dev_dbg(&sis96x_adapter.dev, "Failed bus transaction!\n");
-		result = -1;
+		result = -ENXIO;
 	}
 
 	/* bus collision */
 	if (temp & 0x04) {
 		dev_dbg(&sis96x_adapter.dev, "Bus collision!\n");
-		result = -1;
+		result = -EIO;
 	}
 
 	/* Finish up by resetting the bus */
@@ -161,11 +159,12 @@ static int sis96x_transaction(int size)
 	return result;
 }
 
-/* Return -1 on error. */
+/* Return negative errno on error. */
 static s32 sis96x_access(struct i2c_adapter * adap, u16 addr,
 			 unsigned short flags, char read_write,
 			 u8 command, int size, union i2c_smbus_data * data)
 {
+	int status;
 
 	switch (size) {
 	case I2C_SMBUS_QUICK:
@@ -200,20 +199,14 @@ static s32 sis96x_access(struct i2c_adapter * adap, u16 addr,
 			SIS96x_PROC_CALL : SIS96x_WORD_DATA);
 		break;
 
-	case I2C_SMBUS_BLOCK_DATA:
-		/* TO DO: */
-		dev_info(&adap->dev, "SMBus block not implemented!\n");
-		return -1;
-		break;
-
 	default:
-		dev_info(&adap->dev, "Unsupported I2C size\n");
-		return -1;
-		break;
+		dev_warn(&adap->dev, "Unsupported transaction %d\n", size);
+		return -EOPNOTSUPP;
 	}
 
-	if (sis96x_transaction(size))
-		return -1;
+	status = sis96x_transaction(size);
+	if (status)
+		return status;
 
 	if ((size != SIS96x_PROC_CALL) &&
 		((read_write == I2C_SMBUS_WRITE) || (size == SIS96x_QUICK)))
@@ -249,7 +242,7 @@ static const struct i2c_algorithm smbus_algorithm = {
 static struct i2c_adapter sis96x_adapter = {
 	.owner		= THIS_MODULE,
 	.id		= I2C_HW_SMBUS_SIS96X,
-	.class		= I2C_CLASS_HWMON,
+	.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD,
 	.algo		= &smbus_algorithm,
 };
 
@@ -285,6 +278,10 @@ static int __devinit sis96x_probe(struct pci_dev *dev,
 	}
 	dev_info(&dev->dev, "SiS96x SMBus base address: 0x%04x\n",
 			sis96x_smbus_base);
+
+	retval = acpi_check_resource_conflict(&dev->resource[SIS96x_BAR]);
+	if (retval)
+		return retval;
 
 	/* Everything is happy, let's grab the memory and set things up. */
 	if (!request_region(sis96x_smbus_base, SMB_IOSIZE,

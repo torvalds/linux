@@ -22,7 +22,8 @@
 #define INIT_ASIC			0x4
 #define INIT_HARDWARE			0x7
 
-#define STORM_INTMEM_SIZE		(0x5800 / 4)
+#define STORM_INTMEM_SIZE_E1		(0x5800 / 4)
+#define STORM_INTMEM_SIZE_E1H		(0x10000 / 4)
 #define TSTORM_INTMEM_ADDR		0x1a0000
 #define CSTORM_INTMEM_ADDR		0x220000
 #define XSTORM_INTMEM_ADDR		0x2a0000
@@ -30,7 +31,7 @@
 
 
 /* Init operation types and structures */
-
+/* Common for both E1 and E1H */
 #define OP_RD			0x1 /* read single register */
 #define OP_WR			0x2 /* write single register */
 #define OP_IW			0x3 /* write single register using mailbox */
@@ -38,29 +39,59 @@
 #define OP_SI			0x5 /* copy a string using mailbox */
 #define OP_ZR			0x6 /* clear memory */
 #define OP_ZP			0x7 /* unzip then copy with DMAE */
-#define OP_WB			0x8 /* copy a string using DMAE */
+#define OP_WR_64		0x8 /* write 64 bit pattern */
+#define OP_WB			0x9 /* copy a string using DMAE */
+
+/* Operation specific for E1 */
+#define OP_RD_E1		0xa /* read single register */
+#define OP_WR_E1		0xb /* write single register */
+#define OP_IW_E1		0xc /* write single register using mailbox */
+#define OP_SW_E1		0xd /* copy a string to the device */
+#define OP_SI_E1		0xe /* copy a string using mailbox */
+#define OP_ZR_E1		0xf /* clear memory */
+#define OP_ZP_E1		0x10 /* unzip then copy with DMAE */
+#define OP_WR_64_E1		0x11 /* write 64 bit pattern on E1 */
+#define OP_WB_E1		0x12 /* copy a string using DMAE */
+
+/* Operation specific for E1H */
+#define OP_RD_E1H		0x13 /* read single register */
+#define OP_WR_E1H		0x14 /* write single register */
+#define OP_IW_E1H		0x15 /* write single register using mailbox */
+#define OP_SW_E1H		0x16 /* copy a string to the device */
+#define OP_SI_E1H		0x17 /* copy a string using mailbox */
+#define OP_ZR_E1H		0x18 /* clear memory */
+#define OP_ZP_E1H		0x19 /* unzip then copy with DMAE */
+#define OP_WR_64_E1H		0x1a /* write 64 bit pattern on E1H */
+#define OP_WB_E1H		0x1b /* copy a string using DMAE */
+
+/* FPGA and EMUL specific operations */
+#define OP_WR_EMUL_E1H		0x1c /* write single register on E1H Emul */
+#define OP_WR_EMUL		0x1d /* write single register on Emulation */
+#define OP_WR_FPGA		0x1e /* write single register on FPGA */
+#define OP_WR_ASIC		0x1f /* write single register on ASIC */
+
 
 struct raw_op {
-	u32 op		:8;
-	u32 offset	:24;
+	u32 op:8;
+	u32 offset:24;
 	u32 raw_data;
 };
 
 struct op_read {
-	u32 op		:8;
-	u32 offset	:24;
+	u32 op:8;
+	u32 offset:24;
 	u32 pad;
 };
 
 struct op_write {
-	u32 op		:8;
-	u32 offset	:24;
+	u32 op:8;
+	u32 offset:24;
 	u32 val;
 };
 
 struct op_string_write {
-	u32 op		:8;
-	u32 offset	:24;
+	u32 op:8;
+	u32 offset:24;
 #ifdef __LITTLE_ENDIAN
 	u16 data_off;
 	u16 data_len;
@@ -71,8 +102,8 @@ struct op_string_write {
 };
 
 struct op_zero {
-	u32 op		:8;
-	u32 offset	:24;
+	u32 op:8;
+	u32 offset:24;
 	u32 len;
 };
 
@@ -87,10 +118,6 @@ union init_op {
 #include "bnx2x_init_values.h"
 
 static void bnx2x_reg_wr_ind(struct bnx2x *bp, u32 addr, u32 val);
-
-static void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr,
-			     u32 dst_addr, u32 len32);
-
 static int bnx2x_gunzip(struct bnx2x *bp, u8 *zbuf, int len);
 
 static void bnx2x_init_str_wr(struct bnx2x *bp, u32 addr, const u32 *data,
@@ -107,9 +134,6 @@ static void bnx2x_init_str_wr(struct bnx2x *bp, u32 addr, const u32 *data,
 	}
 }
 
-#define INIT_MEM_WR(reg, data, reg_off, len) \
-	bnx2x_init_str_wr(bp, reg + reg_off*4, data, len)
-
 static void bnx2x_init_ind_wr(struct bnx2x *bp, u32 addr, const u32 *data,
 			      u16 len)
 {
@@ -124,10 +148,116 @@ static void bnx2x_init_ind_wr(struct bnx2x *bp, u32 addr, const u32 *data,
 	}
 }
 
+static void bnx2x_write_big_buf(struct bnx2x *bp, u32 addr, u32 len)
+{
+#ifdef USE_DMAE
+	int offset = 0;
+
+	if (bp->dmae_ready) {
+		while (len > DMAE_LEN32_WR_MAX) {
+			bnx2x_write_dmae(bp, bp->gunzip_mapping + offset,
+					 addr + offset, DMAE_LEN32_WR_MAX);
+			offset += DMAE_LEN32_WR_MAX * 4;
+			len -= DMAE_LEN32_WR_MAX;
+		}
+		bnx2x_write_dmae(bp, bp->gunzip_mapping + offset,
+				 addr + offset, len);
+	} else
+		bnx2x_init_str_wr(bp, addr, bp->gunzip_buf, len);
+#else
+	bnx2x_init_str_wr(bp, addr, bp->gunzip_buf, len);
+#endif
+}
+
+static void bnx2x_init_fill(struct bnx2x *bp, u32 addr, int fill, u32 len)
+{
+	if ((len * 4) > FW_BUF_SIZE) {
+		BNX2X_ERR("LARGE DMAE OPERATION ! addr 0x%x  len 0x%x\n",
+			  addr, len*4);
+		return;
+	}
+	memset(bp->gunzip_buf, fill, len * 4);
+
+	bnx2x_write_big_buf(bp, addr, len);
+}
+
+static void bnx2x_init_wr_64(struct bnx2x *bp, u32 addr, const u32 *data,
+			     u32 len64)
+{
+	u32 buf_len32 = FW_BUF_SIZE/4;
+	u32 len = len64*2;
+	u64 data64 = 0;
+	int i;
+
+	/* 64 bit value is in a blob: first low DWORD, then high DWORD */
+	data64 = HILO_U64((*(data + 1)), (*data));
+	len64 = min((u32)(FW_BUF_SIZE/8), len64);
+	for (i = 0; i < len64; i++) {
+		u64 *pdata = ((u64 *)(bp->gunzip_buf)) + i;
+
+		*pdata = data64;
+	}
+
+	for (i = 0; i < len; i += buf_len32) {
+		u32 cur_len = min(buf_len32, len - i);
+
+		bnx2x_write_big_buf(bp, addr + i * 4, cur_len);
+	}
+}
+
+/*********************************************************
+   There are different blobs for each PRAM section.
+   In addition, each blob write operation is divided into a few operations
+   in order to decrease the amount of phys. contiguous buffer needed.
+   Thus, when we select a blob the address may be with some offset
+   from the beginning of PRAM section.
+   The same holds for the INT_TABLE sections.
+**********************************************************/
+#define IF_IS_INT_TABLE_ADDR(base, addr) \
+			if (((base) <= (addr)) && ((base) + 0x400 >= (addr)))
+
+#define IF_IS_PRAM_ADDR(base, addr) \
+			if (((base) <= (addr)) && ((base) + 0x40000 >= (addr)))
+
+static const u32 *bnx2x_sel_blob(u32 addr, const u32 *data, int is_e1)
+{
+	IF_IS_INT_TABLE_ADDR(TSEM_REG_INT_TABLE, addr)
+		data = is_e1 ? tsem_int_table_data_e1 :
+			       tsem_int_table_data_e1h;
+	else
+		IF_IS_INT_TABLE_ADDR(CSEM_REG_INT_TABLE, addr)
+			data = is_e1 ? csem_int_table_data_e1 :
+				       csem_int_table_data_e1h;
+	else
+		IF_IS_INT_TABLE_ADDR(USEM_REG_INT_TABLE, addr)
+			data = is_e1 ? usem_int_table_data_e1 :
+				       usem_int_table_data_e1h;
+	else
+		IF_IS_INT_TABLE_ADDR(XSEM_REG_INT_TABLE, addr)
+			data = is_e1 ? xsem_int_table_data_e1 :
+				       xsem_int_table_data_e1h;
+	else
+		IF_IS_PRAM_ADDR(TSEM_REG_PRAM, addr)
+			data = is_e1 ? tsem_pram_data_e1 : tsem_pram_data_e1h;
+	else
+		IF_IS_PRAM_ADDR(CSEM_REG_PRAM, addr)
+			data = is_e1 ? csem_pram_data_e1 : csem_pram_data_e1h;
+	else
+		IF_IS_PRAM_ADDR(USEM_REG_PRAM, addr)
+			data = is_e1 ? usem_pram_data_e1 : usem_pram_data_e1h;
+	else
+		IF_IS_PRAM_ADDR(XSEM_REG_PRAM, addr)
+			data = is_e1 ? xsem_pram_data_e1 : xsem_pram_data_e1h;
+
+	return data;
+}
+
 static void bnx2x_init_wr_wb(struct bnx2x *bp, u32 addr, const u32 *data,
-			     u32 len, int gunzip)
+			     u32 len, int gunzip, int is_e1, u32 blob_off)
 {
 	int offset = 0;
+
+	data = bnx2x_sel_blob(addr, data, is_e1) + blob_off;
 
 	if (gunzip) {
 		int rc;
@@ -143,64 +273,59 @@ static void bnx2x_init_wr_wb(struct bnx2x *bp, u32 addr, const u32 *data,
 #endif
 		rc = bnx2x_gunzip(bp, (u8 *)data, len);
 		if (rc) {
-			DP(NETIF_MSG_HW, "gunzip failed ! rc %d\n", rc);
+			BNX2X_ERR("gunzip failed ! rc %d\n", rc);
 			return;
 		}
 		len = bp->gunzip_outlen;
 #ifdef __BIG_ENDIAN
 		kfree(temp);
 		for (i = 0; i < len; i++)
-			 ((u32 *)bp->gunzip_buf)[i] =
+			((u32 *)bp->gunzip_buf)[i] =
 					swab32(((u32 *)bp->gunzip_buf)[i]);
 #endif
 	} else {
 		if ((len * 4) > FW_BUF_SIZE) {
-			BNX2X_ERR("LARGE DMAE OPERATION ! len 0x%x\n", len*4);
+			BNX2X_ERR("LARGE DMAE OPERATION ! "
+				  "addr 0x%x  len 0x%x\n", addr, len*4);
 			return;
 		}
 		memcpy(bp->gunzip_buf, data, len * 4);
 	}
 
-	while (len > DMAE_LEN32_MAX) {
+	if (bp->dmae_ready) {
+		while (len > DMAE_LEN32_WR_MAX) {
+			bnx2x_write_dmae(bp, bp->gunzip_mapping + offset,
+					 addr + offset, DMAE_LEN32_WR_MAX);
+			offset += DMAE_LEN32_WR_MAX * 4;
+			len -= DMAE_LEN32_WR_MAX;
+		}
 		bnx2x_write_dmae(bp, bp->gunzip_mapping + offset,
-				 addr + offset, DMAE_LEN32_MAX);
-		offset += DMAE_LEN32_MAX * 4;
-		len -= DMAE_LEN32_MAX;
-	}
-	bnx2x_write_dmae(bp, bp->gunzip_mapping + offset, addr + offset, len);
-}
-
-#define INIT_MEM_WB(reg, data, reg_off, len) \
-	bnx2x_init_wr_wb(bp, reg + reg_off*4, data, len, 0)
-
-#define INIT_GUNZIP_DMAE(reg, data, reg_off, len) \
-	bnx2x_init_wr_wb(bp, reg + reg_off*4, data, len, 1)
-
-static void bnx2x_init_fill(struct bnx2x *bp, u32 addr, int fill, u32 len)
-{
-	int offset = 0;
-
-	if ((len * 4) > FW_BUF_SIZE) {
-		BNX2X_ERR("LARGE DMAE OPERATION ! len 0x%x\n", len * 4);
-		return;
-	}
-	memset(bp->gunzip_buf, fill, len * 4);
-
-	while (len > DMAE_LEN32_MAX) {
-		bnx2x_write_dmae(bp, bp->gunzip_mapping + offset,
-				 addr + offset, DMAE_LEN32_MAX);
-		offset += DMAE_LEN32_MAX * 4;
-		len -= DMAE_LEN32_MAX;
-	}
-	bnx2x_write_dmae(bp, bp->gunzip_mapping + offset, addr + offset, len);
+				 addr + offset, len);
+	} else
+		bnx2x_init_ind_wr(bp, addr, bp->gunzip_buf, len);
 }
 
 static void bnx2x_init_block(struct bnx2x *bp, u32 op_start, u32 op_end)
 {
-	int i;
+	int is_e1       = CHIP_IS_E1(bp);
+	int is_e1h      = CHIP_IS_E1H(bp);
+	int is_emul_e1h = (CHIP_REV_IS_EMUL(bp) && is_e1h);
+	int hw_wr, i;
 	union init_op *op;
 	u32 op_type, addr, len;
-	const u32 *data;
+	const u32 *data, *data_base;
+
+	if (CHIP_REV_IS_FPGA(bp))
+		hw_wr = OP_WR_FPGA;
+	else if (CHIP_REV_IS_EMUL(bp))
+		hw_wr = OP_WR_EMUL;
+	else
+		hw_wr = OP_WR_ASIC;
+
+	if (is_e1)
+		data_base = init_data_e1;
+	else /* CHIP_IS_E1H(bp) */
+		data_base = init_data_e1h;
 
 	for (i = op_start; i < op_end; i++) {
 
@@ -209,7 +334,30 @@ static void bnx2x_init_block(struct bnx2x *bp, u32 op_start, u32 op_end)
 		op_type = op->str_wr.op;
 		addr = op->str_wr.offset;
 		len = op->str_wr.data_len;
-		data = init_data + op->str_wr.data_off;
+		data = data_base + op->str_wr.data_off;
+
+		/* careful! it must be in order */
+		if (unlikely(op_type > OP_WB)) {
+
+			/* If E1 only */
+			if (op_type <= OP_WB_E1) {
+				if (is_e1)
+					op_type -= (OP_RD_E1 - OP_RD);
+
+			/* If E1H only */
+			} else if (op_type <= OP_WB_E1H) {
+				if (is_e1h)
+					op_type -= (OP_RD_E1H - OP_RD);
+			}
+
+			/* HW/EMUL specific */
+			if (op_type == hw_wr)
+				op_type = OP_WR;
+
+			/* EMUL on E1H is special */
+			if ((op_type == OP_WR_EMUL_E1H) && is_emul_e1h)
+				op_type = OP_WR;
+		}
 
 		switch (op_type) {
 		case OP_RD:
@@ -222,7 +370,7 @@ static void bnx2x_init_block(struct bnx2x *bp, u32 op_start, u32 op_end)
 			bnx2x_init_str_wr(bp, addr, data, len);
 			break;
 		case OP_WB:
-			bnx2x_init_wr_wb(bp, addr, data, len, 0);
+			bnx2x_init_wr_wb(bp, addr, data, len, 0, is_e1, 0);
 			break;
 		case OP_SI:
 			bnx2x_init_ind_wr(bp, addr, data, len);
@@ -231,10 +379,21 @@ static void bnx2x_init_block(struct bnx2x *bp, u32 op_start, u32 op_end)
 			bnx2x_init_fill(bp, addr, 0, op->zero.len);
 			break;
 		case OP_ZP:
-			bnx2x_init_wr_wb(bp, addr, data, len, 1);
+			bnx2x_init_wr_wb(bp, addr, data, len, 1, is_e1,
+					 op->str_wr.data_off);
+			break;
+		case OP_WR_64:
+			bnx2x_init_wr_64(bp, addr, data, len);
 			break;
 		default:
-			BNX2X_ERR("BAD init operation!\n");
+			/* happens whenever an op is of a diff HW */
+#if 0
+			DP(NETIF_MSG_HW, "skipping init operation  "
+			   "index %d[%d:%d]: type %d  addr 0x%x  "
+			   "len %d(0x%x)\n",
+			   i, op_start, op_end, op_type, addr, len, len);
+#endif
+			break;
 		}
 	}
 }
@@ -245,7 +404,7 @@ static void bnx2x_init_block(struct bnx2x *bp, u32 op_start, u32 op_end)
 ****************************************************************************/
 /*
  * This code configures the PCI read/write arbiter
- * which implements a wighted round robin
+ * which implements a weighted round robin
  * between the virtual queues in the chip.
  *
  * The values were derived for each PCI max payload and max request size.
@@ -315,7 +474,7 @@ static const struct arb_line write_arb_data[NUM_WR_Q][MAX_WR_ORD + 1] = {
 	{{8 , 64 , 25}, {16 , 64 , 41}, {32 , 64 , 81} }
 };
 
-/* register adresses for read queues */
+/* register addresses for read queues */
 static const struct arb_line read_arb_addr[NUM_RD_Q-1] = {
 	{PXP2_REG_RQ_BW_RD_L0, PXP2_REG_RQ_BW_RD_ADD0,
 		PXP2_REG_RQ_BW_RD_UBOUND0},
@@ -375,7 +534,7 @@ static const struct arb_line read_arb_addr[NUM_RD_Q-1] = {
 		PXP2_REG_PSWRQ_BW_UB28}
 };
 
-/* register adresses for wrtie queues */
+/* register addresses for write queues */
 static const struct arb_line write_arb_addr[NUM_WR_Q-1] = {
 	{PXP2_REG_PSWRQ_BW_L1, PXP2_REG_PSWRQ_BW_ADD1,
 		PXP2_REG_PSWRQ_BW_UB1},
@@ -423,6 +582,10 @@ static void bnx2x_init_pxp(struct bnx2x *bp)
 		DP(NETIF_MSG_HW, "write order of %d  order adjusted to %d\n",
 		   w_order, MAX_WR_ORD);
 		w_order = MAX_WR_ORD;
+	}
+	if (CHIP_REV_IS_FPGA(bp)) {
+		DP(NETIF_MSG_HW, "write order adjusted to 1 for FPGA\n");
+		w_order = 0;
 	}
 	DP(NETIF_MSG_HW, "read order %d  write order %d\n", r_order, w_order);
 
@@ -481,7 +644,20 @@ static void bnx2x_init_pxp(struct bnx2x *bp)
 		REG_WR(bp, PXP2_REG_RQ_PDR_LIMIT, 0xe00);
 
 	REG_WR(bp, PXP2_REG_WR_USDMDP_TH, (0x18 << w_order));
-	REG_WR(bp, PXP2_REG_WR_DMAE_TH, (128 << w_order)/16);
+
+	if (CHIP_IS_E1H(bp)) {
+		REG_WR(bp, PXP2_REG_WR_HC_MPS, w_order+1);
+		REG_WR(bp, PXP2_REG_WR_USDM_MPS, w_order+1);
+		REG_WR(bp, PXP2_REG_WR_CSDM_MPS, w_order+1);
+		REG_WR(bp, PXP2_REG_WR_TSDM_MPS, w_order+1);
+		REG_WR(bp, PXP2_REG_WR_XSDM_MPS, w_order+1);
+		REG_WR(bp, PXP2_REG_WR_QM_MPS, w_order+1);
+		REG_WR(bp, PXP2_REG_WR_TM_MPS, w_order+1);
+		REG_WR(bp, PXP2_REG_WR_SRC_MPS, w_order+1);
+		REG_WR(bp, PXP2_REG_WR_DBG_MPS, w_order+1);
+		REG_WR(bp, PXP2_REG_WR_DMAE_MPS, 2); /* DMAE is special */
+		REG_WR(bp, PXP2_REG_WR_CDU_MPS, w_order+1);
+	}
 }
 
 
@@ -564,6 +740,72 @@ static u8 calc_crc8(u32 data, u8 crc)
 	return crc_res;
 }
 
+/* registers addresses are not in order
+   so these arrays help simplify the code */
+static const int cm_start[E1H_FUNC_MAX][9] = {
+	{MISC_FUNC0_START, TCM_FUNC0_START, UCM_FUNC0_START, CCM_FUNC0_START,
+	 XCM_FUNC0_START, TSEM_FUNC0_START, USEM_FUNC0_START, CSEM_FUNC0_START,
+	 XSEM_FUNC0_START},
+	{MISC_FUNC1_START, TCM_FUNC1_START, UCM_FUNC1_START, CCM_FUNC1_START,
+	 XCM_FUNC1_START, TSEM_FUNC1_START, USEM_FUNC1_START, CSEM_FUNC1_START,
+	 XSEM_FUNC1_START},
+	{MISC_FUNC2_START, TCM_FUNC2_START, UCM_FUNC2_START, CCM_FUNC2_START,
+	 XCM_FUNC2_START, TSEM_FUNC2_START, USEM_FUNC2_START, CSEM_FUNC2_START,
+	 XSEM_FUNC2_START},
+	{MISC_FUNC3_START, TCM_FUNC3_START, UCM_FUNC3_START, CCM_FUNC3_START,
+	 XCM_FUNC3_START, TSEM_FUNC3_START, USEM_FUNC3_START, CSEM_FUNC3_START,
+	 XSEM_FUNC3_START},
+	{MISC_FUNC4_START, TCM_FUNC4_START, UCM_FUNC4_START, CCM_FUNC4_START,
+	 XCM_FUNC4_START, TSEM_FUNC4_START, USEM_FUNC4_START, CSEM_FUNC4_START,
+	 XSEM_FUNC4_START},
+	{MISC_FUNC5_START, TCM_FUNC5_START, UCM_FUNC5_START, CCM_FUNC5_START,
+	 XCM_FUNC5_START, TSEM_FUNC5_START, USEM_FUNC5_START, CSEM_FUNC5_START,
+	 XSEM_FUNC5_START},
+	{MISC_FUNC6_START, TCM_FUNC6_START, UCM_FUNC6_START, CCM_FUNC6_START,
+	 XCM_FUNC6_START, TSEM_FUNC6_START, USEM_FUNC6_START, CSEM_FUNC6_START,
+	 XSEM_FUNC6_START},
+	{MISC_FUNC7_START, TCM_FUNC7_START, UCM_FUNC7_START, CCM_FUNC7_START,
+	 XCM_FUNC7_START, TSEM_FUNC7_START, USEM_FUNC7_START, CSEM_FUNC7_START,
+	 XSEM_FUNC7_START}
+};
+
+static const int cm_end[E1H_FUNC_MAX][9] = {
+	{MISC_FUNC0_END, TCM_FUNC0_END, UCM_FUNC0_END, CCM_FUNC0_END,
+	 XCM_FUNC0_END, TSEM_FUNC0_END, USEM_FUNC0_END, CSEM_FUNC0_END,
+	 XSEM_FUNC0_END},
+	{MISC_FUNC1_END, TCM_FUNC1_END, UCM_FUNC1_END, CCM_FUNC1_END,
+	 XCM_FUNC1_END, TSEM_FUNC1_END, USEM_FUNC1_END, CSEM_FUNC1_END,
+	 XSEM_FUNC1_END},
+	{MISC_FUNC2_END, TCM_FUNC2_END, UCM_FUNC2_END, CCM_FUNC2_END,
+	 XCM_FUNC2_END, TSEM_FUNC2_END, USEM_FUNC2_END, CSEM_FUNC2_END,
+	 XSEM_FUNC2_END},
+	{MISC_FUNC3_END, TCM_FUNC3_END, UCM_FUNC3_END, CCM_FUNC3_END,
+	 XCM_FUNC3_END, TSEM_FUNC3_END, USEM_FUNC3_END, CSEM_FUNC3_END,
+	 XSEM_FUNC3_END},
+	{MISC_FUNC4_END, TCM_FUNC4_END, UCM_FUNC4_END, CCM_FUNC4_END,
+	 XCM_FUNC4_END, TSEM_FUNC4_END, USEM_FUNC4_END, CSEM_FUNC4_END,
+	 XSEM_FUNC4_END},
+	{MISC_FUNC5_END, TCM_FUNC5_END, UCM_FUNC5_END, CCM_FUNC5_END,
+	 XCM_FUNC5_END, TSEM_FUNC5_END, USEM_FUNC5_END, CSEM_FUNC5_END,
+	 XSEM_FUNC5_END},
+	{MISC_FUNC6_END, TCM_FUNC6_END, UCM_FUNC6_END, CCM_FUNC6_END,
+	 XCM_FUNC6_END, TSEM_FUNC6_END, USEM_FUNC6_END, CSEM_FUNC6_END,
+	 XSEM_FUNC6_END},
+	{MISC_FUNC7_END, TCM_FUNC7_END, UCM_FUNC7_END, CCM_FUNC7_END,
+	 XCM_FUNC7_END, TSEM_FUNC7_END, USEM_FUNC7_END, CSEM_FUNC7_END,
+	 XSEM_FUNC7_END},
+};
+
+static const int hc_limits[E1H_FUNC_MAX][2] = {
+	{HC_FUNC0_START, HC_FUNC0_END},
+	{HC_FUNC1_START, HC_FUNC1_END},
+	{HC_FUNC2_START, HC_FUNC2_END},
+	{HC_FUNC3_START, HC_FUNC3_END},
+	{HC_FUNC4_START, HC_FUNC4_END},
+	{HC_FUNC5_START, HC_FUNC5_END},
+	{HC_FUNC6_START, HC_FUNC6_END},
+	{HC_FUNC7_START, HC_FUNC7_END}
+};
 
 #endif /* BNX2X_INIT_H */
 

@@ -1,5 +1,5 @@
-#ifndef __X86_KVM_PARA_H
-#define __X86_KVM_PARA_H
+#ifndef ASM_X86__KVM_PARA_H
+#define ASM_X86__KVM_PARA_H
 
 /* This CPUID returns the signature 'KVMKVMKVM' in ebx, ecx, and edx.  It
  * should be used to determine that a VM is running under KVM.
@@ -71,7 +71,8 @@ static inline long kvm_hypercall0(unsigned int nr)
 	long ret;
 	asm volatile(KVM_HYPERCALL
 		     : "=a"(ret)
-		     : "a"(nr));
+		     : "a"(nr)
+		     : "memory");
 	return ret;
 }
 
@@ -80,7 +81,8 @@ static inline long kvm_hypercall1(unsigned int nr, unsigned long p1)
 	long ret;
 	asm volatile(KVM_HYPERCALL
 		     : "=a"(ret)
-		     : "a"(nr), "b"(p1));
+		     : "a"(nr), "b"(p1)
+		     : "memory");
 	return ret;
 }
 
@@ -90,7 +92,8 @@ static inline long kvm_hypercall2(unsigned int nr, unsigned long p1,
 	long ret;
 	asm volatile(KVM_HYPERCALL
 		     : "=a"(ret)
-		     : "a"(nr), "b"(p1), "c"(p2));
+		     : "a"(nr), "b"(p1), "c"(p2)
+		     : "memory");
 	return ret;
 }
 
@@ -100,7 +103,8 @@ static inline long kvm_hypercall3(unsigned int nr, unsigned long p1,
 	long ret;
 	asm volatile(KVM_HYPERCALL
 		     : "=a"(ret)
-		     : "a"(nr), "b"(p1), "c"(p2), "d"(p3));
+		     : "a"(nr), "b"(p1), "c"(p2), "d"(p3)
+		     : "memory");
 	return ret;
 }
 
@@ -111,7 +115,8 @@ static inline long kvm_hypercall4(unsigned int nr, unsigned long p1,
 	long ret;
 	asm volatile(KVM_HYPERCALL
 		     : "=a"(ret)
-		     : "a"(nr), "b"(p1), "c"(p2), "d"(p3), "S"(p4));
+		     : "a"(nr), "b"(p1), "c"(p2), "d"(p3), "S"(p4)
+		     : "memory");
 	return ret;
 }
 
@@ -139,4 +144,4 @@ static inline unsigned int kvm_arch_para_features(void)
 
 #endif
 
-#endif
+#endif /* ASM_X86__KVM_PARA_H */

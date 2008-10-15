@@ -5,7 +5,7 @@
  *         Endrelia Technologies Inc.
  *
  * Based on pxa2xx Platform drivers by
- * Liam Girdwood <liam.girdwood@wolfsonmicro.com>
+ * Liam Girdwood <lrg@slimlogic.co.uk>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -28,9 +28,9 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
-#include <asm/arch/hardware.h>
-#include <asm/arch/at91_pmc.h>
-#include <asm/arch/at91_ssc.h>
+#include <mach/hardware.h>
+#include <mach/at91_pmc.h>
+#include <mach/at91_ssc.h>
 
 #include "at91-pcm.h"
 #include "at91-ssc.h"
@@ -41,7 +41,7 @@
 #define	DBG(x...)
 #endif
 
-#if defined(CONFIG_ARCH_AT91SAM9260)
+#if defined(CONFIG_ARCH_AT91SAM9260) || defined(CONFIG_ARCH_AT91SAM9G20)
 #define NUM_SSC_DEVICES		1
 #else
 #define NUM_SSC_DEVICES		3
@@ -281,7 +281,7 @@ static void at91_ssc_shutdown(struct snd_pcm_substream *substream)
 /*
  * Record the SSC system clock rate.
  */
-static int at91_ssc_set_dai_sysclk(struct snd_soc_cpu_dai *cpu_dai,
+static int at91_ssc_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	/*
@@ -303,7 +303,7 @@ static int at91_ssc_set_dai_sysclk(struct snd_soc_cpu_dai *cpu_dai,
 /*
  * Record the DAI format for use in hw_params().
  */
-static int at91_ssc_set_dai_fmt(struct snd_soc_cpu_dai *cpu_dai,
+static int at91_ssc_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		unsigned int fmt)
 {
 	struct at91_ssc_info *ssc_p = &ssc_info[cpu_dai->id];
@@ -315,7 +315,7 @@ static int at91_ssc_set_dai_fmt(struct snd_soc_cpu_dai *cpu_dai,
 /*
  * Record SSC clock dividers for use in hw_params().
  */
-static int at91_ssc_set_dai_clkdiv(struct snd_soc_cpu_dai *cpu_dai,
+static int at91_ssc_set_dai_clkdiv(struct snd_soc_dai *cpu_dai,
 	int div_id, int div)
 {
 	struct at91_ssc_info *ssc_p = &ssc_info[cpu_dai->id];
@@ -408,7 +408,7 @@ static int at91_ssc_hw_params(struct snd_pcm_substream *substream,
 		dma_params->pdc_xfer_size = 4;
 		break;
 	default:
-		printk(KERN_WARNING "at91-ssc: unsupported PCM format");
+		printk(KERN_WARNING "at91-ssc: unsupported PCM format\n");
 		return -EINVAL;
 	}
 
@@ -634,7 +634,7 @@ static int at91_ssc_prepare(struct snd_pcm_substream *substream)
 
 #ifdef CONFIG_PM
 static int at91_ssc_suspend(struct platform_device *pdev,
-	struct snd_soc_cpu_dai *cpu_dai)
+	struct snd_soc_dai *cpu_dai)
 {
 	struct at91_ssc_info *ssc_p;
 
@@ -662,7 +662,7 @@ static int at91_ssc_suspend(struct platform_device *pdev,
 }
 
 static int at91_ssc_resume(struct platform_device *pdev,
-	struct snd_soc_cpu_dai *cpu_dai)
+	struct snd_soc_dai *cpu_dai)
 {
 	struct at91_ssc_info *ssc_p;
 
@@ -700,7 +700,7 @@ static int at91_ssc_resume(struct platform_device *pdev,
 #define AT91_SSC_FORMATS (SNDRV_PCM_FMTBIT_S8     | SNDRV_PCM_FMTBIT_S16_LE |\
 			  SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
-struct snd_soc_cpu_dai at91_ssc_dai[NUM_SSC_DEVICES] = {
+struct snd_soc_dai at91_ssc_dai[NUM_SSC_DEVICES] = {
 	{	.name = "at91-ssc0",
 		.id = 0,
 		.type = SND_SOC_DAI_PCM,

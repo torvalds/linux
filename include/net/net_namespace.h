@@ -9,12 +9,16 @@
 #include <linux/list.h>
 
 #include <net/netns/core.h>
+#include <net/netns/mib.h>
 #include <net/netns/unix.h>
 #include <net/netns/packet.h>
 #include <net/netns/ipv4.h>
 #include <net/netns/ipv6.h>
 #include <net/netns/dccp.h>
 #include <net/netns/x_tables.h>
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+#include <net/netns/conntrack.h>
+#endif
 
 struct proc_dir_entry;
 struct net_device;
@@ -37,7 +41,9 @@ struct net {
 	struct proc_dir_entry 	*proc_net;
 	struct proc_dir_entry 	*proc_net_stat;
 
-	struct list_head	sysctl_table_headers;
+#ifdef CONFIG_SYSCTL
+	struct ctl_table_set	sysctls;
+#endif
 
 	struct net_device       *loopback_dev;          /* The loopback */
 
@@ -52,6 +58,7 @@ struct net {
 	struct sock 		*rtnl;			/* rtnetlink socket */
 
 	struct netns_core	core;
+	struct netns_mib	mib;
 	struct netns_packet	packet;
 	struct netns_unix	unx;
 	struct netns_ipv4	ipv4;
@@ -63,6 +70,9 @@ struct net {
 #endif
 #ifdef CONFIG_NETFILTER
 	struct netns_xt		xt;
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+	struct netns_ct		ct;
+#endif
 #endif
 	struct net_generic	*gen;
 };
@@ -212,7 +222,10 @@ extern void unregister_pernet_gen_device(int id, struct pernet_operations *);
 struct ctl_path;
 struct ctl_table;
 struct ctl_table_header;
+
 extern struct ctl_table_header *register_net_sysctl_table(struct net *net,
+	const struct ctl_path *path, struct ctl_table *table);
+extern struct ctl_table_header *register_net_sysctl_rotable(
 	const struct ctl_path *path, struct ctl_table *table);
 extern void unregister_net_sysctl_table(struct ctl_table_header *header);
 

@@ -5,6 +5,7 @@
 config BRIDGE
 	tristate "802.1d Ethernet Bridging"
 	select LLC
+	select STP
 	---help---
 	  If you say Y here, then your Linux box will be able to act as an
 	  Ethernet bridge, which means that the different Ethernet segments it

@@ -1,4 +1,5 @@
-#ifndef _ASM_SECCOMP_H
+#ifndef ASM_X86__SECCOMP_64_H
+#define ASM_X86__SECCOMP_64_H
 
 #include <linux/thread_info.h>
 
@@ -21,4 +22,4 @@
 #define __NR_seccomp_exit_32 __NR_ia32_exit
 #define __NR_seccomp_sigreturn_32 __NR_ia32_sigreturn
 
-#endif /* _ASM_SECCOMP_H */
+#endif /* ASM_X86__SECCOMP_64_H */

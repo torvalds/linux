@@ -19,11 +19,8 @@
 #include <asm/vaddrs.h>
 #include <asm/memreg.h>
 #include <asm/page.h>
-#ifdef CONFIG_SUN4
-#include <asm/pgtsun4.h>
-#else
+#include <asm/pgtable.h>
 #include <asm/pgtsun4c.h>
-#endif
 #include <asm/winmacro.h>
 #include <asm/signal.h>
 #include <asm/obio.h>
@@ -275,17 +272,18 @@ smp4m_ticker:
 	 */
 maybe_smp4m_msg:
 	GET_PROCESSOR4M_ID(o3)
-	set	sun4m_interrupts, %l5
-	ld	[%l5], %o5
+	sethi	%hi(sun4m_irq_percpu), %l5
+	sll	%o3, 2, %o3
+	or	%l5, %lo(sun4m_irq_percpu), %o5
 	sethi	%hi(0x40000000), %o2
-	sll	%o3, 12, %o3
 	ld	[%o5 + %o3], %o1
-	andcc	%o1, %o2, %g0
+	ld	[%o1 + 0x00], %o3	! sun4m_irq_percpu[cpu]->pending
+	andcc	%o3, %o2, %g0
 	be,a	smp4m_ticker
 	 cmp	%l7, 14
-	st	%o2, [%o5 + 0x4]
+	st	%o2, [%o1 + 0x04]	! sun4m_irq_percpu[cpu]->clear=0x40000000
 	WRITE_PAUSE
-	ld	[%o5], %g0
+	ld	[%o1 + 0x00], %g0	! sun4m_irq_percpu[cpu]->pending
 	WRITE_PAUSE
 	or	%l0, PSR_PIL, %l4
 	wr	%l4, 0x0, %psr
@@ -303,16 +301,16 @@ linux_trap_ipi15_sun4m:
 	SAVE_ALL
 	sethi	%hi(0x80000000), %o2
 	GET_PROCESSOR4M_ID(o0)
-	set	sun4m_interrupts, %l5
-	ld	[%l5], %o5
-	sll	%o0, 12, %o0
-	add	%o5, %o0, %o5
-	ld	[%o5], %o3
+	sethi	%hi(sun4m_irq_percpu), %l5
+	or	%l5, %lo(sun4m_irq_percpu), %o5
+	sll	%o0, 2, %o0
+	ld	[%o5 + %o0], %o5
+	ld	[%o5 + 0x00], %o3	! sun4m_irq_percpu[cpu]->pending
 	andcc	%o3, %o2, %g0
 	be	1f			! Must be an NMI async memory error
-	 st	%o2, [%o5 + 4]
+	 st	%o2, [%o5 + 0x04]	! sun4m_irq_percpu[cpu]->clear=0x80000000
 	WRITE_PAUSE
-	ld	[%o5], %g0
+	ld	[%o5 + 0x00], %g0	! sun4m_irq_percpu[cpu]->pending
 	WRITE_PAUSE
 	or	%l0, PSR_PIL, %l4
 	wr	%l4, 0x0, %psr
@@ -326,12 +324,11 @@ linux_trap_ipi15_sun4m:
 1:
 	/* NMI async memory error handling. */
 	sethi	%hi(0x80000000), %l4
-	sethi	%hi(0x4000), %o3
-	sub	%o5, %o0, %o5
-	add	%o5, %o3, %l5
-	st	%l4, [%l5 + 0xc]
+	sethi	%hi(sun4m_irq_global), %o5
+	ld	[%o5 + %lo(sun4m_irq_global)], %l5
+	st	%l4, [%l5 + 0x0c]	! sun4m_irq_global->mask_set=0x80000000
 	WRITE_PAUSE
-	ld	[%l5], %g0
+	ld	[%l5 + 0x00], %g0	! sun4m_irq_global->pending
 	WRITE_PAUSE
 	or	%l0, PSR_PIL, %l4
 	wr	%l4, 0x0, %psr
@@ -340,9 +337,9 @@ linux_trap_ipi15_sun4m:
 	WRITE_PAUSE
 	call	sun4m_nmi
 	 nop
-	st	%l4, [%l5 + 0x8]
+	st	%l4, [%l5 + 0x08]	! sun4m_irq_global->mask_clear=0x80000000
 	WRITE_PAUSE
-	ld	[%l5], %g0
+	ld	[%l5 + 0x00], %g0	! sun4m_irq_global->pending
 	WRITE_PAUSE
 	RESTORE_ALL
 
@@ -774,11 +771,7 @@ vac_linesize_patch_32:		subcc	%l7, 32, %l7
  * Ugly, but we cant use hardware flushing on the sun4 and we'd require
  * two instructions (Anton)
  */
-#ifdef CONFIG_SUN4
-vac_hwflush_patch1_on:		nop
-#else
 vac_hwflush_patch1_on:		addcc	%l7, -PAGE_SIZE, %l7
-#endif
 
 vac_hwflush_patch2_on:		sta	%g0, [%l3 + %l7] ASI_HWFLUSHSEG
 
@@ -797,42 +790,10 @@ vac_hwflush_patch2_on:		sta	%g0, [%l3 + %l7] ASI_HWFLUSHSEG
 ! %l7 = 1 for textfault
 ! We want error in %l5, vaddr in %l6
 sun4c_fault:
-#ifdef CONFIG_SUN4
-	sethi	%hi(sun4c_memerr_reg), %l4
-	ld	[%l4+%lo(sun4c_memerr_reg)], %l4  ! memerr ctrl reg addr
-	ld	[%l4], %l6		! memerr ctrl reg
-	ld	[%l4 + 4], %l5		! memerr vaddr reg
-	andcc	%l6, 0x80, %g0		! check for error type
-	st	%g0, [%l4 + 4]		! clear the error
-	be	0f			! normal error
-	 sethi	%hi(AC_BUS_ERROR), %l4	! bus err reg addr
-
-	call	prom_halt	! something weird happened
-					! what exactly did happen?
-					! what should we do here?
-
-0:	or	%l4, %lo(AC_BUS_ERROR), %l4	! bus err reg addr
-	lduba	[%l4] ASI_CONTROL, %l6	! bus err reg
-
-	cmp    %l7, 1			! text fault?
-	be	1f			! yes
-	 nop
-
-	ld     [%l1], %l4		! load instruction that caused fault
-	srl	%l4, 21, %l4
-	andcc	%l4, 1, %g0		! store instruction?
-
-	be	1f			! no
-	 sethi	%hi(SUN4C_SYNC_BADWRITE), %l4 ! yep
-					! %lo(SUN4C_SYNC_BADWRITE) = 0
-	or	%l4, %l6, %l6		! set write bit to emulate sun4c
-1:
-#else
 	sethi	%hi(AC_SYNC_ERR), %l4
 	add	%l4, 0x4, %l6			! AC_SYNC_VA in %l6
 	lda	[%l6] ASI_CONTROL, %l5		! Address
 	lda	[%l4] ASI_CONTROL, %l6		! Error, retained for a bit
-#endif
 
 	andn	%l5, 0xfff, %l5			! Encode all info into l7
 	srl	%l6, 14, %l4
@@ -879,12 +840,7 @@ sun4c_fault:
 	or      %l4, %lo(swapper_pg_dir), %l4
 	sll     %l6, 2, %l6
 	ld      [%l4 + %l6], %l4
-#ifdef CONFIG_SUN4
-	sethi	%hi(PAGE_MASK), %l6
-	andcc	%l4, %l6, %g0
-#else
 	andcc   %l4, PAGE_MASK, %g0
-#endif
 	be      sun4c_fault_fromuser
 	 lduXa  [%l5] ASI_SEGMAP, %l4
 
@@ -936,11 +892,7 @@ invalid_segment_patch1:
 	ld	[%l6 + 0x08], %l3	! tmp = entry->vaddr
 
 	! Flush segment from the cache.
-#ifdef CONFIG_SUN4
-	sethi	%hi((128 * 1024)), %l7
-#else
 	sethi	%hi((64 * 1024)), %l7
-#endif
 9:
 vac_hwflush_patch1:
 vac_linesize_patch:
@@ -1028,12 +980,7 @@ invalid_segment_patch2:
 	or	%l4, %lo(swapper_pg_dir), %l4
 	sll	%l3, 2, %l3
 	ld	[%l4 + %l3], %l4
-#ifndef CONFIG_SUN4
 	and	%l4, PAGE_MASK, %l4
-#else
-	sethi	%hi(PAGE_MASK), %l6
-	and	%l4, %l6, %l4
-#endif
 
 	srl	%l5, (PAGE_SHIFT - 2), %l6
 	and	%l6, ((SUN4C_PTRS_PER_PTE - 1) << 2), %l6
@@ -1195,8 +1142,9 @@ sys_rt_sigreturn:
 	be	1f
 	 nop
 
+	add	%sp, STACKFRAME_SZ, %o0
 	call	syscall_trace
-	 nop
+	 mov	1, %o1
 
 1:
 	/* We are returning to a signal handler. */
@@ -1286,8 +1234,12 @@ linux_fast_syscall:
 	 mov	%i3, %o3
 
 linux_syscall_trace:
+	add	%sp, STACKFRAME_SZ, %o0
 	call	syscall_trace
-	 nop
+	 mov	0, %o1
+	cmp	%o0, 0
+	bne	3f
+	 mov	-ENOSYS, %o0
 	mov	%i0, %o0
 	mov	%i1, %o1
 	mov	%i2, %o2
@@ -1317,7 +1269,6 @@ linux_sparc_syscall:
 	bne	linux_fast_syscall
 	 /* Just do first insn from SAVE_ALL in the delay slot */
 
-	.globl	syscall_is_too_hard
 syscall_is_too_hard:
 	SAVE_ALL_HEAD
 	 rd	%wim, %l3
@@ -1337,6 +1288,7 @@ syscall_is_too_hard:
 	call	%l7
 	 mov	%i5, %o5
 
+3:
 	st	%o0, [%sp + STACKFRAME_SZ + PT_I0]
 
 ret_sys_call:
@@ -1374,6 +1326,8 @@ ret_sys_call:
 	 st	%l2, [%sp + STACKFRAME_SZ + PT_NPC]
 
 linux_syscall_trace2:
+	add	%sp, STACKFRAME_SZ, %o0
+	mov	1, %o1
 	call	syscall_trace
 	 add	%l1, 0x4, %l2			/* npc = npc+4 */
 	st	%l1, [%sp + STACKFRAME_SZ + PT_PC]
@@ -1544,8 +1498,7 @@ kgdb_trap_low:
 #endif
 
 	.align	4
-	.globl	__handle_exception, flush_patch_exception
-__handle_exception:
+	.globl	flush_patch_exception
 flush_patch_exception:
 	FLUSH_ALL_KERNEL_WINDOWS;
 	ldd	[%o0], %o6

@@ -727,19 +727,12 @@ static int sata_pmp_eh_recover_pmp(struct ata_port *ap,
 		}
 
 		if (tries) {
-			int sleep = ehc->i.flags & ATA_EHI_DID_RESET;
-
 			/* consecutive revalidation failures? speed down */
 			if (reval_failed)
 				sata_down_spd_limit(link);
 			else
 				reval_failed = 1;
 
-			ata_dev_printk(dev, KERN_WARNING,
-				       "retrying reset%s\n",
-				       sleep ? " in 5 secs" : "");
-			if (sleep)
-				ssleep(5);
 			ehc->i.action |= ATA_EH_RESET;
 			goto retry;
 		} else {
@@ -785,7 +778,8 @@ static int sata_pmp_eh_handle_disabled_links(struct ata_port *ap)
 		 * SError.N working.
 		 */
 		sata_link_hardreset(link, sata_deb_timing_normal,
-				jiffies + ATA_TMOUT_INTERNAL_QUICK, NULL, NULL);
+				ata_deadline(jiffies, ATA_TMOUT_INTERNAL_QUICK),
+				NULL, NULL);
 
 		/* unconditionally clear SError.N */
 		rc = sata_scr_write(link, SCR_ERROR, SERR_PHYRDY_CHG);
@@ -990,10 +984,7 @@ static int sata_pmp_eh_recover(struct ata_port *ap)
 		goto retry;
 
 	if (--pmp_tries) {
-		ata_port_printk(ap, KERN_WARNING,
-				"failed to recover PMP, retrying in 5 secs\n");
 		pmp_ehc->i.action |= ATA_EH_RESET;
-		ssleep(5);
 		goto retry;
 	}
 

@@ -2296,9 +2296,10 @@ static void dv1394_add_host(struct hpsb_host *host)
 
 	ohci = (struct ti_ohci *)host->hostdata;
 
-	device_create(hpsb_protocol_class, NULL, MKDEV(
-		IEEE1394_MAJOR,	IEEE1394_MINOR_BLOCK_DV1394 * 16 + (id<<2)),
-		"dv1394-%d", id);
+	device_create_drvdata(hpsb_protocol_class, NULL,
+			      MKDEV(IEEE1394_MAJOR,
+				    IEEE1394_MINOR_BLOCK_DV1394 * 16 + (id<<2)), NULL,
+			      "dv1394-%d", id);
 
 	dv1394_init(ohci, DV1394_NTSC, MODE_RECEIVE);
 	dv1394_init(ohci, DV1394_NTSC, MODE_TRANSMIT);

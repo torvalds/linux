@@ -16,8 +16,8 @@
 #include "reg_constant.h"
 #include "control_w.h"
 
-#define MAKE_REG(s,e,l,h) { l, h, \
-                            ((EXTENDED_Ebias+(e)) | ((SIGN_##s != 0)*0x8000)) }
+#define MAKE_REG(s, e, l, h) { l, h, \
+		((EXTENDED_Ebias+(e)) | ((SIGN_##s != 0)*0x8000)) }
 
 FPU_REG const CONST_1 = MAKE_REG(POS, 0, 0x00000000, 0x80000000);
 #if 0
@@ -40,7 +40,7 @@ FPU_REG const CONST_PI2extra = MAKE_REG(NEG, -66,
 FPU_REG const CONST_Z = MAKE_REG(POS, EXP_UNDER, 0x0, 0x0);
 
 /* Only the sign and significand (and tag) are used in internal NaNs */
-/* The 80486 never generates one of these 
+/* The 80486 never generates one of these
 FPU_REG const CONST_SNAN = MAKE_REG(POS, EXP_OVER, 0x00000001, 0x80000000);
  */
 /* This is the real indefinite QNaN */
@@ -49,7 +49,7 @@ FPU_REG const CONST_QNaN = MAKE_REG(NEG, EXP_OVER, 0x00000000, 0xC0000000);
 /* Only the sign (and tag) is used in internal infinities */
 FPU_REG const CONST_INF = MAKE_REG(POS, EXP_OVER, 0x00000000, 0x80000000);
 
-static void fld_const(FPU_REG const *c, int adj, u_char tag)
+static void fld_const(FPU_REG const * c, int adj, u_char tag)
 {
 	FPU_REG *st_new_ptr;
 

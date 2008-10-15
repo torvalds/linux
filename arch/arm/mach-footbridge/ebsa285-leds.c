@@ -21,7 +21,7 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/leds.h>
 #include <asm/mach-types.h>
 #include <asm/system.h>
@@ -128,7 +128,7 @@ static void ebsa285_leds_event(led_event_t evt)
 
 static int __init leds_init(void)
 {
-	if (machine_is_ebsa285() || machine_is_co285())
+	if (machine_is_ebsa285())
 		leds_event = ebsa285_leds_event;
 
 	leds_event(led_start);

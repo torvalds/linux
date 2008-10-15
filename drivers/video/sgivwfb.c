@@ -21,8 +21,7 @@
 
 #include <asm/io.h>
 #include <asm/mtrr.h>
-
-#include <setup_arch.h>
+#include <asm/visws/sgivw.h>
 
 #define INCLUDE_TIMING_TABLE_DATA
 #define DBE_REG_BASE par->regs

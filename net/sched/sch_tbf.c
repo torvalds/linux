@@ -123,23 +123,18 @@ static int tbf_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 	struct tbf_sched_data *q = qdisc_priv(sch);
 	int ret;
 
-	if (skb->len > q->max_size) {
-		sch->qstats.drops++;
-#ifdef CONFIG_NET_CLS_ACT
-		if (sch->reshape_fail == NULL || sch->reshape_fail(skb, sch))
-#endif
-			kfree_skb(skb);
+	if (qdisc_pkt_len(skb) > q->max_size)
+		return qdisc_reshape_fail(skb, sch);
 
-		return NET_XMIT_DROP;
-	}
-
-	if ((ret = q->qdisc->enqueue(skb, q->qdisc)) != 0) {
-		sch->qstats.drops++;
+	ret = qdisc_enqueue(skb, q->qdisc);
+	if (ret != 0) {
+		if (net_xmit_drop_count(ret))
+			sch->qstats.drops++;
 		return ret;
 	}
 
 	sch->q.qlen++;
-	sch->bstats.bytes += skb->len;
+	sch->bstats.bytes += qdisc_pkt_len(skb);
 	sch->bstats.packets++;
 	return 0;
 }
@@ -180,7 +175,7 @@ static struct sk_buff *tbf_dequeue(struct Qdisc* sch)
 		psched_time_t now;
 		long toks;
 		long ptoks = 0;
-		unsigned int len = skb->len;
+		unsigned int len = qdisc_pkt_len(skb);
 
 		now = psched_get_time();
 		toks = psched_tdiff_bounded(now, q->t_c, q->buffer);
@@ -242,34 +237,6 @@ static void tbf_reset(struct Qdisc* sch)
 	qdisc_watchdog_cancel(&q->watchdog);
 }
 
-static struct Qdisc *tbf_create_dflt_qdisc(struct Qdisc *sch, u32 limit)
-{
-	struct Qdisc *q;
-	struct nlattr *nla;
-	int ret;
-
-	q = qdisc_create_dflt(sch->dev, &bfifo_qdisc_ops,
-			      TC_H_MAKE(sch->handle, 1));
-	if (q) {
-		nla = kmalloc(nla_attr_size(sizeof(struct tc_fifo_qopt)),
-			      GFP_KERNEL);
-		if (nla) {
-			nla->nla_type = RTM_NEWQDISC;
-			nla->nla_len = nla_attr_size(sizeof(struct tc_fifo_qopt));
-			((struct tc_fifo_qopt *)nla_data(nla))->limit = limit;
-
-			ret = q->ops->change(q, nla);
-			kfree(nla);
-
-			if (ret == 0)
-				return q;
-		}
-		qdisc_destroy(q);
-	}
-
-	return NULL;
-}
-
 static const struct nla_policy tbf_policy[TCA_TBF_MAX + 1] = {
 	[TCA_TBF_PARMS]	= { .len = sizeof(struct tc_tbf_qopt) },
 	[TCA_TBF_RTAB]	= { .type = NLA_BINARY, .len = TC_RTAB_SIZE },
@@ -322,8 +289,11 @@ static int tbf_change(struct Qdisc* sch, struct nlattr *opt)
 		goto done;
 
 	if (qopt->limit > 0) {
-		if ((child = tbf_create_dflt_qdisc(sch, qopt->limit)) == NULL)
+		child = fifo_create_dflt(sch, &bfifo_qdisc_ops, qopt->limit);
+		if (IS_ERR(child)) {
+			err = PTR_ERR(child);
 			goto done;
+		}
 	}
 
 	sch_tree_lock(sch);

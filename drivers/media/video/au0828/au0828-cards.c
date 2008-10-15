@@ -1,7 +1,7 @@
 /*
  *  Driver for the Auvitek USB bridge
  *
- *  Copyright (c) 2008 Steven Toth <stoth@hauppauge.com>
+ *  Copyright (c) 2008 Steven Toth <stoth@linuxtv.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -32,15 +32,21 @@ struct au0828_board au0828_boards[] = {
 	[AU0828_BOARD_HAUPPAUGE_HVR950Q] = {
 		.name	= "Hauppauge HVR950Q",
 	},
+	[AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL] = {
+		.name	= "Hauppauge HVR950Q rev xxF8",
+	},
 	[AU0828_BOARD_DVICO_FUSIONHDTV7] = {
 		.name	= "DViCO FusionHDTV USB",
+	},
+	[AU0828_BOARD_HAUPPAUGE_WOODBURY] = {
+		.name = "Hauppauge Woodbury",
 	},
 };
 
 /* Tuner callback function for au0828 boards. Currently only needed
  * for HVR1500Q, which has an xc5000 tuner.
  */
-int au0828_tuner_callback(void *priv, int command, int arg)
+int au0828_tuner_callback(void *priv, int component, int command, int arg)
 {
 	struct au0828_dev *dev = priv;
 
@@ -49,6 +55,7 @@ int au0828_tuner_callback(void *priv, int command, int arg)
 	switch (dev->board) {
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q:
+	case AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL:
 	case AU0828_BOARD_DVICO_FUSIONHDTV7:
 		if (command == 0) {
 			/* Tuner Reset Command from xc5000 */
@@ -77,8 +84,14 @@ static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
 
 	/* Make sure we support the board model */
 	switch (tv.model) {
+	case 72000: /* WinTV-HVR950q (Retail, IR, ATSC/QAM */
 	case 72001: /* WinTV-HVR950q (Retail, IR, ATSC/QAM and basic analog video */
+	case 72211: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and basic analog video */
+	case 72221: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and basic analog video */
+	case 72231: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and basic analog video */
+	case 72241: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM and basic analog video */
 	case 72301: /* WinTV-HVR850 (Retail, IR, ATSC and basic analog video */
+	case 72500: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM */
 		break;
 	default:
 		printk(KERN_WARNING "%s: warning: "
@@ -104,6 +117,8 @@ void au0828_card_setup(struct au0828_dev *dev)
 	switch (dev->board) {
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q:
+	case AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL:
+	case AU0828_BOARD_HAUPPAUGE_WOODBURY:
 		if (dev->i2c_rc == 0)
 			hauppauge_eeprom(dev, eeprom+0xa0);
 		break;
@@ -122,6 +137,8 @@ void au0828_gpio_setup(struct au0828_dev *dev)
 	switch (dev->board) {
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q:
+	case AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL:
+	case AU0828_BOARD_HAUPPAUGE_WOODBURY:
 		/* GPIO's
 		 * 4 - CS5340
 		 * 5 - AU8522 Demodulator
@@ -175,6 +192,26 @@ struct usb_device_id au0828_usb_id_table [] = {
 		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR850 },
 	{ USB_DEVICE(0x0fe9, 0xd620),
 		.driver_info = AU0828_BOARD_DVICO_FUSIONHDTV7 },
+	{ USB_DEVICE(0x2040, 0x7210),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
+	{ USB_DEVICE(0x2040, 0x7217),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
+	{ USB_DEVICE(0x2040, 0x721b),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
+	{ USB_DEVICE(0x2040, 0x721f),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
+	{ USB_DEVICE(0x2040, 0x7280),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
+	{ USB_DEVICE(0x0fd9, 0x0008),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
+	{ USB_DEVICE(0x2040, 0x7201),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL },
+	{ USB_DEVICE(0x2040, 0x7211),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL },
+	{ USB_DEVICE(0x2040, 0x7281),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL },
+	{ USB_DEVICE(0x2040, 0x8200),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_WOODBURY },
 	{ },
 };
 

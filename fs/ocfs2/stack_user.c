@@ -21,12 +21,14 @@
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
+#include <linux/smp_lock.h>
 #include <linux/reboot.h>
 #include <asm/uaccess.h>
 
 #include "ocfs2.h"  /* For struct ocfs2_lock_res */
 #include "stackglue.h"
 
+#include <linux/dlm_plock.h>
 
 /*
  * The control protocol starts with a handshake.  Until the handshake
@@ -549,26 +551,17 @@ static ssize_t ocfs2_control_read(struct file *file,
 				  size_t count,
 				  loff_t *ppos)
 {
-	char *proto_string = OCFS2_CONTROL_PROTO;
-	size_t to_write = 0;
+	ssize_t ret;
 
-	if (*ppos >= OCFS2_CONTROL_PROTO_LEN)
-		return 0;
-
-	to_write = OCFS2_CONTROL_PROTO_LEN - *ppos;
-	if (to_write > count)
-		to_write = count;
-	if (copy_to_user(buf, proto_string + *ppos, to_write))
-		return -EFAULT;
-
-	*ppos += to_write;
+	ret = simple_read_from_buffer(buf, count, ppos,
+			OCFS2_CONTROL_PROTO, OCFS2_CONTROL_PROTO_LEN);
 
 	/* Have we read the whole protocol list? */
-	if (*ppos >= OCFS2_CONTROL_PROTO_LEN)
+	if (ret > 0 && *ppos >= OCFS2_CONTROL_PROTO_LEN)
 		ocfs2_control_set_handshake_state(file,
 						  OCFS2_CONTROL_HANDSHAKE_READ);
 
-	return to_write;
+	return ret;
 }
 
 static int ocfs2_control_release(struct inode *inode, struct file *file)
@@ -619,10 +612,12 @@ static int ocfs2_control_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 	p->op_this_node = -1;
 
+	lock_kernel();
 	mutex_lock(&ocfs2_control_lock);
 	file->private_data = p;
 	list_add(&p->op_list, &ocfs2_control_private_list);
 	mutex_unlock(&ocfs2_control_lock);
+	unlock_kernel();
 
 	return 0;
 }
@@ -752,6 +747,37 @@ static void user_dlm_dump_lksb(union ocfs2_dlm_lksb *lksb)
 {
 }
 
+static int user_plock(struct ocfs2_cluster_connection *conn,
+		      u64 ino,
+		      struct file *file,
+		      int cmd,
+		      struct file_lock *fl)
+{
+	/*
+	 * This more or less just demuxes the plock request into any
+	 * one of three dlm calls.
+	 *
+	 * Internally, fs/dlm will pass these to a misc device, which
+	 * a userspace daemon will read and write to.
+	 *
+	 * For now, cancel requests (which happen internally only),
+	 * are turned into unlocks. Most of this function taken from
+	 * gfs2_lock.
+	 */
+
+	if (cmd == F_CANCELLK) {
+		cmd = F_SETLK;
+		fl->fl_type = F_UNLCK;
+	}
+
+	if (IS_GETLK(cmd))
+		return dlm_posix_get(conn->cc_lockspace, ino, file, fl);
+	else if (fl->fl_type == F_UNLCK)
+		return dlm_posix_unlock(conn->cc_lockspace, ino, file, fl);
+	else
+		return dlm_posix_lock(conn->cc_lockspace, ino, file, cmd, fl);
+}
+
 /*
  * Compare a requested locking protocol version against the current one.
  *
@@ -845,6 +871,7 @@ static struct ocfs2_stack_operations ocfs2_user_plugin_ops = {
 	.dlm_unlock	= user_dlm_unlock,
 	.lock_status	= user_dlm_lock_status,
 	.lock_lvb	= user_dlm_lvb,
+	.plock		= user_plock,
 	.dump_lksb	= user_dlm_dump_lksb,
 };
 

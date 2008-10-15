@@ -1,7 +1,7 @@
 /*
  * ALSA SoC I2S (McBSP) Audio Layer for TI DAVINCI processor
  *
- * Author:      Vladimir Barinov, <vbarinov@ru.mvista.com>
+ * Author:      Vladimir Barinov, <vbarinov@embeddedalley.com>
  * Copyright:   (C) 2007 MontaVista Software, Inc., <source@mvista.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -147,7 +147,7 @@ static void davinci_mcbsp_stop(struct snd_pcm_substream *substream)
 static int davinci_i2s_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	struct davinci_mcbsp_dev *dev = rtd->dai->cpu_dai->private_data;
 
 	cpu_dai->dma_data = dev->dma_params[substream->stream];
@@ -155,7 +155,7 @@ static int davinci_i2s_startup(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int davinci_i2s_set_dai_fmt(struct snd_soc_cpu_dai *cpu_dai,
+static int davinci_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 				   unsigned int fmt)
 {
 	struct davinci_mcbsp_dev *dev = cpu_dai->private_data;
@@ -256,7 +256,7 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 		mcbsp_word_length = DAVINCI_MCBSP_WORD_32;
 		break;
 	default:
-		printk(KERN_WARNING "davinci-i2s: unsupported PCM format");
+		printk(KERN_WARNING "davinci-i2s: unsupported PCM format\n");
 		return -EINVAL;
 	}
 
@@ -295,11 +295,12 @@ static int davinci_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
 	return ret;
 }
 
-static int davinci_i2s_probe(struct platform_device *pdev)
+static int davinci_i2s_probe(struct platform_device *pdev,
+			     struct snd_soc_dai *dai)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_machine *machine = socdev->machine;
-	struct snd_soc_cpu_dai *cpu_dai = machine->dai_link[pdev->id].cpu_dai;
+	struct snd_soc_dai *cpu_dai = machine->dai_link[pdev->id].cpu_dai;
 	struct davinci_mcbsp_dev *dev;
 	struct resource *mem, *ioarea;
 	struct evm_snd_platform_data *pdata;
@@ -356,11 +357,12 @@ err_release_region:
 	return ret;
 }
 
-static void davinci_i2s_remove(struct platform_device *pdev)
+static void davinci_i2s_remove(struct platform_device *pdev,
+			       struct snd_soc_dai *dai)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_machine *machine = socdev->machine;
-	struct snd_soc_cpu_dai *cpu_dai = machine->dai_link[pdev->id].cpu_dai;
+	struct snd_soc_dai *cpu_dai = machine->dai_link[pdev->id].cpu_dai;
 	struct davinci_mcbsp_dev *dev = cpu_dai->private_data;
 	struct resource *mem;
 
@@ -376,7 +378,7 @@ static void davinci_i2s_remove(struct platform_device *pdev)
 
 #define DAVINCI_I2S_RATES	SNDRV_PCM_RATE_8000_96000
 
-struct snd_soc_cpu_dai davinci_i2s_dai = {
+struct snd_soc_dai davinci_i2s_dai = {
 	.name = "davinci-i2s",
 	.id = 0,
 	.type = SND_SOC_DAI_I2S,

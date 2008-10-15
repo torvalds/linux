@@ -306,11 +306,10 @@ static int adm8211_get_tx_stats(struct ieee80211_hw *dev,
 				struct ieee80211_tx_queue_stats *stats)
 {
 	struct adm8211_priv *priv = dev->priv;
-	struct ieee80211_tx_queue_stats_data *data = &stats->data[0];
 
-	data->len = priv->cur_tx - priv->dirty_tx;
-	data->limit = priv->tx_ring_size - 2;
-	data->count = priv->dirty_tx;
+	stats[0].len = priv->cur_tx - priv->dirty_tx;
+	stats[0].limit = priv->tx_ring_size - 2;
+	stats[0].count = priv->dirty_tx;
 
 	return 0;
 }
@@ -325,7 +324,7 @@ static void adm8211_interrupt_tci(struct ieee80211_hw *dev)
 	for (dirty_tx = priv->dirty_tx; priv->cur_tx - dirty_tx; dirty_tx++) {
 		unsigned int entry = dirty_tx % priv->tx_ring_size;
 		u32 status = le32_to_cpu(priv->tx_ring[entry].status);
-		struct ieee80211_tx_status tx_status;
+		struct ieee80211_tx_info *txi;
 		struct adm8211_tx_ring_info *info;
 		struct sk_buff *skb;
 
@@ -335,24 +334,23 @@ static void adm8211_interrupt_tci(struct ieee80211_hw *dev)
 
 		info = &priv->tx_buffers[entry];
 		skb = info->skb;
+		txi = IEEE80211_SKB_CB(skb);
 
 		/* TODO: check TDES0_STATUS_TUF and TDES0_STATUS_TRO */
 
 		pci_unmap_single(priv->pdev, info->mapping,
 				 info->skb->len, PCI_DMA_TODEVICE);
 
-		memset(&tx_status, 0, sizeof(tx_status));
+		memset(&txi->status, 0, sizeof(txi->status));
 		skb_pull(skb, sizeof(struct adm8211_tx_hdr));
 		memcpy(skb_push(skb, info->hdrlen), skb->cb, info->hdrlen);
-		memcpy(&tx_status.control, &info->tx_control,
-		       sizeof(tx_status.control));
-		if (!(tx_status.control.flags & IEEE80211_TXCTL_NO_ACK)) {
+		if (!(txi->flags & IEEE80211_TX_CTL_NO_ACK)) {
 			if (status & TDES0_STATUS_ES)
-				tx_status.excessive_retries = 1;
+				txi->status.excessive_retries = 1;
 			else
-				tx_status.flags |= IEEE80211_TX_STATUS_ACK;
+				txi->flags |= IEEE80211_TX_STAT_ACK;
 		}
-		ieee80211_tx_status_irqsafe(dev, skb, &tx_status);
+		ieee80211_tx_status_irqsafe(dev, skb);
 
 		info->skb = NULL;
 	}
@@ -446,9 +444,9 @@ static void adm8211_interrupt_rci(struct ieee80211_hw *dev)
 			struct ieee80211_rx_status rx_status = {0};
 
 			if (priv->pdev->revision < ADM8211_REV_CA)
-				rx_status.ssi = rssi;
+				rx_status.signal = rssi;
 			else
-				rx_status.ssi = 100 - rssi;
+				rx_status.signal = 100 - rssi;
 
 			rx_status.rate_idx = rate;
 
@@ -767,11 +765,11 @@ static void adm8211_update_mode(struct ieee80211_hw *dev)
 
 	priv->soft_rx_crc = 0;
 	switch (priv->mode) {
-	case IEEE80211_IF_TYPE_STA:
+	case NL80211_IFTYPE_STATION:
 		priv->nar &= ~(ADM8211_NAR_PR | ADM8211_NAR_EA);
 		priv->nar |= ADM8211_NAR_ST | ADM8211_NAR_SR;
 		break;
-	case IEEE80211_IF_TYPE_IBSS:
+	case NL80211_IFTYPE_ADHOC:
 		priv->nar &= ~ADM8211_NAR_PR;
 		priv->nar |= ADM8211_NAR_EA | ADM8211_NAR_ST | ADM8211_NAR_SR;
 
@@ -779,7 +777,7 @@ static void adm8211_update_mode(struct ieee80211_hw *dev)
 		if (priv->pdev->revision >= ADM8211_REV_BA)
 			priv->soft_rx_crc = 1;
 		break;
-	case IEEE80211_IF_TYPE_MNTR:
+	case NL80211_IFTYPE_MONITOR:
 		priv->nar &= ~(ADM8211_NAR_EA | ADM8211_NAR_ST);
 		priv->nar |= ADM8211_NAR_PR | ADM8211_NAR_SR;
 		break;
@@ -1412,11 +1410,11 @@ static int adm8211_add_interface(struct ieee80211_hw *dev,
 				 struct ieee80211_if_init_conf *conf)
 {
 	struct adm8211_priv *priv = dev->priv;
-	if (priv->mode != IEEE80211_IF_TYPE_MNTR)
+	if (priv->mode != NL80211_IFTYPE_MONITOR)
 		return -EOPNOTSUPP;
 
 	switch (conf->type) {
-	case IEEE80211_IF_TYPE_STA:
+	case NL80211_IFTYPE_STATION:
 		priv->mode = conf->type;
 		break;
 	default:
@@ -1439,7 +1437,7 @@ static void adm8211_remove_interface(struct ieee80211_hw *dev,
 				     struct ieee80211_if_init_conf *conf)
 {
 	struct adm8211_priv *priv = dev->priv;
-	priv->mode = IEEE80211_IF_TYPE_MNTR;
+	priv->mode = NL80211_IFTYPE_MONITOR;
 }
 
 static int adm8211_init_rings(struct ieee80211_hw *dev)
@@ -1558,7 +1556,7 @@ static int adm8211_start(struct ieee80211_hw *dev)
 	ADM8211_CSR_WRITE(IER, ADM8211_IER_NIE | ADM8211_IER_AIE |
 			       ADM8211_IER_RCIE | ADM8211_IER_TCIE |
 			       ADM8211_IER_TDUIE | ADM8211_IER_GPTIE);
-	priv->mode = IEEE80211_IF_TYPE_MNTR;
+	priv->mode = NL80211_IFTYPE_MONITOR;
 	adm8211_update_mode(dev);
 	ADM8211_CSR_WRITE(RDR, 0);
 
@@ -1573,7 +1571,7 @@ static void adm8211_stop(struct ieee80211_hw *dev)
 {
 	struct adm8211_priv *priv = dev->priv;
 
-	priv->mode = IEEE80211_IF_TYPE_INVALID;
+	priv->mode = NL80211_IFTYPE_UNSPECIFIED;
 	priv->nar = 0;
 	ADM8211_CSR_WRITE(NAR, 0);
 	ADM8211_CSR_WRITE(IER, 0);
@@ -1639,7 +1637,6 @@ static void adm8211_calc_durations(int *dur, int *plcp, size_t payload_len, int 
 /* Transmit skb w/adm8211_tx_hdr (802.11 header created by hardware) */
 static void adm8211_tx_raw(struct ieee80211_hw *dev, struct sk_buff *skb,
 			   u16 plcp_signal,
-			   struct ieee80211_tx_control *control,
 			   size_t hdrlen)
 {
 	struct adm8211_priv *priv = dev->priv;
@@ -1665,7 +1662,6 @@ static void adm8211_tx_raw(struct ieee80211_hw *dev, struct sk_buff *skb,
 
 	priv->tx_buffers[entry].skb = skb;
 	priv->tx_buffers[entry].mapping = mapping;
-	memcpy(&priv->tx_buffers[entry].tx_control, control, sizeof(*control));
 	priv->tx_buffers[entry].hdrlen = hdrlen;
 	priv->tx_ring[entry].buffer1 = cpu_to_le32(mapping);
 
@@ -1686,22 +1682,20 @@ static void adm8211_tx_raw(struct ieee80211_hw *dev, struct sk_buff *skb,
 }
 
 /* Put adm8211_tx_hdr on skb and transmit */
-static int adm8211_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
-		      struct ieee80211_tx_control *control)
+static int adm8211_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct adm8211_tx_hdr *txhdr;
-	u16 fc;
 	size_t payload_len, hdrlen;
 	int plcp, dur, len, plcp_signal, short_preamble;
 	struct ieee80211_hdr *hdr;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_rate *txrate = ieee80211_get_tx_rate(dev, info);
 
-	short_preamble = !!(control->tx_rate->flags &
-					IEEE80211_TXCTL_SHORT_PREAMBLE);
-	plcp_signal = control->tx_rate->bitrate;
+	short_preamble = !!(txrate->flags & IEEE80211_TX_CTL_SHORT_PREAMBLE);
+	plcp_signal = txrate->bitrate;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
-	fc = le16_to_cpu(hdr->frame_control) & ~IEEE80211_FCTL_PROTECTED;
-	hdrlen = ieee80211_get_hdrlen(fc);
+	hdrlen = ieee80211_hdrlen(hdr->frame_control);
 	memcpy(skb->cb, skb->data, hdrlen);
 	hdr = (struct ieee80211_hdr *)skb->cb;
 	skb_pull(skb, hdrlen);
@@ -1715,8 +1709,6 @@ static int adm8211_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 	txhdr->frame_control = hdr->frame_control;
 
 	len = hdrlen + payload_len + FCS_LEN;
-	if (fc & IEEE80211_FCTL_PROTECTED)
-		len += 8;
 
 	txhdr->frag = cpu_to_le16(0x0FFF);
 	adm8211_calc_durations(&dur, &plcp, payload_len,
@@ -1731,15 +1723,12 @@ static int adm8211_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 	if (short_preamble)
 		txhdr->header_control |= cpu_to_le16(ADM8211_TXHDRCTL_SHORT_PREAMBLE);
 
-	if (control->flags & IEEE80211_TXCTL_USE_RTS_CTS)
+	if (info->flags & IEEE80211_TX_CTL_USE_RTS_CTS)
 		txhdr->header_control |= cpu_to_le16(ADM8211_TXHDRCTL_ENABLE_RTS);
 
-	if (fc & IEEE80211_FCTL_PROTECTED)
-		txhdr->header_control |= cpu_to_le16(ADM8211_TXHDRCTL_ENABLE_WEP_ENGINE);
+	txhdr->retry_limit = info->control.retry_limit;
 
-	txhdr->retry_limit = control->retry_limit;
-
-	adm8211_tx_raw(dev, skb, plcp_signal, control, hdrlen);
+	adm8211_tx_raw(dev, skb, plcp_signal, hdrlen);
 
 	return NETDEV_TX_OK;
 }
@@ -1894,9 +1883,11 @@ static int __devinit adm8211_probe(struct pci_dev *pdev,
 
 	dev->extra_tx_headroom = sizeof(struct adm8211_tx_hdr);
 	/* dev->flags = IEEE80211_HW_RX_INCLUDES_FCS in promisc mode */
+	dev->flags = IEEE80211_HW_SIGNAL_UNSPEC;
+	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
 	dev->channel_change_time = 1000;
-	dev->max_rssi = 100;	/* FIXME: find better value */
+	dev->max_signal = 100;    /* FIXME: find better value */
 
 	dev->queues = 1; /* ADM8211C supports more, maybe ADM8211B too */
 
@@ -1905,7 +1896,7 @@ static int __devinit adm8211_probe(struct pci_dev *pdev,
 	priv->tx_power = 0x40;
 	priv->lpf_cutoff = 0xFF;
 	priv->lnags_threshold = 0xFF;
-	priv->mode = IEEE80211_IF_TYPE_INVALID;
+	priv->mode = NL80211_IFTYPE_UNSPECIFIED;
 
 	/* Power-on issue. EEPROM won't read correctly without */
 	if (pdev->revision >= ADM8211_REV_BA) {
@@ -1995,7 +1986,7 @@ static int adm8211_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct ieee80211_hw *dev = pci_get_drvdata(pdev);
 	struct adm8211_priv *priv = dev->priv;
 
-	if (priv->mode != IEEE80211_IF_TYPE_INVALID) {
+	if (priv->mode != NL80211_IFTYPE_UNSPECIFIED) {
 		ieee80211_stop_queues(dev);
 		adm8211_stop(dev);
 	}
@@ -2013,9 +2004,9 @@ static int adm8211_resume(struct pci_dev *pdev)
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 
-	if (priv->mode != IEEE80211_IF_TYPE_INVALID) {
+	if (priv->mode != NL80211_IFTYPE_UNSPECIFIED) {
 		adm8211_start(dev);
-		ieee80211_start_queues(dev);
+		ieee80211_wake_queues(dev);
 	}
 
 	return 0;

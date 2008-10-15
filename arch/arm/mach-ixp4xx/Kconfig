@@ -125,6 +125,15 @@ config	ARCH_IXDP4XX
 	depends on ARCH_IXDP425 || MACH_IXDP465 || MACH_KIXRP435
 	default y
 
+config MACH_FSG
+	bool
+	prompt "Freecom FSG-3"
+	select PCI
+	help
+	  Say 'Y' here if you want your kernel to support Freecom's
+	  FSG-3 device. For more information on this platform,
+	  see http://www.nslu2-linux.org/wiki/FSG3/HomePage
+
 #
 # Certain registers and IRQs are only enabled if supporting IXP465 CPUs
 #

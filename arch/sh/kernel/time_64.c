@@ -33,8 +33,8 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
-#include <asm/cpu/registers.h>	 /* required by inline __asm__ stmt. */
-#include <asm/cpu/irq.h>
+#include <cpu/registers.h>	 /* required by inline __asm__ stmt. */
+#include <cpu/irq.h>
 #include <asm/addrspace.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>

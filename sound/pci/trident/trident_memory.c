@@ -194,11 +194,14 @@ snd_trident_alloc_sg_pages(struct snd_trident *trident,
 	struct snd_util_memblk *blk;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int idx, page;
-	struct snd_sg_buf *sgbuf = snd_pcm_substream_sgbuf(substream);
 
-	snd_assert(runtime->dma_bytes > 0 && runtime->dma_bytes <= SNDRV_TRIDENT_MAX_PAGES * SNDRV_TRIDENT_PAGE_SIZE, return NULL);
+	if (snd_BUG_ON(runtime->dma_bytes <= 0 ||
+		       runtime->dma_bytes > SNDRV_TRIDENT_MAX_PAGES *
+					SNDRV_TRIDENT_PAGE_SIZE))
+		return NULL;
 	hdr = trident->tlb.memhdr;
-	snd_assert(hdr != NULL, return NULL);
+	if (snd_BUG_ON(!hdr))
+		return NULL;
 
 	
 
@@ -208,18 +211,14 @@ snd_trident_alloc_sg_pages(struct snd_trident *trident,
 		mutex_unlock(&hdr->block_mutex);
 		return NULL;
 	}
-	if (lastpg(blk) - firstpg(blk) >= sgbuf->pages) {
-		snd_printk(KERN_ERR "page calculation doesn't match: allocated pages = %d, trident = %d/%d\n", sgbuf->pages, firstpg(blk), lastpg(blk));
-		__snd_util_mem_free(hdr, blk);
-		mutex_unlock(&hdr->block_mutex);
-		return NULL;
-	}
 			   
 	/* set TLB entries */
 	idx = 0;
 	for (page = firstpg(blk); page <= lastpg(blk); page++, idx++) {
-		dma_addr_t addr = sgbuf->table[idx].addr;
-		unsigned long ptr = (unsigned long)sgbuf->table[idx].buf;
+		unsigned long ofs = idx << PAGE_SHIFT;
+		dma_addr_t addr = snd_pcm_sgbuf_get_addr(substream, ofs);
+		unsigned long ptr = (unsigned long)
+			snd_pcm_sgbuf_get_ptr(substream, ofs);
 		if (! is_valid_page(addr)) {
 			__snd_util_mem_free(hdr, blk);
 			mutex_unlock(&hdr->block_mutex);
@@ -245,9 +244,13 @@ snd_trident_alloc_cont_pages(struct snd_trident *trident,
 	dma_addr_t addr;
 	unsigned long ptr;
 
-	snd_assert(runtime->dma_bytes> 0 && runtime->dma_bytes <= SNDRV_TRIDENT_MAX_PAGES * SNDRV_TRIDENT_PAGE_SIZE, return NULL);
+	if (snd_BUG_ON(runtime->dma_bytes <= 0 ||
+		       runtime->dma_bytes > SNDRV_TRIDENT_MAX_PAGES *
+					SNDRV_TRIDENT_PAGE_SIZE))
+		return NULL;
 	hdr = trident->tlb.memhdr;
-	snd_assert(hdr != NULL, return NULL);
+	if (snd_BUG_ON(!hdr))
+		return NULL;
 
 	mutex_lock(&hdr->block_mutex);
 	blk = search_empty(hdr, runtime->dma_bytes);
@@ -279,8 +282,8 @@ struct snd_util_memblk *
 snd_trident_alloc_pages(struct snd_trident *trident,
 			struct snd_pcm_substream *substream)
 {
-	snd_assert(trident != NULL, return NULL);
-	snd_assert(substream != NULL, return NULL);
+	if (snd_BUG_ON(!trident || !substream))
+		return NULL;
 	if (substream->dma_buffer.dev.type == SNDRV_DMA_TYPE_DEV_SG)
 		return snd_trident_alloc_sg_pages(trident, substream);
 	else
@@ -297,8 +300,8 @@ int snd_trident_free_pages(struct snd_trident *trident,
 	struct snd_util_memhdr *hdr;
 	int page;
 
-	snd_assert(trident != NULL, return -EINVAL);
-	snd_assert(blk != NULL, return -EINVAL);
+	if (snd_BUG_ON(!trident || !blk))
+		return -EINVAL;
 
 	hdr = trident->tlb.memhdr;
 	mutex_lock(&hdr->block_mutex);
@@ -310,181 +313,3 @@ int snd_trident_free_pages(struct snd_trident *trident,
 	mutex_unlock(&hdr->block_mutex);
 	return 0;
 }
-
-
-/*----------------------------------------------------------------
- * memory allocation using multiple pages (for synth)
- *----------------------------------------------------------------
- * Unlike the DMA allocation above, non-contiguous pages are
- * assigned to TLB.
- *----------------------------------------------------------------*/
-
-/*
- */
-static int synth_alloc_pages(struct snd_trident *hw, struct snd_util_memblk *blk);
-static int synth_free_pages(struct snd_trident *hw, struct snd_util_memblk *blk);
-
-/*
- * allocate a synth sample area
- */
-struct snd_util_memblk *
-snd_trident_synth_alloc(struct snd_trident *hw, unsigned int size)
-{
-	struct snd_util_memblk *blk;
-	struct snd_util_memhdr *hdr = hw->tlb.memhdr; 
-
-	mutex_lock(&hdr->block_mutex);
-	blk = __snd_util_mem_alloc(hdr, size);
-	if (blk == NULL) {
-		mutex_unlock(&hdr->block_mutex);
-		return NULL;
-	}
-	if (synth_alloc_pages(hw, blk)) {
-		__snd_util_mem_free(hdr, blk);
-		mutex_unlock(&hdr->block_mutex);
-		return NULL;
-	}
-	mutex_unlock(&hdr->block_mutex);
-	return blk;
-}
-
-EXPORT_SYMBOL(snd_trident_synth_alloc);
-
-/*
- * free a synth sample area
- */
-int
-snd_trident_synth_free(struct snd_trident *hw, struct snd_util_memblk *blk)
-{
-	struct snd_util_memhdr *hdr = hw->tlb.memhdr; 
-
-	mutex_lock(&hdr->block_mutex);
-	synth_free_pages(hw, blk);
-	 __snd_util_mem_free(hdr, blk);
-	mutex_unlock(&hdr->block_mutex);
-	return 0;
-}
-
-EXPORT_SYMBOL(snd_trident_synth_free);
-
-/*
- * reset TLB entry and free kernel page
- */
-static void clear_tlb(struct snd_trident *trident, int page)
-{
-	void *ptr = page_to_ptr(trident, page);
-	dma_addr_t addr = page_to_addr(trident, page);
-	set_silent_tlb(trident, page);
-	if (ptr) {
-		struct snd_dma_buffer dmab;
-		dmab.dev.type = SNDRV_DMA_TYPE_DEV;
-		dmab.dev.dev = snd_dma_pci_data(trident->pci);
-		dmab.area = ptr;
-		dmab.addr = addr;
-		dmab.bytes = ALIGN_PAGE_SIZE;
-		snd_dma_free_pages(&dmab);
-	}
-}
-
-/* check new allocation range */
-static void get_single_page_range(struct snd_util_memhdr *hdr,
-				  struct snd_util_memblk *blk,
-				  int *first_page_ret, int *last_page_ret)
-{
-	struct list_head *p;
-	struct snd_util_memblk *q;
-	int first_page, last_page;
-	first_page = firstpg(blk);
-	if ((p = blk->list.prev) != &hdr->block) {
-		q = list_entry(p, struct snd_util_memblk, list);
-		if (lastpg(q) == first_page)
-			first_page++;  /* first page was already allocated */
-	}
-	last_page = lastpg(blk);
-	if ((p = blk->list.next) != &hdr->block) {
-		q = list_entry(p, struct snd_util_memblk, list);
-		if (firstpg(q) == last_page)
-			last_page--; /* last page was already allocated */
-	}
-	*first_page_ret = first_page;
-	*last_page_ret = last_page;
-}
-
-/*
- * allocate kernel pages and assign them to TLB
- */
-static int synth_alloc_pages(struct snd_trident *hw, struct snd_util_memblk *blk)
-{
-	int page, first_page, last_page;
-	struct snd_dma_buffer dmab;
-
-	firstpg(blk) = get_aligned_page(blk->offset);
-	lastpg(blk) = get_aligned_page(blk->offset + blk->size - 1);
-	get_single_page_range(hw->tlb.memhdr, blk, &first_page, &last_page);
-
-	/* allocate a kernel page for each Trident page -
-	 * fortunately Trident page size and kernel PAGE_SIZE is identical!
-	 */
-	for (page = first_page; page <= last_page; page++) {
-		if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(hw->pci),
-					ALIGN_PAGE_SIZE, &dmab) < 0)
-			goto __fail;
-		if (! is_valid_page(dmab.addr)) {
-			snd_dma_free_pages(&dmab);
-			goto __fail;
-		}
-		set_tlb_bus(hw, page, (unsigned long)dmab.area, dmab.addr);
-	}
-	return 0;
-
-__fail:
-	/* release allocated pages */
-	last_page = page - 1;
-	for (page = first_page; page <= last_page; page++)
-		clear_tlb(hw, page);
-
-	return -ENOMEM;
-}
-
-/*
- * free pages
- */
-static int synth_free_pages(struct snd_trident *trident, struct snd_util_memblk *blk)
-{
-	int page, first_page, last_page;
-
-	get_single_page_range(trident->tlb.memhdr, blk, &first_page, &last_page);
-	for (page = first_page; page <= last_page; page++)
-		clear_tlb(trident, page);
-
-	return 0;
-}
-
-/*
- * copy_from_user(blk + offset, data, size)
- */
-int snd_trident_synth_copy_from_user(struct snd_trident *trident,
-				     struct snd_util_memblk *blk,
-				     int offset, const char __user *data, int size)
-{
-	int page, nextofs, end_offset, temp, temp1;
-
-	offset += blk->offset;
-	end_offset = offset + size;
-	page = get_aligned_page(offset) + 1;
-	do {
-		nextofs = aligned_page_offset(page);
-		temp = nextofs - offset;
-		temp1 = end_offset - offset;
-		if (temp1 < temp)
-			temp = temp1;
-		if (copy_from_user(offset_ptr(trident, offset), data, temp))
-			return -EFAULT;
-		offset = nextofs;
-		data += temp;
-		page++;
-	} while (offset < end_offset);
-	return 0;
-}
-
-EXPORT_SYMBOL(snd_trident_synth_copy_from_user);

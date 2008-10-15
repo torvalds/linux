@@ -34,6 +34,7 @@
 /***
  * mutex_init - initialize the mutex
  * @lock: the mutex to be initialized
+ * @key: the lock_class_key for the class; used by mutex lock debugging
  *
  * Initialize the mutex to unlocked state.
  *
@@ -165,10 +166,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 		 * got a signal? (This code gets eliminated in the
 		 * TASK_UNINTERRUPTIBLE case.)
 		 */
-		if (unlikely((state == TASK_INTERRUPTIBLE &&
-					signal_pending(task)) ||
-			      (state == TASK_KILLABLE &&
-					fatal_signal_pending(task)))) {
+		if (unlikely(signal_pending_state(state, task))) {
 			mutex_remove_waiter(lock, &waiter,
 					    task_thread_info(task));
 			mutex_release(&lock->dep_map, 1, ip);

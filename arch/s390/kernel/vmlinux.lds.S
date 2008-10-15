@@ -40,7 +40,6 @@ SECTIONS
 	_etext = .;		/* End of text section */
 
 	NOTES :text :note
-	BUG_TABLE :text
 
 	RODATA
 
@@ -56,7 +55,7 @@ SECTIONS
 		__start___ex_table = .;
 		*(__ex_table)
 		__stop___ex_table = .;
-	}
+	} :data
 
 	.data : {		/* Data */
 		DATA_DATA

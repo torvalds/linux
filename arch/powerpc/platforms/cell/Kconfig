@@ -83,6 +83,22 @@ config CBE_RAS
 	depends on PPC_CELL_NATIVE
 	default y
 
+config PPC_IBM_CELL_RESETBUTTON
+	bool "IBM Cell Blade Pinhole reset button"
+	depends on CBE_RAS && PPC_IBM_CELL_BLADE
+	default y
+	help
+	  Support Pinhole Resetbutton on IBM Cell blades.
+	  This adds a method to trigger system reset via front panel pinhole button.
+
+config PPC_IBM_CELL_POWERBUTTON
+	tristate "IBM Cell Blade power button"
+	depends on PPC_IBM_CELL_BLADE && PPC_PMI && INPUT_EVDEV
+	default y
+	help
+	  Support Powerbutton on IBM Cell blades.
+	  This will enable the powerbutton as an input device.
+
 config CBE_THERM
 	tristate "CBE thermal support"
 	default m
@@ -106,6 +122,15 @@ config CBE_CPUFREQ_PMI
 	  to switch frequencies. Using PMI, the
 	  processor will not only be able to run at lower speed,
 	  but also at lower core voltage.
+
+config CBE_CPUFREQ_SPU_GOVERNOR
+	tristate "CBE frequency scaling based on SPU usage"
+	depends on SPU_FS && CPU_FREQ
+	default m
+	help
+	  This governor checks for spu usage to adjust the cpu frequency.
+	  If no spu is running on a given cpu, that cpu will be throttled to
+	  the minimal possible frequency.
 
 endmenu
 

@@ -33,16 +33,11 @@ _GLOBAL(__setup_cpu_440grx)
 	mtlr	r4
 	blr
 _GLOBAL(__setup_cpu_460ex)
+_GLOBAL(__setup_cpu_460gt)
 	b	__init_fpu_44x
 _GLOBAL(__setup_cpu_440gx)
 _GLOBAL(__setup_cpu_440spe)
 	b	__fixup_440A_mcheck
-
- /* Temporary fixup for arch/ppc until we kill the whole thing */
-#ifndef CONFIG_PPC_MERGE
-_GLOBAL(__fixup_440A_mcheck)
-	blr
-#endif
 
 /* enable APU between CPU and FPU */
 _GLOBAL(__init_fpu_44x)

@@ -7,6 +7,7 @@
 #include <linux/spinlock.h>
 #include <linux/pci.h>
 #include <linux/mod_devicetable.h>
+#include <linux/dma-mapping.h>
 
 #include <linux/ssb/ssb_regs.h>
 
@@ -137,9 +138,6 @@ struct ssb_device {
 	const struct ssb_bus_ops *ops;
 
 	struct device *dev;
-	/* Pointer to the device that has to be used for
-	 * any DMA related operation. */
-	struct device *dma_dev;
 
 	struct ssb_bus *bus;
 	struct ssb_device_id id;
@@ -399,13 +397,151 @@ static inline void ssb_block_write(struct ssb_device *dev, const void *buffer,
 #endif /* CONFIG_SSB_BLOCKIO */
 
 
+/* The SSB DMA API. Use this API for any DMA operation on the device.
+ * This API basically is a wrapper that calls the correct DMA API for
+ * the host device type the SSB device is attached to. */
+
 /* Translation (routing) bits that need to be ORed to DMA
  * addresses before they are given to a device. */
 extern u32 ssb_dma_translation(struct ssb_device *dev);
 #define SSB_DMA_TRANSLATION_MASK	0xC0000000
 #define SSB_DMA_TRANSLATION_SHIFT	30
 
-extern int ssb_dma_set_mask(struct ssb_device *ssb_dev, u64 mask);
+extern int ssb_dma_set_mask(struct ssb_device *dev, u64 mask);
+
+extern void * ssb_dma_alloc_consistent(struct ssb_device *dev, size_t size,
+				       dma_addr_t *dma_handle, gfp_t gfp_flags);
+extern void ssb_dma_free_consistent(struct ssb_device *dev, size_t size,
+				    void *vaddr, dma_addr_t dma_handle,
+				    gfp_t gfp_flags);
+
+static inline void __cold __ssb_dma_not_implemented(struct ssb_device *dev)
+{
+#ifdef CONFIG_SSB_DEBUG
+	printk(KERN_ERR "SSB: BUG! Calling DMA API for "
+	       "unsupported bustype %d\n", dev->bus->bustype);
+#endif /* DEBUG */
+}
+
+static inline int ssb_dma_mapping_error(struct ssb_device *dev, dma_addr_t addr)
+{
+	switch (dev->bus->bustype) {
+	case SSB_BUSTYPE_PCI:
+		return pci_dma_mapping_error(dev->bus->host_pci, addr);
+	case SSB_BUSTYPE_SSB:
+		return dma_mapping_error(dev->dev, addr);
+	default:
+		__ssb_dma_not_implemented(dev);
+	}
+	return -ENOSYS;
+}
+
+static inline dma_addr_t ssb_dma_map_single(struct ssb_device *dev, void *p,
+					    size_t size, enum dma_data_direction dir)
+{
+	switch (dev->bus->bustype) {
+	case SSB_BUSTYPE_PCI:
+		return pci_map_single(dev->bus->host_pci, p, size, dir);
+	case SSB_BUSTYPE_SSB:
+		return dma_map_single(dev->dev, p, size, dir);
+	default:
+		__ssb_dma_not_implemented(dev);
+	}
+	return 0;
+}
+
+static inline void ssb_dma_unmap_single(struct ssb_device *dev, dma_addr_t dma_addr,
+					size_t size, enum dma_data_direction dir)
+{
+	switch (dev->bus->bustype) {
+	case SSB_BUSTYPE_PCI:
+		pci_unmap_single(dev->bus->host_pci, dma_addr, size, dir);
+		return;
+	case SSB_BUSTYPE_SSB:
+		dma_unmap_single(dev->dev, dma_addr, size, dir);
+		return;
+	default:
+		__ssb_dma_not_implemented(dev);
+	}
+}
+
+static inline void ssb_dma_sync_single_for_cpu(struct ssb_device *dev,
+					       dma_addr_t dma_addr,
+					       size_t size,
+					       enum dma_data_direction dir)
+{
+	switch (dev->bus->bustype) {
+	case SSB_BUSTYPE_PCI:
+		pci_dma_sync_single_for_cpu(dev->bus->host_pci, dma_addr,
+					    size, dir);
+		return;
+	case SSB_BUSTYPE_SSB:
+		dma_sync_single_for_cpu(dev->dev, dma_addr, size, dir);
+		return;
+	default:
+		__ssb_dma_not_implemented(dev);
+	}
+}
+
+static inline void ssb_dma_sync_single_for_device(struct ssb_device *dev,
+						  dma_addr_t dma_addr,
+						  size_t size,
+						  enum dma_data_direction dir)
+{
+	switch (dev->bus->bustype) {
+	case SSB_BUSTYPE_PCI:
+		pci_dma_sync_single_for_device(dev->bus->host_pci, dma_addr,
+					       size, dir);
+		return;
+	case SSB_BUSTYPE_SSB:
+		dma_sync_single_for_device(dev->dev, dma_addr, size, dir);
+		return;
+	default:
+		__ssb_dma_not_implemented(dev);
+	}
+}
+
+static inline void ssb_dma_sync_single_range_for_cpu(struct ssb_device *dev,
+						     dma_addr_t dma_addr,
+						     unsigned long offset,
+						     size_t size,
+						     enum dma_data_direction dir)
+{
+	switch (dev->bus->bustype) {
+	case SSB_BUSTYPE_PCI:
+		/* Just sync everything. That's all the PCI API can do. */
+		pci_dma_sync_single_for_cpu(dev->bus->host_pci, dma_addr,
+					    offset + size, dir);
+		return;
+	case SSB_BUSTYPE_SSB:
+		dma_sync_single_range_for_cpu(dev->dev, dma_addr, offset,
+					      size, dir);
+		return;
+	default:
+		__ssb_dma_not_implemented(dev);
+	}
+}
+
+static inline void ssb_dma_sync_single_range_for_device(struct ssb_device *dev,
+							dma_addr_t dma_addr,
+							unsigned long offset,
+							size_t size,
+							enum dma_data_direction dir)
+{
+	switch (dev->bus->bustype) {
+	case SSB_BUSTYPE_PCI:
+		/* Just sync everything. That's all the PCI API can do. */
+		pci_dma_sync_single_for_device(dev->bus->host_pci, dma_addr,
+					       offset + size, dir);
+		return;
+	case SSB_BUSTYPE_SSB:
+		dma_sync_single_range_for_device(dev->dev, dma_addr, offset,
+						 size, dir);
+		return;
+	default:
+		__ssb_dma_not_implemented(dev);
+	}
+}
 
 
 #ifdef CONFIG_SSB_PCIHOST

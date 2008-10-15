@@ -167,10 +167,10 @@ static unsigned int sc1200_qc_issue(struct ata_queued_cmd *qc)
 	struct ata_device *prev = ap->private_data;
 
 	/* See if the DMA settings could be wrong */
-	if (adev->dma_mode != 0 && adev != prev && prev != NULL) {
+	if (ata_dma_enabled(adev) && adev != prev && prev != NULL) {
 		/* Maybe, but do the channels match MWDMA/UDMA ? */
-		if ((adev->dma_mode >= XFER_UDMA_0 && prev->dma_mode < XFER_UDMA_0) ||
-		    (adev->dma_mode < XFER_UDMA_0 && prev->dma_mode >= XFER_UDMA_0))
+		if ((ata_using_udma(adev) && !ata_using_udma(prev)) ||
+		    (ata_using_udma(prev) && !ata_using_udma(adev)))
 		    	/* Switch the mode bits */
 		    	sc1200_set_dmamode(ap, adev);
 	}

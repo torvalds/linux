@@ -612,7 +612,7 @@ static void undo_cable_magic(struct net_device *dev);
 static void check_link(struct net_device *dev);
 static void netdev_timer(unsigned long data);
 static void dump_ring(struct net_device *dev);
-static void tx_timeout(struct net_device *dev);
+static void ns_tx_timeout(struct net_device *dev);
 static int alloc_ring(struct net_device *dev);
 static void refill_rx(struct net_device *dev);
 static void init_ring(struct net_device *dev);
@@ -664,7 +664,7 @@ static ssize_t natsemi_show_##_name(struct device *dev, \
 NATSEMI_ATTR(dspcfg_workaround);
 
 static ssize_t natsemi_show_dspcfg_workaround(struct device *dev,
-				  	      struct device_attribute *attr, 
+				  	      struct device_attribute *attr,
 					      char *buf)
 {
 	struct netdev_private *np = netdev_priv(to_net_dev(dev));
@@ -687,7 +687,7 @@ static ssize_t natsemi_set_dspcfg_workaround(struct device *dev,
                  || !strncmp("0", buf, count - 1))
 		new_setting = 0;
 	else
-                 return count; 
+                 return count;
 
 	spin_lock_irqsave(&np->lock, flags);
 
@@ -920,7 +920,7 @@ static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 	dev->set_multicast_list = &set_rx_mode;
 	dev->change_mtu = &natsemi_change_mtu;
 	dev->do_ioctl = &netdev_ioctl;
-	dev->tx_timeout = &tx_timeout;
+	dev->tx_timeout = &ns_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1875,7 +1875,7 @@ static void dump_ring(struct net_device *dev)
 	}
 }
 
-static void tx_timeout(struct net_device *dev)
+static void ns_tx_timeout(struct net_device *dev)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem * ioaddr = ns_ioaddr(dev);
@@ -3232,7 +3232,7 @@ static void __devexit natsemi_remove1 (struct pci_dev *pdev)
  * suspend/resume synchronization:
  * entry points:
  *   netdev_open, netdev_close, netdev_ioctl, set_rx_mode, intr_handler,
- *   start_tx, tx_timeout
+ *   start_tx, ns_tx_timeout
  *
  * No function accesses the hardware without checking np->hands_off.
  *	the check occurs under spin_lock_irq(&np->lock);

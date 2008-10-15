@@ -92,10 +92,6 @@ static inline int convert_error(struct zcrypt_device *zdev,
 {
 	struct error_hdr *ehdr = reply->message;
 
-	PRINTK("Hardware error : Type %02x Message Header: %08x%08x\n",
-	       ehdr->type, *(unsigned int *) reply->message,
-	       *(unsigned int *) (reply->message + 4));
-
 	switch (ehdr->reply_code) {
 	case REP82_ERROR_OPERAND_INVALID:
 	case REP82_ERROR_OPERAND_SIZE:
@@ -123,8 +119,6 @@ static inline int convert_error(struct zcrypt_device *zdev,
 		zdev->online = 0;
 		return -EAGAIN;
 	default:
-		PRINTKW("unknown type %02x reply code = %d\n",
-			ehdr->type, ehdr->reply_code);
 		zdev->online = 0;
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}

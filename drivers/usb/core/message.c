@@ -389,7 +389,6 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	if (io->entries <= 0)
 		return io->entries;
 
-	io->count = io->entries;
 	io->urbs = kmalloc(io->entries * sizeof *io->urbs, mem_flags);
 	if (!io->urbs)
 		goto nomem;
@@ -400,7 +399,7 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	if (usb_pipein(pipe))
 		urb_flags |= URB_SHORT_NOT_OK;
 
-	for (i = 0; i < io->entries; i++) {
+	for_each_sg(sg, sg, io->entries, i) {
 		unsigned len;
 
 		io->urbs[i] = usb_alloc_urb(0, mem_flags);
@@ -434,17 +433,17 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 		 * to prevent stale pointers and to help spot bugs.
 		 */
 		if (dma) {
-			io->urbs[i]->transfer_dma = sg_dma_address(sg + i);
-			len = sg_dma_len(sg + i);
+			io->urbs[i]->transfer_dma = sg_dma_address(sg);
+			len = sg_dma_len(sg);
 #if defined(CONFIG_HIGHMEM) || defined(CONFIG_GART_IOMMU)
 			io->urbs[i]->transfer_buffer = NULL;
 #else
-			io->urbs[i]->transfer_buffer = sg_virt(&sg[i]);
+			io->urbs[i]->transfer_buffer = sg_virt(sg);
 #endif
 		} else {
 			/* hc may use _only_ transfer_buffer */
-			io->urbs[i]->transfer_buffer = sg_virt(&sg[i]);
-			len = sg[i].length;
+			io->urbs[i]->transfer_buffer = sg_virt(sg);
+			len = sg->length;
 		}
 
 		if (length) {
@@ -458,6 +457,7 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	io->urbs[--i]->transfer_flags &= ~URB_NO_INTERRUPT;
 
 	/* transaction state */
+	io->count = io->entries;
 	io->status = 0;
 	io->bytes = 0;
 	init_completion(&io->complete);
@@ -1090,9 +1090,9 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 			if (!device_is_registered(&interface->dev))
 				continue;
 			dev_dbg(&dev->dev, "unregistering interface %s\n",
-				interface->dev.bus_id);
-			device_del(&interface->dev);
+				dev_name(&interface->dev));
 			usb_remove_sysfs_intf_files(interface);
+			device_del(&interface->dev);
 		}
 
 		/* Now that the interfaces are unbound, nobody should
@@ -1476,7 +1476,7 @@ static struct usb_interface_assoc_descriptor *find_iad(struct usb_device *dev,
  *
  * This call is synchronous. The calling context must be able to sleep,
  * must own the device lock, and must not hold the driver model's USB
- * bus mutex; usb device driver probe() methods cannot use this routine.
+ * bus mutex; usb interface driver probe() methods cannot use this routine.
  *
  * Returns zero on success, or else the status code returned by the
  * underlying call that failed.  On successful completion, each interface
@@ -1611,7 +1611,7 @@ free_interfaces:
 		intf->dev.dma_mask = dev->dev.dma_mask;
 		device_initialize(&intf->dev);
 		mark_quiesced(intf);
-		sprintf(&intf->dev.bus_id[0], "%d-%s:%d.%d",
+		dev_set_name(&intf->dev, "%d-%s:%d.%d",
 			dev->bus->busnum, dev->devpath,
 			configuration, alt->desc.bInterfaceNumber);
 	}
@@ -1631,12 +1631,12 @@ free_interfaces:
 
 		dev_dbg(&dev->dev,
 			"adding %s (config #%d, interface %d)\n",
-			intf->dev.bus_id, configuration,
+			dev_name(&intf->dev), configuration,
 			intf->cur_altsetting->desc.bInterfaceNumber);
 		ret = device_add(&intf->dev);
 		if (ret != 0) {
 			dev_err(&dev->dev, "device_add(%s) --> %d\n",
-				intf->dev.bus_id, ret);
+				dev_name(&intf->dev), ret);
 			continue;
 		}
 		usb_create_sysfs_intf_files(intf);

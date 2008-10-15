@@ -44,8 +44,8 @@ struct marker {
 				 */
 	char state;		/* Marker state. */
 	char ptype;		/* probe type : 0 : single, 1 : multi */
-	void (*call)(const struct marker *mdata,	/* Probe wrapper */
-		void *call_private, const char *fmt, ...);
+				/* Probe wrapper */
+	void (*call)(const struct marker *mdata, void *call_private, ...);
 	struct marker_probe_closure single;
 	struct marker_probe_closure *multi;
 } __attribute__((aligned(8)));
@@ -58,8 +58,12 @@ struct marker {
  * Make sure the alignment of the structure in the __markers section will
  * not add unwanted padding between the beginning of the section and the
  * structure. Force alignment to the same alignment as the section start.
+ *
+ * The "generic" argument controls which marker enabling mechanism must be used.
+ * If generic is true, a variable read is used.
+ * If generic is false, immediate values are used.
  */
-#define __trace_mark(name, call_private, format, args...)		\
+#define __trace_mark(generic, name, call_private, format, args...)	\
 	do {								\
 		static const char __mstrtab_##name[]			\
 		__attribute__((section("__markers_strings")))		\
@@ -72,15 +76,14 @@ struct marker {
 		__mark_check_format(format, ## args);			\
 		if (unlikely(__mark_##name.state)) {			\
 			(*__mark_##name.call)				\
-				(&__mark_##name, call_private,		\
-				format, ## args);			\
+				(&__mark_##name, call_private, ## args);\
 		}							\
 	} while (0)
 
 extern void marker_update_probe_range(struct marker *begin,
 	struct marker *end);
 #else /* !CONFIG_MARKERS */
-#define __trace_mark(name, call_private, format, args...) \
+#define __trace_mark(generic, name, call_private, format, args...) \
 		__mark_check_format(format, ## args)
 static inline void marker_update_probe_range(struct marker *begin,
 	struct marker *end)
@@ -88,15 +91,30 @@ static inline void marker_update_probe_range(struct marker *begin,
 #endif /* CONFIG_MARKERS */
 
 /**
- * trace_mark - Marker
+ * trace_mark - Marker using code patching
  * @name: marker name, not quoted.
  * @format: format string
  * @args...: variable argument list
  *
- * Places a marker.
+ * Places a marker using optimized code patching technique (imv_read())
+ * to be enabled when immediate values are present.
  */
 #define trace_mark(name, format, args...) \
-	__trace_mark(name, NULL, format, ## args)
+	__trace_mark(0, name, NULL, format, ## args)
+
+/**
+ * _trace_mark - Marker using variable read
+ * @name: marker name, not quoted.
+ * @format: format string
+ * @args...: variable argument list
+ *
+ * Places a marker using a standard memory read (_imv_read()) to be
+ * enabled. Should be used for markers in code paths where instruction
+ * modification based enabling is not welcome. (__init and __exit functions,
+ * lockdep, some traps, printk).
+ */
+#define _trace_mark(name, format, args...) \
+	__trace_mark(1, name, NULL, format, ## args)
 
 /**
  * MARK_NOARGS - Format string for a marker with no argument.
@@ -117,9 +135,9 @@ static inline void __printf(1, 2) ___mark_check_format(const char *fmt, ...)
 extern marker_probe_func __mark_empty_function;
 
 extern void marker_probe_cb(const struct marker *mdata,
-	void *call_private, const char *fmt, ...);
+	void *call_private, ...);
 extern void marker_probe_cb_noarg(const struct marker *mdata,
-	void *call_private, const char *fmt, ...);
+	void *call_private, ...);
 
 /*
  * Connect a probe to a marker.

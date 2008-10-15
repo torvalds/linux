@@ -68,14 +68,6 @@ SECTIONS
 		_evba = .;
 		_text = .;
 		*(.ex.text)
-		. = 0x50;
-		*(.tlbx.ex.text)
-		. = 0x60;
-		*(.tlbr.ex.text)
-		. = 0x70;
-		*(.tlbw.ex.text)
-		. = 0x100;
-		*(.scall.text)
 		*(.irq.text)
 		KPROBES_TEXT
 		TEXT_TEXT
@@ -93,8 +85,6 @@ SECTIONS
 		__stop___ex_table = .;
 	}
 
-	BUG_TABLE
-
 	RODATA
 
 	. = ALIGN(THREAD_SIZE);
@@ -106,6 +96,10 @@ SECTIONS
 		 * First, the init task union, aligned to an 8K boundary.
 		 */
 		*(.data.init_task)
+
+		/* Then, the page-aligned data */
+		. = ALIGN(PAGE_SIZE);
+		*(.data.page_aligned)
 
 		/* Then, the cacheline aligned data */
 		. = ALIGN(L1_CACHE_BYTES);

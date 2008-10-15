@@ -20,7 +20,9 @@
  */
 
 #include <linux/fs.h>
+#include <linux/module.h>
 #include <linux/quotaops.h>
+#include <linux/seq_file.h>
 #include "jfs_incore.h"
 #include "jfs_filsys.h"
 #include "jfs_metapage.h"
@@ -4134,13 +4136,9 @@ s64 xtTruncate_pmap(tid_t tid, struct inode *ip, s64 committed_size)
 }
 
 #ifdef CONFIG_JFS_STATISTICS
-int jfs_xtstat_read(char *buffer, char **start, off_t offset, int length,
-		    int *eof, void *data)
+static int jfs_xtstat_proc_show(struct seq_file *m, void *v)
 {
-	int len = 0;
-	off_t begin;
-
-	len += sprintf(buffer,
+	seq_printf(m,
 		       "JFS Xtree statistics\n"
 		       "====================\n"
 		       "searches = %d\n"
@@ -4149,19 +4147,19 @@ int jfs_xtstat_read(char *buffer, char **start, off_t offset, int length,
 		       xtStat.search,
 		       xtStat.fastSearch,
 		       xtStat.split);
-
-	begin = offset;
-	*start = buffer + begin;
-	len -= begin;
-
-	if (len > length)
-		len = length;
-	else
-		*eof = 1;
-
-	if (len < 0)
-		len = 0;
-
-	return len;
+	return 0;
 }
+
+static int jfs_xtstat_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, jfs_xtstat_proc_show, NULL);
+}
+
+const struct file_operations jfs_xtstat_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= jfs_xtstat_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 #endif

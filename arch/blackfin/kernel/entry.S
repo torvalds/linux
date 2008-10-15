@@ -32,7 +32,7 @@
 #include <asm/errno.h>
 #include <asm/asm-offsets.h>
 
-#include <asm/mach-common/context.S>
+#include <asm/context.S>
 
 #ifdef CONFIG_EXCPT_IRQ_SYSC_L1
 .section .l1.text
@@ -64,6 +64,11 @@ ENDPROC(_ret_from_fork)
 
 ENTRY(_sys_fork)
 	r0 = -EINVAL;
+#if (ANOMALY_05000371)
+	nop;
+	nop;
+	nop;
+#endif
 	rts;
 ENDPROC(_sys_fork)
 

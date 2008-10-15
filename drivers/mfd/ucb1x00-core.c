@@ -26,7 +26,7 @@
 #include <linux/mutex.h>
 
 #include <asm/dma.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
 #include "ucb1x00.h"
 

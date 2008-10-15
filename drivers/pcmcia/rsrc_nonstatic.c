@@ -31,7 +31,6 @@
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/cs.h>
-#include <pcmcia/bulkmem.h>
 #include <pcmcia/cistpl.h>
 #include "cs_internal.h"
 
@@ -123,19 +122,22 @@ static void free_region(struct resource *res)
 
 static int add_interval(struct resource_map *map, u_long base, u_long num)
 {
-    struct resource_map *p, *q;
+	struct resource_map *p, *q;
 
-    for (p = map; ; p = p->next) {
-	if ((p != map) && (p->base+p->num-1 >= base))
-	    return -1;
-	if ((p->next == map) || (p->next->base > base+num-1))
-	    break;
-    }
-    q = kmalloc(sizeof(struct resource_map), GFP_KERNEL);
-    if (!q) return CS_OUT_OF_RESOURCE;
-    q->base = base; q->num = num;
-    q->next = p->next; p->next = q;
-    return CS_SUCCESS;
+	for (p = map; ; p = p->next) {
+		if ((p != map) && (p->base+p->num-1 >= base))
+			return -1;
+		if ((p->next == map) || (p->next->base > base+num-1))
+			break;
+	}
+	q = kmalloc(sizeof(struct resource_map), GFP_KERNEL);
+	if (!q) {
+		printk(KERN_WARNING "out of memory to update resources\n");
+		return -ENOMEM;
+	}
+	q->base = base; q->num = num;
+	q->next = p->next; p->next = q;
+	return 0;
 }
 
 /*====================================================================*/
@@ -167,7 +169,10 @@ static int sub_interval(struct resource_map *map, u_long base, u_long num)
 	    } else {
 		/* Split the block into two pieces */
 		p = kmalloc(sizeof(struct resource_map), GFP_KERNEL);
-		if (!p) return CS_OUT_OF_RESOURCE;
+		if (!p) {
+		    printk(KERN_WARNING "out of memory to update resources\n");
+		    return -ENOMEM;
+		}
 		p->base = base+num;
 		p->num = q->base+q->num - p->base;
 		q->num = base - q->base;
@@ -175,7 +180,7 @@ static int sub_interval(struct resource_map *map, u_long base, u_long num)
 	    }
 	}
     }
-    return CS_SUCCESS;
+    return 0;
 }
 
 /*======================================================================
@@ -195,13 +200,14 @@ static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
     int any;
     u_char *b, hole, most;
 
-    printk(KERN_INFO "cs: IO port probe %#x-%#x:",
-	   base, base+num-1);
+    dev_printk(KERN_INFO, &s->dev, "cs: IO port probe %#x-%#x:",
+	       base, base+num-1);
 
     /* First, what does a floating port look like? */
     b = kzalloc(256, GFP_KERNEL);
     if (!b) {
-            printk(KERN_ERR "do_io_probe: unable to kmalloc 256 bytes");
+	    dev_printk(KERN_ERR, &s->dev,
+		   "do_io_probe: unable to kmalloc 256 bytes");
             return;
     }
     for (i = base, most = 0; i < base+num; i += 8) {
@@ -261,21 +267,22 @@ static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
 ======================================================================*/
 
 /* Validation function for cards with a valid CIS */
-static int readable(struct pcmcia_socket *s, struct resource *res, cisinfo_t *info)
+static int readable(struct pcmcia_socket *s, struct resource *res,
+		    unsigned int *count)
 {
 	int ret = -1;
 
 	s->cis_mem.res = res;
 	s->cis_virt = ioremap(res->start, s->map_size);
 	if (s->cis_virt) {
-		ret = pccard_validate_cis(s, BIND_FN_ALL, info);
+		ret = pccard_validate_cis(s, BIND_FN_ALL, count);
 		/* invalidate mapping and CIS cache */
 		iounmap(s->cis_virt);
 		s->cis_virt = NULL;
 		destroy_cis_cache(s);
 	}
 	s->cis_mem.res = NULL;
-	if ((ret != 0) || (info->Chains == 0))
+	if ((ret != 0) || (*count == 0))
 		return 0;
 	return 1;
 }
@@ -316,7 +323,7 @@ static int
 cis_readable(struct pcmcia_socket *s, unsigned long base, unsigned long size)
 {
 	struct resource *res1, *res2;
-	cisinfo_t info1, info2;
+	unsigned int info1, info2;
 	int ret = 0;
 
 	res1 = claim_region(s, base, size/2, IORESOURCE_MEM, "cs memory probe");
@@ -330,7 +337,7 @@ cis_readable(struct pcmcia_socket *s, unsigned long base, unsigned long size)
 	free_region(res2);
 	free_region(res1);
 
-	return (ret == 2) && (info1.Chains == info2.Chains);
+	return (ret == 2) && (info1 == info2);
 }
 
 static int
@@ -366,8 +373,8 @@ static int do_mem_probe(u_long base, u_long num, struct pcmcia_socket *s)
     struct socket_data *s_data = s->resource_data;
     u_long i, j, bad, fail, step;
 
-    printk(KERN_INFO "cs: memory probe 0x%06lx-0x%06lx:",
-	   base, base+num-1);
+    dev_printk(KERN_INFO, &s->dev, "cs: memory probe 0x%06lx-0x%06lx:",
+	       base, base+num-1);
     bad = fail = 0;
     step = (num < 0x20000) ? 0x2000 : ((num>>4) & ~0x1fff);
     /* don't allow too large steps */
@@ -431,8 +438,8 @@ static int validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 	if (probe_mask & MEM_PROBE_HIGH) {
 		if (inv_probe(s_data->mem_db.next, s) > 0)
 			return 0;
-		printk(KERN_NOTICE "cs: warning: no high memory space "
-		       "available!\n");
+		dev_printk(KERN_NOTICE, &s->dev,
+			   "cs: warning: no high memory space available!\n");
 		return -ENODEV;
 	}
 
@@ -766,21 +773,6 @@ static int adjust_io(struct pcmcia_socket *s, unsigned int action, unsigned long
 }
 
 
-static int nonstatic_adjust_resource_info(struct pcmcia_socket *s, adjust_t *adj)
-{
-	unsigned long end;
-
-	switch (adj->Resource) {
-	case RES_MEMORY_RANGE:
-		end = adj->resource.memory.Base + adj->resource.memory.Size - 1;
-		return adjust_memory(s, adj->Action, adj->resource.memory.Base, end);
-	case RES_IO_RANGE:
-		end = adj->resource.io.BasePort + adj->resource.io.NumPorts - 1;
-		return adjust_io(s, adj->Action, adj->resource.io.BasePort, end);
-	}
-	return CS_UNSUPPORTED_FUNCTION;
-}
-
 #ifdef CONFIG_PCI
 static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 {
@@ -809,10 +801,11 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 		if (res->flags & IORESOURCE_IO) {
 			if (res == &ioport_resource)
 				continue;
-			printk(KERN_INFO "pcmcia: parent PCI bridge I/O "
-				"window: 0x%llx - 0x%llx\n",
-				(unsigned long long)res->start,
-				(unsigned long long)res->end);
+			dev_printk(KERN_INFO, &s->cb_dev->dev,
+				   "pcmcia: parent PCI bridge I/O "
+				   "window: 0x%llx - 0x%llx\n",
+				   (unsigned long long)res->start,
+				   (unsigned long long)res->end);
 			if (!adjust_io(s, ADD_MANAGED_RESOURCE, res->start, res->end))
 				done |= IORESOURCE_IO;
 
@@ -821,10 +814,11 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 		if (res->flags & IORESOURCE_MEM) {
 			if (res == &iomem_resource)
 				continue;
-			printk(KERN_INFO "pcmcia: parent PCI bridge Memory "
-				"window: 0x%llx - 0x%llx\n",
-				(unsigned long long)res->start,
-				(unsigned long long)res->end);
+			dev_printk(KERN_INFO, &s->cb_dev->dev,
+				   "pcmcia: parent PCI bridge Memory "
+				   "window: 0x%llx - 0x%llx\n",
+				   (unsigned long long)res->start,
+				   (unsigned long long)res->end);
 			if (!adjust_memory(s, ADD_MANAGED_RESOURCE, res->start, res->end))
 				done |= IORESOURCE_MEM;
 		}
@@ -889,7 +883,8 @@ struct pccard_resource_ops pccard_nonstatic_ops = {
 	.adjust_io_region = nonstatic_adjust_io_region,
 	.find_io = nonstatic_find_io_region,
 	.find_mem = nonstatic_find_mem_region,
-	.adjust_resource = nonstatic_adjust_resource_info,
+	.add_io = adjust_io,
+	.add_mem = adjust_memory,
 	.init = nonstatic_init,
 	.exit = nonstatic_release_resource_db,
 };
@@ -1008,41 +1003,34 @@ static ssize_t store_mem_db(struct device *dev,
 }
 static DEVICE_ATTR(available_resources_mem, 0600, show_mem_db, store_mem_db);
 
-static struct device_attribute *pccard_rsrc_attributes[] = {
-	&dev_attr_available_resources_io,
-	&dev_attr_available_resources_mem,
+static struct attribute *pccard_rsrc_attributes[] = {
+	&dev_attr_available_resources_io.attr,
+	&dev_attr_available_resources_mem.attr,
 	NULL,
+};
+
+static const struct attribute_group rsrc_attributes = {
+	.attrs = pccard_rsrc_attributes,
 };
 
 static int __devinit pccard_sysfs_add_rsrc(struct device *dev,
 					   struct class_interface *class_intf)
 {
 	struct pcmcia_socket *s = dev_get_drvdata(dev);
-	struct device_attribute **attr;
-	int ret = 0;
+
 	if (s->resource_ops != &pccard_nonstatic_ops)
 		return 0;
-
-	for (attr = pccard_rsrc_attributes; *attr; attr++) {
-		ret = device_create_file(dev, *attr);
-		if (ret)
-			break;
-	}
-
-	return ret;
+	return sysfs_create_group(&dev->kobj, &rsrc_attributes);
 }
 
 static void __devexit pccard_sysfs_remove_rsrc(struct device *dev,
 					       struct class_interface *class_intf)
 {
 	struct pcmcia_socket *s = dev_get_drvdata(dev);
-	struct device_attribute **attr;
 
 	if (s->resource_ops != &pccard_nonstatic_ops)
 		return;
-
-	for (attr = pccard_rsrc_attributes; *attr; attr++)
-		device_remove_file(dev, *attr);
+	sysfs_remove_group(&dev->kobj, &rsrc_attributes);
 }
 
 static struct class_interface pccard_rsrc_interface __refdata = {

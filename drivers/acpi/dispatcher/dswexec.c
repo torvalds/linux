@@ -408,14 +408,6 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 							    [walk_state->
 							     num_operands - 1]),
 							  walk_state);
-			if (ACPI_SUCCESS(status)) {
-				ACPI_DUMP_OPERANDS(ACPI_WALK_OPERANDS,
-						   ACPI_IMODE_EXECUTE,
-						   acpi_ps_get_opcode_name
-						   (walk_state->opcode),
-						   walk_state->num_operands,
-						   "after ExResolveOperands");
-			}
 		}
 
 		if (ACPI_SUCCESS(status)) {

@@ -3,8 +3,8 @@ menu "Bluetooth device drivers"
 	depends on BT
 
 config BT_HCIUSB
-	tristate "HCI USB driver"
-	depends on USB
+	tristate "HCI USB driver (old version)"
+	depends on USB && BT_HCIBTUSB=n
 	help
 	  Bluetooth HCI USB driver.
 	  This driver is required if you want to use Bluetooth devices with
@@ -23,14 +23,12 @@ config BT_HCIUSB_SCO
 	  Say Y here to compile support for SCO over HCI USB.
 
 config BT_HCIBTUSB
-	tristate "HCI USB driver (alternate version)"
-	depends on USB && EXPERIMENTAL && BT_HCIUSB=n
+	tristate "HCI USB driver"
+	depends on USB
 	help
 	  Bluetooth HCI USB driver.
 	  This driver is required if you want to use Bluetooth devices with
 	  USB interface.
-
-          This driver is still experimental and has no SCO support.
 
 	  Say Y here to compile support for Bluetooth USB devices into the
 	  kernel or say M to compile it as module (btusb).
@@ -71,6 +69,7 @@ config BT_HCIUART_H4
 config BT_HCIUART_BCSP
 	bool "BCSP protocol support"
 	depends on BT_HCIUART
+	select BITREVERSE
 	help
 	  BCSP (BlueCore Serial Protocol) is serial protocol for communication 
 	  between Bluetooth device and host. This protocol is required for non

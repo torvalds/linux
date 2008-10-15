@@ -21,15 +21,16 @@ EXPORT_SYMBOL(cpu_sysdev_class);
 static DEFINE_PER_CPU(struct sys_device *, cpu_sys_devices);
 
 #ifdef CONFIG_HOTPLUG_CPU
-static ssize_t show_online(struct sys_device *dev, char *buf)
+static ssize_t show_online(struct sys_device *dev, struct sysdev_attribute *attr,
+			   char *buf)
 {
 	struct cpu *cpu = container_of(dev, struct cpu, sysdev);
 
 	return sprintf(buf, "%u\n", !!cpu_online(cpu->sysdev.id));
 }
 
-static ssize_t __ref store_online(struct sys_device *dev, const char *buf,
-			    size_t count)
+static ssize_t __ref store_online(struct sys_device *dev, struct sysdev_attribute *attr,
+				 const char *buf, size_t count)
 {
 	struct cpu *cpu = container_of(dev, struct cpu, sysdev);
 	ssize_t ret;
@@ -80,7 +81,8 @@ static inline void register_cpu_control(struct cpu *cpu)
 #ifdef CONFIG_KEXEC
 #include <linux/kexec.h>
 
-static ssize_t show_crash_notes(struct sys_device *dev, char *buf)
+static ssize_t show_crash_notes(struct sys_device *dev, struct sysdev_attribute *attr,
+				char *buf)
 {
 	struct cpu *cpu = container_of(dev, struct cpu, sysdev);
 	ssize_t rc;
@@ -119,14 +121,14 @@ static ssize_t print_cpus_##type(struct sysdev_class *class, char *buf)	\
 {									\
 	return print_cpus_map(buf, &cpu_##type##_map);			\
 }									\
-struct sysdev_class_attribute attr_##type##_map = 			\
+static struct sysdev_class_attribute attr_##type##_map = 		\
 	_SYSDEV_CLASS_ATTR(type, 0444, print_cpus_##type, NULL)
 
 print_cpus_func(online);
 print_cpus_func(possible);
 print_cpus_func(present);
 
-struct sysdev_class_attribute *cpu_state_attr[] = {
+static struct sysdev_class_attribute *cpu_state_attr[] = {
 	&attr_online_map,
 	&attr_possible_map,
 	&attr_present_map,

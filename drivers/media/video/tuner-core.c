@@ -19,6 +19,7 @@
 #include <media/tuner.h>
 #include <media/tuner-types.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <media/v4l2-i2c-drv-legacy.h>
 #include "mt20xx.h"
 #include "tda8290.h"
@@ -91,7 +92,6 @@ struct tuner {
 
 	unsigned int        type; /* chip type id */
 	unsigned int        config;
-	int (*tuner_callback) (void *dev, int command, int arg);
 	const char          *name;
 };
 
@@ -345,7 +345,7 @@ static struct xc5000_config xc5000_cfg;
 
 static void set_type(struct i2c_client *c, unsigned int type,
 		     unsigned int new_mode_mask, unsigned int new_config,
-		     int (*tuner_callback) (void *dev, int command,int arg))
+		     int (*tuner_callback) (void *dev, int component, int cmd, int arg))
 {
 	struct tuner *t = i2c_get_clientdata(c);
 	struct dvb_tuner_ops *fe_tuner_ops = &t->fe.ops.tuner_ops;
@@ -361,7 +361,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	t->config = new_config;
 	if (tuner_callback != NULL) {
 		tuner_dbg("defining GPIO callback\n");
-		t->tuner_callback = tuner_callback;
+		t->fe.callback = tuner_callback;
 	}
 
 	if (t->mode == T_UNINITIALIZED) {
@@ -384,7 +384,6 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	{
 		struct tda829x_config cfg = {
 			.lna_cfg        = t->config,
-			.tuner_callback = t->tuner_callback,
 		};
 		if (!dvb_attach(tda829x_attach, &t->fe, t->i2c->adapter,
 				t->i2c->addr, &cfg))
@@ -432,7 +431,6 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		struct xc2028_config cfg = {
 			.i2c_adap  = t->i2c->adapter,
 			.i2c_addr  = t->i2c->addr,
-			.callback  = t->tuner_callback,
 		};
 		if (!dvb_attach(xc2028_attach, &t->fe, &cfg))
 			goto attach_failed;
@@ -449,10 +447,8 @@ static void set_type(struct i2c_client *c, unsigned int type,
 
 		xc5000_cfg.i2c_address	  = t->i2c->addr;
 		xc5000_cfg.if_khz	  = 5380;
-		xc5000_cfg.tuner_callback = t->tuner_callback;
 		if (!dvb_attach(xc5000_attach,
-				&t->fe, t->i2c->adapter, &xc5000_cfg,
-				c->adapter->algo_data))
+				&t->fe, t->i2c->adapter, &xc5000_cfg))
 			goto attach_failed;
 
 		xc_tuner_ops = &t->fe.ops.tuner_ops;
@@ -1224,7 +1220,7 @@ register_client:
 	} else {
 		t->mode = V4L2_TUNER_DIGITAL_TV;
 	}
-	set_type(client, t->type, t->mode_mask, t->config, t->tuner_callback);
+	set_type(client, t->type, t->mode_mask, t->config, t->fe.callback);
 	list_add_tail(&t->list, &tuner_list);
 	return 0;
 }
@@ -1297,7 +1293,6 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.legacy_probe = tuner_legacy_probe,
 	.id_table = tuner_id,
 };
-
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

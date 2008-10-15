@@ -19,7 +19,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/hdreg.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/ide.h>
@@ -30,6 +29,8 @@
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #endif
+
+#define DRV_NAME "pdc202xx_new"
 
 #undef DEBUG
 
@@ -191,7 +192,7 @@ static void pdcnew_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	}
 }
 
-static u8 __devinit pdcnew_cable_detect(ide_hwif_t *hwif)
+static u8 pdcnew_cable_detect(ide_hwif_t *hwif)
 {
 	if (get_indexed_reg(hwif, 0x0b) & 0x04)
 		return ATA_CBL_PATA40;
@@ -201,10 +202,10 @@ static u8 __devinit pdcnew_cable_detect(ide_hwif_t *hwif)
 
 static void pdcnew_quirkproc(ide_drive_t *drive)
 {
-	const char **list, *model = drive->id->model;
+	const char **list, *m = (char *)&drive->id[ATA_ID_PROD];
 
 	for (list = pdc_quirk_drives; *list != NULL; list++)
-		if (strstr(model, *list) != NULL) {
+		if (strstr(m, *list) != NULL) {
 			drive->quirk_list = 2;
 			return;
 		}
@@ -225,7 +226,7 @@ static void pdcnew_reset(ide_drive_t *drive)
  * read_counter - Read the byte count registers
  * @dma_base: for the port address
  */
-static long __devinit read_counter(u32 dma_base)
+static long read_counter(u32 dma_base)
 {
 	u32  pri_dma_base = dma_base, sec_dma_base = dma_base + 0x08;
 	u8   cnt0, cnt1, cnt2, cnt3;
@@ -265,7 +266,7 @@ static long __devinit read_counter(u32 dma_base)
  * @dma_base: for the port address
  * E.g. 16949000 on 33 MHz PCI bus, i.e. half of the PCI clock.
  */
-static long __devinit detect_pll_input_clock(unsigned long dma_base)
+static long detect_pll_input_clock(unsigned long dma_base)
 {
 	struct timeval start_time, end_time;
 	long start_count, end_count;
@@ -308,7 +309,7 @@ static long __devinit detect_pll_input_clock(unsigned long dma_base)
 }
 
 #ifdef CONFIG_PPC_PMAC
-static void __devinit apple_kiwi_init(struct pci_dev *pdev)
+static void apple_kiwi_init(struct pci_dev *pdev)
 {
 	struct device_node *np = pci_device_to_OF_node(pdev);
 	u8 conf;
@@ -324,8 +325,9 @@ static void __devinit apple_kiwi_init(struct pci_dev *pdev)
 }
 #endif /* CONFIG_PPC_PMAC */
 
-static unsigned int __devinit init_chipset_pdcnew(struct pci_dev *dev, const char *name)
+static unsigned int init_chipset_pdcnew(struct pci_dev *dev)
 {
+	const char *name = DRV_NAME;
 	unsigned long dma_base = pci_resource_start(dev, 4);
 	unsigned long sec_dma_base = dma_base + 0x08;
 	long pll_input, pll_output, ratio;
@@ -358,12 +360,13 @@ static unsigned int __devinit init_chipset_pdcnew(struct pci_dev *dev, const cha
 	 * registers setting.
 	 */
 	pll_input = detect_pll_input_clock(dma_base);
-	printk("%s: PLL input clock is %ld kHz\n", name, pll_input / 1000);
+	printk(KERN_INFO "%s %s: PLL input clock is %ld kHz\n",
+		name, pci_name(dev), pll_input / 1000);
 
 	/* Sanity check */
 	if (unlikely(pll_input < 5000000L || pll_input > 70000000L)) {
-		printk(KERN_ERR "%s: Bad PLL input clock %ld Hz, giving up!\n",
-		       name, pll_input);
+		printk(KERN_ERR "%s %s: Bad PLL input clock %ld Hz, giving up!"
+			"\n", name, pci_name(dev), pll_input);
 		goto out;
 	}
 
@@ -399,7 +402,8 @@ static unsigned int __devinit init_chipset_pdcnew(struct pci_dev *dev, const cha
 		r = 0x00;
 	} else {
 		/* Invalid ratio */
-		printk(KERN_ERR "%s: Bad ratio %ld, giving up!\n", name, ratio);
+		printk(KERN_ERR "%s %s: Bad ratio %ld, giving up!\n",
+			name, pci_name(dev), ratio);
 		goto out;
 	}
 
@@ -409,7 +413,8 @@ static unsigned int __devinit init_chipset_pdcnew(struct pci_dev *dev, const cha
 
 	if (unlikely(f < 0 || f > 127)) {
 		/* Invalid F */
-		printk(KERN_ERR "%s: F[%d] invalid!\n", name, f);
+		printk(KERN_ERR "%s %s: F[%d] invalid!\n",
+			name, pci_name(dev), f);
 		goto out;
 	}
 
@@ -455,8 +460,8 @@ static struct pci_dev * __devinit pdc20270_get_dev2(struct pci_dev *dev)
 
 		if (dev2->irq != dev->irq) {
 			dev2->irq = dev->irq;
-			printk(KERN_INFO "PDC20270: PCI config space "
-					 "interrupt fixed\n");
+			printk(KERN_INFO DRV_NAME " %s: PCI config space "
+				"interrupt fixed\n", pci_name(dev));
 		}
 
 		return dev2;
@@ -473,9 +478,9 @@ static const struct ide_port_ops pdcnew_port_ops = {
 	.cable_detect		= pdcnew_cable_detect,
 };
 
-#define DECLARE_PDCNEW_DEV(name_str, udma) \
+#define DECLARE_PDCNEW_DEV(udma) \
 	{ \
-		.name		= name_str, \
+		.name		= DRV_NAME, \
 		.init_chipset	= init_chipset_pdcnew, \
 		.port_ops	= &pdcnew_port_ops, \
 		.host_flags	= IDE_HFLAG_POST_SET_MODE | \
@@ -487,13 +492,8 @@ static const struct ide_port_ops pdcnew_port_ops = {
 	}
 
 static const struct ide_port_info pdcnew_chipsets[] __devinitdata = {
-	/* 0 */ DECLARE_PDCNEW_DEV("PDC20268", ATA_UDMA5),
-	/* 1 */ DECLARE_PDCNEW_DEV("PDC20269", ATA_UDMA6),
-	/* 2 */ DECLARE_PDCNEW_DEV("PDC20270", ATA_UDMA5),
-	/* 3 */ DECLARE_PDCNEW_DEV("PDC20271", ATA_UDMA6),
-	/* 4 */ DECLARE_PDCNEW_DEV("PDC20275", ATA_UDMA6),
-	/* 5 */ DECLARE_PDCNEW_DEV("PDC20276", ATA_UDMA6),
-	/* 6 */ DECLARE_PDCNEW_DEV("PDC20277", ATA_UDMA6),
+	/* 0: PDC202{68,70} */		DECLARE_PDCNEW_DEV(ATA_UDMA5),
+	/* 1: PDC202{69,71,75,76,77} */	DECLARE_PDCNEW_DEV(ATA_UDMA6),
 };
 
 /**
@@ -507,13 +507,10 @@ static const struct ide_port_info pdcnew_chipsets[] __devinitdata = {
  
 static int __devinit pdc202new_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	const struct ide_port_info *d;
+	const struct ide_port_info *d = &pdcnew_chipsets[id->driver_data];
 	struct pci_dev *bridge = dev->bus->self;
-	u8 idx = id->driver_data;
 
-	d = &pdcnew_chipsets[idx];
-
-	if (idx == 2 && bridge &&
+	if (dev->device == PCI_DEVICE_ID_PROMISE_20270 && bridge &&
 	    bridge->vendor == PCI_VENDOR_ID_DEC &&
 	    bridge->device == PCI_DEVICE_ID_DEC_21150) {
 		struct pci_dev *dev2;
@@ -524,49 +521,67 @@ static int __devinit pdc202new_init_one(struct pci_dev *dev, const struct pci_de
 		dev2 = pdc20270_get_dev2(dev);
 
 		if (dev2) {
-			int ret = ide_setup_pci_devices(dev, dev2, d);
+			int ret = ide_pci_init_two(dev, dev2, d, NULL);
 			if (ret < 0)
 				pci_dev_put(dev2);
 			return ret;
 		}
 	}
 
-	if (idx == 5 && bridge &&
+	if (dev->device == PCI_DEVICE_ID_PROMISE_20276 && bridge &&
 	    bridge->vendor == PCI_VENDOR_ID_INTEL &&
 	    (bridge->device == PCI_DEVICE_ID_INTEL_I960 ||
 	     bridge->device == PCI_DEVICE_ID_INTEL_I960RM)) {
-		printk(KERN_INFO "PDC20276: attached to I2O RAID controller, "
-				 "skipping\n");
+		printk(KERN_INFO DRV_NAME " %s: attached to I2O RAID controller,"
+			" skipping\n", pci_name(dev));
 		return -ENODEV;
 	}
 
-	return ide_setup_pci_device(dev, d);
+	return ide_pci_init_one(dev, d, NULL);
+}
+
+static void __devexit pdc202new_remove(struct pci_dev *dev)
+{
+	struct ide_host *host = pci_get_drvdata(dev);
+	struct pci_dev *dev2 = host->dev[1] ? to_pci_dev(host->dev[1]) : NULL;
+
+	ide_pci_remove(dev);
+	pci_dev_put(dev2);
 }
 
 static const struct pci_device_id pdc202new_pci_tbl[] = {
 	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20268), 0 },
 	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20269), 1 },
-	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20270), 2 },
-	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20271), 3 },
-	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20275), 4 },
-	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20276), 5 },
-	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20277), 6 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20270), 0 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20271), 1 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20275), 1 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20276), 1 },
+	{ PCI_VDEVICE(PROMISE, PCI_DEVICE_ID_PROMISE_20277), 1 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, pdc202new_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver pdc202new_pci_driver = {
 	.name		= "Promise_IDE",
 	.id_table	= pdc202new_pci_tbl,
 	.probe		= pdc202new_init_one,
+	.remove		= __devexit_p(pdc202new_remove),
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init pdc202new_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&pdc202new_pci_driver);
+}
+
+static void __exit pdc202new_ide_exit(void)
+{
+	pci_unregister_driver(&pdc202new_pci_driver);
 }
 
 module_init(pdc202new_ide_init);
+module_exit(pdc202new_ide_exit);
 
 MODULE_AUTHOR("Andre Hedrick, Frank Tiernan");
 MODULE_DESCRIPTION("PCI driver module for Promise PDC20268 and higher");

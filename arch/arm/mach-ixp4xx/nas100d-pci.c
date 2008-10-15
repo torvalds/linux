@@ -24,11 +24,11 @@
 
 void __init nas100d_pci_preinit(void)
 {
-	set_irq_type(IRQ_NAS100D_PCI_INTA, IRQT_LOW);
-	set_irq_type(IRQ_NAS100D_PCI_INTB, IRQT_LOW);
-	set_irq_type(IRQ_NAS100D_PCI_INTC, IRQT_LOW);
-	set_irq_type(IRQ_NAS100D_PCI_INTD, IRQT_LOW);
-	set_irq_type(IRQ_NAS100D_PCI_INTE, IRQT_LOW);
+	set_irq_type(IRQ_NAS100D_PCI_INTA, IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IRQ_NAS100D_PCI_INTB, IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IRQ_NAS100D_PCI_INTC, IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IRQ_NAS100D_PCI_INTD, IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IRQ_NAS100D_PCI_INTE, IRQ_TYPE_LEVEL_LOW);
 
 	ixp4xx_pci_preinit();
 }

@@ -94,21 +94,31 @@ static const u8 ds2482_chan_rd[8] =
 #define DS2482_REG_STS_1WB		0x01
 
 
-static int ds2482_attach_adapter(struct i2c_adapter *adapter);
-static int ds2482_detect(struct i2c_adapter *adapter, int address, int kind);
-static int ds2482_detach_client(struct i2c_client *client);
+static int ds2482_probe(struct i2c_client *client,
+			const struct i2c_device_id *id);
+static int ds2482_detect(struct i2c_client *client, int kind,
+			 struct i2c_board_info *info);
+static int ds2482_remove(struct i2c_client *client);
 
 
 /**
  * Driver data (common to all clients)
  */
+static const struct i2c_device_id ds2482_id[] = {
+	{ "ds2482", 0 },
+	{ }
+};
+
 static struct i2c_driver ds2482_driver = {
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= "ds2482",
 	},
-	.attach_adapter	= ds2482_attach_adapter,
-	.detach_client	= ds2482_detach_client,
+	.probe		= ds2482_probe,
+	.remove		= ds2482_remove,
+	.id_table	= ds2482_id,
+	.detect		= ds2482_detect,
+	.address_data	= &addr_data,
 };
 
 /*
@@ -124,7 +134,7 @@ struct ds2482_w1_chan {
 };
 
 struct ds2482_data {
-	struct i2c_client	client;
+	struct i2c_client	*client;
 	struct mutex		access_lock;
 
 	/* 1-wire interface(s) */
@@ -147,7 +157,7 @@ struct ds2482_data {
 static inline int ds2482_select_register(struct ds2482_data *pdev, u8 read_ptr)
 {
 	if (pdev->read_prt != read_ptr) {
-		if (i2c_smbus_write_byte_data(&pdev->client,
+		if (i2c_smbus_write_byte_data(pdev->client,
 					      DS2482_CMD_SET_READ_PTR,
 					      read_ptr) < 0)
 			return -1;
@@ -167,7 +177,7 @@ static inline int ds2482_select_register(struct ds2482_data *pdev, u8 read_ptr)
  */
 static inline int ds2482_send_cmd(struct ds2482_data *pdev, u8 cmd)
 {
-	if (i2c_smbus_write_byte(&pdev->client, cmd) < 0)
+	if (i2c_smbus_write_byte(pdev->client, cmd) < 0)
 		return -1;
 
 	pdev->read_prt = DS2482_PTR_CODE_STATUS;
@@ -187,7 +197,7 @@ static inline int ds2482_send_cmd(struct ds2482_data *pdev, u8 cmd)
 static inline int ds2482_send_cmd_data(struct ds2482_data *pdev,
 				       u8 cmd, u8 byte)
 {
-	if (i2c_smbus_write_byte_data(&pdev->client, cmd, byte) < 0)
+	if (i2c_smbus_write_byte_data(pdev->client, cmd, byte) < 0)
 		return -1;
 
 	/* all cmds leave in STATUS, except CONFIG */
@@ -216,7 +226,7 @@ static int ds2482_wait_1wire_idle(struct ds2482_data *pdev)
 
 	if (!ds2482_select_register(pdev, DS2482_PTR_CODE_STATUS)) {
 		do {
-			temp = i2c_smbus_read_byte(&pdev->client);
+			temp = i2c_smbus_read_byte(pdev->client);
 		} while ((temp >= 0) && (temp & DS2482_REG_STS_1WB) &&
 			 (++retries < DS2482_WAIT_IDLE_TIMEOUT));
 	}
@@ -238,13 +248,13 @@ static int ds2482_wait_1wire_idle(struct ds2482_data *pdev)
  */
 static int ds2482_set_channel(struct ds2482_data *pdev, u8 channel)
 {
-	if (i2c_smbus_write_byte_data(&pdev->client, DS2482_CMD_CHANNEL_SELECT,
+	if (i2c_smbus_write_byte_data(pdev->client, DS2482_CMD_CHANNEL_SELECT,
 				      ds2482_chan_wr[channel]) < 0)
 		return -1;
 
 	pdev->read_prt = DS2482_PTR_CODE_CHANNEL;
 	pdev->channel = -1;
-	if (i2c_smbus_read_byte(&pdev->client) == ds2482_chan_rd[channel]) {
+	if (i2c_smbus_read_byte(pdev->client) == ds2482_chan_rd[channel]) {
 		pdev->channel = channel;
 		return 0;
 	}
@@ -368,7 +378,7 @@ static u8 ds2482_w1_read_byte(void *data)
 	ds2482_select_register(pdev, DS2482_PTR_CODE_DATA);
 
 	/* Read the data byte */
-	result = i2c_smbus_read_byte(&pdev->client);
+	result = i2c_smbus_read_byte(pdev->client);
 
 	mutex_unlock(&pdev->access_lock);
 
@@ -415,47 +425,38 @@ static u8 ds2482_w1_reset_bus(void *data)
 }
 
 
-/**
- * Called to see if the device exists on an i2c bus.
- */
-static int ds2482_attach_adapter(struct i2c_adapter *adapter)
+static int ds2482_detect(struct i2c_client *client, int kind,
+			 struct i2c_board_info *info)
 {
-	return i2c_probe(adapter, &addr_data, ds2482_detect);
-}
-
-
-/*
- * The following function does more than just detection. If detection
- * succeeds, it also registers the new chip.
- */
-static int ds2482_detect(struct i2c_adapter *adapter, int address, int kind)
-{
-	struct ds2482_data *data;
-	struct i2c_client  *new_client;
-	int err = 0;
-	int temp1;
-	int idx;
-
-	if (!i2c_check_functionality(adapter,
+	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_WRITE_BYTE_DATA |
 				     I2C_FUNC_SMBUS_BYTE))
-		goto exit;
+		return -ENODEV;
+
+	strlcpy(info->type, "ds2482", I2C_NAME_SIZE);
+
+	return 0;
+}
+
+static int ds2482_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
+{
+	struct ds2482_data *data;
+	int err = -ENODEV;
+	int temp1;
+	int idx;
 
 	if (!(data = kzalloc(sizeof(struct ds2482_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
 
-	new_client = &data->client;
-	i2c_set_clientdata(new_client, data);
-	new_client->addr = address;
-	new_client->driver = &ds2482_driver;
-	new_client->adapter = adapter;
+	data->client = client;
+	i2c_set_clientdata(client, data);
 
 	/* Reset the device (sets the read_ptr to status) */
 	if (ds2482_send_cmd(data, DS2482_CMD_RESET) < 0) {
-		dev_dbg(&adapter->dev, "DS2482 reset failed at 0x%02x.\n",
-			address);
+		dev_warn(&client->dev, "DS2482 reset failed.\n");
 		goto exit_free;
 	}
 
@@ -463,10 +464,10 @@ static int ds2482_detect(struct i2c_adapter *adapter, int address, int kind)
 	ndelay(525);
 
 	/* Read the status byte - only reset bit and line should be set */
-	temp1 = i2c_smbus_read_byte(new_client);
+	temp1 = i2c_smbus_read_byte(client);
 	if (temp1 != (DS2482_REG_STS_LL | DS2482_REG_STS_RST)) {
-		dev_dbg(&adapter->dev, "DS2482 (0x%02x) reset status "
-			"0x%02X - not a DS2482\n", address, temp1);
+		dev_warn(&client->dev, "DS2482 reset status "
+			 "0x%02X - not a DS2482\n", temp1);
 		goto exit_free;
 	}
 
@@ -478,15 +479,7 @@ static int ds2482_detect(struct i2c_adapter *adapter, int address, int kind)
 	/* Set all config items to 0 (off) */
 	ds2482_send_cmd_data(data, DS2482_CMD_WRITE_CONFIG, 0xF0);
 
-	/* We can fill in the remaining client fields */
-	snprintf(new_client->name, sizeof(new_client->name), "ds2482-%d00",
-		 data->w1_count);
-
 	mutex_init(&data->access_lock);
-
-	/* Tell the I2C layer a new client has arrived */
-	if ((err = i2c_attach_client(new_client)))
-		goto exit_free;
 
 	/* Register 1-wire interface(s) */
 	for (idx = 0; idx < data->w1_count; idx++) {
@@ -511,8 +504,6 @@ static int ds2482_detect(struct i2c_adapter *adapter, int address, int kind)
 	return 0;
 
 exit_w1_remove:
-	i2c_detach_client(new_client);
-
 	for (idx = 0; idx < data->w1_count; idx++) {
 		if (data->w1_ch[idx].pdev != NULL)
 			w1_remove_master_device(&data->w1_ch[idx].w1_bm);
@@ -523,22 +514,15 @@ exit:
 	return err;
 }
 
-static int ds2482_detach_client(struct i2c_client *client)
+static int ds2482_remove(struct i2c_client *client)
 {
 	struct ds2482_data   *data = i2c_get_clientdata(client);
-	int err, idx;
+	int idx;
 
 	/* Unregister the 1-wire bridge(s) */
 	for (idx = 0; idx < data->w1_count; idx++) {
 		if (data->w1_ch[idx].pdev != NULL)
 			w1_remove_master_device(&data->w1_ch[idx].w1_bm);
-	}
-
-	/* Detach the i2c device */
-	if ((err = i2c_detach_client(client))) {
-		dev_err(&client->dev,
-			"Deregistration failed, client not detached.\n");
-		return err;
 	}
 
 	/* Free the memory */

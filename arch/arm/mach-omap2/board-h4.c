@@ -18,30 +18,30 @@
 #include <linux/mtd/partitions.h>
 #include <linux/delay.h>
 #include <linux/workqueue.h>
+#include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 
-#include <asm/arch/control.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/gpioexpander.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/usb.h>
-#include <asm/arch/irda.h>
-#include <asm/arch/board.h>
-#include <asm/arch/common.h>
-#include <asm/arch/keypad.h>
-#include <asm/arch/menelaus.h>
-#include <asm/arch/dma.h>
-#include <asm/arch/gpmc.h>
-
-#include <asm/io.h>
+#include <mach/control.h>
+#include <mach/gpio.h>
+#include <mach/gpioexpander.h>
+#include <mach/mux.h>
+#include <mach/usb.h>
+#include <mach/irda.h>
+#include <mach/board.h>
+#include <mach/common.h>
+#include <mach/keypad.h>
+#include <mach/menelaus.h>
+#include <mach/dma.h>
+#include <mach/gpmc.h>
 
 #define H4_FLASH_CS	0
 #define H4_SMC91X_CS	1
@@ -392,6 +392,13 @@ static struct omap_board_config_kernel h4_config[] = {
 	{ OMAP_TAG_LCD,		&h4_lcd_config },
 };
 
+static struct i2c_board_info __initdata h4_i2c_board_info[] = {
+	{
+		I2C_BOARD_INFO("isp1301_omap", 0x2d),
+		.irq		= OMAP_GPIO_IRQ(125),
+	},
+};
+
 static void __init omap_h4_init(void)
 {
 	/*
@@ -411,6 +418,9 @@ static void __init omap_h4_init(void)
 		col_gpios[6] = 18;
 	}
 #endif
+
+	i2c_register_board_info(1, h4_i2c_board_info,
+			ARRAY_SIZE(h4_i2c_board_info));
 
 	platform_add_devices(h4_devices, ARRAY_SIZE(h4_devices));
 	omap_board_config = h4_config;

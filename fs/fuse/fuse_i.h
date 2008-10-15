@@ -363,6 +363,9 @@ struct fuse_conn {
 	/** Do not send separate SETATTR request before open(O_TRUNC)  */
 	unsigned atomic_o_trunc : 1;
 
+	/** Filesystem supports NFS exporting.  Only set in INIT */
+	unsigned export_support : 1;
+
 	/*
 	 * The following bitfields are only for optimization purposes
 	 * and hence races in setting them will not cause malfunction
@@ -464,12 +467,17 @@ static inline u64 get_node_id(struct inode *inode)
 /** Device operations */
 extern const struct file_operations fuse_dev_operations;
 
+extern struct dentry_operations fuse_dentry_operations;
+
 /**
  * Get a filled in inode
  */
 struct inode *fuse_iget(struct super_block *sb, u64 nodeid,
 			int generation, struct fuse_attr *attr,
 			u64 attr_valid, u64 attr_version);
+
+int fuse_lookup_name(struct super_block *sb, u64 nodeid, struct qstr *name,
+		     struct fuse_entry_out *outarg, struct inode **inode);
 
 /**
  * Send FORGET command
@@ -603,6 +611,8 @@ void fuse_abort_conn(struct fuse_conn *fc);
  * Invalidate inode attributes
  */
 void fuse_invalidate_attr(struct inode *inode);
+
+void fuse_invalidate_entry_cache(struct dentry *entry);
 
 /**
  * Acquire reference to fuse_conn

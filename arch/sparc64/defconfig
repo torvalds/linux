@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.26-rc2
-# Fri May 16 13:36:07 2008
+# Linux kernel version: 2.6.26
+# Fri Jul 18 00:47:07 2008
 #
 CONFIG_SPARC=y
 CONFIG_SPARC64=y
@@ -22,18 +22,6 @@ CONFIG_HAVE_SETUP_PER_CPU_AREA=y
 CONFIG_ARCH_NO_VIRT_TO_BUS=y
 CONFIG_OF=y
 CONFIG_GENERIC_HARDIRQS_NO__DO_IRQ=y
-CONFIG_SPARC64_PAGE_SIZE_8KB=y
-# CONFIG_SPARC64_PAGE_SIZE_64KB is not set
-# CONFIG_SPARC64_PAGE_SIZE_512KB is not set
-# CONFIG_SPARC64_PAGE_SIZE_4MB is not set
-CONFIG_SECCOMP=y
-CONFIG_HZ_100=y
-# CONFIG_HZ_250 is not set
-# CONFIG_HZ_300 is not set
-# CONFIG_HZ_1000 is not set
-CONFIG_HZ=100
-# CONFIG_SCHED_HRTICK is not set
-CONFIG_HOTPLUG_CPU=y
 CONFIG_DEFCONFIG_LIST="/lib/modules/$UNAME_RELEASE/.config"
 
 #
@@ -105,6 +93,7 @@ CONFIG_KRETPROBES=y
 CONFIG_HAVE_KPROBES=y
 CONFIG_HAVE_KRETPROBES=y
 # CONFIG_HAVE_DMA_ATTRS is not set
+CONFIG_USE_GENERIC_SMP_HELPERS=y
 CONFIG_PROC_PAGE_MONITOR=y
 CONFIG_SLABINFO=y
 CONFIG_RT_MUTEXES=y
@@ -121,6 +110,7 @@ CONFIG_STOP_MACHINE=y
 CONFIG_BLOCK=y
 CONFIG_BLK_DEV_IO_TRACE=y
 CONFIG_BLK_DEV_BSG=y
+# CONFIG_BLK_DEV_INTEGRITY is not set
 CONFIG_BLOCK_COMPAT=y
 
 #
@@ -136,11 +126,21 @@ CONFIG_DEFAULT_AS=y
 # CONFIG_DEFAULT_NOOP is not set
 CONFIG_DEFAULT_IOSCHED="anticipatory"
 CONFIG_CLASSIC_RCU=y
-CONFIG_GENERIC_HARDIRQS=y
 
 #
-# General machine setup
+# Processor type and features
 #
+CONFIG_SPARC64_PAGE_SIZE_8KB=y
+# CONFIG_SPARC64_PAGE_SIZE_64KB is not set
+CONFIG_SECCOMP=y
+CONFIG_HZ_100=y
+# CONFIG_HZ_250 is not set
+# CONFIG_HZ_300 is not set
+# CONFIG_HZ_1000 is not set
+CONFIG_HZ=100
+# CONFIG_SCHED_HRTICK is not set
+CONFIG_HOTPLUG_CPU=y
+CONFIG_GENERIC_HARDIRQS=y
 CONFIG_TICK_ONESHOT=y
 CONFIG_NO_HZ=y
 CONFIG_HIGH_RES_TIMERS=y
@@ -342,6 +342,8 @@ CONFIG_UEVENT_HELPER_PATH="/sbin/hotplug"
 CONFIG_STANDALONE=y
 # CONFIG_PREVENT_FIRMWARE_BUILD is not set
 CONFIG_FW_LOADER=y
+CONFIG_FIRMWARE_IN_KERNEL=y
+CONFIG_EXTRA_FIRMWARE=""
 # CONFIG_DEBUG_DRIVER is not set
 # CONFIG_DEBUG_DEVRES is not set
 # CONFIG_SYS_HYPERVISOR is not set
@@ -366,6 +368,7 @@ CONFIG_CDROM_PKTCDVD_BUFFERS=8
 CONFIG_CDROM_PKTCDVD_WCACHE=y
 CONFIG_ATA_OVER_ETH=m
 CONFIG_SUNVDC=m
+# CONFIG_BLK_DEV_HD is not set
 CONFIG_MISC_DEVICES=y
 # CONFIG_PHANTOM is not set
 # CONFIG_EEPROM_93CX6 is not set
@@ -379,6 +382,7 @@ CONFIG_BLK_DEV_IDE=y
 #
 # Please see Documentation/ide/ide.txt for help/info on IDE drives
 #
+CONFIG_IDE_TIMINGS=y
 # CONFIG_BLK_DEV_IDE_SATA is not set
 CONFIG_BLK_DEV_IDEDISK=y
 # CONFIG_IDEDISK_MULTI_MODE is not set
@@ -429,8 +433,6 @@ CONFIG_BLK_DEV_ALI15X3=y
 # CONFIG_BLK_DEV_VIA82CXXX is not set
 # CONFIG_BLK_DEV_TC86C001 is not set
 CONFIG_BLK_DEV_IDEDMA=y
-# CONFIG_BLK_DEV_HD_ONLY is not set
-# CONFIG_BLK_DEV_HD is not set
 
 #
 # SCSI device support
@@ -504,6 +506,7 @@ CONFIG_SCSI_LOWLEVEL=y
 # CONFIG_SCSI_DEBUG is not set
 # CONFIG_SCSI_SUNESP is not set
 # CONFIG_SCSI_SRP is not set
+# CONFIG_SCSI_DH is not set
 # CONFIG_ATA is not set
 CONFIG_MD=y
 CONFIG_BLK_DEV_MD=m
@@ -528,6 +531,10 @@ CONFIG_DM_ZERO=m
 
 #
 # IEEE 1394 (FireWire) support
+#
+
+#
+# Enable only one of the two stacks, unless you know what you are doing
 #
 # CONFIG_FIREWIRE is not set
 # CONFIG_IEEE1394 is not set
@@ -745,7 +752,8 @@ CONFIG_SERIAL_CORE_CONSOLE=y
 CONFIG_UNIX98_PTYS=y
 # CONFIG_LEGACY_PTYS is not set
 # CONFIG_IPMI_HANDLER is not set
-# CONFIG_HW_RANDOM is not set
+CONFIG_HW_RANDOM=m
+CONFIG_HW_RANDOM_N2RNG=m
 # CONFIG_R3964 is not set
 # CONFIG_APPLICOM is not set
 # CONFIG_RAW_DRIVER is not set
@@ -759,38 +767,58 @@ CONFIG_I2C_ALGOBIT=y
 #
 # I2C Hardware Bus support
 #
+
+#
+# PC SMBus host controller drivers
+#
 # CONFIG_I2C_ALI1535 is not set
 # CONFIG_I2C_ALI1563 is not set
 # CONFIG_I2C_ALI15X3 is not set
 # CONFIG_I2C_AMD756 is not set
 # CONFIG_I2C_AMD8111 is not set
 # CONFIG_I2C_I801 is not set
-# CONFIG_I2C_I810 is not set
+# CONFIG_I2C_ISCH is not set
 # CONFIG_I2C_PIIX4 is not set
 # CONFIG_I2C_NFORCE2 is not set
-# CONFIG_I2C_OCORES is not set
-# CONFIG_I2C_PARPORT_LIGHT is not set
-# CONFIG_I2C_PROSAVAGE is not set
-# CONFIG_I2C_SAVAGE4 is not set
-# CONFIG_I2C_SIMTEC is not set
 # CONFIG_I2C_SIS5595 is not set
 # CONFIG_I2C_SIS630 is not set
 # CONFIG_I2C_SIS96X is not set
-# CONFIG_I2C_TAOS_EVM is not set
-# CONFIG_I2C_STUB is not set
-# CONFIG_I2C_TINY_USB is not set
 # CONFIG_I2C_VIA is not set
 # CONFIG_I2C_VIAPRO is not set
+
+#
+# I2C system bus drivers (mostly embedded / system-on-chip)
+#
+# CONFIG_I2C_OCORES is not set
+# CONFIG_I2C_SIMTEC is not set
+
+#
+# External I2C/SMBus adapter drivers
+#
+# CONFIG_I2C_PARPORT_LIGHT is not set
+# CONFIG_I2C_TAOS_EVM is not set
+# CONFIG_I2C_TINY_USB is not set
+
+#
+# Graphics adapter I2C/DDC channel drivers
+#
 # CONFIG_I2C_VOODOO3 is not set
+
+#
+# Other I2C/SMBus bus drivers
+#
 # CONFIG_I2C_PCA_PLATFORM is not set
+# CONFIG_I2C_STUB is not set
 
 #
 # Miscellaneous I2C Chip support
 #
 # CONFIG_DS1682 is not set
+# CONFIG_AT24 is not set
 # CONFIG_SENSORS_EEPROM is not set
 # CONFIG_SENSORS_PCF8574 is not set
 # CONFIG_PCF8575 is not set
+# CONFIG_SENSORS_PCA9539 is not set
 # CONFIG_SENSORS_PCF8591 is not set
 # CONFIG_SENSORS_MAX6875 is not set
 # CONFIG_SENSORS_TSL2550 is not set
@@ -856,6 +884,7 @@ CONFIG_HWMON=y
 # CONFIG_SENSORS_W83627EHF is not set
 # CONFIG_HWMON_DEBUG_CHIP is not set
 # CONFIG_THERMAL is not set
+# CONFIG_THERMAL_HWMON is not set
 # CONFIG_WATCHDOG is not set
 
 #
@@ -985,15 +1014,7 @@ CONFIG_LOGO=y
 # CONFIG_LOGO_LINUX_VGA16 is not set
 # CONFIG_LOGO_LINUX_CLUT224 is not set
 CONFIG_LOGO_SUN_CLUT224=y
-
-#
-# Sound
-#
 CONFIG_SOUND=m
-
-#
-# Advanced Linux Sound Architecture
-#
 CONFIG_SND=m
 CONFIG_SND_TIMER=m
 CONFIG_SND_PCM=m
@@ -1010,21 +1031,17 @@ CONFIG_SND_SUPPORT_OLD_API=y
 CONFIG_SND_VERBOSE_PROCFS=y
 # CONFIG_SND_VERBOSE_PRINTK is not set
 # CONFIG_SND_DEBUG is not set
-
-#
-# Generic devices
-#
+CONFIG_SND_VMASTER=y
 CONFIG_SND_MPU401_UART=m
 CONFIG_SND_AC97_CODEC=m
+CONFIG_SND_DRIVERS=y
 CONFIG_SND_DUMMY=m
 CONFIG_SND_VIRMIDI=m
 CONFIG_SND_MTPAV=m
 # CONFIG_SND_SERIAL_U16550 is not set
 # CONFIG_SND_MPU401 is not set
-
-#
-# PCI devices
-#
+# CONFIG_SND_AC97_POWER_SAVE is not set
+CONFIG_SND_PCI=y
 # CONFIG_SND_AD1889 is not set
 # CONFIG_SND_ALS300 is not set
 CONFIG_SND_ALI5451=m
@@ -1084,37 +1101,14 @@ CONFIG_SND_ALI5451=m
 # CONFIG_SND_VIRTUOSO is not set
 # CONFIG_SND_VX222 is not set
 # CONFIG_SND_YMFPCI is not set
-# CONFIG_SND_AC97_POWER_SAVE is not set
-
-#
-# USB devices
-#
+CONFIG_SND_USB=y
 # CONFIG_SND_USB_AUDIO is not set
 # CONFIG_SND_USB_CAIAQ is not set
-
-#
-# ALSA Sparc devices
-#
+CONFIG_SND_SPARC=y
 # CONFIG_SND_SUN_AMD7930 is not set
 CONFIG_SND_SUN_CS4231=m
 # CONFIG_SND_SUN_DBRI is not set
-
-#
-# System on Chip audio support
-#
 # CONFIG_SND_SOC is not set
-
-#
-# ALSA SoC audio for Freescale SOCs
-#
-
-#
-# SoC Audio for the Texas Instruments OMAP
-#
-
-#
-# Open Sound System
-#
 # CONFIG_SOUND_PRIME is not set
 CONFIG_AC97_BUS=m
 CONFIG_HID_SUPPORT=y
@@ -1167,6 +1161,7 @@ CONFIG_USB_UHCI_HCD=m
 #
 # CONFIG_USB_ACM is not set
 # CONFIG_USB_PRINTER is not set
+# CONFIG_USB_WDM is not set
 
 #
 # NOTE: USB_STORAGE enables SCSI, and 'SCSI disk support'
@@ -1226,6 +1221,7 @@ CONFIG_USB_STORAGE=m
 # CONFIG_USB_TRANCEVIBRATOR is not set
 # CONFIG_USB_IOWARRIOR is not set
 # CONFIG_USB_TEST is not set
+# CONFIG_USB_ISIGHTFW is not set
 # CONFIG_USB_GADGET is not set
 # CONFIG_MMC is not set
 # CONFIG_MEMSTICK is not set
@@ -1420,6 +1416,12 @@ CONFIG_DEBUG_BUGVERBOSE=y
 # CONFIG_BACKTRACE_SELF_TEST is not set
 # CONFIG_LKDTM is not set
 # CONFIG_FAULT_INJECTION is not set
+CONFIG_HAVE_FTRACE=y
+CONFIG_HAVE_DYNAMIC_FTRACE=y
+# CONFIG_FTRACE is not set
+# CONFIG_IRQSOFF_TRACER is not set
+# CONFIG_SCHED_TRACER is not set
+# CONFIG_CONTEXT_SWITCH_TRACER is not set
 # CONFIG_SAMPLES is not set
 CONFIG_HAVE_ARCH_KGDB=y
 # CONFIG_KGDB is not set
@@ -1486,6 +1488,10 @@ CONFIG_CRYPTO_CRC32C=m
 CONFIG_CRYPTO_MD4=y
 CONFIG_CRYPTO_MD5=y
 CONFIG_CRYPTO_MICHAEL_MIC=m
+# CONFIG_CRYPTO_RMD128 is not set
+# CONFIG_CRYPTO_RMD160 is not set
+# CONFIG_CRYPTO_RMD256 is not set
+# CONFIG_CRYPTO_RMD320 is not set
 CONFIG_CRYPTO_SHA1=y
 CONFIG_CRYPTO_SHA256=m
 CONFIG_CRYPTO_SHA512=m
@@ -1527,6 +1533,7 @@ CONFIG_BITREVERSE=y
 # CONFIG_GENERIC_FIND_FIRST_BIT is not set
 CONFIG_CRC_CCITT=m
 CONFIG_CRC16=m
+# CONFIG_CRC_T10DIF is not set
 # CONFIG_CRC_ITU_T is not set
 CONFIG_CRC32=y
 # CONFIG_CRC7 is not set

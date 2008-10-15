@@ -46,6 +46,8 @@
 #include "lnbp21.h"
 #include "bsbe1.h"
 #include "bsru6.h"
+#include "tda1002x.h"
+#include "tda827x.h"
 
 /*
  * Regarding DEBIADDR_IR:
@@ -89,6 +91,8 @@ MODULE_PARM_DESC(rc5_device, "only IR commands to given RC5 device (device = 0 -
 static int ir_debug;
 module_param(ir_debug, int, 0644);
 MODULE_PARM_DESC(ir_debug, "enable debugging information for IR decoding");
+
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 struct budget_ci_ir {
 	struct input_dev *dev;
@@ -225,6 +229,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 		break;
 	case 0x1010:
 	case 0x1017:
+	case 0x101a:
 		/* for the Technotrend 1500 bundled remote */
 		ir_input_init(input_dev, &budget_ci->ir.state,
 			      IR_TYPE_RC5, ir_codes_tt_1500);
@@ -1056,6 +1061,15 @@ static struct stv0297_config dvbc_philips_tdm1316l_config = {
 	.stop_during_read = 1,
 };
 
+static struct tda10023_config tda10023_config = {
+	.demod_address = 0xc,
+	.invert = 0,
+	.xtal = 16000000,
+	.pll_m = 11,
+	.pll_p = 3,
+	.pll_n = 1,
+	.deltaf = 0xa511,
+};
 
 
 
@@ -1126,12 +1140,22 @@ static void frontend_init(struct budget_ci *budget_ci)
 				budget_ci->budget.dvb_frontend = NULL;
 			}
 		}
+		break;
 
+	case 0x101a: /* TT Budget-C-1501 (philips tda10023/philips tda8274A) */
+		budget_ci->budget.dvb_frontend = dvb_attach(tda10023_attach, &tda10023_config, &budget_ci->budget.i2c_adap, 0x48);
+		if (budget_ci->budget.dvb_frontend) {
+			if (dvb_attach(tda827x_attach, budget_ci->budget.dvb_frontend, 0x61, &budget_ci->budget.i2c_adap, NULL) == NULL) {
+				printk(KERN_ERR "%s: No tda827x found!\n", __func__);
+				dvb_frontend_detach(budget_ci->budget.dvb_frontend);
+				budget_ci->budget.dvb_frontend = NULL;
+			}
+		}
 		break;
 	}
 
 	if (budget_ci->budget.dvb_frontend == NULL) {
-		printk("budget-ci: A frontend driver was not found for device %04x/%04x subsystem %04x/%04x\n",
+		printk("budget-ci: A frontend driver was not found for device [%04x:%04x] subsystem [%04x:%04x]\n",
 		       budget_ci->budget.dev->pci->vendor,
 		       budget_ci->budget.dev->pci->device,
 		       budget_ci->budget.dev->pci->subsystem_vendor,
@@ -1161,7 +1185,8 @@ static int budget_ci_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 	dev->ext_priv = budget_ci;
 
-	err = ttpci_budget_init(&budget_ci->budget, dev, info, THIS_MODULE);
+	err = ttpci_budget_init(&budget_ci->budget, dev, info, THIS_MODULE,
+				adapter_nr);
 	if (err)
 		goto out2;
 
@@ -1216,6 +1241,7 @@ MAKE_BUDGET_INFO(ttbci, "TT-Budget/WinTV-NOVA-CI PCI", BUDGET_TT_HW_DISEQC);
 MAKE_BUDGET_INFO(ttbt2, "TT-Budget/WinTV-NOVA-T	 PCI", BUDGET_TT);
 MAKE_BUDGET_INFO(ttbtci, "TT-Budget-T-CI PCI", BUDGET_TT);
 MAKE_BUDGET_INFO(ttbcci, "TT-Budget-C-CI PCI", BUDGET_TT);
+MAKE_BUDGET_INFO(ttc1501, "TT-Budget C-1501 PCI", BUDGET_TT);
 
 static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(ttbci, 0x13c2, 0x100c),
@@ -1224,6 +1250,7 @@ static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(ttbt2, 0x13c2, 0x1011),
 	MAKE_EXTENSION_PCI(ttbtci, 0x13c2, 0x1012),
 	MAKE_EXTENSION_PCI(ttbs2, 0x13c2, 0x1017),
+	MAKE_EXTENSION_PCI(ttc1501, 0x13c2, 0x101a),
 	{
 	 .vendor = 0,
 	 }

@@ -30,7 +30,7 @@ void sun3_enable_interrupts(void)
 	sun3_enable_irq(0);
 }
 
-int led_pattern[8] = {
+static int led_pattern[8] = {
        ~(0x80), ~(0x01),
        ~(0x40), ~(0x02),
        ~(0x20), ~(0x04),

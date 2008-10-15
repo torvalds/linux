@@ -158,6 +158,7 @@ static int handle_stfl(struct kvm_vcpu *vcpu)
 
 	vcpu->stat.instruction_stfl++;
 	facility_list &= ~(1UL<<24); /* no stfle */
+	facility_list &= ~(1UL<<23); /* no large pages */
 
 	rc = copy_to_guest(vcpu, offsetof(struct _lowcore, stfl_fac_list),
 			   &facility_list, sizeof(facility_list));
@@ -199,7 +200,7 @@ out:
 
 static void handle_stsi_3_2_2(struct kvm_vcpu *vcpu, struct sysinfo_3_2_2 *mem)
 {
-	struct float_interrupt *fi = &vcpu->kvm->arch.float_int;
+	struct kvm_s390_float_interrupt *fi = &vcpu->kvm->arch.float_int;
 	int cpus = 0;
 	int n;
 

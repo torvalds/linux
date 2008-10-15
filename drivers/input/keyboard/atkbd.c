@@ -68,7 +68,7 @@ MODULE_PARM_DESC(extra, "Enable extra LEDs and keys on IBM RapidAcces, EzKey and
  * are loadable via an userland utility.
  */
 
-static unsigned char atkbd_set2_keycode[512] = {
+static const unsigned short atkbd_set2_keycode[512] = {
 
 #ifdef CONFIG_KEYBOARD_ATKBD_HP_KEYCODES
 
@@ -99,7 +99,7 @@ static unsigned char atkbd_set2_keycode[512] = {
 #endif
 };
 
-static unsigned char atkbd_set3_keycode[512] = {
+static const unsigned short atkbd_set3_keycode[512] = {
 
 	  0,  0,  0,  0,  0,  0,  0, 59,  1,138,128,129,130, 15, 41, 60,
 	131, 29, 42, 86, 58, 16,  2, 61,133, 56, 44, 31, 30, 17,  3, 62,
@@ -115,7 +115,7 @@ static unsigned char atkbd_set3_keycode[512] = {
 	148,149,147,140
 };
 
-static unsigned char atkbd_unxlate_table[128] = {
+static const unsigned short atkbd_unxlate_table[128] = {
           0,118, 22, 30, 38, 37, 46, 54, 61, 62, 70, 69, 78, 85,102, 13,
          21, 29, 36, 45, 44, 53, 60, 67, 68, 77, 84, 91, 90, 20, 28, 27,
          35, 43, 52, 51, 59, 66, 75, 76, 82, 14, 18, 93, 26, 34, 33, 42,
@@ -161,7 +161,7 @@ static unsigned char atkbd_unxlate_table[128] = {
 #define ATKBD_SCR_LEFT		249
 #define ATKBD_SCR_RIGHT		248
 
-#define ATKBD_SPECIAL		248
+#define ATKBD_SPECIAL		ATKBD_SCR_RIGHT
 
 #define ATKBD_LED_EVENT_BIT	0
 #define ATKBD_REP_EVENT_BIT	1
@@ -173,7 +173,7 @@ static unsigned char atkbd_unxlate_table[128] = {
 #define ATKBD_XL_HANGEUL	0x10
 #define ATKBD_XL_HANJA		0x20
 
-static struct {
+static const struct {
 	unsigned char keycode;
 	unsigned char set2;
 } atkbd_scroll_keys[] = {
@@ -200,7 +200,7 @@ struct atkbd {
 	char phys[32];
 
 	unsigned short id;
-	unsigned char keycode[512];
+	unsigned short keycode[512];
 	DECLARE_BITMAP(force_release_mask, 512);
 	unsigned char set;
 	unsigned char translated;
@@ -357,7 +357,7 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 	unsigned int code = data;
 	int scroll = 0, hscroll = 0, click = -1;
 	int value;
-	unsigned char keycode;
+	unsigned short keycode;
 
 #ifdef ATKBD_DEBUG
 	printk(KERN_DEBUG "atkbd.c: Received %02x flags %02x\n", data, flags);
@@ -851,6 +851,23 @@ static void atkbd_latitude_keymap_fixup(struct atkbd *atkbd)
 }
 
 /*
+ * Perform fixup for HP system that doesn't generate release
+ * for its video switch
+ */
+static void atkbd_hp_keymap_fixup(struct atkbd *atkbd)
+{
+	const unsigned int forced_release_keys[] = {
+		0x94,
+	};
+	int i;
+
+	if (atkbd->set == 2)
+		for (i = 0; i < ARRAY_SIZE(forced_release_keys); i++)
+			__set_bit(forced_release_keys[i],
+					atkbd->force_release_mask);
+}
+
+/*
  * atkbd_set_keycode_table() initializes keyboard's keycode table
  * according to the selected scancode set
  */
@@ -961,16 +978,16 @@ static void atkbd_set_device_attrs(struct atkbd *atkbd)
 		input_dev->evbit[0] |= BIT_MASK(EV_REL);
 		input_dev->relbit[0] = BIT_MASK(REL_WHEEL) |
 			BIT_MASK(REL_HWHEEL);
-		set_bit(BTN_MIDDLE, input_dev->keybit);
+		__set_bit(BTN_MIDDLE, input_dev->keybit);
 	}
 
 	input_dev->keycode = atkbd->keycode;
-	input_dev->keycodesize = sizeof(unsigned char);
+	input_dev->keycodesize = sizeof(unsigned short);
 	input_dev->keycodemax = ARRAY_SIZE(atkbd_set2_keycode);
 
 	for (i = 0; i < 512; i++)
 		if (atkbd->keycode[i] && atkbd->keycode[i] < ATKBD_SPECIAL)
-			set_bit(atkbd->keycode[i], input_dev->keybit);
+			__set_bit(atkbd->keycode[i], input_dev->keybit);
 }
 
 /*
@@ -1451,6 +1468,15 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		},
 		.callback = atkbd_setup_fixup,
 		.driver_data = atkbd_latitude_keymap_fixup,
+	},
+	{
+		.ident = "HP 2133",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP 2133"),
+		},
+		.callback = atkbd_setup_fixup,
+		.driver_data = atkbd_hp_keymap_fixup,
 	},
 	{ }
 };

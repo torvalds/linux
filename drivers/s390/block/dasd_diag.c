@@ -333,7 +333,8 @@ dasd_diag_check_device(struct dasd_device *device)
 	if (IS_ERR(block)) {
 		DEV_MESSAGE(KERN_WARNING, device, "%s",
 			    "could not allocate dasd block structure");
-		kfree(device->private);
+		device->private = NULL;
+		kfree(private);
 		return PTR_ERR(block);
 	}
 	device->block = block;
@@ -348,7 +349,8 @@ dasd_diag_check_device(struct dasd_device *device)
 	if (rc) {
 		DEV_MESSAGE(KERN_WARNING, device, "failed to retrieve device "
 			    "information (rc=%d)", rc);
-		return -ENOTSUPP;
+		rc = -EOPNOTSUPP;
+		goto out;
 	}
 
 	/* Figure out position of label block */
@@ -362,7 +364,8 @@ dasd_diag_check_device(struct dasd_device *device)
 	default:
 		DEV_MESSAGE(KERN_WARNING, device, "unsupported device class "
 			    "(class=%d)", private->rdc_data.vdev_class);
-		return -ENOTSUPP;
+		rc = -EOPNOTSUPP;
+		goto out;
 	}
 
 	DBF_DEV_EVENT(DBF_INFO, device,
@@ -379,7 +382,8 @@ dasd_diag_check_device(struct dasd_device *device)
 	if (label == NULL)  {
 		DEV_MESSAGE(KERN_WARNING, device, "%s",
 			    "No memory to allocate initialization request");
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto out;
 	}
 	rc = 0;
 	end_block = 0;
@@ -403,7 +407,7 @@ dasd_diag_check_device(struct dasd_device *device)
 			DEV_MESSAGE(KERN_WARNING, device, "%s",
 				"DIAG call failed");
 			rc = -EOPNOTSUPP;
-			goto out;
+			goto out_label;
 		}
 		mdsk_term_io(device);
 		if (rc == 0)
@@ -413,7 +417,7 @@ dasd_diag_check_device(struct dasd_device *device)
 		DEV_MESSAGE(KERN_WARNING, device, "device access failed "
 			    "(rc=%d)", rc);
 		rc = -EIO;
-		goto out;
+		goto out_label;
 	}
 	/* check for label block */
 	if (memcmp(label->label_id, DASD_DIAG_CMS1,
@@ -439,8 +443,15 @@ dasd_diag_check_device(struct dasd_device *device)
 			    (unsigned long) (block->blocks <<
 				block->s2b_shift) >> 1);
 	}
-out:
+out_label:
 	free_page((long) label);
+out:
+	if (rc) {
+		device->block = NULL;
+		dasd_free_block(block);
+		device->private = NULL;
+		kfree(private);
+	}
 	return rc;
 }
 

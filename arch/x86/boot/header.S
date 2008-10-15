@@ -30,7 +30,6 @@ SYSSEG		= DEF_SYSSEG		/* system loaded at 0x10000 (65536) */
 SYSSIZE		= DEF_SYSSIZE		/* system size: # of 16-byte clicks */
 					/* to be loaded */
 ROOT_DEV	= 0			/* ROOT_DEV is now written by "build" */
-SWAP_DEV	= 0			/* SWAP_DEV is now written by "build" */
 
 #ifndef SVGA_MODE
 #define SVGA_MODE ASK_VGA

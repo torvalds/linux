@@ -18,9 +18,11 @@
 #ifndef __XFS_ATTR_H__
 #define	__XFS_ATTR_H__
 
+struct xfs_inode;
+struct xfs_da_args;
+struct xfs_attr_list_context;
+
 /*
- * xfs_attr.h
- *
  * Large attribute lists are structured around Btrees where all the data
  * elements are in the leaf nodes.  Attribute names are hashed into an int,
  * then that int is used as the index into the Btree.  Since the hashval
@@ -35,35 +37,6 @@
  * External interfaces
  *========================================================================*/
 
-struct cred;
-struct xfs_attr_list_context;
-
-typedef int (*attrset_t)(bhv_vnode_t *, char *, void *, size_t, int);
-typedef int (*attrget_t)(bhv_vnode_t *, char *, void *, size_t, int);
-typedef int (*attrremove_t)(bhv_vnode_t *, char *, int);
-typedef int (*attrexists_t)(bhv_vnode_t *);
-typedef int (*attrcapable_t)(bhv_vnode_t *, struct cred *);
-
-typedef struct attrnames {
-	char *		attr_name;
-	unsigned int	attr_namelen;
-	unsigned int	attr_flag;
-	attrget_t	attr_get;
-	attrset_t	attr_set;
-	attrremove_t	attr_remove;
-	attrexists_t	attr_exists;
-	attrcapable_t	attr_capable;
-} attrnames_t;
-
-#define ATTR_NAMECOUNT	4
-extern struct attrnames attr_user;
-extern struct attrnames attr_secure;
-extern struct attrnames attr_system;
-extern struct attrnames attr_trusted;
-extern struct attrnames *attr_namespaces[ATTR_NAMECOUNT];
-
-extern attrnames_t *attr_lookup_namespace(char *, attrnames_t **, int);
-extern int attr_generic_list(bhv_vnode_t *, void *, size_t, int, ssize_t *);
 
 #define ATTR_DONTFOLLOW	0x0001	/* -- unused, from IRIX -- */
 #define ATTR_ROOT	0x0002	/* use attrs in root (trusted) namespace */
@@ -71,16 +44,9 @@ extern int attr_generic_list(bhv_vnode_t *, void *, size_t, int, ssize_t *);
 #define ATTR_SECURE	0x0008	/* use attrs in security namespace */
 #define ATTR_CREATE	0x0010	/* pure create: fail if attr already exists */
 #define ATTR_REPLACE	0x0020	/* pure set: fail if attr does not exist */
-#define ATTR_SYSTEM	0x0100	/* use attrs in system (pseudo) namespace */
 
-#define ATTR_KERNACCESS	0x0400	/* [kernel] iaccess, inode held io-locked */
 #define ATTR_KERNOTIME	0x1000	/* [kernel] don't update inode timestamps */
 #define ATTR_KERNOVAL	0x2000	/* [kernel] get attr size only, not value */
-#define ATTR_KERNAMELS	0x4000	/* [kernel] list attr names (simple list) */
-
-#define ATTR_KERNORMALS	0x0800	/* [kernel] normal attr list: user+secure */
-#define ATTR_KERNROOTLS	0x8000	/* [kernel] include root in the attr list */
-#define ATTR_KERNFULLS	(ATTR_KERNORMALS|ATTR_KERNROOTLS)
 
 /*
  * The maximum size (into the kernel or returned from the kernel) of an
@@ -119,22 +85,6 @@ typedef struct attrlist_ent {	/* data from attr_list() */
 	 &((char *)buffer)[ ((attrlist_t *)(buffer))->al_offset[index] ])
 
 /*
- * Multi-attribute operation vector.
- */
-typedef struct attr_multiop {
-	int	am_opcode;	/* operation to perform (ATTR_OP_GET, etc.) */
-	int	am_error;	/* [out arg] result of this sub-op (an errno) */
-	char	*am_attrname;	/* attribute name to work with */
-	char	*am_attrvalue;	/* [in/out arg] attribute value (raw bytes) */
-	int	am_length;	/* [in/out arg] length of value */
-	int	am_flags;	/* bitwise OR of attr API flags defined above */
-} attr_multiop_t;
-
-#define ATTR_OP_GET	1	/* return the indicated attr's value */
-#define ATTR_OP_SET	2	/* set/create the indicated attr/value pair */
-#define ATTR_OP_REMOVE	3	/* remove the indicated attr */
-
-/*
  * Kernel-internal version of the attrlist cursor.
  */
 typedef struct attrlist_cursor_kern {
@@ -148,20 +98,41 @@ typedef struct attrlist_cursor_kern {
 
 
 /*========================================================================
- * Function prototypes for the kernel.
+ * Structure used to pass context around among the routines.
  *========================================================================*/
 
-struct xfs_inode;
-struct attrlist_cursor_kern;
-struct xfs_da_args;
+
+typedef int (*put_listent_func_t)(struct xfs_attr_list_context *, int,
+				      char *, int, int, char *);
+
+typedef struct xfs_attr_list_context {
+	struct xfs_inode		*dp;		/* inode */
+	struct attrlist_cursor_kern	*cursor;	/* position in list */
+	char				*alist;		/* output buffer */
+	int				seen_enough;	/* T/F: seen enough of list? */
+	ssize_t				count;		/* num used entries */
+	int				dupcnt;		/* count dup hashvals seen */
+	int				bufsize;	/* total buffer size */
+	int				firstu;		/* first used byte in buffer */
+	int				flags;		/* from VOP call */
+	int				resynch;	/* T/F: resynch with cursor */
+	int				put_value;	/* T/F: need value for listent */
+	put_listent_func_t		put_listent;	/* list output fmt function */
+	int				index;		/* index into output buffer */
+} xfs_attr_list_context_t;
+
+
+/*========================================================================
+ * Function prototypes for the kernel.
+ *========================================================================*/
 
 /*
  * Overall external interface routines.
  */
+int xfs_attr_calc_size(struct xfs_inode *, int, int, int *);
 int xfs_attr_inactive(struct xfs_inode *dp);
-
-int xfs_attr_shortform_getvalue(struct xfs_da_args *);
 int xfs_attr_fetch(struct xfs_inode *, struct xfs_name *, char *, int *, int);
 int xfs_attr_rmtval_get(struct xfs_da_args *args);
+int xfs_attr_list_int(struct xfs_attr_list_context *);
 
 #endif	/* __XFS_ATTR_H__ */

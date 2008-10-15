@@ -21,6 +21,7 @@
 
 #include <linux/init.h>
 #include <linux/time.h>
+#include <linux/mm.h>
 #include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <sound/core.h>
@@ -216,7 +217,8 @@ static ssize_t snd_info_entry_read(struct file *file, char __user *buffer,
 	loff_t pos;
 
 	data = file->private_data;
-	snd_assert(data != NULL, return -ENXIO);
+	if (snd_BUG_ON(!data))
+		return -ENXIO;
 	pos = *offset;
 	if (pos < 0 || (long) pos != pos || (ssize_t) count < 0)
 		return -EIO;
@@ -257,7 +259,8 @@ static ssize_t snd_info_entry_write(struct file *file, const char __user *buffer
 	loff_t pos;
 
 	data = file->private_data;
-	snd_assert(data != NULL, return -ENXIO);
+	if (snd_BUG_ON(!data))
+		return -ENXIO;
 	entry = data->entry;
 	pos = *offset;
 	if (pos < 0 || (long) pos != pos || (ssize_t) count < 0)
@@ -613,7 +616,8 @@ int snd_info_card_create(struct snd_card *card)
 	char str[8];
 	struct snd_info_entry *entry;
 
-	snd_assert(card != NULL, return -ENXIO);
+	if (snd_BUG_ON(!card))
+		return -ENXIO;
 
 	sprintf(str, "card%i", card->number);
 	if ((entry = snd_info_create_module_entry(card->module, str, NULL)) == NULL)
@@ -635,7 +639,8 @@ int snd_info_card_register(struct snd_card *card)
 {
 	struct proc_dir_entry *p;
 
-	snd_assert(card != NULL, return -ENXIO);
+	if (snd_BUG_ON(!card))
+		return -ENXIO;
 
 	if (!strcmp(card->id, card->proc_root->name))
 		return 0;
@@ -653,7 +658,8 @@ int snd_info_card_register(struct snd_card *card)
  */
 void snd_info_card_disconnect(struct snd_card *card)
 {
-	snd_assert(card != NULL, return);
+	if (!card)
+		return;
 	mutex_lock(&info_mutex);
 	if (card->proc_root_link) {
 		snd_remove_proc_entry(snd_proc_root, card->proc_root_link);
@@ -670,7 +676,8 @@ void snd_info_card_disconnect(struct snd_card *card)
  */
 int snd_info_card_free(struct snd_card *card)
 {
-	snd_assert(card != NULL, return -ENXIO);
+	if (!card)
+		return 0;
 	snd_info_free_entry(card->proc_root);
 	card->proc_root = NULL;
 	return 0;
@@ -848,7 +855,7 @@ static void snd_info_disconnect(struct snd_info_entry *entry)
 		return;
 	list_del_init(&entry->list);
 	root = entry->parent == NULL ? snd_proc_root : entry->parent->p;
-	snd_assert(root, return);
+	snd_BUG_ON(!root);
 	snd_remove_proc_entry(root, entry->p);
 	entry->p = NULL;
 }
@@ -946,7 +953,8 @@ int snd_info_register(struct snd_info_entry * entry)
 {
 	struct proc_dir_entry *root, *p = NULL;
 
-	snd_assert(entry != NULL, return -ENXIO);
+	if (snd_BUG_ON(!entry))
+		return -ENXIO;
 	root = entry->parent == NULL ? snd_proc_root : entry->parent->p;
 	mutex_lock(&info_mutex);
 	p = snd_create_proc_entry(entry->name, entry->mode, root);

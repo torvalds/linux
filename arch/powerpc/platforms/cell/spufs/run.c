@@ -206,11 +206,6 @@ static int spu_run_init(struct spu_context *ctx, u32 *npc)
 			(SPU_RUNCNTL_RUNNABLE | SPU_RUNCNTL_ISOLATE);
 		if (runcntl == 0)
 			runcntl = SPU_RUNCNTL_RUNNABLE;
-	}
-
-	if (ctx->flags & SPU_CREATE_NOSCHED) {
-		spuctx_switch_state(ctx, SPU_UTIL_USER);
-		ctx->ops->runcntl_write(ctx, runcntl);
 	} else {
 		unsigned long privcntl;
 
@@ -219,9 +214,15 @@ static int spu_run_init(struct spu_context *ctx, u32 *npc)
 		else
 			privcntl = SPU_PRIVCNTL_MODE_NORMAL;
 
-		ctx->ops->npc_write(ctx, *npc);
 		ctx->ops->privcntl_write(ctx, privcntl);
-		ctx->ops->runcntl_write(ctx, runcntl);
+		ctx->ops->npc_write(ctx, *npc);
+	}
+
+	ctx->ops->runcntl_write(ctx, runcntl);
+
+	if (ctx->flags & SPU_CREATE_NOSCHED) {
+		spuctx_switch_state(ctx, SPU_UTIL_USER);
+	} else {
 
 		if (ctx->state == SPU_STATE_SAVED) {
 			ret = spu_activate(ctx, 0);

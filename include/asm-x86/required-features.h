@@ -1,5 +1,5 @@
-#ifndef _ASM_REQUIRED_FEATURES_H
-#define _ASM_REQUIRED_FEATURES_H 1
+#ifndef ASM_X86__REQUIRED_FEATURES_H
+#define ASM_X86__REQUIRED_FEATURES_H
 
 /* Define minimum CPUID feature set for kernel These bits are checked
    really early to actually display a visible error message before the
@@ -19,9 +19,13 @@
 
 #if defined(CONFIG_X86_PAE) || defined(CONFIG_X86_64)
 # define NEED_PAE	(1<<(X86_FEATURE_PAE & 31))
-# define NEED_CX8	(1<<(X86_FEATURE_CX8 & 31))
 #else
 # define NEED_PAE	0
+#endif
+
+#ifdef CONFIG_X86_CMPXCHG64
+# define NEED_CX8	(1<<(X86_FEATURE_CX8 & 31))
+#else
 # define NEED_CX8	0
 #endif
 
@@ -37,8 +41,14 @@
 # define NEED_3DNOW	0
 #endif
 
+#if defined(CONFIG_X86_P6_NOP) || defined(CONFIG_X86_64)
+# define NEED_NOPL	(1<<(X86_FEATURE_NOPL & 31))
+#else
+# define NEED_NOPL	0
+#endif
+
 #ifdef CONFIG_X86_64
-#define NEED_PSE	(1<<(X86_FEATURE_PSE & 31))
+#define NEED_PSE	0
 #define NEED_MSR	(1<<(X86_FEATURE_MSR & 31))
 #define NEED_PGE	(1<<(X86_FEATURE_PGE & 31))
 #define NEED_FXSR	(1<<(X86_FEATURE_FXSR & 31))
@@ -63,10 +73,10 @@
 #define REQUIRED_MASK1	(NEED_LM|NEED_3DNOW)
 
 #define REQUIRED_MASK2	0
-#define REQUIRED_MASK3	0
+#define REQUIRED_MASK3	(NEED_NOPL)
 #define REQUIRED_MASK4	0
 #define REQUIRED_MASK5	0
 #define REQUIRED_MASK6	0
 #define REQUIRED_MASK7	0
 
-#endif
+#endif /* ASM_X86__REQUIRED_FEATURES_H */

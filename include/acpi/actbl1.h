@@ -300,6 +300,7 @@ struct acpi_table_dbgp {
 /*******************************************************************************
  *
  * DMAR - DMA Remapping table
+ *	  From "Intel Virtualization Technology for Directed I/O", Sept. 2007
  *
  ******************************************************************************/
 
@@ -309,6 +310,10 @@ struct acpi_table_dmar {
 	u8 flags;
 	u8 reserved[10];
 };
+
+/* Flags */
+
+#define ACPI_DMAR_INTR_REMAP	    (1)
 
 /* DMAR subtable header */
 
@@ -381,6 +386,20 @@ struct acpi_dmar_reserved_memory {
 /* Flags */
 
 #define ACPI_DMAR_ALLOW_ALL         (1)
+
+
+/* 2: Root Port ATS Capability Reporting Structure */
+
+struct acpi_dmar_atsr {
+       struct acpi_dmar_header header;
+       u8 flags;
+       u8 reserved;
+       u16 segment;
+};
+
+/* Flags */
+
+#define ACPI_DMAR_ALL_PORTS	    (1)
 
 /*******************************************************************************
  *
@@ -1156,9 +1175,9 @@ struct acpi_srat_mem_affinity {
 	u16 reserved;		/* Reserved, must be zero */
 	u64 base_address;
 	u64 length;
-	u32 memory_type;	/* See acpi_address_range_id */
+       u32 reserved1;
 	u32 flags;
-	u64 reserved1;		/* Reserved, must be zero */
+       u64 reserved2;	       /* Reserved, must be zero */
 };
 
 /* Flags */

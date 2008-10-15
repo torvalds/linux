@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <asm/system.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
@@ -25,8 +25,8 @@
 #include <asm/mach-types.h>
 
 #include <asm/mach/arch.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/imx-uart.h>
+#include <mach/mmc.h>
+#include <mach/imx-uart.h>
 #include <linux/interrupt.h>
 #include "generic.h"
 
@@ -69,6 +69,11 @@ static struct resource imx_uart1_resources[] = {
 		.end	= (UART1_MINT_TX),
 		.flags	= IORESOURCE_IRQ,
 	},
+	[3] = {
+		.start	= UART1_MINT_RTS,
+		.end	= UART1_MINT_RTS,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
 
 static struct platform_device imx_uart1_device = {
@@ -97,6 +102,11 @@ static struct resource imx_uart2_resources[] = {
 		.end	= (UART2_MINT_TX),
 		.flags	= IORESOURCE_IRQ,
 	},
+	[3] = {
+		.start	= UART2_MINT_RTS,
+		.end	= UART2_MINT_RTS,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
 
 static struct platform_device imx_uart2_device = {
@@ -115,7 +125,7 @@ static struct platform_device *devices[] __initdata = {
 	&imx_uart2_device,
 };
 
-#ifdef CONFIG_MMC_IMX
+#if defined(CONFIG_MMC_IMX) || defined(CONFIG_MMC_IMX_MODULE)
 static int mx1ads_mmc_card_present(struct device *dev)
 {
 	/* MMC/SD Card Detect is PB 20 on MX1ADS V1.0.7 */
@@ -133,7 +143,7 @@ mx1ads_init(void)
 #ifdef CONFIG_LEDS
 	imx_gpio_mode(GPIO_PORTA | GPIO_OUT | 2);
 #endif
-#ifdef CONFIG_MMC_IMX
+#if defined(CONFIG_MMC_IMX) || defined(CONFIG_MMC_IMX_MODULE)
 	/* SD/MMC card detect */
 	imx_gpio_mode(GPIO_PORTB | GPIO_GIUS | GPIO_IN | 20);
 	imx_set_mmc_info(&mx1ads_mmc_info);

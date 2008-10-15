@@ -110,10 +110,10 @@
  * usually used for memory allocation, efficient loop counters, and array
  * indexes. The types are similar to the size_t type in the C library and are
  * required because there is no C type that consistently represents the native
- * data width.
+ * data width. ACPI_SIZE is needed because there is no guarantee that a
+ * kernel-level C library is present.
  *
  * ACPI_SIZE        16/32/64-bit unsigned value
- * ACPI_NATIVE_UINT 16/32/64-bit unsigned value
  * ACPI_NATIVE_INT  16/32/64-bit signed value
  *
  */
@@ -147,9 +147,9 @@ typedef int INT32;
 
 /*! [End] no source code translation !*/
 
-typedef u64 acpi_native_uint;
 typedef s64 acpi_native_int;
 
+typedef u64 acpi_size;
 typedef u64 acpi_io_address;
 typedef u64 acpi_physical_address;
 
@@ -186,9 +186,9 @@ typedef int INT32;
 
 /*! [End] no source code translation !*/
 
-typedef u32 acpi_native_uint;
 typedef s32 acpi_native_int;
 
+typedef u32 acpi_size;
 typedef u32 acpi_io_address;
 typedef u32 acpi_physical_address;
 
@@ -201,10 +201,6 @@ typedef u32 acpi_physical_address;
 
 #error unknown ACPI_MACHINE_WIDTH
 #endif
-
-/* Variable-width type, used instead of clib size_t */
-
-typedef acpi_native_uint acpi_size;
 
 /*******************************************************************************
  *
@@ -219,7 +215,7 @@ typedef acpi_native_uint acpi_size;
 /* Value returned by acpi_os_get_thread_id */
 
 #ifndef acpi_thread_id
-#define acpi_thread_id                  acpi_native_uint
+#define acpi_thread_id			acpi_size
 #endif
 
 /* Object returned from acpi_os_create_lock */
@@ -231,7 +227,7 @@ typedef acpi_native_uint acpi_size;
 /* Flags for acpi_os_acquire_lock/acpi_os_release_lock */
 
 #ifndef acpi_cpu_flags
-#define acpi_cpu_flags                  acpi_native_uint
+#define acpi_cpu_flags			acpi_size
 #endif
 
 /* Object returned from acpi_os_create_cache */

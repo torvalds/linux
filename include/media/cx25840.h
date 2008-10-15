@@ -32,12 +32,16 @@ enum cx25840_video_input {
 	CX25840_COMPOSITE7,
 	CX25840_COMPOSITE8,
 
-	/* S-Video inputs consist of one luma input (In1-In4) ORed with one
+	/* S-Video inputs consist of one luma input (In1-In8) ORed with one
 	   chroma input (In5-In8) */
 	CX25840_SVIDEO_LUMA1 = 0x10,
 	CX25840_SVIDEO_LUMA2 = 0x20,
 	CX25840_SVIDEO_LUMA3 = 0x30,
 	CX25840_SVIDEO_LUMA4 = 0x40,
+	CX25840_SVIDEO_LUMA5 = 0x50,
+	CX25840_SVIDEO_LUMA6 = 0x60,
+	CX25840_SVIDEO_LUMA7 = 0x70,
+	CX25840_SVIDEO_LUMA8 = 0x80,
 	CX25840_SVIDEO_CHROMA4 = 0x400,
 	CX25840_SVIDEO_CHROMA5 = 0x500,
 	CX25840_SVIDEO_CHROMA6 = 0x600,

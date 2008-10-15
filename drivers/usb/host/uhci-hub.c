@@ -12,7 +12,7 @@
  * (C) Copyright 2004 Alan Stern, stern@rowland.harvard.edu
  */
 
-static __u8 root_hub_hub_des[] =
+static const __u8 root_hub_hub_des[] =
 {
 	0x09,			/*  __u8  bLength; */
 	0x29,			/*  __u8  bDescriptorType; Hub-descriptor */

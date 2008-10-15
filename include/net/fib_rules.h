@@ -62,7 +62,7 @@ struct fib_rules_ops
 
 	/* Called after modifications to the rules set, must flush
 	 * the route cache if one exists. */
-	void			(*flush_cache)(void);
+	void			(*flush_cache)(struct fib_rules_ops *ops);
 
 	int			nlgroup;
 	const struct nla_policy	*policy;

@@ -190,10 +190,6 @@ const char *escape_essid(const char *essid, u8 essid_len);
 #endif
 #include <net/iw_handler.h>	/* new driver API */
 
-#ifndef ETH_P_PAE
-#define ETH_P_PAE 0x888E	/* Port Access Entity (IEEE 802.1X) */
-#endif				/* ETH_P_PAE */
-
 #define ETH_P_PREAUTH 0x88C7	/* IEEE 802.11i pre-authentication */
 
 #ifndef ETH_P_80211_RAW
@@ -1262,9 +1258,6 @@ extern int ieee80211_set_encryption(struct ieee80211_device *ieee);
 /* ieee80211_tx.c */
 extern int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev);
 extern void ieee80211_txb_free(struct ieee80211_txb *);
-extern int ieee80211_tx_frame(struct ieee80211_device *ieee,
-			      struct ieee80211_hdr *frame, int hdr_len,
-			      int total_len, int encrypt_mpdu);
 
 /* ieee80211_rx.c */
 extern void ieee80211_rx_any(struct ieee80211_device *ieee,
@@ -1312,14 +1305,6 @@ extern int ieee80211_wx_set_encodeext(struct ieee80211_device *ieee,
 extern int ieee80211_wx_get_encodeext(struct ieee80211_device *ieee,
 				      struct iw_request_info *info,
 				      union iwreq_data *wrqu, char *extra);
-extern int ieee80211_wx_set_auth(struct net_device *dev,
-				 struct iw_request_info *info,
-				 union iwreq_data *wrqu,
-				 char *extra);
-extern int ieee80211_wx_get_auth(struct net_device *dev,
-				 struct iw_request_info *info,
-				 union iwreq_data *wrqu,
-				 char *extra);
 
 static inline void ieee80211_increment_scans(struct ieee80211_device *ieee)
 {

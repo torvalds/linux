@@ -12,7 +12,7 @@
 #include "leds.h"
 #include "rfkill.h"
 #include "lo.h"
-#include "phy.h"
+#include "phy_common.h"
 
 
 /* The unique identifier of the firmware that's officially supported by
@@ -173,6 +173,11 @@ enum {
 #define B43_SHM_SH_CHAN			0x00A0	/* Current channel (low 8bit only) */
 #define  B43_SHM_SH_CHAN_5GHZ		0x0100	/* Bit set, if 5Ghz channel */
 #define B43_SHM_SH_BCMCFIFOID		0x0108	/* Last posted cookie to the bcast/mcast FIFO */
+/* TSSI information */
+#define B43_SHM_SH_TSSI_CCK		0x0058	/* TSSI for last 4 CCK frames (32bit) */
+#define B43_SHM_SH_TSSI_OFDM_A		0x0068	/* TSSI for last 4 OFDM frames (32bit) */
+#define B43_SHM_SH_TSSI_OFDM_G		0x0070	/* TSSI for last 4 OFDM frames (32bit) */
+#define  B43_TSSI_MAX			0x7F	/* Max value for one TSSI value */
 /* SHM_SHARED TX FIFO variables */
 #define B43_SHM_SH_SIZE01		0x0098	/* TX FIFO size for FIFO 0 (low) and 1 (high) */
 #define B43_SHM_SH_SIZE23		0x009A	/* TX FIFO size for FIFO 2 and 3 */
@@ -410,8 +415,7 @@ enum {
 #define B43_IRQ_TIMEOUT			0x80000000
 
 #define B43_IRQ_ALL			0xFFFFFFFF
-#define B43_IRQ_MASKTEMPLATE		(B43_IRQ_MAC_SUSPENDED | \
-					 B43_IRQ_TBTT_INDI | \
+#define B43_IRQ_MASKTEMPLATE		(B43_IRQ_TBTT_INDI | \
 					 B43_IRQ_ATIM_END | \
 					 B43_IRQ_PMQ | \
 					 B43_IRQ_MAC_TXERR | \
@@ -422,6 +426,28 @@ enum {
 					 B43_IRQ_UCODE_DEBUG | \
 					 B43_IRQ_RFKILL | \
 					 B43_IRQ_TX_OK)
+
+/* The firmware register to fetch the debug-IRQ reason from. */
+#define B43_DEBUGIRQ_REASON_REG		63
+/* Debug-IRQ reasons. */
+#define B43_DEBUGIRQ_PANIC		0	/* The firmware panic'ed */
+#define B43_DEBUGIRQ_DUMP_SHM		1	/* Dump shared SHM */
+#define B43_DEBUGIRQ_DUMP_REGS		2	/* Dump the microcode registers */
+#define B43_DEBUGIRQ_MARKER		3	/* A "marker" was thrown by the firmware. */
+#define B43_DEBUGIRQ_ACK		0xFFFF	/* The host writes that to ACK the IRQ */
+
+/* The firmware register that contains the "marker" line. */
+#define B43_MARKER_ID_REG		2
+#define B43_MARKER_LINE_REG		3
+
+/* The firmware register to fetch the panic reason from. */
+#define B43_FWPANIC_REASON_REG		3
+/* Firmware panic reason codes */
+#define B43_FWPANIC_DIE			0 /* Firmware died. Don't auto-restart it. */
+#define B43_FWPANIC_RESTART		1 /* Firmware died. Schedule a controller reset. */
+
+/* The firmware register that contains the watchdog counter. */
+#define B43_WATCHDOG_REG		1
 
 /* Device specific rate values.
  * The actual values defined here are (rate_in_mbps * 2).
@@ -487,122 +513,6 @@ struct b43_iv {
 } __attribute__((__packed__));
 
 
-struct b43_phy {
-	/* Band support flags. */
-	bool supports_2ghz;
-	bool supports_5ghz;
-
-	/* GMODE bit enabled? */
-	bool gmode;
-
-	/* Analog Type */
-	u8 analog;
-	/* B43_PHYTYPE_ */
-	u8 type;
-	/* PHY revision number. */
-	u8 rev;
-
-	/* Radio versioning */
-	u16 radio_manuf;	/* Radio manufacturer */
-	u16 radio_ver;		/* Radio version */
-	u8 radio_rev;		/* Radio revision */
-
-	bool dyn_tssi_tbl;	/* tssi2dbm is kmalloc()ed. */
-
-	/* ACI (adjacent channel interference) flags. */
-	bool aci_enable;
-	bool aci_wlan_automatic;
-	bool aci_hw_rssi;
-
-	/* Radio switched on/off */
-	bool radio_on;
-	struct {
-		/* Values saved when turning the radio off.
-		 * They are needed when turning it on again. */
-		bool valid;
-		u16 rfover;
-		u16 rfoverval;
-	} radio_off_context;
-
-	u16 minlowsig[2];
-	u16 minlowsigpos[2];
-
-	/* TSSI to dBm table in use */
-	const s8 *tssi2dbm;
-	/* Target idle TSSI */
-	int tgt_idle_tssi;
-	/* Current idle TSSI */
-	int cur_idle_tssi;
-
-	/* LocalOscillator control values. */
-	struct b43_txpower_lo_control *lo_control;
-	/* Values from b43_calc_loopback_gain() */
-	s16 max_lb_gain;	/* Maximum Loopback gain in hdB */
-	s16 trsw_rx_gain;	/* TRSW RX gain in hdB */
-	s16 lna_lod_gain;	/* LNA lod */
-	s16 lna_gain;		/* LNA */
-	s16 pga_gain;		/* PGA */
-
-	/* Desired TX power level (in dBm).
-	 * This is set by the user and adjusted in b43_phy_xmitpower(). */
-	u8 power_level;
-	/* A-PHY TX Power control value. */
-	u16 txpwr_offset;
-
-	/* Current TX power level attenuation control values */
-	struct b43_bbatt bbatt;
-	struct b43_rfatt rfatt;
-	u8 tx_control;		/* B43_TXCTL_XXX */
-
-	/* Hardware Power Control enabled? */
-	bool hardware_power_control;
-
-	/* Current Interference Mitigation mode */
-	int interfmode;
-	/* Stack of saved values from the Interference Mitigation code.
-	 * Each value in the stack is layed out as follows:
-	 * bit 0-11:  offset
-	 * bit 12-15: register ID
-	 * bit 16-32: value
-	 * register ID is: 0x1 PHY, 0x2 Radio, 0x3 ILT
-	 */
-#define B43_INTERFSTACK_SIZE	26
-	u32 interfstack[B43_INTERFSTACK_SIZE];	//FIXME: use a data structure
-
-	/* Saved values from the NRSSI Slope calculation */
-	s16 nrssi[2];
-	s32 nrssislope;
-	/* In memory nrssi lookup table. */
-	s8 nrssi_lt[64];
-
-	/* current channel */
-	u8 channel;
-
-	u16 lofcal;
-
-	u16 initval;		//FIXME rename?
-
-	/* PHY TX errors counter. */
-	atomic_t txerr_cnt;
-
-	/* The device does address auto increment for the OFDM tables.
-	 * We cache the previously used address here and omit the address
-	 * write on the next table access, if possible. */
-	u16 ofdmtab_addr; /* The address currently set in hardware. */
-	enum { /* The last data flow direction. */
-		B43_OFDMTAB_DIRECTION_UNKNOWN = 0,
-		B43_OFDMTAB_DIRECTION_READ,
-		B43_OFDMTAB_DIRECTION_WRITE,
-	} ofdmtab_addr_direction;
-
-#if B43_DEBUG
-	/* Manual TX-power control enabled? */
-	bool manual_txpower_control;
-	/* PHY registers locked by b43_phy_lock()? */
-	bool phy_locked;
-#endif /* B43_DEBUG */
-};
-
 /* Data structures for DMA transmission, per 80211 core. */
 struct b43_dma {
 	struct b43_dmaring *tx_ring_AC_BK; /* Background */
@@ -659,7 +569,7 @@ struct b43_key {
 #define B43_QOS_VOICE		B43_QOS_PARAMS(3)
 
 /* QOS parameter hardware data structure offsets. */
-#define B43_NR_QOSPARAMS	22
+#define B43_NR_QOSPARAMS	16
 enum {
 	B43_QOSPARAM_TXOP = 0,
 	B43_QOSPARAM_CWMIN,
@@ -675,8 +585,6 @@ enum {
 struct b43_qos_params {
 	/* The QOS parameters */
 	struct ieee80211_tx_queue_params p;
-	/* Does this need to get uploaded to hardware? */
-	bool need_hw_update;
 };
 
 struct b43_wldev;
@@ -733,17 +641,18 @@ struct b43_wl {
 	/* The beacon we are currently using (AP or IBSS mode).
 	 * This beacon stuff is protected by the irq_lock. */
 	struct sk_buff *current_beacon;
-	struct ieee80211_tx_control beacon_txctl;
 	bool beacon0_uploaded;
 	bool beacon1_uploaded;
 	bool beacon_templates_virgin; /* Never wrote the templates? */
 	struct work_struct beacon_update_trigger;
 
-	/* The current QOS parameters for the 4 queues.
-	 * This is protected by the irq_lock. */
+	/* The current QOS parameters for the 4 queues. */
 	struct b43_qos_params qos_params[4];
-	/* Workqueue for updating QOS parameters in hardware. */
-	struct work_struct qos_update_work;
+
+	/* Work for adjustment of the transmission power.
+	 * This is scheduled when we determine that the actual TX output
+	 * power doesn't match what we want. */
+	struct work_struct txpower_adjust_work;
 };
 
 /* In-memory representation of a cached microcode file. */
@@ -767,6 +676,13 @@ struct b43_firmware {
 	u16 rev;
 	/* Firmware patchlevel */
 	u16 patch;
+
+	/* Set to true, if we are using an opensource firmware. */
+	bool opensource;
+	/* Set to true, if the core needs a PCM firmware, but
+	 * we failed to load one. This is always false for
+	 * core rev > 10, as these don't need PCM firmware. */
+	bool pcm_request_failed;
 };
 
 /* Device (802.11 core) initialization status. */
@@ -881,6 +797,15 @@ static inline int b43_is_mode(struct b43_wl *wl, int type)
 	return (wl->operating && wl->if_type == type);
 }
 
+/**
+ * b43_current_band - Returns the currently used band.
+ * Returns one of IEEE80211_BAND_2GHZ and IEEE80211_BAND_5GHZ.
+ */
+static inline enum ieee80211_band b43_current_band(struct b43_wl *wl)
+{
+	return wl->hw->conf.channel->band;
+}
+
 static inline u16 b43_read16(struct b43_wldev *dev, u16 offset)
 {
 	return ssb_read16(dev->dev, offset);
@@ -939,22 +864,6 @@ void b43dbg(struct b43_wl *wl, const char *fmt, ...)
 static inline bool __b43_warn_on_dummy(bool x) { return x; }
 # define B43_WARN_ON(x)	__b43_warn_on_dummy(unlikely(!!(x)))
 #endif
-
-/** Limit a value between two limits */
-#ifdef limit_value
-# undef limit_value
-#endif
-#define limit_value(value, min, max)  \
-	({						\
-		typeof(value) __value = (value);	\
-		typeof(value) __min = (min);		\
-		typeof(value) __max = (max);		\
-		if (__value < __min)			\
-			__value = __min;		\
-		else if (__value > __max)		\
-			__value = __max;		\
-		__value;				\
-	})
 
 /* Convert an integer to a Q5.2 value */
 #define INT_TO_Q52(i)	((i) << 2)

@@ -43,6 +43,7 @@
 #include <asm/btext.h>
 #include <asm/tlb.h>
 #include <asm/sections.h>
+#include <asm/system.h>
 
 #include "mmu_decl.h"
 
@@ -56,8 +57,8 @@
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
-unsigned long total_memory;
-unsigned long total_lowmem;
+phys_addr_t total_memory;
+phys_addr_t total_lowmem;
 
 phys_addr_t memstart_addr = (phys_addr_t)~0ull;
 EXPORT_SYMBOL(memstart_addr);
@@ -75,8 +76,6 @@ void MMU_init(void);
 
 /* XXX should be in current.h  -- paulus */
 extern struct task_struct *current_set[NR_CPUS];
-
-extern int init_bootmem_done;
 
 /*
  * this tells the system to map all of ram with the segregs

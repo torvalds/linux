@@ -20,11 +20,11 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
-#include <asm/hardware.h>
-#include <asm/arch/netx-regs.h>
-#include <asm/arch/pfifo.h>
+#include <mach/hardware.h>
+#include <mach/netx-regs.h>
+#include <mach/pfifo.h>
 
 static DEFINE_MUTEX(pfifo_lock);
 

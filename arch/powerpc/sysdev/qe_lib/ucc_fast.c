@@ -46,7 +46,7 @@ void ucc_fast_dump_regs(struct ucc_fast_private * uccf)
 	printk(KERN_INFO "uccm  : addr=0x%p, val=0x%08x\n",
 		  &uccf->uf_regs->uccm, in_be32(&uccf->uf_regs->uccm));
 	printk(KERN_INFO "uccs  : addr=0x%p, val=0x%02x\n",
-		  &uccf->uf_regs->uccs, uccf->uf_regs->uccs);
+		  &uccf->uf_regs->uccs, in_8(&uccf->uf_regs->uccs));
 	printk(KERN_INFO "urfb  : addr=0x%p, val=0x%08x\n",
 		  &uccf->uf_regs->urfb, in_be32(&uccf->uf_regs->urfb));
 	printk(KERN_INFO "urfs  : addr=0x%p, val=0x%04x\n",
@@ -68,7 +68,7 @@ void ucc_fast_dump_regs(struct ucc_fast_private * uccf)
 	printk(KERN_INFO "urtry : addr=0x%p, val=0x%08x\n",
 		  &uccf->uf_regs->urtry, in_be32(&uccf->uf_regs->urtry));
 	printk(KERN_INFO "guemr : addr=0x%p, val=0x%02x\n",
-		  &uccf->uf_regs->guemr, uccf->uf_regs->guemr);
+		  &uccf->uf_regs->guemr, in_8(&uccf->uf_regs->guemr));
 }
 EXPORT_SYMBOL(ucc_fast_dump_regs);
 
@@ -96,7 +96,7 @@ EXPORT_SYMBOL(ucc_fast_transmit_on_demand);
 
 void ucc_fast_enable(struct ucc_fast_private * uccf, enum comm_dir mode)
 {
-	struct ucc_fast *uf_regs;
+	struct ucc_fast __iomem *uf_regs;
 	u32 gumr;
 
 	uf_regs = uccf->uf_regs;
@@ -117,7 +117,7 @@ EXPORT_SYMBOL(ucc_fast_enable);
 
 void ucc_fast_disable(struct ucc_fast_private * uccf, enum comm_dir mode)
 {
-	struct ucc_fast *uf_regs;
+	struct ucc_fast __iomem *uf_regs;
 	u32 gumr;
 
 	uf_regs = uccf->uf_regs;
@@ -139,7 +139,7 @@ EXPORT_SYMBOL(ucc_fast_disable);
 int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** uccf_ret)
 {
 	struct ucc_fast_private *uccf;
-	struct ucc_fast *uf_regs;
+	struct ucc_fast __iomem *uf_regs;
 	u32 gumr;
 	int ret;
 
@@ -208,6 +208,7 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 	uccf->uf_regs = ioremap(uf_info->regs, sizeof(struct ucc_fast));
 	if (uccf->uf_regs == NULL) {
 		printk(KERN_ERR "%s: Cannot map UCC registers\n", __func__);
+		kfree(uccf);
 		return -ENOMEM;
 	}
 
@@ -216,10 +217,10 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 	uccf->stopped_tx = 0;
 	uccf->stopped_rx = 0;
 	uf_regs = uccf->uf_regs;
-	uccf->p_ucce = (u32 *) & (uf_regs->ucce);
-	uccf->p_uccm = (u32 *) & (uf_regs->uccm);
+	uccf->p_ucce = &uf_regs->ucce;
+	uccf->p_uccm = &uf_regs->uccm;
 #ifdef CONFIG_UGETH_TX_ON_DEMAND
-	uccf->p_utodr = (u16 *) & (uf_regs->utodr);
+	uccf->p_utodr = &uf_regs->utodr;
 #endif
 #ifdef STATISTICS
 	uccf->tx_frames = 0;
@@ -354,6 +355,9 @@ void ucc_fast_free(struct ucc_fast_private * uccf)
 
 	if (uccf->ucc_fast_rx_virtual_fifo_base_offset)
 		qe_muram_free(uccf->ucc_fast_rx_virtual_fifo_base_offset);
+
+	if (uccf->uf_regs)
+		iounmap(uccf->uf_regs);
 
 	kfree(uccf);
 }

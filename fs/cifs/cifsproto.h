@@ -172,12 +172,15 @@ extern int CIFSSMBQFSUnixInfo(const int xid, struct cifsTconInfo *tcon);
 extern int CIFSSMBQFSPosixInfo(const int xid, struct cifsTconInfo *tcon,
 			struct kstatfs *FSData);
 
-extern int CIFSSMBSetTimes(const int xid, struct cifsTconInfo *tcon,
+extern int CIFSSMBSetPathInfo(const int xid, struct cifsTconInfo *tcon,
 			const char *fileName, const FILE_BASIC_INFO *data,
 			const struct nls_table *nls_codepage,
 			int remap_special_chars);
-extern int CIFSSMBSetFileTimes(const int xid, struct cifsTconInfo *tcon,
-			const FILE_BASIC_INFO *data, __u16 fid);
+extern int CIFSSMBSetFileInfo(const int xid, struct cifsTconInfo *tcon,
+			const FILE_BASIC_INFO *data, __u16 fid,
+			__u32 pid_of_opener);
+extern int CIFSSMBSetFileDisposition(const int xid, struct cifsTconInfo *tcon,
+			bool delete_file, __u16 fid, __u32 pid_of_opener);
 #if 0
 extern int CIFSSMBSetAttrLegacy(int xid, struct cifsTconInfo *tcon,
 			char *fileName, __u16 dos_attributes,
@@ -191,9 +194,20 @@ extern int CIFSSMBSetEOF(const int xid, struct cifsTconInfo *tcon,
 extern int CIFSSMBSetFileSize(const int xid, struct cifsTconInfo *tcon,
 			 __u64 size, __u16 fileHandle, __u32 opener_pid,
 			bool AllocSizeFlag);
-extern int CIFSSMBUnixSetPerms(const int xid, struct cifsTconInfo *pTcon,
-			char *full_path, __u64 mode, __u64 uid,
-			__u64 gid, dev_t dev,
+
+struct cifs_unix_set_info_args {
+	__u64	ctime;
+	__u64	atime;
+	__u64	mtime;
+	__u64	mode;
+	__u64	uid;
+	__u64	gid;
+	dev_t	device;
+};
+
+extern int CIFSSMBUnixSetInfo(const int xid, struct cifsTconInfo *pTcon,
+			char *fileName,
+			const struct cifs_unix_set_info_args *args,
 			const struct nls_table *nls_codepage,
 			int remap_special_chars);
 
@@ -217,7 +231,7 @@ extern int CIFSSMBRename(const int xid, struct cifsTconInfo *tcon,
 			const struct nls_table *nls_codepage,
 			int remap_special_chars);
 extern int CIFSSMBRenameOpenFile(const int xid, struct cifsTconInfo *pTcon,
-			int netfid, char *target_name,
+			int netfid, const char *target_name,
 			const struct nls_table *nls_codepage,
 			int remap_special_chars);
 extern int CIFSCreateHardLink(const int xid,

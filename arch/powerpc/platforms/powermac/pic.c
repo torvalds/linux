@@ -34,15 +34,9 @@
 #include <asm/time.h>
 #include <asm/pmac_feature.h>
 #include <asm/mpic.h>
+#include <asm/xmon.h>
 
 #include "pmac.h"
-
-/*
- * XXX this should be in xmon.h, but putting it there means xmon.h
- * has to include <linux/interrupt.h> (to get irqreturn_t), which
- * causes all sorts of problems.  -- paulus
- */
-extern irqreturn_t xmon_irq(int, void *);
 
 #ifdef CONFIG_PPC32
 struct pmac_irq_hw {

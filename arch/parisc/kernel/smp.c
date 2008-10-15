@@ -84,19 +84,11 @@ EXPORT_SYMBOL(cpu_possible_map);
 
 DEFINE_PER_CPU(spinlock_t, ipi_lock) = SPIN_LOCK_UNLOCKED;
 
-struct smp_call_struct {
-	void (*func) (void *info);
-	void *info;
-	long wait;
-	atomic_t unstarted_count;
-	atomic_t unfinished_count;
-};
-static volatile struct smp_call_struct *smp_call_function_data;
-
 enum ipi_message_type {
 	IPI_NOP=0,
 	IPI_RESCHEDULE=1,
 	IPI_CALL_FUNC,
+	IPI_CALL_FUNC_SINGLE,
 	IPI_CPU_START,
 	IPI_CPU_STOP,
 	IPI_CPU_TEST
@@ -187,33 +179,12 @@ ipi_interrupt(int irq, void *dev_id)
 
 			case IPI_CALL_FUNC:
 				smp_debug(100, KERN_DEBUG "CPU%d IPI_CALL_FUNC\n", this_cpu);
-				{
-					volatile struct smp_call_struct *data;
-					void (*func)(void *info);
-					void *info;
-					int wait;
+				generic_smp_call_function_interrupt();
+				break;
 
-					data = smp_call_function_data;
-					func = data->func;
-					info = data->info;
-					wait = data->wait;
-
-					mb();
-					atomic_dec ((atomic_t *)&data->unstarted_count);
-
-					/* At this point, *data can't
-					 * be relied upon.
-					 */
-
-					(*func)(info);
-
-					/* Notify the sending CPU that the
-					 * task is done.
-					 */
-					mb();
-					if (wait)
-						atomic_dec ((atomic_t *)&data->unfinished_count);
-				}
+			case IPI_CALL_FUNC_SINGLE:
+				smp_debug(100, KERN_DEBUG "CPU%d IPI_CALL_FUNC_SINGLE\n", this_cpu);
+				generic_smp_call_function_single_interrupt();
 				break;
 
 			case IPI_CPU_START:
@@ -256,6 +227,14 @@ ipi_send(int cpu, enum ipi_message_type op)
 	spin_unlock_irqrestore(lock, flags);
 }
 
+static void
+send_IPI_mask(cpumask_t mask, enum ipi_message_type op)
+{
+	int cpu;
+
+	for_each_cpu_mask(cpu, mask)
+		ipi_send(cpu, op);
+}
 
 static inline void
 send_IPI_single(int dest_cpu, enum ipi_message_type op)
@@ -295,86 +274,15 @@ smp_send_all_nop(void)
 	send_IPI_allbutself(IPI_NOP);
 }
 
-
-/**
- * Run a function on all other CPUs.
- *  <func>	The function to run. This must be fast and non-blocking.
- *  <info>	An arbitrary pointer to pass to the function.
- *  <retry>	If true, keep retrying until ready.
- *  <wait>	If true, wait until function has completed on other CPUs.
- *  [RETURNS]   0 on success, else a negative status code.
- *
- * Does not return until remote CPUs are nearly ready to execute <func>
- * or have executed.
- */
-
-int
-smp_call_function (void (*func) (void *info), void *info, int retry, int wait)
+void arch_send_call_function_ipi(cpumask_t mask)
 {
-	struct smp_call_struct data;
-	unsigned long timeout;
-	static DEFINE_SPINLOCK(lock);
-	int retries = 0;
-
-	if (num_online_cpus() < 2)
-		return 0;
-
-	/* Can deadlock when called with interrupts disabled */
-	WARN_ON(irqs_disabled());
-
-	/* can also deadlock if IPIs are disabled */
-	WARN_ON((get_eiem() & (1UL<<(CPU_IRQ_MAX - IPI_IRQ))) == 0);
-
-	
-	data.func = func;
-	data.info = info;
-	data.wait = wait;
-	atomic_set(&data.unstarted_count, num_online_cpus() - 1);
-	atomic_set(&data.unfinished_count, num_online_cpus() - 1);
-
-	if (retry) {
-		spin_lock (&lock);
-		while (smp_call_function_data != 0)
-			barrier();
-	}
-	else {
-		spin_lock (&lock);
-		if (smp_call_function_data) {
-			spin_unlock (&lock);
-			return -EBUSY;
-		}
-	}
-
-	smp_call_function_data = &data;
-	spin_unlock (&lock);
-	
-	/*  Send a message to all other CPUs and wait for them to respond  */
-	send_IPI_allbutself(IPI_CALL_FUNC);
-
- retry:
-	/*  Wait for response  */
-	timeout = jiffies + HZ;
-	while ( (atomic_read (&data.unstarted_count) > 0) &&
-		time_before (jiffies, timeout) )
-		barrier ();
-
-	if (atomic_read (&data.unstarted_count) > 0) {
-		printk(KERN_CRIT "SMP CALL FUNCTION TIMED OUT! (cpu=%d), try %d\n",
-		      smp_processor_id(), ++retries);
-		goto retry;
-	}
-	/* We either got one or timed out. Release the lock */
-
-	mb();
-	smp_call_function_data = NULL;
-
-	while (wait && atomic_read (&data.unfinished_count) > 0)
-			barrier ();
-
-	return 0;
+	send_IPI_mask(mask, IPI_CALL_FUNC);
 }
 
-EXPORT_SYMBOL(smp_call_function);
+void arch_send_call_function_single_ipi(int cpu)
+{
+	send_IPI_single(cpu, IPI_CALL_FUNC_SINGLE);
+}
 
 /*
  * Flush all other CPU's tlb and then mine.  Do this with on_each_cpu()
@@ -384,7 +292,7 @@ EXPORT_SYMBOL(smp_call_function);
 void
 smp_flush_tlb_all(void)
 {
-	on_each_cpu(flush_tlb_all_local, NULL, 1, 1);
+	on_each_cpu(flush_tlb_all_local, NULL, 1);
 }
 
 /*

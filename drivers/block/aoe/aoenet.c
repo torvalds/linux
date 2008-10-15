@@ -30,7 +30,7 @@ enum {
 
 static char aoe_iflist[IFLISTSZ];
 module_param_string(aoe_iflist, aoe_iflist, IFLISTSZ, 0600);
-MODULE_PARM_DESC(aoe_iflist, "aoe_iflist=\"dev1 [dev2 ...]\"\n");
+MODULE_PARM_DESC(aoe_iflist, "aoe_iflist=\"dev1 [dev2 ...]\"");
 
 #ifndef MODULE
 static int __init aoe_iflist_setup(char *str)
@@ -95,13 +95,12 @@ mac_addr(char addr[6])
 }
 
 void
-aoenet_xmit(struct sk_buff *sl)
+aoenet_xmit(struct sk_buff_head *queue)
 {
-	struct sk_buff *skb;
+	struct sk_buff *skb, *tmp;
 
-	while ((skb = sl)) {
-		sl = sl->next;
-		skb->next = skb->prev = NULL;
+	skb_queue_walk_safe(queue, skb, tmp) {
+		__skb_unlink(skb, queue);
 		dev_queue_xmit(skb);
 	}
 }

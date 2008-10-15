@@ -154,13 +154,15 @@ browsing and modifying the cpusets presently known to the kernel.  No
 new system calls are added for cpusets - all support for querying and
 modifying cpusets is via this cpuset file system.
 
-The /proc/<pid>/status file for each task has two added lines,
+The /proc/<pid>/status file for each task has four added lines,
 displaying the tasks cpus_allowed (on which CPUs it may be scheduled)
 and mems_allowed (on which Memory Nodes it may obtain memory),
-in the format seen in the following example:
+in the two formats seen in the following example:
 
   Cpus_allowed:   ffffffff,ffffffff,ffffffff,ffffffff
+  Cpus_allowed_list:      0-127
   Mems_allowed:   ffffffff,ffffffff
+  Mems_allowed_list:      0-63
 
 Each cpuset is represented by a directory in the cgroup file system
 containing (on top of the standard cgroup files) the following
@@ -544,6 +546,9 @@ otherwise initial value -1 that indicates the cpuset has no request.
  ( 4  : search nodes in a chunk of node [on NUMA system] )
  ( 5  : search system wide [on NUMA system] )
 
+The system default is architecture dependent.  The system default
+can be changed using the relax_domain_level= boot parameter.
+
 This file is per-cpuset and affect the sched domain where the cpuset
 belongs to.  Therefore if the flag 'sched_load_balance' of a cpuset
 is disabled, then 'sched_relax_domain_level' have no effect since
@@ -630,14 +635,16 @@ prior 'mems' setting, will not be moved.
 
 There is an exception to the above.  If hotplug functionality is used
 to remove all the CPUs that are currently assigned to a cpuset,
-then the kernel will automatically update the cpus_allowed of all
-tasks attached to CPUs in that cpuset to allow all CPUs.  When memory
-hotplug functionality for removing Memory Nodes is available, a
-similar exception is expected to apply there as well.  In general,
-the kernel prefers to violate cpuset placement, over starving a task
-that has had all its allowed CPUs or Memory Nodes taken offline.  User
-code should reconfigure cpusets to only refer to online CPUs and Memory
-Nodes when using hotplug to add or remove such resources.
+then all the tasks in that cpuset will be moved to the nearest ancestor
+with non-empty cpus.  But the moving of some (or all) tasks might fail if
+cpuset is bound with another cgroup subsystem which has some restrictions
+on task attaching.  In this failing case, those tasks will stay
+in the original cpuset, and the kernel will automatically update
+their cpus_allowed to allow all online CPUs.  When memory hotplug
+functionality for removing Memory Nodes is available, a similar exception
+is expected to apply there as well.  In general, the kernel prefers to
+violate cpuset placement, over starving a task that has had all
+its allowed CPUs or Memory Nodes taken offline.
 
 There is a second exception to the above.  GFP_ATOMIC requests are
 kernel internal allocations that must be satisfied, immediately.

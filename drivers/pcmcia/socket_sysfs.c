@@ -27,11 +27,9 @@
 #include <asm/system.h>
 #include <asm/irq.h>
 
-#define IN_CARD_SERVICES
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/cs.h>
-#include <pcmcia/bulkmem.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
@@ -293,7 +291,7 @@ static ssize_t pccard_show_cis(struct kobject *kobj,
 		count = 0;
 	else {
 		struct pcmcia_socket *s;
-		cisinfo_t cisinfo;
+		unsigned int chains;
 
 		if (off + count > size)
 			count = size - off;
@@ -302,9 +300,9 @@ static ssize_t pccard_show_cis(struct kobject *kobj,
 
 		if (!(s->state & SOCKET_PRESENT))
 			return -ENODEV;
-		if (pccard_validate_cis(s, BIND_FN_ALL, &cisinfo))
+		if (pccard_validate_cis(s, BIND_FN_ALL, &chains))
 			return -EIO;
-		if (!cisinfo.Chains)
+		if (!chains)
 			return -ENODATA;
 
 		count = pccard_extract_cis(s, buf, off, count);
@@ -318,27 +316,18 @@ static ssize_t pccard_store_cis(struct kobject *kobj,
 				char *buf, loff_t off, size_t count)
 {
 	struct pcmcia_socket *s = to_socket(container_of(kobj, struct device, kobj));
-	cisdump_t *cis;
 	int error;
 
 	if (off)
 		return -EINVAL;
 
-	if (count >= 0x200)
+	if (count >= CISTPL_MAX_CIS_SIZE)
 		return -EINVAL;
 
 	if (!(s->state & SOCKET_PRESENT))
 		return -ENODEV;
 
-	cis = kzalloc(sizeof(cisdump_t), GFP_KERNEL);
-	if (!cis)
-		return -ENOMEM;
-
-	cis->Length = count + 1;
-	memcpy(cis->Data, buf, count);
-
-	error = pcmcia_replace_cis(s, cis);
-	kfree(cis);
+	error = pcmcia_replace_cis(s, buf, count);
 	if (error)
 		return -EIO;
 

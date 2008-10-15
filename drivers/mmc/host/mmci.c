@@ -535,7 +535,6 @@ static int mmci_probe(struct amba_device *dev, void *id)
 	mmc->f_min = (host->mclk + 511) / 512;
 	mmc->f_max = min(host->mclk, fmax);
 	mmc->ocr_avail = plat->ocr_mask;
-	mmc->caps = MMC_CAP_MULTIWRITE;
 
 	/*
 	 * We can do SGIO

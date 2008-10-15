@@ -186,6 +186,11 @@ MODULE_PARM_DESC(exclusive_login, "Exclusive login to sbp2 device "
  * - delay inquiry
  *   Wait extra SBP2_INQUIRY_DELAY seconds after login before SCSI inquiry.
  *
+ * - power condition
+ *   Set the power condition field in the START STOP UNIT commands sent by
+ *   sd_mod on suspend, resume, and shutdown (if manage_start_stop is on).
+ *   Some disks need this to spin down or to resume properly.
+ *
  * - override internal blacklist
  *   Instead of adding to the built-in blacklist, use only the workarounds
  *   specified in the module load parameter.
@@ -199,6 +204,8 @@ MODULE_PARM_DESC(workarounds, "Work around device bugs (default = 0"
 	", skip mode page 8 = "   __stringify(SBP2_WORKAROUND_MODE_SENSE_8)
 	", fix capacity = "       __stringify(SBP2_WORKAROUND_FIX_CAPACITY)
 	", delay inquiry = "      __stringify(SBP2_WORKAROUND_DELAY_INQUIRY)
+	", set power condition in start stop unit = "
+				  __stringify(SBP2_WORKAROUND_POWER_CONDITION)
 	", override internal blacklist = " __stringify(SBP2_WORKAROUND_OVERRIDE)
 	", or a combination)");
 
@@ -359,17 +366,24 @@ static const struct {
 		.firmware_revision	= 0x002800,
 		.model_id		= 0x001010,
 		.workarounds		= SBP2_WORKAROUND_INQUIRY_36 |
-					  SBP2_WORKAROUND_MODE_SENSE_8,
+					  SBP2_WORKAROUND_MODE_SENSE_8 |
+					  SBP2_WORKAROUND_POWER_CONDITION,
 	},
 	/* DViCO Momobay FX-3A with TSB42AA9A bridge */ {
 		.firmware_revision	= 0x002800,
 		.model_id		= 0x000000,
-		.workarounds		= SBP2_WORKAROUND_DELAY_INQUIRY,
+		.workarounds		= SBP2_WORKAROUND_DELAY_INQUIRY |
+					  SBP2_WORKAROUND_POWER_CONDITION,
 	},
 	/* Initio bridges, actually only needed for some older ones */ {
 		.firmware_revision	= 0x000200,
 		.model_id		= SBP2_ROM_VALUE_WILDCARD,
 		.workarounds		= SBP2_WORKAROUND_INQUIRY_36,
+	},
+	/* PL-3507 bridge with Prolific firmware */ {
+		.firmware_revision	= 0x012800,
+		.model_id		= SBP2_ROM_VALUE_WILDCARD,
+		.workarounds		= SBP2_WORKAROUND_POWER_CONDITION,
 	},
 	/* Symbios bridge */ {
 		.firmware_revision	= 0xa0b800,
@@ -717,15 +731,26 @@ static int sbp2_update(struct unit_directory *ud)
 {
 	struct sbp2_lu *lu = ud->device.driver_data;
 
-	if (sbp2_reconnect_device(lu)) {
-		/* Reconnect has failed. Perhaps we didn't reconnect fast
-		 * enough. Try a regular login, but first log out just in
-		 * case of any weirdness. */
+	if (sbp2_reconnect_device(lu) != 0) {
+		/*
+		 * Reconnect failed.  If another bus reset happened,
+		 * let nodemgr proceed and call sbp2_update again later
+		 * (or sbp2_remove if this node went away).
+		 */
+		if (!hpsb_node_entry_valid(lu->ne))
+			return 0;
+		/*
+		 * Or the target rejected the reconnect because we weren't
+		 * fast enough.  Try a regular login, but first log out
+		 * just in case of any weirdness.
+		 */
 		sbp2_logout_device(lu);
 
-		if (sbp2_login_device(lu)) {
-			/* Login failed too, just fail, and the backend
-			 * will call our sbp2_remove for us */
+		if (sbp2_login_device(lu) != 0) {
+			if (!hpsb_node_entry_valid(lu->ne))
+				return 0;
+
+			/* Maybe another initiator won the login. */
 			SBP2_ERR("Failed to reconnect to sbp2 device!");
 			return -EBUSY;
 		}
@@ -1995,6 +2020,8 @@ static int sbp2scsi_slave_configure(struct scsi_device *sdev)
 
 	sdev->use_10_for_rw = 1;
 
+	if (sbp2_exclusive_login)
+		sdev->manage_start_stop = 1;
 	if (sdev->type == TYPE_ROM)
 		sdev->use_10_for_ms = 1;
 	if (sdev->type == TYPE_DISK &&
@@ -2002,6 +2029,8 @@ static int sbp2scsi_slave_configure(struct scsi_device *sdev)
 		sdev->skip_ms_page_8 = 1;
 	if (lu->workarounds & SBP2_WORKAROUND_FIX_CAPACITY)
 		sdev->fix_capacity = 1;
+	if (lu->workarounds & SBP2_WORKAROUND_POWER_CONDITION)
+		sdev->start_stop_pwr_cond = 1;
 	if (lu->workarounds & SBP2_WORKAROUND_128K_MAX_TRANS)
 		blk_queue_max_sectors(sdev->request_queue, 128 * 1024 / 512);
 	return 0;

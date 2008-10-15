@@ -386,7 +386,9 @@ static const struct agp_bridge_driver amd_irongate_driver = {
 	.alloc_by_type		= agp_generic_alloc_by_type,
 	.free_by_type		= agp_generic_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,
+	.agp_alloc_pages	= agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages	= agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
@@ -419,8 +421,8 @@ static int __devinit agp_amdk7_probe(struct pci_dev *pdev,
 		return -ENODEV;
 
 	j = ent - agp_amdk7_pci_table;
-	printk(KERN_INFO PFX "Detected AMD %s chipset\n",
-	       amd_agp_device_ids[j].chipset_name);
+	dev_info(&pdev->dev, "AMD %s chipset\n",
+		 amd_agp_device_ids[j].chipset_name);
 
 	bridge = agp_alloc_bridge();
 	if (!bridge)
@@ -442,7 +444,7 @@ static int __devinit agp_amdk7_probe(struct pci_dev *pdev,
 		while (!cap_ptr) {
 			gfxcard = pci_get_class(PCI_CLASS_DISPLAY_VGA<<8, gfxcard);
 			if (!gfxcard) {
-				printk (KERN_INFO PFX "Couldn't find an AGP VGA controller.\n");
+				dev_info(&pdev->dev, "no AGP VGA controller\n");
 				return -ENODEV;
 			}
 			cap_ptr = pci_find_capability(gfxcard, PCI_CAP_ID_AGP);
@@ -453,7 +455,7 @@ static int __devinit agp_amdk7_probe(struct pci_dev *pdev,
 		   (if necessary at all). */
 		if (gfxcard->vendor == PCI_VENDOR_ID_NVIDIA) {
 			agp_bridge->flags |= AGP_ERRATA_1X;
-			printk (KERN_INFO PFX "AMD 751 chipset with NVidia GeForce detected. Forcing to 1X due to errata.\n");
+			dev_info(&pdev->dev, "AMD 751 chipset with NVidia GeForce; forcing 1X due to errata\n");
 		}
 		pci_dev_put(gfxcard);
 	}
@@ -469,7 +471,7 @@ static int __devinit agp_amdk7_probe(struct pci_dev *pdev,
 			agp_bridge->flags = AGP_ERRATA_FASTWRITES;
 			agp_bridge->flags |= AGP_ERRATA_SBA;
 			agp_bridge->flags |= AGP_ERRATA_1X;
-			printk (KERN_INFO PFX "AMD 761 chipset with errata detected - disabling AGP fast writes & SBA and forcing to 1X.\n");
+			dev_info(&pdev->dev, "AMD 761 chipset with errata; disabling AGP fast writes & SBA and forcing to 1X\n");
 		}
 	}
 

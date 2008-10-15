@@ -224,7 +224,7 @@ static __init int tcpprobe_init(void)
 	if (bufsize < 0)
 		return -EINVAL;
 
-	tcp_probe.log = kcalloc(sizeof(struct tcp_log), bufsize, GFP_KERNEL);
+	tcp_probe.log = kcalloc(bufsize, sizeof(struct tcp_log), GFP_KERNEL);
 	if (!tcp_probe.log)
 		goto err0;
 

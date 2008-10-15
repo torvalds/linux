@@ -8,6 +8,7 @@
 
 #include <linux/irq.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/interrupt.h>
 
 #include "internals.h"
@@ -16,23 +17,18 @@ static struct proc_dir_entry *root_irq_dir;
 
 #ifdef CONFIG_SMP
 
-static int irq_affinity_read_proc(char *page, char **start, off_t off,
-				  int count, int *eof, void *data)
+static int irq_affinity_proc_show(struct seq_file *m, void *v)
 {
-	struct irq_desc *desc = irq_desc + (long)data;
+	struct irq_desc *desc = irq_desc + (long)m->private;
 	cpumask_t *mask = &desc->affinity;
-	int len;
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	if (desc->status & IRQ_MOVE_PENDING)
 		mask = &desc->pending_mask;
 #endif
-	len = cpumask_scnprintf(page, count, *mask);
-
-	if (count - len < 2)
-		return -EINVAL;
-	len += sprintf(page + len, "\n");
-	return len;
+	seq_cpumask(m, mask);
+	seq_putc(m, '\n');
+	return 0;
 }
 
 #ifndef is_affinity_mask_valid
@@ -40,11 +36,12 @@ static int irq_affinity_read_proc(char *page, char **start, off_t off,
 #endif
 
 int no_irq_affinity;
-static int irq_affinity_write_proc(struct file *file, const char __user *buffer,
-				   unsigned long count, void *data)
+static ssize_t irq_affinity_proc_write(struct file *file,
+		const char __user *buffer, size_t count, loff_t *pos)
 {
-	unsigned int irq = (int)(long)data, full_count = count, err;
-	cpumask_t new_value, tmp;
+	unsigned int irq = (int)(long)PDE(file->f_path.dentry->d_inode)->data;
+	cpumask_t new_value;
+	int err;
 
 	if (!irq_desc[irq].chip->set_affinity || no_irq_affinity ||
 	    irq_balancing_disabled(irq))
@@ -62,17 +59,74 @@ static int irq_affinity_write_proc(struct file *file, const char __user *buffer,
 	 * way to make the system unusable accidentally :-) At least
 	 * one online CPU still has to be targeted.
 	 */
-	cpus_and(tmp, new_value, cpu_online_map);
-	if (cpus_empty(tmp))
+	if (!cpus_intersects(new_value, cpu_online_map))
 		/* Special case for empty set - allow the architecture
 		   code to set default SMP affinity. */
-		return select_smp_affinity(irq) ? -EINVAL : full_count;
+		return irq_select_affinity(irq) ? -EINVAL : count;
 
 	irq_set_affinity(irq, new_value);
 
-	return full_count;
+	return count;
 }
 
+static int irq_affinity_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, irq_affinity_proc_show, PDE(inode)->data);
+}
+
+static const struct file_operations irq_affinity_proc_fops = {
+	.open		= irq_affinity_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= irq_affinity_proc_write,
+};
+
+static int default_affinity_show(struct seq_file *m, void *v)
+{
+	seq_cpumask(m, &irq_default_affinity);
+	seq_putc(m, '\n');
+	return 0;
+}
+
+static ssize_t default_affinity_write(struct file *file,
+		const char __user *buffer, size_t count, loff_t *ppos)
+{
+	cpumask_t new_value;
+	int err;
+
+	err = cpumask_parse_user(buffer, count, new_value);
+	if (err)
+		return err;
+
+	if (!is_affinity_mask_valid(new_value))
+		return -EINVAL;
+
+	/*
+	 * Do not allow disabling IRQs completely - it's a too easy
+	 * way to make the system unusable accidentally :-) At least
+	 * one online CPU still has to be targeted.
+	 */
+	if (!cpus_intersects(new_value, cpu_online_map))
+		return -EINVAL;
+
+	irq_default_affinity = new_value;
+
+	return count;
+}
+
+static int default_affinity_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, default_affinity_show, NULL);
+}
+
+static const struct file_operations default_affinity_proc_fops = {
+	.open		= default_affinity_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= default_affinity_write,
+};
 #endif
 
 static int irq_spurious_read(char *page, char **start, off_t off,
@@ -144,16 +198,9 @@ void register_irq_proc(unsigned int irq)
 	irq_desc[irq].dir = proc_mkdir(name, root_irq_dir);
 
 #ifdef CONFIG_SMP
-	{
-		/* create /proc/irq/<irq>/smp_affinity */
-		entry = create_proc_entry("smp_affinity", 0600, irq_desc[irq].dir);
-
-		if (entry) {
-			entry->data = (void *)(long)irq;
-			entry->read_proc = irq_affinity_read_proc;
-			entry->write_proc = irq_affinity_write_proc;
-		}
-	}
+	/* create /proc/irq/<irq>/smp_affinity */
+	proc_create_data("smp_affinity", 0600, irq_desc[irq].dir,
+			 &irq_affinity_proc_fops, (void *)(long)irq);
 #endif
 
 	entry = create_proc_entry("spurious", 0444, irq_desc[irq].dir);
@@ -171,6 +218,14 @@ void unregister_handler_proc(unsigned int irq, struct irqaction *action)
 		remove_proc_entry(action->dir->name, irq_desc[irq].dir);
 }
 
+void register_default_affinity_proc(void)
+{
+#ifdef CONFIG_SMP
+	proc_create("irq/default_smp_affinity", 0600, NULL,
+		    &default_affinity_proc_fops);
+#endif
+}
+
 void init_irq_proc(void)
 {
 	int i;
@@ -179,6 +234,8 @@ void init_irq_proc(void)
 	root_irq_dir = proc_mkdir("irq", NULL);
 	if (!root_irq_dir)
 		return;
+
+	register_default_affinity_proc();
 
 	/*
 	 * Create entries for all existing IRQs.

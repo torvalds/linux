@@ -84,5 +84,6 @@
 
 /* FIXME: Need to be populated with the other chip ID's */
 enum em28xx_chip_id {
+	CHIP_ID_EM2860 = 34,
 	CHIP_ID_EM2883 = 36,
 };

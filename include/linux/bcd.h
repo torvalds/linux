@@ -10,8 +10,13 @@
 #ifndef _BCD_H
 #define _BCD_H
 
-#define BCD2BIN(val)	(((val) & 0x0f) + ((val)>>4)*10)
-#define BIN2BCD(val)	((((val)/10)<<4) + (val)%10)
+#include <linux/compiler.h>
+
+unsigned bcd2bin(unsigned char val) __attribute_const__;
+unsigned char bin2bcd(unsigned val) __attribute_const__;
+
+#define BCD2BIN(val)	bcd2bin(val)
+#define BIN2BCD(val)	bin2bcd(val)
 
 /* backwards compat */
 #define BCD_TO_BIN(val) ((val)=BCD2BIN(val))

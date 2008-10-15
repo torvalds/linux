@@ -1022,8 +1022,11 @@ static void audit_update_watch(struct audit_parent *parent,
 			struct audit_buffer *ab;
 			ab = audit_log_start(NULL, GFP_KERNEL,
 				AUDIT_CONFIG_CHANGE);
+			audit_log_format(ab, "auid=%u ses=%u",
+				audit_get_loginuid(current),
+				audit_get_sessionid(current));
 			audit_log_format(ab,
-				"op=updated rules specifying path=");
+				" op=updated rules specifying path=");
 			audit_log_untrustedstring(ab, owatch->path);
 			audit_log_format(ab, " with dev=%u ino=%lu\n",
 				 dev, ino);
@@ -1058,7 +1061,10 @@ static void audit_remove_parent_watches(struct audit_parent *parent)
 				struct audit_buffer *ab;
 				ab = audit_log_start(NULL, GFP_KERNEL,
 					AUDIT_CONFIG_CHANGE);
-				audit_log_format(ab, "op=remove rule path=");
+				audit_log_format(ab, "auid=%u ses=%u",
+					audit_get_loginuid(current),
+					audit_get_sessionid(current));
+				audit_log_format(ab, " op=remove rule path=");
 				audit_log_untrustedstring(ab, w->path);
 				if (r->filterkey) {
 					audit_log_format(ab, " key=");
@@ -1544,6 +1550,7 @@ static void audit_log_rule_change(uid_t loginuid, u32 sessionid, u32 sid,
  * @data: payload data
  * @datasz: size of payload data
  * @loginuid: loginuid of sender
+ * @sessionid: sessionid for netlink audit message
  * @sid: SE Linux Security ID of sender
  */
 int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
@@ -1720,7 +1727,7 @@ static int audit_filter_user_rules(struct netlink_skb_parms *cb,
 	return 1;
 }
 
-int audit_filter_user(struct netlink_skb_parms *cb, int type)
+int audit_filter_user(struct netlink_skb_parms *cb)
 {
 	enum audit_state state = AUDIT_DISABLED;
 	struct audit_entry *e;

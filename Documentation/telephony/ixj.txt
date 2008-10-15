@@ -305,21 +305,14 @@ driver, like this:
 
 which will result in the needed drivers getting loaded automatically.
 
-   g.  if you are planning on using kerneld to automatically load the 
-module for you, then you need to edit /etc/conf.modules and add the 
+   g.  if you are planning on having the kernel automatically request
+the module for you, then you need to edit /etc/conf.modules and add the
 following lines:
 
 	options ixj dspio=0x340 xio=0x330 ixjdebug=0
 
 If you do this, then when you execute an application that uses the
-module kerneld will load the module for you.  Note that to do this,
-you need to have your kernel set to support kerneld.  You can check
-for this by looking at /usr/src/linux/.config and you should see this:
-
-	# Loadable module support
-	#
-	<snip>
-	CONFIG_KMOD=y
+module the kernel will request that it is loaded.
 
   h.  if you want non-root users to be able to read and write to the 
 ixj devices (this is a good idea!) you should do the following:

@@ -139,7 +139,7 @@ dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nelems,
 		consistent_sync(sg_virt(sg), sg->length, dir);
 }
 static inline int
-dma_mapping_error(dma_addr_t dma_addr)
+dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
 	return 0;
 }

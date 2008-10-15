@@ -26,10 +26,12 @@
 /*
  * Convenience kcontrol builders
  */
-#define SOC_SINGLE_VALUE(reg, shift, max, invert) ((reg) | ((shift) << 8) |\
-	((shift) << 12) | ((max) << 16) | ((invert) << 24))
-#define SOC_SINGLE_VALUE_EXT(reg, max, invert) ((reg) | ((max) << 16) |\
-	((invert) << 31))
+#define SOC_SINGLE_VALUE(xreg, xshift, xmax, xinvert) \
+	((unsigned long)&(struct soc_mixer_control) \
+	{.reg = xreg, .shift = xshift, .max = xmax, .invert = xinvert})
+#define SOC_SINGLE_VALUE_EXT(xreg, xmax, xinvert) \
+	((unsigned long)&(struct soc_mixer_control) \
+	{.reg = xreg, .max = xmax, .invert = xinvert})
 #define SOC_SINGLE(xname, reg, shift, max, invert) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
 	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw,\
@@ -43,54 +45,76 @@
 	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw,\
 	.put = snd_soc_put_volsw, \
 	.private_value =  SOC_SINGLE_VALUE(reg, shift, max, invert) }
-#define SOC_DOUBLE(xname, reg, shift_left, shift_right, max, invert) \
+#define SOC_DOUBLE(xname, xreg, shift_left, shift_right, xmax, xinvert) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname),\
 	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw, \
 	.put = snd_soc_put_volsw, \
-	.private_value = (reg) | ((shift_left) << 8) | \
-		((shift_right) << 12) | ((max) << 16) | ((invert) << 24) }
-#define SOC_DOUBLE_R(xname, reg_left, reg_right, shift, max, invert) \
+	.private_value = (unsigned long)&(struct soc_mixer_control) \
+		{.reg = xreg, .shift = shift_left, .rshift = shift_right, \
+		 .max = xmax, .invert = xinvert} }
+#define SOC_DOUBLE_R(xname, reg_left, reg_right, xshift, xmax, xinvert) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
 	.info = snd_soc_info_volsw_2r, \
 	.get = snd_soc_get_volsw_2r, .put = snd_soc_put_volsw_2r, \
-	.private_value = (reg_left) | ((shift) << 8)  | \
-		((max) << 12) | ((invert) << 20) | ((reg_right) << 24) }
-#define SOC_DOUBLE_TLV(xname, reg, shift_left, shift_right, max, invert, tlv_array) \
+	.private_value = (unsigned long)&(struct soc_mixer_control) \
+		{.reg = reg_left, .rreg = reg_right, .shift = xshift, \
+		.max = xmax, .invert = xinvert} }
+#define SOC_DOUBLE_TLV(xname, xreg, shift_left, shift_right, xmax, xinvert, tlv_array) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname),\
 	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
 		 SNDRV_CTL_ELEM_ACCESS_READWRITE,\
 	.tlv.p = (tlv_array), \
 	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw, \
 	.put = snd_soc_put_volsw, \
-	.private_value = (reg) | ((shift_left) << 8) | \
-		((shift_right) << 12) | ((max) << 16) | ((invert) << 24) }
-#define SOC_DOUBLE_R_TLV(xname, reg_left, reg_right, shift, max, invert, tlv_array) \
+	.private_value = (unsigned long)&(struct soc_mixer_control) \
+		{.reg = xreg, .shift = shift_left, .rshift = shift_right,\
+		 .max = xmax, .invert = xinvert} }
+#define SOC_DOUBLE_R_TLV(xname, reg_left, reg_right, xshift, xmax, xinvert, tlv_array) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname),\
 	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
 		 SNDRV_CTL_ELEM_ACCESS_READWRITE,\
 	.tlv.p = (tlv_array), \
 	.info = snd_soc_info_volsw_2r, \
 	.get = snd_soc_get_volsw_2r, .put = snd_soc_put_volsw_2r, \
-	.private_value = (reg_left) | ((shift) << 8)  | \
-		((max) << 12) | ((invert) << 20) | ((reg_right) << 24) }
-#define SOC_ENUM_DOUBLE(xreg, xshift_l, xshift_r, xmask, xtexts) \
+	.private_value = (unsigned long)&(struct soc_mixer_control) \
+		{.reg = reg_left, .rreg = reg_right, .shift = xshift, \
+		.max = xmax, .invert = xinvert} }
+#define SOC_DOUBLE_S8_TLV(xname, xreg, xmin, xmax, tlv_array) \
+{	.iface  = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
+	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ | \
+		  SNDRV_CTL_ELEM_ACCESS_READWRITE, \
+	.tlv.p  = (tlv_array), \
+	.info   = snd_soc_info_volsw_s8, .get = snd_soc_get_volsw_s8, \
+	.put    = snd_soc_put_volsw_s8, \
+	.private_value = (unsigned long)&(struct soc_mixer_control) \
+		{.reg = xreg, .min = xmin, .max = xmax} }
+#define SOC_ENUM_DOUBLE(xreg, xshift_l, xshift_r, xmax, xtexts) \
 {	.reg = xreg, .shift_l = xshift_l, .shift_r = xshift_r, \
-	.mask = xmask, .texts = xtexts }
-#define SOC_ENUM_SINGLE(xreg, xshift, xmask, xtexts) \
-	SOC_ENUM_DOUBLE(xreg, xshift, xshift, xmask, xtexts)
-#define SOC_ENUM_SINGLE_EXT(xmask, xtexts) \
-{	.mask = xmask, .texts = xtexts }
+	.max = xmax, .texts = xtexts }
+#define SOC_ENUM_SINGLE(xreg, xshift, xmax, xtexts) \
+	SOC_ENUM_DOUBLE(xreg, xshift, xshift, xmax, xtexts)
+#define SOC_ENUM_SINGLE_EXT(xmax, xtexts) \
+{	.max = xmax, .texts = xtexts }
 #define SOC_ENUM(xname, xenum) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,\
 	.info = snd_soc_info_enum_double, \
 	.get = snd_soc_get_enum_double, .put = snd_soc_put_enum_double, \
 	.private_value = (unsigned long)&xenum }
-#define SOC_SINGLE_EXT(xname, xreg, xshift, xmask, xinvert,\
+#define SOC_SINGLE_EXT(xname, xreg, xshift, xmax, xinvert,\
 	 xhandler_get, xhandler_put) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
 	.info = snd_soc_info_volsw, \
 	.get = xhandler_get, .put = xhandler_put, \
-	.private_value = SOC_SINGLE_VALUE(xreg, xshift, xmask, xinvert) }
+	.private_value = SOC_SINGLE_VALUE(xreg, xshift, xmax, xinvert) }
+#define SOC_SINGLE_EXT_TLV(xname, xreg, xshift, xmax, xinvert,\
+	 xhandler_get, xhandler_put, tlv_array) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
+		 SNDRV_CTL_ELEM_ACCESS_READWRITE,\
+	.tlv.p = (tlv_array), \
+	.info = snd_soc_info_volsw, \
+	.get = xhandler_get, .put = xhandler_put, \
+	.private_value = SOC_SINGLE_VALUE(xreg, xshift, xmax, xinvert) }
 #define SOC_SINGLE_BOOL_EXT(xname, xdata, xhandler_get, xhandler_put) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
 	.info = snd_soc_info_bool_ext, \
@@ -101,6 +125,24 @@
 	.info = snd_soc_info_enum_ext, \
 	.get = xhandler_get, .put = xhandler_put, \
 	.private_value = (unsigned long)&xenum }
+
+/*
+ * Bias levels
+ *
+ * @ON:      Bias is fully on for audio playback and capture operations.
+ * @PREPARE: Prepare for audio operations. Called before DAPM switching for
+ *           stream start and stop operations.
+ * @STANDBY: Low power standby state when no playback/capture operations are
+ *           in progress. NOTE: The transition time between STANDBY and ON
+ *           should be as fast as possible and no longer than 10ms.
+ * @OFF:     Power Off. No restrictions on transition times.
+ */
+enum snd_soc_bias_level {
+	SND_SOC_BIAS_ON,
+	SND_SOC_BIAS_PREPARE,
+	SND_SOC_BIAS_STANDBY,
+	SND_SOC_BIAS_OFF,
+};
 
 /*
  * Digital Audio Interface (DAI) types
@@ -185,8 +227,7 @@ struct snd_soc_pcm_stream;
 struct snd_soc_ops;
 struct snd_soc_dai_mode;
 struct snd_soc_pcm_runtime;
-struct snd_soc_codec_dai;
-struct snd_soc_cpu_dai;
+struct snd_soc_dai;
 struct snd_soc_codec;
 struct snd_soc_machine_config;
 struct soc_enum;
@@ -221,6 +262,27 @@ int snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
 	struct snd_ac97_bus_ops *ops, int num);
 void snd_soc_free_ac97_codec(struct snd_soc_codec *codec);
 
+/* Digital Audio Interface clocking API.*/
+int snd_soc_dai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
+	unsigned int freq, int dir);
+
+int snd_soc_dai_set_clkdiv(struct snd_soc_dai *dai,
+	int div_id, int div);
+
+int snd_soc_dai_set_pll(struct snd_soc_dai *dai,
+	int pll_id, unsigned int freq_in, unsigned int freq_out);
+
+/* Digital Audio interface formatting */
+int snd_soc_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt);
+
+int snd_soc_dai_set_tdm_slot(struct snd_soc_dai *dai,
+	unsigned int mask, int slots);
+
+int snd_soc_dai_set_tristate(struct snd_soc_dai *dai, int tristate);
+
+/* Digital Audio Interface mute */
+int snd_soc_dai_digital_mute(struct snd_soc_dai *dai, int mute);
+
 /*
  *Controls
  */
@@ -249,6 +311,12 @@ int snd_soc_get_volsw_2r(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_put_volsw_2r(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
+int snd_soc_info_volsw_s8(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_info *uinfo);
+int snd_soc_get_volsw_s8(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol);
+int snd_soc_put_volsw_s8(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol);
 
 /* SoC PCM stream information */
 struct snd_soc_pcm_stream {
@@ -272,87 +340,45 @@ struct snd_soc_ops {
 	int (*trigger)(struct snd_pcm_substream *, int);
 };
 
-/* ASoC codec DAI ops */
-struct snd_soc_codec_ops {
-	/* codec DAI clocking configuration */
-	int (*set_sysclk)(struct snd_soc_codec_dai *codec_dai,
+/* ASoC DAI ops */
+struct snd_soc_dai_ops {
+	/* DAI clocking configuration */
+	int (*set_sysclk)(struct snd_soc_dai *dai,
 		int clk_id, unsigned int freq, int dir);
-	int (*set_pll)(struct snd_soc_codec_dai *codec_dai,
+	int (*set_pll)(struct snd_soc_dai *dai,
 		int pll_id, unsigned int freq_in, unsigned int freq_out);
-	int (*set_clkdiv)(struct snd_soc_codec_dai *codec_dai,
-		int div_id, int div);
+	int (*set_clkdiv)(struct snd_soc_dai *dai, int div_id, int div);
 
-	/* CPU DAI format configuration */
-	int (*set_fmt)(struct snd_soc_codec_dai *codec_dai,
-		unsigned int fmt);
-	int (*set_tdm_slot)(struct snd_soc_codec_dai *codec_dai,
+	/* DAI format configuration */
+	int (*set_fmt)(struct snd_soc_dai *dai, unsigned int fmt);
+	int (*set_tdm_slot)(struct snd_soc_dai *dai,
 		unsigned int mask, int slots);
-	int (*set_tristate)(struct snd_soc_codec_dai *, int tristate);
+	int (*set_tristate)(struct snd_soc_dai *dai, int tristate);
 
 	/* digital mute */
-	int (*digital_mute)(struct snd_soc_codec_dai *, int mute);
+	int (*digital_mute)(struct snd_soc_dai *dai, int mute);
 };
 
-/* ASoC cpu DAI ops */
-struct snd_soc_cpu_ops {
-	/* CPU DAI clocking configuration */
-	int (*set_sysclk)(struct snd_soc_cpu_dai *cpu_dai,
-		int clk_id, unsigned int freq, int dir);
-	int (*set_clkdiv)(struct snd_soc_cpu_dai *cpu_dai,
-		int div_id, int div);
-	int (*set_pll)(struct snd_soc_cpu_dai *cpu_dai,
-		int pll_id, unsigned int freq_in, unsigned int freq_out);
-
-	/* CPU DAI format configuration */
-	int (*set_fmt)(struct snd_soc_cpu_dai *cpu_dai,
-		unsigned int fmt);
-	int (*set_tdm_slot)(struct snd_soc_cpu_dai *cpu_dai,
-		unsigned int mask, int slots);
-	int (*set_tristate)(struct snd_soc_cpu_dai *, int tristate);
-};
-
-/* SoC Codec DAI */
-struct snd_soc_codec_dai {
-	char *name;
-	int id;
-	unsigned char type;
-
-	/* DAI capabilities */
-	struct snd_soc_pcm_stream playback;
-	struct snd_soc_pcm_stream capture;
-
-	/* DAI runtime info */
-	struct snd_soc_codec *codec;
-	unsigned int active;
-	unsigned char pop_wait:1;
-
-	/* ops */
-	struct snd_soc_ops ops;
-	struct snd_soc_codec_ops dai_ops;
-
-	/* DAI private data */
-	void *private_data;
-};
-
-/* SoC CPU DAI */
-struct snd_soc_cpu_dai {
-
+/* SoC  DAI (Digital Audio Interface) */
+struct snd_soc_dai {
 	/* DAI description */
 	char *name;
 	unsigned int id;
 	unsigned char type;
 
 	/* DAI callbacks */
-	int (*probe)(struct platform_device *pdev);
-	void (*remove)(struct platform_device *pdev);
+	int (*probe)(struct platform_device *pdev,
+		     struct snd_soc_dai *dai);
+	void (*remove)(struct platform_device *pdev,
+		       struct snd_soc_dai *dai);
 	int (*suspend)(struct platform_device *pdev,
-		struct snd_soc_cpu_dai *cpu_dai);
+		struct snd_soc_dai *dai);
 	int (*resume)(struct platform_device *pdev,
-		struct snd_soc_cpu_dai *cpu_dai);
+		struct snd_soc_dai *dai);
 
 	/* ops */
 	struct snd_soc_ops ops;
-	struct snd_soc_cpu_ops dai_ops;
+	struct snd_soc_dai_ops dai_ops;
 
 	/* DAI capabilities */
 	struct snd_soc_pcm_stream capture;
@@ -360,7 +386,9 @@ struct snd_soc_cpu_dai {
 
 	/* DAI runtime info */
 	struct snd_pcm_runtime *runtime;
-	unsigned char active:1;
+	struct snd_soc_codec *codec;
+	unsigned int active;
+	unsigned char pop_wait:1;
 	void *dma_data;
 
 	/* DAI private data */
@@ -374,7 +402,8 @@ struct snd_soc_codec {
 	struct mutex mutex;
 
 	/* callbacks */
-	int (*dapm_event)(struct snd_soc_codec *codec, int event);
+	int (*set_bias_level)(struct snd_soc_codec *,
+			      enum snd_soc_bias_level level);
 
 	/* runtime */
 	struct snd_card *card;
@@ -387,6 +416,8 @@ struct snd_soc_codec {
 	void *control_data; /* codec control (i2c/3wire) data */
 	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
 	int (*write)(struct snd_soc_codec *, unsigned int, unsigned int);
+	int (*display_register)(struct snd_soc_codec *, char *,
+				size_t, unsigned int);
 	hw_write_t hw_write;
 	hw_read_t hw_read;
 	void *reg_cache;
@@ -396,12 +427,12 @@ struct snd_soc_codec {
 	/* dapm */
 	struct list_head dapm_widgets;
 	struct list_head dapm_paths;
-	unsigned int dapm_state;
-	unsigned int suspend_dapm_state;
+	enum snd_soc_bias_level bias_level;
+	enum snd_soc_bias_level suspend_bias_level;
 	struct delayed_work delayed_work;
 
 	/* codec DAI's */
-	struct snd_soc_codec_dai *dai;
+	struct snd_soc_dai *dai;
 	unsigned int num_dai;
 };
 
@@ -420,12 +451,12 @@ struct snd_soc_platform {
 	int (*probe)(struct platform_device *pdev);
 	int (*remove)(struct platform_device *pdev);
 	int (*suspend)(struct platform_device *pdev,
-		struct snd_soc_cpu_dai *cpu_dai);
+		struct snd_soc_dai *dai);
 	int (*resume)(struct platform_device *pdev,
-		struct snd_soc_cpu_dai *cpu_dai);
+		struct snd_soc_dai *dai);
 
 	/* pcm creation and destruction */
-	int (*pcm_new)(struct snd_card *, struct snd_soc_codec_dai *,
+	int (*pcm_new)(struct snd_card *, struct snd_soc_dai *,
 		struct snd_pcm *);
 	void (*pcm_free)(struct snd_pcm *);
 
@@ -439,8 +470,8 @@ struct snd_soc_dai_link  {
 	char *stream_name;		/* Stream name */
 
 	/* DAI */
-	struct snd_soc_codec_dai *codec_dai;
-	struct snd_soc_cpu_dai *cpu_dai;
+	struct snd_soc_dai *codec_dai;
+	struct snd_soc_dai *cpu_dai;
 
 	/* machine stream operations */
 	struct snd_soc_ops *ops;
@@ -467,7 +498,8 @@ struct snd_soc_machine {
 	int (*resume_post)(struct platform_device *pdev);
 
 	/* callbacks */
-	int (*dapm_event)(struct snd_soc_machine *, int event);
+	int (*set_bias_level)(struct snd_soc_machine *,
+			      enum snd_soc_bias_level level);
 
 	/* CPU <--> Codec DAI links  */
 	struct snd_soc_dai_link *dai_link;
@@ -482,6 +514,7 @@ struct snd_soc_device {
 	struct snd_soc_codec *codec;
 	struct snd_soc_codec_device *codec_dev;
 	struct delayed_work delayed_work;
+	struct work_struct deferred_resume_work;
 	void *codec_data;
 };
 
@@ -491,13 +524,19 @@ struct snd_soc_pcm_runtime {
 	struct snd_soc_device *socdev;
 };
 
+/* mixer control */
+struct soc_mixer_control {
+	int min, max;
+	unsigned int reg, rreg, shift, rshift, invert;
+};
+
 /* enumerated kcontrol */
 struct soc_enum {
 	unsigned short reg;
 	unsigned short reg2;
 	unsigned char shift_l;
 	unsigned char shift_r;
-	unsigned int mask;
+	unsigned int max;
 	const char **texts;
 	void *dapm;
 };

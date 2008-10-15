@@ -12,6 +12,7 @@
 #include <asm/io.h>
 #include <asm/msr.h>
 #include <asm/acpi.h>
+#include <asm/mmconfig.h>
 
 #include "../pci/pci.h"
 
@@ -237,7 +238,7 @@ static struct dmi_system_id __devinitdata mmconf_dmi_table[] = {
 	{}
 };
 
-void __init check_enable_amd_mmconf_dmi(void)
+void __cpuinit check_enable_amd_mmconf_dmi(void)
 {
 	dmi_check_system(mmconf_dmi_table);
 }

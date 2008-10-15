@@ -1,6 +1,4 @@
 /*
- * $Id: l440gx.c,v 1.18 2005/11/07 11:14:27 gleixner Exp $
- *
  * BIOS Flash chip on Intel 440GX board.
  *
  * Bugs this currently does not work under linuxBIOS.

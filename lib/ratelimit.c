@@ -3,6 +3,9 @@
  *
  * Isolated from kernel/printk.c by Dave Young <hidave.darkstar@gmail.com>
  *
+ * 2008-05-01 rewrite the function and use a ratelimit_state data struct as
+ * parameter. Now every user can use their own standalone ratelimit_state.
+ *
  * This file is released under the GPLv2.
  *
  */
@@ -11,41 +14,44 @@
 #include <linux/jiffies.h>
 #include <linux/module.h>
 
+static DEFINE_SPINLOCK(ratelimit_lock);
+
 /*
  * __ratelimit - rate limiting
- * @ratelimit_jiffies: minimum time in jiffies between two callbacks
- * @ratelimit_burst: number of callbacks we do before ratelimiting
+ * @rs: ratelimit_state data
  *
- * This enforces a rate limit: not more than @ratelimit_burst callbacks
- * in every ratelimit_jiffies
+ * This enforces a rate limit: not more than @rs->ratelimit_burst callbacks
+ * in every @rs->ratelimit_jiffies
  */
-int __ratelimit(int ratelimit_jiffies, int ratelimit_burst)
+int __ratelimit(struct ratelimit_state *rs)
 {
-	static DEFINE_SPINLOCK(ratelimit_lock);
-	static unsigned toks = 10 * 5 * HZ;
-	static unsigned long last_msg;
-	static int missed;
 	unsigned long flags;
-	unsigned long now = jiffies;
+
+	if (!rs->interval)
+		return 1;
 
 	spin_lock_irqsave(&ratelimit_lock, flags);
-	toks += now - last_msg;
-	last_msg = now;
-	if (toks > (ratelimit_burst * ratelimit_jiffies))
-		toks = ratelimit_burst * ratelimit_jiffies;
-	if (toks >= ratelimit_jiffies) {
-		int lost = missed;
+	if (!rs->begin)
+		rs->begin = jiffies;
 
-		missed = 0;
-		toks -= ratelimit_jiffies;
-		spin_unlock_irqrestore(&ratelimit_lock, flags);
-		if (lost)
-			printk(KERN_WARNING "%s: %d messages suppressed\n",
-				__func__, lost);
-		return 1;
+	if (time_is_before_jiffies(rs->begin + rs->interval)) {
+		if (rs->missed)
+			printk(KERN_WARNING "%s: %d callbacks suppressed\n",
+				__func__, rs->missed);
+		rs->begin = 0;
+		rs->printed = 0;
+		rs->missed = 0;
 	}
-	missed++;
+	if (rs->burst && rs->burst > rs->printed)
+		goto print;
+
+	rs->missed++;
 	spin_unlock_irqrestore(&ratelimit_lock, flags);
 	return 0;
+
+print:
+	rs->printed++;
+	spin_unlock_irqrestore(&ratelimit_lock, flags);
+	return 1;
 }
 EXPORT_SYMBOL(__ratelimit);

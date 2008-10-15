@@ -456,14 +456,17 @@ static irqreturn_t tps65010_irq(int irq, void *_tps)
 
 /* offsets 0..3 == GPIO1..GPIO4
  * offsets 4..5 == LED1/nPG, LED2 (we set one of the non-BLINK modes)
+ * offset 6 == vibrator motor driver
  */
 static void
 tps65010_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	if (offset < 4)
 		tps65010_set_gpio_out_value(offset + 1, value);
-	else
+	else if (offset < 6)
 		tps65010_set_led(offset - 3, value ? ON : OFF);
+	else
+		tps65010_set_vib(value);
 }
 
 static int
@@ -477,8 +480,10 @@ tps65010_output(struct gpio_chip *chip, unsigned offset, int value)
 		if (!(tps->outmask & (1 << offset)))
 			return -EINVAL;
 		tps65010_set_gpio_out_value(offset + 1, value);
-	} else
+	} else if (offset < 6)
 		tps65010_set_led(offset - 3, value ? ON : OFF);
+	else
+		tps65010_set_vib(value);
 
 	return 0;
 }
@@ -636,6 +641,8 @@ static int tps65010_probe(struct i2c_client *client,
 		tps->outmask = board->outmask;
 
 		tps->chip.label = client->name;
+		tps->chip.dev = &client->dev;
+		tps->chip.owner = THIS_MODULE;
 
 		tps->chip.set = tps65010_gpio_set;
 		tps->chip.direction_output = tps65010_output;
@@ -644,7 +651,7 @@ static int tps65010_probe(struct i2c_client *client,
 		tps->chip.get = tps65010_gpio_get;
 
 		tps->chip.base = board->base;
-		tps->chip.ngpio = 6;
+		tps->chip.ngpio = 7;
 		tps->chip.can_sleep = 1;
 
 		status = gpiochip_add(&tps->chip);
@@ -673,6 +680,7 @@ static const struct i2c_device_id tps65010_id[] = {
 	{ "tps65011", TPS65011 },
 	{ "tps65012", TPS65012 },
 	{ "tps65013", TPS65013 },
+	{ "tps65014", TPS65011 },	/* tps65011 charging at 6.5V max */
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tps65010_id);

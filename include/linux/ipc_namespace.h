@@ -36,6 +36,7 @@ struct ipc_namespace {
 	int		msg_ctlmni;
 	atomic_t	msg_bytes;
 	atomic_t	msg_hdrs;
+	int		auto_msgmni;
 
 	size_t		shm_ctlmax;
 	size_t		shm_ctlall;
@@ -53,7 +54,7 @@ extern atomic_t nr_ipc_ns;
 
 extern int register_ipcns_notifier(struct ipc_namespace *);
 extern int cond_register_ipcns_notifier(struct ipc_namespace *);
-extern int unregister_ipcns_notifier(struct ipc_namespace *);
+extern void unregister_ipcns_notifier(struct ipc_namespace *);
 extern int ipcns_notify(unsigned long);
 
 #else /* CONFIG_SYSVIPC */

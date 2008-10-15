@@ -75,12 +75,12 @@ static void asd_clear_nexus_tasklet_complete(struct asd_ascb *ascb,
 					     struct done_list_struct *dl)
 {
 	struct tasklet_completion_status *tcs = ascb->uldd_task;
-	ASD_DPRINTK("%s: here\n", __FUNCTION__);
+	ASD_DPRINTK("%s: here\n", __func__);
 	if (!del_timer(&ascb->timer)) {
-		ASD_DPRINTK("%s: couldn't delete timer\n", __FUNCTION__);
+		ASD_DPRINTK("%s: couldn't delete timer\n", __func__);
 		return;
 	}
-	ASD_DPRINTK("%s: opcode: 0x%x\n", __FUNCTION__, dl->opcode);
+	ASD_DPRINTK("%s: opcode: 0x%x\n", __func__, dl->opcode);
 	tcs->dl_opcode = dl->opcode;
 	complete(ascb->completion);
 	asd_ascb_free(ascb);
@@ -91,7 +91,7 @@ static void asd_clear_nexus_timedout(unsigned long data)
 	struct asd_ascb *ascb = (void *)data;
 	struct tasklet_completion_status *tcs = ascb->uldd_task;
 
-	ASD_DPRINTK("%s: here\n", __FUNCTION__);
+	ASD_DPRINTK("%s: here\n", __func__);
 	tcs->dl_opcode = TMF_RESP_FUNC_FAILED;
 	complete(ascb->completion);
 }
@@ -103,7 +103,7 @@ static void asd_clear_nexus_timedout(unsigned long data)
 	DECLARE_COMPLETION_ONSTACK(completion); \
 	DECLARE_TCS(tcs); \
 		\
-	ASD_DPRINTK("%s: PRE\n", __FUNCTION__); \
+	ASD_DPRINTK("%s: PRE\n", __func__); \
         res = 1;                \
 	ascb = asd_ascb_alloc_list(asd_ha, &res, GFP_KERNEL); \
 	if (!ascb)              \
@@ -115,12 +115,12 @@ static void asd_clear_nexus_timedout(unsigned long data)
 	scb->header.opcode = CLEAR_NEXUS
 
 #define CLEAR_NEXUS_POST        \
-	ASD_DPRINTK("%s: POST\n", __FUNCTION__); \
+	ASD_DPRINTK("%s: POST\n", __func__); \
 	res = asd_enqueue_internal(ascb, asd_clear_nexus_tasklet_complete, \
 				   asd_clear_nexus_timedout);              \
 	if (res)                \
 		goto out_err;   \
-	ASD_DPRINTK("%s: clear nexus posted, waiting...\n", __FUNCTION__); \
+	ASD_DPRINTK("%s: clear nexus posted, waiting...\n", __func__); \
 	wait_for_completion(&completion); \
 	res = tcs.dl_opcode; \
 	if (res == TC_NO_ERROR) \
@@ -417,7 +417,7 @@ int asd_abort_task(struct sas_task *task)
 	if (task->task_state_flags & SAS_TASK_STATE_DONE) {
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
 		res = TMF_RESP_FUNC_COMPLETE;
-		ASD_DPRINTK("%s: task 0x%p done\n", __FUNCTION__, task);
+		ASD_DPRINTK("%s: task 0x%p done\n", __func__, task);
 		goto out_done;
 	}
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
@@ -481,7 +481,7 @@ int asd_abort_task(struct sas_task *task)
 	if (task->task_state_flags & SAS_TASK_STATE_DONE) {
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
 		res = TMF_RESP_FUNC_COMPLETE;
-		ASD_DPRINTK("%s: task 0x%p done\n", __FUNCTION__, task);
+		ASD_DPRINTK("%s: task 0x%p done\n", __func__, task);
 		goto out_done;
 	}
 	spin_unlock_irqrestore(&task->task_state_lock, flags);

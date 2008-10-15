@@ -182,10 +182,10 @@ struct spu_probe spu_probes[] = {
 	{ "spu_yield__enter", "ctx %p", spu_context_nospu_event },
 	{ "spu_deactivate__enter", "ctx %p", spu_context_nospu_event },
 	{ "__spu_deactivate__unload", "ctx %p spu %p", spu_context_event },
-	{ "spufs_ps_nopfn__enter", "ctx %p", spu_context_nospu_event },
-	{ "spufs_ps_nopfn__sleep", "ctx %p", spu_context_nospu_event },
-	{ "spufs_ps_nopfn__wake", "ctx %p spu %p", spu_context_event },
-	{ "spufs_ps_nopfn__insert", "ctx %p spu %p", spu_context_event },
+	{ "spufs_ps_fault__enter", "ctx %p", spu_context_nospu_event },
+	{ "spufs_ps_fault__sleep", "ctx %p", spu_context_nospu_event },
+	{ "spufs_ps_fault__wake", "ctx %p spu %p", spu_context_event },
+	{ "spufs_ps_fault__insert", "ctx %p spu %p", spu_context_event },
 	{ "spu_acquire_saved__enter", "ctx %p", spu_context_nospu_event },
 	{ "destroy_spu_context__enter", "ctx %p", spu_context_nospu_event },
 	{ "spufs_stop_callback__enter", "ctx %p spu %p", spu_context_event },
@@ -196,8 +196,7 @@ static int __init sputrace_init(void)
 	struct proc_dir_entry *entry;
 	int i, error = -ENOMEM;
 
-	sputrace_log = kcalloc(sizeof(struct sputrace),
-				bufsize, GFP_KERNEL);
+	sputrace_log = kcalloc(bufsize, sizeof(struct sputrace), GFP_KERNEL);
 	if (!sputrace_log)
 		goto out;
 

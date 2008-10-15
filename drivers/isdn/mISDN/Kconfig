@@ -1,0 +1,44 @@
+#
+# modularer ISDN driver
+#
+
+menuconfig MISDN
+	tristate "Modular ISDN driver"
+	help
+	  Enable support for the modular ISDN driver.
+
+if MISDN != n
+
+config MISDN_DSP
+	tristate "Digital Audio Processing of transparent data"
+	depends on MISDN
+	help
+	  Enable support for digital audio processing capability.
+	  This module may be used for special applications that require
+	  cross connecting of bchannels, conferencing, dtmf decoding
+	  echo cancelation, tone generation, and Blowfish encryption and
+	  decryption.
+	  It may use hardware features if available.
+	  E.g. it is required for PBX4Linux. Go to http://isdn.eversberg.eu
+	  and get more informations about this module and it's usage.
+	  If unsure, say 'N'.
+
+config MISDN_L1OIP
+	tristate "ISDN over IP tunnel"
+	depends on MISDN
+	help
+	  Enable support for ISDN over IP tunnel.
+
+	  It features:
+	    - dynamic IP exchange, if one or both peers have dynamic IPs
+	    - BRI (S0) and PRI (S2M) interface
+	    - layer 1 control via network keepalive frames
+	    - direct tunneling of physical interface via IP
+
+	  NOTE: This protocol is called 'Layer 1 over IP' and is not
+	  compatible with ISDNoIP (Agfeo) or TDMoIP. Protocol description is
+	  provided in the source code.
+
+source "drivers/isdn/hardware/mISDN/Kconfig"
+
+endif #MISDN

@@ -91,7 +91,7 @@ static void pit_set_gate(struct kvm *kvm, int channel, u32 val)
 	c->gate = val;
 }
 
-int pit_get_gate(struct kvm *kvm, int channel)
+static int pit_get_gate(struct kvm *kvm, int channel)
 {
 	WARN_ON(!mutex_is_locked(&kvm->arch.vpit->pit_state.lock));
 
@@ -193,19 +193,16 @@ static void pit_latch_status(struct kvm *kvm, int channel)
 	}
 }
 
-int __pit_timer_fn(struct kvm_kpit_state *ps)
+static int __pit_timer_fn(struct kvm_kpit_state *ps)
 {
 	struct kvm_vcpu *vcpu0 = ps->pit->kvm->vcpus[0];
 	struct kvm_kpit_timer *pt = &ps->pit_timer;
 
-	atomic_inc(&pt->pending);
-	smp_mb__after_atomic_inc();
-	if (vcpu0) {
+	if (!atomic_inc_and_test(&pt->pending))
 		set_bit(KVM_REQ_PENDING_TIMER, &vcpu0->requests);
-		if (waitqueue_active(&vcpu0->wq)) {
-			vcpu0->arch.mp_state = KVM_MP_STATE_RUNNABLE;
-			wake_up_interruptible(&vcpu0->wq);
-		}
+	if (vcpu0 && waitqueue_active(&vcpu0->wq)) {
+		vcpu0->arch.mp_state = KVM_MP_STATE_RUNNABLE;
+		wake_up_interruptible(&vcpu0->wq);
 	}
 
 	pt->timer.expires = ktime_add_ns(pt->timer.expires, pt->period);
@@ -308,6 +305,7 @@ static void pit_load_count(struct kvm *kvm, int channel, u32 val)
 		create_pit_timer(&ps->pit_timer, val, 0);
 		break;
 	case 2:
+	case 3:
 		create_pit_timer(&ps->pit_timer, val, 1);
 		break;
 	default:
@@ -459,7 +457,8 @@ static void pit_ioport_read(struct kvm_io_device *this,
 	mutex_unlock(&pit_state->lock);
 }
 
-static int pit_in_range(struct kvm_io_device *this, gpa_t addr)
+static int pit_in_range(struct kvm_io_device *this, gpa_t addr,
+			int len, int is_write)
 {
 	return ((addr >= KVM_PIT_BASE_ADDRESS) &&
 		(addr < KVM_PIT_BASE_ADDRESS + KVM_PIT_MEM_LENGTH));
@@ -500,7 +499,8 @@ static void speaker_ioport_read(struct kvm_io_device *this,
 	mutex_unlock(&pit_state->lock);
 }
 
-static int speaker_in_range(struct kvm_io_device *this, gpa_t addr)
+static int speaker_in_range(struct kvm_io_device *this, gpa_t addr,
+			    int len, int is_write)
 {
 	return (addr == KVM_SPEAKER_BASE_ADDRESS);
 }
@@ -575,7 +575,7 @@ void kvm_free_pit(struct kvm *kvm)
 	}
 }
 
-void __inject_pit_timer_intr(struct kvm *kvm)
+static void __inject_pit_timer_intr(struct kvm *kvm)
 {
 	mutex_lock(&kvm->lock);
 	kvm_ioapic_set_irq(kvm->arch.vioapic, 0, 1);

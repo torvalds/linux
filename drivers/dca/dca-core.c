@@ -28,13 +28,29 @@
 #include <linux/device.h>
 #include <linux/dca.h>
 
-MODULE_LICENSE("GPL");
+#define DCA_VERSION "1.4"
 
-/* For now we're assuming a single, global, DCA provider for the system. */
+MODULE_VERSION(DCA_VERSION);
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Intel Corporation");
 
 static DEFINE_SPINLOCK(dca_lock);
 
-static struct dca_provider *global_dca = NULL;
+static LIST_HEAD(dca_providers);
+
+static struct dca_provider *dca_find_provider_by_dev(struct device *dev)
+{
+	struct dca_provider *dca, *ret = NULL;
+
+	list_for_each_entry(dca, &dca_providers, node) {
+		if ((!dev) || (dca->ops->dev_managed(dca, dev))) {
+			ret = dca;
+			break;
+		}
+	}
+
+	return ret;
+}
 
 /**
  * dca_add_requester - add a dca client to the list
@@ -42,25 +58,39 @@ static struct dca_provider *global_dca = NULL;
  */
 int dca_add_requester(struct device *dev)
 {
-	int err, slot;
+	struct dca_provider *dca;
+	int err, slot = -ENODEV;
 
-	if (!global_dca)
-		return -ENODEV;
+	if (!dev)
+		return -EFAULT;
 
 	spin_lock(&dca_lock);
-	slot = global_dca->ops->add_requester(global_dca, dev);
-	spin_unlock(&dca_lock);
-	if (slot < 0)
-		return slot;
 
-	err = dca_sysfs_add_req(global_dca, dev, slot);
+	/* check if the requester has not been added already */
+	dca = dca_find_provider_by_dev(dev);
+	if (dca) {
+		spin_unlock(&dca_lock);
+		return -EEXIST;
+	}
+
+	list_for_each_entry(dca, &dca_providers, node) {
+		slot = dca->ops->add_requester(dca, dev);
+		if (slot >= 0)
+			break;
+	}
+	if (slot < 0) {
+		spin_unlock(&dca_lock);
+		return slot;
+	}
+
+	err = dca_sysfs_add_req(dca, dev, slot);
 	if (err) {
-		spin_lock(&dca_lock);
-		global_dca->ops->remove_requester(global_dca, dev);
+		dca->ops->remove_requester(dca, dev);
 		spin_unlock(&dca_lock);
 		return err;
 	}
 
+	spin_unlock(&dca_lock);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dca_add_requester);
@@ -71,30 +101,78 @@ EXPORT_SYMBOL_GPL(dca_add_requester);
  */
 int dca_remove_requester(struct device *dev)
 {
+	struct dca_provider *dca;
 	int slot;
-	if (!global_dca)
-		return -ENODEV;
+
+	if (!dev)
+		return -EFAULT;
 
 	spin_lock(&dca_lock);
-	slot = global_dca->ops->remove_requester(global_dca, dev);
-	spin_unlock(&dca_lock);
-	if (slot < 0)
+	dca = dca_find_provider_by_dev(dev);
+	if (!dca) {
+		spin_unlock(&dca_lock);
+		return -ENODEV;
+	}
+	slot = dca->ops->remove_requester(dca, dev);
+	if (slot < 0) {
+		spin_unlock(&dca_lock);
 		return slot;
+	}
 
-	dca_sysfs_remove_req(global_dca, slot);
+	dca_sysfs_remove_req(dca, slot);
+
+	spin_unlock(&dca_lock);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dca_remove_requester);
 
 /**
- * dca_get_tag - return the dca tag for the given cpu
+ * dca_common_get_tag - return the dca tag (serves both new and old api)
+ * @dev - the device that wants dca service
+ * @cpu - the cpuid as returned by get_cpu()
+ */
+u8 dca_common_get_tag(struct device *dev, int cpu)
+{
+	struct dca_provider *dca;
+	u8 tag;
+
+	spin_lock(&dca_lock);
+
+	dca = dca_find_provider_by_dev(dev);
+	if (!dca) {
+		spin_unlock(&dca_lock);
+		return -ENODEV;
+	}
+	tag = dca->ops->get_tag(dca, dev, cpu);
+
+	spin_unlock(&dca_lock);
+	return tag;
+}
+
+/**
+ * dca3_get_tag - return the dca tag to the requester device
+ *                for the given cpu (new api)
+ * @dev - the device that wants dca service
+ * @cpu - the cpuid as returned by get_cpu()
+ */
+u8 dca3_get_tag(struct device *dev, int cpu)
+{
+	if (!dev)
+		return -EFAULT;
+
+	return dca_common_get_tag(dev, cpu);
+}
+EXPORT_SYMBOL_GPL(dca3_get_tag);
+
+/**
+ * dca_get_tag - return the dca tag for the given cpu (old api)
  * @cpu - the cpuid as returned by get_cpu()
  */
 u8 dca_get_tag(int cpu)
 {
-	if (!global_dca)
-		return -ENODEV;
-	return global_dca->ops->get_tag(global_dca, cpu);
+	struct device *dev = NULL;
+
+	return dca_common_get_tag(dev, cpu);
 }
 EXPORT_SYMBOL_GPL(dca_get_tag);
 
@@ -140,12 +218,10 @@ int register_dca_provider(struct dca_provider *dca, struct device *dev)
 {
 	int err;
 
-	if (global_dca)
-		return -EEXIST;
 	err = dca_sysfs_add_provider(dca, dev);
 	if (err)
 		return err;
-	global_dca = dca;
+	list_add(&dca->node, &dca_providers);
 	blocking_notifier_call_chain(&dca_provider_chain,
 				     DCA_PROVIDER_ADD, NULL);
 	return 0;
@@ -158,11 +234,9 @@ EXPORT_SYMBOL_GPL(register_dca_provider);
  */
 void unregister_dca_provider(struct dca_provider *dca)
 {
-	if (!global_dca)
-		return;
 	blocking_notifier_call_chain(&dca_provider_chain,
 				     DCA_PROVIDER_REMOVE, NULL);
-	global_dca = NULL;
+	list_del(&dca->node);
 	dca_sysfs_remove_provider(dca);
 }
 EXPORT_SYMBOL_GPL(unregister_dca_provider);
@@ -187,6 +261,7 @@ EXPORT_SYMBOL_GPL(dca_unregister_notify);
 
 static int __init dca_init(void)
 {
+	printk(KERN_ERR "dca service started, version %s\n", DCA_VERSION);
 	return dca_sysfs_init();
 }
 

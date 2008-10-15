@@ -31,12 +31,12 @@ const struct file_operations generic_ro_fops = {
 
 EXPORT_SYMBOL(generic_ro_fops);
 
-loff_t generic_file_llseek(struct file *file, loff_t offset, int origin)
+loff_t
+generic_file_llseek_unlocked(struct file *file, loff_t offset, int origin)
 {
 	loff_t retval;
 	struct inode *inode = file->f_mapping->host;
 
-	mutex_lock(&inode->i_mutex);
 	switch (origin) {
 		case SEEK_END:
 			offset += inode->i_size;
@@ -46,42 +46,26 @@ loff_t generic_file_llseek(struct file *file, loff_t offset, int origin)
 	}
 	retval = -EINVAL;
 	if (offset>=0 && offset<=inode->i_sb->s_maxbytes) {
+		/* Special lock needed here? */
 		if (offset != file->f_pos) {
 			file->f_pos = offset;
 			file->f_version = 0;
 		}
 		retval = offset;
 	}
-	mutex_unlock(&inode->i_mutex);
 	return retval;
 }
+EXPORT_SYMBOL(generic_file_llseek_unlocked);
 
-EXPORT_SYMBOL(generic_file_llseek);
-
-loff_t remote_llseek(struct file *file, loff_t offset, int origin)
+loff_t generic_file_llseek(struct file *file, loff_t offset, int origin)
 {
-	loff_t retval;
-
-	lock_kernel();
-	switch (origin) {
-		case SEEK_END:
-			offset += i_size_read(file->f_path.dentry->d_inode);
-			break;
-		case SEEK_CUR:
-			offset += file->f_pos;
-	}
-	retval = -EINVAL;
-	if (offset>=0 && offset<=file->f_path.dentry->d_inode->i_sb->s_maxbytes) {
-		if (offset != file->f_pos) {
-			file->f_pos = offset;
-			file->f_version = 0;
-		}
-		retval = offset;
-	}
-	unlock_kernel();
-	return retval;
+	loff_t n;
+	mutex_lock(&file->f_dentry->d_inode->i_mutex);
+	n = generic_file_llseek_unlocked(file, offset, origin);
+	mutex_unlock(&file->f_dentry->d_inode->i_mutex);
+	return n;
 }
-EXPORT_SYMBOL(remote_llseek);
+EXPORT_SYMBOL(generic_file_llseek);
 
 loff_t no_llseek(struct file *file, loff_t offset, int origin)
 {

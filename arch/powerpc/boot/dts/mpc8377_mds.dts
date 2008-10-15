@@ -117,6 +117,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		device_type = "soc";
+		compatible = "simple-bus";
 		ranges = <0x0 0xe0000000 0x00100000>;
 		reg = <0xe0000000 0x00000200>;
 		bus-frequency = <0>;
@@ -233,41 +234,6 @@
 			interrupt-parent = <&ipic>;
 		};
 
-		crypto@30000 {
-			model = "SEC3";
-			compatible = "talitos";
-			reg = <0x30000 0x10000>;
-			interrupts = <11 0x8>;
-			interrupt-parent = <&ipic>;
-			/* Rev. 3.0 geometry */
-			num-channels = <4>;
-			channel-fifo-len = <24>;
-			exec-units-mask = <0x000001fe>;
-			descriptor-types-mask = <0x03ab0ebf>;
-		};
-
-		sdhc@2e000 {
-			model = "eSDHC";
-			compatible = "fsl,esdhc";
-			reg = <0x2e000 0x1000>;
-			interrupts = <42 0x8>;
-			interrupt-parent = <&ipic>;
-		};
-
-		sata@18000 {
-			compatible = "fsl,mpc8379-sata", "fsl,pq-sata";
-			reg = <0x18000 0x1000>;
-			interrupts = <44 0x8>;
-			interrupt-parent = <&ipic>;
-		};
-
-		sata@19000 {
-			compatible = "fsl,mpc8379-sata", "fsl,pq-sata";
-			reg = <0x19000 0x1000>;
-			interrupts = <45 0x8>;
-			interrupt-parent = <&ipic>;
-		};
-
 		dma@82a8 {
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -301,6 +267,40 @@
 				interrupt-parent = <&ipic>;
 				interrupts = <0x47 8>;
 			};
+		};
+
+		crypto@30000 {
+			compatible = "fsl,sec3.0", "fsl,sec2.4", "fsl,sec2.2",
+				     "fsl,sec2.1", "fsl,sec2.0";
+			reg = <0x30000 0x10000>;
+			interrupts = <11 0x8>;
+			interrupt-parent = <&ipic>;
+			fsl,num-channels = <4>;
+			fsl,channel-fifo-len = <24>;
+			fsl,exec-units-mask = <0x9fe>;
+			fsl,descriptor-types-mask = <0x3ab0ebf>;
+		};
+
+		sdhc@2e000 {
+			model = "eSDHC";
+			compatible = "fsl,esdhc";
+			reg = <0x2e000 0x1000>;
+			interrupts = <42 0x8>;
+			interrupt-parent = <&ipic>;
+		};
+
+		sata@18000 {
+			compatible = "fsl,mpc8379-sata", "fsl,pq-sata";
+			reg = <0x18000 0x1000>;
+			interrupts = <44 0x8>;
+			interrupt-parent = <&ipic>;
+		};
+
+		sata@19000 {
+			compatible = "fsl,mpc8379-sata", "fsl,pq-sata";
+			reg = <0x19000 0x1000>;
+			interrupts = <45 0x8>;
+			interrupt-parent = <&ipic>;
 		};
 
 		/* IPIC

@@ -29,7 +29,6 @@
 #include "main.h"
 #include "tty.h"
 
-#define MAX_OUTGOING_PACKETS_QUEUED   ipwireless_out_queue
 #define MAX_ASSOCIATED_TTYS 2
 
 #define SC_RCV_BITS     (SC_RCV_B7_1|SC_RCV_B7_0|SC_RCV_ODDP|SC_RCV_EVNP)
@@ -46,7 +45,7 @@ struct ipw_network {
 	/* Number of packets queued up in hardware module. */
 	int outgoing_packets_queued;
 	/* Spinlock to avoid interrupts during shutdown */
-	spinlock_t spinlock;
+	spinlock_t lock;
 	struct mutex close_lock;
 
 	/* PPP ioctl data, not actually used anywere */
@@ -68,20 +67,20 @@ static void notify_packet_sent(void *callback_data, unsigned int packet_length)
 	struct ipw_network *network = callback_data;
 	unsigned long flags;
 
-	spin_lock_irqsave(&network->spinlock, flags);
+	spin_lock_irqsave(&network->lock, flags);
 	network->outgoing_packets_queued--;
 	if (network->ppp_channel != NULL) {
 		if (network->ppp_blocked) {
 			network->ppp_blocked = 0;
-			spin_unlock_irqrestore(&network->spinlock, flags);
+			spin_unlock_irqrestore(&network->lock, flags);
 			ppp_output_wakeup(network->ppp_channel);
 			if (ipwireless_debug)
-				printk(KERN_INFO IPWIRELESS_PCCARD_NAME
+				printk(KERN_DEBUG IPWIRELESS_PCCARD_NAME
 				       ": ppp unblocked\n");
 		} else
-			spin_unlock_irqrestore(&network->spinlock, flags);
+			spin_unlock_irqrestore(&network->lock, flags);
 	} else
-		spin_unlock_irqrestore(&network->spinlock, flags);
+		spin_unlock_irqrestore(&network->lock, flags);
 }
 
 /*
@@ -93,8 +92,8 @@ static int ipwireless_ppp_start_xmit(struct ppp_channel *ppp_channel,
 	struct ipw_network *network = ppp_channel->private;
 	unsigned long flags;
 
-	spin_lock_irqsave(&network->spinlock, flags);
-	if (network->outgoing_packets_queued < MAX_OUTGOING_PACKETS_QUEUED) {
+	spin_lock_irqsave(&network->lock, flags);
+	if (network->outgoing_packets_queued < ipwireless_out_queue) {
 		unsigned char *buf;
 		static unsigned char header[] = {
 			PPP_ALLSTATIONS, /* 0xff */
@@ -103,7 +102,7 @@ static int ipwireless_ppp_start_xmit(struct ppp_channel *ppp_channel,
 		int ret;
 
 		network->outgoing_packets_queued++;
-		spin_unlock_irqrestore(&network->spinlock, flags);
+		spin_unlock_irqrestore(&network->lock, flags);
 
 		/*
 		 * If we have the requested amount of headroom in the skb we
@@ -144,7 +143,9 @@ static int ipwireless_ppp_start_xmit(struct ppp_channel *ppp_channel,
 		 * needs to be unblocked once we are ready to send.
 		 */
 		network->ppp_blocked = 1;
-		spin_unlock_irqrestore(&network->spinlock, flags);
+		spin_unlock_irqrestore(&network->lock, flags);
+		if (ipwireless_debug)
+			printk(KERN_DEBUG IPWIRELESS_PCCARD_NAME ": ppp blocked\n");
 		return 0;
 	}
 }
@@ -249,11 +250,11 @@ static void do_go_online(struct work_struct *work_go_online)
 				work_go_online);
 	unsigned long flags;
 
-	spin_lock_irqsave(&network->spinlock, flags);
+	spin_lock_irqsave(&network->lock, flags);
 	if (!network->ppp_channel) {
 		struct ppp_channel *channel;
 
-		spin_unlock_irqrestore(&network->spinlock, flags);
+		spin_unlock_irqrestore(&network->lock, flags);
 		channel = kzalloc(sizeof(struct ppp_channel), GFP_KERNEL);
 		if (!channel) {
 			printk(KERN_ERR IPWIRELESS_PCCARD_NAME
@@ -273,10 +274,10 @@ static void do_go_online(struct work_struct *work_go_online)
 		network->xaccm[3] = 0x60000000U;
 		network->raccm = ~0U;
 		ppp_register_channel(channel);
-		spin_lock_irqsave(&network->spinlock, flags);
+		spin_lock_irqsave(&network->lock, flags);
 		network->ppp_channel = channel;
 	}
-	spin_unlock_irqrestore(&network->spinlock, flags);
+	spin_unlock_irqrestore(&network->lock, flags);
 }
 
 static void do_go_offline(struct work_struct *work_go_offline)
@@ -287,16 +288,16 @@ static void do_go_offline(struct work_struct *work_go_offline)
 	unsigned long flags;
 
 	mutex_lock(&network->close_lock);
-	spin_lock_irqsave(&network->spinlock, flags);
+	spin_lock_irqsave(&network->lock, flags);
 	if (network->ppp_channel != NULL) {
 		struct ppp_channel *channel = network->ppp_channel;
 
 		network->ppp_channel = NULL;
-		spin_unlock_irqrestore(&network->spinlock, flags);
+		spin_unlock_irqrestore(&network->lock, flags);
 		mutex_unlock(&network->close_lock);
 		ppp_unregister_channel(channel);
 	} else {
-		spin_unlock_irqrestore(&network->spinlock, flags);
+		spin_unlock_irqrestore(&network->lock, flags);
 		mutex_unlock(&network->close_lock);
 	}
 }
@@ -381,18 +382,18 @@ void ipwireless_network_packet_received(struct ipw_network *network,
 			 * the PPP layer.
 			 */
 			mutex_lock(&network->close_lock);
-			spin_lock_irqsave(&network->spinlock, flags);
+			spin_lock_irqsave(&network->lock, flags);
 			if (network->ppp_channel != NULL) {
 				struct sk_buff *skb;
 
-				spin_unlock_irqrestore(&network->spinlock,
+				spin_unlock_irqrestore(&network->lock,
 						flags);
 
 				/* Send the data to the ppp_generic module. */
 				skb = ipw_packet_received_skb(data, length);
 				ppp_input(network->ppp_channel, skb);
 			} else
-				spin_unlock_irqrestore(&network->spinlock,
+				spin_unlock_irqrestore(&network->lock,
 						flags);
 			mutex_unlock(&network->close_lock);
 		}
@@ -410,7 +411,7 @@ struct ipw_network *ipwireless_network_create(struct ipw_hardware *hw)
 	if (!network)
 		return NULL;
 
-	spin_lock_init(&network->spinlock);
+	spin_lock_init(&network->lock);
 	mutex_init(&network->close_lock);
 
 	network->hardware = hw;
@@ -478,10 +479,10 @@ int ipwireless_ppp_channel_index(struct ipw_network *network)
 	int ret = -1;
 	unsigned long flags;
 
-	spin_lock_irqsave(&network->spinlock, flags);
+	spin_lock_irqsave(&network->lock, flags);
 	if (network->ppp_channel != NULL)
 		ret = ppp_channel_index(network->ppp_channel);
-	spin_unlock_irqrestore(&network->spinlock, flags);
+	spin_unlock_irqrestore(&network->lock, flags);
 
 	return ret;
 }
@@ -491,10 +492,15 @@ int ipwireless_ppp_unit_number(struct ipw_network *network)
 	int ret = -1;
 	unsigned long flags;
 
-	spin_lock_irqsave(&network->spinlock, flags);
+	spin_lock_irqsave(&network->lock, flags);
 	if (network->ppp_channel != NULL)
 		ret = ppp_unit_number(network->ppp_channel);
-	spin_unlock_irqrestore(&network->spinlock, flags);
+	spin_unlock_irqrestore(&network->lock, flags);
 
 	return ret;
+}
+
+int ipwireless_ppp_mru(const struct ipw_network *network)
+{
+	return network->mru;
 }

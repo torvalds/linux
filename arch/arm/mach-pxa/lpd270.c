@@ -23,12 +23,13 @@
 #include <linux/ioport.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/pwm_backlight.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
 #include <asm/memory.h>
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/sizes.h>
 
@@ -37,19 +38,56 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/flash.h>
 
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
-#include <asm/arch/lpd270.h>
-#include <asm/arch/audio.h>
-#include <asm/arch/pxafb.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/irda.h>
-#include <asm/arch/ohci.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/mfp-pxa27x.h>
+#include <mach/lpd270.h>
+#include <mach/audio.h>
+#include <mach/pxafb.h>
+#include <mach/mmc.h>
+#include <mach/irda.h>
+#include <mach/ohci.h>
 
 #include "generic.h"
 #include "devices.h"
 
+static unsigned long lpd270_pin_config[] __initdata = {
+	/* Chip Selects */
+	GPIO15_nCS_1,	/* Mainboard Flash */
+	GPIO78_nCS_2,	/* CPLD + Ethernet */
+
+	/* LCD - 16bpp Active TFT */
+	GPIO58_LCD_LDD_0,
+	GPIO59_LCD_LDD_1,
+	GPIO60_LCD_LDD_2,
+	GPIO61_LCD_LDD_3,
+	GPIO62_LCD_LDD_4,
+	GPIO63_LCD_LDD_5,
+	GPIO64_LCD_LDD_6,
+	GPIO65_LCD_LDD_7,
+	GPIO66_LCD_LDD_8,
+	GPIO67_LCD_LDD_9,
+	GPIO68_LCD_LDD_10,
+	GPIO69_LCD_LDD_11,
+	GPIO70_LCD_LDD_12,
+	GPIO71_LCD_LDD_13,
+	GPIO72_LCD_LDD_14,
+	GPIO73_LCD_LDD_15,
+	GPIO74_LCD_FCLK,
+	GPIO75_LCD_LCLK,
+	GPIO76_LCD_PCLK,
+	GPIO77_LCD_BIAS,
+	GPIO16_PWM0_OUT,	/* Backlight */
+
+	/* USB Host */
+	GPIO88_USBH1_PWR,
+	GPIO89_USBH1_PEN,
+
+	/* AC97 */
+	GPIO45_AC97_SYSCLK,
+
+	GPIO1_GPIO | WAKEUP_ON_EDGE_BOTH,
+};
 
 static unsigned int lpd270_irq_enabled;
 
@@ -87,8 +125,7 @@ static void lpd270_irq_handler(unsigned int irq, struct irq_desc *desc)
 		GEDR(0) = GPIO_bit(0);  /* clear useless edge notification */
 		if (likely(pending)) {
 			irq = LPD270_IRQ(0) + __ffs(pending);
-			desc = irq_desc + irq;
-			desc_handle_irq(irq, desc);
+			generic_handle_irq(irq);
 
 			pending = __raw_readw(LPD270_INT_STATUS) &
 						lpd270_irq_enabled;
@@ -112,7 +149,7 @@ static void __init lpd270_init_irq(void)
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 	set_irq_chained_handler(IRQ_GPIO(0), lpd270_irq_handler);
-	set_irq_type(IRQ_GPIO(0), IRQT_FALLING);
+	set_irq_type(IRQ_GPIO(0), IRQ_TYPE_EDGE_FALLING);
 }
 
 
@@ -134,9 +171,12 @@ static struct sys_device lpd270_irq_device = {
 
 static int __init lpd270_irq_device_init(void)
 {
-	int ret = sysdev_class_register(&lpd270_irq_sysclass);
-	if (ret == 0)
-		ret = sysdev_register(&lpd270_irq_device);
+	int ret = -ENODEV;
+	if (machine_is_logicpd_pxa270()) {
+		ret = sysdev_class_register(&lpd270_irq_sysclass);
+		if (ret == 0)
+			ret = sysdev_register(&lpd270_irq_device);
+	}
 	return ret;
 }
 
@@ -162,11 +202,6 @@ static struct platform_device smc91x_device = {
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(smc91x_resources),
 	.resource	= smc91x_resources,
-};
-
-static struct platform_device lpd270_audio_device = {
-	.name		= "pxa2xx-ac97",
-	.id		= -1,
 };
 
 static struct resource lpd270_flash_resources[] = {
@@ -233,21 +268,20 @@ static struct platform_device lpd270_flash_device[2] = {
 	},
 };
 
-static void lpd270_backlight_power(int on)
-{
-	if (on) {
-		pxa_gpio_mode(GPIO16_PWM0_MD);
-		pxa_set_cken(CKEN_PWM0, 1);
-		PWM_CTRL0 = 0;
-		PWM_PWDUTY0 = 0x3ff;
-		PWM_PERVAL0 = 0x3ff;
-	} else {
-		PWM_CTRL0 = 0;
-		PWM_PWDUTY0 = 0x0;
-		PWM_PERVAL0 = 0x3FF;
-		pxa_set_cken(CKEN_PWM0, 0);
-	}
-}
+static struct platform_pwm_backlight_data lpd270_backlight_data = {
+	.pwm_id		= 0,
+	.max_brightness	= 1,
+	.dft_brightness	= 1,
+	.pwm_period_ns	= 78770,
+};
+
+static struct platform_device lpd270_backlight_device = {
+	.name		= "pwm-backlight",
+	.dev		= {
+		.parent	= &pxa27x_device_pwm0.dev,
+		.platform_data = &lpd270_backlight_data,
+	},
+};
 
 /* 5.7" TFT QVGA (LoLo display number 1) */
 static struct pxafb_mode_info sharp_lq057q3dc02_mode = {
@@ -267,9 +301,8 @@ static struct pxafb_mode_info sharp_lq057q3dc02_mode = {
 static struct pxafb_mach_info sharp_lq057q3dc02 = {
 	.modes			= &sharp_lq057q3dc02_mode,
 	.num_modes		= 1,
-	.lccr0			= 0x07800080,
-	.lccr3			= 0x00400000,
-	.pxafb_backlight_power	= lpd270_backlight_power,
+	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL |
+				  LCD_ALTERNATE_MAPPING,
 };
 
 /* 12.1" TFT SVGA (LoLo display number 2) */
@@ -290,9 +323,8 @@ static struct pxafb_mode_info sharp_lq121s1dg31_mode = {
 static struct pxafb_mach_info sharp_lq121s1dg31 = {
 	.modes			= &sharp_lq121s1dg31_mode,
 	.num_modes		= 1,
-	.lccr0			= 0x07800080,
-	.lccr3			= 0x00400000,
-	.pxafb_backlight_power	= lpd270_backlight_power,
+	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL |
+				  LCD_ALTERNATE_MAPPING,
 };
 
 /* 3.6" TFT QVGA (LoLo display number 3) */
@@ -313,9 +345,8 @@ static struct pxafb_mode_info sharp_lq036q1da01_mode = {
 static struct pxafb_mach_info sharp_lq036q1da01 = {
 	.modes			= &sharp_lq036q1da01_mode,
 	.num_modes		= 1,
-	.lccr0			= 0x07800080,
-	.lccr3			= 0x00400000,
-	.pxafb_backlight_power	= lpd270_backlight_power,
+	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL |
+				  LCD_ALTERNATE_MAPPING,
 };
 
 /* 6.4" TFT VGA (LoLo display number 5) */
@@ -336,9 +367,8 @@ static struct pxafb_mode_info sharp_lq64d343_mode = {
 static struct pxafb_mach_info sharp_lq64d343 = {
 	.modes			= &sharp_lq64d343_mode,
 	.num_modes		= 1,
-	.lccr0			= 0x07800080,
-	.lccr3			= 0x00400000,
-	.pxafb_backlight_power	= lpd270_backlight_power,
+	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL |
+				  LCD_ALTERNATE_MAPPING,
 };
 
 /* 10.4" TFT VGA (LoLo display number 7) */
@@ -359,9 +389,8 @@ static struct pxafb_mode_info sharp_lq10d368_mode = {
 static struct pxafb_mach_info sharp_lq10d368 = {
 	.modes			= &sharp_lq10d368_mode,
 	.num_modes		= 1,
-	.lccr0			= 0x07800080,
-	.lccr3			= 0x00400000,
-	.pxafb_backlight_power	= lpd270_backlight_power,
+	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL |
+				  LCD_ALTERNATE_MAPPING,
 };
 
 /* 3.5" TFT QVGA (LoLo display number 8) */
@@ -382,9 +411,8 @@ static struct pxafb_mode_info sharp_lq035q7db02_20_mode = {
 static struct pxafb_mach_info sharp_lq035q7db02_20 = {
 	.modes			= &sharp_lq035q7db02_20_mode,
 	.num_modes		= 1,
-	.lccr0			= 0x07800080,
-	.lccr3			= 0x00400000,
-	.pxafb_backlight_power	= lpd270_backlight_power,
+	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL |
+				  LCD_ALTERNATE_MAPPING,
 };
 
 static struct pxafb_mach_info *lpd270_lcd_to_use;
@@ -414,32 +442,20 @@ __setup("lcd=", lpd270_set_lcd);
 
 static struct platform_device *platform_devices[] __initdata = {
 	&smc91x_device,
-	&lpd270_audio_device,
+	&lpd270_backlight_device,
 	&lpd270_flash_device[0],
 	&lpd270_flash_device[1],
 };
 
-static int lpd270_ohci_init(struct device *dev)
-{
-	/* setup Port1 GPIO pin. */
-	pxa_gpio_mode(88 | GPIO_ALT_FN_1_IN);	/* USBHPWR1 */
-	pxa_gpio_mode(89 | GPIO_ALT_FN_2_OUT);	/* USBHPEN1 */
-
-	/* Set the Power Control Polarity Low and Power Sense
-	   Polarity Low to active low. */
-	UHCHR = (UHCHR | UHCHR_PCPL | UHCHR_PSPL) &
-		~(UHCHR_SSEP1 | UHCHR_SSEP2 | UHCHR_SSEP3 | UHCHR_SSE);
-
-	return 0;
-}
-
 static struct pxaohci_platform_data lpd270_ohci_platform_data = {
 	.port_mode	= PMM_PERPORT_MODE,
-	.init		= lpd270_ohci_init,
+	.flags		= ENABLE_PORT_ALL | POWER_CONTROL_LOW | POWER_SENSE_LOW,
 };
 
 static void __init lpd270_init(void)
 {
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(lpd270_pin_config));
+
 	lpd270_flash_data[0].width = (BOOT_DEF & 1) ? 2 : 4;
 	lpd270_flash_data[1].width = 4;
 
@@ -450,12 +466,9 @@ static void __init lpd270_init(void)
 	 */
 	ARB_CNTRL = ARB_CORE_PARK | 0x234;
 
-	/*
-	 * On LogicPD PXA270, we route AC97_SYSCLK via GPIO45.
-	 */
-	pxa_gpio_mode(GPIO45_SYSCLK_AC97_MD);
-
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+
+	pxa_set_ac97_info(NULL);
 
 	if (lpd270_lcd_to_use != NULL)
 		set_pxa_fb_info(lpd270_lcd_to_use);
@@ -477,15 +490,6 @@ static void __init lpd270_map_io(void)
 {
 	pxa_map_io();
 	iotable_init(lpd270_io_desc, ARRAY_SIZE(lpd270_io_desc));
-
-	/* initialize sleep mode regs (wake-up sources, etc) */
-	PGSR0 = 0x00008800;
-	PGSR1 = 0x00000002;
-	PGSR2 = 0x0001FC00;
-	PGSR3 = 0x00001F81;
-	PWER  = 0xC0000002;
-	PRER  = 0x00000002;
-	PFER  = 0x00000002;
 
 	/* for use I SRAM as framebuffer.  */
 	PSLR |= 0x00000F04;

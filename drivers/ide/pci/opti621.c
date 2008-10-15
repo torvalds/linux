@@ -85,10 +85,11 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 
 #include <asm/io.h>
+
+#define DRV_NAME "opti621"
 
 #define READ_REG 0	/* index of Read cycle timing register */
 #define WRITE_REG 1	/* index of Write cycle timing register */
@@ -135,7 +136,7 @@ static u8 read_reg(int reg)
 static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	ide_drive_t *pair = ide_get_paired_drive(drive);
+	ide_drive_t *pair = ide_get_pair_dev(drive);
 	unsigned long flags;
 	u8 tim, misc, addr_pio = pio, clk;
 
@@ -151,7 +152,7 @@ static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 	drive->drive_data = XFER_PIO_0 + pio;
 
-	if (pair->present) {
+	if (pair) {
 		if (pair->drive_data && pair->drive_data < drive->drive_data)
 			addr_pio = pair->drive_data - XFER_PIO_0;
 	}
@@ -178,7 +179,7 @@ static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	misc = addr_timings[clk][addr_pio];
 
 	/* select Index-0/1 for Register-A/B */
-	write_reg(drive->select.b.unit, MISC_REG);
+	write_reg(drive->dn & 1, MISC_REG);
 	/* set read cycle timings */
 	write_reg(tim, READ_REG);
 	/* set write cycle timings */
@@ -200,7 +201,7 @@ static const struct ide_port_ops opti621_port_ops = {
 };
 
 static const struct ide_port_info opti621_chipset __devinitdata = {
-	.name		= "OPTI621/X",
+	.name		= DRV_NAME,
 	.enablebits	= { {0x45, 0x80, 0x00}, {0x40, 0x08, 0x00} },
 	.port_ops	= &opti621_port_ops,
 	.host_flags	= IDE_HFLAG_NO_DMA,
@@ -209,7 +210,7 @@ static const struct ide_port_info opti621_chipset __devinitdata = {
 
 static int __devinit opti621_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return ide_setup_pci_device(dev, &opti621_chipset);
+	return ide_pci_init_one(dev, &opti621_chipset, NULL);
 }
 
 static const struct pci_device_id opti621_pci_tbl[] = {
@@ -219,18 +220,27 @@ static const struct pci_device_id opti621_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, opti621_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver opti621_pci_driver = {
 	.name		= "Opti621_IDE",
 	.id_table	= opti621_pci_tbl,
 	.probe		= opti621_init_one,
+	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init opti621_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&opti621_pci_driver);
+}
+
+static void __exit opti621_ide_exit(void)
+{
+	pci_unregister_driver(&opti621_pci_driver);
 }
 
 module_init(opti621_ide_init);
+module_exit(opti621_ide_exit);
 
 MODULE_AUTHOR("Jaromir Koutek, Jan Harkes, Mark Lord");
 MODULE_DESCRIPTION("PCI driver module for Opti621 IDE");

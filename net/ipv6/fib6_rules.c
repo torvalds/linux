@@ -93,7 +93,8 @@ static int fib6_rule_action(struct fib_rule *rule, struct flowi *flp,
 			if (flags & RT6_LOOKUP_F_SRCPREF_COA)
 				srcprefs |= IPV6_PREFER_SRC_COA;
 
-			if (ipv6_dev_get_saddr(ip6_dst_idev(&rt->u.dst)->dev,
+			if (ipv6_dev_get_saddr(net,
+					       ip6_dst_idev(&rt->u.dst)->dev,
 					       &flp->fl6_dst, srcprefs,
 					       &saddr))
 				goto again;

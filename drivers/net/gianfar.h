@@ -77,13 +77,8 @@ extern const char gfar_driver_name[];
 extern const char gfar_driver_version[];
 
 /* These need to be powers of 2 for this driver */
-#ifdef CONFIG_GFAR_NAPI
 #define DEFAULT_TX_RING_SIZE	256
 #define DEFAULT_RX_RING_SIZE	256
-#else
-#define DEFAULT_TX_RING_SIZE    64
-#define DEFAULT_RX_RING_SIZE    64
-#endif
 
 #define GFAR_RX_MAX_RING_SIZE   256
 #define GFAR_TX_MAX_RING_SIZE   256
@@ -128,14 +123,8 @@ extern const char gfar_driver_version[];
 
 #define DEFAULT_RXTIME	21
 
-/* Non NAPI Case */
-#ifndef CONFIG_GFAR_NAPI
-#define DEFAULT_RX_COALESCE 1
-#define DEFAULT_RXCOUNT	16
-#else
 #define DEFAULT_RX_COALESCE 0
 #define DEFAULT_RXCOUNT	0
-#endif /* CONFIG_GFAR_NAPI */
 
 #define MIIMCFG_INIT_VALUE	0x00000007
 #define MIIMCFG_RESET           0x80000000
@@ -168,6 +157,7 @@ extern const char gfar_driver_version[];
 #define MACCFG2_GMII            0x00000200
 #define MACCFG2_HUGEFRAME	0x00000020
 #define MACCFG2_LENGTHCHECK	0x00000010
+#define MACCFG2_MPEN		0x00000008
 
 #define ECNTRL_INIT_SETTINGS	0x00001000
 #define ECNTRL_TBI_MODE         0x00000020
@@ -240,6 +230,7 @@ extern const char gfar_driver_version[];
 #define IEVENT_CRL		0x00020000
 #define IEVENT_XFUN		0x00010000
 #define IEVENT_RXB0		0x00008000
+#define IEVENT_MAG		0x00000800
 #define IEVENT_GRSC		0x00000100
 #define IEVENT_RXF0		0x00000080
 #define IEVENT_FIR		0x00000008
@@ -252,7 +243,8 @@ extern const char gfar_driver_version[];
 #define IEVENT_ERR_MASK         \
 (IEVENT_RXC | IEVENT_BSY | IEVENT_EBERR | IEVENT_MSRO | \
  IEVENT_BABT | IEVENT_TXC | IEVENT_TXE | IEVENT_LC \
- | IEVENT_CRL | IEVENT_XFUN | IEVENT_DPE | IEVENT_PERR)
+ | IEVENT_CRL | IEVENT_XFUN | IEVENT_DPE | IEVENT_PERR \
+ | IEVENT_MAG)
 
 #define IMASK_INIT_CLEAR	0x00000000
 #define IMASK_BABR              0x80000000
@@ -270,6 +262,7 @@ extern const char gfar_driver_version[];
 #define IMASK_CRL		0x00020000
 #define IMASK_XFUN		0x00010000
 #define IMASK_RXB0              0x00008000
+#define IMASK_MAG		0x00000800
 #define IMASK_GTSC              0x00000100
 #define IMASK_RXFEN0		0x00000080
 #define IMASK_FIR		0x00000008
@@ -737,10 +730,14 @@ struct gfar_private {
 	unsigned int fifo_starve;
 	unsigned int fifo_starve_off;
 
+	/* Bitfield update lock */
+	spinlock_t bflock;
+
 	unsigned char vlan_enable:1,
 		rx_csum_enable:1,
 		extended_hash:1,
-		bd_stash_en:1;
+		bd_stash_en:1,
+		wol_en:1; /* Wake-on-LAN enabled */
 	unsigned short padding;
 
 	unsigned int interruptTransmit;
@@ -759,6 +756,7 @@ struct gfar_private {
 
 	uint32_t msg_enable;
 
+	struct work_struct reset_task;
 	/* Network Statistics */
 	struct gfar_extra_stats extra_stats;
 };

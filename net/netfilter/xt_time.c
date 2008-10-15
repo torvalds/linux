@@ -136,26 +136,26 @@ static void localtime_3(struct xtm *r, time_t time)
 	 * from w repeatedly while counting.)
 	 */
 	if (is_leap(year)) {
+		/* use days_since_leapyear[] in a leap year */
 		for (i = ARRAY_SIZE(days_since_leapyear) - 1;
-		    i > 0 && days_since_year[i] > w; --i)
+		    i > 0 && days_since_leapyear[i] > w; --i)
 			/* just loop */;
+		r->monthday = w - days_since_leapyear[i] + 1;
 	} else {
 		for (i = ARRAY_SIZE(days_since_year) - 1;
 		    i > 0 && days_since_year[i] > w; --i)
 			/* just loop */;
+		r->monthday = w - days_since_year[i] + 1;
 	}
 
 	r->month    = i + 1;
-	r->monthday = w - days_since_year[i] + 1;
 	return;
 }
 
 static bool
-time_mt(const struct sk_buff *skb, const struct net_device *in,
-        const struct net_device *out, const struct xt_match *match,
-        const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
+time_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_time_info *info = matchinfo;
+	const struct xt_time_info *info = par->matchinfo;
 	unsigned int packet_time;
 	struct xtm current_time;
 	s64 stamp;
@@ -173,7 +173,7 @@ time_mt(const struct sk_buff *skb, const struct net_device *in,
 		__net_timestamp((struct sk_buff *)skb);
 
 	stamp = ktime_to_ns(skb->tstamp);
-	do_div(stamp, NSEC_PER_SEC);
+	stamp = div_s64(stamp, NSEC_PER_SEC);
 
 	if (info->flags & XT_TIME_LOCAL_TZ)
 		/* Adjust for local timezone */
@@ -218,12 +218,9 @@ time_mt(const struct sk_buff *skb, const struct net_device *in,
 	return true;
 }
 
-static bool
-time_mt_check(const char *tablename, const void *ip,
-              const struct xt_match *match, void *matchinfo,
-              unsigned int hook_mask)
+static bool time_mt_check(const struct xt_mtchk_param *par)
 {
-	const struct xt_time_info *info = matchinfo;
+	const struct xt_time_info *info = par->matchinfo;
 
 	if (info->daytime_start > XT_TIME_MAX_DAYTIME ||
 	    info->daytime_stop > XT_TIME_MAX_DAYTIME) {
@@ -235,33 +232,23 @@ time_mt_check(const char *tablename, const void *ip,
 	return true;
 }
 
-static struct xt_match time_mt_reg[] __read_mostly = {
-	{
-		.name       = "time",
-		.family     = AF_INET,
-		.match      = time_mt,
-		.matchsize  = sizeof(struct xt_time_info),
-		.checkentry = time_mt_check,
-		.me         = THIS_MODULE,
-	},
-	{
-		.name       = "time",
-		.family     = AF_INET6,
-		.match      = time_mt,
-		.matchsize  = sizeof(struct xt_time_info),
-		.checkentry = time_mt_check,
-		.me         = THIS_MODULE,
-	},
+static struct xt_match xt_time_mt_reg __read_mostly = {
+	.name       = "time",
+	.family     = NFPROTO_UNSPEC,
+	.match      = time_mt,
+	.checkentry = time_mt_check,
+	.matchsize  = sizeof(struct xt_time_info),
+	.me         = THIS_MODULE,
 };
 
 static int __init time_mt_init(void)
 {
-	return xt_register_matches(time_mt_reg, ARRAY_SIZE(time_mt_reg));
+	return xt_register_match(&xt_time_mt_reg);
 }
 
 static void __exit time_mt_exit(void)
 {
-	xt_unregister_matches(time_mt_reg, ARRAY_SIZE(time_mt_reg));
+	xt_unregister_match(&xt_time_mt_reg);
 }
 
 module_init(time_mt_init);

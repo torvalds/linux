@@ -1,11 +1,9 @@
 # sound/Config.in
 #
 
-menu "Sound"
-	depends on HAS_IOMEM
-
-config SOUND
+menuconfig SOUND
 	tristate "Sound card support"
+	depends on HAS_IOMEM
 	help
 	  If you have a sound card in your computer, i.e. if it can say more
 	  than an occasional beep, say Y.  Be sure to have all the information
@@ -28,21 +26,25 @@ config SOUND
 	  and read <file:Documentation/sound/oss/README.modules>; the module
 	  will be called soundcore.
 
+if SOUND
+
+config SOUND_OSS_CORE
+	bool
+	default n
+
 source "sound/oss/dmasound/Kconfig"
 
 if !M68K
 
-menu "Advanced Linux Sound Architecture"
-	depends on SOUND!=n
-
-config SND
+menuconfig SND
 	tristate "Advanced Linux Sound Architecture"
-	depends on SOUND
 	help
 	  Say 'Y' or 'M' to enable ALSA (Advanced Linux Sound Architecture),
 	  the new base sound system.
 
 	  For more information, see <http://www.alsa-project.org/>
+
+if SND
 
 source "sound/core/Kconfig"
 
@@ -58,9 +60,7 @@ source "sound/aoa/Kconfig"
 
 source "sound/arm/Kconfig"
 
-if SPI
 source "sound/spi/Kconfig"
-endif
 
 source "sound/mips/Kconfig"
 
@@ -80,23 +80,25 @@ source "sound/parisc/Kconfig"
 
 source "sound/soc/Kconfig"
 
-endmenu
+endif # SND
 
-menu "Open Sound System"
-	depends on SOUND!=n
-
-config SOUND_PRIME
+menuconfig SOUND_PRIME
 	tristate "Open Sound System (DEPRECATED)"
-	depends on SOUND
+	select SOUND_OSS_CORE
 	help
 	  Say 'Y' or 'M' to enable Open Sound System drivers.
 
+if SOUND_PRIME
+
 source "sound/oss/Kconfig"
 
-endmenu
+endif # SOUND_PRIME
 
-endif
+endif # !M68K
 
+endif # SOUND
+
+# AC97_BUS is used from both sound and ucb1400
 config AC97_BUS
 	tristate
 	help
@@ -105,4 +107,3 @@ config AC97_BUS
 	  sound although they're sharing the AC97 bus. Concerned drivers
 	  should "select" this.
 
-endmenu

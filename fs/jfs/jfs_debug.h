@@ -62,7 +62,7 @@ extern void jfs_proc_clean(void);
 
 extern int jfsloglevel;
 
-extern int jfs_txanchor_read(char *, char **, off_t, int, int *, void *);
+extern const struct file_operations jfs_txanchor_proc_fops;
 
 /* information message: e.g., configuration, major event */
 #define jfs_info(fmt, arg...) do {			\
@@ -105,10 +105,10 @@ extern int jfs_txanchor_read(char *, char **, off_t, int, int *, void *);
  *	----------
  */
 #ifdef	CONFIG_JFS_STATISTICS
-extern int jfs_lmstats_read(char *, char **, off_t, int, int *, void *);
-extern int jfs_txstats_read(char *, char **, off_t, int, int *, void *);
-extern int jfs_mpstat_read(char *, char **, off_t, int, int *, void *);
-extern int jfs_xtstat_read(char *, char **, off_t, int, int *, void *);
+extern const struct file_operations jfs_lmstats_proc_fops;
+extern const struct file_operations jfs_txstats_proc_fops;
+extern const struct file_operations jfs_mpstat_proc_fops;
+extern const struct file_operations jfs_xtstat_proc_fops;
 
 #define	INCREMENT(x)		((x)++)
 #define	DECREMENT(x)		((x)--)

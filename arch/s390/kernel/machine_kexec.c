@@ -52,7 +52,6 @@ void machine_kexec_cleanup(struct kimage *image)
 
 void machine_shutdown(void)
 {
-	printk(KERN_INFO "kexec: machine_shutdown called\n");
 }
 
 void machine_kexec(struct kimage *image)

@@ -34,7 +34,6 @@ int lbs_process_event(struct lbs_private *priv, u32 event);
 void lbs_queue_event(struct lbs_private *priv, u32 event);
 void lbs_notify_command_response(struct lbs_private *priv, u8 resp_idx);
 
-int lbs_set_radio_control(struct lbs_private *priv);
 u32 lbs_fw_index_to_data_rate(u8 index);
 u8 lbs_data_rate_to_fw_index(u32 rate);
 
@@ -60,13 +59,17 @@ void lbs_mac_event_disconnected(struct lbs_private *priv);
 
 void lbs_send_iwevcustom_event(struct lbs_private *priv, s8 *str);
 
+/* persistcfg.c */
+void lbs_persist_config_init(struct net_device *net);
+void lbs_persist_config_remove(struct net_device *net);
+
 /* main.c */
 struct chan_freq_power *lbs_get_region_cfp_table(u8 region,
 	int *cfp_no);
 struct lbs_private *lbs_add_card(void *card, struct device *dmdev);
-int lbs_remove_card(struct lbs_private *priv);
+void lbs_remove_card(struct lbs_private *priv);
 int lbs_start_card(struct lbs_private *priv);
-int lbs_stop_card(struct lbs_private *priv);
+void lbs_stop_card(struct lbs_private *priv);
 void lbs_host_to_card_done(struct lbs_private *priv);
 
 int lbs_update_channel(struct lbs_private *priv);

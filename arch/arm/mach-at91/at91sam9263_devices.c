@@ -19,11 +19,11 @@
 #include <linux/fb.h>
 #include <video/atmel_lcdc.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/at91sam9263.h>
-#include <asm/arch/at91sam9263_matrix.h>
-#include <asm/arch/at91sam9_smc.h>
+#include <mach/board.h>
+#include <mach/gpio.h>
+#include <mach/at91sam9263.h>
+#include <mach/at91sam9263_matrix.h>
+#include <mach/at91sam9_smc.h>
 
 #include "generic.h"
 
@@ -352,8 +352,8 @@ void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data) {}
  *  NAND / SmartMedia
  * -------------------------------------------------------------------- */
 
-#if defined(CONFIG_MTD_NAND_AT91) || defined(CONFIG_MTD_NAND_AT91_MODULE)
-static struct at91_nand_data nand_data;
+#if defined(CONFIG_MTD_NAND_ATMEL) || defined(CONFIG_MTD_NAND_ATMEL_MODULE)
+static struct atmel_nand_data nand_data;
 
 #define NAND_BASE	AT91_CHIPSELECT_3
 
@@ -371,7 +371,7 @@ static struct resource nand_resources[] = {
 };
 
 static struct platform_device at91sam9263_nand_device = {
-	.name		= "at91_nand",
+	.name		= "atmel_nand",
 	.id		= -1,
 	.dev		= {
 				.platform_data	= &nand_data,
@@ -380,7 +380,7 @@ static struct platform_device at91sam9263_nand_device = {
 	.num_resources	= ARRAY_SIZE(nand_resources),
 };
 
-void __init at91_add_device_nand(struct at91_nand_data *data)
+void __init at91_add_device_nand(struct atmel_nand_data *data)
 {
 	unsigned long csa, mode;
 
@@ -391,8 +391,8 @@ void __init at91_add_device_nand(struct at91_nand_data *data)
 	at91_sys_write(AT91_MATRIX_EBI0CSA, csa | AT91_MATRIX_EBI0_CS3A_SMC_SMARTMEDIA);
 
 	/* set the bus interface characteristics */
-	at91_sys_write(AT91_SMC_SETUP(3), AT91_SMC_NWESETUP_(0) | AT91_SMC_NCS_WRSETUP_(0)
-			| AT91_SMC_NRDSETUP_(0) | AT91_SMC_NCS_RDSETUP_(0));
+	at91_sys_write(AT91_SMC_SETUP(3), AT91_SMC_NWESETUP_(1) | AT91_SMC_NCS_WRSETUP_(0)
+			| AT91_SMC_NRDSETUP_(1) | AT91_SMC_NCS_RDSETUP_(0));
 
 	at91_sys_write(AT91_SMC_PULSE(3), AT91_SMC_NWEPULSE_(3) | AT91_SMC_NCS_WRPULSE_(3)
 			| AT91_SMC_NRDPULSE_(3) | AT91_SMC_NCS_RDPULSE_(3));
@@ -421,7 +421,7 @@ void __init at91_add_device_nand(struct at91_nand_data *data)
 	platform_device_register(&at91sam9263_nand_device);
 }
 #else
-void __init at91_add_device_nand(struct at91_nand_data *data) {}
+void __init at91_add_device_nand(struct atmel_nand_data *data) {}
 #endif
 
 
@@ -882,6 +882,59 @@ static void __init at91_add_device_watchdog(void)
 }
 #else
 static void __init at91_add_device_watchdog(void) {}
+#endif
+
+
+/* --------------------------------------------------------------------
+ *  PWM
+ * --------------------------------------------------------------------*/
+
+#if defined(CONFIG_ATMEL_PWM)
+static u32 pwm_mask;
+
+static struct resource pwm_resources[] = {
+	[0] = {
+		.start	= AT91SAM9263_BASE_PWMC,
+		.end	= AT91SAM9263_BASE_PWMC + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91SAM9263_ID_PWMC,
+		.end	= AT91SAM9263_ID_PWMC,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at91sam9263_pwm0_device = {
+	.name	= "atmel_pwm",
+	.id	= -1,
+	.dev	= {
+		.platform_data		= &pwm_mask,
+	},
+	.resource	= pwm_resources,
+	.num_resources	= ARRAY_SIZE(pwm_resources),
+};
+
+void __init at91_add_device_pwm(u32 mask)
+{
+	if (mask & (1 << AT91_PWM0))
+		at91_set_B_periph(AT91_PIN_PB7, 1);	/* enable PWM0 */
+
+	if (mask & (1 << AT91_PWM1))
+		at91_set_B_periph(AT91_PIN_PB8, 1);	/* enable PWM1 */
+
+	if (mask & (1 << AT91_PWM2))
+		at91_set_B_periph(AT91_PIN_PC29, 1);	/* enable PWM2 */
+
+	if (mask & (1 << AT91_PWM3))
+		at91_set_B_periph(AT91_PIN_PB29, 1);	/* enable PWM3 */
+
+	pwm_mask = mask;
+
+	platform_device_register(&at91sam9263_pwm0_device);
+}
+#else
+void __init at91_add_device_pwm(u32 mask) {}
 #endif
 
 

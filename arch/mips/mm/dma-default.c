@@ -348,7 +348,7 @@ void dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nele
 
 EXPORT_SYMBOL(dma_sync_sg_for_device);
 
-int dma_mapping_error(dma_addr_t dma_addr)
+int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
 	return 0;
 }

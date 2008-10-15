@@ -16,9 +16,7 @@ CONFIG_MIPS=y
 # CONFIG_MACH_JAZZ is not set
 # CONFIG_LASAT is not set
 # CONFIG_LEMOTE_FULONG is not set
-# CONFIG_MIPS_ATLAS is not set
 # CONFIG_MIPS_MALTA is not set
-# CONFIG_MIPS_SEAD is not set
 CONFIG_MIPS_SIM=y
 # CONFIG_MARKEINS is not set
 # CONFIG_MACH_VR41XX is not set

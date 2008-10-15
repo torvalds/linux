@@ -22,10 +22,10 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <asm/io.h>
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 #include <asm/sizes.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/board-ams-delta.h>
+#include <mach/gpio.h>
+#include <mach/board-ams-delta.h>
 
 /*
  * MTD structure for E3 (Delta)

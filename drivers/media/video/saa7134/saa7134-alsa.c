@@ -80,7 +80,6 @@ typedef struct snd_card_saa7134 {
 } snd_card_saa7134_t;
 
 
-
 /*
  * PCM structure
  */
@@ -489,10 +488,12 @@ static int snd_card_saa7134_hw_params(struct snd_pcm_substream * substream,
 	period_size = params_period_bytes(hw_params);
 	periods = params_periods(hw_params);
 
-	snd_assert(period_size >= 0x100 && period_size <= 0x10000,
-		   return -EINVAL);
-	snd_assert(periods >= 4, return -EINVAL);
-	snd_assert(period_size * periods <= 1024 * 1024, return -EINVAL);
+	if (period_size < 0x100 || period_size > 0x10000)
+		return -EINVAL;
+	if (periods < 4)
+		return -EINVAL;
+	if (period_size * periods > 1024 * 1024)
+		return -EINVAL;
 
 	dev = saa7134->dev;
 
@@ -613,9 +614,15 @@ static int snd_card_saa7134_capture_open(struct snd_pcm_substream * substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_card_saa7134_pcm_t *pcm;
 	snd_card_saa7134_t *saa7134 = snd_pcm_substream_chip(substream);
-	struct saa7134_dev *dev = saa7134->dev;
+	struct saa7134_dev *dev;
 	int amux, err;
 
+	if (!saa7134) {
+		printk(KERN_ERR "BUG: saa7134 can't find device struct."
+				" Can't proceed with open\n");
+		return -ENODEV;
+	}
+	dev = saa7134->dev;
 	mutex_lock(&dev->dmasound.lock);
 
 	dev->dmasound.read_count  = 0;
@@ -937,7 +944,8 @@ static int snd_card_saa7134_new_mixer(snd_card_saa7134_t * chip)
 	unsigned int idx;
 	int err;
 
-	snd_assert(chip != NULL, return -EINVAL);
+	if (snd_BUG_ON(!chip))
+		return -EINVAL;
 	strcpy(card->mixername, "SAA7134 Mixer");
 
 	for (idx = 0; idx < ARRAY_SIZE(snd_saa7134_controls); idx++) {
@@ -1115,6 +1123,3 @@ late_initcall(saa7134_alsa_init);
 module_exit(saa7134_alsa_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ricardo Cerqueira");
-
-
-

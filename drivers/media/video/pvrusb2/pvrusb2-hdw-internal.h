@@ -1,6 +1,5 @@
 /*
  *
- *  $Id$
  *
  *  Copyright (C) 2005 Mike Isely <isely@pobox.com>
  *
@@ -83,6 +82,7 @@ struct pvr2_ctl_info {
 
 	/* Control's implementation */
 	pvr2_ctlf_get_value get_value;      /* Get its value */
+	pvr2_ctlf_get_value get_def_value;  /* Get its default value */
 	pvr2_ctlf_get_value get_min_value;  /* Get minimum allowed value */
 	pvr2_ctlf_get_value get_max_value;  /* Get maximum allowed value */
 	pvr2_ctlf_set_value set_value;      /* Set its value */
@@ -308,6 +308,10 @@ struct pvr2_hdw {
 	struct v4l2_tuner tuner_signal_info;
 	int tuner_signal_stale;
 
+	/* Cropping capability info */
+	struct v4l2_cropcap cropcap_info;
+	int cropcap_stale;
+
 	/* Video standard handling */
 	v4l2_std_id std_mask_eeprom; // Hardware supported selections
 	v4l2_std_id std_mask_avail;  // Which standards we may select from
@@ -368,6 +372,10 @@ struct pvr2_hdw {
 	VCREATE_DATA(bass);
 	VCREATE_DATA(treble);
 	VCREATE_DATA(mute);
+	VCREATE_DATA(cropl);
+	VCREATE_DATA(cropt);
+	VCREATE_DATA(cropw);
+	VCREATE_DATA(croph);
 	VCREATE_DATA(input);
 	VCREATE_DATA(audiomode);
 	VCREATE_DATA(res_hor);

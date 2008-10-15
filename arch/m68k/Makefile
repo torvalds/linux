@@ -13,7 +13,7 @@
 # Copyright (C) 1994 by Hamish Macdonald
 #
 
-KBUILD_DEFCONFIG := amiga_defconfig
+KBUILD_DEFCONFIG := multi_defconfig
 
 # override top level makefile
 AS += -m68020

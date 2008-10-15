@@ -81,6 +81,7 @@ static int iwch_poll_cq_one(struct iwch_dev *rhp, struct iwch_cq *chp,
 	wc->wr_id = cookie;
 	wc->qp = &qhp->ibqp;
 	wc->vendor_err = CQE_STATUS(cqe);
+	wc->wc_flags = 0;
 
 	PDBG("%s qpid 0x%x type %d opcode %d status 0x%x wrid hi 0x%x "
 	     "lo 0x%x cookie 0x%llx\n", __func__,
@@ -94,6 +95,11 @@ static int iwch_poll_cq_one(struct iwch_dev *rhp, struct iwch_cq *chp,
 		else
 			wc->byte_len = 0;
 		wc->opcode = IB_WC_RECV;
+		if (CQE_OPCODE(cqe) == T3_SEND_WITH_INV ||
+		    CQE_OPCODE(cqe) == T3_SEND_WITH_SE_INV) {
+			wc->ex.invalidate_rkey = CQE_WRID_STAG(cqe);
+			wc->wc_flags |= IB_WC_WITH_INVALIDATE;
+		}
 	} else {
 		switch (CQE_OPCODE(cqe)) {
 		case T3_RDMA_WRITE:
@@ -105,17 +111,20 @@ static int iwch_poll_cq_one(struct iwch_dev *rhp, struct iwch_cq *chp,
 			break;
 		case T3_SEND:
 		case T3_SEND_WITH_SE:
+		case T3_SEND_WITH_INV:
+		case T3_SEND_WITH_SE_INV:
 			wc->opcode = IB_WC_SEND;
 			break;
 		case T3_BIND_MW:
 			wc->opcode = IB_WC_BIND_MW;
 			break;
 
-		/* these aren't supported yet */
-		case T3_SEND_WITH_INV:
-		case T3_SEND_WITH_SE_INV:
 		case T3_LOCAL_INV:
+			wc->opcode = IB_WC_LOCAL_INV;
+			break;
 		case T3_FAST_REGISTER:
+			wc->opcode = IB_WC_FAST_REG_MR;
+			break;
 		default:
 			printk(KERN_ERR MOD "Unexpected opcode %d "
 			       "in the CQE received for QPID=0x%0x\n",

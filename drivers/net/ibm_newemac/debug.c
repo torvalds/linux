@@ -67,29 +67,55 @@ static void emac_desc_dump(struct emac_instance *p)
 static void emac_mac_dump(struct emac_instance *dev)
 {
 	struct emac_regs __iomem *p = dev->emacp;
+	const int xaht_regs = EMAC_XAHT_REGS(dev);
+	u32 *gaht_base = emac_gaht_base(dev);
+	u32 *iaht_base = emac_iaht_base(dev);
+	int emac4sync = emac_has_feature(dev, EMAC_FTR_EMAC4SYNC);
+	int n;
 
 	printk("** EMAC %s registers **\n"
 	       "MR0 = 0x%08x MR1 = 0x%08x TMR0 = 0x%08x TMR1 = 0x%08x\n"
 	       "RMR = 0x%08x ISR = 0x%08x ISER = 0x%08x\n"
-	       "IAR = %04x%08x VTPID = 0x%04x VTCI = 0x%04x\n"
-	       "IAHT: 0x%04x 0x%04x 0x%04x 0x%04x "
-	       "GAHT: 0x%04x 0x%04x 0x%04x 0x%04x\n"
-	       "LSA = %04x%08x IPGVR = 0x%04x\n"
-	       "STACR = 0x%08x TRTR = 0x%08x RWMR = 0x%08x\n"
-	       "OCTX = 0x%08x OCRX = 0x%08x IPCR = 0x%08x\n",
+	       "IAR = %04x%08x VTPID = 0x%04x VTCI = 0x%04x\n",
 	       dev->ofdev->node->full_name, in_be32(&p->mr0), in_be32(&p->mr1),
 	       in_be32(&p->tmr0), in_be32(&p->tmr1),
 	       in_be32(&p->rmr), in_be32(&p->isr), in_be32(&p->iser),
 	       in_be32(&p->iahr), in_be32(&p->ialr), in_be32(&p->vtpid),
-	       in_be32(&p->vtci),
-	       in_be32(&p->iaht1), in_be32(&p->iaht2), in_be32(&p->iaht3),
-	       in_be32(&p->iaht4),
-	       in_be32(&p->gaht1), in_be32(&p->gaht2), in_be32(&p->gaht3),
-	       in_be32(&p->gaht4),
+	       in_be32(&p->vtci)
+	       );
+
+	if (emac4sync)
+		printk("MAR = %04x%08x MMAR = %04x%08x\n",
+		       in_be32(&p->u0.emac4sync.mahr),
+		       in_be32(&p->u0.emac4sync.malr),
+		       in_be32(&p->u0.emac4sync.mmahr),
+		       in_be32(&p->u0.emac4sync.mmalr)
+		       );
+
+	for (n = 0; n < xaht_regs; n++)
+		printk("IAHT%02d = 0x%08x\n", n + 1, in_be32(iaht_base + n));
+
+	for (n = 0; n < xaht_regs; n++)
+		printk("GAHT%02d = 0x%08x\n", n + 1, in_be32(gaht_base + n));
+
+	printk("LSA = %04x%08x IPGVR = 0x%04x\n"
+	       "STACR = 0x%08x TRTR = 0x%08x RWMR = 0x%08x\n"
+	       "OCTX = 0x%08x OCRX = 0x%08x\n",
 	       in_be32(&p->lsah), in_be32(&p->lsal), in_be32(&p->ipgvr),
 	       in_be32(&p->stacr), in_be32(&p->trtr), in_be32(&p->rwmr),
-	       in_be32(&p->octx), in_be32(&p->ocrx), in_be32(&p->ipcr)
-	    );
+	       in_be32(&p->octx), in_be32(&p->ocrx)
+	       );
+
+	if (!emac4sync) {
+		printk("IPCR = 0x%08x\n",
+		       in_be32(&p->u1.emac4.ipcr)
+		       );
+	} else {
+		printk("REVID = 0x%08x TPC = 0x%08x\n",
+		       in_be32(&p->u1.emac4sync.revid),
+		       in_be32(&p->u1.emac4sync.tpc)
+		       );
+	}
 
 	emac_desc_dump(dev);
 }

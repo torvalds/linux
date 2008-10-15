@@ -46,7 +46,6 @@
 #include <asm/dma.h>
 #include <asm/fixed_code.h>
 
-#define MAX_SHARED_LIBS 3
 #define TEXT_OFFSET 0
 /*
  * does not yet catch signals sent when the child dies.
@@ -161,19 +160,30 @@ static inline int is_user_addr_valid(struct task_struct *child,
 	struct vm_list_struct *vml;
 	struct sram_list_struct *sraml;
 
+	/* overflow */
+	if (start + len < start)
+		return -EIO;
+
 	for (vml = child->mm->context.vmlist; vml; vml = vml->next)
-		if (start >= vml->vma->vm_start && start + len <= vml->vma->vm_end)
+		if (start >= vml->vma->vm_start && start + len < vml->vma->vm_end)
 			return 0;
 
 	for (sraml = child->mm->context.sram_list; sraml; sraml = sraml->next)
 		if (start >= (unsigned long)sraml->addr
-		    && start + len <= (unsigned long)sraml->addr + sraml->length)
+		    && start + len < (unsigned long)sraml->addr + sraml->length)
 			return 0;
 
-	if (start >= FIXED_CODE_START && start + len <= FIXED_CODE_END)
+	if (start >= FIXED_CODE_START && start + len < FIXED_CODE_END)
 		return 0;
 
 	return -EIO;
+}
+
+void ptrace_enable(struct task_struct *child)
+{
+	unsigned long tmp;
+	tmp = get_reg(child, PT_SYSCFG) | (TRACE_BITS);
+	put_reg(child, PT_SYSCFG, tmp);
 }
 
 /*
@@ -192,14 +202,12 @@ void ptrace_disable(struct task_struct *child)
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	int ret;
-	int add = 0;
 	unsigned long __user *datap = (unsigned long __user *)data;
 
 	switch (request) {
 		/* when I and D space are separate, these will need to be fixed. */
 	case PTRACE_PEEKDATA:
 		pr_debug("ptrace: PEEKDATA\n");
-		add = MAX_SHARED_LIBS * 4;	/* space between text and data */
 		/* fall through */
 	case PTRACE_PEEKTEXT:	/* read word at location addr. */
 		{
@@ -207,26 +215,35 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			int copied;
 
 			ret = -EIO;
-			pr_debug("ptrace: PEEKTEXT at addr 0x%08lx + add %d %ld\n", addr, add,
-			         sizeof(data));
-			if (is_user_addr_valid(child, addr + add, sizeof(tmp)) < 0)
+			pr_debug("ptrace: PEEKTEXT at addr 0x%08lx + %ld\n", addr, sizeof(data));
+			if (is_user_addr_valid(child, addr, sizeof(tmp)) < 0)
 				break;
 			pr_debug("ptrace: user address is valid\n");
 
-#if L1_CODE_LENGTH != 0
-			if (addr + add >= L1_CODE_START
-			    && addr + add + sizeof(tmp) <= L1_CODE_START + L1_CODE_LENGTH) {
-				safe_dma_memcpy (&tmp, (const void *)(addr + add), sizeof(tmp));
+			if (L1_CODE_LENGTH != 0 && addr >= L1_CODE_START
+			    && addr + sizeof(tmp) <= L1_CODE_START + L1_CODE_LENGTH) {
+				safe_dma_memcpy (&tmp, (const void *)(addr), sizeof(tmp));
 				copied = sizeof(tmp);
-			} else
-#endif
-			if (addr + add >= FIXED_CODE_START
-			    && addr + add + sizeof(tmp) <= FIXED_CODE_END) {
-				memcpy(&tmp, (const void *)(addr + add), sizeof(tmp));
+
+			} else if (L1_DATA_A_LENGTH != 0 && addr >= L1_DATA_A_START
+			    && addr + sizeof(tmp) <= L1_DATA_A_START + L1_DATA_A_LENGTH) {
+				memcpy(&tmp, (const void *)(addr), sizeof(tmp));
 				copied = sizeof(tmp);
+
+			} else if (L1_DATA_B_LENGTH != 0 && addr >= L1_DATA_B_START
+			    && addr + sizeof(tmp) <= L1_DATA_B_START + L1_DATA_B_LENGTH) {
+				memcpy(&tmp, (const void *)(addr), sizeof(tmp));
+				copied = sizeof(tmp);
+
+			} else if (addr >= FIXED_CODE_START
+			    && addr + sizeof(tmp) <= FIXED_CODE_END) {
+				memcpy(&tmp, (const void *)(addr), sizeof(tmp));
+				copied = sizeof(tmp);
+
 			} else
-				copied = access_process_vm(child, addr + add, &tmp,
+				copied = access_process_vm(child, addr, &tmp,
 							   sizeof(tmp), 0);
+
 			pr_debug("ptrace: copied size %d [0x%08lx]\n", copied, tmp);
 			if (copied != sizeof(tmp))
 				break;
@@ -270,33 +287,43 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 		/* when I and D space are separate, this will have to be fixed. */
 	case PTRACE_POKEDATA:
-		printk(KERN_NOTICE "ptrace: PTRACE_PEEKDATA\n");
+		pr_debug("ptrace: PTRACE_PEEKDATA\n");
 		/* fall through */
 	case PTRACE_POKETEXT:	/* write the word at location addr. */
 		{
 			int copied;
 
 			ret = -EIO;
-			pr_debug("ptrace: POKETEXT at addr 0x%08lx + add %d %ld bytes %lx\n",
-			         addr, add, sizeof(data), data);
-			if (is_user_addr_valid(child, addr + add, sizeof(data)) < 0)
+			pr_debug("ptrace: POKETEXT at addr 0x%08lx + %ld bytes %lx\n",
+			         addr, sizeof(data), data);
+			if (is_user_addr_valid(child, addr, sizeof(data)) < 0)
 				break;
 			pr_debug("ptrace: user address is valid\n");
 
-#if L1_CODE_LENGTH != 0
-			if (addr + add >= L1_CODE_START
-			    && addr + add + sizeof(data) <= L1_CODE_START + L1_CODE_LENGTH) {
-				safe_dma_memcpy ((void *)(addr + add), &data, sizeof(data));
+			if (L1_CODE_LENGTH != 0 && addr >= L1_CODE_START
+			    && addr + sizeof(data) <= L1_CODE_START + L1_CODE_LENGTH) {
+				safe_dma_memcpy ((void *)(addr), &data, sizeof(data));
 				copied = sizeof(data);
-			} else
-#endif
-			if (addr + add >= FIXED_CODE_START
-			    && addr + add + sizeof(data) <= FIXED_CODE_END) {
-				memcpy((void *)(addr + add), &data, sizeof(data));
+
+			} else if (L1_DATA_A_LENGTH != 0 && addr >= L1_DATA_A_START
+			    && addr + sizeof(data) <= L1_DATA_A_START + L1_DATA_A_LENGTH) {
+				memcpy((void *)(addr), &data, sizeof(data));
 				copied = sizeof(data);
+
+			} else if (L1_DATA_B_LENGTH != 0 && addr >= L1_DATA_B_START
+			    && addr + sizeof(data) <= L1_DATA_B_START + L1_DATA_B_LENGTH) {
+				memcpy((void *)(addr), &data, sizeof(data));
+				copied = sizeof(data);
+
+			} else if (addr >= FIXED_CODE_START
+			    && addr + sizeof(data) <= FIXED_CODE_END) {
+				memcpy((void *)(addr), &data, sizeof(data));
+				copied = sizeof(data);
+
 			} else
-				copied = access_process_vm(child, addr + add, &data,
+				copied = access_process_vm(child, addr, &data,
 							   sizeof(data), 1);
+
 			pr_debug("ptrace: copied size %d\n", copied);
 			if (copied != sizeof(data))
 				break;
@@ -323,29 +350,22 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 
 	case PTRACE_SYSCALL:	/* continue and stop at next (return from) syscall */
-	case PTRACE_CONT:
-		{		/* restart after signal. */
-			long tmp;
+	case PTRACE_CONT:	/* restart after signal. */
+		pr_debug("ptrace: syscall/cont\n");
 
-			pr_debug("ptrace_cont\n");
-
-			ret = -EIO;
-			if (!valid_signal(data))
-				break;
-			if (request == PTRACE_SYSCALL)
-				set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-			else
-				clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-
-			child->exit_code = data;
-			/* make sure the single step bit is not set. */
-			tmp = get_reg(child, PT_SYSCFG) & ~(TRACE_BITS);
-			put_reg(child, PT_SYSCFG, tmp);
-			pr_debug("before wake_up_process\n");
-			wake_up_process(child);
-			ret = 0;
+		ret = -EIO;
+		if (!valid_signal(data))
 			break;
-		}
+		if (request == PTRACE_SYSCALL)
+			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
+		else
+			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
+		child->exit_code = data;
+		ptrace_disable(child);
+		pr_debug("ptrace: before wake_up_process\n");
+		wake_up_process(child);
+		ret = 0;
+		break;
 
 	/*
 	 * make the child exit.  Best I can do is send it a sigkill.
@@ -353,55 +373,37 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	 * exit.
 	 */
 	case PTRACE_KILL:
-		{
-			long tmp;
-			ret = 0;
-			if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
-				break;
-			child->exit_code = SIGKILL;
-			/* make sure the single step bit is not set. */
-			tmp = get_reg(child, PT_SYSCFG) & ~(TRACE_BITS);
-			put_reg(child, PT_SYSCFG, tmp);
-			wake_up_process(child);
+		ret = 0;
+		if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
 			break;
-		}
+		child->exit_code = SIGKILL;
+		ptrace_disable(child);
+		wake_up_process(child);
+		break;
 
-	case PTRACE_SINGLESTEP:
-		{		/* set the trap flag. */
-			long tmp;
-
-			pr_debug("single step\n");
-			ret = -EIO;
-			if (!valid_signal(data))
-				break;
-			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-
-			tmp = get_reg(child, PT_SYSCFG) | (TRACE_BITS);
-			put_reg(child, PT_SYSCFG, tmp);
-
-			child->exit_code = data;
-			/* give it a chance to run. */
-			wake_up_process(child);
-			ret = 0;
+	case PTRACE_SINGLESTEP:	/* set the trap flag. */
+		pr_debug("ptrace: single step\n");
+		ret = -EIO;
+		if (!valid_signal(data))
 			break;
-		}
+		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
+		ptrace_enable(child);
+		child->exit_code = data;
+		wake_up_process(child);
+		ret = 0;
+		break;
 
 	case PTRACE_GETREGS:
-		{
-
-			/* Get all gp regs from the child. */
-			ret = ptrace_getregs(child, datap);
-			break;
-		}
+		/* Get all gp regs from the child. */
+		ret = ptrace_getregs(child, datap);
+		break;
 
 	case PTRACE_SETREGS:
-		{
-			printk(KERN_NOTICE
-			       "ptrace: SETREGS: **** NOT IMPLEMENTED ***\n");
-			/* Set all gp regs in the child. */
-			ret = 0;
-			break;
-		}
+		printk(KERN_WARNING "ptrace: SETREGS: **** NOT IMPLEMENTED ***\n");
+		/* Set all gp regs in the child. */
+		ret = 0;
+		break;
+
 	default:
 		ret = ptrace_request(child, request, addr, data);
 		break;
@@ -412,7 +414,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 asmlinkage void syscall_trace(void)
 {
-
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
 		return;
 

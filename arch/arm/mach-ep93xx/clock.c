@@ -15,9 +15,9 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/string.h>
+#include <linux/io.h>
 #include <asm/div64.h>
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <mach/hardware.h>
 
 struct clk {
 	char		*name;
@@ -74,6 +74,7 @@ struct clk *clk_get(struct device *dev, const char *id)
 
 	return ERR_PTR(-ENOENT);
 }
+EXPORT_SYMBOL(clk_get);
 
 int clk_enable(struct clk *clk)
 {
@@ -86,6 +87,7 @@ int clk_enable(struct clk *clk)
 
 	return 0;
 }
+EXPORT_SYMBOL(clk_enable);
 
 void clk_disable(struct clk *clk)
 {
@@ -96,15 +98,18 @@ void clk_disable(struct clk *clk)
 		__raw_writel(value & ~clk->enable_mask, clk->enable_reg);
 	}
 }
+EXPORT_SYMBOL(clk_disable);
 
 unsigned long clk_get_rate(struct clk *clk)
 {
 	return clk->rate;
 }
+EXPORT_SYMBOL(clk_get_rate);
 
 void clk_put(struct clk *clk)
 {
 }
+EXPORT_SYMBOL(clk_put);
 
 
 

@@ -27,7 +27,7 @@ static int op_mips_setup(void)
 	model->reg_setup(ctr);
 
 	/* Configure the registers on all cpus.  */
-	on_each_cpu(model->cpu_setup, NULL, 0, 1);
+	on_each_cpu(model->cpu_setup, NULL, 1);
 
         return 0;
 }
@@ -58,7 +58,7 @@ static int op_mips_create_files(struct super_block * sb, struct dentry * root)
 
 static int op_mips_start(void)
 {
-	on_each_cpu(model->cpu_start, NULL, 0, 1);
+	on_each_cpu(model->cpu_start, NULL, 1);
 
 	return 0;
 }
@@ -66,7 +66,7 @@ static int op_mips_start(void)
 static void op_mips_stop(void)
 {
 	/* Disable performance monitoring for all counters.  */
-	on_each_cpu(model->cpu_stop, NULL, 0, 1);
+	on_each_cpu(model->cpu_stop, NULL, 1);
 }
 
 int __init oprofile_arch_init(struct oprofile_operations *ops)

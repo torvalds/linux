@@ -172,7 +172,7 @@ char *acpi_ut_strstr(char *string1, char *string2);
 
 void *acpi_ut_memcpy(void *dest, const void *src, acpi_size count);
 
-void *acpi_ut_memset(void *dest, acpi_native_uint value, acpi_size count);
+void *acpi_ut_memset(void *dest, u8 value, acpi_size count);
 
 int acpi_ut_to_upper(int c);
 
@@ -245,41 +245,45 @@ void acpi_ut_track_stack_ptr(void);
 
 void
 acpi_ut_trace(u32 line_number,
-	      const char *function_name, char *module_name, u32 component_id);
+	      const char *function_name,
+	      const char *module_name, u32 component_id);
 
 void
 acpi_ut_trace_ptr(u32 line_number,
 		  const char *function_name,
-		  char *module_name, u32 component_id, void *pointer);
+		  const char *module_name, u32 component_id, void *pointer);
 
 void
 acpi_ut_trace_u32(u32 line_number,
 		  const char *function_name,
-		  char *module_name, u32 component_id, u32 integer);
+		  const char *module_name, u32 component_id, u32 integer);
 
 void
 acpi_ut_trace_str(u32 line_number,
 		  const char *function_name,
-		  char *module_name, u32 component_id, char *string);
+		  const char *module_name, u32 component_id, char *string);
 
 void
 acpi_ut_exit(u32 line_number,
-	     const char *function_name, char *module_name, u32 component_id);
+	     const char *function_name,
+	     const char *module_name, u32 component_id);
 
 void
 acpi_ut_status_exit(u32 line_number,
 		    const char *function_name,
-		    char *module_name, u32 component_id, acpi_status status);
+		    const char *module_name,
+		    u32 component_id, acpi_status status);
 
 void
 acpi_ut_value_exit(u32 line_number,
 		   const char *function_name,
-		   char *module_name, u32 component_id, acpi_integer value);
+		   const char *module_name,
+		   u32 component_id, acpi_integer value);
 
 void
 acpi_ut_ptr_exit(u32 line_number,
 		 const char *function_name,
-		 char *module_name, u32 component_id, u8 * ptr);
+		 const char *module_name, u32 component_id, u8 *ptr);
 
 void acpi_ut_dump_buffer(u8 * buffer, u32 count, u32 display, u32 component_id);
 
@@ -297,33 +301,35 @@ void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_debug_print(u32 requested_debug_level,
 		    u32 line_number,
 		    const char *function_name,
-		    char *module_name,
-		    u32 component_id, char *format, ...) ACPI_PRINTF_LIKE(6);
+		    const char *module_name,
+		    u32 component_id,
+		    const char *format, ...) ACPI_PRINTF_LIKE(6);
 
 void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_debug_print_raw(u32 requested_debug_level,
 			u32 line_number,
 			const char *function_name,
-			char *module_name,
+			const char *module_name,
 			u32 component_id,
-			char *format, ...) ACPI_PRINTF_LIKE(6);
+			const char *format, ...) ACPI_PRINTF_LIKE(6);
 
 void ACPI_INTERNAL_VAR_XFACE
-acpi_ut_error(char *module_name,
-	      u32 line_number, char *format, ...) ACPI_PRINTF_LIKE(3);
+acpi_ut_error(const char *module_name,
+	      u32 line_number, const char *format, ...) ACPI_PRINTF_LIKE(3);
 
 void ACPI_INTERNAL_VAR_XFACE
-acpi_ut_exception(char *module_name,
+acpi_ut_exception(const char *module_name,
 		  u32 line_number,
-		  acpi_status status, char *format, ...) ACPI_PRINTF_LIKE(4);
+		  acpi_status status,
+		  const char *format, ...) ACPI_PRINTF_LIKE(4);
 
 void ACPI_INTERNAL_VAR_XFACE
-acpi_ut_warning(char *module_name,
-		u32 line_number, char *format, ...) ACPI_PRINTF_LIKE(3);
+acpi_ut_warning(const char *module_name,
+		u32 line_number, const char *format, ...) ACPI_PRINTF_LIKE(3);
 
 void ACPI_INTERNAL_VAR_XFACE
-acpi_ut_info(char *module_name,
-	     u32 line_number, char *format, ...) ACPI_PRINTF_LIKE(3);
+acpi_ut_info(const char *module_name,
+	     u32 line_number, const char *format, ...) ACPI_PRINTF_LIKE(3);
 
 /*
  * utdelete - Object deletion and reference counts
@@ -376,13 +382,14 @@ acpi_ut_execute_sxds(struct acpi_namespace_node *device_node, u8 * highest);
 /*
  * utobject - internal object create/delete/cache routines
  */
-union acpi_operand_object *acpi_ut_create_internal_object_dbg(char *module_name,
+union acpi_operand_object *acpi_ut_create_internal_object_dbg(const char
+							      *module_name,
 							      u32 line_number,
 							      u32 component_id,
 							      acpi_object_type
 							      type);
 
-void *acpi_ut_allocate_object_desc_dbg(char *module_name,
+void *acpi_ut_allocate_object_desc_dbg(const char *module_name,
 				       u32 line_number, u32 component_id);
 
 #define acpi_ut_create_internal_object(t) acpi_ut_create_internal_object_dbg (_acpi_module_name,__LINE__,_COMPONENT,t)
@@ -476,7 +483,7 @@ u8 acpi_ut_valid_acpi_name(u32 name);
 
 acpi_name acpi_ut_repair_name(char *name);
 
-u8 acpi_ut_valid_acpi_char(char character, acpi_native_uint position);
+u8 acpi_ut_valid_acpi_char(char character, u32 position);
 
 acpi_status
 acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer);
@@ -543,26 +550,29 @@ acpi_status
 acpi_ut_initialize_buffer(struct acpi_buffer *buffer,
 			  acpi_size required_length);
 
-void *acpi_ut_allocate(acpi_size size, u32 component, char *module, u32 line);
+void *acpi_ut_allocate(acpi_size size,
+		       u32 component, const char *module, u32 line);
 
 void *acpi_ut_allocate_zeroed(acpi_size size,
-			      u32 component, char *module, u32 line);
+			      u32 component, const char *module, u32 line);
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 void *acpi_ut_allocate_and_track(acpi_size size,
-				 u32 component, char *module, u32 line);
+				 u32 component, const char *module, u32 line);
 
 void *acpi_ut_allocate_zeroed_and_track(acpi_size size,
-					u32 component, char *module, u32 line);
+					u32 component,
+					const char *module, u32 line);
 
 void
-acpi_ut_free_and_track(void *address, u32 component, char *module, u32 line);
+acpi_ut_free_and_track(void *address,
+		       u32 component, const char *module, u32 line);
 
 #ifdef	ACPI_FUTURE_USAGE
 void acpi_ut_dump_allocation_info(void);
 #endif				/* ACPI_FUTURE_USAGE */
 
-void acpi_ut_dump_allocations(u32 component, char *module);
+void acpi_ut_dump_allocations(u32 component, const char *module);
 
 acpi_status
 acpi_ut_create_list(char *list_name,

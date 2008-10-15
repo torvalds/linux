@@ -208,7 +208,7 @@ static int ssi_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int ssi_set_sysclk(struct snd_soc_cpu_dai *cpu_dai, int clk_id,
+static int ssi_set_sysclk(struct snd_soc_dai *cpu_dai, int clk_id,
 			  unsigned int freq, int dir)
 {
 	struct ssi_priv *ssi = &ssi_cpu_data[cpu_dai->id];
@@ -222,7 +222,7 @@ static int ssi_set_sysclk(struct snd_soc_cpu_dai *cpu_dai, int clk_id,
  * This divider is used to generate the SSI_SCK (I2S bitclock) from the
  * clock at the HAC_BIT_CLK ("oversampling clock") pin.
  */
-static int ssi_set_clkdiv(struct snd_soc_cpu_dai *dai, int did, int div)
+static int ssi_set_clkdiv(struct snd_soc_dai *dai, int did, int div)
 {
 	struct ssi_priv *ssi = &ssi_cpu_data[dai->id];
 	unsigned long ssicr;
@@ -245,7 +245,7 @@ static int ssi_set_clkdiv(struct snd_soc_cpu_dai *dai, int did, int div)
 	return 0;
 }
 
-static int ssi_set_fmt(struct snd_soc_cpu_dai *dai, unsigned int fmt)
+static int ssi_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct ssi_priv *ssi = &ssi_cpu_data[dai->id];
 	unsigned long ssicr = SSIREG(SSICR);
@@ -332,7 +332,7 @@ static int ssi_set_fmt(struct snd_soc_cpu_dai *dai, unsigned int fmt)
 	 SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_U24_3LE |	\
 	 SNDRV_PCM_FMTBIT_S32_LE  | SNDRV_PCM_FMTBIT_U32_LE)
 
-struct snd_soc_cpu_dai sh4_ssi_dai[] = {
+struct snd_soc_dai sh4_ssi_dai[] = {
 {
 	.name			= "SSI0",
 	.id			= 0,

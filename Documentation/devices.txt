@@ -2560,9 +2560,6 @@ Your cooperation is appreciated.
 		 96 = /dev/usb/hiddev0	1st USB HID device
 		    ...
 		111 = /dev/usb/hiddev15	16th USB HID device
-		112 = /dev/usb/auer0	1st auerswald ISDN device
-		    ...
-		127 = /dev/usb/auer15	16th auerswald ISDN device
 		128 = /dev/usb/brlvgr0	First Braille Voyager device
 		    ...
 		131 = /dev/usb/brlvgr3	Fourth Braille Voyager device

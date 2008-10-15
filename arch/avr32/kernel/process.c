@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/kallsyms.h>
 #include <linux/fs.h>
+#include <linux/pm.h>
 #include <linux/ptrace.h>
 #include <linux/reboot.h>
 #include <linux/tick.h>
@@ -18,9 +19,9 @@
 #include <asm/sysreg.h>
 #include <asm/ocd.h>
 
-#include <asm/arch/pm.h>
+#include <mach/pm.h>
 
-void (*pm_power_off)(void) = NULL;
+void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
 /*
@@ -31,7 +32,7 @@ void cpu_idle(void)
 {
 	/* endless idle loop with no priority at all */
 	while (1) {
-		tick_nohz_stop_sched_tick();
+		tick_nohz_stop_sched_tick(1);
 		while (!need_resched())
 			cpu_idle_sleep();
 		tick_nohz_restart_sched_tick();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2007 Chelsio, Inc. All rights reserved.
+ * Copyright (c) 2003-2008 Chelsio, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -54,6 +54,7 @@ enum {
 	RDMA_CQ_DISABLE		= 16,
 	RDMA_CTRL_QP_SETUP	= 17,
 	RDMA_GET_MEM		= 18,
+	RDMA_GET_MIB		= 19,
 
 	GET_RX_PAGE_INFO	= 50,
 };
@@ -110,10 +111,7 @@ struct ulp_iscsi_info {
 	unsigned int llimit;
 	unsigned int ulimit;
 	unsigned int tagmask;
-	unsigned int pgsz3;
-	unsigned int pgsz2;
-	unsigned int pgsz1;
-	unsigned int pgsz0;
+	u8 pgsz_factor[4];
 	unsigned int max_rxsz;
 	unsigned int max_txsz;
 	struct pci_dev *pdev;

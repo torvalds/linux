@@ -31,8 +31,6 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * $Id: mthca_qp.c 1355 2004-12-17 15:23:43Z roland $
  */
 
 #include <linux/string.h>
@@ -850,23 +848,6 @@ out:
 	return err;
 }
 
-static const struct ib_qp_attr dummy_init_attr = { .port_num = 1 };
-static const int dummy_init_attr_mask[] = {
-	[IB_QPT_UD]  = (IB_QP_PKEY_INDEX		|
-			IB_QP_PORT			|
-			IB_QP_QKEY),
-	[IB_QPT_UC]  = (IB_QP_PKEY_INDEX		|
-			IB_QP_PORT			|
-			IB_QP_ACCESS_FLAGS),
-	[IB_QPT_RC]  = (IB_QP_PKEY_INDEX		|
-			IB_QP_PORT			|
-			IB_QP_ACCESS_FLAGS),
-	[IB_QPT_SMI] = (IB_QP_PKEY_INDEX		|
-			IB_QP_QKEY),
-	[IB_QPT_GSI] = (IB_QP_PKEY_INDEX		|
-			IB_QP_QKEY),
-};
-
 int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
 		    struct ib_udata *udata)
 {
@@ -926,15 +907,6 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
 	if (cur_state == new_state && cur_state == IB_QPS_RESET) {
 		err = 0;
 		goto out;
-	}
-
-	if (cur_state == IB_QPS_RESET && new_state == IB_QPS_ERR) {
-		err = __mthca_modify_qp(ibqp, &dummy_init_attr,
-					dummy_init_attr_mask[ibqp->qp_type],
-					IB_QPS_RESET, IB_QPS_INIT);
-		if (err)
-			goto out;
-		cur_state = IB_QPS_INIT;
 	}
 
 	err = __mthca_modify_qp(ibqp, attr, attr_mask, cur_state, new_state);
@@ -1277,10 +1249,10 @@ static int mthca_set_qp_size(struct mthca_dev *dev, struct ib_qp_cap *cap,
 		return -EINVAL;
 
 	/*
-	 * For MLX transport we need 2 extra S/G entries:
+	 * For MLX transport we need 2 extra send gather entries:
 	 * one for the header and one for the checksum at the end
 	 */
-	if (qp->transport == MLX && cap->max_recv_sge + 2 > dev->limits.max_sg)
+	if (qp->transport == MLX && cap->max_send_sge + 2 > dev->limits.max_sg)
 		return -EINVAL;
 
 	if (mthca_is_memfree(dev)) {

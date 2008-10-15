@@ -12,7 +12,7 @@
 #include <linux/string.h>
 #include "os.h"
 
-void __do_copy(void *to, const void *from, int n)
+static void __do_copy(void *to, const void *from, int n)
 {
 	memcpy(to, from, n);
 }

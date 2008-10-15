@@ -1,5 +1,5 @@
-#ifndef _ASM_I386_UNISTD_H_
-#define _ASM_I386_UNISTD_H_
+#ifndef ASM_X86__UNISTD_32_H
+#define ASM_X86__UNISTD_32_H
 
 /*
  * This file contains the system call numbers.
@@ -332,6 +332,12 @@
 #define __NR_fallocate		324
 #define __NR_timerfd_settime	325
 #define __NR_timerfd_gettime	326
+#define __NR_signalfd4		327
+#define __NR_eventfd2		328
+#define __NR_epoll_create1	329
+#define __NR_dup3		330
+#define __NR_pipe2		331
+#define __NR_inotify_init1	332
 
 #ifdef __KERNEL__
 
@@ -370,4 +376,4 @@
 #endif
 
 #endif /* __KERNEL__ */
-#endif /* _ASM_I386_UNISTD_H_ */
+#endif /* ASM_X86__UNISTD_32_H */

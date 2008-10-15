@@ -128,10 +128,8 @@ static int llc_ui_send_data(struct sock* sk, struct sk_buff *skb, int noblock)
 
 static void llc_ui_sk_init(struct socket *sock, struct sock *sk)
 {
+	sock_graft(sk, sock);
 	sk->sk_type	= sock->type;
-	sk->sk_sleep	= &sock->wait;
-	sk->sk_socket	= sock;
-	sock->sk	= sk;
 	sock->ops	= &llc_ui_ops;
 }
 

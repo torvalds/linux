@@ -33,7 +33,7 @@
 #include <linux/memory.h>
 #include <linux/ioport.h>
 
-#include <asm/arch/adma.h>
+#include <mach/adma.h>
 
 #define to_iop_adma_chan(chan) container_of(chan, struct iop_adma_chan, common)
 #define to_iop_adma_device(dev) \
@@ -82,17 +82,24 @@ iop_adma_run_tx_complete_actions(struct iop_adma_desc_slot *desc,
 			struct device *dev =
 				&iop_chan->device->pdev->dev;
 			u32 len = unmap->unmap_len;
-			u32 src_cnt = unmap->unmap_src_cnt;
-			dma_addr_t addr = iop_desc_get_dest_addr(unmap,
-				iop_chan);
+			enum dma_ctrl_flags flags = desc->async_tx.flags;
+			u32 src_cnt;
+			dma_addr_t addr;
 
-			dma_unmap_page(dev, addr, len, DMA_FROM_DEVICE);
-			while (src_cnt--) {
-				addr = iop_desc_get_src_addr(unmap,
-							iop_chan,
-							src_cnt);
-				dma_unmap_page(dev, addr, len,
-					DMA_TO_DEVICE);
+			if (!(flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
+				addr = iop_desc_get_dest_addr(unmap, iop_chan);
+				dma_unmap_page(dev, addr, len, DMA_FROM_DEVICE);
+			}
+
+			if (!(flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
+				src_cnt = unmap->unmap_src_cnt;
+				while (src_cnt--) {
+					addr = iop_desc_get_src_addr(unmap,
+								     iop_chan,
+								     src_cnt);
+					dma_unmap_page(dev, addr, len,
+						       DMA_TO_DEVICE);
+				}
 			}
 			desc->group_head = NULL;
 		}
@@ -366,8 +373,8 @@ retry:
 	if (!retry++)
 		goto retry;
 
-	/* try to free some slots if the allocation fails */
-	tasklet_schedule(&iop_chan->irq_tasklet);
+	/* perform direct reclaim if the allocation fails */
+	__iop_adma_slot_cleanup(iop_chan);
 
 	return NULL;
 }
@@ -443,8 +450,18 @@ iop_adma_tx_submit(struct dma_async_tx_descriptor *tx)
 static void iop_chan_start_null_memcpy(struct iop_adma_chan *iop_chan);
 static void iop_chan_start_null_xor(struct iop_adma_chan *iop_chan);
 
-/* returns the number of allocated descriptors */
-static int iop_adma_alloc_chan_resources(struct dma_chan *chan)
+/**
+ * iop_adma_alloc_chan_resources -  returns the number of allocated descriptors
+ * @chan - allocate descriptor resources for this channel
+ * @client - current client requesting the channel be ready for requests
+ *
+ * Note: We keep the slots for 1 operation on iop_chan->chain at all times.  To
+ * avoid deadlock, via async_xor, num_descs_in_pool must at a minimum be
+ * greater than 2x the number slots needed to satisfy a device->max_xor
+ * request.
+ * */
+static int iop_adma_alloc_chan_resources(struct dma_chan *chan,
+					 struct dma_client *client)
 {
 	char *hw_desc;
 	int idx;
@@ -838,7 +855,7 @@ static int __devinit iop_adma_memcpy_self_test(struct iop_adma_device *device)
 	dma_chan = container_of(device->common.channels.next,
 				struct dma_chan,
 				device_node);
-	if (iop_adma_alloc_chan_resources(dma_chan) < 1) {
+	if (iop_adma_alloc_chan_resources(dma_chan, NULL) < 1) {
 		err = -ENODEV;
 		goto out;
 	}
@@ -936,7 +953,7 @@ iop_adma_xor_zero_sum_self_test(struct iop_adma_device *device)
 	dma_chan = container_of(device->common.channels.next,
 				struct dma_chan,
 				device_node);
-	if (iop_adma_alloc_chan_resources(dma_chan) < 1) {
+	if (iop_adma_alloc_chan_resources(dma_chan, NULL) < 1) {
 		err = -ENODEV;
 		goto out;
 	}
@@ -1386,6 +1403,8 @@ static void iop_chan_start_null_xor(struct iop_adma_chan *iop_chan)
 			"failed to allocate null descriptor\n");
 	spin_unlock_bh(&iop_chan->lock);
 }
+
+MODULE_ALIAS("platform:iop-adma");
 
 static struct platform_driver iop_adma_driver = {
 	.probe		= iop_adma_probe,

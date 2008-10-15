@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2006, 2007 Cisco Systems, Inc.  All rights reserved.
+ * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -37,6 +38,9 @@
 #include <linux/mlx4/cmd.h>
 
 #include "mlx4.h"
+
+#define MGM_QPN_MASK       0x00FFFFFF
+#define MGM_BLCK_LB_BIT    30
 
 struct mlx4_mgm {
 	__be32			next_gid_index;
@@ -153,7 +157,8 @@ static int find_mgm(struct mlx4_dev *dev,
 	return err;
 }
 
-int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16])
+int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
+			  int block_mcast_loopback)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_cmd_mailbox *mailbox;
@@ -202,13 +207,18 @@ int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16])
 	}
 
 	for (i = 0; i < members_count; ++i)
-		if (mgm->qp[i] == cpu_to_be32(qp->qpn)) {
+		if ((be32_to_cpu(mgm->qp[i]) & MGM_QPN_MASK) == qp->qpn) {
 			mlx4_dbg(dev, "QP %06x already a member of MGM\n", qp->qpn);
 			err = 0;
 			goto out;
 		}
 
-	mgm->qp[members_count++] = cpu_to_be32(qp->qpn);
+	if (block_mcast_loopback)
+		mgm->qp[members_count++] = cpu_to_be32((qp->qpn & MGM_QPN_MASK) |
+						       (1 << MGM_BLCK_LB_BIT));
+	else
+		mgm->qp[members_count++] = cpu_to_be32(qp->qpn & MGM_QPN_MASK);
+
 	mgm->members_count       = cpu_to_be32(members_count);
 
 	err = mlx4_WRITE_MCG(dev, index, mailbox);
@@ -283,7 +293,7 @@ int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16])
 
 	members_count = be32_to_cpu(mgm->members_count);
 	for (loc = -1, i = 0; i < members_count; ++i)
-		if (mgm->qp[i] == cpu_to_be32(qp->qpn))
+		if ((be32_to_cpu(mgm->qp[i]) & MGM_QPN_MASK) == qp->qpn)
 			loc = i;
 
 	if (loc == -1) {

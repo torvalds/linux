@@ -30,7 +30,7 @@ config COMPAT_BINFMT_ELF
 config BINFMT_ELF_FDPIC
 	bool "Kernel support for FDPIC ELF binaries"
 	default y
-	depends on (FRV || BLACKFIN)
+	depends on (FRV || BLACKFIN || (SUPERH32 && !MMU))
 	help
 	  ELF FDPIC binaries are based on ELF, but allow the individual load
 	  segments of a binary to be located in memory independently of each
@@ -59,10 +59,12 @@ config BINFMT_SHARED_FLAT
 	help
 	  Support FLAT shared libraries
 
+config HAVE_AOUT
+       def_bool n
+
 config BINFMT_AOUT
 	tristate "Kernel support for a.out and ECOFF binaries"
-	depends on ARCH_SUPPORTS_AOUT && \
-		(X86_32 || ALPHA || ARM || M68K)
+	depends on HAVE_AOUT
 	---help---
 	  A.out (Assembler.OUTput) is a set of formats for libraries and
 	  executables used in the earliest versions of UNIX.  Linux used

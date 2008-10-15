@@ -18,20 +18,20 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/genhd.h>
+#include <linux/mutex.h>
 #include "base.h"
 
 #define to_class_attr(_attr) container_of(_attr, struct class_attribute, attr)
-#define to_class(obj) container_of(obj, struct class, subsys.kobj)
 
 static ssize_t class_attr_show(struct kobject *kobj, struct attribute *attr,
 			       char *buf)
 {
 	struct class_attribute *class_attr = to_class_attr(attr);
-	struct class *dc = to_class(kobj);
+	struct class_private *cp = to_class(kobj);
 	ssize_t ret = -EIO;
 
 	if (class_attr->show)
-		ret = class_attr->show(dc, buf);
+		ret = class_attr->show(cp->class, buf);
 	return ret;
 }
 
@@ -39,17 +39,18 @@ static ssize_t class_attr_store(struct kobject *kobj, struct attribute *attr,
 				const char *buf, size_t count)
 {
 	struct class_attribute *class_attr = to_class_attr(attr);
-	struct class *dc = to_class(kobj);
+	struct class_private *cp = to_class(kobj);
 	ssize_t ret = -EIO;
 
 	if (class_attr->store)
-		ret = class_attr->store(dc, buf, count);
+		ret = class_attr->store(cp->class, buf, count);
 	return ret;
 }
 
 static void class_release(struct kobject *kobj)
 {
-	struct class *class = to_class(kobj);
+	struct class_private *cp = to_class(kobj);
+	struct class *class = cp->class;
 
 	pr_debug("class '%s': release.\n", class->name);
 
@@ -70,7 +71,7 @@ static struct kobj_type class_ktype = {
 	.release	= class_release,
 };
 
-/* Hotplug events for classes go to the class_obj subsys */
+/* Hotplug events for classes go to the class class_subsys */
 static struct kset *class_kset;
 
 
@@ -78,7 +79,8 @@ int class_create_file(struct class *cls, const struct class_attribute *attr)
 {
 	int error;
 	if (cls)
-		error = sysfs_create_file(&cls->subsys.kobj, &attr->attr);
+		error = sysfs_create_file(&cls->p->class_subsys.kobj,
+					  &attr->attr);
 	else
 		error = -EINVAL;
 	return error;
@@ -87,21 +89,20 @@ int class_create_file(struct class *cls, const struct class_attribute *attr)
 void class_remove_file(struct class *cls, const struct class_attribute *attr)
 {
 	if (cls)
-		sysfs_remove_file(&cls->subsys.kobj, &attr->attr);
+		sysfs_remove_file(&cls->p->class_subsys.kobj, &attr->attr);
 }
 
 static struct class *class_get(struct class *cls)
 {
 	if (cls)
-		return container_of(kset_get(&cls->subsys),
-				    struct class, subsys);
-	return NULL;
+		kset_get(&cls->p->class_subsys);
+	return cls;
 }
 
 static void class_put(struct class *cls)
 {
 	if (cls)
-		kset_put(&cls->subsys);
+		kset_put(&cls->p->class_subsys);
 }
 
 static int add_class_attrs(struct class *cls)
@@ -134,42 +135,71 @@ static void remove_class_attrs(struct class *cls)
 	}
 }
 
-int class_register(struct class *cls)
+static void klist_class_dev_get(struct klist_node *n)
 {
+	struct device *dev = container_of(n, struct device, knode_class);
+
+	get_device(dev);
+}
+
+static void klist_class_dev_put(struct klist_node *n)
+{
+	struct device *dev = container_of(n, struct device, knode_class);
+
+	put_device(dev);
+}
+
+int __class_register(struct class *cls, struct lock_class_key *key)
+{
+	struct class_private *cp;
 	int error;
 
 	pr_debug("device class '%s': registering\n", cls->name);
 
-	INIT_LIST_HEAD(&cls->devices);
-	INIT_LIST_HEAD(&cls->interfaces);
-	kset_init(&cls->class_dirs);
-	init_MUTEX(&cls->sem);
-	error = kobject_set_name(&cls->subsys.kobj, "%s", cls->name);
-	if (error)
+	cp = kzalloc(sizeof(*cp), GFP_KERNEL);
+	if (!cp)
+		return -ENOMEM;
+	klist_init(&cp->class_devices, klist_class_dev_get, klist_class_dev_put);
+	INIT_LIST_HEAD(&cp->class_interfaces);
+	kset_init(&cp->class_dirs);
+	__mutex_init(&cp->class_mutex, "struct class mutex", key);
+	error = kobject_set_name(&cp->class_subsys.kobj, "%s", cls->name);
+	if (error) {
+		kfree(cp);
 		return error;
+	}
+
+	/* set the default /sys/dev directory for devices of this class */
+	if (!cls->dev_kobj)
+		cls->dev_kobj = sysfs_dev_char_kobj;
 
 #if defined(CONFIG_SYSFS_DEPRECATED) && defined(CONFIG_BLOCK)
 	/* let the block class directory show up in the root of sysfs */
 	if (cls != &block_class)
-		cls->subsys.kobj.kset = class_kset;
+		cp->class_subsys.kobj.kset = class_kset;
 #else
-	cls->subsys.kobj.kset = class_kset;
+	cp->class_subsys.kobj.kset = class_kset;
 #endif
-	cls->subsys.kobj.ktype = &class_ktype;
+	cp->class_subsys.kobj.ktype = &class_ktype;
+	cp->class = cls;
+	cls->p = cp;
 
-	error = kset_register(&cls->subsys);
-	if (!error) {
-		error = add_class_attrs(class_get(cls));
-		class_put(cls);
+	error = kset_register(&cp->class_subsys);
+	if (error) {
+		kfree(cp);
+		return error;
 	}
+	error = add_class_attrs(class_get(cls));
+	class_put(cls);
 	return error;
 }
+EXPORT_SYMBOL_GPL(__class_register);
 
 void class_unregister(struct class *cls)
 {
 	pr_debug("device class '%s': unregistering\n", cls->name);
 	remove_class_attrs(cls);
-	kset_unregister(&cls->subsys);
+	kset_unregister(&cls->p->class_subsys);
 }
 
 static void class_create_release(struct class *cls)
@@ -182,6 +212,7 @@ static void class_create_release(struct class *cls)
  * class_create - create a struct class structure
  * @owner: pointer to the module that is to "own" this struct class
  * @name: pointer to a string for the name of this class.
+ * @key: the lock_class_key for this class; used by mutex lock debugging
  *
  * This is used to create a struct class pointer that can then be used
  * in calls to device_create().
@@ -189,7 +220,8 @@ static void class_create_release(struct class *cls)
  * Note, the pointer created here is to be destroyed when finished by
  * making a call to class_destroy().
  */
-struct class *class_create(struct module *owner, const char *name)
+struct class *__class_create(struct module *owner, const char *name,
+			     struct lock_class_key *key)
 {
 	struct class *cls;
 	int retval;
@@ -204,7 +236,7 @@ struct class *class_create(struct module *owner, const char *name)
 	cls->owner = owner;
 	cls->class_release = class_create_release;
 
-	retval = class_register(cls);
+	retval = __class_register(cls, key);
 	if (retval)
 		goto error;
 
@@ -214,6 +246,7 @@ error:
 	kfree(cls);
 	return ERR_PTR(retval);
 }
+EXPORT_SYMBOL_GPL(__class_create);
 
 /**
  * class_destroy - destroys a struct class structure
@@ -250,41 +283,110 @@ char *make_class_name(const char *name, struct kobject *kobj)
 #endif
 
 /**
+ * class_dev_iter_init - initialize class device iterator
+ * @iter: class iterator to initialize
+ * @class: the class we wanna iterate over
+ * @start: the device to start iterating from, if any
+ * @type: device_type of the devices to iterate over, NULL for all
+ *
+ * Initialize class iterator @iter such that it iterates over devices
+ * of @class.  If @start is set, the list iteration will start there,
+ * otherwise if it is NULL, the iteration starts at the beginning of
+ * the list.
+ */
+void class_dev_iter_init(struct class_dev_iter *iter, struct class *class,
+			 struct device *start, const struct device_type *type)
+{
+	struct klist_node *start_knode = NULL;
+
+	if (start)
+		start_knode = &start->knode_class;
+	klist_iter_init_node(&class->p->class_devices, &iter->ki, start_knode);
+	iter->type = type;
+}
+EXPORT_SYMBOL_GPL(class_dev_iter_init);
+
+/**
+ * class_dev_iter_next - iterate to the next device
+ * @iter: class iterator to proceed
+ *
+ * Proceed @iter to the next device and return it.  Returns NULL if
+ * iteration is complete.
+ *
+ * The returned device is referenced and won't be released till
+ * iterator is proceed to the next device or exited.  The caller is
+ * free to do whatever it wants to do with the device including
+ * calling back into class code.
+ */
+struct device *class_dev_iter_next(struct class_dev_iter *iter)
+{
+	struct klist_node *knode;
+	struct device *dev;
+
+	while (1) {
+		knode = klist_next(&iter->ki);
+		if (!knode)
+			return NULL;
+		dev = container_of(knode, struct device, knode_class);
+		if (!iter->type || iter->type == dev->type)
+			return dev;
+	}
+}
+EXPORT_SYMBOL_GPL(class_dev_iter_next);
+
+/**
+ * class_dev_iter_exit - finish iteration
+ * @iter: class iterator to finish
+ *
+ * Finish an iteration.  Always call this function after iteration is
+ * complete whether the iteration ran till the end or not.
+ */
+void class_dev_iter_exit(struct class_dev_iter *iter)
+{
+	klist_iter_exit(&iter->ki);
+}
+EXPORT_SYMBOL_GPL(class_dev_iter_exit);
+
+/**
  * class_for_each_device - device iterator
  * @class: the class we're iterating
+ * @start: the device to start with in the list, if any.
  * @data: data for the callback
  * @fn: function to be called for each device
  *
  * Iterate over @class's list of devices, and call @fn for each,
- * passing it @data.
+ * passing it @data.  If @start is set, the list iteration will start
+ * there, otherwise if it is NULL, the iteration starts at the
+ * beginning of the list.
  *
  * We check the return of @fn each time. If it returns anything
  * other than 0, we break out and return that value.
  *
- * Note, we hold class->sem in this function, so it can not be
- * re-acquired in @fn, otherwise it will self-deadlocking. For
- * example, calls to add or remove class members would be verboten.
+ * @fn is allowed to do anything including calling back into class
+ * code.  There's no locking restriction.
  */
-int class_for_each_device(struct class *class, void *data,
-			   int (*fn)(struct device *, void *))
+int class_for_each_device(struct class *class, struct device *start,
+			  void *data, int (*fn)(struct device *, void *))
 {
+	struct class_dev_iter iter;
 	struct device *dev;
 	int error = 0;
 
 	if (!class)
 		return -EINVAL;
-	down(&class->sem);
-	list_for_each_entry(dev, &class->devices, node) {
-		dev = get_device(dev);
-		if (dev) {
-			error = fn(dev, data);
-			put_device(dev);
-		} else
-			error = -ENODEV;
+	if (!class->p) {
+		WARN(1, "%s called for class '%s' before it was initialized",
+		     __func__, class->name);
+		return -EINVAL;
+	}
+
+	class_dev_iter_init(&iter, class, start, NULL);
+	while ((dev = class_dev_iter_next(&iter))) {
+		error = fn(dev, data);
 		if (error)
 			break;
 	}
-	up(&class->sem);
+	class_dev_iter_exit(&iter);
 
 	return error;
 }
@@ -293,6 +395,7 @@ EXPORT_SYMBOL_GPL(class_for_each_device);
 /**
  * class_find_device - device iterator for locating a particular device
  * @class: the class we're iterating
+ * @start: Device to begin with
  * @data: data for the match function
  * @match: function to check device
  *
@@ -306,40 +409,41 @@ EXPORT_SYMBOL_GPL(class_for_each_device);
  *
  * Note, you will need to drop the reference with put_device() after use.
  *
- * We hold class->sem in this function, so it can not be
- * re-acquired in @match, otherwise it will self-deadlocking. For
- * example, calls to add or remove class members would be verboten.
+ * @fn is allowed to do anything including calling back into class
+ * code.  There's no locking restriction.
  */
-struct device *class_find_device(struct class *class, void *data,
-				   int (*match)(struct device *, void *))
+struct device *class_find_device(struct class *class, struct device *start,
+				 void *data,
+				 int (*match)(struct device *, void *))
 {
+	struct class_dev_iter iter;
 	struct device *dev;
-	int found = 0;
 
 	if (!class)
 		return NULL;
-
-	down(&class->sem);
-	list_for_each_entry(dev, &class->devices, node) {
-		dev = get_device(dev);
-		if (dev) {
-			if (match(dev, data)) {
-				found = 1;
-				break;
-			} else
-				put_device(dev);
-		} else
-			break;
+	if (!class->p) {
+		WARN(1, "%s called for class '%s' before it was initialized",
+		     __func__, class->name);
+		return NULL;
 	}
-	up(&class->sem);
 
-	return found ? dev : NULL;
+	class_dev_iter_init(&iter, class, start, NULL);
+	while ((dev = class_dev_iter_next(&iter))) {
+		if (match(dev, data)) {
+			get_device(dev);
+			break;
+		}
+	}
+	class_dev_iter_exit(&iter);
+
+	return dev;
 }
 EXPORT_SYMBOL_GPL(class_find_device);
 
 int class_interface_register(struct class_interface *class_intf)
 {
 	struct class *parent;
+	struct class_dev_iter iter;
 	struct device *dev;
 
 	if (!class_intf || !class_intf->class)
@@ -349,13 +453,15 @@ int class_interface_register(struct class_interface *class_intf)
 	if (!parent)
 		return -EINVAL;
 
-	down(&parent->sem);
-	list_add_tail(&class_intf->node, &parent->interfaces);
+	mutex_lock(&parent->p->class_mutex);
+	list_add_tail(&class_intf->node, &parent->p->class_interfaces);
 	if (class_intf->add_dev) {
-		list_for_each_entry(dev, &parent->devices, node)
+		class_dev_iter_init(&iter, parent, NULL, NULL);
+		while ((dev = class_dev_iter_next(&iter)))
 			class_intf->add_dev(dev, class_intf);
+		class_dev_iter_exit(&iter);
 	}
-	up(&parent->sem);
+	mutex_unlock(&parent->p->class_mutex);
 
 	return 0;
 }
@@ -363,18 +469,21 @@ int class_interface_register(struct class_interface *class_intf)
 void class_interface_unregister(struct class_interface *class_intf)
 {
 	struct class *parent = class_intf->class;
+	struct class_dev_iter iter;
 	struct device *dev;
 
 	if (!parent)
 		return;
 
-	down(&parent->sem);
+	mutex_lock(&parent->p->class_mutex);
 	list_del_init(&class_intf->node);
 	if (class_intf->remove_dev) {
-		list_for_each_entry(dev, &parent->devices, node)
+		class_dev_iter_init(&iter, parent, NULL, NULL);
+		while ((dev = class_dev_iter_next(&iter)))
 			class_intf->remove_dev(dev, class_intf);
+		class_dev_iter_exit(&iter);
 	}
-	up(&parent->sem);
+	mutex_unlock(&parent->p->class_mutex);
 
 	class_put(parent);
 }
@@ -389,9 +498,7 @@ int __init classes_init(void)
 
 EXPORT_SYMBOL_GPL(class_create_file);
 EXPORT_SYMBOL_GPL(class_remove_file);
-EXPORT_SYMBOL_GPL(class_register);
 EXPORT_SYMBOL_GPL(class_unregister);
-EXPORT_SYMBOL_GPL(class_create);
 EXPORT_SYMBOL_GPL(class_destroy);
 
 EXPORT_SYMBOL_GPL(class_interface_register);

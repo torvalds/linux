@@ -15,6 +15,8 @@
 #include <asm/proto.h>
 #include <asm/apicdef.h>
 #include <asm/idle.h>
+#include <asm/uv/uv_hub.h>
+#include <asm/uv/uv_bau.h>
 
 #include <mach_ipi.h>
 /*
@@ -162,6 +164,9 @@ void native_flush_tlb_others(const cpumask_t *cpumaskp, struct mm_struct *mm,
 	union smp_flush_state *f;
 	cpumask_t cpumask = *cpumaskp;
 
+	if (is_uv_system() && uv_flush_tlb_others(&cpumask, mm, va))
+		return;
+
 	/* Caller has disabled preemption */
 	sender = smp_processor_id() % NUM_INVALIDATE_TLB_VECTORS;
 	f = &per_cpu(flush_state, sender);
@@ -270,5 +275,5 @@ static void do_flush_tlb_all(void *info)
 
 void flush_tlb_all(void)
 {
-	on_each_cpu(do_flush_tlb_all, NULL, 1, 1);
+	on_each_cpu(do_flush_tlb_all, NULL, 1);
 }

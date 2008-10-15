@@ -210,7 +210,7 @@ static int raw_notifier(struct notifier_block *nb,
 	struct raw_sock *ro = container_of(nb, struct raw_sock, notifier);
 	struct sock *sk = &ro->sk;
 
-	if (dev_net(dev) != &init_net)
+	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
 	if (dev->type != ARPHRD_CAN)
@@ -631,6 +631,9 @@ static int raw_sendmsg(struct kiocb *iocb, struct socket *sock,
 		ifindex = addr->can_ifindex;
 	} else
 		ifindex = ro->ifindex;
+
+	if (size != sizeof(struct can_frame))
+		return -EINVAL;
 
 	dev = dev_get_by_index(&init_net, ifindex);
 	if (!dev)

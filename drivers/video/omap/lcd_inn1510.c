@@ -23,8 +23,8 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#include <asm/arch/fpga.h>
-#include <asm/arch/omapfb.h>
+#include <mach/fpga.h>
+#include <mach/omapfb.h>
 
 static int innovator1510_panel_init(struct lcd_panel *panel,
 				    struct omapfb_device *fbdev)

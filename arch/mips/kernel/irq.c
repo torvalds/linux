@@ -21,10 +21,15 @@
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/kallsyms.h>
+#include <linux/kgdb.h>
 
 #include <asm/atomic.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
+
+#ifdef CONFIG_KGDB
+int kgdb_early_setup;
+#endif
 
 static unsigned long irq_map[NR_IRQS / BITS_PER_LONG];
 
@@ -43,8 +48,6 @@ again:
 
 	return irq;
 }
-
-EXPORT_SYMBOL_GPL(allocate_irqno);
 
 /*
  * Allocate the 16 legacy interrupts for i8259 devices.  This happens early
@@ -65,8 +68,6 @@ void free_irqno(unsigned int irq)
 	clear_bit(irq, irq_map);
 	smp_mb__after_clear_bit();
 }
-
-EXPORT_SYMBOL_GPL(free_irqno);
 
 /*
  * 'what should we do if we get a hw irq event on an illegal vector'.
@@ -130,22 +131,14 @@ asmlinkage void spurious_interrupt(void)
 	atomic_inc(&irq_err_count);
 }
 
-#ifdef CONFIG_KGDB
-extern void breakpoint(void);
-extern void set_debug_traps(void);
-
-static int kgdb_flag = 1;
-static int __init nokgdb(char *str)
-{
-	kgdb_flag = 0;
-	return 1;
-}
-__setup("nokgdb", nokgdb);
-#endif
-
 void __init init_IRQ(void)
 {
 	int i;
+
+#ifdef CONFIG_KGDB
+	if (kgdb_early_setup)
+		return;
+#endif
 
 	for (i = 0; i < NR_IRQS; i++)
 		set_irq_noprobe(i);
@@ -153,10 +146,7 @@ void __init init_IRQ(void)
 	arch_init_irq();
 
 #ifdef CONFIG_KGDB
-	if (kgdb_flag) {
-		printk("Wait for gdb client connection ...\n");
-		set_debug_traps();
-		breakpoint();
-	}
+	if (!kgdb_early_setup)
+		kgdb_early_setup = 1;
 #endif
 }

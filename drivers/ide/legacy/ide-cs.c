@@ -38,7 +38,6 @@
 #include <linux/timer.h>
 #include <linux/ioport.h>
 #include <linux/ide.h>
-#include <linux/hdreg.h>
 #include <linux/major.h>
 #include <linux/delay.h>
 #include <asm/io.h>
@@ -63,11 +62,9 @@ MODULE_LICENSE("Dual MPL/GPL");
 
 #define INT_MODULE_PARM(n, v) static int n = v; module_param(n, int, 0)
 
-#ifdef PCMCIA_DEBUG
-INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
+#ifdef CONFIG_PCMCIA_DEBUG
+INT_MODULE_PARM(pc_debug, 0);
 #define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version =
-"ide-cs.c 1.3 2002/10/26 05:45:31 (David Hinds)";
 #else
 #define DEBUG(n, args...)
 #endif
@@ -76,7 +73,7 @@ static char *version =
 
 typedef struct ide_info_t {
 	struct pcmcia_device	*p_dev;
-	ide_hwif_t		*hwif;
+	struct ide_host		*host;
     int		ndev;
     dev_node_t	node;
 } ide_info_t;
@@ -134,7 +131,7 @@ static int ide_probe(struct pcmcia_device *link)
 static void ide_detach(struct pcmcia_device *link)
 {
     ide_info_t *info = link->priv;
-    ide_hwif_t *hwif = info->hwif;
+    ide_hwif_t *hwif = info->host->ports[0];
     unsigned long data_addr, ctl_addr;
 
     DEBUG(0, "ide_detach(0x%p)\n", link);
@@ -154,13 +151,18 @@ static const struct ide_port_ops idecs_port_ops = {
 	.quirkproc		= ide_undecoded_slave,
 };
 
-static ide_hwif_t *idecs_register(unsigned long io, unsigned long ctl,
+static const struct ide_port_info idecs_port_info = {
+	.port_ops		= &idecs_port_ops,
+	.host_flags		= IDE_HFLAG_NO_DMA,
+};
+
+static struct ide_host *idecs_register(unsigned long io, unsigned long ctl,
 				unsigned long irq, struct pcmcia_device *handle)
 {
+    struct ide_host *host;
     ide_hwif_t *hwif;
-    hw_regs_t hw;
-    int i;
-    u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+    int i, rc;
+    hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 
     if (!request_region(io, 8, DRV_NAME)) {
 	printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX not free.\n",
@@ -181,32 +183,24 @@ static ide_hwif_t *idecs_register(unsigned long io, unsigned long ctl,
     hw.chipset = ide_pci;
     hw.dev = &handle->dev;
 
-    hwif = ide_find_port();
-    if (hwif == NULL)
+    rc = ide_host_add(&idecs_port_info, hws, &host);
+    if (rc)
 	goto out_release;
 
-    i = hwif->index;
-
-    ide_init_port_data(hwif, i);
-    ide_init_port_hw(hwif, &hw);
-    hwif->port_ops = &idecs_port_ops;
-
-    idx[0] = i;
-
-    ide_device_add(idx, NULL);
+    hwif = host->ports[0];
 
     if (hwif->present)
-	return hwif;
+	return host;
 
     /* retry registration in case device is still spinning up */
     for (i = 0; i < 10; i++) {
 	msleep(100);
 	ide_port_scan(hwif);
 	if (hwif->present)
-	    return hwif;
+	    return host;
     }
 
-    return hwif;
+    return host;
 
 out_release:
     release_region(ctl, 1);
@@ -225,103 +219,91 @@ out_release:
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
+struct pcmcia_config_check {
+	unsigned long ctl_base;
+	int skip_vcc;
+	int is_kme;
+};
+
+static int pcmcia_check_one_config(struct pcmcia_device *pdev,
+				   cistpl_cftable_entry_t *cfg,
+				   cistpl_cftable_entry_t *dflt,
+				   unsigned int vcc,
+				   void *priv_data)
+{
+	struct pcmcia_config_check *stk = priv_data;
+
+	/* Check for matching Vcc, unless we're desperate */
+	if (!stk->skip_vcc) {
+		if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
+			if (vcc != cfg->vcc.param[CISTPL_POWER_VNOM] / 10000)
+				return -ENODEV;
+		} else if (dflt->vcc.present & (1 << CISTPL_POWER_VNOM)) {
+			if (vcc != dflt->vcc.param[CISTPL_POWER_VNOM] / 10000)
+				return -ENODEV;
+		}
+	}
+
+	if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
+		pdev->conf.Vpp = cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
+	else if (dflt->vpp1.present & (1 << CISTPL_POWER_VNOM))
+		pdev->conf.Vpp = dflt->vpp1.param[CISTPL_POWER_VNOM] / 10000;
+
+	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
+		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
+		pdev->conf.ConfigIndex = cfg->index;
+		pdev->io.BasePort1 = io->win[0].base;
+		pdev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
+		if (!(io->flags & CISTPL_IO_16BIT))
+			pdev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+		if (io->nwin == 2) {
+			pdev->io.NumPorts1 = 8;
+			pdev->io.BasePort2 = io->win[1].base;
+			pdev->io.NumPorts2 = (stk->is_kme) ? 2 : 1;
+			if (pcmcia_request_io(pdev, &pdev->io) != 0)
+				return -ENODEV;
+			stk->ctl_base = pdev->io.BasePort2;
+		} else if ((io->nwin == 1) && (io->win[0].len >= 16)) {
+			pdev->io.NumPorts1 = io->win[0].len;
+			pdev->io.NumPorts2 = 0;
+			if (pcmcia_request_io(pdev, &pdev->io) != 0)
+				return -ENODEV;
+			stk->ctl_base = pdev->io.BasePort1 + 0x0e;
+		} else
+			return -ENODEV;
+		/* If we've got this far, we're done */
+		return 0;
+	}
+	return -ENODEV;
+}
+
 static int ide_config(struct pcmcia_device *link)
 {
     ide_info_t *info = link->priv;
-    tuple_t tuple;
-    struct {
-	u_short		buf[128];
-	cisparse_t	parse;
-	config_info_t	conf;
-	cistpl_cftable_entry_t dflt;
-    } *stk = NULL;
-    cistpl_cftable_entry_t *cfg;
-    int pass, last_ret = 0, last_fn = 0, is_kme = 0;
+    struct pcmcia_config_check *stk = NULL;
+    int last_ret = 0, last_fn = 0, is_kme = 0;
     unsigned long io_base, ctl_base;
-    ide_hwif_t *hwif;
+    struct ide_host *host;
 
     DEBUG(0, "ide_config(0x%p)\n", link);
-
-    stk = kzalloc(sizeof(*stk), GFP_KERNEL);
-    if (!stk) goto err_mem;
-    cfg = &stk->parse.cftable_entry;
-
-    tuple.TupleData = (cisdata_t *)&stk->buf;
-    tuple.TupleOffset = 0;
-    tuple.TupleDataMax = 255;
-    tuple.Attributes = 0;
 
     is_kme = ((link->manf_id == MANFID_KME) &&
 	      ((link->card_id == PRODID_KME_KXLC005_A) ||
 	       (link->card_id == PRODID_KME_KXLC005_B)));
 
-    /* Not sure if this is right... look up the current Vcc */
-    CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(link, &stk->conf));
+    stk = kzalloc(sizeof(*stk), GFP_KERNEL);
+    if (!stk)
+	    goto err_mem;
+    stk->is_kme = is_kme;
+    stk->skip_vcc = io_base = ctl_base = 0;
 
-    pass = io_base = ctl_base = 0;
-    tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-    tuple.Attributes = 0;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-    while (1) {
-    	if (pcmcia_get_tuple_data(link, &tuple) != 0) goto next_entry;
-	if (pcmcia_parse_tuple(link, &tuple, &stk->parse) != 0) goto next_entry;
-
-	/* Check for matching Vcc, unless we're desperate */
-	if (!pass) {
-	    if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-		if (stk->conf.Vcc != cfg->vcc.param[CISTPL_POWER_VNOM] / 10000)
-		    goto next_entry;
-	    } else if (stk->dflt.vcc.present & (1 << CISTPL_POWER_VNOM)) {
-		if (stk->conf.Vcc != stk->dflt.vcc.param[CISTPL_POWER_VNOM] / 10000)
-		    goto next_entry;
-	    }
-	}
-
-	if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
-	    link->conf.Vpp =
-		cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
-	else if (stk->dflt.vpp1.present & (1 << CISTPL_POWER_VNOM))
-	    link->conf.Vpp =
-		stk->dflt.vpp1.param[CISTPL_POWER_VNOM] / 10000;
-
-	if ((cfg->io.nwin > 0) || (stk->dflt.io.nwin > 0)) {
-	    cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &stk->dflt.io;
-	    link->conf.ConfigIndex = cfg->index;
-	    link->io.BasePort1 = io->win[0].base;
-	    link->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
-	    if (!(io->flags & CISTPL_IO_16BIT))
-		link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-	    if (io->nwin == 2) {
-		link->io.NumPorts1 = 8;
-		link->io.BasePort2 = io->win[1].base;
-		link->io.NumPorts2 = (is_kme) ? 2 : 1;
-		if (pcmcia_request_io(link, &link->io) != 0)
-			goto next_entry;
-		io_base = link->io.BasePort1;
-		ctl_base = link->io.BasePort2;
-	    } else if ((io->nwin == 1) && (io->win[0].len >= 16)) {
-		link->io.NumPorts1 = io->win[0].len;
-		link->io.NumPorts2 = 0;
-		if (pcmcia_request_io(link, &link->io) != 0)
-			goto next_entry;
-		io_base = link->io.BasePort1;
-		ctl_base = link->io.BasePort1 + 0x0e;
-	    } else goto next_entry;
-	    /* If we've got this far, we're done */
-	    break;
-	}
-
-    next_entry:
-	if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
-	    memcpy(&stk->dflt, cfg, sizeof(stk->dflt));
-	if (pass) {
-	    CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(link, &tuple));
-	} else if (pcmcia_get_next_tuple(link, &tuple) != 0) {
-	    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-	    memset(&stk->dflt, 0, sizeof(stk->dflt));
-	    pass++;
-	}
+    if (pcmcia_loop_config(link, pcmcia_check_one_config, stk)) {
+	    stk->skip_vcc = 1;
+	    if (pcmcia_loop_config(link, pcmcia_check_one_config, stk))
+		    goto failed; /* No suitable config found */
     }
+    io_base = link->io.BasePort1;
+    ctl_base = stk->ctl_base;
 
     CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
     CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
@@ -333,21 +315,21 @@ static int ide_config(struct pcmcia_device *link)
     if (is_kme)
 	outb(0x81, ctl_base+1);
 
-     hwif = idecs_register(io_base, ctl_base, link->irq.AssignedIRQ, link);
-     if (hwif == NULL && link->io.NumPorts1 == 0x20) {
+     host = idecs_register(io_base, ctl_base, link->irq.AssignedIRQ, link);
+     if (host == NULL && link->io.NumPorts1 == 0x20) {
 	    outb(0x02, ctl_base + 0x10);
-	    hwif = idecs_register(io_base + 0x10, ctl_base + 0x10,
+	    host = idecs_register(io_base + 0x10, ctl_base + 0x10,
 				  link->irq.AssignedIRQ, link);
     }
 
-    if (hwif == NULL)
+    if (host == NULL)
 	goto failed;
 
     info->ndev = 1;
-    sprintf(info->node.dev_name, "hd%c", 'a' + hwif->index * 2);
-    info->node.major = hwif->major;
+    sprintf(info->node.dev_name, "hd%c", 'a' + host->ports[0]->index * 2);
+    info->node.major = host->ports[0]->major;
     info->node.minor = 0;
-    info->hwif = hwif;
+    info->host = host;
     link->dev_node = &info->node;
     printk(KERN_INFO "ide-cs: %s: Vpp = %d.%d\n",
 	   info->node.dev_name, link->conf.Vpp / 10, link->conf.Vpp % 10);
@@ -375,18 +357,18 @@ failed:
 
 ======================================================================*/
 
-void ide_release(struct pcmcia_device *link)
+static void ide_release(struct pcmcia_device *link)
 {
     ide_info_t *info = link->priv;
-    ide_hwif_t *hwif = info->hwif;
+    struct ide_host *host = info->host;
 
     DEBUG(0, "ide_release(0x%p)\n", link);
 
-    if (info->ndev) {
+    if (info->ndev)
 	/* FIXME: if this fails we need to queue the cleanup somehow
 	   -- need to investigate the required PCMCIA magic */
-	ide_unregister(hwif);
-    }
+	ide_host_remove(host);
+
     info->ndev = 0;
 
     pcmcia_disable_device(link);
@@ -409,8 +391,10 @@ static struct pcmcia_device_id ide_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x000a, 0x0000),	/* I-O Data CFA */
 	PCMCIA_DEVICE_MANF_CARD(0x001c, 0x0001),	/* Mitsubishi CFA */
 	PCMCIA_DEVICE_MANF_CARD(0x0032, 0x0704),
+	PCMCIA_DEVICE_MANF_CARD(0x0032, 0x2904),
 	PCMCIA_DEVICE_MANF_CARD(0x0045, 0x0401),	/* SanDisk CFA */
 	PCMCIA_DEVICE_MANF_CARD(0x004f, 0x0000),	/* Kingston */
+	PCMCIA_DEVICE_MANF_CARD(0x0097, 0x1620), 	/* TI emulated */
 	PCMCIA_DEVICE_MANF_CARD(0x0098, 0x0000),	/* Toshiba */
 	PCMCIA_DEVICE_MANF_CARD(0x00a4, 0x002d),
 	PCMCIA_DEVICE_MANF_CARD(0x00ce, 0x0000),	/* Samsung */

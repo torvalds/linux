@@ -140,7 +140,7 @@ static int sp887x_initial_setup (struct dvb_frontend* fe, const struct firmware 
 	u8 buf [BLOCKSIZE+2];
 	int i;
 	int fw_size = fw->size;
-	unsigned char *mem = fw->data;
+	const unsigned char *mem = fw->data;
 
 	dprintk("%s\n", __func__);
 
@@ -337,7 +337,8 @@ static int sp887x_setup_frontend_parameters (struct dvb_frontend* fe,
 					     struct dvb_frontend_parameters *p)
 {
 	struct sp887x_state* state = fe->demodulator_priv;
-	int actual_freq, err;
+	unsigned actual_freq;
+	int err;
 	u16 val, reg0xc05;
 
 	if (p->u.ofdm.bandwidth != BANDWIDTH_8_MHZ &&

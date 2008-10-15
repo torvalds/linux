@@ -48,8 +48,6 @@ struct iwch_qp;
 struct iwch_mr;
 
 struct iwch_rnic_attributes {
-	u32 vendor_id;
-	u32 vendor_part_id;
 	u32 max_qps;
 	u32 max_wrs;				/* Max for any SQ/RQ */
 	u32 max_sge_per_wr;

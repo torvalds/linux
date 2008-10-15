@@ -25,7 +25,7 @@
 #include <linux/bootmem.h>
 
 #include <asm/sizes.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/mach/map.h>

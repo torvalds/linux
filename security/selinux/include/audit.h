@@ -1,7 +1,7 @@
 /*
  * SELinux support for the Audit LSM hooks
  *
- * Most of below header was moved from include/linux/selinux.h which 
+ * Most of below header was moved from include/linux/selinux.h which
  * is released under below copyrights:
  *
  * Author: James Morris <jmorris@redhat.com>
@@ -52,7 +52,7 @@ void selinux_audit_rule_free(void *rule);
  *	-errno on failure.
  */
 int selinux_audit_rule_match(u32 sid, u32 field, u32 op, void *rule,
-                             struct audit_context *actx);
+			     struct audit_context *actx);
 
 /**
  *	selinux_audit_rule_known - check to see if rule contains selinux fields.

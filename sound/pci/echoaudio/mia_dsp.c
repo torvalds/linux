@@ -42,7 +42,8 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 	int err;
 
 	DE_INIT(("init_hw() - Mia\n"));
-	snd_assert((subdevice_id & 0xfff0) == MIA, return -ENODEV);
+	if (snd_BUG_ON((subdevice_id & 0xfff0) != MIA))
+		return -ENODEV;
 
 	if ((err = init_dsp_comm_page(chip))) {
 		DE_INIT(("init_hw - could not initialize DSP comm page\n"));
@@ -161,8 +162,9 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 static int set_input_clock(struct echoaudio *chip, u16 clock)
 {
 	DE_ACT(("set_input_clock(%d)\n", clock));
-	snd_assert(clock == ECHO_CLOCK_INTERNAL || clock == ECHO_CLOCK_SPDIF,
-		   return -EINVAL);
+	if (snd_BUG_ON(clock != ECHO_CLOCK_INTERNAL &&
+		       clock != ECHO_CLOCK_SPDIF))
+		return -EINVAL;
 
 	chip->input_clock = clock;
 	return set_sample_rate(chip, chip->sample_rate);
@@ -176,8 +178,9 @@ static int set_vmixer_gain(struct echoaudio *chip, u16 output, u16 pipe,
 {
 	int index;
 
-	snd_assert(pipe < num_pipes_out(chip) &&
-		   output < num_busses_out(chip), return -EINVAL);
+	if (snd_BUG_ON(pipe >= num_pipes_out(chip) ||
+		       output >= num_busses_out(chip)))
+		return -EINVAL;
 
 	if (wait_handshake(chip))
 		return -EIO;

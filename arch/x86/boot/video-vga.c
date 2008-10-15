@@ -259,8 +259,7 @@ static int vga_probe(void)
 	return mode_count[adapter];
 }
 
-__videocard video_vga =
-{
+__videocard video_vga = {
 	.card_name	= "VGA",
 	.probe		= vga_probe,
 	.set_mode	= vga_set_mode,

@@ -2,16 +2,12 @@
  * wm9713.c  --  ALSA Soc WM9713 codec support
  *
  * Copyright 2006 Wolfson Microelectronics PLC.
- * Author: Liam Girdwood
- *         liam.girdwood@wolfsonmicro.com or linux@wolfsonmicro.com
+ * Author: Liam Girdwood <lrg@slimlogic.co.uk>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
  *  Free Software Foundation;  either version 2 of the  License, or (at your
  *  option) any later version.
- *
- *  Revision history
- *    4th Feb 2006   Initial version.
  *
  *  Features:-
  *
@@ -422,8 +418,12 @@ SND_SOC_DAPM_MIXER("Line Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
 SND_SOC_DAPM_MIXER("Capture Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
 SND_SOC_DAPM_DAC("Voice DAC", "Voice Playback", AC97_EXTENDED_MID, 12, 1),
 SND_SOC_DAPM_DAC("Aux DAC", "Aux Playback", AC97_EXTENDED_MID, 11, 1),
-SND_SOC_DAPM_ADC("Left ADC", "Left HiFi Capture", AC97_EXTENDED_MID, 5, 1),
-SND_SOC_DAPM_ADC("Right ADC", "Right HiFi Capture", AC97_EXTENDED_MID, 4, 1),
+SND_SOC_DAPM_PGA("Left ADC", AC97_EXTENDED_MID, 5, 1, NULL, 0),
+SND_SOC_DAPM_PGA("Right ADC", AC97_EXTENDED_MID, 4, 1, NULL, 0),
+SND_SOC_DAPM_ADC("Left HiFi ADC", "Left HiFi Capture", SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_ADC("Right HiFi ADC", "Right HiFi Capture", SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_ADC("Left Voice ADC", "Left Voice Capture", SND_SOC_NOPM, 0, 0),
+SND_SOC_DAPM_ADC("Right Voice ADC", "Right Voice Capture", SND_SOC_NOPM, 0, 0),
 SND_SOC_DAPM_PGA("Left Headphone", AC97_EXTENDED_MSTATUS, 10, 1, NULL, 0),
 SND_SOC_DAPM_PGA("Right Headphone", AC97_EXTENDED_MSTATUS, 9, 1, NULL, 0),
 SND_SOC_DAPM_PGA("Left Speaker", AC97_EXTENDED_MSTATUS, 8, 1, NULL, 0),
@@ -456,7 +456,7 @@ SND_SOC_DAPM_INPUT("MIC2B"),
 SND_SOC_DAPM_VMID("VMID"),
 };
 
-static const char *audio_map[][3] = {
+static const struct snd_soc_dapm_route audio_map[] = {
 	/* left HP mixer */
 	{"Left HP Mixer", "PC Beep Playback Switch", "PCBEEP"},
 	{"Left HP Mixer", "Voice Playback Switch",   "Voice DAC"},
@@ -586,9 +586,13 @@ static const char *audio_map[][3] = {
 
 	/* left ADC */
 	{"Left ADC", NULL, "Left Capture Source"},
+	{"Left Voice ADC", NULL, "Left ADC"},
+	{"Left HiFi ADC", NULL, "Left ADC"},
 
 	/* right ADC */
 	{"Right ADC", NULL, "Right Capture Source"},
+	{"Right Voice ADC", NULL, "Right ADC"},
+	{"Right HiFi ADC", NULL, "Right ADC"},
 
 	/* mic */
 	{"Mic A Pre Amp", NULL, "Mic A Source"},
@@ -607,21 +611,14 @@ static const char *audio_map[][3] = {
 	{"Capture Mono Mux", "Stereo", "Capture Mixer"},
 	{"Capture Mono Mux", "Left", "Left Capture Source"},
 	{"Capture Mono Mux", "Right", "Right Capture Source"},
-
-	{NULL, NULL, NULL},
 };
 
 static int wm9713_add_widgets(struct snd_soc_codec *codec)
 {
-	int i;
+	snd_soc_dapm_new_controls(codec, wm9713_dapm_widgets,
+				  ARRAY_SIZE(wm9713_dapm_widgets));
 
-	for (i = 0; i < ARRAY_SIZE(wm9713_dapm_widgets); i++)
-		snd_soc_dapm_new_control(codec, &wm9713_dapm_widgets[i]);
-
-	/* set up audio path audio_mapnects */
-	for (i = 0; audio_map[i][0] != NULL; i++)
-		snd_soc_dapm_connect_input(codec, audio_map[i][0],
-			audio_map[i][1], audio_map[i][2]);
+	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
 	snd_soc_dapm_new_widgets(codec);
 	return 0;
@@ -799,7 +796,7 @@ static int wm9713_set_pll(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int wm9713_set_dai_pll(struct snd_soc_codec_dai *codec_dai,
+static int wm9713_set_dai_pll(struct snd_soc_dai *codec_dai,
 		int pll_id, unsigned int freq_in, unsigned int freq_out)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
@@ -810,7 +807,7 @@ static int wm9713_set_dai_pll(struct snd_soc_codec_dai *codec_dai,
  * Tristate the PCM DAI lines, tristate can be disabled by calling
  * wm9713_set_dai_fmt()
  */
-static int wm9713_set_dai_tristate(struct snd_soc_codec_dai *codec_dai,
+static int wm9713_set_dai_tristate(struct snd_soc_dai *codec_dai,
 	int tristate)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
@@ -826,7 +823,7 @@ static int wm9713_set_dai_tristate(struct snd_soc_codec_dai *codec_dai,
  * Configure WM9713 clock dividers.
  * Voice DAC needs 256 FS
  */
-static int wm9713_set_dai_clkdiv(struct snd_soc_codec_dai *codec_dai,
+static int wm9713_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 		int div_id, int div)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
@@ -868,7 +865,7 @@ static int wm9713_set_dai_clkdiv(struct snd_soc_codec_dai *codec_dai,
 	return 0;
 }
 
-static int wm9713_set_dai_fmt(struct snd_soc_codec_dai *codec_dai,
+static int wm9713_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
@@ -886,7 +883,7 @@ static int wm9713_set_dai_fmt(struct snd_soc_codec_dai *codec_dai,
 		gpio |= 0x0018;
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
-		reg |= 0x0200;
+		reg |= 0x2000;
 		gpio |= 0x001a;
 		break;
 	case SND_SOC_DAIFMT_CBS_CFM:
@@ -959,17 +956,17 @@ static int wm9713_pcm_hw_params(struct snd_pcm_substream *substream,
 
 static void wm9713_voiceshutdown(struct snd_pcm_substream *substream)
 {
-    struct snd_soc_pcm_runtime *rtd = substream->private_data;
-    struct snd_soc_device *socdev = rtd->socdev;
-    struct snd_soc_codec *codec = socdev->codec;
-    u16 status;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_device *socdev = rtd->socdev;
+	struct snd_soc_codec *codec = socdev->codec;
+	u16 status;
 
-    /* Gracefully shut down the voice interface. */
-    status = ac97_read(codec, AC97_EXTENDED_STATUS) | 0x1000;
-    ac97_write(codec, AC97_HANDSET_RATE, 0x0280);
-    schedule_timeout_interruptible(msecs_to_jiffies(1));
-    ac97_write(codec, AC97_HANDSET_RATE, 0x0F80);
-    ac97_write(codec, AC97_EXTENDED_MID, status);
+	/* Gracefully shut down the voice interface. */
+	status = ac97_read(codec, AC97_EXTENDED_STATUS) | 0x1000;
+	ac97_write(codec, AC97_HANDSET_RATE, 0x0280);
+	schedule_timeout_interruptible(msecs_to_jiffies(1));
+	ac97_write(codec, AC97_HANDSET_RATE, 0x0F80);
+	ac97_write(codec, AC97_EXTENDED_MID, status);
 }
 
 static int ac97_hifi_prepare(struct snd_pcm_substream *substream)
@@ -1011,15 +1008,24 @@ static int ac97_aux_prepare(struct snd_pcm_substream *substream)
 	return ac97_write(codec, AC97_PCM_SURR_DAC_RATE, runtime->rate);
 }
 
-#define WM9713_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
-		SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 |\
-		SNDRV_PCM_RATE_48000)
+#define WM9713_RATES (SNDRV_PCM_RATE_8000  |	\
+		      SNDRV_PCM_RATE_11025 |	\
+		      SNDRV_PCM_RATE_22050 |	\
+		      SNDRV_PCM_RATE_44100 |	\
+		      SNDRV_PCM_RATE_48000)
+
+#define WM9713_PCM_RATES (SNDRV_PCM_RATE_8000  |	\
+			  SNDRV_PCM_RATE_11025 |	\
+			  SNDRV_PCM_RATE_16000 |	\
+			  SNDRV_PCM_RATE_22050 |	\
+			  SNDRV_PCM_RATE_44100 |	\
+			  SNDRV_PCM_RATE_48000)
 
 #define WM9713_PCM_FORMATS \
 	(SNDRV_PCM_FORMAT_S16_LE | SNDRV_PCM_FORMAT_S20_3LE | \
 	 SNDRV_PCM_FORMAT_S24_LE)
 
-struct snd_soc_codec_dai wm9713_dai[] = {
+struct snd_soc_dai wm9713_dai[] = {
 {
 	.name = "AC97 HiFi",
 	.type = SND_SOC_DAI_AC97_BUS,
@@ -1061,13 +1067,13 @@ struct snd_soc_codec_dai wm9713_dai[] = {
 		.stream_name = "Voice Playback",
 		.channels_min = 1,
 		.channels_max = 1,
-		.rates = WM9713_RATES,
+		.rates = WM9713_PCM_RATES,
 		.formats = WM9713_PCM_FORMATS,},
 	.capture = {
 		.stream_name = "Voice Capture",
 		.channels_min = 1,
 		.channels_max = 2,
-		.rates = WM9713_RATES,
+		.rates = WM9713_PCM_RATES,
 		.formats = WM9713_PCM_FORMATS,},
 	.ops = {
 		.hw_params = wm9713_pcm_hw_params,
@@ -1086,44 +1092,44 @@ int wm9713_reset(struct snd_soc_codec *codec, int try_warm)
 {
 	if (try_warm && soc_ac97_ops.warm_reset) {
 		soc_ac97_ops.warm_reset(codec->ac97);
-		if (!(ac97_read(codec, 0) & 0x8000))
+		if (ac97_read(codec, 0) == wm9713_reg[0])
 			return 1;
 	}
 
 	soc_ac97_ops.reset(codec->ac97);
-	if (ac97_read(codec, 0) & 0x8000)
+	if (ac97_read(codec, 0) != wm9713_reg[0])
 		return -EIO;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm9713_reset);
 
-static int wm9713_dapm_event(struct snd_soc_codec *codec, int event)
+static int wm9713_set_bias_level(struct snd_soc_codec *codec,
+				 enum snd_soc_bias_level level)
 {
 	u16 reg;
 
-	switch (event) {
-	case SNDRV_CTL_POWER_D0: /* full On */
+	switch (level) {
+	case SND_SOC_BIAS_ON:
 		/* enable thermal shutdown */
 		reg = ac97_read(codec, AC97_EXTENDED_MID) & 0x1bff;
 		ac97_write(codec, AC97_EXTENDED_MID, reg);
 		break;
-	case SNDRV_CTL_POWER_D1: /* partial On */
-	case SNDRV_CTL_POWER_D2: /* partial On */
+	case SND_SOC_BIAS_PREPARE:
 		break;
-	case SNDRV_CTL_POWER_D3hot: /* Off, with power */
+	case SND_SOC_BIAS_STANDBY:
 		/* enable master bias and vmid */
 		reg = ac97_read(codec, AC97_EXTENDED_MID) & 0x3bff;
 		ac97_write(codec, AC97_EXTENDED_MID, reg);
 		ac97_write(codec, AC97_POWERDOWN, 0x0000);
 		break;
-	case SNDRV_CTL_POWER_D3cold: /* Off, without power */
+	case SND_SOC_BIAS_OFF:
 		/* disable everything including AC link */
 		ac97_write(codec, AC97_EXTENDED_MID, 0xffff);
 		ac97_write(codec, AC97_EXTENDED_MSTATUS, 0xffff);
 		ac97_write(codec, AC97_POWERDOWN, 0xffff);
 		break;
 	}
-	codec->dapm_state = event;
+	codec->bias_level = level;
 	return 0;
 }
 
@@ -1160,7 +1166,7 @@ static int wm9713_soc_resume(struct platform_device *pdev)
 		return ret;
 	}
 
-	wm9713_dapm_event(codec, SNDRV_CTL_POWER_D3hot);
+	wm9713_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* do we need to re-start the PLL ? */
 	if (wm9713->pll_out)
@@ -1176,8 +1182,8 @@ static int wm9713_soc_resume(struct platform_device *pdev)
 		}
 	}
 
-	if (codec->suspend_dapm_state == SNDRV_CTL_POWER_D0)
-		wm9713_dapm_event(codec, SNDRV_CTL_POWER_D0);
+	if (codec->suspend_bias_level == SND_SOC_BIAS_ON)
+		wm9713_set_bias_level(codec, SND_SOC_BIAS_ON);
 
 	return ret;
 }
@@ -1216,7 +1222,7 @@ static int wm9713_soc_probe(struct platform_device *pdev)
 	codec->num_dai = ARRAY_SIZE(wm9713_dai);
 	codec->write = ac97_write;
 	codec->read = ac97_read;
-	codec->dapm_event = wm9713_dapm_event;
+	codec->set_bias_level = wm9713_set_bias_level;
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
@@ -1238,7 +1244,7 @@ static int wm9713_soc_probe(struct platform_device *pdev)
 		goto reset_err;
 	}
 
-	wm9713_dapm_event(codec, SNDRV_CTL_POWER_D3hot);
+	wm9713_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* unmute the adc - move to kcontrol */
 	reg = ac97_read(codec, AC97_CD) & 0x7fff;

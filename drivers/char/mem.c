@@ -26,6 +26,7 @@
 #include <linux/bootmem.h>
 #include <linux/splice.h>
 #include <linux/pfn.h>
+#include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -79,7 +80,7 @@ static inline int valid_mmap_phys_addr_range(unsigned long pfn, size_t size)
 }
 #endif
 
-#ifdef CONFIG_NONPROMISC_DEVMEM
+#ifdef CONFIG_STRICT_DEVMEM
 static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 {
 	u64 from = ((u64)pfn) << PAGE_SHIFT;
@@ -326,7 +327,10 @@ static void mmap_mem_close(struct vm_area_struct *vma)
 
 static struct vm_operations_struct mmap_mem_ops = {
 	.open  = mmap_mem_open,
-	.close = mmap_mem_close
+	.close = mmap_mem_close,
+#ifdef CONFIG_HAVE_IOREMAP_PROT
+	.access = generic_access_phys
+#endif
 };
 
 static int mmap_mem(struct file * file, struct vm_area_struct * vma)
@@ -889,6 +893,9 @@ static const struct file_operations kmsg_fops = {
 
 static int memory_open(struct inode * inode, struct file * filp)
 {
+	int ret = 0;
+
+	lock_kernel();
 	switch (iminor(inode)) {
 		case 1:
 			filp->f_op = &mem_fops;
@@ -932,11 +939,13 @@ static int memory_open(struct inode * inode, struct file * filp)
 			break;
 #endif
 		default:
+			unlock_kernel();
 			return -ENXIO;
 	}
 	if (filp->f_op && filp->f_op->open)
-		return filp->f_op->open(inode,filp);
-	return 0;
+		ret = filp->f_op->open(inode,filp);
+	unlock_kernel();
+	return ret;
 }
 
 static const struct file_operations memory_fops = {
@@ -983,9 +992,9 @@ static int __init chr_dev_init(void)
 
 	mem_class = class_create(THIS_MODULE, "mem");
 	for (i = 0; i < ARRAY_SIZE(devlist); i++)
-		device_create(mem_class, NULL,
-			      MKDEV(MEM_MAJOR, devlist[i].minor),
-			      devlist[i].name);
+		device_create_drvdata(mem_class, NULL,
+				      MKDEV(MEM_MAJOR, devlist[i].minor),
+				      NULL, devlist[i].name);
 
 	return 0;
 }

@@ -12,6 +12,7 @@
 #include <linux/pagemap.h>
 
 #include <asm/cacheflush.h>
+#include <asm/cachetype.h>
 #include <asm/system.h>
 #include <asm/tlbflush.h>
 
@@ -199,6 +200,8 @@ void flush_dcache_page(struct page *page)
 		__flush_dcache_page(mapping, page);
 		if (mapping && cache_is_vivt())
 			__flush_dcache_aliases(mapping, page);
+		else if (mapping)
+			__flush_icache_all();
 	}
 }
 EXPORT_SYMBOL(flush_dcache_page);

@@ -194,8 +194,8 @@ config HOTPLUG
 	plugged into slots found on all modern laptop computers.  Another
 	example, used on modern desktops as well as laptops, is USB.
 
-	Enable HOTPLUG and KMOD, and build a modular kernel.  Get agent
-	software (at <http://linux-hotplug.sourceforge.net/>) and install it.
+	Enable HOTPLUG and build a modular kernel.  Get agent software
+	(from <http://linux-hotplug.sourceforge.net/>) and install it.
 	Then your kernel will automatically call out to a user mode "policy
 	agent" (/sbin/hotplug) to load modules and set up software needed
 	to use devices as you hotplug them.

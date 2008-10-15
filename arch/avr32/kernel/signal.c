@@ -93,6 +93,9 @@ asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext))
 		goto badframe;
 
+	if (do_sigaltstack(&frame->uc.uc_stack, NULL, regs->sp) == -EFAULT)
+		goto badframe;
+
 	pr_debug("Context restored: pc = %08lx, lr = %08lx, sp = %08lx\n",
 		 regs->pc, regs->lr, regs->sp);
 

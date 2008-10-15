@@ -228,10 +228,8 @@ void hpsb_register_highlevel(struct hpsb_highlevel *hl)
 {
 	unsigned long flags;
 
+	hpsb_init_highlevel(hl);
 	INIT_LIST_HEAD(&hl->addr_list);
-	INIT_LIST_HEAD(&hl->host_info_list);
-
-	rwlock_init(&hl->host_info_lock);
 
 	down_write(&hl_drivers_sem);
 	list_add_tail(&hl->hl_list, &hl_drivers);

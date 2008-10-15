@@ -43,6 +43,7 @@ const struct file_operations ramfs_file_operations = {
 	.aio_write		= generic_file_aio_write,
 	.fsync			= simple_sync_file,
 	.splice_read		= generic_file_splice_read,
+	.splice_write		= generic_file_splice_write,
 	.llseek			= generic_file_llseek,
 };
 
@@ -57,7 +58,7 @@ const struct inode_operations ramfs_file_inode_operations = {
  * size 0 on the assumption that it's going to be used for an mmap of shared
  * memory
  */
-static int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
+int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
 {
 	struct pagevec lru_pvec;
 	unsigned long npages, xpages, loop, limit;

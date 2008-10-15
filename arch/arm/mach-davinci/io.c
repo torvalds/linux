@@ -11,13 +11,13 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/io.h>
 
 #include <asm/tlb.h>
-#include <asm/io.h>
 #include <asm/memory.h>
 
 #include <asm/mach/map.h>
-#include <asm/arch/clock.h>
+#include <mach/clock.h>
 
 extern void davinci_check_revision(void);
 

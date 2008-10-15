@@ -298,7 +298,7 @@ struct gelic_card {
 	wait_queue_head_t waitq;
 
 	/* only first user should up the card */
-	struct semaphore updown_lock;
+	struct mutex updown_lock;
 	atomic_t users;
 
 	u64 ether_port_status;

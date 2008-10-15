@@ -492,7 +492,7 @@ lcs_start_channel(struct lcs_channel *channel)
 	unsigned long flags;
 	int rc;
 
-	LCS_DBF_TEXT_(4,trace,"ssch%s", channel->ccwdev->dev.bus_id);
+	LCS_DBF_TEXT_(4, trace,"ssch%s", dev_name(&channel->ccwdev->dev));
 	spin_lock_irqsave(get_ccwdev_lock(channel->ccwdev), flags);
 	rc = ccw_device_start(channel->ccwdev,
 			      channel->ccws + channel->io_idx, 0, 0,
@@ -501,7 +501,8 @@ lcs_start_channel(struct lcs_channel *channel)
 		channel->state = LCS_CH_STATE_RUNNING;
 	spin_unlock_irqrestore(get_ccwdev_lock(channel->ccwdev), flags);
 	if (rc) {
-		LCS_DBF_TEXT_(4,trace,"essh%s", channel->ccwdev->dev.bus_id);
+		LCS_DBF_TEXT_(4,trace,"essh%s",
+			      dev_name(&channel->ccwdev->dev));
 		PRINT_ERR("Error in starting channel, rc=%d!\n", rc);
 	}
 	return rc;
@@ -514,12 +515,13 @@ lcs_clear_channel(struct lcs_channel *channel)
 	int rc;
 
 	LCS_DBF_TEXT(4,trace,"clearch");
-	LCS_DBF_TEXT_(4,trace,"%s", channel->ccwdev->dev.bus_id);
+	LCS_DBF_TEXT_(4, trace, "%s", dev_name(&channel->ccwdev->dev));
 	spin_lock_irqsave(get_ccwdev_lock(channel->ccwdev), flags);
 	rc = ccw_device_clear(channel->ccwdev, (addr_t) channel);
 	spin_unlock_irqrestore(get_ccwdev_lock(channel->ccwdev), flags);
 	if (rc) {
-		LCS_DBF_TEXT_(4,trace,"ecsc%s", channel->ccwdev->dev.bus_id);
+		LCS_DBF_TEXT_(4, trace, "ecsc%s",
+			      dev_name(&channel->ccwdev->dev));
 		return rc;
 	}
 	wait_event(channel->wait_q, (channel->state == LCS_CH_STATE_CLEARED));
@@ -540,13 +542,14 @@ lcs_stop_channel(struct lcs_channel *channel)
 	if (channel->state == LCS_CH_STATE_STOPPED)
 		return 0;
 	LCS_DBF_TEXT(4,trace,"haltsch");
-	LCS_DBF_TEXT_(4,trace,"%s", channel->ccwdev->dev.bus_id);
+	LCS_DBF_TEXT_(4, trace, "%s", dev_name(&channel->ccwdev->dev));
 	channel->state = LCS_CH_STATE_INIT;
 	spin_lock_irqsave(get_ccwdev_lock(channel->ccwdev), flags);
 	rc = ccw_device_halt(channel->ccwdev, (addr_t) channel);
 	spin_unlock_irqrestore(get_ccwdev_lock(channel->ccwdev), flags);
 	if (rc) {
-		LCS_DBF_TEXT_(4,trace,"ehsc%s", channel->ccwdev->dev.bus_id);
+		LCS_DBF_TEXT_(4, trace, "ehsc%s",
+			      dev_name(&channel->ccwdev->dev));
 		return rc;
 	}
 	/* Asynchronous halt initialted. Wait for its completion. */
@@ -632,10 +635,11 @@ __lcs_resume_channel(struct lcs_channel *channel)
 		return 0;
 	if (channel->ccws[channel->io_idx].flags & CCW_FLAG_SUSPEND)
 		return 0;
-	LCS_DBF_TEXT_(5, trace, "rsch%s", channel->ccwdev->dev.bus_id);
+	LCS_DBF_TEXT_(5, trace, "rsch%s", dev_name(&channel->ccwdev->dev));
 	rc = ccw_device_resume(channel->ccwdev);
 	if (rc) {
-		LCS_DBF_TEXT_(4, trace, "ersc%s", channel->ccwdev->dev.bus_id);
+		LCS_DBF_TEXT_(4, trace, "ersc%s",
+			      dev_name(&channel->ccwdev->dev));
 		PRINT_ERR("Error in lcs_resume_channel: rc=%d\n",rc);
 	} else
 		channel->state = LCS_CH_STATE_RUNNING;
@@ -1302,18 +1306,18 @@ lcs_check_irb_error(struct ccw_device *cdev, struct irb *irb)
 
 	switch (PTR_ERR(irb)) {
 	case -EIO:
-		PRINT_WARN("i/o-error on device %s\n", cdev->dev.bus_id);
+		PRINT_WARN("i/o-error on device %s\n", dev_name(&cdev->dev));
 		LCS_DBF_TEXT(2, trace, "ckirberr");
 		LCS_DBF_TEXT_(2, trace, "  rc%d", -EIO);
 		break;
 	case -ETIMEDOUT:
-		PRINT_WARN("timeout on device %s\n", cdev->dev.bus_id);
+		PRINT_WARN("timeout on device %s\n", dev_name(&cdev->dev));
 		LCS_DBF_TEXT(2, trace, "ckirberr");
 		LCS_DBF_TEXT_(2, trace, "  rc%d", -ETIMEDOUT);
 		break;
 	default:
 		PRINT_WARN("unknown error %ld on device %s\n", PTR_ERR(irb),
-			   cdev->dev.bus_id);
+			   dev_name(&cdev->dev));
 		LCS_DBF_TEXT(2, trace, "ckirberr");
 		LCS_DBF_TEXT(2, trace, "  rc???");
 	}
@@ -1327,8 +1331,8 @@ lcs_get_problem(struct ccw_device *cdev, struct irb *irb)
 	char *sense;
 
 	sense = (char *) irb->ecw;
-	cstat = irb->scsw.cstat;
-	dstat = irb->scsw.dstat;
+	cstat = irb->scsw.cmd.cstat;
+	dstat = irb->scsw.cmd.dstat;
 
 	if (cstat & (SCHN_STAT_CHN_CTRL_CHK | SCHN_STAT_INTF_CTRL_CHK |
 		     SCHN_STAT_CHN_DATA_CHK | SCHN_STAT_CHAIN_CHECK |
@@ -1388,17 +1392,19 @@ lcs_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	else
 		channel = &card->write;
 
-	cstat = irb->scsw.cstat;
-	dstat = irb->scsw.dstat;
-	LCS_DBF_TEXT_(5, trace, "Rint%s",cdev->dev.bus_id);
-	LCS_DBF_TEXT_(5, trace, "%4x%4x",irb->scsw.cstat, irb->scsw.dstat);
-	LCS_DBF_TEXT_(5, trace, "%4x%4x",irb->scsw.fctl, irb->scsw.actl);
+	cstat = irb->scsw.cmd.cstat;
+	dstat = irb->scsw.cmd.dstat;
+	LCS_DBF_TEXT_(5, trace, "Rint%s", dev_name(&cdev->dev));
+	LCS_DBF_TEXT_(5, trace, "%4x%4x", irb->scsw.cmd.cstat,
+		      irb->scsw.cmd.dstat);
+	LCS_DBF_TEXT_(5, trace, "%4x%4x", irb->scsw.cmd.fctl,
+		      irb->scsw.cmd.actl);
 
 	/* Check for channel and device errors presented */
 	rc = lcs_get_problem(cdev, irb);
 	if (rc || (dstat & DEV_STAT_UNIT_EXCEP)) {
 		PRINT_WARN("check on device %s, dstat=0x%X, cstat=0x%X \n",
-			    cdev->dev.bus_id, dstat, cstat);
+			    dev_name(&cdev->dev), dstat, cstat);
 		if (rc) {
 			channel->state = LCS_CH_STATE_ERROR;
 		}
@@ -1410,11 +1416,12 @@ lcs_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	}
 	/* How far in the ccw chain have we processed? */
 	if ((channel->state != LCS_CH_STATE_INIT) &&
-	    (irb->scsw.fctl & SCSW_FCTL_START_FUNC)) {
-		index = (struct ccw1 *) __va((addr_t) irb->scsw.cpa)
+	    (irb->scsw.cmd.fctl & SCSW_FCTL_START_FUNC) &&
+	    (irb->scsw.cmd.cpa != 0)) {
+		index = (struct ccw1 *) __va((addr_t) irb->scsw.cmd.cpa)
 			- channel->ccws;
-		if ((irb->scsw.actl & SCSW_ACTL_SUSPENDED) ||
-		    (irb->scsw.cstat & SCHN_STAT_PCI))
+		if ((irb->scsw.cmd.actl & SCSW_ACTL_SUSPENDED) ||
+		    (irb->scsw.cmd.cstat & SCHN_STAT_PCI))
 			/* Bloody io subsystem tells us lies about cpa... */
 			index = (index - 1) & (LCS_NUM_BUFFS - 1);
 		while (channel->io_idx != index) {
@@ -1425,25 +1432,24 @@ lcs_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 		}
 	}
 
-	if ((irb->scsw.dstat & DEV_STAT_DEV_END) ||
-	    (irb->scsw.dstat & DEV_STAT_CHN_END) ||
-	    (irb->scsw.dstat & DEV_STAT_UNIT_CHECK))
+	if ((irb->scsw.cmd.dstat & DEV_STAT_DEV_END) ||
+	    (irb->scsw.cmd.dstat & DEV_STAT_CHN_END) ||
+	    (irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK))
 		/* Mark channel as stopped. */
 		channel->state = LCS_CH_STATE_STOPPED;
-	else if (irb->scsw.actl & SCSW_ACTL_SUSPENDED)
+	else if (irb->scsw.cmd.actl & SCSW_ACTL_SUSPENDED)
 		/* CCW execution stopped on a suspend bit. */
 		channel->state = LCS_CH_STATE_SUSPENDED;
-	if (irb->scsw.fctl & SCSW_FCTL_HALT_FUNC) {
-		if (irb->scsw.cc != 0) {
+	if (irb->scsw.cmd.fctl & SCSW_FCTL_HALT_FUNC) {
+		if (irb->scsw.cmd.cc != 0) {
 			ccw_device_halt(channel->ccwdev, (addr_t) channel);
 			return;
 		}
 		/* The channel has been stopped by halt_IO. */
 		channel->state = LCS_CH_STATE_HALTED;
 	}
-	if (irb->scsw.fctl & SCSW_FCTL_CLEAR_FUNC) {
+	if (irb->scsw.cmd.fctl & SCSW_FCTL_CLEAR_FUNC)
 		channel->state = LCS_CH_STATE_CLEARED;
-	}
 	/* Do the rest in the tasklet. */
 	tasklet_schedule(&channel->irq_tasklet);
 }
@@ -1461,7 +1467,7 @@ lcs_tasklet(unsigned long data)
 	int rc;
 
 	channel = (struct lcs_channel *) data;
-	LCS_DBF_TEXT_(5, trace, "tlet%s",channel->ccwdev->dev.bus_id);
+	LCS_DBF_TEXT_(5, trace, "tlet%s", dev_name(&channel->ccwdev->dev));
 
 	/* Check for processed buffers. */
 	iob = channel->iob;
@@ -1761,7 +1767,7 @@ lcs_get_control(struct lcs_card *card, struct lcs_cmd *cmd)
 				netif_carrier_off(card->dev);
 			break;
 		default:
-			PRINT_INFO("UNRECOGNIZED LGW COMMAND\n");
+			LCS_DBF_TEXT(5, trace, "noLGWcmd");
 			break;
 		}
 	} else
@@ -2042,13 +2048,12 @@ lcs_probe_device(struct ccwgroup_device *ccwgdev)
 	LCS_DBF_TEXT(2, setup, "add_dev");
         card = lcs_alloc_card();
         if (!card) {
-                PRINT_ERR("Allocation of lcs card failed\n");
+		LCS_DBF_TEXT_(2, setup, "  rc%d", -ENOMEM);
 		put_device(&ccwgdev->dev);
                 return -ENOMEM;
         }
 	ret = sysfs_create_group(&ccwgdev->dev.kobj, &lcs_attr_group);
 	if (ret) {
-                PRINT_ERR("Creating attributes failed");
 		lcs_free_card(card);
 		put_device(&ccwgdev->dev);
 		return ret;
@@ -2140,7 +2145,6 @@ lcs_new_device(struct ccwgroup_device *ccwgdev)
 	default:
 		LCS_DBF_TEXT(3, setup, "errinit");
 		PRINT_ERR("LCS: Initialization failed\n");
-		PRINT_ERR("LCS: No device found!\n");
 		goto out;
 	}
 	if (!dev)
@@ -2244,7 +2248,7 @@ lcs_recovery(void *ptr)
 		return 0;
 	LCS_DBF_TEXT(4, trace, "recover2");
 	gdev = card->gdev;
-	PRINT_WARN("Recovery of device %s started...\n", gdev->dev.bus_id);
+	PRINT_WARN("Recovery of device %s started...\n", dev_name(&gdev->dev));
 	rc = __lcs_shutdown_device(gdev, 1);
 	rc = lcs_new_device(gdev);
 	if (!rc)
@@ -2269,7 +2273,6 @@ lcs_remove_device(struct ccwgroup_device *ccwgdev)
 	if (!card)
 		return;
 
-	PRINT_INFO("Removing lcs group device ....\n");
 	LCS_DBF_TEXT(3, setup, "remdev");
 	LCS_DBF_HEX(3, setup, &card, sizeof(void*));
 	if (ccwgdev->state == CCWGROUP_ONLINE) {

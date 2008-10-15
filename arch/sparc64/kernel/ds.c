@@ -1,6 +1,6 @@
 /* ds.c: Domain Services driver for Logical Domains
  *
- * Copyright (C) 2007 David S. Miller <davem@davemloft.net>
+ * Copyright (C) 2007, 2008 David S. Miller <davem@davemloft.net>
  */
 
 #include <linux/kernel.h>
@@ -159,7 +159,7 @@ static void ds_var_data(struct ds_info *dp,
 			struct ds_cap_state *cp,
 			void *buf, int len);
 
-struct ds_cap_state ds_states_template[] = {
+static struct ds_cap_state ds_states_template[] = {
 	{
 		.service_id	= "md-update",
 		.data		= md_update_data,
@@ -1217,7 +1217,7 @@ static int ds_remove(struct vio_dev *vdev)
 	return 0;
 }
 
-static struct vio_device_id ds_match[] = {
+static struct vio_device_id __initdata ds_match[] = {
 	{
 		.type = "domain-services-port",
 	},

@@ -1,5 +1,5 @@
-#ifndef _ASM_DESC_H_
-#define _ASM_DESC_H_
+#ifndef ASM_X86__DESC_H
+#define ASM_X86__DESC_H
 
 #ifndef __ASSEMBLY__
 #include <asm/desc_defs.h>
@@ -24,16 +24,27 @@ static inline void fill_ldt(struct desc_struct *desc,
 	desc->d = info->seg_32bit;
 	desc->g = info->limit_in_pages;
 	desc->base2 = (info->base_addr & 0xff000000) >> 24;
+	/*
+	 * Don't allow setting of the lm bit. It is useless anyway
+	 * because 64bit system calls require __USER_CS:
+	 */
+	desc->l = 0;
 }
 
 extern struct desc_ptr idt_descr;
 extern gate_desc idt_table[];
 
+struct gdt_page {
+	struct desc_struct gdt[GDT_ENTRIES];
+} __attribute__((aligned(PAGE_SIZE)));
+DECLARE_PER_CPU(struct gdt_page, gdt_page);
+
+static inline struct desc_struct *get_cpu_gdt_table(unsigned int cpu)
+{
+	return per_cpu(gdt_page, cpu).gdt;
+}
+
 #ifdef CONFIG_X86_64
-extern struct desc_struct cpu_gdt_table[GDT_ENTRIES];
-extern struct desc_ptr cpu_gdt_descr[];
-/* the cpu gdt accessor */
-#define get_cpu_gdt_table(x) ((struct desc_struct *)cpu_gdt_descr[x].address)
 
 static inline void pack_gate(gate_desc *gate, unsigned type, unsigned long func,
 			     unsigned dpl, unsigned ist, unsigned seg)
@@ -51,16 +62,6 @@ static inline void pack_gate(gate_desc *gate, unsigned type, unsigned long func,
 }
 
 #else
-struct gdt_page {
-	struct desc_struct gdt[GDT_ENTRIES];
-} __attribute__((aligned(PAGE_SIZE)));
-DECLARE_PER_CPU(struct gdt_page, gdt_page);
-
-static inline struct desc_struct *get_cpu_gdt_table(unsigned int cpu)
-{
-	return per_cpu(gdt_page, cpu).gdt;
-}
-
 static inline void pack_gate(gate_desc *gate, unsigned char type,
 			     unsigned long base, unsigned dpl, unsigned flags,
 			     unsigned short seg)
@@ -101,7 +102,15 @@ static inline int desc_empty(const void *ptr)
 	native_write_gdt_entry(dt, entry, desc, type)
 #define write_idt_entry(dt, entry, g)		\
 	native_write_idt_entry(dt, entry, g)
-#endif
+
+static inline void paravirt_alloc_ldt(struct desc_struct *ldt, unsigned entries)
+{
+}
+
+static inline void paravirt_free_ldt(struct desc_struct *ldt, unsigned entries)
+{
+}
+#endif	/* CONFIG_PARAVIRT */
 
 static inline void native_write_idt_entry(gate_desc *idt, int entry,
 					  const gate_desc *gate)
@@ -192,8 +201,8 @@ static inline void native_set_ldt(const void *addr, unsigned int entries)
 		unsigned cpu = smp_processor_id();
 		ldt_desc ldt;
 
-		set_tssldt_descriptor(&ldt, (unsigned long)addr,
-				      DESC_LDT, entries * sizeof(ldt) - 1);
+		set_tssldt_descriptor(&ldt, (unsigned long)addr, DESC_LDT,
+				      entries * LDT_ENTRY_SIZE - 1);
 		write_gdt_entry(get_cpu_gdt_table(cpu), GDT_ENTRY_LDT,
 				&ldt, DESC_LDT);
 		asm volatile("lldt %w0"::"q" (GDT_ENTRY_LDT*8));
@@ -311,6 +320,28 @@ static inline void set_intr_gate(unsigned int n, void *addr)
 	_set_gate(n, GATE_INTERRUPT, addr, 0, 0, __KERNEL_CS);
 }
 
+#define SYS_VECTOR_FREE		0
+#define SYS_VECTOR_ALLOCED	1
+
+extern int first_system_vector;
+extern char system_vectors[];
+
+static inline void alloc_system_vector(int vector)
+{
+	if (system_vectors[vector] == SYS_VECTOR_FREE) {
+		system_vectors[vector] = SYS_VECTOR_ALLOCED;
+		if (first_system_vector > vector)
+			first_system_vector = vector;
+	} else
+		BUG();
+}
+
+static inline void alloc_intr_gate(unsigned int n, void *addr)
+{
+	alloc_system_vector(n);
+	set_intr_gate(n, addr);
+}
+
 /*
  * This routine sets up an interrupt gate at directory privilege level 3.
  */
@@ -320,20 +351,16 @@ static inline void set_system_intr_gate(unsigned int n, void *addr)
 	_set_gate(n, GATE_INTERRUPT, addr, 0x3, 0, __KERNEL_CS);
 }
 
+static inline void set_system_trap_gate(unsigned int n, void *addr)
+{
+	BUG_ON((unsigned)n > 0xFF);
+	_set_gate(n, GATE_TRAP, addr, 0x3, 0, __KERNEL_CS);
+}
+
 static inline void set_trap_gate(unsigned int n, void *addr)
 {
 	BUG_ON((unsigned)n > 0xFF);
 	_set_gate(n, GATE_TRAP, addr, 0, 0, __KERNEL_CS);
-}
-
-static inline void set_system_gate(unsigned int n, void *addr)
-{
-	BUG_ON((unsigned)n > 0xFF);
-#ifdef CONFIG_X86_32
-	_set_gate(n, GATE_TRAP, addr, 0x3, 0, __KERNEL_CS);
-#else
-	_set_gate(n, GATE_INTERRUPT, addr, 0x3, 0, __KERNEL_CS);
-#endif
 }
 
 static inline void set_task_gate(unsigned int n, unsigned int gdt_entry)
@@ -348,7 +375,7 @@ static inline void set_intr_gate_ist(int n, void *addr, unsigned ist)
 	_set_gate(n, GATE_INTERRUPT, addr, 0, ist, __KERNEL_CS);
 }
 
-static inline void set_system_gate_ist(int n, void *addr, unsigned ist)
+static inline void set_system_intr_gate_ist(int n, void *addr, unsigned ist)
 {
 	BUG_ON((unsigned)n > 0xFF);
 	_set_gate(n, GATE_INTERRUPT, addr, 0x3, ist, __KERNEL_CS);
@@ -379,4 +406,4 @@ static inline void set_system_gate_ist(int n, void *addr, unsigned ist)
 
 #endif /* __ASSEMBLY__ */
 
-#endif
+#endif /* ASM_X86__DESC_H */

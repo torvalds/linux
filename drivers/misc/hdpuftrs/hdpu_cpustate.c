@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
+#include <linux/smp_lock.h>
 #include <linux/miscdevice.h>
 #include <linux/proc_fs.h>
 #include <linux/hdpu_features.h>
@@ -151,7 +152,13 @@ static ssize_t cpustate_write(struct file *file, const char *buf,
 
 static int cpustate_open(struct inode *inode, struct file *file)
 {
-	return cpustate_get_ref((file->f_flags & O_EXCL));
+	int ret;
+
+	lock_kernel();
+	ret = cpustate_get_ref((file->f_flags & O_EXCL));
+	unlock_kernel();
+
+	return ret;
 }
 
 static int cpustate_release(struct inode *inode, struct file *file)

@@ -50,8 +50,7 @@ AllocMidQEntry(const struct smb_hdr *smb_buffer, struct cifsSesInfo *ses)
 		return NULL;
 	}
 
-	temp = (struct mid_q_entry *) mempool_alloc(cifs_mid_poolp,
-						    GFP_KERNEL | GFP_NOFS);
+	temp = mempool_alloc(cifs_mid_poolp, GFP_NOFS);
 	if (temp == NULL)
 		return temp;
 	else {
@@ -265,6 +264,7 @@ smb_send2(struct socket *ssocket, struct kvec *iov, int n_vec,
 	cFYI(1, ("Sending smb:  total_len %d", total_len));
 	dump_smb(smb_buffer, len);
 
+	i = 0;
 	while (total_len) {
 		rc = kernel_sendmsg(ssocket, &smb_msg, &iov[first_vec],
 				    n_vec - first_vec, total_len);

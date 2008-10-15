@@ -18,6 +18,7 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/kthread.h>
 
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/xdr.h>
@@ -26,6 +27,8 @@
 #include <linux/sunrpc/clnt.h>
 
 #define RPCDBG_FACILITY	RPCDBG_SVCDSP
+
+static void svc_unregister(const struct svc_serv *serv);
 
 #define svc_serv_is_pooled(serv)    ((serv)->sv_function)
 
@@ -291,15 +294,14 @@ svc_pool_map_put(void)
 
 
 /*
- * Set the current thread's cpus_allowed mask so that it
+ * Set the given thread's cpus_allowed mask so that it
  * will only run on cpus in the given pool.
- *
- * Returns 1 and fills in oldmask iff a cpumask was applied.
  */
-static inline int
-svc_pool_map_set_cpumask(unsigned int pidx, cpumask_t *oldmask)
+static inline void
+svc_pool_map_set_cpumask(struct task_struct *task, unsigned int pidx)
 {
 	struct svc_pool_map *m = &svc_pool_map;
+	unsigned int node = m->pool_to[pidx];
 
 	/*
 	 * The caller checks for sv_nrpools > 1, which
@@ -307,26 +309,17 @@ svc_pool_map_set_cpumask(unsigned int pidx, cpumask_t *oldmask)
 	 */
 	BUG_ON(m->count == 0);
 
-	switch (m->mode)
-	{
-	default:
-		return 0;
+	switch (m->mode) {
 	case SVC_POOL_PERCPU:
 	{
-		unsigned int cpu = m->pool_to[pidx];
-
-		*oldmask = current->cpus_allowed;
-		set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
-		return 1;
+		set_cpus_allowed_ptr(task, &cpumask_of_cpu(node));
+		break;
 	}
 	case SVC_POOL_PERNODE:
 	{
-		unsigned int node = m->pool_to[pidx];
 		node_to_cpumask_ptr(nodecpumask, node);
-
-		*oldmask = current->cpus_allowed;
-		set_cpus_allowed_ptr(current, nodecpumask);
-		return 1;
+		set_cpus_allowed_ptr(task, nodecpumask);
+		break;
 	}
 	}
 }
@@ -366,7 +359,7 @@ svc_pool_for_cpu(struct svc_serv *serv, int cpu)
  */
 static struct svc_serv *
 __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
-	   void (*shutdown)(struct svc_serv *serv))
+	   sa_family_t family, void (*shutdown)(struct svc_serv *serv))
 {
 	struct svc_serv	*serv;
 	unsigned int vers;
@@ -375,6 +368,7 @@ __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
 
 	if (!(serv = kzalloc(sizeof(*serv), GFP_KERNEL)))
 		return NULL;
+	serv->sv_family    = family;
 	serv->sv_name      = prog->pg_name;
 	serv->sv_program   = prog;
 	serv->sv_nrthreads = 1;
@@ -425,34 +419,32 @@ __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
 		spin_lock_init(&pool->sp_lock);
 	}
 
-
 	/* Remove any stale portmap registrations */
-	svc_register(serv, 0, 0);
+	svc_unregister(serv);
 
 	return serv;
 }
 
 struct svc_serv *
 svc_create(struct svc_program *prog, unsigned int bufsize,
-		void (*shutdown)(struct svc_serv *serv))
+		sa_family_t family, void (*shutdown)(struct svc_serv *serv))
 {
-	return __svc_create(prog, bufsize, /*npools*/1, shutdown);
+	return __svc_create(prog, bufsize, /*npools*/1, family, shutdown);
 }
 EXPORT_SYMBOL(svc_create);
 
 struct svc_serv *
 svc_create_pooled(struct svc_program *prog, unsigned int bufsize,
-		void (*shutdown)(struct svc_serv *serv),
-		  svc_thread_fn func, int sig, struct module *mod)
+		  sa_family_t family, void (*shutdown)(struct svc_serv *serv),
+		  svc_thread_fn func, struct module *mod)
 {
 	struct svc_serv *serv;
 	unsigned int npools = svc_pool_map_get();
 
-	serv = __svc_create(prog, bufsize, npools, shutdown);
+	serv = __svc_create(prog, bufsize, npools, family, shutdown);
 
 	if (serv != NULL) {
 		serv->sv_function = func;
-		serv->sv_kill_signal = sig;
 		serv->sv_module = mod;
 	}
 
@@ -461,7 +453,8 @@ svc_create_pooled(struct svc_program *prog, unsigned int bufsize,
 EXPORT_SYMBOL(svc_create_pooled);
 
 /*
- * Destroy an RPC service.  Should be called with the BKL held
+ * Destroy an RPC service. Should be called with appropriate locking to
+ * protect the sv_nrthreads, sv_permsocks and sv_tempsocks.
  */
 void
 svc_destroy(struct svc_serv *serv)
@@ -495,8 +488,7 @@ svc_destroy(struct svc_serv *serv)
 	if (svc_serv_is_pooled(serv))
 		svc_pool_map_put();
 
-	/* Unregister service with the portmapper */
-	svc_register(serv, 0, 0);
+	svc_unregister(serv);
 	kfree(serv->sv_pools);
 	kfree(serv);
 }
@@ -578,46 +570,6 @@ out_enomem:
 EXPORT_SYMBOL(svc_prepare_thread);
 
 /*
- * Create a thread in the given pool.  Caller must hold BKL.
- * On a NUMA or SMP machine, with a multi-pool serv, the thread
- * will be restricted to run on the cpus belonging to the pool.
- */
-static int
-__svc_create_thread(svc_thread_fn func, struct svc_serv *serv,
-		    struct svc_pool *pool)
-{
-	struct svc_rqst	*rqstp;
-	int		error = -ENOMEM;
-	int		have_oldmask = 0;
-	cpumask_t	uninitialized_var(oldmask);
-
-	rqstp = svc_prepare_thread(serv, pool);
-	if (IS_ERR(rqstp)) {
-		error = PTR_ERR(rqstp);
-		goto out;
-	}
-
-	if (serv->sv_nrpools > 1)
-		have_oldmask = svc_pool_map_set_cpumask(pool->sp_id, &oldmask);
-
-	error = kernel_thread((int (*)(void *)) func, rqstp, 0);
-
-	if (have_oldmask)
-		set_cpus_allowed(current, oldmask);
-
-	if (error < 0)
-		goto out_thread;
-	svc_sock_update_bufs(serv);
-	error = 0;
-out:
-	return error;
-
-out_thread:
-	svc_exit_thread(rqstp);
-	goto out;
-}
-
-/*
  * Choose a pool in which to create a new thread, for svc_set_num_threads
  */
 static inline struct svc_pool *
@@ -674,7 +626,7 @@ found_pool:
  * of threads the given number.  If `pool' is non-NULL, applies
  * only to threads in that pool, otherwise round-robins between
  * all pools.  Must be called with a svc_get() reference and
- * the BKL held.
+ * the BKL or another lock to protect access to svc_serv fields.
  *
  * Destroying threads relies on the service threads filling in
  * rqstp->rq_task, which only the nfs ones do.  Assumes the serv
@@ -686,7 +638,9 @@ found_pool:
 int
 svc_set_num_threads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 {
-	struct task_struct *victim;
+	struct svc_rqst	*rqstp;
+	struct task_struct *task;
+	struct svc_pool *chosen_pool;
 	int error = 0;
 	unsigned int state = serv->sv_nrthreads-1;
 
@@ -702,18 +656,34 @@ svc_set_num_threads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 	/* create new threads */
 	while (nrservs > 0) {
 		nrservs--;
-		__module_get(serv->sv_module);
-		error = __svc_create_thread(serv->sv_function, serv,
-					    choose_pool(serv, pool, &state));
-		if (error < 0) {
-			module_put(serv->sv_module);
+		chosen_pool = choose_pool(serv, pool, &state);
+
+		rqstp = svc_prepare_thread(serv, chosen_pool);
+		if (IS_ERR(rqstp)) {
+			error = PTR_ERR(rqstp);
 			break;
 		}
+
+		__module_get(serv->sv_module);
+		task = kthread_create(serv->sv_function, rqstp, serv->sv_name);
+		if (IS_ERR(task)) {
+			error = PTR_ERR(task);
+			module_put(serv->sv_module);
+			svc_exit_thread(rqstp);
+			break;
+		}
+
+		rqstp->rq_task = task;
+		if (serv->sv_nrpools > 1)
+			svc_pool_map_set_cpumask(task, chosen_pool->sp_id);
+
+		svc_sock_update_bufs(serv);
+		wake_up_process(task);
 	}
 	/* destroy old threads */
 	while (nrservs < 0 &&
-	       (victim = choose_victim(serv, pool, &state)) != NULL) {
-		send_sig(serv->sv_kill_signal, victim, 1);
+	       (task = choose_victim(serv, pool, &state)) != NULL) {
+		send_sig(SIGINT, task, 1);
 		nrservs++;
 	}
 
@@ -722,7 +692,8 @@ svc_set_num_threads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 EXPORT_SYMBOL(svc_set_num_threads);
 
 /*
- * Called from a server thread as it's exiting.  Caller must hold BKL.
+ * Called from a server thread as it's exiting. Caller must hold the BKL or
+ * the "service mutex", whichever is appropriate for the service.
  */
 void
 svc_exit_thread(struct svc_rqst *rqstp)
@@ -748,55 +719,245 @@ svc_exit_thread(struct svc_rqst *rqstp)
 }
 EXPORT_SYMBOL(svc_exit_thread);
 
+#ifdef CONFIG_SUNRPC_REGISTER_V4
+
 /*
- * Register an RPC service with the local portmapper.
- * To unregister a service, call this routine with
- * proto and port == 0.
+ * Register an "inet" protocol family netid with the local
+ * rpcbind daemon via an rpcbind v4 SET request.
+ *
+ * No netconfig infrastructure is available in the kernel, so
+ * we map IP_ protocol numbers to netids by hand.
+ *
+ * Returns zero on success; a negative errno value is returned
+ * if any error occurs.
  */
-int
-svc_register(struct svc_serv *serv, int proto, unsigned short port)
+static int __svc_rpcb_register4(const u32 program, const u32 version,
+				const unsigned short protocol,
+				const unsigned short port)
+{
+	struct sockaddr_in sin = {
+		.sin_family		= AF_INET,
+		.sin_addr.s_addr	= htonl(INADDR_ANY),
+		.sin_port		= htons(port),
+	};
+	char *netid;
+
+	switch (protocol) {
+	case IPPROTO_UDP:
+		netid = RPCBIND_NETID_UDP;
+		break;
+	case IPPROTO_TCP:
+		netid = RPCBIND_NETID_TCP;
+		break;
+	default:
+		return -EPROTONOSUPPORT;
+	}
+
+	return rpcb_v4_register(program, version,
+				(struct sockaddr *)&sin, netid);
+}
+
+/*
+ * Register an "inet6" protocol family netid with the local
+ * rpcbind daemon via an rpcbind v4 SET request.
+ *
+ * No netconfig infrastructure is available in the kernel, so
+ * we map IP_ protocol numbers to netids by hand.
+ *
+ * Returns zero on success; a negative errno value is returned
+ * if any error occurs.
+ */
+static int __svc_rpcb_register6(const u32 program, const u32 version,
+				const unsigned short protocol,
+				const unsigned short port)
+{
+	struct sockaddr_in6 sin6 = {
+		.sin6_family		= AF_INET6,
+		.sin6_addr		= IN6ADDR_ANY_INIT,
+		.sin6_port		= htons(port),
+	};
+	char *netid;
+
+	switch (protocol) {
+	case IPPROTO_UDP:
+		netid = RPCBIND_NETID_UDP6;
+		break;
+	case IPPROTO_TCP:
+		netid = RPCBIND_NETID_TCP6;
+		break;
+	default:
+		return -EPROTONOSUPPORT;
+	}
+
+	return rpcb_v4_register(program, version,
+				(struct sockaddr *)&sin6, netid);
+}
+
+/*
+ * Register a kernel RPC service via rpcbind version 4.
+ *
+ * Returns zero on success; a negative errno value is returned
+ * if any error occurs.
+ */
+static int __svc_register(const u32 program, const u32 version,
+			  const sa_family_t family,
+			  const unsigned short protocol,
+			  const unsigned short port)
+{
+	int error;
+
+	switch (family) {
+	case AF_INET:
+		return __svc_rpcb_register4(program, version,
+						protocol, port);
+	case AF_INET6:
+		error = __svc_rpcb_register6(program, version,
+						protocol, port);
+		if (error < 0)
+			return error;
+
+		/*
+		 * Work around bug in some versions of Linux rpcbind
+		 * which don't allow registration of both inet and
+		 * inet6 netids.
+		 *
+		 * Error return ignored for now.
+		 */
+		__svc_rpcb_register4(program, version,
+						protocol, port);
+		return 0;
+	}
+
+	return -EAFNOSUPPORT;
+}
+
+#else	/* CONFIG_SUNRPC_REGISTER_V4 */
+
+/*
+ * Register a kernel RPC service via rpcbind version 2.
+ *
+ * Returns zero on success; a negative errno value is returned
+ * if any error occurs.
+ */
+static int __svc_register(const u32 program, const u32 version,
+			  sa_family_t family,
+			  const unsigned short protocol,
+			  const unsigned short port)
+{
+	if (family != AF_INET)
+		return -EAFNOSUPPORT;
+
+	return rpcb_register(program, version, protocol, port);
+}
+
+#endif /* CONFIG_SUNRPC_REGISTER_V4 */
+
+/**
+ * svc_register - register an RPC service with the local portmapper
+ * @serv: svc_serv struct for the service to register
+ * @proto: transport protocol number to advertise
+ * @port: port to advertise
+ *
+ * Service is registered for any address in serv's address family
+ */
+int svc_register(const struct svc_serv *serv, const unsigned short proto,
+		 const unsigned short port)
 {
 	struct svc_program	*progp;
-	unsigned long		flags;
 	unsigned int		i;
-	int			error = 0, dummy;
+	int			error = 0;
 
-	if (!port)
-		clear_thread_flag(TIF_SIGPENDING);
+	BUG_ON(proto == 0 && port == 0);
 
 	for (progp = serv->sv_program; progp; progp = progp->pg_next) {
 		for (i = 0; i < progp->pg_nvers; i++) {
 			if (progp->pg_vers[i] == NULL)
 				continue;
 
-			dprintk("svc: svc_register(%s, %s, %d, %d)%s\n",
+			dprintk("svc: svc_register(%sv%d, %s, %u, %u)%s\n",
 					progp->pg_name,
+					i,
 					proto == IPPROTO_UDP?  "udp" : "tcp",
 					port,
-					i,
+					serv->sv_family,
 					progp->pg_vers[i]->vs_hidden?
 						" (but not telling portmap)" : "");
 
 			if (progp->pg_vers[i]->vs_hidden)
 				continue;
 
-			error = rpcb_register(progp->pg_prog, i, proto, port, &dummy);
+			error = __svc_register(progp->pg_prog, i,
+						serv->sv_family, proto, port);
 			if (error < 0)
 				break;
-			if (port && !dummy) {
-				error = -EACCES;
-				break;
-			}
 		}
 	}
 
-	if (!port) {
-		spin_lock_irqsave(&current->sighand->siglock, flags);
-		recalc_sigpending();
-		spin_unlock_irqrestore(&current->sighand->siglock, flags);
+	return error;
+}
+
+#ifdef CONFIG_SUNRPC_REGISTER_V4
+
+static void __svc_unregister(const u32 program, const u32 version,
+			     const char *progname)
+{
+	struct sockaddr_in6 sin6 = {
+		.sin6_family		= AF_INET6,
+		.sin6_addr		= IN6ADDR_ANY_INIT,
+		.sin6_port		= 0,
+	};
+	int error;
+
+	error = rpcb_v4_register(program, version,
+				(struct sockaddr *)&sin6, "");
+	dprintk("svc: %s(%sv%u), error %d\n",
+			__func__, progname, version, error);
+}
+
+#else	/* CONFIG_SUNRPC_REGISTER_V4 */
+
+static void __svc_unregister(const u32 program, const u32 version,
+			     const char *progname)
+{
+	int error;
+
+	error = rpcb_register(program, version, 0, 0);
+	dprintk("svc: %s(%sv%u), error %d\n",
+			__func__, progname, version, error);
+}
+
+#endif	/* CONFIG_SUNRPC_REGISTER_V4 */
+
+/*
+ * All netids, bind addresses and ports registered for [program, version]
+ * are removed from the local rpcbind database (if the service is not
+ * hidden) to make way for a new instance of the service.
+ *
+ * The result of unregistration is reported via dprintk for those who want
+ * verification of the result, but is otherwise not important.
+ */
+static void svc_unregister(const struct svc_serv *serv)
+{
+	struct svc_program *progp;
+	unsigned long flags;
+	unsigned int i;
+
+	clear_thread_flag(TIF_SIGPENDING);
+
+	for (progp = serv->sv_program; progp; progp = progp->pg_next) {
+		for (i = 0; i < progp->pg_nvers; i++) {
+			if (progp->pg_vers[i] == NULL)
+				continue;
+			if (progp->pg_vers[i]->vs_hidden)
+				continue;
+
+			__svc_unregister(progp->pg_prog, i, progp->pg_name);
+		}
 	}
 
-	return error;
+	spin_lock_irqsave(&current->sighand->siglock, flags);
+	recalc_sigpending();
+	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 }
 
 /*

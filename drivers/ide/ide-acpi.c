@@ -60,15 +60,15 @@ struct ide_acpi_hwif_link {
 #define DEBPRINT(fmt, args...)	do {} while (0)
 #endif	/* DEBUGGING */
 
-int ide_noacpi;
+static int ide_noacpi;
 module_param_named(noacpi, ide_noacpi, bool, 0);
 MODULE_PARM_DESC(noacpi, "disable IDE ACPI support");
 
-int ide_acpigtf;
+static int ide_acpigtf;
 module_param_named(acpigtf, ide_acpigtf, bool, 0);
 MODULE_PARM_DESC(acpigtf, "enable IDE ACPI _GTF support");
 
-int ide_acpionboot;
+static int ide_acpionboot;
 module_param_named(acpionboot, ide_acpionboot, bool, 0);
 MODULE_PARM_DESC(acpionboot, "call IDE ACPI methods on boot");
 
@@ -290,7 +290,7 @@ static int do_drive_get_GTF(ide_drive_t *drive,
 	DEBPRINT("ENTER: %s at %s, port#: %d, hard_port#: %d\n",
 		 hwif->name, dev->bus_id, port, hwif->channel);
 
-	if (!drive->present) {
+	if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0) {
 		DEBPRINT("%s drive %d:%d not present\n",
 			 hwif->name, hwif->channel, port);
 		goto out;
@@ -420,8 +420,9 @@ static int do_drive_set_taskfiles(ide_drive_t *drive,
 
 	DEBPRINT("ENTER: %s, hard_port#: %d\n", drive->name, drive->dn);
 
-	if (!drive->present)
+	if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 		goto out;
+
 	if (!gtf_count)		/* shouldn't be here */
 		goto out;
 
@@ -584,7 +585,7 @@ void ide_acpi_get_timing(ide_hwif_t *hwif)
  * This function executes the _STM ACPI method for the target channel.
  *
  * _STM requires Identify Drive data, which has to passed as an argument.
- * Unfortunately hd_driveid is a mangled version which we can't readily
+ * Unfortunately drive->id is a mangled version which we can't readily
  * use; hence we'll get the information afresh.
  */
 void ide_acpi_push_timing(ide_hwif_t *hwif)
@@ -614,10 +615,10 @@ void ide_acpi_push_timing(ide_hwif_t *hwif)
 	in_params[0].buffer.length = sizeof(struct GTM_buffer);
 	in_params[0].buffer.pointer = (u8 *)&hwif->acpidata->gtm;
 	in_params[1].type = ACPI_TYPE_BUFFER;
-	in_params[1].buffer.length = sizeof(struct hd_driveid);
+	in_params[1].buffer.length = sizeof(ATA_ID_WORDS * 2);
 	in_params[1].buffer.pointer = (u8 *)&master->idbuff;
 	in_params[2].type = ACPI_TYPE_BUFFER;
-	in_params[2].buffer.length = sizeof(struct hd_driveid);
+	in_params[2].buffer.length = sizeof(ATA_ID_WORDS * 2);
 	in_params[2].buffer.pointer = (u8 *)&slave->idbuff;
 	/* Output buffer: _STM has no output */
 
@@ -660,7 +661,8 @@ void ide_acpi_set_state(ide_hwif_t *hwif, int on)
 		if (!drive->acpidata->obj_handle)
 			drive->acpidata->obj_handle = ide_acpi_drive_get_handle(drive);
 
-		if (drive->acpidata->obj_handle && drive->present) {
+		if (drive->acpidata->obj_handle &&
+		    (drive->dev_flags & IDE_DFLAG_PRESENT)) {
 			acpi_bus_set_power(drive->acpidata->obj_handle,
 				on? ACPI_STATE_D0: ACPI_STATE_D3);
 		}
@@ -720,7 +722,7 @@ void ide_acpi_port_init_devices(ide_hwif_t *hwif)
 
 		memset(drive->acpidata, 0, sizeof(*drive->acpidata));
 
-		if (!drive->present)
+		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 			continue;
 
 		err = taskfile_lib_get_identify(drive, drive->acpidata->idbuff);
@@ -745,7 +747,7 @@ void ide_acpi_port_init_devices(ide_hwif_t *hwif)
 	for (i = 0; i < MAX_DRIVES; i++) {
 		drive = &hwif->drives[i];
 
-		if (drive->present)
+		if (drive->dev_flags & IDE_DFLAG_PRESENT)
 			/* Execute ACPI startup code */
 			ide_acpi_exec_tfs(drive);
 	}

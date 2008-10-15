@@ -17,16 +17,15 @@
 #include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/serial_8250.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/mach/map.h>
 #include <asm/setup.h>
 #include <asm/system.h>
 #include <asm/memory.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/hardware/iop3xx.h>
-#include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
 #define IOP33X_UART_XTAL 33334000

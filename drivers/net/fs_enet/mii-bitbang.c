@@ -22,10 +22,7 @@
 #include <linux/mii.h>
 #include <linux/platform_device.h>
 #include <linux/mdio-bitbang.h>
-
-#ifdef CONFIG_PPC_CPM_NEW_BINDING
 #include <linux/of_platform.h>
-#endif
 
 #include "fs_enet.h"
 
@@ -110,7 +107,6 @@ static struct mdiobb_ops bb_ops = {
 	.get_mdio_data = mdio_read,
 };
 
-#ifdef CONFIG_PPC_CPM_NEW_BINDING
 static int __devinit fs_mii_bitbang_init(struct mii_bus *bus,
                                          struct device_node *np)
 {
@@ -207,7 +203,7 @@ static int __devinit fs_enet_mdio_probe(struct of_device *ofdev,
 		if (!strcmp(np->type, "ethernet-phy"))
 			add_phy(new_bus, np);
 
-	new_bus->dev = &ofdev->dev;
+	new_bus->parent = &ofdev->dev;
 	dev_set_drvdata(&ofdev->dev, new_bus);
 
 	ret = mdiobus_register(new_bus);
@@ -222,9 +218,9 @@ out_free_irqs:
 out_unmap_regs:
 	iounmap(bitbang->dir);
 out_free_bus:
-	kfree(new_bus);
-out_free_priv:
 	free_mdio_bitbang(new_bus);
+out_free_priv:
+	kfree(bitbang);
 out:
 	return ret;
 }
@@ -235,12 +231,11 @@ static int fs_enet_mdio_remove(struct of_device *ofdev)
 	struct bb_info *bitbang = bus->priv;
 
 	mdiobus_unregister(bus);
-	free_mdio_bitbang(bus);
 	dev_set_drvdata(&ofdev->dev, NULL);
 	kfree(bus->irq);
+	free_mdio_bitbang(bus);
 	iounmap(bitbang->dir);
 	kfree(bitbang);
-	kfree(bus);
 
 	return 0;
 }
@@ -271,106 +266,3 @@ static void fs_enet_mdio_bb_exit(void)
 
 module_init(fs_enet_mdio_bb_init);
 module_exit(fs_enet_mdio_bb_exit);
-#else
-static int __devinit fs_mii_bitbang_init(struct bb_info *bitbang,
-                                         struct fs_mii_bb_platform_info *fmpi)
-{
-	bitbang->dir = (u32 __iomem *)fmpi->mdio_dir.offset;
-	bitbang->dat = (u32 __iomem *)fmpi->mdio_dat.offset;
-	bitbang->mdio_msk = 1U << (31 - fmpi->mdio_dat.bit);
-	bitbang->mdc_msk = 1U << (31 - fmpi->mdc_dat.bit);
-
-	return 0;
-}
-
-static int __devinit fs_enet_mdio_probe(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct fs_mii_bb_platform_info *pdata;
-	struct mii_bus *new_bus;
-	struct bb_info *bitbang;
-	int err = 0;
-
-	if (NULL == dev)
-		return -EINVAL;
-
-	bitbang = kzalloc(sizeof(struct bb_info), GFP_KERNEL);
-
-	if (NULL == bitbang)
-		return -ENOMEM;
-
-	bitbang->ctrl.ops = &bb_ops;
-
-	new_bus = alloc_mdio_bitbang(&bitbang->ctrl);
-
-	if (NULL == new_bus)
-		return -ENOMEM;
-
-	new_bus->name = "BB MII Bus",
-	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%x", pdev->id);
-
-	new_bus->phy_mask = ~0x9;
-	pdata = (struct fs_mii_bb_platform_info *)pdev->dev.platform_data;
-
-	if (NULL == pdata) {
-		printk(KERN_ERR "gfar mdio %d: Missing platform data!\n", pdev->id);
-		return -ENODEV;
-	}
-
-	/*set up workspace*/
-	fs_mii_bitbang_init(bitbang, pdata);
-
-	new_bus->priv = bitbang;
-
-	new_bus->irq = pdata->irq;
-
-	new_bus->dev = dev;
-	dev_set_drvdata(dev, new_bus);
-
-	err = mdiobus_register(new_bus);
-
-	if (0 != err) {
-		printk (KERN_ERR "%s: Cannot register as MDIO bus\n",
-				new_bus->name);
-		goto bus_register_fail;
-	}
-
-	return 0;
-
-bus_register_fail:
-	free_mdio_bitbang(new_bus);
-	kfree(bitbang);
-
-	return err;
-}
-
-static int fs_enet_mdio_remove(struct device *dev)
-{
-	struct mii_bus *bus = dev_get_drvdata(dev);
-
-	mdiobus_unregister(bus);
-
-	dev_set_drvdata(dev, NULL);
-
-	free_mdio_bitbang(bus);
-
-	return 0;
-}
-
-static struct device_driver fs_enet_bb_mdio_driver = {
-	.name = "fsl-bb-mdio",
-	.bus = &platform_bus_type,
-	.probe = fs_enet_mdio_probe,
-	.remove = fs_enet_mdio_remove,
-};
-
-int fs_enet_mdio_bb_init(void)
-{
-	return driver_register(&fs_enet_bb_mdio_driver);
-}
-
-void fs_enet_mdio_bb_exit(void)
-{
-	driver_unregister(&fs_enet_bb_mdio_driver);
-}
-#endif

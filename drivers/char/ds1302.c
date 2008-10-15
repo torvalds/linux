@@ -20,10 +20,11 @@
 #include <linux/miscdevice.h>
 #include <linux/delay.h>
 #include <linux/bcd.h>
+#include <linux/smp_lock.h>
+#include <linux/uaccess.h>
+#include <linux/io.h>
 
-#include <asm/uaccess.h>
 #include <asm/system.h>
-#include <asm/io.h>
 #include <asm/rtc.h>
 #if defined(CONFIG_M32R)
 #include <asm/m32r.h>
@@ -153,9 +154,7 @@ static unsigned char days_in_mo[] =
 
 /* ioctl that supports RTC_RD_TIME and RTC_SET_TIME (read and set time/date). */
 
-static int
-rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-	  unsigned long arg)
+static long rtc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	unsigned long flags;
 
@@ -165,7 +164,9 @@ rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 			struct rtc_time rtc_tm;
 
 			memset(&rtc_tm, 0, sizeof (struct rtc_time));
+			lock_kernel();
 			get_rtc_time(&rtc_tm);
+			unlock_kernel();
 			if (copy_to_user((struct rtc_time*)arg, &rtc_tm, sizeof(struct rtc_time)))
 				return -EFAULT;
 			return 0;
@@ -217,6 +218,7 @@ rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 			BIN_TO_BCD(mon);
 			BIN_TO_BCD(yrs);
 
+			lock_kernel();
 			local_irq_save(flags);
 			CMOS_WRITE(yrs, RTC_YEAR);
 			CMOS_WRITE(mon, RTC_MONTH);
@@ -225,6 +227,7 @@ rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 			CMOS_WRITE(min, RTC_MINUTES);
 			CMOS_WRITE(sec, RTC_SECONDS);
 			local_irq_restore(flags);
+			unlock_kernel();
 
 			/* Notice that at this point, the RTC is updated but
 			 * the kernel is still running with the old time.
@@ -244,8 +247,10 @@ rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 			if(copy_from_user(&tcs_val, (int*)arg, sizeof(int)))
 				return -EFAULT;
 
+			lock_kernel();
 			tcs_val = RTC_TCR_PATTERN | (tcs_val & 0x0F);
 			ds1302_writereg(RTC_TRICKLECHARGER, tcs_val);
+			unlock_kernel();
 			return 0;
 		}
 		default:
@@ -282,7 +287,7 @@ get_rtc_status(char *buf)
 
 static const struct file_operations rtc_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= rtc_ioctl,
+	.unlocked_ioctl	= rtc_ioctl,
 };
 
 /* Probe for the chip by writing something to its RAM and try reading it back. */

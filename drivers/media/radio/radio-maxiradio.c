@@ -44,6 +44,7 @@
 #include <linux/pci.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 
 #define DRIVER_VERSION	"0.77"
 
@@ -84,6 +85,7 @@ static const int clk = 1, data = 2, wren = 4, mo_st = 8, power = 16 ;
 static int radio_nr = -1;
 module_param(radio_nr, int, 0);
 
+static unsigned long in_use;
 
 #define FREQ_LO		 50*16000
 #define FREQ_HI		150*16000
@@ -98,10 +100,21 @@ module_param(radio_nr, int, 0);
 #define BITS2FREQ(x)	((x) * FREQ_STEP - FREQ_IF)
 
 
+static int maxiradio_exclusive_open(struct inode *inode, struct file *file)
+{
+	return test_and_set_bit(0, &in_use) ? -EBUSY : 0;
+}
+
+static int maxiradio_exclusive_release(struct inode *inode, struct file *file)
+{
+	clear_bit(0, &in_use);
+	return 0;
+}
+
 static const struct file_operations maxiradio_fops = {
 	.owner		= THIS_MODULE,
-	.open           = video_exclusive_open,
-	.release        = video_exclusive_release,
+	.open           = maxiradio_exclusive_open,
+	.release        = maxiradio_exclusive_release,
 	.ioctl          = video_ioctl2,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,
@@ -155,28 +168,28 @@ static void set_freq(__u16 io, __u32 freq)
 {
 	unsigned long int si;
 	int bl;
-	int data = FREQ2BITS(freq);
+	int val = FREQ2BITS(freq);
 
 	/* TEA5757 shift register bits (see pdf) */
 
-	outbit(0,io); // 24  search
-	outbit(1,io); // 23  search up/down
+	outbit(0, io); /* 24  search */
+	outbit(1, io); /* 23  search up/down */
 
-	outbit(0,io); // 22  stereo/mono
+	outbit(0, io); /* 22  stereo/mono */
 
-	outbit(0,io); // 21  band
-	outbit(0,io); // 20  band (only 00=FM works I think)
+	outbit(0, io); /* 21  band */
+	outbit(0, io); /* 20  band (only 00=FM works I think) */
 
-	outbit(0,io); // 19  port ?
-	outbit(0,io); // 18  port ?
+	outbit(0, io); /* 19  port ? */
+	outbit(0, io); /* 18  port ? */
 
-	outbit(0,io); // 17  search level
-	outbit(0,io); // 16  search level
+	outbit(0, io); /* 17  search level */
+	outbit(0, io); /* 16  search level */
 
 	si = 0x8000;
-	for (bl = 1; bl <= 16 ; bl++) {
-		outbit(data & si,io);
-		si >>=1;
+	for (bl = 1; bl <= 16; bl++) {
+		outbit(val & si, io);
+		si >>= 1;
 	}
 
 	dprintk(1, "Radio freq set to %d.%02d MHz\n",
@@ -218,8 +231,7 @@ static int vidioc_querycap (struct file *file, void  *priv,
 static int vidioc_g_tuner (struct file *file, void *priv,
 			   struct v4l2_tuner *v)
 {
-	struct video_device *dev = video_devdata(file);
-	struct radio_device *card=dev->priv;
+	struct radio_device *card = video_drvdata(file);
 
 	if (v->index > 0)
 		return -EINVAL;
@@ -289,8 +301,7 @@ static int vidioc_s_audio (struct file *file, void *priv,
 static int vidioc_s_frequency (struct file *file, void *priv,
 			       struct v4l2_frequency *f)
 {
-	struct video_device *dev = video_devdata(file);
-	struct radio_device *card=dev->priv;
+	struct radio_device *card = video_drvdata(file);
 
 	if (f->frequency < FREQ_LO || f->frequency > FREQ_HI) {
 		dprintk(1, "radio freq (%d.%02d MHz) out of range (%d-%d)\n",
@@ -311,8 +322,7 @@ static int vidioc_s_frequency (struct file *file, void *priv,
 static int vidioc_g_frequency (struct file *file, void *priv,
 			       struct v4l2_frequency *f)
 {
-	struct video_device *dev = video_devdata(file);
-	struct radio_device *card=dev->priv;
+	struct radio_device *card = video_drvdata(file);
 
 	f->type = V4L2_TUNER_RADIO;
 	f->frequency = card->freq;
@@ -342,8 +352,7 @@ static int vidioc_queryctrl (struct file *file, void *priv,
 static int vidioc_g_ctrl (struct file *file, void *priv,
 			    struct v4l2_control *ctrl)
 {
-	struct video_device *dev = video_devdata(file);
-	struct radio_device *card=dev->priv;
+	struct radio_device *card = video_drvdata(file);
 
 	switch (ctrl->id) {
 		case V4L2_CID_AUDIO_MUTE:
@@ -357,8 +366,7 @@ static int vidioc_g_ctrl (struct file *file, void *priv,
 static int vidioc_s_ctrl (struct file *file, void *priv,
 			  struct v4l2_control *ctrl)
 {
-	struct video_device *dev = video_devdata(file);
-	struct radio_device *card=dev->priv;
+	struct radio_device *card = video_drvdata(file);
 
 	switch (ctrl->id) {
 		case V4L2_CID_AUDIO_MUTE:
@@ -373,13 +381,7 @@ static int vidioc_s_ctrl (struct file *file, void *priv,
 	return -EINVAL;
 }
 
-static struct video_device maxiradio_radio =
-{
-	.owner		    = THIS_MODULE,
-	.name		    = "Maxi Radio FM2000 radio",
-	.type		    = VID_TYPE_TUNER,
-	.fops               = &maxiradio_fops,
-
+static const struct v4l2_ioctl_ops maxiradio_ioctl_ops = {
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,
 	.vidioc_s_tuner     = vidioc_s_tuner,
@@ -392,6 +394,13 @@ static struct video_device maxiradio_radio =
 	.vidioc_queryctrl   = vidioc_queryctrl,
 	.vidioc_g_ctrl      = vidioc_g_ctrl,
 	.vidioc_s_ctrl      = vidioc_s_ctrl,
+};
+
+static struct video_device maxiradio_radio = {
+	.name		= "Maxi Radio FM2000 radio",
+	.fops           = &maxiradio_fops,
+	.ioctl_ops 	= &maxiradio_ioctl_ops,
+	.release	= video_device_release_empty,
 };
 
 static int __devinit maxiradio_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -407,9 +416,9 @@ static int __devinit maxiradio_init_one(struct pci_dev *pdev, const struct pci_d
 
 	radio_unit.io = pci_resource_start(pdev, 0);
 	mutex_init(&radio_unit.lock);
-	maxiradio_radio.priv = &radio_unit;
+	video_set_drvdata(&maxiradio_radio, &radio_unit);
 
-	if (video_register_device(&maxiradio_radio, VFL_TYPE_RADIO, radio_nr)==-1) {
+	if (video_register_device(&maxiradio_radio, VFL_TYPE_RADIO, radio_nr) < 0) {
 		printk("radio-maxiradio: can't register device!");
 		goto err_out_free_region;
 	}

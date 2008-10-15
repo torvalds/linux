@@ -259,7 +259,6 @@ struct pwm_data {
 };
 
 struct adm1026_data {
-	struct i2c_client client;
 	struct device *hwmon_dev;
 
 	struct mutex update_lock;
@@ -293,10 +292,11 @@ struct adm1026_data {
 	u8 config3;		/* Register value */
 };
 
-static int adm1026_attach_adapter(struct i2c_adapter *adapter);
-static int adm1026_detect(struct i2c_adapter *adapter, int address,
-	int kind);
-static int adm1026_detach_client(struct i2c_client *client);
+static int adm1026_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id);
+static int adm1026_detect(struct i2c_client *client, int kind,
+			  struct i2c_board_info *info);
+static int adm1026_remove(struct i2c_client *client);
 static int adm1026_read_value(struct i2c_client *client, u8 reg);
 static int adm1026_write_value(struct i2c_client *client, u8 reg, int value);
 static void adm1026_print_gpio(struct i2c_client *client);
@@ -305,21 +305,23 @@ static struct adm1026_data *adm1026_update_device(struct device *dev);
 static void adm1026_init_client(struct i2c_client *client);
 
 
+static const struct i2c_device_id adm1026_id[] = {
+	{ "adm1026", adm1026 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, adm1026_id);
+
 static struct i2c_driver adm1026_driver = {
+	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "adm1026",
 	},
-	.attach_adapter = adm1026_attach_adapter,
-	.detach_client	= adm1026_detach_client,
+	.probe		= adm1026_probe,
+	.remove		= adm1026_remove,
+	.id_table	= adm1026_id,
+	.detect		= adm1026_detect,
+	.address_data	= &addr_data,
 };
-
-static int adm1026_attach_adapter(struct i2c_adapter *adapter)
-{
-	if (!(adapter->class & I2C_CLASS_HWMON)) {
-		return 0;
-	}
-	return i2c_probe(adapter, &addr_data, adm1026_detect);
-}
 
 static int adm1026_read_value(struct i2c_client *client, u8 reg)
 {
@@ -1647,48 +1649,32 @@ static const struct attribute_group adm1026_group_in8_9 = {
 	.attrs = adm1026_attributes_in8_9,
 };
 
-static int adm1026_detect(struct i2c_adapter *adapter, int address,
-			  int kind)
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static int adm1026_detect(struct i2c_client *client, int kind,
+			  struct i2c_board_info *info)
 {
+	struct i2c_adapter *adapter = client->adapter;
+	int address = client->addr;
 	int company, verstep;
-	struct i2c_client *client;
-	struct adm1026_data *data;
-	int err = 0;
-	const char *type_name = "";
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		/* We need to be able to do byte I/O */
-		goto exit;
+		return -ENODEV;
 	};
-
-	/* OK. For now, we presume we have a valid client. We now create the
-	   client structure, even though we cannot fill it completely yet.
-	   But it allows us to access adm1026_{read,write}_value. */
-
-	if (!(data = kzalloc(sizeof(struct adm1026_data), GFP_KERNEL))) {
-		err = -ENOMEM;
-		goto exit;
-	}
-
-	client = &data->client;
-	i2c_set_clientdata(client, data);
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &adm1026_driver;
 
 	/* Now, we do the remaining detection. */
 
 	company = adm1026_read_value(client, ADM1026_REG_COMPANY);
 	verstep = adm1026_read_value(client, ADM1026_REG_VERSTEP);
 
-	dev_dbg(&client->dev, "Detecting device at %d,0x%02x with"
+	dev_dbg(&adapter->dev, "Detecting device at %d,0x%02x with"
 		" COMPANY: 0x%02x and VERSTEP: 0x%02x\n",
 		i2c_adapter_id(client->adapter), client->addr,
 		company, verstep);
 
 	/* If auto-detecting, Determine the chip type. */
 	if (kind <= 0) {
-		dev_dbg(&client->dev, "Autodetecting device at %d,0x%02x "
+		dev_dbg(&adapter->dev, "Autodetecting device at %d,0x%02x "
 			"...\n", i2c_adapter_id(adapter), address);
 		if (company == ADM1026_COMPANY_ANALOG_DEV
 		    && verstep == ADM1026_VERSTEP_ADM1026) {
@@ -1704,7 +1690,7 @@ static int adm1026_detect(struct i2c_adapter *adapter, int address,
 				verstep);
 			kind = any_chip;
 		} else {
-			dev_dbg(&client->dev, ": Autodetection "
+			dev_dbg(&adapter->dev, ": Autodetection "
 				"failed\n");
 			/* Not an ADM1026 ... */
 			if (kind == 0) { /* User used force=x,y */
@@ -1713,32 +1699,28 @@ static int adm1026_detect(struct i2c_adapter *adapter, int address,
 					"force_adm1026.\n",
 					i2c_adapter_id(adapter), address);
 			}
-			goto exitfree;
+			return -ENODEV;
 		}
 	}
+	strlcpy(info->type, "adm1026", I2C_NAME_SIZE);
 
-	/* Fill in the chip specific driver values */
-	switch (kind) {
-	case any_chip :
-		type_name = "adm1026";
-		break;
-	case adm1026 :
-		type_name = "adm1026";
-		break;
-	default :
-		dev_err(&adapter->dev, ": Internal error, invalid "
-			"kind (%d)!\n", kind);
-		err = -EFAULT;
-		goto exitfree;
+	return 0;
+}
+
+static int adm1026_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
+{
+	struct adm1026_data *data;
+	int err;
+
+	data = kzalloc(sizeof(struct adm1026_data), GFP_KERNEL);
+	if (!data) {
+		err = -ENOMEM;
+		goto exit;
 	}
-	strlcpy(client->name, type_name, I2C_NAME_SIZE);
 
-	/* Fill in the remaining client fields */
+	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
-
-	/* Tell the I2C layer a new client has arrived */
-	if ((err = i2c_attach_client(client)))
-		goto exitfree;
 
 	/* Set the VRM version */
 	data->vrm = vid_which_vrm();
@@ -1748,7 +1730,7 @@ static int adm1026_detect(struct i2c_adapter *adapter, int address,
 
 	/* Register sysfs hooks */
 	if ((err = sysfs_create_group(&client->dev.kobj, &adm1026_group)))
-		goto exitdetach;
+		goto exitfree;
 	if (data->config1 & CFG1_AIN8_9)
 		err = sysfs_create_group(&client->dev.kobj,
 					 &adm1026_group_in8_9);
@@ -1773,15 +1755,13 @@ exitremove:
 		sysfs_remove_group(&client->dev.kobj, &adm1026_group_in8_9);
 	else
 		sysfs_remove_group(&client->dev.kobj, &adm1026_group_temp3);
-exitdetach:
-	i2c_detach_client(client);
 exitfree:
 	kfree(data);
 exit:
 	return err;
 }
 
-static int adm1026_detach_client(struct i2c_client *client)
+static int adm1026_remove(struct i2c_client *client)
 {
 	struct adm1026_data *data = i2c_get_clientdata(client);
 	hwmon_device_unregister(data->hwmon_dev);
@@ -1790,7 +1770,6 @@ static int adm1026_detach_client(struct i2c_client *client)
 		sysfs_remove_group(&client->dev.kobj, &adm1026_group_in8_9);
 	else
 		sysfs_remove_group(&client->dev.kobj, &adm1026_group_temp3);
-	i2c_detach_client(client);
 	kfree(data);
 	return 0;
 }

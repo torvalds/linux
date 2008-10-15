@@ -30,13 +30,15 @@
 #include <linux/init.h>
 #include <asm/io.h>
 #include <asm/bios_ebda.h>
-#include <asm/mach-summit/mach_mpparse.h>
+#include <asm/summit/mpparse.h>
 
 static struct rio_table_hdr *rio_table_hdr __initdata;
 static struct scal_detail   *scal_devs[MAX_NUMNODES] __initdata;
 static struct rio_detail    *rio_devs[MAX_NUMNODES*4] __initdata;
 
+#ifndef CONFIG_X86_NUMAQ
 static int mp_bus_id_to_node[MAX_MP_BUSSES] __initdata;
+#endif
 
 static int __init setup_pci_node_map_for_wpeg(int wpeg_num, int last_bus)
 {

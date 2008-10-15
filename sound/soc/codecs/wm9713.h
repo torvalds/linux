@@ -46,7 +46,7 @@
 #define WM9713_DAI_PCM_VOICE	2
 
 extern struct snd_soc_codec_device soc_codec_dev_wm9713;
-extern struct snd_soc_codec_dai wm9713_dai[3];
+extern struct snd_soc_dai wm9713_dai[3];
 
 int wm9713_reset(struct snd_soc_codec *codec,  int try_warm);
 

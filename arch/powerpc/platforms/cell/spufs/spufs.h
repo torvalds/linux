@@ -32,6 +32,13 @@
 #include <asm/spu_csa.h>
 #include <asm/spu_info.h>
 
+#define SPUFS_PS_MAP_SIZE	0x20000
+#define SPUFS_MFC_MAP_SIZE	0x1000
+#define SPUFS_CNTL_MAP_SIZE	0x1000
+#define SPUFS_CNTL_MAP_SIZE	0x1000
+#define SPUFS_SIGNAL_MAP_SIZE	PAGE_SIZE
+#define SPUFS_MSS_MAP_SIZE	0x1000
+
 /* The magic number for our file system */
 enum {
 	SPUFS_MAGIC = 0x23c9b64e,
@@ -228,8 +235,16 @@ struct spufs_inode_info {
 #define SPUFS_I(inode) \
 	container_of(inode, struct spufs_inode_info, vfs_inode)
 
-extern struct tree_descr spufs_dir_contents[];
-extern struct tree_descr spufs_dir_nosched_contents[];
+struct spufs_tree_descr {
+	const char *name;
+	const struct file_operations *ops;
+	int mode;
+	size_t size;
+};
+
+extern struct spufs_tree_descr spufs_dir_contents[];
+extern struct spufs_tree_descr spufs_dir_nosched_contents[];
+extern struct spufs_tree_descr spufs_dir_debug_contents[];
 
 /* system call implementation */
 extern struct spufs_calls spufs_calls;

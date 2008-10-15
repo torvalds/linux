@@ -216,7 +216,7 @@ qla24xx_soft_reset(scsi_qla_host_t *ha)
 
 static int
 qla2xxx_dump_ram(scsi_qla_host_t *ha, uint32_t addr, uint16_t *ram,
-    uint16_t ram_words, void **nxt)
+    uint32_t ram_words, void **nxt)
 {
 	int rval;
 	uint32_t cnt, stat, timer, words, idx;

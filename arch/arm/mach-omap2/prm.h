@@ -38,13 +38,29 @@
  *
  */
 
+/* Global 24xx registers in GR_MOD (Same as OCP_MOD for 24xx) */
+#define OMAP24XX_PRCM_VOLTCTRL_OFFSET		0x0050
+#define OMAP24XX_PRCM_CLKCFG_CTRL_OFFSET	0x0080
+
+/* 242x GR_MOD registers, use these only for assembly code */
+#define OMAP242X_PRCM_VOLTCTRL		OMAP2420_PRM_REGADDR(OMAP24XX_GR_MOD,	\
+						OMAP24XX_PRCM_VOLTCTRL_OFFSET)
+#define OMAP242X_PRCM_CLKCFG_CTRL	OMAP2420_PRM_REGADDR(OMAP24XX_GR_MOD,	\
+						OMAP24XX_PRCM_CLKCFG_CTRL_OFFSET)
+
+/* 243x GR_MOD registers, use these only for assembly code */
+#define OMAP243X_PRCM_VOLTCTRL		OMAP2430_PRM_REGADDR(OMAP24XX_GR_MOD,	\
+						OMAP24XX_PRCM_VOLTCTRL_OFFSET)
+#define OMAP243X_PRCM_CLKCFG_CTRL	OMAP2430_PRM_REGADDR(OMAP24XX_GR_MOD,	\
+						OMAP24XX_PRCM_CLKCFG_CTRL_OFFSET)
+
+/* These will disappear */
 #define OMAP24XX_PRCM_REVISION		OMAP_PRM_REGADDR(OCP_MOD, 0x0000)
 #define OMAP24XX_PRCM_SYSCONFIG		OMAP_PRM_REGADDR(OCP_MOD, 0x0010)
 
 #define OMAP24XX_PRCM_IRQSTATUS_MPU	OMAP_PRM_REGADDR(OCP_MOD, 0x0018)
 #define OMAP24XX_PRCM_IRQENABLE_MPU	OMAP_PRM_REGADDR(OCP_MOD, 0x001c)
 
-#define OMAP24XX_PRCM_VOLTCTRL		OMAP_PRM_REGADDR(OCP_MOD, 0x0050)
 #define OMAP24XX_PRCM_VOLTST		OMAP_PRM_REGADDR(OCP_MOD, 0x0054)
 #define OMAP24XX_PRCM_CLKSRC_CTRL	OMAP_PRM_REGADDR(OCP_MOD, 0x0060)
 #define OMAP24XX_PRCM_CLKOUT_CTRL	OMAP_PRM_REGADDR(OCP_MOD, 0x0070)
@@ -150,15 +166,19 @@
 #ifndef __ASSEMBLER__
 
 /* Power/reset management domain register get/set */
+extern u32 prm_read_mod_reg(s16 module, u16 idx);
+extern void prm_write_mod_reg(u32 val, s16 module, u16 idx);
+extern u32 prm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx);
 
-static inline void prm_write_mod_reg(u32 val, s16 module, s16 idx)
+/* Read-modify-write bits in a PRM register (by domain) */
+static inline u32 prm_set_mod_reg_bits(u32 bits, s16 module, s16 idx)
 {
-	__raw_writel(val, OMAP_PRM_REGADDR(module, idx));
+	return prm_rmw_mod_reg_bits(bits, bits, module, idx);
 }
 
-static inline u32 prm_read_mod_reg(s16 module, s16 idx)
+static inline u32 prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
 {
-	return __raw_readl(OMAP_PRM_REGADDR(module, idx));
+	return prm_rmw_mod_reg_bits(bits, 0x0, module, idx);
 }
 
 #endif

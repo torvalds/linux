@@ -1,5 +1,5 @@
-#ifndef __ASM_I386_PROCESSOR_FLAGS_H
-#define __ASM_I386_PROCESSOR_FLAGS_H
+#ifndef ASM_X86__PROCESSOR_FLAGS_H
+#define ASM_X86__PROCESSOR_FLAGS_H
 /* Various flags defined: can be included from assembler. */
 
 /*
@@ -59,6 +59,7 @@
 #define X86_CR4_OSFXSR	0x00000200 /* enable fast FPU save and restore */
 #define X86_CR4_OSXMMEXCPT 0x00000400 /* enable unmasked SSE exceptions */
 #define X86_CR4_VMXE	0x00002000 /* enable VMX virtualization */
+#define X86_CR4_OSXSAVE 0x00040000 /* enable xsave and xrestore */
 
 /*
  * x86-64 Task Priority Register, CR8
@@ -88,4 +89,12 @@
 #define CX86_ARR_BASE	0xc4
 #define CX86_RCR_BASE	0xdc
 
-#endif	/* __ASM_I386_PROCESSOR_FLAGS_H */
+#ifdef __KERNEL__
+#ifdef CONFIG_VM86
+#define X86_VM_MASK	X86_EFLAGS_VM
+#else
+#define X86_VM_MASK	0 /* No VM86 support */
+#endif
+#endif
+
+#endif /* ASM_X86__PROCESSOR_FLAGS_H */

@@ -83,8 +83,6 @@ out:
 	return ret;
 }
 
-EXPORT_SYMBOL(krb5_encrypt);
-
 u32
 krb5_decrypt(
      struct crypto_blkcipher *tfm,
@@ -117,8 +115,6 @@ out:
 	dprintk("RPC:       gss_k5decrypt returns %d\n",ret);
 	return ret;
 }
-
-EXPORT_SYMBOL(krb5_decrypt);
 
 static int
 checksummer(struct scatterlist *sg, void *data)
@@ -160,8 +156,6 @@ out:
 	crypto_free_hash(desc.tfm);
 	return err ? GSS_S_FAILURE : 0;
 }
-
-EXPORT_SYMBOL(make_checksum);
 
 struct encryptor_desc {
 	u8 iv[8]; /* XXX hard-coded blocksize */
@@ -262,8 +256,6 @@ gss_encrypt_xdr_buf(struct crypto_blkcipher *tfm, struct xdr_buf *buf,
 	return ret;
 }
 
-EXPORT_SYMBOL(gss_encrypt_xdr_buf);
-
 struct decryptor_desc {
 	u8 iv[8]; /* XXX hard-coded blocksize */
 	struct blkcipher_desc desc;
@@ -334,5 +326,3 @@ gss_decrypt_xdr_buf(struct crypto_blkcipher *tfm, struct xdr_buf *buf,
 
 	return xdr_process_buf(buf, offset, buf->len - offset, decryptor, &desc);
 }
-
-EXPORT_SYMBOL(gss_decrypt_xdr_buf);

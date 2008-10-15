@@ -36,9 +36,6 @@
 #include <linux/workqueue.h>
 #include <linux/proc_fs.h>
 #include <linux/bitops.h>
-
-#include <net/syncppp.h>
-
 #include <asm/processor.h>             /* Processor type for cache alignment. */
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -50,48 +47,6 @@
 #include "lmc_ioctl.h"
 #include "lmc_proto.h"
 
-/*
- * The compile-time variable SPPPSTUP causes the module to be
- * compiled without referencing any of the sync ppp routines.
- */
-#ifdef SPPPSTUB
-#define SPPP_detach(d)	(void)0
-#define SPPP_open(d)	0
-#define SPPP_reopen(d)	(void)0
-#define SPPP_close(d)	(void)0
-#define SPPP_attach(d)	(void)0
-#define SPPP_do_ioctl(d,i,c)	-EOPNOTSUPP
-#else
-#define SPPP_attach(x)	sppp_attach((x)->pd)
-#define SPPP_detach(x)	sppp_detach((x)->pd->dev)
-#define SPPP_open(x)	sppp_open((x)->pd->dev)
-#define SPPP_reopen(x)	sppp_reopen((x)->pd->dev)
-#define SPPP_close(x)	sppp_close((x)->pd->dev)
-#define SPPP_do_ioctl(x, y, z)	sppp_do_ioctl((x)->pd->dev, (y), (z))
-#endif
-
-// init
-void lmc_proto_init(lmc_softc_t *sc) /*FOLD00*/
-{
-    lmc_trace(sc->lmc_device, "lmc_proto_init in");
-    switch(sc->if_type){
-    case LMC_PPP:
-        sc->pd = kmalloc(sizeof(struct ppp_device), GFP_KERNEL);
-	if (!sc->pd) {
-		printk("lmc_proto_init(): kmalloc failure!\n");
-		return;
-	}
-        sc->pd->dev = sc->lmc_device;
-        sc->if_ptr = sc->pd;
-        break;
-    case LMC_RAW:
-        break;
-    default:
-        break;
-    }
-    lmc_trace(sc->lmc_device, "lmc_proto_init out");
-}
-
 // attach
 void lmc_proto_attach(lmc_softc_t *sc) /*FOLD00*/
 {
@@ -100,7 +55,6 @@ void lmc_proto_attach(lmc_softc_t *sc) /*FOLD00*/
     case LMC_PPP:
         {
             struct net_device *dev = sc->lmc_device;
-            SPPP_attach(sc);
             dev->do_ioctl = lmc_ioctl;
         }
         break;
@@ -108,7 +62,7 @@ void lmc_proto_attach(lmc_softc_t *sc) /*FOLD00*/
         {
             struct net_device *dev = sc->lmc_device;
             /*
-             * They set a few basics because they don't use sync_ppp
+	     * They set a few basics because they don't use HDLC
              */
             dev->flags |= IFF_POINTOPOINT;
 
@@ -124,88 +78,39 @@ void lmc_proto_attach(lmc_softc_t *sc) /*FOLD00*/
     lmc_trace(sc->lmc_device, "lmc_proto_attach out");
 }
 
-// detach
-void lmc_proto_detach(lmc_softc_t *sc) /*FOLD00*/
+int lmc_proto_ioctl(lmc_softc_t *sc, struct ifreq *ifr, int cmd)
 {
-    switch(sc->if_type){
-    case LMC_PPP:
-        SPPP_detach(sc);
-        break;
-    case LMC_RAW: /* Tell someone we're detaching? */
-        break;
-    default:
-        break;
-    }
-
+	lmc_trace(sc->lmc_device, "lmc_proto_ioctl");
+	if (sc->if_type == LMC_PPP)
+		return hdlc_ioctl(sc->lmc_device, ifr, cmd);
+	return -EOPNOTSUPP;
 }
 
-// reopen
-void lmc_proto_reopen(lmc_softc_t *sc) /*FOLD00*/
+int lmc_proto_open(lmc_softc_t *sc)
 {
-    lmc_trace(sc->lmc_device, "lmc_proto_reopen in");
-    switch(sc->if_type){
-    case LMC_PPP:
-        SPPP_reopen(sc);
-        break;
-    case LMC_RAW: /* Reset the interface after being down, prerape to receive packets again */
-        break;
-    default:
-        break;
-    }
-    lmc_trace(sc->lmc_device, "lmc_proto_reopen out");
+	int ret = 0;
+
+	lmc_trace(sc->lmc_device, "lmc_proto_open in");
+
+	if (sc->if_type == LMC_PPP) {
+		ret = hdlc_open(sc->lmc_device);
+		if (ret < 0)
+			printk(KERN_WARNING "%s: HDLC open failed: %d\n",
+			       sc->name, ret);
+	}
+
+	lmc_trace(sc->lmc_device, "lmc_proto_open out");
+	return ret;
 }
 
-
-// ioctl
-int lmc_proto_ioctl(lmc_softc_t *sc, struct ifreq *ifr, int cmd) /*FOLD00*/
+void lmc_proto_close(lmc_softc_t *sc)
 {
-    lmc_trace(sc->lmc_device, "lmc_proto_ioctl out");
-    switch(sc->if_type){
-    case LMC_PPP:
-        return SPPP_do_ioctl (sc, ifr, cmd);
-        break;
-    default:
-        return -EOPNOTSUPP;
-        break;
-    }
-    lmc_trace(sc->lmc_device, "lmc_proto_ioctl out");
-}
+	lmc_trace(sc->lmc_device, "lmc_proto_close in");
 
-// open
-void lmc_proto_open(lmc_softc_t *sc) /*FOLD00*/
-{
-    int ret;
+	if (sc->if_type == LMC_PPP)
+		hdlc_close(sc->lmc_device);
 
-    lmc_trace(sc->lmc_device, "lmc_proto_open in");
-    switch(sc->if_type){
-    case LMC_PPP:
-        ret = SPPP_open(sc);
-        if(ret < 0)
-            printk("%s: syncPPP open failed: %d\n", sc->name, ret);
-        break;
-    case LMC_RAW: /* We're about to start getting packets! */
-        break;
-    default:
-        break;
-    }
-    lmc_trace(sc->lmc_device, "lmc_proto_open out");
-}
-
-// close
-
-void lmc_proto_close(lmc_softc_t *sc) /*FOLD00*/
-{
-    lmc_trace(sc->lmc_device, "lmc_proto_close in");
-    switch(sc->if_type){
-    case LMC_PPP:
-        SPPP_close(sc);
-        break;
-    case LMC_RAW: /* Interface going down */
-        break;
-    default:
-        break;
-    }
-    lmc_trace(sc->lmc_device, "lmc_proto_close out");
+	lmc_trace(sc->lmc_device, "lmc_proto_close out");
 }
 
 __be16 lmc_proto_type(lmc_softc_t *sc, struct sk_buff *skb) /*FOLD00*/
@@ -213,8 +118,8 @@ __be16 lmc_proto_type(lmc_softc_t *sc, struct sk_buff *skb) /*FOLD00*/
     lmc_trace(sc->lmc_device, "lmc_proto_type in");
     switch(sc->if_type){
     case LMC_PPP:
-        return htons(ETH_P_WAN_PPP);
-        break;
+	    return hdlc_type_trans(skb, sc->lmc_device);
+	    break;
     case LMC_NET:
         return htons(ETH_P_802_2);
         break;
@@ -245,4 +150,3 @@ void lmc_proto_netif(lmc_softc_t *sc, struct sk_buff *skb) /*FOLD00*/
     }
     lmc_trace(sc->lmc_device, "lmc_proto_netif out");
 }
-

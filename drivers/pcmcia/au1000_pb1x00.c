@@ -35,10 +35,8 @@
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/ss.h>
-#include <pcmcia/bulkmem.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/bus_ops.h>
-#include "cs_internal.h"
 
 #include <asm/io.h>
 #include <asm/irq.h>

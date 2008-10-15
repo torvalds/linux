@@ -28,8 +28,7 @@ void dynamic_irq_init(unsigned int irq)
 	unsigned long flags;
 
 	if (irq >= NR_IRQS) {
-		printk(KERN_ERR "Trying to initialize invalid IRQ%d\n", irq);
-		WARN_ON(1);
+		WARN(1, KERN_ERR "Trying to initialize invalid IRQ%d\n", irq);
 		return;
 	}
 
@@ -62,8 +61,7 @@ void dynamic_irq_cleanup(unsigned int irq)
 	unsigned long flags;
 
 	if (irq >= NR_IRQS) {
-		printk(KERN_ERR "Trying to cleanup invalid IRQ%d\n", irq);
-		WARN_ON(1);
+		WARN(1, KERN_ERR "Trying to cleanup invalid IRQ%d\n", irq);
 		return;
 	}
 
@@ -71,9 +69,8 @@ void dynamic_irq_cleanup(unsigned int irq)
 	spin_lock_irqsave(&desc->lock, flags);
 	if (desc->action) {
 		spin_unlock_irqrestore(&desc->lock, flags);
-		printk(KERN_ERR "Destroying IRQ%d without calling free_irq\n",
+		WARN(1, KERN_ERR "Destroying IRQ%d without calling free_irq\n",
 			irq);
-		WARN_ON(1);
 		return;
 	}
 	desc->msi_desc = NULL;
@@ -96,8 +93,7 @@ int set_irq_chip(unsigned int irq, struct irq_chip *chip)
 	unsigned long flags;
 
 	if (irq >= NR_IRQS) {
-		printk(KERN_ERR "Trying to install chip for IRQ%d\n", irq);
-		WARN_ON(1);
+		WARN(1, KERN_ERR "Trying to install chip for IRQ%d\n", irq);
 		return -EINVAL;
 	}
 

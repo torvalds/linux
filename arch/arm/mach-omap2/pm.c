@@ -24,18 +24,17 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/atomic.h>
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
-#include <asm/mach-types.h>
 
-#include <asm/arch/irqs.h>
-#include <asm/arch/clock.h>
-#include <asm/arch/sram.h>
-#include <asm/arch/pm.h>
+#include <mach/irqs.h>
+#include <mach/clock.h>
+#include <mach/sram.h>
+#include <mach/pm.h>
 
 static struct clk *vclk;
 static void (*omap2_sram_idle)(void);
@@ -56,13 +55,6 @@ void omap2_pm_idle(void)
 		local_irq_enable();
 		return;
 	}
-
-	/*
-	 * Since an interrupt may set up a timer, we don't want to
-	 * reprogram the hardware timer with interrupts enabled.
-	 * Re-enable interrupts only after returning from idle.
-	 */
-	timer_dyn_reprogram();
 
 	omap2_sram_idle();
 	local_fiq_enable();

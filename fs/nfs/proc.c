@@ -129,6 +129,8 @@ nfs_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 	sattr->ia_mode &= S_IALLUGO;
 
 	dprintk("NFS call  setattr\n");
+	if (sattr->ia_valid & ATTR_FILE)
+		msg.rpc_cred = nfs_file_cred(sattr->ia_file);
 	nfs_fattr_init(fattr);
 	status = rpc_call_sync(NFS_CLIENT(inode), &msg, 0);
 	if (status == 0)
@@ -598,6 +600,29 @@ nfs_proc_lock(struct file *filp, int cmd, struct file_lock *fl)
 	return nlmclnt_proc(NFS_SERVER(inode)->nlm_host, cmd, fl);
 }
 
+/* Helper functions for NFS lock bounds checking */
+#define NFS_LOCK32_OFFSET_MAX ((__s32)0x7fffffffUL)
+static int nfs_lock_check_bounds(const struct file_lock *fl)
+{
+	__s32 start, end;
+
+	start = (__s32)fl->fl_start;
+	if ((loff_t)start != fl->fl_start)
+		goto out_einval;
+
+	if (fl->fl_end != OFFSET_MAX) {
+		end = (__s32)fl->fl_end;
+		if ((loff_t)end != fl->fl_end)
+			goto out_einval;
+	} else
+		end = NFS_LOCK32_OFFSET_MAX;
+
+	if (start < 0 || start > end)
+		goto out_einval;
+	return 0;
+out_einval:
+	return -EINVAL;
+}
 
 const struct nfs_rpc_ops nfs_v2_clientops = {
 	.version	= 2,		       /* protocol version */
@@ -630,7 +655,6 @@ const struct nfs_rpc_ops nfs_v2_clientops = {
 	.write_setup	= nfs_proc_write_setup,
 	.write_done	= nfs_write_done,
 	.commit_setup	= nfs_proc_commit_setup,
-	.file_open	= nfs_open,
-	.file_release	= nfs_release,
 	.lock		= nfs_proc_lock,
+	.lock_check_bounds = nfs_lock_check_bounds,
 };

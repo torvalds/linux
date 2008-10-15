@@ -1,3 +1,6 @@
+#ifndef ASM_X86__XOR_32_H
+#define ASM_X86__XOR_32_H
+
 /*
  * Optimized RAID-5 checksumming functions for MMX and SSE.
  *
@@ -881,3 +884,5 @@ do {							\
    deals with a load to a line that is being prefetched.  */
 #define XOR_SELECT_TEMPLATE(FASTEST)			\
 	(cpu_has_xmm ? &xor_block_pIII_sse : FASTEST)
+
+#endif /* ASM_X86__XOR_32_H */

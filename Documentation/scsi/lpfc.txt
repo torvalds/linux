@@ -36,7 +36,7 @@ Cable pull and temporary device Loss:
   being removed, a switch rebooting, or a device reboot), the driver could
   hide the disappearance of the device from the midlayer. I/O's issued to
   the LLDD would simply be queued for a short duration, allowing the device
-  to reappear or link come back alive, with no inadvertant side effects
+  to reappear or link come back alive, with no inadvertent side effects
   to the system. If the driver did not hide these conditions, i/o would be
   errored by the driver, the mid-layer would exhaust its retries, and the
   device would be taken offline. Manual intervention would be required to

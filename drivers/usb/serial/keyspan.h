@@ -35,17 +35,18 @@
 
 
 /* Function prototypes for Keyspan serial converter */
-static int  keyspan_open		(struct usb_serial_port *port,
+static int  keyspan_open		(struct tty_struct *tty,
+					 struct usb_serial_port *port,
 					 struct file *filp);
-static void keyspan_close		(struct usb_serial_port *port,
+static void keyspan_close		(struct tty_struct *tty,
+					 struct usb_serial_port *port,
 					 struct file *filp);
 static int  keyspan_startup		(struct usb_serial *serial);
 static void keyspan_shutdown		(struct usb_serial *serial);
-static void keyspan_rx_throttle		(struct usb_serial_port *port);
-static void keyspan_rx_unthrottle	(struct usb_serial_port *port);
-static int  keyspan_write_room		(struct usb_serial_port *port);
+static int  keyspan_write_room		(struct tty_struct *tty);
 
-static int  keyspan_write		(struct usb_serial_port *port,
+static int  keyspan_write		(struct tty_struct *tty,
+					 struct usb_serial_port *port,
 					 const unsigned char *buf,
 					 int count);
 
@@ -53,18 +54,14 @@ static void keyspan_send_setup		(struct usb_serial_port *port,
 					 int reset_port);
 
 
-static int  keyspan_chars_in_buffer 	(struct usb_serial_port *port);
-static int  keyspan_ioctl		(struct usb_serial_port *port,
-					 struct file *file,
-					 unsigned int cmd,
-					 unsigned long arg);
-static void keyspan_set_termios		(struct usb_serial_port *port,
+static void keyspan_set_termios		(struct tty_struct *tty,
+					 struct usb_serial_port *port,
 					 struct ktermios *old);
-static void keyspan_break_ctl		(struct usb_serial_port *port,
+static void keyspan_break_ctl		(struct tty_struct *tty,
 					 int break_state);
-static int  keyspan_tiocmget		(struct usb_serial_port *port,
+static int  keyspan_tiocmget		(struct tty_struct *tty,
 					 struct file *file);
-static int  keyspan_tiocmset		(struct usb_serial_port *port,
+static int  keyspan_tiocmset		(struct tty_struct *tty,
 					 struct file *file, unsigned int set,
 					 unsigned int clear);
 static int  keyspan_fake_startup	(struct usb_serial *serial);
@@ -103,90 +100,6 @@ static int  keyspan_usa67_send_setup	(struct usb_serial *serial,
 					 struct usb_serial_port *port,
 					 int reset_port);
 
-/* Struct used for firmware - increased size of data section
-   to allow Keyspan's 'C' firmware struct to be used unmodified */
-struct ezusb_hex_record {
-	__u16 address;
-	__u8 data_size;
-	__u8 data[64];
-};
-
-/* Conditionally include firmware images, if they aren't
-   included create a null pointer instead.  Current 
-   firmware images aren't optimised to remove duplicate
-   addresses in the image itself. */
-#ifdef CONFIG_USB_SERIAL_KEYSPAN_USA28
-	#include "keyspan_usa28_fw.h"
-#else
-	static const struct ezusb_hex_record *keyspan_usa28_firmware = NULL;
-#endif
-
-#ifdef CONFIG_USB_SERIAL_KEYSPAN_USA28X
-	#include "keyspan_usa28x_fw.h"
-#else
-	static const struct ezusb_hex_record *keyspan_usa28x_firmware = NULL;
-#endif
-
-#ifdef CONFIG_USB_SERIAL_KEYSPAN_USA28XA
-	#include "keyspan_usa28xa_fw.h"
-#else
-	static const struct ezusb_hex_record *keyspan_usa28xa_firmware = NULL;
-#endif
-
-#ifdef CONFIG_USB_SERIAL_KEYSPAN_USA28XB
-	#include "keyspan_usa28xb_fw.h"
-#else
-	static const struct ezusb_hex_record *keyspan_usa28xb_firmware = NULL;
-#endif
-
-#ifdef CONFIG_USB_SERIAL_KEYSPAN_USA19
-	#include "keyspan_usa19_fw.h"
-#else
-	static const struct ezusb_hex_record *keyspan_usa19_firmware = NULL;
-#endif
-
-#ifdef CONFIG_USB_SERIAL_KEYSPAN_USA19QI
-	#include "keyspan_usa19qi_fw.h"
-#else
-	static const struct ezusb_hex_record *keyspan_usa19qi_firmware = NULL;
-#endif
-
-#ifdef CONFIG_USB_SERIAL_KEYSPAN_MPR
-        #include "keyspan_mpr_fw.h"
-#else
-	static const struct ezusb_hex_record *keyspan_mpr_firmware = NULL;
-#endif
-
-#ifdef CONFIG_USB_SERIAL_KEYSPAN_USA19QW
-	#include "keyspan_usa19qw_fw.h"
-#else
-	static const struct ezusb_hex_record *keyspan_usa19qw_firmware = NULL;
-#endif
-
-#ifdef CONFIG_USB_SERIAL_KEYSPAN_USA18X
-	#include "keyspan_usa18x_fw.h"
-#else
-	static const struct ezusb_hex_record *keyspan_usa18x_firmware = NULL;
-#endif
-
-#ifdef CONFIG_USB_SERIAL_KEYSPAN_USA19W
-	#include "keyspan_usa19w_fw.h"
-#else
-	static const struct ezusb_hex_record *keyspan_usa19w_firmware = NULL;
-#endif
-
-#ifdef CONFIG_USB_SERIAL_KEYSPAN_USA49W
-	#include "keyspan_usa49w_fw.h"
-#else
-	static const struct ezusb_hex_record *keyspan_usa49w_firmware = NULL;
-#endif
-
-#ifdef CONFIG_USB_SERIAL_KEYSPAN_USA49WLC
-        #include "keyspan_usa49wlc_fw.h"
-#else
-	static const struct ezusb_hex_record *keyspan_usa49wlc_firmware = NULL;
-#endif
-
 /* Values used for baud rate calculation - device specific */
 #define	KEYSPAN_INVALID_BAUD_RATE		(-1)
 #define	KEYSPAN_BAUD_RATE_OK			(0)
@@ -222,7 +135,8 @@ struct ezusb_hex_record {
 
 /* Product IDs post-renumeration.  Note that the 28x and 28xb
    have the same id's post-renumeration but behave identically
-   so it's not an issue. */
+   so it's not an issue. As such, the 28xb is not listed in any
+   of the device tables. */
 #define	keyspan_usa18x_product_id		0x0112
 #define	keyspan_usa19_product_id		0x0107
 #define	keyspan_usa19qi_product_id		0x010c
@@ -566,7 +480,6 @@ static struct usb_device_id keyspan_ids_combined[] = {
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28x_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28xa_product_id) },
-	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28xb_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28xg_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa49w_product_id)},
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa49wlc_product_id)},
@@ -616,7 +529,6 @@ static struct usb_device_id keyspan_2port_ids[] = {
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28x_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28xa_product_id) },
-	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28xb_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28xg_product_id) },
 	{ } /* Terminating entry */
 };
@@ -652,10 +564,6 @@ static struct usb_serial_driver keyspan_1port_device = {
 	.close			= keyspan_close,
 	.write			= keyspan_write,
 	.write_room		= keyspan_write_room,
-	.chars_in_buffer	= keyspan_chars_in_buffer,
-	.throttle		= keyspan_rx_throttle,
-	.unthrottle		= keyspan_rx_unthrottle,
-	.ioctl			= keyspan_ioctl,
 	.set_termios		= keyspan_set_termios,
 	.break_ctl		= keyspan_break_ctl,
 	.tiocmget		= keyspan_tiocmget,
@@ -676,10 +584,6 @@ static struct usb_serial_driver keyspan_2port_device = {
 	.close			= keyspan_close,
 	.write			= keyspan_write,
 	.write_room		= keyspan_write_room,
-	.chars_in_buffer	= keyspan_chars_in_buffer,
-	.throttle		= keyspan_rx_throttle,
-	.unthrottle		= keyspan_rx_unthrottle,
-	.ioctl			= keyspan_ioctl,
 	.set_termios		= keyspan_set_termios,
 	.break_ctl		= keyspan_break_ctl,
 	.tiocmget		= keyspan_tiocmget,
@@ -700,10 +604,6 @@ static struct usb_serial_driver keyspan_4port_device = {
 	.close			= keyspan_close,
 	.write			= keyspan_write,
 	.write_room		= keyspan_write_room,
-	.chars_in_buffer	= keyspan_chars_in_buffer,
-	.throttle		= keyspan_rx_throttle,
-	.unthrottle		= keyspan_rx_unthrottle,
-	.ioctl			= keyspan_ioctl,
 	.set_termios		= keyspan_set_termios,
 	.break_ctl		= keyspan_break_ctl,
 	.tiocmget		= keyspan_tiocmget,

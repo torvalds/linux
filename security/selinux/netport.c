@@ -37,7 +37,6 @@
 #include <linux/ipv6.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
-#include <asm/bug.h>
 
 #include "netport.h"
 #include "objsec.h"
@@ -272,7 +271,7 @@ static __init int sel_netport_init(void)
 	}
 
 	ret = avc_add_callback(sel_netport_avc_callback, AVC_CALLBACK_RESET,
-	                       SECSID_NULL, SECSID_NULL, SECCLASS_NULL, 0);
+			       SECSID_NULL, SECSID_NULL, SECCLASS_NULL, 0);
 	if (ret != 0)
 		panic("avc_add_callback() failed, error %d\n", ret);
 

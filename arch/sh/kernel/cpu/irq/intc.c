@@ -62,7 +62,7 @@ struct intc_desc_int {
 #endif
 
 static unsigned int intc_prio_level[NR_IRQS]; /* for now */
-#ifdef CONFIG_CPU_SH3
+#if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4A)
 static unsigned long ack_handle[NR_IRQS];
 #endif
 
@@ -231,7 +231,7 @@ static void intc_disable(unsigned int irq)
 	}
 }
 
-#ifdef CONFIG_CPU_SH3
+#if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4A)
 static void intc_mask_ack(unsigned int irq)
 {
 	struct intc_desc_int *d = get_intc_desc(irq);
@@ -244,8 +244,23 @@ static void intc_mask_ack(unsigned int irq)
 
 	if (handle) {
 		addr = INTC_REG(d, _INTC_ADDR_D(handle), 0);
-		ctrl_inb(addr);
-		ctrl_outb(0x3f ^ set_field(0, 1, handle), addr);
+		switch (_INTC_FN(handle)) {
+		case REG_FN_MODIFY_BASE + 0:	/* 8bit */
+			ctrl_inb(addr);
+			ctrl_outb(0xff ^ set_field(0, 1, handle), addr);
+			break;
+		case REG_FN_MODIFY_BASE + 1:	/* 16bit */
+			ctrl_inw(addr);
+			ctrl_outw(0xffff ^ set_field(0, 1, handle), addr);
+			break;
+		case REG_FN_MODIFY_BASE + 3:	/* 32bit */
+			ctrl_inl(addr);
+			ctrl_outl(0xffffffff ^ set_field(0, 1, handle), addr);
+			break;
+		default:
+			BUG();
+			break;
+		}
 	}
 }
 #endif
@@ -466,7 +481,7 @@ static unsigned int __init intc_prio_data(struct intc_desc *desc,
 	return 0;
 }
 
-#ifdef CONFIG_CPU_SH3
+#if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4A)
 static unsigned int __init intc_ack_data(struct intc_desc *desc,
 					  struct intc_desc_int *d,
 					  intc_enum enum_id)
@@ -601,7 +616,7 @@ static void __init intc_register_irq(struct intc_desc *desc,
 	/* irq should be disabled by default */
 	d->chip.mask(irq);
 
-#ifdef CONFIG_CPU_SH3
+#if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4A)
 	if (desc->ack_regs)
 		ack_handle[irq] = intc_ack_data(desc, d, enum_id);
 #endif
@@ -635,7 +650,7 @@ void __init register_intc_controller(struct intc_desc *desc)
 	d->nr_reg += desc->prio_regs ? desc->nr_prio_regs * 2 : 0;
 	d->nr_reg += desc->sense_regs ? desc->nr_sense_regs : 0;
 
-#ifdef CONFIG_CPU_SH3
+#if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4A)
 	d->nr_reg += desc->ack_regs ? desc->nr_ack_regs : 0;
 #endif
 	d->reg = alloc_bootmem(d->nr_reg * sizeof(*d->reg));
@@ -676,7 +691,7 @@ void __init register_intc_controller(struct intc_desc *desc)
 	d->chip.mask_ack = intc_disable;
 	d->chip.set_type = intc_set_sense;
 
-#ifdef CONFIG_CPU_SH3
+#if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4A)
 	if (desc->ack_regs) {
 		for (i = 0; i < desc->nr_ack_regs; i++)
 			k += save_reg(d, k, desc->ack_regs[i].set_reg, 0);

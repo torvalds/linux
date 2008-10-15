@@ -21,6 +21,7 @@
 #include <linux/string.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
 #include <linux/mtd/map.h>
 
@@ -29,13 +30,12 @@
 #include <asm/mach/irq.h>
 
 #include <asm/setup.h>
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
 //#include <asm/debug-ll.h>
-#include <asm/arch/regs-gpio.h>
+#include <mach/regs-gpio.h>
 #include <asm/plat-s3c/regs-serial.h>
 
 #include <asm/plat-s3c24xx/s3c2410.h>

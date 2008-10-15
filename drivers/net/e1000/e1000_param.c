@@ -208,15 +208,14 @@ struct e1000_option {
 		} r;
 		struct { /* list_option info */
 			int nr;
-			struct e1000_opt_list { int i; char *str; } *p;
+			const struct e1000_opt_list { int i; char *str; } *p;
 		} l;
 	} arg;
 };
 
-static int __devinit
-e1000_validate_option(unsigned int *value,
-		      const struct e1000_option *opt,
-		      struct e1000_adapter *adapter)
+static int __devinit e1000_validate_option(unsigned int *value,
+					   const struct e1000_option *opt,
+					   struct e1000_adapter *adapter)
 {
 	if (*value == OPTION_UNSET) {
 		*value = opt->def;
@@ -243,7 +242,7 @@ e1000_validate_option(unsigned int *value,
 		break;
 	case list_option: {
 		int i;
-		struct e1000_opt_list *ent;
+		const struct e1000_opt_list *ent;
 
 		for (i = 0; i < opt->arg.l.nr; i++) {
 			ent = &opt->arg.l.p[i];
@@ -278,10 +277,11 @@ static void e1000_check_copper_options(struct e1000_adapter *adapter);
  * in a variable in the adapter structure.
  **/
 
-void __devinit
-e1000_check_options(struct e1000_adapter *adapter)
+void __devinit e1000_check_options(struct e1000_adapter *adapter)
 {
+	struct e1000_option opt;
 	int bd = adapter->bd_number;
+
 	if (bd >= E1000_MAX_NIC) {
 		DPRINTK(PROBE, NOTICE,
 		       "Warning: no configuration for board #%i\n", bd);
@@ -289,19 +289,21 @@ e1000_check_options(struct e1000_adapter *adapter)
 	}
 
 	{ /* Transmit Descriptor Count */
-		struct e1000_option opt = {
+		struct e1000_tx_ring *tx_ring = adapter->tx_ring;
+		int i;
+		e1000_mac_type mac_type = adapter->hw.mac_type;
+
+		opt = (struct e1000_option) {
 			.type = range_option,
 			.name = "Transmit Descriptors",
 			.err  = "using default of "
 				__MODULE_STRING(E1000_DEFAULT_TXD),
 			.def  = E1000_DEFAULT_TXD,
-			.arg  = { .r = { .min = E1000_MIN_TXD }}
+			.arg  = { .r = {
+				.min = E1000_MIN_TXD,
+				.max = mac_type < e1000_82544 ? E1000_MAX_TXD : E1000_MAX_82544_TXD
+				}}
 		};
-		struct e1000_tx_ring *tx_ring = adapter->tx_ring;
-		int i;
-		e1000_mac_type mac_type = adapter->hw.mac_type;
-		opt.arg.r.max = mac_type < e1000_82544 ?
-			E1000_MAX_TXD : E1000_MAX_82544_TXD;
 
 		if (num_TxDescriptors > bd) {
 			tx_ring->count = TxDescriptors[bd];
@@ -315,19 +317,21 @@ e1000_check_options(struct e1000_adapter *adapter)
 			tx_ring[i].count = tx_ring->count;
 	}
 	{ /* Receive Descriptor Count */
-		struct e1000_option opt = {
+		struct e1000_rx_ring *rx_ring = adapter->rx_ring;
+		int i;
+		e1000_mac_type mac_type = adapter->hw.mac_type;
+
+		opt = (struct e1000_option) {
 			.type = range_option,
 			.name = "Receive Descriptors",
 			.err  = "using default of "
 				__MODULE_STRING(E1000_DEFAULT_RXD),
 			.def  = E1000_DEFAULT_RXD,
-			.arg  = { .r = { .min = E1000_MIN_RXD }}
+			.arg  = { .r = {
+				.min = E1000_MIN_RXD,
+				.max = mac_type < e1000_82544 ? E1000_MAX_RXD : E1000_MAX_82544_RXD
+			}}
 		};
-		struct e1000_rx_ring *rx_ring = adapter->rx_ring;
-		int i;
-		e1000_mac_type mac_type = adapter->hw.mac_type;
-		opt.arg.r.max = mac_type < e1000_82544 ? E1000_MAX_RXD :
-			E1000_MAX_82544_RXD;
 
 		if (num_RxDescriptors > bd) {
 			rx_ring->count = RxDescriptors[bd];
@@ -341,7 +345,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 			rx_ring[i].count = rx_ring->count;
 	}
 	{ /* Checksum Offload Enable/Disable */
-		struct e1000_option opt = {
+		opt = (struct e1000_option) {
 			.type = enable_option,
 			.name = "Checksum Offload",
 			.err  = "defaulting to Enabled",
@@ -365,7 +369,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 			 { E1000_FC_FULL,    "Flow Control Enabled" },
 			 { E1000_FC_DEFAULT, "Flow Control Hardware Default" }};
 
-		struct e1000_option opt = {
+		opt = (struct e1000_option) {
 			.type = list_option,
 			.name = "Flow Control",
 			.err  = "reading default settings from EEPROM",
@@ -383,7 +387,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 		}
 	}
 	{ /* Transmit Interrupt Delay */
-		struct e1000_option opt = {
+		opt = (struct e1000_option) {
 			.type = range_option,
 			.name = "Transmit Interrupt Delay",
 			.err  = "using default of " __MODULE_STRING(DEFAULT_TIDV),
@@ -401,7 +405,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 		}
 	}
 	{ /* Transmit Absolute Interrupt Delay */
-		struct e1000_option opt = {
+		opt = (struct e1000_option) {
 			.type = range_option,
 			.name = "Transmit Absolute Interrupt Delay",
 			.err  = "using default of " __MODULE_STRING(DEFAULT_TADV),
@@ -419,7 +423,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 		}
 	}
 	{ /* Receive Interrupt Delay */
-		struct e1000_option opt = {
+		opt = (struct e1000_option) {
 			.type = range_option,
 			.name = "Receive Interrupt Delay",
 			.err  = "using default of " __MODULE_STRING(DEFAULT_RDTR),
@@ -437,7 +441,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 		}
 	}
 	{ /* Receive Absolute Interrupt Delay */
-		struct e1000_option opt = {
+		opt = (struct e1000_option) {
 			.type = range_option,
 			.name = "Receive Absolute Interrupt Delay",
 			.err  = "using default of " __MODULE_STRING(DEFAULT_RADV),
@@ -455,7 +459,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 		}
 	}
 	{ /* Interrupt Throttling Rate */
-		struct e1000_option opt = {
+		opt = (struct e1000_option) {
 			.type = range_option,
 			.name = "Interrupt Throttling Rate (ints/sec)",
 			.err  = "using default of " __MODULE_STRING(DEFAULT_ITR),
@@ -499,7 +503,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 		}
 	}
 	{ /* Smart Power Down */
-		struct e1000_option opt = {
+		opt = (struct e1000_option) {
 			.type = enable_option,
 			.name = "PHY Smart Power Down",
 			.err  = "defaulting to Disabled",
@@ -515,7 +519,7 @@ e1000_check_options(struct e1000_adapter *adapter)
 		}
 	}
 	{ /* Kumeran Lock Loss Workaround */
-		struct e1000_option opt = {
+		opt = (struct e1000_option) {
 			.type = enable_option,
 			.name = "Kumeran Lock Loss Workaround",
 			.err  = "defaulting to Enabled",
@@ -551,8 +555,7 @@ e1000_check_options(struct e1000_adapter *adapter)
  * Handles speed and duplex options on fiber adapters
  **/
 
-static void __devinit
-e1000_check_fiber_options(struct e1000_adapter *adapter)
+static void __devinit e1000_check_fiber_options(struct e1000_adapter *adapter)
 {
 	int bd = adapter->bd_number;
 	if (num_Speed > bd) {
@@ -579,19 +582,20 @@ e1000_check_fiber_options(struct e1000_adapter *adapter)
  * Handles speed and duplex options on copper adapters
  **/
 
-static void __devinit
-e1000_check_copper_options(struct e1000_adapter *adapter)
+static void __devinit e1000_check_copper_options(struct e1000_adapter *adapter)
 {
+	struct e1000_option opt;
 	unsigned int speed, dplx, an;
 	int bd = adapter->bd_number;
 
 	{ /* Speed */
-		struct e1000_opt_list speed_list[] = {{          0, "" },
-						      {   SPEED_10, "" },
-						      {  SPEED_100, "" },
-						      { SPEED_1000, "" }};
+		static const struct e1000_opt_list speed_list[] = {
+			{          0, "" },
+			{   SPEED_10, "" },
+			{  SPEED_100, "" },
+			{ SPEED_1000, "" }};
 
-		struct e1000_option opt = {
+		opt = (struct e1000_option) {
 			.type = list_option,
 			.name = "Speed",
 			.err  = "parameter ignored",
@@ -608,11 +612,12 @@ e1000_check_copper_options(struct e1000_adapter *adapter)
 		}
 	}
 	{ /* Duplex */
-		struct e1000_opt_list dplx_list[] = {{           0, "" },
-						     { HALF_DUPLEX, "" },
-						     { FULL_DUPLEX, "" }};
+		static const struct e1000_opt_list dplx_list[] = {
+			{           0, "" },
+			{ HALF_DUPLEX, "" },
+			{ FULL_DUPLEX, "" }};
 
-		struct e1000_option opt = {
+		opt = (struct e1000_option) {
 			.type = list_option,
 			.name = "Duplex",
 			.err  = "parameter ignored",
@@ -641,7 +646,7 @@ e1000_check_copper_options(struct e1000_adapter *adapter)
 		       "parameter ignored\n");
 		adapter->hw.autoneg_advertised = AUTONEG_ADV_DEFAULT;
 	} else { /* Autoneg */
-		struct e1000_opt_list an_list[] =
+		static const struct e1000_opt_list an_list[] =
 			#define AA "AutoNeg advertising "
 			{{ 0x01, AA "10/HD" },
 			 { 0x02, AA "10/FD" },
@@ -675,7 +680,7 @@ e1000_check_copper_options(struct e1000_adapter *adapter)
 			 { 0x2e, AA "1000/FD, 100/FD, 100/HD, 10/FD" },
 			 { 0x2f, AA "1000/FD, 100/FD, 100/HD, 10/FD, 10/HD" }};
 
-		struct e1000_option opt = {
+		opt = (struct e1000_option) {
 			.type = list_option,
 			.name = "AutoNeg",
 			.err  = "parameter ignored",

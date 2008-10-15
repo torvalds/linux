@@ -110,7 +110,8 @@ static int ali_configure(void)
 
 		nlvm_addr+= agp_bridge->gart_bus_addr;
 		nlvm_addr|=(agp_bridge->gart_bus_addr>>12);
-		printk(KERN_INFO PFX "nlvm top &base = %8x\n",nlvm_addr);
+		dev_info(&agp_bridge->dev->dev, "nlvm top &base = %8x\n",
+			 nlvm_addr);
 	}
 #endif
 
@@ -315,8 +316,8 @@ static int __devinit agp_ali_probe(struct pci_dev *pdev,
 			goto found;
 	}
 
-	printk(KERN_ERR PFX "Unsupported ALi chipset (device id: %04x)\n",
-	     pdev->device);
+	dev_err(&pdev->dev, "unsupported ALi chipset [%04x/%04x])\n",
+		pdev->vendor, pdev->device);
 	return -ENODEV;
 
 
@@ -361,8 +362,7 @@ found:
 		bridge->driver = &ali_generic_bridge;
 	}
 
-	printk(KERN_INFO PFX "Detected ALi %s chipset\n",
-			devs[j].chipset_name);
+	dev_info(&pdev->dev, "ALi %s chipset\n", devs[j].chipset_name);
 
 	/* Fill in the mode register */
 	pci_read_config_dword(pdev,

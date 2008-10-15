@@ -157,7 +157,8 @@ void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_debug_print(u32 requested_debug_level,
 		    u32 line_number,
 		    const char *function_name,
-		    char *module_name, u32 component_id, char *format, ...)
+		    const char *module_name,
+		    u32 component_id, const char *format, ...)
 {
 	acpi_thread_id thread_id;
 	va_list args;
@@ -228,7 +229,8 @@ void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_debug_print_raw(u32 requested_debug_level,
 			u32 line_number,
 			const char *function_name,
-			char *module_name, u32 component_id, char *format, ...)
+			const char *module_name,
+			u32 component_id, const char *format, ...)
 {
 	va_list args;
 
@@ -261,7 +263,8 @@ ACPI_EXPORT_SYMBOL(acpi_ut_debug_print_raw)
  ******************************************************************************/
 void
 acpi_ut_trace(u32 line_number,
-	      const char *function_name, char *module_name, u32 component_id)
+	      const char *function_name,
+	      const char *module_name, u32 component_id)
 {
 
 	acpi_gbl_nesting_level++;
@@ -293,7 +296,7 @@ ACPI_EXPORT_SYMBOL(acpi_ut_trace)
 void
 acpi_ut_trace_ptr(u32 line_number,
 		  const char *function_name,
-		  char *module_name, u32 component_id, void *pointer)
+		  const char *module_name, u32 component_id, void *pointer)
 {
 	acpi_gbl_nesting_level++;
 	acpi_ut_track_stack_ptr();
@@ -324,7 +327,7 @@ acpi_ut_trace_ptr(u32 line_number,
 void
 acpi_ut_trace_str(u32 line_number,
 		  const char *function_name,
-		  char *module_name, u32 component_id, char *string)
+		  const char *module_name, u32 component_id, char *string)
 {
 
 	acpi_gbl_nesting_level++;
@@ -356,7 +359,7 @@ acpi_ut_trace_str(u32 line_number,
 void
 acpi_ut_trace_u32(u32 line_number,
 		  const char *function_name,
-		  char *module_name, u32 component_id, u32 integer)
+		  const char *module_name, u32 component_id, u32 integer)
 {
 
 	acpi_gbl_nesting_level++;
@@ -386,7 +389,8 @@ acpi_ut_trace_u32(u32 line_number,
 
 void
 acpi_ut_exit(u32 line_number,
-	     const char *function_name, char *module_name, u32 component_id)
+	     const char *function_name,
+	     const char *module_name, u32 component_id)
 {
 
 	acpi_ut_debug_print(ACPI_LV_FUNCTIONS,
@@ -417,7 +421,8 @@ ACPI_EXPORT_SYMBOL(acpi_ut_exit)
 void
 acpi_ut_status_exit(u32 line_number,
 		    const char *function_name,
-		    char *module_name, u32 component_id, acpi_status status)
+		    const char *module_name,
+		    u32 component_id, acpi_status status)
 {
 
 	if (ACPI_SUCCESS(status)) {
@@ -458,7 +463,8 @@ ACPI_EXPORT_SYMBOL(acpi_ut_status_exit)
 void
 acpi_ut_value_exit(u32 line_number,
 		   const char *function_name,
-		   char *module_name, u32 component_id, acpi_integer value)
+		   const char *module_name,
+		   u32 component_id, acpi_integer value)
 {
 
 	acpi_ut_debug_print(ACPI_LV_FUNCTIONS,
@@ -490,7 +496,7 @@ ACPI_EXPORT_SYMBOL(acpi_ut_value_exit)
 void
 acpi_ut_ptr_exit(u32 line_number,
 		 const char *function_name,
-		 char *module_name, u32 component_id, u8 * ptr)
+		 const char *module_name, u32 component_id, u8 *ptr)
 {
 
 	acpi_ut_debug_print(ACPI_LV_FUNCTIONS,
@@ -519,8 +525,8 @@ acpi_ut_ptr_exit(u32 line_number,
 
 void acpi_ut_dump_buffer2(u8 * buffer, u32 count, u32 display)
 {
-	acpi_native_uint i = 0;
-	acpi_native_uint j;
+	u32 i = 0;
+	u32 j;
 	u32 temp32;
 	u8 buf_char;
 
@@ -539,7 +545,7 @@ void acpi_ut_dump_buffer2(u8 * buffer, u32 count, u32 display)
 
 		/* Print current offset */
 
-		acpi_os_printf("%6.4X: ", (u32) i);
+		acpi_os_printf("%6.4X: ", i);
 
 		/* Print 16 hex chars */
 
@@ -549,7 +555,7 @@ void acpi_ut_dump_buffer2(u8 * buffer, u32 count, u32 display)
 				/* Dump fill spaces */
 
 				acpi_os_printf("%*s", ((display * 2) + 1), " ");
-				j += (acpi_native_uint) display;
+				j += display;
 				continue;
 			}
 
@@ -557,32 +563,38 @@ void acpi_ut_dump_buffer2(u8 * buffer, u32 count, u32 display)
 			case DB_BYTE_DISPLAY:
 			default:	/* Default is BYTE display */
 
-				acpi_os_printf("%02X ", buffer[i + j]);
+				acpi_os_printf("%02X ",
+					       buffer[(acpi_size) i + j]);
 				break;
 
 			case DB_WORD_DISPLAY:
 
-				ACPI_MOVE_16_TO_32(&temp32, &buffer[i + j]);
+				ACPI_MOVE_16_TO_32(&temp32,
+						   &buffer[(acpi_size) i + j]);
 				acpi_os_printf("%04X ", temp32);
 				break;
 
 			case DB_DWORD_DISPLAY:
 
-				ACPI_MOVE_32_TO_32(&temp32, &buffer[i + j]);
+				ACPI_MOVE_32_TO_32(&temp32,
+						   &buffer[(acpi_size) i + j]);
 				acpi_os_printf("%08X ", temp32);
 				break;
 
 			case DB_QWORD_DISPLAY:
 
-				ACPI_MOVE_32_TO_32(&temp32, &buffer[i + j]);
+				ACPI_MOVE_32_TO_32(&temp32,
+						   &buffer[(acpi_size) i + j]);
 				acpi_os_printf("%08X", temp32);
 
-				ACPI_MOVE_32_TO_32(&temp32, &buffer[i + j + 4]);
+				ACPI_MOVE_32_TO_32(&temp32,
+						   &buffer[(acpi_size) i + j +
+							   4]);
 				acpi_os_printf("%08X ", temp32);
 				break;
 			}
 
-			j += (acpi_native_uint) display;
+			j += display;
 		}
 
 		/*
@@ -596,7 +608,7 @@ void acpi_ut_dump_buffer2(u8 * buffer, u32 count, u32 display)
 				return;
 			}
 
-			buf_char = buffer[i + j];
+			buf_char = buffer[(acpi_size) i + j];
 			if (ACPI_IS_PRINT(buf_char)) {
 				acpi_os_printf("%c", buf_char);
 			} else {

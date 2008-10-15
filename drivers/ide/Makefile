@@ -1,32 +1,29 @@
 #
-# Makefile for the kernel ata, atapi, and ide block device drivers.
-#
-# 12 September 2000, Bartlomiej Zolnierkiewicz <bkz@linux-ide.org>
-# Rewritten to use lists instead of if-statements.
-#
-# Note : at this point, these files are compiled on all systems.
-# In the future, some of these should be built conditionally.
-#
 # link order is important here
+#
 
 EXTRA_CFLAGS				+= -Idrivers/ide
 
-ide-core-y += ide.o ide-io.o ide-iops.o ide-lib.o ide-probe.o ide-taskfile.o
+ide-core-y += ide.o ide-ioctls.o ide-io.o ide-iops.o ide-lib.o ide-probe.o \
+	      ide-taskfile.o ide-park.o ide-pio-blacklist.o
 
 # core IDE code
+ide-core-$(CONFIG_IDE_TIMINGS)		+= ide-timings.o
+ide-core-$(CONFIG_IDE_ATAPI)		+= ide-atapi.o
 ide-core-$(CONFIG_BLK_DEV_IDEPCI)	+= setup-pci.o
 ide-core-$(CONFIG_BLK_DEV_IDEDMA)	+= ide-dma.o
+ide-core-$(CONFIG_BLK_DEV_IDEDMA_SFF)	+= ide-dma-sff.o
 ide-core-$(CONFIG_IDE_PROC_FS)		+= ide-proc.o
 ide-core-$(CONFIG_BLK_DEV_IDEACPI)	+= ide-acpi.o
 
-obj-$(CONFIG_BLK_DEV_IDE)		+= ide-core.o
+obj-$(CONFIG_IDE)			+= ide-core.o
 
 ifeq ($(CONFIG_IDE_ARM), y)
 	ide-arm-core-y += arm/ide_arm.o
 	obj-y += ide-arm-core.o
 endif
 
-obj-$(CONFIG_BLK_DEV_IDE)		+= legacy/ pci/
+obj-$(CONFIG_IDE)			+= legacy/ pci/
 
 obj-$(CONFIG_IDEPCI_PCIBUS_ORDER)	+= ide-scan-pci.o
 
@@ -35,17 +32,24 @@ ifeq ($(CONFIG_BLK_DEV_CMD640), y)
 	obj-y += cmd640-core.o
 endif
 
-obj-$(CONFIG_BLK_DEV_IDE)		+= ppc/
+obj-$(CONFIG_IDE)			+= ppc/
 obj-$(CONFIG_IDE_H8300)			+= h8300/
 obj-$(CONFIG_IDE_GENERIC)		+= ide-generic.o
 obj-$(CONFIG_BLK_DEV_IDEPNP)		+= ide-pnp.o
 
+ide-disk_mod-y += ide-disk.o ide-disk_ioctl.o
 ide-cd_mod-y += ide-cd.o ide-cd_ioctl.o ide-cd_verbose.o
+ide-floppy_mod-y += ide-floppy.o ide-floppy_ioctl.o
 
-obj-$(CONFIG_BLK_DEV_IDEDISK)		+= ide-disk.o
+ifeq ($(CONFIG_IDE_PROC_FS), y)
+	ide-disk_mod-y += ide-disk_proc.o
+	ide-floppy_mod-y += ide-floppy_proc.o
+endif
+
+obj-$(CONFIG_BLK_DEV_IDEDISK)		+= ide-disk_mod.o
 obj-$(CONFIG_BLK_DEV_IDECD)		+= ide-cd_mod.o
+obj-$(CONFIG_BLK_DEV_IDEFLOPPY)		+= ide-floppy_mod.o
 obj-$(CONFIG_BLK_DEV_IDETAPE)		+= ide-tape.o
-obj-$(CONFIG_BLK_DEV_IDEFLOPPY)		+= ide-floppy.o
 
 ifeq ($(CONFIG_BLK_DEV_IDECS), y)
 	ide-cs-core-y += legacy/ide-cs.o
@@ -57,10 +61,4 @@ ifeq ($(CONFIG_BLK_DEV_PLATFORM), y)
 	obj-y += ide-platform-core.o
 endif
 
-obj-$(CONFIG_BLK_DEV_IDE)		+= arm/ mips/
-
-# old hd driver must be last
-ifeq ($(CONFIG_BLK_DEV_HD), y)
-	hd-core-y += legacy/hd.o
-	obj-y += hd-core.o
-endif
+obj-$(CONFIG_IDE)			+= arm/ mips/

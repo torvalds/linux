@@ -1,6 +1,4 @@
 /*
-    piix4.c - Part of lm_sensors, Linux kernel modules for hardware
-              monitoring
     Copyright (c) 1998 - 2002 Frodo Looijaard <frodol@dds.nl> and
     Philip Edelbrock <phil@netroedge.com>
 
@@ -39,15 +37,9 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/dmi.h>
+#include <linux/acpi.h>
 #include <asm/io.h>
 
-
-struct sd {
-	const unsigned short mfr;
-	const unsigned short dev;
-	const unsigned char fn;
-	const char *name;
-};
 
 /* PIIX4 SMBus address offsets */
 #define SMBHSTSTS	(0 + piix4_smba)
@@ -101,8 +93,6 @@ MODULE_PARM_DESC(force_addr,
 		 "Forcibly enable the PIIX4 at the given address. "
 		 "EXTREMELY DANGEROUS!");
 
-static int piix4_transaction(void);
-
 static unsigned short piix4_smba;
 static int srvrworks_csb5_delay;
 static struct pci_driver piix4_driver;
@@ -141,8 +131,6 @@ static int __devinit piix4_setup(struct pci_dev *PIIX4_dev,
 {
 	unsigned char temp;
 
-	dev_info(&PIIX4_dev->dev, "Found %s device\n", pci_name(PIIX4_dev));
-
 	if ((PIIX4_dev->vendor == PCI_VENDOR_ID_SERVERWORKS) &&
 	    (PIIX4_dev->device == PCI_DEVICE_ID_SERVERWORKS_CSB5))
 		srvrworks_csb5_delay = 1;
@@ -172,17 +160,20 @@ static int __devinit piix4_setup(struct pci_dev *PIIX4_dev,
 		pci_read_config_word(PIIX4_dev, SMBBA, &piix4_smba);
 		piix4_smba &= 0xfff0;
 		if(piix4_smba == 0) {
-			dev_err(&PIIX4_dev->dev, "SMB base address "
+			dev_err(&PIIX4_dev->dev, "SMBus base address "
 				"uninitialized - upgrade BIOS or use "
 				"force_addr=0xaddr\n");
 			return -ENODEV;
 		}
 	}
 
+	if (acpi_check_region(piix4_smba, SMBIOSIZE, piix4_driver.name))
+		return -EBUSY;
+
 	if (!request_region(piix4_smba, SMBIOSIZE, piix4_driver.name)) {
-		dev_err(&PIIX4_dev->dev, "SMB region 0x%x already in use!\n",
+		dev_err(&PIIX4_dev->dev, "SMBus region 0x%x already in use!\n",
 			piix4_smba);
-		return -ENODEV;
+		return -EBUSY;
 	}
 
 	pci_read_config_byte(PIIX4_dev, SMBHSTCFG, &temp);
@@ -228,13 +219,13 @@ static int __devinit piix4_setup(struct pci_dev *PIIX4_dev,
 			"(or code out of date)!\n");
 
 	pci_read_config_byte(PIIX4_dev, SMBREV, &temp);
-	dev_dbg(&PIIX4_dev->dev, "SMBREV = 0x%X\n", temp);
-	dev_dbg(&PIIX4_dev->dev, "SMBA = 0x%X\n", piix4_smba);
+	dev_info(&PIIX4_dev->dev,
+		 "SMBus Host Controller at 0x%x, revision %d\n",
+		 piix4_smba, temp);
 
 	return 0;
 }
 
-/* Another internally used function */
 static int piix4_transaction(void)
 {
 	int temp;
@@ -253,7 +244,7 @@ static int piix4_transaction(void)
 		outb_p(temp, SMBHSTSTS);
 		if ((temp = inb_p(SMBHSTSTS)) != 0x00) {
 			dev_err(&piix4_adapter.dev, "Failed! (%02x)\n", temp);
-			return -1;
+			return -EBUSY;
 		} else {
 			dev_dbg(&piix4_adapter.dev, "Successful!\n");
 		}
@@ -275,23 +266,23 @@ static int piix4_transaction(void)
 	/* If the SMBus is still busy, we give up */
 	if (timeout >= MAX_TIMEOUT) {
 		dev_err(&piix4_adapter.dev, "SMBus Timeout!\n");
-		result = -1;
+		result = -ETIMEDOUT;
 	}
 
 	if (temp & 0x10) {
-		result = -1;
+		result = -EIO;
 		dev_err(&piix4_adapter.dev, "Error: Failed bus transaction\n");
 	}
 
 	if (temp & 0x08) {
-		result = -1;
+		result = -EIO;
 		dev_dbg(&piix4_adapter.dev, "Bus collision! SMBus may be "
 			"locked until next hard reset. (sorry!)\n");
 		/* Clock stops and slave is stuck in mid-transmission */
 	}
 
 	if (temp & 0x04) {
-		result = -1;
+		result = -ENXIO;
 		dev_dbg(&piix4_adapter.dev, "Error: no response!\n");
 	}
 
@@ -309,31 +300,29 @@ static int piix4_transaction(void)
 	return result;
 }
 
-/* Return -1 on error. */
+/* Return negative errno on error. */
 static s32 piix4_access(struct i2c_adapter * adap, u16 addr,
 		 unsigned short flags, char read_write,
 		 u8 command, int size, union i2c_smbus_data * data)
 {
 	int i, len;
+	int status;
 
 	switch (size) {
-	case I2C_SMBUS_PROC_CALL:
-		dev_err(&adap->dev, "I2C_SMBUS_PROC_CALL not supported!\n");
-		return -1;
 	case I2C_SMBUS_QUICK:
-		outb_p(((addr & 0x7f) << 1) | (read_write & 0x01),
+		outb_p((addr << 1) | read_write,
 		       SMBHSTADD);
 		size = PIIX4_QUICK;
 		break;
 	case I2C_SMBUS_BYTE:
-		outb_p(((addr & 0x7f) << 1) | (read_write & 0x01),
+		outb_p((addr << 1) | read_write,
 		       SMBHSTADD);
 		if (read_write == I2C_SMBUS_WRITE)
 			outb_p(command, SMBHSTCMD);
 		size = PIIX4_BYTE;
 		break;
 	case I2C_SMBUS_BYTE_DATA:
-		outb_p(((addr & 0x7f) << 1) | (read_write & 0x01),
+		outb_p((addr << 1) | read_write,
 		       SMBHSTADD);
 		outb_p(command, SMBHSTCMD);
 		if (read_write == I2C_SMBUS_WRITE)
@@ -341,7 +330,7 @@ static s32 piix4_access(struct i2c_adapter * adap, u16 addr,
 		size = PIIX4_BYTE_DATA;
 		break;
 	case I2C_SMBUS_WORD_DATA:
-		outb_p(((addr & 0x7f) << 1) | (read_write & 0x01),
+		outb_p((addr << 1) | read_write,
 		       SMBHSTADD);
 		outb_p(command, SMBHSTCMD);
 		if (read_write == I2C_SMBUS_WRITE) {
@@ -351,15 +340,13 @@ static s32 piix4_access(struct i2c_adapter * adap, u16 addr,
 		size = PIIX4_WORD_DATA;
 		break;
 	case I2C_SMBUS_BLOCK_DATA:
-		outb_p(((addr & 0x7f) << 1) | (read_write & 0x01),
+		outb_p((addr << 1) | read_write,
 		       SMBHSTADD);
 		outb_p(command, SMBHSTCMD);
 		if (read_write == I2C_SMBUS_WRITE) {
 			len = data->block[0];
-			if (len < 0)
-				len = 0;
-			if (len > 32)
-				len = 32;
+			if (len == 0 || len > I2C_SMBUS_BLOCK_MAX)
+				return -EINVAL;
 			outb_p(len, SMBHSTDAT0);
 			i = inb_p(SMBHSTCNT);	/* Reset SMBBLKDAT */
 			for (i = 1; i <= len; i++)
@@ -367,12 +354,16 @@ static s32 piix4_access(struct i2c_adapter * adap, u16 addr,
 		}
 		size = PIIX4_BLOCK_DATA;
 		break;
+	default:
+		dev_warn(&adap->dev, "Unsupported transaction %d\n", size);
+		return -EOPNOTSUPP;
 	}
 
 	outb_p((size & 0x1C) + (ENABLE_INT9 & 1), SMBHSTCNT);
 
-	if (piix4_transaction())	/* Error in transaction */
-		return -1;
+	status = piix4_transaction();
+	if (status)
+		return status;
 
 	if ((read_write == I2C_SMBUS_WRITE) || (size == PIIX4_QUICK))
 		return 0;
@@ -388,6 +379,8 @@ static s32 piix4_access(struct i2c_adapter * adap, u16 addr,
 		break;
 	case PIIX4_BLOCK_DATA:
 		data->block[0] = inb_p(SMBHSTDAT0);
+		if (data->block[0] == 0 || data->block[0] > I2C_SMBUS_BLOCK_MAX)
+			return -EPROTO;
 		i = inb_p(SMBHSTCNT);	/* Reset SMBBLKDAT */
 		for (i = 1; i <= data->block[0]; i++)
 			data->block[i] = inb_p(SMBBLKDAT);
@@ -411,7 +404,7 @@ static const struct i2c_algorithm smbus_algorithm = {
 static struct i2c_adapter piix4_adapter = {
 	.owner		= THIS_MODULE,
 	.id		= I2C_HW_SMBUS_PIIX4,
-	.class		= I2C_CLASS_HWMON,
+	.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD,
 	.algo		= &smbus_algorithm,
 };
 

@@ -11,8 +11,8 @@
 #include <asm/page.h>
 #include <asm/cache.h>
 #include <asm/tlb.h>
-#include <asm/cpu/registers.h>
-#include <asm/cpu/mmu_context.h>
+#include <cpu/registers.h>
+#include <cpu/mmu_context.h>
 #include <asm/thread_info.h>
 
 /*

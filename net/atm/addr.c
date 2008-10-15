@@ -9,7 +9,7 @@
 #include "signaling.h"
 #include "addr.h"
 
-static int check_addr(struct sockaddr_atmsvc *addr)
+static int check_addr(const struct sockaddr_atmsvc *addr)
 {
 	int i;
 
@@ -23,7 +23,7 @@ static int check_addr(struct sockaddr_atmsvc *addr)
 	return -EINVAL;
 }
 
-static int identical(struct sockaddr_atmsvc *a, struct sockaddr_atmsvc *b)
+static int identical(const struct sockaddr_atmsvc *a, const struct sockaddr_atmsvc *b)
 {
 	if (*a->sas_addr.prv)
 		if (memcmp(a->sas_addr.prv, b->sas_addr.prv, ATM_ESA_LEN))
@@ -35,7 +35,7 @@ static int identical(struct sockaddr_atmsvc *a, struct sockaddr_atmsvc *b)
 	return !strcmp(a->sas_addr.pub, b->sas_addr.pub);
 }
 
-static void notify_sigd(struct atm_dev *dev)
+static void notify_sigd(const struct atm_dev *dev)
 {
 	struct sockaddr_atmpvc pvc;
 
@@ -63,7 +63,7 @@ void atm_reset_addr(struct atm_dev *dev, enum atm_addr_type_t atype)
 		notify_sigd(dev);
 }
 
-int atm_add_addr(struct atm_dev *dev, struct sockaddr_atmsvc *addr,
+int atm_add_addr(struct atm_dev *dev, const struct sockaddr_atmsvc *addr,
 		 enum atm_addr_type_t atype)
 {
 	unsigned long flags;
@@ -98,7 +98,7 @@ int atm_add_addr(struct atm_dev *dev, struct sockaddr_atmsvc *addr,
 	return 0;
 }
 
-int atm_del_addr(struct atm_dev *dev, struct sockaddr_atmsvc *addr,
+int atm_del_addr(struct atm_dev *dev, const struct sockaddr_atmsvc *addr,
 		 enum atm_addr_type_t atype)
 {
 	unsigned long flags;

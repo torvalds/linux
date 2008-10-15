@@ -101,8 +101,8 @@ static int rio_device_probe(struct device *dev)
 		if (error >= 0) {
 			rdev->driver = rdrv;
 			error = 0;
+		} else
 			rio_dev_put(rdev);
-		}
 	}
 	return error;
 }

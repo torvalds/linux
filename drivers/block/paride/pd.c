@@ -712,19 +712,17 @@ static void do_pd_request(struct request_queue * q)
 static int pd_special_command(struct pd_unit *disk,
 		      enum action (*func)(struct pd_unit *disk))
 {
-	DECLARE_COMPLETION_ONSTACK(wait);
-	struct request rq;
+	struct request *rq;
 	int err = 0;
 
-	blk_rq_init(NULL, &rq);
-	rq.rq_disk = disk->gd;
-	rq.end_io_data = &wait;
-	rq.end_io = blk_end_sync_rq;
-	blk_insert_request(disk->gd->queue, &rq, 0, func);
-	wait_for_completion(&wait);
-	if (rq.errors)
-		err = -EIO;
-	blk_put_request(&rq);
+	rq = blk_get_request(disk->gd->queue, READ, __GFP_WAIT);
+
+	rq->cmd_type = REQ_TYPE_SPECIAL;
+	rq->special = func;
+
+	err = blk_execute_rq(disk->gd->queue, disk->gd, rq, 0);
+
+	blk_put_request(rq);
 	return err;
 }
 

@@ -105,7 +105,7 @@ struct wacom {
 	struct urb *irq;
 	struct wacom_wac * wacom_wac;
 	struct mutex lock;
-	int open:1;
+	unsigned int open:1;
 	char phys[32];
 };
 

@@ -2,7 +2,7 @@
  * linux/drivers/serial/cpm_uart/cpm_uart_cpm1.h
  *
  * Driver for CPM (SCC/SMC) serial ports
- * 
+ *
  * definitions for cpm1
  *
  */
@@ -11,16 +11,6 @@
 #define CPM_UART_CPM1_H
 
 #include <asm/cpm1.h>
-
-/* defines for IRQs */
-#ifndef CONFIG_PPC_CPM_NEW_BINDING
-#define SMC1_IRQ	(CPM_IRQ_OFFSET + CPMVEC_SMC1)
-#define SMC2_IRQ	(CPM_IRQ_OFFSET + CPMVEC_SMC2)
-#define SCC1_IRQ	(CPM_IRQ_OFFSET + CPMVEC_SCC1)
-#define SCC2_IRQ	(CPM_IRQ_OFFSET + CPMVEC_SCC2)
-#define SCC3_IRQ	(CPM_IRQ_OFFSET + CPMVEC_SCC3)
-#define SCC4_IRQ	(CPM_IRQ_OFFSET + CPMVEC_SCC4)
-#endif
 
 static inline void cpm_set_brg(int brg, int baud)
 {

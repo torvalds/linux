@@ -343,6 +343,52 @@ static struct dvb_pll_desc dvb_pll_opera1 = {
 	}
 };
 
+static void samsung_dtos403ih102a_set(struct dvb_frontend *fe, u8 *buf,
+		       const struct dvb_frontend_parameters *params)
+{
+	struct dvb_pll_priv *priv = fe->tuner_priv;
+	struct i2c_msg msg = {
+		.addr = priv->pll_i2c_address,
+		.flags = 0,
+		.buf = buf,
+		.len = 4
+	};
+	int result;
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+
+	result = i2c_transfer(priv->i2c, &msg, 1);
+	if (result != 1)
+		printk(KERN_ERR "%s: i2c_transfer failed:%d",
+			__func__, result);
+
+	buf[2] = 0x9e;
+	buf[3] = 0x90;
+
+	return;
+}
+
+/* unknown pll used in Samsung DTOS403IH102A DVB-C tuner */
+static struct dvb_pll_desc dvb_pll_samsung_dtos403ih102a = {
+	.name   = "Samsung DTOS403IH102A",
+	.min    =  44250000,
+	.max    = 858000000,
+	.iffreq =  36125000,
+	.count  = 8,
+	.set    = samsung_dtos403ih102a_set,
+	.entries = {
+		{ 135000000, 62500, 0xbe, 0x01 },
+		{ 177000000, 62500, 0xf6, 0x01 },
+		{ 370000000, 62500, 0xbe, 0x02 },
+		{ 450000000, 62500, 0xf6, 0x02 },
+		{ 466000000, 62500, 0xfe, 0x02 },
+		{ 538000000, 62500, 0xbe, 0x08 },
+		{ 826000000, 62500, 0xf6, 0x08 },
+		{ 999999999, 62500, 0xfe, 0x08 },
+	}
+};
+
 /* ----------------------------------------------------------- */
 
 static struct dvb_pll_desc *pll_list[] = {
@@ -360,6 +406,7 @@ static struct dvb_pll_desc *pll_list[] = {
 	[DVB_PLL_SAMSUNG_TBMV]           = &dvb_pll_samsung_tbmv,
 	[DVB_PLL_PHILIPS_SD1878_TDA8261] = &dvb_pll_philips_sd1878_tda8261,
 	[DVB_PLL_OPERA1]                 = &dvb_pll_opera1,
+	[DVB_PLL_SAMSUNG_DTOS403IH102A]  = &dvb_pll_samsung_dtos403ih102a,
 };
 
 /* ----------------------------------------------------------- */

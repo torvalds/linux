@@ -61,7 +61,7 @@ dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nelems,
 #define dma_sync_sg_for_device dma_sync_sg_for_cpu
 
 extern int
-dma_mapping_error(dma_addr_t dma_addr);
+dma_mapping_error(struct device *dev, dma_addr_t dma_addr);
 
 extern int
 dma_supported(struct device *dev, u64 mask);

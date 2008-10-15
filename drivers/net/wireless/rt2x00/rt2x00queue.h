@@ -42,18 +42,32 @@
 /**
  * DOC: Number of entries per queue
  *
- * After research it was concluded that 12 entries in a RX and TX
- * queue would be sufficient. Although this is almost one third of
- * the amount the legacy driver allocated, the queues aren't getting
- * filled to the maximum even when working with the maximum rate.
+ * Under normal load without fragmentation 12 entries are sufficient
+ * without the queue being filled up to the maximum. When using fragmentation
+ * and the queue threshold code we need to add some additional margins to
+ * make sure the queue will never (or only under extreme load) fill up
+ * completely.
+ * Since we don't use preallocated DMA having a large number of queue entries
+ * will have only minimal impact on the memory requirements for the queue.
  */
-#define RX_ENTRIES	12
-#define TX_ENTRIES	12
+#define RX_ENTRIES	24
+#define TX_ENTRIES	24
 #define BEACON_ENTRIES	1
-#define ATIM_ENTRIES	1
+#define ATIM_ENTRIES	8
 
 /**
  * enum data_queue_qid: Queue identification
+ *
+ * @QID_AC_BE: AC BE queue
+ * @QID_AC_BK: AC BK queue
+ * @QID_AC_VI: AC VI queue
+ * @QID_AC_VO: AC VO queue
+ * @QID_HCCA: HCCA queue
+ * @QID_MGMT: MGMT queue (prio queue)
+ * @QID_RX: RX queue
+ * @QID_OTHER: None of the above (don't use, only present for completeness)
+ * @QID_BEACON: Beacon queue (value unspecified, don't send it to device)
+ * @QID_ATIM: Atim queue (value unspeficied, don't send it to device)
  */
 enum data_queue_qid {
 	QID_AC_BE = 0,
@@ -64,80 +78,76 @@ enum data_queue_qid {
 	QID_MGMT = 13,
 	QID_RX = 14,
 	QID_OTHER = 15,
-};
-
-/**
- * enum rt2x00_bcn_queue: Beacon queue index
- *
- * Start counting with a high offset, this because this enumeration
- * supplements &enum ieee80211_tx_queue and we should prevent value
- * conflicts.
- *
- * @RT2X00_BCN_QUEUE_BEACON: Beacon queue
- * @RT2X00_BCN_QUEUE_ATIM: Atim queue (sends frame after beacon)
- */
-enum rt2x00_bcn_queue {
-	RT2X00_BCN_QUEUE_BEACON = 100,
-	RT2X00_BCN_QUEUE_ATIM = 101,
+	QID_BEACON,
+	QID_ATIM,
 };
 
 /**
  * enum skb_frame_desc_flags: Flags for &struct skb_frame_desc
  *
- * @FRAME_DESC_DRIVER_GENERATED: Frame was generated inside driver
- *	and should not be reported back to mac80211 during txdone.
+ * @SKBDESC_DMA_MAPPED_RX: &skb_dma field has been mapped for RX
+ * @SKBDESC_DMA_MAPPED_TX: &skb_dma field has been mapped for TX
+ * @FRAME_DESC_IV_STRIPPED: Frame contained a IV/EIV provided by
+ *	mac80211 but was stripped for processing by the driver.
  */
 enum skb_frame_desc_flags {
-	FRAME_DESC_DRIVER_GENERATED = 1 << 0,
+	SKBDESC_DMA_MAPPED_RX = 1 << 0,
+	SKBDESC_DMA_MAPPED_TX = 1 << 1,
+	FRAME_DESC_IV_STRIPPED = 1 << 2,
 };
 
 /**
  * struct skb_frame_desc: Descriptor information for the skb buffer
  *
- * This structure is placed over the skb->cb array, this means that
- * this structure should not exceed the size of that array (48 bytes).
+ * This structure is placed over the driver_data array, this means that
+ * this structure should not exceed the size of that array (40 bytes).
  *
  * @flags: Frame flags, see &enum skb_frame_desc_flags.
- * @frame_type: Frame type, see &enum rt2x00_dump_type.
- * @data: Pointer to data part of frame (Start of ieee80211 header).
+ * @desc_len: Length of the frame descriptor.
  * @desc: Pointer to descriptor part of the frame.
  *	Note that this pointer could point to something outside
  *	of the scope of the skb->data pointer.
- * @data_len: Length of the frame data.
- * @desc_len: Length of the frame descriptor.
-
+ * @iv: IV data used during encryption/decryption.
+ * @eiv: EIV data used during encryption/decryption.
+ * @skb_dma: (PCI-only) the DMA address associated with the sk buffer.
  * @entry: The entry to which this sk buffer belongs.
  */
 struct skb_frame_desc {
 	unsigned int flags;
 
-	unsigned int frame_type;
-
-	void *data;
+	unsigned int desc_len;
 	void *desc;
 
-	unsigned int data_len;
-	unsigned int desc_len;
+	__le32 iv;
+	__le32 eiv;
+
+	dma_addr_t skb_dma;
 
 	struct queue_entry *entry;
 };
 
+/**
+ * get_skb_frame_desc - Obtain the rt2x00 frame descriptor from a sk_buff.
+ * @skb: &struct sk_buff from where we obtain the &struct skb_frame_desc
+ */
 static inline struct skb_frame_desc* get_skb_frame_desc(struct sk_buff *skb)
 {
-	BUILD_BUG_ON(sizeof(struct skb_frame_desc) > sizeof(skb->cb));
-	return (struct skb_frame_desc *)&skb->cb[0];
+	BUILD_BUG_ON(sizeof(struct skb_frame_desc) >
+		     IEEE80211_TX_INFO_DRIVER_DATA_SIZE);
+	return (struct skb_frame_desc *)&IEEE80211_SKB_CB(skb)->driver_data;
 }
 
 /**
  * enum rxdone_entry_desc_flags: Flags for &struct rxdone_entry_desc
  *
- * @RXDONE_SIGNAL_PLCP: Does the signal field contain the plcp value,
- *	or does it contain the bitrate itself.
+ * @RXDONE_SIGNAL_PLCP: Signal field contains the plcp value.
+ * @RXDONE_SIGNAL_BITRATE: Signal field contains the bitrate value.
  * @RXDONE_MY_BSS: Does this frame originate from device's BSS.
  */
 enum rxdone_entry_desc_flags {
 	RXDONE_SIGNAL_PLCP = 1 << 0,
-	RXDONE_MY_BSS = 1 << 1,
+	RXDONE_SIGNAL_BITRATE = 1 << 1,
+	RXDONE_MY_BSS = 1 << 2,
 };
 
 /**
@@ -145,19 +155,47 @@ enum rxdone_entry_desc_flags {
  *
  * Summary of information that has been read from the RX frame descriptor.
  *
+ * @timestamp: RX Timestamp
  * @signal: Signal of the received frame.
  * @rssi: RSSI of the received frame.
  * @size: Data size of the received frame.
  * @flags: MAC80211 receive flags (See &enum mac80211_rx_flags).
  * @dev_flags: Ralink receive flags (See &enum rxdone_entry_desc_flags).
-
+ * @cipher: Cipher type used during decryption.
+ * @cipher_status: Decryption status.
+ * @iv: IV data used during decryption.
+ * @eiv: EIV data used during decryption.
+ * @icv: ICV data used during decryption.
  */
 struct rxdone_entry_desc {
+	u64 timestamp;
 	int signal;
 	int rssi;
 	int size;
 	int flags;
 	int dev_flags;
+	u8 cipher;
+	u8 cipher_status;
+
+	__le32 iv;
+	__le32 eiv;
+	__le32 icv;
+};
+
+/**
+ * enum txdone_entry_desc_flags: Flags for &struct txdone_entry_desc
+ *
+ * @TXDONE_UNKNOWN: Hardware could not determine success of transmission.
+ * @TXDONE_SUCCESS: Frame was successfully send
+ * @TXDONE_FAILURE: Frame was not successfully send
+ * @TXDONE_EXCESSIVE_RETRY: In addition to &TXDONE_FAILURE, the
+ *	frame transmission failed due to excessive retries.
+ */
+enum txdone_entry_desc_flags {
+	TXDONE_UNKNOWN,
+	TXDONE_SUCCESS,
+	TXDONE_FAILURE,
+	TXDONE_EXCESSIVE_RETRY,
 };
 
 /**
@@ -166,13 +204,11 @@ struct rxdone_entry_desc {
  * Summary of information that has been read from the TX frame descriptor
  * after the device is done with transmission.
  *
- * @control: Control structure which was used to transmit the frame.
- * @status: TX status (See &enum tx_status).
+ * @flags: TX done flags (See &enum txdone_entry_desc_flags).
  * @retry: Retry count.
  */
 struct txdone_entry_desc {
-	struct ieee80211_tx_control *control;
-	int status;
+	unsigned long flags;
 	int retry;
 };
 
@@ -180,19 +216,35 @@ struct txdone_entry_desc {
  * enum txentry_desc_flags: Status flags for TX entry descriptor
  *
  * @ENTRY_TXD_RTS_FRAME: This frame is a RTS frame.
+ * @ENTRY_TXD_CTS_FRAME: This frame is a CTS-to-self frame.
  * @ENTRY_TXD_OFDM_RATE: This frame is send out with an OFDM rate.
+ * @ENTRY_TXD_GENERATE_SEQ: This frame requires sequence counter.
+ * @ENTRY_TXD_FIRST_FRAGMENT: This is the first frame.
  * @ENTRY_TXD_MORE_FRAG: This frame is followed by another fragment.
  * @ENTRY_TXD_REQ_TIMESTAMP: Require timestamp to be inserted.
  * @ENTRY_TXD_BURST: This frame belongs to the same burst event.
  * @ENTRY_TXD_ACK: An ACK is required for this frame.
+ * @ENTRY_TXD_RETRY_MODE: When set, the long retry count is used.
+ * @ENTRY_TXD_ENCRYPT: This frame should be encrypted.
+ * @ENTRY_TXD_ENCRYPT_PAIRWISE: Use pairwise key table (instead of shared).
+ * @ENTRY_TXD_ENCRYPT_IV: Generate IV/EIV in hardware.
+ * @ENTRY_TXD_ENCRYPT_MMIC: Generate MIC in hardware.
  */
 enum txentry_desc_flags {
 	ENTRY_TXD_RTS_FRAME,
+	ENTRY_TXD_CTS_FRAME,
 	ENTRY_TXD_OFDM_RATE,
+	ENTRY_TXD_GENERATE_SEQ,
+	ENTRY_TXD_FIRST_FRAGMENT,
 	ENTRY_TXD_MORE_FRAG,
 	ENTRY_TXD_REQ_TIMESTAMP,
 	ENTRY_TXD_BURST,
 	ENTRY_TXD_ACK,
+	ENTRY_TXD_RETRY_MODE,
+	ENTRY_TXD_ENCRYPT,
+	ENTRY_TXD_ENCRYPT_PAIRWISE,
+	ENTRY_TXD_ENCRYPT_IV,
+	ENTRY_TXD_ENCRYPT_MMIC,
 };
 
 /**
@@ -206,10 +258,14 @@ enum txentry_desc_flags {
  * @length_low: PLCP length low word.
  * @signal: PLCP signal.
  * @service: PLCP service.
+ * @retry_limit: Max number of retries.
  * @aifs: AIFS value.
  * @ifs: IFS value.
  * @cw_min: cwmin value.
  * @cw_max: cwmax value.
+ * @cipher: Cipher type used for encryption.
+ * @key_idx: Key index used for encryption.
+ * @iv_offset: Position where IV should be inserted by hardware.
  */
 struct txentry_desc {
 	unsigned long flags;
@@ -221,10 +277,15 @@ struct txentry_desc {
 	u16 signal;
 	u16 service;
 
-	int aifs;
-	int ifs;
-	int cw_min;
-	int cw_max;
+	short retry_limit;
+	short aifs;
+	short ifs;
+	short cw_min;
+	short cw_max;
+
+	enum cipher cipher;
+	u16 key_idx;
+	u16 iv_offset;
 };
 
 /**
@@ -239,12 +300,14 @@ struct txentry_desc {
  * @ENTRY_OWNER_DEVICE_CRYPTO: This entry is owned by the device for data
  *	encryption or decryption. The entry should only be touched after
  *	the device has signaled it is done with it.
+ * @ENTRY_DATA_PENDING: This entry contains a valid frame and is waiting
+ *	for the signal to start sending.
  */
-
 enum queue_entry_flags {
 	ENTRY_BCN_ASSIGNED,
 	ENTRY_OWNER_DEVICE_DATA,
 	ENTRY_OWNER_DEVICE_CRYPTO,
+	ENTRY_DATA_PENDING,
 };
 
 /**
@@ -302,9 +365,11 @@ enum queue_index {
  *	index corruption due to concurrency.
  * @count: Number of frames handled in the queue.
  * @limit: Maximum number of entries in the queue.
+ * @threshold: Minimum number of free entries before queue is kicked by force.
  * @length: Number of frames in queue.
  * @index: Index pointers to entry positions in the queue,
  *	use &enum queue_index to get a specific index field.
+ * @txop: maximum burst time.
  * @aifs: The aifs value for outgoing frames (field ignored in RX queue).
  * @cw_min: The cw min value for outgoing frames (field ignored in RX queue).
  * @cw_max: The cw max value for outgoing frames (field ignored in RX queue).
@@ -320,9 +385,11 @@ struct data_queue {
 	spinlock_t lock;
 	unsigned int count;
 	unsigned short limit;
+	unsigned short threshold;
 	unsigned short length;
 	unsigned short index[Q_INDEX_MAX];
 
+	unsigned short txop;
 	unsigned short aifs;
 	unsigned short cw_min;
 	unsigned short cw_max;
@@ -369,7 +436,7 @@ struct data_queue_desc {
  * the end of the TX queue array.
  */
 #define tx_queue_end(__dev) \
-	&(__dev)->tx[(__dev)->hw->queues]
+	&(__dev)->tx[(__dev)->ops->tx_queues]
 
 /**
  * queue_loop - Loop through the queues within a specific range (HELPER MACRO).
@@ -444,25 +511,60 @@ static inline int rt2x00queue_available(struct data_queue *queue)
 }
 
 /**
- * rt2x00_desc_read - Read a word from the hardware descriptor.
+ * rt2x00queue_threshold - Check if the queue is below threshold
+ * @queue: Queue to check.
+ */
+static inline int rt2x00queue_threshold(struct data_queue *queue)
+{
+	return rt2x00queue_available(queue) < queue->threshold;
+}
+
+/**
+ * _rt2x00_desc_read - Read a word from the hardware descriptor.
+ * @desc: Base descriptor address
+ * @word: Word index from where the descriptor should be read.
+ * @value: Address where the descriptor value should be written into.
+ */
+static inline void _rt2x00_desc_read(__le32 *desc, const u8 word, __le32 *value)
+{
+	*value = desc[word];
+}
+
+/**
+ * rt2x00_desc_read - Read a word from the hardware descriptor, this
+ * function will take care of the byte ordering.
  * @desc: Base descriptor address
  * @word: Word index from where the descriptor should be read.
  * @value: Address where the descriptor value should be written into.
  */
 static inline void rt2x00_desc_read(__le32 *desc, const u8 word, u32 *value)
 {
-	*value = le32_to_cpu(desc[word]);
+	__le32 tmp;
+	_rt2x00_desc_read(desc, word, &tmp);
+	*value = le32_to_cpu(tmp);
 }
 
 /**
- * rt2x00_desc_write - wrote a word to the hardware descriptor.
+ * rt2x00_desc_write - write a word to the hardware descriptor, this
+ * function will take care of the byte ordering.
+ * @desc: Base descriptor address
+ * @word: Word index from where the descriptor should be written.
+ * @value: Value that should be written into the descriptor.
+ */
+static inline void _rt2x00_desc_write(__le32 *desc, const u8 word, __le32 value)
+{
+	desc[word] = value;
+}
+
+/**
+ * rt2x00_desc_write - write a word to the hardware descriptor.
  * @desc: Base descriptor address
  * @word: Word index from where the descriptor should be written.
  * @value: Value that should be written into the descriptor.
  */
 static inline void rt2x00_desc_write(__le32 *desc, const u8 word, u32 value)
 {
-	desc[word] = cpu_to_le32(value);
+	_rt2x00_desc_write(desc, word, cpu_to_le32(value));
 }
 
 #endif /* RT2X00QUEUE_H */

@@ -77,7 +77,6 @@ struct gfs2_rgrp_host {
 struct gfs2_rgrpd {
 	struct list_head rd_list;	/* Link with superblock */
 	struct list_head rd_list_mru;
-	struct list_head rd_recent;	/* Recently used rgrps */
 	struct gfs2_glock *rd_gl;	/* Glock for this rgrp */
 	u64 rd_addr;			/* grp block disk address */
 	u64 rd_data0;			/* first data location */
@@ -128,20 +127,20 @@ struct gfs2_bufdata {
 
 struct gfs2_glock_operations {
 	void (*go_xmote_th) (struct gfs2_glock *gl);
-	void (*go_xmote_bh) (struct gfs2_glock *gl);
+	int (*go_xmote_bh) (struct gfs2_glock *gl, struct gfs2_holder *gh);
 	void (*go_inval) (struct gfs2_glock *gl, int flags);
 	int (*go_demote_ok) (struct gfs2_glock *gl);
 	int (*go_lock) (struct gfs2_holder *gh);
 	void (*go_unlock) (struct gfs2_holder *gh);
+	int (*go_dump)(struct seq_file *seq, const struct gfs2_glock *gl);
 	const int go_type;
 	const unsigned long go_min_hold_time;
 };
 
 enum {
 	/* States */
-	HIF_HOLDER		= 6,
+	HIF_HOLDER		= 6,  /* Set for gh that "holds" the glock */
 	HIF_FIRST		= 7,
-	HIF_ABORTED		= 9,
 	HIF_WAIT		= 10,
 };
 
@@ -154,20 +153,20 @@ struct gfs2_holder {
 	unsigned gh_flags;
 
 	int gh_error;
-	unsigned long gh_iflags;
+	unsigned long gh_iflags; /* HIF_... */
 	unsigned long gh_ip;
 };
 
 enum {
-	GLF_LOCK		= 1,
-	GLF_STICKY		= 2,
-	GLF_DEMOTE		= 3,
-	GLF_PENDING_DEMOTE	= 4,
-	GLF_DIRTY		= 5,
-	GLF_DEMOTE_IN_PROGRESS	= 6,
-	GLF_LFLUSH		= 7,
-	GLF_WAITERS2		= 8,
-	GLF_CONV_DEADLK		= 9,
+	GLF_LOCK			= 1,
+	GLF_STICKY			= 2,
+	GLF_DEMOTE			= 3,
+	GLF_PENDING_DEMOTE		= 4,
+	GLF_DEMOTE_IN_PROGRESS		= 5,
+	GLF_DIRTY			= 6,
+	GLF_LFLUSH			= 7,
+	GLF_INVALIDATE_IN_PROGRESS	= 8,
+	GLF_REPLY_PENDING		= 9,
 };
 
 struct gfs2_glock {
@@ -179,19 +178,14 @@ struct gfs2_glock {
 	spinlock_t gl_spin;
 
 	unsigned int gl_state;
+	unsigned int gl_target;
+	unsigned int gl_reply;
 	unsigned int gl_hash;
 	unsigned int gl_demote_state; /* state requested by remote node */
 	unsigned long gl_demote_time; /* time of first demote request */
-	struct pid *gl_owner_pid;
-	unsigned long gl_ip;
 	struct list_head gl_holders;
-	struct list_head gl_waiters1;	/* HIF_MUTEX */
-	struct list_head gl_waiters3;	/* HIF_PROMOTE */
 
 	const struct gfs2_glock_operations *gl_ops;
-
-	struct gfs2_holder *gl_req_gh;
-
 	void *gl_lock;
 	char *gl_lvb;
 	atomic_t gl_lvb_count;
@@ -392,20 +386,21 @@ struct gfs2_statfs_change_host {
 #define GFS2_DATA_ORDERED	2
 
 struct gfs2_args {
-	char ar_lockproto[GFS2_LOCKNAME_LEN]; /* Name of the Lock Protocol */
-	char ar_locktable[GFS2_LOCKNAME_LEN]; /* Name of the Lock Table */
-	char ar_hostdata[GFS2_LOCKNAME_LEN]; /* Host specific data */
-	int ar_spectator; /* Don't get a journal because we're always RO */
-	int ar_ignore_local_fs; /* Don't optimize even if local_fs is 1 */
-	int ar_localflocks; /* Let the VFS do flock|fcntl locks for us */
-	int ar_localcaching; /* Local-style caching (dangerous on multihost) */
-	int ar_debug; /* Oops on errors instead of trying to be graceful */
-	int ar_upgrade; /* Upgrade ondisk/multihost format */
-	unsigned int ar_num_glockd; /* Number of glockd threads */
-	int ar_posix_acl; /* Enable posix acls */
-	int ar_quota; /* off/account/on */
-	int ar_suiddir; /* suiddir support */
-	int ar_data; /* ordered/writeback */
+	char ar_lockproto[GFS2_LOCKNAME_LEN];	/* Name of the Lock Protocol */
+	char ar_locktable[GFS2_LOCKNAME_LEN];	/* Name of the Lock Table */
+	char ar_hostdata[GFS2_LOCKNAME_LEN];	/* Host specific data */
+	unsigned int ar_spectator:1;		/* Don't get a journal */
+	unsigned int ar_ignore_local_fs:1;	/* Ignore optimisations */
+	unsigned int ar_localflocks:1;		/* Let the VFS do flock|fcntl */
+	unsigned int ar_localcaching:1;		/* Local caching */
+	unsigned int ar_debug:1;		/* Oops on errors */
+	unsigned int ar_upgrade:1;		/* Upgrade ondisk format */
+	unsigned int ar_posix_acl:1;		/* Enable posix acls */
+	unsigned int ar_quota:2;		/* off/account/on */
+	unsigned int ar_suiddir:1;		/* suiddir support */
+	unsigned int ar_data:2;			/* ordered/writeback */
+	unsigned int ar_meta:1;			/* mount metafs */
+	unsigned int ar_num_glockd;		/* Number of glockd threads */
 };
 
 struct gfs2_tune {
@@ -425,9 +420,7 @@ struct gfs2_tune {
 	unsigned int gt_quota_scale_den; /* Denominator */
 	unsigned int gt_quota_cache_secs;
 	unsigned int gt_quota_quantum; /* Secs between syncs to quota file */
-	unsigned int gt_atime_quantum; /* Min secs between atime updates */
 	unsigned int gt_new_files_jdata;
-	unsigned int gt_new_files_directio;
 	unsigned int gt_max_readahead; /* Max bytes to read-ahead from disk */
 	unsigned int gt_stall_secs; /* Detects trouble! */
 	unsigned int gt_complain_secs;
@@ -439,7 +432,7 @@ enum {
 	SDF_JOURNAL_CHECKED	= 0,
 	SDF_JOURNAL_LIVE	= 1,
 	SDF_SHUTDOWN		= 2,
-	SDF_NOATIME		= 3,
+	SDF_NOBARRIERS		= 3,
 };
 
 #define GFS2_FSNAME_LEN		256
@@ -468,7 +461,6 @@ struct gfs2_sb_host {
 
 struct gfs2_sbd {
 	struct super_block *sd_vfs;
-	struct super_block *sd_vfs_meta;
 	struct kobject sd_kobj;
 	unsigned long sd_flags;	/* SDF_... */
 	struct gfs2_sb_host sd_sb;
@@ -506,7 +498,9 @@ struct gfs2_sbd {
 
 	/* Inode Stuff */
 
-	struct inode *sd_master_dir;
+	struct dentry *sd_master_dir;
+	struct dentry *sd_root_dir;
+
 	struct inode *sd_jindex;
 	struct inode *sd_inum_inode;
 	struct inode *sd_statfs_inode;
@@ -534,7 +528,6 @@ struct gfs2_sbd {
 	struct mutex sd_rindex_mutex;
 	struct list_head sd_rindex_list;
 	struct list_head sd_rindex_mru_list;
-	struct list_head sd_rindex_recent_list;
 	struct gfs2_rgrpd *sd_rindex_forward;
 	unsigned int sd_rgrps;
 
@@ -642,7 +635,6 @@ struct gfs2_sbd {
 	/* Debugging crud */
 
 	unsigned long sd_last_warning;
-	struct vfsmount *sd_gfs2mnt;
 	struct dentry *debugfs_dir;    /* debugfs directory */
 	struct dentry *debugfs_dentry_glocks; /* for debugfs */
 };

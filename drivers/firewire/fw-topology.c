@@ -510,8 +510,6 @@ fw_core_handle_bus_reset(struct fw_card *card,
 	struct fw_node *local_node;
 	unsigned long flags;
 
-	fw_flush_transactions(card);
-
 	spin_lock_irqsave(&card->lock, flags);
 
 	/*

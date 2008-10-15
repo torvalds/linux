@@ -51,6 +51,9 @@ struct gnttab_free_callback {
 	u16 count;
 };
 
+int gnttab_suspend(void);
+int gnttab_resume(void);
+
 int gnttab_grant_foreign_access(domid_t domid, unsigned long frame,
 				int readonly);
 

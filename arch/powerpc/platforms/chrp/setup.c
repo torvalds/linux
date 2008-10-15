@@ -17,7 +17,6 @@
 #include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <linux/user.h>
-#include <linux/a.out.h>
 #include <linux/tty.h>
 #include <linux/major.h>
 #include <linux/interrupt.h>
@@ -62,13 +61,6 @@ static struct mpic *chrp_mpic;
 /* Used for doing CHRP event-scans */
 DEFINE_PER_CPU(struct timer_list, heartbeat_timer);
 unsigned long event_scan_interval;
-
-/*
- * XXX this should be in xmon.h, but putting it there means xmon.h
- * has to include <linux/interrupt.h> (to get irqreturn_t), which
- * causes all sorts of problems.  -- paulus
- */
-extern irqreturn_t xmon_irq(int, void *);
 
 extern unsigned long loops_per_jiffy;
 

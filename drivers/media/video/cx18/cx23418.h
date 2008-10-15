@@ -52,6 +52,11 @@
 #define EPU_CMD_MASK_DEBUG       		(EPU_CMD_MASK | 0x000000)
 #define EPU_CMD_MASK_DE                     	(EPU_CMD_MASK | 0x040000)
 
+#define APU_CMD_MASK 				0x10000000
+#define APU_CMD_MASK_ACK 			(APU_CMD_MASK | 0x80000000)
+
+#define CX18_APU_RESETAI 			(APU_CMD_MASK | 0x05)
+
 /* Description: This command indicates that a Memory Descriptor List has been
    filled with the requested channel type
    IN[0] - Task handle. Handle of the task
@@ -346,7 +351,7 @@
    Descriptor Lists to the driver
    IN[0] - Task handle. Handle of the task to start
    ReturnCode - One of the ERR_DE_... */
-/* #define CX18_CPU_DE_ReleaseMDL               (CPU_CMD_MASK_DE | 0x0006) */
+#define CX18_CPU_DE_RELEASE_MDL               	(CPU_CMD_MASK_DE | 0x0006)
 
 /* Description: This command signals the cpu that the dat buffer has been
    consumed and ready for re-use.

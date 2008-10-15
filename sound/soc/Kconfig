@@ -2,16 +2,10 @@
 # SoC audio configuration
 #
 
-menu "System on Chip audio support"
-	depends on SND!=n
-
-config SND_SOC_AC97_BUS
-	bool
-
-config SND_SOC
+menuconfig SND_SOC
 	tristate "ALSA for SoC audio support"
-	depends on SND
 	select SND_PCM
+	select AC97_BUS if SND_SOC_AC97_BUS
 	---help---
 
 	  If you want ASoC support, you should say Y here and also to the
@@ -23,16 +17,25 @@ config SND_SOC
 	  This ASoC audio support can also be built as a module.  If so, the module
 	  will be called snd-soc-core.
 
+if SND_SOC
+
+config SND_SOC_AC97_BUS
+	bool
+
 # All the supported Soc's
+source "sound/soc/at32/Kconfig"
 source "sound/soc/at91/Kconfig"
+source "sound/soc/au1x/Kconfig"
 source "sound/soc/pxa/Kconfig"
 source "sound/soc/s3c24xx/Kconfig"
 source "sound/soc/sh/Kconfig"
 source "sound/soc/fsl/Kconfig"
 source "sound/soc/davinci/Kconfig"
 source "sound/soc/omap/Kconfig"
+source "sound/soc/blackfin/Kconfig"
 
 # Supported codecs
 source "sound/soc/codecs/Kconfig"
 
-endmenu
+endif	# SND_SOC
+

@@ -24,13 +24,13 @@
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/spinlock.h>
+#include <linux/io.h>
 
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <mach/hardware.h>
 #include <asm/leds.h>
 #include <asm/system.h>
 #include <asm/mach-types.h>
-#include <asm/arch/cm.h>
+#include <mach/cm.h>
 
 static int saved_leds;
 

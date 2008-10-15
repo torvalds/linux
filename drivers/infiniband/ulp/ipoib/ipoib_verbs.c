@@ -29,23 +29,16 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * $Id: ipoib_verbs.c 1349 2004-12-16 21:09:43Z roland $
  */
 
 #include "ipoib.h"
 
-int ipoib_mcast_attach(struct net_device *dev, u16 mlid, union ib_gid *mgid)
+int ipoib_mcast_attach(struct net_device *dev, u16 mlid, union ib_gid *mgid, int set_qkey)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	struct ib_qp_attr *qp_attr;
+	struct ib_qp_attr *qp_attr = NULL;
 	int ret;
 	u16 pkey_index;
-
-	ret = -ENOMEM;
-	qp_attr = kmalloc(sizeof *qp_attr, GFP_KERNEL);
-	if (!qp_attr)
-		goto out;
 
 	if (ib_find_pkey(priv->ca, priv->port, priv->pkey, &pkey_index)) {
 		clear_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
@@ -54,37 +47,28 @@ int ipoib_mcast_attach(struct net_device *dev, u16 mlid, union ib_gid *mgid)
 	}
 	set_bit(IPOIB_PKEY_ASSIGNED, &priv->flags);
 
-	/* set correct QKey for QP */
-	qp_attr->qkey = priv->qkey;
-	ret = ib_modify_qp(priv->qp, qp_attr, IB_QP_QKEY);
-	if (ret) {
-		ipoib_warn(priv, "failed to modify QP, ret = %d\n", ret);
-		goto out;
+	if (set_qkey) {
+		ret = -ENOMEM;
+		qp_attr = kmalloc(sizeof *qp_attr, GFP_KERNEL);
+		if (!qp_attr)
+			goto out;
+
+		/* set correct QKey for QP */
+		qp_attr->qkey = priv->qkey;
+		ret = ib_modify_qp(priv->qp, qp_attr, IB_QP_QKEY);
+		if (ret) {
+			ipoib_warn(priv, "failed to modify QP, ret = %d\n", ret);
+			goto out;
+		}
 	}
 
 	/* attach QP to multicast group */
-	mutex_lock(&priv->mcast_mutex);
 	ret = ib_attach_mcast(priv->qp, mgid, mlid);
-	mutex_unlock(&priv->mcast_mutex);
 	if (ret)
 		ipoib_warn(priv, "failed to attach to multicast group, ret = %d\n", ret);
 
 out:
 	kfree(qp_attr);
-	return ret;
-}
-
-int ipoib_mcast_detach(struct net_device *dev, u16 mlid, union ib_gid *mgid)
-{
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	int ret;
-
-	mutex_lock(&priv->mcast_mutex);
-	ret = ib_detach_mcast(priv->qp, mgid, mlid);
-	mutex_unlock(&priv->mcast_mutex);
-	if (ret)
-		ipoib_warn(priv, "ib_detach_mcast failed (result = %d)\n", ret);
-
 	return ret;
 }
 
@@ -201,7 +185,10 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	init_attr.recv_cq = priv->recv_cq;
 
 	if (priv->hca_caps & IB_DEVICE_UD_TSO)
-		init_attr.create_flags = IB_QP_CREATE_IPOIB_UD_LSO;
+		init_attr.create_flags |= IB_QP_CREATE_IPOIB_UD_LSO;
+
+	if (priv->hca_caps & IB_DEVICE_BLOCK_MULTICAST_LOOPBACK)
+		init_attr.create_flags |= IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK;
 
 	if (dev->features & NETIF_F_SG)
 		init_attr.cap.max_send_sge = MAX_SKB_FRAGS + 1;
@@ -289,15 +276,17 @@ void ipoib_event(struct ib_event_handler *handler,
 	if (record->element.port_num != priv->port)
 		return;
 
-	if (record->event == IB_EVENT_PORT_ERR    ||
-	    record->event == IB_EVENT_PORT_ACTIVE ||
-	    record->event == IB_EVENT_LID_CHANGE  ||
-	    record->event == IB_EVENT_SM_CHANGE   ||
+	ipoib_dbg(priv, "Event %d on device %s port %d\n", record->event,
+		  record->device->name, record->element.port_num);
+
+	if (record->event == IB_EVENT_SM_CHANGE ||
 	    record->event == IB_EVENT_CLIENT_REREGISTER) {
-		ipoib_dbg(priv, "Port state change event\n");
-		queue_work(ipoib_workqueue, &priv->flush_task);
+		queue_work(ipoib_workqueue, &priv->flush_light);
+	} else if (record->event == IB_EVENT_PORT_ERR ||
+		   record->event == IB_EVENT_PORT_ACTIVE ||
+		   record->event == IB_EVENT_LID_CHANGE) {
+		queue_work(ipoib_workqueue, &priv->flush_normal);
 	} else if (record->event == IB_EVENT_PKEY_CHANGE) {
-		ipoib_dbg(priv, "P_Key change event on port:%d\n", priv->port);
-		queue_work(ipoib_workqueue, &priv->pkey_event_task);
+		queue_work(ipoib_workqueue, &priv->flush_heavy);
 	}
 }

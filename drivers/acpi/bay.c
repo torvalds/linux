@@ -377,6 +377,9 @@ static int __init bay_init(void)
 
 	INIT_LIST_HEAD(&drive_bays);
 
+	if (acpi_disabled)
+		return -ENODEV;
+
 	/* look for dockable drive bays */
 	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
 		ACPI_UINT32_MAX, find_bay, &bays, NULL);

@@ -90,7 +90,7 @@ kmem_zalloc_greedy(size_t *size, size_t minsize, size_t maxsize,
 }
 
 void
-kmem_free(void *ptr, size_t size)
+kmem_free(const void *ptr)
 {
 	if (!is_vmalloc_addr(ptr)) {
 		kfree(ptr);
@@ -100,7 +100,7 @@ kmem_free(void *ptr, size_t size)
 }
 
 void *
-kmem_realloc(void *ptr, size_t newsize, size_t oldsize,
+kmem_realloc(const void *ptr, size_t newsize, size_t oldsize,
 	     unsigned int __nocast flags)
 {
 	void	*new;
@@ -110,7 +110,7 @@ kmem_realloc(void *ptr, size_t newsize, size_t oldsize,
 		if (new)
 			memcpy(new, ptr,
 				((oldsize < newsize) ? oldsize : newsize));
-		kmem_free(ptr, oldsize);
+		kmem_free(ptr);
 	}
 	return new;
 }

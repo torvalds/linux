@@ -13,10 +13,7 @@ struct dm_dev;
 
 struct dm_path {
 	struct dm_dev *dev;	/* Read-only */
-	unsigned is_active;	/* Read-only */
-
 	void *pscontext;	/* For path-selector use */
-	void *hwhcontext;	/* For hw-handler use */
 };
 
 /* Callback for hwh_pg_init_fn to use when complete */

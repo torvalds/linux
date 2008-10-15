@@ -8,18 +8,19 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 
-#include "cobalt.h"
-#include "lithium.h"
+#include <asm/setup.h>
+#include <asm/visws/cobalt.h>
+#include <asm/visws/lithium.h>
 
 #include "pci.h"
 
 static int pci_visws_enable_irq(struct pci_dev *dev) { return 0; }
 static void pci_visws_disable_irq(struct pci_dev *dev) { }
 
-int (*pcibios_enable_irq)(struct pci_dev *dev) = &pci_visws_enable_irq;
-void (*pcibios_disable_irq)(struct pci_dev *dev) = &pci_visws_disable_irq;
+/* int (*pcibios_enable_irq)(struct pci_dev *dev) = &pci_visws_enable_irq; */
+/* void (*pcibios_disable_irq)(struct pci_dev *dev) = &pci_visws_disable_irq; */
 
-void __init pcibios_penalize_isa_irq(int irq, int active) {}
+/* void __init pcibios_penalize_isa_irq(int irq, int active) {} */
 
 
 unsigned int pci_bus0, pci_bus1;
@@ -85,8 +86,14 @@ void __init pcibios_update_irq(struct pci_dev *dev, int irq)
 	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
 }
 
-static int __init pcibios_init(void)
+int __init pci_visws_init(void)
 {
+	if (!is_visws_box())
+		return -1;
+
+	pcibios_enable_irq = &pci_visws_enable_irq;
+	pcibios_disable_irq = &pci_visws_disable_irq;
+
 	/* The VISWS supports configuration access type 1 only */
 	pci_probe = (pci_probe | PCI_PROBE_CONF1) &
 		    ~(PCI_PROBE_BIOS | PCI_PROBE_CONF2);
@@ -104,5 +111,3 @@ static int __init pcibios_init(void)
 	pcibios_resource_survey();
 	return 0;
 }
-
-subsys_initcall(pcibios_init);

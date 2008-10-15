@@ -5,6 +5,7 @@
 #include <linux/netdevice.h>
 #include <linux/mutex.h>
 #include <net/iw_handler.h>
+#include <net/ieee80211_radiotap.h>
 
 #include "hostap_config.h"
 #include "hostap_common.h"
@@ -53,6 +54,17 @@ struct linux_wlan_ng_cap_hdr {
 	__be32 ssi_noise;
 	__be32 preamble;
 	__be32 encoding;
+} __attribute__ ((packed));
+
+struct hostap_radiotap_rx {
+	struct ieee80211_radiotap_header hdr;
+	__le64 tsft;
+	u8 rate;
+	u8 padding;
+	__le16 chan_freq;
+	__le16 chan_flags;
+	s8 dbm_antsignal;
+	s8 dbm_antnoise;
 } __attribute__ ((packed));
 
 #define LWNG_CAP_DID_BASE   (4 | (1 << 6)) /* section 4, group 1 */
@@ -734,7 +746,7 @@ struct local_info {
 	unsigned long scan_timestamp; /* Time started to scan */
 	enum {
 		PRISM2_MONITOR_80211 = 0, PRISM2_MONITOR_PRISM = 1,
-		PRISM2_MONITOR_CAPHDR = 2
+		PRISM2_MONITOR_CAPHDR = 2, PRISM2_MONITOR_RADIOTAP = 3
 	} monitor_type;
 	int monitor_allow_fcserr;
 

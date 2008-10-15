@@ -49,6 +49,9 @@ __acquires(ohci->lock)
 	switch (usb_pipetype (urb->pipe)) {
 	case PIPE_ISOCHRONOUS:
 		ohci_to_hcd(ohci)->self.bandwidth_isoc_reqs--;
+		if (ohci_to_hcd(ohci)->self.bandwidth_isoc_reqs == 0
+				&& quirk_amdiso(ohci))
+			quirk_amd_pll(1);
 		break;
 	case PIPE_INTERRUPT:
 		ohci_to_hcd(ohci)->self.bandwidth_int_reqs--;
@@ -158,9 +161,6 @@ static void periodic_link (struct ohci_hcd *ohci, struct ed *ed)
 static int ed_schedule (struct ohci_hcd *ohci, struct ed *ed)
 {
 	int	branch;
-
-	if (ohci_to_hcd(ohci)->state == HC_STATE_QUIESCING)
-		return -EAGAIN;
 
 	ed->state = ED_OPER;
 	ed->ed_prev = NULL;
@@ -680,6 +680,9 @@ static void td_submit_urb (
 				data + urb->iso_frame_desc [cnt].offset,
 				urb->iso_frame_desc [cnt].length, urb, cnt);
 		}
+		if (ohci_to_hcd(ohci)->self.bandwidth_isoc_reqs == 0
+				&& quirk_amdiso(ohci))
+			quirk_amd_pll(0);
 		periodic = ohci_to_hcd(ohci)->self.bandwidth_isoc_reqs++ == 0
 			&& ohci_to_hcd(ohci)->self.bandwidth_int_reqs == 0;
 		break;
@@ -952,6 +955,7 @@ rescan_this:
 			struct urb	*urb;
 			urb_priv_t	*urb_priv;
 			__hc32		savebits;
+			u32		tdINFO;
 
 			td = list_entry (entry, struct td, td_list);
 			urb = td->urb;
@@ -965,6 +969,17 @@ rescan_this:
 			/* patch pointer hc uses */
 			savebits = *prev & ~cpu_to_hc32 (ohci, TD_MASK);
 			*prev = td->hwNextTD | savebits;
+
+			/* If this was unlinked, the TD may not have been
+			 * retired ... so manually save the data toggle.
+			 * The controller ignores the value we save for
+			 * control and ISO endpoints.
+			 */
+			tdINFO = hc32_to_cpup(ohci, &td->hwINFO);
+			if ((tdINFO & TD_T) == TD_T_DATA0)
+				ed->hwHeadP &= ~cpu_to_hc32(ohci, ED_C);
+			else if ((tdINFO & TD_T) == TD_T_DATA1)
+				ed->hwHeadP |= cpu_to_hc32(ohci, ED_C);
 
 			/* HC may have partly processed this TD */
 			td_done (ohci, urb, td);

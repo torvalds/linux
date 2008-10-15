@@ -482,6 +482,7 @@ enum
 	TCA_RATE,
 	TCA_FCNT,
 	TCA_STATS2,
+	TCA_STAB,
 	__TCA_MAX
 };
 
@@ -581,6 +582,10 @@ enum rtnetlink_groups {
 #define RTNLGRP_IPV6_RULE	RTNLGRP_IPV6_RULE
 	RTNLGRP_ND_USEROPT,
 #define RTNLGRP_ND_USEROPT	RTNLGRP_ND_USEROPT
+	RTNLGRP_PHONET_IFADDR,
+#define RTNLGRP_PHONET_IFADDR	RTNLGRP_PHONET_IFADDR
+	RTNLGRP_PHONET_ROUTE,
+#define RTNLGRP_PHONET_ROUTE	RTNLGRP_PHONET_ROUTE
 	__RTNLGRP_MAX
 };
 #define RTNLGRP_MAX	(__RTNLGRP_MAX - 1)
@@ -751,13 +756,6 @@ extern void __rtnl_unlock(void);
 		printk(KERN_ERR "RTNL: assertion failed at %s (%d)\n", \
 		       __FILE__,  __LINE__); \
 		dump_stack(); \
-	} \
-} while(0)
-
-#define BUG_TRAP(x) do { \
-	if (unlikely(!(x))) { \
-		printk(KERN_ERR "KERNEL: assertion (%s) failed at %s (%d)\n", \
-			#x,  __FILE__ , __LINE__); \
 	} \
 } while(0)
 

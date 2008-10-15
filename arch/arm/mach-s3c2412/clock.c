@@ -31,15 +31,15 @@
 #include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/serial_core.h>
+#include <linux/io.h>
 
 #include <asm/mach/map.h>
 
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <mach/hardware.h>
 
 #include <asm/plat-s3c/regs-serial.h>
-#include <asm/arch/regs-clock.h>
-#include <asm/arch/regs-gpio.h>
+#include <mach/regs-clock.h>
+#include <mach/regs-gpio.h>
 
 #include <asm/plat-s3c24xx/s3c2412.h>
 #include <asm/plat-s3c24xx/clock.h>
@@ -631,6 +631,17 @@ static struct clk_init clks_src[] __initdata = {
 		.bit	= S3C2412_CLKSRC_USBCLK_HCLK,
 		.src_0	= &clk_usysclk,
 		.src_1	= &clk_h,
+	/* here we assume  OM[4] select xtal */
+	}, {
+		.clk	= &clk_erefclk,
+		.bit	= S3C2412_CLKSRC_EREFCLK_EXTCLK,
+		.src_0	= &clk_xtal,
+		.src_1	= &clk_ext,
+	}, {
+		.clk	= &clk_urefclk,
+		.bit	= S3C2412_CLKSRC_UREFCLK_EXTCLK,
+		.src_0	= &clk_xtal,
+		.src_1	= &clk_ext,
 	},
 };
 
@@ -666,8 +677,6 @@ static void __init s3c2412_clk_initparents(void)
 static struct clk *clks[] __initdata = {
 	&clk_ext,
 	&clk_usb_bus,
-	&clk_erefclk,
-	&clk_urefclk,
 	&clk_mrefclk,
 	&clk_armclk,
 };

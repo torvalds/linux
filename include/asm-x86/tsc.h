@@ -1,8 +1,8 @@
 /*
  * x86 TSC related functions
  */
-#ifndef _ASM_X86_TSC_H
-#define _ASM_X86_TSC_H
+#ifndef ASM_X86__TSC_H
+#define ASM_X86__TSC_H
 
 #include <asm/processor.h>
 
@@ -48,7 +48,6 @@ static __always_inline cycles_t vget_cycles(void)
 extern void tsc_init(void);
 extern void mark_tsc_unstable(char *reason);
 extern int unsynchronized_tsc(void);
-extern void init_tsc_clocksource(void);
 int check_tsc_unstable(void);
 
 /*
@@ -58,7 +57,6 @@ int check_tsc_unstable(void);
 extern void check_tsc_sync_source(int cpu);
 extern void check_tsc_sync_target(void);
 
-extern void tsc_calibrate(void);
 extern int notsc_setup(char *);
 
-#endif
+#endif /* ASM_X86__TSC_H */

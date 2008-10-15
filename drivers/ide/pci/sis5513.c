@@ -47,12 +47,11 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/hdreg.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/ide.h>
 
-#include "ide-timing.h"
+#define DRV_NAME "sis5513"
 
 /* registers layout and init values are chipset family dependant */
 
@@ -382,8 +381,9 @@ static int __devinit sis_find_family(struct pci_dev *dev)
 		}
 		pci_dev_put(host);
 
-		printk(KERN_INFO "SIS5513: %s %s controller\n",
-			 SiSHostChipInfo[i].name, chipset_capability[chipset_family]);
+		printk(KERN_INFO DRV_NAME " %s: %s %s controller\n",
+			pci_name(dev), SiSHostChipInfo[i].name,
+			chipset_capability[chipset_family]);
 	}
 
 	if (!chipset_family) { /* Belongs to pci-quirks */
@@ -398,7 +398,8 @@ static int __devinit sis_find_family(struct pci_dev *dev)
 			pci_write_config_dword(dev, 0x54, idemisc);
 
 			if (trueid == 0x5518) {
-				printk(KERN_INFO "SIS5513: SiS 962/963 MuTIOL IDE UDMA133 controller\n");
+				printk(KERN_INFO DRV_NAME " %s: SiS 962/963 MuTIOL IDE UDMA133 controller\n",
+					pci_name(dev));
 				chipset_family = ATA_133;
 
 				/* Check for 5513 compability mapping
@@ -407,7 +408,8 @@ static int __devinit sis_find_family(struct pci_dev *dev)
 				 */
 				if ((idemisc & 0x40000000) == 0) {
 					pci_write_config_dword(dev, 0x54, idemisc | 0x40000000);
-					printk(KERN_INFO "SIS5513: Switching to 5513 register mapping\n");
+					printk(KERN_INFO DRV_NAME " %s: Switching to 5513 register mapping\n",
+						pci_name(dev));
 				}
 			}
 	}
@@ -431,10 +433,12 @@ static int __devinit sis_find_family(struct pci_dev *dev)
 				pci_dev_put(lpc_bridge);
 
 				if (lpc_bridge->revision == 0x10 && (prefctl & 0x80)) {
-					printk(KERN_INFO "SIS5513: SiS 961B MuTIOL IDE UDMA133 controller\n");
+					printk(KERN_INFO DRV_NAME " %s: SiS 961B MuTIOL IDE UDMA133 controller\n",
+						pci_name(dev));
 					chipset_family = ATA_133a;
 				} else {
-					printk(KERN_INFO "SIS5513: SiS 961 MuTIOL IDE UDMA100 controller\n");
+					printk(KERN_INFO DRV_NAME " %s: SiS 961 MuTIOL IDE UDMA100 controller\n",
+						pci_name(dev));
 					chipset_family = ATA_100;
 				}
 			}
@@ -443,8 +447,7 @@ static int __devinit sis_find_family(struct pci_dev *dev)
 	return chipset_family;
 }
 
-static unsigned int __devinit init_chipset_sis5513(struct pci_dev *dev,
-						   const char *name)
+static unsigned int init_chipset_sis5513(struct pci_dev *dev)
 {
 	/* Make general config ops here
 	   1/ tell IDE channels to operate in Compatibility mode only
@@ -514,7 +517,7 @@ static const struct sis_laptop sis_laptop[] = {
 	{ 0, }
 };
 
-static u8 __devinit sis_cable_detect(ide_hwif_t *hwif)
+static u8 sis_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 	const struct sis_laptop *lap = &sis_laptop[0];
@@ -557,7 +560,7 @@ static const struct ide_port_ops sis_ata133_port_ops = {
 };
 
 static const struct ide_port_info sis5513_chipset __devinitdata = {
-	.name		= "SIS5513",
+	.name		= DRV_NAME,
 	.init_chipset	= init_chipset_sis5513,
 	.enablebits	= { {0x4a, 0x02, 0x02}, {0x4a, 0x04, 0x04} },
 	.host_flags	= IDE_HFLAG_LEGACY_IRQS | IDE_HFLAG_NO_AUTODMA,
@@ -585,7 +588,13 @@ static int __devinit sis5513_init_one(struct pci_dev *dev, const struct pci_devi
 
 	d.udma_mask = udma_rates[chipset_family];
 
-	return ide_setup_pci_device(dev, &d);
+	return ide_pci_init_one(dev, &d, NULL);
+}
+
+static void __devexit sis5513_remove(struct pci_dev *dev)
+{
+	ide_pci_remove(dev);
+	pci_disable_device(dev);
 }
 
 static const struct pci_device_id sis5513_pci_tbl[] = {
@@ -596,18 +605,27 @@ static const struct pci_device_id sis5513_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, sis5513_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver sis5513_pci_driver = {
 	.name		= "SIS_IDE",
 	.id_table	= sis5513_pci_tbl,
 	.probe		= sis5513_init_one,
+	.remove		= __devexit_p(sis5513_remove),
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init sis5513_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&sis5513_pci_driver);
+}
+
+static void __exit sis5513_ide_exit(void)
+{
+	pci_unregister_driver(&sis5513_pci_driver);
 }
 
 module_init(sis5513_ide_init);
+module_exit(sis5513_ide_exit);
 
 MODULE_AUTHOR("Lionel Bouton, L C Chang, Andre Hedrick, Vojtech Pavlik");
 MODULE_DESCRIPTION("PCI driver module for SIS IDE");
@@ -616,7 +634,6 @@ MODULE_LICENSE("GPL");
 /*
  * TODO:
  *	- CLEANUP
- *	- Use drivers/ide/ide-timing.h !
  *	- More checks in the config registers (force values instead of
  *	  relying on the BIOS setting them correctly).
  *	- Further optimisations ?

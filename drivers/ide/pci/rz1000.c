@@ -16,10 +16,11 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/hdreg.h>
 #include <linux/pci.h>
 #include <linux/ide.h>
 #include <linux/init.h>
+
+#define DRV_NAME "rz1000"
 
 static void __devinit init_hwif_rz1000 (ide_hwif_t *hwif)
 {
@@ -40,7 +41,7 @@ static void __devinit init_hwif_rz1000 (ide_hwif_t *hwif)
 }
 
 static const struct ide_port_info rz1000_chipset __devinitdata = {
-	.name		= "RZ100x",
+	.name		= DRV_NAME,
 	.init_hwif	= init_hwif_rz1000,
 	.chipset	= ide_rz1000,
 	.host_flags	= IDE_HFLAG_NO_DMA,
@@ -48,7 +49,7 @@ static const struct ide_port_info rz1000_chipset __devinitdata = {
 
 static int __devinit rz1000_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return ide_setup_pci_device(dev, &rz1000_chipset);
+	return ide_pci_init_one(dev, &rz1000_chipset, NULL);
 }
 
 static const struct pci_device_id rz1000_pci_tbl[] = {
@@ -58,18 +59,25 @@ static const struct pci_device_id rz1000_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, rz1000_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver rz1000_pci_driver = {
 	.name		= "RZ1000_IDE",
 	.id_table	= rz1000_pci_tbl,
 	.probe		= rz1000_init_one,
+	.remove		= ide_pci_remove,
 };
 
 static int __init rz1000_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&rz1000_pci_driver);
+}
+
+static void __exit rz1000_ide_exit(void)
+{
+	pci_unregister_driver(&rz1000_pci_driver);
 }
 
 module_init(rz1000_ide_init);
+module_exit(rz1000_ide_exit);
 
 MODULE_AUTHOR("Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for RZ1000 IDE");

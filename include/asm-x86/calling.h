@@ -104,7 +104,7 @@
 	.endif
 	.endm
 
-	.macro LOAD_ARGS offset
+	.macro LOAD_ARGS offset, skiprax=0
 	movq \offset(%rsp),    %r11
 	movq \offset+8(%rsp),  %r10
 	movq \offset+16(%rsp), %r9
@@ -113,7 +113,10 @@
 	movq \offset+48(%rsp), %rdx
 	movq \offset+56(%rsp), %rsi
 	movq \offset+64(%rsp), %rdi
+	.if \skiprax
+	.else
 	movq \offset+72(%rsp), %rax
+	.endif
 	.endm
 
 #define REST_SKIP	6*8
@@ -165,4 +168,3 @@
 	.macro icebp
 	.byte 0xf1
 	.endm
-

@@ -26,6 +26,6 @@
 #define IRQ_S3C244x_AC97 IRQ_S3C2443_AC97
 #endif
 
-extern struct snd_soc_cpu_dai s3c2443_ac97_dai[];
+extern struct snd_soc_dai s3c2443_ac97_dai[];
 
 #endif /*S3C24XXAC97_H_*/

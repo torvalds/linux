@@ -117,9 +117,7 @@ static int pnpacpi_suspend(struct pnp_dev *dev, pm_message_t state)
 {
 	int power_state;
 
-	power_state = acpi_pm_device_sleep_state(&dev->dev,
-						device_may_wakeup(&dev->dev),
-						NULL);
+	power_state = acpi_pm_device_sleep_state(&dev->dev, NULL);
 	if (power_state < 0)
 		power_state = (state.event == PM_EVENT_ON) ?
 				ACPI_STATE_D0 : ACPI_STATE_D3;
@@ -270,7 +268,7 @@ static int __init pnpacpi_init(void)
 	return 0;
 }
 
-subsys_initcall(pnpacpi_init);
+fs_initcall(pnpacpi_init);
 
 static int __init pnpacpi_setup(char *str)
 {

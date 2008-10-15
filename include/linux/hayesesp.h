@@ -76,11 +76,10 @@ struct hayes_esp_config {
 
 struct esp_struct {
 	int			magic;
+	struct tty_port		port;
 	spinlock_t		lock;
-	int			port;
+	int			io_port;
 	int			irq;
-	int			flags; 		/* defined in tty.h */
-	struct tty_struct 	*tty;
 	int			read_status_mask;
 	int			ignore_status_mask;
 	int			timeout;
@@ -93,14 +92,10 @@ struct esp_struct {
 	int			MCR; 	/* Modem control register */
 	unsigned long		last_active;
 	int			line;
-	int			count;	    /* # of fd on device */
-	int			blocked_open; /* # of blocked opens */
 	unsigned char 		*xmit_buf;
 	int			xmit_head;
 	int			xmit_tail;
 	int			xmit_cnt;
-	wait_queue_head_t	open_wait;
-	wait_queue_head_t	close_wait;
 	wait_queue_head_t	delta_msr_wait;
 	wait_queue_head_t	break_wait;
 	struct async_icount	icount;	/* kernel counters for the 4 input interrupts */

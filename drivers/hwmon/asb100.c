@@ -176,10 +176,8 @@ static u8 DIV_TO_REG(long val)
    data is pointed to by client->data. The structure itself is
    dynamically allocated, at the same time the client itself is allocated. */
 struct asb100_data {
-	struct i2c_client client;
 	struct device *hwmon_dev;
 	struct mutex lock;
-	enum chips type;
 
 	struct mutex update_lock;
 	unsigned long last_updated;	/* In jiffies */
@@ -206,18 +204,30 @@ struct asb100_data {
 static int asb100_read_value(struct i2c_client *client, u16 reg);
 static void asb100_write_value(struct i2c_client *client, u16 reg, u16 val);
 
-static int asb100_attach_adapter(struct i2c_adapter *adapter);
-static int asb100_detect(struct i2c_adapter *adapter, int address, int kind);
-static int asb100_detach_client(struct i2c_client *client);
+static int asb100_probe(struct i2c_client *client,
+			const struct i2c_device_id *id);
+static int asb100_detect(struct i2c_client *client, int kind,
+			 struct i2c_board_info *info);
+static int asb100_remove(struct i2c_client *client);
 static struct asb100_data *asb100_update_device(struct device *dev);
 static void asb100_init_client(struct i2c_client *client);
 
+static const struct i2c_device_id asb100_id[] = {
+	{ "asb100", asb100 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, asb100_id);
+
 static struct i2c_driver asb100_driver = {
+	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "asb100",
 	},
-	.attach_adapter	= asb100_attach_adapter,
-	.detach_client	= asb100_detach_client,
+	.probe		= asb100_probe,
+	.remove		= asb100_remove,
+	.id_table	= asb100_id,
+	.detect		= asb100_detect,
+	.address_data	= &addr_data,
 };
 
 /* 7 Voltages */
@@ -619,35 +629,13 @@ static const struct attribute_group asb100_group = {
 	.attrs = asb100_attributes,
 };
 
-/* This function is called when:
-	asb100_driver is inserted (when this module is loaded), for each
-		available adapter
-	when a new adapter is inserted (and asb100_driver is still present)
- */
-static int asb100_attach_adapter(struct i2c_adapter *adapter)
-{
-	if (!(adapter->class & I2C_CLASS_HWMON))
-		return 0;
-	return i2c_probe(adapter, &addr_data, asb100_detect);
-}
-
-static int asb100_detect_subclients(struct i2c_adapter *adapter, int address,
-		int kind, struct i2c_client *client)
+static int asb100_detect_subclients(struct i2c_client *client)
 {
 	int i, id, err;
+	int address = client->addr;
+	unsigned short sc_addr[2];
 	struct asb100_data *data = i2c_get_clientdata(client);
-
-	data->lm75[0] = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (!(data->lm75[0])) {
-		err = -ENOMEM;
-		goto ERROR_SC_0;
-	}
-
-	data->lm75[1] = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (!(data->lm75[1])) {
-		err = -ENOMEM;
-		goto ERROR_SC_1;
-	}
+	struct i2c_adapter *adapter = client->adapter;
 
 	id = i2c_adapter_id(adapter);
 
@@ -665,37 +653,34 @@ static int asb100_detect_subclients(struct i2c_adapter *adapter, int address,
 		asb100_write_value(client, ASB100_REG_I2C_SUBADDR,
 					(force_subclients[2] & 0x07) |
 					((force_subclients[3] & 0x07) << 4));
-		data->lm75[0]->addr = force_subclients[2];
-		data->lm75[1]->addr = force_subclients[3];
+		sc_addr[0] = force_subclients[2];
+		sc_addr[1] = force_subclients[3];
 	} else {
 		int val = asb100_read_value(client, ASB100_REG_I2C_SUBADDR);
-		data->lm75[0]->addr = 0x48 + (val & 0x07);
-		data->lm75[1]->addr = 0x48 + ((val >> 4) & 0x07);
+		sc_addr[0] = 0x48 + (val & 0x07);
+		sc_addr[1] = 0x48 + ((val >> 4) & 0x07);
 	}
 
-	if (data->lm75[0]->addr == data->lm75[1]->addr) {
+	if (sc_addr[0] == sc_addr[1]) {
 		dev_err(&client->dev, "duplicate addresses 0x%x "
-				"for subclients\n", data->lm75[0]->addr);
+				"for subclients\n", sc_addr[0]);
 		err = -ENODEV;
 		goto ERROR_SC_2;
 	}
 
-	for (i = 0; i <= 1; i++) {
-		i2c_set_clientdata(data->lm75[i], NULL);
-		data->lm75[i]->adapter = adapter;
-		data->lm75[i]->driver = &asb100_driver;
-		strlcpy(data->lm75[i]->name, "asb100 subclient", I2C_NAME_SIZE);
-	}
-
-	if ((err = i2c_attach_client(data->lm75[0]))) {
+	data->lm75[0] = i2c_new_dummy(adapter, sc_addr[0]);
+	if (!data->lm75[0]) {
 		dev_err(&client->dev, "subclient %d registration "
-			"at address 0x%x failed.\n", i, data->lm75[0]->addr);
+			"at address 0x%x failed.\n", 1, sc_addr[0]);
+		err = -ENOMEM;
 		goto ERROR_SC_2;
 	}
 
-	if ((err = i2c_attach_client(data->lm75[1]))) {
+	data->lm75[1] = i2c_new_dummy(adapter, sc_addr[1]);
+	if (!data->lm75[1]) {
 		dev_err(&client->dev, "subclient %d registration "
-			"at address 0x%x failed.\n", i, data->lm75[1]->addr);
+			"at address 0x%x failed.\n", 2, sc_addr[1]);
+		err = -ENOMEM;
 		goto ERROR_SC_3;
 	}
 
@@ -703,46 +688,22 @@ static int asb100_detect_subclients(struct i2c_adapter *adapter, int address,
 
 /* Undo inits in case of errors */
 ERROR_SC_3:
-	i2c_detach_client(data->lm75[0]);
+	i2c_unregister_device(data->lm75[0]);
 ERROR_SC_2:
-	kfree(data->lm75[1]);
-ERROR_SC_1:
-	kfree(data->lm75[0]);
-ERROR_SC_0:
 	return err;
 }
 
-static int asb100_detect(struct i2c_adapter *adapter, int address, int kind)
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static int asb100_detect(struct i2c_client *client, int kind,
+			 struct i2c_board_info *info)
 {
-	int err;
-	struct i2c_client *client;
-	struct asb100_data *data;
+	struct i2c_adapter *adapter = client->adapter;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		pr_debug("asb100.o: detect failed, "
 				"smbus byte data not supported!\n");
-		err = -ENODEV;
-		goto ERROR0;
+		return -ENODEV;
 	}
-
-	/* OK. For now, we presume we have a valid client. We now create the
-	   client structure, even though we cannot fill it completely yet.
-	   But it allows us to access asb100_{read,write}_value. */
-
-	if (!(data = kzalloc(sizeof(struct asb100_data), GFP_KERNEL))) {
-		pr_debug("asb100.o: detect failed, kzalloc failed!\n");
-		err = -ENOMEM;
-		goto ERROR0;
-	}
-
-	client = &data->client;
-	mutex_init(&data->lock);
-	i2c_set_clientdata(client, data);
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &asb100_driver;
-
-	/* Now, we do the remaining detection. */
 
 	/* The chip may be stuck in some other bank than bank 0. This may
 	   make reading other information impossible. Specify a force=... or
@@ -750,8 +711,8 @@ static int asb100_detect(struct i2c_adapter *adapter, int address, int kind)
 	   bank. */
 	if (kind < 0) {
 
-		int val1 = asb100_read_value(client, ASB100_REG_BANK);
-		int val2 = asb100_read_value(client, ASB100_REG_CHIPMAN);
+		int val1 = i2c_smbus_read_byte_data(client, ASB100_REG_BANK);
+		int val2 = i2c_smbus_read_byte_data(client, ASB100_REG_CHIPMAN);
 
 		/* If we're in bank 0 */
 		if ((!(val1 & 0x07)) &&
@@ -761,48 +722,60 @@ static int asb100_detect(struct i2c_adapter *adapter, int address, int kind)
 				((val1 & 0x80) && (val2 != 0x06)))) {
 			pr_debug("asb100.o: detect failed, "
 					"bad chip id 0x%02x!\n", val2);
-			err = -ENODEV;
-			goto ERROR1;
+			return -ENODEV;
 		}
 
 	} /* kind < 0 */
 
 	/* We have either had a force parameter, or we have already detected
 	   Winbond. Put it now into bank 0 and Vendor ID High Byte */
-	asb100_write_value(client, ASB100_REG_BANK,
-		(asb100_read_value(client, ASB100_REG_BANK) & 0x78) | 0x80);
+	i2c_smbus_write_byte_data(client, ASB100_REG_BANK,
+		(i2c_smbus_read_byte_data(client, ASB100_REG_BANK) & 0x78)
+		| 0x80);
 
 	/* Determine the chip type. */
 	if (kind <= 0) {
-		int val1 = asb100_read_value(client, ASB100_REG_WCHIPID);
-		int val2 = asb100_read_value(client, ASB100_REG_CHIPMAN);
+		int val1 = i2c_smbus_read_byte_data(client, ASB100_REG_WCHIPID);
+		int val2 = i2c_smbus_read_byte_data(client, ASB100_REG_CHIPMAN);
 
 		if ((val1 == 0x31) && (val2 == 0x06))
 			kind = asb100;
 		else {
 			if (kind == 0)
-				dev_warn(&client->dev, "ignoring "
+				dev_warn(&adapter->dev, "ignoring "
 					"'force' parameter for unknown chip "
 					"at adapter %d, address 0x%02x.\n",
-					i2c_adapter_id(adapter), address);
-			err = -ENODEV;
-			goto ERROR1;
+					i2c_adapter_id(adapter), client->addr);
+			return -ENODEV;
 		}
 	}
 
-	/* Fill in remaining client fields and put it into the global list */
-	strlcpy(client->name, "asb100", I2C_NAME_SIZE);
-	data->type = kind;
+	strlcpy(info->type, "asb100", I2C_NAME_SIZE);
+
+	return 0;
+}
+
+static int asb100_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
+{
+	int err;
+	struct asb100_data *data;
+
+	data = kzalloc(sizeof(struct asb100_data), GFP_KERNEL);
+	if (!data) {
+		pr_debug("asb100.o: probe failed, kzalloc failed!\n");
+		err = -ENOMEM;
+		goto ERROR0;
+	}
+
+	i2c_set_clientdata(client, data);
+	mutex_init(&data->lock);
 	mutex_init(&data->update_lock);
 
-	/* Tell the I2C layer a new client has arrived */
-	if ((err = i2c_attach_client(client)))
-		goto ERROR1;
-
 	/* Attach secondary lm75 clients */
-	if ((err = asb100_detect_subclients(adapter, address, kind,
-			client)))
-		goto ERROR2;
+	err = asb100_detect_subclients(client);
+	if (err)
+		goto ERROR1;
 
 	/* Initialize the chip */
 	asb100_init_client(client);
@@ -827,39 +800,25 @@ static int asb100_detect(struct i2c_adapter *adapter, int address, int kind)
 ERROR4:
 	sysfs_remove_group(&client->dev.kobj, &asb100_group);
 ERROR3:
-	i2c_detach_client(data->lm75[1]);
-	i2c_detach_client(data->lm75[0]);
-	kfree(data->lm75[1]);
-	kfree(data->lm75[0]);
-ERROR2:
-	i2c_detach_client(client);
+	i2c_unregister_device(data->lm75[1]);
+	i2c_unregister_device(data->lm75[0]);
 ERROR1:
 	kfree(data);
 ERROR0:
 	return err;
 }
 
-static int asb100_detach_client(struct i2c_client *client)
+static int asb100_remove(struct i2c_client *client)
 {
 	struct asb100_data *data = i2c_get_clientdata(client);
-	int err;
 
-	/* main client */
-	if (data) {
-		hwmon_device_unregister(data->hwmon_dev);
-		sysfs_remove_group(&client->dev.kobj, &asb100_group);
-	}
+	hwmon_device_unregister(data->hwmon_dev);
+	sysfs_remove_group(&client->dev.kobj, &asb100_group);
 
-	if ((err = i2c_detach_client(client)))
-		return err;
+	i2c_unregister_device(data->lm75[1]);
+	i2c_unregister_device(data->lm75[0]);
 
-	/* main client */
-	if (data)
-		kfree(data);
-
-	/* subclient */
-	else
-		kfree(client);
+	kfree(data);
 
 	return 0;
 }

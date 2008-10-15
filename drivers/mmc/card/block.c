@@ -2,7 +2,7 @@
  * Block driver for media (i.e., flash cards)
  *
  * Copyright 2002 Hewlett-Packard Company
- * Copyright 2005-2007 Pierre Ossman
+ * Copyright 2005-2008 Pierre Ossman
  *
  * Use consistent with the GNU GPL is permitted,
  * provided that this copyright notice is
@@ -29,6 +29,7 @@
 #include <linux/blkdev.h>
 #include <linux/mutex.h>
 #include <linux/scatterlist.h>
+#include <linux/string_helpers.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
@@ -57,7 +58,6 @@ struct mmc_blk_data {
 	struct mmc_queue queue;
 
 	unsigned int	usage;
-	unsigned int	block_bits;
 	unsigned int	read_only;
 };
 
@@ -83,7 +83,7 @@ static void mmc_blk_put(struct mmc_blk_data *md)
 	mutex_lock(&open_lock);
 	md->usage--;
 	if (md->usage == 0) {
-		int devidx = md->disk->first_minor >> MMC_SHIFT;
+		int devidx = MINOR(disk_devt(md->disk)) >> MMC_SHIFT;
 		__clear_bit(devidx, dev_use);
 
 		put_disk(md->disk);
@@ -103,8 +103,10 @@ static int mmc_blk_open(struct inode *inode, struct file *filp)
 			check_disk_change(inode->i_bdev);
 		ret = 0;
 
-		if ((filp->f_mode & FMODE_WRITE) && md->read_only)
+		if ((filp->f_mode & FMODE_WRITE) && md->read_only) {
+			mmc_blk_put(md);
 			ret = -EROFS;
+		}
 	}
 
 	return ret;
@@ -213,7 +215,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	struct mmc_blk_data *md = mq->data;
 	struct mmc_card *card = md->queue.card;
 	struct mmc_blk_request brq;
-	int ret = 1, sg_pos, data_size;
+	int ret = 1;
 
 	mmc_claim_host(card->host);
 
@@ -229,24 +231,11 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		if (!mmc_card_blockaddr(card))
 			brq.cmd.arg <<= 9;
 		brq.cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_ADTC;
-		brq.data.blksz = 1 << md->block_bits;
+		brq.data.blksz = 512;
 		brq.stop.opcode = MMC_STOP_TRANSMISSION;
 		brq.stop.arg = 0;
 		brq.stop.flags = MMC_RSP_SPI_R1B | MMC_RSP_R1B | MMC_CMD_AC;
-		brq.data.blocks = req->nr_sectors >> (md->block_bits - 9);
-		if (brq.data.blocks > card->host->max_blk_count)
-			brq.data.blocks = card->host->max_blk_count;
-
-		/*
-		 * If the host doesn't support multiple block writes, force
-		 * block writes to single block. SD cards are excepted from
-		 * this rule as they support querying the number of
-		 * successfully written sectors.
-		 */
-		if (rq_data_dir(req) != READ &&
-		    !(card->host->caps & MMC_CAP_MULTIWRITE) &&
-		    !mmc_card_sd(card))
-			brq.data.blocks = 1;
+		brq.data.blocks = req->nr_sectors;
 
 		if (brq.data.blocks > 1) {
 			/* SPI multiblock writes terminate using a special
@@ -278,40 +267,28 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 
 		mmc_queue_bounce_pre(mq);
 
-		if (brq.data.blocks !=
-		    (req->nr_sectors >> (md->block_bits - 9))) {
-			data_size = brq.data.blocks * brq.data.blksz;
-			for (sg_pos = 0; sg_pos < brq.data.sg_len; sg_pos++) {
-				data_size -= mq->sg[sg_pos].length;
-				if (data_size <= 0) {
-					mq->sg[sg_pos].length += data_size;
-					sg_pos++;
-					break;
-				}
-			}
-			brq.data.sg_len = sg_pos;
-		}
-
 		mmc_wait_for_req(card->host, &brq.mrq);
 
 		mmc_queue_bounce_post(mq);
 
+		/*
+		 * Check for errors here, but don't jump to cmd_err
+		 * until later as we need to wait for the card to leave
+		 * programming mode even when things go wrong.
+		 */
 		if (brq.cmd.error) {
 			printk(KERN_ERR "%s: error %d sending read/write command\n",
 			       req->rq_disk->disk_name, brq.cmd.error);
-			goto cmd_err;
 		}
 
 		if (brq.data.error) {
 			printk(KERN_ERR "%s: error %d transferring data\n",
 			       req->rq_disk->disk_name, brq.data.error);
-			goto cmd_err;
 		}
 
 		if (brq.stop.error) {
 			printk(KERN_ERR "%s: error %d sending stop command\n",
 			       req->rq_disk->disk_name, brq.stop.error);
-			goto cmd_err;
 		}
 
 		if (!mmc_host_is_spi(card->host) && rq_data_dir(req) != READ) {
@@ -344,6 +321,9 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 #endif
 		}
 
+		if (brq.cmd.error || brq.data.error || brq.stop.error)
+			goto cmd_err;
+
 		/*
 		 * A block was successfully transferred.
 		 */
@@ -362,30 +342,27 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
  	 * mark the known good sectors as ok.
  	 *
 	 * If the card is not SD, we can still ok written sectors
-	 * if the controller can do proper error reporting.
+	 * as reported by the controller (which might be less than
+	 * the real number of written sectors, but never more).
 	 *
 	 * For reads we just fail the entire chunk as that should
 	 * be safe in all cases.
 	 */
- 	if (rq_data_dir(req) != READ && mmc_card_sd(card)) {
-		u32 blocks;
-		unsigned int bytes;
+	if (rq_data_dir(req) != READ) {
+		if (mmc_card_sd(card)) {
+			u32 blocks;
 
-		blocks = mmc_sd_num_wr_blocks(card);
-		if (blocks != (u32)-1) {
-			if (card->csd.write_partial)
-				bytes = blocks << md->block_bits;
-			else
-				bytes = blocks << 9;
+			blocks = mmc_sd_num_wr_blocks(card);
+			if (blocks != (u32)-1) {
+				spin_lock_irq(&md->lock);
+				ret = __blk_end_request(req, 0, blocks << 9);
+				spin_unlock_irq(&md->lock);
+			}
+		} else {
 			spin_lock_irq(&md->lock);
-			ret = __blk_end_request(req, 0, bytes);
+			ret = __blk_end_request(req, 0, brq.data.bytes_xfered);
 			spin_unlock_irq(&md->lock);
 		}
-	} else if (rq_data_dir(req) != READ &&
-		   (card->host->caps & MMC_CAP_MULTIWRITE)) {
-		spin_lock_irq(&md->lock);
-		ret = __blk_end_request(req, 0, brq.data.bytes_xfered);
-		spin_unlock_irq(&md->lock);
 	}
 
 	mmc_release_host(card->host);
@@ -428,13 +405,6 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 	 */
 	md->read_only = mmc_blk_readonly(card);
 
-	/*
-	 * Both SD and MMC specifications state (although a bit
-	 * unclearly in the MMC case) that a block size of 512
-	 * bytes must always be supported by the card.
-	 */
-	md->block_bits = 9;
-
 	md->disk = alloc_disk(1 << MMC_SHIFT);
 	if (md->disk == NULL) {
 		ret = -ENOMEM;
@@ -472,7 +442,7 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 
 	sprintf(md->disk->disk_name, "mmcblk%d", devidx);
 
-	blk_queue_hardsect_size(md->queue.queue, 1 << md->block_bits);
+	blk_queue_hardsect_size(md->queue.queue, 512);
 
 	if (!mmc_card_sd(card) && mmc_card_blockaddr(card)) {
 		/*
@@ -510,7 +480,7 @@ mmc_blk_set_blksize(struct mmc_blk_data *md, struct mmc_card *card)
 
 	mmc_claim_host(card->host);
 	cmd.opcode = MMC_SET_BLOCKLEN;
-	cmd.arg = 1 << md->block_bits;
+	cmd.arg = 512;
 	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_AC;
 	err = mmc_wait_for_cmd(card->host, &cmd, 5);
 	mmc_release_host(card->host);
@@ -529,6 +499,8 @@ static int mmc_blk_probe(struct mmc_card *card)
 	struct mmc_blk_data *md;
 	int err;
 
+	char cap_str[10];
+
 	/*
 	 * Check that the card supports the command class(es) we need.
 	 */
@@ -543,10 +515,11 @@ static int mmc_blk_probe(struct mmc_card *card)
 	if (err)
 		goto out;
 
-	printk(KERN_INFO "%s: %s %s %lluKiB %s\n",
+	string_get_size(get_capacity(md->disk) << 9, STRING_UNITS_2,
+			cap_str, sizeof(cap_str));
+	printk(KERN_INFO "%s: %s %s %s %s\n",
 		md->disk->disk_name, mmc_card_id(card), mmc_card_name(card),
-		(unsigned long long)(get_capacity(md->disk) >> 1),
-		md->read_only ? "(ro)" : "");
+		cap_str, md->read_only ? "(ro)" : "");
 
 	mmc_set_drvdata(card, md);
 	add_disk(md->disk);
@@ -612,14 +585,19 @@ static struct mmc_driver mmc_driver = {
 
 static int __init mmc_blk_init(void)
 {
-	int res = -ENOMEM;
+	int res;
 
 	res = register_blkdev(MMC_BLOCK_MAJOR, "mmc");
 	if (res)
 		goto out;
 
-	return mmc_register_driver(&mmc_driver);
+	res = mmc_register_driver(&mmc_driver);
+	if (res)
+		goto out2;
 
+	return 0;
+ out2:
+	unregister_blkdev(MMC_BLOCK_MAJOR, "mmc");
  out:
 	return res;
 }

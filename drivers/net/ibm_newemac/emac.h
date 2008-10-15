@@ -27,37 +27,80 @@
 
 #include <linux/types.h>
 
-/* EMAC registers 		Write Access rules */
+/* EMAC registers 			Write Access rules */
 struct emac_regs {
-	u32 mr0;		/* special 	*/
-	u32 mr1;		/* Reset 	*/
-	u32 tmr0;		/* special 	*/
-	u32 tmr1;		/* special 	*/
-	u32 rmr;		/* Reset 	*/
-	u32 isr;		/* Always 	*/
-	u32 iser;		/* Reset 	*/
-	u32 iahr;		/* Reset, R, T 	*/
-	u32 ialr;		/* Reset, R, T 	*/
-	u32 vtpid;		/* Reset, R, T 	*/
-	u32 vtci;		/* Reset, R, T 	*/
-	u32 ptr;		/* Reset,    T 	*/
-	u32 iaht1;		/* Reset, R	*/
-	u32 iaht2;		/* Reset, R	*/
-	u32 iaht3;		/* Reset, R	*/
-	u32 iaht4;		/* Reset, R	*/
-	u32 gaht1;		/* Reset, R	*/
-	u32 gaht2;		/* Reset, R	*/
-	u32 gaht3;		/* Reset, R	*/
-	u32 gaht4;		/* Reset, R	*/
+	/* Common registers across all EMAC implementations. */
+	u32 mr0;			/* Special 	*/
+	u32 mr1;			/* Reset 	*/
+	u32 tmr0;			/* Special 	*/
+	u32 tmr1;			/* Special 	*/
+	u32 rmr;			/* Reset 	*/
+	u32 isr;			/* Always 	*/
+	u32 iser;			/* Reset 	*/
+	u32 iahr;			/* Reset, R, T 	*/
+	u32 ialr;			/* Reset, R, T 	*/
+	u32 vtpid;			/* Reset, R, T 	*/
+	u32 vtci;			/* Reset, R, T 	*/
+	u32 ptr;			/* Reset,    T 	*/
+	union {
+		/* Registers unique to EMAC4 implementations */
+		struct {
+			u32 iaht1;	/* Reset, R	*/
+			u32 iaht2;	/* Reset, R	*/
+			u32 iaht3;	/* Reset, R	*/
+			u32 iaht4;	/* Reset, R	*/
+			u32 gaht1;	/* Reset, R	*/
+			u32 gaht2;	/* Reset, R	*/
+			u32 gaht3;	/* Reset, R	*/
+			u32 gaht4;	/* Reset, R	*/
+		} emac4;
+		/* Registers unique to EMAC4SYNC implementations */
+		struct {
+			u32 mahr;	/* Reset, R, T  */
+			u32 malr;	/* Reset, R, T  */
+			u32 mmahr;	/* Reset, R, T  */
+			u32 mmalr;	/* Reset, R, T  */
+			u32 rsvd0[4];
+		} emac4sync;
+	} u0;
+	/* Common registers across all EMAC implementations. */
 	u32 lsah;
 	u32 lsal;
-	u32 ipgvr;		/* Reset,    T 	*/
-	u32 stacr;		/* special 	*/
-	u32 trtr;		/* special 	*/
-	u32 rwmr;		/* Reset 	*/
+	u32 ipgvr;			/* Reset,    T 	*/
+	u32 stacr;			/* Special 	*/
+	u32 trtr;			/* Special 	*/
+	u32 rwmr;			/* Reset 	*/
 	u32 octx;
 	u32 ocrx;
-	u32 ipcr;
+	union {
+		/* Registers unique to EMAC4 implementations */
+		struct {
+			u32 ipcr;
+		} emac4;
+		/* Registers unique to EMAC4SYNC implementations */
+		struct {
+			u32 rsvd1;
+			u32 revid;
+ 			u32 rsvd2[2];
+			u32 iaht1;	/* Reset, R     */
+			u32 iaht2;	/* Reset, R     */
+			u32 iaht3;	/* Reset, R     */
+			u32 iaht4;	/* Reset, R     */
+			u32 iaht5;	/* Reset, R     */
+			u32 iaht6;	/* Reset, R     */
+			u32 iaht7;	/* Reset, R     */
+			u32 iaht8;	/* Reset, R     */
+			u32 gaht1;	/* Reset, R     */
+			u32 gaht2;	/* Reset, R     */
+			u32 gaht3;	/* Reset, R     */
+			u32 gaht4;	/* Reset, R     */
+			u32 gaht5;	/* Reset, R     */
+			u32 gaht6;	/* Reset, R     */
+			u32 gaht7;	/* Reset, R     */
+			u32 gaht8;	/* Reset, R     */
+			u32 tpc;	/* Reset, T     */
+		} emac4sync;
+	} u1;
 };
 
 /*
@@ -72,12 +115,6 @@ struct emac_regs {
 #define PHY_MODE_GMII	6
 #define PHY_MODE_RTBI	7
 #define PHY_MODE_SGMII	8
-
-
-#define EMAC_ETHTOOL_REGS_VER		0
-#define EMAC_ETHTOOL_REGS_SIZE		(sizeof(struct emac_regs) - sizeof(u32))
-#define EMAC4_ETHTOOL_REGS_VER      	1
-#define EMAC4_ETHTOOL_REGS_SIZE		sizeof(struct emac_regs)
 
 /* EMACx_MR0 */
 #define EMAC_MR0_RXI			0x80000000

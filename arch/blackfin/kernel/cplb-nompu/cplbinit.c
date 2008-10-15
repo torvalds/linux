@@ -26,11 +26,7 @@
 #include <asm/cplb.h>
 #include <asm/cplbinit.h>
 
-#ifdef CONFIG_MAX_MEM_SIZE
-# define CPLB_MEM CONFIG_MAX_MEM_SIZE
-#else
-# define CPLB_MEM CONFIG_MEM_SIZE
-#endif
+#define CPLB_MEM CONFIG_MAX_MEM_SIZE
 
 /*
 * Number of required data CPLB switchtable entries
@@ -168,17 +164,13 @@ static struct cplb_desc cplb_data[] = {
 		.name = "Asynchronous Memory Banks",
 	},
 	{
-#ifdef L2_START
 		.start = L2_START,
 		.end = L2_START + L2_LENGTH,
 		.psize = SIZE_1M,
 		.attr = SWITCH_T | I_CPLB | D_CPLB,
-		.i_conf = L2_MEMORY,
-		.d_conf = L2_MEMORY,
-		.valid = 1,
-#else
-		.valid = 0,
-#endif
+		.i_conf = L2_IMEMORY,
+		.d_conf = L2_DMEMORY,
+		.valid = (L2_LENGTH > 0),
 		.name = "L2 Memory",
 	},
 	{
@@ -254,7 +246,8 @@ close_cplbtab(struct cplb_tab *table)
 }
 
 /* helper function */
-static void __fill_code_cplbtab(struct cplb_tab *t, int i, u32 a_start, u32 a_end)
+static void __init
+__fill_code_cplbtab(struct cplb_tab *t, int i, u32 a_start, u32 a_end)
 {
 	if (cplb_data[i].psize) {
 		fill_cplbtab(t,
@@ -291,7 +284,8 @@ static void __fill_code_cplbtab(struct cplb_tab *t, int i, u32 a_start, u32 a_en
 	}
 }
 
-static void __fill_data_cplbtab(struct cplb_tab *t, int i, u32 a_start, u32 a_end)
+static void __init
+__fill_data_cplbtab(struct cplb_tab *t, int i, u32 a_start, u32 a_end)
 {
 	if (cplb_data[i].psize) {
 		fill_cplbtab(t,
@@ -314,7 +308,7 @@ static void __fill_data_cplbtab(struct cplb_tab *t, int i, u32 a_start, u32 a_en
 	}
 }
 
-void __init generate_cpl_tables(void)
+void __init generate_cplb_tables(void)
 {
 
 	u16 i, j, process;

@@ -1,13 +1,5 @@
 obj-$(CONFIG_MAC80211) += mac80211.o
 
-# objects for PID algorithm
-rc80211_pid-y := rc80211_pid_algo.o
-rc80211_pid-$(CONFIG_MAC80211_DEBUGFS) += rc80211_pid_debugfs.o
-
-# build helper for PID algorithm
-rc-pid-y := $(rc80211_pid-y)
-rc-pid-m := rc80211_pid.o
-
 # mac80211 objects
 mac80211-y := \
 	main.o \
@@ -15,6 +7,8 @@ mac80211-y := \
 	sta_info.o \
 	wep.o \
 	wpa.o \
+	scan.o \
+	ht.o \
 	mlme.o \
 	iface.o \
 	rate.o \
@@ -23,13 +17,14 @@ mac80211-y := \
 	aes_ccm.o \
 	cfg.o \
 	rx.o \
+	spectmgmt.o \
 	tx.o \
 	key.o \
 	util.o \
+	wme.o \
 	event.o
 
 mac80211-$(CONFIG_MAC80211_LEDS) += led.o
-mac80211-$(CONFIG_NET_SCHED) += wme.o
 mac80211-$(CONFIG_MAC80211_DEBUGFS) += \
 	debugfs.o \
 	debugfs_sta.o \
@@ -42,10 +37,12 @@ mac80211-$(CONFIG_MAC80211_MESH) += \
 	mesh_plink.o \
 	mesh_hwmp.o
 
+# objects for PID algorithm
+rc80211_pid-y := rc80211_pid_algo.o
+rc80211_pid-$(CONFIG_MAC80211_DEBUGFS) += rc80211_pid_debugfs.o
 
-# Build rate control algorithm(s)
-CFLAGS_rc80211_pid_algo.o += -DRC80211_PID_COMPILE
-mac80211-$(CONFIG_MAC80211_RC_PID) += $(rc-pid-$(CONFIG_MAC80211_RC_PID))
+rc80211_minstrel-y := rc80211_minstrel.o
+rc80211_minstrel-$(CONFIG_MAC80211_DEBUGFS) += rc80211_minstrel_debugfs.o
 
-# Modular rate algorithms are assigned to mac80211-m - make separate modules
-obj-m += $(mac80211-m)
+mac80211-$(CONFIG_MAC80211_RC_PID) += $(rc80211_pid-y)
+mac80211-$(CONFIG_MAC80211_RC_MINSTREL) += $(rc80211_minstrel-y)

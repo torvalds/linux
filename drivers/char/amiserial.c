@@ -837,9 +837,6 @@ static int rs_put_char(struct tty_struct *tty, unsigned char ch)
 	struct async_struct *info;
 	unsigned long flags;
 
-	if (!tty)
-		return 0;
-
 	info = tty->driver_data;
 
 	if (serial_paranoia_check(info, tty->name, "rs_put_char"))
@@ -891,9 +888,6 @@ static int rs_write(struct tty_struct * tty, const unsigned char *buf, int count
 	int	c, ret = 0;
 	struct async_struct *info;
 	unsigned long flags;
-
-	if (!tty)
-		return 0;
 
 	info = tty->driver_data;
 
@@ -1248,13 +1242,13 @@ static int rs_tiocmset(struct tty_struct *tty, struct file *file,
 /*
  * rs_break() --- routine which turns the break handling on or off
  */
-static void rs_break(struct tty_struct *tty, int break_state)
+static int rs_break(struct tty_struct *tty, int break_state)
 {
 	struct async_struct * info = (struct async_struct *)tty->driver_data;
 	unsigned long flags;
 
 	if (serial_paranoia_check(info, tty->name, "rs_break"))
-		return;
+		return -EINVAL;
 
 	local_irq_save(flags);
 	if (break_state == -1)
@@ -1263,6 +1257,7 @@ static void rs_break(struct tty_struct *tty, int break_state)
 	  custom.adkcon = AC_UARTBRK;
 	mb();
 	local_irq_restore(flags);
+	return 0;
 }
 
 

@@ -64,7 +64,7 @@ static void prom_exit(void)
 #ifdef CONFIG_SMP
 	if (smp_processor_id())
 		/* CPU 1 */
-		smp_call_function(prom_cpu0_exit, NULL, 1, 1);
+		smp_call_function(prom_cpu0_exit, NULL, 1);
 #endif
 	prom_cpu0_exit(NULL);
 }

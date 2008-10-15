@@ -24,6 +24,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/fcntl.h>
 
 #define MLOG_MASK_PREFIX ML_INODE
 #include <cluster/masklog.h>
@@ -32,6 +33,7 @@
 
 #include "dlmglue.h"
 #include "file.h"
+#include "inode.h"
 #include "locks.h"
 
 static int ocfs2_do_flock(struct file *file, struct inode *inode,
@@ -122,4 +124,17 @@ int ocfs2_flock(struct file *file, int cmd, struct file_lock *fl)
 		return ocfs2_do_funlock(file, cmd, fl);
 	else
 		return ocfs2_do_flock(file, inode, cmd, fl);
+}
+
+int ocfs2_lock(struct file *file, int cmd, struct file_lock *fl)
+{
+	struct inode *inode = file->f_mapping->host;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+
+	if (!(fl->fl_flags & FL_POSIX))
+		return -ENOLCK;
+	if (__mandatory_lock(inode))
+		return -ENOLCK;
+
+	return ocfs2_plock(osb->cconn, OCFS2_I(inode)->ip_blkno, file, cmd, fl);
 }

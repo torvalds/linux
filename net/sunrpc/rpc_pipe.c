@@ -897,7 +897,7 @@ static struct file_system_type rpc_pipe_fs_type = {
 };
 
 static void
-init_once(struct kmem_cache * cachep, void *foo)
+init_once(void *foo)
 {
 	struct rpc_inode *rpci = (struct rpc_inode *) foo;
 

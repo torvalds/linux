@@ -39,6 +39,7 @@
 #include <linux/highmem.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
+#include <linux/smp_lock.h>
 #include <asm/pgtable.h>
 
 #include "ipath_kernel.h"
@@ -1815,6 +1816,7 @@ done:
 static int ipath_open(struct inode *in, struct file *fp)
 {
 	/* The real work is performed later in ipath_assign_port() */
+	cycle_kernel_lock();
 	fp->private_data = kzalloc(sizeof(struct ipath_filedata), GFP_KERNEL);
 	return fp->private_data ? 0 : -ENOMEM;
 }
@@ -2453,7 +2455,7 @@ static int init_cdev(int minor, char *name, const struct file_operations *fops,
 		goto err_cdev;
 	}
 
-	device = device_create(ipath_class, NULL, dev, name);
+	device = device_create_drvdata(ipath_class, NULL, dev, NULL, name);
 
 	if (IS_ERR(device)) {
 		ret = PTR_ERR(device);

@@ -33,8 +33,7 @@
 #include <asm/apic.h>
 #include <asm/timer.h>
 #include <asm/i8253.h>
-
-#include <irq_vectors.h>
+#include <asm/irq_vectors.h>
 
 #define VMI_ONESHOT  (VMI_ALARM_IS_ONESHOT  | VMI_CYCLES_REAL | vmi_get_alarm_wiring())
 #define VMI_PERIODIC (VMI_ALARM_IS_PERIODIC | VMI_CYCLES_REAL | vmi_get_alarm_wiring())
@@ -70,8 +69,8 @@ unsigned long long vmi_sched_clock(void)
 	return cycles_2_ns(vmi_timer_ops.get_cycle_counter(VMI_CYCLES_AVAILABLE));
 }
 
-/* paravirt_ops.get_cpu_khz = vmi_cpu_khz */
-unsigned long vmi_cpu_khz(void)
+/* paravirt_ops.get_tsc_khz = vmi_tsc_khz */
+unsigned long vmi_tsc_khz(void)
 {
 	unsigned long long khz;
 	khz = vmi_timer_ops.get_cycle_frequency();

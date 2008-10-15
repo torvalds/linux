@@ -3,7 +3,8 @@
 
 /* exports for if */
 struct usb_hcd *isp1760_register(u64 res_start, u64 res_len, int irq,
-		u64 irqflags, struct device *dev, const char *busname);
+		u64 irqflags, struct device *dev, const char *busname,
+		unsigned int devflags);
 int init_kmem_once(void);
 void deinit_kmem_cache(void);
 
@@ -31,6 +32,7 @@ void deinit_kmem_cache(void);
 /* Configuration Register */
 #define HC_HW_MODE_CTRL		0x300
 #define ALL_ATX_RESET		(1 << 31)
+#define HW_ANA_DIGI_OC		(1 << 15)
 #define HW_DATA_BUS_32BIT	(1 << 8)
 #define HW_DACK_POL_HIGH	(1 << 6)
 #define HW_DREQ_POL_HIGH	(1 << 5)
@@ -52,17 +54,20 @@ void deinit_kmem_cache(void);
 #define BUFFER_MAP		0x7
 
 #define HC_MEMORY_REG		0x33c
+#define ISP_BANK(x)		((x) << 16)
+
 #define HC_PORT1_CTRL		0x374
 #define PORT1_POWER		(3 << 3)
 #define PORT1_INIT1		(1 << 7)
 #define PORT1_INIT2		(1 << 23)
+#define HW_OTG_CTRL_SET		0x374
+#define HW_OTG_CTRL_CLR		0x376
 
 /* Interrupt Register */
 #define HC_INTERRUPT_REG	0x310
 
 #define HC_INTERRUPT_ENABLE	0x314
 #define INTERRUPT_ENABLE_MASK	(HC_INTL_INT | HC_ATL_INT | HC_EOT_INT)
-#define FINAL_HW_CONFIG	(HW_GLOBAL_INTR_EN | HW_DATA_BUS_32BIT)
 
 #define HC_ISO_INT		(1 << 9)
 #define HC_ATL_INT		(1 << 8)
@@ -116,11 +121,27 @@ struct inter_packet_info {
 typedef void (packet_enqueue)(struct usb_hcd *hcd, struct isp1760_qh *qh,
 		struct isp1760_qtd *qtd);
 
+#define isp1760_dbg(priv, fmt, args...) \
+	dev_dbg(priv_to_hcd(priv)->self.controller, fmt, ##args)
+
 #define isp1760_info(priv, fmt, args...) \
 	dev_info(priv_to_hcd(priv)->self.controller, fmt, ##args)
 
 #define isp1760_err(priv, fmt, args...) \
 	dev_err(priv_to_hcd(priv)->self.controller, fmt, ##args)
+
+/*
+ * Device flags that can vary from board to board.  All of these
+ * indicate the most "atypical" case, so that a devflags of 0 is
+ * a sane default configuration.
+ */
+#define ISP1760_FLAG_PORT1_DIS		0x00000001 /* Port 1 disabled */
+#define ISP1760_FLAG_BUS_WIDTH_16	0x00000002 /* 16-bit data bus width */
+#define ISP1760_FLAG_OTG_EN		0x00000004 /* Port 1 supports OTG */
+#define ISP1760_FLAG_ANALOG_OC		0x00000008 /* Analog overcurrent */
+#define ISP1760_FLAG_DACK_POL_HIGH	0x00000010 /* DACK active high */
+#define ISP1760_FLAG_DREQ_POL_HIGH	0x00000020 /* DREQ active high */
+#define ISP1760_FLAG_ISP1761		0x00000040 /* Chip is ISP1761 */
 
 /* chip memory management */
 struct memory_chunk {

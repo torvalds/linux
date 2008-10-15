@@ -85,7 +85,8 @@ xfs_dir2_trace_args(
 		(void *)((unsigned long)(args->inumber >> 32)),
 		(void *)((unsigned long)(args->inumber & 0xFFFFFFFF)),
 		(void *)args->dp, (void *)args->trans,
-		(void *)(unsigned long)args->justcheck, NULL, NULL);
+		(void *)(unsigned long)(args->op_flags & XFS_DA_OP_JUSTCHECK),
+		NULL, NULL);
 }
 
 void
@@ -100,7 +101,7 @@ xfs_dir2_trace_args_b(
 		(void *)((unsigned long)(args->inumber >> 32)),
 		(void *)((unsigned long)(args->inumber & 0xFFFFFFFF)),
 		(void *)args->dp, (void *)args->trans,
-		(void *)(unsigned long)args->justcheck,
+		(void *)(unsigned long)(args->op_flags & XFS_DA_OP_JUSTCHECK),
 		(void *)(bp ? bp->bps[0] : NULL), NULL);
 }
 
@@ -117,7 +118,7 @@ xfs_dir2_trace_args_bb(
 		(void *)((unsigned long)(args->inumber >> 32)),
 		(void *)((unsigned long)(args->inumber & 0xFFFFFFFF)),
 		(void *)args->dp, (void *)args->trans,
-		(void *)(unsigned long)args->justcheck,
+		(void *)(unsigned long)(args->op_flags & XFS_DA_OP_JUSTCHECK),
 		(void *)(lbp ? lbp->bps[0] : NULL),
 		(void *)(dbp ? dbp->bps[0] : NULL));
 }
@@ -157,8 +158,8 @@ xfs_dir2_trace_args_db(
 		(void *)((unsigned long)(args->inumber >> 32)),
 		(void *)((unsigned long)(args->inumber & 0xFFFFFFFF)),
 		(void *)args->dp, (void *)args->trans,
-		(void *)(unsigned long)args->justcheck, (void *)(long)db,
-		(void *)dbp);
+		(void *)(unsigned long)(args->op_flags & XFS_DA_OP_JUSTCHECK),
+		(void *)(long)db, (void *)dbp);
 }
 
 void
@@ -173,7 +174,7 @@ xfs_dir2_trace_args_i(
 		(void *)((unsigned long)(args->inumber >> 32)),
 		(void *)((unsigned long)(args->inumber & 0xFFFFFFFF)),
 		(void *)args->dp, (void *)args->trans,
-		(void *)(unsigned long)args->justcheck,
+		(void *)(unsigned long)(args->op_flags & XFS_DA_OP_JUSTCHECK),
 		(void *)((unsigned long)(i >> 32)),
 		(void *)((unsigned long)(i & 0xFFFFFFFF)));
 }
@@ -190,7 +191,8 @@ xfs_dir2_trace_args_s(
 		(void *)((unsigned long)(args->inumber >> 32)),
 		(void *)((unsigned long)(args->inumber & 0xFFFFFFFF)),
 		(void *)args->dp, (void *)args->trans,
-		(void *)(unsigned long)args->justcheck, (void *)(long)s, NULL);
+		(void *)(unsigned long)(args->op_flags & XFS_DA_OP_JUSTCHECK),
+		(void *)(long)s, NULL);
 }
 
 void
@@ -208,7 +210,7 @@ xfs_dir2_trace_args_sb(
 		(void *)((unsigned long)(args->inumber >> 32)),
 		(void *)((unsigned long)(args->inumber & 0xFFFFFFFF)),
 		(void *)args->dp, (void *)args->trans,
-		(void *)(unsigned long)args->justcheck, (void *)(long)s,
-		(void *)dbp);
+		(void *)(unsigned long)(args->op_flags & XFS_DA_OP_JUSTCHECK),
+		(void *)(long)s, (void *)dbp);
 }
 #endif	/* XFS_DIR2_TRACE */

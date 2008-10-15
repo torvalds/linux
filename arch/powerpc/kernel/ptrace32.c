@@ -64,6 +64,11 @@ static long compat_ptrace_old(struct task_struct *child, long request,
 	return -EPERM;
 }
 
+/* Macros to workout the correct index for the FPR in the thread struct */
+#define FPRNUMBER(i) (((i) - PT_FPR0) >> 1)
+#define FPRHALF(i) (((i) - PT_FPR0) & 1)
+#define FPRINDEX(i) TS_FPRWIDTH * FPRNUMBER(i) + FPRHALF(i)
+
 long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			compat_ulong_t caddr, compat_ulong_t cdata)
 {
@@ -122,7 +127,8 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			 * to be an array of unsigned int (32 bits) - the
 			 * index passed in is based on this assumption.
 			 */
-			tmp = ((unsigned int *)child->thread.fpr)[index - PT_FPR0];
+			tmp = ((unsigned int *)child->thread.fpr)
+				[FPRINDEX(index)];
 		}
 		ret = put_user((unsigned int)tmp, (u32 __user *)data);
 		break;
@@ -162,7 +168,8 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		CHECK_FULL_REGS(child->thread.regs);
 		if (numReg >= PT_FPR0) {
 			flush_fp_to_thread(child);
-			tmp = ((unsigned long int *)child->thread.fpr)[numReg - PT_FPR0];
+			tmp = ((unsigned long int *)child->thread.fpr)
+				[FPRINDEX(numReg)];
 		} else { /* register within PT_REGS struct */
 			tmp = ptrace_get_reg(child, numReg);
 		} 
@@ -217,7 +224,8 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			 * to be an array of unsigned int (32 bits) - the
 			 * index passed in is based on this assumption.
 			 */
-			((unsigned int *)child->thread.fpr)[index - PT_FPR0] = data;
+			((unsigned int *)child->thread.fpr)
+				[FPRINDEX(index)] = data;
 			ret = 0;
 		}
 		break;
@@ -286,6 +294,8 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 	case PTRACE_SETFPREGS:
 	case PTRACE_GETVRREGS:
 	case PTRACE_SETVRREGS:
+	case PTRACE_GETVSRREGS:
+	case PTRACE_SETVSRREGS:
 	case PTRACE_GETREGS64:
 	case PTRACE_SETREGS64:
 	case PPC_PTRACE_GETFPREGS:

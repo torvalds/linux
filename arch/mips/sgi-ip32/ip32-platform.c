@@ -65,6 +65,31 @@ static __init int meth_devinit(void)
 
 device_initcall(meth_devinit);
 
+static __init int sgio2audio_devinit(void)
+{
+	struct platform_device *pd;
+	int ret;
+
+	pd = platform_device_alloc("sgio2audio", -1);
+	if (!pd)
+		return -ENOMEM;
+
+	ret = platform_device_add(pd);
+	if (ret)
+		platform_device_put(pd);
+
+	return ret;
+}
+
+device_initcall(sgio2audio_devinit);
+
+static __init int sgio2btns_devinit(void)
+{
+	return IS_ERR(platform_device_register_simple("sgibtns", -1, NULL, 0));
+}
+
+device_initcall(sgio2btns_devinit);
+
 MODULE_AUTHOR("Ralf Baechle <ralf@linux-mips.org>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("8250 UART probe driver for SGI IP32 aka O2");

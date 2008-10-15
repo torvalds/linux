@@ -46,7 +46,6 @@
 #endif
 
 
-EXPORT_SYMBOL(adb_controller);
 EXPORT_SYMBOL(adb_client_list);
 
 extern struct adb_driver via_macii_driver;
@@ -80,7 +79,7 @@ static struct adb_driver *adb_driver_list[] = {
 
 static struct class *adb_dev_class;
 
-struct adb_driver *adb_controller;
+static struct adb_driver *adb_controller;
 BLOCKING_NOTIFIER_HEAD(adb_client_list);
 static int adb_got_sleep;
 static int adb_inited;
@@ -290,7 +289,7 @@ static int adb_resume(struct platform_device *dev)
 }
 #endif /* CONFIG_PM */
 
-int __init adb_init(void)
+static int __init adb_init(void)
 {
 	struct adb_driver *driver;
 	int i;
@@ -644,12 +643,18 @@ do_adb_query(struct adb_request *req)
 static int adb_open(struct inode *inode, struct file *file)
 {
 	struct adbdev_state *state;
+	int ret = 0;
 
-	if (iminor(inode) > 0 || adb_controller == NULL)
-		return -ENXIO;
+	lock_kernel();
+	if (iminor(inode) > 0 || adb_controller == NULL) {
+		ret = -ENXIO;
+		goto out;
+	}
 	state = kmalloc(sizeof(struct adbdev_state), GFP_KERNEL);
-	if (state == 0)
-		return -ENOMEM;
+	if (state == 0) {
+		ret = -ENOMEM;
+		goto out;
+	}
 	file->private_data = state;
 	spin_lock_init(&state->lock);
 	atomic_set(&state->n_pending, 0);
@@ -657,7 +662,9 @@ static int adb_open(struct inode *inode, struct file *file)
 	init_waitqueue_head(&state->wait_queue);
 	state->inuse = 1;
 
-	return 0;
+out:
+	unlock_kernel();
+	return ret;
 }
 
 static int adb_release(struct inode *inode, struct file *file)
@@ -855,7 +862,8 @@ adbdev_init(void)
 	adb_dev_class = class_create(THIS_MODULE, "adb");
 	if (IS_ERR(adb_dev_class))
 		return;
-	device_create(adb_dev_class, NULL, MKDEV(ADB_MAJOR, 0), "adb");
+	device_create_drvdata(adb_dev_class, NULL, MKDEV(ADB_MAJOR, 0), NULL,
+			      "adb");
 
 	platform_device_register(&adb_pfdev);
 	platform_driver_probe(&adb_pfdrv, adb_dummy_probe);

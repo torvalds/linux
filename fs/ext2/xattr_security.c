@@ -14,7 +14,7 @@ static size_t
 ext2_xattr_security_list(struct inode *inode, char *list, size_t list_size,
 			 const char *name, size_t name_len)
 {
-	const int prefix_len = sizeof(XATTR_SECURITY_PREFIX)-1;
+	const int prefix_len = XATTR_SECURITY_PREFIX_LEN;
 	const size_t total_len = prefix_len + name_len + 1;
 
 	if (list && total_len <= list_size) {

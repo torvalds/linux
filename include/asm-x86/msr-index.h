@@ -1,5 +1,5 @@
-#ifndef __ASM_MSR_INDEX_H
-#define __ASM_MSR_INDEX_H
+#ifndef ASM_X86__MSR_INDEX_H
+#define ASM_X86__MSR_INDEX_H
 
 /* CPU model specific register (MSR) numbers */
 
@@ -111,7 +111,9 @@
 #define MSR_K8_TOP_MEM2			0xc001001d
 #define MSR_K8_SYSCFG			0xc0010010
 #define MSR_K8_HWCR			0xc0010015
-#define MSR_K8_ENABLE_C1E		0xc0010055
+#define MSR_K8_INT_PENDING_MSG		0xc0010055
+/* C1E active bits in int pending message */
+#define K8_INTP_C1E_ACTIVE_MASK		0x18000000
 #define MSR_K8_TSEG_ADDR		0xc0010112
 #define K8_MTRRFIXRANGE_DRAM_ENABLE	0x00040000 /* MtrrFixDramEn bit    */
 #define K8_MTRRFIXRANGE_DRAM_MODIFY	0x00080000 /* MtrrFixDramModEn bit */
@@ -174,6 +176,7 @@
 #define MSR_IA32_TSC			0x00000010
 #define MSR_IA32_PLATFORM_ID		0x00000017
 #define MSR_IA32_EBL_CR_POWERON		0x0000002a
+#define MSR_IA32_FEATURE_CONTROL        0x0000003a
 
 #define MSR_IA32_APICBASE		0x0000001b
 #define MSR_IA32_APICBASE_BSP		(1<<8)
@@ -308,4 +311,19 @@
 /* Geode defined MSRs */
 #define MSR_GEODE_BUSCONT_CONF0		0x00001900
 
-#endif /* __ASM_MSR_INDEX_H */
+/* Intel VT MSRs */
+#define MSR_IA32_VMX_BASIC              0x00000480
+#define MSR_IA32_VMX_PINBASED_CTLS      0x00000481
+#define MSR_IA32_VMX_PROCBASED_CTLS     0x00000482
+#define MSR_IA32_VMX_EXIT_CTLS          0x00000483
+#define MSR_IA32_VMX_ENTRY_CTLS         0x00000484
+#define MSR_IA32_VMX_MISC               0x00000485
+#define MSR_IA32_VMX_CR0_FIXED0         0x00000486
+#define MSR_IA32_VMX_CR0_FIXED1         0x00000487
+#define MSR_IA32_VMX_CR4_FIXED0         0x00000488
+#define MSR_IA32_VMX_CR4_FIXED1         0x00000489
+#define MSR_IA32_VMX_VMCS_ENUM          0x0000048a
+#define MSR_IA32_VMX_PROCBASED_CTLS2    0x0000048b
+#define MSR_IA32_VMX_EPT_VPID_CAP       0x0000048c
+
+#endif /* ASM_X86__MSR_INDEX_H */

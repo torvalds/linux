@@ -117,15 +117,14 @@ int request_dma(unsigned int channel, char *device_id)
 
 #ifdef CONFIG_BF54x
 	if (channel >= CH_UART2_RX && channel <= CH_UART3_TX) {
-		if (strncmp(device_id, "BFIN_UART", 9) == 0) {
-			dma_ch[channel].regs->peripheral_map &= 0x0FFF;
-			dma_ch[channel].regs->peripheral_map |=
+		unsigned int per_map;
+		per_map = dma_ch[channel].regs->peripheral_map & 0xFFF;
+		if (strncmp(device_id, "BFIN_UART", 9) == 0)
+			dma_ch[channel].regs->peripheral_map = per_map |
 				((channel - CH_UART2_RX + 0xC)<<12);
-		} else {
-			dma_ch[channel].regs->peripheral_map &= 0x0FFF;
-			dma_ch[channel].regs->peripheral_map |=
+		else
+			dma_ch[channel].regs->peripheral_map = per_map |
 				((channel - CH_UART2_RX + 0x6)<<12);
-		}
 	}
 #endif
 
@@ -471,6 +470,40 @@ unsigned long get_dma_curr_addr(unsigned int channel)
 	return dma_ch[channel].regs->curr_addr_ptr;
 }
 EXPORT_SYMBOL(get_dma_curr_addr);
+
+#ifdef CONFIG_PM
+int blackfin_dma_suspend(void)
+{
+	int i;
+
+#ifdef CONFIG_BF561	/* IMDMA channels doesn't have a PERIPHERAL_MAP */
+	for (i = 0; i <= CH_MEM_STREAM3_SRC; i++) {
+#else
+	for (i = 0; i < MAX_BLACKFIN_DMA_CHANNEL; i++) {
+#endif
+		if (dma_ch[i].chan_status == DMA_CHANNEL_ENABLED) {
+			printk(KERN_ERR "DMA Channel %d failed to suspend\n", i);
+			return -EBUSY;
+		}
+
+		dma_ch[i].saved_peripheral_map = dma_ch[i].regs->peripheral_map;
+	}
+
+	return 0;
+}
+
+void blackfin_dma_resume(void)
+{
+	int i;
+
+#ifdef CONFIG_BF561	/* IMDMA channels doesn't have a PERIPHERAL_MAP */
+	for (i = 0; i <= CH_MEM_STREAM3_SRC; i++)
+#else
+	for (i = 0; i < MAX_BLACKFIN_DMA_CHANNEL; i++)
+#endif
+		dma_ch[i].regs->peripheral_map = dma_ch[i].saved_peripheral_map;
+}
+#endif
 
 static void *__dma_memcpy(void *dest, const void *src, size_t size)
 {

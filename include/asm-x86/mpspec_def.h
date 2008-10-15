@@ -1,5 +1,5 @@
-#ifndef __ASM_MPSPEC_DEF_H
-#define __ASM_MPSPEC_DEF_H
+#ifndef ASM_X86__MPSPEC_DEF_H
+#define ASM_X86__MPSPEC_DEF_H
 
 /*
  * Structure definitions for SMP machines following the
@@ -17,10 +17,11 @@
 # define MAX_MPC_ENTRY 1024
 # define MAX_APICS      256
 #else
-/*
- * A maximum of 255 APICs with the current APIC ID architecture.
- */
-# define MAX_APICS 255
+# if NR_CPUS <= 255
+#  define MAX_APICS     255
+# else
+#  define MAX_APICS   32768
+# endif
 #endif
 
 struct intel_mp_floating {
@@ -176,4 +177,4 @@ enum mp_bustype {
 	MP_BUS_PCI,
 	MP_BUS_MCA,
 };
-#endif
+#endif /* ASM_X86__MPSPEC_DEF_H */

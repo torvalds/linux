@@ -1,5 +1,5 @@
-#ifndef __x86_PCI_H
-#define __x86_PCI_H
+#ifndef ASM_X86__PCI_H
+#define ASM_X86__PCI_H
 
 #include <linux/mm.h> /* for struct page */
 #include <linux/types.h>
@@ -17,6 +17,8 @@ struct pci_sysdata {
 	void		*iommu;		/* IOMMU private data */
 #endif
 };
+
+extern int pci_routeirq;
 
 /* scan a bus after allocating a pci_sysdata for it */
 extern struct pci_bus *pci_scan_bus_on_node(int busno, struct pci_ops *ops,
@@ -109,4 +111,4 @@ static inline cpumask_t __pcibus_to_cpumask(struct pci_bus *bus)
 }
 #endif
 
-#endif
+#endif /* ASM_X86__PCI_H */

@@ -26,6 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/miscdevice.h>
+#include <linux/smp_lock.h>
 
 #include "excite_iodev.h"
 
@@ -110,8 +111,14 @@ static int __exit iodev_remove(struct device *dev)
 
 static int iodev_open(struct inode *i, struct file *f)
 {
-	return request_irq(iodev_irq, iodev_irqhdl, IRQF_DISABLED,
+	int ret;
+
+	lock_kernel();
+	ret = request_irq(iodev_irq, iodev_irqhdl, IRQF_DISABLED,
 			   iodev_name, &miscdev);
+	unlock_kernel();
+
+	return ret;
 }
 
 static int iodev_release(struct inode *i, struct file *f)

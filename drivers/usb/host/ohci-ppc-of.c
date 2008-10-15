@@ -14,8 +14,8 @@
  */
 
 #include <linux/signal.h>
+#include <linux/of_platform.h>
 
-#include <asm/of_platform.h>
 #include <asm/prom.h>
 
 

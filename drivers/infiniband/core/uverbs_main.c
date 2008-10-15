@@ -32,8 +32,6 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
- *
- * $Id: uverbs_main.c 2733 2005-06-28 19:14:34Z roland $
  */
 
 #include <linux/module.h>
@@ -610,6 +608,18 @@ static int ib_uverbs_mmap(struct file *filp, struct vm_area_struct *vma)
 		return file->device->ib_dev->mmap(file->ucontext, vma);
 }
 
+/*
+ * ib_uverbs_open() does not need the BKL:
+ *
+ *  - dev_table[] accesses are protected by map_lock, the
+ *    ib_uverbs_device structures are properly reference counted, and
+ *    everything else is purely local to the file being created, so
+ *    races against other open calls are not a problem;
+ *  - there is no ioctl method to race against;
+ *  - the device is added to dev_table[] as the last part of module
+ *    initialization, the open method will either immediately run
+ *    -ENXIO, or all required initialization will be done.
+ */
 static int ib_uverbs_open(struct inode *inode, struct file *filp)
 {
 	struct ib_uverbs_device *dev;
@@ -651,7 +661,6 @@ err_module:
 
 err:
 	kref_put(&dev->ref, ib_uverbs_release_dev);
-
 	return ret;
 }
 

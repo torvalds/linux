@@ -5,6 +5,5 @@ gfs2-y := acl.o bmap.o daemon.o dir.o eaops.o eattr.o glock.o \
 	ops_fstype.o ops_inode.o ops_super.o quota.o \
 	recovery.o rgrp.o super.o sys.o trans.o util.o
 
-obj-$(CONFIG_GFS2_FS_LOCKING_NOLOCK) += locking/nolock/
 obj-$(CONFIG_GFS2_FS_LOCKING_DLM) += locking/dlm/
 

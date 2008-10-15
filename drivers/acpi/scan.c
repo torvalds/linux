@@ -6,6 +6,8 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/acpi.h>
+#include <linux/signal.h>
+#include <linux/kthread.h>
 
 #include <acpi/acpi_drivers.h>
 #include <acpi/acinterp.h>	/* for acpi_ex_eisa_id_to_string() */
@@ -92,17 +94,37 @@ acpi_device_modalias_show(struct device *dev, struct device_attribute *attr, cha
 }
 static DEVICE_ATTR(modalias, 0444, acpi_device_modalias_show, NULL);
 
-static int acpi_eject_operation(acpi_handle handle, int lockable)
+static int acpi_bus_hot_remove_device(void *context)
 {
+	struct acpi_device *device;
+	acpi_handle handle = context;
 	struct acpi_object_list arg_list;
 	union acpi_object arg;
 	acpi_status status = AE_OK;
 
-	/*
-	 * TBD: evaluate _PS3?
-	 */
+	if (acpi_bus_get_device(handle, &device))
+		return 0;
 
-	if (lockable) {
+	if (!device)
+		return 0;
+
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		"Hot-removing device %s...\n", device->dev.bus_id));
+
+
+	if (acpi_bus_trim(device, 1)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				"Removing device failed\n"));
+		return -1;
+	}
+
+	/* power off device */
+	status = acpi_evaluate_object(handle, "_PS3", NULL, NULL);
+	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND)
+		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
+				"Power-off device failed\n"));
+
+	if (device->flags.lockable) {
 		arg_list.count = 1;
 		arg_list.pointer = &arg;
 		arg.type = ACPI_TYPE_INTEGER;
@@ -118,26 +140,22 @@ static int acpi_eject_operation(acpi_handle handle, int lockable)
 	/*
 	 * TBD: _EJD support.
 	 */
-
 	status = acpi_evaluate_object(handle, "_EJ0", &arg_list, NULL);
-	if (ACPI_FAILURE(status)) {
-		return (-ENODEV);
-	}
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
 
-	return (0);
+	return 0;
 }
 
 static ssize_t
 acpi_eject_store(struct device *d, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-	int result;
 	int ret = count;
-	int islockable;
 	acpi_status status;
-	acpi_handle handle;
 	acpi_object_type type = 0;
 	struct acpi_device *acpi_device = to_acpi_device(d);
+	struct task_struct *task;
 
 	if ((!count) || (buf[0] != '1')) {
 		return -EINVAL;
@@ -154,18 +172,12 @@ acpi_eject_store(struct device *d, struct device_attribute *attr,
 		goto err;
 	}
 
-	islockable = acpi_device->flags.lockable;
-	handle = acpi_device->handle;
-
-	result = acpi_bus_trim(acpi_device, 1);
-
-	if (!result)
-		result = acpi_eject_operation(handle, islockable);
-
-	if (result) {
-		ret = -EBUSY;
-	}
-      err:
+	/* remove the device in another thread to fix the deadlock issue */
+	task = kthread_run(acpi_bus_hot_remove_device,
+				acpi_device->handle, "acpi_hot_remove_device");
+	if (IS_ERR(task))
+		ret = PTR_ERR(task);
+err:
 	return ret;
 }
 
@@ -459,7 +471,7 @@ static int acpi_device_register(struct acpi_device *device,
 	device->dev.release = &acpi_device_release;
 	result = device_add(&device->dev);
 	if(result) {
-		printk(KERN_ERR PREFIX "Error adding device %s", device->dev.bus_id);
+		dev_err(&device->dev, "Error adding device\n");
 		goto end;
 	}
 
@@ -691,9 +703,7 @@ static int acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 	acpi_status status = 0;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *package = NULL;
-	union acpi_object in_arg[3];
-	struct acpi_object_list arg_list = { 3, in_arg };
-	acpi_status psw_status = AE_OK;
+	int psw_error;
 
 	struct acpi_device_id button_device_ids[] = {
 		{"PNP0C0D", 0},
@@ -725,39 +735,11 @@ static int acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 	 * So it is necessary to call _DSW object first. Only when it is not
 	 * present will the _PSW object used.
 	 */
-	/*
-	 * Three agruments are needed for the _DSW object.
-	 * Argument 0: enable/disable the wake capabilities
-	 * When _DSW object is called to disable the wake capabilities, maybe
-	 * the first argument is filled. The value of the other two agruments
-	 * is meaningless.
-	 */
-	in_arg[0].type = ACPI_TYPE_INTEGER;
-	in_arg[0].integer.value = 0;
-	in_arg[1].type = ACPI_TYPE_INTEGER;
-	in_arg[1].integer.value = 0;
-	in_arg[2].type = ACPI_TYPE_INTEGER;
-	in_arg[2].integer.value = 0;
-	psw_status = acpi_evaluate_object(device->handle, "_DSW",
-						&arg_list, NULL);
-	if (ACPI_FAILURE(psw_status) && (psw_status != AE_NOT_FOUND))
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "error in evaluate _DSW\n"));
-	/*
-	 * When the _DSW object is not present, OSPM will call _PSW object.
-	 */
-	if (psw_status == AE_NOT_FOUND) {
-		/*
-		 * Only one agruments is required for the _PSW object.
-		 * agrument 0: enable/disable the wake capabilities
-		 */
-		arg_list.count = 1;
-		in_arg[0].integer.value = 0;
-		psw_status = acpi_evaluate_object(device->handle, "_PSW",
-						&arg_list, NULL);
-		if (ACPI_FAILURE(psw_status) && (psw_status != AE_NOT_FOUND))
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO, "error in "
-						"evaluate _PSW\n"));
-	}
+	psw_error = acpi_device_sleep_wake(device, 0, 0, 0);
+	if (psw_error)
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+				"error in _DSW or _PSW evaluation\n"));
+
 	/* Power button, Lid switch always enable wakeup */
 	if (!acpi_match_device_ids(device, button_device_ids))
 		device->wakeup.flags.run_wake = 1;

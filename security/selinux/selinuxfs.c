@@ -27,7 +27,7 @@
 #include <linux/seq_file.h>
 #include <linux/percpu.h>
 #include <linux/audit.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* selinuxfs pseudo filesystem for exporting the security policy API.
    Based on the proc code and the fs/nfsd/nfsctl.c code. */
@@ -57,14 +57,18 @@ int selinux_compat_net = SELINUX_COMPAT_NET_VALUE;
 
 static int __init checkreqprot_setup(char *str)
 {
-	selinux_checkreqprot = simple_strtoul(str, NULL, 0) ? 1 : 0;
+	unsigned long checkreqprot;
+	if (!strict_strtoul(str, 0, &checkreqprot))
+		selinux_checkreqprot = checkreqprot ? 1 : 0;
 	return 1;
 }
 __setup("checkreqprot=", checkreqprot_setup);
 
 static int __init selinux_compat_net_setup(char *str)
 {
-	selinux_compat_net = simple_strtoul(str, NULL, 0) ? 1 : 0;
+	unsigned long compat_net;
+	if (!strict_strtoul(str, 0, &compat_net))
+		selinux_compat_net = compat_net ? 1 : 0;
 	return 1;
 }
 __setup("selinux_compat_net=", selinux_compat_net_setup);
@@ -352,11 +356,6 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 		length = count;
 
 out1:
-
-	printk(KERN_INFO "SELinux: policy loaded with handle_unknown=%s\n",
-	       (security_get_reject_unknown() ? "reject" :
-		(security_get_allow_unknown() ? "allow" : "deny")));
-
 	audit_log(current->audit_context, GFP_KERNEL, AUDIT_MAC_POLICY_LOAD,
 		"policy loaded auid=%u ses=%u",
 		audit_get_loginuid(current),

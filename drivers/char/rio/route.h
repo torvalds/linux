@@ -37,12 +37,6 @@
 #ifndef _route_h
 #define _route_h
 
-#ifdef SCCS_LABELS
-#ifndef lint
-/* static char *_rio_route_h_sccs = "@(#)route.h	1.3"; */
-#endif
-#endif
-
 #define MAX_LINKS 4
 #define MAX_NODES 17		/* Maximum nodes in a subnet */
 #define NODE_BYTES ((MAX_NODES / 8) + 1)	/* Number of bytes needed for

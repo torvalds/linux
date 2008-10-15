@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/10GbE Linux driver
-  Copyright(c) 1999 - 2006 Intel Corporation.
+  Copyright(c) 1999 - 2008 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -85,22 +85,20 @@ struct ixgb_adapter;
 #define DPRINTK(nlevel, klevel, fmt, args...) \
 	(void)((NETIF_MSG_##nlevel & adapter->msg_enable) && \
 	printk(KERN_##klevel PFX "%s: %s: " fmt, adapter->netdev->name, \
-		__FUNCTION__ , ## args))
+		__func__ , ## args))
 
 
 /* TX/RX descriptor defines */
-#define DEFAULT_TXD	 256
-#define MAX_TXD   	4096
-#define MIN_TXD	  64
+#define DEFAULT_TXD      256
+#define MAX_TXD         4096
+#define MIN_TXD           64
 
 /* hardware cannot reliably support more than 512 descriptors owned by
- * hardware descrioptor cache otherwise an unreliable ring under heavy 
- * recieve load may result */
-/* #define DEFAULT_RXD	   1024 */
-/* #define MAX_RXD	   4096 */
-#define DEFAULT_RXD	512
-#define MAX_RXD	512
-#define MIN_RXD	 64
+ * hardware descriptor cache otherwise an unreliable ring under heavy
+ * receive load may result */
+#define DEFAULT_RXD      512
+#define MAX_RXD          512
+#define MIN_RXD           64
 
 /* Supported Rx Buffer Sizes */
 #define IXGB_RXBUFFER_2048  2048
@@ -157,7 +155,6 @@ struct ixgb_adapter {
 	u32 part_num;
 	u16 link_speed;
 	u16 link_duplex;
-	spinlock_t tx_lock;
 	struct work_struct tx_timeout_task;
 
 	struct timer_list blink_timer;

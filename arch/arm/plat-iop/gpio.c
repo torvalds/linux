@@ -11,6 +11,10 @@
  */
 
 #include <linux/device.h>
+#include <linux/init.h>
+#include <linux/types.h>
+#include <linux/errno.h>
+#include <linux/gpio.h>
 #include <asm/hardware/iop3xx.h>
 
 void gpio_line_config(int line, int direction)
@@ -46,3 +50,42 @@ void gpio_line_set(int line, int value)
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(gpio_line_set);
+
+static int iop3xx_gpio_direction_input(struct gpio_chip *chip, unsigned gpio)
+{
+	gpio_line_config(gpio, GPIO_IN);
+	return 0;
+}
+
+static int iop3xx_gpio_direction_output(struct gpio_chip *chip, unsigned gpio, int level)
+{
+	gpio_line_set(gpio, level);
+	gpio_line_config(gpio, GPIO_OUT);
+	return 0;
+}
+
+static int iop3xx_gpio_get_value(struct gpio_chip *chip, unsigned gpio)
+{
+	return gpio_line_get(gpio);
+}
+
+static void iop3xx_gpio_set_value(struct gpio_chip *chip, unsigned gpio, int value)
+{
+	gpio_line_set(gpio, value);
+}
+
+static struct gpio_chip iop3xx_chip = {
+	.label			= "iop3xx",
+	.direction_input	= iop3xx_gpio_direction_input,
+	.get			= iop3xx_gpio_get_value,
+	.direction_output	= iop3xx_gpio_direction_output,
+	.set			= iop3xx_gpio_set_value,
+	.base			= 0,
+	.ngpio			= IOP3XX_N_GPIOS,
+};
+
+static int __init iop3xx_gpio_setup(void)
+{
+	return gpiochip_add(&iop3xx_chip);
+}
+arch_initcall(iop3xx_gpio_setup);

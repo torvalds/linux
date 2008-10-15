@@ -648,26 +648,19 @@ static struct config_item *o2nm_node_group_make_item(struct config_group *group,
 						     const char *name)
 {
 	struct o2nm_node *node = NULL;
-	struct config_item *ret = NULL;
 
 	if (strlen(name) > O2NM_MAX_NAME_LEN)
-		goto out; /* ENAMETOOLONG */
+		return ERR_PTR(-ENAMETOOLONG);
 
 	node = kzalloc(sizeof(struct o2nm_node), GFP_KERNEL);
 	if (node == NULL)
-		goto out; /* ENOMEM */
+		return ERR_PTR(-ENOMEM);
 
 	strcpy(node->nd_name, name); /* use item.ci_namebuf instead? */
 	config_item_init_type_name(&node->nd_item, name, &o2nm_node_type);
 	spin_lock_init(&node->nd_lock);
 
-	ret = &node->nd_item;
-
-out:
-	if (ret == NULL)
-		kfree(node);
-
-	return ret;
+	return &node->nd_item;
 }
 
 static void o2nm_node_group_drop_item(struct config_group *group,
@@ -762,7 +755,7 @@ static struct config_group *o2nm_cluster_group_make_group(struct config_group *g
 	/* this runs under the parent dir's i_mutex; there can be only
 	 * one caller in here at a time */
 	if (o2nm_single_cluster)
-		goto out; /* ENOSPC */
+		return ERR_PTR(-ENOSPC);
 
 	cluster = kzalloc(sizeof(struct o2nm_cluster), GFP_KERNEL);
 	ns = kzalloc(sizeof(struct o2nm_node_group), GFP_KERNEL);
@@ -795,6 +788,7 @@ out:
 		kfree(ns);
 		o2hb_free_hb_set(o2hb_group);
 		kfree(defs);
+		ret = ERR_PTR(-ENOMEM);
 	}
 
 	return ret;

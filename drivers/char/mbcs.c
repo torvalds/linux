@@ -24,6 +24,7 @@
 #include <linux/mm.h>
 #include <linux/uio.h>
 #include <linux/mutex.h>
+#include <linux/smp_lock.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -382,15 +383,19 @@ static int mbcs_open(struct inode *ip, struct file *fp)
 	struct mbcs_soft *soft;
 	int minor;
 
+	lock_kernel();
 	minor = iminor(ip);
 
+	/* Nothing protects access to this list... */
 	list_for_each_entry(soft, &soft_list, list) {
 		if (soft->nasid == minor) {
 			fp->private_data = soft->cxdev;
+			unlock_kernel();
 			return 0;
 		}
 	}
 
+	unlock_kernel();
 	return -ENODEV;
 }
 

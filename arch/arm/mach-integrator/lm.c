@@ -12,7 +12,7 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 
-#include <asm/arch/lm.h>
+#include <mach/lm.h>
 
 #define to_lm_device(d)	container_of(d, struct lm_device, dev)
 #define to_lm_driver(d)	container_of(d, struct lm_driver, drv)
@@ -81,8 +81,10 @@ int lm_device_register(struct lm_device *dev)
 	dev->dev.release = lm_device_release;
 	dev->dev.bus = &lm_bustype;
 
-	snprintf(dev->dev.bus_id, sizeof(dev->dev.bus_id), "lm%d", dev->id);
-	dev->resource.name = dev->dev.bus_id;
+	ret = dev_set_name(&dev->dev, "lm%d", dev->id);
+	if (ret)
+		return ret;
+	dev->resource.name = dev_name(&dev->dev);
 
 	ret = request_resource(&iomem_resource, &dev->resource);
 	if (ret == 0) {

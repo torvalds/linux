@@ -72,7 +72,6 @@ static const u8 DS1621_REG_TEMP[3] = {
 
 /* Each client has this additional data */
 struct ds1621_data {
-	struct i2c_client client;
 	struct device *hwmon_dev;
 	struct mutex update_lock;
 	char valid;			/* !=0 if following fields are valid */
@@ -82,20 +81,32 @@ struct ds1621_data {
 	u8 conf;			/* Register encoding, combined */
 };
 
-static int ds1621_attach_adapter(struct i2c_adapter *adapter);
-static int ds1621_detect(struct i2c_adapter *adapter, int address,
-			 int kind);
+static int ds1621_probe(struct i2c_client *client,
+			const struct i2c_device_id *id);
+static int ds1621_detect(struct i2c_client *client, int kind,
+			 struct i2c_board_info *info);
 static void ds1621_init_client(struct i2c_client *client);
-static int ds1621_detach_client(struct i2c_client *client);
+static int ds1621_remove(struct i2c_client *client);
 static struct ds1621_data *ds1621_update_client(struct device *dev);
+
+static const struct i2c_device_id ds1621_id[] = {
+	{ "ds1621", ds1621 },
+	{ "ds1625", ds1621 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, ds1621_id);
 
 /* This is the driver that will be inserted */
 static struct i2c_driver ds1621_driver = {
+	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "ds1621",
 	},
-	.attach_adapter	= ds1621_attach_adapter,
-	.detach_client	= ds1621_detach_client,
+	.probe		= ds1621_probe,
+	.remove		= ds1621_remove,
+	.id_table	= ds1621_id,
+	.detect		= ds1621_detect,
+	.address_data	= &addr_data,
 };
 
 /* All registers are word-sized, except for the configuration register.
@@ -199,40 +210,18 @@ static const struct attribute_group ds1621_group = {
 };
 
 
-static int ds1621_attach_adapter(struct i2c_adapter *adapter)
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static int ds1621_detect(struct i2c_client *client, int kind,
+			 struct i2c_board_info *info)
 {
-	if (!(adapter->class & I2C_CLASS_HWMON))
-		return 0;
-	return i2c_probe(adapter, &addr_data, ds1621_detect);
-}
-
-/* This function is called by i2c_probe */
-static int ds1621_detect(struct i2c_adapter *adapter, int address,
-			 int kind)
-{
+	struct i2c_adapter *adapter = client->adapter;
 	int conf, temp;
-	struct i2c_client *client;
-	struct ds1621_data *data;
-	int i, err = 0;
+	int i;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA 
 				     | I2C_FUNC_SMBUS_WORD_DATA 
 				     | I2C_FUNC_SMBUS_WRITE_BYTE))
-		goto exit;
-
-	/* OK. For now, we presume we have a valid client. We now create the
-	   client structure, even though we cannot fill it completely yet.
-	   But it allows us to access ds1621_{read,write}_value. */
-	if (!(data = kzalloc(sizeof(struct ds1621_data), GFP_KERNEL))) {
-		err = -ENOMEM;
-		goto exit;
-	}
-	
-	client = &data->client;
-	i2c_set_clientdata(client, data);
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &ds1621_driver;
+		return -ENODEV;
 
 	/* Now, we do the remaining detection. It is lousy. */
 	if (kind < 0) {
@@ -241,29 +230,41 @@ static int ds1621_detect(struct i2c_adapter *adapter, int address,
 		   improbable in our case. */
 		conf = ds1621_read_value(client, DS1621_REG_CONF);
 		if (conf & DS1621_REG_CONFIG_NVB)
-			goto exit_free;
+			return -ENODEV;
 		/* The 7 lowest bits of a temperature should always be 0. */
-		for (i = 0; i < ARRAY_SIZE(data->temp); i++) {
+		for (i = 0; i < ARRAY_SIZE(DS1621_REG_TEMP); i++) {
 			temp = ds1621_read_value(client, DS1621_REG_TEMP[i]);
 			if (temp & 0x007f)
-				goto exit_free;
+				return -ENODEV;
 		}
 	}
 
-	/* Fill in remaining client fields and put it into the global list */
-	strlcpy(client->name, "ds1621", I2C_NAME_SIZE);
-	mutex_init(&data->update_lock);
+	strlcpy(info->type, "ds1621", I2C_NAME_SIZE);
 
-	/* Tell the I2C layer a new client has arrived */
-	if ((err = i2c_attach_client(client)))
-		goto exit_free;
+	return 0;
+}
+
+static int ds1621_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
+{
+	struct ds1621_data *data;
+	int err;
+
+	data = kzalloc(sizeof(struct ds1621_data), GFP_KERNEL);
+	if (!data) {
+		err = -ENOMEM;
+		goto exit;
+	}
+
+	i2c_set_clientdata(client, data);
+	mutex_init(&data->update_lock);
 
 	/* Initialize the DS1621 chip */
 	ds1621_init_client(client);
 
 	/* Register sysfs hooks */
 	if ((err = sysfs_create_group(&client->dev.kobj, &ds1621_group)))
-		goto exit_detach;
+		goto exit_free;
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -275,24 +276,18 @@ static int ds1621_detect(struct i2c_adapter *adapter, int address,
 
       exit_remove_files:
 	sysfs_remove_group(&client->dev.kobj, &ds1621_group);
-      exit_detach:
-	i2c_detach_client(client);
       exit_free:
 	kfree(data);
       exit:
 	return err;
 }
 
-static int ds1621_detach_client(struct i2c_client *client)
+static int ds1621_remove(struct i2c_client *client)
 {
 	struct ds1621_data *data = i2c_get_clientdata(client);
-	int err;
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &ds1621_group);
-
-	if ((err = i2c_detach_client(client)))
-		return err;
 
 	kfree(data);
 

@@ -1,24 +1,25 @@
 # ALSA soundcard-configuration
 config SND_TIMER
 	tristate
-	depends on SND
 
 config SND_PCM
 	tristate
 	select SND_TIMER
-	depends on SND
 
 config SND_HWDEP
 	tristate
-	depends on SND
 
 config SND_RAWMIDI
 	tristate
-	depends on SND
+
+# To be effective this also requires INPUT - users should say:
+#    select SND_JACK if INPUT=y || INPUT=SND
+# to avoid having to force INPUT on.
+config SND_JACK
+	bool
 
 config SND_SEQUENCER
 	tristate "Sequencer support"
-	depends on SND
 	select SND_TIMER
 	help
 	  Say Y or M to enable MIDI sequencer and router support.  This
@@ -43,12 +44,11 @@ config SND_SEQ_DUMMY
 	  will be called snd-seq-dummy.
 
 config SND_OSSEMUL
+	select SOUND_OSS_CORE
 	bool
-	depends on SND
 
 config SND_MIXER_OSS
 	tristate "OSS Mixer API"
-	depends on SND
 	select SND_OSSEMUL
 	help
 	  To enable OSS mixer API emulation (/dev/mixer*), say Y here
@@ -61,7 +61,6 @@ config SND_MIXER_OSS
 
 config SND_PCM_OSS
 	tristate "OSS PCM (digital audio) API"
-	depends on SND
 	select SND_OSSEMUL
 	select SND_PCM
 	help
@@ -84,7 +83,7 @@ config SND_PCM_OSS_PLUGINS
 
 config SND_SEQUENCER_OSS
 	bool "OSS Sequencer API"
-	depends on SND && SND_SEQUENCER
+	depends on SND_SEQUENCER
 	select SND_OSSEMUL
 	help
 	  Say Y here to enable OSS sequencer emulation (both
@@ -98,7 +97,7 @@ config SND_SEQUENCER_OSS
 
 config SND_RTCTIMER
 	tristate "RTC Timer support"
-	depends on SND && RTC
+	depends on RTC
 	select SND_TIMER
 	help
 	  Say Y here to enable RTC timer support for ALSA.  ALSA uses
@@ -108,6 +107,9 @@ config SND_RTCTIMER
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-rtctimer.
+
+	  Note that this option is exclusive with the new RTC drivers
+	  (CONFIG_RTC_CLASS) since this requires the old API.
 
 config SND_SEQ_RTCTIMER_DEFAULT
 	bool "Use RTC as default sequencer timer"
@@ -123,7 +125,6 @@ config SND_SEQ_RTCTIMER_DEFAULT
 
 config SND_DYNAMIC_MINORS
 	bool "Dynamic device file minor numbers"
-	depends on SND
 	help
 	  If you say Y here, the minor numbers of ALSA device files in
 	  /dev/snd/ are allocated dynamically.  This allows you to have
@@ -134,7 +135,6 @@ config SND_DYNAMIC_MINORS
 
 config SND_SUPPORT_OLD_API
 	bool "Support old ALSA API"
-	depends on SND
 	default y
 	help
 	  Say Y here to support the obsolete ALSA PCM API (ver.0.9.0 rc3
@@ -142,7 +142,7 @@ config SND_SUPPORT_OLD_API
 
 config SND_VERBOSE_PROCFS
 	bool "Verbose procfs contents"
-	depends on SND && PROC_FS
+	depends on PROC_FS
 	default y
 	help
 	  Say Y here to include code for verbose procfs contents (provides
@@ -151,7 +151,6 @@ config SND_VERBOSE_PROCFS
 
 config SND_VERBOSE_PRINTK
 	bool "Verbose printk"
-	depends on SND
 	help
 	  Say Y here to enable verbose log messages.  These messages
 	  will help to identify source file and position containing
@@ -161,16 +160,17 @@ config SND_VERBOSE_PRINTK
 
 config SND_DEBUG
 	bool "Debug"
-	depends on SND
 	help
 	  Say Y here to enable ALSA debug code.
 
-config SND_DEBUG_DETECT
-	bool "Debug detection"
+config SND_DEBUG_VERBOSE
+	bool "More verbose debug"
 	depends on SND_DEBUG
 	help
-	  Say Y here to enable extra-verbose log messages printed when
-	  detecting devices.
+	  Say Y here to enable extra-verbose debugging messages.
+	  
+	  Let me repeat: it enables EXTRA-VERBOSE DEBUGGING messages.
+	  So, say Y only if you are ready to be annoyed.
 
 config SND_PCM_XRUN_DEBUG
 	bool "Enable PCM ring buffer overrun/underrun debugging"
@@ -184,4 +184,3 @@ config SND_PCM_XRUN_DEBUG
 
 config SND_VMASTER
 	bool
-	depends on SND

@@ -2,7 +2,7 @@
  *  Driver for Xceive XC5000 "QAM/8VSB single chip tuner"
  *
  *  Copyright (c) 2007 Xceive Corporation
- *  Copyright (c) 2007 Steven Toth <stoth@hauppauge.com>
+ *  Copyright (c) 2007 Steven Toth <stoth@linuxtv.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,17 +30,35 @@
 #include "dvb_frontend.h"
 
 #include "xc5000.h"
-#include "xc5000_priv.h"
+#include "tuner-i2c.h"
 
 static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
+
+static int xc5000_load_fw_on_attach;
+module_param_named(init_fw, xc5000_load_fw_on_attach, int, 0644);
+MODULE_PARM_DESC(init_fw, "Load firmware during driver initialization.");
+
+static DEFINE_MUTEX(xc5000_list_mutex);
+static LIST_HEAD(hybrid_tuner_instance_list);
 
 #define dprintk(level,fmt, arg...) if (debug >= level) \
 	printk(KERN_INFO "%s: " fmt, "xc5000", ## arg)
 
 #define XC5000_DEFAULT_FIRMWARE "dvb-fe-xc5000-1.1.fw"
 #define XC5000_DEFAULT_FIRMWARE_SIZE 12332
+
+struct xc5000_priv {
+	struct tuner_i2c_props i2c_props;
+	struct list_head hybrid_tuner_instance_list;
+
+	u32 if_khz;
+	u32 freq_hz;
+	u32 bandwidth;
+	u8  video_standard;
+	u8  rf_mode;
+};
 
 /* Misc Defines */
 #define MAX_TV_STANDARD			23
@@ -177,6 +195,7 @@ static XC_TV_STANDARD XC5000_Standard[MAX_TV_STANDARD] = {
 	{"FM Radio-INPUT1",   0x0208, 0x9002}
 };
 
+static int  xc5000_is_firmware_loaded(struct dvb_frontend *fe);
 static int  xc5000_writeregs(struct xc5000_priv *priv, u8 *buf, u8 len);
 static int  xc5000_readregs(struct xc5000_priv *priv, u8 *buf, u8 len);
 static void xc5000_TunerReset(struct dvb_frontend *fe);
@@ -211,9 +230,12 @@ static void xc5000_TunerReset(struct dvb_frontend *fe)
 
 	dprintk(1, "%s()\n", __func__);
 
-	if (priv->cfg->tuner_callback) {
-		ret = priv->cfg->tuner_callback(priv->devptr,
-						XC5000_TUNER_RESET, 0);
+	if (fe->callback) {
+		ret = fe->callback(((fe->dvb) && (fe->dvb->priv)) ?
+					   fe->dvb->priv :
+					   priv->i2c_props.adap->algo_data,
+					   DVB_FRONTEND_COMPONENT_TUNER,
+					   XC5000_TUNER_RESET, 0);
 		if (ret)
 			printk(KERN_ERR "xc5000: reset failed\n");
 	} else
@@ -277,7 +299,7 @@ static int xc_read_reg(struct xc5000_priv *priv, u16 regAddr, u16 *i2cData)
 	return result;
 }
 
-static int xc_load_i2c_sequence(struct dvb_frontend *fe, u8 i2c_sequence[])
+static int xc_load_i2c_sequence(struct dvb_frontend *fe, const u8 *i2c_sequence)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
 
@@ -352,7 +374,7 @@ static int xc_SetTVStandard(struct xc5000_priv *priv,
 
 static int xc_shutdown(struct xc5000_priv *priv)
 {
-	return 0;
+	return XC_RESULT_SUCCESS;
 	/* Fixme: cannot bring tuner back alive once shutdown
 	 *        without reloading the driver modules.
 	 *    return xc_write_reg(priv, XREG_POWER_DOWN, 0);
@@ -504,13 +526,13 @@ static int xc5000_readreg(struct xc5000_priv *priv, u16 reg, u16 *val)
 	u8 buf[2] = { reg >> 8, reg & 0xff };
 	u8 bval[2] = { 0, 0 };
 	struct i2c_msg msg[2] = {
-		{ .addr = priv->cfg->i2c_address,
+		{ .addr = priv->i2c_props.addr,
 			.flags = 0, .buf = &buf[0], .len = 2 },
-		{ .addr = priv->cfg->i2c_address,
+		{ .addr = priv->i2c_props.addr,
 			.flags = I2C_M_RD, .buf = &bval[0], .len = 2 },
 	};
 
-	if (i2c_transfer(priv->i2c, msg, 2) != 2) {
+	if (i2c_transfer(priv->i2c_props.adap, msg, 2) != 2) {
 		printk(KERN_WARNING "xc5000: I2C read failed\n");
 		return -EREMOTEIO;
 	}
@@ -521,10 +543,10 @@ static int xc5000_readreg(struct xc5000_priv *priv, u16 reg, u16 *val)
 
 static int xc5000_writeregs(struct xc5000_priv *priv, u8 *buf, u8 len)
 {
-	struct i2c_msg msg = { .addr = priv->cfg->i2c_address,
+	struct i2c_msg msg = { .addr = priv->i2c_props.addr,
 		.flags = 0, .buf = buf, .len = len };
 
-	if (i2c_transfer(priv->i2c, &msg, 1) != 1) {
+	if (i2c_transfer(priv->i2c_props.adap, &msg, 1) != 1) {
 		printk(KERN_ERR "xc5000: I2C write failed (len=%i)\n",
 			(int)len);
 		return -EREMOTEIO;
@@ -534,10 +556,10 @@ static int xc5000_writeregs(struct xc5000_priv *priv, u8 *buf, u8 len)
 
 static int xc5000_readregs(struct xc5000_priv *priv, u8 *buf, u8 len)
 {
-	struct i2c_msg msg = { .addr = priv->cfg->i2c_address,
+	struct i2c_msg msg = { .addr = priv->i2c_props.addr,
 		.flags = I2C_M_RD, .buf = buf, .len = len };
 
-	if (i2c_transfer(priv->i2c, &msg, 1) != 1) {
+	if (i2c_transfer(priv->i2c_props.adap, &msg, 1) != 1) {
 		printk(KERN_ERR "xc5000 I2C read failed (len=%i)\n",(int)len);
 		return -EREMOTEIO;
 	}
@@ -554,7 +576,7 @@ static int xc5000_fwupload(struct dvb_frontend* fe)
 	printk(KERN_INFO "xc5000: waiting for firmware upload (%s)...\n",
 		XC5000_DEFAULT_FIRMWARE);
 
-	ret = request_firmware(&fw, XC5000_DEFAULT_FIRMWARE, &priv->i2c->dev);
+	ret = request_firmware(&fw, XC5000_DEFAULT_FIRMWARE, &priv->i2c_props.adap->dev);
 	if (ret) {
 		printk(KERN_ERR "xc5000: Upload failed. (file not found?)\n");
 		ret = XC_RESULT_RESET_FAILURE;
@@ -670,10 +692,10 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 		return -EREMOTEIO;
 	}
 
-	ret = xc_set_IF_frequency(priv, priv->cfg->if_khz);
+	ret = xc_set_IF_frequency(priv, priv->if_khz);
 	if (ret != XC_RESULT_SUCCESS) {
 		printk(KERN_ERR "xc5000: xc_Set_IF_frequency(%d) failed\n",
-			priv->cfg->if_khz);
+		       priv->if_khz);
 		return -EIO;
 	}
 
@@ -685,6 +707,25 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 	return 0;
 }
 
+static int xc5000_is_firmware_loaded(struct dvb_frontend *fe)
+{
+	struct xc5000_priv *priv = fe->tuner_priv;
+	int ret;
+	u16 id;
+
+	ret = xc5000_readreg(priv, XREG_PRODUCT_ID, &id);
+	if (ret == XC_RESULT_SUCCESS) {
+		if (id == XC_PRODUCT_ID_FW_NOT_LOADED)
+			ret = XC_RESULT_RESET_FAILURE;
+		else
+			ret = XC_RESULT_SUCCESS;
+	}
+
+	dprintk(1, "%s() returns %s id = 0x%x\n", __func__,
+		ret == XC_RESULT_SUCCESS ? "True" : "False", id);
+	return ret;
+}
+
 static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe);
 
 static int xc5000_set_analog_params(struct dvb_frontend *fe,
@@ -693,7 +734,7 @@ static int xc5000_set_analog_params(struct dvb_frontend *fe,
 	struct xc5000_priv *priv = fe->tuner_priv;
 	int ret;
 
-	if(priv->fwloaded == 0)
+	if (xc5000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS)
 		xc_load_fw_and_init_tuner(fe);
 
 	dprintk(1, "%s() frequency=%d (in units of 62.5khz)\n",
@@ -808,11 +849,10 @@ static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe)
 	struct xc5000_priv *priv = fe->tuner_priv;
 	int ret = 0;
 
-	if (priv->fwloaded == 0) {
+	if (xc5000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS) {
 		ret = xc5000_fwupload(fe);
 		if (ret != XC_RESULT_SUCCESS)
 			return ret;
-		priv->fwloaded = 1;
 	}
 
 	/* Start the tuner self-calibration process */
@@ -852,7 +892,6 @@ static int xc5000_sleep(struct dvb_frontend *fe)
 		return -EREMOTEIO;
 	}
 	else {
-		/* priv->fwloaded = 0; */
 		return XC_RESULT_SUCCESS;
 	}
 }
@@ -875,9 +914,19 @@ static int xc5000_init(struct dvb_frontend *fe)
 
 static int xc5000_release(struct dvb_frontend *fe)
 {
+	struct xc5000_priv *priv = fe->tuner_priv;
+
 	dprintk(1, "%s()\n", __func__);
-	kfree(fe->tuner_priv);
+
+	mutex_lock(&xc5000_list_mutex);
+
+	if (priv)
+		hybrid_tuner_release_state(priv);
+
+	mutex_unlock(&xc5000_list_mutex);
+
 	fe->tuner_priv = NULL;
+
 	return 0;
 }
 
@@ -902,29 +951,43 @@ static const struct dvb_tuner_ops xc5000_tuner_ops = {
 
 struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 				   struct i2c_adapter *i2c,
-				   struct xc5000_config *cfg, void *devptr)
+				   struct xc5000_config *cfg)
 {
 	struct xc5000_priv *priv = NULL;
+	int instance;
 	u16 id = 0;
 
-	dprintk(1, "%s()\n", __func__);
+	dprintk(1, "%s(%d-%04x)\n", __func__,
+		i2c ? i2c_adapter_id(i2c) : -1,
+		cfg ? cfg->i2c_address : -1);
 
-	priv = kzalloc(sizeof(struct xc5000_priv), GFP_KERNEL);
-	if (priv == NULL)
-		return NULL;
+	mutex_lock(&xc5000_list_mutex);
 
-	priv->cfg = cfg;
-	priv->bandwidth = BANDWIDTH_6_MHZ;
-	priv->i2c = i2c;
-	priv->devptr = devptr;
+	instance = hybrid_tuner_request_state(struct xc5000_priv, priv,
+					      hybrid_tuner_instance_list,
+					      i2c, cfg->i2c_address, "xc5000");
+	switch (instance) {
+	case 0:
+		goto fail;
+		break;
+	case 1:
+		/* new tuner instance */
+		priv->bandwidth = BANDWIDTH_6_MHZ;
+		priv->if_khz = cfg->if_khz;
+
+		fe->tuner_priv = priv;
+		break;
+	default:
+		/* existing tuner instance */
+		fe->tuner_priv = priv;
+		break;
+	}
 
 	/* Check if firmware has been loaded. It is possible that another
 	   instance of the driver has loaded the firmware.
 	 */
-	if (xc5000_readreg(priv, XREG_PRODUCT_ID, &id) != 0) {
-		kfree(priv);
-		return NULL;
-	}
+	if (xc5000_readreg(priv, XREG_PRODUCT_ID, &id) != 0)
+		goto fail;
 
 	switch(id) {
 	case XC_PRODUCT_ID_FW_LOADED:
@@ -933,7 +996,6 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 			cfg->i2c_address);
 		printk(KERN_INFO
 			"xc5000: Firmware has been loaded previously\n");
-		priv->fwloaded = 1;
 		break;
 	case XC_PRODUCT_ID_FW_NOT_LOADED:
 		printk(KERN_INFO
@@ -941,22 +1003,28 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 			cfg->i2c_address);
 		printk(KERN_INFO
 			"xc5000: Firmware has not been loaded previously\n");
-		priv->fwloaded = 0;
 		break;
 	default:
 		printk(KERN_ERR
 			"xc5000: Device not found at addr 0x%02x (0x%x)\n",
 			cfg->i2c_address, id);
-		kfree(priv);
-		return NULL;
+		goto fail;
 	}
+
+	mutex_unlock(&xc5000_list_mutex);
 
 	memcpy(&fe->ops.tuner_ops, &xc5000_tuner_ops,
 		sizeof(struct dvb_tuner_ops));
 
-	fe->tuner_priv = priv;
+	if (xc5000_load_fw_on_attach)
+		xc5000_init(fe);
 
 	return fe;
+fail:
+	mutex_unlock(&xc5000_list_mutex);
+
+	xc5000_release(fe);
+	return NULL;
 }
 EXPORT_SYMBOL(xc5000_attach);
 

@@ -1,13 +1,16 @@
 #include <linux/sched.h>
 #include <linux/stacktrace.h>
 #include <linux/thread_info.h>
+#include <linux/module.h>
 #include <asm/ptrace.h>
 #include <asm/stacktrace.h>
 
+#include "kstack.h"
+
 void save_stack_trace(struct stack_trace *trace)
 {
-	unsigned long ksp, fp, thread_base;
 	struct thread_info *tp = task_thread_info(current);
+	unsigned long ksp, fp;
 
 	stack_trace_flush();
 
@@ -17,21 +20,18 @@ void save_stack_trace(struct stack_trace *trace)
 	);
 
 	fp = ksp + STACK_BIAS;
-	thread_base = (unsigned long) tp;
 	do {
 		struct sparc_stackf *sf;
 		struct pt_regs *regs;
 		unsigned long pc;
 
-		/* Bogus frame pointer? */
-		if (fp < (thread_base + sizeof(struct thread_info)) ||
-		    fp >= (thread_base + THREAD_SIZE))
+		if (!kstack_valid(tp, fp))
 			break;
 
 		sf = (struct sparc_stackf *) fp;
 		regs = (struct pt_regs *) (sf + 1);
 
-		if ((regs->magic & ~0x1ff) == PT_REGS_MAGIC) {
+		if (kstack_is_trap_frame(tp, regs)) {
 			if (!(regs->tstate & TSTATE_PRIV))
 				break;
 			pc = regs->tpc;
@@ -47,3 +47,4 @@ void save_stack_trace(struct stack_trace *trace)
 			trace->entries[trace->nr_entries++] = pc;
 	} while (trace->nr_entries < trace->max_entries);
 }
+EXPORT_SYMBOL_GPL(save_stack_trace);

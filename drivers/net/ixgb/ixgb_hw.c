@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/10GbE Linux driver
-  Copyright(c) 1999 - 2006 Intel Corporation.
+  Copyright(c) 1999 - 2008 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -125,7 +125,7 @@ ixgb_adapter_stop(struct ixgb_hw *hw)
 	/* If we are stopped or resetting exit gracefully and wait to be
 	 * started again before accessing the hardware.
 	 */
-	if(hw->adapter_stopped) {
+	if (hw->adapter_stopped) {
 		DEBUGOUT("Exiting because the adapter is already stopped!!!\n");
 		return false;
 	}
@@ -347,7 +347,7 @@ ixgb_init_hw(struct ixgb_hw *hw)
 
 	/* Zero out the Multicast HASH table */
 	DEBUGOUT("Zeroing the MTA\n");
-	for(i = 0; i < IXGB_MC_TBL_SIZE; i++)
+	for (i = 0; i < IXGB_MC_TBL_SIZE; i++)
 		IXGB_WRITE_REG_ARRAY(hw, MTA, i, 0);
 
 	/* Zero out the VLAN Filter Table Array */
@@ -371,7 +371,7 @@ ixgb_init_hw(struct ixgb_hw *hw)
  * hw - Struct containing variables accessed by shared code
  *
  * Places the MAC address in receive address register 0 and clears the rest
- * of the receive addresss registers. Clears the multicast table. Assumes
+ * of the receive address registers. Clears the multicast table. Assumes
  * the receiver is in reset when the routine is called.
  *****************************************************************************/
 static void
@@ -413,7 +413,7 @@ ixgb_init_rx_addrs(struct ixgb_hw *hw)
 
 	/* Zero out the other 15 receive addresses. */
 	DEBUGOUT("Clearing RAR[1-15]\n");
-	for(i = 1; i < IXGB_RAR_ENTRIES; i++) {
+	for (i = 1; i < IXGB_RAR_ENTRIES; i++) {
 		/* Write high reg first to disable the AV bit first */
 		IXGB_WRITE_REG_ARRAY(hw, RA, ((i << 1) + 1), 0);
 		IXGB_WRITE_REG_ARRAY(hw, RA, (i << 1), 0);
@@ -452,19 +452,18 @@ ixgb_mc_addr_list_update(struct ixgb_hw *hw,
 
 	/* Clear RAR[1-15] */
 	DEBUGOUT(" Clearing RAR[1-15]\n");
-	for(i = rar_used_count; i < IXGB_RAR_ENTRIES; i++) {
+	for (i = rar_used_count; i < IXGB_RAR_ENTRIES; i++) {
 		IXGB_WRITE_REG_ARRAY(hw, RA, (i << 1), 0);
 		IXGB_WRITE_REG_ARRAY(hw, RA, ((i << 1) + 1), 0);
 	}
 
 	/* Clear the MTA */
 	DEBUGOUT(" Clearing MTA\n");
-	for(i = 0; i < IXGB_MC_TBL_SIZE; i++) {
+	for (i = 0; i < IXGB_MC_TBL_SIZE; i++)
 		IXGB_WRITE_REG_ARRAY(hw, MTA, i, 0);
-	}
 
 	/* Add the new addresses */
-	for(i = 0; i < mc_addr_count; i++) {
+	for (i = 0; i < mc_addr_count; i++) {
 		DEBUGOUT(" Adding the multicast addresses:\n");
 		DEBUGOUT7(" MC Addr #%d =%.2X %.2X %.2X %.2X %.2X %.2X\n", i,
 			  mc_addr_list[i * (IXGB_ETH_LENGTH_OF_ADDRESS + pad)],
@@ -482,7 +481,7 @@ ixgb_mc_addr_list_update(struct ixgb_hw *hw,
 		/* Place this multicast address in the RAR if there is room, *
 		 * else put it in the MTA
 		 */
-		if(rar_used_count < IXGB_RAR_ENTRIES) {
+		if (rar_used_count < IXGB_RAR_ENTRIES) {
 			ixgb_rar_set(hw,
 				     mc_addr_list +
 				     (i * (IXGB_ETH_LENGTH_OF_ADDRESS + pad)),
@@ -649,7 +648,7 @@ ixgb_clear_vfta(struct ixgb_hw *hw)
 {
 	u32 offset;
 
-	for(offset = 0; offset < IXGB_VLAN_FILTER_TBL_SIZE; offset++)
+	for (offset = 0; offset < IXGB_VLAN_FILTER_TBL_SIZE; offset++)
 		IXGB_WRITE_REG_ARRAY(hw, VFTA, offset, 0);
 	return;
 }
@@ -719,9 +718,8 @@ ixgb_setup_fc(struct ixgb_hw *hw)
 	/* Write the new settings */
 	IXGB_WRITE_REG(hw, CTRL0, ctrl_reg);
 
-	if (pap_reg != 0) {
+	if (pap_reg != 0)
 		IXGB_WRITE_REG(hw, PAP, pap_reg);
-	}
 
 	/* Set the flow control receive threshold registers.  Normally,
 	 * these registers will be set to a default threshold that may be
@@ -729,14 +727,14 @@ ixgb_setup_fc(struct ixgb_hw *hw)
 	 * ability to transmit pause frames in not enabled, then these
 	 * registers will be set to 0.
 	 */
-	if(!(hw->fc.type & ixgb_fc_tx_pause)) {
+	if (!(hw->fc.type & ixgb_fc_tx_pause)) {
 		IXGB_WRITE_REG(hw, FCRTL, 0);
 		IXGB_WRITE_REG(hw, FCRTH, 0);
 	} else {
 	   /* We need to set up the Receive Threshold high and low water
 	    * marks as well as (optionally) enabling the transmission of XON
 	    * frames. */
-		if(hw->fc.send_xon) {
+		if (hw->fc.send_xon) {
 			IXGB_WRITE_REG(hw, FCRTL,
 				(hw->fc.low_water | IXGB_FCRTL_XONE));
 		} else {
@@ -791,7 +789,7 @@ ixgb_read_phy_reg(struct ixgb_hw *hw,
     ** from the CPU Write to the Ready bit assertion.
     **************************************************************/
 
-	for(i = 0; i < 10; i++)
+	for (i = 0; i < 10; i++)
 	{
 		udelay(10);
 
@@ -818,7 +816,7 @@ ixgb_read_phy_reg(struct ixgb_hw *hw,
     ** from the CPU Write to the Ready bit assertion.
     **************************************************************/
 
-	for(i = 0; i < 10; i++)
+	for (i = 0; i < 10; i++)
 	{
 		udelay(10);
 
@@ -887,7 +885,7 @@ ixgb_write_phy_reg(struct ixgb_hw *hw,
 	** from the CPU Write to the Ready bit assertion.
 	**************************************************************/
 
-	for(i = 0; i < 10; i++)
+	for (i = 0; i < 10; i++)
 	{
 		udelay(10);
 
@@ -914,7 +912,7 @@ ixgb_write_phy_reg(struct ixgb_hw *hw,
 	** from the CPU Write to the Ready bit assertion.
 	**************************************************************/
 
-	for(i = 0; i < 10; i++)
+	for (i = 0; i < 10; i++)
 	{
 		udelay(10);
 
@@ -965,7 +963,7 @@ ixgb_check_for_link(struct ixgb_hw *hw)
 }
 
 /******************************************************************************
- * Check for a bad link condition that may have occured.
+ * Check for a bad link condition that may have occurred.
  * The indication is that the RFC / LFC registers may be incrementing
  * continually.  A full adapter reset is required to recover.
  *
@@ -1007,7 +1005,7 @@ ixgb_clear_hw_cntrs(struct ixgb_hw *hw)
 	DEBUGFUNC("ixgb_clear_hw_cntrs");
 
 	/* if we are stopped or resetting exit gracefully */
-	if(hw->adapter_stopped) {
+	if (hw->adapter_stopped) {
 		DEBUGOUT("Exiting because the adapter is stopped!!!\n");
 		return;
 	}

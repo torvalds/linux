@@ -30,6 +30,7 @@
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
+#include <asm/ftrace.h>
 
 #undef SHOW_SYSCALLS
 #undef SHOW_SYSCALLS_TASK
@@ -44,29 +45,54 @@
 #endif
 
 #ifdef CONFIG_BOOKE
-#include "head_booke.h"
-#define TRANSFER_TO_HANDLER_EXC_LEVEL(exc_level)	\
-	mtspr	exc_level##_SPRG,r8;			\
-	BOOKE_LOAD_EXC_LEVEL_STACK(exc_level);		\
-	lwz	r0,GPR10-INT_FRAME_SIZE(r8);		\
-	stw	r0,GPR10(r11);				\
-	lwz	r0,GPR11-INT_FRAME_SIZE(r8);		\
-	stw	r0,GPR11(r11);				\
-	mfspr	r8,exc_level##_SPRG
-
 	.globl	mcheck_transfer_to_handler
 mcheck_transfer_to_handler:
-	TRANSFER_TO_HANDLER_EXC_LEVEL(MCHECK)
-	b	transfer_to_handler_full
+	mfspr	r0,SPRN_DSRR0
+	stw	r0,_DSRR0(r11)
+	mfspr	r0,SPRN_DSRR1
+	stw	r0,_DSRR1(r11)
+	/* fall through */
 
 	.globl	debug_transfer_to_handler
 debug_transfer_to_handler:
-	TRANSFER_TO_HANDLER_EXC_LEVEL(DEBUG)
-	b	transfer_to_handler_full
+	mfspr	r0,SPRN_CSRR0
+	stw	r0,_CSRR0(r11)
+	mfspr	r0,SPRN_CSRR1
+	stw	r0,_CSRR1(r11)
+	/* fall through */
 
 	.globl	crit_transfer_to_handler
 crit_transfer_to_handler:
-	TRANSFER_TO_HANDLER_EXC_LEVEL(CRIT)
+#ifdef CONFIG_FSL_BOOKE
+	mfspr	r0,SPRN_MAS0
+	stw	r0,MAS0(r11)
+	mfspr	r0,SPRN_MAS1
+	stw	r0,MAS1(r11)
+	mfspr	r0,SPRN_MAS2
+	stw	r0,MAS2(r11)
+	mfspr	r0,SPRN_MAS3
+	stw	r0,MAS3(r11)
+	mfspr	r0,SPRN_MAS6
+	stw	r0,MAS6(r11)
+#ifdef CONFIG_PHYS_64BIT
+	mfspr	r0,SPRN_MAS7
+	stw	r0,MAS7(r11)
+#endif /* CONFIG_PHYS_64BIT */
+#endif /* CONFIG_FSL_BOOKE */
+#ifdef CONFIG_44x
+	mfspr	r0,SPRN_MMUCR
+	stw	r0,MMUCR(r11)
+#endif
+	mfspr	r0,SPRN_SRR0
+	stw	r0,_SRR0(r11)
+	mfspr	r0,SPRN_SRR1
+	stw	r0,_SRR1(r11)
+
+	mfspr	r8,SPRN_SPRG3
+	lwz	r0,KSP_LIMIT(r8)
+	stw	r0,SAVED_KSP_LIMIT(r11)
+	rlwimi	r0,r1,0,0,(31-THREAD_SHIFT)
+	stw	r0,KSP_LIMIT(r8)
 	/* fall through */
 #endif
 
@@ -77,6 +103,16 @@ crit_transfer_to_handler:
 	stw	r0,GPR10(r11)
 	lwz	r0,crit_r11@l(0)
 	stw	r0,GPR11(r11)
+	mfspr	r0,SPRN_SRR0
+	stw	r0,crit_srr0@l(0)
+	mfspr	r0,SPRN_SRR1
+	stw	r0,crit_srr1@l(0)
+
+	mfspr	r8,SPRN_SPRG3
+	lwz	r0,KSP_LIMIT(r8)
+	stw	r0,saved_ksp_limit@l(0)
+	rlwimi	r0,r1,0,0,(31-THREAD_SHIFT)
+	stw	r0,KSP_LIMIT(r8)
 	/* fall through */
 #endif
 
@@ -141,13 +177,14 @@ transfer_to_handler:
 	cmplw	r1,r9			/* if r1 <= ksp_limit */
 	ble-	stack_ovf		/* then the kernel stack overflowed */
 5:
-#ifdef CONFIG_6xx
+#if defined(CONFIG_6xx) || defined(CONFIG_E500)
 	rlwinm	r9,r1,0,0,31-THREAD_SHIFT
 	tophys(r9,r9)			/* check local flags */
 	lwz	r12,TI_LOCAL_FLAGS(r9)
 	mtcrf	0x01,r12
 	bt-	31-TLF_NAPPING,4f
-#endif /* CONFIG_6xx */
+	bt-	31-TLF_SLEEPING,7f
+#endif /* CONFIG_6xx || CONFIG_E500 */
 	.globl transfer_to_handler_cont
 transfer_to_handler_cont:
 3:
@@ -160,10 +197,17 @@ transfer_to_handler_cont:
 	SYNC
 	RFI				/* jump to handler, enable MMU */
 
-#ifdef CONFIG_6xx
+#if defined (CONFIG_6xx) || defined(CONFIG_E500)
 4:	rlwinm	r12,r12,0,~_TLF_NAPPING
 	stw	r12,TI_LOCAL_FLAGS(r9)
-	b	power_save_6xx_restore
+	b	power_save_ppc32_restore
+
+7:	rlwinm	r12,r12,0,~_TLF_SLEEPING
+	stw	r12,TI_LOCAL_FLAGS(r9)
+	lwz	r9,_MSR(r11)		/* if sleeping, clear MSR.EE */
+	rlwinm	r9,r9,0,~MSR_EE
+	lwz	r12,_LINK(r11)		/* and return to address in LR */
+	b	fast_exception_return
 #endif
 
 /*
@@ -299,7 +343,12 @@ syscall_dotrace:
 	stw	r0,_TRAP(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	do_syscall_trace_enter
-	lwz	r0,GPR0(r1)	/* Restore original registers */
+	/*
+	 * Restore argument registers possibly just changed.
+	 * We use the return value of do_syscall_trace_enter
+	 * for call number to look up in the table (r0).
+	 */
+	mr	r0,r3
 	lwz	r3,GPR3(r1)
 	lwz	r4,GPR4(r1)
 	lwz	r5,GPR5(r1)
@@ -668,7 +717,7 @@ user_exc_return:		/* r10 contains MSR_KERNEL here */
 	/* Check current_thread_info()->flags */
 	rlwinm	r9,r1,0,0,(31-THREAD_SHIFT)
 	lwz	r9,TI_FLAGS(r9)
-	andi.	r0,r9,(_TIF_SIGPENDING|_TIF_RESTORE_SIGMASK|_TIF_NEED_RESCHED)
+	andi.	r0,r9,_TIF_USER_WORK_MASK
 	bne	do_work
 
 restore_user:
@@ -859,17 +908,90 @@ exc_exit_restart_end:
 	exc_lvl_rfi;							\
 	b	.;		/* prevent prefetch past exc_lvl_rfi */
 
+#define	RESTORE_xSRR(exc_lvl_srr0, exc_lvl_srr1)			\
+	lwz	r9,_##exc_lvl_srr0(r1);					\
+	lwz	r10,_##exc_lvl_srr1(r1);				\
+	mtspr	SPRN_##exc_lvl_srr0,r9;					\
+	mtspr	SPRN_##exc_lvl_srr1,r10;
+
+#if defined(CONFIG_FSL_BOOKE)
+#ifdef CONFIG_PHYS_64BIT
+#define	RESTORE_MAS7							\
+	lwz	r11,MAS7(r1);						\
+	mtspr	SPRN_MAS7,r11;
+#else
+#define	RESTORE_MAS7
+#endif /* CONFIG_PHYS_64BIT */
+#define RESTORE_MMU_REGS						\
+	lwz	r9,MAS0(r1);						\
+	lwz	r10,MAS1(r1);						\
+	lwz	r11,MAS2(r1);						\
+	mtspr	SPRN_MAS0,r9;						\
+	lwz	r9,MAS3(r1);						\
+	mtspr	SPRN_MAS1,r10;						\
+	lwz	r10,MAS6(r1);						\
+	mtspr	SPRN_MAS2,r11;						\
+	mtspr	SPRN_MAS3,r9;						\
+	mtspr	SPRN_MAS6,r10;						\
+	RESTORE_MAS7;
+#elif defined(CONFIG_44x)
+#define RESTORE_MMU_REGS						\
+	lwz	r9,MMUCR(r1);						\
+	mtspr	SPRN_MMUCR,r9;
+#else
+#define RESTORE_MMU_REGS
+#endif
+
+#ifdef CONFIG_40x
 	.globl	ret_from_crit_exc
 ret_from_crit_exc:
+	mfspr	r9,SPRN_SPRG3
+	lis	r10,saved_ksp_limit@ha;
+	lwz	r10,saved_ksp_limit@l(r10);
+	tovirt(r9,r9);
+	stw	r10,KSP_LIMIT(r9)
+	lis	r9,crit_srr0@ha;
+	lwz	r9,crit_srr0@l(r9);
+	lis	r10,crit_srr1@ha;
+	lwz	r10,crit_srr1@l(r10);
+	mtspr	SPRN_SRR0,r9;
+	mtspr	SPRN_SRR1,r10;
 	RET_FROM_EXC_LEVEL(SPRN_CSRR0, SPRN_CSRR1, RFCI)
+#endif /* CONFIG_40x */
 
 #ifdef CONFIG_BOOKE
+	.globl	ret_from_crit_exc
+ret_from_crit_exc:
+	mfspr	r9,SPRN_SPRG3
+	lwz	r10,SAVED_KSP_LIMIT(r1)
+	stw	r10,KSP_LIMIT(r9)
+	RESTORE_xSRR(SRR0,SRR1);
+	RESTORE_MMU_REGS;
+	RET_FROM_EXC_LEVEL(SPRN_CSRR0, SPRN_CSRR1, RFCI)
+
 	.globl	ret_from_debug_exc
 ret_from_debug_exc:
+	mfspr	r9,SPRN_SPRG3
+	lwz	r10,SAVED_KSP_LIMIT(r1)
+	stw	r10,KSP_LIMIT(r9)
+	lwz	r9,THREAD_INFO-THREAD(r9)
+	rlwinm	r10,r1,0,0,(31-THREAD_SHIFT)
+	lwz	r10,TI_PREEMPT(r10)
+	stw	r10,TI_PREEMPT(r9)
+	RESTORE_xSRR(SRR0,SRR1);
+	RESTORE_xSRR(CSRR0,CSRR1);
+	RESTORE_MMU_REGS;
 	RET_FROM_EXC_LEVEL(SPRN_DSRR0, SPRN_DSRR1, RFDI)
 
 	.globl	ret_from_mcheck_exc
 ret_from_mcheck_exc:
+	mfspr	r9,SPRN_SPRG3
+	lwz	r10,SAVED_KSP_LIMIT(r1)
+	stw	r10,KSP_LIMIT(r9)
+	RESTORE_xSRR(SRR0,SRR1);
+	RESTORE_xSRR(CSRR0,CSRR1);
+	RESTORE_xSRR(DSRR0,DSRR1);
+	RESTORE_MMU_REGS;
 	RET_FROM_EXC_LEVEL(SPRN_MCSRR0, SPRN_MCSRR1, RFMCI)
 #endif /* CONFIG_BOOKE */
 
@@ -925,7 +1047,7 @@ recheck:
 	lwz	r9,TI_FLAGS(r9)
 	andi.	r0,r9,_TIF_NEED_RESCHED
 	bne-	do_resched
-	andi.	r0,r9,_TIF_SIGPENDING|_TIF_RESTORE_SIGMASK
+	andi.	r0,r9,_TIF_USER_WORK_MASK
 	beq	restore_user
 do_user_signal:			/* r10 contains MSR_KERNEL here */
 	ori	r10,r10,MSR_EE
@@ -938,8 +1060,8 @@ do_user_signal:			/* r10 contains MSR_KERNEL here */
 	SAVE_NVGPRS(r1)
 	rlwinm	r3,r3,0,0,30
 	stw	r3,_TRAP(r1)
-2:	li	r3,0
-	addi	r4,r1,STACK_FRAME_OVERHEAD
+2:	addi	r3,r1,STACK_FRAME_OVERHEAD
+	mr	r4,r9
 	bl	do_signal
 	REST_NVGPRS(r1)
 	b	recheck
@@ -1035,3 +1157,129 @@ machine_check_in_rtas:
 	/* XXX load up BATs and panic */
 
 #endif /* CONFIG_PPC_RTAS */
+
+#ifdef CONFIG_FTRACE
+#ifdef CONFIG_DYNAMIC_FTRACE
+_GLOBAL(mcount)
+_GLOBAL(_mcount)
+	stwu	r1,-48(r1)
+	stw	r3, 12(r1)
+	stw	r4, 16(r1)
+	stw	r5, 20(r1)
+	stw	r6, 24(r1)
+	mflr	r3
+	stw	r7, 28(r1)
+	mfcr	r5
+	stw	r8, 32(r1)
+	stw	r9, 36(r1)
+	stw	r10,40(r1)
+	stw	r3, 44(r1)
+	stw	r5, 8(r1)
+	subi	r3, r3, MCOUNT_INSN_SIZE
+	.globl mcount_call
+mcount_call:
+	bl	ftrace_stub
+	nop
+	lwz	r6, 8(r1)
+	lwz	r0, 44(r1)
+	lwz	r3, 12(r1)
+	mtctr	r0
+	lwz	r4, 16(r1)
+	mtcr	r6
+	lwz	r5, 20(r1)
+	lwz	r6, 24(r1)
+	lwz	r0, 52(r1)
+	lwz	r7, 28(r1)
+	lwz	r8, 32(r1)
+	mtlr	r0
+	lwz	r9, 36(r1)
+	lwz	r10,40(r1)
+	addi	r1, r1, 48
+	bctr
+
+_GLOBAL(ftrace_caller)
+	/* Based off of objdump optput from glibc */
+	stwu	r1,-48(r1)
+	stw	r3, 12(r1)
+	stw	r4, 16(r1)
+	stw	r5, 20(r1)
+	stw	r6, 24(r1)
+	mflr	r3
+	lwz	r4, 52(r1)
+	mfcr	r5
+	stw	r7, 28(r1)
+	stw	r8, 32(r1)
+	stw	r9, 36(r1)
+	stw	r10,40(r1)
+	stw	r3, 44(r1)
+	stw	r5, 8(r1)
+	subi	r3, r3, MCOUNT_INSN_SIZE
+.globl ftrace_call
+ftrace_call:
+	bl	ftrace_stub
+	nop
+	lwz	r6, 8(r1)
+	lwz	r0, 44(r1)
+	lwz	r3, 12(r1)
+	mtctr	r0
+	lwz	r4, 16(r1)
+	mtcr	r6
+	lwz	r5, 20(r1)
+	lwz	r6, 24(r1)
+	lwz	r0, 52(r1)
+	lwz	r7, 28(r1)
+	lwz	r8, 32(r1)
+	mtlr	r0
+	lwz	r9, 36(r1)
+	lwz	r10,40(r1)
+	addi	r1, r1, 48
+	bctr
+#else
+_GLOBAL(mcount)
+_GLOBAL(_mcount)
+	stwu	r1,-48(r1)
+	stw	r3, 12(r1)
+	stw	r4, 16(r1)
+	stw	r5, 20(r1)
+	stw	r6, 24(r1)
+	mflr	r3
+	lwz	r4, 52(r1)
+	mfcr	r5
+	stw	r7, 28(r1)
+	stw	r8, 32(r1)
+	stw	r9, 36(r1)
+	stw	r10,40(r1)
+	stw	r3, 44(r1)
+	stw	r5, 8(r1)
+
+	subi	r3, r3, MCOUNT_INSN_SIZE
+	LOAD_REG_ADDR(r5, ftrace_trace_function)
+	lwz	r5,0(r5)
+
+	mtctr	r5
+	bctrl
+
+	nop
+
+	lwz	r6, 8(r1)
+	lwz	r0, 44(r1)
+	lwz	r3, 12(r1)
+	mtctr	r0
+	lwz	r4, 16(r1)
+	mtcr	r6
+	lwz	r5, 20(r1)
+	lwz	r6, 24(r1)
+	lwz	r0, 52(r1)
+	lwz	r7, 28(r1)
+	lwz	r8, 32(r1)
+	mtlr	r0
+	lwz	r9, 36(r1)
+	lwz	r10,40(r1)
+	addi	r1, r1, 48
+	bctr
+#endif
+
+_GLOBAL(ftrace_stub)
+	blr
+
+#endif /* CONFIG_MCOUNT */

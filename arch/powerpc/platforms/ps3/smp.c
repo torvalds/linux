@@ -105,9 +105,10 @@ static void __init ps3_smp_setup_cpu(int cpu)
 	 * to index needs to be setup.
 	 */
 
-	BUILD_BUG_ON(PPC_MSG_CALL_FUNCTION  != 0);
-	BUILD_BUG_ON(PPC_MSG_RESCHEDULE     != 1);
-	BUILD_BUG_ON(PPC_MSG_DEBUGGER_BREAK != 3);
+	BUILD_BUG_ON(PPC_MSG_CALL_FUNCTION    != 0);
+	BUILD_BUG_ON(PPC_MSG_RESCHEDULE       != 1);
+	BUILD_BUG_ON(PPC_MSG_CALL_FUNC_SINGLE != 2);
+	BUILD_BUG_ON(PPC_MSG_DEBUGGER_BREAK   != 3);
 
 	for (i = 0; i < MSG_COUNT; i++) {
 		result = ps3_event_receive_port_setup(cpu, &virqs[i]);

@@ -24,7 +24,6 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/mutex.h>
-#include <asm/bootinfo.h>
 #include <asm/addrspace.h>
 #include "at93c.h"
 /* New model description table */
@@ -66,7 +65,7 @@ static void init_flash_sizes(void)
 	ls[LASAT_MTD_SERVICE] = 0xC0000;
 	ls[LASAT_MTD_NORMAL] = 0x100000;
 
-	if (mips_machtype == MACH_LASAT_100) {
+	if (!IS_LASAT_200()) {
 		lasat_board_info.li_flash_base = 0x1e000000;
 
 		lb[LASAT_MTD_BOOTLOADER] = 0x1e400000;

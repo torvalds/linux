@@ -1,0 +1,29 @@
+* Board Control and Status (BCSR)
+
+Required properties:
+
+ - device_type : Should be "board-control"
+ - reg : Offset and length of the register set for the device
+
+Example:
+
+	bcsr@f8000000 {
+		device_type = "board-control";
+		reg = <f8000000 8000>;
+	};
+
+* Freescale on board FPGA
+
+This is the memory-mapped registers for on board FPGA.
+
+Required properities:
+- compatible : should be "fsl,fpga-pixis".
+- reg : should contain the address and the lenght of the FPPGA register
+  set.
+
+Example (MPC8610HPCD):
+
+	board-control@e8000000 {
+		compatible = "fsl,fpga-pixis";
+		reg = <0xe8000000 32>;
+	};

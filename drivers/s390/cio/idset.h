@@ -8,7 +8,7 @@
 #ifndef S390_IDSET_H
 #define S390_IDSET_H S390_IDSET_H
 
-#include "schid.h"
+#include <asm/schid.h>
 
 struct idset;
 

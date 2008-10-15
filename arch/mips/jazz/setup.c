@@ -5,35 +5,22 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1996, 1997, 1998, 2001, 07 by Ralf Baechle
+ * Copyright (C) 1996, 1997, 1998, 2001, 07, 08 by Ralf Baechle
  * Copyright (C) 2001 MIPS Technologies, Inc.
  * Copyright (C) 2007 by Thomas Bogendoerfer
  */
 #include <linux/eisa.h>
-#include <linux/hdreg.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
-#include <linux/sched.h>
-#include <linux/interrupt.h>
-#include <linux/mm.h>
 #include <linux/console.h>
-#include <linux/fb.h>
-#include <linux/ide.h>
-#include <linux/pm.h>
 #include <linux/screen_info.h>
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 
-#include <asm/bootinfo.h>
-#include <asm/irq.h>
 #include <asm/jazz.h>
 #include <asm/jazzdma.h>
 #include <asm/reboot.h>
-#include <asm/io.h>
 #include <asm/pgtable.h>
-#include <asm/time.h>
-#include <asm/traps.h>
-#include <asm/mc146818-time.h>
 
 extern asmlinkage void jazz_handle_int(void);
 
@@ -76,10 +63,8 @@ void __init plat_mem_setup(void)
 
 	set_io_port_base(JAZZ_PORT_BASE);
 #ifdef CONFIG_EISA
-	if (mips_machtype == MACH_MIPS_MAGNUM_4000)
-		EISA_bus = 1;
+	EISA_bus = 1;
 #endif
-	isa_slot_offset = 0xe3000000;
 
 	/* request I/O space for devices used on all i[345]86 PCs */
 	for (i = 0; i < ARRAY_SIZE(jazz_io_resources); i++)

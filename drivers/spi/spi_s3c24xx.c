@@ -25,11 +25,11 @@
 
 #include <asm/io.h>
 #include <asm/dma.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
-#include <asm/arch/regs-gpio.h>
+#include <mach/regs-gpio.h>
 #include <asm/plat-s3c24xx/regs-spi.h>
-#include <asm/arch/spi.h>
+#include <mach/spi.h>
 
 struct s3c24xx_spi {
 	/* bitbang has to be first */
@@ -236,6 +236,19 @@ static irqreturn_t s3c24xx_spi_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
+static void s3c24xx_spi_initialsetup(struct s3c24xx_spi *hw)
+{
+	/* for the moment, permanently enable the clock */
+
+	clk_enable(hw->clk);
+
+	/* program defaults into the registers */
+
+	writeb(0xff, hw->regs + S3C2410_SPPRE);
+	writeb(SPPIN_DEFAULT, hw->regs + S3C2410_SPPIN);
+	writeb(SPCON_DEFAULT, hw->regs + S3C2410_SPCON);
+}
+
 static int __init s3c24xx_spi_probe(struct platform_device *pdev)
 {
 	struct s3c2410_spi_info *pdata;
@@ -270,6 +283,7 @@ static int __init s3c24xx_spi_probe(struct platform_device *pdev)
 	/* setup the master state. */
 
 	master->num_chipselect = hw->pdata->num_cs;
+	master->bus_num = pdata->bus_num;
 
 	/* setup the state for the bitbang driver */
 
@@ -326,15 +340,7 @@ static int __init s3c24xx_spi_probe(struct platform_device *pdev)
 		goto err_no_clk;
 	}
 
-	/* for the moment, permanently enable the clock */
-
-	clk_enable(hw->clk);
-
-	/* program defaults into the registers */
-
-	writeb(0xff, hw->regs + S3C2410_SPPRE);
-	writeb(SPPIN_DEFAULT, hw->regs + S3C2410_SPPIN);
-	writeb(SPCON_DEFAULT, hw->regs + S3C2410_SPCON);
+	s3c24xx_spi_initialsetup(hw);
 
 	/* setup any gpio we can */
 
@@ -414,7 +420,7 @@ static int s3c24xx_spi_resume(struct platform_device *pdev)
 {
 	struct s3c24xx_spi *hw = platform_get_drvdata(pdev);
 
-	clk_enable(hw->clk);
+	s3c24xx_spi_initialsetup(hw);
 	return 0;
 }
 
@@ -424,7 +430,7 @@ static int s3c24xx_spi_resume(struct platform_device *pdev)
 #endif
 
 MODULE_ALIAS("platform:s3c2410-spi");
-static struct platform_driver s3c24xx_spidrv = {
+static struct platform_driver s3c24xx_spi_driver = {
 	.remove		= __exit_p(s3c24xx_spi_remove),
 	.suspend	= s3c24xx_spi_suspend,
 	.resume		= s3c24xx_spi_resume,
@@ -436,12 +442,12 @@ static struct platform_driver s3c24xx_spidrv = {
 
 static int __init s3c24xx_spi_init(void)
 {
-        return platform_driver_probe(&s3c24xx_spidrv, s3c24xx_spi_probe);
+        return platform_driver_probe(&s3c24xx_spi_driver, s3c24xx_spi_probe);
 }
 
 static void __exit s3c24xx_spi_exit(void)
 {
-        platform_driver_unregister(&s3c24xx_spidrv);
+        platform_driver_unregister(&s3c24xx_spi_driver);
 }
 
 module_init(s3c24xx_spi_init);

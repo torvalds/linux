@@ -117,10 +117,10 @@ static void em28xx_audio_isocirq(struct urb *urb)
 
 			if (oldptr + length >= runtime->buffer_size) {
 				unsigned int cnt =
-				    runtime->buffer_size - oldptr - 1;
+				    runtime->buffer_size - oldptr;
 				memcpy(runtime->dma_area + oldptr * stride, cp,
 				       cnt * stride);
-				memcpy(runtime->dma_area, cp + cnt,
+				memcpy(runtime->dma_area, cp + cnt * stride,
 				       length * stride - cnt * stride);
 			} else {
 				memcpy(runtime->dma_area + oldptr * stride, cp,
@@ -161,8 +161,14 @@ static int em28xx_init_audio_isoc(struct em28xx *dev)
 
 		memset(dev->adev->transfer_buffer[i], 0x80, sb_size);
 		urb = usb_alloc_urb(EM28XX_NUM_AUDIO_PACKETS, GFP_ATOMIC);
-		if (!urb)
+		if (!urb) {
+			em28xx_errdev("usb_alloc_urb failed!\n");
+			for (j = 0; j < i; j++) {
+				usb_free_urb(dev->adev->urb[j]);
+				kfree(dev->adev->transfer_buffer[j]);
+			}
 			return -ENOMEM;
+		}
 
 		urb->dev = dev->udev;
 		urb->context = dev;
@@ -267,6 +273,12 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 	int ret = 0;
 
 	dprintk("opening device and trying to acquire exclusive lock\n");
+
+	if (!dev) {
+		printk(KERN_ERR "BUG: em28xx can't find device struct."
+				" Can't proceed with open\n");
+		return -ENODEV;
+	}
 
 	/* Sets volume, mute, etc */
 
@@ -415,6 +427,12 @@ static int em28xx_audio_init(struct em28xx *dev)
 	static int          devnr;
 	int                 ret, err;
 
+	if (dev->has_audio_class) {
+		/* This device does not support the extension (in this case
+		   the device is expecting the snd-usb-audio module */
+		return 0;
+	}
+
 	printk(KERN_INFO "em28xx-audio.c: probing for em28x1 "
 			 "non standard usbaudio\n");
 	printk(KERN_INFO "em28xx-audio.c: Copyright (C) 2006 Markus "
@@ -457,6 +475,12 @@ static int em28xx_audio_fini(struct em28xx *dev)
 {
 	if (dev == NULL)
 		return 0;
+
+	if (dev->has_audio_class) {
+		/* This device does not support the extension (in this case
+		   the device is expecting the snd-usb-audio module */
+		return 0;
+	}
 
 	if (dev->adev) {
 		snd_card_free(dev->adev->sndcard);

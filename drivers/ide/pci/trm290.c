@@ -135,11 +135,12 @@
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
 #include <linux/init.h>
-#include <linux/hdreg.h>
 #include <linux/pci.h>
 #include <linux/ide.h>
 
 #include <asm/io.h>
+
+#define DRV_NAME "trm290"
 
 static void trm290_prepare_drive (ide_drive_t *drive, unsigned int use_dma)
 {
@@ -160,7 +161,7 @@ static void trm290_prepare_drive (ide_drive_t *drive, unsigned int use_dma)
 	}
 
 	/* enable IRQ if not probing */
-	if (drive->present) {
+	if (drive->dev_flags & IDE_DFLAG_PRESENT) {
 		reg = inw(hwif->config_data + 3);
 		reg &= 0x13;
 		reg &= ~(1 << hwif->channel);
@@ -172,7 +173,7 @@ static void trm290_prepare_drive (ide_drive_t *drive, unsigned int use_dma)
 
 static void trm290_selectproc (ide_drive_t *drive)
 {
-	trm290_prepare_drive(drive, drive->using_dma);
+	trm290_prepare_drive(drive, !!(drive->dev_flags & IDE_DFLAG_USING_DMA));
 }
 
 static void trm290_dma_exec_cmd(ide_drive_t *drive, u8 command)
@@ -245,10 +246,10 @@ static void __devinit init_hwif_trm290(ide_hwif_t *hwif)
 	u8 reg = 0;
 
 	if ((dev->class & 5) && cfg_base)
-		printk(KERN_INFO "TRM290: chip");
+		printk(KERN_INFO DRV_NAME " %s: chip", pci_name(dev));
 	else {
 		cfg_base = 0x3df0;
-		printk(KERN_INFO "TRM290: using default");
+		printk(KERN_INFO DRV_NAME " %s: using default", pci_name(dev));
 	}
 	printk(KERN_CONT " config base at 0x%04x\n", cfg_base);
 	hwif->config_data = cfg_base;
@@ -325,7 +326,7 @@ static struct ide_dma_ops trm290_dma_ops = {
 };
 
 static const struct ide_port_info trm290_chipset __devinitdata = {
-	.name		= "TRM290",
+	.name		= DRV_NAME,
 	.init_hwif	= init_hwif_trm290,
 	.chipset	= ide_trm290,
 	.port_ops	= &trm290_port_ops,
@@ -340,7 +341,7 @@ static const struct ide_port_info trm290_chipset __devinitdata = {
 
 static int __devinit trm290_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return ide_setup_pci_device(dev, &trm290_chipset);
+	return ide_pci_init_one(dev, &trm290_chipset, NULL);
 }
 
 static const struct pci_device_id trm290_pci_tbl[] = {
@@ -349,18 +350,25 @@ static const struct pci_device_id trm290_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, trm290_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver trm290_pci_driver = {
 	.name		= "TRM290_IDE",
 	.id_table	= trm290_pci_tbl,
 	.probe		= trm290_init_one,
+	.remove		= ide_pci_remove,
 };
 
 static int __init trm290_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&trm290_pci_driver);
+}
+
+static void __exit trm290_ide_exit(void)
+{
+	pci_unregister_driver(&trm290_pci_driver);
 }
 
 module_init(trm290_ide_init);
+module_exit(trm290_ide_exit);
 
 MODULE_AUTHOR("Mark Lord");
 MODULE_DESCRIPTION("PCI driver module for Tekram TRM290 IDE");

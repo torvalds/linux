@@ -42,6 +42,7 @@
 #include <asm/page.h>
 #include <asm/uaccess.h>
 #include <linux/page-flags.h>
+#include <media/v4l2-ioctl.h>
 
 #include "w9968cf.h"
 #include "w9968cf_decoder.h"
@@ -910,7 +911,6 @@ static int w9968cf_start_transfer(struct w9968cf_device* cam)
 
 	for (i = 0; i < W9968CF_URBS; i++) {
 		urb = usb_alloc_urb(W9968CF_ISO_PACKETS, GFP_KERNEL);
-		cam->urb[i] = urb;
 		if (!urb) {
 			for (j = 0; j < i; j++)
 				usb_free_urb(cam->urb[j]);
@@ -918,6 +918,7 @@ static int w9968cf_start_transfer(struct w9968cf_device* cam)
 			return -ENOMEM;
 		}
 
+		cam->urb[i] = urb;
 		urb->dev = udev;
 		urb->context = (void*)cam;
 		urb->pipe = usb_rcvisocpipe(udev, 1);
@@ -3549,13 +3550,11 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	}
 
 	strcpy(cam->v4ldev->name, symbolic(camlist, mod_id));
-	cam->v4ldev->owner = THIS_MODULE;
-	cam->v4ldev->type = VID_TYPE_CAPTURE | VID_TYPE_SCALES;
 	cam->v4ldev->fops = &w9968cf_fops;
 	cam->v4ldev->minor = video_nr[dev_nr];
 	cam->v4ldev->release = video_device_release;
 	video_set_drvdata(cam->v4ldev, cam);
-	cam->v4ldev->dev = &cam->dev;
+	cam->v4ldev->parent = &cam->dev;
 
 	err = video_register_device(cam->v4ldev, VFL_TYPE_GRABBER,
 				    video_nr[dev_nr]);

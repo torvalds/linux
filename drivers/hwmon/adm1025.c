@@ -2,7 +2,7 @@
  * adm1025.c
  *
  * Copyright (C) 2000       Chen-Yuan Wu <gwu@esoft.com>
- * Copyright (C) 2003-2004  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2003-2008  Jean Delvare <khali@linux-fr.org>
  *
  * The ADM1025 is a sensor chip made by Analog Devices. It reports up to 6
  * voltages (including its own power source) and up to two temperatures
@@ -109,22 +109,35 @@ static const int in_scale[6] = { 2500, 2250, 3300, 5000, 12000, 3300 };
  * Functions declaration
  */
 
-static int adm1025_attach_adapter(struct i2c_adapter *adapter);
-static int adm1025_detect(struct i2c_adapter *adapter, int address, int kind);
+static int adm1025_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id);
+static int adm1025_detect(struct i2c_client *client, int kind,
+			  struct i2c_board_info *info);
 static void adm1025_init_client(struct i2c_client *client);
-static int adm1025_detach_client(struct i2c_client *client);
+static int adm1025_remove(struct i2c_client *client);
 static struct adm1025_data *adm1025_update_device(struct device *dev);
 
 /*
  * Driver data (common to all clients)
  */
 
+static const struct i2c_device_id adm1025_id[] = {
+	{ "adm1025", adm1025 },
+	{ "ne1619", ne1619 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, adm1025_id);
+
 static struct i2c_driver adm1025_driver = {
+	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "adm1025",
 	},
-	.attach_adapter	= adm1025_attach_adapter,
-	.detach_client	= adm1025_detach_client,
+	.probe		= adm1025_probe,
+	.remove		= adm1025_remove,
+	.id_table	= adm1025_id,
+	.detect		= adm1025_detect,
+	.address_data	= &addr_data,
 };
 
 /*
@@ -132,7 +145,6 @@ static struct i2c_driver adm1025_driver = {
  */
 
 struct adm1025_data {
-	struct i2c_client client;
 	struct device *hwmon_dev;
 	struct mutex update_lock;
 	char valid; /* zero until following fields are valid */
@@ -344,13 +356,6 @@ static DEVICE_ATTR(vrm, S_IRUGO | S_IWUSR, show_vrm, set_vrm);
  * Real code
  */
 
-static int adm1025_attach_adapter(struct i2c_adapter *adapter)
-{
-	if (!(adapter->class & I2C_CLASS_HWMON))
-		return 0;
-	return i2c_probe(adapter, &addr_data, adm1025_detect);
-}
-
 static struct attribute *adm1025_attributes[] = {
 	&sensor_dev_attr_in0_input.dev_attr.attr,
 	&sensor_dev_attr_in1_input.dev_attr.attr,
@@ -403,31 +408,16 @@ static const struct attribute_group adm1025_group_in4 = {
 	.attrs = adm1025_attributes_in4,
 };
 
-/*
- * The following function does more than just detection. If detection
- * succeeds, it also registers the new chip.
- */
-static int adm1025_detect(struct i2c_adapter *adapter, int address, int kind)
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static int adm1025_detect(struct i2c_client *client, int kind,
+			  struct i2c_board_info *info)
 {
-	struct i2c_client *client;
-	struct adm1025_data *data;
-	int err = 0;
+	struct i2c_adapter *adapter = client->adapter;
 	const char *name = "";
 	u8 config;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		goto exit;
-
-	if (!(data = kzalloc(sizeof(struct adm1025_data), GFP_KERNEL))) {
-		err = -ENOMEM;
-		goto exit;
-	}
-
-	client = &data->client;
-	i2c_set_clientdata(client, data);
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &adm1025_driver;
+		return -ENODEV;
 
 	/*
 	 * Now we do the remaining detection. A negative kind means that
@@ -448,8 +438,8 @@ static int adm1025_detect(struct i2c_adapter *adapter, int address, int kind)
 		     ADM1025_REG_STATUS2) & 0xBC) != 0x00) {
 			dev_dbg(&adapter->dev,
 				"ADM1025 detection failed at 0x%02x.\n",
-				address);
-			goto exit_free;
+				client->addr);
+			return -ENODEV;
 		}
 	}
 
@@ -465,7 +455,7 @@ static int adm1025_detect(struct i2c_adapter *adapter, int address, int kind)
 			}
 		} else
 		if (man_id == 0xA1) { /* Philips */
-			if (address != 0x2E
+			if (client->addr != 0x2E
 			 && (chip_id & 0xF0) == 0x20) { /* NE1619 */
 				kind = ne1619;
 			}
@@ -475,7 +465,7 @@ static int adm1025_detect(struct i2c_adapter *adapter, int address, int kind)
 			dev_info(&adapter->dev,
 			    "Unsupported chip (man_id=0x%02X, "
 			    "chip_id=0x%02X).\n", man_id, chip_id);
-			goto exit_free;
+			return -ENODEV;
 		}
 	}
 
@@ -484,23 +474,36 @@ static int adm1025_detect(struct i2c_adapter *adapter, int address, int kind)
 	} else if (kind == ne1619) {
 		name = "ne1619";
 	}
+	strlcpy(info->type, name, I2C_NAME_SIZE);
 
-	/* We can fill in the remaining client fields */
-	strlcpy(client->name, name, I2C_NAME_SIZE);
+	return 0;
+}
+
+static int adm1025_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
+{
+	struct adm1025_data *data;
+	int err;
+	u8 config;
+
+	data = kzalloc(sizeof(struct adm1025_data), GFP_KERNEL);
+	if (!data) {
+		err = -ENOMEM;
+		goto exit;
+	}
+
+	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
-
-	/* Tell the I2C layer a new client has arrived */
-	if ((err = i2c_attach_client(client)))
-		goto exit_free;
 
 	/* Initialize the ADM1025 chip */
 	adm1025_init_client(client);
 
 	/* Register sysfs hooks */
 	if ((err = sysfs_create_group(&client->dev.kobj, &adm1025_group)))
-		goto exit_detach;
+		goto exit_free;
 
 	/* Pin 11 is either in4 (+12V) or VID4 */
+	config = i2c_smbus_read_byte_data(client, ADM1025_REG_CONFIG);
 	if (!(config & 0x20)) {
 		if ((err = sysfs_create_group(&client->dev.kobj,
 					      &adm1025_group_in4)))
@@ -518,8 +521,6 @@ static int adm1025_detect(struct i2c_adapter *adapter, int address, int kind)
 exit_remove:
 	sysfs_remove_group(&client->dev.kobj, &adm1025_group);
 	sysfs_remove_group(&client->dev.kobj, &adm1025_group_in4);
-exit_detach:
-	i2c_detach_client(client);
 exit_free:
 	kfree(data);
 exit:
@@ -568,17 +569,13 @@ static void adm1025_init_client(struct i2c_client *client)
 					  (reg&0x7E)|0x01);
 }
 
-static int adm1025_detach_client(struct i2c_client *client)
+static int adm1025_remove(struct i2c_client *client)
 {
 	struct adm1025_data *data = i2c_get_clientdata(client);
-	int err;
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &adm1025_group);
 	sysfs_remove_group(&client->dev.kobj, &adm1025_group_in4);
-
-	if ((err = i2c_detach_client(client)))
-		return err;
 
 	kfree(data);
 	return 0;

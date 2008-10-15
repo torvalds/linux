@@ -136,37 +136,51 @@ config EXT3_FS_SECURITY
 	  If you are not using a security module that requires using
 	  extended attributes for file security labels, say N.
 
-config EXT4DEV_FS
-	tristate "Ext4dev/ext4 extended fs support development (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+config EXT4_FS
+	tristate "The Extended 4 (ext4) filesystem"
 	select JBD2
 	select CRC16
 	help
-	  Ext4dev is a predecessor filesystem of the next generation
-	  extended fs ext4, based on ext3 filesystem code. It will be
-	  renamed ext4 fs later, once ext4dev is mature and stabilized.
+	  This is the next generation of the ext3 filesystem.
 
 	  Unlike the change from ext2 filesystem to ext3 filesystem,
-	  the on-disk format of ext4dev is not the same as ext3 any more:
-	  it is based on extent maps and it supports 48-bit physical block
-	  numbers. These combined on-disk format changes will allow
-	  ext4dev/ext4 to handle more than 16 TB filesystem volumes --
-	  a hard limit that ext3 cannot overcome without changing the
-	  on-disk format.
+	  the on-disk format of ext4 is not forwards compatible with
+	  ext3; it is based on extent maps and it supports 48-bit
+	  physical block numbers.  The ext4 filesystem also supports delayed
+	  allocation, persistent preallocation, high resolution time stamps,
+	  and a number of other features to improve performance and speed
+	  up fsck time.  For more information, please see the web pages at
+	  http://ext4.wiki.kernel.org.
 
-	  Other than extent maps and 48-bit block numbers, ext4dev also is
-	  likely to have other new features such as persistent preallocation,
-	  high resolution time stamps, and larger file support etc.  These
-	  features will be added to ext4dev gradually.
+	  The ext4 filesystem will support mounting an ext3
+	  filesystem; while there will be some performance gains from
+	  the delayed allocation and inode table readahead, the best
+	  performance gains will require enabling ext4 features in the
+	  filesystem, or formating a new filesystem as an ext4
+	  filesystem initially.
 
 	  To compile this file system support as a module, choose M here. The
 	  module will be called ext4dev.
 
 	  If unsure, say N.
 
-config EXT4DEV_FS_XATTR
-	bool "Ext4dev extended attributes"
-	depends on EXT4DEV_FS
+config EXT4DEV_COMPAT
+	bool "Enable ext4dev compatibility"
+	depends on EXT4_FS
+	help
+	  Starting with 2.6.28, the name of the ext4 filesystem was
+	  renamed from ext4dev to ext4.  Unfortunately there are some
+	  legacy userspace programs (such as klibc's fstype) have
+	  "ext4dev" hardcoded.
+
+	  To enable backwards compatibility so that systems that are
+	  still expecting to mount ext4 filesystems using ext4dev,
+	  chose Y here.   This feature will go away by 2.6.31, so
+	  please arrange to get your userspace programs fixed!
+
+config EXT4_FS_XATTR
+	bool "Ext4 extended attributes"
+	depends on EXT4_FS
 	default y
 	help
 	  Extended attributes are name:value pairs associated with inodes by
@@ -175,11 +189,11 @@ config EXT4DEV_FS_XATTR
 
 	  If unsure, say N.
 
-	  You need this for POSIX ACL support on ext4dev/ext4.
+	  You need this for POSIX ACL support on ext4.
 
-config EXT4DEV_FS_POSIX_ACL
-	bool "Ext4dev POSIX Access Control Lists"
-	depends on EXT4DEV_FS_XATTR
+config EXT4_FS_POSIX_ACL
+	bool "Ext4 POSIX Access Control Lists"
+	depends on EXT4_FS_XATTR
 	select FS_POSIX_ACL
 	help
 	  POSIX Access Control Lists (ACLs) support permissions for users and
@@ -190,14 +204,14 @@ config EXT4DEV_FS_POSIX_ACL
 
 	  If you don't know what Access Control Lists are, say N
 
-config EXT4DEV_FS_SECURITY
-	bool "Ext4dev Security Labels"
-	depends on EXT4DEV_FS_XATTR
+config EXT4_FS_SECURITY
+	bool "Ext4 Security Labels"
+	depends on EXT4_FS_XATTR
 	help
 	  Security labels support alternative access control models
 	  implemented by security modules like SELinux.  This option
 	  enables an extended attribute handler for file security
-	  labels in the ext4dev/ext4 filesystem.
+	  labels in the ext4 filesystem.
 
 	  If you are not using a security module that requires using
 	  extended attributes for file security labels, say N.
@@ -206,17 +220,16 @@ config JBD
 	tristate
 	help
 	  This is a generic journalling layer for block devices.  It is
-	  currently used by the ext3 and OCFS2 file systems, but it could
-	  also be used to add journal support to other file systems or block
+	  currently used by the ext3 file system, but it could also be
+	  used to add journal support to other file systems or block
 	  devices such as RAID or LVM.
 
-	  If you are using the ext3 or OCFS2 file systems, you need to
-	  say Y here. If you are not using ext3 OCFS2 then you will probably
-	  want to say N.
+	  If you are using the ext3 file system, you need to say Y here.
+	  If you are not using ext3 then you will probably want to say N.
 
 	  To compile this device as a module, choose M here: the module will be
-	  called jbd.  If you are compiling ext3 or OCFS2 into the kernel,
-	  you cannot compile this code as a module.
+	  called jbd.  If you are compiling ext3 into the kernel, you
+	  cannot compile this code as a module.
 
 config JBD_DEBUG
 	bool "JBD (ext3) debugging support"
@@ -240,22 +253,23 @@ config JBD2
 	help
 	  This is a generic journaling layer for block devices that support
 	  both 32-bit and 64-bit block numbers.  It is currently used by
-	  the ext4dev/ext4 filesystem, but it could also be used to add
+	  the ext4 and OCFS2 filesystems, but it could also be used to add
 	  journal support to other file systems or block devices such
 	  as RAID or LVM.
 
-	  If you are using ext4dev/ext4, you need to say Y here. If you are not
-	  using ext4dev/ext4 then you will probably want to say N.
+	  If you are using ext4 or OCFS2, you need to say Y here.
+	  If you are not using ext4 or OCFS2 then you will
+	  probably want to say N.
 
 	  To compile this device as a module, choose M here. The module will be
-	  called jbd2.  If you are compiling ext4dev/ext4 into the kernel,
+	  called jbd2.  If you are compiling ext4 or OCFS2 into the kernel,
 	  you cannot compile this code as a module.
 
 config JBD2_DEBUG
-	bool "JBD2 (ext4dev/ext4) debugging support"
+	bool "JBD2 (ext4) debugging support"
 	depends on JBD2 && DEBUG_FS
 	help
-	  If you are using the ext4dev/ext4 journaled file system (or
+	  If you are using the ext4 journaled file system (or
 	  potentially any other filesystem/device using JBD2), this option
 	  allows you to enable debugging output while the system is running,
 	  in order to help track down any problems you are having.
@@ -270,9 +284,9 @@ config JBD2_DEBUG
 config FS_MBCACHE
 # Meta block cache for Extended Attributes (ext2/ext3/ext4)
 	tristate
-	depends on EXT2_FS_XATTR || EXT3_FS_XATTR || EXT4DEV_FS_XATTR
-	default y if EXT2_FS=y || EXT3_FS=y || EXT4DEV_FS=y
-	default m if EXT2_FS=m || EXT3_FS=m || EXT4DEV_FS=m
+	depends on EXT2_FS_XATTR || EXT3_FS_XATTR || EXT4_FS_XATTR
+	default y if EXT2_FS=y || EXT3_FS=y || EXT4_FS=y
+	default m if EXT2_FS=m || EXT3_FS=m || EXT4_FS=m
 
 config REISERFS_FS
 	tristate "Reiserfs support"
@@ -419,6 +433,14 @@ config FS_POSIX_ACL
 	bool
 	default n
 
+config FILE_LOCKING
+	bool "Enable POSIX file locking API" if EMBEDDED
+	default y
+	help
+	  This option enables standard file locking support, required
+          for filesystems like NFS and for the flock() system
+          call. Disabling this option saves about 11k.
+
 source "fs/xfs/Kconfig"
 source "fs/gfs2/Kconfig"
 
@@ -426,7 +448,7 @@ config OCFS2_FS
 	tristate "OCFS2 file system support"
 	depends on NET && SYSFS
 	select CONFIGFS_FS
-	select JBD
+	select JBD2
 	select CRC32
 	help
 	  OCFS2 is a general purpose extent based shared disk cluster file
@@ -470,6 +492,14 @@ config OCFS2_FS_USERSPACE_CLUSTER
 	  It is safe to say Y, as the clustering method is run-time
 	  selectable.
 
+config OCFS2_FS_STATS
+	bool "OCFS2 statistics"
+	depends on OCFS2_FS
+	default y
+	help
+	  This option allows some fs statistics to be captured. Enabling
+	  this option may increase the memory consumption.
+
 config OCFS2_DEBUG_MASKLOG
 	bool "OCFS2 logging support"
 	depends on OCFS2_FS
@@ -488,6 +518,16 @@ config OCFS2_DEBUG_FS
 	  This option will enable expensive consistency checks. Enable
 	  this option for debugging only as it is likely to decrease
 	  performance of the filesystem.
+
+config OCFS2_COMPAT_JBD
+	bool "Use JBD for compatibility"
+	depends on OCFS2_FS
+	default n
+	select JBD
+	help
+	  The ocfs2 filesystem now uses JBD2 for its journalling.  JBD2
+	  is backwards compatible with JBD.  It is safe to say N here.
+	  However, if you really want to use the original JBD, say Y here.
 
 endif # BLOCK
 
@@ -830,7 +870,7 @@ config NTFS_FS
 	  from the project web site.
 
 	  For more information see <file:Documentation/filesystems/ntfs.txt>
-	  and <http://linux-ntfs.sourceforge.net/>.
+	  and <http://www.linux-ntfs.org/>.
 
 	  To compile this file system support as a module, choose M here: the
 	  module will be called ntfs.
@@ -894,65 +934,7 @@ endif # BLOCK
 
 menu "Pseudo filesystems"
 
-config PROC_FS
-	bool "/proc file system support" if EMBEDDED
-	default y
-	help
-	  This is a virtual file system providing information about the status
-	  of the system. "Virtual" means that it doesn't take up any space on
-	  your hard disk: the files are created on the fly by the kernel when
-	  you try to access them. Also, you cannot read the files with older
-	  version of the program less: you need to use more or cat.
-
-	  It's totally cool; for example, "cat /proc/interrupts" gives
-	  information about what the different IRQs are used for at the moment
-	  (there is a small number of Interrupt ReQuest lines in your computer
-	  that are used by the attached devices to gain the CPU's attention --
-	  often a source of trouble if two devices are mistakenly configured
-	  to use the same IRQ). The program procinfo to display some
-	  information about your system gathered from the /proc file system.
-
-	  Before you can use the /proc file system, it has to be mounted,
-	  meaning it has to be given a location in the directory hierarchy.
-	  That location should be /proc. A command such as "mount -t proc proc
-	  /proc" or the equivalent line in /etc/fstab does the job.
-
-	  The /proc file system is explained in the file
-	  <file:Documentation/filesystems/proc.txt> and on the proc(5) manpage
-	  ("man 5 proc").
-
-	  This option will enlarge your kernel by about 67 KB. Several
-	  programs depend on this, so everyone should say Y here.
-
-config PROC_KCORE
-	bool "/proc/kcore support" if !ARM
-	depends on PROC_FS && MMU
-
-config PROC_VMCORE
-        bool "/proc/vmcore support (EXPERIMENTAL)"
-        depends on PROC_FS && EXPERIMENTAL && CRASH_DUMP
-	default y
-        help
-        Exports the dump image of crashed kernel in ELF format.
-
-config PROC_SYSCTL
-	bool "Sysctl support (/proc/sys)" if EMBEDDED
-	depends on PROC_FS
-	select SYSCTL
-	default y
-	---help---
-	  The sysctl interface provides a means of dynamically changing
-	  certain kernel parameters and variables on the fly without requiring
-	  a recompile of the kernel or reboot of the system.  The primary
-	  interface is through /proc/sys.  If you say Y here a tree of
-	  modifiable sysctl entries will be generated beneath the
-          /proc/sys directory. They are explained in the files
-	  in <file:Documentation/sysctl/>.  Note that enabling this
-	  option will enlarge the kernel by at least 8 KB.
-
-	  As it is generally a good thing, you should say Y here unless
-	  building a kernel for install/rescue disks or your system is very
-	  limited in memory.
+source "fs/proc/Kconfig"
 
 config SYSFS
 	bool "sysfs file system support" if EMBEDDED
@@ -1375,6 +1357,9 @@ config JFFS2_CMODE_FAVOURLZO
 
 endchoice
 
+# UBIFS File system configuration
+source "fs/ubifs/Kconfig"
+
 config CRAMFS
 	tristate "Compressed ROM file system support (cramfs)"
 	depends on BLOCK
@@ -1430,6 +1415,19 @@ config MINIX_FS
 	  partition (the one containing the directory /) cannot be compiled as
 	  a module.
 
+config OMFS_FS
+	tristate "SonicBlue Optimized MPEG File System support"
+	depends on BLOCK
+	select CRC_ITU_T
+	help
+	  This is the proprietary file system used by the Rio Karma music
+	  player and ReplayTV DVR.  Despite the name, this filesystem is not
+	  more efficient than a standard FS for MPEG files, in fact likely
+	  the opposite is true.  Say Y if you have either of these devices
+	  and wish to mount its disk.
+
+	  To compile this file system support as a module, choose M here: the
+	  module will be called omfs.  If unsure, say N.
 
 config HPFS_FS
 	tristate "OS/2 HPFS file system support"
@@ -1544,10 +1542,6 @@ config UFS_FS
           The recently released UFS2 variant (used in FreeBSD 5.x) is
           READ-ONLY supported.
 
-	  If you only intend to mount files from some other Unix over the
-	  network using NFS, you don't need the UFS file system support (but
-	  you need NFS file system support obviously).
-
 	  Note that this option is generally not needed for floppies, since a
 	  good portable way to transport files and directories between unixes
 	  (and even other operating systems) is given by the tar program ("man
@@ -1587,6 +1581,7 @@ menuconfig NETWORK_FILESYSTEMS
 	  Say Y here to get to see options for network filesystems and
 	  filesystem-related networking code, such as NFS daemon and
 	  RPCSEC security modules.
+
 	  This option alone does not add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and
@@ -1595,75 +1590,91 @@ menuconfig NETWORK_FILESYSTEMS
 if NETWORK_FILESYSTEMS
 
 config NFS_FS
-	tristate "NFS file system support"
+	tristate "NFS client support"
 	depends on INET
 	select LOCKD
 	select SUNRPC
 	select NFS_ACL_SUPPORT if NFS_V3_ACL
 	help
-	  If you are connected to some other (usually local) Unix computer
-	  (using SLIP, PLIP, PPP or Ethernet) and want to mount files residing
-	  on that computer (the NFS server) using the Network File Sharing
-	  protocol, say Y. "Mounting files" means that the client can access
-	  the files with usual UNIX commands as if they were sitting on the
-	  client's hard disk. For this to work, the server must run the
-	  programs nfsd and mountd (but does not need to have NFS file system
-	  support enabled in its kernel). NFS is explained in the Network
-	  Administrator's Guide, available from
-	  <http://www.tldp.org/docs.html#guide>, on its man page: "man
-	  nfs", and in the NFS-HOWTO.
+	  Choose Y here if you want to access files residing on other
+	  computers using Sun's Network File System protocol.  To compile
+	  this file system support as a module, choose M here: the module
+	  will be called nfs.
 
-	  A superior but less widely used alternative to NFS is provided by
-	  the Coda file system; see "Coda file system support" below.
+	  To mount file systems exported by NFS servers, you also need to
+	  install the user space mount.nfs command which can be found in
+	  the Linux nfs-utils package, available from http://linux-nfs.org/.
+	  Information about using the mount command is available in the
+	  mount(8) man page.  More detail about the Linux NFS client
+	  implementation is available via the nfs(5) man page.
 
-	  If you say Y here, you should have said Y to TCP/IP networking also.
-	  This option would enlarge your kernel by about 27 KB.
+	  Below you can choose which versions of the NFS protocol are
+	  available in the kernel to mount NFS servers.  Support for NFS
+	  version 2 (RFC 1094) is always available when NFS_FS is selected.
 
-	  To compile this file system support as a module, choose M here: the
-	  module will be called nfs.
+	  To configure a system which mounts its root file system via NFS
+	  at boot time, say Y here, select "Kernel level IP
+	  autoconfiguration" in the NETWORK menu, and select "Root file
+	  system on NFS" below.  You cannot compile this file system as a
+	  module in this case.
 
-	  If you are configuring a diskless machine which will mount its root
-	  file system over NFS at boot time, say Y here and to "Kernel
-	  level IP autoconfiguration" above and to "Root file system on NFS"
-	  below. You cannot compile this driver as a module in this case.
-	  There are two packages designed for booting diskless machines over
-	  the net: netboot, available from
-	  <http://ftp1.sourceforge.net/netboot/>, and Etherboot,
-	  available from <http://ftp1.sourceforge.net/etherboot/>.
-
-	  If you don't know what all this is about, say N.
+	  If unsure, say N.
 
 config NFS_V3
-	bool "Provide NFSv3 client support"
+	bool "NFS client support for NFS version 3"
 	depends on NFS_FS
 	help
-	  Say Y here if you want your NFS client to be able to speak version
-	  3 of the NFS protocol.
+	  This option enables support for version 3 of the NFS protocol
+	  (RFC 1813) in the kernel's NFS client.
 
 	  If unsure, say Y.
 
 config NFS_V3_ACL
-	bool "Provide client support for the NFSv3 ACL protocol extension"
+	bool "NFS client support for the NFSv3 ACL protocol extension"
 	depends on NFS_V3
 	help
-	  Implement the NFSv3 ACL protocol extension for manipulating POSIX
-	  Access Control Lists.  The server should also be compiled with
-	  the NFSv3 ACL protocol extension; see the CONFIG_NFSD_V3_ACL option.
+	  Some NFS servers support an auxiliary NFSv3 ACL protocol that
+	  Sun added to Solaris but never became an official part of the
+	  NFS version 3 protocol.  This protocol extension allows
+	  applications on NFS clients to manipulate POSIX Access Control
+	  Lists on files residing on NFS servers.  NFS servers enforce
+	  ACLs on local files whether this protocol is available or not.
+
+	  Choose Y here if your NFS server supports the Solaris NFSv3 ACL
+	  protocol extension and you want your NFS client to allow
+	  applications to access and modify ACLs on files on the server.
+
+	  Most NFS servers don't support the Solaris NFSv3 ACL protocol
+	  extension.  You can choose N here or specify the "noacl" mount
+	  option to prevent your NFS client from trying to use the NFSv3
+	  ACL protocol.
 
 	  If unsure, say N.
 
 config NFS_V4
-	bool "Provide NFSv4 client support (EXPERIMENTAL)"
+	bool "NFS client support for NFS version 4 (EXPERIMENTAL)"
 	depends on NFS_FS && EXPERIMENTAL
 	select RPCSEC_GSS_KRB5
 	help
-	  Say Y here if you want your NFS client to be able to speak the newer
-	  version 4 of the NFS protocol.
+	  This option enables support for version 4 of the NFS protocol
+	  (RFC 3530) in the kernel's NFS client.
 
-	  Note: Requires auxiliary userspace daemons which may be found on
-		http://www.citi.umich.edu/projects/nfsv4/
+	  To mount NFS servers using NFSv4, you also need to install user
+	  space programs which can be found in the Linux nfs-utils package,
+	  available from http://linux-nfs.org/.
 
 	  If unsure, say N.
+
+config ROOT_NFS
+	bool "Root file system on NFS"
+	depends on NFS_FS=y && IP_PNP
+	help
+	  If you want your system to mount its root file system via NFS,
+	  choose Y here.  This is common practice for managing systems
+	  without local permanent storage.  For details, read
+	  <file:Documentation/filesystems/nfsroot.txt>.
+
+	  Most people say N here.
 
 config NFSD
 	tristate "NFS server support"
@@ -1746,20 +1757,6 @@ config NFSD_V4
 
 	  If unsure, say N.
 
-config ROOT_NFS
-	bool "Root file system on NFS"
-	depends on NFS_FS=y && IP_PNP
-	help
-	  If you want your Linux box to mount its whole root file system (the
-	  one containing the directory /) from some other computer over the
-	  net via NFS (presumably because your box doesn't have a hard disk),
-	  say Y. Read <file:Documentation/filesystems/nfsroot.txt> for
-	  details. It is likely that in this case, you also want to say Y to
-	  "Kernel level IP autoconfiguration" so that your box can discover
-	  its network address at boot time.
-
-	  Most people say N here.
-
 config LOCKD
 	tristate
 
@@ -1800,26 +1797,27 @@ config SUNRPC_XPRT_RDMA
 
 	  If unsure, say N.
 
-config SUNRPC_BIND34
-	bool "Support for rpcbind versions 3 & 4 (EXPERIMENTAL)"
+config SUNRPC_REGISTER_V4
+	bool "Register local RPC services via rpcbind v4 (EXPERIMENTAL)"
 	depends on SUNRPC && EXPERIMENTAL
 	default n
 	help
-	  RPC requests over IPv6 networks require support for larger
-	  addresses when performing an RPC bind.  Sun added support for
-	  IPv6 addressing by creating two new versions of the rpcbind
-	  protocol (RFC 1833).
+	  Sun added support for registering RPC services at an IPv6
+	  address by creating two new versions of the rpcbind protocol
+	  (RFC 1833).
 
-	  This option enables support in the kernel RPC client for
-	  querying rpcbind servers via versions 3 and 4 of the rpcbind
-	  protocol.  The kernel automatically falls back to version 2
-	  if a remote rpcbind service does not support versions 3 or 4.
-	  By themselves, these new versions do not provide support for
-	  RPC over IPv6, but the new protocol versions are necessary to
-	  support it.
+	  This option enables support in the kernel RPC server for
+	  registering kernel RPC services via version 4 of the rpcbind
+	  protocol.  If you enable this option, you must run a portmapper
+	  daemon that supports rpcbind protocol version 4.
 
-	  If unsure, say N to get traditional behavior (version 2 rpcbind
-	  requests only).
+	  Serving NFS over IPv6 from knfsd (the kernel's NFS server)
+	  requires that you enable this option and use a portmapper that
+	  supports rpcbind version 4.
+
+	  If unsure, say N to get traditional behavior (register kernel
+	  RPC services using only rpcbind version 2).  Distributions
+	  using the legacy Linux portmapper daemon must say N here.
 
 config RPCSEC_GSS_KRB5
 	tristate "Secure RPC: Kerberos V mechanism (EXPERIMENTAL)"
@@ -1986,6 +1984,16 @@ config CIFS_WEAK_PW_HASH
 
 	  If unsure, say N.
 
+config CIFS_UPCALL
+	  bool "Kerberos/SPNEGO advanced session setup"
+	  depends on CIFS && KEYS
+	  help
+	    Enables an upcall mechanism for CIFS which accesses
+	    userspace helper utilities to provide SPNEGO packaged (RFC 4178)
+	    Kerberos tickets which are needed to mount to certain secure servers
+	    (for which more secure Kerberos authentication is required). If
+	    unsure, say N.
+
 config CIFS_XATTR
         bool "CIFS extended attributes"
         depends on CIFS
@@ -2037,17 +2045,6 @@ config CIFS_EXPERIMENTAL
 	    setting a value of 1 to the pseudo-file /proc/fs/cifs/Experimental
 	    (which is disabled by default). See the file fs/cifs/README 
 	    for more details.  If unsure, say N.
-
-config CIFS_UPCALL
-	  bool "Kerberos/SPNEGO advanced session setup (EXPERIMENTAL)"
-	  depends on CIFS_EXPERIMENTAL
-	  depends on KEYS
-	  help
-	    Enables an upcall mechanism for CIFS which accesses
-	    userspace helper utilities to provide SPNEGO packaged (RFC 4178)
-	    Kerberos tickets which are needed to mount to certain secure servers
-	    (for which more secure Kerberos authentication is required). If
-	    unsure, say N.
 
 config CIFS_DFS_UPCALL
 	  bool "DFS feature support (EXPERIMENTAL)"
@@ -2103,20 +2100,6 @@ config CODA_FS
 
 	  To compile the coda client support as a module, choose M here: the
 	  module will be called coda.
-
-config CODA_FS_OLD_API
-	bool "Use 96-bit Coda file identifiers"
-	depends on CODA_FS
-	help
-	  A new kernel-userspace API had to be introduced for Coda v6.0
-	  to support larger 128-bit file identifiers as needed by the
-	  new realms implementation.
-
-	  However this new API is not backward compatible with older
-	  clients. If you really need to run the old Coda userspace
-	  cache manager then say Y.
-
-	  For most cases you probably want to say N.
 
 config AFS_FS
 	tristate "Andrew File System support (AFS) (EXPERIMENTAL)"

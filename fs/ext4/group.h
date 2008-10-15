@@ -13,7 +13,7 @@ extern __le16 ext4_group_desc_csum(struct ext4_sb_info *sbi, __u32 group,
 				   struct ext4_group_desc *gdp);
 extern int ext4_group_desc_csum_verify(struct ext4_sb_info *sbi, __u32 group,
 				       struct ext4_group_desc *gdp);
-struct buffer_head *read_block_bitmap(struct super_block *sb,
+struct buffer_head *ext4_read_block_bitmap(struct super_block *sb,
 				      ext4_group_t block_group);
 extern unsigned ext4_init_block_bitmap(struct super_block *sb,
 				       struct buffer_head *bh,

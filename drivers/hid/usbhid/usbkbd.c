@@ -43,7 +43,7 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE(DRIVER_LICENSE);
 
-static unsigned char usb_kbd_keycode[256] = {
+static const unsigned char usb_kbd_keycode[256] = {
 	  0,  0,  0,  0, 30, 48, 46, 32, 18, 33, 34, 35, 23, 36, 37, 38,
 	 50, 49, 24, 25, 16, 19, 31, 20, 22, 47, 17, 45, 21, 44,  2,  3,
 	  4,  5,  6,  7,  8,  9, 10, 11, 28,  1, 14, 15, 57, 12, 13, 26,
@@ -105,14 +105,16 @@ static void usb_kbd_irq(struct urb *urb)
 			if (usb_kbd_keycode[kbd->old[i]])
 				input_report_key(kbd->dev, usb_kbd_keycode[kbd->old[i]], 0);
 			else
-				info("Unknown key (scancode %#x) released.", kbd->old[i]);
+				dev_info(&urb->dev->dev,
+						"Unknown key (scancode %#x) released.\n", kbd->old[i]);
 		}
 
 		if (kbd->new[i] > 3 && memscan(kbd->old + 2, kbd->new[i], 6) == kbd->old + 8) {
 			if (usb_kbd_keycode[kbd->new[i]])
 				input_report_key(kbd->dev, usb_kbd_keycode[kbd->new[i]], 1);
 			else
-				info("Unknown key (scancode %#x) pressed.", kbd->new[i]);
+				dev_info(&urb->dev->dev,
+						"Unknown key (scancode %#x) released.\n", kbd->new[i]);
 		}
 	}
 
@@ -159,7 +161,8 @@ static void usb_kbd_led(struct urb *urb)
 	struct usb_kbd *kbd = urb->context;
 
 	if (urb->status)
-		warn("led urb status %d received", urb->status);
+		dev_warn(&urb->dev->dev, "led urb status %d received\n",
+			 urb->status);
 
 	if (*(kbd->leds) == kbd->newleds)
 		return;
@@ -232,14 +235,6 @@ static int usb_kbd_probe(struct usb_interface *iface,
 	endpoint = &interface->endpoint[0].desc;
 	if (!usb_endpoint_is_int_in(endpoint))
 		return -ENODEV;
-
-#ifdef CONFIG_USB_HID
-	if (usbhid_lookup_quirk(le16_to_cpu(dev->descriptor.idVendor),
-				le16_to_cpu(dev->descriptor.idProduct))
-			& HID_QUIRK_IGNORE) {
-		return -ENODEV;
-	}
-#endif
 
 	pipe = usb_rcvintpipe(dev, endpoint->bEndpointAddress);
 	maxp = usb_maxpacket(dev, pipe, usb_pipeout(pipe));
@@ -360,7 +355,8 @@ static int __init usb_kbd_init(void)
 {
 	int result = usb_register(&usb_kbd_driver);
 	if (result == 0)
-		info(DRIVER_VERSION ":" DRIVER_DESC);
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+				DRIVER_DESC "\n");
 	return result;
 }
 

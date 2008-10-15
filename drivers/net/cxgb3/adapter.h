@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2007 Chelsio, Inc. All rights reserved.
+ * Copyright (c) 2003-2008 Chelsio, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -42,6 +42,7 @@
 #include <linux/cache.h>
 #include <linux/mutex.h>
 #include <linux/bitops.h>
+#include <linux/inet_lro.h>
 #include "t3cdev.h"
 #include <asm/io.h>
 
@@ -53,7 +54,6 @@ struct port_info {
 	struct adapter *adapter;
 	struct vlan_group *vlan_grp;
 	struct sge_qset *qs;
-	const struct port_type_info *port_type;
 	u8 port_id;
 	u8 rx_csum_offload;
 	u8 nqsets;
@@ -92,6 +92,7 @@ struct sge_fl {                     /* SGE per free-buffer list state */
 	unsigned int gen;           /* free list generation */
 	struct fl_pg_chunk pg_chunk;/* page chunk cache */
 	unsigned int use_pages;     /* whether FL uses pages or sk_buffs */
+	unsigned int order;	    /* order of page allocations */
 	struct rx_desc *desc;       /* address of HW Rx descriptor ring */
 	struct rx_sw_desc *sdesc;   /* address of SW Rx descriptor ring */
 	dma_addr_t   phys_addr;     /* physical address of HW ring start */
@@ -116,12 +117,14 @@ struct sge_rspq {		/* state for an SGE response queue */
 	unsigned int polling;	/* is the queue serviced through NAPI? */
 	unsigned int holdoff_tmr;	/* interrupt holdoff timer in 100ns */
 	unsigned int next_holdoff;	/* holdoff time for next interrupt */
+	unsigned int rx_recycle_buf; /* whether recycling occurred
+					within current sop-eop */
 	struct rsp_desc *desc;	/* address of HW response ring */
 	dma_addr_t phys_addr;	/* physical address of the ring */
 	unsigned int cntxt_id;	/* SGE context id for the response q */
 	spinlock_t lock;	/* guards response processing */
-	struct sk_buff *rx_head;	/* offload packet receive queue head */
-	struct sk_buff *rx_tail;	/* offload packet receive queue tail */
+	struct sk_buff_head rx_queue; /* offload packet receive queue */
+	struct sk_buff *pg_skb; /* used to build frag list in napi handler */
 
 	unsigned long offload_pkts;
 	unsigned long offload_bundles;
@@ -169,9 +172,15 @@ enum {				/* per port SGE statistics */
 	SGE_PSTAT_TX_CSUM,	/* # of TX checksum offloads */
 	SGE_PSTAT_VLANEX,	/* # of VLAN tag extractions */
 	SGE_PSTAT_VLANINS,	/* # of VLAN tag insertions */
+	SGE_PSTAT_LRO_AGGR,	/* # of page chunks added to LRO sessions */
+	SGE_PSTAT_LRO_FLUSHED,	/* # of flushed LRO sessions */
+	SGE_PSTAT_LRO_NO_DESC,	/* # of overflown LRO sessions */
 
 	SGE_PSTAT_MAX		/* must be last */
 };
+
+#define T3_MAX_LRO_SES 8
+#define T3_MAX_LRO_MAX_PKTS 64
 
 struct sge_qset {		/* an SGE queue set */
 	struct adapter *adap;
@@ -179,6 +188,13 @@ struct sge_qset {		/* an SGE queue set */
 	struct sge_rspq rspq;
 	struct sge_fl fl[SGE_RXQ_PER_SET];
 	struct sge_txq txq[SGE_TXQ_PER_SET];
+	struct net_lro_mgr lro_mgr;
+	struct net_lro_desc lro_desc[T3_MAX_LRO_SES];
+	struct skb_frag_struct *lro_frag_tbl;
+	int lro_nfrags;
+	int lro_enabled;
+	int lro_frag_len;
+	void *lro_va;
 	struct net_device *netdev;
 	unsigned long txq_stopped;	/* which Tx queues are stopped */
 	struct timer_list tx_reclaim_timer;	/* reclaims TX buffers */
@@ -223,6 +239,7 @@ struct adapter {
 	unsigned int check_task_cnt;
 	struct delayed_work adap_check_task;
 	struct work_struct ext_intr_handler_task;
+	struct work_struct fatal_error_handler_task;
 
 	struct dentry *debugfs_root;
 
@@ -264,9 +281,11 @@ int t3_offload_tx(struct t3cdev *tdev, struct sk_buff *skb);
 void t3_os_ext_intr_handler(struct adapter *adapter);
 void t3_os_link_changed(struct adapter *adapter, int port_id, int link_status,
 			int speed, int duplex, int fc);
+void t3_os_phymod_changed(struct adapter *adap, int port_id);
 
 void t3_sge_start(struct adapter *adap);
 void t3_sge_stop(struct adapter *adap);
+void t3_stop_sge_timers(struct adapter *adap);
 void t3_free_sge_resources(struct adapter *adap);
 void t3_sge_err_intr_handler(struct adapter *adapter);
 irq_handler_t t3_intr_handler(struct adapter *adap, int polling);

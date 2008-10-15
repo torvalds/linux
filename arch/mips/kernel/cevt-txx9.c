@@ -161,6 +161,9 @@ void __init txx9_tmr_init(unsigned long baseaddr)
 	struct txx9_tmr_reg __iomem *tmrptr;
 
 	tmrptr = ioremap(baseaddr, sizeof(struct txx9_tmr_reg));
+	/* Start once to make CounterResetEnable effective */
+	__raw_writel(TXx9_TMTCR_CRE | TXx9_TMTCR_TCE, &tmrptr->tcr);
+	/* Stop and reset the counter */
 	__raw_writel(TXx9_TMTCR_CRE, &tmrptr->tcr);
 	__raw_writel(0, &tmrptr->tisr);
 	__raw_writel(0xffffffff, &tmrptr->cpra);

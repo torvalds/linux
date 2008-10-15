@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/proc_fs.h>
 #include <linux/mtio.h>
+#include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>
 
@@ -108,7 +109,7 @@ tapechar_check_idalbuffer(struct tape_device *device, size_t block_size)
 
 	/* The current idal buffer is not correct. Allocate a new one. */
 	new = idal_buffer_alloc(block_size, 0);
-	if (new == NULL)
+	if (IS_ERR(new))
 		return -ENOMEM;
 
 	if (device->char_data.idal_buf != NULL)
@@ -289,21 +290,26 @@ tapechar_open (struct inode *inode, struct file *filp)
 	if (imajor(filp->f_path.dentry->d_inode) != tapechar_major)
 		return -ENODEV;
 
+	lock_kernel();
 	minor = iminor(filp->f_path.dentry->d_inode);
 	device = tape_get_device(minor / TAPE_MINORS_PER_DEV);
 	if (IS_ERR(device)) {
 		DBF_EVENT(3, "TCHAR:open: tape_get_device() failed\n");
-		return PTR_ERR(device);
+		rc = PTR_ERR(device);
+		goto out;
 	}
 
 
 	rc = tape_open(device);
 	if (rc == 0) {
 		filp->private_data = device;
-		return nonseekable_open(inode, filp);
+		rc = nonseekable_open(inode, filp);
 	}
-	tape_put_device(device);
+	else
+		tape_put_device(device);
 
+out:
+	unlock_kernel();
 	return rc;
 }
 

@@ -323,7 +323,7 @@ out:
 }
 
 /*
- * remove_kevent - cleans up and ultimately frees the given kevent
+ * remove_kevent - cleans up the given kevent
  *
  * Caller must hold dev->ev_mutex.
  */
@@ -334,7 +334,13 @@ static void remove_kevent(struct inotify_device *dev,
 
 	dev->event_count--;
 	dev->queue_size -= sizeof(struct inotify_event) + kevent->event.len;
+}
 
+/*
+ * free_kevent - frees the given kevent.
+ */
+static void free_kevent(struct inotify_kernel_event *kevent)
+{
 	kfree(kevent->name);
 	kmem_cache_free(event_cachep, kevent);
 }
@@ -350,24 +356,25 @@ static void inotify_dev_event_dequeue(struct inotify_device *dev)
 		struct inotify_kernel_event *kevent;
 		kevent = inotify_dev_get_event(dev);
 		remove_kevent(dev, kevent);
+		free_kevent(kevent);
 	}
 }
 
 /*
- * find_inode - resolve a user-given path to a specific inode and return a nd
+ * find_inode - resolve a user-given path to a specific inode
  */
-static int find_inode(const char __user *dirname, struct nameidata *nd,
+static int find_inode(const char __user *dirname, struct path *path,
 		      unsigned flags)
 {
 	int error;
 
-	error = __user_walk(dirname, flags, nd);
+	error = user_path_at(AT_FDCWD, dirname, flags, path);
 	if (error)
 		return error;
 	/* you can only watch an inode if you have read permissions on it */
-	error = vfs_permission(nd, MAY_READ);
+	error = inode_permission(path->dentry->d_inode, MAY_READ);
 	if (error)
-		path_put(&nd->path);
+		path_put(path);
 	return error;
 }
 
@@ -433,17 +440,15 @@ static ssize_t inotify_read(struct file *file, char __user *buf,
 	dev = file->private_data;
 
 	while (1) {
-		int events;
 
 		prepare_to_wait(&dev->wq, &wait, TASK_INTERRUPTIBLE);
 
 		mutex_lock(&dev->ev_mutex);
-		events = !list_empty(&dev->events);
-		mutex_unlock(&dev->ev_mutex);
-		if (events) {
+		if (!list_empty(&dev->events)) {
 			ret = 0;
 			break;
 		}
+		mutex_unlock(&dev->ev_mutex);
 
 		if (file->f_flags & O_NONBLOCK) {
 			ret = -EAGAIN;
@@ -462,7 +467,6 @@ static ssize_t inotify_read(struct file *file, char __user *buf,
 	if (ret)
 		return ret;
 
-	mutex_lock(&dev->ev_mutex);
 	while (1) {
 		struct inotify_kernel_event *kevent;
 
@@ -481,6 +485,13 @@ static ssize_t inotify_read(struct file *file, char __user *buf,
 			}
 			break;
 		}
+		remove_kevent(dev, kevent);
+
+		/*
+		 * Must perform the copy_to_user outside the mutex in order
+		 * to avoid a lock order reversal with mmap_sem.
+		 */
+		mutex_unlock(&dev->ev_mutex);
 
 		if (copy_to_user(buf, &kevent->event, event_size)) {
 			ret = -EFAULT;
@@ -498,7 +509,9 @@ static ssize_t inotify_read(struct file *file, char __user *buf,
 			count -= kevent->event.len;
 		}
 
-		remove_kevent(dev, kevent);
+		free_kevent(kevent);
+
+		mutex_lock(&dev->ev_mutex);
 	}
 	mutex_unlock(&dev->ev_mutex);
 
@@ -566,7 +579,7 @@ static const struct inotify_operations inotify_user_ops = {
 	.destroy_watch	= free_inotify_user_watch,
 };
 
-asmlinkage long sys_inotify_init(void)
+asmlinkage long sys_inotify_init1(int flags)
 {
 	struct inotify_device *dev;
 	struct inotify_handle *ih;
@@ -574,7 +587,14 @@ asmlinkage long sys_inotify_init(void)
 	struct file *filp;
 	int fd, ret;
 
-	fd = get_unused_fd();
+	/* Check the IN_* constants for consistency.  */
+	BUILD_BUG_ON(IN_CLOEXEC != O_CLOEXEC);
+	BUILD_BUG_ON(IN_NONBLOCK != O_NONBLOCK);
+
+	if (flags & ~(IN_CLOEXEC | IN_NONBLOCK))
+		return -EINVAL;
+
+	fd = get_unused_fd_flags(flags & O_CLOEXEC);
 	if (fd < 0)
 		return fd;
 
@@ -610,7 +630,7 @@ asmlinkage long sys_inotify_init(void)
 	filp->f_path.dentry = dget(inotify_mnt->mnt_root);
 	filp->f_mapping = filp->f_path.dentry->d_inode->i_mapping;
 	filp->f_mode = FMODE_READ;
-	filp->f_flags = O_RDONLY;
+	filp->f_flags = O_RDONLY | (flags & O_NONBLOCK);
 	filp->private_data = dev;
 
 	INIT_LIST_HEAD(&dev->events);
@@ -638,11 +658,16 @@ out_put_fd:
 	return ret;
 }
 
-asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
+asmlinkage long sys_inotify_init(void)
+{
+	return sys_inotify_init1(0);
+}
+
+asmlinkage long sys_inotify_add_watch(int fd, const char __user *pathname, u32 mask)
 {
 	struct inode *inode;
 	struct inotify_device *dev;
-	struct nameidata nd;
+	struct path path;
 	struct file *filp;
 	int ret, fput_needed;
 	unsigned flags = 0;
@@ -662,12 +687,12 @@ asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
 	if (mask & IN_ONLYDIR)
 		flags |= LOOKUP_DIRECTORY;
 
-	ret = find_inode(path, &nd, flags);
+	ret = find_inode(pathname, &path, flags);
 	if (unlikely(ret))
 		goto fput_and_out;
 
-	/* inode held in place by reference to nd; dev by fget on fd */
-	inode = nd.path.dentry->d_inode;
+	/* inode held in place by reference to path; dev by fget on fd */
+	inode = path.dentry->d_inode;
 	dev = filp->private_data;
 
 	mutex_lock(&dev->up_mutex);
@@ -676,7 +701,7 @@ asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
 		ret = create_watch(dev, inode, mask);
 	mutex_unlock(&dev->up_mutex);
 
-	path_put(&nd.path);
+	path_put(&path);
 fput_and_out:
 	fput_light(filp, fput_needed);
 	return ret;

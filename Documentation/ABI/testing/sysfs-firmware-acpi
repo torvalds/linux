@@ -29,46 +29,46 @@ Description:
 
 		$ cd /sys/firmware/acpi/interrupts
 		$ grep . *
-		error:0
-		ff_gbl_lock:0
-		ff_pmtimer:0
-		ff_pwr_btn:0
-		ff_rt_clk:0
-		ff_slp_btn:0
-		gpe00:0
-		gpe01:0
-		gpe02:0
-		gpe03:0
-		gpe04:0
-		gpe05:0
-		gpe06:0
-		gpe07:0
-		gpe08:0
-		gpe09:174
-		gpe0A:0
-		gpe0B:0
-		gpe0C:0
-		gpe0D:0
-		gpe0E:0
-		gpe0F:0
-		gpe10:0
-		gpe11:60
-		gpe12:0
-		gpe13:0
-		gpe14:0
-		gpe15:0
-		gpe16:0
-		gpe17:0
-		gpe18:0
-		gpe19:7
-		gpe1A:0
-		gpe1B:0
-		gpe1C:0
-		gpe1D:0
-		gpe1E:0
-		gpe1F:0
-		gpe_all:241
-		sci:241
+		error:	     0
+		ff_gbl_lock:	   0   enable
+		ff_pmtimer:	  0  invalid
+		ff_pwr_btn:	  0   enable
+		ff_rt_clk:	 2  disable
+		ff_slp_btn:	  0  invalid
+		gpe00:	     0	invalid
+		gpe01:	     0	 enable
+		gpe02:	   108	 enable
+		gpe03:	     0	invalid
+		gpe04:	     0	invalid
+		gpe05:	     0	invalid
+		gpe06:	     0	 enable
+		gpe07:	     0	 enable
+		gpe08:	     0	invalid
+		gpe09:	     0	invalid
+		gpe0A:	     0	invalid
+		gpe0B:	     0	invalid
+		gpe0C:	     0	invalid
+		gpe0D:	     0	invalid
+		gpe0E:	     0	invalid
+		gpe0F:	     0	invalid
+		gpe10:	     0	invalid
+		gpe11:	     0	invalid
+		gpe12:	     0	invalid
+		gpe13:	     0	invalid
+		gpe14:	     0	invalid
+		gpe15:	     0	invalid
+		gpe16:	     0	invalid
+		gpe17:	  1084	 enable
+		gpe18:	     0	 enable
+		gpe19:	     0	invalid
+		gpe1A:	     0	invalid
+		gpe1B:	     0	invalid
+		gpe1C:	     0	invalid
+		gpe1D:	     0	invalid
+		gpe1E:	     0	invalid
+		gpe1F:	     0	invalid
+		gpe_all:    1192
+		sci:	1194
 
 		sci - The total number of times the ACPI SCI
 		has claimed an interrupt.
@@ -89,6 +89,13 @@ Description:
 
 		error - an interrupt that can't be accounted for above.
 
+		invalid: it's either a wakeup GPE or a GPE/Fixed Event that
+			doesn't have an event handler.
+
+		disable: the GPE/Fixed Event is valid but disabled.
+
+		enable: the GPE/Fixed Event is valid and enabled.
+
 		Root has permission to clear any of these counters.  Eg.
 		# echo 0 > gpe11
 
@@ -97,3 +104,43 @@ Description:
 
 		None of these counters has an effect on the function
 		of the system, they are simply statistics.
+
+		Besides this, user can also write specific strings to these files
+		to enable/disable/clear ACPI interrupts in user space, which can be
+		used to debug some ACPI interrupt storm issues.
+
+		Note that only writting to VALID GPE/Fixed Event is allowed,
+		i.e. user can only change the status of runtime GPE and
+		Fixed Event with event handler installed.
+
+		Let's take power button fixed event for example, please kill acpid
+		and other user space applications so that the machine won't shutdown
+		when pressing the power button.
+		# cat ff_pwr_btn
+		0
+		# press the power button for 3 times;
+		# cat ff_pwr_btn
+		3
+		# echo disable > ff_pwr_btn
+		# cat ff_pwr_btn
+		disable
+		# press the power button for 3 times;
+		# cat ff_pwr_btn
+		disable
+		# echo enable > ff_pwr_btn
+		# cat ff_pwr_btn
+		4
+		/*
+		 * this is because the status bit is set even if the enable bit is cleared,
+		 * and it triggers an ACPI fixed event when the enable bit is set again
+		 */
+		# press the power button for 3 times;
+		# cat ff_pwr_btn
+		7
+		# echo disable > ff_pwr_btn
+		# press the power button for 3 times;
+		# echo clear > ff_pwr_btn	/* clear the status bit */
+		# echo disable > ff_pwr_btn
+		# cat ff_pwr_btn
+		7
+

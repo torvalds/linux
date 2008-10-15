@@ -26,6 +26,7 @@
 
 #include <linux/slab.h>
 #include <linux/list.h>
+#include <linux/spinlock.h>
 
 struct configfs_dirent {
 	atomic_t		s_count;
@@ -47,7 +48,12 @@ struct configfs_dirent {
 #define CONFIGFS_USET_DIR	0x0040
 #define CONFIGFS_USET_DEFAULT	0x0080
 #define CONFIGFS_USET_DROPPING	0x0100
+#define CONFIGFS_USET_IN_MKDIR	0x0200
+#define CONFIGFS_USET_CREATING	0x0400
 #define CONFIGFS_NOT_PINNED	(CONFIGFS_ITEM_ATTR)
+
+extern struct mutex configfs_symlink_mutex;
+extern spinlock_t configfs_dirent_lock;
 
 extern struct vfsmount * configfs_mount;
 extern struct kmem_cache *configfs_dir_cachep;
@@ -62,6 +68,7 @@ extern void configfs_inode_exit(void);
 extern int configfs_create_file(struct config_item *, const struct configfs_attribute *);
 extern int configfs_make_dirent(struct configfs_dirent *,
 				struct dentry *, void *, umode_t, int);
+extern int configfs_dirent_is_ready(struct configfs_dirent *);
 
 extern int configfs_add_file(struct dentry *, const struct configfs_attribute *, int);
 extern void configfs_hash_and_remove(struct dentry * dir, const char * name);

@@ -53,7 +53,7 @@ static int detect_memory_e820(void)
 
 		count++;
 		desc++;
-	} while (next && count < E820MAX);
+	} while (next && count < ARRAY_SIZE(boot_params.e820_map));
 
 	return boot_params.e820_entries = count;
 }

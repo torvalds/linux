@@ -904,7 +904,7 @@ static int need_sync(struct gfs2_quota_data *qd)
 		do_sync = 0;
 	else {
 		value *= gfs2_jindex_size(sdp) * num;
-		do_div(value, den);
+		value = div_s64(value, den);
 		value += (s64)be64_to_cpu(qd->qd_qb.qb_value);
 		if (value < (s64)be64_to_cpu(qd->qd_qb.qb_limit))
 			do_sync = 0;

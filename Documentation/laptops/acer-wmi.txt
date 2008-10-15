@@ -174,8 +174,6 @@ The LED is exposed through the LED subsystem, and can be found in:
 The mail LED is autodetected, so if you don't have one, the LED device won't
 be registered.
 
-If you have a mail LED that is not green, please report this to me.
-
 Backlight
 *********
 

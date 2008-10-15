@@ -290,7 +290,7 @@ islpci_monitor_rx(islpci_private *priv, struct sk_buff **skb)
 
 		avs->version = cpu_to_be32(P80211CAPTURE_VERSION);
 		avs->length = cpu_to_be32(sizeof (struct avs_80211_1_header));
-		avs->mactime = cpu_to_be64(le64_to_cpu(clock));
+		avs->mactime = cpu_to_be64(clock);
 		avs->hosttime = cpu_to_be64(jiffies);
 		avs->phytype = cpu_to_be32(6);	/*OFDM: 6 for (g), 8 for (a) */
 		avs->channel = cpu_to_be32(channel_of_freq(freq));

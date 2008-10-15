@@ -36,7 +36,7 @@ irqreturn_t psc_irq(int, void *);
  * Debugging dump, used in various places to see what's going on.
  */
 
-void psc_debug_dump(void)
+static void psc_debug_dump(void)
 {
 	int	i;
 
@@ -55,7 +55,7 @@ void psc_debug_dump(void)
  * expanded to cover what I think are the other 7 channels.
  */
 
-void psc_dma_die_die_die(void)
+static void psc_dma_die_die_die(void)
 {
 	int i;
 

@@ -82,7 +82,6 @@ struct conexant_spec {
 	/* PCM information */
 	struct hda_pcm pcm_rec[2];	/* used in build_pcms() */
 
-	struct mutex amp_mutex;	/* PCM volume/mute control mutex */
 	unsigned int spdif_route;
 
 	/* dynamic controls, init_verbs and input_mux */
@@ -687,7 +686,7 @@ static struct snd_kcontrol_new cxt5045_mixers_hp530[] = {
 
 static struct hda_verb cxt5045_init_verbs[] = {
 	/* Line in, Mic */
-	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN },
+	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN|AC_PINCTL_VREF_80 },
 	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN|AC_PINCTL_VREF_80 },
 	/* HP, Amp  */
 	{0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
@@ -907,10 +906,12 @@ static struct snd_pci_quirk cxt5045_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x30cf, "HP DV9533EG", CXT5045_LAPTOP_HPSENSE),
 	SND_PCI_QUIRK(0x103c, 0x30d5, "HP 530", CXT5045_LAPTOP_HP530),
 	SND_PCI_QUIRK(0x103c, 0x30d9, "HP Spartan", CXT5045_LAPTOP_HPSENSE),
+	SND_PCI_QUIRK(0x1179, 0xff31, "Toshiba P105", CXT5045_LAPTOP_MICSENSE),
 	SND_PCI_QUIRK(0x152d, 0x0753, "Benq R55E", CXT5045_BENQ),
 	SND_PCI_QUIRK(0x1734, 0x10ad, "Fujitsu Si1520", CXT5045_LAPTOP_MICSENSE),
 	SND_PCI_QUIRK(0x1734, 0x10cb, "Fujitsu Si3515", CXT5045_LAPTOP_HPMICSENSE),
-	SND_PCI_QUIRK(0x1734, 0x110e, "Fujitsu V5505", CXT5045_LAPTOP_HPSENSE),
+	SND_PCI_QUIRK(0x1734, 0x110e, "Fujitsu V5505",
+		      CXT5045_LAPTOP_HPMICSENSE),
 	SND_PCI_QUIRK(0x1509, 0x1e40, "FIC", CXT5045_LAPTOP_HPMICSENSE),
 	SND_PCI_QUIRK(0x1509, 0x2f05, "FIC", CXT5045_LAPTOP_HPMICSENSE),
 	SND_PCI_QUIRK(0x1509, 0x2f06, "FIC", CXT5045_LAPTOP_HPMICSENSE),
@@ -928,7 +929,6 @@ static int patch_cxt5045(struct hda_codec *codec)
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
 		return -ENOMEM;
-	mutex_init(&spec->amp_mutex);
 	codec->spec = spec;
 
 	spec->multiout.max_channels = 2;
@@ -963,6 +963,7 @@ static int patch_cxt5045(struct hda_codec *codec)
 		codec->patch_ops.init = cxt5045_init;
 		break;
 	case CXT5045_LAPTOP_MICSENSE:
+		codec->patch_ops.unsol_event = cxt5045_hp_unsol_event;
 		spec->input_mux = &cxt5045_capture_source;
 		spec->num_init_verbs = 2;
 		spec->init_verbs[1] = cxt5045_mic_sense_init_verbs;
@@ -1007,15 +1008,19 @@ static int patch_cxt5045(struct hda_codec *codec)
 #endif	
 	}
 
-	/*
-	 * Fix max PCM level to 0 dB
-	 * (originall it has 0x2b steps with 0dB offset 0x14)
-	 */
-	snd_hda_override_amp_caps(codec, 0x17, HDA_INPUT,
-				  (0x14 << AC_AMPCAP_OFFSET_SHIFT) |
-				  (0x14 << AC_AMPCAP_NUM_STEPS_SHIFT) |
-				  (0x05 << AC_AMPCAP_STEP_SIZE_SHIFT) |
-				  (1 << AC_AMPCAP_MUTE_SHIFT));
+	switch (codec->subsystem_id >> 16) {
+	case 0x103c:
+		/* HP laptop has a really bad sound over 0dB on NID 0x17.
+		 * Fix max PCM level to 0 dB
+		 * (originall it has 0x2b steps with 0dB offset 0x14)
+		 */
+		snd_hda_override_amp_caps(codec, 0x17, HDA_INPUT,
+					  (0x14 << AC_AMPCAP_OFFSET_SHIFT) |
+					  (0x14 << AC_AMPCAP_NUM_STEPS_SHIFT) |
+					  (0x05 << AC_AMPCAP_STEP_SIZE_SHIFT) |
+					  (1 << AC_AMPCAP_MUTE_SHIFT));
+		break;
+	}
 
 	return 0;
 }
@@ -1477,7 +1482,6 @@ static int patch_cxt5047(struct hda_codec *codec)
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
 		return -ENOMEM;
-	mutex_init(&spec->amp_mutex);
 	codec->spec = spec;
 
 	spec->multiout.max_channels = 2;
@@ -1736,7 +1740,6 @@ static int patch_cxt5051(struct hda_codec *codec)
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
 		return -ENOMEM;
-	mutex_init(&spec->amp_mutex);
 	codec->spec = spec;
 
 	codec->patch_ops = conexant_patch_ops;

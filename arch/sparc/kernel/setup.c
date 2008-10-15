@@ -67,7 +67,7 @@ struct screen_info screen_info = {
 extern unsigned long trapbase;
 
 /* Pretty sick eh? */
-void prom_sync_me(void)
+static void prom_sync_me(void)
 {
 	unsigned long prom_tbr, flags;
 
@@ -97,7 +97,7 @@ void prom_sync_me(void)
 	return;
 }
 
-unsigned int boot_flags __initdata = 0;
+static unsigned int boot_flags __initdata = 0;
 #define BOOTME_DEBUG  0x1
 
 /* Exported for mm/init.c:paging_init. */
@@ -213,23 +213,25 @@ void __init setup_arch(char **cmdline_p)
 	/* Initialize PROM console and command line. */
 	*cmdline_p = prom_getbootargs();
 	strcpy(boot_command_line, *cmdline_p);
+	parse_early_param();
 
 	/* Set sparc_cpu_model */
 	sparc_cpu_model = sun_unknown;
-	if(!strcmp(&cputypval,"sun4 ")) { sparc_cpu_model=sun4; }
-	if(!strcmp(&cputypval,"sun4c")) { sparc_cpu_model=sun4c; }
-	if(!strcmp(&cputypval,"sun4m")) { sparc_cpu_model=sun4m; }
-	if(!strcmp(&cputypval,"sun4s")) { sparc_cpu_model=sun4m; }  /* CP-1200 with PROM 2.30 -E */
-	if(!strcmp(&cputypval,"sun4d")) { sparc_cpu_model=sun4d; }
-	if(!strcmp(&cputypval,"sun4e")) { sparc_cpu_model=sun4e; }
-	if(!strcmp(&cputypval,"sun4u")) { sparc_cpu_model=sun4u; }
+	if (!strcmp(&cputypval,"sun4 "))
+		sparc_cpu_model = sun4;
+	if (!strcmp(&cputypval,"sun4c"))
+		sparc_cpu_model = sun4c;
+	if (!strcmp(&cputypval,"sun4m"))
+		sparc_cpu_model = sun4m;
+	if (!strcmp(&cputypval,"sun4s"))
+		sparc_cpu_model = sun4m; /* CP-1200 with PROM 2.30 -E */
+	if (!strcmp(&cputypval,"sun4d"))
+		sparc_cpu_model = sun4d;
+	if (!strcmp(&cputypval,"sun4e"))
+		sparc_cpu_model = sun4e;
+	if (!strcmp(&cputypval,"sun4u"))
+		sparc_cpu_model = sun4u;
 
-#ifdef CONFIG_SUN4
-	if (sparc_cpu_model != sun4) {
-		prom_printf("This kernel is for Sun4 architecture only.\n");
-		prom_halt();
-	}
-#endif
 	printk("ARCH: ");
 	switch(sparc_cpu_model) {
 	case sun4:
@@ -263,7 +265,7 @@ void __init setup_arch(char **cmdline_p)
 	boot_flags_init(*cmdline_p);
 
 	idprom_init();
-	if (ARCH_SUN4C_SUN4)
+	if (ARCH_SUN4C)
 		sun4c_probe_vac();
 	load_mmu();
 

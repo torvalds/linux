@@ -37,8 +37,6 @@
  * Signal information.
  * Defaul offset is required for RSSI <-> dBm conversion.
  */
-#define MAX_SIGNAL			100
-#define MAX_RX_SSI			-1
 #define DEFAULT_RSSI_OFFSET		100
 
 /*
@@ -50,6 +48,11 @@
 #define EEPROM_SIZE			0x0100
 #define BBP_SIZE			0x0020
 #define RF_SIZE				0x0010
+
+/*
+ * Number of TX queues.
+ */
+#define NUM_TX_QUEUES			2
 
 /*
  * Control/Status Registers(CSR).
@@ -935,19 +938,13 @@
 #define MAX_TXPOWER	62
 #define DEFAULT_TXPOWER	39
 
-#define TXPOWER_FROM_DEV(__txpower)					\
-({									\
-	((__txpower) > MAX_TXPOWER) ? DEFAULT_TXPOWER - MIN_TXPOWER :	\
-	((__txpower) < MIN_TXPOWER) ? DEFAULT_TXPOWER - MIN_TXPOWER :	\
-	(((__txpower) - MAX_TXPOWER) + MIN_TXPOWER);			\
-})
+#define __CLAMP_TX(__txpower) \
+	clamp_t(char, (__txpower), MIN_TXPOWER, MAX_TXPOWER)
 
-#define TXPOWER_TO_DEV(__txpower)			\
-({							\
-	(__txpower) += MIN_TXPOWER;			\
-	((__txpower) <= MIN_TXPOWER) ? MAX_TXPOWER :	\
-	(((__txpower) >= MAX_TXPOWER) ? MIN_TXPOWER :	\
-	(MAX_TXPOWER - ((__txpower) - MIN_TXPOWER)));	\
-})
+#define TXPOWER_FROM_DEV(__txpower) \
+	((__CLAMP_TX(__txpower) - MAX_TXPOWER) + MIN_TXPOWER)
+
+#define TXPOWER_TO_DEV(__txpower) \
+	MAX_TXPOWER - (__CLAMP_TX(__txpower) - MIN_TXPOWER)
 
 #endif /* RT2400PCI_H */

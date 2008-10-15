@@ -19,8 +19,6 @@
 #include "sclp.h"
 #include "sclp_rw.h"
 
-#define SCLP_RW_PRINT_HEADER "sclp low level driver: "
-
 /*
  * The room for the SCCB (only for writing) is not equal to a pages size
  * (as it is specified as the maximum size in the SCLP documentation)

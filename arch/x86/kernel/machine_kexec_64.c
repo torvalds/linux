@@ -11,6 +11,8 @@
 #include <linux/string.h>
 #include <linux/reboot.h>
 #include <linux/numa.h>
+#include <linux/ftrace.h>
+
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
@@ -110,7 +112,7 @@ static int init_pgtable(struct kimage *image, unsigned long start_pgtable)
 {
 	pgd_t *level4p;
 	level4p = (pgd_t *)__va(start_pgtable);
- 	return init_level4_page(image, level4p, 0, end_pfn << PAGE_SHIFT);
+	return init_level4_page(image, level4p, 0, max_pfn << PAGE_SHIFT);
 }
 
 static void set_idt(void *newidt, u16 limit)
@@ -179,10 +181,12 @@ void machine_kexec_cleanup(struct kimage *image)
  * Do not allocate memory (or fail in any way) in machine_kexec().
  * We are past the point of no return, committed to rebooting now.
  */
-NORET_TYPE void machine_kexec(struct kimage *image)
+void machine_kexec(struct kimage *image)
 {
 	unsigned long page_list[PAGES_NR];
 	void *control_page;
+
+	tracer_disable();
 
 	/* Interrupts aren't acceptable while we reboot */
 	local_irq_disable();

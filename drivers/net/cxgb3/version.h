@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2007 Chelsio, Inc. All rights reserved.
+ * Copyright (c) 2003-2008 Chelsio, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -35,10 +35,10 @@
 #define DRV_DESC "Chelsio T3 Network Driver"
 #define DRV_NAME "cxgb3"
 /* Driver version */
-#define DRV_VERSION "1.0-ko"
+#define DRV_VERSION "1.1.0-ko"
 
 /* Firmware version */
-#define FW_VERSION_MAJOR 6
+#define FW_VERSION_MAJOR 7
 #define FW_VERSION_MINOR 0
 #define FW_VERSION_MICRO 0
 #endif				/* __CHELSIO_VERSION_H */

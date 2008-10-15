@@ -63,11 +63,20 @@ static inline void i8042_write_command(int val)
 	outb(val, I8042_COMMAND_REG);
 }
 
-#if defined(__i386__) || defined(__x86_64__)
+#ifdef CONFIG_X86
 
 #include <linux/dmi.h>
 
 static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
+	{
+		/* AUX LOOP command does not raise AUX IRQ */
+		.ident = "Arima-Rioworks HDAMB",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "RIOWORKS"),
+			DMI_MATCH(DMI_BOARD_NAME, "HDAMB"),
+			DMI_MATCH(DMI_BOARD_VERSION, "Rev E"),
+		},
+	},
 	{
 		/* AUX LOOP command does not raise AUX IRQ */
 		.ident = "ASUS P65UP5",
@@ -116,6 +125,14 @@ static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Virtual Machine"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "VS2005R2"),
+		},
+	},
+	{
+		.ident = "Medion MAM 2070",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Notebook"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MAM 2070"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "5a"),
 		},
 	},
 	{ }
@@ -288,19 +305,38 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 		.ident = "Lenovo 3000 n100",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "3000 N100"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "076804U"),
+		},
+	},
+	{
+		.ident = "Acer Aspire 1360",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 1360"),
+		},
+	},
+	{
+		.ident = "Gericom Bellagio",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Gericom"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "N34AS6"),
 		},
 	},
 	{ }
 };
 
-
-
+#ifdef CONFIG_PNP
+static struct dmi_system_id __initdata i8042_dmi_nopnp_table[] = {
+	{
+		.ident = "Intel MBO Desktop D845PESV",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "D845PESV"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Intel Corporation"),
+		},
+	},
+	{ }
+};
 #endif
-
-#ifdef CONFIG_X86
-
-#include <linux/dmi.h>
 
 /*
  * Some Wistron based laptops need us to explicitly enable the 'Dritek
@@ -331,6 +367,13 @@ static struct dmi_system_id __initdata i8042_dmi_dritek_table[] = {
 		},
 	},
 	{
+		.ident = "Acer Aspire 5720",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5720"),
+		},
+	},
+	{
 		.ident = "Acer Aspire 9110",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
@@ -351,11 +394,17 @@ static struct dmi_system_id __initdata i8042_dmi_dritek_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 2490"),
 		},
 	},
+	{
+		.ident = "Acer TravelMate 4280",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 4280"),
+		},
+	},
 	{ }
 };
 
 #endif /* CONFIG_X86 */
-
 
 #ifdef CONFIG_PNP
 #include <linux/pnp.h>
@@ -465,6 +514,11 @@ static int __init i8042_pnp_init(void)
 	char kbd_irq_str[4] = { 0 }, aux_irq_str[4] = { 0 };
 	int pnp_data_busted = 0;
 	int err;
+
+#ifdef CONFIG_X86
+	if (dmi_check_system(i8042_dmi_nopnp_table))
+		i8042_nopnp = 1;
+#endif
 
 	if (i8042_nopnp) {
 		printk(KERN_INFO "i8042: PNP detection disabled\n");
@@ -591,15 +645,13 @@ static int __init i8042_platform_init(void)
         i8042_reset = 1;
 #endif
 
-#if defined(__i386__) || defined(__x86_64__)
+#ifdef CONFIG_X86
 	if (dmi_check_system(i8042_dmi_noloop_table))
 		i8042_noloop = 1;
 
 	if (dmi_check_system(i8042_dmi_nomux_table))
 		i8042_nomux = 1;
-#endif
 
-#ifdef CONFIG_X86
 	if (dmi_check_system(i8042_dmi_dritek_table))
 		i8042_dritek = 1;
 #endif /* CONFIG_X86 */

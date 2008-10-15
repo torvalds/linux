@@ -100,3 +100,9 @@ define archhelp
   echo '  boot		- Build vmlinux and bootloader for Ski simulator'
   echo '* unwcheck	- Check vmlinux for invalid unwind info'
 endef
+
+archprepare: make_nr_irqs_h FORCE
+PHONY += make_nr_irqs_h FORCE
+
+make_nr_irqs_h: FORCE
+	$(Q)$(MAKE) $(build)=arch/ia64/kernel include/asm-ia64/nr-irqs.h

@@ -86,7 +86,8 @@ static int gp8psk_load_bcm4500fw(struct dvb_usb_device *d)
 {
 	int ret;
 	const struct firmware *fw = NULL;
-	u8 *ptr, *buf;
+	const u8 *ptr;
+	u8 *buf;
 	if ((ret = request_firmware(&fw, bcm4500_firmware,
 					&d->udev->dev)) != 0) {
 		err("did not find the bcm4500 firmware file. (%s) "

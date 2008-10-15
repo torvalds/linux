@@ -67,7 +67,10 @@ static void tfrc_lh_calc_i_mean(struct tfrc_loss_hist *lh)
 	u32 i_i, i_tot0 = 0, i_tot1 = 0, w_tot = 0;
 	int i, k = tfrc_lh_length(lh) - 1; /* k is as in rfc3448bis, 5.4 */
 
-	for (i=0; i <= k; i++) {
+	if (k <= 0)
+		return;
+
+	for (i = 0; i <= k; i++) {
 		i_i = tfrc_lh_get_interval(lh, i);
 
 		if (i < k) {
@@ -78,7 +81,6 @@ static void tfrc_lh_calc_i_mean(struct tfrc_loss_hist *lh)
 			i_tot1 += i_i * tfrc_lh_weights[i-1];
 	}
 
-	BUG_ON(w_tot == 0);
 	lh->i_mean = max(i_tot0, i_tot1) / w_tot;
 }
 
@@ -90,14 +92,14 @@ u8 tfrc_lh_update_i_mean(struct tfrc_loss_hist *lh, struct sk_buff *skb)
 {
 	struct tfrc_loss_interval *cur = tfrc_lh_peek(lh);
 	u32 old_i_mean = lh->i_mean;
-	s64 length;
+	s64 len;
 
 	if (cur == NULL)			/* not initialised */
 		return 0;
 
-	length = dccp_delta_seqno(cur->li_seqno, DCCP_SKB_CB(skb)->dccpd_seq);
+	len = dccp_delta_seqno(cur->li_seqno, DCCP_SKB_CB(skb)->dccpd_seq) + 1;
 
-	if (length - cur->li_length <= 0)	/* duplicate or reordered */
+	if (len - (s64)cur->li_length <= 0)	/* duplicate or reordered */
 		return 0;
 
 	if (SUB16(dccp_hdr(skb)->dccph_ccval, cur->li_ccval) > 4)
@@ -114,7 +116,7 @@ u8 tfrc_lh_update_i_mean(struct tfrc_loss_hist *lh, struct sk_buff *skb)
 	if (tfrc_lh_length(lh) == 1)		/* due to RFC 3448, 6.3.1 */
 		return 0;
 
-	cur->li_length = length;
+	cur->li_length = len;
 	tfrc_lh_calc_i_mean(lh);
 
 	return (lh->i_mean < old_i_mean);
@@ -159,7 +161,7 @@ int tfrc_lh_interval_add(struct tfrc_loss_hist *lh, struct tfrc_rx_hist *rh,
 	else {
 		cur->li_length = dccp_delta_seqno(cur->li_seqno, new->li_seqno);
 		new->li_length = dccp_delta_seqno(new->li_seqno,
-				  tfrc_rx_hist_last_rcv(rh)->tfrchrx_seqno);
+				  tfrc_rx_hist_last_rcv(rh)->tfrchrx_seqno) + 1;
 		if (lh->counter > (2*LIH_SIZE))
 			lh->counter -= LIH_SIZE;
 

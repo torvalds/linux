@@ -108,7 +108,6 @@ struct acpi_walk_state {
 	union acpi_operand_object **caller_return_desc;
 	union acpi_generic_state *control_state;	/* List of control states (nested IFs) */
 	struct acpi_namespace_node *deferred_node;	/* Used when executing deferred opcodes */
-	struct acpi_gpe_event_info *gpe_event_info;	/* Info for GPE (_Lxx/_Exx methods only */
 	union acpi_operand_object *implicit_return_obj;
 	struct acpi_namespace_node *method_call_node;	/* Called method Node */
 	union acpi_parse_object *method_call_op;	/* method_call Op if running a method */
@@ -143,7 +142,7 @@ struct acpi_init_walk_info {
 	u16 package_init;
 	u16 object_count;
 	acpi_owner_id owner_id;
-	acpi_native_uint table_index;
+	u32 table_index;
 };
 
 struct acpi_get_devices_info {
@@ -189,16 +188,11 @@ struct acpi_evaluate_info {
 	union acpi_operand_object **parameters;
 	struct acpi_namespace_node *resolved_node;
 	union acpi_operand_object *return_object;
+	u8 param_count;
 	u8 pass_number;
-	u8 parameter_type;
 	u8 return_object_type;
 	u8 flags;
 };
-
-/* Types for parameter_type above */
-
-#define ACPI_PARAM_ARGS                 0
-#define ACPI_PARAM_GPE                  1
 
 /* Values for Flags above */
 

@@ -1,5 +1,5 @@
-#ifndef _LINUX_VM86_H
-#define _LINUX_VM86_H
+#ifndef ASM_X86__VM86_H
+#define ASM_X86__VM86_H
 
 /*
  * I'm guessing at the VIF/VIP flag usage, but hope that this is how
@@ -13,12 +13,6 @@
  */
 
 #include <asm/processor-flags.h>
-
-#ifdef CONFIG_VM86
-#define X86_VM_MASK	X86_EFLAGS_VM
-#else
-#define X86_VM_MASK	0 /* No VM86 support */
-#endif
 
 #define BIOSSEG		0x0f000
 
@@ -121,7 +115,6 @@ struct vm86plus_info_struct {
 	unsigned long is_vm86pus:1;	      /* for vm86 internal use */
 	unsigned char vm86dbg_intxxtab[32];   /* for debugger */
 };
-
 struct vm86plus_struct {
 	struct vm86_regs regs;
 	unsigned long flags;
@@ -133,6 +126,9 @@ struct vm86plus_struct {
 };
 
 #ifdef __KERNEL__
+
+#include <asm/ptrace.h>
+
 /*
  * This is the (kernel) stack-layout when we have done a "SAVE_ALL" from vm86
  * mode - the main change is that the old segment descriptors aren't
@@ -141,7 +137,6 @@ struct vm86plus_struct {
  * at the end of the structure. Look at ptrace.h to see the "normal"
  * setup. For user space layout see 'struct vm86_regs' above.
  */
-#include <asm/ptrace.h>
 
 struct kernel_vm86_regs {
 /*
@@ -210,4 +205,4 @@ static inline int handle_vm86_trap(struct kernel_vm86_regs *a, long b, int c)
 
 #endif /* __KERNEL__ */
 
-#endif
+#endif /* ASM_X86__VM86_H */

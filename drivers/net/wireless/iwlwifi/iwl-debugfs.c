@@ -34,7 +34,7 @@
 #include <net/mac80211.h>
 
 
-#include "iwl-4965.h"
+#include "iwl-dev.h"
 #include "iwl-debug.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
@@ -52,6 +52,13 @@
 	debugfs_create_file(#name, 0644, dbgfs->dir_##parent, priv,     \
 				&iwl_dbgfs_##name##_ops);               \
 	if (!(dbgfs->dbgfs_##parent##_files.file_##name))               \
+		goto err;                                               \
+} while (0)
+
+#define DEBUGFS_ADD_BOOL(name, parent, ptr) do {                        \
+	dbgfs->dbgfs_##parent##_files.file_##name =                     \
+	debugfs_create_bool(#name, 0644, dbgfs->dir_##parent, ptr);     \
+	if (IS_ERR(dbgfs->dbgfs_##parent##_files.file_##name))          \
 		goto err;                                               \
 } while (0)
 
@@ -84,6 +91,14 @@ static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 	.read = iwl_dbgfs_##name##_read,                       		\
 	.open = iwl_dbgfs_open_file_generic,                    	\
 };
+
+#define DEBUGFS_WRITE_FILE_OPS(name)                                    \
+	DEBUGFS_WRITE_FUNC(name);                                       \
+static const struct file_operations iwl_dbgfs_##name##_ops = {          \
+	.write = iwl_dbgfs_##name##_write,                              \
+	.open = iwl_dbgfs_open_file_generic,                    	\
+};
+
 
 #define DEBUGFS_READ_WRITE_FILE_OPS(name)                               \
 	DEBUGFS_READ_FUNC(name);                                        \
@@ -206,7 +221,7 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
 	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
-	struct iwl4965_station_entry *station;
+	struct iwl_station_entry *station;
 	int max_sta = priv->hw_params.max_stations;
 	char *buf;
 	int i, j, pos = 0;
@@ -216,7 +231,7 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 	DECLARE_MAC_BUF(mac);
 
 	buf = kmalloc(bufsz, GFP_KERNEL);
-	if(!buf)
+	if (!buf)
 		return -ENOMEM;
 
 	pos += scnprintf(buf + pos, bufsz - pos, "num of stations: %d\n\n",
@@ -240,21 +255,18 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 			pos += scnprintf(buf + pos, bufsz - pos, "tid data:\n");
 			pos += scnprintf(buf + pos, bufsz - pos,
 					"seq_num\t\ttxq_id");
-#ifdef CONFIG_IWL4965_HT
 			pos += scnprintf(buf + pos, bufsz - pos,
 					"\tframe_count\twait_for_ba\t");
 			pos += scnprintf(buf + pos, bufsz - pos,
 					"start_idx\tbitmap0\t");
 			pos += scnprintf(buf + pos, bufsz - pos,
 					"bitmap1\trate_n_flags");
-#endif
 			pos += scnprintf(buf + pos, bufsz - pos, "\n");
 
 			for (j = 0; j < MAX_TID_COUNT; j++) {
 				pos += scnprintf(buf + pos, bufsz - pos,
 						"[%d]:\t\t%u", j,
 						station->tid[j].seq_number);
-#ifdef CONFIG_IWL4965_HT
 				pos += scnprintf(buf + pos, bufsz - pos,
 						"\t%u\t\t%u\t\t%u\t\t",
 						station->tid[j].agg.txq_id,
@@ -265,7 +277,6 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 						station->tid[j].agg.start_idx,
 						(unsigned long long)station->tid[j].agg.bitmap,
 						station->tid[j].agg.rate_n_flags);
-#endif
 				pos += scnprintf(buf + pos, bufsz - pos, "\n");
 			}
 			pos += scnprintf(buf + pos, bufsz - pos, "\n");
@@ -277,8 +288,70 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 	return ret;
 }
 
+static ssize_t iwl_dbgfs_eeprom_read(struct file *file,
+				       char __user *user_buf,
+				       size_t count,
+				       loff_t *ppos)
+{
+	ssize_t ret;
+	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	int pos = 0, ofs = 0, buf_size = 0;
+	const u8 *ptr;
+	char *buf;
+	size_t eeprom_len = priv->cfg->eeprom_size;
+	buf_size = 4 * eeprom_len + 256;
+
+	if (eeprom_len % 16) {
+		IWL_ERROR("EEPROM size is not multiple of 16.\n");
+		return -ENODATA;
+	}
+
+	/* 4 characters for byte 0xYY */
+	buf = kzalloc(buf_size, GFP_KERNEL);
+	if (!buf) {
+		IWL_ERROR("Can not allocate Buffer\n");
+		return -ENOMEM;
+	}
+
+	ptr = priv->eeprom;
+	for (ofs = 0 ; ofs < eeprom_len ; ofs += 16) {
+		pos += scnprintf(buf + pos, buf_size - pos, "0x%.4x ", ofs);
+		hex_dump_to_buffer(ptr + ofs, 16 , 16, 2, buf + pos,
+				   buf_size - pos, 0);
+		pos += strlen(buf);
+		if (buf_size - pos > 0)
+			buf[pos++] = '\n';
+	}
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	kfree(buf);
+	return ret;
+}
+
+static ssize_t iwl_dbgfs_log_event_write(struct file *file,
+					const char __user *user_buf,
+					size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	u32 event_log_flag;
+	char buf[8];
+	int buf_size;
+
+	memset(buf, 0, sizeof(buf));
+	buf_size = min(count, sizeof(buf) -  1);
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	if (sscanf(buf, "%d", &event_log_flag) != 1)
+		return -EFAULT;
+	if (event_log_flag == 1)
+		iwl_dump_nic_event_log(priv);
+
+	return count;
+}
 
 DEBUGFS_READ_WRITE_FILE_OPS(sram);
+DEBUGFS_WRITE_FILE_OPS(log_event);
+DEBUGFS_READ_FILE_OPS(eeprom);
 DEBUGFS_READ_FILE_OPS(stations);
 DEBUGFS_READ_FILE_OPS(rx_statistics);
 DEBUGFS_READ_FILE_OPS(tx_statistics);
@@ -290,31 +363,41 @@ DEBUGFS_READ_FILE_OPS(tx_statistics);
 int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 {
 	struct iwl_debugfs *dbgfs;
+	struct dentry *phyd = priv->hw->wiphy->debugfsdir;
+	int ret = 0;
 
 	dbgfs = kzalloc(sizeof(struct iwl_debugfs), GFP_KERNEL);
 	if (!dbgfs) {
+		ret = -ENOMEM;
 		goto err;
 	}
 
 	priv->dbgfs = dbgfs;
 	dbgfs->name = name;
-	dbgfs->dir_drv = debugfs_create_dir(name, NULL);
-	if (!dbgfs->dir_drv || IS_ERR(dbgfs->dir_drv)){
+	dbgfs->dir_drv = debugfs_create_dir(name, phyd);
+	if (!dbgfs->dir_drv || IS_ERR(dbgfs->dir_drv)) {
+		ret = -ENOENT;
 		goto err;
 	}
 
 	DEBUGFS_ADD_DIR(data, dbgfs->dir_drv);
+	DEBUGFS_ADD_DIR(rf, dbgfs->dir_drv);
+	DEBUGFS_ADD_FILE(eeprom, data);
 	DEBUGFS_ADD_FILE(sram, data);
+	DEBUGFS_ADD_FILE(log_event, data);
 	DEBUGFS_ADD_FILE(stations, data);
 	DEBUGFS_ADD_FILE(rx_statistics, data);
 	DEBUGFS_ADD_FILE(tx_statistics, data);
-
+	DEBUGFS_ADD_BOOL(disable_sensitivity, rf, &priv->disable_sens_cal);
+	DEBUGFS_ADD_BOOL(disable_chain_noise, rf,
+			 &priv->disable_chain_noise_cal);
+	DEBUGFS_ADD_BOOL(disable_tx_power, rf, &priv->disable_tx_power_cal);
 	return 0;
 
 err:
 	IWL_ERROR("Can't open the debugfs directory\n");
 	iwl_dbgfs_unregister(priv);
-	return -ENOENT;
+	return ret;
 }
 EXPORT_SYMBOL(iwl_dbgfs_register);
 
@@ -324,18 +407,25 @@ EXPORT_SYMBOL(iwl_dbgfs_register);
  */
 void iwl_dbgfs_unregister(struct iwl_priv *priv)
 {
-	if (!(priv->dbgfs))
+	if (!priv->dbgfs)
 		return;
 
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_eeprom);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_rx_statistics);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_tx_statistics);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_sram);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_log_event);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_stations);
 	DEBUGFS_REMOVE(priv->dbgfs->dir_data);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_sensitivity);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_chain_noise);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_rf_files.file_disable_tx_power);
+	DEBUGFS_REMOVE(priv->dbgfs->dir_rf);
 	DEBUGFS_REMOVE(priv->dbgfs->dir_drv);
 	kfree(priv->dbgfs);
 	priv->dbgfs = NULL;
 }
 EXPORT_SYMBOL(iwl_dbgfs_unregister);
+
 
 

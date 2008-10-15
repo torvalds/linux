@@ -170,6 +170,7 @@ extern void shpchp_queue_pushbutton_work(struct work_struct *work);
 extern int shpc_init( struct controller *ctrl, struct pci_dev *pdev);
 
 #ifdef CONFIG_ACPI
+#include <linux/pci-acpi.h>
 static inline int get_hp_params_from_firmware(struct pci_dev *dev,
 					      struct hotplug_params *hpp)
 {
@@ -177,14 +178,15 @@ static inline int get_hp_params_from_firmware(struct pci_dev *dev,
 			return -ENODEV;
 	return 0;
 }
-#define get_hp_hw_control_from_firmware(pdev)				\
-	do {								\
-		if (DEVICE_ACPI_HANDLE(&(pdev->dev)))			\
-			acpi_run_oshp(DEVICE_ACPI_HANDLE(&(pdev->dev)));\
-	} while (0)
+
+static inline int get_hp_hw_control_from_firmware(struct pci_dev *dev)
+{
+	u32 flags = OSC_SHPC_NATIVE_HP_CONTROL;
+	return acpi_get_hp_hw_control_from_firmware(dev, flags);
+}
 #else
 #define get_hp_params_from_firmware(dev, hpp) (-ENODEV)
-#define get_hp_hw_control_from_firmware(dev) do { } while (0)
+#define get_hp_hw_control_from_firmware(dev) (0)
 #endif
 
 struct ctrl_reg {

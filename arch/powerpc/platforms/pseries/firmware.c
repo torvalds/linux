@@ -26,6 +26,7 @@
 #include <asm/prom.h>
 #include <asm/udbg.h>
 
+#include "pseries.h"
 
 typedef struct {
     unsigned long val;

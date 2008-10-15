@@ -76,9 +76,6 @@ config IRQ_PER_CPU
 	bool
 	default y
 
-config ARCH_SUPPORTS_AOUT
-	def_bool y
-
 # unless you want to implement ACPI on PA-RISC ... ;-)
 config PM
 	bool
@@ -199,6 +196,7 @@ endchoice
 
 config SMP
 	bool "Symmetric multi-processing support"
+	select USE_GENERIC_SMP_HELPERS
 	---help---
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If

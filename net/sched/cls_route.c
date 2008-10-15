@@ -73,11 +73,13 @@ static __inline__ int route4_fastmap_hash(u32 id, int iif)
 }
 
 static inline
-void route4_reset_fastmap(struct net_device *dev, struct route4_head *head, u32 id)
+void route4_reset_fastmap(struct Qdisc *q, struct route4_head *head, u32 id)
 {
-	qdisc_lock_tree(dev);
+	spinlock_t *root_lock = qdisc_root_sleeping_lock(q);
+
+	spin_lock_bh(root_lock);
 	memset(head->fastmap, 0, sizeof(head->fastmap));
-	qdisc_unlock_tree(dev);
+	spin_unlock_bh(root_lock);
 }
 
 static inline void
@@ -302,7 +304,7 @@ static int route4_delete(struct tcf_proto *tp, unsigned long arg)
 			*fp = f->next;
 			tcf_tree_unlock(tp);
 
-			route4_reset_fastmap(tp->q->dev, head, f->id);
+			route4_reset_fastmap(tp->q, head, f->id);
 			route4_delete_filter(tp, f);
 
 			/* Strip tree */
@@ -500,7 +502,7 @@ reinsert:
 	}
 	tcf_tree_unlock(tp);
 
-	route4_reset_fastmap(tp->q->dev, head, f->id);
+	route4_reset_fastmap(tp->q, head, f->id);
 	*arg = (unsigned long)f;
 	return 0;
 

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2003-2006 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (C) 2008 MontaVista Software, Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License
@@ -22,7 +23,6 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <linux/hdreg.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
@@ -111,7 +111,7 @@ sgiioc4_init_hwif_ports(hw_regs_t * hw, unsigned long data_port,
 static void
 sgiioc4_maskproc(ide_drive_t * drive, int mask)
 {
-	writeb(mask ? (drive->ctl | 2) : (drive->ctl & ~2),
+	writeb(ATA_DEVCTL_OBS | (mask ? 2 : 0),
 	       (void __iomem *)drive->hwif->io_ports.ctl_addr);
 }
 
@@ -127,7 +127,7 @@ sgiioc4_checkirq(ide_hwif_t * hwif)
 	return 0;
 }
 
-static u8 sgiioc4_INB(unsigned long);
+static u8 sgiioc4_read_status(ide_hwif_t *);
 
 static int
 sgiioc4_clearirq(ide_drive_t * drive)
@@ -141,18 +141,19 @@ sgiioc4_clearirq(ide_drive_t * drive)
 	intr_reg = readl((void __iomem *)other_ir);
 	if (intr_reg & 0x03) { /* Valid IOC4-IDE interrupt */
 		/*
-		 * Using sgiioc4_INB to read the Status register has a side
-		 * effect of clearing the interrupt.  The first read should
+		 * Using sgiioc4_read_status to read the Status register has a
+		 * side effect of clearing the interrupt.  The first read should
 		 * clear it if it is set.  The second read should return
 		 * a "clear" status if it got cleared.  If not, then spin
 		 * for a bit trying to clear it.
 		 */
-		u8 stat = sgiioc4_INB(io_ports->status_addr);
+		u8 stat = sgiioc4_read_status(hwif);
 		int count = 0;
-		stat = sgiioc4_INB(io_ports->status_addr);
-		while ((stat & 0x80) && (count++ < 100)) {
+
+		stat = sgiioc4_read_status(hwif);
+		while ((stat & ATA_BUSY) && (count++ < 100)) {
 			udelay(1);
-			stat = sgiioc4_INB(io_ports->status_addr);
+			stat = sgiioc4_read_status(hwif);
 		}
 
 		if (intr_reg & 0x02) {
@@ -304,13 +305,13 @@ sgiioc4_dma_lost_irq(ide_drive_t * drive)
 	ide_dma_lost_irq(drive);
 }
 
-static u8
-sgiioc4_INB(unsigned long port)
+static u8 sgiioc4_read_status(ide_hwif_t *hwif)
 {
+	unsigned long port = hwif->io_ports.status_addr;
 	u8 reg = (u8) readb((void __iomem *) port);
 
 	if ((port & 0xFFF) == 0x11C) {	/* Status register of IOC4 */
-		if (reg & 0x51) {	/* Not busy...check for interrupt */
+		if (!(reg & ATA_BUSY)) { /* Not busy... check for interrupt */
 			unsigned long other_ir = port - 0x110;
 			unsigned int intr_reg = (u32) readl((void __iomem *) other_ir);
 
@@ -338,51 +339,44 @@ ide_dma_sgiioc4(ide_hwif_t *hwif, const struct ide_port_info *d)
 	if (dma_base == 0)
 		return -1;
 
-	printk(KERN_INFO "%s: BM-DMA at 0x%04lx-0x%04lx\n", hwif->name,
-	       dma_base, dma_base + num_ports - 1);
+	printk(KERN_INFO "    %s: MMIO-DMA\n", hwif->name);
 
-	if (!request_mem_region(dma_base, num_ports, hwif->name)) {
-		printk(KERN_ERR
-		       "%s(%s) -- ERROR, Addresses 0x%p to 0x%p "
-		       "ALREADY in use\n",
-		       __func__, hwif->name, (void *) dma_base,
-		       (void *) dma_base + num_ports - 1);
+	if (request_mem_region(dma_base, num_ports, hwif->name) == NULL) {
+		printk(KERN_ERR "%s(%s) -- ERROR: addresses 0x%08lx to 0x%08lx "
+		       "already in use\n", __func__, hwif->name,
+		       dma_base, dma_base + num_ports - 1);
 		return -1;
 	}
 
 	virt_dma_base = ioremap(dma_base, num_ports);
 	if (virt_dma_base == NULL) {
-		printk(KERN_ERR
-		       "%s(%s) -- ERROR, Unable to map addresses 0x%lx to 0x%lx\n",
-		       __func__, hwif->name, dma_base, dma_base + num_ports - 1);
+		printk(KERN_ERR "%s(%s) -- ERROR: unable to map addresses "
+		       "0x%lx to 0x%lx\n", __func__, hwif->name,
+		       dma_base, dma_base + num_ports - 1);
 		goto dma_remap_failure;
 	}
 	hwif->dma_base = (unsigned long) virt_dma_base;
 
-	hwif->dmatable_cpu = pci_alloc_consistent(dev,
-					  IOC4_PRD_ENTRIES * IOC4_PRD_BYTES,
-					  &hwif->dmatable_dma);
-
-	if (!hwif->dmatable_cpu)
-		goto dma_pci_alloc_failure;
-
 	hwif->sg_max_nents = IOC4_PRD_ENTRIES;
 
-	pad = pci_alloc_consistent(dev, IOC4_IDE_CACHELINE_SIZE,
-				   (dma_addr_t *) &(hwif->dma_status));
+	hwif->prd_max_nents = IOC4_PRD_ENTRIES;
+	hwif->prd_ent_size = IOC4_PRD_BYTES;
 
+	if (ide_allocate_dma_engine(hwif))
+		goto dma_pci_alloc_failure;
+
+	pad = pci_alloc_consistent(dev, IOC4_IDE_CACHELINE_SIZE,
+				   (dma_addr_t *)&hwif->extra_base);
 	if (pad) {
 		ide_set_hwifdata(hwif, pad);
 		return 0;
 	}
 
-	pci_free_consistent(dev, IOC4_PRD_ENTRIES * IOC4_PRD_BYTES,
-			    hwif->dmatable_cpu, hwif->dmatable_dma);
-	printk(KERN_INFO
-	       "%s() -- Error! Unable to allocate DMA Maps for drive %s\n",
+	ide_release_dma_engine(hwif);
+
+	printk(KERN_ERR "%s(%s) -- ERROR: Unable to allocate DMA maps\n",
 	       __func__, hwif->name);
-	printk(KERN_INFO
-	       "Changing from DMA to PIO mode for Drive %s\n", hwif->name);
+	printk(KERN_INFO "%s: changing from DMA to PIO mode", hwif->name);
 
 dma_pci_alloc_failure:
 	iounmap(virt_dma_base);
@@ -439,7 +433,7 @@ sgiioc4_configure_for_dma(int dma_direction, ide_drive_t * drive)
 
 	/* Address of the Ending DMA */
 	memset(ide_get_hwifdata(hwif), 0, IOC4_IDE_CACHELINE_SIZE);
-	ending_dma_addr = cpu_to_le32(hwif->dma_status);
+	ending_dma_addr = cpu_to_le32(hwif->extra_base);
 	writel(ending_dma_addr, (void __iomem *)(dma_base + IOC4_DMA_END_ADDR * 4));
 
 	writel(dma_direction, (void __iomem *)ioc4_dma_addr);
@@ -550,6 +544,21 @@ static int sgiioc4_dma_setup(ide_drive_t *drive)
 	return 0;
 }
 
+static const struct ide_tp_ops sgiioc4_tp_ops = {
+	.exec_command		= ide_exec_command,
+	.read_status		= sgiioc4_read_status,
+	.read_altstatus		= ide_read_altstatus,
+	.read_sff_dma_status	= ide_read_sff_dma_status,
+
+	.set_irq		= ide_set_irq,
+
+	.tf_load		= ide_tf_load,
+	.tf_read		= ide_tf_read,
+
+	.input_data		= ide_input_data,
+	.output_data		= ide_output_data,
+};
+
 static const struct ide_port_ops sgiioc4_port_ops = {
 	.set_dma_mode		= sgiioc4_set_dma_mode,
 	/* reset DMA engine, clear IRQs */
@@ -569,8 +578,10 @@ static const struct ide_dma_ops sgiioc4_dma_ops = {
 };
 
 static const struct ide_port_info sgiioc4_port_info __devinitdata = {
+	.name			= DRV_NAME,
 	.chipset		= ide_pci,
 	.init_dma		= ide_dma_sgiioc4,
+	.tp_ops			= &sgiioc4_tp_ops,
 	.port_ops		= &sgiioc4_port_ops,
 	.dma_ops		= &sgiioc4_dma_ops,
 	.host_flags		= IDE_HFLAG_MMIO,
@@ -583,17 +594,10 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	unsigned long cmd_base, irqport;
 	unsigned long bar0, cmd_phys_base, ctl;
 	void __iomem *virt_base;
-	ide_hwif_t *hwif;
-	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-	hw_regs_t hw;
+	struct ide_host *host;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 	struct ide_port_info d = sgiioc4_port_info;
-
-	hwif = ide_find_port();
-	if (hwif == NULL) {
-		printk(KERN_ERR "%s: too many IDE interfaces, no room in table\n",
-				DRV_NAME);
-		return -ENOMEM;
-	}
+	int rc;
 
 	/*  Get the CmdBlk and CtrlBlk Base Registers */
 	bar0 = pci_resource_start(dev, 0);
@@ -608,14 +612,12 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	irqport = (unsigned long) virt_base + IOC4_INTR_OFFSET;
 
 	cmd_phys_base = bar0 + IOC4_CMD_OFFSET;
-	if (!request_mem_region(cmd_phys_base, IOC4_CMD_CTL_BLK_SIZE,
-	    hwif->name)) {
-		printk(KERN_ERR
-			"%s : %s -- ERROR, Addresses "
-			"0x%p to 0x%p ALREADY in use\n",
-		       __func__, hwif->name, (void *) cmd_phys_base,
-		       (void *) cmd_phys_base + IOC4_CMD_CTL_BLK_SIZE);
-		return -ENOMEM;
+	if (request_mem_region(cmd_phys_base, IOC4_CMD_CTL_BLK_SIZE,
+			       DRV_NAME) == NULL) {
+		printk(KERN_ERR "%s %s -- ERROR: addresses 0x%08lx to 0x%08lx "
+		       "already in use\n", DRV_NAME, pci_name(dev),
+		       cmd_phys_base, cmd_phys_base + IOC4_CMD_CTL_BLK_SIZE);
+		return -EBUSY;
 	}
 
 	/* Initialize the IO registers */
@@ -624,24 +626,27 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	hw.irq = dev->irq;
 	hw.chipset = ide_pci;
 	hw.dev = &dev->dev;
-	ide_init_port_hw(hwif, &hw);
-
-	hwif->dev = &dev->dev;
-
-	/* The IOC4 uses MMIO rather than Port IO. */
-	default_hwif_mmiops(hwif);
 
 	/* Initializing chipset IRQ Registers */
 	writel(0x03, (void __iomem *)(irqport + IOC4_INTR_SET * 4));
 
-	hwif->INB = &sgiioc4_INB;
+	host = ide_host_alloc(&d, hws);
+	if (host == NULL) {
+		rc = -ENOMEM;
+		goto err;
+	}
 
-	idx[0] = hwif->index;
-
-	if (ide_device_add(idx, &d))
-		return -EIO;
+	rc = ide_host_register(host, &d, hws);
+	if (rc)
+		goto err_free;
 
 	return 0;
+err_free:
+	ide_host_free(host);
+err:
+	release_mem_region(cmd_phys_base, IOC4_CMD_CTL_BLK_SIZE);
+	iounmap(virt_base);
+	return rc;
 }
 
 static unsigned int __devinit

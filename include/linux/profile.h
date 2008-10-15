@@ -8,8 +8,6 @@
 
 #include <asm/errno.h>
 
-extern int prof_on __read_mostly;
-
 #define CPU_PROFILING	1
 #define SCHED_PROFILING	2
 #define SLEEP_PROFILING	3
@@ -19,14 +17,31 @@ struct proc_dir_entry;
 struct pt_regs;
 struct notifier_block;
 
+#if defined(CONFIG_PROFILING) && defined(CONFIG_PROC_FS)
+void create_prof_cpu_mask(struct proc_dir_entry *de);
+#else
+static inline void create_prof_cpu_mask(struct proc_dir_entry *de)
+{
+}
+#endif
+
+enum profile_type {
+	PROFILE_TASK_EXIT,
+	PROFILE_MUNMAP
+};
+
+#ifdef CONFIG_PROFILING
+
+extern int prof_on __read_mostly;
+
 /* init basic kernel profiler */
 void __init profile_init(void);
-void profile_tick(int);
+void profile_tick(int type);
 
 /*
  * Add multiple profiler hits to a given address:
  */
-void profile_hits(int, void *ip, unsigned int nr_hits);
+void profile_hits(int type, void *ip, unsigned int nr_hits);
 
 /*
  * Single profiler hit:
@@ -39,19 +54,6 @@ static inline void profile_hit(int type, void *ip)
 	if (unlikely(prof_on == type))
 		profile_hits(type, ip, 1);
 }
-
-#ifdef CONFIG_PROC_FS
-void create_prof_cpu_mask(struct proc_dir_entry *);
-#else
-#define create_prof_cpu_mask(x)			do { (void)(x); } while (0)
-#endif
-
-enum profile_type {
-	PROFILE_TASK_EXIT,
-	PROFILE_MUNMAP
-};
-
-#ifdef CONFIG_PROFILING
 
 struct task_struct;
 struct mm_struct;
@@ -79,6 +81,28 @@ void unregister_timer_hook(int (*hook)(struct pt_regs *));
 struct pt_regs;
 
 #else
+
+#define prof_on 0
+
+static inline void profile_init(void)
+{
+	return;
+}
+
+static inline void profile_tick(int type)
+{
+	return;
+}
+
+static inline void profile_hits(int type, void *ip, unsigned int nr_hits)
+{
+	return;
+}
+
+static inline void profile_hit(int type, void *ip)
+{
+	return;
+}
 
 static inline int task_handoff_register(struct notifier_block * n)
 {

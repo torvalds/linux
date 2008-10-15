@@ -29,6 +29,7 @@ struct ocores_i2c {
 	int pos;
 	int nmsgs;
 	int state; /* see STATE_ */
+	int clock_khz;
 };
 
 /* registers */
@@ -173,8 +174,7 @@ static int ocores_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 		return -ETIMEDOUT;
 }
 
-static void ocores_init(struct ocores_i2c *i2c,
-			struct ocores_i2c_platform_data *pdata)
+static void ocores_init(struct ocores_i2c *i2c)
 {
 	int prescale;
 	u8 ctrl = oc_getreg(i2c, OCI2C_CONTROL);
@@ -182,7 +182,7 @@ static void ocores_init(struct ocores_i2c *i2c,
 	/* make sure the device is disabled */
 	oc_setreg(i2c, OCI2C_CONTROL, ctrl & ~(OCI2C_CTRL_EN|OCI2C_CTRL_IEN));
 
-	prescale = (pdata->clock_khz / (5*100)) - 1;
+	prescale = (i2c->clock_khz / (5*100)) - 1;
 	oc_setreg(i2c, OCI2C_PRELOW, prescale & 0xff);
 	oc_setreg(i2c, OCI2C_PREHIGH, prescale >> 8);
 
@@ -205,7 +205,7 @@ static const struct i2c_algorithm ocores_algorithm = {
 static struct i2c_adapter ocores_adapter = {
 	.owner		= THIS_MODULE,
 	.name		= "i2c-ocores",
-	.class		= I2C_CLASS_HWMON,
+	.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD,
 	.algo		= &ocores_algorithm,
 };
 
@@ -248,7 +248,8 @@ static int __devinit ocores_i2c_probe(struct platform_device *pdev)
 	}
 
 	i2c->regstep = pdata->regstep;
-	ocores_init(i2c, pdata);
+	i2c->clock_khz = pdata->clock_khz;
+	ocores_init(i2c);
 
 	init_waitqueue_head(&i2c->wait);
 	ret = request_irq(res2->start, ocores_isr, 0, pdev->name, i2c);
@@ -312,13 +313,40 @@ static int __devexit ocores_i2c_remove(struct platform_device* pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int ocores_i2c_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct ocores_i2c *i2c = platform_get_drvdata(pdev);
+	u8 ctrl = oc_getreg(i2c, OCI2C_CONTROL);
+
+	/* make sure the device is disabled */
+	oc_setreg(i2c, OCI2C_CONTROL, ctrl & ~(OCI2C_CTRL_EN|OCI2C_CTRL_IEN));
+
+	return 0;
+}
+
+static int ocores_i2c_resume(struct platform_device *pdev)
+{
+	struct ocores_i2c *i2c = platform_get_drvdata(pdev);
+
+	ocores_init(i2c);
+
+	return 0;
+}
+#else
+#define ocores_i2c_suspend	NULL
+#define ocores_i2c_resume	NULL
+#endif
+
 /* work with hotplug and coldplug */
 MODULE_ALIAS("platform:ocores-i2c");
 
 static struct platform_driver ocores_i2c_driver = {
-	.probe  = ocores_i2c_probe,
-	.remove = __devexit_p(ocores_i2c_remove),
-	.driver = {
+	.probe   = ocores_i2c_probe,
+	.remove  = __devexit_p(ocores_i2c_remove),
+	.suspend = ocores_i2c_suspend,
+	.resume  = ocores_i2c_resume,
+	.driver  = {
 		.owner = THIS_MODULE,
 		.name = "ocores-i2c",
 	},

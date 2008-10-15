@@ -25,7 +25,6 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
 
-#include <asm/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
@@ -34,8 +33,9 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/gpio.h>
+#include <mach/hardware.h>
+#include <mach/board.h>
+#include <mach/gpio.h>
 
 #include "generic.h"
 
@@ -45,10 +45,10 @@ static void __init csb637_map_io(void)
 	/* Initialize processor: 3.6864 MHz crystal */
 	at91rm9200_initialize(3686400, AT91RM9200_BGA);
 
-	/* DBGU on ttyS0 */
+	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
 
-	/* make console=ttyS0 the default */
+	/* make console=ttyS0 (ie, DBGU) the default */
 	at91_set_serial_console(0);
 }
 
@@ -72,7 +72,7 @@ static struct at91_udc_data __initdata csb637_udc_data = {
 };
 
 #define CSB_FLASH_BASE	AT91_CHIPSELECT_0
-#define CSB_FLASH_SIZE	0x1000000
+#define CSB_FLASH_SIZE	SZ_16M
 
 static struct mtd_partition csb_flash_partitions[] = {
 	{

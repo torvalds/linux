@@ -1,6 +1,4 @@
 /*
-    sis5595.c - Part of lm_sensors, Linux kernel modules for hardware
-              monitoring
     Copyright (c) 1998, 1999  Frodo Looijaard <frodol@dds.nl> and
     Philip Edelbrock <phil@netroedge.com>
 
@@ -62,6 +60,7 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
+#include <linux/acpi.h>
 #include <asm/io.h>
 
 static int blacklist[] = {
@@ -174,6 +173,11 @@ static int sis5595_setup(struct pci_dev *SIS5595_dev)
 
 	/* NB: We grab just the two SMBus registers here, but this may still
 	 * interfere with ACPI :-(  */
+	retval = acpi_check_region(sis5595_base + SMB_INDEX, 2,
+				   sis5595_driver.name);
+	if (retval)
+		return retval;
+
 	if (!request_region(sis5595_base + SMB_INDEX, 2,
 			    sis5595_driver.name)) {
 		dev_err(&SIS5595_dev->dev, "SMBus registers 0x%04x-0x%04x already in use!\n",
@@ -236,7 +240,7 @@ static int sis5595_transaction(struct i2c_adapter *adap)
 		sis5595_write(SMB_STS_HI, temp >> 8);
 		if ((temp = sis5595_read(SMB_STS_LO) + (sis5595_read(SMB_STS_HI) << 8)) != 0x00) {
 			dev_dbg(&adap->dev, "Failed! (%02x)\n", temp);
-			return -1;
+			return -EBUSY;
 		} else {
 			dev_dbg(&adap->dev, "Successful!\n");
 		}
@@ -254,19 +258,19 @@ static int sis5595_transaction(struct i2c_adapter *adap)
 	/* If the SMBus is still busy, we give up */
 	if (timeout >= MAX_TIMEOUT) {
 		dev_dbg(&adap->dev, "SMBus Timeout!\n");
-		result = -1;
+		result = -ETIMEDOUT;
 	}
 
 	if (temp & 0x10) {
 		dev_dbg(&adap->dev, "Error: Failed bus transaction\n");
-		result = -1;
+		result = -ENXIO;
 	}
 
 	if (temp & 0x20) {
 		dev_err(&adap->dev, "Bus collision! SMBus may be locked until "
 			"next hard reset (or not...)\n");
 		/* Clock stops and slave is stuck in mid-transmission */
-		result = -1;
+		result = -EIO;
 	}
 
 	temp = sis5595_read(SMB_STS_LO) + (sis5595_read(SMB_STS_HI) << 8);
@@ -282,11 +286,13 @@ static int sis5595_transaction(struct i2c_adapter *adap)
 	return result;
 }
 
-/* Return -1 on error. */
+/* Return negative errno on error. */
 static s32 sis5595_access(struct i2c_adapter *adap, u16 addr,
 			  unsigned short flags, char read_write,
 			  u8 command, int size, union i2c_smbus_data *data)
 {
+	int status;
+
 	switch (size) {
 	case I2C_SMBUS_QUICK:
 		sis5595_write(SMB_ADDR, ((addr & 0x7f) << 1) | (read_write & 0x01));
@@ -318,13 +324,14 @@ static s32 sis5595_access(struct i2c_adapter *adap, u16 addr,
 		break;
 	default:
 		dev_warn(&adap->dev, "Unsupported transaction %d\n", size);
-		return -1;
+		return -EOPNOTSUPP;
 	}
 
 	sis5595_write(SMB_CTL_LO, ((size & 0x0E)));
 
-	if (sis5595_transaction(adap))
-		return -1;
+	status = sis5595_transaction(adap);
+	if (status)
+		return status;
 
 	if ((size != SIS5595_PROC_CALL) &&
 	    ((read_write == I2C_SMBUS_WRITE) || (size == SIS5595_QUICK)))
@@ -359,7 +366,7 @@ static const struct i2c_algorithm smbus_algorithm = {
 static struct i2c_adapter sis5595_adapter = {
 	.owner		= THIS_MODULE,
 	.id		= I2C_HW_SMBUS_SIS5595,
-	.class          = I2C_CLASS_HWMON,
+	.class          = I2C_CLASS_HWMON | I2C_CLASS_SPD,
 	.algo		= &smbus_algorithm,
 };
 

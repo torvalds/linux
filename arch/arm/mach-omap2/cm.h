@@ -81,6 +81,7 @@
 #define OMAP3430ES2_CM_FCLKEN3				0x0008
 #define OMAP3430_CM_IDLEST_PLL				CM_IDLEST2
 #define OMAP3430_CM_AUTOIDLE_PLL			CM_AUTOIDLE2
+#define OMAP3430ES2_CM_AUTOIDLE2_PLL			CM_AUTOIDLE2
 #define OMAP3430_CM_CLKSEL1				CM_CLKSEL
 #define OMAP3430_CM_CLKSEL1_PLL				CM_CLKSEL
 #define OMAP3430_CM_CLKSEL2_PLL				CM_CLKSEL2
@@ -96,15 +97,21 @@
 /* Clock management domain register get/set */
 
 #ifndef __ASSEMBLER__
-static inline void cm_write_mod_reg(u32 val, s16 module, s16 idx)
+
+extern u32 cm_read_mod_reg(s16 module, u16 idx);
+extern void cm_write_mod_reg(u32 val, s16 module, u16 idx);
+extern u32 cm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx);
+
+static inline u32 cm_set_mod_reg_bits(u32 bits, s16 module, s16 idx)
 {
-	__raw_writel(val, OMAP_CM_REGADDR(module, idx));
+	return cm_rmw_mod_reg_bits(bits, bits, module, idx);
 }
 
-static inline u32 cm_read_mod_reg(s16 module, s16 idx)
+static inline u32 cm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
 {
-	return __raw_readl(OMAP_CM_REGADDR(module, idx));
+	return cm_rmw_mod_reg_bits(bits, 0x0, module, idx);
 }
+
 #endif
 
 /* CM register bits shared between 24XX and 3430 */

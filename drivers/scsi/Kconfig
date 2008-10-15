@@ -63,6 +63,7 @@ comment "SCSI support type (disk, tape, CD-ROM)"
 config BLK_DEV_SD
 	tristate "SCSI disk support"
 	depends on SCSI
+	select CRC_T10DIF if BLK_DEV_INTEGRITY
 	---help---
 	  If you want to use SCSI hard disks, Fibre Channel disks,
 	  Serial ATA (SATA) or Parallel ATA (PATA) hard disks,
@@ -888,6 +889,25 @@ config SCSI_IBMVSCSIS
 	  To compile this driver as a module, choose M here: the
 	  module will be called ibmvstgt.
 
+config SCSI_IBMVFC
+	tristate "IBM Virtual FC support"
+	depends on PPC_PSERIES && SCSI
+	select SCSI_FC_ATTRS
+	help
+	  This is the IBM POWER Virtual FC Client
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ibmvfc.
+
+config SCSI_IBMVFC_TRACE
+	bool "enable driver internal trace"
+	depends on SCSI_IBMVFC
+	default y
+	help
+	  If you say Y here, the driver will trace all commands issued
+	  to the adapter. Performance impact is minimal. Trace can be
+	  dumped using /sys/class/scsi_host/hostXX/trace.
+
 config SCSI_INITIO
 	tristate "Initio 9100U(W) support"
 	depends on PCI && SCSI
@@ -1305,14 +1325,6 @@ config SCSI_QLOGIC_FAS
 	  To compile this driver as a module, choose M here: the
 	  module will be called qlogicfas.
 
-config SCSI_QLOGIC_FC_FIRMWARE
-	bool "Include loadable firmware in driver"
-	depends on SCSI_QLOGIC_FC
-  	help
-	  Say Y to include ISP2X00 Fabric Initiator/Target Firmware, with
-	  expanded LUN addressing and FcTape (FCP-2) support, in the
-	  qlogicfc driver. This is required on some platforms.
-
 config SCSI_QLOGIC_1280
 	tristate "Qlogic QLA 1240/1x80/1x160 SCSI support"
 	depends on PCI && SCSI
@@ -1628,6 +1640,7 @@ config ATARI_SCSI
 	tristate "Atari native SCSI support"
 	depends on ATARI && SCSI
 	select SCSI_SPI_ATTRS
+	select NVRAM
 	---help---
 	  If you have an Atari with built-in NCR5380 SCSI controller (TT,
 	  Falcon, ...) say Y to get it supported. Of course also, if you have
@@ -1657,14 +1670,6 @@ config ATARI_SCSI_RESET_BOOT
 	  Reset the devices on your Atari whenever it boots.  This makes the
 	  boot process fractionally longer but may assist recovery from errors
 	  that leave the devices with SCSI operations partway completed.
-
-config TT_DMA_EMUL
-	bool "Hades SCSI DMA emulator"
-	depends on ATARI_SCSI && HADES
-	help
-	  This option enables code which emulates the TT SCSI DMA chip on the
-	  Hades. This increases the SCSI transfer rates at least ten times
-	  compared to PIO transfers.
 
 config MAC_SCSI
 	bool "Macintosh NCR5380 SCSI"
@@ -1738,10 +1743,12 @@ config SCSI_SUNESP
 	select SCSI_SPI_ATTRS
 	help
 	  This is the driver for the Sun ESP SCSI host adapter. The ESP
-	  chipset is present in most SPARC SBUS-based computers.
+	  chipset is present in most SPARC SBUS-based computers and
+	  supports the Emulex family of ESP SCSI chips (esp100, esp100A,
+	  esp236, fas101, fas236) as well as the Qlogic fas366 SCSI chip.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called esp.
+	  module will be called sun_esp.
 
 config ZFCP
 	tristate "FCP host bus adapter driver for IBM eServer zSeries"
@@ -1770,5 +1777,7 @@ config SCSI_SRP
 endif # SCSI_LOWLEVEL
 
 source "drivers/scsi/pcmcia/Kconfig"
+
+source "drivers/scsi/device_handler/Kconfig"
 
 endmenu

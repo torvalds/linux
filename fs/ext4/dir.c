@@ -33,10 +33,10 @@ static unsigned char ext4_filetype_table[] = {
 };
 
 static int ext4_readdir(struct file *, void *, filldir_t);
-static int ext4_dx_readdir(struct file * filp,
-			   void * dirent, filldir_t filldir);
-static int ext4_release_dir (struct inode * inode,
-				struct file * filp);
+static int ext4_dx_readdir(struct file *filp,
+			   void *dirent, filldir_t filldir);
+static int ext4_release_dir(struct inode *inode,
+				struct file *filp);
 
 const struct file_operations ext4_dir_operations = {
 	.llseek		= generic_file_llseek,
@@ -61,12 +61,12 @@ static unsigned char get_dtype(struct super_block *sb, int filetype)
 }
 
 
-int ext4_check_dir_entry (const char * function, struct inode * dir,
-			  struct ext4_dir_entry_2 * de,
-			  struct buffer_head * bh,
-			  unsigned long offset)
+int ext4_check_dir_entry(const char *function, struct inode *dir,
+			 struct ext4_dir_entry_2 *de,
+			 struct buffer_head *bh,
+			 unsigned long offset)
 {
-	const char * error_msg = NULL;
+	const char *error_msg = NULL;
 	const int rlen = ext4_rec_len_from_disk(de->rec_len);
 
 	if (rlen < EXT4_DIR_REC_LEN(1))
@@ -82,7 +82,7 @@ int ext4_check_dir_entry (const char * function, struct inode * dir,
 		error_msg = "inode out of bounds";
 
 	if (error_msg != NULL)
-		ext4_error (dir->i_sb, function,
+		ext4_error(dir->i_sb, function,
 			"bad entry in directory #%lu: %s - "
 			"offset=%lu, inode=%lu, rec_len=%d, name_len=%d",
 			dir->i_ino, error_msg, offset,
@@ -91,8 +91,8 @@ int ext4_check_dir_entry (const char * function, struct inode * dir,
 	return error_msg == NULL ? 1 : 0;
 }
 
-static int ext4_readdir(struct file * filp,
-			 void * dirent, filldir_t filldir)
+static int ext4_readdir(struct file *filp,
+			 void *dirent, filldir_t filldir)
 {
 	int error = 0;
 	unsigned long offset;
@@ -102,6 +102,7 @@ static int ext4_readdir(struct file * filp,
 	int err;
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	int ret = 0;
+	int dir_has_error = 0;
 
 	sb = inode->i_sb;
 
@@ -129,7 +130,8 @@ static int ext4_readdir(struct file * filp,
 		struct buffer_head *bh = NULL;
 
 		map_bh.b_state = 0;
-		err = ext4_get_blocks_wrap(NULL, inode, blk, 1, &map_bh, 0, 0);
+		err = ext4_get_blocks_wrap(NULL, inode, blk, 1, &map_bh,
+						0, 0, 0);
 		if (err > 0) {
 			pgoff_t index = map_bh.b_blocknr >>
 					(PAGE_CACHE_SHIFT - inode->i_blkbits);
@@ -147,9 +149,13 @@ static int ext4_readdir(struct file * filp,
 		 * of recovering data when there's a bad sector
 		 */
 		if (!bh) {
-			ext4_error (sb, "ext4_readdir",
-				"directory #%lu contains a hole at offset %lu",
-				inode->i_ino, (unsigned long)filp->f_pos);
+			if (!dir_has_error) {
+				ext4_error(sb, __func__, "directory #%lu "
+					   "contains a hole at offset %Lu",
+					   inode->i_ino,
+					   (unsigned long long) filp->f_pos);
+				dir_has_error = 1;
+			}
 			/* corrupt size?  Maybe no more blocks to read */
 			if (filp->f_pos > inode->i_blocks << 9)
 				break;
@@ -186,14 +192,14 @@ revalidate:
 		while (!error && filp->f_pos < inode->i_size
 		       && offset < sb->s_blocksize) {
 			de = (struct ext4_dir_entry_2 *) (bh->b_data + offset);
-			if (!ext4_check_dir_entry ("ext4_readdir", inode, de,
-						   bh, offset)) {
+			if (!ext4_check_dir_entry("ext4_readdir", inode, de,
+						  bh, offset)) {
 				/*
 				 * On error, skip the f_pos to the next block
 				 */
 				filp->f_pos = (filp->f_pos |
 						(sb->s_blocksize - 1)) + 1;
-				brelse (bh);
+				brelse(bh);
 				ret = stored;
 				goto out;
 			}
@@ -217,12 +223,12 @@ revalidate:
 					break;
 				if (version != filp->f_version)
 					goto revalidate;
-				stored ++;
+				stored++;
 			}
 			filp->f_pos += ext4_rec_len_from_disk(de->rec_len);
 		}
 		offset = 0;
-		brelse (bh);
+		brelse(bh);
 	}
 out:
 	return ret;
@@ -272,7 +278,7 @@ static void free_rb_tree_fname(struct rb_root *root)
 
 	while (n) {
 		/* Do the node's children first */
-		if ((n)->rb_left) {
+		if (n->rb_left) {
 			n = n->rb_left;
 			continue;
 		}
@@ -289,9 +295,9 @@ static void free_rb_tree_fname(struct rb_root *root)
 		parent = rb_parent(n);
 		fname = rb_entry(n, struct fname, rb_hash);
 		while (fname) {
-			struct fname * old = fname;
+			struct fname *old = fname;
 			fname = fname->next;
-			kfree (old);
+			kfree(old);
 		}
 		if (!parent)
 			root->rb_node = NULL;
@@ -301,24 +307,18 @@ static void free_rb_tree_fname(struct rb_root *root)
 			parent->rb_right = NULL;
 		n = parent;
 	}
-	root->rb_node = NULL;
 }
 
 
-static struct dir_private_info *create_dir_info(loff_t pos)
+static struct dir_private_info *ext4_htree_create_dir_info(loff_t pos)
 {
 	struct dir_private_info *p;
 
-	p = kmalloc(sizeof(struct dir_private_info), GFP_KERNEL);
+	p = kzalloc(sizeof(struct dir_private_info), GFP_KERNEL);
 	if (!p)
 		return NULL;
-	p->root.rb_node = NULL;
-	p->curr_node = NULL;
-	p->extra_fname = NULL;
-	p->last_pos = 0;
 	p->curr_hash = pos2maj_hash(pos);
 	p->curr_minor_hash = pos2min_hash(pos);
-	p->next_hash = 0;
 	return p;
 }
 
@@ -336,7 +336,7 @@ int ext4_htree_store_dirent(struct file *dir_file, __u32 hash,
 			     struct ext4_dir_entry_2 *dirent)
 {
 	struct rb_node **p, *parent = NULL;
-	struct fname * fname, *new_fn;
+	struct fname *fname, *new_fn;
 	struct dir_private_info *info;
 	int len;
 
@@ -393,19 +393,20 @@ int ext4_htree_store_dirent(struct file *dir_file, __u32 hash,
  * for all entres on the fname linked list.  (Normally there is only
  * one entry on the linked list, unless there are 62 bit hash collisions.)
  */
-static int call_filldir(struct file * filp, void * dirent,
+static int call_filldir(struct file *filp, void *dirent,
 			filldir_t filldir, struct fname *fname)
 {
 	struct dir_private_info *info = filp->private_data;
 	loff_t	curr_pos;
 	struct inode *inode = filp->f_path.dentry->d_inode;
-	struct super_block * sb;
+	struct super_block *sb;
 	int error;
 
 	sb = inode->i_sb;
 
 	if (!fname) {
-		printk("call_filldir: called with null fname?!?\n");
+		printk(KERN_ERR "ext4: call_filldir: called with "
+		       "null fname?!?\n");
 		return 0;
 	}
 	curr_pos = hash2pos(fname->hash, fname->minor_hash);
@@ -416,7 +417,7 @@ static int call_filldir(struct file * filp, void * dirent,
 				get_dtype(sb, fname->file_type));
 		if (error) {
 			filp->f_pos = curr_pos;
-			info->extra_fname = fname->next;
+			info->extra_fname = fname;
 			return error;
 		}
 		fname = fname->next;
@@ -424,8 +425,8 @@ static int call_filldir(struct file * filp, void * dirent,
 	return 0;
 }
 
-static int ext4_dx_readdir(struct file * filp,
-			 void * dirent, filldir_t filldir)
+static int ext4_dx_readdir(struct file *filp,
+			 void *dirent, filldir_t filldir)
 {
 	struct dir_private_info *info = filp->private_data;
 	struct inode *inode = filp->f_path.dentry->d_inode;
@@ -433,7 +434,7 @@ static int ext4_dx_readdir(struct file * filp,
 	int	ret;
 
 	if (!info) {
-		info = create_dir_info(filp->f_pos);
+		info = ext4_htree_create_dir_info(filp->f_pos);
 		if (!info)
 			return -ENOMEM;
 		filp->private_data = info;
@@ -455,11 +456,21 @@ static int ext4_dx_readdir(struct file * filp,
 	 * If there are any leftover names on the hash collision
 	 * chain, return them first.
 	 */
-	if (info->extra_fname &&
-	    call_filldir(filp, dirent, filldir, info->extra_fname))
-		goto finished;
+	if (info->extra_fname) {
+		if (call_filldir(filp, dirent, filldir, info->extra_fname))
+			goto finished;
 
-	if (!info->curr_node)
+		info->extra_fname = NULL;
+		info->curr_node = rb_next(info->curr_node);
+		if (!info->curr_node) {
+			if (info->next_hash == ~0) {
+				filp->f_pos = EXT4_HTREE_EOF;
+				goto finished;
+			}
+			info->curr_hash = info->next_hash;
+			info->curr_minor_hash = 0;
+		}
+	} else if (!info->curr_node)
 		info->curr_node = rb_first(&info->root);
 
 	while (1) {
@@ -506,7 +517,7 @@ finished:
 	return 0;
 }
 
-static int ext4_release_dir (struct inode * inode, struct file * filp)
+static int ext4_release_dir(struct inode *inode, struct file *filp)
 {
 	if (filp->private_data)
 		ext4_htree_free_dir_info(filp->private_data);

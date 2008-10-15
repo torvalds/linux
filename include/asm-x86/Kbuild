@@ -3,7 +3,6 @@ include include/asm-generic/Kbuild.asm
 header-y += boot.h
 header-y += bootparam.h
 header-y += debugreg.h
-header-y += kvm.h
 header-y += ldt.h
 header-y += msr-index.h
 header-y += prctl.h
@@ -19,7 +18,6 @@ unifdef-y += msr.h
 unifdef-y += mtrr.h
 unifdef-y += posix_types_32.h
 unifdef-y += posix_types_64.h
-unifdef-y += ptrace.h
 unifdef-y += unistd_32.h
 unifdef-y += unistd_64.h
 unifdef-y += vm86.h

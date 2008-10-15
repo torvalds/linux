@@ -120,8 +120,18 @@ static void __init tqm85xx_setup_arch(void)
 #endif
 
 #ifdef CONFIG_PCI
-	for_each_compatible_node(np, "pci", "fsl,mpc8540-pci")
-		fsl_add_bridge(np, 1);
+	for_each_node_by_type(np, "pci") {
+		if (of_device_is_compatible(np, "fsl,mpc8540-pci") ||
+		    of_device_is_compatible(np, "fsl,mpc8548-pcie")) {
+			struct resource rsrc;
+			if (!of_address_to_resource(np, 0, &rsrc)) {
+				if ((rsrc.start & 0xfffff) == 0x8000)
+					fsl_add_bridge(np, 1);
+				else
+					fsl_add_bridge(np, 0);
+			}
+		}
+	}
 #endif
 }
 
@@ -165,10 +175,11 @@ static int __init tqm85xx_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
 
-	if ((of_flat_dt_is_compatible(root, "tqm,8540")) ||
-	    (of_flat_dt_is_compatible(root, "tqm,8541")) ||
-	    (of_flat_dt_is_compatible(root, "tqm,8555")) ||
-	    (of_flat_dt_is_compatible(root, "tqm,8560")))
+	if ((of_flat_dt_is_compatible(root, "tqc,tqm8540")) ||
+	    (of_flat_dt_is_compatible(root, "tqc,tqm8541")) ||
+	    (of_flat_dt_is_compatible(root, "tqc,tqm8548")) ||
+	    (of_flat_dt_is_compatible(root, "tqc,tqm8555")) ||
+	    (of_flat_dt_is_compatible(root, "tqc,tqm8560")))
 		return 1;
 
 	return 0;

@@ -39,6 +39,8 @@
 #include <sysdev/fsl_pci.h>
 #include <sysdev/fsl_soc.h>
 
+#include "mpc86xx.h"
+
 static unsigned char *pixis_bdcfg0, *pixis_arch;
 
 static struct of_device_id __initdata mpc8610_ids[] = {
@@ -55,114 +57,6 @@ static int __init mpc8610_declare_of_platform_devices(void)
 	return 0;
 }
 machine_device_initcall(mpc86xx_hpcd, mpc8610_declare_of_platform_devices);
-
-static void __init mpc86xx_hpcd_init_irq(void)
-{
-	struct mpic *mpic1;
-	struct device_node *np;
-	struct resource res;
-
-	/* Determine PIC address. */
-	np = of_find_node_by_type(NULL, "open-pic");
-	if (np == NULL)
-		return;
-	of_address_to_resource(np, 0, &res);
-
-	/* Alloc mpic structure and per isu has 16 INT entries. */
-	mpic1 = mpic_alloc(np, res.start,
-			MPIC_PRIMARY | MPIC_WANTS_RESET | MPIC_BIG_ENDIAN,
-			0, 256, " MPIC     ");
-	BUG_ON(mpic1 == NULL);
-
-	mpic_init(mpic1);
-}
-
-#ifdef CONFIG_PCI
-static void __devinit quirk_uli1575(struct pci_dev *dev)
-{
-	u32 temp32;
-
-	/* Disable INTx */
-	pci_read_config_dword(dev, 0x48, &temp32);
-	pci_write_config_dword(dev, 0x48, (temp32 | 1<<26));
-
-	/* Enable sideband interrupt */
-	pci_read_config_dword(dev, 0x90, &temp32);
-	pci_write_config_dword(dev, 0x90, (temp32 | 1<<22));
-}
-
-static void __devinit quirk_uli5288(struct pci_dev *dev)
-{
-	unsigned char c;
-	unsigned short temp;
-
-	/* Interrupt Disable, Needed when SATA disabled */
-	pci_read_config_word(dev, PCI_COMMAND, &temp);
-	temp |= 1<<10;
-	pci_write_config_word(dev, PCI_COMMAND, temp);
-
-	pci_read_config_byte(dev, 0x83, &c);
-	c |= 0x80;
-	pci_write_config_byte(dev, 0x83, c);
-
-	pci_write_config_byte(dev, PCI_CLASS_PROG, 0x01);
-	pci_write_config_byte(dev, PCI_CLASS_DEVICE, 0x06);
-
-	pci_read_config_byte(dev, 0x83, &c);
-	c &= 0x7f;
-	pci_write_config_byte(dev, 0x83, c);
-}
-
-/*
- * Since 8259PIC was disabled on the board, the IDE device can not
- * use the legacy IRQ, we need to let the IDE device work under
- * native mode and use the interrupt line like other PCI devices.
- * IRQ14 is a sideband interrupt from IDE device to CPU and we use this
- * as the interrupt for IDE device.
- */
-static void __devinit quirk_uli5229(struct pci_dev *dev)
-{
-	unsigned char c;
-
-	pci_read_config_byte(dev, 0x4b, &c);
-	c |= 0x10;
-	pci_write_config_byte(dev, 0x4b, c);
-}
-
-/*
- * SATA interrupt pin bug fix
- * There's a chip bug for 5288, The interrupt pin should be 2,
- * not the read only value 1, So it use INTB#, not INTA# which
- * actually used by the IDE device 5229.
- * As of this bug, during the PCI initialization, 5288 read the
- * irq of IDE device from the device tree, this function fix this
- * bug by re-assigning a correct irq to 5288.
- *
- */
-static void __devinit final_uli5288(struct pci_dev *dev)
-{
-	struct pci_controller *hose = pci_bus_to_host(dev->bus);
-	struct device_node *hosenode = hose ? hose->dn : NULL;
-	struct of_irq oirq;
-	int virq, pin = 2;
-	u32 laddr[3];
-
-	if (!hosenode)
-		return;
-
-	laddr[0] = (hose->first_busno << 16) | (PCI_DEVFN(31, 0) << 8);
-	laddr[1] = laddr[2] = 0;
-	of_irq_map_raw(hosenode, &pin, 1, laddr, &oirq);
-	virq = irq_create_of_mapping(oirq.controller, oirq.specifier,
-				     oirq.size);
-	dev->irq = virq;
-}
-
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AL, 0x1575, quirk_uli1575);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AL, 0x5288, quirk_uli5288);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AL, 0x5229, quirk_uli5229);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AL, 0x5288, final_uli5288);
-#endif /* CONFIG_PCI */
 
 #if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
 
@@ -404,7 +298,7 @@ define_machine(mpc86xx_hpcd) {
 	.name			= "MPC86xx HPCD",
 	.probe			= mpc86xx_hpcd_probe,
 	.setup_arch		= mpc86xx_hpcd_setup_arch,
-	.init_IRQ		= mpc86xx_hpcd_init_irq,
+	.init_IRQ		= mpc86xx_init_irq,
 	.get_irq		= mpic_get_irq,
 	.restart		= fsl_rstcr_restart,
 	.time_init		= mpc86xx_time_init,

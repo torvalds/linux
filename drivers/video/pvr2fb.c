@@ -58,18 +58,18 @@
 
 #ifdef CONFIG_SH_DREAMCAST
 #include <asm/machvec.h>
-#include <asm/mach/sysasic.h>
+#include <mach-dreamcast/mach/sysasic.h>
 #endif
 
 #ifdef CONFIG_SH_DMA
 #include <linux/pagemap.h>
-#include <asm/mach/dma.h>
+#include <mach/dma.h>
 #include <asm/dma.h>
 #endif
 
 #ifdef CONFIG_SH_STORE_QUEUES
 #include <linux/uaccess.h>
-#include <asm/cpu/sq.h>
+#include <cpu/sq.h>
 #endif
 
 #ifndef PCI_DEVICE_ID_NEC_NEON250

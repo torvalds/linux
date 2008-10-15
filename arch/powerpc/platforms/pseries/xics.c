@@ -383,13 +383,11 @@ static irqreturn_t xics_ipi_dispatch(int cpu)
 			mb();
 			smp_message_recv(PPC_MSG_RESCHEDULE);
 		}
-#if 0
-		if (test_and_clear_bit(PPC_MSG_MIGRATE_TASK,
+		if (test_and_clear_bit(PPC_MSG_CALL_FUNC_SINGLE,
 				       &xics_ipi_message[cpu].value)) {
 			mb();
-			smp_message_recv(PPC_MSG_MIGRATE_TASK);
+			smp_message_recv(PPC_MSG_CALL_FUNC_SINGLE);
 		}
-#endif
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
 		if (test_and_clear_bit(PPC_MSG_DEBUGGER_BREAK,
 				       &xics_ipi_message[cpu].value)) {

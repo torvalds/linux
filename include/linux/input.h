@@ -373,6 +373,8 @@ struct input_absinfo {
 
 #define KEY_WIMAX		246
 
+/* Range 248 - 255 is reserved for special needs of AT keyboard driver */
+
 #define BTN_MISC		0x100
 #define BTN_0			0x100
 #define BTN_1			0x101
@@ -534,8 +536,8 @@ struct input_absinfo {
 
 #define KEY_FRAMEBACK		0x1b4	/* Consumer - transport controls */
 #define KEY_FRAMEFORWARD	0x1b5
-
 #define KEY_CONTEXT_MENU	0x1b6	/* GenDesc - system context menu */
+#define KEY_MEDIA_REPEAT	0x1b7	/* Consumer - transport control */
 
 #define KEY_DEL_EOL		0x1c0
 #define KEY_DEL_EOS		0x1c1
@@ -640,6 +642,8 @@ struct input_absinfo {
 #define SW_RFKILL_ALL		0x03  /* rfkill master switch, type "any"
 					 set = radio enabled */
 #define SW_RADIO		SW_RFKILL_ALL	/* deprecated */
+#define SW_MICROPHONE_INSERT	0x04  /* set = inserted */
+#define SW_DOCK			0x05  /* set = plugged into dock */
 #define SW_MAX			0x0f
 #define SW_CNT			(SW_MAX+1)
 
@@ -1214,11 +1218,6 @@ struct input_handle {
 	struct list_head	d_node;
 	struct list_head	h_node;
 };
-
-#define to_dev(n) container_of(n, struct input_dev, node)
-#define to_handler(n) container_of(n, struct input_handler, node)
-#define to_handle(n) container_of(n, struct input_handle, d_node)
-#define to_handle_h(n) container_of(n, struct input_handle, h_node)
 
 struct input_dev *input_allocate_device(void);
 void input_free_device(struct input_dev *dev);

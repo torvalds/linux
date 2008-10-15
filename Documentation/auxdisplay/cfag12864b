@@ -3,7 +3,7 @@
 	===================================
 
 License:		GPLv2
-Author & Maintainer:	Miguel Ojeda Sandonis <maxextreme@gmail.com>
+Author & Maintainer:	Miguel Ojeda Sandonis
 Date:			2006-10-27
 
 
@@ -22,7 +22,7 @@ Date:			2006-10-27
 1. DRIVER INFORMATION
 ---------------------
 
-This driver support one cfag12864b display at time.
+This driver supports a cfag12864b LCD.
 
 
 ---------------------

@@ -30,7 +30,8 @@ int mls_context_isvalid(struct policydb *p, struct context *c);
 int mls_range_isvalid(struct policydb *p, struct mls_range *r);
 int mls_level_isvalid(struct policydb *p, struct mls_level *l);
 
-int mls_context_to_sid(char oldc,
+int mls_context_to_sid(struct policydb *p,
+		       char oldc,
 		       char **scontext,
 		       struct context *context,
 		       struct sidtab *s,

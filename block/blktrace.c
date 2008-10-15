@@ -111,23 +111,9 @@ static int act_log_check(struct blk_trace *bt, u32 what, sector_t sector,
  */
 static u32 ddir_act[2] __read_mostly = { BLK_TC_ACT(BLK_TC_READ), BLK_TC_ACT(BLK_TC_WRITE) };
 
-/*
- * Bio action bits of interest
- */
-static u32 bio_act[9] __read_mostly = { 0, BLK_TC_ACT(BLK_TC_BARRIER), BLK_TC_ACT(BLK_TC_SYNC), 0, BLK_TC_ACT(BLK_TC_AHEAD), 0, 0, 0, BLK_TC_ACT(BLK_TC_META) };
-
-/*
- * More could be added as needed, taking care to increment the decrementer
- * to get correct indexing
- */
-#define trace_barrier_bit(rw)	\
-	(((rw) & (1 << BIO_RW_BARRIER)) >> (BIO_RW_BARRIER - 0))
-#define trace_sync_bit(rw)	\
-	(((rw) & (1 << BIO_RW_SYNC)) >> (BIO_RW_SYNC - 1))
-#define trace_ahead_bit(rw)	\
-	(((rw) & (1 << BIO_RW_AHEAD)) << (2 - BIO_RW_AHEAD))
-#define trace_meta_bit(rw)	\
-	(((rw) & (1 << BIO_RW_META)) >> (BIO_RW_META - 3))
+/* The ilog2() calls fall out because they're constant */
+#define MASK_TC_BIT(rw, __name) ( (rw & (1 << BIO_RW_ ## __name)) << \
+	  (ilog2(BLK_TC_ ## __name) + BLK_TC_SHIFT - BIO_RW_ ## __name) )
 
 /*
  * The worker for the various blk_add_trace*() types. Fills out a
@@ -147,10 +133,11 @@ void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 		return;
 
 	what |= ddir_act[rw & WRITE];
-	what |= bio_act[trace_barrier_bit(rw)];
-	what |= bio_act[trace_sync_bit(rw)];
-	what |= bio_act[trace_ahead_bit(rw)];
-	what |= bio_act[trace_meta_bit(rw)];
+	what |= MASK_TC_BIT(rw, BARRIER);
+	what |= MASK_TC_BIT(rw, SYNC);
+	what |= MASK_TC_BIT(rw, AHEAD);
+	what |= MASK_TC_BIT(rw, META);
+	what |= MASK_TC_BIT(rw, DISCARD);
 
 	pid = tsk->pid;
 	if (unlikely(act_log_check(bt, what, sector, pid)))
@@ -244,6 +231,7 @@ err:
 static void blk_trace_cleanup(struct blk_trace *bt)
 {
 	relay_close(bt->rchan);
+	debugfs_remove(bt->msg_file);
 	debugfs_remove(bt->dropped_file);
 	blk_remove_tree(bt->dir);
 	free_percpu(bt->sequence);
@@ -289,6 +277,44 @@ static const struct file_operations blk_dropped_fops = {
 	.owner =	THIS_MODULE,
 	.open =		blk_dropped_open,
 	.read =		blk_dropped_read,
+};
+
+static int blk_msg_open(struct inode *inode, struct file *filp)
+{
+	filp->private_data = inode->i_private;
+
+	return 0;
+}
+
+static ssize_t blk_msg_write(struct file *filp, const char __user *buffer,
+				size_t count, loff_t *ppos)
+{
+	char *msg;
+	struct blk_trace *bt;
+
+	if (count > BLK_TN_MAX_MSG)
+		return -EINVAL;
+
+	msg = kmalloc(count, GFP_KERNEL);
+	if (msg == NULL)
+		return -ENOMEM;
+
+	if (copy_from_user(msg, buffer, count)) {
+		kfree(msg);
+		return -EFAULT;
+	}
+
+	bt = filp->private_data;
+	__trace_note_message(bt, "%s", msg);
+	kfree(msg);
+
+	return count;
+}
+
+static const struct file_operations blk_msg_fops = {
+	.owner =	THIS_MODULE,
+	.open =		blk_msg_open,
+	.write =	blk_msg_write,
 };
 
 /*
@@ -343,7 +369,8 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	if (!buts->buf_size || !buts->buf_nr)
 		return -EINVAL;
 
-	strcpy(buts->name, name);
+	strncpy(buts->name, name, BLKTRACE_BDEV_SIZE);
+	buts->name[BLKTRACE_BDEV_SIZE - 1] = '\0';
 
 	/*
 	 * some device names have larger paths - convert the slashes
@@ -380,6 +407,10 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	if (!bt->dropped_file)
 		goto err;
 
+	bt->msg_file = debugfs_create_file("msg", 0222, dir, bt, &blk_msg_fops);
+	if (!bt->msg_file)
+		goto err;
+
 	bt->rchan = relay_open("trace", dir, buts->buf_size,
 				buts->buf_nr, &blk_relay_callbacks, bt);
 	if (!bt->rchan)
@@ -409,6 +440,8 @@ err:
 	if (dir)
 		blk_remove_tree(dir);
 	if (bt) {
+		if (bt->msg_file)
+			debugfs_remove(bt->msg_file);
 		if (bt->dropped_file)
 			debugfs_remove(bt->dropped_file);
 		free_percpu(bt->sequence);

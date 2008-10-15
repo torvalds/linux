@@ -150,6 +150,7 @@ extern void nfs_clear_inode(struct inode *);
 #ifdef CONFIG_NFS_V4
 extern void nfs4_clear_inode(struct inode *);
 #endif
+void nfs_zap_acl_cache(struct inode *inode);
 
 /* super.c */
 extern struct file_system_type nfs_xdev_fs_type;

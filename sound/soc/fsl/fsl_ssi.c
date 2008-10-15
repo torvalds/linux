@@ -67,6 +67,8 @@
  * @ssi: pointer to the SSI's registers
  * @ssi_phys: physical address of the SSI registers
  * @irq: IRQ of this SSI
+ * @first_stream: pointer to the stream that was opened first
+ * @second_stream: pointer to second stream
  * @dev: struct device pointer
  * @playback: the number of playback streams opened
  * @capture: the number of capture streams opened
@@ -79,10 +81,12 @@ struct fsl_ssi_private {
 	struct ccsr_ssi __iomem *ssi;
 	dma_addr_t ssi_phys;
 	unsigned int irq;
+	struct snd_pcm_substream *first_stream;
+	struct snd_pcm_substream *second_stream;
 	struct device *dev;
 	unsigned int playback;
 	unsigned int capture;
-	struct snd_soc_cpu_dai cpu_dai;
+	struct snd_soc_dai cpu_dai;
 	struct device_attribute dev_attr;
 
 	struct {
@@ -342,6 +346,49 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream)
 		 */
 	}
 
+	if (!ssi_private->first_stream)
+		ssi_private->first_stream = substream;
+	else {
+		/* This is the second stream open, so we need to impose sample
+		 * rate and maybe sample size constraints.  Note that this can
+		 * cause a race condition if the second stream is opened before
+		 * the first stream is fully initialized.
+		 *
+		 * We provide some protection by checking to make sure the first
+		 * stream is initialized, but it's not perfect.  ALSA sometimes
+		 * re-initializes the driver with a different sample rate or
+		 * size.  If the second stream is opened before the first stream
+		 * has received its final parameters, then the second stream may
+		 * be constrained to the wrong sample rate or size.
+		 *
+		 * FIXME: This code does not handle opening and closing streams
+		 * repeatedly.  If you open two streams and then close the first
+		 * one, you may not be able to open another stream until you
+		 * close the second one as well.
+		 */
+		struct snd_pcm_runtime *first_runtime =
+			ssi_private->first_stream->runtime;
+
+		if (!first_runtime->rate || !first_runtime->sample_bits) {
+			dev_err(substream->pcm->card->dev,
+				"set sample rate and size in %s stream first\n",
+				substream->stream == SNDRV_PCM_STREAM_PLAYBACK
+				? "capture" : "playback");
+			return -EAGAIN;
+		}
+
+		snd_pcm_hw_constraint_minmax(substream->runtime,
+			SNDRV_PCM_HW_PARAM_RATE,
+			first_runtime->rate, first_runtime->rate);
+
+		snd_pcm_hw_constraint_minmax(substream->runtime,
+			SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
+			first_runtime->sample_bits,
+			first_runtime->sample_bits);
+
+		ssi_private->second_stream = substream;
+	}
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		ssi_private->playback++;
 
@@ -371,18 +418,16 @@ static int fsl_ssi_prepare(struct snd_pcm_substream *substream)
 	struct fsl_ssi_private *ssi_private = rtd->dai->cpu_dai->private_data;
 
 	struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
-	u32 wl;
 
-	wl = CCSR_SSI_SxCCR_WL(snd_pcm_format_width(runtime->format));
+	if (substream == ssi_private->first_stream) {
+		u32 wl;
 
-	clrbits32(&ssi->scr, CCSR_SSI_SCR_SSIEN);
+		/* The SSI should always be disabled at this points (SSIEN=0) */
+		wl = CCSR_SSI_SxCCR_WL(snd_pcm_format_width(runtime->format));
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		/* In synchronous mode, the SSI uses STCCR for capture */
 		clrsetbits_be32(&ssi->stccr, CCSR_SSI_SxCCR_WL_MASK, wl);
-	else
-		clrsetbits_be32(&ssi->srccr, CCSR_SSI_SxCCR_WL_MASK, wl);
-
-	setbits32(&ssi->scr, CCSR_SSI_SCR_SSIEN);
+	}
 
 	return 0;
 }
@@ -407,9 +452,13 @@ static int fsl_ssi_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			setbits32(&ssi->scr, CCSR_SSI_SCR_TE);
+			clrbits32(&ssi->scr, CCSR_SSI_SCR_SSIEN);
+			setbits32(&ssi->scr,
+				CCSR_SSI_SCR_SSIEN | CCSR_SSI_SCR_TE);
 		} else {
-			setbits32(&ssi->scr, CCSR_SSI_SCR_RE);
+			clrbits32(&ssi->scr, CCSR_SSI_SCR_SSIEN);
+			setbits32(&ssi->scr,
+				CCSR_SSI_SCR_SSIEN | CCSR_SSI_SCR_RE);
 
 			/*
 			 * I think we need this delay to allow time for the SSI
@@ -452,6 +501,11 @@ static void fsl_ssi_shutdown(struct snd_pcm_substream *substream)
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 		ssi_private->capture--;
 
+	if (ssi_private->first_stream == substream)
+		ssi_private->first_stream = ssi_private->second_stream;
+
+	ssi_private->second_stream = NULL;
+
 	/*
 	 * If this is the last active substream, disable the SSI and release
 	 * the IRQ.
@@ -479,7 +533,7 @@ static void fsl_ssi_shutdown(struct snd_pcm_substream *substream)
  * @freq: the frequency of the given clock ID, currently ignored
  * @dir: SND_SOC_CLOCK_IN (clock slave) or SND_SOC_CLOCK_OUT (clock master)
  */
-static int fsl_ssi_set_sysclk(struct snd_soc_cpu_dai *cpu_dai,
+static int fsl_ssi_set_sysclk(struct snd_soc_dai *cpu_dai,
 			      int clk_id, unsigned int freq, int dir)
 {
 
@@ -497,7 +551,7 @@ static int fsl_ssi_set_sysclk(struct snd_soc_cpu_dai *cpu_dai,
  *
  * @format: one of SND_SOC_DAIFMT_xxx
  */
-static int fsl_ssi_set_fmt(struct snd_soc_cpu_dai *cpu_dai, unsigned int format)
+static int fsl_ssi_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int format)
 {
 	return (format == SND_SOC_DAIFMT_I2S) ? 0 : -EINVAL;
 }
@@ -505,7 +559,7 @@ static int fsl_ssi_set_fmt(struct snd_soc_cpu_dai *cpu_dai, unsigned int format)
 /**
  * fsl_ssi_dai_template: template CPU DAI for the SSI
  */
-static struct snd_soc_cpu_dai fsl_ssi_dai_template = {
+static struct snd_soc_dai fsl_ssi_dai_template = {
 	.playback = {
 		/* The SSI does not support monaural audio. */
 		.channels_min = 2,
@@ -569,15 +623,15 @@ static ssize_t fsl_sysfs_ssi_show(struct device *dev,
 }
 
 /**
- * fsl_ssi_create_dai: create a snd_soc_cpu_dai structure
+ * fsl_ssi_create_dai: create a snd_soc_dai structure
  *
- * This function is called by the machine driver to create a snd_soc_cpu_dai
+ * This function is called by the machine driver to create a snd_soc_dai
  * structure.  The function creates an ssi_private object, which contains
- * the snd_soc_cpu_dai.  It also creates the sysfs statistics device.
+ * the snd_soc_dai.  It also creates the sysfs statistics device.
  */
-struct snd_soc_cpu_dai *fsl_ssi_create_dai(struct fsl_ssi_info *ssi_info)
+struct snd_soc_dai *fsl_ssi_create_dai(struct fsl_ssi_info *ssi_info)
 {
-	struct snd_soc_cpu_dai *fsl_ssi_dai;
+	struct snd_soc_dai *fsl_ssi_dai;
 	struct fsl_ssi_private *ssi_private;
 	int ret = 0;
 	struct device_attribute *dev_attr;
@@ -588,7 +642,7 @@ struct snd_soc_cpu_dai *fsl_ssi_create_dai(struct fsl_ssi_info *ssi_info)
 		return NULL;
 	}
 	memcpy(&ssi_private->cpu_dai, &fsl_ssi_dai_template,
-	       sizeof(struct snd_soc_cpu_dai));
+	       sizeof(struct snd_soc_dai));
 
 	fsl_ssi_dai = &ssi_private->cpu_dai;
 	dev_attr = &ssi_private->dev_attr;
@@ -623,11 +677,11 @@ struct snd_soc_cpu_dai *fsl_ssi_create_dai(struct fsl_ssi_info *ssi_info)
 EXPORT_SYMBOL_GPL(fsl_ssi_create_dai);
 
 /**
- * fsl_ssi_destroy_dai: destroy the snd_soc_cpu_dai object
+ * fsl_ssi_destroy_dai: destroy the snd_soc_dai object
  *
  * This function undoes the operations of fsl_ssi_create_dai()
  */
-void fsl_ssi_destroy_dai(struct snd_soc_cpu_dai *fsl_ssi_dai)
+void fsl_ssi_destroy_dai(struct snd_soc_dai *fsl_ssi_dai)
 {
 	struct fsl_ssi_private *ssi_private =
 	container_of(fsl_ssi_dai, struct fsl_ssi_private, cpu_dai);

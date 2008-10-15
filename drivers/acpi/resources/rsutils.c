@@ -62,7 +62,7 @@ ACPI_MODULE_NAME("rsutils")
  ******************************************************************************/
 u8 acpi_rs_decode_bitmask(u16 mask, u8 * list)
 {
-	acpi_native_uint i;
+	u8 i;
 	u8 bit_count;
 
 	ACPI_FUNCTION_ENTRY();
@@ -71,7 +71,7 @@ u8 acpi_rs_decode_bitmask(u16 mask, u8 * list)
 
 	for (i = 0, bit_count = 0; mask; i++) {
 		if (mask & 0x0001) {
-			list[bit_count] = (u8) i;
+			list[bit_count] = i;
 			bit_count++;
 		}
 
@@ -96,8 +96,8 @@ u8 acpi_rs_decode_bitmask(u16 mask, u8 * list)
 
 u16 acpi_rs_encode_bitmask(u8 * list, u8 count)
 {
-	acpi_native_uint i;
-	acpi_native_uint mask;
+	u32 i;
+	u16 mask;
 
 	ACPI_FUNCTION_ENTRY();
 
@@ -107,7 +107,7 @@ u16 acpi_rs_encode_bitmask(u8 * list, u8 count)
 		mask |= (0x1 << list[i]);
 	}
 
-	return ((u16) mask);
+	return mask;
 }
 
 /*******************************************************************************
@@ -130,7 +130,7 @@ u16 acpi_rs_encode_bitmask(u8 * list, u8 count)
 void
 acpi_rs_move_data(void *destination, void *source, u16 item_count, u8 move_type)
 {
-	acpi_native_uint i;
+	u32 i;
 
 	ACPI_FUNCTION_ENTRY();
 
@@ -679,7 +679,6 @@ acpi_rs_set_srs_method_data(struct acpi_namespace_node *node,
 	info->prefix_node = node;
 	info->pathname = METHOD_NAME__SRS;
 	info->parameters = args;
-	info->parameter_type = ACPI_PARAM_ARGS;
 	info->flags = ACPI_IGNORE_RETURN_VALUE;
 
 	/*

@@ -40,12 +40,14 @@ struct sn9c102_device;
 
 static const struct usb_device_id sn9c102_id_table[] = {
 	/* SN9C101 and SN9C102 */
+#if !defined CONFIG_USB_GSPCA && !defined CONFIG_USB_GSPCA_MODULE
 	{ SN9C102_USB_DEVICE(0x0c45, 0x6001, BRIDGE_SN9C102), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x6005, BRIDGE_SN9C102), },
+#endif
 	{ SN9C102_USB_DEVICE(0x0c45, 0x6007, BRIDGE_SN9C102), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x6009, BRIDGE_SN9C102), },
-	{ SN9C102_USB_DEVICE(0x0c45, 0x6011, BRIDGE_SN9C102), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x600d, BRIDGE_SN9C102), },
+/*	{ SN9C102_USB_DEVICE(0x0c45, 0x6011, BRIDGE_SN9C102), }, OV6650 */
 	{ SN9C102_USB_DEVICE(0x0c45, 0x6019, BRIDGE_SN9C102), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x6024, BRIDGE_SN9C102), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x6025, BRIDGE_SN9C102), },
@@ -54,30 +56,33 @@ static const struct usb_device_id sn9c102_id_table[] = {
 	{ SN9C102_USB_DEVICE(0x0c45, 0x602a, BRIDGE_SN9C102), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x602b, BRIDGE_SN9C102), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x602c, BRIDGE_SN9C102), },
-	{ SN9C102_USB_DEVICE(0x0c45, 0x602d, BRIDGE_SN9C102), },
+/*	{ SN9C102_USB_DEVICE(0x0c45, 0x602d, BRIDGE_SN9C102), }, HV7131R */
 	{ SN9C102_USB_DEVICE(0x0c45, 0x602e, BRIDGE_SN9C102), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x6030, BRIDGE_SN9C102), },
-	{ SN9C102_USB_DEVICE(0x0c45, 0x603f, BRIDGE_SN9C102), },
 	/* SN9C103 */
 	{ SN9C102_USB_DEVICE(0x0c45, 0x6080, BRIDGE_SN9C103), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x6082, BRIDGE_SN9C103), },
-	{ SN9C102_USB_DEVICE(0x0c45, 0x6083, BRIDGE_SN9C103), },
+/*	{ SN9C102_USB_DEVICE(0x0c45, 0x6083, BRIDGE_SN9C103), }, HY7131D/E */
 	{ SN9C102_USB_DEVICE(0x0c45, 0x6088, BRIDGE_SN9C103), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x608a, BRIDGE_SN9C103), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x608b, BRIDGE_SN9C103), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x608c, BRIDGE_SN9C103), },
-	{ SN9C102_USB_DEVICE(0x0c45, 0x608e, BRIDGE_SN9C103), },
+/*	{ SN9C102_USB_DEVICE(0x0c45, 0x608e, BRIDGE_SN9C103), }, CISVF10 */
+#if !defined CONFIG_USB_GSPCA && !defined CONFIG_USB_GSPCA_MODULE
 	{ SN9C102_USB_DEVICE(0x0c45, 0x608f, BRIDGE_SN9C103), },
+#endif
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60a0, BRIDGE_SN9C103), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60a2, BRIDGE_SN9C103), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60a3, BRIDGE_SN9C103), },
-	{ SN9C102_USB_DEVICE(0x0c45, 0x60a8, BRIDGE_SN9C103), },
-	{ SN9C102_USB_DEVICE(0x0c45, 0x60aa, BRIDGE_SN9C103), },
-	{ SN9C102_USB_DEVICE(0x0c45, 0x60ab, BRIDGE_SN9C103), },
+/*	{ SN9C102_USB_DEVICE(0x0c45, 0x60a8, BRIDGE_SN9C103), }, PAS106 */
+/*	{ SN9C102_USB_DEVICE(0x0c45, 0x60aa, BRIDGE_SN9C103), }, TAS5130 */
+/*	{ SN9C102_USB_DEVICE(0x0c45, 0x60ab, BRIDGE_SN9C103), }, TAS5130 */
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60ac, BRIDGE_SN9C103), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60ae, BRIDGE_SN9C103), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60af, BRIDGE_SN9C103), },
+#if !defined CONFIG_USB_GSPCA && !defined CONFIG_USB_GSPCA_MODULE
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60b0, BRIDGE_SN9C103), },
+#endif
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60b2, BRIDGE_SN9C103), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60b3, BRIDGE_SN9C103), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60b8, BRIDGE_SN9C103), },
@@ -107,7 +112,7 @@ static const struct usb_device_id sn9c102_id_table[] = {
 	{ SN9C102_USB_DEVICE(0x0c45, 0x6108, BRIDGE_SN9C120), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x610f, BRIDGE_SN9C120), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x6130, BRIDGE_SN9C120), },
-	{ SN9C102_USB_DEVICE(0x0c45, 0x6138, BRIDGE_SN9C120), },
+/*	{ SN9C102_USB_DEVICE(0x0c45, 0x6138, BRIDGE_SN9C120), }, MO8000 */
 	{ SN9C102_USB_DEVICE(0x0c45, 0x613a, BRIDGE_SN9C120), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x613b, BRIDGE_SN9C120), },
 	{ SN9C102_USB_DEVICE(0x0c45, 0x613c, BRIDGE_SN9C120), },
@@ -134,25 +139,5 @@ extern int sn9c102_probe_pas202bcb(struct sn9c102_device* cam);
 extern int sn9c102_probe_tas5110c1b(struct sn9c102_device* cam);
 extern int sn9c102_probe_tas5110d(struct sn9c102_device* cam);
 extern int sn9c102_probe_tas5130d1b(struct sn9c102_device* cam);
-
-/*
-   Add the above entries to this table. Be sure to add the entry in the right
-   place, since, on failure, the next probing routine is called according to
-   the order of the list below, from top to bottom.
-*/
-static int (*sn9c102_sensor_table[])(struct sn9c102_device*) = {
-	&sn9c102_probe_hv7131d, /* strong detection based on SENSOR ids */
-	&sn9c102_probe_hv7131r, /* strong detection based on SENSOR ids */
-	&sn9c102_probe_mi0343, /* strong detection based on SENSOR ids */
-	&sn9c102_probe_mi0360, /* strong detection based on SENSOR ids */
-	&sn9c102_probe_mt9v111, /* strong detection based on SENSOR ids */
-	&sn9c102_probe_pas106b, /* strong detection based on SENSOR ids */
-	&sn9c102_probe_pas202bcb, /* strong detection based on SENSOR ids */
-	&sn9c102_probe_ov7630, /* strong detection based on SENSOR ids */
-	&sn9c102_probe_ov7660, /* strong detection based on SENSOR ids */
-	&sn9c102_probe_tas5110c1b, /* detection based on USB pid/vid */
-	&sn9c102_probe_tas5110d, /* detection based on USB pid/vid */
-	&sn9c102_probe_tas5130d1b, /* detection based on USB pid/vid */
-};
 
 #endif /* _SN9C102_DEVTABLE_H_ */

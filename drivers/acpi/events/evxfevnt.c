@@ -472,7 +472,6 @@ acpi_status acpi_clear_gpe(acpi_handle gpe_device, u32 gpe_number, u32 flags)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_clear_gpe)
-#ifdef ACPI_FUTURE_USAGE
 /*******************************************************************************
  *
  * FUNCTION:    acpi_get_event_status
@@ -489,6 +488,7 @@ ACPI_EXPORT_SYMBOL(acpi_clear_gpe)
 acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status)
 {
 	acpi_status status = AE_OK;
+	u32 value;
 
 	ACPI_FUNCTION_TRACE(acpi_get_event_status);
 
@@ -506,7 +506,20 @@ acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status)
 
 	status =
 	    acpi_get_register(acpi_gbl_fixed_event_info[event].
-			      status_register_id, event_status);
+			      enable_register_id, &value);
+	if (ACPI_FAILURE(status))
+		return_ACPI_STATUS(status);
+
+	*event_status = value;
+
+	status =
+	    acpi_get_register(acpi_gbl_fixed_event_info[event].
+			      status_register_id, &value);
+	if (ACPI_FAILURE(status))
+		return_ACPI_STATUS(status);
+
+	if (value)
+		*event_status |= ACPI_EVENT_FLAG_SET;
 
 	return_ACPI_STATUS(status);
 }
@@ -566,7 +579,6 @@ acpi_get_gpe_status(acpi_handle gpe_device,
 }
 
 ACPI_EXPORT_SYMBOL(acpi_get_gpe_status)
-#endif				/*  ACPI_FUTURE_USAGE  */
 /*******************************************************************************
  *
  * FUNCTION:    acpi_install_gpe_block

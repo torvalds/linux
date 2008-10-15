@@ -1003,6 +1003,7 @@ static struct w100_pll_info xtal_14318000[] = {
 static struct w100_pll_info xtal_16000000[] = {
 	/*freq     M   N_int    N_fac  tfgoal  lock_time */
 	{ 72,      1,   8,       0,     0xe0,        48}, /* tfgoal guessed */
+	{ 80,      1,   9,       0,     0xe0,        13}, /* tfgoal guessed */
 	{ 95,      1,   10,      7,     0xe0,        38}, /* tfgoal guessed */
 	{ 96,      1,   11,      0,     0xe0,        36}, /* tfgoal guessed */
 	{  0,      0,   0,       0,        0,         0},

@@ -433,13 +433,6 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm,
 	entryaddr = interp_params.entry_addr ?: exec_params.entry_addr;
 	start_thread(regs, entryaddr, current->mm->start_stack);
 
-	if (unlikely(current->ptrace & PT_PTRACED)) {
-		if (current->ptrace & PT_TRACE_EXEC)
-			ptrace_notify((PTRACE_EVENT_EXEC << 8) | SIGTRAP);
-		else
-			send_sig(SIGTRAP, current, 0);
-	}
-
 	retval = 0;
 
 error:
@@ -477,6 +470,7 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 	char __user *u_platform, *p;
 	long hwcap;
 	int loop;
+	int nr;	/* reset for each csp adjustment */
 
 	/* we're going to shovel a whole load of stuff onto the stack */
 #ifdef CONFIG_MMU
@@ -549,10 +543,7 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 	/* force 16 byte _final_ alignment here for generality */
 #define DLINFO_ITEMS 13
 
-	nitems = 1 + DLINFO_ITEMS + (k_platform ? 1 : 0);
-#ifdef DLINFO_ARCH_ITEMS
-	nitems += DLINFO_ARCH_ITEMS;
-#endif
+	nitems = 1 + DLINFO_ITEMS + (k_platform ? 1 : 0) + AT_VECTOR_SIZE_ARCH;
 
 	csp = sp;
 	sp -= nitems * 2 * sizeof(unsigned long);
@@ -564,39 +555,46 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 	sp -= sp & 15UL;
 
 	/* put the ELF interpreter info on the stack */
-#define NEW_AUX_ENT(nr, id, val)					\
+#define NEW_AUX_ENT(id, val)						\
 	do {								\
 		struct { unsigned long _id, _val; } __user *ent;	\
 									\
 		ent = (void __user *) csp;				\
 		__put_user((id), &ent[nr]._id);				\
 		__put_user((val), &ent[nr]._val);			\
+		nr++;							\
 	} while (0)
 
+	nr = 0;
 	csp -= 2 * sizeof(unsigned long);
-	NEW_AUX_ENT(0, AT_NULL, 0);
+	NEW_AUX_ENT(AT_NULL, 0);
 	if (k_platform) {
+		nr = 0;
 		csp -= 2 * sizeof(unsigned long);
-		NEW_AUX_ENT(0, AT_PLATFORM,
+		NEW_AUX_ENT(AT_PLATFORM,
 			    (elf_addr_t) (unsigned long) u_platform);
 	}
 
+	nr = 0;
 	csp -= DLINFO_ITEMS * 2 * sizeof(unsigned long);
-	NEW_AUX_ENT( 0, AT_HWCAP,	hwcap);
-	NEW_AUX_ENT( 1, AT_PAGESZ,	PAGE_SIZE);
-	NEW_AUX_ENT( 2, AT_CLKTCK,	CLOCKS_PER_SEC);
-	NEW_AUX_ENT( 3, AT_PHDR,	exec_params->ph_addr);
-	NEW_AUX_ENT( 4, AT_PHENT,	sizeof(struct elf_phdr));
-	NEW_AUX_ENT( 5, AT_PHNUM,	exec_params->hdr.e_phnum);
-	NEW_AUX_ENT( 6,	AT_BASE,	interp_params->elfhdr_addr);
-	NEW_AUX_ENT( 7, AT_FLAGS,	0);
-	NEW_AUX_ENT( 8, AT_ENTRY,	exec_params->entry_addr);
-	NEW_AUX_ENT( 9, AT_UID,		(elf_addr_t) current->uid);
-	NEW_AUX_ENT(10, AT_EUID,	(elf_addr_t) current->euid);
-	NEW_AUX_ENT(11, AT_GID,		(elf_addr_t) current->gid);
-	NEW_AUX_ENT(12, AT_EGID,	(elf_addr_t) current->egid);
+	NEW_AUX_ENT(AT_HWCAP,	hwcap);
+	NEW_AUX_ENT(AT_PAGESZ,	PAGE_SIZE);
+	NEW_AUX_ENT(AT_CLKTCK,	CLOCKS_PER_SEC);
+	NEW_AUX_ENT(AT_PHDR,	exec_params->ph_addr);
+	NEW_AUX_ENT(AT_PHENT,	sizeof(struct elf_phdr));
+	NEW_AUX_ENT(AT_PHNUM,	exec_params->hdr.e_phnum);
+	NEW_AUX_ENT(AT_BASE,	interp_params->elfhdr_addr);
+	NEW_AUX_ENT(AT_FLAGS,	0);
+	NEW_AUX_ENT(AT_ENTRY,	exec_params->entry_addr);
+	NEW_AUX_ENT(AT_UID,	(elf_addr_t) current->uid);
+	NEW_AUX_ENT(AT_EUID,	(elf_addr_t) current->euid);
+	NEW_AUX_ENT(AT_GID,	(elf_addr_t) current->gid);
+	NEW_AUX_ENT(AT_EGID,	(elf_addr_t) current->egid);
 
 #ifdef ARCH_DLINFO
+	nr = 0;
+	csp -= AT_VECTOR_SIZE_ARCH * 2 * sizeof(unsigned long);
+
 	/* ARCH_DLINFO must come last so platform specific code can enforce
 	 * special alignment requirements on the AUXV if necessary (eg. PPC).
 	 */
@@ -1573,7 +1571,6 @@ static int elf_fdpic_core_dump(long signr, struct pt_regs *regs,
 	struct memelfnote *notes = NULL;
 	struct elf_prstatus *prstatus = NULL;	/* NT_PRSTATUS */
 	struct elf_prpsinfo *psinfo = NULL;	/* NT_PRPSINFO */
- 	struct task_struct *g, *p;
  	LIST_HEAD(thread_list);
  	struct list_head *t;
 	elf_fpregset_t *fpu = NULL;
@@ -1622,20 +1619,19 @@ static int elf_fdpic_core_dump(long signr, struct pt_regs *regs,
 #endif
 
 	if (signr) {
+		struct core_thread *ct;
 		struct elf_thread_status *tmp;
-		rcu_read_lock();
-		do_each_thread(g,p)
-			if (current->mm == p->mm && current != p) {
-				tmp = kzalloc(sizeof(*tmp), GFP_ATOMIC);
-				if (!tmp) {
-					rcu_read_unlock();
-					goto cleanup;
-				}
-				tmp->thread = p;
-				list_add(&tmp->list, &thread_list);
-			}
-		while_each_thread(g,p);
-		rcu_read_unlock();
+
+		for (ct = current->mm->core_state->dumper.next;
+						ct; ct = ct->next) {
+			tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+			if (!tmp)
+				goto cleanup;
+
+			tmp->thread = ct->task;
+			list_add(&tmp->list, &thread_list);
+		}
+
 		list_for_each(t, &thread_list) {
 			struct elf_thread_status *tmp;
 			int sz;

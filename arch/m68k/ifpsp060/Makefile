@@ -6,5 +6,4 @@
 
 obj-y := fskeleton.o iskeleton.o os.o
 
-EXTRA_AFLAGS := -traditional
 EXTRA_LDFLAGS := -x

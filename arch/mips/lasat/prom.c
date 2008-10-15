@@ -86,17 +86,15 @@ void __init prom_init(void)
 
 	setup_prom_vectors();
 
-	if (current_cpu_data.cputype == CPU_R5000) {
+	if (IS_LASAT_200()) {
 		printk(KERN_INFO "LASAT 200 board\n");
-		mips_machtype = MACH_LASAT_200;
 		lasat_ndelay_divider = LASAT_200_DIVIDER;
+		at93c = &at93c_defs[1];
 	} else {
 		printk(KERN_INFO "LASAT 100 board\n");
-		mips_machtype = MACH_LASAT_100;
 		lasat_ndelay_divider = LASAT_100_DIVIDER;
+		at93c = &at93c_defs[0];
 	}
-
-	at93c = &at93c_defs[mips_machtype];
 
 	lasat_init_board_info();		/* Read info from EEPROM */
 

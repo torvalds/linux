@@ -33,9 +33,9 @@
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <linux/smp.h>
+#include <linux/smp_lock.h>
 #include <linux/major.h>
 #include <linux/fs.h>
-#include <linux/smp_lock.h>
 #include <linux/device.h>
 #include <linux/cpu.h>
 #include <linux/notifier.h>
@@ -88,6 +88,8 @@ static ssize_t cpuid_read(struct file *file, char __user *buf,
 	struct cpuid_regs cmd;
 	int cpu = iminor(file->f_path.dentry->d_inode);
 	u64 pos = *ppos;
+	ssize_t bytes = 0;
+	int err = 0;
 
 	if (count % 16)
 		return -EINVAL;	/* Invalid chunk size */
@@ -95,27 +97,40 @@ static ssize_t cpuid_read(struct file *file, char __user *buf,
 	for (; count; count -= 16) {
 		cmd.eax = pos;
 		cmd.ecx = pos >> 32;
-		smp_call_function_single(cpu, cpuid_smp_cpuid, &cmd, 1, 1);
-		if (copy_to_user(tmp, &cmd, 16))
-			return -EFAULT;
+		err = smp_call_function_single(cpu, cpuid_smp_cpuid, &cmd, 1);
+		if (err)
+			break;
+		if (copy_to_user(tmp, &cmd, 16)) {
+			err = -EFAULT;
+			break;
+		}
 		tmp += 16;
+		bytes += 16;
 		*ppos = ++pos;
 	}
 
-	return tmp - buf;
+	return bytes ? bytes : err;
 }
 
 static int cpuid_open(struct inode *inode, struct file *file)
 {
-	unsigned int cpu = iminor(file->f_path.dentry->d_inode);
-	struct cpuinfo_x86 *c = &cpu_data(cpu);
+	unsigned int cpu;
+	struct cpuinfo_x86 *c;
+	int ret = 0;
+	
+	lock_kernel();
 
-	if (cpu >= NR_CPUS || !cpu_online(cpu))
-		return -ENXIO;	/* No such CPU */
+	cpu = iminor(file->f_path.dentry->d_inode);
+	if (cpu >= NR_CPUS || !cpu_online(cpu)) {
+		ret = -ENXIO;	/* No such CPU */
+		goto out;
+	}
+	c = &cpu_data(cpu);
 	if (c->cpuid_level < 0)
-		return -EIO;	/* CPUID not supported */
-
-	return 0;
+		ret = -EIO;	/* CPUID not supported */
+out:
+	unlock_kernel();
+	return ret;
 }
 
 /*
@@ -132,8 +147,8 @@ static __cpuinit int cpuid_device_create(int cpu)
 {
 	struct device *dev;
 
-	dev = device_create(cpuid_class, NULL, MKDEV(CPUID_MAJOR, cpu),
-			    "cpu%d", cpu);
+	dev = device_create_drvdata(cpuid_class, NULL, MKDEV(CPUID_MAJOR, cpu),
+				    NULL, "cpu%d", cpu);
 	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
 }
 

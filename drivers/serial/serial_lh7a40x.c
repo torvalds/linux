@@ -137,7 +137,7 @@ static void lh7a40xuart_enable_ms (struct uart_port* port)
 
 static void lh7a40xuart_rx_chars (struct uart_port* port)
 {
-	struct tty_struct* tty = port->info->tty;
+	struct tty_struct* tty = port->info->port.tty;
 	int cbRxMax = 256;	/* (Gross) limit on receive */
 	unsigned int data;	/* Received data and status */
 	unsigned int flag;

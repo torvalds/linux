@@ -16,15 +16,22 @@
 #define PCM_AC97	5
 #define PCM_COUNT	6
 
+#define OXYGEN_IO_SIZE	0x100
+
 /* model-specific configuration of outputs/inputs */
-#define PLAYBACK_0_TO_I2S	0x001
-#define PLAYBACK_1_TO_SPDIF	0x004
-#define PLAYBACK_2_TO_AC97_1	0x008
-#define CAPTURE_0_FROM_I2S_1	0x010
-#define CAPTURE_0_FROM_I2S_2	0x020
-#define CAPTURE_1_FROM_SPDIF	0x080
-#define CAPTURE_2_FROM_I2S_2	0x100
-#define CAPTURE_2_FROM_AC97_1	0x200
+#define PLAYBACK_0_TO_I2S	0x0001
+     /* PLAYBACK_0_TO_AC97_0		not implemented */
+#define PLAYBACK_1_TO_SPDIF	0x0004
+#define PLAYBACK_2_TO_AC97_1	0x0008
+#define CAPTURE_0_FROM_I2S_1	0x0010
+#define CAPTURE_0_FROM_I2S_2	0x0020
+     /* CAPTURE_0_FROM_AC97_0		not implemented */
+#define CAPTURE_1_FROM_SPDIF	0x0080
+#define CAPTURE_2_FROM_I2S_2	0x0100
+#define CAPTURE_2_FROM_AC97_1	0x0200
+     /* CAPTURE_3_FROM_I2S_3		not implemented */
+#define MIDI_OUTPUT		0x0800
+#define MIDI_INPUT		0x1000
 
 enum {
 	CONTROL_SPDIF_PCM,
@@ -49,7 +56,43 @@ struct snd_pcm_hardware;
 struct snd_pcm_hw_params;
 struct snd_kcontrol_new;
 struct snd_rawmidi;
-struct oxygen_model;
+struct oxygen;
+
+struct oxygen_model {
+	const char *shortname;
+	const char *longname;
+	const char *chip;
+	struct module *owner;
+	int (*probe)(struct oxygen *chip, unsigned long driver_data);
+	void (*init)(struct oxygen *chip);
+	int (*control_filter)(struct snd_kcontrol_new *template);
+	int (*mixer_init)(struct oxygen *chip);
+	void (*cleanup)(struct oxygen *chip);
+	void (*suspend)(struct oxygen *chip);
+	void (*resume)(struct oxygen *chip);
+	void (*pcm_hardware_filter)(unsigned int channel,
+				    struct snd_pcm_hardware *hardware);
+	void (*set_dac_params)(struct oxygen *chip,
+			       struct snd_pcm_hw_params *params);
+	void (*set_adc_params)(struct oxygen *chip,
+			       struct snd_pcm_hw_params *params);
+	void (*update_dac_volume)(struct oxygen *chip);
+	void (*update_dac_mute)(struct oxygen *chip);
+	void (*gpio_changed)(struct oxygen *chip);
+	void (*uart_input)(struct oxygen *chip);
+	void (*ac97_switch)(struct oxygen *chip,
+			    unsigned int reg, unsigned int mute);
+	const unsigned int *dac_tlv;
+	size_t model_data_size;
+	unsigned int device_config;
+	u8 dac_channels;
+	u8 dac_volume_min;
+	u8 dac_volume_max;
+	u8 misc_flags;
+	u8 function_flags;
+	u16 dac_i2s_format;
+	u16 adc_i2s_format;
+};
 
 struct oxygen {
 	unsigned long addr;
@@ -59,7 +102,6 @@ struct oxygen {
 	struct pci_dev *pci;
 	struct snd_rawmidi *midi;
 	int irq;
-	const struct oxygen_model *model;
 	void *model_data;
 	unsigned int interrupt_mask;
 	u8 dac_volume[8];
@@ -78,45 +120,27 @@ struct oxygen {
 	struct work_struct spdif_input_bits_work;
 	struct work_struct gpio_work;
 	wait_queue_head_t ac97_waitqueue;
-};
-
-struct oxygen_model {
-	const char *shortname;
-	const char *longname;
-	const char *chip;
-	struct module *owner;
-	void (*init)(struct oxygen *chip);
-	int (*control_filter)(struct snd_kcontrol_new *template);
-	int (*mixer_init)(struct oxygen *chip);
-	void (*cleanup)(struct oxygen *chip);
-	void (*pcm_hardware_filter)(unsigned int channel,
-				    struct snd_pcm_hardware *hardware);
-	void (*set_dac_params)(struct oxygen *chip,
-			       struct snd_pcm_hw_params *params);
-	void (*set_adc_params)(struct oxygen *chip,
-			       struct snd_pcm_hw_params *params);
-	void (*update_dac_volume)(struct oxygen *chip);
-	void (*update_dac_mute)(struct oxygen *chip);
-	void (*gpio_changed)(struct oxygen *chip);
-	void (*ac97_switch)(struct oxygen *chip,
-			    unsigned int reg, unsigned int mute);
-	const unsigned int *dac_tlv;
-	size_t model_data_size;
-	unsigned int pcm_dev_cfg;
-	u8 dac_channels;
-	u8 dac_volume_min;
-	u8 dac_volume_max;
-	u8 misc_flags;
-	u8 function_flags;
-	u16 dac_i2s_format;
-	u16 adc_i2s_format;
+	union {
+		u8 _8[OXYGEN_IO_SIZE];
+		__le16 _16[OXYGEN_IO_SIZE / 2];
+		__le32 _32[OXYGEN_IO_SIZE / 4];
+	} saved_registers;
+	u16 saved_ac97_registers[2][0x40];
+	unsigned int uart_input_count;
+	u8 uart_input[32];
+	struct oxygen_model model;
 };
 
 /* oxygen_lib.c */
 
 int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
-		     const struct oxygen_model *model);
+		     const struct oxygen_model *model,
+		     unsigned long driver_data);
 void oxygen_pci_remove(struct pci_dev *pci);
+#ifdef CONFIG_PM
+int oxygen_pci_suspend(struct pci_dev *pci, pm_message_t state);
+int oxygen_pci_resume(struct pci_dev *pci);
+#endif
 
 /* oxygen_mixer.c */
 
@@ -152,6 +176,9 @@ void oxygen_write_ac97_masked(struct oxygen *chip, unsigned int codec,
 
 void oxygen_write_spi(struct oxygen *chip, u8 control, unsigned int data);
 void oxygen_write_i2c(struct oxygen *chip, u8 device, u8 map, u8 data);
+
+void oxygen_reset_uart(struct oxygen *chip);
+void oxygen_write_uart(struct oxygen *chip, u8 data);
 
 static inline void oxygen_set_bits8(struct oxygen *chip,
 				    unsigned int reg, u8 value)

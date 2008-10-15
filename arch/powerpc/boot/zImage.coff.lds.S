@@ -3,7 +3,6 @@ ENTRY(_zimage_start_opd)
 EXTERN(_zimage_start_opd)
 SECTIONS
 {
-  . = (5*1024*1024);
   _start = .;
   .text      :
   {

@@ -17,6 +17,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
+#include <linux/delay.h>
 #include <linux/pci.h>
 #include <sound/control.h>
 #include <sound/core.h>
@@ -28,7 +29,7 @@
 
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_DESCRIPTION("TempoTec HiFier driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
@@ -62,16 +63,28 @@ static void ak4396_write(struct oxygen *chip, u8 reg, u8 value)
 			 AK4396_WRITE | (reg << 8) | value);
 }
 
+static void update_ak4396_volume(struct oxygen *chip)
+{
+	ak4396_write(chip, AK4396_LCH_ATT, chip->dac_volume[0]);
+	ak4396_write(chip, AK4396_RCH_ATT, chip->dac_volume[1]);
+}
+
+static void hifier_registers_init(struct oxygen *chip)
+{
+	struct hifier_data *data = chip->model_data;
+
+	ak4396_write(chip, AK4396_CONTROL_1, AK4396_DIF_24_MSB | AK4396_RSTN);
+	ak4396_write(chip, AK4396_CONTROL_2, data->ak4396_ctl2);
+	ak4396_write(chip, AK4396_CONTROL_3, AK4396_PCM);
+	update_ak4396_volume(chip);
+}
+
 static void hifier_init(struct oxygen *chip)
 {
 	struct hifier_data *data = chip->model_data;
 
 	data->ak4396_ctl2 = AK4396_SMUTE | AK4396_DEM_OFF | AK4396_DFS_NORMAL;
-	ak4396_write(chip, AK4396_CONTROL_1, AK4396_DIF_24_MSB | AK4396_RSTN);
-	ak4396_write(chip, AK4396_CONTROL_2, data->ak4396_ctl2);
-	ak4396_write(chip, AK4396_CONTROL_3, AK4396_PCM);
-	ak4396_write(chip, AK4396_LCH_ATT, 0);
-	ak4396_write(chip, AK4396_RCH_ATT, 0);
+	hifier_registers_init(chip);
 
 	snd_component_add(chip->card, "AK4396");
 	snd_component_add(chip->card, "CS5340");
@@ -79,6 +92,11 @@ static void hifier_init(struct oxygen *chip)
 
 static void hifier_cleanup(struct oxygen *chip)
 {
+}
+
+static void hifier_resume(struct oxygen *chip)
+{
+	hifier_registers_init(chip);
 }
 
 static void set_ak4396_params(struct oxygen *chip,
@@ -95,15 +113,12 @@ static void set_ak4396_params(struct oxygen *chip,
 	else
 		value |= AK4396_DFS_QUAD;
 	data->ak4396_ctl2 = value;
+
+	msleep(1); /* wait for the new MCLK to become stable */
+
 	ak4396_write(chip, AK4396_CONTROL_1, AK4396_DIF_24_MSB);
 	ak4396_write(chip, AK4396_CONTROL_2, value);
 	ak4396_write(chip, AK4396_CONTROL_1, AK4396_DIF_24_MSB | AK4396_RSTN);
-}
-
-static void update_ak4396_volume(struct oxygen *chip)
-{
-	ak4396_write(chip, AK4396_LCH_ATT, chip->dac_volume[0]);
-	ak4396_write(chip, AK4396_RCH_ATT, chip->dac_volume[1]);
 }
 
 static void update_ak4396_mute(struct oxygen *chip)
@@ -140,15 +155,16 @@ static const struct oxygen_model model_hifier = {
 	.init = hifier_init,
 	.control_filter = hifier_control_filter,
 	.cleanup = hifier_cleanup,
+	.resume = hifier_resume,
 	.set_dac_params = set_ak4396_params,
 	.set_adc_params = set_cs5340_params,
 	.update_dac_volume = update_ak4396_volume,
 	.update_dac_mute = update_ak4396_mute,
 	.dac_tlv = ak4396_db_scale,
 	.model_data_size = sizeof(struct hifier_data),
-	.pcm_dev_cfg = PLAYBACK_0_TO_I2S |
-		       PLAYBACK_1_TO_SPDIF |
-		       CAPTURE_0_FROM_I2S_1,
+	.device_config = PLAYBACK_0_TO_I2S |
+			 PLAYBACK_1_TO_SPDIF |
+			 CAPTURE_0_FROM_I2S_1,
 	.dac_channels = 2,
 	.dac_volume_min = 0,
 	.dac_volume_max = 255,
@@ -169,7 +185,7 @@ static int __devinit hifier_probe(struct pci_dev *pci,
 		++dev;
 		return -ENOENT;
 	}
-	err = oxygen_pci_probe(pci, index[dev], id[dev], &model_hifier);
+	err = oxygen_pci_probe(pci, index[dev], id[dev], &model_hifier, 0);
 	if (err >= 0)
 		++dev;
 	return err;
@@ -180,6 +196,10 @@ static struct pci_driver hifier_driver = {
 	.id_table = hifier_ids,
 	.probe = hifier_probe,
 	.remove = __devexit_p(oxygen_pci_remove),
+#ifdef CONFIG_PM
+	.suspend = oxygen_pci_suspend,
+	.resume = oxygen_pci_resume,
+#endif
 };
 
 static int __init alsa_card_hifier_init(void)

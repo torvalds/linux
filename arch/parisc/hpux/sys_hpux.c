@@ -210,19 +210,19 @@ static int vfs_statfs_hpux(struct dentry *dentry, struct hpux_statfs *buf)
 }
 
 /* hpux statfs */
-asmlinkage long hpux_statfs(const char __user *path,
+asmlinkage long hpux_statfs(const char __user *pathname,
 						struct hpux_statfs __user *buf)
 {
-	struct nameidata nd;
+	struct path path;
 	int error;
 
-	error = user_path_walk(path, &nd);
+	error = user_path(pathname, &path);
 	if (!error) {
 		struct hpux_statfs tmp;
-		error = vfs_statfs_hpux(nd.path.dentry, &tmp);
+		error = vfs_statfs_hpux(path.dentry, &tmp);
 		if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
 			error = -EFAULT;
-		path_put(&nd.path);
+		path_put(&path);
 	}
 	return error;
 }
@@ -448,7 +448,7 @@ int hpux_pipe(int *kstack_fildes)
 	int error;
 
 	lock_kernel();
-	error = do_pipe(kstack_fildes);
+	error = do_pipe_flags(kstack_fildes, 0);
 	unlock_kernel();
 	return error;
 }

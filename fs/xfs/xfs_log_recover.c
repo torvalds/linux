@@ -1715,8 +1715,7 @@ xlog_check_buffer_cancelled(
 					} else {
 						prevp->bc_next = bcp->bc_next;
 					}
-					kmem_free(bcp,
-						  sizeof(xfs_buf_cancel_t));
+					kmem_free(bcp);
 				}
 			}
 			return 1;
@@ -2519,7 +2518,7 @@ write_inode_buffer:
 
 error:
 	if (need_free)
-		kmem_free(in_f, sizeof(*in_f));
+		kmem_free(in_f);
 	return XFS_ERROR(error);
 }
 
@@ -2830,16 +2829,14 @@ xlog_recover_free_trans(
 		item = item->ri_next;
 		 /* Free the regions in the item. */
 		for (i = 0; i < free_item->ri_cnt; i++) {
-			kmem_free(free_item->ri_buf[i].i_addr,
-				  free_item->ri_buf[i].i_len);
+			kmem_free(free_item->ri_buf[i].i_addr);
 		}
 		/* Free the item itself */
-		kmem_free(free_item->ri_buf,
-			  (free_item->ri_total * sizeof(xfs_log_iovec_t)));
-		kmem_free(free_item, sizeof(xlog_recover_item_t));
+		kmem_free(free_item->ri_buf);
+		kmem_free(free_item);
 	} while (first_item != item);
 	/* Free the transaction recover structure */
-	kmem_free(trans, sizeof(xlog_recover_t));
+	kmem_free(trans);
 }
 
 STATIC int
@@ -3786,8 +3783,7 @@ xlog_do_log_recovery(
 	error = xlog_do_recovery_pass(log, head_blk, tail_blk,
 				      XLOG_RECOVER_PASS1);
 	if (error != 0) {
-		kmem_free(log->l_buf_cancel_table,
-			  XLOG_BC_TABLE_SIZE * sizeof(xfs_buf_cancel_t*));
+		kmem_free(log->l_buf_cancel_table);
 		log->l_buf_cancel_table = NULL;
 		return error;
 	}
@@ -3806,8 +3802,7 @@ xlog_do_log_recovery(
 	}
 #endif	/* DEBUG */
 
-	kmem_free(log->l_buf_cancel_table,
-		  XLOG_BC_TABLE_SIZE * sizeof(xfs_buf_cancel_t*));
+	kmem_free(log->l_buf_cancel_table);
 	log->l_buf_cancel_table = NULL;
 
 	return error;
@@ -3945,8 +3940,7 @@ xlog_recover(
  */
 int
 xlog_recover_finish(
-	xlog_t		*log,
-	int		mfsi_flags)
+	xlog_t		*log)
 {
 	/*
 	 * Now we're ready to do the transactions needed for the
@@ -3974,9 +3968,7 @@ xlog_recover_finish(
 		xfs_log_force(log->l_mp, (xfs_lsn_t)0,
 			      (XFS_LOG_FORCE | XFS_LOG_SYNC));
 
-		if ( (mfsi_flags & XFS_MFSI_NOUNLINK) == 0 ) {
-			xlog_recover_process_iunlinks(log);
-		}
+		xlog_recover_process_iunlinks(log);
 
 		xlog_recover_check_summary(log);
 

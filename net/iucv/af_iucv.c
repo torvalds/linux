@@ -644,6 +644,7 @@ static int iucv_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 		}
 
 		txmsg.class = 0;
+		memcpy(&txmsg.class, skb->data, skb->len >= 4 ? 4 : skb->len);
 		txmsg.tag = iucv->send_tag++;
 		memcpy(skb->cb, &txmsg.tag, 4);
 		skb_queue_tail(&iucv->send_skb_q, skb);
@@ -1135,8 +1136,7 @@ static void iucv_callback_txdone(struct iucv_path *path,
 		if (this)
 			kfree_skb(this);
 	}
-	if (!this)
-		printk(KERN_ERR "AF_IUCV msg tag %u not found\n", msg->tag);
+	BUG_ON(!this);
 
 	if (sk->sk_state == IUCV_CLOSING) {
 		if (skb_queue_empty(&iucv_sk(sk)->send_skb_q)) {
@@ -1196,7 +1196,7 @@ static int __init afiucv_init(void)
 	}
 	cpcmd("QUERY USERID", iucv_userid, sizeof(iucv_userid), &err);
 	if (unlikely(err)) {
-		printk(KERN_ERR "AF_IUCV needs the VM userid\n");
+		WARN_ON(err);
 		err = -EPROTONOSUPPORT;
 		goto out;
 	}
@@ -1210,7 +1210,6 @@ static int __init afiucv_init(void)
 	err = sock_register(&iucv_sock_family_ops);
 	if (err)
 		goto out_proto;
-	printk(KERN_INFO "AF_IUCV lowlevel driver initialized\n");
 	return 0;
 
 out_proto:
@@ -1226,8 +1225,6 @@ static void __exit afiucv_exit(void)
 	sock_unregister(PF_IUCV);
 	proto_unregister(&iucv_proto);
 	iucv_unregister(&af_iucv_handler, 0);
-
-	printk(KERN_INFO "AF_IUCV lowlevel driver unloaded\n");
 }
 
 module_init(afiucv_init);

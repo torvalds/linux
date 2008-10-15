@@ -2,7 +2,7 @@
  *  arch/sparc64/kernel/signal.c
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
- *  Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
+ *  Copyright (C) 1995, 2008 David S. Miller (davem@davemloft.net)
  *  Copyright (C) 1996 Miguel de Icaza (miguel@nuclecu.unam.mx)
  *  Copyright (C) 1997 Eddie C. Dost   (ecd@skynet.be)
  *  Copyright (C) 1997,1998 Jakub Jelinek   (jj@sunsite.mff.cuni.cz)
@@ -17,6 +17,7 @@
 #include <linux/errno.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
+#include <linux/tracehook.h>
 #include <linux/unistd.h>
 #include <linux/mm.h>
 #include <linux/tty.h>
@@ -89,7 +90,9 @@ asmlinkage void sparc64_set_context(struct pt_regs *regs)
 	err |= __get_user(regs->u_regs[UREG_G4], (&(*grp)[MC_G4]));
 	err |= __get_user(regs->u_regs[UREG_G5], (&(*grp)[MC_G5]));
 	err |= __get_user(regs->u_regs[UREG_G6], (&(*grp)[MC_G6]));
-	err |= __get_user(regs->u_regs[UREG_G7], (&(*grp)[MC_G7]));
+
+	/* Skip %g7 as that's the thread register in userspace.  */
+
 	err |= __get_user(regs->u_regs[UREG_I0], (&(*grp)[MC_O0]));
 	err |= __get_user(regs->u_regs[UREG_I1], (&(*grp)[MC_O1]));
 	err |= __get_user(regs->u_regs[UREG_I2], (&(*grp)[MC_O2]));
@@ -574,6 +577,8 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 		 * clear the TS_RESTORE_SIGMASK flag.
 		 */
 		current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
+
+		tracehook_signal_handler(signr, &info, &ka, regs, 0);
 		return;
 	}
 	if (restart_syscall &&
@@ -605,4 +610,8 @@ void do_notify_resume(struct pt_regs *regs, unsigned long orig_i0, unsigned long
 {
 	if (thread_info_flags & _TIF_SIGPENDING)
 		do_signal(regs, orig_i0);
+	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
+		clear_thread_flag(TIF_NOTIFY_RESUME);
+		tracehook_notify_resume(regs);
+	}
 }

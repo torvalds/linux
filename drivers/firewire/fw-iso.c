@@ -50,7 +50,7 @@ fw_iso_buffer_init(struct fw_iso_buffer *buffer, struct fw_card *card,
 
 		address = dma_map_page(card->device, buffer->pages[i],
 				       0, PAGE_SIZE, direction);
-		if (dma_mapping_error(address)) {
+		if (dma_mapping_error(card->device, address)) {
 			__free_page(buffer->pages[i]);
 			goto out_pages;
 		}

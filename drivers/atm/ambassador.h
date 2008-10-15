@@ -656,17 +656,6 @@ typedef struct amb_dev amb_dev;
 #define AMB_DEV(atm_dev) ((amb_dev *) (atm_dev)->dev_data)
 #define AMB_VCC(atm_vcc) ((amb_vcc *) (atm_vcc)->dev_data)
 
-/* the microcode */
-
-typedef struct {
-  u32 start;
-  unsigned int count;
-} region;
-
-static region ucode_regions[];
-static u32 ucode_data[];
-static u32 ucode_start;
-
 /* rate rounding */
 
 typedef enum {

@@ -18,16 +18,16 @@
 #include <linux/mman.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/dma.h>
-#include <asm/io.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
-#include <asm/arch/irqs.h>
+#include <mach/irqs.h>
 
 #include <asm/mach/dma.h>
 
@@ -104,14 +104,12 @@ h720x_gpio_handler(unsigned int mask, unsigned int irq,
                  struct irq_desc *desc)
 {
 	IRQDBG("%s irq: %d\n", __func__, irq);
-	desc = irq_desc + irq;
 	while (mask) {
 		if (mask & 1) {
 			IRQDBG("handling irq %d\n", irq);
-			desc_handle_irq(irq, desc);
+			generic_handle_irq(irq);
 		}
 		irq++;
-		desc++;
 		mask >>= 1;
 	}
 }

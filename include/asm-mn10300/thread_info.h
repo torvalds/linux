@@ -112,6 +112,8 @@ static inline unsigned long current_stack_pointer(void)
 	return sp;
 }
 
+#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
+
 /* thread information allocation */
 #ifdef CONFIG_DEBUG_STACK_USAGE
 #define alloc_thread_info(tsk) kzalloc(THREAD_SIZE, GFP_KERNEL)

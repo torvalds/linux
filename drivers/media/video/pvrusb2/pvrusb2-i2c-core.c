@@ -1,6 +1,5 @@
 /*
  *
- *  $Id$
  *
  *  Copyright (C) 2005 Mike Isely <isely@pobox.com>
  *
@@ -828,7 +827,7 @@ static unsigned int pvr2_i2c_client_describe(struct pvr2_i2c_client *cp,
 	if ((detail & PVR2_I2C_DETAIL_CTLMASK) && cp->ctl_mask) {
 		unsigned int idx;
 		unsigned long msk,sm;
-		int spcfl;
+
 		bcnt = scnprintf(buf,maxlen," [");
 		ccnt += bcnt; buf += bcnt; maxlen -= bcnt;
 		sm = 0;
@@ -892,6 +891,7 @@ static int pvr2_i2c_attach_inform(struct i2c_client *client)
 	INIT_LIST_HEAD(&cp->list);
 	cp->client = client;
 	mutex_lock(&hdw->i2c_list_lock); do {
+		hdw->cropcap_stale = !0;
 		list_add_tail(&cp->list,&hdw->i2c_clients);
 		hdw->i2c_pend_types |= PVR2_I2C_PEND_DETECT;
 	} while (0); mutex_unlock(&hdw->i2c_list_lock);
@@ -906,6 +906,7 @@ static int pvr2_i2c_detach_inform(struct i2c_client *client)
 	unsigned long amask = 0;
 	int foundfl = 0;
 	mutex_lock(&hdw->i2c_list_lock); do {
+		hdw->cropcap_stale = !0;
 		list_for_each_entry_safe(cp, ncp, &hdw->i2c_clients, list) {
 			if (cp->client == client) {
 				trace_i2c("pvr2_i2c_detach"
@@ -947,22 +948,32 @@ static struct i2c_adapter pvr2_i2c_adap_template = {
 	.client_unregister = pvr2_i2c_detach_inform,
 };
 
-static void do_i2c_scan(struct pvr2_hdw *hdw)
+
+/* Return true if device exists at given address */
+static int do_i2c_probe(struct pvr2_hdw *hdw, int addr)
 {
 	struct i2c_msg msg[1];
-	int i,rc;
+	int rc;
 	msg[0].addr = 0;
 	msg[0].flags = I2C_M_RD;
 	msg[0].len = 0;
 	msg[0].buf = NULL;
-	printk("%s: i2c scan beginning\n",hdw->name);
+	msg[0].addr = addr;
+	rc = i2c_transfer(&hdw->i2c_adap, msg, ARRAY_SIZE(msg));
+	return rc == 1;
+}
+
+static void do_i2c_scan(struct pvr2_hdw *hdw)
+{
+	int i;
+	printk(KERN_INFO "%s: i2c scan beginning\n", hdw->name);
 	for (i = 0; i < 128; i++) {
-		msg[0].addr = i;
-		rc = i2c_transfer(&hdw->i2c_adap,msg, ARRAY_SIZE(msg));
-		if (rc != 1) continue;
-		printk("%s: i2c scan: found device @ 0x%x\n",hdw->name,i);
+		if (do_i2c_probe(hdw, i)) {
+			printk(KERN_INFO "%s: i2c scan: found device @ 0x%x\n",
+			       hdw->name, i);
+		}
 	}
-	printk("%s: i2c scan done.\n",hdw->name);
+	printk(KERN_INFO "%s: i2c scan done.\n", hdw->name);
 }
 
 void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
@@ -980,7 +991,7 @@ void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 		printk(KERN_INFO "%s: IR disabled\n",hdw->name);
 		hdw->i2c_func[0x18] = i2c_black_hole;
 	} else if (ir_mode[hdw->unit_number] == 1) {
-		if (hdw->hdw_desc->flag_has_hauppauge_custom_ir) {
+		if (hdw->hdw_desc->ir_scheme == PVR2_IR_SCHEME_24XXX) {
 			hdw->i2c_func[0x18] = i2c_24xxx_ir;
 		}
 	}
@@ -1005,6 +1016,16 @@ void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 	mutex_init(&hdw->i2c_list_lock);
 	hdw->i2c_linked = !0;
 	i2c_add_adapter(&hdw->i2c_adap);
+	if (hdw->i2c_func[0x18] == i2c_24xxx_ir) {
+		/* Probe for a different type of IR receiver on this
+		   device.  If present, disable the emulated IR receiver. */
+		if (do_i2c_probe(hdw, 0x71)) {
+			pvr2_trace(PVR2_TRACE_INFO,
+				   "Device has newer IR hardware;"
+				   " disabling unneeded virtual IR device");
+			hdw->i2c_func[0x18] = NULL;
+		}
+	}
 	if (i2c_scan) do_i2c_scan(hdw);
 }
 

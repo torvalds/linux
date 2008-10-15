@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2440/mach-anubis.c
  *
- * Copyright (c) 2003-2005 Simtec Electronics
+ * Copyright (c) 2003-2005,2008 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *
@@ -17,7 +17,9 @@
 #include <linux/init.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
-
+#include <linux/ata_platform.h>
+#include <linux/i2c.h>
+#include <linux/io.h>
 #include <linux/sm501.h>
 #include <linux/sm501-regs.h>
 
@@ -25,19 +27,18 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/anubis-map.h>
-#include <asm/arch/anubis-irq.h>
-#include <asm/arch/anubis-cpld.h>
+#include <mach/anubis-map.h>
+#include <mach/anubis-irq.h>
+#include <mach/anubis-cpld.h>
 
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
 #include <asm/plat-s3c/regs-serial.h>
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/regs-mem.h>
-#include <asm/arch/regs-lcd.h>
+#include <mach/regs-gpio.h>
+#include <mach/regs-mem.h>
+#include <mach/regs-lcd.h>
 #include <asm/plat-s3c/nand.h>
 
 #include <linux/mtd/mtd.h>
@@ -241,14 +242,18 @@ static struct s3c2410_platform_nand anubis_nand_info = {
 
 /* IDE channels */
 
+struct pata_platform_info anubis_ide_platdata = {
+	.ioport_shift	= 5,
+};
+
 static struct resource anubis_ide0_resource[] = {
 	{
 		.start	= S3C2410_CS3,
 		.end	= S3C2410_CS3 + (8*32) - 1,
 		.flags	= IORESOURCE_MEM,
 	}, {
-		.start	= S3C2410_CS3 + (1<<26),
-		.end	= S3C2410_CS3 + (1<<26) + (8*32) - 1,
+		.start	= S3C2410_CS3 + (1<<26) + (6*32),
+		.end	= S3C2410_CS3 + (1<<26) + (7*32) - 1,
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.start	= IRQ_IDE0,
@@ -258,10 +263,14 @@ static struct resource anubis_ide0_resource[] = {
 };
 
 static struct platform_device anubis_device_ide0 = {
-	.name		= "simtec-ide",
+	.name		= "pata_platform",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(anubis_ide0_resource),
 	.resource	= anubis_ide0_resource,
+	.dev	= {
+		.platform_data = &anubis_ide_platdata,
+		.coherent_dma_mask = ~0,
+	},
 };
 
 static struct resource anubis_ide1_resource[] = {
@@ -270,8 +279,8 @@ static struct resource anubis_ide1_resource[] = {
 		.end	= S3C2410_CS4 + (8*32) - 1,
 		.flags	= IORESOURCE_MEM,
 	}, {
-		.start	= S3C2410_CS4 + (1<<26),
-		.end	= S3C2410_CS4 + (1<<26) + (8*32) - 1,
+		.start	= S3C2410_CS4 + (1<<26) + (6*32),
+		.end	= S3C2410_CS4 + (1<<26) + (7*32) - 1,
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.start	= IRQ_IDE0,
@@ -280,12 +289,15 @@ static struct resource anubis_ide1_resource[] = {
 	},
 };
 
-
 static struct platform_device anubis_device_ide1 = {
-	.name		= "simtec-ide",
+	.name		= "pata_platform",
 	.id		= 1,
 	.num_resources	= ARRAY_SIZE(anubis_ide1_resource),
 	.resource	= anubis_ide1_resource,
+	.dev	= {
+		.platform_data = &anubis_ide_platdata,
+		.coherent_dma_mask = ~0,
+	},
 };
 
 /* Asix AX88796 10/100 ethernet controller */
@@ -401,12 +413,21 @@ static struct platform_device *anubis_devices[] __initdata = {
 	&anubis_device_sm501,
 };
 
-static struct clk *anubis_clocks[] = {
+static struct clk *anubis_clocks[] __initdata = {
 	&s3c24xx_dclk0,
 	&s3c24xx_dclk1,
 	&s3c24xx_clkout0,
 	&s3c24xx_clkout1,
 	&s3c24xx_uclk,
+};
+
+/* I2C devices. */
+
+static struct i2c_board_info anubis_i2c_devs[] __initdata = {
+	{
+		I2C_BOARD_INFO("tps65011", 0x48),
+		.irq	= IRQ_EINT20,
+	}
 };
 
 static void __init anubis_map_io(void)
@@ -448,6 +469,9 @@ static void __init anubis_map_io(void)
 static void __init anubis_init(void)
 {
 	platform_add_devices(anubis_devices, ARRAY_SIZE(anubis_devices));
+
+	i2c_register_board_info(0, anubis_i2c_devs,
+				ARRAY_SIZE(anubis_i2c_devs));
 }
 
 

@@ -27,7 +27,7 @@
 #include <net/dst.h>
 #include <net/inetpeer.h>
 #include <net/flow.h>
-#include <net/sock.h>
+#include <net/inet_sock.h>
 #include <linux/in_route.h>
 #include <linux/rtnetlink.h>
 #include <linux/route.h>
@@ -111,7 +111,7 @@ struct in_device;
 extern int		ip_rt_init(void);
 extern void		ip_rt_redirect(__be32 old_gw, __be32 dst, __be32 new_gw,
 				       __be32 src, struct net_device *dev);
-extern void		rt_cache_flush(int how);
+extern void		rt_cache_flush(struct net *net, int how);
 extern int		__ip_route_output_key(struct net *, struct rtable **, const struct flowi *flp);
 extern int		ip_route_output_key(struct net *, struct rtable **, struct flowi *flp);
 extern int		ip_route_output_flow(struct net *, struct rtable **rp, struct flowi *flp, struct sock *sk, int flags);
@@ -161,6 +161,10 @@ static inline int ip_route_connect(struct rtable **rp, __be32 dst,
 
 	int err;
 	struct net *net = sock_net(sk);
+
+	if (inet_sk(sk)->transparent)
+		fl.flags |= FLOWI_FLAG_ANYSRC;
+
 	if (!dst || !src) {
 		err = __ip_route_output_key(net, rp, &fl);
 		if (err)
@@ -204,6 +208,9 @@ static inline struct inet_peer *rt_get_peer(struct rtable *rt)
 	return rt->peer;
 }
 
-extern ctl_table ipv4_route_table[];
+static inline int inet_iif(const struct sk_buff *skb)
+{
+	return skb->rtable->rt_iif;
+}
 
 #endif	/* _ROUTE_H */

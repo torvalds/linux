@@ -312,9 +312,9 @@ static void put_child_connect_map(struct r8a66597 *r8a66597, int address)
 static void set_pipe_reg_addr(struct r8a66597_pipe *pipe, u8 dma_ch)
 {
 	u16 pipenum = pipe->info.pipenum;
-	unsigned long fifoaddr[] = {D0FIFO, D1FIFO, CFIFO};
-	unsigned long fifosel[] = {D0FIFOSEL, D1FIFOSEL, CFIFOSEL};
-	unsigned long fifoctr[] = {D0FIFOCTR, D1FIFOCTR, CFIFOCTR};
+	const unsigned long fifoaddr[] = {D0FIFO, D1FIFO, CFIFO};
+	const unsigned long fifosel[] = {D0FIFOSEL, D1FIFOSEL, CFIFOSEL};
+	const unsigned long fifoctr[] = {D0FIFOCTR, D1FIFOCTR, CFIFOCTR};
 
 	if (dma_ch > R8A66597_PIPE_NO_DMA)	/* dma fifo not use? */
 		dma_ch = R8A66597_PIPE_NO_DMA;
@@ -863,6 +863,32 @@ static void disable_r8a66597_pipe_all(struct r8a66597 *r8a66597,
 	dev->dma_map = 0;
 }
 
+static u16 get_interval(struct urb *urb, __u8 interval)
+{
+	u16 time = 1;
+	int i;
+
+	if (urb->dev->speed == USB_SPEED_HIGH) {
+		if (interval > IITV)
+			time = IITV;
+		else
+			time = interval ? interval - 1 : 0;
+	} else {
+		if (interval > 128) {
+			time = IITV;
+		} else {
+			/* calculate the nearest value for PIPEPERI */
+			for (i = 0; i < 7; i++) {
+				if ((1 << i) < interval &&
+				    (1 << (i + 1) > interval))
+					time = 1 << i;
+			}
+		}
+	}
+
+	return time;
+}
+
 static unsigned long get_timer_interval(struct urb *urb, __u8 interval)
 {
 	__u8 i;
@@ -901,10 +927,7 @@ static void init_pipe_info(struct r8a66597 *r8a66597, struct urb *urb,
 		info.interval = 0;
 		info.timer_interval = 0;
 	} else {
-		if (ep->bInterval > IITV)
-			info.interval = IITV;
-		else
-			info.interval = ep->bInterval ? ep->bInterval - 1 : 0;
+		info.interval = get_interval(urb, ep->bInterval);
 		info.timer_interval = get_timer_interval(urb, ep->bInterval);
 	}
 	if (ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
@@ -941,11 +964,34 @@ static void pipe_irq_disable(struct r8a66597 *r8a66597, u16 pipenum)
 	disable_irq_nrdy(r8a66597, pipenum);
 }
 
+static void r8a66597_root_hub_start_polling(struct r8a66597 *r8a66597)
+{
+	mod_timer(&r8a66597->rh_timer,
+			jiffies + msecs_to_jiffies(R8A66597_RH_POLL_TIME));
+}
+
+static void start_root_hub_sampling(struct r8a66597 *r8a66597, int port,
+					int connect)
+{
+	struct r8a66597_root_hub *rh = &r8a66597->root_hub[port];
+
+	rh->old_syssts = r8a66597_read(r8a66597, get_syssts_reg(port)) & LNST;
+	rh->scount = R8A66597_MAX_SAMPLING;
+	if (connect)
+		rh->port |= 1 << USB_PORT_FEAT_CONNECTION;
+	else
+		rh->port &= ~(1 << USB_PORT_FEAT_CONNECTION);
+	rh->port |= 1 << USB_PORT_FEAT_C_CONNECTION;
+
+	r8a66597_root_hub_start_polling(r8a66597);
+}
+
 /* this function must be called with interrupt disabled */
 static void r8a66597_check_syssts(struct r8a66597 *r8a66597, int port,
 					u16 syssts)
 {
 	if (syssts == SE0) {
+		r8a66597_write(r8a66597, ~ATTCH, get_intsts_reg(port));
 		r8a66597_bset(r8a66597, ATTCHE, get_intenb_reg(port));
 		return;
 	}
@@ -979,13 +1025,10 @@ static void r8a66597_usb_disconnect(struct r8a66597 *r8a66597, int port)
 {
 	struct r8a66597_device *dev = r8a66597->root_hub[port].dev;
 
-	r8a66597->root_hub[port].port &= ~(1 << USB_PORT_FEAT_CONNECTION);
-	r8a66597->root_hub[port].port |= (1 << USB_PORT_FEAT_C_CONNECTION);
-
 	disable_r8a66597_pipe_all(r8a66597, dev);
 	free_usb_address(r8a66597, dev);
 
-	r8a66597_bset(r8a66597, ATTCHE, get_intenb_reg(port));
+	start_root_hub_sampling(r8a66597, port, 0);
 }
 
 /* this function must be called with interrupt disabled */
@@ -1528,23 +1571,6 @@ static void irq_pipe_nrdy(struct r8a66597 *r8a66597)
 	}
 }
 
-static void r8a66597_root_hub_start_polling(struct r8a66597 *r8a66597)
-{
-	mod_timer(&r8a66597->rh_timer,
-			jiffies + msecs_to_jiffies(R8A66597_RH_POLL_TIME));
-}
-
-static void start_root_hub_sampling(struct r8a66597 *r8a66597, int port)
-{
-	struct r8a66597_root_hub *rh = &r8a66597->root_hub[port];
-
-	rh->old_syssts = r8a66597_read(r8a66597, get_syssts_reg(port)) & LNST;
-	rh->scount = R8A66597_MAX_SAMPLING;
-	r8a66597->root_hub[port].port |= (1 << USB_PORT_FEAT_CONNECTION)
-					 | (1 << USB_PORT_FEAT_C_CONNECTION);
-	r8a66597_root_hub_start_polling(r8a66597);
-}
-
 static irqreturn_t r8a66597_irq(struct usb_hcd *hcd)
 {
 	struct r8a66597 *r8a66597 = hcd_to_r8a66597(hcd);
@@ -1571,7 +1597,7 @@ static irqreturn_t r8a66597_irq(struct usb_hcd *hcd)
 			r8a66597_bclr(r8a66597, ATTCHE, INTENB2);
 
 			/* start usb bus sampling */
-			start_root_hub_sampling(r8a66597, 1);
+			start_root_hub_sampling(r8a66597, 1, 1);
 		}
 		if (mask2 & DTCH) {
 			r8a66597_write(r8a66597, ~DTCH, INTSTS2);
@@ -1586,7 +1612,7 @@ static irqreturn_t r8a66597_irq(struct usb_hcd *hcd)
 			r8a66597_bclr(r8a66597, ATTCHE, INTENB1);
 
 			/* start usb bus sampling */
-			start_root_hub_sampling(r8a66597, 0);
+			start_root_hub_sampling(r8a66597, 0, 1);
 		}
 		if (mask1 & DTCH) {
 			r8a66597_write(r8a66597, ~DTCH, INTSTS1);
@@ -2244,6 +2270,7 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	struct r8a66597 *r8a66597;
 	int ret = 0;
 	int i;
+	unsigned long irq_trigger;
 
 	if (pdev->dev.dma_mask) {
 		ret = -EINVAL;
@@ -2302,7 +2329,11 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&r8a66597->child_device);
 
 	hcd->rsrc_start = res->start;
-	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED);
+	if (irq_sense == INTL)
+		irq_trigger = IRQF_TRIGGER_LOW;
+	else
+		irq_trigger = IRQF_TRIGGER_FALLING;
+	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED | irq_trigger);
 	if (ret != 0) {
 		err("Failed to add hcd");
 		goto clean_up;

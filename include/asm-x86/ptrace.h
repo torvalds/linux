@@ -1,9 +1,14 @@
-#ifndef _ASM_X86_PTRACE_H
-#define _ASM_X86_PTRACE_H
+#ifndef ASM_X86__PTRACE_H
+#define ASM_X86__PTRACE_H
 
 #include <linux/compiler.h>	/* For __user */
 #include <asm/ptrace-abi.h>
+#include <asm/processor-flags.h>
 
+#ifdef __KERNEL__
+#include <asm/ds.h>		/* the DS BTS struct is used for ptrace too */
+#include <asm/segment.h>
+#endif
 
 #ifndef __ASSEMBLY__
 
@@ -54,9 +59,6 @@ struct pt_regs {
 	unsigned long sp;
 	unsigned long ss;
 };
-
-#include <asm/vm86.h>
-#include <asm/segment.h>
 
 #endif /* __KERNEL__ */
 
@@ -125,26 +127,59 @@ struct pt_regs {
 #endif /* __KERNEL__ */
 #endif /* !__i386__ */
 
+
+#ifdef CONFIG_X86_PTRACE_BTS
+/* a branch trace record entry
+ *
+ * In order to unify the interface between various processor versions,
+ * we use the below data structure for all processors.
+ */
+enum bts_qualifier {
+	BTS_INVALID = 0,
+	BTS_BRANCH,
+	BTS_TASK_ARRIVES,
+	BTS_TASK_DEPARTS
+};
+
+struct bts_struct {
+	__u64 qualifier;
+	union {
+		/* BTS_BRANCH */
+		struct {
+			__u64 from_ip;
+			__u64 to_ip;
+		} lbr;
+		/* BTS_TASK_ARRIVES or
+		   BTS_TASK_DEPARTS */
+		__u64 jiffies;
+	} variant;
+};
+#endif /* CONFIG_X86_PTRACE_BTS */
+
 #ifdef __KERNEL__
 
-/* the DS BTS struct is used for ptrace as well */
-#include <asm/ds.h>
+#include <linux/init.h>
 
+struct cpuinfo_x86;
 struct task_struct;
 
+#ifdef CONFIG_X86_PTRACE_BTS
+extern void __cpuinit ptrace_bts_init_intel(struct cpuinfo_x86 *);
 extern void ptrace_bts_take_timestamp(struct task_struct *, enum bts_qualifier);
+#else
+#define ptrace_bts_init_intel(config) do {} while (0)
+#endif /* CONFIG_X86_PTRACE_BTS */
 
 extern unsigned long profile_pc(struct pt_regs *regs);
 
 extern unsigned long
 convert_ip_to_linear(struct task_struct *child, struct pt_regs *regs);
-
-#ifdef CONFIG_X86_32
 extern void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
-			 int error_code);
-#else
+			 int error_code, int si_code);
 void signal_fault(struct pt_regs *regs, void __user *frame, char *where);
-#endif
+
+extern long syscall_trace_enter(struct pt_regs *);
+extern void syscall_trace_leave(struct pt_regs *);
 
 static inline unsigned long regs_return_value(struct pt_regs *regs)
 {
@@ -211,6 +246,11 @@ static inline unsigned long frame_pointer(struct pt_regs *regs)
 	return regs->bp;
 }
 
+static inline unsigned long user_stack_pointer(struct pt_regs *regs)
+{
+	return regs->sp;
+}
+
 /*
  * These are defined as per linux/ptrace.h, which see.
  */
@@ -237,4 +277,4 @@ extern int do_set_thread_area(struct task_struct *p, int idx,
 
 #endif /* !__ASSEMBLY__ */
 
-#endif
+#endif /* ASM_X86__PTRACE_H */

@@ -605,8 +605,8 @@ static int saa7146_pgtable_build(struct saa7146_dev *dev, struct saa7146_buf *bu
 		struct saa7146_pgtable *pt1 = &buf->pt[0];
 		struct saa7146_pgtable *pt2 = &buf->pt[1];
 		struct saa7146_pgtable *pt3 = &buf->pt[2];
-		u32  *ptr1, *ptr2, *ptr3;
-		u32 fill;
+		__le32  *ptr1, *ptr2, *ptr3;
+		__le32 fill;
 
 		int size = buf->fmt->width*buf->fmt->height;
 		int i,p,m1,m2,m3,o1,o2;
@@ -656,7 +656,7 @@ static int saa7146_pgtable_build(struct saa7146_dev *dev, struct saa7146_buf *bu
 
 		/* if we have a user buffer, the first page may not be
 		   aligned to a page boundary. */
-		pt1->offset = list->offset;
+		pt1->offset = dma->sglist->offset;
 		pt2->offset = pt1->offset+o1;
 		pt3->offset = pt1->offset+o2;
 
@@ -958,21 +958,18 @@ int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int 
 	case VIDIOC_ENUM_FMT:
 	{
 		struct v4l2_fmtdesc *f = arg;
-		int index;
 
 		switch (f->type) {
 		case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		case V4L2_BUF_TYPE_VIDEO_OVERLAY: {
-			index = f->index;
-			if (index < 0 || index >= NUM_FORMATS) {
+		case V4L2_BUF_TYPE_VIDEO_OVERLAY:
+			if (f->index >= NUM_FORMATS)
 				return -EINVAL;
-			}
-			memset(f,0,sizeof(*f));
-			f->index = index;
-			strlcpy((char *)f->description,formats[index].name,sizeof(f->description));
-			f->pixelformat = formats[index].pixelformat;
+			strlcpy((char *)f->description, formats[f->index].name,
+					sizeof(f->description));
+			f->pixelformat = formats[f->index].pixelformat;
+			f->flags = 0;
+			memset(f->reserved, 0, sizeof(f->reserved));
 			break;
-		}
 		default:
 			return -EINVAL;
 		}
@@ -1071,7 +1068,7 @@ int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int 
 	{
 		v4l2_std_id *id = arg;
 		int found = 0;
-		int i, err;
+		int i;
 
 		DEB_EE(("VIDIOC_S_STD\n"));
 
@@ -1119,7 +1116,6 @@ int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int 
 	case VIDIOC_OVERLAY:
 	{
 		int on = *(int *)arg;
-		int err = 0;
 
 		DEB_D(("VIDIOC_OVERLAY on:%d\n",on));
 		if (on != 0) {
@@ -1195,7 +1191,6 @@ int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int 
 	case VIDIOCGMBUF:
 	{
 		struct video_mbuf *mbuf = arg;
-		struct videobuf_queue *q;
 		int i;
 
 		/* fixme: number of capture buffers and sizes for v4l apps */

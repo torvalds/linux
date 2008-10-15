@@ -11,11 +11,12 @@
 #include <linux/mount.h>
 #include <linux/time.h>
 #include <linux/msdos_fs.h>
-#include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
 #include <linux/backing-dev.h>
 #include <linux/blkdev.h>
+#include <linux/fsnotify.h>
+#include <linux/security.h>
 
 int fat_generic_ioctl(struct inode *inode, struct file *filp,
 		      unsigned int cmd, unsigned long arg)
@@ -65,6 +66,7 @@ int fat_generic_ioctl(struct inode *inode, struct file *filp,
 
 		/* Equivalent to a chmod() */
 		ia.ia_valid = ATTR_MODE | ATTR_CTIME;
+		ia.ia_ctime = current_fs_time(inode->i_sb);
 		if (is_dir) {
 			ia.ia_mode = MSDOS_MKMODE(attr,
 				S_IRWXUGO & ~sbi->options.fs_dmask)
@@ -91,11 +93,21 @@ int fat_generic_ioctl(struct inode *inode, struct file *filp,
 			}
 		}
 
-		/* This MUST be done before doing anything irreversible... */
-		err = notify_change(filp->f_path.dentry, &ia);
+		/*
+		 * The security check is questionable...  We single
+		 * out the RO attribute for checking by the security
+		 * module, just because it maps to a file mode.
+		 */
+		err = security_inode_setattr(filp->f_path.dentry, &ia);
 		if (err)
 			goto up;
 
+		/* This MUST be done before doing anything irreversible... */
+		err = fat_setattr(filp->f_path.dentry, &ia);
+		if (err)
+			goto up;
+
+		fsnotify_change(filp->f_path.dentry, ia.ia_valid);
 		if (sbi->options.sys_immutable) {
 			if (attr & ATTR_SYS)
 				inode->i_flags |= S_IMMUTABLE;
@@ -242,9 +254,7 @@ void fat_truncate(struct inode *inode)
 
 	nr_clusters = (inode->i_size + (cluster_size - 1)) >> sbi->cluster_bits;
 
-	lock_kernel();
 	fat_free(inode, nr_clusters);
-	unlock_kernel();
 	fat_flush_inodes(inode->i_sb, inode, NULL);
 }
 
@@ -303,14 +313,14 @@ static int fat_allow_set_time(struct msdos_sb_info *sbi, struct inode *inode)
 	return 0;
 }
 
+#define TIMES_SET_FLAGS	(ATTR_MTIME_SET | ATTR_ATIME_SET | ATTR_TIMES_SET)
+
 int fat_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(dentry->d_sb);
 	struct inode *inode = dentry->d_inode;
 	int error = 0;
 	unsigned int ia_valid;
-
-	lock_kernel();
 
 	/*
 	 * Expand the file. Since inode_setattr() updates ->i_size
@@ -328,9 +338,9 @@ int fat_setattr(struct dentry *dentry, struct iattr *attr)
 
 	/* Check for setting the inode time. */
 	ia_valid = attr->ia_valid;
-	if (ia_valid & (ATTR_MTIME_SET | ATTR_ATIME_SET)) {
+	if (ia_valid & TIMES_SET_FLAGS) {
 		if (fat_allow_set_time(sbi, inode))
-			attr->ia_valid &= ~(ATTR_MTIME_SET | ATTR_ATIME_SET);
+			attr->ia_valid &= ~TIMES_SET_FLAGS;
 	}
 
 	error = inode_change_ok(inode, attr);
@@ -366,7 +376,6 @@ int fat_setattr(struct dentry *dentry, struct iattr *attr)
 
 	error = inode_setattr(inode, attr);
 out:
-	unlock_kernel();
 	return error;
 }
 EXPORT_SYMBOL_GPL(fat_setattr);

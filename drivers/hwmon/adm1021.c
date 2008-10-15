@@ -78,7 +78,6 @@ clearing it.  Weird, ey?   --Phil  */
 
 /* Each client has this additional data */
 struct adm1021_data {
-	struct i2c_client client;
 	struct device *hwmon_dev;
 	enum chips type;
 
@@ -98,23 +97,42 @@ struct adm1021_data {
 	u8 remote_temp_offset_prec;
 };
 
-static int adm1021_attach_adapter(struct i2c_adapter *adapter);
-static int adm1021_detect(struct i2c_adapter *adapter, int address, int kind);
+static int adm1021_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id);
+static int adm1021_detect(struct i2c_client *client, int kind,
+			  struct i2c_board_info *info);
 static void adm1021_init_client(struct i2c_client *client);
-static int adm1021_detach_client(struct i2c_client *client);
+static int adm1021_remove(struct i2c_client *client);
 static struct adm1021_data *adm1021_update_device(struct device *dev);
 
 /* (amalysh) read only mode, otherwise any limit's writing confuse BIOS */
 static int read_only;
 
 
+static const struct i2c_device_id adm1021_id[] = {
+	{ "adm1021", adm1021 },
+	{ "adm1023", adm1023 },
+	{ "max1617", max1617 },
+	{ "max1617a", max1617a },
+	{ "thmc10", thmc10 },
+	{ "lm84", lm84 },
+	{ "gl523sm", gl523sm },
+	{ "mc1066", mc1066 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, adm1021_id);
+
 /* This is the driver that will be inserted */
 static struct i2c_driver adm1021_driver = {
+	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "adm1021",
 	},
-	.attach_adapter	= adm1021_attach_adapter,
-	.detach_client	= adm1021_detach_client,
+	.probe		= adm1021_probe,
+	.remove		= adm1021_remove,
+	.id_table	= adm1021_id,
+	.detect		= adm1021_detect,
+	.address_data	= &addr_data,
 };
 
 static ssize_t show_temp(struct device *dev,
@@ -216,13 +234,6 @@ static SENSOR_DEVICE_ATTR(temp2_fault, S_IRUGO, show_alarm, NULL, 2);
 
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 
-static int adm1021_attach_adapter(struct i2c_adapter *adapter)
-{
-	if (!(adapter->class & I2C_CLASS_HWMON))
-		return 0;
-	return i2c_probe(adapter, &addr_data, adm1021_detect);
-}
-
 static struct attribute *adm1021_attributes[] = {
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
 	&sensor_dev_attr_temp1_min.dev_attr.attr,
@@ -243,36 +254,21 @@ static const struct attribute_group adm1021_group = {
 	.attrs = adm1021_attributes,
 };
 
-static int adm1021_detect(struct i2c_adapter *adapter, int address, int kind)
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static int adm1021_detect(struct i2c_client *client, int kind,
+			  struct i2c_board_info *info)
 {
+	struct i2c_adapter *adapter = client->adapter;
 	int i;
-	struct i2c_client *client;
-	struct adm1021_data *data;
-	int err = 0;
 	const char *type_name = "";
 	int conv_rate, status, config;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		pr_debug("adm1021: detect failed, "
 			 "smbus byte data not supported!\n");
-		goto error0;
+		return -ENODEV;
 	}
 
-	/* OK. For now, we presume we have a valid client. We now create the
-	   client structure, even though we cannot fill it completely yet.
-	   But it allows us to access adm1021 register values. */
-
-	if (!(data = kzalloc(sizeof(struct adm1021_data), GFP_KERNEL))) {
-		pr_debug("adm1021: detect failed, kzalloc failed!\n");
-		err = -ENOMEM;
-		goto error0;
-	}
-
-	client = &data->client;
-	i2c_set_clientdata(client, data);
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &adm1021_driver;
 	status = i2c_smbus_read_byte_data(client, ADM1021_REG_STATUS);
 	conv_rate = i2c_smbus_read_byte_data(client,
 					     ADM1021_REG_CONV_RATE_R);
@@ -284,8 +280,7 @@ static int adm1021_detect(struct i2c_adapter *adapter, int address, int kind)
 		    || (conv_rate & 0xF8) != 0x00) {
 			pr_debug("adm1021: detect failed, "
 				 "chip not detected!\n");
-			err = -ENODEV;
-			goto error1;
+			return -ENODEV;
 		}
 	}
 
@@ -336,24 +331,36 @@ static int adm1021_detect(struct i2c_adapter *adapter, int address, int kind)
 		type_name = "mc1066";
 	}
 	pr_debug("adm1021: Detected chip %s at adapter %d, address 0x%02x.\n",
-		 type_name, i2c_adapter_id(adapter), address);
+		 type_name, i2c_adapter_id(adapter), client->addr);
+	strlcpy(info->type, type_name, I2C_NAME_SIZE);
 
-	/* Fill in the remaining client fields */
-	strlcpy(client->name, type_name, I2C_NAME_SIZE);
-	data->type = kind;
+	return 0;
+}
+
+static int adm1021_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
+{
+	struct adm1021_data *data;
+	int err;
+
+	data = kzalloc(sizeof(struct adm1021_data), GFP_KERNEL);
+	if (!data) {
+		pr_debug("adm1021: detect failed, kzalloc failed!\n");
+		err = -ENOMEM;
+		goto error0;
+	}
+
+	i2c_set_clientdata(client, data);
+	data->type = id->driver_data;
 	mutex_init(&data->update_lock);
 
-	/* Tell the I2C layer a new client has arrived */
-	if ((err = i2c_attach_client(client)))
-		goto error1;
-
 	/* Initialize the ADM1021 chip */
-	if (kind != lm84 && !read_only)
+	if (data->type != lm84 && !read_only)
 		adm1021_init_client(client);
 
 	/* Register sysfs hooks */
 	if ((err = sysfs_create_group(&client->dev.kobj, &adm1021_group)))
-		goto error2;
+		goto error1;
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -365,8 +372,6 @@ static int adm1021_detect(struct i2c_adapter *adapter, int address, int kind)
 
 error3:
 	sysfs_remove_group(&client->dev.kobj, &adm1021_group);
-error2:
-	i2c_detach_client(client);
 error1:
 	kfree(data);
 error0:
@@ -382,16 +387,12 @@ static void adm1021_init_client(struct i2c_client *client)
 	i2c_smbus_write_byte_data(client, ADM1021_REG_CONV_RATE_W, 0x04);
 }
 
-static int adm1021_detach_client(struct i2c_client *client)
+static int adm1021_remove(struct i2c_client *client)
 {
 	struct adm1021_data *data = i2c_get_clientdata(client);
-	int err;
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &adm1021_group);
-
-	if ((err = i2c_detach_client(client)))
-		return err;
 
 	kfree(data);
 	return 0;

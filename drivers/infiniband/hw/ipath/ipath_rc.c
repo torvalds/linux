@@ -675,7 +675,8 @@ static void send_rc_ack(struct ipath_qp *qp)
 	hdr.lrh[0] = cpu_to_be16(lrh0);
 	hdr.lrh[1] = cpu_to_be16(qp->remote_ah_attr.dlid);
 	hdr.lrh[2] = cpu_to_be16(hwords + SIZE_OF_CRC);
-	hdr.lrh[3] = cpu_to_be16(dd->ipath_lid);
+	hdr.lrh[3] = cpu_to_be16(dd->ipath_lid |
+				 qp->remote_ah_attr.src_path_bits);
 	ohdr->bth[0] = cpu_to_be32(bth0);
 	ohdr->bth[1] = cpu_to_be32(qp->remote_qpn);
 	ohdr->bth[2] = cpu_to_be32(qp->r_ack_psn & IPATH_PSN_MASK);
@@ -1703,11 +1704,11 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	case OP(SEND_LAST_WITH_IMMEDIATE):
 	send_last_imm:
 		if (header_in_data) {
-			wc.imm_data = *(__be32 *) data;
+			wc.ex.imm_data = *(__be32 *) data;
 			data += sizeof(__be32);
 		} else {
 			/* Immediate data comes after BTH */
-			wc.imm_data = ohdr->u.imm_data;
+			wc.ex.imm_data = ohdr->u.imm_data;
 		}
 		hdrsize += 4;
 		wc.wc_flags = IB_WC_WITH_IMM;

@@ -50,10 +50,6 @@ void __init arch_init_irq(void)
 	mips_cpu_irq_init();
 	rm7k_cpu_irq_init();
 	rm9k_cpu_irq_init();
-
-#ifdef CONFIG_KGDB
-	excite_kgdb_init();
-#endif
 }
 
 asmlinkage void plat_irq_dispatch(void)
@@ -90,9 +86,6 @@ asmlinkage void plat_irq_dispatch(void)
 	msgint	    = msgintflags & msgintmask & (0x1 << (TITAN_MSGINT % 0x20));
 	if ((pending & (1 << TITAN_IRQ)) && msgint) {
 		ocd_writel(msgint, INTP0Clear0 + (TITAN_MSGINT / 0x20 * 0x10));
-#if defined(CONFIG_KGDB)
-		excite_kgdb_inthdl();
-#endif
 		do_IRQ(TITAN_IRQ);
 		return;
 	}

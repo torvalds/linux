@@ -159,7 +159,6 @@ ipq_build_packet_message(struct nf_queue_entry *entry, int *errp)
 	case IPQ_COPY_META:
 	case IPQ_COPY_NONE:
 		size = NLMSG_SPACE(sizeof(*pmsg));
-		data_len = 0;
 		break;
 
 	case IPQ_COPY_PACKET:
@@ -226,8 +225,6 @@ ipq_build_packet_message(struct nf_queue_entry *entry, int *errp)
 	return skb;
 
 nlmsg_failure:
-	if (skb)
-		kfree_skb(skb);
 	*errp = -EINVAL;
 	printk(KERN_ERR "ip6_queue: error creating packet message\n");
 	return NULL;
@@ -483,7 +480,7 @@ ipq_rcv_dev_event(struct notifier_block *this,
 {
 	struct net_device *dev = ptr;
 
-	if (dev_net(dev) != &init_net)
+	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
 	/* Drop any packets associated with the downed device */

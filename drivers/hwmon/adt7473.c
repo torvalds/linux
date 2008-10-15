@@ -39,32 +39,20 @@ I2C_CLIENT_INSMOD_1(adt7473);
 #define ADT7473_REG_BASE_ADDR			0x20
 
 #define ADT7473_REG_VOLT_BASE_ADDR		0x21
-#define ADT7473_REG_VOLT_MAX_ADDR		0x22
 #define ADT7473_REG_VOLT_MIN_BASE_ADDR		0x46
-#define ADT7473_REG_VOLT_MIN_MAX_ADDR		0x49
 
 #define ADT7473_REG_TEMP_BASE_ADDR		0x25
-#define ADT7473_REG_TEMP_MAX_ADDR		0x27
 #define ADT7473_REG_TEMP_LIMITS_BASE_ADDR	0x4E
-#define ADT7473_REG_TEMP_LIMITS_MAX_ADDR	0x53
 #define ADT7473_REG_TEMP_TMIN_BASE_ADDR		0x67
-#define ADT7473_REG_TEMP_TMIN_MAX_ADDR		0x69
 #define ADT7473_REG_TEMP_TMAX_BASE_ADDR		0x6A
-#define ADT7473_REG_TEMP_TMAX_MAX_ADDR		0x6C
 
 #define ADT7473_REG_FAN_BASE_ADDR		0x28
-#define ADT7473_REG_FAN_MAX_ADDR		0x2F
 #define ADT7473_REG_FAN_MIN_BASE_ADDR		0x54
-#define ADT7473_REG_FAN_MIN_MAX_ADDR		0x5B
 
 #define ADT7473_REG_PWM_BASE_ADDR		0x30
-#define ADT7473_REG_PWM_MAX_ADDR		0x32
 #define	ADT7473_REG_PWM_MIN_BASE_ADDR		0x64
-#define ADT7473_REG_PWM_MIN_MAX_ADDR		0x66
 #define ADT7473_REG_PWM_MAX_BASE_ADDR		0x38
-#define ADT7473_REG_PWM_MAX_MAX_ADDR		0x3A
 #define ADT7473_REG_PWM_BHVR_BASE_ADDR		0x5C
-#define ADT7473_REG_PWM_BHVR_MAX_ADDR		0x5E
 #define		ADT7473_PWM_BHVR_MASK		0xE0
 #define		ADT7473_PWM_BHVR_SHIFT		5
 
@@ -102,7 +90,6 @@ I2C_CLIENT_INSMOD_1(adt7473);
 #define		ADT7473_FAN4_ALARM		0x20
 #define		ADT7473_R1T_SHORT		0x40
 #define		ADT7473_R2T_SHORT		0x80
-#define ADT7473_REG_MAX_ADDR			0x80
 
 #define ALARM2(x)	((x) << 8)
 
@@ -143,7 +130,6 @@ I2C_CLIENT_INSMOD_1(adt7473);
 #define FAN_DATA_VALID(x)	((x) && (x) != FAN_PERIOD_INVALID)
 
 struct adt7473_data {
-	struct i2c_client	client;
 	struct device		*hwmon_dev;
 	struct attribute_group	attrs;
 	struct mutex		lock;
@@ -178,16 +164,28 @@ struct adt7473_data {
 	u8			max_duty_at_overheat;
 };
 
-static int adt7473_attach_adapter(struct i2c_adapter *adapter);
-static int adt7473_detect(struct i2c_adapter *adapter, int address, int kind);
-static int adt7473_detach_client(struct i2c_client *client);
+static int adt7473_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id);
+static int adt7473_detect(struct i2c_client *client, int kind,
+			  struct i2c_board_info *info);
+static int adt7473_remove(struct i2c_client *client);
+
+static const struct i2c_device_id adt7473_id[] = {
+	{ "adt7473", adt7473 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, adt7473_id);
 
 static struct i2c_driver adt7473_driver = {
+	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "adt7473",
 	},
-	.attach_adapter	= adt7473_attach_adapter,
-	.detach_client	= adt7473_detach_client,
+	.probe		= adt7473_probe,
+	.remove		= adt7473_remove,
+	.id_table	= adt7473_id,
+	.detect		= adt7473_detect,
+	.address_data	= &addr_data,
 };
 
 /*
@@ -572,10 +570,9 @@ static ssize_t set_max_duty_at_crit(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct adt7473_data *data = i2c_get_clientdata(client);
 	int temp = simple_strtol(buf, NULL, 10);
-	temp = temp && 0xFF;
 
 	mutex_lock(&data->lock);
-	data->max_duty_at_overheat = temp;
+	data->max_duty_at_overheat = !!temp;
 	reg = i2c_smbus_read_byte_data(client, ADT7473_REG_CFG4);
 	if (temp)
 		reg |= ADT7473_CFG4_MAX_DUTY_AT_OVT;
@@ -1042,21 +1039,43 @@ static struct attribute *adt7473_attr[] =
 	NULL
 };
 
-static int adt7473_attach_adapter(struct i2c_adapter *adapter)
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static int adt7473_detect(struct i2c_client *client, int kind,
+			  struct i2c_board_info *info)
 {
-	if (!(adapter->class & I2C_CLASS_HWMON))
-		return 0;
-	return i2c_probe(adapter, &addr_data, adt7473_detect);
-}
-
-static int adt7473_detect(struct i2c_adapter *adapter, int address, int kind)
-{
-	struct i2c_client *client;
-	struct adt7473_data *data;
-	int err = 0;
+	struct i2c_adapter *adapter = client->adapter;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		goto exit;
+		return -ENODEV;
+
+	if (kind <= 0) {
+		int vendor, device, revision;
+
+		vendor = i2c_smbus_read_byte_data(client, ADT7473_REG_VENDOR);
+		if (vendor != ADT7473_VENDOR)
+			return -ENODEV;
+
+		device = i2c_smbus_read_byte_data(client, ADT7473_REG_DEVICE);
+		if (device != ADT7473_DEVICE)
+			return -ENODEV;
+
+		revision = i2c_smbus_read_byte_data(client,
+						    ADT7473_REG_REVISION);
+		if (revision != ADT7473_REV_68 && revision != ADT7473_REV_69)
+			return -ENODEV;
+	} else
+		dev_dbg(&adapter->dev, "detection forced\n");
+
+	strlcpy(info->type, "adt7473", I2C_NAME_SIZE);
+
+	return 0;
+}
+
+static int adt7473_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
+{
+	struct adt7473_data *data;
+	int err;
 
 	data = kzalloc(sizeof(struct adt7473_data), GFP_KERNEL);
 	if (!data) {
@@ -1064,44 +1083,8 @@ static int adt7473_detect(struct i2c_adapter *adapter, int address, int kind)
 		goto exit;
 	}
 
-	client = &data->client;
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &adt7473_driver;
-
 	i2c_set_clientdata(client, data);
-
 	mutex_init(&data->lock);
-
-	if (kind <= 0) {
-		int vendor, device, revision;
-
-		vendor = i2c_smbus_read_byte_data(client, ADT7473_REG_VENDOR);
-		if (vendor != ADT7473_VENDOR) {
-			err = -ENODEV;
-			goto exit_free;
-		}
-
-		device = i2c_smbus_read_byte_data(client, ADT7473_REG_DEVICE);
-		if (device != ADT7473_DEVICE) {
-			err = -ENODEV;
-			goto exit_free;
-		}
-
-		revision = i2c_smbus_read_byte_data(client,
-						    ADT7473_REG_REVISION);
-		if (revision != ADT7473_REV_68 && revision != ADT7473_REV_69) {
-			err = -ENODEV;
-			goto exit_free;
-		}
-	} else
-		dev_dbg(&adapter->dev, "detection forced\n");
-
-	strlcpy(client->name, "adt7473", I2C_NAME_SIZE);
-
-	err = i2c_attach_client(client);
-	if (err)
-		goto exit_free;
 
 	dev_info(&client->dev, "%s chip found\n", client->name);
 
@@ -1112,7 +1095,7 @@ static int adt7473_detect(struct i2c_adapter *adapter, int address, int kind)
 	data->attrs.attrs = adt7473_attr;
 	err = sysfs_create_group(&client->dev.kobj, &data->attrs);
 	if (err)
-		goto exit_detach;
+		goto exit_free;
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -1124,21 +1107,18 @@ static int adt7473_detect(struct i2c_adapter *adapter, int address, int kind)
 
 exit_remove:
 	sysfs_remove_group(&client->dev.kobj, &data->attrs);
-exit_detach:
-	i2c_detach_client(client);
 exit_free:
 	kfree(data);
 exit:
 	return err;
 }
 
-static int adt7473_detach_client(struct i2c_client *client)
+static int adt7473_remove(struct i2c_client *client)
 {
 	struct adt7473_data *data = i2c_get_clientdata(client);
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &data->attrs);
-	i2c_detach_client(client);
 	kfree(data);
 	return 0;
 }

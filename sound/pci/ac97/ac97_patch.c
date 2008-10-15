@@ -476,7 +476,7 @@ static int patch_yamaha_ymf753(struct snd_ac97 * ac97)
 }
 
 /*
- * May 2, 2003 Liam Girdwood <liam.girdwood@wolfsonmicro.com>
+ * May 2, 2003 Liam Girdwood <lrg@slimlogic.co.uk>
  *  removed broken wolfson00 patch.
  *  added support for WM9705,WM9708,WM9709,WM9710,WM9711,WM9712 and WM9717.
  */
@@ -669,6 +669,7 @@ AC97_SINGLE("Mic 1 Volume", AC97_MIC, 8, 31, 1),
 AC97_SINGLE("Mic 2 Volume", AC97_MIC, 0, 31, 1),
 AC97_SINGLE("Mic 20dB Boost Switch", AC97_MIC, 7, 1, 0),
 
+AC97_SINGLE("Master Left Inv Switch", AC97_MASTER, 6, 1, 0),
 AC97_SINGLE("Master ZC Switch", AC97_MASTER, 7, 1, 0),
 AC97_SINGLE("Headphone ZC Switch", AC97_HEADPHONE, 7, 1, 0),
 AC97_SINGLE("Mono ZC Switch", AC97_MASTER_MONO, 7, 1, 0),
@@ -2559,6 +2560,14 @@ static int patch_ad1986(struct snd_ac97 * ac97)
 	return 0;
 }
 
+/*
+ * realtek ALC203: use mono-out for pin 37
+ */
+static int patch_alc203(struct snd_ac97 *ac97)
+{
+	snd_ac97_update_bits(ac97, 0x7a, 0x400, 0x400);
+	return 0;
+}
 
 /*
  * realtek ALC65x/850 codecs
@@ -3352,8 +3361,66 @@ AC97_SINGLE("Downmix LFE and Center to Front", 0x5a, 12, 1, 0),
 AC97_SINGLE("Downmix Surround to Front", 0x5a, 11, 1, 0),
 };
 
+static const char *slave_vols_vt1616[] = {
+	"Front Playback Volume",
+	"Surround Playback Volume",
+	"Center Playback Volume",
+	"LFE Playback Volume",
+	NULL
+};
+
+static const char *slave_sws_vt1616[] = {
+	"Front Playback Switch",
+	"Surround Playback Switch",
+	"Center Playback Switch",
+	"LFE Playback Switch",
+	NULL
+};
+
+/* find a mixer control element with the given name */
+static struct snd_kcontrol *snd_ac97_find_mixer_ctl(struct snd_ac97 *ac97,
+						    const char *name)
+{
+	struct snd_ctl_elem_id id;
+	memset(&id, 0, sizeof(id));
+	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+	strcpy(id.name, name);
+	return snd_ctl_find_id(ac97->bus->card, &id);
+}
+
+/* create a virtual master control and add slaves */
+static int snd_ac97_add_vmaster(struct snd_ac97 *ac97, char *name,
+				const unsigned int *tlv, const char **slaves)
+{
+	struct snd_kcontrol *kctl;
+	const char **s;
+	int err;
+
+	kctl = snd_ctl_make_virtual_master(name, tlv);
+	if (!kctl)
+		return -ENOMEM;
+	err = snd_ctl_add(ac97->bus->card, kctl);
+	if (err < 0)
+		return err;
+
+	for (s = slaves; *s; s++) {
+		struct snd_kcontrol *sctl;
+
+		sctl = snd_ac97_find_mixer_ctl(ac97, *s);
+		if (!sctl) {
+			snd_printdd("Cannot find slave %s, skipped\n", *s);
+			continue;
+		}
+		err = snd_ctl_add_slave(kctl, sctl);
+		if (err < 0)
+			return err;
+	}
+	return 0;
+}
+
 static int patch_vt1616_specific(struct snd_ac97 * ac97)
 {
+	struct snd_kcontrol *kctl;
 	int err;
 
 	if (snd_ac97_try_bit(ac97, 0x5a, 9))
@@ -3361,6 +3428,24 @@ static int patch_vt1616_specific(struct snd_ac97 * ac97)
 			return err;
 	if ((err = patch_build_controls(ac97, &snd_ac97_controls_vt1616[1], ARRAY_SIZE(snd_ac97_controls_vt1616) - 1)) < 0)
 		return err;
+
+	/* There is already a misnamed master switch.  Rename it.  */
+	kctl = snd_ac97_find_mixer_ctl(ac97, "Master Playback Volume");
+	if (!kctl)
+		return -EINVAL;
+
+	snd_ac97_rename_vol_ctl(ac97, "Master Playback", "Front Playback");
+
+	err = snd_ac97_add_vmaster(ac97, "Master Playback Volume",
+				   kctl->tlv.p, slave_vols_vt1616);
+	if (err < 0)
+		return err;
+
+	err = snd_ac97_add_vmaster(ac97, "Master Playback Switch",
+				   NULL, slave_sws_vt1616);
+	if (err < 0)
+		return err;
+
 	return 0;
 }
 
@@ -3380,7 +3465,7 @@ static int patch_vt1616(struct snd_ac97 * ac97)
 
 /*
  * unfortunately, the vt1617a stashes the twiddlers required for
- * nooding the i/o jacks on 2 different regs. * thameans that we cant
+ * noodling the i/o jacks on 2 different regs. that means that we can't
  * use the easy way provided by AC97_ENUM_DOUBLE() we have to write
  * are own funcs.
  *
@@ -3413,7 +3498,7 @@ static int snd_ac97_vt1617a_smart51_get(struct snd_kcontrol *kcontrol,
 	
 	pac97 = snd_kcontrol_chip(kcontrol); /* grab codec handle */
 
-	/* grab our desirec bits, then mash them together in a manner
+	/* grab our desired bits, then mash them together in a manner
 	 * consistent with Table 6 on page 17 in the 1617a docs */
  
 	usSM51 = snd_ac97_read(pac97, 0x7a) >> 14;
@@ -3463,7 +3548,7 @@ static const struct snd_kcontrol_new snd_ac97_controls_vt1617a[] = {
 	},
 };
 
-int patch_vt1617a(struct snd_ac97 * ac97)
+static int patch_vt1617a(struct snd_ac97 * ac97)
 {
 	int err = 0;
 	int val;
@@ -3489,6 +3574,200 @@ int patch_vt1617a(struct snd_ac97 * ac97)
 	ac97->build_ops = &patch_vt1616_ops;
 
 	return err;
+}
+
+/* VIA VT1618 8 CHANNEL AC97 CODEC
+ *
+ * VIA implements 'Smart 5.1' completely differently on the 1618 than
+ * it does on the 1617a. awesome! They seem to have sourced this
+ * particular revision of the technology from somebody else, it's
+ * called Universal Audio Jack and it shows up on some other folk's chips
+ * as well.
+ *
+ * ordering in this list reflects vt1618 docs for Reg 60h and
+ * the block diagram, DACs are as follows:
+ *
+ *        OUT_O -> Front,
+ *	  OUT_1 -> Surround,
+ *	  OUT_2 -> C/LFE
+ *
+ * Unlike the 1617a, each OUT has a consistent set of mappings
+ * for all bitpatterns other than 00:
+ *
+ *        01       Unmixed Output
+ *        10       Line In
+ *        11       Mic  In
+ *
+ * Special Case of 00:
+ *
+ *        OUT_0    Mixed Output
+ *        OUT_1    Reserved
+ *        OUT_2    Reserved
+ *
+ * I have no idea what the hell Reserved does, but on an MSI
+ * CN700T, i have to set it to get 5.1 output - YMMV, bad
+ * shit may happen.
+ *
+ * If other chips use Universal Audio Jack, then this code might be applicable
+ * to them.
+ */
+
+struct vt1618_uaj_item {
+	unsigned short mask;
+	unsigned short shift;
+	const char *items[4];
+};
+
+/* This list reflects the vt1618 docs for Vendor Defined Register 0x60. */
+
+static struct vt1618_uaj_item vt1618_uaj[3] = {
+	{
+		/* speaker jack */
+		.mask  = 0x03,
+		.shift = 0,
+		.items = {
+			"Speaker Out", "DAC Unmixed Out", "Line In", "Mic In"
+		}
+	},
+	{
+		/* line jack */
+		.mask  = 0x0c,
+		.shift = 2,
+		.items = {
+			"Surround Out", "DAC Unmixed Out", "Line In", "Mic In"
+		}
+	},
+	{
+		/* mic jack */
+		.mask  = 0x30,
+		.shift = 4,
+		.items = {
+			"Center LFE Out", "DAC Unmixed Out", "Line In", "Mic In"
+		},
+	},
+};
+
+static int snd_ac97_vt1618_UAJ_info(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_info *uinfo)
+{
+	return ac97_enum_text_info(kcontrol, uinfo,
+				   vt1618_uaj[kcontrol->private_value].items,
+				   4);
+}
+
+/* All of the vt1618 Universal Audio Jack twiddlers are on
+ * Vendor Defined Register 0x60, page 0. The bits, and thus
+ * the mask, are the only thing that changes
+ */
+static int snd_ac97_vt1618_UAJ_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	unsigned short datpag, uaj;
+	struct snd_ac97 *pac97 = snd_kcontrol_chip(kcontrol);
+
+	mutex_lock(&pac97->page_mutex);
+
+	datpag = snd_ac97_read(pac97, AC97_INT_PAGING) & AC97_PAGE_MASK;
+	snd_ac97_update_bits(pac97, AC97_INT_PAGING, AC97_PAGE_MASK, 0);
+
+	uaj = snd_ac97_read(pac97, 0x60) &
+		vt1618_uaj[kcontrol->private_value].mask;
+
+	snd_ac97_update_bits(pac97, AC97_INT_PAGING, AC97_PAGE_MASK, datpag);
+	mutex_unlock(&pac97->page_mutex);
+
+	ucontrol->value.enumerated.item[0] = uaj >>
+		vt1618_uaj[kcontrol->private_value].shift;
+
+	return 0;
+}
+
+static int snd_ac97_vt1618_UAJ_put(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	return ac97_update_bits_page(snd_kcontrol_chip(kcontrol), 0x60,
+				     vt1618_uaj[kcontrol->private_value].mask,
+				     ucontrol->value.enumerated.item[0]<<
+				     vt1618_uaj[kcontrol->private_value].shift,
+				     0);
+}
+
+/* config aux in jack - not found on 3 jack motherboards or soundcards */
+
+static int snd_ac97_vt1618_aux_info(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_info *uinfo)
+{
+	static const char *txt_aux[] = {"Aux In", "Back Surr Out"};
+
+	return ac97_enum_text_info(kcontrol, uinfo, txt_aux, 2);
+}
+
+static int snd_ac97_vt1618_aux_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.enumerated.item[0] =
+		(snd_ac97_read(snd_kcontrol_chip(kcontrol), 0x5c) & 0x0008)>>3;
+	return 0;
+}
+
+static int snd_ac97_vt1618_aux_put(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	/* toggle surround rear dac power */
+
+	snd_ac97_update_bits(snd_kcontrol_chip(kcontrol), 0x5c, 0x0008,
+			     ucontrol->value.enumerated.item[0] << 3);
+
+	/* toggle aux in surround rear out jack */
+
+	return snd_ac97_update_bits(snd_kcontrol_chip(kcontrol), 0x76, 0x0008,
+				    ucontrol->value.enumerated.item[0] << 3);
+}
+
+static const struct snd_kcontrol_new snd_ac97_controls_vt1618[] = {
+	AC97_SINGLE("Exchange Center/LFE", 0x5a,  8, 1,     0),
+	AC97_SINGLE("DC Offset",           0x5a, 10, 1,     0),
+	AC97_SINGLE("Soft Mute",           0x5c,  0, 1,     1),
+	AC97_SINGLE("Headphone Amp",       0x5c,  5, 1,     1),
+	AC97_DOUBLE("Back Surr Volume",    0x5e,  8, 0, 31, 1),
+	AC97_SINGLE("Back Surr Switch",    0x5e, 15, 1,     1),
+	{
+		.iface         = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name          = "Speaker Jack Mode",
+		.info          = snd_ac97_vt1618_UAJ_info,
+		.get           = snd_ac97_vt1618_UAJ_get,
+		.put           = snd_ac97_vt1618_UAJ_put,
+		.private_value = 0
+	},
+	{
+		.iface         = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name          = "Line Jack Mode",
+		.info          = snd_ac97_vt1618_UAJ_info,
+		.get           = snd_ac97_vt1618_UAJ_get,
+		.put           = snd_ac97_vt1618_UAJ_put,
+		.private_value = 1
+	},
+	{
+		.iface         = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name          = "Mic Jack Mode",
+		.info          = snd_ac97_vt1618_UAJ_info,
+		.get           = snd_ac97_vt1618_UAJ_get,
+		.put           = snd_ac97_vt1618_UAJ_put,
+		.private_value = 2
+	},
+	{
+		.iface         = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name          = "Aux Jack Mode",
+		.info          = snd_ac97_vt1618_aux_info,
+		.get           = snd_ac97_vt1618_aux_get,
+		.put           = snd_ac97_vt1618_aux_put,
+	}
+};
+
+static int patch_vt1618(struct snd_ac97 *ac97)
+{
+	return patch_build_controls(ac97, snd_ac97_controls_vt1618,
+				    ARRAY_SIZE(snd_ac97_controls_vt1618));
 }
 
 /*
@@ -3633,7 +3912,7 @@ static int patch_ucb1400(struct snd_ac97 * ac97)
 {
 	ac97->build_ops = &patch_ucb1400_ops;
 	/* enable headphone driver and smart low power mode by default */
-	snd_ac97_write(ac97, 0x6a, 0x0050);
-	snd_ac97_write(ac97, 0x6c, 0x0030);
+	snd_ac97_write_cache(ac97, 0x6a, 0x0050);
+	snd_ac97_write_cache(ac97, 0x6c, 0x0030);
 	return 0;
 }

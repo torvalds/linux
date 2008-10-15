@@ -99,21 +99,11 @@ static void dccp_retransmit_timer(struct sock *sk)
 	}
 
 	/*
-	 * sk->sk_send_head has to have one skb with
-	 * DCCP_SKB_CB(skb)->dccpd_type set to one of the retransmittable DCCP
-	 * packet types. The only packets eligible for retransmission are:
-	 *	-- Requests in client-REQUEST  state (sec. 8.1.1)
-	 *	-- Acks     in client-PARTOPEN state (sec. 8.1.5)
-	 *	-- CloseReq in server-CLOSEREQ state (sec. 8.3)
-	 *	-- Close    in   node-CLOSING  state (sec. 8.3)                */
-	BUG_TRAP(sk->sk_send_head != NULL);
-
-	/*
 	 * More than than 4MSL (8 minutes) has passed, a RESET(aborted) was
 	 * sent, no need to retransmit, this sock is dead.
 	 */
 	if (dccp_write_timeout(sk))
-		goto out;
+		return;
 
 	/*
 	 * We want to know the number of packets retransmitted, not the
@@ -122,30 +112,28 @@ static void dccp_retransmit_timer(struct sock *sk)
 	if (icsk->icsk_retransmits == 0)
 		DCCP_INC_STATS_BH(DCCP_MIB_TIMEOUTS);
 
-	if (dccp_retransmit_skb(sk, sk->sk_send_head) < 0) {
+	if (dccp_retransmit_skb(sk) != 0) {
 		/*
 		 * Retransmission failed because of local congestion,
 		 * do not backoff.
 		 */
-		if (icsk->icsk_retransmits == 0)
+		if (--icsk->icsk_retransmits == 0)
 			icsk->icsk_retransmits = 1;
 		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
 					  min(icsk->icsk_rto,
 					      TCP_RESOURCE_PROBE_INTERVAL),
 					  DCCP_RTO_MAX);
-		goto out;
+		return;
 	}
 
 backoff:
 	icsk->icsk_backoff++;
-	icsk->icsk_retransmits++;
 
 	icsk->icsk_rto = min(icsk->icsk_rto << 1, DCCP_RTO_MAX);
 	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS, icsk->icsk_rto,
 				  DCCP_RTO_MAX);
 	if (icsk->icsk_retransmits > sysctl_dccp_retries1)
 		__sk_dst_reset(sk);
-out:;
 }
 
 static void dccp_write_timer(unsigned long data)
@@ -224,7 +212,7 @@ static void dccp_delack_timer(unsigned long data)
 	if (sock_owned_by_user(sk)) {
 		/* Try again later. */
 		icsk->icsk_ack.blocked = 1;
-		NET_INC_STATS_BH(LINUX_MIB_DELAYEDACKLOCKED);
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_DELAYEDACKLOCKED);
 		sk_reset_timer(sk, &icsk->icsk_delack_timer,
 			       jiffies + TCP_DELACK_MIN);
 		goto out;
@@ -254,7 +242,7 @@ static void dccp_delack_timer(unsigned long data)
 			icsk->icsk_ack.ato = TCP_ATO_MIN;
 		}
 		dccp_send_ack(sk);
-		NET_INC_STATS_BH(LINUX_MIB_DELAYEDACKS);
+		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_DELAYEDACKS);
 	}
 out:
 	bh_unlock_sock(sk);

@@ -260,7 +260,8 @@ struct rndis_keepalive_c {	/* IN (optionally OUT) */
 
 
 extern void rndis_status(struct usbnet *dev, struct urb *urb);
-extern int rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf);
+extern int
+rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf, int buflen);
 extern int
 generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags);
 extern void rndis_unbind(struct usbnet *dev, struct usb_interface *intf);

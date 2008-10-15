@@ -38,6 +38,7 @@
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
 #include <linux/hdreg.h>
+#include <linux/cdrom.h>
 #include <linux/module.h>
 
 #include <xen/xenbus.h>
@@ -104,15 +105,17 @@ static DEFINE_SPINLOCK(blkif_io_lock);
 #define GRANT_INVALID_REF	0
 
 #define PARTS_PER_DISK		16
+#define PARTS_PER_EXT_DISK      256
 
 #define BLKIF_MAJOR(dev) ((dev)>>8)
 #define BLKIF_MINOR(dev) ((dev) & 0xff)
 
-#define DEV_NAME	"xvd"	/* name in /dev */
+#define EXT_SHIFT 28
+#define EXTENDED (1<<EXT_SHIFT)
+#define VDEV_IS_EXTENDED(dev) ((dev)&(EXTENDED))
+#define BLKIF_MINOR_EXT(dev) ((dev)&(~EXTENDED))
 
-/* Information about our VBDs. */
-#define MAX_VBDS 64
-static LIST_HEAD(vbds_list);
+#define DEV_NAME	"xvd"	/* name in /dev */
 
 static int get_id_from_freelist(struct blkfront_info *info)
 {
@@ -150,6 +153,40 @@ static int blkif_getgeo(struct block_device *bd, struct hd_geometry *hg)
 	hg->cylinders = cylinders;
 	if ((sector_t)(hg->cylinders + 1) * hg->heads * hg->sectors < nsect)
 		hg->cylinders = 0xffff;
+	return 0;
+}
+
+static int blkif_ioctl(struct inode *inode, struct file *filep,
+		       unsigned command, unsigned long argument)
+{
+	struct blkfront_info *info =
+		inode->i_bdev->bd_disk->private_data;
+	int i;
+
+	dev_dbg(&info->xbdev->dev, "command: 0x%x, argument: 0x%lx\n",
+		command, (long)argument);
+
+	switch (command) {
+	case CDROMMULTISESSION:
+		dev_dbg(&info->xbdev->dev, "FIXME: support multisession CDs later\n");
+		for (i = 0; i < sizeof(struct cdrom_multisession); i++)
+			if (put_user(0, (char __user *)(argument + i)))
+				return -EFAULT;
+		return 0;
+
+	case CDROM_GET_CAPABILITY: {
+		struct gendisk *gd = info->gd;
+		if (gd->flags & GENHD_FL_CD)
+			return 0;
+		return -EINVAL;
+	}
+
+	default:
+		/*printk(KERN_ALERT "ioctl %08x not supported by Xen blkdev\n",
+		  command);*/
+		return -EINVAL; /* same return as native Linux */
+	}
+
 	return 0;
 }
 
@@ -324,6 +361,9 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size)
 	/* Make sure buffer addresses are sector-aligned. */
 	blk_queue_dma_alignment(rq, 511);
 
+	/* Make sure we don't use bounce buffers. */
+	blk_queue_bounce_limit(rq, BLK_BOUNCE_ANY);
+
 	gd->queue = rq;
 
 	return 0;
@@ -348,31 +388,60 @@ static int xlvbd_barrier(struct blkfront_info *info)
 }
 
 
-static int xlvbd_alloc_gendisk(int minor, blkif_sector_t capacity,
-			       int vdevice, u16 vdisk_info, u16 sector_size,
-			       struct blkfront_info *info)
+static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
+			       struct blkfront_info *info,
+			       u16 vdisk_info, u16 sector_size)
 {
 	struct gendisk *gd;
 	int nr_minors = 1;
 	int err = -ENODEV;
+	unsigned int offset;
+	int minor;
+	int nr_parts;
 
 	BUG_ON(info->gd != NULL);
 	BUG_ON(info->rq != NULL);
 
-	if ((minor % PARTS_PER_DISK) == 0)
-		nr_minors = PARTS_PER_DISK;
+	if ((info->vdevice>>EXT_SHIFT) > 1) {
+		/* this is above the extended range; something is wrong */
+		printk(KERN_WARNING "blkfront: vdevice 0x%x is above the extended range; ignoring\n", info->vdevice);
+		return -ENODEV;
+	}
+
+	if (!VDEV_IS_EXTENDED(info->vdevice)) {
+		minor = BLKIF_MINOR(info->vdevice);
+		nr_parts = PARTS_PER_DISK;
+	} else {
+		minor = BLKIF_MINOR_EXT(info->vdevice);
+		nr_parts = PARTS_PER_EXT_DISK;
+	}
+
+	if ((minor % nr_parts) == 0)
+		nr_minors = nr_parts;
 
 	gd = alloc_disk(nr_minors);
 	if (gd == NULL)
 		goto out;
 
-	if (nr_minors > 1)
-		sprintf(gd->disk_name, "%s%c", DEV_NAME,
-			'a' + minor / PARTS_PER_DISK);
-	else
-		sprintf(gd->disk_name, "%s%c%d", DEV_NAME,
-			'a' + minor / PARTS_PER_DISK,
-			minor % PARTS_PER_DISK);
+	offset = minor / nr_parts;
+
+	if (nr_minors > 1) {
+		if (offset < 26)
+			sprintf(gd->disk_name, "%s%c", DEV_NAME, 'a' + offset);
+		else
+			sprintf(gd->disk_name, "%s%c%c", DEV_NAME,
+				'a' + ((offset / 26)-1), 'a' + (offset % 26));
+	} else {
+		if (offset < 26)
+			sprintf(gd->disk_name, "%s%c%d", DEV_NAME,
+				'a' + offset,
+				minor & (nr_parts - 1));
+		else
+			sprintf(gd->disk_name, "%s%c%c%d", DEV_NAME,
+				'a' + ((offset / 26) - 1),
+				'a' + (offset % 26),
+				minor & (nr_parts - 1));
+	}
 
 	gd->major = XENVBD_MAJOR;
 	gd->first_minor = minor;
@@ -546,7 +615,7 @@ static int setup_blkring(struct xenbus_device *dev,
 
 	info->ring_ref = GRANT_INVALID_REF;
 
-	sring = (struct blkif_sring *)__get_free_page(GFP_KERNEL);
+	sring = (struct blkif_sring *)__get_free_page(GFP_NOIO | __GFP_HIGH);
 	if (!sring) {
 		xenbus_dev_fatal(dev, -ENOMEM, "allocating shared ring");
 		return -ENOMEM;
@@ -661,8 +730,13 @@ static int blkfront_probe(struct xenbus_device *dev,
 	err = xenbus_scanf(XBT_NIL, dev->nodename,
 			   "virtual-device", "%i", &vdevice);
 	if (err != 1) {
-		xenbus_dev_fatal(dev, err, "reading virtual-device");
-		return err;
+		/* go looking in the extended area instead */
+		err = xenbus_scanf(XBT_NIL, dev->nodename, "virtual-device-ext",
+				   "%i", &vdevice);
+		if (err != 1) {
+			xenbus_dev_fatal(dev, err, "reading virtual-device");
+			return err;
+		}
 	}
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
@@ -703,7 +777,8 @@ static int blkif_recover(struct blkfront_info *info)
 	int j;
 
 	/* Stage 1: Make a safe copy of the shadow state. */
-	copy = kmalloc(sizeof(info->shadow), GFP_KERNEL);
+	copy = kmalloc(sizeof(info->shadow),
+		       GFP_NOIO | __GFP_REPEAT | __GFP_HIGH);
 	if (!copy)
 		return -ENOMEM;
 	memcpy(copy, info->shadow, sizeof(info->shadow));
@@ -822,9 +897,7 @@ static void blkfront_connect(struct blkfront_info *info)
 	if (err)
 		info->feature_barrier = 0;
 
-	err = xlvbd_alloc_gendisk(BLKIF_MINOR(info->vdevice),
-				  sectors, info->vdevice,
-				  binfo, sector_size, info);
+	err = xlvbd_alloc_gendisk(sectors, info, binfo, sector_size);
 	if (err) {
 		xenbus_dev_fatal(info->xbdev, err, "xlvbd_add at %s",
 				 info->xbdev->otherend);
@@ -959,7 +1032,7 @@ static int blkif_release(struct inode *inode, struct file *filep)
 		struct xenbus_device *dev = info->xbdev;
 		enum xenbus_state state = xenbus_read_driver_state(dev->otherend);
 
-		if (state == XenbusStateClosing)
+		if (state == XenbusStateClosing && info->is_ready)
 			blkfront_closing(dev);
 	}
 	return 0;
@@ -971,6 +1044,7 @@ static struct block_device_operations xlvbd_block_fops =
 	.open = blkif_open,
 	.release = blkif_release,
 	.getgeo = blkif_getgeo,
+	.ioctl = blkif_ioctl,
 };
 
 
@@ -992,7 +1066,7 @@ static struct xenbus_driver blkfront = {
 
 static int __init xlblk_init(void)
 {
-	if (!is_running_on_xen())
+	if (!xen_domain())
 		return -ENODEV;
 
 	if (register_blkdev(XENVBD_MAJOR, DEV_NAME)) {
@@ -1006,7 +1080,7 @@ static int __init xlblk_init(void)
 module_init(xlblk_init);
 
 
-static void xlblk_exit(void)
+static void __exit xlblk_exit(void)
 {
 	return xenbus_unregister_driver(&blkfront);
 }

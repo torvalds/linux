@@ -215,7 +215,7 @@ static void showacpu(void *dummy)
 
 static void sysrq_showregs_othercpus(struct work_struct *dummy)
 {
-	smp_call_function(showacpu, NULL, 0, 0);
+	smp_call_function(showacpu, NULL, 0);
 }
 
 static DECLARE_WORK(sysrq_showallcpus, sysrq_showregs_othercpus);

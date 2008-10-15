@@ -500,7 +500,7 @@ static int call_commit_handler(struct net_device *dev)
 /*
  * Calculate size of private arguments
  */
-static inline int get_priv_size(__u16	args)
+static int get_priv_size(__u16 args)
 {
 	int	num = args & IW_PRIV_SIZE_MASK;
 	int	type = (args & IW_PRIV_TYPE_MASK) >> 12;
@@ -512,10 +512,9 @@ static inline int get_priv_size(__u16	args)
 /*
  * Re-calculate the size of private arguments
  */
-static inline int adjust_priv_size(__u16		args,
-				   union iwreq_data *	wrqu)
+static int adjust_priv_size(__u16 args, struct iw_point *iwp)
 {
-	int	num = wrqu->data.length;
+	int	num = iwp->length;
 	int	max = args & IW_PRIV_SIZE_MASK;
 	int	type = (args & IW_PRIV_TYPE_MASK) >> 12;
 
@@ -695,19 +694,150 @@ void wext_proc_exit(struct net *net)
  */
 
 /* ---------------------------------------------------------------- */
+static int ioctl_standard_iw_point(struct iw_point *iwp, unsigned int cmd,
+				   const struct iw_ioctl_description *descr,
+				   iw_handler handler, struct net_device *dev,
+				   struct iw_request_info *info)
+{
+	int err, extra_size, user_length = 0, essid_compat = 0;
+	char *extra;
+
+	/* Calculate space needed by arguments. Always allocate
+	 * for max space.
+	 */
+	extra_size = descr->max_tokens * descr->token_size;
+
+	/* Check need for ESSID compatibility for WE < 21 */
+	switch (cmd) {
+	case SIOCSIWESSID:
+	case SIOCGIWESSID:
+	case SIOCSIWNICKN:
+	case SIOCGIWNICKN:
+		if (iwp->length == descr->max_tokens + 1)
+			essid_compat = 1;
+		else if (IW_IS_SET(cmd) && (iwp->length != 0)) {
+			char essid[IW_ESSID_MAX_SIZE + 1];
+
+			err = copy_from_user(essid, iwp->pointer,
+					     iwp->length *
+					     descr->token_size);
+			if (err)
+				return -EFAULT;
+
+			if (essid[iwp->length - 1] == '\0')
+				essid_compat = 1;
+		}
+		break;
+	default:
+		break;
+	}
+
+	iwp->length -= essid_compat;
+
+	/* Check what user space is giving us */
+	if (IW_IS_SET(cmd)) {
+		/* Check NULL pointer */
+		if (!iwp->pointer && iwp->length != 0)
+			return -EFAULT;
+		/* Check if number of token fits within bounds */
+		if (iwp->length > descr->max_tokens)
+			return -E2BIG;
+		if (iwp->length < descr->min_tokens)
+			return -EINVAL;
+	} else {
+		/* Check NULL pointer */
+		if (!iwp->pointer)
+			return -EFAULT;
+		/* Save user space buffer size for checking */
+		user_length = iwp->length;
+
+		/* Don't check if user_length > max to allow forward
+		 * compatibility. The test user_length < min is
+		 * implied by the test at the end.
+		 */
+
+		/* Support for very large requests */
+		if ((descr->flags & IW_DESCR_FLAG_NOMAX) &&
+		    (user_length > descr->max_tokens)) {
+			/* Allow userspace to GET more than max so
+			 * we can support any size GET requests.
+			 * There is still a limit : -ENOMEM.
+			 */
+			extra_size = user_length * descr->token_size;
+
+			/* Note : user_length is originally a __u16,
+			 * and token_size is controlled by us,
+			 * so extra_size won't get negative and
+			 * won't overflow...
+			 */
+		}
+	}
+
+	/* kzalloc() ensures NULL-termination for essid_compat. */
+	extra = kzalloc(extra_size, GFP_KERNEL);
+	if (!extra)
+		return -ENOMEM;
+
+	/* If it is a SET, get all the extra data in here */
+	if (IW_IS_SET(cmd) && (iwp->length != 0)) {
+		if (copy_from_user(extra, iwp->pointer,
+				   iwp->length *
+				   descr->token_size)) {
+			err = -EFAULT;
+			goto out;
+		}
+	}
+
+	err = handler(dev, info, (union iwreq_data *) iwp, extra);
+
+	iwp->length += essid_compat;
+
+	/* If we have something to return to the user */
+	if (!err && IW_IS_GET(cmd)) {
+		/* Check if there is enough buffer up there */
+		if (user_length < iwp->length) {
+			err = -E2BIG;
+			goto out;
+		}
+
+		if (copy_to_user(iwp->pointer, extra,
+				 iwp->length *
+				 descr->token_size)) {
+			err = -EFAULT;
+			goto out;
+		}
+	}
+
+	/* Generate an event to notify listeners of the change */
+	if ((descr->flags & IW_DESCR_FLAG_EVENT) && err == -EIWCOMMIT) {
+		union iwreq_data *data = (union iwreq_data *) iwp;
+
+		if (descr->flags & IW_DESCR_FLAG_RESTRICT)
+			/* If the event is restricted, don't
+			 * export the payload.
+			 */
+			wireless_send_event(dev, cmd, data, NULL);
+		else
+			wireless_send_event(dev, cmd, data, extra);
+	}
+
+out:
+	kfree(extra);
+	return err;
+}
+
 /*
  * Wrapper to call a standard Wireless Extension handler.
  * We do various checks and also take care of moving data between
  * user space and kernel space.
  */
 static int ioctl_standard_call(struct net_device *	dev,
-			       struct ifreq *		ifr,
+			       struct iwreq		*iwr,
 			       unsigned int		cmd,
+			       struct iw_request_info	*info,
 			       iw_handler		handler)
 {
-	struct iwreq *				iwr = (struct iwreq *) ifr;
 	const struct iw_ioctl_description *	descr;
-	struct iw_request_info			info;
 	int					ret = -EINVAL;
 
 	/* Get the description of the IOCTL */
@@ -715,145 +845,19 @@ static int ioctl_standard_call(struct net_device *	dev,
 		return -EOPNOTSUPP;
 	descr = &(standard_ioctl[cmd - SIOCIWFIRST]);
 
-	/* Prepare the call */
-	info.cmd = cmd;
-	info.flags = 0;
-
 	/* Check if we have a pointer to user space data or not */
 	if (descr->header_type != IW_HEADER_TYPE_POINT) {
 
 		/* No extra arguments. Trivial to handle */
-		ret = handler(dev, &info, &(iwr->u), NULL);
+		ret = handler(dev, info, &(iwr->u), NULL);
 
 		/* Generate an event to notify listeners of the change */
 		if ((descr->flags & IW_DESCR_FLAG_EVENT) &&
 		   ((ret == 0) || (ret == -EIWCOMMIT)))
 			wireless_send_event(dev, cmd, &(iwr->u), NULL);
 	} else {
-		char *	extra;
-		int	extra_size;
-		int	user_length = 0;
-		int	err;
-		int	essid_compat = 0;
-
-		/* Calculate space needed by arguments. Always allocate
-		 * for max space. Easier, and won't last long... */
-		extra_size = descr->max_tokens * descr->token_size;
-
-		/* Check need for ESSID compatibility for WE < 21 */
-		switch (cmd) {
-		case SIOCSIWESSID:
-		case SIOCGIWESSID:
-		case SIOCSIWNICKN:
-		case SIOCGIWNICKN:
-			if (iwr->u.data.length == descr->max_tokens + 1)
-				essid_compat = 1;
-			else if (IW_IS_SET(cmd) && (iwr->u.data.length != 0)) {
-				char essid[IW_ESSID_MAX_SIZE + 1];
-
-				err = copy_from_user(essid, iwr->u.data.pointer,
-						     iwr->u.data.length *
-						     descr->token_size);
-				if (err)
-					return -EFAULT;
-
-				if (essid[iwr->u.data.length - 1] == '\0')
-					essid_compat = 1;
-			}
-			break;
-		default:
-			break;
-		}
-
-		iwr->u.data.length -= essid_compat;
-
-		/* Check what user space is giving us */
-		if (IW_IS_SET(cmd)) {
-			/* Check NULL pointer */
-			if ((iwr->u.data.pointer == NULL) &&
-			   (iwr->u.data.length != 0))
-				return -EFAULT;
-			/* Check if number of token fits within bounds */
-			if (iwr->u.data.length > descr->max_tokens)
-				return -E2BIG;
-			if (iwr->u.data.length < descr->min_tokens)
-				return -EINVAL;
-		} else {
-			/* Check NULL pointer */
-			if (iwr->u.data.pointer == NULL)
-				return -EFAULT;
-			/* Save user space buffer size for checking */
-			user_length = iwr->u.data.length;
-
-			/* Don't check if user_length > max to allow forward
-			 * compatibility. The test user_length < min is
-			 * implied by the test at the end. */
-
-			/* Support for very large requests */
-			if ((descr->flags & IW_DESCR_FLAG_NOMAX) &&
-			   (user_length > descr->max_tokens)) {
-				/* Allow userspace to GET more than max so
-				 * we can support any size GET requests.
-				 * There is still a limit : -ENOMEM. */
-				extra_size = user_length * descr->token_size;
-				/* Note : user_length is originally a __u16,
-				 * and token_size is controlled by us,
-				 * so extra_size won't get negative and
-				 * won't overflow... */
-			}
-		}
-
-		/* Create the kernel buffer */
-		/*    kzalloc ensures NULL-termination for essid_compat */
-		extra = kzalloc(extra_size, GFP_KERNEL);
-		if (extra == NULL)
-			return -ENOMEM;
-
-		/* If it is a SET, get all the extra data in here */
-		if (IW_IS_SET(cmd) && (iwr->u.data.length != 0)) {
-			err = copy_from_user(extra, iwr->u.data.pointer,
-					     iwr->u.data.length *
-					     descr->token_size);
-			if (err) {
-				kfree(extra);
-				return -EFAULT;
-			}
-		}
-
-		/* Call the handler */
-		ret = handler(dev, &info, &(iwr->u), extra);
-
-		iwr->u.data.length += essid_compat;
-
-		/* If we have something to return to the user */
-		if (!ret && IW_IS_GET(cmd)) {
-			/* Check if there is enough buffer up there */
-			if (user_length < iwr->u.data.length) {
-				kfree(extra);
-				return -E2BIG;
-			}
-
-			err = copy_to_user(iwr->u.data.pointer, extra,
-					   iwr->u.data.length *
-					   descr->token_size);
-			if (err)
-				ret =  -EFAULT;
-		}
-
-		/* Generate an event to notify listeners of the change */
-		if ((descr->flags & IW_DESCR_FLAG_EVENT) &&
-		   ((ret == 0) || (ret == -EIWCOMMIT))) {
-			if (descr->flags & IW_DESCR_FLAG_RESTRICT)
-				/* If the event is restricted, don't
-				 * export the payload */
-				wireless_send_event(dev, cmd, &(iwr->u), NULL);
-			else
-				wireless_send_event(dev, cmd, &(iwr->u),
-						    extra);
-		}
-
-		/* Cleanup - I told you it wasn't that long ;-) */
-		kfree(extra);
+		ret = ioctl_standard_iw_point(&iwr->u.data, cmd, descr,
+					      handler, dev, info);
 	}
 
 	/* Call commit handler if needed and defined */
@@ -881,25 +885,22 @@ static int ioctl_standard_call(struct net_device *	dev,
  * a iw_handler but process it in your ioctl handler (i.e. use the
  * old driver API).
  */
-static int ioctl_private_call(struct net_device *dev, struct ifreq *ifr,
-			      unsigned int cmd, iw_handler handler)
+static int get_priv_descr_and_size(struct net_device *dev, unsigned int cmd,
+				   const struct iw_priv_args **descrp)
 {
-	struct iwreq *			iwr = (struct iwreq *) ifr;
-	const struct iw_priv_args *	descr = NULL;
-	struct iw_request_info		info;
-	int				extra_size = 0;
-	int				i;
-	int				ret = -EINVAL;
+	const struct iw_priv_args *descr;
+	int i, extra_size;
 
-	/* Get the description of the IOCTL */
-	for (i = 0; i < dev->wireless_handlers->num_private_args; i++)
+	descr = NULL;
+	for (i = 0; i < dev->wireless_handlers->num_private_args; i++) {
 		if (cmd == dev->wireless_handlers->private_args[i].cmd) {
-			descr = &(dev->wireless_handlers->private_args[i]);
+			descr = &dev->wireless_handlers->private_args[i];
 			break;
 		}
+	}
 
-	/* Compute the size of the set/get arguments */
-	if (descr != NULL) {
+	extra_size = 0;
+	if (descr) {
 		if (IW_IS_SET(cmd)) {
 			int	offset = 0;	/* For sub-ioctls */
 			/* Check for sub-ioctl handler */
@@ -924,72 +925,77 @@ static int ioctl_private_call(struct net_device *dev, struct ifreq *ifr,
 				extra_size = 0;
 		}
 	}
+	*descrp = descr;
+	return extra_size;
+}
 
-	/* Prepare the call */
-	info.cmd = cmd;
-	info.flags = 0;
+static int ioctl_private_iw_point(struct iw_point *iwp, unsigned int cmd,
+				  const struct iw_priv_args *descr,
+				  iw_handler handler, struct net_device *dev,
+				  struct iw_request_info *info, int extra_size)
+{
+	char *extra;
+	int err;
+
+	/* Check what user space is giving us */
+	if (IW_IS_SET(cmd)) {
+		if (!iwp->pointer && iwp->length != 0)
+			return -EFAULT;
+
+		if (iwp->length > (descr->set_args & IW_PRIV_SIZE_MASK))
+			return -E2BIG;
+	} else if (!iwp->pointer)
+		return -EFAULT;
+
+	extra = kmalloc(extra_size, GFP_KERNEL);
+	if (!extra)
+		return -ENOMEM;
+
+	/* If it is a SET, get all the extra data in here */
+	if (IW_IS_SET(cmd) && (iwp->length != 0)) {
+		if (copy_from_user(extra, iwp->pointer, extra_size)) {
+			err = -EFAULT;
+			goto out;
+		}
+	}
+
+	/* Call the handler */
+	err = handler(dev, info, (union iwreq_data *) iwp, extra);
+
+	/* If we have something to return to the user */
+	if (!err && IW_IS_GET(cmd)) {
+		/* Adjust for the actual length if it's variable,
+		 * avoid leaking kernel bits outside.
+		 */
+		if (!(descr->get_args & IW_PRIV_SIZE_FIXED))
+			extra_size = adjust_priv_size(descr->get_args, iwp);
+
+		if (copy_to_user(iwp->pointer, extra, extra_size))
+			err =  -EFAULT;
+	}
+
+out:
+	kfree(extra);
+	return err;
+}
+
+static int ioctl_private_call(struct net_device *dev, struct iwreq *iwr,
+			      unsigned int cmd, struct iw_request_info *info,
+			      iw_handler handler)
+{
+	int extra_size = 0, ret = -EINVAL;
+	const struct iw_priv_args *descr;
+
+	extra_size = get_priv_descr_and_size(dev, cmd, &descr);
 
 	/* Check if we have a pointer to user space data or not. */
 	if (extra_size == 0) {
 		/* No extra arguments. Trivial to handle */
-		ret = handler(dev, &info, &(iwr->u), (char *) &(iwr->u));
+		ret = handler(dev, info, &(iwr->u), (char *) &(iwr->u));
 	} else {
-		char *	extra;
-		int	err;
-
-		/* Check what user space is giving us */
-		if (IW_IS_SET(cmd)) {
-			/* Check NULL pointer */
-			if ((iwr->u.data.pointer == NULL) &&
-			   (iwr->u.data.length != 0))
-				return -EFAULT;
-
-			/* Does it fits within bounds ? */
-			if (iwr->u.data.length > (descr->set_args &
-						 IW_PRIV_SIZE_MASK))
-				return -E2BIG;
-		} else if (iwr->u.data.pointer == NULL)
-			return -EFAULT;
-
-		/* Always allocate for max space. Easier, and won't last
-		 * long... */
-		extra = kmalloc(extra_size, GFP_KERNEL);
-		if (extra == NULL)
-			return -ENOMEM;
-
-		/* If it is a SET, get all the extra data in here */
-		if (IW_IS_SET(cmd) && (iwr->u.data.length != 0)) {
-			err = copy_from_user(extra, iwr->u.data.pointer,
-					     extra_size);
-			if (err) {
-				kfree(extra);
-				return -EFAULT;
-			}
-		}
-
-		/* Call the handler */
-		ret = handler(dev, &info, &(iwr->u), extra);
-
-		/* If we have something to return to the user */
-		if (!ret && IW_IS_GET(cmd)) {
-
-			/* Adjust for the actual length if it's variable,
-			 * avoid leaking kernel bits outside. */
-			if (!(descr->get_args & IW_PRIV_SIZE_FIXED)) {
-				extra_size = adjust_priv_size(descr->get_args,
-							      &(iwr->u));
-			}
-
-			err = copy_to_user(iwr->u.data.pointer, extra,
-					   extra_size);
-			if (err)
-				ret =  -EFAULT;
-		}
-
-		/* Cleanup - I told you it wasn't that long ;-) */
-		kfree(extra);
+		ret = ioctl_private_iw_point(&iwr->u.data, cmd, descr,
+					     handler, dev, info, extra_size);
 	}
-
 
 	/* Call commit handler if needed and defined */
 	if (ret == -EIWCOMMIT)
@@ -999,12 +1005,21 @@ static int ioctl_private_call(struct net_device *dev, struct ifreq *ifr,
 }
 
 /* ---------------------------------------------------------------- */
+typedef int (*wext_ioctl_func)(struct net_device *, struct iwreq *,
+			       unsigned int, struct iw_request_info *,
+			       iw_handler);
+
 /*
  * Main IOCTl dispatcher.
  * Check the type of IOCTL and call the appropriate wrapper...
  */
-static int wireless_process_ioctl(struct net *net, struct ifreq *ifr, unsigned int cmd)
+static int wireless_process_ioctl(struct net *net, struct ifreq *ifr,
+				  unsigned int cmd,
+				  struct iw_request_info *info,
+				  wext_ioctl_func standard,
+				  wext_ioctl_func private)
 {
+	struct iwreq *iwr = (struct iwreq *) ifr;
 	struct net_device *dev;
 	iw_handler	handler;
 
@@ -1019,12 +1034,12 @@ static int wireless_process_ioctl(struct net *net, struct ifreq *ifr, unsigned i
 	 * Note that 'cmd' is already filtered in dev_ioctl() with
 	 * (cmd >= SIOCIWFIRST && cmd <= SIOCIWLAST) */
 	if (cmd == SIOCGIWSTATS)
-		return ioctl_standard_call(dev, ifr, cmd,
-					   &iw_handler_get_iwstats);
+		return standard(dev, iwr, cmd, info,
+				&iw_handler_get_iwstats);
 
 	if (cmd == SIOCGIWPRIV && dev->wireless_handlers)
-		return ioctl_standard_call(dev, ifr, cmd,
-					   &iw_handler_get_private);
+		return standard(dev, iwr, cmd, info,
+				&iw_handler_get_private);
 
 	/* Basic check */
 	if (!netif_device_present(dev))
@@ -1035,9 +1050,9 @@ static int wireless_process_ioctl(struct net *net, struct ifreq *ifr, unsigned i
 	if (handler) {
 		/* Standard and private are not the same */
 		if (cmd < SIOCIWFIRSTPRIV)
-			return ioctl_standard_call(dev, ifr, cmd, handler);
+			return standard(dev, iwr, cmd, info, handler);
 		else
-			return ioctl_private_call(dev, ifr, cmd, handler);
+			return private(dev, iwr, cmd, info, handler);
 	}
 	/* Old driver API : call driver ioctl handler */
 	if (dev->do_ioctl)
@@ -1045,27 +1060,154 @@ static int wireless_process_ioctl(struct net *net, struct ifreq *ifr, unsigned i
 	return -EOPNOTSUPP;
 }
 
-/* entry point from dev ioctl */
-int wext_handle_ioctl(struct net *net, struct ifreq *ifr, unsigned int cmd,
-		      void __user *arg)
+/* If command is `set a parameter', or `get the encoding parameters',
+ * check if the user has the right to do it.
+ */
+static int wext_permission_check(unsigned int cmd)
 {
-	int ret;
-
-	/* If command is `set a parameter', or
-	 * `get the encoding parameters', check if
-	 * the user has the right to do it */
 	if ((IW_IS_SET(cmd) || cmd == SIOCGIWENCODE || cmd == SIOCGIWENCODEEXT)
 	    && !capable(CAP_NET_ADMIN))
 		return -EPERM;
 
+	return 0;
+}
+
+/* entry point from dev ioctl */
+static int wext_ioctl_dispatch(struct net *net, struct ifreq *ifr,
+			       unsigned int cmd, struct iw_request_info *info,
+			       wext_ioctl_func standard,
+			       wext_ioctl_func private)
+{
+	int ret = wext_permission_check(cmd);
+
+	if (ret)
+		return ret;
+
 	dev_load(net, ifr->ifr_name);
 	rtnl_lock();
-	ret = wireless_process_ioctl(net, ifr, cmd);
+	ret = wireless_process_ioctl(net, ifr, cmd, info, standard, private);
 	rtnl_unlock();
-	if (IW_IS_GET(cmd) && copy_to_user(arg, ifr, sizeof(struct iwreq)))
-		return -EFAULT;
+
 	return ret;
 }
+
+int wext_handle_ioctl(struct net *net, struct ifreq *ifr, unsigned int cmd,
+		      void __user *arg)
+{
+	struct iw_request_info info = { .cmd = cmd, .flags = 0 };
+	int ret;
+
+	ret = wext_ioctl_dispatch(net, ifr, cmd, &info,
+				  ioctl_standard_call,
+				  ioctl_private_call);
+	if (ret >= 0 &&
+	    IW_IS_GET(cmd) &&
+	    copy_to_user(arg, ifr, sizeof(struct iwreq)))
+		return -EFAULT;
+
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static int compat_standard_call(struct net_device	*dev,
+				struct iwreq		*iwr,
+				unsigned int		cmd,
+				struct iw_request_info	*info,
+				iw_handler		handler)
+{
+	const struct iw_ioctl_description *descr;
+	struct compat_iw_point *iwp_compat;
+	struct iw_point iwp;
+	int err;
+
+	descr = standard_ioctl + (cmd - SIOCIWFIRST);
+
+	if (descr->header_type != IW_HEADER_TYPE_POINT)
+		return ioctl_standard_call(dev, iwr, cmd, info, handler);
+
+	iwp_compat = (struct compat_iw_point *) &iwr->u.data;
+	iwp.pointer = compat_ptr(iwp_compat->pointer);
+	iwp.length = iwp_compat->length;
+	iwp.flags = iwp_compat->flags;
+
+	err = ioctl_standard_iw_point(&iwp, cmd, descr, handler, dev, info);
+
+	iwp_compat->pointer = ptr_to_compat(iwp.pointer);
+	iwp_compat->length = iwp.length;
+	iwp_compat->flags = iwp.flags;
+
+	return err;
+}
+
+static int compat_private_call(struct net_device *dev, struct iwreq *iwr,
+			       unsigned int cmd, struct iw_request_info *info,
+			       iw_handler handler)
+{
+	const struct iw_priv_args *descr;
+	int ret, extra_size;
+
+	extra_size = get_priv_descr_and_size(dev, cmd, &descr);
+
+	/* Check if we have a pointer to user space data or not. */
+	if (extra_size == 0) {
+		/* No extra arguments. Trivial to handle */
+		ret = handler(dev, info, &(iwr->u), (char *) &(iwr->u));
+	} else {
+		struct compat_iw_point *iwp_compat;
+		struct iw_point iwp;
+
+		iwp_compat = (struct compat_iw_point *) &iwr->u.data;
+		iwp.pointer = compat_ptr(iwp_compat->pointer);
+		iwp.length = iwp_compat->length;
+		iwp.flags = iwp_compat->flags;
+
+		ret = ioctl_private_iw_point(&iwp, cmd, descr,
+					     handler, dev, info, extra_size);
+
+		iwp_compat->pointer = ptr_to_compat(iwp.pointer);
+		iwp_compat->length = iwp.length;
+		iwp_compat->flags = iwp.flags;
+	}
+
+	/* Call commit handler if needed and defined */
+	if (ret == -EIWCOMMIT)
+		ret = call_commit_handler(dev);
+
+	return ret;
+}
+
+int compat_wext_handle_ioctl(struct net *net, unsigned int cmd,
+			     unsigned long arg)
+{
+	void __user *argp = (void __user *)arg;
+	struct iw_request_info info;
+	struct iwreq iwr;
+	char *colon;
+	int ret;
+
+	if (copy_from_user(&iwr, argp, sizeof(struct iwreq)))
+		return -EFAULT;
+
+	iwr.ifr_name[IFNAMSIZ-1] = 0;
+	colon = strchr(iwr.ifr_name, ':');
+	if (colon)
+		*colon = 0;
+
+	info.cmd = cmd;
+	info.flags = IW_REQUEST_FLAG_COMPAT;
+
+	ret = wext_ioctl_dispatch(net, (struct ifreq *) &iwr, cmd, &info,
+				  compat_standard_call,
+				  compat_private_call);
+
+	if (ret >= 0 &&
+	    IW_IS_GET(cmd) &&
+	    copy_to_user(argp, &iwr, sizeof(struct iwreq)))
+		return -EFAULT;
+
+	return ret;
+}
+#endif
 
 /************************* EVENT PROCESSING *************************/
 /*
@@ -1135,6 +1277,7 @@ static int rtnetlink_fill_iwinfo(struct sk_buff *skb, struct net_device *dev,
 	r->ifi_flags = dev_get_flags(dev);
 	r->ifi_change = 0;	/* Wireless changes don't affect those flags */
 
+	NLA_PUT_STRING(skb, IFLA_IFNAME, dev->name);
 	/* Add the wireless events in the netlink packet */
 	NLA_PUT(skb, IFLA_WIRELESS, event_len, event);
 
@@ -1157,7 +1300,7 @@ static void rtmsg_iwinfo(struct net_device *dev, char *event, int event_len)
 	struct sk_buff *skb;
 	int err;
 
-	if (dev_net(dev) != &init_net)
+	if (!net_eq(dev_net(dev), &init_net))
 		return;
 
 	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);

@@ -43,9 +43,7 @@
 #define BT_DBG(D...)
 #endif
 
-#define VERSION "1.1"
-
-static int ignore = 0;
+#define VERSION "1.2"
 
 static struct usb_driver bfusb_driver;
 
@@ -566,7 +564,8 @@ static int bfusb_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned long arg
 	return -ENOIOCTLCMD;
 }
 
-static int bfusb_load_firmware(struct bfusb_data *data, unsigned char *firmware, int count)
+static int bfusb_load_firmware(struct bfusb_data *data,
+			       const unsigned char *firmware, int count)
 {
 	unsigned char *buf;
 	int err, pipe, len, size, sent = 0;
@@ -654,9 +653,6 @@ static int bfusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 	struct bfusb_data *data;
 
 	BT_DBG("intf %p id %p", intf, id);
-
-	if (ignore)
-		return -ENODEV;
 
 	/* Check number of endpoints */
 	if (intf->cur_altsetting->desc.bNumEndpoints < 2)
@@ -793,9 +789,6 @@ static void __exit bfusb_exit(void)
 
 module_init(bfusb_init);
 module_exit(bfusb_exit);
-
-module_param(ignore, bool, 0644);
-MODULE_PARM_DESC(ignore, "Ignore devices from the matching table");
 
 MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("BlueFRITZ! USB driver ver " VERSION);

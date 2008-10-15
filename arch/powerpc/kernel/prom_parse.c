@@ -128,31 +128,6 @@ static void of_bus_pci_count_cells(struct device_node *np,
 		*sizec = 2;
 }
 
-static u64 of_bus_pci_map(u32 *addr, const u32 *range, int na, int ns, int pna)
-{
-	u64 cp, s, da;
-
-	/* Check address type match */
-	if ((addr[0] ^ range[0]) & 0x03000000)
-		return OF_BAD_ADDR;
-
-	/* Read address values, skipping high cell */
-	cp = of_read_number(range + 1, na - 1);
-	s  = of_read_number(range + na + pna, ns);
-	da = of_read_number(addr + 1, na - 1);
-
-	DBG("OF: PCI map, cp="PRu64", s="PRu64", da="PRu64"\n", cp, s, da);
-
-	if (da < cp || da >= (cp + s))
-		return OF_BAD_ADDR;
-	return da - cp;
-}
-
-static int of_bus_pci_translate(u32 *addr, u64 offset, int na)
-{
-	return of_bus_default_translate(addr + 1, offset, na - 1);
-}
-
 static unsigned int of_bus_pci_get_flags(const u32 *addr)
 {
 	unsigned int flags = 0;
@@ -170,6 +145,35 @@ static unsigned int of_bus_pci_get_flags(const u32 *addr)
 	if (w & 0x40000000)
 		flags |= IORESOURCE_PREFETCH;
 	return flags;
+}
+
+static u64 of_bus_pci_map(u32 *addr, const u32 *range, int na, int ns, int pna)
+{
+	u64 cp, s, da;
+	unsigned int af, rf;
+
+	af = of_bus_pci_get_flags(addr);
+	rf = of_bus_pci_get_flags(range);
+
+	/* Check address type match */
+	if ((af ^ rf) & (IORESOURCE_MEM | IORESOURCE_IO))
+		return OF_BAD_ADDR;
+
+	/* Read address values, skipping high cell */
+	cp = of_read_number(range + 1, na - 1);
+	s  = of_read_number(range + na + pna, ns);
+	da = of_read_number(addr + 1, na - 1);
+
+	DBG("OF: PCI map, cp="PRu64", s="PRu64", da="PRu64"\n", cp, s, da);
+
+	if (da < cp || da >= (cp + s))
+		return OF_BAD_ADDR;
+	return da - cp;
+}
+
+static int of_bus_pci_translate(u32 *addr, u64 offset, int na)
+{
+	return of_bus_default_translate(addr + 1, offset, na - 1);
 }
 
 const u32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size,

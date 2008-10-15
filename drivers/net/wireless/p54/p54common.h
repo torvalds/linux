@@ -1,5 +1,5 @@
-#ifndef PRISM54COMMON_H
-#define PRISM54COMMON_H
+#ifndef P54COMMON_H
+#define P54COMMON_H
 
 /*
  * Common code specific definitions for mac80211 Prism54 drivers
@@ -18,7 +18,8 @@
 struct bootrec {
 	__le32 code;
 	__le32 len;
-	u32 data[0];
+	u32 data[10];
+	__le16 rx_mtu;
 } __attribute__((packed));
 
 struct bootrec_exp_if {
@@ -27,6 +28,17 @@ struct bootrec_exp_if {
 	__le16 variant;
 	__le16 btm_compat;
 	__le16 top_compat;
+} __attribute__((packed));
+
+struct bootrec_desc {
+	__le16 modes;
+	__le16 flags;
+	__le32 rx_start;
+	__le32 rx_end;
+	u8 headroom;
+	u8 tailroom;
+	u8 unimportant[6];
+	u8 rates[16];
 } __attribute__((packed));
 
 #define BR_CODE_MIN			0x80000000
@@ -38,11 +50,6 @@ struct bootrec_exp_if {
 #define BR_CODE_MAX			0x8FFFFFFF
 #define BR_CODE_END_OF_BRA		0xFF0000FF
 #define LEGACY_BR_CODE_END_OF_BRA	0xFFFFFFFF
-
-#define FW_FMAC 0x464d4143
-#define FW_LM86 0x4c4d3836
-#define FW_LM87 0x4c4d3837
-#define FW_LM20 0x4c4d3230
 
 /* PDA defines are Copyright (C) 2005 Nokia Corporation (taken from islsm_pda.h) */
 
@@ -82,6 +89,16 @@ struct pda_pa_curve_data_sample_rev0 {
 } __attribute__ ((packed));
 
 struct pda_pa_curve_data_sample_rev1 {
+	u8 rf_power;
+	u8 pa_detector;
+	u8 data_barker;
+	u8 data_bpsk;
+	u8 data_qpsk;
+	u8 data_16qam;
+	u8 data_64qam;
+} __attribute__ ((packed));
+
+struct p54_pa_curve_data_sample {
 	u8 rf_power;
 	u8 pa_detector;
 	u8 data_barker;
@@ -152,7 +169,6 @@ struct pda_pa_curve_data {
 struct memrecord {
 	u32 start_addr;
 	u32 end_addr;
-	struct ieee80211_tx_control *control;
 };
 
 struct p54_eeprom_lm86 {
@@ -170,8 +186,9 @@ struct p54_rx_hdr {
 	u8 rssi;
 	u8 quality;
 	u16 unknown2;
-	__le64 timestamp;
-	u8 data[0];
+	__le32 tsf32;
+	__le32 unalloc0;
+	u8 align[0];
 } __attribute__ ((packed));
 
 struct p54_frame_sent_hdr {
@@ -184,37 +201,52 @@ struct p54_frame_sent_hdr {
 
 struct p54_tx_control_allocdata {
 	u8 rateset[8];
-	u16 padding;
-	u8 wep_key_present;
-	u8 wep_key_len;
-	u8 wep_key[16];
-	__le32 frame_type;
-	u32 padding2;
-	__le16 magic4;
-	u8 antenna;
+	u8 unalloc0[2];
+	u8 key_type;
+	u8 key_len;
+	u8 key[16];
+	u8 hw_queue;
+	u8 unalloc1[9];
+	u8 tx_antenna;
 	u8 output_power;
-	__le32 magic5;
+	u8 cts_rate;
+	u8 unalloc2[3];
 	u8 align[0];
 } __attribute__ ((packed));
 
 struct p54_tx_control_filter {
 	__le16 filter_type;
-	u8 dst[ETH_ALEN];
-	u8 src[ETH_ALEN];
-	u8 antenna;
-	u8 debug;
-	__le32 magic3;
-	u8 rates[8];	// FIXME: what's this for?
-	__le32 rx_addr;
-	__le16 max_rx;
-	__le16 rxhw;
-	__le16 magic8;
-	__le16 magic9;
+	u8 mac_addr[ETH_ALEN];
+	u8 bssid[ETH_ALEN];
+	u8 rx_antenna;
+	u8 rx_align;
+	union {
+		struct {
+			__le32 basic_rate_mask;
+			u8 rts_rates[8];
+			__le32 rx_addr;
+			__le16 max_rx;
+			__le16 rxhw;
+			__le16 wakeup_timer;
+			__le16 unalloc0;
+		} v1 __attribute__ ((packed));
+		struct {
+			__le32 rx_addr;
+			__le16 max_rx;
+			__le16 rxhw;
+			__le16 timer;
+			__le16 unalloc0;
+			__le32 unalloc1;
+		} v2 __attribute__ ((packed));
+	} __attribute__ ((packed));
 } __attribute__ ((packed));
 
+#define P54_TX_CONTROL_FILTER_V1_LEN (sizeof(struct p54_tx_control_filter))
+#define P54_TX_CONTROL_FILTER_V2_LEN (sizeof(struct p54_tx_control_filter)-8)
+
 struct p54_tx_control_channel {
-	__le16 magic1;
-	__le16 magic2;
+	__le16 flags;
+	__le16 dwell;
 	u8 padding1[20];
 	struct pda_iq_autocal_entry iq_autocal;
 	u8 pa_points_per_curve;
@@ -223,9 +255,28 @@ struct p54_tx_control_channel {
 	u8 val_qpsk;
 	u8 val_16qam;
 	u8 val_64qam;
-	struct pda_pa_curve_data_sample_rev1 curve_data[0];
-	/* additional padding/data after curve_data */
+	struct p54_pa_curve_data_sample curve_data[8];
+	u8 dup_bpsk;
+	u8 dup_qpsk;
+	u8 dup_16qam;
+	u8 dup_64qam;
+	union {
+		struct {
+			__le16 rssical_mul;
+			__le16 rssical_add;
+		} v1 __attribute__ ((packed));
+
+		struct {
+			__le32 basic_rate_mask;
+			 u8 rts_rates[8];
+			__le16 rssical_mul;
+			__le16 rssical_add;
+		} v2 __attribute__ ((packed));
+	} __attribute__ ((packed));
 } __attribute__ ((packed));
+
+#define P54_TX_CONTROL_CHANNEL_V1_LEN (sizeof(struct p54_tx_control_channel)-12)
+#define P54_TX_CONTROL_CHANNEL_V2_LEN (sizeof(struct p54_tx_control_channel))
 
 struct p54_tx_control_led {
 	__le16 mode;
@@ -251,4 +302,24 @@ struct p54_tx_control_vdcf {
 	__le16 frameburst;
 } __attribute__ ((packed));
 
-#endif /* PRISM54COMMON_H */
+struct p54_statistics {
+	__le32 rx_success;
+	__le32 rx_bad_fcs;
+	__le32 rx_abort;
+	__le32 rx_abort_phy;
+	__le32 rts_success;
+	__le32 rts_fail;
+	__le32 tsf32;
+	__le32 airtime;
+	__le32 noise;
+	__le32 unkn[10]; /* CCE / CCA / RADAR */
+} __attribute__ ((packed));
+
+struct p54_tx_control_xbow_synth {
+	__le16 magic1;
+	__le16 magic2;
+	__le16 freq;
+	u32 padding[5];
+} __attribute__ ((packed));
+
+#endif /* P54COMMON_H */

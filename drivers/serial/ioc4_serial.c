@@ -1635,7 +1635,7 @@ static void transmit_chars(struct uart_port *the_port)
 		return;
 
 	info = the_port->info;
-	tty = info->tty;
+	tty = info->port.tty;
 
 	if (uart_circ_empty(&info->xmit) || uart_tx_stopped(the_port)) {
 		/* Nothing to do or hw stopped */
@@ -1738,14 +1738,14 @@ ioc4_change_speed(struct uart_port *the_port,
 
 	the_port->ignore_status_mask = N_ALL_INPUT;
 
-	info->tty->low_latency = 1;
+	info->port.tty->low_latency = 1;
 
-	if (I_IGNPAR(info->tty))
+	if (I_IGNPAR(info->port.tty))
 		the_port->ignore_status_mask &= ~(N_PARITY_ERROR
 						| N_FRAMING_ERROR);
-	if (I_IGNBRK(info->tty)) {
+	if (I_IGNBRK(info->port.tty)) {
 		the_port->ignore_status_mask &= ~N_BREAK;
-		if (I_IGNPAR(info->tty))
+		if (I_IGNPAR(info->port.tty))
 			the_port->ignore_status_mask &= ~N_OVERRUN_ERROR;
 	}
 	if (!(cflag & CREAD)) {
@@ -1801,7 +1801,8 @@ static inline int ic4_startup_local(struct uart_port *the_port)
 	ioc4_set_proto(port, the_port->mapbase);
 
 	/* set the speed of the serial port */
-	ioc4_change_speed(the_port, info->tty->termios, (struct ktermios *)0);
+	ioc4_change_speed(the_port, info->port.tty->termios,
+			  (struct ktermios *)0);
 
 	return 0;
 }
@@ -2346,11 +2347,11 @@ static void receive_chars(struct uart_port *the_port)
 	/* Make sure all the pointers are "good" ones */
 	if (!info)
 		return;
-	if (!info->tty)
+	if (!info->port.tty)
 		return;
 
 	spin_lock_irqsave(&the_port->lock, pflags);
-	tty = info->tty;
+	tty = info->port.tty;
 
 	request_count = tty_buffer_request_room(tty, IOC4_MAX_CHARS);
 
@@ -2440,8 +2441,8 @@ static void ic4_shutdown(struct uart_port *the_port)
 
 	wake_up_interruptible(&info->delta_msr_wait);
 
-	if (info->tty)
-		set_bit(TTY_IO_ERROR, &info->tty->flags);
+	if (info->port.tty)
+		set_bit(TTY_IO_ERROR, &info->port.tty->flags);
 
 	spin_lock_irqsave(&the_port->lock, port_flags);
 	set_notification(port, N_ALL, 0);

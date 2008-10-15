@@ -10,23 +10,30 @@ status messages via printk(), which can be examined via the dmesg
 command (perhaps grepping for "torture").  The test is started
 when the module is loaded, and stops when the module is unloaded.
 
-However, actually setting this config option to "y" results in the system
-running the test immediately upon boot, and ending only when the system
-is taken down.  Normally, one will instead want to build the system
-with CONFIG_RCU_TORTURE_TEST=m and to use modprobe and rmmod to control
-the test, perhaps using a script similar to the one shown at the end of
-this document.  Note that you will need CONFIG_MODULE_UNLOAD in order
-to be able to end the test.
+CONFIG_RCU_TORTURE_TEST_RUNNABLE
+
+It is also possible to specify CONFIG_RCU_TORTURE_TEST=y, which will
+result in the tests being loaded into the base kernel.  In this case,
+the CONFIG_RCU_TORTURE_TEST_RUNNABLE config option is used to specify
+whether the RCU torture tests are to be started immediately during
+boot or whether the /proc/sys/kernel/rcutorture_runnable file is used
+to enable them.  This /proc file can be used to repeatedly pause and
+restart the tests, regardless of the initial state specified by the
+CONFIG_RCU_TORTURE_TEST_RUNNABLE config option.
+
+You will normally -not- want to start the RCU torture tests during boot
+(and thus the default is CONFIG_RCU_TORTURE_TEST_RUNNABLE=n), but doing
+this can sometimes be useful in finding boot-time bugs.
 
 
 MODULE PARAMETERS
 
 This module has the following parameters:
 
-nreaders	This is the number of RCU reading threads supported.
-		The default is twice the number of CPUs.  Why twice?
-		To properly exercise RCU implementations with preemptible
-		read-side critical sections.
+irqreaders	Says to invoke RCU readers from irq level.  This is currently
+		done via timers.  Defaults to "1" for variants of RCU that
+		permit this.  (Or, more accurately, variants of RCU that do
+		-not- permit this know to ignore this variable.)
 
 nfakewriters	This is the number of RCU fake writer threads to run.  Fake
 		writer threads repeatedly use the synchronous "wait for
@@ -37,6 +44,16 @@ nfakewriters	This is the number of RCU fake writer threads to run.  Fake
 		to trigger special cases caused by multiple writers, such as
 		the synchronize_srcu() early return optimization.
 
+nreaders	This is the number of RCU reading threads supported.
+		The default is twice the number of CPUs.  Why twice?
+		To properly exercise RCU implementations with preemptible
+		read-side critical sections.
+
+shuffle_interval
+		The number of seconds to keep the test threads affinitied
+		to a particular subset of the CPUs, defaults to 3 seconds.
+		Used in conjunction with test_no_idle_hz.
+
 stat_interval	The number of seconds between output of torture
 		statistics (via printk()).  Regardless of the interval,
 		statistics are printed when the module is unloaded.
@@ -44,10 +61,11 @@ stat_interval	The number of seconds between output of torture
 		be printed -only- when the module is unloaded, and this
 		is the default.
 
-shuffle_interval
-		The number of seconds to keep the test threads affinitied
-		to a particular subset of the CPUs, defaults to 5 seconds.
-		Used in conjunction with test_no_idle_hz.
+stutter		The length of time to run the test before pausing for this
+		same period of time.  Defaults to "stutter=5", so as
+		to run and pause for (roughly) five-second intervals.
+		Specifying "stutter=0" causes the test to run continuously
+		without pausing, which is the old default behavior.
 
 test_no_idle_hz	Whether or not to test the ability of RCU to operate in
 		a kernel that disables the scheduling-clock interrupt to

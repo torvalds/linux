@@ -35,13 +35,11 @@
 MODULE_AUTHOR("Uros Bizjak <uros@kss-loka.si>");
 MODULE_DESCRIPTION("ALSA driver for SB16 Creative Signal Processor");
 MODULE_LICENSE("GPL");
-#ifndef CONFIG_SND_SB16_CSP_FIRMWARE_IN_KERNEL
 MODULE_FIRMWARE("sb16/mulaw_main.csp");
 MODULE_FIRMWARE("sb16/alaw_main.csp");
 MODULE_FIRMWARE("sb16/ima_adpcm_init.csp");
 MODULE_FIRMWARE("sb16/ima_adpcm_playback.csp");
 MODULE_FIRMWARE("sb16/ima_adpcm_capture.csp");
-#endif
 
 #ifdef SNDRV_LITTLE_ENDIAN
 #define CSP_HDR_VALUE(a,b,c,d)	((a) | ((b)<<8) | ((c)<<16) | ((d)<<24))
@@ -168,17 +166,13 @@ int snd_sb_csp_new(struct snd_sb *chip, int device, struct snd_hwdep ** rhwdep)
  */
 static void snd_sb_csp_free(struct snd_hwdep *hwdep)
 {
-#ifndef CONFIG_SND_SB16_CSP_FIRMWARE_IN_KERNEL
 	int i;
-#endif
 	struct snd_sb_csp *p = hwdep->private_data;
 	if (p) {
 		if (p->running & SNDRV_SB_CSP_ST_RUNNING)
 			snd_sb_csp_stop(p);
-#ifndef CONFIG_SND_SB16_CSP_FIRMWARE_IN_KERNEL
 		for (i = 0; i < ARRAY_SIZE(p->csp_programs); ++i)
 			release_firmware(p->csp_programs[i]);
-#endif
 		kfree(p);
 	}
 }
@@ -204,7 +198,8 @@ static int snd_sb_csp_ioctl(struct snd_hwdep * hw, struct file *file, unsigned i
 	struct snd_sb_csp_start start_info;
 	int err;
 
-	snd_assert(p != NULL, return -EINVAL);
+	if (snd_BUG_ON(!p))
+		return -EINVAL;
 
 	if (snd_sb_csp_check_version(p))
 		return -ENODEV;
@@ -701,18 +696,6 @@ static int snd_sb_csp_load_user(struct snd_sb_csp * p, const unsigned char __use
 	return err;
 }
 
-#ifdef CONFIG_SND_SB16_CSP_FIRMWARE_IN_KERNEL
-#include "sb16_csp_codecs.h"
-
-static const struct firmware snd_sb_csp_static_programs[] = {
-	{ .data = mulaw_main, .size = sizeof mulaw_main },
-	{ .data = alaw_main, .size = sizeof alaw_main },
-	{ .data = ima_adpcm_init, .size = sizeof ima_adpcm_init },
-	{ .data = ima_adpcm_playback, .size = sizeof ima_adpcm_playback },
-	{ .data = ima_adpcm_capture, .size = sizeof ima_adpcm_capture },
-};
-#endif
-
 static int snd_sb_csp_firmware_load(struct snd_sb_csp *p, int index, int flags)
 {
 	static const char *const names[] = {
@@ -727,14 +710,10 @@ static int snd_sb_csp_firmware_load(struct snd_sb_csp *p, int index, int flags)
 	BUILD_BUG_ON(ARRAY_SIZE(names) != CSP_PROGRAM_COUNT);
 	program = p->csp_programs[index];
 	if (!program) {
-#ifdef CONFIG_SND_SB16_CSP_FIRMWARE_IN_KERNEL
-		program = &snd_sb_csp_static_programs[index];
-#else
 		int err = request_firmware(&program, names[index],
 				       p->chip->card->dev);
 		if (err < 0)
 			return err;
-#endif
 		p->csp_programs[index] = program;
 	}
 	return snd_sb_csp_load(p, program->data, program->size, flags);
@@ -1068,7 +1047,8 @@ static int snd_sb_qsound_build(struct snd_sb_csp * p)
 	struct snd_card *card;
 	int err;
 
-	snd_assert(p != NULL, return -EINVAL);
+	if (snd_BUG_ON(!p))
+		return -EINVAL;
 
 	card = p->chip->card;
 	p->qpos_left = p->qpos_right = SNDRV_SB_CSP_QSOUND_MAX_RIGHT / 2;
@@ -1093,7 +1073,8 @@ static void snd_sb_qsound_destroy(struct snd_sb_csp * p)
 	struct snd_card *card;
 	unsigned long flags;
 
-	snd_assert(p != NULL, return);
+	if (snd_BUG_ON(!p))
+		return;
 
 	card = p->chip->card;	
 	

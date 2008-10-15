@@ -50,6 +50,8 @@ static double __initdata y = 3145727.0;
  */
 static void __init check_fpu(void)
 {
+	s32 fdiv_bug;
+
 	if (!boot_cpu_data.hard_math) {
 #ifndef CONFIG_MATH_EMULATION
 		printk(KERN_EMERG "No coprocessor found and no math emulation present.\n");
@@ -59,8 +61,12 @@ static void __init check_fpu(void)
 		return;
 	}
 
-/* trap_init() enabled FXSR and company _before_ testing for FP problems here. */
-	/* Test for the divl bug.. */
+	/*
+	 * trap_init() enabled FXSR and company _before_ testing for FP
+	 * problems here.
+	 *
+	 * Test for the divl bug..
+	 */
 	__asm__("fninit\n\t"
 		"fldl %1\n\t"
 		"fdivl %2\n\t"
@@ -70,8 +76,10 @@ static void __init check_fpu(void)
 		"fistpl %0\n\t"
 		"fwait\n\t"
 		"fninit"
-		: "=m" (*&boot_cpu_data.fdiv_bug)
+		: "=m" (*&fdiv_bug)
 		: "m" (*&x), "m" (*&y));
+
+	boot_cpu_data.fdiv_bug = fdiv_bug;
 	if (boot_cpu_data.fdiv_bug)
 		printk("Hmm, FPU with FDIV bug.\n");
 }
@@ -108,10 +116,15 @@ static void __init check_popad(void)
 	  "movl $12345678,%%eax; movl $0,%%edi; pusha; popa; movl (%%edx,%%edi),%%ecx "
 	  : "=&a" (res)
 	  : "d" (inp)
-	  : "ecx", "edi" );
-	/* If this fails, it means that any user program may lock the CPU hard. Too bad. */
-	if (res != 12345678) printk( "Buggy.\n" );
-		        else printk( "OK.\n" );
+	  : "ecx", "edi");
+	/*
+	 * If this fails, it means that any user program may lock the
+	 * CPU hard. Too bad.
+	 */
+	if (res != 12345678)
+		printk("Buggy.\n");
+	else
+		printk("OK.\n");
 #endif
 }
 
@@ -122,13 +135,7 @@ static void __init check_popad(void)
  *   (for due to lack of "invlpg" and working WP on a i386)
  * - In order to run on anything without a TSC, we need to be
  *   compiled for a i486.
- * - In order to support the local APIC on a buggy Pentium machine,
- *   we need to be compiled with CONFIG_X86_GOOD_APIC disabled,
- *   which happens implicitly if compiled for a Pentium or lower
- *   (unless an advanced selection of CPU features is used) as an
- *   otherwise config implies a properly working local APIC without
- *   the need to do extra reads from the APIC.
-*/
+ */
 
 static void __init check_config(void)
 {
@@ -137,24 +144,10 @@ static void __init check_config(void)
  * i486+ only features! (WP works in supervisor mode and the
  * new "invlpg" and "bswap" instructions)
  */
-#if defined(CONFIG_X86_WP_WORKS_OK) || defined(CONFIG_X86_INVLPG) || defined(CONFIG_X86_BSWAP)
+#if defined(CONFIG_X86_WP_WORKS_OK) || defined(CONFIG_X86_INVLPG) || \
+	defined(CONFIG_X86_BSWAP)
 	if (boot_cpu_data.x86 == 3)
 		panic("Kernel requires i486+ for 'invlpg' and other features");
-#endif
-
-/*
- * If we were told we had a good local APIC, check for buggy Pentia,
- * i.e. all B steppings and the C2 stepping of P54C when using their
- * integrated APIC (see 11AP erratum in "Pentium Processor
- * Specification Update").
- */
-#if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86_GOOD_APIC)
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL
-	    && cpu_has_apic
-	    && boot_cpu_data.x86 == 5
-	    && boot_cpu_data.x86_model == 2
-	    && (boot_cpu_data.x86_mask < 6 || boot_cpu_data.x86_mask == 11))
-		panic("Kernel compiled for PMMX+, assumes a local APIC without the read-before-write bug!");
 #endif
 }
 
@@ -170,6 +163,7 @@ void __init check_bugs(void)
 	check_fpu();
 	check_hlt();
 	check_popad();
-	init_utsname()->machine[1] = '0' + (boot_cpu_data.x86 > 6 ? 6 : boot_cpu_data.x86);
+	init_utsname()->machine[1] =
+		'0' + (boot_cpu_data.x86 > 6 ? 6 : boot_cpu_data.x86);
 	alternative_instructions();
 }

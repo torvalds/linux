@@ -1,10 +1,13 @@
-menuconfig MPC83xx
-	bool "83xx Board Type"
-	depends on PPC_83xx
+menuconfig PPC_83xx
+	bool "83xx-based boards"
+	depends on 6xx && PPC_MULTIPLATFORM
 	select PPC_UDBG_16550
-	select PPC_INDIRECT_PCI
+	select PPC_PCI_CHOICE
+	select FSL_PCI if PCI
+	select FSL_SOC
+	select IPIC
 
-if MPC83xx
+if PPC_83xx
 
 config MPC831x_RDB
 	bool "Freescale MPC831x RDB"
@@ -58,6 +61,17 @@ config MPC836x_MDS
 	help
 	  This option enables support for the MPC836x MDS Processor Board.
 
+config MPC836x_RDK
+	bool "Freescale/Logic MPC836x RDK"
+	select DEFAULT_UIMAGE
+	select QUICC_ENGINE
+	select QE_GPIO
+	select FSL_GTM
+	select FSL_LBC
+	help
+	  This option enables support for the MPC836x RDK Processor Board,
+	  also known as ZOOM PowerQUICC Kit.
+
 config MPC837x_MDS
 	bool "Freescale MPC837x MDS"
 	select DEFAULT_UIMAGE
@@ -78,6 +92,15 @@ config SBC834x
 	select PPC_MPC834x
 	help
 	  This option enables support for the Wind River SBC834x board.
+
+config ASP834x
+	bool "Analogue & Micro ASP 834x"
+	select PPC_MPC834x
+	select REDBOOT
+	help
+	  This enables support for the Analogue & Micro ASP 83xx
+	  board.
+
 
 endif
 

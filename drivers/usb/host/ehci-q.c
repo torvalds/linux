@@ -932,7 +932,7 @@ static struct ehci_qh *qh_append_tds (
 
 			list_del (&qtd->qtd_list);
 			list_add (&dummy->qtd_list, qtd_list);
-			__list_splice (qtd_list, qh->qtd_list.prev);
+			list_splice_tail(qtd_list, &qh->qtd_list);
 
 			ehci_qtd_init(ehci, qtd, qtd->qtd_dma);
 			qh->dummy = qtd;
@@ -1116,8 +1116,7 @@ static void scan_async (struct ehci_hcd *ehci)
 	struct ehci_qh		*qh;
 	enum ehci_timer_action	action = TIMER_IO_WATCHDOG;
 
-	if (!++(ehci->stamp))
-		ehci->stamp++;
+	ehci->stamp = ehci_readl(ehci, &ehci->regs->frame_index);
 	timer_action_done (ehci, TIMER_ASYNC_SHRINK);
 rescan:
 	qh = ehci->async->qh_next.qh;
@@ -1142,18 +1141,20 @@ rescan:
 				}
 			}
 
-			/* unlink idle entries, reducing HC PCI usage as well
+			/* unlink idle entries, reducing DMA usage as well
 			 * as HCD schedule-scanning costs.  delay for any qh
 			 * we just scanned, there's a not-unusual case that it
 			 * doesn't stay idle for long.
 			 * (plus, avoids some kind of re-activation race.)
 			 */
-			if (list_empty (&qh->qtd_list)) {
-				if (qh->stamp == ehci->stamp)
+			if (list_empty(&qh->qtd_list)
+					&& qh->qh_state == QH_STATE_LINKED) {
+				if (!ehci->reclaim
+					&& ((ehci->stamp - qh->stamp) & 0x1fff)
+						>= (EHCI_SHRINK_FRAMES * 8))
+					start_unlink_async(ehci, qh);
+				else
 					action = TIMER_ASYNC_SHRINK;
-				else if (!ehci->reclaim
-					    && qh->qh_state == QH_STATE_LINKED)
-					start_unlink_async (ehci, qh);
 			}
 
 			qh = qh->qh_next.qh;

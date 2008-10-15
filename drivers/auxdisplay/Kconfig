@@ -64,7 +64,7 @@ config KS0108_DELAY
 	  Amount of time the ks0108 should wait between each control write
 	  to the parallel port.
 
-	  If your driver seems to miss random writings, increment this.
+	  If your LCD seems to miss random writings, increment this.
 
 	  If you don't know what I'm talking about, ignore it.
 

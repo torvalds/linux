@@ -1,7 +1,13 @@
-choice
-	prompt "86xx Board Type"
-	depends on PPC_86xx
-	default MPC8641_HPCN
+config PPC_86xx
+menuconfig PPC_86xx
+	bool "86xx-based boards"
+	depends on 6xx && PPC_MULTIPLATFORM
+	select FSL_SOC
+	select ALTIVEC
+	help
+	  The Freescale E600 SoCs have 74xx cores.
+
+if PPC_86xx
 
 config MPC8641_HPCN
 	bool "Freescale MPC8641 HPCN"
@@ -21,13 +27,15 @@ config SBC8641D
 config MPC8610_HPCD
 	bool "Freescale MPC8610 HPCD"
 	select DEFAULT_UIMAGE
+	select FSL_ULI1575
 	help
 	  This option enables support for the MPC8610 HPCD board.
 
-endchoice
+endif
 
 config MPC8641
 	bool
+	select PPC_PCI_CHOICE
 	select FSL_PCI if PCI
 	select PPC_UDBG_16550
 	select MPIC
@@ -35,6 +43,7 @@ config MPC8641
 
 config MPC8610
 	bool
+	select PPC_PCI_CHOICE
 	select FSL_PCI if PCI
 	select PPC_UDBG_16550
 	select MPIC

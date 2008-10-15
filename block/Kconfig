@@ -81,6 +81,18 @@ config BLK_DEV_BSG
 
 	  If unsure, say N.
 
+config BLK_DEV_INTEGRITY
+	bool "Block layer data integrity support"
+	---help---
+	Some storage devices allow extra information to be
+	stored/retrieved to help protect the data.  The block layer
+	data integrity option provides hooks which can be used by
+	filesystems to ensure better data integrity.
+
+	Say yes here if you have a storage device that provides the
+	T10/SCSI Data Integrity Field or the T13/ATA External Path
+	Protection.  If in doubt, say N.
+
 endif # BLOCK
 
 config BLOCK_COMPAT

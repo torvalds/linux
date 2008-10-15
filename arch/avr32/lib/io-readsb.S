@@ -41,7 +41,7 @@ __raw_readsb:
 2:	sub	r10, -4
 	reteq	r12
 
-3:	ld.uh	r8, r12[0]
+3:	ld.ub	r8, r12[0]
 	sub	r10, 1
 	st.b	r11++, r8
 	brne	3b

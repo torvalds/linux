@@ -27,13 +27,6 @@
 #include <linux/slab.h>
 
 
-#define DEBUG_CONFIG 1
-#if DEBUG_CONFIG
-#define DBG(x...)     printk(x)
-#else
-#define DBG(x...)
-#endif
-
 static void pbus_assign_resources_sorted(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
@@ -81,8 +74,8 @@ void pci_setup_cardbus(struct pci_bus *bus)
 	struct pci_dev *bridge = bus->self;
 	struct pci_bus_region region;
 
-	printk("PCI: Bus %d, cardbus bridge: %s\n",
-		bus->number, pci_name(bridge));
+	dev_info(&bridge->dev, "CardBus bridge, secondary bus %04x:%02x\n",
+		 pci_domain_nr(bus), bus->number);
 
 	pcibios_resource_to_bus(bridge, &region, bus->resource[0]);
 	if (bus->resource[0]->flags & IORESOURCE_IO) {
@@ -90,7 +83,7 @@ void pci_setup_cardbus(struct pci_bus *bus)
 		 * The IO resource is allocated a range twice as large as it
 		 * would normally need.  This allows us to set both IO regs.
 		 */
-		printk(KERN_INFO "  IO window: 0x%08lx-0x%08lx\n",
+		dev_info(&bridge->dev, "  IO window: %#08lx-%#08lx\n",
 		       (unsigned long)region.start,
 		       (unsigned long)region.end);
 		pci_write_config_dword(bridge, PCI_CB_IO_BASE_0,
@@ -101,7 +94,7 @@ void pci_setup_cardbus(struct pci_bus *bus)
 
 	pcibios_resource_to_bus(bridge, &region, bus->resource[1]);
 	if (bus->resource[1]->flags & IORESOURCE_IO) {
-		printk(KERN_INFO "  IO window: 0x%08lx-0x%08lx\n",
+		dev_info(&bridge->dev, "  IO window: %#08lx-%#08lx\n",
 		       (unsigned long)region.start,
 		       (unsigned long)region.end);
 		pci_write_config_dword(bridge, PCI_CB_IO_BASE_1,
@@ -112,7 +105,7 @@ void pci_setup_cardbus(struct pci_bus *bus)
 
 	pcibios_resource_to_bus(bridge, &region, bus->resource[2]);
 	if (bus->resource[2]->flags & IORESOURCE_MEM) {
-		printk(KERN_INFO "  PREFETCH window: 0x%08lx-0x%08lx\n",
+		dev_info(&bridge->dev, "  PREFETCH window: %#08lx-%#08lx\n",
 		       (unsigned long)region.start,
 		       (unsigned long)region.end);
 		pci_write_config_dword(bridge, PCI_CB_MEMORY_BASE_0,
@@ -123,7 +116,7 @@ void pci_setup_cardbus(struct pci_bus *bus)
 
 	pcibios_resource_to_bus(bridge, &region, bus->resource[3]);
 	if (bus->resource[3]->flags & IORESOURCE_MEM) {
-		printk(KERN_INFO "  MEM window: 0x%08lx-0x%08lx\n",
+		dev_info(&bridge->dev, "  MEM window: %#08lx-%#08lx\n",
 		       (unsigned long)region.start,
 		       (unsigned long)region.end);
 		pci_write_config_dword(bridge, PCI_CB_MEMORY_BASE_1,
@@ -151,7 +144,8 @@ static void pci_setup_bridge(struct pci_bus *bus)
 	struct pci_bus_region region;
 	u32 l, bu, lu, io_upper16;
 
-	DBG(KERN_INFO "PCI: Bridge: %s\n", pci_name(bridge));
+	dev_info(&bridge->dev, "PCI bridge, secondary bus %04x:%02x\n",
+		 pci_domain_nr(bus), bus->number);
 
 	/* Set up the top and bottom of the PCI I/O segment for this bus. */
 	pcibios_resource_to_bus(bridge, &region, bus->resource[0]);
@@ -162,7 +156,7 @@ static void pci_setup_bridge(struct pci_bus *bus)
 		l |= region.end & 0xf000;
 		/* Set up upper 16 bits of I/O base/limit. */
 		io_upper16 = (region.end & 0xffff0000) | (region.start >> 16);
-		DBG(KERN_INFO "  IO window: %04lx-%04lx\n",
+		dev_info(&bridge->dev, "  IO window: %#04lx-%#04lx\n",
 		    (unsigned long)region.start,
 		    (unsigned long)region.end);
 	}
@@ -170,7 +164,7 @@ static void pci_setup_bridge(struct pci_bus *bus)
 		/* Clear upper 16 bits of I/O base/limit. */
 		io_upper16 = 0;
 		l = 0x00f0;
-		DBG(KERN_INFO "  IO window: disabled.\n");
+		dev_info(&bridge->dev, "  IO window: disabled\n");
 	}
 	/* Temporarily disable the I/O range before updating PCI_IO_BASE. */
 	pci_write_config_dword(bridge, PCI_IO_BASE_UPPER16, 0x0000ffff);
@@ -185,13 +179,13 @@ static void pci_setup_bridge(struct pci_bus *bus)
 	if (bus->resource[1]->flags & IORESOURCE_MEM) {
 		l = (region.start >> 16) & 0xfff0;
 		l |= region.end & 0xfff00000;
-		DBG(KERN_INFO "  MEM window: 0x%08lx-0x%08lx\n",
+		dev_info(&bridge->dev, "  MEM window: %#08lx-%#08lx\n",
 		    (unsigned long)region.start,
 		    (unsigned long)region.end);
 	}
 	else {
 		l = 0x0000fff0;
-		DBG(KERN_INFO "  MEM window: disabled.\n");
+		dev_info(&bridge->dev, "  MEM window: disabled\n");
 	}
 	pci_write_config_dword(bridge, PCI_MEMORY_BASE, l);
 
@@ -208,13 +202,13 @@ static void pci_setup_bridge(struct pci_bus *bus)
 		l |= region.end & 0xfff00000;
 		bu = upper_32_bits(region.start);
 		lu = upper_32_bits(region.end);
-		DBG(KERN_INFO "  PREFETCH window: 0x%016llx-0x%016llx\n",
+		dev_info(&bridge->dev, "  PREFETCH window: %#016llx-%#016llx\n",
 		    (unsigned long long)region.start,
 		    (unsigned long long)region.end);
 	}
 	else {
 		l = 0x0000fff0;
-		DBG(KERN_INFO "  PREFETCH window: disabled.\n");
+		dev_info(&bridge->dev, "  PREFETCH window: disabled\n");
 	}
 	pci_write_config_dword(bridge, PCI_PREF_MEMORY_BASE, l);
 
@@ -358,12 +352,12 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask, unsigned long 
 				continue;
 			r_size = r->end - r->start + 1;
 			/* For bridges size != alignment */
-			align = (i < PCI_BRIDGE_RESOURCES) ? r_size : r->start;
+			align = resource_alignment(r);
 			order = __ffs(align) - 20;
 			if (order > 11) {
-				printk(KERN_WARNING "PCI: region %s/%d "
-				       "too large: 0x%016llx-0x%016llx\n",
-					pci_name(dev), i,
+				dev_warn(&dev->dev, "BAR %d bad alignment %llx: "
+				       "%#016llx-%#016llx\n", i,
+				       (unsigned long long)align,
 				       (unsigned long long)r->start,
 				       (unsigned long long)r->end);
 				r->flags = 0;
@@ -529,13 +523,47 @@ void __ref pci_bus_assign_resources(struct pci_bus *bus)
 			break;
 
 		default:
-			printk(KERN_INFO "PCI: not setting up bridge %s "
-			       "for bus %d\n", pci_name(dev), b->number);
+			dev_info(&dev->dev, "not setting up bridge for bus "
+				 "%04x:%02x\n", pci_domain_nr(b), b->number);
 			break;
 		}
 	}
 }
 EXPORT_SYMBOL(pci_bus_assign_resources);
+
+static void pci_bus_dump_res(struct pci_bus *bus)
+{
+        int i;
+
+        for (i = 0; i < PCI_BUS_NUM_RESOURCES; i++) {
+                struct resource *res = bus->resource[i];
+                if (!res)
+                        continue;
+
+		printk(KERN_INFO "bus: %02x index %x %s: [%llx, %llx]\n",
+			bus->number, i,
+			(res->flags & IORESOURCE_IO) ? "io port" : "mmio",
+			(unsigned long long) res->start,
+			(unsigned long long) res->end);
+        }
+}
+
+static void pci_bus_dump_resources(struct pci_bus *bus)
+{
+	struct pci_bus *b;
+	struct pci_dev *dev;
+
+
+	pci_bus_dump_res(bus);
+
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		b = dev->subordinate;
+		if (!b)
+			continue;
+
+		pci_bus_dump_resources(b);
+	}
+}
 
 void __init
 pci_assign_unassigned_resources(void)
@@ -551,5 +579,10 @@ pci_assign_unassigned_resources(void)
 	list_for_each_entry(bus, &pci_root_buses, node) {
 		pci_bus_assign_resources(bus);
 		pci_enable_bridges(bus);
+	}
+
+	/* dump the resource on buses */
+	list_for_each_entry(bus, &pci_root_buses, node) {
+		pci_bus_dump_resources(bus);
 	}
 }

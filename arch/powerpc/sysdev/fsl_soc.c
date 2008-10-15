@@ -207,66 +207,58 @@ static int __init of_add_fixed_phys(void)
 arch_initcall(of_add_fixed_phys);
 #endif /* CONFIG_FIXED_PHY */
 
-static int __init gfar_mdio_of_init(void)
+static int gfar_mdio_of_init_one(struct device_node *np)
 {
-	struct device_node *np = NULL;
+	int k;
+	struct device_node *child = NULL;
+	struct gianfar_mdio_data mdio_data;
 	struct platform_device *mdio_dev;
 	struct resource res;
 	int ret;
 
-	np = of_find_compatible_node(np, NULL, "fsl,gianfar-mdio");
+	memset(&res, 0, sizeof(res));
+	memset(&mdio_data, 0, sizeof(mdio_data));
 
-	/* try the deprecated version */
-	if (!np)
-		np = of_find_compatible_node(np, "mdio", "gianfar");
+	ret = of_address_to_resource(np, 0, &res);
+	if (ret)
+		return ret;
 
-	if (np) {
-		int k;
-		struct device_node *child = NULL;
-		struct gianfar_mdio_data mdio_data;
+	mdio_dev = platform_device_register_simple("fsl-gianfar_mdio",
+			res.start&0xfffff, &res, 1);
+	if (IS_ERR(mdio_dev))
+		return PTR_ERR(mdio_dev);
 
-		memset(&res, 0, sizeof(res));
-		memset(&mdio_data, 0, sizeof(mdio_data));
+	for (k = 0; k < 32; k++)
+		mdio_data.irq[k] = PHY_POLL;
 
-		ret = of_address_to_resource(np, 0, &res);
-		if (ret)
-			goto err;
-
-		mdio_dev =
-		    platform_device_register_simple("fsl-gianfar_mdio",
-						    res.start, &res, 1);
-		if (IS_ERR(mdio_dev)) {
-			ret = PTR_ERR(mdio_dev);
-			goto err;
+	while ((child = of_get_next_child(np, child)) != NULL) {
+		int irq = irq_of_parse_and_map(child, 0);
+		if (irq != NO_IRQ) {
+			const u32 *id = of_get_property(child, "reg", NULL);
+			mdio_data.irq[*id] = irq;
 		}
-
-		for (k = 0; k < 32; k++)
-			mdio_data.irq[k] = PHY_POLL;
-
-		while ((child = of_get_next_child(np, child)) != NULL) {
-			int irq = irq_of_parse_and_map(child, 0);
-			if (irq != NO_IRQ) {
-				const u32 *id = of_get_property(child,
-							"reg", NULL);
-				mdio_data.irq[*id] = irq;
-			}
-		}
-
-		ret =
-		    platform_device_add_data(mdio_dev, &mdio_data,
-					     sizeof(struct gianfar_mdio_data));
-		if (ret)
-			goto unreg;
 	}
 
-	of_node_put(np);
-	return 0;
+	ret = platform_device_add_data(mdio_dev, &mdio_data,
+				sizeof(struct gianfar_mdio_data));
+	if (ret)
+		platform_device_unregister(mdio_dev);
 
-unreg:
-	platform_device_unregister(mdio_dev);
-err:
-	of_node_put(np);
 	return ret;
+}
+
+static int __init gfar_mdio_of_init(void)
+{
+	struct device_node *np = NULL;
+
+	for_each_compatible_node(np, NULL, "fsl,gianfar-mdio")
+		gfar_mdio_of_init_one(np);
+
+	/* try the deprecated version */
+	for_each_compatible_node(np, "mdio", "gianfar");
+		gfar_mdio_of_init_one(np);
+
+	return 0;
 }
 
 arch_initcall(gfar_mdio_of_init);
@@ -295,6 +287,9 @@ static int __init gfar_of_init(void)
 		const void *mac_addr;
 		const phandle *ph;
 		int n_res = 2;
+
+		if (!of_device_is_available(np))
+			continue;
 
 		memset(r, 0, sizeof(r));
 		memset(&gfar_data, 0, sizeof(gfar_data));
@@ -357,6 +352,9 @@ static int __init gfar_of_init(void)
 		else
 			gfar_data.interface = PHY_INTERFACE_MODE_MII;
 
+		if (of_get_property(np, "fsl,magic-packet", NULL))
+			gfar_data.device_flags |= FSL_GIANFAR_DEV_HAS_MAGIC_PACKET;
+
 		ph = of_get_property(np, "phy-handle", NULL);
 		if (ph == NULL) {
 			u32 *fixed_link;
@@ -390,7 +388,7 @@ static int __init gfar_of_init(void)
 
 			gfar_data.phy_id = *id;
 			snprintf(gfar_data.bus_id, MII_BUS_ID_SIZE, "%llx",
-				 (unsigned long long)res.start);
+				 (unsigned long long)res.start&0xfffff);
 
 			of_node_put(phy);
 			of_node_put(mdio);
@@ -414,128 +412,6 @@ err:
 
 arch_initcall(gfar_of_init);
 
-#ifdef CONFIG_I2C_BOARDINFO
-#include <linux/i2c.h>
-struct i2c_driver_device {
-	char	*of_device;
-	char	*i2c_type;
-};
-
-static struct i2c_driver_device i2c_devices[] __initdata = {
-	{"ricoh,rs5c372a", "rs5c372a"},
-	{"ricoh,rs5c372b", "rs5c372b"},
-	{"ricoh,rv5c386",  "rv5c386"},
-	{"ricoh,rv5c387a", "rv5c387a"},
-	{"dallas,ds1307",  "ds1307"},
-	{"dallas,ds1337",  "ds1337"},
-	{"dallas,ds1338",  "ds1338"},
-	{"dallas,ds1339",  "ds1339"},
-	{"dallas,ds1340",  "ds1340"},
-	{"stm,m41t00",     "m41t00"},
-	{"dallas,ds1374",  "ds1374"},
-};
-
-static int __init of_find_i2c_driver(struct device_node *node,
-				     struct i2c_board_info *info)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(i2c_devices); i++) {
-		if (!of_device_is_compatible(node, i2c_devices[i].of_device))
-			continue;
-		if (strlcpy(info->type, i2c_devices[i].i2c_type,
-			    I2C_NAME_SIZE) >= I2C_NAME_SIZE)
-			return -ENOMEM;
-		return 0;
-	}
-	return -ENODEV;
-}
-
-static void __init of_register_i2c_devices(struct device_node *adap_node,
-					   int bus_num)
-{
-	struct device_node *node = NULL;
-
-	while ((node = of_get_next_child(adap_node, node))) {
-		struct i2c_board_info info = {};
-		const u32 *addr;
-		int len;
-
-		addr = of_get_property(node, "reg", &len);
-		if (!addr || len < sizeof(int) || *addr > (1 << 10) - 1) {
-			printk(KERN_WARNING "fsl_soc.c: invalid i2c device entry\n");
-			continue;
-		}
-
-		info.irq = irq_of_parse_and_map(node, 0);
-		if (info.irq == NO_IRQ)
-			info.irq = -1;
-
-		if (of_find_i2c_driver(node, &info) < 0)
-			continue;
-
-		info.addr = *addr;
-
-		i2c_register_board_info(bus_num, &info, 1);
-	}
-}
-
-static int __init fsl_i2c_of_init(void)
-{
-	struct device_node *np;
-	unsigned int i = 0;
-	struct platform_device *i2c_dev;
-	int ret;
-
-	for_each_compatible_node(np, NULL, "fsl-i2c") {
-		struct resource r[2];
-		struct fsl_i2c_platform_data i2c_data;
-		const unsigned char *flags = NULL;
-
-		memset(&r, 0, sizeof(r));
-		memset(&i2c_data, 0, sizeof(i2c_data));
-
-		ret = of_address_to_resource(np, 0, &r[0]);
-		if (ret)
-			goto err;
-
-		of_irq_to_resource(np, 0, &r[1]);
-
-		i2c_dev = platform_device_register_simple("fsl-i2c", i, r, 2);
-		if (IS_ERR(i2c_dev)) {
-			ret = PTR_ERR(i2c_dev);
-			goto err;
-		}
-
-		i2c_data.device_flags = 0;
-		flags = of_get_property(np, "dfsrr", NULL);
-		if (flags)
-			i2c_data.device_flags |= FSL_I2C_DEV_SEPARATE_DFSRR;
-
-		flags = of_get_property(np, "fsl5200-clocking", NULL);
-		if (flags)
-			i2c_data.device_flags |= FSL_I2C_DEV_CLOCK_5200;
-
-		ret =
-		    platform_device_add_data(i2c_dev, &i2c_data,
-					     sizeof(struct
-						    fsl_i2c_platform_data));
-		if (ret)
-			goto unreg;
-
-		of_register_i2c_devices(np, i++);
-	}
-
-	return 0;
-
-unreg:
-	platform_device_unregister(i2c_dev);
-err:
-	return ret;
-}
-
-arch_initcall(fsl_i2c_of_init);
-#endif
 
 #ifdef CONFIG_PPC_83xx
 static int __init mpc83xx_wdt_init(void)

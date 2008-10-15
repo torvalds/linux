@@ -343,7 +343,7 @@ static enum task_disposition sas_scsi_find_task(struct sas_task *task)
 						       flags);
 				SAS_DPRINTK("%s: task 0x%p aborted from "
 					    "task_queue\n",
-					    __FUNCTION__, task);
+					    __func__, task);
 				return TASK_IS_ABORTED;
 			}
 		}
@@ -351,13 +351,13 @@ static enum task_disposition sas_scsi_find_task(struct sas_task *task)
 	}
 
 	for (i = 0; i < 5; i++) {
-		SAS_DPRINTK("%s: aborting task 0x%p\n", __FUNCTION__, task);
+		SAS_DPRINTK("%s: aborting task 0x%p\n", __func__, task);
 		res = si->dft->lldd_abort_task(task);
 
 		spin_lock_irqsave(&task->task_state_lock, flags);
 		if (task->task_state_flags & SAS_TASK_STATE_DONE) {
 			spin_unlock_irqrestore(&task->task_state_lock, flags);
-			SAS_DPRINTK("%s: task 0x%p is done\n", __FUNCTION__,
+			SAS_DPRINTK("%s: task 0x%p is done\n", __func__,
 				    task);
 			return TASK_IS_DONE;
 		}
@@ -365,24 +365,24 @@ static enum task_disposition sas_scsi_find_task(struct sas_task *task)
 
 		if (res == TMF_RESP_FUNC_COMPLETE) {
 			SAS_DPRINTK("%s: task 0x%p is aborted\n",
-				    __FUNCTION__, task);
+				    __func__, task);
 			return TASK_IS_ABORTED;
 		} else if (si->dft->lldd_query_task) {
 			SAS_DPRINTK("%s: querying task 0x%p\n",
-				    __FUNCTION__, task);
+				    __func__, task);
 			res = si->dft->lldd_query_task(task);
 			switch (res) {
 			case TMF_RESP_FUNC_SUCC:
 				SAS_DPRINTK("%s: task 0x%p at LU\n",
-					    __FUNCTION__, task);
+					    __func__, task);
 				return TASK_IS_AT_LU;
 			case TMF_RESP_FUNC_COMPLETE:
 				SAS_DPRINTK("%s: task 0x%p not at LU\n",
-					    __FUNCTION__, task);
+					    __func__, task);
 				return TASK_IS_NOT_AT_LU;
 			case TMF_RESP_FUNC_FAILED:
                                 SAS_DPRINTK("%s: task 0x%p failed to abort\n",
-                                                __FUNCTION__, task);
+                                                __func__, task);
                                 return TASK_ABORT_FAILED;
                         }
 
@@ -545,7 +545,7 @@ Again:
 
 		if (need_reset) {
 			SAS_DPRINTK("%s: task 0x%p requests reset\n",
-				    __FUNCTION__, task);
+				    __func__, task);
 			goto reset;
 		}
 
@@ -556,13 +556,13 @@ Again:
 
 		switch (res) {
 		case TASK_IS_DONE:
-			SAS_DPRINTK("%s: task 0x%p is done\n", __FUNCTION__,
+			SAS_DPRINTK("%s: task 0x%p is done\n", __func__,
 				    task);
 			sas_eh_finish_cmd(cmd);
 			continue;
 		case TASK_IS_ABORTED:
 			SAS_DPRINTK("%s: task 0x%p is aborted\n",
-				    __FUNCTION__, task);
+				    __func__, task);
 			sas_eh_finish_cmd(cmd);
 			continue;
 		case TASK_IS_AT_LU:
@@ -633,7 +633,7 @@ Again:
 	}
 	return list_empty(work_q);
 clear_q:
-	SAS_DPRINTK("--- Exit %s -- clear_q\n", __FUNCTION__);
+	SAS_DPRINTK("--- Exit %s -- clear_q\n", __func__);
 	list_for_each_entry_safe(cmd, n, work_q, eh_entry)
 		sas_eh_finish_cmd(cmd);
 
@@ -650,7 +650,7 @@ void sas_scsi_recover_host(struct Scsi_Host *shost)
 	list_splice_init(&shost->eh_cmd_q, &eh_work_q);
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
-	SAS_DPRINTK("Enter %s\n", __FUNCTION__);
+	SAS_DPRINTK("Enter %s\n", __func__);
 	/*
 	 * Deal with commands that still have SAS tasks (i.e. they didn't
 	 * complete via the normal sas_task completion mechanism)
@@ -669,47 +669,47 @@ void sas_scsi_recover_host(struct Scsi_Host *shost)
 
 out:
 	scsi_eh_flush_done_q(&ha->eh_done_q);
-	SAS_DPRINTK("--- Exit %s\n", __FUNCTION__);
+	SAS_DPRINTK("--- Exit %s\n", __func__);
 	return;
 }
 
-enum scsi_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *cmd)
+enum blk_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *cmd)
 {
 	struct sas_task *task = TO_SAS_TASK(cmd);
 	unsigned long flags;
 
 	if (!task) {
-		cmd->timeout_per_command /= 2;
+		cmd->request->timeout /= 2;
 		SAS_DPRINTK("command 0x%p, task 0x%p, gone: %s\n",
-			    cmd, task, (cmd->timeout_per_command ?
-			    "EH_RESET_TIMER" : "EH_NOT_HANDLED"));
-		if (!cmd->timeout_per_command)
-			return EH_NOT_HANDLED;
-		return EH_RESET_TIMER;
+			    cmd, task, (cmd->request->timeout ?
+			    "BLK_EH_RESET_TIMER" : "BLK_EH_NOT_HANDLED"));
+		if (!cmd->request->timeout)
+			return BLK_EH_NOT_HANDLED;
+		return BLK_EH_RESET_TIMER;
 	}
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
 	BUG_ON(task->task_state_flags & SAS_TASK_STATE_ABORTED);
 	if (task->task_state_flags & SAS_TASK_STATE_DONE) {
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
-		SAS_DPRINTK("command 0x%p, task 0x%p, timed out: EH_HANDLED\n",
-			    cmd, task);
-		return EH_HANDLED;
+		SAS_DPRINTK("command 0x%p, task 0x%p, timed out: "
+			    "BLK_EH_HANDLED\n", cmd, task);
+		return BLK_EH_HANDLED;
 	}
 	if (!(task->task_state_flags & SAS_TASK_AT_INITIATOR)) {
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
 		SAS_DPRINTK("command 0x%p, task 0x%p, not at initiator: "
-			    "EH_RESET_TIMER\n",
+			    "BLK_EH_RESET_TIMER\n",
 			    cmd, task);
-		return EH_RESET_TIMER;
+		return BLK_EH_RESET_TIMER;
 	}
 	task->task_state_flags |= SAS_TASK_STATE_ABORTED;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
-	SAS_DPRINTK("command 0x%p, task 0x%p, timed out: EH_NOT_HANDLED\n",
+	SAS_DPRINTK("command 0x%p, task 0x%p, timed out: BLK_EH_NOT_HANDLED\n",
 		    cmd, task);
 
-	return EH_NOT_HANDLED;
+	return BLK_EH_NOT_HANDLED;
 }
 
 int sas_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
@@ -990,7 +990,7 @@ int __sas_task_abort(struct sas_task *task)
 	if (task->task_state_flags & SAS_TASK_STATE_ABORTED ||
 	    task->task_state_flags & SAS_TASK_STATE_DONE) {
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
-		SAS_DPRINTK("%s: Task %p already finished.\n", __FUNCTION__,
+		SAS_DPRINTK("%s: Task %p already finished.\n", __func__,
 			    task);
 		return 0;
 	}
@@ -1039,7 +1039,7 @@ void sas_task_abort(struct sas_task *task)
 		return;
 	}
 
-	scsi_req_abort_cmd(sc);
+	blk_abort_request(sc->request);
 	scsi_schedule_eh(sc->device->host);
 }
 

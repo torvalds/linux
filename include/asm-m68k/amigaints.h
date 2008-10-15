@@ -98,6 +98,8 @@
 #define CIA_ICR_ALL	0x1f
 #define CIA_ICR_SETCLR	0x80
 
+extern void amiga_init_IRQ(void);
+
 /* to access the interrupt control registers of CIA's use only
 ** these functions, they behave exactly like the amiga os routines
 */

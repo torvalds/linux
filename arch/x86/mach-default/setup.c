@@ -10,13 +10,15 @@
 #include <asm/e820.h>
 #include <asm/setup.h>
 
+#include <mach_ipi.h>
+
 #ifdef CONFIG_HOTPLUG_CPU
 #define DEFAULT_SEND_IPI	(1)
 #else
 #define DEFAULT_SEND_IPI	(0)
 #endif
 
-int no_broadcast=DEFAULT_SEND_IPI;
+int no_broadcast = DEFAULT_SEND_IPI;
 
 /**
  * pre_intr_init_hook - initialisation prior to setting up interrupt vectors
@@ -29,17 +31,12 @@ int no_broadcast=DEFAULT_SEND_IPI;
  **/
 void __init pre_intr_init_hook(void)
 {
+	if (x86_quirks->arch_pre_intr_init) {
+		if (x86_quirks->arch_pre_intr_init())
+			return;
+	}
 	init_ISA_irqs();
 }
-
-/*
- * IRQ2 is cascade interrupt to second interrupt controller
- */
-static struct irqaction irq2 = {
-	.handler = no_action,
-	.mask = CPU_MASK_NONE,
-	.name = "cascade",
-};
 
 /**
  * intr_init_hook - post gate setup interrupt initialisation
@@ -52,12 +49,10 @@ static struct irqaction irq2 = {
  **/
 void __init intr_init_hook(void)
 {
-#ifdef CONFIG_X86_LOCAL_APIC
-	apic_intr_init();
-#endif
-
-	if (!acpi_ioapic)
-		setup_irq(2, &irq2);
+	if (x86_quirks->arch_intr_init) {
+		if (x86_quirks->arch_intr_init())
+			return;
+	}
 }
 
 /**
@@ -65,7 +60,7 @@ void __init intr_init_hook(void)
  *
  * Description:
  *	generally used to activate any machine specific identification
- *	routines that may be needed before setup_arch() runs.  On VISWS
+ *	routines that may be needed before setup_arch() runs.  On Voyager
  *	this is used to get the board revision and type.
  **/
 void __init pre_setup_arch_hook(void)
@@ -81,6 +76,10 @@ void __init pre_setup_arch_hook(void)
  **/
 void __init trap_init_hook(void)
 {
+	if (x86_quirks->arch_trap_init) {
+		if (x86_quirks->arch_trap_init())
+			return;
+	}
 }
 
 static struct irqaction irq0  = {
@@ -91,6 +90,16 @@ static struct irqaction irq0  = {
 };
 
 /**
+ * pre_time_init_hook - do any specific initialisations before.
+ *
+ **/
+void __init pre_time_init_hook(void)
+{
+	if (x86_quirks->arch_pre_time_init)
+		x86_quirks->arch_pre_time_init();
+}
+
+/**
  * time_init_hook - do any specific initialisations for the system timer.
  *
  * Description:
@@ -99,6 +108,16 @@ static struct irqaction irq0  = {
  **/
 void __init time_init_hook(void)
 {
+	if (x86_quirks->arch_time_init) {
+		/*
+		 * A nonzero return code does not mean failure, it means
+		 * that the architecture quirk does not want any
+		 * generic (timer) setup to be performed after this:
+		 */
+		if (x86_quirks->arch_time_init())
+			return;
+	}
+
 	irq0.mask = cpumask_of_cpu(0);
 	setup_irq(0, &irq0);
 }
@@ -142,45 +161,3 @@ static int __init print_ipi_mode(void)
 
 late_initcall(print_ipi_mode);
 
-/**
- * machine_specific_memory_setup - Hook for machine specific memory setup.
- *
- * Description:
- *	This is included late in kernel/setup.c so that it can make
- *	use of all of the static functions.
- **/
-
-char * __init machine_specific_memory_setup(void)
-{
-	char *who;
-
-
-	who = "BIOS-e820";
-
-	/*
-	 * Try to copy the BIOS-supplied E820-map.
-	 *
-	 * Otherwise fake a memory map; one section from 0k->640k,
-	 * the next section from 1mb->appropriate_mem_k
-	 */
-	sanitize_e820_map(boot_params.e820_map, &boot_params.e820_entries);
-	if (copy_e820_map(boot_params.e820_map, boot_params.e820_entries)
-	    < 0) {
-		unsigned long mem_size;
-
-		/* compare results from other methods and take the greater */
-		if (boot_params.alt_mem_k
-		    < boot_params.screen_info.ext_mem_k) {
-			mem_size = boot_params.screen_info.ext_mem_k;
-			who = "BIOS-88";
-		} else {
-			mem_size = boot_params.alt_mem_k;
-			who = "BIOS-e801";
-		}
-
-		e820.nr_map = 0;
-		add_memory_region(0, LOWMEMSIZE(), E820_RAM);
-		add_memory_region(HIGH_MEMORY, mem_size << 10, E820_RAM);
-  	}
-	return who;
-}

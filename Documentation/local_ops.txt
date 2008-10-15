@@ -36,7 +36,7 @@ It can be done by slightly modifying the standard atomic operations : only
 their UP variant must be kept. It typically means removing LOCK prefix (on
 i386 and x86_64) and any SMP sychronization barrier. If the architecture does
 not have a different behavior between SMP and UP, including asm-generic/local.h
-in your archtecture's local.h is sufficient.
+in your architecture's local.h is sufficient.
 
 The local_t type is defined as an opaque signed long by embedding an
 atomic_long_t inside a structure. This is made so a cast from this type to a

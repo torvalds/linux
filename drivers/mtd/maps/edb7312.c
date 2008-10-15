@@ -1,6 +1,4 @@
 /*
- * $Id: edb7312.c,v 1.14 2005/11/07 11:14:27 gleixner Exp $
- *
  * Handle mapping of the NOR flash on Cogent EDB7312 boards
  *
  * Copyright 2002 SYSGO Real-Time Solutions GmbH

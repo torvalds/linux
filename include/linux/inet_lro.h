@@ -84,7 +84,11 @@ struct net_lro_mgr {
 				    from received packets and eth protocol
 				    is still ETH_P_8021Q */
 
-	u32 ip_summed;      /* Set in non generated SKBs in page mode */
+	/*
+	 * Set for generated SKBs that are not added to
+	 * the frag list in fragmented mode
+	 */
+	u32 ip_summed;
 	u32 ip_summed_aggr; /* Set in aggregated SKBs: CHECKSUM_UNNECESSARY
 			     * or CHECKSUM_NONE */
 

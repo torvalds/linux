@@ -1754,29 +1754,34 @@ lpfc_cancel_retry_delay_tmo(struct lpfc_vport *vport, struct lpfc_nodelist *nlp)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_work_evt *evtp;
 
+	if (!(nlp->nlp_flag & NLP_DELAY_TMO))
+		return;
 	spin_lock_irq(shost->host_lock);
 	nlp->nlp_flag &= ~NLP_DELAY_TMO;
 	spin_unlock_irq(shost->host_lock);
 	del_timer_sync(&nlp->nlp_delayfunc);
 	nlp->nlp_last_elscmd = 0;
-
 	if (!list_empty(&nlp->els_retry_evt.evt_listp)) {
 		list_del_init(&nlp->els_retry_evt.evt_listp);
 		/* Decrement nlp reference count held for the delayed retry */
 		evtp = &nlp->els_retry_evt;
 		lpfc_nlp_put((struct lpfc_nodelist *)evtp->evt_arg1);
 	}
-
 	if (nlp->nlp_flag & NLP_NPR_2B_DISC) {
 		spin_lock_irq(shost->host_lock);
 		nlp->nlp_flag &= ~NLP_NPR_2B_DISC;
 		spin_unlock_irq(shost->host_lock);
 		if (vport->num_disc_nodes) {
-			/* Check to see if there are more
-			 * PLOGIs to be sent
-			 */
-			lpfc_more_plogi(vport);
-
+			if (vport->port_state < LPFC_VPORT_READY) {
+				/* Check if there are more ADISCs to be sent */
+				lpfc_more_adisc(vport);
+				if ((vport->num_disc_nodes == 0) &&
+				    (vport->fc_npr_cnt))
+					lpfc_els_disc_plogi(vport);
+			} else {
+				/* Check if there are more PLOGIs to be sent */
+				lpfc_more_plogi(vport);
+			}
 			if (vport->num_disc_nodes == 0) {
 				spin_lock_irq(shost->host_lock);
 				vport->fc_flag &= ~FC_NDISC_ACTIVE;
@@ -1798,10 +1803,6 @@ lpfc_els_retry_delay(unsigned long ptr)
 	unsigned long flags;
 	struct lpfc_work_evt  *evtp = &ndlp->els_retry_evt;
 
-	ndlp = (struct lpfc_nodelist *) ptr;
-	phba = ndlp->vport->phba;
-	evtp = &ndlp->els_retry_evt;
-
 	spin_lock_irqsave(&phba->hbalock, flags);
 	if (!list_empty(&evtp->evt_listp)) {
 		spin_unlock_irqrestore(&phba->hbalock, flags);
@@ -1812,11 +1813,11 @@ lpfc_els_retry_delay(unsigned long ptr)
 	 * count until the queued work is done
 	 */
 	evtp->evt_arg1  = lpfc_nlp_get(ndlp);
-	evtp->evt       = LPFC_EVT_ELS_RETRY;
-	list_add_tail(&evtp->evt_listp, &phba->work_list);
-	if (phba->work_wait)
+	if (evtp->evt_arg1) {
+		evtp->evt = LPFC_EVT_ELS_RETRY;
+		list_add_tail(&evtp->evt_listp, &phba->work_list);
 		lpfc_worker_wake_up(phba);
-
+	}
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 	return;
 }
@@ -2761,10 +2762,11 @@ lpfc_els_rsp_prli_acc(struct lpfc_vport *vport, struct lpfc_iocbq *oldiocb,
 	npr = (PRLI *) pcmd;
 	vpd = &phba->vpd;
 	/*
-	 * If our firmware version is 3.20 or later,
-	 * set the following bits for FC-TAPE support.
+	 * If the remote port is a target and our firmware version is 3.20 or
+	 * later, set the following bits for FC-TAPE support.
 	 */
-	if (vpd->rev.feaLevelHigh >= 0x02) {
+	if ((ndlp->nlp_type & NLP_FCP_TARGET) &&
+	    (vpd->rev.feaLevelHigh >= 0x02)) {
 		npr->ConfmComplAllowed = 1;
 		npr->Retry = 1;
 		npr->TaskRetryIdReq = 1;
@@ -3056,27 +3058,16 @@ lpfc_rscn_recovery_check(struct lpfc_vport *vport)
 {
 	struct lpfc_nodelist *ndlp = NULL;
 
-	/* Look at all nodes effected by pending RSCNs and move
-	 * them to NPR state.
-	 */
-
+	/* Move all affected nodes by pending RSCNs to NPR state. */
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
 		if (!NLP_CHK_NODE_ACT(ndlp) ||
-		    ndlp->nlp_state == NLP_STE_UNUSED_NODE ||
-		    lpfc_rscn_payload_check(vport, ndlp->nlp_DID) == 0)
+		    (ndlp->nlp_state == NLP_STE_UNUSED_NODE) ||
+		    !lpfc_rscn_payload_check(vport, ndlp->nlp_DID))
 			continue;
-
 		lpfc_disc_state_machine(vport, ndlp, NULL,
-						NLP_EVT_DEVICE_RECOVERY);
-
-		/*
-		 * Make sure NLP_DELAY_TMO is NOT running after a device
-		 * recovery event.
-		 */
-		if (ndlp->nlp_flag & NLP_DELAY_TMO)
-			lpfc_cancel_retry_delay_tmo(vport, ndlp);
+					NLP_EVT_DEVICE_RECOVERY);
+		lpfc_cancel_retry_delay_tmo(vport, ndlp);
 	}
-
 	return 0;
 }
 
@@ -3781,91 +3772,27 @@ static int
 lpfc_els_rcv_fan(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		 struct lpfc_nodelist *fan_ndlp)
 {
-	struct lpfc_dmabuf *pcmd;
-	uint32_t *lp;
-	IOCB_t *icmd;
-	uint32_t cmd, did;
-	FAN *fp;
-	struct lpfc_nodelist *ndlp, *next_ndlp;
 	struct lpfc_hba *phba = vport->phba;
+	uint32_t *lp;
+	FAN *fp;
 
-	/* FAN received */
-	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-			 "0265 FAN received\n");
-	icmd = &cmdiocb->iocb;
-	did = icmd->un.elsreq64.remoteID;
-	pcmd = (struct lpfc_dmabuf *)cmdiocb->context2;
-	lp = (uint32_t *)pcmd->virt;
-
-	cmd = *lp++;
-	fp = (FAN *) lp;
-
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS, "0265 FAN received\n");
+	lp = (uint32_t *)((struct lpfc_dmabuf *)cmdiocb->context2)->virt;
+	fp = (FAN *) ++lp;
 	/* FAN received; Fan does not have a reply sequence */
-
-	if (phba->pport->port_state == LPFC_LOCAL_CFG_LINK) {
+	if ((vport == phba->pport) &&
+	    (vport->port_state == LPFC_LOCAL_CFG_LINK)) {
 		if ((memcmp(&phba->fc_fabparam.nodeName, &fp->FnodeName,
-			sizeof(struct lpfc_name)) != 0) ||
+			    sizeof(struct lpfc_name))) ||
 		    (memcmp(&phba->fc_fabparam.portName, &fp->FportName,
-			sizeof(struct lpfc_name)) != 0)) {
-			/*
-			 * This node has switched fabrics.  FLOGI is required
-			 * Clean up the old rpi's
-			 */
-
-			list_for_each_entry_safe(ndlp, next_ndlp,
-						 &vport->fc_nodes, nlp_listp) {
-				if (!NLP_CHK_NODE_ACT(ndlp))
-					continue;
-				if (ndlp->nlp_state != NLP_STE_NPR_NODE)
-					continue;
-				if (ndlp->nlp_type & NLP_FABRIC) {
-					/*
-					 * Clean up old Fabric, Nameserver and
-					 * other NLP_FABRIC logins
-					 */
-					lpfc_drop_node(vport, ndlp);
-
-				} else if (!(ndlp->nlp_flag & NLP_NPR_ADISC)) {
-					/* Fail outstanding I/O now since this
-					 * device is marked for PLOGI
-					 */
-					lpfc_unreg_rpi(vport, ndlp);
-				}
-			}
-
+			    sizeof(struct lpfc_name)))) {
+			/* This port has switched fabrics. FLOGI is required */
 			lpfc_initial_flogi(vport);
-			return 0;
+		} else {
+			/* FAN verified - skip FLOGI */
+			vport->fc_myDID = vport->fc_prevDID;
+			lpfc_issue_fabric_reglogin(vport);
 		}
-		/* Discovery not needed,
-		 * move the nodes to their original state.
-		 */
-		list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes,
-					 nlp_listp) {
-			if (!NLP_CHK_NODE_ACT(ndlp))
-				continue;
-			if (ndlp->nlp_state != NLP_STE_NPR_NODE)
-				continue;
-
-			switch (ndlp->nlp_prev_state) {
-			case NLP_STE_UNMAPPED_NODE:
-				ndlp->nlp_prev_state = NLP_STE_NPR_NODE;
-				lpfc_nlp_set_state(vport, ndlp,
-						   NLP_STE_UNMAPPED_NODE);
-				break;
-
-			case NLP_STE_MAPPED_NODE:
-				ndlp->nlp_prev_state = NLP_STE_NPR_NODE;
-				lpfc_nlp_set_state(vport, ndlp,
-						   NLP_STE_MAPPED_NODE);
-				break;
-
-			default:
-				break;
-			}
-		}
-
-		/* Start discovery - this should just do CLEAR_LA */
-		lpfc_disc_start(vport);
 	}
 	return 0;
 }
@@ -3875,20 +3802,17 @@ lpfc_els_timeout(unsigned long ptr)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *) ptr;
 	struct lpfc_hba   *phba = vport->phba;
+	uint32_t tmo_posted;
 	unsigned long iflag;
 
 	spin_lock_irqsave(&vport->work_port_lock, iflag);
-	if ((vport->work_port_events & WORKER_ELS_TMO) == 0) {
+	tmo_posted = vport->work_port_events & WORKER_ELS_TMO;
+	if (!tmo_posted)
 		vport->work_port_events |= WORKER_ELS_TMO;
-		spin_unlock_irqrestore(&vport->work_port_lock, iflag);
+	spin_unlock_irqrestore(&vport->work_port_lock, iflag);
 
-		spin_lock_irqsave(&phba->hbalock, iflag);
-		if (phba->work_wait)
-			lpfc_worker_wake_up(phba);
-		spin_unlock_irqrestore(&phba->hbalock, iflag);
-	}
-	else
-		spin_unlock_irqrestore(&vport->work_port_lock, iflag);
+	if (!tmo_posted)
+		lpfc_worker_wake_up(phba);
 	return;
 }
 
@@ -3931,9 +3855,6 @@ lpfc_els_timeout_handler(struct lpfc_vport *vport)
 		if (els_command == ELS_CMD_FARP ||
 		    els_command == ELS_CMD_FARPR ||
 		    els_command == ELS_CMD_FDISC)
-			continue;
-
-		if (vport != piocb->vport)
 			continue;
 
 		if (piocb->drvrTimeout > 0) {
@@ -4089,7 +4010,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	payload = ((struct lpfc_dmabuf *)elsiocb->context2)->virt;
 	cmd = *payload;
 	if ((phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) == 0)
-		lpfc_post_buffer(phba, pring, 1, 1);
+		lpfc_post_buffer(phba, pring, 1);
 
 	did = icmd->un.rcvels.remoteID;
 	if (icmd->ulpStatus) {
@@ -4398,7 +4319,7 @@ lpfc_els_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		phba->fc_stat.NoRcvBuf++;
 		/* Not enough posted buffers; Try posting more buffers */
 		if (!(phba->sli3_options & LPFC_SLI3_HBQ_ENABLED))
-			lpfc_post_buffer(phba, pring, 0, 1);
+			lpfc_post_buffer(phba, pring, 0);
 		return;
 	}
 
@@ -4842,18 +4763,16 @@ lpfc_fabric_block_timeout(unsigned long ptr)
 	struct lpfc_hba  *phba = (struct lpfc_hba *) ptr;
 	unsigned long iflags;
 	uint32_t tmo_posted;
+
 	spin_lock_irqsave(&phba->pport->work_port_lock, iflags);
 	tmo_posted = phba->pport->work_port_events & WORKER_FABRIC_BLOCK_TMO;
 	if (!tmo_posted)
 		phba->pport->work_port_events |= WORKER_FABRIC_BLOCK_TMO;
 	spin_unlock_irqrestore(&phba->pport->work_port_lock, iflags);
 
-	if (!tmo_posted) {
-		spin_lock_irqsave(&phba->hbalock, iflags);
-		if (phba->work_wait)
-			lpfc_worker_wake_up(phba);
-		spin_unlock_irqrestore(&phba->hbalock, iflags);
-	}
+	if (!tmo_posted)
+		lpfc_worker_wake_up(phba);
+	return;
 }
 
 static void

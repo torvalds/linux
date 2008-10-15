@@ -19,13 +19,13 @@
 #include <linux/init.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
-#include <asm/arch/fb.h>
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <mach/fb.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 
 #include <asm/plat-s3c/regs-serial.h>
@@ -494,106 +494,6 @@ struct platform_device s3c_device_spi1 = {
 };
 
 EXPORT_SYMBOL(s3c_device_spi1);
-
-/* pwm timer blocks */
-
-static struct resource s3c_timer0_resource[] = {
-	[0] = {
-		.start = S3C24XX_PA_TIMER + 0x0C,
-		.end   = S3C24XX_PA_TIMER + 0x0C + 0xB,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_TIMER0,
-		.end   = IRQ_TIMER0,
-		.flags = IORESOURCE_IRQ,
-	}
-
-};
-
-struct platform_device s3c_device_timer0 = {
-	.name		  = "s3c2410-timer",
-	.id		  = 0,
-	.num_resources	  = ARRAY_SIZE(s3c_timer0_resource),
-	.resource	  = s3c_timer0_resource,
-};
-
-EXPORT_SYMBOL(s3c_device_timer0);
-
-/* timer 1 */
-
-static struct resource s3c_timer1_resource[] = {
-	[0] = {
-		.start = S3C24XX_PA_TIMER + 0x18,
-		.end   = S3C24XX_PA_TIMER + 0x23,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_TIMER1,
-		.end   = IRQ_TIMER1,
-		.flags = IORESOURCE_IRQ,
-	}
-
-};
-
-struct platform_device s3c_device_timer1 = {
-	.name		  = "s3c2410-timer",
-	.id		  = 1,
-	.num_resources	  = ARRAY_SIZE(s3c_timer1_resource),
-	.resource	  = s3c_timer1_resource,
-};
-
-EXPORT_SYMBOL(s3c_device_timer1);
-
-/* timer 2 */
-
-static struct resource s3c_timer2_resource[] = {
-	[0] = {
-		.start = S3C24XX_PA_TIMER + 0x24,
-		.end   = S3C24XX_PA_TIMER + 0x2F,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_TIMER2,
-		.end   = IRQ_TIMER2,
-		.flags = IORESOURCE_IRQ,
-	}
-
-};
-
-struct platform_device s3c_device_timer2 = {
-	.name		  = "s3c2410-timer",
-	.id		  = 2,
-	.num_resources	  = ARRAY_SIZE(s3c_timer2_resource),
-	.resource	  = s3c_timer2_resource,
-};
-
-EXPORT_SYMBOL(s3c_device_timer2);
-
-/* timer 3 */
-
-static struct resource s3c_timer3_resource[] = {
-	[0] = {
-		.start = S3C24XX_PA_TIMER + 0x30,
-		.end   = S3C24XX_PA_TIMER + 0x3B,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_TIMER3,
-		.end   = IRQ_TIMER3,
-		.flags = IORESOURCE_IRQ,
-	}
-
-};
-
-struct platform_device s3c_device_timer3 = {
-	.name		  = "s3c2410-timer",
-	.id		  = 3,
-	.num_resources	  = ARRAY_SIZE(s3c_timer3_resource),
-	.resource	  = s3c_timer3_resource,
-};
-
-EXPORT_SYMBOL(s3c_device_timer3);
 
 #ifdef CONFIG_CPU_S3C2440
 

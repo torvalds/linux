@@ -40,12 +40,9 @@ Detection
 ---------
 
 There is no method known to detect whether a chip on a given I2C address is
-a PCF8575 or whether it is any other I2C device. So there are two alternatives
-to let the driver find the installed PCF8575 devices:
-- Load this driver after any other I2C driver for I2C devices with addresses
-  in the range 0x20 .. 0x27.
-- Pass the I2C bus and address of the installed PCF8575 devices explicitly to
-  the driver at load time via the probe=... or force=... parameters.
+a PCF8575 or whether it is any other I2C device, so you have to pass the I2C
+bus and address of the installed PCF8575 devices explicitly to the driver at
+load time via the force=... parameter.
 
 /sys interface
 --------------

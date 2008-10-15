@@ -1093,9 +1093,9 @@ out:
  * @bytes_to_verify: total bytes to verify
  */
 int asd_verify_flash_seg(struct asd_ha_struct *asd_ha,
-		void *src, u32 dest_offset, u32 bytes_to_verify)
+			 const void *src, u32 dest_offset, u32 bytes_to_verify)
 {
-	u8 *src_buf;
+	const u8 *src_buf;
 	u8 flash_char;
 	int err;
 	u32 nv_offset, reg, i;
@@ -1105,7 +1105,7 @@ int asd_verify_flash_seg(struct asd_ha_struct *asd_ha,
 
 	err = FLASH_OK;
 	nv_offset = dest_offset;
-	src_buf = (u8 *)src;
+	src_buf = (const u8 *)src;
 	for (i = 0; i < bytes_to_verify; i++) {
 		flash_char = asd_read_reg_byte(asd_ha, reg + nv_offset + i);
 		if (flash_char != src_buf[i]) {
@@ -1124,9 +1124,9 @@ int asd_verify_flash_seg(struct asd_ha_struct *asd_ha,
  * @bytes_to_write: total bytes to write
  */
 int asd_write_flash_seg(struct asd_ha_struct *asd_ha,
-		void *src, u32 dest_offset, u32 bytes_to_write)
+			const void *src, u32 dest_offset, u32 bytes_to_write)
 {
-	u8 *src_buf;
+	const u8 *src_buf;
 	u32 nv_offset, reg, i;
 	int err;
 
@@ -1153,7 +1153,7 @@ int asd_write_flash_seg(struct asd_ha_struct *asd_ha,
 		return err;
 	}
 
-	src_buf = (u8 *)src;
+	src_buf = (const u8 *)src;
 	for (i = 0; i < bytes_to_write; i++) {
 		/* Setup program command sequence */
 		switch (asd_ha->hw_prof.flash.method) {

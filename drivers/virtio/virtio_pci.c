@@ -94,12 +94,17 @@ static u32 vp_get_features(struct virtio_device *vdev)
 	return ioread32(vp_dev->ioaddr + VIRTIO_PCI_HOST_FEATURES);
 }
 
-/* virtio config->set_features() implementation */
-static void vp_set_features(struct virtio_device *vdev, u32 features)
+/* virtio config->finalize_features() implementation */
+static void vp_finalize_features(struct virtio_device *vdev)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 
-	iowrite32(features, vp_dev->ioaddr + VIRTIO_PCI_GUEST_FEATURES);
+	/* Give virtio_ring a chance to accept features. */
+	vring_transport_features(vdev);
+
+	/* We only support 32 feature bits. */
+	BUILD_BUG_ON(ARRAY_SIZE(vdev->features) != 1);
+	iowrite32(vdev->features[0], vp_dev->ioaddr+VIRTIO_PCI_GUEST_FEATURES);
 }
 
 /* virtio config->get() implementation */
@@ -297,7 +302,7 @@ static struct virtio_config_ops virtio_pci_config_ops = {
 	.find_vq	= vp_find_vq,
 	.del_vq		= vp_del_vq,
 	.get_features	= vp_get_features,
-	.set_features	= vp_set_features,
+	.finalize_features = vp_finalize_features,
 };
 
 /* the PCI probing function */

@@ -292,69 +292,135 @@ static int acpi_power_off_device(acpi_handle handle, struct acpi_device *dev)
 	return 0;
 }
 
+/**
+ * acpi_device_sleep_wake - execute _DSW (Device Sleep Wake) or (deprecated in
+ *                          ACPI 3.0) _PSW (Power State Wake)
+ * @dev: Device to handle.
+ * @enable: 0 - disable, 1 - enable the wake capabilities of the device.
+ * @sleep_state: Target sleep state of the system.
+ * @dev_state: Target power state of the device.
+ *
+ * Execute _DSW (Device Sleep Wake) or (deprecated in ACPI 3.0) _PSW (Power
+ * State Wake) for the device, if present.  On failure reset the device's
+ * wakeup.flags.valid flag.
+ *
+ * RETURN VALUE:
+ * 0 if either _DSW or _PSW has been successfully executed
+ * 0 if neither _DSW nor _PSW has been found
+ * -ENODEV if the execution of either _DSW or _PSW has failed
+ */
+int acpi_device_sleep_wake(struct acpi_device *dev,
+                           int enable, int sleep_state, int dev_state)
+{
+	union acpi_object in_arg[3];
+	struct acpi_object_list arg_list = { 3, in_arg };
+	acpi_status status = AE_OK;
+
+	/*
+	 * Try to execute _DSW first.
+	 *
+	 * Three agruments are needed for the _DSW object:
+	 * Argument 0: enable/disable the wake capabilities
+	 * Argument 1: target system state
+	 * Argument 2: target device state
+	 * When _DSW object is called to disable the wake capabilities, maybe
+	 * the first argument is filled. The values of the other two agruments
+	 * are meaningless.
+	 */
+	in_arg[0].type = ACPI_TYPE_INTEGER;
+	in_arg[0].integer.value = enable;
+	in_arg[1].type = ACPI_TYPE_INTEGER;
+	in_arg[1].integer.value = sleep_state;
+	in_arg[2].type = ACPI_TYPE_INTEGER;
+	in_arg[2].integer.value = dev_state;
+	status = acpi_evaluate_object(dev->handle, "_DSW", &arg_list, NULL);
+	if (ACPI_SUCCESS(status)) {
+		return 0;
+	} else if (status != AE_NOT_FOUND) {
+		printk(KERN_ERR PREFIX "_DSW execution failed\n");
+		dev->wakeup.flags.valid = 0;
+		return -ENODEV;
+	}
+
+	/* Execute _PSW */
+	arg_list.count = 1;
+	in_arg[0].integer.value = enable;
+	status = acpi_evaluate_object(dev->handle, "_PSW", &arg_list, NULL);
+	if (ACPI_FAILURE(status) && (status != AE_NOT_FOUND)) {
+		printk(KERN_ERR PREFIX "_PSW execution failed\n");
+		dev->wakeup.flags.valid = 0;
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 /*
  * Prepare a wakeup device, two steps (Ref ACPI 2.0:P229):
  * 1. Power on the power resources required for the wakeup device 
- * 2. Enable _PSW (power state wake) for the device if present
+ * 2. Execute _DSW (Device Sleep Wake) or (deprecated in ACPI 3.0) _PSW (Power
+ *    State Wake) for the device, if present
  */
-int acpi_enable_wakeup_device_power(struct acpi_device *dev)
+int acpi_enable_wakeup_device_power(struct acpi_device *dev, int sleep_state)
 {
-	union acpi_object arg = { ACPI_TYPE_INTEGER };
-	struct acpi_object_list arg_list = { 1, &arg };
-	acpi_status status = AE_OK;
-	int i;
-	int ret = 0;
+	int i, err;
 
 	if (!dev || !dev->wakeup.flags.valid)
-		return -1;
+		return -EINVAL;
 
-	arg.integer.value = 1;
+	/*
+	 * Do not execute the code below twice in a row without calling
+	 * acpi_disable_wakeup_device_power() in between for the same device
+	 */
+	if (dev->wakeup.flags.prepared)
+		return 0;
+
 	/* Open power resource */
 	for (i = 0; i < dev->wakeup.resources.count; i++) {
-		ret = acpi_power_on(dev->wakeup.resources.handles[i], dev);
+		int ret = acpi_power_on(dev->wakeup.resources.handles[i], dev);
 		if (ret) {
 			printk(KERN_ERR PREFIX "Transition power state\n");
 			dev->wakeup.flags.valid = 0;
-			return -1;
+			return -ENODEV;
 		}
 	}
 
-	/* Execute PSW */
-	status = acpi_evaluate_object(dev->handle, "_PSW", &arg_list, NULL);
-	if (ACPI_FAILURE(status) && (status != AE_NOT_FOUND)) {
-		printk(KERN_ERR PREFIX "Evaluate _PSW\n");
-		dev->wakeup.flags.valid = 0;
-		ret = -1;
-	}
+	/*
+	 * Passing 3 as the third argument below means the device may be placed
+	 * in arbitrary power state afterwards.
+	 */
+	err = acpi_device_sleep_wake(dev, 1, sleep_state, 3);
+	if (!err)
+		dev->wakeup.flags.prepared = 1;
 
-	return ret;
+	return err;
 }
 
 /*
  * Shutdown a wakeup device, counterpart of above method
- * 1. Disable _PSW (power state wake)
+ * 1. Execute _DSW (Device Sleep Wake) or (deprecated in ACPI 3.0) _PSW (Power
+ *    State Wake) for the device, if present
  * 2. Shutdown down the power resources
  */
 int acpi_disable_wakeup_device_power(struct acpi_device *dev)
 {
-	union acpi_object arg = { ACPI_TYPE_INTEGER };
-	struct acpi_object_list arg_list = { 1, &arg };
-	acpi_status status = AE_OK;
-	int i;
-	int ret = 0;
-
+	int i, ret;
 
 	if (!dev || !dev->wakeup.flags.valid)
-		return -1;
+		return -EINVAL;
 
-	arg.integer.value = 0;
-	/* Execute PSW */
-	status = acpi_evaluate_object(dev->handle, "_PSW", &arg_list, NULL);
-	if (ACPI_FAILURE(status) && (status != AE_NOT_FOUND)) {
-		printk(KERN_ERR PREFIX "Evaluate _PSW\n");
-		dev->wakeup.flags.valid = 0;
-		return -1;
-	}
+	/*
+	 * Do not execute the code below twice in a row without calling
+	 * acpi_enable_wakeup_device_power() in between for the same device
+	 */
+	if (!dev->wakeup.flags.prepared)
+		return 0;
+
+	dev->wakeup.flags.prepared = 0;
+
+	ret = acpi_device_sleep_wake(dev, 0, 0, 0);
+	if (ret)
+		return ret;
 
 	/* Close power resource */
 	for (i = 0; i < dev->wakeup.resources.count; i++) {
@@ -362,7 +428,7 @@ int acpi_disable_wakeup_device_power(struct acpi_device *dev)
 		if (ret) {
 			printk(KERN_ERR PREFIX "Transition power state\n");
 			dev->wakeup.flags.valid = 0;
-			return -1;
+			return -ENODEV;
 		}
 	}
 

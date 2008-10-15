@@ -621,7 +621,7 @@ static int init586(struct net_device *dev)
 		if (num_addrs > len) {
 			printk(KERN_ERR "%s: switching to promisc. mode\n",
 				dev->name);
-			dev->flags |= IFF_PROMISC;
+			writeb(0x01, &cfg_cmd->promisc);
 		}
 	}
 	if (dev->flags & IFF_PROMISC)

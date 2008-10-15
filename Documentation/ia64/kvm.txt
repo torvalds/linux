@@ -50,9 +50,9 @@ Note: For step 2, please make sure that host page size == TARGET_PAGE_SIZE of qe
 		/usr/local/bin/qemu-system-ia64 -smp xx -m 512 -hda $your_image
 		(xx is the number of virtual processors for the guest, now the maximum value is 4)
 
-5. Known possibile issue on some platforms with old Firmware.
+5. Known possible issue on some platforms with old Firmware.
 
-If meet strange host crashe issues, try to solve it through either of the following ways:
+In the event of strange host crash issues, try to solve it through either of the following ways:
 
 (1): Upgrade your Firmware to the latest one.
 
@@ -65,8 +65,8 @@ index 0b53344..f02b0f7 100644
 	mov ar.pfs = loc1
 	mov rp = loc0
 	;;
--	srlz.d				// seralize restoration of psr.l
-+	srlz.i			// seralize restoration of psr.l
+-	srlz.d				// serialize restoration of psr.l
++	srlz.i			// serialize restoration of psr.l
 +	;;
 	br.ret.sptk.many b0
  END(ia64_pal_call_static)

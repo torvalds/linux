@@ -130,6 +130,7 @@ static inline void emac_report_timeout_error(struct emac_instance *dev,
 					     const char *error)
 {
 	if (emac_has_feature(dev, EMAC_FTR_440GX_PHY_CLK_FIX |
+				  EMAC_FTR_460EX_PHY_CLK_FIX |
 				  EMAC_FTR_440EP_PHY_CLK_FIX))
 		DBG(dev, "%s" NL, error);
 	else if (net_ratelimit())
@@ -295,7 +296,9 @@ static void emac_rx_disable(struct emac_instance *dev)
 static inline void emac_netif_stop(struct emac_instance *dev)
 {
 	netif_tx_lock_bh(dev->ndev);
+	netif_addr_lock(dev->ndev);
 	dev->no_mcast = 1;
+	netif_addr_unlock(dev->ndev);
 	netif_tx_unlock_bh(dev->ndev);
 	dev->ndev->trans_start = jiffies;	/* prevent tx timeout */
 	mal_poll_disable(dev->mal, &dev->commac);
@@ -305,9 +308,11 @@ static inline void emac_netif_stop(struct emac_instance *dev)
 static inline void emac_netif_start(struct emac_instance *dev)
 {
 	netif_tx_lock_bh(dev->ndev);
+	netif_addr_lock(dev->ndev);
 	dev->no_mcast = 0;
 	if (dev->mcast_pending && netif_running(dev->ndev))
 		__emac_set_multicast_list(dev);
+	netif_addr_unlock(dev->ndev);
 	netif_tx_unlock_bh(dev->ndev);
 
 	netif_wake_queue(dev->ndev);
@@ -347,9 +352,23 @@ static int emac_reset(struct emac_instance *dev)
 		emac_tx_disable(dev);
 	}
 
+#ifdef CONFIG_PPC_DCR_NATIVE
+	/* Enable internal clock source */
+	if (emac_has_feature(dev, EMAC_FTR_460EX_PHY_CLK_FIX))
+		dcri_clrset(SDR0, SDR0_ETH_CFG,
+			    0, SDR0_ETH_CFG_ECS << dev->cell_index);
+#endif
+
 	out_be32(&p->mr0, EMAC_MR0_SRST);
 	while ((in_be32(&p->mr0) & EMAC_MR0_SRST) && n)
 		--n;
+
+#ifdef CONFIG_PPC_DCR_NATIVE
+	 /* Enable external clock source */
+	if (emac_has_feature(dev, EMAC_FTR_460EX_PHY_CLK_FIX))
+		dcri_clrset(SDR0, SDR0_ETH_CFG,
+			    SDR0_ETH_CFG_ECS << dev->cell_index, 0);
+#endif
 
 	if (n) {
 		dev->reset_failed = 0;
@@ -363,25 +382,31 @@ static int emac_reset(struct emac_instance *dev)
 
 static void emac_hash_mc(struct emac_instance *dev)
 {
-	struct emac_regs __iomem *p = dev->emacp;
-	u16 gaht[4] = { 0 };
+	const int regs = EMAC_XAHT_REGS(dev);
+	u32 *gaht_base = emac_gaht_base(dev);
+	u32 gaht_temp[regs];
 	struct dev_mc_list *dmi;
+	int i;
 
 	DBG(dev, "hash_mc %d" NL, dev->ndev->mc_count);
 
+	memset(gaht_temp, 0, sizeof (gaht_temp));
+
 	for (dmi = dev->ndev->mc_list; dmi; dmi = dmi->next) {
-		int bit;
+		int slot, reg, mask;
 		DBG2(dev, "mc %02x:%02x:%02x:%02x:%02x:%02x" NL,
 		     dmi->dmi_addr[0], dmi->dmi_addr[1], dmi->dmi_addr[2],
 		     dmi->dmi_addr[3], dmi->dmi_addr[4], dmi->dmi_addr[5]);
 
-		bit = 63 - (ether_crc(ETH_ALEN, dmi->dmi_addr) >> 26);
-		gaht[bit >> 4] |= 0x8000 >> (bit & 0x0f);
+		slot = EMAC_XAHT_CRC_TO_SLOT(dev, ether_crc(ETH_ALEN, dmi->dmi_addr));
+		reg = EMAC_XAHT_SLOT_TO_REG(dev, slot);
+		mask = EMAC_XAHT_SLOT_TO_MASK(dev, slot);
+
+		gaht_temp[reg] |= mask;
 	}
-	out_be32(&p->gaht1, gaht[0]);
-	out_be32(&p->gaht2, gaht[1]);
-	out_be32(&p->gaht3, gaht[2]);
-	out_be32(&p->gaht4, gaht[3]);
+
+	for (i = 0; i < regs; i++)
+		out_be32(gaht_base + i, gaht_temp[i]);
 }
 
 static inline u32 emac_iff2rmr(struct net_device *ndev)
@@ -398,7 +423,8 @@ static inline u32 emac_iff2rmr(struct net_device *ndev)
 
 	if (ndev->flags & IFF_PROMISC)
 		r |= EMAC_RMR_PME;
-	else if (ndev->flags & IFF_ALLMULTI || ndev->mc_count > 32)
+	else if (ndev->flags & IFF_ALLMULTI ||
+			 (ndev->mc_count > EMAC_XAHT_SLOTS(dev)))
 		r |= EMAC_RMR_PMME;
 	else if (ndev->mc_count > 0)
 		r |= EMAC_RMR_MAE;
@@ -542,7 +568,7 @@ static int emac_configure(struct emac_instance *dev)
 			/* Put some arbitrary OUI, Manuf & Rev IDs so we can
 			 * identify this GPCS PHY later.
 			 */
-			out_be32(&p->ipcr, 0xdeadbeef);
+			out_be32(&p->u1.emac4.ipcr, 0xdeadbeef);
 		} else
 			mr1 |= EMAC_MR1_MF_1000;
 
@@ -651,9 +677,6 @@ static int emac_configure(struct emac_instance *dev)
 	/* We need to take GPCS PHY out of isolate mode after EMAC reset */
 	if (emac_phy_gpcs(dev->phy.mode))
 		emac_mii_reset_phy(&dev->phy);
-
-	/* Required for Pause packet support in EMAC */
-	dev_mc_add(ndev, default_mcast_addr, sizeof(default_mcast_addr), 1);
 
 	return 0;
 }
@@ -1138,6 +1161,9 @@ static int emac_open(struct net_device *ndev)
 		emac_print_link_status(dev);
 	} else
 		netif_carrier_on(dev->ndev);
+
+	/* Required for Pause packet support in EMAC */
+	dev_mc_add(ndev, default_mcast_addr, sizeof(default_mcast_addr), 1);
 
 	emac_configure(dev);
 	mal_poll_add(dev->mal, &dev->commac);
@@ -1636,6 +1662,12 @@ static int emac_poll_rx(void *param, int budget)
 			goto next;
 		}
 
+		if (len < ETH_HLEN) {
+			++dev->estats.rx_dropped_stack;
+			emac_recycle_rx_skb(dev, slot, len);
+			goto next;
+		}
+
 		if (len && len < EMAC_RX_COPY_THRESH) {
 			struct sk_buff *copy_skb =
 			    alloc_skb(len + EMAC_RX_SKB_HEADROOM + 2, GFP_ATOMIC);
@@ -2015,10 +2047,10 @@ static int emac_get_regs_len(struct emac_instance *dev)
 {
 	if (emac_has_feature(dev, EMAC_FTR_EMAC4))
 		return sizeof(struct emac_ethtool_regs_subhdr) +
-			EMAC4_ETHTOOL_REGS_SIZE;
+			EMAC4_ETHTOOL_REGS_SIZE(dev);
 	else
 		return sizeof(struct emac_ethtool_regs_subhdr) +
-			EMAC_ETHTOOL_REGS_SIZE;
+			EMAC_ETHTOOL_REGS_SIZE(dev);
 }
 
 static int emac_ethtool_get_regs_len(struct net_device *ndev)
@@ -2045,12 +2077,12 @@ static void *emac_dump_regs(struct emac_instance *dev, void *buf)
 	hdr->index = dev->cell_index;
 	if (emac_has_feature(dev, EMAC_FTR_EMAC4)) {
 		hdr->version = EMAC4_ETHTOOL_REGS_VER;
-		memcpy_fromio(hdr + 1, dev->emacp, EMAC4_ETHTOOL_REGS_SIZE);
-		return ((void *)(hdr + 1) + EMAC4_ETHTOOL_REGS_SIZE);
+		memcpy_fromio(hdr + 1, dev->emacp, EMAC4_ETHTOOL_REGS_SIZE(dev));
+		return ((void *)(hdr + 1) + EMAC4_ETHTOOL_REGS_SIZE(dev));
 	} else {
 		hdr->version = EMAC_ETHTOOL_REGS_VER;
-		memcpy_fromio(hdr + 1, dev->emacp, EMAC_ETHTOOL_REGS_SIZE);
-		return ((void *)(hdr + 1) + EMAC_ETHTOOL_REGS_SIZE);
+		memcpy_fromio(hdr + 1, dev->emacp, EMAC_ETHTOOL_REGS_SIZE(dev));
+		return ((void *)(hdr + 1) + EMAC_ETHTOOL_REGS_SIZE(dev));
 	}
 }
 
@@ -2540,7 +2572,12 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 	}
 
 	/* Check EMAC version */
-	if (of_device_is_compatible(np, "ibm,emac4")) {
+	if (of_device_is_compatible(np, "ibm,emac4sync")) {
+		dev->features |= (EMAC_FTR_EMAC4 | EMAC_FTR_EMAC4SYNC);
+		if (of_device_is_compatible(np, "ibm,emac-460ex") ||
+		    of_device_is_compatible(np, "ibm,emac-460gt"))
+			dev->features |= EMAC_FTR_460EX_PHY_CLK_FIX;
+	} else if (of_device_is_compatible(np, "ibm,emac4")) {
 		dev->features |= EMAC_FTR_EMAC4;
 		if (of_device_is_compatible(np, "ibm,emac-440gx"))
 			dev->features |= EMAC_FTR_440GX_PHY_CLK_FIX;
@@ -2600,6 +2637,15 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 		return -ENXIO;
 	}
 	memcpy(dev->ndev->dev_addr, p, 6);
+
+	/* IAHT and GAHT filter parameterization */
+	if (emac_has_feature(dev, EMAC_FTR_EMAC4SYNC)) {
+		dev->xaht_slots_shift = EMAC4SYNC_XAHT_SLOTS_SHIFT;
+		dev->xaht_width_shift = EMAC4SYNC_XAHT_WIDTH_SHIFT;
+	} else {
+		dev->xaht_slots_shift = EMAC4_XAHT_SLOTS_SHIFT;
+		dev->xaht_width_shift = EMAC4_XAHT_WIDTH_SHIFT;
+	}
 
 	DBG(dev, "features     : 0x%08x / 0x%08x\n", dev->features, EMAC_FTRS_POSSIBLE);
 	DBG(dev, "tx_fifo_size : %d (%d gige)\n", dev->tx_fifo_size, dev->tx_fifo_size_gige);
@@ -2672,7 +2718,8 @@ static int __devinit emac_probe(struct of_device *ofdev,
 		goto err_irq_unmap;
 	}
 	// TODO : request_mem_region
-	dev->emacp = ioremap(dev->rsrc_regs.start, sizeof(struct emac_regs));
+	dev->emacp = ioremap(dev->rsrc_regs.start,
+			     dev->rsrc_regs.end - dev->rsrc_regs.start + 1);
 	if (dev->emacp == NULL) {
 		printk(KERN_ERR "%s: Can't map device registers!\n",
 		       np->full_name);
@@ -2719,6 +2766,8 @@ static int __devinit emac_probe(struct of_device *ofdev,
 	/* Clean rings */
 	memset(dev->tx_desc, 0, NUM_TX_BUFF * sizeof(struct mal_descriptor));
 	memset(dev->rx_desc, 0, NUM_RX_BUFF * sizeof(struct mal_descriptor));
+	memset(dev->tx_skb, 0, NUM_TX_BUFF * sizeof(struct sk_buff *));
+	memset(dev->rx_skb, 0, NUM_RX_BUFF * sizeof(struct sk_buff *));
 
 	/* Attach to ZMII, if needed */
 	if (emac_has_feature(dev, EMAC_FTR_HAS_ZMII) &&
@@ -2883,6 +2932,10 @@ static struct of_device_id emac_match[] =
 	{
 		.type		= "network",
 		.compatible	= "ibm,emac4",
+	},
+	{
+		.type		= "network",
+		.compatible	= "ibm,emac4sync",
 	},
 	{},
 };

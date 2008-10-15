@@ -238,6 +238,14 @@ static void do_flush_tlb_all(void *info)
 
 void flush_tlb_all(void)
 {
-	on_each_cpu(do_flush_tlb_all, NULL, 1, 1);
+	on_each_cpu(do_flush_tlb_all, NULL, 1);
+}
+
+void reset_lazy_tlbstate(void)
+{
+	int cpu = raw_smp_processor_id();
+
+	per_cpu(cpu_tlbstate, cpu).state = 0;
+	per_cpu(cpu_tlbstate, cpu).active_mm = &init_mm;
 }
 

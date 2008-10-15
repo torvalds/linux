@@ -26,13 +26,14 @@
 #include <linux/watchdog.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_ARCH_PXA
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 #endif
 
-#include <asm/hardware.h>
-#include <asm/uaccess.h>
+#include <mach/reset.h>
+#include <mach/hardware.h>
 
 #define OSCR_FREQ		CLOCK_TICK_RATE
 
@@ -45,7 +46,7 @@ static int boot_status;
  */
 static int sa1100dog_open(struct inode *inode, struct file *file)
 {
-	if (test_and_set_bit(1,&sa1100wdt_users))
+	if (test_and_set_bit(1, &sa1100wdt_users))
 		return -EBUSY;
 
 	/* Activate SA1100 Watchdog timer */
@@ -66,28 +67,27 @@ static int sa1100dog_open(struct inode *inode, struct file *file)
 static int sa1100dog_release(struct inode *inode, struct file *file)
 {
 	printk(KERN_CRIT "WATCHDOG: Device closed - timer will not stop\n");
-
 	clear_bit(1, &sa1100wdt_users);
-
 	return 0;
 }
 
-static ssize_t sa1100dog_write(struct file *file, const char __user *data, size_t len, loff_t *ppos)
+static ssize_t sa1100dog_write(struct file *file, const char __user *data,
+						size_t len, loff_t *ppos)
 {
 	if (len)
 		/* Refresh OSMR3 timer. */
 		OSMR3 = OSCR + pre_margin;
-
 	return len;
 }
 
-static struct watchdog_info ident = {
-	.options	= WDIOF_CARDRESET | WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
+static const struct watchdog_info ident = {
+	.options	= WDIOF_CARDRESET | WDIOF_SETTIMEOUT
+				| WDIOF_KEEPALIVEPING,
 	.identity	= "SA1100/PXA255 Watchdog",
 };
 
-static int sa1100dog_ioctl(struct inode *inode, struct file *file,
-	unsigned int cmd, unsigned long arg)
+static long sa1100dog_ioctl(struct file *file, unsigned int cmd,
+							unsigned long arg)
 {
 	int ret = -ENOTTY;
 	int time;
@@ -108,6 +108,11 @@ static int sa1100dog_ioctl(struct inode *inode, struct file *file,
 		ret = put_user(boot_status, p);
 		break;
 
+	case WDIOC_KEEPALIVE:
+		OSMR3 = OSCR + pre_margin;
+		ret = 0;
+		break;
+
 	case WDIOC_SETTIMEOUT:
 		ret = get_user(time, p);
 		if (ret)
@@ -125,27 +130,20 @@ static int sa1100dog_ioctl(struct inode *inode, struct file *file,
 	case WDIOC_GETTIMEOUT:
 		ret = put_user(pre_margin / OSCR_FREQ, p);
 		break;
-
-	case WDIOC_KEEPALIVE:
-		OSMR3 = OSCR + pre_margin;
-		ret = 0;
-		break;
 	}
 	return ret;
 }
 
-static const struct file_operations sa1100dog_fops =
-{
+static const struct file_operations sa1100dog_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.write		= sa1100dog_write,
-	.ioctl		= sa1100dog_ioctl,
+	.unlocked_ioctl	= sa1100dog_ioctl,
 	.open		= sa1100dog_open,
 	.release	= sa1100dog_release,
 };
 
-static struct miscdevice sa1100dog_miscdev =
-{
+static struct miscdevice sa1100dog_miscdev = {
 	.minor		= WATCHDOG_MINOR,
 	.name		= "watchdog",
 	.fops		= &sa1100dog_fops,
@@ -162,13 +160,15 @@ static int __init sa1100dog_init(void)
 	 * we suspend, RCSR will be cleared, and the watchdog
 	 * reset reason will be lost.
 	 */
-	boot_status = (RCSR & RCSR_WDR) ? WDIOF_CARDRESET : 0;
+	boot_status = (reset_status & RESET_STATUS_WATCHDOG) ?
+				WDIOF_CARDRESET : 0;
 	pre_margin = OSCR_FREQ * margin;
 
 	ret = misc_register(&sa1100dog_miscdev);
 	if (ret == 0)
-		printk("SA1100/PXA2xx Watchdog Timer: timer margin %d sec\n",
-		       margin);
+		printk(KERN_INFO
+			"SA1100/PXA2xx Watchdog Timer: timer margin %d sec\n",
+						margin);
 	return ret;
 }
 

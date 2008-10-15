@@ -185,7 +185,7 @@ unsigned long find_iomem(char *driver, unsigned long *len_out)
 	return 0;
 }
 
-int setup_iomem(void)
+static int setup_iomem(void)
 {
 	struct iomem_region *region = iomem_regions;
 	unsigned long iomem_start = high_physmem + PAGE_SIZE;

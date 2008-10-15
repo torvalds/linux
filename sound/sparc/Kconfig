@@ -1,11 +1,17 @@
 # ALSA Sparc drivers
 
-menu "ALSA Sparc devices"
-	depends on SND!=n && SPARC
+menuconfig SND_SPARC
+	bool "Sparc sound devices"
+	depends on SPARC
+	default y
+	help
+	  Support for sound devices specific to Sun SPARC architectures.
+
+if SND_SPARC
 
 config SND_SUN_AMD7930
 	tristate "Sun AMD7930"
-	depends on SBUS && SND
+	depends on SBUS
 	select SND_PCM
 	help
 	  Say Y here to include support for AMD7930 sound device on Sun.
@@ -15,7 +21,6 @@ config SND_SUN_AMD7930
 
 config SND_SUN_CS4231
 	tristate "Sun CS4231"
-	depends on SND
 	select SND_PCM
 	help
 	  Say Y here to include support for CS4231 sound device on Sun.
@@ -25,7 +30,7 @@ config SND_SUN_CS4231
 
 config SND_SUN_DBRI
 	tristate "Sun DBRI"
-	depends on SND && SBUS
+	depends on SBUS
 	select SND_PCM
 	help
 	  Say Y here to include support for DBRI sound device on Sun.
@@ -33,4 +38,4 @@ config SND_SUN_DBRI
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-sun-dbri.
 
-endmenu
+endif	# SND_SPARC

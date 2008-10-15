@@ -15,9 +15,12 @@
 #include <linux/init.h>
 #include <linux/pci_ids.h>
 #include <linux/pci_regs.h>
+
+#include <asm/apic.h>
 #include <asm/pci-direct.h>
 #include <asm/io.h>
 #include <asm/paravirt.h>
+#include <asm/setup.h>
 
 #if defined CONFIG_PCI && defined CONFIG_PARAVIRT
 /*
@@ -58,7 +61,7 @@ static void vsmp_irq_enable(void)
 	native_restore_fl((flags | X86_EFLAGS_IF) & (~X86_EFLAGS_AC));
 }
 
-static unsigned __init vsmp_patch(u8 type, u16 clobbers, void *ibuf,
+static unsigned __init_or_module vsmp_patch(u8 type, u16 clobbers, void *ibuf,
 				  unsigned long addr, unsigned len)
 {
 	switch (type) {

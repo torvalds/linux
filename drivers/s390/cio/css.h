@@ -9,8 +9,7 @@
 
 #include <asm/cio.h>
 #include <asm/chpid.h>
-
-#include "schid.h"
+#include <asm/schid.h>
 
 /*
  * path grouping stuff
@@ -58,20 +57,28 @@ struct pgid {
 	__u32 tod_high;		/* high word TOD clock */
 } __attribute__ ((packed));
 
-/*
- * A css driver handles all subchannels of one type.
- * Currently, we only care about I/O subchannels (type 0), these
- * have a ccw_device connected to them.
- */
 struct subchannel;
+struct chp_link;
+/**
+ * struct css_driver - device driver for subchannels
+ * @owner: owning module
+ * @subchannel_type: subchannel type supported by this driver
+ * @drv: embedded device driver structure
+ * @irq: called on interrupts
+ * @chp_event: called for events affecting a channel path
+ * @sch_event: called for events affecting the subchannel
+ * @probe: function called on probe
+ * @remove: function called on remove
+ * @shutdown: called at device shutdown
+ * @name: name of the device driver
+ */
 struct css_driver {
 	struct module *owner;
-	unsigned int subchannel_type;
+	struct css_device_id *subchannel_type;
 	struct device_driver drv;
 	void (*irq)(struct subchannel *);
-	int (*notify)(struct subchannel *, int);
-	void (*verify)(struct subchannel *);
-	void (*termination)(struct subchannel *);
+	int (*chp_event)(struct subchannel *, struct chp_link *, int);
+	int (*sch_event)(struct subchannel *, int);
 	int (*probe)(struct subchannel *);
 	int (*remove)(struct subchannel *);
 	void (*shutdown)(struct subchannel *);
@@ -89,13 +96,13 @@ extern int css_driver_register(struct css_driver *);
 extern void css_driver_unregister(struct css_driver *);
 
 extern void css_sch_device_unregister(struct subchannel *);
-extern struct subchannel * get_subchannel_by_schid(struct subchannel_id);
+extern int css_probe_device(struct subchannel_id);
+extern struct subchannel *get_subchannel_by_schid(struct subchannel_id);
 extern int css_init_done;
 int for_each_subchannel_staged(int (*fn_known)(struct subchannel *, void *),
 			       int (*fn_unknown)(struct subchannel_id,
 			       void *), void *data);
 extern int for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *);
-extern void css_process_crw(int, int);
 extern void css_reiterate_subchannels(void);
 void css_update_ssd_info(struct subchannel *sch);
 
@@ -121,20 +128,6 @@ struct channel_subsystem {
 extern struct bus_type css_bus_type;
 extern struct channel_subsystem *channel_subsystems[];
 
-/* Some helper functions for disconnected state. */
-int device_is_disconnected(struct subchannel *);
-void device_set_disconnected(struct subchannel *);
-void device_trigger_reprobe(struct subchannel *);
-
-/* Helper functions for vary on/off. */
-int device_is_online(struct subchannel *);
-void device_kill_io(struct subchannel *);
-void device_set_intretry(struct subchannel *sch);
-int device_trigger_verify(struct subchannel *sch);
-
-/* Machine check helper function. */
-void device_kill_pending_timer(struct subchannel *);
-
 /* Helper functions to build lists for the slow path. */
 void css_schedule_eval(struct subchannel_id schid);
 void css_schedule_eval_all(void);
@@ -145,6 +138,4 @@ int css_sch_is_valid(struct schib *);
 
 extern struct workqueue_struct *slow_path_wq;
 void css_wait_for_slow_path(void);
-
-extern struct attribute_group *subch_attr_groups[];
 #endif

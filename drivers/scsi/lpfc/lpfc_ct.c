@@ -101,7 +101,7 @@ lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		/* Not enough posted buffers; Try posting more buffers */
 		phba->fc_stat.NoRcvBuf++;
 		if (!(phba->sli3_options & LPFC_SLI3_HBQ_ENABLED))
-			lpfc_post_buffer(phba, pring, 2, 1);
+			lpfc_post_buffer(phba, pring, 2);
 		return;
 	}
 
@@ -151,7 +151,7 @@ lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			}
 			list_del(&iocbq->list);
 			lpfc_sli_release_iocbq(phba, iocbq);
-			lpfc_post_buffer(phba, pring, i, 1);
+			lpfc_post_buffer(phba, pring, i);
 		}
 	}
 }
@@ -990,7 +990,7 @@ lpfc_cmpl_ct_cmd_rff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	return;
 }
 
-static int
+int
 lpfc_vport_symbolic_port_name(struct lpfc_vport *vport, char *symbol,
 	size_t size)
 {
@@ -1679,20 +1679,18 @@ lpfc_fdmi_tmo(unsigned long ptr)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *)ptr;
 	struct lpfc_hba   *phba = vport->phba;
+	uint32_t tmo_posted;
 	unsigned long iflag;
 
 	spin_lock_irqsave(&vport->work_port_lock, iflag);
-	if (!(vport->work_port_events & WORKER_FDMI_TMO)) {
+	tmo_posted = vport->work_port_events & WORKER_FDMI_TMO;
+	if (!tmo_posted)
 		vport->work_port_events |= WORKER_FDMI_TMO;
-		spin_unlock_irqrestore(&vport->work_port_lock, iflag);
+	spin_unlock_irqrestore(&vport->work_port_lock, iflag);
 
-		spin_lock_irqsave(&phba->hbalock, iflag);
-		if (phba->work_wait)
-			lpfc_worker_wake_up(phba);
-		spin_unlock_irqrestore(&phba->hbalock, iflag);
-	}
-	else
-		spin_unlock_irqrestore(&vport->work_port_lock, iflag);
+	if (!tmo_posted)
+		lpfc_worker_wake_up(phba);
+	return;
 }
 
 void

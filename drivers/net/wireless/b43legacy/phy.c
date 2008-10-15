@@ -103,7 +103,7 @@ void b43legacy_phy_lock(struct b43legacy_wldev *dev)
 	if (dev->dev->id.revision < 3) {
 		b43legacy_mac_suspend(dev);
 	} else {
-		if (!b43legacy_is_mode(dev->wl, IEEE80211_IF_TYPE_AP))
+		if (!b43legacy_is_mode(dev->wl, NL80211_IFTYPE_AP))
 			b43legacy_power_saving_ctl_bits(dev, -1, 1);
 	}
 }
@@ -118,7 +118,7 @@ void b43legacy_phy_unlock(struct b43legacy_wldev *dev)
 	if (dev->dev->id.revision < 3) {
 		b43legacy_mac_enable(dev);
 	} else {
-		if (!b43legacy_is_mode(dev->wl, IEEE80211_IF_TYPE_AP))
+		if (!b43legacy_is_mode(dev->wl, NL80211_IFTYPE_AP))
 			b43legacy_power_saving_ctl_bits(dev, -1, -1);
 	}
 }
@@ -595,12 +595,14 @@ static void b43legacy_phy_initb5(struct b43legacy_wldev *dev)
 				    0x0035) & 0xFFC0) | 0x0064);
 		b43legacy_phy_write(dev, 0x005D, (b43legacy_phy_read(dev,
 				    0x005D) & 0xFF80) | 0x000A);
+		b43legacy_phy_write(dev, 0x5B, 0x0000);
+		b43legacy_phy_write(dev, 0x5C, 0x0000);
 	}
 
 	if (dev->bad_frames_preempt)
 		b43legacy_phy_write(dev, B43legacy_PHY_RADIO_BITFIELD,
 				    b43legacy_phy_read(dev,
-				    B43legacy_PHY_RADIO_BITFIELD) | (1 << 11));
+				    B43legacy_PHY_RADIO_BITFIELD) | (1 << 12));
 
 	if (phy->analog == 1) {
 		b43legacy_phy_write(dev, 0x0026, 0xCE00);
@@ -753,7 +755,7 @@ static void b43legacy_phy_initb6(struct b43legacy_wldev *dev)
 		b43legacy_radio_write16(dev, 0x0050, 0x0020);
 	}
 	if (phy->radio_rev <= 2) {
-		b43legacy_radio_write16(dev, 0x007C, 0x0020);
+		b43legacy_radio_write16(dev, 0x0050, 0x0020);
 		b43legacy_radio_write16(dev, 0x005A, 0x0070);
 		b43legacy_radio_write16(dev, 0x005B, 0x007B);
 		b43legacy_radio_write16(dev, 0x005C, 0x00B0);
@@ -771,7 +773,7 @@ static void b43legacy_phy_initb6(struct b43legacy_wldev *dev)
 		b43legacy_phy_write(dev, 0x002A, 0x8AC0);
 	b43legacy_phy_write(dev, 0x0038, 0x0668);
 	b43legacy_radio_set_txpower_bg(dev, 0xFFFF, 0xFFFF, 0xFFFF);
-	if (phy->radio_rev <= 5)
+	if (phy->radio_rev == 4 || phy->radio_rev == 5)
 		b43legacy_phy_write(dev, 0x005D, (b43legacy_phy_read(dev,
 				    0x005D) & 0xFF80) | 0x0003);
 	if (phy->radio_rev <= 2)
@@ -1010,7 +1012,7 @@ static void b43legacy_phy_initg(struct b43legacy_wldev *dev)
 		b43legacy_phy_initb5(dev);
 	else
 		b43legacy_phy_initb6(dev);
-	if (phy->rev >= 2 || phy->gmode)
+	if (phy->rev >= 2 && phy->gmode)
 		b43legacy_phy_inita(dev);
 
 	if (phy->rev >= 2) {
@@ -1025,18 +1027,22 @@ static void b43legacy_phy_initg(struct b43legacy_wldev *dev)
 		b43legacy_phy_write(dev, 0x0811, 0x0400);
 		b43legacy_phy_write(dev, 0x0015, 0x00C0);
 	}
-	if (phy->rev >= 2 || phy->gmode) {
+	if (phy->gmode) {
 		tmp = b43legacy_phy_read(dev, 0x0400) & 0xFF;
-		if (tmp == 3 || tmp == 5) {
+		if (tmp == 3) {
+			b43legacy_phy_write(dev, 0x04C2, 0x1816);
+			b43legacy_phy_write(dev, 0x04C3, 0x8606);
+		}
+		if (tmp == 4 || tmp == 5) {
 			b43legacy_phy_write(dev, 0x04C2, 0x1816);
 			b43legacy_phy_write(dev, 0x04C3, 0x8006);
-			if (tmp == 5)
-				b43legacy_phy_write(dev, 0x04CC,
-						    (b43legacy_phy_read(dev,
-						     0x04CC) & 0x00FF) |
-						     0x1F00);
+			b43legacy_phy_write(dev, 0x04CC,
+					    (b43legacy_phy_read(dev,
+					     0x04CC) & 0x00FF) |
+					     0x1F00);
 		}
-		b43legacy_phy_write(dev, 0x047E, 0x0078);
+		if (phy->rev >= 2)
+			b43legacy_phy_write(dev, 0x047E, 0x0078);
 	}
 	if (phy->radio_rev == 8) {
 		b43legacy_phy_write(dev, 0x0801, b43legacy_phy_read(dev, 0x0801)
@@ -1078,7 +1084,7 @@ static void b43legacy_phy_initg(struct b43legacy_wldev *dev)
 		else
 			b43legacy_phy_write(dev, 0x002F, 0x0202);
 	}
-	if (phy->gmode || phy->rev >= 2) {
+	if (phy->gmode) {
 		b43legacy_phy_lo_adjust(dev, 0);
 		b43legacy_phy_write(dev, 0x080F, 0x8078);
 	}
@@ -1088,7 +1094,7 @@ static void b43legacy_phy_initg(struct b43legacy_wldev *dev)
 		 * the value 0x7FFFFFFF here. I think that is some weird
 		 * compiler optimization in the original driver.
 		 * Essentially, what we do here is resetting all NRSSI LT
-		 * entries to -32 (see the limit_value() in nrssi_hw_update())
+		 * entries to -32 (see the clamp_val() in nrssi_hw_update())
 		 */
 		b43legacy_nrssi_hw_update(dev, 0xFFFF);
 		b43legacy_calc_nrssi_threshold(dev);
@@ -1756,7 +1762,7 @@ static s8 b43legacy_phy_estimate_power_out(struct b43legacy_wldev *dev, s8 tssi)
 	switch (phy->type) {
 	case B43legacy_PHYTYPE_B:
 	case B43legacy_PHYTYPE_G:
-		tmp = limit_value(tmp, 0x00, 0x3F);
+		tmp = clamp_val(tmp, 0x00, 0x3F);
 		dbm = phy->tssi2dbm[tmp];
 		break;
 	default:
@@ -1859,7 +1865,7 @@ void b43legacy_phy_xmitpower(struct b43legacy_wldev *dev)
 
 	/* find the desired power in Q5.2 - power_level is in dBm
 	 * and limit it - max_pwr is already in Q5.2 */
-	desired_pwr = limit_value(phy->power_level << 2, 0, max_pwr);
+	desired_pwr = clamp_val(phy->power_level << 2, 0, max_pwr);
 	if (b43legacy_debug(dev, B43legacy_DBG_XMITPOWER))
 		b43legacydbg(dev->wl, "Current TX power output: " Q52_FMT
 		       " dBm, Desired TX power output: " Q52_FMT
@@ -1905,7 +1911,7 @@ void b43legacy_phy_xmitpower(struct b43legacy_wldev *dev)
 			radio_attenuation++;
 		}
 	}
-	baseband_attenuation = limit_value(baseband_attenuation, 0, 11);
+	baseband_attenuation = clamp_val(baseband_attenuation, 0, 11);
 
 	txpower = phy->txctl1;
 	if ((phy->radio_ver == 0x2050) && (phy->radio_rev == 2)) {
@@ -1933,8 +1939,8 @@ void b43legacy_phy_xmitpower(struct b43legacy_wldev *dev)
 	}
 	/* Save the control values */
 	phy->txctl1 = txpower;
-	baseband_attenuation = limit_value(baseband_attenuation, 0, 11);
-	radio_attenuation = limit_value(radio_attenuation, 0, 9);
+	baseband_attenuation = clamp_val(baseband_attenuation, 0, 11);
+	radio_attenuation = clamp_val(radio_attenuation, 0, 9);
 	phy->rfatt = radio_attenuation;
 	phy->bbatt = baseband_attenuation;
 
@@ -1979,7 +1985,7 @@ s8 b43legacy_tssi2dbm_entry(s8 entry [], u8 index, s16 pab0, s16 pab1, s16 pab2)
 		f = q;
 		i++;
 	} while (delta >= 2);
-	entry[index] = limit_value(b43legacy_tssi2dbm_ad(m1 * f, 8192),
+	entry[index] = clamp_val(b43legacy_tssi2dbm_ad(m1 * f, 8192),
 				   -127, 128);
 	return 0;
 }

@@ -29,14 +29,16 @@
 enum {
 	ATA_ACPI_FILTER_SETXFER	= 1 << 0,
 	ATA_ACPI_FILTER_LOCK	= 1 << 1,
+	ATA_ACPI_FILTER_DIPM	= 1 << 2,
 
 	ATA_ACPI_FILTER_DEFAULT	= ATA_ACPI_FILTER_SETXFER |
-				  ATA_ACPI_FILTER_LOCK,
+				  ATA_ACPI_FILTER_LOCK |
+				  ATA_ACPI_FILTER_DIPM,
 };
 
 static unsigned int ata_acpi_gtf_filter = ATA_ACPI_FILTER_DEFAULT;
 module_param_named(acpi_gtf_filter, ata_acpi_gtf_filter, int, 0644);
-MODULE_PARM_DESC(acpi_gtf_filter, "filter mask for ACPI _GTF commands, set to filter out (0x1=set xfermode, 0x2=lock/freeze lock)");
+MODULE_PARM_DESC(acpi_gtf_filter, "filter mask for ACPI _GTF commands, set to filter out (0x1=set xfermode, 0x2=lock/freeze lock, 0x4=DIPM)");
 
 #define NO_PORT_MULT		0xffff
 #define SATA_ADR(root, pmp)	(((root) << 16) | (pmp))
@@ -195,6 +197,10 @@ static void ata_acpi_handle_hotplug(struct ata_port *ap, struct ata_device *dev,
 		/* This device does not support hotplug */
 		return;
 
+	if (event == ACPI_NOTIFY_BUS_CHECK ||
+	    event == ACPI_NOTIFY_DEVICE_CHECK)
+		status = acpi_evaluate_integer(handle, "_STA", NULL, &sta);
+
 	spin_lock_irqsave(ap->lock, flags);
 
 	switch (event) {
@@ -202,7 +208,6 @@ static void ata_acpi_handle_hotplug(struct ata_port *ap, struct ata_device *dev,
 	case ACPI_NOTIFY_DEVICE_CHECK:
 		ata_ehi_push_desc(ehi, "ACPI event");
 
-		status = acpi_evaluate_integer(handle, "_STA", NULL, &sta);
 		if (ACPI_FAILURE(status)) {
 			ata_port_printk(ap, KERN_ERR,
 				"acpi: failed to determine bay status (0x%x)\n",
@@ -687,6 +692,14 @@ static int ata_acpi_filter_tf(const struct ata_taskfile *tf,
 		    tf->command == ATA_CMD_SET_MAX &&
 		    (tf->feature == ATA_SET_MAX_LOCK ||
 		     tf->feature == ATA_SET_MAX_FREEZE_LOCK))
+			return 1;
+	}
+
+	if (ata_acpi_gtf_filter & ATA_ACPI_FILTER_DIPM) {
+		/* inhibit enabling DIPM */
+		if (tf->command == ATA_CMD_SET_FEATURES &&
+		    tf->feature == SETFEATURES_SATA_ENABLE &&
+		    tf->nsect == SATA_DIPM)
 			return 1;
 	}
 

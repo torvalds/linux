@@ -13,7 +13,7 @@ either an integer or * for all.  Access is a composition of r
 The root device cgroup starts with rwm to 'all'.  A child device
 cgroup gets a copy of the parent.  Administrators can then remove
 devices from the whitelist or add new entries.  A child cgroup can
-never receive a device access which is denied its parent.  However
+never receive a device access which is denied by its parent.  However
 when a device access is removed from a parent it will not also be
 removed from the child(ren).
 
@@ -29,7 +29,11 @@ allows cgroup 1 to read and mknod the device usually known as
 
 	echo a > /cgroups/1/devices.deny
 
-will remove the default 'a *:* mrw' entry.
+will remove the default 'a *:* rwm' entry. Doing
+
+	echo a > /cgroups/1/devices.allow
+
+will add the 'a *:* rwm' entry to the whitelist.
 
 3. Security
 
