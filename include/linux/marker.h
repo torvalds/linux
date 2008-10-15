@@ -136,8 +136,6 @@ extern marker_probe_func __mark_empty_function;
 
 extern void marker_probe_cb(const struct marker *mdata,
 	void *call_private, ...);
-extern void marker_probe_cb_noarg(const struct marker *mdata,
-	void *call_private, ...);
 
 /*
  * Connect a probe to a marker.

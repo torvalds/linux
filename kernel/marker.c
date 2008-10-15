@@ -158,7 +158,7 @@ EXPORT_SYMBOL_GPL(marker_probe_cb);
  *
  * Should be connected to markers "MARK_NOARGS".
  */
-void marker_probe_cb_noarg(const struct marker *mdata, void *call_private, ...)
+static void marker_probe_cb_noarg(const struct marker *mdata, void *call_private, ...)
 {
 	va_list args;	/* not initialized */
 	char ptype;
@@ -198,7 +198,6 @@ void marker_probe_cb_noarg(const struct marker *mdata, void *call_private, ...)
 	}
 	rcu_read_unlock_sched();
 }
-EXPORT_SYMBOL_GPL(marker_probe_cb_noarg);
 
 static void free_old_closure(struct rcu_head *head)
 {
