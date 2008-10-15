@@ -17,9 +17,6 @@
 #include <linux/proc_fs.h>
 #include <linux/profile.h>
 
-int nr_irqs = NR_IRQS;
-EXPORT_SYMBOL(nr_irqs);
-
 /*
  * show_interrupts is needed by /proc/interrupts.
  */
