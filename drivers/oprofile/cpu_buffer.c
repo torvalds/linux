@@ -39,7 +39,7 @@ void free_cpu_buffers(void)
 {
 	int i;
 
-	for_each_online_cpu(i) {
+	for_each_possible_cpu(i) {
 		vfree(per_cpu(cpu_buffer, i).buffer);
 		per_cpu(cpu_buffer, i).buffer = NULL;
 	}
@@ -51,7 +51,7 @@ int alloc_cpu_buffers(void)
 
 	unsigned long buffer_size = fs_cpu_buffer_size;
 
-	for_each_online_cpu(i) {
+	for_each_possible_cpu(i) {
 		struct oprofile_cpu_buffer *b = &per_cpu(cpu_buffer, i);
 
 		b->buffer = vmalloc_node(sizeof(struct op_sample) * buffer_size,
@@ -350,6 +350,11 @@ static void wq_sync_buffer(struct work_struct *work)
 	if (b->cpu != smp_processor_id()) {
 		printk(KERN_DEBUG "WQ on CPU%d, prefer CPU%d\n",
 		       smp_processor_id(), b->cpu);
+
+		if (!cpu_online(b->cpu)) {
+			cancel_delayed_work(&b->work);
+			return;
+		}
 	}
 	sync_buffer(b->cpu);
 
