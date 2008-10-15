@@ -298,11 +298,12 @@ struct uwb_beca_e *__uwb_beca_add(struct uwb_rc_evt_beacon *be,
 void uwb_beca_purge(void)
 {
 	struct uwb_beca_e *bce, *next;
-	unsigned long now = jiffies;
+	unsigned long expires;
+
 	mutex_lock(&uwb_beca.mutex);
 	list_for_each_entry_safe(bce, next, &uwb_beca.list, node) {
-		if (now - bce->ts_jiffies
-		    > msecs_to_jiffies(beacon_timeout_ms)) {
+		expires = bce->ts_jiffies + msecs_to_jiffies(beacon_timeout_ms);
+		if (time_after(jiffies, expires)) {
 			uwbd_dev_offair(bce);
 			list_del(&bce->node);
 			uwb_bce_put(bce);
