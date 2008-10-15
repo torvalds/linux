@@ -145,19 +145,19 @@ int videobuf_dvb_register_bus(struct videobuf_dvb_frontends *f,
 {
 	struct list_head *list, *q;
 	struct videobuf_dvb_frontend *fe;
-	int res = -EINVAL;
+	int res;
 
 	fe = videobuf_dvb_get_frontend(f, 1);
 	if (!fe) {
 		printk(KERN_WARNING "Unable to register the adapter which has no frontends\n");
-		goto err;
+		return -EINVAL;
 	}
 
 	/* Bring up the adapter */
 	res = videobuf_dvb_register_adapter(f, module, adapter_priv, device, fe->dvb.name, adapter_nr, mfe_shared);
 	if (res < 0) {
 		printk(KERN_WARNING "videobuf_dvb_register_adapter failed (errno = %d)\n", res);
-		goto err;
+		return res;
 	}
 
 	/* Attach all of the frontends to the adapter */
@@ -168,11 +168,15 @@ int videobuf_dvb_register_bus(struct videobuf_dvb_frontends *f,
 		if (res < 0) {
 			printk(KERN_WARNING "%s: videobuf_dvb_register_frontend failed (errno = %d)\n",
 				fe->dvb.name, res);
+			goto err;
 		}
 	}
 	mutex_unlock(&f->lock);
+	return 0;
 
 err:
+	mutex_unlock(&f->lock);
+	videobuf_dvb_unregister_bus(f);
 	return res;
 }
 
@@ -264,6 +268,10 @@ int videobuf_dvb_register_frontend(struct dvb_adapter *adapter, struct videobuf_
 
 	/* register network adapter */
 	dvb_net_init(adapter, &dvb->net, &dvb->demux.dmx);
+	if (dvb->net.dvbdev == NULL) {
+		result = -ENOMEM;
+		goto fail_fe_conn;
+	}
 	return 0;
 
 fail_fe_conn:
@@ -278,7 +286,7 @@ fail_dmx:
 	dvb_unregister_frontend(dvb->frontend);
 fail_frontend:
 	dvb_frontend_detach(dvb->frontend);
-	dvb_unregister_adapter(adapter);
+	dvb->frontend = NULL;
 
 	return result;
 }
@@ -291,15 +299,18 @@ void videobuf_dvb_unregister_bus(struct videobuf_dvb_frontends *f)
 	mutex_lock(&f->lock);
 	list_for_each_safe(list, q, &f->felist) {
 		fe = list_entry(list, struct videobuf_dvb_frontend, felist);
-
-		dvb_net_release(&fe->dvb.net);
-		fe->dvb.demux.dmx.remove_frontend(&fe->dvb.demux.dmx, &fe->dvb.fe_mem);
-		fe->dvb.demux.dmx.remove_frontend(&fe->dvb.demux.dmx, &fe->dvb.fe_hw);
-		dvb_dmxdev_release(&fe->dvb.dmxdev);
-		dvb_dmx_release(&fe->dvb.demux);
-		dvb_unregister_frontend(fe->dvb.frontend);
-		dvb_frontend_detach(fe->dvb.frontend);
-
+		if(fe->dvb.net.dvbdev) {
+			dvb_net_release(&fe->dvb.net);
+			fe->dvb.demux.dmx.remove_frontend(&fe->dvb.demux.dmx, &fe->dvb.fe_mem);
+			fe->dvb.demux.dmx.remove_frontend(&fe->dvb.demux.dmx, &fe->dvb.fe_hw);
+			dvb_dmxdev_release(&fe->dvb.dmxdev);
+			dvb_dmx_release(&fe->dvb.demux);
+			dvb_unregister_frontend(fe->dvb.frontend);
+		}
+		if(fe->dvb.frontend) {	/* always allocated, may have been reset */
+			dvb_frontend_detach(fe->dvb.frontend);
+			fe->dvb.frontend = NULL;
+		}
 		list_del(list);
 		kfree(fe);
 	}
