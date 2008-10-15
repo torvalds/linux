@@ -1710,39 +1710,46 @@ static int dvb_frontend_open(struct inode *inode, struct file *file)
 	struct dvb_frontend *fe = dvbdev->priv;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	struct dvb_adapter *adapter = fe->dvb;
-	struct dvb_device *mfedev;
-	struct dvb_frontend *mfe;
-	struct dvb_frontend_private *mfepriv;
-	int mferetry;
 	int ret;
 
 	dprintk ("%s\n", __func__);
 
 	if (adapter->mfe_shared) {
 		mutex_lock (&adapter->mfe_lock);
-		if (adapter->mfe_dvbdev != dvbdev) {
-			if (adapter->mfe_dvbdev) {
-				mfedev = adapter->mfe_dvbdev;
-				mfe = mfedev->priv;
-				mfepriv = mfe->frontend_priv;
-				mutex_unlock (&adapter->mfe_lock);
-				mferetry = (dvb_mfe_wait_time << 1);
-				while (mferetry-- && (mfedev->users != -1 || mfepriv->thread != NULL)) {
-					if(msleep_interruptible(500)) {
-						if(signal_pending(current))
-							return -EINTR;
-					}
-				}
-				mutex_lock (&adapter->mfe_lock);
-				mfedev = adapter->mfe_dvbdev;
-				mfe = mfedev->priv;
-				mfepriv = mfe->frontend_priv;
-				if (mfedev->users != -1 || mfepriv->thread != NULL) {
-					ret = -EBUSY;
-					goto err0;
+
+		if (adapter->mfe_dvbdev == NULL)
+			adapter->mfe_dvbdev = dvbdev;
+
+		else if (adapter->mfe_dvbdev != dvbdev) {
+			struct dvb_device
+				*mfedev = adapter->mfe_dvbdev;
+			struct dvb_frontend
+				*mfe = mfedev->priv;
+			struct dvb_frontend_private
+				*mfepriv = mfe->frontend_priv;
+			int mferetry = (dvb_mfe_wait_time << 1);
+
+			mutex_unlock (&adapter->mfe_lock);
+			while (mferetry-- && (mfedev->users != -1 ||
+					mfepriv->thread != NULL)) {
+				if(msleep_interruptible(500)) {
+					if(signal_pending(current))
+						return -EINTR;
 				}
 			}
-			adapter->mfe_dvbdev = dvbdev;
+
+			mutex_lock (&adapter->mfe_lock);
+			if(adapter->mfe_dvbdev != dvbdev) {
+				mfedev = adapter->mfe_dvbdev;
+				mfe = mfedev->priv;
+				mfepriv = mfe->frontend_priv;
+				if (mfedev->users != -1 ||
+						mfepriv->thread != NULL) {
+					mutex_unlock (&adapter->mfe_lock);
+					return -EBUSY;
+				}
+				adapter->mfe_dvbdev = dvbdev;
+			}
 		}
 	}
 
