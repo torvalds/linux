@@ -958,7 +958,7 @@ static int dvb_init(struct saa7134_dev *dev)
 
 	printk(KERN_INFO "%s() allocating 1 frontend\n", __func__);
 
-	if (videobuf_dvb_alloc_frontend(dev, &dev->frontends, 1) == NULL) {
+	if (videobuf_dvb_alloc_frontend(&dev->frontends, 1) == NULL) {
 		printk(KERN_ERR "%s() failed to alloc\n", __func__);
 		return -ENOMEM;
 	}

@@ -25,7 +25,6 @@ struct videobuf_dvb {
 
 struct videobuf_dvb_frontend {
 	struct list_head felist;
-	void *dev;
 	int id;
 	struct videobuf_dvb dvb;
 };
@@ -57,7 +56,7 @@ int videobuf_dvb_register_adapter(struct videobuf_dvb_frontends *f,
 
 int videobuf_dvb_register_frontend(struct dvb_adapter *adapter, struct videobuf_dvb *dvb);
 
-struct videobuf_dvb_frontend * videobuf_dvb_alloc_frontend(void *private, struct videobuf_dvb_frontends *f, int id);
+struct videobuf_dvb_frontend * videobuf_dvb_alloc_frontend(struct videobuf_dvb_frontends *f, int id);
 
 struct videobuf_dvb_frontend * videobuf_dvb_get_frontend(struct videobuf_dvb_frontends *f, int id);
 int videobuf_dvb_find_frontend(struct videobuf_dvb_frontends *f, struct dvb_frontend *p);

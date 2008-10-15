@@ -571,7 +571,7 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 		port->num_frontends);
 
 	for (i = 1; i <= port->num_frontends; i++) {
-		if (videobuf_dvb_alloc_frontend(dev,
+		if (videobuf_dvb_alloc_frontend(
 			&port->frontends, i) == NULL) {
 			printk(KERN_ERR "%s() failed to alloc\n", __func__);
 			return -ENOMEM;

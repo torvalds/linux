@@ -307,10 +307,8 @@ void videobuf_dvb_unregister_bus(struct videobuf_dvb_frontends *f)
 			dvb_dmx_release(&fe->dvb.demux);
 			dvb_unregister_frontend(fe->dvb.frontend);
 		}
-		if(fe->dvb.frontend) {	/* always allocated, may have been reset */
+		if(fe->dvb.frontend) /* always allocated, may have been reset */
 			dvb_frontend_detach(fe->dvb.frontend);
-			fe->dvb.frontend = NULL;
-		}
 		list_del(list);
 		kfree(fe);
 	}
@@ -360,7 +358,7 @@ int videobuf_dvb_find_frontend(struct videobuf_dvb_frontends *f, struct dvb_fron
 	return ret;
 }
 
-struct videobuf_dvb_frontend * videobuf_dvb_alloc_frontend(void *private, struct videobuf_dvb_frontends *f, int id)
+struct videobuf_dvb_frontend * videobuf_dvb_alloc_frontend(struct videobuf_dvb_frontends *f, int id)
 {
 	struct videobuf_dvb_frontend *fe;
 
@@ -368,7 +366,6 @@ struct videobuf_dvb_frontend * videobuf_dvb_alloc_frontend(void *private, struct
 	if (fe == NULL)
 		goto fail_alloc;
 
-	fe->dev = private;
 	fe->id = id;
 	mutex_init(&fe->dvb.lock);
 
