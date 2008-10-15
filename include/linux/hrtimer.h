@@ -20,6 +20,8 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/wait.h>
+#include <linux/percpu.h>
+
 
 struct hrtimer_clock_base;
 struct hrtimer_cpu_base;
