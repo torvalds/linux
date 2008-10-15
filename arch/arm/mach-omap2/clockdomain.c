@@ -484,6 +484,8 @@ void omap2_clkdm_allow_idle(struct clockdomain *clkdm)
 			    v << __ffs(clkdm->clktrctrl_mask),
 			    clkdm->pwrdm.ptr->prcm_offs,
 			    CM_CLKSTCTRL);
+
+	pwrdm_clkdm_state_switch(clkdm);
 }
 
 /**
