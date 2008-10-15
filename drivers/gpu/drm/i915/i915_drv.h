@@ -597,16 +597,18 @@ extern void opregion_enable_asle(struct drm_device *dev);
  * MI_STORE_DATA_IMM.
  *
  * The following dwords have a reserved meaning:
- * 0: ISR copy, updated when an ISR bit not set in the HWSTAM changes.
- * 4: ring 0 head pointer
- * 5: ring 1 head pointer (915-class)
- * 6: ring 2 head pointer (915-class)
+ * 0x00: ISR copy, updated when an ISR bit not set in the HWSTAM changes.
+ * 0x04: ring 0 head pointer
+ * 0x05: ring 1 head pointer (915-class)
+ * 0x06: ring 2 head pointer (915-class)
+ * 0x10-0x1b: Context status DWords (GM45)
+ * 0x1f: Last written status offset. (GM45)
  *
- * The area from dword 0x10 to 0x3ff is available for driver usage.
+ * The area from dword 0x20 to 0x3ff is available for driver usage.
  */
 #define READ_HWSP(dev_priv, reg)  (((volatile u32*)(dev_priv->hw_status_page))[reg])
 #define READ_BREADCRUMB(dev_priv) READ_HWSP(dev_priv, 5)
-#define I915_GEM_HWS_INDEX		0x10
+#define I915_GEM_HWS_INDEX		0x20
 
 extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 
