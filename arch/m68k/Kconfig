@@ -5,6 +5,7 @@
 config M68K
 	bool
 	default y
+	select HAVE_AOUT
 	select HAVE_IDE
 
 config MMU
@@ -52,9 +53,6 @@ config NO_IOPORT
 
 config NO_DMA
 	def_bool SUN3
-
-config ARCH_SUPPORTS_AOUT
-	def_bool y
 
 config HZ
 	int

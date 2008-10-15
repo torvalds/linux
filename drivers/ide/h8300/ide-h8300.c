@@ -80,7 +80,7 @@ static void h8300_tf_load(ide_drive_t *drive, ide_task_t *task)
 		outb(tf->lbah, io_ports->lbah_addr);
 
 	if (task->tf_flags & IDE_TFLAG_OUT_DEVICE)
-		outb((tf->device & HIHI) | drive->select.all,
+		outb((tf->device & HIHI) | drive->select,
 		     io_ports->device_addr);
 }
 

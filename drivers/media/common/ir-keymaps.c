@@ -103,6 +103,56 @@ IR_KEYTAB_TYPE ir_codes_avermedia_dvbt[IR_KEYTAB_SIZE] = {
 
 EXPORT_SYMBOL_GPL(ir_codes_avermedia_dvbt);
 
+/* Mauro Carvalho Chehab <mchehab@infradead.org> */
+IR_KEYTAB_TYPE ir_codes_avermedia_m135a[IR_KEYTAB_SIZE] = {
+	[0x00] = KEY_POWER2,
+	[0x2e] = KEY_DOT,		/* '.' */
+	[0x01] = KEY_MODE,		/* TV/FM */
+
+	[0x05] = KEY_1,
+	[0x06] = KEY_2,
+	[0x07] = KEY_3,
+	[0x09] = KEY_4,
+	[0x0a] = KEY_5,
+	[0x0b] = KEY_6,
+	[0x0d] = KEY_7,
+	[0x0e] = KEY_8,
+	[0x0f] = KEY_9,
+	[0x11] = KEY_0,
+
+	[0x13] = KEY_RIGHT,		/* -> */
+	[0x12] = KEY_LEFT,		/* <- */
+
+	[0x17] = KEY_SLEEP,		/* Capturar Imagem */
+	[0x10] = KEY_SHUFFLE,		/* Amostra */
+
+	/* FIXME: The keys bellow aren't ok */
+
+	[0x43] = KEY_CHANNELUP,
+	[0x42] = KEY_CHANNELDOWN,
+	[0x1f] = KEY_VOLUMEUP,
+	[0x1e] = KEY_VOLUMEDOWN,
+	[0x0c] = KEY_ENTER,
+
+	[0x14] = KEY_MUTE,
+	[0x08] = KEY_AUDIO,
+
+	[0x03] = KEY_TEXT,
+	[0x04] = KEY_EPG,
+	[0x2b] = KEY_TV2,		/* TV2 */
+
+	[0x1d] = KEY_RED,
+	[0x1c] = KEY_YELLOW,
+	[0x41] = KEY_GREEN,
+	[0x40] = KEY_BLUE,
+
+	[0x1a] = KEY_PLAYPAUSE,
+	[0x19] = KEY_RECORD,
+	[0x18] = KEY_PLAY,
+	[0x1b] = KEY_STOP,
+};
+EXPORT_SYMBOL_GPL(ir_codes_avermedia_m135a);
+
 /* Attila Kondoros <attila.kondoros@chello.hu> */
 IR_KEYTAB_TYPE ir_codes_apac_viewcomp[IR_KEYTAB_SIZE] = {
 
@@ -467,7 +517,8 @@ EXPORT_SYMBOL_GPL(ir_codes_adstech_dvb_t_pci);
 
 /* ---------------------------------------------------------------------- */
 
-/* MSI TV@nywhere remote */
+/* MSI TV@nywhere MASTER remote */
+
 IR_KEYTAB_TYPE ir_codes_msi_tvanywhere[IR_KEYTAB_SIZE] = {
 	/* Keys 0 to 9 */
 	[ 0x00 ] = KEY_0,
@@ -498,6 +549,95 @@ IR_KEYTAB_TYPE ir_codes_msi_tvanywhere[IR_KEYTAB_SIZE] = {
 };
 
 EXPORT_SYMBOL_GPL(ir_codes_msi_tvanywhere);
+
+/* ---------------------------------------------------------------------- */
+
+/*
+  Keycodes for remote on the MSI TV@nywhere Plus. The controller IC on the card
+  is marked "KS003". The controller is I2C at address 0x30, but does not seem
+  to respond to probes until a read is performed from a valid device.
+  I don't know why...
+
+  Note: This remote may be of similar or identical design to the
+  Pixelview remote (?).  The raw codes and duplicate button codes
+  appear to be the same.
+
+  Henry Wong <henry@stuffedcow.net>
+  Some changes to formatting and keycodes by Mark Schultz <n9xmj@yahoo.com>
+
+*/
+
+IR_KEYTAB_TYPE ir_codes_msi_tvanywhere_plus[IR_KEYTAB_SIZE] = {
+
+/*  ---- Remote Button Layout ----
+
+    POWER   SOURCE  SCAN    MUTE
+    TV/FM   1       2       3
+    |>      4       5       6
+    <|      7       8       9
+    ^^UP    0       +       RECALL
+    vvDN    RECORD  STOP    PLAY
+
+	MINIMIZE          ZOOM
+
+		  CH+
+      VOL-                   VOL+
+		  CH-
+
+	SNAPSHOT           MTS
+
+     <<      FUNC    >>     RESET
+*/
+
+	[0x01] = KEY_KP1,             /* 1 */
+	[0x0b] = KEY_KP2,             /* 2 */
+	[0x1b] = KEY_KP3,             /* 3 */
+	[0x05] = KEY_KP4,             /* 4 */
+	[0x09] = KEY_KP5,             /* 5 */
+	[0x15] = KEY_KP6,             /* 6 */
+	[0x06] = KEY_KP7,             /* 7 */
+	[0x0a] = KEY_KP8,             /* 8 */
+	[0x12] = KEY_KP9,             /* 9 */
+	[0x02] = KEY_KP0,             /* 0 */
+	[0x10] = KEY_KPPLUS,          /* + */
+	[0x13] = KEY_AGAIN,           /* Recall */
+
+	[0x1e] = KEY_POWER,           /* Power */
+	[0x07] = KEY_TUNER,           /* Source */
+	[0x1c] = KEY_SEARCH,          /* Scan */
+	[0x18] = KEY_MUTE,            /* Mute */
+
+	[0x03] = KEY_RADIO,           /* TV/FM */
+	/* The next four keys are duplicates that appear to send the
+	   same IR code as Ch+, Ch-, >>, and << .  The raw code assigned
+	   to them is the actual code + 0x20 - they will never be
+	   detected as such unless some way is discovered to distinguish
+	   these buttons from those that have the same code. */
+	[0x3f] = KEY_RIGHT,           /* |> and Ch+ */
+	[0x37] = KEY_LEFT,            /* <| and Ch- */
+	[0x2c] = KEY_UP,              /* ^^Up and >> */
+	[0x24] = KEY_DOWN,            /* vvDn and << */
+
+	[0x00] = KEY_RECORD,          /* Record */
+	[0x08] = KEY_STOP,            /* Stop */
+	[0x11] = KEY_PLAY,            /* Play */
+
+	[0x0f] = KEY_CLOSE,           /* Minimize */
+	[0x19] = KEY_ZOOM,            /* Zoom */
+	[0x1a] = KEY_SHUFFLE,         /* Snapshot */
+	[0x0d] = KEY_LANGUAGE,        /* MTS */
+
+	[0x14] = KEY_VOLUMEDOWN,      /* Vol- */
+	[0x16] = KEY_VOLUMEUP,        /* Vol+ */
+	[0x17] = KEY_CHANNELDOWN,     /* Ch- */
+	[0x1f] = KEY_CHANNELUP,       /* Ch+ */
+
+	[0x04] = KEY_REWIND,          /* << */
+	[0x0e] = KEY_MENU,            /* Function */
+	[0x0c] = KEY_FASTFORWARD,     /* >> */
+	[0x1d] = KEY_RESTART,         /* Reset */
+};
+EXPORT_SYMBOL_GPL(ir_codes_msi_tvanywhere_plus);
 
 /* ---------------------------------------------------------------------- */
 
@@ -1792,11 +1932,60 @@ IR_KEYTAB_TYPE ir_codes_encore_enltv[IR_KEYTAB_SIZE] = {
 	[ 0x41 ] = KEY_GREEN,		/* AP2 */
 	[ 0x47 ] = KEY_YELLOW,		/* AP3 */
 	[ 0x57 ] = KEY_BLUE,		/* AP4 */
-
-
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_encore_enltv);
+
+/* Encore ENLTV2-FM  - silver plastic - "Wand Media" written at the botton
+    Mauro Carvalho Chehab <mchehab@infradead.org> */
+IR_KEYTAB_TYPE ir_codes_encore_enltv2[IR_KEYTAB_SIZE] = {
+	[0x4c] = KEY_POWER2,
+	[0x4a] = KEY_TUNER,
+	[0x40] = KEY_1,
+	[0x60] = KEY_2,
+	[0x50] = KEY_3,
+	[0x70] = KEY_4,
+	[0x48] = KEY_5,
+	[0x68] = KEY_6,
+	[0x58] = KEY_7,
+	[0x78] = KEY_8,
+	[0x44] = KEY_9,
+	[0x54] = KEY_0,
+
+	[0x64] = KEY_LAST,		/* +100 */
+	[0x4e] = KEY_AGAIN,		/* Recall */
+
+	[0x6c] = KEY_SWITCHVIDEOMODE,	/* Video Source */
+	[0x5e] = KEY_MENU,
+	[0x56] = KEY_SCREEN,
+	[0x7a] = KEY_SETUP,
+
+	[0x46] = KEY_MUTE,
+	[0x5c] = KEY_MODE,		/* Stereo */
+	[0x74] = KEY_INFO,
+	[0x7c] = KEY_CLEAR,
+
+	[0x55] = KEY_UP,
+	[0x49] = KEY_DOWN,
+	[0x7e] = KEY_LEFT,
+	[0x59] = KEY_RIGHT,
+	[0x6a] = KEY_ENTER,
+
+	[0x42] = KEY_VOLUMEUP,
+	[0x62] = KEY_VOLUMEDOWN,
+	[0x52] = KEY_CHANNELUP,
+	[0x72] = KEY_CHANNELDOWN,
+
+	[0x41] = KEY_RECORD,
+	[0x51] = KEY_SHUFFLE,	/* Snapshot */
+	[0x75] = KEY_TIME,	/* Timeshift */
+	[0x71] = KEY_TV2,	/* PIP */
+
+	[0x45] = KEY_REWIND,
+	[0x6f] = KEY_PAUSE,
+	[0x7d] = KEY_FORWARD,
+	[0x79] = KEY_STOP,
+};
+EXPORT_SYMBOL_GPL(ir_codes_encore_enltv2);
 
 /* for the Technotrend 1500 bundled remotes (grey and black): */
 IR_KEYTAB_TYPE ir_codes_tt_1500[IR_KEYTAB_SIZE] = {
@@ -2239,3 +2428,86 @@ IR_KEYTAB_TYPE ir_codes_avermedia_a16d[IR_KEYTAB_SIZE] = {
 	[0x2a] = KEY_MENU,
 };
 EXPORT_SYMBOL_GPL(ir_codes_avermedia_a16d);
+
+/* Encore ENLTV-FM v5.3
+   Mauro Carvalho Chehab <mchehab@infradead.org>
+ */
+IR_KEYTAB_TYPE ir_codes_encore_enltv_fm53[IR_KEYTAB_SIZE] = {
+	[0x10] = KEY_POWER2,
+	[0x06] = KEY_MUTE,
+
+	[0x09] = KEY_1,
+	[0x1d] = KEY_2,
+	[0x1f] = KEY_3,
+	[0x19] = KEY_4,
+	[0x1b] = KEY_5,
+	[0x11] = KEY_6,
+	[0x17] = KEY_7,
+	[0x12] = KEY_8,
+	[0x16] = KEY_9,
+	[0x48] = KEY_0,
+
+	[0x04] = KEY_LIST,		/* -/-- */
+	[0x40] = KEY_LAST,		/* recall */
+
+	[0x02] = KEY_MODE,		/* TV/AV */
+	[0x05] = KEY_SHUFFLE,		/* SNAPSHOT */
+
+	[0x4c] = KEY_CHANNELUP,		/* UP */
+	[0x00] = KEY_CHANNELDOWN,	/* DOWN */
+	[0x0d] = KEY_VOLUMEUP,		/* RIGHT */
+	[0x15] = KEY_VOLUMEDOWN,	/* LEFT */
+	[0x49] = KEY_ENTER,		/* OK */
+
+	[0x54] = KEY_RECORD,
+	[0x4d] = KEY_PLAY,		/* pause */
+
+	[0x1e] = KEY_UP,		/* video setting */
+	[0x0e] = KEY_RIGHT,		/* <- */
+	[0x1a] = KEY_LEFT,		/* -> */
+
+	[0x0a] = KEY_DOWN,		/* video default */
+	[0x0c] = KEY_ZOOM,		/* hide pannel */
+	[0x47] = KEY_SLEEP,		/* shutdown */
+};
+EXPORT_SYMBOL_GPL(ir_codes_encore_enltv_fm53);
+
+/* Zogis Real Audio 220 - 32 keys IR */
+IR_KEYTAB_TYPE ir_codes_real_audio_220_32_keys[IR_KEYTAB_SIZE] = {
+	[0x1c] = KEY_RADIO,
+	[0x12] = KEY_POWER2,
+
+	[0x01] = KEY_1,
+	[0x02] = KEY_2,
+	[0x03] = KEY_3,
+	[0x04] = KEY_4,
+	[0x05] = KEY_5,
+	[0x06] = KEY_6,
+	[0x07] = KEY_7,
+	[0x08] = KEY_8,
+	[0x09] = KEY_9,
+	[0x00] = KEY_0,
+
+	[0x0c] = KEY_VOLUMEUP,
+	[0x18] = KEY_VOLUMEDOWN,
+	[0x0b] = KEY_CHANNELUP,
+	[0x15] = KEY_CHANNELDOWN,
+	[0x16] = KEY_ENTER,
+
+	[0x11] = KEY_LIST,		/* Source */
+	[0x0d] = KEY_AUDIO,		/* stereo */
+
+	[0x0f] = KEY_PREVIOUS,		/* Prev */
+	[0x1b] = KEY_PAUSE,		/* Timeshift */
+	[0x1a] = KEY_NEXT,		/* Next */
+
+	[0x0e] = KEY_STOP,
+	[0x1f] = KEY_PLAY,
+	[0x1e] = KEY_PLAYPAUSE,		/* Pause */
+
+	[0x1d] = KEY_RECORD,
+	[0x13] = KEY_MUTE,
+	[0x19] = KEY_SHUFFLE,		/* Snapshot */
+
+};
+EXPORT_SYMBOL_GPL(ir_codes_real_audio_220_32_keys);

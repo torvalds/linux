@@ -585,6 +585,8 @@ int __cpuinit start_secondary(void *cpuvoid)
 	/* Enable pfault pseudo page faults on this cpu. */
 	pfault_init();
 
+	/* call cpu notifiers */
+	notify_cpu_starting(smp_processor_id());
 	/* Mark this cpu as online */
 	spin_lock(&call_lock);
 	cpu_set(smp_processor_id(), cpu_online_map);

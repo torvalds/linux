@@ -335,6 +335,7 @@ void __init mv78xx0_ge00_init(struct mv643xx_eth_platform_data *eth_data)
 struct mv643xx_eth_shared_platform_data mv78xx0_ge01_shared_data = {
 	.t_clk		= 0,
 	.dram		= &mv78xx0_mbus_dram_info,
+	.shared_smi	= &mv78xx0_ge00_shared,
 };
 
 static struct resource mv78xx0_ge01_shared_resources[] = {
@@ -375,7 +376,6 @@ static struct platform_device mv78xx0_ge01 = {
 void __init mv78xx0_ge01_init(struct mv643xx_eth_platform_data *eth_data)
 {
 	eth_data->shared = &mv78xx0_ge01_shared;
-	eth_data->shared_smi = &mv78xx0_ge00_shared;
 	mv78xx0_ge01.dev.platform_data = eth_data;
 
 	platform_device_register(&mv78xx0_ge01_shared);
@@ -389,6 +389,7 @@ void __init mv78xx0_ge01_init(struct mv643xx_eth_platform_data *eth_data)
 struct mv643xx_eth_shared_platform_data mv78xx0_ge10_shared_data = {
 	.t_clk		= 0,
 	.dram		= &mv78xx0_mbus_dram_info,
+	.shared_smi	= &mv78xx0_ge00_shared,
 };
 
 static struct resource mv78xx0_ge10_shared_resources[] = {
@@ -429,7 +430,6 @@ static struct platform_device mv78xx0_ge10 = {
 void __init mv78xx0_ge10_init(struct mv643xx_eth_platform_data *eth_data)
 {
 	eth_data->shared = &mv78xx0_ge10_shared;
-	eth_data->shared_smi = &mv78xx0_ge00_shared;
 	mv78xx0_ge10.dev.platform_data = eth_data;
 
 	platform_device_register(&mv78xx0_ge10_shared);
@@ -443,6 +443,7 @@ void __init mv78xx0_ge10_init(struct mv643xx_eth_platform_data *eth_data)
 struct mv643xx_eth_shared_platform_data mv78xx0_ge11_shared_data = {
 	.t_clk		= 0,
 	.dram		= &mv78xx0_mbus_dram_info,
+	.shared_smi	= &mv78xx0_ge00_shared,
 };
 
 static struct resource mv78xx0_ge11_shared_resources[] = {
@@ -483,7 +484,6 @@ static struct platform_device mv78xx0_ge11 = {
 void __init mv78xx0_ge11_init(struct mv643xx_eth_platform_data *eth_data)
 {
 	eth_data->shared = &mv78xx0_ge11_shared;
-	eth_data->shared_smi = &mv78xx0_ge00_shared;
 	mv78xx0_ge11.dev.platform_data = eth_data;
 
 	platform_device_register(&mv78xx0_ge11_shared);

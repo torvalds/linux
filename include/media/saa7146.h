@@ -30,7 +30,7 @@ extern unsigned int saa7146_debug;
 	#define DEBUG_VARIABLE saa7146_debug
 #endif
 
-#define DEBUG_PROLOG printk("%s: %s(): ",KBUILD_MODNAME,__FUNCTION__)
+#define DEBUG_PROLOG printk("%s: %s(): ",KBUILD_MODNAME, __func__)
 #define INFO(x) { printk("%s: ",KBUILD_MODNAME); printk x; }
 
 #define ERR(x) { DEBUG_PROLOG; printk x; }

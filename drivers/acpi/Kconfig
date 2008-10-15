@@ -259,7 +259,10 @@ config ACPI_ASUS
 
 config ACPI_TOSHIBA
 	tristate "Toshiba Laptop Extras"
-	depends on X86
+	depends on X86 && INPUT
+	select INPUT_POLLDEV
+	select NET
+	select RFKILL
 	select BACKLIGHT_CLASS_DEVICE
 	---help---
 	  This driver adds support for access to certain system settings

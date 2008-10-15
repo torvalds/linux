@@ -4,20 +4,19 @@
 #define APIC_DEFINITION 1
 #include <linux/threads.h>
 #include <linux/cpumask.h>
-#include <asm/smp.h>
 #include <asm/mpspec.h>
 #include <asm/genapic.h>
 #include <asm/fixmap.h>
 #include <asm/apicdef.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/smp.h>
 #include <linux/init.h>
-#include <asm/mach-es7000/mach_apicdef.h>
-#include <asm/mach-es7000/mach_apic.h>
-#include <asm/mach-es7000/mach_ipi.h>
-#include <asm/mach-es7000/mach_mpparse.h>
-#include <asm/mach-es7000/mach_wakecpu.h>
+#include <asm/es7000/apicdef.h>
+#include <linux/smp.h>
+#include <asm/es7000/apic.h>
+#include <asm/es7000/ipi.h>
+#include <asm/es7000/mpparse.h>
+#include <asm/es7000/wakecpu.h>
 
 static int probe_es7000(void)
 {
@@ -48,16 +47,26 @@ static __init int mps_oem_check(struct mp_config_table *mpc, char *oem,
 /* Hook from generic ACPI tables.c */
 static int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
-	unsigned long oem_addr;
+	unsigned long oem_addr = 0;
+	int check_dsdt;
+	int ret = 0;
+
+	/* check dsdt at first to avoid clear fix_map for oem_addr */
+	check_dsdt = es7000_check_dsdt();
+
 	if (!find_unisys_acpi_oem_table(&oem_addr)) {
-		if (es7000_check_dsdt())
-			return parse_unisys_oem((char *)oem_addr);
+		if (check_dsdt)
+			ret = parse_unisys_oem((char *)oem_addr);
 		else {
 			setup_unisys();
-			return 1;
+			ret = 1;
 		}
+		/*
+		 * we need to unmap it
+		 */
+		unmap_unisys_acpi_oem_table(oem_addr);
 	}
-	return 0;
+	return ret;
 }
 #else
 static int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)

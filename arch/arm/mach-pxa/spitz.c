@@ -618,7 +618,7 @@ static void spitz_restart(char mode)
 
 static void __init common_init(void)
 {
-	init_gpio_reset(SPITZ_GPIO_ON_RESET);
+	init_gpio_reset(SPITZ_GPIO_ON_RESET, 1);
 	pm_power_off = spitz_poweroff;
 	arm_pm_restart = spitz_restart;
 

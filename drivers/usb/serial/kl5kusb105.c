@@ -658,7 +658,7 @@ static void klsi_105_read_bulk_callback(struct urb *urb)
 	} else {
 		int bytes_sent = ((__u8 *) data)[0] +
 				 ((unsigned int) ((__u8 *) data)[1] << 8);
-		tty = port->port.tty;
+		tty = tty_port_tty_get(&port->port);
 		/* we should immediately resubmit the URB, before attempting
 		 * to pass the data on to the tty layer. But that needs locking
 		 * against re-entry an then mixed-up data because of
@@ -679,6 +679,7 @@ static void klsi_105_read_bulk_callback(struct urb *urb)
 		tty_buffer_request_room(tty, bytes_sent);
 		tty_insert_flip_string(tty, data + 2, bytes_sent);
 		tty_flip_buffer_push(tty);
+		tty_kref_put(tty);
 
 		/* again lockless, but debug info only */
 		priv->bytes_in += bytes_sent;

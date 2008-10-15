@@ -865,7 +865,8 @@ static int sendcmd(struct cmdif *cif, u32 flags, u32 cmd, u32 parm,
 	struct riptideport *hwport;
 	struct cmdport *cmdport = NULL;
 
-	snd_assert(cif, return -EINVAL);
+	if (snd_BUG_ON(!cif))
+		return -EINVAL;
 
 	hwport = cif->hwport;
 	if (cif->errcnt > MAX_ERROR_COUNT) {
@@ -1482,7 +1483,6 @@ static int snd_riptide_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_riptide *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_sg_buf *sgbuf = snd_pcm_substream_sgbuf(substream);
 	struct pcmhw *data = get_pcmhwdev(substream);
 	struct cmdif *cif = chip->cif;
 	unsigned char *lbuspath = NULL;
@@ -1490,7 +1490,8 @@ static int snd_riptide_prepare(struct snd_pcm_substream *substream)
 	int err = 0;
 	snd_pcm_format_t format;
 
-	snd_assert(cif && data, return -EINVAL);
+	if (snd_BUG_ON(!cif || !data))
+		return -EINVAL;
 
 	snd_printdd("prepare id %d ch: %d f:0x%x r:%d\n", data->id,
 		    runtime->channels, runtime->format, runtime->rate);
@@ -1513,9 +1514,9 @@ static int snd_riptide_prepare(struct snd_pcm_substream *substream)
 			lbuspath = data->paths.stereo;
 		break;
 	}
-	snd_printdd("use sgdlist at 0x%p and buffer at 0x%p\n",
-		    data->sgdlist.area, sgbuf);
-	if (data->sgdlist.area && sgbuf) {
+	snd_printdd("use sgdlist at 0x%p\n",
+		    data->sgdlist.area);
+	if (data->sgdlist.area) {
 		unsigned int i, j, size, pages, f, pt, period;
 		struct sgd *c, *p = NULL;
 
@@ -1533,6 +1534,7 @@ static int snd_riptide_prepare(struct snd_pcm_substream *substream)
 		pt = 0;
 		j = 0;
 		for (i = 0; i < pages; i++) {
+			unsigned int ofs, addr;
 			c = &data->sgdbuf[i];
 			if (p)
 				p->dwNextLink = cpu_to_le32(data->sgdlist.addr +
@@ -1540,8 +1542,9 @@ static int snd_riptide_prepare(struct snd_pcm_substream *substream)
 							     sizeof(struct
 								    sgd)));
 			c->dwNextLink = cpu_to_le32(data->sgdlist.addr);
-			c->dwSegPtrPhys =
-			    cpu_to_le32(sgbuf->table[j].addr + pt);
+			ofs = j << PAGE_SHIFT;
+			addr = snd_pcm_sgbuf_get_addr(substream, ofs) + pt;
+			c->dwSegPtrPhys = cpu_to_le32(addr);
 			pt = (pt + f) % PAGE_SIZE;
 			if (pt == 0)
 				j++;
@@ -1772,7 +1775,8 @@ snd_riptide_codec_write(struct snd_ac97 *ac97, unsigned short reg,
 	union cmdret rptr = CMDRET_ZERO;
 	int i = 0;
 
-	snd_assert(cif, return);
+	if (snd_BUG_ON(!cif))
+		return;
 
 	snd_printdd("Write AC97 reg 0x%x 0x%x\n", reg, val);
 	do {
@@ -1790,7 +1794,8 @@ static unsigned short snd_riptide_codec_read(struct snd_ac97 *ac97,
 	struct cmdif *cif = chip->cif;
 	union cmdret rptr = CMDRET_ZERO;
 
-	snd_assert(cif, return 0);
+	if (snd_BUG_ON(!cif))
+		return 0;
 
 	if (SEND_RACR(cif, reg, &rptr) != 0)
 		SEND_RACR(cif, reg, &rptr);
@@ -1804,7 +1809,8 @@ static int snd_riptide_initialize(struct snd_riptide *chip)
 	unsigned int device_id;
 	int err;
 
-	snd_assert(chip, return -EINVAL);
+	if (snd_BUG_ON(!chip))
+		return -EINVAL;
 
 	cif = chip->cif;
 	if (!cif) {
@@ -1836,7 +1842,8 @@ static int snd_riptide_free(struct snd_riptide *chip)
 {
 	struct cmdif *cif;
 
-	snd_assert(chip, return 0);
+	if (!chip)
+		return 0;
 
 	if ((cif = chip->cif)) {
 		SET_GRESET(cif->hwport);

@@ -135,7 +135,6 @@
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
 #include <linux/init.h>
-#include <linux/hdreg.h>
 #include <linux/pci.h>
 #include <linux/ide.h>
 
@@ -162,7 +161,7 @@ static void trm290_prepare_drive (ide_drive_t *drive, unsigned int use_dma)
 	}
 
 	/* enable IRQ if not probing */
-	if (drive->present) {
+	if (drive->dev_flags & IDE_DFLAG_PRESENT) {
 		reg = inw(hwif->config_data + 3);
 		reg &= 0x13;
 		reg &= ~(1 << hwif->channel);
@@ -174,7 +173,7 @@ static void trm290_prepare_drive (ide_drive_t *drive, unsigned int use_dma)
 
 static void trm290_selectproc (ide_drive_t *drive)
 {
-	trm290_prepare_drive(drive, drive->using_dma);
+	trm290_prepare_drive(drive, !!(drive->dev_flags & IDE_DFLAG_USING_DMA));
 }
 
 static void trm290_dma_exec_cmd(ide_drive_t *drive, u8 command)
@@ -351,7 +350,7 @@ static const struct pci_device_id trm290_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, trm290_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver trm290_pci_driver = {
 	.name		= "TRM290_IDE",
 	.id_table	= trm290_pci_tbl,
 	.probe		= trm290_init_one,
@@ -360,12 +359,12 @@ static struct pci_driver driver = {
 
 static int __init trm290_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&trm290_pci_driver);
 }
 
 static void __exit trm290_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&trm290_pci_driver);
 }
 
 module_init(trm290_ide_init);

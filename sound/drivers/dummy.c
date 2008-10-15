@@ -47,9 +47,11 @@ MODULE_SUPPORTED_DEVICE("{{ALSA,Dummy soundcard}}");
 static int emu10k1_playback_constraints(struct snd_pcm_runtime *runtime)
 {
 	int err;
-	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
+	err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
+	if (err < 0)
 		return err;
-	if ((err = snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 256, UINT_MAX)) < 0)
+	err = snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 256, UINT_MAX);
+	if (err) < 0)
 		return err;
 	return 0;
 }
@@ -354,6 +356,7 @@ static int snd_card_dummy_playback_open(struct snd_pcm_substream *substream)
 	if ((dpcm = new_pcm_stream(substream)) == NULL)
 		return -ENOMEM;
 	runtime->private_data = dpcm;
+	/* makes the infrastructure responsible for freeing dpcm */
 	runtime->private_free = snd_card_dummy_runtime_free;
 	runtime->hw = snd_card_dummy_playback;
 	if (substream->pcm->device & 1) {
@@ -362,10 +365,9 @@ static int snd_card_dummy_playback_open(struct snd_pcm_substream *substream)
 	}
 	if (substream->pcm->device & 2)
 		runtime->hw.info &= ~(SNDRV_PCM_INFO_MMAP|SNDRV_PCM_INFO_MMAP_VALID);
-	if ((err = add_playback_constraints(runtime)) < 0) {
-		kfree(dpcm);
+	err = add_playback_constraints(runtime);
+	if (err < 0)
 		return err;
-	}
 
 	return 0;
 }
@@ -379,6 +381,7 @@ static int snd_card_dummy_capture_open(struct snd_pcm_substream *substream)
 	if ((dpcm = new_pcm_stream(substream)) == NULL)
 		return -ENOMEM;
 	runtime->private_data = dpcm;
+	/* makes the infrastructure responsible for freeing dpcm */
 	runtime->private_free = snd_card_dummy_runtime_free;
 	runtime->hw = snd_card_dummy_capture;
 	if (substream->pcm->device == 1) {
@@ -387,10 +390,9 @@ static int snd_card_dummy_capture_open(struct snd_pcm_substream *substream)
 	}
 	if (substream->pcm->device & 2)
 		runtime->hw.info &= ~(SNDRV_PCM_INFO_MMAP|SNDRV_PCM_INFO_MMAP_VALID);
-	if ((err = add_capture_constraints(runtime)) < 0) {
-		kfree(dpcm);
+	err = add_capture_constraints(runtime);
+	if (err < 0)
 		return err;
-	}
 
 	return 0;
 }
@@ -433,8 +435,9 @@ static int __devinit snd_card_dummy_pcm(struct snd_dummy *dummy, int device,
 	struct snd_pcm *pcm;
 	int err;
 
-	if ((err = snd_pcm_new(dummy->card, "Dummy PCM", device,
-			       substreams, substreams, &pcm)) < 0)
+	err = snd_pcm_new(dummy->card, "Dummy PCM", device,
+			       substreams, substreams, &pcm);
+	if (err < 0)
 		return err;
 	dummy->pcm = pcm;
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_card_dummy_playback_ops);
@@ -565,12 +568,14 @@ static int __devinit snd_card_dummy_new_mixer(struct snd_dummy *dummy)
 	unsigned int idx;
 	int err;
 
-	snd_assert(dummy != NULL, return -EINVAL);
+	if (snd_BUG_ON(!dummy))
+		return -EINVAL;
 	spin_lock_init(&dummy->mixer_lock);
 	strcpy(card->mixername, "Dummy Mixer");
 
 	for (idx = 0; idx < ARRAY_SIZE(snd_dummy_controls); idx++) {
-		if ((err = snd_ctl_add(card, snd_ctl_new1(&snd_dummy_controls[idx], dummy))) < 0)
+		err = snd_ctl_add(card, snd_ctl_new1(&snd_dummy_controls[idx], dummy));
+		if (err < 0)
 			return err;
 	}
 	return 0;
@@ -594,10 +599,12 @@ static int __devinit snd_dummy_probe(struct platform_device *devptr)
 			pcm_substreams[dev] = 1;
 		if (pcm_substreams[dev] > MAX_PCM_SUBSTREAMS)
 			pcm_substreams[dev] = MAX_PCM_SUBSTREAMS;
-		if ((err = snd_card_dummy_pcm(dummy, idx, pcm_substreams[dev])) < 0)
+		err = snd_card_dummy_pcm(dummy, idx, pcm_substreams[dev]);
+		if (err < 0)
 			goto __nodev;
 	}
-	if ((err = snd_card_dummy_new_mixer(dummy)) < 0)
+	err = snd_card_dummy_new_mixer(dummy);
+	if (err < 0)
 		goto __nodev;
 	strcpy(card->driver, "Dummy");
 	strcpy(card->shortname, "Dummy");
@@ -605,7 +612,8 @@ static int __devinit snd_dummy_probe(struct platform_device *devptr)
 
 	snd_card_set_dev(card, &devptr->dev);
 
-	if ((err = snd_card_register(card)) == 0) {
+	err = snd_card_register(card);
+	if (err == 0) {
 		platform_set_drvdata(devptr, card);
 		return 0;
 	}
@@ -668,7 +676,8 @@ static int __init alsa_card_dummy_init(void)
 {
 	int i, cards, err;
 
-	if ((err = platform_driver_register(&snd_dummy_driver)) < 0)
+	err = platform_driver_register(&snd_dummy_driver);
+	if (err < 0)
 		return err;
 
 	cards = 0;

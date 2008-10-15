@@ -90,11 +90,11 @@ struct qeth_dbf_info {
 #define CARD_RDEV(card) card->read.ccwdev
 #define CARD_WDEV(card) card->write.ccwdev
 #define CARD_DDEV(card) card->data.ccwdev
-#define CARD_BUS_ID(card) card->gdev->dev.bus_id
-#define CARD_RDEV_ID(card) card->read.ccwdev->dev.bus_id
-#define CARD_WDEV_ID(card) card->write.ccwdev->dev.bus_id
-#define CARD_DDEV_ID(card) card->data.ccwdev->dev.bus_id
-#define CHANNEL_ID(channel) channel->ccwdev->dev.bus_id
+#define CARD_BUS_ID(card) dev_name(&card->gdev->dev)
+#define CARD_RDEV_ID(card) dev_name(&card->read.ccwdev->dev)
+#define CARD_WDEV_ID(card) dev_name(&card->write.ccwdev->dev)
+#define CARD_DDEV_ID(card) dev_name(&card->data.ccwdev->dev)
+#define CHANNEL_ID(channel) dev_name(&channel->ccwdev->dev)
 
 /**
  * card stuff

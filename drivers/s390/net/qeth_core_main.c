@@ -745,7 +745,7 @@ static int qeth_get_problem(struct ccw_device *cdev, struct irb *irb)
 		     SCHN_STAT_PROT_CHECK | SCHN_STAT_PROG_CHECK)) {
 		QETH_DBF_TEXT(TRACE, 2, "CGENCHK");
 		PRINT_WARN("check on device %s, dstat=x%x, cstat=x%x ",
-			   cdev->dev.bus_id, dstat, cstat);
+			   dev_name(&cdev->dev), dstat, cstat);
 		print_hex_dump(KERN_WARNING, "qeth: irb ", DUMP_PREFIX_OFFSET,
 				16, 1, irb, 64, 1);
 		return 1;
@@ -760,7 +760,7 @@ static int qeth_get_problem(struct ccw_device *cdev, struct irb *irb)
 		if (sense[SENSE_COMMAND_REJECT_BYTE] &
 		    SENSE_COMMAND_REJECT_FLAG) {
 			QETH_DBF_TEXT(TRACE, 2, "CMDREJi");
-			return 0;
+			return 1;
 		}
 		if ((sense[2] == 0xaf) && (sense[3] == 0xfe)) {
 			QETH_DBF_TEXT(TRACE, 2, "AFFE");
@@ -784,12 +784,12 @@ static long __qeth_check_irb_error(struct ccw_device *cdev,
 
 	switch (PTR_ERR(irb)) {
 	case -EIO:
-		PRINT_WARN("i/o-error on device %s\n", cdev->dev.bus_id);
+		PRINT_WARN("i/o-error on device %s\n", dev_name(&cdev->dev));
 		QETH_DBF_TEXT(TRACE, 2, "ckirberr");
 		QETH_DBF_TEXT_(TRACE, 2, "  rc%d", -EIO);
 		break;
 	case -ETIMEDOUT:
-		PRINT_WARN("timeout on device %s\n", cdev->dev.bus_id);
+		PRINT_WARN("timeout on device %s\n", dev_name(&cdev->dev));
 		QETH_DBF_TEXT(TRACE, 2, "ckirberr");
 		QETH_DBF_TEXT_(TRACE, 2, "  rc%d", -ETIMEDOUT);
 		if (intparm == QETH_RCD_PARM) {
@@ -803,7 +803,7 @@ static long __qeth_check_irb_error(struct ccw_device *cdev,
 		break;
 	default:
 		PRINT_WARN("unknown error %ld on device %s\n", PTR_ERR(irb),
-			   cdev->dev.bus_id);
+			   dev_name(&cdev->dev));
 		QETH_DBF_TEXT(TRACE, 2, "ckirberr");
 		QETH_DBF_TEXT(TRACE, 2, "  rc???");
 	}
@@ -884,6 +884,7 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 		}
 		rc = qeth_get_problem(cdev, irb);
 		if (rc) {
+			qeth_clear_ipacmd_list(card);
 			qeth_schedule_recovery(card);
 			goto out;
 		}
@@ -4081,7 +4082,7 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 	if (!get_device(dev))
 		return -ENODEV;
 
-	QETH_DBF_TEXT_(SETUP, 2, "%s", gdev->dev.bus_id);
+	QETH_DBF_TEXT_(SETUP, 2, "%s", dev_name(&gdev->dev));
 
 	card = qeth_alloc_card();
 	if (!card) {
@@ -4147,6 +4148,7 @@ static void qeth_core_remove_device(struct ccwgroup_device *gdev)
 	unsigned long flags;
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
 
+	QETH_DBF_TEXT(SETUP, 2, "removedv");
 	if (card->discipline.ccwgdriver) {
 		card->discipline.ccwgdriver->remove(gdev);
 		qeth_core_free_discipline(card);

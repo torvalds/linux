@@ -294,10 +294,10 @@ static void sas_ata_post_internal(struct ata_queued_cmd *qc)
 	}
 }
 
-static int sas_ata_scr_write(struct ata_port *ap, unsigned int sc_reg_in,
+static int sas_ata_scr_write(struct ata_link *link, unsigned int sc_reg_in,
 			      u32 val)
 {
-	struct domain_device *dev = ap->private_data;
+	struct domain_device *dev = link->ap->private_data;
 
 	SAS_DPRINTK("STUB %s\n", __func__);
 	switch (sc_reg_in) {
@@ -319,10 +319,10 @@ static int sas_ata_scr_write(struct ata_port *ap, unsigned int sc_reg_in,
 	return 0;
 }
 
-static int sas_ata_scr_read(struct ata_port *ap, unsigned int sc_reg_in,
+static int sas_ata_scr_read(struct ata_link *link, unsigned int sc_reg_in,
 			    u32 *val)
 {
-	struct domain_device *dev = ap->private_data;
+	struct domain_device *dev = link->ap->private_data;
 
 	SAS_DPRINTK("STUB %s\n", __func__);
 	switch (sc_reg_in) {
@@ -398,7 +398,7 @@ void sas_ata_task_abort(struct sas_task *task)
 
 	/* Bounce SCSI-initiated commands to the SCSI EH */
 	if (qc->scsicmd) {
-		scsi_req_abort_cmd(qc->scsicmd);
+		blk_abort_request(qc->scsicmd->request);
 		scsi_schedule_eh(qc->scsicmd->device->host);
 		return;
 	}

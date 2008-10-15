@@ -384,13 +384,17 @@ unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 
 	/* Connected? */
 	if ((1 << sk->sk_state) & ~(TCPF_SYN_SENT | TCPF_SYN_RECV)) {
+		int target = sock_rcvlowat(sk, 0, INT_MAX);
+
+		if (tp->urg_seq == tp->copied_seq &&
+		    !sock_flag(sk, SOCK_URGINLINE) &&
+		    tp->urg_data)
+			target--;
+
 		/* Potential race condition. If read of tp below will
 		 * escape above sk->sk_state, we can be illegally awaken
 		 * in SYN_* states. */
-		if ((tp->rcv_nxt != tp->copied_seq) &&
-		    (tp->urg_seq != tp->copied_seq ||
-		     tp->rcv_nxt != tp->copied_seq + 1 ||
-		     sock_flag(sk, SOCK_URGINLINE) || !tp->urg_data))
+		if (tp->rcv_nxt - tp->copied_seq >= target)
 			mask |= POLLIN | POLLRDNORM;
 
 		if (!(sk->sk_shutdown & SEND_SHUTDOWN)) {
@@ -493,10 +497,8 @@ static inline void skb_entail(struct sock *sk, struct sk_buff *skb)
 static inline void tcp_mark_urg(struct tcp_sock *tp, int flags,
 				struct sk_buff *skb)
 {
-	if (flags & MSG_OOB) {
-		tp->urg_mode = 1;
+	if (flags & MSG_OOB)
 		tp->snd_up = tp->write_seq;
-	}
 }
 
 static inline void tcp_push(struct sock *sk, int flags, int mss_now,
@@ -1157,7 +1159,7 @@ static void tcp_prequeue_process(struct sock *sk)
 	 * necessary */
 	local_bh_disable();
 	while ((skb = __skb_dequeue(&tp->ucopy.prequeue)) != NULL)
-		sk->sk_backlog_rcv(sk, skb);
+		sk_backlog_rcv(sk, skb);
 	local_bh_enable();
 
 	/* Clear memory counter. */

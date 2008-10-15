@@ -38,6 +38,7 @@
  * 82573V Gigabit Ethernet Controller (Copper)
  * 82573E Gigabit Ethernet Controller (Copper)
  * 82573L Gigabit Ethernet Controller
+ * 82574L Gigabit Network Connection
  */
 
 #include <linux/netdevice.h>
@@ -54,6 +55,8 @@
 
 #define E1000_GCR_L1_ACT_WITHOUT_L0S_RX 0x08000000
 
+#define E1000_NVM_INIT_CTRL2_MNGM 0x6000 /* Manageability Operation Mode mask */
+
 static s32 e1000_get_phy_id_82571(struct e1000_hw *hw);
 static s32 e1000_setup_copper_link_82571(struct e1000_hw *hw);
 static s32 e1000_setup_fiber_serdes_link_82571(struct e1000_hw *hw);
@@ -63,6 +66,8 @@ static s32 e1000_fix_nvm_checksum_82571(struct e1000_hw *hw);
 static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw);
 static s32 e1000_setup_link_82571(struct e1000_hw *hw);
 static void e1000_clear_hw_cntrs_82571(struct e1000_hw *hw);
+static bool e1000_check_mng_mode_82574(struct e1000_hw *hw);
+static s32 e1000_led_on_82574(struct e1000_hw *hw);
 
 /**
  *  e1000_init_phy_params_82571 - Init PHY func ptrs.
@@ -92,6 +97,9 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 	case e1000_82573:
 		phy->type		 = e1000_phy_m88;
 		break;
+	case e1000_82574:
+		phy->type		 = e1000_phy_bm;
+		break;
 	default:
 		return -E1000_ERR_PHY;
 		break;
@@ -109,6 +117,10 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 		break;
 	case e1000_82573:
 		if (phy->id != M88E1111_I_PHY_ID)
+			return -E1000_ERR_PHY;
+		break;
+	case e1000_82574:
+		if (phy->id != BME1000_E_PHY_ID_R2)
 			return -E1000_ERR_PHY;
 		break;
 	default:
@@ -150,6 +162,7 @@ static s32 e1000_init_nvm_params_82571(struct e1000_hw *hw)
 
 	switch (hw->mac.type) {
 	case e1000_82573:
+	case e1000_82574:
 		if (((eecd >> 15) & 0x3) == 0x3) {
 			nvm->type = e1000_nvm_flash_hw;
 			nvm->word_size = 2048;
@@ -245,6 +258,17 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 		break;
 	}
 
+	switch (hw->mac.type) {
+	case e1000_82574:
+		func->check_mng_mode = e1000_check_mng_mode_82574;
+		func->led_on = e1000_led_on_82574;
+		break;
+	default:
+		func->check_mng_mode = e1000e_check_mng_mode_generic;
+		func->led_on = e1000e_led_on_generic;
+		break;
+	}
+
 	return 0;
 }
 
@@ -330,6 +354,8 @@ static s32 e1000_get_variants_82571(struct e1000_adapter *adapter)
 static s32 e1000_get_phy_id_82571(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val;
+	u16 phy_id = 0;
 
 	switch (hw->mac.type) {
 	case e1000_82571:
@@ -344,6 +370,20 @@ static s32 e1000_get_phy_id_82571(struct e1000_hw *hw)
 		break;
 	case e1000_82573:
 		return e1000e_get_phy_id(hw);
+		break;
+	case e1000_82574:
+		ret_val = e1e_rphy(hw, PHY_ID1, &phy_id);
+		if (ret_val)
+			return ret_val;
+
+		phy->id = (u32)(phy_id << 16);
+		udelay(20);
+		ret_val = e1e_rphy(hw, PHY_ID2, &phy_id);
+		if (ret_val)
+			return ret_val;
+
+		phy->id |= (u32)(phy_id);
+		phy->revision = (u32)(phy_id & ~PHY_REVISION_MASK);
 		break;
 	default:
 		return -E1000_ERR_PHY;
@@ -421,7 +461,7 @@ static s32 e1000_acquire_nvm_82571(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	if (hw->mac.type != e1000_82573)
+	if (hw->mac.type != e1000_82573 && hw->mac.type != e1000_82574)
 		ret_val = e1000e_acquire_nvm(hw);
 
 	if (ret_val)
@@ -461,6 +501,7 @@ static s32 e1000_write_nvm_82571(struct e1000_hw *hw, u16 offset, u16 words,
 
 	switch (hw->mac.type) {
 	case e1000_82573:
+	case e1000_82574:
 		ret_val = e1000_write_nvm_eewr_82571(hw, offset, words, data);
 		break;
 	case e1000_82571:
@@ -735,7 +776,7 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	 * Must acquire the MDIO ownership before MAC reset.
 	 * Ownership defaults to firmware after a reset.
 	 */
-	if (hw->mac.type == e1000_82573) {
+	if (hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) {
 		extcnf_ctrl = er32(EXTCNF_CTRL);
 		extcnf_ctrl |= E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP;
 
@@ -776,7 +817,7 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	 * Need to wait for Phy configuration completion before accessing
 	 * NVM and Phy.
 	 */
-	if (hw->mac.type == e1000_82573)
+	if (hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574)
 		msleep(25);
 
 	/* Clear any pending interrupt events. */
@@ -843,7 +884,7 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 	ew32(TXDCTL(0), reg_data);
 
 	/* ...for both queues. */
-	if (mac->type != e1000_82573) {
+	if (mac->type != e1000_82573 && mac->type != e1000_82574) {
 		reg_data = er32(TXDCTL(1));
 		reg_data = (reg_data & ~E1000_TXDCTL_WTHRESH) |
 			   E1000_TXDCTL_FULL_TX_DESC_WB |
@@ -918,19 +959,28 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	}
 
 	/* Device Control */
-	if (hw->mac.type == e1000_82573) {
+	if (hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) {
 		reg = er32(CTRL);
 		reg &= ~(1 << 29);
 		ew32(CTRL, reg);
 	}
 
 	/* Extended Device Control */
-	if (hw->mac.type == e1000_82573) {
+	if (hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) {
 		reg = er32(CTRL_EXT);
 		reg &= ~(1 << 23);
 		reg |= (1 << 22);
 		ew32(CTRL_EXT, reg);
 	}
+
+	/* PCI-Ex Control Register */
+	if (hw->mac.type == e1000_82574) {
+		reg = er32(GCR);
+		reg |= (1 << 22);
+		ew32(GCR, reg);
+	}
+
+	return;
 }
 
 /**
@@ -947,7 +997,7 @@ void e1000e_clear_vfta(struct e1000_hw *hw)
 	u32 vfta_offset = 0;
 	u32 vfta_bit_in_reg = 0;
 
-	if (hw->mac.type == e1000_82573) {
+	if (hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) {
 		if (hw->mng_cookie.vlan_id != 0) {
 			/*
 			 * The VFTA is a 4096b bit-field, each identifying
@@ -973,6 +1023,48 @@ void e1000e_clear_vfta(struct e1000_hw *hw)
 		E1000_WRITE_REG_ARRAY(hw, E1000_VFTA, offset, vfta_value);
 		e1e_flush();
 	}
+}
+
+/**
+ *  e1000_check_mng_mode_82574 - Check manageability is enabled
+ *  @hw: pointer to the HW structure
+ *
+ *  Reads the NVM Initialization Control Word 2 and returns true
+ *  (>0) if any manageability is enabled, else false (0).
+ **/
+static bool e1000_check_mng_mode_82574(struct e1000_hw *hw)
+{
+	u16 data;
+
+	e1000_read_nvm(hw, NVM_INIT_CONTROL2_REG, 1, &data);
+	return (data & E1000_NVM_INIT_CTRL2_MNGM) != 0;
+}
+
+/**
+ *  e1000_led_on_82574 - Turn LED on
+ *  @hw: pointer to the HW structure
+ *
+ *  Turn LED on.
+ **/
+static s32 e1000_led_on_82574(struct e1000_hw *hw)
+{
+	u32 ctrl;
+	u32 i;
+
+	ctrl = hw->mac.ledctl_mode2;
+	if (!(E1000_STATUS_LU & er32(STATUS))) {
+		/*
+		 * If no link, then turn LED on by setting the invert bit
+		 * for each LED that's "on" (0x0E) in ledctl_mode2.
+		 */
+		for (i = 0; i < 4; i++)
+			if (((hw->mac.ledctl_mode2 >> (i * 8)) & 0xFF) ==
+			    E1000_LEDCTL_MODE_LED_ON)
+				ctrl |= (E1000_LEDCTL_LED0_IVRT << (i * 8));
+	}
+	ew32(LEDCTL, ctrl);
+
+	return 0;
 }
 
 /**
@@ -1018,7 +1110,8 @@ static s32 e1000_setup_link_82571(struct e1000_hw *hw)
 	 * the default flow control setting, so we explicitly
 	 * set it to full.
 	 */
-	if (hw->mac.type == e1000_82573)
+	if ((hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) &&
+	    hw->fc.type == e1000_fc_default)
 		hw->fc.type = e1000_fc_full;
 
 	return e1000e_setup_link(hw);
@@ -1045,6 +1138,7 @@ static s32 e1000_setup_copper_link_82571(struct e1000_hw *hw)
 
 	switch (hw->phy.type) {
 	case e1000_phy_m88:
+	case e1000_phy_bm:
 		ret_val = e1000e_copper_link_setup_m88(hw);
 		break;
 	case e1000_phy_igp_2:
@@ -1114,11 +1208,10 @@ static s32 e1000_valid_led_default_82571(struct e1000_hw *hw, u16 *data)
 		return ret_val;
 	}
 
-	if (hw->mac.type == e1000_82573 &&
+	if ((hw->mac.type == e1000_82573 || hw->mac.type == e1000_82574) &&
 	    *data == ID_LED_RESERVED_F746)
 		*data = ID_LED_DEFAULT_82573;
-	else if (*data == ID_LED_RESERVED_0000 ||
-		 *data == ID_LED_RESERVED_FFFF)
+	else if (*data == ID_LED_RESERVED_0000 || *data == ID_LED_RESERVED_FFFF)
 		*data = ID_LED_DEFAULT;
 
 	return 0;
@@ -1265,13 +1358,13 @@ static void e1000_clear_hw_cntrs_82571(struct e1000_hw *hw)
 }
 
 static struct e1000_mac_operations e82571_mac_ops = {
-	.mng_mode_enab		= E1000_MNG_IAMT_MODE << E1000_FWSM_MODE_SHIFT,
+	/* .check_mng_mode: mac type dependent */
 	/* .check_for_link: media type dependent */
 	.cleanup_led		= e1000e_cleanup_led_generic,
 	.clear_hw_cntrs		= e1000_clear_hw_cntrs_82571,
 	.get_bus_info		= e1000e_get_bus_info_pcie,
 	/* .get_link_up_info: media type dependent */
-	.led_on			= e1000e_led_on_generic,
+	/* .led_on: mac type dependent */
 	.led_off		= e1000e_led_off_generic,
 	.update_mc_addr_list	= e1000_update_mc_addr_list_82571,
 	.reset_hw		= e1000_reset_hw_82571,
@@ -1310,6 +1403,22 @@ static struct e1000_phy_operations e82_phy_ops_m88 = {
 	.set_d0_lplu_state	= e1000_set_d0_lplu_state_82571,
 	.set_d3_lplu_state	= e1000e_set_d3_lplu_state,
 	.write_phy_reg		= e1000e_write_phy_reg_m88,
+};
+
+static struct e1000_phy_operations e82_phy_ops_bm = {
+	.acquire_phy		= e1000_get_hw_semaphore_82571,
+	.check_reset_block	= e1000e_check_reset_block_generic,
+	.commit_phy		= e1000e_phy_sw_reset,
+	.force_speed_duplex	= e1000e_phy_force_speed_duplex_m88,
+	.get_cfg_done		= e1000e_get_cfg_done,
+	.get_cable_length	= e1000e_get_cable_length_m88,
+	.get_phy_info		= e1000e_get_phy_info_m88,
+	.read_phy_reg		= e1000e_read_phy_reg_bm2,
+	.release_phy		= e1000_put_hw_semaphore_82571,
+	.reset_phy		= e1000e_phy_hw_reset_generic,
+	.set_d0_lplu_state	= e1000_set_d0_lplu_state_82571,
+	.set_d3_lplu_state	= e1000e_set_d3_lplu_state,
+	.write_phy_reg		= e1000e_write_phy_reg_bm2,
 };
 
 static struct e1000_nvm_operations e82571_nvm_ops = {
@@ -1372,6 +1481,24 @@ struct e1000_info e1000_82573_info = {
 	.get_variants		= e1000_get_variants_82571,
 	.mac_ops		= &e82571_mac_ops,
 	.phy_ops		= &e82_phy_ops_m88,
+	.nvm_ops		= &e82571_nvm_ops,
+};
+
+struct e1000_info e1000_82574_info = {
+	.mac			= e1000_82574,
+	.flags			= FLAG_HAS_HW_VLAN_FILTER
+				  | FLAG_HAS_MSIX
+				  | FLAG_HAS_JUMBO_FRAMES
+				  | FLAG_HAS_WOL
+				  | FLAG_APME_IN_CTRL3
+				  | FLAG_RX_CSUM_ENABLED
+				  | FLAG_HAS_SMART_POWER_DOWN
+				  | FLAG_HAS_AMT
+				  | FLAG_HAS_CTRLEXT_ON_LOAD,
+	.pba			= 20,
+	.get_variants		= e1000_get_variants_82571,
+	.mac_ops		= &e82571_mac_ops,
+	.phy_ops		= &e82_phy_ops_bm,
 	.nvm_ops		= &e82571_nvm_ops,
 };
 

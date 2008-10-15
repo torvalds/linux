@@ -647,7 +647,7 @@ static inline void dscc4_rx_skb(struct dscc4_dev_priv *dpriv,
 
 	skb = dpriv->rx_skbuff[dpriv->rx_current++%RX_RING_SIZE];
 	if (!skb) {
-		printk(KERN_DEBUG "%s: skb=0 (%s)\n", dev->name, __FUNCTION__);
+		printk(KERN_DEBUG "%s: skb=0 (%s)\n", dev->name, __func__);
 		goto refill;
 	}
 	pkt_len = TO_SIZE(le32_to_cpu(rx_fd->state2));

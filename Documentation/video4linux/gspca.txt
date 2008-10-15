@@ -7,6 +7,7 @@ The modules are:
 xxxx		vend:prod
 ----
 spca501		0000:0000	MystFromOri Unknow Camera
+m5602		0402:5602	ALi Video Camera Controller
 spca501		040a:0002	Kodak DVC-325
 spca500		040a:0300	Kodak EZ200
 zc3xx		041e:041e	Creative WebCam Live!
@@ -42,6 +43,7 @@ zc3xx		0458:7007	Genius VideoCam V2
 zc3xx		0458:700c	Genius VideoCam V3
 zc3xx		0458:700f	Genius VideoCam Web V2
 sonixj		0458:7025	Genius Eye 311Q
+sonixj		0458:702e	Genius Slim 310 NB
 sonixj		045e:00f5	MicroSoft VX3000
 sonixj		045e:00f7	MicroSoft VX1000
 ov519		045e:028c	Micro$oft xbox cam
@@ -81,7 +83,7 @@ spca561		046d:092b	Labtec Webcam Plus
 spca561		046d:092c	Logitech QC chat Elch2
 spca561		046d:092d	Logitech QC Elch2
 spca561		046d:092e	Logitech QC Elch2
-spca561		046d:092f	Logitech QC Elch2
+spca561		046d:092f	Logitech  QuickCam Express Plus
 sunplus		046d:0960	Logitech ClickSmart 420
 sunplus		0471:0322	Philips DMVC1300K
 zc3xx		0471:0325	Philips SPC 200 NC
@@ -96,6 +98,29 @@ sunplus		04a5:3003	Benq DC 1300
 sunplus		04a5:3008	Benq DC 1500
 sunplus		04a5:300a	Benq DC 3410
 spca500		04a5:300c	Benq DC 1016
+finepix		04cb:0104	Fujifilm FinePix 4800
+finepix		04cb:0109	Fujifilm FinePix A202
+finepix		04cb:010b	Fujifilm FinePix A203
+finepix		04cb:010f	Fujifilm FinePix A204
+finepix		04cb:0111	Fujifilm FinePix A205
+finepix		04cb:0113	Fujifilm FinePix A210
+finepix		04cb:0115	Fujifilm FinePix A303
+finepix		04cb:0117	Fujifilm FinePix A310
+finepix		04cb:0119	Fujifilm FinePix F401
+finepix		04cb:011b	Fujifilm FinePix F402
+finepix		04cb:011d	Fujifilm FinePix F410
+finepix		04cb:0121	Fujifilm FinePix F601
+finepix		04cb:0123	Fujifilm FinePix F700
+finepix		04cb:0125	Fujifilm FinePix M603
+finepix		04cb:0127	Fujifilm FinePix S300
+finepix		04cb:0129	Fujifilm FinePix S304
+finepix		04cb:012b	Fujifilm FinePix S500
+finepix		04cb:012d	Fujifilm FinePix S602
+finepix		04cb:012f	Fujifilm FinePix S700
+finepix		04cb:0131	Fujifilm FinePix unknown model
+finepix		04cb:013b	Fujifilm FinePix unknown model
+finepix		04cb:013d	Fujifilm FinePix unknown model
+finepix		04cb:013f	Fujifilm FinePix F420
 sunplus		04f1:1001	JVC GC A50
 spca561		04fc:0561	Flexcam 100
 sunplus		04fc:500c	Sunplus CA500C
@@ -181,6 +206,7 @@ pac207		093a:2468	PAC207
 pac207		093a:2470	Genius GF112
 pac207		093a:2471	Genius VideoCam ge111
 pac207		093a:2472	Genius VideoCam ge110
+pac207		093a:2476	Genius e-Messenger 112
 pac7311		093a:2600	PAC7311 Typhoon
 pac7311		093a:2601	Philips SPC 610 NC
 pac7311		093a:2603	PAC7312

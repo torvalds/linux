@@ -30,6 +30,21 @@ enum au8522_if_freq {
 	AU8522_IF_3_25MHZ,
 };
 
+struct au8522_led_config {
+	u16 vsb8_strong;
+	u16 qam64_strong;
+	u16 qam256_strong;
+
+	u16 gpio_output;
+	/* unset hi bits, set low bits */
+	u16 gpio_output_enable;
+	u16 gpio_output_disable;
+
+	u16 gpio_leds;
+	u8 *led_states;
+	unsigned int num_led_states;
+};
+
 struct au8522_config {
 	/* the demodulator's i2c address */
 	u8 demod_address;
@@ -38,6 +53,8 @@ struct au8522_config {
 #define AU8522_TUNERLOCKING 0
 #define AU8522_DEMODLOCKING 1
 	u8 status_mode;
+
+	struct au8522_led_config *led_cfg;
 
 	enum au8522_if_freq vsb_if;
 	enum au8522_if_freq qam_if;

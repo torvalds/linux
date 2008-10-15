@@ -322,7 +322,7 @@ static void belkin_sa_read_int_callback(struct urb *urb)
 	 * to look in to this before committing any code.
 	 */
 	if (priv->last_lsr & BELKIN_SA_LSR_ERR) {
-		tty = port->port.tty;
+		tty = tty_port_tty_get(&port->port);
 		/* Overrun Error */
 		if (priv->last_lsr & BELKIN_SA_LSR_OE) {
 		}
@@ -335,6 +335,7 @@ static void belkin_sa_read_int_callback(struct urb *urb)
 		/* Break Indicator */
 		if (priv->last_lsr & BELKIN_SA_LSR_BI) {
 		}
+		tty_kref_put(tty);
 	}
 #endif
 	spin_unlock_irqrestore(&priv->lock, flags);

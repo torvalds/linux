@@ -41,7 +41,6 @@
 #define I2C_DRIVERID_SAA7110	22	/* video decoder		*/
 #define I2C_DRIVERID_SAA5249	24	/* SAA5249 and compatibles	*/
 #define I2C_DRIVERID_PCF8583	25	/* real time clock		*/
-#define I2C_DRIVERID_SAB3036	26	/* SAB3036 tuner		*/
 #define I2C_DRIVERID_TDA7432	27	/* Stereo sound processor	*/
 #define I2C_DRIVERID_TVMIXER    28      /* Mixer driver for tv cards    */
 #define I2C_DRIVERID_TVAUDIO    29      /* Generic TV sound driver      */

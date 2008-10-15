@@ -3,7 +3,7 @@
  *
  * Copyright 2005 Wolfson Microelectronics PLC.
  * Author: Liam Girdwood
- *         liam.girdwood@wolfsonmicro.com or linux@wolfsonmicro.com
+ *         lrg@slimlogic.co.uk
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -21,6 +21,7 @@
 #include <sound/pcm.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
+#include <sound/pxa2xx-lib.h>
 
 #include <mach/hardware.h>
 #include <mach/pxa-regs.h>
@@ -29,6 +30,14 @@
 
 #include "pxa2xx-pcm.h"
 #include "pxa2xx-i2s.h"
+
+struct pxa2xx_gpio {
+	u32 sys;
+	u32	rx;
+	u32 tx;
+	u32 clk;
+	u32 frm;
+};
 
 /*
  * I2S Controller Register and Bit Definitions
@@ -105,11 +114,6 @@ static struct pxa2xx_gpio gpio_bus[] = {
 		.frm = GPIO31_SYNC_I2S_MD,
 	},
 	{ /* I2S SoC Master */
-#ifdef CONFIG_PXA27x
-		.sys = GPIO113_I2S_SYSCLK_MD,
-#else
-		.sys = GPIO32_SYSCLK_I2S_MD,
-#endif
 		.rx = GPIO29_SDATA_IN_I2S_MD,
 		.tx = GPIO30_SDATA_OUT_I2S_MD,
 		.clk = GPIO28_BITCLK_OUT_I2S_MD,
@@ -383,6 +387,11 @@ static struct platform_driver pxa2xx_i2s_driver = {
 
 static int __init pxa2xx_i2s_init(void)
 {
+	if (cpu_is_pxa27x())
+		gpio_bus[1].sys = GPIO113_I2S_SYSCLK_MD;
+	else
+		gpio_bus[1].sys = GPIO32_SYSCLK_I2S_MD;
+
 	clk_i2s = ERR_PTR(-ENOENT);
 	return platform_driver_register(&pxa2xx_i2s_driver);
 }
@@ -396,6 +405,6 @@ module_init(pxa2xx_i2s_init);
 module_exit(pxa2xx_i2s_exit);
 
 /* Module information */
-MODULE_AUTHOR("Liam Girdwood, liam.girdwood@wolfsonmicro.com, www.wolfsonmicro.com");
+MODULE_AUTHOR("Liam Girdwood, lrg@slimlogic.co.uk");
 MODULE_DESCRIPTION("pxa2xx I2S SoC Interface");
 MODULE_LICENSE("GPL");

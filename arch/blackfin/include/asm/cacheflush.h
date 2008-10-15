@@ -30,8 +30,6 @@
 #ifndef _BLACKFIN_CACHEFLUSH_H
 #define _BLACKFIN_CACHEFLUSH_H
 
-#include <asm/cplb.h>
-
 extern void blackfin_icache_dcache_flush_range(unsigned int, unsigned int);
 extern void blackfin_icache_flush_range(unsigned int, unsigned int);
 extern void blackfin_dcache_flush_range(unsigned int, unsigned int);

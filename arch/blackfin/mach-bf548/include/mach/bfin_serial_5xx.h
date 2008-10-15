@@ -82,6 +82,9 @@
 #  define CONFIG_UART1_RTS_PIN -1
 # endif
 #endif
+
+#define BFIN_UART_TX_FIFO_SIZE	2
+
 /*
  * The pin configuration is different from schematic
  */
@@ -105,7 +108,6 @@ struct bfin_serial_port {
 #endif
 };
 
-struct bfin_serial_port bfin_serial_ports[BFIN_UART_NR_PORTS];
 struct bfin_serial_res {
 	unsigned long	uart_base_addr;
 	int		uart_irq;
@@ -169,8 +171,6 @@ struct bfin_serial_res bfin_serial_resource[] = {
 	},
 #endif
 };
-
-int nr_ports = ARRAY_SIZE(bfin_serial_resource);
 
 #define DRIVER_NAME "bfin-uart"
 

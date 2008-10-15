@@ -140,44 +140,41 @@ static void aha152x_detach(struct pcmcia_device *link)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
+static int aha152x_config_check(struct pcmcia_device *p_dev,
+				cistpl_cftable_entry_t *cfg,
+				cistpl_cftable_entry_t *dflt,
+				unsigned int vcc,
+				void *priv_data)
+{
+	/* For New Media T&J, look for a SCSI window */
+	if (cfg->io.win[0].len >= 0x20)
+		p_dev->io.BasePort1 = cfg->io.win[0].base;
+	else if ((cfg->io.nwin > 1) &&
+		 (cfg->io.win[1].len >= 0x20))
+		p_dev->io.BasePort1 = cfg->io.win[1].base;
+	if ((cfg->io.nwin > 0) &&
+	    (p_dev->io.BasePort1 < 0xffff)) {
+		if (!pcmcia_request_io(p_dev, &p_dev->io))
+			return 0;
+	}
+	return -EINVAL;
+}
+
 static int aha152x_config_cs(struct pcmcia_device *link)
 {
     scsi_info_t *info = link->priv;
     struct aha152x_setup s;
-    tuple_t tuple;
-    cisparse_t parse;
-    int i, last_ret, last_fn;
-    u_char tuple_data[64];
+    int last_ret, last_fn;
     struct Scsi_Host *host;
-    
+
     DEBUG(0, "aha152x_config(0x%p)\n", link);
 
-    tuple.TupleData = tuple_data;
-    tuple.TupleDataMax = 64;
-    tuple.TupleOffset = 0;
-    tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-    tuple.Attributes = 0;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-    while (1) {
-	if (pcmcia_get_tuple_data(link, &tuple) != 0 ||
-		pcmcia_parse_tuple(link, &tuple, &parse) != 0)
-	    goto next_entry;
-	/* For New Media T&J, look for a SCSI window */
-	if (parse.cftable_entry.io.win[0].len >= 0x20)
-	    link->io.BasePort1 = parse.cftable_entry.io.win[0].base;
-	else if ((parse.cftable_entry.io.nwin > 1) &&
-		 (parse.cftable_entry.io.win[1].len >= 0x20))
-	    link->io.BasePort1 = parse.cftable_entry.io.win[1].base;
-	if ((parse.cftable_entry.io.nwin > 0) &&
-	    (link->io.BasePort1 < 0xffff)) {
-	    link->conf.ConfigIndex = parse.cftable_entry.index;
-	    i = pcmcia_request_io(link, &link->io);
-	    if (i == CS_SUCCESS) break;
-	}
-    next_entry:
-	CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(link, &tuple));
+    last_ret = pcmcia_loop_config(link, aha152x_config_check, NULL);
+    if (last_ret) {
+	cs_error(link, RequestIO, last_ret);
+	goto failed;
     }
-    
+
     CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
     CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
     
@@ -208,6 +205,7 @@ static int aha152x_config_cs(struct pcmcia_device *link)
 
 cs_failed:
     cs_error(link, last_fn, last_ret);
+failed:
     aha152x_release_cs(link);
     return -ENODEV;
 }

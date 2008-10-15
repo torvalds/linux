@@ -1376,6 +1376,7 @@ static void post_fep_init(unsigned int crd)
 		unsigned long flags;
 		u16 tseg, rseg;
 
+		tty_port_init(&ch->port);
 		ch->brdchan = bc;
 		ch->mailbox = gd;
 		INIT_WORK(&ch->tqueue, do_softint);
@@ -1510,10 +1511,6 @@ static void post_fep_init(unsigned int crd)
 		ch->fepstopca = 0;
 
 		ch->close_delay = 50;
-		ch->port.count = 0;
-		ch->port.blocked_open = 0;
-		init_waitqueue_head(&ch->port.open_wait);
-		init_waitqueue_head(&ch->port.close_wait);
 
 		spin_unlock_irqrestore(&epca_lock, flags);
 	}

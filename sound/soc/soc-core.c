@@ -4,8 +4,7 @@
  * Copyright 2005 Wolfson Microelectronics PLC.
  * Copyright 2005 Openedhand Ltd.
  *
- * Author: Liam Girdwood
- *         liam.girdwood@wolfsonmicro.com or linux@wolfsonmicro.com
+ * Author: Liam Girdwood <lrg@slimlogic.co.uk>
  *         with code, comments and ideas from :-
  *         Richard Purdie <richard@openedhand.com>
  *
@@ -339,6 +338,12 @@ static int soc_codec_close(struct snd_pcm_substream *substream)
 		cpu_dai->active = codec_dai->active = 0;
 	}
 	codec->active--;
+
+	/* Muting the DAC suppresses artifacts caused during digital
+	 * shutdown, for example from stopping clocks.
+	 */
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		snd_soc_dai_digital_mute(codec_dai, 1);
 
 	if (cpu_dai->ops.shutdown)
 		cpu_dai->ops.shutdown(substream);
@@ -970,9 +975,29 @@ static ssize_t codec_reg_show(struct device *dev,
 		step = codec->reg_cache_step;
 
 	count += sprintf(buf, "%s registers\n", codec->name);
-	for (i = 0; i < codec->reg_cache_size; i += step)
-		count += sprintf(buf + count, "%2x: %4x\n", i,
-			codec->read(codec, i));
+	for (i = 0; i < codec->reg_cache_size; i += step) {
+		count += sprintf(buf + count, "%2x: ", i);
+		if (count >= PAGE_SIZE - 1)
+			break;
+
+		if (codec->display_register)
+			count += codec->display_register(codec, buf + count,
+							 PAGE_SIZE - count, i);
+		else
+			count += snprintf(buf + count, PAGE_SIZE - count,
+					  "%4x", codec->read(codec, i));
+
+		if (count >= PAGE_SIZE - 1)
+			break;
+
+		count += snprintf(buf + count, PAGE_SIZE - count, "\n");
+		if (count >= PAGE_SIZE - 1)
+			break;
+	}
+
+	/* Truncate count; min() would cause a warning */
+	if (count >= PAGE_SIZE)
+		count = PAGE_SIZE - 1;
 
 	return count;
 }
@@ -1296,10 +1321,10 @@ int snd_soc_info_enum_double(struct snd_kcontrol *kcontrol,
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = e->shift_l == e->shift_r ? 1 : 2;
-	uinfo->value.enumerated.items = e->mask;
+	uinfo->value.enumerated.items = e->max;
 
-	if (uinfo->value.enumerated.item > e->mask - 1)
-		uinfo->value.enumerated.item = e->mask - 1;
+	if (uinfo->value.enumerated.item > e->max - 1)
+		uinfo->value.enumerated.item = e->max - 1;
 	strcpy(uinfo->value.enumerated.name,
 		e->texts[uinfo->value.enumerated.item]);
 	return 0;
@@ -1322,7 +1347,7 @@ int snd_soc_get_enum_double(struct snd_kcontrol *kcontrol,
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned short val, bitmask;
 
-	for (bitmask = 1; bitmask < e->mask; bitmask <<= 1)
+	for (bitmask = 1; bitmask < e->max; bitmask <<= 1)
 		;
 	val = snd_soc_read(codec, e->reg);
 	ucontrol->value.enumerated.item[0]
@@ -1352,14 +1377,14 @@ int snd_soc_put_enum_double(struct snd_kcontrol *kcontrol,
 	unsigned short val;
 	unsigned short mask, bitmask;
 
-	for (bitmask = 1; bitmask < e->mask; bitmask <<= 1)
+	for (bitmask = 1; bitmask < e->max; bitmask <<= 1)
 		;
-	if (ucontrol->value.enumerated.item[0] > e->mask - 1)
+	if (ucontrol->value.enumerated.item[0] > e->max - 1)
 		return -EINVAL;
 	val = ucontrol->value.enumerated.item[0] << e->shift_l;
 	mask = (bitmask - 1) << e->shift_l;
 	if (e->shift_l != e->shift_r) {
-		if (ucontrol->value.enumerated.item[1] > e->mask - 1)
+		if (ucontrol->value.enumerated.item[1] > e->max - 1)
 			return -EINVAL;
 		val |= ucontrol->value.enumerated.item[1] << e->shift_r;
 		mask |= (bitmask - 1) << e->shift_r;
@@ -1386,10 +1411,10 @@ int snd_soc_info_enum_ext(struct snd_kcontrol *kcontrol,
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
-	uinfo->value.enumerated.items = e->mask;
+	uinfo->value.enumerated.items = e->max;
 
-	if (uinfo->value.enumerated.item > e->mask - 1)
-		uinfo->value.enumerated.item = e->mask - 1;
+	if (uinfo->value.enumerated.item > e->max - 1)
+		uinfo->value.enumerated.item = e->max - 1;
 	strcpy(uinfo->value.enumerated.name,
 		e->texts[uinfo->value.enumerated.item]);
 	return 0;
@@ -1434,9 +1459,11 @@ EXPORT_SYMBOL_GPL(snd_soc_info_volsw_ext);
 int snd_soc_info_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo)
 {
-	int max = (kcontrol->private_value >> 16) & 0xff;
-	int shift = (kcontrol->private_value >> 8) & 0x0f;
-	int rshift = (kcontrol->private_value >> 12) & 0x0f;
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	int max = mc->max;
+	unsigned int shift = mc->min;
+	unsigned int rshift = mc->rshift;
 
 	if (max == 1)
 		uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
@@ -1462,13 +1489,15 @@ EXPORT_SYMBOL_GPL(snd_soc_info_volsw);
 int snd_soc_get_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	int reg = kcontrol->private_value & 0xff;
-	int shift = (kcontrol->private_value >> 8) & 0x0f;
-	int rshift = (kcontrol->private_value >> 12) & 0x0f;
-	int max = (kcontrol->private_value >> 16) & 0xff;
-	int mask = (1 << fls(max)) - 1;
-	int invert = (kcontrol->private_value >> 24) & 0x01;
+	unsigned int reg = mc->reg;
+	unsigned int shift = mc->shift;
+	unsigned int rshift = mc->rshift;
+	int max = mc->max;
+	unsigned int mask = (1 << fls(max)) - 1;
+	unsigned int invert = mc->invert;
 
 	ucontrol->value.integer.value[0] =
 		(snd_soc_read(codec, reg) >> shift) & mask;
@@ -1499,13 +1528,15 @@ EXPORT_SYMBOL_GPL(snd_soc_get_volsw);
 int snd_soc_put_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	int reg = kcontrol->private_value & 0xff;
-	int shift = (kcontrol->private_value >> 8) & 0x0f;
-	int rshift = (kcontrol->private_value >> 12) & 0x0f;
-	int max = (kcontrol->private_value >> 16) & 0xff;
-	int mask = (1 << fls(max)) - 1;
-	int invert = (kcontrol->private_value >> 24) & 0x01;
+	unsigned int reg = mc->reg;
+	unsigned int shift = mc->shift;
+	unsigned int rshift = mc->rshift;
+	int max = mc->max;
+	unsigned int mask = (1 << fls(max)) - 1;
+	unsigned int invert = mc->invert;
 	unsigned short val, val2, val_mask;
 
 	val = (ucontrol->value.integer.value[0] & mask);
@@ -1537,7 +1568,9 @@ EXPORT_SYMBOL_GPL(snd_soc_put_volsw);
 int snd_soc_info_volsw_2r(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo)
 {
-	int max = (kcontrol->private_value >> 12) & 0xff;
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	int max = mc->max;
 
 	if (max == 1)
 		uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
@@ -1563,13 +1596,15 @@ EXPORT_SYMBOL_GPL(snd_soc_info_volsw_2r);
 int snd_soc_get_volsw_2r(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	int reg = kcontrol->private_value & 0xff;
-	int reg2 = (kcontrol->private_value >> 24) & 0xff;
-	int shift = (kcontrol->private_value >> 8) & 0x0f;
-	int max = (kcontrol->private_value >> 12) & 0xff;
-	int mask = (1<<fls(max))-1;
-	int invert = (kcontrol->private_value >> 20) & 0x01;
+	unsigned int reg = mc->reg;
+	unsigned int reg2 = mc->rreg;
+	unsigned int shift = mc->shift;
+	int max = mc->max;
+	unsigned int mask = (1<<fls(max))-1;
+	unsigned int invert = mc->invert;
 
 	ucontrol->value.integer.value[0] =
 		(snd_soc_read(codec, reg) >> shift) & mask;
@@ -1598,13 +1633,15 @@ EXPORT_SYMBOL_GPL(snd_soc_get_volsw_2r);
 int snd_soc_put_volsw_2r(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	int reg = kcontrol->private_value & 0xff;
-	int reg2 = (kcontrol->private_value >> 24) & 0xff;
-	int shift = (kcontrol->private_value >> 8) & 0x0f;
-	int max = (kcontrol->private_value >> 12) & 0xff;
-	int mask = (1 << fls(max)) - 1;
-	int invert = (kcontrol->private_value >> 20) & 0x01;
+	unsigned int reg = mc->reg;
+	unsigned int reg2 = mc->rreg;
+	unsigned int shift = mc->shift;
+	int max = mc->max;
+	unsigned int mask = (1 << fls(max)) - 1;
+	unsigned int invert = mc->invert;
 	int err;
 	unsigned short val, val2, val_mask;
 
@@ -1641,8 +1678,10 @@ EXPORT_SYMBOL_GPL(snd_soc_put_volsw_2r);
 int snd_soc_info_volsw_s8(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo)
 {
-	int max = (signed char)((kcontrol->private_value >> 16) & 0xff);
-	int min = (signed char)((kcontrol->private_value >> 24) & 0xff);
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	int max = mc->max;
+	int min = mc->min;
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 2;
@@ -1664,9 +1703,11 @@ EXPORT_SYMBOL_GPL(snd_soc_info_volsw_s8);
 int snd_soc_get_volsw_s8(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	int reg = kcontrol->private_value & 0xff;
-	int min = (signed char)((kcontrol->private_value >> 24) & 0xff);
+	unsigned int reg = mc->reg;
+	int min = mc->min;
 	int val = snd_soc_read(codec, reg);
 
 	ucontrol->value.integer.value[0] =
@@ -1689,9 +1730,11 @@ EXPORT_SYMBOL_GPL(snd_soc_get_volsw_s8);
 int snd_soc_put_volsw_s8(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	int reg = kcontrol->private_value & 0xff;
-	int min = (signed char)((kcontrol->private_value >> 24) & 0xff);
+	unsigned int reg = mc->reg;
+	int min = mc->min;
 	unsigned short val;
 
 	val = (ucontrol->value.integer.value[0]+min) & 0xff;
@@ -1842,7 +1885,7 @@ module_init(snd_soc_init);
 module_exit(snd_soc_exit);
 
 /* Module information */
-MODULE_AUTHOR("Liam Girdwood, liam.girdwood@wolfsonmicro.com, www.wolfsonmicro.com");
+MODULE_AUTHOR("Liam Girdwood, lrg@slimlogic.co.uk");
 MODULE_DESCRIPTION("ALSA SoC Core");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:soc-audio");

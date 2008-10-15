@@ -1,5 +1,5 @@
-#ifndef _I386_MATH_EMU_H
-#define _I386_MATH_EMU_H
+#ifndef ASM_X86__MATH_EMU_H
+#define ASM_X86__MATH_EMU_H
 
 /* This structure matches the layout of the data saved to the stack
    following a device-not-present interrupt, part of it saved
@@ -28,4 +28,4 @@ struct info {
 	long ___vm86_fs;
 	long ___vm86_gs;
 };
-#endif
+#endif /* ASM_X86__MATH_EMU_H */

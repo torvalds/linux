@@ -25,7 +25,7 @@
 #include "common.h"
 
 static struct mv643xx_eth_platform_data db88f6281_ge00_data = {
-	.phy_addr	= 8,
+	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
 };
 
 static struct mv_sata_platform_data db88f6281_sata_data = {

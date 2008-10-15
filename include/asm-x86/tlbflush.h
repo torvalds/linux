@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_TLBFLUSH_H
-#define _ASM_X86_TLBFLUSH_H
+#ifndef ASM_X86__TLBFLUSH_H
+#define ASM_X86__TLBFLUSH_H
 
 #include <linux/mm.h>
 #include <linux/sched.h>
@@ -119,6 +119,10 @@ static inline void native_flush_tlb_others(const cpumask_t *cpumask,
 {
 }
 
+static inline void reset_lazy_tlbstate(void)
+{
+}
+
 #else  /* SMP */
 
 #include <asm/smp.h>
@@ -151,6 +155,12 @@ struct tlb_state {
 	char __cacheline_padding[L1_CACHE_BYTES-8];
 };
 DECLARE_PER_CPU(struct tlb_state, cpu_tlbstate);
+
+void reset_lazy_tlbstate(void);
+#else
+static inline void reset_lazy_tlbstate(void)
+{
+}
 #endif
 
 #endif	/* SMP */
@@ -165,4 +175,4 @@ static inline void flush_tlb_kernel_range(unsigned long start,
 	flush_tlb_all();
 }
 
-#endif /* _ASM_X86_TLBFLUSH_H */
+#endif /* ASM_X86__TLBFLUSH_H */

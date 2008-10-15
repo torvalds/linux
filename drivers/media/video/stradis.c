@@ -1882,12 +1882,16 @@ static int saa_open(struct inode *inode, struct file *file)
 	struct video_device *vdev = video_devdata(file);
 	struct saa7146 *saa = container_of(vdev, struct saa7146, video_dev);
 
+	lock_kernel();
 	file->private_data = saa;
 
 	saa->user++;
-	if (saa->user > 1)
+	if (saa->user > 1) {
+		unlock_kernel();
 		return 0;	/* device open already, don't reset */
+	}
 	saa->writemode = VID_WRITE_MPEG_VID;	/* default to video */
+	unlock_kernel();
 	return 0;
 }
 
@@ -1921,6 +1925,7 @@ static struct video_device saa_template = {
 	.name = "SAA7146A",
 	.fops = &saa_fops,
 	.minor = -1,
+	.release = video_device_release_empty,
 };
 
 static int __devinit configure_saa7146(struct pci_dev *pdev, int num)

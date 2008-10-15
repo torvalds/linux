@@ -214,7 +214,7 @@ static int serial_open (struct tty_struct *tty, struct file *filp)
 	/* set up our port structure making the tty driver
 	 * remember our port object, and us it */
 	tty->driver_data = port;
-	port->port.tty = tty;
+	tty_port_tty_set(&port->port, tty);
 
 	if (port->port.count == 1) {
 
@@ -246,7 +246,7 @@ bailout_module_put:
 bailout_mutex_unlock:
 	port->port.count = 0;
 	tty->driver_data = NULL;
-	port->port.tty = NULL;
+	tty_port_tty_set(&port->port, NULL);
 	mutex_unlock(&port->mutex);
 bailout_kref_put:
 	usb_serial_put(serial);
@@ -276,10 +276,11 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
 		port->serial->type->close(tty, port, filp);
 
 	if (port->port.count == (port->console? 1 : 0)) {
-		if (port->port.tty) {
-			if (port->port.tty->driver_data)
-				port->port.tty->driver_data = NULL;
-			port->port.tty = NULL;
+		struct tty_struct *tty = tty_port_tty_get(&port->port);
+		if (tty) {
+			if (tty->driver_data)
+				tty->driver_data = NULL;
+			tty_port_tty_set(&port->port, NULL);
 		}
 	}
 
@@ -508,11 +509,12 @@ static void usb_serial_port_work(struct work_struct *work)
 	if (!port)
 		return;
 
-	tty = port->port.tty;
+	tty = tty_port_tty_get(&port->port);
 	if (!tty)
 		return;
 
 	tty_wakeup(tty);
+	tty_kref_put(tty);
 }
 
 static void port_release(struct device *dev)
@@ -819,6 +821,7 @@ int usb_serial_probe(struct usb_interface *interface,
 		port = kzalloc(sizeof(struct usb_serial_port), GFP_KERNEL);
 		if (!port)
 			goto probe_error;
+		tty_port_init(&port->port);
 		port->serial = serial;
 		spin_lock_init(&port->lock);
 		mutex_init(&port->mutex);
@@ -1040,8 +1043,11 @@ void usb_serial_disconnect(struct usb_interface *interface)
 	for (i = 0; i < serial->num_ports; ++i) {
 		port = serial->port[i];
 		if (port) {
-			if (port->port.tty)
-				tty_hangup(port->port.tty);
+			struct tty_struct *tty = tty_port_tty_get(&port->port);
+			if (tty) {
+				tty_hangup(tty);
+				tty_kref_put(tty);
+			}
 			kill_traffic(port);
 		}
 	}

@@ -1101,7 +1101,7 @@ struct usb_device_id em28xx_id_table [] = {
 	{ USB_DEVICE(0xeb1a, 0x2820),
 			.driver_info = EM2820_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0x2821),
-			.driver_info = EM2820_BOARD_UNKNOWN },
+			.driver_info = EM2820_BOARD_PROLINK_PLAYTV_USB2 },
 	{ USB_DEVICE(0xeb1a, 0x2860),
 			.driver_info = EM2820_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0x2861),
@@ -1271,7 +1271,7 @@ static struct em28xx_hash_table em28xx_i2c_hash[] = {
 	{0x1ba50080, EM2860_BOARD_POINTNIX_INTRAORAL_CAMERA, TUNER_ABSENT},
 };
 
-int em28xx_tuner_callback(void *ptr, int command, int arg)
+int em28xx_tuner_callback(void *ptr, int component, int command, int arg)
 {
 	int rc = 0;
 	struct em28xx *dev = ptr;

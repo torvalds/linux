@@ -9,6 +9,8 @@
 #include <asm/sibyte/sb1250_genbus.h>
 #include <asm/sibyte/sb1250_regs.h>
 
+#if defined(CONFIG_SIBYTE_SWARM) || defined(CONFIG_SIBYTE_LITTLESUR)
+
 #define DRV_NAME	"pata-swarm"
 
 #define SWARM_IDE_SHIFT	5
@@ -79,3 +81,5 @@ static int __init swarm_pata_init(void)
 }
 
 device_initcall(swarm_pata_init);
+
+#endif /* defined(CONFIG_SIBYTE_SWARM) || defined(CONFIG_SIBYTE_LITTLESUR) */

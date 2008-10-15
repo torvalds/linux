@@ -98,7 +98,7 @@ enum {
 	Opt_err
 };
 
-static match_table_t nfs_mount_option_tokens = {
+static const match_table_t nfs_mount_option_tokens = {
 	{ Opt_userspace, "bg" },
 	{ Opt_userspace, "fg" },
 	{ Opt_userspace, "retry=%s" },
@@ -163,7 +163,7 @@ enum {
 	Opt_xprt_err
 };
 
-static match_table_t nfs_xprt_protocol_tokens = {
+static const match_table_t nfs_xprt_protocol_tokens = {
 	{ Opt_xprt_udp, "udp" },
 	{ Opt_xprt_tcp, "tcp" },
 	{ Opt_xprt_rdma, "rdma" },
@@ -180,7 +180,7 @@ enum {
 	Opt_sec_err
 };
 
-static match_table_t nfs_secflavor_tokens = {
+static const match_table_t nfs_secflavor_tokens = {
 	{ Opt_sec_none, "none" },
 	{ Opt_sec_none, "null" },
 	{ Opt_sec_sys, "sys" },

@@ -158,7 +158,7 @@ enum {
 	Opt_barrier, Opt_nobarrier, Opt_err
 };
 
-static match_table_t tokens = {
+static const match_table_t tokens = {
 	{Opt_barrier, "barrier"},
 	{Opt_nobarrier, "nobarrier"},
 	{Opt_err, NULL}

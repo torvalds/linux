@@ -77,18 +77,18 @@ static irqreturn_t netxen_msi_intr(int irq, void *data);
 
 /*  PCI Device ID Table  */
 #define ENTRY(device) \
-	{PCI_DEVICE(0x4040, (device)), \
+	{PCI_DEVICE(PCI_VENDOR_ID_NETXEN, (device)), \
 	.class = PCI_CLASS_NETWORK_ETHERNET << 8, .class_mask = ~0}
 
 static struct pci_device_id netxen_pci_tbl[] __devinitdata = {
-	ENTRY(0x0001),
-	ENTRY(0x0002),
-	ENTRY(0x0003),
-	ENTRY(0x0004),
-	ENTRY(0x0005),
-	ENTRY(0x0024),
-	ENTRY(0x0025),
-	ENTRY(0x0100),
+	ENTRY(PCI_DEVICE_ID_NX2031_10GXSR),
+	ENTRY(PCI_DEVICE_ID_NX2031_10GCX4),
+	ENTRY(PCI_DEVICE_ID_NX2031_4GCU),
+	ENTRY(PCI_DEVICE_ID_NX2031_IMEZ),
+	ENTRY(PCI_DEVICE_ID_NX2031_HMEZ),
+	ENTRY(PCI_DEVICE_ID_NX2031_XG_MGMT),
+	ENTRY(PCI_DEVICE_ID_NX2031_XG_MGMT2),
+	ENTRY(PCI_DEVICE_ID_NX3031),
 	{0,}
 };
 
@@ -241,7 +241,7 @@ static void netxen_check_options(struct netxen_adapter *adapter)
 	case NETXEN_BRDTYPE_P3_REF_QG:
 	case NETXEN_BRDTYPE_P3_4_GB:
 	case NETXEN_BRDTYPE_P3_4_GB_MM:
-		adapter->msix_supported = 0;
+		adapter->msix_supported = !!use_msi_x;
 		adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS_10G;
 		break;
 

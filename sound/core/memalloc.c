@@ -33,23 +33,12 @@
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
 #include <sound/memalloc.h>
-#ifdef CONFIG_SBUS
-#include <asm/sbus.h>
-#endif
 
 
 MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>, Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Memory allocator for ALSA system.");
 MODULE_LICENSE("GPL");
 
-
-/*
- */
-
-void *snd_malloc_sgbuf_pages(struct device *device,
-                             size_t size, struct snd_dma_buffer *dmab,
-			     size_t *res_size);
-int snd_free_sgbuf_pages(struct snd_dma_buffer *dmab);
 
 /*
  */
@@ -66,18 +55,6 @@ struct snd_mem_list {
 
 /* id for pre-allocated buffers */
 #define SNDRV_DMA_DEVICE_UNUSED (unsigned int)-1
-
-#ifdef CONFIG_SND_DEBUG
-#define __ASTRING__(x) #x
-#define snd_assert(expr, args...) do {\
-	if (!(expr)) {\
-		printk(KERN_ERR "snd-malloc: BUG? (%s) (called from %p)\n", __ASTRING__(expr), __builtin_return_address(0));\
-		args;\
-	}\
-} while (0)
-#else
-#define snd_assert(expr, args...) /**/
-#endif
 
 /*
  *
@@ -111,8 +88,10 @@ void *snd_malloc_pages(size_t size, gfp_t gfp_flags)
 	int pg;
 	void *res;
 
-	snd_assert(size > 0, return NULL);
-	snd_assert(gfp_flags != 0, return NULL);
+	if (WARN_ON(!size))
+		return NULL;
+	if (WARN_ON(!gfp_flags))
+		return NULL;
 	gfp_flags |= __GFP_COMP;	/* compound page lets parts be mapped */
 	pg = get_order(size);
 	if ((res = (void *) __get_free_pages(gfp_flags, pg)) != NULL)
@@ -152,8 +131,8 @@ static void *snd_malloc_dev_pages(struct device *dev, size_t size, dma_addr_t *d
 	void *res;
 	gfp_t gfp_flags;
 
-	snd_assert(size > 0, return NULL);
-	snd_assert(dma != NULL, return NULL);
+	if (WARN_ON(!dma))
+		return NULL;
 	pg = get_order(size);
 	gfp_flags = GFP_KERNEL
 		| __GFP_COMP	/* compound page lets parts be mapped */
@@ -180,39 +159,6 @@ static void snd_free_dev_pages(struct device *dev, size_t size, void *ptr,
 }
 #endif /* CONFIG_HAS_DMA */
 
-#ifdef CONFIG_SBUS
-
-static void *snd_malloc_sbus_pages(struct device *dev, size_t size,
-				   dma_addr_t *dma_addr)
-{
-	struct sbus_dev *sdev = (struct sbus_dev *)dev;
-	int pg;
-	void *res;
-
-	snd_assert(size > 0, return NULL);
-	snd_assert(dma_addr != NULL, return NULL);
-	pg = get_order(size);
-	res = sbus_alloc_consistent(sdev, PAGE_SIZE * (1 << pg), dma_addr);
-	if (res != NULL)
-		inc_snd_pages(pg);
-	return res;
-}
-
-static void snd_free_sbus_pages(struct device *dev, size_t size,
-				void *ptr, dma_addr_t dma_addr)
-{
-	struct sbus_dev *sdev = (struct sbus_dev *)dev;
-	int pg;
-
-	if (ptr == NULL)
-		return;
-	pg = get_order(size);
-	dec_snd_pages(pg);
-	sbus_free_consistent(sdev, PAGE_SIZE * (1 << pg), ptr, dma_addr);
-}
-
-#endif /* CONFIG_SBUS */
-
 /*
  *
  *  ALSA generic memory management
@@ -236,8 +182,10 @@ static void snd_free_sbus_pages(struct device *dev, size_t size,
 int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 			struct snd_dma_buffer *dmab)
 {
-	snd_assert(size > 0, return -ENXIO);
-	snd_assert(dmab != NULL, return -ENXIO);
+	if (WARN_ON(!size))
+		return -ENXIO;
+	if (WARN_ON(!dmab))
+		return -ENXIO;
 
 	dmab->dev.type = type;
 	dmab->dev.dev = device;
@@ -247,11 +195,6 @@ int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 		dmab->area = snd_malloc_pages(size, (unsigned long)device);
 		dmab->addr = 0;
 		break;
-#ifdef CONFIG_SBUS
-	case SNDRV_DMA_TYPE_SBUS:
-		dmab->area = snd_malloc_sbus_pages(device, size, &dmab->addr);
-		break;
-#endif
 #ifdef CONFIG_HAS_DMA
 	case SNDRV_DMA_TYPE_DEV:
 		dmab->area = snd_malloc_dev_pages(device, size, &dmab->addr);
@@ -292,15 +235,17 @@ int snd_dma_alloc_pages_fallback(int type, struct device *device, size_t size,
 {
 	int err;
 
-	snd_assert(size > 0, return -ENXIO);
-	snd_assert(dmab != NULL, return -ENXIO);
-
 	while ((err = snd_dma_alloc_pages(type, device, size, dmab)) < 0) {
+		size_t aligned_size;
 		if (err != -ENOMEM)
 			return err;
-		size >>= 1;
 		if (size <= PAGE_SIZE)
 			return -ENOMEM;
+		aligned_size = PAGE_SIZE << get_order(size);
+		if (size != aligned_size)
+			size = aligned_size;
+		else
+			size >>= 1;
 	}
 	if (! dmab->area)
 		return -ENOMEM;
@@ -320,11 +265,6 @@ void snd_dma_free_pages(struct snd_dma_buffer *dmab)
 	case SNDRV_DMA_TYPE_CONTINUOUS:
 		snd_free_pages(dmab->area, dmab->bytes);
 		break;
-#ifdef CONFIG_SBUS
-	case SNDRV_DMA_TYPE_SBUS:
-		snd_free_sbus_pages(dmab->dev.dev, dmab->bytes, dmab->area, dmab->addr);
-		break;
-#endif
 #ifdef CONFIG_HAS_DMA
 	case SNDRV_DMA_TYPE_DEV:
 		snd_free_dev_pages(dmab->dev.dev, dmab->bytes, dmab->area, dmab->addr);
@@ -353,7 +293,8 @@ size_t snd_dma_get_reserved_buf(struct snd_dma_buffer *dmab, unsigned int id)
 {
 	struct snd_mem_list *mem;
 
-	snd_assert(dmab, return 0);
+	if (WARN_ON(!dmab))
+		return 0;
 
 	mutex_lock(&list_mutex);
 	list_for_each_entry(mem, &mem_list_head, list) {
@@ -387,7 +328,8 @@ int snd_dma_reserve_buf(struct snd_dma_buffer *dmab, unsigned int id)
 {
 	struct snd_mem_list *mem;
 
-	snd_assert(dmab, return -EINVAL);
+	if (WARN_ON(!dmab))
+		return -EINVAL;
 	mem = kmalloc(sizeof(*mem), GFP_KERNEL);
 	if (! mem)
 		return -ENOMEM;
@@ -431,7 +373,7 @@ static int snd_mem_proc_read(struct seq_file *seq, void *offset)
 	long pages = snd_allocated_pages >> (PAGE_SHIFT-12);
 	struct snd_mem_list *mem;
 	int devno;
-	static char *types[] = { "UNKNOWN", "CONT", "DEV", "DEV-SG", "SBUS" };
+	static char *types[] = { "UNKNOWN", "CONT", "DEV", "DEV-SG" };
 
 	mutex_lock(&list_mutex);
 	seq_printf(seq, "pages  : %li bytes (%li pages per %likB)\n",

@@ -283,8 +283,8 @@ int mls_context_to_sid(struct policydb *pol,
 		p++;
 
 	delim = *p;
-	if (delim != 0)
-		*p++ = 0;
+	if (delim != '\0')
+		*p++ = '\0';
 
 	for (l = 0; l < 2; l++) {
 		levdatum = hashtab_search(pol->p_levels.table, scontextp);
@@ -302,14 +302,14 @@ int mls_context_to_sid(struct policydb *pol,
 				while (*p && *p != ',' && *p != '-')
 					p++;
 				delim = *p;
-				if (delim != 0)
-					*p++ = 0;
+				if (delim != '\0')
+					*p++ = '\0';
 
 				/* Separate into range if exists */
 				rngptr = strchr(scontextp, '.');
 				if (rngptr != NULL) {
 					/* Remove '.' */
-					*rngptr++ = 0;
+					*rngptr++ = '\0';
 				}
 
 				catdatum = hashtab_search(pol->p_cats.table,
@@ -357,8 +357,8 @@ int mls_context_to_sid(struct policydb *pol,
 				p++;
 
 			delim = *p;
-			if (delim != 0)
-				*p++ = 0;
+			if (delim != '\0')
+				*p++ = '\0';
 		} else
 			break;
 	}

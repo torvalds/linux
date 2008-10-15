@@ -38,6 +38,8 @@
 
 #ifndef __ASSEMBLY__
 
+#define WANT_PAGE_VIRTUAL
+
 extern void _clear_page(void *page);
 #define clear_page(X)	_clear_page((void *)(X))
 struct page;

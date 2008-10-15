@@ -58,7 +58,7 @@ config BATTERY_TOSA
 
 config BATTERY_WM97XX
 	bool "WM97xx generic battery driver"
-	depends on TOUCHSCREEN_WM97XX
+	depends on TOUCHSCREEN_WM97XX=y
 	help
 	  Say Y to enable support for battery measured by WM97xx aux port.
 

@@ -2017,7 +2017,7 @@ renameRetry:
 }
 
 int CIFSSMBRenameOpenFile(const int xid, struct cifsTconInfo *pTcon,
-		int netfid, char *target_name,
+		int netfid, const char *target_name,
 		const struct nls_table *nls_codepage, int remap)
 {
 	struct smb_com_transaction2_sfi_req *pSMB  = NULL;
@@ -2071,7 +2071,7 @@ int CIFSSMBRenameOpenFile(const int xid, struct cifsTconInfo *pTcon,
 					remap);
 	}
 	rename_info->target_name_len = cpu_to_le32(2 * len_of_str);
-	count = 12 /* sizeof(struct set_file_rename) */ + (2 * len_of_str) + 2;
+	count = 12 /* sizeof(struct set_file_rename) */ + (2 * len_of_str);
 	byte_count += count;
 	pSMB->DataCount = cpu_to_le16(count);
 	pSMB->TotalDataCount = pSMB->DataCount;
@@ -3614,6 +3614,8 @@ findFirstRetry:
 		/* BB remember to free buffer if error BB */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 		if (rc == 0) {
+			unsigned int lnoff;
+
 			if (pSMBr->hdr.Flags2 & SMBFLG2_UNICODE)
 				psrch_inf->unicode = true;
 			else
@@ -3636,6 +3638,17 @@ findFirstRetry:
 					le16_to_cpu(parms->SearchCount);
 			psrch_inf->index_of_last_entry = 2 /* skip . and .. */ +
 				psrch_inf->entries_in_buffer;
+			lnoff = le16_to_cpu(parms->LastNameOffset);
+			if (tcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE <
+			      lnoff) {
+				cERROR(1, ("ignoring corrupt resume name"));
+				psrch_inf->last_entry = NULL;
+				return rc;
+			}
+
+			psrch_inf->last_entry = psrch_inf->srch_entries_start +
+							lnoff;
+
 			*pnetfid = parms->SearchHandle;
 		} else {
 			cifs_buf_release(pSMB);
@@ -3725,6 +3738,8 @@ int CIFSFindNext(const int xid, struct cifsTconInfo *tcon,
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
 		if (rc == 0) {
+			unsigned int lnoff;
+
 			/* BB fixme add lock for file (srch_info) struct here */
 			if (pSMBr->hdr.Flags2 & SMBFLG2_UNICODE)
 				psrch_inf->unicode = true;
@@ -3751,6 +3766,16 @@ int CIFSFindNext(const int xid, struct cifsTconInfo *tcon,
 						le16_to_cpu(parms->SearchCount);
 			psrch_inf->index_of_last_entry +=
 				psrch_inf->entries_in_buffer;
+			lnoff = le16_to_cpu(parms->LastNameOffset);
+			if (tcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE <
+			      lnoff) {
+				cERROR(1, ("ignoring corrupt resume name"));
+				psrch_inf->last_entry = NULL;
+				return rc;
+			} else
+				psrch_inf->last_entry =
+					psrch_inf->srch_entries_start + lnoff;
+
 /*  cFYI(1,("fnxt2 entries in buf %d index_of_last %d",
 	    psrch_inf->entries_in_buffer, psrch_inf->index_of_last_entry)); */
 
@@ -4876,6 +4901,61 @@ CIFSSMBSetFileInfo(const int xid, struct cifsTconInfo *tcon,
 	return rc;
 }
 
+int
+CIFSSMBSetFileDisposition(const int xid, struct cifsTconInfo *tcon,
+			  bool delete_file, __u16 fid, __u32 pid_of_opener)
+{
+	struct smb_com_transaction2_sfi_req *pSMB  = NULL;
+	char *data_offset;
+	int rc = 0;
+	__u16 params, param_offset, offset, byte_count, count;
+
+	cFYI(1, ("Set File Disposition (via SetFileInfo)"));
+	rc = small_smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB);
+
+	if (rc)
+		return rc;
+
+	pSMB->hdr.Pid = cpu_to_le16((__u16)pid_of_opener);
+	pSMB->hdr.PidHigh = cpu_to_le16((__u16)(pid_of_opener >> 16));
+
+	params = 6;
+	pSMB->MaxSetupCount = 0;
+	pSMB->Reserved = 0;
+	pSMB->Flags = 0;
+	pSMB->Timeout = 0;
+	pSMB->Reserved2 = 0;
+	param_offset = offsetof(struct smb_com_transaction2_sfi_req, Fid) - 4;
+	offset = param_offset + params;
+
+	data_offset = (char *) (&pSMB->hdr.Protocol) + offset;
+
+	count = 1;
+	pSMB->MaxParameterCount = cpu_to_le16(2);
+	/* BB find max SMB PDU from sess */
+	pSMB->MaxDataCount = cpu_to_le16(1000);
+	pSMB->SetupCount = 1;
+	pSMB->Reserved3 = 0;
+	pSMB->SubCommand = cpu_to_le16(TRANS2_SET_FILE_INFORMATION);
+	byte_count = 3 /* pad */  + params + count;
+	pSMB->DataCount = cpu_to_le16(count);
+	pSMB->ParameterCount = cpu_to_le16(params);
+	pSMB->TotalDataCount = pSMB->DataCount;
+	pSMB->TotalParameterCount = pSMB->ParameterCount;
+	pSMB->ParameterOffset = cpu_to_le16(param_offset);
+	pSMB->DataOffset = cpu_to_le16(offset);
+	pSMB->Fid = fid;
+	pSMB->InformationLevel = cpu_to_le16(SMB_SET_FILE_DISPOSITION_INFO);
+	pSMB->Reserved4 = 0;
+	pSMB->hdr.smb_buf_length += byte_count;
+	pSMB->ByteCount = cpu_to_le16(byte_count);
+	*data_offset = delete_file ? 1 : 0;
+	rc = SendReceiveNoRsp(xid, tcon->ses, (struct smb_hdr *) pSMB, 0);
+	if (rc)
+		cFYI(1, ("Send error in SetFileDisposition = %d", rc));
+
+	return rc;
+}
 
 int
 CIFSSMBSetPathInfo(const int xid, struct cifsTconInfo *tcon,

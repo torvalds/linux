@@ -986,7 +986,7 @@ static void si470x_work(struct work_struct *work)
 static ssize_t si470x_fops_read(struct file *file, char __user *buf,
 		size_t count, loff_t *ppos)
 {
-	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
+	struct si470x_device *radio = video_drvdata(file);
 	int retval = 0;
 	unsigned int block_count = 0;
 
@@ -1047,7 +1047,7 @@ done:
 static unsigned int si470x_fops_poll(struct file *file,
 		struct poll_table_struct *pts)
 {
-	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
+	struct si470x_device *radio = video_drvdata(file);
 	int retval = 0;
 
 	/* switch on rds reception */
@@ -1071,9 +1071,10 @@ static unsigned int si470x_fops_poll(struct file *file,
  */
 static int si470x_fops_open(struct inode *inode, struct file *file)
 {
-	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
+	struct si470x_device *radio = video_drvdata(file);
 	int retval;
 
+	lock_kernel();
 	radio->users++;
 
 	retval = usb_autopm_get_interface(radio->intf);
@@ -1090,6 +1091,7 @@ static int si470x_fops_open(struct inode *inode, struct file *file)
 	}
 
 done:
+	unlock_kernel();
 	return retval;
 }
 
@@ -1099,7 +1101,7 @@ done:
  */
 static int si470x_fops_release(struct inode *inode, struct file *file)
 {
-	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
+	struct si470x_device *radio = video_drvdata(file);
 	int retval = 0;
 
 	/* safety check */
@@ -1282,7 +1284,7 @@ done:
 static int si470x_vidioc_g_ctrl(struct file *file, void *priv,
 		struct v4l2_control *ctrl)
 {
-	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
+	struct si470x_device *radio = video_drvdata(file);
 	int retval = 0;
 
 	/* safety checks */
@@ -1318,7 +1320,7 @@ done:
 static int si470x_vidioc_s_ctrl(struct file *file, void *priv,
 		struct v4l2_control *ctrl)
 {
-	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
+	struct si470x_device *radio = video_drvdata(file);
 	int retval = 0;
 
 	/* safety checks */
@@ -1405,7 +1407,7 @@ done:
 static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 		struct v4l2_tuner *tuner)
 {
-	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
+	struct si470x_device *radio = video_drvdata(file);
 	int retval = 0;
 
 	/* safety checks */
@@ -1471,7 +1473,7 @@ done:
 static int si470x_vidioc_s_tuner(struct file *file, void *priv,
 		struct v4l2_tuner *tuner)
 {
-	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
+	struct si470x_device *radio = video_drvdata(file);
 	int retval = 0;
 
 	/* safety checks */
@@ -1505,7 +1507,7 @@ done:
 static int si470x_vidioc_g_frequency(struct file *file, void *priv,
 		struct v4l2_frequency *freq)
 {
-	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
+	struct si470x_device *radio = video_drvdata(file);
 	int retval = 0;
 
 	/* safety checks */
@@ -1534,7 +1536,7 @@ done:
 static int si470x_vidioc_s_frequency(struct file *file, void *priv,
 		struct v4l2_frequency *freq)
 {
-	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
+	struct si470x_device *radio = video_drvdata(file);
 	int retval = 0;
 
 	/* safety checks */
@@ -1563,7 +1565,7 @@ done:
 static int si470x_vidioc_s_hw_freq_seek(struct file *file, void *priv,
 		struct v4l2_hw_freq_seek *seek)
 {
-	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
+	struct si470x_device *radio = video_drvdata(file);
 	int retval = 0;
 
 	/* safety checks */

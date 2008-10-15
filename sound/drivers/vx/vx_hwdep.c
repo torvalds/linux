@@ -141,7 +141,8 @@ static int vx_hwdep_dsp_status(struct snd_hwdep *hw,
 	};
 	struct vx_core *vx = hw->private_data;
 
-	snd_assert(type_ids[vx->type], return -EINVAL);
+	if (snd_BUG_ON(!type_ids[vx->type]))
+		return -EINVAL;
 	strcpy(info->id, type_ids[vx->type]);
 	if (vx_is_pcmcia(vx))
 		info->num_dsps = 4;
@@ -168,7 +169,8 @@ static int vx_hwdep_dsp_load(struct snd_hwdep *hw,
 	int index, err;
 	struct firmware *fw;
 
-	snd_assert(vx->ops->load_dsp, return -ENXIO);
+	if (snd_BUG_ON(!vx->ops->load_dsp))
+		return -ENXIO;
 
 	fw = kmalloc(sizeof(*fw), GFP_KERNEL);
 	if (! fw) {

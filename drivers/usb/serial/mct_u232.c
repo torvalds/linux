@@ -563,10 +563,11 @@ static void mct_u232_read_int_callback(struct urb *urb)
 	 * Work-a-round: handle the 'usual' bulk-in pipe here
 	 */
 	if (urb->transfer_buffer_length > 2) {
-		tty = port->port.tty;
+		tty = tty_port_tty_get(&port->port);
 		if (urb->actual_length) {
 			tty_insert_flip_string(tty, data, urb->actual_length);
 			tty_flip_buffer_push(tty);
+			tty_kref_put(tty);
 		}
 		goto exit;
 	}
@@ -591,7 +592,7 @@ static void mct_u232_read_int_callback(struct urb *urb)
 	 * to look in to this before committing any code.
 	 */
 	if (priv->last_lsr & MCT_U232_LSR_ERR) {
-		tty = port->port.tty;
+		tty = tty_port_tty_get(&port->port);
 		/* Overrun Error */
 		if (priv->last_lsr & MCT_U232_LSR_OE) {
 		}
@@ -604,6 +605,7 @@ static void mct_u232_read_int_callback(struct urb *urb)
 		/* Break Indicator */
 		if (priv->last_lsr & MCT_U232_LSR_BI) {
 		}
+		tty_kref_put(tty);
 	}
 #endif
 	spin_unlock_irqrestore(&priv->lock, flags);

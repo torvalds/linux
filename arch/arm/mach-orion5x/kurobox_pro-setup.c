@@ -161,7 +161,7 @@ subsys_initcall(kurobox_pro_pci_init);
  ****************************************************************************/
 
 static struct mv643xx_eth_platform_data kurobox_pro_eth_data = {
-	.phy_addr	= 8,
+	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
 };
 
 /*****************************************************************************

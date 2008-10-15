@@ -217,6 +217,7 @@ static void safe_read_bulk_callback(struct urb *urb)
 	struct usb_serial_port *port =  urb->context;
 	unsigned char *data = urb->transfer_buffer;
 	unsigned char length = urb->actual_length;
+	struct tty_struct *tty;
 	int result;
 	int status = urb->status;
 
@@ -242,6 +243,7 @@ static void safe_read_bulk_callback(struct urb *urb)
 		printk("\n");
 	}
 #endif
+	tty = tty_port_tty_get(&port->port);
 	if (safe) {
 		__u16 fcs;
 		fcs = fcs_compute10(data, length, CRC10_INITFCS);
@@ -250,9 +252,9 @@ static void safe_read_bulk_callback(struct urb *urb)
 			if (actual_length <= (length - 2)) {
 				info("%s - actual: %d", __func__,
 							actual_length);
-				tty_insert_flip_string(port->port.tty,
+				tty_insert_flip_string(tty,
 							data, actual_length);
-				tty_flip_buffer_push(port->port.tty);
+				tty_flip_buffer_push(tty);
 			} else {
 				err("%s - inconsistent lengths %d:%d",
 					__func__, actual_length, length);
@@ -261,9 +263,10 @@ static void safe_read_bulk_callback(struct urb *urb)
 			err("%s - bad CRC %x", __func__, fcs);
 		}
 	} else {
-		tty_insert_flip_string(port->port.tty, data, length);
-		tty_flip_buffer_push(port->port.tty);
+		tty_insert_flip_string(tty, data, length);
+		tty_flip_buffer_push(tty);
 	}
+	tty_kref_put(tty);
 
 	/* Continue trying to always read  */
 	usb_fill_bulk_urb(urb, port->serial->dev,

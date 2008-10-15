@@ -154,7 +154,7 @@ static void via_set_speed(ide_hwif_t *hwif, u8 dn, struct ide_timing *timing)
 static void via_set_drive(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	ide_drive_t *peer = hwif->drives + (~drive->dn & 1);
+	ide_drive_t *peer = ide_get_pair_dev(drive);
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct ide_host *host = pci_get_drvdata(dev);
 	struct via82cxxx_dev *vdev = host->host_priv;
@@ -173,7 +173,7 @@ static void via_set_drive(ide_drive_t *drive, const u8 speed)
 
 	ide_timing_compute(drive, speed, &t, T, UT);
 
-	if (peer->present) {
+	if (peer) {
 		ide_timing_compute(peer, peer->current_speed, &p, T, UT);
 		ide_timing_merge(&p, &t, &t, IDE_TIMING_8BIT);
 	}
@@ -215,7 +215,7 @@ static struct via_isa_bridge *via_config_find(struct pci_dev **isa)
 /*
  * Check and handle 80-wire cable presence
  */
-static void __devinit via_cable_detect(struct via82cxxx_dev *vdev, u32 u)
+static void via_cable_detect(struct via82cxxx_dev *vdev, u32 u)
 {
 	int i;
 
@@ -267,7 +267,7 @@ static void __devinit via_cable_detect(struct via82cxxx_dev *vdev, u32 u)
  *	and initialize its drive independent registers.
  */
 
-static unsigned int __devinit init_chipset_via82cxxx(struct pci_dev *dev)
+static unsigned int init_chipset_via82cxxx(struct pci_dev *dev)
 {
 	struct ide_host *host = pci_get_drvdata(dev);
 	struct via82cxxx_dev *vdev = host->host_priv;
@@ -487,21 +487,23 @@ static const struct pci_device_id via_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, via_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver via_pci_driver = {
 	.name 		= "VIA_IDE",
 	.id_table 	= via_pci_tbl,
 	.probe 		= via_init_one,
 	.remove		= __devexit_p(via_remove),
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init via_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&via_pci_driver);
 }
 
 static void __exit via_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&via_pci_driver);
 }
 
 module_init(via_ide_init);
