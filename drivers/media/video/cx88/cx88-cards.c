@@ -1281,22 +1281,26 @@ static const struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x84bf,
+			/* 1: TV Audio / FM Mono */
 			.audioroute = 1,
 		},{
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0x84bf,
+			/* 2: Line-In */
 			.audioroute = 2,
 		},{
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0x84bf,
+			/* 2: Line-In */
 			.audioroute = 2,
 		}},
-		/* FIXME Radio tunes but only noise is heard */
 		.radio = {
 			.type   = CX88_RADIO,
 			.gpio0	= 0x84bf,
+			/* 4: FM Stereo (untested) */
+			.audioroute = 8,
 		},
 		.mpeg           = CX88_MPEG_DVB,
 		.num_frontends	= 2,
@@ -1365,23 +1369,27 @@ static const struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0	= 0xef88,
+			/* 1: TV Audio / FM Mono */
 			.audioroute = 1,
 		},{
 			.type	= CX88_VMUX_COMPOSITE1,
 			.vmux	= 1,
 			.gpio0	= 0xef88,
+			/* 2: Line-In */
 			.audioroute = 2,
 		},{
 			.type	= CX88_VMUX_SVIDEO,
 			.vmux	= 2,
 			.gpio0	= 0xef88,
+			/* 2: Line-In */
 			.audioroute = 2,
 		}},
-		/* fixme: Add radio support */
 		.mpeg           = CX88_MPEG_DVB | CX88_MPEG_BLACKBIRD,
 		.radio = {
 			.type   = CX88_RADIO,
 			.gpio0	= 0xef88,
+			/* 4: FM Stereo (untested) */
+			.audioroute = 8,
 		},
 	},
 	[CX88_BOARD_ADSTECH_PTV_390] = {
@@ -1755,27 +1763,38 @@ static const struct cx88_board cx88_boards[] = {
 		 * d    0       I
 		 * e    1       O
 		 * f    1       O
+		 *
+		 * WM8775 ADC
+		 *
+		 * 1: TV Audio / FM Mono
+		 * 2: Line-In
+		 * 3: Line-In Expansion
+		 * 4: FM Stereo
 		 */
 		.input          = {{
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0xc4bf,
+			/* 1: TV Audio / FM Mono */
 			.audioroute = 1,
 		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
 			.gpio0  = 0xc4bf,
+			/* 2: Line-In */
 			.audioroute = 2,
 		}, {
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
 			.gpio0  = 0xc4bf,
+			/* 2: Line-In */
 			.audioroute = 2,
 		} },
-		/* FIXME Radio tunes but only noise is heard */
 		.radio = {
 			.type   = CX88_RADIO,
 			.gpio0	= 0xc4bf,
+			/* 4: FM Stereo */
+			.audioroute = 8,
 		},
 		.mpeg           = CX88_MPEG_DVB,
 		.num_frontends	= 2,
