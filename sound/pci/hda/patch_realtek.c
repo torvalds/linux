@@ -8837,8 +8837,13 @@ static int patch_alc883(struct hda_codec *codec)
 
 	switch (codec->vendor_id) {
 	case 0x10ec0888:
-		spec->stream_name_analog = "ALC888 Analog";
-		spec->stream_name_digital = "ALC888 Digital";
+		if (codec->revision_id == 0x100101) {
+			spec->stream_name_analog = "ALC1200 Analog";
+			spec->stream_name_digital = "ALC1200 Digital";
+		} else {
+			spec->stream_name_analog = "ALC888 Analog";
+			spec->stream_name_digital = "ALC888 Digital";
+		}
 		break;
 	case 0x10ec0889:
 		spec->stream_name_analog = "ALC889 Analog";
@@ -16359,6 +16364,8 @@ struct hda_codec_preset snd_hda_preset_realtek[] = {
 	  .patch = patch_alc882 }, /* should be patch_alc883() in future */
 	{ .id = 0x10ec0885, .name = "ALC885", .patch = patch_alc882 },
 	{ .id = 0x10ec0888, .name = "ALC888", .patch = patch_alc883 },
+	{ .id = 0x10ec0888, .rev = 0x100101, .name = "ALC1200",
+	  .patch = patch_alc883 },
 	{ .id = 0x10ec0889, .name = "ALC889", .patch = patch_alc883 },
 	{} /* terminator */
 };
