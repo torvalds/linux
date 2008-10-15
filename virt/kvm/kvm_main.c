@@ -105,14 +105,12 @@ static void kvm_assigned_dev_interrupt_work_handler(struct work_struct *work)
 	 */
 	mutex_lock(&assigned_dev->kvm->lock);
 	kvm_set_irq(assigned_dev->kvm,
+		    assigned_dev->irq_source_id,
 		    assigned_dev->guest_irq, 1);
 	mutex_unlock(&assigned_dev->kvm->lock);
 	kvm_put_kvm(assigned_dev->kvm);
 }
 
-/* FIXME: Implement the OR logic needed to make shared interrupts on
- * this line behave properly
- */
 static irqreturn_t kvm_assigned_dev_intr(int irq, void *dev_id)
 {
 	struct kvm_assigned_dev_kernel *assigned_dev =
@@ -134,7 +132,7 @@ static void kvm_assigned_dev_ack_irq(struct kvm_irq_ack_notifier *kian)
 
 	dev = container_of(kian, struct kvm_assigned_dev_kernel,
 			   ack_notifier);
-	kvm_set_irq(dev->kvm, dev->guest_irq, 0);
+	kvm_set_irq(dev->kvm, dev->irq_source_id, dev->guest_irq, 0);
 	enable_irq(dev->host_irq);
 }
 
@@ -146,6 +144,7 @@ static void kvm_free_assigned_device(struct kvm *kvm,
 		free_irq(assigned_dev->host_irq, (void *)assigned_dev);
 
 	kvm_unregister_irq_ack_notifier(kvm, &assigned_dev->ack_notifier);
+	kvm_free_irq_source_id(kvm, assigned_dev->irq_source_id);
 
 	if (cancel_work_sync(&assigned_dev->interrupt_work))
 		/* We had pending work. That means we will have to take
@@ -215,6 +214,11 @@ static int kvm_vm_ioctl_assign_irq(struct kvm *kvm,
 		match->ack_notifier.gsi = assigned_irq->guest_irq;
 		match->ack_notifier.irq_acked = kvm_assigned_dev_ack_irq;
 		kvm_register_irq_ack_notifier(kvm, &match->ack_notifier);
+		r = kvm_request_irq_source_id(kvm);
+		if (r < 0)
+			goto out_release;
+		else
+			match->irq_source_id = r;
 
 		/* Even though this is PCI, we don't want to use shared
 		 * interrupts. Sharing host devices with guest-assigned devices
