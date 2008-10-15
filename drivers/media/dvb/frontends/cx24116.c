@@ -1248,7 +1248,10 @@ static int cx24116_set_frontend(struct dvb_frontend *fe,
 
 		switch (c->pilot) {
 		case PILOT_AUTO:	/* Not supported but emulated */
-			retune = 2;	/* Fall-through */
+			state->dnxt.pilot_val = (c->modulation == QPSK)
+				? CX24116_PILOT_OFF : CX24116_PILOT_ON;
+			retune = 2;
+			break;
 		case PILOT_OFF:
 			state->dnxt.pilot_val = CX24116_PILOT_OFF;
 			break;
