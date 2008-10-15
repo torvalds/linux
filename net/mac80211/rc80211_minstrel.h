@@ -16,6 +16,7 @@ struct minstrel_rate {
 	unsigned int perfect_tx_time;
 	unsigned int ack_time;
 
+	int sample_limit;
 	unsigned int retry_count;
 	unsigned int retry_count_cts;
 	unsigned int retry_count_rtscts;
@@ -57,6 +58,7 @@ struct minstrel_sta_info {
 
 	int n_rates;
 	struct minstrel_rate *r;
+	bool prev_sample;
 
 	/* sampling table */
 	u8 *sample_table;
