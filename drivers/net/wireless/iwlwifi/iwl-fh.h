@@ -60,6 +60,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
+#ifndef __iwl_fh_h__
+#define __iwl_fh_h__
 
 /****************************/
 /* Flow Handler Definitions */
@@ -391,3 +393,4 @@
 /* TCSR: tx_config register values */
 #define FH_RSCSR_FRAME_SIZE_MSK	(0x00003FFF)	/* bits 0-13 */
 
+#endif /* !__iwl_fh_h__ */

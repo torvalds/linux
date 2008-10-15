@@ -60,6 +60,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
+#ifndef __iwl_csr_h__
+#define __iwl_csr_h__
 /*=== CSR (control and status registers) ===*/
 #define CSR_BASE    (0x000)
 
@@ -286,4 +288,4 @@
 #define HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED         (0x00000004)
 
 
-
+#endif /* !__iwl_csr_h__ */
