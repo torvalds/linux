@@ -274,6 +274,7 @@ int copy_creds(struct task_struct *p, unsigned long clone_flags)
 	struct thread_group_cred *tgcred;
 #endif
 	struct cred *new;
+	int ret;
 
 	mutex_init(&p->cred_exec_mutex);
 
@@ -293,6 +294,12 @@ int copy_creds(struct task_struct *p, unsigned long clone_flags)
 	if (!new)
 		return -ENOMEM;
 
+	if (clone_flags & CLONE_NEWUSER) {
+		ret = create_user_ns(new);
+		if (ret < 0)
+			goto error_put;
+	}
+
 #ifdef CONFIG_KEYS
 	/* new threads get their own thread keyrings if their parent already
 	 * had one */
@@ -309,8 +316,8 @@ int copy_creds(struct task_struct *p, unsigned long clone_flags)
 	if (!(clone_flags & CLONE_THREAD)) {
 		tgcred = kmalloc(sizeof(*tgcred), GFP_KERNEL);
 		if (!tgcred) {
-			put_cred(new);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto error_put;
 		}
 		atomic_set(&tgcred->usage, 1);
 		spin_lock_init(&tgcred->lock);
@@ -325,6 +332,10 @@ int copy_creds(struct task_struct *p, unsigned long clone_flags)
 	atomic_inc(&new->user->processes);
 	p->cred = p->real_cred = get_cred(new);
 	return 0;
+
+error_put:
+	put_cred(new);
+	return ret;
 }
 
 /**

@@ -360,7 +360,7 @@ int ecryptfs_process_response(struct ecryptfs_message *msg, uid_t euid,
 	struct ecryptfs_msg_ctx *msg_ctx;
 	size_t msg_size;
 	struct nsproxy *nsproxy;
-	struct user_namespace *current_user_ns;
+	struct user_namespace *tsk_user_ns;
 	uid_t ctx_euid;
 	int rc;
 
@@ -385,9 +385,9 @@ int ecryptfs_process_response(struct ecryptfs_message *msg, uid_t euid,
 		mutex_unlock(&ecryptfs_daemon_hash_mux);
 		goto wake_up;
 	}
-	current_user_ns = nsproxy->user_ns;
+	tsk_user_ns = __task_cred(msg_ctx->task)->user->user_ns;
 	ctx_euid = task_euid(msg_ctx->task);
-	rc = ecryptfs_find_daemon_by_euid(&daemon, ctx_euid, current_user_ns);
+	rc = ecryptfs_find_daemon_by_euid(&daemon, ctx_euid, tsk_user_ns);
 	rcu_read_unlock();
 	mutex_unlock(&ecryptfs_daemon_hash_mux);
 	if (rc) {
@@ -405,11 +405,11 @@ int ecryptfs_process_response(struct ecryptfs_message *msg, uid_t euid,
 		       euid, ctx_euid);
 		goto unlock;
 	}
-	if (current_user_ns != user_ns) {
+	if (tsk_user_ns != user_ns) {
 		rc = -EBADMSG;
 		printk(KERN_WARNING "%s: Received message from user_ns "
 		       "[0x%p]; expected message from user_ns [0x%p]\n",
-		       __func__, user_ns, nsproxy->user_ns);
+		       __func__, user_ns, tsk_user_ns);
 		goto unlock;
 	}
 	if (daemon->pid != pid) {
@@ -468,8 +468,7 @@ ecryptfs_send_message_locked(char *data, int data_len, u8 msg_type,
 	uid_t euid = current_euid();
 	int rc;
 
-	rc = ecryptfs_find_daemon_by_euid(&daemon, euid,
-					  current->nsproxy->user_ns);
+	rc = ecryptfs_find_daemon_by_euid(&daemon, euid, current_user_ns());
 	if (rc || !daemon) {
 		rc = -ENOTCONN;
 		printk(KERN_ERR "%s: User [%d] does not have a daemon "

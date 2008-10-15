@@ -976,7 +976,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	if (atomic_read(&p->real_cred->user->processes) >=
 			p->signal->rlim[RLIMIT_NPROC].rlim_cur) {
 		if (!capable(CAP_SYS_ADMIN) && !capable(CAP_SYS_RESOURCE) &&
-		    p->real_cred->user != current->nsproxy->user_ns->root_user)
+		    p->real_cred->user != INIT_USER)
 			goto bad_fork_free;
 	}
 
@@ -1335,6 +1335,20 @@ long do_fork(unsigned long clone_flags,
 	long nr;
 
 	/*
+	 * Do some preliminary argument and permissions checking before we
+	 * actually start allocating stuff
+	 */
+	if (clone_flags & CLONE_NEWUSER) {
+		if (clone_flags & CLONE_THREAD)
+			return -EINVAL;
+		/* hopefully this check will go away when userns support is
+		 * complete
+		 */
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
+	}
+
+	/*
 	 * We hope to recycle these flags after 2.6.26
 	 */
 	if (unlikely(clone_flags & CLONE_STOPPED)) {
@@ -1581,8 +1595,7 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 	err = -EINVAL;
 	if (unshare_flags & ~(CLONE_THREAD|CLONE_FS|CLONE_NEWNS|CLONE_SIGHAND|
 				CLONE_VM|CLONE_FILES|CLONE_SYSVSEM|
-				CLONE_NEWUTS|CLONE_NEWIPC|CLONE_NEWUSER|
-				CLONE_NEWNET))
+				CLONE_NEWUTS|CLONE_NEWIPC|CLONE_NEWNET))
 		goto bad_unshare_out;
 
 	/*
