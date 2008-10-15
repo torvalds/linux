@@ -352,6 +352,11 @@ config RTC_DRV_DS1216
 	help
 	  If you say yes here you get support for the Dallas DS1216 RTC chips.
 
+config RTC_DRV_DS1286
+	tristate "Dallas DS1286"
+	help
+	  If you say yes here you get support for the Dallas DS1286 RTC chips.
+
 config RTC_DRV_DS1302
 	tristate "Dallas DS1302"
 	depends on SH_SECUREEDGE5410
@@ -404,6 +409,15 @@ config RTC_DRV_M48T86
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-m48t86.
+
+config RTC_DRV_M48T35
+	tristate "ST M48T35"
+	help
+	  If you say Y here you will get support for the
+	  ST M48T35 RTC chip.
+
+	  This driver can also be built as a module, if so, the module
+	  will be called "rtc-m48t35".
 
 config RTC_DRV_M48T59
 	tristate "ST M48T59/M48T08/M48T02"

@@ -12,68 +12,51 @@
 #include <asm/mach-bcm47xx/bcm47xx.h>
 #include <asm/mach-bcm47xx/gpio.h>
 
-int bcm47xx_gpio_to_irq(unsigned gpio)
+#if (BCM47XX_CHIPCO_GPIO_LINES > BCM47XX_EXTIF_GPIO_LINES)
+static DECLARE_BITMAP(gpio_in_use, BCM47XX_CHIPCO_GPIO_LINES);
+#else
+static DECLARE_BITMAP(gpio_in_use, BCM47XX_EXTIF_GPIO_LINES);
+#endif
+
+int gpio_request(unsigned gpio, const char *tag)
 {
-	if (ssb_bcm47xx.chipco.dev)
+	if (ssb_chipco_available(&ssb_bcm47xx.chipco) &&
+	    ((unsigned)gpio >= BCM47XX_CHIPCO_GPIO_LINES))
+		return -EINVAL;
+
+	if (ssb_extif_available(&ssb_bcm47xx.extif) &&
+	    ((unsigned)gpio >= BCM47XX_EXTIF_GPIO_LINES))
+		return -EINVAL;
+
+	if (test_and_set_bit(gpio, gpio_in_use))
+		return -EBUSY;
+
+	return 0;
+}
+EXPORT_SYMBOL(gpio_request);
+
+void gpio_free(unsigned gpio)
+{
+	if (ssb_chipco_available(&ssb_bcm47xx.chipco) &&
+	    ((unsigned)gpio >= BCM47XX_CHIPCO_GPIO_LINES))
+		return;
+
+	if (ssb_extif_available(&ssb_bcm47xx.extif) &&
+	    ((unsigned)gpio >= BCM47XX_EXTIF_GPIO_LINES))
+		return;
+
+	clear_bit(gpio, gpio_in_use);
+}
+EXPORT_SYMBOL(gpio_free);
+
+int gpio_to_irq(unsigned gpio)
+{
+	if (ssb_chipco_available(&ssb_bcm47xx.chipco))
 		return ssb_mips_irq(ssb_bcm47xx.chipco.dev) + 2;
-	else if (ssb_bcm47xx.extif.dev)
+	else if (ssb_extif_available(&ssb_bcm47xx.extif))
 		return ssb_mips_irq(ssb_bcm47xx.extif.dev) + 2;
 	else
 		return -EINVAL;
 }
-EXPORT_SYMBOL_GPL(bcm47xx_gpio_to_irq);
-
-int bcm47xx_gpio_get_value(unsigned gpio)
-{
-	if (ssb_bcm47xx.chipco.dev)
-		return ssb_chipco_gpio_in(&ssb_bcm47xx.chipco, 1 << gpio);
-	else if (ssb_bcm47xx.extif.dev)
-		return ssb_extif_gpio_in(&ssb_bcm47xx.extif, 1 << gpio);
-	else
-		return 0;
-}
-EXPORT_SYMBOL_GPL(bcm47xx_gpio_get_value);
-
-void bcm47xx_gpio_set_value(unsigned gpio, int value)
-{
-	if (ssb_bcm47xx.chipco.dev)
-		ssb_chipco_gpio_out(&ssb_bcm47xx.chipco,
-				    1 << gpio,
-				    value ? 1 << gpio : 0);
-	else if (ssb_bcm47xx.extif.dev)
-		ssb_extif_gpio_out(&ssb_bcm47xx.extif,
-				   1 << gpio,
-				   value ? 1 << gpio : 0);
-}
-EXPORT_SYMBOL_GPL(bcm47xx_gpio_set_value);
-
-int bcm47xx_gpio_direction_input(unsigned gpio)
-{
-	if (ssb_bcm47xx.chipco.dev && (gpio < BCM47XX_CHIPCO_GPIO_LINES))
-		ssb_chipco_gpio_outen(&ssb_bcm47xx.chipco,
-				      1 << gpio, 0);
-	else if (ssb_bcm47xx.extif.dev && (gpio < BCM47XX_EXTIF_GPIO_LINES))
-		ssb_extif_gpio_outen(&ssb_bcm47xx.extif,
-				     1 << gpio, 0);
-	else
-		return -EINVAL;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(bcm47xx_gpio_direction_input);
-
-int bcm47xx_gpio_direction_output(unsigned gpio, int value)
-{
-	bcm47xx_gpio_set_value(gpio, value);
-
-	if (ssb_bcm47xx.chipco.dev && (gpio < BCM47XX_CHIPCO_GPIO_LINES))
-		ssb_chipco_gpio_outen(&ssb_bcm47xx.chipco,
-				      1 << gpio, 1 << gpio);
-	else if (ssb_bcm47xx.extif.dev && (gpio < BCM47XX_EXTIF_GPIO_LINES))
-		ssb_extif_gpio_outen(&ssb_bcm47xx.extif,
-				     1 << gpio, 1 << gpio);
-	else
-		return -EINVAL;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(bcm47xx_gpio_direction_output);
+EXPORT_SYMBOL_GPL(gpio_to_irq);
 

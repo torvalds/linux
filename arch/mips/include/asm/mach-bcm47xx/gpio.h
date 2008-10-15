@@ -9,47 +9,46 @@
 #ifndef __BCM47XX_GPIO_H
 #define __BCM47XX_GPIO_H
 
+#include <linux/ssb/ssb_embedded.h>
+#include <asm/mach-bcm47xx/bcm47xx.h>
+
 #define BCM47XX_EXTIF_GPIO_LINES	5
 #define BCM47XX_CHIPCO_GPIO_LINES	16
 
-extern int bcm47xx_gpio_to_irq(unsigned gpio);
-extern int bcm47xx_gpio_get_value(unsigned gpio);
-extern void bcm47xx_gpio_set_value(unsigned gpio, int value);
-extern int bcm47xx_gpio_direction_input(unsigned gpio);
-extern int bcm47xx_gpio_direction_output(unsigned gpio, int value);
-
-static inline int gpio_request(unsigned gpio, const char *label)
-{
-       return 0;
-}
-
-static inline void gpio_free(unsigned gpio)
-{
-}
-
-static inline int gpio_to_irq(unsigned gpio)
-{
-	return bcm47xx_gpio_to_irq(gpio);
-}
+extern int gpio_request(unsigned gpio, const char *label);
+extern void gpio_free(unsigned gpio);
+extern int gpio_to_irq(unsigned gpio);
 
 static inline int gpio_get_value(unsigned gpio)
 {
-	return bcm47xx_gpio_get_value(gpio);
+	return ssb_gpio_in(&ssb_bcm47xx, 1 << gpio);
 }
 
 static inline void gpio_set_value(unsigned gpio, int value)
 {
-	bcm47xx_gpio_set_value(gpio, value);
+	ssb_gpio_out(&ssb_bcm47xx, 1 << gpio, value ? 1 << gpio : 0);
 }
 
 static inline int gpio_direction_input(unsigned gpio)
 {
-	return bcm47xx_gpio_direction_input(gpio);
+	return ssb_gpio_outen(&ssb_bcm47xx, 1 << gpio, 0);
 }
 
 static inline int gpio_direction_output(unsigned gpio, int value)
 {
-	return bcm47xx_gpio_direction_output(gpio, value);
+	return ssb_gpio_outen(&ssb_bcm47xx, 1 << gpio, 1 << gpio);
+}
+
+static int gpio_intmask(unsigned gpio, int value)
+{
+	return ssb_gpio_intmask(&ssb_bcm47xx, 1 << gpio,
+				value ? 1 << gpio : 0);
+}
+
+static int gpio_polarity(unsigned gpio, int value)
+{
+	return ssb_gpio_polarity(&ssb_bcm47xx, 1 << gpio,
+				 value ? 1 << gpio : 0);
 }
 
 
