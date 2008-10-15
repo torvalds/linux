@@ -30,6 +30,7 @@
 #include <linux/pci.h>
 #include <sound/core.h>
 #include <sound/asoundef.h>
+#include <sound/jack.h>
 #include "hda_codec.h"
 #include "hda_local.h"
 #include "hda_patch.h"
@@ -215,6 +216,9 @@ struct sigmatel_spec {
 	unsigned int aloopback;
 
 	struct hda_pcm pcm_rec[2];	/* PCM information */
+
+	/* jack detection */
+	struct snd_jack *jack;
 
 	/* dynamic controls and input_mux */
 	struct auto_pin_cfg autocfg;
@@ -3617,7 +3621,7 @@ static int stac92xx_init(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	int i;
+	int i, err;
 
 	snd_hda_sequence_write(codec, spec->init);
 
@@ -3639,6 +3643,12 @@ static int stac92xx_init(struct hda_codec *codec)
 		stac92xx_auto_set_pinctl(codec, spec->autocfg.line_out_pins[0],
 					 AC_PINCTL_OUT_EN);
 		stac92xx_auto_init_hp_out(codec);
+		/* jack detection */
+		err = snd_jack_new(codec->bus->card,
+			"Headphone Jack",
+			SND_JACK_HEADPHONE, &spec->jack);
+		if (err < 0)
+			return err;
 		/* fake event to set up pins */
 		codec->patch_ops.unsol_event(codec, STAC_HP_EVENT << 26);
 	} else {
@@ -3796,6 +3806,8 @@ static void stac92xx_hp_detect(struct hda_codec *codec, unsigned int res)
 			break;
 		presence = get_hp_pin_presence(codec, cfg->hp_pins[i]);
 	}
+	snd_jack_report(spec->jack,
+		presence ? SND_JACK_HEADPHONE : 0);
 
 	if (presence) {
 		/* disable lineouts, enable hp */
