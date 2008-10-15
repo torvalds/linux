@@ -630,6 +630,7 @@ extern void cx88_setup_xc3028(struct cx88_core *core, struct xc2028_ctrl *ctl);
 #define WW_EIAJ		 7
 #define WW_I2SPT	 8
 #define WW_FM		 9
+#define WW_I2SADC	 10
 
 void cx88_set_tvaudio(struct cx88_core *core);
 void cx88_newstation(struct cx88_core *core);
