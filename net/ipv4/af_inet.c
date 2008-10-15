@@ -121,6 +121,9 @@
 #endif
 #include <net/l3mdev.h>
 
+#ifdef CONFIG_ANDROID_PARANOID_NETWORK
+#include <linux/android_aid.h>
+#endif
 
 /* The inetsw table contains everything that inet_create needs to
  * build a new socket.
@@ -237,6 +240,29 @@ out:
 }
 EXPORT_SYMBOL(inet_listen);
 
+#ifdef CONFIG_ANDROID_PARANOID_NETWORK
+static inline int current_has_network(void)
+{
+	return (!current_euid() || in_egroup_p(AID_INET) ||
+		in_egroup_p(AID_NET_RAW));
+}
+static inline int current_has_cap(struct net *net, int cap)
+{
+	if (cap == CAP_NET_RAW && in_egroup_p(AID_NET_RAW))
+		return 1;
+	return ns_capable(net->user_ns, cap);
+}
+# else
+static inline int current_has_network(void)
+{
+	return 1;
+}
+static inline int current_has_cap(struct net *net, int cap)
+{
+	return ns_capable(net->user_ns, cap);
+}
+#endif
+
 /*
  *	Create an inet socket.
  */
@@ -254,6 +280,9 @@ static int inet_create(struct net *net, struct socket *sock, int protocol,
 
 	if (protocol < 0 || protocol >= IPPROTO_MAX)
 		return -EINVAL;
+
+	if (!current_has_network())
+		return -EACCES;
 
 	sock->state = SS_UNCONNECTED;
 
@@ -304,7 +333,7 @@ lookup_protocol:
 
 	err = -EPERM;
 	if (sock->type == SOCK_RAW && !kern &&
-	    !ns_capable(net->user_ns, CAP_NET_RAW))
+	    !current_has_cap(net, CAP_NET_RAW))
 		goto out_rcu_unlock;
 
 	sock->ops = answer->ops;
