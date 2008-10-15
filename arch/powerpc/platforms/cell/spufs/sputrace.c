@@ -80,6 +80,11 @@ static ssize_t sputrace_read(struct file *file, char __user *buf,
 		char tbuf[128];
 		int width;
 
+		/* If we have data ready to return, don't block waiting
+		 * for more */
+		if (cnt > 0 && sputrace_used() == 0)
+			break;
+
 		error = wait_event_interruptible(sputrace_wait,
 						 sputrace_used() > 0);
 		if (error)
