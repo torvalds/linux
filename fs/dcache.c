@@ -174,9 +174,12 @@ static struct dentry *d_kill(struct dentry *dentry)
 	dentry_stat.nr_dentry--;	/* For d_free, below */
 	/*drops the locks, at that point nobody can reach this dentry */
 	dentry_iput(dentry);
-	parent = dentry->d_parent;
+	if (IS_ROOT(dentry))
+		parent = NULL;
+	else
+		parent = dentry->d_parent;
 	d_free(dentry);
-	return dentry == parent ? NULL : parent;
+	return parent;
 }
 
 /* 
@@ -666,11 +669,12 @@ static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
 				BUG();
 			}
 
-			parent = dentry->d_parent;
-			if (parent == dentry)
+			if (IS_ROOT(dentry))
 				parent = NULL;
-			else
+			else {
+				parent = dentry->d_parent;
 				atomic_dec(&parent->d_count);
+			}
 
 			list_del(&dentry->d_u.d_child);
 			detached++;
@@ -1723,7 +1727,7 @@ static int d_isparent(struct dentry *p1, struct dentry *p2)
 {
 	struct dentry *p;
 
-	for (p = p2; p->d_parent != p; p = p->d_parent) {
+	for (p = p2; !IS_ROOT(p); p = p->d_parent) {
 		if (p->d_parent == p1)
 			return 1;
 	}
@@ -2168,10 +2172,9 @@ int is_subdir(struct dentry * new_dentry, struct dentry * old_dentry)
 		seq = read_seqbegin(&rename_lock);
 		for (;;) {
 			if (new_dentry != old_dentry) {
-				struct dentry * parent = new_dentry->d_parent;
-				if (parent == new_dentry)
+				if (IS_ROOT(new_dentry))
 					break;
-				new_dentry = parent;
+				new_dentry = new_dentry->d_parent;
 				continue;
 			}
 			result = 1;

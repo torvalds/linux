@@ -1454,7 +1454,7 @@ struct dentry *lock_rename(struct dentry *p1, struct dentry *p2)
 
 	mutex_lock(&p1->d_inode->i_sb->s_vfs_rename_mutex);
 
-	for (p = p1; p->d_parent != p; p = p->d_parent) {
+	for (p = p1; !IS_ROOT(p); p = p->d_parent) {
 		if (p->d_parent == p2) {
 			mutex_lock_nested(&p2->d_inode->i_mutex, I_MUTEX_PARENT);
 			mutex_lock_nested(&p1->d_inode->i_mutex, I_MUTEX_CHILD);
@@ -1462,7 +1462,7 @@ struct dentry *lock_rename(struct dentry *p1, struct dentry *p2)
 		}
 	}
 
-	for (p = p2; p->d_parent != p; p = p->d_parent) {
+	for (p = p2; !IS_ROOT(p); p = p->d_parent) {
 		if (p->d_parent == p1) {
 			mutex_lock_nested(&p1->d_inode->i_mutex, I_MUTEX_PARENT);
 			mutex_lock_nested(&p2->d_inode->i_mutex, I_MUTEX_CHILD);
