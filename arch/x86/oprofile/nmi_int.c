@@ -415,15 +415,22 @@ static int __init ppro_init(char **cpu_type)
 	case 15: case 23:
 		*cpu_type = "i386/core_2";
 		break;
-	case 26:
-		*cpu_type = "i386/core_2";
-		break;
 	default:
 		/* Unknown */
 		return 0;
 	}
 
 	model = &op_ppro_spec;
+	return 1;
+}
+
+static int __init arch_perfmon_init(char **cpu_type)
+{
+	if (!cpu_has_arch_perfmon)
+		return 0;
+	*cpu_type = "i386/arch_perfmon";
+	model = &op_arch_perfmon_spec;
+	arch_perfmon_setup_counters();
 	return 1;
 }
 
@@ -434,7 +441,7 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 {
 	__u8 vendor = boot_cpu_data.x86_vendor;
 	__u8 family = boot_cpu_data.x86;
-	char *cpu_type;
+	char *cpu_type = NULL;
 	int ret = 0;
 
 	if (!cpu_has_apic)
@@ -472,19 +479,20 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 		switch (family) {
 			/* Pentium IV */
 		case 0xf:
-			if (!p4_init(&cpu_type))
-				return -ENODEV;
+			p4_init(&cpu_type);
 			break;
 
 			/* A P6-class processor */
 		case 6:
-			if (!ppro_init(&cpu_type))
-				return -ENODEV;
+			ppro_init(&cpu_type);
 			break;
 
 		default:
-			return -ENODEV;
+			break;
 		}
+
+		if (!cpu_type && !arch_perfmon_init(&cpu_type))
+			return -ENODEV;
 		break;
 
 	default:
