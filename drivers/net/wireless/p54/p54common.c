@@ -1018,43 +1018,48 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	return 0;
 }
 
-static int p54_set_filter(struct ieee80211_hw *dev, u16 filter_type,
-			  const u8 *bssid)
+static int p54_setup_mac(struct ieee80211_hw *dev, u16 mode, const u8 *bssid)
 {
 	struct p54_common *priv = dev->priv;
 	struct sk_buff *skb;
-	struct p54_tx_control_filter *filter;
-	u16 data_len = sizeof(struct p54_control_hdr) + sizeof(*filter);
+	struct p54_setup_mac *setup;
 
-	if (priv->fw_var < 0x500)
-		data_len += P54_TX_CONTROL_FILTER_V1_LEN;
-	else
-		data_len += P54_TX_CONTROL_FILTER_V2_LEN;
-
-	skb = p54_alloc_skb(dev, 0x8001, data_len, P54_CONTROL_TYPE_FILTER_SET,
+	skb = p54_alloc_skb(dev, 0x8001, sizeof(struct p54_control_hdr) +
+			    sizeof(*setup), P54_CONTROL_TYPE_SETUP,
 			    GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
 
-	filter = (struct p54_tx_control_filter *) skb_put(skb, sizeof(*filter));
-	filter->filter_type = priv->filter_type = cpu_to_le16(filter_type);
-	memcpy(filter->mac_addr, priv->mac_addr, ETH_ALEN);
+	setup = (struct p54_setup_mac *) skb_put(skb, sizeof(*setup));
+	priv->mac_mode = mode;
+	setup->mac_mode = cpu_to_le16(mode);
+	memcpy(setup->mac_addr, priv->mac_addr, ETH_ALEN);
 	if (!bssid)
-		memset(filter->bssid, ~0, ETH_ALEN);
+		memset(setup->bssid, ~0, ETH_ALEN);
 	else
-		memcpy(filter->bssid, bssid, ETH_ALEN);
-	filter->rx_antenna = priv->rx_antenna;
+		memcpy(setup->bssid, bssid, ETH_ALEN);
+	setup->rx_antenna = priv->rx_antenna;
 	if (priv->fw_var < 0x500) {
-		filter->v1.basic_rate_mask = cpu_to_le32(0x15f);
-		filter->v1.rx_addr = cpu_to_le32(priv->rx_end);
-		filter->v1.max_rx = cpu_to_le16(priv->rx_mtu);
-		filter->v1.rxhw = cpu_to_le16(priv->rxhw);
-		filter->v1.wakeup_timer = cpu_to_le16(500);
+		setup->v1.basic_rate_mask = cpu_to_le32(0x15f);
+		setup->v1.rx_addr = cpu_to_le32(priv->rx_end);
+		setup->v1.max_rx = cpu_to_le16(priv->rx_mtu);
+		setup->v1.rxhw = cpu_to_le16(priv->rxhw);
+		setup->v1.wakeup_timer = cpu_to_le16(500);
+		setup->v1.unalloc0 = cpu_to_le16(0);
 	} else {
-		filter->v2.rx_addr = cpu_to_le32(priv->rx_end);
-		filter->v2.max_rx = cpu_to_le16(priv->rx_mtu);
-		filter->v2.rxhw = cpu_to_le16(priv->rxhw);
-		filter->v2.timer = cpu_to_le16(1000);
+		setup->v2.rx_addr = cpu_to_le32(priv->rx_end);
+		setup->v2.max_rx = cpu_to_le16(priv->rx_mtu);
+		setup->v2.rxhw = cpu_to_le16(priv->rxhw);
+		setup->v2.timer = cpu_to_le16(1000);
+		setup->v2.truncate = cpu_to_le16(48896);
+		setup->v2.basic_rate_mask = cpu_to_le32(0x15f);
+		setup->v2.sbss_offset = 0;
+		setup->v2.mcast_window = 0;
+		setup->v2.rx_rssi_threshold = 0;
+		setup->v2.rx_ed_threshold = 0;
+		setup->v2.ref_clock = cpu_to_le32(644245094);
+		setup->v2.lpf_bandwidth = cpu_to_le16(65535);
+		setup->v2.osc_start_delay = cpu_to_le16(65535);
 	}
 	priv->tx(dev, skb, 1);
 	return 0;
@@ -1272,11 +1277,11 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 
 	memcpy(priv->mac_addr, conf->mac_addr, ETH_ALEN);
 
-	p54_set_filter(dev, 0, NULL);
+	p54_setup_mac(dev, 0, NULL);
 
 	switch (conf->type) {
 	case NL80211_IFTYPE_STATION:
-		p54_set_filter(dev, 1, NULL);
+		p54_setup_mac(dev, 1, NULL);
 		break;
 	default:
 		BUG();	/* impossible */
@@ -1294,7 +1299,7 @@ static void p54_remove_interface(struct ieee80211_hw *dev,
 	struct p54_common *priv = dev->priv;
 	priv->mode = NL80211_IFTYPE_MONITOR;
 	memset(priv->mac_addr, 0, ETH_ALEN);
-	p54_set_filter(dev, 0, NULL);
+	p54_setup_mac(dev, 0, NULL);
 }
 
 static int p54_config(struct ieee80211_hw *dev, u32 changed)
@@ -1320,7 +1325,7 @@ static int p54_config_interface(struct ieee80211_hw *dev,
 	struct p54_common *priv = dev->priv;
 
 	mutex_lock(&priv->conf_mutex);
-	p54_set_filter(dev, 0, conf->bssid);
+	p54_setup_mac(dev, 0, conf->bssid);
 	p54_set_leds(dev, 1, !is_multicast_ether_addr(conf->bssid), 0);
 	memcpy(priv->bssid, conf->bssid, ETH_ALEN);
 	mutex_unlock(&priv->conf_mutex);
@@ -1342,20 +1347,16 @@ static void p54_configure_filter(struct ieee80211_hw *dev,
 
 	if (changed_flags & FIF_BCN_PRBRESP_PROMISC) {
 		if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
-			p54_set_filter(dev, le16_to_cpu(priv->filter_type),
-				 NULL);
+			p54_setup_mac(dev, priv->mac_mode, NULL);
 		else
-			p54_set_filter(dev, le16_to_cpu(priv->filter_type),
-				 priv->bssid);
+			p54_setup_mac(dev, priv->mac_mode, priv->bssid);
 	}
 
 	if (changed_flags & FIF_PROMISC_IN_BSS) {
 		if (*total_flags & FIF_PROMISC_IN_BSS)
-			p54_set_filter(dev, le16_to_cpu(priv->filter_type) |
-				0x8, NULL);
+			p54_setup_mac(dev, priv->mac_mode | 0x8, NULL);
 		else
-			p54_set_filter(dev, le16_to_cpu(priv->filter_type) &
-				~0x8, priv->bssid);
+			p54_setup_mac(dev, priv->mac_mode & ~0x8, priv->bssid);
 	}
 }
 

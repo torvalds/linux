@@ -219,8 +219,8 @@ struct p54_tx_control_allocdata {
 	u8 align[0];
 } __attribute__ ((packed));
 
-struct p54_tx_control_filter {
-	__le16 filter_type;
+struct p54_setup_mac {
+	__le16 mac_mode;
 	u8 mac_addr[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
 	u8 rx_antenna;
@@ -240,14 +240,18 @@ struct p54_tx_control_filter {
 			__le16 max_rx;
 			__le16 rxhw;
 			__le16 timer;
-			__le16 unalloc0;
-			__le32 unalloc1;
+			__le16 truncate;
+			__le32 basic_rate_mask;
+			u8 sbss_offset;
+			u8 mcast_window;
+			u8 rx_rssi_threshold;
+			u8 rx_ed_threshold;
+			__le32 ref_clock;
+			__le16 lpf_bandwidth;
+			__le16 osc_start_delay;
 		} v2 __attribute__ ((packed));
 	} __attribute__ ((packed));
 } __attribute__ ((packed));
-
-#define P54_TX_CONTROL_FILTER_V1_LEN (sizeof(struct p54_tx_control_filter))
-#define P54_TX_CONTROL_FILTER_V2_LEN (sizeof(struct p54_tx_control_filter)-8)
 
 struct p54_tx_control_channel {
 	__le16 flags;

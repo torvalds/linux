@@ -15,7 +15,7 @@
  */
 
 enum control_frame_types {
-	P54_CONTROL_TYPE_FILTER_SET = 0,
+	P54_CONTROL_TYPE_SETUP = 0,
 	P54_CONTROL_TYPE_CHANNEL_CHANGE,
 	P54_CONTROL_TYPE_FREQDONE,
 	P54_CONTROL_TYPE_DCFINIT,
@@ -80,7 +80,7 @@ struct p54_common {
 	struct mutex conf_mutex;
 	u8 mac_addr[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
-	__le16 filter_type;
+	u16 mac_mode;
 	struct pda_iq_autocal_entry *iq_autocal;
 	unsigned int iq_autocal_len;
 	struct pda_channel_output_limit *output_limit;
