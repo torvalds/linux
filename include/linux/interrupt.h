@@ -15,15 +15,6 @@
 #include <asm/ptrace.h>
 #include <asm/system.h>
 
-#ifndef CONFIG_GENERIC_HARDIRQS
-# define for_each_irq_desc(irq, desc)		\
-	for (irq = 0; irq < nr_irqs; irq++)
-
-# define nr_irqs		NR_IRQS
-#else
-extern int nr_irqs;
-#endif
-
 /*
  * These correspond to the IORESOURCE_IRQ_* defines in
  * linux/ioport.h to select the interrupt line behaviour.  When

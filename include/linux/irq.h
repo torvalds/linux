@@ -11,6 +11,18 @@
 
 #include <linux/smp.h>
 
+#ifndef CONFIG_GENERIC_HARDIRQS
+# define nr_irqs		NR_IRQS
+
+# define for_each_irq_desc(irq, desc)		\
+	for (irq = 0; irq < nr_irqs; irq++)
+#else
+extern int nr_irqs;
+
+# define for_each_irq_desc(irq, desc)		\
+	for (irq = 0, desc = irq_desc; irq < nr_irqs; irq++, desc++)
+#endif
+
 #ifndef CONFIG_S390
 
 #include <linux/linkage.h>
@@ -202,11 +214,6 @@ extern struct irq_desc *irq_to_desc_alloc(unsigned int irq);
 extern struct irq_desc irq_desc[NR_IRQS];
 #else
 extern struct irq_desc *irq_desc;
-#endif
-
-#ifdef CONFIG_GENERIC_HARDIRQS
-#define for_each_irq_desc(irq, desc)		\
-	for (irq = 0, desc = irq_desc; irq < nr_irqs; irq++, desc = &irq_desc[irq])
 #endif
 
 #else
