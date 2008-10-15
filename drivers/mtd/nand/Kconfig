@@ -56,6 +56,12 @@ config MTD_NAND_H1900
 	help
 	  This enables the driver for the iPAQ h1900 flash.
 
+config MTD_NAND_GPIO
+	tristate "GPIO NAND Flash driver"
+	depends on GENERIC_GPIO
+	help
+	  This enables a GPIO based NAND flash driver.
+
 config MTD_NAND_SPIA
 	tristate "NAND Flash device on SPIA board"
 	depends on ARCH_P720T
