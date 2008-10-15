@@ -43,6 +43,7 @@ static DEFINE_MUTEX(markers_mutex);
  */
 #define MARKER_HASH_BITS 6
 #define MARKER_TABLE_SIZE (1 << MARKER_HASH_BITS)
+static struct hlist_head marker_table[MARKER_TABLE_SIZE];
 
 /*
  * Note about RCU :
@@ -67,8 +68,6 @@ struct marker_entry {
 	unsigned char format_allocated:1;
 	char name[0];	/* Contains name'\0'format'\0' */
 };
-
-static struct hlist_head marker_table[MARKER_TABLE_SIZE];
 
 /**
  * __mark_empty_function - Empty probe callback
