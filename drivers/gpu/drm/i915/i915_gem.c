@@ -2350,6 +2350,7 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 	struct drm_gem_object *obj;
 	struct drm_i915_gem_object *obj_priv;
 	int ret;
+	u32 head;
 
 	ret = i915_gem_init_hws(dev);
 	if (ret != 0)
@@ -2390,16 +2391,48 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 
 	/* Stop the ring if it's running. */
 	I915_WRITE(PRB0_CTL, 0);
-	I915_WRITE(PRB0_HEAD, 0);
 	I915_WRITE(PRB0_TAIL, 0);
-	I915_WRITE(PRB0_START, 0);
+	I915_WRITE(PRB0_HEAD, 0);
 
 	/* Initialize the ring. */
 	I915_WRITE(PRB0_START, obj_priv->gtt_offset);
+	head = I915_READ(PRB0_HEAD) & HEAD_ADDR;
+
+	/* G45 ring initialization fails to reset head to zero */
+	if (head != 0) {
+		DRM_ERROR("Ring head not reset to zero "
+			  "ctl %08x head %08x tail %08x start %08x\n",
+			  I915_READ(PRB0_CTL),
+			  I915_READ(PRB0_HEAD),
+			  I915_READ(PRB0_TAIL),
+			  I915_READ(PRB0_START));
+		I915_WRITE(PRB0_HEAD, 0);
+
+		DRM_ERROR("Ring head forced to zero "
+			  "ctl %08x head %08x tail %08x start %08x\n",
+			  I915_READ(PRB0_CTL),
+			  I915_READ(PRB0_HEAD),
+			  I915_READ(PRB0_TAIL),
+			  I915_READ(PRB0_START));
+	}
+
 	I915_WRITE(PRB0_CTL,
 		   ((obj->size - 4096) & RING_NR_PAGES) |
 		   RING_NO_REPORT |
 		   RING_VALID);
+
+	head = I915_READ(PRB0_HEAD) & HEAD_ADDR;
+
+	/* If the head is still not zero, the ring is dead */
+	if (head != 0) {
+		DRM_ERROR("Ring initialization failed "
+			  "ctl %08x head %08x tail %08x start %08x\n",
+			  I915_READ(PRB0_CTL),
+			  I915_READ(PRB0_HEAD),
+			  I915_READ(PRB0_TAIL),
+			  I915_READ(PRB0_START));
+		return -EIO;
+	}
 
 	/* Update our cache of the ring state */
 	i915_kernel_lost_context(dev);
