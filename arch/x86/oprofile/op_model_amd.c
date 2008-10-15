@@ -310,12 +310,15 @@ static void op_amd_start(struct op_msrs const * const msrs)
 #ifdef CONFIG_OPROFILE_IBS
 	if (ibs_allowed && ibs_config.fetch_enabled) {
 		low = (ibs_config.max_cnt_fetch >> 4) & 0xFFFF;
-		high = IBS_FETCH_HIGH_ENABLE;
+		high = ((ibs_config.rand_en & 0x1) << 25) /* bit 57 */
+			+ IBS_FETCH_HIGH_ENABLE;
 		wrmsr(MSR_AMD64_IBSFETCHCTL, low, high);
 	}
 
 	if (ibs_allowed && ibs_config.op_enabled) {
-		low = ((ibs_config.max_cnt_op >> 4) & 0xFFFF) + IBS_OP_LOW_ENABLE;
+		low = ((ibs_config.max_cnt_op >> 4) & 0xFFFF)
+			+ ((ibs_config.dispatched_ops & 0x1) << 19) /* bit 19 */
+			+ IBS_OP_LOW_ENABLE;
 		high = 0;
 		wrmsr(MSR_AMD64_IBSOPCTL, low, high);
 	}
