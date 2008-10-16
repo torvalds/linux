@@ -19,7 +19,7 @@
 
 static int timer_notify(struct pt_regs *regs)
 {
- 	oprofile_add_sample(regs, 0);
+	oprofile_add_sample(regs, 0);
 	return 0;
 }
 

@@ -15,9 +15,9 @@
 #include <linux/workqueue.h>
 #include <linux/cache.h>
 #include <linux/sched.h>
- 
+
 struct task_struct;
- 
+
 int alloc_cpu_buffers(void);
 void free_cpu_buffers(void);
 
@@ -31,7 +31,7 @@ struct op_sample {
 	unsigned long eip;
 	unsigned long event;
 };
- 
+
 struct oprofile_cpu_buffer {
 	volatile unsigned long head_pos;
 	volatile unsigned long tail_pos;

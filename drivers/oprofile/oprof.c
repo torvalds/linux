@@ -94,7 +94,7 @@ int oprofile_start(void)
 	int err = -EINVAL;
 
 	mutex_lock(&start_mutex);
- 
+
 	if (!is_setup)
 		goto out;
 
