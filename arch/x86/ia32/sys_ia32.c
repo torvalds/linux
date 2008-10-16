@@ -49,41 +49,6 @@
 
 #define AA(__x)		((unsigned long)(__x))
 
-int cp_compat_stat(struct kstat *kbuf, struct compat_stat __user *ubuf)
-{
-	compat_ino_t ino;
-
-	typeof(ubuf->st_uid) uid = 0;
-	typeof(ubuf->st_gid) gid = 0;
-	SET_UID(uid, kbuf->uid);
-	SET_GID(gid, kbuf->gid);
-	if (!old_valid_dev(kbuf->dev) || !old_valid_dev(kbuf->rdev))
-		return -EOVERFLOW;
-	if (kbuf->size >= 0x7fffffff)
-		return -EOVERFLOW;
-	ino = kbuf->ino;
-	if (sizeof(ino) < sizeof(kbuf->ino) && ino != kbuf->ino)
-		return -EOVERFLOW;
-	if (!access_ok(VERIFY_WRITE, ubuf, sizeof(struct compat_stat)) ||
-	    __put_user(old_encode_dev(kbuf->dev), &ubuf->st_dev) ||
-	    __put_user(ino, &ubuf->st_ino) ||
-	    __put_user(kbuf->mode, &ubuf->st_mode) ||
-	    __put_user(kbuf->nlink, &ubuf->st_nlink) ||
-	    __put_user(uid, &ubuf->st_uid) ||
-	    __put_user(gid, &ubuf->st_gid) ||
-	    __put_user(old_encode_dev(kbuf->rdev), &ubuf->st_rdev) ||
-	    __put_user(kbuf->size, &ubuf->st_size) ||
-	    __put_user(kbuf->atime.tv_sec, &ubuf->st_atime) ||
-	    __put_user(kbuf->atime.tv_nsec, &ubuf->st_atime_nsec) ||
-	    __put_user(kbuf->mtime.tv_sec, &ubuf->st_mtime) ||
-	    __put_user(kbuf->mtime.tv_nsec, &ubuf->st_mtime_nsec) ||
-	    __put_user(kbuf->ctime.tv_sec, &ubuf->st_ctime) ||
-	    __put_user(kbuf->ctime.tv_nsec, &ubuf->st_ctime_nsec) ||
-	    __put_user(kbuf->blksize, &ubuf->st_blksize) ||
-	    __put_user(kbuf->blocks, &ubuf->st_blocks))
-		return -EFAULT;
-	return 0;
-}
 
 asmlinkage long sys32_truncate64(char __user *filename,
 				 unsigned long offset_low,

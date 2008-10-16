@@ -61,42 +61,6 @@ asmlinkage long ppc32_select(u32 n, compat_ulong_t __user *inp,
 	return compat_sys_select((int)n, inp, outp, exp, compat_ptr(tvp_x));
 }
 
-int cp_compat_stat(struct kstat *stat, struct compat_stat __user *statbuf)
-{
-	compat_ino_t ino;
-	long err;
-
-	if (stat->size > MAX_NON_LFS || !new_valid_dev(stat->dev) ||
-	    !new_valid_dev(stat->rdev))
-		return -EOVERFLOW;
-
-	ino = stat->ino;
-	if (sizeof(ino) < sizeof(stat->ino) && ino != stat->ino)
-		return -EOVERFLOW;
-
-	err  = access_ok(VERIFY_WRITE, statbuf, sizeof(*statbuf)) ? 0 : -EFAULT;
-	err |= __put_user(new_encode_dev(stat->dev), &statbuf->st_dev);
-	err |= __put_user(ino, &statbuf->st_ino);
-	err |= __put_user(stat->mode, &statbuf->st_mode);
-	err |= __put_user(stat->nlink, &statbuf->st_nlink);
-	err |= __put_user(stat->uid, &statbuf->st_uid);
-	err |= __put_user(stat->gid, &statbuf->st_gid);
-	err |= __put_user(new_encode_dev(stat->rdev), &statbuf->st_rdev);
-	err |= __put_user(stat->size, &statbuf->st_size);
-	err |= __put_user(stat->atime.tv_sec, &statbuf->st_atime);
-	err |= __put_user(stat->atime.tv_nsec, &statbuf->st_atime_nsec);
-	err |= __put_user(stat->mtime.tv_sec, &statbuf->st_mtime);
-	err |= __put_user(stat->mtime.tv_nsec, &statbuf->st_mtime_nsec);
-	err |= __put_user(stat->ctime.tv_sec, &statbuf->st_ctime);
-	err |= __put_user(stat->ctime.tv_nsec, &statbuf->st_ctime_nsec);
-	err |= __put_user(stat->blksize, &statbuf->st_blksize);
-	err |= __put_user(stat->blocks, &statbuf->st_blocks);
-	err |= __put_user(0, &statbuf->__unused4[0]);
-	err |= __put_user(0, &statbuf->__unused4[1]);
-
-	return err;
-}
-
 /* Note: it is necessary to treat option as an unsigned int,
  * with the corresponding cast to a signed int to insure that the 
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)

@@ -63,41 +63,6 @@
 #define merge_64(r1, r2) ((((r2) & 0xffffffffUL) << 32) + ((r1) & 0xffffffffUL))
 #endif
 
-/*
- * Revalidate the inode. This is required for proper NFS attribute caching.
- */
-
-int cp_compat_stat(struct kstat *stat, struct compat_stat __user *statbuf)
-{
-	struct compat_stat tmp;
-
-	if (!new_valid_dev(stat->dev) || !new_valid_dev(stat->rdev))
-		return -EOVERFLOW;
-
-	memset(&tmp, 0, sizeof(tmp));
-	tmp.st_dev = new_encode_dev(stat->dev);
-	tmp.st_ino = stat->ino;
-	if (sizeof(tmp.st_ino) < sizeof(stat->ino) && tmp.st_ino != stat->ino)
-		return -EOVERFLOW;
-	tmp.st_mode = stat->mode;
-	tmp.st_nlink = stat->nlink;
-	SET_UID(tmp.st_uid, stat->uid);
-	SET_GID(tmp.st_gid, stat->gid);
-	tmp.st_rdev = new_encode_dev(stat->rdev);
-	tmp.st_size = stat->size;
-	tmp.st_atime = stat->atime.tv_sec;
-	tmp.st_mtime = stat->mtime.tv_sec;
-	tmp.st_ctime = stat->ctime.tv_sec;
-#ifdef STAT_HAVE_NSEC
-	tmp.st_atime_nsec = stat->atime.tv_nsec;
-	tmp.st_mtime_nsec = stat->mtime.tv_nsec;
-	tmp.st_ctime_nsec = stat->ctime.tv_nsec;
-#endif
-	tmp.st_blocks = stat->blocks;
-	tmp.st_blksize = stat->blksize;
-	return copy_to_user(statbuf, &tmp, sizeof(tmp)) ? -EFAULT : 0;
-}
-
 asmlinkage unsigned long
 sys32_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
          unsigned long flags, unsigned long fd, unsigned long pgoff)
