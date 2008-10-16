@@ -175,6 +175,23 @@ config EARLYSUSPEND
 	  Call early suspend handlers when the user requested sleep state
 	  changes.
 
+choice
+	prompt "User-space screen access"
+	default CONSOLE_EARLYSUSPEND
+	depends on HAS_EARLYSUSPEND
+
+	config NO_USER_SPACE_SCREEN_ACCESS_CONTROL
+		bool "None"
+
+	config CONSOLE_EARLYSUSPEND
+		bool "Console switch on early-suspend"
+		depends on HAS_EARLYSUSPEND && VT
+		---help---
+		  Register early suspend handler to perform a console switch to
+		  when user-space should stop drawing to the screen and a switch
+		  back when it should resume.
+endchoice
+
 config HIBERNATION
 	bool "Hibernation (aka 'suspend to disk')"
 	depends on PM && SWAP && ARCH_HIBERNATION_POSSIBLE
