@@ -1468,6 +1468,12 @@ sub process {
 			while ($cond_ptr != $cond_lines) {
 				$cond_ptr = $cond_lines;
 
+				# If we see an #else/#elif then the code
+				# is not linear.
+				if ($s =~ /^\s*\#\s*(?:else|elif)/) {
+					$check = 0;
+				}
+
 				# Ignore:
 				#  1) blank lines, they should be at 0,
 				#  2) preprocessor lines, and
