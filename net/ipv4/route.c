@@ -2908,8 +2908,6 @@ static int ipv4_sysctl_rtcache_flush(ctl_table *__ctl, int write,
 }
 
 static int ipv4_sysctl_rtcache_flush_strategy(ctl_table *table,
-						int __user *name,
-						int nlen,
 						void __user *oldval,
 						size_t __user *oldlenp,
 						void __user *newval,
@@ -2972,16 +2970,13 @@ static int ipv4_sysctl_rt_secret_interval(ctl_table *ctl, int write,
 }
 
 static int ipv4_sysctl_rt_secret_interval_strategy(ctl_table *table,
-						   int __user *name,
-						   int nlen,
 						   void __user *oldval,
 						   size_t __user *oldlenp,
 						   void __user *newval,
 						   size_t newlen)
 {
 	int old = ip_rt_secret_interval;
-	int ret = sysctl_jiffies(table, name, nlen, oldval, oldlenp, newval,
-				 newlen);
+	int ret = sysctl_jiffies(table, oldval, oldlenp, newval, newlen);
 
 	rt_secret_reschedule(old);
 

@@ -1205,7 +1205,7 @@ static int proc_do_uuid(ctl_table *table, int write, struct file *filp,
 	return proc_dostring(&fake_table, write, filp, buffer, lenp, ppos);
 }
 
-static int uuid_strategy(ctl_table *table, int __user *name, int nlen,
+static int uuid_strategy(ctl_table *table,
 			 void __user *oldval, size_t __user *oldlenp,
 			 void __user *newval, size_t newlen)
 {
