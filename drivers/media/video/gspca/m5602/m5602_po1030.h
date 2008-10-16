@@ -1,8 +1,7 @@
 /*
  * Driver for the po1030 sensor.
- * This is probably a pixel plus sensor but we haven't identified it yet
  *
- * Copyright (c) 2008 Erik Andren
+ * Copyright (c) 2008 Erik Andrén
  * Copyright (c) 2007 Ilyes Gouta. Based on the m5603x Linux Driver Project.
  * Copyright (c) 2005 m5603x Linux Driver Project <m5602@x3ng.com.br>
  *
