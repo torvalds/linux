@@ -2376,3 +2376,5 @@ HFC_cleanup(void)
 
 module_init(HFC_init);
 module_exit(HFC_cleanup);
+
+MODULE_DEVICE_TABLE(pci, hfc_ids);
