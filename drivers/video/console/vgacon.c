@@ -239,8 +239,7 @@ static void vgacon_restore_screen(struct vc_data *c)
 
 static int vgacon_scrolldelta(struct vc_data *c, int lines)
 {
-	int start, end, count, soff, diff;
-	void *d, *s;
+	int start, end, count, soff;
 
 	if (!lines) {
 		c->vc_visible_origin = c->vc_origin;
@@ -287,13 +286,13 @@ static int vgacon_scrolldelta(struct vc_data *c, int lines)
 	if (count > c->vc_rows)
 		count = c->vc_rows;
 
-	diff = c->vc_rows - count;
-
-	d = (void *) c->vc_origin;
-	s = (void *) c->vc_screenbuf;
-
 	if (count) {
 		int copysize;
+
+		int diff = c->vc_rows - count;
+		void *d = (void *) c->vc_origin;
+		void *s = (void *) c->vc_screenbuf;
+
 		count *= c->vc_size_row;
 		/* how much memory to end of buffer left? */
 		copysize = min(count, vgacon_scrollback_size - soff);
@@ -305,14 +304,11 @@ static int vgacon_scrolldelta(struct vc_data *c, int lines)
 			scr_memcpyw(d, vgacon_scrollback, count);
 			d += count;
 		}
-	}
 
-	if (diff == c->vc_rows) {
-		vgacon_cursor(c, CM_MOVE);
-	} else {
 		if (diff)
 			scr_memcpyw(d, s, diff * c->vc_size_row);
-	}
+	} else
+		vgacon_cursor(c, CM_MOVE);
 
 	return 1;
 }
