@@ -164,10 +164,14 @@ static DEFINE_SPINLOCK(ftrace_hash_lock);
 #define ftrace_hash_lock(flags)	  spin_lock_irqsave(&ftrace_hash_lock, flags)
 #define ftrace_hash_unlock(flags) \
 			spin_unlock_irqrestore(&ftrace_hash_lock, flags)
+static void ftrace_release_hash(unsigned long start, unsigned long end);
 #else
 /* This is protected via the ftrace_lock with MCOUNT_RECORD. */
 #define ftrace_hash_lock(flags)   do { (void)(flags); } while (0)
 #define ftrace_hash_unlock(flags) do { } while(0)
+static inline void ftrace_release_hash(unsigned long start, unsigned long end)
+{
+}
 #endif
 
 /*
@@ -347,6 +351,7 @@ void ftrace_release(void *start, unsigned long size)
 	}
 	spin_unlock(&ftrace_lock);
 
+	ftrace_release_hash(s, e);
 }
 
 static struct dyn_ftrace *ftrace_alloc_dyn_node(unsigned long ip)
@@ -1659,6 +1664,44 @@ void __init ftrace_init(void)
 	ftrace_disabled = 1;
 }
 #else /* CONFIG_FTRACE_MCOUNT_RECORD */
+
+static void ftrace_release_hash(unsigned long start, unsigned long end)
+{
+	struct dyn_ftrace *rec;
+	struct hlist_node *t, *n;
+	struct hlist_head *head, temp_list;
+	unsigned long flags;
+	int i, cpu;
+
+	preempt_disable_notrace();
+
+	/* disable incase we call something that calls mcount */
+	cpu = raw_smp_processor_id();
+	per_cpu(ftrace_shutdown_disable_cpu, cpu)++;
+
+	ftrace_hash_lock(flags);
+
+	for (i = 0; i < FTRACE_HASHSIZE; i++) {
+		INIT_HLIST_HEAD(&temp_list);
+		head = &ftrace_hash[i];
+
+		/* all CPUS are stopped, we are safe to modify code */
+		hlist_for_each_entry_safe(rec, t, n, head, node) {
+			if (rec->flags & FTRACE_FL_FREE)
+				continue;
+
+			if ((rec->ip >= start) && (rec->ip < end))
+				ftrace_free_rec(rec);
+		}
+	}
+
+	ftrace_hash_unlock(flags);
+
+	per_cpu(ftrace_shutdown_disable_cpu, cpu)--;
+	preempt_enable_notrace();
+
+}
+
 static int ftraced(void *ignore)
 {
 	unsigned long usecs;
