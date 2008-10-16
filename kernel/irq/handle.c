@@ -268,9 +268,10 @@ static struct lock_class_key irq_desc_lock_class;
 
 void early_init_irq_lock_class(void)
 {
+	struct irq_desc *desc;
 	int i;
 
-	for (i = 0; i < nr_irqs; i++)
-		lockdep_set_class(&irq_desc[i].lock, &irq_desc_lock_class);
+	for_each_irq_desc(i, desc)
+		lockdep_set_class(&desc->lock, &irq_desc_lock_class);
 }
 #endif
