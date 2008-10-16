@@ -2001,7 +2001,16 @@ sub process {
 			if (length($c) && $s !~ /^\s*{?\s*\\*\s*$/ &&
 			    $c !~ /}\s*while\s*/)
 			{
-				ERROR("trailing statements should be on next line\n" . $herecurr);
+				# Find out how long the conditional actually is.
+				my @newlines = ($c =~ /\n/gs);
+				my $cond_lines = 1 + $#newlines;
+
+				my $stat_real = raw_line($linenr, $cond_lines);
+				if (defined($stat_real) && $cond_lines > 1) {
+					$stat_real = "[...]\n$stat_real";
+				}
+
+				ERROR("trailing statements should be on next line\n" . $herecurr . $stat_real);
 			}
 		}
 
