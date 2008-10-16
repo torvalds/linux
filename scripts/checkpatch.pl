@@ -1977,8 +1977,8 @@ sub process {
 			# Extract the remainder of the define (if any) and
 			# rip off surrounding spaces, and trailing \'s.
 			$rest = '';
-			while ($off != 0 || ($cnt > 0 && $rest =~ /(?:^|\\)\s*$/)) {
-				#print "ADDING $off <" . substr($lines[$ln - 1], $off) . ">\n";
+			while ($off != 0 || ($cnt > 0 && $rest =~ /\\\s*$/)) {
+				#print "ADDING cnt<$cnt> $off <" . substr($lines[$ln - 1], $off) . "> rest<$rest>\n";
 				if ($off != 0 || $lines[$ln - 1] !~ /^-/) {
 					$rest .= substr($lines[$ln - 1], $off) . "\n";
 					$cnt--;
