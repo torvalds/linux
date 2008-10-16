@@ -468,9 +468,9 @@ static void clear_ibs_nmi(void)
 		on_each_cpu(apic_clear_ibs_nmi_per_cpu, NULL, 1);
 }
 
-static int (*create_arch_files)(struct super_block * sb, struct dentry * root);
+static int (*create_arch_files)(struct super_block *sb, struct dentry *root);
 
-static int setup_ibs_files(struct super_block * sb, struct dentry * root)
+static int setup_ibs_files(struct super_block *sb, struct dentry *root)
 {
 	char buf[12];
 	struct dentry *dir;
