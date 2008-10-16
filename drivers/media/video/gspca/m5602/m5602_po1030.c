@@ -1,4 +1,3 @@
-
 /*
  * Driver for the po1030 sensor
  *
@@ -228,6 +227,70 @@ int po1030_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 				 &i2c_data, 1);
 	*val = i2c_data;
 	PDEBUG(D_V4L2, "Read global gain %d", *val);
+
+	return (err < 0) ? err : 0;
+}
+
+int po1030_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	u8 i2c_data;
+	int err;
+
+	err = po1030_read_sensor(sd, PO1030_REG_CONTROL2,
+				 &i2c_data, 1);
+
+	*val = (i2c_data >> 7) & 0x01 ;
+
+	PDEBUG(D_V4L2, "Read hflip %d", *val);
+
+	return (err < 0) ? err : 0;
+}
+
+int po1030_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	u8 i2c_data;
+	int err;
+
+	PDEBUG(D_V4L2, "Set hflip %d", val);
+
+	i2c_data = (val & 0x01) << 7;
+
+	err = po1030_write_sensor(sd, PO1030_REG_CONTROL2,
+				  &i2c_data, 1);
+
+	return (err < 0) ? err : 0;
+}
+
+int po1030_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	u8 i2c_data;
+	int err;
+
+	err = po1030_read_sensor(sd, PO1030_REG_GLOBALGAIN,
+				 &i2c_data, 1);
+
+	*val = (i2c_data >> 6) & 0x01;
+
+	PDEBUG(D_V4L2, "Read vflip %d", *val);
+
+	return (err < 0) ? err : 0;
+}
+
+int po1030_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	u8 i2c_data;
+	int err;
+
+	PDEBUG(D_V4L2, "Set vflip %d", val);
+
+	i2c_data = (val & 0x01) << 6;
+
+	err = po1030_write_sensor(sd, PO1030_REG_CONTROL2,
+				  &i2c_data, 1);
 
 	return (err < 0) ? err : 0;
 }

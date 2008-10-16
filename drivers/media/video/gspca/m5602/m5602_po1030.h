@@ -108,10 +108,13 @@
 #define PO1030_REG_YCONTRAST		0x74
 #define PO1030_REG_YSATURATION		0x75
 
+#define PO1030_HFLIP			(1 << 7)
+#define PO1030_VFLIP			(1 << 6)
+
 /*****************************************************************************/
 
 #define PO1030_GLOBAL_GAIN_DEFAULT	0x12
-#define PO1030_EXPOSURE_DEFAULT		0xf0ff
+#define PO1030_EXPOSURE_DEFAULT		0x0085
 #define PO1030_BLUE_GAIN_DEFAULT 	0x40
 #define PO1030_RED_GAIN_DEFAULT 	0x40
 
@@ -120,7 +123,6 @@
 /* Kernel module parameters */
 extern int force_sensor;
 extern int dump_sensor;
-extern unsigned int m5602_debug;
 
 int po1030_probe(struct sd *sd);
 int po1030_init(struct sd *sd);
@@ -141,6 +143,10 @@ int po1030_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val);
 int po1030_set_red_balance(struct gspca_dev *gspca_dev, __s32 val);
 int po1030_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val);
 int po1030_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val);
+int po1030_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
+int po1030_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
+int po1030_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
+int po1030_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
 
 static struct m5602_sensor po1030 = {
 	.name = "PO1030",
@@ -151,7 +157,7 @@ static struct m5602_sensor po1030 = {
 	.init = po1030_init,
 	.power_down = po1030_power_down,
 
-	.nctrls = 4,
+	.nctrls = 6,
 	.ctrls = {
 	{
 		{
@@ -159,7 +165,7 @@ static struct m5602_sensor po1030 = {
 			.type 		= V4L2_CTRL_TYPE_INTEGER,
 			.name 		= "gain",
 			.minimum 	= 0x00,
-			.maximum 	= 0xff,
+			.maximum 	= 0x4f,
 			.step 		= 0x1,
 			.default_value 	= PO1030_GLOBAL_GAIN_DEFAULT,
 			.flags         	= V4L2_CTRL_FLAG_SLIDER
@@ -172,7 +178,7 @@ static struct m5602_sensor po1030 = {
 			.type 		= V4L2_CTRL_TYPE_INTEGER,
 			.name 		= "exposure",
 			.minimum 	= 0x00,
-			.maximum 	= 0xffff,
+			.maximum 	= 0x02ff,
 			.step 		= 0x1,
 			.default_value 	= PO1030_EXPOSURE_DEFAULT,
 			.flags         	= V4L2_CTRL_FLAG_SLIDER
@@ -205,8 +211,33 @@ static struct m5602_sensor po1030 = {
 		},
 		.set = po1030_set_blue_balance,
 		.get = po1030_get_blue_balance
+	}, {
+		{
+			.id 		= V4L2_CID_HFLIP,
+			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name 		= "horizontal flip",
+			.minimum 	= 0,
+			.maximum 	= 1,
+			.step 		= 1,
+			.default_value 	= 0,
+		},
+		.set = po1030_set_hflip,
+		.get = po1030_get_hflip
+	}, {
+		{
+			.id 		= V4L2_CID_VFLIP,
+			.type 		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name 		= "vertical flip",
+			.minimum 	= 0,
+			.maximum 	= 1,
+			.step 		= 1,
+			.default_value 	= 0,
+		},
+		.set = po1030_set_vflip,
+		.get = po1030_get_vflip
 	}
 	},
+
 	.nmodes = 1,
 	.modes = {
 	{
@@ -380,7 +411,7 @@ static const unsigned char init_po1030[][4] =
 
 	/* Set the y window to 1 */
 	{SENSOR, PO1030_REG_WINDOWY_H, 0x00},
-	{SENSOR, PO1030_REG_WINDOWX_L, 0x01},
+	{SENSOR, PO1030_REG_WINDOWY_L, 0x01},
 
 	{SENSOR, PO1030_REG_WINDOWWIDTH_H, 0x02},
 	{SENSOR, PO1030_REG_WINDOWWIDTH_L, 0x87},
