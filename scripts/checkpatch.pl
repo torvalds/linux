@@ -1134,7 +1134,7 @@ sub process {
 			$realfile = $1;
 			$realfile =~ s@^[^/]*/@@;
 
-			if ($realfile =~ m@include/asm/@) {
+			if ($realfile =~ m@^include/asm/@) {
 				ERROR("do not modify files in include/asm, change architecture specific files in include/asm-<architecture>\n" . "$here$rawline\n");
 			}
 			next;
