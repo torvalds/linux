@@ -1186,8 +1186,11 @@ static int neofb_set_par(struct fb_info *info)
 	return 0;
 }
 
-static void neofb_update_start(struct fb_info *info,
-			       struct fb_var_screeninfo *var)
+/*
+ *    Pan or Wrap the Display
+ */
+static int neofb_pan_display(struct fb_var_screeninfo *var,
+			     struct fb_info *info)
 {
 	struct neofb_par *par = info->par;
 	struct vgastate *state = &par->state;
@@ -1216,35 +1219,7 @@ static void neofb_update_start(struct fb_info *info,
 	vga_wgfx(state->vgabase, 0x0E, (((Base >> 16) & 0x0f) | (oldExtCRTDispAddr & 0xf0)));
 
 	neoLock(state);
-}
 
-/*
- *    Pan or Wrap the Display
- */
-static int neofb_pan_display(struct fb_var_screeninfo *var,
-			     struct fb_info *info)
-{
-	u_int y_bottom;
-
-	y_bottom = var->yoffset;
-
-	if (!(var->vmode & FB_VMODE_YWRAP))
-		y_bottom += var->yres;
-
-	if (var->xoffset > (var->xres_virtual - var->xres))
-		return -EINVAL;
-	if (y_bottom > info->var.yres_virtual)
-		return -EINVAL;
-
-	neofb_update_start(info, var);
-
-	info->var.xoffset = var->xoffset;
-	info->var.yoffset = var->yoffset;
-
-	if (var->vmode & FB_VMODE_YWRAP)
-		info->var.vmode |= FB_VMODE_YWRAP;
-	else
-		info->var.vmode &= ~FB_VMODE_YWRAP;
 	return 0;
 }
 
