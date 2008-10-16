@@ -509,9 +509,6 @@ static int show_stat(struct seq_file *p, void *v)
 	u64 sum = 0;
 	struct timespec boottime;
 	unsigned int per_irq_sum;
-#ifdef CONFIG_GENERIC_HARDIRQS
-	struct irq_desc *desc;
-#endif
 
 	user = nice = system = idle = iowait =
 		irq = softirq = steal = cputime64_zero;
@@ -530,7 +527,7 @@ static int show_stat(struct seq_file *p, void *v)
 		steal = cputime64_add(steal, kstat_cpu(i).cpustat.steal);
 		guest = cputime64_add(guest, kstat_cpu(i).cpustat.guest);
 
-		for_each_irq_desc(j, desc)
+		for_each_irq_nr(j)
 			sum += kstat_irqs_cpu(j, i);
 
 		sum += arch_irq_stat_cpu(i);
@@ -575,7 +572,7 @@ static int show_stat(struct seq_file *p, void *v)
 	seq_printf(p, "intr %llu", (unsigned long long)sum);
 
 	/* sum again ? it could be updated? */
-	for_each_irq_desc(j, desc) {
+	for_each_irq_nr(j) {
 		per_irq_sum = 0;
 
 		for_each_possible_cpu(i)

@@ -27,6 +27,9 @@ extern int nr_irqs;
 	     irq > 0; irq--, desc--)
 #endif
 
+#define for_each_irq_nr(irq)			\
+	for (irq = 0; irq < nr_irqs; irq++)
+
 #ifndef CONFIG_S390
 
 #include <linux/linkage.h>
