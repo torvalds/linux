@@ -21,6 +21,8 @@
 #define AUTOFS_IOC_FIRST     AUTOFS_IOC_READY
 #define AUTOFS_IOC_COUNT     32
 
+#define AUTOFS_TYPE_TRIGGER	(AUTOFS_TYPE_DIRECT|AUTOFS_TYPE_OFFSET)
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/time.h>
@@ -91,10 +93,6 @@ struct autofs_wait_queue {
 };
 
 #define AUTOFS_SBI_MAGIC 0x6d4a556d
-
-#define AUTOFS_TYPE_INDIRECT     0x0001
-#define AUTOFS_TYPE_DIRECT       0x0002
-#define AUTOFS_TYPE_OFFSET       0x0004
 
 struct autofs_sb_info {
 	u32 magic;
