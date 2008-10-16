@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/bcd.h>
 #include <linux/ds1286.h>
+#include <linux/io.h>
 
 #define DRV_VERSION		"1.0"
 
