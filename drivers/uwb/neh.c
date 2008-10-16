@@ -440,7 +440,7 @@ static void uwb_rc_neh_grok_event(struct uwb_rc *rc, struct uwb_rceb *rceb, size
 		neh = uwb_rc_neh_lookup(rc, rceb);
 		if (neh)
 			uwb_rc_neh_cb(neh, rceb, size);
-		else if (printk_ratelimit())
+		else
 			dev_warn(dev, "event 0x%02x/%04x/%02x (%zu bytes): nobody cared\n",
 				 rceb->bEventType, le16_to_cpu(rceb->wEvent),
 				 rceb->bEventContext, size);

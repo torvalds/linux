@@ -425,7 +425,7 @@ out:
 }
 
 
-/** Wait for the MAC FW to start running */
+/* Wait for the MAC FW to start running */
 static
 int i1480_fw_is_running_q(struct i1480 *i1480)
 {
@@ -443,8 +443,6 @@ int i1480_fw_is_running_q(struct i1480 *i1480)
 		}
 		if (*val == 0x55555555UL)	/* fw running? cool */
 			goto out;
-		if (printk_ratelimit())
-			d_printf(5, i1480->dev, "read #%d: 0x%08x\n", cnt, *val);
 	}
 	dev_err(i1480->dev, "Timed out waiting for fw to start\n");
 	result = -ETIMEDOUT;

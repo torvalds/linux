@@ -363,22 +363,17 @@ ssize_t uwb_est_get_size(struct uwb_rc *uwb_rc, struct uwb_est *est,
 
 	size = -ENOENT;
 	if (event_low >= est->entries) {	/* in range? */
-		if (printk_ratelimit())
-			dev_err(dev, "EST %p 0x%04x/%04x/%04x[%u]: "
-				"event %u out of range\n",
-				est, est->type_event_high, est->vendor,
-				est->product, est->entries,
-				event_low);
+		dev_err(dev, "EST %p 0x%04x/%04x/%04x[%u]: event %u out of range\n",
+			est, est->type_event_high, est->vendor, est->product,
+			est->entries, event_low);
 		goto out;
 	}
 	size = -ENOENT;
 	entry = &est->entry[event_low];
 	if (entry->size == 0 && entry->offset == 0) {	/* unknown? */
-		if (printk_ratelimit())
-			dev_err(dev, "EST %p 0x%04x/%04x/%04x[%u]: "
-				"event %u unknown\n",
-				est, est->type_event_high, est->vendor,
-				est->product, est->entries, event_low);
+		dev_err(dev, "EST %p 0x%04x/%04x/%04x[%u]: event %u unknown\n",
+			est, est->type_event_high, est->vendor,	est->product,
+			est->entries, event_low);
 		goto out;
 	}
 	offset = entry->offset;	/* extra fries with that? */
@@ -396,11 +391,10 @@ ssize_t uwb_est_get_size(struct uwb_rc *uwb_rc, struct uwb_est *est,
 		default: 	 BUG();
 		}
 		if (offset + type_size > rceb_size) {
-			if (printk_ratelimit())
-				dev_err(dev, "EST %p 0x%04x/%04x/%04x[%u]: "
-					"not enough data to read extra size\n",
-					est, est->type_event_high, est->vendor,
-					est->product, est->entries);
+			dev_err(dev, "EST %p 0x%04x/%04x/%04x[%u]: "
+				"not enough data to read extra size\n",
+				est, est->type_event_high, est->vendor,
+				est->product, est->entries);
 			goto out;
 		}
 		size = entry->size;
@@ -469,14 +463,12 @@ ssize_t uwb_est_find_size(struct uwb_rc *rc, const struct uwb_rceb *rceb,
 		if (size != -ENOENT)
 			goto out;
 	}
-	/* FIXME: downgrade to _dbg() */
-	if (printk_ratelimit())
-		dev_err(dev, "event 0x%02x/%04x/%02x: no handlers available; "
+	dev_dbg(dev, "event 0x%02x/%04x/%02x: no handlers available; "
 		"RCEB %02x %02x %02x %02x\n",
-			(unsigned) rceb->bEventType,
-			(unsigned) le16_to_cpu(rceb->wEvent),
-			(unsigned) rceb->bEventContext,
-			ptr[0], ptr[1], ptr[2], ptr[3]);
+		(unsigned) rceb->bEventType,
+		(unsigned) le16_to_cpu(rceb->wEvent),
+		(unsigned) rceb->bEventContext,
+		ptr[0], ptr[1], ptr[2], ptr[3]);
 	size = -ENOENT;
 out:
 	read_unlock_irqrestore(&uwb_est_lock, flags);

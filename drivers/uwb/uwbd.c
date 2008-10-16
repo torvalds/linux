@@ -188,7 +188,6 @@ static DEFINE_MUTEX(uwbd_event_mutex);
 static
 int uwbd_event_handle_urc(struct uwb_event *evt)
 {
-	int result;
 	struct uwbd_evt_type_handler *type_table;
 	uwbd_evt_handler_f handler;
 	u8 type, context;
@@ -199,41 +198,25 @@ int uwbd_event_handle_urc(struct uwb_event *evt)
 	context = evt->notif.rceb->bEventContext;
 
 	if (type > uwbd_evt_type_handlers_len) {
-		if (printk_ratelimit())
-			printk(KERN_ERR "UWBD: event type %u: unknown "
-			       "(too high)\n", type);
+		printk(KERN_ERR "UWBD: event type %u: unknown (too high)\n", type);
 		return -EINVAL;
 	}
 	type_table = &uwbd_evt_type_handlers[type];
 	if (type_table->uwbd_events == NULL) {
-		if (printk_ratelimit())
-			printk(KERN_ERR "UWBD: event type %u: unknown\n", type);
+		printk(KERN_ERR "UWBD: event type %u: unknown\n", type);
 		return -EINVAL;
 	}
 	if (event > type_table->size) {
-		if (printk_ratelimit())
-			printk(KERN_ERR "UWBD: event %s[%u]: "
-			       "unknown (too high)\n", type_table->name, event);
+		printk(KERN_ERR "UWBD: event %s[%u]: unknown (too high)\n",
+		       type_table->name, event);
 		return -EINVAL;
 	}
 	handler = type_table->uwbd_events[event].handler;
 	if (handler == NULL) {
-		if (printk_ratelimit())
-			printk(KERN_ERR "UWBD: event %s[%u]: unknown\n",
-			       type_table->name, event);
+		printk(KERN_ERR "UWBD: event %s[%u]: unknown\n", type_table->name, event);
 		return -EINVAL;
 	}
-	d_printf(3, NULL, "processing 0x%02x/%04x/%02x, %zu bytes\n",
-		 type, event, context, evt->notif.size);
-	result = (*handler)(evt);
-	if (result < 0) {
-		if (printk_ratelimit())
-			printk(KERN_ERR "UWBD: event 0x%02x/%04x/%02x, "
-			       "table %s[%u]: handling failed: %d\n",
-			       type, event, context, type_table->name,
-			       event, result);
-	}
-	return result;
+	return (*handler)(evt);
 }
 
 static void uwbd_event_handle_message(struct uwb_event *evt)

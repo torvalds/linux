@@ -93,7 +93,6 @@ int wusbhc_mmcie_set(struct wusbhc *wusbhc, u8 interval, u8 repeat_cnt,
 		     struct wuie_hdr *wuie)
 {
 	int result = -ENOBUFS;
-	struct device *dev = wusbhc->dev;
 	unsigned handle, itr;
 
 	/* Search a handle, taking into account the ordering */
@@ -119,11 +118,8 @@ int wusbhc_mmcie_set(struct wusbhc *wusbhc, u8 interval, u8 repeat_cnt,
 			if (wusbhc->mmcie[itr] == NULL)
 				handle = itr;
 		}
-		if (handle == ~0) {
-			if (printk_ratelimit())
-				dev_err(dev, "MMC handle space exhausted\n");
+		if (handle == ~0)
 			goto error_unlock;
-		}
 	}
 	result = (wusbhc->mmcie_add)(wusbhc, interval, repeat_cnt, handle,
 				     wuie);
@@ -143,15 +139,15 @@ EXPORT_SYMBOL_GPL(wusbhc_mmcie_set);
 void wusbhc_mmcie_rm(struct wusbhc *wusbhc, struct wuie_hdr *wuie)
 {
 	int result;
-	struct device *dev = wusbhc->dev;
 	unsigned handle, itr;
 
 	mutex_lock(&wusbhc->mmcie_mutex);
-	for (itr = 0; itr < wusbhc->mmcies_max; itr++)
+	for (itr = 0; itr < wusbhc->mmcies_max; itr++) {
 		if (wusbhc->mmcie[itr] == wuie) {
 			handle = itr;
 			goto found;
 		}
+	}
 	mutex_unlock(&wusbhc->mmcie_mutex);
 	return;
 
@@ -159,11 +155,7 @@ found:
 	result = (wusbhc->mmcie_rm)(wusbhc, handle);
 	if (result == 0)
 		wusbhc->mmcie[itr] = NULL;
-	else if (printk_ratelimit())
-		dev_err(dev, "MMC: Failed to remove IE %p (0x%02x)\n",
-			wuie, wuie->bIEIdentifier);
 	mutex_unlock(&wusbhc->mmcie_mutex);
-	return;
 }
 EXPORT_SYMBOL_GPL(wusbhc_mmcie_rm);
 

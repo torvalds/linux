@@ -212,7 +212,6 @@ irqreturn_t whcrc_irq_cb(int irq, void *_whcrc)
 	struct device *dev = &whcrc->umc_dev->dev;
 	u32 urcsts;
 
-	d_fnstart(4, dev, "irq %d _whcrc %p)\n", irq, _whcrc);
 	urcsts = le_readl(whcrc->rc_base + URCSTS);
 	if (!(urcsts & URCSTS_INT_MASK))
 		return IRQ_NONE;
@@ -220,13 +219,6 @@ irqreturn_t whcrc_irq_cb(int irq, void *_whcrc)
 
 	d_printf(4, dev, "acked 0x%08x, urcsts 0x%08x\n",
 		 le_readl(whcrc->rc_base + URCSTS), urcsts);
-
-	if (whcrc->uwb_rc == NULL) {
-		if (printk_ratelimit())
-			dev_dbg(dev, "Received interrupt when not yet "
-				"ready!\n");
-		goto out;
-	}
 
 	if (urcsts & URCSTS_HSE) {
 		dev_err(dev, "host system error -- hardware halted\n");

@@ -410,7 +410,6 @@ int uwbd_evt_handle_rc_beacon(struct uwb_event *evt)
 	struct uwb_rc_evt_beacon *be;
 	struct uwb_beacon_frame *bf;
 	struct uwb_beca_e *bce;
-	struct device *dev = &evt->rc->uwb_dev.dev;
 	unsigned long last_ts;
 
 	rc = evt->rc;
@@ -419,14 +418,12 @@ int uwbd_evt_handle_rc_beacon(struct uwb_event *evt)
 	if (result < 0)
 		return result;
 
-	/* Ignore beacon if it is from an alien. */
+	/* FIXME: handle alien beacons. */
 	if (be->bBeaconType == UWB_RC_BEACON_TYPE_OL_ALIEN ||
 	    be->bBeaconType == UWB_RC_BEACON_TYPE_NOL_ALIEN) {
-		if (printk_ratelimit())
-			dev_err(dev, "BEACON received from ALIEN. Action? \n");
-		result = -ENOSYS;
-		return 0;
+		return -ENOSYS;
 	}
+
 	bf = (struct uwb_beacon_frame *) be->BeaconInfo;
 
 	/*

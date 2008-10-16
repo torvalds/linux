@@ -200,7 +200,6 @@ static struct wusb_dev *wusbhc_cack_add(struct wusbhc *wusbhc,
 	u8 dev_addr;
 	int result;
 
-	d_fnstart(3, dev, "(wusbhc %p port_idx %d)\n", wusbhc, port_idx);
 	/* Is it registered already? */
 	list_for_each_entry(wusb_dev, &wusbhc->cack_list, cack_node)
 		if (!memcmp(&wusb_dev->cdid, &dnc->CDID,
@@ -208,13 +207,8 @@ static struct wusb_dev *wusbhc_cack_add(struct wusbhc *wusbhc,
 			return wusb_dev;
 	/* We don't have it, create an entry, register it */
 	wusb_dev = wusb_dev_alloc(wusbhc);
-	if (wusb_dev == NULL) {
-		if (printk_ratelimit())
-			dev_err(dev, "DN CONNECT: no memory to process %s's %s "
-				"request\n", pr_cdid,
-				new_connection ? "connect" : "reconnect");
+	if (wusb_dev == NULL)
 		return NULL;
-	}
 	wusb_dev_init(wusb_dev);
 	wusb_dev->cdid = dnc->CDID;
 	wusb_dev->port_idx = port_idx;
@@ -246,7 +240,6 @@ static struct wusb_dev *wusbhc_cack_add(struct wusbhc *wusbhc,
 	list_add_tail(&wusb_dev->cack_node, &wusbhc->cack_list);
 	wusbhc->cack_count++;
 	wusbhc_fill_cack_ie(wusbhc);
-	d_fnend(3, dev, "(wusbhc %p port_idx %d)\n", wusbhc, port_idx);
 	return wusb_dev;
 }
 
@@ -334,13 +327,8 @@ void wusbhc_devconnect_ack(struct wusbhc *wusbhc, struct wusb_dn_connect *dnc,
 	for (idx = 0; idx < wusbhc->ports_max; idx++) {
 		port = wusb_port_by_idx(wusbhc, idx);
 		if (port->wusb_dev
-		    && !memcmp(&dnc->CDID, &port->wusb_dev->cdid,
-			       sizeof(dnc->CDID))) {
-			if (printk_ratelimit())
-				dev_err(dev, "Already handling dev %s "
-					" (it might be slow)\n", pr_cdid);
+		    && memcmp(&dnc->CDID, &port->wusb_dev->cdid, sizeof(dnc->CDID)) == 0)
 			goto error_unlock;
-		}
 	}
 	/* Look up those fake ports we have for a free one */
 	for (idx = 0; idx < wusbhc->ports_max; idx++) {
@@ -494,7 +482,6 @@ int wusbhc_devconnect_auth(struct wusbhc *wusbhc, u8 port_idx)
  */
 static void __wusbhc_keep_alive(struct wusbhc *wusbhc)
 {
-	int result;
 	struct device *dev = wusbhc->dev;
 	unsigned cnt;
 	struct wusb_dev *wusb_dev;
@@ -502,7 +489,6 @@ static void __wusbhc_keep_alive(struct wusbhc *wusbhc)
 	struct wuie_keep_alive *ie = &wusbhc->keep_alive_ie;
 	unsigned keep_alives, old_keep_alives;
 
-	d_fnstart(5, dev, "(wusbhc %p)\n", wusbhc);
 	old_keep_alives = ie->hdr.bLength - sizeof(ie->hdr);
 	keep_alives = 0;
 	for (cnt = 0;
@@ -531,13 +517,10 @@ static void __wusbhc_keep_alive(struct wusbhc *wusbhc)
 		ie->bDeviceAddress[keep_alives++] = 0x7f;
 	ie->hdr.bLength = sizeof(ie->hdr) +
 		keep_alives*sizeof(ie->bDeviceAddress[0]);
-	if (keep_alives > 0) {
-		result = wusbhc_mmcie_set(wusbhc, 10, 5, &ie->hdr);
-		if (result < 0 && printk_ratelimit())
-			dev_err(dev, "KEEPALIVE: can't set MMC: %d\n", result);
-	} else if (old_keep_alives != 0)
+	if (keep_alives > 0)
+		wusbhc_mmcie_set(wusbhc, 10, 5, &ie->hdr);
+	else if (old_keep_alives != 0)
 		wusbhc_mmcie_rm(wusbhc, &ie->hdr);
-	d_fnend(5, dev, "(wusbhc %p) = void\n", wusbhc);
 }
 
 /*
