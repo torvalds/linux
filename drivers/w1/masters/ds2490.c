@@ -520,6 +520,7 @@ static int ds_touch_bit(struct ds_device *dev, u8 bit, u8 *tbit)
 	return 0;
 }
 
+#if 0
 static int ds_write_bit(struct ds_device *dev, u8 bit)
 {
 	int err;
@@ -538,6 +539,7 @@ static int ds_write_bit(struct ds_device *dev, u8 bit)
 
 	return 0;
 }
+#endif
 
 static int ds_write_byte(struct ds_device *dev, u8 byte)
 {
@@ -722,18 +724,12 @@ static u8 ds9490r_touch_bit(void *data, u8 bit)
 	return ret;
 }
 
+#if 0
 static void ds9490r_write_bit(void *data, u8 bit)
 {
 	struct ds_device *dev = data;
 
 	ds_write_bit(dev, bit);
-}
-
-static void ds9490r_write_byte(void *data, u8 byte)
-{
-	struct ds_device *dev = data;
-
-	ds_write_byte(dev, byte);
 }
 
 static u8 ds9490r_read_bit(void *data)
@@ -747,6 +743,14 @@ static u8 ds9490r_read_bit(void *data)
 		return 0;
 
 	return bit & 1;
+}
+#endif
+
+static void ds9490r_write_byte(void *data, u8 byte)
+{
+	struct ds_device *dev = data;
+
+	ds_write_byte(dev, byte);
 }
 
 static u8 ds9490r_read_byte(void *data)
@@ -812,8 +816,15 @@ static int ds_w1_init(struct ds_device *dev)
 
 	dev->master.data	= dev;
 	dev->master.touch_bit	= &ds9490r_touch_bit;
+	/* read_bit and write_bit in w1_bus_master are expected to set and
+	 * sample the line level.  For write_bit that means it is expected to
+	 * set it to that value and leave it there.  ds2490 only supports an
+	 * individual time slot at the lowest level.  The requirement from
+	 * pulling the bus state down to reading the state is 15us, something
+	 * that isn't realistic on the USB bus anyway.
 	dev->master.read_bit	= &ds9490r_read_bit;
 	dev->master.write_bit	= &ds9490r_write_bit;
+	*/
 	dev->master.read_byte	= &ds9490r_read_byte;
 	dev->master.write_byte	= &ds9490r_write_byte;
 	dev->master.read_block	= &ds9490r_read_block;
