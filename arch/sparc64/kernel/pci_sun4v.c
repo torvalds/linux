@@ -384,7 +384,7 @@ static int dma_4v_map_sg(struct device *dev, struct scatterlist *sglist,
 		}
 		/* Allocate iommu entries for that segment */
 		paddr = (unsigned long) SG_ENT_PHYS_ADDRESS(s);
-		npages = iommu_num_pages(paddr, slen);
+		npages = iommu_nr_pages(paddr, slen);
 		entry = iommu_range_alloc(dev, iommu, npages, &handle);
 
 		/* Handle failure */
@@ -461,7 +461,7 @@ iommu_map_failed:
 			unsigned long vaddr, npages;
 
 			vaddr = s->dma_address & IO_PAGE_MASK;
-			npages = iommu_num_pages(s->dma_address, s->dma_length);
+			npages = iommu_nr_pages(s->dma_address, s->dma_length);
 			iommu_range_free(iommu, vaddr, npages);
 			/* XXX demap? XXX */
 			s->dma_address = DMA_ERROR_CODE;
@@ -500,7 +500,7 @@ static void dma_4v_unmap_sg(struct device *dev, struct scatterlist *sglist,
 
 		if (!len)
 			break;
-		npages = iommu_num_pages(dma_handle, len);
+		npages = iommu_nr_pages(dma_handle, len);
 		iommu_range_free(iommu, dma_handle, npages);
 
 		entry = ((dma_handle - iommu->page_table_map_base) >> IO_PAGE_SHIFT);
