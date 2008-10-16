@@ -367,15 +367,8 @@ struct cirrusfb_info {
 
 	struct cirrusfb_regs currentmode;
 	int blank_mode;
+	u32 pseudo_palette[16];
 
-	u32	pseudo_palette[16];
-
-#ifdef CONFIG_ZORRO
-	struct zorro_dev *zdev;
-#endif
-#ifdef CONFIG_PCI
-	struct pci_dev *pdev;
-#endif
 	void (*unmap)(struct fb_info *info);
 };
 
@@ -2183,8 +2176,7 @@ static void get_pci_addrs(const struct pci_dev *pdev,
 
 static void cirrusfb_pci_unmap(struct fb_info *info)
 {
-	struct cirrusfb_info *cinfo = info->par;
-	struct pci_dev *pdev = cinfo->pdev;
+	struct pci_dev *pdev = to_pci_dev(info->device);
 
 	iounmap(info->screen_base);
 #if 0 /* if system didn't claim this region, we would... */
@@ -2200,14 +2192,16 @@ static void cirrusfb_pci_unmap(struct fb_info *info)
 static void __devexit cirrusfb_zorro_unmap(struct fb_info *info)
 {
 	struct cirrusfb_info *cinfo = info->par;
-	zorro_release_device(cinfo->zdev);
+	struct zorro_dev *zdev = to_zorro_dev(info->device);
+
+	zorro_release_device(zdev);
 
 	if (cinfo->btype == BT_PICASSO4) {
 		cinfo->regbase -= 0x600000;
 		iounmap((void *)cinfo->regbase);
 		iounmap(info->screen_base);
 	} else {
-		if (zorro_resource_start(cinfo->zdev) > 0x01000000)
+		if (zorro_resource_start(zdev) > 0x01000000)
 			iounmap(info->screen_base);
 	}
 }
@@ -2348,7 +2342,6 @@ static int cirrusfb_pci_register(struct pci_dev *pdev,
 	}
 
 	cinfo = info->par;
-	cinfo->pdev = pdev;
 	cinfo->btype = btype = (enum cirrus_board) ent->driver_data;
 
 	DPRINTK(" Found PCI device, base address 0 is 0x%x, btype set to %d\n",
@@ -2484,7 +2477,6 @@ static int cirrusfb_zorro_register(struct zorro_dev *z,
 	assert(z);
 	assert(btype != BT_NONE);
 
-	cinfo->zdev = z;
 	board_addr = zorro_resource_start(z);
 	board_size = zorro_resource_len(z);
 	info->screen_size = size;
