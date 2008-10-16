@@ -82,7 +82,6 @@
 /* Kernel module parameters */
 extern int force_sensor;
 extern int dump_sensor;
-extern unsigned int m5602_debug;
 
 int mt9m111_probe(struct sd *sd);
 int mt9m111_init(struct sd *sd);
