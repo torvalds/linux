@@ -78,19 +78,19 @@ static int dvb_buf_prepare(struct videobuf_queue *q,
 			   struct videobuf_buffer *vb, enum v4l2_field field)
 {
 	struct cx23885_tsport *port = q->priv_data;
-	return cx23885_buf_prepare(q, port, (struct cx23885_buffer*)vb, field);
+	return cx23885_buf_prepare(q, port, (struct cx23885_buffer *)vb, field);
 }
 
 static void dvb_buf_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
 {
 	struct cx23885_tsport *port = q->priv_data;
-	cx23885_buf_queue(port, (struct cx23885_buffer*)vb);
+	cx23885_buf_queue(port, (struct cx23885_buffer *)vb);
 }
 
 static void dvb_buf_release(struct videobuf_queue *q,
 			    struct videobuf_buffer *vb)
 {
-	cx23885_free_buffer(q, (struct cx23885_buffer*)vb);
+	cx23885_free_buffer(q, (struct cx23885_buffer *)vb);
 }
 
 static struct videobuf_queue_ops dvb_qops = {
@@ -450,7 +450,8 @@ static int dvb_register(struct cx23885_tsport *port)
 				.fname   = XC3028L_DEFAULT_FIRMWARE,
 				.max_len = 64,
 				.demod   = 5000,
-				/* This is true for all demods with v36 firmware? */
+				/* This is true for all demods with
+					v36 firmware? */
 				.type    = XC2028_D2633,
 			};
 
@@ -525,12 +526,14 @@ static int dvb_register(struct cx23885_tsport *port)
 		}
 		break;
 	default:
-		printk("%s: The frontend of your DVB/ATSC card isn't supported yet\n",
+		printk(KERN_INFO "%s: The frontend of your DVB/ATSC card "
+			" isn't supported yet\n",
 		       dev->name);
 		break;
 	}
 	if (NULL == fe0->dvb.frontend) {
-		printk("%s: frontend initialization failed\n", dev->name);
+		printk(KERN_ERR "%s: frontend initialization failed\n",
+			dev->name);
 		return -1;
 	}
 	/* define general-purpose callback pointer */
@@ -568,7 +571,8 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 		port->num_frontends);
 
 	for (i = 1; i <= port->num_frontends; i++) {
-		if (videobuf_dvb_alloc_frontend(dev, &port->frontends, i) == NULL) {
+		if (videobuf_dvb_alloc_frontend(dev,
+			&port->frontends, i) == NULL) {
 			printk(KERN_ERR "%s() failed to alloc\n", __func__);
 			return -ENOMEM;
 		}
@@ -578,7 +582,7 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 			err = -EINVAL;
 
 		dprintk(1, "%s\n", __func__);
-		dprintk(1, " ->being probed by Card=%d Name=%s, PCI %02x:%02x\n",
+		dprintk(1, " ->probed by Card=%d Name=%s, PCI %02x:%02x\n",
 			dev->board,
 			dev->name,
 			dev->pci_bus,
@@ -588,14 +592,16 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 
 		/* dvb stuff */
 		/* We have to init the queue for each frontend on a port. */
-		printk("%s: cx23885 based dvb card\n", dev->name);
-		videobuf_queue_sg_init(&fe0->dvb.dvbq, &dvb_qops, &dev->pci->dev, &port->slock,
+		printk(KERN_INFO "%s: cx23885 based dvb card\n", dev->name);
+		videobuf_queue_sg_init(&fe0->dvb.dvbq, &dvb_qops,
+			    &dev->pci->dev, &port->slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_TOP,
 			    sizeof(struct cx23885_buffer), port);
 	}
 	err = dvb_register(port);
 	if (err != 0)
-		printk("%s() dvb_register failed err = %d\n", __func__, err);
+		printk(KERN_ERR "%s() dvb_register failed err = %d\n",
+			__func__, err);
 
 	return err;
 }
@@ -612,15 +618,9 @@ int cx23885_dvb_unregister(struct cx23885_tsport *port)
 	 * implement MFE support.
 	 */
 	fe0 = videobuf_dvb_get_frontend(&port->frontends, 1);
-	if(fe0->dvb.frontend)
+	if (fe0->dvb.frontend)
 		videobuf_dvb_unregister_bus(&port->frontends);
 
 	return 0;
 }
 
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- * kate: eol "unix"; indent-width 3; remove-trailing-space on; replace-trailing-space-save on; tab-width 8; replace-tabs off; space-indent off; mixed-indent off
-*/
