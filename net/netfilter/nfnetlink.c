@@ -137,7 +137,7 @@ static int nfnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 replay:
 	ss = nfnetlink_get_subsys(type);
 	if (!ss) {
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 		nfnl_unlock();
 		request_module("nfnetlink-subsys-%d", NFNL_SUBSYS_ID(type));
 		nfnl_lock();

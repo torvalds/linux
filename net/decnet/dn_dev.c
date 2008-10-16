@@ -490,9 +490,7 @@ int dn_dev_ioctl(unsigned int cmd, void __user *arg)
 		return -EFAULT;
 	ifr->ifr_name[IFNAMSIZ-1] = 0;
 
-#ifdef CONFIG_KMOD
 	dev_load(&init_net, ifr->ifr_name);
-#endif
 
 	switch(cmd) {
 		case SIOCGIFADDR:
