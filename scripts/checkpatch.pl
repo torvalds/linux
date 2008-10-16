@@ -1417,7 +1417,8 @@ sub process {
 			$s =~ s/\n./\n/gs;
 
 			# Find out how long the conditional actually is.
-			my $cond_lines = 0 + $c =~ /\n/gs;
+			my @newlines = ($c =~ /\n/gs);
+			my $cond_lines = 1 + $#newlines;
 
 			# We want to check the first line inside the block
 			# starting at the end of the conditional, so remove:
