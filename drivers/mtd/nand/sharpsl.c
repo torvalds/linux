@@ -2,6 +2,7 @@
  * drivers/mtd/nand/sharpsl.c
  *
  *  Copyright (C) 2004 Richard Purdie
+ *  Copyright (C) 2008 Dmitry Baryshkov
  *
  *  Based on Sharp's NAND driver sharp_sl.c
  *
@@ -52,12 +53,12 @@ struct sharpsl_nand {
 #define FLCLE		(1 << 1)
 #define FLCE0		(1 << 0)
 
+#ifdef CONFIG_MTD_PARTITIONS
 /*
  * Define partitions for flash device
  */
 #define DEFAULT_NUM_PARTITIONS 3
 
-static int nr_partitions;
 static struct mtd_partition sharpsl_nand_default_partition_info[] = {
 	{
 	 .name = "System Area",
@@ -75,6 +76,7 @@ static struct mtd_partition sharpsl_nand_default_partition_info[] = {
 	 .size = MTDPART_SIZ_FULL,
 	 },
 };
+#endif
 
 /*
  *	hardware specific access to control-lines
@@ -151,7 +153,7 @@ static int sharpsl_nand_calculate_ecc(struct mtd_info *mtd, const u_char * dat, 
 }
 
 #ifdef CONFIG_MTD_PARTITIONS
-const char *part_probes[] = { "cmdlinepart", NULL };
+static const char *part_probes[] = { "cmdlinepart", NULL };
 #endif
 
 /*
@@ -160,7 +162,10 @@ const char *part_probes[] = { "cmdlinepart", NULL };
 static int __devinit sharpsl_nand_probe(struct platform_device *pdev)
 {
 	struct nand_chip *this;
+#ifdef CONFIG_MTD_PARTITIONS
 	struct mtd_partition *sharpsl_partition_info;
+	int nr_partitions;
+#endif
 	struct resource *r;
 	int err = 0;
 	struct sharpsl_nand *sharpsl;
@@ -229,10 +234,11 @@ static int __devinit sharpsl_nand_probe(struct platform_device *pdev)
 
 	/* Register the partitions */
 	sharpsl->mtd.name = "sharpsl-nand";
+#ifdef CONFIG_MTD_PARTITIONS
 	nr_partitions = parse_mtd_partitions(&sharpsl->mtd, part_probes, &sharpsl_partition_info, 0);
 
 	if (nr_partitions <= 0) {
-		nr_partitions = DEFAULT_NUM_PARTITIONS;
+		nr_partitions = ARRAY_SIZE(sharpsl_nand_default_partition_info);
 		sharpsl_partition_info = sharpsl_nand_default_partition_info;
 		if (machine_is_poodle()) {
 			sharpsl_partition_info[1].size = 22 * 1024 * 1024;
@@ -249,10 +255,18 @@ static int __devinit sharpsl_nand_probe(struct platform_device *pdev)
 		}
 	}
 
-	add_mtd_partitions(&sharpsl->mtd, sharpsl_partition_info, nr_partitions);
+	err = add_mtd_partitions(&sharpsl->mtd, sharpsl_partition_info, nr_partitions);
+#else
+	err = add_mtd_device(&sharpsl->mtd);
+#endif
+	if (err)
+		goto err_add;
 
 	/* Return happy */
 	return 0;
+
+err_add:
+	nand_release(&sharpsl->mtd);
 
 err_scan:
 	platform_set_drvdata(pdev, NULL);
