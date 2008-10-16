@@ -511,8 +511,23 @@ static void i5000_process_fatal_error_info(struct mem_ctl_info *mci,
 				"retry";
 		break;
 	case FERR_FAT_M3ERR:
+		{
+		static int done;
+
+		/*
+		 * This error is generated to inform that the intelligent
+		 * throttling is disabled and the temperature passed the
+		 * specified middle point. Since this is something the BIOS
+		 * should take care of, we'll warn only once to avoid
+		 * worthlessly flooding the log.
+		 */
+		if (done)
+			return;
+		done++;
+
 		specific = ">Tmid Thermal event with intelligent "
-				"throttling disabled";
+			   "throttling disabled";
+		}
 		break;
 	}
 
