@@ -215,6 +215,7 @@ void unregister_handler_proc(unsigned int irq, struct irqaction *action)
 {
 	if (action->dir) {
 		struct irq_desc *desc = irq_to_desc(irq);
+
 		remove_proc_entry(action->dir->name, desc->dir);
 	}
 }

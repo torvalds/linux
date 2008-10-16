@@ -26,8 +26,7 @@ static DEFINE_TIMER(poll_spurious_irq_timer, poll_spurious_irqs, 0, 0);
 static int try_one_irq(int irq, struct irq_desc *desc)
 {
 	struct irqaction *action;
-	int ok = 0;
-	int work = 0;	/* Did we do work for a real IRQ */
+	int ok = 0, work = 0;
 
 	spin_lock(&desc->lock);
 	/* Already running on another processor */
@@ -88,9 +87,8 @@ static int try_one_irq(int irq, struct irq_desc *desc)
 
 static int misrouted_irq(int irq)
 {
-	int i;
-	int ok = 0;
 	struct irq_desc *desc;
+	int i, ok = 0;
 
 	for_each_irq_desc(i, desc) {
 		if (!i)
@@ -108,8 +106,8 @@ static int misrouted_irq(int irq)
 
 static void poll_spurious_irqs(unsigned long dummy)
 {
-	int i;
 	struct irq_desc *desc;
+	int i;
 
 	for_each_irq_desc(i, desc) {
 		unsigned int status;
@@ -126,7 +124,8 @@ static void poll_spurious_irqs(unsigned long dummy)
 		try_one_irq(i, desc);
 	}
 
-	mod_timer(&poll_spurious_irq_timer, jiffies + POLL_SPURIOUS_IRQ_INTERVAL);
+	mod_timer(&poll_spurious_irq_timer,
+		  jiffies + POLL_SPURIOUS_IRQ_INTERVAL);
 }
 
 /*
@@ -177,7 +176,9 @@ report_bad_irq(unsigned int irq, struct irq_desc *desc, irqreturn_t action_ret)
 	}
 }
 
-static inline int try_misrouted_irq(unsigned int irq, struct irq_desc *desc, irqreturn_t action_ret)
+static inline int
+try_misrouted_irq(unsigned int irq, struct irq_desc *desc,
+		  irqreturn_t action_ret)
 {
 	struct irqaction *action;
 
@@ -253,7 +254,8 @@ void note_interrupt(unsigned int irq, struct irq_desc *desc,
 		desc->depth++;
 		desc->chip->disable(irq);
 
-		mod_timer(&poll_spurious_irq_timer, jiffies + POLL_SPURIOUS_IRQ_INTERVAL);
+		mod_timer(&poll_spurious_irq_timer,
+			  jiffies + POLL_SPURIOUS_IRQ_INTERVAL);
 	}
 	desc->irqs_unhandled = 0;
 }

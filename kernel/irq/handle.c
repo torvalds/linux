@@ -68,9 +68,8 @@ struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
  */
 static void ack_bad(unsigned int irq)
 {
-	struct irq_desc *desc;
+	struct irq_desc *desc = irq_to_desc(irq);
 
-	desc = irq_to_desc(irq);
 	print_irq_desc(irq, desc);
 	ack_bad_irq(irq);
 }

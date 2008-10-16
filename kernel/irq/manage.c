@@ -140,10 +140,9 @@ int irq_select_affinity(unsigned int irq)
  */
 void disable_irq_nosync(unsigned int irq)
 {
-	struct irq_desc *desc;
+	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long flags;
 
-	desc = irq_to_desc(irq);
 	if (!desc)
 		return;
 
@@ -170,9 +169,8 @@ EXPORT_SYMBOL(disable_irq_nosync);
  */
 void disable_irq(unsigned int irq)
 {
-	struct irq_desc *desc;
+	struct irq_desc *desc = irq_to_desc(irq);
 
-	desc = irq_to_desc(irq);
 	if (!desc)
 		return;
 
@@ -213,10 +211,9 @@ static void __enable_irq(struct irq_desc *desc, unsigned int irq)
  */
 void enable_irq(unsigned int irq)
 {
-	struct irq_desc *desc;
+	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long flags;
 
-	desc = irq_to_desc(irq);
 	if (!desc)
 		return;
 
@@ -291,10 +288,9 @@ EXPORT_SYMBOL(set_irq_wake);
  */
 int can_request_irq(unsigned int irq, unsigned long irqflags)
 {
-	struct irq_desc *desc;
+	struct irq_desc *desc = irq_to_desc(irq);
 	struct irqaction *action;
 
-	desc = irq_to_desc(irq);
 	if (!desc)
 		return 0;
 
@@ -355,16 +351,15 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
  * Internal function to register an irqaction - typically used to
  * allocate special interrupts that are part of the architecture.
  */
-int setup_irq(unsigned int irq, struct irqaction *new)
+static int
+__setup_irq(unsigned int irq, struct irq_desc * desc, struct irqaction *new)
 {
-	struct irq_desc *desc;
 	struct irqaction *old, **p;
 	const char *old_name = NULL;
 	unsigned long flags;
 	int shared = 0;
 	int ret;
 
-	desc = irq_to_desc(irq);
 	if (!desc)
 		return -EINVAL;
 
@@ -504,6 +499,20 @@ mismatch:
 }
 
 /**
+ *	setup_irq - setup an interrupt
+ *	@irq: Interrupt line to setup
+ *	@act: irqaction for the interrupt
+ *
+ * Used to statically setup interrupts in the early boot process.
+ */
+int setup_irq(unsigned int irq, struct irqaction *act)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+
+	return __setup_irq(irq, desc, act);
+}
+
+/**
  *	free_irq - free an interrupt
  *	@irq: Interrupt line to free
  *	@dev_id: Device identity to free
@@ -519,13 +528,12 @@ mismatch:
  */
 void free_irq(unsigned int irq, void *dev_id)
 {
-	struct irq_desc *desc;
+	struct irq_desc *desc = irq_to_desc(irq);
 	struct irqaction **p;
 	unsigned long flags;
 
 	WARN_ON(in_interrupt());
 
-	desc = irq_to_desc(irq);
 	if (!desc)
 		return;
 
@@ -624,8 +632,8 @@ int request_irq(unsigned int irq, irq_handler_t handler,
 		unsigned long irqflags, const char *devname, void *dev_id)
 {
 	struct irqaction *action;
-	int retval;
 	struct irq_desc *desc;
+	int retval;
 
 #ifdef CONFIG_LOCKDEP
 	/*
@@ -662,7 +670,7 @@ int request_irq(unsigned int irq, irq_handler_t handler,
 	action->next = NULL;
 	action->dev_id = dev_id;
 
-	retval = setup_irq(irq, action);
+	retval = __setup_irq(irq, desc, action);
 	if (retval)
 		kfree(action);
 
