@@ -567,27 +567,6 @@ static int __iommu_flush_context(struct intel_iommu *iommu,
 	return 0;
 }
 
-static int inline iommu_flush_context_global(struct intel_iommu *iommu,
-	int non_present_entry_flush)
-{
-	return __iommu_flush_context(iommu, 0, 0, 0, DMA_CCMD_GLOBAL_INVL,
-		non_present_entry_flush);
-}
-
-static int inline iommu_flush_context_domain(struct intel_iommu *iommu, u16 did,
-	int non_present_entry_flush)
-{
-	return __iommu_flush_context(iommu, did, 0, 0, DMA_CCMD_DOMAIN_INVL,
-		non_present_entry_flush);
-}
-
-static int inline iommu_flush_context_device(struct intel_iommu *iommu,
-	u16 did, u16 source_id, u8 function_mask, int non_present_entry_flush)
-{
-	return __iommu_flush_context(iommu, did, source_id, function_mask,
-		DMA_CCMD_DEVICE_INVL, non_present_entry_flush);
-}
-
 /* return value determine if we need a write buffer flush */
 static int __iommu_flush_iotlb(struct intel_iommu *iommu, u16 did,
 	u64 addr, unsigned int size_order, u64 type,
@@ -660,20 +639,6 @@ static int __iommu_flush_iotlb(struct intel_iommu *iommu, u16 did,
 	return 0;
 }
 
-static int inline iommu_flush_iotlb_global(struct intel_iommu *iommu,
-	int non_present_entry_flush)
-{
-	return __iommu_flush_iotlb(iommu, 0, 0, 0, DMA_TLB_GLOBAL_FLUSH,
-		non_present_entry_flush);
-}
-
-static int inline iommu_flush_iotlb_dsi(struct intel_iommu *iommu, u16 did,
-	int non_present_entry_flush)
-{
-	return __iommu_flush_iotlb(iommu, did, 0, 0, DMA_TLB_DSI_FLUSH,
-		non_present_entry_flush);
-}
-
 static int iommu_flush_iotlb_psi(struct intel_iommu *iommu, u16 did,
 	u64 addr, unsigned int pages, int non_present_entry_flush)
 {
@@ -684,8 +649,9 @@ static int iommu_flush_iotlb_psi(struct intel_iommu *iommu, u16 did,
 
 	/* Fallback to domain selective flush if no PSI support */
 	if (!cap_pgsel_inv(iommu->cap))
-		return iommu_flush_iotlb_dsi(iommu, did,
-			non_present_entry_flush);
+		return iommu->flush.flush_iotlb(iommu, did, 0, 0,
+						DMA_TLB_DSI_FLUSH,
+						non_present_entry_flush);
 
 	/*
 	 * PSI requires page size to be 2 ^ x, and the base address is naturally
@@ -694,11 +660,12 @@ static int iommu_flush_iotlb_psi(struct intel_iommu *iommu, u16 did,
 	mask = ilog2(__roundup_pow_of_two(pages));
 	/* Fallback to domain selective flush if size is too big */
 	if (mask > cap_max_amask_val(iommu->cap))
-		return iommu_flush_iotlb_dsi(iommu, did,
-			non_present_entry_flush);
+		return iommu->flush.flush_iotlb(iommu, did, 0, 0,
+			DMA_TLB_DSI_FLUSH, non_present_entry_flush);
 
-	return __iommu_flush_iotlb(iommu, did, addr, mask,
-		DMA_TLB_PSI_FLUSH, non_present_entry_flush);
+	return iommu->flush.flush_iotlb(iommu, did, addr, mask,
+					DMA_TLB_PSI_FLUSH,
+					non_present_entry_flush);
 }
 
 static void iommu_disable_protect_mem_regions(struct intel_iommu *iommu)
@@ -1204,11 +1171,13 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 	__iommu_flush_cache(iommu, context, sizeof(*context));
 
 	/* it's a non-present to present mapping */
-	if (iommu_flush_context_device(iommu, domain->id,
-			(((u16)bus) << 8) | devfn, DMA_CCMD_MASK_NOBIT, 1))
+	if (iommu->flush.flush_context(iommu, domain->id,
+		(((u16)bus) << 8) | devfn, DMA_CCMD_MASK_NOBIT,
+		DMA_CCMD_DEVICE_INVL, 1))
 		iommu_flush_write_buffer(iommu);
 	else
-		iommu_flush_iotlb_dsi(iommu, 0, 0);
+		iommu->flush.flush_iotlb(iommu, 0, 0, 0, DMA_TLB_DSI_FLUSH, 0);
+
 	spin_unlock_irqrestore(&iommu->lock, flags);
 	return 0;
 }
@@ -1310,8 +1279,10 @@ domain_page_mapping(struct dmar_domain *domain, dma_addr_t iova,
 static void detach_domain_for_dev(struct dmar_domain *domain, u8 bus, u8 devfn)
 {
 	clear_context_table(domain->iommu, bus, devfn);
-	iommu_flush_context_global(domain->iommu, 0);
-	iommu_flush_iotlb_global(domain->iommu, 0);
+	domain->iommu->flush.flush_context(domain->iommu, 0, 0, 0,
+					   DMA_CCMD_GLOBAL_INVL, 0);
+	domain->iommu->flush.flush_iotlb(domain->iommu, 0, 0, 0,
+					 DMA_TLB_GLOBAL_FLUSH, 0);
 }
 
 static void domain_remove_dev_info(struct dmar_domain *domain)
@@ -1662,6 +1633,28 @@ int __init init_dmars(void)
 		}
 	}
 
+	for_each_drhd_unit(drhd) {
+		if (drhd->ignored)
+			continue;
+
+		iommu = drhd->iommu;
+		if (dmar_enable_qi(iommu)) {
+			/*
+			 * Queued Invalidate not enabled, use Register Based
+			 * Invalidate
+			 */
+			iommu->flush.flush_context = __iommu_flush_context;
+			iommu->flush.flush_iotlb = __iommu_flush_iotlb;
+			printk(KERN_INFO "IOMMU 0x%Lx: using Register based "
+			       "invalidation\n", drhd->reg_base_addr);
+		} else {
+			iommu->flush.flush_context = qi_flush_context;
+			iommu->flush.flush_iotlb = qi_flush_iotlb;
+			printk(KERN_INFO "IOMMU 0x%Lx: using Queued "
+			       "invalidation\n", drhd->reg_base_addr);
+		}
+	}
+
 	/*
 	 * For each rmrr
 	 *   for each dev attached to rmrr
@@ -1714,9 +1707,10 @@ int __init init_dmars(void)
 
 		iommu_set_root_entry(iommu);
 
-		iommu_flush_context_global(iommu, 0);
-		iommu_flush_iotlb_global(iommu, 0);
-
+		iommu->flush.flush_context(iommu, 0, 0, 0, DMA_CCMD_GLOBAL_INVL,
+					   0);
+		iommu->flush.flush_iotlb(iommu, 0, 0, 0, DMA_TLB_GLOBAL_FLUSH,
+					 0);
 		iommu_disable_protect_mem_regions(iommu);
 
 		ret = iommu_enable_translation(iommu);
@@ -1891,7 +1885,8 @@ static void flush_unmaps(void)
 			struct intel_iommu *iommu =
 				deferred_flush[i].domain[0]->iommu;
 
-			iommu_flush_iotlb_global(iommu, 0);
+			iommu->flush.flush_iotlb(iommu, 0, 0, 0,
+						 DMA_TLB_GLOBAL_FLUSH, 0);
 			for (j = 0; j < deferred_flush[i].next; j++) {
 				__free_iova(&deferred_flush[i].domain[j]->iovad,
 						deferred_flush[i].iova[j]);

@@ -278,6 +278,13 @@ struct ir_table {
 };
 #endif
 
+struct iommu_flush {
+	int (*flush_context)(struct intel_iommu *iommu, u16 did, u16 sid, u8 fm,
+		u64 type, int non_present_entry_flush);
+	int (*flush_iotlb)(struct intel_iommu *iommu, u16 did, u64 addr,
+		unsigned int size_order, u64 type, int non_present_entry_flush);
+};
+
 struct intel_iommu {
 	void __iomem	*reg; /* Pointer to hardware regs, virtual addr */
 	u64		cap;
@@ -297,6 +304,7 @@ struct intel_iommu {
 	unsigned char name[7];    /* Device Name */
 	struct msi_msg saved_msg;
 	struct sys_device sysdev;
+	struct iommu_flush flush;
 #endif
 	struct q_inval  *qi;            /* Queued invalidation info */
 #ifdef CONFIG_INTR_REMAP
