@@ -146,16 +146,18 @@ static int m5602_start_transfer(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	__u8 *buf = sd->gspca_dev.usb_buf;
+	int err;
 
 	/* Send start command to the camera */
 	const u8 buffer[4] = {0x13, 0xf9, 0x0f, 0x01};
 	memcpy(buf, buffer, sizeof(buffer));
-	usb_control_msg(gspca_dev->dev, usb_sndctrlpipe(gspca_dev->dev, 0),
-			0x04, 0x40, 0x19, 0x0000, buf,
-			4, M5602_URB_MSG_TIMEOUT);
+	err = usb_control_msg(gspca_dev->dev,
+			      usb_sndctrlpipe(gspca_dev->dev, 0),
+			      0x04, 0x40, 0x19, 0x0000, buf,
+			      4, M5602_URB_MSG_TIMEOUT);
 
 	PDEBUG(DBG_V4L2, "Transfer started");
-	return 0;
+	return (err < 0) ? err : 0;
 }
 
 static void m5602_urb_complete(struct gspca_dev *gspca_dev,
