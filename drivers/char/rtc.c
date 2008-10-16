@@ -96,7 +96,7 @@ static unsigned long rtc_port;
 static int rtc_irq;
 #endif
 
-#ifdef	CONFIG_HPET_RTC_IRQ
+#ifdef	CONFIG_HPET_EMULATE_RTC
 #undef	RTC_IRQ
 #endif
 
