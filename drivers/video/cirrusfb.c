@@ -352,7 +352,7 @@ struct cirrusfb_info {
 	void (*unmap)(struct fb_info *info);
 };
 
-static int noaccel;
+static int noaccel __devinitdata;
 static char *mode_option __devinitdata = "640x480@60";
 
 /****************************************************************************/
@@ -2525,6 +2525,8 @@ module_init(cirrusfb_init);
 
 module_param(mode_option, charp, 0);
 MODULE_PARM_DESC(mode_option, "Initial video mode e.g. '648x480-8@60'");
+module_param(noaccel, bool, 0);
+MODULE_PARM_DESC(noaccel, "Disable acceleration");
 
 #ifdef MODULE
 module_exit(cirrusfb_exit);
