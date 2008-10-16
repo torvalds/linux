@@ -38,10 +38,6 @@ EXPORT_SYMBOL(iomem_resource);
 
 static DEFINE_RWLOCK(resource_lock);
 
-#ifdef CONFIG_PROC_FS
-
-enum { MAX_IORES_LEVEL = 5 };
-
 static void *r_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	struct resource *p = v;
@@ -52,6 +48,10 @@ static void *r_next(struct seq_file *m, void *v, loff_t *pos)
 		p = p->parent;
 	return p->sibling;
 }
+
+#ifdef CONFIG_PROC_FS
+
+enum { MAX_IORES_LEVEL = 5 };
 
 static void *r_start(struct seq_file *m, loff_t *pos)
 	__acquires(resource_lock)
@@ -549,13 +549,9 @@ static void __init __reserve_region_with_split(struct resource *root,
 	}
 
 	if (!res) {
-		printk(KERN_DEBUG "    __reserve_region_with_split: (%s) [%llx, %llx], res: (%s) [%llx, %llx]\n",
-			 conflict->name, conflict->start, conflict->end,
-			 name, start, end);
-
 		/* failed, split and try again */
 
-		/* conflict coverred whole area */
+		/* conflict covered whole area */
 		if (conflict->start <= start && conflict->end >= end)
 			return;
 
@@ -832,3 +828,40 @@ static int __init reserve_setup(char *str)
 }
 
 __setup("reserve=", reserve_setup);
+
+/*
+ * Check if the requested addr and size spans more than any slot in the
+ * iomem resource tree.
+ */
+int iomem_map_sanity_check(resource_size_t addr, unsigned long size)
+{
+	struct resource *p = &iomem_resource;
+	int err = 0;
+	loff_t l;
+
+	read_lock(&resource_lock);
+	for (p = p->child; p ; p = r_next(NULL, p, &l)) {
+		/*
+		 * We can probably skip the resources without
+		 * IORESOURCE_IO attribute?
+		 */
+		if (p->start >= addr + size)
+			continue;
+		if (p->end < addr)
+			continue;
+		if (p->start <= addr && (p->end >= addr + size - 1))
+			continue;
+		printk(KERN_WARNING "resource map sanity check conflict: "
+		       "0x%llx 0x%llx 0x%llx 0x%llx %s\n",
+		       (unsigned long long)addr,
+		       (unsigned long long)(addr + size - 1),
+		       (unsigned long long)p->start,
+		       (unsigned long long)p->end,
+		       p->name);
+		err = -1;
+		break;
+	}
+	read_unlock(&resource_lock);
+
+	return err;
+}

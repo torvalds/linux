@@ -214,6 +214,9 @@ static inline bool printk_timed_ratelimit(unsigned long *caller_jiffies, \
 		{ return false; }
 #endif
 
+extern int printk_needs_cpu(int cpu);
+extern void printk_tick(void);
+
 extern void asmlinkage __attribute__((format(printf, 1, 2)))
 	early_printk(const char *fmt, ...);
 

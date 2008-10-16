@@ -935,12 +935,14 @@ config HIGHMEM
 config X86_PAE
 	bool "PAE (Physical Address Extension) Support"
 	depends on X86_32 && !HIGHMEM4G
-	select RESOURCES_64BIT
 	help
 	  PAE is required for NX support, and furthermore enables
 	  larger swapspace support for non-overcommit purposes. It
 	  has the cost of more pagetable lookup overhead, and also
 	  consumes more pagetable space per process.
+
+config ARCH_PHYS_ADDR_T_64BIT
+       def_bool X86_64 || X86_PAE
 
 # Common NUMA Features
 config NUMA

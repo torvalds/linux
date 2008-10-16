@@ -22,6 +22,9 @@ config WORD_SIZE
 config PPC_MERGE
 	def_bool y
 
+config ARCH_PHYS_ADDR_T_64BIT
+       def_bool PPC64 || PHYS_64BIT
+
 config MMU
 	bool
 	default y

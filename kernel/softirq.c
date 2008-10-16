@@ -46,7 +46,7 @@ irq_cpustat_t irq_stat[NR_CPUS] ____cacheline_aligned;
 EXPORT_SYMBOL(irq_stat);
 #endif
 
-static struct softirq_action softirq_vec[32] __cacheline_aligned_in_smp;
+static struct softirq_action softirq_vec[NR_SOFTIRQS] __cacheline_aligned_in_smp;
 
 static DEFINE_PER_CPU(struct task_struct *, ksoftirqd);
 
@@ -205,7 +205,18 @@ restart:
 
 	do {
 		if (pending & 1) {
+			int prev_count = preempt_count();
+
 			h->action(h);
+
+			if (unlikely(prev_count != preempt_count())) {
+				printk(KERN_ERR "huh, entered softirq %d %p"
+				       "with preempt_count %08x,"
+				       " exited with %08x?\n", h - softirq_vec,
+				       h->action, prev_count, preempt_count());
+				preempt_count() = prev_count;
+			}
+
 			rcu_bh_qsctr_inc(cpu);
 		}
 		h++;
