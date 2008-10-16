@@ -1239,7 +1239,7 @@ static int compat_count(compat_uptr_t __user *argv, int max)
 			if (!p)
 				break;
 			argv++;
-			if(++i > max)
+			if (i++ >= max)
 				return -E2BIG;
 		}
 	}
