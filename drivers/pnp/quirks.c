@@ -338,8 +338,7 @@ void pnp_fixup_device(struct pnp_dev *dev)
 		if (!compare_pnp_id(dev->id, f->id))
 			continue;
 #ifdef DEBUG
-		dev_dbg(&dev->dev, "%s: calling ", f->id);
-		print_fn_descriptor_symbol("%s\n", f->quirk_function);
+		dev_dbg(&dev->dev, "%s: calling %pF\n", f->id, f->quirk_function);
 #endif
 		f->quirk_function(dev);
 	}
