@@ -426,11 +426,11 @@ static void vgaHWProtect(int on)
 {
 	unsigned char tmp;
 
+	tmp = vga_rseq(NULL, 0x01);
 	if (on) {
 		/*
 		 * Turn off screen and disable sequencer.
 		 */
-		tmp = vga_rseq(NULL, 0x01);
 		vga_wseq(NULL, 0x00, 0x01);		/* Synchronous Reset */
 		vga_wseq(NULL, 0x01, tmp | 0x20);	/* disable the display */
 
@@ -439,7 +439,6 @@ static void vgaHWProtect(int on)
 		/*
 		 * Reenable sequencer, then turn on screen.
 		 */
-		tmp = vga_rseq(NULL, 0x01);
 		vga_wseq(NULL, 0x01, tmp & ~0x20);	/* reenable display */
 		vga_wseq(NULL, 0x00, 0x03);		/* clear synchronousreset */
 
@@ -648,10 +647,10 @@ neofb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	var->blue.msb_right = 0;
 	var->transp.msb_right = 0;
 
+	var->transp.offset = 0;
+	var->transp.length = 0;
 	switch (var->bits_per_pixel) {
 	case 8:		/* PSEUDOCOLOUR, 256 */
-		var->transp.offset = 0;
-		var->transp.length = 0;
 		var->red.offset = 0;
 		var->red.length = 8;
 		var->green.offset = 0;
@@ -661,8 +660,6 @@ neofb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		break;
 
 	case 16:		/* DIRECTCOLOUR, 64k */
-		var->transp.offset = 0;
-		var->transp.length = 0;
 		var->red.offset = 11;
 		var->red.length = 5;
 		var->green.offset = 5;
@@ -672,8 +669,6 @@ neofb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		break;
 
 	case 24:		/* TRUECOLOUR, 16m */
-		var->transp.offset = 0;
-		var->transp.length = 0;
 		var->red.offset = 16;
 		var->red.length = 8;
 		var->green.offset = 8;
@@ -704,8 +699,6 @@ neofb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	if (vramlen > 4 * 1024 * 1024)
 		vramlen = 4 * 1024 * 1024;
 
-	if (var->yres_virtual < var->yres)
-		var->yres_virtual = var->yres;
 	if (var->xres_virtual < var->xres)
 		var->xres_virtual = var->xres;
 
@@ -722,8 +715,6 @@ neofb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	   if it was possible. We should return -EINVAL, but I disagree */
 	if (var->yres_virtual < var->yres)
 		var->yres = var->yres_virtual;
-	if (var->xres_virtual < var->xres)
-		var->xres = var->xres_virtual;
 	if (var->xoffset + var->xres > var->xres_virtual)
 		var->xoffset = var->xres_virtual - var->xres;
 	if (var->yoffset + var->yres > var->yres_virtual)
