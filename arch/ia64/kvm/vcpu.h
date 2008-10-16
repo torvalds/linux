@@ -313,21 +313,21 @@ static inline void vcpu_set_tr(struct thash_data *trp, u64 pte, u64 itir,
 	trp->rid = rid;
 }
 
-extern u64 kvm_lookup_mpa(u64 gpfn);
-extern u64 kvm_gpa_to_mpa(u64 gpa);
+extern u64 kvm_get_mpt_entry(u64 gpfn);
 
-/* Return I/O type if trye */
-#define __gpfn_is_io(gpfn)			\
-	({						\
-	 u64 pte, ret = 0;			\
-	 pte = kvm_lookup_mpa(gpfn);		\
-	 if (!(pte & GPFN_INV_MASK))		\
-	 ret = pte & GPFN_IO_MASK;	\
-	 ret;					\
-	 })
-
+/* Return I/ */
+static inline u64 __gpfn_is_io(u64 gpfn)
+{
+	u64  pte;
+	pte = kvm_get_mpt_entry(gpfn);
+	if (!(pte & GPFN_INV_MASK)) {
+		pte = pte & GPFN_IO_MASK;
+		if (pte != GPFN_PHYS_MMIO)
+			return pte;
+	}
+	return 0;
+}
 #endif
-
 #define IA64_NO_FAULT	0
 #define IA64_FAULT	1
 
