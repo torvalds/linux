@@ -1573,13 +1573,14 @@ sub process {
 		if (($line =~ /EXPORT_SYMBOL.*\((.*)\)/) ||
 		    ($line =~ /EXPORT_UNUSED_SYMBOL.*\((.*)\)/)) {
 			my $name = $1;
-			if (($prevline !~ /^}/) &&
-			   ($prevline !~ /^\+}/) &&
-			   ($prevline !~ /^ }/) &&
-			   ($prevline !~ /^.DECLARE_$Ident\(\Q$name\E\)/) &&
-			   ($prevline !~ /^.LIST_HEAD\(\Q$name\E\)/) &&
-			   ($prevline !~ /^.$Type\s*\(\s*\*\s*\Q$name\E\s*\)\s*\(/) &&
-			   ($prevline !~ /\b\Q$name\E(?:\s+$Attribute)?\s*(?:;|=|\[)/)) {
+			if ($prevline !~ /(?:
+				^.}|
+				^.DEFINE_$Ident\(\Q$name\E\)|
+				^.DECLARE_$Ident\(\Q$name\E\)|
+				^.LIST_HEAD\(\Q$name\E\)|
+				^.$Type\s*\(\s*\*\s*\Q$name\E\s*\)\s*\(|
+				\b\Q$name\E(?:\s+$Attribute)?\s*(?:;|=|\[)
+			    )/x) {
 				WARN("EXPORT_SYMBOL(foo); should immediately follow its function/variable\n" . $herecurr);
 			}
 		}
