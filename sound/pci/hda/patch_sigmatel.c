@@ -3717,6 +3717,9 @@ static void stac92xx_free(struct hda_codec *codec)
 	if (! spec)
 		return;
 
+	if (spec->jack)
+		snd_device_free(codec->bus->card, spec->jack);
+
 	if (spec->bios_pin_configs)
 		kfree(spec->bios_pin_configs);
 
