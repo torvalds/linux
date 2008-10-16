@@ -27,6 +27,7 @@
 
 #include <linux/module.h>
 #include <linux/errno.h>
+#include <linux/uaccess.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 #include "protocol.h"
@@ -51,6 +52,38 @@
 static int
 p9pdu_writef(struct p9_fcall *pdu, int optional, const char *fmt, ...);
 
+#define PACKET_DEBUG 0
+
+void
+p9pdu_dump(int way, struct p9_fcall *pdu)
+{
+	int i, n;
+	u8 *data = pdu->sdata;
+	int datalen = pdu->size;
+	char buf[255];
+	int buflen = 255;
+
+	i = n = 0;
+	if (datalen > (buflen-16))
+		datalen = buflen-16;
+	while (i < datalen) {
+		n += scnprintf(buf + n, buflen - n, "%02x ", data[i]);
+		if (i%4 == 3)
+			n += scnprintf(buf + n, buflen - n, " ");
+		if (i%32 == 31)
+			n += scnprintf(buf + n, buflen - n, "\n");
+
+		i++;
+	}
+	n += scnprintf(buf + n, buflen - n, "\n");
+
+	if (way)
+		printk(KERN_NOTICE "[[(%d)[ %s\n", datalen, buf);
+	else
+		printk(KERN_NOTICE "]](%d)] %s\n", datalen, buf);
+}
+EXPORT_SYMBOL(p9pdu_dump);
+
 void p9stat_free(struct p9_wstat *stbuf)
 {
 	kfree(stbuf->name);
@@ -73,6 +106,18 @@ static size_t pdu_write(struct p9_fcall *pdu, const void *data, size_t size)
 {
 	size_t len = MIN(pdu->capacity - pdu->size, size);
 	memcpy(&pdu->sdata[pdu->size], data, len);
+	pdu->size += len;
+	return size - len;
+}
+
+static size_t
+pdu_write_u(struct p9_fcall *pdu, const char __user *udata, size_t size)
+{
+	size_t len = MIN(pdu->capacity - pdu->size, size);
+	int err = copy_from_user(&pdu->sdata[pdu->size], udata, len);
+	if (err)
+		printk(KERN_WARNING "pdu_write_u returning: %d\n", err);
+
 	pdu->size += len;
 	return size - len;
 }
@@ -174,7 +219,6 @@ p9pdu_vreadf(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 				stbuf->extension = NULL;
 				stbuf->n_uid = stbuf->n_gid = stbuf->n_muid =
 				    -1;
-
 				errcode =
 				    p9pdu_readf(pdu, optional,
 						"wwdQdddqssss?sddd",
@@ -332,7 +376,6 @@ p9pdu_vwritef(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 		case 's':{
 				const char *ptr = va_arg(ap, const char *);
 				int16_t len = 0;
-
 				if (ptr)
 					len = MIN(strlen(ptr), USHORT_MAX);
 
@@ -356,7 +399,7 @@ p9pdu_vwritef(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 				    p9pdu_writef(pdu, optional,
 						 "wwdQdddqssss?sddd",
 						 stbuf->size, stbuf->type,
-						 stbuf->dev, stbuf->qid,
+						 stbuf->dev, &stbuf->qid,
 						 stbuf->mode, stbuf->atime,
 						 stbuf->mtime, stbuf->length,
 						 stbuf->name, stbuf->uid,
@@ -371,6 +414,16 @@ p9pdu_vwritef(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 				errcode =
 				    p9pdu_writef(pdu, optional, "d", count);
 				if (!errcode && pdu_write(pdu, data, count))
+					errcode = -EFAULT;
+			}
+			break;
+		case 'U':{
+				int32_t count = va_arg(ap, int32_t);
+				const char __user *udata =
+						va_arg(ap, const void *);
+				errcode =
+				    p9pdu_writef(pdu, optional, "d", count);
+				if (!errcode && pdu_write_u(pdu, udata, count))
 					errcode = -EFAULT;
 			}
 			break;
@@ -454,4 +507,30 @@ p9pdu_writef(struct p9_fcall *pdu, int optional, const char *fmt, ...)
 	va_end(ap);
 
 	return ret;
+}
+
+int p9pdu_prepare(struct p9_fcall *pdu, int16_t tag, int8_t type)
+{
+	return p9pdu_writef(pdu, 0, "dbw", 0, type, tag);
+}
+
+int p9pdu_finalize(struct p9_fcall *pdu)
+{
+	int size = pdu->size;
+	int err;
+
+	pdu->size = 0;
+	err = p9pdu_writef(pdu, 0, "d", size);
+	pdu->size = size;
+
+	if (PACKET_DEBUG)
+		p9pdu_dump(0, pdu);
+
+	return err;
+}
+
+void p9pdu_reset(struct p9_fcall *pdu)
+{
+	pdu->offset = 0;
+	pdu->size = 0;
 }

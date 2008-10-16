@@ -136,7 +136,7 @@ v9fs_file_readn(struct file *filp, char *data, char __user *udata, u32 count,
 	int n, total;
 	struct p9_fid *fid = filp->private_data;
 
-	P9_DPRINTK(P9_DEBUG_9P, "fid %d offset %llu count %d\n", fid->fid,
+	P9_DPRINTK(P9_DEBUG_VFS, "fid %d offset %llu count %d\n", fid->fid,
 					(long long unsigned) offset, count);
 
 	n = 0;

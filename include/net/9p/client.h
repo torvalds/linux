@@ -77,6 +77,7 @@ enum p9_req_status_t {
  * struct p9_req_t - request slots
  * @status: status of this request slot
  * @t_err: transport error
+ * @flush_tag: tag of request being flushed (for flush requests)
  * @wq: wait_queue for the client to block on for this request
  * @tc: the request fcall structure
  * @rc: the response fcall structure
@@ -97,10 +98,10 @@ enum p9_req_status_t {
 struct p9_req_t {
 	int status;
 	int t_err;
+	u16 flush_tag;
 	wait_queue_head_t *wq;
 	struct p9_fcall *tc;
 	struct p9_fcall *rc;
-	u16 flush_tag;
 	void *aux;
 
 	struct list_head req_list;
@@ -199,10 +200,12 @@ int p9_client_read(struct p9_fid *fid, char *data, char __user *udata,
 							u64 offset, u32 count);
 int p9_client_write(struct p9_fid *fid, char *data, const char __user *udata,
 							u64 offset, u32 count);
-struct p9_stat *p9_client_stat(struct p9_fid *fid);
+struct p9_wstat *p9_client_stat(struct p9_fid *fid);
 int p9_client_wstat(struct p9_fid *fid, struct p9_wstat *wst);
 
 struct p9_req_t *p9_tag_lookup(struct p9_client *, u16);
 void p9_client_cb(struct p9_client *c, struct p9_req_t *req);
+
+void p9stat_free(struct p9_wstat *);
 
 #endif /* NET_9P_CLIENT_H */

@@ -85,8 +85,8 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		return -ENOMEM;
 
 	while (1) {
-		err = v9fs_file_readn(filp, statbuf, NULL, fid->rdir_fpos,
-									buflen);
+		err = v9fs_file_readn(filp, statbuf, NULL, buflen,
+								fid->rdir_fpos);
 		if (err <= 0)
 			break;
 

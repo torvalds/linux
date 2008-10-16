@@ -39,6 +39,7 @@
  * @P9_DEBUG_TRANS: transport tracing
  * @P9_DEBUG_SLABS: memory management tracing
  * @P9_DEBUG_FCALL: verbose dump of protocol messages
+ * @P9_DEBUG_FID: fid allocation/deallocation tracking
  *
  * These flags are passed at mount time to turn on various levels of
  * verbosity and tracing which will be output to the system logs.
@@ -53,13 +54,17 @@ enum p9_debug_flags {
 	P9_DEBUG_TRANS =	(1<<6),
 	P9_DEBUG_SLABS =      	(1<<7),
 	P9_DEBUG_FCALL =	(1<<8),
+	P9_DEBUG_FID =		(1<<9),
 };
 
 extern unsigned int p9_debug_level;
 
 #define P9_DPRINTK(level, format, arg...) \
 do {  \
-	if ((p9_debug_level & level) == level) \
+	if (level == P9_DEBUG_9P) \
+		printk(KERN_NOTICE "(%8.8d) " \
+		format , task_pid_nr(current) , ## arg); \
+	else if ((p9_debug_level & level) == level) \
 		printk(KERN_NOTICE "-- %s (%d): " \
 		format , __func__, task_pid_nr(current) , ## arg); \
 } while (0)
