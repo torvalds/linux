@@ -186,7 +186,7 @@ void au0828_gpio_setup(struct au0828_dev *dev)
 }
 
 /* table of devices that work with this driver */
-struct usb_device_id au0828_usb_id_table [] = {
+struct usb_device_id au0828_usb_id_table[] = {
 	{ USB_DEVICE(0x2040, 0x7200),
 		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
 	{ USB_DEVICE(0x2040, 0x7240),
