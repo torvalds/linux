@@ -53,7 +53,6 @@ struct w1_family
 	struct w1_family_ops	*fops;
 
 	atomic_t		refcnt;
-	u8			need_exit;
 };
 
 extern spinlock_t w1_flock;
