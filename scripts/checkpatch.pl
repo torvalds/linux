@@ -2214,10 +2214,10 @@ sub process {
 			}
 			if ($level == 0 && $block =~ /^\s*\{/ && !$allowed) {
 				my $herectx = $here . "\n";;
-				my $end = $linenr + statement_rawlines($block) - 1;
+				my $cnt = statement_rawlines($block);
 
-				for (my $ln = $linenr - 1; $ln < $end; $ln++) {
-					$herectx .= $rawlines[$ln] . "\n";;
+				for (my $n = 0; $n < $cnt; $n++) {
+					$herectx .= raw_line($linenr, $n) . "\n";;
 				}
 
 				WARN("braces {} are not necessary for single statement blocks\n" . $herectx);
