@@ -1,3 +1,4 @@
+
 /*
  * Driver for the po1030 sensor
  *
@@ -82,7 +83,7 @@ int po1030_read_sensor(struct sd *sd, const u8 address,
 	for (i = 0; i < len; i++) {
 		err = m5602_read_bridge(sd, M5602_XB_I2C_DATA, &(i2c_data[i]));
 
-		PDEBUG(DBG_TRACE, "Reading sensor register "
+		PDEBUG(D_CONF, "Reading sensor register "
 				"0x%x containing 0x%x ", address, *i2c_data);
 	}
 	return (err < 0) ? err : 0;
@@ -112,7 +113,7 @@ int po1030_write_sensor(struct sd *sd, const u8 address,
 		memcpy(p, sensor_urb_skeleton + 16, 4);
 		p[3] = i2c_data[i];
 		p += 4;
-		PDEBUG(DBG_TRACE, "Writing sensor register 0x%x with 0x%x",
+		PDEBUG(D_CONF, "Writing sensor register 0x%x with 0x%x",
 		       address, i2c_data[i]);
 	}
 
@@ -185,7 +186,7 @@ int po1030_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 				 &i2c_data, 1);
 	*val |= i2c_data;
 
-	PDEBUG(DBG_V4L2_CID, "Exposure read as %d", *val);
+	PDEBUG(D_V4L2, "Exposure read as %d", *val);
 out:
 	return (err < 0) ? err : 0;
 }
@@ -196,10 +197,10 @@ int po1030_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	u8 i2c_data;
 	int err;
 
-	PDEBUG(DBG_V4L2, "Set exposure to %d", val & 0xffff);
+	PDEBUG(D_V4L2, "Set exposure to %d", val & 0xffff);
 
 	i2c_data = ((val & 0xff00) >> 8);
-	PDEBUG(DBG_V4L2, "Set exposure to high byte to 0x%x",
+	PDEBUG(D_V4L2, "Set exposure to high byte to 0x%x",
 	       i2c_data);
 
 	err = po1030_write_sensor(sd, PO1030_REG_INTEGLINES_H,
@@ -208,7 +209,7 @@ int po1030_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 		goto out;
 
 	i2c_data = (val & 0xff);
-	PDEBUG(DBG_V4L2, "Set exposure to low byte to 0x%x",
+	PDEBUG(D_V4L2, "Set exposure to low byte to 0x%x",
 	       i2c_data);
 	err = po1030_write_sensor(sd, PO1030_REG_INTEGLINES_M,
 				  &i2c_data, 1);
@@ -226,7 +227,7 @@ int po1030_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 	err = po1030_read_sensor(sd, PO1030_REG_GLOBALGAIN,
 				 &i2c_data, 1);
 	*val = i2c_data;
-	PDEBUG(DBG_V4L2_CID, "Read global gain %d", *val);
+	PDEBUG(D_V4L2, "Read global gain %d", *val);
 
 	return (err < 0) ? err : 0;
 }
@@ -238,7 +239,7 @@ int po1030_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	int err;
 
 	i2c_data = val & 0xff;
-	PDEBUG(DBG_V4L2, "Set global gain to %d", i2c_data);
+	PDEBUG(D_V4L2, "Set global gain to %d", i2c_data);
 	err = po1030_write_sensor(sd, PO1030_REG_GLOBALGAIN,
 				  &i2c_data, 1);
 	return (err < 0) ? err : 0;
@@ -253,7 +254,7 @@ int po1030_get_red_balance(struct gspca_dev *gspca_dev, __s32 *val)
 	err = po1030_read_sensor(sd, PO1030_REG_RED_GAIN,
 				 &i2c_data, 1);
 	*val = i2c_data;
-	PDEBUG(DBG_V4L2_CID, "Read red gain %d", *val);
+	PDEBUG(D_V4L2, "Read red gain %d", *val);
 	return (err < 0) ? err : 0;
 }
 
@@ -264,7 +265,7 @@ int po1030_set_red_balance(struct gspca_dev *gspca_dev, __s32 val)
 	int err;
 
 	i2c_data = val & 0xff;
-	PDEBUG(DBG_V4L2, "Set red gain to %d", i2c_data);
+	PDEBUG(D_V4L2, "Set red gain to %d", i2c_data);
 	err = po1030_write_sensor(sd, PO1030_REG_RED_GAIN,
 				  &i2c_data, 1);
 	return (err < 0) ? err : 0;
@@ -279,7 +280,7 @@ int po1030_get_blue_balance(struct gspca_dev *gspca_dev, __s32 *val)
 	err = po1030_read_sensor(sd, PO1030_REG_BLUE_GAIN,
 				 &i2c_data, 1);
 	*val = i2c_data;
-	PDEBUG(DBG_V4L2_CID, "Read blue gain %d", *val);
+	PDEBUG(D_V4L2, "Read blue gain %d", *val);
 
 	return (err < 0) ? err : 0;
 }
@@ -290,7 +291,7 @@ int po1030_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val)
 	u8 i2c_data;
 	int err;
 	i2c_data = val & 0xff;
-	PDEBUG(DBG_V4L2, "Set blue gain to %d", i2c_data);
+	PDEBUG(D_V4L2, "Set blue gain to %d", i2c_data);
 	err = po1030_write_sensor(sd, PO1030_REG_BLUE_GAIN,
 				  &i2c_data, 1);
 
