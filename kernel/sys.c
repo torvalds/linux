@@ -1350,7 +1350,8 @@ asmlinkage long sys_sethostname(char __user *name, int len)
 	errno = -EFAULT;
 	if (!copy_from_user(tmp, name, len)) {
 		memcpy(utsname()->nodename, tmp, len);
-		utsname()->nodename[len] = 0;
+		memset(utsname()->nodename + len, 0,
+			sizeof(utsname()->nodename) - len);
 		errno = 0;
 	}
 	up_write(&uts_sem);
@@ -1396,7 +1397,8 @@ asmlinkage long sys_setdomainname(char __user *name, int len)
 	errno = -EFAULT;
 	if (!copy_from_user(tmp, name, len)) {
 		memcpy(utsname()->domainname, tmp, len);
-		utsname()->domainname[len] = 0;
+		memset(utsname()->domainname + len, 0,
+			sizeof(utsname()->domainname) - len);
 		errno = 0;
 	}
 	up_write(&uts_sem);
