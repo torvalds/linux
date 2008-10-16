@@ -1266,8 +1266,8 @@ sub process {
 			WARN("adding a line without newline at end of file\n" . $herecurr);
 		}
 
-# check we are in a valid source file *.[hc] if not then ignore this hunk
-		next if ($realfile !~ /\.[hc]$/);
+# check we are in a valid source file C or perl if not then ignore this hunk
+		next if ($realfile !~ /\.(h|c|pl)$/);
 
 # at the beginning of a line any tabs must come first and anything
 # more than 8 must use tabs.
@@ -1276,6 +1276,9 @@ sub process {
 			my $herevet = "$here\n" . cat_vet($rawline) . "\n";
 			ERROR("code indent should use tabs where possible\n" . $herevet);
 		}
+
+# check we are in a valid C source file if not then ignore this hunk
+		next if ($realfile !~ /\.(h|c)$/);
 
 # check for RCS/CVS revision markers
 		if ($rawline =~ /^\+.*\$(Revision|Log|Id)(?:\$|)/) {
