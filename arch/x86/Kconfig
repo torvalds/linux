@@ -39,10 +39,6 @@ config ARCH_DEFCONFIG
 	default "arch/x86/configs/i386_defconfig" if X86_32
 	default "arch/x86/configs/x86_64_defconfig" if X86_64
 
-
-config GENERIC_LOCKBREAK
-	def_bool n
-
 config GENERIC_TIME
 	def_bool y
 
@@ -95,7 +91,7 @@ config GENERIC_HWEIGHT
 	def_bool y
 
 config GENERIC_GPIO
-	def_bool n
+	bool
 
 config ARCH_MAY_HAVE_PC_FDC
 	def_bool y
@@ -105,12 +101,6 @@ config RWSEM_GENERIC_SPINLOCK
 
 config RWSEM_XCHGADD_ALGORITHM
 	def_bool X86_XADD
-
-config ARCH_HAS_ILOG2_U32
-	def_bool n
-
-config ARCH_HAS_ILOG2_U64
-	def_bool n
 
 config ARCH_HAS_CPU_IDLE_WAIT
 	def_bool y
@@ -758,9 +748,8 @@ config I8K
 	  Say N otherwise.
 
 config X86_REBOOTFIXUPS
-	def_bool n
-	prompt "Enable X86 board specific fixups for reboot"
-	depends on X86_32 && X86
+	bool "Enable X86 board specific fixups for reboot"
+	depends on X86_32
 	---help---
 	  This enables chipset and/or board specific fixups to be done
 	  in order to get reboot to work correctly. This is only needed on
@@ -944,8 +933,7 @@ config HIGHMEM
 	depends on X86_32 && (HIGHMEM64G || HIGHMEM4G)
 
 config X86_PAE
-	def_bool n
-	prompt "PAE (Physical Address Extension) Support"
+	bool "PAE (Physical Address Extension) Support"
 	depends on X86_32 && !HIGHMEM4G
 	select RESOURCES_64BIT
 	help
@@ -1238,8 +1226,7 @@ config X86_PAT
 	  If unsure, say Y.
 
 config EFI
-	def_bool n
-	prompt "EFI runtime service support"
+	bool "EFI runtime service support"
 	depends on ACPI
 	---help---
 	This enables the kernel to use EFI runtime services that are

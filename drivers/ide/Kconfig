@@ -4,7 +4,7 @@
 
 # Select HAVE_IDE if IDE is supported
 config HAVE_IDE
-	def_bool n
+	bool
 
 menuconfig IDE
 	tristate "ATA/ATAPI/MFM/RLL support"
