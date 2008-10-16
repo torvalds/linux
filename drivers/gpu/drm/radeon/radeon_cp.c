@@ -133,9 +133,10 @@ static void radeon_write_agp_base(drm_radeon_private_t *dev_priv, u64 agp_base)
 	} else if ((dev_priv->flags & RADEON_FAMILY_MASK) > CHIP_RV515) {
 		R500_WRITE_MCIND(R520_MC_AGP_BASE, agp_base_lo);
 		R500_WRITE_MCIND(R520_MC_AGP_BASE_2, agp_base_hi);
-	} else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS480) {
+	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS400) ||
+		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS480)) {
 		RADEON_WRITE(RADEON_AGP_BASE, agp_base_lo);
-		RADEON_WRITE(RS480_AGP_BASE_2, 0);
+		RADEON_WRITE(RS480_AGP_BASE_2, agp_base_hi);
 	} else {
 		RADEON_WRITE(RADEON_AGP_BASE, agp_base_lo);
 		if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R200)
@@ -352,6 +353,7 @@ static void radeon_cp_load_microcode(drm_radeon_private_t * dev_priv)
 		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R350) ||
 		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV350) ||
 		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV380) ||
+		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS400) ||
 		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS480)) {
 		DRM_INFO("Loading R300 Microcode\n");
 		for (i = 0; i < 256; i++) {
