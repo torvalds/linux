@@ -564,7 +564,7 @@ static void kvm_set_time_scale(uint32_t tsc_khz, struct pvclock_vcpu_time_info *
 	hv_clock->tsc_to_system_mul = div_frac(nsecs, tps32);
 
 	pr_debug("%s: tsc_khz %u, tsc_shift %d, tsc_mul %u\n",
-		 __FUNCTION__, tsc_khz, hv_clock->tsc_shift,
+		 __func__, tsc_khz, hv_clock->tsc_shift,
 		 hv_clock->tsc_to_system_mul);
 }
 
