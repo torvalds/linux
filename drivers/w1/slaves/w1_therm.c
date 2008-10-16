@@ -171,7 +171,7 @@ static ssize_t w1_therm_read(struct device *device,
 	int i, max_trying = 10;
 	ssize_t c = PAGE_SIZE;
 
-	mutex_lock(&sl->master->mutex);
+	mutex_lock(&dev->mutex);
 
 	memset(rom, 0, sizeof(rom));
 
