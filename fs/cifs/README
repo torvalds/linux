@@ -463,6 +463,9 @@ A partial list of the supported mount options follows:
 		with cifs style mandatory byte range locks (and most
 		cifs servers do not yet support requesting advisory
 		byte range locks).
+ nodfs          Disable DFS (global name space support) even if the
+		server claims to support it.  This can help work around
+		a problem with parsing of DFS paths with Samba 3.0.24 server.
  remount        remount the share (often used to change from ro to rw mounts
 	        or vice versa)
  cifsacl        Report mode bits (e.g. on stat) based on the Windows ACL for

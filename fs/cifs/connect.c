@@ -90,6 +90,7 @@ struct smb_vol {
 	bool nocase:1;     /* request case insensitive filenames */
 	bool nobrl:1;      /* disable sending byte range locks to srv */
 	bool seal:1;       /* request transport encryption on share */
+	bool nodfs:1;
 	unsigned int rsize;
 	unsigned int wsize;
 	unsigned int sockopt;
@@ -1218,6 +1219,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 			vol->sfu_emul = 1;
 		} else if (strnicmp(data, "nosfu", 5) == 0) {
 			vol->sfu_emul = 0;
+		} else if (strnicmp(data, "nodfs", 5) == 0) {
+			vol->nodfs = 1;
 		} else if (strnicmp(data, "posixpaths", 10) == 0) {
 			vol->posix_paths = 1;
 		} else if (strnicmp(data, "noposixpaths", 12) == 0) {
@@ -2197,6 +2200,12 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 						volume_info.UNC,
 						tcon, cifs_sb->local_nls);
 					cFYI(1, ("CIFS Tcon rc = %d", rc));
+					if (volume_info.nodfs) {
+						tcon->Flags &=
+							~SMB_SHARE_IS_IN_DFS;
+						cFYI(1, ("DFS disabled (%d)",
+							tcon->Flags));
+					}
 				}
 				if (!rc) {
 					atomic_inc(&pSesInfo->inUse);
