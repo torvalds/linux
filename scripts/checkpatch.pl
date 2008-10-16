@@ -1128,6 +1128,7 @@ sub process {
 		$linenr++;
 
 		my $rawline = $rawlines[$linenr - 1];
+		my $hunk_line = ($realcnt != 0);
 
 #extract the line range in the file after the patch is applied
 		if ($line=~/^\@\@ -\d+(?:,\d+)? \+(\d+)(,(\d+))? \@\@/) {
@@ -1238,8 +1239,8 @@ sub process {
 			ERROR("Invalid UTF-8, patch and commit message should be encoded in UTF-8\n" . $hereptr);
 		}
 
-#ignore lines being removed
-		if ($line=~/^-/) {next;}
+# ignore non-hunk lines and lines being removed
+		next if (!$hunk_line || $line =~ /^-/);
 
 #trailing whitespace
 		if ($line =~ /^\+.*\015/) {
