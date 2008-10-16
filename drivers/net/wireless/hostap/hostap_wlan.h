@@ -822,7 +822,7 @@ struct local_info {
 	int last_scan_results_count;
 	enum { PRISM2_SCAN, PRISM2_HOSTSCAN } last_scan_type;
 	struct work_struct info_queue;
-	long pending_info; /* bit field of pending info_queue items */
+	unsigned long pending_info; /* bit field of pending info_queue items */
 #define PRISM2_INFO_PENDING_LINKSTATUS 0
 #define PRISM2_INFO_PENDING_SCANRESULTS 1
 	int prev_link_status; /* previous received LinkStatus info */
