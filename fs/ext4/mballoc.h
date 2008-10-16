@@ -98,23 +98,29 @@
 
 static struct kmem_cache *ext4_pspace_cachep;
 static struct kmem_cache *ext4_ac_cachep;
+static struct kmem_cache *ext4_free_ext_cachep;
 
-#ifdef EXT4_BB_MAX_BLOCKS
-#undef EXT4_BB_MAX_BLOCKS
-#endif
-#define EXT4_BB_MAX_BLOCKS	30
+struct ext4_free_data {
+	/* this links the free block information from group_info */
+	struct rb_node node;
 
-struct ext4_free_metadata {
-	ext4_group_t group;
-	unsigned short num;
-	ext4_grpblk_t  blocks[EXT4_BB_MAX_BLOCKS];
+	/* this links the free block information from ext4_sb_info */
 	struct list_head list;
+
+	/* group which free block extent belongs */
+	ext4_group_t group;
+
+	/* free block extent */
+	ext4_grpblk_t start_blk;
+	ext4_grpblk_t count;
+
+	/* transaction which freed this extent */
+	tid_t	t_tid;
 };
 
 struct ext4_group_info {
 	unsigned long	bb_state;
-	unsigned long	bb_tid;
-	struct ext4_free_metadata *bb_md_cur;
+	struct rb_root  bb_free_root;
 	unsigned short	bb_first_free;
 	unsigned short	bb_free;
 	unsigned short	bb_fragments;
