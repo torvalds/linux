@@ -665,7 +665,7 @@ config AUTOFS4_FS
 	  N here.
 
 config FUSE_FS
-	tristate "Filesystem in Userspace support"
+	tristate "FUSE (Filesystem in Userspace) support"
 	help
 	  With FUSE it is possible to implement a fully functional filesystem
 	  in a userspace program.
