@@ -161,7 +161,7 @@ EXPORT_SYMBOL(probe_irq_mask);
  */
 int probe_irq_off(unsigned long val)
 {
-	int i, irq_found = 0, nr_irqs = 0;
+	int i, irq_found = 0, nr_of_irqs = 0;
 	struct irq_desc *desc;
 	unsigned int status;
 
@@ -171,9 +171,9 @@ int probe_irq_off(unsigned long val)
 
 		if (status & IRQ_AUTODETECT) {
 			if (!(status & IRQ_WAITING)) {
-				if (!nr_irqs)
+				if (!nr_of_irqs)
 					irq_found = i;
-				nr_irqs++;
+				nr_of_irqs++;
 			}
 			desc->status = status & ~IRQ_AUTODETECT;
 			desc->chip->shutdown(i);
@@ -182,7 +182,7 @@ int probe_irq_off(unsigned long val)
 	}
 	mutex_unlock(&probing_active);
 
-	if (nr_irqs > 1)
+	if (nr_of_irqs > 1)
 		irq_found = -irq_found;
 
 	return irq_found;
