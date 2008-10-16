@@ -1465,6 +1465,7 @@ sub process {
 			}
 
 			my $cond_ptr = -1;
+			$continuation = 0;
 			while ($cond_ptr != $cond_lines) {
 				$cond_ptr = $cond_lines;
 
@@ -1478,9 +1479,11 @@ sub process {
 				#  1) blank lines, they should be at 0,
 				#  2) preprocessor lines, and
 				#  3) labels.
-				if ($s =~ /^\s*?\n/ ||
+				if ($continuation ||
+				    $s =~ /^\s*?\n/ ||
 				    $s =~ /^\s*#\s*?/ ||
 				    $s =~ /^\s*$Ident\s*:/) {
+					$continuation = ($s =~ /^.*?\\\n/) ? 1 : 0;
 					$s =~ s/^.*?\n//;
 					$cond_lines++;
 				}
