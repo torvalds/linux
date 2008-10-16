@@ -782,9 +782,9 @@ sub annotate_values {
 			}
 			$type = 'N';
 
-		} elsif ($cur =~ /^(if|while|typeof|__typeof__|for)\b/o) {
+		} elsif ($cur =~ /^(if|while|for)\b/o) {
 			print "COND($1)\n" if ($dbg_values > 1);
-			$av_pending = 'N';
+			$av_pending = 'E';
 			$type = 'N';
 
 		} elsif ($cur =~/^(case)/o) {
@@ -792,7 +792,7 @@ sub annotate_values {
 			$av_pend_colon = 'C';
 			$type = 'N';
 
-		} elsif ($cur =~/^(return|else|goto)/o) {
+		} elsif ($cur =~/^(return|else|goto|typeof|__typeof__)\b/o) {
 			print "KEYWORD($1)\n" if ($dbg_values > 1);
 			$type = 'N';
 
@@ -1843,6 +1843,11 @@ sub process {
 			# Ignore the current line if its is a preprocessor
 			# line.
 			if ($s =~ /^\s*#\s*/) {
+				$check = 0;
+			}
+
+			# Ignore the current line if it is label.
+			if ($s =~ /^\s*$Ident\s*:/) {
 				$check = 0;
 			}
 
