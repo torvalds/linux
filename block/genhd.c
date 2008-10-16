@@ -534,7 +534,7 @@ void unlink_gendisk(struct gendisk *disk)
 /**
  * get_gendisk - get partitioning information for a given device
  * @devt: device to get partitioning information for
- * @part: returned partition index
+ * @partno: returned partition index
  *
  * This function gets the structure containing partitioning
  * information for the given device @devt.

@@ -1018,8 +1018,9 @@ static void part_round_stats_single(int cpu, struct hd_struct *part,
 }
 
 /**
- * part_round_stats()	- Round off the performance stats on a struct
- * disk_stats.
+ * part_round_stats() - Round off the performance stats on a struct disk_stats.
+ * @cpu: cpu number for stats access
+ * @part: target partition
  *
  * The average IO queue length and utilisation statistics are maintained
  * by observing the current state of the queue length and the amount of
