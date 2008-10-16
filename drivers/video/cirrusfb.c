@@ -657,7 +657,7 @@ static int cirrusfb_decode_var(const struct fb_var_screeninfo *var,
 	case 16:
 	case 32:
 		info->fix.line_length = var->xres_virtual * maxclockidx;
-		info->fix.visual = FB_VISUAL_DIRECTCOLOR;
+		info->fix.visual = FB_VISUAL_TRUECOLOR;
 		break;
 
 	default:
@@ -1178,10 +1178,7 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 
 		case BT_ALPINE:
 			DPRINTK(" (for GD543x)\n");
-			if (var->xres >= 1024)
-				vga_wseq(regbase, CL_SEQR7, 0xa7);
-			else
-				vga_wseq(regbase, CL_SEQR7, 0xa3);
+			vga_wseq(regbase, CL_SEQR7, 0xa7);
 			cirrusfb_set_mclk(cinfo, regs.mclk, regs.divMCLK);
 			break;
 
