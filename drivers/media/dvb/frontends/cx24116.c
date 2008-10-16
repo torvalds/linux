@@ -48,7 +48,7 @@ MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
 #define dprintk(args...) \
 	do { \
 		if (debug) \
-			printk("cx24116: " args); \
+			printk(KERN_INFO "cx24116: " args); \
 	} while (0)
 
 #define CX24116_DEFAULT_FIRMWARE "dvb-fe-cx24116.fw"
@@ -72,13 +72,20 @@ MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
 #define CX24116_REG_UCB8    (0xca)
 #define CX24116_REG_CLKDIV  (0xf3)
 #define CX24116_REG_RATEDIV (0xf9)
-#define CX24116_REG_FECSTATUS (0x9c)    /* configured fec (not tuned) or actual FEC (tuned) 1=1/2 2=2/3 etc */
+
+/* configured fec (not tuned) or actual FEC (tuned) 1=1/2 2=2/3 etc */
+#define CX24116_REG_FECSTATUS (0x9c)
 
 /* FECSTATUS bits */
-#define CX24116_FEC_FECMASK   (0x1f)    /* mask to determine configured fec (not tuned) or actual fec (tuned) */
-#define CX24116_FEC_DVBS      (0x20)    /* Select DVB-S demodulator, else DVB-S2 */
+/* mask to determine configured fec (not tuned) or actual fec (tuned) */
+#define CX24116_FEC_FECMASK   (0x1f)
+
+/* Select DVB-S demodulator, else DVB-S2 */
+#define CX24116_FEC_DVBS      (0x20)
 #define CX24116_FEC_UNKNOWN   (0x40)    /* Unknown/unused */
-#define CX24116_FEC_PILOT     (0x80)    /* Pilot mode requested when tuning else always reset when tuned */
+
+/* Pilot mode requested when tuning else always reset when tuned */
+#define CX24116_FEC_PILOT     (0x80)
 
 /* arg buffer size */
 #define CX24116_ARGLEN (0x1e)
@@ -121,12 +128,14 @@ MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
 /* DiSEqC tone burst */
 static int toneburst = 1;
 module_param(toneburst, int, 0644);
-MODULE_PARM_DESC(toneburst, "DiSEqC toneburst 0=OFF, 1=TONE CACHE, 2=MESSAGE CACHE (default:1)");
+MODULE_PARM_DESC(toneburst, "DiSEqC toneburst 0=OFF, 1=TONE CACHE, "\
+	"2=MESSAGE CACHE (default:1)");
 
 /* SNR measurements */
 static int esno_snr;
 module_param(esno_snr, int, 0644);
-MODULE_PARM_DESC(debug, "SNR return units, 0=PERCENTAGE 0-100, 1=ESNO(db * 10) (default:0)");
+MODULE_PARM_DESC(debug, "SNR return units, 0=PERCENTAGE 0-100, "\
+	"1=ESNO(db * 10) (default:0)");
 
 enum cmds {
 	CMD_SET_VCO     = 0x10,
@@ -196,7 +205,7 @@ static int cx24116_writereg(struct cx24116_state *state, int reg, int data)
 
 	err = i2c_transfer(state->i2c, &msg, 1);
 	if (err != 1) {
-		printk("%s: writereg error(err == %i, reg == 0x%02x,"
+		printk(KERN_ERR "%s: writereg error(err == %i, reg == 0x%02x,"
 			 " value == 0x%02x)\n", __func__, err, reg, data);
 		return -EREMOTEIO;
 	}
@@ -228,12 +237,12 @@ static int cx24116_writeregN(struct cx24116_state *state, int reg,
 	msg.len = len + 1;
 
 	if (debug > 1)
-		printk("cx24116: %s:  write regN 0x%02x, len = %d\n",
+		printk(KERN_INFO "cx24116: %s:  write regN 0x%02x, len = %d\n",
 			__func__, reg, len);
 
 	ret = i2c_transfer(state->i2c, &msg, 1);
 	if (ret != 1) {
-		printk("%s: writereg error(err == %i, reg == 0x%02x\n",
+		printk(KERN_ERR "%s: writereg error(err == %i, reg == 0x%02x\n",
 			 __func__, ret, reg);
 		ret = -EREMOTEIO;
 	}
@@ -259,18 +268,20 @@ static int cx24116_readreg(struct cx24116_state *state, u8 reg)
 	ret = i2c_transfer(state->i2c, msg, 2);
 
 	if (ret != 2) {
-		printk("%s: reg=0x%x (error=%d)\n", __func__, reg, ret);
+		printk(KERN_ERR "%s: reg=0x%x (error=%d)\n",
+			__func__, reg, ret);
 		return ret;
 	}
 
 	if (debug > 1)
-		printk("cx24116: read reg 0x%02x, value 0x%02x\n",
+		printk(KERN_INFO "cx24116: read reg 0x%02x, value 0x%02x\n",
 			reg, b1[0]);
 
 	return b1[0];
 }
 
-static int cx24116_set_inversion(struct cx24116_state *state, fe_spectral_inversion_t inversion)
+static int cx24116_set_inversion(struct cx24116_state *state,
+	fe_spectral_inversion_t inversion)
 {
 	dprintk("%s(%d)\n", __func__, inversion);
 
@@ -318,10 +329,10 @@ static int cx24116_set_inversion(struct cx24116_state *state, fe_spectral_invers
  * Eg.(2/3) szap "Zone Horror"
  *
  * mask/val = 0x04, 0x20
- * status 1f | signal c3c0 | snr a333 | ber 00000098 | unc 00000000 | FE_HAS_LOCK
+ * status 1f | signal c3c0 | snr a333 | ber 00000098 | unc 0 | FE_HAS_LOCK
  *
  * mask/val = 0x04, 0x30
- * status 1f | signal c3c0 | snr a333 | ber 00000000 | unc 00000000 | FE_HAS_LOCK
+ * status 1f | signal c3c0 | snr a333 | ber 00000000 | unc 0 | FE_HAS_LOCK
  *
  * After tuning FECSTATUS contains actual FEC
  * in use numbered 1 through to 8 for 1/2 .. 2/3 etc
@@ -417,7 +428,8 @@ static int cx24116_lookup_fecmod(struct cx24116_state *state,
 	return ret;
 }
 
-static int cx24116_set_fec(struct cx24116_state *state, fe_modulation_t mod, fe_code_rate_t fec)
+static int cx24116_set_fec(struct cx24116_state *state,
+	fe_modulation_t mod, fe_code_rate_t fec)
 {
 	int ret = 0;
 
@@ -471,25 +483,32 @@ static int cx24116_firmware_ondemand(struct dvb_frontend *fe)
 			return 0;
 
 		/* Load firmware */
-		/* request the firmware, this will block until someone uploads it */
-		printk("%s: Waiting for firmware upload (%s)...\n", __func__, CX24116_DEFAULT_FIRMWARE);
-		ret = request_firmware(&fw, CX24116_DEFAULT_FIRMWARE, &state->i2c->dev);
-		printk("%s: Waiting for firmware upload(2)...\n", __func__);
+		/* request the firmware, this will block until loaded */
+		printk(KERN_INFO "%s: Waiting for firmware upload (%s)...\n",
+			__func__, CX24116_DEFAULT_FIRMWARE);
+		ret = request_firmware(&fw, CX24116_DEFAULT_FIRMWARE,
+			&state->i2c->dev);
+		printk(KERN_INFO "%s: Waiting for firmware upload(2)...\n",
+			__func__);
 		if (ret) {
-			printk("%s: No firmware uploaded (timeout or file not found?)\n", __func__);
+			printk(KERN_ERR "%s: No firmware uploaded "
+				"(timeout or file not found?)\n", __func__);
 			return ret;
 		}
 
-		/* Make sure we don't recurse back through here during loading */
+		/* Make sure we don't recurse back through here
+		 * during loading */
 		state->skip_fw_load = 1;
 
 		ret = cx24116_load_firmware(fe, fw);
 		if (ret)
-			printk("%s: Writing firmware to device failed\n", __func__);
+			printk(KERN_ERR "%s: Writing firmware to device failed\n",
+				__func__);
 
 		release_firmware(fw);
 
-		printk("%s: Firmware upload %s\n", __func__, ret == 0 ? "complete" : "failed");
+		printk(KERN_INFO "%s: Firmware upload %s\n", __func__,
+			ret == 0 ? "complete" : "failed");
 
 		/* Ensure firmware is always loaded if required */
 		state->skip_fw_load = 0;
@@ -498,7 +517,9 @@ static int cx24116_firmware_ondemand(struct dvb_frontend *fe)
 	return ret;
 }
 
-/* Take a basic firmware command structure, format it and forward it for processing */
+/* Take a basic firmware command structure, format it
+ * and forward it for processing
+ */
 static int cx24116_cmd_execute(struct dvb_frontend *fe, struct cx24116_cmd *cmd)
 {
 	struct cx24116_state *state = fe->demodulator_priv;
@@ -509,7 +530,8 @@ static int cx24116_cmd_execute(struct dvb_frontend *fe, struct cx24116_cmd *cmd)
 	/* Load the firmware if required */
 	ret = cx24116_firmware_ondemand(fe);
 	if (ret != 0) {
-		printk("%s(): Unable initialise the firmware\n", __func__);
+		printk(KERN_ERR "%s(): Unable initialise the firmware\n",
+			__func__);
 		return ret;
 	}
 
@@ -524,8 +546,10 @@ static int cx24116_cmd_execute(struct dvb_frontend *fe, struct cx24116_cmd *cmd)
 	while (cx24116_readreg(state, CX24116_REG_EXECUTE)) {
 		msleep(10);
 		if (i++ > 64) {
-			/* Avoid looping forever if the firmware does no respond */
-			printk("%s() Firmware not responding\n", __func__);
+			/* Avoid looping forever if the firmware does
+				not respond */
+			printk(KERN_WARNING "%s() Firmware not responding\n",
+				__func__);
 			return -EREMOTEIO;
 		}
 	}
@@ -635,7 +659,7 @@ static int cx24116_load_firmware(struct dvb_frontend *fe,
 			return ret;
 		vers[i] = cx24116_readreg(state, CX24116_REG_MAILBOX);
 	}
-	printk("%s: FW version %i.%i.%i.%i\n", __func__,
+	printk(KERN_INFO "%s: FW version %i.%i.%i.%i\n", __func__,
 		vers[0], vers[1], vers[2], vers[3]);
 
 	return 0;
@@ -818,7 +842,7 @@ static int cx24116_set_tone(struct dvb_frontend *fe,
 
 	dprintk("%s(%d)\n", __func__, tone);
 	if ((tone != SEC_TONE_ON) && (tone != SEC_TONE_OFF)) {
-		printk("%s: Invalid, tone=%d\n", __func__, tone);
+		printk(KERN_ERR "%s: Invalid, tone=%d\n", __func__, tone);
 		return -EINVAL;
 	}
 
@@ -891,7 +915,8 @@ static int cx24116_diseqc_init(struct dvb_frontend *fe)
 	/* Unknown */
 	state->dsec_cmd.args[CX24116_DISEQC_ARG2_2] = 0x02;
 	state->dsec_cmd.args[CX24116_DISEQC_ARG3_0] = 0x00;
-	state->dsec_cmd.args[CX24116_DISEQC_ARG4_0] = 0x00; /* Continuation flag? */
+	/* Continuation flag? */
+	state->dsec_cmd.args[CX24116_DISEQC_ARG4_0] = 0x00;
 
 	/* DiSEqC message length */
 	state->dsec_cmd.args[CX24116_DISEQC_MSGLEN] = 0x00;
@@ -911,11 +936,11 @@ static int cx24116_send_diseqc_msg(struct dvb_frontend *fe,
 
 	/* Dump DiSEqC message */
 	if (debug) {
-		printk("cx24116: %s(", __func__);
+		printk(KERN_INFO "cx24116: %s(", __func__);
 		for (i = 0 ; i < d->msg_len ;) {
-			printk("0x%02x", d->msg[i]);
+			printk(KERN_INFO "0x%02x", d->msg[i]);
 			if (++i < d->msg_len)
-				printk(", ");
+				printk(KERN_INFO ", ");
 		}
 		printk(") toneburst=%d\n", toneburst);
 	}
@@ -1072,10 +1097,8 @@ struct dvb_frontend *cx24116_attach(const struct cx24116_config *config,
 
 	/* allocate memory for the internal state */
 	state = kmalloc(sizeof(struct cx24116_state), GFP_KERNEL);
-	if (state == NULL) {
-		printk("Unable to kmalloc\n");
+	if (state == NULL)
 		goto error1;
-	}
 
 	/* setup the state */
 	memset(state, 0, sizeof(struct cx24116_state));
@@ -1084,14 +1107,16 @@ struct dvb_frontend *cx24116_attach(const struct cx24116_config *config,
 	state->i2c = i2c;
 
 	/* check if the demod is present */
-	ret = (cx24116_readreg(state, 0xFF) << 8) | cx24116_readreg(state, 0xFE);
+	ret = (cx24116_readreg(state, 0xFF) << 8) |
+		cx24116_readreg(state, 0xFE);
 	if (ret != 0x0501) {
-		printk("Invalid probe, probably not a CX24116 device\n");
+		printk(KERN_INFO "Invalid probe, probably not a CX24116 device\n");
 		goto error2;
 	}
 
 	/* create dvb_frontend */
-	memcpy(&state->frontend.ops, &cx24116_ops, sizeof(struct dvb_frontend_ops));
+	memcpy(&state->frontend.ops, &cx24116_ops,
+		sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 
