@@ -30,11 +30,11 @@
 #ifndef _BLACKFIN_CACHEFLUSH_H
 #define _BLACKFIN_CACHEFLUSH_H
 
-extern void blackfin_icache_dcache_flush_range(unsigned int, unsigned int);
-extern void blackfin_icache_flush_range(unsigned int, unsigned int);
-extern void blackfin_dcache_flush_range(unsigned int, unsigned int);
-extern void blackfin_dcache_invalidate_range(unsigned int, unsigned int);
-extern void blackfin_dflush_page(void *);
+extern void blackfin_icache_dcache_flush_range(unsigned long start_address, unsigned long end_address);
+extern void blackfin_icache_flush_range(unsigned long start_address, unsigned long end_address);
+extern void blackfin_dcache_flush_range(unsigned long start_address, unsigned long end_address);
+extern void blackfin_dcache_invalidate_range(unsigned long start_address, unsigned long end_address);
+extern void blackfin_dflush_page(void *page);
 
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
