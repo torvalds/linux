@@ -3481,7 +3481,9 @@ static u16 MXL_ControlWrite_Group(struct dvb_frontend *fe, u16 controlNum,
 					}
 					ctrlVal = 0;
 					for (k = 0; k < state->MXL_Ctrl[i].size; k++)
-						ctrlVal += state->MXL_Ctrl[i].val[k] * (1 << k);
+						ctrlVal += state->
+							MXL_Ctrl[i].val[k] *
+							(1 << k);
 				} else
 					return -1;
 			}
@@ -3581,7 +3583,7 @@ static void MXL_RegWriteBit(struct dvb_frontend *fe, u8 address, u8 bit,
 
 static u32 MXL_Ceiling(u32 value, u32 resolution)
 {
-	return (value/resolution + (value % resolution > 0 ? 1 : 0));
+	return value / resolution + (value % resolution > 0 ? 1 : 0);
 }
 
 /* Retrieve the Initialzation Registers */
