@@ -152,7 +152,7 @@ static struct dn_dev_parms dn_dev_list[] =  {
 
 #define DN_DEV_LIST_SIZE ARRAY_SIZE(dn_dev_list)
 
-#define DN_DEV_PARMS_OFFSET(x) ((int) ((char *) &((struct dn_dev_parms *)0)->x))
+#define DN_DEV_PARMS_OFFSET(x) offsetof(struct dn_dev_parms, x)
 
 #ifdef CONFIG_SYSCTL
 

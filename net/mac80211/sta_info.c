@@ -635,7 +635,12 @@ static void sta_info_debugfs_add_work(struct work_struct *work)
 
 		spin_lock_irqsave(&local->sta_lock, flags);
 		list_for_each_entry(tmp, &local->sta_list, list) {
-			if (!tmp->debugfs.dir) {
+			/*
+			 * debugfs.add_has_run will be set by
+			 * ieee80211_sta_debugfs_add regardless
+			 * of what else it does.
+			 */
+			if (!tmp->debugfs.add_has_run) {
 				sta = tmp;
 				__sta_info_pin(sta);
 				break;

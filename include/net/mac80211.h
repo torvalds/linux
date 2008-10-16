@@ -645,7 +645,8 @@ enum ieee80211_key_flags {
  * 	- Temporal Encryption Key (128 bits)
  * 	- Temporal Authenticator Tx MIC Key (64 bits)
  * 	- Temporal Authenticator Rx MIC Key (64 bits)
- *
+ * @icv_len: FIXME
+ * @iv_len: FIXME
  */
 struct ieee80211_key_conf {
 	enum ieee80211_key_alg alg;
