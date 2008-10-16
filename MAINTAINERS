@@ -378,8 +378,9 @@ T:	git://git.kernel.org/pub/scm/linux/kernel/git/joro/linux-2.6-iommu.git
 S:	Supported
 
 AMD MICROCODE UPDATE SUPPORT
-P:      Peter Oruba
-M:      peter.oruba@amd.com
+P:      Andreas Herrmann
+M:      andeas.herrmann3@amd.com
+L:      amd64-microcode@amd64.org
 S:      Supported
 
 AMS (Apple Motion Sensor) DRIVER
