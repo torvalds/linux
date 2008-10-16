@@ -277,7 +277,8 @@ void w1_search_devices(struct w1_master *dev, u8 search_type, w1_slave_found_cal
 {
 	dev->attempts++;
 	if (dev->bus_master->search)
-		dev->bus_master->search(dev->bus_master->data, search_type, cb);
+		dev->bus_master->search(dev->bus_master->data, dev,
+			search_type, cb);
 	else
 		w1_search(dev, search_type, cb);
 }

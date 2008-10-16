@@ -274,8 +274,8 @@ static u8 ds1wm_reset_bus(void *data)
 	return 0;
 }
 
-static void ds1wm_search(void *data, u8 search_type,
-			 w1_slave_found_callback slave_found)
+static void ds1wm_search(void *data, struct w1_master *master_dev,
+			u8 search_type, w1_slave_found_callback slave_found)
 {
 	struct ds1wm_data *ds1wm_data = data;
 	int i;
@@ -313,7 +313,7 @@ static void ds1wm_search(void *data, u8 search_type,
 	ds1wm_write_register(ds1wm_data, DS1WM_CMD, ~DS1WM_CMD_SRA);
 	ds1wm_reset(ds1wm_data);
 
-	slave_found(ds1wm_data, rom_id);
+	slave_found(master_dev, rom_id);
 }
 
 /* --------------------------------------------------------------------- */

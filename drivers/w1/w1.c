@@ -46,19 +46,15 @@ MODULE_AUTHOR("Evgeniy Polyakov <johnpol@2ka.mipt.ru>");
 MODULE_DESCRIPTION("Driver for 1-wire Dallas network protocol.");
 
 static int w1_timeout = 10;
-static int w1_control_timeout = 1;
 int w1_max_slave_count = 10;
 int w1_max_slave_ttl = 10;
 
 module_param_named(timeout, w1_timeout, int, 0);
-module_param_named(control_timeout, w1_control_timeout, int, 0);
 module_param_named(max_slave_count, w1_max_slave_count, int, 0);
 module_param_named(slave_ttl, w1_max_slave_ttl, int, 0);
 
 DEFINE_MUTEX(w1_mlock);
 LIST_HEAD(w1_masters);
-
-static struct task_struct *w1_control_thread;
 
 static int w1_master_match(struct device *dev, struct device_driver *drv)
 {
@@ -390,7 +386,7 @@ int w1_create_master_attributes(struct w1_master *master)
 	return sysfs_create_group(&master->dev.kobj, &w1_master_defattr_group);
 }
 
-static void w1_destroy_master_attributes(struct w1_master *master)
+void w1_destroy_master_attributes(struct w1_master *master)
 {
 	sysfs_remove_group(&master->dev.kobj, &w1_master_defattr_group);
 }
@@ -567,7 +563,7 @@ static int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn)
 	return 0;
 }
 
-static void w1_slave_detach(struct w1_slave *sl)
+void w1_slave_detach(struct w1_slave *sl)
 {
 	struct w1_netlink_msg msg;
 
@@ -589,24 +585,6 @@ static void w1_slave_detach(struct w1_slave *sl)
 
 	wait_for_completion(&sl->released);
 	kfree(sl);
-}
-
-static struct w1_master *w1_search_master(void *data)
-{
-	struct w1_master *dev;
-	int found = 0;
-
-	mutex_lock(&w1_mlock);
-	list_for_each_entry(dev, &w1_masters, w1_master_entry) {
-		if (dev->bus_master->data == data) {
-			found = 1;
-			atomic_inc(&dev->refcnt);
-			break;
-		}
-	}
-	mutex_unlock(&w1_mlock);
-
-	return (found)?dev:NULL;
 }
 
 struct w1_master *w1_search_master_id(u32 id)
@@ -656,34 +634,49 @@ struct w1_slave *w1_search_slave(struct w1_reg_num *id)
 	return (found)?sl:NULL;
 }
 
-void w1_reconnect_slaves(struct w1_family *f)
+void w1_reconnect_slaves(struct w1_family *f, int attach)
 {
+	struct w1_slave *sl, *sln;
 	struct w1_master *dev;
 
 	mutex_lock(&w1_mlock);
 	list_for_each_entry(dev, &w1_masters, w1_master_entry) {
-		dev_dbg(&dev->dev, "Reconnecting slaves in %s into new family %02x.\n",
-				dev->name, f->fid);
-		set_bit(W1_MASTER_NEED_RECONNECT, &dev->flags);
+		dev_dbg(&dev->dev, "Reconnecting slaves in device %s "
+			"for family %02x.\n", dev->name, f->fid);
+		mutex_lock(&dev->mutex);
+		list_for_each_entry_safe(sl, sln, &dev->slist, w1_slave_entry) {
+			/* If it is a new family, slaves with the default
+			 * family driver and are that family will be
+			 * connected.  If the family is going away, devices
+			 * matching that family are reconneced.
+			 */
+			if ((attach && sl->family->fid == W1_FAMILY_DEFAULT
+				&& sl->reg_num.family == f->fid) ||
+				(!attach && sl->family->fid == f->fid)) {
+				struct w1_reg_num rn;
+
+				memcpy(&rn, &sl->reg_num, sizeof(rn));
+				w1_slave_detach(sl);
+
+				w1_attach_slave_device(dev, &rn);
+			}
+		}
+		dev_dbg(&dev->dev, "Reconnecting slaves in device %s "
+			"has been finished.\n", dev->name);
+		mutex_unlock(&dev->mutex);
 	}
 	mutex_unlock(&w1_mlock);
 }
 
-static void w1_slave_found(void *data, u64 rn)
+static void w1_slave_found(struct w1_master *dev, u64 rn)
 {
 	int slave_count;
 	struct w1_slave *sl;
 	struct list_head *ent;
 	struct w1_reg_num *tmp;
-	struct w1_master *dev;
 	u64 rn_le = cpu_to_le64(rn);
 
-	dev = w1_search_master(data);
-	if (!dev) {
-		printk(KERN_ERR "Failed to find w1 master device for data %p, "
-		       "it is impossible.\n", data);
-		return;
-	}
+	atomic_inc(&dev->refcnt);
 
 	tmp = (struct w1_reg_num *) &rn;
 
@@ -785,74 +778,9 @@ void w1_search(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb
 			if ( (desc_bit == last_zero) || (last_zero < 0))
 				last_device = 1;
 			desc_bit = last_zero;
-			cb(dev->bus_master->data, rn);
+			cb(dev, rn);
 		}
 	}
-}
-
-static int w1_control(void *data)
-{
-	struct w1_slave *sl, *sln;
-	struct w1_master *dev, *n;
-	int have_to_wait = 0;
-
-	set_freezable();
-	while (!kthread_should_stop() || have_to_wait) {
-		have_to_wait = 0;
-
-		try_to_freeze();
-		msleep_interruptible(w1_control_timeout * 1000);
-
-		list_for_each_entry_safe(dev, n, &w1_masters, w1_master_entry) {
-			if (!kthread_should_stop() && !dev->flags)
-				continue;
-			/*
-			 * Little race: we can create thread but not set the flag.
-			 * Get a chance for external process to set flag up.
-			 */
-			if (!dev->initialized) {
-				have_to_wait = 1;
-				continue;
-			}
-
-			if (kthread_should_stop() || test_bit(W1_MASTER_NEED_EXIT, &dev->flags)) {
-				set_bit(W1_MASTER_NEED_EXIT, &dev->flags);
-
-				mutex_lock(&w1_mlock);
-				list_del(&dev->w1_master_entry);
-				mutex_unlock(&w1_mlock);
-
-				mutex_lock(&dev->mutex);
-				list_for_each_entry_safe(sl, sln, &dev->slist, w1_slave_entry) {
-					w1_slave_detach(sl);
-				}
-				w1_destroy_master_attributes(dev);
-				mutex_unlock(&dev->mutex);
-				atomic_dec(&dev->refcnt);
-				continue;
-			}
-
-			if (test_bit(W1_MASTER_NEED_RECONNECT, &dev->flags)) {
-				dev_dbg(&dev->dev, "Reconnecting slaves in device %s.\n", dev->name);
-				mutex_lock(&dev->mutex);
-				list_for_each_entry_safe(sl, sln, &dev->slist, w1_slave_entry) {
-					if (sl->family->fid == W1_FAMILY_DEFAULT) {
-						struct w1_reg_num rn;
-
-						memcpy(&rn, &sl->reg_num, sizeof(rn));
-						w1_slave_detach(sl);
-
-						w1_attach_slave_device(dev, &rn);
-					}
-				}
-				dev_dbg(&dev->dev, "Reconnecting slaves in device %s has been finished.\n", dev->name);
-				clear_bit(W1_MASTER_NEED_RECONNECT, &dev->flags);
-				mutex_unlock(&dev->mutex);
-			}
-		}
-	}
-
-	return 0;
 }
 
 void w1_search_process(struct w1_master *dev, u8 search_type)
@@ -932,18 +860,13 @@ static int w1_init(void)
 		goto err_out_master_unregister;
 	}
 
-	w1_control_thread = kthread_run(w1_control, NULL, "w1_control");
-	if (IS_ERR(w1_control_thread)) {
-		retval = PTR_ERR(w1_control_thread);
-		printk(KERN_ERR "Failed to create control thread. err=%d\n",
-			retval);
-		goto err_out_slave_unregister;
-	}
-
 	return 0;
 
+#if 0
+/* For undoing the slave register if there was a step after it. */
 err_out_slave_unregister:
 	driver_unregister(&w1_slave_driver);
+#endif
 
 err_out_master_unregister:
 	driver_unregister(&w1_master_driver);
@@ -959,12 +882,11 @@ static void w1_fini(void)
 {
 	struct w1_master *dev;
 
+	/* Set netlink removal messages and some cleanup */
 	list_for_each_entry(dev, &w1_masters, w1_master_entry)
 		__w1_remove_master_device(dev);
 
 	w1_fini_netlink();
-
-	kthread_stop(w1_control_thread);
 
 	driver_unregister(&w1_slave_driver);
 	driver_unregister(&w1_master_driver);

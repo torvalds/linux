@@ -148,9 +148,21 @@ err_out_free_dev:
 void __w1_remove_master_device(struct w1_master *dev)
 {
 	struct w1_netlink_msg msg;
+	struct w1_slave *sl, *sln;
 
 	set_bit(W1_MASTER_NEED_EXIT, &dev->flags);
 	kthread_stop(dev->thread);
+
+	mutex_lock(&w1_mlock);
+	list_del(&dev->w1_master_entry);
+	mutex_unlock(&w1_mlock);
+
+	mutex_lock(&dev->mutex);
+	list_for_each_entry_safe(sl, sln, &dev->slist, w1_slave_entry)
+		w1_slave_detach(sl);
+	w1_destroy_master_attributes(dev);
+	mutex_unlock(&dev->mutex);
+	atomic_dec(&dev->refcnt);
 
 	while (atomic_read(&dev->refcnt)) {
 		dev_info(&dev->dev, "Waiting for %s to become free: refcnt=%d.\n",
