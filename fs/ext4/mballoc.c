@@ -2653,6 +2653,7 @@ ext4_mb_free_committed_blocks(struct super_block *sb)
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	int err, count = 0, count2 = 0;
 	struct ext4_free_data *entry;
+	ext4_fsblk_t discard_block;
 
 	if (list_empty(&sbi->s_committed_transaction))
 		return;
@@ -2696,6 +2697,12 @@ ext4_mb_free_committed_blocks(struct super_block *sb)
 			page_cache_release(e4b.bd_bitmap_page);
 		}
 		ext4_unlock_group(sb, entry->group);
+		discard_block = (ext4_fsblk_t) entry->group * EXT4_BLOCKS_PER_GROUP(sb)
+			+ entry->start_blk
+			+ le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block);
+		trace_mark(ext4_discard_blocks, "dev %s blk %llu count %u", sb->s_id,
+			   (unsigned long long) discard_block, entry->count);
+		sb_issue_discard(sb, discard_block, entry->count);
 
 		kmem_cache_free(ext4_free_ext_cachep, entry);
 		ext4_mb_release_desc(&e4b);

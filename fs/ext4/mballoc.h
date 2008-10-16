@@ -18,6 +18,8 @@
 #include <linux/pagemap.h>
 #include <linux/seq_file.h>
 #include <linux/version.h>
+#include <linux/blkdev.h>
+#include <linux/marker.h>
 #include "ext4_jbd2.h"
 #include "ext4.h"
 #include "group.h"
