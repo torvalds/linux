@@ -783,7 +783,7 @@ static int __devinit cx8802_probe(struct pci_dev *pci_dev,
 		goto fail_core;
 
 	if (!core->board.num_frontends) {
-		printk(KERN_ERR "%s() .num_frontends should be non-zero, err = %d\n", __FUNCTION__, err);
+		printk(KERN_ERR "%s() .num_frontends should be non-zero, err = %d\n", __func__, err);
 		goto fail_core;
 	}
 
@@ -804,12 +804,12 @@ static int __devinit cx8802_probe(struct pci_dev *pci_dev,
 	mutex_init(&dev->frontends.lock);
 	INIT_LIST_HEAD(&dev->frontends.frontend.felist);
 
-	printk(KERN_INFO "%s() allocating %d frontend(s)\n", __FUNCTION__, core->board.num_frontends);
+	printk(KERN_INFO "%s() allocating %d frontend(s)\n", __func__, core->board.num_frontends);
 
 	for (i = 1; i <= core->board.num_frontends; i++) {
 		demod = videobuf_dvb_alloc_frontend(dev, &dev->frontends, i);
 		if(demod == NULL) {
-			printk(KERN_ERR "%s() failed to alloc\n", __FUNCTION__);
+			printk(KERN_ERR "%s() failed to alloc\n", __func__);
 			err = -ENOMEM;
 			goto fail_free;
 		}

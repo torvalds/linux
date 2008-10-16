@@ -120,7 +120,7 @@ static int cx88_dvb_bus_ctrl(struct dvb_frontend* fe, int acquire)
 
 	fe_id = videobuf_dvb_find_frontend(&dev->frontends, fe);
 	if (!fe_id) {
-		printk(KERN_ERR "%s() No frontend found\n", __FUNCTION__);
+		printk(KERN_ERR "%s() No frontend found\n", __func__);
 		return -EINVAL;
 	}
 
@@ -655,10 +655,10 @@ static int dvb_register(struct cx8802_dev *dev)
 		if (fe0->dvb.frontend) {
 			if (!dvb_attach(isl6421_attach, fe0->dvb.frontend,
 			&dev->core->i2c_adap, 0x08, ISL6421_DCL, 0x00)) {
-				dprintk( 1, "%s(): HVR3000 - DVB-S LNB Init: failed\n", __FUNCTION__);
+				dprintk( 1, "%s(): HVR3000 - DVB-S LNB Init: failed\n", __func__);
 			}
 		} else {
-			dprintk( 1, "%s(): HVR3000 - DVB-S Init: failed\n", __FUNCTION__);
+			dprintk( 1, "%s(): HVR3000 - DVB-S Init: failed\n", __func__);
 		}
 		/* DVB-T init */
 		fe1 = videobuf_dvb_get_frontend(&dev->frontends, 2);
@@ -673,13 +673,13 @@ static int dvb_register(struct cx8802_dev *dev)
 				if(!dvb_attach(simple_tuner_attach, fe1->dvb.frontend,
 						&dev->core->i2c_adap, 0x61,
 						TUNER_PHILIPS_FMD1216ME_MK3)) {
-					dprintk( 1, "%s(): HVR3000 - DVB-T misc Init: failed\n", __FUNCTION__);
+					dprintk( 1, "%s(): HVR3000 - DVB-T misc Init: failed\n", __func__);
 				}
 			} else {
-				dprintk( 1, "%s(): HVR3000 - DVB-T Init: failed\n", __FUNCTION__);
+				dprintk( 1, "%s(): HVR3000 - DVB-T Init: failed\n", __func__);
 			}
 		} else {
-			dprintk( 1, "%s(): HVR3000 - DVB-T Init: can't find frontend 2.\n", __FUNCTION__);
+			dprintk( 1, "%s(): HVR3000 - DVB-T Init: can't find frontend 2.\n", __func__);
 		}
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS:
@@ -1000,10 +1000,10 @@ static int dvb_register(struct cx8802_dev *dev)
 		if (fe0->dvb.frontend) {
 			if(!dvb_attach(isl6421_attach, fe0->dvb.frontend,
 				&dev->core->i2c_adap, 0x08, ISL6421_DCL, 0x00)) {
-				dprintk( 1, "%s(): HVR4000 - DVB-S LNB Init: failed\n", __FUNCTION__);
+				dprintk( 1, "%s(): HVR4000 - DVB-S LNB Init: failed\n", __func__);
 			}
 		} else {
-			dprintk( 1, "%s(): HVR4000 - DVB-S Init: failed\n", __FUNCTION__);
+			dprintk( 1, "%s(): HVR4000 - DVB-S Init: failed\n", __func__);
 		}
 		/* DVB-T Init */
 		fe1 = videobuf_dvb_get_frontend(&dev->frontends, 2);
@@ -1018,13 +1018,13 @@ static int dvb_register(struct cx8802_dev *dev)
 				if(!dvb_attach(simple_tuner_attach, fe1->dvb.frontend,
 					&dev->core->i2c_adap, 0x61,
 					TUNER_PHILIPS_FMD1216ME_MK3)) {
-					dprintk( 1, "%s(): HVR4000 - DVB-T misc Init: failed\n", __FUNCTION__);
+					dprintk( 1, "%s(): HVR4000 - DVB-T misc Init: failed\n", __func__);
 				}
 			} else {
-				dprintk( 1, "%s(): HVR4000 - DVB-T Init: failed\n", __FUNCTION__);
+				dprintk( 1, "%s(): HVR4000 - DVB-T Init: failed\n", __func__);
 			}
 		} else {
-			dprintk( 1, "%s(): HVR4000 - DVB-T Init: can't find frontend 2.\n", __FUNCTION__);
+			dprintk( 1, "%s(): HVR4000 - DVB-T Init: can't find frontend 2.\n", __func__);
 		}
 		break;
 	case CX88_BOARD_HAUPPAUGE_HVR4000LITE:
@@ -1224,7 +1224,7 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 	for (i = 1; i <= core->board.num_frontends; i++) {
 		fe = videobuf_dvb_get_frontend(&core->dvbdev->frontends, i);
 		if (!fe) {
-			printk(KERN_ERR "%s() failed to get frontend(%d)\n", __FUNCTION__, i);
+			printk(KERN_ERR "%s() failed to get frontend(%d)\n", __func__, i);
 			continue;
 		}
 		videobuf_queue_sg_init(&fe->dvb.dvbq, &dvb_qops,
