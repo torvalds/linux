@@ -1942,12 +1942,17 @@ sub process {
 
 #warn if <asm/foo.h> is #included and <linux/foo.h> is available (uses RAW line)
 		if ($tree && $rawline =~ m{^.\s*\#\s*include\s*\<asm\/(.*)\.h\>}) {
-			my $checkfile = "include/linux/$1.h";
-			if (-f "$root/$checkfile" && $realfile ne $checkfile &&
+			my $file = "$1.h";
+			my $checkfile = "include/linux/$file";
+			if (-f "$root/$checkfile" &&
+			    $realfile ne $checkfile &&
 			    $1 ne 'irq')
 			{
-				WARN("Use #include <linux/$1.h> instead of <asm/$1.h>\n" .
-					$herecurr);
+				if ($realfile =~ m{^arch/}) {
+					CHK("Consider using #include <linux/$file> instead of <asm/$file>\n" . $herecurr);
+				} else {
+					WARN("Use #include <linux/$file> instead of <asm/$file>\n" . $herecurr);
+				}
 			}
 		}
 
