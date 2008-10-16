@@ -293,7 +293,7 @@ static int ide_gd_ioctl(struct inode *inode, struct file *file,
 	struct ide_disk_obj *idkp = ide_drv_g(bdev->bd_disk, ide_disk_obj);
 	ide_drive_t *drive = idkp->drive;
 
-	return drive->disk_ops->ioctl(drive, inode, file, cmd, arg);
+	return drive->disk_ops->ioctl(drive, bdev, file ? file->f_mode : 0, cmd, arg);
 }
 
 static struct block_device_operations ide_gd_ops = {

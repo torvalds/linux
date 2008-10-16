@@ -474,8 +474,8 @@ struct ide_disk_ops {
 	ide_startstop_t	(*do_request)(struct ide_drive_s *, struct request *,
 				      sector_t);
 	int		(*end_request)(struct ide_drive_s *, int, int);
-	int		(*ioctl)(struct ide_drive_s *, struct inode *,
-				 struct file *, unsigned int, unsigned long);
+	int		(*ioctl)(struct ide_drive_s *, struct block_device *,
+				 fmode_t, unsigned int, unsigned long);
 };
 
 /* ATAPI device flags */
