@@ -650,15 +650,6 @@ static int p9_fd_request(struct p9_client *client, struct p9_req_t *req)
 	if (m->err < 0)
 		return m->err;
 
-#ifdef CONFIG_NET_9P_DEBUG
-	if ((p9_debug_level&P9_DEBUG_FCALL) == P9_DEBUG_FCALL) {
-		char buf[150];
-
-		p9_printfcall(buf, sizeof(buf), req->tc, client->dotu);
-		printk(KERN_NOTICE "<<< %p %s\n", m, buf);
-	}
-#endif
-
 	req->status = REQ_STATUS_UNSENT;
 
 	spin_lock(&client->lock);

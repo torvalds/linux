@@ -502,15 +502,6 @@ again:
 		goto reterr;
 	}
 
-#ifdef CONFIG_NET_9P_DEBUG
-	if ((p9_debug_level&P9_DEBUG_FCALL) == P9_DEBUG_FCALL) {
-		char buf[150];
-
-		p9_printfcall(buf, sizeof(buf), req->rc, c->dotu);
-		printk(KERN_NOTICE ">>> %p %s\n", c, buf);
-	}
-#endif
-
 	if (req->rc->id == P9_RERROR) {
 		int ecode = req->rc->params.rerror.errno;
 		struct p9_str *ename = &req->rc->params.rerror.error;

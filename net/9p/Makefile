@@ -6,7 +6,6 @@ obj-$(CONFIG_NET_9P_VIRTIO) += 9pnet_virtio.o
 	client.o \
 	conv.o \
 	error.o \
-	fcprint.o \
 	util.o \
 	protocol.o \
 	trans_fd.o \

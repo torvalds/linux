@@ -590,7 +590,6 @@ struct p9_fcall *p9_create_tstat(u32 fid);
 struct p9_fcall *p9_create_twstat(u32 fid, struct p9_wstat *wstat,
 	int dotu);
 
-int p9_printfcall(char *buf, int buflen, struct p9_fcall *fc, int dotu);
 int p9_errstr2errno(char *errstr, int len);
 
 struct p9_idpool *p9_idpool_create(void);
