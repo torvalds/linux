@@ -2392,6 +2392,7 @@ sub process {
 		my $string;
 		while ($line =~ /(?:^|")([X\t]*)(?:"|$)/g) {
 			$string = substr($rawline, $-[1], $+[1] - $-[1]);
+			$string =~ s/%%/__/g;
 			if ($string =~ /(?<!%)%L[udi]/) {
 				WARN("\%Ld/%Lu are not-standard C, use %lld/%llu\n" . $herecurr);
 				last;
