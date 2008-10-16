@@ -62,6 +62,10 @@ config GENERIC_TIME
 	bool
 	default y
 
+config GENERIC_BUG
+        bool
+        depends on BUG
+
 config TIME_LOW_RES
 	bool
 	default y
