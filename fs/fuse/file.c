@@ -101,6 +101,8 @@ void fuse_finish_open(struct inode *inode, struct file *file,
 		file->f_op = &fuse_direct_io_file_operations;
 	if (!(outarg->open_flags & FOPEN_KEEP_CACHE))
 		invalidate_inode_pages2(inode->i_mapping);
+	if (outarg->open_flags & FOPEN_NONSEEKABLE)
+		nonseekable_open(inode, file);
 	ff->fh = outarg->fh;
 	file->private_data = fuse_file_get(ff);
 }

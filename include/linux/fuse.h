@@ -17,6 +17,9 @@
  *  - add lock_owner field to fuse_setattr_in, fuse_read_in and fuse_write_in
  *  - add blksize field to fuse_attr
  *  - add file flags field to fuse_read_in and fuse_write_in
+ *
+ * 7.10
+ *  - add nonseekable open flag
  */
 
 #ifndef _LINUX_FUSE_H
@@ -29,7 +32,7 @@
 #define FUSE_KERNEL_VERSION 7
 
 /** Minor version number of this interface */
-#define FUSE_KERNEL_MINOR_VERSION 9
+#define FUSE_KERNEL_MINOR_VERSION 10
 
 /** The node ID of the root inode */
 #define FUSE_ROOT_ID 1
@@ -101,9 +104,11 @@ struct fuse_file_lock {
  *
  * FOPEN_DIRECT_IO: bypass page cache for this open file
  * FOPEN_KEEP_CACHE: don't invalidate the data cache on open
+ * FOPEN_NONSEEKABLE: the file is not seekable
  */
 #define FOPEN_DIRECT_IO		(1 << 0)
 #define FOPEN_KEEP_CACHE	(1 << 1)
+#define FOPEN_NONSEEKABLE	(1 << 2)
 
 /**
  * INIT request/reply flags
