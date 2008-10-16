@@ -638,7 +638,6 @@ static int cirrusfb_check_var(struct fb_var_screeninfo *var,
 		break;		/* 8 pixel per byte, only 1/4th of mem usable */
 	case 8:
 	case 16:
-	case 24:
 	case 32:
 		break;		/* 1 pixel == 1 byte */
 	default:
@@ -713,7 +712,6 @@ static int cirrusfb_check_var(struct fb_var_screeninfo *var,
 		var->blue.length = 5;
 		break;
 
-	case 24:
 	case 32:
 		if (isPReP) {
 			var->red.offset = 8;
@@ -782,7 +780,6 @@ static int cirrusfb_decode_var(const struct fb_var_screeninfo *var,
 		break;
 
 	case 16:
-	case 24:
 	case 32:
 		info->fix.line_length = var->xres_virtual * maxclockidx;
 		info->fix.visual = FB_VISUAL_DIRECTCOLOR;
@@ -1360,7 +1357,7 @@ static int cirrusfb_set_par_foo(struct fb_info *info)
 	 */
 
 	else if (var->bits_per_pixel == 32) {
-		DPRINTK("cirrusfb: preparing for 24/32 bit deep display\n");
+		DPRINTK("cirrusfb: preparing for 32 bit deep display\n");
 		switch (cinfo->btype) {
 		case BT_SD64:
 			/* Extended Sequencer Mode: 256c col. mode */
@@ -2233,7 +2230,7 @@ static int cirrusfb_set_fbinfo(struct fb_info *info)
 	if (cinfo->btype == BT_GD5480) {
 		if (var->bits_per_pixel == 16)
 			info->screen_base += 1 * MB_;
-		if (var->bits_per_pixel == 24 || var->bits_per_pixel == 32)
+		if (var->bits_per_pixel == 32)
 			info->screen_base += 2 * MB_;
 	}
 
