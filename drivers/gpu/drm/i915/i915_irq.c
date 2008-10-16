@@ -481,22 +481,24 @@ static int i915_emit_irq(struct drm_device * dev)
 void i915_user_irq_get(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	unsigned long irqflags;
 
-	spin_lock(&dev_priv->user_irq_lock);
+	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
 	if (dev->irq_enabled && (++dev_priv->user_irq_refcount == 1))
 		i915_enable_irq(dev_priv, I915_USER_INTERRUPT);
-	spin_unlock(&dev_priv->user_irq_lock);
+	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
 }
 
 void i915_user_irq_put(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	unsigned long irqflags;
 
-	spin_lock(&dev_priv->user_irq_lock);
+	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
 	BUG_ON(dev->irq_enabled && dev_priv->user_irq_refcount <= 0);
 	if (dev->irq_enabled && (--dev_priv->user_irq_refcount == 0))
 		i915_disable_irq(dev_priv, I915_USER_INTERRUPT);
-	spin_unlock(&dev_priv->user_irq_lock);
+	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
 }
 
 static int i915_wait_irq(struct drm_device * dev, int irq_nr)
@@ -584,33 +586,37 @@ int i915_enable_vblank(struct drm_device *dev, int plane)
 	int pipe = i915_get_pipe(dev, plane);
 	u32	pipestat_reg = 0;
 	u32	pipestat;
+	u32	interrupt = 0;
+	unsigned long irqflags;
 
 	switch (pipe) {
 	case 0:
 		pipestat_reg = PIPEASTAT;
-		i915_enable_irq(dev_priv, I915_DISPLAY_PIPE_A_EVENT_INTERRUPT);
+		interrupt = I915_DISPLAY_PIPE_A_EVENT_INTERRUPT;
 		break;
 	case 1:
 		pipestat_reg = PIPEBSTAT;
-		i915_enable_irq(dev_priv, I915_DISPLAY_PIPE_B_EVENT_INTERRUPT);
+		interrupt = I915_DISPLAY_PIPE_B_EVENT_INTERRUPT;
 		break;
 	default:
 		DRM_ERROR("tried to enable vblank on non-existent pipe %d\n",
 			  pipe);
-		break;
+		return 0;
 	}
 
-	if (pipestat_reg) {
-		pipestat = I915_READ(pipestat_reg);
-		if (IS_I965G(dev))
-			pipestat |= PIPE_START_VBLANK_INTERRUPT_ENABLE;
-		else
-			pipestat |= PIPE_VBLANK_INTERRUPT_ENABLE;
-		/* Clear any stale interrupt status */
-		pipestat |= (PIPE_START_VBLANK_INTERRUPT_STATUS |
-			     PIPE_VBLANK_INTERRUPT_STATUS);
-		I915_WRITE(pipestat_reg, pipestat);
-	}
+	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
+	pipestat = I915_READ(pipestat_reg);
+	if (IS_I965G(dev))
+		pipestat |= PIPE_START_VBLANK_INTERRUPT_ENABLE;
+	else
+		pipestat |= PIPE_VBLANK_INTERRUPT_ENABLE;
+	/* Clear any stale interrupt status */
+	pipestat |= (PIPE_START_VBLANK_INTERRUPT_STATUS |
+		     PIPE_VBLANK_INTERRUPT_STATUS);
+	I915_WRITE(pipestat_reg, pipestat);
+	(void) I915_READ(pipestat_reg);	/* Posting read */
+	i915_enable_irq(dev_priv, interrupt);
+	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
 
 	return 0;
 }
@@ -621,31 +627,36 @@ void i915_disable_vblank(struct drm_device *dev, int plane)
 	int pipe = i915_get_pipe(dev, plane);
 	u32	pipestat_reg = 0;
 	u32	pipestat;
+	u32	interrupt = 0;
+	unsigned long irqflags;
 
 	switch (pipe) {
 	case 0:
 		pipestat_reg = PIPEASTAT;
-		i915_disable_irq(dev_priv, I915_DISPLAY_PIPE_A_EVENT_INTERRUPT);
+		interrupt = I915_DISPLAY_PIPE_A_EVENT_INTERRUPT;
 		break;
 	case 1:
 		pipestat_reg = PIPEBSTAT;
-		i915_disable_irq(dev_priv, I915_DISPLAY_PIPE_B_EVENT_INTERRUPT);
+		interrupt = I915_DISPLAY_PIPE_B_EVENT_INTERRUPT;
 		break;
 	default:
 		DRM_ERROR("tried to disable vblank on non-existent pipe %d\n",
 			  pipe);
+		return;
 		break;
 	}
 
-	if (pipestat_reg) {
-		pipestat = I915_READ(pipestat_reg);
-		pipestat &= ~(PIPE_START_VBLANK_INTERRUPT_ENABLE |
-			      PIPE_VBLANK_INTERRUPT_ENABLE);
-		/* Clear any stale interrupt status */
-		pipestat |= (PIPE_START_VBLANK_INTERRUPT_STATUS |
-			     PIPE_VBLANK_INTERRUPT_STATUS);
-		I915_WRITE(pipestat_reg, pipestat);
-	}
+	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
+	i915_disable_irq(dev_priv, interrupt);
+	pipestat = I915_READ(pipestat_reg);
+	pipestat &= ~(PIPE_START_VBLANK_INTERRUPT_ENABLE |
+		      PIPE_VBLANK_INTERRUPT_ENABLE);
+	/* Clear any stale interrupt status */
+	pipestat |= (PIPE_START_VBLANK_INTERRUPT_STATUS |
+		     PIPE_VBLANK_INTERRUPT_STATUS);
+	I915_WRITE(pipestat_reg, pipestat);
+	(void) I915_READ(pipestat_reg);	/* Posting read */
+	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
 }
 
 /* Set the vblank monitor pipe
