@@ -580,11 +580,11 @@ void qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu)
 
 	hw = qi->desc;
 
-	spin_lock(&qi->q_lock);
+	spin_lock_irqsave(&qi->q_lock, flags);
 	while (qi->free_cnt < 3) {
-		spin_unlock(&qi->q_lock);
+		spin_unlock_irqrestore(&qi->q_lock, flags);
 		cpu_relax();
-		spin_lock(&qi->q_lock);
+		spin_lock_irqsave(&qi->q_lock, flags);
 	}
 
 	index = qi->free_head;
@@ -605,15 +605,22 @@ void qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu)
 	qi->free_head = (qi->free_head + 2) % QI_LENGTH;
 	qi->free_cnt -= 2;
 
-	spin_lock_irqsave(&iommu->register_lock, flags);
+	spin_lock(&iommu->register_lock);
 	/*
 	 * update the HW tail register indicating the presence of
 	 * new descriptors.
 	 */
 	writel(qi->free_head << 4, iommu->reg + DMAR_IQT_REG);
-	spin_unlock_irqrestore(&iommu->register_lock, flags);
+	spin_unlock(&iommu->register_lock);
 
 	while (qi->desc_status[wait_index] != QI_DONE) {
+		/*
+		 * We will leave the interrupts disabled, to prevent interrupt
+		 * context to queue another cmd while a cmd is already submitted
+		 * and waiting for completion on this cpu. This is to avoid
+		 * a deadlock where the interrupt context can wait indefinitely
+		 * for free slots in the queue.
+		 */
 		spin_unlock(&qi->q_lock);
 		cpu_relax();
 		spin_lock(&qi->q_lock);
@@ -622,7 +629,7 @@ void qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu)
 	qi->desc_status[index] = QI_DONE;
 
 	reclaim_free_desc(qi);
-	spin_unlock(&qi->q_lock);
+	spin_unlock_irqrestore(&qi->q_lock, flags);
 }
 
 /*
