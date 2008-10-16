@@ -149,7 +149,7 @@ extern int max_lock_depth;
 #ifdef CONFIG_PROC_SYSCTL
 static int proc_do_cad_pid(struct ctl_table *table, int write, struct file *filp,
 		  void __user *buffer, size_t *lenp, loff_t *ppos);
-static int proc_dointvec_taint(struct ctl_table *table, int write, struct file *filp,
+static int proc_taint(struct ctl_table *table, int write, struct file *filp,
 			       void __user *buffer, size_t *lenp, loff_t *ppos);
 #endif
 
@@ -379,10 +379,9 @@ static struct ctl_table kern_table[] = {
 #ifdef CONFIG_PROC_SYSCTL
 	{
 		.procname	= "tainted",
-		.data		= &tainted,
-		.maxlen		= sizeof(int),
+		.maxlen 	= sizeof(long),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_taint,
+		.proc_handler	= &proc_taint,
 	},
 #endif
 #ifdef CONFIG_LATENCYTOP
@@ -2228,49 +2227,39 @@ int proc_dointvec(struct ctl_table *table, int write, struct file *filp,
 		    	    NULL,NULL);
 }
 
-#define OP_SET	0
-#define OP_AND	1
-#define OP_OR	2
-
-static int do_proc_dointvec_bset_conv(int *negp, unsigned long *lvalp,
-				      int *valp,
-				      int write, void *data)
-{
-	int op = *(int *)data;
-	if (write) {
-		int val = *negp ? -*lvalp : *lvalp;
-		switch(op) {
-		case OP_SET:	*valp = val; break;
-		case OP_AND:	*valp &= val; break;
-		case OP_OR:	*valp |= val; break;
-		}
-	} else {
-		int val = *valp;
-		if (val < 0) {
-			*negp = -1;
-			*lvalp = (unsigned long)-val;
-		} else {
-			*negp = 0;
-			*lvalp = (unsigned long)val;
-		}
-	}
-	return 0;
-}
-
 /*
- *	Taint values can only be increased
+ * Taint values can only be increased
+ * This means we can safely use a temporary.
  */
-static int proc_dointvec_taint(struct ctl_table *table, int write, struct file *filp,
+static int proc_taint(struct ctl_table *table, int write, struct file *filp,
 			       void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	int op;
+	struct ctl_table t;
+	unsigned long tmptaint = get_taint();
+	int err;
 
 	if (write && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	op = OP_OR;
-	return do_proc_dointvec(table,write,filp,buffer,lenp,ppos,
-				do_proc_dointvec_bset_conv,&op);
+	t = *table;
+	t.data = &tmptaint;
+	err = proc_doulongvec_minmax(&t, write, filp, buffer, lenp, ppos);
+	if (err < 0)
+		return err;
+
+	if (write) {
+		/*
+		 * Poor man's atomic or. Not worth adding a primitive
+		 * to everyone's atomic.h for this
+		 */
+		int i;
+		for (i = 0; i < BITS_PER_LONG && tmptaint >> i; i++) {
+			if ((tmptaint >> i) & 1)
+				add_taint(i);
+		}
+	}
+
+	return err;
 }
 
 struct do_proc_dointvec_minmax_conv_param {

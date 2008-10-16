@@ -282,6 +282,8 @@ static void __cpuinit smp_callin(void)
 	cpu_set(cpuid, cpu_callin_map);
 }
 
+static int __cpuinitdata unsafe_smp;
+
 /*
  * Activate a secondary processor.
  */
@@ -397,7 +399,7 @@ static void __cpuinit smp_apply_quirks(struct cpuinfo_x86 *c)
 				goto valid_k7;
 
 		/* If we get here, not a certified SMP capable AMD system. */
-		add_taint(TAINT_UNSAFE_SMP);
+		unsafe_smp = 1;
 	}
 
 valid_k7:
@@ -414,12 +416,10 @@ static void __cpuinit smp_checks(void)
 	 * Don't taint if we are running SMP kernel on a single non-MP
 	 * approved Athlon
 	 */
-	if (tainted & TAINT_UNSAFE_SMP) {
-		if (num_online_cpus())
-			printk(KERN_INFO "WARNING: This combination of AMD"
-				"processors is not suitable for SMP.\n");
-		else
-			tainted &= ~TAINT_UNSAFE_SMP;
+	if (unsafe_smp && num_online_cpus() > 1) {
+		printk(KERN_INFO "WARNING: This combination of AMD"
+			"processors is not suitable for SMP.\n");
+		add_taint(TAINT_UNSAFE_SMP);
 	}
 }
 

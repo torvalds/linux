@@ -100,7 +100,7 @@ static inline int strong_try_module_get(struct module *mod)
 static inline void add_taint_module(struct module *mod, unsigned flag)
 {
 	add_taint(flag);
-	mod->taints |= flag;
+	mod->taints |= (1U << flag);
 }
 
 /*
@@ -923,7 +923,7 @@ static const char vermagic[] = VERMAGIC_STRING;
 static int try_to_force_load(struct module *mod, const char *symname)
 {
 #ifdef CONFIG_MODULE_FORCE_LOAD
-	if (!(tainted & TAINT_FORCED_MODULE))
+	if (!test_taint(TAINT_FORCED_MODULE))
 		printk("%s: no version for \"%s\" found: kernel tainted.\n",
 		       mod->name, symname);
 	add_taint_module(mod, TAINT_FORCED_MODULE);
@@ -1033,7 +1033,7 @@ static unsigned long resolve_symbol(Elf_Shdr *sechdrs,
 	const unsigned long *crc;
 
 	ret = find_symbol(name, &owner, &crc,
-			  !(mod->taints & TAINT_PROPRIETARY_MODULE), true);
+			  !(mod->taints & (1 << TAINT_PROPRIETARY_MODULE)), true);
 	if (!IS_ERR_VALUE(ret)) {
 		/* use_module can fail due to OOM,
 		   or module initialization or unloading */
@@ -1634,7 +1634,7 @@ static void set_license(struct module *mod, const char *license)
 		license = "unspecified";
 
 	if (!license_is_gpl_compatible(license)) {
-		if (!(tainted & TAINT_PROPRIETARY_MODULE))
+		if (!test_taint(TAINT_PROPRIETARY_MODULE))
 			printk(KERN_WARNING "%s: module license '%s' taints "
 				"kernel.\n", mod->name, license);
 		add_taint_module(mod, TAINT_PROPRIETARY_MODULE);
@@ -2552,9 +2552,9 @@ static char *module_flags(struct module *mod, char *buf)
 	    mod->state == MODULE_STATE_GOING ||
 	    mod->state == MODULE_STATE_COMING) {
 		buf[bx++] = '(';
-		if (mod->taints & TAINT_PROPRIETARY_MODULE)
+		if (mod->taints & (1 << TAINT_PROPRIETARY_MODULE))
 			buf[bx++] = 'P';
-		if (mod->taints & TAINT_FORCED_MODULE)
+		if (mod->taints & (1 << TAINT_FORCED_MODULE))
 			buf[bx++] = 'F';
 		/*
 		 * TAINT_FORCED_RMMOD: could be added.
