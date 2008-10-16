@@ -672,7 +672,7 @@ static int p9_fd_cancel(struct p9_client *client, struct p9_req_t *req)
 	struct p9_trans_fd *ts = client->trans;
 	struct p9_conn *m = ts->conn;
 
-	P9_DPRINTK(P9_DEBUG_MUX, "mux %p req %p tag %d\n", m, req, req->tag);
+	P9_DPRINTK(P9_DEBUG_MUX, "mux %p req %p\n", m, req);
 
 	spin_lock(&client->lock);
 	list_del(&req->req_list);

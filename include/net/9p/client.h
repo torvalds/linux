@@ -81,7 +81,6 @@ enum p9_req_status_t {
  * @tc: the request fcall structure
  * @rc: the response fcall structure
  * @aux: transport specific data (provided for trans_fd migration)
- * @tag: tag on request (BUG: redundant)
  * @req_list: link for higher level objects to chain requests
  *
  * Transport use an array to track outstanding requests
@@ -104,7 +103,6 @@ struct p9_req_t {
 	u16 flush_tag;
 	void *aux;
 
-	int tag;
 	struct list_head req_list;
 };
 
