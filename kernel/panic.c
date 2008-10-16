@@ -143,21 +143,6 @@ NORET_TYPE void panic(const char * fmt, ...)
 
 EXPORT_SYMBOL(panic);
 
-/**
- *	print_tainted - return a string to represent the kernel taint state.
- *
- *  'P' - Proprietary module has been loaded.
- *  'F' - Module has been forcibly loaded.
- *  'S' - SMP with CPUs not designed for SMP.
- *  'R' - User forced a module unload.
- *  'M' - System experienced a machine check exception.
- *  'B' - System has hit bad_page.
- *  'U' - Userspace-defined naughtiness.
- *  'A' - ACPI table overridden.
- *  'W' - Taint on warning.
- *
- *	The string is overwritten by the next call to print_taint().
- */
 
 struct tnt {
 	u8 bit;
@@ -178,6 +163,21 @@ static const struct tnt tnts[] = {
 	{ TAINT_WARN, 'W', ' ' },
 };
 
+/**
+ *	print_tainted - return a string to represent the kernel taint state.
+ *
+ *  'P' - Proprietary module has been loaded.
+ *  'F' - Module has been forcibly loaded.
+ *  'S' - SMP with CPUs not designed for SMP.
+ *  'R' - User forced a module unload.
+ *  'M' - System experienced a machine check exception.
+ *  'B' - System has hit bad_page.
+ *  'U' - Userspace-defined naughtiness.
+ *  'A' - ACPI table overridden.
+ *  'W' - Taint on warning.
+ *
+ *	The string is overwritten by the next call to print_taint().
+ */
 const char *print_tainted(void)
 {
 	static char buf[ARRAY_SIZE(tnts) + sizeof("Tainted: ") + 1];
