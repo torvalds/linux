@@ -511,12 +511,11 @@ static void print_codec_info(struct snd_info_entry *entry,
 			     struct snd_info_buffer *buffer)
 {
 	struct hda_codec *codec = entry->private_data;
-	char buf[32];
 	hda_nid_t nid;
 	int i, nodes;
 
-	snd_hda_get_codec_name(codec, buf, sizeof(buf));
-	snd_iprintf(buffer, "Codec: %s\n", buf);
+	snd_iprintf(buffer, "Codec: %s\n",
+		    codec->name ? codec->name : "Not Set");
 	snd_iprintf(buffer, "Address: %d\n", codec->addr);
 	snd_iprintf(buffer, "Vendor Id: 0x%x\n", codec->vendor_id);
 	snd_iprintf(buffer, "Subsystem Id: 0x%x\n", codec->subsystem_id);

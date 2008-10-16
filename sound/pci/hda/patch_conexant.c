@@ -86,8 +86,6 @@ struct conexant_spec {
 
 	/* dynamic controls, init_verbs and input_mux */
 	struct auto_pin_cfg autocfg;
-	unsigned int num_kctl_alloc, num_kctl_used;
-	struct snd_kcontrol_new *kctl_alloc;
 	struct hda_input_mux private_imux;
 	hda_nid_t private_dac_nids[AUTO_CFG_MAX_OUTS];
 
@@ -344,15 +342,6 @@ static int conexant_init(struct hda_codec *codec)
 
 static void conexant_free(struct hda_codec *codec)
 {
-        struct conexant_spec *spec = codec->spec;
-        unsigned int i;
-
-        if (spec->kctl_alloc) {
-                for (i = 0; i < spec->num_kctl_used; i++)
-                        kfree(spec->kctl_alloc[i].name);
-                kfree(spec->kctl_alloc);
-        }
-
 	kfree(codec->spec);
 }
 

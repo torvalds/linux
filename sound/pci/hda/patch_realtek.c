@@ -284,8 +284,7 @@ struct alc_spec {
 
 	/* dynamic controls, init_verbs and input_mux */
 	struct auto_pin_cfg autocfg;
-	unsigned int num_kctl_alloc, num_kctl_used;
-	struct snd_kcontrol_new *kctl_alloc;
+	struct snd_array kctls;
 	struct hda_input_mux private_imux;
 	hda_nid_t private_dac_nids[AUTO_CFG_MAX_OUTS];
 
@@ -1625,6 +1624,9 @@ static const char *alc_slave_sws[] = {
 /*
  * build control elements
  */
+
+static void alc_free_kctls(struct hda_codec *codec);
+
 static int alc_build_controls(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -1671,6 +1673,7 @@ static int alc_build_controls(struct hda_codec *codec)
 			return err;
 	}
 
+	alc_free_kctls(codec); /* no longer needed */
 	return 0;
 }
 
@@ -2761,19 +2764,27 @@ static int alc_build_pcms(struct hda_codec *codec)
 	return 0;
 }
 
+static void alc_free_kctls(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+
+	if (spec->kctls.list) {
+		struct snd_kcontrol_new *kctl = spec->kctls.list;
+		int i;
+		for (i = 0; i < spec->kctls.used; i++)
+			kfree(kctl[i].name);
+	}
+	snd_array_free(&spec->kctls);
+}
+
 static void alc_free(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	unsigned int i;
 
 	if (!spec)
 		return;
 
-	if (spec->kctl_alloc) {
-		for (i = 0; i < spec->num_kctl_used; i++)
-			kfree(spec->kctl_alloc[i].name);
-		kfree(spec->kctl_alloc);
-	}
+	alc_free_kctls(codec);
 	kfree(spec);
 	codec->spec = NULL; /* to be sure */
 }
@@ -3458,9 +3469,6 @@ static struct alc_config_preset alc880_presets[] = {
  * Automatic parse of I/O pins from the BIOS configuration
  */
 
-#define NUM_CONTROL_ALLOC	32
-#define NUM_VERB_ALLOC		32
-
 enum {
 	ALC_CTL_WIDGET_VOL,
 	ALC_CTL_WIDGET_MUTE,
@@ -3478,29 +3486,15 @@ static int add_control(struct alc_spec *spec, int type, const char *name,
 {
 	struct snd_kcontrol_new *knew;
 
-	if (spec->num_kctl_used >= spec->num_kctl_alloc) {
-		int num = spec->num_kctl_alloc + NUM_CONTROL_ALLOC;
-
-		/* array + terminator */
-		knew = kcalloc(num + 1, sizeof(*knew), GFP_KERNEL);
-		if (!knew)
-			return -ENOMEM;
-		if (spec->kctl_alloc) {
-			memcpy(knew, spec->kctl_alloc,
-			       sizeof(*knew) * spec->num_kctl_alloc);
-			kfree(spec->kctl_alloc);
-		}
-		spec->kctl_alloc = knew;
-		spec->num_kctl_alloc = num;
-	}
-
-	knew = &spec->kctl_alloc[spec->num_kctl_used];
+	snd_array_init(&spec->kctls, sizeof(*knew), 32);
+	knew = snd_array_new(&spec->kctls);
+	if (!knew)
+		return -ENOMEM;
 	*knew = alc880_control_templates[type];
 	knew->name = kstrdup(name, GFP_KERNEL);
 	if (!knew->name)
 		return -ENOMEM;
 	knew->private_value = val;
-	spec->num_kctl_used++;
 	return 0;
 }
 
@@ -3824,8 +3818,8 @@ static int alc880_parse_auto_config(struct hda_codec *codec)
 	if (spec->autocfg.dig_in_pin)
 		spec->dig_in_nid = ALC880_DIGIN_NID;
 
-	if (spec->kctl_alloc)
-		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
+	if (spec->kctls.list)
+		spec->mixers[spec->num_mixers++] = spec->kctls.list;
 
 	spec->init_verbs[spec->num_init_verbs++] = alc880_volume_init_verbs;
 
@@ -5212,7 +5206,7 @@ static int alc260_parse_auto_config(struct hda_codec *codec)
 	err = alc260_auto_create_multi_out_ctls(spec, &spec->autocfg);
 	if (err < 0)
 		return err;
-	if (!spec->kctl_alloc)
+	if (!spec->kctls.list)
 		return 0; /* can't find valid BIOS pin config */
 	err = alc260_auto_create_analog_input_ctls(spec, &spec->autocfg);
 	if (err < 0)
@@ -5222,8 +5216,8 @@ static int alc260_parse_auto_config(struct hda_codec *codec)
 
 	if (spec->autocfg.dig_out_pin)
 		spec->multiout.dig_out_nid = ALC260_DIGOUT_NID;
-	if (spec->kctl_alloc)
-		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
+	if (spec->kctls.list)
+		spec->mixers[spec->num_mixers++] = spec->kctls.list;
 
 	spec->init_verbs[spec->num_init_verbs++] = alc260_volume_init_verbs;
 
@@ -10296,8 +10290,8 @@ static int alc262_parse_auto_config(struct hda_codec *codec)
 	if (spec->autocfg.dig_in_pin)
 		spec->dig_in_nid = ALC262_DIGIN_NID;
 
-	if (spec->kctl_alloc)
-		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
+	if (spec->kctls.list)
+		spec->mixers[spec->num_mixers++] = spec->kctls.list;
 
 	spec->init_verbs[spec->num_init_verbs++] = alc262_volume_init_verbs;
 	spec->num_mux_defs = 1;
@@ -11427,8 +11421,8 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 	if (spec->autocfg.dig_out_pin)
 		spec->multiout.dig_out_nid = ALC268_DIGOUT_NID;
 
-	if (spec->kctl_alloc)
-		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
+	if (spec->kctls.list)
+		spec->mixers[spec->num_mixers++] = spec->kctls.list;
 
 	if (spec->autocfg.speaker_pins[0] != 0x1d)
 		spec->mixers[spec->num_mixers++] = alc268_beep_mixer;
@@ -12199,8 +12193,8 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	if (spec->autocfg.dig_out_pin)
 		spec->multiout.dig_out_nid = ALC269_DIGOUT_NID;
 
-	if (spec->kctl_alloc)
-		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
+	if (spec->kctls.list)
+		spec->mixers[spec->num_mixers++] = spec->kctls.list;
 
 	/* create a beep mixer control if the pin 0x1d isn't assigned */
 	for (i = 0; i < ARRAY_SIZE(spec->autocfg.input_pins); i++)
@@ -13297,8 +13291,8 @@ static int alc861_parse_auto_config(struct hda_codec *codec)
 	if (spec->autocfg.dig_out_pin)
 		spec->multiout.dig_out_nid = ALC861_DIGOUT_NID;
 
-	if (spec->kctl_alloc)
-		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
+	if (spec->kctls.list)
+		spec->mixers[spec->num_mixers++] = spec->kctls.list;
 
 	spec->init_verbs[spec->num_init_verbs++] = alc861_auto_init_verbs;
 
@@ -14408,8 +14402,8 @@ static int alc861vd_parse_auto_config(struct hda_codec *codec)
 	if (spec->autocfg.dig_out_pin)
 		spec->multiout.dig_out_nid = ALC861VD_DIGOUT_NID;
 
-	if (spec->kctl_alloc)
-		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
+	if (spec->kctls.list)
+		spec->mixers[spec->num_mixers++] = spec->kctls.list;
 
 	spec->init_verbs[spec->num_init_verbs++]
 		= alc861vd_volume_init_verbs;
@@ -16235,8 +16229,8 @@ static int alc662_parse_auto_config(struct hda_codec *codec)
 	if (spec->autocfg.dig_out_pin)
 		spec->multiout.dig_out_nid = ALC880_DIGOUT_NID;
 
-	if (spec->kctl_alloc)
-		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
+	if (spec->kctls.list)
+		spec->mixers[spec->num_mixers++] = spec->kctls.list;
 
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux;

@@ -96,6 +96,8 @@ struct snd_kcontrol *snd_hda_find_mixer_ctl(struct hda_codec *codec,
 					    const char *name);
 int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
 			unsigned int *tlv, const char **slaves);
+void snd_hda_codec_reset(struct hda_codec *codec);
+int snd_hda_codec_configure(struct hda_codec *codec);
 
 /* amp value bits */
 #define HDA_AMP_MUTE	0x80
@@ -393,10 +395,18 @@ u32 query_amp_caps(struct hda_codec *codec, hda_nid_t nid, int direction);
 int snd_hda_override_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir,
 			      unsigned int caps);
 
+int snd_hda_ctl_add(struct hda_codec *codec, struct snd_kcontrol *kctl);
+void snd_hda_ctls_clear(struct hda_codec *codec);
+
 /*
  * hwdep interface
  */
+#ifdef CONFIG_SND_HDA_HWDEP
 int snd_hda_create_hwdep(struct hda_codec *codec);
+int snd_hda_hwdep_add_sysfs(struct hda_codec *codec);
+#else
+static inline int snd_hda_create_hwdep(struct hda_codec *codec) { return 0; }
+#endif
 
 /*
  * power-management
