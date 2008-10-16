@@ -23,6 +23,7 @@
 #include <linux/module.h>
 
 #include <asm/blackfin.h>
+#include <asm/cacheflush.h>
 #include <asm/cplb.h>
 #include <asm/cplbinit.h>
 
