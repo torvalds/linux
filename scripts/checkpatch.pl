@@ -1434,7 +1434,7 @@ sub process {
 			if ($s =~ s/^\s*\\//) {
 				$continuation = 1;
 			}
-			if ($s =~ s/^\s*\n//) {
+			if ($s =~ s/^\s*?\n//) {
 				$check = 1;
 				$cond_lines++;
 			}
@@ -1446,15 +1446,20 @@ sub process {
 				$check = 0;
 			}
 
-			# Ignore the current line if its is a preprocessor
-			# line.
-			if ($s =~ /^\s*#\s*/) {
-				$check = 0;
-			}
+			my $cond_ptr = -1;
+			while ($cond_ptr != $cond_lines) {
+				$cond_ptr = $cond_lines;
 
-			# Ignore the current line if it is label.
-			if ($s =~ /^\s*$Ident\s*:/) {
-				$check = 0;
+				# Ignore:
+				#  1) blank lines, they should be at 0,
+				#  2) preprocessor lines, and
+				#  3) labels.
+				if ($s =~ /^\s*?\n/ ||
+				    $s =~ /^\s*#\s*?/ ||
+				    $s =~ /^\s*$Ident\s*:/) {
+					$s =~ s/^.*?\n//;
+					$cond_lines++;
+				}
 			}
 
 			my (undef, $sindent) = line_stats("+" . $s);
@@ -1470,7 +1475,7 @@ sub process {
 				$stat_real = "[...]\n$stat_real";
 			}
 
-			##print "line<$line> prevline<$prevline> indent<$indent> sindent<$sindent> check<$check> continuation<$continuation> s<$s> cond_lines<$cond_lines> stat_real<$stat_real> stat<$stat>\n";
+			#print "line<$line> prevline<$prevline> indent<$indent> sindent<$sindent> check<$check> continuation<$continuation> s<$s> cond_lines<$cond_lines> stat_real<$stat_real> stat<$stat>\n";
 
 			if ($check && (($sindent % 8) != 0 ||
 			    ($sindent <= $indent && $s ne ''))) {
