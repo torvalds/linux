@@ -77,7 +77,7 @@ Quilt:
 http://savannah.nongnu.org/projects/quilt
 
 Andrew Morton's patch scripts:
-http://www.zip.com.au/~akpm/linux/patches/
+http://userweb.kernel.org/~akpm/stuff/patch-scripts.tar.gz
 Instead of these scripts, quilt is the recommended patch management
 tool (see above).
 
@@ -653,7 +653,7 @@ SECTION 3 - REFERENCES
 ----------------------
 
 Andrew Morton, "The perfect patch" (tpp).
-  <http://www.zip.com.au/~akpm/linux/patches/stuff/tpp.txt>
+  <http://userweb.kernel.org/~akpm/stuff/tpp.txt>
 
 Jeff Garzik, "Linux kernel patch submission format".
   <http://linux.yyz.us/patch-format.html>

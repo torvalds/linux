@@ -305,11 +305,6 @@ Donald's wake-on-LAN page:
 
 	ftp://ftp.3com.com/pub/nic/3c90x/3c90xx2.exe
 
-Driver updates and a detailed changelog for the modifications which
-were made for the 2.3/2,4 series kernel is available at
-
-     http://www.zip.com.au/~akpm/linux/#3c59x-bc
-
 
 Autonegotiation notes
 ---------------------
