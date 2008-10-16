@@ -50,26 +50,20 @@ static u8 bad_roms[][9] = {
 				{}
 			};
 
-static ssize_t w1_therm_read_bin(struct kobject *, struct bin_attribute *,
-				 char *, loff_t, size_t);
+static ssize_t w1_therm_read(struct device *device,
+	struct device_attribute *attr, char *buf);
 
-static struct bin_attribute w1_therm_bin_attr = {
-	.attr = {
-		.name = "w1_slave",
-		.mode = S_IRUGO,
-	},
-	.size = W1_SLAVE_DATA_SIZE,
-	.read = w1_therm_read_bin,
-};
+static struct device_attribute w1_therm_attr =
+	__ATTR(w1_slave, S_IRUGO, w1_therm_read, NULL);
 
 static int w1_therm_add_slave(struct w1_slave *sl)
 {
-	return sysfs_create_bin_file(&sl->dev.kobj, &w1_therm_bin_attr);
+	return device_create_file(&sl->dev, &w1_therm_attr);
 }
 
 static void w1_therm_remove_slave(struct w1_slave *sl)
 {
-	sysfs_remove_bin_file(&sl->dev.kobj, &w1_therm_bin_attr);
+	device_remove_file(&sl->dev, &w1_therm_attr);
 }
 
 static struct w1_family_ops w1_therm_fops = {
@@ -168,30 +162,19 @@ static int w1_therm_check_rom(u8 rom[9])
 	return 0;
 }
 
-static ssize_t w1_therm_read_bin(struct kobject *kobj,
-				 struct bin_attribute *bin_attr,
-				 char *buf, loff_t off, size_t count)
+static ssize_t w1_therm_read(struct device *device,
+	struct device_attribute *attr, char *buf)
 {
-	struct w1_slave *sl = kobj_to_w1_slave(kobj);
+	struct w1_slave *sl = dev_to_w1_slave(device);
 	struct w1_master *dev = sl->master;
 	u8 rom[9], crc, verdict;
 	int i, max_trying = 10;
+	ssize_t c = PAGE_SIZE;
 
 	mutex_lock(&sl->master->mutex);
 
-	if (off > W1_SLAVE_DATA_SIZE) {
-		count = 0;
-		goto out;
-	}
-	if (off + count > W1_SLAVE_DATA_SIZE) {
-		count = 0;
-		goto out;
-	}
-
-	memset(buf, 0, count);
 	memset(rom, 0, sizeof(rom));
 
-	count = 0;
 	verdict = 0;
 	crc = 0;
 
@@ -211,7 +194,9 @@ static ssize_t w1_therm_read_bin(struct kobject *kobj,
 
 				w1_write_8(dev, W1_READ_SCRATCHPAD);
 				if ((count = w1_read_block(dev, rom, 9)) != 9) {
-					dev_warn(&dev->dev, "w1_read_block() returned %d instead of 9.\n", count);
+					dev_warn(device, "w1_read_block() "
+						"returned %u instead of 9.\n",
+						count);
 				}
 
 				crc = w1_calc_crc8(rom, 8);
@@ -226,22 +211,22 @@ static ssize_t w1_therm_read_bin(struct kobject *kobj,
 	}
 
 	for (i = 0; i < 9; ++i)
-		count += sprintf(buf + count, "%02x ", rom[i]);
-	count += sprintf(buf + count, ": crc=%02x %s\n",
+		c -= snprintf(buf + PAGE_SIZE - c, c, "%02x ", rom[i]);
+	c -= snprintf(buf + PAGE_SIZE - c, c, ": crc=%02x %s\n",
 			   crc, (verdict) ? "YES" : "NO");
 	if (verdict)
 		memcpy(sl->rom, rom, sizeof(sl->rom));
 	else
-		dev_warn(&dev->dev, "18S20 doesn't respond to CONVERT_TEMP.\n");
+		dev_warn(device, "18S20 doesn't respond to CONVERT_TEMP.\n");
 
 	for (i = 0; i < 9; ++i)
-		count += sprintf(buf + count, "%02x ", sl->rom[i]);
+		c -= snprintf(buf + PAGE_SIZE - c, c, "%02x ", sl->rom[i]);
 
-	count += sprintf(buf + count, "t=%d\n", w1_convert_temp(rom, sl->family->fid));
-out:
+	c -= snprintf(buf + PAGE_SIZE - c, c, "t=%d\n",
+		w1_convert_temp(rom, sl->family->fid));
 	mutex_unlock(&dev->mutex);
 
-	return count;
+	return PAGE_SIZE - c;
 }
 
 static int __init w1_therm_init(void)

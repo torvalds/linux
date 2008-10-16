@@ -46,7 +46,6 @@ struct w1_reg_num
 #include "w1_family.h"
 
 #define W1_MAXNAMELEN		32
-#define W1_SLAVE_DATA_SIZE	128
 
 #define W1_SEARCH		0xF0
 #define W1_ALARM_SEARCH		0xEC
