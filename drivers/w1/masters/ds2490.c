@@ -457,7 +457,7 @@ static int ds_wait_status(struct ds_device *dev, struct ds_status *st)
 		return 0;
 }
 
-static int ds_reset(struct ds_device *dev, struct ds_status *st)
+static int ds_reset(struct ds_device *dev)
 {
 	int err;
 
@@ -465,14 +465,6 @@ static int ds_reset(struct ds_device *dev, struct ds_status *st)
 	err = ds_send_control(dev, 0x43, SPEED_NORMAL);
 	if (err)
 		return err;
-
-	ds_wait_status(dev, st);
-#if 0
-	if (st->command_buffer_status) {
-		printk(KERN_INFO "Short circuit.\n");
-		return -EIO;
-	}
-#endif
 
 	return 0;
 }
@@ -809,12 +801,9 @@ static u8 ds9490r_read_block(void *data, u8 *buf, int len)
 static u8 ds9490r_reset(void *data)
 {
 	struct ds_device *dev = data;
-	struct ds_status st;
 	int err;
 
-	memset(&st, 0, sizeof(st));
-
-	err = ds_reset(dev, &st);
+	err = ds_reset(dev);
 	if (err)
 		return 1;
 
