@@ -893,7 +893,7 @@ static long video1394_ioctl(struct file *file,
 		if (unlikely(d == NULL))
 			return -EFAULT;
 
-		if (unlikely((v.buffer<0) || (v.buffer>=d->num_desc - 1))) {
+		if (unlikely(v.buffer >= d->num_desc - 1)) {
 			PRINT(KERN_ERR, ohci->host->id,
 			      "Buffer %d out of range",v.buffer);
 			return -EINVAL;
@@ -959,7 +959,7 @@ static long video1394_ioctl(struct file *file,
 		if (unlikely(d == NULL))
 			return -EFAULT;
 
-		if (unlikely((v.buffer<0) || (v.buffer>d->num_desc - 1))) {
+		if (unlikely(v.buffer > d->num_desc - 1)) {
 			PRINT(KERN_ERR, ohci->host->id,
 			      "Buffer %d out of range",v.buffer);
 			return -EINVAL;
@@ -1030,7 +1030,7 @@ static long video1394_ioctl(struct file *file,
 		d = find_ctx(&ctx->context_list, OHCI_ISO_TRANSMIT, v.channel);
 		if (d == NULL) return -EFAULT;
 
-		if ((v.buffer<0) || (v.buffer>=d->num_desc - 1)) {
+		if (v.buffer >= d->num_desc - 1) {
 			PRINT(KERN_ERR, ohci->host->id,
 			      "Buffer %d out of range",v.buffer);
 			return -EINVAL;
@@ -1137,7 +1137,7 @@ static long video1394_ioctl(struct file *file,
 		d = find_ctx(&ctx->context_list, OHCI_ISO_TRANSMIT, v.channel);
 		if (d == NULL) return -EFAULT;
 
-		if ((v.buffer<0) || (v.buffer>=d->num_desc-1)) {
+		if (v.buffer >= d->num_desc - 1) {
 			PRINT(KERN_ERR, ohci->host->id,
 			      "Buffer %d out of range",v.buffer);
 			return -EINVAL;

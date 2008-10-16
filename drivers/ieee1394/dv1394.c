@@ -918,7 +918,7 @@ static int do_dv1394_init(struct video_card *video, struct dv1394_init *init)
 		/* default SYT offset is 3 cycles */
 		init->syt_offset = 3;
 
-	if ( (init->channel > 63) || (init->channel < 0) )
+	if (init->channel > 63)
 		init->channel = 63;
 
 	chan_mask = (u64)1 << init->channel;

@@ -720,8 +720,8 @@ static int ioctl_create_iso_context(struct client *client, void *buffer)
 #define GET_PAYLOAD_LENGTH(v)	((v) & 0xffff)
 #define GET_INTERRUPT(v)	(((v) >> 16) & 0x01)
 #define GET_SKIP(v)		(((v) >> 17) & 0x01)
-#define GET_TAG(v)		(((v) >> 18) & 0x02)
-#define GET_SY(v)		(((v) >> 20) & 0x04)
+#define GET_TAG(v)		(((v) >> 18) & 0x03)
+#define GET_SY(v)		(((v) >> 20) & 0x0f)
 #define GET_HEADER_LENGTH(v)	(((v) >> 24) & 0xff)
 
 static int ioctl_queue_iso(struct client *client, void *buffer)
@@ -913,7 +913,7 @@ dispatch_ioctl(struct client *client, unsigned int cmd, void __user *arg)
 			return -EFAULT;
 	}
 
-	return 0;
+	return retval;
 }
 
 static long
