@@ -3010,10 +3010,10 @@ static int __init init_raw1394(void)
 	hpsb_register_highlevel(&raw1394_highlevel);
 
 	if (IS_ERR
-	    (device_create_drvdata(
-	      hpsb_protocol_class, NULL,
-	      MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16),
-	      NULL, RAW1394_DEVICE_NAME))) {
+	    (device_create(hpsb_protocol_class, NULL,
+			   MKDEV(IEEE1394_MAJOR,
+				 IEEE1394_MINOR_BLOCK_RAW1394 * 16),
+			   NULL, RAW1394_DEVICE_NAME))) {
 		ret = -EFAULT;
 		goto out_unreg;
 	}

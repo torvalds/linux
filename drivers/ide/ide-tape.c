@@ -2420,12 +2420,11 @@ static int ide_tape_probe(ide_drive_t *drive)
 
 	idetape_setup(drive, tape, minor);
 
-	device_create_drvdata(idetape_sysfs_class, &drive->gendev,
-			      MKDEV(IDETAPE_MAJOR, minor), NULL,
-			      "%s", tape->name);
-	device_create_drvdata(idetape_sysfs_class, &drive->gendev,
-			      MKDEV(IDETAPE_MAJOR, minor + 128), NULL,
-			      "n%s", tape->name);
+	device_create(idetape_sysfs_class, &drive->gendev,
+		      MKDEV(IDETAPE_MAJOR, minor), NULL, "%s", tape->name);
+	device_create(idetape_sysfs_class, &drive->gendev,
+		      MKDEV(IDETAPE_MAJOR, minor + 128), NULL,
+		      "n%s", tape->name);
 
 	g->fops = &idetape_block_ops;
 	ide_register_region(g);

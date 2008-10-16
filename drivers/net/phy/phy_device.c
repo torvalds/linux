@@ -309,11 +309,6 @@ void phy_disconnect(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(phy_disconnect);
 
-static int phy_compare_id(struct device *dev, void *data)
-{
-	return strcmp((char *)data, dev->bus_id) ? 0 : 1;
-}
-
 /**
  * phy_attach - attach a network device to a particular PHY device
  * @dev: network device to attach
@@ -337,8 +332,7 @@ struct phy_device *phy_attach(struct net_device *dev,
 
 	/* Search the list of PHY devices on the mdio bus for the
 	 * PHY with the requested name */
-	d = bus_find_device(bus, NULL, (void *)bus_id, phy_compare_id);
-
+	d = bus_find_device_by_name(bus, NULL, bus_id);
 	if (d) {
 		phydev = to_phy_device(d);
 	} else {

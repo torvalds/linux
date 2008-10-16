@@ -83,7 +83,7 @@ void device_pm_add(struct device *dev)
 		 * transition is in progress in order to avoid leaving them
 		 * unhandled down the road
 		 */
-		WARN_ON(true);
+		dev_WARN(dev, "Parentless device registered during a PM transaction\n");
 	}
 
 	list_add_tail(&dev->power.entry, &dpm_list);

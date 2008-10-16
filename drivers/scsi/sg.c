@@ -1450,12 +1450,10 @@ sg_add(struct device *cl_dev, struct class_interface *cl_intf)
 	if (sg_sysfs_valid) {
 		struct device *sg_class_member;
 
-		sg_class_member = device_create_drvdata(sg_sysfs_class,
-							cl_dev->parent,
-							MKDEV(SCSI_GENERIC_MAJOR,
-							      sdp->index),
-							sdp,
-							"%s", disk->disk_name);
+		sg_class_member = device_create(sg_sysfs_class, cl_dev->parent,
+						MKDEV(SCSI_GENERIC_MAJOR,
+						      sdp->index),
+						sdp, "%s", disk->disk_name);
 		if (IS_ERR(sg_class_member)) {
 			printk(KERN_ERR "sg_add: "
 			       "device_create failed\n");

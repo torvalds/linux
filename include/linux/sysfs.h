@@ -78,6 +78,8 @@ struct sysfs_ops {
 	ssize_t	(*store)(struct kobject *,struct attribute *,const char *, size_t);
 };
 
+struct sysfs_dirent;
+
 #ifdef CONFIG_SYSFS
 
 int sysfs_schedule_callback(struct kobject *kobj, void (*func)(void *),
@@ -117,9 +119,14 @@ int sysfs_add_file_to_group(struct kobject *kobj,
 void sysfs_remove_file_from_group(struct kobject *kobj,
 			const struct attribute *attr, const char *group);
 
-void sysfs_notify(struct kobject *kobj, char *dir, char *attr);
-
-extern int __must_check sysfs_init(void);
+void sysfs_notify(struct kobject *kobj, const char *dir, const char *attr);
+void sysfs_notify_dirent(struct sysfs_dirent *sd);
+struct sysfs_dirent *sysfs_get_dirent(struct sysfs_dirent *parent_sd,
+				      const unsigned char *name);
+struct sysfs_dirent *sysfs_get(struct sysfs_dirent *sd);
+void sysfs_put(struct sysfs_dirent *sd);
+void sysfs_printk_last_file(void);
+int __must_check sysfs_init(void);
 
 #else /* CONFIG_SYSFS */
 
@@ -222,13 +229,34 @@ static inline void sysfs_remove_file_from_group(struct kobject *kobj,
 {
 }
 
-static inline void sysfs_notify(struct kobject *kobj, char *dir, char *attr)
+static inline void sysfs_notify(struct kobject *kobj, const char *dir,
+				const char *attr)
+{
+}
+static inline void sysfs_notify_dirent(struct sysfs_dirent *sd)
+{
+}
+static inline
+struct sysfs_dirent *sysfs_get_dirent(struct sysfs_dirent *parent_sd,
+				      const unsigned char *name)
+{
+	return NULL;
+}
+static inline struct sysfs_dirent *sysfs_get(struct sysfs_dirent *sd)
+{
+	return NULL;
+}
+static inline void sysfs_put(struct sysfs_dirent *sd)
 {
 }
 
 static inline int __must_check sysfs_init(void)
 {
 	return 0;
+}
+
+static inline void sysfs_printk_last_file(void)
+{
 }
 
 #endif /* CONFIG_SYSFS */
