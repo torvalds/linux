@@ -66,6 +66,7 @@ if ($#ARGV < 0) {
 my $dbg_values = 0;
 my $dbg_possible = 0;
 my $dbg_type = 0;
+my $dbg_attr = 0;
 for my $key (keys %debug) {
 	eval "\${dbg_$key} = '$debug{$key}';"
 }
@@ -1364,6 +1365,15 @@ sub process {
 				ERROR("TEST: is type\n" . $herecurr);
 			} elsif ($dbg_type > 1 && $line =~ /^.+($Declare)/) {
 				ERROR("TEST: is not type ($1 is)\n". $herecurr);
+			}
+			next;
+		}
+# TEST: allow direct testing of the attribute matcher.
+		if ($dbg_attr) {
+			if ($line =~ /^.\s*$Attribute\s*$/) {
+				ERROR("TEST: is attr\n" . $herecurr);
+			} elsif ($dbg_attr > 1 && $line =~ /^.+($Attribute)/) {
+				ERROR("TEST: is not attr ($1 is)\n". $herecurr);
 			}
 			next;
 		}
