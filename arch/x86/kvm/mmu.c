@@ -789,7 +789,7 @@ static struct kvm_mmu_page *kvm_mmu_alloc_page(struct kvm_vcpu *vcpu,
 	set_page_private(virt_to_page(sp->spt), (unsigned long)sp);
 	list_add(&sp->link, &vcpu->kvm->arch.active_mmu_pages);
 	ASSERT(is_empty_shadow_page(sp->spt));
-	sp->slot_bitmap = 0;
+	bitmap_zero(sp->slot_bitmap, KVM_MEMORY_SLOTS + KVM_PRIVATE_MEM_SLOTS);
 	sp->multimapped = 0;
 	sp->parent_pte = parent_pte;
 	--vcpu->kvm->arch.n_free_mmu_pages;
@@ -1364,7 +1364,7 @@ static void page_header_update_slot(struct kvm *kvm, void *pte, gfn_t gfn)
 	int slot = memslot_id(kvm, gfn_to_memslot(kvm, gfn));
 	struct kvm_mmu_page *sp = page_header(__pa(pte));
 
-	__set_bit(slot, &sp->slot_bitmap);
+	__set_bit(slot, sp->slot_bitmap);
 }
 
 static void mmu_convert_notrap(struct kvm_mmu_page *sp)
@@ -2564,7 +2564,7 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
 		int i;
 		u64 *pt;
 
-		if (!test_bit(slot, &sp->slot_bitmap))
+		if (!test_bit(slot, sp->slot_bitmap))
 			continue;
 
 		pt = sp->spt;
