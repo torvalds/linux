@@ -548,6 +548,11 @@ spufs_regs_read(struct file *file, char __user *buffer,
 	int ret;
 	struct spu_context *ctx = file->private_data;
 
+	/* pre-check for file position: if we'd return EOF, there's no point
+	 * causing a deschedule */
+	if (*pos >= sizeof(ctx->csa.lscsa->gprs))
+		return 0;
+
 	ret = spu_acquire_saved(ctx);
 	if (ret)
 		return ret;
