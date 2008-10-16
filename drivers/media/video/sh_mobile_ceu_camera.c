@@ -165,6 +165,7 @@ static void sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 	ceu_write(pcdev, CETCR, 0x0317f313 ^ 0x10);
 
 	if (pcdev->active) {
+		pcdev->active->state = VIDEOBUF_ACTIVE;
 		ceu_write(pcdev, CDAYR, videobuf_to_dma_contig(pcdev->active));
 		ceu_write(pcdev, CAPSR, 0x1); /* start capture */
 	}
@@ -236,7 +237,7 @@ static void sh_mobile_ceu_videobuf_queue(struct videobuf_queue *vq,
 	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %zd\n", __func__,
 		vb, vb->baddr, vb->bsize);
 
-	vb->state = VIDEOBUF_ACTIVE;
+	vb->state = VIDEOBUF_QUEUED;
 	spin_lock_irqsave(&pcdev->lock, flags);
 	list_add_tail(&vb->queue, &pcdev->capture);
 
@@ -323,12 +324,24 @@ static void sh_mobile_ceu_remove_device(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
+	unsigned long flags;
 
 	BUG_ON(icd != pcdev->icd);
 
 	/* disable capture, disable interrupts */
 	ceu_write(pcdev, CEIER, 0);
 	ceu_write(pcdev, CAPSR, 1 << 16); /* reset */
+
+	/* make sure active buffer is canceled */
+	spin_lock_irqsave(&pcdev->lock, flags);
+	if (pcdev->active) {
+		list_del(&pcdev->active->queue);
+		pcdev->active->state = VIDEOBUF_ERROR;
+		wake_up_all(&pcdev->active->done);
+		pcdev->active = NULL;
+	}
+	spin_unlock_irqrestore(&pcdev->lock, flags);
+
 	icd->ops->release(icd);
 
 	dev_info(&icd->dev,
