@@ -672,4 +672,9 @@ Kernel Documentation/CodingStyle:
 
 Linus Torvalds's mail on the canonical patch format:
   <http://lkml.org/lkml/2005/4/7/183>
+
+Andi Kleen, "On submitting kernel patches"
+  Some strategies to get difficult or controversal changes in.
+  http://halobates.de/on-submitting-patches.pdf
+
 --
