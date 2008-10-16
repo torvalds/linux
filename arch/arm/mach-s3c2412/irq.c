@@ -35,9 +35,9 @@
 #include <mach/regs-gpio.h>
 #include <mach/regs-power.h>
 
-#include <asm/plat-s3c24xx/cpu.h>
-#include <asm/plat-s3c24xx/irq.h>
-#include <asm/plat-s3c24xx/pm.h>
+#include <plat/cpu.h>
+#include <plat/irq.h>
+#include <plat/pm.h>
 
 #define INTMSK(start, end) ((1 << ((end) + 1 - (start))) - 1)
 #define INTMSK_SUB(start, end) (INTMSK(start, end) << ((start - S3C2410_IRQSUB(0))))

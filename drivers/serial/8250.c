@@ -2223,9 +2223,9 @@ serial8250_set_termios(struct uart_port *port, struct ktermios *termios,
 		serial_outp(up, UART_EFR, efr);
 	}
 
-#ifdef CONFIG_ARCH_OMAP15XX
+#ifdef CONFIG_ARCH_OMAP
 	/* Workaround to enable 115200 baud on OMAP1510 internal ports */
-	if (cpu_is_omap1510() && is_omap_port((unsigned int)up->port.membase)) {
+	if (cpu_is_omap1510() && is_omap_port(up)) {
 		if (baud == 115200) {
 			quot = 1;
 			serial_out(up, UART_OMAP_OSC_12M_SEL, 1);
@@ -2278,18 +2278,27 @@ serial8250_pm(struct uart_port *port, unsigned int state,
 		p->pm(port, state, oldstate);
 }
 
+static unsigned int serial8250_port_size(struct uart_8250_port *pt)
+{
+	if (pt->port.iotype == UPIO_AU)
+		return 0x100000;
+#ifdef CONFIG_ARCH_OMAP
+	if (is_omap_port(pt))
+		return 0x16 << pt->port.regshift;
+#endif
+	return 8 << pt->port.regshift;
+}
+
 /*
  * Resource handling.
  */
 static int serial8250_request_std_resource(struct uart_8250_port *up)
 {
-	unsigned int size = 8 << up->port.regshift;
+	unsigned int size = serial8250_port_size(up);
 	int ret = 0;
 
 	switch (up->port.iotype) {
 	case UPIO_AU:
-		size = 0x100000;
-		/* fall thru */
 	case UPIO_TSI:
 	case UPIO_MEM32:
 	case UPIO_MEM:
@@ -2323,12 +2332,10 @@ static int serial8250_request_std_resource(struct uart_8250_port *up)
 
 static void serial8250_release_std_resource(struct uart_8250_port *up)
 {
-	unsigned int size = 8 << up->port.regshift;
+	unsigned int size = serial8250_port_size(up);
 
 	switch (up->port.iotype) {
 	case UPIO_AU:
-		size = 0x100000;
-		/* fall thru */
 	case UPIO_TSI:
 	case UPIO_MEM32:
 	case UPIO_MEM:
