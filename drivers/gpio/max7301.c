@@ -325,13 +325,15 @@ static int __init max7301_init(void)
 {
 	return spi_register_driver(&max7301_driver);
 }
+/* register after spi postcore initcall and before
+ * subsys initcalls that may rely on these GPIOs
+ */
+subsys_initcall(max7301_init);
 
 static void __exit max7301_exit(void)
 {
 	spi_unregister_driver(&max7301_driver);
 }
-
-module_init(max7301_init);
 module_exit(max7301_exit);
 
 MODULE_AUTHOR("Juergen Beisert");
