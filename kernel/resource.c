@@ -630,33 +630,34 @@ struct resource * __request_region(struct resource *parent,
 {
 	struct resource *res = kzalloc(sizeof(*res), GFP_KERNEL);
 
-	if (res) {
-		res->name = name;
-		res->start = start;
-		res->end = start + n - 1;
-		res->flags = IORESOURCE_BUSY;
+	if (!res)
+		return NULL;
 
-		write_lock(&resource_lock);
+	res->name = name;
+	res->start = start;
+	res->end = start + n - 1;
+	res->flags = IORESOURCE_BUSY;
 
-		for (;;) {
-			struct resource *conflict;
+	write_lock(&resource_lock);
 
-			conflict = __request_resource(parent, res);
-			if (!conflict)
-				break;
-			if (conflict != parent) {
-				parent = conflict;
-				if (!(conflict->flags & IORESOURCE_BUSY))
-					continue;
-			}
+	for (;;) {
+		struct resource *conflict;
 
-			/* Uhhuh, that didn't work out.. */
-			kfree(res);
-			res = NULL;
+		conflict = __request_resource(parent, res);
+		if (!conflict)
 			break;
+		if (conflict != parent) {
+			parent = conflict;
+			if (!(conflict->flags & IORESOURCE_BUSY))
+				continue;
 		}
-		write_unlock(&resource_lock);
+
+		/* Uhhuh, that didn't work out.. */
+		kfree(res);
+		res = NULL;
+		break;
 	}
+	write_unlock(&resource_lock);
 	return res;
 }
 EXPORT_SYMBOL(__request_region);
