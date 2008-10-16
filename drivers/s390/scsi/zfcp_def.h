@@ -583,6 +583,8 @@ struct zfcp_fsf_req {
 	unsigned long long     issued;         /* request sent time (STCK) */
 	struct zfcp_unit       *unit;
 	void			(*handler)(struct zfcp_fsf_req *);
+	u16			qdio_outb_usage;/* usage of outbound queue */
+	u16			qdio_inb_usage;	/* usage of inbound queue */
 };
 
 /* driver data */
