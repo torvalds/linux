@@ -56,7 +56,11 @@ static void cpuidle_idle_call(void)
 		if (pm_idle_old)
 			pm_idle_old();
 		else
+#if defined(CONFIG_ARCH_HAS_DEFAULT_IDLE)
+			default_idle();
+#else
 			local_irq_enable();
+#endif
 		return;
 	}
 
