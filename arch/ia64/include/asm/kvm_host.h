@@ -365,7 +365,8 @@ struct kvm_vcpu_arch {
 	long itc_offset;
 	unsigned long itc_check;
 	unsigned long timer_check;
-	unsigned long timer_pending;
+	unsigned int timer_pending;
+	unsigned int timer_fired;
 
 	unsigned long vrr[8];
 	unsigned long ibr[8];
