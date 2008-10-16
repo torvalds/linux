@@ -19,6 +19,9 @@
  *  - add file flags field to fuse_read_in and fuse_write_in
  */
 
+#ifndef _LINUX_FUSE_H
+#define _LINUX_FUSE_H
+
 #include <asm/types.h>
 #include <linux/major.h>
 
@@ -409,3 +412,5 @@ struct fuse_dirent {
 #define FUSE_DIRENT_ALIGN(x) (((x) + sizeof(__u64) - 1) & ~(sizeof(__u64) - 1))
 #define FUSE_DIRENT_SIZE(d) \
 	FUSE_DIRENT_ALIGN(FUSE_NAME_OFFSET + (d)->namelen)
+
+#endif /* _LINUX_FUSE_H */
