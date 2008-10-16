@@ -34,6 +34,8 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/serial.h>
 #include <linux/io.h>
+#include <linux/i2c.h>
+#include <linux/i2c-gpio.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -495,6 +497,26 @@ void __init ep93xx_register_eth(struct ep93xx_eth_data *data, int copy_addr)
 
 	ep93xx_eth_data = *data;
 	platform_device_register(&ep93xx_eth_device);
+}
+
+static struct i2c_gpio_platform_data ep93xx_i2c_data = {
+	.sda_pin		= EP93XX_GPIO_LINE_EEDAT,
+	.sda_is_open_drain	= 0,
+	.scl_pin		= EP93XX_GPIO_LINE_EECLK,
+	.scl_is_open_drain	= 0,
+	.udelay			= 2,
+};
+
+static struct platform_device ep93xx_i2c_device = {
+	.name			= "i2c-gpio",
+	.id			= 0,
+	.dev.platform_data	= &ep93xx_i2c_data,
+};
+
+void __init ep93xx_register_i2c(struct i2c_board_info *devices, int num)
+{
+	i2c_register_board_info(0, devices, num);
+	platform_device_register(&ep93xx_i2c_device);
 }
 
 extern void ep93xx_gpio_init(void);
