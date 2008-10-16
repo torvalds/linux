@@ -113,7 +113,10 @@ our $Attribute	= qr{
 			const|
 			__read_mostly|
 			__kprobes|
-			__(?:mem|cpu|dev|)(?:initdata|init)
+			__(?:mem|cpu|dev|)(?:initdata|init)|
+			____cacheline_aligned|
+			____cacheline_aligned_in_smp|
+			____cacheline_internodealigned_in_smp
 		  }x;
 our $Modifier;
 our $Inline	= qr{inline|__always_inline|noinline};
