@@ -1949,8 +1949,6 @@ static void init_vgachip(struct fb_info *info)
 	/* misc... */
 	WHDR(cinfo, 0);	/* Hidden DAC register: - */
 
-	printk(KERN_DEBUG "cirrusfb: This board has %ld bytes of DRAM memory\n",
-		info->screen_size);
 	DPRINTK("EXIT\n");
 	return;
 }
