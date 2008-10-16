@@ -2142,9 +2142,10 @@ sub process {
 			$dstat =~ s/\s*$//s;
 
 			# Flatten any parentheses and braces
-			while ($dstat =~ s/\([^\(\)]*\)/1/) {
-			}
-			while ($dstat =~ s/\{[^\{\}]*\}/1/) {
+			while ($dstat =~ s/\([^\(\)]*\)/1/ ||
+			       $dstat =~ s/\{[^\{\}]*\}/1/ ||
+			       $dstat =~ s/\[[^\{\}]*\]/1/)
+			{
 			}
 
 			my $exceptions = qr{
