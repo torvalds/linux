@@ -2410,7 +2410,6 @@ config IXGBE
 	tristate "Intel(R) 10GbE PCI Express adapters support"
 	depends on PCI && INET
 	select INET_LRO
-	select INTEL_IOATDMA
 	---help---
 	  This driver supports Intel(R) 10GbE PCI Express family of
 	  adapters.  For more information on how to identify your adapter, go
@@ -2425,6 +2424,11 @@ config IXGBE
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ixgbe.
+
+config IXGBE_DCA
+	bool
+	default y
+	depends on IXGBE && DCA && !(IXGBE=y && DCA=m)
 
 config IXGB
 	tristate "Intel(R) PRO/10GbE support"
@@ -2462,7 +2466,6 @@ config MYRI10GE
 	select FW_LOADER
 	select CRC32
 	select INET_LRO
-	select INTEL_IOATDMA
 	---help---
 	  This driver supports Myricom Myri-10G Dual Protocol interface in
 	  Ethernet mode. If the eeprom on your board is not recent enough,
@@ -2473,6 +2476,11 @@ config MYRI10GE
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called myri10ge.
+
+config MYRI10GE_DCA
+	bool
+	default y
+	depends on MYRI10GE && DCA && !(MYRI10GE=y && DCA=m)
 
 config NETXEN_NIC
 	tristate "NetXen Multi port (1/10) Gigabit Ethernet NIC"
