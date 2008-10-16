@@ -1223,6 +1223,7 @@ static void ahci_sw_activity_blink(unsigned long arg)
 	struct ahci_em_priv *emp = &pp->em_priv[link->pmp];
 	unsigned long led_message = emp->led_state;
 	u32 activity_led_state;
+	unsigned long flags;
 
 	led_message &= 0xffff0000;
 	led_message |= ap->port_no | (link->pmp << 8);
@@ -1231,6 +1232,7 @@ static void ahci_sw_activity_blink(unsigned long arg)
 	 * toggle state of LED and reset timer.  If not,
 	 * turn LED to desired idle state.
 	 */
+	spin_lock_irqsave(ap->lock, flags);
 	if (emp->saved_activity != emp->activity) {
 		emp->saved_activity = emp->activity;
 		/* get the current LED state */
@@ -1253,6 +1255,7 @@ static void ahci_sw_activity_blink(unsigned long arg)
 		if (emp->blink_policy == BLINK_OFF)
 			led_message |= (1 << 16);
 	}
+	spin_unlock_irqrestore(ap->lock, flags);
 	ahci_transmit_led_message(ap, led_message, 4);
 }
 
