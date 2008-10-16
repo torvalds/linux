@@ -1493,11 +1493,13 @@ sub process {
 
 # check for spacing round square brackets; allowed:
 #  1. with a type on the left -- int [] a;
-#  2. at the beginning of a line for slice initialisers -- [0..10] = 5,
+#  2. at the beginning of a line for slice initialisers -- [0...10] = 5,
+#  3. inside a curly brace -- = { [0...10] = 5 }
 		while ($line =~ /(.*?\s)\[/g) {
 			my ($where, $prefix) = ($-[1], $1);
 			if ($prefix !~ /$Type\s+$/ &&
-			    ($where != 0 || $prefix !~ /^.\s+$/)) {
+			    ($where != 0 || $prefix !~ /^.\s+$/) &&
+			    $prefix !~ /{\s+$/) {
 				ERROR("space prohibited before open square bracket '['\n" . $herecurr);
 			}
 		}
