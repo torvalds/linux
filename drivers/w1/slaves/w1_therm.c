@@ -37,6 +37,14 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Evgeniy Polyakov <johnpol@2ka.mipt.ru>");
 MODULE_DESCRIPTION("Driver for 1-wire Dallas network protocol, temperature family.");
 
+/* Allow the strong pullup to be disabled, but default to enabled.
+ * If it was disabled a parasite powered device might not get the require
+ * current to do a temperature conversion.  If it is enabled parasite powered
+ * devices have a better chance of getting the current required.
+ */
+static int w1_strong_pullup = 1;
+module_param_named(strong_pullup, w1_strong_pullup, int, 0);
+
 static u8 bad_roms[][9] = {
 				{0xaa, 0x00, 0x4b, 0x46, 0xff, 0xff, 0x0c, 0x10, 0x87},
 				{}
@@ -192,9 +200,12 @@ static ssize_t w1_therm_read_bin(struct kobject *kobj,
 			int count = 0;
 			unsigned int tm = 750;
 
+			/* 750ms strong pullup (or delay) after the convert */
+			if (w1_strong_pullup)
+				w1_next_pullup(dev, tm);
 			w1_write_8(dev, W1_CONVERT_TEMP);
-
-			msleep(tm);
+			if (!w1_strong_pullup)
+				msleep(tm);
 
 			if (!w1_reset_select_slave(sl)) {
 
