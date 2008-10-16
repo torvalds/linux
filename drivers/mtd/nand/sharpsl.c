@@ -247,93 +247,8 @@ static struct platform_driver sharpsl_nand_driver = {
 	.remove		= __devexit_p(sharpsl_nand_remove),
 };
 
-/*
- * Define partitions for flash device
- */
-static struct mtd_partition sharpsl_nand_partitions[] = {
-	{
-	 .name = "System Area",
-	 .offset = 0,
-	 .size = 7 * 1024 * 1024,
-	 },
-	{
-	 .name = "Root Filesystem",
-	 .offset = 7 * 1024 * 1024,
-	 .size = 30 * 1024 * 1024,
-	 },
-	{
-	 .name = "Home Filesystem",
-	 .offset = MTDPART_OFS_APPEND,
-	 .size = MTDPART_SIZ_FULL,
-	 },
-};
-
-static uint8_t scan_ff_pattern[] = { 0xff, 0xff };
-
-static struct nand_bbt_descr sharpsl_bbt = {
-	.options = 0,
-	.offs = 4,
-	.len = 2,
-	.pattern = scan_ff_pattern
-};
-
-static struct nand_bbt_descr sharpsl_akita_bbt = {
-	.options = 0,
-	.offs = 4,
-	.len = 1,
-	.pattern = scan_ff_pattern
-};
-
-static struct nand_ecclayout akita_oobinfo = {
-	.eccbytes = 24,
-	.eccpos = {
-		   0x5, 0x1, 0x2, 0x3, 0x6, 0x7, 0x15, 0x11,
-		   0x12, 0x13, 0x16, 0x17, 0x25, 0x21, 0x22, 0x23,
-		   0x26, 0x27, 0x35, 0x31, 0x32, 0x33, 0x36, 0x37},
-	.oobfree = {{0x08, 0x09}}
-};
-
-static struct sharpsl_nand_platform_data sharpsl_nand_platform_data = {
-	.badblock_pattern	= &sharpsl_bbt,
-	.partitions		= sharpsl_nand_partitions,
-	.nr_partitions		= ARRAY_SIZE(sharpsl_nand_partitions),
-};
-
-static struct resource sharpsl_nand_resources[] = {
-	{
-		.start	= 0x0C000000,
-		.end	= 0x0C000FFF,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device sharpsl_nand_device = {
-	.name		= "sharpsl-nand",
-	.id		= -1,
-	.resource	= sharpsl_nand_resources,
-	.num_resources	= ARRAY_SIZE(sharpsl_nand_resources),
-	.dev.platform_data	= &sharpsl_nand_platform_data,
-};
-
 static int __init sharpsl_nand_init(void)
 {
-	if (machine_is_poodle()) {
-		sharpsl_nand_partitions[1].size = 22 * 1024 * 1024;
-	} else if (machine_is_corgi() || machine_is_shepherd()) {
-		sharpsl_nand_partitions[1].size = 25 * 1024 * 1024;
-	} else if (machine_is_husky()) {
-		sharpsl_nand_partitions[1].size = 53 * 1024 * 1024;
-	} else if (machine_is_spitz()) {
-		sharpsl_nand_partitions[1].size = 5 * 1024 * 1024;
-	} else if (machine_is_akita()) {
-		sharpsl_nand_partitions[1].size = 58 * 1024 * 1024;
-		sharpsl_nand_platform_data.badblock_pattern = &sharpsl_akita_bbt;
-		sharpsl_nand_platform_data.ecc_layout = &akita_oobinfo;
-	} else if (machine_is_borzoi()) {
-		sharpsl_nand_partitions[1].size = 32 * 1024 * 1024;
-	}
-
-	platform_device_register(&sharpsl_nand_device);
 	return platform_driver_register(&sharpsl_nand_driver);
 }
 module_init(sharpsl_nand_init);
@@ -341,7 +256,6 @@ module_init(sharpsl_nand_init);
 static void __exit sharpsl_nand_exit(void)
 {
 	platform_driver_unregister(&sharpsl_nand_driver);
-	platform_device_unregister(&sharpsl_nand_device);
 }
 module_exit(sharpsl_nand_exit);
 
