@@ -1029,9 +1029,14 @@ sub process {
 			# edge is a close comment then we must be in a comment
 			# at context start.
 			my $edge;
-			for (my $ln = $linenr + 1; $ln < ($linenr + $realcnt); $ln++) {
-				next if ($line =~ /^-/);
-				($edge) = ($rawlines[$ln - 1] =~ m@(/\*|\*/)@);
+			my $cnt = $realcnt;
+			for (my $ln = $linenr + 1; $cnt > 0; $ln++) {
+				next if (defined $rawlines[$ln - 1] &&
+					 $rawlines[$ln - 1] =~ /^-/);
+				$cnt--;
+				#print "RAW<$rawlines[$ln - 1]>\n";
+				($edge) = (defined $rawlines[$ln - 1] &&
+					$rawlines[$ln - 1] =~ m@(/\*|\*/)@);
 				last if (defined $edge);
 			}
 			if (defined $edge && $edge eq '*/') {
