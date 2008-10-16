@@ -1332,7 +1332,7 @@ static int ipw2100_power_cycle_adapter(struct ipw2100_priv *priv)
 		       IPW_AUX_HOST_RESET_REG_STOP_MASTER);
 
 	/* Step 2. Wait for stop Master Assert
-	 *         (not more then 50us, otherwise ret error */
+	 *         (not more than 50us, otherwise ret error */
 	i = 5;
 	do {
 		udelay(IPW_WAIT_RESET_MASTER_ASSERT_COMPLETE_DELAY);

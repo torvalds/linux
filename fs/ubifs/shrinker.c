@@ -151,7 +151,7 @@ static int shrink_tnc(struct ubifs_info *c, int nr, int age, int *contention)
  * @contention: if any contention, this is set to %1
  *
  * This function walks the list of mounted UBIFS file-systems and frees clean
- * znodes which are older then @age, until at least @nr znodes are freed.
+ * znodes which are older than @age, until at least @nr znodes are freed.
  * Returns the number of freed znodes.
  */
 static int shrink_tnc_trees(int nr, int age, int *contention)

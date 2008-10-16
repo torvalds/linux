@@ -105,7 +105,7 @@ void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
  * Extracts ebp, esp and eip values understandable by gdb from the values
  * saved by switch_to.
  * thread.esp points to ebp. flags and ebp are pushed in switch_to hence esp
- * prior to entering switch_to is 8 greater then the value that is saved.
+ * prior to entering switch_to is 8 greater than the value that is saved.
  * If switch_to changes, change following code appropriately.
  */
 void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)

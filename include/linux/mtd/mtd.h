@@ -83,7 +83,7 @@ typedef enum {
  * @datbuf:	data buffer - if NULL only oob data are read/written
  * @oobbuf:	oob data buffer
  *
- * Note, it is allowed to read more then one OOB area at one go, but not write.
+ * Note, it is allowed to read more than one OOB area at one go, but not write.
  * The interface assumes that the OOB write requests program only one page's
  * OOB area.
  */
