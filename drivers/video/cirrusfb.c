@@ -417,10 +417,6 @@ static struct fb_ops cirrusfb_ops = {
 	.fb_imageblit	= cirrusfb_imageblit,
 };
 
-/*--- Hardware Specific Routines -------------------------------------------*/
-static int cirrusfb_decode_var(const struct fb_var_screeninfo *var,
-				struct cirrusfb_regs *regs,
-				struct fb_info *info);
 /*--- Internal routines ----------------------------------------------------*/
 static void init_vgachip(struct fb_info *info);
 static void switch_monitor(struct cirrusfb_info *cinfo, int on);
@@ -2020,7 +2016,7 @@ static int release_io_ports;
  * based on the DRAM bandwidth bit and DRAM bank switching bit.  This
  * works with 1MB, 2MB and 4MB configurations (which the Motorola boards
  * seem to have. */
-static unsigned int cirrusfb_get_memsize(u8 __iomem *regbase)
+static unsigned int __devinit cirrusfb_get_memsize(u8 __iomem *regbase)
 {
 	unsigned long mem;
 	unsigned char SRF;
@@ -2117,7 +2113,7 @@ static void __devexit cirrusfb_zorro_unmap(struct fb_info *info)
 }
 #endif /* CONFIG_ZORRO */
 
-static int cirrusfb_set_fbinfo(struct fb_info *info)
+static int __devinit cirrusfb_set_fbinfo(struct fb_info *info)
 {
 	struct cirrusfb_info *cinfo = info->par;
 	struct fb_var_screeninfo *var = &info->var;
@@ -2161,7 +2157,7 @@ static int cirrusfb_set_fbinfo(struct fb_info *info)
 	return 0;
 }
 
-static int cirrusfb_register(struct fb_info *info)
+static int __devinit cirrusfb_register(struct fb_info *info)
 {
 	struct cirrusfb_info *cinfo = info->par;
 	int err;
@@ -2232,8 +2228,8 @@ static void __devexit cirrusfb_cleanup(struct fb_info *info)
 }
 
 #ifdef CONFIG_PCI
-static int cirrusfb_pci_register(struct pci_dev *pdev,
-				  const struct pci_device_id *ent)
+static int __devinit cirrusfb_pci_register(struct pci_dev *pdev,
+					   const struct pci_device_id *ent)
 {
 	struct cirrusfb_info *cinfo;
 	struct fb_info *info;
@@ -2360,8 +2356,8 @@ static struct pci_driver cirrusfb_pci_driver = {
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_ZORRO
-static int cirrusfb_zorro_register(struct zorro_dev *z,
-				   const struct zorro_device_id *ent)
+static int __devinit cirrusfb_zorro_register(struct zorro_dev *z,
+					     const struct zorro_device_id *ent)
 {
 	struct cirrusfb_info *cinfo;
 	struct fb_info *info;
