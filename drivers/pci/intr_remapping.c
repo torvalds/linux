@@ -23,7 +23,7 @@ static struct irq_2_iommu irq_2_iommuX[NR_IRQS];
 
 static struct irq_2_iommu *irq_2_iommu(unsigned int irq)
 {
-	return (irq < nr_irqs) ?: irq_2_iommuX + irq : NULL;
+	return (irq < nr_irqs) ? irq_2_iommuX + irq : NULL;
 }
 
 static struct irq_2_iommu *irq_2_iommu_alloc(unsigned int irq)
