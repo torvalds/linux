@@ -1187,11 +1187,8 @@ struct tpm_chip *tpm_register_hardware(struct device *dev,
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	devname = kmalloc(DEVNAME_SIZE, GFP_KERNEL);
 
-	if (chip == NULL || devname == NULL) {
-		kfree(chip);
-		kfree(devname);
-		return NULL;
-	}
+	if (chip == NULL || devname == NULL)
+		goto out_free;
 
 	mutex_init(&chip->buffer_mutex);
 	mutex_init(&chip->tpm_mutex);
@@ -1208,8 +1205,7 @@ struct tpm_chip *tpm_register_hardware(struct device *dev,
 
 	if (chip->dev_num >= TPM_NUM_DEVICES) {
 		dev_err(dev, "No available tpm device numbers\n");
-		kfree(chip);
-		return NULL;
+		goto out_free;
 	} else if (chip->dev_num == 0)
 		chip->vendor.miscdev.minor = TPM_MINOR;
 	else
@@ -1250,6 +1246,11 @@ struct tpm_chip *tpm_register_hardware(struct device *dev,
 	spin_unlock(&driver_lock);
 
 	return chip;
+
+out_free:
+	kfree(chip);
+	kfree(devname);
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(tpm_register_hardware);
 
