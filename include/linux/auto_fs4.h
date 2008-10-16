@@ -23,7 +23,7 @@
 #define AUTOFS_MIN_PROTO_VERSION	3
 #define AUTOFS_MAX_PROTO_VERSION	5
 
-#define AUTOFS_PROTO_SUBVERSION		0
+#define AUTOFS_PROTO_SUBVERSION		1
 
 /* Mask for expire behaviour */
 #define AUTOFS_EXP_IMMEDIATE		1
