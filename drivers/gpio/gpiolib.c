@@ -792,6 +792,8 @@ void gpio_free(unsigned gpio)
 	unsigned long		flags;
 	struct gpio_desc	*desc;
 
+	might_sleep();
+
 	if (!gpio_is_valid(gpio)) {
 		WARN_ON(extra_checks);
 		return;
