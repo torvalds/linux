@@ -466,7 +466,7 @@ int gru_send_message_gpa(unsigned long mq, void *mesg, unsigned int bytes)
 	STAT(mesq_send);
 	BUG_ON(bytes < sizeof(int) || bytes > 2 * GRU_CACHE_LINE_BYTES);
 
-	clines = (bytes + GRU_CACHE_LINE_BYTES - 1) / GRU_CACHE_LINE_BYTES;
+	clines = DIV_ROUND_UP(bytes, GRU_CACHE_LINE_BYTES);
 	if (gru_get_cpu_resources(bytes, &cb, &dsr))
 		return MQE_BUG_NO_RESOURCES;
 	memcpy(dsr, mesg, bytes);
