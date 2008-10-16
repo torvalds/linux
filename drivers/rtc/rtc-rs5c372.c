@@ -1,5 +1,5 @@
 /*
- * An I2C driver for Ricoh RS5C372 and RV5C38[67] RTCs
+ * An I2C driver for Ricoh RS5C372, R2025S/D and RV5C38[67] RTCs
  *
  * Copyright (C) 2005 Pavel Mironchik <pmironchik@optifacio.net>
  * Copyright (C) 2006 Tower Technologies
@@ -52,7 +52,8 @@
 #	define RS5C_CTRL1_CT4		(4 << 0)	/* 1 Hz level irq */
 #define RS5C_REG_CTRL2		15
 #	define RS5C372_CTRL2_24		(1 << 5)
-#	define RS5C_CTRL2_XSTP		(1 << 4)
+#	define R2025_CTRL2_XST		(1 << 5)
+#	define RS5C_CTRL2_XSTP		(1 << 4)	/* only if !R2025S/D */
 #	define RS5C_CTRL2_CTFG		(1 << 2)
 #	define RS5C_CTRL2_AAFG		(1 << 1)	/* or WAFG */
 #	define RS5C_CTRL2_BAFG		(1 << 0)	/* or DAFG */
@@ -64,6 +65,7 @@
 
 enum rtc_type {
 	rtc_undef = 0,
+	rtc_r2025sd,
 	rtc_rs5c372a,
 	rtc_rs5c372b,
 	rtc_rv5c386,
@@ -71,6 +73,7 @@ enum rtc_type {
 };
 
 static const struct i2c_device_id rs5c372_id[] = {
+	{ "r2025sd", rtc_r2025sd },
 	{ "rs5c372a", rtc_rs5c372a },
 	{ "rs5c372b", rtc_rs5c372b },
 	{ "rv5c386", rtc_rv5c386 },
@@ -531,9 +534,15 @@ static int rs5c_oscillator_setup(struct rs5c372 *rs5c372)
 	unsigned char buf[2];
 	int addr, i, ret = 0;
 
-	if (!(rs5c372->regs[RS5C_REG_CTRL2] & RS5C_CTRL2_XSTP))
-		return ret;
-	rs5c372->regs[RS5C_REG_CTRL2] &= ~RS5C_CTRL2_XSTP;
+	if (rs5c372->type == rtc_r2025sd) {
+		if (!(rs5c372->regs[RS5C_REG_CTRL2] & R2025_CTRL2_XST))
+			return ret;
+		rs5c372->regs[RS5C_REG_CTRL2] &= ~R2025_CTRL2_XST;
+	} else {
+		if (!(rs5c372->regs[RS5C_REG_CTRL2] & RS5C_CTRL2_XSTP))
+			return ret;
+		rs5c372->regs[RS5C_REG_CTRL2] &= ~RS5C_CTRL2_XSTP;
+	}
 
 	addr   = RS5C_ADDR(RS5C_REG_CTRL1);
 	buf[0] = rs5c372->regs[RS5C_REG_CTRL1];
@@ -546,6 +555,7 @@ static int rs5c_oscillator_setup(struct rs5c372 *rs5c372)
 		buf[1] |= RS5C372_CTRL2_24;
 		rs5c372->time24 = 1;
 		break;
+	case rtc_r2025sd:
 	case rtc_rv5c386:
 	case rtc_rv5c387a:
 		buf[0] |= RV5C387_CTRL1_24;
@@ -623,6 +633,7 @@ static int rs5c372_probe(struct i2c_client *client,
 		if (rs5c372->regs[RS5C_REG_CTRL2] & RS5C372_CTRL2_24)
 			rs5c372->time24 = 1;
 		break;
+	case rtc_r2025sd:
 	case rtc_rv5c386:
 	case rtc_rv5c387a:
 		if (rs5c372->regs[RS5C_REG_CTRL1] & RV5C387_CTRL1_24)
@@ -638,6 +649,9 @@ static int rs5c372_probe(struct i2c_client *client,
 
 	/* if the oscillator lost power and no other software (like
 	 * the bootloader) set it up, do it here.
+	 *
+	 * The R2025S/D does this a little differently than the other
+	 * parts, so we special case that..
 	 */
 	err = rs5c_oscillator_setup(rs5c372);
 	if (unlikely(err < 0)) {
@@ -650,6 +664,7 @@ static int rs5c372_probe(struct i2c_client *client,
 
 	dev_info(&client->dev, "%s found, %s, driver version " DRV_VERSION "\n",
 			({ char *s; switch (rs5c372->type) {
+			case rtc_r2025sd:	s = "r2025sd"; break;
 			case rtc_rs5c372a:	s = "rs5c372a"; break;
 			case rtc_rs5c372b:	s = "rs5c372b"; break;
 			case rtc_rv5c386:	s = "rv5c386"; break;
