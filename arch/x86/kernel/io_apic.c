@@ -2277,9 +2277,7 @@ static void ack_apic_edge(unsigned int irq)
 	ack_APIC_irq();
 }
 
-#ifdef CONFIG_X86_32
 atomic_t irq_mis_count;
-#endif
 
 static void ack_apic_level(unsigned int irq)
 {
