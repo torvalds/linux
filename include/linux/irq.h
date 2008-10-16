@@ -21,6 +21,10 @@ extern int nr_irqs;
 
 # define for_each_irq_desc(irq, desc)		\
 	for (irq = 0, desc = irq_desc; irq < nr_irqs; irq++, desc++)
+
+# define for_each_irq_desc_reverse(irq, desc)			\
+	for (irq = nr_irqs -1, desc = irq_desc + (nr_irqs -1 );	\
+	     irq > 0; irq--, desc--)
 #endif
 
 #ifndef CONFIG_S390
