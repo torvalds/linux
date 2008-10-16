@@ -240,6 +240,10 @@ signal, or (b) something wrongly believes it's safe to remove drivers
 needed to manage a signal that's in active use.  That is, requesting a
 GPIO can serve as a kind of lock.
 
+Some platforms may also use knowledge about what GPIOs are active for
+power management, such as by powering down unused chip sectors and, more
+easily, gating off unused clocks.
+
 These two calls are optional because not not all current Linux platforms
 offer such functionality in their GPIO support; a valid implementation
 could return success for all gpio_request() calls.  Unlike the other calls,
