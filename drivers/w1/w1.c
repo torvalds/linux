@@ -246,10 +246,14 @@ static ssize_t w1_master_attribute_store_search(struct device * dev,
 						struct device_attribute *attr,
 						const char * buf, size_t count)
 {
+	long tmp;
 	struct w1_master *md = dev_to_w1_master(dev);
 
+	if (strict_strtol(buf, 0, &tmp) == -EINVAL)
+		return -EINVAL;
+
 	mutex_lock(&md->mutex);
-	md->search_count = simple_strtol(buf, NULL, 0);
+	md->search_count = tmp;
 	mutex_unlock(&md->mutex);
 	wake_up_process(md->thread);
 
@@ -265,6 +269,38 @@ static ssize_t w1_master_attribute_show_search(struct device *dev,
 
 	mutex_lock(&md->mutex);
 	count = sprintf(buf, "%d\n", md->search_count);
+	mutex_unlock(&md->mutex);
+
+	return count;
+}
+
+static ssize_t w1_master_attribute_store_pullup(struct device *dev,
+						struct device_attribute *attr,
+						const char *buf, size_t count)
+{
+	long tmp;
+	struct w1_master *md = dev_to_w1_master(dev);
+
+	if (strict_strtol(buf, 0, &tmp) == -EINVAL)
+		return -EINVAL;
+
+	mutex_lock(&md->mutex);
+	md->enable_pullup = tmp;
+	mutex_unlock(&md->mutex);
+	wake_up_process(md->thread);
+
+	return count;
+}
+
+static ssize_t w1_master_attribute_show_pullup(struct device *dev,
+					       struct device_attribute *attr,
+					       char *buf)
+{
+	struct w1_master *md = dev_to_w1_master(dev);
+	ssize_t count;
+
+	mutex_lock(&md->mutex);
+	count = sprintf(buf, "%d\n", md->enable_pullup);
 	mutex_unlock(&md->mutex);
 
 	return count;
@@ -365,6 +401,7 @@ static W1_MASTER_ATTR_RO(attempts, S_IRUGO);
 static W1_MASTER_ATTR_RO(timeout, S_IRUGO);
 static W1_MASTER_ATTR_RO(pointer, S_IRUGO);
 static W1_MASTER_ATTR_RW(search, S_IRUGO | S_IWUGO);
+static W1_MASTER_ATTR_RW(pullup, S_IRUGO | S_IWUGO);
 
 static struct attribute *w1_master_default_attrs[] = {
 	&w1_master_attribute_name.attr,
@@ -375,6 +412,7 @@ static struct attribute *w1_master_default_attrs[] = {
 	&w1_master_attribute_timeout.attr,
 	&w1_master_attribute_pointer.attr,
 	&w1_master_attribute_search.attr,
+	&w1_master_attribute_pullup.attr,
 	NULL
 };
 

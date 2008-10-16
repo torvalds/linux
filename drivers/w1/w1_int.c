@@ -31,6 +31,9 @@
 
 static u32 w1_ids = 1;
 
+static int w1_enable_pullup = 1;
+module_param_named(enable_pullup, w1_enable_pullup, int, 0);
+
 static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 				       struct device_driver *driver,
 				       struct device *device)
@@ -59,6 +62,7 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 	dev->initialized	= 0;
 	dev->id			= id;
 	dev->slave_ttl		= slave_ttl;
+	dev->enable_pullup	= w1_enable_pullup;
         dev->search_count	= -1; /* continual scan */
 
 	/* 1 for w1_process to decrement
@@ -107,6 +111,18 @@ int w1_add_master_device(struct w1_bus_master *master)
 		printk(KERN_ERR "w1_add_master_device: invalid function set\n");
 		return(-EINVAL);
         }
+	/* While it would be electrically possible to make a device that
+	 * generated a strong pullup in bit bang mode, only hardare that
+	 * controls 1-wire time frames are even expected to support a strong
+	 * pullup.  w1_io.c would need to support calling set_pullup before
+	 * the last write_bit operation of a w1_write_8 which it currently
+	 * doesn't.
+	 */
+	if (!master->write_byte && !master->touch_bit && master->set_pullup) {
+		printk(KERN_ERR "w1_add_master_device: set_pullup requires "
+			"write_byte or touch_bit, disabling\n");
+		master->set_pullup = NULL;
+	}
 
 	dev = w1_alloc_dev(w1_ids++, w1_max_slave_count, w1_max_slave_ttl, &w1_master_driver, &w1_master_device);
 	if (!dev)

@@ -142,6 +142,12 @@ struct w1_bus_master
 	 */
 	u8		(*reset_bus)(void *);
 
+	/**
+	 * Put out a strong pull-up pulse of the specified duration.
+	 * @return -1=Error, 0=completed
+	 */
+	u8		(*set_pullup)(void *, int);
+
 	/** Really nice hardware can handles the different types of ROM search
 	 *  w1_master* is passed to the slave found callback.
 	 */
@@ -166,6 +172,11 @@ struct w1_master
 
 	void			*priv;
 	int			priv_size;
+
+	/** 5V strong pullup enabled flag, 1 enabled, zero disabled. */
+	int			enable_pullup;
+	/** 5V strong pullup duration in milliseconds, zero disabled. */
+	int			pullup_duration;
 
 	struct task_struct	*thread;
 	struct mutex		mutex;
@@ -201,6 +212,7 @@ u8 w1_calc_crc8(u8 *, int);
 void w1_write_block(struct w1_master *, const u8 *, int);
 u8 w1_read_block(struct w1_master *, u8 *, int);
 int w1_reset_select_slave(struct w1_slave *sl);
+void w1_next_pullup(struct w1_master *, int);
 
 static inline struct w1_slave* dev_to_w1_slave(struct device *dev)
 {
