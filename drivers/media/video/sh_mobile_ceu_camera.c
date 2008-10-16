@@ -401,10 +401,10 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 	 * D7, D6, D5, D4, D3, D2, D1, D0 (D7 written to lowest byte)
 	 *
 	 * The lowest three bits of CDOCR allows us to do swapping,
-	 * right now we swap the data bytes to the following order:
-	 * D1, D0, D3, D2, D5, D4, D7, D6
+	 * using 7 we swap the data bytes to match the incoming order:
+	 * D0, D1, D2, D3, D4, D5, D6, D7
 	 */
-	ceu_write(pcdev, CDOCR, 0x00000016);
+	ceu_write(pcdev, CDOCR, 0x00000017);
 
 	ceu_write(pcdev, CDWDR, cdwdr_width);
 	ceu_write(pcdev, CFWCR, 0); /* keep "datafetch firewall" disabled */
