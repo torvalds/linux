@@ -557,7 +557,7 @@ static void seq_stats(struct seq_file *m, struct lock_stat_data *data)
 	if (stats->read_holdtime.nr)
 		namelen += 2;
 
-	for (i = 0; i < ARRAY_SIZE(class->contention_point); i++) {
+	for (i = 0; i < LOCKSTAT_POINTS; i++) {
 		char sym[KSYM_SYMBOL_LEN];
 		char ip[32];
 
@@ -574,6 +574,23 @@ static void seq_stats(struct seq_file *m, struct lock_stat_data *data)
 				stats->contention_point[i],
 				ip, sym);
 	}
+	for (i = 0; i < LOCKSTAT_POINTS; i++) {
+		char sym[KSYM_SYMBOL_LEN];
+		char ip[32];
+
+		if (class->contending_point[i] == 0)
+			break;
+
+		if (!i)
+			seq_line(m, '-', 40-namelen, namelen);
+
+		sprint_symbol(sym, class->contending_point[i]);
+		snprintf(ip, sizeof(ip), "[<%p>]",
+				(void *)class->contending_point[i]);
+		seq_printf(m, "%40s %14lu %29s %s\n", name,
+				stats->contending_point[i],
+				ip, sym);
+	}
 	if (i) {
 		seq_puts(m, "\n");
 		seq_line(m, '.', 0, 40 + 1 + 10 * (14 + 1));
@@ -583,7 +600,7 @@ static void seq_stats(struct seq_file *m, struct lock_stat_data *data)
 
 static void seq_header(struct seq_file *m)
 {
-	seq_printf(m, "lock_stat version 0.2\n");
+	seq_printf(m, "lock_stat version 0.3\n");
 	seq_line(m, '-', 0, 40 + 1 + 10 * (14 + 1));
 	seq_printf(m, "%40s %14s %14s %14s %14s %14s %14s %14s %14s "
 			"%14s %14s\n",

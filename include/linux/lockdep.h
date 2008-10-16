@@ -73,6 +73,8 @@ struct lock_class_key {
 	struct lockdep_subclass_key	subkeys[MAX_LOCKDEP_SUBCLASSES];
 };
 
+#define LOCKSTAT_POINTS		4
+
 /*
  * The lock-class itself:
  */
@@ -119,7 +121,8 @@ struct lock_class {
 	int				name_version;
 
 #ifdef CONFIG_LOCK_STAT
-	unsigned long			contention_point[4];
+	unsigned long			contention_point[LOCKSTAT_POINTS];
+	unsigned long			contending_point[LOCKSTAT_POINTS];
 #endif
 };
 
@@ -144,6 +147,7 @@ enum bounce_type {
 
 struct lock_class_stats {
 	unsigned long			contention_point[4];
+	unsigned long			contending_point[4];
 	struct lock_time		read_waittime;
 	struct lock_time		write_waittime;
 	struct lock_time		read_holdtime;
@@ -165,6 +169,7 @@ struct lockdep_map {
 	const char			*name;
 #ifdef CONFIG_LOCK_STAT
 	int				cpu;
+	unsigned long			ip;
 #endif
 };
 
@@ -355,7 +360,7 @@ struct lock_class_key { };
 #ifdef CONFIG_LOCK_STAT
 
 extern void lock_contended(struct lockdep_map *lock, unsigned long ip);
-extern void lock_acquired(struct lockdep_map *lock);
+extern void lock_acquired(struct lockdep_map *lock, unsigned long ip);
 
 #define LOCK_CONTENDED(_lock, try, lock)			\
 do {								\
@@ -363,13 +368,13 @@ do {								\
 		lock_contended(&(_lock)->dep_map, _RET_IP_);	\
 		lock(_lock);					\
 	}							\
-	lock_acquired(&(_lock)->dep_map);			\
+	lock_acquired(&(_lock)->dep_map, _RET_IP_);			\
 } while (0)
 
 #else /* CONFIG_LOCK_STAT */
 
 #define lock_contended(lockdep_map, ip) do {} while (0)
-#define lock_acquired(lockdep_map) do {} while (0)
+#define lock_acquired(lockdep_map, ip) do {} while (0)
 
 #define LOCK_CONTENDED(_lock, try, lock) \
 	lock(_lock)

@@ -136,16 +136,16 @@ static inline struct lock_class *hlock_class(struct held_lock *hlock)
 #ifdef CONFIG_LOCK_STAT
 static DEFINE_PER_CPU(struct lock_class_stats[MAX_LOCKDEP_KEYS], lock_stats);
 
-static int lock_contention_point(struct lock_class *class, unsigned long ip)
+static int lock_point(unsigned long points[], unsigned long ip)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(class->contention_point); i++) {
-		if (class->contention_point[i] == 0) {
-			class->contention_point[i] = ip;
+	for (i = 0; i < LOCKSTAT_POINTS; i++) {
+		if (points[i] == 0) {
+			points[i] = ip;
 			break;
 		}
-		if (class->contention_point[i] == ip)
+		if (points[i] == ip)
 			break;
 	}
 
@@ -185,6 +185,9 @@ struct lock_class_stats lock_stats(struct lock_class *class)
 		for (i = 0; i < ARRAY_SIZE(stats.contention_point); i++)
 			stats.contention_point[i] += pcs->contention_point[i];
 
+		for (i = 0; i < ARRAY_SIZE(stats.contending_point); i++)
+			stats.contending_point[i] += pcs->contending_point[i];
+
 		lock_time_add(&pcs->read_waittime, &stats.read_waittime);
 		lock_time_add(&pcs->write_waittime, &stats.write_waittime);
 
@@ -209,6 +212,7 @@ void clear_lock_stats(struct lock_class *class)
 		memset(cpu_stats, 0, sizeof(struct lock_class_stats));
 	}
 	memset(class->contention_point, 0, sizeof(class->contention_point));
+	memset(class->contending_point, 0, sizeof(class->contending_point));
 }
 
 static struct lock_class_stats *get_lock_stats(struct lock_class *class)
@@ -3001,7 +3005,7 @@ __lock_contended(struct lockdep_map *lock, unsigned long ip)
 	struct held_lock *hlock, *prev_hlock;
 	struct lock_class_stats *stats;
 	unsigned int depth;
-	int i, point;
+	int i, contention_point, contending_point;
 
 	depth = curr->lockdep_depth;
 	if (DEBUG_LOCKS_WARN_ON(!depth))
@@ -3025,18 +3029,22 @@ __lock_contended(struct lockdep_map *lock, unsigned long ip)
 found_it:
 	hlock->waittime_stamp = sched_clock();
 
-	point = lock_contention_point(hlock_class(hlock), ip);
+	contention_point = lock_point(hlock_class(hlock)->contention_point, ip);
+	contending_point = lock_point(hlock_class(hlock)->contending_point,
+				      lock->ip);
 
 	stats = get_lock_stats(hlock_class(hlock));
-	if (point < ARRAY_SIZE(stats->contention_point))
-		stats->contention_point[point]++;
+	if (contention_point < LOCKSTAT_POINTS)
+		stats->contention_point[contention_point]++;
+	if (contending_point < LOCKSTAT_POINTS)
+		stats->contending_point[contending_point]++;
 	if (lock->cpu != smp_processor_id())
 		stats->bounces[bounce_contended + !!hlock->read]++;
 	put_lock_stats(stats);
 }
 
 static void
-__lock_acquired(struct lockdep_map *lock)
+__lock_acquired(struct lockdep_map *lock, unsigned long ip)
 {
 	struct task_struct *curr = current;
 	struct held_lock *hlock, *prev_hlock;
@@ -3085,6 +3093,7 @@ found_it:
 	put_lock_stats(stats);
 
 	lock->cpu = cpu;
+	lock->ip = ip;
 }
 
 void lock_contended(struct lockdep_map *lock, unsigned long ip)
@@ -3106,7 +3115,7 @@ void lock_contended(struct lockdep_map *lock, unsigned long ip)
 }
 EXPORT_SYMBOL_GPL(lock_contended);
 
-void lock_acquired(struct lockdep_map *lock)
+void lock_acquired(struct lockdep_map *lock, unsigned long ip)
 {
 	unsigned long flags;
 
@@ -3119,7 +3128,7 @@ void lock_acquired(struct lockdep_map *lock)
 	raw_local_irq_save(flags);
 	check_flags(flags);
 	current->lockdep_recursion = 1;
-	__lock_acquired(lock);
+	__lock_acquired(lock, ip);
 	current->lockdep_recursion = 0;
 	raw_local_irq_restore(flags);
 }
