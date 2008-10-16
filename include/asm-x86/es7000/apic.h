@@ -171,7 +171,7 @@ static inline unsigned int cpu_mask_to_apicid(cpumask_t cpumask)
 			int new_apicid = cpu_to_logical_apicid(cpu);
 			if (apicid_cluster(apicid) !=
 					apicid_cluster(new_apicid)){
-				printk ("%s: Not a valid mask!\n",__FUNCTION__);
+				printk ("%s: Not a valid mask!\n", __func__);
 #if defined CONFIG_ES7000_CLUSTERED_APIC
 				return 0xFF;
 #else
