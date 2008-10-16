@@ -759,6 +759,7 @@ static void ieee80211_direct_probe(struct ieee80211_sub_if_data *sdata,
 		printk(KERN_DEBUG "%s: direct probe to AP %pM timed out\n",
 		       sdata->dev->name, ifsta->bssid);
 		ifsta->state = IEEE80211_STA_MLME_DISABLED;
+		ieee80211_sta_send_apinfo(sdata, ifsta);
 		return;
 	}
 
@@ -789,6 +790,7 @@ static void ieee80211_authenticate(struct ieee80211_sub_if_data *sdata,
 		       " timed out\n",
 		       sdata->dev->name, ifsta->bssid);
 		ifsta->state = IEEE80211_STA_MLME_DISABLED;
+		ieee80211_sta_send_apinfo(sdata, ifsta);
 		return;
 	}
 
@@ -909,6 +911,7 @@ static void ieee80211_associate(struct ieee80211_sub_if_data *sdata,
 		       " timed out\n",
 		       sdata->dev->name, ifsta->bssid);
 		ifsta->state = IEEE80211_STA_MLME_DISABLED;
+		ieee80211_sta_send_apinfo(sdata, ifsta);
 		return;
 	}
 
