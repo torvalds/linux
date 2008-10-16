@@ -408,6 +408,7 @@ sub ctx_statement_block {
 		# context.
 		if ($off >= $len) {
 			for (; $remain > 0; $line++) {
+				last if (!defined $lines[$line]);
 				next if ($lines[$line] =~ /^-/);
 				$remain--;
 				$loff = $len;
