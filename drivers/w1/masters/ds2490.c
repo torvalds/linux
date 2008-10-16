@@ -341,7 +341,8 @@ static int ds_send_data(struct ds_device *dev, unsigned char *buf, int len)
 	count = 0;
 	err = usb_bulk_msg(dev->udev, usb_sndbulkpipe(dev->udev, dev->ep[EP_DATA_OUT]), buf, len, &count, 1000);
 	if (err < 0) {
-		printk(KERN_ERR "Failed to read 1-wire data from 0x02: err=%d.\n", err);
+		printk(KERN_ERR "Failed to write 1-wire data to ep0x%x: "
+			"err=%d.\n", dev->ep[EP_DATA_OUT], err);
 		return err;
 	}
 
