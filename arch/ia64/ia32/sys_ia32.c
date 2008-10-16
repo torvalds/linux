@@ -1113,66 +1113,10 @@ sys32_pipe (int __user *fd)
 	return retval;
 }
 
-static inline long
-get_tv32 (struct timeval *o, struct compat_timeval __user *i)
-{
-	return (!access_ok(VERIFY_READ, i, sizeof(*i)) ||
-		(__get_user(o->tv_sec, &i->tv_sec) | __get_user(o->tv_usec, &i->tv_usec)));
-}
-
-static inline long
-put_tv32 (struct compat_timeval __user *o, struct timeval *i)
-{
-	return (!access_ok(VERIFY_WRITE, o, sizeof(*o)) ||
-		(__put_user(i->tv_sec, &o->tv_sec) | __put_user(i->tv_usec, &o->tv_usec)));
-}
-
 asmlinkage unsigned long
 sys32_alarm (unsigned int seconds)
 {
 	return alarm_setitimer(seconds);
-}
-
-/* Translations due to time_t size differences.  Which affects all
-   sorts of things, like timeval and itimerval.  */
-
-extern struct timezone sys_tz;
-
-asmlinkage long
-sys32_gettimeofday (struct compat_timeval __user *tv, struct timezone __user *tz)
-{
-	if (tv) {
-		struct timeval ktv;
-		do_gettimeofday(&ktv);
-		if (put_tv32(tv, &ktv))
-			return -EFAULT;
-	}
-	if (tz) {
-		if (copy_to_user(tz, &sys_tz, sizeof(sys_tz)))
-			return -EFAULT;
-	}
-	return 0;
-}
-
-asmlinkage long
-sys32_settimeofday (struct compat_timeval __user *tv, struct timezone __user *tz)
-{
-	struct timeval ktv;
-	struct timespec kts;
-	struct timezone ktz;
-
-	if (tv) {
-		if (get_tv32(&ktv, tv))
-			return -EFAULT;
-		kts.tv_sec = ktv.tv_sec;
-		kts.tv_nsec = ktv.tv_usec * 1000;
-	}
-	if (tz) {
-		if (copy_from_user(&ktz, tz, sizeof(ktz)))
-			return -EFAULT;
-	}
-
-	return do_sys_settimeofday(tv ? &kts : NULL, tz ? &ktz : NULL);
 }
 
 struct sel_arg_struct {

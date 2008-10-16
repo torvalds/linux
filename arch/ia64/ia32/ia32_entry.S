@@ -251,8 +251,8 @@ ia32_syscall_table:
 	data8 compat_sys_setrlimit	  /* 75 */
 	data8 compat_sys_old_getrlimit
 	data8 compat_sys_getrusage
-	data8 sys32_gettimeofday
-	data8 sys32_settimeofday
+	data8 compat_sys_gettimeofday
+	data8 compat_sys_settimeofday
 	data8 sys32_getgroups16	  /* 80 */
 	data8 sys32_setgroups16
 	data8 sys32_old_select

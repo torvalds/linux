@@ -179,64 +179,6 @@ asmlinkage long sys32_sched_rr_get_interval(pid_t pid,
 	return ret;
 }
 
-static int
-put_compat_timeval(struct compat_timeval __user *u, struct timeval *t)
-{
-	struct compat_timeval t32;
-	t32.tv_sec = t->tv_sec;
-	t32.tv_usec = t->tv_usec;
-	return copy_to_user(u, &t32, sizeof t32);
-}
-
-static inline long get_ts32(struct timespec *o, struct compat_timeval __user *i)
-{
-	long usec;
-
-	if (__get_user(o->tv_sec, &i->tv_sec))
-		return -EFAULT;
-	if (__get_user(usec, &i->tv_usec))
-		return -EFAULT;
-	o->tv_nsec = usec * 1000;
-	return 0;
-}
-
-asmlinkage int
-sys32_gettimeofday(struct compat_timeval __user *tv, struct timezone __user *tz)
-{
-    extern void do_gettimeofday(struct timeval *tv);
-
-    if (tv) {
-	    struct timeval ktv;
-	    do_gettimeofday(&ktv);
-	    if (put_compat_timeval(tv, &ktv))
-		    return -EFAULT;
-    }
-    if (tz) {
-	    extern struct timezone sys_tz;
-	    if (copy_to_user(tz, &sys_tz, sizeof(sys_tz)))
-		    return -EFAULT;
-    }
-    return 0;
-}
-
-asmlinkage 
-int sys32_settimeofday(struct compat_timeval __user *tv, struct timezone __user *tz)
-{
-	struct timespec kts;
-	struct timezone ktz;
-
- 	if (tv) {
-		if (get_ts32(&kts, tv))
-			return -EFAULT;
-	}
-	if (tz) {
-		if (copy_from_user(&ktz, tz, sizeof(ktz)))
-			return -EFAULT;
-	}
-
-	return do_sys_settimeofday(tv ? &kts : NULL, tz ? &ktz : NULL);
-}
-
 /*** copied from mips64 ***/
 /*
  * Ooo, nasty.  We need here to frob 32-bit unsigned longs to

@@ -202,10 +202,6 @@ long sys32_execve(void);
 long sys32_init_module(void __user *umod, unsigned long len,
 		       const char __user *uargs);
 long sys32_delete_module(const char __user *name_user, unsigned int flags);
-long sys32_gettimeofday(struct compat_timeval __user *tv,
-			struct timezone __user *tz);
-long sys32_settimeofday(struct compat_timeval __user *tv,
-			struct timezone __user *tz);
 long sys32_pread64(unsigned int fd, char __user *ubuf, size_t count,
 		   u32 poshi, u32 poslo);
 long sys32_pwrite64(unsigned int fd, const char __user *ubuf,
