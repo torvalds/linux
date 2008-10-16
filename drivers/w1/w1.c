@@ -772,6 +772,11 @@ void w1_search(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb
 			/* extract the direction taken & update the device number */
 			tmp64 = (triplet_ret >> 2);
 			rn |= (tmp64 << i);
+
+			if (test_bit(W1_MASTER_NEED_EXIT, &dev->flags)) {
+				printk(KERN_INFO "Abort w1_search (exiting)\n");
+				return;
+			}
 		}
 
 		if ( (triplet_ret & 0x03) != 0x03 ) {
