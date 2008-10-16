@@ -845,9 +845,7 @@ void w1_reconnect_slaves(struct w1_family *f, int attach)
 
 static void w1_slave_found(struct w1_master *dev, u64 rn)
 {
-	int slave_count;
 	struct w1_slave *sl;
-	struct list_head *ent;
 	struct w1_reg_num *tmp;
 	u64 rn_le = cpu_to_le64(rn);
 
@@ -855,24 +853,12 @@ static void w1_slave_found(struct w1_master *dev, u64 rn)
 
 	tmp = (struct w1_reg_num *) &rn;
 
-	slave_count = 0;
-	list_for_each(ent, &dev->slist) {
-
-		sl = list_entry(ent, struct w1_slave, w1_slave_entry);
-
-		if (sl->reg_num.family == tmp->family &&
-		    sl->reg_num.id == tmp->id &&
-		    sl->reg_num.crc == tmp->crc) {
-			set_bit(W1_SLAVE_ACTIVE, (long *)&sl->flags);
-			break;
-		}
-
-		slave_count++;
-	}
-
-	if (slave_count == dev->slave_count &&
-		rn && ((rn >> 56) & 0xff) == w1_calc_crc8((u8 *)&rn_le, 7)) {
-		w1_attach_slave_device(dev, tmp);
+	sl = w1_slave_search_device(dev, tmp);
+	if (sl) {
+		set_bit(W1_SLAVE_ACTIVE, (long *)&sl->flags);
+	} else {
+		if (rn && tmp->crc == w1_calc_crc8((u8 *)&rn_le, 7))
+			w1_attach_slave_device(dev, tmp);
 	}
 
 	atomic_dec(&dev->refcnt);
