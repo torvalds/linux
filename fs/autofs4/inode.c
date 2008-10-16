@@ -53,6 +53,8 @@ struct autofs_info *autofs4_init_ino(struct autofs_info *ino,
 		atomic_set(&ino->count, 0);
 	}
 
+	ino->uid = 0;
+	ino->gid = 0;
 	ino->mode = mode;
 	ino->last_used = jiffies;
 
