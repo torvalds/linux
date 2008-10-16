@@ -22,6 +22,7 @@
  */
 
 #include "cx18-driver.h"
+#include "cx18-io.h"
 #include "cx18-version.h"
 #include "cx18-mailbox.h"
 #include "cx18-i2c.h"
@@ -170,7 +171,6 @@ static int cx18_try_fmt_vid_cap(struct file *file, void *fh,
 {
 	struct cx18_open_id *id = fh;
 	struct cx18 *cx = id->cx;
-
 	int w = fmt->fmt.pix.width;
 	int h = fmt->fmt.pix.height;
 
@@ -202,8 +202,7 @@ static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
 	struct cx18_open_id *id = fh;
 	struct cx18 *cx = id->cx;
 	int ret;
-	int w = fmt->fmt.pix.width;
-	int h = fmt->fmt.pix.height;
+	int w, h;
 
 	ret = v4l2_prio_check(&cx->prio, &id->prio);
 	if (ret)
@@ -212,6 +211,8 @@ static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
 	ret = cx18_try_fmt_vid_cap(file, fh, fmt);
 	if (ret)
 		return ret;
+	w = fmt->fmt.pix.width;
+	h = fmt->fmt.pix.height;
 
 	if (cx->params.width == w && cx->params.height == h)
 		return 0;
@@ -286,9 +287,9 @@ static int cx18_cxc(struct cx18 *cx, unsigned int cmd, void *arg)
 
 	spin_lock_irqsave(&cx18_cards_lock, flags);
 	if (cmd == VIDIOC_DBG_G_REGISTER)
-		regs->val = read_enc(regs->reg);
+		regs->val = cx18_read_enc(cx, regs->reg);
 	else
-		write_enc(regs->val, regs->reg);
+		cx18_write_enc(cx, regs->val, regs->reg);
 	spin_unlock_irqrestore(&cx18_cards_lock, flags);
 	return 0;
 }
@@ -345,7 +346,7 @@ static int cx18_querycap(struct file *file, void *fh,
 
 	strlcpy(vcap->driver, CX18_DRIVER_NAME, sizeof(vcap->driver));
 	strlcpy(vcap->card, cx->card_name, sizeof(vcap->card));
-	strlcpy(vcap->bus_info, pci_name(cx->dev), sizeof(vcap->bus_info));
+	snprintf(vcap->bus_info, sizeof(vcap->bus_info), "PCI:%s", pci_name(cx->dev));
 	vcap->version = CX18_DRIVER_VERSION; 	    /* version */
 	vcap->capabilities = cx->v4l2_cap; 	    /* capabilities */
 	return 0;
@@ -622,6 +623,7 @@ static int cx18_encoder_cmd(struct file *file, void *fh,
 {
 	struct cx18_open_id *id = fh;
 	struct cx18 *cx = id->cx;
+	u32 h;
 
 	switch (enc->cmd) {
 	case V4L2_ENC_CMD_START:
@@ -643,8 +645,14 @@ static int cx18_encoder_cmd(struct file *file, void *fh,
 			return -EPERM;
 		if (test_and_set_bit(CX18_F_I_ENC_PAUSED, &cx->i_flags))
 			return 0;
+		h = cx18_find_handle(cx);
+		if (h == CX18_INVALID_TASK_HANDLE) {
+			CX18_ERR("Can't find valid task handle for "
+				 "V4L2_ENC_CMD_PAUSE\n");
+			return -EBADFD;
+		}
 		cx18_mute(cx);
-		cx18_vapi(cx, CX18_CPU_CAPTURE_PAUSE, 1, cx18_find_handle(cx));
+		cx18_vapi(cx, CX18_CPU_CAPTURE_PAUSE, 1, h);
 		break;
 
 	case V4L2_ENC_CMD_RESUME:
@@ -654,7 +662,13 @@ static int cx18_encoder_cmd(struct file *file, void *fh,
 			return -EPERM;
 		if (!test_and_clear_bit(CX18_F_I_ENC_PAUSED, &cx->i_flags))
 			return 0;
-		cx18_vapi(cx, CX18_CPU_CAPTURE_RESUME, 1, cx18_find_handle(cx));
+		h = cx18_find_handle(cx);
+		if (h == CX18_INVALID_TASK_HANDLE) {
+			CX18_ERR("Can't find valid task handle for "
+				 "V4L2_ENC_CMD_RESUME\n");
+			return -EBADFD;
+		}
+		cx18_vapi(cx, CX18_CPU_CAPTURE_RESUME, 1, h);
 		cx18_unmute(cx);
 		break;
 
@@ -731,12 +745,14 @@ static int cx18_log_status(struct file *file, void *fh)
 			continue;
 		CX18_INFO("Stream %s: status 0x%04lx, %d%% of %d KiB (%d buffers) in use\n",
 			  s->name, s->s_flags,
-			  (s->buffers - s->q_free.buffers) * 100 / s->buffers,
+			  (s->buffers - atomic_read(&s->q_free.buffers))
+				* 100 / s->buffers,
 			  (s->buffers * s->buf_size) / 1024, s->buffers);
 	}
 	CX18_INFO("Read MPEG/VBI: %lld/%lld bytes\n",
 			(long long)cx->mpg_data_received,
 			(long long)cx->vbi_data_inserted);
+	cx18_log_statistics(cx);
 	CX18_INFO("==================  END STATUS CARD #%d  ==================\n", cx->num);
 	return 0;
 }

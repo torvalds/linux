@@ -322,9 +322,11 @@ int cplb_hdr(int seqstat, struct pt_regs *regs)
 void flush_switched_cplbs(void)
 {
 	int i;
+	unsigned long flags;
 
 	nr_cplb_flush++;
 
+	local_irq_save(flags);
 	disable_icplb();
 	for (i = first_switched_icplb; i < MAX_CPLBS; i++) {
 		icplb_tbl[i].data = 0;
@@ -338,6 +340,8 @@ void flush_switched_cplbs(void)
 		bfin_write32(DCPLB_DATA0 + i * 4, 0);
 	}
 	enable_dcplb();
+	local_irq_restore(flags);
+
 }
 
 void set_mask_dcplbs(unsigned long *masks)
@@ -345,10 +349,15 @@ void set_mask_dcplbs(unsigned long *masks)
 	int i;
 	unsigned long addr = (unsigned long)masks;
 	unsigned long d_data;
-	current_rwx_mask = masks;
+	unsigned long flags;
 
-	if (!masks)
+	if (!masks) {
+		current_rwx_mask = masks;
 		return;
+	}
+
+	local_irq_save(flags);
+	current_rwx_mask = masks;
 
 	d_data = CPLB_SUPV_WR | CPLB_VALID | CPLB_DIRTY | PAGE_SIZE_4KB;
 #ifdef CONFIG_BFIN_DCACHE
@@ -367,4 +376,5 @@ void set_mask_dcplbs(unsigned long *masks)
 		addr += PAGE_SIZE;
 	}
 	enable_dcplb();
+	local_irq_restore(flags);
 }

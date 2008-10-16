@@ -38,11 +38,17 @@ enum omap_mcbsp_div {
 	OMAP_MCBSP_CLKGDV,		/* Sample rate generator divider */
 };
 
-/*
- * REVISIT: Preparation for the ASoC v2. Let the number of available links to
- * be same than number of McBSP ports found in OMAP(s) we are compiling for.
- */
-#define NUM_LINKS	1
+#if defined(CONFIG_ARCH_OMAP2420)
+#define NUM_LINKS	2
+#endif
+#if defined(CONFIG_ARCH_OMAP15XX) || defined(CONFIG_ARCH_OMAP16XX)
+#undef  NUM_LINKS
+#define NUM_LINKS	3
+#endif
+#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP34XX)
+#undef  NUM_LINKS
+#define NUM_LINKS	5
+#endif
 
 extern struct snd_soc_dai omap_mcbsp_dai[NUM_LINKS];
 

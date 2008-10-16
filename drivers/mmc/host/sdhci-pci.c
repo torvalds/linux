@@ -144,7 +144,8 @@ static int jmicron_probe(struct sdhci_pci_chip *chip)
 			  SDHCI_QUIRK_32BIT_DMA_SIZE |
 			  SDHCI_QUIRK_32BIT_ADMA_SIZE |
 			  SDHCI_QUIRK_RESET_AFTER_REQUEST |
-			  SDHCI_QUIRK_BROKEN_SMALL_PIO;
+			  SDHCI_QUIRK_BROKEN_SMALL_PIO |
+			  SDHCI_QUIRK_FORCE_HIGHSPEED;
 	}
 
 	/*
@@ -326,7 +327,7 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 
 	{
 		.vendor         = PCI_VENDOR_ID_MARVELL,
-		.device         = PCI_DEVICE_ID_MARVELL_CAFE_SD,
+		.device         = PCI_DEVICE_ID_MARVELL_88ALP01_SD,
 		.subvendor      = PCI_ANY_ID,
 		.subdevice      = PCI_ANY_ID,
 		.driver_data    = (kernel_ulong_t)&sdhci_cafe,

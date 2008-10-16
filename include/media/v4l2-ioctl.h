@@ -39,11 +39,6 @@ struct v4l2_ioctl_ops {
 					    struct v4l2_fmtdesc *f);
 	int (*vidioc_enum_fmt_vid_out)     (struct file *file, void *fh,
 					    struct v4l2_fmtdesc *f);
-#if 1
-	/* deprecated, will be removed in 2.6.28 */
-	int (*vidioc_enum_fmt_vbi_cap)     (struct file *file, void *fh,
-					    struct v4l2_fmtdesc *f);
-#endif
 	int (*vidioc_enum_fmt_type_private)(struct file *file, void *fh,
 					    struct v4l2_fmtdesc *f);
 

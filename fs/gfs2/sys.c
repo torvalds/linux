@@ -269,14 +269,6 @@ ARGS_ATTR(quota,           "%u\n");
 ARGS_ATTR(suiddir,         "%d\n");
 ARGS_ATTR(data,            "%d\n");
 
-/* one oddball doesn't fit the macro mold */
-static ssize_t noatime_show(struct gfs2_sbd *sdp, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-			!!test_bit(SDF_NOATIME, &sdp->sd_flags));
-}
-static struct args_attr args_attr_noatime = __ATTR_RO(noatime);
-
 static struct attribute *args_attrs[] = {
 	&args_attr_lockproto.attr,
 	&args_attr_locktable.attr,
@@ -292,7 +284,6 @@ static struct attribute *args_attrs[] = {
 	&args_attr_quota.attr,
 	&args_attr_suiddir.attr,
 	&args_attr_data.attr,
-	&args_attr_noatime.attr,
 	NULL,
 };
 
@@ -407,7 +398,6 @@ TUNE_ATTR(incore_log_blocks, 0);
 TUNE_ATTR(log_flush_secs, 0);
 TUNE_ATTR(quota_warn_period, 0);
 TUNE_ATTR(quota_quantum, 0);
-TUNE_ATTR(atime_quantum, 0);
 TUNE_ATTR(max_readahead, 0);
 TUNE_ATTR(complain_secs, 0);
 TUNE_ATTR(statfs_slow, 0);
@@ -427,7 +417,6 @@ static struct attribute *tune_attrs[] = {
 	&tune_attr_log_flush_secs.attr,
 	&tune_attr_quota_warn_period.attr,
 	&tune_attr_quota_quantum.attr,
-	&tune_attr_atime_quantum.attr,
 	&tune_attr_max_readahead.attr,
 	&tune_attr_complain_secs.attr,
 	&tune_attr_statfs_slow.attr,

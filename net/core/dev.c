@@ -891,7 +891,7 @@ int dev_alloc_name(struct net_device *dev, const char *name)
  *	Change name of a device, can pass format strings "eth%d".
  *	for wildcarding.
  */
-int dev_change_name(struct net_device *dev, char *newname)
+int dev_change_name(struct net_device *dev, const char *newname)
 {
 	char oldname[IFNAMSIZ];
 	int err = 0;
@@ -917,7 +917,6 @@ int dev_change_name(struct net_device *dev, char *newname)
 		err = dev_alloc_name(dev, newname);
 		if (err < 0)
 			return err;
-		strcpy(newname, dev->name);
 	}
 	else if (__dev_get_by_name(net, newname))
 		return -EEXIST;
@@ -953,6 +952,38 @@ rollback:
 
 	return err;
 }
+
+/**
+ *	dev_set_alias - change ifalias of a device
+ *	@dev: device
+ *	@alias: name up to IFALIASZ
+ *	@len: limit of bytes to copy from info
+ *
+ *	Set ifalias for a device,
+ */
+int dev_set_alias(struct net_device *dev, const char *alias, size_t len)
+{
+	ASSERT_RTNL();
+
+	if (len >= IFALIASZ)
+		return -EINVAL;
+
+	if (!len) {
+		if (dev->ifalias) {
+			kfree(dev->ifalias);
+			dev->ifalias = NULL;
+		}
+		return 0;
+	}
+
+	dev->ifalias = krealloc(dev->ifalias, len+1, GFP_KERNEL);
+	if (!dev->ifalias)
+		return -ENOMEM;
+
+	strlcpy(dev->ifalias, alias, len+1);
+	return len;
+}
+
 
 /**
  *	netdev_features_change - device changes features
@@ -1676,14 +1707,14 @@ static u16 simple_tx_hash(struct net_device *dev, struct sk_buff *skb)
 	}
 
 	switch (skb->protocol) {
-	case __constant_htons(ETH_P_IP):
+	case htons(ETH_P_IP):
 		if (!(ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)))
 			ip_proto = ip_hdr(skb)->protocol;
 		addr1 = ip_hdr(skb)->saddr;
 		addr2 = ip_hdr(skb)->daddr;
 		ihl = ip_hdr(skb)->ihl;
 		break;
-	case __constant_htons(ETH_P_IPV6):
+	case htons(ETH_P_IPV6):
 		ip_proto = ipv6_hdr(skb)->nexthdr;
 		addr1 = ipv6_hdr(skb)->saddr.s6_addr32[3];
 		addr2 = ipv6_hdr(skb)->daddr.s6_addr32[3];
@@ -2918,6 +2949,12 @@ int netdev_set_master(struct net_device *slave, struct net_device *master)
 	return 0;
 }
 
+static void dev_change_rx_flags(struct net_device *dev, int flags)
+{
+	if (dev->flags & IFF_UP && dev->change_rx_flags)
+		dev->change_rx_flags(dev, flags);
+}
+
 static int __dev_set_promiscuity(struct net_device *dev, int inc)
 {
 	unsigned short old_flags = dev->flags;
@@ -2955,8 +2992,7 @@ static int __dev_set_promiscuity(struct net_device *dev, int inc)
 				current->uid, current->gid,
 				audit_get_sessionid(current));
 
-		if (dev->change_rx_flags)
-			dev->change_rx_flags(dev, IFF_PROMISC);
+		dev_change_rx_flags(dev, IFF_PROMISC);
 	}
 	return 0;
 }
@@ -3022,8 +3058,7 @@ int dev_set_allmulti(struct net_device *dev, int inc)
 		}
 	}
 	if (dev->flags ^ old_flags) {
-		if (dev->change_rx_flags)
-			dev->change_rx_flags(dev, IFF_ALLMULTI);
+		dev_change_rx_flags(dev, IFF_ALLMULTI);
 		dev_set_rx_mode(dev);
 	}
 	return 0;
@@ -3302,6 +3337,12 @@ static void dev_addr_discard(struct net_device *dev)
 	netif_addr_unlock_bh(dev);
 }
 
+/**
+ *	dev_get_flags - get flags reported to userspace
+ *	@dev: device
+ *
+ *	Get the combination of flag bits exported through APIs to userspace.
+ */
 unsigned dev_get_flags(const struct net_device *dev)
 {
 	unsigned flags;
@@ -3326,6 +3367,14 @@ unsigned dev_get_flags(const struct net_device *dev)
 	return flags;
 }
 
+/**
+ *	dev_change_flags - change device settings
+ *	@dev: device
+ *	@flags: device state flags
+ *
+ *	Change settings on device based state flags. The flags are
+ *	in the userspace exported format.
+ */
 int dev_change_flags(struct net_device *dev, unsigned flags)
 {
 	int ret, changes;
@@ -3347,8 +3396,8 @@ int dev_change_flags(struct net_device *dev, unsigned flags)
 	 *	Load in the correct multicast list now the flags have changed.
 	 */
 
-	if (dev->change_rx_flags && (old_flags ^ flags) & IFF_MULTICAST)
-		dev->change_rx_flags(dev, IFF_MULTICAST);
+	if ((old_flags ^ flags) & IFF_MULTICAST)
+		dev_change_rx_flags(dev, IFF_MULTICAST);
 
 	dev_set_rx_mode(dev);
 
@@ -3395,6 +3444,13 @@ int dev_change_flags(struct net_device *dev, unsigned flags)
 	return ret;
 }
 
+/**
+ *	dev_set_mtu - Change maximum transfer unit
+ *	@dev: device
+ *	@new_mtu: new transfer unit
+ *
+ *	Change the maximum transfer size of the network device.
+ */
 int dev_set_mtu(struct net_device *dev, int new_mtu)
 {
 	int err;
@@ -3419,6 +3475,13 @@ int dev_set_mtu(struct net_device *dev, int new_mtu)
 	return err;
 }
 
+/**
+ *	dev_set_mac_address - Change Media Access Control Address
+ *	@dev: device
+ *	@sa: new address
+ *
+ *	Change the hardware (MAC) address of the device
+ */
 int dev_set_mac_address(struct net_device *dev, struct sockaddr *sa)
 {
 	int err;
@@ -3808,14 +3871,11 @@ static int dev_new_index(struct net *net)
 }
 
 /* Delayed registration/unregisteration */
-static DEFINE_SPINLOCK(net_todo_list_lock);
 static LIST_HEAD(net_todo_list);
 
 static void net_set_todo(struct net_device *dev)
 {
-	spin_lock(&net_todo_list_lock);
 	list_add_tail(&dev->todo_list, &net_todo_list);
-	spin_unlock(&net_todo_list_lock);
 }
 
 static void rollback_registered(struct net_device *dev)
@@ -4142,33 +4202,24 @@ static void netdev_wait_allrefs(struct net_device *dev)
  *	free_netdev(y1);
  *	free_netdev(y2);
  *
- * We are invoked by rtnl_unlock() after it drops the semaphore.
+ * We are invoked by rtnl_unlock().
  * This allows us to deal with problems:
  * 1) We can delete sysfs objects which invoke hotplug
  *    without deadlocking with linkwatch via keventd.
  * 2) Since we run with the RTNL semaphore not held, we can sleep
  *    safely in order to wait for the netdev refcnt to drop to zero.
+ *
+ * We must not return until all unregister events added during
+ * the interval the lock was held have been completed.
  */
-static DEFINE_MUTEX(net_todo_run_mutex);
 void netdev_run_todo(void)
 {
 	struct list_head list;
 
-	/* Need to guard against multiple cpu's getting out of order. */
-	mutex_lock(&net_todo_run_mutex);
-
-	/* Not safe to do outside the semaphore.  We must not return
-	 * until all unregister events invoked by the local processor
-	 * have been completed (either by this todo run, or one on
-	 * another cpu).
-	 */
-	if (list_empty(&net_todo_list))
-		goto out;
-
 	/* Snapshot list, allow later requests */
-	spin_lock(&net_todo_list_lock);
 	list_replace_init(&net_todo_list, &list);
-	spin_unlock(&net_todo_list_lock);
+
+	__rtnl_unlock();
 
 	while (!list_empty(&list)) {
 		struct net_device *dev
@@ -4200,9 +4251,6 @@ void netdev_run_todo(void)
 		/* Free network device */
 		kobject_put(&dev->dev.kobj);
 	}
-
-out:
-	mutex_unlock(&net_todo_run_mutex);
 }
 
 static struct net_device_stats *internal_stats(struct net_device *dev)
@@ -4322,7 +4370,12 @@ void free_netdev(struct net_device *dev)
 	put_device(&dev->dev);
 }
 
-/* Synchronize with packet receive processing. */
+/**
+ *	synchronize_net -  Synchronize with packet receive processing
+ *
+ *	Wait for packets currently being received to be done.
+ *	Does not block later packets from starting.
+ */
 void synchronize_net(void)
 {
 	might_sleep();
@@ -4624,7 +4677,7 @@ netdev_dma_event(struct dma_client *client, struct dma_chan *chan,
 }
 
 /**
- * netdev_dma_regiser - register the networking subsystem as a DMA client
+ * netdev_dma_register - register the networking subsystem as a DMA client
  */
 static int __init netdev_dma_register(void)
 {
@@ -4669,6 +4722,12 @@ int netdev_compute_features(unsigned long all, unsigned long one)
 	if (one & NETIF_F_GSO)
 		one |= NETIF_F_GSO_SOFTWARE;
 	one |= NETIF_F_GSO;
+
+	/*
+	 * If even one device supports a GSO protocol with software fallback,
+	 * enable it for all.
+	 */
+	all |= one & NETIF_F_GSO_SOFTWARE;
 
 	/* If even one device supports robust GSO, enable it for all. */
 	if (one & NETIF_F_GSO_ROBUST)
@@ -4719,10 +4778,18 @@ err_name:
 	return -ENOMEM;
 }
 
-char *netdev_drivername(struct net_device *dev, char *buffer, int len)
+/**
+ *	netdev_drivername - network driver for the device
+ *	@dev: network device
+ *	@buffer: buffer for resulting name
+ *	@len: size of buffer
+ *
+ *	Determine network driver for device.
+ */
+char *netdev_drivername(const struct net_device *dev, char *buffer, int len)
 {
-	struct device_driver *driver;
-	struct device *parent;
+	const struct device_driver *driver;
+	const struct device *parent;
 
 	if (len <= 0 || !buffer)
 		return buffer;

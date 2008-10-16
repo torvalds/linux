@@ -90,9 +90,10 @@ static unsigned short snd_cs46xx_codec_read(struct snd_cs46xx *chip,
 	int count;
 	unsigned short result,tmp;
 	u32 offset = 0;
-	snd_assert ( (codec_index == CS46XX_PRIMARY_CODEC_INDEX) ||
-		     (codec_index == CS46XX_SECONDARY_CODEC_INDEX),
-		     return -EINVAL);
+
+	if (snd_BUG_ON(codec_index != CS46XX_PRIMARY_CODEC_INDEX &&
+		       codec_index != CS46XX_SECONDARY_CODEC_INDEX))
+		return -EINVAL;
 
 	chip->active_ctrl(chip, 1);
 
@@ -212,9 +213,9 @@ static unsigned short snd_cs46xx_ac97_read(struct snd_ac97 * ac97,
 	unsigned short val;
 	int codec_index = ac97->num;
 
-	snd_assert(codec_index == CS46XX_PRIMARY_CODEC_INDEX ||
-		   codec_index == CS46XX_SECONDARY_CODEC_INDEX,
-		   return 0xffff);
+	if (snd_BUG_ON(codec_index != CS46XX_PRIMARY_CODEC_INDEX &&
+		       codec_index != CS46XX_SECONDARY_CODEC_INDEX))
+		return 0xffff;
 
 	val = snd_cs46xx_codec_read(chip, reg, codec_index);
 
@@ -229,9 +230,9 @@ static void snd_cs46xx_codec_write(struct snd_cs46xx *chip,
 {
 	int count;
 
-	snd_assert ((codec_index == CS46XX_PRIMARY_CODEC_INDEX) ||
-		    (codec_index == CS46XX_SECONDARY_CODEC_INDEX),
-		    return);
+	if (snd_BUG_ON(codec_index != CS46XX_PRIMARY_CODEC_INDEX &&
+		       codec_index != CS46XX_SECONDARY_CODEC_INDEX))
+		return;
 
 	chip->active_ctrl(chip, 1);
 
@@ -294,9 +295,9 @@ static void snd_cs46xx_ac97_write(struct snd_ac97 *ac97,
 	struct snd_cs46xx *chip = ac97->private_data;
 	int codec_index = ac97->num;
 
-	snd_assert(codec_index == CS46XX_PRIMARY_CODEC_INDEX ||
-		   codec_index == CS46XX_SECONDARY_CODEC_INDEX,
-		   return);
+	if (snd_BUG_ON(codec_index != CS46XX_PRIMARY_CODEC_INDEX &&
+		       codec_index != CS46XX_SECONDARY_CODEC_INDEX))
+		return;
 
 	snd_cs46xx_codec_write(chip, reg, val, codec_index);
 }
@@ -315,7 +316,8 @@ int snd_cs46xx_download(struct snd_cs46xx *chip,
 	unsigned int bank = offset >> 16;
 	offset = offset & 0xffff;
 
-	snd_assert(!(offset & 3) && !(len & 3), return -EINVAL);
+	if (snd_BUG_ON((offset & 3) || (len & 3)))
+		return -EINVAL;
 	dst = chip->region.idx[bank+1].remap_addr + offset;
 	len /= sizeof(u32);
 
@@ -343,7 +345,8 @@ int snd_cs46xx_clear_BA1(struct snd_cs46xx *chip,
 	unsigned int bank = offset >> 16;
 	offset = offset & 0xffff;
 
-	snd_assert(!(offset & 3) && !(len & 3), return -EINVAL);
+	if (snd_BUG_ON((offset & 3) || (len & 3)))
+		return -EINVAL;
 	dst = chip->region.idx[bank+1].remap_addr + offset;
 	len /= sizeof(u32);
 
@@ -722,7 +725,9 @@ static snd_pcm_uframes_t snd_cs46xx_playback_direct_pointer(struct snd_pcm_subst
 	struct snd_cs46xx *chip = snd_pcm_substream_chip(substream);
 	size_t ptr;
 	struct snd_cs46xx_pcm *cpcm = substream->runtime->private_data;
-	snd_assert (cpcm->pcm_channel,return -ENXIO);
+
+	if (snd_BUG_ON(!cpcm->pcm_channel))
+		return -ENXIO;
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 	ptr = snd_cs46xx_peek(chip, (cpcm->pcm_channel->pcm_reader_scb->address + 2) << 2);
@@ -740,7 +745,8 @@ static snd_pcm_uframes_t snd_cs46xx_playback_indirect_pointer(struct snd_pcm_sub
 	struct snd_cs46xx_pcm *cpcm = substream->runtime->private_data;
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
-	snd_assert (cpcm->pcm_channel,return -ENXIO);
+	if (snd_BUG_ON(!cpcm->pcm_channel))
+		return -ENXIO;
 	ptr = snd_cs46xx_peek(chip, (cpcm->pcm_channel->pcm_reader_scb->address + 2) << 2);
 #else
 	ptr = snd_cs46xx_peek(chip, BA1_PBA);
@@ -908,7 +914,8 @@ static int snd_cs46xx_playback_hw_params(struct snd_pcm_substream *substream,
 	cpcm = runtime->private_data;
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
-	snd_assert (sample_rate != 0, return -ENXIO);
+	if (snd_BUG_ON(!sample_rate))
+		return -ENXIO;
 
 	mutex_lock(&chip->spos_mutex);
 
@@ -917,7 +924,7 @@ static int snd_cs46xx_playback_hw_params(struct snd_pcm_substream *substream,
 		return -ENXIO;
 	}
 
-	snd_assert (cpcm->pcm_channel != NULL);
+	snd_BUG_ON(!cpcm->pcm_channel);
 	if (!cpcm->pcm_channel) {
 		mutex_unlock(&chip->spos_mutex);
 		return -ENXIO;
@@ -952,7 +959,7 @@ static int snd_cs46xx_playback_hw_params(struct snd_pcm_substream *substream,
 		} else if (cpcm->pcm_channel_id == DSP_IEC958_CHANNEL) {
 			substream->ops = &snd_cs46xx_playback_iec958_ops;
 		} else {
-			snd_assert(0);
+			snd_BUG();
 		}
 #else
 		substream->ops = &snd_cs46xx_playback_ops;
@@ -981,7 +988,7 @@ static int snd_cs46xx_playback_hw_params(struct snd_pcm_substream *substream,
 		} else if (cpcm->pcm_channel_id == DSP_IEC958_CHANNEL) {
 			substream->ops = &snd_cs46xx_playback_indirect_iec958_ops;
 		} else {
-			snd_assert(0);
+			snd_BUG();
 		}
 #else
 		substream->ops = &snd_cs46xx_playback_indirect_ops;
@@ -1029,7 +1036,8 @@ static int snd_cs46xx_playback_prepare(struct snd_pcm_substream *substream)
 	cpcm = runtime->private_data;
 
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
-    snd_assert (cpcm->pcm_channel != NULL, return -ENXIO);
+	if (snd_BUG_ON(!cpcm->pcm_channel))
+		return -ENXIO;
 
 	pfie = snd_cs46xx_peek(chip, (cpcm->pcm_channel->pcm_reader_scb->address + 1) << 2 );
 	pfie &= ~0x0000f03f;
@@ -1714,9 +1722,9 @@ static void snd_cs46xx_mixer_free_ac97(struct snd_ac97 *ac97)
 {
 	struct snd_cs46xx *chip = ac97->private_data;
 
-	snd_assert ((ac97 == chip->ac97[CS46XX_PRIMARY_CODEC_INDEX]) ||
-		    (ac97 == chip->ac97[CS46XX_SECONDARY_CODEC_INDEX]),
-		    return);
+	if (snd_BUG_ON(ac97 != chip->ac97[CS46XX_PRIMARY_CODEC_INDEX] &&
+		       ac97 != chip->ac97[CS46XX_SECONDARY_CODEC_INDEX]))
+		return;
 
 	if (ac97 == chip->ac97[CS46XX_PRIMARY_CODEC_INDEX]) {
 		chip->ac97[CS46XX_PRIMARY_CODEC_INDEX] = NULL;
@@ -1864,7 +1872,7 @@ static int snd_cs46xx_iec958_put(struct snd_kcontrol *kcontrol,
 		break;
 	default:
 		res = -EINVAL;
-		snd_assert(0, (void)0);
+		snd_BUG(); /* should never happen ... */
 	}
 
 	return res;
@@ -2236,7 +2244,7 @@ static void snd_cs46xx_codec_reset (struct snd_ac97 * ac97)
 		snd_printdd("cs46xx: CODOEC2 mode %04x\n",0x3);
 		snd_cs46xx_ac97_write(ac97,AC97_CSR_ACMODE,0x3);
 	} else {
-		snd_assert(0); /* should never happen ... */
+		snd_BUG(); /* should never happen ... */
 	}
 
 	udelay(50);
@@ -2553,7 +2561,8 @@ static void snd_cs46xx_gameport_trigger(struct gameport *gameport)
 {
 	struct snd_cs46xx *chip = gameport_get_port_data(gameport);
 
-	snd_assert(chip, return);
+	if (snd_BUG_ON(!chip))
+		return;
 	snd_cs46xx_pokeBA0(chip, BA0_JSPT, 0xFF);  //outb(gameport->io, 0xFF);
 }
 
@@ -2561,7 +2570,8 @@ static unsigned char snd_cs46xx_gameport_read(struct gameport *gameport)
 {
 	struct snd_cs46xx *chip = gameport_get_port_data(gameport);
 
-	snd_assert(chip, return 0);
+	if (snd_BUG_ON(!chip))
+		return 0;
 	return snd_cs46xx_peekBA0(chip, BA0_JSPT); //inb(gameport->io);
 }
 
@@ -2570,7 +2580,8 @@ static int snd_cs46xx_gameport_cooked_read(struct gameport *gameport, int *axes,
 	struct snd_cs46xx *chip = gameport_get_port_data(gameport);
 	unsigned js1, js2, jst;
 
-	snd_assert(chip, return 0);
+	if (snd_BUG_ON(!chip))
+		return 0;
 
 	js1 = snd_cs46xx_peekBA0(chip, BA0_JSC1);
 	js2 = snd_cs46xx_peekBA0(chip, BA0_JSC2);
@@ -2754,7 +2765,8 @@ static int snd_cs46xx_free(struct snd_cs46xx *chip)
 {
 	int idx;
 
-	snd_assert(chip != NULL, return -EINVAL);
+	if (snd_BUG_ON(!chip))
+		return -EINVAL;
 
 	if (chip->active_ctrl)
 		chip->active_ctrl(chip, 1);
@@ -3489,8 +3501,9 @@ static struct cs_card_type __devinitdata cards[] = {
 		.name = "Mitac MI6020/21",
 		.amp = amp_voyetra,
 	},
+	/* Hercules Game Theatre XP */
 	{
-		.vendor = 0x14AF,
+		.vendor = 0x14af, /* Guillemot Corporation */
 		.id = 0x0050,
 		.name = "Hercules Game Theatre XP",
 		.amp = amp_hercules,
@@ -3532,7 +3545,23 @@ static struct cs_card_type __devinitdata cards[] = {
 		.amp = amp_hercules,
 		.mixer_init = hercules_mixer_init,
 	},
+	/* Herculess Fortissimo */
+	{
+		.vendor = 0x1681,
+		.id = 0xa010,
+		.name = "Hercules Gamesurround Fortissimo II",
+	},
+	{
+		.vendor = 0x1681,
+		.id = 0xa011,
+		.name = "Hercules Gamesurround Fortissimo III 7.1",
+	},
 	/* Teratec */
+	{
+		.vendor = 0x153b,
+		.id = 0x112e,
+		.name = "Terratec DMX XFire 1024",
+	},
 	{
 		.vendor = 0x153b,
 		.id = 0x1136,

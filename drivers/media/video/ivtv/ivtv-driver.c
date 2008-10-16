@@ -61,14 +61,14 @@
 #include "tuner-xc2028.h"
 
 /* var to keep track of the number of array elements in use */
-int ivtv_cards_active = 0;
+int ivtv_cards_active;
 
 /* If you have already X v4l cards, then set this to X. This way
    the device numbers stay matched. Example: you have a WinTV card
    without radio and a PVR-350 with. Normally this would give a
    video1 device together with a radio0 device for the PVR. By
    setting this to 1 you ensure that radio0 is now also radio1. */
-int ivtv_first_minor = 0;
+int ivtv_first_minor;
 
 /* Master variable for all ivtv info */
 struct ivtv *ivtv_cards[IVTV_MAX_CARDS];
@@ -251,7 +251,7 @@ MODULE_PARM_DESC(newi2c,
 		 "\t\t\t-1 is autodetect, 0 is off, 1 is on\n"
 		 "\t\t\tDefault is autodetect");
 
-MODULE_PARM_DESC(ivtv_first_minor, "Set minor assigned to first card");
+MODULE_PARM_DESC(ivtv_first_minor, "Set kernel number assigned to first card");
 
 MODULE_AUTHOR("Kevin Thayer, Chris Kennedy, Hans Verkuil");
 MODULE_DESCRIPTION("CX23415/CX23416 driver");
@@ -655,9 +655,9 @@ done:
 
 	if (itv->card == NULL) {
 		itv->card = ivtv_get_card(IVTV_CARD_PVR_150);
-		IVTV_ERR("Unknown card: vendor/device: %04x/%04x\n",
+		IVTV_ERR("Unknown card: vendor/device: [%04x:%04x]\n",
 		     itv->dev->vendor, itv->dev->device);
-		IVTV_ERR("              subsystem vendor/device: %04x/%04x\n",
+		IVTV_ERR("              subsystem vendor/device: [%04x:%04x]\n",
 		     itv->dev->subsystem_vendor, itv->dev->subsystem_device);
 		IVTV_ERR("              %s based\n", chipname);
 		IVTV_ERR("Defaulting to %s card\n", itv->card->name);
@@ -720,7 +720,7 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 	itv->speed = 1000;
 
 	/* VBI */
-	itv->vbi.in.type = V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
+	itv->vbi.in.type = V4L2_BUF_TYPE_VBI_CAPTURE;
 	itv->vbi.sliced_in = &itv->vbi.in.fmt.sliced;
 
 	/* Init the sg table for osd/yuv output */

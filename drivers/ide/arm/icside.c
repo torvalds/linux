@@ -10,7 +10,6 @@
 #include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/errno.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/dma-mapping.h>
 #include <linux/device.h>
@@ -265,8 +264,8 @@ static void icside_set_dma_mode(ide_drive_t *drive, const u8 xfer_mode)
 	 * If we're going to be doing MW_DMA_1 or MW_DMA_2, we should
 	 * take care to note the values in the ID...
 	 */
-	if (use_dma_info && drive->id->eide_dma_time > cycle_time)
-		cycle_time = drive->id->eide_dma_time;
+	if (use_dma_info && drive->id[ATA_ID_EIDE_DMA_TIME] > cycle_time)
+		cycle_time = drive->id[ATA_ID_EIDE_DMA_TIME];
 
 	drive->drive_data = cycle_time;
 
@@ -373,25 +372,6 @@ static int icside_dma_test_irq(ide_drive_t *drive)
 			ICS_ARCIN_V6_INTRSTAT_1)) & 1;
 }
 
-static void icside_dma_timeout(ide_drive_t *drive)
-{
-	ide_hwif_t *hwif = drive->hwif;
-
-	printk(KERN_ERR "%s: DMA timeout occurred: ", drive->name);
-
-	if (icside_dma_test_irq(drive))
-		return;
-
-	ide_dump_status(drive, "DMA timeout", hwif->tp_ops->read_status(hwif));
-
-	icside_dma_end(drive);
-}
-
-static void icside_dma_lost_irq(ide_drive_t *drive)
-{
-	printk(KERN_ERR "%s: IRQ lost\n", drive->name);
-}
-
 static int icside_dma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
 	hwif->dmatable_cpu	= NULL;
@@ -407,8 +387,8 @@ static const struct ide_dma_ops icside_v6_dma_ops = {
 	.dma_start		= icside_dma_start,
 	.dma_end		= icside_dma_end,
 	.dma_test_irq		= icside_dma_test_irq,
-	.dma_timeout		= icside_dma_timeout,
-	.dma_lost_irq		= icside_dma_lost_irq,
+	.dma_timeout		= ide_dma_timeout,
+	.dma_lost_irq		= ide_dma_lost_irq,
 };
 #else
 #define icside_v6_dma_ops NULL

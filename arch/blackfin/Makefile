@@ -67,6 +67,7 @@ rev-$(CONFIG_BF_REV_0_2)  := 0.2
 rev-$(CONFIG_BF_REV_0_3)  := 0.3
 rev-$(CONFIG_BF_REV_0_4)  := 0.4
 rev-$(CONFIG_BF_REV_0_5)  := 0.5
+rev-$(CONFIG_BF_REV_0_6)  := 0.6
 rev-$(CONFIG_BF_REV_NONE) := none
 rev-$(CONFIG_BF_REV_ANY)  := any
 

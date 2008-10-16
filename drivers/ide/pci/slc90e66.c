@@ -11,7 +11,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 
@@ -155,21 +154,23 @@ static const struct pci_device_id slc90e66_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, slc90e66_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver slc90e66_pci_driver = {
 	.name		= "SLC90e66_IDE",
 	.id_table	= slc90e66_pci_tbl,
 	.probe		= slc90e66_init_one,
 	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init slc90e66_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&slc90e66_pci_driver);
 }
 
 static void __exit slc90e66_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&slc90e66_pci_driver);
 }
 
 module_init(slc90e66_ide_init);

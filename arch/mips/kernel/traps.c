@@ -42,6 +42,7 @@
 #include <asm/tlbdebug.h>
 #include <asm/traps.h>
 #include <asm/uaccess.h>
+#include <asm/watch.h>
 #include <asm/mmu_context.h>
 #include <asm/types.h>
 #include <asm/stacktrace.h>
@@ -825,8 +826,10 @@ static void mt_ase_fp_affinity(void)
 		if (cpus_intersects(current->cpus_allowed, mt_fpu_cpumask)) {
 			cpumask_t tmask;
 
-			cpus_and(tmask, current->thread.user_cpus_allowed,
-			         mt_fpu_cpumask);
+			current->thread.user_cpus_allowed
+				= current->cpus_allowed;
+			cpus_and(tmask, current->cpus_allowed,
+				mt_fpu_cpumask);
 			set_cpus_allowed(current, tmask);
 			set_thread_flag(TIF_FPUBOUND);
 		}
@@ -910,13 +913,26 @@ asmlinkage void do_mdmx(struct pt_regs *regs)
 
 asmlinkage void do_watch(struct pt_regs *regs)
 {
+	u32 cause;
+
 	/*
-	 * We use the watch exception where available to detect stack
-	 * overflows.
+	 * Clear WP (bit 22) bit of cause register so we don't loop
+	 * forever.
 	 */
-	dump_tlb_all();
-	show_regs(regs);
-	panic("Caught WATCH exception - probably caused by stack overflow.");
+	cause = read_c0_cause();
+	cause &= ~(1 << 22);
+	write_c0_cause(cause);
+
+	/*
+	 * If the current thread has the watch registers loaded, save
+	 * their values and send SIGTRAP.  Otherwise another thread
+	 * left the registers set, clear them and continue.
+	 */
+	if (test_tsk_thread_flag(current, TIF_LOAD_WATCH)) {
+		mips_read_watch_registers();
+		force_sig(SIGTRAP, current);
+	} else
+		mips_clear_watch_registers();
 }
 
 asmlinkage void do_mcheck(struct pt_regs *regs)

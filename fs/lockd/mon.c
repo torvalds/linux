@@ -51,7 +51,7 @@ nsm_mon_unmon(struct nsm_handle *nsm, u32 proc, struct nsm_res *res)
 
 	memset(&args, 0, sizeof(args));
 	args.mon_name = nsm->sm_name;
-	args.addr = nsm->sm_addr.sin_addr.s_addr;
+	args.addr = nsm_addr_in(nsm)->sin_addr.s_addr;
 	args.prog = NLM_PROGRAM;
 	args.vers = 3;
 	args.proc = NLMPROC_NSM_NOTIFY;

@@ -1,13 +1,13 @@
 /* K8 NUMA support */
 /* Copyright 2002,2003 by Andi Kleen, SuSE Labs */
 /* 2.5 Version loosely based on the NUMAQ Code by Pat Gaughen. */
-#ifndef _ASM_X86_64_MMZONE_H
-#define _ASM_X86_64_MMZONE_H 1
+#ifndef ASM_X86__MMZONE_64_H
+#define ASM_X86__MMZONE_64_H
 
 
 #ifdef CONFIG_NUMA
 
-#define VIRTUAL_BUG_ON(x)
+#include <linux/mmdebug.h>
 
 #include <asm/smp.h>
 
@@ -29,7 +29,6 @@ static inline __attribute__((pure)) int phys_to_nid(unsigned long addr)
 {
 	unsigned nid;
 	VIRTUAL_BUG_ON(!memnodemap);
-	VIRTUAL_BUG_ON((addr >> memnode_shift) >= memnodemapsize);
 	nid = memnodemap[addr >> memnode_shift];
 	VIRTUAL_BUG_ON(nid >= MAX_NUMNODES || !node_data[nid]);
 	return nid;
@@ -49,4 +48,4 @@ extern int early_pfn_to_nid(unsigned long pfn);
 #endif
 
 #endif
-#endif
+#endif /* ASM_X86__MMZONE_64_H */

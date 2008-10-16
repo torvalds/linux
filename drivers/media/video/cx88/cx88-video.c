@@ -773,6 +773,7 @@ static int video_open(struct inode *inode, struct file *file)
 	enum v4l2_buf_type type = 0;
 	int radio = 0;
 
+	lock_kernel();
 	list_for_each_entry(h, &cx8800_devlist, devlist) {
 		if (h->video_dev->minor == minor) {
 			dev  = h;
@@ -788,8 +789,10 @@ static int video_open(struct inode *inode, struct file *file)
 			dev   = h;
 		}
 	}
-	if (NULL == dev)
+	if (NULL == dev) {
+		unlock_kernel();
 		return -ENODEV;
+	}
 
 	core = dev->core;
 
@@ -798,8 +801,10 @@ static int video_open(struct inode *inode, struct file *file)
 
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh),GFP_KERNEL);
-	if (NULL == fh)
+	if (NULL == fh) {
+		unlock_kernel();
 		return -ENOMEM;
+	}
 	file->private_data = fh;
 	fh->dev      = dev;
 	fh->radio    = radio;
@@ -832,6 +837,9 @@ static int video_open(struct inode *inode, struct file *file)
 		cx88_set_stereo(core,V4L2_TUNER_MODE_STEREO,1);
 		cx88_call_i2c_clients(core,AUDC_SET_RADIO,NULL);
 	}
+	unlock_kernel();
+
+	atomic_inc(&core->users);
 
 	return 0;
 }
@@ -920,7 +928,8 @@ static int video_release(struct inode *inode, struct file *file)
 	file->private_data = NULL;
 	kfree(fh);
 
-	cx88_call_i2c_clients (dev->core, TUNER_SET_STANDBY, NULL);
+	if(atomic_dec_and_test(&dev->core->users))
+		cx88_call_i2c_clients (dev->core, TUNER_SET_STANDBY, NULL);
 
 	return 0;
 }

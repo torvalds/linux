@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_IOCTLS_H
-#define _ASM_X86_IOCTLS_H
+#ifndef ASM_X86__IOCTLS_H
+#define ASM_X86__IOCTLS_H
 
 #include <asm/ioctl.h>
 
@@ -51,9 +51,15 @@
 #define TCSETS2		_IOW('T', 0x2B, struct termios2)
 #define TCSETSW2	_IOW('T', 0x2C, struct termios2)
 #define TCSETSF2	_IOW('T', 0x2D, struct termios2)
+#define TIOCGRS485	0x542E
+#define TIOCSRS485	0x542F
 #define TIOCGPTN	_IOR('T', 0x30, unsigned int)
 				/* Get Pty Number (of pty-mux device) */
 #define TIOCSPTLCK	_IOW('T', 0x31, int)  /* Lock/unlock Pty */
+#define TCGETX		0x5432 /* SYS5 TCGETX compatibility */
+#define TCSETX		0x5433
+#define TCSETXF		0x5434
+#define TCSETXW		0x5435
 
 #define FIONCLEX	0x5450
 #define FIOCLEX		0x5451
@@ -85,4 +91,4 @@
 
 #define TIOCSER_TEMT    0x01	/* Transmitter physically empty */
 
-#endif
+#endif /* ASM_X86__IOCTLS_H */

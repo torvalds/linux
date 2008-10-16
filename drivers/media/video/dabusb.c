@@ -866,7 +866,8 @@ static int __init dabusb_init (void)
 
 	dbg("dabusb_init: driver registered");
 
-	info(DRIVER_VERSION ":" DRIVER_DESC);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 
 out:
 	return retval;

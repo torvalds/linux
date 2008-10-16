@@ -29,7 +29,6 @@
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/sbus.h>
 #include <asm/iommu.h>
 #include <asm/upa.h>
 #include <asm/oplib.h>

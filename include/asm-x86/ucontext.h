@@ -1,5 +1,11 @@
-#ifndef _ASM_X86_UCONTEXT_H
-#define _ASM_X86_UCONTEXT_H
+#ifndef ASM_X86__UCONTEXT_H
+#define ASM_X86__UCONTEXT_H
+
+#define UC_FP_XSTATE	0x1	/* indicates the presence of extended state
+				 * information in the memory layout pointed
+				 * by the fpstate pointer in the ucontext's
+				 * sigcontext struct (uc_mcontext).
+				 */
 
 struct ucontext {
 	unsigned long	  uc_flags;
@@ -9,4 +15,4 @@ struct ucontext {
 	sigset_t	  uc_sigmask;	/* mask last for extensibility */
 };
 
-#endif /* _ASM_X86_UCONTEXT_H */
+#endif /* ASM_X86__UCONTEXT_H */

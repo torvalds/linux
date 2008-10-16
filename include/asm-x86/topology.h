@@ -22,8 +22,8 @@
  *
  * Send feedback to <colpatch@us.ibm.com>
  */
-#ifndef _ASM_X86_TOPOLOGY_H
-#define _ASM_X86_TOPOLOGY_H
+#ifndef ASM_X86__TOPOLOGY_H
+#define ASM_X86__TOPOLOGY_H
 
 #ifdef CONFIG_X86_32
 # ifdef CONFIG_X86_HT
@@ -255,4 +255,4 @@ static inline void set_mp_bus_to_node(int busnum, int node)
 }
 #endif
 
-#endif /* _ASM_X86_TOPOLOGY_H */
+#endif /* ASM_X86__TOPOLOGY_H */

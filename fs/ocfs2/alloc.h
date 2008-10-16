@@ -26,30 +26,102 @@
 #ifndef OCFS2_ALLOC_H
 #define OCFS2_ALLOC_H
 
+
+/*
+ * For xattr tree leaf, we limit the leaf byte size to be 64K.
+ */
+#define OCFS2_MAX_XATTR_TREE_LEAF_SIZE 65536
+
+/*
+ * ocfs2_extent_tree and ocfs2_extent_tree_operations are used to abstract
+ * the b-tree operations in ocfs2. Now all the b-tree operations are not
+ * limited to ocfs2_dinode only. Any data which need to allocate clusters
+ * to store can use b-tree. And it only needs to implement its ocfs2_extent_tree
+ * and operation.
+ *
+ * ocfs2_extent_tree becomes the first-class object for extent tree
+ * manipulation.  Callers of the alloc.c code need to fill it via one of
+ * the ocfs2_init_*_extent_tree() operations below.
+ *
+ * ocfs2_extent_tree contains info for the root of the b-tree, it must have a
+ * root ocfs2_extent_list and a root_bh so that they can be used in the b-tree
+ * functions.
+ * ocfs2_extent_tree_operations abstract the normal operations we do for
+ * the root of extent b-tree.
+ */
+struct ocfs2_extent_tree_operations;
+struct ocfs2_extent_tree {
+	struct ocfs2_extent_tree_operations	*et_ops;
+	struct buffer_head			*et_root_bh;
+	struct ocfs2_extent_list		*et_root_el;
+	void					*et_object;
+	unsigned int				et_max_leaf_clusters;
+};
+
+/*
+ * ocfs2_init_*_extent_tree() will fill an ocfs2_extent_tree from the
+ * specified object buffer.
+ */
+void ocfs2_init_dinode_extent_tree(struct ocfs2_extent_tree *et,
+				   struct inode *inode,
+				   struct buffer_head *bh);
+void ocfs2_init_xattr_tree_extent_tree(struct ocfs2_extent_tree *et,
+				       struct inode *inode,
+				       struct buffer_head *bh);
+void ocfs2_init_xattr_value_extent_tree(struct ocfs2_extent_tree *et,
+					struct inode *inode,
+					struct buffer_head *bh,
+					struct ocfs2_xattr_value_root *xv);
+
 struct ocfs2_alloc_context;
 int ocfs2_insert_extent(struct ocfs2_super *osb,
 			handle_t *handle,
 			struct inode *inode,
-			struct buffer_head *fe_bh,
+			struct ocfs2_extent_tree *et,
 			u32 cpos,
 			u64 start_blk,
 			u32 new_clusters,
 			u8 flags,
 			struct ocfs2_alloc_context *meta_ac);
+
+enum ocfs2_alloc_restarted {
+	RESTART_NONE = 0,
+	RESTART_TRANS,
+	RESTART_META
+};
+int ocfs2_add_clusters_in_btree(struct ocfs2_super *osb,
+				struct inode *inode,
+				u32 *logical_offset,
+				u32 clusters_to_add,
+				int mark_unwritten,
+				struct ocfs2_extent_tree *et,
+				handle_t *handle,
+				struct ocfs2_alloc_context *data_ac,
+				struct ocfs2_alloc_context *meta_ac,
+				enum ocfs2_alloc_restarted *reason_ret);
 struct ocfs2_cached_dealloc_ctxt;
-int ocfs2_mark_extent_written(struct inode *inode, struct buffer_head *di_bh,
+int ocfs2_mark_extent_written(struct inode *inode,
+			      struct ocfs2_extent_tree *et,
 			      handle_t *handle, u32 cpos, u32 len, u32 phys,
 			      struct ocfs2_alloc_context *meta_ac,
 			      struct ocfs2_cached_dealloc_ctxt *dealloc);
-int ocfs2_remove_extent(struct inode *inode, struct buffer_head *di_bh,
+int ocfs2_remove_extent(struct inode *inode,
+			struct ocfs2_extent_tree *et,
 			u32 cpos, u32 len, handle_t *handle,
 			struct ocfs2_alloc_context *meta_ac,
 			struct ocfs2_cached_dealloc_ctxt *dealloc);
 int ocfs2_num_free_extents(struct ocfs2_super *osb,
 			   struct inode *inode,
-			   struct ocfs2_dinode *fe);
-/* how many new metadata chunks would an allocation need at maximum? */
-static inline int ocfs2_extend_meta_needed(struct ocfs2_dinode *fe)
+			   struct ocfs2_extent_tree *et);
+
+/*
+ * how many new metadata chunks would an allocation need at maximum?
+ *
+ * Please note that the caller must make sure that root_el is the root
+ * of extent tree. So for an inode, it should be &fe->id2.i_list. Otherwise
+ * the result may be wrong.
+ */
+static inline int ocfs2_extend_meta_needed(struct ocfs2_extent_list *root_el)
 {
 	/*
 	 * Rather than do all the work of determining how much we need
@@ -59,7 +131,7 @@ static inline int ocfs2_extend_meta_needed(struct ocfs2_dinode *fe)
 	 * new tree_depth==0 extent_block, and one block at the new
 	 * top-of-the tree.
 	 */
-	return le16_to_cpu(fe->id2.i_list.l_tree_depth) + 2;
+	return le16_to_cpu(root_el->l_tree_depth) + 2;
 }
 
 void ocfs2_dinode_new_extent_list(struct inode *inode, struct ocfs2_dinode *di);
@@ -144,6 +216,15 @@ static inline unsigned int ocfs2_rec_clusters(struct ocfs2_extent_list *el,
 		return le32_to_cpu(rec->e_int_clusters);
 	else
 		return le16_to_cpu(rec->e_leaf_clusters);
+}
+
+/*
+ * This is only valid for leaf nodes, which are the only ones that can
+ * have empty extents anyway.
+ */
+static inline int ocfs2_is_empty_extent(struct ocfs2_extent_rec *rec)
+{
+	return !rec->e_leaf_clusters;
 }
 
 #endif /* OCFS2_ALLOC_H */

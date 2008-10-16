@@ -304,9 +304,6 @@ static int sh_mobile_ceu_add_device(struct soc_camera_device *icd)
 		 "SuperH Mobile CEU driver attached to camera %d\n",
 		 icd->devnum);
 
-	if (pcdev->pdata->enable_camera)
-		pcdev->pdata->enable_camera();
-
 	ret = icd->ops->init(icd);
 	if (ret)
 		goto err;
@@ -333,8 +330,6 @@ static void sh_mobile_ceu_remove_device(struct soc_camera_device *icd)
 	ceu_write(pcdev, CEIER, 0);
 	ceu_write(pcdev, CAPSR, 1 << 16); /* reset */
 	icd->ops->release(icd);
-	if (pcdev->pdata->disable_camera)
-		pcdev->pdata->disable_camera();
 
 	dev_info(&icd->dev,
 		 "SuperH Mobile CEU driver detached from camera %d\n",

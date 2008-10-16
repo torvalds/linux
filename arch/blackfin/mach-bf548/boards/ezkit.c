@@ -38,11 +38,8 @@
 #include <linux/irq.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
-#if defined(CONFIG_USB_MUSB_HDRC) || defined(CONFIG_USB_MUSB_HDRC_MODULE)
 #include <linux/usb/musb.h>
-#endif
 #include <asm/bfin5xx_spi.h>
-#include <asm/cplb.h>
 #include <asm/dma.h>
 #include <asm/gpio.h>
 #include <asm/nand.h>
@@ -186,6 +183,37 @@ static struct platform_device bf54x_kpad_device = {
 };
 #endif
 
+#if defined(CONFIG_JOYSTICK_BFIN_ROTARY) || defined(CONFIG_JOYSTICK_BFIN_ROTARY_MODULE)
+#include <asm/bfin_rotary.h>
+
+static struct bfin_rotary_platform_data bfin_rotary_data = {
+	/*.rotary_up_key     = KEY_UP,*/
+	/*.rotary_down_key   = KEY_DOWN,*/
+	.rotary_rel_code   = REL_WHEEL,
+	.rotary_button_key = KEY_ENTER,
+	.debounce	   = 10,	/* 0..17 */
+	.mode		   = ROT_QUAD_ENC | ROT_DEBE,
+};
+
+static struct resource bfin_rotary_resources[] = {
+	{
+		.start = IRQ_CNT,
+		.end = IRQ_CNT,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device bfin_rotary_device = {
+	.name		= "bfin-rotary",
+	.id		= -1,
+	.num_resources 	= ARRAY_SIZE(bfin_rotary_resources),
+	.resource 	= bfin_rotary_resources,
+	.dev		= {
+		.platform_data = &bfin_rotary_data,
+	},
+};
+#endif
+
 #if defined(CONFIG_RTC_DRV_BFIN) || defined(CONFIG_RTC_DRV_BFIN_MODULE)
 static struct platform_device rtc_device = {
 	.name = "rtc-bfin",
@@ -314,6 +342,16 @@ static struct resource musb_resources[] = {
 	},
 };
 
+static struct musb_hdrc_config musb_config = {
+	.multipoint	= 0,
+	.dyn_fifo	= 0,
+	.soft_con	= 1,
+	.dma		= 1,
+	.num_eps	= 7,
+	.dma_channels	= 7,
+	.gpio_vrsel	= GPIO_PE7,
+};
+
 static struct musb_hdrc_platform_data musb_plat = {
 #if defined(CONFIG_USB_MUSB_OTG)
 	.mode		= MUSB_OTG,
@@ -322,7 +360,7 @@ static struct musb_hdrc_platform_data musb_plat = {
 #elif defined(CONFIG_USB_GADGET_MUSB_HDRC)
 	.mode		= MUSB_PERIPHERAL,
 #endif
-	.multipoint	= 0,
+	.config		= &musb_config,
 };
 
 static u64 musb_dmamask = ~(u32)0;
@@ -367,7 +405,7 @@ static struct mtd_partition partition_info[] = {
 	{
 		.name = "linux kernel(nand)",
 		.offset = 0,
-		.size = 4 * SIZE_1M,
+		.size = 4 * 1024 * 1024,
 	},
 	{
 		.name = "file system(nand)",
@@ -424,7 +462,7 @@ static struct mtd_partition ezkit_partitions[] = {
 		.offset     = 0,
 	}, {
 		.name       = "linux kernel(nor)",
-		.size       = 0x1C0000,
+		.size       = 0x400000,
 		.offset     = MTDPART_OFS_APPEND,
 	}, {
 		.name       = "file system(nor)",
@@ -441,7 +479,7 @@ static struct physmap_flash_data ezkit_flash_data = {
 
 static struct resource ezkit_flash_resource = {
 	.start = 0x20000000,
-	.end   = 0x20ffffff,
+	.end   = 0x21ffffff,
 	.flags = IORESOURCE_MEM,
 };
 
@@ -551,7 +589,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 {
 	.modalias		= "ad7877",
 	.platform_data		= &bfin_ad7877_ts_info,
-	.irq			= IRQ_PJ11,
+	.irq			= IRQ_PJ11,	/* newer boards (Rev 1.4+) use IRQ_PB4 */
 	.max_speed_hz		= 12500000,     /* max spi clock (SCK) speed in HZ */
 	.bus_num		= 0,
 	.chip_select  		= 2,
@@ -808,6 +846,10 @@ static struct platform_device *ezkit_devices[] __initdata = {
 
 #if defined(CONFIG_KEYBOARD_BFIN) || defined(CONFIG_KEYBOARD_BFIN_MODULE)
 	&bf54x_kpad_device,
+#endif
+
+#if defined(CONFIG_JOYSTICK_BFIN_ROTARY) || defined(CONFIG_JOYSTICK_BFIN_ROTARY_MODULE)
+	&bfin_rotary_device,
 #endif
 
 #if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)

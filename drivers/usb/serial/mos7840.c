@@ -709,12 +709,13 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 	dbg("%s", "Entering ........... \n");
 
 	if (urb->actual_length) {
-		tty = mos7840_port->port->port.tty;
+		tty = tty_port_tty_get(&mos7840_port->port->port);
 		if (tty) {
 			tty_buffer_request_room(tty, urb->actual_length);
 			tty_insert_flip_string(tty, data, urb->actual_length);
 			dbg(" %s \n", data);
 			tty_flip_buffer_push(tty);
+			tty_kref_put(tty);
 		}
 		mos7840_port->icount.rx += urb->actual_length;
 		smp_wmb();
@@ -773,10 +774,10 @@ static void mos7840_bulk_out_data_callback(struct urb *urb)
 
 	dbg("%s \n", "Entering .........");
 
-	tty = mos7840_port->port->port.tty;
-
+	tty = tty_port_tty_get(&mos7840_port->port->port);
 	if (tty && mos7840_port->open)
 		tty_wakeup(tty);
+	tty_kref_put(tty);
 
 }
 

@@ -27,7 +27,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
-#include <linux/hdreg.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/init.h>
@@ -79,7 +78,7 @@ static void hpt34x_set_pio_mode(ide_drive_t *drive, const u8 pio)
  */
 #define	HPT34X_PCI_INIT_REG		0x80
 
-static unsigned int __devinit init_chipset_hpt34x(struct pci_dev *dev)
+static unsigned int init_chipset_hpt34x(struct pci_dev *dev)
 {
 	int i = 0;
 	unsigned long hpt34xIoBase = pci_resource_start(dev, 4);
@@ -167,21 +166,23 @@ static const struct pci_device_id hpt34x_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, hpt34x_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver hpt34x_pci_driver = {
 	.name		= "HPT34x_IDE",
 	.id_table	= hpt34x_pci_tbl,
 	.probe		= hpt34x_init_one,
 	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init hpt34x_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&hpt34x_pci_driver);
 }
 
 static void __exit hpt34x_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&hpt34x_pci_driver);
 }
 
 module_init(hpt34x_ide_init);

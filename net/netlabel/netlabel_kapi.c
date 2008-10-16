@@ -10,7 +10,7 @@
  */
 
 /*
- * (c) Copyright Hewlett-Packard Development Company, L.P., 2006
+ * (c) Copyright Hewlett-Packard Development Company, L.P., 2006, 2008
  *
  * This program is free software;  you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -82,7 +82,7 @@ int netlbl_cfg_unlbl_add_map(const char *domain,
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (entry == NULL)
-		goto cfg_unlbl_add_map_failure;
+		return -ENOMEM;
 	if (domain != NULL) {
 		entry->domain = kstrdup(domain, GFP_ATOMIC);
 		if (entry->domain == NULL)
@@ -104,49 +104,6 @@ cfg_unlbl_add_map_failure:
 }
 
 /**
- * netlbl_cfg_cipsov4_add - Add a new CIPSOv4 DOI definition
- * @doi_def: the DOI definition
- * @audit_info: NetLabel audit information
- *
- * Description:
- * Add a new CIPSOv4 DOI definition to the NetLabel subsystem.  Returns zero on
- * success, negative values on failure.
- *
- */
-int netlbl_cfg_cipsov4_add(struct cipso_v4_doi *doi_def,
-			   struct netlbl_audit *audit_info)
-{
-	int ret_val;
-	const char *type_str;
-	struct audit_buffer *audit_buf;
-
-	ret_val = cipso_v4_doi_add(doi_def);
-
-	audit_buf = netlbl_audit_start_common(AUDIT_MAC_CIPSOV4_ADD,
-					      audit_info);
-	if (audit_buf != NULL) {
-		switch (doi_def->type) {
-		case CIPSO_V4_MAP_STD:
-			type_str = "std";
-			break;
-		case CIPSO_V4_MAP_PASS:
-			type_str = "pass";
-			break;
-		default:
-			type_str = "(unknown)";
-		}
-		audit_log_format(audit_buf,
-				 " cipso_doi=%u cipso_type=%s res=%u",
-				 doi_def->doi,
-				 type_str,
-				 ret_val == 0 ? 1 : 0);
-		audit_log_end(audit_buf);
-	}
-
-	return ret_val;
-}
-
-/**
  * netlbl_cfg_cipsov4_add_map - Add a new CIPSOv4 DOI definition and mapping
  * @doi_def: the DOI definition
  * @domain: the domain mapping to add
@@ -164,58 +121,71 @@ int netlbl_cfg_cipsov4_add_map(struct cipso_v4_doi *doi_def,
 			       struct netlbl_audit *audit_info)
 {
 	int ret_val = -ENOMEM;
+	u32 doi;
+	u32 doi_type;
 	struct netlbl_dom_map *entry;
+	const char *type_str;
+	struct audit_buffer *audit_buf;
+
+	doi = doi_def->doi;
+	doi_type = doi_def->type;
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (entry == NULL)
-		goto cfg_cipsov4_add_map_failure;
+		return -ENOMEM;
 	if (domain != NULL) {
 		entry->domain = kstrdup(domain, GFP_ATOMIC);
 		if (entry->domain == NULL)
 			goto cfg_cipsov4_add_map_failure;
 	}
-	entry->type = NETLBL_NLTYPE_CIPSOV4;
-	entry->type_def.cipsov4 = doi_def;
 
-	/* Grab a RCU read lock here so nothing happens to the doi_def variable
-	 * between adding it to the CIPSOv4 protocol engine and adding a
-	 * domain mapping for it. */
-
-	rcu_read_lock();
-	ret_val = netlbl_cfg_cipsov4_add(doi_def, audit_info);
-	if (ret_val != 0)
-		goto cfg_cipsov4_add_map_failure_unlock;
-	ret_val = netlbl_domhsh_add(entry, audit_info);
+	ret_val = cipso_v4_doi_add(doi_def);
 	if (ret_val != 0)
 		goto cfg_cipsov4_add_map_failure_remove_doi;
-	rcu_read_unlock();
+	entry->type = NETLBL_NLTYPE_CIPSOV4;
+	entry->type_def.cipsov4 = cipso_v4_doi_getdef(doi);
+	if (entry->type_def.cipsov4 == NULL) {
+		ret_val = -ENOENT;
+		goto cfg_cipsov4_add_map_failure_remove_doi;
+	}
+	ret_val = netlbl_domhsh_add(entry, audit_info);
+	if (ret_val != 0)
+		goto cfg_cipsov4_add_map_failure_release_doi;
 
-	return 0;
+cfg_cipsov4_add_map_return:
+	audit_buf = netlbl_audit_start_common(AUDIT_MAC_CIPSOV4_ADD,
+					      audit_info);
+	if (audit_buf != NULL) {
+		switch (doi_type) {
+		case CIPSO_V4_MAP_TRANS:
+			type_str = "trans";
+			break;
+		case CIPSO_V4_MAP_PASS:
+			type_str = "pass";
+			break;
+		case CIPSO_V4_MAP_LOCAL:
+			type_str = "local";
+			break;
+		default:
+			type_str = "(unknown)";
+		}
+		audit_log_format(audit_buf,
+				 " cipso_doi=%u cipso_type=%s res=%u",
+				 doi, type_str, ret_val == 0 ? 1 : 0);
+		audit_log_end(audit_buf);
+	}
 
+	return ret_val;
+
+cfg_cipsov4_add_map_failure_release_doi:
+	cipso_v4_doi_putdef(doi_def);
 cfg_cipsov4_add_map_failure_remove_doi:
-	cipso_v4_doi_remove(doi_def->doi, audit_info, netlbl_cipsov4_doi_free);
-cfg_cipsov4_add_map_failure_unlock:
-	rcu_read_unlock();
+	cipso_v4_doi_remove(doi, audit_info);
 cfg_cipsov4_add_map_failure:
 	if (entry != NULL)
 		kfree(entry->domain);
 	kfree(entry);
-	return ret_val;
-}
-
-/**
- * netlbl_cfg_cipsov4_del - Removean existing CIPSOv4 DOI definition
- * @doi: the CIPSO DOI value
- * @audit_info: NetLabel audit information
- *
- * Description:
- * Removes an existing CIPSOv4 DOI definition from the NetLabel subsystem.
- * Returns zero on success, negative values on failure.
- *
- */
-int netlbl_cfg_cipsov4_del(u32 doi, struct netlbl_audit *audit_info)
-{
-	return cipso_v4_doi_remove(doi, audit_info, netlbl_cipsov4_doi_free);
+	goto cfg_cipsov4_add_map_return;
 }
 
 /*
@@ -452,7 +422,9 @@ int netlbl_enabled(void)
  * Attach the correct label to the given socket using the security attributes
  * specified in @secattr.  This function requires exclusive access to @sk,
  * which means it either needs to be in the process of being created or locked.
- * Returns zero on success, negative values on failure.
+ * Returns zero on success, -EDESTADDRREQ if the domain is configured to use
+ * network address selectors (can't blindly label the socket), and negative
+ * values on all other failures.
  *
  */
 int netlbl_sock_setattr(struct sock *sk,
@@ -466,6 +438,9 @@ int netlbl_sock_setattr(struct sock *sk,
 	if (dom_entry == NULL)
 		goto socket_setattr_return;
 	switch (dom_entry->type) {
+	case NETLBL_NLTYPE_ADDRSELECT:
+		ret_val = -EDESTADDRREQ;
+		break;
 	case NETLBL_NLTYPE_CIPSOV4:
 		ret_val = cipso_v4_sock_setattr(sk,
 						dom_entry->type_def.cipsov4,
@@ -484,6 +459,20 @@ socket_setattr_return:
 }
 
 /**
+ * netlbl_sock_delattr - Delete all the NetLabel labels on a socket
+ * @sk: the socket
+ *
+ * Description:
+ * Remove all the NetLabel labeling from @sk.  The caller is responsible for
+ * ensuring that @sk is locked.
+ *
+ */
+void netlbl_sock_delattr(struct sock *sk)
+{
+	cipso_v4_sock_delattr(sk);
+}
+
+/**
  * netlbl_sock_getattr - Determine the security attributes of a sock
  * @sk: the sock
  * @secattr: the security attributes
@@ -498,6 +487,128 @@ socket_setattr_return:
 int netlbl_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr)
 {
 	return cipso_v4_sock_getattr(sk, secattr);
+}
+
+/**
+ * netlbl_conn_setattr - Label a connected socket using the correct protocol
+ * @sk: the socket to label
+ * @addr: the destination address
+ * @secattr: the security attributes
+ *
+ * Description:
+ * Attach the correct label to the given connected socket using the security
+ * attributes specified in @secattr.  The caller is responsible for ensuring
+ * that @sk is locked.  Returns zero on success, negative values on failure.
+ *
+ */
+int netlbl_conn_setattr(struct sock *sk,
+			struct sockaddr *addr,
+			const struct netlbl_lsm_secattr *secattr)
+{
+	int ret_val;
+	struct sockaddr_in *addr4;
+	struct netlbl_domaddr4_map *af4_entry;
+
+	rcu_read_lock();
+	switch (addr->sa_family) {
+	case AF_INET:
+		addr4 = (struct sockaddr_in *)addr;
+		af4_entry = netlbl_domhsh_getentry_af4(secattr->domain,
+						       addr4->sin_addr.s_addr);
+		if (af4_entry == NULL) {
+			ret_val = -ENOENT;
+			goto conn_setattr_return;
+		}
+		switch (af4_entry->type) {
+		case NETLBL_NLTYPE_CIPSOV4:
+			ret_val = cipso_v4_sock_setattr(sk,
+						   af4_entry->type_def.cipsov4,
+						   secattr);
+			break;
+		case NETLBL_NLTYPE_UNLABELED:
+			/* just delete the protocols we support for right now
+			 * but we could remove other protocols if needed */
+			cipso_v4_sock_delattr(sk);
+			ret_val = 0;
+			break;
+		default:
+			ret_val = -ENOENT;
+		}
+		break;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	case AF_INET6:
+		/* since we don't support any IPv6 labeling protocols right
+		 * now we can optimize everything away until we do */
+		ret_val = 0;
+		break;
+#endif /* IPv6 */
+	default:
+		ret_val = 0;
+	}
+
+conn_setattr_return:
+	rcu_read_unlock();
+	return ret_val;
+}
+
+/**
+ * netlbl_skbuff_setattr - Label a packet using the correct protocol
+ * @skb: the packet
+ * @family: protocol family
+ * @secattr: the security attributes
+ *
+ * Description:
+ * Attach the correct label to the given packet using the security attributes
+ * specified in @secattr.  Returns zero on success, negative values on failure.
+ *
+ */
+int netlbl_skbuff_setattr(struct sk_buff *skb,
+			  u16 family,
+			  const struct netlbl_lsm_secattr *secattr)
+{
+	int ret_val;
+	struct iphdr *hdr4;
+	struct netlbl_domaddr4_map *af4_entry;
+
+	rcu_read_lock();
+	switch (family) {
+	case AF_INET:
+		hdr4 = ip_hdr(skb);
+		af4_entry = netlbl_domhsh_getentry_af4(secattr->domain,
+						       hdr4->daddr);
+		if (af4_entry == NULL) {
+			ret_val = -ENOENT;
+			goto skbuff_setattr_return;
+		}
+		switch (af4_entry->type) {
+		case NETLBL_NLTYPE_CIPSOV4:
+			ret_val = cipso_v4_skbuff_setattr(skb,
+						   af4_entry->type_def.cipsov4,
+						   secattr);
+			break;
+		case NETLBL_NLTYPE_UNLABELED:
+			/* just delete the protocols we support for right now
+			 * but we could remove other protocols if needed */
+			ret_val = cipso_v4_skbuff_delattr(skb);
+			break;
+		default:
+			ret_val = -ENOENT;
+		}
+		break;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	case AF_INET6:
+		/* since we don't support any IPv6 labeling protocols right
+		 * now we can optimize everything away until we do */
+		ret_val = 0;
+		break;
+#endif /* IPv6 */
+	default:
+		ret_val = 0;
+	}
+
+skbuff_setattr_return:
+	rcu_read_unlock();
+	return ret_val;
 }
 
 /**
@@ -528,6 +639,7 @@ int netlbl_skbuff_getattr(const struct sk_buff *skb,
  * netlbl_skbuff_err - Handle a LSM error on a sk_buff
  * @skb: the packet
  * @error: the error code
+ * @gateway: true if host is acting as a gateway, false otherwise
  *
  * Description:
  * Deal with a LSM problem when handling the packet in @skb, typically this is
@@ -535,10 +647,10 @@ int netlbl_skbuff_getattr(const struct sk_buff *skb,
  * according to the packet's labeling protocol.
  *
  */
-void netlbl_skbuff_err(struct sk_buff *skb, int error)
+void netlbl_skbuff_err(struct sk_buff *skb, int error, int gateway)
 {
 	if (CIPSO_V4_OPTEXIST(skb))
-		cipso_v4_error(skb, error, 0);
+		cipso_v4_error(skb, error, gateway);
 }
 
 /**

@@ -36,14 +36,11 @@ spi_match(u_int32_t min, u_int32_t max, u_int32_t spi, bool invert)
 	return r;
 }
 
-static bool
-ah_mt6(const struct sk_buff *skb, const struct net_device *in,
-       const struct net_device *out, const struct xt_match *match,
-       const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
+static bool ah_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 {
 	struct ip_auth_hdr _ah;
 	const struct ip_auth_hdr *ah;
-	const struct ip6t_ah *ahinfo = matchinfo;
+	const struct ip6t_ah *ahinfo = par->matchinfo;
 	unsigned int ptr;
 	unsigned int hdrlen = 0;
 	int err;
@@ -51,13 +48,13 @@ ah_mt6(const struct sk_buff *skb, const struct net_device *in,
 	err = ipv6_find_hdr(skb, &ptr, NEXTHDR_AUTH, NULL);
 	if (err < 0) {
 		if (err != -ENOENT)
-			*hotdrop = true;
+			*par->hotdrop = true;
 		return false;
 	}
 
 	ah = skb_header_pointer(skb, ptr, sizeof(_ah), &_ah);
 	if (ah == NULL) {
-		*hotdrop = true;
+		*par->hotdrop = true;
 		return false;
 	}
 
@@ -93,13 +90,9 @@ ah_mt6(const struct sk_buff *skb, const struct net_device *in,
 	       !(ahinfo->hdrres && ah->reserved);
 }
 
-/* Called when user tries to insert an entry of this type. */
-static bool
-ah_mt6_check(const char *tablename, const void *entry,
-             const struct xt_match *match, void *matchinfo,
-             unsigned int hook_mask)
+static bool ah_mt6_check(const struct xt_mtchk_param *par)
 {
-	const struct ip6t_ah *ahinfo = matchinfo;
+	const struct ip6t_ah *ahinfo = par->matchinfo;
 
 	if (ahinfo->invflags & ~IP6T_AH_INV_MASK) {
 		pr_debug("ip6t_ah: unknown flags %X\n", ahinfo->invflags);
@@ -110,7 +103,7 @@ ah_mt6_check(const char *tablename, const void *entry,
 
 static struct xt_match ah_mt6_reg __read_mostly = {
 	.name		= "ah",
-	.family		= AF_INET6,
+	.family		= NFPROTO_IPV6,
 	.match		= ah_mt6,
 	.matchsize	= sizeof(struct ip6t_ah),
 	.checkentry	= ah_mt6_check,

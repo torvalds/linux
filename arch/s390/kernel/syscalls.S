@@ -37,7 +37,7 @@ SYSCALL(sys_stime,sys_ni_syscall,sys32_stime_wrapper)		/* 25 old stime syscall *
 SYSCALL(sys_ptrace,sys_ptrace,sys32_ptrace_wrapper)
 SYSCALL(sys_alarm,sys_alarm,sys32_alarm_wrapper)
 NI_SYSCALL							/* old fstat syscall */
-SYSCALL(sys_pause,sys_pause,sys32_pause)
+SYSCALL(sys_pause,sys_pause,sys_pause)
 SYSCALL(sys_utime,sys_utime,compat_sys_utime_wrapper)		/* 30 */
 NI_SYSCALL							/* old stty syscall */
 NI_SYSCALL							/* old gtty syscall */

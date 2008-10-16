@@ -229,6 +229,12 @@ static void __init smp_read_mpc_oem(struct mp_config_oemtable *oemtable,
 	}
 }
 
+static int __init numaq_setup_ioapic_ids(void)
+{
+	/* so can skip it */
+	return 1;
+}
+
 static struct x86_quirks numaq_x86_quirks __initdata = {
 	.arch_pre_time_init	= numaq_pre_time_init,
 	.arch_time_init		= NULL,
@@ -243,6 +249,7 @@ static struct x86_quirks numaq_x86_quirks __initdata = {
 	.mpc_oem_bus_info	= mpc_oem_bus_info,
 	.mpc_oem_pci_bus	= mpc_oem_pci_bus,
 	.smp_read_mpc_oem	= smp_read_mpc_oem,
+	.setup_ioapic_ids	= numaq_setup_ioapic_ids,
 };
 
 void numaq_mps_oem_check(struct mp_config_table *mpc, char *oem,

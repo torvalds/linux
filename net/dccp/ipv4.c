@@ -811,9 +811,8 @@ static int dccp_v4_rcv(struct sk_buff *skb)
 
 	/* Step 2:
 	 *	Look up flow ID in table and get corresponding socket */
-	sk = __inet_lookup(dev_net(skb->dst->dev), &dccp_hashinfo,
-			   iph->saddr, dh->dccph_sport,
-			   iph->daddr, dh->dccph_dport, inet_iif(skb));
+	sk = __inet_lookup_skb(&dccp_hashinfo, skb,
+			       dh->dccph_sport, dh->dccph_dport);
 	/*
 	 * Step 2:
 	 *	If no socket ...

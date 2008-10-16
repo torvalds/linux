@@ -14,11 +14,7 @@
 #include <linux/spinlock.h>
 #include <linux/swap.h>
 #include <asm/types.h>
-#ifdef CONFIG_SUN4
-#include <asm/pgtsun4.h>
-#else
 #include <asm/pgtsun4c.h>
-#endif
 #include <asm/pgtsrmmu.h>
 #include <asm/vac-ops.h>
 #include <asm/oplib.h>

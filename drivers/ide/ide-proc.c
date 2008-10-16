@@ -12,14 +12,6 @@
  * "settings" files.  e.g.    "cat /proc/ide0/hda/settings"
  * To write a new value "val" into a specific setting "name", use:
  *   echo "name:val" >/proc/ide/ide0/hda/settings
- *
- * Also useful, "cat /proc/ide0/hda/[identify, smart_values,
- * smart_thresholds, capabilities]" will issue an IDENTIFY /
- * PACKET_IDENTIFY / SMART_READ_VALUES / SMART_READ_THRESHOLDS /
- * SENSE CAPABILITIES command to /dev/hda, and then dump out the
- * returned data as 256 16-bit words.  The "hdparm" utility will
- * be updated someday soon to use this mechanism.
- *
  */
 
 #include <linux/module.h>
@@ -31,7 +23,6 @@
 #include <linux/mm.h>
 #include <linux/pci.h>
 #include <linux/ctype.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/seq_file.h>
 
@@ -109,13 +100,14 @@ static int proc_ide_read_identify
 
 		err = taskfile_lib_get_identify(drive, page);
 		if (!err) {
-			char *out = ((char *)page) + (SECTOR_WORDS * 4);
+			char *out = (char *)page + SECTOR_SIZE;
+
 			page = out;
 			do {
 				out += sprintf(out, "%04x%c",
 					le16_to_cpup(val), (++i & 7) ? ' ' : '\n');
 				val += 1;
-			} while (i < (SECTOR_WORDS * 2));
+			} while (i < SECTOR_SIZE / 2);
 			len = out - page;
 		}
 	}
@@ -123,140 +115,25 @@ static int proc_ide_read_identify
 }
 
 /**
- *	__ide_add_setting	-	add an ide setting option
- *	@drive: drive to use
- *	@name: setting name
- *	@rw: true if the function is read write
- *	@data_type: type of data
- *	@min: range minimum
- *	@max: range maximum
- *	@mul_factor: multiplication scale
- *	@div_factor: divison scale
- *	@data: private data field
- *	@set: setting
- *	@auto_remove: setting auto removal flag
- *
- *	Removes the setting named from the device if it is present.
- *	The function takes the settings_lock to protect against
- *	parallel changes. This function must not be called from IRQ
- *	context. Returns 0 on success or -1 on failure.
- *
- *	BUGS: This code is seriously over-engineered. There is also
- *	magic about how the driver specific features are setup. If
- *	a driver is attached we assume the driver settings are auto
- *	remove.
- */
-
-static int __ide_add_setting(ide_drive_t *drive, const char *name, int rw, int data_type, int min, int max, int mul_factor, int div_factor, void *data, ide_procset_t *set, int auto_remove)
-{
-	ide_settings_t **p = (ide_settings_t **) &drive->settings, *setting = NULL;
-
-	mutex_lock(&ide_setting_mtx);
-	while ((*p) && strcmp((*p)->name, name) < 0)
-		p = &((*p)->next);
-	if ((setting = kzalloc(sizeof(*setting), GFP_KERNEL)) == NULL)
-		goto abort;
-	if ((setting->name = kmalloc(strlen(name) + 1, GFP_KERNEL)) == NULL)
-		goto abort;
-	strcpy(setting->name, name);
-	setting->rw = rw;
-	setting->data_type = data_type;
-	setting->min = min;
-	setting->max = max;
-	setting->mul_factor = mul_factor;
-	setting->div_factor = div_factor;
-	setting->data = data;
-	setting->set = set;
-
-	setting->next = *p;
-	if (auto_remove)
-		setting->auto_remove = 1;
-	*p = setting;
-	mutex_unlock(&ide_setting_mtx);
-	return 0;
-abort:
-	mutex_unlock(&ide_setting_mtx);
-	kfree(setting);
-	return -1;
-}
-
-int ide_add_setting(ide_drive_t *drive, const char *name, int rw, int data_type, int min, int max, int mul_factor, int div_factor, void *data, ide_procset_t *set)
-{
-	return __ide_add_setting(drive, name, rw, data_type, min, max, mul_factor, div_factor, data, set, 1);
-}
-
-EXPORT_SYMBOL(ide_add_setting);
-
-/**
- *	__ide_remove_setting	-	remove an ide setting option
- *	@drive: drive to use
+ *	ide_find_setting	-	find a specific setting
+ *	@st: setting table pointer
  *	@name: setting name
  *
- *	Removes the setting named from the device if it is present.
- *	The caller must hold the setting semaphore.
- */
-
-static void __ide_remove_setting(ide_drive_t *drive, char *name)
-{
-	ide_settings_t **p, *setting;
-
-	p = (ide_settings_t **) &drive->settings;
-
-	while ((*p) && strcmp((*p)->name, name))
-		p = &((*p)->next);
-	setting = (*p);
-	if (setting == NULL)
-		return;
-
-	(*p) = setting->next;
-
-	kfree(setting->name);
-	kfree(setting);
-}
-
-/**
- *	auto_remove_settings	-	remove driver specific settings
- *	@drive: drive
- *
- *	Automatically remove all the driver specific settings for this
- *	drive. This function may not be called from IRQ context. The
- *	caller must hold ide_setting_mtx.
- */
-
-static void auto_remove_settings(ide_drive_t *drive)
-{
-	ide_settings_t *setting;
-repeat:
-	setting = drive->settings;
-	while (setting) {
-		if (setting->auto_remove) {
-			__ide_remove_setting(drive, setting->name);
-			goto repeat;
-		}
-		setting = setting->next;
-	}
-}
-
-/**
- *	ide_find_setting_by_name	-	find a drive specific setting
- *	@drive: drive to scan
- *	@name: setting name
- *
- *	Scan's the device setting table for a matching entry and returns
+ *	Scan's the setting table for a matching entry and returns
  *	this or NULL if no entry is found. The caller must hold the
  *	setting semaphore
  */
 
-static ide_settings_t *ide_find_setting_by_name(ide_drive_t *drive, char *name)
+static
+const struct ide_proc_devset *ide_find_setting(const struct ide_proc_devset *st,
+					       char *name)
 {
-	ide_settings_t *setting = drive->settings;
-
-	while (setting) {
-		if (strcmp(setting->name, name) == 0)
+	while (st->name) {
+		if (strcmp(st->name, name) == 0)
 			break;
-		setting = setting->next;
+		st++;
 	}
-	return setting;
+	return st->name ? st : NULL;
 }
 
 /**
@@ -272,26 +149,20 @@ static ide_settings_t *ide_find_setting_by_name(ide_drive_t *drive, char *name)
  *	be told apart
  */
 
-static int ide_read_setting(ide_drive_t *drive, ide_settings_t *setting)
+static int ide_read_setting(ide_drive_t *drive,
+			    const struct ide_proc_devset *setting)
 {
-	int		val = -EINVAL;
-	unsigned long	flags;
+	const struct ide_devset *ds = setting->setting;
+	int val = -EINVAL;
 
-	if ((setting->rw & SETTING_READ)) {
+	if (ds->get) {
+		unsigned long flags;
+
 		spin_lock_irqsave(&ide_lock, flags);
-		switch (setting->data_type) {
-		case TYPE_BYTE:
-			val = *((u8 *) setting->data);
-			break;
-		case TYPE_SHORT:
-			val = *((u16 *) setting->data);
-			break;
-		case TYPE_INT:
-			val = *((u32 *) setting->data);
-			break;
-		}
+		val = ds->get(drive);
 		spin_unlock_irqrestore(&ide_lock, flags);
 	}
+
 	return val;
 }
 
@@ -313,32 +184,22 @@ static int ide_read_setting(ide_drive_t *drive, ide_settings_t *setting)
  *	The current scheme of polling is kludgy, though safe enough.
  */
 
-static int ide_write_setting(ide_drive_t *drive, ide_settings_t *setting, int val)
+static int ide_write_setting(ide_drive_t *drive,
+			     const struct ide_proc_devset *setting, int val)
 {
+	const struct ide_devset *ds = setting->setting;
+
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
-	if (setting->set)
-		return setting->set(drive, val);
-	if (!(setting->rw & SETTING_WRITE))
+	if (!ds->set)
 		return -EPERM;
-	if (val < setting->min || val > setting->max)
+	if ((ds->flags & DS_SYNC)
+	    && (val < setting->min || val > setting->max))
 		return -EINVAL;
-	if (ide_spin_wait_hwgroup(drive))
-		return -EBUSY;
-	switch (setting->data_type) {
-	case TYPE_BYTE:
-		*((u8 *) setting->data) = val;
-		break;
-	case TYPE_SHORT:
-		*((u16 *) setting->data) = val;
-		break;
-	case TYPE_INT:
-		*((u32 *) setting->data) = val;
-		break;
-	}
-	spin_unlock_irq(&ide_lock);
-	return 0;
+	return ide_devset_execute(drive, ds, val);
 }
+
+ide_devset_get(xfer_rate, current_speed);
 
 static int set_xfer_rate (ide_drive_t *drive, int arg)
 {
@@ -349,7 +210,7 @@ static int set_xfer_rate (ide_drive_t *drive, int arg)
 		return -EINVAL;
 
 	memset(&task, 0, sizeof(task));
-	task.tf.command = WIN_SETFEATURES;
+	task.tf.command = ATA_CMD_SET_FEATURES;
 	task.tf.feature = SETFEATURES_XFER;
 	task.tf.nsect   = (u8)arg;
 	task.tf_flags = IDE_TFLAG_OUT_FEATURE | IDE_TFLAG_OUT_NSECT |
@@ -364,29 +225,23 @@ static int set_xfer_rate (ide_drive_t *drive, int arg)
 	return err;
 }
 
-/**
- *	ide_add_generic_settings	-	generic ide settings
- *	@drive: drive being configured
- *
- *	Add the generic parts of the system settings to the /proc files.
- *	The caller must not be holding the ide_setting_mtx.
- */
+ide_devset_rw(current_speed, xfer_rate);
+ide_devset_rw_field(init_speed, init_speed);
+ide_devset_rw_flag(nice1, IDE_DFLAG_NICE1);
+ide_devset_rw_field(number, dn);
 
-void ide_add_generic_settings (ide_drive_t *drive)
-{
-/*
- *			  drive		setting name		read/write access				data type	min	max				mul_factor	div_factor	data pointer			set function
- */
-	__ide_add_setting(drive,	"io_32bit",		drive->no_io_32bit ? SETTING_READ : SETTING_RW,	TYPE_BYTE,	0,	1 + (SUPPORT_VLB_SYNC << 1),	1,		1,		&drive->io_32bit,		set_io_32bit,	0);
-	__ide_add_setting(drive,	"keepsettings",		SETTING_RW,					TYPE_BYTE,	0,	1,				1,		1,		&drive->keep_settings,		NULL,		0);
-	__ide_add_setting(drive,	"nice1",		SETTING_RW,					TYPE_BYTE,	0,	1,				1,		1,		&drive->nice1,			NULL,		0);
-	__ide_add_setting(drive,	"pio_mode",		SETTING_WRITE,					TYPE_BYTE,	0,	255,				1,		1,		NULL,				set_pio_mode,	0);
-	__ide_add_setting(drive,	"unmaskirq",		drive->no_unmask ? SETTING_READ : SETTING_RW,	TYPE_BYTE,	0,	1,				1,		1,		&drive->unmask,			NULL,		0);
-	__ide_add_setting(drive,	"using_dma",		SETTING_RW,					TYPE_BYTE,	0,	1,				1,		1,		&drive->using_dma,		set_using_dma,	0);
-	__ide_add_setting(drive,	"init_speed",		SETTING_RW,					TYPE_BYTE,	0,	70,				1,		1,		&drive->init_speed,		NULL,		0);
-	__ide_add_setting(drive,	"current_speed",	SETTING_RW,					TYPE_BYTE,	0,	70,				1,		1,		&drive->current_speed,		set_xfer_rate,	0);
-	__ide_add_setting(drive,	"number",		SETTING_RW,					TYPE_BYTE,	0,	3,				1,		1,		&drive->dn,			NULL,		0);
-}
+static const struct ide_proc_devset ide_generic_settings[] = {
+	IDE_PROC_DEVSET(current_speed, 0, 70),
+	IDE_PROC_DEVSET(init_speed, 0, 70),
+	IDE_PROC_DEVSET(io_32bit,  0, 1 + (SUPPORT_VLB_SYNC << 1)),
+	IDE_PROC_DEVSET(keepsettings, 0, 1),
+	IDE_PROC_DEVSET(nice1, 0, 1),
+	IDE_PROC_DEVSET(number, 0, 3),
+	IDE_PROC_DEVSET(pio_mode, 0, 255),
+	IDE_PROC_DEVSET(unmaskirq, 0, 1),
+	IDE_PROC_DEVSET(using_dma, 0, 1),
+	{ 0 },
+};
 
 static void proc_ide_settings_warn(void)
 {
@@ -403,19 +258,32 @@ static void proc_ide_settings_warn(void)
 static int proc_ide_read_settings
 	(char *page, char **start, off_t off, int count, int *eof, void *data)
 {
+	const struct ide_proc_devset *setting, *g, *d;
+	const struct ide_devset *ds;
 	ide_drive_t	*drive = (ide_drive_t *) data;
-	ide_settings_t	*setting = (ide_settings_t *) drive->settings;
 	char		*out = page;
 	int		len, rc, mul_factor, div_factor;
 
 	proc_ide_settings_warn();
 
 	mutex_lock(&ide_setting_mtx);
+	g = ide_generic_settings;
+	d = drive->settings;
 	out += sprintf(out, "name\t\t\tvalue\t\tmin\t\tmax\t\tmode\n");
 	out += sprintf(out, "----\t\t\t-----\t\t---\t\t---\t\t----\n");
-	while (setting) {
-		mul_factor = setting->mul_factor;
-		div_factor = setting->div_factor;
+	while (g->name || (d && d->name)) {
+		/* read settings in the alphabetical order */
+		if (g->name && d && d->name) {
+			if (strcmp(d->name, g->name) < 0)
+				setting = d++;
+			else
+				setting = g++;
+		} else if (d && d->name) {
+			setting = d++;
+		} else
+			setting = g++;
+		mul_factor = setting->mulf ? setting->mulf(drive) : 1;
+		div_factor = setting->divf ? setting->divf(drive) : 1;
 		out += sprintf(out, "%-24s", setting->name);
 		rc = ide_read_setting(drive, setting);
 		if (rc >= 0)
@@ -423,12 +291,12 @@ static int proc_ide_read_settings
 		else
 			out += sprintf(out, "%-16s", "write-only");
 		out += sprintf(out, "%-16d%-16d", (setting->min * mul_factor + div_factor - 1) / div_factor, setting->max * mul_factor / div_factor);
-		if (setting->rw & SETTING_READ)
+		ds = setting->setting;
+		if (ds->get)
 			out += sprintf(out, "r");
-		if (setting->rw & SETTING_WRITE)
+		if (ds->set)
 			out += sprintf(out, "w");
 		out += sprintf(out, "\n");
-		setting = setting->next;
 	}
 	len = out - page;
 	mutex_unlock(&ide_setting_mtx);
@@ -442,9 +310,10 @@ static int proc_ide_write_settings(struct file *file, const char __user *buffer,
 {
 	ide_drive_t	*drive = (ide_drive_t *) data;
 	char		name[MAX_LEN + 1];
-	int		for_real = 0;
+	int		for_real = 0, mul_factor, div_factor;
 	unsigned long	n;
-	ide_settings_t	*setting;
+
+	const struct ide_proc_devset *setting;
 	char *buf, *s;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -512,13 +381,21 @@ static int proc_ide_write_settings(struct file *file, const char __user *buffer,
 			}
 
 			mutex_lock(&ide_setting_mtx);
-			setting = ide_find_setting_by_name(drive, name);
+			/* generic settings first, then driver specific ones */
+			setting = ide_find_setting(ide_generic_settings, name);
 			if (!setting) {
-				mutex_unlock(&ide_setting_mtx);
-				goto parse_error;
+				if (drive->settings)
+					setting = ide_find_setting(drive->settings, name);
+				if (!setting) {
+					mutex_unlock(&ide_setting_mtx);
+					goto parse_error;
+				}
 			}
-			if (for_real)
-				ide_write_setting(drive, setting, val * setting->div_factor / setting->mul_factor);
+			if (for_real) {
+				mul_factor = setting->mulf ? setting->mulf(drive) : 1;
+				div_factor = setting->divf ? setting->divf(drive) : 1;
+				ide_write_setting(drive, setting, val * div_factor / mul_factor);
+			}
 			mutex_unlock(&ide_setting_mtx);
 		}
 	} while (!for_real++);
@@ -561,11 +438,10 @@ static int proc_ide_read_dmodel
 	(char *page, char **start, off_t off, int count, int *eof, void *data)
 {
 	ide_drive_t	*drive = (ide_drive_t *) data;
-	struct hd_driveid *id = drive->id;
+	char		*m = (char *)&drive->id[ATA_ID_PROD];
 	int		len;
 
-	len = sprintf(page, "%.40s\n",
-		(id && id->model[0]) ? (char *)id->model : "(none)");
+	len = sprintf(page, "%.40s\n", m[0] ? m : "(none)");
 	PROC_IDE_READ_RETURN(page, start, off, count, eof, len);
 }
 
@@ -690,6 +566,10 @@ static void ide_remove_proc_entries(struct proc_dir_entry *dir, ide_proc_entry_t
 
 void ide_proc_register_driver(ide_drive_t *drive, ide_driver_t *driver)
 {
+	mutex_lock(&ide_setting_mtx);
+	drive->settings = driver->settings;
+	mutex_unlock(&ide_setting_mtx);
+
 	ide_add_proc_entries(drive->proc, driver->proc, drive);
 }
 
@@ -726,7 +606,7 @@ void ide_proc_unregister_driver(ide_drive_t *drive, ide_driver_t *driver)
 	 * OTOH both ide_{read,write}_setting are only ever used under
 	 * ide_setting_mtx.
 	 */
-	auto_remove_settings(drive);
+	drive->settings = NULL;
 	spin_unlock_irqrestore(&ide_lock, flags);
 	mutex_unlock(&ide_setting_mtx);
 }
@@ -742,9 +622,7 @@ void ide_proc_port_register_devices(ide_hwif_t *hwif)
 	for (d = 0; d < MAX_DRIVES; d++) {
 		ide_drive_t *drive = &hwif->drives[d];
 
-		if (!drive->present)
-			continue;
-		if (drive->proc)
+		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0 || drive->proc)
 			continue;
 
 		drive->proc = proc_mkdir(drive->name, parent);

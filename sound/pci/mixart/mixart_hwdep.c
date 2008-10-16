@@ -288,7 +288,9 @@ static int mixart_enum_physio(struct mixart_mgr *mgr)
 		return -EINVAL;
 	}
 
-	snd_assert(phys_io.nb_uid >= (MIXART_MAX_CARDS * 2),  return -EINVAL); /* min 2 phys io per card (analog in + analog out) */
+	/* min 2 phys io per card (analog in + analog out) */
+	if (phys_io.nb_uid < MIXART_MAX_CARDS * 2)
+		return -EINVAL;
 
 	for(k=0; k<mgr->num_cards; k++) {
 		mgr->chip[k]->uid_in_analog_physio = phys_io.uid[k];
@@ -363,8 +365,10 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
 		}
 
 		/* check xilinx validity */
-		snd_assert(((u32*)(dsp->data))[0]==0xFFFFFFFF, return -EINVAL);
-		snd_assert(dsp->size % 4 == 0, return -EINVAL);
+		if (((u32*)(dsp->data))[0] == 0xffffffff)
+			return -EINVAL;
+		if (dsp->size % 4)
+			return -EINVAL;
 
 		/* set xilinx status to copying */
 		writel_be( 1, MIXART_MEM( mgr, MIXART_PSEUDOREG_MXLX_STATUS_OFFSET ));
@@ -462,8 +466,10 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
 		}
  
 		/* check daughterboard xilinx validity */
-		snd_assert(((u32*)(dsp->data))[0]==0xFFFFFFFF, return -EINVAL);
-		snd_assert(dsp->size % 4 == 0, return -EINVAL);
+		if (((u32*)(dsp->data))[0] == 0xffffffff)
+			return -EINVAL;
+		if (dsp->size % 4)
+			return -EINVAL;
 
 		/* inform mixart about the size of the file */
 		writel_be( dsp->size, MIXART_MEM( mgr, MIXART_PSEUDOREG_DXLX_SIZE_OFFSET ));
@@ -480,7 +486,8 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
 
 		/* get the address where to write the file */
 		val = readl_be( MIXART_MEM( mgr, MIXART_PSEUDOREG_DXLX_BASE_ADDR_OFFSET ));
-		snd_assert(val != 0, return -EINVAL);
+		if (!val)
+			return -EINVAL;
 
 		/* copy daughterboard xilinx code */
 		memcpy_toio(  MIXART_MEM( mgr, val),  dsp->data,  dsp->size);

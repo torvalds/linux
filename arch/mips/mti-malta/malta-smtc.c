@@ -84,12 +84,17 @@ static void msmtc_cpus_done(void)
 
 static void __init msmtc_smp_setup(void)
 {
-	mipsmt_build_cpu_map(0);
+	/*
+	 * we won't get the definitive value until
+	 * we've run smtc_prepare_cpus later, but
+	 * we would appear to need an upper bound now.
+	 */
+	smp_num_siblings = smtc_build_cpu_map(0);
 }
 
 static void __init msmtc_prepare_cpus(unsigned int max_cpus)
 {
-	mipsmt_prepare_cpus();
+	smtc_prepare_cpus(max_cpus);
 }
 
 struct plat_smp_ops msmtc_smp_ops = {

@@ -1,7 +1,7 @@
 /*
  * NETLINK      Kernel-user communication protocol.
  *
- * 		Authors:	Alan Cox <alan@redhat.com>
+ * 		Authors:	Alan Cox <alan@lxorguk.ukuu.org.uk>
  * 				Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>
  *
  *		This program is free software; you can redistribute it and/or

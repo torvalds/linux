@@ -595,8 +595,6 @@ static void rme9652_set_thru(struct snd_rme9652 *rme9652, int channel, int enabl
 	} else {
 		int mapped_channel;
 
-		snd_assert(channel == RME9652_NCHANNELS, return);
-
 		mapped_channel = rme9652->channel_map[channel];
 
 		if (enable) {
@@ -1893,7 +1891,8 @@ static char *rme9652_channel_buffer_location(struct snd_rme9652 *rme9652,
 {
 	int mapped_channel;
 
-        snd_assert(channel >= 0 || channel < RME9652_NCHANNELS, return NULL);
+	if (snd_BUG_ON(channel < 0 || channel >= RME9652_NCHANNELS))
+		return NULL;
         
 	if ((mapped_channel = rme9652->channel_map[channel]) < 0) {
 		return NULL;
@@ -1914,12 +1913,14 @@ static int snd_rme9652_playback_copy(struct snd_pcm_substream *substream, int ch
 	struct snd_rme9652 *rme9652 = snd_pcm_substream_chip(substream);
 	char *channel_buf;
 
-	snd_assert(pos + count <= RME9652_CHANNEL_BUFFER_BYTES / 4, return -EINVAL);
+	if (snd_BUG_ON(pos + count > RME9652_CHANNEL_BUFFER_BYTES / 4))
+		return -EINVAL;
 
 	channel_buf = rme9652_channel_buffer_location (rme9652,
 						       substream->pstr->stream,
 						       channel);
-	snd_assert(channel_buf != NULL, return -EIO);
+	if (snd_BUG_ON(!channel_buf))
+		return -EIO;
 	if (copy_from_user(channel_buf + pos * 4, src, count * 4))
 		return -EFAULT;
 	return count;
@@ -1931,12 +1932,14 @@ static int snd_rme9652_capture_copy(struct snd_pcm_substream *substream, int cha
 	struct snd_rme9652 *rme9652 = snd_pcm_substream_chip(substream);
 	char *channel_buf;
 
-	snd_assert(pos + count <= RME9652_CHANNEL_BUFFER_BYTES / 4, return -EINVAL);
+	if (snd_BUG_ON(pos + count > RME9652_CHANNEL_BUFFER_BYTES / 4))
+		return -EINVAL;
 
 	channel_buf = rme9652_channel_buffer_location (rme9652,
 						       substream->pstr->stream,
 						       channel);
-	snd_assert(channel_buf != NULL, return -EIO);
+	if (snd_BUG_ON(!channel_buf))
+		return -EIO;
 	if (copy_to_user(dst, channel_buf + pos * 4, count * 4))
 		return -EFAULT;
 	return count;
@@ -1951,7 +1954,8 @@ static int snd_rme9652_hw_silence(struct snd_pcm_substream *substream, int chann
 	channel_buf = rme9652_channel_buffer_location (rme9652,
 						       substream->pstr->stream,
 						       channel);
-	snd_assert(channel_buf != NULL, return -EIO);
+	if (snd_BUG_ON(!channel_buf))
+		return -EIO;
 	memset(channel_buf + pos * 4, 0, count * 4);
 	return count;
 }
@@ -2053,7 +2057,8 @@ static int snd_rme9652_channel_info(struct snd_pcm_substream *substream,
 	struct snd_rme9652 *rme9652 = snd_pcm_substream_chip(substream);
 	int chn;
 
-	snd_assert(info->channel < RME9652_NCHANNELS, return -EINVAL);
+	if (snd_BUG_ON(info->channel >= RME9652_NCHANNELS))
+		return -EINVAL;
 
 	if ((chn = rme9652->channel_map[info->channel]) < 0) {
 		return -EINVAL;

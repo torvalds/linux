@@ -29,6 +29,7 @@
 
 #include <media/saa6752hs.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-chip-ident.h>
 
 /* ------------------------------------------------------------------ */
 
@@ -63,10 +64,19 @@ static void ts_reset_encoder(struct saa7134_dev* dev)
 
 static int ts_init_encoder(struct saa7134_dev* dev)
 {
-	struct v4l2_ext_controls ctrls = { V4L2_CTRL_CLASS_MPEG, 0 };
+	u32 leading_null_bytes = 0;
 
+	/* If more cards start to need this, then this
+	   should probably be added to the card definitions. */
+	switch (dev->board) {
+	case SAA7134_BOARD_BEHOLD_M6:
+	case SAA7134_BOARD_BEHOLD_M63:
+	case SAA7134_BOARD_BEHOLD_M6_EXTRA:
+		leading_null_bytes = 1;
+		break;
+	}
 	ts_reset_encoder(dev);
-	saa7134_i2c_call_clients(dev, VIDIOC_S_EXT_CTRLS, &ctrls);
+	saa7134_i2c_call_clients(dev, VIDIOC_INT_INIT, &leading_null_bytes);
 	dev->empress_started = 1;
 	return 0;
 }
@@ -79,9 +89,11 @@ static int ts_open(struct inode *inode, struct file *file)
 	struct saa7134_dev *dev;
 	int err;
 
+	lock_kernel();
 	list_for_each_entry(dev, &saa7134_devlist, devlist)
 		if (dev->empress_dev && dev->empress_dev->minor == minor)
 			goto found;
+	unlock_kernel();
 	return -ENODEV;
  found:
 
@@ -103,6 +115,7 @@ static int ts_open(struct inode *inode, struct file *file)
 done_up:
 	mutex_unlock(&dev->empress_tsq.vb_lock);
 done:
+	unlock_kernel();
 	return err;
 }
 
@@ -290,15 +303,6 @@ static int empress_streamoff(struct file *file, void *priv,
 	return videobuf_streamoff(&dev->empress_tsq);
 }
 
-static int saa7134_i2c_call_saa6752(struct saa7134_dev *dev,
-					      unsigned int cmd, void *arg)
-{
-	if (dev->mpeg_i2c_client == NULL)
-		return -EINVAL;
-	return dev->mpeg_i2c_client->driver->command(dev->mpeg_i2c_client,
-								cmd, arg);
-}
-
 static int empress_s_ext_ctrls(struct file *file, void *priv,
 			       struct v4l2_ext_controls *ctrls)
 {
@@ -400,6 +404,39 @@ static int empress_querymenu(struct file *file, void *priv,
 	return saa7134_i2c_call_saa6752(dev, VIDIOC_QUERYMENU, c);
 }
 
+static int empress_g_chip_ident(struct file *file, void *fh,
+	       struct v4l2_chip_ident *chip)
+{
+	struct saa7134_dev *dev = file->private_data;
+
+	chip->ident = V4L2_IDENT_NONE;
+	chip->revision = 0;
+	if (dev->mpeg_i2c_client == NULL)
+		return -EINVAL;
+	if (chip->match_type == V4L2_CHIP_MATCH_I2C_DRIVER &&
+	    chip->match_chip == I2C_DRIVERID_SAA6752HS)
+		return saa7134_i2c_call_saa6752(dev, VIDIOC_G_CHIP_IDENT, chip);
+	if (chip->match_type == V4L2_CHIP_MATCH_I2C_ADDR &&
+	    chip->match_chip == dev->mpeg_i2c_client->addr)
+		return saa7134_i2c_call_saa6752(dev, VIDIOC_G_CHIP_IDENT, chip);
+	return -EINVAL;
+}
+
+static int empress_s_std(struct file *file, void *priv, v4l2_std_id *id)
+{
+	struct saa7134_dev *dev = file->private_data;
+
+	return saa7134_s_std_internal(dev, NULL, id);
+}
+
+static int empress_g_std(struct file *file, void *priv, v4l2_std_id *id)
+{
+	struct saa7134_dev *dev = file->private_data;
+
+	*id = dev->tvnorm->id;
+	return 0;
+}
+
 static const struct file_operations ts_fops =
 {
 	.owner	  = THIS_MODULE,
@@ -428,11 +465,13 @@ static const struct v4l2_ioctl_ops ts_ioctl_ops = {
 	.vidioc_enum_input		= empress_enum_input,
 	.vidioc_g_input			= empress_g_input,
 	.vidioc_s_input			= empress_s_input,
-
 	.vidioc_queryctrl		= empress_queryctrl,
 	.vidioc_querymenu		= empress_querymenu,
 	.vidioc_g_ctrl			= empress_g_ctrl,
 	.vidioc_s_ctrl			= empress_s_ctrl,
+	.vidioc_g_chip_ident 		= empress_g_chip_ident,
+	.vidioc_s_std			= empress_s_std,
+	.vidioc_g_std			= empress_g_std,
 };
 
 /* ----------------------------------------------------------- */

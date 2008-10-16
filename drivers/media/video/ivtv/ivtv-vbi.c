@@ -334,7 +334,7 @@ void ivtv_process_vbi_data(struct ivtv *itv, struct ivtv_buffer *buf,
 	int y;
 
 	/* Raw VBI data */
-	if (streamtype == IVTV_ENC_STREAM_TYPE_VBI && itv->vbi.sliced_in->service_set == 0) {
+	if (streamtype == IVTV_ENC_STREAM_TYPE_VBI && ivtv_raw_vbi(itv)) {
 		u8 type;
 
 		ivtv_buf_swap(buf);

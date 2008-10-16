@@ -1291,22 +1291,6 @@ static int __init disable_boot_consoles(void)
 }
 late_initcall(disable_boot_consoles);
 
-/**
- * tty_write_message - write a message to a certain tty, not just the console.
- * @tty: the destination tty_struct
- * @msg: the message to write
- *
- * This is used for messages that need to be redirected to a specific tty.
- * We don't put it into the syslog queue right now maybe in the future if
- * really needed.
- */
-void tty_write_message(struct tty_struct *tty, char *msg)
-{
-	if (tty && tty->ops->write)
-		tty->ops->write(tty, msg, strlen(msg));
-	return;
-}
-
 #if defined CONFIG_PRINTK
 
 /*
