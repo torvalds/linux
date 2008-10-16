@@ -509,6 +509,19 @@ p9pdu_writef(struct p9_fcall *pdu, int optional, const char *fmt, ...)
 	return ret;
 }
 
+int p9stat_read(char *buf, int len, struct p9_wstat *st, int dotu)
+{
+	struct p9_fcall fake_pdu;
+
+	fake_pdu.size = len;
+	fake_pdu.capacity = len;
+	fake_pdu.sdata = buf;
+	fake_pdu.offset = 0;
+
+	return p9pdu_readf(&fake_pdu, dotu, "S", st);
+}
+EXPORT_SYMBOL(p9stat_read);
+
 int p9pdu_prepare(struct p9_fcall *pdu, int16_t tag, int8_t type)
 {
 	return p9pdu_writef(pdu, 0, "dbw", 0, type, tag);

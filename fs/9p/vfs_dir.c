@@ -45,7 +45,7 @@
  *
  */
 
-static inline int dt_type(struct p9_stat *mistat)
+static inline int dt_type(struct p9_wstat *mistat)
 {
 	unsigned long perm = mistat->mode;
 	int rettype = DT_REG;
@@ -69,7 +69,7 @@ static inline int dt_type(struct p9_stat *mistat)
 static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
 	int over;
-	struct p9_stat st;
+	struct p9_wstat st;
 	int err;
 	struct p9_fid *fid;
 	int buflen;
@@ -92,20 +92,24 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 		n = err;
 		while (i < n) {
-			err = p9_deserialize_stat(statbuf + i, buflen-i, &st,
+			err = p9stat_read(statbuf + i, buflen-i, &st,
 							fid->clnt->dotu);
-			if (!err) {
+			if (err) {
+				P9_DPRINTK(P9_DEBUG_VFS, "returned %d\n", err);
 				err = -EIO;
+				p9stat_free(&st);
 				goto free_and_exit;
 			}
 
-			i += err;
-			fid->rdir_fpos += err;
+			i += st.size+2;
+			fid->rdir_fpos += st.size+2;
 
-			over = filldir(dirent, st.name.str, st.name.len,
+			over = filldir(dirent, st.name, strlen(st.name),
 			    filp->f_pos, v9fs_qid2ino(&st.qid), dt_type(&st));
 
-			filp->f_pos += st.size;
+			filp->f_pos += st.size+2;
+
+			p9stat_free(&st);
 
 			if (over) {
 				err = 0;

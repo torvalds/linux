@@ -206,6 +206,8 @@ int p9_client_wstat(struct p9_fid *fid, struct p9_wstat *wst);
 struct p9_req_t *p9_tag_lookup(struct p9_client *, u16);
 void p9_client_cb(struct p9_client *c, struct p9_req_t *req);
 
+int p9stat_read(char *, int, struct p9_wstat *, int);
 void p9stat_free(struct p9_wstat *);
+
 
 #endif /* NET_9P_CLIENT_H */
