@@ -60,10 +60,6 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
 
-#ifdef CONFIG_KMOD
-#include <linux/kmod.h>
-#endif
-
 #include <linux/videodev2.h>
 
 MODULE_AUTHOR("Bill Dirks, Justin Schoeman, Gerd Knorr");
