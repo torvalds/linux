@@ -648,8 +648,6 @@ static int ds_write_block(struct ds_device *dev, u8 *buf, int len)
 	if (err < 0)
 		return err;
 
-	ds_wait_status(dev, &st);
-
 	err = ds_send_control(dev, COMM_BLOCK_IO | COMM_IM | COMM_SPU, len);
 	if (err)
 		return err;
