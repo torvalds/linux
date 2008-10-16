@@ -127,6 +127,7 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 
 
 /* IOTLB_REG */
+#define DMA_TLB_FLUSH_GRANU_OFFSET  60
 #define DMA_TLB_GLOBAL_FLUSH (((u64)1) << 60)
 #define DMA_TLB_DSI_FLUSH (((u64)2) << 60)
 #define DMA_TLB_PSI_FLUSH (((u64)3) << 60)
@@ -140,6 +141,7 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define DMA_TLB_MAX_SIZE (0x3f)
 
 /* INVALID_DESC */
+#define DMA_CCMD_INVL_GRANU_OFFSET  61
 #define DMA_ID_TLB_GLOBAL_FLUSH	(((u64)1) << 3)
 #define DMA_ID_TLB_DSI_FLUSH	(((u64)2) << 3)
 #define DMA_ID_TLB_PSI_FLUSH	(((u64)3) << 3)
@@ -238,6 +240,19 @@ enum {
 #define QI_IWD_STATUS_DATA(d)	(((u64)d) << 32)
 #define QI_IWD_STATUS_WRITE	(((u64)1) << 5)
 
+#define QI_IOTLB_DID(did) 	(((u64)did) << 16)
+#define QI_IOTLB_DR(dr) 	(((u64)dr) << 7)
+#define QI_IOTLB_DW(dw) 	(((u64)dw) << 6)
+#define QI_IOTLB_GRAN(gran) 	(((u64)gran) >> (DMA_TLB_FLUSH_GRANU_OFFSET-4))
+#define QI_IOTLB_ADDR(addr)	(((u64)addr) & PAGE_MASK_4K)
+#define QI_IOTLB_IH(ih)		(((u64)ih) << 6)
+#define QI_IOTLB_AM(am)		(((u8)am))
+
+#define QI_CC_FM(fm)		(((u64)fm) << 48)
+#define QI_CC_SID(sid)		(((u64)sid) << 32)
+#define QI_CC_DID(did)		(((u64)did) << 16)
+#define QI_CC_GRAN(gran)	(((u64)gran) >> (DMA_CCMD_INVL_GRANU_OFFSET-4))
+
 struct qi_desc {
 	u64 low, high;
 };
@@ -302,6 +317,12 @@ extern int alloc_iommu(struct dmar_drhd_unit *drhd);
 extern void free_iommu(struct intel_iommu *iommu);
 extern int dmar_enable_qi(struct intel_iommu *iommu);
 extern void qi_global_iec(struct intel_iommu *iommu);
+
+extern int qi_flush_context(struct intel_iommu *iommu, u16 did, u16 sid,
+			        u8 fm, u64 type, int non_present_entry_flush);
+extern int qi_flush_iotlb(struct intel_iommu *iommu, u16 did, u64 addr,
+			  unsigned int size_order, u64 type,
+			  int non_present_entry_flush);
 
 extern void qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu);
 
