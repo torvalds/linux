@@ -913,12 +913,22 @@ sub annotate_values {
 sub possible {
 	my ($possible, $line) = @_;
 
-	print "CHECK<$possible> ($line)\n" if ($dbg_possible > 1);
-	if ($possible !~ /^(?:$Modifier|$Storage|$Type|DEFINE_\S+)$/ &&
-	    $possible ne 'goto' && $possible ne 'return' &&
-	    $possible ne 'case' && $possible ne 'else' &&
-	    $possible ne 'asm' && $possible ne '__asm__' &&
-	    $possible !~ /^(typedef|struct|enum)\b/) {
+	print "CHECK<$possible> ($line)\n" if ($dbg_possible > 2);
+	if ($possible !~ /(?:
+		^(?:
+			$Modifier|
+			$Storage|
+			$Type|
+			DEFINE_\S+|
+			goto|
+			return|
+			case|
+			else|
+			asm|__asm__|
+			do
+		)$|
+		^(?:typedef|struct|enum)\b
+	    )/x) {
 		# Check for modifiers.
 		$possible =~ s/\s*$Storage\s*//g;
 		$possible =~ s/\s*$Sparse\s*//g;
@@ -936,6 +946,8 @@ sub possible {
 			push(@typeList, $possible);
 		}
 		build_types();
+	} else {
+		warn "NOTPOSS: $possible ($line)\n" if ($dbg_possible > 1);
 	}
 }
 
