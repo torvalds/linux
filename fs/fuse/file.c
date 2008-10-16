@@ -1448,6 +1448,9 @@ static loff_t fuse_file_llseek(struct file *file, loff_t offset, int origin)
 	mutex_lock(&inode->i_mutex);
 	switch (origin) {
 	case SEEK_END:
+		retval = fuse_update_attributes(inode, NULL, file, NULL);
+		if (retval)
+			return retval;
 		offset += i_size_read(inode);
 		break;
 	case SEEK_CUR:
