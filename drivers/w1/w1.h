@@ -149,8 +149,6 @@ struct w1_bus_master
 		u8, w1_slave_found_callback);
 };
 
-#define W1_MASTER_NEED_EXIT		0
-
 struct w1_master
 {
 	struct list_head	w1_master_entry;
@@ -168,8 +166,6 @@ struct w1_master
 
 	void			*priv;
 	int			priv_size;
-
-	long			flags;
 
 	struct task_struct	*thread;
 	struct mutex		mutex;
