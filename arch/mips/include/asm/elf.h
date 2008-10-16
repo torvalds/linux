@@ -247,10 +247,8 @@ extern struct mips_abi mips_abi_n32;
 
 #ifdef CONFIG_32BIT
 
-#define SET_PERSONALITY(ex, ibcs2)					\
+#define SET_PERSONALITY(ex)						\
 do {									\
-	if (ibcs2)							\
-		set_personality(PER_SVR4);				\
 	set_personality(PER_LINUX);					\
 									\
 	current->thread.abi = &mips_abi;				\
@@ -296,7 +294,7 @@ do {									\
 #define __SET_PERSONALITY32(ex)	do { } while (0)
 #endif
 
-#define SET_PERSONALITY(ex, ibcs2)					\
+#define SET_PERSONALITY(ex)						\
 do {									\
 	clear_thread_flag(TIF_32BIT_REGS);				\
 	clear_thread_flag(TIF_32BIT_ADDR);				\
@@ -306,9 +304,7 @@ do {									\
 	else								\
 		current->thread.abi = &mips_abi;			\
 									\
-	if (ibcs2)							\
-		set_personality(PER_SVR4);				\
-	else if (current->personality != PER_LINUX32)			\
+	if (current->personality != PER_LINUX32)			\
 		set_personality(PER_LINUX);				\
 } while (0)
 
