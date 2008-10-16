@@ -446,10 +446,6 @@ static void rate_control_pid_free(void *priv)
 	kfree(pinfo);
 }
 
-static void rate_control_pid_clear(void *priv)
-{
-}
-
 static void *rate_control_pid_alloc_sta(void *priv, struct ieee80211_sta *sta,
 					gfp_t gfp)
 {
@@ -480,7 +476,6 @@ static struct rate_control_ops mac80211_rcpid = {
 	.tx_status = rate_control_pid_tx_status,
 	.get_rate = rate_control_pid_get_rate,
 	.rate_init = rate_control_pid_rate_init,
-	.clear = rate_control_pid_clear,
 	.alloc = rate_control_pid_alloc,
 	.free = rate_control_pid_free,
 	.alloc_sta = rate_control_pid_alloc_sta,

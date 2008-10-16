@@ -2393,19 +2393,6 @@ static void rs_free(void *priv_rate)
 	return;
 }
 
-static void rs_clear(void *priv_rate)
-{
-#ifdef CONFIG_IWLWIFI_DEBUG
-	struct iwl_priv *priv = (struct iwl_priv *) priv_rate;
-
-	IWL_DEBUG_RATE("enter\n");
-
-	/* TODO - add rate scale state reset */
-
-	IWL_DEBUG_RATE("leave\n");
-#endif /* CONFIG_IWLWIFI_DEBUG */
-}
-
 static void rs_free_sta(void *priv_r, struct ieee80211_sta *sta,
 			void *priv_sta)
 {
@@ -2593,7 +2580,6 @@ static struct rate_control_ops rs_ops = {
 	.tx_status = rs_tx_status,
 	.get_rate = rs_get_rate,
 	.rate_init = rs_rate_init,
-	.clear = rs_clear,
 	.alloc = rs_alloc,
 	.free = rs_free,
 	.alloc_sta = rs_alloc_sta,

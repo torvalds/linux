@@ -647,8 +647,6 @@ int ieee80211_set_freq(struct ieee80211_sub_if_data *sdata, int freqMHz)
 		else
 			ret = ieee80211_hw_config(
 				local, IEEE80211_CONF_CHANGE_CHANNEL);
-
-		rate_control_clear(local);
 	}
 
 	return ret;

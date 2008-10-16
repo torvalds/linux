@@ -2038,11 +2038,6 @@ static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
 	ath_rc_node_update(sc->hw, priv_sta);
 }
 
-static void ath_rate_clear(void *priv)
-{
-	return;
-}
-
 static void *ath_rate_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 {
 	struct ath_softc *sc = hw->priv;
@@ -2092,7 +2087,6 @@ static struct rate_control_ops ath_rate_ops = {
 	.tx_status = ath_tx_status,
 	.get_rate = ath_get_rate,
 	.rate_init = ath_rate_init,
-	.clear = ath_rate_clear,
 	.alloc = ath_rate_alloc,
 	.free = ath_rate_free,
 	.alloc_sta = ath_rate_alloc_sta,

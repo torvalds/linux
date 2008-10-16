@@ -63,12 +63,6 @@ static inline void rate_control_rate_init(struct sta_info *sta)
 }
 
 
-static inline void rate_control_clear(struct ieee80211_local *local)
-{
-	struct rate_control_ref *ref = local->rate_ctrl;
-	ref->ops->clear(ref->priv);
-}
-
 static inline void *rate_control_alloc_sta(struct rate_control_ref *ref,
 					   struct ieee80211_sta *sta,
 					   gfp_t gfp)

@@ -355,12 +355,6 @@ static void rs_free(void *priv)
 	return;
 }
 
-static void rs_clear(void *priv)
-{
-	return;
-}
-
-
 static void *rs_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
 {
 	struct iwl3945_rs_sta *rs_sta;
@@ -784,7 +778,6 @@ static struct rate_control_ops rs_ops = {
 	.tx_status = rs_tx_status,
 	.get_rate = rs_get_rate,
 	.rate_init = rs_rate_init,
-	.clear = rs_clear,
 	.alloc = rs_alloc,
 	.free = rs_free,
 	.alloc_sta = rs_alloc_sta,

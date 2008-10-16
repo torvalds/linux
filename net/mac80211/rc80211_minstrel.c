@@ -507,11 +507,6 @@ minstrel_free_sta(void *priv, struct ieee80211_sta *sta, void *priv_sta)
 	kfree(mi);
 }
 
-static void
-minstrel_clear(void *priv)
-{
-}
-
 static void *
 minstrel_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
 {
@@ -565,7 +560,6 @@ static struct rate_control_ops mac80211_minstrel = {
 	.tx_status = minstrel_tx_status,
 	.get_rate = minstrel_get_rate,
 	.rate_init = minstrel_rate_init,
-	.clear = minstrel_clear,
 	.alloc = minstrel_alloc,
 	.free = minstrel_free,
 	.alloc_sta = minstrel_alloc_sta,
