@@ -557,6 +557,13 @@ duration:
 	    usecs_to_jiffies(be32_to_cpu
 			     (*((__be32 *) (data +
 					    TPM_GET_CAP_RET_UINT32_1_IDX))));
+	/* The Broadcom BCM0102 chipset in a Dell Latitude D820 gets the above
+	 * value wrong and apparently reports msecs rather than usecs. So we
+	 * fix up the resulting too-small TPM_SHORT value to make things work.
+	 */
+	if (chip->vendor.duration[TPM_SHORT] < (HZ/100))
+		chip->vendor.duration[TPM_SHORT] = HZ;
+
 	chip->vendor.duration[TPM_MEDIUM] =
 	    usecs_to_jiffies(be32_to_cpu
 			     (*((__be32 *) (data +
