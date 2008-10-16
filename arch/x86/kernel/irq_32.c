@@ -263,22 +263,67 @@ atomic_t irq_err_count;
  * /proc/interrupts printing:
  */
 
+static int show_other_interrupts(struct seq_file *p)
+{
+	int j;
+
+	seq_printf(p, "NMI: ");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", nmi_count(j));
+	seq_printf(p, "  Non-maskable interrupts\n");
+#ifdef CONFIG_X86_LOCAL_APIC
+	seq_printf(p, "LOC: ");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", per_cpu(irq_stat,j).apic_timer_irqs);
+	seq_printf(p, "  Local timer interrupts\n");
+#endif
+#ifdef CONFIG_SMP
+	seq_printf(p, "RES: ");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", per_cpu(irq_stat,j).irq_resched_count);
+	seq_printf(p, "  Rescheduling interrupts\n");
+	seq_printf(p, "CAL: ");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", per_cpu(irq_stat,j).irq_call_count);
+	seq_printf(p, "  Function call interrupts\n");
+	seq_printf(p, "TLB: ");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", per_cpu(irq_stat,j).irq_tlb_count);
+	seq_printf(p, "  TLB shootdowns\n");
+#endif
+#ifdef CONFIG_X86_MCE
+	seq_printf(p, "TRM: ");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", per_cpu(irq_stat,j).irq_thermal_count);
+	seq_printf(p, "  Thermal event interrupts\n");
+#endif
+#ifdef CONFIG_X86_LOCAL_APIC
+	seq_printf(p, "SPU: ");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", per_cpu(irq_stat,j).irq_spurious_count);
+	seq_printf(p, "  Spurious interrupts\n");
+#endif
+	seq_printf(p, "ERR: %10u\n", atomic_read(&irq_err_count));
+#if defined(CONFIG_X86_IO_APIC)
+	seq_printf(p, "MIS: %10u\n", atomic_read(&irq_mis_count));
+#endif
+	return 0;
+}
+
 int show_interrupts(struct seq_file *p, void *v)
 {
+	unsigned long flags, any_count = 0;
 	int i = *(loff_t *) v, j;
-	struct irqaction * action;
-	unsigned long flags;
-	unsigned int entries;
-	struct irq_desc *desc = NULL;
-	int tail = 0;
+	struct irqaction *action;
+	struct irq_desc *desc;
 
-	entries = nr_irqs - 1;
-	i = *(loff_t *) v;
+	if (i > nr_irqs)
+		return 0;
+
 	if (i == nr_irqs)
-		tail = 1;
-	else
-		desc = irq_to_desc(i);
+		return show_other_interrupts(p);
 
+	/* print header */
 	if (i == 0) {
 		seq_printf(p, "           ");
 		for_each_online_cpu(j)
@@ -286,88 +331,37 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_putc(p, '\n');
 	}
 
-	if (i <= entries) {
-		unsigned any_count = 0;
-
-		spin_lock_irqsave(&desc->lock, flags);
+	desc = irq_to_desc(i);
+	spin_lock_irqsave(&desc->lock, flags);
 #ifndef CONFIG_SMP
-		any_count = kstat_irqs(i);
+	any_count = kstat_irqs(i);
 #else
-		for_each_online_cpu(j)
-			any_count |= kstat_irqs_cpu(i, j);
+	for_each_online_cpu(j)
+		any_count |= kstat_irqs_cpu(i, j);
 #endif
-		action = desc->action;
-		if (!action && !any_count)
-			goto skip;
-		seq_printf(p, "%3d: ", i);
+	action = desc->action;
+	if (!action && !any_count)
+		goto out;
+
+	seq_printf(p, "%3d: ", i);
 #ifndef CONFIG_SMP
-		seq_printf(p, "%10u ", kstat_irqs(i));
+	seq_printf(p, "%10u ", kstat_irqs(i));
 #else
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
 #endif
-		seq_printf(p, " %8s", desc->chip->name);
-		seq_printf(p, "-%-8s", desc->name);
+	seq_printf(p, " %8s", desc->chip->name);
+	seq_printf(p, "-%-8s", desc->name);
 
-		if (action) {
-			seq_printf(p, "  %s", action->name);
-			while ((action = action->next) != NULL)
-				seq_printf(p, ", %s", action->name);
-		}
-
-		seq_putc(p, '\n');
-skip:
-		spin_unlock_irqrestore(&desc->lock, flags);
+	if (action) {
+		seq_printf(p, "  %s", action->name);
+		while ((action = action->next) != NULL)
+			seq_printf(p, ", %s", action->name);
 	}
 
-	if (tail) {
-		seq_printf(p, "NMI: ");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", nmi_count(j));
-		seq_printf(p, "  Non-maskable interrupts\n");
-#ifdef CONFIG_X86_LOCAL_APIC
-		seq_printf(p, "LOC: ");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ",
-				per_cpu(irq_stat,j).apic_timer_irqs);
-		seq_printf(p, "  Local timer interrupts\n");
-#endif
-#ifdef CONFIG_SMP
-		seq_printf(p, "RES: ");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ",
-				per_cpu(irq_stat,j).irq_resched_count);
-		seq_printf(p, "  Rescheduling interrupts\n");
-		seq_printf(p, "CAL: ");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ",
-				per_cpu(irq_stat,j).irq_call_count);
-		seq_printf(p, "  Function call interrupts\n");
-		seq_printf(p, "TLB: ");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ",
-				per_cpu(irq_stat,j).irq_tlb_count);
-		seq_printf(p, "  TLB shootdowns\n");
-#endif
-#ifdef CONFIG_X86_MCE
-		seq_printf(p, "TRM: ");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ",
-				per_cpu(irq_stat,j).irq_thermal_count);
-		seq_printf(p, "  Thermal event interrupts\n");
-#endif
-#ifdef CONFIG_X86_LOCAL_APIC
-		seq_printf(p, "SPU: ");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ",
-				per_cpu(irq_stat,j).irq_spurious_count);
-		seq_printf(p, "  Spurious interrupts\n");
-#endif
-		seq_printf(p, "ERR: %10u\n", atomic_read(&irq_err_count));
-#if defined(CONFIG_X86_IO_APIC)
-		seq_printf(p, "MIS: %10u\n", atomic_read(&irq_mis_count));
-#endif
-	}
+	seq_putc(p, '\n');
+out:
+	spin_unlock_irqrestore(&desc->lock, flags);
 	return 0;
 }
 
