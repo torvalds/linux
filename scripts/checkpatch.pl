@@ -958,6 +958,33 @@ sub CHK {
 	}
 }
 
+sub check_absolute_file {
+	my ($absolute, $herecurr) = @_;
+	my $file = $absolute;
+
+	##print "absolute<$absolute>\n";
+
+	# See if any suffix of this path is a path within the tree.
+	while ($file =~ s@^[^/]*/@@) {
+		if (-f "$root/$file") {
+			##print "file<$file>\n";
+			last;
+		}
+	}
+	if (! -f _)  {
+		return 0;
+	}
+
+	# It is, so see if the prefix is acceptable.
+	my $prefix = $absolute;
+	substr($prefix, -length($file)) = '';
+
+	##print "prefix<$prefix>\n";
+	if ($prefix ne ".../") {
+		WARN("use relative pathname instead of absolute in changelog text\n" . $herecurr);
+	}
+}
+
 sub process {
 	my $filename = shift;
 
@@ -1166,6 +1193,20 @@ sub process {
 		if ($realcnt != 0 && $line !~ m{^(?:\+|-| |\\ No newline|$)}) {
 			ERROR("patch seems to be corrupt (line wrapped?)\n" .
 				$herecurr) if (!$emitted_corrupt++);
+		}
+
+# Check for absolute kernel paths.
+		if ($tree) {
+			while ($line =~ m{(?:^|\s)(/\S*)}g) {
+				my $file = $1;
+
+				if ($file =~ m{^(.*?)(?::\d+)+:?$} &&
+				    check_absolute_file($1, $herecurr)) {
+					#
+				} else {
+					check_absolute_file($file, $herecurr);
+				}
+			}
 		}
 
 # UTF-8 regex found at http://www.w3.org/International/questions/qa-forms-utf-8.en.php
