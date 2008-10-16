@@ -673,6 +673,22 @@ sub ctx_has_comment {
 	return ($cmt ne '');
 }
 
+sub raw_line {
+	my ($linenr, $cnt) = @_;
+
+	my $offset = $linenr - 1;
+	$cnt++;
+
+	my $line;
+	while ($cnt) {
+		$line = $rawlines[$offset++];
+		next if (defined($line) && $line =~ /^-/);
+		$cnt--;
+	}
+
+	return $line;
+}
+
 sub cat_vet {
 	my ($vet) = @_;
 	my ($res, $coded);
@@ -1392,6 +1408,76 @@ sub process {
 			}
 		}
 
+# Check relative indent for conditionals and blocks.
+		if ($line =~ /\b(?:(?:if|while|for)\s*\(|do\b)/ && $line !~ /^.\s*#/ && $line !~ /\}\s*while\s*/) {
+			my ($s, $c) = ($stat, $cond);
+
+			substr($s, 0, length($c), '');
+
+			# Make sure we remove the line prefixes as we have
+			# none on the first line, and are going to readd them
+			# where necessary.
+			$s =~ s/\n./\n/gs;
+
+			# Find out how long the conditional actually is.
+			my $cond_lines = 0 + $c =~ /\n/gs;
+
+			# We want to check the first line inside the block
+			# starting at the end of the conditional, so remove:
+			#  1) any blank line termination
+			#  2) any opening brace { on end of the line
+			#  3) any do (...) {
+			my $continuation = 0;
+			my $check = 0;
+			$s =~ s/^.*\bdo\b//;
+			$s =~ s/^\s*{//;
+			if ($s =~ s/^\s*\\//) {
+				$continuation = 1;
+			}
+			if ($s =~ s/^\s*\n//) {
+				$check = 1;
+				$cond_lines++;
+			}
+
+			# Also ignore a loop construct at the end of a
+			# preprocessor statement.
+			if (($prevline =~ /^.\s*#\s*define\s/ ||
+			    $prevline =~ /\\\s*$/) && $continuation == 0) {
+				$check = 0;
+			}
+
+			# Ignore the current line if its is a preprocessor
+			# line.
+			if ($s =~ /^\s*#\s*/) {
+				$check = 0;
+			}
+
+			# Ignore the current line if it is label.
+			if ($s =~ /^\s*$Ident\s*:/) {
+				$check = 0;
+			}
+
+			my (undef, $sindent) = line_stats("+" . $s);
+			my $stat_real = raw_line($linenr, $cond_lines);
+
+			# Check if either of these lines are modified, else
+			# this is not this patch's fault.
+			if (!defined($stat_real) ||
+			    $stat !~ /^\+/ && $stat_real !~ /^\+/) {
+				$check = 0;
+			}
+			if (defined($stat_real) && $cond_lines > 1) {
+				$stat_real = "[...]\n$stat_real";
+			}
+
+			##print "line<$line> prevline<$prevline> indent<$indent> sindent<$sindent> check<$check> continuation<$continuation> s<$s> cond_lines<$cond_lines> stat_real<$stat_real> stat<$stat>\n";
+
+			if ($check && (($sindent % 8) != 0 ||
+			    ($sindent <= $indent && $s ne ''))) {
+				WARN("suspect code indent for conditional statements ($indent, $sindent)\n" . $herecurr . "$stat_real\n");
+			}
+		}
+
 		# Track the 'values' across context and added lines.
 		my $opline = $line; $opline =~ s/^./ /;
 		my ($curr_values, $curr_vars) =
@@ -1866,61 +1952,6 @@ sub process {
 			    $c !~ /}\s*while\s*/)
 			{
 				ERROR("trailing statements should be on next line\n" . $herecurr);
-			}
-		}
-
-# Check relative indent for conditionals and blocks.
-		if ($line =~ /\b(?:(?:if|while|for)\s*\(|do\b)/ && $line !~ /^.\s*#/ && $line !~ /\}\s*while\s*/) {
-			my ($s, $c) = ($stat, $cond);
-
-			substr($s, 0, length($c), '');
-
-			# Make sure we remove the line prefixes as we have
-			# none on the first line, and are going to readd them
-			# where necessary.
-			$s =~ s/\n./\n/gs;
-
-			# We want to check the first line inside the block
-			# starting at the end of the conditional, so remove:
-			#  1) any blank line termination
-			#  2) any opening brace { on end of the line
-			#  3) any do (...) {
-			my $continuation = 0;
-			my $check = 0;
-			$s =~ s/^.*\bdo\b//;
-			$s =~ s/^\s*{//;
-			if ($s =~ s/^\s*\\//) {
-				$continuation = 1;
-			}
-			if ($s =~ s/^\s*\n//) {
-				$check = 1;
-			}
-
-			# Also ignore a loop construct at the end of a
-			# preprocessor statement.
-			if (($prevline =~ /^.\s*#\s*define\s/ ||
-			    $prevline =~ /\\\s*$/) && $continuation == 0) {
-				$check = 0;
-			}
-
-			# Ignore the current line if its is a preprocessor
-			# line.
-			if ($s =~ /^\s*#\s*/) {
-				$check = 0;
-			}
-
-			# Ignore the current line if it is label.
-			if ($s =~ /^\s*$Ident\s*:/) {
-				$check = 0;
-			}
-
-			my (undef, $sindent) = line_stats("+" . $s);
-
-			##print "line<$line> prevline<$prevline> indent<$indent> sindent<$sindent> check<$check> continuation<$continuation> s<$s>\n";
-
-			if ($check && (($sindent % 8) != 0 ||
-			    ($sindent <= $indent && $s ne ''))) {
-				WARN("suspect code indent for conditional statements\n" . $herecurr);
 			}
 		}
 
