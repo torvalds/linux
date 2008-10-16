@@ -1051,6 +1051,7 @@ sub process {
 
 	# suppression flags
 	my %suppress_ifbraces;
+	my %suppress_whiletrailers;
 
 	# Pre-scan the patch sanitizing the lines.
 	# Pre-scan the patch looking for any __setup documentation.
@@ -1156,6 +1157,7 @@ sub process {
 			$prev_values = 'E';
 
 			%suppress_ifbraces = ();
+			%suppress_whiletrailers = ();
 			next;
 
 # track the line number as we move through the hunk, note that
@@ -1301,9 +1303,9 @@ sub process {
 		}
 
 # Check for potential 'bare' types
-		my ($stat, $cond, $line_nr_next, $remain_next);
+		my ($stat, $cond, $line_nr_next, $remain_next, $off_next);
 		if ($realcnt && $line =~ /.\s*\S/) {
-			($stat, $cond, $line_nr_next, $remain_next) =
+			($stat, $cond, $line_nr_next, $remain_next, $off_next) =
 				ctx_statement_block($linenr, $realcnt, 0);
 			$stat =~ s/\n./\n /g;
 			$cond =~ s/\n./\n /g;
@@ -1952,7 +1954,26 @@ sub process {
 
 # Check for illegal assignment in if conditional -- and check for trailing
 # statements after the conditional.
-		if ($line =~ /\b(?:if|while|for)\s*\(/ && $line !~ /^.\s*#/) {
+		if ($line =~ /do\s*(?!{)/) {
+			my ($stat_next) = ctx_statement_block($line_nr_next,
+						$remain_next, $off_next);
+			$stat_next =~ s/\n./\n /g;
+			##print "stat<$stat> stat_next<$stat_next>\n";
+
+			if ($stat_next =~ /^\s*while\b/) {
+				# If the statement carries leading newlines,
+				# then count those as offsets.
+				my ($whitespace) =
+					($stat_next =~ /^((?:\s*\n[+-])*\s*)/s);
+				my $offset =
+					statement_rawlines($whitespace) - 1;
+
+				$suppress_whiletrailers{$line_nr_next +
+								$offset} = 1;
+			}
+		}
+		if (!defined $suppress_whiletrailers{$linenr} &&
+		    $line =~ /\b(?:if|while|for)\s*\(/ && $line !~ /^.\s*#/) {
 			my ($s, $c) = ($stat, $cond);
 
 			if ($c =~ /\bif\s*\(.*[^<>!=]=[^=].*/) {
