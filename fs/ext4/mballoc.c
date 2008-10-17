@@ -2720,6 +2720,7 @@ ext4_mb_free_committed_blocks(struct super_block *sb)
 
 static int ext4_mb_init_per_dev_proc(struct super_block *sb)
 {
+#ifdef CONFIG_PROC_FS
 	mode_t mode = S_IFREG | S_IRUGO | S_IWUSR;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct proc_dir_entry *proc;
@@ -2743,10 +2744,14 @@ err_out:
 	remove_proc_entry(EXT4_MB_MAX_TO_SCAN_NAME, sbi->s_proc);
 	remove_proc_entry(EXT4_MB_STATS_NAME, sbi->s_proc);
 	return -ENOMEM;
+#else
+	return 0;
+#endif
 }
 
 static int ext4_mb_destroy_per_dev_proc(struct super_block *sb)
 {
+#ifdef CONFIG_PROC_FS
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
 	if (sbi->s_proc == NULL)
@@ -2758,7 +2763,7 @@ static int ext4_mb_destroy_per_dev_proc(struct super_block *sb)
 	remove_proc_entry(EXT4_MB_MIN_TO_SCAN_NAME, sbi->s_proc);
 	remove_proc_entry(EXT4_MB_MAX_TO_SCAN_NAME, sbi->s_proc);
 	remove_proc_entry(EXT4_MB_STATS_NAME, sbi->s_proc);
-
+#endif
 	return 0;
 }
 
