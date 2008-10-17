@@ -5,6 +5,7 @@
     Copyright (c) 2002, 2003  Philip Pokorny <ppokorny@penguincomputing.com>
     Copyright (c) 2003        Margit Schubert-While <margitsw@t-online.de>
     Copyright (c) 2004        Justin Thiessen <jthiessen@penguincomputing.com>
+    Copyright (C) 2007, 2008  Jean Delvare <khali@linux-fr.org>
 
     Chip details at	      <http://www.national.com/ds/LM/LM85.pdf>
 
@@ -192,20 +193,27 @@ static int RANGE_TO_REG(int range)
 
 /* These are the PWM frequency encodings */
 static const int lm85_freq_map[8] = { /* 1 Hz */
-	10, 15, 23, 30, 38, 47, 62, 94
+	10, 15, 23, 30, 38, 47, 61, 94
+};
+static const int adm1027_freq_map[8] = { /* 1 Hz */
+	11, 15, 22, 29, 35, 44, 59, 88
 };
 
-static int FREQ_TO_REG(int freq)
+static int FREQ_TO_REG(const int *map, int freq)
 {
 	int i;
 
 	/* Find the closest match */
 	for (i = 0; i < 7; ++i)
-		if (freq <= (lm85_freq_map[i] + lm85_freq_map[i + 1]) / 2)
+		if (freq <= (map[i] + map[i + 1]) / 2)
 			break;
 	return i;
 }
-#define FREQ_FROM_REG(val)	lm85_freq_map[(val) & 0x07]
+
+static int FREQ_FROM_REG(const int *map, u8 reg)
+{
+	return map[reg & 0x07];
+}
 
 /* Since we can't use strings, I'm abusing these numbers
  *   to stand in for the following meanings:
@@ -283,6 +291,7 @@ struct lm85_autofan {
 struct lm85_data {
 	struct i2c_client client;
 	struct device *hwmon_dev;
+	const int *freq_map;
 	enum chips type;
 
 	struct mutex update_lock;
@@ -532,7 +541,8 @@ static ssize_t show_pwm_freq(struct device *dev,
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
-	return sprintf(buf, "%d\n", FREQ_FROM_REG(data->pwm_freq[nr]));
+	return sprintf(buf, "%d\n", FREQ_FROM_REG(data->freq_map,
+						  data->pwm_freq[nr]));
 }
 
 static ssize_t set_pwm_freq(struct device *dev,
@@ -544,7 +554,7 @@ static ssize_t set_pwm_freq(struct device *dev,
 	long val = simple_strtol(buf, NULL, 10);
 
 	mutex_lock(&data->update_lock);
-	data->pwm_freq[nr] = FREQ_TO_REG(val);
+	data->pwm_freq[nr] = FREQ_TO_REG(data->freq_map, val);
 	lm85_write_value(client, LM85_REG_AFAN_RANGE(nr),
 		(data->zone[nr].range << 4)
 		| data->pwm_freq[nr]);
@@ -1184,24 +1194,31 @@ static int lm85_detect(struct i2c_adapter *adapter, int address,
 	switch (kind) {
 	case lm85b:
 		type_name = "lm85b";
+		data->freq_map = lm85_freq_map;
 		break;
 	case lm85c:
 		type_name = "lm85c";
+		data->freq_map = lm85_freq_map;
 		break;
 	case adm1027:
 		type_name = "adm1027";
+		data->freq_map = adm1027_freq_map;
 		break;
 	case adt7463:
 		type_name = "adt7463";
+		data->freq_map = adm1027_freq_map;
 		break;
 	case emc6d100:
 		type_name = "emc6d100";
+		data->freq_map = adm1027_freq_map;
 		break;
 	case emc6d102:
 		type_name = "emc6d102";
+		data->freq_map = adm1027_freq_map;
 		break;
 	default:
 		type_name = "lm85";
+		data->freq_map = lm85_freq_map;
 	}
 	strlcpy(client->name, type_name, I2C_NAME_SIZE);
 
