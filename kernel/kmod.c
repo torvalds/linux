@@ -113,7 +113,7 @@ int request_module(const char *fmt, ...)
 	return ret;
 }
 EXPORT_SYMBOL(request_module);
-#endif /* CONFIG_KMOD */
+#endif /* CONFIG_MODULES */
 
 struct subprocess_info {
 	struct work_struct work;
