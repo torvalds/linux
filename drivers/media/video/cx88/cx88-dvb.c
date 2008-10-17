@@ -575,14 +575,14 @@ static struct cx24116_config tevii_s460_config = {
 
 static struct stv0299_config tevii_tuner_sharp_config = {
 	.demod_address = 0x68,
-	.inittab = sharp_z0194a__inittab,
+	.inittab = sharp_z0194a_inittab,
 	.mclk = 88000000UL,
 	.invert = 1,
 	.skip_reinit = 0,
 	.lock_output = 1,
 	.volt13_op0_op1 = STV0299_VOLT13_OP1,
 	.min_delay_ms = 100,
-	.set_symbol_rate = sharp_z0194a__set_symbol_rate,
+	.set_symbol_rate = sharp_z0194a_set_symbol_rate,
 	.set_ts_params = cx24116_set_ts_param,
 };
 
