@@ -77,6 +77,9 @@ readings can be divided by a programmable divider (1, 2, 4, 8, 16,
 
 Each fan controlled is controlled by PWM. The PWM duty cycle can be read and
 set for each fan separately. Valid values range from 0 (stop) to 255 (full).
+PWM 1-3 support Thermal Cruise mode, in which the PWMs are automatically
+regulated to keep respectively temp 1-3 at a certain target temperature.
+See below for the description of the sysfs-interface.
 
 The w83791d has a global bit used to enable beeping from the speaker when an
 alarm is triggered as well as a bitmask to enable or disable the beep for
@@ -116,8 +119,18 @@ chip-specific options are documented here.
 pwm[1-3]_enable -	this file controls mode of fan/temperature control for
 			fan 1-3. Fan/PWM 4-5 only support manual mode.
 		            * 1 Manual mode
-		            * 2 Thermal Cruise mode   (no further support)
+		            * 2 Thermal Cruise mode
 		            * 3 Fan Speed Cruise mode (no further support)
+
+temp[1-3]_target -	defines the target temperature for Thermal Cruise mode.
+			Unit: millidegree Celsius
+			RW
+
+temp[1-3]_tolerance -	temperature tolerance for Thermal Cruise mode.
+			Specifies an interval around the target temperature
+			in which the fan speed is not changed.
+			Unit: millidegree Celsius
+			RW
 
 Alarms bitmap vs. beep_mask bitmask
 ------------------------------------
@@ -146,7 +159,3 @@ tart2        :  alarms: 0x020000 beep_mask: 0x080000 <== mismatch
 tart3        :  alarms: 0x040000 beep_mask: 0x100000 <== mismatch
 case_open    :  alarms: 0x001000 beep_mask: 0x001000
 global_enable:  alarms: -------- beep_mask: 0x800000 (modified via beep_enable)
-
-W83791D TODO:
----------------
-Provide a patch for Thermal Cruise registers.

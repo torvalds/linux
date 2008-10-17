@@ -125,6 +125,17 @@ static const u8 W83791D_REG_PWM[NUMBER_OF_PWM] = {
 	0xA1,			/* PWM 5 duty cycle register in DataSheet */
 };
 
+static const u8 W83791D_REG_TEMP_TARGET[3] = {
+	0x85,			/* PWM 1 target temperature for temp 1 */
+	0x86,			/* PWM 2 target temperature for temp 2 */
+	0x96,			/* PWM 3 target temperature for temp 3 */
+};
+
+static const u8 W83791D_REG_TEMP_TOL[2] = {
+	0x87,			/* PWM 1/2 temperature tolerance */
+	0x97,			/* PWM 3 temperature tolerance */
+};
+
 static const u8 W83791D_REG_FAN_CFG[2] = {
 	0x84,			/* FAN 1/2 configuration */
 	0x95,			/* FAN 3 configuration */
@@ -234,6 +245,15 @@ static u8 fan_to_reg(long rpm, int div)
 				 (val) < 0 ? ((val) - 250) / 500 * 128 : \
 				 ((val) + 250) / 500 * 128)
 
+/* for thermal cruise target temp, 7-bits, LSB = 1 degree Celsius */
+#define TARGET_TEMP_TO_REG(val)		((val) < 0 ? 0 : \
+					(val) >= 127000 ? 127 : \
+					((val) + 500) / 1000)
+
+/* for thermal cruise temp tolerance, 4-bits, LSB = 1 degree Celsius */
+#define TOL_TEMP_TO_REG(val)		((val) < 0 ? 0 : \
+					(val) >= 15000 ? 15 : \
+					((val) + 500) / 1000)
 
 #define BEEP_MASK_TO_REG(val)		((val) & 0xffffff)
 #define BEEP_MASK_FROM_REG(val)		((val) & 0xffffff)
@@ -289,6 +309,9 @@ struct w83791d_data {
 	u8 pwm[5];		/* pwm duty cycle */
 	u8 pwm_enable[3];	/* pwm enable status for fan 1-3
 					(fan 4-5 only support manual mode) */
+
+	u8 temp_target[3];	/* pwm 1-3 target temperature */
+	u8 temp_tolerance[3];	/* pwm 1-3 temperature tolerance */
 
 	/* Misc */
 	u32 alarms;		/* realtime status register encoding,combined */
@@ -774,6 +797,110 @@ static struct sensor_device_attribute sda_pwmenable[] = {
 			show_pwmenable, store_pwmenable, 2),
 };
 
+/* For Smart Fan I / Thermal Cruise */
+static ssize_t show_temp_target(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	struct w83791d_data *data = w83791d_update_device(dev);
+	int nr = sensor_attr->index;
+	return sprintf(buf, "%d\n", TEMP1_FROM_REG(data->temp_target[nr]));
+}
+
+static ssize_t store_temp_target(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct w83791d_data *data = i2c_get_clientdata(client);
+	int nr = sensor_attr->index;
+	unsigned long val;
+	u8 target_mask;
+
+	if (strict_strtoul(buf, 10, &val))
+		return -EINVAL;
+
+	mutex_lock(&data->update_lock);
+	data->temp_target[nr] = TARGET_TEMP_TO_REG(val);
+	target_mask = w83791d_read(client,
+				W83791D_REG_TEMP_TARGET[nr]) & 0x80;
+	w83791d_write(client, W83791D_REG_TEMP_TARGET[nr],
+				data->temp_target[nr] | target_mask);
+	mutex_unlock(&data->update_lock);
+	return count;
+}
+
+static struct sensor_device_attribute sda_temp_target[] = {
+	SENSOR_ATTR(temp1_target, S_IWUSR | S_IRUGO,
+			show_temp_target, store_temp_target, 0),
+	SENSOR_ATTR(temp2_target, S_IWUSR | S_IRUGO,
+			show_temp_target, store_temp_target, 1),
+	SENSOR_ATTR(temp3_target, S_IWUSR | S_IRUGO,
+			show_temp_target, store_temp_target, 2),
+};
+
+static ssize_t show_temp_tolerance(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	struct w83791d_data *data = w83791d_update_device(dev);
+	int nr = sensor_attr->index;
+	return sprintf(buf, "%d\n", TEMP1_FROM_REG(data->temp_tolerance[nr]));
+}
+
+static ssize_t store_temp_tolerance(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct w83791d_data *data = i2c_get_clientdata(client);
+	int nr = sensor_attr->index;
+	unsigned long val;
+	u8 target_mask;
+	u8 reg_idx = 0;
+	u8 val_shift = 0;
+	u8 keep_mask = 0;
+
+	if (strict_strtoul(buf, 10, &val))
+		return -EINVAL;
+
+	switch (nr) {
+	case 0:
+		reg_idx = 0;
+		val_shift = 0;
+		keep_mask = 0xf0;
+		break;
+	case 1:
+		reg_idx = 0;
+		val_shift = 4;
+		keep_mask = 0x0f;
+		break;
+	case 2:
+		reg_idx = 1;
+		val_shift = 0;
+		keep_mask = 0xf0;
+		break;
+	}
+
+	mutex_lock(&data->update_lock);
+	data->temp_tolerance[nr] = TOL_TEMP_TO_REG(val);
+	target_mask = w83791d_read(client,
+			W83791D_REG_TEMP_TOL[reg_idx]) & keep_mask;
+	w83791d_write(client, W83791D_REG_TEMP_TOL[reg_idx],
+			(data->temp_tolerance[nr] << val_shift) | target_mask);
+	mutex_unlock(&data->update_lock);
+	return count;
+}
+
+static struct sensor_device_attribute sda_temp_tolerance[] = {
+	SENSOR_ATTR(temp1_tolerance, S_IWUSR | S_IRUGO,
+			show_temp_tolerance, store_temp_tolerance, 0),
+	SENSOR_ATTR(temp2_tolerance, S_IWUSR | S_IRUGO,
+			show_temp_tolerance, store_temp_tolerance, 1),
+	SENSOR_ATTR(temp3_tolerance, S_IWUSR | S_IRUGO,
+			show_temp_tolerance, store_temp_tolerance, 2),
+};
+
 /* read/write the temperature1, includes measured value and limits */
 static ssize_t show_temp1(struct device *dev, struct device_attribute *devattr,
 				char *buf)
@@ -1044,6 +1171,12 @@ static struct attribute *w83791d_attributes[] = {
 	&sda_pwmenable[0].dev_attr.attr,
 	&sda_pwmenable[1].dev_attr.attr,
 	&sda_pwmenable[2].dev_attr.attr,
+	&sda_temp_target[0].dev_attr.attr,
+	&sda_temp_target[1].dev_attr.attr,
+	&sda_temp_target[2].dev_attr.attr,
+	&sda_temp_tolerance[0].dev_attr.attr,
+	&sda_temp_tolerance[1].dev_attr.attr,
+	&sda_temp_tolerance[2].dev_attr.attr,
 	NULL
 };
 
@@ -1403,6 +1536,21 @@ static struct w83791d_data *w83791d_update_device(struct device *dev)
 		data->pwm_enable[0] = (reg_array_tmp[0] >> 2) & 0x03;
 		data->pwm_enable[1] = (reg_array_tmp[0] >> 4) & 0x03;
 		data->pwm_enable[2] = (reg_array_tmp[1] >> 2) & 0x03;
+
+		/* Update PWM target temperature */
+		for (i = 0; i < 3; i++) {
+			data->temp_target[i] = w83791d_read(client,
+				W83791D_REG_TEMP_TARGET[i]) & 0x7f;
+		}
+
+		/* Update PWM temperature tolerance */
+		for (i = 0; i < 2; i++) {
+			reg_array_tmp[i] = w83791d_read(client,
+					W83791D_REG_TEMP_TOL[i]);
+		}
+		data->temp_tolerance[0] = reg_array_tmp[0] & 0x0f;
+		data->temp_tolerance[1] = (reg_array_tmp[0] >> 4) & 0x0f;
+		data->temp_tolerance[2] = reg_array_tmp[1] & 0x0f;
 
 		/* Update the first temperature sensor */
 		for (i = 0; i < 3; i++) {
