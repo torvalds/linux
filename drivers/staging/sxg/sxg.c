@@ -202,7 +202,7 @@ static void sxg_init_driver(void)
 {
 	if (sxg_first_init) {
 		DBG_ERROR("sxg: %s sxg_first_init set jiffies[%lx]\n",
-			  __FUNCTION__, jiffies);
+			  __func__, jiffies);
 		sxg_first_init = 0;
 		spin_lock_init(&sxg_global.driver_lock);
 	}
@@ -259,7 +259,7 @@ static bool sxg_download_microcode(p_adapter_t adapter, SXG_UCODE_SEL UcodeSel)
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "DnldUcod",
 		  adapter, 0, 0, 0);
-	DBG_ERROR("sxg: %s ENTER\n", __FUNCTION__);
+	DBG_ERROR("sxg: %s ENTER\n", __func__);
 
 	switch (UcodeSel) {
 	case SXG_UCODE_SAHARA:	// Sahara operational ucode
@@ -345,7 +345,7 @@ static bool sxg_download_microcode(p_adapter_t adapter, SXG_UCODE_SEL UcodeSel)
 			READ_REG(HwRegs->UcodeAddr, ValueRead);
 			if (ValueRead & MICROCODE_ADDRESS_PARITY) {
 				DBG_ERROR("sxg: %s PARITY ERROR\n",
-					  __FUNCTION__);
+					  __func__);
 
 				return (FALSE);	// Parity error
 			}
@@ -354,19 +354,19 @@ static bool sxg_download_microcode(p_adapter_t adapter, SXG_UCODE_SEL UcodeSel)
 			READ_REG(HwRegs->UcodeDataLow, ValueRead);
 			if (ValueRead != *Instruction) {
 				DBG_ERROR("sxg: %s MISCOMPARE LOW\n",
-					  __FUNCTION__);
+					  __func__);
 				return (FALSE);	// Miscompare
 			}
 			READ_REG(HwRegs->UcodeDataMiddle, ValueRead);
 			if (ValueRead != *(Instruction + 1)) {
 				DBG_ERROR("sxg: %s MISCOMPARE MIDDLE\n",
-					  __FUNCTION__);
+					  __func__);
 				return (FALSE);	// Miscompare
 			}
 			READ_REG(HwRegs->UcodeDataHigh, ValueRead);
 			if (ValueRead != *(Instruction + 2)) {
 				DBG_ERROR("sxg: %s MISCOMPARE HIGH\n",
-					  __FUNCTION__);
+					  __func__);
 				return (FALSE);	// Miscompare
 			}
 			// Advance 3 u32S to start of next instruction
@@ -383,12 +383,12 @@ static bool sxg_download_microcode(p_adapter_t adapter, SXG_UCODE_SEL UcodeSel)
 		udelay(50);
 		READ_REG(adapter->UcodeRegs[0].CardUp, ValueRead);
 		if (ValueRead == 0xCAFE) {
-			DBG_ERROR("sxg: %s BOO YA 0xCAFE\n", __FUNCTION__);
+			DBG_ERROR("sxg: %s BOO YA 0xCAFE\n", __func__);
 			break;
 		}
 	}
 	if (i == 10000) {
-		DBG_ERROR("sxg: %s TIMEOUT\n", __FUNCTION__);
+		DBG_ERROR("sxg: %s TIMEOUT\n", __func__);
 
 		return (FALSE);	// Timeout
 	}
@@ -401,7 +401,7 @@ static bool sxg_download_microcode(p_adapter_t adapter, SXG_UCODE_SEL UcodeSel)
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "XDnldUcd",
 		  adapter, 0, 0, 0);
-	DBG_ERROR("sxg: %s EXIT\n", __FUNCTION__);
+	DBG_ERROR("sxg: %s EXIT\n", __func__);
 
 	return (TRUE);
 }
@@ -423,7 +423,7 @@ static int sxg_allocate_resources(p_adapter_t adapter)
 //      PSXG_XMT_RING                                   XmtRing;
 //      PSXG_RCV_RING                                   RcvRing;
 
-	DBG_ERROR("%s ENTER\n", __FUNCTION__);
+	DBG_ERROR("%s ENTER\n", __func__);
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "AllocRes",
 		  adapter, 0, 0, 0);
@@ -433,7 +433,7 @@ static int sxg_allocate_resources(p_adapter_t adapter)
 	RssIds = SXG_RSS_CPU_COUNT(adapter);
 	IsrCount = adapter->MsiEnabled ? RssIds : 1;
 
-	DBG_ERROR("%s Setup the spinlocks\n", __FUNCTION__);
+	DBG_ERROR("%s Setup the spinlocks\n", __func__);
 
 	// Allocate spinlocks and initialize listheads first.
 	spin_lock_init(&adapter->RcvQLock);
@@ -442,7 +442,7 @@ static int sxg_allocate_resources(p_adapter_t adapter)
 	spin_lock_init(&adapter->Bit64RegLock);
 	spin_lock_init(&adapter->AdapterLock);
 
-	DBG_ERROR("%s Setup the lists\n", __FUNCTION__);
+	DBG_ERROR("%s Setup the lists\n", __func__);
 
 	InitializeListHead(&adapter->FreeRcvBuffers);
 	InitializeListHead(&adapter->FreeRcvBlocks);
@@ -459,7 +459,7 @@ static int sxg_allocate_resources(p_adapter_t adapter)
 	// fails.  If we hit a minimum, fail.
 
 	for (;;) {
-		DBG_ERROR("%s Allocate XmtRings size[%lx]\n", __FUNCTION__,
+		DBG_ERROR("%s Allocate XmtRings size[%lx]\n", __func__,
 			  (sizeof(SXG_XMT_RING) * 1));
 
 		// Start with big items first - receive and transmit rings.  At the moment
@@ -469,20 +469,20 @@ static int sxg_allocate_resources(p_adapter_t adapter)
 							 sizeof(SXG_XMT_RING) *
 							 1,
 							 &adapter->PXmtRings);
-		DBG_ERROR("%s XmtRings[%p]\n", __FUNCTION__, adapter->XmtRings);
+		DBG_ERROR("%s XmtRings[%p]\n", __func__, adapter->XmtRings);
 
 		if (!adapter->XmtRings) {
 			goto per_tcb_allocation_failed;
 		}
 		memset(adapter->XmtRings, 0, sizeof(SXG_XMT_RING) * 1);
 
-		DBG_ERROR("%s Allocate RcvRings size[%lx]\n", __FUNCTION__,
+		DBG_ERROR("%s Allocate RcvRings size[%lx]\n", __func__,
 			  (sizeof(SXG_RCV_RING) * 1));
 		adapter->RcvRings =
 		    pci_alloc_consistent(adapter->pcidev,
 					 sizeof(SXG_RCV_RING) * 1,
 					 &adapter->PRcvRings);
-		DBG_ERROR("%s RcvRings[%p]\n", __FUNCTION__, adapter->RcvRings);
+		DBG_ERROR("%s RcvRings[%p]\n", __func__, adapter->RcvRings);
 		if (!adapter->RcvRings) {
 			goto per_tcb_allocation_failed;
 		}
@@ -508,7 +508,7 @@ static int sxg_allocate_resources(p_adapter_t adapter)
 		// Loop around and try again....
 	}
 
-	DBG_ERROR("%s Initialize RCV ZERO and XMT ZERO rings\n", __FUNCTION__);
+	DBG_ERROR("%s Initialize RCV ZERO and XMT ZERO rings\n", __func__);
 	// Initialize rcv zero and xmt zero rings
 	SXG_INITIALIZE_RING(adapter->RcvRingZeroInfo, SXG_RCV_RING_SIZE);
 	SXG_INITIALIZE_RING(adapter->XmtRingZeroInfo, SXG_XMT_RING_SIZE);
@@ -537,7 +537,7 @@ static int sxg_allocate_resources(p_adapter_t adapter)
 		return (STATUS_RESOURCES);
 	}
 
-	DBG_ERROR("%s Allocate EventRings size[%lx]\n", __FUNCTION__,
+	DBG_ERROR("%s Allocate EventRings size[%lx]\n", __func__,
 		  (sizeof(SXG_EVENT_RING) * RssIds));
 
 	// Allocate event queues.
@@ -555,7 +555,7 @@ static int sxg_allocate_resources(p_adapter_t adapter)
 	}
 	memset(adapter->EventRings, 0, sizeof(SXG_EVENT_RING) * RssIds);
 
-	DBG_ERROR("%s Allocate ISR size[%x]\n", __FUNCTION__, IsrCount);
+	DBG_ERROR("%s Allocate ISR size[%x]\n", __func__, IsrCount);
 	// Allocate ISR
 	adapter->Isr = pci_alloc_consistent(adapter->pcidev,
 					    IsrCount, &adapter->PIsr);
@@ -569,7 +569,7 @@ static int sxg_allocate_resources(p_adapter_t adapter)
 	memset(adapter->Isr, 0, sizeof(u32) * IsrCount);
 
 	DBG_ERROR("%s Allocate shared XMT ring zero index location size[%lx]\n",
-		  __FUNCTION__, sizeof(u32));
+		  __func__, sizeof(u32));
 
 	// Allocate shared XMT ring zero index location
 	adapter->XmtRingZeroIndex = pci_alloc_consistent(adapter->pcidev,
@@ -587,7 +587,7 @@ static int sxg_allocate_resources(p_adapter_t adapter)
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "XAlcResS",
 		  adapter, SXG_MAX_ENTRIES, 0, 0);
 
-	DBG_ERROR("%s EXIT\n", __FUNCTION__);
+	DBG_ERROR("%s EXIT\n", __func__);
 	return (STATUS_SUCCESS);
 }
 
@@ -606,7 +606,7 @@ static void sxg_config_pci(struct pci_dev *pcidev)
 	u16 new_command;
 
 	pci_read_config_word(pcidev, PCI_COMMAND, &pci_command);
-	DBG_ERROR("sxg: %s  PCI command[%4.4x]\n", __FUNCTION__, pci_command);
+	DBG_ERROR("sxg: %s  PCI command[%4.4x]\n", __func__, pci_command);
 	// Set the command register
 	new_command = pci_command | (PCI_COMMAND_MEMORY |	// Memory Space Enable
 				     PCI_COMMAND_MASTER |	// Bus master enable
@@ -616,7 +616,7 @@ static void sxg_config_pci(struct pci_dev *pcidev)
 				     PCI_COMMAND_FAST_BACK);	// Fast back-to-back
 	if (pci_command != new_command) {
 		DBG_ERROR("%s -- Updating PCI COMMAND register %4.4x->%4.4x.\n",
-			  __FUNCTION__, pci_command, new_command);
+			  __func__, pci_command, new_command);
 		pci_write_config_word(pcidev, PCI_COMMAND, new_command);
 	}
 }
@@ -634,7 +634,7 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 	ulong mmio_len = 0;
 
 	DBG_ERROR("sxg: %s 2.6 VERSION ENTER jiffies[%lx] cpu %d\n",
-		  __FUNCTION__, jiffies, smp_processor_id());
+		  __func__, jiffies, smp_processor_id());
 
 	// Initialize trace buffer
 #ifdef ATKDBG
@@ -701,11 +701,11 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 		  mmio_start, mmio_len);
 
 	memmapped_ioaddr = ioremap(mmio_start, mmio_len);
-	DBG_ERROR("sxg: %s MEMMAPPED_IOADDR [%p]\n", __FUNCTION__,
+	DBG_ERROR("sxg: %s MEMMAPPED_IOADDR [%p]\n", __func__,
 		  memmapped_ioaddr);
 	if (!memmapped_ioaddr) {
 		DBG_ERROR("%s cannot remap MMIO region %lx @ %lx\n",
-			  __FUNCTION__, mmio_len, mmio_start);
+			  __func__, mmio_len, mmio_start);
 		goto err_out_free_mmio_region;
 	}
 
@@ -727,7 +727,7 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 		  memmapped_ioaddr);
 	if (!memmapped_ioaddr) {
 		DBG_ERROR("%s cannot remap MMIO region %lx @ %lx\n",
-			  __FUNCTION__, mmio_len, mmio_start);
+			  __func__, mmio_len, mmio_start);
 		goto err_out_free_mmio_region;
 	}
 
@@ -762,13 +762,13 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 //        goto sxg_init_bad;
 //    }
 
-	DBG_ERROR("sxg: %s ENTER sxg_config_pci\n", __FUNCTION__);
+	DBG_ERROR("sxg: %s ENTER sxg_config_pci\n", __func__);
 	sxg_config_pci(pcidev);
-	DBG_ERROR("sxg: %s EXIT sxg_config_pci\n", __FUNCTION__);
+	DBG_ERROR("sxg: %s EXIT sxg_config_pci\n", __func__);
 
-	DBG_ERROR("sxg: %s ENTER sxg_init_driver\n", __FUNCTION__);
+	DBG_ERROR("sxg: %s ENTER sxg_init_driver\n", __func__);
 	sxg_init_driver();
-	DBG_ERROR("sxg: %s EXIT sxg_init_driver\n", __FUNCTION__);
+	DBG_ERROR("sxg: %s EXIT sxg_init_driver\n", __func__);
 
 	adapter->vendid = pci_tbl_entry->vendor;
 	adapter->devid = pci_tbl_entry->device;
@@ -785,18 +785,18 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 	adapter->cardindex = adapter->port;
 
 	// Allocate memory and other resources
-	DBG_ERROR("sxg: %s ENTER sxg_allocate_resources\n", __FUNCTION__);
+	DBG_ERROR("sxg: %s ENTER sxg_allocate_resources\n", __func__);
 	status = sxg_allocate_resources(adapter);
 	DBG_ERROR("sxg: %s EXIT sxg_allocate_resources status %x\n",
-		  __FUNCTION__, status);
+		  __func__, status);
 	if (status != STATUS_SUCCESS) {
 		goto err_out_unmap;
 	}
 
-	DBG_ERROR("sxg: %s ENTER sxg_download_microcode\n", __FUNCTION__);
+	DBG_ERROR("sxg: %s ENTER sxg_download_microcode\n", __func__);
 	if (sxg_download_microcode(adapter, SXG_UCODE_SAHARA)) {
 		DBG_ERROR("sxg: %s ENTER sxg_adapter_set_hwaddr\n",
-			  __FUNCTION__);
+			  __func__);
 		sxg_adapter_set_hwaddr(adapter);
 	} else {
 		adapter->state = ADAPT_FAIL;
@@ -836,7 +836,7 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 	ASSERT(status == FALSE);
 //      sxg_free_adapter(adapter);
 
-	DBG_ERROR("sxg: %s EXIT status[%x] jiffies[%lx] cpu %d\n", __FUNCTION__,
+	DBG_ERROR("sxg: %s EXIT status[%x] jiffies[%lx] cpu %d\n", __func__,
 		  status, jiffies, smp_processor_id());
 	return status;
 
@@ -848,7 +848,7 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 
       err_out_exit_sxg_probe:
 
-	DBG_ERROR("%s EXIT jiffies[%lx] cpu %d\n", __FUNCTION__, jiffies,
+	DBG_ERROR("%s EXIT jiffies[%lx] cpu %d\n", __func__, jiffies,
 		  smp_processor_id());
 
 	return -ENODEV;
@@ -1067,7 +1067,7 @@ static int sxg_process_isr(p_adapter_t adapter, u32 MessageId)
 	if (Isr & SXG_ISR_ERR) {
 		if (Isr & SXG_ISR_PDQF) {
 			adapter->Stats.PdqFull++;
-			DBG_ERROR("%s: SXG_ISR_ERR  PDQF!!\n", __FUNCTION__);
+			DBG_ERROR("%s: SXG_ISR_ERR  PDQF!!\n", __func__);
 		}
 		// No host buffer
 		if (Isr & SXG_ISR_RMISS) {
@@ -1080,7 +1080,7 @@ static int sxg_process_isr(p_adapter_t adapter, u32 MessageId)
 			adapter->Stats.RcvNoBuffer++;
 			if (adapter->Stats.RcvNoBuffer < 5) {
 				DBG_ERROR("%s: SXG_ISR_ERR  RMISS!!\n",
-					  __FUNCTION__);
+					  __func__);
 			}
 		}
 		// Card crash
@@ -1091,7 +1091,7 @@ static int sxg_process_isr(p_adapter_t adapter, u32 MessageId)
 					    SXG_ISR_CPU_SHIFT);
 			adapter->CrashLocation = (ushort) (Isr & SXG_ISR_CRASH);
 			adapter->Dead = TRUE;
-			DBG_ERROR("%s: ISR_DEAD %x, CPU: %d\n", __FUNCTION__,
+			DBG_ERROR("%s: ISR_DEAD %x, CPU: %d\n", __func__,
 				  adapter->CrashLocation, adapter->CrashCpu);
 		}
 		// Event ring full
@@ -1102,13 +1102,13 @@ static int sxg_process_isr(p_adapter_t adapter, u32 MessageId)
 			// and/or reduce/remove interrupt aggregation.
 			adapter->Stats.EventRingFull++;
 			DBG_ERROR("%s: SXG_ISR_ERR  EVENT RING FULL!!\n",
-				  __FUNCTION__);
+				  __func__);
 		}
 		// Transmit drop - no DRAM buffers or XMT error
 		if (Isr & SXG_ISR_XDROP) {
 			adapter->Stats.XmtDrops++;
 			adapter->Stats.XmtErrors++;
-			DBG_ERROR("%s: SXG_ISR_ERR  XDROP!!\n", __FUNCTION__);
+			DBG_ERROR("%s: SXG_ISR_ERR  XDROP!!\n", __func__);
 		}
 	}
 	// Slowpath send completions
@@ -1218,7 +1218,7 @@ static u32 sxg_process_event_queue(p_adapter_t adapter, u32 RssId)
 			break;
 		default:
 			DBG_ERROR("%s: ERROR  Invalid EventCode %d\n",
-				  __FUNCTION__, Event->Code);
+				  __func__, Event->Code);
 //                      ASSERT(0);
 		}
 		// See if we need to restock card receive buffers.
@@ -1606,7 +1606,7 @@ static int sxg_register_interrupt(p_adapter_t adapter)
 
 		DBG_ERROR
 		    ("sxg: %s AllocAdaptRsrcs adapter[%p] dev->irq[%x] %x\n",
-		     __FUNCTION__, adapter, adapter->netdev->irq, NR_IRQS);
+		     __func__, adapter, adapter->netdev->irq, NR_IRQS);
 
 		spin_unlock_irqrestore(&sxg_global.driver_lock,
 				       sxg_global.flags);
@@ -1629,14 +1629,14 @@ static int sxg_register_interrupt(p_adapter_t adapter)
 		adapter->MsiEnabled = FALSE;
 		adapter->RssEnabled = FALSE;
 		DBG_ERROR("sxg: %s AllocAdaptRsrcs adapter[%p] dev->irq[%x]\n",
-			  __FUNCTION__, adapter, adapter->netdev->irq);
+			  __func__, adapter, adapter->netdev->irq);
 	}
 	return (STATUS_SUCCESS);
 }
 
 static void sxg_deregister_interrupt(p_adapter_t adapter)
 {
-	DBG_ERROR("sxg: %s ENTER adapter[%p]\n", __FUNCTION__, adapter);
+	DBG_ERROR("sxg: %s ENTER adapter[%p]\n", __func__, adapter);
 #if XXXTODO
 	slic_init_cleanup(adapter);
 #endif
@@ -1651,7 +1651,7 @@ static void sxg_deregister_interrupt(p_adapter_t adapter)
 	adapter->rcv_broadcasts = 0;
 	adapter->rcv_multicasts = 0;
 	adapter->rcv_unicasts = 0;
-	DBG_ERROR("sxg: %s EXIT\n", __FUNCTION__);
+	DBG_ERROR("sxg: %s EXIT\n", __func__);
 }
 
 /*
@@ -1666,7 +1666,7 @@ static int sxg_if_init(p_adapter_t adapter)
 	int status = 0;
 
 	DBG_ERROR("sxg: %s (%s) ENTER states[%d:%d:%d] flags[%x]\n",
-		  __FUNCTION__, adapter->netdev->name,
+		  __func__, adapter->netdev->name,
 		  adapter->queues_initialized, adapter->state,
 		  adapter->linkstate, dev->flags);
 
@@ -1680,7 +1680,7 @@ static int sxg_if_init(p_adapter_t adapter)
 	adapter->devflags_prev = dev->flags;
 	adapter->macopts = MAC_DIRECTED;
 	if (dev->flags) {
-		DBG_ERROR("sxg: %s (%s) Set MAC options: ", __FUNCTION__,
+		DBG_ERROR("sxg: %s (%s) Set MAC options: ", __func__,
 			  adapter->netdev->name);
 		if (dev->flags & IFF_BROADCAST) {
 			adapter->macopts |= MAC_BCAST;
@@ -1713,7 +1713,7 @@ static int sxg_if_init(p_adapter_t adapter)
 	/*
 	 *    clear any pending events, then enable interrupts
 	 */
-	DBG_ERROR("sxg: %s ENABLE interrupts(slic)\n", __FUNCTION__);
+	DBG_ERROR("sxg: %s ENABLE interrupts(slic)\n", __func__);
 
 	return (STATUS_SUCCESS);
 }
@@ -1724,11 +1724,11 @@ static int sxg_entry_open(p_net_device dev)
 	int status;
 
 	ASSERT(adapter);
-	DBG_ERROR("sxg: %s adapter->activated[%d]\n", __FUNCTION__,
+	DBG_ERROR("sxg: %s adapter->activated[%d]\n", __func__,
 		  adapter->activated);
 	DBG_ERROR
 	    ("sxg: %s (%s): [jiffies[%lx] cpu %d] dev[%p] adapt[%p] port[%d]\n",
-	     __FUNCTION__, adapter->netdev->name, jiffies, smp_processor_id(),
+	     __func__, adapter->netdev->name, jiffies, smp_processor_id(),
 	     adapter->netdev, adapter, adapter->port);
 
 	netif_stop_queue(adapter->netdev);
@@ -1739,15 +1739,15 @@ static int sxg_entry_open(p_net_device dev)
 		adapter->activated = 1;
 	}
 	// Initialize the adapter
-	DBG_ERROR("sxg: %s ENTER sxg_initialize_adapter\n", __FUNCTION__);
+	DBG_ERROR("sxg: %s ENTER sxg_initialize_adapter\n", __func__);
 	status = sxg_initialize_adapter(adapter);
 	DBG_ERROR("sxg: %s EXIT sxg_initialize_adapter status[%x]\n",
-		  __FUNCTION__, status);
+		  __func__, status);
 
 	if (status == STATUS_SUCCESS) {
-		DBG_ERROR("sxg: %s ENTER sxg_if_init\n", __FUNCTION__);
+		DBG_ERROR("sxg: %s ENTER sxg_if_init\n", __func__);
 		status = sxg_if_init(adapter);
-		DBG_ERROR("sxg: %s EXIT sxg_if_init status[%x]\n", __FUNCTION__,
+		DBG_ERROR("sxg: %s EXIT sxg_if_init status[%x]\n", __func__,
 			  status);
 	}
 
@@ -1760,12 +1760,12 @@ static int sxg_entry_open(p_net_device dev)
 				       sxg_global.flags);
 		return (status);
 	}
-	DBG_ERROR("sxg: %s ENABLE ALL INTERRUPTS\n", __FUNCTION__);
+	DBG_ERROR("sxg: %s ENABLE ALL INTERRUPTS\n", __func__);
 
 	// Enable interrupts
 	SXG_ENABLE_ALL_INTERRUPTS(adapter);
 
-	DBG_ERROR("sxg: %s EXIT\n", __FUNCTION__);
+	DBG_ERROR("sxg: %s EXIT\n", __func__);
 
 	spin_unlock_irqrestore(&sxg_global.driver_lock, sxg_global.flags);
 	return STATUS_SUCCESS;
@@ -1779,27 +1779,27 @@ static void __devexit sxg_entry_remove(struct pci_dev *pcidev)
 	p_adapter_t adapter = (p_adapter_t) netdev_priv(dev);
 
 	ASSERT(adapter);
-	DBG_ERROR("sxg: %s ENTER dev[%p] adapter[%p]\n", __FUNCTION__, dev,
+	DBG_ERROR("sxg: %s ENTER dev[%p] adapter[%p]\n", __func__, dev,
 		  adapter);
 	sxg_deregister_interrupt(adapter);
 	sxg_unmap_mmio_space(adapter);
-	DBG_ERROR("sxg: %s unregister_netdev\n", __FUNCTION__);
+	DBG_ERROR("sxg: %s unregister_netdev\n", __func__);
 	unregister_netdev(dev);
 
 	mmio_start = pci_resource_start(pcidev, 0);
 	mmio_len = pci_resource_len(pcidev, 0);
 
-	DBG_ERROR("sxg: %s rel_region(0) start[%x] len[%x]\n", __FUNCTION__,
+	DBG_ERROR("sxg: %s rel_region(0) start[%x] len[%x]\n", __func__,
 		  mmio_start, mmio_len);
 	release_mem_region(mmio_start, mmio_len);
 
-	DBG_ERROR("sxg: %s iounmap dev->base_addr[%x]\n", __FUNCTION__,
+	DBG_ERROR("sxg: %s iounmap dev->base_addr[%x]\n", __func__,
 		  (unsigned int)dev->base_addr);
 	iounmap((char *)dev->base_addr);
 
-	DBG_ERROR("sxg: %s deallocate device\n", __FUNCTION__);
+	DBG_ERROR("sxg: %s deallocate device\n", __func__);
 	kfree(dev);
-	DBG_ERROR("sxg: %s EXIT\n", __FUNCTION__);
+	DBG_ERROR("sxg: %s EXIT\n", __func__);
 }
 
 static int sxg_entry_halt(p_net_device dev)
@@ -1807,17 +1807,17 @@ static int sxg_entry_halt(p_net_device dev)
 	p_adapter_t adapter = (p_adapter_t) netdev_priv(dev);
 
 	spin_lock_irqsave(&sxg_global.driver_lock, sxg_global.flags);
-	DBG_ERROR("sxg: %s (%s) ENTER\n", __FUNCTION__, dev->name);
+	DBG_ERROR("sxg: %s (%s) ENTER\n", __func__, dev->name);
 
 	netif_stop_queue(adapter->netdev);
 	adapter->state = ADAPT_DOWN;
 	adapter->linkstate = LINK_DOWN;
 	adapter->devflags_prev = 0;
 	DBG_ERROR("sxg: %s (%s) set adapter[%p] state to ADAPT_DOWN(%d)\n",
-		  __FUNCTION__, dev->name, adapter, adapter->state);
+		  __func__, dev->name, adapter, adapter->state);
 
-	DBG_ERROR("sxg: %s (%s) EXIT\n", __FUNCTION__, dev->name);
-	DBG_ERROR("sxg: %s EXIT\n", __FUNCTION__);
+	DBG_ERROR("sxg: %s (%s) EXIT\n", __func__, dev->name);
+	DBG_ERROR("sxg: %s EXIT\n", __func__);
 	spin_unlock_irqrestore(&sxg_global.driver_lock, sxg_global.flags);
 	return (STATUS_SUCCESS);
 }
@@ -1825,7 +1825,7 @@ static int sxg_entry_halt(p_net_device dev)
 static int sxg_ioctl(p_net_device dev, struct ifreq *rq, int cmd)
 {
 	ASSERT(rq);
-//      DBG_ERROR("sxg: %s cmd[%x] rq[%p] dev[%p]\n", __FUNCTION__, cmd, rq, dev);
+//      DBG_ERROR("sxg: %s cmd[%x] rq[%p] dev[%p]\n", __func__, cmd, rq, dev);
 	switch (cmd) {
 	case SIOCSLICSETINTAGG:
 		{
@@ -1841,12 +1841,12 @@ static int sxg_ioctl(p_net_device dev, struct ifreq *rq, int cmd)
 			intagg = data[0];
 			printk(KERN_EMERG
 			       "%s: set interrupt aggregation to %d\n",
-			       __FUNCTION__, intagg);
+			       __func__, intagg);
 			return 0;
 		}
 
 	default:
-//              DBG_ERROR("sxg: %s UNSUPPORTED[%x]\n", __FUNCTION__, cmd);
+//              DBG_ERROR("sxg: %s UNSUPPORTED[%x]\n", __func__, cmd);
 		return -EOPNOTSUPP;
 	}
 	return 0;
@@ -1870,7 +1870,7 @@ static int sxg_send_packets(struct sk_buff *skb, p_net_device dev)
 	p_adapter_t adapter = (p_adapter_t) netdev_priv(dev);
 	u32 status = STATUS_SUCCESS;
 
-	DBG_ERROR("sxg: %s ENTER sxg_send_packets skb[%p]\n", __FUNCTION__,
+	DBG_ERROR("sxg: %s ENTER sxg_send_packets skb[%p]\n", __func__,
 		  skb);
 	// Check the adapter state
 	switch (adapter->State) {
@@ -1914,7 +1914,7 @@ static int sxg_send_packets(struct sk_buff *skb, p_net_device dev)
 		adapter->stats.tx_dropped++;
 #endif
 	}
-	DBG_ERROR("sxg: %s EXIT sxg_send_packets status[%x]\n", __FUNCTION__,
+	DBG_ERROR("sxg: %s EXIT sxg_send_packets status[%x]\n", __func__,
 		  status);
 
       xmit_done:
@@ -2279,7 +2279,7 @@ static int sxg_phy_init(p_adapter_t adapter)
 	PPHY_UCODE p;
 	int status;
 
-	DBG_ERROR("ENTER %s\n", __FUNCTION__);
+	DBG_ERROR("ENTER %s\n", __func__);
 
 	// Read a register to identify the PHY type
 	status = sxg_read_mdio_reg(adapter, MIIM_DEV_PHY_PMA,	// PHY PMA/PMD module
@@ -2307,7 +2307,7 @@ static int sxg_phy_init(p_adapter_t adapter)
 			}
 		}
 	}
-	DBG_ERROR("EXIT %s\n", __FUNCTION__);
+	DBG_ERROR("EXIT %s\n", __func__);
 
 	return (STATUS_SUCCESS);
 }
@@ -2330,7 +2330,7 @@ static void sxg_link_event(p_adapter_t adapter)
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "LinkEvnt",
 		  adapter, 0, 0, 0);
-	DBG_ERROR("ENTER %s\n", __FUNCTION__);
+	DBG_ERROR("ENTER %s\n", __func__);
 
 	// Check the Link Status register.  We should have a Link Alarm.
 	READ_REG(HwRegs->LinkStatus, Value);
@@ -2365,7 +2365,7 @@ static void sxg_link_event(p_adapter_t adapter)
 		DBG_ERROR("SXG: Link Status == 0x%08X.\n", Value);
 //              ASSERT(0);
 	}
-	DBG_ERROR("EXIT %s\n", __FUNCTION__);
+	DBG_ERROR("EXIT %s\n", __func__);
 
 }
 
@@ -2383,7 +2383,7 @@ static SXG_LINK_STATE sxg_get_link_state(p_adapter_t adapter)
 	int status;
 	u32 Value;
 
-	DBG_ERROR("ENTER %s\n", __FUNCTION__);
+	DBG_ERROR("ENTER %s\n", __func__);
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "GetLink",
 		  adapter, 0, 0, 0);
@@ -2421,7 +2421,7 @@ static SXG_LINK_STATE sxg_get_link_state(p_adapter_t adapter)
 		return (SXG_LINK_DOWN);
 
 	// All 3 bits are true, so the link is up
-	DBG_ERROR("EXIT %s\n", __FUNCTION__);
+	DBG_ERROR("EXIT %s\n", __func__);
 
 	return (SXG_LINK_UP);
 
@@ -2437,11 +2437,11 @@ static void sxg_indicate_link_state(p_adapter_t adapter,
 {
 	if (adapter->LinkState == SXG_LINK_UP) {
 		DBG_ERROR("%s: LINK now UP, call netif_start_queue\n",
-			  __FUNCTION__);
+			  __func__);
 		netif_start_queue(adapter->netdev);
 	} else {
 		DBG_ERROR("%s: LINK now DOWN, call netif_stop_queue\n",
-			  __FUNCTION__);
+			  __func__);
 		netif_stop_queue(adapter->netdev);
 	}
 }
@@ -2464,7 +2464,7 @@ static void sxg_link_state(p_adapter_t adapter, SXG_LINK_STATE LinkState)
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_IMPORTANT, "LnkINDCT",
 		  adapter, LinkState, adapter->LinkState, adapter->State);
 
-	DBG_ERROR("ENTER %s\n", __FUNCTION__);
+	DBG_ERROR("ENTER %s\n", __func__);
 
 	// Hold the adapter lock during this routine.  Maybe move
 	// the lock to the caller.
@@ -2472,7 +2472,7 @@ static void sxg_link_state(p_adapter_t adapter, SXG_LINK_STATE LinkState)
 	if (LinkState == adapter->LinkState) {
 		// Nothing changed..
 		spin_unlock(&adapter->AdapterLock);
-		DBG_ERROR("EXIT #0 %s\n", __FUNCTION__);
+		DBG_ERROR("EXIT #0 %s\n", __func__);
 		return;
 	}
 	// Save the adapter state
@@ -2480,7 +2480,7 @@ static void sxg_link_state(p_adapter_t adapter, SXG_LINK_STATE LinkState)
 
 	// Drop the lock and indicate link state
 	spin_unlock(&adapter->AdapterLock);
-	DBG_ERROR("EXIT #1 %s\n", __FUNCTION__);
+	DBG_ERROR("EXIT #1 %s\n", __func__);
 
 	sxg_indicate_link_state(adapter, LinkState);
 }
@@ -2507,7 +2507,7 @@ static int sxg_write_mdio_reg(p_adapter_t adapter,
 	u32 ValueRead;
 	u32 Timeout;
 
-//  DBG_ERROR("ENTER %s\n", __FUNCTION__);
+//  DBG_ERROR("ENTER %s\n", __func__);
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "WrtMDIO",
 		  adapter, 0, 0, 0);
@@ -2570,7 +2570,7 @@ static int sxg_write_mdio_reg(p_adapter_t adapter,
 		}
 	} while (ValueRead & AXGMAC_AMIIM_INDC_BUSY);
 
-//  DBG_ERROR("EXIT %s\n", __FUNCTION__);
+//  DBG_ERROR("EXIT %s\n", __func__);
 
 	return (STATUS_SUCCESS);
 }
@@ -2599,7 +2599,7 @@ static int sxg_read_mdio_reg(p_adapter_t adapter,
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "WrtMDIO",
 		  adapter, 0, 0, 0);
-//  DBG_ERROR("ENTER %s\n", __FUNCTION__);
+//  DBG_ERROR("ENTER %s\n", __func__);
 
 	// Ensure values don't exceed field width
 	DevAddr &= 0x001F;	// 5-bit field
@@ -2662,7 +2662,7 @@ static int sxg_read_mdio_reg(p_adapter_t adapter,
 	READ_REG(HwRegs->MacAmiimField, *pValue);
 	*pValue &= 0xFFFF;	// data is in the lower 16 bits
 
-//  DBG_ERROR("EXIT %s\n", __FUNCTION__);
+//  DBG_ERROR("EXIT %s\n", __func__);
 
 	return (STATUS_SUCCESS);
 }
@@ -2809,7 +2809,7 @@ static void sxg_mcast_set_list(p_net_device dev)
 	}
 
 	DBG_ERROR("%s a->devflags_prev[%x] dev->flags[%x] status[%x]\n",
-		  __FUNCTION__, adapter->devflags_prev, dev->flags, status);
+		  __func__, adapter->devflags_prev, dev->flags, status);
 	if (adapter->devflags_prev != dev->flags) {
 		adapter->macopts = MAC_DIRECTED;
 		if (dev->flags) {
@@ -2828,7 +2828,7 @@ static void sxg_mcast_set_list(p_net_device dev)
 		}
 		adapter->devflags_prev = dev->flags;
 		DBG_ERROR("%s call sxg_config_set adapter->macopts[%x]\n",
-			  __FUNCTION__, adapter->macopts);
+			  __func__, adapter->macopts);
 		sxg_config_set(adapter, TRUE);
 	} else {
 		if (status == STATUS_SUCCESS) {
@@ -2843,7 +2843,7 @@ static void sxg_mcast_set_mask(p_adapter_t adapter)
 {
 	PSXG_UCODE_REGS sxg_regs = adapter->UcodeRegs;
 
-	DBG_ERROR("%s ENTER (%s) macopts[%x] mask[%llx]\n", __FUNCTION__,
+	DBG_ERROR("%s ENTER (%s) macopts[%x] mask[%llx]\n", __func__,
 		  adapter->netdev->name, (unsigned int)adapter->MacFilter,
 		  adapter->MulticastMask);
 
@@ -2852,17 +2852,17 @@ static void sxg_mcast_set_mask(p_adapter_t adapter)
 		 * mode as well as ALLMCAST mode.  It saves the Microcode from having
 		 * to keep state about the MAC configuration.
 		 */
-//              DBG_ERROR("sxg: %s macopts = MAC_ALLMCAST | MAC_PROMISC\n      SLUT MODE!!!\n",__FUNCTION__);
+//              DBG_ERROR("sxg: %s macopts = MAC_ALLMCAST | MAC_PROMISC\n      SLUT MODE!!!\n",__func__);
 		WRITE_REG(sxg_regs->McastLow, 0xFFFFFFFF, FLUSH);
 		WRITE_REG(sxg_regs->McastHigh, 0xFFFFFFFF, FLUSH);
-//        DBG_ERROR("%s (%s) WRITE to slic_regs slic_mcastlow&high 0xFFFFFFFF\n",__FUNCTION__, adapter->netdev->name);
+//        DBG_ERROR("%s (%s) WRITE to slic_regs slic_mcastlow&high 0xFFFFFFFF\n",__func__, adapter->netdev->name);
 
 	} else {
 		/* Commit our multicast mast to the SLIC by writing to the multicast
 		 * address mask registers
 		 */
 		DBG_ERROR("%s (%s) WRITE mcastlow[%lx] mcasthigh[%lx]\n",
-			  __FUNCTION__, adapter->netdev->name,
+			  __func__, adapter->netdev->name,
 			  ((ulong) (adapter->MulticastMask & 0xFFFFFFFF)),
 			  ((ulong)
 			   ((adapter->MulticastMask >> 32) & 0xFFFFFFFF)));
@@ -3200,7 +3200,7 @@ static void sxg_allocate_rcvblock_complete(p_adapter_t adapter,
 		pci_free_consistent(adapter->pcidev,
 				    Length, RcvBlock, PhysicalAddress);
 	}
-	DBG_ERROR("%s: OUT OF RESOURCES\n", __FUNCTION__);
+	DBG_ERROR("%s: OUT OF RESOURCES\n", __func__);
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_IMPORTANT, "RcvAFail",
 		  adapter, adapter->FreeRcvBufferCount,
 		  adapter->FreeRcvBlockCount, adapter->AllRcvBlockCount);
@@ -3244,13 +3244,13 @@ static unsigned char temp_mac_address[6] =
 
 static void sxg_adapter_set_hwaddr(p_adapter_t adapter)
 {
-//  DBG_ERROR ("%s ENTER card->config_set[%x] port[%d] physport[%d] funct#[%d]\n", __FUNCTION__,
+//  DBG_ERROR ("%s ENTER card->config_set[%x] port[%d] physport[%d] funct#[%d]\n", __func__,
 //             card->config_set, adapter->port, adapter->physport, adapter->functionnumber);
 //
 //  sxg_dbg_macaddrs(adapter);
 
 	memcpy(adapter->macaddr, temp_mac_address, sizeof(SXG_CONFIG_MAC));
-//      DBG_ERROR ("%s AFTER copying from config.macinfo into currmacaddr\n", __FUNCTION__);
+//      DBG_ERROR ("%s AFTER copying from config.macinfo into currmacaddr\n", __func__);
 //      sxg_dbg_macaddrs(adapter);
 	if (!(adapter->currmacaddr[0] ||
 	      adapter->currmacaddr[1] ||
@@ -3262,7 +3262,7 @@ static void sxg_adapter_set_hwaddr(p_adapter_t adapter)
 	if (adapter->netdev) {
 		memcpy(adapter->netdev->dev_addr, adapter->currmacaddr, 6);
 	}
-//  DBG_ERROR ("%s EXIT port %d\n", __FUNCTION__, adapter->port);
+//  DBG_ERROR ("%s EXIT port %d\n", __func__, adapter->port);
 	sxg_dbg_macaddrs(adapter);
 
 }
@@ -3273,7 +3273,7 @@ static int sxg_mac_set_address(p_net_device dev, void *ptr)
 	p_adapter_t adapter = (p_adapter_t) netdev_priv(dev);
 	struct sockaddr *addr = ptr;
 
-	DBG_ERROR("%s ENTER (%s)\n", __FUNCTION__, adapter->netdev->name);
+	DBG_ERROR("%s ENTER (%s)\n", __func__, adapter->netdev->name);
 
 	if (netif_running(dev)) {
 		return -EBUSY;
@@ -3282,14 +3282,14 @@ static int sxg_mac_set_address(p_net_device dev, void *ptr)
 		return -EBUSY;
 	}
 	DBG_ERROR("sxg: %s (%s) curr %2.2X:%2.2X:%2.2X:%2.2X:%2.2X:%2.2X\n",
-		  __FUNCTION__, adapter->netdev->name, adapter->currmacaddr[0],
+		  __func__, adapter->netdev->name, adapter->currmacaddr[0],
 		  adapter->currmacaddr[1], adapter->currmacaddr[2],
 		  adapter->currmacaddr[3], adapter->currmacaddr[4],
 		  adapter->currmacaddr[5]);
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 	memcpy(adapter->currmacaddr, addr->sa_data, dev->addr_len);
 	DBG_ERROR("sxg: %s (%s) new %2.2X:%2.2X:%2.2X:%2.2X:%2.2X:%2.2X\n",
-		  __FUNCTION__, adapter->netdev->name, adapter->currmacaddr[0],
+		  __func__, adapter->netdev->name, adapter->currmacaddr[0],
 		  adapter->currmacaddr[1], adapter->currmacaddr[2],
 		  adapter->currmacaddr[3], adapter->currmacaddr[4],
 		  adapter->currmacaddr[5]);
@@ -3383,9 +3383,9 @@ static int sxg_initialize_adapter(p_adapter_t adapter)
 		  SXG_RCV_TCP_CSUM_ENABLED | SXG_RCV_IP_CSUM_ENABLED, TRUE);
 
 	// Initialize the MAC, XAUI
-	DBG_ERROR("sxg: %s ENTER sxg_initialize_link\n", __FUNCTION__);
+	DBG_ERROR("sxg: %s ENTER sxg_initialize_link\n", __func__);
 	status = sxg_initialize_link(adapter);
-	DBG_ERROR("sxg: %s EXIT sxg_initialize_link status[%x]\n", __FUNCTION__,
+	DBG_ERROR("sxg: %s EXIT sxg_initialize_link status[%x]\n", __func__,
 		  status);
 	if (status != STATUS_SUCCESS) {
 		return (status);
