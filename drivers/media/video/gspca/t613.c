@@ -365,6 +365,8 @@ static const __u8 tas5130a_sensor_init[][8] = {
 	{},
 };
 
+static __u8 sensor_reset[] = {0x61, 0x68, 0x62, 0xff, 0x60, 0x07};
+
 /* read 1 byte */
 static int reg_r(struct gspca_dev *gspca_dev,
 		   __u16 index)
@@ -437,11 +439,24 @@ static void om6802_sensor_init(struct gspca_dev *gspca_dev)
 		0x90, 0x24,
 		0x91, 0xb2,
 		0x82, 0x32,
-		0xfd, 0x00,
-		0xfd, 0x01,
 		0xfd, 0x41,
 		0x00			/* table end */
 	};
+
+	reg_w_buf(gspca_dev, sensor_reset, sizeof sensor_reset);
+	msleep(5);
+	i = 4;
+	while (--i < 0) {
+		byte = reg_r(gspca_dev, 0x0060);
+		if (!(byte & 0x01))
+			break;
+		msleep(100);
+	}
+	byte = reg_r(gspca_dev, 0x0063);
+	if (byte != 0x17) {
+		err("Bad sensor reset %02x", byte);
+		/* continue? */
+	}
 
 	p = sensor_init;
 	while (*p != 0) {
@@ -458,7 +473,8 @@ static void om6802_sensor_init(struct gspca_dev *gspca_dev)
 				break;
 		}
 	}
-			reg_w(gspca_dev, 0x3c80);
+	msleep(15);
+	reg_w(gspca_dev, 0x3c80);
 }
 
 /* this function is called at probe time */
@@ -512,8 +528,6 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			{0x08, 0x03, 0x09, 0x03, 0x12, 0x04};
 	static const __u8 n2[] =
 			{0x08, 0x00};
-	static const __u8 nset[] =
-			{ 0x61, 0x68, 0x62, 0xff, 0x60, 0x07 };
 	static const __u8 n3[] =
 			{0x61, 0x68, 0x65, 0x0a, 0x60, 0x04};
 	static const __u8 n4[] =
@@ -572,8 +586,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	test_byte = 0;
 	i = 5;
 	while (--i >= 0) {
-		reg_w_buf(gspca_dev, nset, sizeof nset);
-		msleep(5);
+		reg_w_buf(gspca_dev, sensor_reset, sizeof sensor_reset);
 		test_byte = reg_r(gspca_dev, 0x0063);
 		msleep(100);
 		if (test_byte == 0x17)
