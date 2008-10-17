@@ -5,6 +5,8 @@
 obj-y := hypercall.o xenivt.o xensetup.o xen_pv_ops.o irq_xen.o \
 	 hypervisor.o xencomm.o xcom_hcall.o grant-table.o time.o
 
+obj-$(CONFIG_IA64_GENERIC) += machvec.o
+
 AFLAGS_xenivt.o += -D__IA64_ASM_PARAVIRTUALIZED_XEN
 
 # xen multi compile
