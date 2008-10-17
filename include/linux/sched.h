@@ -287,7 +287,6 @@ extern void trap_init(void);
 extern void account_process_tick(struct task_struct *task, int user);
 extern void update_process_times(int user);
 extern void scheduler_tick(void);
-extern void hrtick_resched(void);
 
 extern void sched_show_task(struct task_struct *p);
 
