@@ -15,8 +15,13 @@
 #endif
 
 #include "ide-disk.h"
+#include "ide-floppy.h"
 
 #define IDE_GD_VERSION	"1.18"
+
+/* module parameters */
+static unsigned long debug_mask;
+module_param(debug_mask, ulong, 0644);
 
 static DEFINE_MUTEX(ide_disk_ref_mutex);
 
@@ -64,7 +69,7 @@ static void ide_gd_remove(ide_drive_t *drive)
 
 	del_gendisk(g);
 
-	ide_disk_flush(drive);
+	drive->disk_ops->flush(drive);
 
 	ide_disk_put(idkp);
 }
@@ -75,6 +80,7 @@ static void ide_disk_release(struct kref *kref)
 	ide_drive_t *drive = idkp->drive;
 	struct gendisk *g = idkp->disk;
 
+	drive->disk_ops = NULL;
 	drive->driver_data = NULL;
 	g->private_data = NULL;
 	put_disk(g);
@@ -89,7 +95,7 @@ static void ide_disk_release(struct kref *kref)
 static void ide_gd_resume(ide_drive_t *drive)
 {
 	if (ata_id_hpa_enabled(drive->id))
-		ide_disk_init_capacity(drive);
+		(void)drive->disk_ops->get_capacity(drive);
 }
 
 static void ide_gd_shutdown(ide_drive_t *drive)
@@ -110,7 +116,7 @@ static void ide_gd_shutdown(ide_drive_t *drive)
 #else
 	if (system_state == SYSTEM_RESTART) {
 #endif
-		ide_disk_flush(drive);
+		drive->disk_ops->flush(drive);
 		return;
 	}
 
@@ -122,19 +128,31 @@ static void ide_gd_shutdown(ide_drive_t *drive)
 #ifdef CONFIG_IDE_PROC_FS
 static ide_proc_entry_t *ide_disk_proc_entries(ide_drive_t *drive)
 {
-	return ide_disk_proc;
+	return (drive->media == ide_disk) ? ide_disk_proc : ide_floppy_proc;
 }
 
 static const struct ide_proc_devset *ide_disk_proc_devsets(ide_drive_t *drive)
 {
-	return ide_disk_settings;
+	return (drive->media == ide_disk) ? ide_disk_settings
+					  : ide_floppy_settings;
 }
 #endif
+
+static ide_startstop_t ide_gd_do_request(ide_drive_t *drive,
+					 struct request *rq, sector_t sector)
+{
+	return drive->disk_ops->do_request(drive, rq, sector);
+}
+
+static int ide_gd_end_request(ide_drive_t *drive, int uptodate, int nrsecs)
+{
+	return drive->disk_ops->end_request(drive, uptodate, nrsecs);
+}
 
 static ide_driver_t ide_gd_driver = {
 	.gen_driver = {
 		.owner		= THIS_MODULE,
-		.name		= "ide-disk",
+		.name		= "ide-gd",
 		.bus		= &ide_bus_type,
 	},
 	.probe			= ide_gd_probe,
@@ -142,8 +160,8 @@ static ide_driver_t ide_gd_driver = {
 	.resume			= ide_gd_resume,
 	.shutdown		= ide_gd_shutdown,
 	.version		= IDE_GD_VERSION,
-	.do_request		= ide_do_rw_disk,
-	.end_request		= ide_end_request,
+	.do_request		= ide_gd_do_request,
+	.end_request		= ide_gd_end_request,
 	.error			= __ide_error,
 #ifdef CONFIG_IDE_PROC_FS
 	.proc_entries		= ide_disk_proc_entries,
@@ -156,6 +174,7 @@ static int ide_gd_open(struct inode *inode, struct file *filp)
 	struct gendisk *disk = inode->i_bdev->bd_disk;
 	struct ide_disk_obj *idkp;
 	ide_drive_t *drive;
+	int ret = 0;
 
 	idkp = ide_disk_get(disk);
 	if (idkp == NULL)
@@ -163,19 +182,49 @@ static int ide_gd_open(struct inode *inode, struct file *filp)
 
 	drive = idkp->drive;
 
+	ide_debug_log(IDE_DBG_FUNC, "Call %s\n", __func__);
+
 	idkp->openers++;
 
 	if ((drive->dev_flags & IDE_DFLAG_REMOVABLE) && idkp->openers == 1) {
+		drive->dev_flags &= ~IDE_DFLAG_FORMAT_IN_PROGRESS;
+		/* Just in case */
+
+		ret = drive->disk_ops->init_media(drive, disk);
+
+		/*
+		 * Allow O_NDELAY to open a drive without a disk, or with an
+		 * unreadable disk, so that we can get the format capacity
+		 * of the drive or begin the format - Sam
+		 */
+		if (ret && (filp->f_flags & O_NDELAY) == 0) {
+			ret = -EIO;
+			goto out_put_idkp;
+		}
+
+		if ((drive->dev_flags & IDE_DFLAG_WP) && (filp->f_mode & 2)) {
+			ret = -EROFS;
+			goto out_put_idkp;
+		}
+
 		/*
 		 * Ignore the return code from door_lock,
 		 * since the open() has already succeeded,
 		 * and the door_lock is irrelevant at this point.
 		 */
-		ide_disk_set_doorlock(drive, 1);
+		drive->disk_ops->set_doorlock(drive, disk, 1);
 		drive->dev_flags |= IDE_DFLAG_MEDIA_CHANGED;
 		check_disk_change(inode->i_bdev);
+	} else if (drive->dev_flags & IDE_DFLAG_FORMAT_IN_PROGRESS) {
+		ret = -EBUSY;
+		goto out_put_idkp;
 	}
 	return 0;
+
+out_put_idkp:
+	idkp->openers--;
+	ide_disk_put(idkp);
+	return ret;
 }
 
 static int ide_gd_release(struct inode *inode, struct file *filp)
@@ -184,11 +233,15 @@ static int ide_gd_release(struct inode *inode, struct file *filp)
 	struct ide_disk_obj *idkp = ide_drv_g(disk, ide_disk_obj);
 	ide_drive_t *drive = idkp->drive;
 
-	if (idkp->openers == 1)
-		ide_disk_flush(drive);
+	ide_debug_log(IDE_DBG_FUNC, "Call %s\n", __func__);
 
-	if ((drive->dev_flags & IDE_DFLAG_REMOVABLE) && idkp->openers == 1)
-		ide_disk_set_doorlock(drive, 0);
+	if (idkp->openers == 1)
+		drive->disk_ops->flush(drive);
+
+	if ((drive->dev_flags & IDE_DFLAG_REMOVABLE) && idkp->openers == 1) {
+		drive->disk_ops->set_doorlock(drive, disk, 0);
+		drive->dev_flags &= ~IDE_DFLAG_FORMAT_IN_PROGRESS;
+	}
 
 	idkp->openers--;
 
@@ -233,11 +286,21 @@ static int ide_gd_revalidate_disk(struct gendisk *disk)
 	return 0;
 }
 
+static int ide_gd_ioctl(struct inode *inode, struct file *file,
+			     unsigned int cmd, unsigned long arg)
+{
+	struct block_device *bdev = inode->i_bdev;
+	struct ide_disk_obj *idkp = ide_drv_g(bdev->bd_disk, ide_disk_obj);
+	ide_drive_t *drive = idkp->drive;
+
+	return drive->disk_ops->ioctl(drive, inode, file, cmd, arg);
+}
+
 static struct block_device_operations ide_gd_ops = {
 	.owner			= THIS_MODULE,
 	.open			= ide_gd_open,
 	.release		= ide_gd_release,
-	.ioctl			= ide_disk_ioctl,
+	.ioctl			= ide_gd_ioctl,
 	.getgeo			= ide_gd_getgeo,
 	.media_changed		= ide_gd_media_changed,
 	.revalidate_disk	= ide_gd_revalidate_disk
@@ -245,19 +308,37 @@ static struct block_device_operations ide_gd_ops = {
 
 static int ide_gd_probe(ide_drive_t *drive)
 {
+	const struct ide_disk_ops *disk_ops = NULL;
 	struct ide_disk_obj *idkp;
 	struct gendisk *g;
 
 	/* strstr("foo", "") is non-NULL */
-	if (!strstr("ide-disk", drive->driver_req))
+	if (!strstr("ide-gd", drive->driver_req))
 		goto failed;
 
-	if (drive->media != ide_disk)
+#ifdef CONFIG_IDE_GD_ATA
+	if (drive->media == ide_disk)
+		disk_ops = &ide_ata_disk_ops;
+#endif
+#ifdef CONFIG_IDE_GD_ATAPI
+	if (drive->media == ide_floppy)
+		disk_ops = &ide_atapi_disk_ops;
+#endif
+	if (disk_ops == NULL)
 		goto failed;
+
+	if (disk_ops->check(drive, DRV_NAME) == 0) {
+		printk(KERN_ERR PFX "%s: not supported by this driver\n",
+			drive->name);
+		goto failed;
+	}
 
 	idkp = kzalloc(sizeof(*idkp), GFP_KERNEL);
-	if (!idkp)
+	if (!idkp) {
+		printk(KERN_ERR PFX "%s: can't allocate a disk structure\n",
+			drive->name);
 		goto failed;
+	}
 
 	g = alloc_disk_node(IDE_DISK_MINORS, hwif_to_node(drive->hwif));
 	if (!g)
@@ -274,8 +355,10 @@ static int ide_gd_probe(ide_drive_t *drive)
 	g->private_data = &idkp->driver;
 
 	drive->driver_data = idkp;
+	drive->debug_mask = debug_mask;
+	drive->disk_ops = disk_ops;
 
-	ide_disk_setup(drive);
+	disk_ops->setup(drive);
 
 	set_capacity(g, ide_gd_capacity(drive));
 
@@ -296,6 +379,7 @@ failed:
 
 static int __init ide_gd_init(void)
 {
+	printk(KERN_INFO DRV_NAME " driver " IDE_GD_VERSION "\n");
 	return driver_register(&ide_gd_driver.gen_driver);
 }
 
@@ -306,7 +390,9 @@ static void __exit ide_gd_exit(void)
 
 MODULE_ALIAS("ide:*m-disk*");
 MODULE_ALIAS("ide-disk");
+MODULE_ALIAS("ide:*m-floppy*");
+MODULE_ALIAS("ide-floppy");
 module_init(ide_gd_init);
 module_exit(ide_gd_exit);
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("ATA DISK Driver");
+MODULE_DESCRIPTION("generic ATA/ATAPI disk driver");

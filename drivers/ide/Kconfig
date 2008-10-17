@@ -84,20 +84,39 @@ config BLK_DEV_IDE_SATA
 
 	  If unsure, say N.
 
-config BLK_DEV_IDEDISK
-	tristate "Include IDE/ATA-2 DISK support"
-	---help---
-	  This will include enhanced support for MFM/RLL/IDE hard disks.  If
-	  you have a MFM/RLL/IDE disk, and there is no special reason to use
-	  the old hard disk driver instead, say Y.  If you have an SCSI-only
-	  system, you can say N here.
+config IDE_GD
+	tristate "generic ATA/ATAPI disk support"
+	default y
+	help
+	  Support for ATA/ATAPI disks (including ATAPI floppy drives).
 
-	  To compile this driver as a module, choose M here: the
-	  module will be called ide-disk.
-	  Do not compile this driver as a module if your root file system
-	  (the one containing the directory /) is located on the IDE disk.
+	  To compile this driver as a module, choose M here.
+	  The module will be called ide-gd_mod.
 
 	  If unsure, say Y.
+
+config IDE_GD_ATA
+	bool "ATA disk support"
+	depends on IDE_GD
+	default y
+	help
+	  This will include support for ATA hard disks.
+
+	  If unsure, say Y.
+
+config IDE_GD_ATAPI
+	bool "ATAPI floppy support"
+	depends on IDE_GD
+	select IDE_ATAPI
+	help
+	  This will include support for ATAPI floppy drives
+	  (i.e. Iomega ZIP or MKE LS-120).
+
+	  For information about jumper settings and the question
+	  of when a ZIP drive uses a partition table, see
+	  <http://www.win.tue.nl/~aeb/linux/zip/zip-1.html>.
+
+	  If unsure, say N.
 
 config BLK_DEV_IDECS
 	tristate "PCMCIA IDE support"
@@ -162,29 +181,6 @@ config BLK_DEV_IDETAPE
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ide-tape.
-
-config BLK_DEV_IDEFLOPPY
-	tristate "Include IDE/ATAPI FLOPPY support"
-	select IDE_ATAPI
-	---help---
-	  If you have an IDE floppy drive which uses the ATAPI protocol,
-	  answer Y.  ATAPI is a newer protocol used by IDE CD-ROM/tape/floppy
-	  drives, similar to the SCSI protocol.
-
-	  The LS-120 and the IDE/ATAPI Iomega ZIP drive are also supported by
-	  this driver. For information about jumper settings and the question
-	  of when a ZIP drive uses a partition table, see
-	  <http://www.win.tue.nl/~aeb/linux/zip/zip-1.html>.
-	  (ATAPI PD-CD/CDR drives are not supported by this driver; support
-	  for PD-CD/CDR drives is available if you answer Y to
-	  "SCSI emulation support", below).
-
-	  If you say Y here, the FLOPPY drive will be identified along with
-	  other IDE devices, as "hdb" or "hdc", or something similar (check
-	  the boot messages with dmesg).
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ide-floppy.
 
 config BLK_DEV_IDESCSI
 	tristate "SCSI emulation support (DEPRECATED)"

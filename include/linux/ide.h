@@ -461,6 +461,23 @@ struct ide_acpi_drive_link;
 struct ide_acpi_hwif_link;
 #endif
 
+struct ide_drive_s;
+
+struct ide_disk_ops {
+	int		(*check)(struct ide_drive_s *, const char *);
+	int		(*get_capacity)(struct ide_drive_s *);
+	void		(*setup)(struct ide_drive_s *);
+	void		(*flush)(struct ide_drive_s *);
+	int		(*init_media)(struct ide_drive_s *, struct gendisk *);
+	int		(*set_doorlock)(struct ide_drive_s *, struct gendisk *,
+					int);
+	ide_startstop_t	(*do_request)(struct ide_drive_s *, struct request *,
+				      sector_t);
+	int		(*end_request)(struct ide_drive_s *, int, int);
+	int		(*ioctl)(struct ide_drive_s *, struct inode *,
+				 struct file *, unsigned int, unsigned long);
+};
+
 /* ATAPI device flags */
 enum {
 	IDE_AFLAG_DRQ_INTERRUPT		= (1 << 0),
@@ -593,6 +610,8 @@ struct ide_drive_s {
 	const struct ide_proc_devset *settings; /* /proc/ide/ drive settings */
 #endif
 	struct hwif_s		*hwif;	/* actually (ide_hwif_t *) */
+
+	const struct ide_disk_ops *disk_ops;
 
 	unsigned long dev_flags;
 

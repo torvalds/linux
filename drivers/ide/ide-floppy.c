@@ -68,7 +68,7 @@
  * Used to finish servicing a request. For read/write requests, we will call
  * ide_end_request to pass to the next buffer.
  */
-int ide_floppy_end_request(ide_drive_t *drive, int uptodate, int nsecs)
+static int ide_floppy_end_request(ide_drive_t *drive, int uptodate, int nsecs)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	struct request *rq = HWGROUP(drive)->rq;
@@ -280,13 +280,12 @@ static void idefloppy_blockpc_cmd(idefloppy_floppy_t *floppy,
 	pc->req_xfer = pc->buf_size = rq->data_len;
 }
 
-ide_startstop_t ide_floppy_do_request(ide_drive_t *drive, struct request *rq,
-				      sector_t block_s)
+static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
+					     struct request *rq, sector_t block)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_atapi_pc *pc;
-	unsigned long block = (unsigned long)block_s;
 
 	ide_debug_log(IDE_DBG_FUNC, "%s: dev: %s, cmd: 0x%x, cmd_type: %x, "
 		      "errors: %d\n",
@@ -316,7 +315,7 @@ ide_startstop_t ide_floppy_do_request(ide_drive_t *drive, struct request *rq,
 			return ide_stopped;
 		}
 		pc = &floppy->queued_pc;
-		idefloppy_create_rw_cmd(drive, pc, rq, block);
+		idefloppy_create_rw_cmd(drive, pc, rq, (unsigned long)block);
 	} else if (blk_special_request(rq)) {
 		pc = (struct ide_atapi_pc *) rq->buffer;
 	} else if (blk_pc_request(rq)) {
@@ -406,7 +405,7 @@ static int ide_floppy_get_flexible_disk_page(ide_drive_t *drive)
  * Determine if a media is present in the floppy drive, and if so, its LBA
  * capacity.
  */
-int ide_floppy_get_capacity(ide_drive_t *drive)
+static int ide_floppy_get_capacity(ide_drive_t *drive)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	struct gendisk *disk = floppy->disk;
@@ -505,9 +504,9 @@ int ide_floppy_get_capacity(ide_drive_t *drive)
 	return rc;
 }
 
-void ide_floppy_setup(ide_drive_t *drive)
+static void ide_floppy_setup(ide_drive_t *drive)
 {
-	struct ide_floppy_obj *floppy = drive->driver_data;
+	struct ide_disk_obj *floppy = drive->driver_data;
 	u16 *id = drive->id;
 
 	drive->pc_callback	 = ide_floppy_callback;
@@ -547,3 +546,33 @@ void ide_floppy_setup(ide_drive_t *drive)
 
 	drive->dev_flags |= IDE_DFLAG_ATTACH;
 }
+
+static void ide_floppy_flush(ide_drive_t *drive)
+{
+}
+
+static int ide_floppy_init_media(ide_drive_t *drive, struct gendisk *disk)
+{
+	int ret = 0;
+
+	if (ide_do_test_unit_ready(drive, disk))
+		ide_do_start_stop(drive, disk, 1);
+
+	ret = ide_floppy_get_capacity(drive);
+
+	set_capacity(disk, ide_gd_capacity(drive));
+
+	return ret;
+}
+
+const struct ide_disk_ops ide_atapi_disk_ops = {
+	.check		= ide_check_atapi_device,
+	.get_capacity	= ide_floppy_get_capacity,
+	.setup		= ide_floppy_setup,
+	.flush		= ide_floppy_flush,
+	.init_media	= ide_floppy_init_media,
+	.set_doorlock	= ide_set_media_lock,
+	.do_request	= ide_floppy_do_request,
+	.end_request	= ide_floppy_end_request,
+	.ioctl		= ide_floppy_ioctl,
+};

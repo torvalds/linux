@@ -184,8 +184,8 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
  * 1073741822 == 549756 MB or 48bit addressing fake drive
  */
 
-ide_startstop_t ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
-			       sector_t block)
+static ide_startstop_t ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
+				      sector_t block)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 
@@ -333,7 +333,7 @@ static void idedisk_check_hpa(ide_drive_t *drive)
 	}
 }
 
-void ide_disk_init_capacity(ide_drive_t *drive)
+static int ide_disk_get_capacity(ide_drive_t *drive)
 {
 	u16 *id = drive->id;
 	int lba;
@@ -382,6 +382,8 @@ void ide_disk_init_capacity(ide_drive_t *drive)
 		} else
 			drive->dev_flags &= ~IDE_DFLAG_LBA48;
 	}
+
+	return 0;
 }
 
 static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
@@ -590,7 +592,12 @@ ide_ext_devset_rw(wcache, wcache);
 
 ide_ext_devset_rw_sync(nowerr, nowerr);
 
-void ide_disk_setup(ide_drive_t *drive)
+static int ide_disk_check(ide_drive_t *drive, const char *s)
+{
+	return 1;
+}
+
+static void ide_disk_setup(ide_drive_t *drive)
 {
 	struct ide_disk_obj *idkp = drive->driver_data;
 	ide_hwif_t *hwif = drive->hwif;
@@ -626,7 +633,7 @@ void ide_disk_setup(ide_drive_t *drive)
 			 drive->queue->max_sectors / 2);
 
 	/* calculate drive capacity, and select LBA if possible */
-	ide_disk_init_capacity(drive);
+	ide_disk_get_capacity(drive);
 
 	/*
 	 * if possible, give fdisk access to more of the drive,
@@ -682,7 +689,7 @@ void ide_disk_setup(ide_drive_t *drive)
 		drive->dev_flags |= IDE_DFLAG_ATTACH;
 }
 
-void ide_disk_flush(ide_drive_t *drive)
+static void ide_disk_flush(ide_drive_t *drive)
 {
 	if (ata_id_flush_enabled(drive->id) == 0 ||
 	    (drive->dev_flags & IDE_DFLAG_WCACHE) == 0)
@@ -692,7 +699,13 @@ void ide_disk_flush(ide_drive_t *drive)
 		printk(KERN_INFO "%s: wcache flush failed!\n", drive->name);
 }
 
-int ide_disk_set_doorlock(ide_drive_t *drive, int on)
+static int ide_disk_init_media(ide_drive_t *drive, struct gendisk *disk)
+{
+	return 0;
+}
+
+static int ide_disk_set_doorlock(ide_drive_t *drive, struct gendisk *disk,
+				 int on)
 {
 	ide_task_t task;
 	int ret;
@@ -711,3 +724,15 @@ int ide_disk_set_doorlock(ide_drive_t *drive, int on)
 
 	return ret;
 }
+
+const struct ide_disk_ops ide_ata_disk_ops = {
+	.check		= ide_disk_check,
+	.get_capacity	= ide_disk_get_capacity,
+	.setup		= ide_disk_setup,
+	.flush		= ide_disk_flush,
+	.init_media	= ide_disk_init_media,
+	.set_doorlock	= ide_disk_set_doorlock,
+	.do_request	= ide_do_rw_disk,
+	.end_request	= ide_end_request,
+	.ioctl		= ide_disk_ioctl,
+};

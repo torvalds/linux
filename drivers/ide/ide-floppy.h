@@ -1,48 +1,10 @@
 #ifndef __IDE_FLOPPY_H
 #define __IDE_FLOPPY_H
 
-#define DRV_NAME "ide-floppy"
-#define PFX DRV_NAME ": "
+#include "ide-gd.h"
 
-/* define to see debug info */
-#define IDEFLOPPY_DEBUG_LOG	0
-
-#if IDEFLOPPY_DEBUG_LOG
-#define ide_debug_log(lvl, fmt, args...) __ide_debug_log(lvl, fmt, args)
-#else
-#define ide_debug_log(lvl, fmt, args...) do {} while (0)
-#endif
-
-/*
- * Most of our global data which we need to save even as we leave the driver
- * due to an interrupt or a timer event is stored in a variable of type
- * idefloppy_floppy_t, defined below.
- */
-typedef struct ide_floppy_obj {
-	ide_drive_t	*drive;
-	ide_driver_t	*driver;
-	struct gendisk	*disk;
-	struct kref	kref;
-	unsigned int	openers;	/* protected by BKL for now */
-
-	/* Last failed packet command */
-	struct ide_atapi_pc *failed_pc;
-	/* used for blk_{fs,pc}_request() requests */
-	struct ide_atapi_pc queued_pc;
-
-	/* Last error information */
-	u8 sense_key, asc, ascq;
-
-	int progress_indication;
-
-	/* Device information */
-	/* Current format */
-	int blocks, block_size, bs_factor;
-	/* Last format capacity descriptor */
-	u8 cap_desc[8];
-	/* Copy of the flexible disk page */
-	u8 flexible_disk_page[32];
-} idefloppy_floppy_t;
+#ifdef CONFIG_IDE_GD_ATAPI
+typedef struct ide_disk_obj idefloppy_floppy_t;
 
 /*
  * Pages of the SELECT SENSE / MODE SENSE packet commands.
@@ -57,23 +19,23 @@ typedef struct ide_floppy_obj {
 #define	IDEFLOPPY_IOCTL_FORMAT_START		0x4602
 #define IDEFLOPPY_IOCTL_FORMAT_GET_PROGRESS	0x4603
 
-sector_t ide_gd_capacity(ide_drive_t *);
-
 /* ide-floppy.c */
+extern const struct ide_disk_ops ide_atapi_disk_ops;
 void ide_floppy_create_mode_sense_cmd(struct ide_atapi_pc *, u8);
 void ide_floppy_create_read_capacity_cmd(struct ide_atapi_pc *);
-int ide_floppy_get_capacity(ide_drive_t *);
-void ide_floppy_setup(ide_drive_t *);
-ide_startstop_t ide_floppy_do_request(ide_drive_t *, struct request *, sector_t);
-int ide_floppy_end_request(ide_drive_t *, int, int);
 
 /* ide-floppy_ioctl.c */
-int ide_floppy_ioctl(struct inode *, struct file *, unsigned, unsigned long);
+int ide_floppy_ioctl(ide_drive_t *, struct inode *, struct file *, unsigned int,
+		     unsigned long);
 
 #ifdef CONFIG_IDE_PROC_FS
 /* ide-floppy_proc.c */
 extern ide_proc_entry_t ide_floppy_proc[];
 extern const struct ide_proc_devset ide_floppy_settings[];
+#endif
+#else
+#define ide_floppy_proc		NULL
+#define ide_floppy_settings	NULL
 #endif
 
 #endif /*__IDE_FLOPPY_H */

@@ -33,7 +33,7 @@
 
 static int ide_floppy_get_format_capacities(ide_drive_t *drive, int __user *arg)
 {
-	struct ide_floppy_obj *floppy = drive->driver_data;
+	struct ide_disk_obj *floppy = drive->driver_data;
 	struct ide_atapi_pc pc;
 	u8 header_len, desc_cnt;
 	int i, blocks, length, u_array_size, u_index;
@@ -260,13 +260,10 @@ static int ide_floppy_format_ioctl(ide_drive_t *drive, struct file *file,
 	}
 }
 
-int ide_floppy_ioctl(struct inode *inode, struct file *file,
-		    unsigned int cmd, unsigned long arg)
+int ide_floppy_ioctl(ide_drive_t *drive, struct inode *inode,
+		     struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct block_device *bdev = inode->i_bdev;
-	struct ide_floppy_obj *floppy = ide_drv_g(bdev->bd_disk,
-						     ide_floppy_obj);
-	ide_drive_t *drive = floppy->drive;
 	struct ide_atapi_pc pc;
 	void __user *argp = (void __user *)arg;
 	int err;
