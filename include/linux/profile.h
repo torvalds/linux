@@ -37,7 +37,14 @@ extern int prof_on __read_mostly;
 /* init basic kernel profiler */
 int profile_init(void);
 int profile_setup(char *str);
+#ifdef CONFIG_PROC_FS
 int create_proc_profile(void);
+#else
+static inline int create_proc_profile(void)
+{
+	return 0;
+}
+#endif
 void profile_tick(int type);
 
 /*
