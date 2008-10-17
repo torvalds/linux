@@ -470,6 +470,20 @@ static int s5h1411_set_spectralinversion(struct dvb_frontend *fe, int inversion)
 	return s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0x24, val);
 }
 
+static int s5h1411_set_serialmode(struct dvb_frontend *fe, int serial)
+{
+	struct s5h1411_state *state = fe->demodulator_priv;
+	u16 val;
+
+	dprintk("%s(%d)\n", __func__, serial);
+	val = s5h1411_readreg(state, S5H1411_I2C_TOP_ADDR, 0xbd) & ~0x100;
+
+	if (serial == 1)
+		val |= 0x100;
+
+	return s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0xbd, val);
+}
+
 static int s5h1411_enable_modulation(struct dvb_frontend *fe,
 				     fe_modulation_t m)
 {
@@ -611,10 +625,10 @@ static int s5h1411_init(struct dvb_frontend *fe)
 
 	if (state->config->output_mode == S5H1411_SERIAL_OUTPUT)
 		/* Serial */
-		s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0xbd, 0x1101);
+		s5h1411_set_serialmode(fe, 1);
 	else
 		/* Parallel */
-		s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0xbd, 0x1001);
+		s5h1411_set_serialmode(fe, 0);
 
 	s5h1411_set_spectralinversion(fe, state->config->inversion);
 	s5h1411_set_if_freq(fe, state->config->vsb_if);
