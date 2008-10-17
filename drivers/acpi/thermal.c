@@ -388,10 +388,12 @@ static int acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 			} else if (crt > 0) {
 				unsigned long crt_k = CELSIUS_TO_KELVIN(crt);
 				/*
-				 * Allow override to lower critical threshold
+				 * Allow override critical threshold
 				 */
-				if (crt_k < tz->trips.critical.temperature)
-					tz->trips.critical.temperature = crt_k;
+				if (crt_k > tz->trips.critical.temperature)
+					printk(KERN_WARNING PREFIX
+						"Critical threshold %d C\n", crt);
+				tz->trips.critical.temperature = crt_k;
 			}
 		}
 	}
