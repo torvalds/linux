@@ -257,7 +257,6 @@ void __generic_unplug_device(struct request_queue *q)
 
 	q->request_fn(q);
 }
-EXPORT_SYMBOL(__generic_unplug_device);
 
 /**
  * generic_unplug_device - fire a request queue
