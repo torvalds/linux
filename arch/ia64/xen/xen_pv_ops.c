@@ -30,6 +30,7 @@
 #include <asm/xen/privop.h>
 
 #include "irq_xen.h"
+#include "time.h"
 
 /***************************************************************************
  * general info
@@ -357,6 +358,7 @@ xen_setup_pv_ops(void)
 	pv_cpu_ops = xen_cpu_ops;
 	pv_iosapic_ops = xen_iosapic_ops;
 	pv_irq_ops = xen_irq_ops;
+	pv_time_ops = xen_time_ops;
 
 	paravirt_cpu_asm_init(&xen_cpu_asm_switch);
 }
