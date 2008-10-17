@@ -876,6 +876,19 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
+static void sd_stopN(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	reg_w_buf(gspca_dev, sensor_data[sd->sensor].stream,
+			sizeof sensor_data[sd->sensor].stream);
+	msleep(20);
+	reg_w_buf(gspca_dev, sensor_data[sd->sensor].stream,
+			sizeof sensor_data[sd->sensor].stream);
+	msleep(20);
+	reg_w(gspca_dev, 0x0309);
+}
+
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
 			__u8 *data,			/* isoc packet */
@@ -1125,6 +1138,7 @@ static const struct sd_desc sd_desc = {
 	.config = sd_config,
 	.init = sd_init,
 	.start = sd_start,
+	.stopN = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
 	.querymenu = sd_querymenu,
 };
