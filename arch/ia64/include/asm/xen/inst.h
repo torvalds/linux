@@ -22,6 +22,7 @@
 
 #include <asm/xen/privop.h>
 
+#define ia64_ivt				xen_ivt
 #define DO_SAVE_MIN				XEN_DO_SAVE_MIN
 
 #define MOV_FROM_IFA(reg)	\
