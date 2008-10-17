@@ -97,8 +97,11 @@ static void evdev_event(struct input_handle *handle,
 	struct evdev *evdev = handle->private;
 	struct evdev_client *client;
 	struct input_event event;
+	struct timespec ts;
 
-	do_gettimeofday(&event.time);
+	ktime_get_ts(&ts);
+	event.time.tv_sec = ts.tv_sec;
+	event.time.tv_usec = ts.tv_nsec / NSEC_PER_USEC;
 	event.type = type;
 	event.code = code;
 	event.value = value;
