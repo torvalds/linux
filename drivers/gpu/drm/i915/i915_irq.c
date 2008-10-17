@@ -121,6 +121,9 @@ i915_pipe_enabled(struct drm_device *dev, int pipe)
  * Emit blits for scheduled buffer swaps.
  *
  * This function will be called with the HW lock held.
+ * Because this function must grab the ring mutex (dev->struct_mutex),
+ * it can no longer run at soft irq time. We'll fix this when we do
+ * the DRI2 swap buffer work.
  */
 static void i915_vblank_tasklet(struct drm_device *dev)
 {
@@ -141,6 +144,8 @@ static void i915_vblank_tasklet(struct drm_device *dev)
 	u32 ropcpp = (0xcc << 16) | ((cpp - 1) << 24);
 	RING_LOCALS;
 
+	mutex_lock(&dev->struct_mutex);
+
 	if (IS_I965G(dev) && sarea_priv->front_tiled) {
 		cmd |= XY_SRC_COPY_BLT_DST_TILED;
 		dst_pitch >>= 2;
@@ -150,8 +155,8 @@ static void i915_vblank_tasklet(struct drm_device *dev)
 		src_pitch >>= 2;
 	}
 
-	counter[0] = drm_vblank_count(dev, 0);
-	counter[1] = drm_vblank_count(dev, 1);
+	counter[0] = drm_vblank_count(dev, i915_get_plane(dev, 0));
+	counter[1] = drm_vblank_count(dev, i915_get_plane(dev, 1));
 
 	DRM_DEBUG("\n");
 
@@ -165,7 +170,7 @@ static void i915_vblank_tasklet(struct drm_device *dev)
 	list_for_each_safe(list, tmp, &dev_priv->vbl_swaps.head) {
 		drm_i915_vbl_swap_t *vbl_swap =
 			list_entry(list, drm_i915_vbl_swap_t, head);
-		int pipe = i915_get_pipe(dev, vbl_swap->plane);
+		int pipe = vbl_swap->pipe;
 
 		if ((counter[pipe] - vbl_swap->sequence) > (1<<23))
 			continue;
@@ -179,20 +184,19 @@ static void i915_vblank_tasklet(struct drm_device *dev)
 
 		drw = drm_get_drawable_info(dev, vbl_swap->drw_id);
 
-		if (!drw) {
-			spin_unlock(&dev->drw_lock);
-			drm_free(vbl_swap, sizeof(*vbl_swap), DRM_MEM_DRIVER);
-			spin_lock(&dev_priv->swaps_lock);
-			continue;
-		}
-
 		list_for_each(hit, &hits) {
 			drm_i915_vbl_swap_t *swap_cmp =
 				list_entry(hit, drm_i915_vbl_swap_t, head);
 			struct drm_drawable_info *drw_cmp =
 				drm_get_drawable_info(dev, swap_cmp->drw_id);
 
-			if (drw_cmp &&
+			/* Make sure both drawables are still
+			 * around and have some rectangles before
+			 * we look inside to order them for the
+			 * blts below.
+			 */
+			if (drw_cmp && drw_cmp->num_rects > 0 &&
+			    drw && drw->num_rects > 0 &&
 			    drw_cmp->rects[0].y1 > drw->rects[0].y1) {
 				list_add_tail(list, hit);
 				break;
@@ -212,6 +216,7 @@ static void i915_vblank_tasklet(struct drm_device *dev)
 
 	if (nhits == 0) {
 		spin_unlock_irqrestore(&dev_priv->swaps_lock, irqflags);
+		mutex_unlock(&dev->struct_mutex);
 		return;
 	}
 
@@ -265,18 +270,21 @@ static void i915_vblank_tasklet(struct drm_device *dev)
 			drm_i915_vbl_swap_t *swap_hit =
 				list_entry(hit, drm_i915_vbl_swap_t, head);
 			struct drm_clip_rect *rect;
-			int num_rects, plane;
+			int num_rects, pipe;
 			unsigned short top, bottom;
 
 			drw = drm_get_drawable_info(dev, swap_hit->drw_id);
 
+			/* The drawable may have been destroyed since
+			 * the vblank swap was queued
+			 */
 			if (!drw)
 				continue;
 
 			rect = drw->rects;
-			plane = swap_hit->plane;
-			top = upper[plane];
-			bottom = lower[plane];
+			pipe = swap_hit->pipe;
+			top = upper[pipe];
+			bottom = lower[pipe];
 
 			for (num_rects = drw->num_rects; num_rects--; rect++) {
 				int y1 = max(rect->y1, top);
@@ -302,6 +310,7 @@ static void i915_vblank_tasklet(struct drm_device *dev)
 	}
 
 	spin_unlock_irqrestore(&dev->drw_lock, irqflags);
+	mutex_unlock(&dev->struct_mutex);
 
 	list_for_each_safe(hit, tmp, &hits) {
 		drm_i915_vbl_swap_t *swap_hit =
@@ -350,18 +359,37 @@ u32 i915_get_vblank_counter(struct drm_device *dev, int plane)
 }
 
 void
-i915_gem_vblank_work_handler(struct work_struct *work)
+i915_vblank_work_handler(struct work_struct *work)
 {
-	drm_i915_private_t *dev_priv;
-	struct drm_device *dev;
+	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
+						    vblank_work);
+	struct drm_device *dev = dev_priv->dev;
+	unsigned long irqflags;
 
-	dev_priv = container_of(work, drm_i915_private_t,
-				mm.vblank_work);
-	dev = dev_priv->dev;
+	if (dev->lock.hw_lock == NULL) {
+		i915_vblank_tasklet(dev);
+		return;
+	}
 
-	mutex_lock(&dev->struct_mutex);
+	spin_lock_irqsave(&dev->tasklet_lock, irqflags);
+	dev->locked_tasklet_func = i915_vblank_tasklet;
+	spin_unlock_irqrestore(&dev->tasklet_lock, irqflags);
+
+	/* Try to get the lock now, if this fails, the lock
+	 * holder will execute the tasklet during unlock
+	 */
+	if (!drm_lock_take(&dev->lock, DRM_KERNEL_CONTEXT))
+		return;
+
+	dev->lock.lock_time = jiffies;
+	atomic_inc(&dev->counts[_DRM_STAT_LOCKS]);
+
+	spin_lock_irqsave(&dev->tasklet_lock, irqflags);
+	dev->locked_tasklet_func = NULL;
+	spin_unlock_irqrestore(&dev->tasklet_lock, irqflags);
+
 	i915_vblank_tasklet(dev);
-	mutex_unlock(&dev->struct_mutex);
+	drm_lock_free(&dev->lock, DRM_KERNEL_CONTEXT);
 }
 
 irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
@@ -441,12 +469,8 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 	if (iir & I915_ASLE_INTERRUPT)
 		opregion_asle_intr(dev);
 
-	if (vblank && dev_priv->swaps_pending > 0) {
-		if (dev_priv->ring.ring_obj == NULL)
-			drm_locked_tasklet(dev, i915_vblank_tasklet);
-		else
-			schedule_work(&dev_priv->mm.vblank_work);
-	}
+	if (vblank && dev_priv->swaps_pending > 0)
+		schedule_work(&dev_priv->vblank_work);
 
 	return IRQ_HANDLED;
 }
@@ -706,7 +730,7 @@ int i915_vblank_swap(struct drm_device *dev, void *data,
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	drm_i915_vblank_swap_t *swap = data;
-	drm_i915_vbl_swap_t *vbl_swap;
+	drm_i915_vbl_swap_t *vbl_swap, *vbl_old;
 	unsigned int pipe, seqtype, curseq, plane;
 	unsigned long irqflags;
 	struct list_head *list;
@@ -770,29 +794,6 @@ int i915_vblank_swap(struct drm_device *dev, void *data,
 		}
 	}
 
-	spin_lock_irqsave(&dev_priv->swaps_lock, irqflags);
-
-	list_for_each(list, &dev_priv->vbl_swaps.head) {
-		vbl_swap = list_entry(list, drm_i915_vbl_swap_t, head);
-
-		if (vbl_swap->drw_id == swap->drawable &&
-		    vbl_swap->plane == plane &&
-		    vbl_swap->sequence == swap->sequence) {
-			spin_unlock_irqrestore(&dev_priv->swaps_lock, irqflags);
-			drm_vblank_put(dev, pipe);
-			DRM_DEBUG("Already scheduled\n");
-			return 0;
-		}
-	}
-
-	spin_unlock_irqrestore(&dev_priv->swaps_lock, irqflags);
-
-	if (dev_priv->swaps_pending >= 100) {
-		DRM_DEBUG("Too many swaps queued\n");
-		drm_vblank_put(dev, pipe);
-		return -EBUSY;
-	}
-
 	vbl_swap = drm_calloc(1, sizeof(*vbl_swap), DRM_MEM_DRIVER);
 
 	if (!vbl_swap) {
@@ -801,13 +802,43 @@ int i915_vblank_swap(struct drm_device *dev, void *data,
 		return -ENOMEM;
 	}
 
-	DRM_DEBUG("\n");
-
 	vbl_swap->drw_id = swap->drawable;
-	vbl_swap->plane = plane;
+	vbl_swap->pipe = pipe;
 	vbl_swap->sequence = swap->sequence;
 
 	spin_lock_irqsave(&dev_priv->swaps_lock, irqflags);
+
+	list_for_each(list, &dev_priv->vbl_swaps.head) {
+		vbl_old = list_entry(list, drm_i915_vbl_swap_t, head);
+
+		if (vbl_old->drw_id == swap->drawable &&
+		    vbl_old->pipe == pipe &&
+		    vbl_old->sequence == swap->sequence) {
+			spin_unlock_irqrestore(&dev_priv->swaps_lock, irqflags);
+			drm_vblank_put(dev, pipe);
+			drm_free(vbl_swap, sizeof(*vbl_swap), DRM_MEM_DRIVER);
+			DRM_DEBUG("Already scheduled\n");
+			return 0;
+		}
+	}
+
+	if (dev_priv->swaps_pending >= 10) {
+		DRM_DEBUG("Too many swaps queued\n");
+		DRM_DEBUG(" pipe 0: %d pipe 1: %d\n",
+			  drm_vblank_count(dev, i915_get_plane(dev, 0)),
+			  drm_vblank_count(dev, i915_get_plane(dev, 1)));
+
+		list_for_each(list, &dev_priv->vbl_swaps.head) {
+			vbl_old = list_entry(list, drm_i915_vbl_swap_t, head);
+			DRM_DEBUG("\tdrw %x pipe %d seq %x\n",
+				  vbl_old->drw_id, vbl_old->pipe,
+				  vbl_old->sequence);
+		}
+		spin_unlock_irqrestore(&dev_priv->swaps_lock, irqflags);
+		drm_vblank_put(dev, pipe);
+		drm_free(vbl_swap, sizeof(*vbl_swap), DRM_MEM_DRIVER);
+		return -EBUSY;
+	}
 
 	list_add_tail(&vbl_swap->head, &dev_priv->vbl_swaps.head);
 	dev_priv->swaps_pending++;
@@ -835,6 +866,7 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 
 	spin_lock_init(&dev_priv->swaps_lock);
 	INIT_LIST_HEAD(&dev_priv->vbl_swaps.head);
+	INIT_WORK(&dev_priv->vblank_work, i915_vblank_work_handler);
 	dev_priv->swaps_pending = 0;
 
 	/* Set initial unmasked IRQs to just the selected vblank pipes. */
