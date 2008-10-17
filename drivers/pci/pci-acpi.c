@@ -149,20 +149,19 @@ static acpi_status acpi_query_osc(acpi_handle handle,
 
 	status = acpi_get_handle(handle, "_OSC", &tmp);
 	if (ACPI_FAILURE(status))
-		return status;
+		return AE_OK;
 
 	mutex_lock(&pci_acpi_lock);
 	osc_data = acpi_get_osc_data(handle);
 	if (!osc_data) {
 		printk(KERN_ERR "acpi osc data array is full\n");
-		status = AE_ERROR;
 		goto out;
 	}
 
-	status = __acpi_query_osc(flags, osc_data, &dummy);
+	__acpi_query_osc(flags, osc_data, &dummy);
 out:
 	mutex_unlock(&pci_acpi_lock);
-	return status;
+	return AE_OK;
 }
 
 /**
