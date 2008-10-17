@@ -747,7 +747,7 @@ pick_next(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	struct rq *rq = rq_of(cfs_rq);
 	u64 pair_slice = rq->clock - cfs_rq->pair_start;
 
-	if (!cfs_rq->next || pair_slice > sched_slice(cfs_rq, cfs_rq->next)) {
+	if (!cfs_rq->next || pair_slice > sysctl_sched_min_granularity) {
 		cfs_rq->pair_start = rq->clock;
 		return se;
 	}
