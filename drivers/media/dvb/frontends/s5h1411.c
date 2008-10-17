@@ -392,7 +392,7 @@ static int s5h1411_set_if_freq(struct dvb_frontend *fe, int KHz)
 
 	switch (KHz) {
 	case 3250:
-		s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0x38, 0x10d9);
+		s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0x38, 0x10d5);
 		s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0x39, 0x5342);
 		s5h1411_writereg(state, S5H1411_I2C_QAM_ADDR, 0x2c, 0x10d9);
 		break;
