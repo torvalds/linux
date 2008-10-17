@@ -4,8 +4,6 @@
 #include "ide-gd.h"
 
 #ifdef CONFIG_IDE_GD_ATAPI
-typedef struct ide_disk_obj idefloppy_floppy_t;
-
 /*
  * Pages of the SELECT SENSE / MODE SENSE packet commands.
  * See SFF-8070i spec.

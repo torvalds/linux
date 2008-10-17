@@ -113,7 +113,7 @@ static void ide_floppy_create_format_unit_cmd(struct ide_atapi_pc *pc, int b,
 
 static int ide_floppy_get_sfrp_bit(ide_drive_t *drive)
 {
-	idefloppy_floppy_t *floppy = drive->driver_data;
+	struct ide_disk_obj *floppy = drive->driver_data;
 	struct ide_atapi_pc pc;
 
 	drive->atapi_flags &= ~IDE_AFLAG_SRFP;
@@ -132,7 +132,7 @@ static int ide_floppy_get_sfrp_bit(ide_drive_t *drive)
 
 static int ide_floppy_format_unit(ide_drive_t *drive, int __user *arg)
 {
-	idefloppy_floppy_t *floppy = drive->driver_data;
+	struct ide_disk_obj *floppy = drive->driver_data;
 	struct ide_atapi_pc pc;
 	int blocks, length, flags, err = 0;
 
@@ -190,7 +190,7 @@ out:
 
 static int ide_floppy_get_format_progress(ide_drive_t *drive, int __user *arg)
 {
-	idefloppy_floppy_t *floppy = drive->driver_data;
+	struct ide_disk_obj *floppy = drive->driver_data;
 	struct ide_atapi_pc pc;
 	int progress_indication = 0x10000;
 
@@ -226,7 +226,7 @@ static int ide_floppy_get_format_progress(ide_drive_t *drive, int __user *arg)
 static int ide_floppy_lockdoor(ide_drive_t *drive, struct ide_atapi_pc *pc,
 			       unsigned long arg, unsigned int cmd)
 {
-	idefloppy_floppy_t *floppy = drive->driver_data;
+	struct ide_disk_obj *floppy = drive->driver_data;
 	struct gendisk *disk = floppy->disk;
 	int prevent = (arg && cmd != CDROMEJECT) ? 1 : 0;
 

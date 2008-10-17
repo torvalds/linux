@@ -70,7 +70,7 @@
  */
 static int ide_floppy_end_request(ide_drive_t *drive, int uptodate, int nsecs)
 {
-	idefloppy_floppy_t *floppy = drive->driver_data;
+	struct ide_disk_obj *floppy = drive->driver_data;
 	struct request *rq = HWGROUP(drive)->rq;
 	int error;
 
@@ -117,7 +117,7 @@ static void idefloppy_update_buffers(ide_drive_t *drive,
 
 static void ide_floppy_callback(ide_drive_t *drive, int dsc)
 {
-	idefloppy_floppy_t *floppy = drive->driver_data;
+	struct ide_disk_obj *floppy = drive->driver_data;
 	struct ide_atapi_pc *pc = drive->pc;
 	int uptodate = pc->error ? 0 : 1;
 
@@ -154,7 +154,7 @@ static void ide_floppy_callback(ide_drive_t *drive, int dsc)
 	ide_floppy_end_request(drive, uptodate, 0);
 }
 
-static void ide_floppy_report_error(idefloppy_floppy_t *floppy,
+static void ide_floppy_report_error(struct ide_disk_obj *floppy,
 				    struct ide_atapi_pc *pc)
 {
 	/* supress error messages resulting from Medium not present */
@@ -173,7 +173,7 @@ static void ide_floppy_report_error(idefloppy_floppy_t *floppy,
 static ide_startstop_t idefloppy_issue_pc(ide_drive_t *drive,
 		struct ide_atapi_pc *pc)
 {
-	idefloppy_floppy_t *floppy = drive->driver_data;
+	struct ide_disk_obj *floppy = drive->driver_data;
 
 	if (floppy->failed_pc == NULL &&
 	    pc->c[0] != GPCMD_REQUEST_SENSE)
@@ -237,7 +237,7 @@ static void idefloppy_create_rw_cmd(ide_drive_t *drive,
 				    struct ide_atapi_pc *pc, struct request *rq,
 				    unsigned long sector)
 {
-	idefloppy_floppy_t *floppy = drive->driver_data;
+	struct ide_disk_obj *floppy = drive->driver_data;
 	int block = sector / floppy->bs_factor;
 	int blocks = rq->nr_sectors / floppy->bs_factor;
 	int cmd = rq_data_dir(rq);
@@ -261,7 +261,7 @@ static void idefloppy_create_rw_cmd(ide_drive_t *drive,
 	pc->flags |= PC_FLAG_DMA_OK;
 }
 
-static void idefloppy_blockpc_cmd(idefloppy_floppy_t *floppy,
+static void idefloppy_blockpc_cmd(struct ide_disk_obj *floppy,
 		struct ide_atapi_pc *pc, struct request *rq)
 {
 	ide_init_pc(pc);
@@ -283,7 +283,7 @@ static void idefloppy_blockpc_cmd(idefloppy_floppy_t *floppy,
 static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 					     struct request *rq, sector_t block)
 {
-	idefloppy_floppy_t *floppy = drive->driver_data;
+	struct ide_disk_obj *floppy = drive->driver_data;
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_atapi_pc *pc;
 
@@ -344,7 +344,7 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
  */
 static int ide_floppy_get_flexible_disk_page(ide_drive_t *drive)
 {
-	idefloppy_floppy_t *floppy = drive->driver_data;
+	struct ide_disk_obj *floppy = drive->driver_data;
 	struct gendisk *disk = floppy->disk;
 	struct ide_atapi_pc pc;
 	u8 *page;
@@ -407,7 +407,7 @@ static int ide_floppy_get_flexible_disk_page(ide_drive_t *drive)
  */
 static int ide_floppy_get_capacity(ide_drive_t *drive)
 {
-	idefloppy_floppy_t *floppy = drive->driver_data;
+	struct ide_disk_obj *floppy = drive->driver_data;
 	struct gendisk *disk = floppy->disk;
 	struct ide_atapi_pc pc;
 	u8 *cap_desc;
