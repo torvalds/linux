@@ -223,34 +223,28 @@ int __init ams_init(void)
 
 void ams_exit(void)
 {
-	mutex_lock(&ams_info.lock);
+	/* Remove input device */
+	ams_input_exit();
 
-	if (ams_info.has_device) {
-		/* Remove input device */
-		ams_input_exit();
+	/* Remove attributes */
+	device_remove_file(&ams_info.of_dev->dev, &dev_attr_current);
 
-		/* Shut down implementation */
-		ams_info.exit();
+	/* Shut down implementation */
+	ams_info.exit();
 
-		/* Flush interrupt worker
-		 *
-		 * We do this after ams_info.exit(), because an interrupt might
-		 * have arrived before disabling them.
-		 */
-		flush_scheduled_work();
+	/* Flush interrupt worker
+	 *
+	 * We do this after ams_info.exit(), because an interrupt might
+	 * have arrived before disabling them.
+	 */
+	flush_scheduled_work();
 
-		/* Remove attributes */
-		device_remove_file(&ams_info.of_dev->dev, &dev_attr_current);
+	/* Remove device */
+	of_device_unregister(ams_info.of_dev);
 
-		/* Remove device */
-		of_device_unregister(ams_info.of_dev);
-
-		/* Remove handler */
-		pmf_unregister_irq_client(&ams_shock_client);
-		pmf_unregister_irq_client(&ams_freefall_client);
-	}
-
-	mutex_unlock(&ams_info.lock);
+	/* Remove handler */
+	pmf_unregister_irq_client(&ams_shock_client);
+	pmf_unregister_irq_client(&ams_freefall_client);
 }
 
 MODULE_AUTHOR("Stelian Pop, Michael Hanselmann");

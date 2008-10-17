@@ -261,8 +261,6 @@ int __init ams_i2c_init(struct device_node *np)
 {
 	int result;
 
-	mutex_lock(&ams_info.lock);
-
 	/* Set implementation stuff */
 	ams_info.of_node = np;
 	ams_info.exit = ams_i2c_exit;
@@ -272,8 +270,6 @@ int __init ams_i2c_init(struct device_node *np)
 	ams_info.bustype = BUS_I2C;
 
 	result = i2c_add_driver(&ams_i2c_driver);
-
-	mutex_unlock(&ams_info.lock);
 
 	return result;
 }
