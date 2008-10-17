@@ -817,12 +817,21 @@ static ide_driver_t idedisk_driver = {
 static int idedisk_set_doorlock(ide_drive_t *drive, int on)
 {
 	ide_task_t task;
+	int ret;
+
+	if ((drive->dev_flags & IDE_DFLAG_DOORLOCKING) == 0)
+		return 0;
 
 	memset(&task, 0, sizeof(task));
 	task.tf.command = on ? ATA_CMD_MEDIA_LOCK : ATA_CMD_MEDIA_UNLOCK;
 	task.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 
-	return ide_no_data_taskfile(drive, &task);
+	ret = ide_no_data_taskfile(drive, &task);
+
+	if (ret)
+		drive->dev_flags &= ~IDE_DFLAG_DOORLOCKING;
+
+	return ret;
 }
 
 static int idedisk_open(struct inode *inode, struct file *filp)
@@ -845,9 +854,7 @@ static int idedisk_open(struct inode *inode, struct file *filp)
 		 * since the open() has already succeeded,
 		 * and the door_lock is irrelevant at this point.
 		 */
-		if ((drive->dev_flags & IDE_DFLAG_DOORLOCKING) &&
-		    idedisk_set_doorlock(drive, 1))
-			drive->dev_flags &= ~IDE_DFLAG_DOORLOCKING;
+		idedisk_set_doorlock(drive, 1);
 		check_disk_change(inode->i_bdev);
 	}
 	return 0;
@@ -862,11 +869,8 @@ static int idedisk_release(struct inode *inode, struct file *filp)
 	if (idkp->openers == 1)
 		ide_cacheflush_p(drive);
 
-	if ((drive->dev_flags & IDE_DFLAG_REMOVABLE) && idkp->openers == 1) {
-		if ((drive->dev_flags & IDE_DFLAG_DOORLOCKING) &&
-		    idedisk_set_doorlock(drive, 0))
-			drive->dev_flags &= ~IDE_DFLAG_DOORLOCKING;
-	}
+	if ((drive->dev_flags & IDE_DFLAG_REMOVABLE) && idkp->openers == 1)
+		idedisk_set_doorlock(drive, 0);
 
 	idkp->openers--;
 
