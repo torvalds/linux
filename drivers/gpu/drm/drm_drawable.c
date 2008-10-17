@@ -111,7 +111,9 @@ int drm_update_drawable_info(struct drm_device *dev, void *data, struct drm_file
 
 	switch (update->type) {
 	case DRM_DRAWABLE_CLIPRECTS:
-		if (update->num != info->num_rects) {
+		if (update->num == 0)
+			rects = NULL;
+		else if (update->num != info->num_rects) {
 			rects = drm_alloc(update->num * sizeof(struct drm_clip_rect),
 					 DRM_MEM_BUFS);
 		} else
