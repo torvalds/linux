@@ -215,7 +215,7 @@ static int cx24116_writereg(struct cx24116_state *state, int reg, int data)
 
 /* Bulk byte writes to a single I2C address, for 32k firmware load */
 static int cx24116_writeregN(struct cx24116_state *state, int reg,
-	u8 *data, u16 len)
+			     const u8 *data, u16 len)
 {
 	int ret = -EREMOTEIO;
 	struct i2c_msg msg;
