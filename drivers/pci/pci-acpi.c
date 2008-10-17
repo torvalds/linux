@@ -35,6 +35,8 @@ struct acpi_osc_args {
 	u32 query_result;
 };
 
+static DEFINE_MUTEX(pci_acpi_lock);
+
 static struct acpi_osc_data *acpi_get_osc_data(acpi_handle handle)
 {
 	struct acpi_osc_data *data;
@@ -131,10 +133,12 @@ static acpi_status acpi_query_osc(acpi_handle handle,
 	if (ACPI_FAILURE(status))
 		return status;
 
+	mutex_lock(&pci_acpi_lock);
 	osc_data = acpi_get_osc_data(handle);
 	if (!osc_data) {
 		printk(KERN_ERR "acpi osc data array is full\n");
-		return AE_ERROR;
+		status = AE_ERROR;
+		goto out;
 	}
 
 	/* do _OSC query for all possible controls */
@@ -149,7 +153,8 @@ static acpi_status acpi_query_osc(acpi_handle handle,
 		osc_data->query_result = osc_args.query_result;
 		osc_data->is_queried = 1;
 	}
-
+out:
+	mutex_unlock(&pci_acpi_lock);
 	return status;
 }
 
@@ -190,19 +195,25 @@ acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 	if (ACPI_FAILURE(status))
 		return status;
 
+	mutex_lock(&pci_acpi_lock);
 	osc_data = acpi_get_osc_data(handle);
 	if (!osc_data) {
 		printk(KERN_ERR "acpi osc data array is full\n");
-		return AE_ERROR;
+		status = AE_ERROR;
+		goto out;
 	}
 
 	ctrlset = (flags & OSC_CONTROL_MASKS);
-	if (!ctrlset)
-		return AE_TYPE;
+	if (!ctrlset) {
+		status = AE_TYPE;
+		goto out;
+	}
 
 	if (osc_data->is_queried &&
-	    ((osc_data->query_result & ctrlset) != ctrlset))
-		return AE_SUPPORT;
+	    ((osc_data->query_result & ctrlset) != ctrlset)) {
+		status = AE_SUPPORT;
+		goto out;
+	}
 
 	control_set = osc_data->control_set | ctrlset;
 	osc_args.capbuf[OSC_QUERY_TYPE] = 0;
@@ -211,7 +222,8 @@ acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 	status = acpi_run_osc(handle, &osc_args);
 	if (ACPI_SUCCESS(status))
 		osc_data->control_set = control_set;
-
+out:
+	mutex_unlock(&pci_acpi_lock);
 	return status;
 }
 EXPORT_SYMBOL(pci_osc_control_set);
