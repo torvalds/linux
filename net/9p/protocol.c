@@ -215,9 +215,9 @@ p9pdu_vreadf(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 				struct p9_wstat *stbuf =
 				    va_arg(ap, struct p9_wstat *);
 
-				stbuf->extension = NULL;
+				memset(stbuf, 0, sizeof(struct p9_wstat));
 				stbuf->n_uid = stbuf->n_gid = stbuf->n_muid =
-				    -1;
+									-1;
 				errcode =
 				    p9pdu_readf(pdu, optional,
 						"wwdQdddqssss?sddd",
