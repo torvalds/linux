@@ -250,17 +250,18 @@ static void safe_read_bulk_callback(struct urb *urb)
 		if (!fcs) {
 			int actual_length = data[length - 2] >> 2;
 			if (actual_length <= (length - 2)) {
-				info("%s - actual: %d", __func__,
-							actual_length);
+				dev_info(&urb->dev->dev, "%s - actual: %d\n",
+					 __func__, actual_length);
 				tty_insert_flip_string(tty,
 							data, actual_length);
 				tty_flip_buffer_push(tty);
 			} else {
-				err("%s - inconsistent lengths %d:%d",
+				dev_err(&port->dev,
+					"%s - inconsistent lengths %d:%d\n",
 					__func__, actual_length, length);
 			}
 		} else {
-			err("%s - bad CRC %x", __func__, fcs);
+			dev_err(&port->dev, "%s - bad CRC %x\n", __func__, fcs);
 		}
 	} else {
 		tty_insert_flip_string(tty, data, length);
@@ -277,8 +278,9 @@ static void safe_read_bulk_callback(struct urb *urb)
 
 	result = usb_submit_urb(urb, GFP_ATOMIC);
 	if (result)
-		err("%s - failed resubmitting read urb, error %d",
-							__func__, result);
+		dev_err(&port->dev,
+			"%s - failed resubmitting read urb, error %d\n",
+			__func__, result);
 		/* FIXME: Need a mechanism to retry later if this happens */
 }
 
@@ -369,8 +371,9 @@ static int safe_write(struct tty_struct *tty, struct usb_serial_port *port,
 	result = usb_submit_urb(port->write_urb, GFP_KERNEL);
 	if (result) {
 		port->write_urb_busy = 0;
-		err("%s - failed submitting write urb, error %d",
-							__func__, result);
+		dev_err(&port->dev,
+			"%s - failed submitting write urb, error %d\n",
+			__func__, result);
 		return 0;
 	}
 	dbg("%s urb: %p submitted", __func__, port->write_urb);
@@ -428,14 +431,13 @@ static int __init safe_init(void)
 {
 	int i, retval;
 
-	info(DRIVER_VERSION " " DRIVER_AUTHOR);
-	info(DRIVER_DESC);
-	info("vendor: %x product: %x safe: %d padded: %d\n",
-					vendor, product, safe, padded);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 
 	/* if we have vendor / product parameters patch them into id list */
 	if (vendor || product) {
-		info("vendor: %x product: %x\n", vendor, product);
+		printk(KERN_INFO KBUILD_MODNAME ": vendor: %x product: %x\n",
+		       vendor, product);
 
 		for (i = 0; i < ARRAY_SIZE(id_table); i++) {
 			if (!id_table[i].idVendor && !id_table[i].idProduct) {

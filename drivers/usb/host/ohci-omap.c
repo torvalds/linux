@@ -231,7 +231,7 @@ static int ohci_omap_init(struct usb_hcd *hcd)
 
 	omap_ohci_clock_power(1);
 
-	if (cpu_is_omap1510()) {
+	if (cpu_is_omap15xx()) {
 		omap_1510_local_bus_power(1);
 		omap_1510_local_bus_init();
 	}
@@ -319,7 +319,7 @@ static int usb_hcd_omap_probe (const struct hc_driver *driver,
 	if (IS_ERR(usb_host_ck))
 		return PTR_ERR(usb_host_ck);
 
-	if (!cpu_is_omap1510())
+	if (!cpu_is_omap15xx())
 		usb_dc_ck = clk_get(0, "usb_dc_ck");
 	else
 		usb_dc_ck = clk_get(0, "lb_ck");

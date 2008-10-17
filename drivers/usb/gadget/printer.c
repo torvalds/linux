@@ -252,7 +252,7 @@ static struct usb_config_descriptor config_desc = {
 	.bConfigurationValue =	DEV_CONFIG_VALUE,
 	.iConfiguration =	0,
 	.bmAttributes =		USB_CONFIG_ATT_ONE | USB_CONFIG_ATT_SELFPOWER,
-	.bMaxPower =		1	/* Self-Powered */
+	.bMaxPower =		CONFIG_USB_GADGET_VBUS_DRAW / 2,
 };
 
 static struct usb_interface_descriptor intf_desc = {
@@ -1278,8 +1278,7 @@ unknown:
 	/* respond with data transfer before status phase? */
 	if (value >= 0) {
 		req->length = value;
-		req->zero = value < wLength
-				&& (value % gadget->ep0->maxpacket) == 0;
+		req->zero = value < wLength;
 		value = usb_ep_queue(gadget->ep0, req, GFP_ATOMIC);
 		if (value < 0) {
 			DBG(dev, "ep_queue --> %d\n", value);
@@ -1477,7 +1476,6 @@ autoconf_fail:
 	if (gadget->is_otg) {
 		otg_desc.bmAttributes |= USB_OTG_HNP,
 		config_desc.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
-		config_desc.bMaxPower = 4;
 	}
 
 	spin_lock_init(&dev->lock);

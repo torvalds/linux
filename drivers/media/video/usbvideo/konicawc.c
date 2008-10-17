@@ -229,7 +229,8 @@ static void konicawc_register_input(struct konicawc *cam, struct usb_device *dev
 
 	cam->input = input_dev = input_allocate_device();
 	if (!input_dev) {
-		warn("Not enough memory for camera's input device\n");
+		dev_warn(&dev->dev,
+			 "Not enough memory for camera's input device\n");
 		return;
 	}
 
@@ -243,8 +244,9 @@ static void konicawc_register_input(struct konicawc *cam, struct usb_device *dev
 
 	error = input_register_device(cam->input);
 	if (error) {
-		warn("Failed to register camera's input device, err: %d\n",
-		     error);
+		dev_warn(&dev->dev,
+			 "Failed to register camera's input device, err: %d\n",
+			 error);
 		input_free_device(cam->input);
 		cam->input = NULL;
 	}
