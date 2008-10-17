@@ -445,7 +445,9 @@ static int ide_floppy_get_flexible_disk_page(ide_drive_t *drive)
 			drive->name, lba_capacity, capacity);
 		floppy->blocks = floppy->block_size ?
 			capacity / floppy->block_size : 0;
+		drive->capacity64 = floppy->blocks * floppy->bs_factor;
 	}
+
 	return 0;
 }
 
@@ -466,7 +468,7 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 	drive->bios_head = drive->bios_sect = 0;
 	floppy->blocks = 0;
 	floppy->bs_factor = 1;
-	set_capacity(floppy->disk, 0);
+	drive->capacity64 = 0;
 
 	ide_floppy_create_read_capacity_cmd(&pc);
 	if (ide_queue_pc_tail(drive, disk, &pc)) {
@@ -523,6 +525,8 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 					       "non 512 bytes block size not "
 					       "fully supported\n",
 					       drive->name);
+				drive->capacity64 =
+					floppy->blocks * floppy->bs_factor;
 				rc = 0;
 			}
 			break;
@@ -547,17 +551,12 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 	if (!(drive->atapi_flags & IDE_AFLAG_CLIK_DRIVE))
 		(void) ide_floppy_get_flexible_disk_page(drive);
 
-	set_capacity(disk, floppy->blocks * floppy->bs_factor);
-
 	return rc;
 }
 
 sector_t ide_floppy_capacity(ide_drive_t *drive)
 {
-	idefloppy_floppy_t *floppy = drive->driver_data;
-	unsigned long capacity = floppy->blocks * floppy->bs_factor;
-
-	return capacity;
+	return drive->capacity64;
 }
 
 static void idefloppy_setup(ide_drive_t *drive)
@@ -671,14 +670,16 @@ static int idefloppy_open(struct inode *inode, struct file *filp)
 		if (ide_do_test_unit_ready(drive, disk))
 			ide_do_start_stop(drive, disk, 1);
 
-		if (ide_floppy_get_capacity(drive)
-		   && (filp->f_flags & O_NDELAY) == 0
+		ret = ide_floppy_get_capacity(drive);
+
+		set_capacity(disk, ide_floppy_capacity(drive));
+
+		if (ret && (filp->f_flags & O_NDELAY) == 0) {
 		    /*
 		     * Allow O_NDELAY to open a drive without a disk, or with an
 		     * unreadable disk, so that we can get the format capacity
 		     * of the drive or begin the format - Sam
 		     */
-		    ) {
 			ret = -EIO;
 			goto out_put_floppy;
 		}
@@ -810,6 +811,8 @@ static int ide_floppy_probe(ide_drive_t *drive)
 	drive->debug_mask = debug_mask;
 
 	idefloppy_setup(drive);
+
+	set_capacity(g, ide_floppy_capacity(drive));
 
 	g->minors = 1 << PARTN_BITS;
 	g->driverfs_dev = &drive->gendev;
