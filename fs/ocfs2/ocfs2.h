@@ -382,6 +382,13 @@ static inline int ocfs2_supports_xattr(struct ocfs2_super *osb)
 	return 0;
 }
 
+static inline int ocfs2_meta_ecc(struct ocfs2_super *osb)
+{
+	if (osb->s_feature_incompat & OCFS2_FEATURE_INCOMPAT_META_ECC)
+		return 1;
+	return 0;
+}
+
 /* set / clear functions because cluster events can make these happen
  * in parallel so we want the transitions to be atomic. this also
  * means that any future flags osb_flags must be protected by spinlock
@@ -615,5 +622,6 @@ static inline s16 ocfs2_get_inode_steal_slot(struct ocfs2_super *osb)
 #define ocfs2_clear_bit ext2_clear_bit
 #define ocfs2_test_bit ext2_test_bit
 #define ocfs2_find_next_zero_bit ext2_find_next_zero_bit
+#define ocfs2_find_next_bit ext2_find_next_bit
 #endif  /* OCFS2_H */
 

@@ -12,6 +12,7 @@ obj-$(CONFIG_OCFS2_FS_USERSPACE_CLUSTER) += ocfs2_stack_user.o
 ocfs2-objs := \
 	alloc.o 		\
 	aops.o 			\
+	blockcheck.o		\
 	buffer_head_io.o	\
 	dcache.o 		\
 	dir.o 			\
