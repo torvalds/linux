@@ -28,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/uaccess.h>
+#include <linux/sched.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 #include "protocol.h"
@@ -51,8 +52,6 @@
 
 static int
 p9pdu_writef(struct p9_fcall *pdu, int optional, const char *fmt, ...);
-
-#define PACKET_DEBUG 0
 
 void
 p9pdu_dump(int way, struct p9_fcall *pdu)
@@ -78,9 +77,9 @@ p9pdu_dump(int way, struct p9_fcall *pdu)
 	n += scnprintf(buf + n, buflen - n, "\n");
 
 	if (way)
-		printk(KERN_NOTICE "[[(%d)[ %s\n", datalen, buf);
+		P9_DPRINTK(P9_DEBUG_PKT, "[[[(%d) %s\n", datalen, buf);
 	else
-		printk(KERN_NOTICE "]](%d)] %s\n", datalen, buf);
+		P9_DPRINTK(P9_DEBUG_PKT, "]]](%d) %s\n", datalen, buf);
 }
 EXPORT_SYMBOL(p9pdu_dump);
 
@@ -512,13 +511,20 @@ p9pdu_writef(struct p9_fcall *pdu, int optional, const char *fmt, ...)
 int p9stat_read(char *buf, int len, struct p9_wstat *st, int dotu)
 {
 	struct p9_fcall fake_pdu;
+	int ret;
 
 	fake_pdu.size = len;
 	fake_pdu.capacity = len;
 	fake_pdu.sdata = buf;
 	fake_pdu.offset = 0;
 
-	return p9pdu_readf(&fake_pdu, dotu, "S", st);
+	ret = p9pdu_readf(&fake_pdu, dotu, "S", st);
+	if (ret) {
+		P9_DPRINTK(P9_DEBUG_9P, "<<< p9stat_read failed: %d\n", ret);
+		p9pdu_dump(1, &fake_pdu);
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL(p9stat_read);
 
@@ -536,8 +542,11 @@ int p9pdu_finalize(struct p9_fcall *pdu)
 	err = p9pdu_writef(pdu, 0, "d", size);
 	pdu->size = size;
 
-	if (PACKET_DEBUG)
+	if ((p9_debug_level & P9_DEBUG_PKT) == P9_DEBUG_PKT)
 		p9pdu_dump(0, pdu);
+
+	P9_DPRINTK(P9_DEBUG_9P, ">>> size=%d type: %d tag: %d\n", pdu->size,
+							pdu->id, pdu->tag);
 
 	return err;
 }
