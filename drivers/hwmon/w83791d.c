@@ -23,7 +23,7 @@
     Supports following chips:
 
     Chip	#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
-    w83791d	10	5	3	3	0x71	0x5ca3	yes	no
+    w83791d	10	5	5	3	0x71	0x5ca3	yes	no
 
     The w83791d chip appears to be part way between the 83781d and the
     83792d. Thus, this file is derived from both the w83792d.c and
@@ -45,6 +45,7 @@
 #define NUMBER_OF_VIN		10
 #define NUMBER_OF_FANIN		5
 #define NUMBER_OF_TEMPIN	3
+#define NUMBER_OF_PWM		5
 
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
@@ -114,6 +115,14 @@ static const u8 W83791D_REG_FAN_MIN[NUMBER_OF_FANIN] = {
 	0x3D,			/* FAN 3 Count Low Limit in DataSheet */
 	0xBC,			/* FAN 4 Count Low Limit in DataSheet */
 	0xBD,			/* FAN 5 Count Low Limit in DataSheet */
+};
+
+static const u8 W83791D_REG_PWM[NUMBER_OF_PWM] = {
+	0x81,			/* PWM 1 duty cycle register in DataSheet */
+	0x83,			/* PWM 2 duty cycle register in DataSheet */
+	0x94,			/* PWM 3 duty cycle register in DataSheet */
+	0xA0,			/* PWM 4 duty cycle register in DataSheet */
+	0xA1,			/* PWM 5 duty cycle register in DataSheet */
 };
 
 static const u8 W83791D_REG_FAN_CFG[2] = {
@@ -275,6 +284,9 @@ struct w83791d_data {
 				   to the 0.5 degree C...
 				   two sensors with three values
 				   (cur, over, hyst)  */
+
+	/* PWMs */
+	u8 pwm[5];		/* pwm duty cycle */
 
 	/* Misc */
 	u32 alarms;		/* realtime status register encoding,combined */
@@ -653,6 +665,48 @@ static struct sensor_device_attribute sda_fan_alarm[] = {
 	SENSOR_ATTR(fan5_alarm, S_IRUGO, show_alarm, NULL, 22),
 };
 
+/* read/write PWMs */
+static ssize_t show_pwm(struct device *dev, struct device_attribute *attr,
+				char *buf)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
+	struct w83791d_data *data = w83791d_update_device(dev);
+	return sprintf(buf, "%u\n", data->pwm[nr]);
+}
+
+static ssize_t store_pwm(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct w83791d_data *data = i2c_get_clientdata(client);
+	int nr = sensor_attr->index;
+	unsigned long val;
+
+	if (strict_strtoul(buf, 10, &val))
+		return -EINVAL;
+
+	mutex_lock(&data->update_lock);
+	data->pwm[nr] = SENSORS_LIMIT(val, 0, 255);
+	w83791d_write(client, W83791D_REG_PWM[nr], data->pwm[nr]);
+	mutex_unlock(&data->update_lock);
+	return count;
+}
+
+static struct sensor_device_attribute sda_pwm[] = {
+	SENSOR_ATTR(pwm1, S_IWUSR | S_IRUGO,
+			show_pwm, store_pwm, 0),
+	SENSOR_ATTR(pwm2, S_IWUSR | S_IRUGO,
+			show_pwm, store_pwm, 1),
+	SENSOR_ATTR(pwm3, S_IWUSR | S_IRUGO,
+			show_pwm, store_pwm, 2),
+	SENSOR_ATTR(pwm4, S_IWUSR | S_IRUGO,
+			show_pwm, store_pwm, 3),
+	SENSOR_ATTR(pwm5, S_IWUSR | S_IRUGO,
+			show_pwm, store_pwm, 4),
+};
+
 /* read/write the temperature1, includes measured value and limits */
 static ssize_t show_temp1(struct device *dev, struct device_attribute *devattr,
 				char *buf)
@@ -917,6 +971,9 @@ static struct attribute *w83791d_attributes[] = {
 	&sda_beep_ctrl[1].dev_attr.attr,
 	&dev_attr_cpu0_vid.attr,
 	&dev_attr_vrm.attr,
+	&sda_pwm[0].dev_attr.attr,
+	&sda_pwm[1].dev_attr.attr,
+	&sda_pwm[2].dev_attr.attr,
 	NULL
 };
 
@@ -930,6 +987,8 @@ static const struct attribute_group w83791d_group = {
 static struct attribute *w83791d_attributes_fanpwm45[] = {
 	FAN_UNIT_ATTRS(3),
 	FAN_UNIT_ATTRS(4),
+	&sda_pwm[3].dev_attr.attr,
+	&sda_pwm[4].dev_attr.attr,
 	NULL
 };
 
@@ -1259,6 +1318,12 @@ static struct w83791d_data *w83791d_update_device(struct device *dev)
 		vbat_reg = w83791d_read(client, W83791D_REG_VBAT);
 		for (i = 0; i < 3; i++)
 			data->fan_div[i] |= (vbat_reg >> (3 + i)) & 0x04;
+
+		/* Update PWM duty cycle */
+		for (i = 0; i < NUMBER_OF_PWM; i++) {
+			data->pwm[i] =  w83791d_read(client,
+						W83791D_REG_PWM[i]);
+		}
 
 		/* Update the first temperature sensor */
 		for (i = 0; i < 3; i++) {
