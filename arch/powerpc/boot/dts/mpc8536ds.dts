@@ -109,7 +109,7 @@
 				reg = <0x0 0x80>;
 				cell-index = <0>;
 				interrupt-parent = <&mpic>;
-				interrupts = <14 0x2>;
+				interrupts = <20 2>;
 			};
 			dma-channel@80 {
 				compatible = "fsl,mpc8536-dma-channel",
@@ -117,7 +117,7 @@
 				reg = <0x80 0x80>;
 				cell-index = <1>;
 				interrupt-parent = <&mpic>;
-				interrupts = <15 0x2>;
+				interrupts = <21 2>;
 			};
 			dma-channel@100 {
 				compatible = "fsl,mpc8536-dma-channel",
@@ -125,7 +125,7 @@
 				reg = <0x100 0x80>;
 				cell-index = <2>;
 				interrupt-parent = <&mpic>;
-				interrupts = <16 0x2>;
+				interrupts = <22 2>;
 			};
 			dma-channel@180 {
 				compatible = "fsl,mpc8536-dma-channel",
@@ -133,7 +133,7 @@
 				reg = <0x180 0x80>;
 				cell-index = <3>;
 				interrupt-parent = <&mpic>;
-				interrupts = <17 0x2>;
+				interrupts = <23 2>;
 			};
 		};
 
