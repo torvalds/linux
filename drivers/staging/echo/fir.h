@@ -105,10 +105,6 @@ typedef struct
 	float *history;
 } fir_float_state_t;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 static __inline__ const int16_t *fir16_create(fir16_state_t *fir,
                                               const int16_t *coeffs,
                                               int taps)
@@ -311,10 +307,6 @@ static __inline__ int16_t fir32(fir32_state_t *fir, int16_t sample)
     return (int16_t) (y >> 15);
 }
 /*- End of function --------------------------------------------------------*/
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 /*- End of file ------------------------------------------------------------*/

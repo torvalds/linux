@@ -30,10 +30,6 @@
 #if !defined(_BIT_OPERATIONS_H_)
 #define _BIT_OPERATIONS_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #if defined(__i386__)  ||  defined(__x86_64__)
 /*! \brief Find the bit position of the highest set bit in a word
     \param bits The word to be searched
@@ -244,10 +240,6 @@ static __inline__ int parity32(uint32_t x)
     return (0x6996 >> x) & 1;
 }
 /*- End of function --------------------------------------------------------*/
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 /*- End of file ------------------------------------------------------------*/
