@@ -26,6 +26,8 @@
 #include <linux/irq.h>
 #include <linux/clocksource.h>
 
+#include <asm/timex.h>
+
 #include <asm/xen/hypervisor.h>
 
 #include <xen/interface/vcpu.h>
@@ -178,3 +180,34 @@ struct pv_time_ops xen_time_ops __initdata = {
 	.do_steal_accounting		= xen_do_steal_accounting,
 	.clocksource_resume		= xen_itc_jitter_data_reset,
 };
+
+/* Called after suspend, to resume time.  */
+static void xen_local_tick_resume(void)
+{
+	/* Just trigger a tick.  */
+	ia64_cpu_local_tick();
+	touch_softlockup_watchdog();
+}
+
+void
+xen_timer_resume(void)
+{
+	unsigned int cpu;
+
+	xen_local_tick_resume();
+
+	for_each_online_cpu(cpu)
+		xen_init_missing_ticks_accounting(cpu);
+}
+
+static void ia64_cpu_local_tick_fn(void *unused)
+{
+	xen_local_tick_resume();
+	xen_init_missing_ticks_accounting(smp_processor_id());
+}
+
+void
+xen_timer_resume_on_aps(void)
+{
+	smp_call_function(&ia64_cpu_local_tick_fn, NULL, 1);
+}
