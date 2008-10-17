@@ -9,8 +9,14 @@ struct ide_disk_obj {
 	unsigned int	openers;	/* protected by BKL for now */
 };
 
+sector_t ide_gd_capacity(ide_drive_t *);
+
 /* ide-disk.c */
-sector_t ide_disk_capacity(ide_drive_t *);
+void ide_disk_init_capacity(ide_drive_t *);
+void ide_disk_setup(ide_drive_t *);
+void ide_disk_flush(ide_drive_t *);
+int ide_disk_set_doorlock(ide_drive_t *, int);
+ide_startstop_t ide_do_rw_disk(ide_drive_t *, struct request *, sector_t);
 ide_decl_devset(address);
 ide_decl_devset(multcount);
 ide_decl_devset(nowerr);
