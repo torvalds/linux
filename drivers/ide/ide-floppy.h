@@ -57,7 +57,7 @@ typedef struct ide_floppy_obj {
 #define	IDEFLOPPY_IOCTL_FORMAT_START		0x4602
 #define IDEFLOPPY_IOCTL_FORMAT_GET_PROGRESS	0x4603
 
-sector_t ide_floppy_capacity(ide_drive_t *);
+sector_t ide_gd_capacity(ide_drive_t *);
 
 /* ide-floppy.c */
 void ide_floppy_create_mode_sense_cmd(struct ide_atapi_pc *, u8);
