@@ -323,12 +323,16 @@ static ssize_t set_temp11(struct device *dev, struct device_attribute *devattr,
 	mutex_lock(&data->update_lock);
 	if (data->kind == adt7461)
 		data->temp11[nr] = TEMP2_TO_REG_ADT7461(val);
+	else if (data->kind == max6657 || data->kind == max6680)
+		data->temp11[nr] = TEMP1_TO_REG(val) << 8;
 	else
 		data->temp11[nr] = TEMP2_TO_REG(val);
+
 	i2c_smbus_write_byte_data(client, reg[(nr - 1) * 2],
 				  data->temp11[nr] >> 8);
-	i2c_smbus_write_byte_data(client, reg[(nr - 1) * 2 + 1],
-				  data->temp11[nr] & 0xff);
+	if (data->kind != max6657 && data->kind != max6680)
+		i2c_smbus_write_byte_data(client, reg[(nr - 1) * 2 + 1],
+					  data->temp11[nr] & 0xff);
 	mutex_unlock(&data->update_lock);
 	return count;
 }
@@ -801,12 +805,21 @@ static struct lm90_data *lm90_update_device(struct device *dev)
 		lm90_read16(client, LM90_REG_R_REMOTE_TEMPH,
 			    LM90_REG_R_REMOTE_TEMPL, &data->temp11[0]);
 
-		if (lm90_read_reg(client, LM90_REG_R_REMOTE_LOWH, &h) == 0
-		 && lm90_read_reg(client, LM90_REG_R_REMOTE_LOWL, &l) == 0)
-			data->temp11[1] = (h << 8) | l;
-		if (lm90_read_reg(client, LM90_REG_R_REMOTE_HIGHH, &h) == 0
-		 && lm90_read_reg(client, LM90_REG_R_REMOTE_HIGHL, &l) == 0)
-			data->temp11[2] = (h << 8) | l;
+		if (lm90_read_reg(client, LM90_REG_R_REMOTE_LOWH, &h) == 0) {
+			data->temp11[1] = h << 8;
+			if (data->kind != max6657 && data->kind != max6680
+			 && lm90_read_reg(client, LM90_REG_R_REMOTE_LOWL,
+					  &l) == 0)
+				data->temp11[1] |= l;
+		}
+		if (lm90_read_reg(client, LM90_REG_R_REMOTE_HIGHH, &h) == 0) {
+			data->temp11[2] = h << 8;
+			if (data->kind != max6657 && data->kind != max6680
+			 && lm90_read_reg(client, LM90_REG_R_REMOTE_HIGHL,
+					  &l) == 0)
+				data->temp11[2] |= l;
+		}
+
 		if (data->kind != max6657) {
 			if (lm90_read_reg(client, LM90_REG_R_REMOTE_OFFSH,
 					  &h) == 0
