@@ -1933,6 +1933,9 @@ static int __devinit pci_init(void)
 	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
 		pci_fixup_device(pci_fixup_final, dev);
 	}
+
+	msi_init();
+
 	return 0;
 }
 
