@@ -24,15 +24,13 @@ struct acpi_osc_data {
 	acpi_handle handle;
 	u32 support_set;
 	u32 control_set;
-	int is_queried;
-	u32 query_result;
 	struct list_head sibiling;
 };
 static LIST_HEAD(acpi_osc_data_list);
 
 struct acpi_osc_args {
 	u32 capbuf[3];
-	u32 query_result;
+	u32 ctrl_result;
 };
 
 static DEFINE_MUTEX(pci_acpi_lock);
@@ -110,9 +108,8 @@ static acpi_status acpi_run_osc(acpi_handle handle,
 		goto out_kfree;
 	}
 out_success:
-	if (flags & OSC_QUERY_ENABLE)
-		osc_args->query_result =
-			*((u32 *)(out_obj->buffer.pointer + 8));
+	osc_args->ctrl_result =
+		*((u32 *)(out_obj->buffer.pointer + 8));
 	status = AE_OK;
 
 out_kfree:
@@ -120,7 +117,8 @@ out_kfree:
 	return status;
 }
 
-static acpi_status __acpi_query_osc(u32 flags, struct acpi_osc_data *osc_data)
+static acpi_status __acpi_query_osc(u32 flags, struct acpi_osc_data *osc_data,
+				    u32 *result)
 {
 	acpi_status status;
 	u32 support_set;
@@ -135,8 +133,7 @@ static acpi_status __acpi_query_osc(u32 flags, struct acpi_osc_data *osc_data)
 	status = acpi_run_osc(osc_data->handle, &osc_args);
 	if (ACPI_SUCCESS(status)) {
 		osc_data->support_set = support_set;
-		osc_data->query_result = osc_args.query_result;
-		osc_data->is_queried = 1;
+		*result = osc_args.ctrl_result;
 	}
 
 	return status;
@@ -147,7 +144,7 @@ static acpi_status acpi_query_osc(acpi_handle handle,
 {
 	acpi_status status;
 	struct acpi_osc_data *osc_data;
-	u32 flags = (unsigned long)context;
+	u32 flags = (unsigned long)context, dummy;
 	acpi_handle tmp;
 
 	status = acpi_get_handle(handle, "_OSC", &tmp);
@@ -162,7 +159,7 @@ static acpi_status acpi_query_osc(acpi_handle handle,
 		goto out;
 	}
 
-	status = __acpi_query_osc(flags, osc_data);
+	status = __acpi_query_osc(flags, osc_data, &dummy);
 out:
 	mutex_unlock(&pci_acpi_lock);
 	return status;
@@ -196,7 +193,7 @@ acpi_status __pci_osc_support_set(u32 flags, const char *hid)
 acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 {
 	acpi_status status;
-	u32 ctrlset, control_set;
+	u32 ctrlset, control_set, result;
 	acpi_handle tmp;
 	struct acpi_osc_data *osc_data;
 	struct acpi_osc_args osc_args;
@@ -219,13 +216,11 @@ acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 		goto out;
 	}
 
-	if (!osc_data->is_queried) {
-		status = __acpi_query_osc(osc_data->support_set, osc_data);
-		if (ACPI_FAILURE(status))
-			goto out;
-	}
+	status = __acpi_query_osc(osc_data->support_set, osc_data, &result);
+	if (ACPI_FAILURE(status))
+		goto out;
 
-	if ((osc_data->query_result & ctrlset) != ctrlset) {
+	if ((result & ctrlset) != ctrlset) {
 		status = AE_SUPPORT;
 		goto out;
 	}
