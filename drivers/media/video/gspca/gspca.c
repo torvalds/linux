@@ -21,6 +21,7 @@
 #define MODULE_NAME "gspca"
 
 #include <linux/init.h>
+#include <linux/version.h>
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
