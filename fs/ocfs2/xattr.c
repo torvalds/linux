@@ -1792,52 +1792,6 @@ cleanup:
 }
 
 /*
- * When all the xattrs are deleted from index btree, the ocfs2_xattr_tree
- * will be erased and ocfs2_xattr_block will have its ocfs2_xattr_header
- * re-initialized.
- */
-static int ocfs2_restore_xattr_block(struct inode *inode,
-				     struct ocfs2_xattr_search *xs)
-{
-	int ret;
-	handle_t *handle;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct ocfs2_xattr_block *xb =
-		(struct ocfs2_xattr_block *)xs->xattr_bh->b_data;
-	struct ocfs2_extent_list *el = &xb->xb_attrs.xb_root.xt_list;
-	u16 xb_flags = le16_to_cpu(xb->xb_flags);
-
-	BUG_ON(!(xb_flags & OCFS2_XATTR_INDEXED) ||
-		le16_to_cpu(el->l_next_free_rec) != 0);
-
-	handle = ocfs2_start_trans(osb, OCFS2_XATTR_BLOCK_UPDATE_CREDITS);
-	if (IS_ERR(handle)) {
-		ret = PTR_ERR(handle);
-		handle = NULL;
-		goto out;
-	}
-
-	ret = ocfs2_journal_access(handle, inode, xs->xattr_bh,
-				   OCFS2_JOURNAL_ACCESS_WRITE);
-	if (ret < 0) {
-		mlog_errno(ret);
-		goto out_commit;
-	}
-
-	memset(&xb->xb_attrs, 0, inode->i_sb->s_blocksize -
-	       offsetof(struct ocfs2_xattr_block, xb_attrs));
-
-	xb->xb_flags = cpu_to_le16(xb_flags & ~OCFS2_XATTR_INDEXED);
-
-	ocfs2_journal_dirty(handle, xs->xattr_bh);
-
-out_commit:
-	ocfs2_commit_trans(osb, handle);
-out:
-	return ret;
-}
-
-/*
  * ocfs2_xattr_block_set()
  *
  * Set, replace or remove an extended attribute into external block.
@@ -1947,8 +1901,6 @@ out:
 	}
 
 	ret = ocfs2_xattr_set_entry_index_block(inode, xi, xs);
-	if (!ret && xblk->xb_attrs.xb_root.xt_list.l_next_free_rec == 0)
-		ret = ocfs2_restore_xattr_block(inode, xs);
 
 end:
 
