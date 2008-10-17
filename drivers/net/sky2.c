@@ -3034,7 +3034,8 @@ static int sky2_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;
 
-	if (wol->wolopts & ~sky2_wol_supported(sky2->hw))
+	if ((wol->wolopts & ~sky2_wol_supported(sky2->hw))
+	    || !device_can_wakeup(&hw->pdev->dev))
 		return -EOPNOTSUPP;
 
 	sky2->wol = wol->wolopts;
@@ -3044,6 +3045,8 @@ static int sky2_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	    hw->chip_id == CHIP_ID_YUKON_FE_P)
 		sky2_write32(hw, B0_CTST, sky2->wol
 			     ? Y2_HW_WOL_ON : Y2_HW_WOL_OFF);
+
+	device_set_wakeup_enable(&hw->pdev->dev, sky2->wol);
 
 	if (!netif_running(dev))
 		sky2_wol_init(sky2);
@@ -3732,27 +3735,63 @@ static int sky2_get_eeprom_len(struct net_device *dev)
 	return 1 << ( ((reg2 & PCI_VPD_ROM_SZ) >> 14) + 8);
 }
 
-static u32 sky2_vpd_read(struct sky2_hw *hw, int cap, u16 offset)
+static int sky2_vpd_wait(const struct sky2_hw *hw, int cap, u16 busy)
 {
-	u32 val;
+	unsigned long start = jiffies;
 
-	sky2_pci_write16(hw, cap + PCI_VPD_ADDR, offset);
+	while ( (sky2_pci_read16(hw, cap + PCI_VPD_ADDR) & PCI_VPD_ADDR_F) == busy) {
+		/* Can take up to 10.6 ms for write */
+		if (time_after(jiffies, start + HZ/4)) {
+			dev_err(&hw->pdev->dev, PFX "VPD cycle timed out");
+			return -ETIMEDOUT;
+		}
+		mdelay(1);
+	}
 
-	do {
-		offset = sky2_pci_read16(hw, cap + PCI_VPD_ADDR);
-	} while (!(offset & PCI_VPD_ADDR_F));
-
-	val = sky2_pci_read32(hw, cap + PCI_VPD_DATA);
-	return val;
+	return 0;
 }
 
-static void sky2_vpd_write(struct sky2_hw *hw, int cap, u16 offset, u32 val)
+static int sky2_vpd_read(struct sky2_hw *hw, int cap, void *data,
+			 u16 offset, size_t length)
 {
-	sky2_pci_write16(hw, cap + PCI_VPD_DATA, val);
-	sky2_pci_write32(hw, cap + PCI_VPD_ADDR, offset | PCI_VPD_ADDR_F);
-	do {
-		offset = sky2_pci_read16(hw, cap + PCI_VPD_ADDR);
-	} while (offset & PCI_VPD_ADDR_F);
+	int rc = 0;
+
+	while (length > 0) {
+		u32 val;
+
+		sky2_pci_write16(hw, cap + PCI_VPD_ADDR, offset);
+		rc = sky2_vpd_wait(hw, cap, 0);
+		if (rc)
+			break;
+
+		val = sky2_pci_read32(hw, cap + PCI_VPD_DATA);
+
+		memcpy(data, &val, min(sizeof(val), length));
+		offset += sizeof(u32);
+		data += sizeof(u32);
+		length -= sizeof(u32);
+	}
+
+	return rc;
+}
+
+static int sky2_vpd_write(struct sky2_hw *hw, int cap, const void *data,
+			  u16 offset, unsigned int length)
+{
+	unsigned int i;
+	int rc = 0;
+
+	for (i = 0; i < length; i += sizeof(u32)) {
+		u32 val = *(u32 *)(data + i);
+
+		sky2_pci_write32(hw, cap + PCI_VPD_DATA, val);
+		sky2_pci_write32(hw, cap + PCI_VPD_ADDR, offset | PCI_VPD_ADDR_F);
+
+		rc = sky2_vpd_wait(hw, cap, PCI_VPD_ADDR_F);
+		if (rc)
+			break;
+	}
+	return rc;
 }
 
 static int sky2_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
@@ -3760,24 +3799,13 @@ static int sky2_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
 	int cap = pci_find_capability(sky2->hw->pdev, PCI_CAP_ID_VPD);
-	int length = eeprom->len;
-	u16 offset = eeprom->offset;
 
 	if (!cap)
 		return -EINVAL;
 
 	eeprom->magic = SKY2_EEPROM_MAGIC;
 
-	while (length > 0) {
-		u32 val = sky2_vpd_read(sky2->hw, cap, offset);
-		int n = min_t(int, length, sizeof(val));
-
-		memcpy(data, &val, n);
-		length -= n;
-		data += n;
-		offset += n;
-	}
-	return 0;
+	return sky2_vpd_read(sky2->hw, cap, data, eeprom->offset, eeprom->len);
 }
 
 static int sky2_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
@@ -3785,8 +3813,6 @@ static int sky2_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
 	int cap = pci_find_capability(sky2->hw->pdev, PCI_CAP_ID_VPD);
-	int length = eeprom->len;
-	u16 offset = eeprom->offset;
 
 	if (!cap)
 		return -EINVAL;
@@ -3794,21 +3820,11 @@ static int sky2_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom
 	if (eeprom->magic != SKY2_EEPROM_MAGIC)
 		return -EINVAL;
 
-	while (length > 0) {
-		u32 val;
-		int n = min_t(int, length, sizeof(val));
+	/* Partial writes not supported */
+	if ((eeprom->offset & 3) || (eeprom->len & 3))
+		return -EINVAL;
 
-		if (n < sizeof(val))
-			val = sky2_vpd_read(sky2->hw, cap, offset);
-		memcpy(&val, data, n);
-
-		sky2_vpd_write(sky2->hw, cap, offset, val);
-
-		length -= n;
-		data += n;
-		offset += n;
-	}
-	return 0;
+	return sky2_vpd_write(sky2->hw, cap, data, eeprom->offset, eeprom->len);
 }
 
 
@@ -4166,16 +4182,67 @@ static int __devinit sky2_test_msi(struct sky2_hw *hw)
 	return err;
 }
 
-static int __devinit pci_wake_enabled(struct pci_dev *dev)
-{
-	int pm  = pci_find_capability(dev, PCI_CAP_ID_PM);
-	u16 value;
+/*
+ * Read and parse the first part of Vital Product Data
+ */
+#define VPD_SIZE	128
+#define VPD_MAGIC	0x82
 
-	if (!pm)
-		return 0;
-	if (pci_read_config_word(dev, pm + PCI_PM_CTRL, &value))
-		return 0;
-	return value & PCI_PM_CTRL_PME_ENABLE;
+static void __devinit sky2_vpd_info(struct sky2_hw *hw)
+{
+	int cap = pci_find_capability(hw->pdev, PCI_CAP_ID_VPD);
+	const u8 *p;
+	u8 *vpd_buf = NULL;
+	u16 len;
+	static struct vpd_tag {
+		char tag[2];
+		char *label;
+	} vpd_tags[] = {
+		{ "PN",	"Part Number" },
+		{ "EC", "Engineering Level" },
+		{ "MN", "Manufacturer" },
+	};
+
+	if (!cap)
+		goto out;
+
+	vpd_buf = kmalloc(VPD_SIZE, GFP_KERNEL);
+	if (!vpd_buf)
+		goto out;
+
+	if (sky2_vpd_read(hw, cap, vpd_buf, 0, VPD_SIZE))
+		goto out;
+
+	if (vpd_buf[0] != VPD_MAGIC)
+		goto out;
+	len = vpd_buf[1];
+	if (len == 0 || len > VPD_SIZE - 4)
+		goto out;
+	p = vpd_buf + 3;
+	dev_info(&hw->pdev->dev, "%.*s\n", len, p);
+	p += len;
+
+	while (p < vpd_buf + VPD_SIZE - 4) {
+		int i;
+
+		if (!memcmp("RW", p, 2))	/* end marker */
+			break;
+
+		len = p[2];
+		if (len > (p - vpd_buf) - 4)
+			break;
+
+		for (i = 0; i < ARRAY_SIZE(vpd_tags); i++) {
+			if (!memcmp(vpd_tags[i].tag, p, 2)) {
+				printk(KERN_DEBUG " %s: %.*s\n",
+				       vpd_tags[i].label, len, p + 3);
+				break;
+			}
+		}
+		p += len + 3;
+	}
+out:
+	kfree(vpd_buf);
 }
 
 /* This driver supports yukon2 chipset only */
@@ -4238,7 +4305,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		}
 	}
 
-	wol_default = pci_wake_enabled(pdev) ? WAKE_MAGIC : 0;
+	wol_default = device_may_wakeup(&pdev->dev) ? WAKE_MAGIC : 0;
 
 	err = -ENOMEM;
 	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
@@ -4276,12 +4343,12 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_out_iounmap;
 
-	dev_info(&pdev->dev, "v%s addr 0x%llx irq %d Yukon-2 %s rev %d\n",
-		 DRV_VERSION, (unsigned long long)pci_resource_start(pdev, 0),
-		 pdev->irq, sky2_name(hw->chip_id, buf1, sizeof(buf1)),
-		 hw->chip_rev);
+	dev_info(&pdev->dev, "Yukon-2 %s chip revision %d\n",
+		 sky2_name(hw->chip_id, buf1, sizeof(buf1)), hw->chip_rev);
 
 	sky2_reset(hw);
+
+	sky2_vpd_info(hw);
 
 	dev = sky2_init_netdev(hw, 0, using_dac, wol_default);
 	if (!dev) {
@@ -4533,6 +4600,8 @@ static struct pci_driver sky2_driver = {
 
 static int __init sky2_init_module(void)
 {
+	pr_info(PFX "driver version " DRV_VERSION "\n");
+
 	sky2_debug_init();
 	return pci_register_driver(&sky2_driver);
 }

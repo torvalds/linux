@@ -201,7 +201,23 @@ int cx88_i2c_init(struct cx88_core *core, struct pci_dev *pci)
 
 	core->i2c_rc = i2c_bit_add_bus(&core->i2c_adap);
 	if (0 == core->i2c_rc) {
+		static u8 tuner_data[] =
+			{ 0x0b, 0xdc, 0x86, 0x52 };
+		static struct i2c_msg tuner_msg =
+			{ .flags = 0, .addr = 0xc2 >> 1, .buf = tuner_data, .len = 4 };
+
 		dprintk(1, "i2c register ok\n");
+		switch( core->boardnr ) {
+			case CX88_BOARD_HAUPPAUGE_HVR1300:
+			case CX88_BOARD_HAUPPAUGE_HVR3000:
+			case CX88_BOARD_HAUPPAUGE_HVR4000:
+				printk("%s: i2c init: enabling analog demod on HVR1300/3000/4000 tuner\n",
+					core->name);
+				i2c_transfer(core->i2c_client.adapter, &tuner_msg, 1);
+				break;
+			default:
+				break;
+		}
 		if (i2c_scan)
 			do_i2c_scan(core->name,&core->i2c_client);
 	} else

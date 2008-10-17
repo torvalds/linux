@@ -38,10 +38,6 @@ EXPORT_SYMBOL(iomem_resource);
 
 static DEFINE_RWLOCK(resource_lock);
 
-#ifdef CONFIG_PROC_FS
-
-enum { MAX_IORES_LEVEL = 5 };
-
 static void *r_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	struct resource *p = v;
@@ -52,6 +48,10 @@ static void *r_next(struct seq_file *m, void *v, loff_t *pos)
 		p = p->parent;
 	return p->sibling;
 }
+
+#ifdef CONFIG_PROC_FS
+
+enum { MAX_IORES_LEVEL = 5 };
 
 static void *r_start(struct seq_file *m, loff_t *pos)
 	__acquires(resource_lock)
@@ -516,6 +516,70 @@ int adjust_resource(struct resource *res, resource_size_t start, resource_size_t
 	return result;
 }
 
+static void __init __reserve_region_with_split(struct resource *root,
+		resource_size_t start, resource_size_t end,
+		const char *name)
+{
+	struct resource *parent = root;
+	struct resource *conflict;
+	struct resource *res = kzalloc(sizeof(*res), GFP_KERNEL);
+
+	if (!res)
+		return;
+
+	res->name = name;
+	res->start = start;
+	res->end = end;
+	res->flags = IORESOURCE_BUSY;
+
+	for (;;) {
+		conflict = __request_resource(parent, res);
+		if (!conflict)
+			break;
+		if (conflict != parent) {
+			parent = conflict;
+			if (!(conflict->flags & IORESOURCE_BUSY))
+				continue;
+		}
+
+		/* Uhhuh, that didn't work out.. */
+		kfree(res);
+		res = NULL;
+		break;
+	}
+
+	if (!res) {
+		/* failed, split and try again */
+
+		/* conflict covered whole area */
+		if (conflict->start <= start && conflict->end >= end)
+			return;
+
+		if (conflict->start > start)
+			__reserve_region_with_split(root, start, conflict->start-1, name);
+		if (!(conflict->flags & IORESOURCE_BUSY)) {
+			resource_size_t common_start, common_end;
+
+			common_start = max(conflict->start, start);
+			common_end = min(conflict->end, end);
+			if (common_start < common_end)
+				__reserve_region_with_split(root, common_start, common_end, name);
+		}
+		if (conflict->end < end)
+			__reserve_region_with_split(root, conflict->end+1, end, name);
+	}
+
+}
+
+void reserve_region_with_split(struct resource *root,
+		resource_size_t start, resource_size_t end,
+		const char *name)
+{
+	write_lock(&resource_lock);
+	__reserve_region_with_split(root, start, end, name);
+	write_unlock(&resource_lock);
+}
+
 EXPORT_SYMBOL(adjust_resource);
 
 /**
@@ -562,33 +626,34 @@ struct resource * __request_region(struct resource *parent,
 {
 	struct resource *res = kzalloc(sizeof(*res), GFP_KERNEL);
 
-	if (res) {
-		res->name = name;
-		res->start = start;
-		res->end = start + n - 1;
-		res->flags = IORESOURCE_BUSY;
+	if (!res)
+		return NULL;
 
-		write_lock(&resource_lock);
+	res->name = name;
+	res->start = start;
+	res->end = start + n - 1;
+	res->flags = IORESOURCE_BUSY;
 
-		for (;;) {
-			struct resource *conflict;
+	write_lock(&resource_lock);
 
-			conflict = __request_resource(parent, res);
-			if (!conflict)
-				break;
-			if (conflict != parent) {
-				parent = conflict;
-				if (!(conflict->flags & IORESOURCE_BUSY))
-					continue;
-			}
+	for (;;) {
+		struct resource *conflict;
 
-			/* Uhhuh, that didn't work out.. */
-			kfree(res);
-			res = NULL;
+		conflict = __request_resource(parent, res);
+		if (!conflict)
 			break;
+		if (conflict != parent) {
+			parent = conflict;
+			if (!(conflict->flags & IORESOURCE_BUSY))
+				continue;
 		}
-		write_unlock(&resource_lock);
+
+		/* Uhhuh, that didn't work out.. */
+		kfree(res);
+		res = NULL;
+		break;
 	}
+	write_unlock(&resource_lock);
 	return res;
 }
 EXPORT_SYMBOL(__request_region);
@@ -763,3 +828,40 @@ static int __init reserve_setup(char *str)
 }
 
 __setup("reserve=", reserve_setup);
+
+/*
+ * Check if the requested addr and size spans more than any slot in the
+ * iomem resource tree.
+ */
+int iomem_map_sanity_check(resource_size_t addr, unsigned long size)
+{
+	struct resource *p = &iomem_resource;
+	int err = 0;
+	loff_t l;
+
+	read_lock(&resource_lock);
+	for (p = p->child; p ; p = r_next(NULL, p, &l)) {
+		/*
+		 * We can probably skip the resources without
+		 * IORESOURCE_IO attribute?
+		 */
+		if (p->start >= addr + size)
+			continue;
+		if (p->end < addr)
+			continue;
+		if (p->start <= addr && (p->end >= addr + size - 1))
+			continue;
+		printk(KERN_WARNING "resource map sanity check conflict: "
+		       "0x%llx 0x%llx 0x%llx 0x%llx %s\n",
+		       (unsigned long long)addr,
+		       (unsigned long long)(addr + size - 1),
+		       (unsigned long long)p->start,
+		       (unsigned long long)p->end,
+		       p->name);
+		err = -1;
+		break;
+	}
+	read_unlock(&resource_lock);
+
+	return err;
+}

@@ -255,9 +255,11 @@ void early_setup_secondary(void)
 #endif /* CONFIG_SMP */
 
 #if defined(CONFIG_SMP) || defined(CONFIG_KEXEC)
+extern unsigned long __secondary_hold_spinloop;
+extern void generic_secondary_smp_init(void);
+
 void smp_release_cpus(void)
 {
-	extern unsigned long __secondary_hold_spinloop;
 	unsigned long *ptr;
 
 	DBG(" -> smp_release_cpus()\n");
@@ -266,12 +268,11 @@ void smp_release_cpus(void)
 	 * all now so they can start to spin on their individual paca
 	 * spinloops. For non SMP kernels, the secondary cpus never get out
 	 * of the common spinloop.
-	 * This is useless but harmless on iSeries, secondaries are already
-	 * waiting on their paca spinloops. */
+	 */
 
 	ptr  = (unsigned long *)((unsigned long)&__secondary_hold_spinloop
 			- PHYSICAL_START);
-	*ptr = 1;
+	*ptr = __pa(generic_secondary_smp_init);
 	mb();
 
 	DBG(" <- smp_release_cpus()\n");

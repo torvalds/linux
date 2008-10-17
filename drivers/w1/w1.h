@@ -46,7 +46,6 @@ struct w1_reg_num
 #include "w1_family.h"
 
 #define W1_MAXNAMELEN		32
-#define W1_SLAVE_DATA_SIZE	128
 
 #define W1_SEARCH		0xF0
 #define W1_ALARM_SEARCH		0xEC
@@ -77,7 +76,7 @@ struct w1_slave
 	struct completion	released;
 };
 
-typedef void (* w1_slave_found_callback)(void *, u64);
+typedef void (*w1_slave_found_callback)(struct w1_master *, u64);
 
 
 /**
@@ -142,12 +141,18 @@ struct w1_bus_master
 	 */
 	u8		(*reset_bus)(void *);
 
-	/** Really nice hardware can handles the different types of ROM search */
-	void		(*search)(void *, u8, w1_slave_found_callback);
-};
+	/**
+	 * Put out a strong pull-up pulse of the specified duration.
+	 * @return -1=Error, 0=completed
+	 */
+	u8		(*set_pullup)(void *, int);
 
-#define W1_MASTER_NEED_EXIT		0
-#define W1_MASTER_NEED_RECONNECT	1
+	/** Really nice hardware can handles the different types of ROM search
+	 *  w1_master* is passed to the slave found callback.
+	 */
+	void		(*search)(void *, struct w1_master *,
+		u8, w1_slave_found_callback);
+};
 
 struct w1_master
 {
@@ -167,7 +172,10 @@ struct w1_master
 	void			*priv;
 	int			priv_size;
 
-	long			flags;
+	/** 5V strong pullup enabled flag, 1 enabled, zero disabled. */
+	int			enable_pullup;
+	/** 5V strong pullup duration in milliseconds, zero disabled. */
+	int			pullup_duration;
 
 	struct task_struct	*thread;
 	struct mutex		mutex;
@@ -181,11 +189,20 @@ struct w1_master
 };
 
 int w1_create_master_attributes(struct w1_master *);
+void w1_destroy_master_attributes(struct w1_master *master);
 void w1_search(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb);
 void w1_search_devices(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb);
 struct w1_slave *w1_search_slave(struct w1_reg_num *id);
 void w1_search_process(struct w1_master *dev, u8 search_type);
 struct w1_master *w1_search_master_id(u32 id);
+
+/* Disconnect and reconnect devices in the given family.  Used for finding
+ * unclaimed devices after a family has been registered or releasing devices
+ * after a family has been unregistered.  Set attach to 1 when a new family
+ * has just been registered, to 0 when it has been unregistered.
+ */
+void w1_reconnect_slaves(struct w1_family *f, int attach);
+void w1_slave_detach(struct w1_slave *sl);
 
 u8 w1_triplet(struct w1_master *dev, int bdir);
 void w1_write_8(struct w1_master *, u8);
@@ -194,6 +211,7 @@ u8 w1_calc_crc8(u8 *, int);
 void w1_write_block(struct w1_master *, const u8 *, int);
 u8 w1_read_block(struct w1_master *, u8 *, int);
 int w1_reset_select_slave(struct w1_slave *sl);
+void w1_next_pullup(struct w1_master *, int);
 
 static inline struct w1_slave* dev_to_w1_slave(struct device *dev)
 {

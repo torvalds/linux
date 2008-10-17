@@ -152,7 +152,7 @@ static struct dn_dev_parms dn_dev_list[] =  {
 
 #define DN_DEV_LIST_SIZE ARRAY_SIZE(dn_dev_list)
 
-#define DN_DEV_PARMS_OFFSET(x) ((int) ((char *) &((struct dn_dev_parms *)0)->x))
+#define DN_DEV_PARMS_OFFSET(x) offsetof(struct dn_dev_parms, x)
 
 #ifdef CONFIG_SYSCTL
 
@@ -166,7 +166,7 @@ static int max_priority[] = { 127 }; /* From DECnet spec */
 
 static int dn_forwarding_proc(ctl_table *, int, struct file *,
 			void __user *, size_t *, loff_t *);
-static int dn_forwarding_sysctl(ctl_table *table, int __user *name, int nlen,
+static int dn_forwarding_sysctl(ctl_table *table,
 			void __user *oldval, size_t __user *oldlenp,
 			void __user *newval, size_t newlen);
 
@@ -318,7 +318,7 @@ static int dn_forwarding_proc(ctl_table *table, int write,
 #endif
 }
 
-static int dn_forwarding_sysctl(ctl_table *table, int __user *name, int nlen,
+static int dn_forwarding_sysctl(ctl_table *table,
 			void __user *oldval, size_t __user *oldlenp,
 			void __user *newval, size_t newlen)
 {

@@ -540,6 +540,15 @@ config SENSORS_LM93
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm93.
 
+config SENSORS_MAX1111
+	tristate "Maxim MAX1111 Multichannel, Serial 8-bit ADC chip"
+	depends on SPI_MASTER
+	help
+	  Say y here to support Maxim's MAX1111 ADC chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called max1111.
+
 config SENSORS_MAX1619
 	tristate "Maxim MAX1619 sensor chip"
 	depends on I2C
@@ -790,6 +799,13 @@ config SENSORS_W83627EHF
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called w83627ehf.
+
+config SENSORS_ULTRA45
+	tristate "Sun Ultra45 PIC16F747"
+	depends on SPARC64
+	help
+	  This driver provides support for the Ultra45 workstation environmental
+	  sensors.
 
 config SENSORS_HDAPS
 	tristate "IBM Hard Drive Active Protection System (hdaps)"

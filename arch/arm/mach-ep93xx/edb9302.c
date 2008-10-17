@@ -18,7 +18,7 @@
 #include <linux/ioport.h>
 #include <linux/mtd/physmap.h>
 #include <linux/platform_device.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -43,10 +43,16 @@ static struct platform_device edb9302_flash = {
 	.resource	= &edb9302_flash_resource,
 };
 
+static struct ep93xx_eth_data edb9302_eth_data = {
+	.phy_id		= 1,
+};
+
 static void __init edb9302_init_machine(void)
 {
 	ep93xx_init_devices();
 	platform_device_register(&edb9302_flash);
+
+	ep93xx_register_eth(&edb9302_eth_data, 1);
 }
 
 MACHINE_START(EDB9302, "Cirrus Logic EDB9302 Evaluation Board")

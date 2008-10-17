@@ -5,6 +5,7 @@
 config ALPHA
 	bool
 	default y
+	select HAVE_AOUT
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	help
@@ -67,9 +68,6 @@ config AUTO_IRQ_AFFINITY
 	bool
 	depends on SMP
 	default y
-
-config ARCH_SUPPORTS_AOUT
-	def_bool y
 
 source "init/Kconfig"
 
@@ -224,8 +222,7 @@ config ALPHA_MIATA
 	bool "Miata"
 	help
 	  The Digital PersonalWorkStation (PWS 433a, 433au, 500a, 500au, 600a,
-	  or 600au).  There is an Installation HOWTO for this hardware at
-	  <http://eijk.homelinux.org/~stefan/miata.html>.
+	  or 600au).
 
 config ALPHA_MIKASA
 	bool "Mikasa"

@@ -11,9 +11,9 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 
 #include <asm/irq.h>
-#include <asm/io.h>
 #include <asm/mach/irq.h>
 
 /*

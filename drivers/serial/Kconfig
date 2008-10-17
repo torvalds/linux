@@ -9,7 +9,6 @@ menu "Serial drivers"
 # The new 8250/16550 serial drivers
 config SERIAL_8250
 	tristate "8250/16550 and compatible serial support"
-	depends on (BROKEN || !SPARC)
 	select SERIAL_CORE
 	---help---
 	  This selects whether you want to include the driver for the standard
@@ -994,24 +993,12 @@ config SERIAL_68328_RTS_CTS
 	bool "Support RTS/CTS on 68328 serial port"
 	depends on SERIAL_68328
 
-config SERIAL_COLDFIRE
-	bool "ColdFire serial support (DEPRECATED)"
-	depends on COLDFIRE
-	help
-	  This driver supports the built-in serial ports of the Motorola ColdFire
-	  family of CPUs.
-	  This driver is deprecated because it supports only the old interface
-	  for serial drivers and features like magic keys are not working.
-	  Please switch to the new style driver because this driver will be
-	  removed soon.
-
 config SERIAL_MCF
-	bool "Coldfire serial support (new style driver)"
+	bool "Coldfire serial support"
 	depends on COLDFIRE
 	select SERIAL_CORE
 	help
-	  This new serial driver supports the Freescale Coldfire serial ports
-	  using the new serial driver subsystem.
+	  This serial driver supports the Freescale Coldfire serial ports.
 
 config SERIAL_MCF_BAUDRATE
 	int "Default baudrate for Coldfire serial ports"
@@ -1135,42 +1122,6 @@ config SERIAL_CPM_CONSOLE
 	  "console=ttyCPM0". (Try "man bootparam" or see the documentation of
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
-
-config SERIAL_CPM_SCC1
-	bool "Support for SCC1 serial port"
-	depends on SERIAL_CPM=y
-	help
-	  Select this option to use SCC1 as a serial port
-
-config SERIAL_CPM_SCC2
-	bool "Support for SCC2 serial port"
-	depends on SERIAL_CPM=y
-	help
-	  Select this option to use SCC2 as a serial port
-
-config SERIAL_CPM_SCC3
-	bool "Support for SCC3 serial port"
-	depends on SERIAL_CPM=y
-	help
-	  Select this option to use SCC3 as a serial port
-
-config SERIAL_CPM_SCC4
-	bool "Support for SCC4 serial port"
-	depends on SERIAL_CPM=y
-	help
-	  Select this option to use SCC4 as a serial port
-
-config SERIAL_CPM_SMC1
-	bool "Support for SMC1 serial port"
-	depends on SERIAL_CPM=y
-	help
-	  Select this option to use SMC1 as a serial port
-
-config SERIAL_CPM_SMC2
-	bool "Support for SMC2 serial port"
-	depends on SERIAL_CPM=y
-	help
-	  Select this option to use SMC2 as a serial port
 
 config SERIAL_SGI_L1_CONSOLE
 	bool "SGI Altix L1 serial console support"

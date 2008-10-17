@@ -28,8 +28,8 @@
 #include "bttvp.h"
 
 
-static int debug;
-module_param(debug, int, 0644);    /* debug level (0,1,2) */
+static int ir_debug;
+module_param(ir_debug, int, 0644);
 static int repeat_delay = 500;
 module_param(repeat_delay, int, 0644);
 static int repeat_period = 33;
@@ -39,6 +39,12 @@ static int ir_rc5_remote_gap = 885;
 module_param(ir_rc5_remote_gap, int, 0644);
 static int ir_rc5_key_timeout = 200;
 module_param(ir_rc5_key_timeout, int, 0644);
+
+#undef dprintk
+#define dprintk(arg...) do {	\
+	if (ir_debug >= 1)	\
+		printk(arg);	\
+} while (0)
 
 #define DEVNAME "bttv-input"
 
@@ -79,6 +85,45 @@ static void ir_handle_key(struct bttv *btv)
 
 }
 
+static void ir_enltv_handle_key(struct bttv *btv)
+{
+	struct card_ir *ir = btv->remote;
+	u32 gpio, data, keyup;
+
+	/* read gpio value */
+	gpio = bttv_gpio_read(&btv->c);
+
+	/* extract data */
+	data = ir_extract_bits(gpio, ir->mask_keycode);
+
+	/* Check if it is keyup */
+	keyup = (gpio & ir->mask_keyup) ? 1 << 31 : 0;
+
+	if ((ir->last_gpio & 0x7f) != data) {
+		dprintk(KERN_INFO DEVNAME ": gpio=0x%x code=%d | %s\n",
+			gpio, data,
+			(gpio & ir->mask_keyup) ? " up" : "up/down");
+
+		ir_input_keydown(ir->dev, &ir->ir, data, data);
+		if (keyup)
+			ir_input_nokey(ir->dev, &ir->ir);
+	} else {
+		if ((ir->last_gpio & 1 << 31) == keyup)
+			return;
+
+		dprintk(KERN_INFO DEVNAME ":(cnt) gpio=0x%x code=%d | %s\n",
+			gpio, data,
+			(gpio & ir->mask_keyup) ? " up" : "down");
+
+		if (keyup)
+			ir_input_nokey(ir->dev, &ir->ir);
+		else
+			ir_input_keydown(ir->dev, &ir->ir, data, data);
+	}
+
+	ir->last_gpio = data | keyup;
+}
+
 void bttv_input_irq(struct bttv *btv)
 {
 	struct card_ir *ir = btv->remote;
@@ -92,7 +137,10 @@ static void bttv_input_timer(unsigned long data)
 	struct bttv *btv = (struct bttv*)data;
 	struct card_ir *ir = btv->remote;
 
-	ir_handle_key(btv);
+	if (btv->c.type == BTTV_BOARD_ENLTV_FM_2)
+		ir_enltv_handle_key(btv);
+	else
+		ir_handle_key(btv);
 	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
 }
 
@@ -283,6 +331,14 @@ int bttv_input_init(struct bttv *btv)
 		ir->mask_keycode = 0x001f00;
 		ir->mask_keyup   = 0x006000;
 		ir->polling      = 50; /* ms */
+		break;
+	case BTTV_BOARD_ENLTV_FM_2:
+		ir_codes         = ir_codes_encore_enltv2;
+		ir->mask_keycode = 0x00fd00;
+		ir->mask_keyup   = 0x000080;
+		ir->polling      = 1; /* ms */
+		ir->last_gpio    = ir_extract_bits(bttv_gpio_read(&btv->c),
+						   ir->mask_keycode);
 		break;
 	}
 	if (NULL == ir_codes) {

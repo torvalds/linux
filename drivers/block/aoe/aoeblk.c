@@ -158,9 +158,9 @@ aoeblk_release(struct inode *inode, struct file *filp)
 static int
 aoeblk_make_request(struct request_queue *q, struct bio *bio)
 {
+	struct sk_buff_head queue;
 	struct aoedev *d;
 	struct buf *buf;
-	struct sk_buff *sl;
 	ulong flags;
 
 	blk_queue_bounce(q, &bio);
@@ -213,11 +213,11 @@ aoeblk_make_request(struct request_queue *q, struct bio *bio)
 	list_add_tail(&buf->bufs, &d->bufq);
 
 	aoecmd_work(d);
-	sl = d->sendq_hd;
-	d->sendq_hd = d->sendq_tl = NULL;
+	__skb_queue_head_init(&queue);
+	skb_queue_splice_init(&d->sendq, &queue);
 
 	spin_unlock_irqrestore(&d->lock, flags);
-	aoenet_xmit(sl);
+	aoenet_xmit(&queue);
 
 	return 0;
 }

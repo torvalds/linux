@@ -50,11 +50,15 @@ extern struct {
 struct smp_ops {
 	void (*smp_prepare_boot_cpu)(void);
 	void (*smp_prepare_cpus)(unsigned max_cpus);
-	int (*cpu_up)(unsigned cpu);
 	void (*smp_cpus_done)(unsigned max_cpus);
 
 	void (*smp_send_stop)(void);
 	void (*smp_send_reschedule)(int cpu);
+
+	int (*cpu_up)(unsigned cpu);
+	int (*cpu_disable)(void);
+	void (*cpu_die)(unsigned int cpu);
+	void (*play_dead)(void);
 
 	void (*send_call_func_ipi)(cpumask_t mask);
 	void (*send_call_func_single_ipi)(int cpu);
@@ -94,6 +98,21 @@ static inline int __cpu_up(unsigned int cpu)
 	return smp_ops.cpu_up(cpu);
 }
 
+static inline int __cpu_disable(void)
+{
+	return smp_ops.cpu_disable();
+}
+
+static inline void __cpu_die(unsigned int cpu)
+{
+	smp_ops.cpu_die(cpu);
+}
+
+static inline void play_dead(void)
+{
+	smp_ops.play_dead();
+}
+
 static inline void smp_send_reschedule(int cpu)
 {
 	smp_ops.smp_send_reschedule(cpu);
@@ -109,15 +128,20 @@ static inline void arch_send_call_function_ipi(cpumask_t mask)
 	smp_ops.send_call_func_ipi(mask);
 }
 
+void cpu_disable_common(void);
 void native_smp_prepare_boot_cpu(void);
 void native_smp_prepare_cpus(unsigned int max_cpus);
 void native_smp_cpus_done(unsigned int max_cpus);
 int native_cpu_up(unsigned int cpunum);
+int native_cpu_disable(void);
+void native_cpu_die(unsigned int cpu);
+void native_play_dead(void);
+void play_dead_common(void);
+
 void native_send_call_func_ipi(cpumask_t mask);
 void native_send_call_func_single_ipi(int cpu);
 
-extern int __cpu_disable(void);
-extern void __cpu_die(unsigned int cpu);
+extern void prefill_possible_map(void);
 
 void smp_store_cpu_info(int id);
 #define cpu_physical_id(cpu)	per_cpu(x86_cpu_to_apicid, cpu)
@@ -127,15 +151,11 @@ static inline int num_booting_cpus(void)
 {
 	return cpus_weight(cpu_callout_map);
 }
-#endif /* CONFIG_SMP */
-
-#if defined(CONFIG_SMP) && defined(CONFIG_HOTPLUG_CPU)
-extern void prefill_possible_map(void);
 #else
 static inline void prefill_possible_map(void)
 {
 }
-#endif
+#endif /* CONFIG_SMP */
 
 extern unsigned disabled_cpus __cpuinitdata;
 
@@ -167,30 +187,33 @@ extern int safe_smp_processor_id(void);
 
 #ifdef CONFIG_X86_LOCAL_APIC
 
+#ifndef CONFIG_X86_64
 static inline int logical_smp_processor_id(void)
 {
 	/* we don't want to mark this access volatile - bad code generation */
 	return GET_APIC_LOGICAL_ID(*(u32 *)(APIC_BASE + APIC_LDR));
 }
 
-#ifndef CONFIG_X86_64
+#include <mach_apicdef.h>
 static inline unsigned int read_apic_id(void)
 {
-	return *(u32 *)(APIC_BASE + APIC_ID);
+	unsigned int reg;
+
+	reg = *(u32 *)(APIC_BASE + APIC_ID);
+
+	return GET_APIC_ID(reg);
 }
-#else
-extern unsigned int read_apic_id(void);
 #endif
 
 
-# ifdef APIC_DEFINITION
+# if defined(APIC_DEFINITION) || defined(CONFIG_X86_64)
 extern int hard_smp_processor_id(void);
 # else
-#  include <mach_apicdef.h>
+#include <mach_apicdef.h>
 static inline int hard_smp_processor_id(void)
 {
 	/* we don't want to mark this access volatile - bad code generation */
-	return GET_APIC_ID(read_apic_id());
+	return read_apic_id();
 }
 # endif /* APIC_DEFINITION */
 
@@ -201,10 +224,6 @@ static inline int hard_smp_processor_id(void)
 # endif
 
 #endif /* CONFIG_X86_LOCAL_APIC */
-
-#ifdef CONFIG_HOTPLUG_CPU
-extern void cpu_uninit(void);
-#endif
 
 #endif /* __ASSEMBLY__ */
 #endif /* ASM_X86__SMP_H */

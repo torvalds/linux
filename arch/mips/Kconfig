@@ -52,6 +52,7 @@ config BCM47XX
 	select SSB
 	select SSB_DRIVER_MIPS
 	select SSB_DRIVER_EXTIF
+	select SSB_EMBEDDED
 	select SSB_PCICORE_HOSTMODE if PCI
 	select GENERIC_GPIO
 	select SYS_HAS_EARLY_PRINTK
@@ -568,7 +569,7 @@ config MIKROTIK_RB532
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SWAP_IO_SPACE
 	select BOOT_RAW
-	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support the Mikrotik(tm) RouterBoard 532 series,
 	  based on the IDT RC32434 SoC.
@@ -598,7 +599,7 @@ config WR_PPMC
 
 endchoice
 
-source "arch/mips/au1000/Kconfig"
+source "arch/mips/alchemy/Kconfig"
 source "arch/mips/basler/excite/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/lasat/Kconfig"
@@ -609,11 +610,6 @@ source "arch/mips/txx9/Kconfig"
 source "arch/mips/vr41xx/Kconfig"
 
 endmenu
-
-config GENERIC_LOCKBREAK
-	bool
-	default y
-	depends on SMP && PREEMPT
 
 config RWSEM_GENERIC_SPINLOCK
 	bool
@@ -1272,6 +1268,13 @@ config CPU_SUPPORTS_32BIT_KERNEL
 	bool
 config CPU_SUPPORTS_64BIT_KERNEL
 	bool
+
+#
+# Set to y for ptrace access to watch registers.
+#
+config HARDWARE_WATCHPOINTS
+       bool
+       default y if CPU_MIPS32 || CPU_MIPS64
 
 menu "Kernel type"
 

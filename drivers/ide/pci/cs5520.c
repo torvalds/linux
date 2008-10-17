@@ -35,7 +35,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/hdreg.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/ide.h>
@@ -146,15 +145,17 @@ static const struct pci_device_id cs5520_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, cs5520_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver cs5520_pci_driver = {
 	.name		= "Cyrix_IDE",
 	.id_table	= cs5520_pci_tbl,
 	.probe		= cs5520_init_one,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init cs5520_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&cs5520_pci_driver);
 }
 
 module_init(cs5520_ide_init);

@@ -478,7 +478,7 @@ static int do_ac_read(int IndexCard, char __user *buf,
 		struct st_ram_io *st_loc, struct mailbox *mailbox)
 {
 	void __iomem *from = apbs[IndexCard].RamIO + RAM_TO_PC;
-	unsigned char *to = (unsigned char *)&mailbox;
+	unsigned char *to = (unsigned char *)mailbox;
 #ifdef DEBUG
 	int c;
 #endif
@@ -712,8 +712,7 @@ static int ac_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 	
 	IndexCard = adgl->num_card-1;
 	 
-	if(cmd != 0 && cmd != 6 &&
-	   ((IndexCard >= MAX_BOARD) || !apbs[IndexCard].RamIO)) {
+	if(cmd != 6 && ((IndexCard >= MAX_BOARD) || !apbs[IndexCard].RamIO)) {
 		static int warncount = 10;
 		if (warncount) {
 			printk( KERN_WARNING "APPLICOM driver IOCTL, bad board number %d\n",(int)IndexCard+1);
@@ -832,8 +831,7 @@ static int ac_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 		}
 		break;
 	default:
-		printk(KERN_INFO "APPLICOM driver ioctl, unknown function code %d\n",cmd) ;
-		ret = -EINVAL;
+		ret = -ENOTTY;
 		break;
 	}
 	Dummy = readb(apbs[IndexCard].RamIO + VERS);

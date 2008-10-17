@@ -10,7 +10,6 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 
@@ -190,21 +189,23 @@ static const struct pci_device_id it8213_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, it8213_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver it8213_pci_driver = {
 	.name		= "ITE8213_IDE",
 	.id_table	= it8213_pci_tbl,
 	.probe		= it8213_init_one,
 	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init it8213_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&it8213_pci_driver);
 }
 
 static void __exit it8213_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&it8213_pci_driver);
 }
 
 module_init(it8213_ide_init);

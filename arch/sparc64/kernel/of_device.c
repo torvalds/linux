@@ -55,15 +55,38 @@ struct of_device *of_find_device_by_node(struct device_node *dp)
 }
 EXPORT_SYMBOL(of_find_device_by_node);
 
-#ifdef CONFIG_PCI
-struct bus_type ebus_bus_type;
-EXPORT_SYMBOL(ebus_bus_type);
-#endif
+unsigned int irq_of_parse_and_map(struct device_node *node, int index)
+{
+	struct of_device *op = of_find_device_by_node(node);
 
-#ifdef CONFIG_SBUS
-struct bus_type sbus_bus_type;
-EXPORT_SYMBOL(sbus_bus_type);
-#endif
+	if (!op || index >= op->num_irqs)
+		return 0;
+
+	return op->irqs[index];
+}
+EXPORT_SYMBOL(irq_of_parse_and_map);
+
+/* Take the archdata values for IOMMU, STC, and HOSTDATA found in
+ * BUS and propagate to all child of_device objects.
+ */
+void of_propagate_archdata(struct of_device *bus)
+{
+	struct dev_archdata *bus_sd = &bus->dev.archdata;
+	struct device_node *bus_dp = bus->node;
+	struct device_node *dp;
+
+	for (dp = bus_dp->child; dp; dp = dp->sibling) {
+		struct of_device *op = of_find_device_by_node(dp);
+
+		op->dev.archdata.iommu = bus_sd->iommu;
+		op->dev.archdata.stc = bus_sd->stc;
+		op->dev.archdata.host_controller = bus_sd->host_controller;
+		op->dev.archdata.numa_node = bus_sd->numa_node;
+
+		if (dp->child)
+			of_propagate_archdata(op);
+	}
+}
 
 struct bus_type of_platform_bus_type;
 EXPORT_SYMBOL(of_platform_bus_type);
@@ -378,8 +401,7 @@ static int __init build_one_resource(struct device_node *parent,
 				     int na, int ns, int pna)
 {
 	const u32 *ranges;
-	unsigned int rlen;
-	int rone;
+	int rone, rlen;
 
 	ranges = of_get_property(parent, "ranges", &rlen);
 	if (ranges == NULL || rlen == 0) {
@@ -421,8 +443,17 @@ static int __init use_1to1_mapping(struct device_node *pp)
 
 	/* If the parent is the dma node of an ISA bus, pass
 	 * the translation up to the root.
+	 *
+	 * Some SBUS devices use intermediate nodes to express
+	 * hierarchy within the device itself.  These aren't
+	 * real bus nodes, and don't have a 'ranges' property.
+	 * But, we should still pass the translation work up
+	 * to the SBUS itself.
 	 */
-	if (!strcmp(pp->name, "dma"))
+	if (!strcmp(pp->name, "dma") ||
+	    !strcmp(pp->name, "espdma") ||
+	    !strcmp(pp->name, "ledma") ||
+	    !strcmp(pp->name, "lebuffer"))
 		return 0;
 
 	/* Similarly for all PCI bridges, if we get this far
@@ -844,15 +875,6 @@ static int __init of_bus_driver_init(void)
 	int err;
 
 	err = of_bus_type_init(&of_platform_bus_type, "of");
-#ifdef CONFIG_PCI
-	if (!err)
-		err = of_bus_type_init(&ebus_bus_type, "ebus");
-#endif
-#ifdef CONFIG_SBUS
-	if (!err)
-		err = of_bus_type_init(&sbus_bus_type, "sbus");
-#endif
-
 	if (!err)
 		scan_of_devices();
 

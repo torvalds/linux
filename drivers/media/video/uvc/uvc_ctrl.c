@@ -83,6 +83,22 @@ static struct uvc_control_info uvc_ctrls[] = {
 	},
 	{
 		.entity		= UVC_GUID_UVC_PROCESSING,
+		.selector	= PU_WHITE_BALANCE_TEMPERATURE_CONTROL,
+		.index		= 6,
+		.size		= 2,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
+				| UVC_CONTROL_RESTORE | UVC_CONTROL_AUTO_UPDATE,
+	},
+	{
+		.entity		= UVC_GUID_UVC_PROCESSING,
+		.selector	= PU_WHITE_BALANCE_COMPONENT_CONTROL,
+		.index		= 7,
+		.size		= 4,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
+				| UVC_CONTROL_RESTORE | UVC_CONTROL_AUTO_UPDATE,
+	},
+	{
+		.entity		= UVC_GUID_UVC_PROCESSING,
 		.selector	= PU_BACKLIGHT_COMPENSATION_CONTROL,
 		.index		= 8,
 		.size		= 2,
@@ -114,6 +130,60 @@ static struct uvc_control_info uvc_ctrls[] = {
 				| UVC_CONTROL_GET_DEF | UVC_CONTROL_RESTORE,
 	},
 	{
+		.entity		= UVC_GUID_UVC_PROCESSING,
+		.selector	= PU_WHITE_BALANCE_TEMPERATURE_AUTO_CONTROL,
+		.index		= 12,
+		.size		= 1,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR
+				| UVC_CONTROL_GET_DEF | UVC_CONTROL_RESTORE,
+	},
+	{
+		.entity		= UVC_GUID_UVC_PROCESSING,
+		.selector	= PU_WHITE_BALANCE_COMPONENT_AUTO_CONTROL,
+		.index		= 13,
+		.size		= 1,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR
+				| UVC_CONTROL_GET_DEF | UVC_CONTROL_RESTORE,
+	},
+	{
+		.entity		= UVC_GUID_UVC_PROCESSING,
+		.selector	= PU_DIGITAL_MULTIPLIER_CONTROL,
+		.index		= 14,
+		.size		= 2,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
+				| UVC_CONTROL_RESTORE,
+	},
+	{
+		.entity		= UVC_GUID_UVC_PROCESSING,
+		.selector	= PU_DIGITAL_MULTIPLIER_LIMIT_CONTROL,
+		.index		= 15,
+		.size		= 2,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
+				| UVC_CONTROL_RESTORE,
+	},
+	{
+		.entity		= UVC_GUID_UVC_PROCESSING,
+		.selector	= PU_ANALOG_VIDEO_STANDARD_CONTROL,
+		.index		= 16,
+		.size		= 1,
+		.flags		= UVC_CONTROL_GET_CUR,
+	},
+	{
+		.entity		= UVC_GUID_UVC_PROCESSING,
+		.selector	= PU_ANALOG_LOCK_STATUS_CONTROL,
+		.index		= 17,
+		.size		= 1,
+		.flags		= UVC_CONTROL_GET_CUR,
+	},
+	{
+		.entity		= UVC_GUID_UVC_CAMERA,
+		.selector	= CT_SCANNING_MODE_CONTROL,
+		.index		= 0,
+		.size		= 1,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR
+				| UVC_CONTROL_RESTORE,
+	},
+	{
 		.entity		= UVC_GUID_UVC_CAMERA,
 		.selector	= CT_AE_MODE_CONTROL,
 		.index		= 1,
@@ -140,11 +210,91 @@ static struct uvc_control_info uvc_ctrls[] = {
 	},
 	{
 		.entity		= UVC_GUID_UVC_CAMERA,
+		.selector	= CT_EXPOSURE_TIME_RELATIVE_CONTROL,
+		.index		= 4,
+		.size		= 1,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR
+				| UVC_CONTROL_RESTORE,
+	},
+	{
+		.entity		= UVC_GUID_UVC_CAMERA,
 		.selector	= CT_FOCUS_ABSOLUTE_CONTROL,
 		.index		= 5,
 		.size		= 2,
 		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
 				| UVC_CONTROL_RESTORE | UVC_CONTROL_AUTO_UPDATE,
+	},
+	{
+		.entity		= UVC_GUID_UVC_CAMERA,
+		.selector	= CT_FOCUS_RELATIVE_CONTROL,
+		.index		= 6,
+		.size		= 2,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
+				| UVC_CONTROL_AUTO_UPDATE,
+	},
+	{
+		.entity		= UVC_GUID_UVC_CAMERA,
+		.selector	= CT_IRIS_ABSOLUTE_CONTROL,
+		.index		= 7,
+		.size		= 2,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
+				| UVC_CONTROL_RESTORE | UVC_CONTROL_AUTO_UPDATE,
+	},
+	{
+		.entity		= UVC_GUID_UVC_CAMERA,
+		.selector	= CT_IRIS_RELATIVE_CONTROL,
+		.index		= 8,
+		.size		= 1,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR
+				| UVC_CONTROL_AUTO_UPDATE,
+	},
+	{
+		.entity		= UVC_GUID_UVC_CAMERA,
+		.selector	= CT_ZOOM_ABSOLUTE_CONTROL,
+		.index		= 9,
+		.size		= 2,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
+				| UVC_CONTROL_RESTORE | UVC_CONTROL_AUTO_UPDATE,
+	},
+	{
+		.entity		= UVC_GUID_UVC_CAMERA,
+		.selector	= CT_ZOOM_RELATIVE_CONTROL,
+		.index		= 10,
+		.size		= 3,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
+				| UVC_CONTROL_AUTO_UPDATE,
+	},
+	{
+		.entity		= UVC_GUID_UVC_CAMERA,
+		.selector	= CT_PANTILT_ABSOLUTE_CONTROL,
+		.index		= 11,
+		.size		= 8,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
+				| UVC_CONTROL_RESTORE | UVC_CONTROL_AUTO_UPDATE,
+	},
+	{
+		.entity		= UVC_GUID_UVC_CAMERA,
+		.selector	= CT_PANTILT_RELATIVE_CONTROL,
+		.index		= 12,
+		.size		= 4,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
+				| UVC_CONTROL_AUTO_UPDATE,
+	},
+	{
+		.entity		= UVC_GUID_UVC_CAMERA,
+		.selector	= CT_ROLL_ABSOLUTE_CONTROL,
+		.index		= 13,
+		.size		= 2,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
+				| UVC_CONTROL_RESTORE | UVC_CONTROL_AUTO_UPDATE,
+	},
+	{
+		.entity		= UVC_GUID_UVC_CAMERA,
+		.selector	= CT_ROLL_RELATIVE_CONTROL,
+		.index		= 14,
+		.size		= 2,
+		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
+				| UVC_CONTROL_AUTO_UPDATE,
 	},
 	{
 		.entity		= UVC_GUID_UVC_CAMERA,
@@ -155,35 +305,11 @@ static struct uvc_control_info uvc_ctrls[] = {
 				| UVC_CONTROL_GET_DEF | UVC_CONTROL_RESTORE,
 	},
 	{
-		.entity		= UVC_GUID_UVC_PROCESSING,
-		.selector	= PU_WHITE_BALANCE_TEMPERATURE_AUTO_CONTROL,
-		.index		= 12,
+		.entity		= UVC_GUID_UVC_CAMERA,
+		.selector	= CT_PRIVACY_CONTROL,
+		.index		= 18,
 		.size		= 1,
 		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR
-				| UVC_CONTROL_GET_DEF | UVC_CONTROL_RESTORE,
-	},
-	{
-		.entity		= UVC_GUID_UVC_PROCESSING,
-		.selector	= PU_WHITE_BALANCE_TEMPERATURE_CONTROL,
-		.index		= 6,
-		.size		= 2,
-		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
-				| UVC_CONTROL_RESTORE | UVC_CONTROL_AUTO_UPDATE,
-	},
-	{
-		.entity		= UVC_GUID_UVC_PROCESSING,
-		.selector	= PU_WHITE_BALANCE_COMPONENT_AUTO_CONTROL,
-		.index		= 13,
-		.size		= 1,
-		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_CUR
-				| UVC_CONTROL_GET_DEF | UVC_CONTROL_RESTORE,
-	},
-	{
-		.entity		= UVC_GUID_UVC_PROCESSING,
-		.selector	= PU_WHITE_BALANCE_COMPONENT_CONTROL,
-		.index		= 7,
-		.size		= 4,
-		.flags		= UVC_CONTROL_SET_CUR | UVC_CONTROL_GET_RANGE
 				| UVC_CONTROL_RESTORE | UVC_CONTROL_AUTO_UPDATE,
 	},
 };
@@ -711,7 +837,17 @@ static int uvc_ctrl_commit_entity(struct uvc_device *dev,
 
 	for (i = 0; i < entity->ncontrols; ++i) {
 		ctrl = &entity->controls[i];
-		if (ctrl->info == NULL || !ctrl->dirty)
+		if (ctrl->info == NULL)
+			continue;
+
+		/* Reset the loaded flag for auto-update controls that were
+		 * marked as loaded in uvc_ctrl_get/uvc_ctrl_set to prevent
+		 * uvc_ctrl_get from using the cached value.
+		 */
+		if (ctrl->info->flags & UVC_CONTROL_AUTO_UPDATE)
+			ctrl->loaded = 0;
+
+		if (!ctrl->dirty)
 			continue;
 
 		if (!rollback)
@@ -726,9 +862,6 @@ static int uvc_ctrl_commit_entity(struct uvc_device *dev,
 			memcpy(uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT),
 			       uvc_ctrl_data(ctrl, UVC_CTRL_DATA_BACKUP),
 			       ctrl->info->size);
-
-		if ((ctrl->info->flags & UVC_CONTROL_GET_CUR) == 0)
-			ctrl->loaded = 0;
 
 		ctrl->dirty = 0;
 
@@ -787,8 +920,7 @@ int uvc_ctrl_get(struct uvc_video_device *video,
 		if (ret < 0)
 			return ret;
 
-		if ((ctrl->info->flags & UVC_CONTROL_AUTO_UPDATE) == 0)
-			ctrl->loaded = 1;
+		ctrl->loaded = 1;
 	}
 
 	xctrl->value = uvc_get_le_value(
@@ -839,8 +971,7 @@ int uvc_ctrl_set(struct uvc_video_device *video,
 				return ret;
 		}
 
-		if ((ctrl->info->flags & UVC_CONTROL_AUTO_UPDATE) == 0)
-			ctrl->loaded = 1;
+		ctrl->loaded = 1;
 	}
 
 	if (!ctrl->dirty) {

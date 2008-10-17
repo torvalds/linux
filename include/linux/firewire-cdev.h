@@ -154,8 +154,13 @@ struct fw_cdev_event_iso_interrupt {
  * @request:       Valid if @common.type == %FW_CDEV_EVENT_REQUEST
  * @iso_interrupt: Valid if @common.type == %FW_CDEV_EVENT_ISO_INTERRUPT
  *
- * Convenience union for userspace use.  Events could be read(2) into a char
- * buffer and then cast to this union for further processing.
+ * Convenience union for userspace use.  Events could be read(2) into an
+ * appropriately aligned char buffer and then cast to this union for further
+ * processing.  Note that for a request, response or iso_interrupt event,
+ * the data[] or header[] may make the size of the full event larger than
+ * sizeof(union fw_cdev_event).  Also note that if you attempt to read(2)
+ * an event into a buffer that is not large enough for it, the data that does
+ * not fit will be discarded so that the next read(2) will return a new event.
  */
 union fw_cdev_event {
 	struct fw_cdev_event_common common;

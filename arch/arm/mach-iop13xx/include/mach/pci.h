@@ -1,7 +1,7 @@
 #ifndef _IOP13XX_PCI_H_
 #define _IOP13XX_PCI_H_
+#include <linux/io.h>
 #include <mach/irqs.h>
-#include <asm/io.h>
 
 struct pci_sys_data;
 struct hw_pci;

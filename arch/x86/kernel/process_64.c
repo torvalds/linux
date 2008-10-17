@@ -86,30 +86,12 @@ void exit_idle(void)
 	__exit_idle();
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-DECLARE_PER_CPU(int, cpu_state);
-
-#include <linux/nmi.h>
-/* We halt the CPU with physical CPU hotplug */
-static inline void play_dead(void)
-{
-	idle_task_exit();
-	c1e_remove_cpu(raw_smp_processor_id());
-
-	mb();
-	/* Ack it */
-	__get_cpu_var(cpu_state) = CPU_DEAD;
-
-	local_irq_disable();
-	/* mask all interrupts, flush any and all caches, and halt */
-	wbinvd_halt();
-}
-#else
+#ifndef CONFIG_SMP
 static inline void play_dead(void)
 {
 	BUG();
 }
-#endif /* CONFIG_HOTPLUG_CPU */
+#endif
 
 /*
  * The idle thread. There's no useful work to be
@@ -154,7 +136,7 @@ void cpu_idle(void)
 }
 
 /* Prints also some state that isn't saved in the pt_regs */
-void __show_regs(struct pt_regs *regs)
+void __show_regs(struct pt_regs *regs, int all)
 {
 	unsigned long cr0 = 0L, cr2 = 0L, cr3 = 0L, cr4 = 0L, fs, gs, shadowgs;
 	unsigned long d0, d1, d2, d3, d6, d7;
@@ -193,6 +175,9 @@ void __show_regs(struct pt_regs *regs)
 	rdmsrl(MSR_GS_BASE, gs);
 	rdmsrl(MSR_KERNEL_GS_BASE, shadowgs);
 
+	if (!all)
+		return;
+
 	cr0 = read_cr0();
 	cr2 = read_cr2();
 	cr3 = read_cr3();
@@ -218,7 +203,7 @@ void __show_regs(struct pt_regs *regs)
 void show_regs(struct pt_regs *regs)
 {
 	printk(KERN_INFO "CPU %d:", smp_processor_id());
-	__show_regs(regs);
+	__show_regs(regs, 1);
 	show_trace(NULL, regs, (void *)(regs + 1), regs->bp);
 }
 
@@ -754,12 +739,12 @@ unsigned long get_wchan(struct task_struct *p)
 	if (!p || p == current || p->state == TASK_RUNNING)
 		return 0;
 	stack = (unsigned long)task_stack_page(p);
-	if (p->thread.sp < stack || p->thread.sp > stack+THREAD_SIZE)
+	if (p->thread.sp < stack || p->thread.sp >= stack+THREAD_SIZE)
 		return 0;
 	fp = *(u64 *)(p->thread.sp);
 	do {
 		if (fp < (unsigned long)stack ||
-		    fp > (unsigned long)stack+THREAD_SIZE)
+		    fp >= (unsigned long)stack+THREAD_SIZE)
 			return 0;
 		ip = *(u64 *)(fp+8);
 		if (!in_sched_functions(ip))

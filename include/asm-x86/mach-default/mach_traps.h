@@ -7,12 +7,6 @@
 
 #include <asm/mc146818rtc.h>
 
-static inline void clear_mem_error(unsigned char reason)
-{
-	reason = (reason & 0xf) | 4;
-	outb(reason, 0x61);
-}
-
 static inline unsigned char get_nmi_reason(void)
 {
 	return inb(0x61);

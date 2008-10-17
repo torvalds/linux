@@ -234,8 +234,8 @@ parse_tag_65_packet(struct ecryptfs_session_key *session_key, u8 *cipher_code,
 	}
 	i += data_len;
 	if (message_len < (i + m_size)) {
-		ecryptfs_printk(KERN_ERR, "The received netlink message is "
-				"shorter than expected\n");
+		ecryptfs_printk(KERN_ERR, "The message received from ecryptfsd "
+				"is shorter than expected\n");
 		rc = -EIO;
 		goto out;
 	}
@@ -438,8 +438,8 @@ decrypt_pki_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 	struct ecryptfs_msg_ctx *msg_ctx;
 	struct ecryptfs_message *msg = NULL;
 	char *auth_tok_sig;
-	char *netlink_message;
-	size_t netlink_message_length;
+	char *payload;
+	size_t payload_len;
 	int rc;
 
 	rc = ecryptfs_get_auth_tok_sig(&auth_tok_sig, auth_tok);
@@ -449,15 +449,15 @@ decrypt_pki_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 		goto out;
 	}
 	rc = write_tag_64_packet(auth_tok_sig, &(auth_tok->session_key),
-				 &netlink_message, &netlink_message_length);
+				 &payload, &payload_len);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Failed to write tag 64 packet\n");
 		goto out;
 	}
-	rc = ecryptfs_send_message(ecryptfs_transport, netlink_message,
-				   netlink_message_length, &msg_ctx);
+	rc = ecryptfs_send_message(payload, payload_len, &msg_ctx);
 	if (rc) {
-		ecryptfs_printk(KERN_ERR, "Error sending netlink message\n");
+		ecryptfs_printk(KERN_ERR, "Error sending message to "
+				"ecryptfsd\n");
 		goto out;
 	}
 	rc = ecryptfs_wait_for_response(msg_ctx, &msg);
@@ -1333,23 +1333,22 @@ pki_encrypt_session_key(struct ecryptfs_auth_tok *auth_tok,
 			struct ecryptfs_key_record *key_rec)
 {
 	struct ecryptfs_msg_ctx *msg_ctx = NULL;
-	char *netlink_payload;
-	size_t netlink_payload_length;
+	char *payload = NULL;
+	size_t payload_len;
 	struct ecryptfs_message *msg;
 	int rc;
 
 	rc = write_tag_66_packet(auth_tok->token.private_key.signature,
 				 ecryptfs_code_for_cipher_string(crypt_stat),
-				 crypt_stat, &netlink_payload,
-				 &netlink_payload_length);
+				 crypt_stat, &payload, &payload_len);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Error generating tag 66 packet\n");
 		goto out;
 	}
-	rc = ecryptfs_send_message(ecryptfs_transport, netlink_payload,
-				   netlink_payload_length, &msg_ctx);
+	rc = ecryptfs_send_message(payload, payload_len, &msg_ctx);
 	if (rc) {
-		ecryptfs_printk(KERN_ERR, "Error sending netlink message\n");
+		ecryptfs_printk(KERN_ERR, "Error sending message to "
+				"ecryptfsd\n");
 		goto out;
 	}
 	rc = ecryptfs_wait_for_response(msg_ctx, &msg);
@@ -1364,8 +1363,7 @@ pki_encrypt_session_key(struct ecryptfs_auth_tok *auth_tok,
 		ecryptfs_printk(KERN_ERR, "Error parsing tag 67 packet\n");
 	kfree(msg);
 out:
-	if (netlink_payload)
-		kfree(netlink_payload);
+	kfree(payload);
 	return rc;
 }
 /**

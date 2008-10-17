@@ -898,9 +898,11 @@ static int vivi_open(struct inode *inode, struct file *file)
 
 	printk(KERN_DEBUG "vivi: open called (minor=%d)\n", minor);
 
+	lock_kernel();
 	list_for_each_entry(dev, &vivi_devlist, vivi_devlist)
 		if (dev->vfd->minor == minor)
 			goto found;
+	unlock_kernel();
 	return -ENODEV;
 
 found:
@@ -925,8 +927,10 @@ found:
 	}
 unlock:
 	mutex_unlock(&dev->mutex);
-	if (retval)
+	if (retval) {
+		unlock_kernel();
 		return retval;
+	}
 
 	file->private_data = fh;
 	fh->dev      = dev;
@@ -955,6 +959,7 @@ unlock:
 			sizeof(struct vivi_buffer), fh);
 
 	vivi_start_thread(fh);
+	unlock_kernel();
 
 	return 0;
 }

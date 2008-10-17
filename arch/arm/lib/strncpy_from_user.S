@@ -31,6 +31,7 @@ USER(	ldrplbt	r3, [r1], #1)
 	sub	r1, r1, #1	@ take NUL character out of count
 2:	sub	r0, r1, ip
 	mov	pc, lr
+ENDPROC(__strncpy_from_user)
 
 	.section .fixup,"ax"
 	.align	0

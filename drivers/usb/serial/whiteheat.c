@@ -1481,7 +1481,7 @@ static void rx_data_softint(struct work_struct *work)
 	struct whiteheat_private *info =
 		container_of(work, struct whiteheat_private, rx_work);
 	struct usb_serial_port *port = info->port;
-	struct tty_struct *tty = port->port.tty;
+	struct tty_struct *tty = tty_port_tty_get(&port->port);
 	struct whiteheat_urb_wrap *wrap;
 	struct urb *urb;
 	unsigned long flags;
@@ -1493,7 +1493,7 @@ static void rx_data_softint(struct work_struct *work)
 	spin_lock_irqsave(&info->lock, flags);
 	if (info->flags & THROTTLED) {
 		spin_unlock_irqrestore(&info->lock, flags);
-		return;
+		goto out;
 	}
 
 	list_for_each_safe(tmp, tmp2, &info->rx_urb_q) {
@@ -1513,7 +1513,7 @@ static void rx_data_softint(struct work_struct *work)
 				spin_unlock_irqrestore(&info->lock, flags);
 				tty_flip_buffer_push(tty);
 				schedule_work(&info->rx_work);
-				return;
+				goto out;
 			}
 			tty_insert_flip_string(tty, urb->transfer_buffer, len);
 			sent += len;
@@ -1536,6 +1536,8 @@ static void rx_data_softint(struct work_struct *work)
 
 	if (sent)
 		tty_flip_buffer_push(tty);
+out:
+	tty_kref_put(tty);
 }
 
 

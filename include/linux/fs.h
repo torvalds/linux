@@ -234,6 +234,7 @@ extern int dir_notify_enable;
 #define	FS_IOC_SETFLAGS			_IOW('f', 2, long)
 #define	FS_IOC_GETVERSION		_IOR('v', 1, long)
 #define	FS_IOC_SETVERSION		_IOW('v', 2, long)
+#define FS_IOC_FIEMAP			_IOWR('f', 11, struct fiemap)
 #define FS_IOC32_GETFLAGS		_IOR('f', 1, int)
 #define FS_IOC32_SETFLAGS		_IOW('f', 2, int)
 #define FS_IOC32_GETVERSION		_IOR('v', 1, int)
@@ -294,6 +295,7 @@ extern int dir_notify_enable;
 #include <linux/mutex.h>
 #include <linux/capability.h>
 #include <linux/semaphore.h>
+#include <linux/fiemap.h>
 
 #include <asm/atomic.h>
 #include <asm/byteorder.h>
@@ -945,6 +947,14 @@ struct lock_manager_operations {
 	int (*fl_change)(struct file_lock **, int);
 };
 
+struct lock_manager {
+	struct list_head list;
+};
+
+void locks_start_grace(struct lock_manager *);
+void locks_end_grace(struct lock_manager *);
+int locks_in_grace(void);
+
 /* that will die - we need it for nfs_lock_info */
 #include <linux/nfs_fs_i.h>
 
@@ -986,6 +996,13 @@ struct file_lock {
 
 #include <linux/fcntl.h>
 
+extern void send_sigio(struct fown_struct *fown, int fd, int band);
+
+/* fs/sync.c */
+extern int do_sync_mapping_range(struct address_space *mapping, loff_t offset,
+			loff_t endbyte, unsigned int flags);
+
+#ifdef CONFIG_FILE_LOCKING
 extern int fcntl_getlk(struct file *, struct flock __user *);
 extern int fcntl_setlk(unsigned int, struct file *, unsigned int,
 			struct flock __user *);
@@ -996,13 +1013,8 @@ extern int fcntl_setlk64(unsigned int, struct file *, unsigned int,
 			struct flock64 __user *);
 #endif
 
-extern void send_sigio(struct fown_struct *fown, int fd, int band);
 extern int fcntl_setlease(unsigned int fd, struct file *filp, long arg);
 extern int fcntl_getlease(struct file *filp);
-
-/* fs/sync.c */
-extern int do_sync_mapping_range(struct address_space *mapping, loff_t offset,
-			loff_t endbyte, unsigned int flags);
 
 /* fs/locks.c */
 extern void locks_init_lock(struct file_lock *);
@@ -1026,6 +1038,37 @@ extern int lease_modify(struct file_lock **, int);
 extern int lock_may_read(struct inode *, loff_t start, unsigned long count);
 extern int lock_may_write(struct inode *, loff_t start, unsigned long count);
 extern struct seq_operations locks_seq_operations;
+#else /* !CONFIG_FILE_LOCKING */
+#define fcntl_getlk(a, b) ({ -EINVAL; })
+#define fcntl_setlk(a, b, c, d) ({ -EACCES; })
+#if BITS_PER_LONG == 32
+#define fcntl_getlk64(a, b) ({ -EINVAL; })
+#define fcntl_setlk64(a, b, c, d) ({ -EACCES; })
+#endif
+#define fcntl_setlease(a, b, c) ({ 0; })
+#define fcntl_getlease(a) ({ 0; })
+#define locks_init_lock(a) ({ })
+#define __locks_copy_lock(a, b) ({ })
+#define locks_copy_lock(a, b) ({ })
+#define locks_remove_posix(a, b) ({ })
+#define locks_remove_flock(a) ({ })
+#define posix_test_lock(a, b) ({ 0; })
+#define posix_lock_file(a, b, c) ({ -ENOLCK; })
+#define posix_lock_file_wait(a, b) ({ -ENOLCK; })
+#define posix_unblock_lock(a, b) (-ENOENT)
+#define vfs_test_lock(a, b) ({ 0; })
+#define vfs_lock_file(a, b, c, d) (-ENOLCK)
+#define vfs_cancel_lock(a, b) ({ 0; })
+#define flock_lock_file_wait(a, b) ({ -ENOLCK; })
+#define __break_lease(a, b) ({ 0; })
+#define lease_get_mtime(a, b) ({ })
+#define generic_setlease(a, b, c) ({ -EINVAL; })
+#define vfs_setlease(a, b, c) ({ -EINVAL; })
+#define lease_modify(a, b) ({ -EINVAL; })
+#define lock_may_read(a, b, c) ({ 1; })
+#define lock_may_write(a, b, c) ({ 1; })
+#endif /* !CONFIG_FILE_LOCKING */
+
 
 struct fasync_struct {
 	int	magic;
@@ -1182,6 +1225,20 @@ extern void dentry_unhash(struct dentry *dentry);
 extern int file_permission(struct file *, int);
 
 /*
+ * VFS FS_IOC_FIEMAP helper definitions.
+ */
+struct fiemap_extent_info {
+	unsigned int fi_flags;		/* Flags as passed from user */
+	unsigned int fi_extents_mapped;	/* Number of mapped extents */
+	unsigned int fi_extents_max;	/* Size of fiemap_extent array */
+	struct fiemap_extent *fi_extents_start; /* Start of fiemap_extent
+						 * array */
+};
+int fiemap_fill_next_extent(struct fiemap_extent_info *info, u64 logical,
+			    u64 phys, u64 len, u32 flags);
+int fiemap_check_flags(struct fiemap_extent_info *fieinfo, u32 fs_flags);
+
+/*
  * File types
  *
  * NOTE! These match bits 12..15 of stat.st_mode
@@ -1290,6 +1347,8 @@ struct inode_operations {
 	void (*truncate_range)(struct inode *, loff_t, loff_t);
 	long (*fallocate)(struct inode *inode, int mode, loff_t offset,
 			  loff_t len);
+	int (*fiemap)(struct inode *, struct fiemap_extent_info *, u64 start,
+		      u64 len);
 };
 
 struct seq_file;
@@ -1557,9 +1616,12 @@ extern int vfs_statfs(struct dentry *, struct kstatfs *);
 /* /sys/fs */
 extern struct kobject *fs_kobj;
 
+extern int rw_verify_area(int, struct file *, loff_t *, size_t);
+
 #define FLOCK_VERIFY_READ  1
 #define FLOCK_VERIFY_WRITE 2
 
+#ifdef CONFIG_FILE_LOCKING
 extern int locks_mandatory_locked(struct inode *);
 extern int locks_mandatory_area(int, struct inode *, struct file *, loff_t, size_t);
 
@@ -1590,8 +1652,6 @@ static inline int locks_verify_locked(struct inode *inode)
 	return 0;
 }
 
-extern int rw_verify_area(int, struct file *, loff_t *, size_t);
-
 static inline int locks_verify_truncate(struct inode *inode,
 				    struct file *filp,
 				    loff_t size)
@@ -1612,6 +1672,15 @@ static inline int break_lease(struct inode *inode, unsigned int mode)
 		return __break_lease(inode, mode);
 	return 0;
 }
+#else /* !CONFIG_FILE_LOCKING */
+#define locks_mandatory_locked(a) ({ 0; })
+#define locks_mandatory_area(a, b, c, d, e) ({ 0; })
+#define __mandatory_lock(a) ({ 0; })
+#define mandatory_lock(a) ({ 0; })
+#define locks_verify_locked(a) ({ 0; })
+#define locks_verify_truncate(a, b, c) ({ 0; })
+#define break_lease(a, b) ({ 0; })
+#endif /* CONFIG_FILE_LOCKING */
 
 /* fs/open.c */
 
@@ -1987,6 +2056,9 @@ extern int vfs_fstat(unsigned int, struct kstat *);
 
 extern int do_vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd,
 		    unsigned long arg);
+extern int generic_block_fiemap(struct inode *inode,
+				struct fiemap_extent_info *fieinfo, u64 start,
+				u64 len, get_block_t *get_block);
 
 extern void get_filesystem(struct file_system_type *fs);
 extern void put_filesystem(struct file_system_type *fs);

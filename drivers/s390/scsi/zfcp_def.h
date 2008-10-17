@@ -596,7 +596,7 @@ struct zfcp_data {
 	struct semaphore        config_sema;        /* serialises configuration
 						       changes */
 	atomic_t		loglevel;            /* current loglevel */
-	char                    init_busid[BUS_ID_SIZE];
+	char			init_busid[20];
 	u64			init_wwpn;
 	u64			init_fcp_lun;
 	struct kmem_cache	*fsf_req_qtcb_cache;
@@ -619,7 +619,7 @@ struct zfcp_fsf_req_qtcb {
 #define ZFCP_SET                0x00000100
 #define ZFCP_CLEAR              0x00000200
 
-#define zfcp_get_busid_by_adapter(adapter) (adapter->ccw_device->dev.bus_id)
+#define zfcp_get_busid_by_adapter(adapter) (dev_name(&adapter->ccw_device->dev))
 
 /*
  * Helper functions for request ID management.

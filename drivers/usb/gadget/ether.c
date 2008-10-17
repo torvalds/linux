@@ -96,6 +96,28 @@ static inline bool has_rndis(void)
 
 /*-------------------------------------------------------------------------*/
 
+/*
+ * Kbuild is not very cooperative with respect to linking separately
+ * compiled library objects into one module.  So for now we won't use
+ * separate compilation ... ensuring init/exit sections work to shrink
+ * the runtime footprint, and giving us at least some parts of what
+ * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
+ */
+#include "composite.c"
+#include "usbstring.c"
+#include "config.c"
+#include "epautoconf.c"
+
+#include "f_ecm.c"
+#include "f_subset.c"
+#ifdef	CONFIG_USB_ETH_RNDIS
+#include "f_rndis.c"
+#include "rndis.c"
+#endif
+#include "u_ether.c"
+
+/*-------------------------------------------------------------------------*/
+
 /* DO NOT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
  * Instead:  allocate your own, using normal USB-IF procedures.
  */
@@ -293,7 +315,8 @@ static int __init eth_bind(struct usb_composite_dev *cdev)
 		 * but if the controller isn't recognized at all then
 		 * that assumption is a bit more likely to be wrong.
 		 */
-		WARNING(cdev, "controller '%s' not recognized; trying %s\n",
+		dev_warn(&gadget->dev,
+				"controller '%s' not recognized; trying %s\n",
 				gadget->name,
 				eth_config_driver.label);
 		device_desc.bcdDevice =
@@ -332,7 +355,8 @@ static int __init eth_bind(struct usb_composite_dev *cdev)
 	if (status < 0)
 		goto fail;
 
-	INFO(cdev, "%s, version: " DRIVER_VERSION "\n", DRIVER_DESC);
+	dev_info(&gadget->dev, "%s, version: " DRIVER_VERSION "\n",
+			DRIVER_DESC);
 
 	return 0;
 

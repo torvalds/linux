@@ -31,7 +31,7 @@ static int mmc_prep_request(struct request_queue *q, struct request *req)
 	/*
 	 * We only like normal block requests.
 	 */
-	if (!blk_fs_request(req) && !blk_pc_request(req)) {
+	if (!blk_fs_request(req)) {
 		blk_dump_rq_flags(req, "MMC bad request");
 		return BLKPREP_KILL;
 	}
@@ -131,6 +131,7 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 	mq->req = NULL;
 
 	blk_queue_prep_rq(mq->queue, mmc_prep_request);
+	blk_queue_ordered(mq->queue, QUEUE_ORDERED_DRAIN, NULL);
 
 #ifdef CONFIG_MMC_BLOCK_BOUNCE
 	if (host->max_hw_segs == 1) {
@@ -142,12 +143,19 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 			bouncesz = host->max_req_size;
 		if (bouncesz > host->max_seg_size)
 			bouncesz = host->max_seg_size;
+		if (bouncesz > (host->max_blk_count * 512))
+			bouncesz = host->max_blk_count * 512;
 
-		mq->bounce_buf = kmalloc(bouncesz, GFP_KERNEL);
-		if (!mq->bounce_buf) {
-			printk(KERN_WARNING "%s: unable to allocate "
-				"bounce buffer\n", mmc_card_name(card));
-		} else {
+		if (bouncesz > 512) {
+			mq->bounce_buf = kmalloc(bouncesz, GFP_KERNEL);
+			if (!mq->bounce_buf) {
+				printk(KERN_WARNING "%s: unable to "
+					"allocate bounce buffer\n",
+					mmc_card_name(card));
+			}
+		}
+
+		if (mq->bounce_buf) {
 			blk_queue_bounce_limit(mq->queue, BLK_BOUNCE_ANY);
 			blk_queue_max_sectors(mq->queue, bouncesz / 512);
 			blk_queue_max_phys_segments(mq->queue, bouncesz / 512);
@@ -175,7 +183,8 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 
 	if (!mq->bounce_buf) {
 		blk_queue_bounce_limit(mq->queue, limit);
-		blk_queue_max_sectors(mq->queue, host->max_req_size / 512);
+		blk_queue_max_sectors(mq->queue,
+			min(host->max_blk_count, host->max_req_size / 512));
 		blk_queue_max_phys_segments(mq->queue, host->max_phys_segs);
 		blk_queue_max_hw_segments(mq->queue, host->max_hw_segs);
 		blk_queue_max_segment_size(mq->queue, host->max_seg_size);

@@ -2041,9 +2041,9 @@ static int pciserial_resume_one(struct pci_dev *dev)
 		 * The device may have been disabled.  Re-enable it.
 		 */
 		err = pci_enable_device(dev);
+		/* FIXME: We cannot simply error out here */
 		if (err)
-			return err;
-
+			printk(KERN_ERR "pciserial: Unable to re-enable ports, trying to continue.\n");
 		pciserial_resume_ports(priv);
 	}
 	return 0;

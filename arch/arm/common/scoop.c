@@ -15,7 +15,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/gpio.h>
 #include <asm/hardware/scoop.h>
 

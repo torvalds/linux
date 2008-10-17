@@ -80,7 +80,7 @@ struct dsthash_ent {
 struct xt_hashlimit_htable {
 	struct hlist_node node;		/* global list of all htables */
 	atomic_t use;
-	int family;
+	u_int8_t family;
 
 	struct hashlimit_cfg1 cfg;	/* config */
 
@@ -185,7 +185,7 @@ dsthash_free(struct xt_hashlimit_htable *ht, struct dsthash_ent *ent)
 }
 static void htable_gc(unsigned long htlong);
 
-static int htable_create_v0(struct xt_hashlimit_info *minfo, int family)
+static int htable_create_v0(struct xt_hashlimit_info *minfo, u_int8_t family)
 {
 	struct xt_hashlimit_htable *hinfo;
 	unsigned int size;
@@ -218,7 +218,7 @@ static int htable_create_v0(struct xt_hashlimit_info *minfo, int family)
 	hinfo->cfg.gc_interval = minfo->cfg.gc_interval;
 	hinfo->cfg.expire      = minfo->cfg.expire;
 
-	if (family == AF_INET)
+	if (family == NFPROTO_IPV4)
 		hinfo->cfg.srcmask = hinfo->cfg.dstmask = 32;
 	else
 		hinfo->cfg.srcmask = hinfo->cfg.dstmask = 128;
@@ -237,11 +237,10 @@ static int htable_create_v0(struct xt_hashlimit_info *minfo, int family)
 	hinfo->family = family;
 	hinfo->rnd_initialized = 0;
 	spin_lock_init(&hinfo->lock);
-	hinfo->pde =
-		proc_create_data(minfo->name, 0,
-				 family == AF_INET ? hashlimit_procdir4 :
-						     hashlimit_procdir6,
-				 &dl_file_ops, hinfo);
+	hinfo->pde = proc_create_data(minfo->name, 0,
+		(family == NFPROTO_IPV4) ?
+		hashlimit_procdir4 : hashlimit_procdir6,
+		&dl_file_ops, hinfo);
 	if (!hinfo->pde) {
 		vfree(hinfo);
 		return -1;
@@ -258,8 +257,7 @@ static int htable_create_v0(struct xt_hashlimit_info *minfo, int family)
 	return 0;
 }
 
-static int htable_create(struct xt_hashlimit_mtinfo1 *minfo,
-                         unsigned int family)
+static int htable_create(struct xt_hashlimit_mtinfo1 *minfo, u_int8_t family)
 {
 	struct xt_hashlimit_htable *hinfo;
 	unsigned int size;
@@ -301,11 +299,10 @@ static int htable_create(struct xt_hashlimit_mtinfo1 *minfo,
 	hinfo->rnd_initialized = 0;
 	spin_lock_init(&hinfo->lock);
 
-	hinfo->pde =
-		proc_create_data(minfo->name, 0,
-				 family == AF_INET ? hashlimit_procdir4 :
-						     hashlimit_procdir6,
-				 &dl_file_ops, hinfo);
+	hinfo->pde = proc_create_data(minfo->name, 0,
+		(family == NFPROTO_IPV4) ?
+		hashlimit_procdir4 : hashlimit_procdir6,
+		&dl_file_ops, hinfo);
 	if (hinfo->pde == NULL) {
 		vfree(hinfo);
 		return -1;
@@ -371,14 +368,14 @@ static void htable_destroy(struct xt_hashlimit_htable *hinfo)
 
 	/* remove proc entry */
 	remove_proc_entry(hinfo->pde->name,
-			  hinfo->family == AF_INET ? hashlimit_procdir4 :
+			  hinfo->family == NFPROTO_IPV4 ? hashlimit_procdir4 :
 						     hashlimit_procdir6);
 	htable_selective_cleanup(hinfo, select_all);
 	vfree(hinfo);
 }
 
 static struct xt_hashlimit_htable *htable_find_get(const char *name,
-						   int family)
+						   u_int8_t family)
 {
 	struct xt_hashlimit_htable *hinfo;
 	struct hlist_node *pos;
@@ -502,7 +499,7 @@ hashlimit_init_dst(const struct xt_hashlimit_htable *hinfo,
 	memset(dst, 0, sizeof(*dst));
 
 	switch (hinfo->family) {
-	case AF_INET:
+	case NFPROTO_IPV4:
 		if (hinfo->cfg.mode & XT_HASHLIMIT_HASH_DIP)
 			dst->ip.dst = maskl(ip_hdr(skb)->daddr,
 			              hinfo->cfg.dstmask);
@@ -516,7 +513,7 @@ hashlimit_init_dst(const struct xt_hashlimit_htable *hinfo,
 		nexthdr = ip_hdr(skb)->protocol;
 		break;
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
-	case AF_INET6:
+	case NFPROTO_IPV6:
 		if (hinfo->cfg.mode & XT_HASHLIMIT_HASH_DIP) {
 			memcpy(&dst->ip6.dst, &ipv6_hdr(skb)->daddr,
 			       sizeof(dst->ip6.dst));
@@ -566,19 +563,16 @@ hashlimit_init_dst(const struct xt_hashlimit_htable *hinfo,
 }
 
 static bool
-hashlimit_mt_v0(const struct sk_buff *skb, const struct net_device *in,
-                const struct net_device *out, const struct xt_match *match,
-                const void *matchinfo, int offset, unsigned int protoff,
-                bool *hotdrop)
+hashlimit_mt_v0(const struct sk_buff *skb, const struct xt_match_param *par)
 {
 	const struct xt_hashlimit_info *r =
-		((const struct xt_hashlimit_info *)matchinfo)->u.master;
+		((const struct xt_hashlimit_info *)par->matchinfo)->u.master;
 	struct xt_hashlimit_htable *hinfo = r->hinfo;
 	unsigned long now = jiffies;
 	struct dsthash_ent *dh;
 	struct dsthash_dst dst;
 
-	if (hashlimit_init_dst(hinfo, &dst, skb, protoff) < 0)
+	if (hashlimit_init_dst(hinfo, &dst, skb, par->thoff) < 0)
 		goto hotdrop;
 
 	spin_lock_bh(&hinfo->lock);
@@ -616,23 +610,20 @@ hashlimit_mt_v0(const struct sk_buff *skb, const struct net_device *in,
 	return false;
 
 hotdrop:
-	*hotdrop = true;
+	*par->hotdrop = true;
 	return false;
 }
 
 static bool
-hashlimit_mt(const struct sk_buff *skb, const struct net_device *in,
-             const struct net_device *out, const struct xt_match *match,
-             const void *matchinfo, int offset, unsigned int protoff,
-             bool *hotdrop)
+hashlimit_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct xt_hashlimit_mtinfo1 *info = matchinfo;
+	const struct xt_hashlimit_mtinfo1 *info = par->matchinfo;
 	struct xt_hashlimit_htable *hinfo = info->hinfo;
 	unsigned long now = jiffies;
 	struct dsthash_ent *dh;
 	struct dsthash_dst dst;
 
-	if (hashlimit_init_dst(hinfo, &dst, skb, protoff) < 0)
+	if (hashlimit_init_dst(hinfo, &dst, skb, par->thoff) < 0)
 		goto hotdrop;
 
 	spin_lock_bh(&hinfo->lock);
@@ -669,16 +660,13 @@ hashlimit_mt(const struct sk_buff *skb, const struct net_device *in,
 	return info->cfg.mode & XT_HASHLIMIT_INVERT;
 
  hotdrop:
-	*hotdrop = true;
+	*par->hotdrop = true;
 	return false;
 }
 
-static bool
-hashlimit_mt_check_v0(const char *tablename, const void *inf,
-                      const struct xt_match *match, void *matchinfo,
-                      unsigned int hook_mask)
+static bool hashlimit_mt_check_v0(const struct xt_mtchk_param *par)
 {
-	struct xt_hashlimit_info *r = matchinfo;
+	struct xt_hashlimit_info *r = par->matchinfo;
 
 	/* Check for overflow. */
 	if (r->cfg.burst == 0 ||
@@ -707,8 +695,8 @@ hashlimit_mt_check_v0(const char *tablename, const void *inf,
 	 * the list of htable's in htable_create(), since then we would
 	 * create duplicate proc files. -HW */
 	mutex_lock(&hlimit_mutex);
-	r->hinfo = htable_find_get(r->name, match->family);
-	if (!r->hinfo && htable_create_v0(r, match->family) != 0) {
+	r->hinfo = htable_find_get(r->name, par->match->family);
+	if (!r->hinfo && htable_create_v0(r, par->match->family) != 0) {
 		mutex_unlock(&hlimit_mutex);
 		return false;
 	}
@@ -719,12 +707,9 @@ hashlimit_mt_check_v0(const char *tablename, const void *inf,
 	return true;
 }
 
-static bool
-hashlimit_mt_check(const char *tablename, const void *inf,
-                   const struct xt_match *match, void *matchinfo,
-                   unsigned int hook_mask)
+static bool hashlimit_mt_check(const struct xt_mtchk_param *par)
 {
-	struct xt_hashlimit_mtinfo1 *info = matchinfo;
+	struct xt_hashlimit_mtinfo1 *info = par->matchinfo;
 
 	/* Check for overflow. */
 	if (info->cfg.burst == 0 ||
@@ -738,7 +723,7 @@ hashlimit_mt_check(const char *tablename, const void *inf,
 		return false;
 	if (info->name[sizeof(info->name)-1] != '\0')
 		return false;
-	if (match->family == AF_INET) {
+	if (par->match->family == NFPROTO_IPV4) {
 		if (info->cfg.srcmask > 32 || info->cfg.dstmask > 32)
 			return false;
 	} else {
@@ -753,8 +738,8 @@ hashlimit_mt_check(const char *tablename, const void *inf,
 	 * the list of htable's in htable_create(), since then we would
 	 * create duplicate proc files. -HW */
 	mutex_lock(&hlimit_mutex);
-	info->hinfo = htable_find_get(info->name, match->family);
-	if (!info->hinfo && htable_create(info, match->family) != 0) {
+	info->hinfo = htable_find_get(info->name, par->match->family);
+	if (!info->hinfo && htable_create(info, par->match->family) != 0) {
 		mutex_unlock(&hlimit_mutex);
 		return false;
 	}
@@ -763,17 +748,16 @@ hashlimit_mt_check(const char *tablename, const void *inf,
 }
 
 static void
-hashlimit_mt_destroy_v0(const struct xt_match *match, void *matchinfo)
+hashlimit_mt_destroy_v0(const struct xt_mtdtor_param *par)
 {
-	const struct xt_hashlimit_info *r = matchinfo;
+	const struct xt_hashlimit_info *r = par->matchinfo;
 
 	htable_put(r->hinfo);
 }
 
-static void
-hashlimit_mt_destroy(const struct xt_match *match, void *matchinfo)
+static void hashlimit_mt_destroy(const struct xt_mtdtor_param *par)
 {
-	const struct xt_hashlimit_mtinfo1 *info = matchinfo;
+	const struct xt_hashlimit_mtinfo1 *info = par->matchinfo;
 
 	htable_put(info->hinfo);
 }
@@ -806,7 +790,7 @@ static struct xt_match hashlimit_mt_reg[] __read_mostly = {
 	{
 		.name		= "hashlimit",
 		.revision	= 0,
-		.family		= AF_INET,
+		.family		= NFPROTO_IPV4,
 		.match		= hashlimit_mt_v0,
 		.matchsize	= sizeof(struct xt_hashlimit_info),
 #ifdef CONFIG_COMPAT
@@ -821,7 +805,7 @@ static struct xt_match hashlimit_mt_reg[] __read_mostly = {
 	{
 		.name           = "hashlimit",
 		.revision       = 1,
-		.family         = AF_INET,
+		.family         = NFPROTO_IPV4,
 		.match          = hashlimit_mt,
 		.matchsize      = sizeof(struct xt_hashlimit_mtinfo1),
 		.checkentry     = hashlimit_mt_check,
@@ -831,7 +815,7 @@ static struct xt_match hashlimit_mt_reg[] __read_mostly = {
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 	{
 		.name		= "hashlimit",
-		.family		= AF_INET6,
+		.family		= NFPROTO_IPV6,
 		.match		= hashlimit_mt_v0,
 		.matchsize	= sizeof(struct xt_hashlimit_info),
 #ifdef CONFIG_COMPAT
@@ -846,7 +830,7 @@ static struct xt_match hashlimit_mt_reg[] __read_mostly = {
 	{
 		.name           = "hashlimit",
 		.revision       = 1,
-		.family         = AF_INET6,
+		.family         = NFPROTO_IPV6,
 		.match          = hashlimit_mt,
 		.matchsize      = sizeof(struct xt_hashlimit_mtinfo1),
 		.checkentry     = hashlimit_mt_check,
@@ -901,14 +885,14 @@ static void dl_seq_stop(struct seq_file *s, void *v)
 	spin_unlock_bh(&htable->lock);
 }
 
-static int dl_seq_real_show(struct dsthash_ent *ent, int family,
+static int dl_seq_real_show(struct dsthash_ent *ent, u_int8_t family,
 				   struct seq_file *s)
 {
 	/* recalculate to show accurate numbers */
 	rateinfo_recalc(ent, jiffies);
 
 	switch (family) {
-	case AF_INET:
+	case NFPROTO_IPV4:
 		return seq_printf(s, "%ld %u.%u.%u.%u:%u->"
 				     "%u.%u.%u.%u:%u %u %u %u\n",
 				 (long)(ent->expires - jiffies)/HZ,
@@ -919,7 +903,7 @@ static int dl_seq_real_show(struct dsthash_ent *ent, int family,
 				 ent->rateinfo.credit, ent->rateinfo.credit_cap,
 				 ent->rateinfo.cost);
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
-	case AF_INET6:
+	case NFPROTO_IPV6:
 		return seq_printf(s, "%ld " NIP6_FMT ":%u->"
 				     NIP6_FMT ":%u %u %u %u\n",
 				 (long)(ent->expires - jiffies)/HZ,

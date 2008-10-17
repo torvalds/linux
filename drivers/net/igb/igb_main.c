@@ -3563,10 +3563,6 @@ static int igb_clean_rx_ring_msix(struct napi_struct *napi, int budget)
 	struct net_device *netdev = adapter->netdev;
 	int work_done = 0;
 
-	/* Keep link state information with original netdev */
-	if (!netif_carrier_ok(netdev))
-		goto quit_polling;
-
 #ifdef CONFIG_DCA
 	if (adapter->flags & IGB_FLAG_DCA_ENABLED)
 		igb_update_rx_dca(rx_ring);
@@ -3576,7 +3572,6 @@ static int igb_clean_rx_ring_msix(struct napi_struct *napi, int budget)
 
 	/* If not enough Rx work done, exit the polling mode */
 	if ((work_done == 0) || !netif_running(netdev)) {
-quit_polling:
 		netif_rx_complete(netdev, napi);
 
 		if (adapter->itr_setting & 3) {
@@ -3617,16 +3612,14 @@ static bool igb_clean_tx_irq(struct igb_ring *tx_ring)
 	unsigned int i;
 	u32 head, oldhead;
 	unsigned int count = 0;
-	bool cleaned = false;
-	bool retval = true;
 	unsigned int total_bytes = 0, total_packets = 0;
+	bool retval = true;
 
 	rmb();
 	head = get_head(tx_ring);
 	i = tx_ring->next_to_clean;
 	while (1) {
 		while (i != head) {
-			cleaned = true;
 			tx_desc = E1000_TX_DESC(*tx_ring, i);
 			buffer_info = &tx_ring->buffer_info[i];
 			skb = buffer_info->skb;
@@ -3643,7 +3636,6 @@ static bool igb_clean_tx_irq(struct igb_ring *tx_ring)
 			}
 
 			igb_unmap_and_free_tx_resource(adapter, buffer_info);
-			tx_desc->upper.data = 0;
 
 			i++;
 			if (i == tx_ring->count)
@@ -3665,7 +3657,7 @@ static bool igb_clean_tx_irq(struct igb_ring *tx_ring)
 done_cleaning:
 	tx_ring->next_to_clean = i;
 
-	if (unlikely(cleaned &&
+	if (unlikely(count &&
 		     netif_carrier_ok(netdev) &&
 		     IGB_DESC_UNUSED(tx_ring) >= IGB_TX_QUEUE_WAKE)) {
 		/* Make sure that anybody stopping the queue after this

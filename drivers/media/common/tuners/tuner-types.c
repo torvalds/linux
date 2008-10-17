@@ -1216,6 +1216,23 @@ static struct tuner_params tuner_samsung_tcpg_6121p30a_params[] = {
 	},
 };
 
+/* ------------ TUNER_TCL_MF02GIP-5N-E - TCL MF02GIP-5N ------------ */
+
+static struct tuner_range tuner_tcl_mf02gip_5n_ntsc_ranges[] = {
+	{ 16 * 172.00 /*MHz*/, 0x8e, 0x01, },
+	{ 16 * 448.00 /*MHz*/, 0x8e, 0x02, },
+	{ 16 * 999.99        , 0x8e, 0x04, },
+};
+
+static struct tuner_params tuner_tcl_mf02gip_5n_params[] = {
+	{
+		.type   = TUNER_PARAM_TYPE_NTSC,
+		.ranges = tuner_tcl_mf02gip_5n_ntsc_ranges,
+		.count  = ARRAY_SIZE(tuner_tcl_mf02gip_5n_ntsc_ranges),
+		.cb_first_if_lower_freq = 1,
+	},
+};
+
 /* --------------------------------------------------------------------- */
 
 struct tunertype tuners[] = {
@@ -1640,6 +1657,11 @@ struct tunertype tuners[] = {
 	[TUNER_XC5000] = { /* Xceive 5000 */
 		.name   = "Xceive 5000 tuner",
 		/* see xc5000.c for details */
+	},
+	[TUNER_TCL_MF02GIP_5N] = { /* TCL tuner MF02GIP-5N-E */
+		.name   = "TCL tuner MF02GIP-5N-E",
+		.params = tuner_tcl_mf02gip_5n_params,
+		.count  = ARRAY_SIZE(tuner_tcl_mf02gip_5n_params),
 	},
 };
 EXPORT_SYMBOL(tuners);

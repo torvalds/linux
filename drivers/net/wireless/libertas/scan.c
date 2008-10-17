@@ -944,6 +944,11 @@ int lbs_set_scan(struct net_device *dev, struct iw_request_info *info,
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
+	if (!priv->radio_on) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	if (!netif_running(dev)) {
 		ret = -ENETDOWN;
 		goto out;

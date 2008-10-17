@@ -29,6 +29,8 @@ extern int fix_aperture;
 #define AMD64_GARTCACHECTL	0x9c
 #define AMD64_GARTEN		(1<<0)
 
+extern int agp_amd64_init(void);
+
 static inline void enable_gart_translation(struct pci_dev *dev, u64 addr)
 {
 	u32 tmp, ctl;

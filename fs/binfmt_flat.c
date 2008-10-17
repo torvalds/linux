@@ -229,13 +229,13 @@ static int decompress_exec(
 	ret = 10;
 	if (buf[3] & EXTRA_FIELD) {
 		ret += 2 + buf[10] + (buf[11] << 8);
-		if (unlikely(LBUFSIZE == ret)) {
+		if (unlikely(LBUFSIZE <= ret)) {
 			DBG_FLT("binfmt_flat: buffer overflow (EXTRA)?\n");
 			goto out_free_buf;
 		}
 	}
 	if (buf[3] & ORIG_NAME) {
-		for (; ret < LBUFSIZE && (buf[ret] != 0); ret++)
+		while (ret < LBUFSIZE && buf[ret++] != 0)
 			;
 		if (unlikely(LBUFSIZE == ret)) {
 			DBG_FLT("binfmt_flat: buffer overflow (ORIG_NAME)?\n");
@@ -243,7 +243,7 @@ static int decompress_exec(
 		}
 	}
 	if (buf[3] & COMMENT) {
-		for (;  ret < LBUFSIZE && (buf[ret] != 0); ret++)
+		while (ret < LBUFSIZE && buf[ret++] != 0)
 			;
 		if (unlikely(LBUFSIZE == ret)) {
 			DBG_FLT("binfmt_flat: buffer overflow (COMMENT)?\n");

@@ -398,7 +398,7 @@ static int netwave_probe(struct pcmcia_device *link)
     link->io.IOAddrLines = 5;
     
     /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
+    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
     link->irq.IRQInfo1 = IRQ_LEVEL_ID;
     link->irq.Handler = &netwave_interrupt;
     
@@ -749,9 +749,10 @@ static int netwave_pcmcia_config(struct pcmcia_device *link) {
     for (i = j = 0x0; j < 0x400; j += 0x20) {
 	link->io.BasePort1 = j ^ 0x300;
 	i = pcmcia_request_io(link, &link->io);
-	if (i == CS_SUCCESS) break;
+	if (i == 0)
+		break;
     }
-    if (i != CS_SUCCESS) {
+    if (i != 0) {
 	cs_error(link, RequestIO, i);
 	goto failed;
     }

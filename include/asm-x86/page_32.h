@@ -20,6 +20,12 @@
 #endif
 #define THREAD_SIZE 	(PAGE_SIZE << THREAD_ORDER)
 
+#define STACKFAULT_STACK 0
+#define DOUBLEFAULT_STACK 1
+#define NMI_STACK 0
+#define DEBUG_STACK 0
+#define MCE_STACK 0
+#define N_EXCEPTION_STACKS 1
 
 #ifdef CONFIG_X86_PAE
 /* 44=32+12, the limit we can fit into an unsigned long pfn */
@@ -33,7 +39,6 @@ typedef u64	pmdval_t;
 typedef u64	pudval_t;
 typedef u64	pgdval_t;
 typedef u64	pgprotval_t;
-typedef u64	phys_addr_t;
 
 typedef union {
 	struct {
@@ -54,7 +59,6 @@ typedef unsigned long	pmdval_t;
 typedef unsigned long	pudval_t;
 typedef unsigned long	pgdval_t;
 typedef unsigned long	pgprotval_t;
-typedef unsigned long	phys_addr_t;
 
 typedef union {
 	pteval_t pte;
@@ -73,7 +77,12 @@ typedef struct page *pgtable_t;
 #endif
 
 #ifndef __ASSEMBLY__
-#define __phys_addr(x)		((x) - PAGE_OFFSET)
+#define __phys_addr_nodebug(x)	((x) - PAGE_OFFSET)
+#ifdef CONFIG_DEBUG_VIRTUAL
+extern unsigned long __phys_addr(unsigned long);
+#else
+#define __phys_addr(x)		__phys_addr_nodebug(x)
+#endif
 #define __phys_reloc_hide(x)	RELOC_HIDE((x), 0)
 
 #ifdef CONFIG_FLATMEM

@@ -303,6 +303,8 @@ struct uvc_xu_control {
 #define UVC_MAX_FRAME_SIZE	(16*1024*1024)
 /* Maximum number of video buffers. */
 #define UVC_MAX_VIDEO_BUFFERS	32
+/* Maximum status buffer size in bytes of interrupt URB. */
+#define UVC_MAX_STATUS_SIZE	16
 
 #define UVC_CTRL_CONTROL_TIMEOUT	300
 #define UVC_CTRL_STREAMING_TIMEOUT	1000
@@ -634,7 +636,7 @@ struct uvc_device {
 	/* Status Interrupt Endpoint */
 	struct usb_host_endpoint *int_ep;
 	struct urb *int_urb;
-	__u8 status[16];
+	__u8 *status;
 	struct input_dev *input;
 
 	/* Video Streaming interfaces */

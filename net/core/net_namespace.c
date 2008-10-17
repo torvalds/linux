@@ -18,6 +18,7 @@ static struct list_head *first_device = &pernet_list;
 static DEFINE_MUTEX(net_mutex);
 
 LIST_HEAD(net_namespace_list);
+EXPORT_SYMBOL_GPL(net_namespace_list);
 
 struct net init_net;
 EXPORT_SYMBOL(init_net);
@@ -95,7 +96,7 @@ static void net_free(struct net *net)
 		return;
 	}
 #endif
-
+	kfree(net->gen);
 	kmem_cache_free(net_cachep, net);
 }
 

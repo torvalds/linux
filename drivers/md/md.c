@@ -32,31 +32,21 @@
    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/kthread.h>
-#include <linux/linkage.h>
 #include <linux/raid/md.h>
 #include <linux/raid/bitmap.h>
 #include <linux/sysctl.h>
 #include <linux/buffer_head.h> /* for invalidate_bdev */
 #include <linux/poll.h>
-#include <linux/mutex.h>
 #include <linux/ctype.h>
-#include <linux/freezer.h>
-
-#include <linux/init.h>
-
+#include <linux/hdreg.h>
+#include <linux/proc_fs.h>
+#include <linux/random.h>
+#include <linux/reboot.h>
 #include <linux/file.h>
-
-#ifdef CONFIG_KMOD
-#include <linux/kmod.h>
-#endif
-
-#include <asm/unaligned.h>
+#include <linux/delay.h>
 
 #define MAJOR_NR MD_MAJOR
-#define MD_DRIVER
 
 /* 63 partitions with the alternate major number (mdp) */
 #define MdpMinorShift 6
@@ -66,7 +56,7 @@
 
 
 #ifndef MODULE
-static void autostart_arrays (int part);
+static void autostart_arrays(int part);
 #endif
 
 static LIST_HEAD(pers_list);
@@ -212,7 +202,7 @@ static DEFINE_SPINLOCK(all_mddevs_lock);
 		)
 
 
-static int md_fail_request (struct request_queue *q, struct bio *bio)
+static int md_fail_request(struct request_queue *q, struct bio *bio)
 {
 	bio_io_error(bio);
 	return 0;
@@ -2106,8 +2096,6 @@ rdev_size_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 
 	if (strict_strtoull(buf, 10, &size) < 0)
 		return -EINVAL;
-	if (size < my_mddev->size)
-		return -EINVAL;
 	if (my_mddev->pers && rdev->raid_disk >= 0) {
 		if (my_mddev->persistent) {
 			size = super_types[my_mddev->major_version].
@@ -2118,9 +2106,9 @@ rdev_size_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 			size = (rdev->bdev->bd_inode->i_size >> 10);
 			size -= rdev->data_offset/2;
 		}
-		if (size < my_mddev->size)
-			return -EINVAL; /* component must fit device */
 	}
+	if (size < my_mddev->size)
+		return -EINVAL; /* component must fit device */
 
 	rdev->size = size;
 	if (size > oldsize && my_mddev->external) {
@@ -2406,12 +2394,11 @@ safe_delay_store(mddev_t *mddev, const char *cbuf, size_t len)
 	int i;
 	unsigned long msec;
 	char buf[30];
-	char *e;
+
 	/* remove a period, and count digits after it */
 	if (len >= sizeof(buf))
 		return -EINVAL;
-	strlcpy(buf, cbuf, len);
-	buf[len] = 0;
+	strlcpy(buf, cbuf, sizeof(buf));
 	for (i=0; i<len; i++) {
 		if (dot) {
 			if (isdigit(buf[i])) {
@@ -2424,8 +2411,7 @@ safe_delay_store(mddev_t *mddev, const char *cbuf, size_t len)
 			buf[i] = 0;
 		}
 	}
-	msec = simple_strtoul(buf, &e, 10);
-	if (e == buf || (*e && *e != '\n'))
+	if (strict_strtoul(buf, 10, &msec) < 0)
 		return -EINVAL;
 	msec = (msec * 1000) / scale;
 	if (msec == 0)
@@ -2727,9 +2713,9 @@ array_state_store(mddev_t *mddev, const char *buf, size_t len)
 		break;
 	case read_auto:
 		if (mddev->pers) {
-			if (mddev->ro != 1)
+			if (mddev->ro == 0)
 				err = do_md_stop(mddev, 1, 0);
-			else
+			else if (mddev->ro == 1)
 				err = restart_array(mddev);
 			if (err == 0) {
 				mddev->ro = 2;
@@ -2945,7 +2931,13 @@ metadata_store(mddev_t *mddev, const char *buf, size_t len)
 {
 	int major, minor;
 	char *e;
-	if (!list_empty(&mddev->disks))
+	/* Changing the details of 'external' metadata is
+	 * always permitted.  Otherwise there must be
+	 * no devices attached to the array.
+	 */
+	if (mddev->external && strncmp(buf, "external:", 9) == 0)
+		;
+	else if (!list_empty(&mddev->disks))
 		return -EBUSY;
 
 	if (cmd_match(buf, "none")) {
@@ -3527,15 +3519,10 @@ static int do_md_run(mddev_t * mddev)
 			return -EINVAL;
 		}
 		/*
-		 * chunk-size has to be a power of 2 and multiples of PAGE_SIZE
+		 * chunk-size has to be a power of 2
 		 */
 		if ( (1 << ffz(~chunk_size)) != chunk_size) {
 			printk(KERN_ERR "chunk_size of %d not valid\n", chunk_size);
-			return -EINVAL;
-		}
-		if (chunk_size < PAGE_SIZE) {
-			printk(KERN_ERR "too small chunk_size: %d < %ld\n",
-				chunk_size, PAGE_SIZE);
 			return -EINVAL;
 		}
 
@@ -3555,12 +3542,10 @@ static int do_md_run(mddev_t * mddev)
 		}
 	}
 
-#ifdef CONFIG_KMOD
 	if (mddev->level != LEVEL_NONE)
 		request_module("md-level-%d", mddev->level);
 	else if (mddev->clevel[0])
 		request_module("md-%s", mddev->clevel);
-#endif
 
 	/*
 	 * Drop all container device buffers, from now on
@@ -3971,10 +3956,10 @@ static void autorun_array(mddev_t *mddev)
 	}
 	printk("\n");
 
-	err = do_md_run (mddev);
+	err = do_md_run(mddev);
 	if (err) {
 		printk(KERN_WARNING "md: do_md_run() returned %d\n", err);
-		do_md_stop (mddev, 0, 0);
+		do_md_stop(mddev, 0, 0);
 	}
 }
 
@@ -4333,7 +4318,7 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 
 	if (!(info->state & (1<<MD_DISK_FAULTY))) {
 		int err;
-		rdev = md_import_device (dev, -1, 0);
+		rdev = md_import_device(dev, -1, 0);
 		if (IS_ERR(rdev)) {
 			printk(KERN_WARNING 
 				"md: error, md_import_device() returned %ld\n",
@@ -4415,7 +4400,7 @@ static int hot_add_disk(mddev_t * mddev, dev_t dev)
 		return -EINVAL;
 	}
 
-	rdev = md_import_device (dev, -1, 0);
+	rdev = md_import_device(dev, -1, 0);
 	if (IS_ERR(rdev)) {
 		printk(KERN_WARNING 
 			"md: error, md_import_device() returned %ld\n",
@@ -4934,11 +4919,11 @@ static int md_ioctl(struct inode *inode, struct file *file,
 			goto done_unlock;
 
 		case STOP_ARRAY:
-			err = do_md_stop (mddev, 0, 1);
+			err = do_md_stop(mddev, 0, 1);
 			goto done_unlock;
 
 		case STOP_ARRAY_RO:
-			err = do_md_stop (mddev, 1, 1);
+			err = do_md_stop(mddev, 1, 1);
 			goto done_unlock;
 
 	}
@@ -4987,7 +4972,7 @@ static int md_ioctl(struct inode *inode, struct file *file,
 			goto done_unlock;
 
 		case RUN_ARRAY:
-			err = do_md_run (mddev);
+			err = do_md_run(mddev);
 			goto done_unlock;
 
 		case SET_BITMAP_FILE:
@@ -5425,11 +5410,11 @@ static int md_seq_show(struct seq_file *seq, void *v)
 			seq_printf(seq, " super non-persistent");
 
 		if (mddev->pers) {
-			mddev->pers->status (seq, mddev);
+			mddev->pers->status(seq, mddev);
 	 		seq_printf(seq, "\n      ");
 			if (mddev->pers->sync_request) {
 				if (mddev->curr_resync > 2) {
-					status_resync (seq, mddev);
+					status_resync(seq, mddev);
 					seq_printf(seq, "\n      ");
 				} else if (mddev->curr_resync == 1 || mddev->curr_resync == 2)
 					seq_printf(seq, "\tresync=DELAYED\n      ");
@@ -6260,7 +6245,7 @@ static int md_notify_reboot(struct notifier_block *this,
 				 * appears to still be in use.  Hence
 				 * the '100'.
 				 */
-				do_md_stop (mddev, 1, 100);
+				do_md_stop(mddev, 1, 100);
 				mddev_unlock(mddev);
 			}
 		/*
@@ -6304,7 +6289,7 @@ static int __init md_init(void)
 	raid_table_header = register_sysctl_table(raid_root_table);
 
 	md_geninit();
-	return (0);
+	return 0;
 }
 
 

@@ -85,3 +85,6 @@ kernel patches.
 23: Tested after it has been merged into the -mm patchset to make sure
     that it still works with all of the other queued patches and various
     changes in the VM, VFS, and other subsystems.
+
+24: All memory barriers {e.g., barrier(), rmb(), wmb()} need a comment in the
+    source code that explains the logic of what they are doing and why.

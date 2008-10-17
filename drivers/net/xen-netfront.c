@@ -471,7 +471,7 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int offset = offset_in_page(data);
 	unsigned int len = skb_headlen(skb);
 
-	frags += (offset + len + PAGE_SIZE - 1) / PAGE_SIZE;
+	frags += DIV_ROUND_UP(offset + len, PAGE_SIZE);
 	if (unlikely(frags > MAX_SKB_FRAGS + 1)) {
 		printk(KERN_ALERT "xennet: skb rides the rocket: %d frags\n",
 		       frags);
@@ -1794,10 +1794,10 @@ static struct xenbus_driver netfront = {
 
 static int __init netif_init(void)
 {
-	if (!is_running_on_xen())
+	if (!xen_domain())
 		return -ENODEV;
 
-	if (is_initial_xendomain())
+	if (xen_initial_domain())
 		return 0;
 
 	printk(KERN_INFO "Initialising Xen virtual ethernet driver.\n");
@@ -1809,7 +1809,7 @@ module_init(netif_init);
 
 static void __exit netif_exit(void)
 {
-	if (is_initial_xendomain())
+	if (xen_initial_domain())
 		return;
 
 	xenbus_unregister_driver(&netfront);

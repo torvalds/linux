@@ -604,7 +604,9 @@ static void digi_wakeup_write_lock(struct work_struct *work)
 
 static void digi_wakeup_write(struct usb_serial_port *port)
 {
-	tty_wakeup(port->port.tty);
+	struct tty_struct *tty = tty_port_tty_get(&port->port);
+	tty_wakeup(tty);
+	tty_kref_put(tty);
 }
 
 
@@ -1668,7 +1670,7 @@ static int digi_read_inb_callback(struct urb *urb)
 {
 
 	struct usb_serial_port *port = urb->context;
-	struct tty_struct *tty = port->port.tty;
+	struct tty_struct *tty;
 	struct digi_port *priv = usb_get_serial_port_data(port);
 	int opcode = ((unsigned char *)urb->transfer_buffer)[0];
 	int len = ((unsigned char *)urb->transfer_buffer)[1];
@@ -1692,6 +1694,7 @@ static int digi_read_inb_callback(struct urb *urb)
 		return -1;
 	}
 
+	tty = tty_port_tty_get(&port->port);
 	spin_lock(&priv->dp_port_lock);
 
 	/* check for throttle; if set, do not resubmit read urb */
@@ -1735,6 +1738,7 @@ static int digi_read_inb_callback(struct urb *urb)
 		}
 	}
 	spin_unlock(&priv->dp_port_lock);
+	tty_kref_put(tty);
 
 	if (opcode == DIGI_CMD_RECEIVE_DISABLE)
 		dbg("%s: got RECEIVE_DISABLE", __func__);
@@ -1760,6 +1764,7 @@ static int digi_read_oob_callback(struct urb *urb)
 
 	struct usb_serial_port *port = urb->context;
 	struct usb_serial *serial = port->serial;
+	struct tty_struct *tty;
 	struct digi_port *priv = usb_get_serial_port_data(port);
 	int opcode, line, status, val;
 	int i;
@@ -1787,10 +1792,11 @@ static int digi_read_oob_callback(struct urb *urb)
 		if (priv == NULL)
 			return -1;
 
+		tty = tty_port_tty_get(&port->port);
 		rts = 0;
 		if (port->port.count)
-			rts = port->port.tty->termios->c_cflag & CRTSCTS;
-
+			rts = tty->termios->c_cflag & CRTSCTS;
+		
 		if (opcode == DIGI_CMD_READ_INPUT_SIGNALS) {
 			spin_lock(&priv->dp_port_lock);
 			/* convert from digi flags to termiox flags */
@@ -1798,14 +1804,14 @@ static int digi_read_oob_callback(struct urb *urb)
 				priv->dp_modem_signals |= TIOCM_CTS;
 				/* port must be open to use tty struct */
 				if (rts) {
-					port->port.tty->hw_stopped = 0;
+					tty->hw_stopped = 0;
 					digi_wakeup_write(port);
 				}
 			} else {
 				priv->dp_modem_signals &= ~TIOCM_CTS;
 				/* port must be open to use tty struct */
 				if (rts)
-					port->port.tty->hw_stopped = 1;
+					tty->hw_stopped = 1;
 			}
 			if (val & DIGI_READ_INPUT_SIGNALS_DSR)
 				priv->dp_modem_signals |= TIOCM_DSR;
@@ -1830,6 +1836,7 @@ static int digi_read_oob_callback(struct urb *urb)
 		} else if (opcode == DIGI_CMD_IFLUSH_FIFO) {
 			wake_up_interruptible(&priv->dp_flush_wait);
 		}
+		tty_kref_put(tty);
 	}
 	return 0;
 

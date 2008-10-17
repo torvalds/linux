@@ -21,6 +21,7 @@
 #include <linux/console.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
+#include <linux/reboot.h>
 
 #include <linux/slab.h>
 #include <linux/bootmem.h>
@@ -88,7 +89,6 @@ struct raw3215_info {
 	int count;		      /* number of bytes in output buffer */
 	int written;		      /* number of bytes in write requests */
 	struct tty_struct *tty;	      /* pointer to tty structure if present */
-	struct tasklet_struct tasklet;
 	struct raw3215_req *queued_read; /* pointer to queued read requests */
 	struct raw3215_req *queued_write;/* pointer to queued write requests */
 	wait_queue_head_t empty_wait; /* wait queue for flushing */
@@ -341,21 +341,14 @@ raw3215_try_io(struct raw3215_info *raw)
 }
 
 /*
- * The bottom half handler routine for 3215 devices. It tries to start
- * the next IO and wakes up processes waiting on the tty.
+ * Try to start the next IO and wake up processes waiting on the tty.
  */
-static void
-raw3215_tasklet(void *data)
+static void raw3215_next_io(struct raw3215_info *raw)
 {
-	struct raw3215_info *raw;
 	struct tty_struct *tty;
-	unsigned long flags;
 
-	raw = (struct raw3215_info *) data;
-	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
 	raw3215_mk_write_req(raw);
 	raw3215_try_io(raw);
-	spin_unlock_irqrestore(get_ccwdev_lock(raw->cdev), flags);
 	tty = raw->tty;
 	if (tty != NULL &&
 	    RAW3215_BUFFER_SIZE - raw->count >= RAW3215_MIN_SPACE) {
@@ -380,7 +373,7 @@ raw3215_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	cstat = irb->scsw.cmd.cstat;
 	dstat = irb->scsw.cmd.dstat;
 	if (cstat != 0)
-		tasklet_schedule(&raw->tasklet);
+		raw3215_next_io(raw);
 	if (dstat & 0x01) { /* we got a unit exception */
 		dstat &= ~0x01;	 /* we can ignore it */
 	}
@@ -390,7 +383,7 @@ raw3215_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 			break;
 		/* Attention interrupt, someone hit the enter key */
 		raw3215_mk_read_req(raw);
-		tasklet_schedule(&raw->tasklet);
+		raw3215_next_io(raw);
 		break;
 	case 0x08:
 	case 0x0C:
@@ -448,7 +441,7 @@ raw3215_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 		    raw->queued_read == NULL) {
 			wake_up_interruptible(&raw->empty_wait);
 		}
-		tasklet_schedule(&raw->tasklet);
+		raw3215_next_io(raw);
 		break;
 	default:
 		/* Strange interrupt, I'll do my best to clean up */
@@ -460,7 +453,7 @@ raw3215_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 			raw->flags &= ~RAW3215_WORKING;
 			raw3215_free_req(req);
 		}
-		tasklet_schedule(&raw->tasklet);
+		raw3215_next_io(raw);
 	}
 	return;
 }
@@ -674,9 +667,6 @@ raw3215_probe (struct ccw_device *cdev)
 		kfree(raw);
 		return -ENOMEM;
 	}
-	tasklet_init(&raw->tasklet,
-		     (void (*)(unsigned long)) raw3215_tasklet,
-		     (unsigned long) raw);
 	init_waitqueue_head(&raw->empty_wait);
 
 	cdev->dev.driver_data = raw;
@@ -775,11 +765,11 @@ static struct tty_driver *con3215_device(struct console *c, int *index)
 }
 
 /*
- * panic() calls console_unblank before the system enters a
- * disabled, endless loop.
+ * panic() calls con3215_flush through a panic_notifier
+ * before the system enters a disabled, endless loop.
  */
 static void
-con3215_unblank(void)
+con3215_flush(void)
 {
 	struct raw3215_info *raw;
 	unsigned long flags;
@@ -790,6 +780,23 @@ con3215_unblank(void)
 	spin_unlock_irqrestore(get_ccwdev_lock(raw->cdev), flags);
 }
 
+static int con3215_notify(struct notifier_block *self,
+			  unsigned long event, void *data)
+{
+	con3215_flush();
+	return NOTIFY_OK;
+}
+
+static struct notifier_block on_panic_nb = {
+	.notifier_call = con3215_notify,
+	.priority = 0,
+};
+
+static struct notifier_block on_reboot_nb = {
+	.notifier_call = con3215_notify,
+	.priority = 0,
+};
+
 /*
  *  The console structure for the 3215 console
  */
@@ -797,7 +804,6 @@ static struct console con3215 = {
 	.name	 = "ttyS",
 	.write	 = con3215_write,
 	.device	 = con3215_device,
-	.unblank = con3215_unblank,
 	.flags	 = CON_PRINTBUFFER,
 };
 
@@ -846,9 +852,6 @@ con3215_init(void)
 	cdev->handler = raw3215_irq;
 
 	raw->flags |= RAW3215_FIXED;
-	tasklet_init(&raw->tasklet,
-		     (void (*)(unsigned long)) raw3215_tasklet,
-		     (unsigned long) raw);
 	init_waitqueue_head(&raw->empty_wait);
 
 	/* Request the console irq */
@@ -859,6 +862,8 @@ con3215_init(void)
 		raw3215[0] = NULL;
 		return -ENODEV;
 	}
+	atomic_notifier_chain_register(&panic_notifier_list, &on_panic_nb);
+	register_reboot_notifier(&on_reboot_nb);
 	register_console(&con3215);
 	return 0;
 }

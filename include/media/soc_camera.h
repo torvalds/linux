@@ -83,6 +83,9 @@ struct soc_camera_link {
 	int bus_id;
 	/* GPIO number to switch between 8 and 10 bit modes */
 	unsigned int gpio;
+	/* Optional callbacks to power on or off and reset the sensor */
+	int (*power)(struct device *, int);
+	int (*reset)(struct device *);
 };
 
 static inline struct soc_camera_device *to_soc_camera_dev(struct device *dev)

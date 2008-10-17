@@ -31,6 +31,13 @@ config MPC8610_HPCD
 	help
 	  This option enables support for the MPC8610 HPCD board.
 
+config GEF_SBC610
+	bool "GE Fanuc SBC610"
+	select DEFAULT_UIMAGE
+	select HAS_RAPIDIO
+	help
+	  This option enables support for GE Fanuc's SBC610.
+
 endif
 
 config MPC8641
@@ -39,7 +46,7 @@ config MPC8641
 	select FSL_PCI if PCI
 	select PPC_UDBG_16550
 	select MPIC
-	default y if MPC8641_HPCN || SBC8641D
+	default y if MPC8641_HPCN || SBC8641D || GEF_SBC610
 
 config MPC8610
 	bool

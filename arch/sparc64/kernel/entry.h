@@ -5,8 +5,8 @@
 #include <linux/types.h>
 #include <linux/init.h>
 
-extern char *sparc_cpu_type;
-extern char *sparc_fpu_type;
+extern const char *sparc_cpu_type;
+extern const char *sparc_fpu_type;
 
 extern void __init per_cpu_patch(void);
 extern void __init sun4v_patch(void);
@@ -22,7 +22,8 @@ extern void do_notify_resume(struct pt_regs *regs,
 			     unsigned long orig_i0,
 			     unsigned long thread_info_flags);
 
-extern asmlinkage int syscall_trace(struct pt_regs *regs, int syscall_exit_p);
+extern asmlinkage int syscall_trace_enter(struct pt_regs *regs);
+extern asmlinkage void syscall_trace_leave(struct pt_regs *regs);
 
 extern void bad_trap_tl1(struct pt_regs *regs, long lvl);
 

@@ -132,6 +132,7 @@ static void cx18_dualwatch(struct cx18 *cx)
 	u16 new_stereo_mode;
 	const u16 stereo_mask = 0x0300;
 	const u16 dual = 0x0200;
+	u32 h;
 
 	new_stereo_mode = cx->params.audio_properties & stereo_mask;
 	memset(&vt, 0, sizeof(vt));
@@ -143,13 +144,21 @@ static void cx18_dualwatch(struct cx18 *cx)
 	if (new_stereo_mode == cx->dualwatch_stereo_mode)
 		return;
 
-	new_bitmap = new_stereo_mode | (cx->params.audio_properties & ~stereo_mask);
+	new_bitmap = new_stereo_mode
+			| (cx->params.audio_properties & ~stereo_mask);
 
-	CX18_DEBUG_INFO("dualwatch: change stereo flag from 0x%x to 0x%x. new audio_bitmask=0x%ux\n",
-			   cx->dualwatch_stereo_mode, new_stereo_mode, new_bitmap);
+	CX18_DEBUG_INFO("dualwatch: change stereo flag from 0x%x to 0x%x. "
+			"new audio_bitmask=0x%ux\n",
+			cx->dualwatch_stereo_mode, new_stereo_mode, new_bitmap);
 
-	if (cx18_vapi(cx, CX18_CPU_SET_AUDIO_PARAMETERS, 2,
-				cx18_find_handle(cx), new_bitmap) == 0) {
+	h = cx18_find_handle(cx);
+	if (h == CX18_INVALID_TASK_HANDLE) {
+		CX18_DEBUG_INFO("dualwatch: can't find valid task handle\n");
+		return;
+	}
+
+	if (cx18_vapi(cx,
+		      CX18_CPU_SET_AUDIO_PARAMETERS, 2, h, new_bitmap) == 0) {
 		cx->dualwatch_stereo_mode = new_stereo_mode;
 		return;
 	}
@@ -223,7 +232,7 @@ static struct cx18_buffer *cx18_get_buffer(struct cx18_stream *s, int non_block,
 		prepare_to_wait(&s->waitq, &wait, TASK_INTERRUPTIBLE);
 		/* New buffers might have become available before we were added
 		   to the waitqueue */
-		if (!s->q_full.buffers)
+		if (!atomic_read(&s->q_full.buffers))
 			schedule();
 		finish_wait(&s->waitq, &wait);
 		if (signal_pending(current)) {
@@ -509,7 +518,7 @@ unsigned int cx18_v4l2_enc_poll(struct file *filp, poll_table *wait)
 	CX18_DEBUG_HI_FILE("Encoder poll\n");
 	poll_wait(filp, &s->waitq, wait);
 
-	if (s->q_full.length || s->q_io.length)
+	if (atomic_read(&s->q_full.buffers) || atomic_read(&s->q_io.buffers))
 		return POLLIN | POLLRDNORM;
 	if (eof)
 		return POLLHUP;
@@ -695,20 +704,28 @@ int cx18_v4l2_open(struct inode *inode, struct file *filp)
 
 void cx18_mute(struct cx18 *cx)
 {
-	if (atomic_read(&cx->ana_capturing))
-		cx18_vapi(cx, CX18_CPU_SET_AUDIO_MUTE, 2,
-				cx18_find_handle(cx), 1);
+	u32 h;
+	if (atomic_read(&cx->ana_capturing)) {
+		h = cx18_find_handle(cx);
+		if (h != CX18_INVALID_TASK_HANDLE)
+			cx18_vapi(cx, CX18_CPU_SET_AUDIO_MUTE, 2, h, 1);
+		else
+			CX18_ERR("Can't find valid task handle for mute\n");
+	}
 	CX18_DEBUG_INFO("Mute\n");
 }
 
 void cx18_unmute(struct cx18 *cx)
 {
+	u32 h;
 	if (atomic_read(&cx->ana_capturing)) {
-		cx18_msleep_timeout(100, 0);
-		cx18_vapi(cx, CX18_CPU_SET_MISC_PARAMETERS, 2,
-				cx18_find_handle(cx), 12);
-		cx18_vapi(cx, CX18_CPU_SET_AUDIO_MUTE, 2,
-				cx18_find_handle(cx), 0);
+		h = cx18_find_handle(cx);
+		if (h != CX18_INVALID_TASK_HANDLE) {
+			cx18_msleep_timeout(100, 0);
+			cx18_vapi(cx, CX18_CPU_SET_MISC_PARAMETERS, 2, h, 12);
+			cx18_vapi(cx, CX18_CPU_SET_AUDIO_MUTE, 2, h, 0);
+		} else
+			CX18_ERR("Can't find valid task handle for unmute\n");
 	}
 	CX18_DEBUG_INFO("Unmute\n");
 }

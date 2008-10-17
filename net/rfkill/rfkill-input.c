@@ -16,6 +16,7 @@
 #include <linux/workqueue.h>
 #include <linux/init.h>
 #include <linux/rfkill.h>
+#include <linux/sched.h>
 
 #include "rfkill-input.h"
 

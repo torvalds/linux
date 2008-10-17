@@ -31,7 +31,7 @@
 #include <asm/dma.h>
 #include <sound/core.h>
 #include <sound/hwdep.h>
-#include <sound/cs4231.h>
+#include <sound/wss.h>
 #include <sound/mpu401.h>
 #include <sound/initval.h>
 
@@ -147,7 +147,7 @@ struct soundscape {
 	enum card_type type;
 	struct resource *io_res;
 	struct resource *wss_res;
-	struct snd_cs4231 *chip;
+	struct snd_wss *chip;
 	struct snd_mpu401 *mpu;
 	struct snd_hwdep *hw;
 
@@ -726,7 +726,7 @@ static int sscape_midi_info(struct snd_kcontrol *ctl,
 static int sscape_midi_get(struct snd_kcontrol *kctl,
                            struct snd_ctl_elem_value *uctl)
 {
-	struct snd_cs4231 *chip = snd_kcontrol_chip(kctl);
+	struct snd_wss *chip = snd_kcontrol_chip(kctl);
 	struct snd_card *card = chip->card;
 	register struct soundscape *s = get_card_soundscape(card);
 	unsigned long flags;
@@ -746,7 +746,7 @@ static int sscape_midi_get(struct snd_kcontrol *kctl,
 static int sscape_midi_put(struct snd_kcontrol *kctl,
                            struct snd_ctl_elem_value *uctl)
 {
-	struct snd_cs4231 *chip = snd_kcontrol_chip(kctl);
+	struct snd_wss *chip = snd_kcontrol_chip(kctl);
 	struct snd_card *card = chip->card;
 	register struct soundscape *s = get_card_soundscape(card);
 	unsigned long flags;
@@ -958,7 +958,9 @@ static int __devinit create_mpu401(struct snd_card *card, int devnum, unsigned l
  * Override for the CS4231 playback format function.
  * The AD1845 has much simpler format and rate selection.
  */
-static void ad1845_playback_format(struct snd_cs4231 * chip, struct snd_pcm_hw_params *params, unsigned char format)
+static void ad1845_playback_format(struct snd_wss *chip,
+				   struct snd_pcm_hw_params *params,
+				   unsigned char format)
 {
 	unsigned long flags;
 	unsigned rate = params_rate(params);
@@ -983,9 +985,9 @@ static void ad1845_playback_format(struct snd_cs4231 * chip, struct snd_pcm_hw_p
 	 * NOTE: We seem to need to write to the MSB before the LSB
 	 *       to get the correct sample frequency.
 	 */
-	snd_cs4231_out(chip, CS4231_PLAYBK_FORMAT, (format & 0xf0));
-	snd_cs4231_out(chip, AD1845_FREQ_SEL_MSB, (unsigned char) (rate >> 8));
-	snd_cs4231_out(chip, AD1845_FREQ_SEL_LSB, (unsigned char) rate);
+	snd_wss_out(chip, CS4231_PLAYBK_FORMAT, (format & 0xf0));
+	snd_wss_out(chip, AD1845_FREQ_SEL_MSB, (unsigned char) (rate >> 8));
+	snd_wss_out(chip, AD1845_FREQ_SEL_LSB, (unsigned char) rate);
 
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 }
@@ -994,7 +996,9 @@ static void ad1845_playback_format(struct snd_cs4231 * chip, struct snd_pcm_hw_p
  * Override for the CS4231 capture format function. 
  * The AD1845 has much simpler format and rate selection.
  */
-static void ad1845_capture_format(struct snd_cs4231 * chip, struct snd_pcm_hw_params *params, unsigned char format)
+static void ad1845_capture_format(struct snd_wss *chip,
+				  struct snd_pcm_hw_params *params,
+				  unsigned char format)
 {
 	unsigned long flags;
 	unsigned rate = params_rate(params);
@@ -1019,9 +1023,9 @@ static void ad1845_capture_format(struct snd_cs4231 * chip, struct snd_pcm_hw_pa
 	 * NOTE: We seem to need to write to the MSB before the LSB
 	 *       to get the correct sample frequency.
 	 */
-	snd_cs4231_out(chip, CS4231_REC_FORMAT, (format & 0xf0));
-	snd_cs4231_out(chip, AD1845_FREQ_SEL_MSB, (unsigned char) (rate >> 8));
-	snd_cs4231_out(chip, AD1845_FREQ_SEL_LSB, (unsigned char) rate);
+	snd_wss_out(chip, CS4231_REC_FORMAT, (format & 0xf0));
+	snd_wss_out(chip, AD1845_FREQ_SEL_MSB, (unsigned char) (rate >> 8));
+	snd_wss_out(chip, AD1845_FREQ_SEL_LSB, (unsigned char) rate);
 
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 }
@@ -1036,7 +1040,7 @@ static int __devinit create_ad1845(struct snd_card *card, unsigned port,
 				   int irq, int dma1, int dma2)
 {
 	register struct soundscape *sscape = get_card_soundscape(card);
-	struct snd_cs4231 *chip;
+	struct snd_wss *chip;
 	int err;
 
 	if (sscape->type == SSCAPE_VIVO)
@@ -1045,9 +1049,8 @@ static int __devinit create_ad1845(struct snd_card *card, unsigned port,
 	if (dma1 == dma2)
 		dma2 = -1;
 
-	err = snd_cs4231_create(card,
-				port, -1, irq, dma1, dma2,
-				CS4231_HW_DETECT, CS4231_HWSHARE_DMA1, &chip);
+	err = snd_wss_create(card, port, -1, irq, dma1, dma2,
+			     WSS_HW_DETECT, WSS_HWSHARE_DMA1, &chip);
 	if (!err) {
 		unsigned long flags;
 		struct snd_pcm *pcm;
@@ -1063,11 +1066,11 @@ static int __devinit create_ad1845(struct snd_card *card, unsigned port,
  *
 #define AD1845_IFACE_CONFIG  \
            (CS4231_AUTOCALIB | CS4231_RECORD_ENABLE | CS4231_PLAYBACK_ENABLE)
-    snd_cs4231_mce_up(chip);
+    snd_wss_mce_up(chip);
     spin_lock_irqsave(&chip->reg_lock, flags);
-    snd_cs4231_out(chip, CS4231_IFACE_CTRL, AD1845_IFACE_CONFIG);
+    snd_wss_out(chip, CS4231_IFACE_CTRL, AD1845_IFACE_CONFIG);
     spin_unlock_irqrestore(&chip->reg_lock, flags);
-    snd_cs4231_mce_down(chip);
+    snd_wss_mce_down(chip);
  */
 
 		if (sscape->type != SSCAPE_VIVO) {
@@ -1077,11 +1080,11 @@ static int __devinit create_ad1845(struct snd_card *card, unsigned port,
 			 * be 14.31818 MHz, because we must set this register
 			 * to get the playback to sound correct ...
 			 */
-			snd_cs4231_mce_up(chip);
+			snd_wss_mce_up(chip);
 			spin_lock_irqsave(&chip->reg_lock, flags);
-			snd_cs4231_out(chip, AD1845_CRYS_CLOCK_SEL, 0x20);
+			snd_wss_out(chip, AD1845_CRYS_CLOCK_SEL, 0x20);
 			spin_unlock_irqrestore(&chip->reg_lock, flags);
-			snd_cs4231_mce_down(chip);
+			snd_wss_mce_down(chip);
 
 			/*
 			 * More custom configuration:
@@ -1089,28 +1092,28 @@ static int __devinit create_ad1845(struct snd_card *card, unsigned port,
 			 * b) enable frequency selection (for capture/playback)
 			 */
 			spin_lock_irqsave(&chip->reg_lock, flags);
-			snd_cs4231_out(chip, CS4231_MISC_INFO,
-					CS4231_MODE2 | 0x10);
-			val = snd_cs4231_in(chip, AD1845_PWR_DOWN_CTRL);
-			snd_cs4231_out(chip, AD1845_PWR_DOWN_CTRL,
-					val | AD1845_FREQ_SEL_ENABLE);
+			snd_wss_out(chip, CS4231_MISC_INFO,
+				    CS4231_MODE2 | 0x10);
+			val = snd_wss_in(chip, AD1845_PWR_DOWN_CTRL);
+			snd_wss_out(chip, AD1845_PWR_DOWN_CTRL,
+				    val | AD1845_FREQ_SEL_ENABLE);
 			spin_unlock_irqrestore(&chip->reg_lock, flags);
 		}
 
-		err = snd_cs4231_pcm(chip, 0, &pcm);
+		err = snd_wss_pcm(chip, 0, &pcm);
 		if (err < 0) {
 			snd_printk(KERN_ERR "sscape: No PCM device "
 					    "for AD1845 chip\n");
 			goto _error;
 		}
 
-		err = snd_cs4231_mixer(chip);
+		err = snd_wss_mixer(chip);
 		if (err < 0) {
 			snd_printk(KERN_ERR "sscape: No mixer device "
 					    "for AD1845 chip\n");
 			goto _error;
 		}
-		err = snd_cs4231_timer(chip, 0, NULL);
+		err = snd_wss_timer(chip, 0, NULL);
 		if (err < 0) {
 			snd_printk(KERN_ERR "sscape: No timer device "
 					    "for AD1845 chip\n");
