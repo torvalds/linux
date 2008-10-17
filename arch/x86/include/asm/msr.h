@@ -22,10 +22,10 @@ static inline unsigned long long native_read_tscp(unsigned int *aux)
 }
 
 /*
- * i386 calling convention returns 64-bit value in edx:eax, while
- * x86_64 returns at rax. Also, the "A" constraint does not really
- * mean rdx:rax in x86_64, so we need specialized behaviour for each
- * architecture
+ * both i386 and x86_64 returns 64-bit value in edx:eax, but gcc's "A"
+ * constraint has different meanings. For i386, "A" means exactly
+ * edx:eax, while for x86_64 it doesn't mean rdx:rax or edx:eax. Instead,
+ * it means rax *or* rdx.
  */
 #ifdef CONFIG_X86_64
 #define DECLARE_ARGS(val, low, high)	unsigned low, high
