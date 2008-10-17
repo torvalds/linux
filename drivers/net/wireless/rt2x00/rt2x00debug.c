@@ -285,7 +285,7 @@ exit:
 }
 
 static unsigned int rt2x00debug_poll_queue_dump(struct file *file,
-					        poll_table *wait)
+						poll_table *wait)
 {
 	struct rt2x00debug_intf *intf = file->private_data;
 
@@ -377,7 +377,7 @@ static ssize_t rt2x00debug_read_crypto_stats(struct file *file,
 	if (*offset)
 		return 0;
 
-	data = kzalloc((1 + CIPHER_MAX)* MAX_LINE_LENGTH, GFP_KERNEL);
+	data = kzalloc((1 + CIPHER_MAX) * MAX_LINE_LENGTH, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
