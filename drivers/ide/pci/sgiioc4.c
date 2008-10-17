@@ -320,7 +320,6 @@ ide_dma_sgiioc4(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned long dma_base = pci_resource_start(dev, 0) + IOC4_DMA_OFFSET;
-	void __iomem *virt_dma_base;
 	int num_ports = sizeof (ioc4_dma_regs_t);
 	void *pad;
 
@@ -333,14 +332,8 @@ ide_dma_sgiioc4(ide_hwif_t *hwif, const struct ide_port_info *d)
 		return -1;
 	}
 
-	virt_dma_base = ioremap(dma_base, num_ports);
-	if (virt_dma_base == NULL) {
-		printk(KERN_ERR "%s(%s) -- ERROR: unable to map addresses "
-		       "0x%lx to 0x%lx\n", __func__, hwif->name,
-		       dma_base, dma_base + num_ports - 1);
-		goto dma_remap_failure;
-	}
-	hwif->dma_base = (unsigned long) virt_dma_base;
+	hwif->dma_base = (unsigned long)hwif->io_ports.irq_addr +
+			 IOC4_DMA_OFFSET;
 
 	hwif->sg_max_nents = IOC4_PRD_ENTRIES;
 
@@ -364,9 +357,6 @@ ide_dma_sgiioc4(ide_hwif_t *hwif, const struct ide_port_info *d)
 	printk(KERN_INFO "%s: changing from DMA to PIO mode", hwif->name);
 
 dma_pci_alloc_failure:
-	iounmap(virt_dma_base);
-
-dma_remap_failure:
 	release_mem_region(dma_base, num_ports);
 
 	return -1;
