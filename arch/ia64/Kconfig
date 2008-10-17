@@ -145,6 +145,7 @@ config IA64_GENERIC
 	select NUMA
 	select ACPI_NUMA
 	select SWIOTLB
+	select PCI_MSI
 	help
 	  This selects the system type of your hardware.  A "generic" kernel
 	  will run on any supported IA-64 system.  However, if you configure
@@ -152,6 +153,7 @@ config IA64_GENERIC
 
 	  generic		For any supported IA-64 system
 	  DIG-compliant		For DIG ("Developer's Interface Guide") compliant systems
+	  DIG+Intel+IOMMU	For DIG systems with Intel IOMMU
 	  HP-zx1/sx1000		For HP systems
 	  HP-zx1/sx1000+swiotlb	For HP systems with (broken) DMA-constrained devices.
 	  SGI-SN2		For SGI Altix systems
@@ -164,6 +166,11 @@ config IA64_GENERIC
 config IA64_DIG
 	bool "DIG-compliant"
 	select SWIOTLB
+
+config IA64_DIG_VTD
+	bool "DIG+Intel+IOMMU"
+	select DMAR
+	select PCI_MSI
 
 config IA64_HP_ZX1
 	bool "HP-zx1/sx1000"
@@ -613,6 +620,16 @@ source "drivers/pci/Kconfig"
 source "drivers/pci/hotplug/Kconfig"
 
 source "drivers/pcmcia/Kconfig"
+
+config DMAR
+        bool "Support for DMA Remapping Devices (EXPERIMENTAL)"
+        depends on IA64_GENERIC && ACPI && EXPERIMENTAL
+	help
+	  DMA remapping (DMAR) devices support enables independent address
+	  translations for Direct Memory Access (DMA) from devices.
+	  These DMA remapping devices are reported via ACPI tables
+	  and include PCI device scope covered by these DMA
+	  remapping devices.
 
 endmenu
 
