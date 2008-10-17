@@ -160,6 +160,7 @@ static const u8 W83791D_REG_BEEP_CTRL[3] = {
 	0xA3,			/* BEEP Control Register 3 */
 };
 
+#define W83791D_REG_GPIO		0x15
 #define W83791D_REG_CONFIG		0x40
 #define W83791D_REG_VID_FANDIV		0x47
 #define W83791D_REG_DID_VID4		0x49
@@ -908,8 +909,6 @@ static struct attribute *w83791d_attributes[] = {
 	FAN_UNIT_ATTRS(0),
 	FAN_UNIT_ATTRS(1),
 	FAN_UNIT_ATTRS(2),
-	FAN_UNIT_ATTRS(3),
-	FAN_UNIT_ATTRS(4),
 	TEMP_UNIT_ATTRS(0),
 	TEMP_UNIT_ATTRS(1),
 	TEMP_UNIT_ATTRS(2),
@@ -925,6 +924,18 @@ static const struct attribute_group w83791d_group = {
 	.attrs = w83791d_attributes,
 };
 
+/* Separate group of attributes for fan/pwm 4-5. Their pins can also be
+   in use for GPIO in which case their sysfs-interface should not be made
+   available */
+static struct attribute *w83791d_attributes_fanpwm45[] = {
+	FAN_UNIT_ATTRS(3),
+	FAN_UNIT_ATTRS(4),
+	NULL
+};
+
+static const struct attribute_group w83791d_group_fanpwm45 = {
+	.attrs = w83791d_attributes_fanpwm45,
+};
 
 static int w83791d_detect_subclients(struct i2c_client *client)
 {
@@ -1056,6 +1067,7 @@ static int w83791d_probe(struct i2c_client *client,
 	struct w83791d_data *data;
 	struct device *dev = &client->dev;
 	int i, err;
+	u8 has_fanpwm45;
 
 #ifdef DEBUG
 	int val1;
@@ -1090,15 +1102,27 @@ static int w83791d_probe(struct i2c_client *client,
 	if ((err = sysfs_create_group(&client->dev.kobj, &w83791d_group)))
 		goto error3;
 
+	/* Check if pins of fan/pwm 4-5 are in use as GPIO */
+	has_fanpwm45 = w83791d_read(client, W83791D_REG_GPIO) & 0x10;
+	if (has_fanpwm45) {
+		err = sysfs_create_group(&client->dev.kobj,
+					 &w83791d_group_fanpwm45);
+		if (err)
+			goto error4;
+	}
+
 	/* Everything is ready, now register the working device */
 	data->hwmon_dev = hwmon_device_register(dev);
 	if (IS_ERR(data->hwmon_dev)) {
 		err = PTR_ERR(data->hwmon_dev);
-		goto error4;
+		goto error5;
 	}
 
 	return 0;
 
+error5:
+	if (has_fanpwm45)
+		sysfs_remove_group(&client->dev.kobj, &w83791d_group_fanpwm45);
 error4:
 	sysfs_remove_group(&client->dev.kobj, &w83791d_group);
 error3:
