@@ -46,9 +46,7 @@ struct ams {
 
 #ifdef CONFIG_SENSORS_AMS_I2C
 	/* I2C properties */
-	int i2c_bus;
-	int i2c_address;
-	struct i2c_client i2c_client;
+	struct i2c_client *i2c_client;
 #endif
 
 	/* Joystick emulation */
