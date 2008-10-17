@@ -29,6 +29,7 @@
 #include <linux/io.h>
 #include <linux/dma_remapping.h>
 #include <asm/cacheflush.h>
+#include <asm/iommu.h>
 
 /*
  * Intel IOMMU register specification per version 1.0 public spec.
@@ -202,22 +203,21 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 #define dma_frcd_type(d) ((d >> 30) & 1)
 #define dma_frcd_fault_reason(c) (c & 0xff)
 #define dma_frcd_source_id(c) (c & 0xffff)
-#define dma_frcd_page_addr(d) (d & (((u64)-1) << 12)) /* low 64 bit */
+/* low 64 bit */
+#define dma_frcd_page_addr(d) (d & (((u64)-1) << PAGE_SHIFT))
 
-#define DMAR_OPERATION_TIMEOUT ((cycles_t) tsc_khz*10*1000) /* 10sec */
-
-#define IOMMU_WAIT_OP(iommu, offset, op, cond, sts) \
-{\
-	cycles_t start_time = get_cycles();\
-	while (1) {\
-		sts = op (iommu->reg + offset);\
-		if (cond)\
-			break;\
+#define IOMMU_WAIT_OP(iommu, offset, op, cond, sts)			\
+do {									\
+	cycles_t start_time = get_cycles();				\
+	while (1) {							\
+		sts = op(iommu->reg + offset);				\
+		if (cond)						\
+			break;						\
 		if (DMAR_OPERATION_TIMEOUT < (get_cycles() - start_time))\
-			panic("DMAR hardware is malfunctioning\n");\
-		cpu_relax();\
-	}\
-}
+			panic("DMAR hardware is malfunctioning\n");	\
+		cpu_relax();						\
+	}								\
+} while (0)
 
 #define QI_LENGTH	256	/* queue length */
 
@@ -244,7 +244,7 @@ enum {
 #define QI_IOTLB_DR(dr) 	(((u64)dr) << 7)
 #define QI_IOTLB_DW(dw) 	(((u64)dw) << 6)
 #define QI_IOTLB_GRAN(gran) 	(((u64)gran) >> (DMA_TLB_FLUSH_GRANU_OFFSET-4))
-#define QI_IOTLB_ADDR(addr)	(((u64)addr) & PAGE_MASK_4K)
+#define QI_IOTLB_ADDR(addr)	(((u64)addr) & VTD_PAGE_MASK)
 #define QI_IOTLB_IH(ih)		(((u64)ih) << 6)
 #define QI_IOTLB_AM(am)		(((u8)am))
 
@@ -352,5 +352,12 @@ static inline int intel_iommu_found(void)
 	return 0;
 }
 #endif /* CONFIG_DMAR */
+
+extern void *intel_alloc_coherent(struct device *, size_t, dma_addr_t *, gfp_t);
+extern void intel_free_coherent(struct device *, size_t, void *, dma_addr_t);
+extern dma_addr_t intel_map_single(struct device *, phys_addr_t, size_t, int);
+extern void intel_unmap_single(struct device *, dma_addr_t, size_t, int);
+extern int intel_map_sg(struct device *, struct scatterlist *, int, int);
+extern void intel_unmap_sg(struct device *, struct scatterlist *, int, int);
 
 #endif

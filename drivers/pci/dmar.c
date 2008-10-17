@@ -277,14 +277,15 @@ dmar_table_print_dmar_entry(struct acpi_dmar_header *header)
 		drhd = (struct acpi_dmar_hardware_unit *)header;
 		printk (KERN_INFO PREFIX
 			"DRHD (flags: 0x%08x)base: 0x%016Lx\n",
-			drhd->flags, drhd->address);
+			drhd->flags, (unsigned long long)drhd->address);
 		break;
 	case ACPI_DMAR_TYPE_RESERVED_MEMORY:
 		rmrr = (struct acpi_dmar_reserved_memory *)header;
 
 		printk (KERN_INFO PREFIX
 			"RMRR base: 0x%016Lx end: 0x%016Lx\n",
-			rmrr->base_address, rmrr->end_address);
+			(unsigned long long)rmrr->base_address,
+			(unsigned long long)rmrr->end_address);
 		break;
 	}
 }
@@ -304,7 +305,7 @@ parse_dmar_table(void)
 	if (!dmar)
 		return -ENODEV;
 
-	if (dmar->width < PAGE_SHIFT_4K - 1) {
+	if (dmar->width < PAGE_SHIFT - 1) {
 		printk(KERN_WARNING PREFIX "Invalid DMAR haw\n");
 		return -EINVAL;
 	}
@@ -493,7 +494,7 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 
 	iommu->seq_id = iommu_allocated++;
 
-	iommu->reg = ioremap(drhd->reg_base_addr, PAGE_SIZE_4K);
+	iommu->reg = ioremap(drhd->reg_base_addr, VTD_PAGE_SIZE);
 	if (!iommu->reg) {
 		printk(KERN_ERR "IOMMU: can't map the region\n");
 		goto error;
@@ -504,8 +505,8 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 	/* the registers might be more than one page */
 	map_size = max_t(int, ecap_max_iotlb_offset(iommu->ecap),
 		cap_max_fault_reg_offset(iommu->cap));
-	map_size = PAGE_ALIGN_4K(map_size);
-	if (map_size > PAGE_SIZE_4K) {
+	map_size = VTD_PAGE_ALIGN(map_size);
+	if (map_size > VTD_PAGE_SIZE) {
 		iounmap(iommu->reg);
 		iommu->reg = ioremap(drhd->reg_base_addr, map_size);
 		if (!iommu->reg) {
@@ -516,8 +517,10 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 
 	ver = readl(iommu->reg + DMAR_VER_REG);
 	pr_debug("IOMMU %llx: ver %d:%d cap %llx ecap %llx\n",
-		drhd->reg_base_addr, DMAR_VER_MAJOR(ver), DMAR_VER_MINOR(ver),
-		iommu->cap, iommu->ecap);
+		(unsigned long long)drhd->reg_base_addr,
+		DMAR_VER_MAJOR(ver), DMAR_VER_MINOR(ver),
+		(unsigned long long)iommu->cap,
+		(unsigned long long)iommu->ecap);
 
 	spin_lock_init(&iommu->register_lock);
 
