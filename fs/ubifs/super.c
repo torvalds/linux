@@ -1217,7 +1217,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	ubifs_msg("media format:       %d (latest is %d)",
 		  c->fmt_version, UBIFS_FORMAT_VERSION);
 	ubifs_msg("default compressor: %s", ubifs_compr_name(c->default_compr));
-	ubifs_msg("reserved pool size: %llu bytes (%llu KiB)",
+	ubifs_msg("reserved for root:  %llu bytes (%llu KiB)",
 		c->report_rp_size, c->report_rp_size >> 10);
 
 	dbg_msg("compiled on:         " __DATE__ " at " __TIME__);
