@@ -3937,12 +3937,19 @@ M:	jbglaw@lug-owl.de
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
-STABLE BRANCH:
+STABLE BRANCH
 P:	Greg Kroah-Hartman
 M:	greg@kroah.com
 P:	Chris Wright
 M:	chrisw@sous-sol.org
 L:	stable@kernel.org
+S:	Maintained
+
+STAGING SUBSYSTEM
+P:	Greg Kroah-Hartman
+M:	gregkh@suse.de
+L:	linux-kernel@vger.kernel.org
+T:	quilt kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
 S:	Maintained
 
 STARFIRE/DURALAN NETWORK DRIVER
