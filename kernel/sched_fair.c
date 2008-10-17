@@ -73,6 +73,8 @@ unsigned int sysctl_sched_wakeup_granularity = 5000000UL;
 
 const_debug unsigned int sysctl_sched_migration_cost = 500000UL;
 
+static const struct sched_class fair_sched_class;
+
 /**************************************************************
  * CFS operations on generic schedulable entities:
  */
@@ -848,9 +850,29 @@ static void hrtick_start_fair(struct rq *rq, struct task_struct *p)
 		hrtick_start(rq, delta);
 	}
 }
+
+/*
+ * called from enqueue/dequeue and updates the hrtick when the
+ * current task is from our class and nr_running is low enough
+ * to matter.
+ */
+static void hrtick_update(struct rq *rq)
+{
+	struct task_struct *curr = rq->curr;
+
+	if (curr->sched_class != &fair_sched_class)
+		return;
+
+	if (cfs_rq_of(&curr->se)->nr_running < sched_nr_latency)
+		hrtick_start_fair(rq, curr);
+}
 #else /* !CONFIG_SCHED_HRTICK */
 static inline void
 hrtick_start_fair(struct rq *rq, struct task_struct *p)
+{
+}
+
+static inline void hrtick_update(struct rq *rq)
 {
 }
 #endif
@@ -873,7 +895,7 @@ static void enqueue_task_fair(struct rq *rq, struct task_struct *p, int wakeup)
 		wakeup = 1;
 	}
 
-	hrtick_start_fair(rq, rq->curr);
+	hrtick_update(rq);
 }
 
 /*
@@ -895,7 +917,7 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int sleep)
 		sleep = 1;
 	}
 
-	hrtick_start_fair(rq, rq->curr);
+	hrtick_update(rq);
 }
 
 /*
@@ -1000,8 +1022,6 @@ static inline int wake_idle(int cpu, struct task_struct *p)
 #endif
 
 #ifdef CONFIG_SMP
-
-static const struct sched_class fair_sched_class;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 /*
