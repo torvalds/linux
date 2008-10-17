@@ -79,6 +79,13 @@ struct bio {
 
 	unsigned int		bi_size;	/* residual I/O count */
 
+	/*
+	 * To keep track of the max segment size, we account for the
+	 * sizes of the first and last mergeable segments in this bio.
+	 */
+	unsigned int		bi_seg_front_size;
+	unsigned int		bi_seg_back_size;
+
 	unsigned int		bi_max_vecs;	/* max bvl_vecs we can hold */
 
 	unsigned int		bi_comp_cpu;	/* completion CPU */

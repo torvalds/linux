@@ -195,6 +195,14 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 	return ERR_PTR(res);
 }
 
+static ssize_t part_partition_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct hd_struct *p = dev_to_part(dev);
+
+	return sprintf(buf, "%d\n", p->partno);
+}
+
 static ssize_t part_start_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
@@ -260,6 +268,7 @@ ssize_t part_fail_store(struct device *dev,
 }
 #endif
 
+static DEVICE_ATTR(partition, S_IRUGO, part_partition_show, NULL);
 static DEVICE_ATTR(start, S_IRUGO, part_start_show, NULL);
 static DEVICE_ATTR(size, S_IRUGO, part_size_show, NULL);
 static DEVICE_ATTR(stat, S_IRUGO, part_stat_show, NULL);
@@ -269,6 +278,7 @@ static struct device_attribute dev_attr_fail =
 #endif
 
 static struct attribute *part_attrs[] = {
+	&dev_attr_partition.attr,
 	&dev_attr_start.attr,
 	&dev_attr_size.attr,
 	&dev_attr_stat.attr,

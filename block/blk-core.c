@@ -257,7 +257,6 @@ void __generic_unplug_device(struct request_queue *q)
 
 	q->request_fn(q);
 }
-EXPORT_SYMBOL(__generic_unplug_device);
 
 /**
  * generic_unplug_device - fire a request queue
@@ -325,6 +324,9 @@ EXPORT_SYMBOL(blk_unplug);
 
 static void blk_invoke_request_fn(struct request_queue *q)
 {
+	if (unlikely(blk_queue_stopped(q)))
+		return;
+
 	/*
 	 * one level of recursion is ok and is much faster than kicking
 	 * the unplug handling
@@ -399,8 +401,13 @@ void blk_sync_queue(struct request_queue *q)
 EXPORT_SYMBOL(blk_sync_queue);
 
 /**
- * blk_run_queue - run a single device queue
+ * __blk_run_queue - run a single device queue
  * @q:	The queue to run
+ *
+ * Description:
+ *    See @blk_run_queue. This variant must be called with the queue lock
+ *    held and interrupts disabled.
+ *
  */
 void __blk_run_queue(struct request_queue *q)
 {
@@ -418,6 +425,12 @@ EXPORT_SYMBOL(__blk_run_queue);
 /**
  * blk_run_queue - run a single device queue
  * @q: The queue to run
+ *
+ * Description:
+ *    Invoke request handling on this queue, if it has pending work to do.
+ *    May be used to restart queueing when a request has completed. Also
+ *    See @blk_start_queueing.
+ *
  */
 void blk_run_queue(struct request_queue *q)
 {
@@ -501,6 +514,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	init_timer(&q->unplug_timer);
 	setup_timer(&q->timeout, blk_rq_timed_out_timer, (unsigned long) q);
 	INIT_LIST_HEAD(&q->timeout_list);
+	INIT_WORK(&q->unplug_work, blk_unplug_work);
 
 	kobject_init(&q->kobj, &blk_queue_ktype);
 
@@ -884,7 +898,8 @@ EXPORT_SYMBOL(blk_get_request);
  *
  * This is basically a helper to remove the need to know whether a queue
  * is plugged or not if someone just wants to initiate dispatch of requests
- * for this queue.
+ * for this queue. Should be used to start queueing on a device outside
+ * of ->request_fn() context. Also see @blk_run_queue.
  *
  * The queue lock must be held with interrupts disabled.
  */
@@ -1003,8 +1018,9 @@ static void part_round_stats_single(int cpu, struct hd_struct *part,
 }
 
 /**
- * part_round_stats()	- Round off the performance stats on a struct
- * disk_stats.
+ * part_round_stats() - Round off the performance stats on a struct disk_stats.
+ * @cpu: cpu number for stats access
+ * @part: target partition
  *
  * The average IO queue length and utilisation statistics are maintained
  * by observing the current state of the queue length and the amount of
