@@ -598,6 +598,8 @@ static void idefloppy_setup(ide_drive_t *drive, idefloppy_floppy_t *floppy)
 	(void) ide_floppy_get_capacity(drive);
 
 	ide_proc_register_driver(drive, floppy->driver);
+
+	drive->dev_flags |= IDE_DFLAG_ATTACH;
 }
 
 static void ide_floppy_remove(ide_drive_t *drive)
@@ -807,7 +809,6 @@ static int ide_floppy_probe(ide_drive_t *drive)
 	drive->debug_mask = debug_mask;
 
 	idefloppy_setup(drive, floppy);
-	drive->dev_flags |= IDE_DFLAG_ATTACH;
 
 	g->minors = 1 << PARTN_BITS;
 	g->driverfs_dev = &drive->gendev;

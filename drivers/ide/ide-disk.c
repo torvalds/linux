@@ -716,6 +716,14 @@ static void idedisk_setup(ide_drive_t *drive)
 		drive->dev_flags |= IDE_DFLAG_WCACHE;
 
 	set_wcache(drive, 1);
+
+	if ((drive->dev_flags & IDE_DFLAG_LBA) == 0 &&
+	    (drive->head == 0 || drive->head > 16)) {
+		printk(KERN_ERR "%s: invalid geometry: %d physical heads?\n",
+			drive->name, drive->head);
+		drive->dev_flags &= ~IDE_DFLAG_ATTACH;
+	} else
+		drive->dev_flags |= IDE_DFLAG_ATTACH;
 }
 
 static void ide_cacheflush_p(ide_drive_t *drive)
@@ -957,20 +965,14 @@ static int ide_disk_probe(ide_drive_t *drive)
 	drive->driver_data = idkp;
 
 	idedisk_setup(drive);
-	if ((drive->dev_flags & IDE_DFLAG_LBA) == 0 &&
-	    (drive->head == 0 || drive->head > 16)) {
-		printk(KERN_ERR "%s: INVALID GEOMETRY: %d PHYSICAL HEADS?\n",
-			drive->name, drive->head);
-		drive->dev_flags &= ~IDE_DFLAG_ATTACH;
-	} else
-		drive->dev_flags |= IDE_DFLAG_ATTACH;
+
+	set_capacity(g, ide_disk_capacity(drive));
 
 	g->minors = IDE_DISK_MINORS;
 	g->driverfs_dev = &drive->gendev;
 	g->flags |= GENHD_FL_EXT_DEVT;
 	if (drive->dev_flags & IDE_DFLAG_REMOVABLE)
 		g->flags = GENHD_FL_REMOVABLE;
-	set_capacity(g, ide_disk_capacity(drive));
 	g->fops = &idedisk_ops;
 	add_disk(g);
 	return 0;
