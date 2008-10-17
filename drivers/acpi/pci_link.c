@@ -709,7 +709,7 @@ int acpi_pci_link_free_irq(acpi_handle handle)
 			  acpi_device_bid(link->device)));
 
 	if (link->refcnt == 0) {
-		acpi_ut_evaluate_object(link->device->handle, "_DIS", 0, NULL);
+		acpi_evaluate_object(link->device->handle, "_DIS", NULL, NULL);
 	}
 	mutex_unlock(&acpi_link_lock);
 	return (link->irq.active);
@@ -773,7 +773,7 @@ static int acpi_pci_link_add(struct acpi_device *device)
 
       end:
 	/* disable all links -- to be activated on use */
-	acpi_ut_evaluate_object(device->handle, "_DIS", 0, NULL);
+	acpi_evaluate_object(device->handle, "_DIS", NULL, NULL);
 	mutex_unlock(&acpi_link_lock);
 
 	if (result)
