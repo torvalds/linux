@@ -581,6 +581,7 @@ sa1111_init_one_child(struct sa1111 *sachip, struct resource *parent,
 		goto out;
 	}
 
+#ifdef CONFIG_DMABOUNCE
 	/*
 	 * If the parent device has a DMA mask associated with it,
 	 * propagate it down to the children.
@@ -598,6 +599,7 @@ sa1111_init_one_child(struct sa1111 *sachip, struct resource *parent,
 			}
 		}
 	}
+#endif
 
 out:
 	return ret;
