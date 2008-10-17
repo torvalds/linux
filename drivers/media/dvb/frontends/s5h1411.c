@@ -463,8 +463,6 @@ static int s5h1411_set_spectralinversion(struct dvb_frontend *fe, int inversion)
 
 	if (inversion == 1)
 		val |= 0x1000; /* Inverted */
-	else
-		val |= 0x0000;
 
 	state->inversion = inversion;
 	return s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0x24, val);
