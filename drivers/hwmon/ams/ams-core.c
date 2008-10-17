@@ -99,39 +99,31 @@ static struct pmf_irq_client ams_shock_client = {
  */
 static void ams_worker(struct work_struct *work)
 {
+	unsigned long flags;
+	u8 irqs_to_clear;
+
 	mutex_lock(&ams_info.lock);
 
-	if (ams_info.has_device) {
-		unsigned long flags;
+	spin_lock_irqsave(&ams_info.irq_lock, flags);
+	irqs_to_clear = ams_info.worker_irqs;
 
-		spin_lock_irqsave(&ams_info.irq_lock, flags);
+	if (ams_info.worker_irqs & AMS_IRQ_FREEFALL) {
+		if (verbose)
+			printk(KERN_INFO "ams: freefall detected!\n");
 
-		if (ams_info.worker_irqs & AMS_IRQ_FREEFALL) {
-			if (verbose)
-				printk(KERN_INFO "ams: freefall detected!\n");
-
-			ams_info.worker_irqs &= ~AMS_IRQ_FREEFALL;
-
-			/* we must call this with interrupts enabled */
-			spin_unlock_irqrestore(&ams_info.irq_lock, flags);
-			ams_info.clear_irq(AMS_IRQ_FREEFALL);
-			spin_lock_irqsave(&ams_info.irq_lock, flags);
-		}
-
-		if (ams_info.worker_irqs & AMS_IRQ_SHOCK) {
-			if (verbose)
-				printk(KERN_INFO "ams: shock detected!\n");
-
-			ams_info.worker_irqs &= ~AMS_IRQ_SHOCK;
-
-			/* we must call this with interrupts enabled */
-			spin_unlock_irqrestore(&ams_info.irq_lock, flags);
-			ams_info.clear_irq(AMS_IRQ_SHOCK);
-			spin_lock_irqsave(&ams_info.irq_lock, flags);
-		}
-
-		spin_unlock_irqrestore(&ams_info.irq_lock, flags);
+		ams_info.worker_irqs &= ~AMS_IRQ_FREEFALL;
 	}
+
+	if (ams_info.worker_irqs & AMS_IRQ_SHOCK) {
+		if (verbose)
+			printk(KERN_INFO "ams: shock detected!\n");
+
+		ams_info.worker_irqs &= ~AMS_IRQ_SHOCK;
+	}
+
+	spin_unlock_irqrestore(&ams_info.irq_lock, flags);
+
+	ams_info.clear_irq(irqs_to_clear);
 
 	mutex_unlock(&ams_info.lock);
 }
