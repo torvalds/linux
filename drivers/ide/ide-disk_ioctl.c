@@ -17,7 +17,7 @@ int ide_disk_ioctl(struct inode *inode, struct file *file,
 		   unsigned int cmd, unsigned long arg)
 {
 	struct block_device *bdev = inode->i_bdev;
-	struct ide_disk_obj *idkp = ide_disk_g(bdev->bd_disk);
+	struct ide_disk_obj *idkp = ide_drv_g(bdev->bd_disk, ide_disk_obj);
 	ide_drive_t *drive = idkp->drive;
 	int err;
 

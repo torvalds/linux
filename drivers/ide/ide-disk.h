@@ -9,9 +9,6 @@ struct ide_disk_obj {
 	unsigned int	openers;	/* protected by BKL for now */
 };
 
-#define ide_disk_g(disk) \
-	container_of((disk)->private_data, struct ide_disk_obj, driver)
-
 /* ide-disk.c */
 sector_t ide_disk_capacity(ide_drive_t *);
 ide_decl_devset(address);

@@ -49,8 +49,6 @@
 
 static DEFINE_MUTEX(idedisk_ref_mutex);
 
-#define to_ide_disk(obj) container_of(obj, struct ide_disk_obj, kref)
-
 static void ide_disk_release(struct kref *);
 
 static struct ide_disk_obj *ide_disk_get(struct gendisk *disk)
@@ -58,7 +56,7 @@ static struct ide_disk_obj *ide_disk_get(struct gendisk *disk)
 	struct ide_disk_obj *idkp = NULL;
 
 	mutex_lock(&idedisk_ref_mutex);
-	idkp = ide_disk_g(disk);
+	idkp = ide_drv_g(disk, ide_disk_obj);
 	if (idkp) {
 		if (ide_device_get(idkp->drive))
 			idkp = NULL;
@@ -746,7 +744,7 @@ static void ide_disk_remove(ide_drive_t *drive)
 
 static void ide_disk_release(struct kref *kref)
 {
-	struct ide_disk_obj *idkp = to_ide_disk(kref);
+	struct ide_disk_obj *idkp = to_ide_drv(kref, ide_disk_obj);
 	ide_drive_t *drive = idkp->drive;
 	struct gendisk *g = idkp->disk;
 
@@ -858,7 +856,7 @@ static int idedisk_open(struct inode *inode, struct file *filp)
 static int idedisk_release(struct inode *inode, struct file *filp)
 {
 	struct gendisk *disk = inode->i_bdev->bd_disk;
-	struct ide_disk_obj *idkp = ide_disk_g(disk);
+	struct ide_disk_obj *idkp = ide_drv_g(disk, ide_disk_obj);
 	ide_drive_t *drive = idkp->drive;
 
 	if (idkp->openers == 1)
@@ -879,7 +877,7 @@ static int idedisk_release(struct inode *inode, struct file *filp)
 
 static int idedisk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
-	struct ide_disk_obj *idkp = ide_disk_g(bdev->bd_disk);
+	struct ide_disk_obj *idkp = ide_drv_g(bdev->bd_disk, ide_disk_obj);
 	ide_drive_t *drive = idkp->drive;
 
 	geo->heads = drive->bios_head;
@@ -890,7 +888,7 @@ static int idedisk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 
 static int idedisk_media_changed(struct gendisk *disk)
 {
-	struct ide_disk_obj *idkp = ide_disk_g(disk);
+	struct ide_disk_obj *idkp = ide_drv_g(disk, ide_disk_obj);
 	ide_drive_t *drive = idkp->drive;
 
 	/* do not scan partitions twice if this is a removable device */
@@ -905,7 +903,7 @@ static int idedisk_media_changed(struct gendisk *disk)
 
 static int idedisk_revalidate_disk(struct gendisk *disk)
 {
-	struct ide_disk_obj *idkp = ide_disk_g(disk);
+	struct ide_disk_obj *idkp = ide_drv_g(disk, ide_disk_obj);
 	set_capacity(disk, ide_disk_capacity(idkp->drive));
 	return 0;
 }
