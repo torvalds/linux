@@ -554,6 +554,8 @@ struct dentry *sh_debugfs_root;
 static int __init sh_debugfs_init(void)
 {
 	sh_debugfs_root = debugfs_create_dir("sh", NULL);
+	if (!sh_debugfs_root)
+		return -ENOMEM;
 	if (IS_ERR(sh_debugfs_root))
 		return PTR_ERR(sh_debugfs_root);
 
