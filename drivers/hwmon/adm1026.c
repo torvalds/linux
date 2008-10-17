@@ -455,7 +455,7 @@ static void adm1026_print_gpio(struct i2c_client *client)
 	struct adm1026_data *data = i2c_get_clientdata(client);
 	int i;
 
-	dev_dbg(&client->dev, "GPIO config is:");
+	dev_dbg(&client->dev, "GPIO config is:\n");
 	for (i = 0;i <= 7;++i) {
 		if (data->config2 & (1 << i)) {
 			dev_dbg(&client->dev, "\t%sGP%s%d\n",
@@ -1681,17 +1681,16 @@ static int adm1026_detect(struct i2c_client *client, int kind,
 			kind = adm1026;
 		} else if (company == ADM1026_COMPANY_ANALOG_DEV
 			&& (verstep & 0xf0) == ADM1026_VERSTEP_GENERIC) {
-			dev_err(&adapter->dev, ": Unrecognized stepping "
+			dev_err(&adapter->dev, "Unrecognized stepping "
 				"0x%02x. Defaulting to ADM1026.\n", verstep);
 			kind = adm1026;
 		} else if ((verstep & 0xf0) == ADM1026_VERSTEP_GENERIC) {
-			dev_err(&adapter->dev, ": Found version/stepping "
+			dev_err(&adapter->dev, "Found version/stepping "
 				"0x%02x. Assuming generic ADM1026.\n",
 				verstep);
 			kind = any_chip;
 		} else {
-			dev_dbg(&adapter->dev, ": Autodetection "
-				"failed\n");
+			dev_dbg(&adapter->dev, "Autodetection failed\n");
 			/* Not an ADM1026 ... */
 			if (kind == 0) { /* User used force=x,y */
 				dev_err(&adapter->dev, "Generic ADM1026 not "
