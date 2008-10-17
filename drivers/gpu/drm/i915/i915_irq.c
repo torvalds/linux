@@ -771,6 +771,7 @@ int i915_vblank_swap(struct drm_device *dev, void *data,
 		    vbl_swap->plane == plane &&
 		    vbl_swap->sequence == swap->sequence) {
 			spin_unlock_irqrestore(&dev_priv->swaps_lock, irqflags);
+			drm_vblank_put(dev, pipe);
 			DRM_DEBUG("Already scheduled\n");
 			return 0;
 		}
