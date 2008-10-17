@@ -230,7 +230,6 @@ static __inline__ void lms_adapt_bg(struct oslec_state *ec, int clean, int shift
 }
 #endif
 
-/*- End of function --------------------------------------------------------*/
 
 struct oslec_state *oslec_create(int len, int adaption_mode)
 {
@@ -288,7 +287,6 @@ error_oom:
     return NULL;
 }
 EXPORT_SYMBOL_GPL(oslec_create);
-/*- End of function --------------------------------------------------------*/
 
 void oslec_free(struct oslec_state *ec)
 {
@@ -302,14 +300,12 @@ void oslec_free(struct oslec_state *ec)
 	kfree(ec);
 }
 EXPORT_SYMBOL_GPL(oslec_free);
-/*- End of function --------------------------------------------------------*/
 
 void oslec_adaption_mode(struct oslec_state *ec, int adaption_mode)
 {
     ec->adaption_mode = adaption_mode;
 }
 EXPORT_SYMBOL_GPL(oslec_adaption_mode);
-/*- End of function --------------------------------------------------------*/
 
 void oslec_flush(struct oslec_state *ec)
 {
@@ -336,13 +332,11 @@ void oslec_flush(struct oslec_state *ec)
     ec->Pstates = 0;
 }
 EXPORT_SYMBOL_GPL(oslec_flush);
-/*- End of function --------------------------------------------------------*/
 
 void oslec_snapshot(struct oslec_state *ec) {
     memcpy(ec->snapshot, ec->fir_taps16[0], ec->taps*sizeof(int16_t));
 }
 EXPORT_SYMBOL_GPL(oslec_snapshot);
-/*- End of function --------------------------------------------------------*/
 
 /* Dual Path Echo Canceller ------------------------------------------------*/
 
@@ -588,7 +582,6 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
     return (int16_t) ec->clean_nlp << 1;
 }
 EXPORT_SYMBOL_GPL(oslec_update);
-/*- End of function --------------------------------------------------------*/
 
 /* This function is seperated from the echo canceller is it is usually called
    as part of the tx process.  See rx HP (DC blocking) filter above, it's

@@ -45,7 +45,6 @@ static __inline__ int top_bit(unsigned int bits)
              : [bits] "rm" (bits));
     return res;
 }
-/*- End of function --------------------------------------------------------*/
 
 /*! \brief Find the bit position of the lowest set bit in a word
     \param bits The word to be searched
@@ -61,7 +60,6 @@ static __inline__ int bottom_bit(unsigned int bits)
              : [bits] "rm" (bits));
     return res;
 }
-/*- End of function --------------------------------------------------------*/
 #else
 static __inline__ int top_bit(unsigned int bits)
 {
@@ -97,7 +95,6 @@ static __inline__ int top_bit(unsigned int bits)
     }
     return i;
 }
-/*- End of function --------------------------------------------------------*/
 
 static __inline__ int bottom_bit(unsigned int bits)
 {
@@ -133,7 +130,6 @@ static __inline__ int bottom_bit(unsigned int bits)
     }
     return i;
 }
-/*- End of function --------------------------------------------------------*/
 #endif
 
 /*! \brief Bit reverse a byte.
@@ -151,7 +147,6 @@ static __inline__ uint8_t bit_reverse8(uint8_t x)
     return ((x & 0xAA) >> 1) | ((x & 0x55) << 1);
 #endif
 }
-/*- End of function --------------------------------------------------------*/
 
 /*! \brief Bit reverse a 16 bit word.
     \param data The word to be reversed.
@@ -191,7 +186,6 @@ static __inline__ uint32_t least_significant_one32(uint32_t x)
 {
     return (x & (-(int32_t) x));
 }
-/*- End of function --------------------------------------------------------*/
 
 /*! \brief Find the most significant one in a word, and return a word
            with just that bit set.
@@ -206,7 +200,6 @@ static __inline__ uint32_t most_significant_one32(uint32_t x)
     return (x ^ (x >> 1));
 #endif
 }
-/*- End of function --------------------------------------------------------*/
 
 /*! \brief Find the parity of a byte.
     \param x The byte to be checked.
@@ -216,7 +209,6 @@ static __inline__ int parity8(uint8_t x)
     x = (x ^ (x >> 4)) & 0x0F;
     return (0x6996 >> x) & 1;
 }
-/*- End of function --------------------------------------------------------*/
 
 /*! \brief Find the parity of a 16 bit word.
     \param x The word to be checked.
@@ -227,7 +219,6 @@ static __inline__ int parity16(uint16_t x)
     x = (x ^ (x >> 4)) & 0x0F;
     return (0x6996 >> x) & 1;
 }
-/*- End of function --------------------------------------------------------*/
 
 /*! \brief Find the parity of a 32 bit word.
     \param x The word to be checked.
@@ -239,7 +230,6 @@ static __inline__ int parity32(uint32_t x)
     x = (x ^ (x >> 4)) & 0x0F;
     return (0x6996 >> x) & 1;
 }
-/*- End of function --------------------------------------------------------*/
 
 #endif
 /*- End of file ------------------------------------------------------------*/
