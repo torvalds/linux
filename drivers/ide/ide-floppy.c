@@ -664,7 +664,7 @@ static int idefloppy_open(struct inode *inode, struct file *filp)
 	floppy->openers++;
 
 	if (floppy->openers == 1) {
-		drive->atapi_flags &= ~IDE_AFLAG_FORMAT_IN_PROGRESS;
+		drive->dev_flags &= ~IDE_DFLAG_FORMAT_IN_PROGRESS;
 		/* Just in case */
 
 		if (ide_do_test_unit_ready(drive, disk))
@@ -692,7 +692,7 @@ static int idefloppy_open(struct inode *inode, struct file *filp)
 		ide_set_media_lock(drive, disk, 1);
 		drive->dev_flags |= IDE_DFLAG_MEDIA_CHANGED;
 		check_disk_change(inode->i_bdev);
-	} else if (drive->atapi_flags & IDE_AFLAG_FORMAT_IN_PROGRESS) {
+	} else if (drive->dev_flags & IDE_DFLAG_FORMAT_IN_PROGRESS) {
 		ret = -EBUSY;
 		goto out_put_floppy;
 	}
@@ -714,7 +714,7 @@ static int idefloppy_release(struct inode *inode, struct file *filp)
 
 	if (floppy->openers == 1) {
 		ide_set_media_lock(drive, disk, 0);
-		drive->atapi_flags &= ~IDE_AFLAG_FORMAT_IN_PROGRESS;
+		drive->dev_flags &= ~IDE_DFLAG_FORMAT_IN_PROGRESS;
 	}
 
 	floppy->openers--;

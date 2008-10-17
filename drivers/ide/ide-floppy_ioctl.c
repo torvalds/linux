@@ -138,11 +138,11 @@ static int ide_floppy_format_unit(ide_drive_t *drive, int __user *arg)
 
 	if (floppy->openers > 1) {
 		/* Don't format if someone is using the disk */
-		drive->atapi_flags &= ~IDE_AFLAG_FORMAT_IN_PROGRESS;
+		drive->dev_flags &= ~IDE_DFLAG_FORMAT_IN_PROGRESS;
 		return -EBUSY;
 	}
 
-	drive->atapi_flags |= IDE_AFLAG_FORMAT_IN_PROGRESS;
+	drive->dev_flags |= IDE_DFLAG_FORMAT_IN_PROGRESS;
 
 	/*
 	 * Send ATAPI_FORMAT_UNIT to the drive.
@@ -174,7 +174,7 @@ static int ide_floppy_format_unit(ide_drive_t *drive, int __user *arg)
 
 out:
 	if (err)
-		drive->atapi_flags &= ~IDE_AFLAG_FORMAT_IN_PROGRESS;
+		drive->dev_flags &= ~IDE_DFLAG_FORMAT_IN_PROGRESS;
 	return err;
 }
 

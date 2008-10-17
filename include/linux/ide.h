@@ -497,8 +497,6 @@ enum {
 	IDE_AFLAG_LE_SPEED_FIELDS	= (1 << 17),
 
 	/* ide-floppy */
-	/* Format in progress */
-	IDE_AFLAG_FORMAT_IN_PROGRESS	= (1 << 18),
 	/* Avoid commands not supported in Clik drive */
 	IDE_AFLAG_CLIK_DRIVE		= (1 << 19),
 	/* Requires BH algorithm for packets */
@@ -579,6 +577,7 @@ enum {
 	IDE_DFLAG_MEDIA_CHANGED		= (1 << 29),
 	/* write protect */
 	IDE_DFLAG_WP			= (1 << 30),
+	IDE_DFLAG_FORMAT_IN_PROGRESS	= (1 << 31),
 };
 
 struct ide_drive_s {
