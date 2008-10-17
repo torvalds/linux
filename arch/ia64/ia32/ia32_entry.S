@@ -108,6 +108,11 @@ GLOBAL_ENTRY(ia32_trace_syscall)
 	;;
 	st8 [r2]=r3				// initialize return code to -ENOSYS
 	br.call.sptk.few rp=syscall_trace_enter	// give parent a chance to catch syscall args
+	cmp.lt p6,p0=r8,r0			// check tracehook
+	adds r2=IA64_PT_REGS_R8_OFFSET+16,sp	// r2 = &pt_regs.r8
+	;;
+(p6)	st8.spill [r2]=r8			// store return value in slot for r8
+(p6)	br.spnt.few .ret4
 .ret2:	// Need to reload arguments (they may be changed by the tracing process)
 	adds r2=IA64_PT_REGS_R1_OFFSET+16,sp	// r2 = &pt_regs.r1
 	adds r3=IA64_PT_REGS_R13_OFFSET+16,sp	// r3 = &pt_regs.r13
@@ -199,7 +204,7 @@ ia32_syscall_table:
 	data8 sys_setuid	/* 16-bit version */
 	data8 sys_getuid	/* 16-bit version */
 	data8 compat_sys_stime    /* 25 */
-	data8 sys32_ptrace
+	data8 compat_sys_ptrace
 	data8 sys32_alarm
 	data8 sys_ni_syscall
 	data8 sys_pause

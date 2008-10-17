@@ -21,6 +21,7 @@ config IA64
 	select HAVE_KRETPROBES
 	select HAVE_DMA_ATTRS
 	select HAVE_KVM
+	select HAVE_ARCH_TRACEHOOK
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to
