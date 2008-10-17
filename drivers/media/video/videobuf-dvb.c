@@ -126,7 +126,6 @@ static int videobuf_dvb_stop_feed(struct dvb_demux_feed *feed)
 	mutex_lock(&dvb->lock);
 	dvb->nfeeds--;
 	if (0 == dvb->nfeeds  &&  NULL != dvb->thread) {
-		// FIXME: cx8802_cancel_buffers(dev);
 		err = kthread_stop(dvb->thread);
 		dvb->thread = NULL;
 	}
@@ -154,7 +153,8 @@ int videobuf_dvb_register_bus(struct videobuf_dvb_frontends *f,
 	}
 
 	/* Bring up the adapter */
-	res = videobuf_dvb_register_adapter(f, module, adapter_priv, device, fe->dvb.name, adapter_nr, mfe_shared);
+	res = videobuf_dvb_register_adapter(f, module, adapter_priv, device,
+		fe->dvb.name, adapter_nr, mfe_shared);
 	if (res < 0) {
 		printk(KERN_WARNING "videobuf_dvb_register_adapter failed (errno = %d)\n", res);
 		return res;
@@ -179,6 +179,7 @@ err:
 	videobuf_dvb_unregister_bus(f);
 	return res;
 }
+EXPORT_SYMBOL(videobuf_dvb_register_bus);
 
 int videobuf_dvb_register_adapter(struct videobuf_dvb_frontends *fe,
 			  struct module *module,
@@ -193,7 +194,8 @@ int videobuf_dvb_register_adapter(struct videobuf_dvb_frontends *fe,
 	mutex_init(&fe->lock);
 
 	/* register adapter */
-	result = dvb_register_adapter(&fe->adapter, adapter_name, module, device, adapter_nr);
+	result = dvb_register_adapter(&fe->adapter, adapter_name, module,
+		device, adapter_nr);
 	if (result < 0) {
 		printk(KERN_WARNING "%s: dvb_register_adapter failed (errno = %d)\n",
 		       adapter_name, result);
@@ -204,7 +206,8 @@ int videobuf_dvb_register_adapter(struct videobuf_dvb_frontends *fe,
 	return result;
 }
 
-int videobuf_dvb_register_frontend(struct dvb_adapter *adapter, struct videobuf_dvb *dvb)
+int videobuf_dvb_register_frontend(struct dvb_adapter *adapter,
+	struct videobuf_dvb *dvb)
 {
 	int result;
 
@@ -299,15 +302,18 @@ void videobuf_dvb_unregister_bus(struct videobuf_dvb_frontends *f)
 	mutex_lock(&f->lock);
 	list_for_each_safe(list, q, &f->felist) {
 		fe = list_entry(list, struct videobuf_dvb_frontend, felist);
-		if(fe->dvb.net.dvbdev) {
+		if (fe->dvb.net.dvbdev) {
 			dvb_net_release(&fe->dvb.net);
-			fe->dvb.demux.dmx.remove_frontend(&fe->dvb.demux.dmx, &fe->dvb.fe_mem);
-			fe->dvb.demux.dmx.remove_frontend(&fe->dvb.demux.dmx, &fe->dvb.fe_hw);
+			fe->dvb.demux.dmx.remove_frontend(&fe->dvb.demux.dmx,
+				&fe->dvb.fe_mem);
+			fe->dvb.demux.dmx.remove_frontend(&fe->dvb.demux.dmx,
+				&fe->dvb.fe_hw);
 			dvb_dmxdev_release(&fe->dvb.dmxdev);
 			dvb_dmx_release(&fe->dvb.demux);
 			dvb_unregister_frontend(fe->dvb.frontend);
 		}
-		if(fe->dvb.frontend) /* always allocated, may have been reset */
+		if (fe->dvb.frontend)
+			/* always allocated, may have been reset */
 			dvb_frontend_detach(fe->dvb.frontend);
 		list_del(list);
 		kfree(fe);
@@ -316,8 +322,10 @@ void videobuf_dvb_unregister_bus(struct videobuf_dvb_frontends *f)
 
 	dvb_unregister_adapter(&f->adapter);
 }
+EXPORT_SYMBOL(videobuf_dvb_unregister_bus);
 
-struct videobuf_dvb_frontend * videobuf_dvb_get_frontend(struct videobuf_dvb_frontends *f, int id)
+struct videobuf_dvb_frontend *videobuf_dvb_get_frontend(
+	struct videobuf_dvb_frontends *f, int id)
 {
 	struct list_head *list, *q;
 	struct videobuf_dvb_frontend *fe, *ret = NULL;
@@ -336,8 +344,10 @@ struct videobuf_dvb_frontend * videobuf_dvb_get_frontend(struct videobuf_dvb_fro
 
 	return ret;
 }
+EXPORT_SYMBOL(videobuf_dvb_get_frontend);
 
-int videobuf_dvb_find_frontend(struct videobuf_dvb_frontends *f, struct dvb_frontend *p)
+int videobuf_dvb_find_frontend(struct videobuf_dvb_frontends *f,
+	struct dvb_frontend *p)
 {
 	struct list_head *list, *q;
 	struct videobuf_dvb_frontend *fe = NULL;
@@ -357,12 +367,14 @@ int videobuf_dvb_find_frontend(struct videobuf_dvb_frontends *f, struct dvb_fron
 
 	return ret;
 }
+EXPORT_SYMBOL(videobuf_dvb_find_frontend);
 
-struct videobuf_dvb_frontend * videobuf_dvb_alloc_frontend(struct videobuf_dvb_frontends *f, int id)
+struct videobuf_dvb_frontend *videobuf_dvb_alloc_frontend(
+	struct videobuf_dvb_frontends *f, int id)
 {
 	struct videobuf_dvb_frontend *fe;
 
-	fe = kzalloc(sizeof(struct videobuf_dvb_frontend),GFP_KERNEL);
+	fe = kzalloc(sizeof(struct videobuf_dvb_frontend), GFP_KERNEL);
 	if (fe == NULL)
 		goto fail_alloc;
 
@@ -370,18 +382,13 @@ struct videobuf_dvb_frontend * videobuf_dvb_alloc_frontend(struct videobuf_dvb_f
 	mutex_init(&fe->dvb.lock);
 
 	mutex_lock(&f->lock);
-	list_add_tail(&fe->felist,&f->felist);
+	list_add_tail(&fe->felist, &f->felist);
 	mutex_unlock(&f->lock);
 
 fail_alloc:
 	return fe;
 }
-
-EXPORT_SYMBOL(videobuf_dvb_register_bus);
-EXPORT_SYMBOL(videobuf_dvb_unregister_bus);
 EXPORT_SYMBOL(videobuf_dvb_alloc_frontend);
-EXPORT_SYMBOL(videobuf_dvb_get_frontend);
-EXPORT_SYMBOL(videobuf_dvb_find_frontend);
 
 /* ------------------------------------------------------------------ */
 /*
