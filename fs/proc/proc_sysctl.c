@@ -1,7 +1,7 @@
 /*
  * /proc/sys support
  */
-
+#include <linux/init.h>
 #include <linux/sysctl.h>
 #include <linux/proc_fs.h>
 #include <linux/security.h>
@@ -395,7 +395,7 @@ static struct dentry_operations proc_sys_dentry_operations = {
 	.d_compare	= proc_sys_compare,
 };
 
-int proc_sys_init(void)
+int __init proc_sys_init(void)
 {
 	struct proc_dir_entry *proc_sys_root;
 
