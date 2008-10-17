@@ -108,13 +108,6 @@ sgiioc4_init_hwif_ports(hw_regs_t * hw, unsigned long data_port,
 		hw->io_ports.irq_addr = irq_port;
 }
 
-static void
-sgiioc4_maskproc(ide_drive_t * drive, int mask)
-{
-	writeb(ATA_DEVCTL_OBS | (mask ? 2 : 0),
-	       (void __iomem *)drive->hwif->io_ports.ctl_addr);
-}
-
 static int
 sgiioc4_checkirq(ide_hwif_t * hwif)
 {
@@ -563,8 +556,6 @@ static const struct ide_port_ops sgiioc4_port_ops = {
 	.set_dma_mode		= sgiioc4_set_dma_mode,
 	/* reset DMA engine, clear IRQs */
 	.resetproc		= sgiioc4_resetproc,
-	/* mask on/off NIEN register */
-	.maskproc		= sgiioc4_maskproc,
 };
 
 static const struct ide_dma_ops sgiioc4_dma_ops = {
