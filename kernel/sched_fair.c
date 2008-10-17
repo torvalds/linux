@@ -336,7 +336,7 @@ int sched_nr_latency_handler(struct ctl_table *table, int write,
 #endif
 
 /*
- * delta *= w / rw
+ * delta *= P[w / rw]
  */
 static inline unsigned long
 calc_delta_weight(unsigned long delta, struct sched_entity *se)
@@ -350,15 +350,13 @@ calc_delta_weight(unsigned long delta, struct sched_entity *se)
 }
 
 /*
- * delta *= rw / w
+ * delta /= w
  */
 static inline unsigned long
 calc_delta_fair(unsigned long delta, struct sched_entity *se)
 {
-	for_each_sched_entity(se) {
-		delta = calc_delta_mine(delta,
-				cfs_rq_of(se)->load.weight, &se->load);
-	}
+	if (unlikely(se->load.weight != NICE_0_LOAD))
+		delta = calc_delta_mine(delta, NICE_0_LOAD, &se->load);
 
 	return delta;
 }
@@ -388,26 +386,26 @@ static u64 __sched_period(unsigned long nr_running)
  * We calculate the wall-time slice from the period by taking a part
  * proportional to the weight.
  *
- * s = p*w/rw
+ * s = p*P[w/rw]
  */
 static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	return calc_delta_weight(__sched_period(cfs_rq->nr_running), se);
+	unsigned long nr_running = cfs_rq->nr_running;
+
+	if (unlikely(!se->on_rq))
+		nr_running++;
+
+	return calc_delta_weight(__sched_period(nr_running), se);
 }
 
 /*
  * We calculate the vruntime slice of a to be inserted task
  *
- * vs = s*rw/w = p
+ * vs = s/w
  */
-static u64 sched_vslice_add(struct cfs_rq *cfs_rq, struct sched_entity *se)
+static u64 sched_vslice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	unsigned long nr_running = cfs_rq->nr_running;
-
-	if (!se->on_rq)
-		nr_running++;
-
-	return __sched_period(nr_running);
+	return calc_delta_fair(sched_slice(cfs_rq, se), se);
 }
 
 /*
@@ -629,7 +627,7 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 	 * stays open at the end.
 	 */
 	if (initial && sched_feat(START_DEBIT))
-		vruntime += sched_vslice_add(cfs_rq, se);
+		vruntime += sched_vslice(cfs_rq, se);
 
 	if (!initial) {
 		/* sleeps upto a single latency don't count. */
