@@ -419,6 +419,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	dev->type = &scsi_target_type;
 	starget->id = id;
 	starget->channel = channel;
+	starget->can_queue = 0;
 	INIT_LIST_HEAD(&starget->siblings);
 	INIT_LIST_HEAD(&starget->devices);
 	starget->state = STARGET_CREATED;

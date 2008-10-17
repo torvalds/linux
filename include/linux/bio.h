@@ -129,25 +129,30 @@ struct bio {
  * bit 2 -- barrier
  *	Insert a serialization point in the IO queue, forcing previously
  *	submitted IO to be completed before this oen is issued.
- * bit 3 -- fail fast, don't want low level driver retries
- * bit 4 -- synchronous I/O hint: the block layer will unplug immediately
+ * bit 3 -- synchronous I/O hint: the block layer will unplug immediately
  *	Note that this does NOT indicate that the IO itself is sync, just
  *	that the block layer will not postpone issue of this IO by plugging.
- * bit 5 -- metadata request
+ * bit 4 -- metadata request
  *	Used for tracing to differentiate metadata and data IO. May also
  *	get some preferential treatment in the IO scheduler
- * bit 6 -- discard sectors
+ * bit 5 -- discard sectors
  *	Informs the lower level device that this range of sectors is no longer
  *	used by the file system and may thus be freed by the device. Used
  *	for flash based storage.
+ * bit 6 -- fail fast device errors
+ * bit 7 -- fail fast transport errors
+ * bit 8 -- fail fast driver errors
+ *	Don't want driver retries for any fast fail whatever the reason.
  */
 #define BIO_RW		0	/* Must match RW in req flags (blkdev.h) */
 #define BIO_RW_AHEAD	1	/* Must match FAILFAST in req flags */
 #define BIO_RW_BARRIER	2
-#define BIO_RW_FAILFAST	3
-#define BIO_RW_SYNC	4
-#define BIO_RW_META	5
-#define BIO_RW_DISCARD	6
+#define BIO_RW_SYNC	3
+#define BIO_RW_META	4
+#define BIO_RW_DISCARD	5
+#define BIO_RW_FAILFAST_DEV		6
+#define BIO_RW_FAILFAST_TRANSPORT	7
+#define BIO_RW_FAILFAST_DRIVER		8
 
 /*
  * upper 16 bits of bi_rw define the io priority of this bio
@@ -174,7 +179,10 @@ struct bio {
 #define bio_sectors(bio)	((bio)->bi_size >> 9)
 #define bio_barrier(bio)	((bio)->bi_rw & (1 << BIO_RW_BARRIER))
 #define bio_sync(bio)		((bio)->bi_rw & (1 << BIO_RW_SYNC))
-#define bio_failfast(bio)	((bio)->bi_rw & (1 << BIO_RW_FAILFAST))
+#define bio_failfast_dev(bio)	((bio)->bi_rw &	(1 << BIO_RW_FAILFAST_DEV))
+#define bio_failfast_transport(bio)	\
+	((bio)->bi_rw & (1 << BIO_RW_FAILFAST_TRANSPORT))
+#define bio_failfast_driver(bio) ((bio)->bi_rw & (1 << BIO_RW_FAILFAST_DRIVER))
 #define bio_rw_ahead(bio)	((bio)->bi_rw & (1 << BIO_RW_AHEAD))
 #define bio_rw_meta(bio)	((bio)->bi_rw & (1 << BIO_RW_META))
 #define bio_discard(bio)	((bio)->bi_rw & (1 << BIO_RW_DISCARD))
