@@ -76,11 +76,14 @@ int drm_rmdraw(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	struct drm_draw *draw = data;
 	unsigned long irqflags;
+	struct drm_drawable_info *info;
 
 	spin_lock_irqsave(&dev->drw_lock, irqflags);
 
-	drm_free(drm_get_drawable_info(dev, draw->handle),
-		 sizeof(struct drm_drawable_info), DRM_MEM_BUFS);
+	info = drm_get_drawable_info(dev, draw->handle);
+	drm_free(info->rects, info->num_rects * sizeof(struct drm_clip_rect),
+			DRM_MEM_BUFS);
+	drm_free(info, sizeof(struct drm_drawable_info), DRM_MEM_BUFS);
 
 	idr_remove(&dev->drw_idr, draw->handle);
 
