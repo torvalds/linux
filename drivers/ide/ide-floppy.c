@@ -689,8 +689,8 @@ static int idefloppy_open(struct inode *inode, struct file *filp)
 			goto out_put_floppy;
 		}
 
-		drive->atapi_flags |= IDE_AFLAG_MEDIA_CHANGED;
 		ide_set_media_lock(drive, disk, 1);
+		drive->dev_flags |= IDE_DFLAG_MEDIA_CHANGED;
 		check_disk_change(inode->i_bdev);
 	} else if (drive->atapi_flags & IDE_AFLAG_FORMAT_IN_PROGRESS) {
 		ret = -EBUSY;
@@ -747,8 +747,8 @@ static int idefloppy_media_changed(struct gendisk *disk)
 		drive->dev_flags &= ~IDE_DFLAG_ATTACH;
 		return 0;
 	}
-	ret = !!(drive->atapi_flags & IDE_AFLAG_MEDIA_CHANGED);
-	drive->atapi_flags &= ~IDE_AFLAG_MEDIA_CHANGED;
+	ret = !!(drive->dev_flags & IDE_DFLAG_MEDIA_CHANGED);
+	drive->dev_flags &= ~IDE_DFLAG_MEDIA_CHANGED;
 	return ret;
 }
 

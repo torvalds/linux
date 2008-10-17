@@ -464,7 +464,6 @@ struct ide_acpi_hwif_link;
 /* ATAPI device flags */
 enum {
 	IDE_AFLAG_DRQ_INTERRUPT		= (1 << 0),
-	IDE_AFLAG_MEDIA_CHANGED		= (1 << 1),
 	/* Drive cannot lock the door. */
 	IDE_AFLAG_NO_DOORLOCK		= (1 << 2),
 
@@ -578,7 +577,8 @@ enum {
 	/* don't unload heads */
 	IDE_DFLAG_NO_UNLOAD		= (1 << 27),
 	/* heads unloaded, please don't reset port */
-	IDE_DFLAG_PARKED		= (1 << 28)
+	IDE_DFLAG_PARKED		= (1 << 28),
+	IDE_DFLAG_MEDIA_CHANGED		= (1 << 29),
 };
 
 struct ide_drive_s {

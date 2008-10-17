@@ -86,8 +86,8 @@ int ide_cdrom_check_media_change_real(struct cdrom_device_info *cdi,
 
 	if (slot_nr == CDSL_CURRENT) {
 		(void) cdrom_check_status(drive, NULL);
-		retval = (drive->atapi_flags & IDE_AFLAG_MEDIA_CHANGED) ? 1 : 0;
-		drive->atapi_flags &= ~IDE_AFLAG_MEDIA_CHANGED;
+		retval = (drive->dev_flags & IDE_DFLAG_MEDIA_CHANGED) ? 1 : 0;
+		drive->dev_flags &= ~IDE_DFLAG_MEDIA_CHANGED;
 		return retval;
 	} else {
 		return -EINVAL;

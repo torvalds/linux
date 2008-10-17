@@ -99,7 +99,7 @@ static void ide_cd_put(struct cdrom_info *cd)
 /* Mark that we've seen a media change and invalidate our internal buffers. */
 static void cdrom_saw_media_change(ide_drive_t *drive)
 {
-	drive->atapi_flags |= IDE_AFLAG_MEDIA_CHANGED;
+	drive->dev_flags |= IDE_DFLAG_MEDIA_CHANGED;
 	drive->atapi_flags &= ~IDE_AFLAG_TOC_VALID;
 }
 
@@ -1986,8 +1986,8 @@ static int ide_cdrom_setup(ide_drive_t *drive)
 	if (!drive->queue->unplug_delay)
 		drive->queue->unplug_delay = 1;
 
-	drive->atapi_flags = IDE_AFLAG_MEDIA_CHANGED | IDE_AFLAG_NO_EJECT |
-		       ide_cd_flags(id);
+	drive->dev_flags |= IDE_DFLAG_MEDIA_CHANGED;
+	drive->atapi_flags = IDE_AFLAG_NO_EJECT | ide_cd_flags(id);
 
 	if ((drive->atapi_flags & IDE_AFLAG_VERTOS_300_SSD) &&
 	    fw_rev[4] == '1' && fw_rev[6] <= '2')
