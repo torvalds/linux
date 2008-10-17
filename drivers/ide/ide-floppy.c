@@ -410,11 +410,11 @@ static int ide_floppy_get_flexible_disk_page(ide_drive_t *drive)
 	}
 
 	if (pc.buf[3] & 0x80)
-		drive->atapi_flags |= IDE_AFLAG_WP;
+		drive->dev_flags |= IDE_DFLAG_WP;
 	else
-		drive->atapi_flags &= ~IDE_AFLAG_WP;
+		drive->dev_flags &= ~IDE_DFLAG_WP;
 
-	set_disk_ro(disk, !!(drive->atapi_flags & IDE_AFLAG_WP));
+	set_disk_ro(disk, !!(drive->dev_flags & IDE_DFLAG_WP));
 
 	page = &pc.buf[8];
 
@@ -684,7 +684,7 @@ static int idefloppy_open(struct inode *inode, struct file *filp)
 			goto out_put_floppy;
 		}
 
-		if ((drive->atapi_flags & IDE_AFLAG_WP) && (filp->f_mode & 2)) {
+		if ((drive->dev_flags & IDE_DFLAG_WP) && (filp->f_mode & 2)) {
 			ret = -EROFS;
 			goto out_put_floppy;
 		}

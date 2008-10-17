@@ -503,8 +503,6 @@ enum {
 	IDE_AFLAG_CLIK_DRIVE		= (1 << 19),
 	/* Requires BH algorithm for packets */
 	IDE_AFLAG_ZIP_DRIVE		= (1 << 20),
-	/* Write protect */
-	IDE_AFLAG_WP			= (1 << 21),
 	/* Supports format progress report */
 	IDE_AFLAG_SRFP			= (1 << 22),
 
@@ -579,6 +577,8 @@ enum {
 	/* heads unloaded, please don't reset port */
 	IDE_DFLAG_PARKED		= (1 << 28),
 	IDE_DFLAG_MEDIA_CHANGED		= (1 << 29),
+	/* write protect */
+	IDE_DFLAG_WP			= (1 << 30),
 };
 
 struct ide_drive_s {
