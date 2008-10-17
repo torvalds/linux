@@ -29,6 +29,8 @@
 #include <asm/xen/xencomm.h>
 #include <asm/xen/privop.h>
 
+#include "irq_xen.h"
+
 /***************************************************************************
  * general info
  */
@@ -354,6 +356,7 @@ xen_setup_pv_ops(void)
 	pv_init_ops = xen_init_ops;
 	pv_cpu_ops = xen_cpu_ops;
 	pv_iosapic_ops = xen_iosapic_ops;
+	pv_irq_ops = xen_irq_ops;
 
 	paravirt_cpu_asm_init(&xen_cpu_asm_switch);
 }

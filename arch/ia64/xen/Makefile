@@ -2,7 +2,7 @@
 # Makefile for Xen components
 #
 
-obj-y := hypercall.o xenivt.o xensetup.o xen_pv_ops.o \
+obj-y := hypercall.o xenivt.o xensetup.o xen_pv_ops.o irq_xen.o \
 	 hypervisor.o xencomm.o xcom_hcall.o grant-table.o
 
 AFLAGS_xenivt.o += -D__IA64_ASM_PARAVIRTUALIZED_XEN
