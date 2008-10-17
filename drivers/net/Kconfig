@@ -2003,6 +2003,11 @@ config IGB_LRO
 
 	  If in doubt, say N.
 
+config IGB_DCA
+	bool "Enable DCA"
+	default y
+	depends on IGB && DCA && !(IGB=y && DCA=m)
+
 source "drivers/net/ixp2000/Kconfig"
 
 config MYRI_SBUS

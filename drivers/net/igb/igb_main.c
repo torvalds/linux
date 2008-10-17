@@ -42,7 +42,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/if_ether.h>
-#ifdef CONFIG_DCA
+#ifdef CONFIG_IGB_DCA
 #include <linux/dca.h>
 #endif
 #include "igb.h"
@@ -107,11 +107,11 @@ static irqreturn_t igb_msix_other(int irq, void *);
 static irqreturn_t igb_msix_rx(int irq, void *);
 static irqreturn_t igb_msix_tx(int irq, void *);
 static int igb_clean_rx_ring_msix(struct napi_struct *, int);
-#ifdef CONFIG_DCA
+#ifdef CONFIG_IGB_DCA
 static void igb_update_rx_dca(struct igb_ring *);
 static void igb_update_tx_dca(struct igb_ring *);
 static void igb_setup_dca(struct igb_adapter *);
-#endif /* CONFIG_DCA */
+#endif /* CONFIG_IGB_DCA */
 static bool igb_clean_tx_irq(struct igb_ring *);
 static int igb_poll(struct napi_struct *, int);
 static bool igb_clean_rx_irq_adv(struct igb_ring *, int *, int);
@@ -132,7 +132,7 @@ static int igb_suspend(struct pci_dev *, pm_message_t);
 static int igb_resume(struct pci_dev *);
 #endif
 static void igb_shutdown(struct pci_dev *);
-#ifdef CONFIG_DCA
+#ifdef CONFIG_IGB_DCA
 static int igb_notify_dca(struct notifier_block *, unsigned long, void *);
 static struct notifier_block dca_notifier = {
 	.notifier_call	= igb_notify_dca,
@@ -208,7 +208,7 @@ static int __init igb_init_module(void)
 	global_quad_port_a = 0;
 
 	ret = pci_register_driver(&igb_driver);
-#ifdef CONFIG_DCA
+#ifdef CONFIG_IGB_DCA
 	dca_register_notify(&dca_notifier);
 #endif
 	return ret;
@@ -224,7 +224,7 @@ module_init(igb_init_module);
  **/
 static void __exit igb_exit_module(void)
 {
-#ifdef CONFIG_DCA
+#ifdef CONFIG_IGB_DCA
 	dca_unregister_notify(&dca_notifier);
 #endif
 	pci_unregister_driver(&igb_driver);
@@ -1261,7 +1261,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_register;
 
-#ifdef CONFIG_DCA
+#ifdef CONFIG_IGB_DCA
 	if ((adapter->flags & IGB_FLAG_HAS_DCA) &&
 	    (dca_add_requester(&pdev->dev) == 0)) {
 		adapter->flags |= IGB_FLAG_DCA_ENABLED;
@@ -1335,7 +1335,7 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
-#ifdef CONFIG_DCA
+#ifdef CONFIG_IGB_DCA
 	struct e1000_hw *hw = &adapter->hw;
 #endif
 
@@ -1347,7 +1347,7 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 
 	flush_scheduled_work();
 
-#ifdef CONFIG_DCA
+#ifdef CONFIG_IGB_DCA
 	if (adapter->flags & IGB_FLAG_DCA_ENABLED) {
 		dev_info(&pdev->dev, "DCA disabled\n");
 		dca_remove_requester(&pdev->dev);
@@ -3295,7 +3295,7 @@ static irqreturn_t igb_msix_tx(int irq, void *data)
 	struct igb_adapter *adapter = tx_ring->adapter;
 	struct e1000_hw *hw = &adapter->hw;
 
-#ifdef CONFIG_DCA
+#ifdef CONFIG_IGB_DCA
 	if (adapter->flags & IGB_FLAG_DCA_ENABLED)
 		igb_update_tx_dca(tx_ring);
 #endif
@@ -3347,14 +3347,14 @@ static irqreturn_t igb_msix_rx(int irq, void *data)
 	if (netif_rx_schedule_prep(adapter->netdev, &rx_ring->napi))
 		__netif_rx_schedule(adapter->netdev, &rx_ring->napi);
 
-#ifdef CONFIG_DCA
+#ifdef CONFIG_IGB_DCA
 	if (adapter->flags & IGB_FLAG_DCA_ENABLED)
 		igb_update_rx_dca(rx_ring);
 #endif
 		return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_DCA
+#ifdef CONFIG_IGB_DCA
 static void igb_update_rx_dca(struct igb_ring *rx_ring)
 {
 	u32 dca_rxctrl;
@@ -3474,7 +3474,7 @@ static int igb_notify_dca(struct notifier_block *nb, unsigned long event,
 
 	return ret_val ? NOTIFY_BAD : NOTIFY_DONE;
 }
-#endif /* CONFIG_DCA */
+#endif /* CONFIG_IGB_DCA */
 
 /**
  * igb_intr_msi - Interrupt Handler
@@ -3553,13 +3553,13 @@ static int igb_poll(struct napi_struct *napi, int budget)
 	int tx_clean_complete, work_done = 0;
 
 	/* this poll routine only supports one tx and one rx queue */
-#ifdef CONFIG_DCA
+#ifdef CONFIG_IGB_DCA
 	if (adapter->flags & IGB_FLAG_DCA_ENABLED)
 		igb_update_tx_dca(&adapter->tx_ring[0]);
 #endif
 	tx_clean_complete = igb_clean_tx_irq(&adapter->tx_ring[0]);
 
-#ifdef CONFIG_DCA
+#ifdef CONFIG_IGB_DCA
 	if (adapter->flags & IGB_FLAG_DCA_ENABLED)
 		igb_update_rx_dca(&adapter->rx_ring[0]);
 #endif
@@ -3587,7 +3587,7 @@ static int igb_clean_rx_ring_msix(struct napi_struct *napi, int budget)
 	struct net_device *netdev = adapter->netdev;
 	int work_done = 0;
 
-#ifdef CONFIG_DCA
+#ifdef CONFIG_IGB_DCA
 	if (adapter->flags & IGB_FLAG_DCA_ENABLED)
 		igb_update_rx_dca(rx_ring);
 #endif
