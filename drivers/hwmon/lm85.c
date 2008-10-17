@@ -191,8 +191,8 @@ static int RANGE_TO_REG(int range)
 #define RANGE_FROM_REG(val)	lm85_range_map[(val) & 0x0f]
 
 /* These are the PWM frequency encodings */
-static const int lm85_freq_map[] = { /* .1 Hz */
-	100, 150, 230, 300, 380, 470, 620, 940
+static const int lm85_freq_map[8] = { /* 1 Hz */
+	10, 15, 23, 30, 38, 47, 62, 94
 };
 
 static int FREQ_TO_REG(int freq)
@@ -275,7 +275,6 @@ struct lm85_zone {
 
 struct lm85_autofan {
 	u8 config;	/* Register value */
-	u8 freq;	/* PWM frequency, encoded */
 	u8 min_pwm;	/* Minimum PWM value, encoded */
 	u8 min_off;	/* Min PWM or OFF below "limit", flag */
 };
@@ -301,6 +300,7 @@ struct lm85_data {
 	u16 fan[4];		/* Register value */
 	u16 fan_min[4];		/* Register value */
 	u8 pwm[3];		/* Register value */
+	u8 pwm_freq[3];		/* Register encoding */
 	u8 temp_ext[3];		/* Decoded values */
 	u8 in_ext[8];		/* Decoded values */
 	u8 vid;			/* Register value */
@@ -528,11 +528,38 @@ static ssize_t set_pwm_enable(struct device *dev, struct device_attribute
 	return count;
 }
 
+static ssize_t show_pwm_freq(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int nr = to_sensor_dev_attr(attr)->index;
+	struct lm85_data *data = lm85_update_device(dev);
+	return sprintf(buf, "%d\n", FREQ_FROM_REG(data->pwm_freq[nr]));
+}
+
+static ssize_t set_pwm_freq(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int nr = to_sensor_dev_attr(attr)->index;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct lm85_data *data = i2c_get_clientdata(client);
+	long val = simple_strtol(buf, NULL, 10);
+
+	mutex_lock(&data->update_lock);
+	data->pwm_freq[nr] = FREQ_TO_REG(val);
+	lm85_write_value(client, LM85_REG_AFAN_RANGE(nr),
+		(data->zone[nr].range << 4)
+		| data->pwm_freq[nr]);
+	mutex_unlock(&data->update_lock);
+	return count;
+}
+
 #define show_pwm_reg(offset)						\
 static SENSOR_DEVICE_ATTR(pwm##offset, S_IRUGO | S_IWUSR,		\
 		show_pwm, set_pwm, offset - 1);				\
 static SENSOR_DEVICE_ATTR(pwm##offset##_enable, S_IRUGO | S_IWUSR,	\
-		show_pwm_enable, set_pwm_enable, offset - 1)
+		show_pwm_enable, set_pwm_enable, offset - 1);		\
+static SENSOR_DEVICE_ATTR(pwm##offset##_freq, S_IRUGO | S_IWUSR,	\
+		show_pwm_freq, set_pwm_freq, offset - 1)
 
 show_pwm_reg(1);
 show_pwm_reg(2);
@@ -761,31 +788,6 @@ static ssize_t set_pwm_auto_pwm_minctl(struct device *dev,
 	return count;
 }
 
-static ssize_t show_pwm_auto_pwm_freq(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	int nr = to_sensor_dev_attr(attr)->index;
-	struct lm85_data *data = lm85_update_device(dev);
-	return sprintf(buf, "%d\n", FREQ_FROM_REG(data->autofan[nr].freq));
-}
-
-static ssize_t set_pwm_auto_pwm_freq(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	int nr = to_sensor_dev_attr(attr)->index;
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lm85_data *data = i2c_get_clientdata(client);
-	long val = simple_strtol(buf, NULL, 10);
-
-	mutex_lock(&data->update_lock);
-	data->autofan[nr].freq = FREQ_TO_REG(val);
-	lm85_write_value(client, LM85_REG_AFAN_RANGE(nr),
-		(data->zone[nr].range << 4)
-		| data->autofan[nr].freq);
-	mutex_unlock(&data->update_lock);
-	return count;
-}
-
 #define pwm_auto(offset)						\
 static SENSOR_DEVICE_ATTR(pwm##offset##_auto_channels,			\
 		S_IRUGO | S_IWUSR, show_pwm_auto_channels,		\
@@ -795,10 +797,7 @@ static SENSOR_DEVICE_ATTR(pwm##offset##_auto_pwm_min,			\
 		set_pwm_auto_pwm_min, offset - 1);			\
 static SENSOR_DEVICE_ATTR(pwm##offset##_auto_pwm_minctl,		\
 		S_IRUGO | S_IWUSR, show_pwm_auto_pwm_minctl,		\
-		set_pwm_auto_pwm_minctl, offset - 1);			\
-static SENSOR_DEVICE_ATTR(pwm##offset##_auto_pwm_freq,			\
-		S_IRUGO | S_IWUSR, show_pwm_auto_pwm_freq,		\
-		set_pwm_auto_pwm_freq, offset - 1);
+		set_pwm_auto_pwm_minctl, offset - 1)
 
 pwm_auto(1);
 pwm_auto(2);
@@ -867,7 +866,7 @@ static ssize_t set_temp_auto_temp_min(struct device *dev,
 		TEMP_FROM_REG(data->zone[nr].limit));
 	lm85_write_value(client, LM85_REG_AFAN_RANGE(nr),
 		((data->zone[nr].range & 0x0f) << 4)
-		| (data->autofan[nr].freq & 0x07));
+		| (data->pwm_freq[nr] & 0x07));
 
 /* Update temp_auto_hyst and temp_auto_off */
 	data->zone[nr].hyst = HYST_TO_REG(TEMP_FROM_REG(
@@ -910,7 +909,7 @@ static ssize_t set_temp_auto_temp_max(struct device *dev,
 		val - min);
 	lm85_write_value(client, LM85_REG_AFAN_RANGE(nr),
 		((data->zone[nr].range & 0x0f) << 4)
-		| (data->autofan[nr].freq & 0x07));
+		| (data->pwm_freq[nr] & 0x07));
 	mutex_unlock(&data->update_lock);
 	return count;
 }
@@ -984,6 +983,9 @@ static struct attribute *lm85_attributes[] = {
 	&sensor_dev_attr_pwm1_enable.dev_attr.attr,
 	&sensor_dev_attr_pwm2_enable.dev_attr.attr,
 	&sensor_dev_attr_pwm3_enable.dev_attr.attr,
+	&sensor_dev_attr_pwm1_freq.dev_attr.attr,
+	&sensor_dev_attr_pwm2_freq.dev_attr.attr,
+	&sensor_dev_attr_pwm3_freq.dev_attr.attr,
 
 	&sensor_dev_attr_in0_input.dev_attr.attr,
 	&sensor_dev_attr_in1_input.dev_attr.attr,
@@ -1026,9 +1028,6 @@ static struct attribute *lm85_attributes[] = {
 	&sensor_dev_attr_pwm1_auto_pwm_minctl.dev_attr.attr,
 	&sensor_dev_attr_pwm2_auto_pwm_minctl.dev_attr.attr,
 	&sensor_dev_attr_pwm3_auto_pwm_minctl.dev_attr.attr,
-	&sensor_dev_attr_pwm1_auto_pwm_freq.dev_attr.attr,
-	&sensor_dev_attr_pwm2_auto_pwm_freq.dev_attr.attr,
-	&sensor_dev_attr_pwm3_auto_pwm_freq.dev_attr.attr,
 
 	&sensor_dev_attr_temp1_auto_temp_off.dev_attr.attr,
 	&sensor_dev_attr_temp2_auto_temp_off.dev_attr.attr,
@@ -1458,7 +1457,7 @@ static struct lm85_data *lm85_update_device(struct device *dev)
 			data->autofan[i].config =
 			    lm85_read_value(client, LM85_REG_AFAN_CONFIG(i));
 			val = lm85_read_value(client, LM85_REG_AFAN_RANGE(i));
-			data->autofan[i].freq = val & 0x07;
+			data->pwm_freq[i] = val & 0x07;
 			data->zone[i].range = val >> 4;
 			data->autofan[i].min_pwm =
 			    lm85_read_value(client, LM85_REG_AFAN_MINPWM(i));
