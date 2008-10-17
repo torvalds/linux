@@ -1244,7 +1244,7 @@ static int lm85_probe(struct i2c_client *client,
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &lm85_group);
 	if (err)
-		goto ERROR1;
+		goto err_kfree;
 
 	/* The ADT7463 has an optional VRM 10 mode where pin 21 is used
 	   as a sixth digital VID input rather than an analog input. */
@@ -1252,29 +1252,29 @@ static int lm85_probe(struct i2c_client *client,
 	if (!(data->type == adt7463 && (data->vid & 0x80)))
 		if ((err = sysfs_create_group(&client->dev.kobj,
 					&lm85_group_in4)))
-			goto ERROR3;
+			goto err_remove_files;
 
 	/* The EMC6D100 has 3 additional voltage inputs */
 	if (data->type == emc6d100)
 		if ((err = sysfs_create_group(&client->dev.kobj,
 					&lm85_group_in567)))
-			goto ERROR3;
+			goto err_remove_files;
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
 		err = PTR_ERR(data->hwmon_dev);
-		goto ERROR3;
+		goto err_remove_files;
 	}
 
 	return 0;
 
 	/* Error out and cleanup code */
- ERROR3:
+ err_remove_files:
 	sysfs_remove_group(&client->dev.kobj, &lm85_group);
 	sysfs_remove_group(&client->dev.kobj, &lm85_group_in4);
 	if (data->type == emc6d100)
 		sysfs_remove_group(&client->dev.kobj, &lm85_group_in567);
- ERROR1:
+ err_kfree:
 	kfree(data);
 	return err;
 }
