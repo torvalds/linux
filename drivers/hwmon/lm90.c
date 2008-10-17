@@ -149,6 +149,10 @@ I2C_CLIENT_INSMOD_7(lm90, adm1032, lm99, lm86, max6657, adt7461, max6680);
 #define LM90_REG_R_TCRIT_HYST		0x21
 #define LM90_REG_W_TCRIT_HYST		0x21
 
+/* MAX6657-specific registers */
+
+#define MAX6657_REG_R_LOCAL_TEMPL	0x11
+
 /*
  * Conversions and various macros
  * For local temperatures and limits, critical limits and the hysteresis
@@ -239,15 +243,15 @@ struct lm90_data {
 	int kind;
 
 	/* registers values */
-	s8 temp8[5];	/* 0: local input
-			   1: local low limit
-			   2: local high limit
-			   3: local critical limit
-			   4: remote critical limit */
-	s16 temp11[4];	/* 0: remote input
+	s8 temp8[4];	/* 0: local low limit
+			   1: local high limit
+			   2: local critical limit
+			   3: remote critical limit */
+	s16 temp11[5];	/* 0: remote input
 			   1: remote low limit
 			   2: remote high limit
-			   3: remote offset (except max6657) */
+			   3: remote offset (except max6657)
+			   4: local input */
 	u8 temp_hyst;
 	u8 alarms; /* bitvector */
 };
@@ -285,7 +289,7 @@ static ssize_t set_temp8(struct device *dev, struct device_attribute *devattr,
 		data->temp8[nr] = TEMP1_TO_REG_ADT7461(val);
 	else
 		data->temp8[nr] = TEMP1_TO_REG(val);
-	i2c_smbus_write_byte_data(client, reg[nr - 1], data->temp8[nr]);
+	i2c_smbus_write_byte_data(client, reg[nr], data->temp8[nr]);
 	mutex_unlock(&data->update_lock);
 	return count;
 }
@@ -347,7 +351,7 @@ static ssize_t set_temphyst(struct device *dev, struct device_attribute *dummy,
 	long hyst;
 
 	mutex_lock(&data->update_lock);
-	hyst = TEMP1_FROM_REG(data->temp8[3]) - val;
+	hyst = TEMP1_FROM_REG(data->temp8[2]) - val;
 	i2c_smbus_write_byte_data(client, LM90_REG_W_TCRIT_HYST,
 				  HYST_TO_REG(hyst));
 	mutex_unlock(&data->update_lock);
@@ -371,23 +375,23 @@ static ssize_t show_alarm(struct device *dev, struct device_attribute
 	return sprintf(buf, "%d\n", (data->alarms >> bitnr) & 1);
 }
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp8, NULL, 0);
+static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp11, NULL, 4);
 static SENSOR_DEVICE_ATTR(temp2_input, S_IRUGO, show_temp11, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp1_min, S_IWUSR | S_IRUGO, show_temp8,
-	set_temp8, 1);
+	set_temp8, 0);
 static SENSOR_DEVICE_ATTR(temp2_min, S_IWUSR | S_IRUGO, show_temp11,
 	set_temp11, 1);
 static SENSOR_DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO, show_temp8,
-	set_temp8, 2);
+	set_temp8, 1);
 static SENSOR_DEVICE_ATTR(temp2_max, S_IWUSR | S_IRUGO, show_temp11,
 	set_temp11, 2);
 static SENSOR_DEVICE_ATTR(temp1_crit, S_IWUSR | S_IRUGO, show_temp8,
-	set_temp8, 3);
+	set_temp8, 2);
 static SENSOR_DEVICE_ATTR(temp2_crit, S_IWUSR | S_IRUGO, show_temp8,
-	set_temp8, 4);
+	set_temp8, 3);
 static SENSOR_DEVICE_ATTR(temp1_crit_hyst, S_IWUSR | S_IRUGO, show_temphyst,
-	set_temphyst, 3);
-static SENSOR_DEVICE_ATTR(temp2_crit_hyst, S_IRUGO, show_temphyst, NULL, 4);
+	set_temphyst, 2);
+static SENSOR_DEVICE_ATTR(temp2_crit_hyst, S_IRUGO, show_temphyst, NULL, 3);
 static SENSOR_DEVICE_ATTR(temp2_offset, S_IWUSR | S_IRUGO, show_temp11,
 	set_temp11, 3);
 
@@ -779,13 +783,21 @@ static struct lm90_data *lm90_update_device(struct device *dev)
 		u8 h, l;
 
 		dev_dbg(&client->dev, "Updating lm90 data.\n");
-		lm90_read_reg(client, LM90_REG_R_LOCAL_TEMP, &data->temp8[0]);
-		lm90_read_reg(client, LM90_REG_R_LOCAL_LOW, &data->temp8[1]);
-		lm90_read_reg(client, LM90_REG_R_LOCAL_HIGH, &data->temp8[2]);
-		lm90_read_reg(client, LM90_REG_R_LOCAL_CRIT, &data->temp8[3]);
-		lm90_read_reg(client, LM90_REG_R_REMOTE_CRIT, &data->temp8[4]);
+		lm90_read_reg(client, LM90_REG_R_LOCAL_LOW, &data->temp8[0]);
+		lm90_read_reg(client, LM90_REG_R_LOCAL_HIGH, &data->temp8[1]);
+		lm90_read_reg(client, LM90_REG_R_LOCAL_CRIT, &data->temp8[2]);
+		lm90_read_reg(client, LM90_REG_R_REMOTE_CRIT, &data->temp8[3]);
 		lm90_read_reg(client, LM90_REG_R_TCRIT_HYST, &data->temp_hyst);
 
+		if (data->kind == max6657) {
+			lm90_read16(client, LM90_REG_R_LOCAL_TEMP,
+				    MAX6657_REG_R_LOCAL_TEMPL,
+				    &data->temp11[4]);
+		} else {
+			if (lm90_read_reg(client, LM90_REG_R_LOCAL_TEMP,
+					  &h) == 0)
+				data->temp11[4] = h << 8;
+		}
 		lm90_read16(client, LM90_REG_R_REMOTE_TEMPH,
 			    LM90_REG_R_REMOTE_TEMPL, &data->temp11[0]);
 

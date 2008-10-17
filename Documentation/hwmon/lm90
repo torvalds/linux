@@ -86,9 +86,8 @@ family is that it features critical limits with hysteresis, and an
 increased resolution of the remote temperature measurement.
 
 The different chipsets of the family are not strictly identical, although
-very similar. This driver doesn't handle any specific feature for now,
-with the exception of SMBus PEC. For reference, here comes a non-exhaustive
-list of specific features:
+very similar. For reference, here comes a non-exhaustive list of specific
+features:
 
 LM90:
   * Filter and alert configuration register at 0xBF.
@@ -114,9 +113,11 @@ ADT7461:
   * Lower resolution for remote temperature
 
 MAX6657 and MAX6658:
+  * Better local resolution
   * Remote sensor type selection
 
 MAX6659:
+  * Better local resolution
   * Selectable address
   * Second critical temperature limit
   * Remote sensor type selection
@@ -127,7 +128,8 @@ MAX6680 and MAX6681:
 
 All temperature values are given in degrees Celsius. Resolution
 is 1.0 degree for the local temperature, 0.125 degree for the remote
-temperature.
+temperature, except for the MAX6657, MAX6658 and MAX6659 which have a
+resolution of 0.125 degree for both temperatures.
 
 Each sensor has its own high and low limits, plus a critical limit.
 Additionally, there is a relative hysteresis value common to both critical
