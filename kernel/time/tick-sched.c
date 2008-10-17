@@ -155,7 +155,7 @@ void tick_nohz_update_jiffies(void)
 	touch_softlockup_watchdog();
 }
 
-void tick_nohz_stop_idle(int cpu)
+static void tick_nohz_stop_idle(int cpu)
 {
 	struct tick_sched *ts = &per_cpu(tick_cpu_sched, cpu);
 
@@ -557,6 +557,17 @@ static void tick_nohz_switch_to_nohz(void)
 static inline void tick_nohz_switch_to_nohz(void) { }
 
 #endif /* NO_HZ */
+
+/*
+ * Called from irq_enter to notify about the possible interruption of idle()
+ */
+void tick_check_idle(int cpu)
+{
+#ifdef CONFIG_NO_HZ
+	tick_nohz_stop_idle(cpu);
+	tick_nohz_update_jiffies();
+#endif
+}
 
 /*
  * High resolution timer specific code
