@@ -340,8 +340,8 @@ static int cdrom_decode_status(ide_drive_t *drive, int good_stat, int *stat_ret)
 	}
 
 	ide_debug_log(IDE_DBG_RQ, "%s: stat: 0x%x, good_stat: 0x%x, "
-		      "rq->cmd_type: 0x%x, err: 0x%x\n", __func__, stat,
-		      good_stat, rq->cmd_type, err);
+		      "rq->cmd[0]: 0x%x, rq->cmd_type: 0x%x, err: 0x%x\n",
+		      __func__, stat, good_stat, rq->cmd[0], rq->cmd_type, err);
 
 	if (blk_sense_request(rq)) {
 		/*
@@ -849,7 +849,8 @@ static void ide_cd_restore_request(ide_drive_t *drive, struct request *rq)
 static void ide_cd_request_sense_fixup(ide_drive_t *drive, struct request *rq)
 {
 
-	ide_debug_log(IDE_DBG_FUNC, "Call %s\n", __func__);
+	ide_debug_log(IDE_DBG_FUNC, "Call %s, rq->cmd[0]: 0x%x\n",
+		      __func__, rq->cmd[0]);
 
 	/*
 	 * Some of the trailing request sense fields are optional,
@@ -876,7 +877,7 @@ int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
 	if (!sense)
 		sense = &local_sense;
 
-	ide_debug_log(IDE_DBG_PC, "Call %s, rq->cmd[0]: 0x%x, write: 0x%x, "
+	ide_debug_log(IDE_DBG_PC, "Call %s, cmd[0]: 0x%x, write: 0x%x, "
 		      "timeout: %d, cmd_flags: 0x%x\n", __func__, cmd[0], write,
 		      timeout, cmd_flags);
 
@@ -1177,8 +1178,9 @@ static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
 	unsigned short sectors_per_frame =
 		queue_hardsect_size(drive->queue) >> SECTOR_BITS;
 
-	ide_debug_log(IDE_DBG_RQ, "Call %s, write: 0x%x, secs_per_frame: %u\n",
-		      __func__, write, sectors_per_frame);
+	ide_debug_log(IDE_DBG_RQ, "Call %s, rq->cmd[0]: 0x%x, write: 0x%x, "
+		      "secs_per_frame: %u\n",
+		      __func__, rq->cmd[0], write, sectors_per_frame);
 
 	if (write) {
 		/* disk has become write protected */
@@ -1221,7 +1223,8 @@ static ide_startstop_t cdrom_do_newpc_cont(ide_drive_t *drive)
 static void cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 {
 
-	ide_debug_log(IDE_DBG_PC, "Call %s, rq->cmd_type: 0x%x\n", __func__,
+	ide_debug_log(IDE_DBG_PC, "Call %s, rq->cmd[0]: 0x%x, "
+		      "rq->cmd_type: 0x%x\n", __func__, rq->cmd[0],
 		      rq->cmd_type);
 
 	if (blk_pc_request(rq))
@@ -1257,9 +1260,6 @@ static void cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 	}
 }
 
-/*
- * cdrom driver request routine.
- */
 static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 					sector_t block)
 {
@@ -1267,8 +1267,10 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 	ide_handler_t *fn;
 	int xferlen;
 
-	ide_debug_log(IDE_DBG_RQ, "Call %s, rq->cmd_type: 0x%x, block: %llu\n",
-		      __func__, rq->cmd_type, (unsigned long long)block);
+	ide_debug_log(IDE_DBG_RQ, "Call %s, rq->cmd[0]: 0x%x, "
+		      "rq->cmd_type: 0x%x, block: %llu\n",
+		      __func__, rq->cmd[0], rq->cmd_type,
+		      (unsigned long long)block);
 
 	if (blk_fs_request(rq)) {
 		if (drive->atapi_flags & IDE_AFLAG_SEEKING) {
@@ -1412,6 +1414,10 @@ static int cdrom_read_capacity(ide_drive_t *drive, unsigned long *capacity,
 
 	*capacity = 1 + be32_to_cpu(capbuf.lba);
 	*sectors_per_frame = blocklen >> SECTOR_BITS;
+
+	ide_debug_log(IDE_DBG_PROBE, "%s: cap: %lu, sectors_per_frame: %lu\n",
+		      __func__, *capacity, *sectors_per_frame);
+
 	return 0;
 }
 
@@ -1642,6 +1648,9 @@ void ide_cdrom_update_speed(ide_drive_t *drive, u8 *buf)
 		curspeed = be16_to_cpup((__be16 *)&buf[8 + 14]);
 		maxspeed = be16_to_cpup((__be16 *)&buf[8 + 8]);
 	}
+
+	ide_debug_log(IDE_DBG_PROBE, "%s: curspeed: %u, maxspeed: %u\n",
+		      __func__, curspeed, maxspeed);
 
 	cd->current_speed = (curspeed + (176/2)) / 176;
 	cd->max_speed = (maxspeed + (176/2)) / 176;
