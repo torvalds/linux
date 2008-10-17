@@ -17,6 +17,7 @@
 #include <asm/mca.h>
 
 #include <asm/xen/interface.h>
+#include <asm/xen/hypervisor.h>
 
 #include "../kernel/sigframe.h"
 #include "../kernel/fsyscall_gtod_data.h"
@@ -291,6 +292,9 @@ void foo(void)
 
 #ifdef CONFIG_XEN
 	BLANK();
+
+	DEFINE(XEN_NATIVE_ASM, XEN_NATIVE);
+	DEFINE(XEN_PV_DOMAIN_ASM, XEN_PV_DOMAIN);
 
 #define DEFINE_MAPPED_REG_OFS(sym, field) \
 	DEFINE(sym, (XMAPPEDREGS_OFS + offsetof(struct mapped_regs, field)))
