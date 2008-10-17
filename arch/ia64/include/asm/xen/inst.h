@@ -22,6 +22,8 @@
 
 #include <asm/xen/privop.h>
 
+#define DO_SAVE_MIN				XEN_DO_SAVE_MIN
+
 #define MOV_FROM_IFA(reg)	\
 	movl reg = XSI_IFA;	\
 	;;			\
