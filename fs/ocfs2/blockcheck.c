@@ -24,6 +24,8 @@
 #include <linux/bitops.h>
 #include <asm/byteorder.h>
 
+#include <cluster/masklog.h>
+
 #include "ocfs2.h"
 
 #include "blockcheck.h"
@@ -292,6 +294,10 @@ int ocfs2_block_check_validate(void *data, size_t blocksize,
 	if (crc == check.bc_crc32e)
 		goto out;
 
+	mlog(ML_ERROR,
+	     "CRC32 failed: stored: %u, computed %u.  Applying ECC.\n",
+	     (unsigned int)check.bc_crc32e, (unsigned int)crc);
+
 	/* Ok, try ECC fixups */
 	ecc = ocfs2_hamming_encode_block(data, blocksize);
 	ocfs2_hamming_fix_block(data, blocksize, ecc ^ check.bc_ecc);
@@ -300,6 +306,9 @@ int ocfs2_block_check_validate(void *data, size_t blocksize,
 	crc = crc32_le(~0, data, blocksize);
 	if (crc == check.bc_crc32e)
 		goto out;
+
+	mlog(ML_ERROR, "Fixed CRC32 failed: stored: %u, computed %u\n",
+	     (unsigned int)check.bc_crc32e, (unsigned int)crc);
 
 	rc = -EIO;
 

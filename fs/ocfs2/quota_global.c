@@ -16,6 +16,7 @@
 #include "ocfs2_fs.h"
 #include "ocfs2.h"
 #include "alloc.h"
+#include "blockcheck.h"
 #include "inode.h"
 #include "journal.h"
 #include "file.h"
@@ -90,12 +91,20 @@ struct qtree_fmt_operations ocfs2_global_ops = {
 static int ocfs2_validate_quota_block(struct super_block *sb,
 				      struct buffer_head *bh)
 {
-	struct ocfs2_disk_dqtrailer *dqt = ocfs2_dq_trailer(sb, bh->b_data);
+	struct ocfs2_disk_dqtrailer *dqt =
+		ocfs2_block_dqtrailer(sb->s_blocksize, bh->b_data);
 
 	mlog(0, "Validating quota block %llu\n",
 	     (unsigned long long)bh->b_blocknr);
 
-	return 0;
+	BUG_ON(!buffer_uptodate(bh));
+
+	/*
+	 * If the ecc fails, we return the error but otherwise
+	 * leave the filesystem running.  We know any error is
+	 * local to this block.
+	 */
+	return ocfs2_validate_meta_ecc(sb, bh->b_data, &dqt->dq_check);
 }
 
 int ocfs2_read_quota_block(struct inode *inode, u64 v_block,

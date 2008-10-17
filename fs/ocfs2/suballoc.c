@@ -35,6 +35,7 @@
 #include "ocfs2.h"
 
 #include "alloc.h"
+#include "blockcheck.h"
 #include "dlmglue.h"
 #include "inode.h"
 #include "journal.h"
@@ -250,8 +251,18 @@ int ocfs2_check_group_descriptor(struct super_block *sb,
 				 struct buffer_head *bh)
 {
 	int rc;
+	struct ocfs2_group_desc *gd = (struct ocfs2_group_desc *)bh->b_data;
 
-	rc = ocfs2_validate_gd_self(sb, bh, 1);
+	BUG_ON(!buffer_uptodate(bh));
+
+	/*
+	 * If the ecc fails, we return the error but otherwise
+	 * leave the filesystem running.  We know any error is
+	 * local to this block.
+	 */
+	rc = ocfs2_validate_meta_ecc(sb, bh->b_data, &gd->bg_check);
+	if (!rc)
+		rc = ocfs2_validate_gd_self(sb, bh, 1);
 	if (!rc)
 		rc = ocfs2_validate_gd_parent(sb, di, bh, 1);
 
@@ -261,8 +272,26 @@ int ocfs2_check_group_descriptor(struct super_block *sb,
 static int ocfs2_validate_group_descriptor(struct super_block *sb,
 					   struct buffer_head *bh)
 {
+	int rc;
+	struct ocfs2_group_desc *gd = (struct ocfs2_group_desc *)bh->b_data;
+
 	mlog(0, "Validating group descriptor %llu\n",
 	     (unsigned long long)bh->b_blocknr);
+
+	BUG_ON(!buffer_uptodate(bh));
+
+	/*
+	 * If the ecc fails, we return the error but otherwise
+	 * leave the filesystem running.  We know any error is
+	 * local to this block.
+	 */
+	rc = ocfs2_validate_meta_ecc(sb, bh->b_data, &gd->bg_check);
+	if (rc)
+		return rc;
+
+	/*
+	 * Errors after here are fatal.
+	 */
 
 	return ocfs2_validate_gd_self(sb, bh, 0);
 }

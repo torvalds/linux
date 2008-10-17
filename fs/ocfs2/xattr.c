@@ -42,6 +42,7 @@
 
 #include "ocfs2.h"
 #include "alloc.h"
+#include "blockcheck.h"
 #include "dlmglue.h"
 #include "file.h"
 #include "symlink.h"
@@ -322,11 +323,27 @@ static void ocfs2_xattr_bucket_copy_data(struct ocfs2_xattr_bucket *dest,
 static int ocfs2_validate_xattr_block(struct super_block *sb,
 				      struct buffer_head *bh)
 {
+	int rc;
 	struct ocfs2_xattr_block *xb =
 		(struct ocfs2_xattr_block *)bh->b_data;
 
 	mlog(0, "Validating xattr block %llu\n",
 	     (unsigned long long)bh->b_blocknr);
+
+	BUG_ON(!buffer_uptodate(bh));
+
+	/*
+	 * If the ecc fails, we return the error but otherwise
+	 * leave the filesystem running.  We know any error is
+	 * local to this block.
+	 */
+	rc = ocfs2_validate_meta_ecc(sb, bh->b_data, &xb->xb_check);
+	if (rc)
+		return rc;
+
+	/*
+	 * Errors after here are fatal
+	 */
 
 	if (!OCFS2_IS_VALID_XATTR_BLOCK(xb)) {
 		ocfs2_error(sb,

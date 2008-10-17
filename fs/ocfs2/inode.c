@@ -38,6 +38,7 @@
 #include "ocfs2.h"
 
 #include "alloc.h"
+#include "blockcheck.h"
 #include "dlmglue.h"
 #include "extent_map.h"
 #include "file.h"
@@ -1262,13 +1263,28 @@ void ocfs2_refresh_inode(struct inode *inode,
 int ocfs2_validate_inode_block(struct super_block *sb,
 			       struct buffer_head *bh)
 {
-	int rc = -EINVAL;
+	int rc;
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)bh->b_data;
 
 	mlog(0, "Validating dinode %llu\n",
 	     (unsigned long long)bh->b_blocknr);
 
 	BUG_ON(!buffer_uptodate(bh));
+
+	/*
+	 * If the ecc fails, we return the error but otherwise
+	 * leave the filesystem running.  We know any error is
+	 * local to this block.
+	 */
+	rc = ocfs2_validate_meta_ecc(sb, bh->b_data, &di->i_check);
+	if (rc)
+		goto bail;
+
+	/*
+	 * Errors after here are fatal.
+	 */
+
+	rc = -EINVAL;
 
 	if (!OCFS2_IS_VALID_DINODE(di)) {
 		ocfs2_error(sb, "Invalid dinode #%llu: signature = %.*s\n",

@@ -37,6 +37,7 @@
 
 #include "alloc.h"
 #include "aops.h"
+#include "blockcheck.h"
 #include "dlmglue.h"
 #include "extent_map.h"
 #include "inode.h"
@@ -682,11 +683,27 @@ struct ocfs2_merge_ctxt {
 static int ocfs2_validate_extent_block(struct super_block *sb,
 				       struct buffer_head *bh)
 {
+	int rc;
 	struct ocfs2_extent_block *eb =
 		(struct ocfs2_extent_block *)bh->b_data;
 
 	mlog(0, "Validating extent block %llu\n",
 	     (unsigned long long)bh->b_blocknr);
+
+	BUG_ON(!buffer_uptodate(bh));
+
+	/*
+	 * If the ecc fails, we return the error but otherwise
+	 * leave the filesystem running.  We know any error is
+	 * local to this block.
+	 */
+	rc = ocfs2_validate_meta_ecc(sb, bh->b_data, &eb->h_check);
+	if (rc)
+		return rc;
+
+	/*
+	 * Errors after here are fatal.
+	 */
 
 	if (!OCFS2_IS_VALID_EXTENT_BLOCK(eb)) {
 		ocfs2_error(sb,
