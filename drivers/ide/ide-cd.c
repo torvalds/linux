@@ -843,12 +843,8 @@ static void ide_cd_restore_request(ide_drive_t *drive, struct request *rq)
 	rq->q->prep_rq_fn(rq->q, rq);
 }
 
-/*
- * All other packet commands.
- */
 static void ide_cd_request_sense_fixup(ide_drive_t *drive, struct request *rq)
 {
-
 	ide_debug_log(IDE_DBG_FUNC, "Call %s, rq->cmd[0]: 0x%x\n",
 		      __func__, rq->cmd[0]);
 
