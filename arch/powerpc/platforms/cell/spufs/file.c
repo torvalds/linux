@@ -2442,7 +2442,7 @@ static int spufs_switch_log_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	ctx->switch_log = kzalloc(sizeof(struct switch_log) +
+	ctx->switch_log = kmalloc(sizeof(struct switch_log) +
 		SWITCH_LOG_BUFSIZE * sizeof(struct switch_log_entry),
 		GFP_KERNEL);
 
@@ -2451,6 +2451,7 @@ static int spufs_switch_log_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
+	ctx->switch_log->head = ctx->switch_log->tail = 0;
 	init_waitqueue_head(&ctx->switch_log->wait);
 	rc = 0;
 
