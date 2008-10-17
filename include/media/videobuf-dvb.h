@@ -46,16 +46,6 @@ int videobuf_dvb_register_bus(struct videobuf_dvb_frontends *f,
 
 void videobuf_dvb_unregister_bus(struct videobuf_dvb_frontends *f);
 
-int videobuf_dvb_register_adapter(struct videobuf_dvb_frontends *f,
-			  struct module *module,
-			  void *adapter_priv,
-			  struct device *device,
-			  char *adapter_name,
-			  short *adapter_nr,
-			  int mfe_shared);
-
-int videobuf_dvb_register_frontend(struct dvb_adapter *adapter, struct videobuf_dvb *dvb);
-
 struct videobuf_dvb_frontend * videobuf_dvb_alloc_frontend(struct videobuf_dvb_frontends *f, int id);
 
 struct videobuf_dvb_frontend * videobuf_dvb_get_frontend(struct videobuf_dvb_frontends *f, int id);
