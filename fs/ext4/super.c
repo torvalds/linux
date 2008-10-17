@@ -1618,14 +1618,14 @@ static int ext4_check_descriptors(struct super_block *sb)
 		if (block_bitmap < first_block || block_bitmap > last_block) {
 			printk(KERN_ERR "EXT4-fs: ext4_check_descriptors: "
 			       "Block bitmap for group %lu not in group "
-			       "(block %llu)!", i, block_bitmap);
+			       "(block %llu)!\n", i, block_bitmap);
 			return 0;
 		}
 		inode_bitmap = ext4_inode_bitmap(sb, gdp);
 		if (inode_bitmap < first_block || inode_bitmap > last_block) {
 			printk(KERN_ERR "EXT4-fs: ext4_check_descriptors: "
 			       "Inode bitmap for group %lu not in group "
-			       "(block %llu)!", i, inode_bitmap);
+			       "(block %llu)!\n", i, inode_bitmap);
 			return 0;
 		}
 		inode_table = ext4_inode_table(sb, gdp);
@@ -1633,7 +1633,7 @@ static int ext4_check_descriptors(struct super_block *sb)
 		    inode_table + sbi->s_itb_per_group - 1 > last_block) {
 			printk(KERN_ERR "EXT4-fs: ext4_check_descriptors: "
 			       "Inode table for group %lu not in group "
-			       "(block %llu)!", i, inode_table);
+			       "(block %llu)!\n", i, inode_table);
 			return 0;
 		}
 		spin_lock(sb_bgl_lock(sbi, i));
