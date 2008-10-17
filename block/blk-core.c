@@ -268,8 +268,7 @@ void __generic_unplug_device(struct request_queue *q)
 {
 	if (unlikely(blk_queue_stopped(q)))
 		return;
-
-	if (!blk_remove_plug(q))
+	if (!blk_remove_plug(q) && !blk_queue_nonrot(q))
 		return;
 
 	q->request_fn(q);
@@ -1241,11 +1240,11 @@ get_rq:
 	if (test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags) ||
 	    bio_flagged(bio, BIO_CPU_AFFINE))
 		req->cpu = blk_cpu_to_group(smp_processor_id());
-	if (elv_queue_empty(q))
+	if (!blk_queue_nonrot(q) && elv_queue_empty(q))
 		blk_plug_device(q);
 	add_request(q, req);
 out:
-	if (sync)
+	if (sync || blk_queue_nonrot(q))
 		__generic_unplug_device(q);
 	spin_unlock_irq(q->queue_lock);
 	return 0;
