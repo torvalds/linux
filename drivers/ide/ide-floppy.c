@@ -788,7 +788,7 @@ static int ide_floppy_probe(ide_drive_t *drive)
 		goto failed;
 	}
 
-	g = alloc_disk(1 << PARTN_BITS);
+	g = alloc_disk_node(1 << PARTN_BITS, hwif_to_node(drive->hwif));
 	if (!g)
 		goto out_free_floppy;
 
