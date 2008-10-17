@@ -50,7 +50,7 @@ struct sd {
 
 	__u8 sensor;
 #define SENSOR_TAS5130A 0
-#define SENSOR_OTHER 1
+#define SENSOR_OM6802 1
 };
 
 /* V4L2 controls supported by the driver */
@@ -416,7 +416,8 @@ static void reg_w_buf(struct gspca_dev *gspca_dev,
 	}
 }
 
-static void other_sensor_init(struct gspca_dev *gspca_dev)
+/* Reported as OM6802*/
+static void om6802_sensor_init(struct gspca_dev *gspca_dev)
 {
 	int i;
 	const __u8 *p;
@@ -557,10 +558,13 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	byte = reg_r(gspca_dev, 0x06);
 	test_byte = reg_r(gspca_dev, 0x07);
 	if (byte == 0x08 && test_byte == 0x07) {
-		PDEBUG(D_CONF, "other sensor");
-		sd->sensor = SENSOR_OTHER;
+		PDEBUG(D_CONF, "sensor om6802");
+		sd->sensor = SENSOR_OM6802;
+	} else if (byte == 0x08 && test_byte == 0x01) {
+		PDEBUG(D_CONF, "sensor tas5130a");
+		sd->sensor = SENSOR_TAS5130A;
 	} else {
-		PDEBUG(D_CONF, "sensor %02x %02x", byte, test_byte);
+		PDEBUG(D_CONF, "unknown sensor %02x %02x", byte, test_byte);
 		sd->sensor = SENSOR_TAS5130A;
 	}
 
@@ -771,7 +775,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 				 sizeof tas5130a_sensor_init[0]);
 		reg_w(gspca_dev, 0x3c80);
 	} else {
-		other_sensor_init(gspca_dev);
+		om6802_sensor_init(gspca_dev);
 	}
 	/* just in case and to keep sync with logs  (for mine) */
 	reg_w_buf(gspca_dev, t1, sizeof t1);
