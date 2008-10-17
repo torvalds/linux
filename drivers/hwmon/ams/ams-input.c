@@ -20,11 +20,11 @@
 #include "ams.h"
 
 static unsigned int joystick;
-module_param(joystick, bool, 0644);
+module_param(joystick, bool, S_IRUGO);
 MODULE_PARM_DESC(joystick, "Enable the input class device on module load");
 
 static unsigned int invert;
-module_param(invert, bool, 0644);
+module_param(invert, bool, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(invert, "Invert input data on X and Y axis");
 
 static void ams_idev_poll(struct input_polled_dev *dev)
