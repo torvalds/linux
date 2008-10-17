@@ -1244,6 +1244,8 @@ static int asus_hotk_get_info(void)
 			       "default values\n", string);
 			printk(KERN_NOTICE
 			       "  send /proc/acpi/dsdt to the developers\n");
+			kfree(model);
+			return -ENODEV;
 		}
 		hotk->methods = &model_conf[hotk->model];
 		return AE_OK;
