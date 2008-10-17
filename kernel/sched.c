@@ -818,6 +818,13 @@ const_debug unsigned int sysctl_sched_nr_migrate = 32;
 unsigned int sysctl_sched_shares_ratelimit = 250000;
 
 /*
+ * Inject some fuzzyness into changing the per-cpu group shares
+ * this avoids remote rq-locks at the expense of fairness.
+ * default: 4
+ */
+unsigned int sysctl_sched_shares_thresh = 4;
+
+/*
  * period over which we measure -rt task cpu usage in us.
  * default: 1s
  */
@@ -1453,8 +1460,8 @@ static void __set_se_shares(struct sched_entity *se, unsigned long shares);
  * Calculate and set the cpu's group shares.
  */
 static void
-__update_group_shares_cpu(struct task_group *tg, int cpu,
-			  unsigned long sd_shares, unsigned long sd_rq_weight)
+update_group_shares_cpu(struct task_group *tg, int cpu,
+			unsigned long sd_shares, unsigned long sd_rq_weight)
 {
 	int boost = 0;
 	unsigned long shares;
@@ -1485,19 +1492,23 @@ __update_group_shares_cpu(struct task_group *tg, int cpu,
 	 *
 	 */
 	shares = (sd_shares * rq_weight) / (sd_rq_weight + 1);
+	shares = clamp_t(unsigned long, shares, MIN_SHARES, MAX_SHARES);
 
-	/*
-	 * record the actual number of shares, not the boosted amount.
-	 */
-	tg->cfs_rq[cpu]->shares = boost ? 0 : shares;
-	tg->cfs_rq[cpu]->rq_weight = rq_weight;
+	if (abs(shares - tg->se[cpu]->load.weight) >
+			sysctl_sched_shares_thresh) {
+		struct rq *rq = cpu_rq(cpu);
+		unsigned long flags;
 
-	if (shares < MIN_SHARES)
-		shares = MIN_SHARES;
-	else if (shares > MAX_SHARES)
-		shares = MAX_SHARES;
+		spin_lock_irqsave(&rq->lock, flags);
+		/*
+		 * record the actual number of shares, not the boosted amount.
+		 */
+		tg->cfs_rq[cpu]->shares = boost ? 0 : shares;
+		tg->cfs_rq[cpu]->rq_weight = rq_weight;
 
-	__set_se_shares(tg->se[cpu], shares);
+		__set_se_shares(tg->se[cpu], shares);
+		spin_unlock_irqrestore(&rq->lock, flags);
+	}
 }
 
 /*
@@ -1526,14 +1537,8 @@ static int tg_shares_up(struct task_group *tg, void *data)
 	if (!rq_weight)
 		rq_weight = cpus_weight(sd->span) * NICE_0_LOAD;
 
-	for_each_cpu_mask(i, sd->span) {
-		struct rq *rq = cpu_rq(i);
-		unsigned long flags;
-
-		spin_lock_irqsave(&rq->lock, flags);
-		__update_group_shares_cpu(tg, i, shares, rq_weight);
-		spin_unlock_irqrestore(&rq->lock, flags);
-	}
+	for_each_cpu_mask(i, sd->span)
+		update_group_shares_cpu(tg, i, shares, rq_weight);
 
 	return 0;
 }
