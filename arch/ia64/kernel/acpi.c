@@ -52,6 +52,7 @@
 #include <asm/numa.h>
 #include <asm/sal.h>
 #include <asm/cyclone.h>
+#include <asm/xen/hypervisor.h>
 
 #define BAD_MADT_ENTRY(entry, end) (                                        \
 		(!entry) || (unsigned long)entry + sizeof(*entry) > end ||  \
@@ -121,6 +122,8 @@ acpi_get_sysname(void)
 			return "uv";
 		else
 			return "sn2";
+	} else if (xen_pv_domain() && !strcmp(hdr->oem_id, "XEN")) {
+		return "xen";
 	}
 
 	return "dig";
@@ -137,6 +140,8 @@ acpi_get_sysname(void)
 	return "uv";
 # elif defined (CONFIG_IA64_DIG)
 	return "dig";
+# elif defined (CONFIG_IA64_XEN_GUEST)
+	return "xen";
 # else
 #	error Unknown platform.  Fix acpi.c.
 # endif

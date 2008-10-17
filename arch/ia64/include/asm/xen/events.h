@@ -1,5 +1,5 @@
 /******************************************************************************
- * linux/arch/ia64/xen/paravirt_inst.h
+ * arch/ia64/include/asm/xen/events.h
  *
  * Copyright (c) 2008 Isaku Yamahata <yamahata at valinux co jp>
  *                    VA Linux Systems Japan K.K.
@@ -19,13 +19,32 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
+#ifndef _ASM_IA64_XEN_EVENTS_H
+#define _ASM_IA64_XEN_EVENTS_H
 
-#ifdef __IA64_ASM_PARAVIRTUALIZED_PVCHECK
-#include <asm/native/pvchk_inst.h>
-#elif defined(__IA64_ASM_PARAVIRTUALIZED_XEN)
-#include <asm/xen/inst.h>
-#include <asm/xen/minstate.h>
-#else
-#include <asm/native/inst.h>
-#endif
+enum ipi_vector {
+	XEN_RESCHEDULE_VECTOR,
+	XEN_IPI_VECTOR,
+	XEN_CMCP_VECTOR,
+	XEN_CPEP_VECTOR,
 
+	XEN_NR_IPIS,
+};
+
+static inline int xen_irqs_disabled(struct pt_regs *regs)
+{
+	return !(ia64_psr(regs)->i);
+}
+
+static inline void xen_do_IRQ(int irq, struct pt_regs *regs)
+{
+	struct pt_regs *old_regs;
+	old_regs = set_irq_regs(regs);
+	irq_enter();
+	__do_IRQ(irq);
+	irq_exit();
+	set_irq_regs(old_regs);
+}
+#define irq_ctx_init(cpu)	do { } while (0)
+
+#endif /* _ASM_IA64_XEN_EVENTS_H */

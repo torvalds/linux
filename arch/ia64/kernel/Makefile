@@ -112,5 +112,23 @@ clean-files += $(objtree)/include/asm-ia64/nr-irqs.h
 ASM_PARAVIRT_OBJS = ivt.o entry.o
 define paravirtualized_native
 AFLAGS_$(1) += -D__IA64_ASM_PARAVIRTUALIZED_NATIVE
+AFLAGS_pvchk-sed-$(1) += -D__IA64_ASM_PARAVIRTUALIZED_PVCHECK
+extra-y += pvchk-$(1)
 endef
 $(foreach obj,$(ASM_PARAVIRT_OBJS),$(eval $(call paravirtualized_native,$(obj))))
+
+#
+# Checker for paravirtualizations of privileged operations.
+#
+quiet_cmd_pv_check_sed = PVCHK   $@
+define cmd_pv_check_sed
+	sed -f $(srctree)/arch/$(SRCARCH)/scripts/pvcheck.sed $< > $@
+endef
+
+$(obj)/pvchk-sed-%.s: $(src)/%.S $(srctree)/arch/$(SRCARCH)/scripts/pvcheck.sed FORCE
+	$(call if_changed_dep,as_s_S)
+$(obj)/pvchk-%.s: $(obj)/pvchk-sed-%.s FORCE
+	$(call if_changed,pv_check_sed)
+$(obj)/pvchk-%.o: $(obj)/pvchk-%.s FORCE
+	$(call if_changed,as_o_S)
+.PRECIOUS: $(obj)/pvchk-sed-%.s $(obj)/pvchk-%.s $(obj)/pvchk-%.o

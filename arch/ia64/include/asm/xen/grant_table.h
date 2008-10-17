@@ -1,5 +1,5 @@
 /******************************************************************************
- * linux/arch/ia64/xen/paravirt_inst.h
+ * arch/ia64/include/asm/xen/grant_table.h
  *
  * Copyright (c) 2008 Isaku Yamahata <yamahata at valinux co jp>
  *                    VA Linux Systems Japan K.K.
@@ -20,12 +20,10 @@
  *
  */
 
-#ifdef __IA64_ASM_PARAVIRTUALIZED_PVCHECK
-#include <asm/native/pvchk_inst.h>
-#elif defined(__IA64_ASM_PARAVIRTUALIZED_XEN)
-#include <asm/xen/inst.h>
-#include <asm/xen/minstate.h>
-#else
-#include <asm/native/inst.h>
-#endif
+#ifndef _ASM_IA64_XEN_GRANT_TABLE_H
+#define _ASM_IA64_XEN_GRANT_TABLE_H
 
+struct vm_struct *xen_alloc_vm_area(unsigned long size);
+void xen_free_vm_area(struct vm_struct *area);
+
+#endif /* _ASM_IA64_XEN_GRANT_TABLE_H */

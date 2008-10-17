@@ -1,5 +1,5 @@
 /******************************************************************************
- * linux/arch/ia64/xen/paravirt_inst.h
+ * arch/ia64/include/asm/xen/irq.h
  *
  * Copyright (c) 2008 Isaku Yamahata <yamahata at valinux co jp>
  *                    VA Linux Systems Japan K.K.
@@ -20,12 +20,25 @@
  *
  */
 
-#ifdef __IA64_ASM_PARAVIRTUALIZED_PVCHECK
-#include <asm/native/pvchk_inst.h>
-#elif defined(__IA64_ASM_PARAVIRTUALIZED_XEN)
-#include <asm/xen/inst.h>
-#include <asm/xen/minstate.h>
-#else
-#include <asm/native/inst.h>
-#endif
+#ifndef _ASM_IA64_XEN_IRQ_H
+#define _ASM_IA64_XEN_IRQ_H
 
+/*
+ * The flat IRQ space is divided into two regions:
+ *  1. A one-to-one mapping of real physical IRQs. This space is only used
+ *     if we have physical device-access privilege. This region is at the
+ *     start of the IRQ space so that existing device drivers do not need
+ *     to be modified to translate physical IRQ numbers into our IRQ space.
+ *  3. A dynamic mapping of inter-domain and Xen-sourced virtual IRQs. These
+ *     are bound using the provided bind/unbind functions.
+ */
+
+#define XEN_PIRQ_BASE		0
+#define XEN_NR_PIRQS		256
+
+#define XEN_DYNIRQ_BASE		(XEN_PIRQ_BASE + XEN_NR_PIRQS)
+#define XEN_NR_DYNIRQS		(NR_CPUS * 8)
+
+#define XEN_NR_IRQS		(XEN_NR_PIRQS + XEN_NR_DYNIRQS)
+
+#endif /* _ASM_IA64_XEN_IRQ_H */

@@ -1,5 +1,5 @@
 /******************************************************************************
- * linux/arch/ia64/xen/paravirt_inst.h
+ * arch/ia64/xen/suspend.c
  *
  * Copyright (c) 2008 Isaku Yamahata <yamahata at valinux co jp>
  *                    VA Linux Systems Japan K.K.
@@ -18,14 +18,47 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
+ * suspend/resume
  */
 
-#ifdef __IA64_ASM_PARAVIRTUALIZED_PVCHECK
-#include <asm/native/pvchk_inst.h>
-#elif defined(__IA64_ASM_PARAVIRTUALIZED_XEN)
-#include <asm/xen/inst.h>
-#include <asm/xen/minstate.h>
-#else
-#include <asm/native/inst.h>
-#endif
+#include <xen/xen-ops.h>
+#include <asm/xen/hypervisor.h>
+#include "time.h"
 
+void
+xen_mm_pin_all(void)
+{
+	/* nothing */
+}
+
+void
+xen_mm_unpin_all(void)
+{
+	/* nothing */
+}
+
+void xen_pre_device_suspend(void)
+{
+	/* nothing */
+}
+
+void
+xen_pre_suspend()
+{
+	/* nothing */
+}
+
+void
+xen_post_suspend(int suspend_cancelled)
+{
+	if (suspend_cancelled)
+		return;
+
+	xen_ia64_enable_opt_feature();
+	/* add more if necessary */
+}
+
+void xen_arch_resume(void)
+{
+	xen_timer_resume_on_aps();
+}

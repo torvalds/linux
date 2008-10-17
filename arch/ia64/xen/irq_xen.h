@@ -1,5 +1,5 @@
 /******************************************************************************
- * linux/arch/ia64/xen/paravirt_inst.h
+ * arch/ia64/xen/irq_xen.h
  *
  * Copyright (c) 2008 Isaku Yamahata <yamahata at valinux co jp>
  *                    VA Linux Systems Japan K.K.
@@ -20,12 +20,15 @@
  *
  */
 
-#ifdef __IA64_ASM_PARAVIRTUALIZED_PVCHECK
-#include <asm/native/pvchk_inst.h>
-#elif defined(__IA64_ASM_PARAVIRTUALIZED_XEN)
-#include <asm/xen/inst.h>
-#include <asm/xen/minstate.h>
-#else
-#include <asm/native/inst.h>
-#endif
+#ifndef IRQ_XEN_H
+#define IRQ_XEN_H
 
+extern void (*late_time_init)(void);
+extern char xen_event_callback;
+void __init xen_init_IRQ(void);
+
+extern const struct pv_irq_ops xen_irq_ops __initdata;
+extern void xen_smp_intr_init(void);
+extern void xen_send_ipi(int cpu, int vec);
+
+#endif /* IRQ_XEN_H */
