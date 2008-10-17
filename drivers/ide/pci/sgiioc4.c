@@ -101,11 +101,8 @@ sgiioc4_init_hwif_ports(hw_regs_t * hw, unsigned long data_port,
 	for (i = 0; i <= 7; i++)
 		hw->io_ports_array[i] = reg + i * 4;
 
-	if (ctrl_port)
-		hw->io_ports.ctl_addr = ctrl_port;
-
-	if (irq_port)
-		hw->io_ports.irq_addr = irq_port;
+	hw->io_ports.ctl_addr = ctrl_port;
+	hw->io_ports.irq_addr = irq_port;
 }
 
 static int
@@ -303,16 +300,14 @@ static u8 sgiioc4_read_status(ide_hwif_t *hwif)
 	unsigned long port = hwif->io_ports.status_addr;
 	u8 reg = (u8) readb((void __iomem *) port);
 
-	if ((port & 0xFFF) == 0x11C) {	/* Status register of IOC4 */
-		if (!(reg & ATA_BUSY)) { /* Not busy... check for interrupt */
-			unsigned long other_ir = port - 0x110;
-			unsigned int intr_reg = (u32) readl((void __iomem *) other_ir);
+	if (!(reg & ATA_BUSY)) {	/* Not busy... check for interrupt */
+		unsigned long other_ir = port - 0x110;
+		unsigned int intr_reg = (u32) readl((void __iomem *) other_ir);
 
-			/* Clear the Interrupt, Error bits on the IOC4 */
-			if (intr_reg & 0x03) {
-				writel(0x03, (void __iomem *) other_ir);
-				intr_reg = (u32) readl((void __iomem *) other_ir);
-			}
+		/* Clear the Interrupt, Error bits on the IOC4 */
+		if (intr_reg & 0x03) {
+			writel(0x03, (void __iomem *) other_ir);
+			intr_reg = (u32) readl((void __iomem *) other_ir);
 		}
 	}
 
@@ -328,9 +323,6 @@ ide_dma_sgiioc4(ide_hwif_t *hwif, const struct ide_port_info *d)
 	void __iomem *virt_dma_base;
 	int num_ports = sizeof (ioc4_dma_regs_t);
 	void *pad;
-
-	if (dma_base == 0)
-		return -1;
 
 	printk(KERN_INFO "    %s: MMIO-DMA\n", hwif->name);
 
