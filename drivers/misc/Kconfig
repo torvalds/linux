@@ -247,7 +247,7 @@ config MSI_LAPTOP
 
 config PANASONIC_LAPTOP
 	tristate "Panasonic Laptop Extras"
-	depends on X86 && INPUT
+	depends on X86 && INPUT && ACPI
         depends on BACKLIGHT_CLASS_DEVICE
 	---help---
 	  This driver adds support for access to backlight control and hotkeys
