@@ -59,7 +59,21 @@ extern enum xen_domain_type xen_domain_type;
 /* deprecated. remove this */
 #define is_running_on_xen()	(xen_domain_type == XEN_PV_DOMAIN)
 
+extern struct shared_info *HYPERVISOR_shared_info;
 extern struct start_info *xen_start_info;
+
+void __init xen_setup_vcpu_info_placement(void);
+void force_evtchn_callback(void);
+
+/* for drivers/xen/balloon/balloon.c */
+#ifdef CONFIG_XEN_SCRUB_PAGES
+#define scrub_pages(_p, _n) memset((void *)(_p), 0, (_n) << PAGE_SHIFT)
+#else
+#define scrub_pages(_p, _n) ((void)0)
+#endif
+
+/* For setup_arch() in arch/ia64/kernel/setup.c */
+void xen_ia64_enable_opt_feature(void);
 
 #else /* CONFIG_XEN */
 
