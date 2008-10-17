@@ -403,6 +403,26 @@ static void init_idedisk_capacity(ide_drive_t *drive)
 		if (ata_id_hpa_enabled(id))
 			idedisk_check_hpa(drive);
 	}
+
+	/* limit drive capacity to 137GB if LBA48 cannot be used */
+	if ((drive->dev_flags & IDE_DFLAG_LBA48) == 0 &&
+	    drive->capacity64 > 1ULL << 28) {
+		printk(KERN_WARNING "%s: cannot use LBA48 - full capacity "
+		       "%llu sectors (%llu MB)\n",
+		       drive->name, (unsigned long long)drive->capacity64,
+		       sectors_to_MB(drive->capacity64));
+		drive->capacity64 = 1ULL << 28;
+	}
+
+	if ((drive->hwif->host_flags & IDE_HFLAG_NO_LBA48_DMA) &&
+	    (drive->dev_flags & IDE_DFLAG_LBA48)) {
+		if (drive->capacity64 > 1ULL << 28) {
+			printk(KERN_INFO "%s: cannot use LBA48 DMA - PIO mode"
+					 " will be used for accessing sectors "
+					 "> %u\n", drive->name, 1 << 28);
+		} else
+			drive->dev_flags &= ~IDE_DFLAG_LBA48;
+	}
 }
 
 sector_t ide_disk_capacity(ide_drive_t *drive)
@@ -653,26 +673,6 @@ static void idedisk_setup(ide_drive_t *drive)
 
 	/* calculate drive capacity, and select LBA if possible */
 	init_idedisk_capacity(drive);
-
-	/* limit drive capacity to 137GB if LBA48 cannot be used */
-	if ((drive->dev_flags & IDE_DFLAG_LBA48) == 0 &&
-	    drive->capacity64 > 1ULL << 28) {
-		printk(KERN_WARNING "%s: cannot use LBA48 - full capacity "
-		       "%llu sectors (%llu MB)\n",
-		       drive->name, (unsigned long long)drive->capacity64,
-		       sectors_to_MB(drive->capacity64));
-		drive->capacity64 = 1ULL << 28;
-	}
-
-	if ((hwif->host_flags & IDE_HFLAG_NO_LBA48_DMA) &&
-	    (drive->dev_flags & IDE_DFLAG_LBA48)) {
-		if (drive->capacity64 > 1ULL << 28) {
-			printk(KERN_INFO "%s: cannot use LBA48 DMA - PIO mode"
-					 " will be used for accessing sectors "
-					 "> %u\n", drive->name, 1 << 28);
-		} else
-			drive->dev_flags &= ~IDE_DFLAG_LBA48;
-	}
 
 	/*
 	 * if possible, give fdisk access to more of the drive,
