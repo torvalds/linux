@@ -24,6 +24,7 @@
 
 /* Must be called before any hypercall.  */
 extern void xencomm_initialize(void);
+extern int xencomm_is_initialized(void);
 
 /* Check if virtual contiguity means physical contiguity
  * where the passed address is a pointer value in virtual address.

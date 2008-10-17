@@ -19,11 +19,22 @@
 #include <linux/mm.h>
 
 static unsigned long kernel_virtual_offset;
+static int is_xencomm_initialized;
+
+/* for xen early printk. It uses console io hypercall which uses xencomm.
+ * However early printk may use it before xencomm initialization.
+ */
+int
+xencomm_is_initialized(void)
+{
+	return is_xencomm_initialized;
+}
 
 void
 xencomm_initialize(void)
 {
 	kernel_virtual_offset = KERNEL_START - ia64_tpa(KERNEL_START);
+	is_xencomm_initialized = 1;
 }
 
 /* Translate virtual address to physical address.  */
