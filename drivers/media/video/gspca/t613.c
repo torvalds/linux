@@ -390,7 +390,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 			NULL, 0, 500);
 }
 
-static void i2c_w(struct gspca_dev *gspca_dev,
+static void reg_w_buf(struct gspca_dev *gspca_dev,
 		  const __u8 *buffer, __u16 len)
 {
 	if (len <= USB_BUF_SZ) {
@@ -448,7 +448,7 @@ static void other_sensor_init(struct gspca_dev *gspca_dev)
 		val[3] = *p++;
 		if (*p == 0)
 			reg_w(gspca_dev, 0x3c80);
-		i2c_w(gspca_dev, val, sizeof val);
+		reg_w_buf(gspca_dev, val, sizeof val);
 		i = 4;
 		while (--i >= 0) {
 			msleep(15);
@@ -490,7 +490,7 @@ static void setgamma(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	PDEBUG(D_CONF, "Gamma: %d", sd->gamma);
-	i2c_w(gspca_dev, gamma_table[sd->gamma], sizeof gamma_table[0]);
+	reg_w_buf(gspca_dev, gamma_table[sd->gamma], sizeof gamma_table[0]);
 }
 
 /* this function is called at probe and resume time */
@@ -564,11 +564,11 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		sd->sensor = SENSOR_TAS5130A;
 	}
 
-	i2c_w(gspca_dev, n1, sizeof n1);
+	reg_w_buf(gspca_dev, n1, sizeof n1);
 	test_byte = 0;
 	i = 5;
 	while (--i >= 0) {
-		i2c_w(gspca_dev, nset, sizeof nset);
+		reg_w_buf(gspca_dev, nset, sizeof nset);
 		msleep(5);
 		test_byte = reg_r(gspca_dev, 0x0063);
 		msleep(100);
@@ -580,7 +580,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 /*		return -EIO; */
 /*fixme: test - continue */
 	}
-	i2c_w(gspca_dev, n2, sizeof n2);
+	reg_w_buf(gspca_dev, n2, sizeof n2);
 
 	i = 0;
 	while (read_indexs[i] != 0x00) {
@@ -590,37 +590,37 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		i++;
 	}
 
-	i2c_w(gspca_dev, n3, sizeof n3);
-	i2c_w(gspca_dev, n4, sizeof n4);
+	reg_w_buf(gspca_dev, n3, sizeof n3);
+	reg_w_buf(gspca_dev, n4, sizeof n4);
 	reg_r(gspca_dev, 0x0080);
 	reg_w(gspca_dev, 0x2c80);
-	i2c_w(gspca_dev, nset2, sizeof nset2);
-	i2c_w(gspca_dev, nset3, sizeof nset3);
-	i2c_w(gspca_dev, nset4, sizeof nset4);
+	reg_w_buf(gspca_dev, nset2, sizeof nset2);
+	reg_w_buf(gspca_dev, nset3, sizeof nset3);
+	reg_w_buf(gspca_dev, nset4, sizeof nset4);
 	reg_w(gspca_dev, 0x3880);
 	reg_w(gspca_dev, 0x3880);
 	reg_w(gspca_dev, 0x338e);
-	i2c_w(gspca_dev, nset5, sizeof nset5);
+	reg_w_buf(gspca_dev, nset5, sizeof nset5);
 	reg_w(gspca_dev, 0x00a9);
 	setgamma(gspca_dev);
 	reg_w(gspca_dev, 0x86bb);
 	reg_w(gspca_dev, 0x4aa6);
 
-	i2c_w(gspca_dev, missing, sizeof missing);
+	reg_w_buf(gspca_dev, missing, sizeof missing);
 
 	reg_w(gspca_dev, 0x2087);
 	reg_w(gspca_dev, 0x2088);
 	reg_w(gspca_dev, 0x2089);
 
-	i2c_w(gspca_dev, nset7, sizeof nset7);
-	i2c_w(gspca_dev, nset10, sizeof nset10);
-	i2c_w(gspca_dev, nset8, sizeof nset8);
-	i2c_w(gspca_dev, nset9, sizeof nset9);
+	reg_w_buf(gspca_dev, nset7, sizeof nset7);
+	reg_w_buf(gspca_dev, nset10, sizeof nset10);
+	reg_w_buf(gspca_dev, nset8, sizeof nset8);
+	reg_w_buf(gspca_dev, nset9, sizeof nset9);
 
 	reg_w(gspca_dev, 0x2880);
-	i2c_w(gspca_dev, nset2, sizeof nset2);
-	i2c_w(gspca_dev, nset3, sizeof nset3);
-	i2c_w(gspca_dev, nset4, sizeof nset4);
+	reg_w_buf(gspca_dev, nset2, sizeof nset2);
+	reg_w_buf(gspca_dev, nset3, sizeof nset3);
+	reg_w_buf(gspca_dev, nset4, sizeof nset4);
 
 	return 0;
 }
@@ -639,7 +639,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 		set6[3] = 0x00 + ((brightness - 7) * 0x10);
 	}
 
-	i2c_w(gspca_dev, set6, sizeof set6);
+	reg_w_buf(gspca_dev, set6, sizeof set6);
 }
 
 static void setflip(struct gspca_dev *gspca_dev)
@@ -651,14 +651,15 @@ static void setflip(struct gspca_dev *gspca_dev)
 	if (sd->mirror)
 		flipcmd[3] = 0x01;
 
-	i2c_w(gspca_dev, flipcmd, sizeof flipcmd);
+	reg_w_buf(gspca_dev, flipcmd, sizeof flipcmd);
 }
 
 static void seteffect(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	i2c_w(gspca_dev, effects_table[sd->effect], sizeof effects_table[0]);
+	reg_w_buf(gspca_dev, effects_table[sd->effect],
+				sizeof effects_table[0]);
 	if (sd->effect == 1 || sd->effect == 5) {
 		PDEBUG(D_CONF,
 		       "This effect have been disabled for webcam \"safety\"");
@@ -681,7 +682,7 @@ static void setwhitebalance(struct gspca_dev *gspca_dev)
 	if (sd->whitebalance == 1)
 		white_balance[7] = 0x3c;
 
-	i2c_w(gspca_dev, white_balance, sizeof white_balance);
+	reg_w_buf(gspca_dev, white_balance, sizeof white_balance);
 }
 
 static void setlightfreq(struct gspca_dev *gspca_dev)
@@ -692,7 +693,7 @@ static void setlightfreq(struct gspca_dev *gspca_dev)
 	if (sd->freq == 2)	/* 60hz */
 		freq[1] = 0x00;
 
-	i2c_w(gspca_dev, freq, sizeof freq);
+	reg_w_buf(gspca_dev, freq, sizeof freq);
 }
 
 static void setcontrast(struct gspca_dev *gspca_dev)
@@ -760,25 +761,25 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	if (sd->sensor == SENSOR_TAS5130A) {
 		i = 0;
 		while (tas5130a_sensor_init[i][0] != 0) {
-			i2c_w(gspca_dev, tas5130a_sensor_init[i],
+			reg_w_buf(gspca_dev, tas5130a_sensor_init[i],
 					 sizeof tas5130a_sensor_init[0]);
 			i++;
 		}
 		reg_w(gspca_dev, 0x3c80);
 		/* just in case and to keep sync with logs (for mine) */
-		i2c_w(gspca_dev, tas5130a_sensor_init[3],
+		reg_w_buf(gspca_dev, tas5130a_sensor_init[3],
 				 sizeof tas5130a_sensor_init[0]);
 		reg_w(gspca_dev, 0x3c80);
 	} else {
 		other_sensor_init(gspca_dev);
 	}
 	/* just in case and to keep sync with logs  (for mine) */
-	i2c_w(gspca_dev, t1, sizeof t1);
-	i2c_w(gspca_dev, t2, sizeof t2);
+	reg_w_buf(gspca_dev, t1, sizeof t1);
+	reg_w_buf(gspca_dev, t2, sizeof t2);
 	reg_r(gspca_dev, 0x0012);
-	i2c_w(gspca_dev, t3, sizeof t3);
+	reg_w_buf(gspca_dev, t3, sizeof t3);
 	reg_w(gspca_dev, 0x0013);
-	i2c_w(gspca_dev, t4, sizeof t4);
+	reg_w_buf(gspca_dev, t4, sizeof t4);
 	/* restart on each start, just in case, sometimes regs goes wrong
 	 * when using controls from app */
 	setbrightness(gspca_dev);
