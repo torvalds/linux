@@ -2523,9 +2523,6 @@ int ext4_mb_init(struct super_block *sb, int needs_recovery)
 	}
 
 	spin_lock_init(&sbi->s_md_lock);
-	INIT_LIST_HEAD(&sbi->s_active_transaction);
-	INIT_LIST_HEAD(&sbi->s_closed_transaction);
-	INIT_LIST_HEAD(&sbi->s_committed_transaction);
 	spin_lock_init(&sbi->s_bal_lock);
 
 	sbi->s_mb_max_to_scan = MB_DEFAULT_MAX_TO_SCAN;
@@ -2553,6 +2550,8 @@ int ext4_mb_init(struct super_block *sb, int needs_recovery)
 
 	ext4_mb_init_per_dev_proc(sb);
 	ext4_mb_history_init(sb);
+
+	sbi->s_journal->j_commit_callback = release_blocks_on_commit;
 
 	printk(KERN_INFO "EXT4-fs: mballoc enabled\n");
 	return 0;
@@ -2582,15 +2581,6 @@ int ext4_mb_release(struct super_block *sb)
 	int num_meta_group_infos;
 	struct ext4_group_info *grinfo;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-
-	/* release freed, non-committed blocks */
-	spin_lock(&sbi->s_md_lock);
-	list_splice_init(&sbi->s_closed_transaction,
-			&sbi->s_committed_transaction);
-	list_splice_init(&sbi->s_active_transaction,
-			&sbi->s_committed_transaction);
-	spin_unlock(&sbi->s_md_lock);
-	ext4_mb_free_committed_blocks(sb);
 
 	if (sbi->s_group_info) {
 		for (i = 0; i < sbi->s_groups_count; i++) {
@@ -2645,36 +2635,25 @@ int ext4_mb_release(struct super_block *sb)
 	return 0;
 }
 
-static noinline_for_stack void
-ext4_mb_free_committed_blocks(struct super_block *sb)
+/*
+ * This function is called by the jbd2 layer once the commit has finished,
+ * so we know we can free the blocks that were released with that commit.
+ */
+static void release_blocks_on_commit(journal_t *journal, transaction_t *txn)
 {
+	struct super_block *sb = journal->j_private;
 	struct ext4_buddy e4b;
 	struct ext4_group_info *db;
-	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	int err, count = 0, count2 = 0;
 	struct ext4_free_data *entry;
 	ext4_fsblk_t discard_block;
+	struct list_head *l, *ltmp;
 
-	if (list_empty(&sbi->s_committed_transaction))
-		return;
-
-	/* there is committed blocks to be freed yet */
-	do {
-		/* get next array of blocks */
-		entry = NULL;
-		spin_lock(&sbi->s_md_lock);
-		if (!list_empty(&sbi->s_committed_transaction)) {
-			entry = list_entry(sbi->s_committed_transaction.next,
-					struct ext4_free_data, list);
-			list_del(&entry->list);
-		}
-		spin_unlock(&sbi->s_md_lock);
-
-		if (entry == NULL)
-			break;
+	list_for_each_safe(l, ltmp, &txn->t_private_list) {
+		entry = list_entry(l, struct ext4_free_data, list);
 
 		mb_debug("gonna free %u blocks in group %lu (0x%p):",
-				entry->count, entry->group, entry);
+			 entry->count, entry->group, entry);
 
 		err = ext4_mb_load_buddy(sb, entry->group, &e4b);
 		/* we expect to find existing buddy because it's pinned */
@@ -2706,7 +2685,7 @@ ext4_mb_free_committed_blocks(struct super_block *sb)
 
 		kmem_cache_free(ext4_free_ext_cachep, entry);
 		ext4_mb_release_desc(&e4b);
-	} while (1);
+	}
 
 	mb_debug("freed %u blocks in %u structures\n", count, count2);
 }
@@ -4348,8 +4327,6 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 		goto out1;
 	}
 
-	ext4_mb_poll_new_transaction(sb, handle);
-
 	*errp = ext4_mb_initialize_context(ac, ar);
 	if (*errp) {
 		ar->len = 0;
@@ -4407,36 +4384,6 @@ out1:
 		DQUOT_FREE_BLOCK(ar->inode, inquota - ar->len);
 
 	return block;
-}
-static void ext4_mb_poll_new_transaction(struct super_block *sb,
-						handle_t *handle)
-{
-	struct ext4_sb_info *sbi = EXT4_SB(sb);
-
-	if (sbi->s_last_transaction == handle->h_transaction->t_tid)
-		return;
-
-	/* new transaction! time to close last one and free blocks for
-	 * committed transaction. we know that only transaction can be
-	 * active, so previos transaction can be being logged and we
-	 * know that transaction before previous is known to be already
-	 * logged. this means that now we may free blocks freed in all
-	 * transactions before previous one. hope I'm clear enough ... */
-
-	spin_lock(&sbi->s_md_lock);
-	if (sbi->s_last_transaction != handle->h_transaction->t_tid) {
-		mb_debug("new transaction %lu, old %lu\n",
-				(unsigned long) handle->h_transaction->t_tid,
-				(unsigned long) sbi->s_last_transaction);
-		list_splice_init(&sbi->s_closed_transaction,
-				&sbi->s_committed_transaction);
-		list_splice_init(&sbi->s_active_transaction,
-				&sbi->s_closed_transaction);
-		sbi->s_last_transaction = handle->h_transaction->t_tid;
-	}
-	spin_unlock(&sbi->s_md_lock);
-
-	ext4_mb_free_committed_blocks(sb);
 }
 
 /*
@@ -4531,9 +4478,9 @@ ext4_mb_free_metadata(handle_t *handle, struct ext4_buddy *e4b,
 			kmem_cache_free(ext4_free_ext_cachep, entry);
 		}
 	}
-	/* Add the extent to active_transaction list */
+	/* Add the extent to transaction's private list */
 	spin_lock(&sbi->s_md_lock);
-	list_add(&new_entry->list, &sbi->s_active_transaction);
+	list_add(&new_entry->list, &handle->h_transaction->t_private_list);
 	spin_unlock(&sbi->s_md_lock);
 	ext4_unlock_group(sb, group);
 	return 0;
@@ -4561,8 +4508,6 @@ void ext4_mb_free_blocks(handle_t *handle, struct inode *inode,
 	int ret;
 
 	*freed = 0;
-
-	ext4_mb_poll_new_transaction(sb, handle);
 
 	sbi = EXT4_SB(sb);
 	es = EXT4_SB(sb)->s_es;

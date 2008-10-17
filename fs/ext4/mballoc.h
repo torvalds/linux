@@ -269,8 +269,6 @@ struct buffer_head *read_block_bitmap(struct super_block *, ext4_group_t);
 
 static void ext4_mb_generate_from_pa(struct super_block *sb, void *bitmap,
 					ext4_group_t group);
-static void ext4_mb_poll_new_transaction(struct super_block *, handle_t *);
-static void ext4_mb_free_committed_blocks(struct super_block *);
 static void ext4_mb_return_to_preallocation(struct inode *inode,
 					struct ext4_buddy *e4b, sector_t block,
 					int count);
@@ -278,6 +276,7 @@ static void ext4_mb_put_pa(struct ext4_allocation_context *,
 			struct super_block *, struct ext4_prealloc_space *pa);
 static int ext4_mb_init_per_dev_proc(struct super_block *sb);
 static int ext4_mb_destroy_per_dev_proc(struct super_block *sb);
+static void release_blocks_on_commit(journal_t *journal, transaction_t *txn);
 
 
 static inline void ext4_lock_group(struct super_block *sb, ext4_group_t group)
