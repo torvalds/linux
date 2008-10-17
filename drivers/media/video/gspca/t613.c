@@ -188,7 +188,7 @@ static struct ctrl sd_ctrls[] = {
 	  .minimum = 0,
 	  .maximum = 1,
 	  .step = 1,
-	  .default_value = 1,
+	  .default_value = 0,
 	  },
 	 .set = sd_setwhitebalance,
 	 .get = sd_getwhitebalance
