@@ -199,10 +199,9 @@ static int FREQ_TO_REG(int freq)
 {
 	int i;
 
-	if (freq >= lm85_freq_map[7])
-		return 7;
+	/* Find the closest match */
 	for (i = 0; i < 7; ++i)
-		if (freq <= lm85_freq_map[i])
+		if (freq <= (lm85_freq_map[i] + lm85_freq_map[i + 1]) / 2)
 			break;
 	return i;
 }
