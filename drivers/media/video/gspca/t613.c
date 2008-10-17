@@ -385,7 +385,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 	usb_control_msg(gspca_dev->dev,
 			usb_sndctrlpipe(gspca_dev->dev, 0),
 			0,
-			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0, index,
 			NULL, 0, 500);
 }
@@ -398,7 +398,7 @@ static void reg_w_buf(struct gspca_dev *gspca_dev,
 		usb_control_msg(gspca_dev->dev,
 				usb_sndctrlpipe(gspca_dev->dev, 0),
 				0,
-			   USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+			   USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 				0x01, 0,
 				gspca_dev->usb_buf, len, 500);
 	} else {
@@ -409,7 +409,7 @@ static void reg_w_buf(struct gspca_dev *gspca_dev,
 		usb_control_msg(gspca_dev->dev,
 				usb_sndctrlpipe(gspca_dev->dev, 0),
 				0,
-			   USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+			   USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 				0x01, 0,
 				tmpbuf, len, 500);
 		kfree(tmpbuf);
