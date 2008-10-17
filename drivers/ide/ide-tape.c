@@ -2108,7 +2108,7 @@ static void idetape_get_mode_sense_results(ide_drive_t *drive)
 
 	/* device lacks locking support according to capabilities page */
 	if ((caps[6] & 1) == 0)
-		drive->atapi_flags |= IDE_AFLAG_NO_DOORLOCK;
+		drive->dev_flags &= ~IDE_DFLAG_DOORLOCKING;
 
 	if (caps[7] & 0x02)
 		tape->blk_size = 512;

@@ -208,6 +208,7 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 		drive->ready_stat = 0;
 		if (ata_id_cdb_intr(id))
 			drive->atapi_flags |= IDE_AFLAG_DRQ_INTERRUPT;
+		drive->dev_flags |= IDE_DFLAG_DOORLOCKING;
 		/* we don't do head unloading on ATAPI devices */
 		drive->dev_flags |= IDE_DFLAG_NO_UNLOAD;
 		return;

@@ -464,8 +464,6 @@ struct ide_acpi_hwif_link;
 /* ATAPI device flags */
 enum {
 	IDE_AFLAG_DRQ_INTERRUPT		= (1 << 0),
-	/* Drive cannot lock the door. */
-	IDE_AFLAG_NO_DOORLOCK		= (1 << 2),
 
 	/* ide-cd */
 	/* Drive cannot eject the disc. */
