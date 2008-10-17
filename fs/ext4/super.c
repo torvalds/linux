@@ -374,66 +374,6 @@ void ext4_update_dynamic_rev(struct super_block *sb)
 	 */
 }
 
-int ext4_update_compat_feature(handle_t *handle,
-					struct super_block *sb, __u32 compat)
-{
-	int err = 0;
-	if (!EXT4_HAS_COMPAT_FEATURE(sb, compat)) {
-		err = ext4_journal_get_write_access(handle,
-				EXT4_SB(sb)->s_sbh);
-		if (err)
-			return err;
-		EXT4_SET_COMPAT_FEATURE(sb, compat);
-		sb->s_dirt = 1;
-		handle->h_sync = 1;
-		BUFFER_TRACE(EXT4_SB(sb)->s_sbh,
-					"call ext4_journal_dirty_met adata");
-		err = ext4_journal_dirty_metadata(handle,
-				EXT4_SB(sb)->s_sbh);
-	}
-	return err;
-}
-
-int ext4_update_rocompat_feature(handle_t *handle,
-					struct super_block *sb, __u32 rocompat)
-{
-	int err = 0;
-	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb, rocompat)) {
-		err = ext4_journal_get_write_access(handle,
-				EXT4_SB(sb)->s_sbh);
-		if (err)
-			return err;
-		EXT4_SET_RO_COMPAT_FEATURE(sb, rocompat);
-		sb->s_dirt = 1;
-		handle->h_sync = 1;
-		BUFFER_TRACE(EXT4_SB(sb)->s_sbh,
-					"call ext4_journal_dirty_met adata");
-		err = ext4_journal_dirty_metadata(handle,
-				EXT4_SB(sb)->s_sbh);
-	}
-	return err;
-}
-
-int ext4_update_incompat_feature(handle_t *handle,
-					struct super_block *sb, __u32 incompat)
-{
-	int err = 0;
-	if (!EXT4_HAS_INCOMPAT_FEATURE(sb, incompat)) {
-		err = ext4_journal_get_write_access(handle,
-				EXT4_SB(sb)->s_sbh);
-		if (err)
-			return err;
-		EXT4_SET_INCOMPAT_FEATURE(sb, incompat);
-		sb->s_dirt = 1;
-		handle->h_sync = 1;
-		BUFFER_TRACE(EXT4_SB(sb)->s_sbh,
-					"call ext4_journal_dirty_met adata");
-		err = ext4_journal_dirty_metadata(handle,
-				EXT4_SB(sb)->s_sbh);
-	}
-	return err;
-}
-
 /*
  * Open the external journal device
  */
@@ -1771,13 +1711,13 @@ static void ext4_orphan_cleanup(struct super_block *sb,
  *
  * Note, this does *not* consider any metadata overhead for vfs i_blocks.
  */
-static loff_t ext4_max_size(int blkbits)
+static loff_t ext4_max_size(int blkbits, int has_huge_files)
 {
 	loff_t res;
 	loff_t upper_limit = MAX_LFS_FILESIZE;
 
 	/* small i_blocks in vfs inode? */
-	if (sizeof(blkcnt_t) < sizeof(u64)) {
+	if (!has_huge_files || sizeof(blkcnt_t) < sizeof(u64)) {
 		/*
 		 * CONFIG_LSF is not enabled implies the inode
 		 * i_block represent total blocks in 512 bytes
@@ -1807,7 +1747,7 @@ static loff_t ext4_max_size(int blkbits)
  * block limit, and also a limit of (2^48 - 1) 512-byte sectors in i_blocks.
  * We need to be 1 filesystem block less than the 2^48 sector limit.
  */
-static loff_t ext4_max_bitmap_size(int bits)
+static loff_t ext4_max_bitmap_size(int bits, int has_huge_files)
 {
 	loff_t res = EXT4_NDIR_BLOCKS;
 	int meta_blocks;
@@ -1820,11 +1760,11 @@ static loff_t ext4_max_bitmap_size(int bits)
 	 * total number of  512 bytes blocks of the file
 	 */
 
-	if (sizeof(blkcnt_t) < sizeof(u64)) {
+	if (!has_huge_files || sizeof(blkcnt_t) < sizeof(u64)) {
 		/*
-		 * CONFIG_LSF is not enabled implies the inode
-		 * i_block represent total blocks in 512 bytes
-		 * 32 == size of vfs inode i_blocks * 8
+		 * !has_huge_files or CONFIG_LSF is not enabled
+		 * implies the inode i_block represent total blocks in
+		 * 512 bytes 32 == size of vfs inode i_blocks * 8
 		 */
 		upper_limit = (1LL << 32) - 1;
 
@@ -1933,7 +1873,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	int blocksize;
 	int db_count;
 	int i;
-	int needs_recovery;
+	int needs_recovery, has_huge_files;
 	__le32 features;
 	__u64 blocks_count;
 	int err;
@@ -2074,7 +2014,9 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		       sb->s_id, le32_to_cpu(features));
 		goto failed_mount;
 	}
-	if (EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_HUGE_FILE)) {
+	has_huge_files = EXT4_HAS_RO_COMPAT_FEATURE(sb,
+				    EXT4_FEATURE_RO_COMPAT_HUGE_FILE);
+	if (has_huge_files) {
 		/*
 		 * Large file size enabled file system can only be
 		 * mount if kernel is build with CONFIG_LSF
@@ -2124,8 +2066,9 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		}
 	}
 
-	sbi->s_bitmap_maxbytes = ext4_max_bitmap_size(sb->s_blocksize_bits);
-	sb->s_maxbytes = ext4_max_size(sb->s_blocksize_bits);
+	sbi->s_bitmap_maxbytes = ext4_max_bitmap_size(sb->s_blocksize_bits,
+						      has_huge_files);
+	sb->s_maxbytes = ext4_max_size(sb->s_blocksize_bits, has_huge_files);
 
 	if (le32_to_cpu(es->s_rev_level) == EXT4_GOOD_OLD_REV) {
 		sbi->s_inode_size = EXT4_GOOD_OLD_INODE_SIZE;

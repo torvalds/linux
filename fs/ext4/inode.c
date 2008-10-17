@@ -4194,7 +4194,6 @@ static int ext4_inode_blocks_set(handle_t *handle,
 	struct inode *inode = &(ei->vfs_inode);
 	u64 i_blocks = inode->i_blocks;
 	struct super_block *sb = inode->i_sb;
-	int err = 0;
 
 	if (i_blocks <= ~0U) {
 		/*
@@ -4204,36 +4203,27 @@ static int ext4_inode_blocks_set(handle_t *handle,
 		raw_inode->i_blocks_lo   = cpu_to_le32(i_blocks);
 		raw_inode->i_blocks_high = 0;
 		ei->i_flags &= ~EXT4_HUGE_FILE_FL;
-	} else if (i_blocks <= 0xffffffffffffULL) {
+		return 0;
+	}
+	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_HUGE_FILE))
+		return -EFBIG;
+
+	if (i_blocks <= 0xffffffffffffULL) {
 		/*
 		 * i_blocks can be represented in a 48 bit variable
 		 * as multiple of 512 bytes
 		 */
-		err = ext4_update_rocompat_feature(handle, sb,
-					    EXT4_FEATURE_RO_COMPAT_HUGE_FILE);
-		if (err)
-			goto  err_out;
-		/* i_block is stored in the split  48 bit fields */
 		raw_inode->i_blocks_lo   = cpu_to_le32(i_blocks);
 		raw_inode->i_blocks_high = cpu_to_le16(i_blocks >> 32);
 		ei->i_flags &= ~EXT4_HUGE_FILE_FL;
 	} else {
-		/*
-		 * i_blocks should be represented in a 48 bit variable
-		 * as multiple of  file system block size
-		 */
-		err = ext4_update_rocompat_feature(handle, sb,
-					    EXT4_FEATURE_RO_COMPAT_HUGE_FILE);
-		if (err)
-			goto  err_out;
 		ei->i_flags |= EXT4_HUGE_FILE_FL;
 		/* i_block is stored in file system block size */
 		i_blocks = i_blocks >> (inode->i_blkbits - 9);
 		raw_inode->i_blocks_lo   = cpu_to_le32(i_blocks);
 		raw_inode->i_blocks_high = cpu_to_le16(i_blocks >> 32);
 	}
-err_out:
-	return err;
+	return 0;
 }
 
 /*
