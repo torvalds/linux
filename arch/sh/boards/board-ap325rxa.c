@@ -294,6 +294,9 @@ static struct platform_device *ap325rxa_devices[] __initdata = {
 };
 
 static struct i2c_board_info __initdata ap325rxa_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("pcf8563", 0x51),
+	},
 };
 
 static int __init ap325rxa_devices_setup(void)
