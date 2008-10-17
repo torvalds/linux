@@ -511,7 +511,6 @@ do {									       \
 /*
  * Mount flags
  */
-#define EXT4_MOUNT_CHECK		0x00001	/* Do mount-time checks */
 #define EXT4_MOUNT_OLDALLOC		0x00002  /* Don't use the new Orlov allocator */
 #define EXT4_MOUNT_GRPID		0x00004	/* Create files with directory's group */
 #define EXT4_MOUNT_DEBUG		0x00008	/* Some debugging messages */
