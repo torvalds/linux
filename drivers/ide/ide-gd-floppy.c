@@ -77,6 +77,18 @@ static void ide_disk_release(struct kref *kref)
 	kfree(idkp);
 }
 
+#ifdef CONFIG_IDE_PROC_FS
+static ide_proc_entry_t *ide_floppy_proc_entries(ide_drive_t *drive)
+{
+	return ide_floppy_proc;
+}
+
+static const struct ide_proc_devset *ide_floppy_proc_devsets(ide_drive_t *drive)
+{
+	return ide_floppy_settings;
+}
+#endif
+
 static ide_driver_t ide_gd_driver = {
 	.gen_driver = {
 		.owner		= THIS_MODULE,
@@ -90,8 +102,8 @@ static ide_driver_t ide_gd_driver = {
 	.end_request		= ide_floppy_end_request,
 	.error			= __ide_error,
 #ifdef CONFIG_IDE_PROC_FS
-	.proc			= ide_floppy_proc,
-	.settings		= ide_floppy_settings,
+	.proc_entries		= ide_floppy_proc_entries,
+	.proc_devsets		= ide_floppy_proc_devsets,
 #endif
 };
 

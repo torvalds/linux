@@ -1120,8 +1120,8 @@ struct ide_driver_s {
 	void		(*resume)(ide_drive_t *);
 	void		(*shutdown)(ide_drive_t *);
 #ifdef CONFIG_IDE_PROC_FS
-	ide_proc_entry_t		*proc;
-	const struct ide_proc_devset	*settings;
+	ide_proc_entry_t *		(*proc_entries)(ide_drive_t *);
+	const struct ide_proc_devset *	(*proc_devsets)(ide_drive_t *);
 #endif
 };
 

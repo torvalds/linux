@@ -1908,6 +1908,16 @@ static const struct ide_proc_devset idecd_settings[] = {
 	IDE_PROC_DEVSET(dsc_overlap, 0, 1),
 	{ 0 },
 };
+
+static ide_proc_entry_t *ide_cd_proc_entries(ide_drive_t *drive)
+{
+	return idecd_proc;
+}
+
+static const struct ide_proc_devset *ide_cd_proc_devsets(ide_drive_t *drive)
+{
+	return idecd_settings;
+}
 #endif
 
 static const struct cd_list_entry ide_cd_quirks_list[] = {
@@ -2069,8 +2079,8 @@ static ide_driver_t ide_cdrom_driver = {
 	.end_request		= ide_end_request,
 	.error			= __ide_error,
 #ifdef CONFIG_IDE_PROC_FS
-	.proc			= idecd_proc,
-	.settings		= idecd_settings,
+	.proc_entries		= ide_cd_proc_entries,
+	.proc_devsets		= ide_cd_proc_devsets,
 #endif
 };
 
