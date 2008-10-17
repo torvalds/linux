@@ -560,12 +560,12 @@ static int __init debugfs_unaligned(void)
 		return -ENODEV;
 	d = debugfs_create_u32("unaligned_instructions", S_IRUGO,
 			       mips_debugfs_dir, &unaligned_instructions);
-	if (IS_ERR(d))
-		return PTR_ERR(d);
+	if (!d)
+		return -ENOMEM;
 	d = debugfs_create_u32("unaligned_action", S_IRUGO | S_IWUSR,
 			       mips_debugfs_dir, &unaligned_action);
-	if (IS_ERR(d))
-		return PTR_ERR(d);
+	if (!d)
+		return -ENOMEM;
 	return 0;
 }
 __initcall(debugfs_unaligned);
