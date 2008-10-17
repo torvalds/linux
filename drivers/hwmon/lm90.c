@@ -6,9 +6,7 @@
  * Based on the lm83 driver. The LM90 is a sensor chip made by National
  * Semiconductor. It reports up to two temperatures (its own plus up to
  * one external one) with a 0.125 deg resolution (1 deg for local
- * temperature) and a 3-4 deg accuracy. Complete datasheet can be
- * obtained from National's website at:
- *   http://www.national.com/pf/LM/LM90.html
+ * temperature) and a 3-4 deg accuracy.
  *
  * This driver also supports the LM89 and LM99, two other sensor chips
  * made by National Semiconductor. Both have an increased remote
@@ -16,29 +14,19 @@
  * additionally shifts remote temperatures (measured and limits) by 16
  * degrees, which allows for higher temperatures measurement. The
  * driver doesn't handle it since it can be done easily in user-space.
- * Complete datasheets can be obtained from National's website at:
- *   http://www.national.com/pf/LM/LM89.html
- *   http://www.national.com/pf/LM/LM99.html
  * Note that there is no way to differentiate between both chips.
  *
  * This driver also supports the LM86, another sensor chip made by
  * National Semiconductor. It is exactly similar to the LM90 except it
  * has a higher accuracy.
- * Complete datasheet can be obtained from National's website at:
- *   http://www.national.com/pf/LM/LM86.html
  *
  * This driver also supports the ADM1032, a sensor chip made by Analog
  * Devices. That chip is similar to the LM90, with a few differences
- * that are not handled by this driver. Complete datasheet can be
- * obtained from Analog's website at:
- *   http://www.analog.com/en/prod/0,2877,ADM1032,00.html
- * Among others, it has a higher accuracy than the LM90, much like the
- * LM86 does.
+ * that are not handled by this driver. Among others, it has a higher
+ * accuracy than the LM90, much like the LM86 does.
  *
  * This driver also supports the MAX6657, MAX6658 and MAX6659 sensor
- * chips made by Maxim. These chips are similar to the LM86. Complete
- * datasheet can be obtained at Maxim's website at:
- *   http://www.maxim-ic.com/quick_view2.cfm/qv_pk/2578
+ * chips made by Maxim. These chips are similar to the LM86.
  * Note that there is no easy way to differentiate between the three
  * variants. The extra address and features of the MAX6659 are not
  * supported by this driver. These chips lack the remote temperature
@@ -46,18 +34,14 @@
  *
  * This driver also supports the MAX6680 and MAX6681, two other sensor
  * chips made by Maxim. These are quite similar to the other Maxim
- * chips. Complete datasheet can be obtained at:
- *   http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3370
- * The MAX6680 and MAX6681 only differ in the pinout so they can be
- * treated identically.
+ * chips. The MAX6680 and MAX6681 only differ in the pinout so they can
+ * be treated identically.
  *
  * This driver also supports the ADT7461 chip from Analog Devices but
  * only in its "compatability mode". If an ADT7461 chip is found but
  * is configured in non-compatible mode (where its temperature
  * register values are decoded differently) it is ignored by this
- * driver. Complete datasheet can be obtained from Analog's website
- * at:
- *   http://www.analog.com/en/prod/0,2877,ADT7461,00.html
+ * driver.
  *
  * Since the LM90 was the first chipset supported by this driver, most
  * comments will refer to this chipset, but are actually general and

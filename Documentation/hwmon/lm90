@@ -11,7 +11,7 @@ Supported chips:
     Prefix: 'lm99'
     Addresses scanned: I2C 0x4c and 0x4d
     Datasheet: Publicly available at the National Semiconductor website
-               http://www.national.com/pf/LM/LM89.html
+               http://www.national.com/mpf/LM/LM89.html
   * National Semiconductor LM99
     Prefix: 'lm99'
     Addresses scanned: I2C 0x4c and 0x4d
@@ -21,17 +21,17 @@ Supported chips:
     Prefix: 'lm86'
     Addresses scanned: I2C 0x4c
     Datasheet: Publicly available at the National Semiconductor website
-               http://www.national.com/pf/LM/LM86.html
+               http://www.national.com/mpf/LM/LM86.html
   * Analog Devices ADM1032
     Prefix: 'adm1032'
     Addresses scanned: I2C 0x4c and 0x4d
-    Datasheet: Publicly available at the Analog Devices website
-               http://www.analog.com/en/prod/0,2877,ADM1032,00.html
+    Datasheet: Publicly available at the ON Semiconductor website
+               http://www.onsemi.com/PowerSolutions/product.do?id=ADM1032
   * Analog Devices ADT7461
     Prefix: 'adt7461'
     Addresses scanned: I2C 0x4c and 0x4d
-    Datasheet: Publicly available at the Analog Devices website
-               http://www.analog.com/en/prod/0,2877,ADT7461,00.html
+    Datasheet: Publicly available at the ON Semiconductor website
+               http://www.onsemi.com/PowerSolutions/product.do?id=ADT7461
     Note: Only if in ADM1032 compatibility mode
   * Maxim MAX6657
     Prefix: 'max6657'
