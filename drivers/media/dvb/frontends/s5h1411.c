@@ -343,7 +343,7 @@ static int s5h1411_writereg(struct s5h1411_state *state,
 	u8 addr, u8 reg, u16 data)
 {
 	int ret;
-	u8 buf [] = { reg, data >> 8,  data & 0xff };
+	u8 buf[] = { reg, data >> 8,  data & 0xff };
 
 	struct i2c_msg msg = { .addr = addr, .flags = 0, .buf = buf, .len = 3 };
 
@@ -359,10 +359,10 @@ static int s5h1411_writereg(struct s5h1411_state *state,
 static u16 s5h1411_readreg(struct s5h1411_state *state, u8 addr, u8 reg)
 {
 	int ret;
-	u8 b0 [] = { reg };
-	u8 b1 [] = { 0, 0 };
+	u8 b0[] = { reg };
+	u8 b1[] = { 0, 0 };
 
-	struct i2c_msg msg [] = {
+	struct i2c_msg msg[] = {
 		{ .addr = addr, .flags = 0, .buf = b0, .len = 1 },
 		{ .addr = addr, .flags = I2C_M_RD, .buf = b1, .len = 2 } };
 

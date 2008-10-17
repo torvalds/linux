@@ -767,6 +767,14 @@ void cx88_set_tvaudio(struct cx88_core *core)
 	case WW_FM:
 		set_audio_standard_FM(core, radio_deemphasis);
 		break;
+	case WW_I2SADC:
+		set_audio_start(core, 0x01);
+		/* Slave/Philips/Autobaud */
+		cx_write(AUD_I2SINPUTCNTL, 0);
+		/* Switch to "I2S ADC mode" */
+		cx_write(AUD_I2SCNTL, 0x1);
+		set_audio_finish(core, EN_I2SIN_ENABLE);
+		break;
 	case WW_NONE:
 	default:
 		printk("%s/0: unknown tv audio mode [%d]\n",
@@ -894,6 +902,9 @@ void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual)
 			mask = 0x3f;
 			break;
 		}
+		break;
+	case WW_I2SADC:
+		/* DO NOTHING */
 		break;
 	}
 

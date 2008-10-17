@@ -62,6 +62,10 @@ struct dvb_adapter {
 	struct device *device;
 
 	struct module *module;
+
+	int mfe_shared;			/* indicates mutually exclusive frontends */
+	struct dvb_device *mfe_dvbdev;	/* frontend device in use */
+	struct mutex mfe_lock;		/* access lock for thread creation */
 };
 
 

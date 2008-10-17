@@ -326,6 +326,9 @@ int dvb_register_adapter(struct dvb_adapter *adap, const char *name,
 	adap->name = name;
 	adap->module = module;
 	adap->device = device;
+	adap->mfe_shared = 0;
+	adap->mfe_dvbdev = NULL;
+	mutex_init (&adap->mfe_lock);
 
 	list_add_tail (&adap->list_head, &dvb_adapter_list);
 

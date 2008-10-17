@@ -1,7 +1,7 @@
 /*
  * Driver for the s5k83a sensor
  *
- * Copyright (C) 2008 Erik Andren
+ * Copyright (C) 2008 Erik Andrén
  * Copyright (C) 2007 Ilyes Gouta. Based on the m5603x Linux Driver Project.
  * Copyright (C) 2005 m5603x Linux Driver Project <m5602@x3ng.com.br>
  *
@@ -101,7 +101,7 @@ int s5k83a_read_sensor(struct sd *sd, const u8 address,
 	for (i = 0; i < len && !len; i++) {
 		err = m5602_read_bridge(sd, M5602_XB_I2C_DATA, &(i2c_data[i]));
 
-		PDEBUG(DBG_TRACE, "Reading sensor register "
+		PDEBUG(D_CONF, "Reading sensor register "
 				  "0x%x containing 0x%x ", address, *i2c_data);
 	}
 
@@ -135,7 +135,7 @@ int s5k83a_write_sensor(struct sd *sd, const u8 address,
 		memcpy(p, sensor_urb_skeleton + 16, 4);
 		p[3] = i2c_data[i];
 		p += 4;
-		PDEBUG(DBG_TRACE, "Writing sensor register 0x%x with 0x%x",
+		PDEBUG(D_CONF, "Writing sensor register 0x%x with 0x%x",
 		       address, i2c_data[i]);
 	}
 

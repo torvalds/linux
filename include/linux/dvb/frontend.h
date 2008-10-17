@@ -166,6 +166,7 @@ typedef enum fe_modulation {
 	VSB_16,
 	PSK_8,
 	APSK_16,
+	APSK_32,
 	DQPSK,
 } fe_modulation_t;
 
@@ -295,6 +296,7 @@ typedef enum fe_delivery_system {
 	SYS_DVBC_ANNEX_AC,
 	SYS_DVBC_ANNEX_B,
 	SYS_DVBT,
+	SYS_DSS,
 	SYS_DVBS,
 	SYS_DVBS2,
 	SYS_DVBH,
