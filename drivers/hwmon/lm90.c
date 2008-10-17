@@ -219,17 +219,17 @@ struct lm90_data {
  * LSB = 0.125 degree Celsius, left-justified in 16-bit registers.
  */
 
-static inline int temp1_from_reg(s8 val)
+static inline int temp_from_s8(s8 val)
 {
 	return val * 1000;
 }
 
-static inline int temp2_from_reg(s16 val)
+static inline int temp_from_s16(s16 val)
 {
 	return val / 32 * 125;
 }
 
-static s8 temp1_to_reg(long val)
+static s8 temp_to_s8(long val)
 {
 	if (val <= -128000)
 		return -128;
@@ -240,7 +240,7 @@ static s8 temp1_to_reg(long val)
 	return (val + 500) / 1000;
 }
 
-static s16 temp2_to_reg(long val)
+static s16 temp_to_s16(long val)
 {
 	if (val <= -128000)
 		return 0x8000;
@@ -268,23 +268,23 @@ static u8 hyst_to_reg(long val)
  * ADT7461 in "extended mode" operation uses unsigned integers offset by
  * 64 (e.g., 0 -> -64 degC).  The range is restricted to -64..191 degC.
  */
-static inline int temp1_from_reg_adt7461(struct lm90_data *data, u8 val)
+static inline int temp_from_u8_adt7461(struct lm90_data *data, u8 val)
 {
 	if (data->flags & LM90_FLAG_ADT7461_EXT)
 		return (val - 64) * 1000;
 	else
-		return temp1_from_reg(val);
+		return temp_from_s8(val);
 }
 
-static inline int temp2_from_reg_adt7461(struct lm90_data *data, u16 val)
+static inline int temp_from_u16_adt7461(struct lm90_data *data, u16 val)
 {
 	if (data->flags & LM90_FLAG_ADT7461_EXT)
 		return (val - 0x4000) / 64 * 250;
 	else
-		return temp2_from_reg(val);
+		return temp_from_s16(val);
 }
 
-static u8 temp1_to_reg_adt7461(struct lm90_data *data, long val)
+static u8 temp_to_u8_adt7461(struct lm90_data *data, long val)
 {
 	if (data->flags & LM90_FLAG_ADT7461_EXT) {
 		if (val <= -64000)
@@ -301,7 +301,7 @@ static u8 temp1_to_reg_adt7461(struct lm90_data *data, long val)
 	}
 }
 
-static u16 temp2_to_reg_adt7461(struct lm90_data *data, long val)
+static u16 temp_to_u16_adt7461(struct lm90_data *data, long val)
 {
 	if (data->flags & LM90_FLAG_ADT7461_EXT) {
 		if (val <= -64000)
@@ -330,9 +330,9 @@ static ssize_t show_temp8(struct device *dev, struct device_attribute *devattr,
 	int temp;
 
 	if (data->kind == adt7461)
-		temp = temp1_from_reg_adt7461(data, data->temp8[attr->index]);
+		temp = temp_from_u8_adt7461(data, data->temp8[attr->index]);
 	else
-		temp = temp1_from_reg(data->temp8[attr->index]);
+		temp = temp_from_s8(data->temp8[attr->index]);
 
 	return sprintf(buf, "%d\n", temp);
 }
@@ -355,9 +355,9 @@ static ssize_t set_temp8(struct device *dev, struct device_attribute *devattr,
 
 	mutex_lock(&data->update_lock);
 	if (data->kind == adt7461)
-		data->temp8[nr] = temp1_to_reg_adt7461(data, val);
+		data->temp8[nr] = temp_to_u8_adt7461(data, val);
 	else
-		data->temp8[nr] = temp1_to_reg(val);
+		data->temp8[nr] = temp_to_s8(val);
 	i2c_smbus_write_byte_data(client, reg[nr], data->temp8[nr]);
 	mutex_unlock(&data->update_lock);
 	return count;
@@ -371,9 +371,9 @@ static ssize_t show_temp11(struct device *dev, struct device_attribute *devattr,
 	int temp;
 
 	if (data->kind == adt7461)
-		temp = temp2_from_reg_adt7461(data, data->temp11[attr->index]);
+		temp = temp_from_u16_adt7461(data, data->temp11[attr->index]);
 	else
-		temp = temp2_from_reg(data->temp11[attr->index]);
+		temp = temp_from_s16(data->temp11[attr->index]);
 
 	return sprintf(buf, "%d\n", temp);
 }
@@ -398,11 +398,11 @@ static ssize_t set_temp11(struct device *dev, struct device_attribute *devattr,
 
 	mutex_lock(&data->update_lock);
 	if (data->kind == adt7461)
-		data->temp11[nr] = temp2_to_reg_adt7461(data, val);
+		data->temp11[nr] = temp_to_u16_adt7461(data, val);
 	else if (data->kind == max6657 || data->kind == max6680)
-		data->temp11[nr] = temp1_to_reg(val) << 8;
+		data->temp11[nr] = temp_to_s8(val) << 8;
 	else
-		data->temp11[nr] = temp2_to_reg(val);
+		data->temp11[nr] = temp_to_s16(val);
 
 	i2c_smbus_write_byte_data(client, reg[(nr - 1) * 2],
 				  data->temp11[nr] >> 8);
@@ -421,11 +421,11 @@ static ssize_t show_temphyst(struct device *dev, struct device_attribute *devatt
 	int temp;
 
 	if (data->kind == adt7461)
-		temp = temp1_from_reg_adt7461(data, data->temp8[attr->index]);
+		temp = temp_from_u8_adt7461(data, data->temp8[attr->index]);
 	else
-		temp = temp1_from_reg(data->temp8[attr->index]);
+		temp = temp_from_s8(data->temp8[attr->index]);
 
-	return sprintf(buf, "%d\n", temp - temp1_from_reg(data->temp_hyst));
+	return sprintf(buf, "%d\n", temp - temp_from_s8(data->temp_hyst));
 }
 
 static ssize_t set_temphyst(struct device *dev, struct device_attribute *dummy,
@@ -437,7 +437,7 @@ static ssize_t set_temphyst(struct device *dev, struct device_attribute *dummy,
 	long hyst;
 
 	mutex_lock(&data->update_lock);
-	hyst = temp1_from_reg(data->temp8[2]) - val;
+	hyst = temp_from_s8(data->temp8[2]) - val;
 	i2c_smbus_write_byte_data(client, LM90_REG_W_TCRIT_HYST,
 				  hyst_to_reg(hyst));
 	mutex_unlock(&data->update_lock);
