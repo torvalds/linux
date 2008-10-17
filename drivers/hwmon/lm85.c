@@ -174,20 +174,13 @@ static int RANGE_TO_REG(int range)
 {
 	int i;
 
-	if (range >= lm85_range_map[15])
-		return 15;
-
 	/* Find the closest match */
-	for (i = 14; i >= 0; --i) {
-		if (range >= lm85_range_map[i]) {
-			if ((lm85_range_map[i + 1] - range) <
-					(range - lm85_range_map[i]))
-				return i + 1;
-			return i;
-		}
+	for (i = 0; i < 15; ++i) {
+		if (range <= (lm85_range_map[i] + lm85_range_map[i + 1]) / 2)
+			break;
 	}
 
-	return 0;
+	return i;
 }
 #define RANGE_FROM_REG(val)	lm85_range_map[(val) & 0x0f]
 
