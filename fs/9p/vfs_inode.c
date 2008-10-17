@@ -864,6 +864,7 @@ v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
 				stat->extension);
 		};
 		inode->i_rdev = MKDEV(major, minor);
+		init_special_inode(inode, inode->i_mode, inode->i_rdev);
 	} else
 		inode->i_rdev = 0;
 
