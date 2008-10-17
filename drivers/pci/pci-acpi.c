@@ -120,14 +120,35 @@ out_kfree:
 	return status;
 }
 
+static acpi_status __acpi_query_osc(u32 flags, struct acpi_osc_data *osc_data)
+{
+	acpi_status status;
+	u32 support_set;
+	struct acpi_osc_args osc_args;
+
+	/* do _OSC query for all possible controls */
+	support_set = osc_data->support_set | (flags & OSC_SUPPORT_MASKS);
+	osc_args.capbuf[OSC_QUERY_TYPE] = OSC_QUERY_ENABLE;
+	osc_args.capbuf[OSC_SUPPORT_TYPE] = support_set;
+	osc_args.capbuf[OSC_CONTROL_TYPE] = OSC_CONTROL_MASKS;
+
+	status = acpi_run_osc(osc_data->handle, &osc_args);
+	if (ACPI_SUCCESS(status)) {
+		osc_data->support_set = support_set;
+		osc_data->query_result = osc_args.query_result;
+		osc_data->is_queried = 1;
+	}
+
+	return status;
+}
+
 static acpi_status acpi_query_osc(acpi_handle handle,
 				  u32 level, void *context, void **retval)
 {
 	acpi_status status;
 	struct acpi_osc_data *osc_data;
-	u32 flags = (unsigned long)context, support_set;
+	u32 flags = (unsigned long)context;
 	acpi_handle tmp;
-	struct acpi_osc_args osc_args;
 
 	status = acpi_get_handle(handle, "_OSC", &tmp);
 	if (ACPI_FAILURE(status))
@@ -141,18 +162,7 @@ static acpi_status acpi_query_osc(acpi_handle handle,
 		goto out;
 	}
 
-	/* do _OSC query for all possible controls */
-	support_set = osc_data->support_set | (flags & OSC_SUPPORT_MASKS);
-	osc_args.capbuf[OSC_QUERY_TYPE] = OSC_QUERY_ENABLE;
-	osc_args.capbuf[OSC_SUPPORT_TYPE] = support_set;
-	osc_args.capbuf[OSC_CONTROL_TYPE] = OSC_CONTROL_MASKS;
-
-	status = acpi_run_osc(handle, &osc_args);
-	if (ACPI_SUCCESS(status)) {
-		osc_data->support_set = support_set;
-		osc_data->query_result = osc_args.query_result;
-		osc_data->is_queried = 1;
-	}
+	status = __acpi_query_osc(flags, osc_data);
 out:
 	mutex_unlock(&pci_acpi_lock);
 	return status;
@@ -209,8 +219,13 @@ acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 		goto out;
 	}
 
-	if (osc_data->is_queried &&
-	    ((osc_data->query_result & ctrlset) != ctrlset)) {
+	if (!osc_data->is_queried) {
+		status = __acpi_query_osc(osc_data->support_set, osc_data);
+		if (ACPI_FAILURE(status))
+			goto out;
+	}
+
+	if ((osc_data->query_result & ctrlset) != ctrlset) {
 		status = AE_SUPPORT;
 		goto out;
 	}
