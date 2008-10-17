@@ -1088,7 +1088,7 @@ static int scan_check_cb(struct ubifs_info *c,
 		}
 	}
 
-	sleb = ubifs_scan(c, lnum, 0, c->dbg_buf);
+	sleb = ubifs_scan(c, lnum, 0, c->dbg->buf);
 	if (IS_ERR(sleb)) {
 		/*
 		 * After an unclean unmount, empty and freeable LEBs

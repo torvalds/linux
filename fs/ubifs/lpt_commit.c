@@ -1602,7 +1602,7 @@ static int dbg_check_ltab_lnum(struct ubifs_info *c, int lnum)
 {
 	int err, len = c->leb_size, dirty = 0, node_type, node_num, node_len;
 	int ret;
-	void *buf = c->dbg_buf;
+	void *buf = c->dbg->buf;
 
 	dbg_lp("LEB %d", lnum);
 	err = ubi_read(c->ubi, lnum, buf, 0, c->leb_size);
@@ -1731,15 +1731,16 @@ int dbg_chk_lpt_free_spc(struct ubifs_info *c)
  */
 int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len)
 {
+	struct ubifs_debug_info *d = c->dbg;
 	long long chk_lpt_sz, lpt_sz;
 	int err = 0;
 
 	switch (action) {
 	case 0:
-		c->chk_lpt_sz = 0;
-		c->chk_lpt_sz2 = 0;
-		c->chk_lpt_lebs = 0;
-		c->chk_lpt_wastage = 0;
+		d->chk_lpt_sz = 0;
+		d->chk_lpt_sz2 = 0;
+		d->chk_lpt_lebs = 0;
+		d->chk_lpt_wastage = 0;
 		if (c->dirty_pn_cnt > c->pnode_cnt) {
 			dbg_err("dirty pnodes %d exceed max %d",
 				c->dirty_pn_cnt, c->pnode_cnt);
@@ -1752,35 +1753,35 @@ int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len)
 		}
 		return err;
 	case 1:
-		c->chk_lpt_sz += len;
+		d->chk_lpt_sz += len;
 		return 0;
 	case 2:
-		c->chk_lpt_sz += len;
-		c->chk_lpt_wastage += len;
-		c->chk_lpt_lebs += 1;
+		d->chk_lpt_sz += len;
+		d->chk_lpt_wastage += len;
+		d->chk_lpt_lebs += 1;
 		return 0;
 	case 3:
 		chk_lpt_sz = c->leb_size;
-		chk_lpt_sz *= c->chk_lpt_lebs;
+		chk_lpt_sz *= d->chk_lpt_lebs;
 		chk_lpt_sz += len - c->nhead_offs;
-		if (c->chk_lpt_sz != chk_lpt_sz) {
+		if (d->chk_lpt_sz != chk_lpt_sz) {
 			dbg_err("LPT wrote %lld but space used was %lld",
-				c->chk_lpt_sz, chk_lpt_sz);
+				d->chk_lpt_sz, chk_lpt_sz);
 			err = -EINVAL;
 		}
-		if (c->chk_lpt_sz > c->lpt_sz) {
+		if (d->chk_lpt_sz > c->lpt_sz) {
 			dbg_err("LPT wrote %lld but lpt_sz is %lld",
-				c->chk_lpt_sz, c->lpt_sz);
+				d->chk_lpt_sz, c->lpt_sz);
 			err = -EINVAL;
 		}
-		if (c->chk_lpt_sz2 && c->chk_lpt_sz != c->chk_lpt_sz2) {
+		if (d->chk_lpt_sz2 && d->chk_lpt_sz != d->chk_lpt_sz2) {
 			dbg_err("LPT layout size %lld but wrote %lld",
-				c->chk_lpt_sz, c->chk_lpt_sz2);
+				d->chk_lpt_sz, d->chk_lpt_sz2);
 			err = -EINVAL;
 		}
-		if (c->chk_lpt_sz2 && c->new_nhead_offs != len) {
+		if (d->chk_lpt_sz2 && d->new_nhead_offs != len) {
 			dbg_err("LPT new nhead offs: expected %d was %d",
-				c->new_nhead_offs, len);
+				d->new_nhead_offs, len);
 			err = -EINVAL;
 		}
 		lpt_sz = (long long)c->pnode_cnt * c->pnode_sz;
@@ -1788,22 +1789,22 @@ int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len)
 		lpt_sz += c->ltab_sz;
 		if (c->big_lpt)
 			lpt_sz += c->lsave_sz;
-		if (c->chk_lpt_sz - c->chk_lpt_wastage > lpt_sz) {
+		if (d->chk_lpt_sz - d->chk_lpt_wastage > lpt_sz) {
 			dbg_err("LPT chk_lpt_sz %lld + waste %lld exceeds %lld",
-				c->chk_lpt_sz, c->chk_lpt_wastage, lpt_sz);
+				d->chk_lpt_sz, d->chk_lpt_wastage, lpt_sz);
 			err = -EINVAL;
 		}
 		if (err)
 			dbg_dump_lpt_info(c);
-		c->chk_lpt_sz2 = c->chk_lpt_sz;
-		c->chk_lpt_sz = 0;
-		c->chk_lpt_wastage = 0;
-		c->chk_lpt_lebs = 0;
-		c->new_nhead_offs = len;
+		d->chk_lpt_sz2 = d->chk_lpt_sz;
+		d->chk_lpt_sz = 0;
+		d->chk_lpt_wastage = 0;
+		d->chk_lpt_lebs = 0;
+		d->new_nhead_offs = len;
 		return err;
 	case 4:
-		c->chk_lpt_sz += len;
-		c->chk_lpt_wastage += len;
+		d->chk_lpt_sz += len;
+		d->chk_lpt_wastage += len;
 		return 0;
 	default:
 		return -EINVAL;

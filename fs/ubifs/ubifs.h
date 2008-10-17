@@ -910,6 +910,8 @@ struct ubifs_mount_opts {
 	unsigned int compr_type:2;
 };
 
+struct ubifs_debug_info;
+
 /**
  * struct ubifs_info - UBIFS file-system description data structure
  * (per-superblock).
@@ -972,8 +974,6 @@ struct ubifs_mount_opts {
  * @ileb_nxt: next pre-allocated index LEBs
  * @old_idx: tree of index nodes obsoleted since the last commit start
  * @bottom_up_buf: a buffer which is used by 'dirty_cow_bottom_up()' in tnc.c
- * @new_ihead_lnum: used by debugging to check ihead_lnum
- * @new_ihead_offs: used by debugging to check ihead_offs
  *
  * @mst_node: master node
  * @mst_offs: offset of valid master node
@@ -1157,15 +1157,7 @@ struct ubifs_mount_opts {
  * @always_chk_crc: always check CRCs (while mounting and remounting rw)
  * @mount_opts: UBIFS-specific mount options
  *
- * @dbg_buf: a buffer of LEB size used for debugging purposes
- * @old_zroot: old index root - used by 'dbg_check_old_index()'
- * @old_zroot_level: old index root level - used by 'dbg_check_old_index()'
- * @old_zroot_sqnum: old index root sqnum - used by 'dbg_check_old_index()'
- * @failure_mode: failure mode for recovery testing
- * @fail_delay: 0=>don't delay, 1=>delay a time, 2=>delay a number of calls
- * @fail_timeout: time in jiffies when delay of failure mode expires
- * @fail_cnt: current number of calls to failure mode I/O functions
- * @fail_cnt_max: number of calls by which to delay failure mode
+ * @dbg: debugging-related information
  */
 struct ubifs_info {
 	struct super_block *vfs_sb;
@@ -1221,10 +1213,6 @@ struct ubifs_info {
 	int ileb_nxt;
 	struct rb_root old_idx;
 	int *bottom_up_buf;
-#ifdef CONFIG_UBIFS_FS_DEBUG
-	int new_ihead_lnum;
-	int new_ihead_offs;
-#endif
 
 	struct ubifs_mst_node *mst_node;
 	int mst_offs;
@@ -1399,21 +1387,7 @@ struct ubifs_info {
 	struct ubifs_mount_opts mount_opts;
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
-	void *dbg_buf;
-	struct ubifs_zbranch old_zroot;
-	int old_zroot_level;
-	unsigned long long old_zroot_sqnum;
-	int failure_mode;
-	int fail_delay;
-	unsigned long fail_timeout;
-	unsigned int fail_cnt;
-	unsigned int fail_cnt_max;
-	long long chk_lpt_sz;
-	long long chk_lpt_sz2;
-	long long chk_lpt_wastage;
-	int chk_lpt_lebs;
-	int new_nhead_lnum;
-	int new_nhead_offs;
+	struct ubifs_debug_info *dbg;
 #endif
 };
 

@@ -553,8 +553,8 @@ static int layout_in_empty_space(struct ubifs_info *c)
 	}
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
-	c->new_ihead_lnum = lnum;
-	c->new_ihead_offs = buf_offs;
+	c->dbg->new_ihead_lnum = lnum;
+	c->dbg->new_ihead_offs = buf_offs;
 #endif
 
 	return 0;
@@ -1002,7 +1002,8 @@ static int write_index(struct ubifs_info *c)
 	}
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
-	if (lnum != c->new_ihead_lnum || buf_offs != c->new_ihead_offs) {
+	if (lnum != c->dbg->new_ihead_lnum ||
+	    buf_offs != c->dbg->new_ihead_offs) {
 		ubifs_err("inconsistent ihead");
 		return -EINVAL;
 	}

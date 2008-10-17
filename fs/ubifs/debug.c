@@ -705,7 +705,7 @@ void dbg_dump_leb(const struct ubifs_info *c, int lnum)
 
 	printk(KERN_DEBUG "(pid %d) Dumping LEB %d\n", current->pid, lnum);
 
-	sleb = ubifs_scan(c, lnum, 0, c->dbg_buf);
+	sleb = ubifs_scan(c, lnum, 0, c->dbg->buf);
 	if (IS_ERR(sleb)) {
 		ubifs_err("scan error %d", (int)PTR_ERR(sleb));
 		return;
@@ -2097,7 +2097,7 @@ static int simple_rand(void)
 	return (next >> 16) & 32767;
 }
 
-void dbg_failure_mode_registration(struct ubifs_info *c)
+static void failure_mode_init(struct ubifs_info *c)
 {
 	struct failure_mode_info *fmi;
 
@@ -2112,7 +2112,7 @@ void dbg_failure_mode_registration(struct ubifs_info *c)
 	spin_unlock(&fmi_lock);
 }
 
-void dbg_failure_mode_deregistration(struct ubifs_info *c)
+static void failure_mode_exit(struct ubifs_info *c)
 {
 	struct failure_mode_info *fmi, *tmp;
 
@@ -2146,42 +2146,44 @@ static int in_failure_mode(struct ubi_volume_desc *desc)
 	struct ubifs_info *c = dbg_find_info(desc);
 
 	if (c && dbg_failure_mode)
-		return c->failure_mode;
+		return c->dbg->failure_mode;
 	return 0;
 }
 
 static int do_fail(struct ubi_volume_desc *desc, int lnum, int write)
 {
 	struct ubifs_info *c = dbg_find_info(desc);
+	struct ubifs_debug_info *d;
 
 	if (!c || !dbg_failure_mode)
 		return 0;
-	if (c->failure_mode)
+	d = c->dbg;
+	if (d->failure_mode)
 		return 1;
-	if (!c->fail_cnt) {
+	if (!d->fail_cnt) {
 		/* First call - decide delay to failure */
 		if (chance(1, 2)) {
 			unsigned int delay = 1 << (simple_rand() >> 11);
 
 			if (chance(1, 2)) {
-				c->fail_delay = 1;
-				c->fail_timeout = jiffies +
+				d->fail_delay = 1;
+				d->fail_timeout = jiffies +
 						  msecs_to_jiffies(delay);
 				dbg_rcvry("failing after %ums", delay);
 			} else {
-				c->fail_delay = 2;
-				c->fail_cnt_max = delay;
+				d->fail_delay = 2;
+				d->fail_cnt_max = delay;
 				dbg_rcvry("failing after %u calls", delay);
 			}
 		}
-		c->fail_cnt += 1;
+		d->fail_cnt += 1;
 	}
 	/* Determine if failure delay has expired */
-	if (c->fail_delay == 1) {
-		if (time_before(jiffies, c->fail_timeout))
+	if (d->fail_delay == 1) {
+		if (time_before(jiffies, d->fail_timeout))
 			return 0;
-	} else if (c->fail_delay == 2)
-		if (c->fail_cnt++ < c->fail_cnt_max)
+	} else if (d->fail_delay == 2)
+		if (d->fail_cnt++ < d->fail_cnt_max)
 			return 0;
 	if (lnum == UBIFS_SB_LNUM) {
 		if (write) {
@@ -2239,7 +2241,7 @@ static int do_fail(struct ubi_volume_desc *desc, int lnum, int write)
 		dbg_rcvry("failing in bud LEB %d commit not running", lnum);
 	}
 	ubifs_err("*** SETTING FAILURE MODE ON (LEB %d) ***", lnum);
-	c->failure_mode = 1;
+	d->failure_mode = 1;
 	dump_stack();
 	return 1;
 }
@@ -2342,6 +2344,43 @@ int dbg_leb_map(struct ubi_volume_desc *desc, int lnum, int dtype)
 	if (do_fail(desc, lnum, 0))
 		return -EIO;
 	return 0;
+}
+
+/**
+ * ubifs_debugging_init - initialize UBIFS debugging.
+ * @c: UBIFS file-system description object
+ *
+ * This function initializes debugging-related data for the file system.
+ * Returns zero in case of success and a negative error code in case of
+ * failure.
+ */
+int ubifs_debugging_init(struct ubifs_info *c)
+{
+	c->dbg = kzalloc(sizeof(struct ubifs_debug_info), GFP_KERNEL);
+	if (!c->dbg)
+		return -ENOMEM;
+
+	c->dbg->buf = vmalloc(c->leb_size);
+	if (!c->dbg->buf)
+		goto out;
+
+	failure_mode_init(c);
+	return 0;
+
+out:
+	kfree(c->dbg);
+	return -ENOMEM;
+}
+
+/**
+ * ubifs_debugging_exit - free debugging data.
+ * @c: UBIFS file-system description object
+ */
+void ubifs_debugging_exit(struct ubifs_info *c)
+{
+	failure_mode_exit(c);
+	vfree(c->dbg->buf);
+	kfree(c->dbg);
 }
 
 #endif /* CONFIG_UBIFS_FS_DEBUG */

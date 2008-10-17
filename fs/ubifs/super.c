@@ -1069,11 +1069,9 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (err)
 		return err;
 
-#ifdef CONFIG_UBIFS_FS_DEBUG
-	c->dbg_buf = vmalloc(c->leb_size);
-	if (!c->dbg_buf)
-		return -ENOMEM;
-#endif
+	err = ubifs_debugging_init(c);
+	if (err)
+		return err;
 
 	err = check_volume_empty(c);
 	if (err)
@@ -1139,18 +1137,16 @@ static int mount_ubifs(struct ubifs_info *c)
 		goto out_free;
 	}
 
-	dbg_failure_mode_registration(c);
-
 	err = init_constants_late(c);
 	if (err)
-		goto out_dereg;
+		goto out_free;
 
 	sz = ALIGN(c->max_idx_node_sz, c->min_io_size);
 	sz = ALIGN(sz + c->max_idx_node_sz, c->min_io_size);
 	c->cbuf = kmalloc(sz, GFP_NOFS);
 	if (!c->cbuf) {
 		err = -ENOMEM;
-		goto out_dereg;
+		goto out_free;
 	}
 
 	sprintf(c->bgt_name, BGT_NAME_PATTERN, c->vi.ubi_num, c->vi.vol_id);
@@ -1350,14 +1346,12 @@ out_wbufs:
 	free_wbufs(c);
 out_cbuf:
 	kfree(c->cbuf);
-out_dereg:
-	dbg_failure_mode_deregistration(c);
 out_free:
 	kfree(c->bu.buf);
 	vfree(c->ileb_buf);
 	vfree(c->sbuf);
 	kfree(c->bottom_up_buf);
-	UBIFS_DBG(vfree(c->dbg_buf));
+	ubifs_debugging_exit(c);
 	return err;
 }
 
@@ -1394,8 +1388,7 @@ static void ubifs_umount(struct ubifs_info *c)
 	vfree(c->ileb_buf);
 	vfree(c->sbuf);
 	kfree(c->bottom_up_buf);
-	UBIFS_DBG(vfree(c->dbg_buf));
-	dbg_failure_mode_deregistration(c);
+	ubifs_debugging_exit(c);
 }
 
 /**
@@ -1879,7 +1872,6 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 		goto out_iput;
 
 	mutex_unlock(&c->umount_mutex);
-
 	return 0;
 
 out_iput:

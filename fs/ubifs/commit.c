@@ -470,12 +470,12 @@ int dbg_old_index_check_init(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 {
 	struct ubifs_idx_node *idx;
 	int lnum, offs, len, err = 0;
+	struct ubifs_debug_info *d = c->dbg;
 
-	c->old_zroot = *zroot;
-
-	lnum = c->old_zroot.lnum;
-	offs = c->old_zroot.offs;
-	len = c->old_zroot.len;
+	d->old_zroot = *zroot;
+	lnum = d->old_zroot.lnum;
+	offs = d->old_zroot.offs;
+	len = d->old_zroot.len;
 
 	idx = kmalloc(c->max_idx_node_sz, GFP_NOFS);
 	if (!idx)
@@ -485,8 +485,8 @@ int dbg_old_index_check_init(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 	if (err)
 		goto out;
 
-	c->old_zroot_level = le16_to_cpu(idx->level);
-	c->old_zroot_sqnum = le64_to_cpu(idx->ch.sqnum);
+	d->old_zroot_level = le16_to_cpu(idx->level);
+	d->old_zroot_sqnum = le64_to_cpu(idx->ch.sqnum);
 out:
 	kfree(idx);
 	return err;
@@ -509,6 +509,7 @@ int dbg_check_old_index(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 {
 	int lnum, offs, len, err = 0, uninitialized_var(last_level), child_cnt;
 	int first = 1, iip;
+	struct ubifs_debug_info *d = c->dbg;
 	union ubifs_key lower_key, upper_key, l_key, u_key;
 	unsigned long long uninitialized_var(last_sqnum);
 	struct ubifs_idx_node *idx;
@@ -525,9 +526,9 @@ int dbg_check_old_index(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 	     UBIFS_IDX_NODE_SZ;
 
 	/* Start at the old zroot */
-	lnum = c->old_zroot.lnum;
-	offs = c->old_zroot.offs;
-	len = c->old_zroot.len;
+	lnum = d->old_zroot.lnum;
+	offs = d->old_zroot.offs;
+	len = d->old_zroot.len;
 	iip = 0;
 
 	/*
@@ -560,11 +561,11 @@ int dbg_check_old_index(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 		if (first) {
 			first = 0;
 			/* Check root level and sqnum */
-			if (le16_to_cpu(idx->level) != c->old_zroot_level) {
+			if (le16_to_cpu(idx->level) != d->old_zroot_level) {
 				err = 2;
 				goto out_dump;
 			}
-			if (le64_to_cpu(idx->ch.sqnum) != c->old_zroot_sqnum) {
+			if (le64_to_cpu(idx->ch.sqnum) != d->old_zroot_sqnum) {
 				err = 3;
 				goto out_dump;
 			}

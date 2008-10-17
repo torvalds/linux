@@ -25,7 +25,43 @@
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
 
-#define UBIFS_DBG(op) op
+/**
+ * ubifs_debug_info - per-FS debugging information.
+ * @buf: a buffer of LEB size, used for various purposes
+ * @old_zroot: old index root - used by 'dbg_check_old_index()'
+ * @old_zroot_level: old index root level - used by 'dbg_check_old_index()'
+ * @old_zroot_sqnum: old index root sqnum - used by 'dbg_check_old_index()'
+ * @failure_mode: failure mode for recovery testing
+ * @fail_delay: 0=>don't delay, 1=>delay a time, 2=>delay a number of calls
+ * @fail_timeout: time in jiffies when delay of failure mode expires
+ * @fail_cnt: current number of calls to failure mode I/O functions
+ * @fail_cnt_max: number of calls by which to delay failure mode
+ * @chk_lpt_sz: used by LPT tree size checker
+ * @chk_lpt_sz2: used by LPT tree size checker
+ * @chk_lpt_wastage: used by LPT tree size checker
+ * @chk_lpt_lebs: used by LPT tree size checker
+ * @new_nhead_offs: used by LPT tree size checker
+ * @new_ihead_lnum: used by debugging to check ihead_lnum
+ * @new_ihead_offs: used by debugging to check ihead_offs
+ */
+struct ubifs_debug_info {
+	void *buf;
+	struct ubifs_zbranch old_zroot;
+	int old_zroot_level;
+	unsigned long long old_zroot_sqnum;
+	int failure_mode;
+	int fail_delay;
+	unsigned long fail_timeout;
+	unsigned int fail_cnt;
+	unsigned int fail_cnt_max;
+	long long chk_lpt_sz;
+	long long chk_lpt_sz2;
+	long long chk_lpt_wastage;
+	int chk_lpt_lebs;
+	int new_nhead_offs;
+	int new_ihead_lnum;
+	int new_ihead_offs;
+};
 
 #define ubifs_assert(expr) do {                                                \
 	if (unlikely(!(expr))) {                                               \
@@ -211,6 +247,9 @@ extern unsigned int ubifs_msg_flags;
 extern unsigned int ubifs_chk_flags;
 extern unsigned int ubifs_tst_flags;
 
+int ubifs_debugging_init(struct ubifs_info *c);
+void ubifs_debugging_exit(struct ubifs_info *c);
+
 /* Dump functions */
 
 const char *dbg_ntype(int type);
@@ -274,9 +313,6 @@ int dbg_force_in_the_gaps(void);
 
 #define dbg_failure_mode (ubifs_tst_flags & UBIFS_TST_RCVRY)
 
-void dbg_failure_mode_registration(struct ubifs_info *c);
-void dbg_failure_mode_deregistration(struct ubifs_info *c);
-
 #ifndef UBIFS_DBG_PRESERVE_UBI
 
 #define ubi_leb_read   dbg_leb_read
@@ -320,8 +356,6 @@ static inline int dbg_change(struct ubi_volume_desc *desc, int lnum,
 
 #else /* !CONFIG_UBIFS_FS_DEBUG */
 
-#define UBIFS_DBG(op)
-
 /* Use "if (0)" to make compiler check arguments even if debugging is off */
 #define ubifs_assert(expr)  do {                                               \
 	if (0 && (expr))                                                       \
@@ -360,6 +394,9 @@ static inline int dbg_change(struct ubi_volume_desc *desc, int lnum,
 #define DBGKEY(key)  ((char *)(key))
 #define DBGKEY1(key) ((char *)(key))
 
+#define ubifs_debugging_init(c)               0
+#define ubifs_debugging_exit(c)               ({})
+
 #define dbg_ntype(type)                       ""
 #define dbg_cstate(cmt_state)                 ""
 #define dbg_get_key_dump(c, key)              ({})
@@ -396,8 +433,6 @@ static inline int dbg_change(struct ubi_volume_desc *desc, int lnum,
 #define dbg_force_in_the_gaps_enabled              0
 #define dbg_force_in_the_gaps()                    0
 #define dbg_failure_mode                           0
-#define dbg_failure_mode_registration(c)           ({})
-#define dbg_failure_mode_deregistration(c)         ({})
 
 #endif /* !CONFIG_UBIFS_FS_DEBUG */
 
