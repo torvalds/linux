@@ -109,8 +109,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#define malloc(a) kmalloc((a), GFP_KERNEL)
-#define free(a) kfree(a)
 
 #include "bit_operations.h"
 #include "echo.h"
@@ -238,27 +236,19 @@ struct oslec_state *oslec_create(int len, int adaption_mode)
 {
     struct oslec_state *ec;
     int i;
-    int j;
 
-    ec = kmalloc(sizeof(*ec), GFP_KERNEL);
-    if (ec == NULL)
-        return  NULL;
-    memset(ec, 0, sizeof(*ec));
+    ec = kzalloc(sizeof(*ec), GFP_KERNEL);
+    if (!ec)
+        return NULL;
 
     ec->taps = len;
     ec->log2taps = top_bit(len);
     ec->curr_pos = ec->taps - 1;
 
-    for (i = 0;  i < 2;  i++)
-    {
-        if ((ec->fir_taps16[i] = (int16_t *) malloc((ec->taps)*sizeof(int16_t))) == NULL)
-        {
-            for (j = 0;  j < i;  j++)
-                kfree(ec->fir_taps16[j]);
-            kfree(ec);
-            return  NULL;
-        }
-        memset(ec->fir_taps16[i], 0, (ec->taps)*sizeof(int16_t));
+    for (i = 0; i < 2; i++) {
+        ec->fir_taps16[i] = kcalloc(ec->taps, sizeof(int16_t), GFP_KERNEL);
+        if (!ec->fir_taps16[i])
+	    goto error_oom;
     }
 
     fir16_create(&ec->fir_state,
@@ -275,8 +265,9 @@ struct oslec_state *oslec_create(int len, int adaption_mode)
     ec->cng_level = 1000;
     oslec_adaption_mode(ec, adaption_mode);
 
-    ec->snapshot = (int16_t*)malloc(ec->taps*sizeof(int16_t));
-    memset(ec->snapshot, 0, sizeof(int16_t)*ec->taps);
+    ec->snapshot = kcalloc(ec->taps, sizeof(int16_t), GFP_KERNEL);
+    if (!ec->snapshot)
+        goto error_oom;
 
     ec->cond_met = 0;
     ec->Pstates = 0;
@@ -288,6 +279,13 @@ struct oslec_state *oslec_create(int len, int adaption_mode)
     ec->Lbgn_upper_acc = ec->Lbgn_upper << 13;
 
     return  ec;
+
+error_oom:
+    for (i = 0; i < 2; i++)
+        kfree(ec->fir_taps16[i]);
+
+    kfree(ec);
+    return NULL;
 }
 EXPORT_SYMBOL_GPL(oslec_create);
 /*- End of function --------------------------------------------------------*/
