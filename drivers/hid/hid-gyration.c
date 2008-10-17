@@ -4,9 +4,9 @@
  *  Copyright (c) 1999 Andreas Gal
  *  Copyright (c) 2000-2005 Vojtech Pavlik <vojtech@suse.cz>
  *  Copyright (c) 2005 Michael Haboustak <mike-@cinci.rr.com> for Concept2, Inc
- *  Copyright (c) 2006-2007 Jiri Kosina
  *  Copyright (c) 2007 Paul Walmsley
  *  Copyright (c) 2008 Jiri Slaby
+ *  Copyright (c) 2006-2008 Jiri Kosina
  */
 
 /*
@@ -40,6 +40,7 @@ static int gyration_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	case 0x025: gy_map_key_clear(KEY_PVR);		break;
 	case 0x046: gy_map_key_clear(KEY_MEDIA);	break;
 	case 0x047: gy_map_key_clear(KEY_MP3);		break;
+	case 0x048: gy_map_key_clear(KEY_MEDIA);	break;
 	case 0x049: gy_map_key_clear(KEY_CAMERA);	break;
 	case 0x04a: gy_map_key_clear(KEY_VIDEO);	break;
 
@@ -68,6 +69,7 @@ static int gyration_event(struct hid_device *hdev, struct hid_field *field,
 
 static const struct hid_device_id gyration_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_GYRATION, USB_DEVICE_ID_GYRATION_REMOTE) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GYRATION, USB_DEVICE_ID_GYRATION_REMOTE_2) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, gyration_devices);
