@@ -160,6 +160,7 @@ static int ide_gd_open(struct inode *inode, struct file *filp)
 		 * and the door_lock is irrelevant at this point.
 		 */
 		ide_disk_set_doorlock(drive, 1);
+		drive->dev_flags |= IDE_DFLAG_MEDIA_CHANGED;
 		check_disk_change(inode->i_bdev);
 	}
 	return 0;
@@ -199,6 +200,7 @@ static int ide_gd_media_changed(struct gendisk *disk)
 {
 	struct ide_disk_obj *idkp = ide_drv_g(disk, ide_disk_obj);
 	ide_drive_t *drive = idkp->drive;
+	int ret;
 
 	/* do not scan partitions twice if this is a removable device */
 	if (drive->dev_flags & IDE_DFLAG_ATTACH) {
@@ -206,8 +208,10 @@ static int ide_gd_media_changed(struct gendisk *disk)
 		return 0;
 	}
 
-	/* if removable, always assume it was changed */
-	return !!(drive->dev_flags & IDE_DFLAG_REMOVABLE);
+	ret = !!(drive->dev_flags & IDE_DFLAG_MEDIA_CHANGED);
+	drive->dev_flags &= ~IDE_DFLAG_MEDIA_CHANGED;
+
+	return ret;
 }
 
 static int ide_gd_revalidate_disk(struct gendisk *disk)
