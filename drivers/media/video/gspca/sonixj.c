@@ -24,6 +24,8 @@
 #include "gspca.h"
 #include "jpeg.h"
 
+#define V4L2_CID_INFRARED (V4L2_CID_PRIVATE_BASE + 0)
+
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SONIX JPEG USB Camera Driver");
 MODULE_LICENSE("GPL");
@@ -40,6 +42,7 @@ struct sd {
 	unsigned char colors;
 	unsigned char autogain;
 	__u8 vflip;			/* ov7630 only */
+	__u8 infrared;			/* mi0360 only */
 
 	signed char ag_cnt;
 #define AG_CNT_START 13
@@ -73,6 +76,8 @@ static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setinfrared(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getinfrared(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
 	{
@@ -149,6 +154,22 @@ static struct ctrl sd_ctrls[] = {
 	    },
 	    .set = sd_setvflip,
 	    .get = sd_getvflip,
+	},
+/* mi0360 only */
+#define INFRARED_IDX 5
+	{
+	    {
+		.id      = V4L2_CID_INFRARED,
+		.type    = V4L2_CTRL_TYPE_BOOLEAN,
+		.name    = "Infrared",
+		.minimum = 0,
+		.maximum = 1,
+		.step    = 1,
+#define INFRARED_DEF 0
+		.default_value = INFRARED_DEF,
+	    },
+	    .set = sd_setinfrared,
+	    .get = sd_getinfrared,
 	},
 };
 
@@ -963,6 +984,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->colors = COLOR_DEF;
 	sd->autogain = AUTOGAIN_DEF;
 	sd->ag_cnt = -1;
+	sd->vflip = VFLIP_DEF;
+	sd->infrared = INFRARED_DEF;
 
 	switch (sd->sensor) {
 	case SENSOR_OV7630:
@@ -973,7 +996,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 	if (sd->sensor != SENSOR_OV7630)
 		gspca_dev->ctrl_dis |= (1 << VFLIP_IDX);
-
+	if (sd->sensor != SENSOR_MI0360)
+		gspca_dev->ctrl_dis |= (1 << INFRARED_IDX);
 	return 0;
 }
 
@@ -1195,10 +1219,16 @@ static void setautogain(struct gspca_dev *gspca_dev)
 
 static void setvflip(struct sd *sd)
 {
-	if (sd->sensor != SENSOR_OV7630)
-		return;
 	i2c_w1(&sd->gspca_dev, 0x75,			/* COMN */
 		sd->vflip ? 0x82 : 0x02);
+}
+
+static void setinfrared(struct sd *sd)
+{
+/*fixme: different sequence for StarCam Clip and StarCam 370i */
+/* Clip */
+	i2c_w1(&sd->gspca_dev, 0x02,			/* gpio */
+		sd->infrared ? 0x66 : 0x64);
 }
 
 /* -- start the camera -- */
@@ -1343,8 +1373,10 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	reg_w1(gspca_dev, 0x17, reg17);
 	switch (sd->sensor) {
-	case SENSOR_HV7131R:
 	case SENSOR_MI0360:
+		setinfrared(sd);
+		/* fall thru */
+	case SENSOR_HV7131R:
 	case SENSOR_MO4000:
 	case SENSOR_OM6802:
 		setbrightness(gspca_dev);
@@ -1595,6 +1627,24 @@ static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	*val = sd->vflip;
+	return 0;
+}
+
+static int sd_setinfrared(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->infrared = val;
+	if (gspca_dev->streaming)
+		setinfrared(sd);
+	return 0;
+}
+
+static int sd_getinfrared(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->infrared;
 	return 0;
 }
 
