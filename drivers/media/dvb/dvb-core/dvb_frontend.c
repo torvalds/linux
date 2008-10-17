@@ -903,30 +903,30 @@ void dtv_property_dump(struct dtv_property *tvp)
 	int i;
 
 	if (tvp->cmd <= 0 || tvp->cmd > DTV_MAX_COMMAND) {
-		printk("%s: tvp.cmd = 0x%08x (undefined/unknown/invalid)\n",
+		printk(KERN_WARNING "%s: tvp.cmd = 0x%08x undefined\n",
 			__func__, tvp->cmd);
 		return;
 	}
 
-	printk("%s() tvp.cmd    = 0x%08x (%s)\n"
-		,__FUNCTION__
+	dprintk("%s() tvp.cmd    = 0x%08x (%s)\n"
+		,__func__
 		,tvp->cmd
 		,dtv_cmds[ tvp->cmd ].name);
 
 	if(dtv_cmds[ tvp->cmd ].buffer) {
 
-		printk("%s() tvp.u.buffer.len = 0x%02x\n"
-			,__FUNCTION__
+		dprintk("%s() tvp.u.buffer.len = 0x%02x\n"
+			,__func__
 			,tvp->u.buffer.len);
 
 		for(i = 0; i < tvp->u.buffer.len; i++)
-			printk("%s() tvp.u.buffer.data[0x%02x] = 0x%02x\n"
-				,__FUNCTION__
+			dprintk("%s() tvp.u.buffer.data[0x%02x] = 0x%02x\n"
+				,__func__
 				,i
 				,tvp->u.buffer.data[i]);
 
 	} else
-		printk("%s() tvp.u.data = 0x%08x\n", __FUNCTION__, tvp->u.data);
+		dprintk("%s() tvp.u.data = 0x%08x\n", __func__, tvp->u.data);
 }
 
 int is_legacy_delivery_system(fe_delivery_system_t s)
@@ -945,8 +945,6 @@ int is_legacy_delivery_system(fe_delivery_system_t s)
 void dtv_property_cache_sync(struct dvb_frontend *fe, struct dvb_frontend_parameters *p)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-
-	printk("%s()\n", __FUNCTION__);
 
 	c->frequency = p->frequency;
 	c->inversion = p->inversion;
@@ -1002,27 +1000,25 @@ void dtv_property_legacy_params_sync(struct dvb_frontend *fe)
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	struct dvb_frontend_parameters *p = &fepriv->parameters;
 
-	printk("%s()\n", __FUNCTION__);
-
 	p->frequency = c->frequency;
 	p->inversion = c->inversion;
 
 	switch (fe->ops.info.type) {
 	case FE_QPSK:
-		printk("%s() Preparing QPSK req\n", __FUNCTION__);
+		dprintk("%s() Preparing QPSK req\n", __func__);
 		p->u.qpsk.symbol_rate = c->symbol_rate;
 		p->u.qpsk.fec_inner = c->fec_inner;
 		c->delivery_system = SYS_DVBS;
 		break;
 	case FE_QAM:
-		printk("%s() Preparing QAM req\n", __FUNCTION__);
+		dprintk("%s() Preparing QAM req\n", __func__);
 		p->u.qam.symbol_rate = c->symbol_rate;
 		p->u.qam.fec_inner = c->fec_inner;
 		p->u.qam.modulation = c->modulation;
 		c->delivery_system = SYS_DVBC_ANNEX_AC;
 		break;
 	case FE_OFDM:
-		printk("%s() Preparing OFDM req\n", __FUNCTION__);
+		dprintk("%s() Preparing OFDM req\n", __func__);
 		if (c->bandwidth_hz == 6000000)
 			p->u.ofdm.bandwidth = BANDWIDTH_6_MHZ;
 		else if (c->bandwidth_hz == 7000000)
@@ -1040,7 +1036,7 @@ void dtv_property_legacy_params_sync(struct dvb_frontend *fe)
 		c->delivery_system = SYS_DVBT;
 		break;
 	case FE_ATSC:
-		printk("%s() Preparing VSB req\n", __FUNCTION__);
+		dprintk("%s() Preparing VSB req\n", __func__);
 		p->u.vsb.modulation = c->modulation;
 		if ((c->modulation == VSB_8) || (c->modulation == VSB_16))
 			c->delivery_system = SYS_ATSC;
@@ -1058,8 +1054,6 @@ void dtv_property_adv_params_sync(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	struct dvb_frontend_parameters *p = &fepriv->parameters;
-
-	printk("%s()\n", __FUNCTION__);
 
 	p->frequency = c->frequency;
 	p->inversion = c->inversion;
@@ -1094,19 +1088,17 @@ void dtv_property_cache_submit(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
-	printk("%s()\n", __FUNCTION__);
-
 	/* For legacy delivery systems we don't need the delivery_system to
 	 * be specified, but we populate the older structures from the cache
 	 * so we can call set_frontend on older drivers.
 	 */
 	if(is_legacy_delivery_system(c->delivery_system)) {
 
-		printk("%s() legacy, modulation = %d\n", __FUNCTION__, c->modulation);
+		dprintk("%s() legacy, modulation = %d\n", __func__, c->modulation);
 		dtv_property_legacy_params_sync(fe);
 
 	} else {
-		printk("%s() adv, modulation = %d\n", __FUNCTION__, c->modulation);
+		dprintk("%s() adv, modulation = %d\n", __func__, c->modulation);
 
 		/* For advanced delivery systems / modulation types ...
 		 * we seed the lecacy dvb_frontend_parameters structure
@@ -1127,8 +1119,6 @@ int dtv_property_process_get(struct dvb_frontend *fe, struct dtv_property *tvp,
 	struct inode *inode, struct file *file)
 {
 	int r = 0;
-
-	printk("%s()\n", __FUNCTION__);
 
 	dtv_property_dump(tvp);
 
@@ -1203,7 +1193,6 @@ int dtv_property_process_set(struct dvb_frontend *fe, struct dtv_property *tvp,
 {
 	int r = 0;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
-	printk("%s()\n", __FUNCTION__);
 	dtv_property_dump(tvp);
 
 	/* Allow the frontend to validate incoming properties */
@@ -1218,7 +1207,7 @@ int dtv_property_process_set(struct dvb_frontend *fe, struct dtv_property *tvp,
 		/* Reset a cache of data specific to the frontend here. This does
 		 * not effect hardware.
 		 */
-		printk("%s() Flushing property cache\n", __FUNCTION__);
+		dprintk("%s() Flushing property cache\n", __func__);
 		memset(&fe->dtv_property_cache, 0, sizeof(struct dtv_frontend_properties));
 		fe->dtv_property_cache.state = tvp->cmd;
 		fe->dtv_property_cache.delivery_system = SYS_UNDEFINED;
@@ -1229,7 +1218,7 @@ int dtv_property_process_set(struct dvb_frontend *fe, struct dtv_property *tvp,
 		 * ioctl.
 		 */
 		fe->dtv_property_cache.state = tvp->cmd;
-		printk("%s() Finalised property cache\n", __FUNCTION__);
+		dprintk("%s() Finalised property cache\n", __func__);
 		dtv_property_cache_submit(fe);
 
 		r |= dvb_frontend_ioctl_legacy(inode, file, FE_SET_FRONTEND,
@@ -1340,12 +1329,10 @@ static int dvb_frontend_ioctl_properties(struct inode *inode, struct file *file,
 	dprintk("%s\n", __func__);
 
 	if(cmd == FE_SET_PROPERTY) {
-		printk("%s() FE_SET_PROPERTY\n", __FUNCTION__);
-
 		tvps = (struct dtv_properties __user *)parg;
 
-		printk("%s() properties.num = %d\n", __FUNCTION__, tvps->num);
-		printk("%s() properties.props = %p\n", __FUNCTION__, tvps->props);
+		dprintk("%s() properties.num = %d\n", __func__, tvps->num);
+		dprintk("%s() properties.props = %p\n", __func__, tvps->props);
 
 		/* Put an arbitrary limit on the number of messages that can
 		 * be sent at once */
@@ -1369,18 +1356,16 @@ static int dvb_frontend_ioctl_properties(struct inode *inode, struct file *file,
 			err |= (tvp + i)->result;
 		}
 
-		if(fe->dtv_property_cache.state == DTV_TUNE) {
-			printk("%s() Property cache is full, tuning\n", __FUNCTION__);
-		}
+		if(fe->dtv_property_cache.state == DTV_TUNE)
+			dprintk("%s() Property cache is full, tuning\n", __func__);
 
 	} else
 	if(cmd == FE_GET_PROPERTY) {
-		printk("%s() FE_GET_PROPERTY\n", __FUNCTION__);
 
 		tvps = (struct dtv_properties __user *)parg;
 
-		printk("%s() properties.num = %d\n", __FUNCTION__, tvps->num);
-		printk("%s() properties.props = %p\n", __FUNCTION__, tvps->props);
+		dprintk("%s() properties.num = %d\n", __func__, tvps->num);
+		dprintk("%s() properties.props = %p\n", __func__, tvps->props);
 
 		/* Put an arbitrary limit on the number of messages that can
 		 * be sent at once */
