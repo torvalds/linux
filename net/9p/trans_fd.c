@@ -188,8 +188,16 @@ static void p9_conn_cancel(struct p9_conn *m, int err)
 	LIST_HEAD(cancel_list);
 
 	P9_DPRINTK(P9_DEBUG_ERROR, "mux %p err %d\n", m, err);
-	m->err = err;
+
 	spin_lock_irqsave(&m->client->lock, flags);
+
+	if (m->err) {
+		spin_unlock_irqrestore(&m->client->lock, flags);
+		return;
+	}
+
+	m->err = err;
+
 	list_for_each_entry_safe(req, rtmp, &m->req_list, req_list) {
 		req->status = REQ_STATUS_ERROR;
 		if (!req->t_err)
@@ -352,8 +360,9 @@ static void p9_read_work(struct work_struct *work)
 	/* not an else because some packets (like clunk) have no payload */
 	if ((m->req) && (m->rpos == m->rsize)) { /* packet is read in */
 		P9_DPRINTK(P9_DEBUG_TRANS, "got new packet\n");
-
+		spin_lock(&m->client->lock);
 		list_del(&m->req->req_list);
+		spin_unlock(&m->client->lock);
 		p9_client_cb(m->client, m->req);
 
 		m->rbuf = NULL;
@@ -651,9 +660,8 @@ static int p9_fd_request(struct p9_client *client, struct p9_req_t *req)
 	if (m->err < 0)
 		return m->err;
 
-	req->status = REQ_STATUS_UNSENT;
-
 	spin_lock(&client->lock);
+	req->status = REQ_STATUS_UNSENT;
 	list_add_tail(&req->req_list, &m->unsent_req_list);
 	spin_unlock(&client->lock);
 
@@ -672,19 +680,21 @@ static int p9_fd_cancel(struct p9_client *client, struct p9_req_t *req)
 {
 	struct p9_trans_fd *ts = client->trans;
 	struct p9_conn *m = ts->conn;
+	int ret = 1;
 
 	P9_DPRINTK(P9_DEBUG_TRANS, "mux %p req %p\n", m, req);
 
 	spin_lock(&client->lock);
 	list_del(&req->req_list);
-	spin_unlock(&client->lock);
 
 	if (req->status == REQ_STATUS_UNSENT) {
 		req->status = REQ_STATUS_FLSHD;
-		return 0;
+		ret = 0;
 	}
 
-	return 1;
+	spin_unlock(&client->lock);
+
+	return ret;
 }
 
 /**
