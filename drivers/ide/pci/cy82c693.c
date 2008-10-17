@@ -50,17 +50,10 @@
 
 #define DRV_NAME "cy82c693"
 
-/* the current version */
-#define CY82_VERSION	"CY82C693U driver v0.34 99-13-12 Andreas S. Krebs (akrebs@altavista.net)"
-
 /*
  *	The following are used to debug the driver.
  */
-#define CY82C693_DEBUG_LOGS	0
 #define CY82C693_DEBUG_INFO	0
-
-/* define CY82C693_SETDMA_CLOCK to set DMA Controller Clock Speed to ATCLK */
-#undef CY82C693_SETDMA_CLOCK
 
 /*
  *	NOTE: the value for busmaster timeout is tricky and I got it by
@@ -89,7 +82,6 @@
 #define CY82_INDEX_PORT		0x22
 #define CY82_DATA_PORT		0x23
 
-#define CY82_INDEX_CTRLREG1	0x01
 #define CY82_INDEX_CHANNEL0	0x30
 #define CY82_INDEX_CHANNEL1	0x31
 #define CY82_INDEX_TIMEOUT	0x32
@@ -179,17 +171,6 @@ static void cy82c693_set_dma_mode(ide_drive_t *drive, const u8 mode)
 
 	index = hwif->channel ? CY82_INDEX_CHANNEL1 : CY82_INDEX_CHANNEL0;
 
-#if CY82C693_DEBUG_LOGS
-	/* for debug let's show the previous values */
-
-	outb(index, CY82_INDEX_PORT);
-	data = inb(CY82_DATA_PORT);
-
-	printk(KERN_INFO "%s (ch=%d, dev=%d): DMA mode is %d (single=%d)\n",
-		drive->name, HWIF(drive)->channel, drive->select.b.unit,
-		(data&0x3), ((data>>2)&1));
-#endif /* CY82C693_DEBUG_LOGS */
-
 	data = (mode & 3) | (single << 2);
 
 	outb(index, CY82_INDEX_PORT);
@@ -197,8 +178,7 @@ static void cy82c693_set_dma_mode(ide_drive_t *drive, const u8 mode)
 
 #if CY82C693_DEBUG_INFO
 	printk(KERN_INFO "%s (ch=%d, dev=%d): set DMA mode to %d (single=%d)\n",
-		drive->name, HWIF(drive)->channel, drive->select.b.unit,
-		mode & 3, single);
+		drive->name, hwif->channel, drive->dn & 1, mode & 3, single);
 #endif /* CY82C693_DEBUG_INFO */
 
 	/*
@@ -239,50 +219,11 @@ static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		}
 	}
 
-#if CY82C693_DEBUG_LOGS
-	/* for debug let's show the register values */
-
-	if (drive->select.b.unit == 0) {
-		/*
-		 * get master drive registers
-		 * address setup control register
-		 * is 32 bit !!!
-		 */
-		pci_read_config_dword(dev, CY82_IDE_ADDRSETUP, &addrCtrl);
-		addrCtrl &= 0x0F;
-
-		/* now let's get the remaining registers */
-		pci_read_config_byte(dev, CY82_IDE_MASTER_IOR, &pclk.time_16r);
-		pci_read_config_byte(dev, CY82_IDE_MASTER_IOW, &pclk.time_16w);
-		pci_read_config_byte(dev, CY82_IDE_MASTER_8BIT, &pclk.time_8);
-	} else {
-		/*
-		 * set slave drive registers
-		 * address setup control register
-		 * is 32 bit !!!
-		 */
-		pci_read_config_dword(dev, CY82_IDE_ADDRSETUP, &addrCtrl);
-
-		addrCtrl &= 0xF0;
-		addrCtrl >>= 4;
-
-		/* now let's get the remaining registers */
-		pci_read_config_byte(dev, CY82_IDE_SLAVE_IOR, &pclk.time_16r);
-		pci_read_config_byte(dev, CY82_IDE_SLAVE_IOW, &pclk.time_16w);
-		pci_read_config_byte(dev, CY82_IDE_SLAVE_8BIT, &pclk.time_8);
-	}
-
-	printk(KERN_INFO "%s (ch=%d, dev=%d): PIO timing is "
-		"(addr=0x%X, ior=0x%X, iow=0x%X, 8bit=0x%X)\n",
-		drive->name, hwif->channel, drive->select.b.unit,
-		addrCtrl, pclk.time_16r, pclk.time_16w, pclk.time_8);
-#endif /* CY82C693_DEBUG_LOGS */
-
 	/* let's calc the values for this PIO mode */
 	compute_clocks(pio, &pclk);
 
 	/* now let's write  the clocks registers */
-	if (drive->select.b.unit == 0) {
+	if ((drive->dn & 1) == 0) {
 		/*
 		 * set master drive
 		 * address setup control register
@@ -324,61 +265,9 @@ static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
 #if CY82C693_DEBUG_INFO
 	printk(KERN_INFO "%s (ch=%d, dev=%d): set PIO timing to "
 		"(addr=0x%X, ior=0x%X, iow=0x%X, 8bit=0x%X)\n",
-		drive->name, hwif->channel, drive->select.b.unit,
+		drive->name, hwif->channel, drive->dn & 1,
 		addrCtrl, pclk.time_16r, pclk.time_16w, pclk.time_8);
 #endif /* CY82C693_DEBUG_INFO */
-}
-
-/*
- * this function is called during init and is used to setup the cy82c693 chip
- */
-static unsigned int __devinit init_chipset_cy82c693(struct pci_dev *dev)
-{
-	if (PCI_FUNC(dev->devfn) != 1)
-		return 0;
-
-#ifdef CY82C693_SETDMA_CLOCK
-	u8 data = 0;
-#endif /* CY82C693_SETDMA_CLOCK */
-
-	/* write info about this verion of the driver */
-	printk(KERN_INFO CY82_VERSION "\n");
-
-#ifdef CY82C693_SETDMA_CLOCK
-       /* okay let's set the DMA clock speed */
-
-	outb(CY82_INDEX_CTRLREG1, CY82_INDEX_PORT);
-	data = inb(CY82_DATA_PORT);
-
-#if CY82C693_DEBUG_INFO
-	printk(KERN_INFO DRV_NAME ": Peripheral Configuration Register: 0x%X\n",
-		data);
-#endif /* CY82C693_DEBUG_INFO */
-
-	/*
-	 * for some reason sometimes the DMA controller
-	 * speed is set to ATCLK/2 ???? - we fix this here
-	 *
-	 * note: i don't know what causes this strange behaviour,
-	 *       but even changing the dma speed doesn't solve it :-(
-	 *       the ide performance is still only half the normal speed
-	 *
-	 *       if anybody knows what goes wrong with my machine, please
-	 *       let me know - ASK
-	 */
-
-	data |= 0x03;
-
-	outb(CY82_INDEX_CTRLREG1, CY82_INDEX_PORT);
-	outb(data, CY82_DATA_PORT);
-
-#if CY82C693_DEBUG_INFO
-	printk(KERN_INFO ": New Peripheral Configuration Register: 0x%X\n",
-		data);
-#endif /* CY82C693_DEBUG_INFO */
-
-#endif /* CY82C693_SETDMA_CLOCK */
-	return 0;
 }
 
 static void __devinit init_iops_cy82c693(ide_hwif_t *hwif)
@@ -401,7 +290,6 @@ static const struct ide_port_ops cy82c693_port_ops = {
 
 static const struct ide_port_info cy82c693_chipset __devinitdata = {
 	.name		= DRV_NAME,
-	.init_chipset	= init_chipset_cy82c693,
 	.init_iops	= init_iops_cy82c693,
 	.port_ops	= &cy82c693_port_ops,
 	.chipset	= ide_cy82c693,
@@ -443,21 +331,23 @@ static const struct pci_device_id cy82c693_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, cy82c693_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver cy82c693_pci_driver = {
 	.name		= "Cypress_IDE",
 	.id_table	= cy82c693_pci_tbl,
 	.probe		= cy82c693_init_one,
 	.remove		= __devexit_p(cy82c693_remove),
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init cy82c693_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&cy82c693_pci_driver);
 }
 
 static void __exit cy82c693_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&cy82c693_pci_driver);
 }
 
 module_init(cy82c693_ide_init);

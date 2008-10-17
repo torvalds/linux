@@ -411,8 +411,8 @@ struct em28xx {
 	/* frame properties */
 	int width;		/* current frame width */
 	int height;		/* current frame height */
-	int hscale;		/* horizontal scale factor (see datasheet) */
-	int vscale;		/* vertical scale factor (see datasheet) */
+	unsigned hscale;	/* horizontal scale factor (see datasheet) */
+	unsigned vscale;	/* vertical scale factor (see datasheet) */
 	int interlaced;		/* 1=interlace fileds, 0=just top fileds */
 	unsigned int video_bytesread;	/* Number of bytes read */
 
@@ -528,7 +528,7 @@ extern struct em28xx_board em28xx_boards[];
 extern struct usb_device_id em28xx_id_table[];
 extern const unsigned int em28xx_bcount;
 void em28xx_set_ir(struct em28xx *dev, struct IR_i2c *ir);
-int em28xx_tuner_callback(void *ptr, int command, int arg);
+int em28xx_tuner_callback(void *ptr, int component, int command, int arg);
 
 /* Provided by em28xx-input.c */
 /* TODO: Check if the standard get_key handlers on ir-common can be used */

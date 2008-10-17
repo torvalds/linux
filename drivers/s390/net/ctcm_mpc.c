@@ -1673,7 +1673,7 @@ static int mpc_validate_xid(struct mpcg_info *mpcginfo)
 
 done:
 	if (rc) {
-		ctcm_pr_info("ctcmpc	   :  %s() failed\n", __FUNCTION__);
+		ctcm_pr_info("ctcmpc	   :  %s() failed\n", __func__);
 		priv->xid->xid2_flag2 = 0x40;
 		grp->saved_xid2->xid2_flag2 = 0x40;
 	}

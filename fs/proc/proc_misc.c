@@ -45,7 +45,6 @@
 #include <linux/blkdev.h>
 #include <linux/hugetlb.h>
 #include <linux/jiffies.h>
-#include <linux/sysrq.h>
 #include <linux/vmalloc.h>
 #include <linux/crash_dump.h>
 #include <linux/pid_namespace.h>
@@ -68,7 +67,6 @@
 extern int get_hardware_list(char *);
 extern int get_stram_list(char *);
 extern int get_exec_domain_list(char *);
-extern int get_dma_list(char *);
 
 static int proc_calc_metrics(char *page, char **start, off_t off,
 				 int count, int *eof, int len)
@@ -183,6 +181,9 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 		"SReclaimable: %8lu kB\n"
 		"SUnreclaim:   %8lu kB\n"
 		"PageTables:   %8lu kB\n"
+#ifdef CONFIG_QUICKLIST
+		"Quicklists:   %8lu kB\n"
+#endif
 		"NFS_Unstable: %8lu kB\n"
 		"Bounce:       %8lu kB\n"
 		"WritebackTmp: %8lu kB\n"
@@ -190,8 +191,7 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 		"Committed_AS: %8lu kB\n"
 		"VmallocTotal: %8lu kB\n"
 		"VmallocUsed:  %8lu kB\n"
-		"VmallocChunk: %8lu kB\n"
-		"Quicklists:   %8lu kB\n",
+		"VmallocChunk: %8lu kB\n",
 		K(i.totalram),
 		K(i.freeram),
 		K(i.bufferram),
@@ -216,6 +216,9 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 		K(global_page_state(NR_SLAB_RECLAIMABLE)),
 		K(global_page_state(NR_SLAB_UNRECLAIMABLE)),
 		K(global_page_state(NR_PAGETABLE)),
+#ifdef CONFIG_QUICKLIST
+		K(quicklist_total_size()),
+#endif
 		K(global_page_state(NR_UNSTABLE_NFS)),
 		K(global_page_state(NR_BOUNCE)),
 		K(global_page_state(NR_WRITEBACK_TEMP)),
@@ -223,8 +226,7 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 		K(committed),
 		(unsigned long)VMALLOC_TOTAL >> 10,
 		vmi.used >> 10,
-		vmi.largest_chunk >> 10,
-		K(quicklist_total_size())
+		vmi.largest_chunk >> 10
 		);
 
 		len += hugetlb_report_meminfo(page + len);
@@ -680,6 +682,7 @@ static int cmdline_read_proc(char *page, char **start, off_t off,
 	return proc_calc_metrics(page, start, off, count, eof, len);
 }
 
+#ifdef CONFIG_FILE_LOCKING
 static int locks_open(struct inode *inode, struct file *filp)
 {
 	return seq_open(filp, &locks_seq_operations);
@@ -691,6 +694,7 @@ static const struct file_operations proc_locks_operations = {
 	.llseek		= seq_lseek,
 	.release	= seq_release,
 };
+#endif /* CONFIG_FILE_LOCKING */
 
 static int execdomains_read_proc(char *page, char **start, off_t off,
 				 int count, int *eof, void *data)
@@ -698,28 +702,6 @@ static int execdomains_read_proc(char *page, char **start, off_t off,
 	int len = get_exec_domain_list(page);
 	return proc_calc_metrics(page, start, off, count, eof, len);
 }
-
-#ifdef CONFIG_MAGIC_SYSRQ
-/*
- * writing 'C' to /proc/sysrq-trigger is like sysrq-C
- */
-static ssize_t write_sysrq_trigger(struct file *file, const char __user *buf,
-				   size_t count, loff_t *ppos)
-{
-	if (count) {
-		char c;
-
-		if (get_user(c, buf))
-			return -EFAULT;
-		__handle_sysrq(c, NULL, 0);
-	}
-	return count;
-}
-
-static const struct file_operations proc_sysrq_trigger_operations = {
-	.write		= write_sysrq_trigger,
-};
-#endif
 
 #ifdef CONFIG_PROC_PAGE_MONITOR
 #define KPMSIZE sizeof(u64)
@@ -884,7 +866,9 @@ void __init proc_misc_init(void)
 #ifdef CONFIG_PRINTK
 	proc_create("kmsg", S_IRUSR, NULL, &proc_kmsg_operations);
 #endif
+#ifdef CONFIG_FILE_LOCKING
 	proc_create("locks", 0, NULL, &proc_locks_operations);
+#endif
 	proc_create("devices", 0, NULL, &proc_devinfo_operations);
 	proc_create("cpuinfo", 0, NULL, &proc_cpuinfo_operations);
 #ifdef CONFIG_BLOCK
@@ -926,8 +910,5 @@ void __init proc_misc_init(void)
 #endif
 #ifdef CONFIG_PROC_VMCORE
 	proc_vmcore = proc_create("vmcore", S_IRUSR, NULL, &proc_vmcore_operations);
-#endif
-#ifdef CONFIG_MAGIC_SYSRQ
-	proc_create("sysrq-trigger", S_IWUSR, NULL, &proc_sysrq_trigger_operations);
 #endif
 }

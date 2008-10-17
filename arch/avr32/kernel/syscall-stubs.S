@@ -109,3 +109,12 @@ __sys_epoll_pwait:
 	rcall	sys_epoll_pwait
 	sub	sp, -4
 	popm	pc
+
+	.global __sys_sync_file_range
+	.type	__sys_sync_file_range,@function
+__sys_sync_file_range:
+	pushm	lr
+	st.w	--sp, ARG6
+	rcall	sys_sync_file_range
+	sub	sp, -4
+	popm	pc

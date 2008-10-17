@@ -14,7 +14,7 @@
   Whom based his on the Keyspan driver by Hugh Blemings <hugh@blemings.org>
 */
 
-#define DRIVER_VERSION "v.1.2.13a"
+#define DRIVER_VERSION "v.1.3.2"
 #define DRIVER_AUTHOR "Kevin Lloyd <klloyd@sierrawireless.com>"
 #define DRIVER_DESC "USB Driver for Sierra Wireless USB modems"
 
@@ -30,9 +30,6 @@
 
 #define SWIMS_USB_REQUEST_SetPower	0x00
 #define SWIMS_USB_REQUEST_SetNmea	0x07
-#define SWIMS_USB_REQUEST_SetMode	0x0B
-#define SWIMS_USB_REQUEST_GetSwocInfo	0x0A
-#define SWIMS_SET_MODE_Modem		0x0001
 
 /* per port private data */
 #define N_IN_URB	4
@@ -163,7 +160,7 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x1199, 0x0017) },	/* Sierra Wireless EM5625 */
 	{ USB_DEVICE(0x1199, 0x0018) },	/* Sierra Wireless MC5720 */
 	{ USB_DEVICE(0x1199, 0x0218) },	/* Sierra Wireless MC5720 */
-	{ USB_DEVICE(0x0f30, 0x1b1d) },	/* Sierra Wireless MC5720 */
+	{ USB_DEVICE(0x03f0, 0x1b1d) }, /* HP ev2200 a.k.a MC5720 */
 	{ USB_DEVICE(0x1199, 0x0020) },	/* Sierra Wireless MC5725 */
 	{ USB_DEVICE(0x1199, 0x0024) },	/* Sierra Wireless MC5727 */
 	{ USB_DEVICE(0x1199, 0x0220) },	/* Sierra Wireless MC5725 */
@@ -175,6 +172,8 @@ static struct usb_device_id id_table [] = {
 	 /* Sierra Wireless Device */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x0025, 0xFF, 0xFF, 0xFF) },
 	{ USB_DEVICE(0x1199, 0x0026) }, /* Sierra Wireless Device */
+	{ USB_DEVICE(0x1199, 0x0027) }, /* Sierra Wireless Device */
+	{ USB_DEVICE(0x1199, 0x0028) }, /* Sierra Wireless Device */
 
 	{ USB_DEVICE(0x1199, 0x6802) },	/* Sierra Wireless MC8755 */
 	{ USB_DEVICE(0x1199, 0x6804) },	/* Sierra Wireless MC8755 */
@@ -187,6 +186,7 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x1199, 0x6821) },	/* Sierra Wireless AirCard 875U */
 	{ USB_DEVICE(0x1199, 0x6832) },	/* Sierra Wireless MC8780 */
 	{ USB_DEVICE(0x1199, 0x6833) },	/* Sierra Wireless MC8781 */
+	{ USB_DEVICE(0x1199, 0x683A) },	/* Sierra Wireless MC8785 */
 	{ USB_DEVICE(0x1199, 0x683B) },	/* Sierra Wireless MC8785 Composite */
 	{ USB_DEVICE(0x1199, 0x683C) },	/* Sierra Wireless MC8790 */
 	{ USB_DEVICE(0x1199, 0x683D) },	/* Sierra Wireless MC8790 */
@@ -203,6 +203,8 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6880, 0xFF, 0xFF, 0xFF)},
 	/* Sierra Wireless Device */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6890, 0xFF, 0xFF, 0xFF)},
+	/* Sierra Wireless Device */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6891, 0xFF, 0xFF, 0xFF)},
 	/* Sierra Wireless Device */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x6892, 0xFF, 0xFF, 0xFF)},
 
@@ -438,14 +440,14 @@ static void sierra_indat_callback(struct urb *urb)
 		dbg("%s: nonzero status: %d on endpoint %02x.",
 		    __func__, status, endpoint);
 	} else {
-		tty = port->port.tty;
 		if (urb->actual_length) {
+		tty = tty_port_tty_get(&port->port);
 			tty_buffer_request_room(tty, urb->actual_length);
 			tty_insert_flip_string(tty, data, urb->actual_length);
 			tty_flip_buffer_push(tty);
-		} else {
+			tty_kref_put(tty);
+		} else
 			dbg("%s: empty read urb received", __func__);
-		}
 
 		/* Resubmit urb so we continue receiving */
 		if (port->port.count && status != -ESHUTDOWN) {
@@ -483,6 +485,7 @@ static void sierra_instat_callback(struct urb *urb)
 			unsigned char signals = *((unsigned char *)
 					urb->transfer_buffer +
 					sizeof(struct usb_ctrlrequest));
+			struct tty_struct *tty;
 
 			dbg("%s: signal x%x", __func__, signals);
 
@@ -492,9 +495,11 @@ static void sierra_instat_callback(struct urb *urb)
 			portdata->dsr_state = ((signals & 0x02) ? 1 : 0);
 			portdata->ri_state = ((signals & 0x08) ? 1 : 0);
 
-			if (port->port.tty && !C_CLOCAL(port->port.tty) &&
+			tty = tty_port_tty_get(&port->port);
+			if (tty && !C_CLOCAL(tty) &&
 					old_dcd_state && !portdata->dcd_state)
-				tty_hangup(port->port.tty);
+				tty_hangup(tty);
+			tty_kref_put(tty);
 		} else {
 			dbg("%s: type %x req %x", __func__,
 				req_pkt->bRequestType, req_pkt->bRequest);
@@ -614,8 +619,7 @@ static void sierra_close(struct tty_struct *tty,
 	}
 
 	usb_kill_urb(port->interrupt_in_urb);
-
-	port->port.tty = NULL;	/* FIXME */
+	tty_port_tty_set(&port->port, NULL);
 }
 
 static int sierra_startup(struct usb_serial *serial)

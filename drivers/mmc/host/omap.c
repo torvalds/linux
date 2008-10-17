@@ -172,7 +172,7 @@ struct mmc_omap_host {
 	struct omap_mmc_platform_data *pdata;
 };
 
-void mmc_omap_fclk_offdelay(struct mmc_omap_slot *slot)
+static void mmc_omap_fclk_offdelay(struct mmc_omap_slot *slot)
 {
 	unsigned long tick_ns;
 
@@ -182,7 +182,7 @@ void mmc_omap_fclk_offdelay(struct mmc_omap_slot *slot)
 	}
 }
 
-void mmc_omap_fclk_enable(struct mmc_omap_host *host, unsigned int enable)
+static void mmc_omap_fclk_enable(struct mmc_omap_host *host, unsigned int enable)
 {
 	unsigned long flags;
 
@@ -1455,7 +1455,9 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 
 	host->irq = irq;
 	host->phys_base = host->mem_res->start;
-	host->virt_base = (void __iomem *) IO_ADDRESS(host->phys_base);
+	host->virt_base = ioremap(res->start, res->end - res->start + 1);
+	if (!host->virt_base)
+		goto err_ioremap;
 
 	if (cpu_is_omap24xx()) {
 		host->iclk = clk_get(&pdev->dev, "mmc_ick");
@@ -1510,6 +1512,8 @@ err_free_iclk:
 		clk_put(host->iclk);
 	}
 err_free_mmc_host:
+	iounmap(host->virt_base);
+err_ioremap:
 	kfree(host);
 err_free_mem_region:
 	release_mem_region(res->start, res->end - res->start + 1);
@@ -1536,6 +1540,7 @@ static int mmc_omap_remove(struct platform_device *pdev)
 	if (host->fclk && !IS_ERR(host->fclk))
 		clk_put(host->fclk);
 
+	iounmap(host->virt_base);
 	release_mem_region(pdev->resource[0].start,
 			   pdev->resource[0].end - pdev->resource[0].start + 1);
 

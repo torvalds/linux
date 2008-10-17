@@ -2051,7 +2051,8 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *port)
 					"transmitter\n",
 			       port->dev ? port->dev->bus_id : "",
 			       port->dev ? ": " : "",
-			       drv->dev_name, port->line);
+			       drv->dev_name,
+			       drv->tty_driver->name_base + port->line);
 
 		ops->shutdown(port);
 	}
@@ -2154,12 +2155,11 @@ uart_report_port(struct uart_driver *drv, struct uart_port *port)
 
 	switch (port->iotype) {
 	case UPIO_PORT:
-		snprintf(address, sizeof(address),
-			 "I/O 0x%x", port->iobase);
+		snprintf(address, sizeof(address), "I/O 0x%lx", port->iobase);
 		break;
 	case UPIO_HUB6:
 		snprintf(address, sizeof(address),
-			 "I/O 0x%x offset 0x%x", port->iobase, port->hub6);
+			 "I/O 0x%lx offset 0x%x", port->iobase, port->hub6);
 		break;
 	case UPIO_MEM:
 	case UPIO_MEM32:
@@ -2177,7 +2177,9 @@ uart_report_port(struct uart_driver *drv, struct uart_port *port)
 	printk(KERN_INFO "%s%s%s%d at %s (irq = %d) is a %s\n",
 	       port->dev ? port->dev->bus_id : "",
 	       port->dev ? ": " : "",
-	       drv->dev_name, port->line, address, port->irq, uart_type(port));
+	       drv->dev_name,
+	       drv->tty_driver->name_base + port->line,
+	       address, port->irq, uart_type(port));
 }
 
 static void

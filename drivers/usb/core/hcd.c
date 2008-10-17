@@ -818,9 +818,8 @@ static int usb_register_bus(struct usb_bus *bus)
 	set_bit (busnum, busmap.busmap);
 	bus->busnum = busnum;
 
-	bus->dev = device_create_drvdata(usb_host_class, bus->controller,
-					 MKDEV(0, 0), bus,
-					 "usb_host%d", busnum);
+	bus->dev = device_create(usb_host_class, bus->controller, MKDEV(0, 0),
+				 bus, "usb_host%d", busnum);
 	result = PTR_ERR(bus->dev);
 	if (IS_ERR(bus->dev))
 		goto error_create_class_dev;
@@ -1876,7 +1875,8 @@ int usb_add_hcd(struct usb_hcd *hcd,
 		 * with IRQF_SHARED. As usb_hcd_irq() will always disable
 		 * interrupts we can remove it here.
 		 */
-		irqflags &= ~IRQF_DISABLED;
+		if (irqflags & IRQF_SHARED)
+			irqflags &= ~IRQF_DISABLED;
 
 		snprintf(hcd->irq_descr, sizeof(hcd->irq_descr), "%s:usb%d",
 				hcd->driver->description, hcd->self.busnum);

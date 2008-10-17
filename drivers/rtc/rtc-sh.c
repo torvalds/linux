@@ -257,12 +257,6 @@ static inline void sh_rtc_setaie(struct device *dev, unsigned int enable)
 	spin_unlock_irq(&rtc->lock);
 }
 
-static void sh_rtc_release(struct device *dev)
-{
-	sh_rtc_setpie(dev, 0);
-	sh_rtc_setaie(dev, 0);
-}
-
 static int sh_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	struct sh_rtc *rtc = dev_get_drvdata(dev);
@@ -559,7 +553,6 @@ static int sh_rtc_irq_set_freq(struct device *dev, int freq)
 }
 
 static struct rtc_class_ops sh_rtc_ops = {
-	.release	= sh_rtc_release,
 	.ioctl		= sh_rtc_ioctl,
 	.read_time	= sh_rtc_read_time,
 	.set_time	= sh_rtc_set_time,

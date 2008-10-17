@@ -165,7 +165,7 @@ static void vlsi_proc_pdev(struct seq_file *seq, struct pci_dev *pdev)
 	unsigned iobase = pci_resource_start(pdev, 0);
 	unsigned i;
 
-	seq_printf(seq, "\n%s (vid/did: %04x/%04x)\n",
+	seq_printf(seq, "\n%s (vid/did: [%04x:%04x])\n",
 		   pci_name(pdev), (int)pdev->vendor, (int)pdev->device);
 	seq_printf(seq, "pci-power-state: %u\n", (unsigned) pdev->current_state);
 	seq_printf(seq, "resources: irq=%u / io=0x%04x / dma_mask=0x%016Lx\n",

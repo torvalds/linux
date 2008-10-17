@@ -30,7 +30,7 @@ static inline void pcibios_penalize_isa_irq(int irq, int active)
  * The networking and block device layers use this boolean for bounce
  * buffer decisions.
  */
-#define PCI_DMA_BUS_IS_PHYS     (0)
+#define PCI_DMA_BUS_IS_PHYS     (1)
 
 /*
  * Whether pci_unmap_{single,page} is a nop depends upon the

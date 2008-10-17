@@ -1427,8 +1427,9 @@ static int nfs_write_mapping(struct address_space *mapping, int how)
 		.bdi = mapping->backing_dev_info,
 		.sync_mode = WB_SYNC_NONE,
 		.nr_to_write = LONG_MAX,
+		.range_start = 0,
+		.range_end = LLONG_MAX,
 		.for_writepages = 1,
-		.range_cyclic = 1,
 	};
 	int ret;
 

@@ -42,10 +42,14 @@
 #include <asm/tlbdebug.h>
 #include <asm/traps.h>
 #include <asm/uaccess.h>
+#include <asm/watch.h>
 #include <asm/mmu_context.h>
 #include <asm/types.h>
 #include <asm/stacktrace.h>
 
+extern void check_wait(void);
+extern asmlinkage void r4k_wait(void);
+extern asmlinkage void rollback_handle_int(void);
 extern asmlinkage void handle_int(void);
 extern asmlinkage void handle_tlbm(void);
 extern asmlinkage void handle_tlbl(void);
@@ -373,8 +377,8 @@ void __noreturn die(const char * str, const struct pt_regs * regs)
 	do_exit(SIGSEGV);
 }
 
-extern const struct exception_table_entry __start___dbe_table[];
-extern const struct exception_table_entry __stop___dbe_table[];
+extern struct exception_table_entry __start___dbe_table[];
+extern struct exception_table_entry __stop___dbe_table[];
 
 __asm__(
 "	.section	__dbe_table, \"a\"\n"
@@ -822,8 +826,10 @@ static void mt_ase_fp_affinity(void)
 		if (cpus_intersects(current->cpus_allowed, mt_fpu_cpumask)) {
 			cpumask_t tmask;
 
-			cpus_and(tmask, current->thread.user_cpus_allowed,
-			         mt_fpu_cpumask);
+			current->thread.user_cpus_allowed
+				= current->cpus_allowed;
+			cpus_and(tmask, current->cpus_allowed,
+				mt_fpu_cpumask);
 			set_cpus_allowed(current, tmask);
 			set_thread_flag(TIF_FPUBOUND);
 		}
@@ -907,13 +913,26 @@ asmlinkage void do_mdmx(struct pt_regs *regs)
 
 asmlinkage void do_watch(struct pt_regs *regs)
 {
+	u32 cause;
+
 	/*
-	 * We use the watch exception where available to detect stack
-	 * overflows.
+	 * Clear WP (bit 22) bit of cause register so we don't loop
+	 * forever.
 	 */
-	dump_tlb_all();
-	show_regs(regs);
-	panic("Caught WATCH exception - probably caused by stack overflow.");
+	cause = read_c0_cause();
+	cause &= ~(1 << 22);
+	write_c0_cause(cause);
+
+	/*
+	 * If the current thread has the watch registers loaded, save
+	 * their values and send SIGTRAP.  Otherwise another thread
+	 * left the registers set, clear them and continue.
+	 */
+	if (test_tsk_thread_flag(current, TIF_LOAD_WATCH)) {
+		mips_read_watch_registers();
+		force_sig(SIGTRAP, current);
+	} else
+		mips_clear_watch_registers();
 }
 
 asmlinkage void do_mcheck(struct pt_regs *regs)
@@ -1200,7 +1219,7 @@ void *set_except_vector(int n, void *addr)
 	if (n == 0 && cpu_has_divec) {
 		*(u32 *)(ebase + 0x200) = 0x08000000 |
 					  (0x03ffffff & (handler >> 2));
-		flush_icache_range(ebase + 0x200, ebase + 0x204);
+		local_flush_icache_range(ebase + 0x200, ebase + 0x204);
 	}
 	return (void *)old_handler;
 }
@@ -1251,6 +1270,9 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 
 		extern char except_vec_vi, except_vec_vi_lui;
 		extern char except_vec_vi_ori, except_vec_vi_end;
+		extern char rollback_except_vec_vi;
+		char *vec_start = (cpu_wait == r4k_wait) ?
+			&rollback_except_vec_vi : &except_vec_vi;
 #ifdef CONFIG_MIPS_MT_SMTC
 		/*
 		 * We need to provide the SMTC vectored interrupt handler
@@ -1258,11 +1280,11 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 		 * Status.IM bit to be masked before going there.
 		 */
 		extern char except_vec_vi_mori;
-		const int mori_offset = &except_vec_vi_mori - &except_vec_vi;
+		const int mori_offset = &except_vec_vi_mori - vec_start;
 #endif /* CONFIG_MIPS_MT_SMTC */
-		const int handler_len = &except_vec_vi_end - &except_vec_vi;
-		const int lui_offset = &except_vec_vi_lui - &except_vec_vi;
-		const int ori_offset = &except_vec_vi_ori - &except_vec_vi;
+		const int handler_len = &except_vec_vi_end - vec_start;
+		const int lui_offset = &except_vec_vi_lui - vec_start;
+		const int ori_offset = &except_vec_vi_ori - vec_start;
 
 		if (handler_len > VECTORSPACING) {
 			/*
@@ -1272,7 +1294,7 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 			panic("VECTORSPACING too small");
 		}
 
-		memcpy(b, &except_vec_vi, handler_len);
+		memcpy(b, vec_start, handler_len);
 #ifdef CONFIG_MIPS_MT_SMTC
 		BUG_ON(n > 7);	/* Vector index %d exceeds SMTC maximum. */
 
@@ -1283,7 +1305,8 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 		*w = (*w & 0xffff0000) | (((u32)handler >> 16) & 0xffff);
 		w = (u32 *)(b + ori_offset);
 		*w = (*w & 0xffff0000) | ((u32)handler & 0xffff);
-		flush_icache_range((unsigned long)b, (unsigned long)(b+handler_len));
+		local_flush_icache_range((unsigned long)b,
+					 (unsigned long)(b+handler_len));
 	}
 	else {
 		/*
@@ -1295,7 +1318,8 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 		w = (u32 *)b;
 		*w++ = 0x08000000 | (((u32)handler >> 2) & 0x03fffff); /* j handler */
 		*w = 0;
-		flush_icache_range((unsigned long)b, (unsigned long)(b+8));
+		local_flush_icache_range((unsigned long)b,
+					 (unsigned long)(b+8));
 	}
 
 	return (void *)old_handler;
@@ -1515,7 +1539,7 @@ void __cpuinit per_cpu_trap_init(void)
 void __init set_handler(unsigned long offset, void *addr, unsigned long size)
 {
 	memcpy((void *)(ebase + offset), addr, size);
-	flush_icache_range(ebase + offset, ebase + offset + size);
+	local_flush_icache_range(ebase + offset, ebase + offset + size);
 }
 
 static char panic_null_cerr[] __cpuinitdata =
@@ -1552,6 +1576,10 @@ void __init trap_init(void)
 	extern char except_vec3_generic, except_vec3_r4000;
 	extern char except_vec4;
 	unsigned long i;
+	int rollback;
+
+	check_wait();
+	rollback = (cpu_wait == r4k_wait);
 
 #if defined(CONFIG_KGDB)
 	if (kgdb_early_setup)
@@ -1616,7 +1644,7 @@ void __init trap_init(void)
 	if (board_be_init)
 		board_be_init();
 
-	set_except_vector(0, handle_int);
+	set_except_vector(0, rollback ? rollback_handle_int : handle_int);
 	set_except_vector(1, handle_tlbm);
 	set_except_vector(2, handle_tlbl);
 	set_except_vector(3, handle_tlbs);
@@ -1680,6 +1708,8 @@ void __init trap_init(void)
 	signal32_init();
 #endif
 
-	flush_icache_range(ebase, ebase + 0x400);
+	local_flush_icache_range(ebase, ebase + 0x400);
 	flush_tlb_handlers();
+
+	sort_extable(__start___dbe_table, __stop___dbe_table);
 }

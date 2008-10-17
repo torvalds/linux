@@ -91,6 +91,9 @@ struct atmel_tsadcc {
 	char			phys[32];
 	struct clk		*clk;
 	int			irq;
+	unsigned int		prev_absx;
+	unsigned int		prev_absy;
+	unsigned char		bufferedmeasure;
 };
 
 static void __iomem		*tsc_base;
@@ -100,10 +103,9 @@ static void __iomem		*tsc_base;
 
 static irqreturn_t atmel_tsadcc_interrupt(int irq, void *dev)
 {
-	struct input_dev *input_dev = ((struct atmel_tsadcc *)dev)->input;
+	struct atmel_tsadcc	*ts_dev = (struct atmel_tsadcc *)dev;
+	struct input_dev	*input_dev = ts_dev->input;
 
-	unsigned int absx;
-	unsigned int absy;
 	unsigned int status;
 	unsigned int reg;
 
@@ -121,6 +123,7 @@ static irqreturn_t atmel_tsadcc_interrupt(int irq, void *dev)
 		atmel_tsadcc_write(ATMEL_TSADCC_IER, ATMEL_TSADCC_PENCNT);
 
 		input_report_key(input_dev, BTN_TOUCH, 0);
+		ts_dev->bufferedmeasure = 0;
 		input_sync(input_dev);
 
 	} else if (status & ATMEL_TSADCC_PENCNT) {
@@ -138,16 +141,23 @@ static irqreturn_t atmel_tsadcc_interrupt(int irq, void *dev)
 	} else if (status & ATMEL_TSADCC_EOC(3)) {
 		/* Conversion finished */
 
-		absx = atmel_tsadcc_read(ATMEL_TSADCC_CDR3) << 10;
-		absx /= atmel_tsadcc_read(ATMEL_TSADCC_CDR2);
+		if (ts_dev->bufferedmeasure) {
+			/* Last measurement is always discarded, since it can
+			 * be erroneous.
+			 * Always report previous measurement */
+			input_report_abs(input_dev, ABS_X, ts_dev->prev_absx);
+			input_report_abs(input_dev, ABS_Y, ts_dev->prev_absy);
+			input_report_key(input_dev, BTN_TOUCH, 1);
+			input_sync(input_dev);
+		} else
+			ts_dev->bufferedmeasure = 1;
 
-		absy = atmel_tsadcc_read(ATMEL_TSADCC_CDR1) << 10;
-		absy /= atmel_tsadcc_read(ATMEL_TSADCC_CDR0);
+		/* Now make new measurement */
+		ts_dev->prev_absx = atmel_tsadcc_read(ATMEL_TSADCC_CDR3) << 10;
+		ts_dev->prev_absx /= atmel_tsadcc_read(ATMEL_TSADCC_CDR2);
 
-		input_report_abs(input_dev, ABS_X, absx);
-		input_report_abs(input_dev, ABS_Y, absy);
-		input_report_key(input_dev, BTN_TOUCH, 1);
-		input_sync(input_dev);
+		ts_dev->prev_absy = atmel_tsadcc_read(ATMEL_TSADCC_CDR1) << 10;
+		ts_dev->prev_absy /= atmel_tsadcc_read(ATMEL_TSADCC_CDR0);
 	}
 
 	return IRQ_HANDLED;
@@ -223,6 +233,7 @@ static int __devinit atmel_tsadcc_probe(struct platform_device *pdev)
 	}
 
 	ts_dev->input = input_dev;
+	ts_dev->bufferedmeasure = 0;
 
 	snprintf(ts_dev->phys, sizeof(ts_dev->phys),
 		 "%s/input0", pdev->dev.bus_id);

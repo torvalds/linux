@@ -29,10 +29,10 @@
 #include <linux/completion.h>
 
 #include <asm/uaccess.h>
+
 #include <mach/at91_rtc.h>
 
 
-#define AT91_RTC_FREQ		1
 #define AT91_RTC_EPOCH		1900UL	/* just like arch/arm/common/rtctime.c */
 
 static DECLARE_COMPLETION(at91_rtc_updated);
@@ -228,8 +228,6 @@ static int at91_rtc_proc(struct device *dev, struct seq_file *seq)
 			(imr & AT91_RTC_ACKUPD) ? "yes" : "no");
 	seq_printf(seq, "periodic_IRQ\t: %s\n",
 			(imr & AT91_RTC_SECEV) ? "yes" : "no");
-	seq_printf(seq, "periodic_freq\t: %ld\n",
-			(unsigned long) AT91_RTC_FREQ);
 
 	return 0;
 }

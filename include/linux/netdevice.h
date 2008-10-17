@@ -11,7 +11,7 @@
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Corey Minyard <wf-rch!minyard@relay.EU.net>
  *		Donald J. Becker, <becker@cesdis.gsfc.nasa.gov>
- *		Alan Cox, <Alan.Cox@linux.org>
+ *		Alan Cox, <alan@lxorguk.ukuu.org.uk>
  *		Bjorn Ekwall. <bj0rn@blox.se>
  *              Pekka Riikonen <priikone@poseidon.pspt.fi>
  *
@@ -42,6 +42,7 @@
 #include <linux/workqueue.h>
 
 #include <net/net_namespace.h>
+#include <net/dsa.h>
 
 struct vlan_group;
 struct ethtool_ops;
@@ -471,6 +472,8 @@ struct net_device
 	char			name[IFNAMSIZ];
 	/* device name hash chain */
 	struct hlist_node	name_hlist;
+	/* snmp alias */
+	char 			*ifalias;
 
 	/*
 	 *	I/O specific fields
@@ -605,6 +608,9 @@ struct net_device
 
 	/* Protocol specific pointers */
 	
+#ifdef CONFIG_NET_DSA
+	void			*dsa_ptr;	/* dsa specific data */
+#endif
 	void 			*atalk_ptr;	/* AppleTalk link 	*/
 	void			*ip_ptr;	/* IPv4 specific data	*/  
 	void                    *dn_ptr;        /* DECnet specific data */
@@ -794,6 +800,26 @@ void dev_net_set(struct net_device *dev, struct net *net)
 	release_net(dev->nd_net);
 	dev->nd_net = hold_net(net);
 #endif
+}
+
+static inline bool netdev_uses_dsa_tags(struct net_device *dev)
+{
+#ifdef CONFIG_NET_DSA_TAG_DSA
+	if (dev->dsa_ptr != NULL)
+		return dsa_uses_dsa_tags(dev->dsa_ptr);
+#endif
+
+	return 0;
+}
+
+static inline bool netdev_uses_trailer_tags(struct net_device *dev)
+{
+#ifdef CONFIG_NET_DSA_TAG_TRAILER
+	if (dev->dsa_ptr != NULL)
+		return dsa_uses_trailer_tags(dev->dsa_ptr);
+#endif
+
+	return 0;
 }
 
 /**
@@ -1223,7 +1249,8 @@ extern int		dev_ioctl(struct net *net, unsigned int cmd, void __user *);
 extern int		dev_ethtool(struct net *net, struct ifreq *);
 extern unsigned		dev_get_flags(const struct net_device *);
 extern int		dev_change_flags(struct net_device *, unsigned);
-extern int		dev_change_name(struct net_device *, char *);
+extern int		dev_change_name(struct net_device *, const char *);
+extern int		dev_set_alias(struct net_device *, const char *, size_t);
 extern int		dev_change_net_namespace(struct net_device *,
 						 struct net *, const char *);
 extern int		dev_set_mtu(struct net_device *, int);
@@ -1667,7 +1694,7 @@ extern void dev_seq_stop(struct seq_file *seq, void *v);
 extern int netdev_class_create_file(struct class_attribute *class_attr);
 extern void netdev_class_remove_file(struct class_attribute *class_attr);
 
-extern char *netdev_drivername(struct net_device *dev, char *buffer, int len);
+extern char *netdev_drivername(const struct net_device *dev, char *buffer, int len);
 
 extern void linkwatch_run_queue(void);
 

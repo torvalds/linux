@@ -319,6 +319,7 @@ static int skge_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	struct skge_port *skge = netdev_priv(dev);
 	const struct skge_hw *hw = skge->hw;
 	u32 supported = skge_supported_modes(hw);
+	int err = 0;
 
 	if (ecmd->autoneg == AUTONEG_ENABLE) {
 		ecmd->advertising = supported;
@@ -367,8 +368,14 @@ static int skge_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	skge->autoneg = ecmd->autoneg;
 	skge->advertising = ecmd->advertising;
 
-	if (netif_running(dev))
-		skge_phy_reset(skge);
+	if (netif_running(dev)) {
+		skge_down(dev);
+		err = skge_up(dev);
+		if (err) {
+			dev_close(dev);
+			return err;
+		}
+	}
 
 	return (0);
 }
@@ -494,7 +501,7 @@ static int skge_set_ring_param(struct net_device *dev,
 			       struct ethtool_ringparam *p)
 {
 	struct skge_port *skge = netdev_priv(dev);
-	int err;
+	int err = 0;
 
 	if (p->rx_pending == 0 || p->rx_pending > MAX_RX_RING_SIZE ||
 	    p->tx_pending < TX_LOW_WATER || p->tx_pending > MAX_TX_RING_SIZE)
@@ -510,7 +517,7 @@ static int skge_set_ring_param(struct net_device *dev,
 			dev_close(dev);
 	}
 
-	return 0;
+	return err;
 }
 
 static u32 skge_get_msglevel(struct net_device *netdev)
@@ -593,6 +600,7 @@ static int skge_set_pauseparam(struct net_device *dev,
 {
 	struct skge_port *skge = netdev_priv(dev);
 	struct ethtool_pauseparam old;
+	int err = 0;
 
 	skge_get_pauseparam(dev, &old);
 
@@ -609,8 +617,14 @@ static int skge_set_pauseparam(struct net_device *dev,
 			skge->flow_control = FLOW_MODE_NONE;
 	}
 
-	if (netif_running(dev))
-		skge_phy_reset(skge);
+	if (netif_running(dev)) {
+		skge_down(dev);
+		err = skge_up(dev);
+		if (err) {
+			dev_close(dev);
+			return err;
+		}
+	}
 
 	return 0;
 }

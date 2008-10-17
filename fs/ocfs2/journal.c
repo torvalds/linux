@@ -215,9 +215,9 @@ static int ocfs2_commit_cache(struct ocfs2_super *osb)
 		goto finally;
 	}
 
-	journal_lock_updates(journal->j_journal);
-	status = journal_flush(journal->j_journal);
-	journal_unlock_updates(journal->j_journal);
+	jbd2_journal_lock_updates(journal->j_journal);
+	status = jbd2_journal_flush(journal->j_journal);
+	jbd2_journal_unlock_updates(journal->j_journal);
 	if (status < 0) {
 		up_write(&journal->j_trans_barrier);
 		mlog_errno(status);
@@ -264,7 +264,7 @@ handle_t *ocfs2_start_trans(struct ocfs2_super *osb, int max_buffs)
 
 	down_read(&osb->journal->j_trans_barrier);
 
-	handle = journal_start(journal, max_buffs);
+	handle = jbd2_journal_start(journal, max_buffs);
 	if (IS_ERR(handle)) {
 		up_read(&osb->journal->j_trans_barrier);
 
@@ -290,7 +290,7 @@ int ocfs2_commit_trans(struct ocfs2_super *osb,
 
 	BUG_ON(!handle);
 
-	ret = journal_stop(handle);
+	ret = jbd2_journal_stop(handle);
 	if (ret < 0)
 		mlog_errno(ret);
 
@@ -304,7 +304,7 @@ int ocfs2_commit_trans(struct ocfs2_super *osb,
  * transaction. extend_trans will either extend the current handle by
  * nblocks, or commit it and start a new one with nblocks credits.
  *
- * This might call journal_restart() which will commit dirty buffers
+ * This might call jbd2_journal_restart() which will commit dirty buffers
  * and then restart the transaction. Before calling
  * ocfs2_extend_trans(), any changed blocks should have been
  * dirtied. After calling it, all blocks which need to be changed must
@@ -332,7 +332,7 @@ int ocfs2_extend_trans(handle_t *handle, int nblocks)
 #ifdef CONFIG_OCFS2_DEBUG_FS
 	status = 1;
 #else
-	status = journal_extend(handle, nblocks);
+	status = jbd2_journal_extend(handle, nblocks);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -340,8 +340,10 @@ int ocfs2_extend_trans(handle_t *handle, int nblocks)
 #endif
 
 	if (status > 0) {
-		mlog(0, "journal_extend failed, trying journal_restart\n");
-		status = journal_restart(handle, nblocks);
+		mlog(0,
+		     "jbd2_journal_extend failed, trying "
+		     "jbd2_journal_restart\n");
+		status = jbd2_journal_restart(handle, nblocks);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;
@@ -393,11 +395,11 @@ int ocfs2_journal_access(handle_t *handle,
 	switch (type) {
 	case OCFS2_JOURNAL_ACCESS_CREATE:
 	case OCFS2_JOURNAL_ACCESS_WRITE:
-		status = journal_get_write_access(handle, bh);
+		status = jbd2_journal_get_write_access(handle, bh);
 		break;
 
 	case OCFS2_JOURNAL_ACCESS_UNDO:
-		status = journal_get_undo_access(handle, bh);
+		status = jbd2_journal_get_undo_access(handle, bh);
 		break;
 
 	default:
@@ -422,7 +424,7 @@ int ocfs2_journal_dirty(handle_t *handle,
 	mlog_entry("(bh->b_blocknr=%llu)\n",
 		   (unsigned long long)bh->b_blocknr);
 
-	status = journal_dirty_metadata(handle, bh);
+	status = jbd2_journal_dirty_metadata(handle, bh);
 	if (status < 0)
 		mlog(ML_ERROR, "Could not dirty metadata buffer. "
 		     "(bh->b_blocknr=%llu)\n",
@@ -432,6 +434,7 @@ int ocfs2_journal_dirty(handle_t *handle,
 	return status;
 }
 
+#ifdef CONFIG_OCFS2_COMPAT_JBD
 int ocfs2_journal_dirty_data(handle_t *handle,
 			     struct buffer_head *bh)
 {
@@ -443,8 +446,9 @@ int ocfs2_journal_dirty_data(handle_t *handle,
 
 	return err;
 }
+#endif
 
-#define OCFS2_DEFAULT_COMMIT_INTERVAL 	(HZ * JBD_DEFAULT_MAX_COMMIT_AGE)
+#define OCFS2_DEFAULT_COMMIT_INTERVAL	(HZ * JBD2_DEFAULT_MAX_COMMIT_AGE)
 
 void ocfs2_set_journal_params(struct ocfs2_super *osb)
 {
@@ -457,9 +461,9 @@ void ocfs2_set_journal_params(struct ocfs2_super *osb)
 	spin_lock(&journal->j_state_lock);
 	journal->j_commit_interval = commit_interval;
 	if (osb->s_mount_opt & OCFS2_MOUNT_BARRIER)
-		journal->j_flags |= JFS_BARRIER;
+		journal->j_flags |= JBD2_BARRIER;
 	else
-		journal->j_flags &= ~JFS_BARRIER;
+		journal->j_flags &= ~JBD2_BARRIER;
 	spin_unlock(&journal->j_state_lock);
 }
 
@@ -524,14 +528,14 @@ int ocfs2_journal_init(struct ocfs2_journal *journal, int *dirty)
 	mlog(0, "inode->ip_clusters = %u\n", OCFS2_I(inode)->ip_clusters);
 
 	/* call the kernels journal init function now */
-	j_journal = journal_init_inode(inode);
+	j_journal = jbd2_journal_init_inode(inode);
 	if (j_journal == NULL) {
 		mlog(ML_ERROR, "Linux journal layer error\n");
 		status = -EINVAL;
 		goto done;
 	}
 
-	mlog(0, "Returned from journal_init_inode\n");
+	mlog(0, "Returned from jbd2_journal_init_inode\n");
 	mlog(0, "j_journal->j_maxlen = %u\n", j_journal->j_maxlen);
 
 	*dirty = (le32_to_cpu(di->id1.journal1.ij_flags) &
@@ -550,8 +554,7 @@ done:
 	if (status < 0) {
 		if (inode_lock)
 			ocfs2_inode_unlock(inode, 1);
-		if (bh != NULL)
-			brelse(bh);
+		brelse(bh);
 		if (inode) {
 			OCFS2_I(inode)->ip_open_count--;
 			iput(inode);
@@ -639,7 +642,7 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 	if (journal->j_state != OCFS2_JOURNAL_LOADED)
 		goto done;
 
-	/* need to inc inode use count as journal_destroy will iput. */
+	/* need to inc inode use count - jbd2_journal_destroy will iput. */
 	if (!igrab(inode))
 		BUG();
 
@@ -668,9 +671,9 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 	BUG_ON(atomic_read(&(osb->journal->j_num_trans)) != 0);
 
 	if (ocfs2_mount_local(osb)) {
-		journal_lock_updates(journal->j_journal);
-		status = journal_flush(journal->j_journal);
-		journal_unlock_updates(journal->j_journal);
+		jbd2_journal_lock_updates(journal->j_journal);
+		status = jbd2_journal_flush(journal->j_journal);
+		jbd2_journal_unlock_updates(journal->j_journal);
 		if (status < 0)
 			mlog_errno(status);
 	}
@@ -686,7 +689,7 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 	}
 
 	/* Shutdown the kernel journal system */
-	journal_destroy(journal->j_journal);
+	jbd2_journal_destroy(journal->j_journal);
 
 	OCFS2_I(inode)->ip_open_count--;
 
@@ -711,15 +714,15 @@ static void ocfs2_clear_journal_error(struct super_block *sb,
 {
 	int olderr;
 
-	olderr = journal_errno(journal);
+	olderr = jbd2_journal_errno(journal);
 	if (olderr) {
 		mlog(ML_ERROR, "File system error %d recorded in "
 		     "journal %u.\n", olderr, slot);
 		mlog(ML_ERROR, "File system on device %s needs checking.\n",
 		     sb->s_id);
 
-		journal_ack_err(journal);
-		journal_clear_err(journal);
+		jbd2_journal_ack_err(journal);
+		jbd2_journal_clear_err(journal);
 	}
 }
 
@@ -734,7 +737,7 @@ int ocfs2_journal_load(struct ocfs2_journal *journal, int local, int replayed)
 
 	osb = journal->j_osb;
 
-	status = journal_load(journal->j_journal);
+	status = jbd2_journal_load(journal->j_journal);
 	if (status < 0) {
 		mlog(ML_ERROR, "Failed to load journal!\n");
 		goto done;
@@ -778,7 +781,7 @@ int ocfs2_journal_wipe(struct ocfs2_journal *journal, int full)
 
 	BUG_ON(!journal);
 
-	status = journal_wipe(journal->j_journal, full);
+	status = jbd2_journal_wipe(journal->j_journal, full);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -847,9 +850,8 @@ static int ocfs2_force_read_journal(struct inode *inode)
 
 		/* We are reading journal data which should not
 		 * be put in the uptodate cache */
-		status = ocfs2_read_blocks(OCFS2_SB(inode->i_sb),
-					   p_blkno, p_blocks, bhs, 0,
-					   NULL);
+		status = ocfs2_read_blocks_sync(OCFS2_SB(inode->i_sb),
+						p_blkno, p_blocks, bhs);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;
@@ -865,8 +867,7 @@ static int ocfs2_force_read_journal(struct inode *inode)
 
 bail:
 	for(i = 0; i < CONCURRENT_JOURNAL_FILL; i++)
-		if (bhs[i])
-			brelse(bhs[i]);
+		brelse(bhs[i]);
 	mlog_exit(status);
 	return status;
 }
@@ -1133,7 +1134,8 @@ static int ocfs2_read_journal_inode(struct ocfs2_super *osb,
 	}
 	SET_INODE_JOURNAL(inode);
 
-	status = ocfs2_read_block(osb, OCFS2_I(inode)->ip_blkno, bh, 0, inode);
+	status = ocfs2_read_blocks(inode, OCFS2_I(inode)->ip_blkno, 1, bh,
+				   OCFS2_BH_IGNORE_CACHE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -1229,19 +1231,19 @@ static int ocfs2_replay_journal(struct ocfs2_super *osb,
 	}
 
 	mlog(0, "calling journal_init_inode\n");
-	journal = journal_init_inode(inode);
+	journal = jbd2_journal_init_inode(inode);
 	if (journal == NULL) {
 		mlog(ML_ERROR, "Linux journal layer error\n");
 		status = -EIO;
 		goto done;
 	}
 
-	status = journal_load(journal);
+	status = jbd2_journal_load(journal);
 	if (status < 0) {
 		mlog_errno(status);
 		if (!igrab(inode))
 			BUG();
-		journal_destroy(journal);
+		jbd2_journal_destroy(journal);
 		goto done;
 	}
 
@@ -1249,9 +1251,9 @@ static int ocfs2_replay_journal(struct ocfs2_super *osb,
 
 	/* wipe the journal */
 	mlog(0, "flushing the journal.\n");
-	journal_lock_updates(journal);
-	status = journal_flush(journal);
-	journal_unlock_updates(journal);
+	jbd2_journal_lock_updates(journal);
+	status = jbd2_journal_flush(journal);
+	jbd2_journal_unlock_updates(journal);
 	if (status < 0)
 		mlog_errno(status);
 
@@ -1272,7 +1274,7 @@ static int ocfs2_replay_journal(struct ocfs2_super *osb,
 	if (!igrab(inode))
 		BUG();
 
-	journal_destroy(journal);
+	jbd2_journal_destroy(journal);
 
 done:
 	/* drop the lock on this nodes journal */
@@ -1282,8 +1284,7 @@ done:
 	if (inode)
 		iput(inode);
 
-	if (bh)
-		brelse(bh);
+	brelse(bh);
 
 	mlog_exit(status);
 	return status;

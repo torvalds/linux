@@ -525,19 +525,19 @@ void tpm_get_timeouts(struct tpm_chip *chip)
 	timeout =
 	    be32_to_cpu(*((__be32 *) (data + TPM_GET_CAP_RET_UINT32_1_IDX)));
 	if (timeout)
-		chip->vendor.timeout_a = msecs_to_jiffies(timeout);
+		chip->vendor.timeout_a = usecs_to_jiffies(timeout);
 	timeout =
 	    be32_to_cpu(*((__be32 *) (data + TPM_GET_CAP_RET_UINT32_2_IDX)));
 	if (timeout)
-		chip->vendor.timeout_b = msecs_to_jiffies(timeout);
+		chip->vendor.timeout_b = usecs_to_jiffies(timeout);
 	timeout =
 	    be32_to_cpu(*((__be32 *) (data + TPM_GET_CAP_RET_UINT32_3_IDX)));
 	if (timeout)
-		chip->vendor.timeout_c = msecs_to_jiffies(timeout);
+		chip->vendor.timeout_c = usecs_to_jiffies(timeout);
 	timeout =
 	    be32_to_cpu(*((__be32 *) (data + TPM_GET_CAP_RET_UINT32_4_IDX)));
 	if (timeout)
-		chip->vendor.timeout_d = msecs_to_jiffies(timeout);
+		chip->vendor.timeout_d = usecs_to_jiffies(timeout);
 
 duration:
 	memcpy(data, tpm_cap, sizeof(tpm_cap));
@@ -554,15 +554,22 @@ duration:
 		return;
 
 	chip->vendor.duration[TPM_SHORT] =
-	    msecs_to_jiffies(be32_to_cpu
+	    usecs_to_jiffies(be32_to_cpu
 			     (*((__be32 *) (data +
 					    TPM_GET_CAP_RET_UINT32_1_IDX))));
+	/* The Broadcom BCM0102 chipset in a Dell Latitude D820 gets the above
+	 * value wrong and apparently reports msecs rather than usecs. So we
+	 * fix up the resulting too-small TPM_SHORT value to make things work.
+	 */
+	if (chip->vendor.duration[TPM_SHORT] < (HZ/100))
+		chip->vendor.duration[TPM_SHORT] = HZ;
+
 	chip->vendor.duration[TPM_MEDIUM] =
-	    msecs_to_jiffies(be32_to_cpu
+	    usecs_to_jiffies(be32_to_cpu
 			     (*((__be32 *) (data +
 					    TPM_GET_CAP_RET_UINT32_2_IDX))));
 	chip->vendor.duration[TPM_LONG] =
-	    msecs_to_jiffies(be32_to_cpu
+	    usecs_to_jiffies(be32_to_cpu
 			     (*((__be32 *) (data +
 					    TPM_GET_CAP_RET_UINT32_3_IDX))));
 }
@@ -954,72 +961,63 @@ EXPORT_SYMBOL_GPL(tpm_store_cancel);
 
 /*
  * Device file system interface to the TPM
+ *
+ * It's assured that the chip will be opened just once,
+ * by the check of is_open variable, which is protected
+ * by driver_lock.
  */
 int tpm_open(struct inode *inode, struct file *file)
 {
-	int rc = 0, minor = iminor(inode);
+	int minor = iminor(inode);
 	struct tpm_chip *chip = NULL, *pos;
 
-	lock_kernel();
-	spin_lock(&driver_lock);
-
-	list_for_each_entry(pos, &tpm_chip_list, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(pos, &tpm_chip_list, list) {
 		if (pos->vendor.miscdev.minor == minor) {
 			chip = pos;
+			get_device(chip->dev);
 			break;
 		}
 	}
+	rcu_read_unlock();
 
-	if (chip == NULL) {
-		rc = -ENODEV;
-		goto err_out;
-	}
+	if (!chip)
+		return -ENODEV;
 
-	if (chip->num_opens) {
+	if (test_and_set_bit(0, &chip->is_open)) {
 		dev_dbg(chip->dev, "Another process owns this TPM\n");
-		rc = -EBUSY;
-		goto err_out;
+		put_device(chip->dev);
+		return -EBUSY;
 	}
-
-	chip->num_opens++;
-	get_device(chip->dev);
-
-	spin_unlock(&driver_lock);
 
 	chip->data_buffer = kmalloc(TPM_BUFSIZE * sizeof(u8), GFP_KERNEL);
 	if (chip->data_buffer == NULL) {
-		chip->num_opens--;
+		clear_bit(0, &chip->is_open);
 		put_device(chip->dev);
-		unlock_kernel();
 		return -ENOMEM;
 	}
 
 	atomic_set(&chip->data_pending, 0);
 
 	file->private_data = chip;
-	unlock_kernel();
 	return 0;
-
-err_out:
-	spin_unlock(&driver_lock);
-	unlock_kernel();
-	return rc;
 }
 EXPORT_SYMBOL_GPL(tpm_open);
 
+/*
+ * Called on file close
+ */
 int tpm_release(struct inode *inode, struct file *file)
 {
 	struct tpm_chip *chip = file->private_data;
 
-	flush_scheduled_work();
-	spin_lock(&driver_lock);
-	file->private_data = NULL;
 	del_singleshot_timer_sync(&chip->user_read_timer);
+	flush_scheduled_work();
+	file->private_data = NULL;
 	atomic_set(&chip->data_pending, 0);
-	chip->num_opens--;
-	put_device(chip->dev);
 	kfree(chip->data_buffer);
-	spin_unlock(&driver_lock);
+	clear_bit(0, &chip->is_open);
+	put_device(chip->dev);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tpm_release);
@@ -1093,13 +1091,11 @@ void tpm_remove_hardware(struct device *dev)
 	}
 
 	spin_lock(&driver_lock);
-
-	list_del(&chip->list);
-
+	list_del_rcu(&chip->list);
 	spin_unlock(&driver_lock);
+	synchronize_rcu();
 
 	misc_deregister(&chip->vendor.miscdev);
-
 	sysfs_remove_group(&dev->kobj, chip->vendor.attr_group);
 	tpm_bios_log_teardown(chip->bios_dir);
 
@@ -1144,25 +1140,33 @@ int tpm_pm_resume(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(tpm_pm_resume);
 
+/* In case vendor provided release function, call it too.*/
+
+void tpm_dev_vendor_release(struct tpm_chip *chip)
+{
+	if (chip->vendor.release)
+		chip->vendor.release(chip->dev);
+
+	clear_bit(chip->dev_num, dev_mask);
+	kfree(chip->vendor.miscdev.name);
+}
+EXPORT_SYMBOL_GPL(tpm_dev_vendor_release);
+
+
 /*
  * Once all references to platform device are down to 0,
  * release all allocated structures.
- * In case vendor provided release function,
- * call it too.
  */
 static void tpm_dev_release(struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 
-	if (chip->vendor.release)
-		chip->vendor.release(dev);
+	tpm_dev_vendor_release(chip);
 
 	chip->release(dev);
-
-	clear_bit(chip->dev_num, dev_mask);
-	kfree(chip->vendor.miscdev.name);
 	kfree(chip);
 }
+EXPORT_SYMBOL_GPL(tpm_dev_release);
 
 /*
  * Called from tpm_<specific>.c probe function only for devices 
@@ -1171,8 +1175,8 @@ static void tpm_dev_release(struct device *dev)
  * upon errant exit from this function specific probe function should call
  * pci_disable_device
  */
-struct tpm_chip *tpm_register_hardware(struct device *dev, const struct tpm_vendor_specific
-				       *entry)
+struct tpm_chip *tpm_register_hardware(struct device *dev,
+					const struct tpm_vendor_specific *entry)
 {
 #define DEVNAME_SIZE 7
 
@@ -1183,11 +1187,8 @@ struct tpm_chip *tpm_register_hardware(struct device *dev, const struct tpm_vend
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	devname = kmalloc(DEVNAME_SIZE, GFP_KERNEL);
 
-	if (chip == NULL || devname == NULL) {
-		kfree(chip);
-		kfree(devname);
-		return NULL;
-	}
+	if (chip == NULL || devname == NULL)
+		goto out_free;
 
 	mutex_init(&chip->buffer_mutex);
 	mutex_init(&chip->tpm_mutex);
@@ -1204,8 +1205,7 @@ struct tpm_chip *tpm_register_hardware(struct device *dev, const struct tpm_vend
 
 	if (chip->dev_num >= TPM_NUM_DEVICES) {
 		dev_err(dev, "No available tpm device numbers\n");
-		kfree(chip);
-		return NULL;
+		goto out_free;
 	} else if (chip->dev_num == 0)
 		chip->vendor.miscdev.minor = TPM_MINOR;
 	else
@@ -1231,22 +1231,26 @@ struct tpm_chip *tpm_register_hardware(struct device *dev, const struct tpm_vend
 		return NULL;
 	}
 
-	spin_lock(&driver_lock);
-
-	list_add(&chip->list, &tpm_chip_list);
-
-	spin_unlock(&driver_lock);
-
 	if (sysfs_create_group(&dev->kobj, chip->vendor.attr_group)) {
-		list_del(&chip->list);
 		misc_deregister(&chip->vendor.miscdev);
 		put_device(chip->dev);
+
 		return NULL;
 	}
 
 	chip->bios_dir = tpm_bios_log_setup(devname);
 
+	/* Make chip available */
+	spin_lock(&driver_lock);
+	list_add_rcu(&chip->list, &tpm_chip_list);
+	spin_unlock(&driver_lock);
+
 	return chip;
+
+out_free:
+	kfree(chip);
+	kfree(devname);
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(tpm_register_hardware);
 

@@ -101,7 +101,7 @@ config HAVE_MEMORY_PRESENT
 # with gcc 3.4 and later.
 #
 config SPARSEMEM_STATIC
-	def_bool n
+	bool
 
 #
 # Architecture platforms which require a two level mem_section in SPARSEMEM
@@ -113,7 +113,7 @@ config SPARSEMEM_EXTREME
 	depends on SPARSEMEM && !SPARSEMEM_STATIC
 
 config SPARSEMEM_VMEMMAP_ENABLE
-	def_bool n
+	bool
 
 config SPARSEMEM_VMEMMAP
 	bool "Sparse Memory virtual memmap"
@@ -186,6 +186,9 @@ config RESOURCES_64BIT
 	default 64BIT
 	help
 	  This option allows memory and IO resources to be 64 bit.
+
+config PHYS_ADDR_T_64BIT
+	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
 
 config ZONE_DMA_FLAG
 	int

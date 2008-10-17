@@ -244,10 +244,10 @@ cont:
 }
 
 /* Check if we can expire a direct mount (possibly a tree) */
-static struct dentry *autofs4_expire_direct(struct super_block *sb,
-					    struct vfsmount *mnt,
-					    struct autofs_sb_info *sbi,
-					    int how)
+struct dentry *autofs4_expire_direct(struct super_block *sb,
+				     struct vfsmount *mnt,
+				     struct autofs_sb_info *sbi,
+				     int how)
 {
 	unsigned long timeout;
 	struct dentry *root = dget(sb->s_root);
@@ -283,10 +283,10 @@ static struct dentry *autofs4_expire_direct(struct super_block *sb,
  *  - it is unused by any user process
  *  - it has been unused for exp_timeout time
  */
-static struct dentry *autofs4_expire_indirect(struct super_block *sb,
-					      struct vfsmount *mnt,
-					      struct autofs_sb_info *sbi,
-					      int how)
+struct dentry *autofs4_expire_indirect(struct super_block *sb,
+				       struct vfsmount *mnt,
+				       struct autofs_sb_info *sbi,
+				       int how)
 {
 	unsigned long timeout;
 	struct dentry *root = sb->s_root;
@@ -479,7 +479,7 @@ int autofs4_expire_multi(struct super_block *sb, struct vfsmount *mnt,
 	if (arg && get_user(do_now, arg))
 		return -EFAULT;
 
-	if (sbi->type & AUTOFS_TYPE_DIRECT)
+	if (sbi->type & AUTOFS_TYPE_TRIGGER)
 		dentry = autofs4_expire_direct(sb, mnt, sbi, do_now);
 	else
 		dentry = autofs4_expire_indirect(sb, mnt, sbi, do_now);

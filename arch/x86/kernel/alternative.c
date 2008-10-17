@@ -145,35 +145,25 @@ static const unsigned char *const p6_nops[ASM_NOP_MAX+1] = {
 extern char __vsyscall_0;
 const unsigned char *const *find_nop_table(void)
 {
-	return boot_cpu_data.x86_vendor != X86_VENDOR_INTEL ||
-	       boot_cpu_data.x86 < 6 ? k8_nops : p6_nops;
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL &&
+	    boot_cpu_has(X86_FEATURE_NOPL))
+		return p6_nops;
+	else
+		return k8_nops;
 }
 
 #else /* CONFIG_X86_64 */
 
-static const struct nop {
-	int cpuid;
-	const unsigned char *const *noptable;
-} noptypes[] = {
-	{ X86_FEATURE_K8, k8_nops },
-	{ X86_FEATURE_K7, k7_nops },
-	{ X86_FEATURE_P4, p6_nops },
-	{ X86_FEATURE_P3, p6_nops },
-	{ -1, NULL }
-};
-
 const unsigned char *const *find_nop_table(void)
 {
-	const unsigned char *const *noptable = intel_nops;
-	int i;
-
-	for (i = 0; noptypes[i].cpuid >= 0; i++) {
-		if (boot_cpu_has(noptypes[i].cpuid)) {
-			noptable = noptypes[i].noptable;
-			break;
-		}
-	}
-	return noptable;
+	if (boot_cpu_has(X86_FEATURE_K8))
+		return k8_nops;
+	else if (boot_cpu_has(X86_FEATURE_K7))
+		return k7_nops;
+	else if (boot_cpu_has(X86_FEATURE_NOPL))
+		return p6_nops;
+	else
+		return intel_nops;
 }
 
 #endif /* CONFIG_X86_64 */
@@ -241,25 +231,25 @@ static void alternatives_smp_lock(u8 **start, u8 **end, u8 *text, u8 *text_end)
 			continue;
 		if (*ptr > text_end)
 			continue;
-		text_poke(*ptr, ((unsigned char []){0xf0}), 1); /* add lock prefix */
+		/* turn DS segment override prefix into lock prefix */
+		text_poke(*ptr, ((unsigned char []){0xf0}), 1);
 	};
 }
 
 static void alternatives_smp_unlock(u8 **start, u8 **end, u8 *text, u8 *text_end)
 {
 	u8 **ptr;
-	char insn[1];
 
 	if (noreplace_smp)
 		return;
 
-	add_nops(insn, 1);
 	for (ptr = start; ptr < end; ptr++) {
 		if (*ptr < text)
 			continue;
 		if (*ptr > text_end)
 			continue;
-		text_poke(*ptr, insn, 1);
+		/* turn lock prefix into DS segment override prefix */
+		text_poke(*ptr, ((unsigned char []){0x3E}), 1);
 	};
 }
 
@@ -454,7 +444,7 @@ void __init alternative_instructions(void)
 					    _text, _etext);
 
 		/* Only switch to UP mode if we don't immediately boot others */
-		if (num_possible_cpus() == 1 || setup_max_cpus <= 1)
+		if (num_present_cpus() == 1 || setup_max_cpus <= 1)
 			alternatives_smp_switch(0);
 	}
 #endif

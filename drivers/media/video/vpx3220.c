@@ -24,8 +24,6 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 
-#include <linux/byteorder/swab.h>
-
 #include <asm/io.h>
 #include <asm/uaccess.h>
 

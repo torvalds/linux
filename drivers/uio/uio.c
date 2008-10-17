@@ -67,6 +67,11 @@ static ssize_t map_size_show(struct uio_mem *mem, char *buf)
 	return sprintf(buf, "0x%lx\n", mem->size);
 }
 
+static ssize_t map_offset_show(struct uio_mem *mem, char *buf)
+{
+	return sprintf(buf, "0x%lx\n", mem->addr & ~PAGE_MASK);
+}
+
 struct uio_sysfs_entry {
 	struct attribute attr;
 	ssize_t (*show)(struct uio_mem *, char *);
@@ -77,10 +82,13 @@ static struct uio_sysfs_entry addr_attribute =
 	__ATTR(addr, S_IRUGO, map_addr_show, NULL);
 static struct uio_sysfs_entry size_attribute =
 	__ATTR(size, S_IRUGO, map_size_show, NULL);
+static struct uio_sysfs_entry offset_attribute =
+	__ATTR(offset, S_IRUGO, map_offset_show, NULL);
 
 static struct attribute *attrs[] = {
 	&addr_attribute.attr,
 	&size_attribute.attr,
+	&offset_attribute.attr,
 	NULL,	/* need to NULL terminate the list of attributes */
 };
 
@@ -482,15 +490,23 @@ static int uio_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct uio_device *idev = vma->vm_private_data;
 	struct page *page;
+	unsigned long offset;
 
 	int mi = uio_find_mem_index(vma);
 	if (mi < 0)
 		return VM_FAULT_SIGBUS;
 
+	/*
+	 * We need to subtract mi because userspace uses offset = N*PAGE_SIZE
+	 * to use mem[N].
+	 */
+	offset = (vmf->pgoff - mi) << PAGE_SHIFT;
+
 	if (idev->info->mem[mi].memtype == UIO_MEM_LOGICAL)
-		page = virt_to_page(idev->info->mem[mi].addr);
+		page = virt_to_page(idev->info->mem[mi].addr + offset);
 	else
-		page = vmalloc_to_page((void*)idev->info->mem[mi].addr);
+		page = vmalloc_to_page((void *)idev->info->mem[mi].addr
+							+ offset);
 	get_page(page);
 	vmf->page = page;
 	return 0;
@@ -682,9 +698,9 @@ int __uio_register_device(struct module *owner,
 	if (ret)
 		goto err_get_minor;
 
-	idev->dev = device_create_drvdata(uio_class->class, parent,
-					  MKDEV(uio_major, idev->minor), idev,
-					  "uio%d", idev->minor);
+	idev->dev = device_create(uio_class->class, parent,
+				  MKDEV(uio_major, idev->minor), idev,
+				  "uio%d", idev->minor);
 	if (IS_ERR(idev->dev)) {
 		printk(KERN_ERR "UIO: device register failed\n");
 		ret = PTR_ERR(idev->dev);

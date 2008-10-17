@@ -140,24 +140,4 @@ extern int sn9c102_probe_tas5110c1b(struct sn9c102_device* cam);
 extern int sn9c102_probe_tas5110d(struct sn9c102_device* cam);
 extern int sn9c102_probe_tas5130d1b(struct sn9c102_device* cam);
 
-/*
-   Add the above entries to this table. Be sure to add the entry in the right
-   place, since, on failure, the next probing routine is called according to
-   the order of the list below, from top to bottom.
-*/
-static int (*sn9c102_sensor_table[])(struct sn9c102_device*) = {
-	&sn9c102_probe_hv7131d, /* strong detection based on SENSOR ids */
-	&sn9c102_probe_hv7131r, /* strong detection based on SENSOR ids */
-	&sn9c102_probe_mi0343, /* strong detection based on SENSOR ids */
-	&sn9c102_probe_mi0360, /* strong detection based on SENSOR ids */
-	&sn9c102_probe_mt9v111, /* strong detection based on SENSOR ids */
-	&sn9c102_probe_pas106b, /* strong detection based on SENSOR ids */
-	&sn9c102_probe_pas202bcb, /* strong detection based on SENSOR ids */
-	&sn9c102_probe_ov7630, /* strong detection based on SENSOR ids */
-	&sn9c102_probe_ov7660, /* strong detection based on SENSOR ids */
-	&sn9c102_probe_tas5110c1b, /* detection based on USB pid/vid */
-	&sn9c102_probe_tas5110d, /* detection based on USB pid/vid */
-	&sn9c102_probe_tas5130d1b, /* detection based on USB pid/vid */
-};
-
 #endif /* _SN9C102_DEVTABLE_H_ */

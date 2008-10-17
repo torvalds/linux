@@ -78,7 +78,7 @@ struct of_device *of_device_alloc(struct device_node *np,
 	dev->dev.parent = parent;
 	dev->dev.release = of_release_dev;
 	dev->dev.archdata.of_node = np;
-	dev->dev.archdata.numa_node = of_node_to_nid(np);
+	set_dev_node(&dev->dev, of_node_to_nid(np));
 
 	if (bus_id)
 		strlcpy(dev->dev.bus_id, bus_id, BUS_ID_SIZE);

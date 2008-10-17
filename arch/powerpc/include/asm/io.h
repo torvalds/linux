@@ -711,7 +711,7 @@ static inline void * phys_to_virt(unsigned long address)
 /*
  * Change "struct page" to physical address.
  */
-#define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
+#define page_to_phys(page)	((phys_addr_t)page_to_pfn(page) << PAGE_SHIFT)
 
 /* We do NOT want virtual merging, it would put too much pressure on
  * our iommu allocator. Instead, we want drivers to be smart enough

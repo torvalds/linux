@@ -29,7 +29,6 @@
 
 #include <asm/system.h>
 #include <asm/mipsregs.h>
-#include <asm/debug.h>
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
 

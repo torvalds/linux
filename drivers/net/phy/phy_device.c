@@ -309,11 +309,6 @@ void phy_disconnect(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(phy_disconnect);
 
-static int phy_compare_id(struct device *dev, void *data)
-{
-	return strcmp((char *)data, dev->bus_id) ? 0 : 1;
-}
-
 /**
  * phy_attach - attach a network device to a particular PHY device
  * @dev: network device to attach
@@ -337,8 +332,7 @@ struct phy_device *phy_attach(struct net_device *dev,
 
 	/* Search the list of PHY devices on the mdio bus for the
 	 * PHY with the requested name */
-	d = bus_find_device(bus, NULL, (void *)bus_id, phy_compare_id);
-
+	d = bus_find_device_by_name(bus, NULL, bus_id);
 	if (d) {
 		phydev = to_phy_device(d);
 	} else {
@@ -419,13 +413,14 @@ EXPORT_SYMBOL(phy_detach);
  *
  * Description: Writes MII_ADVERTISE with the appropriate values,
  *   after sanitizing the values to make sure we only advertise
- *   what is supported.
+ *   what is supported.  Returns < 0 on error, 0 if the PHY's advertisement
+ *   hasn't changed, and > 0 if it has changed.
  */
 int genphy_config_advert(struct phy_device *phydev)
 {
 	u32 advertise;
-	int adv;
-	int err;
+	int oldadv, adv;
+	int err, changed = 0;
 
 	/* Only allow advertising what
 	 * this PHY supports */
@@ -433,7 +428,7 @@ int genphy_config_advert(struct phy_device *phydev)
 	advertise = phydev->advertising;
 
 	/* Setup standard advertisement */
-	adv = phy_read(phydev, MII_ADVERTISE);
+	oldadv = adv = phy_read(phydev, MII_ADVERTISE);
 
 	if (adv < 0)
 		return adv;
@@ -453,15 +448,18 @@ int genphy_config_advert(struct phy_device *phydev)
 	if (advertise & ADVERTISED_Asym_Pause)
 		adv |= ADVERTISE_PAUSE_ASYM;
 
-	err = phy_write(phydev, MII_ADVERTISE, adv);
+	if (adv != oldadv) {
+		err = phy_write(phydev, MII_ADVERTISE, adv);
 
-	if (err < 0)
-		return err;
+		if (err < 0)
+			return err;
+		changed = 1;
+	}
 
 	/* Configure gigabit if it's supported */
 	if (phydev->supported & (SUPPORTED_1000baseT_Half |
 				SUPPORTED_1000baseT_Full)) {
-		adv = phy_read(phydev, MII_CTRL1000);
+		oldadv = adv = phy_read(phydev, MII_CTRL1000);
 
 		if (adv < 0)
 			return adv;
@@ -471,13 +469,17 @@ int genphy_config_advert(struct phy_device *phydev)
 			adv |= ADVERTISE_1000HALF;
 		if (advertise & SUPPORTED_1000baseT_Full)
 			adv |= ADVERTISE_1000FULL;
-		err = phy_write(phydev, MII_CTRL1000, adv);
 
-		if (err < 0)
-			return err;
+		if (adv != oldadv) {
+			err = phy_write(phydev, MII_CTRL1000, adv);
+
+			if (err < 0)
+				return err;
+			changed = 1;
+		}
 	}
 
-	return adv;
+	return changed;
 }
 EXPORT_SYMBOL(genphy_config_advert);
 
@@ -549,6 +551,7 @@ int genphy_restart_aneg(struct phy_device *phydev)
 
 	return ctl;
 }
+EXPORT_SYMBOL(genphy_restart_aneg);
 
 
 /**
@@ -561,19 +564,22 @@ int genphy_restart_aneg(struct phy_device *phydev)
  */
 int genphy_config_aneg(struct phy_device *phydev)
 {
-	int err = 0;
+	int result = 0;
 
 	if (AUTONEG_ENABLE == phydev->autoneg) {
-		err = genphy_config_advert(phydev);
+		int result = genphy_config_advert(phydev);
 
-		if (err < 0)
-			return err;
+		if (result < 0) /* error */
+			return result;
 
-		err = genphy_restart_aneg(phydev);
+		/* Only restart aneg if we are advertising something different
+		 * than we were before.	 */
+		if (result > 0)
+			result = genphy_restart_aneg(phydev);
 	} else
-		err = genphy_setup_forced(phydev);
+		result = genphy_setup_forced(phydev);
 
-	return err;
+	return result;
 }
 EXPORT_SYMBOL(genphy_config_aneg);
 

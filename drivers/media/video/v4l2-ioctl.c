@@ -746,18 +746,6 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 				ret = ops->vidioc_enum_fmt_vid_overlay(file,
 					fh, f);
 			break;
-#if 1
-		/* V4L2_BUF_TYPE_VBI_CAPTURE should not support VIDIOC_ENUM_FMT
-		 * according to the spec. The bttv and saa7134 drivers support
-		 * it though, so just warn that this is deprecated and will be
-		 * removed in the near future. */
-		case V4L2_BUF_TYPE_VBI_CAPTURE:
-			if (ops->vidioc_enum_fmt_vbi_cap) {
-				printk(KERN_WARNING "vidioc_enum_fmt_vbi_cap will be removed in 2.6.28!\n");
-				ret = ops->vidioc_enum_fmt_vbi_cap(file, fh, f);
-			}
-			break;
-#endif
 		case V4L2_BUF_TYPE_VIDEO_OUTPUT:
 			if (ops->vidioc_enum_fmt_vid_out)
 				ret = ops->vidioc_enum_fmt_vid_out(file, fh, f);

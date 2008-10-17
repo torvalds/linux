@@ -21,6 +21,7 @@
 
 #include <linux/delay.h>
 #include "sn9c102_sensor.h"
+#include "sn9c102_devtable.h"
 
 
 static int pas106b_init(struct sn9c102_device* cam)

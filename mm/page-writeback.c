@@ -7,7 +7,7 @@
  * Contains functions related to writing back dirty pages at the
  * address_space level.
  *
- * 10Apr2002	akpm@zip.com.au
+ * 10Apr2002	Andrew Morton
  *		Initial version
  */
 

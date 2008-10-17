@@ -45,9 +45,8 @@ int snd_device_new(struct snd_card *card, snd_device_type_t type,
 {
 	struct snd_device *dev;
 
-	snd_assert(card != NULL, return -ENXIO);
-	snd_assert(device_data != NULL, return -ENXIO);
-	snd_assert(ops != NULL, return -ENXIO);
+	if (snd_BUG_ON(!card || !device_data || !ops))
+		return -ENXIO;
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
 		snd_printk(KERN_ERR "Cannot allocate device\n");
@@ -80,8 +79,8 @@ int snd_device_free(struct snd_card *card, void *device_data)
 {
 	struct snd_device *dev;
 	
-	snd_assert(card != NULL, return -ENXIO);
-	snd_assert(device_data != NULL, return -ENXIO);
+	if (snd_BUG_ON(!card || !device_data))
+		return -ENXIO;
 	list_for_each_entry(dev, &card->devices, list) {
 		if (dev->device_data != device_data)
 			continue;
@@ -123,8 +122,8 @@ int snd_device_disconnect(struct snd_card *card, void *device_data)
 {
 	struct snd_device *dev;
 
-	snd_assert(card != NULL, return -ENXIO);
-	snd_assert(device_data != NULL, return -ENXIO);
+	if (snd_BUG_ON(!card || !device_data))
+		return -ENXIO;
 	list_for_each_entry(dev, &card->devices, list) {
 		if (dev->device_data != device_data)
 			continue;
@@ -159,8 +158,8 @@ int snd_device_register(struct snd_card *card, void *device_data)
 	struct snd_device *dev;
 	int err;
 
-	snd_assert(card != NULL, return -ENXIO);
-	snd_assert(device_data != NULL, return -ENXIO);
+	if (snd_BUG_ON(!card || !device_data))
+		return -ENXIO;
 	list_for_each_entry(dev, &card->devices, list) {
 		if (dev->device_data != device_data)
 			continue;
@@ -188,7 +187,8 @@ int snd_device_register_all(struct snd_card *card)
 	struct snd_device *dev;
 	int err;
 	
-	snd_assert(card != NULL, return -ENXIO);
+	if (snd_BUG_ON(!card))
+		return -ENXIO;
 	list_for_each_entry(dev, &card->devices, list) {
 		if (dev->state == SNDRV_DEV_BUILD && dev->ops->dev_register) {
 			if ((err = dev->ops->dev_register(dev)) < 0)
@@ -208,7 +208,8 @@ int snd_device_disconnect_all(struct snd_card *card)
 	struct snd_device *dev;
 	int err = 0;
 
-	snd_assert(card != NULL, return -ENXIO);
+	if (snd_BUG_ON(!card))
+		return -ENXIO;
 	list_for_each_entry(dev, &card->devices, list) {
 		if (snd_device_disconnect(card, dev->device_data) < 0)
 			err = -ENXIO;
@@ -226,7 +227,8 @@ int snd_device_free_all(struct snd_card *card, snd_device_cmd_t cmd)
 	int err;
 	unsigned int range_low, range_high;
 
-	snd_assert(card != NULL, return -ENXIO);
+	if (snd_BUG_ON(!card))
+		return -ENXIO;
 	range_low = cmd * SNDRV_DEV_TYPE_RANGE_SIZE;
 	range_high = range_low + SNDRV_DEV_TYPE_RANGE_SIZE - 1;
       __again:

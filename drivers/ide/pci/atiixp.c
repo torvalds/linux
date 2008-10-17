@@ -7,7 +7,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 
@@ -183,21 +182,23 @@ static const struct pci_device_id atiixp_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, atiixp_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver atiixp_pci_driver = {
 	.name		= "ATIIXP_IDE",
 	.id_table	= atiixp_pci_tbl,
 	.probe		= atiixp_init_one,
 	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init atiixp_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&atiixp_pci_driver);
 }
 
 static void __exit atiixp_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&atiixp_pci_driver);
 }
 
 module_init(atiixp_ide_init);

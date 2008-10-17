@@ -122,6 +122,8 @@ int main(void)
 	DEFINE(PACASTABRR, offsetof(struct paca_struct, stab_rr));
 	DEFINE(PACAR1, offsetof(struct paca_struct, saved_r1));
 	DEFINE(PACATOC, offsetof(struct paca_struct, kernel_toc));
+	DEFINE(PACAKBASE, offsetof(struct paca_struct, kernelbase));
+	DEFINE(PACAKMSR, offsetof(struct paca_struct, kernel_msr));
 	DEFINE(PACASOFTIRQEN, offsetof(struct paca_struct, soft_enabled));
 	DEFINE(PACAHARDIRQEN, offsetof(struct paca_struct, hard_enabled));
 	DEFINE(PACASLBCACHE, offsetof(struct paca_struct, slb_cache));
@@ -350,14 +352,15 @@ int main(void)
 #endif
 
 	DEFINE(PGD_TABLE_SIZE, PGD_TABLE_SIZE);
+	DEFINE(PTE_SIZE, sizeof(pte_t));
 
 #ifdef CONFIG_KVM
 	DEFINE(TLBE_BYTES, sizeof(struct tlbe));
 
 	DEFINE(VCPU_HOST_STACK, offsetof(struct kvm_vcpu, arch.host_stack));
 	DEFINE(VCPU_HOST_PID, offsetof(struct kvm_vcpu, arch.host_pid));
-	DEFINE(VCPU_HOST_TLB, offsetof(struct kvm_vcpu, arch.host_tlb));
 	DEFINE(VCPU_SHADOW_TLB, offsetof(struct kvm_vcpu, arch.shadow_tlb));
+	DEFINE(VCPU_SHADOW_MOD, offsetof(struct kvm_vcpu, arch.shadow_tlb_mod));
 	DEFINE(VCPU_GPRS, offsetof(struct kvm_vcpu, arch.gpr));
 	DEFINE(VCPU_LR, offsetof(struct kvm_vcpu, arch.lr));
 	DEFINE(VCPU_CR, offsetof(struct kvm_vcpu, arch.cr));
@@ -369,7 +372,7 @@ int main(void)
 	DEFINE(VCPU_SPRG5, offsetof(struct kvm_vcpu, arch.sprg5));
 	DEFINE(VCPU_SPRG6, offsetof(struct kvm_vcpu, arch.sprg6));
 	DEFINE(VCPU_SPRG7, offsetof(struct kvm_vcpu, arch.sprg7));
-	DEFINE(VCPU_PID, offsetof(struct kvm_vcpu, arch.pid));
+	DEFINE(VCPU_SHADOW_PID, offsetof(struct kvm_vcpu, arch.shadow_pid));
 
 	DEFINE(VCPU_LAST_INST, offsetof(struct kvm_vcpu, arch.last_inst));
 	DEFINE(VCPU_FAULT_DEAR, offsetof(struct kvm_vcpu, arch.fault_dear));

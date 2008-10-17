@@ -111,16 +111,12 @@ struct ath5k_softc {
 	struct ieee80211_hw	*hw;		/* IEEE 802.11 common */
 	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
 	struct ieee80211_channel channels[ATH_CHAN_MAX];
-	struct ieee80211_rate	rates[AR5K_MAX_RATES * IEEE80211_NUM_BANDS];
-	enum ieee80211_if_types	opmode;
+	struct ieee80211_rate	rates[IEEE80211_NUM_BANDS][AR5K_MAX_RATES];
+	u8			rate_idx[IEEE80211_NUM_BANDS][AR5K_MAX_RATES];
+	enum nl80211_iftype	opmode;
 	struct ath5k_hw		*ah;		/* Atheros HW */
 
 	struct ieee80211_supported_band		*curband;
-
-	u8			a_rates;
-	u8			b_rates;
-	u8			g_rates;
-	u8			xr_rates;
 
 #ifdef CONFIG_ATH5K_DEBUG
 	struct ath5k_dbg_info	debug;		/* debug info */

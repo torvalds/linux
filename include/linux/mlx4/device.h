@@ -141,6 +141,10 @@ enum {
 	MLX4_STAT_RATE_OFFSET	= 5
 };
 
+enum {
+	MLX4_MTT_FLAG_PRESENT		= 1
+};
+
 static inline u64 mlx4_fw_ver(u64 major, u64 minor, u64 subminor)
 {
 	return (major << 32) | (minor << 16) | subminor;

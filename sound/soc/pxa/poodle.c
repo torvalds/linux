@@ -4,7 +4,7 @@
  * Copyright 2005 Wolfson Microelectronics PLC.
  * Copyright 2005 Openedhand Ltd.
  *
- * Authors: Liam Girdwood <liam.girdwood@wolfsonmicro.com>
+ * Authors: Liam Girdwood <lrg@slimlogic.co.uk>
  *          Richard Purdie <richard@openedhand.com>
  *
  *  This program is free software; you can redistribute  it and/or modify it
@@ -242,8 +242,8 @@ static int poodle_wm8731_init(struct snd_soc_codec *codec)
 {
 	int i, err;
 
-	snd_soc_dapm_disable_pin(codec, "LLINEIN");
-	snd_soc_dapm_disable_pin(codec, "RLINEIN");
+	snd_soc_dapm_nc_pin(codec, "LLINEIN");
+	snd_soc_dapm_nc_pin(codec, "RLINEIN");
 	snd_soc_dapm_enable_pin(codec, "MICIN");
 
 	/* Add poodle specific controls */
@@ -284,6 +284,7 @@ static struct snd_soc_machine snd_soc_machine_poodle = {
 
 /* poodle audio private data */
 static struct wm8731_setup_data poodle_wm8731_setup = {
+	.i2c_bus = 0,
 	.i2c_address = 0x1b,
 };
 

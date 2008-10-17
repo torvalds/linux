@@ -56,21 +56,27 @@
 #define M41T80_ALHOUR_HT	(1 << 6)	/* HT: Halt Update Bit */
 #define M41T80_FLAGS_AF		(1 << 6)	/* AF: Alarm Flag Bit */
 #define M41T80_FLAGS_BATT_LOW	(1 << 4)	/* BL: Battery Low Bit */
+#define M41T80_WATCHDOG_RB2	(1 << 7)	/* RB: Watchdog resolution */
+#define M41T80_WATCHDOG_RB1	(1 << 1)	/* RB: Watchdog resolution */
+#define M41T80_WATCHDOG_RB0	(1 << 0)	/* RB: Watchdog resolution */
 
-#define M41T80_FEATURE_HT	(1 << 0)
-#define M41T80_FEATURE_BL	(1 << 1)
+#define M41T80_FEATURE_HT	(1 << 0)	/* Halt feature */
+#define M41T80_FEATURE_BL	(1 << 1)	/* Battery low indicator */
+#define M41T80_FEATURE_SQ	(1 << 2)	/* Squarewave feature */
+#define M41T80_FEATURE_WD	(1 << 3)	/* Extra watchdog resolution */
 
 #define DRV_VERSION "0.05"
 
 static const struct i2c_device_id m41t80_id[] = {
-	{ "m41t80", 0 },
-	{ "m41t81", M41T80_FEATURE_HT },
-	{ "m41t81s", M41T80_FEATURE_HT | M41T80_FEATURE_BL },
-	{ "m41t82", M41T80_FEATURE_HT | M41T80_FEATURE_BL },
-	{ "m41t83", M41T80_FEATURE_HT | M41T80_FEATURE_BL },
-	{ "m41st84", M41T80_FEATURE_HT | M41T80_FEATURE_BL },
-	{ "m41st85", M41T80_FEATURE_HT | M41T80_FEATURE_BL },
-	{ "m41st87", M41T80_FEATURE_HT | M41T80_FEATURE_BL },
+	{ "m41t65", M41T80_FEATURE_HT | M41T80_FEATURE_WD },
+	{ "m41t80", M41T80_FEATURE_SQ },
+	{ "m41t81", M41T80_FEATURE_HT | M41T80_FEATURE_SQ},
+	{ "m41t81s", M41T80_FEATURE_HT | M41T80_FEATURE_BL | M41T80_FEATURE_SQ },
+	{ "m41t82", M41T80_FEATURE_HT | M41T80_FEATURE_BL | M41T80_FEATURE_SQ },
+	{ "m41t83", M41T80_FEATURE_HT | M41T80_FEATURE_BL | M41T80_FEATURE_SQ },
+	{ "m41st84", M41T80_FEATURE_HT | M41T80_FEATURE_BL | M41T80_FEATURE_SQ },
+	{ "m41st85", M41T80_FEATURE_HT | M41T80_FEATURE_BL | M41T80_FEATURE_SQ },
+	{ "m41st87", M41T80_FEATURE_HT | M41T80_FEATURE_BL | M41T80_FEATURE_SQ },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, m41t80_id);
@@ -386,7 +392,11 @@ static ssize_t m41t80_sysfs_show_sqwfreq(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
+	struct m41t80_data *clientdata = i2c_get_clientdata(client);
 	int val;
+
+	if (!(clientdata->features & M41T80_FEATURE_SQ))
+		return -EINVAL;
 
 	val = i2c_smbus_read_byte_data(client, M41T80_REG_SQW);
 	if (val < 0)
@@ -408,8 +418,12 @@ static ssize_t m41t80_sysfs_set_sqwfreq(struct device *dev,
 				const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
+	struct m41t80_data *clientdata = i2c_get_clientdata(client);
 	int almon, sqw;
 	int val = simple_strtoul(buf, NULL, 0);
+
+	if (!(clientdata->features & M41T80_FEATURE_SQ))
+		return -EINVAL;
 
 	if (val) {
 		if (!is_power_of_2(val))
@@ -499,6 +513,8 @@ static void wdt_ping(void)
 			.buf	= i2c_data,
 		},
 	};
+	struct m41t80_data *clientdata = i2c_get_clientdata(save_client);
+
 	i2c_data[0] = 0x09;		/* watchdog register */
 
 	if (wdt_margin > 31)
@@ -508,6 +524,13 @@ static void wdt_ping(void)
 		 * WDS = 1 (0x80), mulitplier = WD_TIMO, resolution = 1s (0x02)
 		 */
 		i2c_data[1] = wdt_margin<<2 | 0x82;
+
+	/*
+	 * M41T65 has three bits for watchdog resolution.  Don't set bit 7, as
+	 * that would be an invalid resolution.
+	 */
+	if (clientdata->features & M41T80_FEATURE_WD)
+		i2c_data[1] &= ~M41T80_WATCHDOG_RB2;
 
 	i2c_transfer(save_client->adapter, msgs1, 1);
 }

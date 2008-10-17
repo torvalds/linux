@@ -116,15 +116,15 @@ asmlinkage void do_nmi(unsigned long ecr, struct pt_regs *regs)
 	switch (ret) {
 	case NOTIFY_OK:
 	case NOTIFY_STOP:
-		return;
+		break;
 	case NOTIFY_BAD:
 		die("Fatal Non-Maskable Interrupt", regs, SIGINT);
 	default:
+		printk(KERN_ALERT "Got NMI, but nobody cared. Disabling...\n");
+		nmi_disable();
 		break;
 	}
-
-	printk(KERN_ALERT "Got NMI, but nobody cared. Disabling...\n");
-	nmi_disable();
+	nmi_exit();
 }
 
 asmlinkage void do_critical_exception(unsigned long ecr, struct pt_regs *regs)

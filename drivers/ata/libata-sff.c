@@ -1315,11 +1315,6 @@ fsm_start:
 		break;
 
 	case HSM_ST_ERR:
-		/* make sure qc->err_mask is available to
-		 * know what's wrong and recover
-		 */
-		WARN_ON(!(qc->err_mask & (AC_ERR_DEV | AC_ERR_HSM)));
-
 		ap->hsm_task_state = HSM_ST_IDLE;
 
 		/* complete taskfile transaction */

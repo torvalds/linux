@@ -476,6 +476,10 @@ static struct i2c_board_info __initdata h3_i2c_board_info[] = {
 		I2C_BOARD_INFO("tps65013", 0x48),
                /* .irq         = OMAP_GPIO_IRQ(??), */
        },
+	{
+		I2C_BOARD_INFO("isp1301_omap", 0x2d),
+		.irq		= OMAP_GPIO_IRQ(14),
+	},
 };
 
 static struct omap_gpio_switch h3_gpio_switches[] __initdata = {

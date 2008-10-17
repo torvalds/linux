@@ -24,10 +24,10 @@
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
 
-#include <asm/plat-s3c24xx/clock.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/clock.h>
+#include <plat/cpu.h>
 
-#include <asm/plat-s3c/regs-timer.h>
+#include <plat/regs-timer.h>
 
 /* Each of the timers 0 through 5 go through the following
  * clock tree, with the inputs depending on the timers.

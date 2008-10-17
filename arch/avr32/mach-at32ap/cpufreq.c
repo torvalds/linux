@@ -87,7 +87,6 @@ static int __init at32_cpufreq_driver_init(struct cpufreq_policy *policy)
 	policy->cur = at32_get_speed(0);
 	policy->min = policy->cpuinfo.min_freq;
 	policy->max = policy->cpuinfo.max_freq;
-	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 
 	printk("cpufreq: AT32AP CPU frequency driver\n");
 

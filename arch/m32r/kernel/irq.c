@@ -22,9 +22,6 @@
 #include <linux/module.h>
 #include <asm/uaccess.h>
 
-atomic_t irq_err_count;
-atomic_t irq_mis_count;
-
 /*
  * Generic, controller-independent functions:
  */
@@ -63,9 +60,6 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_putc(p, '\n');
 skip:
 		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
-	} else if (i == NR_IRQS) {
-		seq_printf(p, "ERR: %10u\n", atomic_read(&irq_err_count));
-		seq_printf(p, "MIS: %10u\n", atomic_read(&irq_mis_count));
 	}
 	return 0;
 }

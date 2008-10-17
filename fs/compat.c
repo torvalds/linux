@@ -137,6 +137,45 @@ asmlinkage long compat_sys_utimes(char __user *filename, struct compat_timeval _
 	return compat_sys_futimesat(AT_FDCWD, filename, t);
 }
 
+static int cp_compat_stat(struct kstat *stat, struct compat_stat __user *ubuf)
+{
+	compat_ino_t ino = stat->ino;
+	typeof(ubuf->st_uid) uid = 0;
+	typeof(ubuf->st_gid) gid = 0;
+	int err;
+
+	SET_UID(uid, stat->uid);
+	SET_GID(gid, stat->gid);
+
+	if ((u64) stat->size > MAX_NON_LFS ||
+	    !old_valid_dev(stat->dev) ||
+	    !old_valid_dev(stat->rdev))
+		return -EOVERFLOW;
+	if (sizeof(ino) < sizeof(stat->ino) && ino != stat->ino)
+		return -EOVERFLOW;
+
+	if (clear_user(ubuf, sizeof(*ubuf)))
+		return -EFAULT;
+
+	err  = __put_user(old_encode_dev(stat->dev), &ubuf->st_dev);
+	err |= __put_user(ino, &ubuf->st_ino);
+	err |= __put_user(stat->mode, &ubuf->st_mode);
+	err |= __put_user(stat->nlink, &ubuf->st_nlink);
+	err |= __put_user(uid, &ubuf->st_uid);
+	err |= __put_user(gid, &ubuf->st_gid);
+	err |= __put_user(old_encode_dev(stat->rdev), &ubuf->st_rdev);
+	err |= __put_user(stat->size, &ubuf->st_size);
+	err |= __put_user(stat->atime.tv_sec, &ubuf->st_atime);
+	err |= __put_user(stat->atime.tv_nsec, &ubuf->st_atime_nsec);
+	err |= __put_user(stat->mtime.tv_sec, &ubuf->st_mtime);
+	err |= __put_user(stat->mtime.tv_nsec, &ubuf->st_mtime_nsec);
+	err |= __put_user(stat->ctime.tv_sec, &ubuf->st_ctime);
+	err |= __put_user(stat->ctime.tv_nsec, &ubuf->st_ctime_nsec);
+	err |= __put_user(stat->blksize, &ubuf->st_blksize);
+	err |= __put_user(stat->blocks, &ubuf->st_blocks);
+	return err;
+}
+
 asmlinkage long compat_sys_newstat(char __user * filename,
 		struct compat_stat __user *statbuf)
 {
@@ -1239,7 +1278,7 @@ static int compat_count(compat_uptr_t __user *argv, int max)
 			if (!p)
 				break;
 			argv++;
-			if(++i > max)
+			if (i++ >= max)
 				return -E2BIG;
 		}
 	}

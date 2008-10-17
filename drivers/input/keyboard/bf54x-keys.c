@@ -8,7 +8,7 @@
  *
  *
  * Modified:
- *               Copyright 2007 Analog Devices Inc.
+ *               Copyright 2007-2008 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
@@ -81,6 +81,9 @@ struct bf54x_kpad {
 	unsigned short *keycode;
 	struct timer_list timer;
 	unsigned int keyup_test_jiffies;
+	unsigned short kpad_msel;
+	unsigned short kpad_prescale;
+	unsigned short kpad_ctl;
 };
 
 static inline int bfin_kpad_find_key(struct bf54x_kpad *bf54x_kpad,
@@ -360,6 +363,10 @@ static int bfin_kpad_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct bf54x_kpad *bf54x_kpad = platform_get_drvdata(pdev);
 
+	bf54x_kpad->kpad_msel = bfin_read_KPAD_MSEL();
+	bf54x_kpad->kpad_prescale = bfin_read_KPAD_PRESCALE();
+	bf54x_kpad->kpad_ctl = bfin_read_KPAD_CTL();
+
 	if (device_may_wakeup(&pdev->dev))
 		enable_irq_wake(bf54x_kpad->irq);
 
@@ -369,6 +376,10 @@ static int bfin_kpad_suspend(struct platform_device *pdev, pm_message_t state)
 static int bfin_kpad_resume(struct platform_device *pdev)
 {
 	struct bf54x_kpad *bf54x_kpad = platform_get_drvdata(pdev);
+
+	bfin_write_KPAD_MSEL(bf54x_kpad->kpad_msel);
+	bfin_write_KPAD_PRESCALE(bf54x_kpad->kpad_prescale);
+	bfin_write_KPAD_CTL(bf54x_kpad->kpad_ctl);
 
 	if (device_may_wakeup(&pdev->dev))
 		disable_irq_wake(bf54x_kpad->irq);

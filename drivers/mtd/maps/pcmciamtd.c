@@ -118,7 +118,8 @@ static caddr_t remap_window(struct map_info *map, unsigned long to)
 		DEBUG(2, "Remapping window from 0x%8.8x to 0x%8.8x",
 		      dev->offset, mrq.CardOffset);
 		mrq.Page = 0;
-		if( (ret = pcmcia_map_mem_page(win, &mrq)) != CS_SUCCESS) {
+		ret = pcmcia_map_mem_page(win, &mrq);
+		if (ret != 0) {
 			cs_error(dev->p_dev, MapMemPage, ret);
 			return NULL;
 		}
@@ -326,9 +327,8 @@ static void pcmciamtd_set_vpp(struct map_info *map, int on)
 
 	DEBUG(2, "dev = %p on = %d vpp = %d\n", dev, on, dev->vpp);
 	ret = pcmcia_modify_configuration(link, &mod);
-	if(ret != CS_SUCCESS) {
+	if (ret != 0)
 		cs_error(link, ModifyConfiguration, ret);
-	}
 }
 
 
@@ -368,14 +368,14 @@ static void card_settings(struct pcmciamtd_dev *dev, struct pcmcia_device *link,
 	tuple.DesiredTuple = RETURN_FIRST_TUPLE;
 
 	rc = pcmcia_get_first_tuple(link, &tuple);
-	while(rc == CS_SUCCESS) {
+	while (rc == 0) {
 		rc = pcmcia_get_tuple_data(link, &tuple);
-		if(rc != CS_SUCCESS) {
+		if (rc != 0) {
 			cs_error(link, GetTupleData, rc);
 			break;
 		}
-		rc = pcmcia_parse_tuple(link, &tuple, &parse);
-		if(rc != CS_SUCCESS) {
+		rc = pcmcia_parse_tuple(&tuple, &parse);
+		if (rc != 0) {
 			cs_error(link, ParseTuple, rc);
 			break;
 		}
@@ -493,17 +493,10 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	int last_ret = 0, last_fn = 0;
 	int ret;
 	int i;
-	config_info_t t;
 	static char *probes[] = { "jedec_probe", "cfi_probe" };
 	int new_name = 0;
 
 	DEBUG(3, "link=0x%p", link);
-
-	DEBUG(2, "Validating CIS");
-	ret = pcmcia_validate_cis(link, NULL);
-	if(ret != CS_SUCCESS) {
-		cs_error(link, GetTupleData, ret);
-	}
 
 	card_settings(dev, link, &new_name);
 
@@ -571,10 +564,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	dev->pcmcia_map.map_priv_1 = (unsigned long)dev;
 	dev->pcmcia_map.map_priv_2 = (unsigned long)link->win;
 
-	DEBUG(2, "Getting configuration");
-	CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(link, &t));
-	DEBUG(2, "Vcc = %d Vpp1 = %d Vpp2 = %d", t.Vcc, t.Vpp1, t.Vpp2);
-	dev->vpp = (vpp) ? vpp : t.Vpp1;
+	dev->vpp = (vpp) ? vpp : link->socket.socket.Vpp;
 	link->conf.Attributes = 0;
 	if(setvpp == 2) {
 		link->conf.Vpp = dev->vpp;
@@ -583,16 +573,10 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	}
 
 	link->conf.IntType = INT_MEMORY;
-	link->conf.ConfigBase = t.ConfigBase;
-	link->conf.Status = t.Status;
-	link->conf.Pin = t.Pin;
-	link->conf.Copy = t.Copy;
-	link->conf.ExtStatus = t.ExtStatus;
 	link->conf.ConfigIndex = 0;
-	link->conf.Present = t.Present;
 	DEBUG(2, "Setting Configuration");
 	ret = pcmcia_request_configuration(link, &link->conf);
-	if(ret != CS_SUCCESS) {
+	if (ret != 0) {
 		cs_error(link, RequestConfiguration, ret);
 		if (dev->win_base) {
 			iounmap(dev->win_base);

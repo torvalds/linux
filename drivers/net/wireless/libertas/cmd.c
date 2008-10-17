@@ -480,181 +480,166 @@ int lbs_cmd_802_11_key_material(struct lbs_private *priv, uint16_t cmd_action,
 	return ret;
 }
 
-static int lbs_cmd_802_11_reset(struct cmd_ds_command *cmd, int cmd_action)
+/**
+ *  @brief Set an SNMP MIB value
+ *
+ *  @param priv    	A pointer to struct lbs_private structure
+ *  @param oid  	The OID to set in the firmware
+ *  @param val  	Value to set the OID to
+ *
+ *  @return 	   	0 on success, error on failure
+ */
+int lbs_set_snmp_mib(struct lbs_private *priv, u32 oid, u16 val)
 {
-	struct cmd_ds_802_11_reset *reset = &cmd->params.reset;
+	struct cmd_ds_802_11_snmp_mib cmd;
+	int ret;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	cmd->command = cpu_to_le16(CMD_802_11_RESET);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_reset) + S_DS_GEN);
-	reset->action = cpu_to_le16(cmd_action);
+	memset(&cmd, 0, sizeof (cmd));
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(CMD_ACT_SET);
+	cmd.oid = cpu_to_le16((u16) oid);
 
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
-}
-
-static int lbs_cmd_802_11_snmp_mib(struct lbs_private *priv,
-				    struct cmd_ds_command *cmd,
-				    int cmd_action,
-				    int cmd_oid, void *pdata_buf)
-{
-	struct cmd_ds_802_11_snmp_mib *pSNMPMIB = &cmd->params.smib;
-	u8 ucTemp;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	lbs_deb_cmd("SNMP_CMD: cmd_oid = 0x%x\n", cmd_oid);
-
-	cmd->command = cpu_to_le16(CMD_802_11_SNMP_MIB);
-	cmd->size = cpu_to_le16(sizeof(*pSNMPMIB) + S_DS_GEN);
-
-	switch (cmd_oid) {
-	case OID_802_11_INFRASTRUCTURE_MODE:
-	{
-		u8 mode = (u8) (size_t) pdata_buf;
-		pSNMPMIB->querytype = cpu_to_le16(CMD_ACT_SET);
-		pSNMPMIB->oid = cpu_to_le16((u16) DESIRED_BSSTYPE_I);
-		pSNMPMIB->bufsize = cpu_to_le16(sizeof(u8));
-		if (mode == IW_MODE_ADHOC) {
-			ucTemp = SNMP_MIB_VALUE_ADHOC;
-		} else {
-			/* Infra and Auto modes */
-			ucTemp = SNMP_MIB_VALUE_INFRA;
-		}
-
-		memmove(pSNMPMIB->value, &ucTemp, sizeof(u8));
-
+	switch (oid) {
+	case SNMP_MIB_OID_BSS_TYPE:
+		cmd.bufsize = cpu_to_le16(sizeof(u8));
+		cmd.value[0] = (val == IW_MODE_ADHOC) ? 2 : 1;
 		break;
-	}
-
-	case OID_802_11D_ENABLE:
-		{
-			u32 ulTemp;
-
-			pSNMPMIB->oid = cpu_to_le16((u16) DOT11D_I);
-
-			if (cmd_action == CMD_ACT_SET) {
-				pSNMPMIB->querytype = cpu_to_le16(CMD_ACT_SET);
-				pSNMPMIB->bufsize = cpu_to_le16(sizeof(u16));
-				ulTemp = *(u32 *)pdata_buf;
-				*((__le16 *)(pSNMPMIB->value)) =
-				    cpu_to_le16((u16) ulTemp);
-			}
-			break;
-		}
-
-	case OID_802_11_FRAGMENTATION_THRESHOLD:
-		{
-			u32 ulTemp;
-
-			pSNMPMIB->oid = cpu_to_le16((u16) FRAGTHRESH_I);
-
-			if (cmd_action == CMD_ACT_GET) {
-				pSNMPMIB->querytype = cpu_to_le16(CMD_ACT_GET);
-			} else if (cmd_action == CMD_ACT_SET) {
-				pSNMPMIB->querytype = cpu_to_le16(CMD_ACT_SET);
-				pSNMPMIB->bufsize = cpu_to_le16(sizeof(u16));
-				ulTemp = *((u32 *) pdata_buf);
-				*((__le16 *)(pSNMPMIB->value)) =
-				    cpu_to_le16((u16) ulTemp);
-
-			}
-
-			break;
-		}
-
-	case OID_802_11_RTS_THRESHOLD:
-		{
-
-			u32 ulTemp;
-			pSNMPMIB->oid = cpu_to_le16(RTSTHRESH_I);
-
-			if (cmd_action == CMD_ACT_GET) {
-				pSNMPMIB->querytype = cpu_to_le16(CMD_ACT_GET);
-			} else if (cmd_action == CMD_ACT_SET) {
-				pSNMPMIB->querytype = cpu_to_le16(CMD_ACT_SET);
-				pSNMPMIB->bufsize = cpu_to_le16(sizeof(u16));
-				ulTemp = *((u32 *)pdata_buf);
-				*(__le16 *)(pSNMPMIB->value) =
-				    cpu_to_le16((u16) ulTemp);
-
-			}
-			break;
-		}
-	case OID_802_11_TX_RETRYCOUNT:
-		pSNMPMIB->oid = cpu_to_le16((u16) SHORT_RETRYLIM_I);
-
-		if (cmd_action == CMD_ACT_GET) {
-			pSNMPMIB->querytype = cpu_to_le16(CMD_ACT_GET);
-		} else if (cmd_action == CMD_ACT_SET) {
-			pSNMPMIB->querytype = cpu_to_le16(CMD_ACT_SET);
-			pSNMPMIB->bufsize = cpu_to_le16(sizeof(u16));
-			*((__le16 *)(pSNMPMIB->value)) =
-			    cpu_to_le16((u16) priv->txretrycount);
-		}
-
+	case SNMP_MIB_OID_11D_ENABLE:
+	case SNMP_MIB_OID_FRAG_THRESHOLD:
+	case SNMP_MIB_OID_RTS_THRESHOLD:
+	case SNMP_MIB_OID_SHORT_RETRY_LIMIT:
+	case SNMP_MIB_OID_LONG_RETRY_LIMIT:
+		cmd.bufsize = cpu_to_le16(sizeof(u16));
+		*((__le16 *)(&cmd.value)) = cpu_to_le16(val);
 		break;
 	default:
-		break;
+		lbs_deb_cmd("SNMP_CMD: (set) unhandled OID 0x%x\n", oid);
+		ret = -EINVAL;
+		goto out;
 	}
 
-	lbs_deb_cmd(
-	       "SNMP_CMD: command=0x%x, size=0x%x, seqnum=0x%x, result=0x%x\n",
-	       le16_to_cpu(cmd->command), le16_to_cpu(cmd->size),
-	       le16_to_cpu(cmd->seqnum), le16_to_cpu(cmd->result));
+	lbs_deb_cmd("SNMP_CMD: (set) oid 0x%x, oid size 0x%x, value 0x%x\n",
+		    le16_to_cpu(cmd.oid), le16_to_cpu(cmd.bufsize), val);
 
-	lbs_deb_cmd(
-	       "SNMP_CMD: action 0x%x, oid 0x%x, oidsize 0x%x, value 0x%x\n",
-	       le16_to_cpu(pSNMPMIB->querytype), le16_to_cpu(pSNMPMIB->oid),
-	       le16_to_cpu(pSNMPMIB->bufsize),
-	       le16_to_cpu(*(__le16 *) pSNMPMIB->value));
+	ret = lbs_cmd_with_response(priv, CMD_802_11_SNMP_MIB, &cmd);
 
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
+out:
+	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
+	return ret;
 }
 
-static int lbs_cmd_802_11_rf_tx_power(struct cmd_ds_command *cmd,
-				       u16 cmd_action, void *pdata_buf)
+/**
+ *  @brief Get an SNMP MIB value
+ *
+ *  @param priv    	A pointer to struct lbs_private structure
+ *  @param oid  	The OID to retrieve from the firmware
+ *  @param out_val  	Location for the returned value
+ *
+ *  @return 	   	0 on success, error on failure
+ */
+int lbs_get_snmp_mib(struct lbs_private *priv, u32 oid, u16 *out_val)
 {
-
-	struct cmd_ds_802_11_rf_tx_power *prtp = &cmd->params.txp;
+	struct cmd_ds_802_11_snmp_mib cmd;
+	int ret;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	cmd->size =
-	    cpu_to_le16((sizeof(struct cmd_ds_802_11_rf_tx_power)) + S_DS_GEN);
-	cmd->command = cpu_to_le16(CMD_802_11_RF_TX_POWER);
-	prtp->action = cpu_to_le16(cmd_action);
+	memset(&cmd, 0, sizeof (cmd));
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(CMD_ACT_GET);
+	cmd.oid = cpu_to_le16(oid);
 
-	lbs_deb_cmd("RF_TX_POWER_CMD: size:%d cmd:0x%x Act:%d\n",
-		    le16_to_cpu(cmd->size), le16_to_cpu(cmd->command),
-		    le16_to_cpu(prtp->action));
+	ret = lbs_cmd_with_response(priv, CMD_802_11_SNMP_MIB, &cmd);
+	if (ret)
+		goto out;
 
-	switch (cmd_action) {
-	case CMD_ACT_TX_POWER_OPT_GET:
-		prtp->action = cpu_to_le16(CMD_ACT_GET);
-		prtp->currentlevel = 0;
+	switch (le16_to_cpu(cmd.bufsize)) {
+	case sizeof(u8):
+		if (oid == SNMP_MIB_OID_BSS_TYPE) {
+			if (cmd.value[0] == 2)
+				*out_val = IW_MODE_ADHOC;
+			else
+				*out_val = IW_MODE_INFRA;
+		} else
+			*out_val = cmd.value[0];
 		break;
-
-	case CMD_ACT_TX_POWER_OPT_SET_HIGH:
-		prtp->action = cpu_to_le16(CMD_ACT_SET);
-		prtp->currentlevel = cpu_to_le16(CMD_ACT_TX_POWER_INDEX_HIGH);
+	case sizeof(u16):
+		*out_val = le16_to_cpu(*((__le16 *)(&cmd.value)));
 		break;
-
-	case CMD_ACT_TX_POWER_OPT_SET_MID:
-		prtp->action = cpu_to_le16(CMD_ACT_SET);
-		prtp->currentlevel = cpu_to_le16(CMD_ACT_TX_POWER_INDEX_MID);
-		break;
-
-	case CMD_ACT_TX_POWER_OPT_SET_LOW:
-		prtp->action = cpu_to_le16(CMD_ACT_SET);
-		prtp->currentlevel = cpu_to_le16(*((u16 *) pdata_buf));
+	default:
+		lbs_deb_cmd("SNMP_CMD: (get) unhandled OID 0x%x size %d\n",
+		            oid, le16_to_cpu(cmd.bufsize));
 		break;
 	}
 
+out:
+	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
+	return ret;
+}
+
+/**
+ *  @brief Get the min, max, and current TX power
+ *
+ *  @param priv    	A pointer to struct lbs_private structure
+ *  @param curlevel  	Current power level in dBm
+ *  @param minlevel  	Minimum supported power level in dBm (optional)
+ *  @param maxlevel  	Maximum supported power level in dBm (optional)
+ *
+ *  @return 	   	0 on success, error on failure
+ */
+int lbs_get_tx_power(struct lbs_private *priv, s16 *curlevel, s16 *minlevel,
+		     s16 *maxlevel)
+{
+	struct cmd_ds_802_11_rf_tx_power cmd;
+	int ret;
+
+	lbs_deb_enter(LBS_DEB_CMD);
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(CMD_ACT_GET);
+
+	ret = lbs_cmd_with_response(priv, CMD_802_11_RF_TX_POWER, &cmd);
+	if (ret == 0) {
+		*curlevel = le16_to_cpu(cmd.curlevel);
+		if (minlevel)
+			*minlevel = le16_to_cpu(cmd.minlevel);
+		if (maxlevel)
+			*maxlevel = le16_to_cpu(cmd.maxlevel);
+	}
+
 	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
+	return ret;
+}
+
+/**
+ *  @brief Set the TX power
+ *
+ *  @param priv    	A pointer to struct lbs_private structure
+ *  @param dbm  	The desired power level in dBm
+ *
+ *  @return 	   	0 on success, error on failure
+ */
+int lbs_set_tx_power(struct lbs_private *priv, s16 dbm)
+{
+	struct cmd_ds_802_11_rf_tx_power cmd;
+	int ret;
+
+	lbs_deb_enter(LBS_DEB_CMD);
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(CMD_ACT_SET);
+	cmd.curlevel = cpu_to_le16(dbm);
+
+	lbs_deb_cmd("SET_RF_TX_POWER: %d dBm\n", dbm);
+
+	ret = lbs_cmd_with_response(priv, CMD_802_11_RF_TX_POWER, &cmd);
+
+	lbs_deb_leave(LBS_DEB_CMD);
+	return ret;
 }
 
 static int lbs_cmd_802_11_monitor_mode(struct cmd_ds_command *cmd,
@@ -838,7 +823,9 @@ int lbs_update_channel(struct lbs_private *priv)
 int lbs_set_channel(struct lbs_private *priv, u8 channel)
 {
 	struct cmd_ds_802_11_rf_channel cmd;
+#ifdef DEBUG
 	u8 old_channel = priv->curbssparams.channel;
+#endif
 	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_CMD);
@@ -1033,9 +1020,9 @@ int lbs_mesh_access(struct lbs_private *priv, uint16_t cmd_action,
 	return ret;
 }
 
-int lbs_mesh_config_send(struct lbs_private *priv,
-			 struct cmd_ds_mesh_config *cmd,
-			 uint16_t action, uint16_t type)
+static int __lbs_mesh_config_send(struct lbs_private *priv,
+				  struct cmd_ds_mesh_config *cmd,
+				  uint16_t action, uint16_t type)
 {
 	int ret;
 
@@ -1051,6 +1038,19 @@ int lbs_mesh_config_send(struct lbs_private *priv,
 	ret = lbs_cmd_with_response(priv, CMD_MESH_CONFIG, cmd);
 
 	lbs_deb_leave(LBS_DEB_CMD);
+	return ret;
+}
+
+int lbs_mesh_config_send(struct lbs_private *priv,
+			 struct cmd_ds_mesh_config *cmd,
+			 uint16_t action, uint16_t type)
+{
+	int ret;
+
+	if (!(priv->fwcapinfo & FW_CAPINFO_PERSISTENT_CONFIG))
+		return -EOPNOTSUPP;
+
+	ret = __lbs_mesh_config_send(priv, cmd, action, type);
 	return ret;
 }
 
@@ -1095,7 +1095,7 @@ int lbs_mesh_config(struct lbs_private *priv, uint16_t action, uint16_t chan)
 		    action, priv->mesh_tlv, chan,
 		    escape_essid(priv->mesh_ssid, priv->mesh_ssid_len));
 
-	return lbs_mesh_config_send(priv, &cmd, action, priv->mesh_tlv);
+	return __lbs_mesh_config_send(priv, &cmd, action, priv->mesh_tlv);
 }
 
 static int lbs_cmd_bcn_ctrl(struct lbs_private * priv,
@@ -1256,41 +1256,47 @@ void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
 	priv->cur_cmd = NULL;
 }
 
-int lbs_set_radio_control(struct lbs_private *priv)
+int lbs_set_radio(struct lbs_private *priv, u8 preamble, u8 radio_on)
 {
-	int ret = 0;
 	struct cmd_ds_802_11_radio_control cmd;
+	int ret = -EINVAL;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	cmd.action = cpu_to_le16(CMD_ACT_SET);
 
-	switch (priv->preamble) {
-	case CMD_TYPE_SHORT_PREAMBLE:
-		cmd.control = cpu_to_le16(SET_SHORT_PREAMBLE);
-		break;
-
-	case CMD_TYPE_LONG_PREAMBLE:
-		cmd.control = cpu_to_le16(SET_LONG_PREAMBLE);
-		break;
-
-	case CMD_TYPE_AUTO_PREAMBLE:
-	default:
-		cmd.control = cpu_to_le16(SET_AUTO_PREAMBLE);
-		break;
+	/* Only v8 and below support setting the preamble */
+	if (priv->fwrelease < 0x09000000) {
+		switch (preamble) {
+		case RADIO_PREAMBLE_SHORT:
+			if (!(priv->capability & WLAN_CAPABILITY_SHORT_PREAMBLE))
+				goto out;
+			/* Fall through */
+		case RADIO_PREAMBLE_AUTO:
+		case RADIO_PREAMBLE_LONG:
+			cmd.control = cpu_to_le16(preamble);
+			break;
+		default:
+			goto out;
+		}
 	}
 
-	if (priv->radioon)
-		cmd.control |= cpu_to_le16(TURN_ON_RF);
-	else
-		cmd.control &= cpu_to_le16(~TURN_ON_RF);
+	if (radio_on)
+		cmd.control |= cpu_to_le16(0x1);
+	else {
+		cmd.control &= cpu_to_le16(~0x1);
+		priv->txpower_cur = 0;
+	}
 
-	lbs_deb_cmd("RADIO_SET: radio %d, preamble %d\n", priv->radioon,
-		    priv->preamble);
+	lbs_deb_cmd("RADIO_CONTROL: radio %s, preamble %d\n",
+		    radio_on ? "ON" : "OFF", preamble);
+
+	priv->radio_on = radio_on;
 
 	ret = lbs_cmd_with_response(priv, CMD_802_11_RADIO_CONTROL, &cmd);
 
+out:
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
 	return ret;
 }
@@ -1380,25 +1386,8 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		ret = lbs_cmd_80211_associate(priv, cmdptr, pdata_buf);
 		break;
 
-	case CMD_802_11_DEAUTHENTICATE:
-		ret = lbs_cmd_80211_deauthenticate(priv, cmdptr);
-		break;
-
-	case CMD_802_11_AD_HOC_START:
-		ret = lbs_cmd_80211_ad_hoc_start(priv, cmdptr, pdata_buf);
-		break;
-
-	case CMD_802_11_RESET:
-		ret = lbs_cmd_802_11_reset(cmdptr, cmd_action);
-		break;
-
 	case CMD_802_11_AUTHENTICATE:
 		ret = lbs_cmd_80211_authenticate(priv, cmdptr, pdata_buf);
-		break;
-
-	case CMD_802_11_SNMP_MIB:
-		ret = lbs_cmd_802_11_snmp_mib(priv, cmdptr,
-					       cmd_action, cmd_oid, pdata_buf);
 		break;
 
 	case CMD_MAC_REG_ACCESS:
@@ -1407,26 +1396,13 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		ret = lbs_cmd_reg_access(cmdptr, cmd_action, pdata_buf);
 		break;
 
-	case CMD_802_11_RF_TX_POWER:
-		ret = lbs_cmd_802_11_rf_tx_power(cmdptr,
-						 cmd_action, pdata_buf);
-		break;
-
 	case CMD_802_11_MONITOR_MODE:
 		ret = lbs_cmd_802_11_monitor_mode(cmdptr,
 				          cmd_action, pdata_buf);
 		break;
 
-	case CMD_802_11_AD_HOC_JOIN:
-		ret = lbs_cmd_80211_ad_hoc_join(priv, cmdptr, pdata_buf);
-		break;
-
 	case CMD_802_11_RSSI:
 		ret = lbs_cmd_802_11_rssi(priv, cmdptr);
-		break;
-
-	case CMD_802_11_AD_HOC_STOP:
-		ret = lbs_cmd_80211_ad_hoc_stop(cmdptr);
 		break;
 
 	case CMD_802_11_SET_AFC:
@@ -1950,6 +1926,70 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv)
 	}
 
 	lbs_deb_leave(LBS_DEB_HOST);
+}
+
+
+/**
+ * @brief Configures the transmission power control functionality.
+ *
+ * @param priv		A pointer to struct lbs_private structure
+ * @param enable	Transmission power control enable
+ * @param p0		Power level when link quality is good (dBm).
+ * @param p1		Power level when link quality is fair (dBm).
+ * @param p2		Power level when link quality is poor (dBm).
+ * @param usesnr	Use Signal to Noise Ratio in TPC
+ *
+ * @return 0 on success
+ */
+int lbs_set_tpc_cfg(struct lbs_private *priv, int enable, int8_t p0, int8_t p1,
+		int8_t p2, int usesnr)
+{
+	struct cmd_ds_802_11_tpc_cfg cmd;
+	int ret;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(CMD_ACT_SET);
+	cmd.enable = !!enable;
+	cmd.usesnr = !!usesnr;
+	cmd.P0 = p0;
+	cmd.P1 = p1;
+	cmd.P2 = p2;
+
+	ret = lbs_cmd_with_response(priv, CMD_802_11_TPC_CFG, &cmd);
+
+	return ret;
+}
+
+/**
+ * @brief Configures the power adaptation settings.
+ *
+ * @param priv		A pointer to struct lbs_private structure
+ * @param enable	Power adaptation enable
+ * @param p0		Power level for 1, 2, 5.5 and 11 Mbps (dBm).
+ * @param p1		Power level for 6, 9, 12, 18, 22, 24 and 36 Mbps (dBm).
+ * @param p2		Power level for 48 and 54 Mbps (dBm).
+ *
+ * @return 0 on Success
+ */
+
+int lbs_set_power_adapt_cfg(struct lbs_private *priv, int enable, int8_t p0,
+		int8_t p1, int8_t p2)
+{
+	struct cmd_ds_802_11_pa_cfg cmd;
+	int ret;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(CMD_ACT_SET);
+	cmd.enable = !!enable;
+	cmd.P0 = p0;
+	cmd.P1 = p1;
+	cmd.P2 = p2;
+
+	ret = lbs_cmd_with_response(priv, CMD_802_11_PA_CFG , &cmd);
+
+	return ret;
 }
 
 

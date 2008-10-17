@@ -10,8 +10,8 @@
  * published by the Free Software Foundation.
 */
 
+#include <linux/io.h>
 #include <mach/hardware.h>
-#include <asm/io.h>
 
 #include <mach/map.h>
 #include <mach/idle.h>

@@ -220,22 +220,22 @@ config RTC_DRV_PCF8583
 	  will be called rtc-pcf8583.
 
 config RTC_DRV_M41T80
-	tristate "ST M41T80/81/82/83/84/85/87"
+	tristate "ST M41T65/M41T80/81/82/83/84/85/87"
 	help
-	  If you say Y here you will get support for the
-	  ST M41T80 RTC chips series. Currently following chips are
-	  supported: M41T80, M41T81, M41T82, M41T83, M41ST84, M41ST85
-	  and M41ST87.
+	  If you say Y here you will get support for the ST M41T60
+	  and M41T80 RTC chips series. Currently, the following chips are
+	  supported: M41T65, M41T80, M41T81, M41T82, M41T83, M41ST84,
+	  M41ST85, and M41ST87.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-m41t80.
 
 config RTC_DRV_M41T80_WDT
-	bool "ST M41T80 series RTC watchdog timer"
+	bool "ST M41T65/M41T80 series RTC watchdog timer"
 	depends on RTC_DRV_M41T80
 	help
 	  If you say Y here you will get support for the
-	  watchdog timer in ST M41T80 RTC chips series.
+	  watchdog timer in the ST M41T60 and M41T80 RTC chips series.
 
 config RTC_DRV_TWL92330
 	boolean "TI TWL92330/Menelaus"
@@ -319,6 +319,15 @@ config RTC_DRV_RS5C348
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-rs5c348.
 
+config RTC_DRV_DS3234
+	tristate "Maxim/Dallas DS3234"
+	help
+	  If you say yes here you get support for the
+	  Maxim/Dallas DS3234 SPI RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ds3234.
+
 endif # SPI_MASTER
 
 comment "Platform RTC drivers"
@@ -329,7 +338,7 @@ comment "Platform RTC drivers"
 
 config RTC_DRV_CMOS
 	tristate "PC-style 'CMOS'"
-	depends on X86 || ALPHA || ARM || M32R || ATARI || PPC || MIPS
+	depends on X86 || ALPHA || ARM || M32R || ATARI || PPC || MIPS || SPARC64
 	default y if X86
 	help
 	  Say "yes" here to get direct support for the real time clock
@@ -351,6 +360,11 @@ config RTC_DRV_DS1216
 	depends on SNI_RM
 	help
 	  If you say yes here you get support for the Dallas DS1216 RTC chips.
+
+config RTC_DRV_DS1286
+	tristate "Dallas DS1286"
+	help
+	  If you say yes here you get support for the Dallas DS1286 RTC chips.
 
 config RTC_DRV_DS1302
 	tristate "Dallas DS1302"
@@ -405,14 +419,35 @@ config RTC_DRV_M48T86
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-m48t86.
 
-config RTC_DRV_M48T59
-	tristate "ST M48T59"
+config RTC_DRV_M48T35
+	tristate "ST M48T35"
 	help
 	  If you say Y here you will get support for the
-	  ST M48T59 RTC chip.
+	  ST M48T35 RTC chip.
+
+	  This driver can also be built as a module, if so, the module
+	  will be called "rtc-m48t35".
+
+config RTC_DRV_M48T59
+	tristate "ST M48T59/M48T08/M48T02"
+	help
+	  If you say Y here you will get support for the
+	  ST M48T59 RTC chip and compatible ST M48T08 and M48T02.
+
+	  These chips are usually found in Sun SPARC and UltraSPARC
+	  workstations.
 
 	  This driver can also be built as a module, if so, the module
 	  will be called "rtc-m48t59".
+
+config RTC_DRV_BQ4802
+	tristate "TI BQ4802"
+	help
+	  If you say Y here you will get support for the TI
+	  BQ4802 RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-bq4802.
 
 config RTC_DRV_V3020
 	tristate "EM Microelectronic V3020"
@@ -577,10 +612,24 @@ config RTC_DRV_RS5C313
 
 config RTC_DRV_PPC
        tristate "PowerPC machine dependent RTC support"
-       depends on PPC_MERGE
+       depends on PPC
        help
 	 The PowerPC kernel has machine-specific functions for accessing
 	 the RTC. This exposes that functionality through the generic RTC
 	 class.
+
+config RTC_DRV_SUN4V
+	bool "SUN4V Hypervisor RTC"
+	depends on SPARC64
+	help
+	  If you say Y here you will get support for the Hypervisor
+	  based RTC on SUN4V systems.
+
+config RTC_DRV_STARFIRE
+	bool "Starfire RTC"
+	depends on SPARC64
+	help
+	  If you say Y here you will get support for the RTC found on
+	  Starfire systems.
 
 endif # RTC_CLASS

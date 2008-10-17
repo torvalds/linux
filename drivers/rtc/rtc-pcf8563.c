@@ -179,58 +179,6 @@ struct pcf8563_limit
 	unsigned char max;
 };
 
-static int pcf8563_validate_client(struct i2c_client *client)
-{
-	int i;
-
-	static const struct pcf8563_limit pattern[] = {
-		/* register, mask, min, max */
-		{ PCF8563_REG_SC,	0x7F,	0,	59	},
-		{ PCF8563_REG_MN,	0x7F,	0,	59	},
-		{ PCF8563_REG_HR,	0x3F,	0,	23	},
-		{ PCF8563_REG_DM,	0x3F,	0,	31	},
-		{ PCF8563_REG_MO,	0x1F,	0,	12	},
-	};
-
-	/* check limits (only registers with bcd values) */
-	for (i = 0; i < ARRAY_SIZE(pattern); i++) {
-		int xfer;
-		unsigned char value;
-		unsigned char buf = pattern[i].reg;
-
-		struct i2c_msg msgs[] = {
-			{ client->addr, 0, 1, &buf },
-			{ client->addr, I2C_M_RD, 1, &buf },
-		};
-
-		xfer = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
-
-		if (xfer != ARRAY_SIZE(msgs)) {
-			dev_err(&client->dev,
-				"%s: could not read register 0x%02X\n",
-				__func__, pattern[i].reg);
-
-			return -EIO;
-		}
-
-		value = BCD2BIN(buf & pattern[i].mask);
-
-		if (value > pattern[i].max ||
-			value < pattern[i].min) {
-			dev_dbg(&client->dev,
-				"%s: pattern=%d, reg=%x, mask=0x%02x, min=%d, "
-				"max=%d, value=%d, raw=0x%02X\n",
-				__func__, i, pattern[i].reg, pattern[i].mask,
-				pattern[i].min, pattern[i].max,
-				value, buf);
-
-			return -ENODEV;
-		}
-	}
-
-	return 0;
-}
-
 static int pcf8563_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	return pcf8563_get_datetime(to_i2c_client(dev), tm);
@@ -261,12 +209,6 @@ static int pcf8563_probe(struct i2c_client *client,
 	pcf8563 = kzalloc(sizeof(struct pcf8563), GFP_KERNEL);
 	if (!pcf8563)
 		return -ENOMEM;
-
-	/* Verify the chip is really an PCF8563 */
-	if (pcf8563_validate_client(client) < 0) {
-		err = -ENODEV;
-		goto exit_kfree;
-	}
 
 	dev_info(&client->dev, "chip found, driver version " DRV_VERSION "\n");
 

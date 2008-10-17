@@ -6,7 +6,7 @@
 #ifndef __ASM_ARCH_SYSTEM_H
 #define __ASM_ARCH_SYSTEM_H
 
-#include <asm/io.h>
+#include <linux/io.h>
 
 static void arch_reset(char mode)
 {
