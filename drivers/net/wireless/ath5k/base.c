@@ -2528,8 +2528,7 @@ ath5k_register_led(struct ath5k_softc *sc, struct ath5k_led *led,
 	led->led_dev.brightness_set = ath5k_led_brightness_set;
 
 	err = led_classdev_register(&sc->pdev->dev, &led->led_dev);
-	if (err)
-	{
+	if (err) {
 		ATH5K_WARN(sc, "could not register LED %s\n", name);
 		led->sc = NULL;
 	}
@@ -2890,9 +2889,9 @@ static void ath5k_configure_filter(struct ieee80211_hw *hw,
 		if (*new_flags & FIF_PROMISC_IN_BSS) {
 			rfilt |= AR5K_RX_FILTER_PROM;
 			__set_bit(ATH_STAT_PROMISC, sc->status);
-		}
-		else
+		} else {
 			__clear_bit(ATH_STAT_PROMISC, sc->status);
+		}
 	}
 
 	/* Note, AR5K_RX_FILTER_MCAST is already enabled */
@@ -2956,7 +2955,7 @@ static void ath5k_configure_filter(struct ieee80211_hw *hw,
 			AR5K_RX_FILTER_PROBEREQ | AR5K_RX_FILTER_PROM;
 
 	/* Set filters */
-	ath5k_hw_set_rx_filter(ah,rfilt);
+	ath5k_hw_set_rx_filter(ah, rfilt);
 
 	/* Set multicast bits */
 	ath5k_hw_set_mcast_filter(ah, mfilt[0], mfilt[1]);
@@ -2973,7 +2972,7 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	struct ath5k_softc *sc = hw->priv;
 	int ret = 0;
 
-	switch(key->alg) {
+	switch (key->alg) {
 	case ALG_WEP:
 	/* XXX: fix hardware encryption, its not working. For now
 	 * allow software encryption */
