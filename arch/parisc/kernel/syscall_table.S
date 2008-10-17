@@ -87,7 +87,7 @@
 	ENTRY_SAME(setuid)
 	ENTRY_SAME(getuid)
 	ENTRY_COMP(stime)		/* 25 */
-	ENTRY_SAME(ptrace)
+	ENTRY_COMP(ptrace)
 	ENTRY_SAME(alarm)
 	/* see stat comment */
 	ENTRY_COMP(newfstat)
