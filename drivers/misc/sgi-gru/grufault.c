@@ -214,12 +214,14 @@ static int non_atomic_pte_lookup(struct vm_area_struct *vma,
 }
 
 /*
- *
  * atomic_pte_lookup
  *
  * Convert a user virtual address to a physical address
  * Only supports Intel large pages (2MB only) on x86_64.
  *	ZZZ - hugepage support is incomplete
+ *
+ * NOTE: mmap_sem is already held on entry to this function. This
+ * guarantees existence of the page tables.
  */
 static int atomic_pte_lookup(struct vm_area_struct *vma, unsigned long vaddr,
 	int write, unsigned long *paddr, int *pageshift)
@@ -229,9 +231,6 @@ static int atomic_pte_lookup(struct vm_area_struct *vma, unsigned long vaddr,
 	pud_t *pudp;
 	pte_t pte;
 
-	WARN_ON(irqs_disabled());		/* ZZZ debug */
-
-	local_irq_disable();
 	pgdp = pgd_offset(vma->vm_mm, vaddr);
 	if (unlikely(pgd_none(*pgdp)))
 		goto err;
@@ -249,8 +248,6 @@ static int atomic_pte_lookup(struct vm_area_struct *vma, unsigned long vaddr,
 	else
 #endif
 		pte = *pte_offset_kernel(pmdp, vaddr);
-
-	local_irq_enable();
 
 	if (unlikely(!pte_present(pte) ||
 		     (write && (!pte_write(pte) || !pte_dirty(pte)))))
@@ -324,6 +321,7 @@ static int gru_try_dropin(struct gru_thread_state *gts,
 	 * Atomic lookup is faster & usually works even if called in non-atomic
 	 * context.
 	 */
+	rmb();	/* Must/check ms_range_active before loading PTEs */
 	ret = atomic_pte_lookup(vma, vaddr, write, &paddr, &pageshift);
 	if (ret) {
 		if (!cb)
@@ -543,6 +541,7 @@ int gru_get_exception_detail(unsigned long arg)
 		ucbnum = get_cb_number((void *)excdet.cb);
 		cbrnum = thread_cbr_number(gts, ucbnum);
 		cbe = get_cbe_by_index(gts->ts_gru, cbrnum);
+		prefetchw(cbe);		/* Harmless on hardware, required for emulator */
 		excdet.opc = cbe->opccpy;
 		excdet.exopc = cbe->exopccpy;
 		excdet.ecause = cbe->ecause;

@@ -2816,7 +2816,7 @@ static int stac92xx_auto_create_multi_out_ctls(struct hda_codec *codec,
 	static const char *chname[4] = {
 		"Front", "Surround", NULL /*CLFE*/, "Side"
 	};
-	hda_nid_t nid;
+	hda_nid_t nid = 0;
 	int i, err;
 
 	struct sigmatel_spec *spec = codec->spec;

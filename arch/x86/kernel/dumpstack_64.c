@@ -13,6 +13,7 @@
 #include <linux/kexec.h>
 #include <linux/bug.h>
 #include <linux/nmi.h>
+#include <linux/sysfs.h>
 
 #include <asm/stacktrace.h>
 
@@ -489,6 +490,7 @@ int __kprobes __die(const char *str, struct pt_regs *regs, long err)
 	printk("DEBUG_PAGEALLOC");
 #endif
 	printk("\n");
+	sysfs_printk_last_file();
 	if (notify_die(DIE_OOPS, str, regs, err,
 			current->thread.trap_no, SIGSEGV) == NOTIFY_STOP)
 		return 1;

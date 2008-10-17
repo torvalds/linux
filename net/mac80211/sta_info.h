@@ -300,6 +300,7 @@ struct sta_info {
 		struct dentry *inactive_ms;
 		struct dentry *last_seq_ctrl;
 		struct dentry *agg_status;
+		bool add_has_run;
 	} debugfs;
 #endif
 

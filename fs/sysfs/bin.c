@@ -61,6 +61,7 @@ read(struct file *file, char __user *userbuf, size_t bytes, loff_t *off)
 	int size = dentry->d_inode->i_size;
 	loff_t offs = *off;
 	int count = min_t(size_t, bytes, PAGE_SIZE);
+	char *temp;
 
 	if (size) {
 		if (offs > size)
@@ -69,23 +70,33 @@ read(struct file *file, char __user *userbuf, size_t bytes, loff_t *off)
 			count = size - offs;
 	}
 
+	temp = kmalloc(count, GFP_KERNEL);
+	if (!temp)
+		return -ENOMEM;
+
 	mutex_lock(&bb->mutex);
 
 	count = fill_read(dentry, bb->buffer, offs, count);
-	if (count < 0)
-		goto out_unlock;
+	if (count < 0) {
+		mutex_unlock(&bb->mutex);
+		goto out_free;
+	}
 
-	if (copy_to_user(userbuf, bb->buffer, count)) {
+	memcpy(temp, bb->buffer, count);
+
+	mutex_unlock(&bb->mutex);
+
+	if (copy_to_user(userbuf, temp, count)) {
 		count = -EFAULT;
-		goto out_unlock;
+		goto out_free;
 	}
 
 	pr_debug("offs = %lld, *off = %lld, count = %d\n", offs, *off, count);
 
 	*off = offs + count;
 
- out_unlock:
-	mutex_unlock(&bb->mutex);
+ out_free:
+	kfree(temp);
 	return count;
 }
 
@@ -118,6 +129,7 @@ static ssize_t write(struct file *file, const char __user *userbuf,
 	int size = dentry->d_inode->i_size;
 	loff_t offs = *off;
 	int count = min_t(size_t, bytes, PAGE_SIZE);
+	char *temp;
 
 	if (size) {
 		if (offs > size)
@@ -126,19 +138,27 @@ static ssize_t write(struct file *file, const char __user *userbuf,
 			count = size - offs;
 	}
 
-	mutex_lock(&bb->mutex);
+	temp = kmalloc(count, GFP_KERNEL);
+	if (!temp)
+		return -ENOMEM;
 
-	if (copy_from_user(bb->buffer, userbuf, count)) {
+	if (copy_from_user(temp, userbuf, count)) {
 		count = -EFAULT;
-		goto out_unlock;
+		goto out_free;
 	}
 
+	mutex_lock(&bb->mutex);
+
+	memcpy(bb->buffer, temp, count);
+
 	count = flush_write(dentry, bb->buffer, offs, count);
+	mutex_unlock(&bb->mutex);
+
 	if (count > 0)
 		*off = offs + count;
 
- out_unlock:
-	mutex_unlock(&bb->mutex);
+out_free:
+	kfree(temp);
 	return count;
 }
 

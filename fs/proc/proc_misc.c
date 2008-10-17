@@ -45,7 +45,6 @@
 #include <linux/blkdev.h>
 #include <linux/hugetlb.h>
 #include <linux/jiffies.h>
-#include <linux/sysrq.h>
 #include <linux/vmalloc.h>
 #include <linux/crash_dump.h>
 #include <linux/pid_namespace.h>
@@ -704,28 +703,6 @@ static int execdomains_read_proc(char *page, char **start, off_t off,
 	return proc_calc_metrics(page, start, off, count, eof, len);
 }
 
-#ifdef CONFIG_MAGIC_SYSRQ
-/*
- * writing 'C' to /proc/sysrq-trigger is like sysrq-C
- */
-static ssize_t write_sysrq_trigger(struct file *file, const char __user *buf,
-				   size_t count, loff_t *ppos)
-{
-	if (count) {
-		char c;
-
-		if (get_user(c, buf))
-			return -EFAULT;
-		__handle_sysrq(c, NULL, 0);
-	}
-	return count;
-}
-
-static const struct file_operations proc_sysrq_trigger_operations = {
-	.write		= write_sysrq_trigger,
-};
-#endif
-
 #ifdef CONFIG_PROC_PAGE_MONITOR
 #define KPMSIZE sizeof(u64)
 #define KPMMASK (KPMSIZE - 1)
@@ -933,8 +910,5 @@ void __init proc_misc_init(void)
 #endif
 #ifdef CONFIG_PROC_VMCORE
 	proc_vmcore = proc_create("vmcore", S_IRUSR, NULL, &proc_vmcore_operations);
-#endif
-#ifdef CONFIG_MAGIC_SYSRQ
-	proc_create("sysrq-trigger", S_IWUSR, NULL, &proc_sysrq_trigger_operations);
 #endif
 }

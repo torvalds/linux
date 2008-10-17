@@ -103,8 +103,8 @@ static struct usb_interface_descriptor subset_data_intf __initdata = {
 	/* .iInterface = DYNAMIC */
 };
 
-static struct usb_cdc_header_desc header_desc __initdata = {
-	.bLength =		sizeof header_desc,
+static struct usb_cdc_header_desc mdlm_header_desc __initdata = {
+	.bLength =		sizeof mdlm_header_desc,
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubType =	USB_CDC_HEADER_TYPE,
 
@@ -152,7 +152,7 @@ static struct usb_cdc_ether_desc ether_desc __initdata = {
 
 /* full speed support: */
 
-static struct usb_endpoint_descriptor fs_in_desc __initdata = {
+static struct usb_endpoint_descriptor fs_subset_in_desc __initdata = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -160,7 +160,7 @@ static struct usb_endpoint_descriptor fs_in_desc __initdata = {
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
 };
 
-static struct usb_endpoint_descriptor fs_out_desc __initdata = {
+static struct usb_endpoint_descriptor fs_subset_out_desc __initdata = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -170,18 +170,18 @@ static struct usb_endpoint_descriptor fs_out_desc __initdata = {
 
 static struct usb_descriptor_header *fs_eth_function[] __initdata = {
 	(struct usb_descriptor_header *) &subset_data_intf,
-	(struct usb_descriptor_header *) &header_desc,
+	(struct usb_descriptor_header *) &mdlm_header_desc,
 	(struct usb_descriptor_header *) &mdlm_desc,
 	(struct usb_descriptor_header *) &mdlm_detail_desc,
 	(struct usb_descriptor_header *) &ether_desc,
-	(struct usb_descriptor_header *) &fs_in_desc,
-	(struct usb_descriptor_header *) &fs_out_desc,
+	(struct usb_descriptor_header *) &fs_subset_in_desc,
+	(struct usb_descriptor_header *) &fs_subset_out_desc,
 	NULL,
 };
 
 /* high speed support: */
 
-static struct usb_endpoint_descriptor hs_in_desc __initdata = {
+static struct usb_endpoint_descriptor hs_subset_in_desc __initdata = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -189,7 +189,7 @@ static struct usb_endpoint_descriptor hs_in_desc __initdata = {
 	.wMaxPacketSize =	__constant_cpu_to_le16(512),
 };
 
-static struct usb_endpoint_descriptor hs_out_desc __initdata = {
+static struct usb_endpoint_descriptor hs_subset_out_desc __initdata = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -199,12 +199,12 @@ static struct usb_endpoint_descriptor hs_out_desc __initdata = {
 
 static struct usb_descriptor_header *hs_eth_function[] __initdata = {
 	(struct usb_descriptor_header *) &subset_data_intf,
-	(struct usb_descriptor_header *) &header_desc,
+	(struct usb_descriptor_header *) &mdlm_header_desc,
 	(struct usb_descriptor_header *) &mdlm_desc,
 	(struct usb_descriptor_header *) &mdlm_detail_desc,
 	(struct usb_descriptor_header *) &ether_desc,
-	(struct usb_descriptor_header *) &hs_in_desc,
-	(struct usb_descriptor_header *) &hs_out_desc,
+	(struct usb_descriptor_header *) &hs_subset_in_desc,
+	(struct usb_descriptor_header *) &hs_subset_out_desc,
 	NULL,
 };
 
@@ -281,13 +281,13 @@ geth_bind(struct usb_configuration *c, struct usb_function *f)
 	status = -ENODEV;
 
 	/* allocate instance-specific endpoints */
-	ep = usb_ep_autoconfig(cdev->gadget, &fs_in_desc);
+	ep = usb_ep_autoconfig(cdev->gadget, &fs_subset_in_desc);
 	if (!ep)
 		goto fail;
 	geth->port.in_ep = ep;
 	ep->driver_data = cdev;	/* claim */
 
-	ep = usb_ep_autoconfig(cdev->gadget, &fs_out_desc);
+	ep = usb_ep_autoconfig(cdev->gadget, &fs_subset_out_desc);
 	if (!ep)
 		goto fail;
 	geth->port.out_ep = ep;
@@ -297,9 +297,9 @@ geth_bind(struct usb_configuration *c, struct usb_function *f)
 	f->descriptors = usb_copy_descriptors(fs_eth_function);
 
 	geth->fs.in = usb_find_endpoint(fs_eth_function,
-			f->descriptors, &fs_in_desc);
+			f->descriptors, &fs_subset_in_desc);
 	geth->fs.out = usb_find_endpoint(fs_eth_function,
-			f->descriptors, &fs_out_desc);
+			f->descriptors, &fs_subset_out_desc);
 
 
 	/* support all relevant hardware speeds... we expect that when
@@ -307,18 +307,18 @@ geth_bind(struct usb_configuration *c, struct usb_function *f)
 	 * both speeds
 	 */
 	if (gadget_is_dualspeed(c->cdev->gadget)) {
-		hs_in_desc.bEndpointAddress =
-				fs_in_desc.bEndpointAddress;
-		hs_out_desc.bEndpointAddress =
-				fs_out_desc.bEndpointAddress;
+		hs_subset_in_desc.bEndpointAddress =
+				fs_subset_in_desc.bEndpointAddress;
+		hs_subset_out_desc.bEndpointAddress =
+				fs_subset_out_desc.bEndpointAddress;
 
 		/* copy descriptors, and track endpoint copies */
 		f->hs_descriptors = usb_copy_descriptors(hs_eth_function);
 
 		geth->hs.in = usb_find_endpoint(hs_eth_function,
-				f->hs_descriptors, &hs_in_desc);
+				f->hs_descriptors, &hs_subset_in_desc);
 		geth->hs.out = usb_find_endpoint(hs_eth_function,
-				f->hs_descriptors, &hs_out_desc);
+				f->hs_descriptors, &hs_subset_out_desc);
 	}
 
 	/* NOTE:  all that is done without knowing or caring about

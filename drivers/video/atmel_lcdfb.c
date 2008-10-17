@@ -372,6 +372,13 @@ static int atmel_lcdfb_check_var(struct fb_var_screeninfo *var,
 	var->transp.offset = var->transp.length = 0;
 	var->xoffset = var->yoffset = 0;
 
+	if (info->fix.smem_len) {
+		unsigned int smem_len = (var->xres_virtual * var->yres_virtual
+					 * ((var->bits_per_pixel + 7) / 8));
+		if (smem_len > info->fix.smem_len)
+			return -EINVAL;
+	}
+
 	/* Saturate vertical and horizontal timings at maximum values */
 	var->vsync_len = min_t(u32, var->vsync_len,
 			(ATMEL_LCDC_VPW >> ATMEL_LCDC_VPW_OFFSET) + 1);

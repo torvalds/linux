@@ -45,6 +45,7 @@ void flush_hash_entry(struct mm_struct *mm, pte_t *ptep, unsigned long addr)
 		flush_hash_pages(mm->context.id, addr, ptephys, 1);
 	}
 }
+EXPORT_SYMBOL(flush_hash_entry);
 
 /*
  * Called by ptep_set_access_flags, must flush on CPUs for which the

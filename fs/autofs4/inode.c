@@ -53,6 +53,8 @@ struct autofs_info *autofs4_init_ino(struct autofs_info *ino,
 		atomic_set(&ino->count, 0);
 	}
 
+	ino->uid = 0;
+	ino->gid = 0;
 	ino->mode = mode;
 	ino->last_used = jiffies;
 
@@ -288,7 +290,7 @@ static int parse_options(char *options, int *pipefd, uid_t *uid, gid_t *gid,
 			*type = AUTOFS_TYPE_DIRECT;
 			break;
 		case Opt_offset:
-			*type = AUTOFS_TYPE_DIRECT | AUTOFS_TYPE_OFFSET;
+			*type = AUTOFS_TYPE_OFFSET;
 			break;
 		default:
 			return 1;
@@ -336,7 +338,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	sbi->sb = s;
 	sbi->version = 0;
 	sbi->sub_version = 0;
-	sbi->type = 0;
+	sbi->type = AUTOFS_TYPE_INDIRECT;
 	sbi->min_proto = 0;
 	sbi->max_proto = 0;
 	mutex_init(&sbi->wq_mutex);
@@ -378,7 +380,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	}
 
 	root_inode->i_fop = &autofs4_root_operations;
-	root_inode->i_op = sbi->type & AUTOFS_TYPE_DIRECT ?
+	root_inode->i_op = sbi->type & AUTOFS_TYPE_TRIGGER ?
 			&autofs4_direct_root_inode_operations :
 			&autofs4_indirect_root_inode_operations;
 

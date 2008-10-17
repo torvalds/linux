@@ -25,7 +25,7 @@ config BINFMT_ELF
 
 config COMPAT_BINFMT_ELF
 	bool
-	depends on COMPAT && MMU
+	depends on COMPAT && BINFMT_ELF
 
 config BINFMT_ELF_FDPIC
 	bool "Kernel support for FDPIC ELF binaries"

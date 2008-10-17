@@ -775,7 +775,7 @@ static int ieee80211_ioctl_siwfrag(struct net_device *dev,
 	 * configure it here */
 
 	if (local->ops->set_frag_threshold)
-		local->ops->set_frag_threshold(
+		return local->ops->set_frag_threshold(
 			local_to_hw(local),
 			local->fragmentation_threshold);
 

@@ -156,6 +156,7 @@ typedef struct {
 	decode_dirent_t	decode;
 	int		plus;
 	unsigned long	timestamp;
+	unsigned long	gencount;
 	int		timestamp_valid;
 } nfs_readdir_descriptor_t;
 
@@ -177,7 +178,7 @@ int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page *page)
 	struct file	*file = desc->file;
 	struct inode	*inode = file->f_path.dentry->d_inode;
 	struct rpc_cred	*cred = nfs_file_cred(file);
-	unsigned long	timestamp;
+	unsigned long	timestamp, gencount;
 	int		error;
 
 	dfprintk(DIRCACHE, "NFS: %s: reading cookie %Lu into page %lu\n",
@@ -186,6 +187,7 @@ int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page *page)
 
  again:
 	timestamp = jiffies;
+	gencount = nfs_inc_attr_generation_counter();
 	error = NFS_PROTO(inode)->readdir(file->f_path.dentry, cred, desc->entry->cookie, page,
 					  NFS_SERVER(inode)->dtsize, desc->plus);
 	if (error < 0) {
@@ -199,6 +201,7 @@ int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page *page)
 		goto error;
 	}
 	desc->timestamp = timestamp;
+	desc->gencount = gencount;
 	desc->timestamp_valid = 1;
 	SetPageUptodate(page);
 	/* Ensure consistent page alignment of the data.
@@ -224,9 +227,10 @@ int dir_decode(nfs_readdir_descriptor_t *desc)
 	if (IS_ERR(p))
 		return PTR_ERR(p);
 	desc->ptr = p;
-	if (desc->timestamp_valid)
+	if (desc->timestamp_valid) {
 		desc->entry->fattr->time_start = desc->timestamp;
-	else
+		desc->entry->fattr->gencount = desc->gencount;
+	} else
 		desc->entry->fattr->valid &= ~NFS_ATTR_FATTR;
 	return 0;
 }
@@ -471,7 +475,7 @@ int uncached_readdir(nfs_readdir_descriptor_t *desc, void *dirent,
 	struct rpc_cred	*cred = nfs_file_cred(file);
 	struct page	*page = NULL;
 	int		status;
-	unsigned long	timestamp;
+	unsigned long	timestamp, gencount;
 
 	dfprintk(DIRCACHE, "NFS: uncached_readdir() searching for cookie %Lu\n",
 			(unsigned long long)*desc->dir_cookie);
@@ -482,6 +486,7 @@ int uncached_readdir(nfs_readdir_descriptor_t *desc, void *dirent,
 		goto out;
 	}
 	timestamp = jiffies;
+	gencount = nfs_inc_attr_generation_counter();
 	status = NFS_PROTO(inode)->readdir(file->f_path.dentry, cred,
 						*desc->dir_cookie, page,
 						NFS_SERVER(inode)->dtsize,
@@ -490,6 +495,7 @@ int uncached_readdir(nfs_readdir_descriptor_t *desc, void *dirent,
 	desc->ptr = kmap(page);		/* matching kunmap in nfs_do_filldir */
 	if (status >= 0) {
 		desc->timestamp = timestamp;
+		desc->gencount = gencount;
 		desc->timestamp_valid = 1;
 		if ((status = dir_decode(desc)) == 0)
 			desc->entry->prev_cookie = *desc->dir_cookie;
@@ -655,7 +661,7 @@ static int nfs_fsync_dir(struct file *filp, struct dentry *dentry, int datasync)
  */
 void nfs_force_lookup_revalidate(struct inode *dir)
 {
-	NFS_I(dir)->cache_change_attribute = jiffies;
+	NFS_I(dir)->cache_change_attribute++;
 }
 
 /*
@@ -667,6 +673,8 @@ static int nfs_check_verifier(struct inode *dir, struct dentry *dentry)
 {
 	if (IS_ROOT(dentry))
 		return 1;
+	if (NFS_SERVER(dir)->flags & NFS_MOUNT_LOOKUP_CACHE_NONE)
+		return 0;
 	if (!nfs_verify_change_attribute(dir, dentry->d_time))
 		return 0;
 	/* Revalidate nfsi->cache_change_attribute before we declare a match */
@@ -750,6 +758,8 @@ int nfs_neg_need_reval(struct inode *dir, struct dentry *dentry,
 	/* Don't revalidate a negative dentry if we're creating a new file */
 	if (nd != NULL && nfs_lookup_check_intent(nd, LOOKUP_CREATE) != 0)
 		return 0;
+	if (NFS_SERVER(dir)->flags & NFS_MOUNT_LOOKUP_CACHE_NONEG)
+		return 1;
 	return !nfs_check_verifier(dir, dentry);
 }
 

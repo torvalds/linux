@@ -29,12 +29,12 @@
 #include <asm/irq.h>
 
 #include <mach/regs-clock.h>
-#include <asm/plat-s3c/regs-serial.h>
+#include <plat/regs-serial.h>
 
-#include <asm/plat-s3c24xx/s3c2410.h>
-#include <asm/plat-s3c24xx/cpu.h>
-#include <asm/plat-s3c24xx/devs.h>
-#include <asm/plat-s3c24xx/clock.h>
+#include <plat/s3c2410.h>
+#include <plat/cpu.h>
+#include <plat/devs.h>
+#include <plat/clock.h>
 
 /* Initial IO mappings */
 

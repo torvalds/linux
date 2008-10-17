@@ -215,17 +215,6 @@ static irqreturn_t stk17ta8_rtc_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void stk17ta8_rtc_release(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
-
-	if (pdata->irq >= 0) {
-		pdata->irqen = 0;
-		stk17ta8_rtc_update_alarm(pdata);
-	}
-}
-
 static int stk17ta8_rtc_ioctl(struct device *dev, unsigned int cmd,
 			    unsigned long arg)
 {
@@ -254,7 +243,6 @@ static const struct rtc_class_ops stk17ta8_rtc_ops = {
 	.set_time	= stk17ta8_rtc_set_time,
 	.read_alarm	= stk17ta8_rtc_read_alarm,
 	.set_alarm	= stk17ta8_rtc_set_alarm,
-	.release	= stk17ta8_rtc_release,
 	.ioctl		= stk17ta8_rtc_ioctl,
 };
 

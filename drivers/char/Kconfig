@@ -1043,15 +1043,6 @@ config HPET
 	  open selects one of the timers supported by the HPET.  The timers are
 	  non-periodic and/or periodic.
 
-config HPET_RTC_IRQ
-	bool
-	default HPET_EMULATE_RTC
-	depends on RTC && HPET
-	help
-	  If you say Y here, you will disable RTC_IRQ in drivers/char/rtc.c. It
-	  is assumed the platform called hpet_alloc with the RTC IRQ values for
-	  the HPET timers.
-
 config HPET_MMAP
 	bool "Allow mmap of HPET"
 	default y

@@ -204,25 +204,54 @@ static void viper_set_core_cpu_voltage(unsigned long khz, int force)
 
 /* Interrupt handling */
 static unsigned long viper_irq_enabled_mask;
+static const int viper_isa_irqs[] = { 3, 4, 5, 6, 7, 10, 11, 12, 9, 14, 15 };
+static const int viper_isa_irq_map[] = {
+	0,		/* ISA irq #0, invalid */
+	0,		/* ISA irq #1, invalid */
+	0,		/* ISA irq #2, invalid */
+	1 << 0,		/* ISA irq #3 */
+	1 << 1,		/* ISA irq #4 */
+	1 << 2,		/* ISA irq #5 */
+	1 << 3,		/* ISA irq #6 */
+	1 << 4,		/* ISA irq #7 */
+	0,		/* ISA irq #8, invalid */
+	1 << 8,		/* ISA irq #9 */
+	1 << 5,		/* ISA irq #10 */
+	1 << 6,		/* ISA irq #11 */
+	1 << 7,		/* ISA irq #12 */
+	0,		/* ISA irq #13, invalid */
+	1 << 9,		/* ISA irq #14 */
+	1 << 10,	/* ISA irq #15 */
+};
+
+static inline int viper_irq_to_bitmask(unsigned int irq)
+{
+	return viper_isa_irq_map[irq - PXA_ISA_IRQ(0)];
+}
+
+static inline int viper_bit_to_irq(int bit)
+{
+	return viper_isa_irqs[bit] + PXA_ISA_IRQ(0);
+}
 
 static void viper_ack_irq(unsigned int irq)
 {
-	int viper_irq = irq - PXA_ISA_IRQ(0);
+	int viper_irq = viper_irq_to_bitmask(irq);
 
-	if (viper_irq < 8)
-		VIPER_LO_IRQ_STATUS = 1 << viper_irq;
+	if (viper_irq & 0xff)
+		VIPER_LO_IRQ_STATUS = viper_irq;
 	else
-		VIPER_HI_IRQ_STATUS = 1 << (viper_irq - 8);
+		VIPER_HI_IRQ_STATUS = (viper_irq >> 8);
 }
 
 static void viper_mask_irq(unsigned int irq)
 {
-	viper_irq_enabled_mask &= ~(1 << (irq - PXA_ISA_IRQ(0)));
+	viper_irq_enabled_mask &= ~(viper_irq_to_bitmask(irq));
 }
 
 static void viper_unmask_irq(unsigned int irq)
 {
-	viper_irq_enabled_mask |= (1 << (irq - PXA_ISA_IRQ(0)));
+	viper_irq_enabled_mask |= viper_irq_to_bitmask(irq);
 }
 
 static inline unsigned long viper_irq_pending(void)
@@ -237,8 +266,12 @@ static void viper_irq_handler(unsigned int irq, struct irq_desc *desc)
 
 	pending = viper_irq_pending();
 	do {
+		/* we're in a chained irq handler,
+		 * so ack the interrupt by hand */
+		GEDR(VIPER_CPLD_GPIO) = GPIO_bit(VIPER_CPLD_GPIO);
+
 		if (likely(pending)) {
-			irq = PXA_ISA_IRQ(0) + __ffs(pending);
+			irq = viper_bit_to_irq(__ffs(pending));
 			generic_handle_irq(irq);
 		}
 		pending = viper_irq_pending();
@@ -254,15 +287,14 @@ static struct irq_chip viper_irq_chip = {
 
 static void __init viper_init_irq(void)
 {
-	const int isa_irqs[] = { 3, 4, 5, 6, 7, 10, 11, 12, 9, 14, 15 };
-	int irq;
+	int level;
 	int isa_irq;
 
 	pxa25x_init_irq();
 
 	/* setup ISA IRQs */
-	for (irq = 0; irq < ARRAY_SIZE(isa_irqs); irq++) {
-		isa_irq = isa_irqs[irq];
+	for (level = 0; level < ARRAY_SIZE(viper_isa_irqs); level++) {
+		isa_irq = viper_bit_to_irq(level);
 		set_irq_chip(isa_irq, &viper_irq_chip);
 		set_irq_handler(isa_irq, handle_edge_irq);
 		set_irq_flags(isa_irq, IRQF_VALID | IRQF_PROBE);

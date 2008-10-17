@@ -28,9 +28,9 @@
 
 #include <linux/pci.h>
 #include <linux/dmar.h>
+#include <linux/iova.h>
+#include <linux/intel-iommu.h>
 #include <linux/timer.h>
-#include "iova.h"
-#include "intel-iommu.h"
 
 #undef PREFIX
 #define PREFIX "DMAR:"

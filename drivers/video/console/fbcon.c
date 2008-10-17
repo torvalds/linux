@@ -2977,8 +2977,8 @@ static void fbcon_set_all_vcs(struct fb_info *info)
 		p = &fb_display[vc->vc_num];
 		set_blitting_type(vc, info);
 		var_to_display(p, &info->var, info);
-		cols = FBCON_SWAP(p->rotate, info->var.xres, info->var.yres);
-		rows = FBCON_SWAP(p->rotate, info->var.yres, info->var.xres);
+		cols = FBCON_SWAP(ops->rotate, info->var.xres, info->var.yres);
+		rows = FBCON_SWAP(ops->rotate, info->var.yres, info->var.xres);
 		cols /= vc->vc_font.width;
 		rows /= vc->vc_font.height;
 		vc_resize(vc, cols, rows);
@@ -3573,8 +3573,8 @@ static int __init fb_console_init(void)
 
 	acquire_console_sem();
 	fb_register_client(&fbcon_event_notifier);
-	fbcon_device = device_create_drvdata(fb_class, NULL, MKDEV(0, 0),
-					     NULL, "fbcon");
+	fbcon_device = device_create(fb_class, NULL, MKDEV(0, 0), NULL,
+				     "fbcon");
 
 	if (IS_ERR(fbcon_device)) {
 		printk(KERN_WARNING "Unable to create device "

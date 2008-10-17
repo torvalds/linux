@@ -147,9 +147,5 @@ int rpaphp_register_slot(struct slot *slot)
 	list_add(&slot->rpaphp_slot_list, &rpaphp_slot_head);
 	info("Slot [%s] registered\n", slot->name);
 	return 0;
-
-sysfs_fail:
-	pci_hp_deregister(php_slot);
-	return retval;
 }
 
