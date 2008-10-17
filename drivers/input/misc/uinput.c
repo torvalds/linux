@@ -37,6 +37,7 @@
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/uinput.h>
+#include "../input-compat.h"
 
 static int uinput_dev_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
 {
@@ -78,6 +79,7 @@ static struct uinput_request* uinput_request_find(struct uinput_device *udev, in
 	/* Find an input request, by ID. Returns NULL if the ID isn't valid. */
 	if (id >= UINPUT_NUM_REQUESTS || id < 0)
 		return NULL;
+
 	return udev->requests[id];
 }
 
@@ -126,6 +128,17 @@ static int uinput_dev_upload_effect(struct input_dev *dev, struct ff_effect *eff
 {
 	struct uinput_request request;
 	int retval;
+
+	/*
+	 * uinput driver does not currently support periodic effects with
+	 * custom waveform since it does not have a way to pass buffer of
+	 * samples (custom_data) to userspace. If ever there is a device
+	 * supporting custom waveforms we would need to define an additional
+	 * ioctl (UI_UPLOAD_SAMPLES) but for now we just bail out.
+	 */
+	if (effect->type == FF_PERIODIC &&
+			effect->u.periodic.waveform == FF_CUSTOM)
+		return -EINVAL;
 
 	request.id = -1;
 	init_completion(&request.done);
@@ -353,15 +366,15 @@ static inline ssize_t uinput_inject_event(struct uinput_device *udev, const char
 {
 	struct input_event ev;
 
-	if (count != sizeof(struct input_event))
+	if (count < input_event_size())
 		return -EINVAL;
 
-	if (copy_from_user(&ev, buffer, sizeof(struct input_event)))
+	if (input_event_from_user(buffer, &ev))
 		return -EFAULT;
 
 	input_event(udev->dev, ev.type, ev.code, ev.value);
 
-	return sizeof(struct input_event);
+	return input_event_size();
 }
 
 static ssize_t uinput_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
@@ -407,13 +420,13 @@ static ssize_t uinput_read(struct file *file, char __user *buffer, size_t count,
 		goto out;
 	}
 
-	while (udev->head != udev->tail && retval + sizeof(struct input_event) <= count) {
-		if (copy_to_user(buffer + retval, &udev->buff[udev->tail], sizeof(struct input_event))) {
+	while (udev->head != udev->tail && retval + input_event_size() <= count) {
+		if (input_event_to_user(buffer + retval, &udev->buff[udev->tail])) {
 			retval = -EFAULT;
 			goto out;
 		}
 		udev->tail = (udev->tail + 1) % UINPUT_BUFFER_SIZE;
-		retval += sizeof(struct input_event);
+		retval += input_event_size();
 	}
 
  out:
@@ -444,6 +457,93 @@ static int uinput_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+#ifdef CONFIG_COMPAT
+struct uinput_ff_upload_compat {
+	int			request_id;
+	int			retval;
+	struct ff_effect_compat	effect;
+	struct ff_effect_compat	old;
+};
+
+static int uinput_ff_upload_to_user(char __user *buffer,
+				    const struct uinput_ff_upload *ff_up)
+{
+	if (INPUT_COMPAT_TEST) {
+		struct uinput_ff_upload_compat ff_up_compat;
+
+		ff_up_compat.request_id = ff_up->request_id;
+		ff_up_compat.retval = ff_up->retval;
+		/*
+		 * It so happens that the pointer that gives us the trouble
+		 * is the last field in the structure. Since we don't support
+		 * custom waveforms in uinput anyway we can just copy the whole
+		 * thing (to the compat size) and ignore the pointer.
+		 */
+		memcpy(&ff_up_compat.effect, &ff_up->effect,
+			sizeof(struct ff_effect_compat));
+		memcpy(&ff_up_compat.old, &ff_up->old,
+			sizeof(struct ff_effect_compat));
+
+		if (copy_to_user(buffer, &ff_up_compat,
+				 sizeof(struct uinput_ff_upload_compat)))
+			return -EFAULT;
+	} else {
+		if (copy_to_user(buffer, ff_up,
+				 sizeof(struct uinput_ff_upload)))
+			return -EFAULT;
+	}
+
+	return 0;
+}
+
+static int uinput_ff_upload_from_user(const char __user *buffer,
+				      struct uinput_ff_upload *ff_up)
+{
+	if (INPUT_COMPAT_TEST) {
+		struct uinput_ff_upload_compat ff_up_compat;
+
+		if (copy_from_user(&ff_up_compat, buffer,
+				   sizeof(struct uinput_ff_upload_compat)))
+			return -EFAULT;
+
+		ff_up->request_id = ff_up_compat.request_id;
+		ff_up->retval = ff_up_compat.retval;
+		memcpy(&ff_up->effect, &ff_up_compat.effect,
+			sizeof(struct ff_effect_compat));
+		memcpy(&ff_up->old, &ff_up_compat.old,
+			sizeof(struct ff_effect_compat));
+
+	} else {
+		if (copy_from_user(ff_up, buffer,
+				   sizeof(struct uinput_ff_upload)))
+			return -EFAULT;
+	}
+
+	return 0;
+}
+
+#else
+
+static int uinput_ff_upload_to_user(char __user *buffer,
+				    const struct uinput_ff_upload *ff_up)
+{
+	if (copy_to_user(buffer, ff_up, sizeof(struct uinput_ff_upload)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int uinput_ff_upload_from_user(const char __user *buffer,
+				      struct uinput_ff_upload *ff_up)
+{
+	if (copy_from_user(ff_up, buffer, sizeof(struct uinput_ff_upload)))
+		return -EFAULT;
+
+	return 0;
+}
+
+#endif
+
 #define uinput_set_bit(_arg, _bit, _max)		\
 ({							\
 	int __ret = 0;					\
@@ -455,18 +555,16 @@ static int uinput_release(struct inode *inode, struct file *file)
 	__ret;						\
 })
 
-static long uinput_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long uinput_ioctl_handler(struct file *file, unsigned int cmd,
+				 unsigned long arg, void __user *p)
 {
 	int			retval;
-	struct uinput_device	*udev;
-	void __user             *p = (void __user *)arg;
+	struct uinput_device	*udev = file->private_data;
 	struct uinput_ff_upload ff_up;
 	struct uinput_ff_erase  ff_erase;
 	struct uinput_request   *req;
 	int                     length;
 	char			*phys;
-
-	udev = file->private_data;
 
 	retval = mutex_lock_interruptible(&udev->mutex);
 	if (retval)
@@ -549,26 +647,24 @@ static long uinput_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 
 		case UI_BEGIN_FF_UPLOAD:
-			if (copy_from_user(&ff_up, p, sizeof(ff_up))) {
-				retval = -EFAULT;
+			retval = uinput_ff_upload_from_user(p, &ff_up);
+			if (retval)
 				break;
-			}
+
 			req = uinput_request_find(udev, ff_up.request_id);
-			if (!(req && req->code == UI_FF_UPLOAD && req->u.upload.effect)) {
+			if (!req || req->code != UI_FF_UPLOAD || !req->u.upload.effect) {
 				retval = -EINVAL;
 				break;
 			}
+
 			ff_up.retval = 0;
-			memcpy(&ff_up.effect, req->u.upload.effect, sizeof(struct ff_effect));
+			ff_up.effect = *req->u.upload.effect;
 			if (req->u.upload.old)
-				memcpy(&ff_up.old, req->u.upload.old, sizeof(struct ff_effect));
+				ff_up.old = *req->u.upload.old;
 			else
 				memset(&ff_up.old, 0, sizeof(struct ff_effect));
 
-			if (copy_to_user(p, &ff_up, sizeof(ff_up))) {
-				retval = -EFAULT;
-				break;
-			}
+			retval = uinput_ff_upload_to_user(p, &ff_up);
 			break;
 
 		case UI_BEGIN_FF_ERASE:
@@ -576,29 +672,34 @@ static long uinput_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				retval = -EFAULT;
 				break;
 			}
+
 			req = uinput_request_find(udev, ff_erase.request_id);
-			if (!(req && req->code == UI_FF_ERASE)) {
+			if (!req || req->code != UI_FF_ERASE) {
 				retval = -EINVAL;
 				break;
 			}
+
 			ff_erase.retval = 0;
 			ff_erase.effect_id = req->u.effect_id;
 			if (copy_to_user(p, &ff_erase, sizeof(ff_erase))) {
 				retval = -EFAULT;
 				break;
 			}
+
 			break;
 
 		case UI_END_FF_UPLOAD:
-			if (copy_from_user(&ff_up, p, sizeof(ff_up))) {
-				retval = -EFAULT;
+			retval = uinput_ff_upload_from_user(p, &ff_up);
+			if (retval)
 				break;
-			}
+
 			req = uinput_request_find(udev, ff_up.request_id);
-			if (!(req && req->code == UI_FF_UPLOAD && req->u.upload.effect)) {
+			if (!req || req->code != UI_FF_UPLOAD ||
+			    !req->u.upload.effect) {
 				retval = -EINVAL;
 				break;
 			}
+
 			req->retval = ff_up.retval;
 			uinput_request_done(udev, req);
 			break;
@@ -608,11 +709,13 @@ static long uinput_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				retval = -EFAULT;
 				break;
 			}
+
 			req = uinput_request_find(udev, ff_erase.request_id);
-			if (!(req && req->code == UI_FF_ERASE)) {
+			if (!req || req->code != UI_FF_ERASE) {
 				retval = -EINVAL;
 				break;
 			}
+
 			req->retval = ff_erase.retval;
 			uinput_request_done(udev, req);
 			break;
@@ -626,6 +729,18 @@ static long uinput_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return retval;
 }
 
+static long uinput_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	return uinput_ioctl_handler(file, cmd, arg, (void __user *)arg);
+}
+
+#ifdef CONFIG_COMPAT
+static long uinput_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	return uinput_ioctl_handler(file, cmd, arg, compat_ptr(arg));
+}
+#endif
+
 static const struct file_operations uinput_fops = {
 	.owner		= THIS_MODULE,
 	.open		= uinput_open,
@@ -634,6 +749,9 @@ static const struct file_operations uinput_fops = {
 	.write		= uinput_write,
 	.poll		= uinput_poll,
 	.unlocked_ioctl	= uinput_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= uinput_compat_ioctl,
+#endif
 };
 
 static struct miscdevice uinput_misc = {
