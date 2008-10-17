@@ -289,7 +289,6 @@ struct lm85_autofan {
 /* For each registered chip, we need to keep some data in memory.
    The structure is dynamically allocated. */
 struct lm85_data {
-	struct i2c_client client;
 	struct device *hwmon_dev;
 	const int *freq_map;
 	enum chips type;
@@ -318,22 +317,40 @@ struct lm85_data {
 	struct lm85_zone zone[3];
 };
 
-static int lm85_attach_adapter(struct i2c_adapter *adapter);
-static int lm85_detect(struct i2c_adapter *adapter, int address,
-			int kind);
-static int lm85_detach_client(struct i2c_client *client);
+static int lm85_detect(struct i2c_client *client, int kind,
+		       struct i2c_board_info *info);
+static int lm85_probe(struct i2c_client *client,
+		      const struct i2c_device_id *id);
+static int lm85_remove(struct i2c_client *client);
 
 static int lm85_read_value(struct i2c_client *client, u8 reg);
 static void lm85_write_value(struct i2c_client *client, u8 reg, int value);
 static struct lm85_data *lm85_update_device(struct device *dev);
 
 
+static const struct i2c_device_id lm85_id[] = {
+	{ "adm1027", adm1027 },
+	{ "adt7463", adt7463 },
+	{ "lm85", any_chip },
+	{ "lm85b", lm85b },
+	{ "lm85c", lm85c },
+	{ "emc6d100", emc6d100 },
+	{ "emc6d101", emc6d100 },
+	{ "emc6d102", emc6d102 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, lm85_id);
+
 static struct i2c_driver lm85_driver = {
+	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name   = "lm85",
 	},
-	.attach_adapter = lm85_attach_adapter,
-	.detach_client  = lm85_detach_client,
+	.probe		= lm85_probe,
+	.remove		= lm85_remove,
+	.id_table	= lm85_id,
+	.detect		= lm85_detect,
+	.address_data	= &addr_data,
 };
 
 
@@ -965,13 +982,6 @@ temp_auto(1);
 temp_auto(2);
 temp_auto(3);
 
-static int lm85_attach_adapter(struct i2c_adapter *adapter)
-{
-	if (!(adapter->class & I2C_CLASS_HWMON))
-		return 0;
-	return i2c_probe(adapter, &addr_data, lm85_detect);
-}
-
 static struct attribute *lm85_attributes[] = {
 	&sensor_dev_attr_fan1_input.dev_attr.attr,
 	&sensor_dev_attr_fan2_input.dev_attr.attr,
@@ -1111,29 +1121,18 @@ static void lm85_init_client(struct i2c_client *client)
 		dev_warn(&client->dev, "Device is not ready\n");
 }
 
-static int lm85_detect(struct i2c_adapter *adapter, int address,
-		int kind)
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static int lm85_detect(struct i2c_client *client, int kind,
+		       struct i2c_board_info *info)
 {
-	struct i2c_client *client;
-	struct lm85_data *data;
-	int err = 0;
+	struct i2c_adapter *adapter = client->adapter;
+	int address = client->addr;
 	const char *type_name;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		/* We need to be able to do byte I/O */
-		goto ERROR0;
+		return -ENODEV;
 	}
-
-	if (!(data = kzalloc(sizeof(struct lm85_data), GFP_KERNEL))) {
-		err = -ENOMEM;
-		goto ERROR0;
-	}
-
-	client = &data->client;
-	i2c_set_clientdata(client, data);
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &lm85_driver;
 
 	/* If auto-detecting, determine the chip type */
 	if (kind < 0) {
@@ -1148,7 +1147,7 @@ static int lm85_detect(struct i2c_adapter *adapter, int address,
 		if ((verstep & LM85_VERSTEP_VMASK) != LM85_VERSTEP_GENERIC) {
 			dev_dbg(&adapter->dev, "Autodetection failed: "
 				"unsupported version\n");
-			goto ERROR1;
+			return -ENODEV;
 		}
 		kind = any_chip;
 
@@ -1186,50 +1185,62 @@ static int lm85_detect(struct i2c_adapter *adapter, int address,
 		} else {
 			dev_dbg(&adapter->dev, "Autodetection failed: "
 				"unknown vendor\n");
-			goto ERROR1;
+			return -ENODEV;
 		}
 	}
 
-	/* Fill in the chip specific driver values */
 	switch (kind) {
 	case lm85b:
 		type_name = "lm85b";
-		data->freq_map = lm85_freq_map;
 		break;
 	case lm85c:
 		type_name = "lm85c";
-		data->freq_map = lm85_freq_map;
 		break;
 	case adm1027:
 		type_name = "adm1027";
-		data->freq_map = adm1027_freq_map;
 		break;
 	case adt7463:
 		type_name = "adt7463";
-		data->freq_map = adm1027_freq_map;
 		break;
 	case emc6d100:
 		type_name = "emc6d100";
-		data->freq_map = adm1027_freq_map;
 		break;
 	case emc6d102:
 		type_name = "emc6d102";
-		data->freq_map = adm1027_freq_map;
 		break;
 	default:
 		type_name = "lm85";
-		data->freq_map = lm85_freq_map;
 	}
-	strlcpy(client->name, type_name, I2C_NAME_SIZE);
+	strlcpy(info->type, type_name, I2C_NAME_SIZE);
 
-	/* Fill in the remaining client fields */
-	data->type = kind;
+	return 0;
+}
+
+static int lm85_probe(struct i2c_client *client,
+		      const struct i2c_device_id *id)
+{
+	struct lm85_data *data;
+	int err;
+
+	data = kzalloc(sizeof(struct lm85_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	i2c_set_clientdata(client, data);
+	data->type = id->driver_data;
 	mutex_init(&data->update_lock);
 
-	/* Tell the I2C layer a new client has arrived */
-	err = i2c_attach_client(client);
-	if (err)
-		goto ERROR1;
+	/* Fill in the chip specific driver values */
+	switch (data->type) {
+	case adm1027:
+	case adt7463:
+	case emc6d100:
+	case emc6d102:
+		data->freq_map = adm1027_freq_map;
+		break;
+	default:
+		data->freq_map = lm85_freq_map;
+	}
 
 	/* Set the VRM version */
 	data->vrm = vid_which_vrm();
@@ -1240,18 +1251,18 @@ static int lm85_detect(struct i2c_adapter *adapter, int address,
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &lm85_group);
 	if (err)
-		goto ERROR2;
+		goto ERROR1;
 
 	/* The ADT7463 has an optional VRM 10 mode where pin 21 is used
 	   as a sixth digital VID input rather than an analog input. */
 	data->vid = lm85_read_value(client, LM85_REG_VID);
-	if (!(kind == adt7463 && (data->vid & 0x80)))
+	if (!(data->type == adt7463 && (data->vid & 0x80)))
 		if ((err = sysfs_create_group(&client->dev.kobj,
 					&lm85_group_in4)))
 			goto ERROR3;
 
 	/* The EMC6D100 has 3 additional voltage inputs */
-	if (kind == emc6d100)
+	if (data->type == emc6d100)
 		if ((err = sysfs_create_group(&client->dev.kobj,
 					&lm85_group_in567)))
 			goto ERROR3;
@@ -1268,17 +1279,14 @@ static int lm85_detect(struct i2c_adapter *adapter, int address,
  ERROR3:
 	sysfs_remove_group(&client->dev.kobj, &lm85_group);
 	sysfs_remove_group(&client->dev.kobj, &lm85_group_in4);
-	if (kind == emc6d100)
+	if (data->type == emc6d100)
 		sysfs_remove_group(&client->dev.kobj, &lm85_group_in567);
- ERROR2:
-	i2c_detach_client(client);
  ERROR1:
 	kfree(data);
- ERROR0:
 	return err;
 }
 
-static int lm85_detach_client(struct i2c_client *client)
+static int lm85_remove(struct i2c_client *client)
 {
 	struct lm85_data *data = i2c_get_clientdata(client);
 	hwmon_device_unregister(data->hwmon_dev);
@@ -1286,7 +1294,6 @@ static int lm85_detach_client(struct i2c_client *client)
 	sysfs_remove_group(&client->dev.kobj, &lm85_group_in4);
 	if (data->type == emc6d100)
 		sysfs_remove_group(&client->dev.kobj, &lm85_group_in567);
-	i2c_detach_client(client);
 	kfree(data);
 	return 0;
 }
