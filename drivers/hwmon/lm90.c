@@ -742,9 +742,9 @@ static int lm90_detect(struct i2c_client *new_client, int kind,
 		}
 
 		if (kind <= 0) { /* identification failed */
-			dev_info(&adapter->dev,
-			    "Unsupported chip (man_id=0x%02X, "
-			    "chip_id=0x%02X).\n", man_id, chip_id);
+			dev_dbg(&adapter->dev,
+				"Unsupported chip at 0x%02x (man_id=0x%02X, "
+				"chip_id=0x%02X)\n", address, man_id, chip_id);
 			return -ENODEV;
 		}
 	}
