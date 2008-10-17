@@ -502,12 +502,75 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	return 0;
 }
 
+static void setbrightness(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	unsigned int brightness;
+	__u8 set6[4] = { 0x8f, 0x24, 0xc3, 0x00 };
+
+	brightness = sd->brightness;
+	if (brightness < 7) {
+		set6[1] = 0x26;
+		set6[3] = 0x70 - brightness * 0x10;
+	} else {
+		set6[3] = 0x00 + ((brightness - 7) * 0x10);
+	}
+
+	reg_w_buf(gspca_dev, set6, sizeof set6);
+}
+
+static void setcontrast(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	unsigned int contrast = sd->contrast;
+	__u16 reg_to_write;
+
+	if (contrast < 7)
+		reg_to_write = 0x8ea9 - contrast * 0x200;
+	else
+		reg_to_write = 0x00a9 + (contrast - 7) * 0x200;
+
+	reg_w(gspca_dev, reg_to_write);
+}
+
+static void setcolors(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	__u16 reg_to_write;
+
+	reg_to_write = 0x80bb + sd->colors * 0x100;	/* was 0xc0 */
+	reg_w(gspca_dev, reg_to_write);
+}
+
 static void setgamma(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	PDEBUG(D_CONF, "Gamma: %d", sd->gamma);
 	reg_w_buf(gspca_dev, gamma_table[sd->gamma], sizeof gamma_table[0]);
+}
+
+static void setwhitebalance(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	__u8 white_balance[8] =
+		{0x87, 0x20, 0x88, 0x20, 0x89, 0x20, 0x80, 0x38};
+
+	if (sd->whitebalance)
+		white_balance[7] = 0x3c;
+
+	reg_w_buf(gspca_dev, white_balance, sizeof white_balance);
+}
+
+static void setsharpness(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	__u16 reg_to_write;
+
+	reg_to_write = 0x0aa6 + 0x1000 * sd->sharpness;
+
+	reg_w(gspca_dev, reg_to_write);
 }
 
 /* this function is called at probe and resume time */
@@ -551,8 +614,6 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		0xd5, 0x28, 0xd6, 0x1e, 0xd7, 0x27,
 		0xd8, 0xc8, 0xd9, 0xfc
 	};
-	static const __u8 missing[] =
-		{ 0x87, 0x20, 0x88, 0x20, 0x89, 0x20, 0x80, 0x38 };
 	static const __u8 nset3[] = {
 		0xc7, 0x60, 0xc8, 0xa8, 0xc9, 0xe0, 0xca, 0x60, 0xcb, 0xa8,
 		0xcc, 0xe0, 0xcd, 0x60, 0xce, 0xa8,
@@ -617,15 +678,15 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x3880);
 	reg_w(gspca_dev, 0x3880);
 	reg_w(gspca_dev, 0x338e);
-	reg_w_buf(gspca_dev, nset5, sizeof nset5);
-	reg_w(gspca_dev, 0x00a9);
+nset5 - missing
+	setbrightness(gspca_dev);
+	setcontrast(gspca_dev);
 	setgamma(gspca_dev);
-	reg_w(gspca_dev, 0x86bb);
-	reg_w(gspca_dev, 0x4aa6);
+	setcolors(gspca_dev);
+	setsharpness(gspca_dev);
+	setwhitebalance(gspca_dev);
 
-	reg_w_buf(gspca_dev, missing, sizeof missing);
-
-	reg_w(gspca_dev, 0x2087);
+	reg_w(gspca_dev, 0x2087);	/* tied to white balance? */
 	reg_w(gspca_dev, 0x2088);
 	reg_w(gspca_dev, 0x2089);
 
@@ -640,23 +701,6 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	reg_w_buf(gspca_dev, nset4, sizeof nset4);
 
 	return 0;
-}
-
-static void setbrightness(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	unsigned int brightness;
-	__u8 set6[4] = { 0x8f, 0x26, 0xc3, 0x00 };
-
-	brightness = sd->brightness;
-	if (brightness < 7) {
-		set6[3] = 0x70 - brightness * 0x10;
-	} else {
-		set6[1] = 0x24;
-		set6[3] = 0x00 + ((brightness - 7) * 0x10);
-	}
-
-	reg_w_buf(gspca_dev, set6, sizeof set6);
 }
 
 static void setflip(struct gspca_dev *gspca_dev)
@@ -689,19 +733,6 @@ static void seteffect(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0xfaa6);
 }
 
-static void setwhitebalance(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	__u8 white_balance[8] =
-	    { 0x87, 0x20, 0x88, 0x20, 0x89, 0x20, 0x80, 0x38 };
-
-	if (sd->whitebalance == 1)
-		white_balance[7] = 0x3c;
-
-	reg_w_buf(gspca_dev, white_balance, sizeof white_balance);
-}
-
 static void setlightfreq(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -711,39 +742,6 @@ static void setlightfreq(struct gspca_dev *gspca_dev)
 		freq[1] = 0x00;
 
 	reg_w_buf(gspca_dev, freq, sizeof freq);
-}
-
-static void setcontrast(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	unsigned int contrast = sd->contrast;
-	__u16 reg_to_write;
-
-	if (contrast < 7)
-		reg_to_write = 0x8ea9 - (0x200 * contrast);
-	else
-		reg_to_write = (0x00a9 + ((contrast - 7) * 0x200));
-
-	reg_w(gspca_dev, reg_to_write);
-}
-
-static void setcolors(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	__u16 reg_to_write;
-
-	reg_to_write = 0xc0bb + sd->colors * 0x100;
-	reg_w(gspca_dev, reg_to_write);
-}
-
-static void setsharpness(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	__u16 reg_to_write;
-
-	reg_to_write = 0x0aa6 + 0x1000 * sd->sharpness;
-
-	reg_w(gspca_dev, reg_to_write);
 }
 
 static int sd_start(struct gspca_dev *gspca_dev)
