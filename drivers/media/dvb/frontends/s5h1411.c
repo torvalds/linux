@@ -636,28 +636,29 @@ static int s5h1411_read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 	*status = 0;
 
-	/* Get the demodulator status */
-	reg = (s5h1411_readreg(state, S5H1411_I2C_TOP_ADDR, 0xf2) >> 15)
-		& 0x0001;
-	if (reg)
-		*status |= FE_HAS_LOCK | FE_HAS_CARRIER | FE_HAS_SIGNAL;
+	/* Register F2 bit 15 = Master Lock, removed */
 
 	switch (state->current_modulation) {
 	case QAM_64:
 	case QAM_256:
 		reg = s5h1411_readreg(state, S5H1411_I2C_TOP_ADDR, 0xf0);
-		if (reg & 0x100)
-			*status |= FE_HAS_VITERBI;
-		if (reg & 0x10)
-			*status |= FE_HAS_SYNC;
+		if (reg & 0x10) /* QAM FEC Lock */
+			*status |= FE_HAS_SYNC | FE_HAS_LOCK;
+		if (reg & 0x100) /* QAM EQ Lock */
+			*status |= FE_HAS_VITERBI | FE_HAS_CARRIER | FE_HAS_SIGNAL;
+
 		break;
 	case VSB_8:
-		reg = s5h1411_readreg(state, S5H1411_I2C_TOP_ADDR, 0x5e);
-		if (reg & 0x0001)
-			*status |= FE_HAS_SYNC;
 		reg = s5h1411_readreg(state, S5H1411_I2C_TOP_ADDR, 0xf2);
-		if (reg & 0x1000)
-			*status |= FE_HAS_VITERBI;
+		if (reg & 0x1000) /* FEC Lock */
+			*status |= FE_HAS_SYNC | FE_HAS_LOCK;
+		if (reg & 0x2000) /* EQ Lock */
+			*status |= FE_HAS_VITERBI | FE_HAS_CARRIER | FE_HAS_SIGNAL;
+
+		reg = s5h1411_readreg(state, S5H1411_I2C_TOP_ADDR, 0x53);
+		if (reg & 0x1) /* AFC Lock */
+			*status |= FE_HAS_SIGNAL;
+
 		break;
 	default:
 		return -EINVAL;
