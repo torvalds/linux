@@ -822,7 +822,7 @@ ctnetlink_parse_nat_setup(struct nf_conn *ct,
 
 	parse_nat_setup = rcu_dereference(nfnetlink_parse_nat_setup_hook);
 	if (!parse_nat_setup) {
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 		rcu_read_unlock();
 		nfnl_unlock();
 		if (request_module("nf-nat-ipv4") < 0) {

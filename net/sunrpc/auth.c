@@ -83,10 +83,8 @@ rpcauth_create(rpc_authflavor_t pseudoflavor, struct rpc_clnt *clnt)
 	if (flavor >= RPC_AUTH_MAXFLAVOR)
 		goto out;
 
-#ifdef CONFIG_KMOD
 	if ((ops = auth_flavors[flavor]) == NULL)
 		request_module("rpc-auth-%u", flavor);
-#endif
 	spin_lock(&rpc_authflavor_lock);
 	ops = auth_flavors[flavor];
 	if (ops == NULL || !try_module_get(ops->owner)) {
