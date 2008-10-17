@@ -171,7 +171,9 @@ static unsigned int cpufreq_p4_get_frequency(struct cpuinfo_x86 *c)
 	}
 
 	if (c->x86 != 0xF) {
-		printk(KERN_WARNING PFX "Unknown p4-clockmod-capable CPU. Please send an e-mail to <cpufreq@vger.kernel.org>\n");
+		if (!cpu_has(c, X86_FEATURE_EST))
+			printk(KERN_WARNING PFX "Unknown p4-clockmod-capable CPU. "
+				"Please send an e-mail to <cpufreq@vger.kernel.org>\n");
 		return 0;
 	}
 
