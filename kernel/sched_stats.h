@@ -9,7 +9,7 @@
 static int show_schedstat(struct seq_file *seq, void *v)
 {
 	int cpu;
-	int mask_len = NR_CPUS/32 * 9;
+	int mask_len = (NR_CPUS/32 + 1) * 9;
 	char *mask_str = kmalloc(mask_len, GFP_KERNEL);
 
 	if (mask_str == NULL)
