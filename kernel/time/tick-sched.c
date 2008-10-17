@@ -508,10 +508,6 @@ static void tick_nohz_handler(struct clock_event_device *dev)
 	update_process_times(user_mode(regs));
 	profile_tick(CPU_PROFILING);
 
-	/* Do not restart, when we are in the idle loop */
-	if (ts->tick_stopped)
-		return;
-
 	while (tick_nohz_reprogram(ts, now)) {
 		now = ktime_get();
 		tick_do_update_jiffies64(now);
@@ -557,6 +553,27 @@ static void tick_nohz_switch_to_nohz(void)
 	       smp_processor_id());
 }
 
+/*
+ * When NOHZ is enabled and the tick is stopped, we need to kick the
+ * tick timer from irq_enter() so that the jiffies update is kept
+ * alive during long running softirqs. That's ugly as hell, but
+ * correctness is key even if we need to fix the offending softirq in
+ * the first place.
+ *
+ * Note, this is different to tick_nohz_restart. We just kick the
+ * timer and do not touch the other magic bits which need to be done
+ * when idle is left.
+ */
+static void tick_nohz_kick_tick(int cpu)
+{
+	struct tick_sched *ts = &per_cpu(tick_cpu_sched, cpu);
+
+	if (!ts->tick_stopped)
+		return;
+
+	tick_nohz_restart(ts, ktime_get());
+}
+
 #else
 
 static inline void tick_nohz_switch_to_nohz(void) { }
@@ -568,9 +585,11 @@ static inline void tick_nohz_switch_to_nohz(void) { }
  */
 void tick_check_idle(int cpu)
 {
+	tick_check_oneshot_broadcast(cpu);
 #ifdef CONFIG_NO_HZ
 	tick_nohz_stop_idle(cpu);
 	tick_nohz_update_jiffies();
+	tick_nohz_kick_tick(cpu);
 #endif
 }
 
@@ -626,10 +645,6 @@ static enum hrtimer_restart tick_sched_timer(struct hrtimer *timer)
 		update_process_times(user_mode(regs));
 		profile_tick(CPU_PROFILING);
 	}
-
-	/* Do not restart, when we are in the idle loop */
-	if (ts->tick_stopped)
-		return HRTIMER_NORESTART;
 
 	hrtimer_forward(timer, now, tick_period);
 
