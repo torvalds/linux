@@ -312,51 +312,6 @@ static __inline__ int16_t fir32(fir32_state_t *fir, int16_t sample)
 }
 /*- End of function --------------------------------------------------------*/
 
-#ifndef __KERNEL__
-static __inline__ const float *fir_float_create(fir_float_state_t *fir,
-                                                const float *coeffs,
-    	    	    	                        int taps)
-{
-    fir->taps = taps;
-    fir->curr_pos = taps - 1;
-    fir->coeffs = coeffs;
-    fir->history = (float *) malloc(taps*sizeof(float));
-    if (fir->history)
-        memset(fir->history, '\0', taps*sizeof(float));
-    return fir->history;
-}
-/*- End of function --------------------------------------------------------*/
-
-static __inline__ void fir_float_free(fir_float_state_t *fir)
-{
-    free(fir->history);
-}
-/*- End of function --------------------------------------------------------*/
-
-static __inline__ int16_t fir_float(fir_float_state_t *fir, int16_t sample)
-{
-    int i;
-    float y;
-    int offset1;
-    int offset2;
-
-    fir->history[fir->curr_pos] = sample;
-
-    offset2 = fir->curr_pos;
-    offset1 = fir->taps - offset2;
-    y = 0;
-    for (i = fir->taps - 1;  i >= offset1;  i--)
-        y += fir->coeffs[i]*fir->history[i - offset1];
-    for (  ;  i >= 0;  i--)
-        y += fir->coeffs[i]*fir->history[i + offset2];
-    if (fir->curr_pos <= 0)
-    	fir->curr_pos = fir->taps;
-    fir->curr_pos--;
-    return  (int16_t) y;
-}
-/*- End of function --------------------------------------------------------*/
-#endif
-
 #ifdef __cplusplus
 }
 #endif
