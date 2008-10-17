@@ -842,7 +842,6 @@ static int idedisk_open(struct inode *inode, struct file *filp)
 	idkp->openers++;
 
 	if ((drive->dev_flags & IDE_DFLAG_REMOVABLE) && idkp->openers == 1) {
-		check_disk_change(inode->i_bdev);
 		/*
 		 * Ignore the return code from door_lock,
 		 * since the open() has already succeeded,
@@ -851,6 +850,7 @@ static int idedisk_open(struct inode *inode, struct file *filp)
 		if ((drive->dev_flags & IDE_DFLAG_DOORLOCKING) &&
 		    idedisk_set_doorlock(drive, 1))
 			drive->dev_flags &= ~IDE_DFLAG_DOORLOCKING;
+		check_disk_change(inode->i_bdev);
 	}
 	return 0;
 }
