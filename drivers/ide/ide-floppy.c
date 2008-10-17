@@ -560,8 +560,9 @@ sector_t ide_floppy_capacity(ide_drive_t *drive)
 	return capacity;
 }
 
-static void idefloppy_setup(ide_drive_t *drive, idefloppy_floppy_t *floppy)
+static void idefloppy_setup(ide_drive_t *drive)
 {
+	struct ide_floppy_obj *floppy = drive->driver_data;
 	u16 *id = drive->id;
 
 	drive->pc_callback	 = ide_floppy_callback;
@@ -808,7 +809,7 @@ static int ide_floppy_probe(ide_drive_t *drive)
 
 	drive->debug_mask = debug_mask;
 
-	idefloppy_setup(drive, floppy);
+	idefloppy_setup(drive);
 
 	g->minors = 1 << PARTN_BITS;
 	g->driverfs_dev = &drive->gendev;
