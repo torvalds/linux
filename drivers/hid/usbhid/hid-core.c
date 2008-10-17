@@ -4,7 +4,7 @@
  *  Copyright (c) 1999 Andreas Gal
  *  Copyright (c) 2000-2005 Vojtech Pavlik <vojtech@suse.cz>
  *  Copyright (c) 2005 Michael Haboustak <mike-@cinci.rr.com> for Concept2, Inc
- *  Copyright (c) 2006-2007 Jiri Kosina
+ *  Copyright (c) 2006-2008 Jiri Kosina
  */
 
 /*
@@ -641,9 +641,7 @@ static void hid_find_max_report(struct hid_device *hid, unsigned int type,
 	unsigned int size;
 
 	list_for_each_entry(report, &hid->report_enum[type].report_list, list) {
-		size = ((report->size - 1) >> 3) + 1;
-		if (type == HID_INPUT_REPORT && hid->report_enum[type].numbered)
-			size++;
+		size = ((report->size - 1) >> 3) + 1 + hid->report_enum[type].numbered;
 		if (*max < size)
 			*max = size;
 	}
