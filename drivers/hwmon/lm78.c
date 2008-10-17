@@ -613,6 +613,12 @@ static int lm78_detect(struct i2c_adapter *adapter, int address, int kind)
 			err = -ENODEV;
 			goto ERROR2;
 		}
+		/* Explicitly prevent the misdetection of Winbond chips */
+		i = lm78_read_value(data, 0x4f);
+		if (i == 0xa3 || i == 0x5c) {
+			err = -ENODEV;
+			goto ERROR2;
+		}
 	}
 
 	/* Determine the chip type. */
