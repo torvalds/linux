@@ -304,7 +304,7 @@ static const struct snd_soc_dapm_widget playpaq_dapm_widgets[] = {
 
 
 
-static const char *intercon[][3] = {
+static const struct snd_soc_dapm_route intercon[] = {
 	/* speaker connected to SPKOUT */
 	{"Ext Spk", NULL, "SPKOUTP"},
 	{"Ext Spk", NULL, "SPKOUTN"},
@@ -312,9 +312,6 @@ static const char *intercon[][3] = {
 	{"Mic Bias", NULL, "Int Mic"},
 	{"MICN", NULL, "Mic Bias"},
 	{"MICP", NULL, "Mic Bias"},
-
-	/* Terminator */
-	{NULL, NULL, NULL},
 };
 
 
@@ -334,11 +331,8 @@ static int playpaq_wm8510_init(struct snd_soc_codec *codec)
 	/*
 	 * Setup audio path interconnects
 	 */
-	for (i = 0; intercon[i][0] != NULL; i++) {
-		snd_soc_dapm_connect_input(codec,
-					   intercon[i][0],
-					   intercon[i][1], intercon[i][2]);
-	}
+	snd_soc_dapm_add_routes(codec, intercon, ARRAY_SIZE(intercon));
+
 
 
 	/* always connected pins */
