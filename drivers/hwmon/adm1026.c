@@ -279,7 +279,6 @@ struct adm1026_data {
 	u8 fan_min[8];		/* Register value */
 	u8 fan_div[8];		/* Decoded value */
 	struct pwm_data pwm1;	/* Pwm control values */
-	int vid;		/* Decoded value */
 	u8 vrm;			/* VRM version */
 	u8 analog_out;		/* Register value (DAC) */
 	long alarms;		/* Register encoding, combined */
@@ -697,8 +696,6 @@ static struct adm1026_data *adm1026_update_device(struct device *dev)
 		data->last_config = jiffies;
 	}; /* last_config */
 
-	dev_dbg(&client->dev, "Setting VID from GPIO11-15.\n");
-	data->vid = (data->gpio >> 11) & 0x1f;
 	data->valid = 1;
 	mutex_unlock(&data->update_lock);
 	return data;
@@ -1215,7 +1212,10 @@ static DEVICE_ATTR(analog_out, S_IRUGO | S_IWUSR, show_analog_out_reg,
 static ssize_t show_vid_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct adm1026_data *data = adm1026_update_device(dev);
-	return sprintf(buf, "%d\n", vid_from_reg(data->vid & 0x3f, data->vrm));
+	int vid = (data->gpio >> 11) & 0x1f;
+
+	dev_dbg(dev, "Setting VID from GPIO11-15.\n");
+	return sprintf(buf, "%d\n", vid_from_reg(vid, data->vrm));
 }
 static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid_reg, NULL);
 
