@@ -867,11 +867,11 @@ static void lm87_init_client(struct i2c_client *client)
 			lm87_write_value(client, LM87_REG_IN_MAX(0), 0xFF);
 		}
 	}
-	if ((config & 0x81) != 0x01) {
-		/* Start monitoring */
+
+	/* Make sure Start is set and INT#_Clear is clear */
+	if ((config & 0x09) != 0x01)
 		lm87_write_value(client, LM87_REG_CONFIG,
-				 (config & 0xF7) | 0x01);
-	}
+				 (config & 0x77) | 0x01);
 }
 
 static int lm87_remove(struct i2c_client *client)
