@@ -605,6 +605,15 @@ int i915_enable_vblank(struct drm_device *dev, int plane)
 	}
 
 	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
+	/* Enabling vblank events in IMR comes before PIPESTAT write, or
+	 * there's a race where the PIPESTAT vblank bit gets set to 1, so
+	 * the OR of enabled PIPESTAT bits goes to 1, so the PIPExEVENT in
+	 * ISR flashes to 1, but the IIR bit doesn't get set to 1 because
+	 * IMR masks it.  It doesn't ever get set after we clear the masking
+	 * in IMR because the ISR bit is edge, not level-triggered, on the
+	 * OR of PIPESTAT bits.
+	 */
+	i915_enable_irq(dev_priv, interrupt);
 	pipestat = I915_READ(pipestat_reg);
 	if (IS_I965G(dev))
 		pipestat |= PIPE_START_VBLANK_INTERRUPT_ENABLE;
@@ -615,7 +624,6 @@ int i915_enable_vblank(struct drm_device *dev, int plane)
 		     PIPE_VBLANK_INTERRUPT_STATUS);
 	I915_WRITE(pipestat_reg, pipestat);
 	(void) I915_READ(pipestat_reg);	/* Posting read */
-	i915_enable_irq(dev_priv, interrupt);
 	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
 
 	return 0;
