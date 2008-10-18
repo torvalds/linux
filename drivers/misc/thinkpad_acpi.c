@@ -5983,6 +5983,52 @@ static void fan_exit(void)
 	flush_workqueue(tpacpi_wq);
 }
 
+static void fan_suspend(pm_message_t state)
+{
+	if (!fan_control_allowed)
+		return;
+
+	/* Store fan status in cache */
+	fan_get_status_safe(NULL);
+	if (tp_features.fan_ctrl_status_undef)
+		fan_control_desired_level = TP_EC_FAN_AUTO;
+}
+
+static void fan_resume(void)
+{
+	u8 saved_fan_level;
+	u8 current_level = 7;
+	bool do_set = false;
+
+	/* DSDT *always* updates status on resume */
+	tp_features.fan_ctrl_status_undef = 0;
+
+	saved_fan_level = fan_control_desired_level;
+	if (!fan_control_allowed ||
+	    (fan_get_status_safe(&current_level) < 0))
+		return;
+
+	switch (fan_control_access_mode) {
+	case TPACPI_FAN_WR_ACPI_SFAN:
+		do_set = (saved_fan_level > current_level);
+		break;
+	case TPACPI_FAN_WR_ACPI_FANS:
+	case TPACPI_FAN_WR_TPEC:
+		do_set = ((saved_fan_level & TP_EC_FAN_FULLSPEED) ||
+			  (saved_fan_level == 7 &&
+			   !(current_level & TP_EC_FAN_FULLSPEED)));
+		break;
+	default:
+		return;
+	}
+	if (do_set) {
+		printk(TPACPI_NOTICE
+			"restoring fan level to 0x%02x\n",
+			saved_fan_level);
+		fan_set_level_safe(saved_fan_level);
+	}
+}
+
 static int fan_read(char *p)
 {
 	int len = 0;
@@ -6174,6 +6220,8 @@ static struct ibm_struct fan_driver_data = {
 	.read = fan_read,
 	.write = fan_write,
 	.exit = fan_exit,
+	.suspend = fan_suspend,
+	.resume = fan_resume,
 };
 
 /****************************************************************************
