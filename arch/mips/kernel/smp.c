@@ -163,8 +163,10 @@ static void stop_this_cpu(void *dummy)
 	 * Remove this CPU:
 	 */
 	cpu_clear(smp_processor_id(), cpu_online_map);
-	local_irq_enable();	/* May need to service _machine_restart IPI */
-	for (;;);		/* Wait if available. */
+	for (;;) {
+		if (cpu_wait)
+			(*cpu_wait)();		/* Wait if available. */
+	}
 }
 
 void smp_send_stop(void)
