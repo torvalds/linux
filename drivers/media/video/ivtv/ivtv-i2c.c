@@ -64,8 +64,6 @@
 #include "ivtv-gpio.h"
 #include "ivtv-i2c.h"
 
-#include <media/ir-kbd-i2c.h>
-
 /* i2c implementation for cx23415/6 chip, ivtv project.
  * Author: Kevin Thayer (nufan_wfk at yahoo.com)
  */

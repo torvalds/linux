@@ -31,7 +31,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 #include <linux/dmi.h>
@@ -78,8 +77,7 @@ static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	int bus_speed = ide_pci_clk ? ide_pci_clk : 33;
 	int port = hwif->channel ? 0x5c : 0x58;
 	int portFIFO = hwif->channel ? 0x55 : 0x54;
-	u8 cd_dma_fifo = 0;
-	int unit = drive->select.b.unit & 1;
+	u8 cd_dma_fifo = 0, unit = drive->dn & 1;
 
 	if ((s_clc = (s_time * bus_speed + 999) / 1000) >= 8)
 		s_clc = 0;
@@ -113,7 +111,7 @@ static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	}
 	
 	pci_write_config_byte(dev, port, s_clc);
-	pci_write_config_byte(dev, port+drive->select.b.unit+2, (a_clc << 4) | r_clc);
+	pci_write_config_byte(dev, port + unit + 2, (a_clc << 4) | r_clc);
 	local_irq_restore(flags);
 }
 
@@ -134,8 +132,8 @@ static u8 ali_udma_filter(ide_drive_t *drive)
 	if (m5229_revision > 0x20 && m5229_revision < 0xC2) {
 		if (drive->media != ide_disk)
 			return 0;
-		if (chip_is_1543c_e && strstr(drive->id->model, "WDC ") &&
-		    wdc_udma == 0)
+		if (wdc_udma == 0 && chip_is_1543c_e &&
+		    strstr((char *)&drive->id[ATA_ID_PROD], "WDC "))
 			return 0;
 	}
 
@@ -155,7 +153,7 @@ static void ali_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u8 speed1		= speed;
-	u8 unit			= (drive->select.b.unit & 0x01);
+	u8 unit			= drive->dn & 1;
 	u8 tmpbyte		= 0x00;
 	int m5229_udma		= (hwif->channel) ? 0x57 : 0x56;
 
@@ -214,7 +212,7 @@ static int ali15x3_dma_setup(ide_drive_t *drive)
  *	appropriate also sets up the 1533 southbridge.
  */
 
-static unsigned int __devinit init_chipset_ali15x3(struct pci_dev *dev)
+static unsigned int init_chipset_ali15x3(struct pci_dev *dev)
 {
 	unsigned long flags;
 	u8 tmpbyte;
@@ -509,7 +507,7 @@ static const struct ide_dma_ops ali_dma_ops = {
 	.dma_setup		= ali15x3_dma_setup,
 	.dma_exec_cmd		= ide_dma_exec_cmd,
 	.dma_start		= ide_dma_start,
-	.dma_end		= __ide_dma_end,
+	.dma_end		= ide_dma_end,
 	.dma_test_irq		= ide_dma_test_irq,
 	.dma_lost_irq		= ide_dma_lost_irq,
 	.dma_timeout		= ide_dma_timeout,
@@ -577,21 +575,23 @@ static const struct pci_device_id alim15x3_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, alim15x3_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver alim15x3_pci_driver = {
 	.name		= "ALI15x3_IDE",
 	.id_table	= alim15x3_pci_tbl,
 	.probe		= alim15x3_init_one,
 	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init ali15x3_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&alim15x3_pci_driver);
 }
 
 static void __exit ali15x3_ide_exit(void)
 {
-	return pci_unregister_driver(&driver);
+	return pci_unregister_driver(&alim15x3_pci_driver);
 }
 
 module_init(ali15x3_ide_init);

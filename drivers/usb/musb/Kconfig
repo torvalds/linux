@@ -9,6 +9,7 @@ comment "Enable Host or Gadget support to see Inventra options"
 # (M)HDRC = (Multipoint) Highspeed Dual-Role Controller
 config USB_MUSB_HDRC
 	depends on (USB || USB_GADGET) && HAVE_CLK
+	depends on !SUPERH
 	select TWL4030_USB if MACH_OMAP_3430SDP
 	tristate 'Inventra Highspeed Dual Role Controller (TI, ...)'
 	help
@@ -32,10 +33,6 @@ config USB_MUSB_SOC
 	default y if ARCH_DAVINCI
 	default y if ARCH_OMAP2430
 	default y if ARCH_OMAP34XX
-	help
-	  Use a static <asm/arch/hdrc_cnf.h> file to describe how the
-	  controller is configured (endpoints, mechanisms, etc) on the
-	  current iteration of a given system-on-chip.
 
 comment "DaVinci 644x USB support"
 	depends on USB_MUSB_HDRC && ARCH_DAVINCI

@@ -133,14 +133,19 @@ static int toshiba_rbtx4927_irq_nested(int sw_irq)
 	u8 level3;
 
 	level3 = readb(rbtx4927_imstat_addr) & 0x1f;
-	if (level3)
-		sw_irq = RBTX4927_IRQ_IOC + fls(level3) - 1;
-	return sw_irq;
+	if (unlikely(!level3))
+		return -1;
+	return RBTX4927_IRQ_IOC + __fls8(level3);
 }
 
 static void __init toshiba_rbtx4927_irq_ioc_init(void)
 {
 	int i;
+
+	/* mask all IOC interrupts */
+	writeb(0, rbtx4927_imask_addr);
+	/* clear SoftInt interrupts */
+	writeb(0, rbtx4927_softint_addr);
 
 	for (i = RBTX4927_IRQ_IOC;
 	     i < RBTX4927_IRQ_IOC + RBTX4927_NR_IRQ_IOC; i++)

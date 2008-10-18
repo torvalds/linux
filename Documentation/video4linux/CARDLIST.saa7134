@@ -76,7 +76,7 @@
  75 -> AVerMedia AVerTVHD MCE A180              [1461:1044]
  76 -> SKNet MonsterTV Mobile                   [1131:4ee9]
  77 -> Pinnacle PCTV 40i/50i/110i (saa7133)     [11bd:002e]
- 78 -> ASUSTeK P7131 Dual                       [1043:4862,1043:4857]
+ 78 -> ASUSTeK P7131 Dual                       [1043:4862]
  79 -> Sedna/MuchTV PC TV Cardbus TV/Radio (ITO25 Rev:2B)
  80 -> ASUS Digimatrix TV                       [1043:0210]
  81 -> Philips Tiger reference design           [1131:2018]
@@ -145,3 +145,9 @@
 144 -> Beholder BeholdTV M6 Extra               [5ace:6193]
 145 -> AVerMedia MiniPCI DVB-T Hybrid M103      [1461:f636]
 146 -> ASUSTeK P7131 Analog
+147 -> Asus Tiger 3in1                          [1043:4878]
+148 -> Encore ENLTV-FM v5.3                     [1a7f:2008]
+149 -> Avermedia PCI pure analog (M135A)        [1461:f11d]
+150 -> Zogis Real Angel 220
+151 -> ADS Tech Instant HDTV                    [1421:0380]
+152 -> Asus Tiger Rev:1.00                      [1043:4857]

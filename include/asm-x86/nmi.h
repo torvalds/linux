@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_NMI_H_
-#define _ASM_X86_NMI_H_
+#ifndef ASM_X86__NMI_H
+#define ASM_X86__NMI_H
 
 #include <linux/pm.h>
 #include <asm/irq.h>
@@ -14,10 +14,6 @@
  * if the handler exists and was handled successfully.
  */
 int do_nmi_callback(struct pt_regs *regs, int cpu);
-
-#ifdef CONFIG_X86_64
-extern void default_do_nmi(struct pt_regs *);
-#endif
 
 extern void die_nmi(char *str, struct pt_regs *regs, int do_panic);
 extern int check_nmi_watchdog(void);
@@ -34,6 +30,7 @@ extern void stop_apic_nmi_watchdog(void *);
 extern void disable_timer_nmi_watchdog(void);
 extern void enable_timer_nmi_watchdog(void);
 extern int nmi_watchdog_tick(struct pt_regs *regs, unsigned reason);
+extern void cpu_nmi_set_wd_enabled(void);
 
 extern atomic_t nmi_active;
 extern unsigned int nmi_watchdog;
@@ -81,4 +78,4 @@ void enable_lapic_nmi_watchdog(void);
 void stop_nmi(void);
 void restart_nmi(void);
 
-#endif
+#endif /* ASM_X86__NMI_H */

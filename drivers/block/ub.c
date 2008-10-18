@@ -349,8 +349,6 @@ struct ub_dev {
 
 	struct work_struct reset_work;
 	wait_queue_head_t reset_wait;
-
-	int sg_stat[6];
 };
 
 /*
@@ -685,7 +683,6 @@ static int ub_request_fn_1(struct ub_lun *lun, struct request *rq)
 		goto drop;
 	}
 	urq->nsg = n_elem;
-	sc->sg_stat[n_elem < 5 ? n_elem : 5]++;
 
 	if (blk_pc_request(rq)) {
 		ub_cmd_build_packet(sc, lun, cmd, urq);

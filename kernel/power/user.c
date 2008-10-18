@@ -212,13 +212,20 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 	case SNAPSHOT_FREEZE:
 		if (data->frozen)
 			break;
+
 		printk("Syncing filesystems ... ");
 		sys_sync();
 		printk("done.\n");
 
-		error = freeze_processes();
+		error = usermodehelper_disable();
 		if (error)
+			break;
+
+		error = freeze_processes();
+		if (error) {
 			thaw_processes();
+			usermodehelper_enable();
+		}
 		if (!error)
 			data->frozen = 1;
 		break;
@@ -227,6 +234,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		if (!data->frozen || data->ready)
 			break;
 		thaw_processes();
+		usermodehelper_enable();
 		data->frozen = 0;
 		break;
 

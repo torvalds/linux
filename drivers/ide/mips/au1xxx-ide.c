@@ -322,11 +322,7 @@ static int auide_dma_setup(ide_drive_t *drive)
 }
 
 static int auide_dma_test_irq(ide_drive_t *drive)
-{	
-	if (drive->waiting_for_dma == 0)
-		printk(KERN_WARNING "%s: ide_dma_test_irq \
-                                     called while not waiting\n", drive->name);
-
+{
 	/* If dbdma didn't execute the STOP command yet, the
 	 * active bit is still set
 	 */
@@ -342,11 +338,6 @@ static int auide_dma_test_irq(ide_drive_t *drive)
 
 static void auide_dma_host_set(ide_drive_t *drive, int on)
 {
-}
-
-static void auide_dma_lost_irq(ide_drive_t *drive)
-{
-	printk(KERN_ERR "%s: IRQ lost\n", drive->name);
 }
 
 static void auide_ddma_tx_callback(int irq, void *param)
@@ -375,18 +366,6 @@ static void auide_init_dbdma_dev(dbdev_tab_t *dev, u32 dev_id, u32 tsize, u32 de
 }
 
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
-static void auide_dma_timeout(ide_drive_t *drive)
-{
-	ide_hwif_t *hwif = HWIF(drive);
-
-	printk(KERN_ERR "%s: DMA timeout occurred: ", drive->name);
-
-	if (auide_dma_test_irq(drive))
-		return;
-
-	auide_dma_end(drive);
-}
-
 static const struct ide_dma_ops au1xxx_dma_ops = {
 	.dma_host_set		= auide_dma_host_set,
 	.dma_setup		= auide_dma_setup,
@@ -394,8 +373,8 @@ static const struct ide_dma_ops au1xxx_dma_ops = {
 	.dma_start		= auide_dma_start,
 	.dma_end		= auide_dma_end,
 	.dma_test_irq		= auide_dma_test_irq,
-	.dma_lost_irq		= auide_dma_lost_irq,
-	.dma_timeout		= auide_dma_timeout,
+	.dma_lost_irq		= ide_dma_lost_irq,
+	.dma_timeout		= ide_dma_timeout,
 };
 
 static int auide_ddma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
@@ -448,10 +427,9 @@ static int auide_ddma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 							     NUM_DESCRIPTORS);
 	auide->rx_desc_head = (void*)au1xxx_dbdma_ring_alloc(auide->rx_chan,
 							     NUM_DESCRIPTORS);
- 
-	hwif->dmatable_cpu = dma_alloc_coherent(hwif->dev,
-						PRD_ENTRIES * PRD_BYTES,        /* 1 Page */
-						&hwif->dmatable_dma, GFP_KERNEL);
+
+	/* FIXME: check return value */
+	(void)ide_allocate_dma_engine(hwif);
 	
 	au1xxx_dbdma_start( auide->tx_chan );
 	au1xxx_dbdma_start( auide->rx_chan );

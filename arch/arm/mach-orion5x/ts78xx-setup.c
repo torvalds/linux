@@ -103,8 +103,7 @@ static struct platform_device ts78xx_nor_boot_flash = {
  * Ethernet
  ****************************************************************************/
 static struct mv643xx_eth_platform_data ts78xx_eth_data = {
-	.phy_addr	= 0,
-	.force_phy_addr = 1,
+	.phy_addr	= MV643XX_ETH_PHY_ADDR(0),
 };
 
 /*****************************************************************************

@@ -18,13 +18,13 @@
  */
 
 #include <linux/serial_8250.h>
+#include <linux/io.h>
 #ifdef CONFIG_MTD_PHYSMAP
 #include <linux/mtd/physmap.h>
 #endif
 #include <asm/mach/map.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/io.h>
 #include <asm/hardware/iop_adma.h>
 
 #define IOP13XX_UART_XTAL 33334000

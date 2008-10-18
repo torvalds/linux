@@ -22,10 +22,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 #include <mach/hardware.h>
 #include <asm/mach/map.h>
 #include <asm/hardware/vic.h>
-#include <asm/io.h>
 #include <mach/netx-regs.h>
 #include <asm/mach/irq.h>
 
@@ -77,15 +77,12 @@ netx_hif_demux_handler(unsigned int irq_unused, struct irq_desc *desc)
 	stat = ((readl(NETX_DPMAS_INT_EN) &
 		readl(NETX_DPMAS_INT_STAT)) >> 24) & 0x1f;
 
-	desc = irq_desc + NETX_IRQ_HIF_CHAINED(0);
-
 	while (stat) {
 		if (stat & 1) {
 			DEBUG_IRQ("handling irq %d\n", irq);
-			desc_handle_irq(irq, desc);
+			generic_handle_irq(irq);
 		}
 		irq++;
-		desc++;
 		stat >>= 1;
 	}
 }

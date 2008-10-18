@@ -70,7 +70,6 @@ nlm_fclose(struct file *filp)
 static struct nlmsvc_binding	nfsd_nlm_ops = {
 	.fopen		= nlm_fopen,		/* open file for locking */
 	.fclose		= nlm_fclose,		/* close file */
-	.get_grace_period = get_nfs4_grace_period,
 };
 
 void

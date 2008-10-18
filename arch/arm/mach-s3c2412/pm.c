@@ -18,9 +18,9 @@
 #include <linux/init.h>
 #include <linux/sysdev.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 
 #include <mach/regs-power.h>
@@ -28,10 +28,10 @@
 #include <mach/regs-gpio.h>
 #include <mach/regs-dsc.h>
 
-#include <asm/plat-s3c24xx/cpu.h>
-#include <asm/plat-s3c24xx/pm.h>
+#include <plat/cpu.h>
+#include <plat/pm.h>
 
-#include <asm/plat-s3c24xx/s3c2412.h>
+#include <plat/s3c2412.h>
 
 extern void s3c2412_sleep_enter(void);
 

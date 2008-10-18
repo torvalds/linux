@@ -429,8 +429,9 @@ int show_interrupts(struct seq_file *p, void *v)
 	return 0;
 }
 
+#ifdef CONFIG_PROC_FS
 void init_irq_proc(void)
 {
 	/* Insert /proc/irq driver here */
 }
-
+#endif

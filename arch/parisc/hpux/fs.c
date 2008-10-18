@@ -104,7 +104,7 @@ static int filldir(void * __buf, const char * name, int namlen, loff_t offset,
 	buf->count -= reclen;
 	return 0;
 Efault:
-	buffer->error = -EFAULT;
+	buf->error = -EFAULT;
 	return -EFAULT;
 }
 

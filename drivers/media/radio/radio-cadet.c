@@ -589,6 +589,7 @@ static struct video_device cadet_radio = {
 	.name		= "Cadet radio",
 	.fops           = &cadet_fops,
 	.ioctl_ops 	= &cadet_ioctl_ops,
+	.release	= video_device_release_empty,
 };
 
 #ifdef CONFIG_PNP
@@ -682,7 +683,7 @@ static int __init cadet_init(void)
 	}
 	if (!request_region(io,2,"cadet"))
 		goto fail;
-	if(video_register_device(&cadet_radio,VFL_TYPE_RADIO,radio_nr)==-1) {
+	if (video_register_device(&cadet_radio, VFL_TYPE_RADIO, radio_nr) < 0) {
 		release_region(io,2);
 		goto fail;
 	}

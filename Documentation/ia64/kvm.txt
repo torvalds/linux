@@ -1,7 +1,8 @@
-Currently, kvm module in EXPERIMENTAL stage on IA64. This means that
-interfaces are not stable enough to use. So, plase had better don't run
-critical applications in virtual machine. We will try our best to make it
-strong in future versions!
+Currently, kvm module is in EXPERIMENTAL stage on IA64. This means that
+interfaces are not stable enough to use. So, please don't run critical
+applications in virtual machine.
+We will try our best to improve it in future versions!
+
 				Guide: How to boot up guests on kvm/ia64
 
 This guide is to describe how to enable kvm support for IA-64 systems.

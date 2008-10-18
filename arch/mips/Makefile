@@ -170,123 +170,123 @@ libs-$(CONFIG_SIBYTE_CFE)	+= arch/mips/sibyte/cfe/
 # Acer PICA 61, Mips Magnum 4000 and Olivetti M700.
 #
 core-$(CONFIG_MACH_JAZZ)	+= arch/mips/jazz/
-cflags-$(CONFIG_MACH_JAZZ)	+= -Iinclude/asm-mips/mach-jazz
+cflags-$(CONFIG_MACH_JAZZ)	+= -I$(srctree)/arch/mips/include/asm/mach-jazz
 load-$(CONFIG_MACH_JAZZ)	+= 0xffffffff80080000
 
 #
 # Common Alchemy Au1x00 stuff
 #
-core-$(CONFIG_SOC_AU1X00)	+= arch/mips/au1000/common/
-cflags-$(CONFIG_SOC_AU1X00)	+= -Iinclude/asm-mips/mach-au1x00
+core-$(CONFIG_SOC_AU1X00)	+= arch/mips/alchemy/common/
+cflags-$(CONFIG_SOC_AU1X00)	+= -I$(srctree)/arch/mips/include/asm/mach-au1x00
 
 #
 # AMD Alchemy Pb1000 eval board
 #
-libs-$(CONFIG_MIPS_PB1000)	+= arch/mips/au1000/pb1000/
-cflags-$(CONFIG_MIPS_PB1000)	+= -Iinclude/asm-mips/mach-pb1x00
+libs-$(CONFIG_MIPS_PB1000)	+= arch/mips/alchemy/pb1000/
+cflags-$(CONFIG_MIPS_PB1000)	+= -I$(srctree)/arch/mips/include/asm/mach-pb1x00
 load-$(CONFIG_MIPS_PB1000)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Pb1100 eval board
 #
-libs-$(CONFIG_MIPS_PB1100)	+= arch/mips/au1000/pb1100/
-cflags-$(CONFIG_MIPS_PB1100)	+= -Iinclude/asm-mips/mach-pb1x00
+libs-$(CONFIG_MIPS_PB1100)	+= arch/mips/alchemy/pb1100/
+cflags-$(CONFIG_MIPS_PB1100)	+= -I$(srctree)/arch/mips/include/asm/mach-pb1x00
 load-$(CONFIG_MIPS_PB1100)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Pb1500 eval board
 #
-libs-$(CONFIG_MIPS_PB1500)	+= arch/mips/au1000/pb1500/
-cflags-$(CONFIG_MIPS_PB1500)	+= -Iinclude/asm-mips/mach-pb1x00
+libs-$(CONFIG_MIPS_PB1500)	+= arch/mips/alchemy/pb1500/
+cflags-$(CONFIG_MIPS_PB1500)	+= -I$(srctree)/arch/mips/include/asm/mach-pb1x00
 load-$(CONFIG_MIPS_PB1500)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Pb1550 eval board
 #
-libs-$(CONFIG_MIPS_PB1550)	+= arch/mips/au1000/pb1550/
-cflags-$(CONFIG_MIPS_PB1550)	+= -Iinclude/asm-mips/mach-pb1x00
+libs-$(CONFIG_MIPS_PB1550)	+= arch/mips/alchemy/pb1550/
+cflags-$(CONFIG_MIPS_PB1550)	+= -I$(srctree)/arch/mips/include/asm/mach-pb1x00
 load-$(CONFIG_MIPS_PB1550)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Pb1200 eval board
 #
-libs-$(CONFIG_MIPS_PB1200)	+= arch/mips/au1000/pb1200/
-cflags-$(CONFIG_MIPS_PB1200)	+= -Iinclude/asm-mips/mach-pb1x00
+libs-$(CONFIG_MIPS_PB1200)	+= arch/mips/alchemy/pb1200/
+cflags-$(CONFIG_MIPS_PB1200)	+= -I$(srctree)/arch/mips/include/asm/mach-pb1x00
 load-$(CONFIG_MIPS_PB1200)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Db1000 eval board
 #
-libs-$(CONFIG_MIPS_DB1000)	+= arch/mips/au1000/db1x00/
-cflags-$(CONFIG_MIPS_DB1000)	+= -Iinclude/asm-mips/mach-db1x00
+libs-$(CONFIG_MIPS_DB1000)	+= arch/mips/alchemy/db1x00/
+cflags-$(CONFIG_MIPS_DB1000)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
 load-$(CONFIG_MIPS_DB1000)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Db1100 eval board
 #
-libs-$(CONFIG_MIPS_DB1100)	+= arch/mips/au1000/db1x00/
-cflags-$(CONFIG_MIPS_DB1100)	+= -Iinclude/asm-mips/mach-db1x00
+libs-$(CONFIG_MIPS_DB1100)	+= arch/mips/alchemy/db1x00/
+cflags-$(CONFIG_MIPS_DB1100)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
 load-$(CONFIG_MIPS_DB1100)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Db1500 eval board
 #
-libs-$(CONFIG_MIPS_DB1500)	+= arch/mips/au1000/db1x00/
-cflags-$(CONFIG_MIPS_DB1500)	+= -Iinclude/asm-mips/mach-db1x00
+libs-$(CONFIG_MIPS_DB1500)	+= arch/mips/alchemy/db1x00/
+cflags-$(CONFIG_MIPS_DB1500)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
 load-$(CONFIG_MIPS_DB1500)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Db1550 eval board
 #
-libs-$(CONFIG_MIPS_DB1550)	+= arch/mips/au1000/db1x00/
-cflags-$(CONFIG_MIPS_DB1550)	+= -Iinclude/asm-mips/mach-db1x00
+libs-$(CONFIG_MIPS_DB1550)	+= arch/mips/alchemy/db1x00/
+cflags-$(CONFIG_MIPS_DB1550)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
 load-$(CONFIG_MIPS_DB1550)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Db1200 eval board
 #
-libs-$(CONFIG_MIPS_DB1200)	+= arch/mips/au1000/pb1200/
-cflags-$(CONFIG_MIPS_DB1200)	+= -Iinclude/asm-mips/mach-db1x00
+libs-$(CONFIG_MIPS_DB1200)	+= arch/mips/alchemy/pb1200/
+cflags-$(CONFIG_MIPS_DB1200)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
 load-$(CONFIG_MIPS_DB1200)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Bosporus eval board
 #
-libs-$(CONFIG_MIPS_BOSPORUS)	+= arch/mips/au1000/db1x00/
-cflags-$(CONFIG_MIPS_BOSPORUS)	+= -Iinclude/asm-mips/mach-db1x00
+libs-$(CONFIG_MIPS_BOSPORUS)	+= arch/mips/alchemy/db1x00/
+cflags-$(CONFIG_MIPS_BOSPORUS)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
 load-$(CONFIG_MIPS_BOSPORUS)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Mirage eval board
 #
-libs-$(CONFIG_MIPS_MIRAGE)	+= arch/mips/au1000/db1x00/
-cflags-$(CONFIG_MIPS_MIRAGE)	+= -Iinclude/asm-mips/mach-db1x00
+libs-$(CONFIG_MIPS_MIRAGE)	+= arch/mips/alchemy/db1x00/
+cflags-$(CONFIG_MIPS_MIRAGE)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
 load-$(CONFIG_MIPS_MIRAGE)	+= 0xffffffff80100000
 
 #
 # 4G-Systems eval board
 #
-libs-$(CONFIG_MIPS_MTX1)	+= arch/mips/au1000/mtx-1/
+libs-$(CONFIG_MIPS_MTX1)	+= arch/mips/alchemy/mtx-1/
 load-$(CONFIG_MIPS_MTX1)	+= 0xffffffff80100000
 
 #
 # MyCable eval board
 #
-libs-$(CONFIG_MIPS_XXS1500)	+= arch/mips/au1000/xxs1500/
+libs-$(CONFIG_MIPS_XXS1500)	+= arch/mips/alchemy/xxs1500/
 load-$(CONFIG_MIPS_XXS1500)	+= 0xffffffff80100000
 
 #
 # Cobalt Server
 #
 core-$(CONFIG_MIPS_COBALT)	+= arch/mips/cobalt/
-cflags-$(CONFIG_MIPS_COBALT)	+= -Iinclude/asm-mips/mach-cobalt
+cflags-$(CONFIG_MIPS_COBALT)	+= -I$(srctree)/arch/mips/include/asm/mach-cobalt
 load-$(CONFIG_MIPS_COBALT)	+= 0xffffffff80080000
 
 #
 # DECstation family
 #
 core-$(CONFIG_MACH_DECSTATION)	+= arch/mips/dec/
-cflags-$(CONFIG_MACH_DECSTATION)+= -Iinclude/asm-mips/mach-dec
+cflags-$(CONFIG_MACH_DECSTATION)+= -I$(srctree)/arch/mips/include/asm/mach-dec
 libs-$(CONFIG_MACH_DECSTATION)	+= arch/mips/dec/prom/
 load-$(CONFIG_MACH_DECSTATION)	+= 0xffffffff80040000
 
@@ -294,7 +294,7 @@ load-$(CONFIG_MACH_DECSTATION)	+= 0xffffffff80040000
 # Wind River PPMC Board (4KC + GT64120)
 #
 core-$(CONFIG_WR_PPMC)		+= arch/mips/gt64120/wrppmc/
-cflags-$(CONFIG_WR_PPMC)		+= -Iinclude/asm-mips/mach-wrppmc
+cflags-$(CONFIG_WR_PPMC)		+= -I$(srctree)/arch/mips/include/asm/mach-wrppmc
 load-$(CONFIG_WR_PPMC)		+= 0xffffffff80100000
 
 #
@@ -302,13 +302,13 @@ load-$(CONFIG_WR_PPMC)		+= 0xffffffff80100000
 #
 core-$(CONFIG_LEMOTE_FULONG) +=arch/mips/lemote/lm2e/
 load-$(CONFIG_LEMOTE_FULONG) +=0xffffffff80100000
-cflags-$(CONFIG_LEMOTE_FULONG) += -Iinclude/asm-mips/mach-lemote
+cflags-$(CONFIG_LEMOTE_FULONG) += -I$(srctree)/arch/mips/include/asm/mach-lemote
 
 #
 # MIPS Malta board
 #
 core-$(CONFIG_MIPS_MALTA)	+= arch/mips/mti-malta/
-cflags-$(CONFIG_MIPS_MALTA)	+= -Iinclude/asm-mips/mach-malta
+cflags-$(CONFIG_MIPS_MALTA)	+= -I$(srctree)/arch/mips/include/asm/mach-malta
 load-$(CONFIG_MIPS_MALTA)	+= 0xffffffff80100000
 all-$(CONFIG_MIPS_MALTA)	:= vmlinux.bin
 
@@ -316,14 +316,14 @@ all-$(CONFIG_MIPS_MALTA)	:= vmlinux.bin
 # MIPS SIM
 #
 core-$(CONFIG_MIPS_SIM)		+= arch/mips/mipssim/
-cflags-$(CONFIG_MIPS_SIM)	+= -Iinclude/asm-mips/mach-mipssim
+cflags-$(CONFIG_MIPS_SIM)	+= -I$(srctree)/arch/mips/include/asm/mach-mipssim
 load-$(CONFIG_MIPS_SIM)		+= 0x80100000
 
 #
 # PMC-Sierra MSP SOCs
 #
 core-$(CONFIG_PMC_MSP)		+= arch/mips/pmc-sierra/msp71xx/
-cflags-$(CONFIG_PMC_MSP)	+= -Iinclude/asm-mips/pmc-sierra/msp71xx \
+cflags-$(CONFIG_PMC_MSP)	+= -I$(srctree)/arch/mips/include/asm/pmc-sierra/msp71xx \
 					-mno-branch-likely
 load-$(CONFIG_PMC_MSP)		+= 0xffffffff80100000
 
@@ -331,28 +331,28 @@ load-$(CONFIG_PMC_MSP)		+= 0xffffffff80100000
 # PMC-Sierra Yosemite
 #
 core-$(CONFIG_PMC_YOSEMITE)	+= arch/mips/pmc-sierra/yosemite/
-cflags-$(CONFIG_PMC_YOSEMITE)	+= -Iinclude/asm-mips/mach-yosemite
+cflags-$(CONFIG_PMC_YOSEMITE)	+= -I$(srctree)/arch/mips/include/asm/mach-yosemite
 load-$(CONFIG_PMC_YOSEMITE)	+= 0xffffffff80100000
 
 #
 # Basler eXcite
 #
 core-$(CONFIG_BASLER_EXCITE)	+= arch/mips/basler/excite/
-cflags-$(CONFIG_BASLER_EXCITE)	+= -Iinclude/asm-mips/mach-excite
+cflags-$(CONFIG_BASLER_EXCITE)	+= -I$(srctree)/arch/mips/include/asm/mach-excite
 load-$(CONFIG_BASLER_EXCITE)	+= 0x80100000
 
 #
 # LASAT platforms
 #
 core-$(CONFIG_LASAT)		+= arch/mips/lasat/
-cflags-$(CONFIG_LASAT)		+= -Iinclude/asm-mips/mach-lasat
+cflags-$(CONFIG_LASAT)		+= -I$(srctree)/arch/mips/include/asm/mach-lasat
 load-$(CONFIG_LASAT)		+= 0xffffffff80000000
 
 #
 # Common VR41xx
 #
 core-$(CONFIG_MACH_VR41XX)	+= arch/mips/vr41xx/common/
-cflags-$(CONFIG_MACH_VR41XX)	+= -Iinclude/asm-mips/mach-vr41xx
+cflags-$(CONFIG_MACH_VR41XX)	+= -I$(srctree)/arch/mips/include/asm/mach-vr41xx
 
 #
 # ZAO Networks Capcella (VR4131)
@@ -385,13 +385,13 @@ load-$(CONFIG_TANBAC_TB022X)	+= 0xffffffff80000000
 # Common NXP PNX8550
 #
 core-$(CONFIG_SOC_PNX8550)	+= arch/mips/nxp/pnx8550/common/
-cflags-$(CONFIG_SOC_PNX8550)	+= -Iinclude/asm-mips/mach-pnx8550
+cflags-$(CONFIG_SOC_PNX8550)	+= -I$(srctree)/arch/mips/include/asm/mach-pnx8550
 
 #
 # NXP PNX8550 JBS board
 #
 libs-$(CONFIG_PNX8550_JBS)	+= arch/mips/nxp/pnx8550/jbs/
-#cflags-$(CONFIG_PNX8550_JBS)	+= -Iinclude/asm-mips/mach-pnx8550
+#cflags-$(CONFIG_PNX8550_JBS)	+= -I$(srctree)/arch/mips/include/asm/mach-pnx8550
 load-$(CONFIG_PNX8550_JBS)	+= 0xffffffff80060000
 
 # NXP PNX8550 STB810 board
@@ -402,7 +402,7 @@ load-$(CONFIG_PNX8550_STB810)	+= 0xffffffff80060000
 # NEC EMMA2RH boards
 #
 core-$(CONFIG_EMMA2RH)          += arch/mips/emma2rh/common/
-cflags-$(CONFIG_EMMA2RH)        += -Iinclude/asm-mips/mach-emma2rh
+cflags-$(CONFIG_EMMA2RH)        += -I$(srctree)/arch/mips/include/asm/mach-emma2rh
 
 # NEC EMMA2RH Mark-eins
 core-$(CONFIG_MARKEINS)         += arch/mips/emma2rh/markeins/
@@ -418,7 +418,7 @@ load-$(CONFIG_MARKEINS)         += 0xffffffff88100000
 # address by 8kb.
 #
 core-$(CONFIG_SGI_IP22)		+= arch/mips/sgi-ip22/
-cflags-$(CONFIG_SGI_IP22)	+= -Iinclude/asm-mips/mach-ip22
+cflags-$(CONFIG_SGI_IP22)	+= -I$(srctree)/arch/mips/include/asm/mach-ip22
 ifdef CONFIG_32BIT
 load-$(CONFIG_SGI_IP22)		+= 0xffffffff88002000
 endif
@@ -435,7 +435,7 @@ endif
 #
 ifdef CONFIG_SGI_IP27
 core-$(CONFIG_SGI_IP27)		+= arch/mips/sgi-ip27/
-cflags-$(CONFIG_SGI_IP27)	+= -Iinclude/asm-mips/mach-ip27
+cflags-$(CONFIG_SGI_IP27)	+= -I$(srctree)/arch/mips/include/asm/mach-ip27
 ifdef CONFIG_MAPPED_KERNEL
 load-$(CONFIG_SGI_IP27)		+= 0xc00000004001c000
 OBJCOPYFLAGS			:= --change-addresses=0x3fffffff80000000
@@ -460,7 +460,7 @@ ifdef CONFIG_SGI_IP28
   endif
 endif
 core-$(CONFIG_SGI_IP28)		+= arch/mips/sgi-ip22/
-cflags-$(CONFIG_SGI_IP28)	+= -mr10k-cache-barrier=1 -Iinclude/asm-mips/mach-ip28
+cflags-$(CONFIG_SGI_IP28)	+= -mr10k-cache-barrier=1 -I$(srctree)/arch/mips/include/asm/mach-ip28
 load-$(CONFIG_SGI_IP28)		+= 0xa800000020004000
 
 #
@@ -472,7 +472,7 @@ load-$(CONFIG_SGI_IP28)		+= 0xa800000020004000
 # will break.
 #
 core-$(CONFIG_SGI_IP32)		+= arch/mips/sgi-ip32/
-cflags-$(CONFIG_SGI_IP32)	+= -Iinclude/asm-mips/mach-ip32
+cflags-$(CONFIG_SGI_IP32)	+= -I$(srctree)/arch/mips/include/asm/mach-ip32
 load-$(CONFIG_SGI_IP32)		+= 0xffffffff80004000
 
 #
@@ -484,22 +484,22 @@ load-$(CONFIG_SGI_IP32)		+= 0xffffffff80004000
 #
 core-$(CONFIG_SIBYTE_BCM112X)	+= arch/mips/sibyte/sb1250/
 core-$(CONFIG_SIBYTE_BCM112X)	+= arch/mips/sibyte/common/
-cflags-$(CONFIG_SIBYTE_BCM112X)	+= -Iinclude/asm-mips/mach-sibyte \
+cflags-$(CONFIG_SIBYTE_BCM112X)	+= -I$(srctree)/arch/mips/include/asm/mach-sibyte \
 			-DSIBYTE_HDR_FEATURES=SIBYTE_HDR_FMASK_1250_112x_ALL
 
 core-$(CONFIG_SIBYTE_SB1250)	+= arch/mips/sibyte/sb1250/
 core-$(CONFIG_SIBYTE_SB1250)	+= arch/mips/sibyte/common/
-cflags-$(CONFIG_SIBYTE_SB1250)	+= -Iinclude/asm-mips/mach-sibyte \
+cflags-$(CONFIG_SIBYTE_SB1250)	+= -I$(srctree)/arch/mips/include/asm/mach-sibyte \
 			-DSIBYTE_HDR_FEATURES=SIBYTE_HDR_FMASK_1250_112x_ALL
 
 core-$(CONFIG_SIBYTE_BCM1x55)	+= arch/mips/sibyte/bcm1480/
 core-$(CONFIG_SIBYTE_BCM1x55)	+= arch/mips/sibyte/common/
-cflags-$(CONFIG_SIBYTE_BCM1x55)	+= -Iinclude/asm-mips/mach-sibyte \
+cflags-$(CONFIG_SIBYTE_BCM1x55)	+= -I$(srctree)/arch/mips/include/asm/mach-sibyte \
 			-DSIBYTE_HDR_FEATURES=SIBYTE_HDR_FMASK_1480_ALL
 
 core-$(CONFIG_SIBYTE_BCM1x80)	+= arch/mips/sibyte/bcm1480/
 core-$(CONFIG_SIBYTE_BCM1x80)	+= arch/mips/sibyte/common/
-cflags-$(CONFIG_SIBYTE_BCM1x80)	+= -Iinclude/asm-mips/mach-sibyte \
+cflags-$(CONFIG_SIBYTE_BCM1x80)	+= -I$(srctree)/arch/mips/include/asm/mach-sibyte \
 			-DSIBYTE_HDR_FEATURES=SIBYTE_HDR_FMASK_1480_ALL
 
 #
@@ -529,14 +529,14 @@ load-$(CONFIG_SIBYTE_BIGSUR)	:= 0xffffffff80100000
 # Broadcom BCM47XX boards
 #
 core-$(CONFIG_BCM47XX)		+= arch/mips/bcm47xx/
-cflags-$(CONFIG_BCM47XX)	+= -Iinclude/asm-mips/mach-bcm47xx
+cflags-$(CONFIG_BCM47XX)	+= -I$(srctree)/arch/mips/include/asm/mach-bcm47xx
 load-$(CONFIG_BCM47XX)		:= 0xffffffff80001000
 
 #
 # SNI RM
 #
 core-$(CONFIG_SNI_RM)		+= arch/mips/sni/
-cflags-$(CONFIG_SNI_RM)		+= -Iinclude/asm-mips/mach-rm
+cflags-$(CONFIG_SNI_RM)		+= -I$(srctree)/arch/mips/include/asm/mach-rm
 ifdef CONFIG_CPU_LITTLE_ENDIAN
 load-$(CONFIG_SNI_RM)		+= 0xffffffff80600000
 else
@@ -548,10 +548,10 @@ all-$(CONFIG_SNI_RM)		:= vmlinux.ecoff
 # Common TXx9
 #
 core-$(CONFIG_MACH_TX39XX)	+= arch/mips/txx9/generic/
-cflags-$(CONFIG_MACH_TX39XX) += -Iinclude/asm-mips/mach-tx39xx
+cflags-$(CONFIG_MACH_TX39XX) += -I$(srctree)/arch/mips/include/asm/mach-tx39xx
 load-$(CONFIG_MACH_TX39XX)	+= 0xffffffff80050000
 core-$(CONFIG_MACH_TX49XX)	+= arch/mips/txx9/generic/
-cflags-$(CONFIG_MACH_TX49XX) += -Iinclude/asm-mips/mach-tx49xx
+cflags-$(CONFIG_MACH_TX49XX) += -I$(srctree)/arch/mips/include/asm/mach-tx49xx
 load-$(CONFIG_MACH_TX49XX)	+= 0xffffffff80100000
 
 #
@@ -563,21 +563,17 @@ core-$(CONFIG_TOSHIBA_JMR3927)	+= arch/mips/txx9/jmr3927/
 # Routerboard 532 board
 #
 core-$(CONFIG_MIKROTIK_RB532)	+= arch/mips/rb532/
-cflags-$(CONFIG_MIKROTIK_RB532) += -Iinclude/asm-mips/mach-rc32434
+cflags-$(CONFIG_MIKROTIK_RB532) += -I$(srctree)/arch/mips/include/asm/mach-rc32434
 load-$(CONFIG_MIKROTIK_RB532)	+= 0xffffffff80101000
 
 #
-# Toshiba RBTX4927 board or
-# Toshiba RBTX4937 board
+# Toshiba RBTX49XX boards
 #
 core-$(CONFIG_TOSHIBA_RBTX4927)	+= arch/mips/txx9/rbtx4927/
-
-#
-# Toshiba RBTX4938 board
-#
 core-$(CONFIG_TOSHIBA_RBTX4938) += arch/mips/txx9/rbtx4938/
+core-$(CONFIG_TOSHIBA_RBTX4939) += arch/mips/txx9/rbtx4939/
 
-cflags-y			+= -Iinclude/asm-mips/mach-generic
+cflags-y			+= -I$(srctree)/arch/mips/include/asm/mach-generic
 drivers-$(CONFIG_PCI)		+= arch/mips/pci/
 
 ifdef CONFIG_32BIT

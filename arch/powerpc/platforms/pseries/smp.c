@@ -37,7 +37,6 @@
 #include <asm/paca.h>
 #include <asm/time.h>
 #include <asm/machdep.h>
-#include "xics.h"
 #include <asm/cputable.h>
 #include <asm/firmware.h>
 #include <asm/system.h>
@@ -49,6 +48,7 @@
 
 #include "plpar_wrappers.h"
 #include "pseries.h"
+#include "xics.h"
 
 
 /*
@@ -105,36 +105,6 @@ static inline int __devinit smp_startup_cpu(unsigned int lcpu)
 }
 
 #ifdef CONFIG_XICS
-static inline void smp_xics_do_message(int cpu, int msg)
-{
-	set_bit(msg, &xics_ipi_message[cpu].value);
-	mb();
-	xics_cause_IPI(cpu);
-}
-
-static void smp_xics_message_pass(int target, int msg)
-{
-	unsigned int i;
-
-	if (target < NR_CPUS) {
-		smp_xics_do_message(target, msg);
-	} else {
-		for_each_online_cpu(i) {
-			if (target == MSG_ALL_BUT_SELF
-			    && i == smp_processor_id())
-				continue;
-			smp_xics_do_message(i, msg);
-		}
-	}
-}
-
-static int __init smp_xics_probe(void)
-{
-	xics_request_IPIs();
-
-	return cpus_weight(cpu_possible_map);
-}
-
 static void __devinit smp_xics_setup_cpu(int cpu)
 {
 	if (cpu != boot_cpuid)

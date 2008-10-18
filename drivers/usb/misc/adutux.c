@@ -283,8 +283,8 @@ static int adu_open(struct inode *inode, struct file *file)
 
 	interface = usb_find_interface(&adu_driver, subminor);
 	if (!interface) {
-		err("%s - error, can't find device for minor %d",
-		    __func__, subminor);
+		printk(KERN_ERR "adutux: %s - error, can't find device for "
+		       "minor %d\n", __func__, subminor);
 		retval = -ENODEV;
 		goto exit_no_device;
 	}
@@ -416,7 +416,8 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 	/* verify that the device wasn't unplugged */
 	if (dev->udev == NULL) {
 		retval = -ENODEV;
-		err("No device or device unplugged %d", retval);
+		printk(KERN_ERR "adutux: No device or device unplugged %d\n",
+		       retval);
 		goto exit;
 	}
 
@@ -576,7 +577,8 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 	/* verify that the device wasn't unplugged */
 	if (dev->udev == NULL) {
 		retval = -ENODEV;
-		err("No device or device unplugged %d", retval);
+		printk(KERN_ERR "adutux: No device or device unplugged %d\n",
+		       retval);
 		goto exit;
 	}
 
@@ -645,7 +647,8 @@ static ssize_t adu_write(struct file *file, const __user char *buffer,
 			retval = usb_submit_urb(dev->interrupt_out_urb, GFP_KERNEL);
 			if (retval < 0) {
 				dev->out_urb_finished = 1;
-				err("Couldn't submit interrupt_out_urb %d", retval);
+				dev_err(&dev->udev->dev, "Couldn't submit "
+					"interrupt_out_urb %d\n", retval);
 				goto exit;
 			}
 
@@ -890,13 +893,14 @@ static int __init adu_init(void)
 	/* register this driver with the USB subsystem */
 	result = usb_register(&adu_driver);
 	if (result < 0) {
-		err("usb_register failed for the "__FILE__" driver. "
-		    "Error number %d", result);
+		printk(KERN_ERR "usb_register failed for the "__FILE__
+		       " driver. Error number %d\n", result);
 		goto exit;
 	}
 
-	info("adutux " DRIVER_DESC " " DRIVER_VERSION);
-	info("adutux is an experimental driver. Use at your own risk");
+	printk(KERN_INFO "adutux " DRIVER_DESC " " DRIVER_VERSION "\n");
+	printk(KERN_INFO "adutux is an experimental driver. "
+	       "Use at your own risk\n");
 
 exit:
 	dbg(2," %s : leave, return value %d", __func__, result);

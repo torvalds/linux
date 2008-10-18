@@ -122,6 +122,8 @@
 #define TUNER_TDA9887                   74      /* This tuner should be used only internally */
 #define TUNER_TEA5761			75	/* Only FM Radio Tuner */
 #define TUNER_XC5000			76	/* Xceive Silicon Tuner */
+#define TUNER_TCL_MF02GIP_5N		77	/* TCL MF02GIP_5N */
+#define TUNER_PHILIPS_FMD1216MEX_MK3	78
 
 /* tv card specific */
 #define TDA9887_PRESENT 		(1<<0)
@@ -178,7 +180,7 @@ struct tuner_setup {
 	unsigned int	type;   /* Tuner type */
 	unsigned int	mode_mask;  /* Allowed tuner modes */
 	unsigned int	config; /* configuraion for more complex tuners */
-	int (*tuner_callback) (void *dev, int command,int arg);
+	int (*tuner_callback) (void *dev, int component, int cmd, int arg);
 };
 
 #endif /* __KERNEL__ */

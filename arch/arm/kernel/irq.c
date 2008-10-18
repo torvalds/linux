@@ -112,18 +112,17 @@ static struct irq_desc bad_irq_desc = {
 asmlinkage void __exception asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
-	struct irq_desc *desc = irq_desc + irq;
+
+	irq_enter();
 
 	/*
 	 * Some hardware gives randomly wrong interrupts.  Rather
 	 * than crashing, do something sensible.
 	 */
 	if (irq >= NR_IRQS)
-		desc = &bad_irq_desc;
-
-	irq_enter();
-
-	desc_handle_irq(irq, desc);
+		handle_bad_irq(irq, &bad_irq_desc);
+	else
+		generic_handle_irq(irq);
 
 	/* AT91 specific workaround */
 	irq_finish(irq);

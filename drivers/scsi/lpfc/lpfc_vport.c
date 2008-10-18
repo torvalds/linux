@@ -34,6 +34,7 @@
 #include <scsi/scsi_transport_fc.h>
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
+#include "lpfc_nl.h"
 #include "lpfc_disc.h"
 #include "lpfc_scsi.h"
 #include "lpfc.h"
@@ -202,6 +203,77 @@ lpfc_unique_wwpn(struct lpfc_hba *phba, struct lpfc_vport *new_vport)
 	}
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 	return 1;
+}
+
+/**
+ * lpfc_discovery_wait: Wait for driver discovery to quiesce.
+ * @vport: The virtual port for which this call is being executed.
+ *
+ * This driver calls this routine specifically from lpfc_vport_delete
+ * to enforce a synchronous execution of vport
+ * delete relative to discovery activities.  The
+ * lpfc_vport_delete routine should not return until it
+ * can reasonably guarantee that discovery has quiesced.
+ * Post FDISC LOGO, the driver must wait until its SAN teardown is
+ * complete and all resources recovered before allowing
+ * cleanup.
+ *
+ * This routine does not require any locks held.
+ **/
+static void lpfc_discovery_wait(struct lpfc_vport *vport)
+{
+	struct lpfc_hba *phba = vport->phba;
+	uint32_t wait_flags = 0;
+	unsigned long wait_time_max;
+	unsigned long start_time;
+
+	wait_flags = FC_RSCN_MODE | FC_RSCN_DISCOVERY | FC_NLP_MORE |
+		     FC_RSCN_DEFERRED | FC_NDISC_ACTIVE | FC_DISC_TMO;
+
+	/*
+	 * The time constraint on this loop is a balance between the
+	 * fabric RA_TOV value and dev_loss tmo.  The driver's
+	 * devloss_tmo is 10 giving this loop a 3x multiplier minimally.
+	 */
+	wait_time_max = msecs_to_jiffies(((phba->fc_ratov * 3) + 3) * 1000);
+	wait_time_max += jiffies;
+	start_time = jiffies;
+	while (time_before(jiffies, wait_time_max)) {
+		if ((vport->num_disc_nodes > 0)    ||
+		    (vport->fc_flag & wait_flags)  ||
+		    ((vport->port_state > LPFC_VPORT_FAILED) &&
+		     (vport->port_state < LPFC_VPORT_READY))) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_VPORT,
+					"1833 Vport discovery quiesce Wait:"
+					" vpi x%x state x%x fc_flags x%x"
+					" num_nodes x%x, waiting 1000 msecs"
+					" total wait msecs x%x\n",
+					vport->vpi, vport->port_state,
+					vport->fc_flag, vport->num_disc_nodes,
+					jiffies_to_msecs(jiffies - start_time));
+			msleep(1000);
+		} else {
+			/* Base case.  Wait variants satisfied.  Break out */
+			lpfc_printf_log(phba, KERN_INFO, LOG_VPORT,
+					 "1834 Vport discovery quiesced:"
+					 " vpi x%x state x%x fc_flags x%x"
+					 " wait msecs x%x\n",
+					 vport->vpi, vport->port_state,
+					 vport->fc_flag,
+					 jiffies_to_msecs(jiffies
+						- start_time));
+			break;
+		}
+	}
+
+	if (time_after(jiffies, wait_time_max))
+		lpfc_printf_log(phba, KERN_ERR, LOG_VPORT,
+				"1835 Vport discovery quiesce failed:"
+				" vpi x%x state x%x fc_flags x%x"
+				" wait msecs x%x\n",
+				vport->vpi, vport->port_state,
+				vport->fc_flag,
+				jiffies_to_msecs(jiffies - start_time));
 }
 
 int
@@ -506,8 +578,12 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	 * initiated after we've disposed of all other resources associated
 	 * with the port.
 	 */
-	if (!scsi_host_get(shost) || !scsi_host_get(shost))
+	if (!scsi_host_get(shost))
 		return VPORT_INVAL;
+	if (!scsi_host_get(shost)) {
+		scsi_host_put(shost);
+		return VPORT_INVAL;
+	}
 	spin_lock_irq(&phba->hbalock);
 	vport->load_flag |= FC_UNLOADING;
 	spin_unlock_irq(&phba->hbalock);
@@ -597,10 +673,15 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 		}
 		vport->unreg_vpi_cmpl = VPORT_INVAL;
 		timeout = msecs_to_jiffies(phba->fc_ratov * 2000);
+		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
+			goto skip_logo;
 		if (!lpfc_issue_els_npiv_logo(vport, ndlp))
 			while (vport->unreg_vpi_cmpl == VPORT_INVAL && timeout)
 				timeout = schedule_timeout(timeout);
 	}
+
+	if (!(phba->pport->load_flag & FC_UNLOADING))
+		lpfc_discovery_wait(vport);
 
 skip_logo:
 	lpfc_cleanup(vport);
@@ -615,8 +696,10 @@ skip_logo:
 		 * Completion of unreg_vpi (lpfc_mbx_cmpl_unreg_vpi)
 		 * does the scsi_host_put() to release the vport.
 		 */
-		lpfc_mbx_unreg_vpi(vport);
-	}
+		if (lpfc_mbx_unreg_vpi(vport))
+			scsi_host_put(shost);
+	} else
+		scsi_host_put(shost);
 
 	lpfc_free_vpi(phba, vport->vpi);
 	vport->work_port_events = 0;
@@ -662,4 +745,83 @@ lpfc_destroy_vport_work_array(struct lpfc_hba *phba, struct lpfc_vport **vports)
 	for (i=0; vports[i] != NULL && i <= phba->max_vpi; i++)
 		scsi_host_put(lpfc_shost_from_vport(vports[i]));
 	kfree(vports);
+}
+
+
+/**
+ * lpfc_vport_reset_stat_data: Reset the statistical data for the vport.
+ * @vport: Pointer to vport object.
+ *
+ * This function resets the statistical data for the vport. This function
+ * is called with the host_lock held
+ **/
+void
+lpfc_vport_reset_stat_data(struct lpfc_vport *vport)
+{
+	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
+
+	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
+		if (!NLP_CHK_NODE_ACT(ndlp))
+			continue;
+		if (ndlp->lat_data)
+			memset(ndlp->lat_data, 0, LPFC_MAX_BUCKET_COUNT *
+				sizeof(struct lpfc_scsicmd_bkt));
+	}
+}
+
+
+/**
+ * lpfc_alloc_bucket: Allocate data buffer required for collecting
+ *  statistical data.
+ * @vport: Pointer to vport object.
+ *
+ * This function allocates data buffer required for all the FC
+ * nodes of the vport to collect statistical data.
+ **/
+void
+lpfc_alloc_bucket(struct lpfc_vport *vport)
+{
+	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
+
+	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
+		if (!NLP_CHK_NODE_ACT(ndlp))
+			continue;
+
+		kfree(ndlp->lat_data);
+		ndlp->lat_data = NULL;
+
+		if (ndlp->nlp_state == NLP_STE_MAPPED_NODE) {
+			ndlp->lat_data = kcalloc(LPFC_MAX_BUCKET_COUNT,
+					 sizeof(struct lpfc_scsicmd_bkt),
+					 GFP_ATOMIC);
+
+			if (!ndlp->lat_data)
+				lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
+					"0287 lpfc_alloc_bucket failed to "
+					"allocate statistical data buffer DID "
+					"0x%x\n", ndlp->nlp_DID);
+		}
+	}
+}
+
+/**
+ * lpfc_free_bucket: Free data buffer required for collecting
+ *  statistical data.
+ * @vport: Pointer to vport object.
+ *
+ * Th function frees statistical data buffer of all the FC
+ * nodes of the vport.
+ **/
+void
+lpfc_free_bucket(struct lpfc_vport *vport)
+{
+	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
+
+	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
+		if (!NLP_CHK_NODE_ACT(ndlp))
+			continue;
+
+		kfree(ndlp->lat_data);
+		ndlp->lat_data = NULL;
+	}
 }

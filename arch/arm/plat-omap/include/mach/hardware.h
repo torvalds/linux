@@ -89,7 +89,7 @@
 #define DPLL_CTL		(0xfffecf00)
 
 /* DSP clock control. Must use __raw_readw() and __raw_writew() with these */
-#define DSP_CONFIG_REG_BASE     (0xe1008000)
+#define DSP_CONFIG_REG_BASE     IOMEM(0xe1008000)
 #define DSP_CKCTL		(DSP_CONFIG_REG_BASE + 0x0)
 #define DSP_IDLECT1		(DSP_CONFIG_REG_BASE + 0x4)
 #define DSP_IDLECT2		(DSP_CONFIG_REG_BASE + 0x8)
@@ -282,8 +282,8 @@
 
 #include "omap730.h"
 #include "omap1510.h"
-#include "omap24xx.h"
 #include "omap16xx.h"
+#include "omap24xx.h"
 #include "omap34xx.h"
 
 #ifndef __ASSEMBLER__
@@ -320,6 +320,14 @@
 
 #ifdef CONFIG_MACH_OMAP_2430SDP
 #include "board-2430sdp.h"
+#endif
+
+#ifdef CONFIG_MACH_OMAP3_BEAGLE
+#include "board-omap3beagle.h"
+#endif
+
+#ifdef CONFIG_MACH_OMAP_LDP
+#include "board-ldp.h"
 #endif
 
 #ifdef CONFIG_MACH_OMAP_APOLLON

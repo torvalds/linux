@@ -1,5 +1,5 @@
-#ifndef __ASM_E820_H
-#define __ASM_E820_H
+#ifndef ASM_X86__E820_H
+#define ASM_X86__E820_H
 #define E820MAP	0x2d0		/* our map */
 #define E820MAX	128		/* number of entries in E820MAP */
 
@@ -43,6 +43,7 @@
 #define E820_RESERVED	2
 #define E820_ACPI	3
 #define E820_NVS	4
+#define E820_UNUSABLE	5
 
 /* reserved RAM used by kernel itself */
 #define E820_RESERVED_KERN        128
@@ -64,6 +65,7 @@ struct e820map {
 extern struct e820map e820;
 extern struct e820map e820_saved;
 
+extern unsigned long pci_mem_start;
 extern int e820_any_mapped(u64 start, u64 end, unsigned type);
 extern int e820_all_mapped(u64 start, u64 end, unsigned type);
 extern void e820_add_region(u64 start, u64 size, int type);
@@ -120,6 +122,7 @@ extern void e820_register_active_regions(int nid, unsigned long start_pfn,
 extern u64 e820_hole_size(u64 start, u64 end);
 extern void finish_e820_parsing(void);
 extern void e820_reserve_resources(void);
+extern void e820_reserve_resources_late(void);
 extern void setup_memory_map(void);
 extern char *default_machine_specific_memory_setup(void);
 extern char *machine_specific_memory_setup(void);
@@ -140,4 +143,4 @@ extern char *memory_setup(void);
 #define HIGH_MEMORY	(1024*1024)
 #endif /* __KERNEL__ */
 
-#endif  /* __ASM_E820_H */
+#endif /* ASM_X86__E820_H */

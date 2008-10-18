@@ -81,21 +81,21 @@ static void epson_sendbyte(int flag, unsigned char byte)
 	int i, shifter = 0x80;
 
 	if (!flag)
-		omap_set_gpio_dataout(_A_LCD_SSC_A0, 0);
+		gpio_set_value(_A_LCD_SSC_A0, 0);
 	mdelay(2);
-	omap_set_gpio_dataout(A_LCD_SSC_RD, 1);
+	gpio_set_value(A_LCD_SSC_RD, 1);
 
-	omap_set_gpio_dataout(A_LCD_SSC_SD, flag);
+	gpio_set_value(A_LCD_SSC_SD, flag);
 
 	OMAP_MCBSP_WRITE(OMAP1510_MCBSP3_BASE, PCR0, 0x2200);
 	OMAP_MCBSP_WRITE(OMAP1510_MCBSP3_BASE, PCR0, 0x2202);
 	for (i = 0; i < 8; i++) {
 		OMAP_MCBSP_WRITE(OMAP1510_MCBSP3_BASE, PCR0, 0x2200);
-		omap_set_gpio_dataout(A_LCD_SSC_SD, shifter & byte);
+		gpio_set_value(A_LCD_SSC_SD, shifter & byte);
 		OMAP_MCBSP_WRITE(OMAP1510_MCBSP3_BASE, PCR0, 0x2202);
 		shifter >>= 1;
 	}
-	omap_set_gpio_dataout(_A_LCD_SSC_A0, 1);
+	gpio_set_value(_A_LCD_SSC_A0, 1);
 }
 
 static void init_system(void)
@@ -107,25 +107,18 @@ static void init_system(void)
 static void setup_GPIO(void)
 {
 	/* new wave */
-	omap_request_gpio(A_LCD_SSC_RD);
-	omap_request_gpio(A_LCD_SSC_SD);
-	omap_request_gpio(_A_LCD_RESET);
-	omap_request_gpio(_A_LCD_SSC_CS);
-	omap_request_gpio(_A_LCD_SSC_A0);
+	gpio_request(A_LCD_SSC_RD, "lcd_ssc_rd");
+	gpio_request(A_LCD_SSC_SD, "lcd_ssc_sd");
+	gpio_request(_A_LCD_RESET, "lcd_reset");
+	gpio_request(_A_LCD_SSC_CS, "lcd_ssc_cs");
+	gpio_request(_A_LCD_SSC_A0, "lcd_ssc_a0");
 
-	/* set all GPIOs to output */
-	omap_set_gpio_direction(A_LCD_SSC_RD, 0);
-	omap_set_gpio_direction(A_LCD_SSC_SD, 0);
-	omap_set_gpio_direction(_A_LCD_RESET, 0);
-	omap_set_gpio_direction(_A_LCD_SSC_CS, 0);
-	omap_set_gpio_direction(_A_LCD_SSC_A0, 0);
-
-	/* set GPIO data */
-	omap_set_gpio_dataout(A_LCD_SSC_RD, 1);
-	omap_set_gpio_dataout(A_LCD_SSC_SD, 0);
-	omap_set_gpio_dataout(_A_LCD_RESET, 0);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 1);
-	omap_set_gpio_dataout(_A_LCD_SSC_A0, 1);
+	/* set GPIOs to output, with initial data */
+	gpio_direction_output(A_LCD_SSC_RD, 1);
+	gpio_direction_output(A_LCD_SSC_SD, 0);
+	gpio_direction_output(_A_LCD_RESET, 0);
+	gpio_direction_output(_A_LCD_SSC_CS, 1);
+	gpio_direction_output(_A_LCD_SSC_A0, 1);
 }
 
 static void display_init(void)
@@ -139,61 +132,61 @@ static void display_init(void)
 	mdelay(2);
 
 	/* reset LCD */
-	omap_set_gpio_dataout(A_LCD_SSC_SD, 1);
+	gpio_set_value(A_LCD_SSC_SD, 1);
 	epson_sendbyte(0, 0x25);
 
-	omap_set_gpio_dataout(_A_LCD_RESET, 0);
+	gpio_set_value(_A_LCD_RESET, 0);
 	mdelay(10);
-	omap_set_gpio_dataout(_A_LCD_RESET, 1);
+	gpio_set_value(_A_LCD_RESET, 1);
 
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 1);
+	gpio_set_value(_A_LCD_SSC_CS, 1);
 	mdelay(2);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 0);
+	gpio_set_value(_A_LCD_SSC_CS, 0);
 
 	/* init LCD, phase 1 */
 	epson_sendbyte(0, 0xCA);
 	for (i = 0; i < 10; i++)
 		epson_sendbyte(1, INIT_1[i]);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 1);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 0);
+	gpio_set_value(_A_LCD_SSC_CS, 1);
+	gpio_set_value(_A_LCD_SSC_CS, 0);
 
 	/* init LCD phase 2 */
 	epson_sendbyte(0, 0xCB);
 	for (i = 0; i < 125; i++)
 		epson_sendbyte(1, INIT_2[i]);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 1);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 0);
+	gpio_set_value(_A_LCD_SSC_CS, 1);
+	gpio_set_value(_A_LCD_SSC_CS, 0);
 
 	/* init LCD phase 2a */
 	epson_sendbyte(0, 0xCC);
 	for (i = 0; i < 14; i++)
 		epson_sendbyte(1, INIT_3[i]);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 1);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 0);
+	gpio_set_value(_A_LCD_SSC_CS, 1);
+	gpio_set_value(_A_LCD_SSC_CS, 0);
 
 	/* init LCD phase 3 */
 	epson_sendbyte(0, 0xBC);
 	epson_sendbyte(1, 0x08);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 1);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 0);
+	gpio_set_value(_A_LCD_SSC_CS, 1);
+	gpio_set_value(_A_LCD_SSC_CS, 0);
 
 	/* init LCD phase 4 */
 	epson_sendbyte(0, 0x07);
 	epson_sendbyte(1, 0x05);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 1);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 0);
+	gpio_set_value(_A_LCD_SSC_CS, 1);
+	gpio_set_value(_A_LCD_SSC_CS, 0);
 
 	/* init LCD phase 5 */
 	epson_sendbyte(0, 0x94);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 1);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 0);
+	gpio_set_value(_A_LCD_SSC_CS, 1);
+	gpio_set_value(_A_LCD_SSC_CS, 0);
 
 	/* init LCD phase 6 */
 	epson_sendbyte(0, 0xC6);
 	epson_sendbyte(1, 0x80);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 1);
+	gpio_set_value(_A_LCD_SSC_CS, 1);
 	mdelay(100); /* used to be 1000 */
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 0);
+	gpio_set_value(_A_LCD_SSC_CS, 0);
 
 	/* init LCD phase 7 */
 	epson_sendbyte(0, 0x16);
@@ -201,8 +194,8 @@ static void display_init(void)
 	epson_sendbyte(1, 0x00);
 	epson_sendbyte(1, 0xB1);
 	epson_sendbyte(1, 0x00);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 1);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 0);
+	gpio_set_value(_A_LCD_SSC_CS, 1);
+	gpio_set_value(_A_LCD_SSC_CS, 0);
 
 	/* init LCD phase 8 */
 	epson_sendbyte(0, 0x76);
@@ -210,12 +203,12 @@ static void display_init(void)
 	epson_sendbyte(1, 0x00);
 	epson_sendbyte(1, 0xDB);
 	epson_sendbyte(1, 0x00);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 1);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 0);
+	gpio_set_value(_A_LCD_SSC_CS, 1);
+	gpio_set_value(_A_LCD_SSC_CS, 0);
 
 	/* init LCD phase 9 */
 	epson_sendbyte(0, 0xAF);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 1);
+	gpio_set_value(_A_LCD_SSC_CS, 1);
 }
 
 static int sx1_panel_init(struct lcd_panel *panel, struct omapfb_device *fbdev)
@@ -231,18 +224,18 @@ static void sx1_panel_disable(struct lcd_panel *panel)
 {
 	printk(KERN_INFO "SX1: LCD panel disable\n");
 	sx1_setmmipower(0);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 1);
+	gpio_set_value(_A_LCD_SSC_CS, 1);
 
 	epson_sendbyte(0, 0x25);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 0);
+	gpio_set_value(_A_LCD_SSC_CS, 0);
 
 	epson_sendbyte(0, 0xAE);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 1);
+	gpio_set_value(_A_LCD_SSC_CS, 1);
 	mdelay(100);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 0);
+	gpio_set_value(_A_LCD_SSC_CS, 0);
 
 	epson_sendbyte(0, 0x95);
-	omap_set_gpio_dataout(_A_LCD_SSC_CS, 1);
+	gpio_set_value(_A_LCD_SSC_CS, 1);
 }
 
 static int sx1_panel_enable(struct lcd_panel *panel)

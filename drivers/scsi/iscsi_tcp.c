@@ -523,22 +523,20 @@ iscsi_tcp_cleanup_task(struct iscsi_conn *conn, struct iscsi_task *task)
 }
 
 /**
- * iscsi_data_rsp - SCSI Data-In Response processing
+ * iscsi_data_in - SCSI Data-In Response processing
  * @conn: iscsi connection
  * @task: scsi command task
  **/
 static int
-iscsi_data_rsp(struct iscsi_conn *conn, struct iscsi_task *task)
+iscsi_data_in(struct iscsi_conn *conn, struct iscsi_task *task)
 {
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct iscsi_tcp_task *tcp_task = task->dd_data;
 	struct iscsi_data_rsp *rhdr = (struct iscsi_data_rsp *)tcp_conn->in.hdr;
-	struct iscsi_session *session = conn->session;
-	struct scsi_cmnd *sc = task->sc;
 	int datasn = be32_to_cpu(rhdr->datasn);
-	unsigned total_in_length = scsi_in(sc)->length;
+	unsigned total_in_length = scsi_in(task->sc)->length;
 
-	iscsi_update_cmdsn(session, (struct iscsi_nopin*)rhdr);
+	iscsi_update_cmdsn(conn->session, (struct iscsi_nopin*)rhdr);
 	if (tcp_conn->in.datalen == 0)
 		return 0;
 
@@ -556,23 +554,6 @@ iscsi_data_rsp(struct iscsi_conn *conn, struct iscsi_task *task)
 		          __func__, tcp_task->data_offset,
 		          tcp_conn->in.datalen, total_in_length);
 		return ISCSI_ERR_DATA_OFFSET;
-	}
-
-	if (rhdr->flags & ISCSI_FLAG_DATA_STATUS) {
-		sc->result = (DID_OK << 16) | rhdr->cmd_status;
-		conn->exp_statsn = be32_to_cpu(rhdr->statsn) + 1;
-		if (rhdr->flags & (ISCSI_FLAG_DATA_UNDERFLOW |
-		                   ISCSI_FLAG_DATA_OVERFLOW)) {
-			int res_count = be32_to_cpu(rhdr->residual_count);
-
-			if (res_count > 0 &&
-			    (rhdr->flags & ISCSI_FLAG_CMD_OVERFLOW ||
-			     res_count <= total_in_length))
-				scsi_in(sc)->resid = res_count;
-			else
-				sc->result = (DID_BAD_TARGET << 16) |
-					rhdr->cmd_status;
-		}
 	}
 
 	conn->datain_pdus_cnt++;
@@ -774,7 +755,7 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 		if (!task)
 			rc = ISCSI_ERR_BAD_ITT;
 		else
-			rc = iscsi_data_rsp(conn, task);
+			rc = iscsi_data_in(conn, task);
 		if (rc) {
 			spin_unlock(&conn->session->lock);
 			break;
@@ -998,7 +979,7 @@ iscsi_tcp_recv(read_descriptor_t *rd_desc, struct sk_buff *skb,
 
 error:
 	debug_tcp("Error receiving PDU, errno=%d\n", rc);
-	iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
+	iscsi_conn_failure(conn, rc);
 	return 0;
 }
 
@@ -1117,8 +1098,10 @@ iscsi_xmit(struct iscsi_conn *conn)
 
 	while (1) {
 		rc = iscsi_tcp_xmit_segment(tcp_conn, segment);
-		if (rc < 0)
+		if (rc < 0) {
+			rc = ISCSI_ERR_XMIT_FAILED;
 			goto error;
+		}
 		if (rc == 0)
 			break;
 
@@ -1127,7 +1110,7 @@ iscsi_xmit(struct iscsi_conn *conn)
 		if (segment->total_copied >= segment->total_size) {
 			if (segment->done != NULL) {
 				rc = segment->done(tcp_conn, segment);
-				if (rc < 0)
+				if (rc != 0)
 					goto error;
 			}
 		}
@@ -1142,8 +1125,8 @@ error:
 	/* Transmit error. We could initiate error recovery
 	 * here. */
 	debug_tcp("Error sending PDU, errno=%d\n", rc);
-	iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
-	return rc;
+	iscsi_conn_failure(conn, rc);
+	return -EIO;
 }
 
 /**
@@ -1904,6 +1887,7 @@ static void iscsi_tcp_session_destroy(struct iscsi_cls_session *cls_session)
 	struct Scsi_Host *shost = iscsi_session_to_shost(cls_session);
 
 	iscsi_r2tpool_free(cls_session->dd_data);
+	iscsi_session_teardown(cls_session);
 
 	iscsi_host_remove(shost);
 	iscsi_host_free(shost);
@@ -1927,7 +1911,7 @@ static struct scsi_host_template iscsi_sht = {
 	.cmd_per_lun		= ISCSI_DEF_CMD_PER_LUN,
 	.eh_abort_handler       = iscsi_eh_abort,
 	.eh_device_reset_handler= iscsi_eh_device_reset,
-	.eh_host_reset_handler	= iscsi_eh_host_reset,
+	.eh_target_reset_handler= iscsi_eh_target_reset,
 	.use_clustering         = DISABLE_CLUSTERING,
 	.slave_configure        = iscsi_tcp_slave_configure,
 	.proc_name		= "iscsi_tcp",

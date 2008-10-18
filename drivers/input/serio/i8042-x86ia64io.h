@@ -305,7 +305,7 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 		.ident = "Lenovo 3000 n100",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "3000 N100"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "076804U"),
 		},
 	},
 	{
@@ -320,6 +320,13 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Gericom"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "N34AS6"),
+		},
+	},
+	{
+		.ident = "IBM 2656",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "IBM"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "2656"),
 		},
 	},
 	{ }

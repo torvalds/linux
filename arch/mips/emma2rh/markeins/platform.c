@@ -35,7 +35,6 @@
 #include <asm/irq.h>
 #include <asm/reboot.h>
 #include <asm/traps.h>
-#include <asm/debug.h>
 
 #include <asm/emma2rh/emma2rh.h>
 

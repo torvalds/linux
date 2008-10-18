@@ -80,6 +80,13 @@ void quicklist_trim(int nr, void (*dtor)(void *),
 
 unsigned long quicklist_total_size(void);
 
+#else
+
+static inline unsigned long quicklist_total_size(void)
+{
+	return 0;
+}
+
 #endif
 
 #endif /* LINUX_QUICKLIST_H */

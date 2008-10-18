@@ -22,6 +22,7 @@
  */
 
 #include "cx18-driver.h"
+#include "cx18-io.h"
 #include "cx18-i2c.h"
 #include "cx18-cards.h"
 #include "cx18-audio.h"
@@ -60,10 +61,10 @@ int cx18_audio_set_io(struct cx18 *cx)
 	if (err)
 		return err;
 
-	val = read_reg(CX18_AUDIO_ENABLE) & ~0x30;
+	val = cx18_read_reg(cx, CX18_AUDIO_ENABLE) & ~0x30;
 	val |= (audio_input > CX18_AV_AUDIO_SERIAL2) ? 0x20 :
 					(audio_input << 4);
-	write_reg(val | 0xb00, CX18_AUDIO_ENABLE);
+	cx18_write_reg(cx, val | 0xb00, CX18_AUDIO_ENABLE);
 	cx18_vapi(cx, CX18_APU_RESETAI, 1, 0);
 	return 0;
 }

@@ -18,9 +18,6 @@ void xen_activate_mm(struct mm_struct *prev, struct mm_struct *next);
 void xen_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm);
 void xen_exit_mmap(struct mm_struct *mm);
 
-void xen_pgd_pin(pgd_t *pgd);
-//void xen_pgd_unpin(pgd_t *pgd);
-
 pteval_t xen_pte_val(pte_t);
 pmdval_t xen_pmd_val(pmd_t);
 pgdval_t xen_pgd_val(pgd_t);

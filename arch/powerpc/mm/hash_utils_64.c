@@ -191,12 +191,17 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 		unsigned long hash, hpteg;
 		unsigned long vsid = get_kernel_vsid(vaddr, ssize);
 		unsigned long va = hpt_va(vaddr, vsid, ssize);
+		unsigned long tprot = prot;
+
+		/* Make kernel text executable */
+		if (overlaps_kernel_text(vaddr, vaddr + step))
+			tprot &= ~HPTE_R_N;
 
 		hash = hpt_hash(va, shift, ssize);
 		hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
 
 		BUG_ON(!ppc_md.hpte_insert);
-		ret = ppc_md.hpte_insert(hpteg, va, paddr, prot,
+		ret = ppc_md.hpte_insert(hpteg, va, paddr, tprot,
 					 HPTE_V_BOLTED, psize, ssize);
 
 		if (ret < 0)
@@ -343,6 +348,7 @@ static int __init htab_dt_scan_page_sizes(unsigned long node,
 	return 0;
 }
 
+#ifdef CONFIG_HUGETLB_PAGE
 /* Scan for 16G memory blocks that have been set aside for huge pages
  * and reserve those blocks for 16G huge pages.
  */
@@ -380,6 +386,7 @@ static int __init htab_dt_scan_hugepage_blocks(unsigned long node,
 	add_gpage(phys_addr, block_size, expected_pages);
 	return 0;
 }
+#endif /* CONFIG_HUGETLB_PAGE */
 
 static void __init htab_init_page_sizes(void)
 {
@@ -534,7 +541,7 @@ static unsigned long __init htab_get_table_size(void)
 void create_section_mapping(unsigned long start, unsigned long end)
 {
 	BUG_ON(htab_bolt_mapping(start, end, __pa(start),
-				 PAGE_KERNEL, mmu_linear_psize,
+				 pgprot_val(PAGE_KERNEL), mmu_linear_psize,
 				 mmu_kernel_ssize));
 }
 
@@ -584,7 +591,7 @@ void __init htab_initialize(void)
 {
 	unsigned long table;
 	unsigned long pteg_count;
-	unsigned long prot, tprot;
+	unsigned long prot;
 	unsigned long base = 0, size = 0, limit;
 	int i;
 
@@ -642,7 +649,7 @@ void __init htab_initialize(void)
 		mtspr(SPRN_SDR1, _SDR1);
 	}
 
-	prot = PAGE_KERNEL;
+	prot = pgprot_val(PAGE_KERNEL);
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
 	linear_map_hash_count = lmb_end_of_DRAM() >> PAGE_SHIFT;
@@ -660,10 +667,9 @@ void __init htab_initialize(void)
 	for (i=0; i < lmb.memory.cnt; i++) {
 		base = (unsigned long)__va(lmb.memory.region[i].base);
 		size = lmb.memory.region[i].size;
-		tprot = prot | (in_kernel_text(base) ? _PAGE_EXEC : 0);
 
 		DBG("creating mapping for region: %lx..%lx (prot: %x)\n",
-		    base, size, tprot);
+		    base, size, prot);
 
 #ifdef CONFIG_U3_DART
 		/* Do not map the DART space. Fortunately, it will be aligned
@@ -680,21 +686,21 @@ void __init htab_initialize(void)
 			unsigned long dart_table_end = dart_tablebase + 16 * MB;
 			if (base != dart_tablebase)
 				BUG_ON(htab_bolt_mapping(base, dart_tablebase,
-							__pa(base), tprot,
+							__pa(base), prot,
 							mmu_linear_psize,
 							mmu_kernel_ssize));
 			if ((base + size) > dart_table_end)
 				BUG_ON(htab_bolt_mapping(dart_tablebase+16*MB,
 							base + size,
 							__pa(dart_table_end),
-							 tprot,
+							 prot,
 							 mmu_linear_psize,
 							 mmu_kernel_ssize));
 			continue;
 		}
 #endif /* CONFIG_U3_DART */
 		BUG_ON(htab_bolt_mapping(base, base + size, __pa(base),
-				tprot, mmu_linear_psize, mmu_kernel_ssize));
+				prot, mmu_linear_psize, mmu_kernel_ssize));
        }
 
 	/*

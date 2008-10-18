@@ -30,20 +30,22 @@ EXPORT_SYMBOL(inet_csk_timer_bug_msg);
 #endif
 
 /*
- * This array holds the first and last local port number.
+ * This struct holds the first and last local port number.
  */
-int sysctl_local_port_range[2] = { 32768, 61000 };
-DEFINE_SEQLOCK(sysctl_port_range_lock);
+struct local_ports sysctl_local_ports __read_mostly = {
+	.lock = SEQLOCK_UNLOCKED,
+	.range = { 32768, 61000 },
+};
 
 void inet_get_local_port_range(int *low, int *high)
 {
 	unsigned seq;
 	do {
-		seq = read_seqbegin(&sysctl_port_range_lock);
+		seq = read_seqbegin(&sysctl_local_ports.lock);
 
-		*low = sysctl_local_port_range[0];
-		*high = sysctl_local_port_range[1];
-	} while (read_seqretry(&sysctl_port_range_lock, seq));
+		*low = sysctl_local_ports.range[0];
+		*high = sysctl_local_ports.range[1];
+	} while (read_seqretry(&sysctl_local_ports.lock, seq));
 }
 EXPORT_SYMBOL(inet_get_local_port_range);
 
@@ -335,6 +337,7 @@ struct dst_entry* inet_csk_route_req(struct sock *sk,
 					.saddr = ireq->loc_addr,
 					.tos = RT_CONN_FLAGS(sk) } },
 			    .proto = sk->sk_protocol,
+			    .flags = inet_sk_flowi_flags(sk),
 			    .uli_u = { .ports =
 				       { .sport = inet_sk(sk)->sport,
 					 .dport = ireq->rmt_port } } };
@@ -515,6 +518,8 @@ struct sock *inet_csk_clone(struct sock *sk, const struct request_sock *req,
 		newicsk->icsk_bind_hash = NULL;
 
 		inet_sk(newsk)->dport = inet_rsk(req)->rmt_port;
+		inet_sk(newsk)->num = ntohs(inet_rsk(req)->loc_port);
+		inet_sk(newsk)->sport = inet_rsk(req)->loc_port;
 		newsk->sk_write_space = sk_stream_write_space;
 
 		newicsk->icsk_retransmits = 0;

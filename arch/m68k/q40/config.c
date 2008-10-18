@@ -23,6 +23,7 @@
 #include <linux/serial_reg.h>
 #include <linux/rtc.h>
 #include <linux/vt_kern.h>
+#include <linux/bcd.h>
 
 #include <asm/io.h>
 #include <asm/rtc.h>
@@ -213,17 +214,6 @@ void __init config_q40(void)
 int q40_parse_bootinfo(const struct bi_record *rec)
 {
 	return 1;
-}
-
-
-static inline unsigned char bcd2bin(unsigned char b)
-{
-	return (b >> 4) * 10 + (b & 15);
-}
-
-static inline unsigned char bin2bcd(unsigned char b)
-{
-	return (b / 10) * 16 + (b % 10);
 }
 
 

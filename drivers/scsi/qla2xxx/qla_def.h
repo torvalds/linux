@@ -25,7 +25,6 @@
 #include <linux/firmware.h>
 #include <linux/aer.h>
 #include <linux/mutex.h>
-#include <linux/semaphore.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
@@ -2157,6 +2156,8 @@ struct qla_chip_state_84xx {
 
 struct qla_statistics {
 	uint32_t total_isp_aborts;
+	uint64_t input_bytes;
+	uint64_t output_bytes;
 };
 
 /*
@@ -2238,6 +2239,7 @@ typedef struct scsi_qla_host {
 #define FCPORT_UPDATE_NEEDED	27
 #define VP_DPC_NEEDED		28	/* wake up for VP dpc handling */
 #define UNLOADING		29
+#define NPIV_CONFIG_NEEDED	30
 
 	uint32_t	device_flags;
 #define DFLG_LOCAL_DEVICES		BIT_0
@@ -2507,7 +2509,6 @@ typedef struct scsi_qla_host {
 	uint64_t	fce_wr, fce_rd;
 	struct mutex	fce_mutex;
 
-	uint32_t	hw_event_start;
 	uint32_t	hw_event_ptr;
 	uint32_t	hw_event_pause_errors;
 
@@ -2552,6 +2553,14 @@ typedef struct scsi_qla_host {
 	uint32_t	fdt_block_size;
 	uint32_t	fdt_unprotect_sec_cmd;
 	uint32_t	fdt_protect_sec_cmd;
+
+	uint32_t	flt_region_flt;
+	uint32_t	flt_region_fdt;
+	uint32_t	flt_region_boot;
+	uint32_t	flt_region_fw;
+	uint32_t	flt_region_vpd_nvram;
+	uint32_t	flt_region_hw_event;
+	uint32_t	flt_region_npiv_conf;
 
 	/* Needed for BEACON */
 	uint16_t	beacon_blink_led;

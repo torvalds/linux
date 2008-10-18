@@ -341,8 +341,6 @@ static int efs_statfs(struct dentry *dentry, struct kstatfs *buf) {
 			sb->inode_blocks *
 			(EFS_BLOCKSIZE / sizeof(struct efs_dinode));
 	buf->f_ffree   = sb->inode_free;	/* free inodes */
-	buf->f_fsid.val[0] = (sb->fs_magic >> 16) & 0xffff; /* fs ID */
-	buf->f_fsid.val[1] =  sb->fs_magic        & 0xffff; /* fs ID */
 	buf->f_namelen = EFS_MAXNAMELEN;	/* max filename length */
 
 	return 0;

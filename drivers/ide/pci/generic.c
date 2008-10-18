@@ -22,7 +22,6 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/hdreg.h>
 #include <linux/pci.h>
 #include <linux/ide.h>
 #include <linux/init.h>
@@ -167,21 +166,23 @@ static const struct pci_device_id generic_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, generic_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver generic_pci_driver = {
 	.name		= "PCI_IDE",
 	.id_table	= generic_pci_tbl,
 	.probe		= generic_init_one,
 	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init generic_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&generic_pci_driver);
 }
 
 static void __exit generic_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&generic_pci_driver);
 }
 
 module_init(generic_ide_init);

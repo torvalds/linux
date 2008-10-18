@@ -66,10 +66,11 @@ SECTIONS
 		__got2_end = .;
 #endif /* CONFIG_PPC32 */
 
-		. = ALIGN(PAGE_SIZE);
-		_etext = .;
-		PROVIDE32 (etext = .);
 	} :kernel
+
+	. = ALIGN(PAGE_SIZE);
+	_etext = .;
+	PROVIDE32 (etext = .);
 
 	/* Read-only data */
 	RODATA
@@ -186,6 +187,24 @@ SECTIONS
 		*(.machine.desc)
 		__machine_desc_end = . ;
 	}
+	. = ALIGN(8);
+	.dynsym : AT(ADDR(.dynsym) - LOAD_OFFSET) { *(.dynsym) }
+	.dynstr : AT(ADDR(.dynstr) - LOAD_OFFSET) { *(.dynstr) }
+	.dynamic : AT(ADDR(.dynamic) - LOAD_OFFSET)
+	{
+		__dynamic_start = .;
+		*(.dynamic)
+	}
+	.hash : AT(ADDR(.hash) - LOAD_OFFSET) { *(.hash) }
+	.interp : AT(ADDR(.interp) - LOAD_OFFSET) { *(.interp) }
+	.rela.dyn : AT(ADDR(.rela.dyn) - LOAD_OFFSET)
+	{
+		__rela_dyn_start = .;
+		*(.rela*)
+	}
+
+	/* Fake ELF header containing RPA note; for addnote */
+	.fakeelf : AT(ADDR(.fakeelf) - LOAD_OFFSET) { *(.fakeelf) }
 
 	/* freed after init ends here */
 	. = ALIGN(PAGE_SIZE);

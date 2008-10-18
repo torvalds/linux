@@ -38,7 +38,6 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/list.h>
 #include <linux/unistd.h>
-#include <linux/byteorder/swab.h>
 #include <linux/pagemap.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
@@ -64,6 +63,9 @@
 #  error "This driver requires kernel PCI support."
 #endif
 
+/* Default delay to throttle mmio access to the CX23418 */
+#define CX18_DEFAULT_MMIO_NDELAY 0 /* 0 ns = 0 PCI clock(s) / 33 MHz */
+
 #define CX18_MEM_OFFSET	0x00000000
 #define CX18_MEM_SIZE	0x04000000
 #define CX18_REG_OFFSET	0x02000000
@@ -77,7 +79,9 @@
 #define CX18_CARD_COMPRO_H900 	      2	/* Compro VideoMate H900 */
 #define CX18_CARD_YUAN_MPC718 	      3	/* Yuan MPC718 */
 #define CX18_CARD_CNXT_RAPTOR_PAL     4	/* Conexant Raptor PAL */
-#define CX18_CARD_LAST 		      4
+#define CX18_CARD_TOSHIBA_QOSMIO_DVBT 5 /* Toshiba Qosmio Interal DVB-T/Analog*/
+#define CX18_CARD_LEADTEK_PVR2100     6 /* Leadtek WinFast PVR2100 */
+#define CX18_CARD_LAST 		      6
 
 #define CX18_ENC_STREAM_TYPE_MPG  0
 #define CX18_ENC_STREAM_TYPE_TS   1
@@ -97,6 +101,8 @@
 #define CX18_PCI_ID_COMPRO 		0x185b
 #define CX18_PCI_ID_YUAN 		0x12ab
 #define CX18_PCI_ID_CONEXANT		0x14f1
+#define CX18_PCI_ID_TOSHIBA		0x1179
+#define CX18_PCI_ID_LEADTEK		0x107D
 
 /* ======================================================================== */
 /* ========================== START USER SETTABLE DMA VARIABLES =========== */
@@ -169,6 +175,7 @@
 
 #define CX18_MAX_PGM_INDEX (400)
 
+extern int cx18_retry_mmio;	/* enable check & retry of mmio accesses */
 extern int cx18_debug;
 
 
@@ -177,6 +184,7 @@ struct cx18_options {
 	int cardtype;		/* force card type on load */
 	int tuner;		/* set tuner on load */
 	int radio;		/* enable/disable radio */
+	unsigned long mmio_ndelay; /* delay in ns after every PCI mmio access */
 };
 
 /* per-buffer bit flags */
@@ -216,8 +224,7 @@ struct cx18_buffer {
 
 struct cx18_queue {
 	struct list_head list;
-	u32 buffers;
-	u32 length;
+	atomic_t buffers;
 	u32 bytesused;
 };
 
@@ -236,6 +243,8 @@ struct cx18_dvb {
 
 struct cx18;	 /* forward reference */
 struct cx18_scb; /* forward reference */
+
+#define CX18_INVALID_TASK_HANDLE 0xffffffff
 
 struct cx18_stream {
 	/* These first four fields are always set, even if the stream
@@ -259,7 +268,6 @@ struct cx18_stream {
 	/* Buffer Stats */
 	u32 buffers;
 	u32 buf_size;
-	u32 buffers_stolen;
 
 	/* Buffer Queues */
 	struct cx18_queue q_free;	/* free buffers */
@@ -339,6 +347,13 @@ struct vbi_info {
 struct cx18_i2c_algo_callback_data {
 	struct cx18 *cx;
 	int bus_index;   /* 0 or 1 for the cx23418's 1st or 2nd I2C bus */
+};
+
+#define CX18_MAX_MMIO_RETRIES 10
+
+struct cx18_mmio_stats {
+	atomic_t retried_write[CX18_MAX_MMIO_RETRIES+1];
+	atomic_t retried_read[CX18_MAX_MMIO_RETRIES+1];
 };
 
 /* Struct to hold info about cx18 cards */
@@ -430,6 +445,9 @@ struct cx18 {
 	u32 gpio_val;
 	struct mutex gpio_lock;
 
+	/* Statistics */
+	struct cx18_mmio_stats mmio_stats;
+
 	/* v4l2 and User settings */
 
 	/* codec settings */
@@ -457,48 +475,5 @@ void cx18_read_eeprom(struct cx18 *cx, struct tveeprom *tv);
 
 /* First-open initialization: load firmware, etc. */
 int cx18_init_on_first_open(struct cx18 *cx);
-
-/* This is a PCI post thing, where if the pci register is not read, then
-   the write doesn't always take effect right away. By reading back the
-   register any pending PCI writes will be performed (in order), and so
-   you can be sure that the writes are guaranteed to be done.
-
-   Rarely needed, only in some timing sensitive cases.
-   Apparently if this is not done some motherboards seem
-   to kill the firmware and get into the broken state until computer is
-   rebooted. */
-#define write_sync(val, reg) \
-	do { writel(val, reg); readl(reg); } while (0)
-
-#define read_reg(reg) readl(cx->reg_mem + (reg))
-#define write_reg(val, reg) writel(val, cx->reg_mem + (reg))
-#define write_reg_sync(val, reg) \
-	do { write_reg(val, reg); read_reg(reg); } while (0)
-
-#define read_enc(addr) readl(cx->enc_mem + (u32)(addr))
-#define write_enc(val, addr) writel(val, cx->enc_mem + (u32)(addr))
-#define write_enc_sync(val, addr) \
-	do { write_enc(val, addr); read_enc(addr); } while (0)
-
-#define sw1_irq_enable(val) do { \
-	write_reg(val, SW1_INT_STATUS); \
-	write_reg(read_reg(SW1_INT_ENABLE_PCI) | (val), SW1_INT_ENABLE_PCI); \
-} while (0)
-
-#define sw1_irq_disable(val) \
-	write_reg(read_reg(SW1_INT_ENABLE_PCI) & ~(val), SW1_INT_ENABLE_PCI);
-
-#define sw2_irq_enable(val) do { \
-	write_reg(val, SW2_INT_STATUS); \
-	write_reg(read_reg(SW2_INT_ENABLE_PCI) | (val), SW2_INT_ENABLE_PCI); \
-} while (0)
-
-#define sw2_irq_disable(val) \
-	write_reg(read_reg(SW2_INT_ENABLE_PCI) & ~(val), SW2_INT_ENABLE_PCI);
-
-#define setup_page(addr) do { \
-    u32 val = read_reg(0xD000F8) & ~0x1f00; \
-    write_reg(val | (((addr) >> 17) & 0x1f00), 0xD000F8); \
-} while (0)
 
 #endif /* CX18_DRIVER_H */

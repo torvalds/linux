@@ -139,7 +139,7 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 			      ha->host_no, cmd->device->channel,
 			      cmd->device->id, cmd->device->lun));
 
-		cmd->result = DID_BUS_BUSY << 16;
+		cmd->result = DID_TRANSPORT_DISRUPTED << 16;
 
 		/*
 		 * Mark device missing so that we won't continue to send
@@ -243,7 +243,7 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 		if (atomic_read(&ddb_entry->state) == DDB_STATE_ONLINE)
 			qla4xxx_mark_device_missing(ha, ddb_entry);
 
-		cmd->result = DID_BUS_BUSY << 16;
+		cmd->result = DID_TRANSPORT_DISRUPTED << 16;
 		break;
 
 	case SCS_QUEUE_FULL:

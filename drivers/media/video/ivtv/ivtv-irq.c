@@ -76,6 +76,13 @@ void ivtv_irq_work_handler(struct work_struct *work)
 
 	DEFINE_WAIT(wait);
 
+	if (test_and_clear_bit(IVTV_F_I_WORK_INITED, &itv->i_flags)) {
+		struct sched_param param = { .sched_priority = 99 };
+
+		/* This thread must use the FIFO scheduler as it
+		   is realtime sensitive. */
+		sched_setscheduler(current, SCHED_FIFO, &param);
+	}
 	if (test_and_clear_bit(IVTV_F_I_WORK_HANDLER_PIO, &itv->i_flags))
 		ivtv_pio_work_handler(itv);
 
@@ -678,34 +685,14 @@ static void ivtv_irq_enc_start_cap(struct ivtv *itv)
 
 static void ivtv_irq_enc_vbi_cap(struct ivtv *itv)
 {
-	struct ivtv_stream *s_mpg = &itv->streams[IVTV_ENC_STREAM_TYPE_MPG];
 	u32 data[CX2341X_MBOX_MAX_DATA];
 	struct ivtv_stream *s;
 
 	IVTV_DEBUG_HI_IRQ("ENC START VBI CAP\n");
 	s = &itv->streams[IVTV_ENC_STREAM_TYPE_VBI];
 
-	/* If more than two VBI buffers are pending, then
-	   clear the old ones and start with this new one.
-	   This can happen during transition stages when MPEG capturing is
-	   started, but the first interrupts haven't arrived yet. During
-	   that period VBI requests can accumulate without being able to
-	   DMA the data. Since at most four VBI DMA buffers are available,
-	   we just drop the old requests when there are already three
-	   requests queued. */
-	if (s->sg_pending_size > 2) {
-		struct ivtv_buffer *buf;
-		list_for_each_entry(buf, &s->q_predma.list, list)
-			ivtv_buf_sync_for_cpu(s, buf);
-		ivtv_queue_move(s, &s->q_predma, NULL, &s->q_free, 0);
-		s->sg_pending_size = 0;
-	}
-	/* if we can append the data, and the MPEG stream isn't capturing,
-	   then start a DMA request for just the VBI data. */
-	if (!stream_enc_dma_append(s, data) &&
-			!test_bit(IVTV_F_S_STREAMING, &s_mpg->s_flags)) {
+	if (!stream_enc_dma_append(s, data))
 		set_bit(ivtv_use_pio(s) ? IVTV_F_S_PIO_PENDING : IVTV_F_S_DMA_PENDING, &s->s_flags);
-	}
 }
 
 static void ivtv_irq_dec_vbi_reinsert(struct ivtv *itv)
@@ -766,7 +753,7 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 	 */
 	unsigned int frame = read_reg(0x28c0) & 1;
 	struct yuv_playback_info *yi = &itv->yuv_info;
-	int last_dma_frame = atomic_read(&itv->yuv_info.next_dma_frame);
+	int last_dma_frame = atomic_read(&yi->next_dma_frame);
 	struct yuv_frame_info *f = &yi->new_frame_info[last_dma_frame];
 
 	if (0) IVTV_DEBUG_IRQ("DEC VSYNC\n");
@@ -785,6 +772,7 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 				next_dma_frame = (next_dma_frame + 1) % IVTV_YUV_BUFFERS;
 				atomic_set(&yi->next_dma_frame, next_dma_frame);
 				yi->fields_lapsed = -1;
+				yi->running = 1;
 			}
 		}
 	}
@@ -817,9 +805,11 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 		}
 
 		/* Check if we need to update the yuv registers */
-		if ((yi->yuv_forced_update || f->update) && last_dma_frame != -1) {
+		if (yi->running && (yi->yuv_forced_update || f->update)) {
 			if (!f->update) {
-				last_dma_frame = (u8)(last_dma_frame - 1) % IVTV_YUV_BUFFERS;
+				last_dma_frame =
+					(u8)(atomic_read(&yi->next_dma_frame) -
+						 1) % IVTV_YUV_BUFFERS;
 				f = &yi->new_frame_info[last_dma_frame];
 			}
 
