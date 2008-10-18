@@ -84,6 +84,8 @@ struct v4l2_int_device {
 	void *priv;
 };
 
+void v4l2_int_device_try_attach_all(void);
+
 int v4l2_int_device_register(struct v4l2_int_device *d);
 void v4l2_int_device_unregister(struct v4l2_int_device *d);
 
