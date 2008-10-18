@@ -54,7 +54,6 @@
  *       IS-NIC driver.
  */
 
-#include <linux/version.h>
 
 #define SLIC_DUMP_ENABLED               0
 #define KLUDGE_FOR_4GB_BOUNDARY         1
