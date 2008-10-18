@@ -25,6 +25,22 @@ struct bootrec {
 	u32 data[10];
 } __attribute__((packed));
 
+#define PDR_SYNTH_FRONTEND_MASK		0x0007
+#define PDR_SYNTH_IQ_CAL_MASK		0x0018
+#define PDR_SYNTH_IQ_CAL_PA_DETECTOR	0x0000
+#define PDR_SYNTH_IQ_CAL_DISABLED	0x0008
+#define PDR_SYNTH_IQ_CAL_ZIF		0x0010
+#define PDR_SYNTH_FAA_SWITCH_MASK	0x0020
+#define PDR_SYNTH_FAA_SWITCH_ENABLED	0x0001
+#define PDR_SYNTH_24_GHZ_MASK		0x0040
+#define PDR_SYNTH_24_GHZ_DISABLED	0x0040
+#define PDR_SYNTH_5_GHZ_MASK		0x0080
+#define PDR_SYNTH_5_GHZ_DISABLED	0x0080
+#define PDR_SYNTH_RX_DIV_MASK		0x0100
+#define PDR_SYNTH_RX_DIV_SUPPORTED	0x0100
+#define PDR_SYNTH_TX_DIV_MASK		0x0200
+#define PDR_SYNTH_TX_DIV_SUPPORTED	0x0200
+
 struct bootrec_exp_if {
 	__le16 role;
 	__le16 if_id;
@@ -209,6 +225,19 @@ struct pda_pa_curve_data {
 /* customer range (0x8000 - 0xffff) */
 #define PDR_BASEBAND_REGISTERS			0x8000
 #define PDR_PER_CHANNEL_BASEBAND_REGISTERS	0x8001
+
+/* PDR definitions for default country & country list */
+#define PDR_COUNTRY_CERT_CODE		0x80
+#define PDR_COUNTRY_CERT_CODE_REAL	0x00
+#define PDR_COUNTRY_CERT_CODE_PSEUDO	0x80
+#define PDR_COUNTRY_CERT_BAND		0x40
+#define PDR_COUNTRY_CERT_BAND_2GHZ	0x00
+#define PDR_COUNTRY_CERT_BAND_5GHZ	0x40
+#define PDR_COUNTRY_CERT_IODOOR		0x30
+#define PDR_COUNTRY_CERT_IODOOR_BOTH	0x00
+#define PDR_COUNTRY_CERT_IODOOR_INDOOR	0x20
+#define PDR_COUNTRY_CERT_IODOOR_OUTDOOR	0x30
+#define PDR_COUNTRY_CERT_INDEX		0x0F
 
 /* stored in skb->cb */
 struct memrecord {
@@ -507,7 +536,7 @@ struct p54_sta_unlock {
 } __attribute__ ((packed));
 
 #define P54_TIM_CLEAR BIT(15)
-struct p54_tx_control_tim {
+struct p54_tim {
 	u8 count;
 	u8 padding[3];
 	__le16 entry[8];

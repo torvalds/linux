@@ -221,10 +221,10 @@ int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 
 	if (priv->fw_var >= 0x300) {
 		/* Firmware supports QoS, use it! */
-		priv->tx_stats[4].limit = 3;
-		priv->tx_stats[5].limit = 4;
-		priv->tx_stats[6].limit = 3;
-		priv->tx_stats[7].limit = 1;
+		priv->tx_stats[4].limit = 3;		/* AC_VO */
+		priv->tx_stats[5].limit = 4;		/* AC_VI */
+		priv->tx_stats[6].limit = 3;		/* AC_BE */
+		priv->tx_stats[7].limit = 2;		/* AC_BK */
 		dev->queues = 4;
 	}
 
@@ -436,12 +436,12 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 		goto err;
 	}
 
-	priv->rxhw = synth & 0x07;
+	priv->rxhw = synth & PDR_SYNTH_FRONTEND_MASK;
 	if (priv->rxhw == 4)
 		p54_init_xbow_synth(dev);
-	if (!(synth & 0x40))
+	if (!(synth & PDR_SYNTH_24_GHZ_DISABLED))
 		dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &band_2GHz;
-	if (!(synth & 0x80))
+	if (!(synth & PDR_SYNTH_5_GHZ_DISABLED))
 		dev->wiphy->bands[IEEE80211_BAND_5GHZ] = &band_5GHz;
 
 	if (!is_valid_ether_addr(dev->wiphy->perm_addr)) {
@@ -659,7 +659,7 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 		if (!(info->flags & IEEE80211_TX_CTL_NO_ACK) &&
 		     (!payload->status))
 			info->flags |= IEEE80211_TX_STAT_ACK;
-		if (payload->status & 0x02)
+		if (payload->status & P54_TX_PSM_CANCELLED)
 			info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
 		info->status.ack_signal = p54_rssi_to_dbm(dev,
 				(int)payload->ack_rssi);
@@ -739,9 +739,9 @@ static int p54_rx_control(struct ieee80211_hw *dev, struct sk_buff *skb)
 /* returns zero if skb can be reused */
 int p54_rx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
-	u8 type = le16_to_cpu(*((__le16 *)skb->data)) >> 8;
+	u16 type = le16_to_cpu(*((__le16 *)skb->data));
 
-	if (type == 0x80)
+	if (type & P54_HDR_FLAG_CONTROL)
 		return p54_rx_control(dev, skb);
 	else
 		return p54_rx_data(dev, skb);
@@ -905,12 +905,13 @@ EXPORT_SYMBOL_GPL(p54_read_eeprom);
 static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_tx_queue_stats *current_queue;
+	struct ieee80211_tx_queue_stats *current_queue = NULL;
 	struct p54_common *priv = dev->priv;
 	struct p54_hdr *hdr;
 	struct p54_tx_data *txhdr;
 	size_t padding, len;
 	int i, j, ridx;
+	u16 hdr_flags = 0;
 	u8 rate;
 	u8 cts_rate = 0x20;
 	u8 rc_flags;
@@ -932,9 +933,7 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	hdr = (struct p54_hdr *) skb_push(skb, sizeof(*hdr));
 
 	if (padding)
-		hdr->flags = cpu_to_le16(P54_HDR_FLAG_DATA_ALIGN);
-	else
-		hdr->flags = cpu_to_le16(0);
+		hdr_flags |= P54_HDR_FLAG_DATA_ALIGN;
 	hdr->len = cpu_to_le16(len);
 	hdr->type = (info->flags & IEEE80211_TX_CTL_NO_ACK) ? 0 : cpu_to_le16(1);
 	hdr->rts_tries = info->control.rates[0].count;
@@ -1003,6 +1002,12 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 			ridx++;
 		}
 	}
+
+	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ)
+		hdr_flags |= P54_HDR_FLAG_DATA_OUT_SEQNR;
+
+	/* TODO: enable bursting */
+	hdr->flags = cpu_to_le16(hdr_flags);
 	hdr->tries = ridx;
 	txhdr->crypt_offset = 0;
 	txhdr->rts_rate_idx = 0;
@@ -1021,6 +1026,10 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	/* modifies skb->cb and with it info, so must be last! */
 	if (unlikely(p54_assign_address(dev, skb, hdr, skb->len))) {
 		skb_pull(skb, sizeof(*hdr) + sizeof(*txhdr) + padding);
+		if (current_queue) {
+			current_queue->len--;
+			current_queue->count--;
+		}
 		return NETDEV_TX_BUSY;
 	}
 	priv->tx(dev, skb, 0);
@@ -1074,13 +1083,14 @@ static int p54_setup_mac(struct ieee80211_hw *dev, u16 mode, const u8 *bssid)
 	return 0;
 }
 
-static int p54_set_freq(struct ieee80211_hw *dev, __le16 freq)
+static int p54_set_freq(struct ieee80211_hw *dev, u16 frequency)
 {
 	struct p54_common *priv = dev->priv;
 	struct sk_buff *skb;
 	struct p54_scan *chan;
 	unsigned int i;
 	void *entry;
+	__le16 freq = cpu_to_le16(frequency);
 
 	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*chan) +
 			    sizeof(struct p54_hdr), P54_CONTROL_TYPE_SCAN,
@@ -1237,6 +1247,7 @@ static int p54_start(struct ieee80211_hw *dev)
 	struct p54_common *priv = dev->priv;
 	int err;
 
+	mutex_lock(&priv->conf_mutex);
 	err = priv->open(dev);
 	if (!err)
 		priv->mode = NL80211_IFTYPE_MONITOR;
@@ -1248,6 +1259,7 @@ static int p54_start(struct ieee80211_hw *dev)
 	if (!err)
 		err = p54_init_stats(dev);
 
+	mutex_unlock(&priv->conf_mutex);
 	return err;
 }
 
@@ -1256,6 +1268,7 @@ static void p54_stop(struct ieee80211_hw *dev)
 	struct p54_common *priv = dev->priv;
 	struct sk_buff *skb;
 
+	mutex_lock(&priv->conf_mutex);
 	del_timer(&priv->stats_timer);
 	p54_free_skb(dev, priv->cached_stats);
 	priv->cached_stats = NULL;
@@ -1265,6 +1278,7 @@ static void p54_stop(struct ieee80211_hw *dev)
 	priv->stop(dev);
 	priv->tsf_high32 = priv->tsf_low32 = 0;
 	priv->mode = NL80211_IFTYPE_UNSPECIFIED;
+	mutex_unlock(&priv->conf_mutex);
 }
 
 static int p54_add_interface(struct ieee80211_hw *dev,
@@ -1272,14 +1286,18 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 {
 	struct p54_common *priv = dev->priv;
 
-	if (priv->mode != NL80211_IFTYPE_MONITOR)
+	mutex_lock(&priv->conf_mutex);
+	if (priv->mode != NL80211_IFTYPE_MONITOR) {
+		mutex_unlock(&priv->conf_mutex);
 		return -EOPNOTSUPP;
+	}
 
 	switch (conf->type) {
 	case NL80211_IFTYPE_STATION:
 		priv->mode = conf->type;
 		break;
 	default:
+		mutex_unlock(&priv->conf_mutex);
 		return -EOPNOTSUPP;
 	}
 
@@ -1298,6 +1316,7 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 
 	p54_set_leds(dev, 1, 0, 0);
 
+	mutex_unlock(&priv->conf_mutex);
 	return 0;
 }
 
@@ -1305,9 +1324,12 @@ static void p54_remove_interface(struct ieee80211_hw *dev,
 				 struct ieee80211_if_init_conf *conf)
 {
 	struct p54_common *priv = dev->priv;
+
+	mutex_lock(&priv->conf_mutex);
+	p54_setup_mac(dev, P54_FILTER_TYPE_NONE, NULL);
 	priv->mode = NL80211_IFTYPE_MONITOR;
 	memset(priv->mac_addr, 0, ETH_ALEN);
-	p54_setup_mac(dev, P54_FILTER_TYPE_NONE, NULL);
+	mutex_unlock(&priv->conf_mutex);
 }
 
 static int p54_config(struct ieee80211_hw *dev, u32 changed)
@@ -1319,7 +1341,7 @@ static int p54_config(struct ieee80211_hw *dev, u32 changed)
 	mutex_lock(&priv->conf_mutex);
 	priv->rx_antenna = 2; /* automatic */
 	priv->output_power = conf->power_level << 2;
-	ret = p54_set_freq(dev, cpu_to_le16(conf->channel->center_freq));
+	ret = p54_set_freq(dev, conf->channel->center_freq);
 	if (!ret)
 		ret = p54_set_edcf(dev);
 	mutex_unlock(&priv->conf_mutex);
@@ -1372,14 +1394,18 @@ static int p54_conf_tx(struct ieee80211_hw *dev, u16 queue,
 		       const struct ieee80211_tx_queue_params *params)
 {
 	struct p54_common *priv = dev->priv;
+	int ret;
 
+	mutex_lock(&priv->conf_mutex);
 	if ((params) && !(queue > 4)) {
 		P54_SET_QUEUE(priv->qos_params[queue], params->aifs,
 			params->cw_min, params->cw_max, params->txop);
 	} else
-		return -EINVAL;
-
-	return p54_set_edcf(dev);
+		ret = -EINVAL;
+	if (!ret)
+		ret = p54_set_edcf(dev);
+	mutex_unlock(&priv->conf_mutex);
+	return ret;
 }
 
 static int p54_init_xbow_synth(struct ieee80211_hw *dev)
@@ -1488,19 +1514,14 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 		     IEEE80211_HW_SIGNAL_DBM |
 		     IEEE80211_HW_NOISE_DBM;
 
-	/*
-	 * XXX: when this driver gets support for any mode that
-	 *	requires beacons (AP, MESH, IBSS) then it must
-	 *	implement IEEE80211_TX_CTL_ASSIGN_SEQ.
-	 */
 	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
 	dev->channel_change_time = 1000;	/* TODO: find actual value */
-	priv->tx_stats[0].limit = 1;
-	priv->tx_stats[1].limit = 1;
-	priv->tx_stats[2].limit = 1;
-	priv->tx_stats[3].limit = 1;
-	priv->tx_stats[4].limit = 5;
+	priv->tx_stats[0].limit = 1;		/* Beacon queue */
+	priv->tx_stats[1].limit = 1;		/* Probe queue for HW scan */
+	priv->tx_stats[2].limit = 3;		/* queue for MLMEs */
+	priv->tx_stats[3].limit = 3;		/* Broadcast / MC queue */
+	priv->tx_stats[4].limit = 5;		/* Data */
 	dev->queues = 1;
 	priv->noise = -94;
 	/*
