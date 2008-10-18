@@ -838,6 +838,13 @@ static int parse_strtoul(const char *buf,
 	return 0;
 }
 
+static void tpacpi_disable_brightness_delay(void)
+{
+	if (acpi_evalf(hkey_handle, NULL, "PWMS", "qvd", 0))
+		printk(TPACPI_NOTICE
+			"ACPI backlight control delay disabled\n");
+}
+
 static int __init tpacpi_query_bcl_levels(acpi_handle handle)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -2139,6 +2146,8 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	if (!tp_features.hotkey)
 		return 1;
 
+	tpacpi_disable_brightness_delay();
+
 	hotkey_dev_attributes = create_attr_set(13, NULL);
 	if (!hotkey_dev_attributes)
 		return -ENOMEM;
@@ -2512,6 +2521,8 @@ static void hotkey_suspend(pm_message_t state)
 
 static void hotkey_resume(void)
 {
+	tpacpi_disable_brightness_delay();
+
 	if (hotkey_mask_get())
 		printk(TPACPI_ERR
 		       "error while trying to read hot key mask "
