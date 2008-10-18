@@ -96,17 +96,9 @@
 #include <linux/moduleparam.h>
 
 #include <linux/types.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
-#include <linux/init.h>
-#include <linux/pci.h>
 #include <linux/dma-mapping.h>
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
 #include <linux/mii.h>
 #include <linux/if_vlan.h>
-#include <linux/skbuff.h>
-#include <linux/string.h>
 #include <asm/unaligned.h>
 
 #include <linux/ethtool.h>
