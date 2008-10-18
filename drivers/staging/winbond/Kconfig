@@ -1,6 +1,6 @@
 config W35UND
 	tristate "Winbond driver"
-	depends on MAC80211 && WLAN_80211 && EXPERIMENTAL && !4KSTACKS
+	depends on MAC80211 && WLAN_80211 && USB && EXPERIMENTAL && !4KSTACKS
 	default n
 	---help---
 	  This is highly experimental driver for winbond wifi card on some Kohjinsha notebooks
