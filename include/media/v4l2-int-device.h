@@ -184,6 +184,11 @@ enum v4l2_int_ioctl_num {
 	vidioc_int_dev_exit_num,
 	/* Set device power state: 0 is off, non-zero is on. */
 	vidioc_int_s_power_num,
+	/*
+	* Get slave private data, e.g. platform-specific slave
+	* configuration used by the master.
+	*/
+	vidioc_int_g_priv_num,
 	/* Get slave interface parameters. */
 	vidioc_int_g_ifparm_num,
 	/* Does the slave need to be reset after VIDIOC_DQBUF? */
@@ -267,6 +272,7 @@ V4L2_INT_WRAPPER_1(s_parm, struct v4l2_streamparm, *);
 V4L2_INT_WRAPPER_0(dev_init);
 V4L2_INT_WRAPPER_0(dev_exit);
 V4L2_INT_WRAPPER_1(s_power, int, );
+V4L2_INT_WRAPPER_1(g_priv, void, *);
 V4L2_INT_WRAPPER_1(g_ifparm, struct v4l2_ifparm, *);
 V4L2_INT_WRAPPER_1(g_needs_reset, void, *);
 
