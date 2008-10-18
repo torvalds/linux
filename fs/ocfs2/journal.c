@@ -752,6 +752,7 @@ static int ocfs2_journal_toggle_dirty(struct ocfs2_super *osb,
 	if (replayed)
 		ocfs2_bump_recovery_generation(fe);
 
+	ocfs2_compute_meta_ecc(osb->sb, bh->b_data, &fe->i_check);
 	status = ocfs2_write_block(osb, bh, journal->j_inode);
 	if (status < 0)
 		mlog_errno(status);
@@ -1486,6 +1487,7 @@ static int ocfs2_replay_journal(struct ocfs2_super *osb,
 	osb->slot_recovery_generations[slot_num] =
 					ocfs2_get_recovery_generation(fe);
 
+	ocfs2_compute_meta_ecc(osb->sb, bh->b_data, &fe->i_check);
 	status = ocfs2_write_block(osb, bh, inode);
 	if (status < 0)
 		mlog_errno(status);

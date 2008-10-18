@@ -1512,8 +1512,8 @@ static int ocfs2_write_begin_inline(struct address_space *mapping,
 		goto out;
 	}
 
-	ret = ocfs2_journal_access(handle, inode, wc->w_di_bh,
-				   OCFS2_JOURNAL_ACCESS_WRITE);
+	ret = ocfs2_journal_access_di(handle, inode, wc->w_di_bh,
+				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		ocfs2_commit_trans(osb, handle);
 
@@ -1740,8 +1740,8 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 	 * We don't want this to fail in ocfs2_write_end(), so do it
 	 * here.
 	 */
-	ret = ocfs2_journal_access(handle, inode, wc->w_di_bh,
-				   OCFS2_JOURNAL_ACCESS_WRITE);
+	ret = ocfs2_journal_access_di(handle, inode, wc->w_di_bh,
+				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
 		goto out_quota;

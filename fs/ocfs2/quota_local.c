@@ -106,8 +106,8 @@ static int ocfs2_modify_bh(struct inode *inode, struct buffer_head *bh,
 		mlog_errno(status);
 		return status;
 	}
-	status = ocfs2_journal_access(handle, inode, bh,
-				      OCFS2_JOURNAL_ACCESS_WRITE);
+	status = ocfs2_journal_access_dq(handle, inode, bh,
+					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
 		ocfs2_commit_trans(OCFS2_SB(sb), handle);
@@ -506,7 +506,7 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 				goto out_commit;
 			}
 			/* Release local quota file entry */
-			status = ocfs2_journal_access(handle, lqinode,
+			status = ocfs2_journal_access_dq(handle, lqinode,
 					qbh, OCFS2_JOURNAL_ACCESS_WRITE);
 			if (status < 0) {
 				mlog_errno(status);
@@ -614,8 +614,8 @@ int ocfs2_finish_quota_recovery(struct ocfs2_super *osb,
 			mlog_errno(status);
 			goto out_bh;
 		}
-		status = ocfs2_journal_access(handle, lqinode, bh,
-					      OCFS2_JOURNAL_ACCESS_WRITE);
+		status = ocfs2_journal_access_dq(handle, lqinode, bh,
+						 OCFS2_JOURNAL_ACCESS_WRITE);
 		if (status < 0) {
 			mlog_errno(status);
 			goto out_trans;
@@ -981,8 +981,8 @@ static struct ocfs2_quota_chunk *ocfs2_local_quota_add_chunk(
 		goto out;
 	}
 
-	status = ocfs2_journal_access(handle, lqinode, bh,
-				      OCFS2_JOURNAL_ACCESS_WRITE);
+	status = ocfs2_journal_access_dq(handle, lqinode, bh,
+					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto out_trans;
@@ -1074,7 +1074,7 @@ static struct ocfs2_quota_chunk *ocfs2_extend_local_quota_file(
 		mlog_errno(status);
 		goto out;
 	}
-	status = ocfs2_journal_access(handle, lqinode, chunk->qc_headerbh,
+	status = ocfs2_journal_access_dq(handle, lqinode, chunk->qc_headerbh,
 				 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -1207,7 +1207,7 @@ static int ocfs2_local_release_dquot(struct dquot *dquot)
 		goto out;
 	}
 
-	status = ocfs2_journal_access(handle, sb_dqopt(sb)->files[type],
+	status = ocfs2_journal_access_dq(handle, sb_dqopt(sb)->files[type],
 			od->dq_chunk->qc_headerbh, OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);

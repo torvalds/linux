@@ -378,14 +378,18 @@ int ocfs2_update_entry(struct inode *dir, handle_t *handle,
 		       struct inode *new_entry_inode)
 {
 	int ret;
+	ocfs2_journal_access_func access = ocfs2_journal_access_db;
 
 	/*
 	 * The same code works fine for both inline-data and extent
-	 * based directories, so no need to split this up.
+	 * based directories, so no need to split this up.  The only
+	 * difference is the journal_access function.
 	 */
 
-	ret = ocfs2_journal_access(handle, dir, de_bh,
-				   OCFS2_JOURNAL_ACCESS_WRITE);
+	if (OCFS2_I(dir)->ip_dyn_features & OCFS2_INLINE_DATA_FL)
+		access = ocfs2_journal_access_di;
+
+	ret = access(handle, dir, de_bh, OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -407,8 +411,12 @@ static int __ocfs2_delete_entry(handle_t *handle, struct inode *dir,
 {
 	struct ocfs2_dir_entry *de, *pde;
 	int i, status = -ENOENT;
+	ocfs2_journal_access_func access = ocfs2_journal_access_db;
 
 	mlog_entry("(0x%p, 0x%p, 0x%p, 0x%p)\n", handle, dir, de_del, bh);
+
+	if (OCFS2_I(dir)->ip_dyn_features & OCFS2_INLINE_DATA_FL)
+		access = ocfs2_journal_access_di;
 
 	i = 0;
 	pde = NULL;
@@ -420,8 +428,8 @@ static int __ocfs2_delete_entry(handle_t *handle, struct inode *dir,
 			goto bail;
 		}
 		if (de == de_del)  {
-			status = ocfs2_journal_access(handle, dir, bh,
-						      OCFS2_JOURNAL_ACCESS_WRITE);
+			status = access(handle, dir, bh,
+					OCFS2_JOURNAL_ACCESS_WRITE);
 			if (status < 0) {
 				status = -EIO;
 				mlog_errno(status);
@@ -581,8 +589,14 @@ int __ocfs2_add_entry(handle_t *handle,
 				goto bail;
 			}
 
-			status = ocfs2_journal_access(handle, dir, insert_bh,
-						      OCFS2_JOURNAL_ACCESS_WRITE);
+			if (insert_bh == parent_fe_bh)
+				status = ocfs2_journal_access_di(handle, dir,
+								 insert_bh,
+								 OCFS2_JOURNAL_ACCESS_WRITE);
+			else
+				status = ocfs2_journal_access_db(handle, dir,
+								 insert_bh,
+								 OCFS2_JOURNAL_ACCESS_WRITE);
 			/* By now the buffer is marked for journaling */
 			offset += le16_to_cpu(de->rec_len);
 			if (le64_to_cpu(de->inode)) {
@@ -1081,8 +1095,8 @@ static int ocfs2_fill_new_dir_id(struct ocfs2_super *osb,
 	struct ocfs2_inline_data *data = &di->id2.i_data;
 	unsigned int size = le16_to_cpu(data->id_count);
 
-	ret = ocfs2_journal_access(handle, inode, di_bh,
-				   OCFS2_JOURNAL_ACCESS_WRITE);
+	ret = ocfs2_journal_access_di(handle, inode, di_bh,
+				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -1129,8 +1143,8 @@ static int ocfs2_fill_new_dir_el(struct ocfs2_super *osb,
 
 	ocfs2_set_new_buffer_uptodate(inode, new_bh);
 
-	status = ocfs2_journal_access(handle, inode, new_bh,
-				      OCFS2_JOURNAL_ACCESS_CREATE);
+	status = ocfs2_journal_access_db(handle, inode, new_bh,
+					 OCFS2_JOURNAL_ACCESS_CREATE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -1292,8 +1306,8 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 
 	ocfs2_set_new_buffer_uptodate(dir, dirdata_bh);
 
-	ret = ocfs2_journal_access(handle, dir, dirdata_bh,
-				   OCFS2_JOURNAL_ACCESS_CREATE);
+	ret = ocfs2_journal_access_db(handle, dir, dirdata_bh,
+				      OCFS2_JOURNAL_ACCESS_CREATE);
 	if (ret) {
 		mlog_errno(ret);
 		goto out_commit;
@@ -1319,8 +1333,8 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 	 * We let the later dirent insert modify c/mtime - to the user
 	 * the data hasn't changed.
 	 */
-	ret = ocfs2_journal_access(handle, dir, di_bh,
-				   OCFS2_JOURNAL_ACCESS_CREATE);
+	ret = ocfs2_journal_access_di(handle, dir, di_bh,
+				      OCFS2_JOURNAL_ACCESS_CREATE);
 	if (ret) {
 		mlog_errno(ret);
 		goto out_commit;
@@ -1583,8 +1597,8 @@ do_extend:
 
 	ocfs2_set_new_buffer_uptodate(dir, new_bh);
 
-	status = ocfs2_journal_access(handle, dir, new_bh,
-				      OCFS2_JOURNAL_ACCESS_CREATE);
+	status = ocfs2_journal_access_db(handle, dir, new_bh,
+					 OCFS2_JOURNAL_ACCESS_CREATE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;

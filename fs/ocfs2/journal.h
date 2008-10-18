@@ -247,9 +247,10 @@ int			     ocfs2_extend_trans(handle_t *handle, int nblocks);
 #define OCFS2_JOURNAL_ACCESS_WRITE  1
 #define OCFS2_JOURNAL_ACCESS_UNDO   2
 
+
 /* ocfs2_inode */
 int ocfs2_journal_access_di(handle_t *handle, struct inode *inode,
-			       struct buffer_head *bh, int type);
+			    struct buffer_head *bh, int type);
 /* ocfs2_extent_block */
 int ocfs2_journal_access_eb(handle_t *handle, struct inode *inode,
 			    struct buffer_head *bh, int type);

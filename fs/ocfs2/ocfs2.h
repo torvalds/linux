@@ -339,6 +339,10 @@ struct ocfs2_super
 
 #define OCFS2_SB(sb)	    ((struct ocfs2_super *)(sb)->s_fs_info)
 
+/* Useful typedef for passing around journal access functions */
+typedef int (*ocfs2_journal_access_func)(handle_t *handle, struct inode *inode,
+					 struct buffer_head *bh, int type);
+
 static inline int ocfs2_should_order_data(struct inode *inode)
 {
 	if (!S_ISREG(inode->i_mode))
