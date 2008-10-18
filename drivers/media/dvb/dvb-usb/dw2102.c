@@ -9,7 +9,6 @@
 *
 * see Documentation/dvb/README.dvb-usb for more information
 */
-#include <linux/version.h>
 #include "dw2102.h"
 #include "si21xx.h"
 #include "stv0299.h"
