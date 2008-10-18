@@ -188,12 +188,11 @@ dmar_parse_one_drhd(struct acpi_dmar_header *header)
 	return 0;
 }
 
-static int __init
-dmar_parse_dev(struct dmar_drhd_unit *dmaru)
+static int __init dmar_parse_dev(struct dmar_drhd_unit *dmaru)
 {
 	struct acpi_dmar_hardware_unit *drhd;
 	static int include_all;
-	int ret;
+	int ret = 0;
 
 	drhd = (struct acpi_dmar_hardware_unit *) dmaru->hdr;
 
