@@ -699,7 +699,8 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 
 	/* active i2c  */
 	CX18_DEBUG_INFO("activating i2c...\n");
-	if (init_cx18_i2c(cx)) {
+	retval = init_cx18_i2c(cx);
+	if (retval) {
 		CX18_ERR("Could not initialize i2c\n");
 		goto free_map;
 	}
