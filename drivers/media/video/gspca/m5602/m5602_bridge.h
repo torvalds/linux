@@ -79,7 +79,7 @@
 #define M5602_XB_GPIO_DIR		0x77
 #define M5602_XB_MISC_CTL		0x70
 
-#define I2C_BUSY s0x80
+#define I2C_BUSY 0x80
 
 /*****************************************************************************/
 
