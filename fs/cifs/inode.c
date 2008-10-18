@@ -506,6 +506,7 @@ int cifs_get_inode_info(struct inode **pinode,
 	inode = *pinode;
 	cifsInfo = CIFS_I(inode);
 	cifsInfo->cifsAttrs = attr;
+	cifsInfo->delete_pending = pfindData->DeletePending ? true : false;
 	cFYI(1, ("Old time %ld", cifsInfo->time));
 	cifsInfo->time = jiffies;
 	cFYI(1, ("New time %ld", cifsInfo->time));
