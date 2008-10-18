@@ -275,7 +275,6 @@ static void slic_dbg_register_trace(struct adapter *adapter,
 			  card->reg_value[i], card->reg_valueh[i]);
 	}
 }
-}
 #endif
 
 static void slic_init_adapter(struct net_device *netdev,
