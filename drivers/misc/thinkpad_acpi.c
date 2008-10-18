@@ -582,7 +582,8 @@ static int __init register_tpacpi_subdriver(struct ibm_struct *ibm)
 
 	ibm->acpi->driver = kzalloc(sizeof(struct acpi_driver), GFP_KERNEL);
 	if (!ibm->acpi->driver) {
-		printk(TPACPI_ERR "kzalloc(ibm->driver) failed\n");
+		printk(TPACPI_ERR
+		       "failed to allocate memory for ibm->acpi->driver\n");
 		return -ENOMEM;
 	}
 
