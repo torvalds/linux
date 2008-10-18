@@ -108,6 +108,7 @@ struct p54_common {
 	struct timer_list stats_timer;
 	struct completion stats_comp;
 	struct sk_buff *cached_stats;
+	struct sk_buff *cached_beacon;
 	int noise;
 	void *eeprom;
 	struct completion eeprom_comp;
