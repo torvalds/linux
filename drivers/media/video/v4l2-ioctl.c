@@ -630,8 +630,8 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 {
 	struct video_device *vfd = video_devdata(file);
 	const struct v4l2_ioctl_ops *ops = vfd->ioctl_ops;
-	void                 *fh = file->private_data;
-	int                  ret = -EINVAL;
+	void *fh = file->private_data;
+	int ret = -EINVAL;
 
 	if ((vfd->debug & V4L2_DEBUG_IOCTL) &&
 				!(vfd->debug & V4L2_DEBUG_IOCTL_ARG)) {
@@ -1861,3 +1861,10 @@ out:
 	return err;
 }
 EXPORT_SYMBOL(video_ioctl2);
+
+long video_ioctl2_unlocked(struct file *file,
+		 unsigned int cmd, unsigned long arg)
+{
+	return video_ioctl2(file->f_path.dentry->d_inode, file, cmd, arg);
+}
+EXPORT_SYMBOL(video_ioctl2_unlocked);

@@ -285,7 +285,9 @@ extern long v4l_compat_ioctl32(struct file *file, unsigned int cmd,
 				unsigned long arg);
 
 extern int video_ioctl2(struct inode *inode, struct file *file,
-			  unsigned int cmd, unsigned long arg);
+			unsigned int cmd, unsigned long arg);
+extern long video_ioctl2_unlocked(struct file *file,
+			unsigned int cmd, unsigned long arg);
 
 /* Include support for obsoleted stuff */
 extern int video_usercopy(struct inode *inode, struct file *file,
