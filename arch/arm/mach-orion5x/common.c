@@ -310,7 +310,8 @@ void __init orion5x_sata_init(struct mv_sata_platform_data *sata_data)
  * SPI
  ****************************************************************************/
 static struct orion_spi_info orion5x_spi_plat_data = {
-	.tclk		= 0,
+	.tclk			= 0,
+	.enable_clock_fix	= 1,
 };
 
 static struct resource orion5x_spi_resources[] = {
