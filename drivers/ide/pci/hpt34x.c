@@ -166,7 +166,7 @@ static const struct pci_device_id hpt34x_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, hpt34x_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver hpt34x_pci_driver = {
 	.name		= "HPT34x_IDE",
 	.id_table	= hpt34x_pci_tbl,
 	.probe		= hpt34x_init_one,
@@ -177,12 +177,12 @@ static struct pci_driver driver = {
 
 static int __init hpt34x_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&hpt34x_pci_driver);
 }
 
 static void __exit hpt34x_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&hpt34x_pci_driver);
 }
 
 module_init(hpt34x_ide_init);

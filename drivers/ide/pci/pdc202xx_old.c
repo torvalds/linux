@@ -168,7 +168,7 @@ static void pdc202xx_dma_start(ide_drive_t *drive)
 {
 	if (drive->current_speed > XFER_UDMA_2)
 		pdc_old_enable_66MHz_clock(drive->hwif);
-	if (drive->media != ide_disk || drive->addressing == 1) {
+	if (drive->media != ide_disk || (drive->dev_flags & IDE_DFLAG_LBA48)) {
 		struct request *rq	= HWGROUP(drive)->rq;
 		ide_hwif_t *hwif	= HWIF(drive);
 		unsigned long high_16	= hwif->extra_base - 16;
@@ -188,7 +188,7 @@ static void pdc202xx_dma_start(ide_drive_t *drive)
 
 static int pdc202xx_dma_end(ide_drive_t *drive)
 {
-	if (drive->media != ide_disk || drive->addressing == 1) {
+	if (drive->media != ide_disk || (drive->dev_flags & IDE_DFLAG_LBA48)) {
 		ide_hwif_t *hwif	= HWIF(drive);
 		unsigned long high_16	= hwif->extra_base - 16;
 		unsigned long atapi_reg	= high_16 + (hwif->channel ? 0x24 : 0x20);
@@ -200,7 +200,7 @@ static int pdc202xx_dma_end(ide_drive_t *drive)
 	}
 	if (drive->current_speed > XFER_UDMA_2)
 		pdc_old_disable_66MHz_clock(drive->hwif);
-	return __ide_dma_end(drive);
+	return ide_dma_end(drive);
 }
 
 static int pdc202xx_dma_test_irq(ide_drive_t *drive)
@@ -333,7 +333,7 @@ static const struct ide_dma_ops pdc20246_dma_ops = {
 	.dma_setup		= ide_dma_setup,
 	.dma_exec_cmd		= ide_dma_exec_cmd,
 	.dma_start		= ide_dma_start,
-	.dma_end		= __ide_dma_end,
+	.dma_end		= ide_dma_end,
 	.dma_test_irq		= pdc202xx_dma_test_irq,
 	.dma_lost_irq		= pdc202xx_dma_lost_irq,
 	.dma_timeout		= pdc202xx_dma_timeout,
@@ -426,7 +426,7 @@ static const struct pci_device_id pdc202xx_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, pdc202xx_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver pdc202xx_pci_driver = {
 	.name		= "Promise_Old_IDE",
 	.id_table	= pdc202xx_pci_tbl,
 	.probe		= pdc202xx_init_one,
@@ -437,12 +437,12 @@ static struct pci_driver driver = {
 
 static int __init pdc202xx_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&pdc202xx_pci_driver);
 }
 
 static void __exit pdc202xx_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&pdc202xx_pci_driver);
 }
 
 module_init(pdc202xx_ide_init);

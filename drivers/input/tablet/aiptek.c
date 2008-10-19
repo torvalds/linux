@@ -1202,16 +1202,22 @@ static ssize_t
 store_tabletXtilt(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-	int x;
+	long x;
 
-	if (strcmp(buf, "disable") == 0) {
+	if (strict_strtol(buf, 10, &x)) {
+		size_t len = buf[count - 1] == '\n' ? count - 1 : count;
+
+		if (strncmp(buf, "disable", len))
+			return -EINVAL;
+
 		aiptek->newSetting.xTilt = AIPTEK_TILT_DISABLE;
 	} else {
-		x = (int)simple_strtol(buf, NULL, 10);
-		if (x >= AIPTEK_TILT_MIN && x <= AIPTEK_TILT_MAX) {
-			aiptek->newSetting.xTilt = x;
-		}
+		if (x < AIPTEK_TILT_MIN || x > AIPTEK_TILT_MAX)
+			return -EINVAL;
+
+		aiptek->newSetting.xTilt = x;
 	}
+
 	return count;
 }
 
@@ -1238,16 +1244,22 @@ static ssize_t
 store_tabletYtilt(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-	int y;
+	long y;
 
-	if (strcmp(buf, "disable") == 0) {
+	if (strict_strtol(buf, 10, &y)) {
+		size_t len = buf[count - 1] == '\n' ? count - 1 : count;
+
+		if (strncmp(buf, "disable", len))
+			return -EINVAL;
+
 		aiptek->newSetting.yTilt = AIPTEK_TILT_DISABLE;
 	} else {
-		y = (int)simple_strtol(buf, NULL, 10);
-		if (y >= AIPTEK_TILT_MIN && y <= AIPTEK_TILT_MAX) {
-			aiptek->newSetting.yTilt = y;
-		}
+		if (y < AIPTEK_TILT_MIN || y > AIPTEK_TILT_MAX)
+			return -EINVAL;
+
+		aiptek->newSetting.yTilt = y;
 	}
+
 	return count;
 }
 
@@ -1269,8 +1281,12 @@ static ssize_t
 store_tabletJitterDelay(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
+	long j;
 
-	aiptek->newSetting.jitterDelay = (int)simple_strtol(buf, NULL, 10);
+	if (strict_strtol(buf, 10, &j))
+		return -EINVAL;
+
+	aiptek->newSetting.jitterDelay = (int)j;
 	return count;
 }
 
@@ -1294,8 +1310,12 @@ static ssize_t
 store_tabletProgrammableDelay(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
+	long d;
 
-	aiptek->newSetting.programmableDelay = (int)simple_strtol(buf, NULL, 10);
+	if (strict_strtol(buf, 10, &d))
+		return -EINVAL;
+
+	aiptek->newSetting.programmableDelay = (int)d;
 	return count;
 }
 
@@ -1541,8 +1561,11 @@ static ssize_t
 store_tabletWheel(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
+	long w;
 
-	aiptek->newSetting.wheel = (int)simple_strtol(buf, NULL, 10);
+	if (strict_strtol(buf, 10, &w)) return -EINVAL;
+
+	aiptek->newSetting.wheel = (int)w;
 	return count;
 }
 
@@ -1683,20 +1706,21 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	aiptek = kzalloc(sizeof(struct aiptek), GFP_KERNEL);
 	inputdev = input_allocate_device();
 	if (!aiptek || !inputdev) {
-		warn("aiptek: cannot allocate memory or input device");
+		dev_warn(&intf->dev,
+			 "cannot allocate memory or input device\n");
 		goto fail1;
         }
 
 	aiptek->data = usb_buffer_alloc(usbdev, AIPTEK_PACKET_LENGTH,
 					GFP_ATOMIC, &aiptek->data_dma);
         if (!aiptek->data) {
-		warn("aiptek: cannot allocate usb buffer");
+		dev_warn(&intf->dev, "cannot allocate usb buffer\n");
 		goto fail1;
 	}
 
 	aiptek->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!aiptek->urb) {
-	        warn("aiptek: cannot allocate urb");
+	        dev_warn(&intf->dev, "cannot allocate urb\n");
 		goto fail2;
 	}
 
@@ -1820,8 +1844,9 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		aiptek->curSetting.programmableDelay = speeds[i];
 		(void)aiptek_program_tablet(aiptek);
 		if (aiptek->inputdev->absmax[ABS_X] > 0) {
-			info("input: Aiptek using %d ms programming speed\n",
-			     aiptek->curSetting.programmableDelay);
+			dev_info(&intf->dev,
+				 "Aiptek using %d ms programming speed\n",
+				 aiptek->curSetting.programmableDelay);
 			break;
 		}
 	}
@@ -1829,7 +1854,8 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	/* Murphy says that some day someone will have a tablet that fails the
 	   above test. That's you, Frederic Rodrigo */
 	if (i == ARRAY_SIZE(speeds)) {
-		info("input: Aiptek tried all speeds, no sane response");
+		dev_info(&intf->dev,
+			 "Aiptek tried all speeds, no sane response\n");
 		goto fail2;
 	}
 
@@ -1841,7 +1867,8 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	 */
 	err = sysfs_create_group(&intf->dev.kobj, &aiptek_attribute_group);
 	if (err) {
-		warn("aiptek: cannot create sysfs group err: %d", err);
+		dev_warn(&intf->dev, "cannot create sysfs group err: %d\n",
+			 err);
 		goto fail3;
         }
 
@@ -1849,7 +1876,8 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	 */
 	err = input_register_device(aiptek->inputdev);
 	if (err) {
-		warn("aiptek: input_register_device returned err: %d", err);
+		dev_warn(&intf->dev,
+			 "input_register_device returned err: %d\n", err);
 		goto fail4;
         }
 	return 0;
@@ -1899,8 +1927,9 @@ static int __init aiptek_init(void)
 {
 	int result = usb_register(&aiptek_driver);
 	if (result == 0) {
-		info(DRIVER_VERSION ": " DRIVER_AUTHOR);
-		info(DRIVER_DESC);
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+		       DRIVER_DESC "\n");
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_AUTHOR "\n");
 	}
 	return result;
 }

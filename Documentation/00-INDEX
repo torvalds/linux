@@ -21,6 +21,9 @@ Changes
 	- list of changes that break older software packages.
 CodingStyle
 	- how the boss likes the C code in the kernel to look.
+development-process/
+	- An extended tutorial on how to work with the kernel development
+	  process.
 DMA-API.txt
 	- DMA API, pci_ API & extensions for non-consistent memory machines.
 DMA-ISA-LPC.txt

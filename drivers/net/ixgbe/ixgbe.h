@@ -36,7 +36,7 @@
 #include "ixgbe_type.h"
 #include "ixgbe_common.h"
 
-#if defined(CONFIG_DCA) || defined(CONFIG_DCA_MODULE)
+#ifdef CONFIG_IXGBE_DCA
 #include <linux/dca.h>
 #endif
 
@@ -136,7 +136,7 @@ struct ixgbe_ring {
 		      * offset associated with this ring, which is different
 		      * for DCE and RSS modes */
 
-#if defined(CONFIG_DCA) || defined(CONFIG_DCA_MODULE)
+#ifdef CONFIG_IXGBE_DCA
 	/* cpu for tx queue */
 	int cpu;
 #endif

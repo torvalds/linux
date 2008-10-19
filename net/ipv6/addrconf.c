@@ -3982,7 +3982,6 @@ int addrconf_sysctl_forward(ctl_table *ctl, int write, struct file * filp,
 }
 
 static int addrconf_sysctl_forward_strategy(ctl_table *table,
-					    int __user *name, int nlen,
 					    void __user *oldval,
 					    size_t __user *oldlenp,
 					    void __user *newval, size_t newlen)

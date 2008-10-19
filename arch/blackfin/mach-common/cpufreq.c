@@ -158,8 +158,6 @@ static int __init __bfin_cpu_init(struct cpufreq_policy *policy)
 						 dpm_state_table[index].tscale);
 	}
 
-	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
-
 	policy->cpuinfo.transition_latency = (bfin_read_PLL_LOCKCNT() / (sclk / 1000000)) * 1000;
 	/*Now ,only support one cpu */
 	policy->cur = cclk;

@@ -131,7 +131,7 @@ static void ali14xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		drive->name, pio, time1, time2, param1, param2, param3, param4);
 
 	/* stuff timing parameters into controller registers */
-	driveNum = (HWIF(drive)->index << 1) + drive->select.b.unit;
+	driveNum = (drive->hwif->index << 1) + (drive->dn & 1);
 	spin_lock_irqsave(&ali14xx_lock, flags);
 	outb_p(regOn, basePort);
 	outReg(param1, regTab[driveNum].reg1);

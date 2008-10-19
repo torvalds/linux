@@ -1476,9 +1476,12 @@ static int cafe_v4l_open(struct inode *inode, struct file *filp)
 {
 	struct cafe_camera *cam;
 
+	lock_kernel();
 	cam = cafe_find_dev(iminor(inode));
-	if (cam == NULL)
+	if (cam == NULL) {
+		unlock_kernel();
 		return -ENODEV;
+	}
 	filp->private_data = cam;
 
 	mutex_lock(&cam->s_mutex);
@@ -1490,6 +1493,7 @@ static int cafe_v4l_open(struct inode *inode, struct file *filp)
 	}
 	(cam->users)++;
 	mutex_unlock(&cam->s_mutex);
+	unlock_kernel();
 	return 0;
 }
 
@@ -2092,15 +2096,8 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 		const struct pci_device_id *id)
 {
 	int ret;
-	u16 classword;
 	struct cafe_camera *cam;
-	/*
-	 * Make sure we have a camera here - we'll get calls for
-	 * the other cafe devices as well.
-	 */
-	pci_read_config_word(pdev, PCI_CLASS_DEVICE, &classword);
-	if (classword != PCI_CLASS_MULTIMEDIA_VIDEO)
-		return -ENODEV;
+
 	/*
 	 * Start putting together one of our big camera structures.
 	 */
@@ -2288,8 +2285,8 @@ static int cafe_pci_resume(struct pci_dev *pdev)
 
 
 static struct pci_device_id cafe_ids[] = {
-	{ PCI_DEVICE(0x11ab, 0x4100) }, /* Eventual real ID */
-	{ PCI_DEVICE(0x11ab, 0x4102) }, /* Really eventual real ID */
+	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL,
+		     PCI_DEVICE_ID_MARVELL_88ALP01_CCIC) },
 	{ 0, }
 };
 

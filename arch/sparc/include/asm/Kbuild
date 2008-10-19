@@ -15,8 +15,6 @@ header-y += signal_32.h
 header-y += signal_64.h
 header-y += stat_32.h
 header-y += stat_64.h
-header-y += statfs_32.h
-header-y += statfs_64.h
 header-y += unistd_32.h
 header-y += unistd_64.h
 

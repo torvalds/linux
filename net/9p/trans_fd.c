@@ -86,7 +86,7 @@ enum {
 	Opt_port, Opt_rfdno, Opt_wfdno, Opt_err,
 };
 
-static match_table_t tokens = {
+static const match_table_t tokens = {
 	{Opt_port, "port=%u"},
 	{Opt_rfdno, "rfdno=%u"},
 	{Opt_wfdno, "wfdno=%u"},

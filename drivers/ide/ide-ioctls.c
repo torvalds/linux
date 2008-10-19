@@ -62,7 +62,7 @@ static int ide_get_identity_ioctl(ide_drive_t *drive, unsigned int cmd,
 	int size = (cmd == HDIO_GET_IDENTITY) ? (ATA_ID_WORDS * 2) : 142;
 	int rc = 0;
 
-	if (drive->id_read == 0) {
+	if ((drive->dev_flags & IDE_DFLAG_ID_READ) == 0) {
 		rc = -ENOMSG;
 		goto out;
 	}
@@ -86,8 +86,10 @@ out:
 
 static int ide_get_nice_ioctl(ide_drive_t *drive, unsigned long arg)
 {
-	return put_user((drive->dsc_overlap << IDE_NICE_DSC_OVERLAP) |
-			(drive->nice1 << IDE_NICE_1), (long __user *)arg);
+	return put_user((!!(drive->dev_flags & IDE_DFLAG_DSC_OVERLAP)
+			 << IDE_NICE_DSC_OVERLAP) |
+			(!!(drive->dev_flags & IDE_DFLAG_NICE1)
+			 << IDE_NICE_1), (long __user *)arg);
 }
 
 static int ide_set_nice_ioctl(ide_drive_t *drive, unsigned long arg)
@@ -97,11 +99,18 @@ static int ide_set_nice_ioctl(ide_drive_t *drive, unsigned long arg)
 
 	if (((arg >> IDE_NICE_DSC_OVERLAP) & 1) &&
 	    (drive->media == ide_disk || drive->media == ide_floppy ||
-	     drive->scsi))
+	     (drive->dev_flags & IDE_DFLAG_SCSI)))
 		return -EPERM;
 
-	drive->dsc_overlap = (arg >> IDE_NICE_DSC_OVERLAP) & 1;
-	drive->nice1 = (arg >> IDE_NICE_1) & 1;
+	if ((arg >> IDE_NICE_DSC_OVERLAP) & 1)
+		drive->dev_flags |= IDE_DFLAG_DSC_OVERLAP;
+	else
+		drive->dev_flags &= ~IDE_DFLAG_DSC_OVERLAP;
+
+	if ((arg >> IDE_NICE_1) & 1)
+		drive->dev_flags |= IDE_DFLAG_NICE1;
+	else
+		drive->dev_flags &= ~IDE_DFLAG_NICE1;
 
 	return 0;
 }

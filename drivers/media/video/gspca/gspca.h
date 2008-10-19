@@ -2,7 +2,6 @@
 #define GSPCAV2_H
 
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/usb.h>
 #include <linux/videodev2.h>
@@ -49,13 +48,14 @@ extern int gspca_debug;
 	} while (0)
 
 #define GSPCA_MAX_FRAMES 16	/* maximum number of video frame buffers */
-/* ISOC transfers */
-#define MAX_NURBS 16		/* max number of URBs */
+/* image transfers */
+#define MAX_NURBS 4		/* max number of URBs */
 #define ISO_MAX_PKT 32		/* max number of packets in an ISOC transfer */
 #define ISO_MAX_SIZE 0x8000	/* max size of one URB buffer (32 Kb) */
 
 /* device information - set at probe time */
 struct cam {
+	int bulk_size;		/* buffer size when image transfer by bulk */
 	struct v4l2_pix_format *cam_mode;	/* size nmodes */
 	char nmodes;
 	__u8 epaddr;
@@ -93,7 +93,7 @@ struct sd_desc {
 /* mandatory operations */
 	cam_cf_op config;	/* called on probe */
 	cam_op init;		/* called on probe and resume */
-	cam_v_op start;		/* called on stream on */
+	cam_op start;		/* called on stream on */
 	cam_pkt_op pkt_scan;
 /* optional operations */
 	cam_v_op stopN;		/* called on stream off - main alt */
@@ -105,10 +105,12 @@ struct sd_desc {
 };
 
 /* packet types when moving from iso buf to frame buf */
-#define DISCARD_PACKET	0
-#define FIRST_PACKET	1
-#define INTER_PACKET	2
-#define LAST_PACKET	3
+enum gspca_packet_type {
+	DISCARD_PACKET,
+	FIRST_PACKET,
+	INTER_PACKET,
+	LAST_PACKET
+};
 
 struct gspca_frame {
 	__u8 *data;			/* frame buffer */
@@ -121,6 +123,7 @@ struct gspca_dev {
 	struct video_device vdev;	/* !! must be the first item */
 	struct file_operations fops;
 	struct usb_device *dev;
+	struct kref kref;
 	struct file *capt_file;		/* file doing video capture */
 
 	struct cam cam;				/* device information */
@@ -173,10 +176,11 @@ int gspca_dev_probe(struct usb_interface *intf,
 		struct module *module);
 void gspca_disconnect(struct usb_interface *intf);
 struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
-				    int packet_type,
+				    enum gspca_packet_type packet_type,
 				    struct gspca_frame *frame,
 				    const __u8 *data,
 				    int len);
+struct gspca_frame *gspca_get_i_frame(struct gspca_dev *gspca_dev);
 #ifdef CONFIG_PM
 int gspca_suspend(struct usb_interface *intf, pm_message_t message);
 int gspca_resume(struct usb_interface *intf);

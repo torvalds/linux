@@ -1232,7 +1232,7 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	else
 		viodev->dev.archdata.dma_ops = &dma_iommu_ops;
 	viodev->dev.archdata.dma_data = vio_build_iommu_table(viodev);
-	viodev->dev.archdata.numa_node = of_node_to_nid(of_node);
+	set_dev_node(&viodev->dev, of_node_to_nid(of_node));
 
 	/* init generic 'struct device' fields: */
 	viodev->dev.parent = &vio_bus_device.dev;

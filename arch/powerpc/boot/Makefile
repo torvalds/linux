@@ -310,8 +310,11 @@ $(obj)/dtbImage.%: vmlinux $(wrapperbits) $(obj)/%.dtb
 $(obj)/vmlinux.strip: vmlinux
 	$(STRIP) -s -R .comment $< -o $@
 
+# The iseries hypervisor won't take an ET_DYN executable, so this
+# changes the type (byte 17) in the file to ET_EXEC (2).
 $(obj)/zImage.iseries: vmlinux
 	$(STRIP) -s -R .comment $< -o $@
+	printf "\x02" | dd of=$@ conv=notrunc bs=1 seek=17
 
 $(obj)/uImage: vmlinux $(wrapperbits)
 	$(call if_changed,wrap,uboot)

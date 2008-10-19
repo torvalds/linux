@@ -2,8 +2,7 @@
  * wm8753.c  --  WM8753 ALSA Soc Audio driver
  *
  * Copyright 2003 Wolfson Microelectronics PLC.
- * Author: Liam Girdwood
- *         liam.girdwood@wolfsonmicro.com or linux@wolfsonmicro.com
+ * Author: Liam Girdwood <lrg@slimlogic.co.uk>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -40,6 +39,7 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
+#include <linux/spi/spi.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -51,7 +51,6 @@
 
 #include "wm8753.h"
 
-#define AUDIO_NAME "wm8753"
 #define WM8753_VERSION "0.16"
 
 static int caps_charge = 2000;
@@ -1719,6 +1718,63 @@ err_driver:
 }
 #endif
 
+#if defined(CONFIG_SPI_MASTER)
+static int __devinit wm8753_spi_probe(struct spi_device *spi)
+{
+	struct snd_soc_device *socdev = wm8753_socdev;
+	struct snd_soc_codec *codec = socdev->codec;
+	int ret;
+
+	codec->control_data = spi;
+
+	ret = wm8753_init(socdev);
+	if (ret < 0)
+		dev_err(&spi->dev, "failed to initialise WM8753\n");
+
+	return ret;
+}
+
+static int __devexit wm8753_spi_remove(struct spi_device *spi)
+{
+	return 0;
+}
+
+static struct spi_driver wm8753_spi_driver = {
+	.driver = {
+		.name	= "wm8753",
+		.bus	= &spi_bus_type,
+		.owner	= THIS_MODULE,
+	},
+	.probe		= wm8753_spi_probe,
+	.remove		= __devexit_p(wm8753_spi_remove),
+};
+
+static int wm8753_spi_write(struct spi_device *spi, const char *data, int len)
+{
+	struct spi_transfer t;
+	struct spi_message m;
+	u8 msg[2];
+
+	if (len <= 0)
+		return 0;
+
+	msg[0] = data[0];
+	msg[1] = data[1];
+
+	spi_message_init(&m);
+	memset(&t, 0, (sizeof t));
+
+	t.tx_buf = &msg[0];
+	t.len = len;
+
+	spi_message_add_tail(&t, &m);
+	spi_sync(spi, &m);
+
+	return len;
+}
+#endif
+
+
 static int wm8753_probe(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
@@ -1753,8 +1809,14 @@ static int wm8753_probe(struct platform_device *pdev)
 		codec->hw_write = (hw_write_t)i2c_master_send;
 		ret = wm8753_add_i2c_device(pdev, setup);
 	}
-#else
-		/* Add other interfaces here */
+#endif
+#if defined(CONFIG_SPI_MASTER)
+	if (setup->spi) {
+		codec->hw_write = (hw_write_t)wm8753_spi_write;
+		ret = spi_register_driver(&wm8753_spi_driver);
+		if (ret != 0)
+			printk(KERN_ERR "can't add spi driver");
+	}
 #endif
 
 	if (ret != 0) {
@@ -1797,6 +1859,9 @@ static int wm8753_remove(struct platform_device *pdev)
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	i2c_unregister_device(codec->control_data);
 	i2c_del_driver(&wm8753_i2c_driver);
+#endif
+#if defined(CONFIG_SPI_MASTER)
+	spi_unregister_driver(&wm8753_spi_driver);
 #endif
 	kfree(codec->private_data);
 	kfree(codec);

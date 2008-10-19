@@ -317,7 +317,7 @@ static void ide_dump_sector(ide_drive_t *drive)
 {
 	ide_task_t task;
 	struct ide_taskfile *tf = &task.tf;
-	int lba48 = (drive->addressing == 1) ? 1 : 0;
+	u8 lba48 = !!(drive->dev_flags & IDE_DFLAG_LBA48);
 
 	memset(&task, 0, sizeof(task));
 	if (lba48)

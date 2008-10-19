@@ -29,7 +29,6 @@
 
 #include "wm8750.h"
 
-#define AUDIO_NAME "WM8750"
 #define WM8750_VERSION "0.12"
 
 /* codec private data */

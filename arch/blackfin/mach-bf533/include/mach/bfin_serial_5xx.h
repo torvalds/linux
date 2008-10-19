@@ -85,7 +85,7 @@ struct bfin_serial_port {
 	unsigned int		rx_dma_channel;
 	struct work_struct	tx_dma_workqueue;
 #else
-# if ANOMALY_05000230
+# if ANOMALY_05000363
 	unsigned int anomaly_threshold;
 # endif
 #endif
@@ -158,7 +158,7 @@ static void bfin_serial_hw_init(struct bfin_serial_port *uart)
 	}
 	if (uart->rts_pin >= 0) {
 		gpio_request(uart->rts_pin, DRIVER_NAME);
-		gpio_direction_input(uart->rts_pin, 0);
+		gpio_direction_output(uart->rts_pin, 0);
 	}
 #endif
 }

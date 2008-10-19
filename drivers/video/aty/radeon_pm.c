@@ -2653,9 +2653,9 @@ int radeonfb_pci_suspend(struct pci_dev *pdev, pm_message_t mesg)
 
 	if (!(info->flags & FBINFO_HWACCEL_DISABLED)) {
 		/* Make sure engine is reset */
-		radeon_engine_idle();
+		radeon_engine_idle(rinfo);
 		radeonfb_engine_reset(rinfo);
-		radeon_engine_idle();
+		radeon_engine_idle(rinfo);
 	}
 
 	/* Blank display and LCD */
@@ -2767,7 +2767,7 @@ int radeonfb_pci_resume(struct pci_dev *pdev)
 
 		rinfo->asleep = 0;
 	} else
-		radeon_engine_idle();
+		radeon_engine_idle(rinfo);
 
 	/* Restore display & engine */
 	radeon_write_mode (rinfo, &rinfo->state, 1);

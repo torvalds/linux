@@ -23,11 +23,16 @@
 #define AUTOFS_MIN_PROTO_VERSION	3
 #define AUTOFS_MAX_PROTO_VERSION	5
 
-#define AUTOFS_PROTO_SUBVERSION		0
+#define AUTOFS_PROTO_SUBVERSION		1
 
 /* Mask for expire behaviour */
 #define AUTOFS_EXP_IMMEDIATE		1
 #define AUTOFS_EXP_LEAVES		2
+
+#define AUTOFS_TYPE_ANY			0x0000
+#define AUTOFS_TYPE_INDIRECT		0x0001
+#define AUTOFS_TYPE_DIRECT		0x0002
+#define AUTOFS_TYPE_OFFSET		0x0004
 
 /* Daemon notification packet types */
 enum autofs_notify {

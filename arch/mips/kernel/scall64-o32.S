@@ -283,8 +283,8 @@ sys_call_table:
 	PTR	compat_sys_setrlimit		/* 4075 */
 	PTR	compat_sys_getrlimit
 	PTR	compat_sys_getrusage
-	PTR	sys32_gettimeofday
-	PTR	sys32_settimeofday
+	PTR	compat_sys_gettimeofday
+	PTR	compat_sys_settimeofday
 	PTR	sys_getgroups			/* 4080 */
 	PTR	sys_setgroups
 	PTR	sys_ni_syscall			/* old_select */

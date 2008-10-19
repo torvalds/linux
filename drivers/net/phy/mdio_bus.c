@@ -55,6 +55,7 @@ EXPORT_SYMBOL(mdiobus_alloc);
 
 /**
  * mdiobus_release - mii_bus device release callback
+ * @d: the target struct device that contains the mii_bus
  *
  * Description: called when the last reference to an mii_bus is
  * dropped, to free the underlying memory.

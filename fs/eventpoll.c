@@ -927,14 +927,11 @@ errxit:
 	/*
 	 * During the time we spent in the loop above, some other events
 	 * might have been queued by the poll callback. We re-insert them
-	 * here (in case they are not already queued, or they're one-shot).
+	 * inside the main ready-list here.
 	 */
 	for (nepi = ep->ovflist; (epi = nepi) != NULL;
-	     nepi = epi->next, epi->next = EP_UNACTIVE_PTR) {
-		if (!ep_is_linked(&epi->rdllink) &&
-		    (epi->event.events & ~EP_PRIVATE_BITS))
-			list_add_tail(&epi->rdllink, &ep->rdllist);
-	}
+	     nepi = epi->next, epi->next = EP_UNACTIVE_PTR)
+		list_add_tail(&epi->rdllink, &ep->rdllist);
 	/*
 	 * We need to set back ep->ovflist to EP_UNACTIVE_PTR, so that after
 	 * releasing the lock, events will be queued in the normal way inside

@@ -51,17 +51,6 @@ static int protect4gb = 1;
 
 static void __iommu_free(struct iommu_table *, dma_addr_t, unsigned int);
 
-static inline unsigned long iommu_num_pages(unsigned long vaddr,
-					    unsigned long slen)
-{
-	unsigned long npages;
-
-	npages = IOMMU_PAGE_ALIGN(vaddr + slen) - (vaddr & IOMMU_PAGE_MASK);
-	npages >>= IOMMU_PAGE_SHIFT;
-
-	return npages;
-}
-
 static int __init setup_protect4gb(char *str)
 {
 	if (strcmp(str, "on") == 0)
@@ -325,7 +314,7 @@ int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 		}
 		/* Allocate iommu entries for that segment */
 		vaddr = (unsigned long) sg_virt(s);
-		npages = iommu_num_pages(vaddr, slen);
+		npages = iommu_num_pages(vaddr, slen, IOMMU_PAGE_SIZE);
 		align = 0;
 		if (IOMMU_PAGE_SHIFT < PAGE_SHIFT && slen >= PAGE_SIZE &&
 		    (vaddr & ~PAGE_MASK) == 0)
@@ -418,7 +407,8 @@ int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 			unsigned long vaddr, npages;
 
 			vaddr = s->dma_address & IOMMU_PAGE_MASK;
-			npages = iommu_num_pages(s->dma_address, s->dma_length);
+			npages = iommu_num_pages(s->dma_address, s->dma_length,
+						 IOMMU_PAGE_SIZE);
 			__iommu_free(tbl, vaddr, npages);
 			s->dma_address = DMA_ERROR_CODE;
 			s->dma_length = 0;
@@ -452,7 +442,8 @@ void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 
 		if (sg->dma_length == 0)
 			break;
-		npages = iommu_num_pages(dma_handle, sg->dma_length);
+		npages = iommu_num_pages(dma_handle, sg->dma_length,
+					 IOMMU_PAGE_SIZE);
 		__iommu_free(tbl, dma_handle, npages);
 		sg = sg_next(sg);
 	}
@@ -584,7 +575,7 @@ dma_addr_t iommu_map_single(struct device *dev, struct iommu_table *tbl,
 	BUG_ON(direction == DMA_NONE);
 
 	uaddr = (unsigned long)vaddr;
-	npages = iommu_num_pages(uaddr, size);
+	npages = iommu_num_pages(uaddr, size, IOMMU_PAGE_SIZE);
 
 	if (tbl) {
 		align = 0;
@@ -617,7 +608,7 @@ void iommu_unmap_single(struct iommu_table *tbl, dma_addr_t dma_handle,
 	BUG_ON(direction == DMA_NONE);
 
 	if (tbl) {
-		npages = iommu_num_pages(dma_handle, size);
+		npages = iommu_num_pages(dma_handle, size, IOMMU_PAGE_SIZE);
 		iommu_free(tbl, dma_handle, npages);
 	}
 }

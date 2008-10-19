@@ -458,35 +458,35 @@ static int hp_sdc_rtc_proc_output (char *buf)
 		p += sprintf(p, "i8042 rtc\t: READ FAILED!\n");
 	} else {
 		p += sprintf(p, "i8042 rtc\t: %ld.%02d seconds\n", 
-			     tv.tv_sec, tv.tv_usec/1000);
+			     tv.tv_sec, (int)tv.tv_usec/1000);
 	}
 
 	if (hp_sdc_rtc_read_fhs(&tv)) {
 		p += sprintf(p, "handshake\t: READ FAILED!\n");
 	} else {
         	p += sprintf(p, "handshake\t: %ld.%02d seconds\n", 
-			     tv.tv_sec, tv.tv_usec/1000);
+			     tv.tv_sec, (int)tv.tv_usec/1000);
 	}
 
 	if (hp_sdc_rtc_read_mt(&tv)) {
 		p += sprintf(p, "alarm\t\t: READ FAILED!\n");
 	} else {
 		p += sprintf(p, "alarm\t\t: %ld.%02d seconds\n", 
-			     tv.tv_sec, tv.tv_usec/1000);
+			     tv.tv_sec, (int)tv.tv_usec/1000);
 	}
 
 	if (hp_sdc_rtc_read_dt(&tv)) {
 		p += sprintf(p, "delay\t\t: READ FAILED!\n");
 	} else {
 		p += sprintf(p, "delay\t\t: %ld.%02d seconds\n", 
-			     tv.tv_sec, tv.tv_usec/1000);
+			     tv.tv_sec, (int)tv.tv_usec/1000);
 	}
 
 	if (hp_sdc_rtc_read_ct(&tv)) {
 		p += sprintf(p, "periodic\t: READ FAILED!\n");
 	} else {
 		p += sprintf(p, "periodic\t: %ld.%02d seconds\n", 
-			     tv.tv_sec, tv.tv_usec/1000);
+			     tv.tv_sec, (int)tv.tv_usec/1000);
 	}
 
         p += sprintf(p,

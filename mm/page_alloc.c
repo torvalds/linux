@@ -3952,7 +3952,7 @@ static void check_for_regular_memory(pg_data_t *pgdat)
 void __init free_area_init_nodes(unsigned long *max_zone_pfn)
 {
 	unsigned long nid;
-	enum zone_type i;
+	int i;
 
 	/* Sort early_node_map as initialisation assumes it is sorted */
 	sort_node_map();

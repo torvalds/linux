@@ -122,19 +122,22 @@ static void free_region(struct resource *res)
 
 static int add_interval(struct resource_map *map, u_long base, u_long num)
 {
-    struct resource_map *p, *q;
+	struct resource_map *p, *q;
 
-    for (p = map; ; p = p->next) {
-	if ((p != map) && (p->base+p->num-1 >= base))
-	    return -1;
-	if ((p->next == map) || (p->next->base > base+num-1))
-	    break;
-    }
-    q = kmalloc(sizeof(struct resource_map), GFP_KERNEL);
-    if (!q) return CS_OUT_OF_RESOURCE;
-    q->base = base; q->num = num;
-    q->next = p->next; p->next = q;
-    return CS_SUCCESS;
+	for (p = map; ; p = p->next) {
+		if ((p != map) && (p->base+p->num-1 >= base))
+			return -1;
+		if ((p->next == map) || (p->next->base > base+num-1))
+			break;
+	}
+	q = kmalloc(sizeof(struct resource_map), GFP_KERNEL);
+	if (!q) {
+		printk(KERN_WARNING "out of memory to update resources\n");
+		return -ENOMEM;
+	}
+	q->base = base; q->num = num;
+	q->next = p->next; p->next = q;
+	return 0;
 }
 
 /*====================================================================*/
@@ -166,7 +169,10 @@ static int sub_interval(struct resource_map *map, u_long base, u_long num)
 	    } else {
 		/* Split the block into two pieces */
 		p = kmalloc(sizeof(struct resource_map), GFP_KERNEL);
-		if (!p) return CS_OUT_OF_RESOURCE;
+		if (!p) {
+		    printk(KERN_WARNING "out of memory to update resources\n");
+		    return -ENOMEM;
+		}
 		p->base = base+num;
 		p->num = q->base+q->num - p->base;
 		q->num = base - q->base;
@@ -174,7 +180,7 @@ static int sub_interval(struct resource_map *map, u_long base, u_long num)
 	    }
 	}
     }
-    return CS_SUCCESS;
+    return 0;
 }
 
 /*======================================================================
@@ -194,13 +200,14 @@ static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
     int any;
     u_char *b, hole, most;
 
-    printk(KERN_INFO "cs: IO port probe %#x-%#x:",
-	   base, base+num-1);
+    dev_printk(KERN_INFO, &s->dev, "cs: IO port probe %#x-%#x:",
+	       base, base+num-1);
 
     /* First, what does a floating port look like? */
     b = kzalloc(256, GFP_KERNEL);
     if (!b) {
-            printk(KERN_ERR "do_io_probe: unable to kmalloc 256 bytes");
+	    dev_printk(KERN_ERR, &s->dev,
+		   "do_io_probe: unable to kmalloc 256 bytes");
             return;
     }
     for (i = base, most = 0; i < base+num; i += 8) {
@@ -366,8 +373,8 @@ static int do_mem_probe(u_long base, u_long num, struct pcmcia_socket *s)
     struct socket_data *s_data = s->resource_data;
     u_long i, j, bad, fail, step;
 
-    printk(KERN_INFO "cs: memory probe 0x%06lx-0x%06lx:",
-	   base, base+num-1);
+    dev_printk(KERN_INFO, &s->dev, "cs: memory probe 0x%06lx-0x%06lx:",
+	       base, base+num-1);
     bad = fail = 0;
     step = (num < 0x20000) ? 0x2000 : ((num>>4) & ~0x1fff);
     /* don't allow too large steps */
@@ -431,8 +438,8 @@ static int validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 	if (probe_mask & MEM_PROBE_HIGH) {
 		if (inv_probe(s_data->mem_db.next, s) > 0)
 			return 0;
-		printk(KERN_NOTICE "cs: warning: no high memory space "
-		       "available!\n");
+		dev_printk(KERN_NOTICE, &s->dev,
+			   "cs: warning: no high memory space available!\n");
 		return -ENODEV;
 	}
 
@@ -794,10 +801,11 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 		if (res->flags & IORESOURCE_IO) {
 			if (res == &ioport_resource)
 				continue;
-			printk(KERN_INFO "pcmcia: parent PCI bridge I/O "
-				"window: 0x%llx - 0x%llx\n",
-				(unsigned long long)res->start,
-				(unsigned long long)res->end);
+			dev_printk(KERN_INFO, &s->cb_dev->dev,
+				   "pcmcia: parent PCI bridge I/O "
+				   "window: 0x%llx - 0x%llx\n",
+				   (unsigned long long)res->start,
+				   (unsigned long long)res->end);
 			if (!adjust_io(s, ADD_MANAGED_RESOURCE, res->start, res->end))
 				done |= IORESOURCE_IO;
 
@@ -806,10 +814,11 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 		if (res->flags & IORESOURCE_MEM) {
 			if (res == &iomem_resource)
 				continue;
-			printk(KERN_INFO "pcmcia: parent PCI bridge Memory "
-				"window: 0x%llx - 0x%llx\n",
-				(unsigned long long)res->start,
-				(unsigned long long)res->end);
+			dev_printk(KERN_INFO, &s->cb_dev->dev,
+				   "pcmcia: parent PCI bridge Memory "
+				   "window: 0x%llx - 0x%llx\n",
+				   (unsigned long long)res->start,
+				   (unsigned long long)res->end);
 			if (!adjust_memory(s, ADD_MANAGED_RESOURCE, res->start, res->end))
 				done |= IORESOURCE_MEM;
 		}

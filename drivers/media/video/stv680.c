@@ -84,7 +84,8 @@ static unsigned int debug;
 #define PDEBUG(level, fmt, args...) \
 	do { \
 	if (debug >= level)	\
-		info("[%s:%d] " fmt, __func__, __LINE__ , ## args);	\
+		printk(KERN_INFO KBUILD_MODNAME " [%s:%d] \n" fmt,	\
+			__func__, __LINE__ , ## args);	\
 	} while (0)
 
 
@@ -1086,6 +1087,7 @@ static int stv_open (struct inode *inode, struct file *file)
 	int err = 0;
 
 	/* we are called with the BKL held */
+	lock_kernel();
 	stv680->user = 1;
 	err = stv_init (stv680);	/* main initialization routine for camera */
 
@@ -1099,6 +1101,7 @@ static int stv_open (struct inode *inode, struct file *file)
 	}
 	if (err)
 		stv680->user = 0;
+	unlock_kernel();
 
 	return err;
 }
@@ -1550,7 +1553,8 @@ static int __init usb_stv680_init (void)
 	}
 	PDEBUG (0, "STV(i): usb camera driver version %s registering", DRIVER_VERSION);
 
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return 0;
 }
 

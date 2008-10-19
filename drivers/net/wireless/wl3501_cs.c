@@ -1977,10 +1977,10 @@ static int wl3501_config(struct pcmcia_device *link)
 		link->io.BasePort1 = j;
 		link->io.BasePort2 = link->io.BasePort1 + 0x10;
 		i = pcmcia_request_io(link, &link->io);
-		if (i == CS_SUCCESS)
+		if (i == 0)
 			break;
 	}
-	if (i != CS_SUCCESS) {
+	if (i != 0) {
 		cs_error(link, RequestIO, i);
 		goto failed;
 	}

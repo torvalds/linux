@@ -46,7 +46,6 @@
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 #include <pcmcia/ss.h>
-#include "cs_internal.h"
 
 #define MODNAME "hd64465_ss"
 

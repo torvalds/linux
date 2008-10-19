@@ -335,9 +335,6 @@ static __init int pxa_cpufreq_init(struct cpufreq_policy *policy)
 		pxa27x_guess_max_freq();
 
 	/* set default policy and cpuinfo */
-	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
-	if (cpu_is_pxa25x())
-		policy->policy = CPUFREQ_POLICY_PERFORMANCE;
 	policy->cpuinfo.transition_latency = 1000; /* FIXME: 1 ms, assumed */
 	policy->cur = get_clk_frequency_khz(0);	   /* current freq */
 	policy->min = policy->max = policy->cur;

@@ -125,13 +125,13 @@ void __init pci_iommu_alloc(void)
 	pci_swiotlb_init();
 }
 
-unsigned long iommu_num_pages(unsigned long addr, unsigned long len)
+unsigned long iommu_nr_pages(unsigned long addr, unsigned long len)
 {
 	unsigned long size = roundup((addr & ~PAGE_MASK) + len, PAGE_SIZE);
 
 	return size >> PAGE_SHIFT;
 }
-EXPORT_SYMBOL(iommu_num_pages);
+EXPORT_SYMBOL(iommu_nr_pages);
 #endif
 
 void *dma_generic_alloc_coherent(struct device *dev, size_t size,

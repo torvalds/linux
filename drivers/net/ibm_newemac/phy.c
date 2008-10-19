@@ -38,6 +38,16 @@ static inline void phy_write(struct mii_phy *phy, int reg, int val)
 	phy->mdio_write(phy->dev, phy->address, reg, val);
 }
 
+static inline int gpcs_phy_read(struct mii_phy *phy, int reg)
+{
+	return phy->mdio_read(phy->dev, phy->gpcs_address, reg);
+}
+
+static inline void gpcs_phy_write(struct mii_phy *phy, int reg, int val)
+{
+	phy->mdio_write(phy->dev, phy->gpcs_address, reg, val);
+}
+
 int emac_mii_reset_phy(struct mii_phy *phy)
 {
 	int val;
@@ -58,6 +68,37 @@ int emac_mii_reset_phy(struct mii_phy *phy)
 	}
 	if ((val & BMCR_ISOLATE) && limit > 0)
 		phy_write(phy, MII_BMCR, val & ~BMCR_ISOLATE);
+
+	return limit <= 0;
+}
+
+int emac_mii_reset_gpcs(struct mii_phy *phy)
+{
+	int val;
+	int limit = 10000;
+
+	val = gpcs_phy_read(phy, MII_BMCR);
+	val &= ~(BMCR_ISOLATE | BMCR_ANENABLE);
+	val |= BMCR_RESET;
+	gpcs_phy_write(phy, MII_BMCR, val);
+
+	udelay(300);
+
+	while (limit--) {
+		val = gpcs_phy_read(phy, MII_BMCR);
+		if (val >= 0 && (val & BMCR_RESET) == 0)
+			break;
+		udelay(10);
+	}
+	if ((val & BMCR_ISOLATE) && limit > 0)
+		gpcs_phy_write(phy, MII_BMCR, val & ~BMCR_ISOLATE);
+
+	if (limit > 0 && phy->mode == PHY_MODE_SGMII) {
+		/* Configure GPCS interface to recommended setting for SGMII */
+		gpcs_phy_write(phy, 0x04, 0x8120); /* AsymPause, FDX */
+		gpcs_phy_write(phy, 0x07, 0x2801); /* msg_pg, toggle */
+		gpcs_phy_write(phy, 0x00, 0x0140); /* 1Gbps, FDX     */
+	}
 
 	return limit <= 0;
 }
@@ -332,6 +373,33 @@ static int m88e1111_init(struct mii_phy *phy)
 	return  0;
 }
 
+static int m88e1112_init(struct mii_phy *phy)
+{
+	/*
+	 * Marvell 88E1112 PHY needs to have the SGMII MAC
+	 * interace (page 2) properly configured to
+	 * communicate with the 460EX/GT GPCS interface.
+	 */
+
+	u16 reg_short;
+
+	pr_debug("%s: Marvell 88E1112 Ethernet\n", __func__);
+
+	/* Set access to Page 2 */
+	phy_write(phy, 0x16, 0x0002);
+
+	phy_write(phy, 0x00, 0x0040); /* 1Gbps */
+	reg_short = (u16)(phy_read(phy, 0x1a));
+	reg_short |= 0x8000; /* bypass Auto-Negotiation */
+	phy_write(phy, 0x1a, reg_short);
+	emac_mii_reset_phy(phy); /* reset MAC interface */
+
+	/* Reset access to Page 0 */
+	phy_write(phy, 0x16, 0x0000);
+
+	return  0;
+}
+
 static int et1011c_init(struct mii_phy *phy)
 {
 	u16 reg_short;
@@ -384,11 +452,27 @@ static struct mii_phy_def m88e1111_phy_def = {
 	.ops		= &m88e1111_phy_ops,
 };
 
+static struct mii_phy_ops m88e1112_phy_ops = {
+	.init		= m88e1112_init,
+	.setup_aneg	= genmii_setup_aneg,
+	.setup_forced	= genmii_setup_forced,
+	.poll_link	= genmii_poll_link,
+	.read_link	= genmii_read_link
+};
+
+static struct mii_phy_def m88e1112_phy_def = {
+	.phy_id		= 0x01410C90,
+	.phy_id_mask	= 0x0ffffff0,
+	.name		= "Marvell 88E1112 Ethernet",
+	.ops		= &m88e1112_phy_ops,
+};
+
 static struct mii_phy_def *mii_phy_table[] = {
 	&et1011c_phy_def,
 	&cis8201_phy_def,
 	&bcm5248_phy_def,
 	&m88e1111_phy_def,
+	&m88e1112_phy_def,
 	&genmii_phy_def,
 	NULL
 };

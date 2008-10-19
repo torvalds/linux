@@ -866,8 +866,8 @@ static int __init ppp_init(void)
 			err = PTR_ERR(ppp_class);
 			goto out_chrdev;
 		}
-		device_create_drvdata(ppp_class, NULL, MKDEV(PPP_MAJOR, 0),
-				      NULL, "ppp");
+		device_create(ppp_class, NULL, MKDEV(PPP_MAJOR, 0), NULL,
+			      "ppp");
 	}
 
 out:
@@ -2127,13 +2127,9 @@ ppp_set_compress(struct ppp *ppp, unsigned long arg)
 	    || ccp_option[1] < 2 || ccp_option[1] > data.length)
 		goto out;
 
-	cp = find_compressor(ccp_option[0]);
-#ifdef CONFIG_KMOD
-	if (!cp) {
-		request_module("ppp-compress-%d", ccp_option[0]);
-		cp = find_compressor(ccp_option[0]);
-	}
-#endif /* CONFIG_KMOD */
+	cp = try_then_request_module(
+		find_compressor(ccp_option[0]),
+		"ppp-compress-%d", ccp_option[0]);
 	if (!cp)
 		goto out;
 

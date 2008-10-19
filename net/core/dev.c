@@ -4956,8 +4956,6 @@ EXPORT_SYMBOL(br_fdb_get_hook);
 EXPORT_SYMBOL(br_fdb_put_hook);
 #endif
 
-#ifdef CONFIG_KMOD
 EXPORT_SYMBOL(dev_load);
-#endif
 
 EXPORT_PER_CPU_SYMBOL(softnet_data);

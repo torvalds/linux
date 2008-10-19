@@ -36,7 +36,6 @@
 #include "uda1380.h"
 
 #define UDA1380_VERSION "0.6"
-#define AUDIO_NAME "uda1380"
 
 /*
  * uda1380 register cache

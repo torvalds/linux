@@ -13,7 +13,6 @@
 #include <linux/debugfs.h>
 #include <linux/notifier.h>
 #include <linux/device.h>
-#include <linux/list.h>
 #include <net/genetlink.h>
 #include <net/cfg80211.h>
 #include <net/wireless.h>
@@ -185,7 +184,8 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 	if (result)
 		goto out_unlock;
 
-	if (!debugfs_rename(rdev->wiphy.debugfsdir->d_parent,
+	if (rdev->wiphy.debugfsdir &&
+	    !debugfs_rename(rdev->wiphy.debugfsdir->d_parent,
 			    rdev->wiphy.debugfsdir,
 			    rdev->wiphy.debugfsdir->d_parent,
 			    newname))
@@ -318,6 +318,8 @@ int wiphy_register(struct wiphy *wiphy)
 	drv->wiphy.debugfsdir =
 		debugfs_create_dir(wiphy_name(&drv->wiphy),
 				   ieee80211_debugfs_dir);
+	if (IS_ERR(drv->wiphy.debugfsdir))
+		drv->wiphy.debugfsdir = NULL;
 
 	res = 0;
 out_unlock:

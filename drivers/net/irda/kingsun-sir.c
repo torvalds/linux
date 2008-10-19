@@ -540,7 +540,8 @@ static int kingsun_probe(struct usb_interface *intf,
 	if (ret != 0)
 		goto free_mem;
 
-	info("IrDA: Registered KingSun/DonShine device %s", net->name);
+	dev_info(&net->dev, "IrDA: Registered KingSun/DonShine device %s\n",
+		 net->name);
 
 	usb_set_intfdata(intf, kingsun);
 

@@ -179,7 +179,7 @@ static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	misc = addr_timings[clk][addr_pio];
 
 	/* select Index-0/1 for Register-A/B */
-	write_reg(drive->select.b.unit, MISC_REG);
+	write_reg(drive->dn & 1, MISC_REG);
 	/* set read cycle timings */
 	write_reg(tim, READ_REG);
 	/* set write cycle timings */
@@ -220,7 +220,7 @@ static const struct pci_device_id opti621_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, opti621_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver opti621_pci_driver = {
 	.name		= "Opti621_IDE",
 	.id_table	= opti621_pci_tbl,
 	.probe		= opti621_init_one,
@@ -231,12 +231,12 @@ static struct pci_driver driver = {
 
 static int __init opti621_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&opti621_pci_driver);
 }
 
 static void __exit opti621_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&opti621_pci_driver);
 }
 
 module_init(opti621_ide_init);

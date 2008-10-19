@@ -549,9 +549,9 @@ int snd_card_register(struct snd_card *card)
 		return -EINVAL;
 #ifndef CONFIG_SYSFS_DEPRECATED
 	if (!card->card_dev) {
-		card->card_dev = device_create_drvdata(sound_class, card->dev,
-						       MKDEV(0, 0), NULL,
-						       "card%i", card->number);
+		card->card_dev = device_create(sound_class, card->dev,
+					       MKDEV(0, 0), NULL,
+					       "card%i", card->number);
 		if (IS_ERR(card->card_dev))
 			card->card_dev = NULL;
 	}

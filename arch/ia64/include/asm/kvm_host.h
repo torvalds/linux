@@ -132,7 +132,7 @@
 #define GPFN_IOSAPIC        (4UL << 60) /* IOSAPIC base */
 #define GPFN_LEGACY_IO      (5UL << 60) /* Legacy I/O base */
 #define GPFN_GFW        (6UL << 60) /* Guest Firmware */
-#define GPFN_HIGH_MMIO      (7UL << 60) /* High MMIO range */
+#define GPFN_PHYS_MMIO      (7UL << 60) /* Directed MMIO Range */
 
 #define GPFN_IO_MASK        (7UL << 60) /* Guest pfn is I/O type */
 #define GPFN_INV_MASK       (1UL << 63) /* Guest pfn is invalid */
@@ -413,6 +413,10 @@ struct kvm_arch {
 	struct kvm_ioapic *vioapic;
 	struct kvm_vm_stat stat;
 	struct kvm_sal_data rdv_sal_data;
+
+	struct list_head assigned_dev_head;
+	struct dmar_domain *intel_iommu_domain;
+	struct hlist_head irq_ack_notifier_list;
 };
 
 union cpuid3_t {

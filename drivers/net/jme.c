@@ -21,7 +21,6 @@
  *
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -38,6 +37,7 @@
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/if_vlan.h>
+#include <net/ip6_checksum.h>
 #include "jme.h"
 
 static int force_pseudohp = -1;

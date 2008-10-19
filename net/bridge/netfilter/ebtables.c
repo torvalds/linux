@@ -305,23 +305,14 @@ find_inlist_lock_noload(struct list_head *head, const char *name, int *error,
 	return NULL;
 }
 
-#ifndef CONFIG_KMOD
-#define find_inlist_lock(h,n,p,e,m) find_inlist_lock_noload((h),(n),(e),(m))
-#else
 static void *
 find_inlist_lock(struct list_head *head, const char *name, const char *prefix,
    int *error, struct mutex *mutex)
 {
-	void *ret;
-
-	ret = find_inlist_lock_noload(head, name, error, mutex);
-	if (!ret) {
-		request_module("%s%s", prefix, name);
-		ret = find_inlist_lock_noload(head, name, error, mutex);
-	}
-	return ret;
+	return try_then_request_module(
+			find_inlist_lock_noload(head, name, error, mutex),
+			"%s%s", prefix, name);
 }
-#endif
 
 static inline struct ebt_table *
 find_table_lock(const char *name, int *error, struct mutex *mutex)

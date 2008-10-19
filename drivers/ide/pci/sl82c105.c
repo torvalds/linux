@@ -207,7 +207,7 @@ static int sl82c105_dma_end(ide_drive_t *drive)
 
 	DBG(("%s(drive:%s)\n", __func__, drive->name));
 
-	ret = __ide_dma_end(drive);
+	ret = ide_dma_end(drive);
 
 	pci_write_config_word(dev, reg, drive->drive_data);
 
@@ -345,7 +345,7 @@ static const struct pci_device_id sl82c105_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, sl82c105_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver sl82c105_pci_driver = {
 	.name		= "W82C105_IDE",
 	.id_table	= sl82c105_pci_tbl,
 	.probe		= sl82c105_init_one,
@@ -356,12 +356,12 @@ static struct pci_driver driver = {
 
 static int __init sl82c105_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&sl82c105_pci_driver);
 }
 
 static void __exit sl82c105_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&sl82c105_pci_driver);
 }
 
 module_init(sl82c105_ide_init);

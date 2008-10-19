@@ -20,6 +20,7 @@
 #include <linux/swap.h>
 #include <linux/profile.h>
 #include <linux/delay.h>
+#include <linux/cpu.h>
 
 #include <asm/ptrace.h>
 #include <asm/atomic.h>

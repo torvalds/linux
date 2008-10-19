@@ -14,7 +14,7 @@ MODULE_PARM_DESC(probe, "probe for generic IDE chipset with 4 drives/port");
 static void ide_4drives_init_dev(ide_drive_t *drive)
 {
 	if (drive->hwif->channel)
-		drive->select.all ^= 0x20;
+		drive->select ^= 0x20;
 }
 
 static const struct ide_port_ops ide_4drives_port_ops = {

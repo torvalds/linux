@@ -487,7 +487,7 @@ static const struct pci_device_id via_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, via_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver via_pci_driver = {
 	.name 		= "VIA_IDE",
 	.id_table 	= via_pci_tbl,
 	.probe 		= via_init_one,
@@ -498,12 +498,12 @@ static struct pci_driver driver = {
 
 static int __init via_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&via_pci_driver);
 }
 
 static void __exit via_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&via_pci_driver);
 }
 
 module_init(via_ide_init);

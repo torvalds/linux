@@ -354,7 +354,7 @@ enum {
 	OPT_ERR
 };
 
-static match_table_t tokens = {
+static const match_table_t tokens = {
 	{OPT_FD,			"fd=%u"},
 	{OPT_ROOTMODE,			"rootmode=%o"},
 	{OPT_USER_ID,			"user_id=%u"},

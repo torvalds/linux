@@ -107,6 +107,6 @@ extern int arm_elf_read_implies_exec(const struct elf32_hdr *, int);
 #define ELF_PLAT_INIT(_r, load_addr)	(_r)->ARM_r0 = 0
 
 extern void elf_set_personality(const struct elf32_hdr *);
-#define SET_PERSONALITY(ex, ibcs2)	elf_set_personality(&(ex))
+#define SET_PERSONALITY(ex)	elf_set_personality(&(ex))
 
 #endif

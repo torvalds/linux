@@ -13,20 +13,14 @@ typedef struct ide_floppy_obj {
 	struct kref	kref;
 	unsigned int	openers;	/* protected by BKL for now */
 
-	/* Current packet command */
-	struct ide_atapi_pc *pc;
 	/* Last failed packet command */
 	struct ide_atapi_pc *failed_pc;
 	/* used for blk_{fs,pc}_request() requests */
 	struct ide_atapi_pc queued_pc;
 
-	struct ide_atapi_pc request_sense_pc;
-	struct request request_sense_rq;
-
 	/* Last error information */
 	u8 sense_key, asc, ascq;
-	/* delay this long before sending packet command */
-	u8 ticks;
+
 	int progress_indication;
 
 	/* Device information */
@@ -54,10 +48,15 @@ typedef struct ide_floppy_obj {
 /* ide-floppy.c */
 void ide_floppy_create_mode_sense_cmd(struct ide_atapi_pc *, u8);
 void ide_floppy_create_read_capacity_cmd(struct ide_atapi_pc *);
-void ide_floppy_create_request_sense_cmd(struct ide_atapi_pc *);
+sector_t ide_floppy_capacity(ide_drive_t *);
 
 /* ide-floppy_ioctl.c */
-int ide_floppy_format_ioctl(ide_drive_t *, struct file *, unsigned int,
-			    void __user *);
+int ide_floppy_ioctl(struct inode *, struct file *, unsigned, unsigned long);
+
+#ifdef CONFIG_IDE_PROC_FS
+/* ide-floppy_proc.c */
+extern ide_proc_entry_t ide_floppy_proc[];
+extern const struct ide_proc_devset ide_floppy_settings[];
+#endif
 
 #endif /*__IDE_FLOPPY_H */

@@ -126,7 +126,6 @@ static void sc1200_set_dma_mode(ide_drive_t *drive, const u8 mode)
 {
 	ide_hwif_t		*hwif = HWIF(drive);
 	struct pci_dev		*dev = to_pci_dev(hwif->dev);
-	int			unit = drive->select.b.unit;
 	unsigned int		reg, timings;
 	unsigned short		pci_clock;
 	unsigned int		basereg = hwif->channel ? 0x50 : 0x40;
@@ -155,7 +154,7 @@ static void sc1200_set_dma_mode(ide_drive_t *drive, const u8 mode)
 	else
 		timings = mwdma_timing[pci_clock][mode - XFER_MW_DMA_0];
 
-	if (unit == 0) {			/* are we configuring drive0? */
+	if ((drive->dn & 1) == 0) {
 		pci_read_config_dword(dev, basereg + 4, &reg);
 		timings |= reg & 0x80000000;	/* preserve PIO format bit */
 		pci_write_config_dword(dev, basereg + 4, timings);
@@ -216,7 +215,8 @@ static void sc1200_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	if (mode != -1) {
 		printk("SC1200: %s: changing (U)DMA mode\n", drive->name);
 		ide_dma_off_quietly(drive);
-		if (ide_set_dma_mode(drive, mode) == 0 && drive->using_dma)
+		if (ide_set_dma_mode(drive, mode) == 0 &&
+		    (drive->dev_flags & IDE_DFLAG_USING_DMA))
 			hwif->dma_ops->dma_host_set(drive, 1);
 		return;
 	}
@@ -328,7 +328,7 @@ static const struct pci_device_id sc1200_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, sc1200_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver sc1200_pci_driver = {
 	.name		= "SC1200_IDE",
 	.id_table	= sc1200_pci_tbl,
 	.probe		= sc1200_init_one,
@@ -341,12 +341,12 @@ static struct pci_driver driver = {
 
 static int __init sc1200_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&sc1200_pci_driver);
 }
 
 static void __exit sc1200_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&sc1200_pci_driver);
 }
 
 module_init(sc1200_ide_init);

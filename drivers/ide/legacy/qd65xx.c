@@ -305,7 +305,7 @@ static void __init qd6580_init_dev(ide_drive_t *drive)
 	} else
 		t2 = t1 = hwif->channel ? QD6580_DEF_DATA2 : QD6580_DEF_DATA;
 
-	drive->drive_data = drive->select.b.unit ? t2 : t1;
+	drive->drive_data = (drive->dn & 1) ? t2 : t1;
 }
 
 static const struct ide_port_ops qd6500_port_ops = {

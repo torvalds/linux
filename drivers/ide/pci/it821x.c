@@ -138,8 +138,7 @@ static void it821x_program_udma(ide_drive_t *drive, u16 timing)
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
 	int channel = hwif->channel;
-	int unit = drive->select.b.unit;
-	u8 conf;
+	u8 unit = drive->dn & 1, conf;
 
 	/* Program UDMA timing bits */
 	if(itdev->clock_mode == ATA_66)
@@ -168,13 +167,11 @@ static void it821x_clock_strategy(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
+	ide_drive_t *pair;
+	int clock, altclock, sel = 0;
+	u8 unit = drive->dn & 1, v;
 
-	u8 unit = drive->select.b.unit;
-	ide_drive_t *pair = &hwif->drives[1-unit];
-
-	int clock, altclock;
-	u8 v;
-	int sel = 0;
+	pair = &hwif->drives[1 - unit];
 
 	if(itdev->want[0][0] > itdev->want[1][0]) {
 		clock = itdev->want[0][1];
@@ -240,15 +237,16 @@ static void it821x_clock_strategy(ide_drive_t *drive)
 
 static void it821x_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	ide_hwif_t *hwif	= drive->hwif;
+	ide_hwif_t *hwif = drive->hwif;
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
-	int unit = drive->select.b.unit;
-	ide_drive_t *pair = &hwif->drives[1 - unit];
-	u8 set_pio = pio;
+	ide_drive_t *pair;
+	u8 unit = drive->dn & 1, set_pio = pio;
 
 	/* Spec says 89 ref driver uses 88 */
 	static u16 pio_timings[]= { 0xAA88, 0xA382, 0xA181, 0x3332, 0x3121 };
 	static u8 pio_want[]    = { ATA_66, ATA_66, ATA_66, ATA_66, ATA_ANY };
+
+	pair = &hwif->drives[1 - unit];
 
 	/*
 	 * Compute the best PIO mode we can for a given device. We must
@@ -286,9 +284,7 @@ static void it821x_tune_mwdma (ide_drive_t *drive, byte mode_wanted)
 	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct it821x_dev *itdev = (void *)ide_get_hwifdata(hwif);
-	int unit = drive->select.b.unit;
-	int channel = hwif->channel;
-	u8 conf;
+	u8 unit = drive->dn & 1, channel = hwif->channel, conf;
 
 	static u16 dma[]	= { 0x8866, 0x3222, 0x3121 };
 	static u8 mwdma_want[]	= { ATA_ANY, ATA_66, ATA_ANY };
@@ -325,9 +321,7 @@ static void it821x_tune_udma (ide_drive_t *drive, byte mode_wanted)
 	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
-	int unit = drive->select.b.unit;
-	int channel = hwif->channel;
-	u8 conf;
+	u8 unit = drive->dn & 1, channel = hwif->channel, conf;
 
 	static u16 udma[]	= { 0x4433, 0x4231, 0x3121, 0x2121, 0x1111, 0x2211, 0x1111 };
 	static u8 udma_want[]	= { ATA_ANY, ATA_50, ATA_ANY, ATA_66, ATA_66, ATA_50, ATA_66 };
@@ -369,7 +363,8 @@ static void it821x_dma_start(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
-	int unit = drive->select.b.unit;
+	u8 unit = drive->dn & 1;
+
 	if(itdev->mwdma[unit] != MWDMA_OFF)
 		it821x_program(drive, itdev->mwdma[unit]);
 	else if(itdev->udma[unit] != UDMA_OFF && itdev->timing10)
@@ -389,9 +384,10 @@ static void it821x_dma_start(ide_drive_t *drive)
 static int it821x_dma_end(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	int unit = drive->select.b.unit;
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
-	int ret = __ide_dma_end(drive);
+	int ret = ide_dma_end(drive);
+	u8 unit = drive->dn & 1;
+
 	if(itdev->mwdma[unit] != MWDMA_OFF)
 		it821x_program(drive, itdev->pio[unit]);
 	return ret;
@@ -454,7 +450,7 @@ static void it821x_quirkproc(ide_drive_t *drive)
 		 *	IRQ mask as we may well be in PIO (eg rev 0x10)
 		 *	for now and we know unmasking is safe on this chipset.
 		 */
-		drive->unmask = 1;
+		drive->dev_flags |= IDE_DFLAG_UNMASK;
 	} else {
 	/*
 	 *	Perform fixups on smart mode. We need to "lose" some
@@ -680,7 +676,7 @@ static const struct pci_device_id it821x_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, it821x_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver it821x_pci_driver = {
 	.name		= "ITE821x IDE",
 	.id_table	= it821x_pci_tbl,
 	.probe		= it821x_init_one,
@@ -691,12 +687,12 @@ static struct pci_driver driver = {
 
 static int __init it821x_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&it821x_pci_driver);
 }
 
 static void __exit it821x_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&it821x_pci_driver);
 }
 
 module_init(it821x_ide_init);

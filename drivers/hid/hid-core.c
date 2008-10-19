@@ -33,6 +33,8 @@
 #include <linux/hid-debug.h>
 #include <linux/hidraw.h>
 
+#include "hid-ids.h"
+
 /*
  * Version Information
  */
@@ -268,9 +270,9 @@ static int hid_add_field(struct hid_parser *parser, unsigned report_type, unsign
 static u32 item_udata(struct hid_item *item)
 {
 	switch (item->size) {
-		case 1: return item->data.u8;
-		case 2: return item->data.u16;
-		case 4: return item->data.u32;
+	case 1: return item->data.u8;
+	case 2: return item->data.u16;
+	case 4: return item->data.u32;
 	}
 	return 0;
 }
@@ -278,9 +280,9 @@ static u32 item_udata(struct hid_item *item)
 static s32 item_sdata(struct hid_item *item)
 {
 	switch (item->size) {
-		case 1: return item->data.s8;
-		case 2: return item->data.s16;
-		case 4: return item->data.s32;
+	case 1: return item->data.s8;
+	case 2: return item->data.s16;
+	case 4: return item->data.s32;
 	}
 	return 0;
 }
@@ -292,87 +294,91 @@ static s32 item_sdata(struct hid_item *item)
 static int hid_parser_global(struct hid_parser *parser, struct hid_item *item)
 {
 	switch (item->tag) {
+	case HID_GLOBAL_ITEM_TAG_PUSH:
 
-		case HID_GLOBAL_ITEM_TAG_PUSH:
-
-			if (parser->global_stack_ptr == HID_GLOBAL_STACK_SIZE) {
-				dbg_hid("global enviroment stack overflow\n");
-				return -1;
-			}
-
-			memcpy(parser->global_stack + parser->global_stack_ptr++,
-				&parser->global, sizeof(struct hid_global));
-			return 0;
-
-		case HID_GLOBAL_ITEM_TAG_POP:
-
-			if (!parser->global_stack_ptr) {
-				dbg_hid("global enviroment stack underflow\n");
-				return -1;
-			}
-
-			memcpy(&parser->global, parser->global_stack + --parser->global_stack_ptr,
-				sizeof(struct hid_global));
-			return 0;
-
-		case HID_GLOBAL_ITEM_TAG_USAGE_PAGE:
-			parser->global.usage_page = item_udata(item);
-			return 0;
-
-		case HID_GLOBAL_ITEM_TAG_LOGICAL_MINIMUM:
-			parser->global.logical_minimum = item_sdata(item);
-			return 0;
-
-		case HID_GLOBAL_ITEM_TAG_LOGICAL_MAXIMUM:
-			if (parser->global.logical_minimum < 0)
-				parser->global.logical_maximum = item_sdata(item);
-			else
-				parser->global.logical_maximum = item_udata(item);
-			return 0;
-
-		case HID_GLOBAL_ITEM_TAG_PHYSICAL_MINIMUM:
-			parser->global.physical_minimum = item_sdata(item);
-			return 0;
-
-		case HID_GLOBAL_ITEM_TAG_PHYSICAL_MAXIMUM:
-			if (parser->global.physical_minimum < 0)
-				parser->global.physical_maximum = item_sdata(item);
-			else
-				parser->global.physical_maximum = item_udata(item);
-			return 0;
-
-		case HID_GLOBAL_ITEM_TAG_UNIT_EXPONENT:
-			parser->global.unit_exponent = item_sdata(item);
-			return 0;
-
-		case HID_GLOBAL_ITEM_TAG_UNIT:
-			parser->global.unit = item_udata(item);
-			return 0;
-
-		case HID_GLOBAL_ITEM_TAG_REPORT_SIZE:
-			if ((parser->global.report_size = item_udata(item)) > 32) {
-				dbg_hid("invalid report_size %d\n", parser->global.report_size);
-				return -1;
-			}
-			return 0;
-
-		case HID_GLOBAL_ITEM_TAG_REPORT_COUNT:
-			if ((parser->global.report_count = item_udata(item)) > HID_MAX_USAGES) {
-				dbg_hid("invalid report_count %d\n", parser->global.report_count);
-				return -1;
-			}
-			return 0;
-
-		case HID_GLOBAL_ITEM_TAG_REPORT_ID:
-			if ((parser->global.report_id = item_udata(item)) == 0) {
-				dbg_hid("report_id 0 is invalid\n");
-				return -1;
-			}
-			return 0;
-
-		default:
-			dbg_hid("unknown global tag 0x%x\n", item->tag);
+		if (parser->global_stack_ptr == HID_GLOBAL_STACK_SIZE) {
+			dbg_hid("global enviroment stack overflow\n");
 			return -1;
+		}
+
+		memcpy(parser->global_stack + parser->global_stack_ptr++,
+			&parser->global, sizeof(struct hid_global));
+		return 0;
+
+	case HID_GLOBAL_ITEM_TAG_POP:
+
+		if (!parser->global_stack_ptr) {
+			dbg_hid("global enviroment stack underflow\n");
+			return -1;
+		}
+
+		memcpy(&parser->global, parser->global_stack +
+			--parser->global_stack_ptr, sizeof(struct hid_global));
+		return 0;
+
+	case HID_GLOBAL_ITEM_TAG_USAGE_PAGE:
+		parser->global.usage_page = item_udata(item);
+		return 0;
+
+	case HID_GLOBAL_ITEM_TAG_LOGICAL_MINIMUM:
+		parser->global.logical_minimum = item_sdata(item);
+		return 0;
+
+	case HID_GLOBAL_ITEM_TAG_LOGICAL_MAXIMUM:
+		if (parser->global.logical_minimum < 0)
+			parser->global.logical_maximum = item_sdata(item);
+		else
+			parser->global.logical_maximum = item_udata(item);
+		return 0;
+
+	case HID_GLOBAL_ITEM_TAG_PHYSICAL_MINIMUM:
+		parser->global.physical_minimum = item_sdata(item);
+		return 0;
+
+	case HID_GLOBAL_ITEM_TAG_PHYSICAL_MAXIMUM:
+		if (parser->global.physical_minimum < 0)
+			parser->global.physical_maximum = item_sdata(item);
+		else
+			parser->global.physical_maximum = item_udata(item);
+		return 0;
+
+	case HID_GLOBAL_ITEM_TAG_UNIT_EXPONENT:
+		parser->global.unit_exponent = item_sdata(item);
+		return 0;
+
+	case HID_GLOBAL_ITEM_TAG_UNIT:
+		parser->global.unit = item_udata(item);
+		return 0;
+
+	case HID_GLOBAL_ITEM_TAG_REPORT_SIZE:
+		parser->global.report_size = item_udata(item);
+		if (parser->global.report_size > 32) {
+			dbg_hid("invalid report_size %d\n",
+					parser->global.report_size);
+			return -1;
+		}
+		return 0;
+
+	case HID_GLOBAL_ITEM_TAG_REPORT_COUNT:
+		parser->global.report_count = item_udata(item);
+		if (parser->global.report_count > HID_MAX_USAGES) {
+			dbg_hid("invalid report_count %d\n",
+					parser->global.report_count);
+			return -1;
+		}
+		return 0;
+
+	case HID_GLOBAL_ITEM_TAG_REPORT_ID:
+		parser->global.report_id = item_udata(item);
+		if (parser->global.report_id == 0) {
+			dbg_hid("report_id 0 is invalid\n");
+			return -1;
+		}
+		return 0;
+
+	default:
+		dbg_hid("unknown global tag 0x%x\n", item->tag);
+		return -1;
 	}
 }
 
@@ -393,77 +399,76 @@ static int hid_parser_local(struct hid_parser *parser, struct hid_item *item)
 	data = item_udata(item);
 
 	switch (item->tag) {
+	case HID_LOCAL_ITEM_TAG_DELIMITER:
 
-		case HID_LOCAL_ITEM_TAG_DELIMITER:
-
-			if (data) {
-				/*
-				 * We treat items before the first delimiter
-				 * as global to all usage sets (branch 0).
-				 * In the moment we process only these global
-				 * items and the first delimiter set.
-				 */
-				if (parser->local.delimiter_depth != 0) {
-					dbg_hid("nested delimiters\n");
-					return -1;
-				}
-				parser->local.delimiter_depth++;
-				parser->local.delimiter_branch++;
-			} else {
-				if (parser->local.delimiter_depth < 1) {
-					dbg_hid("bogus close delimiter\n");
-					return -1;
-				}
-				parser->local.delimiter_depth--;
+		if (data) {
+			/*
+			 * We treat items before the first delimiter
+			 * as global to all usage sets (branch 0).
+			 * In the moment we process only these global
+			 * items and the first delimiter set.
+			 */
+			if (parser->local.delimiter_depth != 0) {
+				dbg_hid("nested delimiters\n");
+				return -1;
 			}
-			return 1;
-
-		case HID_LOCAL_ITEM_TAG_USAGE:
-
-			if (parser->local.delimiter_branch > 1) {
-				dbg_hid("alternative usage ignored\n");
-				return 0;
+			parser->local.delimiter_depth++;
+			parser->local.delimiter_branch++;
+		} else {
+			if (parser->local.delimiter_depth < 1) {
+				dbg_hid("bogus close delimiter\n");
+				return -1;
 			}
+			parser->local.delimiter_depth--;
+		}
+		return 1;
 
-			if (item->size <= 2)
-				data = (parser->global.usage_page << 16) + data;
+	case HID_LOCAL_ITEM_TAG_USAGE:
 
-			return hid_add_usage(parser, data);
-
-		case HID_LOCAL_ITEM_TAG_USAGE_MINIMUM:
-
-			if (parser->local.delimiter_branch > 1) {
-				dbg_hid("alternative usage ignored\n");
-				return 0;
-			}
-
-			if (item->size <= 2)
-				data = (parser->global.usage_page << 16) + data;
-
-			parser->local.usage_minimum = data;
+		if (parser->local.delimiter_branch > 1) {
+			dbg_hid("alternative usage ignored\n");
 			return 0;
+		}
 
-		case HID_LOCAL_ITEM_TAG_USAGE_MAXIMUM:
+		if (item->size <= 2)
+			data = (parser->global.usage_page << 16) + data;
 
-			if (parser->local.delimiter_branch > 1) {
-				dbg_hid("alternative usage ignored\n");
-				return 0;
+		return hid_add_usage(parser, data);
+
+	case HID_LOCAL_ITEM_TAG_USAGE_MINIMUM:
+
+		if (parser->local.delimiter_branch > 1) {
+			dbg_hid("alternative usage ignored\n");
+			return 0;
+		}
+
+		if (item->size <= 2)
+			data = (parser->global.usage_page << 16) + data;
+
+		parser->local.usage_minimum = data;
+		return 0;
+
+	case HID_LOCAL_ITEM_TAG_USAGE_MAXIMUM:
+
+		if (parser->local.delimiter_branch > 1) {
+			dbg_hid("alternative usage ignored\n");
+			return 0;
+		}
+
+		if (item->size <= 2)
+			data = (parser->global.usage_page << 16) + data;
+
+		for (n = parser->local.usage_minimum; n <= data; n++)
+			if (hid_add_usage(parser, n)) {
+				dbg_hid("hid_add_usage failed\n");
+				return -1;
 			}
+		return 0;
 
-			if (item->size <= 2)
-				data = (parser->global.usage_page << 16) + data;
+	default:
 
-			for (n = parser->local.usage_minimum; n <= data; n++)
-				if (hid_add_usage(parser, n)) {
-					dbg_hid("hid_add_usage failed\n");
-					return -1;
-				}
-			return 0;
-
-		default:
-
-			dbg_hid("unknown local item tag 0x%x\n", item->tag);
-			return 0;
+		dbg_hid("unknown local item tag 0x%x\n", item->tag);
+		return 0;
 	}
 	return 0;
 }
@@ -480,24 +485,24 @@ static int hid_parser_main(struct hid_parser *parser, struct hid_item *item)
 	data = item_udata(item);
 
 	switch (item->tag) {
-		case HID_MAIN_ITEM_TAG_BEGIN_COLLECTION:
-			ret = open_collection(parser, data & 0xff);
-			break;
-		case HID_MAIN_ITEM_TAG_END_COLLECTION:
-			ret = close_collection(parser);
-			break;
-		case HID_MAIN_ITEM_TAG_INPUT:
-			ret = hid_add_field(parser, HID_INPUT_REPORT, data);
-			break;
-		case HID_MAIN_ITEM_TAG_OUTPUT:
-			ret = hid_add_field(parser, HID_OUTPUT_REPORT, data);
-			break;
-		case HID_MAIN_ITEM_TAG_FEATURE:
-			ret = hid_add_field(parser, HID_FEATURE_REPORT, data);
-			break;
-		default:
-			dbg_hid("unknown main item tag 0x%x\n", item->tag);
-			ret = 0;
+	case HID_MAIN_ITEM_TAG_BEGIN_COLLECTION:
+		ret = open_collection(parser, data & 0xff);
+		break;
+	case HID_MAIN_ITEM_TAG_END_COLLECTION:
+		ret = close_collection(parser);
+		break;
+	case HID_MAIN_ITEM_TAG_INPUT:
+		ret = hid_add_field(parser, HID_INPUT_REPORT, data);
+		break;
+	case HID_MAIN_ITEM_TAG_OUTPUT:
+		ret = hid_add_field(parser, HID_OUTPUT_REPORT, data);
+		break;
+	case HID_MAIN_ITEM_TAG_FEATURE:
+		ret = hid_add_field(parser, HID_FEATURE_REPORT, data);
+		break;
+	default:
+		dbg_hid("unknown main item tag 0x%x\n", item->tag);
+		ret = 0;
 	}
 
 	memset(&parser->local, 0, sizeof(parser->local));	/* Reset the local parser environment */
@@ -534,9 +539,10 @@ static void hid_free_report(struct hid_report *report)
  * Free a device structure, all reports, and all fields.
  */
 
-void hid_free_device(struct hid_device *device)
+static void hid_device_release(struct device *dev)
 {
-	unsigned i,j;
+	struct hid_device *device = container_of(dev, struct hid_device, dev);
+	unsigned i, j;
 
 	for (i = 0; i < HID_REPORT_TYPES; i++) {
 		struct hid_report_enum *report_enum = device->report_enum + i;
@@ -552,7 +558,6 @@ void hid_free_device(struct hid_device *device)
 	kfree(device->collection);
 	kfree(device);
 }
-EXPORT_SYMBOL_GPL(hid_free_device);
 
 /*
  * Fetch a report description item from the data stream. We support long
@@ -593,47 +598,52 @@ static u8 *fetch_item(__u8 *start, __u8 *end, struct hid_item *item)
 	item->size = b & 3;
 
 	switch (item->size) {
+	case 0:
+		return start;
 
-		case 0:
-			return start;
+	case 1:
+		if ((end - start) < 1)
+			return NULL;
+		item->data.u8 = *start++;
+		return start;
 
-		case 1:
-			if ((end - start) < 1)
-				return NULL;
-			item->data.u8 = *start++;
-			return start;
+	case 2:
+		if ((end - start) < 2)
+			return NULL;
+		item->data.u16 = get_unaligned_le16(start);
+		start = (__u8 *)((__le16 *)start + 1);
+		return start;
 
-		case 2:
-			if ((end - start) < 2)
-				return NULL;
-			item->data.u16 = get_unaligned_le16(start);
-			start = (__u8 *)((__le16 *)start + 1);
-			return start;
-
-		case 3:
-			item->size++;
-			if ((end - start) < 4)
-				return NULL;
-			item->data.u32 = get_unaligned_le32(start);
-			start = (__u8 *)((__le32 *)start + 1);
-			return start;
+	case 3:
+		item->size++;
+		if ((end - start) < 4)
+			return NULL;
+		item->data.u32 = get_unaligned_le32(start);
+		start = (__u8 *)((__le32 *)start + 1);
+		return start;
 	}
 
 	return NULL;
 }
 
-/*
+/**
+ * hid_parse_report - parse device report
+ *
+ * @device: hid device
+ * @start: report start
+ * @size: report size
+ *
  * Parse a report description into a hid_device structure. Reports are
  * enumerated, fields are attached to these reports.
+ * 0 returned on success, otherwise nonzero error value.
  */
-
-struct hid_device *hid_parse_report(__u8 *start, unsigned size)
+int hid_parse_report(struct hid_device *device, __u8 *start,
+		unsigned size)
 {
-	struct hid_device *device;
 	struct hid_parser *parser;
 	struct hid_item item;
 	__u8 *end;
-	unsigned i;
+	int ret;
 	static int (*dispatch_type[])(struct hid_parser *parser,
 				      struct hid_item *item) = {
 		hid_parser_main,
@@ -642,76 +652,57 @@ struct hid_device *hid_parse_report(__u8 *start, unsigned size)
 		hid_parser_reserved
 	};
 
-	if (!(device = kzalloc(sizeof(struct hid_device), GFP_KERNEL)))
-		return NULL;
+	if (device->driver->report_fixup)
+		device->driver->report_fixup(device, start, size);
 
-	if (!(device->collection = kzalloc(sizeof(struct hid_collection) *
-				   HID_DEFAULT_NUM_COLLECTIONS, GFP_KERNEL))) {
-		kfree(device);
-		return NULL;
-	}
-	device->collection_size = HID_DEFAULT_NUM_COLLECTIONS;
-
-	for (i = 0; i < HID_REPORT_TYPES; i++)
-		INIT_LIST_HEAD(&device->report_enum[i].report_list);
-
-	if (!(device->rdesc = kmalloc(size, GFP_KERNEL))) {
-		kfree(device->collection);
-		kfree(device);
-		return NULL;
-	}
+	device->rdesc = kmalloc(size, GFP_KERNEL);
+	if (device->rdesc == NULL)
+		return -ENOMEM;
 	memcpy(device->rdesc, start, size);
 	device->rsize = size;
 
-	if (!(parser = vmalloc(sizeof(struct hid_parser)))) {
-		kfree(device->rdesc);
-		kfree(device->collection);
-		kfree(device);
-		return NULL;
+	parser = vmalloc(sizeof(struct hid_parser));
+	if (!parser) {
+		ret = -ENOMEM;
+		goto err;
 	}
+
 	memset(parser, 0, sizeof(struct hid_parser));
 	parser->device = device;
 
 	end = start + size;
+	ret = -EINVAL;
 	while ((start = fetch_item(start, end, &item)) != NULL) {
 
 		if (item.format != HID_ITEM_FORMAT_SHORT) {
 			dbg_hid("unexpected long global item\n");
-			hid_free_device(device);
-			vfree(parser);
-			return NULL;
+			goto err;
 		}
 
 		if (dispatch_type[item.type](parser, &item)) {
 			dbg_hid("item %u %u %u %u parsing failed\n",
 				item.format, (unsigned)item.size, (unsigned)item.type, (unsigned)item.tag);
-			hid_free_device(device);
-			vfree(parser);
-			return NULL;
+			goto err;
 		}
 
 		if (start == end) {
 			if (parser->collection_stack_ptr) {
 				dbg_hid("unbalanced collection at end of report description\n");
-				hid_free_device(device);
-				vfree(parser);
-				return NULL;
+				goto err;
 			}
 			if (parser->local.delimiter_depth) {
 				dbg_hid("unbalanced delimiter at end of report description\n");
-				hid_free_device(device);
-				vfree(parser);
-				return NULL;
+				goto err;
 			}
 			vfree(parser);
-			return device;
+			return 0;
 		}
 	}
 
 	dbg_hid("item fetching failed at offset %d\n", (int)(end - start));
-	hid_free_device(device);
+err:
 	vfree(parser);
-	return NULL;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(hid_parse_report);
 
@@ -724,9 +715,9 @@ EXPORT_SYMBOL_GPL(hid_parse_report);
 static s32 snto32(__u32 value, unsigned n)
 {
 	switch (n) {
-		case 8:  return ((__s8)value);
-		case 16: return ((__s16)value);
-		case 32: return ((__s32)value);
+	case 8:  return ((__s8)value);
+	case 16: return ((__s16)value);
+	case 32: return ((__s32)value);
 	}
 	return value & (1 << (n - 1)) ? value | (-1 << n) : value;
 }
@@ -815,9 +806,73 @@ static __inline__ int search(__s32 *array, __s32 value, unsigned n)
 	return -1;
 }
 
-static void hid_process_event(struct hid_device *hid, struct hid_field *field, struct hid_usage *usage, __s32 value, int interrupt)
+/**
+ * hid_match_report - check if driver's raw_event should be called
+ *
+ * @hid: hid device
+ * @report_type: type to match against
+ *
+ * compare hid->driver->report_table->report_type to report->type
+ */
+static int hid_match_report(struct hid_device *hid, struct hid_report *report)
 {
+	const struct hid_report_id *id = hid->driver->report_table;
+
+	if (!id) /* NULL means all */
+		return 1;
+
+	for (; id->report_type != HID_TERMINATOR; id++)
+		if (id->report_type == HID_ANY_ID ||
+				id->report_type == report->type)
+			return 1;
+	return 0;
+}
+
+/**
+ * hid_match_usage - check if driver's event should be called
+ *
+ * @hid: hid device
+ * @usage: usage to match against
+ *
+ * compare hid->driver->usage_table->usage_{type,code} to
+ * usage->usage_{type,code}
+ */
+static int hid_match_usage(struct hid_device *hid, struct hid_usage *usage)
+{
+	const struct hid_usage_id *id = hid->driver->usage_table;
+
+	if (!id) /* NULL means all */
+		return 1;
+
+	for (; id->usage_type != HID_ANY_ID - 1; id++)
+		if ((id->usage_hid == HID_ANY_ID ||
+				id->usage_hid == usage->hid) &&
+				(id->usage_type == HID_ANY_ID ||
+				id->usage_type == usage->type) &&
+				(id->usage_code == HID_ANY_ID ||
+				 id->usage_code == usage->code))
+			return 1;
+	return 0;
+}
+
+static void hid_process_event(struct hid_device *hid, struct hid_field *field,
+		struct hid_usage *usage, __s32 value, int interrupt)
+{
+	struct hid_driver *hdrv = hid->driver;
+	int ret;
+
 	hid_dump_input(usage, value);
+
+	if (hdrv && hdrv->event && hid_match_usage(hid, usage)) {
+		ret = hdrv->event(hid, field, usage, value);
+		if (ret != 0) {
+			if (ret < 0)
+				dbg_hid("%s's event failed with %d\n",
+						hdrv->name, ret);
+			return;
+		}
+	}
+
 	if (hid->claimed & HID_CLAIMED_INPUT)
 		hidinput_hid_event(hid, field, usage, value);
 	if (hid->claimed & HID_CLAIMED_HIDDEV && interrupt && hid->hiddev_hid_event)
@@ -946,44 +1001,47 @@ int hid_set_field(struct hid_field *field, unsigned offset, __s32 value)
 }
 EXPORT_SYMBOL_GPL(hid_set_field);
 
-int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int interrupt)
+static struct hid_report *hid_get_report(struct hid_report_enum *report_enum,
+		const u8 *data)
+{
+	struct hid_report *report;
+	unsigned int n = 0;	/* Normally report number is 0 */
+
+	/* Device uses numbered reports, data[0] is report number */
+	if (report_enum->numbered)
+		n = *data;
+
+	report = report_enum->report_id_hash[n];
+	if (report == NULL)
+		dbg_hid("undefined report_id %u received\n", n);
+
+	return report;
+}
+
+void hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
+		int interrupt)
 {
 	struct hid_report_enum *report_enum = hid->report_enum + type;
 	struct hid_report *report;
-	int n, rsize, i;
+	unsigned int a;
+	int rsize, csize = size;
+	u8 *cdata = data;
 
-	if (!hid)
-		return -ENODEV;
+	report = hid_get_report(report_enum, data);
+	if (!report)
+		return;
 
-	if (!size) {
-		dbg_hid("empty report\n");
-		return -1;
-	}
-
-	dbg_hid("report (size %u) (%snumbered)\n", size, report_enum->numbered ? "" : "un");
-
-	n = 0;                          /* Normally report number is 0 */
-	if (report_enum->numbered) {    /* Device uses numbered reports, data[0] is report number */
-		n = *data++;
-		size--;
-	}
-
-	/* dump the report */
-	dbg_hid("report %d (size %u) = ", n, size);
-	for (i = 0; i < size; i++)
-		dbg_hid_line(" %02x", data[i]);
-	dbg_hid_line("\n");
-
-	if (!(report = report_enum->report_id_hash[n])) {
-		dbg_hid("undefined report_id %d received\n", n);
-		return -1;
+	if (report_enum->numbered) {
+		cdata++;
+		csize--;
 	}
 
 	rsize = ((report->size - 1) >> 3) + 1;
 
-	if (size < rsize) {
-		dbg_hid("report %d is too short, (%d < %d)\n", report->id, size, rsize);
-		memset(data + size, 0, rsize - size);
+	if (csize < rsize) {
+		dbg_hid("report %d is too short, (%d < %d)\n", report->id,
+				csize, rsize);
+		memset(cdata + csize, 0, rsize - csize);
 	}
 
 	if ((hid->claimed & HID_CLAIMED_HIDDEV) && hid->hiddev_report_event)
@@ -996,24 +1054,663 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int i
 			hidraw_report_event(hid, data, size);
 	}
 
-	for (n = 0; n < report->maxfield; n++)
-		hid_input_field(hid, report->field[n], data, interrupt);
+	for (a = 0; a < report->maxfield; a++)
+		hid_input_field(hid, report->field[a], cdata, interrupt);
 
 	if (hid->claimed & HID_CLAIMED_INPUT)
 		hidinput_report_event(hid, report);
+}
+EXPORT_SYMBOL_GPL(hid_report_raw_event);
+
+/**
+ * hid_input_report - report data from lower layer (usb, bt...)
+ *
+ * @hid: hid device
+ * @type: HID report type (HID_*_REPORT)
+ * @data: report contents
+ * @size: size of data parameter
+ * @interrupt: called from atomic?
+ *
+ * This is data entry for lower layers.
+ */
+int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int interrupt)
+{
+	struct hid_report_enum *report_enum = hid->report_enum + type;
+	struct hid_driver *hdrv = hid->driver;
+	struct hid_report *report;
+	unsigned int i;
+	int ret;
+
+	if (!hid || !hid->driver)
+		return -ENODEV;
+
+	if (!size) {
+		dbg_hid("empty report\n");
+		return -1;
+	}
+
+	dbg_hid("report (size %u) (%snumbered)\n", size, report_enum->numbered ? "" : "un");
+
+	report = hid_get_report(report_enum, data);
+	if (!report)
+		return -1;
+
+	/* dump the report */
+	dbg_hid("report %d (size %u) = ", report->id, size);
+	for (i = 0; i < size; i++)
+		dbg_hid_line(" %02x", data[i]);
+	dbg_hid_line("\n");
+
+	if (hdrv && hdrv->raw_event && hid_match_report(hid, report)) {
+		ret = hdrv->raw_event(hid, report, data, size);
+		if (ret != 0)
+			return ret < 0 ? ret : 0;
+	}
+
+	hid_report_raw_event(hid, type, data, size, interrupt);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(hid_input_report);
 
+static bool hid_match_one_id(struct hid_device *hdev,
+		const struct hid_device_id *id)
+{
+	return id->bus == hdev->bus &&
+		(id->vendor == HID_ANY_ID || id->vendor == hdev->vendor) &&
+		(id->product == HID_ANY_ID || id->product == hdev->product);
+}
+
+static const struct hid_device_id *hid_match_id(struct hid_device *hdev,
+		const struct hid_device_id *id)
+{
+	for (; id->bus; id++)
+		if (hid_match_one_id(hdev, id))
+			return id;
+
+	return NULL;
+}
+
+static const struct hid_device_id hid_hiddev_list[] = {
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MGE, USB_DEVICE_ID_MGE_UPS) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MGE, USB_DEVICE_ID_MGE_UPS1) },
+	{ }
+};
+
+static bool hid_hiddev(struct hid_device *hdev)
+{
+	return !!hid_match_id(hdev, hid_hiddev_list);
+}
+
+int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
+{
+	static const char *types[] = { "Device", "Pointer", "Mouse", "Device",
+		"Joystick", "Gamepad", "Keyboard", "Keypad",
+		"Multi-Axis Controller"
+	};
+	const char *type, *bus;
+	char buf[64];
+	unsigned int i;
+	int len;
+
+	if (hdev->bus != BUS_USB)
+		connect_mask &= ~HID_CONNECT_HIDDEV;
+	if (hid_hiddev(hdev))
+		connect_mask |= HID_CONNECT_HIDDEV_FORCE;
+
+	if ((connect_mask & HID_CONNECT_HIDINPUT) && !hidinput_connect(hdev,
+				connect_mask & HID_CONNECT_HIDINPUT_FORCE))
+		hdev->claimed |= HID_CLAIMED_INPUT;
+	if ((connect_mask & HID_CONNECT_HIDDEV) && hdev->hiddev_connect &&
+			!hdev->hiddev_connect(hdev,
+				connect_mask & HID_CONNECT_HIDDEV_FORCE))
+		hdev->claimed |= HID_CLAIMED_HIDDEV;
+	if ((connect_mask & HID_CONNECT_HIDRAW) && !hidraw_connect(hdev))
+		hdev->claimed |= HID_CLAIMED_HIDRAW;
+
+	if (!hdev->claimed) {
+		dev_err(&hdev->dev, "claimed by neither input, hiddev nor "
+				"hidraw\n");
+		return -ENODEV;
+	}
+
+	if ((hdev->claimed & HID_CLAIMED_INPUT) &&
+			(connect_mask & HID_CONNECT_FF) && hdev->ff_init)
+		hdev->ff_init(hdev);
+
+	len = 0;
+	if (hdev->claimed & HID_CLAIMED_INPUT)
+		len += sprintf(buf + len, "input");
+	if (hdev->claimed & HID_CLAIMED_HIDDEV)
+		len += sprintf(buf + len, "%shiddev%d", len ? "," : "",
+				hdev->minor);
+	if (hdev->claimed & HID_CLAIMED_HIDRAW)
+		len += sprintf(buf + len, "%shidraw%d", len ? "," : "",
+				((struct hidraw *)hdev->hidraw)->minor);
+
+	type = "Device";
+	for (i = 0; i < hdev->maxcollection; i++) {
+		struct hid_collection *col = &hdev->collection[i];
+		if (col->type == HID_COLLECTION_APPLICATION &&
+		   (col->usage & HID_USAGE_PAGE) == HID_UP_GENDESK &&
+		   (col->usage & 0xffff) < ARRAY_SIZE(types)) {
+			type = types[col->usage & 0xffff];
+			break;
+		}
+	}
+
+	switch (hdev->bus) {
+	case BUS_USB:
+		bus = "USB";
+		break;
+	case BUS_BLUETOOTH:
+		bus = "BLUETOOTH";
+		break;
+	default:
+		bus = "<UNKNOWN>";
+	}
+
+	dev_info(&hdev->dev, "%s: %s HID v%x.%02x %s [%s] on %s\n",
+			buf, bus, hdev->version >> 8, hdev->version & 0xff,
+			type, hdev->name, hdev->phys);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hid_connect);
+
+static const struct hid_device_id hid_blacklist[] = {
+	{ HID_USB_DEVICE(USB_VENDOR_ID_A4TECH, USB_DEVICE_ID_A4TECH_WCP32PU) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_A4TECH, USB_DEVICE_ID_A4TECH_X5_005D) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_ATV_IRCONTROL) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_IRCONTROL4) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_MIGHTYMOUSE) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_FOUNTAIN_ANSI) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_FOUNTAIN_ISO) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER_ANSI) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER_ISO) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER_JIS) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER3_ANSI) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER3_ISO) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER3_JIS) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER4_ANSI) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER4_ISO) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER4_JIS) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_ALU_ANSI) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_ALU_ISO) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_ALU_JIS) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER4_HF_ANSI) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER4_HF_ISO) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER4_HF_JIS) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_ALU_WIRELESS_ANSI) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_ALU_WIRELESS_ISO) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_ALU_WIRELESS_JIS) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING_ANSI) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING_ISO) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING_JIS) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING2_ANSI) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING2_ISO) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_WELLSPRING2_JIS) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_FOUNTAIN_TP_ONLY) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER1_TP_ONLY) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_AVERMEDIA, USB_DEVICE_ID_AVER_FM_MR800) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_BELKIN, USB_DEVICE_ID_FLIP_KVM) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_BRIGHT, USB_DEVICE_ID_BRIGHT_ABNT2) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CHERRY, USB_DEVICE_ID_CHERRY_CYMOTION) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_CHICONY_TACTICAL_PAD) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_BARCODE_1) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_BARCODE_2) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_MOUSE) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_DELL, USB_DEVICE_ID_DELL_W7658) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_DELL, USB_DEVICE_ID_DELL_SK8115) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_EZKEY, USB_DEVICE_ID_BTC_8193) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GYRATION, USB_DEVICE_ID_GYRATION_REMOTE) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LABTEC, USB_DEVICE_ID_LABTEC_WIRELESS_KEYBOARD) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_MX3000_RECEIVER) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_S510_RECEIVER) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_S510_RECEIVER_2) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RECEIVER) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_DINOVO_DESKTOP) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_DINOVO_EDGE) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_DINOVO_MINI) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_KBD) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_ELITE_KBD) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_CORDLESS_DESKTOP_LX500) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_LX3) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_V150) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_EXTREME_3D) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WHEEL) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD2_2) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WINGMAN_F3D) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_FORCE3D_PRO) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_MOMO_WHEEL) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_MOMO_WHEEL2) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD2) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_SIDEWINDER_GV) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_NE4K) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_LK6K) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_PRESENTER_8K_USB) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_WIRELESS_OPTICAL_DESKTOP_3_0) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MONTEREY, USB_DEVICE_ID_GENIUS_KB29E) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_PETALYNX, USB_DEVICE_ID_PETALYNX_MAXTER_REMOTE) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SAMSUNG, USB_DEVICE_ID_SAMSUNG_IR_REMOTE) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS3_CONTROLLER) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SUNPLUS, USB_DEVICE_ID_SUNPLUS_WDESKTOP) },
+
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE, 0x030c) },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_MICROSOFT, USB_DEVICE_ID_MS_PRESENTER_8K_BT) },
+	{ }
+};
+
+static int hid_bus_match(struct device *dev, struct device_driver *drv)
+{
+	struct hid_driver *hdrv = container_of(drv, struct hid_driver, driver);
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+
+	if (!hid_match_id(hdev, hdrv->id_table))
+		return 0;
+
+	/* generic wants all non-blacklisted */
+	if (!strncmp(hdrv->name, "generic-", 8))
+		return !hid_match_id(hdev, hid_blacklist);
+
+	return 1;
+}
+
+static int hid_device_probe(struct device *dev)
+{
+	struct hid_driver *hdrv = container_of(dev->driver,
+			struct hid_driver, driver);
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	const struct hid_device_id *id;
+	int ret = 0;
+
+	if (!hdev->driver) {
+		id = hid_match_id(hdev, hdrv->id_table);
+		if (id == NULL)
+			return -ENODEV;
+
+		hdev->driver = hdrv;
+		if (hdrv->probe) {
+			ret = hdrv->probe(hdev, id);
+		} else { /* default probe */
+			ret = hid_parse(hdev);
+			if (!ret)
+				ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
+		}
+		if (ret)
+			hdev->driver = NULL;
+	}
+	return ret;
+}
+
+static int hid_device_remove(struct device *dev)
+{
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	struct hid_driver *hdrv = hdev->driver;
+
+	if (hdrv) {
+		if (hdrv->remove)
+			hdrv->remove(hdev);
+		else /* default remove */
+			hid_hw_stop(hdev);
+		hdev->driver = NULL;
+	}
+
+	return 0;
+}
+
+static int hid_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+
+	if (add_uevent_var(env, "HID_ID=%04X:%08X:%08X",
+			hdev->bus, hdev->vendor, hdev->product))
+		return -ENOMEM;
+
+	if (add_uevent_var(env, "HID_NAME=%s", hdev->name))
+		return -ENOMEM;
+
+	if (add_uevent_var(env, "HID_PHYS=%s", hdev->phys))
+		return -ENOMEM;
+
+	if (add_uevent_var(env, "HID_UNIQ=%s", hdev->uniq))
+		return -ENOMEM;
+
+	if (add_uevent_var(env, "MODALIAS=hid:b%04Xv%08Xp%08X",
+			hdev->bus, hdev->vendor, hdev->product))
+		return -ENOMEM;
+
+	return 0;
+}
+
+static struct bus_type hid_bus_type = {
+	.name		= "hid",
+	.match		= hid_bus_match,
+	.probe		= hid_device_probe,
+	.remove		= hid_device_remove,
+	.uevent		= hid_uevent,
+};
+
+static const struct hid_device_id hid_ignore_list[] = {
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ACECAD, USB_DEVICE_ID_ACECAD_FLAIR) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ACECAD, USB_DEVICE_ID_ACECAD_302) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ADS_TECH, USB_DEVICE_ID_ADS_TECH_RADIO_SI470X) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_AIPTEK, USB_DEVICE_ID_AIPTEK_01) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_AIPTEK, USB_DEVICE_ID_AIPTEK_10) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_AIPTEK, USB_DEVICE_ID_AIPTEK_20) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_AIPTEK, USB_DEVICE_ID_AIPTEK_21) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_AIPTEK, USB_DEVICE_ID_AIPTEK_22) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_AIPTEK, USB_DEVICE_ID_AIPTEK_23) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_AIPTEK, USB_DEVICE_ID_AIPTEK_24) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_AIRCABLE, USB_DEVICE_ID_AIRCABLE1) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ALCOR, USB_DEVICE_ID_ALCOR_USBRS232) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUS, USB_DEVICE_ID_ASUS_LCM)},
+	{ HID_USB_DEVICE(USB_VENDOR_ID_BERKSHIRE, USB_DEVICE_ID_BERKSHIRE_PCWD) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CIDC, 0x0103) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CYGNAL, USB_DEVICE_ID_CYGNAL_RADIO_SI470X) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CMEDIA, USB_DEVICE_ID_CM109) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_HIDCOM) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_ULTRAMOUSE) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_DELORME, USB_DEVICE_ID_DELORME_EARTHMATE) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_DELORME, USB_DEVICE_ID_DELORME_EM_LT20) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ESSENTIAL_REALITY, USB_DEVICE_ID_ESSENTIAL_REALITY_P5) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GAMERON, USB_DEVICE_ID_GAMERON_DUAL_PSX_ADAPTOR) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GENERAL_TOUCH, 0x0001) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GENERAL_TOUCH, 0x0002) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GENERAL_TOUCH, 0x0003) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GENERAL_TOUCH, 0x0004) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GLAB, USB_DEVICE_ID_4_PHIDGETSERVO_30) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GLAB, USB_DEVICE_ID_1_PHIDGETSERVO_30) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GLAB, USB_DEVICE_ID_0_0_4_IF_KIT) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GLAB, USB_DEVICE_ID_0_16_16_IF_KIT) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GLAB, USB_DEVICE_ID_8_8_8_IF_KIT) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GLAB, USB_DEVICE_ID_0_8_7_IF_KIT) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GLAB, USB_DEVICE_ID_0_8_8_IF_KIT) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GLAB, USB_DEVICE_ID_PHIDGET_MOTORCONTROL) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GOTOP, USB_DEVICE_ID_SUPER_Q2) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GOTOP, USB_DEVICE_ID_GOGOPEN) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GOTOP, USB_DEVICE_ID_PENPOWER) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GREENASIA, 0x0003) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GRETAGMACBETH, USB_DEVICE_ID_GRETAGMACBETH_HUEY) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GRIFFIN, USB_DEVICE_ID_POWERMATE) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GRIFFIN, USB_DEVICE_ID_SOUNDKNOB) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_90) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_100) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_101) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_103) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_104) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_105) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_106) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_107) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_108) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_200) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_201) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_202) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_203) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_204) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_205) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_206) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_207) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_300) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_301) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_302) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_303) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_304) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_305) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_306) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_307) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_308) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_309) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_400) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_401) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_402) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_403) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_404) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_405) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_500) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_501) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_502) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_503) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_504) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_1000) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_1001) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_1002) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_1003) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_1004) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_1005) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_1006) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GTCO, USB_DEVICE_ID_GTCO_1007) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_IMATION, USB_DEVICE_ID_DISC_STAKKA) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_KBGEAR, USB_DEVICE_ID_KBGEAR_JAMSTUDIO) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_KYE, USB_DEVICE_ID_KYE_GPEN_560) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_CASSY) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_POCKETCASSY) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_MOBILECASSY) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_JWM) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_DMMP) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_UMIP) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_XRAY1) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_XRAY2) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_VIDEOCOM) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_COM3LAB) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_TELEPORT) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_NETWORKANALYSER) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_POWERCONTROL) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_MACHINETEST) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MCC, USB_DEVICE_ID_MCC_PMD1024LS) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MCC, USB_DEVICE_ID_MCC_PMD1208LS) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROCHIP, USB_DEVICE_ID_PICKIT1) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROCHIP, USB_DEVICE_ID_PICKIT2) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_NATIONAL_SEMICONDUCTOR, USB_DEVICE_ID_N_S_HARMONY) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ONTRAK, USB_DEVICE_ID_ONTRAK_ADU100) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ONTRAK, USB_DEVICE_ID_ONTRAK_ADU100 + 20) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ONTRAK, USB_DEVICE_ID_ONTRAK_ADU100 + 30) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ONTRAK, USB_DEVICE_ID_ONTRAK_ADU100 + 100) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ONTRAK, USB_DEVICE_ID_ONTRAK_ADU100 + 108) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ONTRAK, USB_DEVICE_ID_ONTRAK_ADU100 + 118) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ONTRAK, USB_DEVICE_ID_ONTRAK_ADU100 + 200) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ONTRAK, USB_DEVICE_ID_ONTRAK_ADU100 + 300) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ONTRAK, USB_DEVICE_ID_ONTRAK_ADU100 + 400) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ONTRAK, USB_DEVICE_ID_ONTRAK_ADU100 + 500) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_PANJIT, 0x0001) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_PANJIT, 0x0002) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_PANJIT, 0x0003) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_PANJIT, 0x0004) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SOUNDGRAPH, USB_DEVICE_ID_SOUNDGRAPH_IMON_LCD) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SOUNDGRAPH, USB_DEVICE_ID_SOUNDGRAPH_IMON_LCD2) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SOUNDGRAPH, USB_DEVICE_ID_SOUNDGRAPH_IMON_LCD3) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_TENX, USB_DEVICE_ID_TENX_IBUDDY1) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_TENX, USB_DEVICE_ID_TENX_IBUDDY2) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb300) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb304) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb651) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb654) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_VERNIER, USB_DEVICE_ID_VERNIER_LABPRO) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_VERNIER, USB_DEVICE_ID_VERNIER_GOTEMP) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_VERNIER, USB_DEVICE_ID_VERNIER_SKIP) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_VERNIER, USB_DEVICE_ID_VERNIER_CYCLOPS) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_VERNIER, USB_DEVICE_ID_VERNIER_LCSPEC) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_WACOM, HID_ANY_ID) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_WISEGROUP, USB_DEVICE_ID_4_PHIDGETSERVO_20) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_WISEGROUP, USB_DEVICE_ID_1_PHIDGETSERVO_20) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_WISEGROUP, USB_DEVICE_ID_8_8_4_IF_KIT) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_YEALINK, USB_DEVICE_ID_YEALINK_P1K_P4K_B2K) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ZEROPLUS, 0x0005) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ZEROPLUS, 0x0030) },
+	{ }
+};
+
+static bool hid_ignore(struct hid_device *hdev)
+{
+	switch (hdev->vendor) {
+	case USB_VENDOR_ID_CODEMERCS:
+		/* ignore all Code Mercenaries IOWarrior devices */
+		if (hdev->product >= USB_DEVICE_ID_CODEMERCS_IOW_FIRST &&
+				hdev->product <= USB_DEVICE_ID_CODEMERCS_IOW_LAST)
+			return true;
+		break;
+	case USB_VENDOR_ID_LOGITECH:
+		if (hdev->product >= USB_DEVICE_ID_LOGITECH_HARMONY_FIRST &&
+				hdev->product <= USB_DEVICE_ID_LOGITECH_HARMONY_LAST)
+			return true;
+		break;
+	}
+
+	return !!hid_match_id(hdev, hid_ignore_list);
+}
+
+int hid_add_device(struct hid_device *hdev)
+{
+	static atomic_t id = ATOMIC_INIT(0);
+	int ret;
+
+	if (WARN_ON(hdev->status & HID_STAT_ADDED))
+		return -EBUSY;
+
+	/* we need to kill them here, otherwise they will stay allocated to
+	 * wait for coming driver */
+	if (hid_ignore(hdev))
+		return -ENODEV;
+
+	/* XXX hack, any other cleaner solution < 20 bus_id bytes? */
+	sprintf(hdev->dev.bus_id, "%04X:%04X:%04X.%04X", hdev->bus,
+			hdev->vendor, hdev->product, atomic_inc_return(&id));
+
+	ret = device_add(&hdev->dev);
+	if (!ret)
+		hdev->status |= HID_STAT_ADDED;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(hid_add_device);
+
+/**
+ * hid_allocate_device - allocate new hid device descriptor
+ *
+ * Allocate and initialize hid device, so that hid_destroy_device might be
+ * used to free it.
+ *
+ * New hid_device pointer is returned on success, otherwise ERR_PTR encoded
+ * error value.
+ */
+struct hid_device *hid_allocate_device(void)
+{
+	struct hid_device *hdev;
+	unsigned int i;
+	int ret = -ENOMEM;
+
+	hdev = kzalloc(sizeof(*hdev), GFP_KERNEL);
+	if (hdev == NULL)
+		return ERR_PTR(ret);
+
+	device_initialize(&hdev->dev);
+	hdev->dev.release = hid_device_release;
+	hdev->dev.bus = &hid_bus_type;
+
+	hdev->collection = kcalloc(HID_DEFAULT_NUM_COLLECTIONS,
+			sizeof(struct hid_collection), GFP_KERNEL);
+	if (hdev->collection == NULL)
+		goto err;
+	hdev->collection_size = HID_DEFAULT_NUM_COLLECTIONS;
+
+	for (i = 0; i < HID_REPORT_TYPES; i++)
+		INIT_LIST_HEAD(&hdev->report_enum[i].report_list);
+
+	return hdev;
+err:
+	put_device(&hdev->dev);
+	return ERR_PTR(ret);
+}
+EXPORT_SYMBOL_GPL(hid_allocate_device);
+
+static void hid_remove_device(struct hid_device *hdev)
+{
+	if (hdev->status & HID_STAT_ADDED) {
+		device_del(&hdev->dev);
+		hdev->status &= ~HID_STAT_ADDED;
+	}
+}
+
+/**
+ * hid_destroy_device - free previously allocated device
+ *
+ * @hdev: hid device
+ *
+ * If you allocate hid_device through hid_allocate_device, you should ever
+ * free by this function.
+ */
+void hid_destroy_device(struct hid_device *hdev)
+{
+	hid_remove_device(hdev);
+	put_device(&hdev->dev);
+}
+EXPORT_SYMBOL_GPL(hid_destroy_device);
+
+int __hid_register_driver(struct hid_driver *hdrv, struct module *owner,
+		const char *mod_name)
+{
+	hdrv->driver.name = hdrv->name;
+	hdrv->driver.bus = &hid_bus_type;
+	hdrv->driver.owner = owner;
+	hdrv->driver.mod_name = mod_name;
+
+	return driver_register(&hdrv->driver);
+}
+EXPORT_SYMBOL_GPL(__hid_register_driver);
+
+void hid_unregister_driver(struct hid_driver *hdrv)
+{
+	driver_unregister(&hdrv->driver);
+}
+EXPORT_SYMBOL_GPL(hid_unregister_driver);
+
+#ifdef CONFIG_HID_COMPAT
+static void hid_compat_load(struct work_struct *ws)
+{
+	request_module("hid-dummy");
+}
+static DECLARE_WORK(hid_compat_work, hid_compat_load);
+static struct workqueue_struct *hid_compat_wq;
+#endif
+
 static int __init hid_init(void)
 {
-	return hidraw_init();
+	int ret;
+
+	ret = bus_register(&hid_bus_type);
+	if (ret) {
+		printk(KERN_ERR "HID: can't register hid bus\n");
+		goto err;
+	}
+
+	ret = hidraw_init();
+	if (ret)
+		goto err_bus;
+
+#ifdef CONFIG_HID_COMPAT
+	hid_compat_wq = create_workqueue("hid_compat");
+	if (!hid_compat_wq) {
+		hidraw_exit();
+		goto err;
+	}
+	queue_work(hid_compat_wq, &hid_compat_work);
+#endif
+
+	return 0;
+err_bus:
+	bus_unregister(&hid_bus_type);
+err:
+	return ret;
 }
 
 static void __exit hid_exit(void)
 {
+#ifdef CONFIG_HID_COMPAT
+	destroy_workqueue(hid_compat_wq);
+#endif
 	hidraw_exit();
+	bus_unregister(&hid_bus_type);
 }
 
 module_init(hid_init);

@@ -114,7 +114,7 @@ static void ide_port_init_devices_data(ide_hwif_t *hwif)
 		memset(drive, 0, sizeof(*drive));
 
 		drive->media			= ide_disk;
-		drive->select.all		= (unit<<4)|0xa0;
+		drive->select			= (unit << 4) | ATA_DEVICE_OBS;
 		drive->hwif			= hwif;
 		drive->ready_stat		= ATA_DRDY;
 		drive->bad_wstat		= BAD_W_STAT;
@@ -138,7 +138,7 @@ static void __ide_port_unregister_devices(ide_hwif_t *hwif)
 	for (i = 0; i < MAX_DRIVES; i++) {
 		ide_drive_t *drive = &hwif->drives[i];
 
-		if (drive->present) {
+		if (drive->dev_flags & IDE_DFLAG_PRESENT) {
 			spin_unlock_irq(&ide_lock);
 			device_unregister(&drive->gendev);
 			wait_for_completion(&drive->gendev_rel_comp);
@@ -227,8 +227,7 @@ void ide_unregister(ide_hwif_t *hwif)
 	kfree(hwif->sg_table);
 	unregister_blkdev(hwif->major, hwif->name);
 
-	if (hwif->dma_base)
-		ide_release_dma_engine(hwif);
+	ide_release_dma_engine(hwif);
 
 	mutex_unlock(&ide_cfg_mtx);
 }
@@ -254,7 +253,7 @@ ide_devset_get(io_32bit, io_32bit);
 
 static int set_io_32bit(ide_drive_t *drive, int arg)
 {
-	if (drive->no_io_32bit)
+	if (drive->dev_flags & IDE_DFLAG_NO_IO_32BIT)
 		return -EPERM;
 
 	if (arg < 0 || arg > 1 + (SUPPORT_VLB_SYNC << 1))
@@ -265,19 +264,22 @@ static int set_io_32bit(ide_drive_t *drive, int arg)
 	return 0;
 }
 
-ide_devset_get(ksettings, keep_settings);
+ide_devset_get_flag(ksettings, IDE_DFLAG_KEEP_SETTINGS);
 
 static int set_ksettings(ide_drive_t *drive, int arg)
 {
 	if (arg < 0 || arg > 1)
 		return -EINVAL;
 
-	drive->keep_settings = arg;
+	if (arg)
+		drive->dev_flags |= IDE_DFLAG_KEEP_SETTINGS;
+	else
+		drive->dev_flags &= ~IDE_DFLAG_KEEP_SETTINGS;
 
 	return 0;
 }
 
-ide_devset_get(using_dma, using_dma);
+ide_devset_get_flag(using_dma, IDE_DFLAG_USING_DMA);
 
 static int set_using_dma(ide_drive_t *drive, int arg)
 {
@@ -311,9 +313,32 @@ out:
 #endif
 }
 
+/*
+ * handle HDIO_SET_PIO_MODE ioctl abusers here, eventually it will go away
+ */
+static int set_pio_mode_abuse(ide_hwif_t *hwif, u8 req_pio)
+{
+	switch (req_pio) {
+	case 202:
+	case 201:
+	case 200:
+	case 102:
+	case 101:
+	case 100:
+		return (hwif->host_flags & IDE_HFLAG_ABUSE_DMA_MODES) ? 1 : 0;
+	case 9:
+	case 8:
+		return (hwif->host_flags & IDE_HFLAG_ABUSE_PREFETCH) ? 1 : 0;
+	case 7:
+	case 6:
+		return (hwif->host_flags & IDE_HFLAG_ABUSE_FAST_DEVSEL) ? 1 : 0;
+	default:
+		return 0;
+	}
+}
+
 static int set_pio_mode(ide_drive_t *drive, int arg)
 {
-	struct request *rq;
 	ide_hwif_t *hwif = drive->hwif;
 	const struct ide_port_ops *port_ops = hwif->port_ops;
 
@@ -324,56 +349,65 @@ static int set_pio_mode(ide_drive_t *drive, int arg)
 	    (hwif->host_flags & IDE_HFLAG_NO_SET_MODE))
 		return -ENOSYS;
 
-	if (drive->special.b.set_tune)
-		return -EBUSY;
+	if (set_pio_mode_abuse(drive->hwif, arg)) {
+		if (arg == 8 || arg == 9) {
+			unsigned long flags;
 
-	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
-	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
+			/* take lock for IDE_DFLAG_[NO_]UNMASK/[NO_]IO_32BIT */
+			spin_lock_irqsave(&ide_lock, flags);
+			port_ops->set_pio_mode(drive, arg);
+			spin_unlock_irqrestore(&ide_lock, flags);
+		} else
+			port_ops->set_pio_mode(drive, arg);
+	} else {
+		int keep_dma = !!(drive->dev_flags & IDE_DFLAG_USING_DMA);
 
-	drive->tune_req = (u8) arg;
-	drive->special.b.set_tune = 1;
+		ide_set_pio(drive, arg);
 
-	blk_execute_rq(drive->queue, NULL, rq, 0);
-	blk_put_request(rq);
+		if (hwif->host_flags & IDE_HFLAG_SET_PIO_MODE_KEEP_DMA) {
+			if (keep_dma)
+				ide_dma_on(drive);
+		}
+	}
 
 	return 0;
 }
 
-ide_devset_get(unmaskirq, unmask);
+ide_devset_get_flag(unmaskirq, IDE_DFLAG_UNMASK);
 
 static int set_unmaskirq(ide_drive_t *drive, int arg)
 {
-	if (drive->no_unmask)
+	if (drive->dev_flags & IDE_DFLAG_NO_UNMASK)
 		return -EPERM;
 
 	if (arg < 0 || arg > 1)
 		return -EINVAL;
 
-	drive->unmask = arg;
+	if (arg)
+		drive->dev_flags |= IDE_DFLAG_UNMASK;
+	else
+		drive->dev_flags &= ~IDE_DFLAG_UNMASK;
 
 	return 0;
 }
 
-#define ide_gen_devset_rw(_name, _func) \
-__IDE_DEVSET(_name, DS_SYNC, get_##_func, set_##_func)
-
-ide_gen_devset_rw(io_32bit, io_32bit);
-ide_gen_devset_rw(keepsettings, ksettings);
-ide_gen_devset_rw(unmaskirq, unmaskirq);
-ide_gen_devset_rw(using_dma, using_dma);
-__IDE_DEVSET(pio_mode, 0, NULL, set_pio_mode);
+ide_ext_devset_rw_sync(io_32bit, io_32bit);
+ide_ext_devset_rw_sync(keepsettings, ksettings);
+ide_ext_devset_rw_sync(unmaskirq, unmaskirq);
+ide_ext_devset_rw_sync(using_dma, using_dma);
+__IDE_DEVSET(pio_mode, DS_SYNC, NULL, set_pio_mode);
 
 static int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 {
-	ide_drive_t *drive = dev->driver_data;
+	ide_drive_t *drive = dev->driver_data, *pair = ide_get_pair_dev(drive);
 	ide_hwif_t *hwif = HWIF(drive);
 	struct request *rq;
 	struct request_pm_state rqpm;
 	ide_task_t args;
 	int ret;
 
-	/* Call ACPI _GTM only once */
-	if (!(drive->dn % 2))
+	/* call ACPI _GTM only once */
+	if ((drive->dn & 1) == 0 || pair == NULL)
 		ide_acpi_get_timing(hwif);
 
 	memset(&rqpm, 0, sizeof(rqpm));
@@ -382,33 +416,32 @@ static int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 	rq->cmd_type = REQ_TYPE_PM_SUSPEND;
 	rq->special = &args;
 	rq->data = &rqpm;
-	rqpm.pm_step = ide_pm_state_start_suspend;
+	rqpm.pm_step = IDE_PM_START_SUSPEND;
 	if (mesg.event == PM_EVENT_PRETHAW)
 		mesg.event = PM_EVENT_FREEZE;
 	rqpm.pm_state = mesg.event;
 
 	ret = blk_execute_rq(drive->queue, NULL, rq, 0);
 	blk_put_request(rq);
-	/* only call ACPI _PS3 after both drivers are suspended */
-	if (!ret && (((drive->dn % 2) && hwif->drives[0].present
-		 && hwif->drives[1].present)
-		 || !hwif->drives[0].present
-		 || !hwif->drives[1].present))
+
+	/* call ACPI _PS3 only after both devices are suspended */
+	if (ret == 0 && ((drive->dn & 1) || pair == NULL))
 		ide_acpi_set_state(hwif, 0);
+
 	return ret;
 }
 
 static int generic_ide_resume(struct device *dev)
 {
-	ide_drive_t *drive = dev->driver_data;
+	ide_drive_t *drive = dev->driver_data, *pair = ide_get_pair_dev(drive);
 	ide_hwif_t *hwif = HWIF(drive);
 	struct request *rq;
 	struct request_pm_state rqpm;
 	ide_task_t args;
 	int err;
 
-	/* Call ACPI _STM only once */
-	if (!(drive->dn % 2)) {
+	/* call ACPI _PS0 / _STM only once */
+	if ((drive->dn & 1) == 0 || pair == NULL) {
 		ide_acpi_set_state(hwif, 1);
 		ide_acpi_push_timing(hwif);
 	}
@@ -422,7 +455,7 @@ static int generic_ide_resume(struct device *dev)
 	rq->cmd_flags |= REQ_PREEMPT;
 	rq->special = &args;
 	rq->data = &rqpm;
-	rqpm.pm_step = ide_pm_state_start_resume;
+	rqpm.pm_step = IDE_PM_START_RESUME;
 	rqpm.pm_state = PM_EVENT_ON;
 
 	err = blk_execute_rq(drive->queue, NULL, rq, 1);
@@ -554,6 +587,7 @@ static struct device_attribute ide_dev_attrs[] = {
 	__ATTR_RO(model),
 	__ATTR_RO(firmware),
 	__ATTR(serial, 0400, serial_show, NULL),
+	__ATTR(unload_heads, 0644, ide_park_show, ide_park_store),
 	__ATTR_NULL
 };
 
@@ -708,22 +742,22 @@ static int ide_set_disk_chs(const char *str, struct kernel_param *kp)
 module_param_call(chs, ide_set_disk_chs, NULL, NULL, 0);
 MODULE_PARM_DESC(chs, "force device as a disk (using CHS)");
 
-static void ide_dev_apply_params(ide_drive_t *drive)
+static void ide_dev_apply_params(ide_drive_t *drive, u8 unit)
 {
-	int i = drive->hwif->index * MAX_DRIVES + drive->select.b.unit;
+	int i = drive->hwif->index * MAX_DRIVES + unit;
 
 	if (ide_nodma & (1 << i)) {
 		printk(KERN_INFO "ide: disallowing DMA for %s\n", drive->name);
-		drive->nodma = 1;
+		drive->dev_flags |= IDE_DFLAG_NODMA;
 	}
 	if (ide_noflush & (1 << i)) {
 		printk(KERN_INFO "ide: disabling flush requests for %s\n",
 				 drive->name);
-		drive->noflush = 1;
+		drive->dev_flags |= IDE_DFLAG_NOFLUSH;
 	}
 	if (ide_noprobe & (1 << i)) {
 		printk(KERN_INFO "ide: skipping probe for %s\n", drive->name);
-		drive->noprobe = 1;
+		drive->dev_flags |= IDE_DFLAG_NOPROBE;
 	}
 	if (ide_nowerr & (1 << i)) {
 		printk(KERN_INFO "ide: ignoring the ATA_DF bit for %s\n",
@@ -732,7 +766,7 @@ static void ide_dev_apply_params(ide_drive_t *drive)
 	}
 	if (ide_cdroms & (1 << i)) {
 		printk(KERN_INFO "ide: forcing %s as a CD-ROM\n", drive->name);
-		drive->present = 1;
+		drive->dev_flags |= IDE_DFLAG_PRESENT;
 		drive->media = ide_cdrom;
 		/* an ATAPI device ignores DRDY */
 		drive->ready_stat = 0;
@@ -741,11 +775,12 @@ static void ide_dev_apply_params(ide_drive_t *drive)
 		drive->cyl  = drive->bios_cyl  = ide_disks_chs[i].cyl;
 		drive->head = drive->bios_head = ide_disks_chs[i].head;
 		drive->sect = drive->bios_sect = ide_disks_chs[i].sect;
-		drive->forced_geom = 1;
+
 		printk(KERN_INFO "ide: forcing %s as a disk (%d/%d/%d)\n",
 				 drive->name,
 				 drive->cyl, drive->head, drive->sect);
-		drive->present = 1;
+
+		drive->dev_flags |= IDE_DFLAG_FORCED_GEOM | IDE_DFLAG_PRESENT;
 		drive->media = ide_disk;
 		drive->ready_stat = ATA_DRDY;
 	}
@@ -785,7 +820,7 @@ void ide_port_apply_params(ide_hwif_t *hwif)
 	}
 
 	for (i = 0; i < MAX_DRIVES; i++)
-		ide_dev_apply_params(&hwif->drives[i]);
+		ide_dev_apply_params(&hwif->drives[i], i);
 }
 
 /*

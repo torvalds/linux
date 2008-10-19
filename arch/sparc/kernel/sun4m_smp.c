@@ -17,6 +17,7 @@
 #include <linux/swap.h>
 #include <linux/profile.h>
 #include <linux/delay.h>
+#include <linux/cpu.h>
 
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>

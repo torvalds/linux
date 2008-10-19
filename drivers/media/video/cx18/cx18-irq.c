@@ -20,6 +20,7 @@
  */
 
 #include "cx18-driver.h"
+#include "cx18-io.h"
 #include "cx18-firmware.h"
 #include "cx18-fileops.h"
 #include "cx18-queue.h"
@@ -48,8 +49,8 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_mailbox *mb)
 			break;
 	}
 	if (i == CX18_MAX_STREAMS) {
-		CX18_WARN("DMA done for unknown handle %d for stream %s\n",
-			handle, s->name);
+		CX18_WARN("Got DMA done notification for unknown/inactive"
+			  " handle %d\n", handle);
 		mb->error = CXERR_NOT_OPEN;
 		mb->cmd = 0;
 		cx18_mb_ack(cx, mb);
@@ -60,8 +61,8 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_mailbox *mb)
 	if (mb->args[2] != 1)
 		CX18_WARN("Ack struct = %d for %s\n",
 			mb->args[2], s->name);
-	id = read_enc(off);
-	buf = cx18_queue_get_buf_irq(s, id, read_enc(off + 4));
+	id = cx18_read_enc(cx, off);
+	buf = cx18_queue_get_buf_irq(s, id, cx18_read_enc(cx, off + 4));
 	CX18_DEBUG_HI_DMA("DMA DONE for %s (buffer %d)\n", s->name, id);
 	if (buf) {
 		cx18_buf_sync_for_cpu(s, buf);
@@ -81,7 +82,7 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_mailbox *mb)
 			set_bit(CX18_F_B_NEED_BUF_SWAP, &buf->b_flags);
 	} else {
 		CX18_WARN("Could not find buf %d for stream %s\n",
-				read_enc(off), s->name);
+				cx18_read_enc(cx, off), s->name);
 	}
 	mb->error = 0;
 	mb->cmd = 0;
@@ -97,8 +98,8 @@ static void epu_debug(struct cx18 *cx, struct cx18_mailbox *mb)
 	char *p;
 
 	if (mb->args[1]) {
-		setup_page(mb->args[1]);
-		memcpy_fromio(str, cx->enc_mem + mb->args[1], 252);
+		cx18_setup_page(cx, mb->args[1]);
+		cx18_memcpy_fromio(cx, str, cx->enc_mem + mb->args[1], 252);
 		str[252] = 0;
 	}
 	cx18_mb_ack(cx, mb);
@@ -113,7 +114,7 @@ static void hpu_cmd(struct cx18 *cx, u32 sw1)
 	struct cx18_mailbox mb;
 
 	if (sw1 & IRQ_CPU_TO_EPU) {
-		memcpy_fromio(&mb, &cx->scb->cpu2epu_mb, sizeof(mb));
+		cx18_memcpy_fromio(cx, &mb, &cx->scb->cpu2epu_mb, sizeof(mb));
 		mb.error = 0;
 
 		switch (mb.cmd) {
@@ -141,16 +142,16 @@ irqreturn_t cx18_irq_handler(int irq, void *dev_id)
 
 	spin_lock(&cx->dma_reg_lock);
 
-	hw2_mask = read_reg(HW2_INT_MASK5_PCI);
-	hw2 = read_reg(HW2_INT_CLR_STATUS) & hw2_mask;
-	sw2_mask = read_reg(SW2_INT_ENABLE_PCI) | IRQ_EPU_TO_HPU_ACK;
-	sw2 = read_reg(SW2_INT_STATUS) & sw2_mask;
-	sw1_mask = read_reg(SW1_INT_ENABLE_PCI) | IRQ_EPU_TO_HPU;
-	sw1 = read_reg(SW1_INT_STATUS) & sw1_mask;
+	hw2_mask = cx18_read_reg(cx, HW2_INT_MASK5_PCI);
+	hw2 = cx18_read_reg(cx, HW2_INT_CLR_STATUS) & hw2_mask;
+	sw2_mask = cx18_read_reg(cx, SW2_INT_ENABLE_PCI) | IRQ_EPU_TO_HPU_ACK;
+	sw2 = cx18_read_reg(cx, SW2_INT_STATUS) & sw2_mask;
+	sw1_mask = cx18_read_reg(cx, SW1_INT_ENABLE_PCI) | IRQ_EPU_TO_HPU;
+	sw1 = cx18_read_reg(cx, SW1_INT_STATUS) & sw1_mask;
 
-	write_reg(sw2&sw2_mask, SW2_INT_STATUS);
-	write_reg(sw1&sw1_mask, SW1_INT_STATUS);
-	write_reg(hw2&hw2_mask, HW2_INT_CLR_STATUS);
+	cx18_write_reg(cx, sw2&sw2_mask, SW2_INT_STATUS);
+	cx18_write_reg(cx, sw1&sw1_mask, SW1_INT_STATUS);
+	cx18_write_reg(cx, hw2&hw2_mask, HW2_INT_CLR_STATUS);
 
 	if (sw1 || sw2 || hw2)
 		CX18_DEBUG_HI_IRQ("SW1: %x  SW2: %x  HW2: %x\n", sw1, sw2, hw2);
@@ -161,15 +162,15 @@ irqreturn_t cx18_irq_handler(int irq, void *dev_id)
 	*/
 
 	if (sw2) {
-		if (sw2 & (readl(&cx->scb->cpu2hpu_irq_ack) |
-			   readl(&cx->scb->cpu2epu_irq_ack)))
+		if (sw2 & (cx18_readl(cx, &cx->scb->cpu2hpu_irq_ack) |
+			   cx18_readl(cx, &cx->scb->cpu2epu_irq_ack)))
 			wake_up(&cx->mb_cpu_waitq);
-		if (sw2 & (readl(&cx->scb->apu2hpu_irq_ack) |
-			   readl(&cx->scb->apu2epu_irq_ack)))
+		if (sw2 & (cx18_readl(cx, &cx->scb->apu2hpu_irq_ack) |
+			   cx18_readl(cx, &cx->scb->apu2epu_irq_ack)))
 			wake_up(&cx->mb_apu_waitq);
-		if (sw2 & readl(&cx->scb->epu2hpu_irq_ack))
+		if (sw2 & cx18_readl(cx, &cx->scb->epu2hpu_irq_ack))
 			wake_up(&cx->mb_epu_waitq);
-		if (sw2 & readl(&cx->scb->hpu2epu_irq_ack))
+		if (sw2 & cx18_readl(cx, &cx->scb->hpu2epu_irq_ack))
 			wake_up(&cx->mb_hpu_waitq);
 	}
 

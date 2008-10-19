@@ -476,7 +476,7 @@ static int patch_yamaha_ymf753(struct snd_ac97 * ac97)
 }
 
 /*
- * May 2, 2003 Liam Girdwood <liam.girdwood@wolfsonmicro.com>
+ * May 2, 2003 Liam Girdwood <lrg@slimlogic.co.uk>
  *  removed broken wolfson00 patch.
  *  added support for WM9705,WM9708,WM9709,WM9710,WM9711,WM9712 and WM9717.
  */

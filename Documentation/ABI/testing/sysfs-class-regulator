@@ -1,7 +1,7 @@
 What:		/sys/class/regulator/.../state
 Date:		April 2008
 KernelVersion:	2.6.26
-Contact:	Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
 Description:
 		Each regulator directory will contain a field called
 		state. This holds the regulator output state.
@@ -27,7 +27,7 @@ Description:
 What:		/sys/class/regulator/.../type
 Date:		April 2008
 KernelVersion:	2.6.26
-Contact:	Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
 Description:
 		Each regulator directory will contain a field called
 		type. This holds the regulator type.
@@ -51,7 +51,7 @@ Description:
 What:		/sys/class/regulator/.../microvolts
 Date:		April 2008
 KernelVersion:	2.6.26
-Contact:	Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
 Description:
 		Each regulator directory will contain a field called
 		microvolts. This holds the regulator output voltage setting
@@ -65,7 +65,7 @@ Description:
 What:		/sys/class/regulator/.../microamps
 Date:		April 2008
 KernelVersion:	2.6.26
-Contact:	Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
 Description:
 		Each regulator directory will contain a field called
 		microamps. This holds the regulator output current limit
@@ -79,7 +79,7 @@ Description:
 What:		/sys/class/regulator/.../opmode
 Date:		April 2008
 KernelVersion:	2.6.26
-Contact:	Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
 Description:
 		Each regulator directory will contain a field called
 		opmode. This holds the regulator operating mode setting.
@@ -102,7 +102,7 @@ Description:
 What:		/sys/class/regulator/.../min_microvolts
 Date:		April 2008
 KernelVersion:	2.6.26
-Contact:	Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
 Description:
 		Each regulator directory will contain a field called
 		min_microvolts. This holds the minimum safe working regulator
@@ -116,7 +116,7 @@ Description:
 What:		/sys/class/regulator/.../max_microvolts
 Date:		April 2008
 KernelVersion:	2.6.26
-Contact:	Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
 Description:
 		Each regulator directory will contain a field called
 		max_microvolts. This holds the maximum safe working regulator
@@ -130,7 +130,7 @@ Description:
 What:		/sys/class/regulator/.../min_microamps
 Date:		April 2008
 KernelVersion:	2.6.26
-Contact:	Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
 Description:
 		Each regulator directory will contain a field called
 		min_microamps. This holds the minimum safe working regulator
@@ -145,7 +145,7 @@ Description:
 What:		/sys/class/regulator/.../max_microamps
 Date:		April 2008
 KernelVersion:	2.6.26
-Contact:	Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
 Description:
 		Each regulator directory will contain a field called
 		max_microamps. This holds the maximum safe working regulator
@@ -157,10 +157,23 @@ Description:
 		platform code.
 
 
+What:		/sys/class/regulator/.../name
+Date:		October 2008
+KernelVersion:	2.6.28
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
+Description:
+		Each regulator directory will contain a field called
+		name. This holds a string identifying the regulator for
+		display purposes.
+
+		NOTE: this will be empty if no suitable name is provided
+		by platform or regulator drivers.
+
+
 What:		/sys/class/regulator/.../num_users
 Date:		April 2008
 KernelVersion:	2.6.26
-Contact:	Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
 Description:
 		Each regulator directory will contain a field called
 		num_users. This holds the number of consumer devices that
@@ -170,7 +183,7 @@ Description:
 What:		/sys/class/regulator/.../requested_microamps
 Date:		April 2008
 KernelVersion:	2.6.26
-Contact:	Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
 Description:
 		Each regulator directory will contain a field called
 		requested_microamps. This holds the total requested load
@@ -181,7 +194,7 @@ Description:
 What:		/sys/class/regulator/.../parent
 Date:		April 2008
 KernelVersion:	2.6.26
-Contact:	Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
 Description:
 		Some regulator directories will contain a link called parent.
 		This points to the parent or supply regulator if one exists.
@@ -189,7 +202,7 @@ Description:
 What:		/sys/class/regulator/.../suspend_mem_microvolts
 Date:		May 2008
 KernelVersion:	2.6.26
-Contact:	Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
 Description:
 		Each regulator directory will contain a field called
 		suspend_mem_microvolts. This holds the regulator output
@@ -203,7 +216,7 @@ Description:
 What:		/sys/class/regulator/.../suspend_disk_microvolts
 Date:		May 2008
 KernelVersion:	2.6.26
-Contact:	Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
 Description:
 		Each regulator directory will contain a field called
 		suspend_disk_microvolts. This holds the regulator output
@@ -217,7 +230,7 @@ Description:
 What:		/sys/class/regulator/.../suspend_standby_microvolts
 Date:		May 2008
 KernelVersion:	2.6.26
-Contact:	Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
 Description:
 		Each regulator directory will contain a field called
 		suspend_standby_microvolts. This holds the regulator output
@@ -231,7 +244,7 @@ Description:
 What:		/sys/class/regulator/.../suspend_mem_mode
 Date:		May 2008
 KernelVersion:	2.6.26
-Contact:	Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
 Description:
 		Each regulator directory will contain a field called
 		suspend_mem_mode. This holds the regulator operating mode
@@ -245,7 +258,7 @@ Description:
 What:		/sys/class/regulator/.../suspend_disk_mode
 Date:		May 2008
 KernelVersion:	2.6.26
-Contact:	Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
 Description:
 		Each regulator directory will contain a field called
 		suspend_disk_mode. This holds the regulator operating mode
@@ -258,7 +271,7 @@ Description:
 What:		/sys/class/regulator/.../suspend_standby_mode
 Date:		May 2008
 KernelVersion:	2.6.26
-Contact:	Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
 Description:
 		Each regulator directory will contain a field called
 		suspend_standby_mode. This holds the regulator operating mode
@@ -272,7 +285,7 @@ Description:
 What:		/sys/class/regulator/.../suspend_mem_state
 Date:		May 2008
 KernelVersion:	2.6.26
-Contact:	Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
 Description:
 		Each regulator directory will contain a field called
 		suspend_mem_state. This holds the regulator operating state
@@ -287,7 +300,7 @@ Description:
 What:		/sys/class/regulator/.../suspend_disk_state
 Date:		May 2008
 KernelVersion:	2.6.26
-Contact:	Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
 Description:
 		Each regulator directory will contain a field called
 		suspend_disk_state. This holds the regulator operating state
@@ -302,7 +315,7 @@ Description:
 What:		/sys/class/regulator/.../suspend_standby_state
 Date:		May 2008
 KernelVersion:	2.6.26
-Contact:	Liam Girdwood <lg@opensource.wolfsonmicro.com>
+Contact:	Liam Girdwood <lrg@slimlogic.co.uk>
 Description:
 		Each regulator directory will contain a field called
 		suspend_standby_state. This holds the regulator operating

@@ -92,7 +92,7 @@ static void amd_set_drive(ide_drive_t *drive, const u8 speed)
 
 	ide_timing_compute(drive, speed, &t, T, UT);
 
-	if (peer->present) {
+	if (peer->dev_flags & IDE_DFLAG_PRESENT) {
 		ide_timing_compute(peer, peer->current_speed, &p, T, UT);
 		ide_timing_merge(&p, &t, &t, IDE_TIMING_8BIT);
 	}
@@ -319,7 +319,7 @@ static const struct pci_device_id amd74xx_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, amd74xx_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver amd74xx_pci_driver = {
 	.name		= "AMD_IDE",
 	.id_table	= amd74xx_pci_tbl,
 	.probe		= amd74xx_probe,
@@ -330,12 +330,12 @@ static struct pci_driver driver = {
 
 static int __init amd74xx_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&amd74xx_pci_driver);
 }
 
 static void __exit amd74xx_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&amd74xx_pci_driver);
 }
 
 module_init(amd74xx_ide_init);

@@ -99,7 +99,6 @@ struct stk_camera {
 
 	u8 isoc_ep;
 
-	struct kref kref;
 	/* Not sure if this is right */
 	atomic_t urbs_used;
 
@@ -121,10 +120,8 @@ struct stk_camera {
 	unsigned sequence;
 };
 
-#define to_stk_camera(d) container_of(d, struct stk_camera, kref)
 #define vdev_to_camera(d) container_of(d, struct stk_camera, vdev)
 
-void stk_camera_delete(struct kref *);
 int stk_camera_write_reg(struct stk_camera *, u16, u8);
 int stk_camera_read_reg(struct stk_camera *, u16, int *);
 
