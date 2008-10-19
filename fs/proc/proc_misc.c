@@ -176,6 +176,7 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 		"Inactive(file): %8lu kB\n"
 #ifdef CONFIG_UNEVICTABLE_LRU
 		"Unevictable:    %8lu kB\n"
+		"Mlocked:        %8lu kB\n"
 #endif
 #ifdef CONFIG_HIGHMEM
 		"HighTotal:      %8lu kB\n"
@@ -217,6 +218,7 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 		K(pages[LRU_INACTIVE_FILE]),
 #ifdef CONFIG_UNEVICTABLE_LRU
 		K(pages[LRU_UNEVICTABLE]),
+		K(global_page_state(NR_MLOCK)),
 #endif
 #ifdef CONFIG_HIGHMEM
 		K(i.totalhigh),

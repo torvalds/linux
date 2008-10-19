@@ -625,6 +625,7 @@ static const char * const vmstat_text[] = {
 	"nr_active_file",
 #ifdef CONFIG_UNEVICTABLE_LRU
 	"nr_unevictable",
+	"nr_mlock",
 #endif
 	"nr_anon_pages",
 	"nr_mapped",
@@ -684,6 +685,10 @@ static const char * const vmstat_text[] = {
 	"unevictable_pgs_culled",
 	"unevictable_pgs_scanned",
 	"unevictable_pgs_rescued",
+	"unevictable_pgs_mlocked",
+	"unevictable_pgs_munlocked",
+	"unevictable_pgs_cleared",
+	"unevictable_pgs_stranded",
 #endif
 #endif
 };
