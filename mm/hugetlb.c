@@ -2071,6 +2071,14 @@ follow_huge_pud(struct mm_struct *mm, unsigned long address,
 	return NULL;
 }
 
+static int huge_zeropage_ok(pte_t *ptep, int write, int shared)
+{
+	if (!ptep || write || shared)
+		return 0;
+	else
+		return huge_pte_none(huge_ptep_get(ptep));
+}
+
 int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			struct page **pages, struct vm_area_struct **vmas,
 			unsigned long *position, int *length, int i,
@@ -2080,6 +2088,8 @@ int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	unsigned long vaddr = *position;
 	int remainder = *length;
 	struct hstate *h = hstate_vma(vma);
+	int zeropage_ok = 0;
+	int shared = vma->vm_flags & VM_SHARED;
 
 	spin_lock(&mm->page_table_lock);
 	while (vaddr < vma->vm_end && remainder) {
@@ -2092,8 +2102,11 @@ int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		 * first, for the page indexing below to work.
 		 */
 		pte = huge_pte_offset(mm, vaddr & huge_page_mask(h));
+		if (huge_zeropage_ok(pte, write, shared))
+			zeropage_ok = 1;
 
-		if (!pte || huge_pte_none(huge_ptep_get(pte)) ||
+		if (!pte ||
+		    (huge_pte_none(huge_ptep_get(pte)) && !zeropage_ok) ||
 		    (write && !pte_write(huge_ptep_get(pte)))) {
 			int ret;
 
@@ -2113,8 +2126,11 @@ int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		page = pte_page(huge_ptep_get(pte));
 same_page:
 		if (pages) {
-			get_page(page);
-			pages[i] = page + pfn_offset;
+			if (zeropage_ok)
+				pages[i] = ZERO_PAGE(0);
+			else
+				pages[i] = page + pfn_offset;
+			get_page(pages[i]);
 		}
 
 		if (vmas)
