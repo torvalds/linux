@@ -39,6 +39,8 @@ static inline void __put_page(struct page *page)
 	atomic_dec(&page->_count);
 }
 
+extern int isolate_lru_page(struct page *page);
+
 extern void __free_pages_bootmem(struct page *page, unsigned int order);
 
 /*
