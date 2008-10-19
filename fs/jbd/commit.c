@@ -482,6 +482,8 @@ void journal_commit_transaction(journal_t *journal)
 		printk(KERN_WARNING
 			"JBD: Detected IO errors while flushing file data "
 			"on %s\n", bdevname(journal->j_fs_dev, b));
+		if (journal->j_flags & JFS_ABORT_ON_SYNCDATA_ERR)
+			journal_abort(journal, err);
 		err = 0;
 	}
 
