@@ -1006,6 +1006,7 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
 	{
 		unsigned long active_anon, inactive_anon;
 		unsigned long active_file, inactive_file;
+		unsigned long unevictable;
 
 		inactive_anon = mem_cgroup_get_all_zonestat(mem_cont,
 						LRU_INACTIVE_ANON);
@@ -1015,10 +1016,15 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
 						LRU_INACTIVE_FILE);
 		active_file = mem_cgroup_get_all_zonestat(mem_cont,
 						LRU_ACTIVE_FILE);
+		unevictable = mem_cgroup_get_all_zonestat(mem_cont,
+							LRU_UNEVICTABLE);
+
 		cb->fill(cb, "active_anon", (active_anon) * PAGE_SIZE);
 		cb->fill(cb, "inactive_anon", (inactive_anon) * PAGE_SIZE);
 		cb->fill(cb, "active_file", (active_file) * PAGE_SIZE);
 		cb->fill(cb, "inactive_file", (inactive_file) * PAGE_SIZE);
+		cb->fill(cb, "unevictable", unevictable * PAGE_SIZE);
+
 	}
 	return 0;
 }

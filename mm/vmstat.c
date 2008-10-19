@@ -623,6 +623,9 @@ static const char * const vmstat_text[] = {
 	"nr_active_anon",
 	"nr_inactive_file",
 	"nr_active_file",
+#ifdef CONFIG_UNEVICTABLE_LRU
+	"nr_unevictable",
+#endif
 	"nr_anon_pages",
 	"nr_mapped",
 	"nr_file_pages",

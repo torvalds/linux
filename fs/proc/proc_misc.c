@@ -174,6 +174,9 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 		"Inactive(anon): %8lu kB\n"
 		"Active(file):   %8lu kB\n"
 		"Inactive(file): %8lu kB\n"
+#ifdef CONFIG_UNEVICTABLE_LRU
+		"Unevictable:    %8lu kB\n"
+#endif
 #ifdef CONFIG_HIGHMEM
 		"HighTotal:      %8lu kB\n"
 		"HighFree:       %8lu kB\n"
@@ -212,6 +215,9 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 		K(pages[LRU_INACTIVE_ANON]),
 		K(pages[LRU_ACTIVE_FILE]),
 		K(pages[LRU_INACTIVE_FILE]),
+#ifdef CONFIG_UNEVICTABLE_LRU
+		K(pages[LRU_UNEVICTABLE]),
+#endif
 #ifdef CONFIG_HIGHMEM
 		K(i.totalhigh),
 		K(i.freehigh),
