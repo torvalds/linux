@@ -8,6 +8,7 @@
 #include <linux/proc_fs.h>
 
 #define ELFCORE_ADDR_MAX	(-1ULL)
+#define ELFCORE_ADDR_ERR	(-2ULL)
 
 extern unsigned long long elfcorehdr_addr;
 
@@ -37,6 +38,29 @@ extern struct proc_dir_entry *proc_vmcore;
 static inline int is_kdump_kernel(void)
 {
 	return (elfcorehdr_addr != ELFCORE_ADDR_MAX) ? 1 : 0;
+}
+
+/* is_vmcore_usable() checks if the kernel is booting after a panic and
+ * the vmcore region is usable.
+ *
+ * This makes use of the fact that due to alignment -2ULL is not
+ * a valid pointer, much in the vain of IS_ERR(), except
+ * dealing directly with an unsigned long long rather than a pointer.
+ */
+
+static inline int is_vmcore_usable(void)
+{
+	return is_kdump_kernel() && elfcorehdr_addr != ELFCORE_ADDR_ERR ? 1 : 0;
+}
+
+/* vmcore_unusable() marks the vmcore as unusable,
+ * without disturbing the logic of is_kdump_kernel()
+ */
+
+static inline void vmcore_unusable(void)
+{
+	if (is_kdump_kernel())
+		elfcorehdr_addr = ELFCORE_ADDR_ERR;
 }
 #else /* !CONFIG_CRASH_DUMP */
 static inline int is_kdump_kernel(void) { return 0; }
