@@ -9,7 +9,6 @@
  */
 
 #include <linux/sched.h>
-#include <linux/kref.h>
 #include <linux/cpumask.h>
 #include <linux/nodemask.h>
 #include <linux/rcupdate.h>
@@ -149,7 +148,7 @@ struct cgroup {
 struct css_set {
 
 	/* Reference count */
-	struct kref ref;
+	atomic_t refcount;
 
 	/*
 	 * List running through all cgroup groups in the same hash

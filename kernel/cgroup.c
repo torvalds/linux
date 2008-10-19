@@ -241,7 +241,6 @@ static void unlink_css_set(struct css_set *cg)
 	struct cg_cgroup_link *link;
 	struct cg_cgroup_link *saved_link;
 
-	write_lock(&css_set_lock);
 	hlist_del(&cg->hlist);
 	css_set_count--;
 
@@ -251,16 +250,25 @@ static void unlink_css_set(struct css_set *cg)
 		list_del(&link->cgrp_link_list);
 		kfree(link);
 	}
-
-	write_unlock(&css_set_lock);
 }
 
-static void __release_css_set(struct kref *k, int taskexit)
+static void __put_css_set(struct css_set *cg, int taskexit)
 {
 	int i;
-	struct css_set *cg = container_of(k, struct css_set, ref);
-
+	/*
+	 * Ensure that the refcount doesn't hit zero while any readers
+	 * can see it. Similar to atomic_dec_and_lock(), but for an
+	 * rwlock
+	 */
+	if (atomic_add_unless(&cg->refcount, -1, 1))
+		return;
+	write_lock(&css_set_lock);
+	if (!atomic_dec_and_test(&cg->refcount)) {
+		write_unlock(&css_set_lock);
+		return;
+	}
 	unlink_css_set(cg);
+	write_unlock(&css_set_lock);
 
 	rcu_read_lock();
 	for (i = 0; i < CGROUP_SUBSYS_COUNT; i++) {
@@ -276,32 +284,22 @@ static void __release_css_set(struct kref *k, int taskexit)
 	kfree(cg);
 }
 
-static void release_css_set(struct kref *k)
-{
-	__release_css_set(k, 0);
-}
-
-static void release_css_set_taskexit(struct kref *k)
-{
-	__release_css_set(k, 1);
-}
-
 /*
  * refcounted get/put for css_set objects
  */
 static inline void get_css_set(struct css_set *cg)
 {
-	kref_get(&cg->ref);
+	atomic_inc(&cg->refcount);
 }
 
 static inline void put_css_set(struct css_set *cg)
 {
-	kref_put(&cg->ref, release_css_set);
+	__put_css_set(cg, 0);
 }
 
 static inline void put_css_set_taskexit(struct css_set *cg)
 {
-	kref_put(&cg->ref, release_css_set_taskexit);
+	__put_css_set(cg, 1);
 }
 
 /*
@@ -427,7 +425,7 @@ static struct css_set *find_css_set(
 		return NULL;
 	}
 
-	kref_init(&res->ref);
+	atomic_set(&res->refcount, 1);
 	INIT_LIST_HEAD(&res->cg_links);
 	INIT_LIST_HEAD(&res->tasks);
 	INIT_HLIST_NODE(&res->hlist);
@@ -1728,7 +1726,7 @@ int cgroup_task_count(const struct cgroup *cgrp)
 
 	read_lock(&css_set_lock);
 	list_for_each_entry(link, &cgrp->css_sets, cgrp_link_list) {
-		count += atomic_read(&link->cg->ref.refcount);
+		count += atomic_read(&link->cg->refcount);
 	}
 	read_unlock(&css_set_lock);
 	return count;
@@ -2495,8 +2493,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 int __init cgroup_init_early(void)
 {
 	int i;
-	kref_init(&init_css_set.ref);
-	kref_get(&init_css_set.ref);
+	atomic_set(&init_css_set.refcount, 1);
 	INIT_LIST_HEAD(&init_css_set.cg_links);
 	INIT_LIST_HEAD(&init_css_set.tasks);
 	INIT_HLIST_NODE(&init_css_set.hlist);
