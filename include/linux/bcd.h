@@ -15,11 +15,4 @@
 unsigned bcd2bin(unsigned char val) __attribute_const__;
 unsigned char bin2bcd(unsigned val) __attribute_const__;
 
-#define BCD2BIN(val)	bcd2bin(val)
-#define BIN2BCD(val)	bin2bcd(val)
-
-/* backwards compat */
-#define BCD_TO_BIN(val) ((val)=BCD2BIN(val))
-#define BIN_TO_BCD(val) ((val)=BIN2BCD(val))
-
 #endif /* _BCD_H */
