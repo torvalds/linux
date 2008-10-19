@@ -32,6 +32,28 @@ static inline void mapping_set_error(struct address_space *mapping, int error)
 	}
 }
 
+#ifdef CONFIG_UNEVICTABLE_LRU
+#define AS_UNEVICTABLE	(__GFP_BITS_SHIFT + 2)	/* e.g., ramdisk, SHM_LOCK */
+
+static inline void mapping_set_unevictable(struct address_space *mapping)
+{
+	set_bit(AS_UNEVICTABLE, &mapping->flags);
+}
+
+static inline int mapping_unevictable(struct address_space *mapping)
+{
+	if (mapping && (mapping->flags & AS_UNEVICTABLE))
+		return 1;
+	return 0;
+}
+#else
+static inline void mapping_set_unevictable(struct address_space *mapping) { }
+static inline int mapping_unevictable(struct address_space *mapping)
+{
+	return 0;
+}
+#endif
+
 static inline gfp_t mapping_gfp_mask(struct address_space * mapping)
 {
 	return (__force gfp_t)mapping->flags & __GFP_BITS_MASK;

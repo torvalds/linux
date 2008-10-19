@@ -2332,10 +2332,15 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
  * lists vs unevictable list.
  *
  * Reasons page might not be evictable:
+ * (1) page's mapping marked unevictable
+ *
  * TODO - later patches
  */
 int page_evictable(struct page *page, struct vm_area_struct *vma)
 {
+
+	if (mapping_unevictable(page_mapping(page)))
+		return 0;
 
 	/* TODO:  test page [!]evictable conditions */
 
