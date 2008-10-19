@@ -163,7 +163,7 @@ static unsigned int key_at_index;
 static struct workqueue_struct *applesmc_led_wq;
 
 /*
- * __wait_status - Wait up to 2ms for the status port to get a certain value
+ * __wait_status - Wait up to 10ms for the status port to get a certain value
  * (masked with 0x0f), returning zero if the value is obtained.  Callers must
  * hold applesmc_lock.
  */
@@ -173,7 +173,7 @@ static int __wait_status(u8 val)
 
 	val = val & APPLESMC_STATUS_MASK;
 
-	for (i = 0; i < 200; i++) {
+	for (i = 0; i < 1000; i++) {
 		if ((inb(APPLESMC_CMD_PORT) & APPLESMC_STATUS_MASK) == val) {
 			if (debug)
 				printk(KERN_DEBUG
