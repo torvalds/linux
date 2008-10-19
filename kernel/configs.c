@@ -54,9 +54,6 @@
 
 #ifdef CONFIG_IKCONFIG_PROC
 
-/**************************************************/
-/* globals and useful constants                   */
-
 static ssize_t
 ikconfig_read_current(struct file *file, char __user *buf,
 		      size_t len, loff_t * offset)
@@ -70,9 +67,6 @@ static const struct file_operations ikconfig_file_ops = {
 	.owner = THIS_MODULE,
 	.read = ikconfig_read_current,
 };
-
-/***************************************************/
-/* ikconfig_init: start up everything we need to */
 
 static int __init ikconfig_init(void)
 {
@@ -88,9 +82,6 @@ static int __init ikconfig_init(void)
 
 	return 0;
 }
-
-/***************************************************/
-/* ikconfig_cleanup: clean up our mess           */
 
 static void __exit ikconfig_cleanup(void)
 {
