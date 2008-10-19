@@ -1323,18 +1323,14 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
 	pte_t *pte;
 	spinlock_t *ptl;
 
-	retval = mem_cgroup_charge(page, mm, GFP_KERNEL);
-	if (retval)
-		goto out;
-
 	retval = -EINVAL;
 	if (PageAnon(page))
-		goto out_uncharge;
+		goto out;
 	retval = -ENOMEM;
 	flush_dcache_page(page);
 	pte = get_locked_pte(mm, addr, &ptl);
 	if (!pte)
-		goto out_uncharge;
+		goto out;
 	retval = -EBUSY;
 	if (!pte_none(*pte))
 		goto out_unlock;
@@ -1350,8 +1346,6 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
 	return retval;
 out_unlock:
 	pte_unmap_unlock(pte, ptl);
-out_uncharge:
-	mem_cgroup_uncharge_page(page);
 out:
 	return retval;
 }
@@ -2463,6 +2457,7 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	struct page *page;
 	pte_t entry;
 	int anon = 0;
+	int charged = 0;
 	struct page *dirty_page = NULL;
 	struct vm_fault vmf;
 	int ret;
@@ -2503,6 +2498,12 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 				ret = VM_FAULT_OOM;
 				goto out;
 			}
+			if (mem_cgroup_charge(page, mm, GFP_KERNEL)) {
+				ret = VM_FAULT_OOM;
+				page_cache_release(page);
+				goto out;
+			}
+			charged = 1;
 			/*
 			 * Don't let another task, with possibly unlocked vma,
 			 * keep the mlocked page.
@@ -2543,11 +2544,6 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	}
 
-	if (mem_cgroup_charge(page, mm, GFP_KERNEL)) {
-		ret = VM_FAULT_OOM;
-		goto out;
-	}
-
 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
 
 	/*
@@ -2585,7 +2581,8 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		/* no need to invalidate: a not-present page won't be cached */
 		update_mmu_cache(vma, address, entry);
 	} else {
-		mem_cgroup_uncharge_page(page);
+		if (charged)
+			mem_cgroup_uncharge_page(page);
 		if (anon)
 			page_cache_release(page);
 		else
