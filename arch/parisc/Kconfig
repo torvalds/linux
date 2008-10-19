@@ -90,6 +90,8 @@ config ARCH_MAY_HAVE_PC_FDC
 
 source "init/Kconfig"
 
+source "kernel/Kconfig.freezer"
+
 
 menu "Processor type and features"
 

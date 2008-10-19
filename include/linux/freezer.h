@@ -46,26 +46,11 @@ static inline bool should_send_signal(struct task_struct *p)
 
 /*
  * Wake up a frozen process
- *
- * task_lock() is taken to prevent the race with refrigerator() which may
- * occur if the freezing of tasks fails.  Namely, without the lock, if the
- * freezing of tasks failed, thaw_tasks() might have run before a task in
- * refrigerator() could call frozen_process(), in which case the task would be
- * frozen and no one would thaw it.
  */
-static inline int thaw_process(struct task_struct *p)
-{
-	task_lock(p);
-	if (frozen(p)) {
-		p->flags &= ~PF_FROZEN;
-		task_unlock(p);
-		wake_up_process(p);
-		return 1;
-	}
-	clear_freeze_flag(p);
-	task_unlock(p);
-	return 0;
-}
+extern int __thaw_process(struct task_struct *p);
+
+/* Takes and releases task alloc lock using task_lock() */
+extern int thaw_process(struct task_struct *p);
 
 extern void refrigerator(void);
 extern int freeze_processes(void);
@@ -82,6 +67,12 @@ static inline int try_to_freeze(void)
 
 extern bool freeze_task(struct task_struct *p, bool sig_only);
 extern void cancel_freezing(struct task_struct *p);
+
+#ifdef CONFIG_CGROUP_FREEZER
+extern int cgroup_frozen(struct task_struct *task);
+#else /* !CONFIG_CGROUP_FREEZER */
+static inline int cgroup_frozen(struct task_struct *task) { return 0; }
+#endif /* !CONFIG_CGROUP_FREEZER */
 
 /*
  * The PF_FREEZER_SKIP flag should be set by a vfork parent right before it

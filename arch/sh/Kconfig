@@ -106,6 +106,8 @@ config IO_TRAPPED
 
 source "init/Kconfig"
 
+source "kernel/Kconfig.freezer"
+
 menu "System type"
 
 #
