@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 #include <linux/migrate.h>
 #include <linux/page-isolation.h>
+#include <linux/pfn.h>
 
 #include <asm/tlbflush.h>
 
@@ -849,10 +850,19 @@ failed_removal:
 
 	return ret;
 }
+
+int remove_memory(u64 start, u64 size)
+{
+	unsigned long start_pfn, end_pfn;
+
+	start_pfn = PFN_DOWN(start);
+	end_pfn = start_pfn + PFN_DOWN(size);
+	return offline_pages(start_pfn, end_pfn, 120 * HZ);
+}
 #else
 int remove_memory(u64 start, u64 size)
 {
 	return -EINVAL;
 }
-EXPORT_SYMBOL_GPL(remove_memory);
 #endif /* CONFIG_MEMORY_HOTREMOVE */
+EXPORT_SYMBOL_GPL(remove_memory);
