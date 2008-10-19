@@ -689,6 +689,7 @@ static const char * const vmstat_text[] = {
 	"unevictable_pgs_munlocked",
 	"unevictable_pgs_cleared",
 	"unevictable_pgs_stranded",
+	"unevictable_pgs_mlockfreed",
 #endif
 #endif
 };
