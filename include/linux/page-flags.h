@@ -93,6 +93,7 @@ enum pageflags {
 	PG_mappedtodisk,	/* Has blocks allocated on-disk */
 	PG_reclaim,		/* To be reclaimed asap */
 	PG_buddy,		/* Page is free, on buddy lists */
+	PG_swapbacked,		/* Page is backed by RAM/swap */
 #ifdef CONFIG_IA64_UNCACHED_ALLOCATOR
 	PG_uncached,		/* Page has been mapped as uncached */
 #endif
@@ -176,6 +177,7 @@ PAGEFLAG(SavePinned, savepinned);			/* Xen */
 PAGEFLAG(Reserved, reserved) __CLEARPAGEFLAG(Reserved, reserved)
 PAGEFLAG(Private, private) __CLEARPAGEFLAG(Private, private)
 	__SETPAGEFLAG(Private, private)
+PAGEFLAG(SwapBacked, swapbacked) __CLEARPAGEFLAG(SwapBacked, swapbacked)
 
 __PAGEFLAG(SlobPage, slob_page)
 __PAGEFLAG(SlobFree, slob_free)
@@ -334,7 +336,8 @@ static inline void __ClearPageTail(struct page *page)
  * Flags checked in bad_page().  Pages on the free list should not have
  * these flags set.  It they are, there is a problem.
  */
-#define PAGE_FLAGS_CLEAR_WHEN_BAD (PAGE_FLAGS | 1 << PG_reclaim | 1 << PG_dirty)
+#define PAGE_FLAGS_CLEAR_WHEN_BAD (PAGE_FLAGS | \
+		1 << PG_reclaim | 1 << PG_dirty | 1 << PG_swapbacked)
 
 /*
  * Flags checked when a page is freed.  Pages being freed should not have
@@ -347,7 +350,8 @@ static inline void __ClearPageTail(struct page *page)
  * Pages being prepped should not have these flags set.  It they are, there
  * is a problem.
  */
-#define PAGE_FLAGS_CHECK_AT_PREP (PAGE_FLAGS | 1 << PG_reserved | 1 << PG_dirty)
+#define PAGE_FLAGS_CHECK_AT_PREP (PAGE_FLAGS | \
+		1 << PG_reserved | 1 << PG_dirty | 1 << PG_swapbacked)
 
 #endif /* !__GENERATING_BOUNDS_H */
 #endif	/* PAGE_FLAGS_H */
