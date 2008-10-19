@@ -22,7 +22,7 @@
 /*****************************************************************************
  * Orion GPIO IRQ
  *
- * GPIO_IN_POL register controlls whether GPIO_DATA_IN will hold the same
+ * GPIO_IN_POL register controls whether GPIO_DATA_IN will hold the same
  * value of the line or the opposite value.
  *
  * Level IRQ handlers: DATA_IN is used directly as cause register.
@@ -82,7 +82,7 @@ static int orion5x_gpio_set_irq_type(u32 irq, u32 type)
 	int pin = irq_to_gpio(irq);
 	struct irq_desc *desc;
 
-	if ((readl(GPIO_IO_CONF) & (1 << pin)) == 0) {
+	if ((readl(GPIO_IO_CONF(pin)) & (1 << pin)) == 0) {
 		printk(KERN_ERR "orion5x_gpio_set_irq_type failed "
 				"(irq %d, pin %d).\n", irq, pin);
 		return -EINVAL;
@@ -94,22 +94,22 @@ static int orion5x_gpio_set_irq_type(u32 irq, u32 type)
 	case IRQ_TYPE_LEVEL_HIGH:
 		desc->handle_irq = handle_level_irq;
 		desc->status |= IRQ_LEVEL;
-		orion5x_clrbits(GPIO_IN_POL, (1 << pin));
+		orion5x_clrbits(GPIO_IN_POL(pin), (1 << pin));
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
 		desc->handle_irq = handle_level_irq;
 		desc->status |= IRQ_LEVEL;
-		orion5x_setbits(GPIO_IN_POL, (1 << pin));
+		orion5x_setbits(GPIO_IN_POL(pin), (1 << pin));
 		break;
 	case IRQ_TYPE_EDGE_RISING:
 		desc->handle_irq = handle_edge_irq;
 		desc->status &= ~IRQ_LEVEL;
-		orion5x_clrbits(GPIO_IN_POL, (1 << pin));
+		orion5x_clrbits(GPIO_IN_POL(pin), (1 << pin));
 		break;
 	case IRQ_TYPE_EDGE_FALLING:
 		desc->handle_irq = handle_edge_irq;
 		desc->status &= ~IRQ_LEVEL;
-		orion5x_setbits(GPIO_IN_POL, (1 << pin));
+		orion5x_setbits(GPIO_IN_POL(pin), (1 << pin));
 		break;
 	case IRQ_TYPE_EDGE_BOTH:
 		desc->handle_irq = handle_edge_irq;
@@ -117,11 +117,11 @@ static int orion5x_gpio_set_irq_type(u32 irq, u32 type)
 		/*
 		 * set initial polarity based on current input level
 		 */
-		if ((readl(GPIO_IN_POL) ^ readl(GPIO_DATA_IN))
+		if ((readl(GPIO_IN_POL(pin)) ^ readl(GPIO_DATA_IN(pin)))
 		    & (1 << pin))
-			orion5x_setbits(GPIO_IN_POL, (1 << pin)); /* falling */
+			orion5x_setbits(GPIO_IN_POL(pin), (1 << pin)); /* falling */
 		else
-			orion5x_clrbits(GPIO_IN_POL, (1 << pin)); /* rising */
+			orion5x_clrbits(GPIO_IN_POL(pin), (1 << pin)); /* rising */
 
 		break;
 	default:
@@ -149,7 +149,7 @@ static void orion5x_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 
 	BUG_ON(irq < IRQ_ORION5X_GPIO_0_7 || irq > IRQ_ORION5X_GPIO_24_31);
 	offs = (irq - IRQ_ORION5X_GPIO_0_7) * 8;
-	cause = (readl(GPIO_DATA_IN) & readl(GPIO_LEVEL_MASK)) |
+	cause = (readl(GPIO_DATA_IN(offs)) & readl(GPIO_LEVEL_MASK)) |
 		(readl(GPIO_EDGE_CAUSE) & readl(GPIO_EDGE_MASK));
 
 	for (pin = offs; pin < offs + 8; pin++) {
@@ -158,9 +158,9 @@ static void orion5x_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 			desc = irq_desc + irq;
 			if ((desc->status & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH) {
 				/* Swap polarity (race with GPIO line) */
-				u32 polarity = readl(GPIO_IN_POL);
+				u32 polarity = readl(GPIO_IN_POL(pin));
 				polarity ^= 1 << pin;
-				writel(polarity, GPIO_IN_POL);
+				writel(polarity, GPIO_IN_POL(pin));
 			}
 			generic_handle_irq(irq);
 		}
