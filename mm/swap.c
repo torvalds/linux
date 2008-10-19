@@ -31,6 +31,8 @@
 #include <linux/backing-dev.h>
 #include <linux/memcontrol.h>
 
+#include "internal.h"
+
 /* How many pages do we try to swap or page in/out together? */
 int page_cluster;
 
@@ -242,6 +244,25 @@ void add_page_to_unevictable_list(struct page *page)
 	SetPageLRU(page);
 	add_page_to_lru_list(zone, page, LRU_UNEVICTABLE);
 	spin_unlock_irq(&zone->lru_lock);
+}
+
+/**
+ * lru_cache_add_active_or_unevictable
+ * @page:  the page to be added to LRU
+ * @vma:   vma in which page is mapped for determining reclaimability
+ *
+ * place @page on active or unevictable LRU list, depending on
+ * page_evictable().  Note that if the page is not evictable,
+ * it goes directly back onto it's zone's unevictable list.  It does
+ * NOT use a per cpu pagevec.
+ */
+void lru_cache_add_active_or_unevictable(struct page *page,
+					struct vm_area_struct *vma)
+{
+	if (page_evictable(page, vma))
+		lru_cache_add_lru(page, LRU_ACTIVE + page_is_file_cache(page));
+	else
+		add_page_to_unevictable_list(page);
 }
 
 /*
