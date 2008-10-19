@@ -2346,4 +2346,93 @@ int page_evictable(struct page *page, struct vm_area_struct *vma)
 
 	return 1;
 }
+
+/**
+ * check_move_unevictable_page - check page for evictability and move to appropriate zone lru list
+ * @page: page to check evictability and move to appropriate lru list
+ * @zone: zone page is in
+ *
+ * Checks a page for evictability and moves the page to the appropriate
+ * zone lru list.
+ *
+ * Restrictions: zone->lru_lock must be held, page must be on LRU and must
+ * have PageUnevictable set.
+ */
+static void check_move_unevictable_page(struct page *page, struct zone *zone)
+{
+	VM_BUG_ON(PageActive(page));
+
+retry:
+	ClearPageUnevictable(page);
+	if (page_evictable(page, NULL)) {
+		enum lru_list l = LRU_INACTIVE_ANON + page_is_file_cache(page);
+		__dec_zone_state(zone, NR_UNEVICTABLE);
+		list_move(&page->lru, &zone->lru[l].list);
+		__inc_zone_state(zone, NR_INACTIVE_ANON + l);
+		__count_vm_event(UNEVICTABLE_PGRESCUED);
+	} else {
+		/*
+		 * rotate unevictable list
+		 */
+		SetPageUnevictable(page);
+		list_move(&page->lru, &zone->lru[LRU_UNEVICTABLE].list);
+		if (page_evictable(page, NULL))
+			goto retry;
+	}
+}
+
+/**
+ * scan_mapping_unevictable_pages - scan an address space for evictable pages
+ * @mapping: struct address_space to scan for evictable pages
+ *
+ * Scan all pages in mapping.  Check unevictable pages for
+ * evictability and move them to the appropriate zone lru list.
+ */
+void scan_mapping_unevictable_pages(struct address_space *mapping)
+{
+	pgoff_t next = 0;
+	pgoff_t end   = (i_size_read(mapping->host) + PAGE_CACHE_SIZE - 1) >>
+			 PAGE_CACHE_SHIFT;
+	struct zone *zone;
+	struct pagevec pvec;
+
+	if (mapping->nrpages == 0)
+		return;
+
+	pagevec_init(&pvec, 0);
+	while (next < end &&
+		pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE)) {
+		int i;
+		int pg_scanned = 0;
+
+		zone = NULL;
+
+		for (i = 0; i < pagevec_count(&pvec); i++) {
+			struct page *page = pvec.pages[i];
+			pgoff_t page_index = page->index;
+			struct zone *pagezone = page_zone(page);
+
+			pg_scanned++;
+			if (page_index > next)
+				next = page_index;
+			next++;
+
+			if (pagezone != zone) {
+				if (zone)
+					spin_unlock_irq(&zone->lru_lock);
+				zone = pagezone;
+				spin_lock_irq(&zone->lru_lock);
+			}
+
+			if (PageLRU(page) && PageUnevictable(page))
+				check_move_unevictable_page(page, zone);
+		}
+		if (zone)
+			spin_unlock_irq(&zone->lru_lock);
+		pagevec_release(&pvec);
+
+		count_vm_events(UNEVICTABLE_PGSCANNED, pg_scanned);
+	}
+
+}
 #endif

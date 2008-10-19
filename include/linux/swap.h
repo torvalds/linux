@@ -232,11 +232,15 @@ static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
 
 #ifdef CONFIG_UNEVICTABLE_LRU
 extern int page_evictable(struct page *page, struct vm_area_struct *vma);
+extern void scan_mapping_unevictable_pages(struct address_space *);
 #else
 static inline int page_evictable(struct page *page,
 						struct vm_area_struct *vma)
 {
 	return 1;
+}
+static inline void scan_mapping_unevictable_pages(struct address_space *mapping)
+{
 }
 #endif
 

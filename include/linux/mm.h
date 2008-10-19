@@ -700,10 +700,10 @@ static inline int page_mapped(struct page *page)
 extern void show_free_areas(void);
 
 #ifdef CONFIG_SHMEM
-int shmem_lock(struct file *file, int lock, struct user_struct *user);
+extern int shmem_lock(struct file *file, int lock, struct user_struct *user);
 #else
 static inline int shmem_lock(struct file *file, int lock,
-			     struct user_struct *user)
+			    struct user_struct *user)
 {
 	return 0;
 }
