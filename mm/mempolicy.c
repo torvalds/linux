@@ -2202,7 +2202,7 @@ static void gather_stats(struct page *page, void *private, int pte_dirty)
 	if (PageSwapCache(page))
 		md->swapcache++;
 
-	if (PageActive(page))
+	if (PageActive(page) || PageUnevictable(page))
 		md->active++;
 
 	if (PageWriteback(page))

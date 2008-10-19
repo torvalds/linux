@@ -115,7 +115,7 @@ static void pagevec_move_tail(struct pagevec *pvec)
 			zone = pagezone;
 			spin_lock(&zone->lru_lock);
 		}
-		if (PageLRU(page) && !PageActive(page)) {
+		if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
 			int lru = page_is_file_cache(page);
 			list_move_tail(&page->lru, &zone->lru[lru].list);
 			pgmoved++;
@@ -136,7 +136,7 @@ static void pagevec_move_tail(struct pagevec *pvec)
 void  rotate_reclaimable_page(struct page *page)
 {
 	if (!PageLocked(page) && !PageDirty(page) && !PageActive(page) &&
-	    PageLRU(page)) {
+	    !PageUnevictable(page) && PageLRU(page)) {
 		struct pagevec *pvec;
 		unsigned long flags;
 
@@ -157,7 +157,7 @@ void activate_page(struct page *page)
 	struct zone *zone = page_zone(page);
 
 	spin_lock_irq(&zone->lru_lock);
-	if (PageLRU(page) && !PageActive(page)) {
+	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
 		int file = page_is_file_cache(page);
 		int lru = LRU_BASE + file;
 		del_page_from_lru_list(zone, page, lru);
@@ -166,7 +166,7 @@ void activate_page(struct page *page)
 		lru += LRU_ACTIVE;
 		add_page_to_lru_list(zone, page, lru);
 		__count_vm_event(PGACTIVATE);
-		mem_cgroup_move_lists(page, true);
+		mem_cgroup_move_lists(page, lru);
 
 		zone->recent_rotated[!!file]++;
 		zone->recent_scanned[!!file]++;
@@ -183,7 +183,8 @@ void activate_page(struct page *page)
  */
 void mark_page_accessed(struct page *page)
 {
-	if (!PageActive(page) && PageReferenced(page) && PageLRU(page)) {
+	if (!PageActive(page) && !PageUnevictable(page) &&
+			PageReferenced(page) && PageLRU(page)) {
 		activate_page(page);
 		ClearPageReferenced(page);
 	} else if (!PageReferenced(page)) {
@@ -211,11 +212,36 @@ void __lru_cache_add(struct page *page, enum lru_list lru)
 void lru_cache_add_lru(struct page *page, enum lru_list lru)
 {
 	if (PageActive(page)) {
+		VM_BUG_ON(PageUnevictable(page));
 		ClearPageActive(page);
+	} else if (PageUnevictable(page)) {
+		VM_BUG_ON(PageActive(page));
+		ClearPageUnevictable(page);
 	}
 
-	VM_BUG_ON(PageLRU(page) || PageActive(page));
+	VM_BUG_ON(PageLRU(page) || PageActive(page) || PageUnevictable(page));
 	__lru_cache_add(page, lru);
+}
+
+/**
+ * add_page_to_unevictable_list - add a page to the unevictable list
+ * @page:  the page to be added to the unevictable list
+ *
+ * Add page directly to its zone's unevictable list.  To avoid races with
+ * tasks that might be making the page evictable, through eg. munlock,
+ * munmap or exit, while it's not on the lru, we want to add the page
+ * while it's locked or otherwise "invisible" to other tasks.  This is
+ * difficult to do when using the pagevec cache, so bypass that.
+ */
+void add_page_to_unevictable_list(struct page *page)
+{
+	struct zone *zone = page_zone(page);
+
+	spin_lock_irq(&zone->lru_lock);
+	SetPageUnevictable(page);
+	SetPageLRU(page);
+	add_page_to_lru_list(zone, page, LRU_UNEVICTABLE);
+	spin_unlock_irq(&zone->lru_lock);
 }
 
 /*
@@ -316,6 +342,7 @@ void release_pages(struct page **pages, int nr, int cold)
 
 		if (PageLRU(page)) {
 			struct zone *pagezone = page_zone(page);
+
 			if (pagezone != zone) {
 				if (zone)
 					spin_unlock_irqrestore(&zone->lru_lock,
@@ -392,6 +419,7 @@ void ____pagevec_lru_add(struct pagevec *pvec, enum lru_list lru)
 {
 	int i;
 	struct zone *zone = NULL;
+	VM_BUG_ON(is_unevictable_lru(lru));
 
 	for (i = 0; i < pagevec_count(pvec); i++) {
 		struct page *page = pvec->pages[i];
@@ -403,6 +431,8 @@ void ____pagevec_lru_add(struct pagevec *pvec, enum lru_list lru)
 			zone = pagezone;
 			spin_lock_irq(&zone->lru_lock);
 		}
+		VM_BUG_ON(PageActive(page));
+		VM_BUG_ON(PageUnevictable(page));
 		VM_BUG_ON(PageLRU(page));
 		SetPageLRU(page);
 		if (is_active_lru(lru))

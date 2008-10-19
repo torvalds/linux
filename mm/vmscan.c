@@ -470,6 +470,79 @@ int remove_mapping(struct address_space *mapping, struct page *page)
 	return 0;
 }
 
+/**
+ * putback_lru_page - put previously isolated page onto appropriate LRU list
+ * @page: page to be put back to appropriate lru list
+ *
+ * Add previously isolated @page to appropriate LRU list.
+ * Page may still be unevictable for other reasons.
+ *
+ * lru_lock must not be held, interrupts must be enabled.
+ */
+#ifdef CONFIG_UNEVICTABLE_LRU
+void putback_lru_page(struct page *page)
+{
+	int lru;
+	int active = !!TestClearPageActive(page);
+
+	VM_BUG_ON(PageLRU(page));
+
+redo:
+	ClearPageUnevictable(page);
+
+	if (page_evictable(page, NULL)) {
+		/*
+		 * For evictable pages, we can use the cache.
+		 * In event of a race, worst case is we end up with an
+		 * unevictable page on [in]active list.
+		 * We know how to handle that.
+		 */
+		lru = active + page_is_file_cache(page);
+		lru_cache_add_lru(page, lru);
+	} else {
+		/*
+		 * Put unevictable pages directly on zone's unevictable
+		 * list.
+		 */
+		lru = LRU_UNEVICTABLE;
+		add_page_to_unevictable_list(page);
+	}
+	mem_cgroup_move_lists(page, lru);
+
+	/*
+	 * page's status can change while we move it among lru. If an evictable
+	 * page is on unevictable list, it never be freed. To avoid that,
+	 * check after we added it to the list, again.
+	 */
+	if (lru == LRU_UNEVICTABLE && page_evictable(page, NULL)) {
+		if (!isolate_lru_page(page)) {
+			put_page(page);
+			goto redo;
+		}
+		/* This means someone else dropped this page from LRU
+		 * So, it will be freed or putback to LRU again. There is
+		 * nothing to do here.
+		 */
+	}
+
+	put_page(page);		/* drop ref from isolate */
+}
+
+#else /* CONFIG_UNEVICTABLE_LRU */
+
+void putback_lru_page(struct page *page)
+{
+	int lru;
+	VM_BUG_ON(PageLRU(page));
+
+	lru = !!TestClearPageActive(page) + page_is_file_cache(page);
+	lru_cache_add_lru(page, lru);
+	mem_cgroup_move_lists(page, lru);
+	put_page(page);
+}
+#endif /* CONFIG_UNEVICTABLE_LRU */
+
+
 /*
  * shrink_page_list() returns the number of reclaimed pages
  */
@@ -502,6 +575,12 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		VM_BUG_ON(PageActive(page));
 
 		sc->nr_scanned++;
+
+		if (unlikely(!page_evictable(page, NULL))) {
+			unlock_page(page);
+			putback_lru_page(page);
+			continue;
+		}
 
 		if (!sc->may_swap && page_mapped(page))
 			goto keep_locked;
@@ -602,7 +681,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		 * possible for a page to have PageDirty set, but it is actually
 		 * clean (all its buffers are clean).  This happens if the
 		 * buffers were written out directly, with submit_bh(). ext3
-		 * will do this, as well as the blockdev mapping. 
+		 * will do this, as well as the blockdev mapping.
 		 * try_to_release_page() will discover that cleanness and will
 		 * drop the buffers and mark the page clean - it can be freed.
 		 *
@@ -650,6 +729,7 @@ activate_locked:
 		/* Not a candidate for swapping, so reclaim swap space. */
 		if (PageSwapCache(page) && vm_swap_full())
 			remove_exclusive_swap_page_ref(page);
+		VM_BUG_ON(PageActive(page));
 		SetPageActive(page);
 		pgactivate++;
 keep_locked:
@@ -697,6 +777,14 @@ int __isolate_lru_page(struct page *page, int mode, int file)
 		return ret;
 
 	if (mode != ISOLATE_BOTH && (!page_is_file_cache(page) != !file))
+		return ret;
+
+	/*
+	 * When this function is being called for lumpy reclaim, we
+	 * initially look into all LRU pages, active, inactive and
+	 * unevictable; only give shrink_page_list evictable pages.
+	 */
+	if (PageUnevictable(page))
 		return ret;
 
 	ret = -EBUSY;
@@ -810,7 +898,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 				/* else it is being freed elsewhere */
 				list_move(&cursor_page->lru, src);
 			default:
-				break;
+				break;	/* ! on LRU or wrong list */
 			}
 		}
 	}
@@ -870,8 +958,9 @@ static unsigned long clear_active_flags(struct list_head *page_list,
  * Returns -EBUSY if the page was not on an LRU list.
  *
  * The returned page will have PageLRU() cleared.  If it was found on
- * the active list, it will have PageActive set.  That flag may need
- * to be cleared by the caller before letting the page go.
+ * the active list, it will have PageActive set.  If it was found on
+ * the unevictable list, it will have the PageUnevictable bit set. That flag
+ * may need to be cleared by the caller before letting the page go.
  *
  * The vmstat statistic corresponding to the list on which the page was
  * found will be decremented.
@@ -892,11 +981,10 @@ int isolate_lru_page(struct page *page)
 
 		spin_lock_irq(&zone->lru_lock);
 		if (PageLRU(page) && get_page_unless_zero(page)) {
-			int lru = LRU_BASE;
+			int lru = page_lru(page);
 			ret = 0;
 			ClearPageLRU(page);
 
-			lru += page_is_file_cache(page) + !!PageActive(page);
 			del_page_from_lru_list(zone, page, lru);
 		}
 		spin_unlock_irq(&zone->lru_lock);
@@ -1008,11 +1096,20 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 		 * Put back any unfreeable pages.
 		 */
 		while (!list_empty(&page_list)) {
+			int lru;
 			page = lru_to_page(&page_list);
 			VM_BUG_ON(PageLRU(page));
-			SetPageLRU(page);
 			list_del(&page->lru);
-			add_page_to_lru_list(zone, page, page_lru(page));
+			if (unlikely(!page_evictable(page, NULL))) {
+				spin_unlock_irq(&zone->lru_lock);
+				putback_lru_page(page);
+				spin_lock_irq(&zone->lru_lock);
+				continue;
+			}
+			SetPageLRU(page);
+			lru = page_lru(page);
+			add_page_to_lru_list(zone, page, lru);
+			mem_cgroup_move_lists(page, lru);
 			if (PageActive(page) && scan_global_lru(sc)) {
 				int file = !!page_is_file_cache(page);
 				zone->recent_rotated[file]++;
@@ -1107,6 +1204,11 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 		page = lru_to_page(&l_hold);
 		list_del(&page->lru);
 
+		if (unlikely(!page_evictable(page, NULL))) {
+			putback_lru_page(page);
+			continue;
+		}
+
 		/* page_referenced clears PageReferenced */
 		if (page_mapping_inuse(page) &&
 		    page_referenced(page, 0, sc->mem_cgroup))
@@ -1140,7 +1242,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 		ClearPageActive(page);
 
 		list_move(&page->lru, &zone->lru[lru].list);
-		mem_cgroup_move_lists(page, false);
+		mem_cgroup_move_lists(page, lru);
 		pgmoved++;
 		if (!pagevec_add(&pvec, page)) {
 			__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
@@ -1286,7 +1388,7 @@ static unsigned long shrink_zone(int priority, struct zone *zone,
 
 	get_scan_ratio(zone, sc, percent);
 
-	for_each_lru(l) {
+	for_each_evictable_lru(l) {
 		if (scan_global_lru(sc)) {
 			int file = is_file_lru(l);
 			int scan;
@@ -1318,7 +1420,7 @@ static unsigned long shrink_zone(int priority, struct zone *zone,
 
 	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
 					nr[LRU_INACTIVE_FILE]) {
-		for_each_lru(l) {
+		for_each_evictable_lru(l) {
 			if (nr[l]) {
 				nr_to_scan = min(nr[l],
 					(unsigned long)sc->swap_cluster_max);
@@ -1875,8 +1977,8 @@ static unsigned long shrink_all_zones(unsigned long nr_pages, int prio,
 		if (zone_is_all_unreclaimable(zone) && prio != DEF_PRIORITY)
 			continue;
 
-		for_each_lru(l) {
-			/* For pass = 0 we don't shrink the active list */
+		for_each_evictable_lru(l) {
+			/* For pass = 0, we don't shrink the active list */
 			if (pass == 0 &&
 				(l == LRU_ACTIVE || l == LRU_ACTIVE_FILE))
 				continue;
@@ -2211,5 +2313,26 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	zone_clear_flag(zone, ZONE_RECLAIM_LOCKED);
 
 	return ret;
+}
+#endif
+
+#ifdef CONFIG_UNEVICTABLE_LRU
+/*
+ * page_evictable - test whether a page is evictable
+ * @page: the page to test
+ * @vma: the VMA in which the page is or will be mapped, may be NULL
+ *
+ * Test whether page is evictable--i.e., should be placed on active/inactive
+ * lists vs unevictable list.
+ *
+ * Reasons page might not be evictable:
+ * TODO - later patches
+ */
+int page_evictable(struct page *page, struct vm_area_struct *vma)
+{
+
+	/* TODO:  test page [!]evictable conditions */
+
+	return 1;
 }
 #endif

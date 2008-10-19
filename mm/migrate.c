@@ -53,14 +53,9 @@ int migrate_prep(void)
 	return 0;
 }
 
-static inline void move_to_lru(struct page *page)
-{
-	lru_cache_add_lru(page, page_lru(page));
-	put_page(page);
-}
-
 /*
- * Add isolated pages on the list back to the LRU.
+ * Add isolated pages on the list back to the LRU under page lock
+ * to avoid leaking evictable pages back onto unevictable list.
  *
  * returns the number of pages put back.
  */
@@ -72,7 +67,7 @@ int putback_lru_pages(struct list_head *l)
 
 	list_for_each_entry_safe(page, page2, l, lru) {
 		list_del(&page->lru);
-		move_to_lru(page);
+		putback_lru_page(page);
 		count++;
 	}
 	return count;
@@ -354,8 +349,11 @@ static void migrate_page_copy(struct page *newpage, struct page *page)
 		SetPageReferenced(newpage);
 	if (PageUptodate(page))
 		SetPageUptodate(newpage);
-	if (PageActive(page))
+	if (TestClearPageActive(page)) {
+		VM_BUG_ON(PageUnevictable(page));
 		SetPageActive(newpage);
+	} else
+		unevictable_migrate_page(newpage, page);
 	if (PageChecked(page))
 		SetPageChecked(newpage);
 	if (PageMappedToDisk(page))
@@ -376,7 +374,6 @@ static void migrate_page_copy(struct page *newpage, struct page *page)
 #ifdef CONFIG_SWAP
 	ClearPageSwapCache(page);
 #endif
-	ClearPageActive(page);
 	ClearPagePrivate(page);
 	set_page_private(page, 0);
 	page->mapping = NULL;
@@ -555,6 +552,10 @@ static int fallback_migrate_page(struct address_space *mapping,
  *
  * The new page will have replaced the old page if this function
  * is successful.
+ *
+ * Return value:
+ *   < 0 - error code
+ *  == 0 - success
  */
 static int move_to_new_page(struct page *newpage, struct page *page)
 {
@@ -617,9 +618,10 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
 	if (!newpage)
 		return -ENOMEM;
 
-	if (page_count(page) == 1)
+	if (page_count(page) == 1) {
 		/* page was freed from under us. So we are done. */
 		goto move_newpage;
+	}
 
 	charge = mem_cgroup_prepare_migration(page, newpage);
 	if (charge == -ENOMEM) {
@@ -693,7 +695,6 @@ rcu_unlock:
 		rcu_read_unlock();
 
 unlock:
-
 	unlock_page(page);
 
 	if (rc != -EAGAIN) {
@@ -704,17 +705,19 @@ unlock:
  		 * restored.
  		 */
  		list_del(&page->lru);
- 		move_to_lru(page);
+		putback_lru_page(page);
 	}
 
 move_newpage:
 	if (!charge)
 		mem_cgroup_end_migration(newpage);
+
 	/*
 	 * Move the new page to the LRU. If migration was not successful
 	 * then this will free the page.
 	 */
-	move_to_lru(newpage);
+	putback_lru_page(newpage);
+
 	if (result) {
 		if (rc)
 			*result = rc;

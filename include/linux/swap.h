@@ -180,6 +180,8 @@ extern int lru_add_drain_all(void);
 extern void rotate_reclaimable_page(struct page *page);
 extern void swap_setup(void);
 
+extern void add_page_to_unevictable_list(struct page *page);
+
 /**
  * lru_cache_add: add a page to the page lists
  * @page: the page to add
@@ -225,6 +227,16 @@ extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
 static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
 {
 	return 0;
+}
+#endif
+
+#ifdef CONFIG_UNEVICTABLE_LRU
+extern int page_evictable(struct page *page, struct vm_area_struct *vma);
+#else
+static inline int page_evictable(struct page *page,
+						struct vm_area_struct *vma)
+{
+	return 1;
 }
 #endif
 

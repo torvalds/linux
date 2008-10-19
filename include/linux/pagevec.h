@@ -101,7 +101,6 @@ static inline void __pagevec_lru_add_active_file(struct pagevec *pvec)
 	____pagevec_lru_add(pvec, LRU_ACTIVE_FILE);
 }
 
-
 static inline void pagevec_lru_add_file(struct pagevec *pvec)
 {
 	if (pagevec_count(pvec))

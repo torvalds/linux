@@ -86,6 +86,11 @@ enum zone_stat_item {
 	NR_ACTIVE_ANON,		/*  "     "     "   "       "         */
 	NR_INACTIVE_FILE,	/*  "     "     "   "       "         */
 	NR_ACTIVE_FILE,		/*  "     "     "   "       "         */
+#ifdef CONFIG_UNEVICTABLE_LRU
+	NR_UNEVICTABLE,		/*  "     "     "   "       "         */
+#else
+	NR_UNEVICTABLE = NR_ACTIVE_FILE, /* avoid compiler errors in dead code */
+#endif
 	NR_ANON_PAGES,	/* Mapped anonymous pages */
 	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
 			   only modified from process context */
@@ -128,9 +133,17 @@ enum lru_list {
 	LRU_ACTIVE_ANON = LRU_BASE + LRU_ACTIVE,
 	LRU_INACTIVE_FILE = LRU_BASE + LRU_FILE,
 	LRU_ACTIVE_FILE = LRU_BASE + LRU_FILE + LRU_ACTIVE,
-	NR_LRU_LISTS };
+#ifdef CONFIG_UNEVICTABLE_LRU
+	LRU_UNEVICTABLE,
+#else
+	LRU_UNEVICTABLE = LRU_ACTIVE_FILE, /* avoid compiler errors in dead code */
+#endif
+	NR_LRU_LISTS
+};
 
 #define for_each_lru(l) for (l = 0; l < NR_LRU_LISTS; l++)
+
+#define for_each_evictable_lru(l) for (l = 0; l <= LRU_ACTIVE_FILE; l++)
 
 static inline int is_file_lru(enum lru_list l)
 {
@@ -140,6 +153,15 @@ static inline int is_file_lru(enum lru_list l)
 static inline int is_active_lru(enum lru_list l)
 {
 	return (l == LRU_ACTIVE_ANON || l == LRU_ACTIVE_FILE);
+}
+
+static inline int is_unevictable_lru(enum lru_list l)
+{
+#ifdef CONFIG_UNEVICTABLE_LRU
+	return (l == LRU_UNEVICTABLE);
+#else
+	return 0;
+#endif
 }
 
 struct per_cpu_pages {

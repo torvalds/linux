@@ -39,8 +39,15 @@ static inline void __put_page(struct page *page)
 	atomic_dec(&page->_count);
 }
 
+/*
+ * in mm/vmscan.c:
+ */
 extern int isolate_lru_page(struct page *page);
+extern void putback_lru_page(struct page *page);
 
+/*
+ * in mm/page_alloc.c
+ */
 extern void __free_pages_bootmem(struct page *page, unsigned int order);
 
 /*
@@ -53,6 +60,25 @@ static inline unsigned long page_order(struct page *page)
 	VM_BUG_ON(!PageBuddy(page));
 	return page_private(page);
 }
+
+#ifdef CONFIG_UNEVICTABLE_LRU
+/*
+ * unevictable_migrate_page() called only from migrate_page_copy() to
+ * migrate unevictable flag to new page.
+ * Note that the old page has been isolated from the LRU lists at this
+ * point so we don't need to worry about LRU statistics.
+ */
+static inline void unevictable_migrate_page(struct page *new, struct page *old)
+{
+	if (TestClearPageUnevictable(old))
+		SetPageUnevictable(new);
+}
+#else
+static inline void unevictable_migrate_page(struct page *new, struct page *old)
+{
+}
+#endif
+
 
 /*
  * FLATMEM and DISCONTIGMEM configurations use alloc_bootmem_node,

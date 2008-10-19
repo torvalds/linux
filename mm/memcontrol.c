@@ -160,9 +160,10 @@ struct page_cgroup {
 	struct mem_cgroup *mem_cgroup;
 	int flags;
 };
-#define PAGE_CGROUP_FLAG_CACHE	(0x1)	/* charged as cache */
-#define PAGE_CGROUP_FLAG_ACTIVE (0x2)	/* page is active in this cgroup */
-#define PAGE_CGROUP_FLAG_FILE	(0x4)	/* page is file system backed */
+#define PAGE_CGROUP_FLAG_CACHE	   (0x1)	/* charged as cache */
+#define PAGE_CGROUP_FLAG_ACTIVE    (0x2)	/* page is active in this cgroup */
+#define PAGE_CGROUP_FLAG_FILE	   (0x4)	/* page is file system backed */
+#define PAGE_CGROUP_FLAG_UNEVICTABLE (0x8)	/* page is unevictableable */
 
 static int page_cgroup_nid(struct page_cgroup *pc)
 {
@@ -292,10 +293,14 @@ static void __mem_cgroup_remove_list(struct mem_cgroup_per_zone *mz,
 {
 	int lru = LRU_BASE;
 
-	if (pc->flags & PAGE_CGROUP_FLAG_ACTIVE)
-		lru += LRU_ACTIVE;
-	if (pc->flags & PAGE_CGROUP_FLAG_FILE)
-		lru += LRU_FILE;
+	if (pc->flags & PAGE_CGROUP_FLAG_UNEVICTABLE)
+		lru = LRU_UNEVICTABLE;
+	else {
+		if (pc->flags & PAGE_CGROUP_FLAG_ACTIVE)
+			lru += LRU_ACTIVE;
+		if (pc->flags & PAGE_CGROUP_FLAG_FILE)
+			lru += LRU_FILE;
+	}
 
 	MEM_CGROUP_ZSTAT(mz, lru) -= 1;
 
@@ -308,10 +313,14 @@ static void __mem_cgroup_add_list(struct mem_cgroup_per_zone *mz,
 {
 	int lru = LRU_BASE;
 
-	if (pc->flags & PAGE_CGROUP_FLAG_ACTIVE)
-		lru += LRU_ACTIVE;
-	if (pc->flags & PAGE_CGROUP_FLAG_FILE)
-		lru += LRU_FILE;
+	if (pc->flags & PAGE_CGROUP_FLAG_UNEVICTABLE)
+		lru = LRU_UNEVICTABLE;
+	else {
+		if (pc->flags & PAGE_CGROUP_FLAG_ACTIVE)
+			lru += LRU_ACTIVE;
+		if (pc->flags & PAGE_CGROUP_FLAG_FILE)
+			lru += LRU_FILE;
+	}
 
 	MEM_CGROUP_ZSTAT(mz, lru) += 1;
 	list_add(&pc->lru, &mz->lists[lru]);
@@ -319,21 +328,31 @@ static void __mem_cgroup_add_list(struct mem_cgroup_per_zone *mz,
 	mem_cgroup_charge_statistics(pc->mem_cgroup, pc->flags, true);
 }
 
-static void __mem_cgroup_move_lists(struct page_cgroup *pc, bool active)
+static void __mem_cgroup_move_lists(struct page_cgroup *pc, enum lru_list lru)
 {
 	struct mem_cgroup_per_zone *mz = page_cgroup_zoneinfo(pc);
-	int from = pc->flags & PAGE_CGROUP_FLAG_ACTIVE;
-	int file = pc->flags & PAGE_CGROUP_FLAG_FILE;
-	int lru = LRU_FILE * !!file + !!from;
+	int active    = pc->flags & PAGE_CGROUP_FLAG_ACTIVE;
+	int file      = pc->flags & PAGE_CGROUP_FLAG_FILE;
+	int unevictable = pc->flags & PAGE_CGROUP_FLAG_UNEVICTABLE;
+	enum lru_list from = unevictable ? LRU_UNEVICTABLE :
+				(LRU_FILE * !!file + !!active);
 
-	MEM_CGROUP_ZSTAT(mz, lru) -= 1;
+	if (lru == from)
+		return;
 
-	if (active)
-		pc->flags |= PAGE_CGROUP_FLAG_ACTIVE;
-	else
+	MEM_CGROUP_ZSTAT(mz, from) -= 1;
+
+	if (is_unevictable_lru(lru)) {
 		pc->flags &= ~PAGE_CGROUP_FLAG_ACTIVE;
+		pc->flags |= PAGE_CGROUP_FLAG_UNEVICTABLE;
+	} else {
+		if (is_active_lru(lru))
+			pc->flags |= PAGE_CGROUP_FLAG_ACTIVE;
+		else
+			pc->flags &= ~PAGE_CGROUP_FLAG_ACTIVE;
+		pc->flags &= ~PAGE_CGROUP_FLAG_UNEVICTABLE;
+	}
 
-	lru = LRU_FILE * !!file + !!active;
 	MEM_CGROUP_ZSTAT(mz, lru) += 1;
 	list_move(&pc->lru, &mz->lists[lru]);
 }
@@ -351,7 +370,7 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
 /*
  * This routine assumes that the appropriate zone's lru lock is already held
  */
-void mem_cgroup_move_lists(struct page *page, bool active)
+void mem_cgroup_move_lists(struct page *page, enum lru_list lru)
 {
 	struct page_cgroup *pc;
 	struct mem_cgroup_per_zone *mz;
@@ -374,7 +393,7 @@ void mem_cgroup_move_lists(struct page *page, bool active)
 	if (pc) {
 		mz = page_cgroup_zoneinfo(pc);
 		spin_lock_irqsave(&mz->lru_lock, flags);
-		__mem_cgroup_move_lists(pc, active);
+		__mem_cgroup_move_lists(pc, lru);
 		spin_unlock_irqrestore(&mz->lru_lock, flags);
 	}
 	unlock_page_cgroup(page);
@@ -472,12 +491,10 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 		/*
 		 * TODO: play better with lumpy reclaim, grabbing anything.
 		 */
-		if (PageActive(page) && !active) {
-			__mem_cgroup_move_lists(pc, true);
-			continue;
-		}
-		if (!PageActive(page) && active) {
-			__mem_cgroup_move_lists(pc, false);
+		if (PageUnevictable(page) ||
+		    (PageActive(page) && !active) ||
+		    (!PageActive(page) && active)) {
+			__mem_cgroup_move_lists(pc, page_lru(page));
 			continue;
 		}
 
