@@ -61,9 +61,14 @@ static inline unsigned long page_order(struct page *page)
 	return page_private(page);
 }
 
-extern int mlock_vma_pages_range(struct vm_area_struct *vma,
+extern long mlock_vma_pages_range(struct vm_area_struct *vma,
 			unsigned long start, unsigned long end);
-extern void munlock_vma_pages_all(struct vm_area_struct *vma);
+extern void munlock_vma_pages_range(struct vm_area_struct *vma,
+			unsigned long start, unsigned long end);
+static inline void munlock_vma_pages_all(struct vm_area_struct *vma)
+{
+	munlock_vma_pages_range(vma, vma->vm_start, vma->vm_end);
+}
 
 #ifdef CONFIG_UNEVICTABLE_LRU
 /*
