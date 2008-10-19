@@ -403,6 +403,9 @@ void cgroup_iter_end(struct cgroup *cgrp, struct cgroup_iter *it);
 int cgroup_scan_tasks(struct cgroup_scanner *scan);
 int cgroup_attach_task(struct cgroup *, struct task_struct *);
 
+void cgroup_mm_owner_callbacks(struct task_struct *old,
+			       struct task_struct *new);
+
 #else /* !CONFIG_CGROUPS */
 
 static inline int cgroup_init_early(void) { return 0; }
@@ -421,15 +424,9 @@ static inline int cgroupstats_build(struct cgroupstats *stats,
 	return -EINVAL;
 }
 
+static inline void cgroup_mm_owner_callbacks(struct task_struct *old,
+					     struct task_struct *new) {}
+
 #endif /* !CONFIG_CGROUPS */
 
-#ifdef CONFIG_MM_OWNER
-extern void
-cgroup_mm_owner_callbacks(struct task_struct *old, struct task_struct *new);
-#else /* !CONFIG_MM_OWNER */
-static inline void
-cgroup_mm_owner_callbacks(struct task_struct *old, struct task_struct *new)
-{
-}
-#endif /* CONFIG_MM_OWNER */
 #endif /* _LINUX_CGROUP_H */
