@@ -18,10 +18,6 @@ static inline int pci_enable_pcie_error_reporting(struct pci_dev *dev)
 {
 	return -EINVAL;
 }
-static inline int pci_find_aer_capability(struct pci_dev *dev)
-{
-	return 0;
-}
 static inline int pci_disable_pcie_error_reporting(struct pci_dev *dev)
 {
 	return -EINVAL;
