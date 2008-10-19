@@ -1290,10 +1290,11 @@ static void pc87360_init_device(struct platform_device *pdev,
 
 	nr = data->innr < 11 ? data->innr : 11;
 	for (i = 0; i < nr; i++) {
+		reg = pc87360_read_value(data, LD_IN, i,
+					 PC87365_REG_IN_STATUS);
+		dev_dbg(&pdev->dev, "bios in%d status:0x%02x\n", i, reg);
 		if (init >= init_in[i]) {
 			/* Forcibly enable voltage channel */
-			reg = pc87360_read_value(data, LD_IN, i,
-						 PC87365_REG_IN_STATUS);
 			if (!(reg & CHAN_ENA)) {
 				dev_dbg(&pdev->dev, "Forcibly "
 					"enabling in%d\n", i);
@@ -1306,18 +1307,23 @@ static void pc87360_init_device(struct platform_device *pdev,
 
 	/* We can't blindly trust the Super-I/O space configuration bit,
 	   most BIOS won't set it properly */
+	dev_dbg(&pdev->dev, "bios thermistors:%d\n", use_thermistors);
 	for (i = 11; i < data->innr; i++) {
 		reg = pc87360_read_value(data, LD_IN, i,
 					 PC87365_REG_TEMP_STATUS);
 		use_thermistors = use_thermistors || (reg & CHAN_ENA);
+		/* thermistors are temp[4-6], measured on vin[11-14] */
+		dev_dbg(&pdev->dev, "bios temp%d_status:0x%02x\n", i-7, reg);
 	}
+	dev_dbg(&pdev->dev, "using thermistors:%d\n", use_thermistors);
 
 	i = use_thermistors ? 2 : 0;
 	for (; i < data->tempnr; i++) {
+		reg = pc87360_read_value(data, LD_TEMP, i,
+					 PC87365_REG_TEMP_STATUS);
+		dev_dbg(&pdev->dev, "bios temp%d_status:0x%02x\n", i+1, reg);
 		if (init >= init_temp[i]) {
 			/* Forcibly enable temperature channel */
-			reg = pc87360_read_value(data, LD_TEMP, i,
-						 PC87365_REG_TEMP_STATUS);
 			if (!(reg & CHAN_ENA)) {
 				dev_dbg(&pdev->dev, "Forcibly "
 					"enabling temp%d\n", i+1);
@@ -1359,6 +1365,7 @@ static void pc87360_init_device(struct platform_device *pdev,
 	if (data->innr) {
 		reg = pc87360_read_value(data, LD_IN, NO_BANK,
 					 PC87365_REG_IN_CONFIG);
+		dev_dbg(&pdev->dev, "bios vin-cfg:0x%02x\n", reg);
 		if (reg & CHAN_ENA) {
 			dev_dbg(&pdev->dev, "Forcibly "
 				"enabling monitoring (VLM)\n");
@@ -1371,6 +1378,7 @@ static void pc87360_init_device(struct platform_device *pdev,
 	if (data->tempnr) {
 		reg = pc87360_read_value(data, LD_TEMP, NO_BANK,
 					 PC87365_REG_TEMP_CONFIG);
+		dev_dbg(&pdev->dev, "bios temp-cfg:0x%02x\n", reg);
 		if (reg & CHAN_ENA) {
 			dev_dbg(&pdev->dev, "Forcibly enabling "
 				"monitoring (TMS)\n");
