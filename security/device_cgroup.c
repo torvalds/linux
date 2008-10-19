@@ -355,7 +355,7 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 	struct dev_cgroup *cur_devcgroup;
 	const char *b;
 	char *endp;
-	int retval = 0, count;
+	int count;
 	struct dev_whitelist_item wh;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -432,7 +432,6 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 	}
 
 handle:
-	retval = 0;
 	switch (filetype) {
 	case DEVCG_ALLOW:
 		if (!parent_has_perm(devcgroup, &wh))
