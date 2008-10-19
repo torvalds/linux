@@ -484,6 +484,7 @@ void putback_lru_page(struct page *page)
 {
 	int lru;
 	int active = !!TestClearPageActive(page);
+	int was_unevictable = PageUnevictable(page);
 
 	VM_BUG_ON(PageLRU(page));
 
@@ -524,6 +525,11 @@ redo:
 		 * nothing to do here.
 		 */
 	}
+
+	if (was_unevictable && lru != LRU_UNEVICTABLE)
+		count_vm_event(UNEVICTABLE_PGRESCUED);
+	else if (!was_unevictable && lru == LRU_UNEVICTABLE)
+		count_vm_event(UNEVICTABLE_PGCULLED);
 
 	put_page(page);		/* drop ref from isolate */
 }
