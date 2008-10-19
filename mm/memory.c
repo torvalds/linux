@@ -2326,15 +2326,16 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		count_vm_event(PGMAJFAULT);
 	}
 
-	if (mem_cgroup_charge(page, mm, GFP_KERNEL)) {
-		delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
-		ret = VM_FAULT_OOM;
-		goto out;
-	}
-
 	mark_page_accessed(page);
+
 	lock_page(page);
 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+
+	if (mem_cgroup_charge(page, mm, GFP_KERNEL)) {
+		ret = VM_FAULT_OOM;
+		unlock_page(page);
+		goto out;
+	}
 
 	/*
 	 * Back out if somebody else already faulted in this pte.
