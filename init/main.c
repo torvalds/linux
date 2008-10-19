@@ -27,6 +27,7 @@
 #include <linux/gfp.h>
 #include <linux/percpu.h>
 #include <linux/kmod.h>
+#include <linux/vmalloc.h>
 #include <linux/kernel_stat.h>
 #include <linux/start_kernel.h>
 #include <linux/security.h>
@@ -642,6 +643,7 @@ asmlinkage void __init start_kernel(void)
 		initrd_start = 0;
 	}
 #endif
+	vmalloc_init();
 	vfs_caches_init_early();
 	cpuset_init_early();
 	mem_init();
