@@ -1543,7 +1543,7 @@ int cx23885_video_register(struct cx23885_dev *dev)
 		goto fail_unreg;
 	}
 	printk(KERN_INFO "%s/0: registered device video%d [v4l2]\n",
-	       dev->name, dev->video_dev->minor & 0x1f);
+	       dev->name, dev->video_dev->num);
 	/* initial device configuration */
 	mutex_lock(&dev->lock);
 	cx23885_set_tvnorm(dev, dev->tvnorm);

@@ -1347,7 +1347,7 @@ static void create_proc_cpia_cam(struct cam_data *cam)
 	if (!cpia_proc_root || !cam)
 		return;
 
-	snprintf(name, sizeof(name), "video%d", cam->vdev.minor);
+	snprintf(name, sizeof(name), "video%d", cam->vdev.num);
 
 	ent = create_proc_entry(name, S_IFREG|S_IRUGO|S_IWUSR, cpia_proc_root);
 	if (!ent)
@@ -1372,7 +1372,7 @@ static void destroy_proc_cpia_cam(struct cam_data *cam)
 	if (!cam || !cam->proc_entry)
 		return;
 
-	snprintf(name, sizeof(name), "video%d", cam->vdev.minor);
+	snprintf(name, sizeof(name), "video%d", cam->vdev.num);
 	remove_proc_entry(name, cpia_proc_root);
 	cam->proc_entry = NULL;
 }
@@ -4005,7 +4005,7 @@ void cpia_unregister_camera(struct cam_data *cam)
 	}
 
 #ifdef CONFIG_PROC_FS
-	DBG("destroying /proc/cpia/video%d\n", cam->vdev.minor);
+	DBG("destroying /proc/cpia/video%d\n", cam->vdev.num);
 	destroy_proc_cpia_cam(cam);
 #endif
 	if (!cam->open_count) {

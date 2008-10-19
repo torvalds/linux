@@ -1412,7 +1412,7 @@ static int se401_probe(struct usb_interface *intf,
 		return -EIO;
 	}
 	dev_info(&intf->dev, "registered new video device: video%d\n",
-		 se401->vdev.minor);
+		 se401->vdev.num);
 
 	usb_set_intfdata (intf, se401);
 	return 0;

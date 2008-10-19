@@ -1163,11 +1163,11 @@ static int vivi_release(void)
 
 		if (-1 != dev->vfd->minor) {
 			printk(KERN_INFO "%s: unregistering /dev/video%d\n",
-				VIVI_MODULE_NAME, dev->vfd->minor);
+				VIVI_MODULE_NAME, dev->vfd->num);
 			video_unregister_device(dev->vfd);
 		} else {
 			printk(KERN_INFO "%s: releasing /dev/video%d\n",
-				VIVI_MODULE_NAME, dev->vfd->minor);
+				VIVI_MODULE_NAME, dev->vfd->num);
 			video_device_release(dev->vfd);
 		}
 
@@ -1307,7 +1307,7 @@ static int __init vivi_init(void)
 
 		dev->vfd = vfd;
 		printk(KERN_INFO "%s: V4L2 device registered as /dev/video%d\n",
-			VIVI_MODULE_NAME, vfd->minor);
+			VIVI_MODULE_NAME, vfd->num);
 	}
 
 	if (ret < 0) {

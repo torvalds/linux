@@ -1440,7 +1440,7 @@ static void usbvision_unregister_video(struct usb_usbvision *usbvision)
 	// vbi Device:
 	if (usbvision->vbi) {
 		PDEBUG(DBG_PROBE, "unregister /dev/vbi%d [v4l2]",
-		       usbvision->vbi->minor & 0x1f);
+		       usbvision->vbi->num);
 		if (usbvision->vbi->minor != -1) {
 			video_unregister_device(usbvision->vbi);
 		} else {
@@ -1452,7 +1452,7 @@ static void usbvision_unregister_video(struct usb_usbvision *usbvision)
 	// Radio Device:
 	if (usbvision->rdev) {
 		PDEBUG(DBG_PROBE, "unregister /dev/radio%d [v4l2]",
-		       usbvision->rdev->minor & 0x1f);
+		       usbvision->rdev->num);
 		if (usbvision->rdev->minor != -1) {
 			video_unregister_device(usbvision->rdev);
 		} else {
@@ -1464,7 +1464,7 @@ static void usbvision_unregister_video(struct usb_usbvision *usbvision)
 	// Video Device:
 	if (usbvision->vdev) {
 		PDEBUG(DBG_PROBE, "unregister /dev/video%d [v4l2]",
-		       usbvision->vdev->minor & 0x1f);
+		       usbvision->vdev->num);
 		if (usbvision->vdev->minor != -1) {
 			video_unregister_device(usbvision->vdev);
 		} else {
@@ -1490,7 +1490,7 @@ static int __devinit usbvision_register_video(struct usb_usbvision *usbvision)
 		goto err_exit;
 	}
 	printk(KERN_INFO "USBVision[%d]: registered USBVision Video device /dev/video%d [v4l2]\n",
-	       usbvision->nr,usbvision->vdev->minor & 0x1f);
+	       usbvision->nr, usbvision->vdev->num);
 
 	// Radio Device:
 	if (usbvision_device_data[usbvision->DevModel].Radio) {
@@ -1507,7 +1507,7 @@ static int __devinit usbvision_register_video(struct usb_usbvision *usbvision)
 			goto err_exit;
 		}
 		printk(KERN_INFO "USBVision[%d]: registered USBVision Radio device /dev/radio%d [v4l2]\n",
-		       usbvision->nr, usbvision->rdev->minor & 0x1f);
+		       usbvision->nr, usbvision->rdev->num);
 	}
 	// vbi Device:
 	if (usbvision_device_data[usbvision->DevModel].vbi) {
@@ -1523,7 +1523,7 @@ static int __devinit usbvision_register_video(struct usb_usbvision *usbvision)
 			goto err_exit;
 		}
 		printk(KERN_INFO "USBVision[%d]: registered USBVision VBI device /dev/vbi%d [v4l2] (Not Working Yet!)\n",
-		       usbvision->nr,usbvision->vbi->minor & 0x1f);
+		       usbvision->nr, usbvision->vbi->num);
 	}
 	// all done
 	return 0;

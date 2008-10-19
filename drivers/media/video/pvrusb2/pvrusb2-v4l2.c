@@ -893,7 +893,7 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 
 static void pvr2_v4l2_dev_destroy(struct pvr2_v4l2_dev *dip)
 {
-	int minor_id = dip->devbase.minor;
+	int num = dip->devbase.num;
 	struct pvr2_hdw *hdw = dip->v4lp->channel.mc_head->hdw;
 	enum pvr2_config cfg = dip->config;
 	int v4l_type = dip->v4l_type;
@@ -909,7 +909,7 @@ static void pvr2_v4l2_dev_destroy(struct pvr2_v4l2_dev *dip)
 	video_unregister_device(&dip->devbase);
 
 	printk(KERN_INFO "pvrusb2: unregistered device %s%u [%s]\n",
-	       get_v4l_name(v4l_type),minor_id & 0x1f,
+	       get_v4l_name(v4l_type), num,
 	       pvr2_config_get_name(cfg));
 
 }
@@ -1310,7 +1310,7 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	}
 
 	printk(KERN_INFO "pvrusb2: registered device %s%u [%s]\n",
-	       get_v4l_name(dip->v4l_type),dip->devbase.minor & 0x1f,
+	       get_v4l_name(dip->v4l_type), dip->devbase.num,
 	       pvr2_config_get_name(dip->config));
 
 	pvr2_hdw_v4l_store_minor_number(vp->channel.mc_head->hdw,
