@@ -127,9 +127,10 @@ void end_cpu_work(void)
 /* Resets the cpu buffer to a sane state. */
 void cpu_buffer_reset(struct oprofile_cpu_buffer *cpu_buf)
 {
-	/* reset these to invalid values; the next sample
-	 * collected will populate the buffer with proper
-	 * values to initialize the buffer
+	/*
+	 * reset these to invalid values; the next sample collected
+	 * will populate the buffer with proper values to initialize
+	 * the buffer
 	 */
 	cpu_buf->last_is_kernel = -1;
 	cpu_buf->last_task = NULL;
@@ -151,8 +152,10 @@ static void increment_head(struct oprofile_cpu_buffer *b)
 {
 	unsigned long new_head = b->head_pos + 1;
 
-	/* Ensure anything written to the slot before we
-	 * increment is visible */
+	/*
+	 * Ensure anything written to the slot before we increment is
+	 * visible
+	 */
 	wmb();
 
 	if (new_head < b->buffer_size)
@@ -253,8 +256,10 @@ void oprofile_add_ext_sample(unsigned long pc, struct pt_regs * const regs,
 	if (!oprofile_begin_trace(cpu_buf))
 		return;
 
-	/* if log_sample() fail we can't backtrace since we lost the source
-	 * of this event */
+	/*
+	 * if log_sample() fail we can't backtrace since we lost the
+	 * source of this event
+	 */
 	if (log_sample(cpu_buf, pc, is_kernel, event))
 		oprofile_ops.backtrace(regs, backtrace_depth);
 	oprofile_end_trace(cpu_buf);
@@ -338,8 +343,10 @@ void oprofile_add_trace(unsigned long pc)
 		return;
 	}
 
-	/* broken frame can give an eip with the same value as an escape code,
-	 * abort the trace if we get it */
+	/*
+	 * broken frame can give an eip with the same value as an
+	 * escape code, abort the trace if we get it
+	 */
 	if (pc == ESCAPE_CODE) {
 		cpu_buf->tracing = 0;
 		cpu_buf->backtrace_aborted++;

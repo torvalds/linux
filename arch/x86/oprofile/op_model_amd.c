@@ -65,8 +65,10 @@ static unsigned long reset_value[NUM_COUNTERS];
 #define IBS_FETCH_BEGIN 3
 #define IBS_OP_BEGIN    4
 
-/* The function interface needs to be fixed, something like add
-   data. Should then be added to linux/oprofile.h. */
+/*
+ * The function interface needs to be fixed, something like add
+ * data. Should then be added to linux/oprofile.h.
+ */
 extern void
 oprofile_add_ibs_sample(struct pt_regs *const regs,
 			unsigned int *const ibs_sample, int ibs_code);
@@ -106,7 +108,7 @@ struct ibs_op_sample {
 
 /*
  * unitialize the APIC for the IBS interrupts if needed on AMD Family10h+
-*/
+ */
 static void clear_ibs_nmi(void);
 
 static int ibs_allowed;	/* AMD Family10h and later */
@@ -223,7 +225,7 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 						(unsigned int *)&ibs_fetch,
 						IBS_FETCH_BEGIN);
 
-			/*reenable the IRQ */
+			/* reenable the IRQ */
 			rdmsr(MSR_AMD64_IBSFETCHCTL, low, high);
 			high &= ~IBS_FETCH_HIGH_VALID_BIT;
 			high |= IBS_FETCH_HIGH_ENABLE;
@@ -331,8 +333,10 @@ static void op_amd_stop(struct op_msrs const * const msrs)
 	unsigned int low, high;
 	int i;
 
-	/* Subtle: stop on all counters to avoid race with
-	 * setting our pm callback */
+	/*
+	 * Subtle: stop on all counters to avoid race with setting our
+	 * pm callback
+	 */
 	for (i = 0 ; i < NUM_COUNTERS ; ++i) {
 		if (!reset_value[i])
 			continue;
@@ -343,13 +347,15 @@ static void op_amd_stop(struct op_msrs const * const msrs)
 
 #ifdef CONFIG_OPROFILE_IBS
 	if (ibs_allowed && ibs_config.fetch_enabled) {
-		low = 0;		/* clear max count and enable */
+		/* clear max count and enable */
+		low = 0;
 		high = 0;
 		wrmsr(MSR_AMD64_IBSFETCHCTL, low, high);
 	}
 
 	if (ibs_allowed && ibs_config.op_enabled) {
-		low = 0;		/* clear max count and enable */
+		/* clear max count and enable */
+		low = 0;
 		high = 0;
 		wrmsr(MSR_AMD64_IBSOPCTL, low, high);
 	}
@@ -443,10 +449,7 @@ static int pfm_amd64_setup_eilvt(void)
 	return 0;
 }
 
-/*
- * initialize the APIC for the IBS interrupts
- * if available (AMD Family10h rev B0 and later)
- */
+/* initialize the APIC for the IBS interrupts if available */
 static void setup_ibs(void)
 {
 	ibs_allowed = boot_cpu_has(X86_FEATURE_IBS);
@@ -463,9 +466,7 @@ static void setup_ibs(void)
 }
 
 
-/*
- * unitialize the APIC for the IBS interrupts if needed on AMD Family10h
- * rev B0 and later */
+/* uninitialize the APIC for the IBS interrupts if needed */
 static void clear_ibs_nmi(void)
 {
 	if (ibs_allowed)
