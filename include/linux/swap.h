@@ -265,6 +265,7 @@ extern sector_t swapdev_block(int, pgoff_t);
 extern struct swap_info_struct *get_swap_info_struct(unsigned);
 extern int can_share_swap_page(struct page *);
 extern int remove_exclusive_swap_page(struct page *);
+extern int remove_exclusive_swap_page_ref(struct page *);
 struct backing_dev_info;
 
 /* linux/mm/thrash.c */
@@ -349,6 +350,11 @@ static inline void delete_from_swap_cache(struct page *page)
 #define swap_token_default_timeout		0
 
 static inline int remove_exclusive_swap_page(struct page *p)
+{
+	return 0;
+}
+
+static inline int remove_exclusive_swap_page_ref(struct page *page)
 {
 	return 0;
 }
