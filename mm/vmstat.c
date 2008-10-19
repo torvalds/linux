@@ -696,7 +696,8 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		   zone->pages_low,
 		   zone->pages_high,
 		   zone->pages_scanned,
-		   zone->nr_scan_active, zone->nr_scan_inactive,
+		   zone->lru[LRU_ACTIVE].nr_scan,
+		   zone->lru[LRU_INACTIVE].nr_scan,
 		   zone->spanned_pages,
 		   zone->present_pages);
 

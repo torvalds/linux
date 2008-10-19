@@ -81,8 +81,9 @@ struct zone_padding {
 enum zone_stat_item {
 	/* First 128 byte cacheline (assuming 64 bit words) */
 	NR_FREE_PAGES,
-	NR_INACTIVE,
-	NR_ACTIVE,
+	NR_LRU_BASE,
+	NR_INACTIVE = NR_LRU_BASE, /* must match order of LRU_[IN]ACTIVE */
+	NR_ACTIVE,	/*  "     "     "   "       "         */
 	NR_ANON_PAGES,	/* Mapped anonymous pages */
 	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
 			   only modified from process context */
@@ -106,6 +107,19 @@ enum zone_stat_item {
 	NUMA_OTHER,		/* allocation from other node */
 #endif
 	NR_VM_ZONE_STAT_ITEMS };
+
+enum lru_list {
+	LRU_BASE,
+	LRU_INACTIVE=LRU_BASE,	/* must match order of NR_[IN]ACTIVE */
+	LRU_ACTIVE,		/*  "     "     "   "       "        */
+	NR_LRU_LISTS };
+
+#define for_each_lru(l) for (l = 0; l < NR_LRU_LISTS; l++)
+
+static inline int is_active_lru(enum lru_list l)
+{
+	return (l == LRU_ACTIVE);
+}
 
 struct per_cpu_pages {
 	int count;		/* number of pages in the list */
@@ -251,10 +265,10 @@ struct zone {
 
 	/* Fields commonly accessed by the page reclaim scanner */
 	spinlock_t		lru_lock;	
-	struct list_head	active_list;
-	struct list_head	inactive_list;
-	unsigned long		nr_scan_active;
-	unsigned long		nr_scan_inactive;
+	struct {
+		struct list_head list;
+		unsigned long nr_scan;
+	} lru[NR_LRU_LISTS];
 	unsigned long		pages_scanned;	   /* since last reclaim */
 	unsigned long		flags;		   /* zone flags, see below */
 
