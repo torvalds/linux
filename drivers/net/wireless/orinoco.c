@@ -487,12 +487,17 @@ orinoco_dl_firmware(struct orinoco_private *priv,
 	if (err)
 		goto free;
 
-	err = request_firmware(&fw_entry, firmware, priv->dev);
-	if (err) {
-		printk(KERN_ERR "%s: Cannot find firmware %s\n",
-		       dev->name, firmware);
-		err = -ENOENT;
-		goto free;
+	if (priv->cached_fw)
+		fw_entry = priv->cached_fw;
+	else {
+		err = request_firmware(&fw_entry, firmware, priv->dev);
+		if (err) {
+			printk(KERN_ERR "%s: Cannot find firmware %s\n",
+			       dev->name, firmware);
+			err = -ENOENT;
+			goto free;
+		}
+		priv->cached_fw = fw_entry;
 	}
 
 	hdr = (const struct orinoco_fw_header *) fw_entry->data;
@@ -535,7 +540,11 @@ orinoco_dl_firmware(struct orinoco_private *priv,
 	       dev->name, hermes_present(hw));
 
 abort:
-	release_firmware(fw_entry);
+	/* In case of error, assume firmware was bogus and release it */
+	if (err) {
+		priv->cached_fw = NULL;
+		release_firmware(fw_entry);
+	}
 
 free:
 	kfree(pda);
@@ -3532,6 +3541,8 @@ struct net_device
 	netif_carrier_off(dev);
 	priv->last_linkstatus = 0xffff;
 
+	priv->cached_fw = NULL;
+
 	return dev;
 }
 
@@ -3543,6 +3554,9 @@ void free_orinocodev(struct net_device *dev)
 	 * when we call tasklet_kill it will run one final time,
 	 * emptying the list */
 	tasklet_kill(&priv->rx_tasklet);
+	if (priv->cached_fw)
+		release_firmware(priv->cached_fw);
+	priv->cached_fw = NULL;
 	priv->wpa_ie_len = 0;
 	kfree(priv->wpa_ie);
 	orinoco_mic_free(priv);

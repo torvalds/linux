@@ -66,6 +66,8 @@ struct orinoco_rx_data {
 	struct list_head list;
 };
 
+struct firmware;
+
 struct orinoco_private {
 	void *card;	/* Pointer to card dependent structure */
 	struct device *dev;
@@ -164,6 +166,9 @@ struct orinoco_private {
 	unsigned int wpa_enabled:1;
 	unsigned int tkip_cm_active:1;
 	unsigned int key_mgmt:3;
+
+	/* Cached in memory firmware to use in ->resume */
+	const struct firmware *cached_fw;
 };
 
 #ifdef ORINOCO_DEBUG
