@@ -118,13 +118,13 @@ static int x1205_get_datetime(struct i2c_client *client, struct rtc_time *tm,
 		for (i = 0; i <= 4; i++)
 			buf[i] &= 0x7F;
 
-	tm->tm_sec = BCD2BIN(buf[CCR_SEC]);
-	tm->tm_min = BCD2BIN(buf[CCR_MIN]);
-	tm->tm_hour = BCD2BIN(buf[CCR_HOUR] & 0x3F); /* hr is 0-23 */
-	tm->tm_mday = BCD2BIN(buf[CCR_MDAY]);
-	tm->tm_mon = BCD2BIN(buf[CCR_MONTH]) - 1; /* mon is 0-11 */
-	tm->tm_year = BCD2BIN(buf[CCR_YEAR])
-			+ (BCD2BIN(buf[CCR_Y2K]) * 100) - 1900;
+	tm->tm_sec = bcd2bin(buf[CCR_SEC]);
+	tm->tm_min = bcd2bin(buf[CCR_MIN]);
+	tm->tm_hour = bcd2bin(buf[CCR_HOUR] & 0x3F); /* hr is 0-23 */
+	tm->tm_mday = bcd2bin(buf[CCR_MDAY]);
+	tm->tm_mon = bcd2bin(buf[CCR_MONTH]) - 1; /* mon is 0-11 */
+	tm->tm_year = bcd2bin(buf[CCR_YEAR])
+			+ (bcd2bin(buf[CCR_Y2K]) * 100) - 1900;
 	tm->tm_wday = buf[CCR_WDAY];
 
 	dev_dbg(&client->dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
@@ -174,11 +174,11 @@ static int x1205_set_datetime(struct i2c_client *client, struct rtc_time *tm,
 		__func__,
 		tm->tm_sec, tm->tm_min, tm->tm_hour);
 
-	buf[CCR_SEC] = BIN2BCD(tm->tm_sec);
-	buf[CCR_MIN] = BIN2BCD(tm->tm_min);
+	buf[CCR_SEC] = bin2bcd(tm->tm_sec);
+	buf[CCR_MIN] = bin2bcd(tm->tm_min);
 
 	/* set hour and 24hr bit */
-	buf[CCR_HOUR] = BIN2BCD(tm->tm_hour) | X1205_HR_MIL;
+	buf[CCR_HOUR] = bin2bcd(tm->tm_hour) | X1205_HR_MIL;
 
 	/* should we also set the date? */
 	if (datetoo) {
@@ -187,15 +187,15 @@ static int x1205_set_datetime(struct i2c_client *client, struct rtc_time *tm,
 			__func__,
 			tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
 
-		buf[CCR_MDAY] = BIN2BCD(tm->tm_mday);
+		buf[CCR_MDAY] = bin2bcd(tm->tm_mday);
 
 		/* month, 1 - 12 */
-		buf[CCR_MONTH] = BIN2BCD(tm->tm_mon + 1);
+		buf[CCR_MONTH] = bin2bcd(tm->tm_mon + 1);
 
 		/* year, since the rtc epoch*/
-		buf[CCR_YEAR] = BIN2BCD(tm->tm_year % 100);
+		buf[CCR_YEAR] = bin2bcd(tm->tm_year % 100);
 		buf[CCR_WDAY] = tm->tm_wday & 0x07;
-		buf[CCR_Y2K] = BIN2BCD(tm->tm_year / 100);
+		buf[CCR_Y2K] = bin2bcd(tm->tm_year / 100);
 	}
 
 	/* If writing alarm registers, set compare bits on registers 0-4 */
@@ -437,7 +437,7 @@ static int x1205_validate_client(struct i2c_client *client)
 			return -EIO;
 		}
 
-		value = BCD2BIN(reg & probe_limits_pattern[i].mask);
+		value = bcd2bin(reg & probe_limits_pattern[i].mask);
 
 		if (value > probe_limits_pattern[i].max ||
 			value < probe_limits_pattern[i].min) {

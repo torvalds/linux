@@ -240,26 +240,26 @@ static int cmos_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 	/* REVISIT this assumes PC style usage:  always BCD */
 
 	if (((unsigned)t->time.tm_sec) < 0x60)
-		t->time.tm_sec = BCD2BIN(t->time.tm_sec);
+		t->time.tm_sec = bcd2bin(t->time.tm_sec);
 	else
 		t->time.tm_sec = -1;
 	if (((unsigned)t->time.tm_min) < 0x60)
-		t->time.tm_min = BCD2BIN(t->time.tm_min);
+		t->time.tm_min = bcd2bin(t->time.tm_min);
 	else
 		t->time.tm_min = -1;
 	if (((unsigned)t->time.tm_hour) < 0x24)
-		t->time.tm_hour = BCD2BIN(t->time.tm_hour);
+		t->time.tm_hour = bcd2bin(t->time.tm_hour);
 	else
 		t->time.tm_hour = -1;
 
 	if (cmos->day_alrm) {
 		if (((unsigned)t->time.tm_mday) <= 0x31)
-			t->time.tm_mday = BCD2BIN(t->time.tm_mday);
+			t->time.tm_mday = bcd2bin(t->time.tm_mday);
 		else
 			t->time.tm_mday = -1;
 		if (cmos->mon_alrm) {
 			if (((unsigned)t->time.tm_mon) <= 0x12)
-				t->time.tm_mon = BCD2BIN(t->time.tm_mon) - 1;
+				t->time.tm_mon = bcd2bin(t->time.tm_mon) - 1;
 			else
 				t->time.tm_mon = -1;
 		}
@@ -331,19 +331,19 @@ static int cmos_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	/* Writing 0xff means "don't care" or "match all".  */
 
 	mon = t->time.tm_mon + 1;
-	mon = (mon <= 12) ? BIN2BCD(mon) : 0xff;
+	mon = (mon <= 12) ? bin2bcd(mon) : 0xff;
 
 	mday = t->time.tm_mday;
-	mday = (mday >= 1 && mday <= 31) ? BIN2BCD(mday) : 0xff;
+	mday = (mday >= 1 && mday <= 31) ? bin2bcd(mday) : 0xff;
 
 	hrs = t->time.tm_hour;
-	hrs = (hrs < 24) ? BIN2BCD(hrs) : 0xff;
+	hrs = (hrs < 24) ? bin2bcd(hrs) : 0xff;
 
 	min = t->time.tm_min;
-	min = (min < 60) ? BIN2BCD(min) : 0xff;
+	min = (min < 60) ? bin2bcd(min) : 0xff;
 
 	sec = t->time.tm_sec;
-	sec = (sec < 60) ? BIN2BCD(sec) : 0xff;
+	sec = (sec < 60) ? bin2bcd(sec) : 0xff;
 
 	spin_lock_irq(&rtc_lock);
 
