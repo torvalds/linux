@@ -606,7 +606,6 @@ ds1305_nvram_write(struct kobject *kobj, struct bin_attribute *attr,
 static struct bin_attribute nvram = {
 	.attr.name	= "nvram",
 	.attr.mode	= S_IRUGO | S_IWUSR,
-	.attr.owner	= THIS_MODULE,
 	.read		= ds1305_nvram_read,
 	.write		= ds1305_nvram_write,
 	.size		= DS1305_NVRAM_LEN,

@@ -391,7 +391,7 @@ static ssize_t pid_show(struct device *dev,
 }
 
 static struct device_attribute pid_attr = {
-	.attr = { .name = "pid", .mode = S_IRUGO, .owner = THIS_MODULE },
+	.attr = { .name = "pid", .mode = S_IRUGO},
 	.show = pid_show,
 };
 

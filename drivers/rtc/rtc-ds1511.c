@@ -481,7 +481,6 @@ static struct bin_attribute ds1511_nvram_attr = {
 	.attr = {
 		.name = "nvram",
 		.mode = S_IRUGO | S_IWUGO,
-		.owner = THIS_MODULE,
 	},
 	.size = DS1511_RAM_MAX,
 	.read = ds1511_nvram_read,

@@ -592,7 +592,6 @@ static struct bin_attribute nvram = {
 	.attr = {
 		.name	= "nvram",
 		.mode	= S_IRUGO | S_IWUSR,
-		.owner	= THIS_MODULE,
 	},
 
 	.read	= cmos_nvram_read,

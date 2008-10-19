@@ -280,7 +280,6 @@ static struct bin_attribute stk17ta8_nvram_attr = {
 	.attr = {
 		.name = "nvram",
 		.mode = S_IRUGO | S_IWUSR,
-		.owner = THIS_MODULE,
 	},
 	.size = RTC_OFFSET,
 	.read = stk17ta8_nvram_read,
