@@ -371,6 +371,8 @@ static void migrate_page_copy(struct page *newpage, struct page *page)
 		__set_page_dirty_nobuffers(newpage);
  	}
 
+	mlock_migrate_page(newpage, page);
+
 #ifdef CONFIG_SWAP
 	ClearPageSwapCache(page);
 #endif

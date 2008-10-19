@@ -582,11 +582,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 
 		sc->nr_scanned++;
 
-		if (unlikely(!page_evictable(page, NULL))) {
-			unlock_page(page);
-			putback_lru_page(page);
-			continue;
-		}
+		if (unlikely(!page_evictable(page, NULL)))
+			goto cull_mlocked;
 
 		if (!sc->may_swap && page_mapped(page))
 			goto keep_locked;
@@ -624,9 +621,19 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		 * Anonymous process memory has backing store?
 		 * Try to allocate it some swap space here.
 		 */
-		if (PageAnon(page) && !PageSwapCache(page))
+		if (PageAnon(page) && !PageSwapCache(page)) {
+			switch (try_to_munlock(page)) {
+			case SWAP_FAIL:		/* shouldn't happen */
+			case SWAP_AGAIN:
+				goto keep_locked;
+			case SWAP_MLOCK:
+				goto cull_mlocked;
+			case SWAP_SUCCESS:
+				; /* fall thru'; add to swap cache */
+			}
 			if (!add_to_swap(page, GFP_ATOMIC))
 				goto activate_locked;
+		}
 #endif /* CONFIG_SWAP */
 
 		mapping = page_mapping(page);
@@ -641,6 +648,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 				goto activate_locked;
 			case SWAP_AGAIN:
 				goto keep_locked;
+			case SWAP_MLOCK:
+				goto cull_mlocked;
 			case SWAP_SUCCESS:
 				; /* try to free the page below */
 			}
@@ -731,6 +740,11 @@ free_it:
 		}
 		continue;
 
+cull_mlocked:
+		unlock_page(page);
+		putback_lru_page(page);
+		continue;
+
 activate_locked:
 		/* Not a candidate for swapping, so reclaim swap space. */
 		if (PageSwapCache(page) && vm_swap_full())
@@ -742,7 +756,7 @@ keep_locked:
 		unlock_page(page);
 keep:
 		list_add(&page->lru, &ret_pages);
-		VM_BUG_ON(PageLRU(page));
+		VM_BUG_ON(PageLRU(page) || PageUnevictable(page));
 	}
 	list_splice(&ret_pages, page_list);
 	if (pagevec_count(&freed_pvec))
@@ -2329,12 +2343,13 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
  * @vma: the VMA in which the page is or will be mapped, may be NULL
  *
  * Test whether page is evictable--i.e., should be placed on active/inactive
- * lists vs unevictable list.
+ * lists vs unevictable list.  The vma argument is !NULL when called from the
+ * fault path to determine how to instantate a new page.
  *
  * Reasons page might not be evictable:
  * (1) page's mapping marked unevictable
+ * (2) page is part of an mlocked VMA
  *
- * TODO - later patches
  */
 int page_evictable(struct page *page, struct vm_area_struct *vma)
 {
@@ -2342,7 +2357,8 @@ int page_evictable(struct page *page, struct vm_area_struct *vma)
 	if (mapping_unevictable(page_mapping(page)))
 		return 0;
 
-	/* TODO:  test page [!]evictable conditions */
+	if (PageMlocked(page) || (vma && is_mlocked_vma(vma, page)))
+		return 0;
 
 	return 1;
 }

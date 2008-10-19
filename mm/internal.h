@@ -61,6 +61,10 @@ static inline unsigned long page_order(struct page *page)
 	return page_private(page);
 }
 
+extern int mlock_vma_pages_range(struct vm_area_struct *vma,
+			unsigned long start, unsigned long end);
+extern void munlock_vma_pages_all(struct vm_area_struct *vma);
+
 #ifdef CONFIG_UNEVICTABLE_LRU
 /*
  * unevictable_migrate_page() called only from migrate_page_copy() to
@@ -79,6 +83,65 @@ static inline void unevictable_migrate_page(struct page *new, struct page *old)
 }
 #endif
 
+#ifdef CONFIG_UNEVICTABLE_LRU
+/*
+ * Called only in fault path via page_evictable() for a new page
+ * to determine if it's being mapped into a LOCKED vma.
+ * If so, mark page as mlocked.
+ */
+static inline int is_mlocked_vma(struct vm_area_struct *vma, struct page *page)
+{
+	VM_BUG_ON(PageLRU(page));
+
+	if (likely((vma->vm_flags & (VM_LOCKED | VM_SPECIAL)) != VM_LOCKED))
+		return 0;
+
+	SetPageMlocked(page);
+	return 1;
+}
+
+/*
+ * must be called with vma's mmap_sem held for read, and page locked.
+ */
+extern void mlock_vma_page(struct page *page);
+
+/*
+ * Clear the page's PageMlocked().  This can be useful in a situation where
+ * we want to unconditionally remove a page from the pagecache -- e.g.,
+ * on truncation or freeing.
+ *
+ * It is legal to call this function for any page, mlocked or not.
+ * If called for a page that is still mapped by mlocked vmas, all we do
+ * is revert to lazy LRU behaviour -- semantics are not broken.
+ */
+extern void __clear_page_mlock(struct page *page);
+static inline void clear_page_mlock(struct page *page)
+{
+	if (unlikely(TestClearPageMlocked(page)))
+		__clear_page_mlock(page);
+}
+
+/*
+ * mlock_migrate_page - called only from migrate_page_copy() to
+ * migrate the Mlocked page flag
+ */
+static inline void mlock_migrate_page(struct page *newpage, struct page *page)
+{
+	if (TestClearPageMlocked(page))
+		SetPageMlocked(newpage);
+}
+
+
+#else /* CONFIG_UNEVICTABLE_LRU */
+static inline int is_mlocked_vma(struct vm_area_struct *v, struct page *p)
+{
+	return 0;
+}
+static inline void clear_page_mlock(struct page *page) { }
+static inline void mlock_vma_page(struct page *page) { }
+static inline void mlock_migrate_page(struct page *new, struct page *old) { }
+
+#endif /* CONFIG_UNEVICTABLE_LRU */
 
 /*
  * FLATMEM and DISCONTIGMEM configurations use alloc_bootmem_node,
@@ -147,5 +210,13 @@ static inline void mminit_validate_memmodel_limits(unsigned long *start_pfn,
 {
 }
 #endif /* CONFIG_SPARSEMEM */
+
+#define GUP_FLAGS_WRITE                  0x1
+#define GUP_FLAGS_FORCE                  0x2
+#define GUP_FLAGS_IGNORE_VMA_PERMISSIONS 0x4
+
+int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+		     unsigned long start, int len, int flags,
+		     struct page **pages, struct vm_area_struct **vmas);
 
 #endif
