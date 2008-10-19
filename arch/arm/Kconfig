@@ -429,6 +429,7 @@ config ARCH_MV78XX0
 	bool "Marvell MV78xx0"
 	select CPU_FEROCEON
 	select PCI
+	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select PLAT_ORION
