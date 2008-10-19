@@ -9,11 +9,7 @@
 
 #define ELFCORE_ADDR_MAX	(-1ULL)
 
-#ifdef CONFIG_PROC_VMCORE
 extern unsigned long long elfcorehdr_addr;
-#else
-static const unsigned long long elfcorehdr_addr = ELFCORE_ADDR_MAX;
-#endif
 
 extern ssize_t copy_oldmem_page(unsigned long, char *, size_t,
 						unsigned long, int);
@@ -27,6 +23,16 @@ extern struct proc_dir_entry *proc_vmcore;
 #endif
 
 #define vmcore_elf_check_arch(x) (elf_check_arch(x) || vmcore_elf_check_arch_cross(x))
+
+/*
+ * is_kdump_kernel() checks whether this kernel is booting after a panic of
+ * previous kernel or not. This is determined by checking if previous kernel
+ * has passed the elf core header address on command line.
+ *
+ * This is not just a test if CONFIG_CRASH_DUMP is enabled or not. It will
+ * return 1 if CONFIG_CRASH_DUMP=y and if kernel is booting after a panic of
+ * previous kernel.
+ */
 
 static inline int is_kdump_kernel(void)
 {
