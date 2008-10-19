@@ -1413,16 +1413,13 @@ static unsigned long shrink_zone(int priority, struct zone *zone,
 		if (scan_global_lru(sc)) {
 			int file = is_file_lru(l);
 			int scan;
-			/*
-			 * Add one to nr_to_scan just to make sure that the
-			 * kernel will slowly sift through each list.
-			 */
+
 			scan = zone_page_state(zone, NR_LRU_BASE + l);
 			if (priority) {
 				scan >>= priority;
 				scan = (scan * percent[file]) / 100;
 			}
-			zone->lru[l].nr_scan += scan + 1;
+			zone->lru[l].nr_scan += scan;
 			nr[l] = zone->lru[l].nr_scan;
 			if (nr[l] >= sc->swap_cluster_max)
 				zone->lru[l].nr_scan = 0;
