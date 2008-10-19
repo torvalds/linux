@@ -1172,7 +1172,7 @@ static int update_flag(cpuset_flagbits_t bit, struct cpuset *cs,
 {
 	struct cpuset trialcs;
 	int err;
-	int cpus_nonempty, balance_flag_changed;
+	int balance_flag_changed;
 
 	trialcs = *cs;
 	if (turning_on)
@@ -1184,7 +1184,6 @@ static int update_flag(cpuset_flagbits_t bit, struct cpuset *cs,
 	if (err < 0)
 		return err;
 
-	cpus_nonempty = !cpus_empty(trialcs.cpus_allowed);
 	balance_flag_changed = (is_sched_load_balance(cs) !=
 		 			is_sched_load_balance(&trialcs));
 
@@ -1192,7 +1191,7 @@ static int update_flag(cpuset_flagbits_t bit, struct cpuset *cs,
 	cs->flags = trialcs.flags;
 	mutex_unlock(&callback_mutex);
 
-	if (cpus_nonempty && balance_flag_changed)
+	if (!cpus_empty(trialcs.cpus_allowed) && balance_flag_changed)
 		async_rebuild_sched_domains();
 
 	return 0;
