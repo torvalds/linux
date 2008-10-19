@@ -1090,12 +1090,20 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 		__mod_zone_page_state(zone, NR_ACTIVE_ANON, -pgmoved);
 	spin_unlock_irq(&zone->lru_lock);
 
+	pgmoved = 0;
 	while (!list_empty(&l_hold)) {
 		cond_resched();
 		page = lru_to_page(&l_hold);
 		list_del(&page->lru);
 		list_add(&page->lru, &l_inactive);
 	}
+
+	/*
+	 * Count the referenced pages as rotated, even when they are moved
+	 * to the inactive list.  This helps balance scan pressure between
+	 * file and anonymous pages in get_scan_ratio.
+ 	 */
+	zone->recent_rotated[!!file] += pgmoved;
 
 	/*
 	 * Now put the pages back on the appropriate [file or anon] inactive
@@ -1158,7 +1166,6 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 		}
 	}
 	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
-	zone->recent_rotated[!!file] += pgmoved;
 
 	__count_zone_vm_events(PGREFILL, zone, pgscanned);
 	__count_vm_events(PGDEACTIVATE, pgdeactivate);
@@ -1174,7 +1181,13 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
 {
 	int file = is_file_lru(lru);
 
-	if (lru == LRU_ACTIVE_ANON || lru == LRU_ACTIVE_FILE) {
+	if (lru == LRU_ACTIVE_FILE) {
+		shrink_active_list(nr_to_scan, zone, sc, priority, file);
+		return 0;
+	}
+
+	if (lru == LRU_ACTIVE_ANON &&
+	    (!scan_global_lru(sc) || inactive_anon_is_low(zone))) {
 		shrink_active_list(nr_to_scan, zone, sc, priority, file);
 		return 0;
 	}
@@ -1310,8 +1323,8 @@ static unsigned long shrink_zone(int priority, struct zone *zone,
 		}
 	}
 
-	while (nr[LRU_ACTIVE_ANON] || nr[LRU_INACTIVE_ANON] ||
-			nr[LRU_ACTIVE_FILE] || nr[LRU_INACTIVE_FILE]) {
+	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
+					nr[LRU_INACTIVE_FILE]) {
 		for_each_lru(l) {
 			if (nr[l]) {
 				nr_to_scan = min(nr[l],
@@ -1323,6 +1336,15 @@ static unsigned long shrink_zone(int priority, struct zone *zone,
 			}
 		}
 	}
+
+	/*
+	 * Even if we did not try to evict anon pages at all, we want to
+	 * rebalance the anon lru active/inactive ratio.
+	 */
+	if (!scan_global_lru(sc) || inactive_anon_is_low(zone))
+		shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
+	else if (!scan_global_lru(sc))
+		shrink_active_list(SWAP_CLUSTER_MAX, zone, sc, priority, 0);
 
 	throttle_vm_writeout(sc->gfp_mask);
 	return nr_reclaimed;
@@ -1616,6 +1638,14 @@ loop_again:
 			if (zone_is_all_unreclaimable(zone) &&
 			    priority != DEF_PRIORITY)
 				continue;
+
+			/*
+			 * Do some background aging of the anon list, to give
+			 * pages a chance to be referenced before reclaiming.
+			 */
+			if (inactive_anon_is_low(zone))
+				shrink_active_list(SWAP_CLUSTER_MAX, zone,
+							&sc, priority, 0);
 
 			if (!zone_watermark_ok(zone, order, zone->pages_high,
 					       0, 0)) {
