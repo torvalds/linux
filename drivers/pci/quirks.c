@@ -1934,9 +1934,7 @@ static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f, struct pci_f
 	while (f < end) {
 		if ((f->vendor == dev->vendor || f->vendor == (u16) PCI_ANY_ID) &&
  		    (f->device == dev->device || f->device == (u16) PCI_ANY_ID)) {
-#ifdef DEBUG
 			dev_dbg(&dev->dev, "calling %pF\n", f->hook);
-#endif
 			f->hook(dev);
 		}
 		f++;
