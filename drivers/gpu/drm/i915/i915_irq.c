@@ -60,43 +60,6 @@ i915_disable_irq(drm_i915_private_t *dev_priv, u32 mask)
 }
 
 /**
- * i915_get_pipe - return the the pipe associated with a given plane
- * @dev: DRM device
- * @plane: plane to look for
- *
- * The Intel Mesa & 2D drivers call the vblank routines with a plane number
- * rather than a pipe number, since they may not always be equal.  This routine
- * maps the given @plane back to a pipe number.
- */
-static int
-i915_get_pipe(struct drm_device *dev, int plane)
-{
-	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	u32 dspcntr;
-
-	dspcntr = plane ? I915_READ(DSPBCNTR) : I915_READ(DSPACNTR);
-
-	return dspcntr & DISPPLANE_SEL_PIPE_MASK ? 1 : 0;
-}
-
-/**
- * i915_get_plane - return the the plane associated with a given pipe
- * @dev: DRM device
- * @pipe: pipe to look for
- *
- * The Intel Mesa & 2D drivers call the vblank routines with a plane number
- * rather than a plane number, since they may not always be equal.  This routine
- * maps the given @pipe back to a plane number.
- */
-static int
-i915_get_plane(struct drm_device *dev, int pipe)
-{
-	if (i915_get_pipe(dev, 0) == pipe)
-		return 0;
-	return 1;
-}
-
-/**
  * i915_pipe_enabled - check if a pipe is enabled
  * @dev: DRM device
  * @pipe: pipe to check
@@ -155,8 +118,8 @@ static void i915_vblank_tasklet(struct drm_device *dev)
 		src_pitch >>= 2;
 	}
 
-	counter[0] = drm_vblank_count(dev, i915_get_plane(dev, 0));
-	counter[1] = drm_vblank_count(dev, i915_get_plane(dev, 1));
+	counter[0] = drm_vblank_count(dev, 0);
+	counter[1] = drm_vblank_count(dev, 1);
 
 	DRM_DEBUG("\n");
 
@@ -322,15 +285,16 @@ static void i915_vblank_tasklet(struct drm_device *dev)
 	}
 }
 
-u32 i915_get_vblank_counter(struct drm_device *dev, int plane)
+/* Called from drm generic code, passed a 'crtc', which
+ * we use as a pipe index
+ */
+u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long high_frame;
 	unsigned long low_frame;
 	u32 high1, high2, low, count;
-	int pipe;
 
-	pipe = i915_get_pipe(dev, plane);
 	high_frame = pipe ? PIPEBFRAMEHIGH : PIPEAFRAMEHIGH;
 	low_frame = pipe ? PIPEBFRAMEPIXEL : PIPEAFRAMEPIXEL;
 
@@ -426,7 +390,7 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		else if (pipea_stats & (PIPE_START_VBLANK_INTERRUPT_STATUS|
 					PIPE_VBLANK_INTERRUPT_STATUS)) {
 			vblank++;
-			drm_handle_vblank(dev, i915_get_plane(dev, 0));
+			drm_handle_vblank(dev, 0);
 		}
 
 		I915_WRITE(PIPEASTAT, pipea_stats);
@@ -444,7 +408,7 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		else if (pipeb_stats & (PIPE_START_VBLANK_INTERRUPT_STATUS|
 					PIPE_VBLANK_INTERRUPT_STATUS)) {
 			vblank++;
-			drm_handle_vblank(dev, i915_get_plane(dev, 1));
+			drm_handle_vblank(dev, 1);
 		}
 
 		if (pipeb_stats & I915_LEGACY_BLC_EVENT_STATUS)
@@ -604,10 +568,12 @@ int i915_irq_wait(struct drm_device *dev, void *data,
 	return i915_wait_irq(dev, irqwait->irq_seq);
 }
 
-int i915_enable_vblank(struct drm_device *dev, int plane)
+/* Called from drm generic code, passed 'crtc' which
+ * we use as a pipe index
+ */
+int i915_enable_vblank(struct drm_device *dev, int pipe)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	int pipe = i915_get_pipe(dev, plane);
 	u32	pipestat_reg = 0;
 	u32	pipestat;
 	u32	interrupt = 0;
@@ -653,10 +619,12 @@ int i915_enable_vblank(struct drm_device *dev, int plane)
 	return 0;
 }
 
-void i915_disable_vblank(struct drm_device *dev, int plane)
+/* Called from drm generic code, passed 'crtc' which
+ * we use as a pipe index
+ */
+void i915_disable_vblank(struct drm_device *dev, int pipe)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	int pipe = i915_get_pipe(dev, plane);
 	u32	pipestat_reg = 0;
 	u32	pipestat;
 	u32	interrupt = 0;
@@ -731,7 +699,7 @@ int i915_vblank_swap(struct drm_device *dev, void *data,
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	drm_i915_vblank_swap_t *swap = data;
 	drm_i915_vbl_swap_t *vbl_swap, *vbl_old;
-	unsigned int pipe, seqtype, curseq, plane;
+	unsigned int pipe, seqtype, curseq;
 	unsigned long irqflags;
 	struct list_head *list;
 	int ret;
@@ -752,8 +720,7 @@ int i915_vblank_swap(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	plane = (swap->seqtype & _DRM_VBLANK_SECONDARY) ? 1 : 0;
-	pipe = i915_get_pipe(dev, plane);
+	pipe = (swap->seqtype & _DRM_VBLANK_SECONDARY) ? 1 : 0;
 
 	seqtype = swap->seqtype & (_DRM_VBLANK_RELATIVE | _DRM_VBLANK_ABSOLUTE);
 
@@ -825,8 +792,8 @@ int i915_vblank_swap(struct drm_device *dev, void *data,
 	if (dev_priv->swaps_pending >= 10) {
 		DRM_DEBUG("Too many swaps queued\n");
 		DRM_DEBUG(" pipe 0: %d pipe 1: %d\n",
-			  drm_vblank_count(dev, i915_get_plane(dev, 0)),
-			  drm_vblank_count(dev, i915_get_plane(dev, 1)));
+			  drm_vblank_count(dev, 0),
+			  drm_vblank_count(dev, 1));
 
 		list_for_each(list, &dev_priv->vbl_swaps.head) {
 			vbl_old = list_entry(list, drm_i915_vbl_swap_t, head);
