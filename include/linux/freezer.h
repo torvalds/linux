@@ -6,7 +6,7 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_FREEZER
 /*
  * Check if a process has been frozen
  */
@@ -37,6 +37,11 @@ static inline void set_freeze_flag(struct task_struct *p)
 static inline void clear_freeze_flag(struct task_struct *p)
 {
 	clear_tsk_thread_flag(p, TIF_FREEZE);
+}
+
+static inline bool should_send_signal(struct task_struct *p)
+{
+	return !(p->flags & PF_FREEZER_NOSIG);
 }
 
 /*
@@ -74,6 +79,9 @@ static inline int try_to_freeze(void)
 	} else
 		return 0;
 }
+
+extern bool freeze_task(struct task_struct *p, bool sig_only);
+extern void cancel_freezing(struct task_struct *p);
 
 /*
  * The PF_FREEZER_SKIP flag should be set by a vfork parent right before it
@@ -166,7 +174,7 @@ static inline void set_freezable_with_signal(void)
 	} while (try_to_freeze());					\
 	__retval;							\
 })
-#else /* !CONFIG_PM_SLEEP */
+#else /* !CONFIG_FREEZER */
 static inline int frozen(struct task_struct *p) { return 0; }
 static inline int freezing(struct task_struct *p) { return 0; }
 static inline void set_freeze_flag(struct task_struct *p) {}
@@ -191,6 +199,6 @@ static inline void set_freezable_with_signal(void) {}
 #define wait_event_freezable_timeout(wq, condition, timeout)		\
 		wait_event_interruptible_timeout(wq, condition, timeout)
 
-#endif /* !CONFIG_PM_SLEEP */
+#endif /* !CONFIG_FREEZER */
 
 #endif	/* FREEZER_H_INCLUDED */
