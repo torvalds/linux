@@ -601,8 +601,11 @@ typedef struct pglist_data {
 	struct zone node_zones[MAX_NR_ZONES];
 	struct zonelist node_zonelists[MAX_ZONELISTS];
 	int nr_zones;
-#ifdef CONFIG_FLAT_NODE_MEM_MAP
+#ifdef CONFIG_FLAT_NODE_MEM_MAP	/* means !SPARSEMEM */
 	struct page *node_mem_map;
+#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+	struct page_cgroup *node_page_cgroup;
+#endif
 #endif
 	struct bootmem_data *bdata;
 #ifdef CONFIG_MEMORY_HOTPLUG
@@ -931,6 +934,7 @@ static inline unsigned long early_pfn_to_nid(unsigned long pfn)
 #endif
 
 struct page;
+struct page_cgroup;
 struct mem_section {
 	/*
 	 * This is, logically, a pointer to an array of struct
@@ -948,6 +952,14 @@ struct mem_section {
 
 	/* See declaration of similar field in struct zone */
 	unsigned long *pageblock_flags;
+#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+	/*
+	 * If !SPARSEMEM, pgdat doesn't have page_cgroup pointer. We use
+	 * section. (see memcontrol.h/page_cgroup.h about this.)
+	 */
+	struct page_cgroup *page_cgroup;
+	unsigned long pad;
+#endif
 };
 
 #ifdef CONFIG_SPARSEMEM_EXTREME
