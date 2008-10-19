@@ -110,6 +110,9 @@ static const char* temperature_sensors_sets[][36] = {
 /* Set 8: Macbook Pro 4,1 (Penryn) */
 	{ "TB0T", "TC0D", "TC0P", "TG0D", "TG0H", "TTF0", "TW0P", "Th0H",
 	  "Th1H", "Th2H", "Tm0P", "Ts0P", NULL },
+/* Set 9: Macbook Pro 3,1 (Santa Rosa) */
+	{ "TALP", "TB0T", "TC0D", "TC0P", "TG0D", "TG0H", "TTF0", "TW0P",
+	  "Th0H", "Th1H", "Th2H", "Tm0P", "Ts0P", NULL },
 };
 
 /* List of keys used to read/write fan speeds */
@@ -1269,6 +1272,8 @@ static __initdata struct dmi_match_data applesmc_dmi_data[] = {
 	{ .accelerometer = 1, .light = 1, .temperature_set = 7 },
 /* MacBook Pro 4: accelerometer, backlight and temperature set 8 */
 	{ .accelerometer = 1, .light = 1, .temperature_set = 8 },
+/* MacBook Pro 3: accelerometer, backlight and temperature set 9 */
+	{ .accelerometer = 1, .light = 1, .temperature_set = 9 },
 };
 
 /* Note that DMI_MATCH(...,"MacBook") will match "MacBookPro1,1".
@@ -1282,6 +1287,10 @@ static __initdata struct dmi_system_id applesmc_whitelist[] = {
 	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
 	  DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro4") },
 		&applesmc_dmi_data[8]},
+	{ applesmc_dmi_match, "Apple MacBook Pro 3", {
+	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
+	  DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro3") },
+		&applesmc_dmi_data[9]},
 	{ applesmc_dmi_match, "Apple MacBook Pro", {
 	  DMI_MATCH(DMI_BOARD_VENDOR,"Apple"),
 	  DMI_MATCH(DMI_PRODUCT_NAME,"MacBookPro") },
