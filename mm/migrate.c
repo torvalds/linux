@@ -330,8 +330,6 @@ static int migrate_page_move_mapping(struct address_space *mapping,
 	__inc_zone_page_state(newpage, NR_FILE_PAGES);
 
 	spin_unlock_irq(&mapping->tree_lock);
-	if (!PageSwapCache(newpage))
-		mem_cgroup_uncharge_cache_page(page);
 
 	return 0;
 }
@@ -341,6 +339,8 @@ static int migrate_page_move_mapping(struct address_space *mapping,
  */
 static void migrate_page_copy(struct page *newpage, struct page *page)
 {
+	int anon;
+
 	copy_highpage(newpage, page);
 
 	if (PageError(page))
@@ -378,7 +378,12 @@ static void migrate_page_copy(struct page *newpage, struct page *page)
 #endif
 	ClearPagePrivate(page);
 	set_page_private(page, 0);
+	/* page->mapping contains a flag for PageAnon() */
+	anon = PageAnon(page);
 	page->mapping = NULL;
+
+	if (!anon) /* This page was removed from radix-tree. */
+		mem_cgroup_uncharge_cache_page(page);
 
 	/*
 	 * If any waiters have accumulated on the new page then
