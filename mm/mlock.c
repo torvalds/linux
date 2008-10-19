@@ -248,11 +248,24 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
 			addr += PAGE_SIZE;	/* for next get_user_pages() */
 			nr_pages--;
 		}
+		ret = 0;
 	}
 
 	lru_add_drain_all();	/* to update stats */
 
-	return 0;	/* count entire vma as locked_vm */
+	return ret;	/* count entire vma as locked_vm */
+}
+
+/*
+ * convert get_user_pages() return value to posix mlock() error
+ */
+static int __mlock_posix_error_return(long retval)
+{
+	if (retval == -EFAULT)
+		retval = -ENOMEM;
+	else if (retval == -ENOMEM)
+		retval = -EAGAIN;
+	return retval;
 }
 
 #else /* CONFIG_UNEVICTABLE_LRU */
@@ -265,9 +278,15 @@ static long __mlock_vma_pages_range(struct vm_area_struct *vma,
 				   int mlock)
 {
 	if (mlock && (vma->vm_flags & VM_LOCKED))
-		make_pages_present(start, end);
+		return make_pages_present(start, end);
 	return 0;
 }
+
+static inline int __mlock_posix_error_return(long retval)
+{
+	return 0;
+}
+
 #endif /* CONFIG_UNEVICTABLE_LRU */
 
 /**
@@ -434,10 +453,7 @@ success:
 		downgrade_write(&mm->mmap_sem);
 
 		ret = __mlock_vma_pages_range(vma, start, end, 1);
-		if (ret > 0) {
-			mm->locked_vm -= ret;
-			ret = 0;
-		}
+
 		/*
 		 * Need to reacquire mmap sem in write mode, as our callers
 		 * expect this.  We have no support for atomically upgrading
@@ -451,6 +467,11 @@ success:
 		/* non-NULL *prev must contain @start, but need to check @end */
 		if (!(*prev) || end > (*prev)->vm_end)
 			ret = -ENOMEM;
+		else if (ret > 0) {
+			mm->locked_vm -= ret;
+			ret = 0;
+		} else
+			ret = __mlock_posix_error_return(ret); /* translate if needed */
 	} else {
 		/*
 		 * TODO:  for unlocking, pages will already be resident, so
