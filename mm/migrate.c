@@ -906,25 +906,33 @@ set_status:
 }
 
 /*
- * Determine the nodes of a list of pages. The addr in the pm array
- * must have been set to the virtual address of which we want to determine
- * the node number.
+ * Determine the nodes of an array of pages and store it in an array of status.
  */
-static int do_pages_stat(struct mm_struct *mm, struct page_to_node *pm)
+static int do_pages_stat(struct mm_struct *mm, unsigned long nr_pages,
+			 const void __user * __user *pages,
+			 int __user *status)
 {
+	unsigned long i;
+	int err;
+
 	down_read(&mm->mmap_sem);
 
-	for ( ; pm->node != MAX_NUMNODES; pm++) {
+	for (i = 0; i < nr_pages; i++) {
+		const void __user *p;
+		unsigned long addr;
 		struct vm_area_struct *vma;
 		struct page *page;
-		int err;
 
 		err = -EFAULT;
-		vma = find_vma(mm, pm->addr);
+		if (get_user(p, pages+i))
+			goto out;
+		addr = (unsigned long) p;
+
+		vma = find_vma(mm, addr);
 		if (!vma)
 			goto set_status;
 
-		page = follow_page(vma, pm->addr, 0);
+		page = follow_page(vma, addr, 0);
 
 		err = PTR_ERR(page);
 		if (IS_ERR(page))
@@ -937,11 +945,13 @@ static int do_pages_stat(struct mm_struct *mm, struct page_to_node *pm)
 
 		err = page_to_nid(page);
 set_status:
-		pm->status = err;
+		put_user(err, status+i);
 	}
+	err = 0;
 
+out:
 	up_read(&mm->mmap_sem);
-	return 0;
+	return err;
 }
 
 /*
@@ -997,6 +1007,10 @@ asmlinkage long sys_move_pages(pid_t pid, unsigned long nr_pages,
  	if (err)
  		goto out2;
 
+	if (!nodes) {
+		err = do_pages_stat(mm, nr_pages, pages, status);
+		goto out2;
+	}
 
 	task_nodes = cpuset_mems_allowed(task);
 
@@ -1045,11 +1059,7 @@ asmlinkage long sys_move_pages(pid_t pid, unsigned long nr_pages,
 	/* End marker */
 	pm[nr_pages].node = MAX_NUMNODES;
 
-	if (nodes)
-		err = do_move_pages(mm, pm, flags & MPOL_MF_MOVE_ALL);
-	else
-		err = do_pages_stat(mm, pm);
-
+	err = do_move_pages(mm, pm, flags & MPOL_MF_MOVE_ALL);
 	if (err >= 0)
 		/* Return status information */
 		for (i = 0; i < nr_pages; i++)
