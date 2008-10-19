@@ -191,6 +191,26 @@ static int __wait_status(u8 val)
 }
 
 /*
+ * special treatment of command port - on newer macbooks, it seems necessary
+ * to resend the command byte before polling the status again. Callers must
+ * hold applesmc_lock.
+ */
+static int send_command(u8 cmd)
+{
+	int i;
+	for (i = 0; i < 1000; i++) {
+		outb(cmd, APPLESMC_CMD_PORT);
+		udelay(5);
+		if ((inb(APPLESMC_CMD_PORT) & APPLESMC_STATUS_MASK) == 0x0c)
+			return 0;
+		udelay(5);
+	}
+	printk(KERN_WARNING "applesmc: command failed: %x -> %x\n",
+		cmd, inb(APPLESMC_CMD_PORT));
+	return -EIO;
+}
+
+/*
  * applesmc_read_key - reads len bytes from a given key, and put them in buffer.
  * Returns zero on success or a negative error on failure. Callers must
  * hold applesmc_lock.
@@ -205,8 +225,7 @@ static int applesmc_read_key(const char* key, u8* buffer, u8 len)
 		return -EINVAL;
 	}
 
-	outb(APPLESMC_READ_CMD, APPLESMC_CMD_PORT);
-	if (__wait_status(0x0c))
+	if (send_command(APPLESMC_READ_CMD))
 		return -EIO;
 
 	for (i = 0; i < 4; i++) {
@@ -249,8 +268,7 @@ static int applesmc_write_key(const char* key, u8* buffer, u8 len)
 		return -EINVAL;
 	}
 
-	outb(APPLESMC_WRITE_CMD, APPLESMC_CMD_PORT);
-	if (__wait_status(0x0c))
+	if (send_command(APPLESMC_WRITE_CMD))
 		return -EIO;
 
 	for (i = 0; i < 4; i++) {
@@ -284,8 +302,7 @@ static int applesmc_get_key_at_index(int index, char* key)
 	readkey[2] = index >> 8;
 	readkey[3] = index;
 
-	outb(APPLESMC_GET_KEY_BY_INDEX_CMD, APPLESMC_CMD_PORT);
-	if (__wait_status(0x0c))
+	if (send_command(APPLESMC_GET_KEY_BY_INDEX_CMD))
 		return -EIO;
 
 	for (i = 0; i < 4; i++) {
@@ -315,8 +332,7 @@ static int applesmc_get_key_type(char* key, char* type)
 {
 	int i;
 
-	outb(APPLESMC_GET_KEY_TYPE_CMD, APPLESMC_CMD_PORT);
-	if (__wait_status(0x0c))
+	if (send_command(APPLESMC_GET_KEY_TYPE_CMD))
 		return -EIO;
 
 	for (i = 0; i < 4; i++) {
