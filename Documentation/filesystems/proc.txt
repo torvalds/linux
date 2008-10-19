@@ -1384,15 +1384,18 @@ causes the kernel to prefer to reclaim dentries and inodes.
 dirty_background_ratio
 ----------------------
 
-Contains, as a percentage of total system memory, the number of pages at which
-the pdflush background writeback daemon will start writing out dirty data.
+Contains, as a percentage of the dirtyable system memory (free pages + mapped
+pages + file cache, not including locked pages and HugePages), the number of
+pages at which the pdflush background writeback daemon will start writing out
+dirty data.
 
 dirty_ratio
 -----------------
 
-Contains, as a percentage of total system memory, the number of pages at which
-a process which is generating disk writes will itself start writing out dirty
-data.
+Contains, as a percentage of the dirtyable system memory (free pages + mapped
+pages + file cache, not including locked pages and HugePages), the number of
+pages at which a process which is generating disk writes will itself start
+writing out dirty data.
 
 dirty_writeback_centisecs
 -------------------------
