@@ -162,6 +162,7 @@ struct page_cgroup {
 };
 #define PAGE_CGROUP_FLAG_CACHE	(0x1)	/* charged as cache */
 #define PAGE_CGROUP_FLAG_ACTIVE (0x2)	/* page is active in this cgroup */
+#define PAGE_CGROUP_FLAG_FILE	(0x4)	/* page is file system backed */
 
 static int page_cgroup_nid(struct page_cgroup *pc)
 {
@@ -177,6 +178,7 @@ enum charge_type {
 	MEM_CGROUP_CHARGE_TYPE_CACHE = 0,
 	MEM_CGROUP_CHARGE_TYPE_MAPPED,
 	MEM_CGROUP_CHARGE_TYPE_FORCE,	/* used by force_empty */
+	MEM_CGROUP_CHARGE_TYPE_SHMEM,	/* used by page migration of shmem */
 };
 
 /*
@@ -288,8 +290,12 @@ static void unlock_page_cgroup(struct page *page)
 static void __mem_cgroup_remove_list(struct mem_cgroup_per_zone *mz,
 			struct page_cgroup *pc)
 {
-	int from = pc->flags & PAGE_CGROUP_FLAG_ACTIVE;
-	int lru = !!from;
+	int lru = LRU_BASE;
+
+	if (pc->flags & PAGE_CGROUP_FLAG_ACTIVE)
+		lru += LRU_ACTIVE;
+	if (pc->flags & PAGE_CGROUP_FLAG_FILE)
+		lru += LRU_FILE;
 
 	MEM_CGROUP_ZSTAT(mz, lru) -= 1;
 
@@ -300,10 +306,12 @@ static void __mem_cgroup_remove_list(struct mem_cgroup_per_zone *mz,
 static void __mem_cgroup_add_list(struct mem_cgroup_per_zone *mz,
 				struct page_cgroup *pc)
 {
-	int lru = LRU_INACTIVE;
+	int lru = LRU_BASE;
 
 	if (pc->flags & PAGE_CGROUP_FLAG_ACTIVE)
 		lru += LRU_ACTIVE;
+	if (pc->flags & PAGE_CGROUP_FLAG_FILE)
+		lru += LRU_FILE;
 
 	MEM_CGROUP_ZSTAT(mz, lru) += 1;
 	list_add(&pc->lru, &mz->lists[lru]);
@@ -314,10 +322,9 @@ static void __mem_cgroup_add_list(struct mem_cgroup_per_zone *mz,
 static void __mem_cgroup_move_lists(struct page_cgroup *pc, bool active)
 {
 	struct mem_cgroup_per_zone *mz = page_cgroup_zoneinfo(pc);
-	int lru = LRU_INACTIVE;
-
-	if (pc->flags & PAGE_CGROUP_FLAG_ACTIVE)
-		lru += LRU_ACTIVE;
+	int from = pc->flags & PAGE_CGROUP_FLAG_ACTIVE;
+	int file = pc->flags & PAGE_CGROUP_FLAG_FILE;
+	int lru = LRU_FILE * !!file + !!from;
 
 	MEM_CGROUP_ZSTAT(mz, lru) -= 1;
 
@@ -326,7 +333,7 @@ static void __mem_cgroup_move_lists(struct page_cgroup *pc, bool active)
 	else
 		pc->flags &= ~PAGE_CGROUP_FLAG_ACTIVE;
 
-	lru = !!active;
+	lru = LRU_FILE * !!file + !!active;
 	MEM_CGROUP_ZSTAT(mz, lru) += 1;
 	list_move(&pc->lru, &mz->lists[lru]);
 }
@@ -391,21 +398,6 @@ int mem_cgroup_calc_mapped_ratio(struct mem_cgroup *mem)
 }
 
 /*
- * This function is called from vmscan.c. In page reclaiming loop. balance
- * between active and inactive list is calculated. For memory controller
- * page reclaiming, we should use using mem_cgroup's imbalance rather than
- * zone's global lru imbalance.
- */
-long mem_cgroup_reclaim_imbalance(struct mem_cgroup *mem)
-{
-	unsigned long active, inactive;
-	/* active and inactive are the number of pages. 'long' is ok.*/
-	active = mem_cgroup_get_all_zonestat(mem, LRU_ACTIVE);
-	inactive = mem_cgroup_get_all_zonestat(mem, LRU_INACTIVE);
-	return (long) (active / (inactive + 1));
-}
-
-/*
  * prev_priority control...this will be used in memory reclaim path.
  */
 int mem_cgroup_get_reclaim_priority(struct mem_cgroup *mem)
@@ -450,7 +442,7 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 					unsigned long *scanned, int order,
 					int mode, struct zone *z,
 					struct mem_cgroup *mem_cont,
-					int active)
+					int active, int file)
 {
 	unsigned long nr_taken = 0;
 	struct page *page;
@@ -461,7 +453,7 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 	int nid = z->zone_pgdat->node_id;
 	int zid = zone_idx(z);
 	struct mem_cgroup_per_zone *mz;
-	int lru = !!active;
+	int lru = LRU_FILE * !!file + !!active;
 
 	BUG_ON(!mem_cont);
 	mz = mem_cgroup_zoneinfo(mem_cont, nid, zid);
@@ -477,6 +469,9 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 		if (unlikely(!PageLRU(page)))
 			continue;
 
+		/*
+		 * TODO: play better with lumpy reclaim, grabbing anything.
+		 */
 		if (PageActive(page) && !active) {
 			__mem_cgroup_move_lists(pc, true);
 			continue;
@@ -489,7 +484,7 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 		scan++;
 		list_move(&pc->lru, &pc_list);
 
-		if (__isolate_lru_page(page, mode) == 0) {
+		if (__isolate_lru_page(page, mode, file) == 0) {
 			list_move(&page->lru, dst);
 			nr_taken++;
 		}
@@ -575,10 +570,16 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
 	 * If a page is accounted as a page cache, insert to inactive list.
 	 * If anon, insert to active list.
 	 */
-	if (ctype == MEM_CGROUP_CHARGE_TYPE_CACHE)
+	if (ctype == MEM_CGROUP_CHARGE_TYPE_CACHE) {
 		pc->flags = PAGE_CGROUP_FLAG_CACHE;
-	else
+		if (page_is_file_cache(page))
+			pc->flags |= PAGE_CGROUP_FLAG_FILE;
+		else
+			pc->flags |= PAGE_CGROUP_FLAG_ACTIVE;
+	} else if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
 		pc->flags = PAGE_CGROUP_FLAG_ACTIVE;
+	else /* MEM_CGROUP_CHARGE_TYPE_SHMEM */
+		pc->flags = PAGE_CGROUP_FLAG_CACHE | PAGE_CGROUP_FLAG_ACTIVE;
 
 	lock_page_cgroup(page);
 	if (unlikely(page_get_page_cgroup(page))) {
@@ -737,8 +738,12 @@ int mem_cgroup_prepare_migration(struct page *page, struct page *newpage)
 	if (pc) {
 		mem = pc->mem_cgroup;
 		css_get(&mem->css);
-		if (pc->flags & PAGE_CGROUP_FLAG_CACHE)
-			ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
+		if (pc->flags & PAGE_CGROUP_FLAG_CACHE) {
+			if (page_is_file_cache(page))
+				ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
+			else
+				ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
+		}
 	}
 	unlock_page_cgroup(page);
 	if (mem) {
@@ -982,14 +987,21 @@ static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
 	}
 	/* showing # of active pages */
 	{
-		unsigned long active, inactive;
+		unsigned long active_anon, inactive_anon;
+		unsigned long active_file, inactive_file;
 
-		inactive = mem_cgroup_get_all_zonestat(mem_cont,
-						LRU_INACTIVE);
-		active = mem_cgroup_get_all_zonestat(mem_cont,
-						LRU_ACTIVE);
-		cb->fill(cb, "active", (active) * PAGE_SIZE);
-		cb->fill(cb, "inactive", (inactive) * PAGE_SIZE);
+		inactive_anon = mem_cgroup_get_all_zonestat(mem_cont,
+						LRU_INACTIVE_ANON);
+		active_anon = mem_cgroup_get_all_zonestat(mem_cont,
+						LRU_ACTIVE_ANON);
+		inactive_file = mem_cgroup_get_all_zonestat(mem_cont,
+						LRU_INACTIVE_FILE);
+		active_file = mem_cgroup_get_all_zonestat(mem_cont,
+						LRU_ACTIVE_FILE);
+		cb->fill(cb, "active_anon", (active_anon) * PAGE_SIZE);
+		cb->fill(cb, "inactive_anon", (inactive_anon) * PAGE_SIZE);
+		cb->fill(cb, "active_file", (active_file) * PAGE_SIZE);
+		cb->fill(cb, "inactive_file", (inactive_file) * PAGE_SIZE);
 	}
 	return 0;
 }

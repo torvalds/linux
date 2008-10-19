@@ -33,6 +33,7 @@
 #include <linux/cpuset.h>
 #include <linux/hardirq.h> /* for BUG_ON(!in_atomic()) only */
 #include <linux/memcontrol.h>
+#include <linux/mm_inline.h> /* for page_is_file_cache() */
 #include "internal.h"
 
 /*
@@ -492,9 +493,24 @@ EXPORT_SYMBOL(add_to_page_cache_locked);
 int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
 				pgoff_t offset, gfp_t gfp_mask)
 {
-	int ret = add_to_page_cache(page, mapping, offset, gfp_mask);
-	if (ret == 0)
-		lru_cache_add(page);
+	int ret;
+
+	/*
+	 * Splice_read and readahead add shmem/tmpfs pages into the page cache
+	 * before shmem_readpage has a chance to mark them as SwapBacked: they
+	 * need to go on the active_anon lru below, and mem_cgroup_cache_charge
+	 * (called in add_to_page_cache) needs to know where they're going too.
+	 */
+	if (mapping_cap_swap_backed(mapping))
+		SetPageSwapBacked(page);
+
+	ret = add_to_page_cache(page, mapping, offset, gfp_mask);
+	if (ret == 0) {
+		if (page_is_file_cache(page))
+			lru_cache_add_file(page);
+		else
+			lru_cache_add_active_anon(page);
+	}
 	return ret;
 }
 

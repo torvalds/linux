@@ -5,7 +5,7 @@
  * page_is_file_cache - should the page be on a file LRU or anon LRU?
  * @page: the page to test
  *
- * Returns !0 if @page is page cache page backed by a regular filesystem,
+ * Returns LRU_FILE if @page is page cache page backed by a regular filesystem,
  * or 0 if @page is anonymous, tmpfs or otherwise ram or swap backed.
  * Used by functions that manipulate the LRU lists, to sort a page
  * onto the right LRU list.
@@ -20,7 +20,7 @@ static inline int page_is_file_cache(struct page *page)
 		return 0;
 
 	/* The page is page cache backed by a normal filesystem. */
-	return 1;
+	return LRU_FILE;
 }
 
 static inline void
@@ -38,39 +38,64 @@ del_page_from_lru_list(struct zone *zone, struct page *page, enum lru_list l)
 }
 
 static inline void
-add_page_to_active_list(struct zone *zone, struct page *page)
+add_page_to_inactive_anon_list(struct zone *zone, struct page *page)
 {
-	add_page_to_lru_list(zone, page, LRU_ACTIVE);
+	add_page_to_lru_list(zone, page, LRU_INACTIVE_ANON);
 }
 
 static inline void
-add_page_to_inactive_list(struct zone *zone, struct page *page)
+add_page_to_active_anon_list(struct zone *zone, struct page *page)
 {
-	add_page_to_lru_list(zone, page, LRU_INACTIVE);
+	add_page_to_lru_list(zone, page, LRU_ACTIVE_ANON);
 }
 
 static inline void
-del_page_from_active_list(struct zone *zone, struct page *page)
+add_page_to_inactive_file_list(struct zone *zone, struct page *page)
 {
-	del_page_from_lru_list(zone, page, LRU_ACTIVE);
+	add_page_to_lru_list(zone, page, LRU_INACTIVE_FILE);
 }
 
 static inline void
-del_page_from_inactive_list(struct zone *zone, struct page *page)
+add_page_to_active_file_list(struct zone *zone, struct page *page)
 {
-	del_page_from_lru_list(zone, page, LRU_INACTIVE);
+	add_page_to_lru_list(zone, page, LRU_ACTIVE_FILE);
+}
+
+static inline void
+del_page_from_inactive_anon_list(struct zone *zone, struct page *page)
+{
+	del_page_from_lru_list(zone, page, LRU_INACTIVE_ANON);
+}
+
+static inline void
+del_page_from_active_anon_list(struct zone *zone, struct page *page)
+{
+	del_page_from_lru_list(zone, page, LRU_ACTIVE_ANON);
+}
+
+static inline void
+del_page_from_inactive_file_list(struct zone *zone, struct page *page)
+{
+	del_page_from_lru_list(zone, page, LRU_INACTIVE_FILE);
+}
+
+static inline void
+del_page_from_active_file_list(struct zone *zone, struct page *page)
+{
+	del_page_from_lru_list(zone, page, LRU_INACTIVE_FILE);
 }
 
 static inline void
 del_page_from_lru(struct zone *zone, struct page *page)
 {
-	enum lru_list l = LRU_INACTIVE;
+	enum lru_list l = LRU_BASE;
 
 	list_del(&page->lru);
 	if (PageActive(page)) {
 		__ClearPageActive(page);
-		l = LRU_ACTIVE;
+		l += LRU_ACTIVE;
 	}
+	l += page_is_file_cache(page);
 	__dec_zone_state(zone, NR_LRU_BASE + l);
 }
 
@@ -87,6 +112,7 @@ static inline enum lru_list page_lru(struct page *page)
 
 	if (PageActive(page))
 		lru += LRU_ACTIVE;
+	lru += page_is_file_cache(page);
 
 	return lru;
 }

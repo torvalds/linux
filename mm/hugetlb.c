@@ -1459,11 +1459,11 @@ int hugetlb_report_meminfo(char *buf)
 {
 	struct hstate *h = &default_hstate;
 	return sprintf(buf,
-			"HugePages_Total: %5lu\n"
-			"HugePages_Free:  %5lu\n"
-			"HugePages_Rsvd:  %5lu\n"
-			"HugePages_Surp:  %5lu\n"
-			"Hugepagesize:    %5lu kB\n",
+			"HugePages_Total:   %5lu\n"
+			"HugePages_Free:    %5lu\n"
+			"HugePages_Rsvd:    %5lu\n"
+			"HugePages_Surp:    %5lu\n"
+			"Hugepagesize:   %8lu kB\n",
 			h->nr_huge_pages,
 			h->free_huge_pages,
 			h->resv_huge_pages,

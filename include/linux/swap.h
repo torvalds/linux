@@ -184,14 +184,24 @@ extern void swap_setup(void);
  * lru_cache_add: add a page to the page lists
  * @page: the page to add
  */
-static inline void lru_cache_add(struct page *page)
+static inline void lru_cache_add_anon(struct page *page)
 {
-	__lru_cache_add(page, LRU_INACTIVE);
+	__lru_cache_add(page, LRU_INACTIVE_ANON);
 }
 
-static inline void lru_cache_add_active(struct page *page)
+static inline void lru_cache_add_active_anon(struct page *page)
 {
-	__lru_cache_add(page, LRU_ACTIVE);
+	__lru_cache_add(page, LRU_ACTIVE_ANON);
+}
+
+static inline void lru_cache_add_file(struct page *page)
+{
+	__lru_cache_add(page, LRU_INACTIVE_FILE);
+}
+
+static inline void lru_cache_add_active_file(struct page *page)
+{
+	__lru_cache_add(page, LRU_ACTIVE_FILE);
 }
 
 /* linux/mm/vmscan.c */
@@ -199,7 +209,7 @@ extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 					gfp_t gfp_mask);
 extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
 							gfp_t gfp_mask);
-extern int __isolate_lru_page(struct page *page, int mode);
+extern int __isolate_lru_page(struct page *page, int mode, int file);
 extern unsigned long shrink_all_memory(unsigned long nr_pages);
 extern int vm_swappiness;
 extern int remove_mapping(struct address_space *mapping, struct page *page);

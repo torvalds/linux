@@ -116,7 +116,8 @@ static void pagevec_move_tail(struct pagevec *pvec)
 			spin_lock(&zone->lru_lock);
 		}
 		if (PageLRU(page) && !PageActive(page)) {
-			list_move_tail(&page->lru, &zone->lru[LRU_INACTIVE].list);
+			int lru = page_is_file_cache(page);
+			list_move_tail(&page->lru, &zone->lru[lru].list);
 			pgmoved++;
 		}
 	}
@@ -157,11 +158,18 @@ void activate_page(struct page *page)
 
 	spin_lock_irq(&zone->lru_lock);
 	if (PageLRU(page) && !PageActive(page)) {
-		del_page_from_inactive_list(zone, page);
+		int file = page_is_file_cache(page);
+		int lru = LRU_BASE + file;
+		del_page_from_lru_list(zone, page, lru);
+
 		SetPageActive(page);
-		add_page_to_active_list(zone, page);
+		lru += LRU_ACTIVE;
+		add_page_to_lru_list(zone, page, lru);
 		__count_vm_event(PGACTIVATE);
 		mem_cgroup_move_lists(page, true);
+
+		zone->recent_rotated[!!file]++;
+		zone->recent_scanned[!!file]++;
 	}
 	spin_unlock_irq(&zone->lru_lock);
 }
