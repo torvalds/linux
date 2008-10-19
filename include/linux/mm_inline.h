@@ -38,54 +38,6 @@ del_page_from_lru_list(struct zone *zone, struct page *page, enum lru_list l)
 }
 
 static inline void
-add_page_to_inactive_anon_list(struct zone *zone, struct page *page)
-{
-	add_page_to_lru_list(zone, page, LRU_INACTIVE_ANON);
-}
-
-static inline void
-add_page_to_active_anon_list(struct zone *zone, struct page *page)
-{
-	add_page_to_lru_list(zone, page, LRU_ACTIVE_ANON);
-}
-
-static inline void
-add_page_to_inactive_file_list(struct zone *zone, struct page *page)
-{
-	add_page_to_lru_list(zone, page, LRU_INACTIVE_FILE);
-}
-
-static inline void
-add_page_to_active_file_list(struct zone *zone, struct page *page)
-{
-	add_page_to_lru_list(zone, page, LRU_ACTIVE_FILE);
-}
-
-static inline void
-del_page_from_inactive_anon_list(struct zone *zone, struct page *page)
-{
-	del_page_from_lru_list(zone, page, LRU_INACTIVE_ANON);
-}
-
-static inline void
-del_page_from_active_anon_list(struct zone *zone, struct page *page)
-{
-	del_page_from_lru_list(zone, page, LRU_ACTIVE_ANON);
-}
-
-static inline void
-del_page_from_inactive_file_list(struct zone *zone, struct page *page)
-{
-	del_page_from_lru_list(zone, page, LRU_INACTIVE_FILE);
-}
-
-static inline void
-del_page_from_active_file_list(struct zone *zone, struct page *page)
-{
-	del_page_from_lru_list(zone, page, LRU_INACTIVE_FILE);
-}
-
-static inline void
 del_page_from_lru(struct zone *zone, struct page *page)
 {
 	enum lru_list l = LRU_BASE;
