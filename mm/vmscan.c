@@ -1064,7 +1064,6 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 	int pgdeactivate = 0;
 	unsigned long pgscanned;
 	LIST_HEAD(l_hold);	/* The pages which were snipped off */
-	LIST_HEAD(l_active);
 	LIST_HEAD(l_inactive);
 	struct page *page;
 	struct pagevec pvec;
@@ -1095,21 +1094,28 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 		cond_resched();
 		page = lru_to_page(&l_hold);
 		list_del(&page->lru);
+
+		/* page_referenced clears PageReferenced */
+		if (page_mapping_inuse(page) &&
+		    page_referenced(page, 0, sc->mem_cgroup))
+			pgmoved++;
+
 		list_add(&page->lru, &l_inactive);
 	}
 
 	/*
-	 * Count the referenced pages as rotated, even when they are moved
-	 * to the inactive list.  This helps balance scan pressure between
-	 * file and anonymous pages in get_scan_ratio.
- 	 */
+	 * Count referenced pages from currently used mappings as
+	 * rotated, even though they are moved to the inactive list.
+	 * This helps balance scan pressure between file and anonymous
+	 * pages in get_scan_ratio.
+	 */
 	zone->recent_rotated[!!file] += pgmoved;
 
 	/*
-	 * Now put the pages back on the appropriate [file or anon] inactive
-	 * and active lists.
+	 * Move the pages to the [file or anon] inactive list.
 	 */
 	pagevec_init(&pvec, 1);
+
 	pgmoved = 0;
 	lru = LRU_BASE + file * LRU_FILE;
 	spin_lock_irq(&zone->lru_lock);
@@ -1142,31 +1148,6 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 		pagevec_strip(&pvec);
 		spin_lock_irq(&zone->lru_lock);
 	}
-
-	pgmoved = 0;
-	lru = LRU_ACTIVE + file * LRU_FILE;
-	while (!list_empty(&l_active)) {
-		page = lru_to_page(&l_active);
-		prefetchw_prev_lru_page(page, &l_active, flags);
-		VM_BUG_ON(PageLRU(page));
-		SetPageLRU(page);
-		VM_BUG_ON(!PageActive(page));
-
-		list_move(&page->lru, &zone->lru[lru].list);
-		mem_cgroup_move_lists(page, true);
-		pgmoved++;
-		if (!pagevec_add(&pvec, page)) {
-			__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
-			pgmoved = 0;
-			spin_unlock_irq(&zone->lru_lock);
-			if (vm_swap_full())
-				pagevec_swap_free(&pvec);
-			__pagevec_release(&pvec);
-			spin_lock_irq(&zone->lru_lock);
-		}
-	}
-	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
-
 	__count_zone_vm_events(PGREFILL, zone, pgscanned);
 	__count_vm_events(PGDEACTIVATE, pgdeactivate);
 	spin_unlock_irq(&zone->lru_lock);
