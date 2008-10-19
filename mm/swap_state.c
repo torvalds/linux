@@ -303,7 +303,7 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		 * re-using the just freed swap entry for an existing page.
 		 * May fail (-ENOMEM) if radix-tree node allocation failed.
 		 */
-		set_page_locked(new_page);
+		__set_page_locked(new_page);
 		SetPageSwapBacked(new_page);
 		err = add_to_swap_cache(new_page, entry, gfp_mask & GFP_KERNEL);
 		if (likely(!err)) {
@@ -315,7 +315,7 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 			return new_page;
 		}
 		ClearPageSwapBacked(new_page);
-		clear_page_locked(new_page);
+		__clear_page_locked(new_page);
 		swap_free(entry);
 	} while (err != -ENOMEM);
 
