@@ -1018,12 +1018,12 @@ fb_ioctl(struct file *file, unsigned int cmd,
 	void __user *argp = (void __user *)arg;
 	long ret = 0;
 
-	lock_kernel();
 	info = registered_fb[fbidx];
+	mutex_lock(&info->lock);
 	fb = info->fbops;
 
 	if (!fb) {
-		unlock_kernel();
+		mutex_unlock(&info->lock);
 		return -ENODEV;
 	}
 	switch (cmd) {
@@ -1126,7 +1126,7 @@ fb_ioctl(struct file *file, unsigned int cmd,
 		else
 			ret = fb->fb_ioctl(info, cmd, arg);
 	}
-	unlock_kernel();
+	mutex_unlock(&info->lock);
 	return ret;
 }
 
@@ -1253,7 +1253,7 @@ fb_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct fb_ops *fb = info->fbops;
 	long ret = -ENOIOCTLCMD;
 
-	lock_kernel();
+	mutex_lock(&info->lock);
 	switch(cmd) {
 	case FBIOGET_VSCREENINFO:
 	case FBIOPUT_VSCREENINFO:
@@ -1279,7 +1279,7 @@ fb_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = fb->fb_compat_ioctl(info, cmd, arg);
 		break;
 	}
-	unlock_kernel();
+	mutex_unlock(&info->lock);
 	return ret;
 }
 #endif
@@ -1301,13 +1301,13 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 		return -ENODEV;
 	if (fb->fb_mmap) {
 		int res;
-		lock_kernel();
+		mutex_lock(&info->lock);
 		res = fb->fb_mmap(info, vma);
-		unlock_kernel();
+		mutex_unlock(&info->lock);
 		return res;
 	}
 
-	lock_kernel();
+	mutex_lock(&info->lock);
 
 	/* frame buffer memory */
 	start = info->fix.smem_start;
@@ -1316,13 +1316,13 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 		/* memory mapped io */
 		off -= len;
 		if (info->var.accel_flags) {
-			unlock_kernel();
+			mutex_unlock(&info->lock);
 			return -EINVAL;
 		}
 		start = info->fix.mmio_start;
 		len = PAGE_ALIGN((start & ~PAGE_MASK) + info->fix.mmio_len);
 	}
-	unlock_kernel();
+	mutex_unlock(&info->lock);
 	start &= PAGE_MASK;
 	if ((vma->vm_end - vma->vm_start + off) > len)
 		return -EINVAL;
@@ -1346,13 +1346,13 @@ fb_open(struct inode *inode, struct file *file)
 
 	if (fbidx >= FB_MAX)
 		return -ENODEV;
-	lock_kernel();
-	if (!(info = registered_fb[fbidx]))
+	info = registered_fb[fbidx];
+	if (!info)
 		request_module("fb%d", fbidx);
-	if (!(info = registered_fb[fbidx])) {
-		res = -ENODEV;
-		goto out;
-	}
+	info = registered_fb[fbidx];
+	if (!info)
+		return -ENODEV;
+	mutex_lock(&info->lock);
 	if (!try_module_get(info->fbops->owner)) {
 		res = -ENODEV;
 		goto out;
@@ -1368,7 +1368,7 @@ fb_open(struct inode *inode, struct file *file)
 		fb_deferred_io_open(info, inode, file);
 #endif
 out:
-	unlock_kernel();
+	mutex_unlock(&info->lock);
 	return res;
 }
 
@@ -1377,11 +1377,11 @@ fb_release(struct inode *inode, struct file *file)
 {
 	struct fb_info * const info = file->private_data;
 
-	lock_kernel();
+	mutex_lock(&info->lock);
 	if (info->fbops->fb_release)
 		info->fbops->fb_release(info,1);
 	module_put(info->fbops->owner);
-	unlock_kernel();
+	mutex_unlock(&info->lock);
 	return 0;
 }
 
@@ -1460,6 +1460,7 @@ register_framebuffer(struct fb_info *fb_info)
 		if (!registered_fb[i])
 			break;
 	fb_info->node = i;
+	mutex_init(&fb_info->lock);
 
 	fb_info->dev = device_create(fb_class, fb_info->device,
 				     MKDEV(FB_MAJOR, i), NULL, "fb%d", i);
