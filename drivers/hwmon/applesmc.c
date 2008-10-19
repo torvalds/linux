@@ -325,7 +325,7 @@ static int applesmc_get_key_type(char* key, char* type)
 			return -EIO;
 	}
 
-	outb(5, APPLESMC_DATA_PORT);
+	outb(6, APPLESMC_DATA_PORT);
 
 	for (i = 0; i < 6; i++) {
 		if (__wait_status(0x05))
