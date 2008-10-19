@@ -47,8 +47,6 @@ static inline __attribute_const__ __u16 ___swab16(__u16 val)
 {
 #ifdef __arch_swab16
 	return __arch_swab16(val);
-#elif defined(__arch_swab16p)
-	return __arch_swab16p(&val);
 #else
 	return __const_swab16(val);
 #endif
@@ -58,8 +56,6 @@ static inline __attribute_const__ __u32 ___swab32(__u32 val)
 {
 #ifdef __arch_swab32
 	return __arch_swab32(val);
-#elif defined(__arch_swab32p)
-	return __arch_swab32p(&val);
 #else
 	return __const_swab32(val);
 #endif
@@ -69,8 +65,6 @@ static inline __attribute_const__ __u64 ___swab64(__u64 val)
 {
 #ifdef __arch_swab64
 	return __arch_swab64(val);
-#elif defined(__arch_swab64p)
-	return __arch_swab64p(&val);
 #elif defined(__SWAB_64_THRU_32__)
 	__u32 h = val >> 32;
 	__u32 l = val & ((1ULL << 32) - 1);
@@ -84,8 +78,6 @@ static inline __attribute_const__ __u32 ___swahw32(__u32 val)
 {
 #ifdef __arch_swahw32
 	return __arch_swahw32(val);
-#elif defined(__arch_swahw32p)
-	return __arch_swahw32p(&val);
 #else
 	return __const_swahw32(val);
 #endif
@@ -95,8 +87,6 @@ static inline __attribute_const__ __u32 ___swahb32(__u32 val)
 {
 #ifdef __arch_swahb32
 	return __arch_swahb32(val);
-#elif defined(__arch_swahb32p)
-	return __arch_swahb32p(&val);
 #else
 	return __const_swahb32(val);
 #endif
