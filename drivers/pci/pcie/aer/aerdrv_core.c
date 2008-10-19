@@ -33,11 +33,11 @@ int pci_enable_pcie_error_reporting(struct pci_dev *dev)
 	u16 reg16 = 0;
 	int pos;
 
-	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
 	if (!pos)
 		return -EIO;
 
-	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
+	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
 	if (!pos)
 		return -EIO;
 
