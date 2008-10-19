@@ -7,6 +7,7 @@
 #include <linux/list.h>
 #include <linux/memcontrol.h>
 #include <linux/sched.h>
+#include <linux/node.h>
 
 #include <asm/atomic.h>
 #include <asm/page.h>
@@ -235,15 +236,29 @@ static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
 #ifdef CONFIG_UNEVICTABLE_LRU
 extern int page_evictable(struct page *page, struct vm_area_struct *vma);
 extern void scan_mapping_unevictable_pages(struct address_space *);
+
+extern unsigned long scan_unevictable_pages;
+extern int scan_unevictable_handler(struct ctl_table *, int, struct file *,
+					void __user *, size_t *, loff_t *);
+extern int scan_unevictable_register_node(struct node *node);
+extern void scan_unevictable_unregister_node(struct node *node);
 #else
 static inline int page_evictable(struct page *page,
 						struct vm_area_struct *vma)
 {
 	return 1;
 }
+
 static inline void scan_mapping_unevictable_pages(struct address_space *mapping)
 {
 }
+
+static inline int scan_unevictable_register_node(struct node *node)
+{
+	return 0;
+}
+
+static inline void scan_unevictable_unregister_node(struct node *node) { }
 #endif
 
 extern int kswapd_run(int nid);

@@ -39,6 +39,7 @@
 #include <linux/freezer.h>
 #include <linux/memcontrol.h>
 #include <linux/delayacct.h>
+#include <linux/sysctl.h>
 
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -2363,6 +2364,39 @@ int page_evictable(struct page *page, struct vm_area_struct *vma)
 	return 1;
 }
 
+static void show_page_path(struct page *page)
+{
+	char buf[256];
+	if (page_is_file_cache(page)) {
+		struct address_space *mapping = page->mapping;
+		struct dentry *dentry;
+		pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+
+		spin_lock(&mapping->i_mmap_lock);
+		dentry = d_find_alias(mapping->host);
+		printk(KERN_INFO "rescued: %s %lu\n",
+		       dentry_path(dentry, buf, 256), pgoff);
+		spin_unlock(&mapping->i_mmap_lock);
+	} else {
+#if defined(CONFIG_MM_OWNER) && defined(CONFIG_MMU)
+		struct anon_vma *anon_vma;
+		struct vm_area_struct *vma;
+
+		anon_vma = page_lock_anon_vma(page);
+		if (!anon_vma)
+			return;
+
+		list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
+			printk(KERN_INFO "rescued: anon %s\n",
+			       vma->vm_mm->owner->comm);
+			break;
+		}
+		page_unlock_anon_vma(anon_vma);
+#endif
+	}
+}
+
+
 /**
  * check_move_unevictable_page - check page for evictability and move to appropriate zone lru list
  * @page: page to check evictability and move to appropriate lru list
@@ -2382,6 +2416,9 @@ retry:
 	ClearPageUnevictable(page);
 	if (page_evictable(page, NULL)) {
 		enum lru_list l = LRU_INACTIVE_ANON + page_is_file_cache(page);
+
+		show_page_path(page);
+
 		__dec_zone_state(zone, NR_UNEVICTABLE);
 		list_move(&page->lru, &zone->lru[l].list);
 		__inc_zone_state(zone, NR_INACTIVE_ANON + l);
@@ -2451,4 +2488,133 @@ void scan_mapping_unevictable_pages(struct address_space *mapping)
 	}
 
 }
+
+/**
+ * scan_zone_unevictable_pages - check unevictable list for evictable pages
+ * @zone - zone of which to scan the unevictable list
+ *
+ * Scan @zone's unevictable LRU lists to check for pages that have become
+ * evictable.  Move those that have to @zone's inactive list where they
+ * become candidates for reclaim, unless shrink_inactive_zone() decides
+ * to reactivate them.  Pages that are still unevictable are rotated
+ * back onto @zone's unevictable list.
+ */
+#define SCAN_UNEVICTABLE_BATCH_SIZE 16UL /* arbitrary lock hold batch size */
+void scan_zone_unevictable_pages(struct zone *zone)
+{
+	struct list_head *l_unevictable = &zone->lru[LRU_UNEVICTABLE].list;
+	unsigned long scan;
+	unsigned long nr_to_scan = zone_page_state(zone, NR_UNEVICTABLE);
+
+	while (nr_to_scan > 0) {
+		unsigned long batch_size = min(nr_to_scan,
+						SCAN_UNEVICTABLE_BATCH_SIZE);
+
+		spin_lock_irq(&zone->lru_lock);
+		for (scan = 0;  scan < batch_size; scan++) {
+			struct page *page = lru_to_page(l_unevictable);
+
+			if (!trylock_page(page))
+				continue;
+
+			prefetchw_prev_lru_page(page, l_unevictable, flags);
+
+			if (likely(PageLRU(page) && PageUnevictable(page)))
+				check_move_unevictable_page(page, zone);
+
+			unlock_page(page);
+		}
+		spin_unlock_irq(&zone->lru_lock);
+
+		nr_to_scan -= batch_size;
+	}
+}
+
+
+/**
+ * scan_all_zones_unevictable_pages - scan all unevictable lists for evictable pages
+ *
+ * A really big hammer:  scan all zones' unevictable LRU lists to check for
+ * pages that have become evictable.  Move those back to the zones'
+ * inactive list where they become candidates for reclaim.
+ * This occurs when, e.g., we have unswappable pages on the unevictable lists,
+ * and we add swap to the system.  As such, it runs in the context of a task
+ * that has possibly/probably made some previously unevictable pages
+ * evictable.
+ */
+void scan_all_zones_unevictable_pages(void)
+{
+	struct zone *zone;
+
+	for_each_zone(zone) {
+		scan_zone_unevictable_pages(zone);
+	}
+}
+
+/*
+ * scan_unevictable_pages [vm] sysctl handler.  On demand re-scan of
+ * all nodes' unevictable lists for evictable pages
+ */
+unsigned long scan_unevictable_pages;
+
+int scan_unevictable_handler(struct ctl_table *table, int write,
+			   struct file *file, void __user *buffer,
+			   size_t *length, loff_t *ppos)
+{
+	proc_doulongvec_minmax(table, write, file, buffer, length, ppos);
+
+	if (write && *(unsigned long *)table->data)
+		scan_all_zones_unevictable_pages();
+
+	scan_unevictable_pages = 0;
+	return 0;
+}
+
+/*
+ * per node 'scan_unevictable_pages' attribute.  On demand re-scan of
+ * a specified node's per zone unevictable lists for evictable pages.
+ */
+
+static ssize_t read_scan_unevictable_node(struct sys_device *dev,
+					  struct sysdev_attribute *attr,
+					  char *buf)
+{
+	return sprintf(buf, "0\n");	/* always zero; should fit... */
+}
+
+static ssize_t write_scan_unevictable_node(struct sys_device *dev,
+					   struct sysdev_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct zone *node_zones = NODE_DATA(dev->id)->node_zones;
+	struct zone *zone;
+	unsigned long res;
+	unsigned long req = strict_strtoul(buf, 10, &res);
+
+	if (!req)
+		return 1;	/* zero is no-op */
+
+	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
+		if (!populated_zone(zone))
+			continue;
+		scan_zone_unevictable_pages(zone);
+	}
+	return 1;
+}
+
+
+static SYSDEV_ATTR(scan_unevictable_pages, S_IRUGO | S_IWUSR,
+			read_scan_unevictable_node,
+			write_scan_unevictable_node);
+
+int scan_unevictable_register_node(struct node *node)
+{
+	return sysdev_create_file(&node->sysdev, &attr_scan_unevictable_pages);
+}
+
+void scan_unevictable_unregister_node(struct node *node)
+{
+	sysdev_remove_file(&node->sysdev, &attr_scan_unevictable_pages);
+}
+
 #endif
