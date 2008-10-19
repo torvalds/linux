@@ -10,6 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
@@ -237,3 +238,178 @@ void orion_gpio_set_blink(unsigned pin, int blink)
 	spin_unlock_irqrestore(&gpio_lock, flags);
 }
 EXPORT_SYMBOL(orion_gpio_set_blink);
+
+
+/*****************************************************************************
+ * Orion GPIO IRQ
+ *
+ * GPIO_IN_POL register controls whether GPIO_DATA_IN will hold the same
+ * value of the line or the opposite value.
+ *
+ * Level IRQ handlers: DATA_IN is used directly as cause register.
+ *                     Interrupt are masked by LEVEL_MASK registers.
+ * Edge IRQ handlers:  Change in DATA_IN are latched in EDGE_CAUSE.
+ *                     Interrupt are masked by EDGE_MASK registers.
+ * Both-edge handlers: Similar to regular Edge handlers, but also swaps
+ *                     the polarity to catch the next line transaction.
+ *                     This is a race condition that might not perfectly
+ *                     work on some use cases.
+ *
+ * Every eight GPIO lines are grouped (OR'ed) before going up to main
+ * cause register.
+ *
+ *                    EDGE  cause    mask
+ *        data-in   /--------| |-----| |----\
+ *     -----| |-----                         ---- to main cause reg
+ *           X      \----------------| |----/
+ *        polarity    LEVEL          mask
+ *
+ ****************************************************************************/
+static void gpio_irq_edge_ack(u32 irq)
+{
+	int pin = irq_to_gpio(irq);
+
+	writel(~(1 << (pin & 31)), GPIO_EDGE_CAUSE(pin));
+}
+
+static void gpio_irq_edge_mask(u32 irq)
+{
+	int pin = irq_to_gpio(irq);
+	u32 u;
+
+	u = readl(GPIO_EDGE_MASK(pin));
+	u &= ~(1 << (pin & 31));
+	writel(u, GPIO_EDGE_MASK(pin));
+}
+
+static void gpio_irq_edge_unmask(u32 irq)
+{
+	int pin = irq_to_gpio(irq);
+	u32 u;
+
+	u = readl(GPIO_EDGE_MASK(pin));
+	u |= 1 << (pin & 31);
+	writel(u, GPIO_EDGE_MASK(pin));
+}
+
+static void gpio_irq_level_mask(u32 irq)
+{
+	int pin = irq_to_gpio(irq);
+	u32 u;
+
+	u = readl(GPIO_LEVEL_MASK(pin));
+	u &= ~(1 << (pin & 31));
+	writel(u, GPIO_LEVEL_MASK(pin));
+}
+
+static void gpio_irq_level_unmask(u32 irq)
+{
+	int pin = irq_to_gpio(irq);
+	u32 u;
+
+	u = readl(GPIO_LEVEL_MASK(pin));
+	u |= 1 << (pin & 31);
+	writel(u, GPIO_LEVEL_MASK(pin));
+}
+
+static int gpio_irq_set_type(u32 irq, u32 type)
+{
+	int pin = irq_to_gpio(irq);
+	struct irq_desc *desc;
+	u32 u;
+
+	u = readl(GPIO_IO_CONF(pin)) & (1 << (pin & 31));
+	if (!u) {
+		printk(KERN_ERR "orion gpio_irq_set_type failed "
+				"(irq %d, pin %d).\n", irq, pin);
+		return -EINVAL;
+	}
+
+	desc = irq_desc + irq;
+
+	/*
+	 * Set edge/level type.
+	 */
+	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
+		desc->chip = &orion_gpio_irq_edge_chip;
+	} else if (type & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW)) {
+		desc->chip = &orion_gpio_irq_level_chip;
+	} else {
+		printk(KERN_ERR "failed to set irq=%d (type=%d)\n", irq, type);
+		return -EINVAL;
+	}
+
+	/*
+	 * Configure interrupt polarity.
+	 */
+	if (type == IRQ_TYPE_EDGE_RISING || type == IRQ_TYPE_LEVEL_HIGH) {
+		u = readl(GPIO_IN_POL(pin));
+		u &= ~(1 << (pin & 31));
+		writel(u, GPIO_IN_POL(pin));
+	} else if (type == IRQ_TYPE_EDGE_FALLING || type == IRQ_TYPE_LEVEL_LOW) {
+		u = readl(GPIO_IN_POL(pin));
+		u |= 1 << (pin & 31);
+		writel(u, GPIO_IN_POL(pin));
+	} else if (type == IRQ_TYPE_EDGE_BOTH) {
+		u32 v;
+
+		v = readl(GPIO_IN_POL(pin)) ^ readl(GPIO_DATA_IN(pin));
+
+		/*
+		 * set initial polarity based on current input level
+		 */
+		u = readl(GPIO_IN_POL(pin));
+		if (v & (1 << (pin & 31)))
+			u |= 1 << (pin & 31);		/* falling */
+		else
+			u &= ~(1 << (pin & 31));	/* rising */
+		writel(u, GPIO_IN_POL(pin));
+	}
+
+	desc->status = (desc->status & ~IRQ_TYPE_SENSE_MASK) | type;
+
+	return 0;
+}
+
+struct irq_chip orion_gpio_irq_edge_chip = {
+	.name		= "orion_gpio_irq_edge",
+	.ack		= gpio_irq_edge_ack,
+	.mask		= gpio_irq_edge_mask,
+	.unmask		= gpio_irq_edge_unmask,
+	.set_type	= gpio_irq_set_type,
+};
+
+struct irq_chip orion_gpio_irq_level_chip = {
+	.name		= "orion_gpio_irq_level",
+	.mask		= gpio_irq_level_mask,
+	.mask_ack	= gpio_irq_level_mask,
+	.unmask		= gpio_irq_level_unmask,
+	.set_type	= gpio_irq_set_type,
+};
+
+void orion_gpio_irq_handler(int pinoff)
+{
+	u32 cause;
+	int pin;
+
+	cause = readl(GPIO_DATA_IN(pinoff)) & readl(GPIO_LEVEL_MASK(pinoff));
+	cause |= readl(GPIO_EDGE_CAUSE(pinoff)) & readl(GPIO_EDGE_MASK(pinoff));
+
+	for (pin = pinoff; pin < pinoff + 8; pin++) {
+		int irq = gpio_to_irq(pin);
+		struct irq_desc *desc = irq_desc + irq;
+
+		if (!(cause & (1 << (pin & 31))))
+			continue;
+
+		if ((desc->status & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH) {
+			/* Swap polarity (race with GPIO line) */
+			u32 polarity;
+
+			polarity = readl(GPIO_IN_POL(pin));
+			polarity ^= 1 << (pin & 31);
+			writel(polarity, GPIO_IN_POL(pin));
+		}
+		desc_handle_irq(irq, desc);
+	}
+}
