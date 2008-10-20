@@ -58,12 +58,16 @@ void kvm_notify_acked_irq(struct kvm *kvm, unsigned gsi)
 void kvm_register_irq_ack_notifier(struct kvm *kvm,
 				   struct kvm_irq_ack_notifier *kian)
 {
+	/* Must be called with in-kernel IRQ chip, otherwise it's nonsense */
+	ASSERT(irqchip_in_kernel(kvm));
+	ASSERT(kian);
 	hlist_add_head(&kian->link, &kvm->arch.irq_ack_notifier_list);
 }
 
-void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
-				     struct kvm_irq_ack_notifier *kian)
+void kvm_unregister_irq_ack_notifier(struct kvm_irq_ack_notifier *kian)
 {
+	if (!kian)
+		return;
 	hlist_del(&kian->link);
 }
 

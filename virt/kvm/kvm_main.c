@@ -143,7 +143,7 @@ static void kvm_free_assigned_device(struct kvm *kvm,
 	if (irqchip_in_kernel(kvm) && assigned_dev->irq_requested)
 		free_irq(assigned_dev->host_irq, (void *)assigned_dev);
 
-	kvm_unregister_irq_ack_notifier(kvm, &assigned_dev->ack_notifier);
+	kvm_unregister_irq_ack_notifier(&assigned_dev->ack_notifier);
 	kvm_free_irq_source_id(kvm, assigned_dev->irq_source_id);
 
 	if (cancel_work_sync(&assigned_dev->interrupt_work))
