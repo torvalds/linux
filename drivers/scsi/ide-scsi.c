@@ -343,6 +343,11 @@ static ide_startstop_t idescsi_do_request (ide_drive_t *drive, struct request *r
 }
 
 #ifdef CONFIG_IDE_PROC_FS
+static ide_proc_entry_t idescsi_proc[] = {
+	{ "capacity", S_IFREG|S_IRUGO, proc_ide_read_capacity, NULL },
+	{ NULL, 0, NULL, NULL }
+};
+
 #define ide_scsi_devset_get(name, field) \
 static int get_##name(ide_drive_t *drive) \
 { \
@@ -378,6 +383,16 @@ static const struct ide_proc_devset idescsi_settings[] = {
 	IDE_PROC_DEVSET(transform, 0,	 3),
 	{ 0 },
 };
+
+static ide_proc_entry_t *ide_scsi_proc_entries(ide_drive_t *drive)
+{
+	return idescsi_proc;
+}
+
+static const struct ide_proc_devset *ide_scsi_proc_devsets(ide_drive_t *drive)
+{
+	return idescsi_settings;
+}
 #endif
 
 /*
@@ -419,13 +434,6 @@ static void ide_scsi_remove(ide_drive_t *drive)
 
 static int ide_scsi_probe(ide_drive_t *);
 
-#ifdef CONFIG_IDE_PROC_FS
-static ide_proc_entry_t idescsi_proc[] = {
-	{ "capacity", S_IFREG|S_IRUGO, proc_ide_read_capacity, NULL },
-	{ NULL, 0, NULL, NULL }
-};
-#endif
-
 static ide_driver_t idescsi_driver = {
 	.gen_driver = {
 		.owner		= THIS_MODULE,
@@ -439,8 +447,8 @@ static ide_driver_t idescsi_driver = {
 	.end_request		= idescsi_end_request,
 	.error                  = idescsi_atapi_error,
 #ifdef CONFIG_IDE_PROC_FS
-	.proc			= idescsi_proc,
-	.settings		= idescsi_settings,
+	.proc_entries		= ide_scsi_proc_entries,
+	.proc_devsets		= ide_scsi_proc_devsets,
 #endif
 };
 
