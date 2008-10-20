@@ -491,8 +491,10 @@ leave:
 			brelse(*new_fe_bh);
 			*new_fe_bh = NULL;
 		}
-		if (inode)
+		if (inode) {
+			clear_nlink(inode);
 			iput(inode);
+		}
 	}
 
 	mlog_exit(status);
