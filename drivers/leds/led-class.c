@@ -110,6 +110,9 @@ int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 	if (rc)
 		goto err_out;
 
+#ifdef CONFIG_LEDS_TRIGGERS
+	init_rwsem(&led_cdev->trigger_lock);
+#endif
 	/* add to the list of leds */
 	down_write(&leds_list_lock);
 	list_add_tail(&led_cdev->node, &leds_list);
@@ -118,8 +121,6 @@ int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 	led_update_brightness(led_cdev);
 
 #ifdef CONFIG_LEDS_TRIGGERS
-	init_rwsem(&led_cdev->trigger_lock);
-
 	rc = device_create_file(led_cdev->dev, &dev_attr_trigger);
 	if (rc)
 		goto err_out_led_list;
