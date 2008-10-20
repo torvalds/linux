@@ -533,7 +533,7 @@ static struct hotplug_slot *get_slot_from_name (const char *name)
 
 	list_for_each (tmp, &pci_hotplug_slot_list) {
 		slot = list_entry (tmp, struct hotplug_slot, slot_list);
-		if (strcmp(slot->name, name) == 0)
+		if (strcmp(hotplug_slot_name(slot), name) == 0)
 			return slot;
 	}
 	return NULL;
@@ -611,7 +611,7 @@ int pci_hp_deregister(struct hotplug_slot *hotplug)
 		return -ENODEV;
 
 	mutex_lock(&pci_hp_mutex);
-	temp = get_slot_from_name(hotplug->name);
+	temp = get_slot_from_name(hotplug_slot_name(hotplug));
 	if (temp != hotplug) {
 		mutex_unlock(&pci_hp_mutex);
 		return -ENODEV;
@@ -621,7 +621,7 @@ int pci_hp_deregister(struct hotplug_slot *hotplug)
 
 	slot = hotplug->pci_slot;
 	fs_remove_slot(slot);
-	dbg("Removed slot %s from the list\n", hotplug->name);
+	dbg("Removed slot %s from the list\n", hotplug_slot_name(hotplug));
 
 	hotplug->release(hotplug);
 	slot->hotplug = NULL;
