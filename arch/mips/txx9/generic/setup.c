@@ -622,6 +622,21 @@ unsigned long (*__swizzle_addr_b)(unsigned long port) = __swizzle_addr_none;
 EXPORT_SYMBOL(__swizzle_addr_b);
 #endif
 
+#ifdef NEEDS_TXX9_IOSWABW
+static u16 ioswabw_default(volatile u16 *a, u16 x)
+{
+	return le16_to_cpu(x);
+}
+static u16 __mem_ioswabw_default(volatile u16 *a, u16 x)
+{
+	return x;
+}
+u16 (*ioswabw)(volatile u16 *a, u16 x) = ioswabw_default;
+EXPORT_SYMBOL(ioswabw);
+u16 (*__mem_ioswabw)(volatile u16 *a, u16 x) = __mem_ioswabw_default;
+EXPORT_SYMBOL(__mem_ioswabw);
+#endif
+
 void __init txx9_physmap_flash_init(int no, unsigned long addr,
 				    unsigned long size,
 				    const struct physmap_flash_data *pdata)
