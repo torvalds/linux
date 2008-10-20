@@ -282,7 +282,7 @@ void __init setup_bootmem_allocator(unsigned long free_pfn)
 			printk("initrd extends beyond end of memory "
 			       "(0x%08lx > 0x%08lx)\ndisabling initrd\n",
 			       initrd_start_phys + INITRD_SIZE,
-			       PFN_PHYS(max_low_pfn));
+			       (unsigned long)PFN_PHYS(max_low_pfn));
 			initrd_start = 0;
 		}
 	}
