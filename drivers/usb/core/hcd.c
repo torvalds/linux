@@ -81,6 +81,10 @@
 
 /*-------------------------------------------------------------------------*/
 
+/* Keep track of which host controller drivers are loaded */
+unsigned long usb_hcds_loaded;
+EXPORT_SYMBOL_GPL(usb_hcds_loaded);
+
 /* host controllers we manage */
 LIST_HEAD (usb_bus_list);
 EXPORT_SYMBOL_GPL (usb_bus_list);
@@ -818,9 +822,8 @@ static int usb_register_bus(struct usb_bus *bus)
 	set_bit (busnum, busmap.busmap);
 	bus->busnum = busnum;
 
-	bus->dev = device_create_drvdata(usb_host_class, bus->controller,
-					 MKDEV(0, 0), bus,
-					 "usb_host%d", busnum);
+	bus->dev = device_create(usb_host_class, bus->controller, MKDEV(0, 0),
+				 bus, "usb_host%d", busnum);
 	result = PTR_ERR(bus->dev);
 	if (IS_ERR(bus->dev))
 		goto error_create_class_dev;

@@ -370,17 +370,17 @@ void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt,
 	memset(acxt, 0, sizeof(*acxt));
 	acxt->parent_sd = parent_sd;
 
-	/* Lookup parent inode.  inode initialization and I_NEW
-	 * clearing are protected by sysfs_mutex.  By grabbing it and
-	 * looking up with _nowait variant, inode state can be
-	 * determined reliably.
+	/* Lookup parent inode.  inode initialization is protected by
+	 * sysfs_mutex, so inode existence can be determined by
+	 * looking up inode while holding sysfs_mutex.
 	 */
 	mutex_lock(&sysfs_mutex);
 
-	inode = ilookup5_nowait(sysfs_sb, parent_sd->s_ino, sysfs_ilookup_test,
-				parent_sd);
+	inode = ilookup5(sysfs_sb, parent_sd->s_ino, sysfs_ilookup_test,
+			 parent_sd);
+	if (inode) {
+		WARN_ON(inode->i_state & I_NEW);
 
-	if (inode && !(inode->i_state & I_NEW)) {
 		/* parent inode available */
 		acxt->parent_inode = inode;
 
@@ -393,8 +393,7 @@ void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt,
 			mutex_lock(&inode->i_mutex);
 			mutex_lock(&sysfs_mutex);
 		}
-	} else
-		iput(inode);
+	}
 }
 
 /**
@@ -636,6 +635,7 @@ struct sysfs_dirent *sysfs_get_dirent(struct sysfs_dirent *parent_sd,
 
 	return sd;
 }
+EXPORT_SYMBOL_GPL(sysfs_get_dirent);
 
 static int create_dir(struct kobject *kobj, struct sysfs_dirent *parent_sd,
 		      const char *name, struct sysfs_dirent **p_sd)
@@ -829,14 +829,10 @@ int sysfs_rename_dir(struct kobject * kobj, const char *new_name)
 	if (!new_dentry)
 		goto out_unlock;
 
-	/* rename kobject and sysfs_dirent */
+	/* rename sysfs_dirent */
 	error = -ENOMEM;
 	new_name = dup_name = kstrdup(new_name, GFP_KERNEL);
 	if (!new_name)
-		goto out_unlock;
-
-	error = kobject_set_name(kobj, "%s", new_name);
-	if (error)
 		goto out_unlock;
 
 	dup_name = sd->s_name;

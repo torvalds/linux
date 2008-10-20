@@ -1383,7 +1383,8 @@ int ip6mr_ioctl(struct sock *sk, int cmd, void __user *arg)
 
 static inline int ip6mr_forward2_finish(struct sk_buff *skb)
 {
-	IP6_INC_STATS_BH(ip6_dst_idev(skb->dst), IPSTATS_MIB_OUTFORWDATAGRAMS);
+	IP6_INC_STATS_BH(dev_net(skb->dst->dev), ip6_dst_idev(skb->dst),
+			 IPSTATS_MIB_OUTFORWDATAGRAMS);
 	return dst_output(skb);
 }
 

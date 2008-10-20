@@ -367,12 +367,12 @@ static void hvc_close(struct tty_struct *tty, struct file * filp)
 	spin_lock_irqsave(&hp->lock, flags);
 
 	if (--hp->count == 0) {
-		if (hp->ops->notifier_del)
-			hp->ops->notifier_del(hp, hp->data);
-
 		/* We are done with the tty pointer now. */
 		hp->tty = NULL;
 		spin_unlock_irqrestore(&hp->lock, flags);
+
+		if (hp->ops->notifier_del)
+			hp->ops->notifier_del(hp, hp->data);
 
 		/*
 		 * Chain calls chars_in_buffer() and returns immediately if
@@ -416,10 +416,10 @@ static void hvc_hangup(struct tty_struct *tty)
 	hp->n_outbuf = 0;
 	hp->tty = NULL;
 
+	spin_unlock_irqrestore(&hp->lock, flags);
+
 	if (hp->ops->notifier_del)
 			hp->ops->notifier_del(hp, hp->data);
-
-	spin_unlock_irqrestore(&hp->lock, flags);
 
 	while(temp_open_count) {
 		--temp_open_count;
@@ -819,11 +819,11 @@ static int hvc_init(void)
 	hvc_driver = drv;
 	return 0;
 
-put_tty:
-	put_tty_driver(hvc_driver);
 stop_thread:
 	kthread_stop(hvc_task);
 	hvc_task = NULL;
+put_tty:
+	put_tty_driver(drv);
 out:
 	return err;
 }

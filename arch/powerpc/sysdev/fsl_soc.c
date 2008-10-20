@@ -412,53 +412,6 @@ err:
 
 arch_initcall(gfar_of_init);
 
-
-#ifdef CONFIG_PPC_83xx
-static int __init mpc83xx_wdt_init(void)
-{
-	struct resource r;
-	struct device_node *np;
-	struct platform_device *dev;
-	u32 freq = fsl_get_sys_freq();
-	int ret;
-
-	np = of_find_compatible_node(NULL, "watchdog", "mpc83xx_wdt");
-
-	if (!np) {
-		ret = -ENODEV;
-		goto nodev;
-	}
-
-	memset(&r, 0, sizeof(r));
-
-	ret = of_address_to_resource(np, 0, &r);
-	if (ret)
-		goto err;
-
-	dev = platform_device_register_simple("mpc83xx_wdt", 0, &r, 1);
-	if (IS_ERR(dev)) {
-		ret = PTR_ERR(dev);
-		goto err;
-	}
-
-	ret = platform_device_add_data(dev, &freq, sizeof(freq));
-	if (ret)
-		goto unreg;
-
-	of_node_put(np);
-	return 0;
-
-unreg:
-	platform_device_unregister(dev);
-err:
-	of_node_put(np);
-nodev:
-	return ret;
-}
-
-arch_initcall(mpc83xx_wdt_init);
-#endif
-
 static enum fsl_usb2_phy_modes determine_usb_phy(const char *phy_type)
 {
 	if (!phy_type)
@@ -767,42 +720,6 @@ void fsl_rstcr_restart(char *cmd)
 #endif
 
 #if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
-struct platform_diu_data_ops diu_ops = {
-	.diu_size = 1280 * 1024 * 4,	/* default one 1280x1024 buffer */
-};
+struct platform_diu_data_ops diu_ops;
 EXPORT_SYMBOL(diu_ops);
-
-int __init preallocate_diu_videomemory(void)
-{
-	pr_debug("diu_size=%lu\n", diu_ops.diu_size);
-
-	diu_ops.diu_mem = __alloc_bootmem(diu_ops.diu_size, 8, 0);
-	if (!diu_ops.diu_mem) {
-		printk(KERN_ERR "fsl-diu: cannot allocate %lu bytes\n",
-			diu_ops.diu_size);
-		return -ENOMEM;
-	}
-
-	pr_debug("diu_mem=%p\n", diu_ops.diu_mem);
-
-	rh_init(&diu_ops.diu_rh_info, 4096, ARRAY_SIZE(diu_ops.diu_rh_block),
-		diu_ops.diu_rh_block);
-	return rh_attach_region(&diu_ops.diu_rh_info,
-				(unsigned long) diu_ops.diu_mem,
-				diu_ops.diu_size);
-}
-
-static int __init early_parse_diufb(char *p)
-{
-	if (!p)
-		return 1;
-
-	diu_ops.diu_size = _ALIGN_UP(memparse(p, &p), 8);
-
-	pr_debug("diu_size=%lu\n", diu_ops.diu_size);
-
-	return 0;
-}
-early_param("diufb", early_parse_diufb);
-
 #endif

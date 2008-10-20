@@ -22,6 +22,7 @@
 #include <stdarg.h>
 
 #include "cx18-driver.h"
+#include "cx18-io.h"
 #include "cx18-scb.h"
 #include "cx18-irq.h"
 #include "cx18-mailbox.h"
@@ -82,6 +83,7 @@ static const struct cx18_api_info api_info[] = {
 	API_ENTRY(CPU, CX18_CPU_DE_SET_MDL_ACK,			0),
 	API_ENTRY(CPU, CX18_CPU_DE_SET_MDL,			API_FAST),
 	API_ENTRY(CPU, CX18_APU_RESETAI,			API_FAST),
+	API_ENTRY(CPU, CX18_CPU_DE_RELEASE_MDL,			0),
 	API_ENTRY(0, 0,						0),
 };
 
@@ -105,20 +107,20 @@ static struct cx18_mailbox __iomem *cx18_mb_is_complete(struct cx18 *cx, int rpu
 	switch (rpu) {
 	case APU:
 		mb = &cx->scb->epu2apu_mb;
-		*state = readl(&cx->scb->apu_state);
-		*irq = readl(&cx->scb->epu2apu_irq);
+		*state = cx18_readl(cx, &cx->scb->apu_state);
+		*irq = cx18_readl(cx, &cx->scb->epu2apu_irq);
 		break;
 
 	case CPU:
 		mb = &cx->scb->epu2cpu_mb;
-		*state = readl(&cx->scb->cpu_state);
-		*irq = readl(&cx->scb->epu2cpu_irq);
+		*state = cx18_readl(cx, &cx->scb->cpu_state);
+		*irq = cx18_readl(cx, &cx->scb->epu2cpu_irq);
 		break;
 
 	case HPU:
 		mb = &cx->scb->epu2hpu_mb;
-		*state = readl(&cx->scb->hpu_state);
-		*irq = readl(&cx->scb->epu2hpu_irq);
+		*state = cx18_readl(cx, &cx->scb->hpu_state);
+		*irq = cx18_readl(cx, &cx->scb->epu2hpu_irq);
 		break;
 	}
 
@@ -126,8 +128,8 @@ static struct cx18_mailbox __iomem *cx18_mb_is_complete(struct cx18 *cx, int rpu
 		return mb;
 
 	do {
-		*req = readl(&mb->request);
-		ack = readl(&mb->ack);
+		*req = cx18_readl(cx, &mb->request);
+		ack = cx18_readl(cx, &mb->ack);
 		wait_count++;
 	} while (*req != ack && wait_count < 600);
 
@@ -172,9 +174,9 @@ long cx18_mb_ack(struct cx18 *cx, const struct cx18_mailbox *mb)
 		return -EINVAL;
 	}
 
-	setup_page(SCB_OFFSET);
-	write_sync(mb->request, &ack_mb->ack);
-	write_reg(ack_irq, SW2_INT_SET);
+	cx18_setup_page(cx, SCB_OFFSET);
+	cx18_write_sync(cx, mb->request, &ack_mb->ack);
+	cx18_write_reg(cx, ack_irq, SW2_INT_SET);
 	return 0;
 }
 
@@ -199,7 +201,7 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 		CX18_DEBUG_HI_API("%s\n", info->name);
 	else
 		CX18_DEBUG_API("%s\n", info->name);
-	setup_page(SCB_OFFSET);
+	cx18_setup_page(cx, SCB_OFFSET);
 	mb = cx18_mb_is_complete(cx, info->rpu, &state, &irq, &req);
 
 	if (mb == NULL) {
@@ -208,11 +210,11 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	}
 
 	oldreq = req - 1;
-	writel(cmd, &mb->cmd);
+	cx18_writel(cx, cmd, &mb->cmd);
 	for (i = 0; i < args; i++)
-		writel(data[i], &mb->args[i]);
-	writel(0, &mb->error);
-	writel(req, &mb->request);
+		cx18_writel(cx, data[i], &mb->args[i]);
+	cx18_writel(cx, 0, &mb->error);
+	cx18_writel(cx, req, &mb->request);
 
 	switch (info->rpu) {
 	case APU: waitq = &cx->mb_apu_waitq; break;
@@ -223,9 +225,10 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	}
 	if (info->flags & API_FAST)
 		timeout /= 2;
-	write_reg(irq, SW1_INT_SET);
+	cx18_write_reg(cx, irq, SW1_INT_SET);
 
-	while (!sig && readl(&mb->ack) != readl(&mb->request) && cnt < 660) {
+	while (!sig && cx18_readl(cx, &mb->ack) != cx18_readl(cx, &mb->request)
+	       && cnt < 660) {
 		if (cnt > 200 && !in_atomic())
 			sig = cx18_msleep_timeout(10, 1);
 		cnt++;
@@ -233,13 +236,13 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	if (sig)
 		return -EINTR;
 	if (cnt == 660) {
-		writel(oldreq, &mb->request);
+		cx18_writel(cx, oldreq, &mb->request);
 		CX18_ERR("mb %s failed\n", info->name);
 		return -EINVAL;
 	}
 	for (i = 0; i < MAX_MB_ARGUMENTS; i++)
-		data[i] = readl(&mb->args[i]);
-	err = readl(&mb->error);
+		data[i] = cx18_readl(cx, &mb->args[i]);
+	err = cx18_readl(cx, &mb->error);
 	if (!in_atomic() && (info->flags & API_SLOW))
 		cx18_msleep_timeout(300, 0);
 	if (err)

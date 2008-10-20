@@ -7,7 +7,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/pci.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 
@@ -116,7 +115,7 @@ static void aec6260_set_mode(ide_drive_t *drive, const u8 speed)
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	struct ide_host *host	= pci_get_drvdata(dev);
 	struct chipset_bus_clock_list_entry *bus_clock = host->host_priv;
-	u8 unit		= (drive->select.b.unit & 0x01);
+	u8 unit			= drive->dn & 1;
 	u8 tmp1 = 0, tmp2 = 0;
 	u8 ultra = 0, drive_conf = 0, ultra_conf = 0;
 	unsigned long flags;
@@ -140,7 +139,7 @@ static void aec_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	drive->hwif->port_ops->set_dma_mode(drive, pio + XFER_PIO_0);
 }
 
-static unsigned int __devinit init_chipset_aec62xx(struct pci_dev *dev)
+static unsigned int init_chipset_aec62xx(struct pci_dev *dev)
 {
 	/* These are necessary to get AEC6280 Macintosh cards to work */
 	if ((dev->device == PCI_DEVICE_ID_ARTOP_ATP865) ||
@@ -303,21 +302,23 @@ static const struct pci_device_id aec62xx_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, aec62xx_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver aec62xx_pci_driver = {
 	.name		= "AEC62xx_IDE",
 	.id_table	= aec62xx_pci_tbl,
 	.probe		= aec62xx_init_one,
 	.remove		= __devexit_p(aec62xx_remove),
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init aec62xx_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&aec62xx_pci_driver);
 }
 
 static void __exit aec62xx_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&aec62xx_pci_driver);
 }
 
 module_init(aec62xx_ide_init);

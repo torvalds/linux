@@ -657,8 +657,7 @@ static int __devinit hwicap_setup(struct device *dev, int id,
 		goto failed3;
 	}
 
-	device_create_drvdata(icap_class, dev, devt, NULL,
-			      "%s%d", DRIVER_NAME, id);
+	device_create(icap_class, dev, devt, NULL, "%s%d", DRIVER_NAME, id);
 	return 0;		/* success */
 
  failed3:

@@ -421,15 +421,14 @@ static void isicom_tx(unsigned long _data)
 	if (retries >= 100)
 		goto unlock;
 
+	tty = tty_port_tty_get(&port->port);
+	if (tty == NULL)
+		goto put_unlock;
+
 	for (; count > 0; count--, port++) {
 		/* port not active or tx disabled to force flow control */
 		if (!(port->port.flags & ASYNC_INITIALIZED) ||
 				!(port->status & ISI_TXOK))
-			continue;
-
-		tty = port->port.tty;
-
-		if (tty == NULL)
 			continue;
 
 		txcount = min_t(short, TX_SIZE, port->xmit_cnt);
@@ -489,6 +488,8 @@ static void isicom_tx(unsigned long _data)
 			tty_wakeup(tty);
 	}
 
+put_unlock:
+	tty_kref_put(tty);
 unlock:
 	spin_unlock_irqrestore(&isi_card[card].card_lock, flags);
 	/*	schedule another tx for hopefully in about 10ms	*/
@@ -547,7 +548,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	tty = port->port.tty;
+	tty = tty_port_tty_get(&port->port);
 	if (tty == NULL) {
 		word_count = byte_count >> 1;
 		while (byte_count > 1) {
@@ -588,7 +589,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 			}
 
 			if (port->port.flags & ASYNC_CTS_FLOW) {
-				if (port->port.tty->hw_stopped) {
+				if (tty->hw_stopped) {
 					if (header & ISI_CTS) {
 						port->port.tty->hw_stopped = 0;
 						/* start tx ing */
@@ -597,7 +598,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 						tty_wakeup(tty);
 					}
 				} else if (!(header & ISI_CTS)) {
-					port->port.tty->hw_stopped = 1;
+					tty->hw_stopped = 1;
 					/* stop tx ing */
 					port->status &= ~(ISI_TXOK | ISI_CTS);
 				}
@@ -660,24 +661,21 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 	}
 	outw(0x0000, base+0x04); /* enable interrupts */
 	spin_unlock(&card->card_lock);
+	tty_kref_put(tty);
 
 	return IRQ_HANDLED;
 }
 
-static void isicom_config_port(struct isi_port *port)
+static void isicom_config_port(struct tty_struct *tty)
 {
+	struct isi_port *port = tty->driver_data;
 	struct isi_board *card = port->card;
-	struct tty_struct *tty;
 	unsigned long baud;
 	unsigned long base = card->base;
 	u16 channel_setup, channel = port->channel,
 		shift_count = card->shift_count;
 	unsigned char flow_ctrl;
 
-	tty = port->port.tty;
-
-	if (tty == NULL)
-		return;
 	/* FIXME: Switch to new tty baud API */
 	baud = C_BAUD(tty);
 	if (baud & CBAUDEX) {
@@ -690,7 +688,7 @@ static void isicom_config_port(struct isi_port *port)
 
 		/* 1,2,3,4 => 57.6, 115.2, 230, 460 kbps resp. */
 		if (baud < 1 || baud > 4)
-			port->port.tty->termios->c_cflag &= ~CBAUDEX;
+			tty->termios->c_cflag &= ~CBAUDEX;
 		else
 			baud += 15;
 	}
@@ -797,8 +795,9 @@ static inline void isicom_setup_board(struct isi_board *bp)
 	spin_unlock_irqrestore(&bp->card_lock, flags);
 }
 
-static int isicom_setup_port(struct isi_port *port)
+static int isicom_setup_port(struct tty_struct *tty)
 {
+	struct isi_port *port = tty->driver_data;
 	struct isi_board *card = port->card;
 	unsigned long flags;
 
@@ -808,8 +807,7 @@ static int isicom_setup_port(struct isi_port *port)
 		return -ENOMEM;
 
 	spin_lock_irqsave(&card->card_lock, flags);
-	if (port->port.tty)
-		clear_bit(TTY_IO_ERROR, &port->port.tty->flags);
+	clear_bit(TTY_IO_ERROR, &tty->flags);
 	if (port->port.count == 1)
 		card->count++;
 
@@ -823,7 +821,7 @@ static int isicom_setup_port(struct isi_port *port)
 		InterruptTheCard(card->base);
 	}
 
-	isicom_config_port(port);
+	isicom_config_port(tty);
 	port->port.flags |= ASYNC_INITIALIZED;
 	spin_unlock_irqrestore(&card->card_lock, flags);
 
@@ -934,8 +932,8 @@ static int isicom_open(struct tty_struct *tty, struct file *filp)
 
 	port->port.count++;
 	tty->driver_data = port;
-	port->port.tty = tty;
-	error = isicom_setup_port(port);
+	tty_port_tty_set(&port->port, tty);
+	error = isicom_setup_port(tty);
 	if (error == 0)
 		error = block_til_ready(tty, filp, port);
 	return error;
@@ -955,15 +953,17 @@ static void isicom_shutdown_port(struct isi_port *port)
 	struct isi_board *card = port->card;
 	struct tty_struct *tty;
 
-	tty = port->port.tty;
+	tty = tty_port_tty_get(&port->port);
 
-	if (!(port->port.flags & ASYNC_INITIALIZED))
+	if (!(port->port.flags & ASYNC_INITIALIZED)) {
+		tty_kref_put(tty);
 		return;
+	}
 
 	tty_port_free_xmit_buf(&port->port);
 	port->port.flags &= ~ASYNC_INITIALIZED;
 	/* 3rd October 2000 : Vinayak P Risbud */
-	port->port.tty = NULL;
+	tty_port_tty_set(&port->port, NULL);
 
 	/*Fix done by Anil .S on 30-04-2001
 	remote login through isi port has dtr toggle problem
@@ -1243,9 +1243,10 @@ static int isicom_tiocmset(struct tty_struct *tty, struct file *file,
 	return 0;
 }
 
-static int isicom_set_serial_info(struct isi_port *port,
-	struct serial_struct __user *info)
+static int isicom_set_serial_info(struct tty_struct *tty,
+					struct serial_struct __user *info)
 {
+	struct isi_port *port = tty->driver_data;
 	struct serial_struct newinfo;
 	int reconfig_port;
 
@@ -1276,7 +1277,7 @@ static int isicom_set_serial_info(struct isi_port *port,
 	if (reconfig_port) {
 		unsigned long flags;
 		spin_lock_irqsave(&port->card->card_lock, flags);
-		isicom_config_port(port);
+		isicom_config_port(tty);
 		spin_unlock_irqrestore(&port->card->card_lock, flags);
 	}
 	unlock_kernel();
@@ -1318,7 +1319,7 @@ static int isicom_ioctl(struct tty_struct *tty, struct file *filp,
 		return isicom_get_serial_info(port, argp);
 
 	case TIOCSSERIAL:
-		return isicom_set_serial_info(port, argp);
+		return isicom_set_serial_info(tty, argp);
 
 	default:
 		return -ENOIOCTLCMD;
@@ -1341,7 +1342,7 @@ static void isicom_set_termios(struct tty_struct *tty,
 		return;
 
 	spin_lock_irqsave(&port->card->card_lock, flags);
-	isicom_config_port(port);
+	isicom_config_port(tty);
 	spin_unlock_irqrestore(&port->card->card_lock, flags);
 
 	if ((old_termios->c_cflag & CRTSCTS) &&
@@ -1419,7 +1420,7 @@ static void isicom_hangup(struct tty_struct *tty)
 
 	port->port.count = 0;
 	port->port.flags &= ~ASYNC_NORMAL_ACTIVE;
-	port->port.tty = NULL;
+	tty_port_tty_set(&port->port, NULL);
 	wake_up_interruptible(&port->port.open_wait);
 }
 

@@ -13,23 +13,23 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
 #include <mach/tc.h>
+#include <mach/control.h>
 #include <mach/board.h>
 #include <mach/mmc.h>
 #include <mach/mux.h>
 #include <mach/gpio.h>
 #include <mach/menelaus.h>
 #include <mach/mcbsp.h>
+#include <mach/dsp_common.h>
 
 #if	defined(CONFIG_OMAP_DSP) || defined(CONFIG_OMAP_DSP_MODULE)
-
-#include "../plat-omap/dsp/dsp_common.h"
 
 static struct dsp_platform_data dsp_pdata = {
 	.kdev_list = LIST_HEAD_INIT(dsp_pdata.kdev_list),
@@ -76,7 +76,7 @@ int dsp_kfunc_device_register(struct dsp_kfunc_device *kdev)
 {
 	static DEFINE_MUTEX(dsp_pdata_lock);
 
-	mutex_init(&kdev->lock);
+	spin_lock_init(&kdev->lock);
 
 	mutex_lock(&dsp_pdata_lock);
 	list_add_tail(&kdev->entry, &dsp_pdata.kdev_list);
@@ -95,6 +95,10 @@ static inline void omap_init_dsp(void) { }
 
 static void omap_init_kp(void)
 {
+	/* 2430 and 34xx keypad is on TWL4030 */
+	if (cpu_is_omap2430() || cpu_is_omap34xx())
+		return;
+
 	if (machine_is_omap_h2() || machine_is_omap_h3()) {
 		omap_cfg_reg(F18_1610_KBC0);
 		omap_cfg_reg(D20_1610_KBC1);
@@ -155,13 +159,6 @@ void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
 					int size)
 {
 	int i;
-
-	if (size > OMAP_MAX_MCBSP_COUNT) {
-		printk(KERN_WARNING "Registered too many McBSPs platform_data."
-			" Using maximum (%d) available.\n",
-			OMAP_MAX_MCBSP_COUNT);
-		size = OMAP_MAX_MCBSP_COUNT;
-	}
 
 	omap_mcbsp_devices = kzalloc(size * sizeof(struct platform_device *),
 				     GFP_KERNEL);
@@ -441,16 +438,8 @@ static inline void omap_init_uwire(void) {}
 
 #if	defined(CONFIG_OMAP_WATCHDOG) || defined(CONFIG_OMAP_WATCHDOG_MODULE)
 
-#ifdef CONFIG_ARCH_OMAP24XX
-#define	OMAP_WDT_BASE		0x48022000
-#else
-#define	OMAP_WDT_BASE		0xfffeb000
-#endif
-
 static struct resource wdt_resources[] = {
 	{
-		.start		= OMAP_WDT_BASE,
-		.end		= OMAP_WDT_BASE + 0x4f,
 		.flags		= IORESOURCE_MEM,
 	},
 };
@@ -464,6 +453,19 @@ static struct platform_device omap_wdt_device = {
 
 static void omap_init_wdt(void)
 {
+	if (cpu_is_omap16xx())
+		wdt_resources[0].start = 0xfffeb000;
+	else if (cpu_is_omap2420())
+		wdt_resources[0].start = 0x48022000; /* WDT2 */
+	else if (cpu_is_omap2430())
+		wdt_resources[0].start = 0x49016000; /* WDT2 */
+	else if (cpu_is_omap343x())
+		wdt_resources[0].start = 0x48314000; /* WDT2 */
+	else
+		return;
+
+	wdt_resources[0].end = wdt_resources[0].start + 0x4f;
+
 	(void) platform_device_register(&omap_wdt_device);
 }
 #else
@@ -525,10 +527,6 @@ static inline void omap_init_rng(void) {}
  */
 static int __init omap_init_devices(void)
 {
-/*
- * Need to enable relevant once for 2430 SDP
- */
-#ifndef CONFIG_MACH_OMAP_2430SDP
 	/* please keep these calls, and their implementations above,
 	 * in alphabetical order so they're easier to sort through.
 	 */
@@ -538,7 +536,6 @@ static int __init omap_init_devices(void)
 	omap_init_uwire();
 	omap_init_wdt();
 	omap_init_rng();
-#endif
 	return 0;
 }
 arch_initcall(omap_init_devices);

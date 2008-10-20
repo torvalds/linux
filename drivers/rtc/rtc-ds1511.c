@@ -379,18 +379,6 @@ ds1511_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
- static void
-ds1511_rtc_release(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
-
-	if (pdata->irq >= 0) {
-		pdata->irqen = 0;
-		ds1511_rtc_update_alarm(pdata);
-	}
-}
-
  static int
 ds1511_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 {
@@ -428,7 +416,6 @@ static const struct rtc_class_ops ds1511_rtc_ops = {
 	.set_time	= ds1511_rtc_set_time,
 	.read_alarm	= ds1511_rtc_read_alarm,
 	.set_alarm	= ds1511_rtc_set_alarm,
-	.release	= ds1511_rtc_release,
 	.ioctl		= ds1511_rtc_ioctl,
 };
 

@@ -31,16 +31,16 @@
 #include <linux/serial_8250.h>
 
 #include <asm/serial.h>
-#include <asm/mach-rc32434/rc32434.h>
+#include <asm/mach-rc32434/rb.h>
 
 extern unsigned int idt_cpu_freq;
 
 static struct uart_port rb532_uart = {
 	.type = PORT_16550A,
 	.line = 0,
-	.irq = RC32434_UART0_IRQ,
+	.irq = UART0_IRQ,
 	.iotype = UPIO_MEM,
-	.membase = (char *)KSEG1ADDR(RC32434_UART0_BASE),
+	.membase = (char *)KSEG1ADDR(REGBASE + UART0BASE),
 	.regshift = 2
 };
 

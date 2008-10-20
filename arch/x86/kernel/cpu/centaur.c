@@ -289,7 +289,6 @@ static void __cpuinit init_c3(struct cpuinfo_x86 *c)
 	if (c->x86_model >= 6 && c->x86_model < 9)
 		set_cpu_cap(c, X86_FEATURE_3DNOW);
 
-	get_model_name(c);
 	display_cacheinfo(c);
 }
 
@@ -475,6 +474,7 @@ static struct cpu_dev centaur_cpu_dev __cpuinitdata = {
 	.c_early_init	= early_init_centaur,
 	.c_init		= init_centaur,
 	.c_size_cache	= centaur_size_cache,
+	.c_x86_vendor	= X86_VENDOR_CENTAUR,
 };
 
-cpu_vendor_dev_register(X86_VENDOR_CENTAUR, &centaur_cpu_dev);
+cpu_dev_register(centaur_cpu_dev);

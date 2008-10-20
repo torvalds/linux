@@ -110,7 +110,7 @@ load_hids:
 	isync
 
 	/* Save away cpu state */
-	LOAD_REG_IMMEDIATE(r5,cpu_state_storage)
+	LOAD_REG_ADDR(r5,cpu_state_storage)
 
 	/* Save HID0,1,4 and 5 */
 	mfspr	r3,SPRN_HID0
@@ -134,7 +134,7 @@ _GLOBAL(__restore_cpu_ppc970)
 	rldicl.	r0,r0,4,63
 	beqlr
 
-	LOAD_REG_IMMEDIATE(r5,cpu_state_storage)
+	LOAD_REG_ADDR(r5,cpu_state_storage)
 	/* Before accessing memory, we make sure rm_ci is clear */
 	li	r0,0
 	mfspr	r3,SPRN_HID4

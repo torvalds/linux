@@ -2008,7 +2008,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	entry = huge_ptep_get(ptep);
 	if (huge_pte_none(entry)) {
 		ret = hugetlb_no_page(mm, vma, address, ptep, write_access);
-		goto out_unlock;
+		goto out_mutex;
 	}
 
 	ret = 0;
@@ -2024,7 +2024,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (write_access && !pte_write(entry)) {
 		if (vma_needs_reservation(h, vma, address) < 0) {
 			ret = VM_FAULT_OOM;
-			goto out_unlock;
+			goto out_mutex;
 		}
 
 		if (!(vma->vm_flags & VM_SHARED))
@@ -2034,10 +2034,23 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	spin_lock(&mm->page_table_lock);
 	/* Check for a racing update before calling hugetlb_cow */
-	if (likely(pte_same(entry, huge_ptep_get(ptep))))
-		if (write_access && !pte_write(entry))
+	if (unlikely(!pte_same(entry, huge_ptep_get(ptep))))
+		goto out_page_table_lock;
+
+
+	if (write_access) {
+		if (!pte_write(entry)) {
 			ret = hugetlb_cow(mm, vma, address, ptep, entry,
 							pagecache_page);
+			goto out_page_table_lock;
+		}
+		entry = pte_mkdirty(entry);
+	}
+	entry = pte_mkyoung(entry);
+	if (huge_ptep_set_access_flags(vma, address, ptep, entry, write_access))
+		update_mmu_cache(vma, address, entry);
+
+out_page_table_lock:
 	spin_unlock(&mm->page_table_lock);
 
 	if (pagecache_page) {
@@ -2045,7 +2058,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		put_page(pagecache_page);
 	}
 
-out_unlock:
+out_mutex:
 	mutex_unlock(&hugetlb_instantiation_mutex);
 
 	return ret;

@@ -116,18 +116,25 @@ static int detach_inform(struct i2c_client *client)
 
 void cx88_call_i2c_clients(struct cx88_core *core, unsigned int cmd, void *arg)
 {
+	struct videobuf_dvb_frontends *f = &core->dvbdev->frontends;
+	struct videobuf_dvb_frontend *fe = NULL;
 	if (0 != core->i2c_rc)
 		return;
 
 #if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
-	if ( (core->dvbdev) && (core->dvbdev->dvb.frontend) ) {
-		if (core->dvbdev->dvb.frontend->ops.i2c_gate_ctrl)
-			core->dvbdev->dvb.frontend->ops.i2c_gate_ctrl(core->dvbdev->dvb.frontend, 1);
+	if (core->dvbdev && f) {
+		if(f->gate <= 1) /* undefined or fe0 */
+			fe = videobuf_dvb_get_frontend(f, 1);
+		else
+			fe = videobuf_dvb_get_frontend(f, f->gate);
+
+		if (fe && fe->dvb.frontend && fe->dvb.frontend->ops.i2c_gate_ctrl)
+			fe->dvb.frontend->ops.i2c_gate_ctrl(fe->dvb.frontend, 1);
 
 		i2c_clients_command(&core->i2c_adap, cmd, arg);
 
-		if (core->dvbdev->dvb.frontend->ops.i2c_gate_ctrl)
-			core->dvbdev->dvb.frontend->ops.i2c_gate_ctrl(core->dvbdev->dvb.frontend, 0);
+		if (fe && fe->dvb.frontend && fe->dvb.frontend->ops.i2c_gate_ctrl)
+			fe->dvb.frontend->ops.i2c_gate_ctrl(fe->dvb.frontend, 0);
 	} else
 #endif
 		i2c_clients_command(&core->i2c_adap, cmd, arg);
@@ -201,7 +208,23 @@ int cx88_i2c_init(struct cx88_core *core, struct pci_dev *pci)
 
 	core->i2c_rc = i2c_bit_add_bus(&core->i2c_adap);
 	if (0 == core->i2c_rc) {
+		static u8 tuner_data[] =
+			{ 0x0b, 0xdc, 0x86, 0x52 };
+		static struct i2c_msg tuner_msg =
+			{ .flags = 0, .addr = 0xc2 >> 1, .buf = tuner_data, .len = 4 };
+
 		dprintk(1, "i2c register ok\n");
+		switch( core->boardnr ) {
+			case CX88_BOARD_HAUPPAUGE_HVR1300:
+			case CX88_BOARD_HAUPPAUGE_HVR3000:
+			case CX88_BOARD_HAUPPAUGE_HVR4000:
+				printk("%s: i2c init: enabling analog demod on HVR1300/3000/4000 tuner\n",
+					core->name);
+				i2c_transfer(core->i2c_client.adapter, &tuner_msg, 1);
+				break;
+			default:
+				break;
+		}
 		if (i2c_scan)
 			do_i2c_scan(core->name,&core->i2c_client);
 	} else

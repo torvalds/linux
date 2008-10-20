@@ -52,7 +52,7 @@ are either given on the kernel command line or as module parameters, e.g.:
 
  video=uvesafb:1024x768-32,mtrr:3,ywrap (compiled into the kernel)
 
- # modprobe uvesafb mode=1024x768-32 mtrr=3 scroll=ywrap  (module)
+ # modprobe uvesafb mode_option=1024x768-32 mtrr=3 scroll=ywrap  (module)
 
 Accepted options:
 
@@ -105,7 +105,7 @@ vtotal:n
 <mode>  The mode you want to set, in the standard modedb format.  Refer to
         modedb.txt for a detailed description.  When uvesafb is compiled as
         a module, the mode string should be provided as a value of the
-        'mode' option.
+        'mode_option' option.
 
 vbemode:x
         Force the use of VBE mode x.  The mode will only be set if it's

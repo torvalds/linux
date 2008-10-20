@@ -189,7 +189,7 @@ do {									\
 } while (0)
 #endif
 
-#define SET_PERSONALITY(ex, ibcs2) set_personality(PER_LINUX_32BIT)
+#define SET_PERSONALITY(ex) set_personality(PER_LINUX_32BIT)
 struct task_struct;
 extern int dump_task_regs (struct task_struct *, elf_gregset_t *);
 extern int dump_task_fpu (struct task_struct *, elf_fpregset_t *);

@@ -115,13 +115,8 @@ static int pppox_create(struct net *net, struct socket *sock, int protocol)
 		goto out;
 
 	rc = -EPROTONOSUPPORT;
-#ifdef CONFIG_KMOD
-	if (!pppox_protos[protocol]) {
-		char buffer[32];
-		sprintf(buffer, "pppox-proto-%d", protocol);
-		request_module(buffer);
-	}
-#endif
+	if (!pppox_protos[protocol])
+		request_module("pppox-proto-%d", protocol);
 	if (!pppox_protos[protocol] ||
 	    !try_module_get(pppox_protos[protocol]->owner))
 		goto out;

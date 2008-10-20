@@ -29,7 +29,6 @@
 #include <linux/spi/spi.h>
 #include <linux/mtd/physmap.h>
 
-#include <mach/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
@@ -38,6 +37,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include <mach/hardware.h>
 #include <mach/board.h>
 #include <mach/gpio.h>
 #include <mach/at91rm9200_mc.h>
@@ -116,7 +116,7 @@ static struct i2c_board_info __initdata ek_i2c_devices[] = {
 };
 
 #define EK_FLASH_BASE	AT91_CHIPSELECT_0
-#define EK_FLASH_SIZE	0x200000
+#define EK_FLASH_SIZE	SZ_2M
 
 static struct physmap_flash_data ek_flash_data = {
 	.width		= 2,

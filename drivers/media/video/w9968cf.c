@@ -111,7 +111,7 @@ static int specific_debug = W9968CF_SPECIFIC_DEBUG;
 
 static unsigned int param_nv[24]; /* number of values per parameter */
 
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 module_param(ovmod_load, bool, 0644);
 #endif
 module_param(simcams, ushort, 0644);
@@ -144,7 +144,7 @@ module_param(debug, ushort, 0644);
 module_param(specific_debug, bool, 0644);
 #endif
 
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 MODULE_PARM_DESC(ovmod_load,
 		 "\n<0|1> Automatic 'ovcamchip' module loading."
 		 "\n0 disabled, 1 enabled."

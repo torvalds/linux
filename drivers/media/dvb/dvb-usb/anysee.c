@@ -41,6 +41,9 @@
 static int dvb_usb_anysee_debug;
 module_param_named(debug, dvb_usb_anysee_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level" DVB_USB_DEBUG_STATUS);
+int dvb_usb_anysee_delsys;
+module_param_named(delsys, dvb_usb_anysee_delsys, int, 0644);
+MODULE_PARM_DESC(delsys, "select delivery mode (0=DVB-C, 1=DVB-T)");
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 static struct mutex anysee_usb_mutex;
@@ -178,14 +181,14 @@ static int anysee_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msg,
 			inc = 1;
 		}
 		if (ret)
-			return ret;
+			break;
 
 		i += inc;
 	}
 
 	mutex_unlock(&d->i2c_mutex);
 
-	return i;
+	return ret ? ret : i;
 }
 
 static u32 anysee_i2c_func(struct i2c_adapter *adapter)
@@ -272,9 +275,11 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 	      model      demod     hw  firmware
 	   1. E30        MT352     02  0.2.1
 	   2. E30        ZL10353   02  0.2.1
-	   3. E30 Plus   ZL10353   06  0.1.0
-	   4. E30C Plus  TDA10023  0a  0.1.0    rev 0.2
-	   4. E30C Plus  TDA10023  0f  0.1.2    rev 0.4
+	   3. E30 Combo  ZL10353   0f  0.1.2    DVB-T/C combo
+	   4. E30 Plus   ZL10353   06  0.1.0
+	   5. E30C Plus  TDA10023  0a  0.1.0    rev 0.2
+	      E30C Plus  TDA10023  0f  0.1.2    rev 0.4
+	      E30 Combo  TDA10023  0f  0.1.2    DVB-T/C combo
 	*/
 
 	/* Zarlink MT352 DVB-T demod inside of Samsung DNOS404ZH102A NIM */
@@ -291,6 +296,21 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 	if (adap->fe != NULL) {
 		state->tuner = DVB_PLL_THOMSON_DTT7579;
 		return 0;
+	}
+
+	/* for E30 Combo Plus DVB-T demodulator */
+	if (dvb_usb_anysee_delsys) {
+		ret = anysee_write_reg(adap->dev, 0xb0, 0x01);
+		if (ret)
+			return ret;
+
+		/* Zarlink ZL10353 DVB-T demod */
+		adap->fe = dvb_attach(zl10353_attach, &anysee_zl10353_config,
+				      &adap->dev->i2c_adap);
+		if (adap->fe != NULL) {
+			state->tuner = DVB_PLL_SAMSUNG_DTOS403IH102A;
+			return 0;
+		}
 	}
 
 	/* connect demod on IO port D for TDA10023 & ZL10353 */

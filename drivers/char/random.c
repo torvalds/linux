@@ -661,10 +661,10 @@ void add_disk_randomness(struct gendisk *disk)
 	if (!disk || !disk->random)
 		return;
 	/* first major is 1, so we get >= 0x200 here */
-	DEBUG_ENT("disk event %d:%d\n", disk->major, disk->first_minor);
+	DEBUG_ENT("disk event %d:%d\n",
+		  MAJOR(disk_devt(disk)), MINOR(disk_devt(disk)));
 
-	add_timer_randomness(disk->random,
-			     0x100 + MKDEV(disk->major, disk->first_minor));
+	add_timer_randomness(disk->random, 0x100 + disk_devt(disk));
 }
 #endif
 
@@ -1205,7 +1205,7 @@ static int proc_do_uuid(ctl_table *table, int write, struct file *filp,
 	return proc_dostring(&fake_table, write, filp, buffer, lenp, ppos);
 }
 
-static int uuid_strategy(ctl_table *table, int __user *name, int nlen,
+static int uuid_strategy(ctl_table *table,
 			 void __user *oldval, size_t __user *oldlenp,
 			 void __user *newval, size_t newlen)
 {

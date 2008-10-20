@@ -36,6 +36,7 @@
    VT8237S            0x3372             yes
    VT8251             0x3287             yes
    CX700              0x8324             yes
+   VX800/VX820        0x8353             yes
 
    Note: we assume there can only be one device, with one SMBus interface.
 */
@@ -82,6 +83,7 @@ static unsigned short SMBHSTCFG = 0xD2;
 #define VT596_BYTE		0x04
 #define VT596_BYTE_DATA		0x08
 #define VT596_WORD_DATA		0x0C
+#define VT596_PROC_CALL		0x10
 #define VT596_BLOCK_DATA	0x14
 #define VT596_I2C_BLOCK_DATA	0x34
 
@@ -232,6 +234,12 @@ static s32 vt596_access(struct i2c_adapter *adap, u16 addr,
 		}
 		size = VT596_WORD_DATA;
 		break;
+	case I2C_SMBUS_PROC_CALL:
+		outb_p(command, SMBHSTCMD);
+		outb_p(data->word & 0xff, SMBHSTDAT0);
+		outb_p((data->word & 0xff00) >> 8, SMBHSTDAT1);
+		size = VT596_PROC_CALL;
+		break;
 	case I2C_SMBUS_I2C_BLOCK_DATA:
 		if (!(vt596_features & FEATURE_I2CBLOCK))
 			goto exit_unsupported;
@@ -262,6 +270,9 @@ static s32 vt596_access(struct i2c_adapter *adap, u16 addr,
 	if (status)
 		return status;
 
+	if (size == VT596_PROC_CALL)
+		read_write = I2C_SMBUS_READ;
+
 	if ((read_write == I2C_SMBUS_WRITE) || (size == VT596_QUICK))
 		return 0;
 
@@ -271,6 +282,7 @@ static s32 vt596_access(struct i2c_adapter *adap, u16 addr,
 		data->byte = inb_p(SMBHSTDAT0);
 		break;
 	case VT596_WORD_DATA:
+	case VT596_PROC_CALL:
 		data->word = inb_p(SMBHSTDAT0) + (inb_p(SMBHSTDAT1) << 8);
 		break;
 	case VT596_I2C_BLOCK_DATA:
@@ -295,7 +307,7 @@ static u32 vt596_func(struct i2c_adapter *adapter)
 {
 	u32 func = I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
 	    I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA |
-	    I2C_FUNC_SMBUS_BLOCK_DATA;
+	    I2C_SMBUS_PROC_CALL | I2C_FUNC_SMBUS_BLOCK_DATA;
 
 	if (vt596_features & FEATURE_I2CBLOCK)
 		func |= I2C_FUNC_SMBUS_I2C_BLOCK;
@@ -396,6 +408,7 @@ found:
 
 	switch (pdev->device) {
 	case PCI_DEVICE_ID_VIA_CX700:
+	case PCI_DEVICE_ID_VIA_VX800:
 	case PCI_DEVICE_ID_VIA_8251:
 	case PCI_DEVICE_ID_VIA_8237:
 	case PCI_DEVICE_ID_VIA_8237A:
@@ -458,6 +471,8 @@ static struct pci_device_id vt596_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8251),
 	  .driver_data = SMBBA3 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_CX700),
+	  .driver_data = SMBBA3 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_VX800),
 	  .driver_data = SMBBA3 },
 	{ 0, }
 };

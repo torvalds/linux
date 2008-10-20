@@ -729,7 +729,7 @@ struct var_mtrr_range_state {
 	mtrr_type type;
 };
 
-struct var_mtrr_range_state __initdata range_state[RANGE_NUM];
+static struct var_mtrr_range_state __initdata range_state[RANGE_NUM];
 static int __initdata debug_print;
 
 static int __init
@@ -759,7 +759,8 @@ x86_get_mtrr_mem_range(struct res_range *range, int nr_range,
 	/* take out UC ranges */
 	for (i = 0; i < num_var_ranges; i++) {
 		type = range_state[i].type;
-		if (type != MTRR_TYPE_UNCACHABLE)
+		if (type != MTRR_TYPE_UNCACHABLE &&
+		    type != MTRR_TYPE_WRPROT)
 			continue;
 		size = range_state[i].size_pfn;
 		if (!size)
@@ -836,6 +837,13 @@ static int __init enable_mtrr_cleanup_setup(char *str)
 }
 early_param("enable_mtrr_cleanup", enable_mtrr_cleanup_setup);
 
+static int __init mtrr_cleanup_debug_setup(char *str)
+{
+	debug_print = 1;
+	return 0;
+}
+early_param("mtrr_cleanup_debug", mtrr_cleanup_debug_setup);
+
 struct var_mtrr_state {
 	unsigned long	range_startk;
 	unsigned long	range_sizek;
@@ -898,6 +906,27 @@ set_var_mtrr_all(unsigned int address_bits)
 	}
 }
 
+static unsigned long to_size_factor(unsigned long sizek, char *factorp)
+{
+	char factor;
+	unsigned long base = sizek;
+
+	if (base & ((1<<10) - 1)) {
+		/* not MB alignment */
+		factor = 'K';
+	} else if (base & ((1<<20) - 1)){
+		factor = 'M';
+		base >>= 10;
+	} else {
+		factor = 'G';
+		base >>= 20;
+	}
+
+	*factorp = factor;
+
+	return base;
+}
+
 static unsigned int __init
 range_to_mtrr(unsigned int reg, unsigned long range_startk,
 	      unsigned long range_sizek, unsigned char type)
@@ -919,13 +948,21 @@ range_to_mtrr(unsigned int reg, unsigned long range_startk,
 			align = max_align;
 
 		sizek = 1 << align;
-		if (debug_print)
+		if (debug_print) {
+			char start_factor = 'K', size_factor = 'K';
+			unsigned long start_base, size_base;
+
+			start_base = to_size_factor(range_startk, &start_factor),
+			size_base = to_size_factor(sizek, &size_factor),
+
 			printk(KERN_DEBUG "Setting variable MTRR %d, "
-				"base: %ldMB, range: %ldMB, type %s\n",
-				reg, range_startk >> 10, sizek >> 10,
+				"base: %ld%cB, range: %ld%cB, type %s\n",
+				reg, start_base, start_factor,
+				size_base, size_factor,
 				(type == MTRR_TYPE_UNCACHABLE)?"UC":
 				    ((type == MTRR_TYPE_WRBACK)?"WB":"Other")
 				);
+		}
 		save_var_mtrr(reg++, range_startk, sizek, type);
 		range_startk += sizek;
 		range_sizek -= sizek;
@@ -970,6 +1007,8 @@ range_to_mtrr_with_hole(struct var_mtrr_state *state, unsigned long basek,
 	/* try to append some small hole */
 	range0_basek = state->range_startk;
 	range0_sizek = ALIGN(state->range_sizek, chunk_sizek);
+
+	/* no increase */
 	if (range0_sizek == state->range_sizek) {
 		if (debug_print)
 			printk(KERN_DEBUG "rangeX: %016lx - %016lx\n",
@@ -980,13 +1019,40 @@ range_to_mtrr_with_hole(struct var_mtrr_state *state, unsigned long basek,
 		return 0;
 	}
 
-	range0_sizek -= chunk_sizek;
-	if (range0_sizek && sizek) {
-	    while (range0_basek + range0_sizek > (basek + sizek)) {
-		range0_sizek -= chunk_sizek;
-		if (!range0_sizek)
-			break;
-	    }
+	/* only cut back, when it is not the last */
+	if (sizek) {
+		while (range0_basek + range0_sizek > (basek + sizek)) {
+			if (range0_sizek >= chunk_sizek)
+				range0_sizek -= chunk_sizek;
+			else
+				range0_sizek = 0;
+
+			if (!range0_sizek)
+				break;
+		}
+	}
+
+second_try:
+	range_basek = range0_basek + range0_sizek;
+
+	/* one hole in the middle */
+	if (range_basek > basek && range_basek <= (basek + sizek))
+		second_sizek = range_basek - basek;
+
+	if (range0_sizek > state->range_sizek) {
+
+		/* one hole in middle or at end */
+		hole_sizek = range0_sizek - state->range_sizek - second_sizek;
+
+		/* hole size should be less than half of range0 size */
+		if (hole_sizek >= (range0_sizek >> 1) &&
+		    range0_sizek >= chunk_sizek) {
+			range0_sizek -= chunk_sizek;
+			second_sizek = 0;
+			hole_sizek = 0;
+
+			goto second_try;
+		}
 	}
 
 	if (range0_sizek) {
@@ -996,50 +1062,28 @@ range_to_mtrr_with_hole(struct var_mtrr_state *state, unsigned long basek,
 				(range0_basek + range0_sizek)<<10);
 		state->reg = range_to_mtrr(state->reg, range0_basek,
 				range0_sizek, MTRR_TYPE_WRBACK);
-
 	}
 
-	range_basek = range0_basek + range0_sizek;
-	range_sizek = chunk_sizek;
-
-	if (range_basek + range_sizek > basek &&
-	    range_basek + range_sizek <= (basek + sizek)) {
-		/* one hole */
-		second_basek = basek;
-		second_sizek = range_basek + range_sizek - basek;
-	}
-
-	/* if last piece, only could one hole near end */
-	if ((second_basek || !basek) &&
-	    range_sizek - (state->range_sizek - range0_sizek) - second_sizek <
-	    (chunk_sizek >> 1)) {
-		/*
-		 * one hole in middle (second_sizek is 0) or at end
-		 * (second_sizek is 0 )
-		 */
-		hole_sizek = range_sizek - (state->range_sizek - range0_sizek)
-				 - second_sizek;
-		hole_basek = range_basek + range_sizek - hole_sizek
-				 - second_sizek;
-	} else {
-		/* fallback for big hole, or several holes */
+	if (range0_sizek < state->range_sizek) {
+		/* need to handle left over */
 		range_sizek = state->range_sizek - range0_sizek;
-		second_basek = 0;
-		second_sizek = 0;
+
+		if (debug_print)
+			printk(KERN_DEBUG "range: %016lx - %016lx\n",
+				 range_basek<<10,
+				 (range_basek + range_sizek)<<10);
+		state->reg = range_to_mtrr(state->reg, range_basek,
+				 range_sizek, MTRR_TYPE_WRBACK);
 	}
 
-	if (debug_print)
-		printk(KERN_DEBUG "range: %016lx - %016lx\n", range_basek<<10,
-			 (range_basek + range_sizek)<<10);
-	state->reg = range_to_mtrr(state->reg, range_basek, range_sizek,
-					 MTRR_TYPE_WRBACK);
 	if (hole_sizek) {
+		hole_basek = range_basek - hole_sizek - second_sizek;
 		if (debug_print)
 			printk(KERN_DEBUG "hole: %016lx - %016lx\n",
-				 hole_basek<<10, (hole_basek + hole_sizek)<<10);
-		state->reg = range_to_mtrr(state->reg, hole_basek, hole_sizek,
-						 MTRR_TYPE_UNCACHABLE);
-
+				 hole_basek<<10,
+				 (hole_basek + hole_sizek)<<10);
+		state->reg = range_to_mtrr(state->reg, hole_basek,
+				 hole_sizek, MTRR_TYPE_UNCACHABLE);
 	}
 
 	return second_sizek;
@@ -1154,11 +1198,11 @@ struct mtrr_cleanup_result {
 };
 
 /*
- * gran_size: 1M, 2M, ..., 2G
- * chunk size: gran_size, ..., 4G
- * so we need (2+13)*6
+ * gran_size: 64K, 128K, 256K, 512K, 1M, 2M, ..., 2G
+ * chunk size: gran_size, ..., 2G
+ * so we need (1+16)*8
  */
-#define NUM_RESULT	90
+#define NUM_RESULT	136
 #define PSHIFT		(PAGE_SHIFT - 10)
 
 static struct mtrr_cleanup_result __initdata result[NUM_RESULT];
@@ -1168,13 +1212,14 @@ static unsigned long __initdata min_loss_pfn[RANGE_NUM];
 static int __init mtrr_cleanup(unsigned address_bits)
 {
 	unsigned long extra_remove_base, extra_remove_size;
-	unsigned long i, base, size, def, dummy;
+	unsigned long base, size, def, dummy;
 	mtrr_type type;
 	int nr_range, nr_range_new;
 	u64 chunk_size, gran_size;
 	unsigned long range_sums, range_sums_new;
 	int index_good;
 	int num_reg_good;
+	int i;
 
 	/* extra one for all 0 */
 	int num[MTRR_NUM_TYPES + 1];
@@ -1204,6 +1249,8 @@ static int __init mtrr_cleanup(unsigned address_bits)
 			continue;
 		if (!size)
 			type = MTRR_NUM_TYPES;
+		if (type == MTRR_TYPE_WRPROT)
+			type = MTRR_TYPE_UNCACHABLE;
 		num[type]++;
 	}
 
@@ -1216,23 +1263,57 @@ static int __init mtrr_cleanup(unsigned address_bits)
 		num_var_ranges - num[MTRR_NUM_TYPES])
 		return 0;
 
+	/* print original var MTRRs at first, for debugging: */
+	printk(KERN_DEBUG "original variable MTRRs\n");
+	for (i = 0; i < num_var_ranges; i++) {
+		char start_factor = 'K', size_factor = 'K';
+		unsigned long start_base, size_base;
+
+		size_base = range_state[i].size_pfn << (PAGE_SHIFT - 10);
+		if (!size_base)
+			continue;
+
+		size_base = to_size_factor(size_base, &size_factor),
+		start_base = range_state[i].base_pfn << (PAGE_SHIFT - 10);
+		start_base = to_size_factor(start_base, &start_factor),
+		type = range_state[i].type;
+
+		printk(KERN_DEBUG "reg %d, base: %ld%cB, range: %ld%cB, type %s\n",
+			i, start_base, start_factor,
+			size_base, size_factor,
+			(type == MTRR_TYPE_UNCACHABLE) ? "UC" :
+			    ((type == MTRR_TYPE_WRPROT) ? "WP" :
+			     ((type == MTRR_TYPE_WRBACK) ? "WB" : "Other"))
+			);
+	}
+
 	memset(range, 0, sizeof(range));
 	extra_remove_size = 0;
-	if (mtrr_tom2) {
-		extra_remove_base = 1 << (32 - PAGE_SHIFT);
+	extra_remove_base = 1 << (32 - PAGE_SHIFT);
+	if (mtrr_tom2)
 		extra_remove_size =
 			(mtrr_tom2 >> PAGE_SHIFT) - extra_remove_base;
-	}
 	nr_range = x86_get_mtrr_mem_range(range, 0, extra_remove_base,
 					  extra_remove_size);
+	/*
+	 * [0, 1M) should always be coverred by var mtrr with WB
+	 * and fixed mtrrs should take effective before var mtrr for it
+	 */
+	nr_range = add_range_with_merge(range, nr_range, 0,
+					(1ULL<<(20 - PAGE_SHIFT)) - 1);
+	/* sort the ranges */
+	sort(range, nr_range, sizeof(struct res_range), cmp_range, NULL);
+
 	range_sums = sum_ranges(range, nr_range);
 	printk(KERN_INFO "total RAM coverred: %ldM\n",
 	       range_sums >> (20 - PAGE_SHIFT));
 
 	if (mtrr_chunk_size && mtrr_gran_size) {
 		int num_reg;
+		char gran_factor, chunk_factor, lose_factor;
+		unsigned long gran_base, chunk_base, lose_base;
 
-		debug_print = 1;
+		debug_print++;
 		/* convert ranges to var ranges state */
 		num_reg = x86_setup_var_mtrrs(range, nr_range, mtrr_chunk_size,
 					      mtrr_gran_size);
@@ -1256,34 +1337,48 @@ static int __init mtrr_cleanup(unsigned address_bits)
 			result[i].lose_cover_sizek =
 				(range_sums - range_sums_new) << PSHIFT;
 
-		printk(KERN_INFO "%sgran_size: %ldM \tchunk_size: %ldM \t",
-			 result[i].bad?"*BAD*":" ", result[i].gran_sizek >> 10,
-			 result[i].chunk_sizek >> 10);
-		printk(KERN_CONT "num_reg: %d  \tlose cover RAM: %s%ldM \n",
+		gran_base = to_size_factor(result[i].gran_sizek, &gran_factor),
+		chunk_base = to_size_factor(result[i].chunk_sizek, &chunk_factor),
+		lose_base = to_size_factor(result[i].lose_cover_sizek, &lose_factor),
+		printk(KERN_INFO "%sgran_size: %ld%c \tchunk_size: %ld%c \t",
+			 result[i].bad?"*BAD*":" ",
+			 gran_base, gran_factor, chunk_base, chunk_factor);
+		printk(KERN_CONT "num_reg: %d  \tlose cover RAM: %s%ld%c\n",
 			 result[i].num_reg, result[i].bad?"-":"",
-			 result[i].lose_cover_sizek >> 10);
+			 lose_base, lose_factor);
 		if (!result[i].bad) {
 			set_var_mtrr_all(address_bits);
 			return 1;
 		}
 		printk(KERN_INFO "invalid mtrr_gran_size or mtrr_chunk_size, "
 		       "will find optimal one\n");
-		debug_print = 0;
+		debug_print--;
 		memset(result, 0, sizeof(result[0]));
 	}
 
 	i = 0;
 	memset(min_loss_pfn, 0xff, sizeof(min_loss_pfn));
 	memset(result, 0, sizeof(result));
-	for (gran_size = (1ULL<<20); gran_size < (1ULL<<32); gran_size <<= 1) {
-		for (chunk_size = gran_size; chunk_size < (1ULL<<33);
+	for (gran_size = (1ULL<<16); gran_size < (1ULL<<32); gran_size <<= 1) {
+		char gran_factor;
+		unsigned long gran_base;
+
+		if (debug_print)
+			gran_base = to_size_factor(gran_size >> 10, &gran_factor);
+
+		for (chunk_size = gran_size; chunk_size < (1ULL<<32);
 		     chunk_size <<= 1) {
 			int num_reg;
 
-			if (debug_print)
-				printk(KERN_INFO
-			       "\ngran_size: %lldM   chunk_size_size: %lldM\n",
-				       gran_size >> 20, chunk_size >> 20);
+			if (debug_print) {
+				char chunk_factor;
+				unsigned long chunk_base;
+
+				chunk_base = to_size_factor(chunk_size>>10, &chunk_factor),
+				printk(KERN_INFO "\n");
+				printk(KERN_INFO "gran_size: %ld%c   chunk_size: %ld%c \n",
+				       gran_base, gran_factor, chunk_base, chunk_factor);
+			}
 			if (i >= NUM_RESULT)
 				continue;
 
@@ -1326,12 +1421,18 @@ static int __init mtrr_cleanup(unsigned address_bits)
 
 	/* print out all */
 	for (i = 0; i < NUM_RESULT; i++) {
-		printk(KERN_INFO "%sgran_size: %ldM \tchunk_size: %ldM \t",
-		       result[i].bad?"*BAD* ":" ", result[i].gran_sizek >> 10,
-		       result[i].chunk_sizek >> 10);
-		printk(KERN_CONT "num_reg: %d \tlose RAM: %s%ldM\n",
-		       result[i].num_reg, result[i].bad?"-":"",
-		       result[i].lose_cover_sizek >> 10);
+		char gran_factor, chunk_factor, lose_factor;
+		unsigned long gran_base, chunk_base, lose_base;
+
+		gran_base = to_size_factor(result[i].gran_sizek, &gran_factor),
+		chunk_base = to_size_factor(result[i].chunk_sizek, &chunk_factor),
+		lose_base = to_size_factor(result[i].lose_cover_sizek, &lose_factor),
+		printk(KERN_INFO "%sgran_size: %ld%c \tchunk_size: %ld%c \t",
+			 result[i].bad?"*BAD*":" ",
+			 gran_base, gran_factor, chunk_base, chunk_factor);
+		printk(KERN_CONT "num_reg: %d  \tlose cover RAM: %s%ld%c\n",
+			 result[i].num_reg, result[i].bad?"-":"",
+			 lose_base, lose_factor);
 	}
 
 	/* try to find the optimal index */
@@ -1339,10 +1440,8 @@ static int __init mtrr_cleanup(unsigned address_bits)
 		nr_mtrr_spare_reg = num_var_ranges - 1;
 	num_reg_good = -1;
 	for (i = num_var_ranges - nr_mtrr_spare_reg; i > 0; i--) {
-		if (!min_loss_pfn[i]) {
+		if (!min_loss_pfn[i])
 			num_reg_good = i;
-			break;
-		}
 	}
 
 	index_good = -1;
@@ -1358,21 +1457,26 @@ static int __init mtrr_cleanup(unsigned address_bits)
 	}
 
 	if (index_good != -1) {
+		char gran_factor, chunk_factor, lose_factor;
+		unsigned long gran_base, chunk_base, lose_base;
+
 		printk(KERN_INFO "Found optimal setting for mtrr clean up\n");
 		i = index_good;
-		printk(KERN_INFO "gran_size: %ldM \tchunk_size: %ldM \t",
-				result[i].gran_sizek >> 10,
-				result[i].chunk_sizek >> 10);
-		printk(KERN_CONT "num_reg: %d \tlose RAM: %ldM\n",
-				result[i].num_reg,
-				result[i].lose_cover_sizek >> 10);
+		gran_base = to_size_factor(result[i].gran_sizek, &gran_factor),
+		chunk_base = to_size_factor(result[i].chunk_sizek, &chunk_factor),
+		lose_base = to_size_factor(result[i].lose_cover_sizek, &lose_factor),
+		printk(KERN_INFO "gran_size: %ld%c \tchunk_size: %ld%c \t",
+			 gran_base, gran_factor, chunk_base, chunk_factor);
+		printk(KERN_CONT "num_reg: %d  \tlose RAM: %ld%c\n",
+			 result[i].num_reg, lose_base, lose_factor);
 		/* convert ranges to var ranges state */
 		chunk_size = result[i].chunk_sizek;
 		chunk_size <<= 10;
 		gran_size = result[i].gran_sizek;
 		gran_size <<= 10;
-		debug_print = 1;
+		debug_print++;
 		x86_setup_var_mtrrs(range, nr_range, chunk_size, gran_size);
+		debug_print--;
 		set_var_mtrr_all(address_bits);
 		return 1;
 	}

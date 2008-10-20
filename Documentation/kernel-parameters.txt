@@ -284,6 +284,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			isolate - enable device isolation (each device, as far
 			          as possible, will get its own protection
 			          domain)
+			fullflush - enable flushing of IO/TLB entries when
+				    they are unmapped. Otherwise they are
+				    flushed before they will be reused, which
+				    is a lot of faster
+
 	amd_iommu_size= [HW,X86-64]
 			Define the size of the aperture for the AMD IOMMU
 			driver. Possible values are:
@@ -462,12 +467,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			in an oops report.
 			Range: 0 - 8192
 			Default: 64
-
-	disable_8254_timer
-	enable_8254_timer
-			[IA32/X86_64] Disable/Enable interrupt 0 timer routing
-			over the 8254 in addition to over the IO-APIC. The
-			kernel tries to set a sensible default.
 
 	hpet=		[X86-32,HPET] option to control HPET usage
 			Format: { enable (default) | disable | force }
@@ -659,11 +658,12 @@ and is between 256 and 4096 characters. It is defined in the file
 	earlyprintk=	[X86-32,X86-64,SH,BLACKFIN]
 			earlyprintk=vga
 			earlyprintk=serial[,ttySn[,baudrate]]
+			earlyprintk=dbgp
 
 			Append ",keep" to not disable it when the real console
 			takes over.
 
-			Only vga or serial at a time, not both.
+			Only vga or serial or usb debug port at a time.
 
 			Currently only ttyS0 and ttyS1 are supported.
 
@@ -796,6 +796,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			Defaults to the default architecture's huge page size
 			if not specified.
 
+	i8042.debug	[HW] Toggle i8042 debug mode
 	i8042.direct	[HW] Put keyboard port into non-translated mode
 	i8042.dumbkbd	[HW] Pretend that controller can only read data from
 			     keyboard and cannot control its state
@@ -1020,6 +1021,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			(only serial suported for now)
 			Format: <serial_device>[,baud]
 
+	kmac=		[MIPS] korina ethernet MAC address.
+			Configure the RouterBoard 532 series on-chip
+			Ethernet adapter MAC address.
+
 	l2cr=		[PPC]
 
 	l3cr=		[PPC]
@@ -1228,6 +1233,29 @@ and is between 256 and 4096 characters. It is defined in the file
 			         or
 			         memmap=0x10000$0x18690000
 
+	memory_corruption_check=0/1 [X86]
+			Some BIOSes seem to corrupt the first 64k of
+			memory when doing things like suspend/resume.
+			Setting this option will scan the memory
+			looking for corruption.  Enabling this will
+			both detect corruption and prevent the kernel
+			from using the memory being corrupted.
+			However, its intended as a diagnostic tool; if
+			repeatable BIOS-originated corruption always
+			affects the same memory, you can use memmap=
+			to prevent the kernel from using that memory.
+
+	memory_corruption_check_size=size [X86]
+			By default it checks for corruption in the low
+			64k, making this memory unavailable for normal
+			use.  Use this parameter to scan for
+			corruption in more or less memory.
+
+	memory_corruption_check_period=seconds [X86]
+			By default it checks for corruption every 60
+			seconds.  Use this parameter to check at some
+			other rate.  0 disables periodic checking.
+
 	memtest=	[KNL,X86] Enable memtest
 			Format: <integer>
 			range: 0,4 : pattern number
@@ -1424,6 +1452,12 @@ and is between 256 and 4096 characters. It is defined in the file
 	nolapic		[X86-32,APIC] Do not enable or use the local APIC.
 
 	nolapic_timer	[X86-32,APIC] Do not use the local APIC timer.
+
+	nox2apic	[X86-64,APIC] Do not enable x2APIC mode.
+
+	x2apic_phys	[X86-64,APIC] Use x2apic physical mode instead of
+			default x2apic cluster mode on platforms
+			supporting x2apic.
 
 	noltlbs		[PPC] Do not use large page/tlb entries for kernel
 			lowmem mapping on PPC40x.
@@ -1680,6 +1714,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			autoconfiguration.
 			Ranges are in pairs (memory base and size).
 
+	dynamic_printk
+			Enables pr_debug()/dev_dbg() calls if
+			CONFIG_DYNAMIC_PRINTK_DEBUG has been enabled. These can also
+			be switched on/off via <debugfs>/dynamic_printk/modules
+
 	print-fatal-signals=
 			[KNL] debug: print fatal signals
 			print-fatal-signals=1: print segfault info to
@@ -1881,6 +1920,12 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	shapers=	[NET]
 			Maximal number of shapers.
+
+	show_msr=	[x86] show boot-time MSR settings
+			Format: { <integer> }
+			Show boot-time (BIOS-initialized) MSR settings.
+			The parameter means the number of CPUs to show,
+			for example 1 means boot CPU only.
 
 	sim710=		[SCSI,HW]
 			See header of drivers/scsi/sim710.c.
@@ -2207,6 +2252,25 @@ and is between 256 and 4096 characters. It is defined in the file
 			is the time required before an idle device will be
 			autosuspended.  Devices for which the delay is set
 			to a negative value won't be autosuspended at all.
+
+	usbcore.usbfs_snoop=
+			[USB] Set to log all usbfs traffic (default 0 = off).
+
+	usbcore.blinkenlights=
+			[USB] Set to cycle leds on hubs (default 0 = off).
+
+	usbcore.old_scheme_first=
+			[USB] Start with the old device initialization
+			scheme (default 0 = off).
+
+	usbcore.use_both_schemes=
+			[USB] Try the other device initialization scheme
+			if the first one fails (default 1 = enabled).
+
+	usbcore.initial_descriptor_timeout=
+			[USB] Specifies timeout for the initial 64-byte
+                        USB_REQ_GET_DESCRIPTOR request in milliseconds
+			(default 5000 = 5.0 seconds).
 
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.

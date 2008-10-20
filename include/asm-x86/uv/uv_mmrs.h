@@ -8,8 +8,8 @@
  * Copyright (C) 2007-2008 Silicon Graphics, Inc. All rights reserved.
  */
 
-#ifndef __ASM_X86_UV_MMRS__
-#define __ASM_X86_UV_MMRS__
+#ifndef ASM_X86__UV__UV_MMRS_H
+#define ASM_X86__UV__UV_MMRS_H
 
 #define UV_MMR_ENABLE		(1UL << 63)
 
@@ -1292,4 +1292,4 @@ union uvh_si_alias2_overlay_config_u {
 };
 
 
-#endif /* __ASM_X86_UV_MMRS__ */
+#endif /* ASM_X86__UV__UV_MMRS_H */

@@ -25,6 +25,8 @@
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
 #include <linux/gpio.h>
+#include <linux/wm97xx_batt.h>
+#include <linux/power_supply.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -340,6 +342,23 @@ static struct platform_device power_supply = {
 };
 
 /******************************************************************************
+ * WM97xx battery
+ ******************************************************************************/
+static struct wm97xx_batt_info wm97xx_batt_pdata = {
+	.batt_aux	= WM97XX_AUX_ID3,
+	.temp_aux	= WM97XX_AUX_ID2,
+	.charge_gpio	= -1,
+	.max_voltage	= PALMTX_BAT_MAX_VOLTAGE,
+	.min_voltage	= PALMTX_BAT_MIN_VOLTAGE,
+	.batt_mult	= 1000,
+	.batt_div	= 414,
+	.temp_mult	= 1,
+	.temp_div	= 1,
+	.batt_tech	= POWER_SUPPLY_TECHNOLOGY_LIPO,
+	.batt_name	= "main-batt",
+};
+
+/******************************************************************************
  * Framebuffer
  ******************************************************************************/
 static struct pxafb_mode_info palmtx_lcd_modes[] = {
@@ -401,6 +420,7 @@ static void __init palmtx_init(void)
 	pxa_set_ac97_info(NULL);
 	pxa_set_ficp_info(&palmtx_ficp_platform_data);
 	pxa_set_keypad_info(&palmtx_keypad_platform_data);
+	wm97xx_bat_set_pdata(&wm97xx_batt_pdata);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }

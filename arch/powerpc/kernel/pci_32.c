@@ -53,12 +53,19 @@ LIST_HEAD(hose_list);
 
 static int pci_bus_count;
 
+/* This will remain NULL for now, until isa-bridge.c is made common
+ * to both 32-bit and 64-bit.
+ */
+struct pci_dev *isa_bridge_pcidev;
+EXPORT_SYMBOL_GPL(isa_bridge_pcidev);
+
 static void
-fixup_hide_host_resource_fsl(struct pci_dev* dev)
+fixup_hide_host_resource_fsl(struct pci_dev *dev)
 {
 	int i, class = dev->class >> 8;
 
-	if ((class == PCI_CLASS_PROCESSOR_POWERPC) &&
+	if ((class == PCI_CLASS_PROCESSOR_POWERPC ||
+	     class == PCI_CLASS_BRIDGE_OTHER) &&
 		(dev->hdr_type == PCI_HEADER_TYPE_NORMAL) &&
 		(dev->bus->parent == NULL)) {
 		for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
@@ -424,6 +431,7 @@ void __devinit pcibios_do_bus_setup(struct pci_bus *bus)
 	unsigned long io_offset;
 	struct resource *res;
 	int i;
+	struct pci_dev *dev;
 
 	/* Hookup PHB resources */
 	io_offset = (unsigned long)hose->io_base_virt - isa_io_base;
@@ -457,6 +465,12 @@ void __devinit pcibios_do_bus_setup(struct pci_bus *bus)
 			bus->resource[i+1] = res;
 		}
 	}
+
+	if (ppc_md.pci_dma_bus_setup)
+		ppc_md.pci_dma_bus_setup(bus);
+
+	list_for_each_entry(dev, &bus->devices, bus_list)
+		pcibios_setup_new_device(dev);
 }
 
 /* the next one is stolen from the alpha port... */

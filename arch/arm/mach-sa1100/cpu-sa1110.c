@@ -23,10 +23,11 @@
 #include <linux/cpufreq.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
+#include <asm/cputype.h>
 #include <asm/mach-types.h>
-#include <asm/io.h>
 #include <asm/system.h>
 
 #include "generic.h"

@@ -99,4 +99,5 @@ obj-$(CONFIG_OF)		+= of/
 obj-$(CONFIG_SSB)		+= ssb/
 obj-$(CONFIG_VIRTIO)		+= virtio/
 obj-$(CONFIG_REGULATOR)		+= regulator/
+obj-$(CONFIG_STAGING)		+= staging/
 obj-$(CONFIG_UWB)		+= uwb/

@@ -636,7 +636,7 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 	 */
 #if	defined(CONFIG_ATARI)
 	address_space = 64;
-#elif defined(__i386__) || defined(__x86_64__) || defined(__arm__)
+#elif defined(__i386__) || defined(__x86_64__) || defined(__arm__) || defined(__sparc__)
 	address_space = 128;
 #else
 #warning Assuming 128 bytes of RTC+NVRAM address space, not 64 bytes.
@@ -699,7 +699,8 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 	/* FIXME teach the alarm code how to handle binary mode;
 	 * <asm-generic/rtc.h> doesn't know 12-hour mode either.
 	 */
-	if (!(rtc_control & RTC_24H) || (rtc_control & (RTC_DM_BINARY))) {
+	if (is_valid_irq(rtc_irq) &&
+	    (!(rtc_control & RTC_24H) || (rtc_control & (RTC_DM_BINARY)))) {
 		dev_dbg(dev, "only 24-hr BCD mode supported\n");
 		retval = -ENXIO;
 		goto cleanup1;
@@ -912,6 +913,92 @@ static inline int cmos_poweroff(struct device *dev)
  * predate even PNPBIOS should set up platform_bus devices.
  */
 
+#ifdef	CONFIG_ACPI
+
+#include <linux/acpi.h>
+
+#ifdef	CONFIG_PM
+static u32 rtc_handler(void *context)
+{
+	acpi_clear_event(ACPI_EVENT_RTC);
+	acpi_disable_event(ACPI_EVENT_RTC, 0);
+	return ACPI_INTERRUPT_HANDLED;
+}
+
+static inline void rtc_wake_setup(void)
+{
+	acpi_install_fixed_event_handler(ACPI_EVENT_RTC, rtc_handler, NULL);
+	/*
+	 * After the RTC handler is installed, the Fixed_RTC event should
+	 * be disabled. Only when the RTC alarm is set will it be enabled.
+	 */
+	acpi_clear_event(ACPI_EVENT_RTC);
+	acpi_disable_event(ACPI_EVENT_RTC, 0);
+}
+
+static void rtc_wake_on(struct device *dev)
+{
+	acpi_clear_event(ACPI_EVENT_RTC);
+	acpi_enable_event(ACPI_EVENT_RTC, 0);
+}
+
+static void rtc_wake_off(struct device *dev)
+{
+	acpi_disable_event(ACPI_EVENT_RTC, 0);
+}
+#else
+#define rtc_wake_setup()	do{}while(0)
+#define rtc_wake_on		NULL
+#define rtc_wake_off		NULL
+#endif
+
+/* Every ACPI platform has a mc146818 compatible "cmos rtc".  Here we find
+ * its device node and pass extra config data.  This helps its driver use
+ * capabilities that the now-obsolete mc146818 didn't have, and informs it
+ * that this board's RTC is wakeup-capable (per ACPI spec).
+ */
+static struct cmos_rtc_board_info acpi_rtc_info;
+
+static void __devinit
+cmos_wake_setup(struct device *dev)
+{
+	if (acpi_disabled)
+		return;
+
+	rtc_wake_setup();
+	acpi_rtc_info.wake_on = rtc_wake_on;
+	acpi_rtc_info.wake_off = rtc_wake_off;
+
+	/* workaround bug in some ACPI tables */
+	if (acpi_gbl_FADT.month_alarm && !acpi_gbl_FADT.day_alarm) {
+		dev_dbg(dev, "bogus FADT month_alarm (%d)\n",
+			acpi_gbl_FADT.month_alarm);
+		acpi_gbl_FADT.month_alarm = 0;
+	}
+
+	acpi_rtc_info.rtc_day_alarm = acpi_gbl_FADT.day_alarm;
+	acpi_rtc_info.rtc_mon_alarm = acpi_gbl_FADT.month_alarm;
+	acpi_rtc_info.rtc_century = acpi_gbl_FADT.century;
+
+	/* NOTE:  S4_RTC_WAKE is NOT currently useful to Linux */
+	if (acpi_gbl_FADT.flags & ACPI_FADT_S4_RTC_WAKE)
+		dev_info(dev, "RTC can wake from S4\n");
+
+	dev->platform_data = &acpi_rtc_info;
+
+	/* RTC always wakes from S1/S2/S3, and often S4/STD */
+	device_init_wakeup(dev, 1);
+}
+
+#else
+
+static void __devinit
+cmos_wake_setup(struct device *dev)
+{
+}
+
+#endif
+
 #ifdef	CONFIG_PNP
 
 #include <linux/pnp.h>
@@ -919,6 +1006,8 @@ static inline int cmos_poweroff(struct device *dev)
 static int __devinit
 cmos_pnp_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 {
+	cmos_wake_setup(&pnp->dev);
+
 	if (pnp_port_start(pnp,0) == 0x70 && !pnp_irq_valid(pnp,0))
 		/* Some machines contain a PNP entry for the RTC, but
 		 * don't define the IRQ. It should always be safe to
@@ -996,6 +1085,7 @@ static struct pnp_driver cmos_pnp_driver = {
 
 static int __init cmos_platform_probe(struct platform_device *pdev)
 {
+	cmos_wake_setup(&pdev->dev);
 	return cmos_do_probe(&pdev->dev,
 			platform_get_resource(pdev, IORESOURCE_IO, 0),
 			platform_get_irq(pdev, 0));
@@ -1030,29 +1120,32 @@ static struct platform_driver cmos_platform_driver = {
 
 static int __init cmos_init(void)
 {
+	int retval = 0;
+
 #ifdef	CONFIG_PNP
-	if (pnp_platform_devices)
-		return pnp_register_driver(&cmos_pnp_driver);
-	else
-		return platform_driver_probe(&cmos_platform_driver,
-			cmos_platform_probe);
-#else
-	return platform_driver_probe(&cmos_platform_driver,
-			cmos_platform_probe);
-#endif /* CONFIG_PNP */
+	pnp_register_driver(&cmos_pnp_driver);
+#endif
+
+	if (!cmos_rtc.dev)
+		retval = platform_driver_probe(&cmos_platform_driver,
+					       cmos_platform_probe);
+
+	if (retval == 0)
+		return 0;
+
+#ifdef	CONFIG_PNP
+	pnp_unregister_driver(&cmos_pnp_driver);
+#endif
+	return retval;
 }
 module_init(cmos_init);
 
 static void __exit cmos_exit(void)
 {
 #ifdef	CONFIG_PNP
-	if (pnp_platform_devices)
-		pnp_unregister_driver(&cmos_pnp_driver);
-	else
-		platform_driver_unregister(&cmos_platform_driver);
-#else
+	pnp_unregister_driver(&cmos_pnp_driver);
+#endif
 	platform_driver_unregister(&cmos_platform_driver);
-#endif /* CONFIG_PNP */
 }
 module_exit(cmos_exit);
 

@@ -33,7 +33,6 @@ config MPC85xx_CDS
 config MPC85xx_MDS
 	bool "Freescale MPC85xx MDS"
 	select DEFAULT_UIMAGE
-	select QUICC_ENGINE
 	select PHYLIB
 	help
 	  This option enables support for the MPC85xx MDS board

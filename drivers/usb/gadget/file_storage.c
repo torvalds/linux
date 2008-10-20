@@ -245,6 +245,18 @@
 #include "gadget_chips.h"
 
 
+
+/*
+ * Kbuild is not very cooperative with respect to linking separately
+ * compiled library objects into one module.  So for now we won't use
+ * separate compilation ... ensuring init/exit sections work to shrink
+ * the runtime footprint, and giving us at least some parts of what
+ * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
+ */
+#include "usbstring.c"
+#include "config.c"
+#include "epautoconf.c"
+
 /*-------------------------------------------------------------------------*/
 
 #define DRIVER_DESC		"File-backed Storage Gadget"
@@ -839,7 +851,7 @@ config_desc = {
 	.bConfigurationValue =	CONFIG_VALUE,
 	.iConfiguration =	STRING_CONFIG,
 	.bmAttributes =		USB_CONFIG_ATT_ONE | USB_CONFIG_ATT_SELFPOWER,
-	.bMaxPower =		1,	// self-powered
+	.bMaxPower =		CONFIG_USB_GADGET_VBUS_DRAW / 2,
 };
 
 static struct usb_otg_descriptor
@@ -2664,11 +2676,24 @@ static int check_command(struct fsg_dev *fsg, int cmnd_size,
 	/* Verify the length of the command itself */
 	if (cmnd_size != fsg->cmnd_size) {
 
-		/* Special case workaround: MS-Windows issues REQUEST SENSE
-		 * with cbw->Length == 12 (it should be 6). */
-		if (fsg->cmnd[0] == SC_REQUEST_SENSE && fsg->cmnd_size == 12)
+		/* Special case workaround: There are plenty of buggy SCSI
+		 * implementations. Many have issues with cbw->Length
+		 * field passing a wrong command size. For those cases we
+		 * always try to work around the problem by using the length
+		 * sent by the host side provided it is at least as large
+		 * as the correct command length.
+		 * Examples of such cases would be MS-Windows, which issues
+		 * REQUEST SENSE with cbw->Length == 12 where it should
+		 * be 6, and xbox360 issuing INQUIRY, TEST UNIT READY and
+		 * REQUEST SENSE with cbw->Length == 10 where it should
+		 * be 6 as well.
+		 */
+		if (cmnd_size <= fsg->cmnd_size) {
+			DBG(fsg, "%s is buggy! Expected length %d "
+					"but we got %d\n", name,
+					cmnd_size, fsg->cmnd_size);
 			cmnd_size = fsg->cmnd_size;
-		else {
+		} else {
 			fsg->phase_error = 1;
 			return -EINVAL;
 		}

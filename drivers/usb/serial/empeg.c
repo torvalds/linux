@@ -33,9 +33,8 @@
  *	Moved MOD_DEC_USE_COUNT to end of empeg_close().
  *
  * (12/03/2000) gb
- *	Added port->port.tty->ldisc.set_termios(port->port.tty, NULL) to
- *	empeg_open(). This notifies the tty driver that the termios have
- *	changed.
+ *	Added tty->ldisc.set_termios(port, tty, NULL) to empeg_open().
+ *	This notifies the tty driver that the termios have changed.
  *
  * (11/13/2000) gb
  *	Moved tty->low_latency = 1 from empeg_read_bulk_callback() to
@@ -354,7 +353,7 @@ static void empeg_read_bulk_callback(struct urb *urb)
 
 	usb_serial_debug_data(debug, &port->dev, __func__,
 						urb->actual_length, data);
-	tty = port->port.tty;
+	tty = tty_port_tty_get(&port->port);
 
 	if (urb->actual_length) {
 		tty_buffer_request_room(tty, urb->actual_length);
@@ -362,6 +361,7 @@ static void empeg_read_bulk_callback(struct urb *urb)
 		tty_flip_buffer_push(tty);
 		bytes_in += urb->actual_length;
 	}
+	tty_kref_put(tty);
 
 	/* Continue trying to always read  */
 	usb_fill_bulk_urb(
@@ -416,7 +416,7 @@ static int  empeg_startup(struct usb_serial *serial)
 	dbg("%s", __func__);
 
 	if (serial->dev->actconfig->desc.bConfigurationValue != 1) {
-		err("active config #%d != 1 ??",
+		dev_err(&serial->dev->dev, "active config #%d != 1 ??\n",
 			serial->dev->actconfig->desc.bConfigurationValue);
 		return -ENODEV;
 	}
@@ -499,15 +499,15 @@ static int __init empeg_init(void)
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		write_urb_pool[i] = urb;
 		if (urb == NULL) {
-			err("No more urbs???");
+			printk(KERN_ERR "empeg: No more urbs???\n");
 			continue;
 		}
 
 		urb->transfer_buffer = kmalloc(URB_TRANSFER_BUFFER_SIZE,
 								GFP_KERNEL);
 		if (!urb->transfer_buffer) {
-			err("%s - out of memory for urb buffers.",
-			    __func__);
+			printk(KERN_ERR "empeg: %s - out of memory for urb "
+			       "buffers.", __func__);
 			continue;
 		}
 	}
@@ -519,7 +519,8 @@ static int __init empeg_init(void)
 	if (retval)
 		goto failed_usb_register;
 
-	info(DRIVER_VERSION ":" DRIVER_DESC);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 
 	return 0;
 failed_usb_register:

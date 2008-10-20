@@ -1,5 +1,5 @@
-#ifndef _ASM_REQUIRED_FEATURES_H
-#define _ASM_REQUIRED_FEATURES_H 1
+#ifndef ASM_X86__REQUIRED_FEATURES_H
+#define ASM_X86__REQUIRED_FEATURES_H
 
 /* Define minimum CPUID feature set for kernel These bits are checked
    really early to actually display a visible error message before the
@@ -79,4 +79,4 @@
 #define REQUIRED_MASK6	0
 #define REQUIRED_MASK7	0
 
-#endif
+#endif /* ASM_X86__REQUIRED_FEATURES_H */

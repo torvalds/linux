@@ -289,8 +289,8 @@ snd_emux_nrpn(void *p, struct snd_midi_channel *chan,
 	struct snd_emux_port *port;
 
 	port = p;
-	snd_assert(port != NULL, return);
-	snd_assert(chan != NULL, return);
+	if (snd_BUG_ON(!port || !chan))
+		return;
 
 	if (chan->control[MIDI_CTL_NONREG_PARM_NUM_MSB] == 127 &&
 	    chan->control[MIDI_CTL_NONREG_PARM_NUM_LSB] <= 26) {
@@ -379,8 +379,8 @@ snd_emux_sysex(void *p, unsigned char *buf, int len, int parsed,
 	struct snd_emux *emu;
 
 	port = p;
-	snd_assert(port != NULL, return);
-	snd_assert(chset != NULL, return);
+	if (snd_BUG_ON(!port || !chset))
+		return;
 	emu = port->emu;
 
 	switch (parsed) {

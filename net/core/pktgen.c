@@ -2474,7 +2474,7 @@ static inline int process_ipsec(struct pktgen_dev *pkt_dev,
 				if (ret < 0) {
 					printk(KERN_ERR "Error expanding "
 					       "ipsec packet %d\n",ret);
-					return 0;
+					goto err;
 				}
 			}
 
@@ -2484,8 +2484,7 @@ static inline int process_ipsec(struct pktgen_dev *pkt_dev,
 			if (ret) {
 				printk(KERN_ERR "Error creating ipsec "
 				       "packet %d\n",ret);
-				kfree_skb(skb);
-				return 0;
+				goto err;
 			}
 			/* restore ll */
 			eth = (__u8 *) skb_push(skb, ETH_HLEN);
@@ -2494,6 +2493,9 @@ static inline int process_ipsec(struct pktgen_dev *pkt_dev,
 		}
 	}
 	return 1;
+err:
+	kfree_skb(skb);
+	return 0;
 }
 #endif
 

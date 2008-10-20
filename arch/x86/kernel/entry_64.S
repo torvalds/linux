@@ -275,9 +275,9 @@ ENTRY(native_usergs_sysret64)
 ENTRY(ret_from_fork)
 	CFI_DEFAULT_STACK
 	push kernel_eflags(%rip)
-	CFI_ADJUST_CFA_OFFSET 4
+	CFI_ADJUST_CFA_OFFSET 8
 	popf				# reset kernel eflags
-	CFI_ADJUST_CFA_OFFSET -4
+	CFI_ADJUST_CFA_OFFSET -8
 	call schedule_tail
 	GET_THREAD_INFO(%rcx)
 	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT),TI_flags(%rcx)
@@ -667,6 +667,13 @@ END(stub_rt_sigreturn)
 	SAVE_ARGS
 	leaq -ARGOFFSET(%rsp),%rdi	# arg1 for handler
 	pushq %rbp
+	/*
+	 * Save rbp twice: One is for marking the stack frame, as usual, and the
+	 * other, to fill pt_regs properly. This is because bx comes right
+	 * before the last saved register in that structure, and not bp. If the
+	 * base pointer were in the place bx is today, this would not be needed.
+	 */
+	movq %rbp, -8(%rsp)
 	CFI_ADJUST_CFA_OFFSET	8
 	CFI_REL_OFFSET		rbp, 0
 	movq %rsp,%rbp
@@ -932,6 +939,9 @@ END(spurious_interrupt)
 	.if \ist
 	movq	%gs:pda_data_offset, %rbp
 	.endif
+	.if \irqtrace
+	TRACE_IRQS_OFF
+	.endif
 	movq %rsp,%rdi
 	movq ORIG_RAX(%rsp),%rsi
 	movq $-1,ORIG_RAX(%rsp)
@@ -1058,7 +1068,8 @@ KPROBE_ENTRY(error_entry)
 	je  error_kernelspace
 error_swapgs:	
 	SWAPGS
-error_sti:	
+error_sti:
+	TRACE_IRQS_OFF
 	movq %rdi,RDI(%rsp) 	
 	CFI_REL_OFFSET	rdi,RDI
 	movq %rsp,%rdi
@@ -1232,7 +1243,7 @@ ENTRY(simd_coprocessor_error)
 END(simd_coprocessor_error)
 
 ENTRY(device_not_available)
-	zeroentry math_state_restore
+	zeroentry do_device_not_available
 END(device_not_available)
 
 	/* runs on exception stack */

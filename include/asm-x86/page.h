@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_PAGE_H
-#define _ASM_X86_PAGE_H
+#ifndef ASM_X86__PAGE_H
+#define ASM_X86__PAGE_H
 
 #include <linux/const.h>
 
@@ -57,6 +57,7 @@ typedef struct { pgdval_t pgd; } pgd_t;
 typedef struct { pgprotval_t pgprot; } pgprot_t;
 
 extern int page_is_ram(unsigned long pagenr);
+extern int pagerange_is_ram(unsigned long start, unsigned long end);
 extern int devmem_is_allowed(unsigned long pagenr);
 extern void map_devmem(unsigned long pfn, unsigned long size,
 		       pgprot_t vma_prot);
@@ -178,6 +179,7 @@ static inline pteval_t native_pte_flags(pte_t pte)
 #endif	/* CONFIG_PARAVIRT */
 
 #define __pa(x)		__phys_addr((unsigned long)(x))
+#define __pa_nodebug(x)	__phys_addr_nodebug((unsigned long)(x))
 /* __pa_symbol should be used for C visible symbols.
    This seems to be the official gcc blessed way to do such arithmetic. */
 #define __pa_symbol(x)	__pa(__phys_reloc_hide((unsigned long)(x)))
@@ -187,9 +189,14 @@ static inline pteval_t native_pte_flags(pte_t pte)
 #define __boot_va(x)		__va(x)
 #define __boot_pa(x)		__pa(x)
 
+/*
+ * virt_to_page(kaddr) returns a valid pointer if and only if
+ * virt_addr_valid(kaddr) returns true.
+ */
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
 #define pfn_to_kaddr(pfn)      __va((pfn) << PAGE_SHIFT)
-#define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
+extern bool __virt_addr_valid(unsigned long kaddr);
+#define virt_addr_valid(kaddr)	__virt_addr_valid((unsigned long) (kaddr))
 
 #endif	/* __ASSEMBLY__ */
 
@@ -199,4 +206,4 @@ static inline pteval_t native_pte_flags(pte_t pte)
 #define __HAVE_ARCH_GATE_AREA 1
 
 #endif	/* __KERNEL__ */
-#endif	/* _ASM_X86_PAGE_H */
+#endif /* ASM_X86__PAGE_H */

@@ -394,10 +394,8 @@ qla2x00_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 	}
 
 	/* Close window on fcport/rport state-transitioning. */
-	if (fcport->drport) {
-		cmd->result = DID_IMM_RETRY << 16;
-		goto qc_fail_command;
-	}
+	if (fcport->drport)
+		goto qc_target_busy;
 
 	if (atomic_read(&fcport->state) != FCS_ONLINE) {
 		if (atomic_read(&fcport->state) == FCS_DEVICE_DEAD ||
@@ -405,7 +403,7 @@ qla2x00_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 			cmd->result = DID_NO_CONNECT << 16;
 			goto qc_fail_command;
 		}
-		goto qc_host_busy;
+		goto qc_target_busy;
 	}
 
 	spin_unlock_irq(ha->host->host_lock);
@@ -428,9 +426,10 @@ qc_host_busy_free_sp:
 
 qc_host_busy_lock:
 	spin_lock_irq(ha->host->host_lock);
-
-qc_host_busy:
 	return SCSI_MLQUEUE_HOST_BUSY;
+
+qc_target_busy:
+	return SCSI_MLQUEUE_TARGET_BUSY;
 
 qc_fail_command:
 	done(cmd);
@@ -461,10 +460,8 @@ qla24xx_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 	}
 
 	/* Close window on fcport/rport state-transitioning. */
-	if (fcport->drport) {
-		cmd->result = DID_IMM_RETRY << 16;
-		goto qc24_fail_command;
-	}
+	if (fcport->drport)
+		goto qc24_target_busy;
 
 	if (atomic_read(&fcport->state) != FCS_ONLINE) {
 		if (atomic_read(&fcport->state) == FCS_DEVICE_DEAD ||
@@ -472,7 +469,7 @@ qla24xx_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 			cmd->result = DID_NO_CONNECT << 16;
 			goto qc24_fail_command;
 		}
-		goto qc24_host_busy;
+		goto qc24_target_busy;
 	}
 
 	spin_unlock_irq(ha->host->host_lock);
@@ -495,9 +492,10 @@ qc24_host_busy_free_sp:
 
 qc24_host_busy_lock:
 	spin_lock_irq(ha->host->host_lock);
-
-qc24_host_busy:
 	return SCSI_MLQUEUE_HOST_BUSY;
+
+qc24_target_busy:
+	return SCSI_MLQUEUE_TARGET_BUSY;
 
 qc24_fail_command:
 	done(cmd);
@@ -1517,6 +1515,7 @@ qla2xxx_scan_start(struct Scsi_Host *shost)
 	set_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags);
 	set_bit(LOCAL_LOOP_UPDATE, &ha->dpc_flags);
 	set_bit(RSCN_UPDATE, &ha->dpc_flags);
+	set_bit(NPIV_CONFIG_NEEDED, &ha->dpc_flags);
 }
 
 static int
@@ -1663,8 +1662,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->gid_list_info_size = 8;
 		ha->optrom_size = OPTROM_SIZE_25XX;
 		ha->isp_ops = &qla25xx_isp_ops;
-		ha->hw_event_start = PCI_FUNC(pdev->devfn) ?
-		    FA_HW_EVENT1_ADDR: FA_HW_EVENT0_ADDR;
 	}
 	host->can_queue = ha->request_q_length + 128;
 
@@ -2431,6 +2428,12 @@ qla2x00_do_dpc(void *data)
 
 			DEBUG(printk("scsi(%ld): qla2x00_loop_resync - end\n",
 			    ha->host_no));
+		}
+
+		if (test_bit(NPIV_CONFIG_NEEDED, &ha->dpc_flags) &&
+		    atomic_read(&ha->loop_state) == LOOP_READY) {
+			clear_bit(NPIV_CONFIG_NEEDED, &ha->dpc_flags);
+			qla2xxx_flash_npiv_conf(ha);
 		}
 
 		if (!ha->interrupts_on)

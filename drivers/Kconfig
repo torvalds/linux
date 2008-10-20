@@ -103,4 +103,6 @@ source "drivers/auxdisplay/Kconfig"
 source "drivers/uio/Kconfig"
 
 source "drivers/xen/Kconfig"
+
+source "drivers/staging/Kconfig"
 endmenu
