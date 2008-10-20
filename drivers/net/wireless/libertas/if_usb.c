@@ -178,7 +178,8 @@ static void if_usb_setup_firmware(struct lbs_private *priv)
 
 	priv->wol_gpio = 2; /* Wake via GPIO2... */
 	priv->wol_gap = 20; /* ... after 20ms    */
-	lbs_host_sleep_cfg(priv, EHS_WAKE_ON_UNICAST_DATA);
+	lbs_host_sleep_cfg(priv, EHS_WAKE_ON_UNICAST_DATA,
+			(struct wol_config *) NULL);
 
 	wake_method.hdr.size = cpu_to_le16(sizeof(wake_method));
 	wake_method.action = cpu_to_le16(CMD_ACT_GET);

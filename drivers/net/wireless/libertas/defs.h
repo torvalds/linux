@@ -149,6 +149,18 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, in
 #define EHS_WAKE_ON_MAC_EVENT		0x0004
 #define EHS_WAKE_ON_MULTICAST_DATA	0x0008
 #define EHS_REMOVE_WAKEUP		0xFFFFFFFF
+/* Wake rules for Host_Sleep_CFG command */
+#define WOL_RULE_NET_TYPE_INFRA_OR_IBSS	0x00
+#define WOL_RULE_NET_TYPE_MESH		0x10
+#define WOL_RULE_ADDR_TYPE_BCAST	0x01
+#define WOL_RULE_ADDR_TYPE_MCAST	0x08
+#define WOL_RULE_ADDR_TYPE_UCAST	0x02
+#define WOL_RULE_OP_AND			0x01
+#define WOL_RULE_OP_OR			0x02
+#define WOL_RULE_OP_INVALID		0xFF
+#define WOL_RESULT_VALID_CMD		0
+#define WOL_RESULT_NOSPC_ERR		1
+#define WOL_RESULT_EEXIST_ERR		2
 
 /** Misc constants */
 /* This section defines 802.11 specific contants */

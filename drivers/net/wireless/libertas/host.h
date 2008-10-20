@@ -220,6 +220,14 @@ enum cmd_fwt_access_opts {
 	CMD_ACT_FWT_ACCESS_TIME,
 };
 
+/* Define action or option for CMD_802_11_HOST_SLEEP_CFG */
+enum cmd_wol_cfg_opts {
+	CMD_ACT_ACTION_NONE = 0,
+	CMD_ACT_SET_WOL_RULE,
+	CMD_ACT_GET_WOL_RULE,
+	CMD_ACT_RESET_WOL_RULE,
+};
+
 /* Define action or option for CMD_MESH_ACCESS */
 enum cmd_mesh_access_opts {
 	CMD_ACT_MESH_GET_TTL = 1,
