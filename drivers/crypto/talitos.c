@@ -1598,7 +1598,7 @@ static int talitos_probe(struct of_device *ofdev,
 		goto err_out;
 	}
 	for (i = 0; i < priv->num_channels; i++)
-		atomic_set(&priv->submit_count[i], -priv->chfifo_len);
+		atomic_set(&priv->submit_count[i], -(priv->chfifo_len - 1));
 
 	priv->head = kzalloc(sizeof(int) * priv->num_channels, GFP_KERNEL);
 	priv->tail = kzalloc(sizeof(int) * priv->num_channels, GFP_KERNEL);
