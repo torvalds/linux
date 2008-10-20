@@ -19,9 +19,6 @@ config WORD_SIZE
 	default 64 if PPC64
 	default 32 if !PPC64
 
-config PPC_MERGE
-	def_bool y
-
 config MMU
 	bool
 	default y
