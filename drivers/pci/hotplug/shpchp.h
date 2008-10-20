@@ -69,15 +69,13 @@ struct slot {
 	u8 state;
 	u8 presence_save;
 	u8 pwr_save;
-	struct timer_list task_event;
-	u8 hp_slot;
 	struct controller *ctrl;
 	struct hpc_ops *hpc_ops;
 	struct hotplug_slot *hotplug_slot;
 	struct list_head	slot_list;
-	char name[SLOT_NAME_SIZE];
 	struct delayed_work work;	/* work for button event */
 	struct mutex lock;
+	u8 hp_slot;
 };
 
 struct event_info {
@@ -168,6 +166,11 @@ extern int shpchp_unconfigure_device(struct slot *p_slot);
 extern void cleanup_slots(struct controller *ctrl);
 extern void shpchp_queue_pushbutton_work(struct work_struct *work);
 extern int shpc_init( struct controller *ctrl, struct pci_dev *pdev);
+
+static inline const char *slot_name(struct slot *slot)
+{
+	return hotplug_slot_name(slot->hotplug_slot);
+}
 
 #ifdef CONFIG_ACPI
 #include <linux/pci-acpi.h>
