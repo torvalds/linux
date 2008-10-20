@@ -69,6 +69,7 @@ struct dummy_slot {
 };
 
 static int debug;
+static int dup_slots;
 static LIST_HEAD(slot_list);
 static struct workqueue_struct *dummyphp_wq;
 
@@ -121,7 +122,11 @@ static int add_slot(struct pci_dev *dev)
 	if (!dslot)
 		goto error_info;
 
-	snprintf(name, SLOT_NAME_SIZE, "fake%d", count++);
+	if (dup_slots)
+		snprintf(name, SLOT_NAME_SIZE, "fake");
+	else
+		snprintf(name, SLOT_NAME_SIZE, "fake%d", count++);
+	dbg("slot->name = %s\n", name);
 	slot->ops = &dummy_hotplug_slot_ops;
 	slot->release = &dummy_release;
 	slot->private = dslot;
@@ -375,4 +380,5 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
-
+module_param(dup_slots, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(dup_slots, "Force duplicate slot names for debugging");
