@@ -24,8 +24,6 @@ pxa_leds_init(void)
 		leds_event = mainstone_leds_event;
 	if (machine_is_pxa_idp())
 		leds_event = idp_leds_event;
-	if (machine_is_trizeps4())
-		leds_event = trizeps4_leds_event;
 
 	leds_event(led_start);
 	return 0;

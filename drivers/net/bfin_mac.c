@@ -253,7 +253,7 @@ init_error:
  * MII operations
  */
 /* Wait until the previous MDC/MDIO transaction has completed */
-static void mdio_poll(void)
+static void bfin_mdio_poll(void)
 {
 	int timeout_cnt = MAX_TIMEOUT_CNT;
 
@@ -269,25 +269,25 @@ static void mdio_poll(void)
 }
 
 /* Read an off-chip register in a PHY through the MDC/MDIO port */
-static int mdiobus_read(struct mii_bus *bus, int phy_addr, int regnum)
+static int bfin_mdiobus_read(struct mii_bus *bus, int phy_addr, int regnum)
 {
-	mdio_poll();
+	bfin_mdio_poll();
 
 	/* read mode */
 	bfin_write_EMAC_STAADD(SET_PHYAD((u16) phy_addr) |
 				SET_REGAD((u16) regnum) |
 				STABUSY);
 
-	mdio_poll();
+	bfin_mdio_poll();
 
 	return (int) bfin_read_EMAC_STADAT();
 }
 
 /* Write an off-chip register in a PHY through the MDC/MDIO port */
-static int mdiobus_write(struct mii_bus *bus, int phy_addr, int regnum,
-			 u16 value)
+static int bfin_mdiobus_write(struct mii_bus *bus, int phy_addr, int regnum,
+			      u16 value)
 {
-	mdio_poll();
+	bfin_mdio_poll();
 
 	bfin_write_EMAC_STADAT((u32) value);
 
@@ -297,12 +297,12 @@ static int mdiobus_write(struct mii_bus *bus, int phy_addr, int regnum,
 				STAOP |
 				STABUSY);
 
-	mdio_poll();
+	bfin_mdio_poll();
 
 	return 0;
 }
 
-static int mdiobus_reset(struct mii_bus *bus)
+static int bfin_mdiobus_reset(struct mii_bus *bus)
 {
 	return 0;
 }
@@ -398,7 +398,7 @@ static int mii_probe(struct net_device *dev)
 
 	/* search for connect PHY device */
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
-		struct phy_device *const tmp_phydev = lp->mii_bus.phy_map[i];
+		struct phy_device *const tmp_phydev = lp->mii_bus->phy_map[i];
 
 		if (!tmp_phydev)
 			continue; /* no PHY here... */
@@ -811,14 +811,14 @@ static void bfin_mac_enable(void)
 {
 	u32 opmode;
 
-	pr_debug("%s: %s\n", DRV_NAME, __FUNCTION__);
+	pr_debug("%s: %s\n", DRV_NAME, __func__);
 
 	/* Set RX DMA */
 	bfin_write_DMA1_NEXT_DESC_PTR(&(rx_list_head->desc_a));
 	bfin_write_DMA1_CONFIG(rx_list_head->desc_a.config);
 
 	/* Wait MII done */
-	mdio_poll();
+	bfin_mdio_poll();
 
 	/* We enable only RX here */
 	/* ASTP   : Enable Automatic Pad Stripping
@@ -847,7 +847,7 @@ static void bfin_mac_enable(void)
 /* Our watchdog timed out. Called by the networking layer */
 static void bfin_mac_timeout(struct net_device *dev)
 {
-	pr_debug("%s: %s\n", dev->name, __FUNCTION__);
+	pr_debug("%s: %s\n", dev->name, __func__);
 
 	bfin_mac_disable();
 
@@ -949,7 +949,7 @@ static int bfin_mac_open(struct net_device *dev)
 {
 	struct bfin_mac_local *lp = netdev_priv(dev);
 	int retval;
-	pr_debug("%s: %s\n", dev->name, __FUNCTION__);
+	pr_debug("%s: %s\n", dev->name, __func__);
 
 	/*
 	 * Check that the address is valid.  If its not, refuse
@@ -989,7 +989,7 @@ static int bfin_mac_open(struct net_device *dev)
 static int bfin_mac_close(struct net_device *dev)
 {
 	struct bfin_mac_local *lp = netdev_priv(dev);
-	pr_debug("%s: %s\n", dev->name, __FUNCTION__);
+	pr_debug("%s: %s\n", dev->name, __func__);
 
 	netif_stop_queue(dev);
 	netif_carrier_off(dev);
@@ -1058,17 +1058,21 @@ static int __devinit bfin_mac_probe(struct platform_device *pdev)
 	setup_mac_addr(ndev->dev_addr);
 
 	/* MDIO bus initial */
-	lp->mii_bus.priv = ndev;
-	lp->mii_bus.read = mdiobus_read;
-	lp->mii_bus.write = mdiobus_write;
-	lp->mii_bus.reset = mdiobus_reset;
-	lp->mii_bus.name = "bfin_mac_mdio";
-	snprintf(lp->mii_bus.id, MII_BUS_ID_SIZE, "0");
-	lp->mii_bus.irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
-	for (i = 0; i < PHY_MAX_ADDR; ++i)
-		lp->mii_bus.irq[i] = PHY_POLL;
+	lp->mii_bus = mdiobus_alloc();
+	if (lp->mii_bus == NULL)
+		goto out_err_mdiobus_alloc;
 
-	rc = mdiobus_register(&lp->mii_bus);
+	lp->mii_bus->priv = ndev;
+	lp->mii_bus->read = bfin_mdiobus_read;
+	lp->mii_bus->write = bfin_mdiobus_write;
+	lp->mii_bus->reset = bfin_mdiobus_reset;
+	lp->mii_bus->name = "bfin_mac_mdio";
+	snprintf(lp->mii_bus->id, MII_BUS_ID_SIZE, "0");
+	lp->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
+	for (i = 0; i < PHY_MAX_ADDR; ++i)
+		lp->mii_bus->irq[i] = PHY_POLL;
+
+	rc = mdiobus_register(lp->mii_bus);
 	if (rc) {
 		dev_err(&pdev->dev, "Cannot register MDIO bus!\n");
 		goto out_err_mdiobus_register;
@@ -1121,8 +1125,10 @@ out_err_reg_ndev:
 	free_irq(IRQ_MAC_RX, ndev);
 out_err_request_irq:
 out_err_mii_probe:
-	mdiobus_unregister(&lp->mii_bus);
+	mdiobus_unregister(lp->mii_bus);
 out_err_mdiobus_register:
+	mdiobus_free(lp->mii_bus);
+out_err_mdiobus_alloc:
 	peripheral_free_list(pin_req);
 out_err_setup_pin_mux:
 out_err_probe_mac:
@@ -1139,7 +1145,8 @@ static int __devexit bfin_mac_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 
-	mdiobus_unregister(&lp->mii_bus);
+	mdiobus_unregister(lp->mii_bus);
+	mdiobus_free(lp->mii_bus);
 
 	unregister_netdev(ndev);
 

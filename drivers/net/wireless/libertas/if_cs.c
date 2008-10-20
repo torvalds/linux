@@ -595,7 +595,7 @@ static int if_cs_prog_helper(struct if_cs_card *card)
 		if (ret < 0) {
 			lbs_pr_err("can't download helper at 0x%x, ret %d\n",
 				sent, ret);
-			goto done;
+			goto err_release;
 		}
 
 		if (count == 0)
@@ -604,9 +604,8 @@ static int if_cs_prog_helper(struct if_cs_card *card)
 		sent += count;
 	}
 
+err_release:
 	release_firmware(fw);
-	ret = 0;
-
 done:
 	lbs_deb_leave_args(LBS_DEB_CS, "ret %d", ret);
 	return ret;
@@ -676,14 +675,8 @@ static int if_cs_prog_real(struct if_cs_card *card)
 	}
 
 	ret = if_cs_poll_while_fw_download(card, IF_CS_SCRATCH, 0x5a);
-	if (ret < 0) {
+	if (ret < 0)
 		lbs_pr_err("firmware download failed\n");
-		goto err_release;
-	}
-
-	ret = 0;
-	goto done;
-
 
 err_release:
 	release_firmware(fw);
@@ -720,7 +713,7 @@ static int if_cs_host_to_card(struct lbs_private *priv,
 		ret = if_cs_send_cmd(priv, buf, nb);
 		break;
 	default:
-		lbs_pr_err("%s: unsupported type %d\n", __FUNCTION__, type);
+		lbs_pr_err("%s: unsupported type %d\n", __func__, type);
 	}
 
 	lbs_deb_leave_args(LBS_DEB_CS, "ret %d", ret);
@@ -798,7 +791,7 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	if ((ret = pcmcia_get_first_tuple(p_dev, &tuple)) != 0 ||
 	    (ret = pcmcia_get_tuple_data(p_dev, &tuple)) != 0 ||
-	    (ret = pcmcia_parse_tuple(p_dev, &tuple, &parse)) != 0)
+	    (ret = pcmcia_parse_tuple(&tuple, &parse)) != 0)
 	{
 		lbs_pr_err("error in pcmcia_get_first_tuple etc\n");
 		goto out1;

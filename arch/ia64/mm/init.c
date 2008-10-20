@@ -21,7 +21,6 @@
 #include <linux/bitops.h>
 #include <linux/kexec.h>
 
-#include <asm/a.out.h>
 #include <asm/dma.h>
 #include <asm/ia32.h>
 #include <asm/io.h>

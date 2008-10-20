@@ -71,15 +71,21 @@
 #define PAGE_OFFSET	ASM_CONST(CONFIG_PAGE_OFFSET)
 #define LOAD_OFFSET	ASM_CONST((CONFIG_KERNEL_START-CONFIG_PHYSICAL_START))
 
-#if defined(CONFIG_RELOCATABLE) && defined(CONFIG_FLATMEM)
+#if defined(CONFIG_RELOCATABLE)
 #ifndef __ASSEMBLY__
 extern phys_addr_t memstart_addr;
 extern phys_addr_t kernstart_addr;
 #endif
 #define PHYSICAL_START	kernstart_addr
-#define MEMORY_START	memstart_addr
 #else
 #define PHYSICAL_START	ASM_CONST(CONFIG_PHYSICAL_START)
+#endif
+
+#ifdef CONFIG_PPC64
+#define MEMORY_START	0UL
+#elif defined(CONFIG_RELOCATABLE)
+#define MEMORY_START	memstart_addr
+#else
 #define MEMORY_START	(PHYSICAL_START + PAGE_OFFSET - KERNELBASE)
 #endif
 
@@ -92,8 +98,8 @@ extern phys_addr_t kernstart_addr;
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
-#define __va(x) ((void *)((unsigned long)(x) - PHYSICAL_START + KERNELBASE))
-#define __pa(x) ((unsigned long)(x) + PHYSICAL_START - KERNELBASE)
+#define __va(x) ((void *)((unsigned long)(x) + PAGE_OFFSET - MEMORY_START))
+#define __pa(x) ((unsigned long)(x) - PAGE_OFFSET + MEMORY_START)
 
 /*
  * Unfortunately the PLT is in the BSS in the PPC32 ELF ABI,

@@ -606,7 +606,7 @@ static void it821x_display_disk(int n, u8 *buf)
 {
 	unsigned char id[41];
 	int mode = 0;
-	char *mtype;
+	char *mtype = "";
 	char mbuf[8];
 	char *cbl = "(40 wire cable)";
 

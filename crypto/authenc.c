@@ -174,8 +174,9 @@ static int crypto_authenc_genicv(struct aead_request *req, u8 *iv,
 static void crypto_authenc_encrypt_done(struct crypto_async_request *req,
 					int err)
 {
+	struct aead_request *areq = req->data;
+
 	if (!err) {
-		struct aead_request *areq = req->data;
 		struct crypto_aead *authenc = crypto_aead_reqtfm(areq);
 		struct crypto_authenc_ctx *ctx = crypto_aead_ctx(authenc);
 		struct ablkcipher_request *abreq = aead_request_ctx(areq);
@@ -185,7 +186,7 @@ static void crypto_authenc_encrypt_done(struct crypto_async_request *req,
 		err = crypto_authenc_genicv(areq, iv, 0);
 	}
 
-	aead_request_complete(req->data, err);
+	aead_request_complete(areq, err);
 }
 
 static int crypto_authenc_encrypt(struct aead_request *req)
@@ -216,14 +217,15 @@ static int crypto_authenc_encrypt(struct aead_request *req)
 static void crypto_authenc_givencrypt_done(struct crypto_async_request *req,
 					   int err)
 {
+	struct aead_request *areq = req->data;
+
 	if (!err) {
-		struct aead_request *areq = req->data;
 		struct skcipher_givcrypt_request *greq = aead_request_ctx(areq);
 
 		err = crypto_authenc_genicv(areq, greq->giv, 0);
 	}
 
-	aead_request_complete(req->data, err);
+	aead_request_complete(areq, err);
 }
 
 static int crypto_authenc_givencrypt(struct aead_givcrypt_request *req)

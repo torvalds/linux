@@ -1932,6 +1932,7 @@ init_kmem_cache_node(struct kmem_cache_node *n, struct kmem_cache *s)
 	INIT_LIST_HEAD(&n->partial);
 #ifdef CONFIG_SLUB_DEBUG
 	atomic_long_set(&n->nr_slabs, 0);
+	atomic_long_set(&n->total_objects, 0);
 	INIT_LIST_HEAD(&n->full);
 #endif
 }
@@ -2312,7 +2313,7 @@ static int kmem_cache_open(struct kmem_cache *s, gfp_t gfpflags,
 
 	s->refcount = 1;
 #ifdef CONFIG_NUMA
-	s->remote_node_defrag_ratio = 100;
+	s->remote_node_defrag_ratio = 1000;
 #endif
 	if (!init_kmem_cache_nodes(s, gfpflags & ~SLUB_DMA))
 		goto error;
@@ -4058,7 +4059,7 @@ static ssize_t remote_node_defrag_ratio_store(struct kmem_cache *s,
 	if (err)
 		return err;
 
-	if (ratio < 100)
+	if (ratio <= 100)
 		s->remote_node_defrag_ratio = ratio * 10;
 
 	return length;

@@ -229,9 +229,8 @@ static int bsr_create_devs(struct device_node *bn)
 		if (result)
 			goto out_err;
 
-		cur->bsr_device = device_create_drvdata(bsr_class, NULL,
-							cur->bsr_dev,
-							cur, cur->bsr_name);
+		cur->bsr_device = device_create(bsr_class, NULL, cur->bsr_dev,
+						cur, cur->bsr_name);
 		if (!cur->bsr_device) {
 			printk(KERN_ERR "device_create failed for %s\n",
 			       cur->bsr_name);

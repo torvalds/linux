@@ -19,7 +19,8 @@
 #include <linux/io.h>
 #include <linux/pwm.h>
 
-#include <asm/plat-s3c/regs-timer.h>
+#include <plat/devs.h>
+#include <plat/regs-timer.h>
 
 struct pwm_device {
 	struct list_head	 list;
@@ -38,7 +39,7 @@ struct pwm_device {
 	unsigned char		 pwm_id;
 };
 
-#define pwm_dbg(_pwm, msg...) dev_info(&(_pwm)->pdev->dev, msg)
+#define pwm_dbg(_pwm, msg...) dev_dbg(&(_pwm)->pdev->dev, msg)
 
 static struct clk *clk_scaler[2];
 
@@ -168,7 +169,7 @@ void pwm_disable(struct pwm_device *pwm)
 
 EXPORT_SYMBOL(pwm_disable);
 
-unsigned long pwm_calc_tin(struct pwm_device *pwm, unsigned long freq)
+static unsigned long pwm_calc_tin(struct pwm_device *pwm, unsigned long freq)
 {
 	unsigned long tin_parent_rate;
 	unsigned int div;

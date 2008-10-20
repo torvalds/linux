@@ -192,6 +192,9 @@ static struct quirk_entry *quirks;
 
 static void set_quirks(void)
 {
+	if (!interface)
+		return;
+
 	if (quirks->mailled)
 		interface->capability |= ACER_CAP_MAILLED;
 
@@ -1186,7 +1189,7 @@ static int create_debugfs(void)
 	return 0;
 
 error_debugfs:
-		remove_debugfs();
+	remove_debugfs();
 	return -ENOMEM;
 }
 
@@ -1237,6 +1240,8 @@ static int __init acer_wmi_init(void)
 		return -ENODEV;
 	}
 
+	set_quirks();
+
 	if (platform_driver_register(&acer_platform_driver)) {
 		printk(ACER_ERR "Unable to register platform driver.\n");
 		goto error_platform_register;
@@ -1267,6 +1272,7 @@ error_platform_register:
 static void __exit acer_wmi_exit(void)
 {
 	remove_sysfs(acer_platform_device);
+	remove_debugfs();
 	platform_device_del(acer_platform_device);
 	platform_driver_unregister(&acer_platform_driver);
 

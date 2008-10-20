@@ -647,7 +647,7 @@ static int emulate_vsx(unsigned char __user *addr, unsigned int reg,
 		       unsigned int flags, unsigned int length)
 {
 	char *ptr = (char *) &current->thread.TS_FPR(reg);
-	int ret;
+	int ret = 0;
 
 	flush_vsx_to_thread(current);
 

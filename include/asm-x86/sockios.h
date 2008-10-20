@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_SOCKIOS_H
-#define _ASM_X86_SOCKIOS_H
+#ifndef ASM_X86__SOCKIOS_H
+#define ASM_X86__SOCKIOS_H
 
 /* Socket-level I/O control calls. */
 #define FIOSETOWN	0x8901
@@ -10,4 +10,4 @@
 #define SIOCGSTAMP	0x8906		/* Get stamp (timeval) */
 #define SIOCGSTAMPNS	0x8907		/* Get stamp (timespec) */
 
-#endif /* _ASM_X86_SOCKIOS_H */
+#endif /* ASM_X86__SOCKIOS_H */

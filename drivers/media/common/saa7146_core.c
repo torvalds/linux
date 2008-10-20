@@ -234,7 +234,7 @@ void saa7146_pgtable_free(struct pci_dev *pci, struct saa7146_pgtable *pt)
 int saa7146_pgtable_alloc(struct pci_dev *pci, struct saa7146_pgtable *pt)
 {
 	__le32       *cpu;
-	dma_addr_t   dma_addr;
+	dma_addr_t   dma_addr = 0;
 
 	cpu = pci_alloc_consistent(pci, PAGE_SIZE, &dma_addr);
 	if (NULL == cpu) {

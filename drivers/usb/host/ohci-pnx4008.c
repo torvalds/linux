@@ -277,7 +277,6 @@ static const struct hc_driver ohci_pnx4008_hc_driver = {
 	 */
 	.hub_status_data = ohci_hub_status_data,
 	.hub_control = ohci_hub_control,
-	.hub_irq_enable = ohci_rhsc_enable,
 #ifdef	CONFIG_PM
 	.bus_suspend = ohci_bus_suspend,
 	.bus_resume = ohci_bus_resume,
@@ -332,7 +331,7 @@ static int __devinit usb_hcd_pnx4008_probe(struct platform_device *pdev)
 
 	int ret = 0, irq;
 
-	dev_dbg(&pdev->dev, "%s: " DRIVER_INFO " (pnx4008)\n", hcd_name);
+	dev_dbg(&pdev->dev, "%s: " DRIVER_DESC " (pnx4008)\n", hcd_name);
 	if (usb_disabled()) {
 		err("USB is disabled");
 		ret = -ENODEV;

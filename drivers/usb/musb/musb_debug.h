@@ -48,11 +48,7 @@
 				__func__, __LINE__ , ## args); \
 	} } while (0)
 
-#if MUSB_DEBUG > 0
 extern unsigned debug;
-#else
-#define debug	0
-#endif
 
 static inline int _dbg_level(unsigned l)
 {

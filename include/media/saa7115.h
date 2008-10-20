@@ -1,5 +1,5 @@
 /*
-    saa7115.h - definition for saa7113/4/5 inputs and frequency flags
+    saa7115.h - definition for saa7111/3/4/5 inputs and frequency flags
 
     Copyright (C) 2006 Hans Verkuil (hverkuil@xs4all.nl)
 
@@ -21,13 +21,13 @@
 #ifndef _SAA7115_H_
 #define _SAA7115_H_
 
-/* SAA7113/4/5 HW inputs */
+/* SAA7111/3/4/5 HW inputs */
 #define SAA7115_COMPOSITE0 0
 #define SAA7115_COMPOSITE1 1
 #define SAA7115_COMPOSITE2 2
 #define SAA7115_COMPOSITE3 3
-#define SAA7115_COMPOSITE4 4 /* not available for the saa7113 */
-#define SAA7115_COMPOSITE5 5 /* not available for the saa7113 */
+#define SAA7115_COMPOSITE4 4 /* not available for the saa7111/3 */
+#define SAA7115_COMPOSITE5 5 /* not available for the saa7111/3 */
 #define SAA7115_SVIDEO0    6
 #define SAA7115_SVIDEO1    7
 #define SAA7115_SVIDEO2    8
@@ -42,8 +42,15 @@
 #define SAA7115_FREQ_FL_CGCDIV (1 << 1)	   /* SA 3A[6], CGCDIV, SAA7115 only */
 #define SAA7115_FREQ_FL_APLL   (1 << 2)	   /* SA 3A[3], APLL, SAA7114/5 only */
 
-#define SAA7115_IPORT_ON    1
-#define SAA7115_IPORT_OFF   0
+#define SAA7115_IPORT_ON    	1
+#define SAA7115_IPORT_OFF   	0
+
+/* SAA7111 specific output flags */
+#define SAA7111_VBI_BYPASS 	2
+#define SAA7111_FMT_YUV422      0x00
+#define SAA7111_FMT_RGB 	0x40
+#define SAA7111_FMT_CCIR 	0x80
+#define SAA7111_FMT_YUV411 	0xc0
 
 #endif
 

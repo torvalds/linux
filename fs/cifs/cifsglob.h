@@ -80,7 +80,8 @@ enum securityEnum {
 	NTLMv2,			/* Legacy NTLM auth with NTLMv2 hash */
 	RawNTLMSSP,		/* NTLMSSP without SPNEGO */
 	NTLMSSP,		/* NTLMSSP via SPNEGO */
-	Kerberos		/* Kerberos via SPNEGO */
+	Kerberos,		/* Kerberos via SPNEGO */
+	MSKerberos,		/* MS Kerberos via SPNEGO */
 };
 
 enum protocolEnum {
@@ -308,6 +309,7 @@ struct cifs_search_info {
 	__u32 resume_key;
 	char *ntwrk_buf_start;
 	char *srch_entries_start;
+	char *last_entry;
 	char *presume_name;
 	unsigned int resume_name_len;
 	bool endOfSearch:1;

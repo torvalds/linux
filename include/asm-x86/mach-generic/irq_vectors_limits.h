@@ -1,5 +1,5 @@
-#ifndef _ASM_IRQ_VECTORS_LIMITS_H
-#define _ASM_IRQ_VECTORS_LIMITS_H
+#ifndef ASM_X86__MACH_GENERIC__IRQ_VECTORS_LIMITS_H
+#define ASM_X86__MACH_GENERIC__IRQ_VECTORS_LIMITS_H
 
 /*
  * For Summit or generic (i.e. installer) kernels, we have lots of I/O APICs,
@@ -11,4 +11,4 @@
 #define NR_IRQS	224
 #define NR_IRQ_VECTORS	1024
 
-#endif /* _ASM_IRQ_VECTORS_LIMITS_H */
+#endif /* ASM_X86__MACH_GENERIC__IRQ_VECTORS_LIMITS_H */

@@ -59,12 +59,7 @@ static struct omap_mcbsp_data mcbsp_data[NUM_LINKS];
  * Stream DMA parameters. DMA request line and port address are set runtime
  * since they are different between OMAP1 and later OMAPs
  */
-static struct omap_pcm_dma_data omap_mcbsp_dai_dma_params[NUM_LINKS][2] = {
-{
-	{ .name		= "I2S PCM Stereo out", },
-	{ .name		= "I2S PCM Stereo in", },
-},
-};
+static struct omap_pcm_dma_data omap_mcbsp_dai_dma_params[NUM_LINKS][2];
 
 #if defined(CONFIG_ARCH_OMAP15XX) || defined(CONFIG_ARCH_OMAP16XX)
 static const int omap1_dma_reqs[][2] = {
@@ -84,11 +79,22 @@ static const unsigned long omap1_mcbsp_port[][2] = {
 static const int omap1_dma_reqs[][2] = {};
 static const unsigned long omap1_mcbsp_port[][2] = {};
 #endif
-#if defined(CONFIG_ARCH_OMAP2420)
-static const int omap2420_dma_reqs[][2] = {
+
+#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
+static const int omap24xx_dma_reqs[][2] = {
 	{ OMAP24XX_DMA_MCBSP1_TX, OMAP24XX_DMA_MCBSP1_RX },
 	{ OMAP24XX_DMA_MCBSP2_TX, OMAP24XX_DMA_MCBSP2_RX },
+#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP34XX)
+	{ OMAP24XX_DMA_MCBSP3_TX, OMAP24XX_DMA_MCBSP3_RX },
+	{ OMAP24XX_DMA_MCBSP4_TX, OMAP24XX_DMA_MCBSP4_RX },
+	{ OMAP24XX_DMA_MCBSP5_TX, OMAP24XX_DMA_MCBSP5_RX },
+#endif
 };
+#else
+static const int omap24xx_dma_reqs[][2] = {};
+#endif
+
+#if defined(CONFIG_ARCH_OMAP2420)
 static const unsigned long omap2420_mcbsp_port[][2] = {
 	{ OMAP24XX_MCBSP1_BASE + OMAP_MCBSP_REG_DXR1,
 	  OMAP24XX_MCBSP1_BASE + OMAP_MCBSP_REG_DRR1 },
@@ -96,8 +102,41 @@ static const unsigned long omap2420_mcbsp_port[][2] = {
 	  OMAP24XX_MCBSP2_BASE + OMAP_MCBSP_REG_DRR1 },
 };
 #else
-static const int omap2420_dma_reqs[][2] = {};
 static const unsigned long omap2420_mcbsp_port[][2] = {};
+#endif
+
+#if defined(CONFIG_ARCH_OMAP2430)
+static const unsigned long omap2430_mcbsp_port[][2] = {
+	{ OMAP24XX_MCBSP1_BASE + OMAP_MCBSP_REG_DXR,
+	  OMAP24XX_MCBSP1_BASE + OMAP_MCBSP_REG_DRR },
+	{ OMAP24XX_MCBSP2_BASE + OMAP_MCBSP_REG_DXR,
+	  OMAP24XX_MCBSP2_BASE + OMAP_MCBSP_REG_DRR },
+	{ OMAP2430_MCBSP3_BASE + OMAP_MCBSP_REG_DXR,
+	  OMAP2430_MCBSP3_BASE + OMAP_MCBSP_REG_DRR },
+	{ OMAP2430_MCBSP4_BASE + OMAP_MCBSP_REG_DXR,
+	  OMAP2430_MCBSP4_BASE + OMAP_MCBSP_REG_DRR },
+	{ OMAP2430_MCBSP5_BASE + OMAP_MCBSP_REG_DXR,
+	  OMAP2430_MCBSP5_BASE + OMAP_MCBSP_REG_DRR },
+};
+#else
+static const unsigned long omap2430_mcbsp_port[][2] = {};
+#endif
+
+#if defined(CONFIG_ARCH_OMAP34XX)
+static const unsigned long omap34xx_mcbsp_port[][2] = {
+	{ OMAP34XX_MCBSP1_BASE + OMAP_MCBSP_REG_DXR,
+	  OMAP34XX_MCBSP1_BASE + OMAP_MCBSP_REG_DRR },
+	{ OMAP34XX_MCBSP2_BASE + OMAP_MCBSP_REG_DXR,
+	  OMAP34XX_MCBSP2_BASE + OMAP_MCBSP_REG_DRR },
+	{ OMAP34XX_MCBSP3_BASE + OMAP_MCBSP_REG_DXR,
+	  OMAP34XX_MCBSP3_BASE + OMAP_MCBSP_REG_DRR },
+	{ OMAP34XX_MCBSP4_BASE + OMAP_MCBSP_REG_DXR,
+	  OMAP34XX_MCBSP4_BASE + OMAP_MCBSP_REG_DRR },
+	{ OMAP34XX_MCBSP5_BASE + OMAP_MCBSP_REG_DXR,
+	  OMAP34XX_MCBSP5_BASE + OMAP_MCBSP_REG_DRR },
+};
+#else
+static const unsigned long omap34xx_mcbsp_port[][2] = {};
 #endif
 
 static int omap_mcbsp_dai_startup(struct snd_pcm_substream *substream)
@@ -167,14 +206,19 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 		dma = omap1_dma_reqs[bus_id][substream->stream];
 		port = omap1_mcbsp_port[bus_id][substream->stream];
 	} else if (cpu_is_omap2420()) {
-		dma = omap2420_dma_reqs[bus_id][substream->stream];
+		dma = omap24xx_dma_reqs[bus_id][substream->stream];
 		port = omap2420_mcbsp_port[bus_id][substream->stream];
+	} else if (cpu_is_omap2430()) {
+		dma = omap24xx_dma_reqs[bus_id][substream->stream];
+		port = omap2430_mcbsp_port[bus_id][substream->stream];
+	} else if (cpu_is_omap343x()) {
+		dma = omap24xx_dma_reqs[bus_id][substream->stream];
+		port = omap34xx_mcbsp_port[bus_id][substream->stream];
 	} else {
-		/*
-		 * TODO: Add support for 2430 and 3430
-		 */
 		return -ENODEV;
 	}
+	omap_mcbsp_dai_dma_params[id][substream->stream].name =
+		substream->stream ? "Audio Capture" : "Audio Playback";
 	omap_mcbsp_dai_dma_params[id][substream->stream].dma_req = dma;
 	omap_mcbsp_dai_dma_params[id][substream->stream].port_addr = port;
 	cpu_dai->dma_data = &omap_mcbsp_dai_dma_params[id][substream->stream];
@@ -245,6 +289,11 @@ static int omap_mcbsp_dai_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		regs->rcr2	|= RDATDLY(1);
 		regs->xcr2	|= XDATDLY(1);
 		break;
+	case SND_SOC_DAIFMT_DSP_A:
+		/* 0-bit data delay */
+		regs->rcr2      |= RDATDLY(0);
+		regs->xcr2      |= XDATDLY(0);
+		break;
 	default:
 		/* Unsupported data format */
 		return -EINVAL;
@@ -310,7 +359,7 @@ static int omap_mcbsp_dai_set_clks_src(struct omap_mcbsp_data *mcbsp_data,
 				       int clk_id)
 {
 	int sel_bit;
-	u16 reg;
+	u16 reg, reg_devconf1 = OMAP243X_CONTROL_DEVCONF1;
 
 	if (cpu_class_is_omap1()) {
 		/* OMAP1's can use only external source clock */
@@ -319,6 +368,12 @@ static int omap_mcbsp_dai_set_clks_src(struct omap_mcbsp_data *mcbsp_data,
 		else
 			return 0;
 	}
+
+	if (cpu_is_omap2420() && mcbsp_data->bus_id > 1)
+		return -EINVAL;
+
+	if (cpu_is_omap343x())
+		reg_devconf1 = OMAP343X_CONTROL_DEVCONF1;
 
 	switch (mcbsp_data->bus_id) {
 	case 0:
@@ -329,20 +384,26 @@ static int omap_mcbsp_dai_set_clks_src(struct omap_mcbsp_data *mcbsp_data,
 		reg = OMAP2_CONTROL_DEVCONF0;
 		sel_bit = 6;
 		break;
-	/* TODO: Support for ports 3 - 5 in OMAP2430 and OMAP34xx */
+	case 2:
+		reg = reg_devconf1;
+		sel_bit = 0;
+		break;
+	case 3:
+		reg = reg_devconf1;
+		sel_bit = 2;
+		break;
+	case 4:
+		reg = reg_devconf1;
+		sel_bit = 4;
+		break;
 	default:
 		return -EINVAL;
 	}
 
-	if (cpu_class_is_omap2()) {
-		if (clk_id == OMAP_MCBSP_SYSCLK_CLKS_FCLK) {
-			omap_ctrl_writel(omap_ctrl_readl(reg) &
-					 ~(1 << sel_bit), reg);
-		} else {
-			omap_ctrl_writel(omap_ctrl_readl(reg) |
-					 (1 << sel_bit), reg);
-		}
-	}
+	if (clk_id == OMAP_MCBSP_SYSCLK_CLKS_FCLK)
+		omap_ctrl_writel(omap_ctrl_readl(reg) & ~(1 << sel_bit), reg);
+	else
+		omap_ctrl_writel(omap_ctrl_readl(reg) | (1 << sel_bit), reg);
 
 	return 0;
 }
@@ -376,37 +437,49 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 	return err;
 }
 
-struct snd_soc_dai omap_mcbsp_dai[NUM_LINKS] = {
-{
-	.name = "omap-mcbsp-dai",
-	.id = 0,
-	.type = SND_SOC_DAI_I2S,
-	.playback = {
-		.channels_min = 2,
-		.channels_max = 2,
-		.rates = OMAP_MCBSP_RATES,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,
-	},
-	.capture = {
-		.channels_min = 2,
-		.channels_max = 2,
-		.rates = OMAP_MCBSP_RATES,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,
-	},
-	.ops = {
-		.startup = omap_mcbsp_dai_startup,
-		.shutdown = omap_mcbsp_dai_shutdown,
-		.trigger = omap_mcbsp_dai_trigger,
-		.hw_params = omap_mcbsp_dai_hw_params,
-	},
-	.dai_ops = {
-		.set_fmt = omap_mcbsp_dai_set_dai_fmt,
-		.set_clkdiv = omap_mcbsp_dai_set_clkdiv,
-		.set_sysclk = omap_mcbsp_dai_set_dai_sysclk,
-	},
-	.private_data = &mcbsp_data[0].bus_id,
-},
+#define OMAP_MCBSP_DAI_BUILDER(link_id)				\
+{								\
+	.name = "omap-mcbsp-dai-(link_id)",			\
+	.id = (link_id),					\
+	.type = SND_SOC_DAI_I2S,				\
+	.playback = {						\
+		.channels_min = 2,				\
+		.channels_max = 2,				\
+		.rates = OMAP_MCBSP_RATES,			\
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,		\
+	},							\
+	.capture = {						\
+		.channels_min = 2,				\
+		.channels_max = 2,				\
+		.rates = OMAP_MCBSP_RATES,			\
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,		\
+	},							\
+	.ops = {						\
+		.startup = omap_mcbsp_dai_startup,		\
+		.shutdown = omap_mcbsp_dai_shutdown,		\
+		.trigger = omap_mcbsp_dai_trigger,		\
+		.hw_params = omap_mcbsp_dai_hw_params,		\
+	},							\
+	.dai_ops = {						\
+		.set_fmt = omap_mcbsp_dai_set_dai_fmt,		\
+		.set_clkdiv = omap_mcbsp_dai_set_clkdiv,	\
+		.set_sysclk = omap_mcbsp_dai_set_dai_sysclk,	\
+	},							\
+	.private_data = &mcbsp_data[(link_id)].bus_id,		\
+}
+
+struct snd_soc_dai omap_mcbsp_dai[] = {
+	OMAP_MCBSP_DAI_BUILDER(0),
+	OMAP_MCBSP_DAI_BUILDER(1),
+#if NUM_LINKS >= 3
+	OMAP_MCBSP_DAI_BUILDER(2),
+#endif
+#if NUM_LINKS == 5
+	OMAP_MCBSP_DAI_BUILDER(3),
+	OMAP_MCBSP_DAI_BUILDER(4),
+#endif
 };
+
 EXPORT_SYMBOL_GPL(omap_mcbsp_dai);
 
 MODULE_AUTHOR("Jarkko Nikula <jarkko.nikula@nokia.com>");

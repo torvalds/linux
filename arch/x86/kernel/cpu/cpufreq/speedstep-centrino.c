@@ -26,7 +26,7 @@
 #include <asm/cpufeature.h>
 
 #define PFX		"speedstep-centrino: "
-#define MAINTAINER	"cpufreq@lists.linux.org.uk"
+#define MAINTAINER	"cpufreq@vger.kernel.org"
 
 #define dprintk(msg...) \
 	cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "speedstep-centrino", msg)

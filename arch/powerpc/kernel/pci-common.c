@@ -56,6 +56,34 @@ resource_size_t isa_mem_base;
 /* Default PCI flags is 0 */
 unsigned int ppc_pci_flags;
 
+static struct dma_mapping_ops *pci_dma_ops;
+
+void set_pci_dma_ops(struct dma_mapping_ops *dma_ops)
+{
+	pci_dma_ops = dma_ops;
+}
+
+struct dma_mapping_ops *get_pci_dma_ops(void)
+{
+	return pci_dma_ops;
+}
+EXPORT_SYMBOL(get_pci_dma_ops);
+
+int pci_set_dma_mask(struct pci_dev *dev, u64 mask)
+{
+	return dma_set_mask(&dev->dev, mask);
+}
+
+int pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
+{
+	int rc;
+
+	rc = dma_set_mask(&dev->dev, mask);
+	dev->dev.coherent_dma_mask = dev->dma_mask;
+
+	return rc;
+}
+
 struct pci_controller *pcibios_alloc_controller(struct device_node *dev)
 {
 	struct pci_controller *phb;
@@ -179,6 +207,26 @@ char __devinit *pcibios_setup(char *str)
 {
 	return str;
 }
+
+void __devinit pcibios_setup_new_device(struct pci_dev *dev)
+{
+	struct dev_archdata *sd = &dev->dev.archdata;
+
+	sd->of_node = pci_device_to_OF_node(dev);
+
+	DBG("PCI: device %s OF node: %s\n", pci_name(dev),
+	    sd->of_node ? sd->of_node->full_name : "<none>");
+
+	sd->dma_ops = pci_dma_ops;
+#ifdef CONFIG_PPC32
+	sd->dma_data = (void *)PCI_DRAM_OFFSET;
+#endif
+	set_dev_node(&dev->dev, pcibus_to_node(dev->bus));
+
+	if (ppc_md.pci_dma_dev_setup)
+		ppc_md.pci_dma_dev_setup(dev);
+}
+EXPORT_SYMBOL(pcibios_setup_new_device);
 
 /*
  * Reads the interrupt pin to determine if interrupt is use by card.
@@ -371,7 +419,7 @@ pgprot_t pci_phys_mem_access_prot(struct file *file,
 	struct pci_dev *pdev = NULL;
 	struct resource *found = NULL;
 	unsigned long prot = pgprot_val(protection);
-	unsigned long offset = pfn << PAGE_SHIFT;
+	resource_size_t offset = ((resource_size_t)pfn) << PAGE_SHIFT;
 	int i;
 
 	if (page_is_ram(pfn))
@@ -422,7 +470,8 @@ pgprot_t pci_phys_mem_access_prot(struct file *file,
 int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 			enum pci_mmap_state mmap_state, int write_combine)
 {
-	resource_size_t offset = vma->vm_pgoff << PAGE_SHIFT;
+	resource_size_t offset =
+		((resource_size_t)vma->vm_pgoff) << PAGE_SHIFT;
 	struct resource *rp;
 	int ret;
 
@@ -731,11 +780,6 @@ static void __devinit fixup_resource(struct resource *res, struct pci_dev *dev)
 
 	res->start = (res->start + offset) & mask;
 	res->end = (res->end + offset) & mask;
-
-	pr_debug("PCI:%s            %016llx-%016llx\n",
-		 pci_name(dev),
-		 (unsigned long long)res->start,
-		 (unsigned long long)res->end);
 }
 
 
@@ -781,6 +825,11 @@ static void __devinit pcibios_fixup_resources(struct pci_dev *dev)
 			 (unsigned int)res->flags);
 
 		fixup_resource(res, dev);
+
+		pr_debug("PCI:%s            %016llx-%016llx\n",
+			 pci_name(dev),
+			 (unsigned long long)res->start,
+			 (unsigned long long)res->end);
 	}
 
 	/* Call machine specific resource fixup */
@@ -789,9 +838,118 @@ static void __devinit pcibios_fixup_resources(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pcibios_fixup_resources);
 
-static void __devinit __pcibios_fixup_bus(struct pci_bus *bus)
+/* This function tries to figure out if a bridge resource has been initialized
+ * by the firmware or not. It doesn't have to be absolutely bullet proof, but
+ * things go more smoothly when it gets it right. It should covers cases such
+ * as Apple "closed" bridge resources and bare-metal pSeries unassigned bridges
+ */
+static int __devinit pcibios_uninitialized_bridge_resource(struct pci_bus *bus,
+							   struct resource *res)
 {
 	struct pci_controller *hose = pci_bus_to_host(bus);
+	struct pci_dev *dev = bus->self;
+	resource_size_t offset;
+	u16 command;
+	int i;
+
+	/* We don't do anything if PCI_PROBE_ONLY is set */
+	if (ppc_pci_flags & PPC_PCI_PROBE_ONLY)
+		return 0;
+
+	/* Job is a bit different between memory and IO */
+	if (res->flags & IORESOURCE_MEM) {
+		/* If the BAR is non-0 (res != pci_mem_offset) then it's probably been
+		 * initialized by somebody
+		 */
+		if (res->start != hose->pci_mem_offset)
+			return 0;
+
+		/* The BAR is 0, let's check if memory decoding is enabled on
+		 * the bridge. If not, we consider it unassigned
+		 */
+		pci_read_config_word(dev, PCI_COMMAND, &command);
+		if ((command & PCI_COMMAND_MEMORY) == 0)
+			return 1;
+
+		/* Memory decoding is enabled and the BAR is 0. If any of the bridge
+		 * resources covers that starting address (0 then it's good enough for
+		 * us for memory
+		 */
+		for (i = 0; i < 3; i++) {
+			if ((hose->mem_resources[i].flags & IORESOURCE_MEM) &&
+			    hose->mem_resources[i].start == hose->pci_mem_offset)
+				return 0;
+		}
+
+		/* Well, it starts at 0 and we know it will collide so we may as
+		 * well consider it as unassigned. That covers the Apple case.
+		 */
+		return 1;
+	} else {
+		/* If the BAR is non-0, then we consider it assigned */
+		offset = (unsigned long)hose->io_base_virt - _IO_BASE;
+		if (((res->start - offset) & 0xfffffffful) != 0)
+			return 0;
+
+		/* Here, we are a bit different than memory as typically IO space
+		 * starting at low addresses -is- valid. What we do instead if that
+		 * we consider as unassigned anything that doesn't have IO enabled
+		 * in the PCI command register, and that's it.
+		 */
+		pci_read_config_word(dev, PCI_COMMAND, &command);
+		if (command & PCI_COMMAND_IO)
+			return 0;
+
+		/* It's starting at 0 and IO is disabled in the bridge, consider
+		 * it unassigned
+		 */
+		return 1;
+	}
+}
+
+/* Fixup resources of a PCI<->PCI bridge */
+static void __devinit pcibios_fixup_bridge(struct pci_bus *bus)
+{
+	struct resource *res;
+	int i;
+
+	struct pci_dev *dev = bus->self;
+
+	for (i = 0; i < PCI_BUS_NUM_RESOURCES; ++i) {
+		if ((res = bus->resource[i]) == NULL)
+			continue;
+		if (!res->flags)
+			continue;
+		if (i >= 3 && bus->self->transparent)
+			continue;
+
+		pr_debug("PCI:%s Bus rsrc %d %016llx-%016llx [%x] fixup...\n",
+			 pci_name(dev), i,
+			 (unsigned long long)res->start,\
+			 (unsigned long long)res->end,
+			 (unsigned int)res->flags);
+
+		/* Perform fixup */
+		fixup_resource(res, dev);
+
+		/* Try to detect uninitialized P2P bridge resources,
+		 * and clear them out so they get re-assigned later
+		 */
+		if (pcibios_uninitialized_bridge_resource(bus, res)) {
+			res->flags = 0;
+			pr_debug("PCI:%s            (unassigned)\n", pci_name(dev));
+		} else {
+
+			pr_debug("PCI:%s            %016llx-%016llx\n",
+				 pci_name(dev),
+				 (unsigned long long)res->start,
+				 (unsigned long long)res->end);
+		}
+	}
+}
+
+static void __devinit __pcibios_fixup_bus(struct pci_bus *bus)
+{
 	struct pci_dev *dev = bus->self;
 
 	pr_debug("PCI: Fixup bus %d (%s)\n", bus->number, dev ? pci_name(dev) : "PHB");
@@ -799,48 +957,8 @@ static void __devinit __pcibios_fixup_bus(struct pci_bus *bus)
 	/* Fixup PCI<->PCI bridges. Host bridges are handled separately, for
 	 * now differently between 32 and 64 bits.
 	 */
-	if (dev != NULL) {
-		struct resource *res;
-		int i;
-
-		for (i = 0; i < PCI_BUS_NUM_RESOURCES; ++i) {
-			if ((res = bus->resource[i]) == NULL)
-				continue;
-			if (!res->flags)
-				continue;
-			if (i >= 3 && bus->self->transparent)
-				continue;
-			/* On PowerMac, Apple leaves bridge windows open over
-			 * an inaccessible region of memory space (0...fffff)
-			 * which is somewhat bogus, but that's what they think
-			 * means disabled...
-			 *
-			 * We clear those to force them to be reallocated later
-			 *
-			 * We detect such regions by the fact that the base is
-			 * equal to the pci_mem_offset of the host bridge and
-			 * their size is smaller than 1M.
-			 */
-			if (res->flags & IORESOURCE_MEM &&
-			    res->start == hose->pci_mem_offset &&
-			    res->end < 0x100000) {
-				printk(KERN_INFO
-				       "PCI: Closing bogus Apple Firmware"
-				       " region %d on bus 0x%02x\n",
-				       i, bus->number);
-				res->flags = 0;
-				continue;
-			}
-
-			pr_debug("PCI:%s Bus rsrc %d %016llx-%016llx [%x] fixup...\n",
-				 pci_name(dev), i,
-				 (unsigned long long)res->start,\
-				 (unsigned long long)res->end,
-				 (unsigned int)res->flags);
-
-			fixup_resource(res, dev);
-		}
-	}
+	if (dev != NULL)
+		pcibios_fixup_bridge(bus);
 
 	/* Additional setup that is different between 32 and 64 bits for now */
 	pcibios_do_bus_setup(bus);

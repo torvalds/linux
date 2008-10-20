@@ -160,7 +160,7 @@ static inline int current_cpuset_is_being_rebound(void)
 
 static inline void rebuild_sched_domains(void)
 {
-	partition_sched_domains(0, NULL, NULL);
+	partition_sched_domains(1, NULL, NULL);
 }
 
 #endif /* !CONFIG_CPUSETS */

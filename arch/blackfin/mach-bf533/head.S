@@ -31,8 +31,8 @@
 #include <linux/init.h>
 #include <asm/blackfin.h>
 #ifdef CONFIG_BFIN_KERNEL_CLOCK
-#include <asm/mach-common/clocks.h>
-#include <asm/mach/mem_init.h>
+#include <asm/clocks.h>
+#include <mach/mem_init.h>
 #endif
 
 .section .l1.text
@@ -78,6 +78,9 @@ ENTRY(_start_dma_code)
 	r1 = PLL_BYPASS;                 /* Bypass the PLL?                 */
 	r1 = r1 << 8;                    /* Shift it over                   */
 	r0 = r1 | r0;                    /* add them all together           */
+#ifdef ANOMALY_05000265
+	BITSET(r0, 15);                  /* Add 250 mV of hysteresis to SPORT input pins */
+#endif
 
 	p0.h = hi(PLL_CTL);
 	p0.l = lo(PLL_CTL);              /* Load the address                */

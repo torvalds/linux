@@ -34,7 +34,6 @@
 #include <linux/platform_device.h>
 #include <linux/sysdev.h>
 #include <linux/workqueue.h>
-#include <linux/version.h>
 
 #define EDAC_MC_LABEL_LEN	31
 #define EDAC_DEVICE_NAME_LEN	31

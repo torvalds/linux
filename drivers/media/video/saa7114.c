@@ -29,42 +29,23 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/delay.h>
-#include <linux/errno.h>
-#include <linux/fs.h>
-#include <linux/kernel.h>
-#include <linux/major.h>
-#include <linux/slab.h>
-#include <linux/mm.h>
-#include <linux/signal.h>
 #include <linux/types.h>
-#include <linux/i2c.h>
-#include <asm/io.h>
-#include <asm/pgtable.h>
-#include <asm/page.h>
+#include <linux/ioctl.h>
 #include <asm/uaccess.h>
-
+#include <linux/i2c.h>
+#include <linux/i2c-id.h>
 #include <linux/videodev.h>
 #include <linux/video_decoder.h>
+#include <media/v4l2-common.h>
+#include <media/v4l2-i2c-drv-legacy.h>
 
 MODULE_DESCRIPTION("Philips SAA7114H video decoder driver");
 MODULE_AUTHOR("Maxim Yevtyushkin");
 MODULE_LICENSE("GPL");
 
-
-#define I2C_NAME(x) (x)->name
-
-
 static int debug;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
-
-#define dprintk(num, format, args...) \
-	do { \
-		if (debug >= num) \
-			printk(format, ##args); \
-	} while (0)
 
 /* ----------------------------------------------------------------------- */
 
@@ -80,9 +61,6 @@ struct saa7114 {
 	int sat;
 	int playback;
 };
-
-#define   I2C_SAA7114        0x42
-#define   I2C_SAA7114A       0x40
 
 #define   I2C_DELAY   10
 
@@ -129,18 +107,12 @@ struct saa7114 {
 
 /* ----------------------------------------------------------------------- */
 
-static inline int
-saa7114_write (struct i2c_client *client,
-	       u8                 reg,
-	       u8                 value)
+static inline int saa7114_write(struct i2c_client *client, u8 reg, u8 value)
 {
 	return i2c_smbus_write_byte_data(client, reg, value);
 }
 
-static int
-saa7114_write_block (struct i2c_client *client,
-		     const u8          *data,
-		     unsigned int       len)
+static int saa7114_write_block(struct i2c_client *client, const u8 *data, unsigned int len)
 {
 	int ret = -1;
 	u8 reg;
@@ -160,18 +132,17 @@ saa7114_write_block (struct i2c_client *client,
 				reg++;
 				len -= 2;
 				data += 2;
-			} while (len >= 2 && data[0] == reg &&
-				 block_len < 32);
-			if ((ret = i2c_master_send(client, block_data,
-						   block_len)) < 0)
+			} while (len >= 2 && data[0] == reg && block_len < 32);
+			ret = i2c_master_send(client, block_data, block_len);
+			if (ret < 0)
 				break;
 		}
 	} else {
 		/* do some slow I2C emulation kind of thing */
 		while (len >= 2) {
 			reg = *data++;
-			if ((ret = saa7114_write(client, reg,
-						 *data++)) < 0)
+			ret = saa7114_write(client, reg, *data++);
+			if (ret < 0)
 				break;
 			len -= 2;
 		}
@@ -180,9 +151,7 @@ saa7114_write_block (struct i2c_client *client,
 	return ret;
 }
 
-static inline int
-saa7114_read (struct i2c_client *client,
-	      u8                 reg)
+static inline int saa7114_read(struct i2c_client *client, u8 reg)
 {
 	return i2c_smbus_read_byte_data(client, reg);
 }
@@ -452,15 +421,11 @@ static const unsigned char init[] = {
 	0xef, 0x00
 };
 
-static int
-saa7114_command (struct i2c_client *client,
-		 unsigned int       cmd,
-		 void              *arg)
+static int saa7114_command(struct i2c_client *client, unsigned cmd, void *arg)
 {
 	struct saa7114 *decoder = i2c_get_clientdata(client);
 
 	switch (cmd) {
-
 	case 0:
 		//dprintk(1, KERN_INFO "%s: writing init\n", I2C_NAME(client));
 		//saa7114_write_block(client, init, sizeof(init));
@@ -470,27 +435,28 @@ saa7114_command (struct i2c_client *client,
 	{
 		int i;
 
-		dprintk(1, KERN_INFO "%s: decoder dump\n", I2C_NAME(client));
+		if (!debug)
+			break;
+		v4l_info(client, "decoder dump\n");
 
 		for (i = 0; i < 32; i += 16) {
 			int j;
 
-			printk(KERN_DEBUG "%s: %03x", I2C_NAME(client), i);
+			v4l_info(client, "%03x", i);
 			for (j = 0; j < 16; ++j) {
-				printk(" %02x",
+				printk(KERN_CONT " %02x",
 				       saa7114_read(client, i + j));
 			}
-			printk("\n");
+			printk(KERN_CONT "\n");
 		}
-	}
 		break;
+	}
 
 	case DECODER_GET_CAPABILITIES:
 	{
 		struct video_decoder_capability *cap = arg;
 
-		dprintk(1, KERN_DEBUG "%s: decoder get capabilities\n",
-			I2C_NAME(client));
+		v4l_dbg(1, debug, client, "get capabilities\n");
 
 		cap->flags = VIDEO_DECODER_PAL |
 			     VIDEO_DECODER_NTSC |
@@ -498,8 +464,8 @@ saa7114_command (struct i2c_client *client,
 			     VIDEO_DECODER_CCIR;
 		cap->inputs = 8;
 		cap->outputs = 1;
-	}
 		break;
+	}
 
 	case DECODER_GET_STATUS:
 	{
@@ -509,8 +475,7 @@ saa7114_command (struct i2c_client *client,
 
 		status = saa7114_read(client, 0x1f);
 
-		dprintk(1, KERN_DEBUG "%s status: 0x%02x\n", I2C_NAME(client),
-			status);
+		v4l_dbg(1, debug, client, "status: 0x%02x\n", status);
 		res = 0;
 		if ((status & (1 << 6)) == 0) {
 			res |= DECODER_STATUS_GOOD;
@@ -538,8 +503,8 @@ saa7114_command (struct i2c_client *client,
 			res |= DECODER_STATUS_COLOR;
 		}
 		*iarg = res;
-	}
 		break;
+	}
 
 	case DECODER_SET_NORM:
 	{
@@ -547,12 +512,11 @@ saa7114_command (struct i2c_client *client,
 
 		short int hoff = 0, voff = 0, w = 0, h = 0;
 
-		dprintk(1, KERN_DEBUG "%s: decoder set norm ",
-			I2C_NAME(client));
-		switch (*iarg) {
+		v4l_dbg(1, debug, client, "set norm\n");
 
+		switch (*iarg) {
 		case VIDEO_MODE_NTSC:
-			dprintk(1, "NTSC\n");
+			v4l_dbg(1, debug, client, "NTSC\n");
 			decoder->reg[REG_ADDR(0x06)] =
 			    SAA_7114_NTSC_HSYNC_START;
 			decoder->reg[REG_ADDR(0x07)] =
@@ -571,7 +535,7 @@ saa7114_command (struct i2c_client *client,
 			break;
 
 		case VIDEO_MODE_PAL:
-			dprintk(1, "PAL\n");
+			v4l_dbg(1, debug, client, "PAL\n");
 			decoder->reg[REG_ADDR(0x06)] =
 			    SAA_7114_PAL_HSYNC_START;
 			decoder->reg[REG_ADDR(0x07)] =
@@ -590,9 +554,8 @@ saa7114_command (struct i2c_client *client,
 			break;
 
 		default:
-			dprintk(1, " Unknown video mode!!!\n");
+			v4l_dbg(1, debug, client, "Unknown video mode\n");
 			return -EINVAL;
-
 		}
 
 
@@ -644,22 +607,20 @@ saa7114_command (struct i2c_client *client,
 		saa7114_write(client, 0x80, 0x36);	// i-port and scaler back end clock selection
 
 		decoder->norm = *iarg;
-	}
 		break;
+	}
 
 	case DECODER_SET_INPUT:
 	{
 		int *iarg = arg;
 
-		dprintk(1, KERN_DEBUG "%s: decoder set input (%d)\n",
-			I2C_NAME(client), *iarg);
+		v4l_dbg(1, debug, client, "set input (%d)\n", *iarg);
 		if (*iarg < 0 || *iarg > 7) {
 			return -EINVAL;
 		}
 
 		if (decoder->input != *iarg) {
-			dprintk(1, KERN_DEBUG "%s: now setting %s input\n",
-				I2C_NAME(client),
+			v4l_dbg(1, debug, client, "now setting %s input\n",
 				*iarg >= 6 ? "S-Video" : "Composite");
 			decoder->input = *iarg;
 
@@ -690,30 +651,29 @@ saa7114_command (struct i2c_client *client,
 			saa7114_write(client, 0x0e,
 				      decoder->reg[REG_ADDR(0x0e)]);
 		}
-	}
 		break;
+	}
 
 	case DECODER_SET_OUTPUT:
 	{
 		int *iarg = arg;
 
-		dprintk(1, KERN_DEBUG "%s: decoder set output\n",
-			I2C_NAME(client));
+		v4l_dbg(1, debug, client, "set output\n");
 
 		/* not much choice of outputs */
 		if (*iarg != 0) {
 			return -EINVAL;
 		}
-	}
 		break;
+	}
 
 	case DECODER_ENABLE_OUTPUT:
 	{
 		int *iarg = arg;
 		int enable = (*iarg != 0);
 
-		dprintk(1, KERN_DEBUG "%s: decoder %s output\n",
-			I2C_NAME(client), enable ? "enable" : "disable");
+		v4l_dbg(1, debug, client, "%s output\n",
+			enable ? "enable" : "disable");
 
 		decoder->playback = !enable;
 
@@ -754,18 +714,16 @@ saa7114_command (struct i2c_client *client,
 			saa7114_write(client, 0x80, 0x36);
 
 		}
-	}
 		break;
+	}
 
 	case DECODER_SET_PICTURE:
 	{
 		struct video_picture *pic = arg;
 
-		dprintk(1,
-			KERN_DEBUG
-			"%s: decoder set picture bright=%d contrast=%d saturation=%d hue=%d\n",
-			I2C_NAME(client), pic->brightness, pic->contrast,
-			pic->colour, pic->hue);
+		v4l_dbg(1, debug, client,
+			"decoder set picture bright=%d contrast=%d saturation=%d hue=%d\n",
+			pic->brightness, pic->contrast, pic->colour, pic->hue);
 
 		if (decoder->bright != pic->brightness) {
 			/* We want 0 to 255 we get 0-65535 */
@@ -789,8 +747,8 @@ saa7114_command (struct i2c_client *client,
 			saa7114_write(client, 0x0d,
 				      (decoder->hue - 32768) >> 8);
 		}
-	}
 		break;
+	}
 
 	default:
 		return -EINVAL;
@@ -801,58 +759,30 @@ saa7114_command (struct i2c_client *client,
 
 /* ----------------------------------------------------------------------- */
 
-/*
- * Generic i2c probe
- * concerning the addresses: i2c wants 7 bit (without the r/w bit), so '>>1'
- */
-static unsigned short normal_i2c[] =
-    { I2C_SAA7114 >> 1, I2C_SAA7114A >> 1, I2C_CLIENT_END };
+static unsigned short normal_i2c[] = { 0x42 >> 1, 0x40 >> 1, I2C_CLIENT_END };
 
-static unsigned short ignore = I2C_CLIENT_END;
+I2C_CLIENT_INSMOD;
 
-static struct i2c_client_address_data addr_data = {
-	.normal_i2c		= normal_i2c,
-	.probe			= &ignore,
-	.ignore			= &ignore,
-};
-
-static struct i2c_driver i2c_driver_saa7114;
-
-static int
-saa7114_detect_client (struct i2c_adapter *adapter,
-		       int                 address,
-		       int                 kind)
+static int saa7114_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
 	int i, err[30];
 	short int hoff = SAA_7114_NTSC_HOFFSET;
 	short int voff = SAA_7114_NTSC_VOFFSET;
 	short int w = SAA_7114_NTSC_WIDTH;
 	short int h = SAA_7114_NTSC_HEIGHT;
-	struct i2c_client *client;
 	struct saa7114 *decoder;
 
-	dprintk(1,
-		KERN_INFO
-		"saa7114.c: detecting saa7114 client on address 0x%x\n",
-		address << 1);
-
 	/* Check if the adapter supports the needed features */
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return 0;
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
+		return -ENODEV;
 
-	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (!client)
-		return -ENOMEM;
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &i2c_driver_saa7114;
-	strlcpy(I2C_NAME(client), "saa7114", sizeof(I2C_NAME(client)));
+	v4l_info(client, "chip found @ 0x%x (%s)\n",
+			client->addr << 1, client->adapter->name);
 
 	decoder = kzalloc(sizeof(struct saa7114), GFP_KERNEL);
-	if (decoder == NULL) {
-		kfree(client);
+	if (decoder == NULL)
 		return -ENOMEM;
-	}
 	decoder->norm = VIDEO_MODE_NTSC;
 	decoder->input = -1;
 	decoder->enable = 1;
@@ -937,8 +867,7 @@ saa7114_detect_client (struct i2c_adapter *adapter,
 	decoder->reg[REG_ADDR(0x0e)] |= 1;	// combfilter on
 
 
-	dprintk(1, KERN_DEBUG "%s_attach: starting decoder init\n",
-		I2C_NAME(client));
+	v4l_dbg(1, debug, client, "starting init\n");
 
 	err[0] =
 	    saa7114_write_block(client, decoder->reg + (0x20 << 1),
@@ -962,28 +891,23 @@ saa7114_detect_client (struct i2c_adapter *adapter,
 
 	for (i = 0; i <= 5; i++) {
 		if (err[i] < 0) {
-			dprintk(1,
-				KERN_ERR
-				"%s_attach: init error %d at stage %d, leaving attach.\n",
-				I2C_NAME(client), i, err[i]);
+			v4l_dbg(1, debug, client,
+				"init error %d at stage %d, leaving attach.\n",
+				i, err[i]);
 			kfree(decoder);
-			kfree(client);
-			return 0;
+			return -EIO;
 		}
 	}
 
 	for (i = 6; i < 8; i++) {
-		dprintk(1,
-			KERN_DEBUG
-			"%s_attach: reg[0x%02x] = 0x%02x (0x%02x)\n",
-			I2C_NAME(client), i, saa7114_read(client, i),
+		v4l_dbg(1, debug, client,
+			"reg[0x%02x] = 0x%02x (0x%02x)\n",
+			i, saa7114_read(client, i),
 			decoder->reg[REG_ADDR(i)]);
 	}
 
-	dprintk(1,
-		KERN_DEBUG
-		"%s_attach: performing decoder reset sequence\n",
-		I2C_NAME(client));
+	v4l_dbg(1, debug, client,
+		"performing decoder reset sequence\n");
 
 	err[6] = saa7114_write(client, 0x80, 0x06);	// i-port and scaler backend clock selection, task A&B off
 	err[7] = saa7114_write(client, 0x88, 0xd8);	// sw reset scaler
@@ -991,19 +915,15 @@ saa7114_detect_client (struct i2c_adapter *adapter,
 
 	for (i = 6; i <= 8; i++) {
 		if (err[i] < 0) {
-			dprintk(1,
-				KERN_ERR
-				"%s_attach: init error %d at stage %d, leaving attach.\n",
-				I2C_NAME(client), i, err[i]);
+			v4l_dbg(1, debug, client,
+				"init error %d at stage %d, leaving attach.\n",
+				i, err[i]);
 			kfree(decoder);
-			kfree(client);
-			return 0;
+			return -EIO;
 		}
 	}
 
-	dprintk(1, KERN_INFO "%s_attach: performing the rest of init\n",
-		I2C_NAME(client));
-
+	v4l_dbg(1, debug, client, "performing the rest of init\n");
 
 	err[9] = saa7114_write(client, 0x01, decoder->reg[REG_ADDR(0x01)]);
 	err[10] = saa7114_write_block(client, decoder->reg + (0x03 << 1), (0x1e + 1 - 0x03) << 1);	// big seq
@@ -1039,37 +959,32 @@ saa7114_detect_client (struct i2c_adapter *adapter,
 
 	for (i = 9; i <= 18; i++) {
 		if (err[i] < 0) {
-			dprintk(1,
-				KERN_ERR
-				"%s_attach: init error %d at stage %d, leaving attach.\n",
-				I2C_NAME(client), i, err[i]);
+			v4l_dbg(1, debug, client,
+				"init error %d at stage %d, leaving attach.\n",
+				i, err[i]);
 			kfree(decoder);
-			kfree(client);
-			return 0;
+			return -EIO;
 		}
 	}
 
 
 	for (i = 6; i < 8; i++) {
-		dprintk(1,
-			KERN_DEBUG
-			"%s_attach: reg[0x%02x] = 0x%02x (0x%02x)\n",
-			I2C_NAME(client), i, saa7114_read(client, i),
+		v4l_dbg(1, debug, client,
+			"reg[0x%02x] = 0x%02x (0x%02x)\n",
+			i, saa7114_read(client, i),
 			decoder->reg[REG_ADDR(i)]);
 	}
 
 
 	for (i = 0x11; i <= 0x13; i++) {
-		dprintk(1,
-			KERN_DEBUG
-			"%s_attach: reg[0x%02x] = 0x%02x (0x%02x)\n",
-			I2C_NAME(client), i, saa7114_read(client, i),
+		v4l_dbg(1, debug, client,
+			"reg[0x%02x] = 0x%02x (0x%02x)\n",
+			i, saa7114_read(client, i),
 			decoder->reg[REG_ADDR(i)]);
 	}
 
 
-	dprintk(1, KERN_DEBUG "%s_attach: setting video input\n",
-		I2C_NAME(client));
+	v4l_dbg(1, debug, client, "setting video input\n");
 
 	err[19] =
 	    saa7114_write(client, 0x02, decoder->reg[REG_ADDR(0x02)]);
@@ -1080,20 +995,15 @@ saa7114_detect_client (struct i2c_adapter *adapter,
 
 	for (i = 19; i <= 21; i++) {
 		if (err[i] < 0) {
-			dprintk(1,
-				KERN_ERR
-				"%s_attach: init error %d at stage %d, leaving attach.\n",
-				I2C_NAME(client), i, err[i]);
+			v4l_dbg(1, debug, client,
+				"init error %d at stage %d, leaving attach.\n",
+				i, err[i]);
 			kfree(decoder);
-			kfree(client);
-			return 0;
+			return -EIO;
 		}
 	}
 
-	dprintk(1,
-		KERN_DEBUG
-		"%s_attach: performing decoder reset sequence\n",
-		I2C_NAME(client));
+	v4l_dbg(1, debug, client, "performing decoder reset sequence\n");
 
 	err[22] = saa7114_write(client, 0x88, 0xd8);	// sw reset scaler
 	err[23] = saa7114_write(client, 0x88, 0xf8);	// sw reset scaler release
@@ -1102,13 +1012,11 @@ saa7114_detect_client (struct i2c_adapter *adapter,
 
 	for (i = 22; i <= 24; i++) {
 		if (err[i] < 0) {
-			dprintk(1,
-				KERN_ERR
-				"%s_attach: init error %d at stage %d, leaving attach.\n",
-				I2C_NAME(client), i, err[i]);
+			v4l_dbg(1, debug, client,
+				"init error %d at stage %d, leaving attach.\n",
+				i, err[i]);
 			kfree(decoder);
-			kfree(client);
-			return 0;
+			return -EIO;
 		}
 	}
 
@@ -1116,101 +1024,45 @@ saa7114_detect_client (struct i2c_adapter *adapter,
 	err[26] = saa7114_write(client, 0x07, init[REG_ADDR(0x07)]);
 	err[27] = saa7114_write(client, 0x10, init[REG_ADDR(0x10)]);
 
-	dprintk(1,
-		KERN_INFO
-		"%s_attach: chip version %x, decoder status 0x%02x\n",
-		I2C_NAME(client), saa7114_read(client, 0x00) >> 4,
+	v4l_dbg(1, debug, client, "chip version %x, decoder status 0x%02x\n",
+		saa7114_read(client, 0x00) >> 4,
 		saa7114_read(client, 0x1f));
-	dprintk(1,
-		KERN_DEBUG
-		"%s_attach: power save control: 0x%02x, scaler status: 0x%02x\n",
-		I2C_NAME(client), saa7114_read(client, 0x88),
+	v4l_dbg(1, debug, client,
+		"power save control: 0x%02x, scaler status: 0x%02x\n",
+		saa7114_read(client, 0x88),
 		saa7114_read(client, 0x8f));
 
 
 	for (i = 0x94; i < 0x96; i++) {
-		dprintk(1,
-			KERN_DEBUG
-			"%s_attach: reg[0x%02x] = 0x%02x (0x%02x)\n",
-			I2C_NAME(client), i, saa7114_read(client, i),
+		v4l_dbg(1, debug, client,
+			"reg[0x%02x] = 0x%02x (0x%02x)\n",
+			i, saa7114_read(client, i),
 			decoder->reg[REG_ADDR(i)]);
 	}
 
-	i = i2c_attach_client(client);
-	if (i) {
-		kfree(client);
-		kfree(decoder);
-		return i;
-	}
-
 	//i = saa7114_write_block(client, init, sizeof(init));
-	i = 0;
-	if (i < 0) {
-		dprintk(1, KERN_ERR "%s_attach error: init status %d\n",
-			I2C_NAME(client), i);
-	} else {
-		dprintk(1,
-			KERN_INFO
-			"%s_attach: chip version %x at address 0x%x\n",
-			I2C_NAME(client), saa7114_read(client, 0x00) >> 4,
-			client->addr << 1);
-	}
-
 	return 0;
 }
 
-static int
-saa7114_attach_adapter (struct i2c_adapter *adapter)
+static int saa7114_remove(struct i2c_client *client)
 {
-	dprintk(1,
-		KERN_INFO
-		"saa7114.c: starting probe for adapter %s (0x%x)\n",
-		I2C_NAME(adapter), adapter->id);
-	return i2c_probe(adapter, &addr_data, &saa7114_detect_client);
-}
-
-static int
-saa7114_detach_client (struct i2c_client *client)
-{
-	struct saa7114 *decoder = i2c_get_clientdata(client);
-	int err;
-
-	err = i2c_detach_client(client);
-	if (err) {
-		return err;
-	}
-
-	kfree(decoder);
-	kfree(client);
-
+	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_driver i2c_driver_saa7114 = {
-	.driver = {
-		.name = "saa7114",
-	},
-
-	.id = I2C_DRIVERID_SAA7114,
-
-	.attach_adapter = saa7114_attach_adapter,
-	.detach_client = saa7114_detach_client,
-	.command = saa7114_command,
+static const struct i2c_device_id saa7114_id[] = {
+	{ "saa7114_old", 0 },	/* "saa7114" maps to the saa7115 driver */
+	{ }
 };
+MODULE_DEVICE_TABLE(i2c, saa7114_id);
 
-static int __init
-saa7114_init (void)
-{
-	return i2c_add_driver(&i2c_driver_saa7114);
-}
-
-static void __exit
-saa7114_exit (void)
-{
-	i2c_del_driver(&i2c_driver_saa7114);
-}
-
-module_init(saa7114_init);
-module_exit(saa7114_exit);
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "saa7114",
+	.driverid = I2C_DRIVERID_SAA7114,
+	.command = saa7114_command,
+	.probe = saa7114_probe,
+	.remove = saa7114_remove,
+	.id_table = saa7114_id,
+};

@@ -148,9 +148,6 @@ static unsigned int pid_entry_count_dirs(const struct pid_entry *entries,
 	return count;
 }
 
-int maps_protect;
-EXPORT_SYMBOL(maps_protect);
-
 static struct fs_struct *get_fs_struct(struct task_struct *task)
 {
 	struct fs_struct *fs;
@@ -164,7 +161,6 @@ static struct fs_struct *get_fs_struct(struct task_struct *task)
 
 static int get_nr_threads(struct task_struct *tsk)
 {
-	/* Must be called with the rcu_read_lock held */
 	unsigned long flags;
 	int count = 0;
 
@@ -471,14 +467,10 @@ static int proc_pid_limits(struct task_struct *task, char *buffer)
 
 	struct rlimit rlim[RLIM_NLIMITS];
 
-	rcu_read_lock();
-	if (!lock_task_sighand(task,&flags)) {
-		rcu_read_unlock();
+	if (!lock_task_sighand(task, &flags))
 		return 0;
-	}
 	memcpy(rlim, task->signal->rlim, sizeof(struct rlimit) * RLIM_NLIMITS);
 	unlock_task_sighand(task, &flags);
-	rcu_read_unlock();
 
 	/*
 	 * print the file header
@@ -2443,6 +2435,13 @@ static int proc_tgid_io_accounting(struct task_struct *task, char *buffer)
 }
 #endif /* CONFIG_TASK_IO_ACCOUNTING */
 
+static int proc_pid_personality(struct seq_file *m, struct pid_namespace *ns,
+				struct pid *pid, struct task_struct *task)
+{
+	seq_printf(m, "%08x\n", task->personality);
+	return 0;
+}
+
 /*
  * Thread groups
  */
@@ -2459,6 +2458,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 	REG("environ",    S_IRUSR, environ),
 	INF("auxv",       S_IRUSR, pid_auxv),
 	ONE("status",     S_IRUGO, pid_status),
+	ONE("personality", S_IRUSR, pid_personality),
 	INF("limits",	  S_IRUSR, pid_limits),
 #ifdef CONFIG_SCHED_DEBUG
 	REG("sched",      S_IRUGO|S_IWUSR, pid_sched),
@@ -2794,6 +2794,7 @@ static const struct pid_entry tid_base_stuff[] = {
 	REG("environ",   S_IRUSR, environ),
 	INF("auxv",      S_IRUSR, pid_auxv),
 	ONE("status",    S_IRUGO, pid_status),
+	ONE("personality", S_IRUSR, pid_personality),
 	INF("limits",	 S_IRUSR, pid_limits),
 #ifdef CONFIG_SCHED_DEBUG
 	REG("sched",     S_IRUGO|S_IWUSR, pid_sched),
@@ -3088,9 +3089,7 @@ static int proc_task_getattr(struct vfsmount *mnt, struct dentry *dentry, struct
 	generic_fillattr(inode, stat);
 
 	if (p) {
-		rcu_read_lock();
 		stat->nlink += get_nr_threads(p);
-		rcu_read_unlock();
 		put_task_struct(p);
 	}
 

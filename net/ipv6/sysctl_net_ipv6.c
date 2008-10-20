@@ -156,7 +156,7 @@ static struct ctl_table_header *ip6_base;
 int ipv6_static_sysctl_register(void)
 {
 	static struct ctl_table empty[1];
-	ip6_base = register_net_sysctl_rotable(net_ipv6_ctl_path, empty);
+	ip6_base = register_sysctl_paths(net_ipv6_ctl_path, empty);
 	if (ip6_base == NULL)
 		return -ENOMEM;
 	return 0;

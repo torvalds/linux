@@ -26,13 +26,11 @@ static void mtd_notify_add(struct mtd_info* mtd)
 	if (!mtd)
 		return;
 
-	device_create_drvdata(mtd_class, NULL,
-			      MKDEV(MTD_CHAR_MAJOR, mtd->index*2),
-			      NULL, "mtd%d", mtd->index);
+	device_create(mtd_class, NULL, MKDEV(MTD_CHAR_MAJOR, mtd->index*2),
+		      NULL, "mtd%d", mtd->index);
 
-	device_create_drvdata(mtd_class, NULL,
-			      MKDEV(MTD_CHAR_MAJOR, mtd->index*2+1),
-			      NULL, "mtd%dro", mtd->index);
+	device_create(mtd_class, NULL, MKDEV(MTD_CHAR_MAJOR, mtd->index*2+1),
+		      NULL, "mtd%dro", mtd->index);
 }
 
 static void mtd_notify_remove(struct mtd_info* mtd)
@@ -410,16 +408,20 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 
 	case MEMGETREGIONINFO:
 	{
-		struct region_info_user ur;
+		uint32_t ur_idx;
+		struct mtd_erase_region_info *kr;
+		struct region_info_user *ur = (struct region_info_user *) argp;
 
-		if (copy_from_user(&ur, argp, sizeof(struct region_info_user)))
+		if (get_user(ur_idx, &(ur->regionindex)))
 			return -EFAULT;
 
-		if (ur.regionindex >= mtd->numeraseregions)
-			return -EINVAL;
-		if (copy_to_user(argp, &(mtd->eraseregions[ur.regionindex]),
-				sizeof(struct mtd_erase_region_info)))
+		kr = &(mtd->eraseregions[ur_idx]);
+
+		if (put_user(kr->offset, &(ur->offset))
+		    || put_user(kr->erasesize, &(ur->erasesize))
+		    || put_user(kr->numblocks, &(ur->numblocks)))
 			return -EFAULT;
+
 		break;
 	}
 

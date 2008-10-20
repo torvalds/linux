@@ -1,7 +1,7 @@
 /*
     Samsung S5H1411 VSB/QAM demodulator driver
 
-    Copyright (C) 2008 Steven Toth <stoth@hauppauge.com>
+    Copyright (C) 2008 Steven Toth <stoth@linuxtv.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -343,7 +343,7 @@ static int s5h1411_writereg(struct s5h1411_state *state,
 	u8 addr, u8 reg, u16 data)
 {
 	int ret;
-	u8 buf [] = { reg, data >> 8,  data & 0xff };
+	u8 buf[] = { reg, data >> 8,  data & 0xff };
 
 	struct i2c_msg msg = { .addr = addr, .flags = 0, .buf = buf, .len = 3 };
 
@@ -359,10 +359,10 @@ static int s5h1411_writereg(struct s5h1411_state *state,
 static u16 s5h1411_readreg(struct s5h1411_state *state, u8 addr, u8 reg)
 {
 	int ret;
-	u8 b0 [] = { reg };
-	u8 b1 [] = { 0, 0 };
+	u8 b0[] = { reg };
+	u8 b1[] = { 0, 0 };
 
-	struct i2c_msg msg [] = {
+	struct i2c_msg msg[] = {
 		{ .addr = addr, .flags = 0, .buf = b0, .len = 1 },
 		{ .addr = addr, .flags = I2C_M_RD, .buf = b1, .len = 2 } };
 
@@ -488,6 +488,7 @@ static int s5h1411_enable_modulation(struct dvb_frontend *fe,
 		break;
 	case QAM_64:
 	case QAM_256:
+	case QAM_AUTO:
 		dprintk("%s() QAM_AUTO (64/256)\n", __func__);
 		s5h1411_set_if_freq(fe, state->config->qam_if);
 		s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0x00, 0x0171);

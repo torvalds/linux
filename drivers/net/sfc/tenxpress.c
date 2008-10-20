@@ -65,24 +65,9 @@
 #define PMA_PMD_LED_DEFAULT	(PMA_PMD_LED_OFF << PMA_PMD_LED_RX_LBN)
 
 
-/* Self test (BIST) control register */
-#define PMA_PMD_BIST_CTRL_REG	(0xc014)
-#define PMA_PMD_BIST_BER_LBN	(2)	/* Run BER test */
-#define PMA_PMD_BIST_CONT_LBN	(1)	/* Run continuous BIST until cleared */
-#define PMA_PMD_BIST_SINGLE_LBN	(0)	/* Run 1 BIST iteration (self clears) */
-/* Self test status register */
-#define PMA_PMD_BIST_STAT_REG	(0xc015)
-#define PMA_PMD_BIST_ENX_LBN	(3)
-#define PMA_PMD_BIST_PMA_LBN	(2)
-#define PMA_PMD_BIST_RXD_LBN	(1)
-#define PMA_PMD_BIST_AFE_LBN	(0)
-
 /* Special Software reset register */
 #define PMA_PMD_EXT_CTRL_REG 49152
 #define PMA_PMD_EXT_SSR_LBN 15
-
-#define BIST_MAX_DELAY	(1000)
-#define BIST_POLL_DELAY	(10)
 
 /* Misc register defines */
 #define PCS_CLOCK_CTRL_REG 0xd801
@@ -119,26 +104,11 @@ MODULE_PARM_DESC(crc_error_reset_threshold,
 		 "Max number of CRC errors before XAUI reset");
 
 struct tenxpress_phy_data {
-	enum tenxpress_state state;
 	enum efx_loopback_mode loopback_mode;
 	atomic_t bad_crc_count;
-	int tx_disabled;
+	enum efx_phy_mode phy_mode;
 	int bad_lp_tries;
 };
-
-static int tenxpress_state_is(struct efx_nic *efx, int state)
-{
-	struct tenxpress_phy_data *phy_data = efx->phy_data;
-	return (phy_data != NULL) && (state == phy_data->state);
-}
-
-void tenxpress_set_state(struct efx_nic *efx,
-				enum tenxpress_state state)
-{
-	struct tenxpress_phy_data *phy_data = efx->phy_data;
-	if (phy_data != NULL)
-		phy_data->state = state;
-}
 
 void tenxpress_crc_err(struct efx_nic *efx)
 {
@@ -176,8 +146,6 @@ static int tenxpress_phy_check(struct efx_nic *efx)
 	return 0;
 }
 
-static void tenxpress_reset_xaui(struct efx_nic *efx);
-
 static int tenxpress_init(struct efx_nic *efx)
 {
 	int rc, reg;
@@ -214,15 +182,12 @@ static int tenxpress_phy_init(struct efx_nic *efx)
 	if (!phy_data)
 		return -ENOMEM;
 	efx->phy_data = phy_data;
+	phy_data->phy_mode = efx->phy_mode;
 
-	tenxpress_set_state(efx, TENXPRESS_STATUS_NORMAL);
-
-	if (!sfe4001_phy_flash_cfg) {
-		rc = mdio_clause45_wait_reset_mmds(efx,
-						   TENXPRESS_REQUIRED_DEVS);
-		if (rc < 0)
-			goto fail;
-	}
+	rc = mdio_clause45_wait_reset_mmds(efx,
+					   TENXPRESS_REQUIRED_DEVS);
+	if (rc < 0)
+		goto fail;
 
 	rc = mdio_clause45_check_mmds(efx, TENXPRESS_REQUIRED_DEVS, 0);
 	if (rc < 0)
@@ -249,7 +214,10 @@ static int tenxpress_special_reset(struct efx_nic *efx)
 {
 	int rc, reg;
 
-	EFX_TRACE(efx, "%s\n", __func__);
+	/* The XGMAC clock is driven from the SFC7101/SFT9001 312MHz clock, so
+	 * a special software reset can glitch the XGMAC sufficiently for stats
+	 * requests to fail. Since we don't ofen special_reset, just lock. */
+	spin_lock(&efx->stats_lock);
 
 	/* Initiate reset */
 	reg = mdio_clause45_read(efx, efx->mii.phy_id,
@@ -258,23 +226,25 @@ static int tenxpress_special_reset(struct efx_nic *efx)
 	mdio_clause45_write(efx, efx->mii.phy_id, MDIO_MMD_PMAPMD,
 			    PMA_PMD_EXT_CTRL_REG, reg);
 
-	msleep(200);
+	mdelay(200);
 
 	/* Wait for the blocks to come out of reset */
 	rc = mdio_clause45_wait_reset_mmds(efx,
 					   TENXPRESS_REQUIRED_DEVS);
 	if (rc < 0)
-		return rc;
+		goto unlock;
 
 	/* Try and reconfigure the device */
 	rc = tenxpress_init(efx);
 	if (rc < 0)
-		return rc;
+		goto unlock;
 
-	return 0;
+unlock:
+	spin_unlock(&efx->stats_lock);
+	return rc;
 }
 
-static void tenxpress_set_bad_lp(struct efx_nic *efx, int bad_lp)
+static void tenxpress_set_bad_lp(struct efx_nic *efx, bool bad_lp)
 {
 	struct tenxpress_phy_data *pd = efx->phy_data;
 	int reg;
@@ -311,15 +281,15 @@ static void tenxpress_set_bad_lp(struct efx_nic *efx, int bad_lp)
  * into a non-10GBT port and if so warn the user that they won't get
  * link any time soon as we are 10GBT only, unless caller specified
  * not to do this check (it isn't useful in loopback) */
-static int tenxpress_link_ok(struct efx_nic *efx, int check_lp)
+static bool tenxpress_link_ok(struct efx_nic *efx, bool check_lp)
 {
-	int ok = mdio_clause45_links_ok(efx, TENXPRESS_REQUIRED_DEVS);
+	bool ok = mdio_clause45_links_ok(efx, TENXPRESS_REQUIRED_DEVS);
 
 	if (ok) {
-		tenxpress_set_bad_lp(efx, 0);
+		tenxpress_set_bad_lp(efx, false);
 	} else if (check_lp) {
 		/* Are we plugged into the wrong sort of link? */
-		int bad_lp = 0;
+		bool bad_lp = false;
 		int phy_id = efx->mii.phy_id;
 		int an_stat = mdio_clause45_read(efx, phy_id, MDIO_MMD_AN,
 						 MDIO_AN_STATUS);
@@ -332,7 +302,7 @@ static int tenxpress_link_ok(struct efx_nic *efx, int check_lp)
 		 * bit has the advantage of not clearing when autoneg
 		 * restarts. */
 		if (!(xphy_stat & (1 << PMA_PMD_XSTAT_FLP_LBN))) {
-			tenxpress_set_bad_lp(efx, 0);
+			tenxpress_set_bad_lp(efx, false);
 			return ok;
 		}
 
@@ -367,16 +337,19 @@ static void tenxpress_phyxs_loopback(struct efx_nic *efx)
 static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 {
 	struct tenxpress_phy_data *phy_data = efx->phy_data;
-	int loop_change = LOOPBACK_OUT_OF(phy_data, efx,
-					  TENXPRESS_LOOPBACKS);
+	bool loop_change = LOOPBACK_OUT_OF(phy_data, efx,
+					   TENXPRESS_LOOPBACKS);
 
-	if (!tenxpress_state_is(efx, TENXPRESS_STATUS_NORMAL))
+	if (efx->phy_mode & PHY_MODE_SPECIAL) {
+		phy_data->phy_mode = efx->phy_mode;
 		return;
+	}
 
 	/* When coming out of transmit disable, coming out of low power
 	 * mode, or moving out of any PHY internal loopback mode,
 	 * perform a special software reset */
-	if ((phy_data->tx_disabled && !efx->tx_disabled) ||
+	if ((efx->phy_mode == PHY_MODE_NORMAL &&
+	     phy_data->phy_mode != PHY_MODE_NORMAL) ||
 	    loop_change) {
 		tenxpress_special_reset(efx);
 		falcon_reset_xaui(efx);
@@ -386,9 +359,9 @@ static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 	mdio_clause45_phy_reconfigure(efx);
 	tenxpress_phyxs_loopback(efx);
 
-	phy_data->tx_disabled = efx->tx_disabled;
 	phy_data->loopback_mode = efx->loopback_mode;
-	efx->link_up = tenxpress_link_ok(efx, 0);
+	phy_data->phy_mode = efx->phy_mode;
+	efx->link_up = tenxpress_link_ok(efx, false);
 	efx->link_options = GM_LPA_10000FULL;
 }
 
@@ -402,16 +375,14 @@ static void tenxpress_phy_clear_interrupt(struct efx_nic *efx)
 static int tenxpress_phy_check_hw(struct efx_nic *efx)
 {
 	struct tenxpress_phy_data *phy_data = efx->phy_data;
-	int phy_up = tenxpress_state_is(efx, TENXPRESS_STATUS_NORMAL);
-	int link_ok;
+	bool link_ok;
 
-	link_ok = phy_up && tenxpress_link_ok(efx, 1);
+	link_ok = tenxpress_link_ok(efx, true);
 
 	if (link_ok != efx->link_up)
 		falcon_xmac_sim_phy_event(efx);
 
-	/* Nothing to check if we've already shut down the PHY */
-	if (!phy_up)
+	if (phy_data->phy_mode != PHY_MODE_NORMAL)
 		return 0;
 
 	if (atomic_read(&phy_data->bad_crc_count) > crc_error_reset_threshold) {
@@ -444,7 +415,7 @@ static void tenxpress_phy_fini(struct efx_nic *efx)
 
 /* Set the RX and TX LEDs and Link LED flashing. The other LEDs
  * (which probably aren't wired anyway) are left in AUTO mode */
-void tenxpress_phy_blink(struct efx_nic *efx, int blink)
+void tenxpress_phy_blink(struct efx_nic *efx, bool blink)
 {
 	int reg;
 
@@ -459,52 +430,10 @@ void tenxpress_phy_blink(struct efx_nic *efx, int blink)
 			    PMA_PMD_LED_OVERR_REG, reg);
 }
 
-static void tenxpress_reset_xaui(struct efx_nic *efx)
+static int tenxpress_phy_test(struct efx_nic *efx)
 {
-	int phy = efx->mii.phy_id;
-	int clk_ctrl, test_select, soft_rst2;
-
-	/* Real work is done on clock_ctrl other resets are thought to be
-	 * optional but make the reset more reliable
-	 */
-
-	/* Read */
-	clk_ctrl = mdio_clause45_read(efx, phy, MDIO_MMD_PCS,
-				      PCS_CLOCK_CTRL_REG);
-	test_select = mdio_clause45_read(efx, phy, MDIO_MMD_PCS,
-					 PCS_TEST_SELECT_REG);
-	soft_rst2 = mdio_clause45_read(efx, phy, MDIO_MMD_PCS,
-				       PCS_SOFT_RST2_REG);
-
-	/* Put in reset */
-	test_select &= ~(1 << CLK312_EN_LBN);
-	mdio_clause45_write(efx, phy, MDIO_MMD_PCS,
-			    PCS_TEST_SELECT_REG, test_select);
-
-	soft_rst2 &= ~((1 << XGXS_RST_N_LBN) | (1 << SERDES_RST_N_LBN));
-	mdio_clause45_write(efx, phy, MDIO_MMD_PCS,
-			    PCS_SOFT_RST2_REG, soft_rst2);
-
-	clk_ctrl &= ~(1 << PLL312_RST_N_LBN);
-	mdio_clause45_write(efx, phy, MDIO_MMD_PCS,
-			    PCS_CLOCK_CTRL_REG, clk_ctrl);
-	udelay(10);
-
-	/* Remove reset */
-	clk_ctrl |= (1 << PLL312_RST_N_LBN);
-	mdio_clause45_write(efx, phy, MDIO_MMD_PCS,
-			    PCS_CLOCK_CTRL_REG, clk_ctrl);
-	udelay(10);
-
-	soft_rst2 |= ((1 << XGXS_RST_N_LBN) | (1 << SERDES_RST_N_LBN));
-	mdio_clause45_write(efx, phy, MDIO_MMD_PCS,
-			    PCS_SOFT_RST2_REG, soft_rst2);
-	udelay(10);
-
-	test_select |= (1 << CLK312_EN_LBN);
-	mdio_clause45_write(efx, phy, MDIO_MMD_PCS,
-			    PCS_TEST_SELECT_REG, test_select);
-	udelay(10);
+	/* BIST is automatically run after a special software reset */
+	return tenxpress_special_reset(efx);
 }
 
 struct efx_phy_operations falcon_tenxpress_phy_ops = {
@@ -513,7 +442,7 @@ struct efx_phy_operations falcon_tenxpress_phy_ops = {
 	.check_hw         = tenxpress_phy_check_hw,
 	.fini             = tenxpress_phy_fini,
 	.clear_interrupt  = tenxpress_phy_clear_interrupt,
-	.reset_xaui       = tenxpress_reset_xaui,
+	.test             = tenxpress_phy_test,
 	.mmds             = TENXPRESS_REQUIRED_DEVS,
 	.loopbacks        = TENXPRESS_LOOPBACKS,
 };

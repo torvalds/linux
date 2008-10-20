@@ -46,11 +46,11 @@
 #include "bearer.h"
 #include "name_distr.h"
 
-void node_print(struct print_buf *buf, struct node *n_ptr, char *str);
-static void node_lost_contact(struct node *n_ptr);
-static void node_established_contact(struct node *n_ptr);
+void node_print(struct print_buf *buf, struct tipc_node *n_ptr, char *str);
+static void node_lost_contact(struct tipc_node *n_ptr);
+static void node_established_contact(struct tipc_node *n_ptr);
 
-struct node *tipc_nodes = NULL;	/* sorted list of nodes within cluster */
+struct tipc_node *tipc_nodes = NULL;	/* sorted list of nodes within cluster */
 
 static DEFINE_SPINLOCK(node_create_lock);
 
@@ -66,11 +66,11 @@ u32 tipc_own_tag = 0;
  * but this is a non-trivial change.)
  */
 
-struct node *tipc_node_create(u32 addr)
+struct tipc_node *tipc_node_create(u32 addr)
 {
 	struct cluster *c_ptr;
-	struct node *n_ptr;
-	struct node **curr_node;
+	struct tipc_node *n_ptr;
+	struct tipc_node **curr_node;
 
 	spin_lock_bh(&node_create_lock);
 
@@ -120,7 +120,7 @@ struct node *tipc_node_create(u32 addr)
 	return n_ptr;
 }
 
-void tipc_node_delete(struct node *n_ptr)
+void tipc_node_delete(struct tipc_node *n_ptr)
 {
 	if (!n_ptr)
 		return;
@@ -146,7 +146,7 @@ void tipc_node_delete(struct node *n_ptr)
  * Link becomes active (alone or shared) or standby, depending on its priority.
  */
 
-void tipc_node_link_up(struct node *n_ptr, struct link *l_ptr)
+void tipc_node_link_up(struct tipc_node *n_ptr, struct link *l_ptr)
 {
 	struct link **active = &n_ptr->active_links[0];
 
@@ -180,7 +180,7 @@ void tipc_node_link_up(struct node *n_ptr, struct link *l_ptr)
  * node_select_active_links - select active link
  */
 
-static void node_select_active_links(struct node *n_ptr)
+static void node_select_active_links(struct tipc_node *n_ptr)
 {
 	struct link **active = &n_ptr->active_links[0];
 	u32 i;
@@ -208,7 +208,7 @@ static void node_select_active_links(struct node *n_ptr)
  * tipc_node_link_down - handle loss of link
  */
 
-void tipc_node_link_down(struct node *n_ptr, struct link *l_ptr)
+void tipc_node_link_down(struct tipc_node *n_ptr, struct link *l_ptr)
 {
 	struct link **active;
 
@@ -235,30 +235,30 @@ void tipc_node_link_down(struct node *n_ptr, struct link *l_ptr)
 		node_lost_contact(n_ptr);
 }
 
-int tipc_node_has_active_links(struct node *n_ptr)
+int tipc_node_has_active_links(struct tipc_node *n_ptr)
 {
 	return (n_ptr &&
 		((n_ptr->active_links[0]) || (n_ptr->active_links[1])));
 }
 
-int tipc_node_has_redundant_links(struct node *n_ptr)
+int tipc_node_has_redundant_links(struct tipc_node *n_ptr)
 {
 	return (n_ptr->working_links > 1);
 }
 
-static int tipc_node_has_active_routes(struct node *n_ptr)
+static int tipc_node_has_active_routes(struct tipc_node *n_ptr)
 {
 	return (n_ptr && (n_ptr->last_router >= 0));
 }
 
-int tipc_node_is_up(struct node *n_ptr)
+int tipc_node_is_up(struct tipc_node *n_ptr)
 {
 	return (tipc_node_has_active_links(n_ptr) || tipc_node_has_active_routes(n_ptr));
 }
 
-struct node *tipc_node_attach_link(struct link *l_ptr)
+struct tipc_node *tipc_node_attach_link(struct link *l_ptr)
 {
-	struct node *n_ptr = tipc_node_find(l_ptr->addr);
+	struct tipc_node *n_ptr = tipc_node_find(l_ptr->addr);
 
 	if (!n_ptr)
 		n_ptr = tipc_node_create(l_ptr->addr);
@@ -285,7 +285,7 @@ struct node *tipc_node_attach_link(struct link *l_ptr)
 	return NULL;
 }
 
-void tipc_node_detach_link(struct node *n_ptr, struct link *l_ptr)
+void tipc_node_detach_link(struct tipc_node *n_ptr, struct link *l_ptr)
 {
 	n_ptr->links[l_ptr->b_ptr->identity] = NULL;
 	tipc_net.zones[tipc_zone(l_ptr->addr)]->links--;
@@ -338,7 +338,7 @@ void tipc_node_detach_link(struct node *n_ptr, struct link *l_ptr)
  *
  */
 
-static void node_established_contact(struct node *n_ptr)
+static void node_established_contact(struct tipc_node *n_ptr)
 {
 	struct cluster *c_ptr;
 
@@ -384,10 +384,10 @@ static void node_established_contact(struct node *n_ptr)
 				  tipc_highest_allowed_slave);
 }
 
-static void node_lost_contact(struct node *n_ptr)
+static void node_lost_contact(struct tipc_node *n_ptr)
 {
 	struct cluster *c_ptr;
-	struct node_subscr *ns, *tns;
+	struct tipc_node_subscr *ns, *tns;
 	char addr_string[16];
 	u32 i;
 
@@ -466,9 +466,9 @@ static void node_lost_contact(struct node *n_ptr)
  * Called by when cluster local lookup has failed.
  */
 
-struct node *tipc_node_select_next_hop(u32 addr, u32 selector)
+struct tipc_node *tipc_node_select_next_hop(u32 addr, u32 selector)
 {
-	struct node *n_ptr;
+	struct tipc_node *n_ptr;
 	u32 router_addr;
 
 	if (!tipc_addr_domain_valid(addr))
@@ -513,7 +513,7 @@ struct node *tipc_node_select_next_hop(u32 addr, u32 selector)
  * Uses a deterministic and fair algorithm for selecting router node.
  */
 
-u32 tipc_node_select_router(struct node *n_ptr, u32 ref)
+u32 tipc_node_select_router(struct tipc_node *n_ptr, u32 ref)
 {
 	u32 ulim;
 	u32 mask;
@@ -551,7 +551,7 @@ u32 tipc_node_select_router(struct node *n_ptr, u32 ref)
 	return tipc_addr(own_zone(), own_cluster(), r);
 }
 
-void tipc_node_add_router(struct node *n_ptr, u32 router)
+void tipc_node_add_router(struct tipc_node *n_ptr, u32 router)
 {
 	u32 r_num = tipc_node(router);
 
@@ -562,7 +562,7 @@ void tipc_node_add_router(struct node *n_ptr, u32 router)
 	       !n_ptr->routers[n_ptr->last_router]);
 }
 
-void tipc_node_remove_router(struct node *n_ptr, u32 router)
+void tipc_node_remove_router(struct tipc_node *n_ptr, u32 router)
 {
 	u32 r_num = tipc_node(router);
 
@@ -580,7 +580,7 @@ void tipc_node_remove_router(struct node *n_ptr, u32 router)
 }
 
 #if 0
-void node_print(struct print_buf *buf, struct node *n_ptr, char *str)
+void node_print(struct print_buf *buf, struct tipc_node *n_ptr, char *str)
 {
 	u32 i;
 
@@ -597,7 +597,7 @@ void node_print(struct print_buf *buf, struct node *n_ptr, char *str)
 
 u32 tipc_available_nodes(const u32 domain)
 {
-	struct node *n_ptr;
+	struct tipc_node *n_ptr;
 	u32 cnt = 0;
 
 	read_lock_bh(&tipc_net_lock);
@@ -615,7 +615,7 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 {
 	u32 domain;
 	struct sk_buff *buf;
-	struct node *n_ptr;
+	struct tipc_node *n_ptr;
 	struct tipc_node_info node_info;
 	u32 payload_size;
 
@@ -667,7 +667,7 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 {
 	u32 domain;
 	struct sk_buff *buf;
-	struct node *n_ptr;
+	struct tipc_node *n_ptr;
 	struct tipc_link_info link_info;
 	u32 payload_size;
 

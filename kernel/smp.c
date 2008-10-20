@@ -210,8 +210,10 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 {
 	struct call_single_data d;
 	unsigned long flags;
-	/* prevent preemption and reschedule on another processor */
+	/* prevent preemption and reschedule on another processor,
+	   as well as CPU removal */
 	int me = get_cpu();
+	int err = 0;
 
 	/* Can deadlock when called with interrupts disabled */
 	WARN_ON(irqs_disabled());
@@ -220,7 +222,7 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 		local_irq_save(flags);
 		func(info);
 		local_irq_restore(flags);
-	} else {
+	} else if ((unsigned)cpu < NR_CPUS && cpu_online(cpu)) {
 		struct call_single_data *data = NULL;
 
 		if (!wait) {
@@ -236,10 +238,12 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 		data->func = func;
 		data->info = info;
 		generic_exec_single(cpu, data);
+	} else {
+		err = -ENXIO;	/* CPU not online */
 	}
 
 	put_cpu();
-	return 0;
+	return err;
 }
 EXPORT_SYMBOL(smp_call_function_single);
 

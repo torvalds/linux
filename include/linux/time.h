@@ -29,6 +29,8 @@ struct timezone {
 
 #ifdef __KERNEL__
 
+extern struct timezone sys_tz;
+
 /* Parameters used to convert the timespec values: */
 #define MSEC_PER_SEC	1000L
 #define USEC_PER_MSEC	1000L
@@ -125,6 +127,9 @@ extern struct timespec timespec_trunc(struct timespec t, unsigned gran);
 extern int timekeeping_valid_for_hres(void);
 extern void update_wall_time(void);
 extern void update_xtime_cache(u64 nsec);
+
+struct tms;
+extern void do_sys_times(struct tms *);
 
 /**
  * timespec_to_ns - Convert timespec to nanoseconds

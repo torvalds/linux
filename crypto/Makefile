@@ -5,6 +5,8 @@
 obj-$(CONFIG_CRYPTO) += crypto.o
 crypto-objs := api.o cipher.o digest.o compress.o
 
+obj-$(CONFIG_CRYPTO_FIPS) += fips.o
+
 crypto_algapi-$(CONFIG_PROC_FS) += proc.o
 crypto_algapi-objs := algapi.o scatterwalk.o $(crypto_algapi-y)
 obj-$(CONFIG_CRYPTO_ALGAPI) += crypto_algapi.o
@@ -13,14 +15,16 @@ obj-$(CONFIG_CRYPTO_AEAD) += aead.o
 
 crypto_blkcipher-objs := ablkcipher.o
 crypto_blkcipher-objs += blkcipher.o
-crypto_blkcipher-objs += chainiv.o
-crypto_blkcipher-objs += eseqiv.o
 obj-$(CONFIG_CRYPTO_BLKCIPHER) += crypto_blkcipher.o
+obj-$(CONFIG_CRYPTO_BLKCIPHER) += chainiv.o
+obj-$(CONFIG_CRYPTO_BLKCIPHER) += eseqiv.o
 obj-$(CONFIG_CRYPTO_SEQIV) += seqiv.o
 
 crypto_hash-objs := hash.o
 crypto_hash-objs += ahash.o
 obj-$(CONFIG_CRYPTO_HASH) += crypto_hash.o
+
+cryptomgr-objs := algboss.o testmgr.o
 
 obj-$(CONFIG_CRYPTO_MANAGER) += cryptomgr.o
 obj-$(CONFIG_CRYPTO_HMAC) += hmac.o
@@ -69,7 +73,9 @@ obj-$(CONFIG_CRYPTO_MICHAEL_MIC) += michael_mic.o
 obj-$(CONFIG_CRYPTO_CRC32C) += crc32c.o
 obj-$(CONFIG_CRYPTO_AUTHENC) += authenc.o
 obj-$(CONFIG_CRYPTO_LZO) += lzo.o
-
+obj-$(CONFIG_CRYPTO_RNG) += rng.o
+obj-$(CONFIG_CRYPTO_RNG) += krng.o
+obj-$(CONFIG_CRYPTO_ANSI_CPRNG) += ansi_cprng.o
 obj-$(CONFIG_CRYPTO_TEST) += tcrypt.o
 
 #

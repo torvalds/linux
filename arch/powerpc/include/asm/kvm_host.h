@@ -81,11 +81,17 @@ struct kvm_vcpu_arch {
 	struct tlbe shadow_tlb[PPC44x_TLB_SIZE];
 	/* Pages which are referenced in the shadow TLB. */
 	struct page *shadow_pages[PPC44x_TLB_SIZE];
-	/* Copy of the host's TLB. */
-	struct tlbe host_tlb[PPC44x_TLB_SIZE];
+
+	/* Track which TLB entries we've modified in the current exit. */
+	u8 shadow_tlb_mod[PPC44x_TLB_SIZE];
 
 	u32 host_stack;
 	u32 host_pid;
+	u32 host_dbcr0;
+	u32 host_dbcr1;
+	u32 host_dbcr2;
+	u32 host_iac[4];
+	u32 host_msr;
 
 	u64 fpr[32];
 	u32 gpr[32];
@@ -123,7 +129,11 @@ struct kvm_vcpu_arch {
 	u32 ivor[16];
 	u32 ivpr;
 	u32 pir;
+
+	u32 shadow_pid;
 	u32 pid;
+	u32 swap_pid;
+
 	u32 pvr;
 	u32 ccr0;
 	u32 ccr1;

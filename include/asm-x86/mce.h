@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_MCE_H
-#define _ASM_X86_MCE_H
+#ifndef ASM_X86__MCE_H
+#define ASM_X86__MCE_H
 
 #ifdef __x86_64__
 
@@ -92,6 +92,7 @@ extern int mce_disabled;
 
 void mce_log(struct mce *m);
 DECLARE_PER_CPU(struct sys_device, device_mce);
+extern void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
 
 #ifdef CONFIG_X86_MCE_INTEL
 void mce_intel_feature_init(struct cpuinfo_x86 *c);
@@ -126,4 +127,4 @@ extern void restart_mce(void);
 
 #endif /* __KERNEL__ */
 
-#endif
+#endif /* ASM_X86__MCE_H */

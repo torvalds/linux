@@ -8,8 +8,8 @@
  * Copyright (C) 2008 Silicon Graphics, Inc. All rights reserved.
  */
 
-#ifndef __ASM_X86_UV_BAU__
-#define __ASM_X86_UV_BAU__
+#ifndef ASM_X86__UV__UV_BAU_H
+#define ASM_X86__UV__UV_BAU_H
 
 #include <linux/bitmap.h>
 #define BITSPERBYTE 8
@@ -40,11 +40,6 @@
 #define UV_ACTIVATION_DESCRIPTOR_SIZE	32
 #define UV_DISTRIBUTION_SIZE		256
 #define UV_SW_ACK_NPENDING		8
-#define UV_BAU_MESSAGE			200
-/*
- * Messaging irq; see irq_64.h and include/asm-x86/hw_irq_64.h
- * To be dynamically allocated in the future
- */
 #define UV_NET_ENDPOINT_INTD		0x38
 #define UV_DESC_BASE_PNODE_SHIFT	49
 #define UV_PAYLOADQ_PNODE_SHIFT		49
@@ -334,4 +329,4 @@ extern int uv_flush_tlb_others(cpumask_t *, struct mm_struct *, unsigned long);
 extern void uv_bau_message_intr1(void);
 extern void uv_bau_timeout_intr1(void);
 
-#endif /* __ASM_X86_UV_BAU__ */
+#endif /* ASM_X86__UV__UV_BAU_H */

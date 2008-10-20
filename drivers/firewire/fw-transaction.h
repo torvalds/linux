@@ -426,10 +426,13 @@ fw_core_initiate_bus_reset(struct fw_card *card, int short_reset);
 
 void
 fw_send_request(struct fw_card *card, struct fw_transaction *t,
-		int tcode, int node_id, int generation, int speed,
-		unsigned long long offset,
-		void *data, size_t length,
+		int tcode, int destination_id, int generation, int speed,
+		unsigned long long offset, void *data, size_t length,
 		fw_transaction_callback_t callback, void *callback_data);
+
+int fw_run_transaction(struct fw_card *card, int tcode, int destination_id,
+		       int generation, int speed, unsigned long long offset,
+		       void *data, size_t length);
 
 int fw_cancel_transaction(struct fw_card *card,
 			  struct fw_transaction *transaction);

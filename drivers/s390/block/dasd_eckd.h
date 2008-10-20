@@ -308,7 +308,7 @@ struct dasd_psf_prssd_data {
 	unsigned char flags;
 	unsigned char reserved[4];
 	unsigned char suborder;
-	unsigned char varies[9];
+	unsigned char varies[5];
 } __attribute__ ((packed));
 
 /*

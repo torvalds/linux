@@ -52,6 +52,7 @@ static inline int kstat_irqs(int irq)
 	return sum;
 }
 
+extern unsigned long long task_delta_exec(struct task_struct *);
 extern void account_user_time(struct task_struct *, cputime_t);
 extern void account_user_time_scaled(struct task_struct *, cputime_t);
 extern void account_system_time(struct task_struct *, int, cputime_t);

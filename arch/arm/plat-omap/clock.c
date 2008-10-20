@@ -10,7 +10,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -23,8 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/cpufreq.h>
 #include <linux/debugfs.h>
-
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include <mach/clock.h>
 

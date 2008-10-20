@@ -22,7 +22,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/version.h>
 #include <linux/errno.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
@@ -1622,7 +1621,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	struct pxa_udc *udc = the_controller;
 	int retval;
 
-	if (!driver || driver->speed != USB_SPEED_FULL || !driver->bind
+	if (!driver || driver->speed < USB_SPEED_FULL || !driver->bind
 			|| !driver->disconnect || !driver->setup)
 		return -EINVAL;
 	if (!udc)

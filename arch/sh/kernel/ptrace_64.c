@@ -131,6 +131,8 @@ void user_enable_single_step(struct task_struct *child)
 
 void user_disable_single_step(struct task_struct *child)
 {
+	struct pt_regs *regs = child->thread.uregs;
+
 	regs->sr &= ~SR_SSTEP;
 }
 

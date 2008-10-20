@@ -36,6 +36,7 @@ const struct file_operations autofs4_root_operations = {
 	.release	= dcache_dir_close,
 	.read		= generic_read_dir,
 	.readdir	= dcache_readdir,
+	.llseek		= dcache_dir_lseek,
 	.ioctl		= autofs4_root_ioctl,
 };
 
@@ -44,6 +45,7 @@ const struct file_operations autofs4_dir_operations = {
 	.release	= dcache_dir_close,
 	.read		= generic_read_dir,
 	.readdir	= dcache_readdir,
+	.llseek		= dcache_dir_lseek,
 };
 
 const struct inode_operations autofs4_indirect_root_inode_operations = {

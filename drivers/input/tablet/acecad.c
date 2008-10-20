@@ -280,7 +280,8 @@ static int __init usb_acecad_init(void)
 {
 	int result = usb_register(&usb_acecad_driver);
 	if (result == 0)
-		info(DRIVER_VERSION ":" DRIVER_DESC);
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+		       DRIVER_DESC "\n");
 	return result;
 }
 

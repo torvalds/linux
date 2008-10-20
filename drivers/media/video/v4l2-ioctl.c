@@ -499,7 +499,7 @@ static void dbgbuf(unsigned int cmd, struct video_device *vfd,
 			p->timestamp.tv_sec / 3600,
 			(int)(p->timestamp.tv_sec / 60) % 60,
 			(int)(p->timestamp.tv_sec % 60),
-			p->timestamp.tv_usec,
+			(long)p->timestamp.tv_usec,
 			p->index,
 			prt_names(p->type, v4l2_type_names),
 			p->bytesused, p->flags,
@@ -674,7 +674,7 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	 __video_do_ioctl will be called again, with one or more
 	 V4L2 ioctls.
 	 ********************************************************/
-	if (_IOC_TYPE(cmd) == 'v')
+	if (_IOC_TYPE(cmd) == 'v' && _IOC_NR(cmd) < BASE_VIDIOCPRIVATE)
 		return v4l_compat_translate_ioctl(inode, file, cmd, arg,
 						__video_do_ioctl);
 #endif
@@ -746,18 +746,6 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 				ret = ops->vidioc_enum_fmt_vid_overlay(file,
 					fh, f);
 			break;
-#if 1
-		/* V4L2_BUF_TYPE_VBI_CAPTURE should not support VIDIOC_ENUM_FMT
-		 * according to the spec. The bttv and saa7134 drivers support
-		 * it though, so just warn that this is deprecated and will be
-		 * removed in the near future. */
-		case V4L2_BUF_TYPE_VBI_CAPTURE:
-			if (ops->vidioc_enum_fmt_vbi_cap) {
-				printk(KERN_WARNING "vidioc_enum_fmt_vbi_cap will be removed in 2.6.28!\n");
-				ret = ops->vidioc_enum_fmt_vbi_cap(file, fh, f);
-			}
-			break;
-#endif
 		case V4L2_BUF_TYPE_VIDEO_OUTPUT:
 			if (ops->vidioc_enum_fmt_vid_out)
 				ret = ops->vidioc_enum_fmt_vid_out(file, fh, f);

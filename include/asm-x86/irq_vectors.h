@@ -1,5 +1,5 @@
-#ifndef _ASM_IRQ_VECTORS_H
-#define _ASM_IRQ_VECTORS_H
+#ifndef ASM_X86__IRQ_VECTORS_H
+#define ASM_X86__IRQ_VECTORS_H
 
 #include <linux/threads.h>
 
@@ -76,6 +76,7 @@
 #define CALL_FUNCTION_SINGLE_VECTOR	0xfb
 #define THERMAL_APIC_VECTOR		0xfa
 #define THRESHOLD_APIC_VECTOR		0xf9
+#define UV_BAU_MESSAGE			0xf8
 #define INVALIDATE_TLB_VECTOR_END	0xf7
 #define INVALIDATE_TLB_VECTOR_START	0xf0	/* f0-f7 used for TLB flush */
 
@@ -178,4 +179,4 @@
 #define VIC_CPU_BOOT_ERRATA_CPI		(VIC_CPI_LEVEL0 + 8)
 
 
-#endif /* _ASM_IRQ_VECTORS_H */
+#endif /* ASM_X86__IRQ_VECTORS_H */

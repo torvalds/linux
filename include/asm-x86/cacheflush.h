@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_CACHEFLUSH_H
-#define _ASM_X86_CACHEFLUSH_H
+#ifndef ASM_X86__CACHEFLUSH_H
+#define ASM_X86__CACHEFLUSH_H
 
 /* Keep includes the same across arches.  */
 #include <linux/mm.h>
@@ -24,6 +24,8 @@
 #define copy_from_user_page(vma, page, vaddr, dst, src, len)	\
 	memcpy((dst), (src), (len))
 
+#define PG_non_WB				PG_arch_1
+PAGEFLAG(NonWB, non_WB)
 
 /*
  * The set_memory_* API can be used to change various attributes of a virtual
@@ -66,6 +68,9 @@ int set_memory_rw(unsigned long addr, int numpages);
 int set_memory_np(unsigned long addr, int numpages);
 int set_memory_4k(unsigned long addr, int numpages);
 
+int set_memory_array_uc(unsigned long *addr, int addrinarray);
+int set_memory_array_wb(unsigned long *addr, int addrinarray);
+
 /*
  * For legacy compatibility with the old APIs, a few functions
  * are provided that work on a "struct page".
@@ -96,8 +101,6 @@ int set_pages_rw(struct page *page, int numpages);
 
 void clflush_cache_range(void *addr, unsigned int size);
 
-void cpa_init(void);
-
 #ifdef CONFIG_DEBUG_RODATA
 void mark_rodata_ro(void);
 extern const int rodata_test_data;
@@ -112,4 +115,4 @@ static inline int rodata_test(void)
 }
 #endif
 
-#endif
+#endif /* ASM_X86__CACHEFLUSH_H */

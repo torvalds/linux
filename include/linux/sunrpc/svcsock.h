@@ -39,10 +39,7 @@ int		svc_send(struct svc_rqst *);
 void		svc_drop(struct svc_rqst *);
 void		svc_sock_update_bufs(struct svc_serv *serv);
 int		svc_sock_names(char *buf, struct svc_serv *serv, char *toclose);
-int		svc_addsock(struct svc_serv *serv,
-			    int fd,
-			    char *name_return,
-			    int *proto);
+int		svc_addsock(struct svc_serv *serv, int fd, char *name_return);
 void		svc_init_xprt_sock(void);
 void		svc_cleanup_xprt_sock(void);
 

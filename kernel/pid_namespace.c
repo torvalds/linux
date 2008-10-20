@@ -179,9 +179,6 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 		rc = sys_wait4(-1, NULL, __WALL, NULL);
 	} while (rc != -ECHILD);
 
-
-	/* Child reaper for the pid namespace is going away */
-	pid_ns->child_reaper = NULL;
 	acct_exit_ns(pid_ns);
 	return;
 }

@@ -226,14 +226,15 @@ static void check_hung_uninterruptible_tasks(int this_cpu)
 	 * If the system crashed already then all bets are off,
 	 * do not report extra hung tasks:
 	 */
-	if ((tainted & TAINT_DIE) || did_panic)
+	if (test_taint(TAINT_DIE) || did_panic)
 		return;
 
 	read_lock(&tasklist_lock);
 	do_each_thread(g, t) {
 		if (!--max_count)
 			goto unlock;
-		if (t->state & TASK_UNINTERRUPTIBLE)
+		/* use "==" to skip the TASK_KILLABLE tasks waiting on NFS */
+		if (t->state == TASK_UNINTERRUPTIBLE)
 			check_hung_task(t, now);
 	} while_each_thread(g, t);
  unlock:

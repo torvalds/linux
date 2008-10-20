@@ -245,7 +245,7 @@ static void chx_txdone(fsm_instance *fi, int event, void *arg)
 {
 	struct channel *ch = arg;
 	struct net_device *dev = ch->netdev;
-	struct ctcm_priv *priv = dev->priv;
+	struct ctcm_priv *priv = dev->ml_priv;
 	struct sk_buff *skb;
 	int first = 1;
 	int i;
@@ -336,7 +336,7 @@ void ctcm_chx_txidle(fsm_instance *fi, int event, void *arg)
 {
 	struct channel *ch = arg;
 	struct net_device *dev = ch->netdev;
-	struct ctcm_priv *priv = dev->priv;
+	struct ctcm_priv *priv = dev->ml_priv;
 
 	CTCM_PR_DEBUG("%s(%s): %s\n", __func__, ch->id, dev->name);
 
@@ -357,7 +357,7 @@ static void chx_rx(fsm_instance *fi, int event, void *arg)
 {
 	struct channel *ch = arg;
 	struct net_device *dev = ch->netdev;
-	struct ctcm_priv *priv = dev->priv;
+	struct ctcm_priv *priv = dev->ml_priv;
 	int len = ch->max_bufsize - ch->irb->scsw.cmd.count;
 	struct sk_buff *skb = ch->trans_skb;
 	__u16 block_len = *((__u16 *)skb->data);
@@ -459,7 +459,7 @@ static void chx_firstio(fsm_instance *fi, int event, void *arg)
 			chx_rxidle(fi, event, arg);
 		} else {
 			struct net_device *dev = ch->netdev;
-			struct ctcm_priv *priv = dev->priv;
+			struct ctcm_priv *priv = dev->ml_priv;
 			fsm_newstate(fi, CTC_STATE_TXIDLE);
 			fsm_event(priv->fsm, DEV_EVENT_TXUP, dev);
 		}
@@ -496,7 +496,7 @@ static void chx_firstio(fsm_instance *fi, int event, void *arg)
 	if ((CHANNEL_DIRECTION(ch->flags) == READ) &&
 	    (ch->protocol == CTCM_PROTO_S390)) {
 		struct net_device *dev = ch->netdev;
-		struct ctcm_priv *priv = dev->priv;
+		struct ctcm_priv *priv = dev->ml_priv;
 		fsm_event(priv->fsm, DEV_EVENT_RXUP, dev);
 	}
 }
@@ -514,7 +514,7 @@ static void chx_rxidle(fsm_instance *fi, int event, void *arg)
 {
 	struct channel *ch = arg;
 	struct net_device *dev = ch->netdev;
-	struct ctcm_priv *priv = dev->priv;
+	struct ctcm_priv *priv = dev->ml_priv;
 	__u16 buflen;
 	int rc;
 
@@ -699,7 +699,7 @@ static void ctcm_chx_cleanup(fsm_instance *fi, int state,
 		struct channel *ch)
 {
 	struct net_device *dev = ch->netdev;
-	struct ctcm_priv *priv = dev->priv;
+	struct ctcm_priv *priv = dev->ml_priv;
 
 	CTCM_DBF_TEXT_(SETUP, CTC_DBF_NOTICE,
 			"%s(%s): %s[%d]\n",
@@ -784,7 +784,7 @@ static void ctcm_chx_setuperr(fsm_instance *fi, int event, void *arg)
 {
 	struct channel *ch = arg;
 	struct net_device *dev = ch->netdev;
-	struct ctcm_priv *priv = dev->priv;
+	struct ctcm_priv *priv = dev->ml_priv;
 
 	/*
 	 * Special case: Got UC_RCRESET on setmode.
@@ -874,7 +874,7 @@ static void ctcm_chx_rxiniterr(fsm_instance *fi, int event, void *arg)
 {
 	struct channel *ch = arg;
 	struct net_device *dev = ch->netdev;
-	struct ctcm_priv *priv = dev->priv;
+	struct ctcm_priv *priv = dev->ml_priv;
 
 	if (event == CTC_EVENT_TIMER) {
 		if (!IS_MPCDEV(dev))
@@ -902,7 +902,7 @@ static void ctcm_chx_rxinitfail(fsm_instance *fi, int event, void *arg)
 {
 	struct channel *ch = arg;
 	struct net_device *dev = ch->netdev;
-	struct ctcm_priv *priv = dev->priv;
+	struct ctcm_priv *priv = dev->ml_priv;
 
 	CTCM_DBF_TEXT_(ERROR, CTC_DBF_ERROR,
 			"%s(%s): RX %s busy, init. fail",
@@ -923,7 +923,7 @@ static void ctcm_chx_rxdisc(fsm_instance *fi, int event, void *arg)
 	struct channel *ch = arg;
 	struct channel *ch2;
 	struct net_device *dev = ch->netdev;
-	struct ctcm_priv *priv = dev->priv;
+	struct ctcm_priv *priv = dev->ml_priv;
 
 	CTCM_DBF_TEXT_(TRACE, CTC_DBF_NOTICE,
 			"%s: %s: remote disconnect - re-init ...",
@@ -954,7 +954,7 @@ static void ctcm_chx_txiniterr(fsm_instance *fi, int event, void *arg)
 {
 	struct channel *ch = arg;
 	struct net_device *dev = ch->netdev;
-	struct ctcm_priv *priv = dev->priv;
+	struct ctcm_priv *priv = dev->ml_priv;
 
 	if (event == CTC_EVENT_TIMER) {
 		fsm_deltimer(&ch->timer);
@@ -984,7 +984,7 @@ static void ctcm_chx_txretry(fsm_instance *fi, int event, void *arg)
 {
 	struct channel *ch = arg;
 	struct net_device *dev = ch->netdev;
-	struct ctcm_priv *priv = dev->priv;
+	struct ctcm_priv *priv = dev->ml_priv;
 	struct sk_buff *skb;
 
 	CTCM_PR_DEBUG("Enter: %s: cp=%i ch=0x%p id=%s\n",
@@ -1057,7 +1057,7 @@ static void ctcm_chx_iofatal(fsm_instance *fi, int event, void *arg)
 {
 	struct channel *ch = arg;
 	struct net_device *dev = ch->netdev;
-	struct ctcm_priv *priv = dev->priv;
+	struct ctcm_priv *priv = dev->ml_priv;
 	int rd = CHANNEL_DIRECTION(ch->flags);
 
 	fsm_deltimer(&ch->timer);
@@ -1207,7 +1207,7 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 {
 	struct channel		*ch = arg;
 	struct net_device	*dev = ch->netdev;
-	struct ctcm_priv	*priv = dev->priv;
+	struct ctcm_priv	*priv = dev->ml_priv;
 	struct mpc_group	*grp = priv->mpcg;
 	struct sk_buff		*skb;
 	int		first = 1;
@@ -1368,7 +1368,7 @@ static void ctcmpc_chx_rx(fsm_instance *fi, int event, void *arg)
 {
 	struct channel		*ch = arg;
 	struct net_device	*dev = ch->netdev;
-	struct ctcm_priv	*priv = dev->priv;
+	struct ctcm_priv	*priv = dev->ml_priv;
 	struct mpc_group	*grp = priv->mpcg;
 	struct sk_buff		*skb = ch->trans_skb;
 	struct sk_buff		*new_skb;
@@ -1471,7 +1471,7 @@ static void ctcmpc_chx_firstio(fsm_instance *fi, int event, void *arg)
 {
 	struct channel		*ch = arg;
 	struct net_device	*dev = ch->netdev;
-	struct ctcm_priv	*priv = dev->priv;
+	struct ctcm_priv	*priv = dev->ml_priv;
 	struct mpc_group	*gptr = priv->mpcg;
 
 	CTCM_PR_DEBUG("Enter %s: id=%s, ch=0x%p\n",
@@ -1525,7 +1525,7 @@ void ctcmpc_chx_rxidle(fsm_instance *fi, int event, void *arg)
 {
 	struct channel *ch = arg;
 	struct net_device *dev = ch->netdev;
-	struct ctcm_priv  *priv = dev->priv;
+	struct ctcm_priv  *priv = dev->ml_priv;
 	struct mpc_group  *grp = priv->mpcg;
 	int rc;
 	unsigned long saveflags = 0;	/* avoids compiler warning */
@@ -1580,7 +1580,7 @@ static void ctcmpc_chx_attn(fsm_instance *fsm, int event, void *arg)
 {
 	struct channel	  *ch     = arg;
 	struct net_device *dev    = ch->netdev;
-	struct ctcm_priv  *priv   = dev->priv;
+	struct ctcm_priv  *priv   = dev->ml_priv;
 	struct mpc_group  *grp = priv->mpcg;
 
 	CTCM_PR_DEBUG("%s(%s): %s(ch=0x%p), cp=%i, ChStat:%s, GrpStat:%s\n",
@@ -1639,7 +1639,7 @@ static void ctcmpc_chx_attnbusy(fsm_instance *fsm, int event, void *arg)
 {
 	struct channel	  *ch     = arg;
 	struct net_device *dev    = ch->netdev;
-	struct ctcm_priv  *priv   = dev->priv;
+	struct ctcm_priv  *priv   = dev->ml_priv;
 	struct mpc_group  *grp    = priv->mpcg;
 
 	CTCM_PR_DEBUG("%s(%s): %s\n  ChState:%s GrpState:%s\n",
@@ -1724,7 +1724,7 @@ static void ctcmpc_chx_resend(fsm_instance *fsm, int event, void *arg)
 {
 	struct channel	   *ch	   = arg;
 	struct net_device  *dev    = ch->netdev;
-	struct ctcm_priv   *priv   = dev->priv;
+	struct ctcm_priv   *priv   = dev->ml_priv;
 	struct mpc_group   *grp    = priv->mpcg;
 
 	fsm_event(grp->fsm, MPCG_EVENT_XID0DO, ch);
@@ -1740,7 +1740,7 @@ static void ctcmpc_chx_send_sweep(fsm_instance *fsm, int event, void *arg)
 {
 	struct channel *ach = arg;
 	struct net_device *dev = ach->netdev;
-	struct ctcm_priv *priv = dev->priv;
+	struct ctcm_priv *priv = dev->ml_priv;
 	struct mpc_group *grp = priv->mpcg;
 	struct channel *wch = priv->channel[WRITE];
 	struct channel *rch = priv->channel[READ];
@@ -2050,7 +2050,7 @@ int mpc_ch_fsm_len = ARRAY_SIZE(ctcmpc_ch_fsm);
 static void dev_action_start(fsm_instance *fi, int event, void *arg)
 {
 	struct net_device *dev = arg;
-	struct ctcm_priv *priv = dev->priv;
+	struct ctcm_priv *priv = dev->ml_priv;
 	int direction;
 
 	CTCMY_DBF_DEV_NAME(SETUP, dev, "");
@@ -2076,7 +2076,7 @@ static void dev_action_stop(fsm_instance *fi, int event, void *arg)
 {
 	int direction;
 	struct net_device *dev = arg;
-	struct ctcm_priv *priv = dev->priv;
+	struct ctcm_priv *priv = dev->ml_priv;
 
 	CTCMY_DBF_DEV_NAME(SETUP, dev, "");
 
@@ -2096,7 +2096,7 @@ static void dev_action_restart(fsm_instance *fi, int event, void *arg)
 {
 	int restart_timer;
 	struct net_device *dev = arg;
-	struct ctcm_priv *priv = dev->priv;
+	struct ctcm_priv *priv = dev->ml_priv;
 
 	CTCMY_DBF_DEV_NAME(TRACE, dev, "");
 
@@ -2133,12 +2133,12 @@ static void dev_action_restart(fsm_instance *fi, int event, void *arg)
 static void dev_action_chup(fsm_instance *fi, int event, void *arg)
 {
 	struct net_device *dev = arg;
-	struct ctcm_priv *priv = dev->priv;
+	struct ctcm_priv *priv = dev->ml_priv;
 	int dev_stat = fsm_getstate(fi);
 
 	CTCM_DBF_TEXT_(SETUP, CTC_DBF_NOTICE,
 			"%s(%s): priv = %p [%d,%d]\n ",	CTCM_FUNTAIL,
-				dev->name, dev->priv, dev_stat, event);
+				dev->name, dev->ml_priv, dev_stat, event);
 
 	switch (fsm_getstate(fi)) {
 	case DEV_STATE_STARTWAIT_RXTX:
@@ -2195,7 +2195,7 @@ static void dev_action_chdown(fsm_instance *fi, int event, void *arg)
 {
 
 	struct net_device *dev = arg;
-	struct ctcm_priv *priv = dev->priv;
+	struct ctcm_priv *priv = dev->ml_priv;
 
 	CTCMY_DBF_DEV_NAME(SETUP, dev, "");
 

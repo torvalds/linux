@@ -52,7 +52,7 @@
 
 
 /* Debug macro */
-#define DBG(x...) if (debug) info(x)
+#define DBG(x...) if (debug) printk(KERN_INFO KBUILD_MODNAME x)
 
 
 /* Init methods, need to find nicer names for these
@@ -116,6 +116,7 @@ struct zr364xx_camera {
 	int height;
 	int method;
 	struct mutex lock;
+	int users;
 };
 
 
@@ -127,7 +128,7 @@ static int send_control_msg(struct usb_device *udev, u8 request, u16 value,
 
 	unsigned char *transfer_buffer = kmalloc(size, GFP_KERNEL);
 	if (!transfer_buffer) {
-		info("kmalloc(%d) failed", size);
+		dev_err(&udev->dev, "kmalloc(%d) failed\n", size);
 		return -ENOMEM;
 	}
 
@@ -143,7 +144,8 @@ static int send_control_msg(struct usb_device *udev, u8 request, u16 value,
 	kfree(transfer_buffer);
 
 	if (status < 0)
-		info("Failed sending control message, error %d.", status);
+		dev_err(&udev->dev,
+			"Failed sending control message, error %d.\n", status);
 
 	return status;
 }
@@ -303,11 +305,11 @@ static int read_frame(struct zr364xx_camera *cam, int framenum)
 		DBG("buffer : %d %d", cam->buffer[0], cam->buffer[1]);
 		DBG("bulk : n=%d size=%d", n, actual_length);
 		if (n < 0) {
-			info("error reading bulk msg");
+			dev_err(&cam->udev->dev, "error reading bulk msg\n");
 			return 0;
 		}
 		if (actual_length < 0 || actual_length > BUFFER_SIZE) {
-			info("wrong number of bytes");
+			dev_err(&cam->udev->dev, "wrong number of bytes\n");
 			return 0;
 		}
 
@@ -641,42 +643,47 @@ static int zr364xx_open(struct inode *inode, struct file *file)
 
 	DBG("zr364xx_open");
 
-	cam->skip = 2;
+	mutex_lock(&cam->lock);
 
-	err = video_exclusive_open(inode, file);
-	if (err < 0)
-		return err;
+	if (cam->users) {
+		err = -EBUSY;
+		goto out;
+	}
 
 	if (!cam->framebuf) {
 		cam->framebuf = vmalloc_32(MAX_FRAME_SIZE * FRAMES);
 		if (!cam->framebuf) {
-			info("vmalloc_32 failed!");
-			return -ENOMEM;
+			dev_err(&cam->udev->dev, "vmalloc_32 failed!\n");
+			err = -ENOMEM;
+			goto out;
 		}
 	}
 
-	mutex_lock(&cam->lock);
 	for (i = 0; init[cam->method][i].size != -1; i++) {
 		err =
 		    send_control_msg(udev, 1, init[cam->method][i].value,
 				     0, init[cam->method][i].bytes,
 				     init[cam->method][i].size);
 		if (err < 0) {
-			info("error during open sequence: %d", i);
-			mutex_unlock(&cam->lock);
-			return err;
+			dev_err(&cam->udev->dev,
+				"error during open sequence: %d\n", i);
+			goto out;
 		}
 	}
 
+	cam->skip = 2;
+	cam->users++;
 	file->private_data = vdev;
 
 	/* Added some delay here, since opening/closing the camera quickly,
 	 * like Ekiga does during its startup, can crash the webcam
 	 */
 	mdelay(100);
+	err = 0;
 
+out:
 	mutex_unlock(&cam->lock);
-	return 0;
+	return err;
 }
 
 
@@ -697,28 +704,30 @@ static int zr364xx_release(struct inode *inode, struct file *file)
 	udev = cam->udev;
 
 	mutex_lock(&cam->lock);
+
+	cam->users--;
+	file->private_data = NULL;
+
 	for (i = 0; i < 2; i++) {
 		err =
 		    send_control_msg(udev, 1, init[cam->method][i].value,
 				     0, init[i][cam->method].bytes,
 				     init[cam->method][i].size);
 		if (err < 0) {
-			info("error during release sequence");
-			mutex_unlock(&cam->lock);
-			return err;
+			dev_err(&udev->dev, "error during release sequence\n");
+			goto out;
 		}
 	}
-
-	file->private_data = NULL;
-	video_exclusive_release(inode, file);
 
 	/* Added some delay here, since opening/closing the camera quickly,
 	 * like Ekiga does during its startup, can crash the webcam
 	 */
 	mdelay(100);
+	err = 0;
 
+out:
 	mutex_unlock(&cam->lock);
-	return 0;
+	return err;
 }
 
 
@@ -801,13 +810,14 @@ static int zr364xx_probe(struct usb_interface *intf,
 
 	DBG("probing...");
 
-	info(DRIVER_DESC " compatible webcam plugged");
-	info("model %04x:%04x detected", udev->descriptor.idVendor,
-	     udev->descriptor.idProduct);
+	dev_info(&intf->dev, DRIVER_DESC " compatible webcam plugged\n");
+	dev_info(&intf->dev, "model %04x:%04x detected\n",
+		 le16_to_cpu(udev->descriptor.idVendor),
+		 le16_to_cpu(udev->descriptor.idProduct));
 
 	cam = kzalloc(sizeof(struct zr364xx_camera), GFP_KERNEL);
 	if (cam == NULL) {
-		info("cam: out of memory !");
+		dev_err(&udev->dev, "cam: out of memory !\n");
 		return -ENOMEM;
 	}
 	/* save the init method used by this camera */
@@ -815,7 +825,7 @@ static int zr364xx_probe(struct usb_interface *intf,
 
 	cam->vdev = video_device_alloc();
 	if (cam->vdev == NULL) {
-		info("cam->vdev: out of memory !");
+		dev_err(&udev->dev, "cam->vdev: out of memory !\n");
 		kfree(cam);
 		return -ENOMEM;
 	}
@@ -827,7 +837,7 @@ static int zr364xx_probe(struct usb_interface *intf,
 	cam->udev = udev;
 
 	if ((cam->buffer = kmalloc(BUFFER_SIZE, GFP_KERNEL)) == NULL) {
-		info("cam->buffer: out of memory !");
+		dev_info(&udev->dev, "cam->buffer: out of memory !\n");
 		video_device_release(cam->vdev);
 		kfree(cam);
 		return -ENODEV;
@@ -835,17 +845,17 @@ static int zr364xx_probe(struct usb_interface *intf,
 
 	switch (mode) {
 	case 1:
-		info("160x120 mode selected");
+		dev_info(&udev->dev, "160x120 mode selected\n");
 		cam->width = 160;
 		cam->height = 120;
 		break;
 	case 2:
-		info("640x480 mode selected");
+		dev_info(&udev->dev, "640x480 mode selected\n");
 		cam->width = 640;
 		cam->height = 480;
 		break;
 	default:
-		info("320x240 mode selected");
+		dev_info(&udev->dev, "320x240 mode selected\n");
 		cam->width = 320;
 		cam->height = 240;
 		break;
@@ -865,7 +875,7 @@ static int zr364xx_probe(struct usb_interface *intf,
 
 	err = video_register_device(cam->vdev, VFL_TYPE_GRABBER, -1);
 	if (err) {
-		info("video_register_device failed");
+		dev_err(&udev->dev, "video_register_device failed\n");
 		video_device_release(cam->vdev);
 		kfree(cam->buffer);
 		kfree(cam);
@@ -874,7 +884,8 @@ static int zr364xx_probe(struct usb_interface *intf,
 
 	usb_set_intfdata(intf, cam);
 
-	info(DRIVER_DESC " controlling video device %d", cam->vdev->minor);
+	dev_info(&udev->dev, DRIVER_DESC " controlling video device %d\n",
+		 cam->vdev->minor);
 	return 0;
 }
 
@@ -884,7 +895,7 @@ static void zr364xx_disconnect(struct usb_interface *intf)
 	struct zr364xx_camera *cam = usb_get_intfdata(intf);
 	usb_set_intfdata(intf, NULL);
 	dev_set_drvdata(&intf->dev, NULL);
-	info(DRIVER_DESC " webcam unplugged");
+	dev_info(&intf->dev, DRIVER_DESC " webcam unplugged\n");
 	if (cam->vdev)
 		video_unregister_device(cam->vdev);
 	cam->vdev = NULL;
@@ -913,16 +924,16 @@ static int __init zr364xx_init(void)
 	int retval;
 	retval = usb_register(&zr364xx_driver);
 	if (retval)
-		info("usb_register failed!");
+		printk(KERN_ERR KBUILD_MODNAME ": usb_register failed!\n");
 	else
-		info(DRIVER_DESC " module loaded");
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC "\n");
 	return retval;
 }
 
 
 static void __exit zr364xx_exit(void)
 {
-	info(DRIVER_DESC " module unloaded");
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC " module unloaded\n");
 	usb_deregister(&zr364xx_driver);
 }
 

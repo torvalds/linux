@@ -80,11 +80,7 @@ register struct thread_info *current_thread_info_reg asm("g6");
 /*
  * thread information allocation
  */
-#if PAGE_SHIFT == 13
-#define THREAD_INFO_ORDER  0
-#else /* PAGE_SHIFT */
 #define THREAD_INFO_ORDER  1
-#endif
 
 #define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
 

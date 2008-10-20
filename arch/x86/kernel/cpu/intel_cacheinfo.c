@@ -1,8 +1,8 @@
 /*
- *      Routines to indentify caches on Intel CPU.
+ *	Routines to indentify caches on Intel CPU.
  *
- *      Changes:
- *      Venkatesh Pallipadi	: Adding cache identification through cpuid(4)
+ *	Changes:
+ *	Venkatesh Pallipadi	: Adding cache identification through cpuid(4)
  *		Ashok Raj <ashok.raj@intel.com>: Work with CPU hotplug infrastructure.
  *	Andi Kleen / Andreas Herrmann	: CPUID4 emulation on AMD.
  */
@@ -13,6 +13,7 @@
 #include <linux/compiler.h>
 #include <linux/cpu.h>
 #include <linux/sched.h>
+#include <linux/pci.h>
 
 #include <asm/processor.h>
 #include <asm/smp.h>
@@ -130,8 +131,17 @@ struct _cpuid4_info {
 	union _cpuid4_leaf_ebx ebx;
 	union _cpuid4_leaf_ecx ecx;
 	unsigned long size;
+	unsigned long can_disable;
 	cpumask_t shared_cpu_map;	/* future?: only cpus/node is needed */
 };
+
+#ifdef CONFIG_PCI
+static struct pci_device_id k8_nb_id[] = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, 0x1103) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, 0x1203) },
+	{}
+};
+#endif
 
 unsigned short			num_cache_leaves;
 
@@ -182,9 +192,10 @@ static unsigned short assocs[] __cpuinitdata = {
 static unsigned char levels[] __cpuinitdata = { 1, 1, 2, 3 };
 static unsigned char types[] __cpuinitdata = { 1, 2, 3, 3 };
 
-static void __cpuinit amd_cpuid4(int leaf, union _cpuid4_leaf_eax *eax,
-		       union _cpuid4_leaf_ebx *ebx,
-		       union _cpuid4_leaf_ecx *ecx)
+static void __cpuinit
+amd_cpuid4(int leaf, union _cpuid4_leaf_eax *eax,
+		     union _cpuid4_leaf_ebx *ebx,
+		     union _cpuid4_leaf_ecx *ecx)
 {
 	unsigned dummy;
 	unsigned line_size, lines_per_tag, assoc, size_in_kb;
@@ -251,27 +262,40 @@ static void __cpuinit amd_cpuid4(int leaf, union _cpuid4_leaf_eax *eax,
 		(ebx->split.ways_of_associativity + 1) - 1;
 }
 
-static int __cpuinit cpuid4_cache_lookup(int index, struct _cpuid4_info *this_leaf)
+static void __cpuinit
+amd_check_l3_disable(int index, struct _cpuid4_info *this_leaf)
+{
+	if (index < 3)
+		return;
+	this_leaf->can_disable = 1;
+}
+
+static int
+__cpuinit cpuid4_cache_lookup(int index, struct _cpuid4_info *this_leaf)
 {
 	union _cpuid4_leaf_eax 	eax;
 	union _cpuid4_leaf_ebx 	ebx;
 	union _cpuid4_leaf_ecx 	ecx;
 	unsigned		edx;
 
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD) {
 		amd_cpuid4(index, &eax, &ebx, &ecx);
-	else
-		cpuid_count(4, index, &eax.full, &ebx.full, &ecx.full,  &edx);
+		if (boot_cpu_data.x86 >= 0x10)
+			amd_check_l3_disable(index, this_leaf);
+	} else {
+		cpuid_count(4, index, &eax.full, &ebx.full, &ecx.full, &edx);
+	}
+
 	if (eax.split.type == CACHE_TYPE_NULL)
 		return -EIO; /* better error ? */
 
 	this_leaf->eax = eax;
 	this_leaf->ebx = ebx;
 	this_leaf->ecx = ecx;
-	this_leaf->size = (ecx.split.number_of_sets + 1) *
-		(ebx.split.coherency_line_size + 1) *
-		(ebx.split.physical_line_partition + 1) *
-		(ebx.split.ways_of_associativity + 1);
+	this_leaf->size = (ecx.split.number_of_sets          + 1) *
+			  (ebx.split.coherency_line_size     + 1) *
+			  (ebx.split.physical_line_partition + 1) *
+			  (ebx.split.ways_of_associativity   + 1);
 	return 0;
 }
 
@@ -453,7 +477,7 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 
 /* pointer to _cpuid4_info array (for each cache leaf) */
 static DEFINE_PER_CPU(struct _cpuid4_info *, cpuid4_info);
-#define CPUID4_INFO_IDX(x, y)    (&((per_cpu(cpuid4_info, x))[y]))
+#define CPUID4_INFO_IDX(x, y)	(&((per_cpu(cpuid4_info, x))[y]))
 
 #ifdef CONFIG_SMP
 static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
@@ -490,7 +514,7 @@ static void __cpuinit cache_remove_shared_cpu_map(unsigned int cpu, int index)
 
 	this_leaf = CPUID4_INFO_IDX(cpu, index);
 	for_each_cpu_mask_nr(sibling, this_leaf->shared_cpu_map) {
-		sibling_leaf = CPUID4_INFO_IDX(sibling, index);	
+		sibling_leaf = CPUID4_INFO_IDX(sibling, index);
 		cpu_clear(cpu, sibling_leaf->shared_cpu_map);
 	}
 }
@@ -572,7 +596,7 @@ struct _index_kobject {
 
 /* pointer to array of kobjects for cpuX/cache/indexY */
 static DEFINE_PER_CPU(struct _index_kobject *, index_kobject);
-#define INDEX_KOBJECT_PTR(x, y)    (&((per_cpu(index_kobject, x))[y]))
+#define INDEX_KOBJECT_PTR(x, y)		(&((per_cpu(index_kobject, x))[y]))
 
 #define show_one_plus(file_name, object, val)				\
 static ssize_t show_##file_name						\
@@ -637,6 +661,99 @@ static ssize_t show_type(struct _cpuid4_info *this_leaf, char *buf) {
 	}
 }
 
+#define to_object(k)	container_of(k, struct _index_kobject, kobj)
+#define to_attr(a)	container_of(a, struct _cache_attr, attr)
+
+#ifdef CONFIG_PCI
+static struct pci_dev *get_k8_northbridge(int node)
+{
+	struct pci_dev *dev = NULL;
+	int i;
+
+	for (i = 0; i <= node; i++) {
+		do {
+			dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev);
+			if (!dev)
+				break;
+		} while (!pci_match_id(&k8_nb_id[0], dev));
+		if (!dev)
+			break;
+	}
+	return dev;
+}
+#else
+static struct pci_dev *get_k8_northbridge(int node)
+{
+	return NULL;
+}
+#endif
+
+static ssize_t show_cache_disable(struct _cpuid4_info *this_leaf, char *buf)
+{
+	int node = cpu_to_node(first_cpu(this_leaf->shared_cpu_map));
+	struct pci_dev *dev = NULL;
+	ssize_t ret = 0;
+	int i;
+
+	if (!this_leaf->can_disable)
+		return sprintf(buf, "Feature not enabled\n");
+
+	dev = get_k8_northbridge(node);
+	if (!dev) {
+		printk(KERN_ERR "Attempting AMD northbridge operation on a system with no northbridge\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < 2; i++) {
+		unsigned int reg;
+
+		pci_read_config_dword(dev, 0x1BC + i * 4, &reg);
+
+		ret += sprintf(buf, "%sEntry: %d\n", buf, i);
+		ret += sprintf(buf, "%sReads:  %s\tNew Entries: %s\n",  
+			buf,
+			reg & 0x80000000 ? "Disabled" : "Allowed",
+			reg & 0x40000000 ? "Disabled" : "Allowed");
+		ret += sprintf(buf, "%sSubCache: %x\tIndex: %x\n",
+			buf, (reg & 0x30000) >> 16, reg & 0xfff);
+	}
+	return ret;
+}
+
+static ssize_t
+store_cache_disable(struct _cpuid4_info *this_leaf, const char *buf,
+		    size_t count)
+{
+	int node = cpu_to_node(first_cpu(this_leaf->shared_cpu_map));
+	struct pci_dev *dev = NULL;
+	unsigned int ret, index, val;
+
+	if (!this_leaf->can_disable)
+		return 0;
+
+	if (strlen(buf) > 15)
+		return -EINVAL;
+
+	ret = sscanf(buf, "%x %x", &index, &val);
+	if (ret != 2)
+		return -EINVAL;
+	if (index > 1)
+		return -EINVAL;
+
+	val |= 0xc0000000;
+	dev = get_k8_northbridge(node);
+	if (!dev) {
+		printk(KERN_ERR "Attempting AMD northbridge operation on a system with no northbridge\n");
+		return -EINVAL;
+	}
+
+	pci_write_config_dword(dev, 0x1BC + index * 4, val & ~0x40000000);
+	wbinvd();
+	pci_write_config_dword(dev, 0x1BC + index * 4, val);
+
+	return 1;
+}
+
 struct _cache_attr {
 	struct attribute attr;
 	ssize_t (*show)(struct _cpuid4_info *, char *);
@@ -657,6 +774,8 @@ define_one_ro(size);
 define_one_ro(shared_cpu_map);
 define_one_ro(shared_cpu_list);
 
+static struct _cache_attr cache_disable = __ATTR(cache_disable, 0644, show_cache_disable, store_cache_disable);
+
 static struct attribute * default_attrs[] = {
 	&type.attr,
 	&level.attr,
@@ -667,11 +786,9 @@ static struct attribute * default_attrs[] = {
 	&size.attr,
 	&shared_cpu_map.attr,
 	&shared_cpu_list.attr,
+	&cache_disable.attr,
 	NULL
 };
-
-#define to_object(k) container_of(k, struct _index_kobject, kobj)
-#define to_attr(a) container_of(a, struct _cache_attr, attr)
 
 static ssize_t show(struct kobject * kobj, struct attribute * attr, char * buf)
 {
@@ -682,14 +799,22 @@ static ssize_t show(struct kobject * kobj, struct attribute * attr, char * buf)
 	ret = fattr->show ?
 		fattr->show(CPUID4_INFO_IDX(this_leaf->cpu, this_leaf->index),
 			buf) :
-	       	0;
+		0;
 	return ret;
 }
 
 static ssize_t store(struct kobject * kobj, struct attribute * attr,
 		     const char * buf, size_t count)
 {
-	return 0;
+	struct _cache_attr *fattr = to_attr(attr);
+	struct _index_kobject *this_leaf = to_object(kobj);
+	ssize_t ret;
+
+	ret = fattr->store ?
+		fattr->store(CPUID4_INFO_IDX(this_leaf->cpu, this_leaf->index),
+			buf, count) :
+		0;
+	return ret;
 }
 
 static struct sysfs_ops sysfs_ops = {

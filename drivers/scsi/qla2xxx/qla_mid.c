@@ -6,7 +6,6 @@
  */
 #include "qla_def.h"
 
-#include <linux/version.h>
 #include <linux/moduleparam.h>
 #include <linux/vmalloc.h>
 #include <linux/smp_lock.h>

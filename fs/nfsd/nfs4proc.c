@@ -201,10 +201,10 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	/* Openowner is now set, so sequence id will get bumped.  Now we need
 	 * these checks before we do any creates: */
 	status = nfserr_grace;
-	if (nfs4_in_grace() && open->op_claim_type != NFS4_OPEN_CLAIM_PREVIOUS)
+	if (locks_in_grace() && open->op_claim_type != NFS4_OPEN_CLAIM_PREVIOUS)
 		goto out;
 	status = nfserr_no_grace;
-	if (!nfs4_in_grace() && open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS)
+	if (!locks_in_grace() && open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS)
 		goto out;
 
 	switch (open->op_claim_type) {
@@ -575,7 +575,7 @@ nfsd4_remove(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 {
 	__be32 status;
 
-	if (nfs4_in_grace())
+	if (locks_in_grace())
 		return nfserr_grace;
 	status = nfsd_unlink(rqstp, &cstate->current_fh, 0,
 			     remove->rm_name, remove->rm_namelen);
@@ -596,7 +596,7 @@ nfsd4_rename(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	if (!cstate->save_fh.fh_dentry)
 		return status;
-	if (nfs4_in_grace() && !(cstate->save_fh.fh_export->ex_flags
+	if (locks_in_grace() && !(cstate->save_fh.fh_export->ex_flags
 					& NFSEXP_NOSUBTREECHECK))
 		return nfserr_grace;
 	status = nfsd_rename(rqstp, &cstate->save_fh, rename->rn_sname,
@@ -867,11 +867,6 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	int		slack_bytes;
 	__be32		status;
 
-	status = nfserr_resource;
-	cstate = cstate_alloc();
-	if (cstate == NULL)
-		goto out;
-
 	resp->xbuf = &rqstp->rq_res;
 	resp->p = rqstp->rq_res.head[0].iov_base + rqstp->rq_res.head[0].iov_len;
 	resp->tagp = resp->p;
@@ -888,6 +883,11 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	 */
 	status = nfserr_minor_vers_mismatch;
 	if (args->minorversion > NFSD_SUPPORTED_MINOR_VERSION)
+		goto out;
+
+	status = nfserr_resource;
+	cstate = cstate_alloc();
+	if (cstate == NULL)
 		goto out;
 
 	status = nfs_ok;
@@ -957,9 +957,9 @@ encode_op:
 		nfsd4_increment_op_stats(op->opnum);
 	}
 
+	cstate_free(cstate);
 out:
 	nfsd4_release_compoundargs(args);
-	cstate_free(cstate);
 	dprintk("nfsv4 compound returned %d\n", ntohl(status));
 	return status;
 }

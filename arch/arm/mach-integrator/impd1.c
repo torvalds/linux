@@ -20,8 +20,8 @@
 #include <linux/mm.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/hardware/icst525.h>
 #include <mach/lm.h>
 #include <mach/impd1.h>
@@ -405,7 +405,7 @@ static int impd1_probe(struct lm_device *dev)
 
 		ret = amba_device_register(d, &dev->resource);
 		if (ret) {
-			dev_err(&d->dev, "unable to register device: %d\n");
+			dev_err(&d->dev, "unable to register device: %d\n", ret);
 			kfree(d);
 		}
 	}

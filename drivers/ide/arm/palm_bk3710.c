@@ -27,7 +27,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -180,7 +179,7 @@ static void palm_bk3710_setpiomode(void __iomem *base, ide_drive_t *mate,
 	val32 |= (t2i << (dev ? 8 : 0));
 	writel(val32, base + BK3710_DATRCVR);
 
-	if (mate && mate->present) {
+	if (mate) {
 		u8 mode2 = ide_get_best_pio_mode(mate, 255, 4);
 
 		if (mode2 < mode)
@@ -213,7 +212,8 @@ static void palm_bk3710_set_dma_mode(ide_drive_t *drive, u8 xferspeed)
 		palm_bk3710_setudmamode(base, is_slave,
 					xferspeed - XFER_UDMA_0);
 	} else {
-		palm_bk3710_setdmamode(base, is_slave, drive->id->eide_dma_min,
+		palm_bk3710_setdmamode(base, is_slave,
+				       drive->id[ATA_ID_EIDE_DMA_MIN],
 				       xferspeed);
 	}
 }
@@ -229,7 +229,7 @@ static void palm_bk3710_set_pio_mode(ide_drive_t *drive, u8 pio)
 	 * Obtain the drive PIO data for tuning the Palm Chip registers
 	 */
 	cycle_time = ide_pio_cycle_time(drive, pio);
-	mate = ide_get_paired_drive(drive);
+	mate = ide_get_pair_dev(drive);
 	palm_bk3710_setpiomode(base, mate, is_slave, cycle_time, pio);
 }
 
@@ -343,11 +343,10 @@ static struct ide_port_info __devinitdata palm_bk3710_port_info = {
 	.mwdma_mask		= ATA_MWDMA2,
 };
 
-static int __devinit palm_bk3710_probe(struct platform_device *pdev)
+static int __init palm_bk3710_probe(struct platform_device *pdev)
 {
 	struct clk *clk;
 	struct resource *mem, *irq;
-	struct ide_host *host;
 	unsigned long base, rate;
 	int i, rc;
 	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
@@ -390,6 +389,7 @@ static int __devinit palm_bk3710_probe(struct platform_device *pdev)
 		hw.io_ports_array[i] = base + IDE_PALM_ATA_PRI_REG_OFFSET + i;
 	hw.io_ports.ctl_addr = base + IDE_PALM_ATA_PRI_CTL_OFFSET;
 	hw.irq = irq->start;
+	hw.dev = &pdev->dev;
 	hw.chipset = ide_palm3710;
 
 	palm_bk3710_port_info.udma_mask = rate < 100000000 ? ATA_UDMA4 :
@@ -413,13 +413,11 @@ static struct platform_driver platform_bk_driver = {
 		.name = "palm_bk3710",
 		.owner = THIS_MODULE,
 	},
-	.probe = palm_bk3710_probe,
-	.remove = NULL,
 };
 
 static int __init palm_bk3710_init(void)
 {
-	return platform_driver_register(&platform_bk_driver);
+	return platform_driver_probe(&platform_bk_driver, palm_bk3710_probe);
 }
 
 module_init(palm_bk3710_init);

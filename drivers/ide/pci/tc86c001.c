@@ -186,7 +186,7 @@ static const struct ide_dma_ops tc86c001_dma_ops = {
 	.dma_setup		= ide_dma_setup,
 	.dma_exec_cmd		= ide_dma_exec_cmd,
 	.dma_start		= tc86c001_dma_start,
-	.dma_end		= __ide_dma_end,
+	.dma_end		= ide_dma_end,
 	.dma_test_irq		= ide_dma_test_irq,
 	.dma_lost_irq		= ide_dma_lost_irq,
 	.dma_timeout		= ide_dma_timeout,
@@ -245,7 +245,7 @@ static const struct pci_device_id tc86c001_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, tc86c001_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver tc86c001_pci_driver = {
 	.name		= "TC86C001",
 	.id_table	= tc86c001_pci_tbl,
 	.probe		= tc86c001_init_one,
@@ -254,12 +254,12 @@ static struct pci_driver driver = {
 
 static int __init tc86c001_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&tc86c001_pci_driver);
 }
 
 static void __exit tc86c001_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&tc86c001_pci_driver);
 }
 
 module_init(tc86c001_ide_init);

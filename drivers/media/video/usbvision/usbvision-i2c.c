@@ -47,7 +47,8 @@ MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 
 #define PDEBUG(level, fmt, args...) { \
 		if (i2c_debug & (level)) \
-			info("[%s:%d] " fmt, __func__, __LINE__ , ## args); \
+			printk(KERN_INFO KBUILD_MODNAME ":[%s:%d] " fmt, \
+				__func__, __LINE__ , ## args); \
 	}
 
 static int usbvision_i2c_write(struct usb_usbvision *usbvision, unsigned char addr, char *buf,

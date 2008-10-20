@@ -7,6 +7,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/types.h>
 #include <linux/list.h>
 #include <linux/cpumask.h>
 
@@ -16,7 +17,8 @@ struct call_single_data {
 	struct list_head list;
 	void (*func) (void *info);
 	void *info;
-	unsigned int flags;
+	u16 flags;
+	u16 priv;
 };
 
 #ifdef CONFIG_SMP

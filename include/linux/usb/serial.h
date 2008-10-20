@@ -192,7 +192,7 @@ static inline void usb_set_serial_data(struct usb_serial *serial, void *data)
  * The driver.owner field should be set to the module owner of this driver.
  * The driver.name field should be set to the name of this driver (remember
  * it will show up in sysfs, so it needs to be short and to the point.
- * Useing the module name is a good idea.)
+ * Using the module name is a good idea.)
  */
 struct usb_serial_driver {
 	const char *description;

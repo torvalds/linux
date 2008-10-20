@@ -580,13 +580,15 @@ int atari_keyb_init(void)
 	do {
 		/* reset IKBD ACIA */
 		acia.key_ctrl = ACIA_RESET |
-				(atari_switches & ATARI_SWITCH_IKBD) ? ACIA_RHTID : 0;
+				((atari_switches & ATARI_SWITCH_IKBD) ?
+				 ACIA_RHTID : 0);
 		(void)acia.key_ctrl;
 		(void)acia.key_data;
 
 		/* reset MIDI ACIA */
 		acia.mid_ctrl = ACIA_RESET |
-				(atari_switches & ATARI_SWITCH_MIDI) ? ACIA_RHTID : 0;
+				((atari_switches & ATARI_SWITCH_MIDI) ?
+				 ACIA_RHTID : 0);
 		(void)acia.mid_ctrl;
 		(void)acia.mid_data;
 
@@ -599,7 +601,8 @@ int atari_keyb_init(void)
 				 ACIA_RHTID : ACIA_RLTID);
 
 		acia.mid_ctrl = ACIA_DIV16 | ACIA_D8N1S |
-				(atari_switches & ATARI_SWITCH_MIDI) ? ACIA_RHTID : 0;
+				((atari_switches & ATARI_SWITCH_MIDI) ?
+				 ACIA_RHTID : 0);
 
 	/* make sure the interrupt line is up */
 	} while ((mfp.par_dt_reg & 0x10) == 0);
@@ -632,15 +635,3 @@ int atari_keyb_init(void)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(atari_keyb_init);
-
-int atari_kbd_translate(unsigned char keycode, unsigned char *keycodep, char raw_mode)
-{
-#ifdef CONFIG_MAGIC_SYSRQ
-	/* ALT+HELP pressed? */
-	if ((keycode == 98) && ((shift_state & 0xff) == 8))
-		*keycodep = 0xff;
-	else
-#endif
-		*keycodep = keycode;
-	return 1;
-}

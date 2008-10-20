@@ -205,7 +205,7 @@ replay:
 		}
 	}
 
-	root_lock = qdisc_root_lock(q);
+	root_lock = qdisc_root_sleeping_lock(q);
 
 	if (tp == NULL) {
 		/* Proto-tcf does not exist, create new one */
@@ -227,7 +227,7 @@ replay:
 		err = -ENOENT;
 		tp_ops = tcf_proto_lookup_ops(tca[TCA_KIND]);
 		if (tp_ops == NULL) {
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 			struct nlattr *kind = tca[TCA_KIND];
 			char name[IFNAMSIZ];
 

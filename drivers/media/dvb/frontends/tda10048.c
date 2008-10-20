@@ -1,7 +1,7 @@
 /*
     NXP TDA10048HN DVB OFDM demodulator driver
 
-    Copyright (C) 2008 Steven Toth <stoth@hauppauge.com>
+    Copyright (C) 2008 Steven Toth <stoth@linuxtv.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -195,7 +195,7 @@ static struct init_tab {
 static int tda10048_writereg(struct tda10048_state *state, u8 reg, u8 data)
 {
 	int ret;
-	u8 buf [] = { reg, data };
+	u8 buf[] = { reg, data };
 	struct i2c_msg msg = {
 		.addr = state->config->demod_address,
 		.flags = 0, .buf = buf, .len = 2 };
@@ -213,9 +213,9 @@ static int tda10048_writereg(struct tda10048_state *state, u8 reg, u8 data)
 static u8 tda10048_readreg(struct tda10048_state *state, u8 reg)
 {
 	int ret;
-	u8 b0 [] = { reg };
-	u8 b1 [] = { 0 };
-	struct i2c_msg msg [] = {
+	u8 b0[] = { reg };
+	u8 b1[] = { 0 };
+	struct i2c_msg msg[] = {
 		{ .addr = state->config->demod_address,
 			.flags = 0, .buf = b0, .len = 1 },
 		{ .addr = state->config->demod_address,
@@ -303,7 +303,7 @@ static int tda10048_firmware_upload(struct dvb_frontend *fe)
 
 	if (fw->size != TDA10048_DEFAULT_FIRMWARE_SIZE) {
 		printk(KERN_ERR "%s: firmware incorrect size\n", __func__);
-		return -EIO;
+		ret = -EIO;
 	} else {
 		printk(KERN_INFO "%s: firmware uploading\n", __func__);
 
@@ -393,43 +393,89 @@ static int tda10048_get_tps(struct tda10048_state *state,
 
 	val = tda10048_readreg(state, TDA10048_OUT_CONF2);
 	switch ((val & 0x60) >> 5) {
-	case 0: p->constellation =   QPSK; break;
-	case 1: p->constellation = QAM_16; break;
-	case 2: p->constellation = QAM_64; break;
+	case 0:
+		p->constellation = QPSK;
+		break;
+	case 1:
+		p->constellation = QAM_16;
+		break;
+	case 2:
+		p->constellation = QAM_64;
+		break;
 	}
 	switch ((val & 0x18) >> 3) {
-	case 0: p->hierarchy_information = HIERARCHY_NONE; break;
-	case 1: p->hierarchy_information =    HIERARCHY_1; break;
-	case 2: p->hierarchy_information =    HIERARCHY_2; break;
-	case 3: p->hierarchy_information =    HIERARCHY_4; break;
+	case 0:
+		p->hierarchy_information = HIERARCHY_NONE;
+		break;
+	case 1:
+		p->hierarchy_information = HIERARCHY_1;
+		break;
+	case 2:
+		p->hierarchy_information = HIERARCHY_2;
+		break;
+	case 3:
+		p->hierarchy_information = HIERARCHY_4;
+		break;
 	}
 	switch (val & 0x07) {
-	case 0: p->code_rate_HP = FEC_1_2; break;
-	case 1: p->code_rate_HP = FEC_2_3; break;
-	case 2: p->code_rate_HP = FEC_3_4; break;
-	case 3: p->code_rate_HP = FEC_5_6; break;
-	case 4: p->code_rate_HP = FEC_7_8; break;
+	case 0:
+		p->code_rate_HP = FEC_1_2;
+		break;
+	case 1:
+		p->code_rate_HP = FEC_2_3;
+		break;
+	case 2:
+		p->code_rate_HP = FEC_3_4;
+		break;
+	case 3:
+		p->code_rate_HP = FEC_5_6;
+		break;
+	case 4:
+		p->code_rate_HP = FEC_7_8;
+		break;
 	}
 
 	val = tda10048_readreg(state, TDA10048_OUT_CONF3);
 	switch (val & 0x07) {
-	case 0: p->code_rate_LP = FEC_1_2; break;
-	case 1: p->code_rate_LP = FEC_2_3; break;
-	case 2: p->code_rate_LP = FEC_3_4; break;
-	case 3: p->code_rate_LP = FEC_5_6; break;
-	case 4: p->code_rate_LP = FEC_7_8; break;
+	case 0:
+		p->code_rate_LP = FEC_1_2;
+		break;
+	case 1:
+		p->code_rate_LP = FEC_2_3;
+		break;
+	case 2:
+		p->code_rate_LP = FEC_3_4;
+		break;
+	case 3:
+		p->code_rate_LP = FEC_5_6;
+		break;
+	case 4:
+		p->code_rate_LP = FEC_7_8;
+		break;
 	}
 
 	val = tda10048_readreg(state, TDA10048_OUT_CONF1);
 	switch ((val & 0x0c) >> 2) {
-	case 0: p->guard_interval = GUARD_INTERVAL_1_32; break;
-	case 1: p->guard_interval = GUARD_INTERVAL_1_16; break;
-	case 2: p->guard_interval =  GUARD_INTERVAL_1_8; break;
-	case 3: p->guard_interval =  GUARD_INTERVAL_1_4; break;
+	case 0:
+		p->guard_interval = GUARD_INTERVAL_1_32;
+		break;
+	case 1:
+		p->guard_interval = GUARD_INTERVAL_1_16;
+		break;
+	case 2:
+		p->guard_interval =  GUARD_INTERVAL_1_8;
+		break;
+	case 3:
+		p->guard_interval =  GUARD_INTERVAL_1_4;
+		break;
 	}
 	switch (val & 0x02) {
-	case 0: p->transmission_mode = TRANSMISSION_MODE_2K; break;
-	case 1: p->transmission_mode = TRANSMISSION_MODE_8K; break;
+	case 0:
+		p->transmission_mode = TRANSMISSION_MODE_2K;
+		break;
+	case 1:
+		p->transmission_mode = TRANSMISSION_MODE_8K;
+		break;
 	}
 
 	return 0;

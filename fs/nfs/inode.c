@@ -305,8 +305,7 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 			init_special_inode(inode, inode->i_mode, fattr->rdev);
 
 		nfsi->read_cache_jiffies = fattr->time_start;
-		nfsi->last_updated = now;
-		nfsi->cache_change_attribute = now;
+		nfsi->attr_gencount = fattr->gencount;
 		inode->i_atime = fattr->atime;
 		inode->i_mtime = fattr->mtime;
 		inode->i_ctime = fattr->ctime;
@@ -453,6 +452,7 @@ out_big:
 void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr)
 {
 	if ((attr->ia_valid & (ATTR_MODE|ATTR_UID|ATTR_GID)) != 0) {
+		spin_lock(&inode->i_lock);
 		if ((attr->ia_valid & ATTR_MODE) != 0) {
 			int mode = attr->ia_mode & S_IALLUGO;
 			mode |= inode->i_mode & ~S_IALLUGO;
@@ -462,7 +462,6 @@ void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr)
 			inode->i_uid = attr->ia_uid;
 		if ((attr->ia_valid & ATTR_GID) != 0)
 			inode->i_gid = attr->ia_gid;
-		spin_lock(&inode->i_lock);
 		NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL;
 		spin_unlock(&inode->i_lock);
 	}
@@ -470,37 +469,6 @@ void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr)
 		nfs_inc_stats(inode, NFSIOS_SETATTRTRUNC);
 		nfs_vmtruncate(inode, attr->ia_size);
 	}
-}
-
-static int nfs_wait_schedule(void *word)
-{
-	if (signal_pending(current))
-		return -ERESTARTSYS;
-	schedule();
-	return 0;
-}
-
-/*
- * Wait for the inode to get unlocked.
- */
-static int nfs_wait_on_inode(struct inode *inode)
-{
-	struct nfs_inode *nfsi = NFS_I(inode);
-	int error;
-
-	error = wait_on_bit_lock(&nfsi->flags, NFS_INO_REVALIDATING,
-					nfs_wait_schedule, TASK_KILLABLE);
-
-	return error;
-}
-
-static void nfs_wake_up_inode(struct inode *inode)
-{
-	struct nfs_inode *nfsi = NFS_I(inode);
-
-	clear_bit(NFS_INO_REVALIDATING, &nfsi->flags);
-	smp_mb__after_clear_bit();
-	wake_up_bit(&nfsi->flags, NFS_INO_REVALIDATING);
 }
 
 int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
@@ -697,20 +665,15 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 	dfprintk(PAGECACHE, "NFS: revalidating (%s/%Ld)\n",
 		inode->i_sb->s_id, (long long)NFS_FILEID(inode));
 
-	nfs_inc_stats(inode, NFSIOS_INODEREVALIDATE);
 	if (is_bad_inode(inode))
- 		goto out_nowait;
-	if (NFS_STALE(inode))
- 		goto out_nowait;
-
-	status = nfs_wait_on_inode(inode);
-	if (status < 0)
 		goto out;
-
-	status = -ESTALE;
 	if (NFS_STALE(inode))
 		goto out;
 
+	if (NFS_STALE(inode))
+		goto out;
+
+	nfs_inc_stats(inode, NFSIOS_INODEREVALIDATE);
 	status = NFS_PROTO(inode)->getattr(server, NFS_FH(inode), &fattr);
 	if (status != 0) {
 		dfprintk(PAGECACHE, "nfs_revalidate_inode: (%s/%Ld) getattr failed, error=%d\n",
@@ -724,16 +687,13 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 		goto out;
 	}
 
-	spin_lock(&inode->i_lock);
-	status = nfs_update_inode(inode, &fattr);
+	status = nfs_refresh_inode(inode, &fattr);
 	if (status) {
-		spin_unlock(&inode->i_lock);
 		dfprintk(PAGECACHE, "nfs_revalidate_inode: (%s/%Ld) refresh failed, error=%d\n",
 			 inode->i_sb->s_id,
 			 (long long)NFS_FILEID(inode), status);
 		goto out;
 	}
-	spin_unlock(&inode->i_lock);
 
 	if (nfsi->cache_validity & NFS_INO_INVALID_ACL)
 		nfs_zap_acl_cache(inode);
@@ -743,9 +703,6 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 		(long long)NFS_FILEID(inode));
 
  out:
-	nfs_wake_up_inode(inode);
-
- out_nowait:
 	return status;
 }
 
@@ -908,9 +865,6 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 		return -EIO;
 	}
 
-	/* Do atomic weak cache consistency updates */
-	nfs_wcc_update_inode(inode, fattr);
-
 	if ((fattr->valid & NFS_ATTR_FATTR_V4) != 0 &&
 			nfsi->change_attr != fattr->change_attr)
 		invalid |= NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
@@ -939,13 +893,79 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 
 	if (invalid != 0)
 		nfsi->cache_validity |= invalid;
-	else
-		nfsi->cache_validity &= ~(NFS_INO_INVALID_ATTR
-				| NFS_INO_INVALID_ATIME
-				| NFS_INO_REVAL_PAGECACHE);
 
 	nfsi->read_cache_jiffies = fattr->time_start;
 	return 0;
+}
+
+static int nfs_ctime_need_update(const struct inode *inode, const struct nfs_fattr *fattr)
+{
+	return timespec_compare(&fattr->ctime, &inode->i_ctime) > 0;
+}
+
+static int nfs_size_need_update(const struct inode *inode, const struct nfs_fattr *fattr)
+{
+	return nfs_size_to_loff_t(fattr->size) > i_size_read(inode);
+}
+
+static unsigned long nfs_attr_generation_counter;
+
+static unsigned long nfs_read_attr_generation_counter(void)
+{
+	smp_rmb();
+	return nfs_attr_generation_counter;
+}
+
+unsigned long nfs_inc_attr_generation_counter(void)
+{
+	unsigned long ret;
+	smp_rmb();
+	ret = ++nfs_attr_generation_counter;
+	smp_wmb();
+	return ret;
+}
+
+void nfs_fattr_init(struct nfs_fattr *fattr)
+{
+	fattr->valid = 0;
+	fattr->time_start = jiffies;
+	fattr->gencount = nfs_inc_attr_generation_counter();
+}
+
+/**
+ * nfs_inode_attrs_need_update - check if the inode attributes need updating
+ * @inode - pointer to inode
+ * @fattr - attributes
+ *
+ * Attempt to divine whether or not an RPC call reply carrying stale
+ * attributes got scheduled after another call carrying updated ones.
+ *
+ * To do so, the function first assumes that a more recent ctime means
+ * that the attributes in fattr are newer, however it also attempt to
+ * catch the case where ctime either didn't change, or went backwards
+ * (if someone reset the clock on the server) by looking at whether
+ * or not this RPC call was started after the inode was last updated.
+ * Note also the check for wraparound of 'attr_gencount'
+ *
+ * The function returns 'true' if it thinks the attributes in 'fattr' are
+ * more recent than the ones cached in the inode.
+ *
+ */
+static int nfs_inode_attrs_need_update(const struct inode *inode, const struct nfs_fattr *fattr)
+{
+	const struct nfs_inode *nfsi = NFS_I(inode);
+
+	return ((long)fattr->gencount - (long)nfsi->attr_gencount) > 0 ||
+		nfs_ctime_need_update(inode, fattr) ||
+		nfs_size_need_update(inode, fattr) ||
+		((long)nfsi->attr_gencount - (long)nfs_read_attr_generation_counter() > 0);
+}
+
+static int nfs_refresh_inode_locked(struct inode *inode, struct nfs_fattr *fattr)
+{
+	if (nfs_inode_attrs_need_update(inode, fattr))
+		return nfs_update_inode(inode, fattr);
+	return nfs_check_inode_attributes(inode, fattr);
 }
 
 /**
@@ -960,19 +980,26 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
  */
 int nfs_refresh_inode(struct inode *inode, struct nfs_fattr *fattr)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
 	int status;
 
 	if ((fattr->valid & NFS_ATTR_FATTR) == 0)
 		return 0;
 	spin_lock(&inode->i_lock);
-	if (time_after(fattr->time_start, nfsi->last_updated))
-		status = nfs_update_inode(inode, fattr);
-	else
-		status = nfs_check_inode_attributes(inode, fattr);
-
+	status = nfs_refresh_inode_locked(inode, fattr);
 	spin_unlock(&inode->i_lock);
 	return status;
+}
+
+static int nfs_post_op_update_inode_locked(struct inode *inode, struct nfs_fattr *fattr)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+
+	nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
+	if (S_ISDIR(inode->i_mode))
+		nfsi->cache_validity |= NFS_INO_INVALID_DATA;
+	if ((fattr->valid & NFS_ATTR_FATTR) == 0)
+		return 0;
+	return nfs_refresh_inode_locked(inode, fattr);
 }
 
 /**
@@ -991,14 +1018,12 @@ int nfs_refresh_inode(struct inode *inode, struct nfs_fattr *fattr)
  */
 int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
+	int status;
 
 	spin_lock(&inode->i_lock);
-	nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
-	if (S_ISDIR(inode->i_mode))
-		nfsi->cache_validity |= NFS_INO_INVALID_DATA;
+	status = nfs_post_op_update_inode_locked(inode, fattr);
 	spin_unlock(&inode->i_lock);
-	return nfs_refresh_inode(inode, fattr);
+	return status;
 }
 
 /**
@@ -1014,6 +1039,15 @@ int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr)
  */
 int nfs_post_op_update_inode_force_wcc(struct inode *inode, struct nfs_fattr *fattr)
 {
+	int status;
+
+	spin_lock(&inode->i_lock);
+	/* Don't do a WCC update if these attributes are already stale */
+	if ((fattr->valid & NFS_ATTR_FATTR) == 0 ||
+			!nfs_inode_attrs_need_update(inode, fattr)) {
+		fattr->valid &= ~(NFS_ATTR_WCC_V4|NFS_ATTR_WCC);
+		goto out_noforce;
+	}
 	if ((fattr->valid & NFS_ATTR_FATTR_V4) != 0 &&
 			(fattr->valid & NFS_ATTR_WCC_V4) == 0) {
 		fattr->pre_change_attr = NFS_I(inode)->change_attr;
@@ -1026,7 +1060,10 @@ int nfs_post_op_update_inode_force_wcc(struct inode *inode, struct nfs_fattr *fa
 		fattr->pre_size = i_size_read(inode);
 		fattr->valid |= NFS_ATTR_WCC;
 	}
-	return nfs_post_op_update_inode(inode, fattr);
+out_noforce:
+	status = nfs_post_op_update_inode_locked(inode, fattr);
+	spin_unlock(&inode->i_lock);
+	return status;
 }
 
 /*
@@ -1092,7 +1129,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 		}
 		/* If ctime has changed we should definitely clear access+acl caches */
 		if (!timespec_equal(&inode->i_ctime, &fattr->ctime))
-			invalid |= NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL;
+			invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL;
 	} else if (nfsi->change_attr != fattr->change_attr) {
 		dprintk("NFS: change_attr change on server for file %s/%ld\n",
 				inode->i_sb->s_id, inode->i_ino);
@@ -1126,6 +1163,9 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	    inode->i_gid != fattr->gid)
 		invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL;
 
+	if (inode->i_nlink != fattr->nlink)
+		invalid |= NFS_INO_INVALID_ATTR;
+
 	inode->i_mode = fattr->mode;
 	inode->i_nlink = fattr->nlink;
 	inode->i_uid = fattr->uid;
@@ -1145,18 +1185,13 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 		nfs_inc_stats(inode, NFSIOS_ATTRINVALIDATE);
 		nfsi->attrtimeo = NFS_MINATTRTIMEO(inode);
 		nfsi->attrtimeo_timestamp = now;
-		nfsi->last_updated = now;
+		nfsi->attr_gencount = nfs_inc_attr_generation_counter();
 	} else {
 		if (!time_in_range(now, nfsi->attrtimeo_timestamp, nfsi->attrtimeo_timestamp + nfsi->attrtimeo)) {
 			if ((nfsi->attrtimeo <<= 1) > NFS_MAXATTRTIMEO(inode))
 				nfsi->attrtimeo = NFS_MAXATTRTIMEO(inode);
 			nfsi->attrtimeo_timestamp = now;
 		}
-		/*
-		 * Avoid jiffy wraparound issues with nfsi->last_updated
-		 */
-		if (!time_in_range(nfsi->last_updated, nfsi->read_cache_jiffies, now))
-			nfsi->last_updated = nfsi->read_cache_jiffies;
 	}
 	invalid &= ~NFS_INO_INVALID_ATTR;
 	/* Don't invalidate the data if we were to blame */

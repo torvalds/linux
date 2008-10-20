@@ -1,5 +1,5 @@
-#ifndef __ASM_X86_MSR_H_
-#define __ASM_X86_MSR_H_
+#ifndef ASM_X86__MSR_H
+#define ASM_X86__MSR_H
 
 #include <asm/msr-index.h>
 
@@ -52,6 +52,22 @@ static inline unsigned long long native_read_msr_safe(unsigned int msr,
 {
 	DECLARE_ARGS(val, low, high);
 
+	asm volatile("2: rdmsr ; xor %[err],%[err]\n"
+		     "1:\n\t"
+		     ".section .fixup,\"ax\"\n\t"
+		     "3:  mov %[fault],%[err] ; jmp 1b\n\t"
+		     ".previous\n\t"
+		     _ASM_EXTABLE(2b, 3b)
+		     : [err] "=r" (*err), EAX_EDX_RET(val, low, high)
+		     : "c" (msr), [fault] "i" (-EFAULT));
+	return EAX_EDX_VAL(val, low, high);
+}
+
+static inline unsigned long long native_read_msr_amd_safe(unsigned int msr,
+						      int *err)
+{
+	DECLARE_ARGS(val, low, high);
+
 	asm volatile("2: rdmsr ; xor %0,%0\n"
 		     "1:\n\t"
 		     ".section .fixup,\"ax\"\n\t"
@@ -59,7 +75,7 @@ static inline unsigned long long native_read_msr_safe(unsigned int msr,
 		     ".previous\n\t"
 		     _ASM_EXTABLE(2b, 3b)
 		     : "=r" (*err), EAX_EDX_RET(val, low, high)
-		     : "c" (msr), "i" (-EFAULT));
+		     : "c" (msr), "D" (0x9c5a203a), "i" (-EFAULT));
 	return EAX_EDX_VAL(val, low, high);
 }
 
@@ -73,15 +89,15 @@ static inline int native_write_msr_safe(unsigned int msr,
 					unsigned low, unsigned high)
 {
 	int err;
-	asm volatile("2: wrmsr ; xor %0,%0\n"
+	asm volatile("2: wrmsr ; xor %[err],%[err]\n"
 		     "1:\n\t"
 		     ".section .fixup,\"ax\"\n\t"
-		     "3:  mov %4,%0 ; jmp 1b\n\t"
+		     "3:  mov %[fault],%[err] ; jmp 1b\n\t"
 		     ".previous\n\t"
 		     _ASM_EXTABLE(2b, 3b)
-		     : "=a" (err)
+		     : [err] "=a" (err)
 		     : "c" (msr), "0" (low), "d" (high),
-		       "i" (-EFAULT)
+		       [fault] "i" (-EFAULT)
 		     : "memory");
 	return err;
 }
@@ -158,6 +174,13 @@ static inline int rdmsrl_safe(unsigned msr, unsigned long long *p)
 	*p = native_read_msr_safe(msr, &err);
 	return err;
 }
+static inline int rdmsrl_amd_safe(unsigned msr, unsigned long long *p)
+{
+	int err;
+
+	*p = native_read_msr_amd_safe(msr, &err);
+	return err;
+}
 
 #define rdtscl(low)						\
 	((low) = (u32)native_read_tsc())
@@ -192,19 +215,20 @@ do {                                                            \
 #define write_rdtscp_aux(val) wrmsr(0xc0000103, (val), 0)
 
 #ifdef CONFIG_SMP
-void rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h);
-void wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h);
+int rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h);
+int wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h);
 int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h);
-
 int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h);
 #else  /*  CONFIG_SMP  */
-static inline void rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
+static inline int rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
 {
 	rdmsr(msr_no, *l, *h);
+	return 0;
 }
-static inline void wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
+static inline int wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
 {
 	wrmsr(msr_no, l, h);
+	return 0;
 }
 static inline int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_no,
 				    u32 *l, u32 *h)
@@ -220,4 +244,4 @@ static inline int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
 #endif /* __KERNEL__ */
 
 
-#endif
+#endif /* ASM_X86__MSR_H */

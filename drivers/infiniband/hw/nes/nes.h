@@ -43,7 +43,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
-#include <linux/version.h>
 #include <asm/io.h>
 #include <linux/crc32c.h>
 
@@ -170,7 +169,7 @@ extern int disable_mpa_crc;
 extern unsigned int send_first;
 extern unsigned int nes_drv_opt;
 extern unsigned int nes_debug_level;
-
+extern unsigned int wqm_quanta;
 extern struct list_head nes_adapter_list;
 
 extern atomic_t cm_connects;

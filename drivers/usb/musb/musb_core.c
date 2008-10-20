@@ -82,9 +82,9 @@
 /*
  * This gets many kinds of configuration information:
  *	- Kconfig for everything user-configurable
- *	- <asm/arch/hdrc_cnf.h> for SOC or family details
  *	- platform_device for addressing, irq, and platform_data
  *	- platform_data is mostly for board-specific informarion
+ *	  (plus recentrly, SOC or family details)
  *
  * Most of the conditional compilation will (someday) vanish.
  */
@@ -100,8 +100,8 @@
 #include <linux/io.h>
 
 #ifdef	CONFIG_ARM
-#include <asm/arch/hardware.h>
-#include <asm/arch/memory.h>
+#include <mach/hardware.h>
+#include <mach/memory.h>
 #include <asm/mach-types.h>
 #endif
 
@@ -114,23 +114,14 @@
 
 
 
-#if MUSB_DEBUG > 0
-unsigned debug = MUSB_DEBUG;
-module_param(debug, uint, 0);
-MODULE_PARM_DESC(debug, "initial debug message level");
-
-#define MUSB_VERSION_SUFFIX	"/dbg"
-#endif
+unsigned debug;
+module_param(debug, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(debug, "Debug message level. Default = 0");
 
 #define DRIVER_AUTHOR "Mentor Graphics, Texas Instruments, Nokia"
 #define DRIVER_DESC "Inventra Dual-Role USB Controller Driver"
 
-#define MUSB_VERSION_BASE "6.0"
-
-#ifndef MUSB_VERSION_SUFFIX
-#define MUSB_VERSION_SUFFIX	""
-#endif
-#define MUSB_VERSION	MUSB_VERSION_BASE MUSB_VERSION_SUFFIX
+#define MUSB_VERSION "6.0"
 
 #define DRIVER_INFO DRIVER_DESC ", v" MUSB_VERSION
 
@@ -983,9 +974,9 @@ static void musb_shutdown(struct platform_device *pdev)
 /*
  * The silicon either has hard-wired endpoint configurations, or else
  * "dynamic fifo" sizing.  The driver has support for both, though at this
- * writing only the dynamic sizing is very well tested.   We use normal
- * idioms to so both modes are compile-tested, but dead code elimination
- * leaves only the relevant one in the object file.
+ * writing only the dynamic sizing is very well tested.   Since we switched
+ * away from compile-time hardware parameters, we can no longer rely on
+ * dead code elimination to leave only the relevant one in the object file.
  *
  * We don't currently use dynamic fifo setup capability to do anything
  * more than selecting one of a bunch of predefined configurations.
@@ -1815,6 +1806,7 @@ allocate_instance(struct device *dev,
 	musb->ctrl_base = mbase;
 	musb->nIrq = -ENODEV;
 	musb->config = config;
+	BUG_ON(musb->config->num_eps > MUSB_C_NUM_EPS);
 	for (epnum = 0, ep = musb->endpoints;
 			epnum < musb->config->num_eps;
 			epnum++, ep++) {
@@ -2037,6 +2029,8 @@ bad_config:
 		musb->xceiv.state = OTG_STATE_A_IDLE;
 
 		status = usb_add_hcd(musb_to_hcd(musb), -1, 0);
+		if (status)
+			goto fail;
 
 		DBG(1, "%s mode, status %d, devctl %02x %c\n",
 			"HOST", status,
@@ -2051,23 +2045,14 @@ bad_config:
 		musb->xceiv.state = OTG_STATE_B_IDLE;
 
 		status = musb_gadget_setup(musb);
+		if (status)
+			goto fail;
 
 		DBG(1, "%s mode, status %d, dev%02x\n",
 			is_otg_enabled(musb) ? "OTG" : "PERIPHERAL",
 			status,
 			musb_readb(musb->mregs, MUSB_DEVCTL));
 
-	}
-
-	if (status == 0)
-		musb_debug_create("driver/musb_hdrc", musb);
-	else {
-fail:
-		if (musb->clock)
-			clk_put(musb->clock);
-		device_init_wakeup(dev, 0);
-		musb_free(musb);
-		return status;
 	}
 
 #ifdef CONFIG_SYSFS
@@ -2078,12 +2063,31 @@ fail:
 #endif /* CONFIG_USB_GADGET_MUSB_HDRC */
 	status = 0;
 #endif
+	if (status)
+		goto fail2;
+
+	return 0;
+
+fail2:
+#ifdef CONFIG_SYSFS
+	device_remove_file(musb->controller, &dev_attr_mode);
+	device_remove_file(musb->controller, &dev_attr_vbus);
+#ifdef CONFIG_USB_MUSB_OTG
+	device_remove_file(musb->controller, &dev_attr_srp);
+#endif
+#endif
+	musb_platform_exit(musb);
+fail:
+	dev_err(musb->controller,
+		"musb_init_controller failed with status %d\n", status);
+
+	if (musb->clock)
+		clk_put(musb->clock);
+	device_init_wakeup(dev, 0);
+	musb_free(musb);
 
 	return status;
 
-fail2:
-	musb_platform_exit(musb);
-	goto fail;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -2131,7 +2135,6 @@ static int __devexit musb_remove(struct platform_device *pdev)
 	 *  - OTG mode: both roles are deactivated (or never-activated)
 	 */
 	musb_shutdown(pdev);
-	musb_debug_delete("driver/musb_hdrc", musb);
 #ifdef CONFIG_USB_MUSB_HDRC_HCD
 	if (musb->board_mode == MUSB_HOST)
 		usb_remove_hcd(musb_to_hcd(musb));

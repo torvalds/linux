@@ -47,14 +47,22 @@ enum hrtimer_restart {
  *	HRTIMER_CB_IRQSAFE:		Callback may run in hardirq context
  *	HRTIMER_CB_IRQSAFE_NO_RESTART:	Callback may run in hardirq context and
  *					does not restart the timer
- *	HRTIMER_CB_IRQSAFE_NO_SOFTIRQ:	Callback must run in hardirq context
- *					Special mode for tick emultation
+ *	HRTIMER_CB_IRQSAFE_PERCPU:	Callback must run in hardirq context
+ *					Special mode for tick emulation and
+ *					scheduler timer. Such timers are per
+ *					cpu and not allowed to be migrated on
+ *					cpu unplug.
+ *	HRTIMER_CB_IRQSAFE_UNLOCKED:	Callback should run in hardirq context
+ *					with timer->base lock unlocked
+ *					used for timers which call wakeup to
+ *					avoid lock order problems with rq->lock
  */
 enum hrtimer_cb_mode {
 	HRTIMER_CB_SOFTIRQ,
 	HRTIMER_CB_IRQSAFE,
 	HRTIMER_CB_IRQSAFE_NO_RESTART,
-	HRTIMER_CB_IRQSAFE_NO_SOFTIRQ,
+	HRTIMER_CB_IRQSAFE_PERCPU,
+	HRTIMER_CB_IRQSAFE_UNLOCKED,
 };
 
 /*
@@ -67,9 +75,10 @@ enum hrtimer_cb_mode {
  * 0x02		callback function running
  * 0x04		callback pending (high resolution mode)
  *
- * Special case:
+ * Special cases:
  * 0x03		callback function running and enqueued
  *		(was requeued on another CPU)
+ * 0x09		timer was migrated on CPU hotunplug
  * The "callback function running and enqueued" status is only possible on
  * SMP. It happens for example when a posix timer expired and the callback
  * queued a signal. Between dropping the lock which protects the posix timer
@@ -87,6 +96,7 @@ enum hrtimer_cb_mode {
 #define HRTIMER_STATE_ENQUEUED	0x01
 #define HRTIMER_STATE_CALLBACK	0x02
 #define HRTIMER_STATE_PENDING	0x04
+#define HRTIMER_STATE_MIGRATE	0x08
 
 /**
  * struct hrtimer - the basic hrtimer structure
@@ -115,12 +125,12 @@ struct hrtimer {
 	enum hrtimer_restart		(*function)(struct hrtimer *);
 	struct hrtimer_clock_base	*base;
 	unsigned long			state;
-	enum hrtimer_cb_mode		cb_mode;
 	struct list_head		cb_entry;
+	enum hrtimer_cb_mode		cb_mode;
 #ifdef CONFIG_TIMER_STATS
+	int				start_pid;
 	void				*start_site;
 	char				start_comm[16];
-	int				start_pid;
 #endif
 };
 
@@ -145,10 +155,8 @@ struct hrtimer_sleeper {
  * @first:		pointer to the timer node which expires first
  * @resolution:		the resolution of the clock, in nanoseconds
  * @get_time:		function to retrieve the current time of the clock
- * @get_softirq_time:	function to retrieve the current time from the softirq
  * @softirq_time:	the time when running the hrtimer queue in the softirq
  * @offset:		offset of this clock to the monotonic base
- * @reprogram:		function to reprogram the timer event
  */
 struct hrtimer_clock_base {
 	struct hrtimer_cpu_base	*cpu_base;
@@ -157,13 +165,9 @@ struct hrtimer_clock_base {
 	struct rb_node		*first;
 	ktime_t			resolution;
 	ktime_t			(*get_time)(void);
-	ktime_t			(*get_softirq_time)(void);
 	ktime_t			softirq_time;
 #ifdef CONFIG_HIGH_RES_TIMERS
 	ktime_t			offset;
-	int			(*reprogram)(struct hrtimer *t,
-					     struct hrtimer_clock_base *b,
-					     ktime_t n);
 #endif
 };
 

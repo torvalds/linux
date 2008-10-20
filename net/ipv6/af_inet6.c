@@ -50,6 +50,7 @@
 #include <net/ipip.h>
 #include <net/protocol.h>
 #include <net/inet_common.h>
+#include <net/route.h>
 #include <net/transp_v6.h>
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
@@ -794,61 +795,55 @@ static void ipv6_packet_cleanup(void)
 	dev_remove_pack(&ipv6_packet_type);
 }
 
-static int __init init_ipv6_mibs(void)
+static int __net_init ipv6_init_mibs(struct net *net)
 {
-	if (snmp_mib_init((void **)ipv6_statistics,
-			  sizeof(struct ipstats_mib)) < 0)
-		goto err_ip_mib;
-	if (snmp_mib_init((void **)icmpv6_statistics,
-			  sizeof(struct icmpv6_mib)) < 0)
-		goto err_icmp_mib;
-	if (snmp_mib_init((void **)icmpv6msg_statistics,
-			  sizeof(struct icmpv6msg_mib)) < 0)
-		goto err_icmpmsg_mib;
-	if (snmp_mib_init((void **)udp_stats_in6, sizeof (struct udp_mib)) < 0)
-		goto err_udp_mib;
-	if (snmp_mib_init((void **)udplite_stats_in6,
+	if (snmp_mib_init((void **)net->mib.udp_stats_in6,
+			  sizeof (struct udp_mib)) < 0)
+		return -ENOMEM;
+	if (snmp_mib_init((void **)net->mib.udplite_stats_in6,
 			  sizeof (struct udp_mib)) < 0)
 		goto err_udplite_mib;
+	if (snmp_mib_init((void **)net->mib.ipv6_statistics,
+			  sizeof(struct ipstats_mib)) < 0)
+		goto err_ip_mib;
+	if (snmp_mib_init((void **)net->mib.icmpv6_statistics,
+			  sizeof(struct icmpv6_mib)) < 0)
+		goto err_icmp_mib;
+	if (snmp_mib_init((void **)net->mib.icmpv6msg_statistics,
+			  sizeof(struct icmpv6msg_mib)) < 0)
+		goto err_icmpmsg_mib;
 	return 0;
 
-err_udplite_mib:
-	snmp_mib_free((void **)udp_stats_in6);
-err_udp_mib:
-	snmp_mib_free((void **)icmpv6msg_statistics);
 err_icmpmsg_mib:
-	snmp_mib_free((void **)icmpv6_statistics);
+	snmp_mib_free((void **)net->mib.icmpv6_statistics);
 err_icmp_mib:
-	snmp_mib_free((void **)ipv6_statistics);
+	snmp_mib_free((void **)net->mib.ipv6_statistics);
 err_ip_mib:
+	snmp_mib_free((void **)net->mib.udplite_stats_in6);
+err_udplite_mib:
+	snmp_mib_free((void **)net->mib.udp_stats_in6);
 	return -ENOMEM;
-
 }
 
-static void cleanup_ipv6_mibs(void)
+static void __net_exit ipv6_cleanup_mibs(struct net *net)
 {
-	snmp_mib_free((void **)ipv6_statistics);
-	snmp_mib_free((void **)icmpv6_statistics);
-	snmp_mib_free((void **)icmpv6msg_statistics);
-	snmp_mib_free((void **)udp_stats_in6);
-	snmp_mib_free((void **)udplite_stats_in6);
+	snmp_mib_free((void **)net->mib.udp_stats_in6);
+	snmp_mib_free((void **)net->mib.udplite_stats_in6);
+	snmp_mib_free((void **)net->mib.ipv6_statistics);
+	snmp_mib_free((void **)net->mib.icmpv6_statistics);
+	snmp_mib_free((void **)net->mib.icmpv6msg_statistics);
 }
 
-static int inet6_net_init(struct net *net)
+static int __net_init inet6_net_init(struct net *net)
 {
 	int err = 0;
 
 	net->ipv6.sysctl.bindv6only = 0;
-	net->ipv6.sysctl.flush_delay = 0;
-	net->ipv6.sysctl.ip6_rt_max_size = 4096;
-	net->ipv6.sysctl.ip6_rt_gc_min_interval = HZ / 2;
-	net->ipv6.sysctl.ip6_rt_gc_timeout = 60*HZ;
-	net->ipv6.sysctl.ip6_rt_gc_interval = 30*HZ;
-	net->ipv6.sysctl.ip6_rt_gc_elasticity = 9;
-	net->ipv6.sysctl.ip6_rt_mtu_expires = 10*60*HZ;
-	net->ipv6.sysctl.ip6_rt_min_advmss = IPV6_MIN_MTU - 20 - 40;
 	net->ipv6.sysctl.icmpv6_time = 1*HZ;
 
+	err = ipv6_init_mibs(net);
+	if (err)
+		return err;
 #ifdef CONFIG_PROC_FS
 	err = udp6_proc_init(net);
 	if (err)
@@ -859,7 +854,6 @@ static int inet6_net_init(struct net *net)
 	err = ac6_proc_init(net);
 	if (err)
 		goto proc_ac6_fail;
-out:
 #endif
 	return err;
 
@@ -868,7 +862,9 @@ proc_ac6_fail:
 	tcp6_proc_exit(net);
 proc_tcp6_fail:
 	udp6_proc_exit(net);
-	goto out;
+out:
+	ipv6_cleanup_mibs(net);
+	return err;
 #endif
 }
 
@@ -879,6 +875,7 @@ static void inet6_net_exit(struct net *net)
 	tcp6_proc_exit(net);
 	ac6_proc_exit(net);
 #endif
+	ipv6_cleanup_mibs(net);
 }
 
 static struct pernet_operations inet6_net_ops = {
@@ -928,11 +925,6 @@ static int __init inet6_init(void)
 	err = sock_register(&inet6_family_ops);
 	if (err)
 		goto out_sock_register_fail;
-
-	/* Initialise ipv6 mibs */
-	err = init_ipv6_mibs();
-	if (err)
-		goto out_unregister_sock;
 
 #ifdef CONFIG_SYSCTL
 	err = ipv6_static_sysctl_register();
@@ -1067,8 +1059,6 @@ register_pernet_fail:
 	ipv6_static_sysctl_unregister();
 static_sysctl_fail:
 #endif
-	cleanup_ipv6_mibs();
-out_unregister_sock:
 	sock_unregister(PF_INET6);
 	rtnl_unregister_all(PF_INET6);
 out_sock_register_fail:
@@ -1125,7 +1115,6 @@ static void __exit inet6_exit(void)
 #ifdef CONFIG_SYSCTL
 	ipv6_static_sysctl_unregister();
 #endif
-	cleanup_ipv6_mibs();
 	proto_unregister(&rawv6_prot);
 	proto_unregister(&udplitev6_prot);
 	proto_unregister(&udpv6_prot);

@@ -28,8 +28,8 @@
  */
 
 #include <asm/fixed_code.h>
-#include <asm/mach/anomaly.h>
-#include <asm/mach-common/clocks.h>
+#include <mach/anomaly.h>
+#include <asm/clocks.h>
 
 #ifdef CONFIG_BFIN_KERNEL_CLOCK
 

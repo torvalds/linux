@@ -7,8 +7,8 @@
  *
  * Copyright (C) 1995
  */
-#ifndef _ASM_X86_FLOPPY_H
-#define _ASM_X86_FLOPPY_H
+#ifndef ASM_X86__FLOPPY_H
+#define ASM_X86__FLOPPY_H
 
 #include <linux/vmalloc.h>
 
@@ -278,4 +278,4 @@ static int FDC2 = -1;
 
 #define EXTRA_FLOPPY_PARAMS
 
-#endif /* _ASM_X86_FLOPPY_H */
+#endif /* ASM_X86__FLOPPY_H */
