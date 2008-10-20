@@ -30,8 +30,8 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef __HYPERVISOR_H__
-#define __HYPERVISOR_H__
+#ifndef ASM_X86__XEN__HYPERVISOR_H
+#define ASM_X86__XEN__HYPERVISOR_H
 
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -54,7 +54,6 @@
 /* arch/i386/kernel/setup.c */
 extern struct shared_info *HYPERVISOR_shared_info;
 extern struct start_info *xen_start_info;
-#define is_initial_xendomain() (xen_start_info->flags & SIF_INITDOMAIN)
 
 /* arch/i386/mach-xen/evtchn.c */
 /* Force a proper event-channel callback from Xen. */
@@ -67,6 +66,17 @@ u64 jiffies_to_st(unsigned long jiffies);
 #define MULTI_UVMFLAGS_INDEX 3
 #define MULTI_UVMDOMID_INDEX 4
 
-#define is_running_on_xen()	(xen_start_info ? 1 : 0)
+enum xen_domain_type {
+	XEN_NATIVE,
+	XEN_PV_DOMAIN,
+	XEN_HVM_DOMAIN,
+};
 
-#endif /* __HYPERVISOR_H__ */
+extern enum xen_domain_type xen_domain_type;
+
+#define xen_domain()		(xen_domain_type != XEN_NATIVE)
+#define xen_pv_domain()		(xen_domain_type == XEN_PV_DOMAIN)
+#define xen_initial_domain()	(xen_pv_domain() && xen_start_info->flags & SIF_INITDOMAIN)
+#define xen_hvm_domain()	(xen_domain_type == XEN_HVM_DOMAIN)
+
+#endif /* ASM_X86__XEN__HYPERVISOR_H */

@@ -134,12 +134,11 @@ out:
 }
 
 static int
-ecryptfs_send_message_locked(unsigned int transport, char *data, int data_len,
-			     u8 msg_type, struct ecryptfs_msg_ctx **msg_ctx);
+ecryptfs_send_message_locked(char *data, int data_len, u8 msg_type,
+			     struct ecryptfs_msg_ctx **msg_ctx);
 
 /**
  * ecryptfs_send_raw_message
- * @transport: Transport type
  * @msg_type: Message type
  * @daemon: Daemon struct for recipient of message
  *
@@ -150,38 +149,25 @@ ecryptfs_send_message_locked(unsigned int transport, char *data, int data_len,
  *
  * Returns zero on success; non-zero otherwise
  */
-static int ecryptfs_send_raw_message(unsigned int transport, u8 msg_type,
+static int ecryptfs_send_raw_message(u8 msg_type,
 				     struct ecryptfs_daemon *daemon)
 {
 	struct ecryptfs_msg_ctx *msg_ctx;
 	int rc;
 
-	switch(transport) {
-	case ECRYPTFS_TRANSPORT_NETLINK:
-		rc = ecryptfs_send_netlink(NULL, 0, NULL, msg_type, 0,
-					   daemon->pid);
-		break;
-	case ECRYPTFS_TRANSPORT_MISCDEV:
-		rc = ecryptfs_send_message_locked(transport, NULL, 0, msg_type,
-						  &msg_ctx);
-		if (rc) {
-			printk(KERN_ERR "%s: Error whilst attempting to send "
-			       "message via procfs; rc = [%d]\n", __func__, rc);
-			goto out;
-		}
-		/* Raw messages are logically context-free (e.g., no
-		 * reply is expected), so we set the state of the
-		 * ecryptfs_msg_ctx object to indicate that it should
-		 * be freed as soon as the transport sends out the message. */
-		mutex_lock(&msg_ctx->mux);
-		msg_ctx->state = ECRYPTFS_MSG_CTX_STATE_NO_REPLY;
-		mutex_unlock(&msg_ctx->mux);
-		break;
-	case ECRYPTFS_TRANSPORT_CONNECTOR:
-	case ECRYPTFS_TRANSPORT_RELAYFS:
-	default:
-		rc = -ENOSYS;
+	rc = ecryptfs_send_message_locked(NULL, 0, msg_type, &msg_ctx);
+	if (rc) {
+		printk(KERN_ERR "%s: Error whilst attempting to send "
+		       "message to ecryptfsd; rc = [%d]\n", __func__, rc);
+		goto out;
 	}
+	/* Raw messages are logically context-free (e.g., no
+	 * reply is expected), so we set the state of the
+	 * ecryptfs_msg_ctx object to indicate that it should
+	 * be freed as soon as the message is sent. */
+	mutex_lock(&msg_ctx->mux);
+	msg_ctx->state = ECRYPTFS_MSG_CTX_STATE_NO_REPLY;
+	mutex_unlock(&msg_ctx->mux);
 out:
 	return rc;
 }
@@ -227,7 +213,6 @@ out:
 
 /**
  * ecryptfs_process_helo
- * @transport: The underlying transport (netlink, etc.)
  * @euid: The user ID owner of the message
  * @user_ns: The namespace in which @euid applies
  * @pid: The process ID for the userspace program that sent the
@@ -239,8 +224,8 @@ out:
  * Returns zero after adding a new daemon to the hash list;
  * non-zero otherwise.
  */
-int ecryptfs_process_helo(unsigned int transport, uid_t euid,
-			  struct user_namespace *user_ns, struct pid *pid)
+int ecryptfs_process_helo(uid_t euid, struct user_namespace *user_ns,
+			  struct pid *pid)
 {
 	struct ecryptfs_daemon *new_daemon;
 	struct ecryptfs_daemon *old_daemon;
@@ -252,8 +237,7 @@ int ecryptfs_process_helo(unsigned int transport, uid_t euid,
 		printk(KERN_WARNING "Received request from user [%d] "
 		       "to register daemon [0x%p]; unregistering daemon "
 		       "[0x%p]\n", euid, pid, old_daemon->pid);
-		rc = ecryptfs_send_raw_message(transport, ECRYPTFS_MSG_QUIT,
-					       old_daemon);
+		rc = ecryptfs_send_raw_message(ECRYPTFS_MSG_QUIT, old_daemon);
 		if (rc)
 			printk(KERN_WARNING "Failed to send QUIT "
 			       "message to daemon [0x%p]; rc = [%d]\n",
@@ -467,8 +451,6 @@ out:
 
 /**
  * ecryptfs_send_message_locked
- * @transport: The transport over which to send the message (i.e.,
- *             netlink)
  * @data: The data to send
  * @data_len: The length of data
  * @msg_ctx: The message context allocated for the send
@@ -478,8 +460,8 @@ out:
  * Returns zero on success; non-zero otherwise
  */
 static int
-ecryptfs_send_message_locked(unsigned int transport, char *data, int data_len,
-			     u8 msg_type, struct ecryptfs_msg_ctx **msg_ctx)
+ecryptfs_send_message_locked(char *data, int data_len, u8 msg_type,
+			     struct ecryptfs_msg_ctx **msg_ctx)
 {
 	struct ecryptfs_daemon *daemon;
 	int rc;
@@ -503,20 +485,8 @@ ecryptfs_send_message_locked(unsigned int transport, char *data, int data_len,
 	ecryptfs_msg_ctx_free_to_alloc(*msg_ctx);
 	mutex_unlock(&(*msg_ctx)->mux);
 	mutex_unlock(&ecryptfs_msg_ctx_lists_mux);
-	switch (transport) {
-	case ECRYPTFS_TRANSPORT_NETLINK:
-		rc = ecryptfs_send_netlink(data, data_len, *msg_ctx, msg_type,
-					   0, daemon->pid);
-		break;
-	case ECRYPTFS_TRANSPORT_MISCDEV:
-		rc = ecryptfs_send_miscdev(data, data_len, *msg_ctx, msg_type,
-					   0, daemon);
-		break;
-	case ECRYPTFS_TRANSPORT_CONNECTOR:
-	case ECRYPTFS_TRANSPORT_RELAYFS:
-	default:
-		rc = -ENOSYS;
-	}
+	rc = ecryptfs_send_miscdev(data, data_len, *msg_ctx, msg_type, 0,
+				   daemon);
 	if (rc)
 		printk(KERN_ERR "%s: Error attempting to send message to "
 		       "userspace daemon; rc = [%d]\n", __func__, rc);
@@ -526,8 +496,6 @@ out:
 
 /**
  * ecryptfs_send_message
- * @transport: The transport over which to send the message (i.e.,
- *             netlink)
  * @data: The data to send
  * @data_len: The length of data
  * @msg_ctx: The message context allocated for the send
@@ -536,14 +504,14 @@ out:
  *
  * Returns zero on success; non-zero otherwise
  */
-int ecryptfs_send_message(unsigned int transport, char *data, int data_len,
+int ecryptfs_send_message(char *data, int data_len,
 			  struct ecryptfs_msg_ctx **msg_ctx)
 {
 	int rc;
 
 	mutex_lock(&ecryptfs_daemon_hash_mux);
-	rc = ecryptfs_send_message_locked(transport, data, data_len,
-					  ECRYPTFS_MSG_REQUEST, msg_ctx);
+	rc = ecryptfs_send_message_locked(data, data_len, ECRYPTFS_MSG_REQUEST,
+					  msg_ctx);
 	mutex_unlock(&ecryptfs_daemon_hash_mux);
 	return rc;
 }
@@ -586,7 +554,7 @@ sleep:
 	return rc;
 }
 
-int ecryptfs_init_messaging(unsigned int transport)
+int ecryptfs_init_messaging(void)
 {
 	int i;
 	int rc = 0;
@@ -639,27 +607,14 @@ int ecryptfs_init_messaging(unsigned int transport)
 		mutex_unlock(&ecryptfs_msg_ctx_arr[i].mux);
 	}
 	mutex_unlock(&ecryptfs_msg_ctx_lists_mux);
-	switch(transport) {
-	case ECRYPTFS_TRANSPORT_NETLINK:
-		rc = ecryptfs_init_netlink();
-		if (rc)
-			ecryptfs_release_messaging(transport);
-		break;
-	case ECRYPTFS_TRANSPORT_MISCDEV:
-		rc = ecryptfs_init_ecryptfs_miscdev();
-		if (rc)
-			ecryptfs_release_messaging(transport);
-		break;
-	case ECRYPTFS_TRANSPORT_CONNECTOR:
-	case ECRYPTFS_TRANSPORT_RELAYFS:
-	default:
-		rc = -ENOSYS;
-	}
+	rc = ecryptfs_init_ecryptfs_miscdev();
+	if (rc)
+		ecryptfs_release_messaging();
 out:
 	return rc;
 }
 
-void ecryptfs_release_messaging(unsigned int transport)
+void ecryptfs_release_messaging(void)
 {
 	if (ecryptfs_msg_ctx_arr) {
 		int i;
@@ -698,17 +653,6 @@ void ecryptfs_release_messaging(unsigned int transport)
 		kfree(ecryptfs_daemon_hash);
 		mutex_unlock(&ecryptfs_daemon_hash_mux);
 	}
-	switch(transport) {
-	case ECRYPTFS_TRANSPORT_NETLINK:
-		ecryptfs_release_netlink();
-		break;
-	case ECRYPTFS_TRANSPORT_MISCDEV:
-		ecryptfs_destroy_ecryptfs_miscdev();
-		break;
-	case ECRYPTFS_TRANSPORT_CONNECTOR:
-	case ECRYPTFS_TRANSPORT_RELAYFS:
-	default:
-		break;
-	}
+	ecryptfs_destroy_ecryptfs_miscdev();
 	return;
 }

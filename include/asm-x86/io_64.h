@@ -1,5 +1,5 @@
-#ifndef _ASM_IO_H
-#define _ASM_IO_H
+#ifndef ASM_X86__IO_64_H
+#define ASM_X86__IO_64_H
 
 
 /*
@@ -165,9 +165,6 @@ static inline void *phys_to_virt(unsigned long address)
 
 #include <asm-generic/iomap.h>
 
-extern void *early_ioremap(unsigned long addr, unsigned long size);
-extern void early_iounmap(void *addr, unsigned long size);
-
 /*
  * This one maps high address device memory and turns off caching for that area.
  * it's useful if some control registers are in such an area and write combining
@@ -235,7 +232,6 @@ void memset_io(volatile void __iomem *a, int b, size_t c);
 
 #define flush_write_buffers()
 
-extern int iommu_bio_merge;
 #define BIO_VMERGE_BOUNDARY iommu_bio_merge
 
 /*
@@ -245,4 +241,4 @@ extern int iommu_bio_merge;
 
 #endif /* __KERNEL__ */
 
-#endif
+#endif /* ASM_X86__IO_64_H */

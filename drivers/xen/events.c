@@ -84,17 +84,6 @@ static int irq_bindcount[NR_IRQS];
 /* Xen will never allocate port zero for any purpose. */
 #define VALID_EVTCHN(chn)	((chn) != 0)
 
-/*
- * Force a proper event-channel callback from Xen after clearing the
- * callback mask. We do this in a very simple manner, by making a call
- * down into Xen. The pending flag will be checked by Xen on return.
- */
-void force_evtchn_callback(void)
-{
-	(void)HYPERVISOR_xen_version(0, NULL);
-}
-EXPORT_SYMBOL_GPL(force_evtchn_callback);
-
 static struct irq_chip xen_dynamic_chip;
 
 /* Constructor for packed IRQ information. */
@@ -173,6 +162,12 @@ static inline void set_evtchn(int port)
 {
 	struct shared_info *s = HYPERVISOR_shared_info;
 	sync_set_bit(port, &s->evtchn_pending[0]);
+}
+
+static inline int test_evtchn(int port)
+{
+	struct shared_info *s = HYPERVISOR_shared_info;
+	return sync_test_bit(port, &s->evtchn_pending[0]);
 }
 
 
@@ -363,6 +358,10 @@ static void unbind_from_irq(unsigned int irq)
 		switch (type_from_irq(irq)) {
 		case IRQT_VIRQ:
 			per_cpu(virq_to_irq, cpu_from_evtchn(evtchn))
+				[index_from_irq(irq)] = -1;
+			break;
+		case IRQT_IPI:
+			per_cpu(ipi_to_irq, cpu_from_evtchn(evtchn))
 				[index_from_irq(irq)] = -1;
 			break;
 		default:
@@ -741,6 +740,25 @@ void xen_clear_irq_pending(int irq)
 
 	if (VALID_EVTCHN(evtchn))
 		clear_evtchn(evtchn);
+}
+
+void xen_set_irq_pending(int irq)
+{
+	int evtchn = evtchn_from_irq(irq);
+
+	if (VALID_EVTCHN(evtchn))
+		set_evtchn(evtchn);
+}
+
+bool xen_test_irq_pending(int irq)
+{
+	int evtchn = evtchn_from_irq(irq);
+	bool ret = false;
+
+	if (VALID_EVTCHN(evtchn))
+		ret = test_evtchn(evtchn);
+
+	return ret;
 }
 
 /* Poll waiting for an irq to become pending.  In the usual case, the

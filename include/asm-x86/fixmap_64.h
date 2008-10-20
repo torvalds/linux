@@ -8,8 +8,8 @@
  * Copyright (C) 1998 Ingo Molnar
  */
 
-#ifndef _ASM_FIXMAP_64_H
-#define _ASM_FIXMAP_64_H
+#ifndef ASM_X86__FIXMAP_64_H
+#define ASM_X86__FIXMAP_64_H
 
 #include <linux/kernel.h>
 #include <asm/acpi.h>
@@ -49,6 +49,7 @@ enum fixed_addresses {
 #ifdef CONFIG_PARAVIRT
 	FIX_PARAVIRT_BOOTMAP,
 #endif
+	__end_of_permanent_fixed_addresses,
 #ifdef CONFIG_ACPI
 	FIX_ACPI_BEGIN,
 	FIX_ACPI_END = FIX_ACPI_BEGIN + FIX_ACPI_PAGES - 1,
@@ -56,19 +57,18 @@ enum fixed_addresses {
 #ifdef CONFIG_PROVIDE_OHCI1394_DMA_INIT
 	FIX_OHCI1394_BASE,
 #endif
-	__end_of_permanent_fixed_addresses,
 	/*
 	 * 256 temporary boot-time mappings, used by early_ioremap(),
 	 * before ioremap() is functional.
 	 *
-	 * We round it up to the next 512 pages boundary so that we
+	 * We round it up to the next 256 pages boundary so that we
 	 * can have a single pgd entry and a single pte table:
 	 */
 #define NR_FIX_BTMAPS		64
-#define FIX_BTMAPS_NESTING	4
-	FIX_BTMAP_END = __end_of_permanent_fixed_addresses + 512 -
-			(__end_of_permanent_fixed_addresses & 511),
-	FIX_BTMAP_BEGIN = FIX_BTMAP_END + NR_FIX_BTMAPS*FIX_BTMAPS_NESTING - 1,
+#define FIX_BTMAPS_SLOTS	4
+	FIX_BTMAP_END = __end_of_permanent_fixed_addresses + 256 -
+			(__end_of_permanent_fixed_addresses & 255),
+	FIX_BTMAP_BEGIN = FIX_BTMAP_END + NR_FIX_BTMAPS*FIX_BTMAPS_SLOTS - 1,
 	__end_of_fixed_addresses
 };
 
@@ -80,4 +80,4 @@ enum fixed_addresses {
 #define FIXADDR_USER_START	((unsigned long)VSYSCALL32_VSYSCALL)
 #define FIXADDR_USER_END	(FIXADDR_USER_START + PAGE_SIZE)
 
-#endif
+#endif /* ASM_X86__FIXMAP_64_H */

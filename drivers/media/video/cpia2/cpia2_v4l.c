@@ -241,8 +241,7 @@ static struct v4l2_queryctrl controls[] = {
  *****************************************************************************/
 static int cpia2_open(struct inode *inode, struct file *file)
 {
-	struct video_device *dev = video_devdata(file);
-	struct camera_data *cam = video_get_drvdata(dev);
+	struct camera_data *cam = video_drvdata(file);
 	int retval = 0;
 
 	if (!cam) {
@@ -357,8 +356,7 @@ static int cpia2_close(struct inode *inode, struct file *file)
 static ssize_t cpia2_v4l_read(struct file *file, char __user *buf, size_t count,
 			      loff_t *off)
 {
-	struct video_device *dev = video_devdata(file);
-	struct camera_data *cam = video_get_drvdata(dev);
+	struct camera_data *cam = video_drvdata(file);
 	int noblock = file->f_flags&O_NONBLOCK;
 
 	struct cpia2_fh *fh = file->private_data;
@@ -382,9 +380,7 @@ static ssize_t cpia2_v4l_read(struct file *file, char __user *buf, size_t count,
  *****************************************************************************/
 static unsigned int cpia2_v4l_poll(struct file *filp, struct poll_table_struct *wait)
 {
-	struct video_device *dev = video_devdata(filp);
-	struct camera_data *cam = video_get_drvdata(dev);
-
+	struct camera_data *cam = video_drvdata(filp);
 	struct cpia2_fh *fh = filp->private_data;
 
 	if(!cam)
@@ -1579,8 +1575,7 @@ static int ioctl_dqbuf(void *arg,struct camera_data *cam, struct file *file)
 static int cpia2_do_ioctl(struct inode *inode, struct file *file,
 			  unsigned int ioctl_nr, void *arg)
 {
-	struct video_device *dev = video_devdata(file);
-	struct camera_data *cam = video_get_drvdata(dev);
+	struct camera_data *cam = video_drvdata(file);
 	int retval = 0;
 
 	if (!cam)
@@ -1860,9 +1855,8 @@ static int cpia2_ioctl(struct inode *inode, struct file *file,
  *****************************************************************************/
 static int cpia2_mmap(struct file *file, struct vm_area_struct *area)
 {
+	struct camera_data *cam = video_drvdata(file);
 	int retval;
-	struct video_device *dev = video_devdata(file);
-	struct camera_data *cam = video_get_drvdata(dev);
 
 	/* Priority check */
 	struct cpia2_fh *fh = file->private_data;

@@ -22,6 +22,7 @@
  */
 
 #include "cx18-driver.h"
+#include "cx18-io.h"
 #include "cx18-fileops.h"
 #include "cx18-mailbox.h"
 #include "cx18-i2c.h"
@@ -56,7 +57,7 @@ static struct file_operations cx18_v4l2_enc_fops = {
 static struct {
 	const char *name;
 	int vfl_type;
-	int minor_offset;
+	int num_offset;
 	int dma;
 	enum v4l2_buf_type buf_type;
 	struct file_operations *fops;
@@ -119,7 +120,7 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 	s->cx = cx;
 	s->type = type;
 	s->name = cx18_stream_info[type].name;
-	s->handle = 0xffffffff;
+	s->handle = CX18_INVALID_TASK_HANDLE;
 
 	s->dma = cx18_stream_info[type].dma;
 	s->buf_size = cx->stream_buf_size[type];
@@ -143,8 +144,8 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 {
 	struct cx18_stream *s = &cx->streams[type];
 	u32 cap = cx->v4l2_cap;
-	int minor_offset = cx18_stream_info[type].minor_offset;
-	int minor;
+	int num_offset = cx18_stream_info[type].num_offset;
+	int num = cx->num + cx18_first_minor + num_offset;
 
 	/* These four fields are always initialized. If v4l2dev == NULL, then
 	   this stream is not in use. In that case no other fields but these
@@ -163,9 +164,6 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 	    !(cap & (V4L2_CAP_VBI_CAPTURE | V4L2_CAP_SLICED_VBI_CAPTURE)))
 		return 0;
 
-	/* card number + user defined offset + device offset */
-	minor = cx->num + cx18_first_minor + minor_offset;
-
 	/* User explicitly selected 0 buffers for these streams, so don't
 	   create them. */
 	if (cx18_stream_info[type].dma != PCI_DMA_NONE &&
@@ -176,7 +174,7 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 
 	cx18_stream_init(cx, type);
 
-	if (minor_offset == -1)
+	if (num_offset == -1)
 		return 0;
 
 	/* allocate and initialize the v4l2 video device structure */
@@ -190,7 +188,7 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 	snprintf(s->v4l2dev->name, sizeof(s->v4l2dev->name), "cx18-%d",
 			cx->num);
 
-	s->v4l2dev->minor = minor;
+	s->v4l2dev->num = num;
 	s->v4l2dev->parent = &cx->dev->dev;
 	s->v4l2dev->fops = cx18_stream_info[type].fops;
 	s->v4l2dev->release = video_device_release;
@@ -226,7 +224,7 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 {
 	struct cx18_stream *s = &cx->streams[type];
 	int vfl_type = cx18_stream_info[type].vfl_type;
-	int minor;
+	int num;
 
 	/* TODO: Shouldn't this be a VFL_TYPE_TRANSPORT or something?
 	 * We need a VFL_TYPE_TS defined.
@@ -244,38 +242,44 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 	if (s->v4l2dev == NULL)
 		return 0;
 
-	minor = s->v4l2dev->minor;
+	num = s->v4l2dev->num;
+	/* card number + user defined offset + device offset */
+	if (type != CX18_ENC_STREAM_TYPE_MPG) {
+		struct cx18_stream *s_mpg = &cx->streams[CX18_ENC_STREAM_TYPE_MPG];
+
+		if (s_mpg->v4l2dev)
+			num = s_mpg->v4l2dev->num + cx18_stream_info[type].num_offset;
+	}
 
 	/* Register device. First try the desired minor, then any free one. */
-	if (video_register_device(s->v4l2dev, vfl_type, minor) &&
-			video_register_device(s->v4l2dev, vfl_type, -1)) {
-		CX18_ERR("Couldn't register v4l2 device for %s minor %d\n",
-			s->name, minor);
+	if (video_register_device(s->v4l2dev, vfl_type, num)) {
+		CX18_ERR("Couldn't register v4l2 device for %s kernel number %d\n",
+			s->name, num);
 		video_device_release(s->v4l2dev);
 		s->v4l2dev = NULL;
 		return -ENOMEM;
 	}
-	minor = s->v4l2dev->minor;
+	num = s->v4l2dev->num;
 
 	switch (vfl_type) {
 	case VFL_TYPE_GRABBER:
 		CX18_INFO("Registered device video%d for %s (%d MB)\n",
-			minor, s->name, cx->options.megabytes[type]);
+			num, s->name, cx->options.megabytes[type]);
 		break;
 
 	case VFL_TYPE_RADIO:
 		CX18_INFO("Registered device radio%d for %s\n",
-			minor - MINOR_VFL_TYPE_RADIO_MIN, s->name);
+			num, s->name);
 		break;
 
 	case VFL_TYPE_VBI:
 		if (cx->options.megabytes[type])
 			CX18_INFO("Registered device vbi%d for %s (%d MB)\n",
-				minor - MINOR_VFL_TYPE_VBI_MIN,
+				num,
 				s->name, cx->options.megabytes[type]);
 		else
 			CX18_INFO("Registered device vbi%d for %s\n",
-				minor - MINOR_VFL_TYPE_VBI_MIN, s->name);
+				num, s->name);
 		break;
 	}
 
@@ -432,7 +436,6 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	default:
 		return -EINVAL;
 	}
-	s->buffers_stolen = 0;
 
 	/* mute/unmute video */
 	cx18_vapi(cx, CX18_CPU_SET_VIDEO_MUTE, 2,
@@ -470,7 +473,7 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 
 	if (atomic_read(&cx->tot_capturing) == 0) {
 		clear_bit(CX18_F_I_EOS, &cx->i_flags);
-		write_reg(7, CX18_DSP0_INTERRUPT_MASK);
+		cx18_write_reg(cx, 7, CX18_DSP0_INTERRUPT_MASK);
 	}
 
 	cx18_vapi(cx, CX18_CPU_DE_SET_MDL_ACK, 3, s->handle,
@@ -480,8 +483,9 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	list_for_each(p, &s->q_free.list) {
 		struct cx18_buffer *buf = list_entry(p, struct cx18_buffer, list);
 
-		writel(buf->dma_handle, &cx->scb->cpu_mdl[buf->id].paddr);
-		writel(s->buf_size, &cx->scb->cpu_mdl[buf->id].length);
+		cx18_writel(cx, buf->dma_handle,
+					&cx->scb->cpu_mdl[buf->id].paddr);
+		cx18_writel(cx, s->buf_size, &cx->scb->cpu_mdl[buf->id].length);
 		cx18_vapi(cx, CX18_CPU_DE_SET_MDL, 5, s->handle,
 			(void __iomem *)&cx->scb->cpu_mdl[buf->id] - cx->enc_mem,
 			1, buf->id, s->buf_size);
@@ -489,7 +493,14 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	/* begin_capture */
 	if (cx18_vapi(cx, CX18_CPU_CAPTURE_START, 1, s->handle)) {
 		CX18_DEBUG_WARN("Error starting capture!\n");
+		/* Ensure we're really not capturing before releasing MDLs */
+		if (s->type == CX18_ENC_STREAM_TYPE_MPG)
+			cx18_vapi(cx, CX18_CPU_CAPTURE_STOP, 2, s->handle, 1);
+		else
+			cx18_vapi(cx, CX18_CPU_CAPTURE_STOP, 1, s->handle);
+		cx18_vapi(cx, CX18_CPU_DE_RELEASE_MDL, 1, s->handle);
 		cx18_vapi(cx, CX18_DESTROY_TASK, 1, s->handle);
+		/* FIXME - clean-up DSP0_INT mask, i_flags, s_flags, etc. */
 		return -EINVAL;
 	}
 
@@ -541,6 +552,9 @@ int cx18_stop_v4l2_encode_stream(struct cx18_stream *s, int gop_end)
 		CX18_INFO("ignoring gop_end: not (yet?) supported by the firmware\n");
 	}
 
+	/* Tell the CX23418 it can't use our buffers anymore */
+	cx18_vapi(cx, CX18_CPU_DE_RELEASE_MDL, 1, s->handle);
+
 	if (s->type != CX18_ENC_STREAM_TYPE_TS)
 		atomic_dec(&cx->ana_capturing);
 	atomic_dec(&cx->tot_capturing);
@@ -549,12 +563,12 @@ int cx18_stop_v4l2_encode_stream(struct cx18_stream *s, int gop_end)
 	clear_bit(CX18_F_S_STREAMING, &s->s_flags);
 
 	cx18_vapi(cx, CX18_DESTROY_TASK, 1, s->handle);
-	s->handle = 0xffffffff;
+	s->handle = CX18_INVALID_TASK_HANDLE;
 
 	if (atomic_read(&cx->tot_capturing) > 0)
 		return 0;
 
-	write_reg(5, CX18_DSP0_INTERRUPT_MASK);
+	cx18_write_reg(cx, 5, CX18_DSP0_INTERRUPT_MASK);
 	wake_up(&s->waitq);
 
 	return 0;
@@ -568,8 +582,8 @@ u32 cx18_find_handle(struct cx18 *cx)
 	for (i = 0; i < CX18_MAX_STREAMS; i++) {
 		struct cx18_stream *s = &cx->streams[i];
 
-		if (s->v4l2dev && s->handle)
+		if (s->v4l2dev && (s->handle != CX18_INVALID_TASK_HANDLE))
 			return s->handle;
 	}
-	return 0;
+	return CX18_INVALID_TASK_HANDLE;
 }

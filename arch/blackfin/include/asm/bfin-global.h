@@ -63,7 +63,6 @@ extern void bfin_dcache_init(void);
 extern void init_exception_vectors(void);
 extern void program_IAR(void);
 
-extern void bfin_reset(void);
 extern asmlinkage void lower_to_irq14(void);
 extern asmlinkage void bfin_return_from_exception(void);
 extern asmlinkage void evt14_softirq(void);
@@ -92,6 +91,8 @@ extern int sram_free(const void*);
 extern void *sram_alloc_with_lsl(size_t, unsigned long);
 extern int sram_free_with_lsl(const void*);
 
+extern void *isram_memcpy(void *dest, const void *src, size_t n);
+
 extern const char bfin_board_name[];
 
 extern unsigned long bfin_sic_iwr[];
@@ -104,7 +105,7 @@ extern char _stext_l1[], _etext_l1[], _sdata_l1[], _edata_l1[], _sbss_l1[],
 	_stext_l2[], _etext_l2[], _sdata_l2[], _edata_l2[], _sbss_l2[],
 	_ebss_l2[], _l2_lma_start[];
 
-/* only used when CONFIG_MTD_UCLINUX */
+/* only used when MTD_UCLINUX */
 extern unsigned long memory_mtd_start, memory_mtd_end, mtd_size;
 
 #ifdef CONFIG_BFIN_ICACHE_LOCK

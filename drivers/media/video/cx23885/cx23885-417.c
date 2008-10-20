@@ -36,7 +36,6 @@
 #include <media/cx2341x.h>
 
 #include "cx23885.h"
-#include "media/cx2341x.h"
 
 #define CX23885_FIRM_IMAGE_SIZE 376836
 #define CX23885_FIRM_IMAGE_NAME "v4l-cx23885-enc.fw"
@@ -632,7 +631,7 @@ int mc417_memory_read(struct cx23885_dev *dev, u32 address, u32 *value)
 /* ------------------------------------------------------------------ */
 
 /* MPEG encoder API */
-char *cmd_to_str(int cmd)
+static char *cmd_to_str(int cmd)
 {
 	switch (cmd) {
 	case CX2341X_ENC_PING_FW:
@@ -1583,6 +1582,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 
 	dprintk(2, "%s()\n", __func__);
 
+	lock_kernel();
 	list_for_each(list, &cx23885_devlist) {
 		h = list_entry(list, struct cx23885_dev, devlist);
 		if (h->v4l_device->minor == minor) {
@@ -1591,13 +1591,17 @@ static int mpeg_open(struct inode *inode, struct file *file)
 		}
 	}
 
-	if (dev == NULL)
+	if (dev == NULL) {
+		unlock_kernel();
 		return -ENODEV;
+	}
 
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
-	if (NULL == fh)
+	if (NULL == fh) {
+		unlock_kernel();
 		return -ENOMEM;
+	}
 
 	file->private_data = fh;
 	fh->dev      = dev;
@@ -1608,6 +1612,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct cx23885_buffer),
 			    fh);
+	unlock_kernel();
 
 	return 0;
 }

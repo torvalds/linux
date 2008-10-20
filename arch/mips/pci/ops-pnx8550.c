@@ -29,8 +29,6 @@
 
 #include <asm/mach-pnx8550/pci.h>
 #include <asm/mach-pnx8550/glb.h>
-#include <asm/debug.h>
-
 
 static inline void clear_status(void)
 {

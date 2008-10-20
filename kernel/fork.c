@@ -802,6 +802,7 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 
 	sig->leader = 0;	/* session leadership doesn't inherit */
 	sig->tty_old_pgrp = NULL;
+	sig->tty = NULL;
 
 	sig->utime = sig->stime = sig->cutime = sig->cstime = cputime_zero;
 	sig->gtime = cputime_zero;
@@ -838,6 +839,7 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 void __cleanup_signal(struct signal_struct *sig)
 {
 	exit_thread_group_keys(sig);
+	tty_kref_put(sig->tty);
 	kmem_cache_free(signal_cachep, sig);
 }
 
@@ -1227,7 +1229,8 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 				p->nsproxy->pid_ns->child_reaper = p;
 
 			p->signal->leader_pid = pid;
-			p->signal->tty = current->signal->tty;
+			tty_kref_put(p->signal->tty);
+			p->signal->tty = tty_kref_get(current->signal->tty);
 			set_task_pgrp(p, task_pgrp_nr(current));
 			set_task_session(p, task_session_nr(current));
 			attach_pid(p, PIDTYPE_PGID, task_pgrp(current));

@@ -32,11 +32,6 @@
 #include <linux/hid.h>
 #include <linux/hid-debug.h>
 
-static int hid_apple_fnmode = 1;
-module_param_named(pb_fnmode, hid_apple_fnmode, int, 0644);
-MODULE_PARM_DESC(pb_fnmode,
-		"Mode of fn key on Apple keyboards (0 = disabled, 1 = fkeyslast, 2 = fkeysfirst)");
-
 #define unk	KEY_UNKNOWN
 
 static const unsigned char hid_keyboard[256] = {
@@ -58,227 +53,20 @@ static const unsigned char hid_keyboard[256] = {
 	150,158,159,128,136,177,178,176,142,152,173,140,unk,unk,unk,unk
 };
 
-/* extended mapping for certain Logitech hardware (Logitech cordless desktop LX500) */
-#define LOGITECH_EXPANDED_KEYMAP_SIZE 80
-static int logitech_expanded_keymap[LOGITECH_EXPANDED_KEYMAP_SIZE] = {
-	  0,216,  0,213,175,156,  0,  0,  0,  0,
-	144,  0,  0,  0,  0,  0,  0,  0,  0,212,
-	174,167,152,161,112,  0,  0,  0,154,  0,
-	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-	  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-	  0,  0,  0,  0,  0,183,184,185,186,187,
-	188,189,190,191,192,193,194,  0,  0,  0
-};
-
 static const struct {
 	__s32 x;
 	__s32 y;
 }  hid_hat_to_axis[] = {{ 0, 0}, { 0,-1}, { 1,-1}, { 1, 0}, { 1, 1}, { 0, 1}, {-1, 1}, {-1, 0}, {-1,-1}};
 
-#define map_abs(c)	do { usage->code = c; usage->type = EV_ABS; bit = input->absbit; max = ABS_MAX; } while (0)
-#define map_rel(c)	do { usage->code = c; usage->type = EV_REL; bit = input->relbit; max = REL_MAX; } while (0)
-#define map_key(c)	do { usage->code = c; usage->type = EV_KEY; bit = input->keybit; max = KEY_MAX; } while (0)
-#define map_led(c)	do { usage->code = c; usage->type = EV_LED; bit = input->ledbit; max = LED_MAX; } while (0)
+#define map_abs(c)	hid_map_usage(hidinput, usage, &bit, &max, EV_ABS, (c))
+#define map_rel(c)	hid_map_usage(hidinput, usage, &bit, &max, EV_REL, (c))
+#define map_key(c)	hid_map_usage(hidinput, usage, &bit, &max, EV_KEY, (c))
+#define map_led(c)	hid_map_usage(hidinput, usage, &bit, &max, EV_LED, (c))
 
-#define map_abs_clear(c)	do { map_abs(c); clear_bit(c, bit); } while (0)
-#define map_key_clear(c)	do { map_key(c); clear_bit(c, bit); } while (0)
-
-#ifdef CONFIG_USB_HIDINPUT_POWERBOOK
-
-struct hidinput_key_translation {
-	u16 from;
-	u16 to;
-	u8 flags;
-};
-
-#define APPLE_FLAG_FKEY 0x01
-
-static struct hidinput_key_translation apple_fn_keys[] = {
-	{ KEY_BACKSPACE, KEY_DELETE },
-	{ KEY_F1,       KEY_BRIGHTNESSDOWN, APPLE_FLAG_FKEY },
-	{ KEY_F2,       KEY_BRIGHTNESSUP,   APPLE_FLAG_FKEY },
-	{ KEY_F3,       KEY_FN_F5,          APPLE_FLAG_FKEY }, /* Exposé */
-	{ KEY_F4,       KEY_FN_F4,          APPLE_FLAG_FKEY }, /* Dashboard */
-	{ KEY_F5,       KEY_KBDILLUMDOWN,   APPLE_FLAG_FKEY },
-	{ KEY_F6,       KEY_KBDILLUMUP,     APPLE_FLAG_FKEY },
-	{ KEY_F7,       KEY_PREVIOUSSONG,   APPLE_FLAG_FKEY },
-	{ KEY_F8,       KEY_PLAYPAUSE,      APPLE_FLAG_FKEY },
-	{ KEY_F9,       KEY_NEXTSONG,       APPLE_FLAG_FKEY },
-	{ KEY_F10,      KEY_MUTE,           APPLE_FLAG_FKEY },
-	{ KEY_F11,      KEY_VOLUMEDOWN,     APPLE_FLAG_FKEY },
-	{ KEY_F12,      KEY_VOLUMEUP,       APPLE_FLAG_FKEY },
-	{ KEY_UP,       KEY_PAGEUP },
-	{ KEY_DOWN,     KEY_PAGEDOWN },
-	{ KEY_LEFT,     KEY_HOME },
-	{ KEY_RIGHT,    KEY_END },
-	{ }
-};
-
-static struct hidinput_key_translation powerbook_fn_keys[] = {
-	{ KEY_BACKSPACE, KEY_DELETE },
-	{ KEY_F1,       KEY_BRIGHTNESSDOWN,     APPLE_FLAG_FKEY },
-	{ KEY_F2,       KEY_BRIGHTNESSUP,       APPLE_FLAG_FKEY },
-	{ KEY_F3,       KEY_MUTE,               APPLE_FLAG_FKEY },
-	{ KEY_F4,       KEY_VOLUMEDOWN,         APPLE_FLAG_FKEY },
-	{ KEY_F5,       KEY_VOLUMEUP,           APPLE_FLAG_FKEY },
-	{ KEY_F6,       KEY_NUMLOCK,            APPLE_FLAG_FKEY },
-	{ KEY_F7,       KEY_SWITCHVIDEOMODE,    APPLE_FLAG_FKEY },
-	{ KEY_F8,       KEY_KBDILLUMTOGGLE,     APPLE_FLAG_FKEY },
-	{ KEY_F9,       KEY_KBDILLUMDOWN,       APPLE_FLAG_FKEY },
-	{ KEY_F10,      KEY_KBDILLUMUP,         APPLE_FLAG_FKEY },
-	{ KEY_UP,       KEY_PAGEUP },
-	{ KEY_DOWN,     KEY_PAGEDOWN },
-	{ KEY_LEFT,     KEY_HOME },
-	{ KEY_RIGHT,    KEY_END },
-	{ }
-};
-
-static struct hidinput_key_translation powerbook_numlock_keys[] = {
-	{ KEY_J,        KEY_KP1 },
-	{ KEY_K,        KEY_KP2 },
-	{ KEY_L,        KEY_KP3 },
-	{ KEY_U,        KEY_KP4 },
-	{ KEY_I,        KEY_KP5 },
-	{ KEY_O,        KEY_KP6 },
-	{ KEY_7,        KEY_KP7 },
-	{ KEY_8,        KEY_KP8 },
-	{ KEY_9,        KEY_KP9 },
-	{ KEY_M,        KEY_KP0 },
-	{ KEY_DOT,      KEY_KPDOT },
-	{ KEY_SLASH,    KEY_KPPLUS },
-	{ KEY_SEMICOLON, KEY_KPMINUS },
-	{ KEY_P,        KEY_KPASTERISK },
-	{ KEY_MINUS,    KEY_KPEQUAL },
-	{ KEY_0,        KEY_KPSLASH },
-	{ KEY_F6,       KEY_NUMLOCK },
-	{ KEY_KPENTER,  KEY_KPENTER },
-	{ KEY_BACKSPACE, KEY_BACKSPACE },
-	{ }
-};
-
-static struct hidinput_key_translation apple_iso_keyboard[] = {
-	{ KEY_GRAVE,    KEY_102ND },
-	{ KEY_102ND,    KEY_GRAVE },
-	{ }
-};
-
-static struct hidinput_key_translation *find_translation(struct hidinput_key_translation *table, u16 from)
-{
-	struct hidinput_key_translation *trans;
-
-	/* Look for the translation */
-	for (trans = table; trans->from; trans++)
-		if (trans->from == from)
-			return trans;
-
-	return NULL;
-}
-
-int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
-		struct hid_usage *usage, __s32 value)
-{
-	struct hidinput_key_translation *trans;
-
-	if (usage->code == KEY_FN) {
-		if (value) hid->quirks |=  HID_QUIRK_APPLE_FN_ON;
-		else       hid->quirks &= ~HID_QUIRK_APPLE_FN_ON;
-
-		input_event(input, usage->type, usage->code, value);
-
-		return 1;
-	}
-
-	if (hid_apple_fnmode) {
-		int do_translate;
-
-		trans = find_translation((hid->product < 0x220 ||
-					  hid->product >= 0x300) ?
-					 powerbook_fn_keys : apple_fn_keys,
-					 usage->code);
-		if (trans) {
-			if (test_bit(usage->code, hid->apple_pressed_fn))
-				do_translate = 1;
-			else if (trans->flags & APPLE_FLAG_FKEY)
-				do_translate =
-					(hid_apple_fnmode == 2 &&  (hid->quirks & HID_QUIRK_APPLE_FN_ON)) ||
-					(hid_apple_fnmode == 1 && !(hid->quirks & HID_QUIRK_APPLE_FN_ON));
-			else
-				do_translate = (hid->quirks & HID_QUIRK_APPLE_FN_ON);
-
-			if (do_translate) {
-				if (value)
-					set_bit(usage->code, hid->apple_pressed_fn);
-				else
-					clear_bit(usage->code, hid->apple_pressed_fn);
-
-				input_event(input, usage->type, trans->to, value);
-
-				return 1;
-			}
-		}
-
-		if (hid->quirks & HID_QUIRK_APPLE_NUMLOCK_EMULATION && (
-				test_bit(usage->code, hid->pb_pressed_numlock) ||
-				test_bit(LED_NUML, input->led))) {
-			trans = find_translation(powerbook_numlock_keys, usage->code);
-
-			if (trans) {
-				if (value)
-					set_bit(usage->code, hid->pb_pressed_numlock);
-				else
-					clear_bit(usage->code, hid->pb_pressed_numlock);
-
-				input_event(input, usage->type, trans->to, value);
-			}
-
-			return 1;
-		}
-	}
-
-	if (hid->quirks & HID_QUIRK_APPLE_ISO_KEYBOARD) {
-		trans = find_translation(apple_iso_keyboard, usage->code);
-		if (trans) {
-			input_event(input, usage->type, trans->to, value);
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
-static void hidinput_apple_setup(struct input_dev *input)
-{
-	struct hidinput_key_translation *trans;
-
-	set_bit(KEY_NUMLOCK, input->keybit);
-
-	/* Enable all needed keys */
-	for (trans = apple_fn_keys; trans->from; trans++)
-		set_bit(trans->to, input->keybit);
-
-	for (trans = powerbook_fn_keys; trans->from; trans++)
-		set_bit(trans->to, input->keybit);
-
-	for (trans = powerbook_numlock_keys; trans->from; trans++)
-		set_bit(trans->to, input->keybit);
-
-	for (trans = apple_iso_keyboard; trans->from; trans++)
-		set_bit(trans->to, input->keybit);
-
-}
-#else
-inline int hidinput_apple_event(struct hid_device *hid,
-				       struct input_dev *input,
-				       struct hid_usage *usage, __s32 value)
-{
-	return 0;
-}
-
-static inline void hidinput_apple_setup(struct input_dev *input)
-{
-}
-#endif
+#define map_abs_clear(c)	hid_map_usage_clear(hidinput, usage, &bit, \
+		&max, EV_ABS, (c))
+#define map_key_clear(c)	hid_map_usage_clear(hidinput, usage, &bit, \
+		&max, EV_KEY, (c))
 
 static inline int match_scancode(int code, int scancode)
 {
@@ -366,7 +154,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 {
 	struct input_dev *input = hidinput->input;
 	struct hid_device *device = input_get_drvdata(input);
-	int max = 0, code, ret;
+	int max = 0, code;
 	unsigned long *bit = NULL;
 
 	field->hidinput = hidinput;
@@ -385,405 +173,344 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		goto ignore;
 	}
 
-	/* handle input mappings for quirky devices */
-	ret = hidinput_mapping_quirks(usage, input, &bit, &max);
-	if (ret)
-		goto mapped;
+	if (device->driver->input_mapping) {
+		int ret = device->driver->input_mapping(device, hidinput, field,
+				usage, &bit, &max);
+		if (ret > 0)
+			goto mapped;
+		if (ret < 0)
+			goto ignore;
+	}
 
 	switch (usage->hid & HID_USAGE_PAGE) {
+	case HID_UP_UNDEFINED:
+		goto ignore;
 
-		case HID_UP_UNDEFINED:
-			goto ignore;
+	case HID_UP_KEYBOARD:
+		set_bit(EV_REP, input->evbit);
 
-		case HID_UP_KEYBOARD:
+		if ((usage->hid & HID_USAGE) < 256) {
+			if (!hid_keyboard[usage->hid & HID_USAGE]) goto ignore;
+			map_key_clear(hid_keyboard[usage->hid & HID_USAGE]);
+		} else
+			map_key(KEY_UNKNOWN);
 
-			set_bit(EV_REP, input->evbit);
+		break;
 
-			if ((usage->hid & HID_USAGE) < 256) {
-				if (!hid_keyboard[usage->hid & HID_USAGE]) goto ignore;
-				map_key_clear(hid_keyboard[usage->hid & HID_USAGE]);
-			} else
-				map_key(KEY_UNKNOWN);
+	case HID_UP_BUTTON:
+		code = ((usage->hid - 1) & 0xf);
 
-			break;
-
-		case HID_UP_BUTTON:
-
-			code = ((usage->hid - 1) & 0xf);
-
-			switch (field->application) {
-				case HID_GD_MOUSE:
-				case HID_GD_POINTER:  code += 0x110; break;
-				case HID_GD_JOYSTICK: code += 0x120; break;
-				case HID_GD_GAMEPAD:  code += 0x130; break;
-				default:
-					switch (field->physical) {
-						case HID_GD_MOUSE:
-						case HID_GD_POINTER:  code += 0x110; break;
-						case HID_GD_JOYSTICK: code += 0x120; break;
-						case HID_GD_GAMEPAD:  code += 0x130; break;
-						default:              code += 0x100;
-					}
-			}
-
-			/* Special handling for Logitech Cordless Desktop */
-			if (field->application != HID_GD_MOUSE) {
-				if (device->quirks & HID_QUIRK_LOGITECH_EXPANDED_KEYMAP) {
-					int hid = usage->hid & HID_USAGE;
-					if (hid < LOGITECH_EXPANDED_KEYMAP_SIZE && logitech_expanded_keymap[hid] != 0)
-						code = logitech_expanded_keymap[hid];
-				}
-			} else {
-				if (device->quirks & HID_QUIRK_LOGITECH_IGNORE_DOUBLED_WHEEL) {
-					int hid = usage->hid & HID_USAGE;
-					if (hid == 7 || hid == 8)
-						goto ignore;
-				}
-			}
-
-			map_key(code);
-			break;
-
-
-		case HID_UP_SIMULATION:
-
-			switch (usage->hid & 0xffff) {
-				case 0xba: map_abs(ABS_RUDDER);   break;
-				case 0xbb: map_abs(ABS_THROTTLE); break;
-				case 0xc4: map_abs(ABS_GAS);      break;
-				case 0xc5: map_abs(ABS_BRAKE);    break;
-				case 0xc8: map_abs(ABS_WHEEL);    break;
-				default:   goto ignore;
-			}
-			break;
-
-		case HID_UP_GENDESK:
-
-			if ((usage->hid & 0xf0) == 0x80) {	/* SystemControl */
-				switch (usage->hid & 0xf) {
-					case 0x1: map_key_clear(KEY_POWER);  break;
-					case 0x2: map_key_clear(KEY_SLEEP);  break;
-					case 0x3: map_key_clear(KEY_WAKEUP); break;
-					default: goto unknown;
-				}
-				break;
-			}
-
-			if ((usage->hid & 0xf0) == 0x90) {	/* D-pad */
-				switch (usage->hid) {
-					case HID_GD_UP:	   usage->hat_dir = 1; break;
-					case HID_GD_DOWN:  usage->hat_dir = 5; break;
-					case HID_GD_RIGHT: usage->hat_dir = 3; break;
-					case HID_GD_LEFT:  usage->hat_dir = 7; break;
-					default: goto unknown;
-				}
-				if (field->dpad) {
-					map_abs(field->dpad);
-					goto ignore;
-				}
-				map_abs(ABS_HAT0X);
-				break;
-			}
-
-			switch (usage->hid) {
-
-				/* These usage IDs map directly to the usage codes. */
-				case HID_GD_X: case HID_GD_Y: case HID_GD_Z:
-				case HID_GD_RX: case HID_GD_RY: case HID_GD_RZ:
-				case HID_GD_SLIDER: case HID_GD_DIAL: case HID_GD_WHEEL:
-					if (field->flags & HID_MAIN_ITEM_RELATIVE)
-						map_rel(usage->hid & 0xf);
-					else
-						map_abs(usage->hid & 0xf);
-					break;
-
-				case HID_GD_HATSWITCH:
-					usage->hat_min = field->logical_minimum;
-					usage->hat_max = field->logical_maximum;
-					map_abs(ABS_HAT0X);
-					break;
-
-				case HID_GD_START:	map_key_clear(BTN_START);	break;
-				case HID_GD_SELECT:	map_key_clear(BTN_SELECT);	break;
-
-				default: goto unknown;
-			}
-
-			break;
-
-		case HID_UP_LED:
-
-			switch (usage->hid & 0xffff) {                        /* HID-Value:                   */
-				case 0x01:  map_led (LED_NUML);     break;    /*   "Num Lock"                 */
-				case 0x02:  map_led (LED_CAPSL);    break;    /*   "Caps Lock"                */
-				case 0x03:  map_led (LED_SCROLLL);  break;    /*   "Scroll Lock"              */
-				case 0x04:  map_led (LED_COMPOSE);  break;    /*   "Compose"                  */
-				case 0x05:  map_led (LED_KANA);     break;    /*   "Kana"                     */
-				case 0x27:  map_led (LED_SLEEP);    break;    /*   "Stand-By"                 */
-				case 0x4c:  map_led (LED_SUSPEND);  break;    /*   "System Suspend"           */
-				case 0x09:  map_led (LED_MUTE);     break;    /*   "Mute"                     */
-				case 0x4b:  map_led (LED_MISC);     break;    /*   "Generic Indicator"        */
-				case 0x19:  map_led (LED_MAIL);     break;    /*   "Message Waiting"          */
-				case 0x4d:  map_led (LED_CHARGING); break;    /*   "External Power Connected" */
-
-				default: goto ignore;
-			}
-			break;
-
-		case HID_UP_DIGITIZER:
-
-			switch (usage->hid & 0xff) {
-
-				case 0x30: /* TipPressure */
-					if (!test_bit(BTN_TOUCH, input->keybit)) {
-						device->quirks |= HID_QUIRK_NOTOUCH;
-						set_bit(EV_KEY, input->evbit);
-						set_bit(BTN_TOUCH, input->keybit);
-					}
-
-					map_abs_clear(ABS_PRESSURE);
-					break;
-
-				case 0x32: /* InRange */
-					switch (field->physical & 0xff) {
-						case 0x21: map_key(BTN_TOOL_MOUSE); break;
-						case 0x22: map_key(BTN_TOOL_FINGER); break;
-						default: map_key(BTN_TOOL_PEN); break;
-					}
-					break;
-
-				case 0x3c: /* Invert */
-					map_key_clear(BTN_TOOL_RUBBER);
-					break;
-
-				case 0x33: /* Touch */
-				case 0x42: /* TipSwitch */
-				case 0x43: /* TipSwitch2 */
-					device->quirks &= ~HID_QUIRK_NOTOUCH;
-					map_key_clear(BTN_TOUCH);
-					break;
-
-				case 0x44: /* BarrelSwitch */
-					map_key_clear(BTN_STYLUS);
-					break;
-
-				default:  goto unknown;
-			}
-			break;
-
-		case HID_UP_CONSUMER:	/* USB HUT v1.1, pages 56-62 */
-
-			switch (usage->hid & HID_USAGE) {
-				case 0x000: goto ignore;
-				case 0x034: map_key_clear(KEY_SLEEP);		break;
-				case 0x036: map_key_clear(BTN_MISC);		break;
-
-				case 0x040: map_key_clear(KEY_MENU);		break;
-				case 0x045: map_key_clear(KEY_RADIO);		break;
-
-				case 0x083: map_key_clear(KEY_LAST);		break;
-				case 0x088: map_key_clear(KEY_PC);		break;
-				case 0x089: map_key_clear(KEY_TV);		break;
-				case 0x08a: map_key_clear(KEY_WWW);		break;
-				case 0x08b: map_key_clear(KEY_DVD);		break;
-				case 0x08c: map_key_clear(KEY_PHONE);		break;
-				case 0x08d: map_key_clear(KEY_PROGRAM);		break;
-				case 0x08e: map_key_clear(KEY_VIDEOPHONE);	break;
-				case 0x08f: map_key_clear(KEY_GAMES);		break;
-				case 0x090: map_key_clear(KEY_MEMO);		break;
-				case 0x091: map_key_clear(KEY_CD);		break;
-				case 0x092: map_key_clear(KEY_VCR);		break;
-				case 0x093: map_key_clear(KEY_TUNER);		break;
-				case 0x094: map_key_clear(KEY_EXIT);		break;
-				case 0x095: map_key_clear(KEY_HELP);		break;
-				case 0x096: map_key_clear(KEY_TAPE);		break;
-				case 0x097: map_key_clear(KEY_TV2);		break;
-				case 0x098: map_key_clear(KEY_SAT);		break;
-				case 0x09a: map_key_clear(KEY_PVR);		break;
-
-				case 0x09c: map_key_clear(KEY_CHANNELUP);	break;
-				case 0x09d: map_key_clear(KEY_CHANNELDOWN);	break;
-				case 0x0a0: map_key_clear(KEY_VCR2);		break;
-
-				case 0x0b0: map_key_clear(KEY_PLAY);		break;
-				case 0x0b1: map_key_clear(KEY_PAUSE);		break;
-				case 0x0b2: map_key_clear(KEY_RECORD);		break;
-				case 0x0b3: map_key_clear(KEY_FASTFORWARD);	break;
-				case 0x0b4: map_key_clear(KEY_REWIND);		break;
-				case 0x0b5: map_key_clear(KEY_NEXTSONG);	break;
-				case 0x0b6: map_key_clear(KEY_PREVIOUSSONG);	break;
-				case 0x0b7: map_key_clear(KEY_STOPCD);		break;
-				case 0x0b8: map_key_clear(KEY_EJECTCD);		break;
-				case 0x0bc: map_key_clear(KEY_MEDIA_REPEAT);	break;
-
-				case 0x0cd: map_key_clear(KEY_PLAYPAUSE);	break;
-			        case 0x0e0: map_abs_clear(ABS_VOLUME);		break;
-				case 0x0e2: map_key_clear(KEY_MUTE);		break;
-				case 0x0e5: map_key_clear(KEY_BASSBOOST);	break;
-				case 0x0e9: map_key_clear(KEY_VOLUMEUP);	break;
-				case 0x0ea: map_key_clear(KEY_VOLUMEDOWN);	break;
-
-				case 0x182: map_key_clear(KEY_BOOKMARKS);	break;
-				case 0x183: map_key_clear(KEY_CONFIG);		break;
-				case 0x184: map_key_clear(KEY_WORDPROCESSOR);	break;
-				case 0x185: map_key_clear(KEY_EDITOR);		break;
-				case 0x186: map_key_clear(KEY_SPREADSHEET);	break;
-				case 0x187: map_key_clear(KEY_GRAPHICSEDITOR);	break;
-				case 0x188: map_key_clear(KEY_PRESENTATION);	break;
-				case 0x189: map_key_clear(KEY_DATABASE);	break;
-				case 0x18a: map_key_clear(KEY_MAIL);		break;
-				case 0x18b: map_key_clear(KEY_NEWS);		break;
-				case 0x18c: map_key_clear(KEY_VOICEMAIL);	break;
-				case 0x18d: map_key_clear(KEY_ADDRESSBOOK);	break;
-				case 0x18e: map_key_clear(KEY_CALENDAR);	break;
-				case 0x191: map_key_clear(KEY_FINANCE);		break;
-				case 0x192: map_key_clear(KEY_CALC);		break;
-				case 0x194: map_key_clear(KEY_FILE);		break;
-				case 0x196: map_key_clear(KEY_WWW);		break;
-				case 0x19c: map_key_clear(KEY_LOGOFF);		break;
-				case 0x19e: map_key_clear(KEY_COFFEE);		break;
-				case 0x1a6: map_key_clear(KEY_HELP);		break;
-				case 0x1a7: map_key_clear(KEY_DOCUMENTS);	break;
-				case 0x1ab: map_key_clear(KEY_SPELLCHECK);	break;
-				case 0x1b6: map_key_clear(KEY_MEDIA);		break;
-				case 0x1b7: map_key_clear(KEY_SOUND);		break;
-				case 0x1bc: map_key_clear(KEY_MESSENGER);	break;
-				case 0x1bd: map_key_clear(KEY_INFO);		break;
-				case 0x201: map_key_clear(KEY_NEW);		break;
-				case 0x202: map_key_clear(KEY_OPEN);		break;
-				case 0x203: map_key_clear(KEY_CLOSE);		break;
-				case 0x204: map_key_clear(KEY_EXIT);		break;
-				case 0x207: map_key_clear(KEY_SAVE);		break;
-				case 0x208: map_key_clear(KEY_PRINT);		break;
-				case 0x209: map_key_clear(KEY_PROPS);		break;
-				case 0x21a: map_key_clear(KEY_UNDO);		break;
-				case 0x21b: map_key_clear(KEY_COPY);		break;
-				case 0x21c: map_key_clear(KEY_CUT);		break;
-				case 0x21d: map_key_clear(KEY_PASTE);		break;
-				case 0x21f: map_key_clear(KEY_FIND);		break;
-				case 0x221: map_key_clear(KEY_SEARCH);		break;
-				case 0x222: map_key_clear(KEY_GOTO);		break;
-				case 0x223: map_key_clear(KEY_HOMEPAGE);	break;
-				case 0x224: map_key_clear(KEY_BACK);		break;
-				case 0x225: map_key_clear(KEY_FORWARD);		break;
-				case 0x226: map_key_clear(KEY_STOP);		break;
-				case 0x227: map_key_clear(KEY_REFRESH);		break;
-				case 0x22a: map_key_clear(KEY_BOOKMARKS);	break;
-				case 0x22d: map_key_clear(KEY_ZOOMIN);		break;
-				case 0x22e: map_key_clear(KEY_ZOOMOUT);		break;
-				case 0x22f: map_key_clear(KEY_ZOOMRESET);	break;
-				case 0x233: map_key_clear(KEY_SCROLLUP);	break;
-				case 0x234: map_key_clear(KEY_SCROLLDOWN);	break;
-				case 0x238: map_rel(REL_HWHEEL);		break;
-				case 0x25f: map_key_clear(KEY_CANCEL);		break;
-				case 0x279: map_key_clear(KEY_REDO);		break;
-
-				case 0x289: map_key_clear(KEY_REPLY);		break;
-				case 0x28b: map_key_clear(KEY_FORWARDMAIL);	break;
-				case 0x28c: map_key_clear(KEY_SEND);		break;
-
-				default:    goto ignore;
-			}
-			break;
-
-		case HID_UP_HPVENDOR:	/* Reported on a Dutch layout HP5308 */
-
-			set_bit(EV_REP, input->evbit);
-			switch (usage->hid & HID_USAGE) {
-			        case 0x021: map_key_clear(KEY_PRINT);           break;
-				case 0x070: map_key_clear(KEY_HP);		break;
-				case 0x071: map_key_clear(KEY_CAMERA);		break;
-				case 0x072: map_key_clear(KEY_SOUND);		break;
-				case 0x073: map_key_clear(KEY_QUESTION);	break;
-				case 0x080: map_key_clear(KEY_EMAIL);		break;
-				case 0x081: map_key_clear(KEY_CHAT);		break;
-				case 0x082: map_key_clear(KEY_SEARCH);		break;
-				case 0x083: map_key_clear(KEY_CONNECT);	        break;
-				case 0x084: map_key_clear(KEY_FINANCE);		break;
-				case 0x085: map_key_clear(KEY_SPORT);		break;
-				case 0x086: map_key_clear(KEY_SHOP);	        break;
-				default:    goto ignore;
-			}
-			break;
-
-		case HID_UP_MSVENDOR:
-
-			goto ignore;
-
-		case HID_UP_CUSTOM: /* Reported on Logitech and Apple USB keyboards */
-
-			set_bit(EV_REP, input->evbit);
-			switch(usage->hid & HID_USAGE) {
-				case 0x003:
-					/* The fn key on Apple USB keyboards */
-					map_key_clear(KEY_FN);
-					hidinput_apple_setup(input);
-					break;
-
-				default:    goto ignore;
-			}
-			break;
-
-		case HID_UP_LOGIVENDOR:
-
-			goto ignore;
-		
-		case HID_UP_PID:
-
-			switch(usage->hid & HID_USAGE) {
-				case 0xa4: map_key_clear(BTN_DEAD);	break;
-				default: goto ignore;
-			}
-			break;
-
+		switch (field->application) {
+		case HID_GD_MOUSE:
+		case HID_GD_POINTER:  code += 0x110; break;
+		case HID_GD_JOYSTICK: code += 0x120; break;
+		case HID_GD_GAMEPAD:  code += 0x130; break;
 		default:
-		unknown:
-			if (field->report_size == 1) {
-				if (field->report->type == HID_OUTPUT_REPORT) {
-					map_led(LED_MISC);
-					break;
-				}
-				map_key(BTN_MISC);
-				break;
+			switch (field->physical) {
+			case HID_GD_MOUSE:
+			case HID_GD_POINTER:  code += 0x110; break;
+			case HID_GD_JOYSTICK: code += 0x120; break;
+			case HID_GD_GAMEPAD:  code += 0x130; break;
+			default:              code += 0x100;
 			}
-			if (field->flags & HID_MAIN_ITEM_RELATIVE) {
-				map_rel(REL_MISC);
-				break;
+		}
+
+		map_key(code);
+		break;
+
+	case HID_UP_SIMULATION:
+		switch (usage->hid & 0xffff) {
+		case 0xba: map_abs(ABS_RUDDER);   break;
+		case 0xbb: map_abs(ABS_THROTTLE); break;
+		case 0xc4: map_abs(ABS_GAS);      break;
+		case 0xc5: map_abs(ABS_BRAKE);    break;
+		case 0xc8: map_abs(ABS_WHEEL);    break;
+		default:   goto ignore;
+		}
+		break;
+
+	case HID_UP_GENDESK:
+		if ((usage->hid & 0xf0) == 0x80) {	/* SystemControl */
+			switch (usage->hid & 0xf) {
+			case 0x1: map_key_clear(KEY_POWER);  break;
+			case 0x2: map_key_clear(KEY_SLEEP);  break;
+			case 0x3: map_key_clear(KEY_WAKEUP); break;
+			default: goto unknown;
 			}
-			map_abs(ABS_MISC);
 			break;
+		}
+
+		if ((usage->hid & 0xf0) == 0x90) {	/* D-pad */
+			switch (usage->hid) {
+			case HID_GD_UP:	   usage->hat_dir = 1; break;
+			case HID_GD_DOWN:  usage->hat_dir = 5; break;
+			case HID_GD_RIGHT: usage->hat_dir = 3; break;
+			case HID_GD_LEFT:  usage->hat_dir = 7; break;
+			default: goto unknown;
+			}
+			if (field->dpad) {
+				map_abs(field->dpad);
+				goto ignore;
+			}
+			map_abs(ABS_HAT0X);
+			break;
+		}
+
+		switch (usage->hid) {
+		/* These usage IDs map directly to the usage codes. */
+		case HID_GD_X: case HID_GD_Y: case HID_GD_Z:
+		case HID_GD_RX: case HID_GD_RY: case HID_GD_RZ:
+		case HID_GD_SLIDER: case HID_GD_DIAL: case HID_GD_WHEEL:
+			if (field->flags & HID_MAIN_ITEM_RELATIVE)
+				map_rel(usage->hid & 0xf);
+			else
+				map_abs(usage->hid & 0xf);
+			break;
+
+		case HID_GD_HATSWITCH:
+			usage->hat_min = field->logical_minimum;
+			usage->hat_max = field->logical_maximum;
+			map_abs(ABS_HAT0X);
+			break;
+
+		case HID_GD_START:	map_key_clear(BTN_START);	break;
+		case HID_GD_SELECT:	map_key_clear(BTN_SELECT);	break;
+
+		default: goto unknown;
+		}
+
+		break;
+
+	case HID_UP_LED:
+		switch (usage->hid & 0xffff) {		      /* HID-Value:                   */
+		case 0x01:  map_led (LED_NUML);     break;    /*   "Num Lock"                 */
+		case 0x02:  map_led (LED_CAPSL);    break;    /*   "Caps Lock"                */
+		case 0x03:  map_led (LED_SCROLLL);  break;    /*   "Scroll Lock"              */
+		case 0x04:  map_led (LED_COMPOSE);  break;    /*   "Compose"                  */
+		case 0x05:  map_led (LED_KANA);     break;    /*   "Kana"                     */
+		case 0x27:  map_led (LED_SLEEP);    break;    /*   "Stand-By"                 */
+		case 0x4c:  map_led (LED_SUSPEND);  break;    /*   "System Suspend"           */
+		case 0x09:  map_led (LED_MUTE);     break;    /*   "Mute"                     */
+		case 0x4b:  map_led (LED_MISC);     break;    /*   "Generic Indicator"        */
+		case 0x19:  map_led (LED_MAIL);     break;    /*   "Message Waiting"          */
+		case 0x4d:  map_led (LED_CHARGING); break;    /*   "External Power Connected" */
+
+		default: goto ignore;
+		}
+		break;
+
+	case HID_UP_DIGITIZER:
+		switch (usage->hid & 0xff) {
+		case 0x30: /* TipPressure */
+			if (!test_bit(BTN_TOUCH, input->keybit)) {
+				device->quirks |= HID_QUIRK_NOTOUCH;
+				set_bit(EV_KEY, input->evbit);
+				set_bit(BTN_TOUCH, input->keybit);
+			}
+			map_abs_clear(ABS_PRESSURE);
+			break;
+
+		case 0x32: /* InRange */
+			switch (field->physical & 0xff) {
+			case 0x21: map_key(BTN_TOOL_MOUSE); break;
+			case 0x22: map_key(BTN_TOOL_FINGER); break;
+			default: map_key(BTN_TOOL_PEN); break;
+			}
+			break;
+
+		case 0x3c: /* Invert */
+			map_key_clear(BTN_TOOL_RUBBER);
+			break;
+
+		case 0x33: /* Touch */
+		case 0x42: /* TipSwitch */
+		case 0x43: /* TipSwitch2 */
+			device->quirks &= ~HID_QUIRK_NOTOUCH;
+			map_key_clear(BTN_TOUCH);
+			break;
+
+		case 0x44: /* BarrelSwitch */
+			map_key_clear(BTN_STYLUS);
+			break;
+
+		default:  goto unknown;
+		}
+		break;
+
+	case HID_UP_CONSUMER:	/* USB HUT v1.1, pages 56-62 */
+		switch (usage->hid & HID_USAGE) {
+		case 0x000: goto ignore;
+		case 0x034: map_key_clear(KEY_SLEEP);		break;
+		case 0x036: map_key_clear(BTN_MISC);		break;
+
+		case 0x040: map_key_clear(KEY_MENU);		break;
+		case 0x045: map_key_clear(KEY_RADIO);		break;
+
+		case 0x083: map_key_clear(KEY_LAST);		break;
+		case 0x088: map_key_clear(KEY_PC);		break;
+		case 0x089: map_key_clear(KEY_TV);		break;
+		case 0x08a: map_key_clear(KEY_WWW);		break;
+		case 0x08b: map_key_clear(KEY_DVD);		break;
+		case 0x08c: map_key_clear(KEY_PHONE);		break;
+		case 0x08d: map_key_clear(KEY_PROGRAM);		break;
+		case 0x08e: map_key_clear(KEY_VIDEOPHONE);	break;
+		case 0x08f: map_key_clear(KEY_GAMES);		break;
+		case 0x090: map_key_clear(KEY_MEMO);		break;
+		case 0x091: map_key_clear(KEY_CD);		break;
+		case 0x092: map_key_clear(KEY_VCR);		break;
+		case 0x093: map_key_clear(KEY_TUNER);		break;
+		case 0x094: map_key_clear(KEY_EXIT);		break;
+		case 0x095: map_key_clear(KEY_HELP);		break;
+		case 0x096: map_key_clear(KEY_TAPE);		break;
+		case 0x097: map_key_clear(KEY_TV2);		break;
+		case 0x098: map_key_clear(KEY_SAT);		break;
+		case 0x09a: map_key_clear(KEY_PVR);		break;
+
+		case 0x09c: map_key_clear(KEY_CHANNELUP);	break;
+		case 0x09d: map_key_clear(KEY_CHANNELDOWN);	break;
+		case 0x0a0: map_key_clear(KEY_VCR2);		break;
+
+		case 0x0b0: map_key_clear(KEY_PLAY);		break;
+		case 0x0b1: map_key_clear(KEY_PAUSE);		break;
+		case 0x0b2: map_key_clear(KEY_RECORD);		break;
+		case 0x0b3: map_key_clear(KEY_FASTFORWARD);	break;
+		case 0x0b4: map_key_clear(KEY_REWIND);		break;
+		case 0x0b5: map_key_clear(KEY_NEXTSONG);	break;
+		case 0x0b6: map_key_clear(KEY_PREVIOUSSONG);	break;
+		case 0x0b7: map_key_clear(KEY_STOPCD);		break;
+		case 0x0b8: map_key_clear(KEY_EJECTCD);		break;
+		case 0x0bc: map_key_clear(KEY_MEDIA_REPEAT);	break;
+
+		case 0x0cd: map_key_clear(KEY_PLAYPAUSE);	break;
+		case 0x0e0: map_abs_clear(ABS_VOLUME);		break;
+		case 0x0e2: map_key_clear(KEY_MUTE);		break;
+		case 0x0e5: map_key_clear(KEY_BASSBOOST);	break;
+		case 0x0e9: map_key_clear(KEY_VOLUMEUP);	break;
+		case 0x0ea: map_key_clear(KEY_VOLUMEDOWN);	break;
+
+		case 0x182: map_key_clear(KEY_BOOKMARKS);	break;
+		case 0x183: map_key_clear(KEY_CONFIG);		break;
+		case 0x184: map_key_clear(KEY_WORDPROCESSOR);	break;
+		case 0x185: map_key_clear(KEY_EDITOR);		break;
+		case 0x186: map_key_clear(KEY_SPREADSHEET);	break;
+		case 0x187: map_key_clear(KEY_GRAPHICSEDITOR);	break;
+		case 0x188: map_key_clear(KEY_PRESENTATION);	break;
+		case 0x189: map_key_clear(KEY_DATABASE);	break;
+		case 0x18a: map_key_clear(KEY_MAIL);		break;
+		case 0x18b: map_key_clear(KEY_NEWS);		break;
+		case 0x18c: map_key_clear(KEY_VOICEMAIL);	break;
+		case 0x18d: map_key_clear(KEY_ADDRESSBOOK);	break;
+		case 0x18e: map_key_clear(KEY_CALENDAR);	break;
+		case 0x191: map_key_clear(KEY_FINANCE);		break;
+		case 0x192: map_key_clear(KEY_CALC);		break;
+		case 0x194: map_key_clear(KEY_FILE);		break;
+		case 0x196: map_key_clear(KEY_WWW);		break;
+		case 0x19c: map_key_clear(KEY_LOGOFF);		break;
+		case 0x19e: map_key_clear(KEY_COFFEE);		break;
+		case 0x1a6: map_key_clear(KEY_HELP);		break;
+		case 0x1a7: map_key_clear(KEY_DOCUMENTS);	break;
+		case 0x1ab: map_key_clear(KEY_SPELLCHECK);	break;
+		case 0x1b6: map_key_clear(KEY_MEDIA);		break;
+		case 0x1b7: map_key_clear(KEY_SOUND);		break;
+		case 0x1bc: map_key_clear(KEY_MESSENGER);	break;
+		case 0x1bd: map_key_clear(KEY_INFO);		break;
+		case 0x201: map_key_clear(KEY_NEW);		break;
+		case 0x202: map_key_clear(KEY_OPEN);		break;
+		case 0x203: map_key_clear(KEY_CLOSE);		break;
+		case 0x204: map_key_clear(KEY_EXIT);		break;
+		case 0x207: map_key_clear(KEY_SAVE);		break;
+		case 0x208: map_key_clear(KEY_PRINT);		break;
+		case 0x209: map_key_clear(KEY_PROPS);		break;
+		case 0x21a: map_key_clear(KEY_UNDO);		break;
+		case 0x21b: map_key_clear(KEY_COPY);		break;
+		case 0x21c: map_key_clear(KEY_CUT);		break;
+		case 0x21d: map_key_clear(KEY_PASTE);		break;
+		case 0x21f: map_key_clear(KEY_FIND);		break;
+		case 0x221: map_key_clear(KEY_SEARCH);		break;
+		case 0x222: map_key_clear(KEY_GOTO);		break;
+		case 0x223: map_key_clear(KEY_HOMEPAGE);	break;
+		case 0x224: map_key_clear(KEY_BACK);		break;
+		case 0x225: map_key_clear(KEY_FORWARD);		break;
+		case 0x226: map_key_clear(KEY_STOP);		break;
+		case 0x227: map_key_clear(KEY_REFRESH);		break;
+		case 0x22a: map_key_clear(KEY_BOOKMARKS);	break;
+		case 0x22d: map_key_clear(KEY_ZOOMIN);		break;
+		case 0x22e: map_key_clear(KEY_ZOOMOUT);		break;
+		case 0x22f: map_key_clear(KEY_ZOOMRESET);	break;
+		case 0x233: map_key_clear(KEY_SCROLLUP);	break;
+		case 0x234: map_key_clear(KEY_SCROLLDOWN);	break;
+		case 0x238: map_rel(REL_HWHEEL);		break;
+		case 0x25f: map_key_clear(KEY_CANCEL);		break;
+		case 0x279: map_key_clear(KEY_REDO);		break;
+
+		case 0x289: map_key_clear(KEY_REPLY);		break;
+		case 0x28b: map_key_clear(KEY_FORWARDMAIL);	break;
+		case 0x28c: map_key_clear(KEY_SEND);		break;
+
+		default:    goto ignore;
+		}
+		break;
+
+	case HID_UP_HPVENDOR:	/* Reported on a Dutch layout HP5308 */
+		set_bit(EV_REP, input->evbit);
+		switch (usage->hid & HID_USAGE) {
+		case 0x021: map_key_clear(KEY_PRINT);           break;
+		case 0x070: map_key_clear(KEY_HP);		break;
+		case 0x071: map_key_clear(KEY_CAMERA);		break;
+		case 0x072: map_key_clear(KEY_SOUND);		break;
+		case 0x073: map_key_clear(KEY_QUESTION);	break;
+		case 0x080: map_key_clear(KEY_EMAIL);		break;
+		case 0x081: map_key_clear(KEY_CHAT);		break;
+		case 0x082: map_key_clear(KEY_SEARCH);		break;
+		case 0x083: map_key_clear(KEY_CONNECT);	        break;
+		case 0x084: map_key_clear(KEY_FINANCE);		break;
+		case 0x085: map_key_clear(KEY_SPORT);		break;
+		case 0x086: map_key_clear(KEY_SHOP);	        break;
+		default:    goto ignore;
+		}
+		break;
+
+	case HID_UP_MSVENDOR:
+		goto ignore;
+
+	case HID_UP_CUSTOM: /* Reported on Logitech and Apple USB keyboards */
+		set_bit(EV_REP, input->evbit);
+		goto ignore;
+
+	case HID_UP_LOGIVENDOR:
+		goto ignore;
+	
+	case HID_UP_PID:
+		switch (usage->hid & HID_USAGE) {
+		case 0xa4: map_key_clear(BTN_DEAD);	break;
+		default: goto ignore;
+		}
+		break;
+
+	default:
+	unknown:
+		if (field->report_size == 1) {
+			if (field->report->type == HID_OUTPUT_REPORT) {
+				map_led(LED_MISC);
+				break;
+			}
+			map_key(BTN_MISC);
+			break;
+		}
+		if (field->flags & HID_MAIN_ITEM_RELATIVE) {
+			map_rel(REL_MISC);
+			break;
+		}
+		map_abs(ABS_MISC);
+		break;
 	}
 
 mapped:
-	if (device->quirks & HID_QUIRK_MIGHTYMOUSE) {
-		if (usage->hid == HID_GD_Z)
-			map_rel(REL_HWHEEL);
-		else if (usage->code == BTN_1)
-			map_key(BTN_2);
-		else if (usage->code == BTN_2)
-			map_key(BTN_1);
-	}
-
-	if ((device->quirks & (HID_QUIRK_2WHEEL_MOUSE_HACK_7 | HID_QUIRK_2WHEEL_MOUSE_HACK_5 |
-			HID_QUIRK_2WHEEL_MOUSE_HACK_B8)) && (usage->type == EV_REL) &&
-			(usage->code == REL_WHEEL))
-		set_bit(REL_HWHEEL, bit);
-
-	if (((device->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_5) && (usage->hid == 0x00090005))
-		|| ((device->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_7) && (usage->hid == 0x00090007)))
+	if (device->driver->input_mapped && device->driver->input_mapped(device,
+				hidinput, field, usage, &bit, &max) < 0)
 		goto ignore;
 
-	if ((device->quirks & HID_QUIRK_BAD_RELATIVE_KEYS) &&
-		usage->type == EV_KEY && (field->flags & HID_MAIN_ITEM_RELATIVE))
-		field->flags &= ~HID_MAIN_ITEM_RELATIVE;
-
 	set_bit(usage->type, input->evbit);
-
-	if (device->quirks & HID_QUIRK_DUPLICATE_USAGES &&
-			(usage->type == EV_KEY ||
-			 usage->type == EV_REL ||
-			 usage->type == EV_ABS))
-		clear_bit(usage->code, bit);
 
 	while (usage->code <= max && test_and_set_bit(usage->code, bit))
 		usage->code = find_next_zero_bit(bit, max + 1, usage->code);
@@ -856,10 +583,6 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 	input = field->hidinput->input;
 
 	if (!usage->type)
-		return;
-
-	/* handle input events for quirky devices */
-	if (hidinput_event_quirks(hid, field, usage, value))
 		return;
 
 	if (usage->hat_min < usage->hat_max || usage->hat_dir) {
@@ -961,14 +684,14 @@ static int hidinput_open(struct input_dev *dev)
 {
 	struct hid_device *hid = input_get_drvdata(dev);
 
-	return hid->hid_open(hid);
+	return hid->ll_driver->open(hid);
 }
 
 static void hidinput_close(struct input_dev *dev)
 {
 	struct hid_device *hid = input_get_drvdata(dev);
 
-	hid->hid_close(hid);
+	hid->ll_driver->close(hid);
 }
 
 /*
@@ -977,7 +700,7 @@ static void hidinput_close(struct input_dev *dev)
  * Read all reports and initialize the absolute field values.
  */
 
-int hidinput_connect(struct hid_device *hid)
+int hidinput_connect(struct hid_device *hid, unsigned int force)
 {
 	struct hid_report *report;
 	struct hid_input *hidinput = NULL;
@@ -985,19 +708,20 @@ int hidinput_connect(struct hid_device *hid)
 	int i, j, k;
 	int max_report_type = HID_OUTPUT_REPORT;
 
-	if (hid->quirks & HID_QUIRK_IGNORE_HIDINPUT)
-		return -1;
-
 	INIT_LIST_HEAD(&hid->inputs);
 
-	for (i = 0; i < hid->maxcollection; i++)
-		if (hid->collection[i].type == HID_COLLECTION_APPLICATION ||
-		    hid->collection[i].type == HID_COLLECTION_PHYSICAL)
-			if (IS_INPUT_APPLICATION(hid->collection[i].usage))
-				break;
+	if (!force) {
+		for (i = 0; i < hid->maxcollection; i++) {
+			struct hid_collection *col = &hid->collection[i];
+			if (col->type == HID_COLLECTION_APPLICATION ||
+					col->type == HID_COLLECTION_PHYSICAL)
+				if (IS_INPUT_APPLICATION(col->usage))
+					break;
+		}
 
-	if (i == hid->maxcollection && (hid->quirks & HID_QUIRK_HIDINPUT) == 0)
-		return -1;
+		if (i == hid->maxcollection)
+			return -1;
+	}
 
 	if (hid->quirks & HID_QUIRK_SKIP_OUTPUT_REPORTS)
 		max_report_type = HID_INPUT_REPORT;
@@ -1019,7 +743,8 @@ int hidinput_connect(struct hid_device *hid)
 				}
 
 				input_set_drvdata(input_dev, hid);
-				input_dev->event = hid->hidinput_input_event;
+				input_dev->event =
+					hid->ll_driver->hidinput_input_event;
 				input_dev->open = hidinput_open;
 				input_dev->close = hidinput_close;
 				input_dev->setkeycode = hidinput_setkeycode;
@@ -1032,7 +757,7 @@ int hidinput_connect(struct hid_device *hid)
 				input_dev->id.vendor  = hid->vendor;
 				input_dev->id.product = hid->product;
 				input_dev->id.version = hid->version;
-				input_dev->dev.parent = hid->dev;
+				input_dev->dev.parent = hid->dev.parent;
 				hidinput->input = input_dev;
 				list_add_tail(&hidinput->list, &hid->inputs);
 			}

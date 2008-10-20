@@ -46,4 +46,6 @@ config KVM_INTEL
 config KVM_TRACE
        bool
 
+source drivers/virtio/Kconfig
+
 endif # VIRTUALIZATION

@@ -124,7 +124,7 @@ void ivtv_reset_ir_gpio(struct ivtv *itv)
 }
 
 /* Xceive tuner reset function */
-int ivtv_reset_tuner_gpio(void *dev, int cmd, int value)
+int ivtv_reset_tuner_gpio(void *dev, int component, int cmd, int value)
 {
 	struct i2c_algo_bit_data *algo = dev;
 	struct ivtv *itv = algo->data;

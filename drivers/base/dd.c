@@ -257,6 +257,9 @@ static int __driver_attach(struct device *dev, void *data)
 	 * is an error.
 	 */
 
+	if (drv->bus->match && !drv->bus->match(dev, drv))
+		return 0;
+
 	if (dev->parent)	/* Needed for USB */
 		down(&dev->parent->sem);
 	down(&dev->sem);

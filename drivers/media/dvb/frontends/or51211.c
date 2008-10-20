@@ -88,7 +88,7 @@ static int i2c_writebytes (struct or51211_state* state, u8 reg, const u8 *buf,
 	return 0;
 }
 
-static u8 i2c_readbytes (struct or51211_state* state, u8 reg, u8* buf, int len)
+static int i2c_readbytes(struct or51211_state *state, u8 reg, u8 *buf, int len)
 {
 	int err;
 	struct i2c_msg msg;

@@ -149,8 +149,8 @@
 	ENTRY_COMP(getrlimit)
 	ENTRY_COMP(getrusage)
 	/* struct timeval and timezone are maybe?? consistent wide and narrow */
-	ENTRY_DIFF(gettimeofday)
-	ENTRY_DIFF(settimeofday)
+	ENTRY_COMP(gettimeofday)
+	ENTRY_COMP(settimeofday)
 	ENTRY_SAME(getgroups)		/* 80 */
 	ENTRY_SAME(setgroups)
 	/* struct socketaddr... */

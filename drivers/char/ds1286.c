@@ -443,7 +443,6 @@ static void ds1286_get_time(struct rtc_time *rtc_tm)
 {
 	unsigned char save_control;
 	unsigned long flags;
-	unsigned long uip_watchdog = jiffies;
 
 	/*
 	 * read RTC once any update in progress is done. The update
@@ -456,8 +455,7 @@ static void ds1286_get_time(struct rtc_time *rtc_tm)
 	 */
 
 	if (ds1286_is_updating() != 0)
-		while (time_before(jiffies, uip_watchdog + 2*HZ/100))
-			barrier();
+		msleep(20);
 
 	/*
 	 * Only the values that we read from the RTC are set. We leave

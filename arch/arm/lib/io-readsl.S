@@ -76,3 +76,4 @@ ENTRY(__raw_readsl)
 8:		mov	r3, ip, get_byte_0
 		strb	r3, [r1, #0]
 		mov	pc, lr
+ENDPROC(__raw_readsl)

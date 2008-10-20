@@ -25,8 +25,8 @@
 #include <linux/mtd/physmap.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

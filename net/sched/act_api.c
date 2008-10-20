@@ -494,7 +494,7 @@ struct tc_action *tcf_action_init_1(struct nlattr *nla, struct nlattr *est,
 
 	a_o = tc_lookup_action_n(act_name);
 	if (a_o == NULL) {
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 		rtnl_unlock();
 		request_module("act_%s", act_name);
 		rtnl_lock();

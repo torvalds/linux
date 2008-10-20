@@ -36,6 +36,43 @@
 #include <asm/uaccess.h>
 
 /**
+ * mdiobus_alloc - allocate a mii_bus structure
+ *
+ * Description: called by a bus driver to allocate an mii_bus
+ * structure to fill in.
+ */
+struct mii_bus *mdiobus_alloc(void)
+{
+	struct mii_bus *bus;
+
+	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
+	if (bus != NULL)
+		bus->state = MDIOBUS_ALLOCATED;
+
+	return bus;
+}
+EXPORT_SYMBOL(mdiobus_alloc);
+
+/**
+ * mdiobus_release - mii_bus device release callback
+ * @d: the target struct device that contains the mii_bus
+ *
+ * Description: called when the last reference to an mii_bus is
+ * dropped, to free the underlying memory.
+ */
+static void mdiobus_release(struct device *d)
+{
+	struct mii_bus *bus = to_mii_bus(d);
+	BUG_ON(bus->state != MDIOBUS_RELEASED);
+	kfree(bus);
+}
+
+static struct class mdio_bus_class = {
+	.name		= "mdio_bus",
+	.dev_release	= mdiobus_release,
+};
+
+/**
  * mdiobus_register - bring up all the PHYs on a given bus and attach them to bus
  * @bus: target mii_bus
  *
@@ -54,55 +91,36 @@ int mdiobus_register(struct mii_bus *bus)
 			NULL == bus->write)
 		return -EINVAL;
 
+	BUG_ON(bus->state != MDIOBUS_ALLOCATED &&
+	       bus->state != MDIOBUS_UNREGISTERED);
+
+	bus->dev.parent = bus->parent;
+	bus->dev.class = &mdio_bus_class;
+	bus->dev.groups = NULL;
+	memcpy(bus->dev.bus_id, bus->id, MII_BUS_ID_SIZE);
+
+	err = device_register(&bus->dev);
+	if (err) {
+		printk(KERN_ERR "mii_bus %s failed to register\n", bus->id);
+		return -EINVAL;
+	}
+
+	bus->state = MDIOBUS_REGISTERED;
+
 	mutex_init(&bus->mdio_lock);
 
 	if (bus->reset)
 		bus->reset(bus);
 
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
-		struct phy_device *phydev;
+		bus->phy_map[i] = NULL;
+		if ((bus->phy_mask & (1 << i)) == 0) {
+			struct phy_device *phydev;
 
-		if (bus->phy_mask & (1 << i)) {
-			bus->phy_map[i] = NULL;
-			continue;
+			phydev = mdiobus_scan(bus, i);
+			if (IS_ERR(phydev))
+				err = PTR_ERR(phydev);
 		}
-
-		phydev = get_phy_device(bus, i);
-
-		if (IS_ERR(phydev))
-			return PTR_ERR(phydev);
-
-		/* There's a PHY at this address
-		 * We need to set:
-		 * 1) IRQ
-		 * 2) bus_id
-		 * 3) parent
-		 * 4) bus
-		 * 5) mii_bus
-		 * And, we need to register it */
-		if (phydev) {
-			phydev->irq = bus->irq[i];
-
-			phydev->dev.parent = bus->dev;
-			phydev->dev.bus = &mdio_bus_type;
-			snprintf(phydev->dev.bus_id, BUS_ID_SIZE, PHY_ID_FMT, bus->id, i);
-
-			phydev->bus = bus;
-
-			/* Run all of the fixups for this PHY */
-			phy_scan_fixups(phydev);
-
-			err = device_register(&phydev->dev);
-
-			if (err) {
-				printk(KERN_ERR "phy %d failed to register\n",
-						i);
-				phy_device_free(phydev);
-				phydev = NULL;
-			}
-		}
-
-		bus->phy_map[i] = phydev;
 	}
 
 	pr_info("%s: probed\n", bus->name);
@@ -115,12 +133,132 @@ void mdiobus_unregister(struct mii_bus *bus)
 {
 	int i;
 
+	BUG_ON(bus->state != MDIOBUS_REGISTERED);
+	bus->state = MDIOBUS_UNREGISTERED;
+
+	device_unregister(&bus->dev);
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
 		if (bus->phy_map[i])
 			device_unregister(&bus->phy_map[i]->dev);
 	}
 }
 EXPORT_SYMBOL(mdiobus_unregister);
+
+/**
+ * mdiobus_free - free a struct mii_bus
+ * @bus: mii_bus to free
+ *
+ * This function releases the reference to the underlying device
+ * object in the mii_bus.  If this is the last reference, the mii_bus
+ * will be freed.
+ */
+void mdiobus_free(struct mii_bus *bus)
+{
+	/*
+	 * For compatibility with error handling in drivers.
+	 */
+	if (bus->state == MDIOBUS_ALLOCATED) {
+		kfree(bus);
+		return;
+	}
+
+	BUG_ON(bus->state != MDIOBUS_UNREGISTERED);
+	bus->state = MDIOBUS_RELEASED;
+
+	put_device(&bus->dev);
+}
+EXPORT_SYMBOL(mdiobus_free);
+
+struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr)
+{
+	struct phy_device *phydev;
+	int err;
+
+	phydev = get_phy_device(bus, addr);
+	if (IS_ERR(phydev) || phydev == NULL)
+		return phydev;
+
+	/* There's a PHY at this address
+	 * We need to set:
+	 * 1) IRQ
+	 * 2) bus_id
+	 * 3) parent
+	 * 4) bus
+	 * 5) mii_bus
+	 * And, we need to register it */
+
+	phydev->irq = bus->irq != NULL ? bus->irq[addr] : PHY_POLL;
+
+	phydev->dev.parent = bus->parent;
+	phydev->dev.bus = &mdio_bus_type;
+	snprintf(phydev->dev.bus_id, BUS_ID_SIZE, PHY_ID_FMT, bus->id, addr);
+
+	phydev->bus = bus;
+
+	/* Run all of the fixups for this PHY */
+	phy_scan_fixups(phydev);
+
+	err = device_register(&phydev->dev);
+	if (err) {
+		printk(KERN_ERR "phy %d failed to register\n", addr);
+		phy_device_free(phydev);
+		phydev = NULL;
+	}
+
+	bus->phy_map[addr] = phydev;
+
+	return phydev;
+}
+EXPORT_SYMBOL(mdiobus_scan);
+
+/**
+ * mdiobus_read - Convenience function for reading a given MII mgmt register
+ * @bus: the mii_bus struct
+ * @addr: the phy address
+ * @regnum: register number to read
+ *
+ * NOTE: MUST NOT be called from interrupt context,
+ * because the bus read/write functions may wait for an interrupt
+ * to conclude the operation.
+ */
+int mdiobus_read(struct mii_bus *bus, int addr, u16 regnum)
+{
+	int retval;
+
+	BUG_ON(in_interrupt());
+
+	mutex_lock(&bus->mdio_lock);
+	retval = bus->read(bus, addr, regnum);
+	mutex_unlock(&bus->mdio_lock);
+
+	return retval;
+}
+EXPORT_SYMBOL(mdiobus_read);
+
+/**
+ * mdiobus_write - Convenience function for writing a given MII mgmt register
+ * @bus: the mii_bus struct
+ * @addr: the phy address
+ * @regnum: register number to write
+ * @val: value to write to @regnum
+ *
+ * NOTE: MUST NOT be called from interrupt context,
+ * because the bus read/write functions may wait for an interrupt
+ * to conclude the operation.
+ */
+int mdiobus_write(struct mii_bus *bus, int addr, u16 regnum, u16 val)
+{
+	int err;
+
+	BUG_ON(in_interrupt());
+
+	mutex_lock(&bus->mdio_lock);
+	err = bus->write(bus, addr, regnum, val);
+	mutex_unlock(&bus->mdio_lock);
+
+	return err;
+}
+EXPORT_SYMBOL(mdiobus_write);
 
 /**
  * mdio_bus_match - determine if given PHY driver supports the given PHY device
@@ -174,10 +312,20 @@ EXPORT_SYMBOL(mdio_bus_type);
 
 int __init mdio_bus_init(void)
 {
-	return bus_register(&mdio_bus_type);
+	int ret;
+
+	ret = class_register(&mdio_bus_class);
+	if (!ret) {
+		ret = bus_register(&mdio_bus_type);
+		if (ret)
+			class_unregister(&mdio_bus_class);
+	}
+
+	return ret;
 }
 
 void mdio_bus_exit(void)
 {
+	class_unregister(&mdio_bus_class);
 	bus_unregister(&mdio_bus_type);
 }

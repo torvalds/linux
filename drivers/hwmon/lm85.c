@@ -5,6 +5,7 @@
     Copyright (c) 2002, 2003  Philip Pokorny <ppokorny@penguincomputing.com>
     Copyright (c) 2003        Margit Schubert-While <margitsw@t-online.de>
     Copyright (c) 2004        Justin Thiessen <jthiessen@penguincomputing.com>
+    Copyright (C) 2007, 2008  Jean Delvare <khali@linux-fr.org>
 
     Chip details at	      <http://www.national.com/ds/LM/LM85.pdf>
 
@@ -173,40 +174,39 @@ static int RANGE_TO_REG(int range)
 {
 	int i;
 
-	if (range >= lm85_range_map[15])
-		return 15;
-
 	/* Find the closest match */
-	for (i = 14; i >= 0; --i) {
-		if (range >= lm85_range_map[i]) {
-			if ((lm85_range_map[i + 1] - range) <
-					(range - lm85_range_map[i]))
-				return i + 1;
-			return i;
-		}
+	for (i = 0; i < 15; ++i) {
+		if (range <= (lm85_range_map[i] + lm85_range_map[i + 1]) / 2)
+			break;
 	}
 
-	return 0;
+	return i;
 }
 #define RANGE_FROM_REG(val)	lm85_range_map[(val) & 0x0f]
 
 /* These are the PWM frequency encodings */
-static const int lm85_freq_map[] = { /* .1 Hz */
-	100, 150, 230, 300, 380, 470, 620, 940
+static const int lm85_freq_map[8] = { /* 1 Hz */
+	10, 15, 23, 30, 38, 47, 61, 94
+};
+static const int adm1027_freq_map[8] = { /* 1 Hz */
+	11, 15, 22, 29, 35, 44, 59, 88
 };
 
-static int FREQ_TO_REG(int freq)
+static int FREQ_TO_REG(const int *map, int freq)
 {
 	int i;
 
-	if (freq >= lm85_freq_map[7])
-		return 7;
+	/* Find the closest match */
 	for (i = 0; i < 7; ++i)
-		if (freq <= lm85_freq_map[i])
+		if (freq <= (map[i] + map[i + 1]) / 2)
 			break;
 	return i;
 }
-#define FREQ_FROM_REG(val)	lm85_freq_map[(val) & 0x07]
+
+static int FREQ_FROM_REG(const int *map, u8 reg)
+{
+	return map[reg & 0x07];
+}
 
 /* Since we can't use strings, I'm abusing these numbers
  *   to stand in for the following meanings:
@@ -275,7 +275,6 @@ struct lm85_zone {
 
 struct lm85_autofan {
 	u8 config;	/* Register value */
-	u8 freq;	/* PWM frequency, encoded */
 	u8 min_pwm;	/* Minimum PWM value, encoded */
 	u8 min_off;	/* Min PWM or OFF below "limit", flag */
 };
@@ -283,8 +282,8 @@ struct lm85_autofan {
 /* For each registered chip, we need to keep some data in memory.
    The structure is dynamically allocated. */
 struct lm85_data {
-	struct i2c_client client;
 	struct device *hwmon_dev;
+	const int *freq_map;
 	enum chips type;
 
 	struct mutex update_lock;
@@ -301,6 +300,7 @@ struct lm85_data {
 	u16 fan[4];		/* Register value */
 	u16 fan_min[4];		/* Register value */
 	u8 pwm[3];		/* Register value */
+	u8 pwm_freq[3];		/* Register encoding */
 	u8 temp_ext[3];		/* Decoded values */
 	u8 in_ext[8];		/* Decoded values */
 	u8 vid;			/* Register value */
@@ -310,22 +310,40 @@ struct lm85_data {
 	struct lm85_zone zone[3];
 };
 
-static int lm85_attach_adapter(struct i2c_adapter *adapter);
-static int lm85_detect(struct i2c_adapter *adapter, int address,
-			int kind);
-static int lm85_detach_client(struct i2c_client *client);
+static int lm85_detect(struct i2c_client *client, int kind,
+		       struct i2c_board_info *info);
+static int lm85_probe(struct i2c_client *client,
+		      const struct i2c_device_id *id);
+static int lm85_remove(struct i2c_client *client);
 
 static int lm85_read_value(struct i2c_client *client, u8 reg);
 static void lm85_write_value(struct i2c_client *client, u8 reg, int value);
 static struct lm85_data *lm85_update_device(struct device *dev);
 
 
+static const struct i2c_device_id lm85_id[] = {
+	{ "adm1027", adm1027 },
+	{ "adt7463", adt7463 },
+	{ "lm85", any_chip },
+	{ "lm85b", lm85b },
+	{ "lm85c", lm85c },
+	{ "emc6d100", emc6d100 },
+	{ "emc6d101", emc6d100 },
+	{ "emc6d102", emc6d102 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, lm85_id);
+
 static struct i2c_driver lm85_driver = {
+	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name   = "lm85",
 	},
-	.attach_adapter = lm85_attach_adapter,
-	.detach_client  = lm85_detach_client,
+	.probe		= lm85_probe,
+	.remove		= lm85_remove,
+	.id_table	= lm85_id,
+	.detect		= lm85_detect,
+	.address_data	= &addr_data,
 };
 
 
@@ -528,11 +546,39 @@ static ssize_t set_pwm_enable(struct device *dev, struct device_attribute
 	return count;
 }
 
+static ssize_t show_pwm_freq(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int nr = to_sensor_dev_attr(attr)->index;
+	struct lm85_data *data = lm85_update_device(dev);
+	return sprintf(buf, "%d\n", FREQ_FROM_REG(data->freq_map,
+						  data->pwm_freq[nr]));
+}
+
+static ssize_t set_pwm_freq(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int nr = to_sensor_dev_attr(attr)->index;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct lm85_data *data = i2c_get_clientdata(client);
+	long val = simple_strtol(buf, NULL, 10);
+
+	mutex_lock(&data->update_lock);
+	data->pwm_freq[nr] = FREQ_TO_REG(data->freq_map, val);
+	lm85_write_value(client, LM85_REG_AFAN_RANGE(nr),
+		(data->zone[nr].range << 4)
+		| data->pwm_freq[nr]);
+	mutex_unlock(&data->update_lock);
+	return count;
+}
+
 #define show_pwm_reg(offset)						\
 static SENSOR_DEVICE_ATTR(pwm##offset, S_IRUGO | S_IWUSR,		\
 		show_pwm, set_pwm, offset - 1);				\
 static SENSOR_DEVICE_ATTR(pwm##offset##_enable, S_IRUGO | S_IWUSR,	\
-		show_pwm_enable, set_pwm_enable, offset - 1)
+		show_pwm_enable, set_pwm_enable, offset - 1);		\
+static SENSOR_DEVICE_ATTR(pwm##offset##_freq, S_IRUGO | S_IWUSR,	\
+		show_pwm_freq, set_pwm_freq, offset - 1)
 
 show_pwm_reg(1);
 show_pwm_reg(2);
@@ -761,31 +807,6 @@ static ssize_t set_pwm_auto_pwm_minctl(struct device *dev,
 	return count;
 }
 
-static ssize_t show_pwm_auto_pwm_freq(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	int nr = to_sensor_dev_attr(attr)->index;
-	struct lm85_data *data = lm85_update_device(dev);
-	return sprintf(buf, "%d\n", FREQ_FROM_REG(data->autofan[nr].freq));
-}
-
-static ssize_t set_pwm_auto_pwm_freq(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	int nr = to_sensor_dev_attr(attr)->index;
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lm85_data *data = i2c_get_clientdata(client);
-	long val = simple_strtol(buf, NULL, 10);
-
-	mutex_lock(&data->update_lock);
-	data->autofan[nr].freq = FREQ_TO_REG(val);
-	lm85_write_value(client, LM85_REG_AFAN_RANGE(nr),
-		(data->zone[nr].range << 4)
-		| data->autofan[nr].freq);
-	mutex_unlock(&data->update_lock);
-	return count;
-}
-
 #define pwm_auto(offset)						\
 static SENSOR_DEVICE_ATTR(pwm##offset##_auto_channels,			\
 		S_IRUGO | S_IWUSR, show_pwm_auto_channels,		\
@@ -795,10 +816,7 @@ static SENSOR_DEVICE_ATTR(pwm##offset##_auto_pwm_min,			\
 		set_pwm_auto_pwm_min, offset - 1);			\
 static SENSOR_DEVICE_ATTR(pwm##offset##_auto_pwm_minctl,		\
 		S_IRUGO | S_IWUSR, show_pwm_auto_pwm_minctl,		\
-		set_pwm_auto_pwm_minctl, offset - 1);			\
-static SENSOR_DEVICE_ATTR(pwm##offset##_auto_pwm_freq,			\
-		S_IRUGO | S_IWUSR, show_pwm_auto_pwm_freq,		\
-		set_pwm_auto_pwm_freq, offset - 1);
+		set_pwm_auto_pwm_minctl, offset - 1)
 
 pwm_auto(1);
 pwm_auto(2);
@@ -867,7 +885,7 @@ static ssize_t set_temp_auto_temp_min(struct device *dev,
 		TEMP_FROM_REG(data->zone[nr].limit));
 	lm85_write_value(client, LM85_REG_AFAN_RANGE(nr),
 		((data->zone[nr].range & 0x0f) << 4)
-		| (data->autofan[nr].freq & 0x07));
+		| (data->pwm_freq[nr] & 0x07));
 
 /* Update temp_auto_hyst and temp_auto_off */
 	data->zone[nr].hyst = HYST_TO_REG(TEMP_FROM_REG(
@@ -910,7 +928,7 @@ static ssize_t set_temp_auto_temp_max(struct device *dev,
 		val - min);
 	lm85_write_value(client, LM85_REG_AFAN_RANGE(nr),
 		((data->zone[nr].range & 0x0f) << 4)
-		| (data->autofan[nr].freq & 0x07));
+		| (data->pwm_freq[nr] & 0x07));
 	mutex_unlock(&data->update_lock);
 	return count;
 }
@@ -957,13 +975,6 @@ temp_auto(1);
 temp_auto(2);
 temp_auto(3);
 
-static int lm85_attach_adapter(struct i2c_adapter *adapter)
-{
-	if (!(adapter->class & I2C_CLASS_HWMON))
-		return 0;
-	return i2c_probe(adapter, &addr_data, lm85_detect);
-}
-
 static struct attribute *lm85_attributes[] = {
 	&sensor_dev_attr_fan1_input.dev_attr.attr,
 	&sensor_dev_attr_fan2_input.dev_attr.attr,
@@ -984,6 +995,9 @@ static struct attribute *lm85_attributes[] = {
 	&sensor_dev_attr_pwm1_enable.dev_attr.attr,
 	&sensor_dev_attr_pwm2_enable.dev_attr.attr,
 	&sensor_dev_attr_pwm3_enable.dev_attr.attr,
+	&sensor_dev_attr_pwm1_freq.dev_attr.attr,
+	&sensor_dev_attr_pwm2_freq.dev_attr.attr,
+	&sensor_dev_attr_pwm3_freq.dev_attr.attr,
 
 	&sensor_dev_attr_in0_input.dev_attr.attr,
 	&sensor_dev_attr_in1_input.dev_attr.attr,
@@ -1026,9 +1040,6 @@ static struct attribute *lm85_attributes[] = {
 	&sensor_dev_attr_pwm1_auto_pwm_minctl.dev_attr.attr,
 	&sensor_dev_attr_pwm2_auto_pwm_minctl.dev_attr.attr,
 	&sensor_dev_attr_pwm3_auto_pwm_minctl.dev_attr.attr,
-	&sensor_dev_attr_pwm1_auto_pwm_freq.dev_attr.attr,
-	&sensor_dev_attr_pwm2_auto_pwm_freq.dev_attr.attr,
-	&sensor_dev_attr_pwm3_auto_pwm_freq.dev_attr.attr,
 
 	&sensor_dev_attr_temp1_auto_temp_off.dev_attr.attr,
 	&sensor_dev_attr_temp2_auto_temp_off.dev_attr.attr,
@@ -1103,109 +1114,74 @@ static void lm85_init_client(struct i2c_client *client)
 		dev_warn(&client->dev, "Device is not ready\n");
 }
 
-static int lm85_detect(struct i2c_adapter *adapter, int address,
-		int kind)
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static int lm85_detect(struct i2c_client *client, int kind,
+		       struct i2c_board_info *info)
 {
-	int company, verstep;
-	struct i2c_client *client;
-	struct lm85_data *data;
-	int err = 0;
+	struct i2c_adapter *adapter = client->adapter;
+	int address = client->addr;
 	const char *type_name;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		/* We need to be able to do byte I/O */
-		goto ERROR0;
+		return -ENODEV;
 	}
 
-	/* OK. For now, we presume we have a valid client. We now create the
-	   client structure, even though we cannot fill it completely yet.
-	   But it allows us to access lm85_{read,write}_value. */
+	/* If auto-detecting, determine the chip type */
+	if (kind < 0) {
+		int company = lm85_read_value(client, LM85_REG_COMPANY);
+		int verstep = lm85_read_value(client, LM85_REG_VERSTEP);
 
-	if (!(data = kzalloc(sizeof(struct lm85_data), GFP_KERNEL))) {
-		err = -ENOMEM;
-		goto ERROR0;
-	}
+		dev_dbg(&adapter->dev, "Detecting device at 0x%02x with "
+			"COMPANY: 0x%02x and VERSTEP: 0x%02x\n",
+			address, company, verstep);
 
-	client = &data->client;
-	i2c_set_clientdata(client, data);
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &lm85_driver;
+		/* All supported chips have the version in common */
+		if ((verstep & LM85_VERSTEP_VMASK) != LM85_VERSTEP_GENERIC) {
+			dev_dbg(&adapter->dev, "Autodetection failed: "
+				"unsupported version\n");
+			return -ENODEV;
+		}
+		kind = any_chip;
 
-	/* Now, we do the remaining detection. */
-
-	company = lm85_read_value(client, LM85_REG_COMPANY);
-	verstep = lm85_read_value(client, LM85_REG_VERSTEP);
-
-	dev_dbg(&adapter->dev, "Detecting device at %d,0x%02x with"
-		" COMPANY: 0x%02x and VERSTEP: 0x%02x\n",
-		i2c_adapter_id(client->adapter), client->addr,
-		company, verstep);
-
-	/* If auto-detecting, Determine the chip type. */
-	if (kind <= 0) {
-		dev_dbg(&adapter->dev, "Autodetecting device at %d,0x%02x ...\n",
-			i2c_adapter_id(adapter), address);
-		if (company == LM85_COMPANY_NATIONAL
-		    && verstep == LM85_VERSTEP_LM85C) {
-			kind = lm85c;
-		} else if (company == LM85_COMPANY_NATIONAL
-		    && verstep == LM85_VERSTEP_LM85B) {
-			kind = lm85b;
-		} else if (company == LM85_COMPANY_NATIONAL
-		    && (verstep & LM85_VERSTEP_VMASK) == LM85_VERSTEP_GENERIC) {
-			dev_err(&adapter->dev, "Unrecognized version/stepping 0x%02x"
-				" Defaulting to LM85.\n", verstep);
-			kind = any_chip;
-		} else if (company == LM85_COMPANY_ANALOG_DEV
-		    && verstep == LM85_VERSTEP_ADM1027) {
-			kind = adm1027;
-		} else if (company == LM85_COMPANY_ANALOG_DEV
-		    && (verstep == LM85_VERSTEP_ADT7463
-			 || verstep == LM85_VERSTEP_ADT7463C)) {
-			kind = adt7463;
-		} else if (company == LM85_COMPANY_ANALOG_DEV
-		    && (verstep & LM85_VERSTEP_VMASK) == LM85_VERSTEP_GENERIC) {
-			dev_err(&adapter->dev, "Unrecognized version/stepping 0x%02x"
-				" Defaulting to Generic LM85.\n", verstep);
-			kind = any_chip;
-		} else if (company == LM85_COMPANY_SMSC
-		    && (verstep == LM85_VERSTEP_EMC6D100_A0
-			 || verstep == LM85_VERSTEP_EMC6D100_A1)) {
-			/* Unfortunately, we can't tell a '100 from a '101
-			 * from the registers.  Since a '101 is a '100
-			 * in a package with fewer pins and therefore no
-			 * 3.3V, 1.5V or 1.8V inputs, perhaps if those
-			 * inputs read 0, then it's a '101.
-			 */
-			kind = emc6d100;
-		} else if (company == LM85_COMPANY_SMSC
-		    && verstep == LM85_VERSTEP_EMC6D102) {
-			kind = emc6d102;
-		} else if (company == LM85_COMPANY_SMSC
-		    && (verstep & LM85_VERSTEP_VMASK) == LM85_VERSTEP_GENERIC) {
-			dev_err(&adapter->dev, "lm85: Detected SMSC chip\n");
-			dev_err(&adapter->dev, "lm85: Unrecognized version/stepping 0x%02x"
-			    " Defaulting to Generic LM85.\n", verstep);
-			kind = any_chip;
-		} else if (kind == any_chip
-		    && (verstep & LM85_VERSTEP_VMASK) == LM85_VERSTEP_GENERIC) {
-			dev_err(&adapter->dev, "Generic LM85 Version 6 detected\n");
-			/* Leave kind as "any_chip" */
-		} else {
-			dev_dbg(&adapter->dev, "Autodetection failed\n");
-			/* Not an LM85... */
-			if (kind == any_chip) {  /* User used force=x,y */
-				dev_err(&adapter->dev, "Generic LM85 Version 6 not"
-					" found at %d,0x%02x. Try force_lm85c.\n",
-					i2c_adapter_id(adapter), address);
+		/* Now, refine the detection */
+		if (company == LM85_COMPANY_NATIONAL) {
+			switch (verstep) {
+			case LM85_VERSTEP_LM85C:
+				kind = lm85c;
+				break;
+			case LM85_VERSTEP_LM85B:
+				kind = lm85b;
+				break;
 			}
-			err = 0;
-			goto ERROR1;
+		} else if (company == LM85_COMPANY_ANALOG_DEV) {
+			switch (verstep) {
+			case LM85_VERSTEP_ADM1027:
+				kind = adm1027;
+				break;
+			case LM85_VERSTEP_ADT7463:
+			case LM85_VERSTEP_ADT7463C:
+				kind = adt7463;
+				break;
+			}
+		} else if (company == LM85_COMPANY_SMSC) {
+			switch (verstep) {
+			case LM85_VERSTEP_EMC6D100_A0:
+			case LM85_VERSTEP_EMC6D100_A1:
+				/* Note: we can't tell a '100 from a '101 */
+				kind = emc6d100;
+				break;
+			case LM85_VERSTEP_EMC6D102:
+				kind = emc6d102;
+				break;
+			}
+		} else {
+			dev_dbg(&adapter->dev, "Autodetection failed: "
+				"unknown vendor\n");
+			return -ENODEV;
 		}
 	}
 
-	/* Fill in the chip specific driver values */
 	switch (kind) {
 	case lm85b:
 		type_name = "lm85b";
@@ -1228,16 +1204,36 @@ static int lm85_detect(struct i2c_adapter *adapter, int address,
 	default:
 		type_name = "lm85";
 	}
-	strlcpy(client->name, type_name, I2C_NAME_SIZE);
+	strlcpy(info->type, type_name, I2C_NAME_SIZE);
 
-	/* Fill in the remaining client fields */
-	data->type = kind;
+	return 0;
+}
+
+static int lm85_probe(struct i2c_client *client,
+		      const struct i2c_device_id *id)
+{
+	struct lm85_data *data;
+	int err;
+
+	data = kzalloc(sizeof(struct lm85_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	i2c_set_clientdata(client, data);
+	data->type = id->driver_data;
 	mutex_init(&data->update_lock);
 
-	/* Tell the I2C layer a new client has arrived */
-	err = i2c_attach_client(client);
-	if (err)
-		goto ERROR1;
+	/* Fill in the chip specific driver values */
+	switch (data->type) {
+	case adm1027:
+	case adt7463:
+	case emc6d100:
+	case emc6d102:
+		data->freq_map = adm1027_freq_map;
+		break;
+	default:
+		data->freq_map = lm85_freq_map;
+	}
 
 	/* Set the VRM version */
 	data->vrm = vid_which_vrm();
@@ -1248,45 +1244,42 @@ static int lm85_detect(struct i2c_adapter *adapter, int address,
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &lm85_group);
 	if (err)
-		goto ERROR2;
+		goto err_kfree;
 
 	/* The ADT7463 has an optional VRM 10 mode where pin 21 is used
 	   as a sixth digital VID input rather than an analog input. */
 	data->vid = lm85_read_value(client, LM85_REG_VID);
-	if (!(kind == adt7463 && (data->vid & 0x80)))
+	if (!(data->type == adt7463 && (data->vid & 0x80)))
 		if ((err = sysfs_create_group(&client->dev.kobj,
 					&lm85_group_in4)))
-			goto ERROR3;
+			goto err_remove_files;
 
 	/* The EMC6D100 has 3 additional voltage inputs */
-	if (kind == emc6d100)
+	if (data->type == emc6d100)
 		if ((err = sysfs_create_group(&client->dev.kobj,
 					&lm85_group_in567)))
-			goto ERROR3;
+			goto err_remove_files;
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
 		err = PTR_ERR(data->hwmon_dev);
-		goto ERROR3;
+		goto err_remove_files;
 	}
 
 	return 0;
 
 	/* Error out and cleanup code */
- ERROR3:
+ err_remove_files:
 	sysfs_remove_group(&client->dev.kobj, &lm85_group);
 	sysfs_remove_group(&client->dev.kobj, &lm85_group_in4);
-	if (kind == emc6d100)
+	if (data->type == emc6d100)
 		sysfs_remove_group(&client->dev.kobj, &lm85_group_in567);
- ERROR2:
-	i2c_detach_client(client);
- ERROR1:
+ err_kfree:
 	kfree(data);
- ERROR0:
 	return err;
 }
 
-static int lm85_detach_client(struct i2c_client *client)
+static int lm85_remove(struct i2c_client *client)
 {
 	struct lm85_data *data = i2c_get_clientdata(client);
 	hwmon_device_unregister(data->hwmon_dev);
@@ -1294,7 +1287,6 @@ static int lm85_detach_client(struct i2c_client *client)
 	sysfs_remove_group(&client->dev.kobj, &lm85_group_in4);
 	if (data->type == emc6d100)
 		sysfs_remove_group(&client->dev.kobj, &lm85_group_in567);
-	i2c_detach_client(client);
 	kfree(data);
 	return 0;
 }
@@ -1481,7 +1473,7 @@ static struct lm85_data *lm85_update_device(struct device *dev)
 			data->autofan[i].config =
 			    lm85_read_value(client, LM85_REG_AFAN_CONFIG(i));
 			val = lm85_read_value(client, LM85_REG_AFAN_RANGE(i));
-			data->autofan[i].freq = val & 0x07;
+			data->pwm_freq[i] = val & 0x07;
 			data->zone[i].range = val >> 4;
 			data->autofan[i].min_pwm =
 			    lm85_read_value(client, LM85_REG_AFAN_MINPWM(i));

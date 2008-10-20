@@ -1,5 +1,5 @@
-#ifndef _ASM_FIXMAP_H
-#define _ASM_FIXMAP_H
+#ifndef ASM_X86__FIXMAP_H
+#define ASM_X86__FIXMAP_H
 
 #ifdef CONFIG_X86_32
 # include "fixmap_32.h"
@@ -65,4 +65,4 @@ static inline unsigned long virt_to_fix(const unsigned long vaddr)
 	BUG_ON(vaddr >= FIXADDR_TOP || vaddr < FIXADDR_START);
 	return __virt_to_fix(vaddr);
 }
-#endif
+#endif /* ASM_X86__FIXMAP_H */

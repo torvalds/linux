@@ -1,7 +1,7 @@
 /*
  * NET4:	Implementation of BSD Unix domain sockets.
  *
- * Authors:	Alan Cox, <alan.cox@linux.org>
+ * Authors:	Alan Cox, <alan@lxorguk.ukuu.org.uk>
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License

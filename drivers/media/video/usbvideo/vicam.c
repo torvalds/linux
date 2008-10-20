@@ -472,9 +472,8 @@ vicam_ioctl(struct inode *inode, struct file *file, unsigned int ioctlnr, unsign
 static int
 vicam_open(struct inode *inode, struct file *file)
 {
-	struct video_device *dev = video_devdata(file);
-	struct vicam_camera *cam =
-	    (struct vicam_camera *) dev->priv;
+	struct vicam_camera *cam = video_drvdata(file);
+
 	DBG("open\n");
 
 	if (!cam) {
@@ -488,20 +487,24 @@ vicam_open(struct inode *inode, struct file *file)
 	 * rely on this fact forever.
 	 */
 
+	lock_kernel();
 	if (cam->open_count > 0) {
 		printk(KERN_INFO
 		       "vicam_open called on already opened camera");
+		unlock_kernel();
 		return -EBUSY;
 	}
 
 	cam->raw_image = kmalloc(VICAM_MAX_READ_SIZE, GFP_KERNEL);
 	if (!cam->raw_image) {
+		unlock_kernel();
 		return -ENOMEM;
 	}
 
 	cam->framebuf = rvmalloc(VICAM_MAX_FRAME_SIZE * VICAM_FRAMES);
 	if (!cam->framebuf) {
 		kfree(cam->raw_image);
+		unlock_kernel();
 		return -ENOMEM;
 	}
 
@@ -509,6 +512,7 @@ vicam_open(struct inode *inode, struct file *file)
 	if (!cam->cntrlbuf) {
 		kfree(cam->raw_image);
 		rvfree(cam->framebuf, VICAM_MAX_FRAME_SIZE * VICAM_FRAMES);
+		unlock_kernel();
 		return -ENOMEM;
 	}
 
@@ -526,6 +530,7 @@ vicam_open(struct inode *inode, struct file *file)
 	cam->open_count++;
 
 	file->private_data = cam;
+	unlock_kernel();
 
 	return 0;
 }
@@ -795,6 +800,7 @@ static struct video_device vicam_template = {
 	.name 		= "ViCam-based USB Camera",
 	.fops 		= &vicam_fops,
 	.minor 		= -1,
+	.release 	= video_device_release_empty,
 };
 
 /* table of devices that work with this driver */
@@ -859,9 +865,8 @@ vicam_probe( struct usb_interface *intf, const struct usb_device_id *id)
 
 	mutex_init(&cam->cam_lock);
 
-	memcpy(&cam->vdev, &vicam_template,
-	       sizeof (vicam_template));
-	cam->vdev.priv = cam;	// sort of a reverse mapping for those functions that get vdev only
+	memcpy(&cam->vdev, &vicam_template, sizeof(vicam_template));
+	video_set_drvdata(&cam->vdev, cam);
 
 	cam->udev = dev;
 	cam->bulkEndpoint = bulkEndpoint;

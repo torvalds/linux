@@ -732,7 +732,7 @@ static struct fake_elf {
 			u32	ignore_me;
 		} rpadesc;
 	} rpanote;
-} fake_elf = {
+} fake_elf __section(.fakeelf) = {
 	.elfhdr = {
 		.e_ident = { 0x7f, 'E', 'L', 'F',
 			     ELFCLASS32, ELFDATA2MSB, EV_CURRENT },
@@ -774,13 +774,13 @@ static struct fake_elf {
 		.type = 0x12759999,
 		.name = "IBM,RPA-Client-Config",
 		.rpadesc = {
-			.lpar_affinity = 0,
-			.min_rmo_size = 64,	/* in megabytes */
+			.lpar_affinity = 1,
+			.min_rmo_size = 128,	/* in megabytes */
 			.min_rmo_percent = 0,
-			.max_pft_size = 48,	/* 2^48 bytes max PFT size */
+			.max_pft_size = 46,	/* 2^46 bytes max PFT size */
 			.splpar = 1,
 			.min_load = ~0U,
-			.new_mem_def = 0
+			.new_mem_def = 1
 		}
 	}
 };
@@ -1321,7 +1321,7 @@ static void __init prom_initialize_tce_table(void)
  *
  * -- Cort
  */
-extern void __secondary_hold(void);
+extern char __secondary_hold;
 extern unsigned long __secondary_hold_spinloop;
 extern unsigned long __secondary_hold_acknowledge;
 
@@ -1342,13 +1342,7 @@ static void __init prom_hold_cpus(void)
 		= (void *) LOW_ADDR(__secondary_hold_spinloop);
 	unsigned long *acknowledge
 		= (void *) LOW_ADDR(__secondary_hold_acknowledge);
-#ifdef CONFIG_PPC64
-	/* __secondary_hold is actually a descriptor, not the text address */
-	unsigned long secondary_hold
-		= __pa(*PTRRELOC((unsigned long *)__secondary_hold));
-#else
 	unsigned long secondary_hold = LOW_ADDR(__secondary_hold);
-#endif
 
 	prom_debug("prom_hold_cpus: start...\n");
 	prom_debug("    1) spinloop       = 0x%x\n", (unsigned long)spinloop);
@@ -2315,13 +2309,14 @@ static void __init prom_check_initrd(unsigned long r3, unsigned long r4)
 
 unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 			       unsigned long pp,
-			       unsigned long r6, unsigned long r7)
+			       unsigned long r6, unsigned long r7,
+			       unsigned long kbase)
 {	
 	struct prom_t *_prom;
 	unsigned long hdr;
-	unsigned long offset = reloc_offset();
 
 #ifdef CONFIG_PPC32
+	unsigned long offset = reloc_offset();
 	reloc_got2(offset);
 #endif
 
@@ -2355,9 +2350,11 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 */
 	RELOC(of_platform) = prom_find_machine_type();
 
+#ifndef CONFIG_RELOCATABLE
 	/* Bail if this is a kdump kernel. */
 	if (PHYSICAL_START > 0)
 		prom_panic("Error: You can't boot a kdump kernel from OF!\n");
+#endif
 
 	/*
 	 * Check for an initrd
@@ -2377,7 +2374,7 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 * Copy the CPU hold code
 	 */
 	if (RELOC(of_platform) != PLATFORM_POWERMAC)
-		copy_and_flush(0, KERNELBASE + offset, 0x100, 0);
+		copy_and_flush(0, kbase, 0x100, 0);
 
 	/*
 	 * Do early parsing of command line
@@ -2480,7 +2477,7 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	reloc_got2(-offset);
 #endif
 
-	__start(hdr, KERNELBASE + offset, 0);
+	__start(hdr, kbase, 0);
 
 	return 0;
 }

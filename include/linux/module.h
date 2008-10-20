@@ -345,7 +345,6 @@ struct module
 	/* Reference counts */
 	struct module_ref ref[NR_CPUS];
 #endif
-
 };
 #ifndef MODULE_ARCH_INIT
 #define MODULE_ARCH_INIT {}

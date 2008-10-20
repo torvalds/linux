@@ -29,7 +29,6 @@
 #include <linux/pci.h>
 
 #include <asm/bootinfo.h>
-#include <asm/debug.h>
 
 #include <asm/emma2rh/emma2rh.h>
 

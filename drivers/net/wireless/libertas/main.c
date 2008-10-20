@@ -291,9 +291,11 @@ static ssize_t lbs_rtap_set(struct device *dev,
 			if (priv->infra_open || priv->mesh_open)
 				return -EBUSY;
 			if (priv->mode == IW_MODE_INFRA)
-				lbs_send_deauthentication(priv);
+				lbs_cmd_80211_deauthenticate(priv,
+							     priv->curbssparams.bssid,
+							     WLAN_REASON_DEAUTH_LEAVING);
 			else if (priv->mode == IW_MODE_ADHOC)
-				lbs_stop_adhoc_network(priv);
+				lbs_adhoc_stop(priv);
 			lbs_add_rtap(priv);
 		}
 		priv->monitormode = monitor_mode;
@@ -956,16 +958,23 @@ EXPORT_SYMBOL_GPL(lbs_resume);
 static int lbs_setup_firmware(struct lbs_private *priv)
 {
 	int ret = -1;
+	s16 curlevel = 0, minlevel = 0, maxlevel = 0;
 
 	lbs_deb_enter(LBS_DEB_FW);
 
-	/*
-	 * Read MAC address from HW
-	 */
+	/* Read MAC address from firmware */
 	memset(priv->current_addr, 0xff, ETH_ALEN);
 	ret = lbs_update_hw_spec(priv);
 	if (ret)
 		goto done;
+
+	/* Read power levels if available */
+	ret = lbs_get_tx_power(priv, &curlevel, &minlevel, &maxlevel);
+	if (ret == 0) {
+		priv->txpower_cur = curlevel;
+		priv->txpower_min = minlevel;
+		priv->txpower_max = maxlevel;
+	}
 
 	lbs_set_mac_control(priv);
 done:
@@ -1042,7 +1051,7 @@ static int lbs_init_adapter(struct lbs_private *priv)
 	priv->mode = IW_MODE_INFRA;
 	priv->curbssparams.channel = DEFAULT_AD_HOC_CHANNEL;
 	priv->mac_control = CMD_ACT_MAC_RX_ON | CMD_ACT_MAC_TX_ON;
-	priv->radioon = RADIO_ON;
+	priv->radio_on = 1;
 	priv->enablehwauto = 1;
 	priv->capability = WLAN_CAPABILITY_SHORT_PREAMBLE;
 	priv->psmode = LBS802_11POWERMODECAM;
@@ -1196,7 +1205,13 @@ void lbs_remove_card(struct lbs_private *priv)
 	cancel_delayed_work_sync(&priv->scan_work);
 	cancel_delayed_work_sync(&priv->assoc_work);
 	cancel_work_sync(&priv->mcast_work);
+
+	/* worker thread destruction blocks on the in-flight command which
+	 * should have been cleared already in lbs_stop_card().
+	 */
+	lbs_deb_main("destroying worker thread\n");
 	destroy_workqueue(priv->work_thread);
+	lbs_deb_main("done destroying worker thread\n");
 
 	if (priv->psmode == LBS802_11POWERMODEMAX_PSP) {
 		priv->psmode = LBS802_11POWERMODECAM;
@@ -1314,14 +1329,26 @@ void lbs_stop_card(struct lbs_private *priv)
 		device_remove_file(&dev->dev, &dev_attr_lbs_rtap);
 	}
 
-	/* Flush pending command nodes */
+	/* Delete the timeout of the currently processing command */
 	del_timer_sync(&priv->command_timer);
+
+	/* Flush pending command nodes */
 	spin_lock_irqsave(&priv->driver_lock, flags);
+	lbs_deb_main("clearing pending commands\n");
 	list_for_each_entry(cmdnode, &priv->cmdpendingq, list) {
 		cmdnode->result = -ENOENT;
 		cmdnode->cmdwaitqwoken = 1;
 		wake_up_interruptible(&cmdnode->cmdwait_q);
 	}
+
+	/* Flush the command the card is currently processing */
+	if (priv->cur_cmd) {
+		lbs_deb_main("clearing current command\n");
+		priv->cur_cmd->result = -ENOENT;
+		priv->cur_cmd->cmdwaitqwoken = 1;
+		wake_up_interruptible(&priv->cur_cmd->cmdwait_q);
+	}
+	lbs_deb_main("done clearing commands\n");
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	unregister_netdev(dev);

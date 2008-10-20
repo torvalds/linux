@@ -1,23 +1,9 @@
-#ifndef _ASM_X86_IO_H
-#define _ASM_X86_IO_H
+#ifndef ASM_X86__IO_H
+#define ASM_X86__IO_H
 
 #define ARCH_HAS_IOREMAP_WC
 
 #include <linux/compiler.h>
-
-/*
- * early_ioremap() and early_iounmap() are for temporary early boot-time
- * mappings, before the real ioremap() is functional.
- * A boot-time mapping is currently limited to at most 16 pages.
- */
-#ifndef __ASSEMBLY__
-extern void early_ioremap_init(void);
-extern void early_ioremap_clear(void);
-extern void early_ioremap_reset(void);
-extern void *early_ioremap(unsigned long offset, unsigned long size);
-extern void early_iounmap(void *addr, unsigned long size);
-extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
-#endif
 
 #define build_mmio_read(name, size, type, reg, barrier) \
 static inline type name(const volatile void __iomem *addr) \
@@ -73,6 +59,8 @@ build_mmio_write(__writeq, "q", unsigned long, "r", )
 #define writeq writeq
 #endif
 
+extern int iommu_bio_merge;
+
 #ifdef CONFIG_X86_32
 # include "io_32.h"
 #else
@@ -95,8 +83,9 @@ extern void early_ioremap_init(void);
 extern void early_ioremap_clear(void);
 extern void early_ioremap_reset(void);
 extern void *early_ioremap(unsigned long offset, unsigned long size);
+extern void *early_memremap(unsigned long offset, unsigned long size);
 extern void early_iounmap(void *addr, unsigned long size);
 extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
 
 
-#endif /* _ASM_X86_IO_H */
+#endif /* ASM_X86__IO_H */

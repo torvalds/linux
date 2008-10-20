@@ -124,7 +124,7 @@ int sysfs_create_subdir(struct kobject *kobj, const char *name,
 			struct sysfs_dirent **p_sd);
 void sysfs_remove_subdir(struct sysfs_dirent *sd);
 
-static inline struct sysfs_dirent *sysfs_get(struct sysfs_dirent *sd)
+static inline struct sysfs_dirent *__sysfs_get(struct sysfs_dirent *sd)
 {
 	if (sd) {
 		WARN_ON(!atomic_read(&sd->s_count));
@@ -132,12 +132,14 @@ static inline struct sysfs_dirent *sysfs_get(struct sysfs_dirent *sd)
 	}
 	return sd;
 }
+#define sysfs_get(sd) __sysfs_get(sd)
 
-static inline void sysfs_put(struct sysfs_dirent *sd)
+static inline void __sysfs_put(struct sysfs_dirent *sd)
 {
 	if (sd && atomic_dec_and_test(&sd->s_count))
 		release_sysfs_dirent(sd);
 }
+#define sysfs_put(sd) __sysfs_put(sd)
 
 /*
  * inode.c

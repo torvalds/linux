@@ -325,7 +325,7 @@ static int ray_probe(struct pcmcia_device *p_dev)
     p_dev->io.IOAddrLines = 5;
 
     /* Interrupt setup. For PCMCIA, driver takes what's given */
-    p_dev->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
+    p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
     p_dev->irq.IRQInfo1 = IRQ_LEVEL_ID;
     p_dev->irq.Handler = &ray_interrupt;
 
@@ -798,9 +798,9 @@ static void ray_release(struct pcmcia_device *link)
     iounmap(local->amem);
     /* Do bother checking to see if these succeed or not */
     i = pcmcia_release_window(local->amem_handle);
-    if ( i != CS_SUCCESS ) DEBUG(0,"ReleaseWindow(local->amem) ret = %x\n",i);
+    if ( i != 0 ) DEBUG(0,"ReleaseWindow(local->amem) ret = %x\n",i);
     i = pcmcia_release_window(local->rmem_handle);
-    if ( i != CS_SUCCESS ) DEBUG(0,"ReleaseWindow(local->rmem) ret = %x\n",i);
+    if ( i != 0 ) DEBUG(0,"ReleaseWindow(local->rmem) ret = %x\n",i);
     pcmcia_disable_device(link);
 
     DEBUG(2,"ray_release ending\n");

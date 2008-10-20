@@ -30,7 +30,6 @@
 #include <linux/namei.h>
 #include <linux/skbuff.h>
 #include <linux/crypto.h>
-#include <linux/netlink.h>
 #include <linux/mount.h>
 #include <linux/pagemap.h>
 #include <linux/key.h>
@@ -49,8 +48,7 @@ MODULE_PARM_DESC(ecryptfs_verbosity,
 		 "0, which is Quiet)");
 
 /**
- * Module parameter that defines the number of netlink message buffer
- * elements
+ * Module parameter that defines the number of message buffer elements
  */
 unsigned int ecryptfs_message_buf_len = ECRYPTFS_DEFAULT_MSG_CTX_ELEMS;
 
@@ -60,9 +58,9 @@ MODULE_PARM_DESC(ecryptfs_message_buf_len,
 
 /**
  * Module parameter that defines the maximum guaranteed amount of time to wait
- * for a response through netlink.  The actual sleep time will be, more than
+ * for a response from ecryptfsd.  The actual sleep time will be, more than
  * likely, a small amount greater than this specified value, but only less if
- * the netlink message successfully arrives.
+ * the message successfully arrives.
  */
 signed long ecryptfs_message_wait_timeout = ECRYPTFS_MAX_MSG_CTX_TTL / HZ;
 
@@ -82,8 +80,6 @@ unsigned int ecryptfs_number_of_users = ECRYPTFS_DEFAULT_NUM_USERS;
 module_param(ecryptfs_number_of_users, uint, 0);
 MODULE_PARM_DESC(ecryptfs_number_of_users, "An estimate of the number of "
 		 "concurrent users of eCryptfs");
-
-unsigned int ecryptfs_transport = ECRYPTFS_DEFAULT_TRANSPORT;
 
 void __ecryptfs_printk(const char *fmt, ...)
 {
@@ -211,7 +207,7 @@ enum { ecryptfs_opt_sig, ecryptfs_opt_ecryptfs_sig,
        ecryptfs_opt_passthrough, ecryptfs_opt_xattr_metadata,
        ecryptfs_opt_encrypted_view, ecryptfs_opt_err };
 
-static match_table_t tokens = {
+static const match_table_t tokens = {
 	{ecryptfs_opt_sig, "sig=%s"},
 	{ecryptfs_opt_ecryptfs_sig, "ecryptfs_sig=%s"},
 	{ecryptfs_opt_cipher, "cipher=%s"},
@@ -779,10 +775,11 @@ static int __init ecryptfs_init(void)
 		       "rc = [%d]\n", __func__, rc);
 		goto out_do_sysfs_unregistration;
 	}
-	rc = ecryptfs_init_messaging(ecryptfs_transport);
+	rc = ecryptfs_init_messaging();
 	if (rc) {
 		printk(KERN_ERR "Failure occured while attempting to "
-				"initialize the eCryptfs netlink socket\n");
+				"initialize the communications channel to "
+				"ecryptfsd\n");
 		goto out_destroy_kthread;
 	}
 	rc = ecryptfs_init_crypto();
@@ -797,7 +794,7 @@ static int __init ecryptfs_init(void)
 
 	goto out;
 out_release_messaging:
-	ecryptfs_release_messaging(ecryptfs_transport);
+	ecryptfs_release_messaging();
 out_destroy_kthread:
 	ecryptfs_destroy_kthread();
 out_do_sysfs_unregistration:
@@ -818,7 +815,7 @@ static void __exit ecryptfs_exit(void)
 	if (rc)
 		printk(KERN_ERR "Failure whilst attempting to destroy crypto; "
 		       "rc = [%d]\n", rc);
-	ecryptfs_release_messaging(ecryptfs_transport);
+	ecryptfs_release_messaging();
 	ecryptfs_destroy_kthread();
 	do_sysfs_unregistration();
 	unregister_filesystem(&ecryptfs_fs_type);

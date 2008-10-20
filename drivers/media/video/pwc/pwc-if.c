@@ -1112,7 +1112,7 @@ static int pwc_video_open(struct inode *inode, struct file *file)
 
 	PWC_DEBUG_OPEN(">> video_open called(vdev = 0x%p).\n", vdev);
 
-	pdev = (struct pwc_device *)vdev->priv;
+	pdev = video_get_drvdata(vdev);
 	BUG_ON(!pdev);
 	if (pdev->vopen) {
 		PWC_DEBUG_OPEN("I'm busy, someone is using the device.\n");
@@ -1233,7 +1233,7 @@ static int pwc_video_close(struct inode *inode, struct file *file)
 	PWC_DEBUG_OPEN(">> video_close called(vdev = 0x%p).\n", vdev);
 
 	lock_kernel();
-	pdev = (struct pwc_device *)vdev->priv;
+	pdev = video_get_drvdata(vdev);
 	if (pdev->vopen == 0)
 		PWC_DEBUG_MODULE("video_close() called on closed device?\n");
 
@@ -1304,7 +1304,7 @@ static ssize_t pwc_video_read(struct file *file, char __user *buf,
 			vdev, buf, count);
 	if (vdev == NULL)
 		return -EFAULT;
-	pdev = vdev->priv;
+	pdev = video_get_drvdata(vdev);
 	if (pdev == NULL)
 		return -EFAULT;
 
@@ -1386,7 +1386,7 @@ static unsigned int pwc_video_poll(struct file *file, poll_table *wait)
 
 	if (vdev == NULL)
 		return -EFAULT;
-	pdev = vdev->priv;
+	pdev = video_get_drvdata(vdev);
 	if (pdev == NULL)
 		return -EFAULT;
 
@@ -1408,7 +1408,7 @@ static int pwc_video_ioctl(struct inode *inode, struct file *file,
 
 	if (!vdev)
 		goto out;
-	pdev = vdev->priv;
+	pdev = video_get_drvdata(vdev);
 
 	mutex_lock(&pdev->modlock);
 	if (!pdev->unplugged)
@@ -1428,7 +1428,7 @@ static int pwc_video_mmap(struct file *file, struct vm_area_struct *vma)
 	int index;
 
 	PWC_DEBUG_MEMORY(">> %s\n", __func__);
-	pdev = vdev->priv;
+	pdev = video_get_drvdata(vdev);
 	size = vma->vm_end - vma->vm_start;
 	start = vma->vm_start;
 
