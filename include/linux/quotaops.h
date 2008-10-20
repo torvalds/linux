@@ -28,6 +28,9 @@ int dquot_drop_locked(struct inode *inode);
 struct dquot *dqget(struct super_block *sb, unsigned int id, int type);
 void dqput(struct dquot *dquot);
 int dquot_is_cached(struct super_block *sb, unsigned int id, int type);
+int dquot_scan_active(struct super_block *sb,
+		      int (*fn)(struct dquot *dquot, unsigned long priv),
+		      unsigned long priv);
 
 int dquot_alloc_space(struct inode *inode, qsize_t number, int prealloc);
 int dquot_alloc_inode(const struct inode *inode, qsize_t number);

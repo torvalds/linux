@@ -476,6 +476,41 @@ restart:
 	spin_unlock(&dq_list_lock);
 }
 
+/* Call callback for every active dquot on given filesystem */
+int dquot_scan_active(struct super_block *sb,
+		      int (*fn)(struct dquot *dquot, unsigned long priv),
+		      unsigned long priv)
+{
+	struct dquot *dquot, *old_dquot = NULL;
+	int ret = 0;
+
+	mutex_lock(&sb_dqopt(sb)->dqonoff_mutex);
+	spin_lock(&dq_list_lock);
+	list_for_each_entry(dquot, &inuse_list, dq_inuse) {
+		if (!test_bit(DQ_ACTIVE_B, &dquot->dq_flags))
+			continue;
+		if (dquot->dq_sb != sb)
+			continue;
+		/* Now we have active dquot so we can just increase use count */
+		atomic_inc(&dquot->dq_count);
+		dqstats.lookups++;
+		spin_unlock(&dq_list_lock);
+		dqput(old_dquot);
+		old_dquot = dquot;
+		ret = fn(dquot, priv);
+		if (ret < 0)
+			goto out;
+		spin_lock(&dq_list_lock);
+		/* We are safe to continue now because our dquot could not
+		 * be moved out of the inuse list while we hold the reference */
+	}
+	spin_unlock(&dq_list_lock);
+out:
+	dqput(old_dquot);
+	mutex_unlock(&sb_dqopt(sb)->dqonoff_mutex);
+	return ret;
+}
+
 int vfs_quota_sync(struct super_block *sb, int type)
 {
 	struct list_head *dirty;
@@ -2318,6 +2353,7 @@ EXPORT_SYMBOL(vfs_quota_on_path);
 EXPORT_SYMBOL(vfs_quota_on_mount);
 EXPORT_SYMBOL(vfs_quota_disable);
 EXPORT_SYMBOL(vfs_quota_off);
+EXPORT_SYMBOL(dquot_scan_active);
 EXPORT_SYMBOL(vfs_quota_sync);
 EXPORT_SYMBOL(vfs_get_dqinfo);
 EXPORT_SYMBOL(vfs_set_dqinfo);
