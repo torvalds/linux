@@ -182,7 +182,8 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
  * happens to let us map card memory without taking IPIs.  When the vmap
  * rework lands we should be able to dump this hack.
  */
-static inline int fast_user_write(unsigned long pfn, char __user *user_data, int l)
+static inline int fast_user_write(unsigned long pfn, char __user *user_data,
+				  int l, int o)
 {
 #ifdef CONFIG_HIGHMEM
 	unsigned long unwritten;
@@ -251,7 +252,7 @@ i915_gem_gtt_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 
 		pfn = (dev->agp->base >> PAGE_SHIFT) + i;
 
-		if (!fast_user_write(pfn, user_data, l)) {
+		if (!fast_user_write(pfn, user_data, l, o)) {
 			unsigned long unwritten;
 			char __iomem *vaddr;
 
