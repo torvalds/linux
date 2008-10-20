@@ -136,7 +136,7 @@ static int wbsoft_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
 	hal_set_current_channel(&my_adapter->sHwData, ch);
 	hal_set_beacon_period(&my_adapter->sHwData, conf->beacon_int);
 //	hal_set_cap_info(&my_adapter->sHwData, ?? );
-// hal_set_ssid(phw_data_t pHwData,  PUCHAR pssid,  u8 ssid_len); ??
+// hal_set_ssid(phw_data_t pHwData,  u8 * pssid,  u8 ssid_len); ??
 	hal_set_accept_broadcast(&my_adapter->sHwData, 1);
 	hal_set_accept_promiscuous(&my_adapter->sHwData,  1);
 	hal_set_accept_multicast(&my_adapter->sHwData,  1);
@@ -148,7 +148,7 @@ static int wbsoft_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
 
 //	hal_start_bss(&my_adapter->sHwData, WLAN_BSSTYPE_INFRASTRUCTURE);	??
 
-//void hal_set_rates(phw_data_t pHwData, PUCHAR pbss_rates,
+//void hal_set_rates(phw_data_t pHwData, u8 * pbss_rates,
 //		   u8 length, unsigned char basic_rate_set)
 
 	return 0;

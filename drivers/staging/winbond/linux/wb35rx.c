@@ -27,7 +27,7 @@ void Wb35Rx_start(phw_data_t pHwData)
 void Wb35Rx(  phw_data_t pHwData )
 {
 	PWB35RX	pWb35Rx = &pHwData->Wb35Rx;
-	PUCHAR	pRxBufferAddress;
+	u8 *	pRxBufferAddress;
 	PURB	pUrb = (PURB)pWb35Rx->RxUrb;
 	int	retv;
 	u32	RxBufferId;
@@ -89,7 +89,7 @@ void Wb35Rx_Complete(PURB pUrb)
 {
 	phw_data_t	pHwData = pUrb->context;
 	PWB35RX		pWb35Rx = &pHwData->Wb35Rx;
-	PUCHAR		pRxBufferAddress;
+	u8 *		pRxBufferAddress;
 	u32		SizeCheck;
 	u16		BulkLength;
 	u32		RxBufferId;
@@ -116,7 +116,7 @@ void Wb35Rx_Complete(PURB pUrb)
 
 		// Start to process the data only in successful condition
 		pWb35Rx->RxOwner[ RxBufferId ] = 0; // Set the owner to driver
-		R00.value = le32_to_cpu(*(PULONG)pRxBufferAddress);
+		R00.value = le32_to_cpu(*(u32 *)pRxBufferAddress);
 
 		// The URB is completed, check the result
 		if (pWb35Rx->EP3VM_status != 0) {
@@ -223,7 +223,7 @@ void Wb35Rx_reset_descriptor(  phw_data_t pHwData )
 
 void Wb35Rx_adjust(PDESCRIPTOR pRxDes)
 {
-	PULONG	pRxBufferAddress;
+	u32 *	pRxBufferAddress;
 	u32	DecryptionMethod;
 	u32	i;
 	u16	BufferSize;
@@ -264,7 +264,7 @@ u16 Wb35Rx_indicate(phw_data_t pHwData)
 {
 	DESCRIPTOR	RxDes;
 	PWB35RX	pWb35Rx = &pHwData->Wb35Rx;
-	PUCHAR		pRxBufferAddress;
+	u8 *		pRxBufferAddress;
 	u16		PacketSize;
 	u16		stmp, BufferSize, stmp2 = 0;
 	u32		RxBufferId;
@@ -283,13 +283,13 @@ u16 Wb35Rx_indicate(phw_data_t pHwData)
 
 		// Parse the bulkin buffer
 		while (BufferSize >= 4) {
-			if ((cpu_to_le32(*(PULONG)pRxBufferAddress) & 0x0fffffff) == RX_END_TAG) //Is ending? 921002.9.a
+			if ((cpu_to_le32(*(u32 *)pRxBufferAddress) & 0x0fffffff) == RX_END_TAG) //Is ending? 921002.9.a
 				break;
 
 			// Get the R00 R01 first
-			RxDes.R00.value = le32_to_cpu(*(PULONG)pRxBufferAddress);
+			RxDes.R00.value = le32_to_cpu(*(u32 *)pRxBufferAddress);
 			PacketSize = (u16)RxDes.R00.R00_receive_byte_count;
-			RxDes.R01.value = le32_to_cpu(*((PULONG)(pRxBufferAddress+4)));
+			RxDes.R01.value = le32_to_cpu(*((u32 *)(pRxBufferAddress+4)));
 			// For new DMA 4k
 			if ((PacketSize & 0x03) > 0)
 				PacketSize -= 4;

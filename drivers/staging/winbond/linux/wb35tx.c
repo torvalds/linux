@@ -12,7 +12,7 @@
 
 
 unsigned char
-Wb35Tx_get_tx_buffer(phw_data_t pHwData, PUCHAR *pBuffer )
+Wb35Tx_get_tx_buffer(phw_data_t pHwData, u8 **pBuffer)
 {
 	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
 
@@ -37,7 +37,7 @@ void Wb35Tx(phw_data_t pHwData)
 {
 	PWB35TX		pWb35Tx = &pHwData->Wb35Tx;
 	PADAPTER	Adapter = pHwData->Adapter;
-	PUCHAR		pTxBufferAddress;
+	u8		*pTxBufferAddress;
 	PMDS		pMds = &Adapter->Mds;
 	struct urb *	pUrb = (struct urb *)pWb35Tx->Tx4Urb;
 	int         	retv;
@@ -225,7 +225,7 @@ void Wb35Tx_EP2VM(phw_data_t pHwData)
 {
 	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
 	struct urb *	pUrb = (struct urb *)pWb35Tx->Tx2Urb;
-	PULONG	pltmp = (PULONG)pWb35Tx->EP2_buf;
+	u32 *	pltmp = (u32 *)pWb35Tx->EP2_buf;
 	int		retv;
 
 	do {
@@ -266,7 +266,7 @@ void Wb35Tx_EP2VM_complete(struct urb * pUrb)
 	T02_DESCRIPTOR	T02, TSTATUS;
 	PADAPTER	Adapter = (PADAPTER)pHwData->Adapter;
 	PWB35TX		pWb35Tx = &pHwData->Wb35Tx;
-	PULONG		pltmp = (PULONG)pWb35Tx->EP2_buf;
+	u32 *		pltmp = (u32 *)pWb35Tx->EP2_buf;
 	u32		i;
 	u16		InterruptInLength;
 

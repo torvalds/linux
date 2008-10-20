@@ -75,7 +75,7 @@ typedef struct _REG_QUEUE
 	union
 	{
 		u32	VALUE;
-		PULONG	pBuffer;
+		u32 *	pBuffer;
 	};
 	u8	RESERVED[4];// space reserved for communication
 

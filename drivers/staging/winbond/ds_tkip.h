@@ -25,9 +25,9 @@ typedef struct tkip
 	s32		bytes_in_M;	// # bytes in M
 } tkip_t;
 
-//void _append_data( PUCHAR pData, u16 size, tkip_t *p );
-void Mds_MicGet(  void* Adapter,  void* pRxLayer1,  PUCHAR pKey,  PUCHAR pMic );
-void Mds_MicFill(  void* Adapter,  void* pDes,  PUCHAR XmitBufAddress );
+//void _append_data( u8 *pData, u16 size, tkip_t *p );
+void Mds_MicGet(  void* Adapter,  void* pRxLayer1,  u8 *pKey,  u8 *pMic );
+void Mds_MicFill(  void* Adapter,  void* pDes,  u8 *XmitBufAddress );
 
 
 

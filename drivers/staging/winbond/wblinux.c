@@ -25,7 +25,7 @@ EncapAtomicInc(PADAPTER Adapter, void* pAtomic)
 {
 	PWBLINUX pWbLinux = &Adapter->WbLinux;
 	u32	ltmp;
-	PULONG	pltmp = (PULONG)pAtomic;
+	u32 *	pltmp = (u32 *)pAtomic;
 	OS_SPIN_LOCK_ACQUIRED( &pWbLinux->AtomicSpinLock );
 	(*pltmp)++;
 	ltmp = (*pltmp);
@@ -38,7 +38,7 @@ EncapAtomicDec(PADAPTER Adapter, void* pAtomic)
 {
 	PWBLINUX pWbLinux = &Adapter->WbLinux;
 	u32	ltmp;
-	PULONG	pltmp = (PULONG)pAtomic;
+	u32 *	pltmp = (u32 *)pAtomic;
 	OS_SPIN_LOCK_ACQUIRED( &pWbLinux->AtomicSpinLock );
 	(*pltmp)--;
 	ltmp = (*pltmp);
@@ -142,7 +142,8 @@ unsigned char
 WbWLanInitialize(PADAPTER Adapter)
 {
 	phw_data_t	pHwData;
-	PUCHAR		pMacAddr, pMacAddr2;
+	u8		*pMacAddr;
+	u8		*pMacAddr2;
 	u32		InitStep = 0;
 	u8		EEPROM_region;
 	u8		HwRadioOff;

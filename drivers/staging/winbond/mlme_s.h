@@ -125,7 +125,7 @@
 typedef struct _MLME_FRAME
 {
 	//NDIS_PACKET		MLME_Packet;
-	PCHAR			pMMPDU;
+	s8 *			pMMPDU;
 	u16			len;
 	u8			DataType;
 	u8			IsInUsed;
