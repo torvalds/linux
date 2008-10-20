@@ -151,8 +151,10 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 
 	/* now we want a pathname, or empty meaning NEGATIVE  */
 	err = -EINVAL;
-	if ((len=qword_get(&mesg, buf, PAGE_SIZE)) < 0)
+	if ((len=qword_get(&mesg, buf, PAGE_SIZE)) < 0) {
+		cache_put(&ek->h, &svc_expkey_cache);
 		goto out;
+	}
 	dprintk("Path seems to be <%s>\n", buf);
 	err = 0;
 	if (len == 0) {
@@ -164,8 +166,10 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 	} else {
 		struct nameidata nd;
 		err = path_lookup(buf, 0, &nd);
-		if (err)
+		if (err) {
+			cache_put(&ek->h, &svc_expkey_cache);
 			goto out;
+		}
 
 		dprintk("Found the path %s\n", buf);
 		key.ek_path = nd.path;
