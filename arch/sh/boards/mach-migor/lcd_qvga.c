@@ -17,7 +17,9 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/gpio.h>
 #include <video/sh_mobile_lcdc.h>
+#include <asm/sh7722.h>
 #include <asm/migor.h>
 
 /* LCD Module is a PH240320T according to board schematics. This module
@@ -30,9 +32,9 @@
 
 static void reset_lcd_module(void)
 {
-	ctrl_outb(ctrl_inb(PORT_PHDR) & ~0x04, PORT_PHDR);
+	gpio_set_value(GPIO_PTH2, 0);
 	mdelay(2);
-	ctrl_outb(ctrl_inb(PORT_PHDR) | 0x04, PORT_PHDR);
+	gpio_set_value(GPIO_PTH2, 1);
 	mdelay(1);
 }
 

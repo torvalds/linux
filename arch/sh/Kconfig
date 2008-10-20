@@ -59,6 +59,9 @@ config GENERIC_HARDIRQS_NO__DO_IRQ
 config GENERIC_IRQ_PROBE
 	def_bool y
 
+config GENERIC_GPIO
+	def_bool n
+
 config GENERIC_CALIBRATE_DELAY
 	bool
 
