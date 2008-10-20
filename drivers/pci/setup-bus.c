@@ -356,10 +356,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask, unsigned long 
 			order = __ffs(align) - 20;
 			if (order > 11) {
 				dev_warn(&dev->dev, "BAR %d bad alignment %llx: "
-				       "%#016llx-%#016llx\n", i,
-				       (unsigned long long)align,
-				       (unsigned long long)r->start,
-				       (unsigned long long)r->end);
+					 "%pR\n", i, (unsigned long long)align, r);
 				r->flags = 0;
 				continue;
 			}
@@ -539,11 +536,9 @@ static void pci_bus_dump_res(struct pci_bus *bus)
                 if (!res)
                         continue;
 
-		printk(KERN_INFO "bus: %02x index %x %s: [%llx, %llx]\n",
-			bus->number, i,
-			(res->flags & IORESOURCE_IO) ? "io port" : "mmio",
-			(unsigned long long) res->start,
-			(unsigned long long) res->end);
+		printk(KERN_INFO "bus: %02x index %x %s: %pR\n",
+		       bus->number, i,
+		       (res->flags & IORESOURCE_IO) ? "io port" : "mmio", res);
         }
 }
 

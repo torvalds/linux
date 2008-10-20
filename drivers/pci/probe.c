@@ -304,9 +304,8 @@ static int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		} else {
 			res->start = l64;
 			res->end = l64 + sz64;
-			printk(KERN_DEBUG "PCI: %s reg %x 64bit mmio: [%llx, %llx]\n",
-				pci_name(dev), pos, (unsigned long long)res->start,
-				(unsigned long long)res->end);
+			printk(KERN_DEBUG "PCI: %s reg %x 64bit mmio: %pR\n",
+				pci_name(dev), pos, res);
 		}
 	} else {
 		sz = pci_size(l, sz, mask);
@@ -316,9 +315,10 @@ static int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 
 		res->start = l;
 		res->end = l + sz;
-		printk(KERN_DEBUG "PCI: %s reg %x %s: [%llx, %llx]\n", pci_name(dev),
-			pos, (res->flags & IORESOURCE_IO) ? "io port":"32bit mmio",
-			(unsigned long long)res->start, (unsigned long long)res->end);
+		printk(KERN_DEBUG "PCI: %s reg %x %s: %pR\n",
+		       pci_name(dev), pos,
+		       (res->flags & IORESOURCE_IO) ? "io port":"32bit mmio",
+		       res);
 	}
 
  out:
@@ -389,9 +389,8 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 			res->start = base;
 		if (!res->end)
 			res->end = limit + 0xfff;
-		printk(KERN_DEBUG "PCI: bridge %s io port: [%llx, %llx]\n",
-			pci_name(dev), (unsigned long long) res->start,
-			(unsigned long long) res->end);
+		printk(KERN_DEBUG "PCI: bridge %s io port: %pR\n",
+		       pci_name(dev), res);
 	}
 
 	res = child->resource[1];
@@ -403,9 +402,8 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 		res->flags = (mem_base_lo & PCI_MEMORY_RANGE_TYPE_MASK) | IORESOURCE_MEM;
 		res->start = base;
 		res->end = limit + 0xfffff;
-		printk(KERN_DEBUG "PCI: bridge %s 32bit mmio: [%llx, %llx]\n",
-			pci_name(dev), (unsigned long long) res->start,
-			(unsigned long long) res->end);
+		printk(KERN_DEBUG "PCI: bridge %s 32bit mmio: %pR\n",
+		       pci_name(dev), res);
 	}
 
 	res = child->resource[2];
@@ -441,9 +439,9 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 		res->flags = (mem_base_lo & PCI_MEMORY_RANGE_TYPE_MASK) | IORESOURCE_MEM | IORESOURCE_PREFETCH;
 		res->start = base;
 		res->end = limit + 0xfffff;
-		printk(KERN_DEBUG "PCI: bridge %s %sbit mmio pref: [%llx, %llx]\n",
-			pci_name(dev), (res->flags & PCI_PREF_RANGE_TYPE_64) ? "64" : "32",
-			(unsigned long long) res->start, (unsigned long long) res->end);
+		printk(KERN_DEBUG "PCI: bridge %s %sbit mmio pref: %pR\n",
+		       pci_name(dev),
+		       (res->flags & PCI_PREF_RANGE_TYPE_64) ? "64":"32", res);
 	}
 }
 
