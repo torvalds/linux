@@ -119,7 +119,7 @@ static void __init omap_irq_bank_init_one(struct omap_irq_bank *bank)
 
 void __init omap_init_irq(void)
 {
-	unsigned long nr_irqs = 0;
+	unsigned long nr_of_irqs = 0;
 	unsigned int nr_banks = 0;
 	int i;
 
@@ -133,14 +133,14 @@ void __init omap_init_irq(void)
 
 		omap_irq_bank_init_one(bank);
 
-		nr_irqs += bank->nr_irqs;
+		nr_of_irqs += bank->nr_irqs;
 		nr_banks++;
 	}
 
 	printk(KERN_INFO "Total of %ld interrupts on %d active controller%s\n",
-	       nr_irqs, nr_banks, nr_banks > 1 ? "s" : "");
+	       nr_of_irqs, nr_banks, nr_banks > 1 ? "s" : "");
 
-	for (i = 0; i < nr_irqs; i++) {
+	for (i = 0; i < nr_of_irqs; i++) {
 		set_irq_chip(i, &omap_irq_chip);
 		set_irq_handler(i, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);

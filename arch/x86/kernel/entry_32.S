@@ -629,7 +629,7 @@ ENTRY(interrupt)
 ENTRY(irq_entries_start)
 	RING0_INT_FRAME
 vector=0
-.rept NR_IRQS
+.rept NR_VECTORS
 	ALIGN
  .if vector
 	CFI_ADJUST_CFA_OFFSET -4
