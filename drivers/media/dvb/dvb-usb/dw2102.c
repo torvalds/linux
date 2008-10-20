@@ -422,6 +422,18 @@ static int dw210x_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 	return 0;
 }
 
+static struct stv0299_config sharp_z0194a_config = {
+	.demod_address = 0x68,
+	.inittab = sharp_z0194a_inittab,
+	.mclk = 88000000UL,
+	.invert = 1,
+	.skip_reinit = 0,
+	.lock_output = STV0299_LOCKOUTPUT_1,
+	.volt13_op0_op1 = STV0299_VOLT13_OP1,
+	.min_delay_ms = 100,
+	.set_symbol_rate = sharp_z0194a_set_symbol_rate,
+};
+
 static struct cx24116_config dw2104_config = {
 	.demod_address = 0x55,
 	.mpg_clk_pos_pol = 0x01,

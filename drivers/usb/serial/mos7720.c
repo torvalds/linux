@@ -355,14 +355,16 @@ static int mos7720_open(struct tty_struct *tty,
 		mos7720_port->write_urb_pool[j] = urb;
 
 		if (urb == NULL) {
-			err("No more urbs???");
+			dev_err(&port->dev, "No more urbs???\n");
 			continue;
 		}
 
 		urb->transfer_buffer = kmalloc(URB_TRANSFER_BUFFER_SIZE,
 					       GFP_KERNEL);
 		if (!urb->transfer_buffer) {
-			err("%s-out of memory for urb buffers.", __func__);
+			dev_err(&port->dev,
+				"%s-out of memory for urb buffers.\n",
+				__func__);
 			usb_free_urb(mos7720_port->write_urb_pool[j]);
 			mos7720_port->write_urb_pool[j] = NULL;
 			continue;
@@ -694,7 +696,8 @@ static int mos7720_write(struct tty_struct *tty, struct usb_serial_port *port,
 		urb->transfer_buffer = kmalloc(URB_TRANSFER_BUFFER_SIZE,
 					       GFP_KERNEL);
 		if (urb->transfer_buffer == NULL) {
-			err("%s no more kernel memory...", __func__);
+			dev_err(&port->dev, "%s no more kernel memory...\n",
+				__func__);
 			goto exit;
 		}
 	}
@@ -714,8 +717,8 @@ static int mos7720_write(struct tty_struct *tty, struct usb_serial_port *port,
 	/* send it down the pipe */
 	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status) {
-		err("%s - usb_submit_urb(write bulk) failed with status = %d",
-		    __func__, status);
+		dev_err(&port->dev, "%s - usb_submit_urb(write bulk) failed "
+			"with status = %d\n", __func__, status);
 		bytes_sent = status;
 		goto exit;
 	}
@@ -975,7 +978,7 @@ static int send_cmd_write_baud_rate(struct moschip_port *mos7720_port,
 	/* Calculate the Divisor */
 	status = calc_baud_rate_divisor(baudrate, &divisor);
 	if (status) {
-		err("%s - bad baud rate", __func__);
+		dev_err(&port->dev, "%s - bad baud rate\n", __func__);
 		return status;
 	}
 
@@ -1478,7 +1481,7 @@ static int mos7720_startup(struct usb_serial *serial)
 	/* create our private serial structure */
 	mos7720_serial = kzalloc(sizeof(struct moschip_serial), GFP_KERNEL);
 	if (mos7720_serial == NULL) {
-		err("%s - Out of memory", __func__);
+		dev_err(&dev->dev, "%s - Out of memory\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -1491,7 +1494,7 @@ static int mos7720_startup(struct usb_serial *serial)
 	for (i = 0; i < serial->num_ports; ++i) {
 		mos7720_port = kzalloc(sizeof(struct moschip_port), GFP_KERNEL);
 		if (mos7720_port == NULL) {
-			err("%s - Out of memory", __func__);
+			dev_err(&dev->dev, "%s - Out of memory\n", __func__);
 			usb_set_serial_data(serial, NULL);
 			kfree(mos7720_serial);
 			return -ENOMEM;
@@ -1585,7 +1588,8 @@ static int __init moschip7720_init(void)
 	if (retval)
 		goto failed_port_device_register;
 
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 
 	/* Register with the usb */
 	retval = usb_register(&usb_driver);

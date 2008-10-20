@@ -222,7 +222,7 @@ static struct usb_config_descriptor config_desc = {
 	 * power properties of the device. Is it selfpowered?
 	 */
 	.bmAttributes =		USB_CONFIG_ATT_ONE,
-	.bMaxPower =		1,
+	.bMaxPower =		CONFIG_USB_GADGET_VBUS_DRAW / 2,
 };
 
 /* B.3.1  Standard AC Interface Descriptor */

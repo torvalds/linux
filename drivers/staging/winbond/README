@@ -1,0 +1,10 @@
+TODO:
+	- sparse cleanups
+	- checkpatch cleanups
+	- kerneldoc cleanups
+	- remove typedefs
+	- remove unused ioctls
+	- use cfg80211 for regulatory stuff
+
+Please send patches to Greg Kroah-Hartman <greg@kroah.com> and
+Pavel Machek <pavel@suse.cz>

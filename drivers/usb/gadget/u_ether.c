@@ -873,6 +873,13 @@ struct net_device *gether_connect(struct gether *link)
 		spin_lock(&dev->lock);
 		dev->port_usb = link;
 		link->ioport = dev;
+		if (netif_running(dev->net)) {
+			if (link->open)
+				link->open(link);
+		} else {
+			if (link->close)
+				link->close(link);
+		}
 		spin_unlock(&dev->lock);
 
 		netif_carrier_on(dev->net);

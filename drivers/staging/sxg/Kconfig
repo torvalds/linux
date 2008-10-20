@@ -1,0 +1,10 @@
+config SXG
+	tristate "Alacritech SLIC Technology Non-Accelerated 10Gbe support"
+	depends on PCI && NETDEV_10000
+	default n
+	help
+	  This driver supports the Alacritech SLIC Technology Non-Accelerated
+	  10Gbe network cards.
+
+	  To compile this driver as a module, choose
+	  M here: the module will be called sxg.

@@ -1187,7 +1187,12 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 		    cp->serial_number, comp_status,
 		    atomic_read(&fcport->state)));
 
-		cp->result = DID_BUS_BUSY << 16;
+		/*
+		 * We are going to have the fc class block the rport
+		 * while we try to recover so instruct the mid layer
+		 * to requeue until the class decides how to handle this.
+		 */
+		cp->result = DID_TRANSPORT_DISRUPTED << 16;
 		if (atomic_read(&fcport->state) == FCS_ONLINE)
 			qla2x00_mark_device_lost(fcport->ha, fcport, 1, 1);
 		break;
@@ -1214,7 +1219,12 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 		break;
 
 	case CS_TIMEOUT:
-		cp->result = DID_BUS_BUSY << 16;
+		/*
+		 * We are going to have the fc class block the rport
+		 * while we try to recover so instruct the mid layer
+		 * to requeue until the class decides how to handle this.
+		 */
+		cp->result = DID_TRANSPORT_DISRUPTED << 16;
 
 		if (IS_FWI2_CAPABLE(ha)) {
 			DEBUG2(printk(KERN_INFO

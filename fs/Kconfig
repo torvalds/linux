@@ -160,7 +160,7 @@ config EXT4_FS
 	  filesystem initially.
 
 	  To compile this file system support as a module, choose M here. The
-	  module will be called ext4dev.
+	  module will be called ext4.
 
 	  If unsure, say N.
 

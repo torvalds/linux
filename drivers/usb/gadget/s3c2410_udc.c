@@ -1651,7 +1651,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 		return -EBUSY;
 
 	if (!driver->bind || !driver->setup
-			|| driver->speed != USB_SPEED_FULL) {
+			|| driver->speed < USB_SPEED_FULL) {
 		printk(KERN_ERR "Invalid driver: bind %p setup %p speed %d\n",
 			driver->bind, driver->setup, driver->speed);
 		return -EINVAL;

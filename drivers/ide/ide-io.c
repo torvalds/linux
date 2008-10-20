@@ -1493,8 +1493,8 @@ void ide_do_drive_cmd(ide_drive_t *drive, struct request *rq)
 
 	spin_lock_irqsave(&ide_lock, flags);
 	hwgroup->rq = NULL;
-	__elv_add_request(drive->queue, rq, ELEVATOR_INSERT_FRONT, 1);
-	__generic_unplug_device(drive->queue);
+	__elv_add_request(drive->queue, rq, ELEVATOR_INSERT_FRONT, 0);
+	blk_start_queueing(drive->queue);
 	spin_unlock_irqrestore(&ide_lock, flags);
 }
 

@@ -27,7 +27,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
-#include <linux/kref.h>
 
 #include <linux/usb.h>
 #include <linux/mm.h>
@@ -560,7 +559,7 @@ static void stk_clean_iso(struct stk_camera *dev)
 
 		urb = dev->isobufs[i].urb;
 		if (urb) {
-			if (atomic_read(&dev->urbs_used))
+			if (atomic_read(&dev->urbs_used) && is_present(dev))
 				usb_kill_urb(urb);
 			usb_free_urb(urb);
 		}
@@ -689,18 +688,14 @@ static int v4l_stk_release(struct inode *inode, struct file *fp)
 {
 	struct stk_camera *dev = fp->private_data;
 
-	if (dev->owner != fp) {
-		usb_autopm_put_interface(dev->interface);
-		return 0;
+	if (dev->owner == fp) {
+		stk_stop_stream(dev);
+		stk_free_buffers(dev);
+		dev->owner = NULL;
 	}
 
-	stk_stop_stream(dev);
-
-	stk_free_buffers(dev);
-
-	dev->owner = NULL;
-
-	usb_autopm_put_interface(dev->interface);
+	if(is_present(dev))
+		usb_autopm_put_interface(dev->interface);
 
 	return 0;
 }
@@ -713,9 +708,6 @@ static ssize_t v4l_stk_read(struct file *fp, char __user *buf,
 	unsigned long flags;
 	struct stk_sio_buffer *sbuf;
 	struct stk_camera *dev = fp->private_data;
-
-	if (dev == NULL)
-		return -EIO;
 
 	if (!is_present(dev))
 		return -EIO;
@@ -772,9 +764,6 @@ static ssize_t v4l_stk_read(struct file *fp, char __user *buf,
 static unsigned int v4l_stk_poll(struct file *fp, poll_table *wait)
 {
 	struct stk_camera *dev = fp->private_data;
-
-	if (dev == NULL)
-		return -ENODEV;
 
 	poll_wait(fp, &dev->wait_frame, wait);
 
@@ -1436,7 +1425,7 @@ static void stk_camera_disconnect(struct usb_interface *interface)
 	wake_up_interruptible(&dev->wait_frame);
 	stk_remove_sysfs_files(&dev->vdev);
 
-	STK_INFO("Syntek USB2.0 Camera release resources"
+	STK_INFO("Syntek USB2.0 Camera release resources "
 		"video device /dev/video%d\n", dev->vdev.minor);
 
 	video_unregister_device(&dev->vdev);

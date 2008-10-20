@@ -1,7 +1,7 @@
 /*
  * Driver for the s5k4aa sensor
  *
- * Copyright (C) 2008 Erik Andren
+ * Copyright (C) 2008 Erik Andrén
  * Copyright (C) 2007 Ilyes Gouta. Based on the m5603x Linux Driver Project.
  * Copyright (C) 2005 m5603x Linux Driver Project <m5602@x3ng.com.br>
  *
@@ -117,7 +117,7 @@ int s5k4aa_read_sensor(struct sd *sd, const u8 address,
 	for (i = 0; (i < len) & !err; i++) {
 		err = m5602_read_bridge(sd, M5602_XB_I2C_DATA, &(i2c_data[i]));
 
-		PDEBUG(DBG_TRACE, "Reading sensor register "
+		PDEBUG(D_CONF, "Reading sensor register "
 				  "0x%x containing 0x%x ", address, *i2c_data);
 	}
 out:
@@ -150,7 +150,7 @@ int s5k4aa_write_sensor(struct sd *sd, const u8 address,
 		memcpy(p, sensor_urb_skeleton + 16, 4);
 		p[3] = i2c_data[i];
 		p += 4;
-		PDEBUG(DBG_TRACE, "Writing sensor register 0x%x with 0x%x",
+		PDEBUG(D_CONF, "Writing sensor register 0x%x with 0x%x",
 		       address, i2c_data[i]);
 	}
 
@@ -248,7 +248,7 @@ int s5k4aa_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
 	*val = data << 8;
 	err = s5k4aa_read_sensor(sd, S5K4AA_EXPOSURE_LO, &data, 1);
 	*val |= data;
-	PDEBUG(DBG_V4L2_CID, "Read exposure %d", *val);
+	PDEBUG(D_V4L2, "Read exposure %d", *val);
 out:
 	return (err < 0) ? err : 0;
 }
@@ -259,7 +259,7 @@ int s5k4aa_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	u8 data = S5K4AA_PAGE_MAP_2;
 	int err;
 
-	PDEBUG(DBG_V4L2_CID, "Set exposure to %d", val);
+	PDEBUG(D_V4L2, "Set exposure to %d", val);
 	err = s5k4aa_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		goto out;
@@ -285,7 +285,7 @@ int s5k4aa_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 
 	err = s5k4aa_read_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	*val = (data & S5K4AA_RM_V_FLIP) >> 7;
-	PDEBUG(DBG_V4L2_CID, "Read vertical flip %d", *val);
+	PDEBUG(D_V4L2, "Read vertical flip %d", *val);
 
 out:
 	return (err < 0) ? err : 0;
@@ -297,7 +297,7 @@ int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	u8 data = S5K4AA_PAGE_MAP_2;
 	int err;
 
-	PDEBUG(DBG_V4L2_CID, "Set vertical flip to %d", val);
+	PDEBUG(D_V4L2, "Set vertical flip to %d", val);
 	err = s5k4aa_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		goto out;
@@ -341,7 +341,7 @@ int s5k4aa_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 
 	err = s5k4aa_read_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	*val = (data & S5K4AA_RM_H_FLIP) >> 6;
-	PDEBUG(DBG_V4L2_CID, "Read horizontal flip %d", *val);
+	PDEBUG(D_V4L2, "Read horizontal flip %d", *val);
 out:
 	return (err < 0) ? err : 0;
 }
@@ -352,7 +352,7 @@ int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	u8 data = S5K4AA_PAGE_MAP_2;
 	int err;
 
-	PDEBUG(DBG_V4L2_CID, "Set horizontal flip to %d",
+	PDEBUG(D_V4L2, "Set horizontal flip to %d",
 	       val);
 	err = s5k4aa_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
@@ -397,7 +397,7 @@ int s5k4aa_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 
 	err = s5k4aa_read_sensor(sd, S5K4AA_GAIN_2, &data, 1);
 	*val = data;
-	PDEBUG(DBG_V4L2_CID, "Read gain %d", *val);
+	PDEBUG(D_V4L2, "Read gain %d", *val);
 
 out:
 	return (err < 0) ? err : 0;
@@ -409,7 +409,7 @@ int s5k4aa_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	u8 data = S5K4AA_PAGE_MAP_2;
 	int err;
 
-	PDEBUG(DBG_V4L2_CID, "Set gain to %d", val);
+	PDEBUG(D_V4L2, "Set gain to %d", val);
 	err = s5k4aa_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		goto out;

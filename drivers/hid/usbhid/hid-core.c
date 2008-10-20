@@ -428,7 +428,7 @@ void usbhid_submit_report(struct hid_device *hid, struct hid_report *report, uns
 		usbhid->out[usbhid->outhead].raw_report = kmalloc(len, GFP_ATOMIC);
 		if (!usbhid->out[usbhid->outhead].raw_report) {
 			spin_unlock_irqrestore(&usbhid->outlock, flags);
-			warn("output queueing failed");
+			dev_warn(&hid->dev, "output queueing failed\n");
 			return;
 		}
 		hid_output_report(report, usbhid->out[usbhid->outhead].raw_report);
@@ -455,7 +455,7 @@ void usbhid_submit_report(struct hid_device *hid, struct hid_report *report, uns
 		usbhid->ctrl[usbhid->ctrlhead].raw_report = kmalloc(len, GFP_ATOMIC);
 		if (!usbhid->ctrl[usbhid->ctrlhead].raw_report) {
 			spin_unlock_irqrestore(&usbhid->ctrllock, flags);
-			warn("control queueing failed");
+			dev_warn(&hid->dev, "control queueing failed\n");
 			return;
 		}
 		hid_output_report(report, usbhid->ctrl[usbhid->ctrlhead].raw_report);
