@@ -47,6 +47,9 @@ static struct uio_class {
 	struct class *class;
 } *uio_class;
 
+/* Protect idr accesses */
+static DEFINE_MUTEX(minor_lock);
+
 /*
  * attributes
  */
@@ -239,7 +242,6 @@ static void uio_dev_del_attributes(struct uio_device *idev)
 
 static int uio_get_minor(struct uio_device *idev)
 {
-	static DEFINE_MUTEX(minor_lock);
 	int retval = -ENOMEM;
 	int id;
 
@@ -261,7 +263,9 @@ exit:
 
 static void uio_free_minor(struct uio_device *idev)
 {
+	mutex_lock(&minor_lock);
 	idr_remove(&uio_idr, idev->minor);
+	mutex_unlock(&minor_lock);
 }
 
 /**
@@ -305,8 +309,9 @@ static int uio_open(struct inode *inode, struct file *filep)
 	struct uio_listener *listener;
 	int ret = 0;
 
-	lock_kernel();
+	mutex_lock(&minor_lock);
 	idev = idr_find(&uio_idr, iminor(inode));
+	mutex_unlock(&minor_lock);
 	if (!idev) {
 		ret = -ENODEV;
 		goto out;
@@ -332,18 +337,15 @@ static int uio_open(struct inode *inode, struct file *filep)
 		if (ret)
 			goto err_infoopen;
 	}
-	unlock_kernel();
 	return 0;
 
 err_infoopen:
-
 	kfree(listener);
-err_alloc_listener:
 
+err_alloc_listener:
 	module_put(idev->owner);
 
 out:
-	unlock_kernel();
 	return ret;
 }
 
