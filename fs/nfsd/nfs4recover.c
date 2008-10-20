@@ -116,9 +116,9 @@ nfs4_make_rec_clidname(char *dname, struct xdr_netobj *clname)
 
 	md5_to_hex(dname, cksum.data);
 
-	kfree(cksum.data);
 	status = nfs_ok;
 out:
+	kfree(cksum.data);
 	crypto_free_hash(desc.tfm);
 out_no_tfm:
 	return status;
