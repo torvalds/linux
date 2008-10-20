@@ -1394,22 +1394,16 @@ void hrtimer_interrupt(struct clock_event_device *dev)
  */
 void hrtimer_peek_ahead_timers(void)
 {
-	unsigned long flags;
 	struct tick_device *td;
-	struct clock_event_device *dev;
+	unsigned long flags;
 
 	if (!hrtimer_hres_active())
 		return;
 
 	local_irq_save(flags);
 	td = &__get_cpu_var(tick_cpu_device);
-	if (!td)
-		goto out;
-	dev = td->evtdev;
-	if (!dev)
-		goto out;
-	hrtimer_interrupt(dev);
-out:
+	if (td && td->evtdev)
+		hrtimer_interrupt(td->evtdev);
 	local_irq_restore(flags);
 }
 
