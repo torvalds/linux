@@ -265,7 +265,7 @@ static int vidioc_querycap(struct file *file, void *priv,
 {
 	strlcpy(v->driver, "dsbr100", sizeof(v->driver));
 	strlcpy(v->card, "D-Link R-100 USB FM Radio", sizeof(v->card));
-	sprintf(v->bus_info, "ISA");
+	sprintf(v->bus_info, "USB");
 	v->version = RADIO_VERSION;
 	v->capabilities = V4L2_CAP_TUNER;
 	return 0;
