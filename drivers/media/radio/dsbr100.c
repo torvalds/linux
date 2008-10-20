@@ -411,6 +411,7 @@ static int vidioc_s_audio(struct file *file, void *priv,
 static int usb_dsbr100_open(struct inode *inode, struct file *file)
 {
 	struct dsbr100_device *radio = video_drvdata(file);
+	int retval;
 
 	lock_kernel();
 	radio->users = 1;
@@ -423,7 +424,12 @@ static int usb_dsbr100_open(struct inode *inode, struct file *file)
 		unlock_kernel();
 		return -EIO;
 	}
-	dsbr100_setfreq(radio, radio->curfreq);
+
+	retval = dsbr100_setfreq(radio, radio->curfreq);
+
+	if (retval == -1)
+		printk(KERN_WARNING KBUILD_MODNAME ": Set frequency failed\n");
+
 	unlock_kernel();
 	return 0;
 }
