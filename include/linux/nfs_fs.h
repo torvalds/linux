@@ -367,8 +367,12 @@ static inline struct nfs_open_context *nfs_file_open_context(struct file *filp)
 
 static inline struct rpc_cred *nfs_file_cred(struct file *file)
 {
-	if (file != NULL)
-		return nfs_file_open_context(file)->cred;
+	if (file != NULL) {
+		struct nfs_open_context *ctx =
+			nfs_file_open_context(file);
+		if (ctx)
+			return ctx->cred;
+	}
 	return NULL;
 }
 
