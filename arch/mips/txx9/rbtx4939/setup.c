@@ -239,6 +239,32 @@ static inline void rbtx4939_led_setup(void)
 }
 #endif
 
+static void __rbtx4939_7segled_putc(unsigned int pos, unsigned char val)
+{
+#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+	unsigned long flags;
+	local_irq_save(flags);
+	/* bit7: reserved for LED class */
+	led_val[pos] = (led_val[pos] & 0x80) | (val & 0x7f);
+	val = led_val[pos];
+	local_irq_restore(flags);
+#endif
+	writeb(val, rbtx4939_7seg_addr(pos / 4, pos % 4));
+}
+
+static void rbtx4939_7segled_putc(unsigned int pos, unsigned char val)
+{
+	/* convert from map_to_seg7() notation */
+	val = (val & 0x88) |
+		((val & 0x40) >> 6) |
+		((val & 0x20) >> 4) |
+		((val & 0x10) >> 2) |
+		((val & 0x04) << 2) |
+		((val & 0x02) << 4) |
+		((val & 0x01) << 6);
+	__rbtx4939_7segled_putc(pos, val);
+}
+
 static void __init rbtx4939_arch_init(void)
 {
 	rbtx4939_pci_setup();
@@ -269,6 +295,8 @@ static void __init rbtx4939_device_init(void)
 
 static void __init rbtx4939_setup(void)
 {
+	int i;
+
 	rbtx4939_ebusc_setup();
 	/* always enable ATA0 */
 	txx9_set64(&tx4939_ccfgptr->pcfg, TX4939_PCFG_ATA0MODE);
@@ -279,6 +307,9 @@ static void __init rbtx4939_setup(void)
 
 	_machine_restart = rbtx4939_machine_restart;
 
+	txx9_7segled_init(RBTX4939_MAX_7SEGLEDS, rbtx4939_7segled_putc);
+	for (i = 0; i < RBTX4939_MAX_7SEGLEDS; i++)
+		txx9_7segled_putc(i, '-');
 	pr_info("RBTX4939 (Rev %02x) --- FPGA(Rev %02x) DIPSW:%02x,%02x\n",
 		readb(rbtx4939_board_rev_addr), readb(rbtx4939_ioc_rev_addr),
 		readb(rbtx4939_udipsw_addr), readb(rbtx4939_bdipsw_addr));
