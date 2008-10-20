@@ -12,7 +12,9 @@
 
 #include <asm/asm-compat.h>
 #include <asm/kdump.h>
-#include <asm/types.h>
+#ifndef __ASSEMBLY__
+#include <linux/types.h>
+#endif
 
 /*
  * On PPC32 page size is 4K. For PPC64 we support either 4K or 64K software
@@ -73,6 +75,7 @@
 
 #if defined(CONFIG_RELOCATABLE)
 #ifndef __ASSEMBLY__
+
 extern phys_addr_t memstart_addr;
 extern phys_addr_t kernstart_addr;
 #endif
