@@ -569,12 +569,6 @@ int pci_hp_register(struct hotplug_slot *slot, struct pci_bus *bus, int slot_nr,
 
 	mutex_lock(&pci_hp_mutex);
 
-	/* Check if we have already registered a slot with the same name. */
-	if (get_slot_from_name(name)) {
-		result = -EEXIST;
-		goto out;
-	}
-
 	/*
 	 * No problems if we call this interface from both ACPI_PCI_SLOT
 	 * driver and call it here again. If we've already created the
@@ -583,26 +577,11 @@ int pci_hp_register(struct hotplug_slot *slot, struct pci_bus *bus, int slot_nr,
 	pci_slot = pci_create_slot(bus, slot_nr, name, slot);
 	if (IS_ERR(pci_slot)) {
 		result = PTR_ERR(pci_slot);
-		goto cleanup;
-	}
-
-	if (pci_slot->hotplug) {
-		dbg("%s: already claimed\n", __func__);
-		result = -EBUSY;
-		goto cleanup;
+		goto out;
 	}
 
 	slot->pci_slot = pci_slot;
 	pci_slot->hotplug = slot;
-
-	/*
-	 * Allow pcihp drivers to override the ACPI_PCI_SLOT name.
-	 */
-	if (strcmp(kobject_name(&pci_slot->kobj), name)) {
-		result = kobject_rename(&pci_slot->kobj, name);
-		if (result)
-			goto cleanup;
-	}
 
 	list_add(&slot->slot_list, &pci_hotplug_slot_list);
 
@@ -612,9 +591,6 @@ int pci_hp_register(struct hotplug_slot *slot, struct pci_bus *bus, int slot_nr,
 out:
 	mutex_unlock(&pci_hp_mutex);
 	return result;
-cleanup:
-	pci_destroy_slot(pci_slot);
-	goto out;
 }
 
 /**
