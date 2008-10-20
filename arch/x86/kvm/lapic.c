@@ -973,14 +973,12 @@ int apic_has_pending_timer(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-int kvm_apic_local_deliver(struct kvm_vcpu *vcpu, int lvt_type)
+static int kvm_apic_local_deliver(struct kvm_lapic *apic, int lvt_type)
 {
-	struct kvm_lapic *apic = vcpu->arch.apic;
+	u32 reg = apic_get_reg(apic, lvt_type);
 	int vector, mode, trig_mode;
-	u32 reg;
 
-	if (apic && apic_enabled(apic)) {
-		reg = apic_get_reg(apic, lvt_type);
+	if (apic_hw_enabled(apic) && !(reg & APIC_LVT_MASKED)) {
 		vector = reg & APIC_VECTOR_MASK;
 		mode = reg & APIC_MODE_MASK;
 		trig_mode = reg & APIC_LVT_LEVEL_TRIGGER;
@@ -989,9 +987,12 @@ int kvm_apic_local_deliver(struct kvm_vcpu *vcpu, int lvt_type)
 	return 0;
 }
 
-static inline int __inject_apic_timer_irq(struct kvm_lapic *apic)
+void kvm_apic_nmi_wd_deliver(struct kvm_vcpu *vcpu)
 {
-	return kvm_apic_local_deliver(apic->vcpu, APIC_LVTT);
+	struct kvm_lapic *apic = vcpu->arch.apic;
+
+	if (apic)
+		kvm_apic_local_deliver(apic, APIC_LVT0);
 }
 
 static enum hrtimer_restart apic_timer_fn(struct hrtimer *data)
@@ -1086,9 +1087,8 @@ void kvm_inject_apic_timer_irqs(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
 
-	if (apic && apic_lvt_enabled(apic, APIC_LVTT) &&
-		atomic_read(&apic->timer.pending) > 0) {
-		if (__inject_apic_timer_irq(apic))
+	if (apic && atomic_read(&apic->timer.pending) > 0) {
+		if (kvm_apic_local_deliver(apic, APIC_LVTT))
 			atomic_dec(&apic->timer.pending);
 	}
 }

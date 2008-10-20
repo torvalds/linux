@@ -612,15 +612,18 @@ static void __inject_pit_timer_intr(struct kvm *kvm)
 	mutex_unlock(&kvm->lock);
 
 	/*
-	 * Provides NMI watchdog support in IOAPIC mode.
-	 * The route is: PIT -> PIC -> LVT0 in NMI mode,
-	 * timer IRQs will continue to flow through the IOAPIC.
+	 * Provides NMI watchdog support via Virtual Wire mode.
+	 * The route is: PIT -> PIC -> LVT0 in NMI mode.
+	 *
+	 * Note: Our Virtual Wire implementation is simplified, only
+	 * propagating PIT interrupts to all VCPUs when they have set
+	 * LVT0 to NMI delivery. Other PIC interrupts are just sent to
+	 * VCPU0, and only if its LVT0 is in EXTINT mode.
 	 */
 	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
 		vcpu = kvm->vcpus[i];
-		if (!vcpu)
-			continue;
-		kvm_apic_local_deliver(vcpu, APIC_LVT0);
+		if (vcpu)
+			kvm_apic_nmi_wd_deliver(vcpu);
 	}
 }
 
