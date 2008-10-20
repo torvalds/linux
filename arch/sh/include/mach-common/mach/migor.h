@@ -52,9 +52,11 @@
 #define PORT_HIZCRB 0xa405015a
 #define PORT_HIZCRC 0xa405015c
 
+#define BSC_CS4BCR 0xfec10010
 #define BSC_CS6ABCR 0xfec1001c
+#define BSC_CS4WCR 0xfec10030
 
-#include <asm/sh_mobile_lcdc.h>
+#include <video/sh_mobile_lcdc.h>
 
 int migor_lcd_qvga_setup(void *board_data, void *sys_ops_handle,
 			 struct sh_mobile_lcdc_sys_bus_ops *sys_ops);

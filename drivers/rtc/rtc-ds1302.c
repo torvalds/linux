@@ -40,7 +40,7 @@
 #define	RTC_SCLK	0x0400
 
 #ifdef CONFIG_SH_SECUREEDGE5410
-#include <asm/snapgear.h>
+#include <mach/snapgear.h>
 #define set_dp(x)	SECUREEDGE_WRITE_IOPORT(x, 0x1c00)
 #define get_dp()	SECUREEDGE_READ_IOPORT()
 #else

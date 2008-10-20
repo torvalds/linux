@@ -15,7 +15,7 @@
 #include <linux/pci.h>
 #include <linux/wait.h>
 #include <asm/io.h>
-#include <asm/microdev.h>
+#include <mach/microdev.h>
 
 	/*
 	 *	we need to have a 'safe' address to re-direct all I/O requests

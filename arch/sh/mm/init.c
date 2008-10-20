@@ -23,7 +23,19 @@
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 pgd_t swapper_pg_dir[PTRS_PER_PGD];
-unsigned long cached_to_uncached = 0;
+
+#ifdef CONFIG_SUPERH32
+/*
+ * Handle trivial transitions between cached and uncached
+ * segments, making use of the 1:1 mapping relationship in
+ * 512MB lowmem.
+ *
+ * This is the offset of the uncached section from its cached alias.
+ * Default value only valid in 29 bit mode, in 32bit mode will be
+ * overridden in pmb_init.
+ */
+unsigned long cached_to_uncached = P2SEG - P1SEG;
+#endif
 
 #ifdef CONFIG_MMU
 static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
@@ -58,9 +70,7 @@ static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 	}
 
 	set_pte(pte, pfn_pte(phys >> PAGE_SHIFT, prot));
-
-	if (cached_to_uncached)
-		flush_tlb_one(get_asid(), addr);
+	flush_tlb_one(get_asid(), addr);
 }
 
 /*
@@ -113,7 +123,6 @@ void __init page_table_range_init(unsigned long start, unsigned long end,
 		if (!pmd_present(*pmd)) {
 			pte_t *pte_table;
 			pte_table = (pte_t *)alloc_bootmem_low_pages(PAGE_SIZE);
-			memset(pte_table, 0, PAGE_SIZE);
 			pmd_populate_kernel(&init_mm, pmd, pte_table);
 		}
 
@@ -165,15 +174,6 @@ void __init paging_init(void)
 #ifdef CONFIG_SUPERH32
 	/* Set up the uncached fixmap */
 	set_fixmap_nocache(FIX_UNCACHED, __pa(&__uncached_start));
-
-#ifdef CONFIG_29BIT
-	/*
-	 * Handle trivial transitions between cached and uncached
-	 * segments, making use of the 1:1 mapping relationship in
-	 * 512MB lowmem.
-	 */
-	cached_to_uncached = P2SEG - P1SEG;
-#endif
 #endif
 }
 
@@ -265,6 +265,35 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 }
 #endif
 
+#if THREAD_SHIFT < PAGE_SHIFT
+static struct kmem_cache *thread_info_cache;
+
+struct thread_info *alloc_thread_info(struct task_struct *tsk)
+{
+	struct thread_info *ti;
+
+	ti = kmem_cache_alloc(thread_info_cache, GFP_KERNEL);
+	if (unlikely(ti == NULL))
+		return NULL;
+#ifdef CONFIG_DEBUG_STACK_USAGE
+	memset(ti, 0, THREAD_SIZE);
+#endif
+	return ti;
+}
+
+void free_thread_info(struct thread_info *ti)
+{
+	kmem_cache_free(thread_info_cache, ti);
+}
+
+void thread_info_cache_init(void)
+{
+	thread_info_cache = kmem_cache_create("thread_info", THREAD_SIZE,
+					      THREAD_SIZE, 0, NULL);
+	BUG_ON(thread_info_cache == NULL);
+}
+#endif /* THREAD_SHIFT < PAGE_SHIFT */
+
 #ifdef CONFIG_MEMORY_HOTPLUG
 int arch_add_memory(int nid, u64 start, u64 size)
 {
@@ -292,4 +321,21 @@ int memory_add_physaddr_to_nid(u64 addr)
 }
 EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 #endif
+
+#ifdef CONFIG_MEMORY_HOTREMOVE
+int remove_memory(u64 start, u64 size)
+{
+	unsigned long start_pfn = start >> PAGE_SHIFT;
+	unsigned long end_pfn = start_pfn + (size >> PAGE_SHIFT);
+	int ret;
+
+	ret = offline_pages(start_pfn, end_pfn, 120 * HZ);
+	if (unlikely(ret))
+		printk("%s: Failed, offline_pages() == %d\n", __func__, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(remove_memory);
 #endif
+
+#endif /* CONFIG_MEMORY_HOTPLUG */

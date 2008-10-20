@@ -20,7 +20,7 @@
 #include <linux/i2c.h>
 #include <net/ax88796.h>
 #include <asm/machvec.h>
-#include <asm/r7780rp.h>
+#include <mach/highlander.h>
 #include <asm/clock.h>
 #include <asm/heartbeat.h>
 #include <asm/io.h>
