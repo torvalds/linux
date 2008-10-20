@@ -332,30 +332,6 @@ config MTD_CFI_FLAGADM
 	  Mapping for the Flaga digital module. If you don't have one, ignore
 	  this setting.
 
-config MTD_WALNUT
-	tristate "Flash device mapped on IBM 405GP Walnut"
-	depends on MTD_JEDECPROBE && WALNUT && !PPC_MERGE
-	help
-	  This enables access routines for the flash chips on the IBM 405GP
-	  Walnut board. If you have one of these boards and would like to
-	  use the flash chips on it, say 'Y'.
-
-config MTD_EBONY
-	tristate "Flash devices mapped on IBM 440GP Ebony"
-	depends on MTD_JEDECPROBE && EBONY && !PPC_MERGE
-	help
-	  This enables access routines for the flash chips on the IBM 440GP
-	  Ebony board. If you have one of these boards and would like to
-	  use the flash chips on it, say 'Y'.
-
-config MTD_OCOTEA
-	tristate "Flash devices mapped on IBM 440GX Ocotea"
-	depends on MTD_CFI && OCOTEA && !PPC_MERGE
-	help
-	  This enables access routines for the flash chips on the IBM 440GX
-	  Ocotea board. If you have one of these boards and would like to
-	  use the flash chips on it, say 'Y'.
-
 config MTD_REDWOOD
 	tristate "CFI Flash devices mapped on IBM Redwood"
 	depends on MTD_CFI && ( REDWOOD_4 || REDWOOD_5 || REDWOOD_6 )
@@ -458,13 +434,6 @@ config MTD_CEIVA
 	  PhotoMax Digital Picture Frame.
 	  If you have such a device, say 'Y'.
 
-config MTD_NOR_TOTO
-	tristate "NOR Flash device on TOTO board"
-	depends on ARCH_OMAP && OMAP_TOTO
-	help
-	  This enables access to the NOR flash on the Texas Instruments
-	  TOTO board.
-
 config MTD_H720X
 	tristate "Hynix evaluation board mappings"
 	depends on MTD_CFI && ( ARCH_H7201 || ARCH_H7202 )
@@ -522,7 +491,7 @@ config MTD_BFIN_ASYNC
 
 config MTD_UCLINUX
 	tristate "Generic uClinux RAM/ROM filesystem support"
-	depends on MTD_PARTITIONS && !MMU
+	depends on MTD_PARTITIONS && MTD_RAM && !MMU
 	help
 	  Map driver to support image based filesystems for uClinux.
 
