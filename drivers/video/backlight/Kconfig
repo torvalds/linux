@@ -204,3 +204,10 @@ config BACKLIGHT_TOSA
 	  If you have an Sharp SL-6000 Zaurus say Y to enable a driver
 	  for its backlight
 
+config BACKLIGHT_SAHARA
+	tristate "Tabletkiosk Sahara Touch-iT Backlight Driver"
+	depends on BACKLIGHT_CLASS_DEVICE && X86
+	default n
+	help
+	  If you have a Tabletkiosk Sahara Touch-iT, say y to enable the
+	  backlight driver.
