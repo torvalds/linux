@@ -25,7 +25,7 @@
 #include <asm/machvec.h>
 #include <asm/io.h>
 #include <asm/sh_keysc.h>
-#include <asm/migor.h>
+#include <mach/migor.h>
 #include <cpu/sh7722.h>
 
 /* Address     IRQ  Size  Bus  Description

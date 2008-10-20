@@ -125,6 +125,9 @@ core-y	+= $(addprefix arch/sh/boards/, \
 	     $(filter-out ., $(patsubst %,%/,$(machdir-y))))
 endif
 
+# Common machine type headers. Not part of the arch/sh/boards/ hierarchy.
+machdir-y	+= mach-common
+
 # Companion chips
 core-$(CONFIG_HD6446X_SERIES)	+= arch/sh/cchips/hd6446x/
 

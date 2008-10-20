@@ -20,7 +20,7 @@
 #include <linux/gpio.h>
 #include <video/sh_mobile_lcdc.h>
 #include <cpu/sh7722.h>
-#include <asm/migor.h>
+#include <mach/migor.h>
 
 /* LCD Module is a PH240320T according to board schematics. This module
  * is made up of a 240x320 LCD hooked up to a R61505U (or HX8347-A01?)

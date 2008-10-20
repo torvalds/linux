@@ -18,7 +18,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/map.h>
-#include <asm/magicpanelr2.h>
+#include <mach/magicpanelr2.h>
 #include <asm/heartbeat.h>
 #include <cpu/sh7720.h>
 
