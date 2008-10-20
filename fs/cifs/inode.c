@@ -1285,22 +1285,24 @@ cifs_do_rename(int xid, struct dentry *from_dentry, const char *fromPath,
 	return rc;
 }
 
-int cifs_rename(struct inode *source_inode, struct dentry *source_direntry,
-	struct inode *target_inode, struct dentry *target_direntry)
+int cifs_rename(struct inode *source_dir, struct dentry *source_dentry,
+	struct inode *target_dir, struct dentry *target_dentry)
 {
 	char *fromName = NULL;
 	char *toName = NULL;
 	struct cifs_sb_info *cifs_sb_source;
 	struct cifs_sb_info *cifs_sb_target;
-	struct cifsTconInfo *pTcon;
+	struct cifsTconInfo *tcon;
+	struct cifsInodeInfo *target_cinode;
 	FILE_UNIX_BASIC_INFO *info_buf_source = NULL;
 	FILE_UNIX_BASIC_INFO *info_buf_target;
-	int xid;
-	int rc;
+	__u16 dstfid;
+	int xid, rc, tmprc, oplock = 0;
+	bool delete_already_pending;
 
-	cifs_sb_target = CIFS_SB(target_inode->i_sb);
-	cifs_sb_source = CIFS_SB(source_inode->i_sb);
-	pTcon = cifs_sb_source->tcon;
+	cifs_sb_target = CIFS_SB(target_dir->i_sb);
+	cifs_sb_source = CIFS_SB(source_dir->i_sb);
+	tcon = cifs_sb_source->tcon;
 
 	xid = GetXid();
 
@@ -1308,7 +1310,7 @@ int cifs_rename(struct inode *source_inode, struct dentry *source_direntry,
 	 * BB: this might be allowed if same server, but different share.
 	 * Consider adding support for this
 	 */
-	if (pTcon != cifs_sb_target->tcon) {
+	if (tcon != cifs_sb_target->tcon) {
 		rc = -EXDEV;
 		goto cifs_rename_exit;
 	}
@@ -1317,65 +1319,133 @@ int cifs_rename(struct inode *source_inode, struct dentry *source_direntry,
 	 * we already have the rename sem so we do not need to
 	 * grab it again here to protect the path integrity
 	 */
-	fromName = build_path_from_dentry(source_direntry);
+	fromName = build_path_from_dentry(source_dentry);
 	if (fromName == NULL) {
 		rc = -ENOMEM;
 		goto cifs_rename_exit;
 	}
 
-	toName = build_path_from_dentry(target_direntry);
+	toName = build_path_from_dentry(target_dentry);
 	if (toName == NULL) {
 		rc = -ENOMEM;
 		goto cifs_rename_exit;
 	}
 
-	rc = cifs_do_rename(xid, source_direntry, fromName,
-			    target_direntry, toName);
+	rc = cifs_do_rename(xid, source_dentry, fromName,
+			    target_dentry, toName);
 
-	if (rc == -EEXIST) {
-		if (pTcon->unix_ext) {
-			/*
-			 * Are src and dst hardlinks of same inode? We can
-			 * only tell with unix extensions enabled
-			 */
-			info_buf_source =
-				kmalloc(2 * sizeof(FILE_UNIX_BASIC_INFO),
-						GFP_KERNEL);
-			if (info_buf_source == NULL)
-				goto unlink_target;
-
-			info_buf_target = info_buf_source + 1;
-			rc = CIFSSMBUnixQPathInfo(xid, pTcon, fromName,
-						info_buf_source,
-						cifs_sb_source->local_nls,
-						cifs_sb_source->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
-			if (rc != 0)
-				goto unlink_target;
-
-			rc = CIFSSMBUnixQPathInfo(xid, pTcon,
-						toName, info_buf_target,
-						cifs_sb_target->local_nls,
-						/* remap based on source sb */
-						cifs_sb_source->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
-
-			if (rc == 0 && (info_buf_source->UniqueId ==
-					info_buf_target->UniqueId))
-				/* same file, POSIX says that this is a noop */
-				goto cifs_rename_exit;
-		} /* else ... BB we could add the same check for Windows by
-		     checking the UniqueId via FILE_INTERNAL_INFO */
-unlink_target:
+	if (rc == -EEXIST && tcon->unix_ext) {
 		/*
-		 * we either can not tell the files are hardlinked (as with
-		 * Windows servers) or files are not hardlinked. Delete the
-		 * target manually before renaming to follow POSIX rather than
-		 * Windows semantics
+		 * Are src and dst hardlinks of same inode? We can
+		 * only tell with unix extensions enabled
 		 */
-		cifs_unlink(target_inode, target_direntry);
-		rc = cifs_do_rename(xid, source_direntry, fromName,
-				    target_direntry, toName);
+		info_buf_source =
+			kmalloc(2 * sizeof(FILE_UNIX_BASIC_INFO),
+					GFP_KERNEL);
+		if (info_buf_source == NULL) {
+			rc = -ENOMEM;
+			goto cifs_rename_exit;
+		}
+
+		info_buf_target = info_buf_source + 1;
+		rc = CIFSSMBUnixQPathInfo(xid, tcon, fromName,
+					info_buf_source,
+					cifs_sb_source->local_nls,
+					cifs_sb_source->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
+		if (rc != 0)
+			goto unlink_target;
+
+		rc = CIFSSMBUnixQPathInfo(xid, tcon,
+					toName, info_buf_target,
+					cifs_sb_target->local_nls,
+					/* remap based on source sb */
+					cifs_sb_source->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
+
+		if (rc == 0 && (info_buf_source->UniqueId ==
+				info_buf_target->UniqueId))
+			/* same file, POSIX says that this is a noop */
+			goto cifs_rename_exit;
+
+		rc = -EEXIST;
+	} /* else ... BB we could add the same check for Windows by
+		     checking the UniqueId via FILE_INTERNAL_INFO */
+
+	if ((rc == -EACCES) || (rc == -EEXIST)) {
+unlink_target:
+		/* don't bother if this is a negative dentry */
+		if (!target_dentry->d_inode)
+			goto cifs_rename_exit;
+
+		target_cinode = CIFS_I(target_dentry->d_inode);
+
+		/* try to move the target out of the way */
+		tmprc = CIFSSMBOpen(xid, tcon, toName, FILE_OPEN, DELETE,
+				    CREATE_NOT_DIR, &dstfid, &oplock, NULL,
+				    cifs_sb_target->local_nls,
+				    cifs_sb_target->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
+		if (tmprc)
+			goto cifs_rename_exit;
+
+		/* rename the file to random name */
+		tmprc = CIFSSMBRenameOpenFile(xid, tcon, dstfid, NULL,
+					      cifs_sb_target->local_nls,
+					      cifs_sb_target->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
+
+		if (tmprc)
+			goto close_target;
+
+		delete_already_pending = target_cinode->delete_pending;
+
+		if (!delete_already_pending) {
+			/* set delete on close */
+			tmprc = CIFSSMBSetFileDisposition(xid, tcon,
+							  true, dstfid,
+							  current->tgid);
+			/*
+			 * This hack is for broken samba servers, remove this
+			 * once more fixed ones are in the field.
+			 */
+			if (tmprc == -ENOENT)
+				delete_already_pending = false;
+			else if (tmprc)
+				goto undo_target_rename;
+
+			target_cinode->delete_pending = true;
+		}
+
+
+		rc = cifs_do_rename(xid, source_dentry, fromName,
+				    target_dentry, toName);
+
+		if (rc == 0)
+			goto close_target;
+
+		/*
+		 * after this point, we can't bother with error handling on
+		 * the undo's. This is best effort since we can't do anything
+		 * about failures here.
+		 */
+		if (!delete_already_pending) {
+			tmprc = CIFSSMBSetFileDisposition(xid, tcon,
+							  false, dstfid,
+							  current->tgid);
+			if (tmprc == 0)
+				target_cinode->delete_pending = false;
+		}
+
+undo_target_rename:
+		/* rename failed: undo target rename */
+		CIFSSMBRenameOpenFile(xid, tcon, dstfid,
+				      target_dentry->d_name.name,
+				      cifs_sb_target->local_nls,
+				      cifs_sb_target->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
+close_target:
+		CIFSSMBClose(xid, tcon, dstfid);
 	}
 
 cifs_rename_exit:
