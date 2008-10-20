@@ -17,7 +17,6 @@
 #include <linux/interrupt.h>
 #include <linux/seq_file.h>
 #include <linux/debugobjects.h>
-#include <linux/vmalloc.h>
 #include <linux/kallsyms.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
