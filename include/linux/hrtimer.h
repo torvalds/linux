@@ -103,9 +103,14 @@ enum hrtimer_cb_mode {
 /**
  * struct hrtimer - the basic hrtimer structure
  * @node:	red black tree node for time ordered insertion
- * @expires:	the absolute expiry time in the hrtimers internal
+ * @_expires:	the absolute expiry time in the hrtimers internal
  *		representation. The time is related to the clock on
- *		which the timer is based.
+ *		which the timer is based. Is setup by adding
+ *		slack to the _softexpires value. For non range timers
+ *		identical to _softexpires.
+ * @_softexpires: the absolute earliest expiry time of the hrtimer.
+ *		The time which was given as expiry time when the timer
+ *		was armed.
  * @function:	timer expiry callback function
  * @base:	pointer to the timer base (per cpu and per clock)
  * @state:	state information (See bit values above)
