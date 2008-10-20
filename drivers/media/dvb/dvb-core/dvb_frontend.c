@@ -601,27 +601,33 @@ restart:
 				 * requesting a search with a new set of parameters
 				 */
 				if (fepriv->algo_status & DVBFE_ALGO_SEARCH_AGAIN) {
-					if (fe->ops.search)
+					if (fe->ops.search) {
 						fepriv->algo_status = fe->ops.search(fe, &fepriv->parameters);
 						/* We did do a search as was requested, the flags are
 						 * now unset as well and has the flags wrt to search.
 						 */
-
-					fepriv->algo_status &= ~DVBFE_ALGO_SEARCH_AGAIN;
+					} else {
+						fepriv->algo_status &= ~DVBFE_ALGO_SEARCH_AGAIN;
+					}
 				}
 				/* Track the carrier if the search was successful */
 				if (fepriv->algo_status == DVBFE_ALGO_SEARCH_SUCCESS) {
-					if (fepriv->algo_status & DVBFE_ALGO_SEARCH_SUCCESS)
-						dprintk("%s: status = DVBFE_ALGO_SEARCH_SUCCESS\n", __func__);
-					if (fepriv->algo_status & DVBFE_ALGO_SEARCH_FAILED)
-						fepriv->algo_status |= DVBFE_ALGO_SEARCH_AGAIN;
-
-					fe->ops.read_status(fe, &s);
-					dvb_frontend_add_event(fe, s); /* update event list */
-					fepriv->status = s;
 					if (fe->ops.track)
 						fe->ops.track(fe, &fepriv->parameters);
-
+				} else {
+					fepriv->algo_status |= DVBFE_ALGO_SEARCH_AGAIN;
+					fepriv->delay = HZ / 2;
+				}
+				fe->ops.read_status(fe, &s);
+				if (s != fepriv->status) {
+					dvb_frontend_add_event(fe, s); /* update event list */
+					fepriv->status = s;
+					if (!(s & FE_HAS_LOCK)) {
+						fepriv->delay = HZ / 10;
+						fepriv->algo_status |= DVBFE_ALGO_SEARCH_AGAIN;
+					} else {
+						fepriv->delay = 60 * HZ;
+					}
 				}
 				break;
 			default:
