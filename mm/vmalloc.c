@@ -175,6 +175,21 @@ static int vmap_page_range(unsigned long addr, unsigned long end,
 	return nr;
 }
 
+static inline int is_vmalloc_or_module_addr(const void *x)
+{
+	/*
+	 * x86-64 and sparc64 put modules in a special place,
+	 * and fall back on vmalloc() if that fails. Others
+	 * just put it in the vmalloc space.
+	 */
+#if defined(CONFIG_MODULES) && defined(MODULES_VADDR)
+	unsigned long addr = (unsigned long)x;
+	if (addr >= MODULES_VADDR && addr < MODULES_END)
+		return 1;
+#endif
+	return is_vmalloc_addr(x);
+}
+
 /*
  * Walk a vmap address to the struct page it maps.
  */
@@ -188,8 +203,7 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
 	 * XXX we might need to change this if we add VIRTUAL_BUG_ON for
 	 * architectures that do not vmalloc module space
 	 */
-	VIRTUAL_BUG_ON(!is_vmalloc_addr(vmalloc_addr) &&
-			!is_module_address(addr));
+	VIRTUAL_BUG_ON(!is_vmalloc_or_module_addr(vmalloc_addr));
 
 	if (!pgd_none(*pgd)) {
 		pud_t *pud = pud_offset(pgd, addr);
