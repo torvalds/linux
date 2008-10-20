@@ -332,6 +332,9 @@
 #define BOOT_CONSOLE_SPA_OFFSET  0x3c4
 #define BOOT_CONSOLE_PATH_OFFSET 0x3a8
 
+/* size of the pdc_result buffer for firmware.c */
+#define NUM_PDC_RESULT	32
+
 #if !defined(__ASSEMBLY__)
 #ifdef __KERNEL__
 
@@ -600,6 +603,7 @@ int pdc_chassis_info(struct pdc_chassis_info *chassis_info, void *led_info, unsi
 int pdc_chassis_disp(unsigned long disp);
 int pdc_chassis_warn(unsigned long *warn);
 int pdc_coproc_cfg(struct pdc_coproc_cfg *pdc_coproc_info);
+int pdc_coproc_cfg_unlocked(struct pdc_coproc_cfg *pdc_coproc_info);
 int pdc_iodc_read(unsigned long *actcnt, unsigned long hpa, unsigned int index,
 		  void *iodc_data, unsigned int iodc_data_size);
 int pdc_system_map_find_mods(struct pdc_system_map_mod_info *pdc_mod_info,
@@ -638,6 +642,7 @@ int pdc_mem_mem_table(struct pdc_memory_table_raddr *r_addr,
 #endif
 
 void set_firmware_width(void);
+void set_firmware_width_unlocked(void);
 int pdc_do_firm_test_reset(unsigned long ftc_bitmap);
 int pdc_do_reset(void);
 int pdc_soft_power_info(unsigned long *power_reg);

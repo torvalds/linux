@@ -74,4 +74,6 @@ void unwind_frame_init_running(struct unwind_frame_info *info, struct pt_regs *r
 int unwind_once(struct unwind_frame_info *info);
 int unwind_to_user(struct unwind_frame_info *info);
 
+int unwind_init(void);
+
 #endif
