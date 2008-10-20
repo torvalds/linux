@@ -207,7 +207,7 @@ struct uwb_beca_e *__uwb_beca_find_bymac(const struct uwb_mac_addr *mac_addr)
 	struct uwb_beca_e *bce, *next;
 	list_for_each_entry_safe(bce, next, &uwb_beca.list, node) {
 		if (!memcmp(bce->mac_addr, mac_addr->data,
-			    sizeof(bce->mac_addr)))
+			    sizeof(struct uwb_mac_addr)))
 			goto out;
 	}
 	bce = NULL;
