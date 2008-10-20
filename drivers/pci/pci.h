@@ -1,3 +1,9 @@
+#ifndef DRIVERS_PCI_H
+#define DRIVERS_PCI_H
+
+#define PCI_CFG_SPACE_SIZE	256
+#define PCI_CFG_SPACE_EXP_SIZE	4096
+
 /* Functions internal to the PCI core code */
 
 extern int pci_uevent(struct device *dev, struct kobj_uevent_env *env);
@@ -76,7 +82,13 @@ static inline int pci_proc_detach_bus(struct pci_bus *bus) { return 0; }
 /* Functions for PCI Hotplug drivers to use */
 extern unsigned int pci_do_scan_bus(struct pci_bus *bus);
 
+#ifdef HAVE_PCI_LEGACY
+extern void pci_create_legacy_files(struct pci_bus *bus);
 extern void pci_remove_legacy_files(struct pci_bus *bus);
+#else
+static inline void pci_create_legacy_files(struct pci_bus *bus) { return; }
+static inline void pci_remove_legacy_files(struct pci_bus *bus) { return; }
+#endif
 
 /* Lock for read/write access to pci device and bus lists */
 extern struct rw_semaphore pci_bus_sem;
@@ -109,6 +121,7 @@ static inline int pci_no_d1d2(struct pci_dev *dev)
 extern int pcie_mch_quirk;
 extern struct device_attribute pci_dev_attrs[];
 extern struct device_attribute dev_attr_cpuaffinity;
+extern struct device_attribute dev_attr_cpulistaffinity;
 
 /**
  * pci_match_one_device - Tell if a PCI device structure has a matching
@@ -144,3 +157,16 @@ struct pci_slot_attribute {
 };
 #define to_pci_slot_attr(s) container_of(s, struct pci_slot_attribute, attr)
 
+extern void pci_enable_ari(struct pci_dev *dev);
+/**
+ * pci_ari_enabled - query ARI forwarding status
+ * @dev: the PCI device
+ *
+ * Returns 1 if ARI forwarding is enabled, or 0 if not enabled;
+ */
+static inline int pci_ari_enabled(struct pci_dev *dev)
+{
+	return dev->ari_enabled;
+}
+
+#endif /* DRIVERS_PCI_H */

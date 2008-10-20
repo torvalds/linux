@@ -299,7 +299,7 @@ static void pbus_size_io(struct pci_bus *bus)
 
 			if (r->parent || !(r->flags & IORESOURCE_IO))
 				continue;
-			r_size = r->end - r->start + 1;
+			r_size = resource_size(r);
 
 			if (r_size < 0x400)
 				/* Might be re-aligned for ISA */
@@ -350,7 +350,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask, unsigned long 
 
 			if (r->parent || (r->flags & mask) != type)
 				continue;
-			r_size = r->end - r->start + 1;
+			r_size = resource_size(r);
 			/* For bridges size != alignment */
 			align = resource_alignment(r);
 			order = __ffs(align) - 20;

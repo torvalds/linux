@@ -129,7 +129,7 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 	resource_size_t size, min, align;
 	int ret;
 
-	size = res->end - res->start + 1;
+	size = resource_size(res);
 	min = (res->flags & IORESOURCE_IO) ? PCIBIOS_MIN_IO : PCIBIOS_MIN_MEM;
 
 	align = resource_alignment(res);
