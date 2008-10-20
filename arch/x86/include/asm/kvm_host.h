@@ -361,6 +361,7 @@ struct kvm_arch{
 	struct kvm_ioapic *vioapic;
 	struct kvm_pit *vpit;
 	struct hlist_head irq_ack_notifier_list;
+	int vapics_in_nmi_mode;
 
 	int round_robin_prev_vcpu;
 	unsigned int tss_addr;
