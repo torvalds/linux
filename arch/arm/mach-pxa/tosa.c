@@ -706,16 +706,39 @@ static struct tmio_nand_data tosa_tc6393xb_nand_config = {
 	.badblock_pattern = &tosa_tc6393xb_nand_bbt,
 };
 
-static struct tc6393xb_platform_data tosa_tc6393xb_setup = {
+static int tosa_tc6393xb_setup(struct platform_device *dev)
+{
+	int rc;
+
+	rc = gpio_request(TOSA_GPIO_CARD_VCC_ON, "CARD_VCC_ON");
+	if (rc)
+		goto err_req;
+
+	rc = gpio_direction_output(TOSA_GPIO_CARD_VCC_ON, 1);
+	if (rc)
+		goto err_dir;
+
+	return rc;
+
+err_dir:
+	gpio_free(TOSA_GPIO_CARD_VCC_ON);
+err_req:
+	return rc;
+}
+
+static void tosa_tc6393xb_teardown(struct platform_device *dev)
+{
+	gpio_free(TOSA_GPIO_CARD_VCC_ON);
+}
+
+static struct tc6393xb_platform_data tosa_tc6393xb_data = {
 	.scr_pll2cr	= 0x0cc1,
 	.scr_gper	= 0x3300,
-	.scr_gpo_dsr	=
-		TOSA_TC6393XB_GPIO_BIT(TOSA_GPIO_CARD_VCC_ON),
-	.scr_gpo_doecr	=
-		TOSA_TC6393XB_GPIO_BIT(TOSA_GPIO_CARD_VCC_ON),
 
 	.irq_base	= IRQ_BOARD_START,
 	.gpio_base	= TOSA_TC6393XB_GPIO_BASE,
+	.setup		= tosa_tc6393xb_setup,
+	.teardown	= tosa_tc6393xb_teardown,
 
 	.enable		= tosa_tc6393xb_enable,
 	.disable	= tosa_tc6393xb_disable,
@@ -723,6 +746,8 @@ static struct tc6393xb_platform_data tosa_tc6393xb_setup = {
 	.resume		= tosa_tc6393xb_resume,
 
 	.nand_data	= &tosa_tc6393xb_nand_config,
+
+	.resume_restore = 1,
 };
 
 
@@ -730,7 +755,7 @@ static struct platform_device tc6393xb_device = {
 	.name	= "tc6393xb",
 	.id	= -1,
 	.dev	= {
-		.platform_data	= &tosa_tc6393xb_setup,
+		.platform_data	= &tosa_tc6393xb_data,
 	},
 	.num_resources	= ARRAY_SIZE(tc6393xb_resources),
 	.resource	= tc6393xb_resources,
