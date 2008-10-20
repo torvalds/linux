@@ -813,6 +813,7 @@ out:
 	return err;
 }
 
+#ifdef CONFIG_NF_NAT_NEEDED
 static int
 ctnetlink_parse_nat_setup(struct nf_conn *ct,
 			  enum nf_nat_manip_type manip,
@@ -840,6 +841,7 @@ ctnetlink_parse_nat_setup(struct nf_conn *ct,
 
 	return parse_nat_setup(ct, manip, attr);
 }
+#endif
 
 static int
 ctnetlink_change_status(struct nf_conn *ct, struct nlattr *cda[])
