@@ -62,6 +62,9 @@ static unsigned long		nlm_timeout = LOCKD_DFLT_TIMEO;
 static int			nlm_udpport, nlm_tcpport;
 int				nsm_use_hostnames = 0;
 
+/* RLIM_NOFILE defaults to 1024. That seems like a reasonable default here. */
+static unsigned int		nlm_max_connections = 1024;
+
 /*
  * Constants needed for the sysctl interface.
  */
@@ -142,6 +145,9 @@ lockd(void *vrqstp)
 	while (!kthread_should_stop()) {
 		long timeout = MAX_SCHEDULE_TIMEOUT;
 		RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
+
+		/* update sv_maxconn if it has changed */
+		rqstp->rq_server->sv_maxconn = nlm_max_connections;
 
 		if (signalled()) {
 			flush_signals(current);
@@ -276,6 +282,7 @@ int lockd_up(void)
 	}
 
 	svc_sock_update_bufs(serv);
+	serv->sv_maxconn = nlm_max_connections;
 
 	nlmsvc_task = kthread_run(lockd, nlmsvc_rqst, serv->sv_name);
 	if (IS_ERR(nlmsvc_task)) {
@@ -485,6 +492,7 @@ module_param_call(nlm_udpport, param_set_port, param_get_int,
 module_param_call(nlm_tcpport, param_set_port, param_get_int,
 		  &nlm_tcpport, 0644);
 module_param(nsm_use_hostnames, bool, 0644);
+module_param(nlm_max_connections, uint, 0644);
 
 /*
  * Initialising and terminating the module.
