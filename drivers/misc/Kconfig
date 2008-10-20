@@ -15,7 +15,7 @@ if MISC_DEVICES
 
 config ATMEL_PWM
 	tristate "Atmel AT32/AT91 PWM support"
-	depends on AVR32 || ARCH_AT91
+	depends on AVR32 || ARCH_AT91SAM9263 || ARCH_AT91SAM9RL || ARCH_AT91CAP9
 	help
 	  This option enables device driver support for the PWM channels
 	  on certain Atmel prcoessors.  Pulse Width Modulation is used for
@@ -409,6 +409,7 @@ config EEEPC_LAPTOP
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on HWMON
 	depends on EXPERIMENTAL
+	depends on RFKILL
 	---help---
 	  This driver supports the Fn-Fx keys on Eee PC laptops.
 	  It also adds the ability to switch camera/wlan on/off.

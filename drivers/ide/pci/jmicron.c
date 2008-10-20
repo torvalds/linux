@@ -8,7 +8,6 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 
@@ -150,21 +149,23 @@ static struct pci_device_id jmicron_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, jmicron_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver jmicron_pci_driver = {
 	.name		= "JMicron IDE",
 	.id_table	= jmicron_pci_tbl,
 	.probe		= jmicron_init_one,
 	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init jmicron_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&jmicron_pci_driver);
 }
 
 static void __exit jmicron_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&jmicron_pci_driver);
 }
 
 module_init(jmicron_ide_init);

@@ -299,6 +299,15 @@ void acpi_nmi_disable(void)
 		on_each_cpu(__acpi_nmi_disable, NULL, 1);
 }
 
+/*
+ * This function is called as soon the LAPIC NMI watchdog driver has everything
+ * in place and it's ready to check if the NMIs belong to the NMI watchdog
+ */
+void cpu_nmi_set_wd_enabled(void)
+{
+	__get_cpu_var(wd_enabled) = 1;
+}
+
 void setup_apic_nmi_watchdog(void *unused)
 {
 	if (__get_cpu_var(wd_enabled))
@@ -311,8 +320,6 @@ void setup_apic_nmi_watchdog(void *unused)
 
 	switch (nmi_watchdog) {
 	case NMI_LOCAL_APIC:
-		 /* enable it before to avoid race with handler */
-		__get_cpu_var(wd_enabled) = 1;
 		if (lapic_watchdog_init(nmi_hz) < 0) {
 			__get_cpu_var(wd_enabled) = 0;
 			return;

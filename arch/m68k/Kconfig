@@ -5,6 +5,7 @@
 config M68K
 	bool
 	default y
+	select HAVE_AOUT
 	select HAVE_IDE
 
 config MMU
@@ -52,9 +53,6 @@ config NO_IOPORT
 
 config NO_DMA
 	def_bool SUN3
-
-config ARCH_SUPPORTS_AOUT
-	def_bool y
 
 config HZ
 	int
@@ -107,21 +105,9 @@ config PCMCIA
 	  To compile this driver as modules, choose M here: the
 	  modules will be called pcmcia_core and ds.
 
-config SUN3
-	bool "Sun3 support"
-	select M68020
-	select MMU_SUN3 if MMU
-	help
-	  This option enables support for the Sun 3 series of workstations
-	  (3/50, 3/60, 3/1xx, 3/2xx systems). Enabling this option requires
-	  that all other hardware types must be disabled, as Sun 3 kernels
-	  are incompatible with all other m68k targets (including Sun 3x!).
-
-	  If you don't want to compile a kernel exclusively for a Sun 3, say N.
-
 config AMIGA
 	bool "Amiga support"
-	depends on !MMU_SUN3
+	select MMU_MOTOROLA if MMU
 	help
 	  This option enables support for the Amiga series of computers. If
 	  you plan to use this kernel on an Amiga, say Y here and browse the
@@ -129,33 +115,16 @@ config AMIGA
 
 config ATARI
 	bool "Atari support"
-	depends on !MMU_SUN3
+	select MMU_MOTOROLA if MMU
 	help
 	  This option enables support for the 68000-based Atari series of
 	  computers (including the TT, Falcon and Medusa). If you plan to use
 	  this kernel on an Atari, say Y here and browse the material
 	  available in <file:Documentation/m68k>; otherwise say N.
 
-config HADES
-	bool "Hades support"
-	depends on ATARI && BROKEN
-	help
-	  This option enables support for the Hades Atari clone. If you plan
-	  to use this kernel on a Hades, say Y here; otherwise say N.
-
-config PCI
-	bool
-	depends on HADES
-	default y
-	help
-	  Find out whether you have a PCI motherboard. PCI is the name of a
-	  bus system, i.e. the way the CPU talks to the other stuff inside
-	  your box. Other bus systems are ISA, EISA, MicroChannel (MCA) or
-	  VESA. If you have PCI, say Y, otherwise N.
-
 config MAC
 	bool "Macintosh support"
-	depends on !MMU_SUN3
+	select MMU_MOTOROLA if MMU
 	help
 	  This option enables support for the Apple Macintosh series of
 	  computers (yes, there is experimental support now, at least for part
@@ -176,14 +145,14 @@ config M68K_L2_CACHE
 
 config APOLLO
 	bool "Apollo support"
-	depends on !MMU_SUN3
+	select MMU_MOTOROLA if MMU
 	help
 	  Say Y here if you want to run Linux on an MC680x0-based Apollo
 	  Domain workstation such as the DN3500.
 
 config VME
 	bool "VME (Motorola and BVM) support"
-	depends on !MMU_SUN3
+	select MMU_MOTOROLA if MMU
 	help
 	  Say Y here if you want to build a kernel for a 680x0 based VME
 	  board.  Boards currently supported include Motorola boards MVME147,
@@ -220,7 +189,7 @@ config BVME6000
 
 config HP300
 	bool "HP9000/300 and HP9000/400 support"
-	depends on !MMU_SUN3
+	select MMU_MOTOROLA if MMU
 	help
 	  This option enables support for the HP9000/300 and HP9000/400 series
 	  of workstations. Support for these machines is still somewhat
@@ -239,7 +208,7 @@ config DIO
 
 config SUN3X
 	bool "Sun3x support"
-	depends on !MMU_SUN3
+	select MMU_MOTOROLA if MMU
 	select M68030
 	help
 	  This option enables support for the Sun 3x series of workstations.
@@ -252,13 +221,26 @@ config SUN3X
 
 config Q40
 	bool "Q40/Q60 support"
-	depends on !MMU_SUN3
+	select MMU_MOTOROLA if MMU
 	help
 	  The Q40 is a Motorola 68040-based successor to the Sinclair QL
 	  manufactured in Germany.  There is an official Q40 home page at
 	  <http://www.q40.de/>.  This option enables support for the Q40 and
 	  Q60. Select your CPU below.  For 68LC060 don't forget to enable FPU
 	  emulation.
+
+config SUN3
+	bool "Sun3 support"
+	depends on !MMU_MOTOROLA
+	select MMU_SUN3 if MMU
+	select M68020
+	help
+	  This option enables support for the Sun 3 series of workstations
+	  (3/50, 3/60, 3/1xx, 3/2xx systems). Enabling this option requires
+	  that all other hardware types must be disabled, as Sun 3 kernels
+	  are incompatible with all other m68k targets (including Sun 3x!).
+
+	  If you don't want to compile a kernel exclusively for a Sun 3, say N.
 
 comment "Processor type"
 
@@ -297,10 +279,10 @@ config M68060
 config MMU_MOTOROLA
 	bool
 	depends on MMU && !MMU_SUN3
-	default y
 
 config MMU_SUN3
 	bool
+	depends on MMU && !MMU_MOTOROLA
 
 config M68KFPU_EMU
 	bool "Math emulation support (EXPERIMENTAL)"

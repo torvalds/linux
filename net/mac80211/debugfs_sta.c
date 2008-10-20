@@ -50,7 +50,7 @@ static const struct file_operations sta_ ##name## _ops = {		\
 		STA_READ_##format(name, field)				\
 		STA_OPS(name)
 
-STA_FILE(aid, aid, D);
+STA_FILE(aid, sta.aid, D);
 STA_FILE(dev, sdata->dev->name, S);
 STA_FILE(rx_packets, rx_packets, LU);
 STA_FILE(tx_packets, tx_packets, LU);
@@ -173,10 +173,9 @@ static ssize_t sta_agg_status_write(struct file *file,
 		const char __user *user_buf, size_t count, loff_t *ppos)
 {
 	struct sta_info *sta = file->private_data;
-	struct net_device *dev = sta->sdata->dev;
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_local *local = sta->sdata->local;
 	struct ieee80211_hw *hw = &local->hw;
-	u8 *da = sta->addr;
+	u8 *da = sta->sta.addr;
 	static int tid_static_tx[16] = {0, 0, 0, 0, 0, 0, 0, 0,
 					0, 0, 0, 0, 0, 0, 0, 0};
 	static int tid_static_rx[16] = {1, 1, 1, 1, 1, 1, 1, 1,
@@ -201,7 +200,7 @@ static ssize_t sta_agg_status_write(struct file *file,
 		tid_num = tid_num - 100;
 		if (tid_static_rx[tid_num] == 1) {
 			strcpy(state, "off ");
-			ieee80211_sta_stop_rx_ba_session(dev, da, tid_num, 0,
+			ieee80211_sta_stop_rx_ba_session(sta->sdata, da, tid_num, 0,
 					WLAN_REASON_QSTA_REQUIRE_SETUP);
 			sta->ampdu_mlme.tid_state_rx[tid_num] |=
 					HT_AGG_STATE_DEBUGFS_CTL;
@@ -250,11 +249,22 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	DECLARE_MAC_BUF(mbuf);
 	u8 *mac;
 
+	sta->debugfs.add_has_run = true;
+
 	if (!stations_dir)
 		return;
 
-	mac = print_mac(mbuf, sta->addr);
+	mac = print_mac(mbuf, sta->sta.addr);
 
+	/*
+	 * This might fail due to a race condition:
+	 * When mac80211 unlinks a station, the debugfs entries
+	 * remain, but it is already possible to link a new
+	 * station with the same address which triggers adding
+	 * it to debugfs; therefore, if the old station isn't
+	 * destroyed quickly enough the old station's debugfs
+	 * dir might still be around.
+	 */
 	sta->debugfs.dir = debugfs_create_dir(mac, stations_dir);
 	if (!sta->debugfs.dir)
 		return;

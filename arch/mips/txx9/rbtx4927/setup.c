@@ -48,6 +48,7 @@
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <asm/io.h>
 #include <asm/reboot.h>
 #include <asm/txx9/generic.h>
@@ -185,13 +186,7 @@ static void __init rbtx4937_clock_init(void);
 
 static void __init rbtx4927_mem_setup(void)
 {
-	u32 cp0_config;
 	char *argptr;
-
-	/* enable caches -- HCP5 does this, pmon does not */
-	cp0_config = read_c0_config();
-	cp0_config = cp0_config & ~(TX49_CONF_IC | TX49_CONF_DC);
-	write_c0_config(cp0_config);
 
 	if (TX4927_REV_PCODE() == 0x4927) {
 		rbtx4927_clock_init();
@@ -211,6 +206,14 @@ static void __init rbtx4927_mem_setup(void)
 #else
 	set_io_port_base(KSEG1 + RBTX4927_ISA_IO_OFFSET);
 #endif
+
+	/* TX4927-SIO DTR on (PIO[15]) */
+	gpio_request(15, "sio-dtr");
+	gpio_direction_output(15, 1);
+	gpio_request(0, "led");
+	gpio_direction_output(0, 1);
+	gpio_request(1, "led");
+	gpio_direction_output(1, 1);
 
 	tx4927_sio_init(0, 0);
 #ifdef CONFIG_SERIAL_TXX9_CONSOLE
@@ -304,11 +307,21 @@ static void __init rbtx4927_ne_init(void)
 	platform_device_register_simple("ne", -1, res, ARRAY_SIZE(res));
 }
 
+static void __init rbtx4927_mtd_init(void)
+{
+	int i;
+
+	for (i = 0; i < 2; i++)
+		tx4927_mtd_init(i);
+}
+
 static void __init rbtx4927_device_init(void)
 {
 	toshiba_rbtx4927_rtc_init();
 	rbtx4927_ne_init();
 	tx4927_wdt_init();
+	rbtx4927_mtd_init();
+	txx9_iocled_init(RBTX4927_LED_ADDR - IO_BASE, -1, 3, 1, "green", NULL);
 }
 
 struct txx9_board_vec rbtx4927_vec __initdata = {

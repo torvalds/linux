@@ -19,7 +19,6 @@
 
 #include <linux/types.h>
 #include <linux/module.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 #include <linux/pci.h>
@@ -118,7 +117,7 @@ static struct pci_device_id delkin_cb_pci_tbl[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(pci, delkin_cb_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver delkin_cb_pci_driver = {
 	.name		= "Delkin-ASKA-Workbit Cardbus IDE",
 	.id_table	= delkin_cb_pci_tbl,
 	.probe		= delkin_cb_probe,
@@ -127,12 +126,12 @@ static struct pci_driver driver = {
 
 static int __init delkin_cb_init(void)
 {
-	return pci_register_driver(&driver);
+	return pci_register_driver(&delkin_cb_pci_driver);
 }
 
 static void __exit delkin_cb_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&delkin_cb_pci_driver);
 }
 
 module_init(delkin_cb_init);

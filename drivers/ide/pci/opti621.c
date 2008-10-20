@@ -85,7 +85,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 
 #include <asm/io.h>
@@ -137,7 +136,7 @@ static u8 read_reg(int reg)
 static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	ide_drive_t *pair = ide_get_paired_drive(drive);
+	ide_drive_t *pair = ide_get_pair_dev(drive);
 	unsigned long flags;
 	u8 tim, misc, addr_pio = pio, clk;
 
@@ -153,7 +152,7 @@ static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 	drive->drive_data = XFER_PIO_0 + pio;
 
-	if (pair->present) {
+	if (pair) {
 		if (pair->drive_data && pair->drive_data < drive->drive_data)
 			addr_pio = pair->drive_data - XFER_PIO_0;
 	}
@@ -180,7 +179,7 @@ static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	misc = addr_timings[clk][addr_pio];
 
 	/* select Index-0/1 for Register-A/B */
-	write_reg(drive->select.b.unit, MISC_REG);
+	write_reg(drive->dn & 1, MISC_REG);
 	/* set read cycle timings */
 	write_reg(tim, READ_REG);
 	/* set write cycle timings */
@@ -221,21 +220,23 @@ static const struct pci_device_id opti621_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, opti621_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver opti621_pci_driver = {
 	.name		= "Opti621_IDE",
 	.id_table	= opti621_pci_tbl,
 	.probe		= opti621_init_one,
 	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init opti621_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&opti621_pci_driver);
 }
 
 static void __exit opti621_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&opti621_pci_driver);
 }
 
 module_init(opti621_ide_init);

@@ -1,5 +1,5 @@
-#ifndef __ASM_IO_APIC_H
-#define __ASM_IO_APIC_H
+#ifndef ASM_X86__IO_APIC_H
+#define ASM_X86__IO_APIC_H
 
 #include <linux/types.h>
 #include <asm/mpspec.h>
@@ -107,6 +107,20 @@ struct IO_APIC_route_entry {
 
 } __attribute__ ((packed));
 
+struct IR_IO_APIC_route_entry {
+	__u64	vector		: 8,
+		zero		: 3,
+		index2		: 1,
+		delivery_status : 1,
+		polarity	: 1,
+		irr		: 1,
+		trigger		: 1,
+		mask		: 1,
+		reserved	: 31,
+		format		: 1,
+		index		: 15;
+} __attribute__ ((packed));
+
 #ifdef CONFIG_X86_IO_APIC
 
 /*
@@ -183,10 +197,16 @@ extern int io_apic_set_pci_routing(int ioapic, int pin, int irq,
 extern int (*ioapic_renumber_irq)(int ioapic, int irq);
 extern void ioapic_init_mappings(void);
 
+#ifdef CONFIG_X86_64
+extern int save_mask_IO_APIC_setup(void);
+extern void restore_IO_APIC_setup(void);
+extern void reinit_intr_remapped_IO_APIC(int);
+#endif
+
 #else  /* !CONFIG_X86_IO_APIC */
 #define io_apic_assign_pci_irqs 0
 static const int timer_through_8259 = 0;
 static inline void ioapic_init_mappings(void) { }
 #endif
 
-#endif
+#endif /* ASM_X86__IO_APIC_H */

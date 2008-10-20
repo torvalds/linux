@@ -74,6 +74,7 @@ config S390
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_KVM if 64BIT
+	select HAVE_ARCH_TRACEHOOK
 
 source "init/Kconfig"
 
@@ -564,13 +565,16 @@ config ZFCPDUMP
 	  Refer to <file:Documentation/s390/zfcpdump.txt> for more details on this.
 
 config S390_GUEST
-bool "s390 guest support (EXPERIMENTAL)"
+bool "s390 guest support for KVM (EXPERIMENTAL)"
 	depends on 64BIT && EXPERIMENTAL
 	select VIRTIO
 	select VIRTIO_RING
 	select VIRTIO_CONSOLE
 	help
-	  Select this option if you want to run the kernel under s390 linux
+	  Select this option if you want to run the kernel as a guest under
+	  the KVM hypervisor. This will add detection for KVM as well  as a
+	  virtio transport. If KVM is detected, the virtio console will be
+	  the default console.
 endmenu
 
 source "net/Kconfig"

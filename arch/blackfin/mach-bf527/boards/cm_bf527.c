@@ -43,10 +43,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/usb/sl811.h>
-#if defined(CONFIG_USB_MUSB_HDRC) || defined(CONFIG_USB_MUSB_HDRC_MODULE)
 #include <linux/usb/musb.h>
-#endif
-#include <asm/cplb.h>
 #include <asm/dma.h>
 #include <asm/bfin5xx_spi.h>
 #include <asm/reboot.h>
@@ -130,6 +127,16 @@ static struct resource musb_resources[] = {
 	},
 };
 
+static struct musb_hdrc_config musb_config = {
+	.multipoint	= 0,
+	.dyn_fifo	= 0,
+	.soft_con	= 1,
+	.dma		= 1,
+	.num_eps	= 7,
+	.dma_channels	= 7,
+	.gpio_vrsel	= GPIO_PF11,
+};
+
 static struct musb_hdrc_platform_data musb_plat = {
 #if defined(CONFIG_USB_MUSB_OTG)
 	.mode		= MUSB_OTG,
@@ -138,7 +145,7 @@ static struct musb_hdrc_platform_data musb_plat = {
 #elif defined(CONFIG_USB_GADGET_MUSB_HDRC)
 	.mode		= MUSB_PERIPHERAL,
 #endif
-	.multipoint	= 0,
+	.config		= &musb_config,
 };
 
 static u64 musb_dmamask = ~(u32)0;
@@ -201,7 +208,7 @@ static struct mtd_partition partition_info[] = {
 	{
 		.name = "linux kernel(nand)",
 		.offset = 0,
-		.size = 4 * SIZE_1M,
+		.size = 4 * 1024 * 1024,
 	},
 	{
 		.name = "file system(nand)",

@@ -12,6 +12,7 @@
 #include <linux/fb.h>
 #include <linux/platform_device.h>
 #include <linux/screen_info.h>
+#include <linux/dmi.h>
 
 #include <video/vga.h>
 
@@ -32,6 +33,105 @@ static struct fb_fix_screeninfo efifb_fix __initdata = {
 	.accel			= FB_ACCEL_NONE,
 	.visual			= FB_VISUAL_TRUECOLOR,
 };
+
+enum {
+	M_I17,		/* 17-Inch iMac */
+	M_I20,		/* 20-Inch iMac */
+	M_I20_SR,	/* 20-Inch iMac (Santa Rosa) */
+	M_I24,		/* 24-Inch iMac */
+	M_MINI,		/* Mac Mini */
+	M_MB,		/* MacBook */
+	M_MB_2,		/* MacBook, 2nd rev. */
+	M_MB_3,		/* MacBook, 3rd rev. */
+	M_MB_SR,	/* MacBook, 2nd gen, (Santa Rosa) */
+	M_MBA,		/* MacBook Air */
+	M_MBP,		/* MacBook Pro */
+	M_MBP_2,	/* MacBook Pro 2nd gen */
+	M_MBP_SR,	/* MacBook Pro (Santa Rosa) */
+	M_MBP_4,	/* MacBook Pro, 4th gen */
+	M_UNKNOWN	/* placeholder */
+};
+
+static struct efifb_dmi_info {
+	char *optname;
+	unsigned long base;
+	int stride;
+	int width;
+	int height;
+} dmi_list[] = {
+	[M_I17] = { "i17", 0x80010000, 1472 * 4, 1440, 900 },
+	[M_I20] = { "i20", 0x80010000, 1728 * 4, 1680, 1050 }, /* guess */
+	[M_I20_SR] = { "imac7", 0x40010000, 1728 * 4, 1680, 1050 },
+	[M_I24] = { "i24", 0x80010000, 2048 * 4, 1920, 1200 }, /* guess */
+	[M_MINI]= { "mini", 0x80000000, 2048 * 4, 1024, 768 },
+	[M_MB] = { "macbook", 0x80000000, 2048 * 4, 1280, 800 },
+	[M_MBA] = { "mba", 0x80000000, 2048 * 4, 1280, 800 },
+	[M_MBP] = { "mbp", 0x80010000, 1472 * 4, 1440, 900 },
+	[M_MBP_2] = { "mbp2", 0, 0, 0, 0 }, /* placeholder */
+	[M_MBP_SR] = { "mbp3", 0x80030000, 2048 * 4, 1440, 900 },
+	[M_MBP_4] = { "mbp4", 0xc0060000, 2048 * 4, 1920, 1200 },
+	[M_UNKNOWN] = { NULL, 0, 0, 0, 0 }
+};
+
+static int set_system(const struct dmi_system_id *id);
+
+#define EFIFB_DMI_SYSTEM_ID(vendor, name, enumid)		\
+	{ set_system, name, {					\
+		DMI_MATCH(DMI_BIOS_VENDOR, vendor),		\
+		DMI_MATCH(DMI_PRODUCT_NAME, name) },		\
+	  &dmi_list[enumid] }
+
+static struct dmi_system_id __initdata dmi_system_table[] = {
+	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "iMac4,1", M_I17),
+	/* At least one of these two will be right; maybe both? */
+	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "iMac5,1", M_I20),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "iMac5,1", M_I20),
+	/* At least one of these two will be right; maybe both? */
+	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "iMac6,1", M_I24),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "iMac6,1", M_I24),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "iMac7,1", M_I20_SR),
+	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "Macmini1,1", M_MINI),
+	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "MacBook1,1", M_MB),
+	/* At least one of these two will be right; maybe both? */
+	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "MacBook2,1", M_MB),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBook2,1", M_MB),
+	/* At least one of these two will be right; maybe both? */
+	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "MacBook3,1", M_MB),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBook3,1", M_MB),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBook4,1", M_MB),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookAir1,1", M_MBA),
+	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "MacBookPro1,1", M_MBP),
+	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "MacBookPro2,1", M_MBP_2),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookPro2,1", M_MBP_2),
+	EFIFB_DMI_SYSTEM_ID("Apple Computer, Inc.", "MacBookPro3,1", M_MBP_SR),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookPro3,1", M_MBP_SR),
+	EFIFB_DMI_SYSTEM_ID("Apple Inc.", "MacBookPro4,1", M_MBP_4),
+	{},
+};
+
+static int set_system(const struct dmi_system_id *id)
+{
+	struct efifb_dmi_info *info = id->driver_data;
+	if (info->base == 0)
+		return -ENODEV;
+
+	printk(KERN_INFO "efifb: dmi detected %s - framebuffer at %p "
+			 "(%dx%d, stride %d)\n", id->ident,
+			 (void *)info->base, info->width, info->height,
+			 info->stride);
+
+	/* Trust the bootloader over the DMI tables */
+	if (screen_info.lfb_base == 0)
+		screen_info.lfb_base = info->base;
+	if (screen_info.lfb_linelength == 0)
+		screen_info.lfb_linelength = info->stride;
+	if (screen_info.lfb_width == 0)
+		screen_info.lfb_width = info->width;
+	if (screen_info.lfb_height == 0)
+		screen_info.lfb_height = info->height;
+
+	return 0;
+}
 
 static int efifb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,
@@ -67,6 +167,38 @@ static struct fb_ops efifb_ops = {
 	.fb_imageblit	= cfb_imageblit,
 };
 
+static int __init efifb_setup(char *options)
+{
+	char *this_opt;
+	int i;
+
+	if (!options || !*options)
+		return 0;
+
+	while ((this_opt = strsep(&options, ",")) != NULL) {
+		if (!*this_opt) continue;
+
+		for (i = 0; i < M_UNKNOWN; i++) {
+			if (!strcmp(this_opt, dmi_list[i].optname) &&
+					dmi_list[i].base != 0) {
+				screen_info.lfb_base = dmi_list[i].base;
+				screen_info.lfb_linelength = dmi_list[i].stride;
+				screen_info.lfb_width = dmi_list[i].width;
+				screen_info.lfb_height = dmi_list[i].height;
+			}
+		}
+		if (!strncmp(this_opt, "base:", 5))
+			screen_info.lfb_base = simple_strtoul(this_opt+5, NULL, 0);
+		else if (!strncmp(this_opt, "stride:", 7))
+			screen_info.lfb_linelength = simple_strtoul(this_opt+7, NULL, 0) * 4;
+		else if (!strncmp(this_opt, "height:", 7))
+			screen_info.lfb_height = simple_strtoul(this_opt+7, NULL, 0);
+		else if (!strncmp(this_opt, "width:", 6))
+			screen_info.lfb_width = simple_strtoul(this_opt+6, NULL, 0);
+	}
+	return 0;
+}
+
 static int __init efifb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
@@ -74,6 +206,26 @@ static int __init efifb_probe(struct platform_device *dev)
 	unsigned int size_vmode;
 	unsigned int size_remap;
 	unsigned int size_total;
+	int request_succeeded = 0;
+
+	printk(KERN_INFO "efifb: probing for efifb\n");
+
+	if (!screen_info.lfb_depth)
+		screen_info.lfb_depth = 32;
+	if (!screen_info.pages)
+		screen_info.pages = 1;
+
+	/* just assume they're all unset if any are */
+	if (!screen_info.blue_size) {
+		screen_info.blue_size = 8;
+		screen_info.blue_pos = 0;
+		screen_info.green_size = 8;
+		screen_info.green_pos = 8;
+		screen_info.red_size = 8;
+		screen_info.red_pos = 16;
+		screen_info.rsvd_size = 8;
+		screen_info.rsvd_pos = 24;
+	}
 
 	efifb_fix.smem_start = screen_info.lfb_base;
 	efifb_defined.bits_per_pixel = screen_info.lfb_depth;
@@ -98,21 +250,25 @@ static int __init efifb_probe(struct platform_device *dev)
 	 *                 option to simply use size_total as that
 	 *                 wastes plenty of kernel address space. */
 	size_remap  = size_vmode * 2;
-	if (size_remap < size_vmode)
-		size_remap = size_vmode;
 	if (size_remap > size_total)
 		size_remap = size_total;
+	if (size_remap % PAGE_SIZE)
+		size_remap += PAGE_SIZE - (size_remap % PAGE_SIZE);
 	efifb_fix.smem_len = size_remap;
 
-	if (!request_mem_region(efifb_fix.smem_start, size_total, "efifb"))
+	if (request_mem_region(efifb_fix.smem_start, size_remap, "efifb")) {
+		request_succeeded = 1;
+	} else {
 		/* We cannot make this fatal. Sometimes this comes from magic
 		   spaces our resource handlers simply don't know about */
 		printk(KERN_WARNING
 		       "efifb: cannot reserve video memory at 0x%lx\n",
 			efifb_fix.smem_start);
+	}
 
 	info = framebuffer_alloc(sizeof(u32) * 16, &dev->dev);
 	if (!info) {
+		printk(KERN_ERR "efifb: cannot allocate framebuffer\n");
 		err = -ENOMEM;
 		goto err_release_mem;
 	}
@@ -125,7 +281,7 @@ static int __init efifb_probe(struct platform_device *dev)
 				"0x%x @ 0x%lx\n",
 			efifb_fix.smem_len, efifb_fix.smem_start);
 		err = -EIO;
-		goto err_unmap;
+		goto err_release_fb;
 	}
 
 	printk(KERN_INFO "efifb: framebuffer at 0x%lx, mapped to 0x%p, "
@@ -178,25 +334,27 @@ static int __init efifb_probe(struct platform_device *dev)
 	info->fix = efifb_fix;
 	info->flags = FBINFO_FLAG_DEFAULT;
 
-	if (fb_alloc_cmap(&info->cmap, 256, 0) < 0) {
-		err = -ENOMEM;
+	if ((err = fb_alloc_cmap(&info->cmap, 256, 0)) < 0) {
+		printk(KERN_ERR "efifb: cannot allocate colormap\n");
 		goto err_unmap;
 	}
-	if (register_framebuffer(info) < 0) {
-		err = -EINVAL;
+	if ((err = register_framebuffer(info)) < 0) {
+		printk(KERN_ERR "efifb: cannot register framebuffer\n");
 		goto err_fb_dealoc;
 	}
 	printk(KERN_INFO "fb%d: %s frame buffer device\n",
-	       info->node, info->fix.id);
+		info->node, info->fix.id);
 	return 0;
 
 err_fb_dealoc:
 	fb_dealloc_cmap(&info->cmap);
 err_unmap:
 	iounmap(info->screen_base);
+err_release_fb:
 	framebuffer_release(info);
 err_release_mem:
-	release_mem_region(efifb_fix.smem_start, size_total);
+	if (request_succeeded)
+		release_mem_region(efifb_fix.smem_start, size_total);
 	return err;
 }
 
@@ -214,8 +372,21 @@ static struct platform_device efifb_device = {
 static int __init efifb_init(void)
 {
 	int ret;
+	char *option = NULL;
 
 	if (screen_info.orig_video_isVGA != VIDEO_TYPE_EFI)
+		return -ENODEV;
+	dmi_check_system(dmi_system_table);
+
+	if (fb_get_options("efifb", &option))
+		return -ENODEV;
+	efifb_setup(option);
+
+	/* We don't get linelength from UGA Draw Protocol, only from
+	 * EFI Graphics Protocol.  So if it's not in DMI, and it's not
+	 * passed in from the user, we really can't use the framebuffer.
+	 */
+	if (!screen_info.lfb_linelength)
 		return -ENODEV;
 
 	ret = platform_driver_register(&efifb_driver);

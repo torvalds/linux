@@ -42,6 +42,7 @@ EXPORT_SYMBOL(memory_start);
 EXPORT_SYMBOL(memory_end);
 EXPORT_SYMBOL(physical_mem_end);
 EXPORT_SYMBOL(_ramend);
+EXPORT_SYMBOL(reserved_mem_dcache_on);
 
 #ifdef CONFIG_MTD_UCLINUX
 unsigned long memory_mtd_end, memory_mtd_start, mtd_size;
@@ -52,7 +53,8 @@ EXPORT_SYMBOL(mtd_size);
 #endif
 
 char __initdata command_line[COMMAND_LINE_SIZE];
-unsigned int __initdata *__retx;
+void __initdata *init_retx, *init_saved_retx, *init_saved_seqstat,
+	*init_saved_icplb_fault_addr, *init_saved_dcplb_fault_addr;
 
 /* boot memmap, for parsing "memmap=" */
 #define BFIN_MEMMAP_MAX		128 /* number of entries in bfin_memmap */
@@ -77,10 +79,10 @@ static struct change_member *change_point[2*BFIN_MEMMAP_MAX] __initdata;
 static struct bfin_memmap_entry *overlap_list[BFIN_MEMMAP_MAX] __initdata;
 static struct bfin_memmap_entry new_map[BFIN_MEMMAP_MAX] __initdata;
 
-void __init bf53x_cache_init(void)
+void __init bfin_cache_init(void)
 {
 #if defined(CONFIG_BFIN_DCACHE) || defined(CONFIG_BFIN_ICACHE)
-	generate_cpl_tables();
+	generate_cplb_tables();
 #endif
 
 #ifdef CONFIG_BFIN_ICACHE
@@ -100,7 +102,7 @@ void __init bf53x_cache_init(void)
 #endif
 }
 
-void __init bf53x_relocate_l1_mem(void)
+void __init bfin_relocate_l1_mem(void)
 {
 	unsigned long l1_code_length;
 	unsigned long l1_data_a_length;
@@ -410,7 +412,7 @@ static __init void parse_cmdline_early(char *cmdline_p)
  *  [_rambase, _ramstart]:		kernel image
  *  [memory_start, memory_end]:		dynamic memory managed by kernel
  *  [memory_end, _ramend]:		reserved memory
- *  	[meory_mtd_start(memory_end),
+ *  	[memory_mtd_start(memory_end),
  *  		memory_mtd_start + mtd_size]:	rootfs (if any)
  *	[_ramend - DMA_UNCACHED_REGION,
  *		_ramend]:			uncached DMA region
@@ -782,16 +784,25 @@ void __init setup_arch(char **cmdline_p)
 
 	_bfin_swrst = bfin_read_SWRST();
 
-	/* If we double fault, reset the system - otherwise we hang forever */
-	bfin_write_SWRST(DOUBLE_FAULT);
+#ifdef CONFIG_DEBUG_DOUBLEFAULT_PRINT
+	bfin_write_SWRST(_bfin_swrst & ~DOUBLE_FAULT);
+#endif
+#ifdef CONFIG_DEBUG_DOUBLEFAULT_RESET
+	bfin_write_SWRST(_bfin_swrst | DOUBLE_FAULT);
+#endif
 
-	if (_bfin_swrst & RESET_DOUBLE)
-		/*
-		 * don't decode the address, since you don't know if this
-		 * kernel's symbol map is the same as the crashing kernel
-		 */
-		printk(KERN_INFO "Recovering from Double Fault event at %pF\n", __retx);
-	else if (_bfin_swrst & RESET_WDOG)
+	if (_bfin_swrst & RESET_DOUBLE) {
+		printk(KERN_EMERG "Recovering from DOUBLE FAULT event\n");
+#ifdef CONFIG_DEBUG_DOUBLEFAULT
+		/* We assume the crashing kernel, and the current symbol table match */
+		printk(KERN_EMERG " While handling exception (EXCAUSE = 0x%x) at %pF\n",
+			(int)init_saved_seqstat & SEQSTAT_EXCAUSE, init_saved_retx);
+		printk(KERN_NOTICE "   DCPLB_FAULT_ADDR: %pF\n", init_saved_dcplb_fault_addr);
+		printk(KERN_NOTICE "   ICPLB_FAULT_ADDR: %pF\n", init_saved_icplb_fault_addr);
+#endif
+		printk(KERN_NOTICE " The instruction at %pF caused a double exception\n",
+			init_retx);
+	} else if (_bfin_swrst & RESET_WDOG)
 		printk(KERN_INFO "Recovering from Watchdog event\n");
 	else if (_bfin_swrst & RESET_SOFTWARE)
 		printk(KERN_NOTICE "Reset caused by Software reset\n");
@@ -803,17 +814,24 @@ void __init setup_arch(char **cmdline_p)
 		printk(KERN_INFO "Compiled for ADSP-%s Rev none\n", CPU);
 	else
 		printk(KERN_INFO "Compiled for ADSP-%s Rev 0.%d\n", CPU, bfin_compiled_revid());
-	if (bfin_revid() != bfin_compiled_revid()) {
-		if (bfin_compiled_revid() == -1)
-			printk(KERN_ERR "Warning: Compiled for Rev none, but running on Rev %d\n",
-			       bfin_revid());
-		else if (bfin_compiled_revid() != 0xffff)
-			printk(KERN_ERR "Warning: Compiled for Rev %d, but running on Rev %d\n",
-			       bfin_compiled_revid(), bfin_revid());
+
+	if (unlikely(CPUID != bfin_cpuid()))
+		printk(KERN_ERR "ERROR: Not running on ADSP-%s: unknown CPUID 0x%04x Rev 0.%d\n",
+			CPU, bfin_cpuid(), bfin_revid());
+	else {
+		if (bfin_revid() != bfin_compiled_revid()) {
+			if (bfin_compiled_revid() == -1)
+				printk(KERN_ERR "Warning: Compiled for Rev none, but running on Rev %d\n",
+				       bfin_revid());
+			else if (bfin_compiled_revid() != 0xffff)
+				printk(KERN_ERR "Warning: Compiled for Rev %d, but running on Rev %d\n",
+				       bfin_compiled_revid(), bfin_revid());
+		}
+		if (bfin_revid() <= CONFIG_BF_REV_MIN || bfin_revid() > CONFIG_BF_REV_MAX)
+			printk(KERN_ERR "Warning: Unsupported Chip Revision ADSP-%s Rev 0.%d detected\n",
+			       CPU, bfin_revid());
 	}
-	if (bfin_revid() < SUPPORTED_REVID)
-		printk(KERN_ERR "Warning: Unsupported Chip Revision ADSP-%s Rev 0.%d detected\n",
-		       CPU, bfin_revid());
+
 	printk(KERN_INFO "Blackfin Linux support by http://blackfin.uclinux.org/\n");
 
 	printk(KERN_INFO "Processor Speed: %lu MHz core clock and %lu MHz System Clock\n",
@@ -850,7 +868,7 @@ void __init setup_arch(char **cmdline_p)
 		!= SAFE_USER_INSTRUCTION - FIXED_CODE_START);
 
 	init_exception_vectors();
-	bf53x_cache_init();
+	bfin_cache_init();
 }
 
 static int __init topology_init(void)
@@ -986,13 +1004,18 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	}
 
 	seq_printf(m, "processor\t: %d\n"
-		"vendor_id\t: %s\n"
-		"cpu family\t: 0x%x\n"
-		"model name\t: ADSP-%s %lu(MHz CCLK) %lu(MHz SCLK) (%s)\n"
+		"vendor_id\t: %s\n",
+		*(unsigned int *)v,
+		vendor);
+
+	if (CPUID == bfin_cpuid())
+		seq_printf(m, "cpu family\t: 0x%04x\n", CPUID);
+	else
+		seq_printf(m, "cpu family\t: Compiled for:0x%04x, running on:0x%04x\n",
+			CPUID, bfin_cpuid());
+
+	seq_printf(m, "model name\t: ADSP-%s %lu(MHz CCLK) %lu(MHz SCLK) (%s)\n"
 		"stepping\t: %d\n",
-		0,
-		vendor,
-		(bfin_read_CHIPID() & CHIPID_FAMILY),
 		cpu, cclk/1000000, sclk/1000000,
 #ifdef CONFIG_MPU
 		"mpu on",
@@ -1038,7 +1061,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	if ((bfin_read_DMEM_CONTROL() & (ENDCPLB | DMC_ENABLE)) != (ENDCPLB | DMC_ENABLE))
 		dcache_size = 0;
 
-	if ((bfin_read_IMEM_CONTROL() & (IMC | ENICPLB)) == (IMC | ENICPLB))
+	if ((bfin_read_IMEM_CONTROL() & (IMC | ENICPLB)) != (IMC | ENICPLB))
 		icache_size = 0;
 
 	seq_printf(m, "cache size\t: %d KB(L1 icache) "
@@ -1127,12 +1150,18 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
-	return *pos < NR_CPUS ? ((void *)0x12345678) : NULL;
+	if (*pos == 0)
+		*pos = first_cpu(cpu_online_map);
+	if (*pos >= num_online_cpus())
+		return NULL;
+
+	return pos;
 }
 
 static void *c_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	++*pos;
+	*pos = next_cpu(*pos, cpu_online_map);
+
 	return c_start(m, pos);
 }
 

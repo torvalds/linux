@@ -34,8 +34,6 @@
 #include <linux/kmod.h>
 #include <linux/mutex.h>
 
-#define SNDRV_OS_MINORS 256
-
 static int major = CONFIG_SND_MAJOR;
 int snd_major;
 EXPORT_SYMBOL(snd_major);
@@ -208,20 +206,23 @@ static int snd_kernel_minor(int type, struct snd_card *card, int dev)
 		minor = type;
 		break;
 	case SNDRV_DEVICE_TYPE_CONTROL:
-		snd_assert(card != NULL, return -EINVAL);
+		if (snd_BUG_ON(!card))
+			return -EINVAL;
 		minor = SNDRV_MINOR(card->number, type);
 		break;
 	case SNDRV_DEVICE_TYPE_HWDEP:
 	case SNDRV_DEVICE_TYPE_RAWMIDI:
 	case SNDRV_DEVICE_TYPE_PCM_PLAYBACK:
 	case SNDRV_DEVICE_TYPE_PCM_CAPTURE:
-		snd_assert(card != NULL, return -EINVAL);
+		if (snd_BUG_ON(!card))
+			return -EINVAL;
 		minor = SNDRV_MINOR(card->number, type + dev);
 		break;
 	default:
 		return -EINVAL;
 	}
-	snd_assert(minor >= 0 && minor < SNDRV_OS_MINORS, return -EINVAL);
+	if (snd_BUG_ON(minor < 0 || minor >= SNDRV_OS_MINORS))
+		return -EINVAL;
 	return minor;
 }
 #endif
@@ -249,7 +250,8 @@ int snd_register_device_for_dev(int type, struct snd_card *card, int dev,
 	int minor;
 	struct snd_minor *preg;
 
-	snd_assert(name, return -EINVAL);
+	if (snd_BUG_ON(!name))
+		return -EINVAL;
 	preg = kmalloc(sizeof *preg, GFP_KERNEL);
 	if (preg == NULL)
 		return -ENOMEM;
@@ -272,9 +274,8 @@ int snd_register_device_for_dev(int type, struct snd_card *card, int dev,
 		return minor;
 	}
 	snd_minors[minor] = preg;
-	preg->dev = device_create_drvdata(sound_class, device,
-					  MKDEV(major, minor),
-					  private_data, "%s", name);
+	preg->dev = device_create(sound_class, device, MKDEV(major, minor),
+				  private_data, "%s", name);
 	if (IS_ERR(preg->dev)) {
 		snd_minors[minor] = NULL;
 		mutex_unlock(&sound_mutex);

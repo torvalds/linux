@@ -1333,6 +1333,9 @@ static int __devinit cpm_uart_probe(struct of_device *ofdev,
 	if (ret)
 		return ret;
 
+	/* initialize the device pointer for the port */
+	pinfo->port.dev = &ofdev->dev;
+
 	return uart_add_one_port(&cpm_reg, &pinfo->port);
 }
 

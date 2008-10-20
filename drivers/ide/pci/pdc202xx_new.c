@@ -19,7 +19,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/hdreg.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/ide.h>
@@ -203,10 +202,10 @@ static u8 pdcnew_cable_detect(ide_hwif_t *hwif)
 
 static void pdcnew_quirkproc(ide_drive_t *drive)
 {
-	const char **list, *model = drive->id->model;
+	const char **list, *m = (char *)&drive->id[ATA_ID_PROD];
 
 	for (list = pdc_quirk_drives; *list != NULL; list++)
-		if (strstr(model, *list) != NULL) {
+		if (strstr(m, *list) != NULL) {
 			drive->quirk_list = 2;
 			return;
 		}
@@ -227,7 +226,7 @@ static void pdcnew_reset(ide_drive_t *drive)
  * read_counter - Read the byte count registers
  * @dma_base: for the port address
  */
-static long __devinit read_counter(u32 dma_base)
+static long read_counter(u32 dma_base)
 {
 	u32  pri_dma_base = dma_base, sec_dma_base = dma_base + 0x08;
 	u8   cnt0, cnt1, cnt2, cnt3;
@@ -267,7 +266,7 @@ static long __devinit read_counter(u32 dma_base)
  * @dma_base: for the port address
  * E.g. 16949000 on 33 MHz PCI bus, i.e. half of the PCI clock.
  */
-static long __devinit detect_pll_input_clock(unsigned long dma_base)
+static long detect_pll_input_clock(unsigned long dma_base)
 {
 	struct timeval start_time, end_time;
 	long start_count, end_count;
@@ -310,7 +309,7 @@ static long __devinit detect_pll_input_clock(unsigned long dma_base)
 }
 
 #ifdef CONFIG_PPC_PMAC
-static void __devinit apple_kiwi_init(struct pci_dev *pdev)
+static void apple_kiwi_init(struct pci_dev *pdev)
 {
 	struct device_node *np = pci_device_to_OF_node(pdev);
 	u8 conf;
@@ -326,7 +325,7 @@ static void __devinit apple_kiwi_init(struct pci_dev *pdev)
 }
 #endif /* CONFIG_PPC_PMAC */
 
-static unsigned int __devinit init_chipset_pdcnew(struct pci_dev *dev)
+static unsigned int init_chipset_pdcnew(struct pci_dev *dev)
 {
 	const char *name = DRV_NAME;
 	unsigned long dma_base = pci_resource_start(dev, 4);
@@ -562,21 +561,23 @@ static const struct pci_device_id pdc202new_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, pdc202new_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver pdc202new_pci_driver = {
 	.name		= "Promise_IDE",
 	.id_table	= pdc202new_pci_tbl,
 	.probe		= pdc202new_init_one,
 	.remove		= __devexit_p(pdc202new_remove),
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init pdc202new_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&pdc202new_pci_driver);
 }
 
 static void __exit pdc202new_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&pdc202new_pci_driver);
 }
 
 module_init(pdc202new_ide_init);

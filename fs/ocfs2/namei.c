@@ -60,6 +60,7 @@
 #include "symlink.h"
 #include "sysfile.h"
 #include "uptodate.h"
+#include "xattr.h"
 
 #include "buffer_head_io.h"
 
@@ -327,14 +328,9 @@ leave:
 	if (status == -ENOSPC)
 		mlog(0, "Disk is full\n");
 
-	if (new_fe_bh)
-		brelse(new_fe_bh);
-
-	if (de_bh)
-		brelse(de_bh);
-
-	if (parent_fe_bh)
-		brelse(parent_fe_bh);
+	brelse(new_fe_bh);
+	brelse(de_bh);
+	brelse(parent_fe_bh);
 
 	if ((status < 0) && inode)
 		iput(inode);
@@ -647,12 +643,9 @@ out_unlock_inode:
 out:
 	ocfs2_inode_unlock(dir, 1);
 
-	if (de_bh)
-		brelse(de_bh);
-	if (fe_bh)
-		brelse(fe_bh);
-	if (parent_fe_bh)
-		brelse(parent_fe_bh);
+	brelse(de_bh);
+	brelse(fe_bh);
+	brelse(parent_fe_bh);
 
 	mlog_exit(err);
 
@@ -851,17 +844,10 @@ leave:
 		iput(orphan_dir);
 	}
 
-	if (fe_bh)
-		brelse(fe_bh);
-
-	if (dirent_bh)
-		brelse(dirent_bh);
-
-	if (parent_node_bh)
-		brelse(parent_node_bh);
-
-	if (orphan_entry_bh)
-		brelse(orphan_entry_bh);
+	brelse(fe_bh);
+	brelse(dirent_bh);
+	brelse(parent_node_bh);
+	brelse(orphan_entry_bh);
 
 	mlog_exit(status);
 
@@ -1372,24 +1358,15 @@ bail:
 
 	if (new_inode)
 		iput(new_inode);
-	if (newfe_bh)
-		brelse(newfe_bh);
-	if (old_inode_bh)
-		brelse(old_inode_bh);
-	if (old_dir_bh)
-		brelse(old_dir_bh);
-	if (new_dir_bh)
-		brelse(new_dir_bh);
-	if (new_de_bh)
-		brelse(new_de_bh);
-	if (old_de_bh)
-		brelse(old_de_bh);
-	if (old_inode_de_bh)
-		brelse(old_inode_de_bh);
-	if (orphan_entry_bh)
-		brelse(orphan_entry_bh);
-	if (insert_entry_bh)
-		brelse(insert_entry_bh);
+	brelse(newfe_bh);
+	brelse(old_inode_bh);
+	brelse(old_dir_bh);
+	brelse(new_dir_bh);
+	brelse(new_de_bh);
+	brelse(old_de_bh);
+	brelse(old_inode_de_bh);
+	brelse(orphan_entry_bh);
+	brelse(insert_entry_bh);
 
 	mlog_exit(status);
 
@@ -1492,8 +1469,7 @@ bail:
 
 	if (bhs) {
 		for(i = 0; i < blocks; i++)
-			if (bhs[i])
-				brelse(bhs[i]);
+			brelse(bhs[i]);
 		kfree(bhs);
 	}
 
@@ -1598,10 +1574,10 @@ static int ocfs2_symlink(struct inode *dir,
 		u32 offset = 0;
 
 		inode->i_op = &ocfs2_symlink_inode_operations;
-		status = ocfs2_do_extend_allocation(osb, inode, &offset, 1, 0,
-						    new_fe_bh,
-						    handle, data_ac, NULL,
-						    NULL);
+		status = ocfs2_add_inode_data(osb, inode, &offset, 1, 0,
+					      new_fe_bh,
+					      handle, data_ac, NULL,
+					      NULL);
 		if (status < 0) {
 			if (status != -ENOSPC && status != -EINTR) {
 				mlog(ML_ERROR,
@@ -1659,12 +1635,9 @@ bail:
 
 	ocfs2_inode_unlock(dir, 1);
 
-	if (new_fe_bh)
-		brelse(new_fe_bh);
-	if (parent_fe_bh)
-		brelse(parent_fe_bh);
-	if (de_bh)
-		brelse(de_bh);
+	brelse(new_fe_bh);
+	brelse(parent_fe_bh);
+	brelse(de_bh);
 	if (inode_ac)
 		ocfs2_free_alloc_context(inode_ac);
 	if (data_ac)
@@ -1759,8 +1732,7 @@ leave:
 		iput(orphan_dir_inode);
 	}
 
-	if (orphan_dir_bh)
-		brelse(orphan_dir_bh);
+	brelse(orphan_dir_bh);
 
 	mlog_exit(status);
 	return status;
@@ -1780,10 +1752,9 @@ static int ocfs2_orphan_add(struct ocfs2_super *osb,
 
 	mlog_entry("(inode->i_ino = %lu)\n", inode->i_ino);
 
-	status = ocfs2_read_block(osb,
+	status = ocfs2_read_block(orphan_dir_inode,
 				  OCFS2_I(orphan_dir_inode)->ip_blkno,
-				  &orphan_dir_bh, OCFS2_BH_CACHED,
-				  orphan_dir_inode);
+				  &orphan_dir_bh);
 	if (status < 0) {
 		mlog_errno(status);
 		goto leave;
@@ -1829,8 +1800,7 @@ static int ocfs2_orphan_add(struct ocfs2_super *osb,
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno, osb->slot_num);
 
 leave:
-	if (orphan_dir_bh)
-		brelse(orphan_dir_bh);
+	brelse(orphan_dir_bh);
 
 	mlog_exit(status);
 	return status;
@@ -1898,8 +1868,7 @@ int ocfs2_orphan_del(struct ocfs2_super *osb,
 	}
 
 leave:
-	if (target_de_bh)
-		brelse(target_de_bh);
+	brelse(target_de_bh);
 
 	mlog_exit(status);
 	return status;
@@ -1918,4 +1887,8 @@ const struct inode_operations ocfs2_dir_iops = {
 	.setattr	= ocfs2_setattr,
 	.getattr	= ocfs2_getattr,
 	.permission	= ocfs2_permission,
+	.setxattr	= generic_setxattr,
+	.getxattr	= generic_getxattr,
+	.listxattr	= ocfs2_listxattr,
+	.removexattr	= generic_removexattr,
 };

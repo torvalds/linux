@@ -114,6 +114,6 @@ extern long elf_aux_hwcap;
 
 #define ELF_PLATFORM "x86_64"
 
-#define SET_PERSONALITY(ex, ibcs2) do ; while(0)
+#define SET_PERSONALITY(ex) do ; while(0)
 
 #endif

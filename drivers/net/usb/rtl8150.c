@@ -221,7 +221,7 @@ static void ctrl_callback(struct urb *urb)
 	case -ENOENT:
 		break;
 	default:
-		warn("ctrl urb status %d", urb->status);
+		dev_warn(&urb->dev->dev, "ctrl urb status %d\n", urb->status);
 	}
 	dev = urb->context;
 	clear_bit(RX_REG_SET, &dev->flags);
@@ -441,10 +441,10 @@ static void read_bulk_callback(struct urb *urb)
 	case -ENOENT:
 		return;	/* the urb is in unlink state */
 	case -ETIME:
-		warn("may be reset is needed?..");
+		dev_warn(&urb->dev->dev, "may be reset is needed?..\n");
 		goto goon;
 	default:
-		warn("Rx status %d", urb->status);
+		dev_warn(&urb->dev->dev, "Rx status %d\n", urb->status);
 		goto goon;
 	}
 
@@ -538,7 +538,8 @@ static void write_bulk_callback(struct urb *urb)
 	if (!netif_device_present(dev->netdev))
 		return;
 	if (urb->status)
-		info("%s: Tx status %d", dev->netdev->name, urb->status);
+		dev_info(&urb->dev->dev, "%s: Tx status %d\n",
+			 dev->netdev->name, urb->status);
 	dev->netdev->trans_start = jiffies;
 	netif_wake_queue(dev->netdev);
 }
@@ -561,7 +562,8 @@ static void intr_callback(struct urb *urb)
 		return;
 	/* -EPIPE:  should clear the halt */
 	default:
-		info("%s: intr status %d", dev->netdev->name, urb->status);
+		dev_info(&urb->dev->dev, "%s: intr status %d\n",
+			 dev->netdev->name, urb->status);
 		goto resubmit;
 	}
 
@@ -665,7 +667,7 @@ static int enable_net_traffic(rtl8150_t * dev)
 	u8 cr, tcr, rcr, msr;
 
 	if (!rtl8150_reset(dev)) {
-		warn("%s - device reset failed", __FUNCTION__);
+		dev_warn(&dev->udev->dev, "device reset failed\n");
 	}
 	/* RCR bit7=1 attach Rx info at the end;  =0 HW CRC (which is broken) */
 	rcr = 0x9e;
@@ -699,7 +701,7 @@ static struct net_device_stats *rtl8150_netdev_stats(struct net_device *dev)
 static void rtl8150_tx_timeout(struct net_device *netdev)
 {
 	rtl8150_t *dev = netdev_priv(netdev);
-	warn("%s: Tx timeout.", netdev->name);
+	dev_warn(&netdev->dev, "Tx timeout.\n");
 	usb_unlink_urb(dev->tx_urb);
 	dev->stats.tx_errors++;
 }
@@ -710,12 +712,12 @@ static void rtl8150_set_multicast(struct net_device *netdev)
 	netif_stop_queue(netdev);
 	if (netdev->flags & IFF_PROMISC) {
 		dev->rx_creg |= cpu_to_le16(0x0001);
-		info("%s: promiscuous mode", netdev->name);
+		dev_info(&netdev->dev, "%s: promiscuous mode\n", netdev->name);
 	} else if (netdev->mc_count ||
 		   (netdev->flags & IFF_ALLMULTI)) {
 		dev->rx_creg &= cpu_to_le16(0xfffe);
 		dev->rx_creg |= cpu_to_le16(0x0002);
-		info("%s: allmulti set", netdev->name);
+		dev_info(&netdev->dev, "%s: allmulti set\n", netdev->name);
 	} else {
 		/* ~RX_MULTICAST, ~RX_PROMISCUOUS */
 		dev->rx_creg &= cpu_to_le16(0x00fc);
@@ -740,7 +742,7 @@ static int rtl8150_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		if (res == -ENODEV)
 			netif_device_detach(dev->netdev);
 		else {
-			warn("failed tx_urb %d\n", res);
+			dev_warn(&netdev->dev, "failed tx_urb %d\n", res);
 			dev->stats.tx_errors++;
 			netif_start_queue(netdev);
 		}
@@ -783,7 +785,7 @@ static int rtl8150_open(struct net_device *netdev)
 	if ((res = usb_submit_urb(dev->rx_urb, GFP_KERNEL))) {
 		if (res == -ENODEV)
 			netif_device_detach(dev->netdev);
-		warn("%s: rx_urb submit failed: %d", __FUNCTION__, res);
+		dev_warn(&netdev->dev, "rx_urb submit failed: %d\n", res);
 		return res;
 	}
 	usb_fill_int_urb(dev->intr_urb, dev->udev, usb_rcvintpipe(dev->udev, 3),
@@ -792,7 +794,7 @@ static int rtl8150_open(struct net_device *netdev)
 	if ((res = usb_submit_urb(dev->intr_urb, GFP_KERNEL))) {
 		if (res == -ENODEV)
 			netif_device_detach(dev->netdev);
-		warn("%s: intr_urb submit failed: %d", __FUNCTION__, res);
+		dev_warn(&netdev->dev, "intr_urb submit failed: %d\n", res);
 		usb_kill_urb(dev->rx_urb);
 		return res;
 	}
@@ -947,7 +949,7 @@ static int rtl8150_probe(struct usb_interface *intf,
 		goto out2;
 	}
 
-	info("%s: rtl8150 is detected", netdev->name);
+	dev_info(&intf->dev, "%s: rtl8150 is detected\n", netdev->name);
 
 	return 0;
 
@@ -984,7 +986,8 @@ static void rtl8150_disconnect(struct usb_interface *intf)
 
 static int __init usb_rtl8150_init(void)
 {
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return usb_register(&rtl8150_driver);
 }
 

@@ -69,6 +69,8 @@
 # endif
 #endif
 
+#define BFIN_UART_TX_FIFO_SIZE	2
+
 struct bfin_serial_port {
         struct uart_port        port;
         unsigned int            old_status;
@@ -83,7 +85,7 @@ struct bfin_serial_port {
 	unsigned int		rx_dma_channel;
 	struct work_struct	tx_dma_workqueue;
 #else
-# if ANOMALY_05000230
+# if ANOMALY_05000363
 	unsigned int anomaly_threshold;
 # endif
 #endif
@@ -111,7 +113,6 @@ static inline void UART_CLEAR_LSR(struct bfin_serial_port *uart)
 	bfin_write16(uart->port.membase + OFFSET_LSR, -1);
 }
 
-struct bfin_serial_port bfin_serial_ports[BFIN_UART_NR_PORTS];
 struct bfin_serial_res {
 	unsigned long	uart_base_addr;
 	int		uart_irq;
@@ -142,7 +143,6 @@ struct bfin_serial_res bfin_serial_resource[] = {
 
 #define DRIVER_NAME "bfin-uart"
 
-int nr_ports = BFIN_UART_NR_PORTS;
 static void bfin_serial_hw_init(struct bfin_serial_port *uart)
 {
 
@@ -158,7 +158,7 @@ static void bfin_serial_hw_init(struct bfin_serial_port *uart)
 	}
 	if (uart->rts_pin >= 0) {
 		gpio_request(uart->rts_pin, DRIVER_NAME);
-		gpio_direction_input(uart->rts_pin, 0);
+		gpio_direction_output(uart->rts_pin, 0);
 	}
 #endif
 }

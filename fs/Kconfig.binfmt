@@ -25,7 +25,7 @@ config BINFMT_ELF
 
 config COMPAT_BINFMT_ELF
 	bool
-	depends on COMPAT && MMU
+	depends on COMPAT && BINFMT_ELF
 
 config BINFMT_ELF_FDPIC
 	bool "Kernel support for FDPIC ELF binaries"
@@ -59,10 +59,12 @@ config BINFMT_SHARED_FLAT
 	help
 	  Support FLAT shared libraries
 
+config HAVE_AOUT
+       def_bool n
+
 config BINFMT_AOUT
 	tristate "Kernel support for a.out and ECOFF binaries"
-	depends on ARCH_SUPPORTS_AOUT && \
-		(X86_32 || ALPHA || ARM || M68K)
+	depends on HAVE_AOUT
 	---help---
 	  A.out (Assembler.OUTput) is a set of formats for libraries and
 	  executables used in the earliest versions of UNIX.  Linux used

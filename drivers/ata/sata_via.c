@@ -68,8 +68,8 @@ enum {
 };
 
 static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
-static int svia_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val);
-static int svia_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val);
+static int svia_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val);
+static int svia_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val);
 static void svia_noop_freeze(struct ata_port *ap);
 static int vt6420_prereset(struct ata_link *link, unsigned long deadline);
 static int vt6421_pata_cable_detect(struct ata_port *ap);
@@ -152,19 +152,19 @@ MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, svia_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
 
-static int svia_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
+static int svia_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val)
 {
 	if (sc_reg > SCR_CONTROL)
 		return -EINVAL;
-	*val = ioread32(ap->ioaddr.scr_addr + (4 * sc_reg));
+	*val = ioread32(link->ap->ioaddr.scr_addr + (4 * sc_reg));
 	return 0;
 }
 
-static int svia_scr_write(struct ata_port *ap, unsigned int sc_reg, u32 val)
+static int svia_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val)
 {
 	if (sc_reg > SCR_CONTROL)
 		return -EINVAL;
-	iowrite32(val, ap->ioaddr.scr_addr + (4 * sc_reg));
+	iowrite32(val, link->ap->ioaddr.scr_addr + (4 * sc_reg));
 	return 0;
 }
 
@@ -210,20 +210,20 @@ static int vt6420_prereset(struct ata_link *link, unsigned long deadline)
 		goto skip_scr;
 
 	/* Resume phy.  This is the old SATA resume sequence */
-	svia_scr_write(ap, SCR_CONTROL, 0x300);
-	svia_scr_read(ap, SCR_CONTROL, &scontrol); /* flush */
+	svia_scr_write(link, SCR_CONTROL, 0x300);
+	svia_scr_read(link, SCR_CONTROL, &scontrol); /* flush */
 
 	/* wait for phy to become ready, if necessary */
 	do {
 		msleep(200);
-		svia_scr_read(ap, SCR_STATUS, &sstatus);
+		svia_scr_read(link, SCR_STATUS, &sstatus);
 		if ((sstatus & 0xf) != 1)
 			break;
 	} while (time_before(jiffies, timeout));
 
 	/* open code sata_print_link_status() */
-	svia_scr_read(ap, SCR_STATUS, &sstatus);
-	svia_scr_read(ap, SCR_CONTROL, &scontrol);
+	svia_scr_read(link, SCR_STATUS, &sstatus);
+	svia_scr_read(link, SCR_CONTROL, &scontrol);
 
 	online = (sstatus & 0xf) == 0x3;
 
@@ -232,7 +232,7 @@ static int vt6420_prereset(struct ata_link *link, unsigned long deadline)
 			online ? "up" : "down", sstatus, scontrol);
 
 	/* SStatus is read one more time */
-	svia_scr_read(ap, SCR_STATUS, &sstatus);
+	svia_scr_read(link, SCR_STATUS, &sstatus);
 
 	if (!online) {
 		/* tell EH to bail */

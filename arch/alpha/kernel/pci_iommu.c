@@ -41,13 +41,6 @@ mk_iommu_pte(unsigned long paddr)
 	return (paddr >> (PAGE_SHIFT-1)) | 1;
 }
 
-static inline long
-calc_npages(long bytes)
-{
-	return (bytes + PAGE_SIZE - 1) >> PAGE_SHIFT;
-}
-
-
 /* Return the minimum of MAX or the first power of two larger
    than main memory.  */
 
@@ -287,7 +280,7 @@ pci_map_single_1(struct pci_dev *pdev, void *cpu_addr, size_t size,
 	if (!arena || arena->dma_base + arena->size - 1 > max_dma)
 		arena = hose->sg_isa;
 
-	npages = calc_npages((paddr & ~PAGE_MASK) + size);
+	npages = iommu_num_pages(paddr, size, PAGE_SIZE);
 
 	/* Force allocation to 64KB boundary for ISA bridges. */
 	if (pdev && pdev == isa_bridge)
@@ -387,7 +380,7 @@ pci_unmap_single(struct pci_dev *pdev, dma_addr_t dma_addr, size_t size,
 		BUG();
 	}
 
-	npages = calc_npages((dma_addr & ~PAGE_MASK) + size);
+	npages = iommu_num_pages(dma_addr, size, PAGE_SIZE);
 
 	spin_lock_irqsave(&arena->lock, flags);
 
@@ -580,7 +573,7 @@ sg_fill(struct device *dev, struct scatterlist *leader, struct scatterlist *end,
 	   contiguous.  */
 
 	paddr &= ~PAGE_MASK;
-	npages = calc_npages(paddr + size);
+	npages = iommu_num_pages(paddr, size, PAGE_SIZE);
 	dma_ofs = iommu_arena_alloc(dev, arena, npages, 0);
 	if (dma_ofs < 0) {
 		/* If we attempted a direct map above but failed, die.  */
@@ -616,7 +609,7 @@ sg_fill(struct device *dev, struct scatterlist *leader, struct scatterlist *end,
 			sg++;
 		}
 
-		npages = calc_npages((paddr & ~PAGE_MASK) + size);
+		npages = iommu_num_pages(paddr, size, PAGE_SIZE);
 
 		paddr &= PAGE_MASK;
 		for (i = 0; i < npages; ++i, paddr += PAGE_SIZE)
@@ -775,7 +768,7 @@ pci_unmap_sg(struct pci_dev *pdev, struct scatterlist *sg, int nents,
 		DBGA("    (%ld) sg [%lx,%lx]\n",
 		     sg - end + nents, addr, size);
 
-		npages = calc_npages((addr & ~PAGE_MASK) + size);
+		npages = iommu_num_pages(addr, size, PAGE_SIZE);
 		ofs = (addr - arena->dma_base) >> PAGE_SHIFT;
 		iommu_arena_free(arena, ofs, npages);
 

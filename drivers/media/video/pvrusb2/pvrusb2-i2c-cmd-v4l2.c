@@ -37,6 +37,7 @@ static void set_standard(struct pvr2_hdw *hdw)
 		pvr2_i2c_core_cmd(hdw,VIDIOC_S_STD,&vs);
 	}
 	hdw->tuner_signal_stale = !0;
+	hdw->cropcap_stale = !0;
 }
 
 
@@ -233,6 +234,37 @@ const struct pvr2_i2c_op pvr2_i2c_op_v4l2_size = {
 };
 
 
+static void set_crop(struct pvr2_hdw *hdw)
+{
+	struct v4l2_crop crop;
+
+	memset(&crop, 0, sizeof crop);
+	crop.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	crop.c.left = hdw->cropl_val;
+	crop.c.top = hdw->cropt_val;
+	crop.c.height = hdw->croph_val;
+	crop.c.width = hdw->cropw_val;
+
+	pvr2_trace(PVR2_TRACE_CHIPS,
+		   "i2c v4l2 set_crop crop=%d:%d:%d:%d",
+		   crop.c.width, crop.c.height, crop.c.left, crop.c.top);
+
+	pvr2_i2c_core_cmd(hdw, VIDIOC_S_CROP, &crop);
+}
+
+static int check_crop(struct pvr2_hdw *hdw)
+{
+	return (hdw->cropl_dirty || hdw->cropt_dirty ||
+		hdw->cropw_dirty || hdw->croph_dirty);
+}
+
+const struct pvr2_i2c_op pvr2_i2c_op_v4l2_crop = {
+	.check = check_crop,
+	.update = set_crop,
+	.name = "v4l2_crop",
+};
+
+
 static void do_log(struct pvr2_hdw *hdw)
 {
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c v4l2 do_log()");
@@ -263,7 +295,19 @@ void pvr2_v4l2_cmd_stream(struct pvr2_i2c_client *cp,int fl)
 
 void pvr2_v4l2_cmd_status_poll(struct pvr2_i2c_client *cp)
 {
-	pvr2_i2c_client_cmd(cp,VIDIOC_G_TUNER,&cp->hdw->tuner_signal_info);
+	int stat;
+	struct pvr2_hdw *hdw = cp->hdw;
+	if (hdw->cropcap_stale) {
+		hdw->cropcap_info.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		stat = pvr2_i2c_client_cmd(cp, VIDIOC_CROPCAP,
+					   &hdw->cropcap_info);
+		if (stat == 0) {
+			/* Check was successful, so the data is no
+			   longer considered stale. */
+			hdw->cropcap_stale = 0;
+		}
+	}
+	pvr2_i2c_client_cmd(cp, VIDIOC_G_TUNER, &hdw->tuner_signal_info);
 }
 
 

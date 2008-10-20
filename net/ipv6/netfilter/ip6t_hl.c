@@ -19,12 +19,9 @@ MODULE_AUTHOR("Maciej Soltysiak <solt@dns.toxicfilms.tv>");
 MODULE_DESCRIPTION("Xtables: IPv6 Hop Limit field match");
 MODULE_LICENSE("GPL");
 
-static bool
-hl_mt6(const struct sk_buff *skb, const struct net_device *in,
-       const struct net_device *out, const struct xt_match *match,
-       const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
+static bool hl_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 {
-	const struct ip6t_hl_info *info = matchinfo;
+	const struct ip6t_hl_info *info = par->matchinfo;
 	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
 
 	switch (info->mode) {
@@ -51,7 +48,7 @@ hl_mt6(const struct sk_buff *skb, const struct net_device *in,
 
 static struct xt_match hl_mt6_reg __read_mostly = {
 	.name		= "hl",
-	.family		= AF_INET6,
+	.family		= NFPROTO_IPV6,
 	.match		= hl_mt6,
 	.matchsize	= sizeof(struct ip6t_hl_info),
 	.me		= THIS_MODULE,

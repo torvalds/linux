@@ -313,8 +313,10 @@ extern int qla24xx_get_flash_version(scsi_qla_host_t *, void *);
 extern int qla2xxx_hw_event_log(scsi_qla_host_t *, uint16_t , uint16_t,
     uint16_t, uint16_t);
 
-extern void qla2xxx_get_flash_info(scsi_qla_host_t *);
+extern int qla2xxx_get_flash_info(scsi_qla_host_t *);
 extern int qla2xxx_get_vpd_field(scsi_qla_host_t *, char *, char *, size_t);
+
+extern void qla2xxx_flash_npiv_conf(scsi_qla_host_t *);
 
 /*
  * Global Function Prototypes in qla_dbg.c source file.

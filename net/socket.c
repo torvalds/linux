@@ -1142,7 +1142,7 @@ static int __sock_create(struct net *net, int family, int type, int protocol,
 
 	sock->type = type;
 
-#if defined(CONFIG_KMOD)
+#ifdef CONFIG_MODULES
 	/* Attempt to load a protocol module if the find failed.
 	 *
 	 * 12/09/1996 Marcin: But! this makes REALLY only sense, if the user
@@ -1511,6 +1511,7 @@ out_fd:
 	goto out_put;
 }
 
+#if 0
 #ifdef HAVE_SET_RESTORE_SIGMASK
 asmlinkage long sys_paccept(int fd, struct sockaddr __user *upeer_sockaddr,
 			    int __user *upeer_addrlen,
@@ -1563,6 +1564,7 @@ asmlinkage long sys_paccept(int fd, struct sockaddr __user *upeer_sockaddr,
 
 	return do_accept(fd, upeer_sockaddr, upeer_addrlen, flags);
 }
+#endif
 #endif
 
 asmlinkage long sys_accept(int fd, struct sockaddr __user *upeer_sockaddr,

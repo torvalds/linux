@@ -236,7 +236,7 @@ typedef unsigned long elf_greg_t;
 
 #define ELF_PLATFORM  ("PARISC\0")
 
-#define SET_PERSONALITY(ex, ibcs2) \
+#define SET_PERSONALITY(ex) \
 	current->personality = PER_LINUX; \
 	current->thread.map_base = DEFAULT_MAP_BASE; \
 	current->thread.task_size = DEFAULT_TASK_SIZE \

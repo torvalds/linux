@@ -962,9 +962,9 @@ static void kvm_do_resume_op(struct kvm_vcpu *vcpu)
 void vmm_transition(struct kvm_vcpu *vcpu)
 {
 	ia64_call_vsa(PAL_VPS_SAVE, (unsigned long)vcpu->arch.vpd,
-			0, 0, 0, 0, 0, 0);
+			1, 0, 0, 0, 0, 0);
 	vmm_trampoline(&vcpu->arch.guest, &vcpu->arch.host);
 	ia64_call_vsa(PAL_VPS_RESTORE, (unsigned long)vcpu->arch.vpd,
-						0, 0, 0, 0, 0, 0);
+						1, 0, 0, 0, 0, 0);
 	kvm_do_resume_op(vcpu);
 }
