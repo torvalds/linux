@@ -267,16 +267,12 @@ asmlinkage void do_softirq(void)
  */
 void irq_enter(void)
 {
-#ifdef CONFIG_NO_HZ
 	int cpu = smp_processor_id();
+
 	if (idle_cpu(cpu) && !in_interrupt())
-		tick_nohz_stop_idle(cpu);
-#endif
+		tick_check_idle(cpu);
+
 	__irq_enter();
-#ifdef CONFIG_NO_HZ
-	if (idle_cpu(cpu))
-		tick_nohz_update_jiffies();
-#endif
 }
 
 #ifdef __ARCH_IRQ_EXIT_IRQS_DISABLED
