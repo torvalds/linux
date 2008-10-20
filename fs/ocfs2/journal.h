@@ -168,6 +168,7 @@ void   ocfs2_recovery_thread(struct ocfs2_super *osb,
 			     int node_num);
 int    ocfs2_mark_dead_nodes(struct ocfs2_super *osb);
 void   ocfs2_complete_mount_recovery(struct ocfs2_super *osb);
+void ocfs2_complete_quota_recovery(struct ocfs2_super *osb);
 
 static inline void ocfs2_start_checkpoint(struct ocfs2_super *osb)
 {

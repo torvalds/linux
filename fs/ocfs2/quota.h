@@ -33,6 +33,17 @@ struct ocfs2_dquot {
 	s64 dq_originodes;	/* Last globally synced inode usage */
 };
 
+/* Description of one chunk to recover in memory */
+struct ocfs2_recovery_chunk {
+	struct list_head rc_list;	/* List of chunks */
+	int rc_chunk;			/* Chunk number */
+	unsigned long *rc_bitmap;	/* Bitmap of entries to recover */
+};
+
+struct ocfs2_quota_recovery {
+	struct list_head r_list[MAXQUOTAS];	/* List of chunks to recover */
+};
+
 /* In-memory structure with quota header information */
 struct ocfs2_mem_dqinfo {
 	unsigned int dqi_type;		/* Quota type this structure describes */
@@ -49,6 +60,10 @@ struct ocfs2_mem_dqinfo {
 	struct buffer_head *dqi_ibh;	/* Buffer with information header */
 	struct qtree_mem_dqinfo dqi_gi;	/* Info about global file */
 	struct delayed_work dqi_sync_work;	/* Work for syncing dquots */
+	struct ocfs2_quota_recovery *dqi_rec;	/* Pointer to recovery
+						 * information, in case we
+						 * enable quotas on file
+						 * needing it */
 };
 
 static inline struct ocfs2_dquot *OCFS2_DQUOT(struct dquot *dquot)
@@ -67,6 +82,12 @@ extern struct kmem_cache *ocfs2_qf_chunk_cachep;
 
 extern struct qtree_fmt_operations ocfs2_global_ops;
 
+struct ocfs2_quota_recovery *ocfs2_begin_quota_recovery(
+				struct ocfs2_super *osb, int slot_num);
+int ocfs2_finish_quota_recovery(struct ocfs2_super *osb,
+				struct ocfs2_quota_recovery *rec,
+				int slot_num);
+void ocfs2_free_quota_recovery(struct ocfs2_quota_recovery *rec);
 ssize_t ocfs2_quota_read(struct super_block *sb, int type, char *data,
 			 size_t len, loff_t off);
 ssize_t ocfs2_quota_write(struct super_block *sb, int type,

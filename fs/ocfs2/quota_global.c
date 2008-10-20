@@ -87,7 +87,6 @@ struct qtree_fmt_operations ocfs2_global_ops = {
 	.is_id = ocfs2_global_is_id,
 };
 
-
 struct buffer_head *ocfs2_read_quota_block(struct inode *inode,
 					   int block, int *err)
 {

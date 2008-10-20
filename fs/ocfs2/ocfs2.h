@@ -206,6 +206,7 @@ enum ocfs2_mount_options
 struct ocfs2_journal;
 struct ocfs2_slot_info;
 struct ocfs2_recovery_map;
+struct ocfs2_quota_recovery;
 struct ocfs2_super
 {
 	struct task_struct *commit_task;
@@ -287,10 +288,11 @@ struct ocfs2_super
 	char *local_alloc_debug_buf;
 #endif
 
-	/* Next two fields are for local node slot recovery during
+	/* Next three fields are for local node slot recovery during
 	 * mount. */
 	int dirty;
 	struct ocfs2_dinode *local_alloc_copy;
+	struct ocfs2_quota_recovery *quota_rec;
 
 	struct ocfs2_alloc_stats alloc_stats;
 	char dev_str[20];		/* "major,minor" of the device */
