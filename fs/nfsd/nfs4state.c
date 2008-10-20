@@ -2435,13 +2435,13 @@ static struct list_head lockstateid_hashtbl[STATEID_HASH_SIZE];
 static struct nfs4_stateid *
 find_stateid(stateid_t *stid, int flags)
 {
-	struct nfs4_stateid *local = NULL;
+	struct nfs4_stateid *local;
 	u32 st_id = stid->si_stateownerid;
 	u32 f_id = stid->si_fileid;
 	unsigned int hashval;
 
 	dprintk("NFSD: find_stateid flags 0x%x\n",flags);
-	if ((flags & LOCK_STATE) || (flags & RD_STATE) || (flags & WR_STATE)) {
+	if (flags & (LOCK_STATE | RD_STATE | WR_STATE)) {
 		hashval = stateid_hashval(st_id, f_id);
 		list_for_each_entry(local, &lockstateid_hashtbl[hashval], st_hash) {
 			if ((local->st_stateid.si_stateownerid == st_id) &&
@@ -2449,7 +2449,8 @@ find_stateid(stateid_t *stid, int flags)
 				return local;
 		}
 	} 
-	if ((flags & OPEN_STATE) || (flags & RD_STATE) || (flags & WR_STATE)) {
+
+	if (flags & (OPEN_STATE | RD_STATE | WR_STATE)) {
 		hashval = stateid_hashval(st_id, f_id);
 		list_for_each_entry(local, &stateid_hashtbl[hashval], st_hash) {
 			if ((local->st_stateid.si_stateownerid == st_id) &&
