@@ -69,7 +69,9 @@ extern void dma_cache_maint(const void *kaddr, size_t size, int rw);
  */
 static inline int dma_supported(struct device *dev, u64 mask)
 {
-	return dev->dma_mask && *dev->dma_mask != 0;
+	if (mask < ISA_DMA_THRESHOLD)
+		return 0;
+	return 1;
 }
 
 static inline int dma_set_mask(struct device *dev, u64 dma_mask)
