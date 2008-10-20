@@ -180,7 +180,7 @@ static void PRINT_PKT(u_char *buf, int length)
 static void smc911x_reset(struct net_device *dev)
 {
 	struct smc911x_local *lp = netdev_priv(dev);
-	unsigned int reg, timeout=0, resets=1;
+	unsigned int reg, timeout=0, resets=1, irq_cfg;
 	unsigned long flags;
 
 	DBG(SMC_DEBUG_FUNC, "%s: --> %s\n", dev->name, __func__);
@@ -252,7 +252,12 @@ static void smc911x_reset(struct net_device *dev)
 	 * Deassert IRQ for 1*10us for edge type interrupts
 	 * and drive IRQ pin push-pull
 	 */
-	SMC_SET_IRQ_CFG(lp, (1 << 24) | INT_CFG_IRQ_EN_ | INT_CFG_IRQ_TYPE_);
+	irq_cfg = (1 << 24) | INT_CFG_IRQ_EN_ | INT_CFG_IRQ_TYPE_;
+#ifdef SMC_DYNAMIC_BUS_CONFIG
+	if (lp->cfg.irq_polarity)
+		irq_cfg |= INT_CFG_IRQ_POL_;
+#endif
+	SMC_SET_IRQ_CFG(lp, irq_cfg);
 
 	/* clear anything saved */
 	if (lp->pending_tx_skb != NULL) {
@@ -2054,7 +2059,7 @@ err_out:
  */
 static int smc911x_drv_probe(struct platform_device *pdev)
 {
-	struct smc91x_platdata *pd = pdev->dev.platform_data;
+	struct smc911x_platdata *pd = pdev->dev.platform_data;
 	struct net_device *ndev;
 	struct resource *res;
 	struct smc911x_local *lp;
