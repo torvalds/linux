@@ -378,8 +378,8 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 	}
 
 	inode = new_inode(dir->i_sb);
-	if (IS_ERR(inode)) {
-		status = PTR_ERR(inode);
+	if (!inode) {
+		status = -ENOMEM;
 		mlog(ML_ERROR, "new_inode failed!\n");
 		goto leave;
 	}
