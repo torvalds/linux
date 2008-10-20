@@ -554,7 +554,7 @@ static int s5h1411_set_gpio(struct dvb_frontend *fe, int enable)
 		return s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0xe0, val);
 }
 
-static int s5h1411_sleep(struct dvb_frontend *fe, int enable)
+static int s5h1411_set_powerstate(struct dvb_frontend *fe, int enable)
 {
 	struct s5h1411_state *state = fe->demodulator_priv;
 
@@ -568,6 +568,11 @@ static int s5h1411_sleep(struct dvb_frontend *fe, int enable)
 	}
 
 	return 0;
+}
+
+static int s5h1411_sleep(struct dvb_frontend *fe)
+{
+	return s5h1411_set_powerstate(fe, 1);
 }
 
 static int s5h1411_register_reset(struct dvb_frontend *fe)
@@ -619,7 +624,7 @@ static int s5h1411_init(struct dvb_frontend *fe)
 
 	dprintk("%s()\n", __func__);
 
-	s5h1411_sleep(fe, 0);
+	s5h1411_set_powerstate(fe, 0);
 	s5h1411_register_reset(fe);
 
 	for (i = 0; i < ARRAY_SIZE(init_tab); i++)
@@ -889,6 +894,7 @@ static struct dvb_frontend_ops s5h1411_ops = {
 	},
 
 	.init                 = s5h1411_init,
+	.sleep                = s5h1411_sleep,
 	.i2c_gate_ctrl        = s5h1411_i2c_gate_ctrl,
 	.set_frontend         = s5h1411_set_frontend,
 	.get_frontend         = s5h1411_get_frontend,
