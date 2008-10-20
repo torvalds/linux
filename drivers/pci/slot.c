@@ -121,7 +121,7 @@ static int rename_slot(struct pci_slot *slot, const char *name)
 	int result = 0;
 	char *slot_name;
 
-	if (strcmp(kobject_name(&slot->kobj), name) == 0)
+	if (strcmp(pci_slot_name(slot), name) == 0)
 		return result;
 
 	slot_name = make_slot_name(name);
