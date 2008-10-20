@@ -678,6 +678,8 @@ struct ps3av_pkt_avb_param {
 	u8 buf[PS3AV_PKT_AVB_PARAM_MAX_BUF_SIZE];
 };
 
+/* channel status */
+extern u8 ps3av_mode_cs_info[];
 
 /** command status **/
 #define PS3AV_STATUS_SUCCESS			0x0000	/* success */
