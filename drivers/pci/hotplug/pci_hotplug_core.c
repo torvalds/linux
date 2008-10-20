@@ -37,6 +37,7 @@
 #include <linux/init.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
+#include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
 #include <asm/uaccess.h>
@@ -61,7 +62,7 @@ static int debug;
 //////////////////////////////////////////////////////////////////
 
 static LIST_HEAD(pci_hotplug_slot_list);
-static DEFINE_SPINLOCK(pci_hotplug_slot_list_lock);
+static DEFINE_MUTEX(pci_hp_mutex);
 
 /* these strings match up with the values in pci_bus_speed */
 static char *pci_bus_speed_strings[] = {
@@ -530,16 +531,12 @@ static struct hotplug_slot *get_slot_from_name (const char *name)
 	struct hotplug_slot *slot;
 	struct list_head *tmp;
 
-	spin_lock(&pci_hotplug_slot_list_lock);
 	list_for_each (tmp, &pci_hotplug_slot_list) {
 		slot = list_entry (tmp, struct hotplug_slot, slot_list);
 		if (strcmp(slot->name, name) == 0)
-			goto out;
+			return slot;
 	}
-	slot = NULL;
-out:
-	spin_unlock(&pci_hotplug_slot_list_lock);
-	return slot;
+	return NULL;
 }
 
 /**
@@ -570,9 +567,13 @@ int pci_hp_register(struct hotplug_slot *slot, struct pci_bus *bus, int slot_nr,
 		return -EINVAL;
 	}
 
+	mutex_lock(&pci_hp_mutex);
+
 	/* Check if we have already registered a slot with the same name. */
-	if (get_slot_from_name(name))
-		return -EEXIST;
+	if (get_slot_from_name(name)) {
+		result = -EEXIST;
+		goto out;
+	}
 
 	/*
 	 * No problems if we call this interface from both ACPI_PCI_SLOT
@@ -580,13 +581,15 @@ int pci_hp_register(struct hotplug_slot *slot, struct pci_bus *bus, int slot_nr,
 	 * pci_slot, the interface will simply bump the refcount.
 	 */
 	pci_slot = pci_create_slot(bus, slot_nr, name, slot);
-	if (IS_ERR(pci_slot))
-		return PTR_ERR(pci_slot);
+	if (IS_ERR(pci_slot)) {
+		result = PTR_ERR(pci_slot);
+		goto cleanup;
+	}
 
 	if (pci_slot->hotplug) {
 		dbg("%s: already claimed\n", __func__);
-		pci_destroy_slot(pci_slot);
-		return -EBUSY;
+		result = -EBUSY;
+		goto cleanup;
 	}
 
 	slot->pci_slot = pci_slot;
@@ -597,21 +600,21 @@ int pci_hp_register(struct hotplug_slot *slot, struct pci_bus *bus, int slot_nr,
 	 */
 	if (strcmp(kobject_name(&pci_slot->kobj), name)) {
 		result = kobject_rename(&pci_slot->kobj, name);
-		if (result) {
-			pci_destroy_slot(pci_slot);
-			return result;
-		}
+		if (result)
+			goto cleanup;
 	}
 
-	spin_lock(&pci_hotplug_slot_list_lock);
 	list_add(&slot->slot_list, &pci_hotplug_slot_list);
-	spin_unlock(&pci_hotplug_slot_list_lock);
 
 	result = fs_add_slot(pci_slot);
 	kobject_uevent(&pci_slot->kobj, KOBJ_ADD);
 	dbg("Added slot %s to the list\n", name);
-
+out:
+	mutex_unlock(&pci_hp_mutex);
 	return result;
+cleanup:
+	pci_destroy_slot(pci_slot);
+	goto out;
 }
 
 /**
@@ -631,13 +634,14 @@ int pci_hp_deregister(struct hotplug_slot *hotplug)
 	if (!hotplug)
 		return -ENODEV;
 
+	mutex_lock(&pci_hp_mutex);
 	temp = get_slot_from_name(hotplug->name);
-	if (temp != hotplug)
+	if (temp != hotplug) {
+		mutex_unlock(&pci_hp_mutex);
 		return -ENODEV;
+	}
 
-	spin_lock(&pci_hotplug_slot_list_lock);
 	list_del(&hotplug->slot_list);
-	spin_unlock(&pci_hotplug_slot_list_lock);
 
 	slot = hotplug->pci_slot;
 	fs_remove_slot(slot);
@@ -646,6 +650,7 @@ int pci_hp_deregister(struct hotplug_slot *hotplug)
 	hotplug->release(hotplug);
 	slot->hotplug = NULL;
 	pci_destroy_slot(slot);
+	mutex_unlock(&pci_hp_mutex);
 
 	return 0;
 }
