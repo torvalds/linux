@@ -1,5 +1,5 @@
-#ifndef _ASMi386_TIMER_H
-#define _ASMi386_TIMER_H
+#ifndef ASM_X86__TIMER_H
+#define ASM_X86__TIMER_H
 #include <linux/init.h>
 #include <linux/pm.h>
 #include <linux/percpu.h>
@@ -9,9 +9,12 @@
 unsigned long long native_sched_clock(void);
 unsigned long native_calibrate_tsc(void);
 
+#ifdef CONFIG_X86_32
 extern int timer_ack;
-extern int no_timer_check;
 extern int recalibrate_cpu_khz(void);
+#endif /* CONFIG_X86_32 */
+
+extern int no_timer_check;
 
 #ifndef CONFIG_PARAVIRT
 #define calibrate_tsc() native_calibrate_tsc()
@@ -60,4 +63,4 @@ static inline unsigned long long cycles_2_ns(unsigned long long cyc)
 	return ns;
 }
 
-#endif
+#endif /* ASM_X86__TIMER_H */

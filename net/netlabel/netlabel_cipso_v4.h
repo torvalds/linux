@@ -45,12 +45,13 @@
  *     NLBL_CIPSOV4_A_MTYPE
  *     NLBL_CIPSOV4_A_TAGLST
  *
- *   If using CIPSO_V4_MAP_STD the following attributes are required:
+ *   If using CIPSO_V4_MAP_TRANS the following attributes are required:
  *
  *     NLBL_CIPSOV4_A_MLSLVLLST
  *     NLBL_CIPSOV4_A_MLSCATLST
  *
- *   If using CIPSO_V4_MAP_PASS no additional attributes are required.
+ *   If using CIPSO_V4_MAP_PASS or CIPSO_V4_MAP_LOCAL no additional attributes
+ *   are required.
  *
  * o REMOVE:
  *   Sent by an application to remove a specific DOI mapping table from the
@@ -76,12 +77,13 @@
  *     NLBL_CIPSOV4_A_MTYPE
  *     NLBL_CIPSOV4_A_TAGLST
  *
- *   If using CIPSO_V4_MAP_STD the following attributes are required:
+ *   If using CIPSO_V4_MAP_TRANS the following attributes are required:
  *
  *     NLBL_CIPSOV4_A_MLSLVLLST
  *     NLBL_CIPSOV4_A_MLSCATLST
  *
- *   If using CIPSO_V4_MAP_PASS no additional attributes are required.
+ *   If using CIPSO_V4_MAP_PASS or CIPSO_V4_MAP_LOCAL no additional attributes
+ *   are required.
  *
  * o LISTALL:
  *   This message is sent by an application to list the valid DOIs on the

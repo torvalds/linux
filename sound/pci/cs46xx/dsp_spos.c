@@ -63,7 +63,8 @@ static int shadow_and_reallocate_code (struct snd_cs46xx * chip, u32 * data, u32
 	u32 mop_operands,mop_type,wide_op;
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
-	snd_assert( ((size % 2) == 0), return -EINVAL);
+	if (snd_BUG_ON(size %2))
+		return -EINVAL;
   
 	while (i < size) {
 		loval = data[i++];
@@ -289,7 +290,8 @@ void  cs46xx_dsp_spos_destroy (struct snd_cs46xx * chip)
 	int i;
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
-	snd_assert(ins != NULL, return);
+	if (snd_BUG_ON(!ins))
+		return;
 
 	mutex_lock(&chip->spos_mutex);
 	for (i = 0; i < ins->nscb; ++i) {
@@ -404,7 +406,8 @@ int cs46xx_dsp_load_module (struct snd_cs46xx * chip, struct dsp_module_desc * m
 
 		/* if module has a code segment it must have
 		   symbol table */
-		snd_assert(module->symbol_table.symbols != NULL ,return -ENOMEM);
+		if (snd_BUG_ON(!module->symbol_table.symbols))
+			return -ENOMEM;
 		if (add_symbols(chip,module)) {
 			snd_printk(KERN_ERR "dsp_spos: failed to load symbol table\n");
 			return -ENOMEM;
@@ -1369,7 +1372,8 @@ int cs46xx_dsp_scb_and_task_init (struct snd_cs46xx *chip)
 
 	valid_slots = snd_cs46xx_peekBA0(chip, BA0_ACOSV);
 
-	snd_assert (chip->nr_ac97_codecs == 1 || chip->nr_ac97_codecs == 2);
+	if (snd_BUG_ON(chip->nr_ac97_codecs != 1 && chip->nr_ac97_codecs != 2))
+		goto _fail_end;
 
 	if (chip->nr_ac97_codecs == 1) {
 		/* output on slot 5 and 11 
@@ -1609,11 +1613,14 @@ static int cs46xx_dsp_async_init (struct snd_cs46xx *chip,
 
 		spdifo_scb_desc = cs46xx_dsp_create_scb(chip,"SPDIFOSCB",(u32 *)&spdifo_scb,SPDIFO_SCB_INST);
 
-		snd_assert(spdifo_scb_desc, return -EIO);
+		if (snd_BUG_ON(!spdifo_scb_desc))
+			return -EIO;
 		spdifi_scb_desc = cs46xx_dsp_create_scb(chip,"SPDIFISCB",(u32 *)&spdifi_scb,SPDIFI_SCB_INST);
-		snd_assert(spdifi_scb_desc, return -EIO);
+		if (snd_BUG_ON(!spdifi_scb_desc))
+			return -EIO;
 		async_codec_scb_desc = cs46xx_dsp_create_scb(chip,"AsynCodecInputSCB",(u32 *)&async_codec_input_scb, HFG_TREE_SCB);
-		snd_assert(async_codec_scb_desc, return -EIO);
+		if (snd_BUG_ON(!async_codec_scb_desc))
+			return -EIO;
 
 		async_codec_scb_desc->parent_scb_ptr = NULL;
 		async_codec_scb_desc->next_scb_ptr = spdifi_scb_desc;
@@ -1698,8 +1705,10 @@ int cs46xx_dsp_enable_spdif_in (struct snd_cs46xx *chip)
 	chip->active_ctrl(chip, 1);
 	chip->amplifier_ctrl(chip, 1);
 
-	snd_assert (ins->asynch_rx_scb == NULL,return -EINVAL);
-	snd_assert (ins->spdif_in_src != NULL,return -EINVAL);
+	if (snd_BUG_ON(ins->asynch_rx_scb))
+		return -EINVAL;
+	if (snd_BUG_ON(!ins->spdif_in_src))
+		return -EINVAL;
 
 	mutex_lock(&chip->spos_mutex);
 
@@ -1754,8 +1763,10 @@ int cs46xx_dsp_disable_spdif_in (struct snd_cs46xx *chip)
 {
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
-	snd_assert (ins->asynch_rx_scb != NULL, return -EINVAL);
-	snd_assert (ins->spdif_in_src != NULL,return -EINVAL);	
+	if (snd_BUG_ON(!ins->asynch_rx_scb))
+		return -EINVAL;
+	if (snd_BUG_ON(!ins->spdif_in_src))
+		return -EINVAL;
 
 	mutex_lock(&chip->spos_mutex);
 
@@ -1780,8 +1791,10 @@ int cs46xx_dsp_enable_pcm_capture (struct snd_cs46xx *chip)
 {
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
-	snd_assert (ins->pcm_input == NULL,return -EINVAL);
-	snd_assert (ins->ref_snoop_scb != NULL,return -EINVAL);
+	if (snd_BUG_ON(ins->pcm_input))
+		return -EINVAL;
+	if (snd_BUG_ON(!ins->ref_snoop_scb))
+		return -EINVAL;
 
 	mutex_lock(&chip->spos_mutex);
 	ins->pcm_input = cs46xx_add_record_source(chip,ins->ref_snoop_scb,PCMSERIALIN_PCM_SCB_ADDR,
@@ -1795,7 +1808,8 @@ int cs46xx_dsp_disable_pcm_capture (struct snd_cs46xx *chip)
 {
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
-	snd_assert (ins->pcm_input != NULL,return -EINVAL);
+	if (snd_BUG_ON(!ins->pcm_input))
+		return -EINVAL;
 
 	mutex_lock(&chip->spos_mutex);
 	cs46xx_dsp_remove_scb (chip,ins->pcm_input);
@@ -1809,8 +1823,10 @@ int cs46xx_dsp_enable_adc_capture (struct snd_cs46xx *chip)
 {
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
-	snd_assert (ins->adc_input == NULL,return -EINVAL);
-	snd_assert (ins->codec_in_scb != NULL,return -EINVAL);
+	if (snd_BUG_ON(ins->adc_input))
+		return -EINVAL;
+	if (snd_BUG_ON(!ins->codec_in_scb))
+		return -EINVAL;
 
 	mutex_lock(&chip->spos_mutex);
 	ins->adc_input = cs46xx_add_record_source(chip,ins->codec_in_scb,PCMSERIALIN_SCB_ADDR,
@@ -1824,7 +1840,8 @@ int cs46xx_dsp_disable_adc_capture (struct snd_cs46xx *chip)
 {
 	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
-	snd_assert (ins->adc_input != NULL,return -EINVAL);
+	if (snd_BUG_ON(!ins->adc_input))
+		return -EINVAL;
 
 	mutex_lock(&chip->spos_mutex);
 	cs46xx_dsp_remove_scb (chip,ins->adc_input);

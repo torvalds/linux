@@ -355,9 +355,10 @@ static int tc574_config(struct pcmcia_device *link)
 	for (i = j = 0; j < 0x400; j += 0x20) {
 		link->io.BasePort1 = j ^ 0x300;
 		i = pcmcia_request_io(link, &link->io);
-		if (i == CS_SUCCESS) break;
+		if (i == 0)
+			break;
 	}
-	if (i != CS_SUCCESS) {
+	if (i != 0) {
 		cs_error(link, RequestIO, i);
 		goto failed;
 	}
@@ -377,7 +378,7 @@ static int tc574_config(struct pcmcia_device *link)
 	tuple.TupleDataMax = 64;
 	tuple.TupleOffset = 0;
 	tuple.DesiredTuple = 0x88;
-	if (pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) {
+	if (pcmcia_get_first_tuple(link, &tuple) == 0) {
 		pcmcia_get_tuple_data(link, &tuple);
 		for (i = 0; i < 3; i++)
 			phys_addr[i] = htons(le16_to_cpu(buf[i]));

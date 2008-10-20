@@ -35,11 +35,9 @@ Mailing List
 ------------
 There is a CPU frequency changing CVS commit and general list where
 you can report bugs, problems or submit patches. To post a message,
-send an email to cpufreq@lists.linux.org.uk, to subscribe go to
-http://lists.linux.org.uk/mailman/listinfo/cpufreq. Previous post to the
-mailing list are available to subscribers at
-http://lists.linux.org.uk/mailman/private/cpufreq/.
-
+send an email to cpufreq@vger.kernel.org, to subscribe go to
+http://vger.kernel.org/vger-lists.html#cpufreq and follow the
+instructions there.
 
 Links
 -----
@@ -50,7 +48,7 @@ how to access the CVS repository:
 * http://cvs.arm.linux.org.uk/
 
 the CPUFreq Mailing list:
-* http://lists.linux.org.uk/mailman/listinfo/cpufreq
+* http://vger.kernel.org/vger-lists.html#cpufreq
 
 Clock and voltage scaling for the SA-1100:
 * http://www.lartmaker.nl/projects/scaling

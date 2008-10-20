@@ -118,41 +118,6 @@ sys32_execve (char __user *name, compat_uptr_t __user *argv, compat_uptr_t __use
 	return error;
 }
 
-int cp_compat_stat(struct kstat *stat, struct compat_stat __user *ubuf)
-{
-	compat_ino_t ino;
-	int err;
-
-	if ((u64) stat->size > MAX_NON_LFS ||
-	    !old_valid_dev(stat->dev) ||
-	    !old_valid_dev(stat->rdev))
-		return -EOVERFLOW;
-
-	ino = stat->ino;
-	if (sizeof(ino) < sizeof(stat->ino) && ino != stat->ino)
-		return -EOVERFLOW;
-
-	if (clear_user(ubuf, sizeof(*ubuf)))
-		return -EFAULT;
-
-	err  = __put_user(old_encode_dev(stat->dev), &ubuf->st_dev);
-	err |= __put_user(ino, &ubuf->st_ino);
-	err |= __put_user(stat->mode, &ubuf->st_mode);
-	err |= __put_user(stat->nlink, &ubuf->st_nlink);
-	err |= __put_user(high2lowuid(stat->uid), &ubuf->st_uid);
-	err |= __put_user(high2lowgid(stat->gid), &ubuf->st_gid);
-	err |= __put_user(old_encode_dev(stat->rdev), &ubuf->st_rdev);
-	err |= __put_user(stat->size, &ubuf->st_size);
-	err |= __put_user(stat->atime.tv_sec, &ubuf->st_atime);
-	err |= __put_user(stat->atime.tv_nsec, &ubuf->st_atime_nsec);
-	err |= __put_user(stat->mtime.tv_sec, &ubuf->st_mtime);
-	err |= __put_user(stat->mtime.tv_nsec, &ubuf->st_mtime_nsec);
-	err |= __put_user(stat->ctime.tv_sec, &ubuf->st_ctime);
-	err |= __put_user(stat->ctime.tv_nsec, &ubuf->st_ctime_nsec);
-	err |= __put_user(stat->blksize, &ubuf->st_blksize);
-	err |= __put_user(stat->blocks, &ubuf->st_blocks);
-	return err;
-}
 
 #if PAGE_SHIFT > IA32_PAGE_SHIFT
 
@@ -1148,66 +1113,10 @@ sys32_pipe (int __user *fd)
 	return retval;
 }
 
-static inline long
-get_tv32 (struct timeval *o, struct compat_timeval __user *i)
-{
-	return (!access_ok(VERIFY_READ, i, sizeof(*i)) ||
-		(__get_user(o->tv_sec, &i->tv_sec) | __get_user(o->tv_usec, &i->tv_usec)));
-}
-
-static inline long
-put_tv32 (struct compat_timeval __user *o, struct timeval *i)
-{
-	return (!access_ok(VERIFY_WRITE, o, sizeof(*o)) ||
-		(__put_user(i->tv_sec, &o->tv_sec) | __put_user(i->tv_usec, &o->tv_usec)));
-}
-
 asmlinkage unsigned long
 sys32_alarm (unsigned int seconds)
 {
 	return alarm_setitimer(seconds);
-}
-
-/* Translations due to time_t size differences.  Which affects all
-   sorts of things, like timeval and itimerval.  */
-
-extern struct timezone sys_tz;
-
-asmlinkage long
-sys32_gettimeofday (struct compat_timeval __user *tv, struct timezone __user *tz)
-{
-	if (tv) {
-		struct timeval ktv;
-		do_gettimeofday(&ktv);
-		if (put_tv32(tv, &ktv))
-			return -EFAULT;
-	}
-	if (tz) {
-		if (copy_to_user(tz, &sys_tz, sizeof(sys_tz)))
-			return -EFAULT;
-	}
-	return 0;
-}
-
-asmlinkage long
-sys32_settimeofday (struct compat_timeval __user *tv, struct timezone __user *tz)
-{
-	struct timeval ktv;
-	struct timespec kts;
-	struct timezone ktz;
-
-	if (tv) {
-		if (get_tv32(&ktv, tv))
-			return -EFAULT;
-		kts.tv_sec = ktv.tv_sec;
-		kts.tv_nsec = ktv.tv_usec * 1000;
-	}
-	if (tz) {
-		if (copy_from_user(&ktz, tz, sizeof(ktz)))
-			return -EFAULT;
-	}
-
-	return do_sys_settimeofday(tv ? &kts : NULL, tz ? &ktz : NULL);
 }
 
 struct sel_arg_struct {

@@ -1,0 +1,4 @@
+00-INDEX
+	- This file
+w1_therm
+	- The Maxim/Dallas Semiconductor ds18*20 temperature sensor.

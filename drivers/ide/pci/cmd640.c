@@ -103,7 +103,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 
@@ -375,6 +374,21 @@ static void cmd640_dump_regs(void)
 }
 #endif
 
+static void __set_prefetch_mode(ide_drive_t *drive, int mode)
+{
+	if (mode) {	/* want prefetch on? */
+#if CMD640_PREFETCH_MASKS
+		drive->dev_flags |= IDE_DFLAG_NO_UNMASK;
+		drive->dev_flags &= ~IDE_DFLAG_UNMASK;
+#endif
+		drive->dev_flags &= ~IDE_DFLAG_NO_IO_32BIT;
+	} else {
+		drive->dev_flags &= ~IDE_DFLAG_NO_UNMASK;
+		drive->dev_flags |= IDE_DFLAG_NO_IO_32BIT;
+		drive->io_32bit = 0;
+	}
+}
+
 #ifndef CONFIG_BLK_DEV_CMD640_ENHANCED
 /*
  * Check whether prefetch is on for a drive,
@@ -384,19 +398,10 @@ static void __init check_prefetch(ide_drive_t *drive, unsigned int index)
 {
 	u8 b = get_cmd640_reg(prefetch_regs[index]);
 
-	if (b & prefetch_masks[index]) {	/* is prefetch off? */
-		drive->no_unmask = 0;
-		drive->no_io_32bit = 1;
-		drive->io_32bit = 0;
-	} else {
-#if CMD640_PREFETCH_MASKS
-		drive->no_unmask = 1;
-		drive->unmask = 0;
-#endif
-		drive->no_io_32bit = 0;
-	}
+	__set_prefetch_mode(drive, (b & prefetch_masks[index]) ? 0 : 1);
 }
 #else
+
 /*
  * Sets prefetch mode for a drive.
  */
@@ -408,19 +413,11 @@ static void set_prefetch_mode(ide_drive_t *drive, unsigned int index, int mode)
 
 	spin_lock_irqsave(&cmd640_lock, flags);
 	b = __get_cmd640_reg(reg);
-	if (mode) {	/* want prefetch on? */
-#if CMD640_PREFETCH_MASKS
-		drive->no_unmask = 1;
-		drive->unmask = 0;
-#endif
-		drive->no_io_32bit = 0;
+	__set_prefetch_mode(drive, mode);
+	if (mode)
 		b &= ~prefetch_masks[index];	/* enable prefetch */
-	} else {
-		drive->no_unmask = 0;
-		drive->no_io_32bit = 1;
-		drive->io_32bit = 0;
+	else
 		b |= prefetch_masks[index];	/* disable prefetch */
-	}
 	__put_cmd640_reg(reg, b);
 	spin_unlock_irqrestore(&cmd640_lock, flags);
 }
@@ -471,10 +468,10 @@ static void program_drive_counts(ide_drive_t *drive, unsigned int index)
 	 */
 	if (index > 1) {
 		ide_hwif_t *hwif = drive->hwif;
-		ide_drive_t *peer = &hwif->drives[!drive->select.b.unit];
+		ide_drive_t *peer = &hwif->drives[!(drive->dn & 1)];
 		unsigned int mate = index ^ 1;
 
-		if (peer->present) {
+		if (peer->dev_flags & IDE_DFLAG_PRESENT) {
 			if (setup_count < setup_counts[mate])
 				setup_count = setup_counts[mate];
 			if (active_count < active_counts[mate])
@@ -610,7 +607,7 @@ static void cmd640_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 static void cmd640_init_dev(ide_drive_t *drive)
 {
-	unsigned int i = drive->hwif->channel * 2 + drive->select.b.unit;
+	unsigned int i = drive->hwif->channel * 2 + (drive->dn & 1);
 
 #ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
 	/*
@@ -629,7 +626,7 @@ static void cmd640_init_dev(ide_drive_t *drive)
 	 */
 	check_prefetch(drive, i);
 	printk(KERN_INFO DRV_NAME ": drive%d timings/prefetch(%s) preserved\n",
-				  i, drive->no_io_32bit ? "off" : "on");
+		i, (drive->dev_flags & IDE_DFLAG_NO_IO_32BIT) ? "off" : "on");
 #endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
 }
 

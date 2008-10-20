@@ -137,9 +137,11 @@ static int __init pvr_init(void)
 	ret = usb_register(&pvr_driver);
 
 	if (ret == 0)
-		info(DRIVER_DESC " : " DRIVER_VERSION);
-	if (pvrusb2_debug) info("Debug mask is %d (0x%x)",
-				pvrusb2_debug,pvrusb2_debug);
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+		       DRIVER_DESC "\n");
+	if (pvrusb2_debug)
+		printk(KERN_INFO KBUILD_MODNAME ": Debug mask is %d (0x%x)\n",
+		       pvrusb2_debug,pvrusb2_debug);
 
 	pvr2_trace(PVR2_TRACE_INIT,"pvr_init complete");
 

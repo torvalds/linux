@@ -1214,7 +1214,7 @@ static int et61x251_open(struct inode* inode, struct file* filp)
 	if (!down_read_trylock(&et61x251_dev_lock))
 		return -ERESTARTSYS;
 
-	cam = video_get_drvdata(video_devdata(filp));
+	cam = video_drvdata(filp);
 
 	if (wait_for_completion_interruptible(&cam->probe)) {
 		up_read(&et61x251_dev_lock);
@@ -1297,7 +1297,7 @@ static int et61x251_release(struct inode* inode, struct file* filp)
 
 	down_write(&et61x251_dev_lock);
 
-	cam = video_get_drvdata(video_devdata(filp));
+	cam = video_drvdata(filp);
 
 	et61x251_stop_transfer(cam);
 	et61x251_release_buffers(cam);
@@ -1318,7 +1318,7 @@ static ssize_t
 et61x251_read(struct file* filp, char __user * buf,
 	      size_t count, loff_t* f_pos)
 {
-	struct et61x251_device* cam = video_get_drvdata(video_devdata(filp));
+	struct et61x251_device *cam = video_drvdata(filp);
 	struct et61x251_frame_t* f, * i;
 	unsigned long lock_flags;
 	long timeout;
@@ -1426,7 +1426,7 @@ exit:
 
 static unsigned int et61x251_poll(struct file *filp, poll_table *wait)
 {
-	struct et61x251_device* cam = video_get_drvdata(video_devdata(filp));
+	struct et61x251_device *cam = video_drvdata(filp);
 	struct et61x251_frame_t* f;
 	unsigned long lock_flags;
 	unsigned int mask = 0;
@@ -1502,7 +1502,7 @@ static struct vm_operations_struct et61x251_vm_ops = {
 
 static int et61x251_mmap(struct file* filp, struct vm_area_struct *vma)
 {
-	struct et61x251_device* cam = video_get_drvdata(video_devdata(filp));
+	struct et61x251_device *cam = video_drvdata(filp);
 	unsigned long size = vma->vm_end - vma->vm_start,
 		      start = vma->vm_start;
 	void *pos;
@@ -2395,7 +2395,7 @@ et61x251_vidioc_s_parm(struct et61x251_device* cam, void __user * arg)
 static int et61x251_ioctl_v4l2(struct inode* inode, struct file* filp,
 			       unsigned int cmd, void __user * arg)
 {
-	struct et61x251_device* cam = video_get_drvdata(video_devdata(filp));
+	struct et61x251_device *cam = video_drvdata(filp);
 
 	switch (cmd) {
 
@@ -2490,7 +2490,7 @@ static int et61x251_ioctl_v4l2(struct inode* inode, struct file* filp,
 static int et61x251_ioctl(struct inode* inode, struct file* filp,
 			 unsigned int cmd, unsigned long arg)
 {
-	struct et61x251_device* cam = video_get_drvdata(video_devdata(filp));
+	struct et61x251_device *cam = video_drvdata(filp);
 	int err = 0;
 
 	if (mutex_lock_interruptible(&cam->fileop_mutex))

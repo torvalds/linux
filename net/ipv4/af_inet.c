@@ -469,7 +469,7 @@ int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	 */
 	err = -EADDRNOTAVAIL;
 	if (!sysctl_ip_nonlocal_bind &&
-	    !inet->freebind &&
+	    !(inet->freebind || inet->transparent) &&
 	    addr->sin_addr.s_addr != htonl(INADDR_ANY) &&
 	    chk_addr_ret != RTN_LOCAL &&
 	    chk_addr_ret != RTN_MULTICAST &&

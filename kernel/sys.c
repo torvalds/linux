@@ -1060,9 +1060,7 @@ asmlinkage long sys_setsid(void)
 	group_leader->signal->leader = 1;
 	__set_special_pids(sid);
 
-	spin_lock(&group_leader->sighand->siglock);
-	group_leader->signal->tty = NULL;
-	spin_unlock(&group_leader->sighand->siglock);
+	proc_clear_tty(group_leader);
 
 	err = session;
 out:
@@ -1351,8 +1349,10 @@ asmlinkage long sys_sethostname(char __user *name, int len)
 	down_write(&uts_sem);
 	errno = -EFAULT;
 	if (!copy_from_user(tmp, name, len)) {
-		memcpy(utsname()->nodename, tmp, len);
-		utsname()->nodename[len] = 0;
+		struct new_utsname *u = utsname();
+
+		memcpy(u->nodename, tmp, len);
+		memset(u->nodename + len, 0, sizeof(u->nodename) - len);
 		errno = 0;
 	}
 	up_write(&uts_sem);
@@ -1364,15 +1364,17 @@ asmlinkage long sys_sethostname(char __user *name, int len)
 asmlinkage long sys_gethostname(char __user *name, int len)
 {
 	int i, errno;
+	struct new_utsname *u;
 
 	if (len < 0)
 		return -EINVAL;
 	down_read(&uts_sem);
-	i = 1 + strlen(utsname()->nodename);
+	u = utsname();
+	i = 1 + strlen(u->nodename);
 	if (i > len)
 		i = len;
 	errno = 0;
-	if (copy_to_user(name, utsname()->nodename, i))
+	if (copy_to_user(name, u->nodename, i))
 		errno = -EFAULT;
 	up_read(&uts_sem);
 	return errno;
@@ -1397,8 +1399,10 @@ asmlinkage long sys_setdomainname(char __user *name, int len)
 	down_write(&uts_sem);
 	errno = -EFAULT;
 	if (!copy_from_user(tmp, name, len)) {
-		memcpy(utsname()->domainname, tmp, len);
-		utsname()->domainname[len] = 0;
+		struct new_utsname *u = utsname();
+
+		memcpy(u->domainname, tmp, len);
+		memset(u->domainname + len, 0, sizeof(u->domainname) - len);
 		errno = 0;
 	}
 	up_write(&uts_sem);
@@ -1452,14 +1456,22 @@ asmlinkage long sys_setrlimit(unsigned int resource, struct rlimit __user *rlim)
 		return -EINVAL;
 	if (copy_from_user(&new_rlim, rlim, sizeof(*rlim)))
 		return -EFAULT;
-	if (new_rlim.rlim_cur > new_rlim.rlim_max)
-		return -EINVAL;
 	old_rlim = current->signal->rlim + resource;
 	if ((new_rlim.rlim_max > old_rlim->rlim_max) &&
 	    !capable(CAP_SYS_RESOURCE))
 		return -EPERM;
-	if (resource == RLIMIT_NOFILE && new_rlim.rlim_max > sysctl_nr_open)
-		return -EPERM;
+
+	if (resource == RLIMIT_NOFILE) {
+		if (new_rlim.rlim_max == RLIM_INFINITY)
+			new_rlim.rlim_max = sysctl_nr_open;
+		if (new_rlim.rlim_cur == RLIM_INFINITY)
+			new_rlim.rlim_cur = sysctl_nr_open;
+		if (new_rlim.rlim_max > sysctl_nr_open)
+			return -EPERM;
+	}
+
+	if (new_rlim.rlim_cur > new_rlim.rlim_max)
+		return -EINVAL;
 
 	retval = security_task_setrlimit(resource, &new_rlim);
 	if (retval)

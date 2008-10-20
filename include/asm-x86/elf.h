@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_ELF_H
-#define _ASM_X86_ELF_H
+#ifndef ASM_X86__ELF_H
+#define ASM_X86__ELF_H
 
 /*
  * ELF register definitions..
@@ -148,8 +148,9 @@ do {						\
 
 static inline void start_ia32_thread(struct pt_regs *regs, u32 ip, u32 sp)
 {
-	asm volatile("movl %0,%%fs" :: "r" (0));
-	asm volatile("movl %0,%%es; movl %0,%%ds" : : "r" (__USER32_DS));
+	loadsegment(fs, 0);
+	loadsegment(ds, __USER32_DS);
+	loadsegment(es, __USER32_DS);
 	load_gs_index(0);
 	regs->ip = ip;
 	regs->sp = sp;
@@ -185,7 +186,7 @@ do {							\
 	set_fs(USER_DS);				\
 } while (0)
 
-#define COMPAT_SET_PERSONALITY(ex, ibcs2)		\
+#define COMPAT_SET_PERSONALITY(ex)			\
 do {							\
 	if (test_thread_flag(TIF_IA32))			\
 		clear_thread_flag(TIF_ABI_PENDING);	\
@@ -266,7 +267,7 @@ extern int force_personality32;
    For the moment, we have only optimizations for the Intel generations,
    but that could change... */
 
-#define SET_PERSONALITY(ex, ibcs2) set_personality_64bit()
+#define SET_PERSONALITY(ex) set_personality_64bit()
 
 /*
  * An executable for which elf_read_implies_exec() returns TRUE will
@@ -332,4 +333,4 @@ extern int syscall32_setup_pages(struct linux_binprm *, int exstack);
 extern unsigned long arch_randomize_brk(struct mm_struct *mm);
 #define arch_randomize_brk arch_randomize_brk
 
-#endif
+#endif /* ASM_X86__ELF_H */

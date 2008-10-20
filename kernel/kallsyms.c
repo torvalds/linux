@@ -260,7 +260,6 @@ const char *kallsyms_lookup(unsigned long addr,
 	/* see if it's in a module */
 	return module_address_lookup(addr, symbolsize, offset, modname,
 				     namebuf);
-	return NULL;
 }
 
 int lookup_symbol_name(unsigned long addr, char *symname)

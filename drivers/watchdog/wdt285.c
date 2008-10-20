@@ -115,8 +115,8 @@ static int watchdog_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t watchdog_write(struct file *file, const char *data,
-						size_t len, loff_t *ppos)
+static ssize_t watchdog_write(struct file *file, const char __user *data,
+			      size_t len, loff_t *ppos)
 {
 	/*
 	 *	Refresh the timer.
@@ -133,21 +133,22 @@ static const struct watchdog_info ident = {
 };
 
 static long watchdog_ioctl(struct file *file, unsigned int cmd,
-							unsigned long arg)
+			   unsigned long arg)
 {
 	unsigned int new_margin;
+	int __user *int_arg = (int __user *)arg;
 	int ret = -ENOTTY;
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
 		ret = 0;
-		if (copy_to_user((void *)arg, &ident, sizeof(ident)))
+		if (copy_to_user((void __user *)arg, &ident, sizeof(ident)))
 			ret = -EFAULT;
 		break;
 
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
-		ret = put_user(0, (int *)arg);
+		ret = put_user(0, int_arg);
 		break;
 
 	case WDIOC_KEEPALIVE:
@@ -156,7 +157,7 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 		break;
 
 	case WDIOC_SETTIMEOUT:
-		ret = get_user(new_margin, (int *)arg);
+		ret = get_user(new_margin, int_arg);
 		if (ret)
 			break;
 
@@ -171,7 +172,7 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 		watchdog_ping();
 		/* Fall */
 	case WDIOC_GETTIMEOUT:
-		ret = put_user(soft_margin, (int *)arg);
+		ret = put_user(soft_margin, int_arg);
 		break;
 	}
 	return ret;

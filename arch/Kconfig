@@ -13,8 +13,22 @@ config OPROFILE
 
 	  If unsure, say N.
 
+config OPROFILE_IBS
+	bool "OProfile AMD IBS support (EXPERIMENTAL)"
+	default n
+	depends on OPROFILE && SMP && X86
+	help
+          Instruction-Based Sampling (IBS) is a new profiling
+          technique that provides rich, precise program performance
+          information. IBS is introduced by AMD Family10h processors
+          (AMD Opteron Quad-Core processor “Barcelona”) to overcome
+          the limitations of conventional performance counter
+          sampling.
+
+	  If unsure, say N.
+
 config HAVE_OPROFILE
-	def_bool n
+	bool
 
 config KPROBES
 	bool "Kprobes"
@@ -28,7 +42,7 @@ config KPROBES
 	  If in doubt, say "N".
 
 config HAVE_EFFICIENT_UNALIGNED_ACCESS
-	def_bool n
+	bool
 	help
 	  Some architectures are unable to perform unaligned accesses
 	  without the use of get_unaligned/put_unaligned. Others are
@@ -51,13 +65,13 @@ config KRETPROBES
 	depends on KPROBES && HAVE_KRETPROBES
 
 config HAVE_IOREMAP_PROT
-	def_bool n
+	bool
 
 config HAVE_KPROBES
-	def_bool n
+	bool
 
 config HAVE_KRETPROBES
-	def_bool n
+	bool
 
 #
 # An arch should select this if it provides all these things:
@@ -75,16 +89,16 @@ config HAVE_KRETPROBES
 #	signal delivery		calls tracehook_signal_handler()
 #
 config HAVE_ARCH_TRACEHOOK
-	def_bool n
+	bool
 
 config HAVE_DMA_ATTRS
-	def_bool n
+	bool
 
 config USE_GENERIC_SMP_HELPERS
-	def_bool n
+	bool
 
 config HAVE_CLK
-	def_bool n
+	bool
 	help
 	  The <linux/clk.h> calls support software clock gating and
 	  thus are a key power management tool on many systems.

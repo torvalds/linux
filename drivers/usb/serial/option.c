@@ -218,6 +218,7 @@ static int  option_send_setup(struct tty_struct *tty, struct usb_serial_port *po
 /* ZTE PRODUCTS */
 #define ZTE_VENDOR_ID				0x19d2
 #define ZTE_PRODUCT_MF628			0x0015
+#define ZTE_PRODUCT_CDMA_TECH			0xfffe
 
 static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COLT) },
@@ -347,6 +348,7 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(MAXON_VENDOR_ID, 0x6280) }, /* BP3-USB & BP3-EXT HSDPA */
 	{ USB_DEVICE(TELIT_VENDOR_ID, TELIT_PRODUCT_UC864E) },
 	{ USB_DEVICE(ZTE_VENDOR_ID, ZTE_PRODUCT_MF628) },
+	{ USB_DEVICE(ZTE_VENDOR_ID, ZTE_PRODUCT_CDMA_TECH) },
 	{ } /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, option_ids);
@@ -569,14 +571,14 @@ static void option_indat_callback(struct urb *urb)
 		dbg("%s: nonzero status: %d on endpoint %02x.",
 		    __func__, status, endpoint);
 	} else {
-		tty = port->port.tty;
+		tty = tty_port_tty_get(&port->port);
 		if (urb->actual_length) {
 			tty_buffer_request_room(tty, urb->actual_length);
 			tty_insert_flip_string(tty, data, urb->actual_length);
 			tty_flip_buffer_push(tty);
-		} else {
+		} else 
 			dbg("%s: empty read urb received", __func__);
-		}
+		tty_kref_put(tty);
 
 		/* Resubmit urb so we continue receiving */
 		if (port->port.count && status != -ESHUTDOWN) {
@@ -645,9 +647,13 @@ static void option_instat_callback(struct urb *urb)
 			portdata->dsr_state = ((signals & 0x02) ? 1 : 0);
 			portdata->ri_state = ((signals & 0x08) ? 1 : 0);
 
-			if (port->port.tty && !C_CLOCAL(port->port.tty) &&
-					old_dcd_state && !portdata->dcd_state)
-				tty_hangup(port->port.tty);
+			if (old_dcd_state && !portdata->dcd_state) {
+				struct tty_struct *tty =
+						tty_port_tty_get(&port->port);
+				if (tty && !C_CLOCAL(tty))
+					tty_hangup(tty);
+				tty_kref_put(tty);
+			}
 		} else {
 			dbg("%s: type %x req %x", __func__,
 				req_pkt->bRequestType, req_pkt->bRequest);
@@ -791,7 +797,7 @@ static void option_close(struct tty_struct *tty,
 		for (i = 0; i < N_OUT_URB; i++)
 			usb_kill_urb(portdata->out_urbs[i]);
 	}
-	port->port.tty = NULL;	/* FIXME */
+	tty_port_tty_set(&port->port, NULL);
 }
 
 /* Helper functions used by option_setup_urbs */

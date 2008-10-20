@@ -26,6 +26,64 @@
 
 #include <asm/uaccess.h>
 
+/*
+ * Note that the native side is already converted to a timespec, because
+ * that's what we want anyway.
+ */
+static int compat_get_timeval(struct timespec *o,
+		struct compat_timeval __user *i)
+{
+	long usec;
+
+	if (get_user(o->tv_sec, &i->tv_sec) ||
+	    get_user(usec, &i->tv_usec))
+		return -EFAULT;
+	o->tv_nsec = usec * 1000;
+	return 0;
+}
+
+static int compat_put_timeval(struct compat_timeval __user *o,
+		struct timeval *i)
+{
+	return (put_user(i->tv_sec, &o->tv_sec) ||
+		put_user(i->tv_usec, &o->tv_usec)) ? -EFAULT : 0;
+}
+
+asmlinkage long compat_sys_gettimeofday(struct compat_timeval __user *tv,
+		struct timezone __user *tz)
+{
+	if (tv) {
+		struct timeval ktv;
+		do_gettimeofday(&ktv);
+		if (compat_put_timeval(tv, &ktv))
+			return -EFAULT;
+	}
+	if (tz) {
+		if (copy_to_user(tz, &sys_tz, sizeof(sys_tz)))
+			return -EFAULT;
+	}
+
+	return 0;
+}
+
+asmlinkage long compat_sys_settimeofday(struct compat_timeval __user *tv,
+		struct timezone __user *tz)
+{
+	struct timespec kts;
+	struct timezone ktz;
+
+	if (tv) {
+		if (compat_get_timeval(&kts, tv))
+			return -EFAULT;
+	}
+	if (tz) {
+		if (copy_from_user(&ktz, tz, sizeof(ktz)))
+			return -EFAULT;
+	}
+
+	return do_sys_settimeofday(tv ? &kts : NULL, tz ? &ktz : NULL);
+}
+
 int get_compat_timespec(struct timespec *ts, const struct compat_timespec __user *cts)
 {
 	return (!access_ok(VERIFY_READ, cts, sizeof(*cts)) ||

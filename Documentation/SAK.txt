@@ -1,5 +1,5 @@
 Linux 2.4.2 Secure Attention Key (SAK) handling
-18 March 2001, Andrew Morton <akpm@osdl.org>
+18 March 2001, Andrew Morton
 
 An operating system's Secure Attention Key is a security tool which is
 provided as protection against trojan password capturing programs.  It

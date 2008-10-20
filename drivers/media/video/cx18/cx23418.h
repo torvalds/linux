@@ -351,7 +351,7 @@
    Descriptor Lists to the driver
    IN[0] - Task handle. Handle of the task to start
    ReturnCode - One of the ERR_DE_... */
-/* #define CX18_CPU_DE_ReleaseMDL               (CPU_CMD_MASK_DE | 0x0006) */
+#define CX18_CPU_DE_RELEASE_MDL               	(CPU_CMD_MASK_DE | 0x0006)
 
 /* Description: This command signals the cpu that the dat buffer has been
    consumed and ready for re-use.

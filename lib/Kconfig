@@ -8,10 +8,10 @@ config BITREVERSE
 	tristate
 
 config GENERIC_FIND_FIRST_BIT
-	def_bool n
+	bool
 
 config GENERIC_FIND_NEXT_BIT
-	def_bool n
+	bool
 
 config CRC_CCITT
 	tristate "CRC-CCITT functions"

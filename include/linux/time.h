@@ -29,6 +29,8 @@ struct timezone {
 
 #ifdef __KERNEL__
 
+extern struct timezone sys_tz;
+
 /* Parameters used to convert the timespec values: */
 #define MSEC_PER_SEC	1000L
 #define USEC_PER_MSEC	1000L

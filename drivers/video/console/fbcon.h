@@ -110,7 +110,7 @@ static inline int mono_col(const struct fb_info *info)
 	__u32 max_len;
 	max_len = max(info->var.green.length, info->var.red.length);
 	max_len = max(info->var.blue.length, max_len);
-	return ~(0xfff << (max_len & 0xff));
+	return (~(0xfff << max_len)) & 0xff;
 }
 
 static inline int attr_col_ec(int shift, struct vc_data *vc,

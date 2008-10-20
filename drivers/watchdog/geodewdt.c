@@ -130,8 +130,8 @@ static ssize_t geodewdt_write(struct file *file, const char __user *data,
 	return len;
 }
 
-static int geodewdt_ioctl(struct inode *inode, struct file *file,
-				unsigned int cmd, unsigned long arg)
+static long geodewdt_ioctl(struct file *file, unsigned int cmd,
+				unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
@@ -198,7 +198,7 @@ static const struct file_operations geodewdt_fops = {
 	.owner          = THIS_MODULE,
 	.llseek         = no_llseek,
 	.write          = geodewdt_write,
-	.ioctl          = geodewdt_ioctl,
+	.unlocked_ioctl = geodewdt_ioctl,
 	.open           = geodewdt_open,
 	.release        = geodewdt_release,
 };

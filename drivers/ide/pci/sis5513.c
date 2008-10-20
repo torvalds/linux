@@ -47,7 +47,6 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/hdreg.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/ide.h>
@@ -448,7 +447,7 @@ static int __devinit sis_find_family(struct pci_dev *dev)
 	return chipset_family;
 }
 
-static unsigned int __devinit init_chipset_sis5513(struct pci_dev *dev)
+static unsigned int init_chipset_sis5513(struct pci_dev *dev)
 {
 	/* Make general config ops here
 	   1/ tell IDE channels to operate in Compatibility mode only
@@ -606,21 +605,23 @@ static const struct pci_device_id sis5513_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, sis5513_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver sis5513_pci_driver = {
 	.name		= "SIS_IDE",
 	.id_table	= sis5513_pci_tbl,
 	.probe		= sis5513_init_one,
 	.remove		= __devexit_p(sis5513_remove),
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init sis5513_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&sis5513_pci_driver);
 }
 
 static void __exit sis5513_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&sis5513_pci_driver);
 }
 
 module_init(sis5513_ide_init);

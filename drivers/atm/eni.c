@@ -1270,7 +1270,7 @@ static int comp_tx(struct eni_dev *eni_dev,int *pcr,int reserved,int *pre,
 			if (*pre < 3) (*pre)++; /* else fail later */
 			div = pre_div[*pre]*-*pcr;
 			DPRINTK("max div %d\n",div);
-			*res = (TS_CLOCK+div-1)/div-1;
+			*res = DIV_ROUND_UP(TS_CLOCK, div)-1;
 		}
 		if (*res < 0) *res = 0;
 		if (*res > MID_SEG_MAX_RATE) *res = MID_SEG_MAX_RATE;

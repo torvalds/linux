@@ -1,5 +1,5 @@
-#ifndef _MACH_BIOS_EBDA_H
-#define _MACH_BIOS_EBDA_H
+#ifndef ASM_X86__BIOS_EBDA_H
+#define ASM_X86__BIOS_EBDA_H
 
 #include <asm/io.h>
 
@@ -16,4 +16,21 @@ static inline unsigned int get_bios_ebda(void)
 
 void reserve_ebda_region(void);
 
-#endif /* _MACH_BIOS_EBDA_H */
+#ifdef CONFIG_X86_CHECK_BIOS_CORRUPTION
+/*
+ * This is obviously not a great place for this, but we want to be
+ * able to scatter it around anywhere in the kernel.
+ */
+void check_for_bios_corruption(void);
+void start_periodic_check_for_corruption(void);
+#else
+static inline void check_for_bios_corruption(void)
+{
+}
+
+static inline void start_periodic_check_for_corruption(void)
+{
+}
+#endif
+
+#endif /* ASM_X86__BIOS_EBDA_H */

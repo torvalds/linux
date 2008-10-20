@@ -221,6 +221,14 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_DVICO_FUSIONHDTV_7_GOLD 65
 #define CX88_BOARD_PROLINK_PV_8000GT       66
 #define CX88_BOARD_KWORLD_ATSC_120         67
+#define CX88_BOARD_HAUPPAUGE_HVR4000       68
+#define CX88_BOARD_HAUPPAUGE_HVR4000LITE   69
+#define CX88_BOARD_TEVII_S460              70
+#define CX88_BOARD_OMICOM_SS4_PCI          71
+#define CX88_BOARD_TBS_8920                72
+#define CX88_BOARD_TEVII_S420              73
+#define CX88_BOARD_PROLINK_PV_GLOBAL_XTREME 74
+#define CX88_BOARD_PROF_7300               75
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,
@@ -342,6 +350,7 @@ struct cx88_core {
 	struct mutex               lock;
 	/* various v4l controls */
 	u32                        freq;
+	atomic_t		   users;
 
 	/* cx88-video needs to access cx8802 for hybrid tuner pll access. */
 	struct cx8802_dev          *dvbdev;
@@ -601,7 +610,7 @@ extern void cx88_call_i2c_clients(struct cx88_core *core,
 /* ----------------------------------------------------------- */
 /* cx88-cards.c                                                */
 
-extern int cx88_tuner_callback(void *dev, int command, int arg);
+extern int cx88_tuner_callback(void *dev, int component, int command, int arg);
 extern int cx88_get_resources(const struct cx88_core *core,
 			      struct pci_dev *pci);
 extern struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr);

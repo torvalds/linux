@@ -6,6 +6,9 @@
 #ifndef __ASM_SPARC_FLOPPY_H
 #define __ASM_SPARC_FLOPPY_H
 
+#include <linux/of.h>
+#include <linux/of_device.h>
+
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
@@ -343,7 +346,7 @@ static int sun_floppy_init(void)
 	r.flags = fd_regs[0].which_io;
 	r.start = fd_regs[0].phys_addr;
 	sun_fdc = (struct sun_flpy_controller *)
-	    sbus_ioremap(&r, 0, fd_regs[0].reg_size, "floppy");
+	    of_ioremap(&r, 0, fd_regs[0].reg_size, "floppy");
 
 	/* Last minute sanity check... */
 	if(sun_fdc->status_82072 == 0xff) {
@@ -384,5 +387,16 @@ static int sparc_eject(void)
 #define fd_eject(drive) sparc_eject()
 
 #define EXTRA_FLOPPY_PARAMS
+
+static DEFINE_SPINLOCK(dma_spin_lock);
+
+#define claim_dma_lock() \
+({	unsigned long flags; \
+	spin_lock_irqsave(&dma_spin_lock, flags); \
+	flags; \
+})
+
+#define release_dma_lock(__flags) \
+	spin_unlock_irqrestore(&dma_spin_lock, __flags);
 
 #endif /* !(__ASM_SPARC_FLOPPY_H) */

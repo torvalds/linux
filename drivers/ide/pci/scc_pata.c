@@ -26,7 +26,6 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 
@@ -292,7 +291,7 @@ static void scc_set_dma_mode(ide_drive_t *drive, const u8 speed)
 static void scc_dma_host_set(ide_drive_t *drive, int on)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	u8 unit = (drive->select.b.unit & 0x01);
+	u8 unit = drive->dn & 1;
 	u8 dma_stat = scc_ide_inb(hwif->dma_base + 4);
 
 	if (on)
@@ -354,7 +353,6 @@ static void scc_dma_start(ide_drive_t *drive)
 
 	/* start DMA */
 	scc_ide_outb(dma_cmd | 1, hwif->dma_base);
-	hwif->dma = 1;
 	wmb();
 }
 
@@ -375,7 +373,6 @@ static int __scc_dma_end(ide_drive_t *drive)
 	/* purge DMA mappings */
 	ide_destroy_dmatable(drive);
 	/* verify good DMA status */
-	hwif->dma = 0;
 	wmb();
 	return (dma_stat & 7) != 4 ? (0x10 | dma_stat) : 0;
 }
@@ -400,7 +397,7 @@ static int scc_dma_end(ide_drive_t *drive)
 	/* errata A308 workaround: Step5 (check data loss) */
 	/* We don't check non ide_disk because it is limited to UDMA4 */
 	if (!(in_be32((void __iomem *)hwif->io_ports.ctl_addr)
-	      & ERR_STAT) &&
+	      & ATA_ERR) &&
 	    drive->media == ide_disk && drive->current_speed > XFER_UDMA_4) {
 		reg = in_be32((void __iomem *)intsts_port);
 		if (!(reg & INTSTS_ACTEINT)) {
@@ -504,7 +501,7 @@ static int scc_dma_test_irq(ide_drive_t *drive)
 
 	/* SCC errata A252,A308 workaround: Step4 */
 	if ((in_be32((void __iomem *)hwif->io_ports.ctl_addr)
-	     & ERR_STAT) &&
+	     & ATA_ERR) &&
 	    (int_stat & INTSTS_INTRQ))
 		return 1;
 
@@ -512,9 +509,6 @@ static int scc_dma_test_irq(ide_drive_t *drive)
 	if (int_stat & INTSTS_IOIRQS)
 		return 1;
 
-	if (!drive->waiting_for_dma)
-		printk(KERN_WARNING "%s: (%s) called while not waiting\n",
-			drive->name, __func__);
 	return 0;
 }
 
@@ -711,7 +705,7 @@ static void scc_tf_load(ide_drive_t *drive, ide_task_t *task)
 		scc_ide_outb(tf->lbah, io_ports->lbah_addr);
 
 	if (task->tf_flags & IDE_TFLAG_OUT_DEVICE)
-		scc_ide_outb((tf->device & HIHI) | drive->select.all,
+		scc_ide_outb((tf->device & HIHI) | drive->select,
 			     io_ports->device_addr);
 }
 
@@ -827,6 +821,12 @@ static void __devinit init_iops_scc(ide_hwif_t *hwif)
 	init_mmio_iops_scc(hwif);
 }
 
+static int __devinit scc_init_dma(ide_hwif_t *hwif,
+				  const struct ide_port_info *d)
+{
+	return ide_allocate_dma_engine(hwif);
+}
+
 static u8 scc_cable_detect(ide_hwif_t *hwif)
 {
 	return ATA_CBL_PATA80;
@@ -891,6 +891,7 @@ static const struct ide_dma_ops scc_dma_ops = {
   {							\
       .name		= name_str,			\
       .init_iops	= init_iops_scc,		\
+      .init_dma		= scc_init_dma,			\
       .init_hwif	= init_hwif_scc,		\
       .tp_ops		= &scc_tp_ops,		\
       .port_ops		= &scc_port_ops,		\
@@ -928,13 +929,6 @@ static void __devexit scc_remove(struct pci_dev *dev)
 {
 	struct scc_ports *ports = pci_get_drvdata(dev);
 	struct ide_host *host = ports->host;
-	ide_hwif_t *hwif = host->ports[0];
-
-	if (hwif->dmatable_cpu) {
-		pci_free_consistent(dev, PRD_ENTRIES * PRD_BYTES,
-				    hwif->dmatable_cpu, hwif->dmatable_dma);
-		hwif->dmatable_cpu = NULL;
-	}
 
 	ide_host_remove(host);
 
@@ -950,7 +944,7 @@ static const struct pci_device_id scc_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, scc_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver scc_pci_driver = {
 	.name = "SCC IDE",
 	.id_table = scc_pci_tbl,
 	.probe = scc_init_one,
@@ -959,14 +953,14 @@ static struct pci_driver driver = {
 
 static int scc_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&scc_pci_driver);
 }
 
 module_init(scc_ide_init);
 /* -- No exit code?
 static void scc_ide_exit(void)
 {
-	ide_pci_unregister_driver(&driver);
+	ide_pci_unregister_driver(&scc_pci_driver);
 }
 module_exit(scc_ide_exit);
  */

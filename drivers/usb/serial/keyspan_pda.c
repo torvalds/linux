@@ -172,8 +172,9 @@ static void keyspan_pda_wakeup_write(struct work_struct *work)
 	struct keyspan_pda_private *priv =
 		container_of(work, struct keyspan_pda_private, wakeup_work);
 	struct usb_serial_port *port = priv->port;
-
-	tty_wakeup(port->port.tty);
+	struct tty_struct *tty = tty_port_tty_get(&port->port);
+	tty_wakeup(tty);
+	tty_kref_put(tty);
 }
 
 static void keyspan_pda_request_unthrottle(struct work_struct *work)
@@ -205,7 +206,7 @@ static void keyspan_pda_request_unthrottle(struct work_struct *work)
 static void keyspan_pda_rx_interrupt(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
-	struct tty_struct *tty = port->port.tty;
+	struct tty_struct *tty = tty_port_tty_get(&port->port);
 	unsigned char *data = urb->transfer_buffer;
 	int retval;
 	int status = urb->status;
@@ -222,7 +223,7 @@ static void keyspan_pda_rx_interrupt(struct urb *urb)
 		/* this urb is terminated, clean up */
 		dbg("%s - urb shutting down with status: %d",
 		    __func__, status);
-		return;
+		goto out;
 	default:
 		dbg("%s - nonzero urb status received: %d",
 		    __func__, status);
@@ -261,8 +262,11 @@ static void keyspan_pda_rx_interrupt(struct urb *urb)
 exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		err("%s - usb_submit_urb failed with result %d",
-		     __func__, retval);
+		dev_err(&port->dev,
+			"%s - usb_submit_urb failed with result %d",
+			__func__, retval);
+out:
+	tty_kref_put(tty);		     
 }
 
 

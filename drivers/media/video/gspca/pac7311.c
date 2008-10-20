@@ -675,7 +675,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-static void sd_start(struct gspca_dev *gspca_dev)
+static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
@@ -724,6 +724,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x78, 0x01);
 	else
 		reg_w(gspca_dev, 0x78, 0x05);
+	return 0;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
@@ -1063,6 +1064,7 @@ static __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x093a, 0x2621), .driver_info = SENSOR_PAC7302},
 	{USB_DEVICE(0x093a, 0x2624), .driver_info = SENSOR_PAC7302},
 	{USB_DEVICE(0x093a, 0x2626), .driver_info = SENSOR_PAC7302},
+	{USB_DEVICE(0x093a, 0x262a), .driver_info = SENSOR_PAC7302},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);

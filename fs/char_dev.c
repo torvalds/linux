@@ -22,9 +22,6 @@
 #include <linux/mutex.h>
 #include <linux/backing-dev.h>
 
-#ifdef CONFIG_KMOD
-#include <linux/kmod.h>
-#endif
 #include "internal.h"
 
 /*

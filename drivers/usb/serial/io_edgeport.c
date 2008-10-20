@@ -600,6 +600,7 @@ static void edge_interrupt_callback(struct urb *urb)
 	struct edgeport_serial	*edge_serial = urb->context;
 	struct edgeport_port *edge_port;
 	struct usb_serial_port *port;
+	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	int length = urb->actual_length;
 	int bytes_avail;
@@ -675,9 +676,12 @@ static void edge_interrupt_callback(struct urb *urb)
 
 					/* tell the tty driver that something
 					   has changed */
-					if (edge_port->port->port.tty)
-						tty_wakeup(edge_port->port->port.tty);
-
+					tty = tty_port_tty_get(
+						&edge_port->port->port);
+					if (tty) {
+						tty_wakeup(tty);
+						tty_kref_put(tty);
+					}
 					/* Since we have more credit, check
 					   if more data can be sent */
 					send_more_port_data(edge_serial,
@@ -778,13 +782,14 @@ static void edge_bulk_out_data_callback(struct urb *urb)
 		    __func__, status);
 	}
 
-	tty = edge_port->port->port.tty;
+	tty = tty_port_tty_get(&edge_port->port->port);
 
 	if (tty && edge_port->open) {
 		/* let the tty driver wakeup if it has a special
 		   write_wakeup function */
 		tty_wakeup(tty);
 	}
+	tty_kref_put(tty);
 
 	/* Release the Write URB */
 	edge_port->write_in_progress = false;
@@ -826,11 +831,12 @@ static void edge_bulk_out_cmd_callback(struct urb *urb)
 	}
 
 	/* Get pointer to tty */
-	tty = edge_port->port->port.tty;
+	tty = tty_port_tty_get(&edge_port->port->port);
 
 	/* tell the tty driver that something has changed */
 	if (tty && edge_port->open)
 		tty_wakeup(tty);
+	tty_kref_put(tty);
 
 	/* we have completed the command */
 	edge_port->commandPending = false;
@@ -1932,11 +1938,13 @@ static void process_rcvd_data(struct edgeport_serial *edge_serial,
 							edge_serial->rxPort];
 				edge_port = usb_get_serial_port_data(port);
 				if (edge_port->open) {
-					tty = edge_port->port->port.tty;
+					tty = tty_port_tty_get(
+						&edge_port->port->port);
 					if (tty) {
 						dbg("%s - Sending %d bytes to TTY for port %d",
 							__func__, rxLen, edge_serial->rxPort);
 						edge_tty_recv(&edge_serial->serial->dev->dev, tty, buffer, rxLen);
+						tty_kref_put(tty);
 					}
 					edge_port->icount.rx += rxLen;
 				}
@@ -1971,6 +1979,7 @@ static void process_rcvd_status(struct edgeport_serial *edge_serial,
 {
 	struct usb_serial_port *port;
 	struct edgeport_port *edge_port;
+	struct tty_struct *tty;
 	__u8 code = edge_serial->rxStatusCode;
 
 	/* switch the port pointer to the one being currently talked about */
@@ -2020,10 +2029,12 @@ static void process_rcvd_status(struct edgeport_serial *edge_serial,
 
 		/* send the current line settings to the port so we are
 		   in sync with any further termios calls */
-		/* FIXME: locking on tty */
-		if (edge_port->port->port.tty)
-			change_port_settings(edge_port->port->port.tty,
-				edge_port, edge_port->port->port.tty->termios);
+		tty = tty_port_tty_get(&edge_port->port->port);
+		if (tty) {
+			change_port_settings(tty,
+				edge_port, tty->termios);
+			tty_kref_put(tty);
+		}
 
 		/* we have completed the open */
 		edge_port->openPending = false;
@@ -2163,10 +2174,14 @@ static void handle_new_lsr(struct edgeport_port *edge_port, __u8 lsrData,
 	}
 
 	/* Place LSR data byte into Rx buffer */
-	if (lsrData && edge_port->port->port.tty)
-		edge_tty_recv(&edge_port->port->dev,
-					edge_port->port->port.tty, &data, 1);
-
+	if (lsrData) {
+		struct tty_struct *tty =
+				tty_port_tty_get(&edge_port->port->port);
+		if (tty) {
+			edge_tty_recv(&edge_port->port->dev, tty, &data, 1);
+			tty_kref_put(tty);
+		}
+	}
 	/* update input line counters */
 	icount = &edge_port->icount;
 	if (newLsr & LSR_BREAK)

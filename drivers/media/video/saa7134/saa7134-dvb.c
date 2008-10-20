@@ -553,7 +553,6 @@ static int configure_tda827x_fe(struct saa7134_dev *dev,
 /* ------------------------------------------------------------------ */
 
 static struct tda827x_config tda827x_cfg_0 = {
-	.tuner_callback = saa7134_tuner_callback,
 	.init = philips_tda827x_tuner_init,
 	.sleep = philips_tda827x_tuner_sleep,
 	.config = 0,
@@ -561,7 +560,6 @@ static struct tda827x_config tda827x_cfg_0 = {
 };
 
 static struct tda827x_config tda827x_cfg_1 = {
-	.tuner_callback = saa7134_tuner_callback,
 	.init = philips_tda827x_tuner_init,
 	.sleep = philips_tda827x_tuner_sleep,
 	.config = 1,
@@ -569,7 +567,6 @@ static struct tda827x_config tda827x_cfg_1 = {
 };
 
 static struct tda827x_config tda827x_cfg_2 = {
-	.tuner_callback = saa7134_tuner_callback,
 	.init = philips_tda827x_tuner_init,
 	.sleep = philips_tda827x_tuner_sleep,
 	.config = 2,
@@ -577,7 +574,6 @@ static struct tda827x_config tda827x_cfg_2 = {
 };
 
 static struct tda827x_config tda827x_cfg_2_sw42 = {
-	.tuner_callback = saa7134_tuner_callback,
 	.init = philips_tda827x_tuner_init,
 	.sleep = philips_tda827x_tuner_sleep,
 	.config = 2,
@@ -799,6 +795,20 @@ static struct tda1004x_config twinhan_dtv_dvb_3056_config = {
 	.request_firmware = philips_tda1004x_request_firmware
 };
 
+static struct tda1004x_config asus_tiger_3in1_config = {
+	.demod_address = 0x0b,
+	.invert        = 1,
+	.invert_oclk   = 0,
+	.xtal_freq     = TDA10046_XTAL_16M,
+	.agc_config    = TDA10046_AGC_TDA827X,
+	.gpio_config   = TDA10046_GP11_I,
+	.if_freq       = TDA10046_FREQ_045,
+	.i2c_gate      = 0x4b,
+	.tuner_address = 0x61,
+	.antenna_switch = 1,
+	.request_firmware = philips_tda1004x_request_firmware
+};
+
 /* ------------------------------------------------------------------
  * special case: this card uses saa713x GPIO22 for the mode switch
  */
@@ -822,7 +832,6 @@ static int ads_duo_tuner_sleep(struct dvb_frontend *fe)
 }
 
 static struct tda827x_config ads_duo_cfg = {
-	.tuner_callback = saa7134_tuner_callback,
 	.init = ads_duo_tuner_init,
 	.sleep = ads_duo_tuner_sleep,
 	.config = 0
@@ -1147,6 +1156,7 @@ static int dvb_init(struct saa7134_dev *dev)
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
 				   NULL, DVB_PLL_TDHU2);
 		break;
+	case SAA7134_BOARD_ADS_INSTANT_HDTV_PCI:
 	case SAA7134_BOARD_KWORLD_ATSC110:
 		dev->dvb.frontend = dvb_attach(nxt200x_attach, &kworldatsc110,
 					       &dev->i2c_adap);
@@ -1300,6 +1310,36 @@ static int dvb_init(struct saa7134_dev *dev)
 						&dev->i2c_adap);
 		attach_xc3028 = 1;
 		break;
+	case SAA7134_BOARD_ASUSTeK_TIGER_3IN1:
+		if (!use_frontend) {     /* terrestrial */
+			if (configure_tda827x_fe(dev, &asus_tiger_3in1_config,
+							&tda827x_cfg_2) < 0)
+				goto dettach_frontend;
+		} else {  		/* satellite */
+			dev->dvb.frontend = dvb_attach(tda10086_attach,
+						&flydvbs, &dev->i2c_adap);
+			if (dev->dvb.frontend) {
+				if (dvb_attach(tda826x_attach,
+						dev->dvb.frontend, 0x60,
+						&dev->i2c_adap, 0) == NULL) {
+					wprintk("%s: Asus Tiger 3in1, no "
+						"tda826x found!\n", __func__);
+					goto dettach_frontend;
+				}
+				if (dvb_attach(lnbp21_attach, dev->dvb.frontend,
+						&dev->i2c_adap, 0, 0) == NULL) {
+					wprintk("%s: Asus Tiger 3in1, no lnbp21"
+						" found!\n", __func__);
+					goto dettach_frontend;
+				}
+			}
+		}
+		break;
+	case SAA7134_BOARD_ASUSTeK_TIGER:
+		if (configure_tda827x_fe(dev, &philips_tiger_config,
+					 &tda827x_cfg_0) < 0)
+			goto dettach_frontend;
+		break;
 	default:
 		wprintk("Huh? unknown DVB card?\n");
 		break;
@@ -1327,6 +1367,8 @@ static int dvb_init(struct saa7134_dev *dev)
 		printk(KERN_ERR "%s/dvb: frontend initialization failed\n", dev->name);
 		return -1;
 	}
+	/* define general-purpose callback pointer */
+	dev->dvb.frontend->callback = saa7134_tuner_callback;
 
 	/* register everything else */
 	ret = videobuf_dvb_register(&dev->dvb, THIS_MODULE, dev, &dev->pci->dev,

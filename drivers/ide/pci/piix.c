@@ -48,7 +48,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 
@@ -205,7 +204,7 @@ static void piix_set_dma_mode(ide_drive_t *drive, const u8 speed)
  *	out to be nice and simple.
  */
 
-static unsigned int __devinit init_chipset_ich(struct pci_dev *dev)
+static unsigned int init_chipset_ich(struct pci_dev *dev)
 {
 	u32 extra = 0;
 
@@ -216,16 +215,25 @@ static unsigned int __devinit init_chipset_ich(struct pci_dev *dev)
 }
 
 /**
- *	piix_dma_clear_irq	-	clear BMDMA status
- *	@drive: IDE drive to clear
+ *	ich_clear_irq	-	clear BMDMA status
+ *	@drive: IDE drive
  *
- *	Called from ide_intr() for PIO interrupts
- *	to clear BMDMA status as needed by ICHx
+ *	ICHx contollers set DMA INTR no matter DMA or PIO.
+ *	BMDMA status might need to be cleared even for
+ *	PIO interrupts to prevent spurious/lost IRQ.
  */
-static void piix_dma_clear_irq(ide_drive_t *drive)
+static void ich_clear_irq(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	u8 dma_stat;
+
+	/*
+	 * ide_dma_end() needs BMDMA status for error checking.
+	 * So, skip clearing BMDMA status here and leave it
+	 * to ide_dma_end() if this is DMA interrupt.
+	 */
+	if (drive->waiting_for_dma || hwif->dma_base == 0)
+		return;
 
 	/* clear the INTR & ERROR bits */
 	dma_stat = inb(hwif->dma_base + ATA_DMA_STATUS);
@@ -250,6 +258,7 @@ static const struct ich_laptop ich_laptop[] = {
 	{ 0x27DF, 0x1025, 0x0110 },	/* ICH7 on Acer 3682WLMi */
 	{ 0x27DF, 0x1043, 0x1267 },	/* ICH7 on Asus W5F */
 	{ 0x27DF, 0x103C, 0x30A1 },	/* ICH7 on HP Compaq nc2400 */
+	{ 0x27DF, 0x1071, 0xD221 },	/* ICH7 on Hercules EC-900 */
 	{ 0x24CA, 0x1025, 0x0061 },	/* ICH4 on Acer Aspire 2023WLMi */
 	{ 0x2653, 0x1043, 0x82D8 },	/* ICH6M on Asus Eee 701 */
 	/* end marker */
@@ -294,18 +303,16 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 		hwif->ultra_mask = hwif->mwdma_mask = hwif->swdma_mask = 0;
 }
 
-static void __devinit init_hwif_ich(ide_hwif_t *hwif)
-{
-	init_hwif_piix(hwif);
-
-	/* ICHx need to clear the BMDMA status for all interrupts */
-	if (hwif->dma_base)
-		hwif->ide_dma_clear_irq = &piix_dma_clear_irq;
-}
-
 static const struct ide_port_ops piix_port_ops = {
 	.set_pio_mode		= piix_set_pio_mode,
 	.set_dma_mode		= piix_set_dma_mode,
+	.cable_detect		= piix_cable_detect,
+};
+
+static const struct ide_port_ops ich_port_ops = {
+	.set_pio_mode		= piix_set_pio_mode,
+	.set_dma_mode		= piix_set_dma_mode,
+	.clear_irq		= ich_clear_irq,
 	.cable_detect		= piix_cable_detect,
 };
 
@@ -332,9 +339,9 @@ static const struct ide_port_ops piix_port_ops = {
 	{ \
 		.name		= DRV_NAME, \
 		.init_chipset	= init_chipset_ich, \
-		.init_hwif	= init_hwif_ich, \
+		.init_hwif	= init_hwif_piix, \
 		.enablebits	= {{0x41,0x80,0x80}, {0x43,0x80,0x80}}, \
-		.port_ops	= &piix_port_ops, \
+		.port_ops	= &ich_port_ops, \
 		.host_flags	= IDE_HFLAGS_PIIX, \
 		.pio_mask	= ATA_PIO4, \
 		.swdma_mask	= ATA_SWDMA2_ONLY, \
@@ -445,22 +452,24 @@ static const struct pci_device_id piix_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, piix_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver piix_pci_driver = {
 	.name		= "PIIX_IDE",
 	.id_table	= piix_pci_tbl,
 	.probe		= piix_init_one,
 	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init piix_ide_init(void)
 {
 	piix_check_450nx();
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&piix_pci_driver);
 }
 
 static void __exit piix_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&piix_pci_driver);
 }
 
 module_init(piix_ide_init);

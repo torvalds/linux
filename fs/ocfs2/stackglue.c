@@ -288,6 +288,26 @@ void ocfs2_dlm_dump_lksb(union ocfs2_dlm_lksb *lksb)
 }
 EXPORT_SYMBOL_GPL(ocfs2_dlm_dump_lksb);
 
+int ocfs2_stack_supports_plocks(void)
+{
+	return active_stack && active_stack->sp_ops->plock;
+}
+EXPORT_SYMBOL_GPL(ocfs2_stack_supports_plocks);
+
+/*
+ * ocfs2_plock() can only be safely called if
+ * ocfs2_stack_supports_plocks() returned true
+ */
+int ocfs2_plock(struct ocfs2_cluster_connection *conn, u64 ino,
+		struct file *file, int cmd, struct file_lock *fl)
+{
+	WARN_ON_ONCE(active_stack->sp_ops->plock == NULL);
+	if (active_stack->sp_ops->plock)
+		return active_stack->sp_ops->plock(conn, ino, file, cmd, fl);
+	return -EOPNOTSUPP;
+}
+EXPORT_SYMBOL_GPL(ocfs2_plock);
+
 int ocfs2_cluster_connect(const char *stack_name,
 			  const char *group,
 			  int grouplen,

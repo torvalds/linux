@@ -111,7 +111,7 @@ static int specific_debug = W9968CF_SPECIFIC_DEBUG;
 
 static unsigned int param_nv[24]; /* number of values per parameter */
 
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 module_param(ovmod_load, bool, 0644);
 #endif
 module_param(simcams, ushort, 0644);
@@ -144,7 +144,7 @@ module_param(debug, ushort, 0644);
 module_param(specific_debug, bool, 0644);
 #endif
 
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 MODULE_PARM_DESC(ovmod_load,
 		 "\n<0|1> Automatic 'ovcamchip' module loading."
 		 "\n0 disabled, 1 enabled."
@@ -911,7 +911,6 @@ static int w9968cf_start_transfer(struct w9968cf_device* cam)
 
 	for (i = 0; i < W9968CF_URBS; i++) {
 		urb = usb_alloc_urb(W9968CF_ISO_PACKETS, GFP_KERNEL);
-		cam->urb[i] = urb;
 		if (!urb) {
 			for (j = 0; j < i; j++)
 				usb_free_urb(cam->urb[j]);
@@ -919,6 +918,7 @@ static int w9968cf_start_transfer(struct w9968cf_device* cam)
 			return -ENOMEM;
 		}
 
+		cam->urb[i] = urb;
 		urb->dev = udev;
 		urb->context = (void*)cam;
 		urb->pipe = usb_rcvisocpipe(udev, 1);

@@ -1,10 +1,8 @@
-#ifndef _ASM_BOOT_H
-#define _ASM_BOOT_H
+#ifndef ASM_X86__BOOT_H
+#define ASM_X86__BOOT_H
 
 /* Don't touch these, unless you really know what you're doing. */
-#define DEF_INITSEG	0x9000
 #define DEF_SYSSEG	0x1000
-#define DEF_SETUPSEG	0x9020
 #define DEF_SYSSIZE	0x7F00
 
 /* Internal svga startup constants */
@@ -25,4 +23,4 @@
 #define BOOT_STACK_SIZE	0x1000
 #endif
 
-#endif /* _ASM_BOOT_H */
+#endif /* ASM_X86__BOOT_H */

@@ -32,7 +32,6 @@
 #include <pcmcia/ss.h>
 
 #include "cs_internal.h"
-#include "ds_internal.h"
 
 /*====================================================================*/
 
@@ -42,17 +41,22 @@ MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
 MODULE_DESCRIPTION("PCMCIA Driver Services");
 MODULE_LICENSE("GPL");
 
-#ifdef DEBUG
+#ifdef CONFIG_PCMCIA_DEBUG
 int ds_pc_debug;
 
 module_param_named(pc_debug, ds_pc_debug, int, 0644);
 
 #define ds_dbg(lvl, fmt, arg...) do {				\
-	if (ds_pc_debug > (lvl))					\
+	if (ds_pc_debug > (lvl))				\
 		printk(KERN_DEBUG "ds: " fmt , ## arg);		\
+} while (0)
+#define ds_dev_dbg(lvl, dev, fmt, arg...) do {				\
+	if (ds_pc_debug > (lvl))					\
+		dev_printk(KERN_DEBUG, dev, "ds: " fmt , ## arg);	\
 } while (0)
 #else
 #define ds_dbg(lvl, fmt, arg...) do { } while (0)
+#define ds_dev_dbg(lvl, dev, fmt, arg...) do { } while (0)
 #endif
 
 spinlock_t pcmcia_dev_list_lock;
@@ -64,42 +68,19 @@ spinlock_t pcmcia_dev_list_lock;
 /* String tables for error messages */
 
 typedef struct lookup_t {
-    int key;
-    char *msg;
+    const int key;
+    const char *msg;
 } lookup_t;
 
 static const lookup_t error_table[] = {
-    { CS_SUCCESS,		"Operation succeeded" },
-    { CS_BAD_ADAPTER,		"Bad adapter" },
-    { CS_BAD_ATTRIBUTE, 	"Bad attribute", },
-    { CS_BAD_BASE,		"Bad base address" },
-    { CS_BAD_EDC,		"Bad EDC" },
-    { CS_BAD_IRQ,		"Bad IRQ" },
-    { CS_BAD_OFFSET,		"Bad offset" },
-    { CS_BAD_PAGE,		"Bad page number" },
-    { CS_READ_FAILURE,		"Read failure" },
-    { CS_BAD_SIZE,		"Bad size" },
-    { CS_BAD_SOCKET,		"Bad socket" },
-    { CS_BAD_TYPE,		"Bad type" },
-    { CS_BAD_VCC,		"Bad Vcc" },
-    { CS_BAD_VPP,		"Bad Vpp" },
-    { CS_BAD_WINDOW,		"Bad window" },
-    { CS_WRITE_FAILURE,		"Write failure" },
-    { CS_NO_CARD,		"No card present" },
-    { CS_UNSUPPORTED_FUNCTION,	"Usupported function" },
-    { CS_UNSUPPORTED_MODE,	"Unsupported mode" },
-    { CS_BAD_SPEED,		"Bad speed" },
-    { CS_BUSY,			"Resource busy" },
-    { CS_GENERAL_FAILURE,	"General failure" },
-    { CS_WRITE_PROTECTED,	"Write protected" },
-    { CS_BAD_ARG_LENGTH,	"Bad argument length" },
-    { CS_BAD_ARGS,		"Bad arguments" },
-    { CS_CONFIGURATION_LOCKED,	"Configuration locked" },
-    { CS_IN_USE,		"Resource in use" },
-    { CS_NO_MORE_ITEMS,		"No more items" },
-    { CS_OUT_OF_RESOURCE,	"Out of resource" },
-    { CS_BAD_HANDLE,		"Bad handle" },
-    { CS_BAD_TUPLE,		"Bad CIS tuple" }
+    { 0,			"Operation succeeded" },
+    { -EIO,			"Input/Output error" },
+    { -ENODEV,			"No card present" },
+    { -EINVAL,			"Bad parameter" },
+    { -EACCES,			"Configuration locked" },
+    { -EBUSY,			"Resource in use" },
+    { -ENOSPC,			"No more items" },
+    { -ENOMEM,			"Out of resource" },
 };
 
 
@@ -155,46 +136,32 @@ static const lookup_t service_table[] = {
     { ReplaceCIS,			"ReplaceCIS" }
 };
 
-
-static int pcmcia_report_error(struct pcmcia_device *p_dev, error_info_t *err)
+const char *pcmcia_error_func(int func)
 {
 	int i;
-	char *serv;
-
-	if (!p_dev)
-		printk(KERN_NOTICE);
-	else
-		printk(KERN_NOTICE "%s: ", p_dev->dev.bus_id);
 
 	for (i = 0; i < ARRAY_SIZE(service_table); i++)
-		if (service_table[i].key == err->func)
-			break;
-	if (i < ARRAY_SIZE(service_table))
-		serv = service_table[i].msg;
-	else
-		serv = "Unknown service number";
+		if (service_table[i].key == func)
+			return service_table[i].msg;
+
+	return "Unknown service number";
+}
+EXPORT_SYMBOL(pcmcia_error_func);
+
+const char *pcmcia_error_ret(int ret)
+{
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(error_table); i++)
-		if (error_table[i].key == err->retcode)
-			break;
-	if (i < ARRAY_SIZE(error_table))
-		printk("%s: %s\n", serv, error_table[i].msg);
-	else
-		printk("%s: Unknown error code %#x\n", serv, err->retcode);
+		if (error_table[i].key == ret)
+			return error_table[i].msg;
 
-	return CS_SUCCESS;
-} /* report_error */
-
-/* end of code which was in cs.c before */
+	return "unknown";
+}
+EXPORT_SYMBOL(pcmcia_error_ret);
 
 /*======================================================================*/
 
-void cs_error(struct pcmcia_device *p_dev, int func, int ret)
-{
-	error_info_t err = { func, ret };
-	pcmcia_report_error(p_dev, &err);
-}
-EXPORT_SYMBOL(cs_error);
 
 
 static void pcmcia_check_driver(struct pcmcia_driver *p_drv)
@@ -391,7 +358,7 @@ static void pcmcia_release_function(struct kref *ref)
 static void pcmcia_release_dev(struct device *dev)
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
-	ds_dbg(1, "releasing device %s\n", p_dev->dev.bus_id);
+	ds_dev_dbg(1, dev, "releasing device\n");
 	pcmcia_put_socket(p_dev->socket);
 	kfree(p_dev->devname);
 	kref_put(&p_dev->function_config->ref, pcmcia_release_function);
@@ -401,7 +368,7 @@ static void pcmcia_release_dev(struct device *dev)
 static void pcmcia_add_device_later(struct pcmcia_socket *s, int mfc)
 {
 	if (!s->pcmcia_state.device_add_pending) {
-		ds_dbg(1, "scheduling to add %s secondary"
+		ds_dev_dbg(1, &s->dev, "scheduling to add %s secondary"
 		       " device to %d\n", mfc ? "mfc" : "pfc", s->sock);
 		s->pcmcia_state.device_add_pending = 1;
 		s->pcmcia_state.mfc_pfc = mfc;
@@ -427,8 +394,19 @@ static int pcmcia_device_probe(struct device * dev)
 	p_drv = to_pcmcia_drv(dev->driver);
 	s = p_dev->socket;
 
-	ds_dbg(1, "trying to bind %s to %s\n", p_dev->dev.bus_id,
-	       p_drv->drv.name);
+	/* The PCMCIA code passes the match data in via dev->driver_data
+	 * which is an ugly hack. Once the driver probe is called it may
+	 * and often will overwrite the match data so we must save it first
+	 *
+	 * handle pseudo multifunction devices:
+	 * there are at most two pseudo multifunction devices.
+	 * if we're matching against the first, schedule a
+	 * call which will then check whether there are two
+	 * pseudo devices, and if not, add the second one.
+	 */
+	did = p_dev->dev.driver_data;
+
+	ds_dev_dbg(1, dev, "trying to bind to %s\n", p_drv->drv.name);
 
 	if ((!p_drv->probe) || (!p_dev->function_config) ||
 	    (!try_module_get(p_drv->owner))) {
@@ -443,33 +421,27 @@ static int pcmcia_device_probe(struct device * dev)
 		p_dev->conf.ConfigBase = cis_config.base;
 		p_dev->conf.Present = cis_config.rmask[0];
 	} else {
-		printk(KERN_INFO "pcmcia: could not parse base and rmask0 of CIS\n");
+		dev_printk(KERN_INFO, dev,
+			   "pcmcia: could not parse base and rmask0 of CIS\n");
 		p_dev->conf.ConfigBase = 0;
 		p_dev->conf.Present = 0;
 	}
 
 	ret = p_drv->probe(p_dev);
 	if (ret) {
-		ds_dbg(1, "binding %s to %s failed with %d\n",
-		       p_dev->dev.bus_id, p_drv->drv.name, ret);
+		ds_dev_dbg(1, dev, "binding to %s failed with %d\n",
+			   p_drv->drv.name, ret);
 		goto put_module;
 	}
 
-	/* handle pseudo multifunction devices:
-	 * there are at most two pseudo multifunction devices.
-	 * if we're matching against the first, schedule a
-	 * call which will then check whether there are two
-	 * pseudo devices, and if not, add the second one.
-	 */
-	did = p_dev->dev.driver_data;
 	if (did && (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) &&
 	    (p_dev->socket->device_count == 1) && (p_dev->device_no == 0))
 		pcmcia_add_device_later(p_dev->socket, 0);
 
- put_module:
+put_module:
 	if (ret)
 		module_put(p_drv->owner);
- put_dev:
+put_dev:
 	if (ret)
 		put_device(dev);
 	return (ret);
@@ -485,8 +457,9 @@ static void pcmcia_card_remove(struct pcmcia_socket *s, struct pcmcia_device *le
 	struct pcmcia_device	*tmp;
 	unsigned long		flags;
 
-	ds_dbg(2, "pcmcia_card_remove(%d) %s\n", s->sock,
-	       leftover ? leftover->devname : "");
+	ds_dev_dbg(2, leftover ? &leftover->dev : &s->dev,
+		   "pcmcia_card_remove(%d) %s\n", s->sock,
+		   leftover ? leftover->devname : "");
 
 	if (!leftover)
 		s->device_count = 0;
@@ -503,7 +476,7 @@ static void pcmcia_card_remove(struct pcmcia_socket *s, struct pcmcia_device *le
 		p_dev->_removed=1;
 		spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 
-		ds_dbg(2, "unregistering device %s\n", p_dev->dev.bus_id);
+		ds_dev_dbg(2, &p_dev->dev, "unregistering device\n");
 		device_unregister(&p_dev->dev);
 	}
 
@@ -520,7 +493,7 @@ static int pcmcia_device_remove(struct device * dev)
 	p_dev = to_pcmcia_dev(dev);
 	p_drv = to_pcmcia_drv(dev->driver);
 
-	ds_dbg(1, "removing device %s\n", p_dev->dev.bus_id);
+	ds_dev_dbg(1, dev, "removing device\n");
 
 	/* If we're removing the primary module driving a
 	 * pseudo multi-function card, we need to unbind
@@ -543,13 +516,15 @@ static int pcmcia_device_remove(struct device * dev)
 
 	/* check for proper unloading */
 	if (p_dev->_irq || p_dev->_io || p_dev->_locked)
-		printk(KERN_INFO "pcmcia: driver %s did not release config properly\n",
-		       p_drv->drv.name);
+		dev_printk(KERN_INFO, dev,
+			"pcmcia: driver %s did not release config properly\n",
+			p_drv->drv.name);
 
 	for (i = 0; i < MAX_WIN; i++)
 		if (p_dev->_win & CLIENT_WIN_REQ(i))
-			printk(KERN_INFO "pcmcia: driver %s did not release windows properly\n",
-			       p_drv->drv.name);
+			dev_printk(KERN_INFO, dev,
+			  "pcmcia: driver %s did not release window properly\n",
+			   p_drv->drv.name);
 
 	/* references from pcmcia_probe_device */
 	pcmcia_put_dev(p_dev);
@@ -598,8 +573,9 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 		}
 		if (!pccard_read_tuple(p_dev->socket, p_dev->func,
 				      CISTPL_DEVICE_GEO, devgeo)) {
-			ds_dbg(0, "mem device geometry probably means "
-			       "FUNCID_MEMORY\n");
+			ds_dev_dbg(0, &p_dev->dev,
+				   "mem device geometry probably means "
+				   "FUNCID_MEMORY\n");
 			p_dev->func_id = CISTPL_FUNCID_MEMORY;
 			p_dev->has_func_id = 1;
 		}
@@ -680,7 +656,7 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 	if (!p_dev->devname)
 		goto err_free;
 	sprintf (p_dev->devname, "pcmcia%s", p_dev->dev.bus_id);
-	ds_dbg(3, "devname is %s\n", p_dev->devname);
+	ds_dev_dbg(3, &p_dev->dev, "devname is %s\n", p_dev->devname);
 
 	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
 
@@ -701,7 +677,7 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 
 	if (!p_dev->function_config) {
-		ds_dbg(3, "creating config_t for %s\n", p_dev->dev.bus_id);
+		ds_dev_dbg(3, &p_dev->dev, "creating config_t\n");
 		p_dev->function_config = kzalloc(sizeof(struct config_t),
 						 GFP_KERNEL);
 		if (!p_dev->function_config)
@@ -709,8 +685,9 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 		kref_init(&p_dev->function_config->ref);
 	}
 
-	printk(KERN_NOTICE "pcmcia: registering new device %s\n",
-	       p_dev->devname);
+	dev_printk(KERN_NOTICE, &p_dev->dev,
+		   "pcmcia: registering new device %s\n",
+		   p_dev->devname);
 
 	pcmcia_device_query(p_dev);
 
@@ -745,19 +722,20 @@ static int pcmcia_card_add(struct pcmcia_socket *s)
 	int ret = 0;
 
 	if (!(s->resource_setup_done)) {
-		ds_dbg(3, "no resources available, delaying card_add\n");
+		ds_dev_dbg(3, &s->dev,
+			   "no resources available, delaying card_add\n");
 		return -EAGAIN; /* try again, but later... */
 	}
 
 	if (pcmcia_validate_mem(s)) {
-		ds_dbg(3, "validating mem resources failed, "
+		ds_dev_dbg(3, &s->dev, "validating mem resources failed, "
 		       "delaying card_add\n");
 		return -EAGAIN; /* try again, but later... */
 	}
 
 	ret = pccard_validate_cis(s, BIND_FN_ALL, &no_chains);
 	if (ret || !no_chains) {
-		ds_dbg(0, "invalid CIS or invalid resources\n");
+		ds_dev_dbg(0, &s->dev, "invalid CIS or invalid resources\n");
 		return -ENODEV;
 	}
 
@@ -778,7 +756,7 @@ static void pcmcia_delayed_add_device(struct work_struct *work)
 {
 	struct pcmcia_socket *s =
 		container_of(work, struct pcmcia_socket, device_add);
-	ds_dbg(1, "adding additional device to %d\n", s->sock);
+	ds_dev_dbg(1, &s->dev, "adding additional device to %d\n", s->sock);
 	pcmcia_device_add(s, s->pcmcia_state.mfc_pfc);
 	s->pcmcia_state.device_add_pending = 0;
 	s->pcmcia_state.mfc_pfc = 0;
@@ -788,8 +766,7 @@ static int pcmcia_requery(struct device *dev, void * _data)
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
 	if (!p_dev->dev.driver) {
-		ds_dbg(1, "update device information for %s\n",
-		       p_dev->dev.bus_id);
+		ds_dev_dbg(1, dev, "update device information\n");
 		pcmcia_device_query(p_dev);
 	}
 
@@ -803,7 +780,7 @@ static void pcmcia_bus_rescan(struct pcmcia_socket *skt, int new_cis)
 	unsigned long flags;
 
 	/* must be called with skt_mutex held */
-	ds_dbg(0, "re-scanning socket %d\n", skt->sock);
+	ds_dev_dbg(0, &skt->dev, "re-scanning socket %d\n", skt->sock);
 
 	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
 	if (list_empty(&skt->devices_list))
@@ -854,17 +831,17 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 	int ret = -ENOMEM;
 	int no_funcs;
 	int old_funcs;
-	cisdump_t *cis;
 	cistpl_longlink_mfc_t mfc;
 
 	if (!filename)
 		return -EINVAL;
 
-	ds_dbg(1, "trying to load CIS file %s\n", filename);
+	ds_dev_dbg(1, &dev->dev, "trying to load CIS file %s\n", filename);
 
 	if (strlen(filename) > (FIRMWARE_NAME_MAX - 1)) {
-		printk(KERN_WARNING "pcmcia: CIS filename is too long [%s]\n",
-			filename);
+		dev_printk(KERN_WARNING, &dev->dev,
+			   "pcmcia: CIS filename is too long [%s]\n",
+			   filename);
 		return -EINVAL;
 	}
 
@@ -873,23 +850,16 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 	if (request_firmware(&fw, path, &dev->dev) == 0) {
 		if (fw->size >= CISTPL_MAX_CIS_SIZE) {
 			ret = -EINVAL;
-			printk(KERN_ERR "pcmcia: CIS override is too big\n");
+			dev_printk(KERN_ERR, &dev->dev,
+				   "pcmcia: CIS override is too big\n");
 			goto release;
 		}
 
-		cis = kzalloc(sizeof(cisdump_t), GFP_KERNEL);
-		if (!cis) {
-			ret = -ENOMEM;
-			goto release;
-		}
-
-		cis->Length = fw->size + 1;
-		memcpy(cis->Data, fw->data, fw->size);
-
-		if (!pcmcia_replace_cis(s, cis))
+		if (!pcmcia_replace_cis(s, fw->data, fw->size))
 			ret = 0;
 		else {
-			printk(KERN_ERR "pcmcia: CIS override failed\n");
+			dev_printk(KERN_ERR, &dev->dev,
+				   "pcmcia: CIS override failed\n");
 			goto release;
 		}
 
@@ -993,14 +963,14 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 		 * after it has re-checked that there is no possible module
 		 * with a prod_id/manf_id/card_id match.
 		 */
-		ds_dbg(0, "skipping FUNC_ID match for %s until userspace "
-		       "interaction\n", dev->dev.bus_id);
+		ds_dev_dbg(0, &dev->dev,
+			"skipping FUNC_ID match until userspace interaction\n");
 		if (!dev->allow_func_id_match)
 			return 0;
 	}
 
 	if (did->match_flags & PCMCIA_DEV_ID_MATCH_FAKE_CIS) {
-		ds_dbg(0, "device %s needs a fake CIS\n", dev->dev.bus_id);
+		ds_dev_dbg(0, &dev->dev, "device needs a fake CIS\n");
 		if (!dev->socket->fake_cis)
 			pcmcia_load_firmware(dev, did->cisfile);
 
@@ -1032,11 +1002,9 @@ static int pcmcia_bus_match(struct device * dev, struct device_driver * drv) {
 	/* match dynamic devices first */
 	spin_lock(&p_drv->dynids.lock);
 	list_for_each_entry(dynid, &p_drv->dynids.list, node) {
-		ds_dbg(3, "trying to match %s to %s\n", dev->bus_id,
-		       drv->name);
+		ds_dev_dbg(3, dev, "trying to match to %s\n", drv->name);
 		if (pcmcia_devmatch(p_dev, &dynid->id)) {
-			ds_dbg(0, "matched %s to %s\n", dev->bus_id,
-			       drv->name);
+			ds_dev_dbg(0, dev, "matched to %s\n", drv->name);
 			spin_unlock(&p_drv->dynids.lock);
 			return 1;
 		}
@@ -1046,18 +1014,15 @@ static int pcmcia_bus_match(struct device * dev, struct device_driver * drv) {
 #ifdef CONFIG_PCMCIA_IOCTL
 	/* matching by cardmgr */
 	if (p_dev->cardmgr == p_drv) {
-		ds_dbg(0, "cardmgr matched %s to %s\n", dev->bus_id,
-		       drv->name);
+		ds_dev_dbg(0, dev, "cardmgr matched to %s\n", drv->name);
 		return 1;
 	}
 #endif
 
 	while (did && did->match_flags) {
-		ds_dbg(3, "trying to match %s to %s\n", dev->bus_id,
-		       drv->name);
+		ds_dev_dbg(3, dev, "trying to match to %s\n", drv->name);
 		if (pcmcia_devmatch(p_dev, did)) {
-			ds_dbg(0, "matched %s to %s\n", dev->bus_id,
-			       drv->name);
+			ds_dev_dbg(0, dev, "matched to %s\n", drv->name);
 			return 1;
 		}
 		did++;
@@ -1263,7 +1228,7 @@ static int pcmcia_dev_suspend(struct device * dev, pm_message_t state)
 	if (p_dev->suspended)
 		return 0;
 
-	ds_dbg(2, "suspending %s\n", dev->bus_id);
+	ds_dev_dbg(2, dev, "suspending\n");
 
 	if (dev->driver)
 		p_drv = to_pcmcia_drv(dev->driver);
@@ -1274,15 +1239,16 @@ static int pcmcia_dev_suspend(struct device * dev, pm_message_t state)
 	if (p_drv->suspend) {
 		ret = p_drv->suspend(p_dev);
 		if (ret) {
-			printk(KERN_ERR "pcmcia: device %s (driver %s) did "
-			       "not want to go to sleep (%d)\n",
-			       p_dev->devname, p_drv->drv.name, ret);
+			dev_printk(KERN_ERR, dev,
+				   "pcmcia: device %s (driver %s) did "
+				   "not want to go to sleep (%d)\n",
+				   p_dev->devname, p_drv->drv.name, ret);
 			goto out;
 		}
 	}
 
 	if (p_dev->device_no == p_dev->func) {
-		ds_dbg(2, "releasing configuration for %s\n", dev->bus_id);
+		ds_dev_dbg(2, dev, "releasing configuration\n");
 		pcmcia_release_configuration(p_dev);
 	}
 
@@ -1302,7 +1268,7 @@ static int pcmcia_dev_resume(struct device * dev)
 	if (!p_dev->suspended)
 		return 0;
 
-	ds_dbg(2, "resuming %s\n", dev->bus_id);
+	ds_dev_dbg(2, dev, "resuming\n");
 
 	if (dev->driver)
 		p_drv = to_pcmcia_drv(dev->driver);
@@ -1311,7 +1277,7 @@ static int pcmcia_dev_resume(struct device * dev)
 		goto out;
 
 	if (p_dev->device_no == p_dev->func) {
-		ds_dbg(2, "requesting configuration for %s\n", dev->bus_id);
+		ds_dev_dbg(2, dev, "requesting configuration\n");
 		ret = pcmcia_request_configuration(p_dev, &p_dev->conf);
 		if (ret)
 			goto out;
@@ -1353,14 +1319,14 @@ static int pcmcia_bus_resume_callback(struct device *dev, void * _data)
 
 static int pcmcia_bus_resume(struct pcmcia_socket *skt)
 {
-	ds_dbg(2, "resuming socket %d\n", skt->sock);
+	ds_dev_dbg(2, &skt->dev, "resuming socket %d\n", skt->sock);
 	bus_for_each_dev(&pcmcia_bus_type, NULL, skt, pcmcia_bus_resume_callback);
 	return 0;
 }
 
 static int pcmcia_bus_suspend(struct pcmcia_socket *skt)
 {
-	ds_dbg(2, "suspending socket %d\n", skt->sock);
+	ds_dev_dbg(2, &skt->dev, "suspending socket %d\n", skt->sock);
 	if (bus_for_each_dev(&pcmcia_bus_type, NULL, skt,
 			     pcmcia_bus_suspend_callback)) {
 		pcmcia_bus_resume(skt);
@@ -1386,13 +1352,14 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 	struct pcmcia_socket *s = pcmcia_get_socket(skt);
 
 	if (!s) {
-		printk(KERN_ERR "PCMCIA obtaining reference to socket %p " \
-			"failed, event 0x%x lost!\n", skt, event);
+		dev_printk(KERN_ERR, &skt->dev,
+			   "PCMCIA obtaining reference to socket "	\
+			   "failed, event 0x%x lost!\n", event);
 		return -ENODEV;
 	}
 
-	ds_dbg(1, "ds_event(0x%06x, %d, 0x%p)\n",
-	       event, priority, skt);
+	ds_dev_dbg(1, &skt->dev, "ds_event(0x%06x, %d, 0x%p)\n",
+		   event, priority, skt);
 
 	switch (event) {
 	case CS_EVENT_CARD_REMOVAL:
@@ -1467,7 +1434,8 @@ static int __devinit pcmcia_bus_add_socket(struct device *dev,
 
 	socket = pcmcia_get_socket(socket);
 	if (!socket) {
-		printk(KERN_ERR "PCMCIA obtaining reference to socket %p failed\n", socket);
+		dev_printk(KERN_ERR, dev,
+			   "PCMCIA obtaining reference to socket failed\n");
 		return -ENODEV;
 	}
 
@@ -1487,7 +1455,7 @@ static int __devinit pcmcia_bus_add_socket(struct device *dev,
 
 	ret = pccard_register_pcmcia(socket, &pcmcia_bus_callback);
 	if (ret) {
-		printk(KERN_ERR "PCMCIA registration PCCard core failed for socket %p\n", socket);
+		dev_printk(KERN_ERR, dev, "PCMCIA registration failed\n");
 		pcmcia_put_socket(socket);
 		return (ret);
 	}

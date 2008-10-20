@@ -172,7 +172,7 @@ static int omninet_open(struct tty_struct *tty,
 	dbg("%s - port %d", __func__, port->number);
 
 	wport = serial->port[1];
-	wport->port.tty = tty;		/* FIXME */
+	tty_port_tty_set(&wport->port, tty);
 
 	/* Start reading from the device */
 	usb_fill_bulk_urb(port->read_urb, serial->dev,
@@ -229,9 +229,11 @@ static void omninet_read_bulk_callback(struct urb *urb)
 	}
 
 	if (urb->actual_length && header->oh_len) {
-		tty_insert_flip_string(port->port.tty,
-			data + OMNINET_DATAOFFSET, header->oh_len);
-		tty_flip_buffer_push(port->port.tty);
+		struct tty_struct *tty = tty_port_tty_get(&port->port);
+		tty_insert_flip_string(tty, data + OMNINET_DATAOFFSET,
+							header->oh_len);
+		tty_flip_buffer_push(tty);
+		tty_kref_put(tty);
 	}
 
 	/* Continue trying to always read  */

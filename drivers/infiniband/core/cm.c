@@ -3691,9 +3691,9 @@ static void cm_add_one(struct ib_device *ib_device)
 	cm_dev->ib_device = ib_device;
 	cm_get_ack_delay(cm_dev);
 
-	cm_dev->device = device_create_drvdata(&cm_class, &ib_device->dev,
-					       MKDEV(0, 0), NULL,
-					       "%s", ib_device->name);
+	cm_dev->device = device_create(&cm_class, &ib_device->dev,
+				       MKDEV(0, 0), NULL,
+				       "%s", ib_device->name);
 	if (!cm_dev->device) {
 		kfree(cm_dev);
 		return;
@@ -3748,6 +3748,7 @@ error1:
 		cm_remove_port_fs(port);
 	}
 	device_unregister(cm_dev->device);
+	kfree(cm_dev);
 }
 
 static void cm_remove_one(struct ib_device *ib_device)
@@ -3776,6 +3777,7 @@ static void cm_remove_one(struct ib_device *ib_device)
 		cm_remove_port_fs(port);
 	}
 	device_unregister(cm_dev->device);
+	kfree(cm_dev);
 }
 
 static int __init ib_cm_init(void)

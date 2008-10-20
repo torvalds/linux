@@ -25,11 +25,11 @@ x86_bios_strerror(long status)
 {
 	const char *str;
 	switch (status) {
-	case  0: str = "Call completed without error"; break;
-	case -1: str = "Not implemented"; break;
-	case -2: str = "Invalid argument"; break;
-	case -3: str = "Call completed with error"; break;
-	default: str = "Unknown BIOS status code"; break;
+	case  0: str = "Call completed without error";	break;
+	case -1: str = "Not implemented";		break;
+	case -2: str = "Invalid argument";		break;
+	case -3: str = "Call completed with error";	break;
+	default: str = "Unknown BIOS status code";	break;
 	}
 	return str;
 }

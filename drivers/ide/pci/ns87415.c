@@ -11,7 +11,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
-#include <linux/hdreg.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/ide.h>
@@ -138,7 +137,7 @@ static void __devinit superio_init_iops(struct hwif_s *hwif)
 static unsigned int ns87415_count = 0, ns87415_control[MAX_HWIFS] = { 0 };
 
 /*
- * This routine either enables/disables (according to drive->present)
+ * This routine either enables/disables (according to IDE_DFLAG_PRESENT)
  * the IRQ associated with the port (HWIF(drive)),
  * and selects either PIO or DMA handshaking for the next I/O operation.
  */
@@ -154,11 +153,15 @@ static void ns87415_prepare_drive (ide_drive_t *drive, unsigned int use_dma)
 
 	/* Adjust IRQ enable bit */
 	bit = 1 << (8 + hwif->channel);
-	new = drive->present ? (new & ~bit) : (new | bit);
+
+	if (drive->dev_flags & IDE_DFLAG_PRESENT)
+		new &= ~bit;
+	else
+		new |= bit;
 
 	/* Select PIO or DMA, DMA may only be selected for one drive/channel. */
-	bit   = 1 << (20 + drive->select.b.unit       + (hwif->channel << 1));
-	other = 1 << (20 + (1 - drive->select.b.unit) + (hwif->channel << 1));
+	bit   = 1 << (20 + (drive->dn & 1) + (hwif->channel << 1));
+	other = 1 << (20 + (1 - (drive->dn & 1)) + (hwif->channel << 1));
 	new = use_dma ? ((new & ~other) | bit) : (new & ~bit);
 
 	if (new != *old) {
@@ -188,7 +191,8 @@ static void ns87415_prepare_drive (ide_drive_t *drive, unsigned int use_dma)
 
 static void ns87415_selectproc (ide_drive_t *drive)
 {
-	ns87415_prepare_drive (drive, drive->using_dma);
+	ns87415_prepare_drive(drive,
+			      !!(drive->dev_flags & IDE_DFLAG_USING_DMA));
 }
 
 static int ns87415_dma_end(ide_drive_t *drive)
@@ -274,9 +278,9 @@ static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 		do {
 			udelay(50);
 			stat = hwif->tp_ops->read_status(hwif);
-                	if (stat == 0xff)
-                        	break;
-        	} while ((stat & BUSY_STAT) && --timeout);
+			if (stat == 0xff)
+				break;
+		} while ((stat & ATA_BUSY) && --timeout);
 #endif
 	}
 
@@ -335,21 +339,23 @@ static const struct pci_device_id ns87415_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, ns87415_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver ns87415_pci_driver = {
 	.name		= "NS87415_IDE",
 	.id_table	= ns87415_pci_tbl,
 	.probe		= ns87415_init_one,
 	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init ns87415_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&ns87415_pci_driver);
 }
 
 static void __exit ns87415_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&ns87415_pci_driver);
 }
 
 module_init(ns87415_ide_init);

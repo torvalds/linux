@@ -21,11 +21,10 @@ usb-storage-obj-$(CONFIG_USB_STORAGE_JUMPSHOT)	+= jumpshot.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_ALAUDA)	+= alauda.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_ONETOUCH)	+= onetouch.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_KARMA)	+= karma.o
-usb-storage-obj-$(CONFIG_USB_STORAGE_SIERRA)	+= sierra_ms.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_CYPRESS_ATACB) += cypress_atacb.o
 
 usb-storage-objs :=	scsiglue.o protocol.o transport.o usb.o \
-			initializers.o $(usb-storage-obj-y)
+			initializers.o sierra_ms.o $(usb-storage-obj-y)
 
 ifneq ($(CONFIG_USB_LIBUSUAL),)
 	obj-$(CONFIG_USB)	+= libusual.o

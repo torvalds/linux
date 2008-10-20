@@ -583,8 +583,6 @@ mm_need_new_owner(struct mm_struct *mm, struct task_struct *p)
 	 * If there are other users of the mm and the owner (us) is exiting
 	 * we need to find a new owner to take on the responsibility.
 	 */
-	if (!mm)
-		return 0;
 	if (atomic_read(&mm->mm_users) <= 1)
 		return 0;
 	if (mm->owner != p)
@@ -627,29 +625,38 @@ retry:
 	} while_each_thread(g, c);
 
 	read_unlock(&tasklist_lock);
+	/*
+	 * We found no owner yet mm_users > 1: this implies that we are
+	 * most likely racing with swapoff (try_to_unuse()) or /proc or
+	 * ptrace or page migration (get_task_mm()).  Mark owner as NULL,
+	 * so that subsystems can understand the callback and take action.
+	 */
+	down_write(&mm->mmap_sem);
+	cgroup_mm_owner_callbacks(mm->owner, NULL);
+	mm->owner = NULL;
+	up_write(&mm->mmap_sem);
 	return;
 
 assign_new_owner:
 	BUG_ON(c == p);
 	get_task_struct(c);
+	read_unlock(&tasklist_lock);
+	down_write(&mm->mmap_sem);
 	/*
 	 * The task_lock protects c->mm from changing.
 	 * We always want mm->owner->mm == mm
 	 */
 	task_lock(c);
-	/*
-	 * Delay read_unlock() till we have the task_lock()
-	 * to ensure that c does not slip away underneath us
-	 */
-	read_unlock(&tasklist_lock);
 	if (c->mm != mm) {
 		task_unlock(c);
+		up_write(&mm->mmap_sem);
 		put_task_struct(c);
 		goto retry;
 	}
 	cgroup_mm_owner_callbacks(mm->owner, c);
 	mm->owner = c;
 	task_unlock(c);
+	up_write(&mm->mmap_sem);
 	put_task_struct(c);
 }
 #endif /* CONFIG_MM_OWNER */

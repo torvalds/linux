@@ -713,6 +713,14 @@ config SHMEM
 	  option replaces shmem and tmpfs with the much simpler ramfs code,
 	  which may be appropriate on small systems without swap.
 
+config AIO
+	bool "Enable AIO support" if EMBEDDED
+	default y
+	help
+	  This option enables POSIX asynchronous I/O which may by used
+          by some high performance threaded applications. Disabling
+          this option saves about 7k.
+
 config VM_EVENT_COUNTERS
 	default y
 	bool "Enable VM event counters for /proc/vmstat" if EMBEDDED
@@ -778,16 +786,6 @@ config MARKERS
 	  dynamically changed for a probe function.
 
 source "arch/Kconfig"
-
-config PROC_PAGE_MONITOR
- 	default y
-	depends on PROC_FS && MMU
-	bool "Enable /proc page monitoring" if EMBEDDED
- 	help
-	  Various /proc files exist to monitor process memory utilization:
-	  /proc/pid/smaps, /proc/pid/clear_refs, /proc/pid/pagemap,
-	  /proc/kpagecount, and /proc/kpageflags. Disabling these
-          interfaces will reduce the size of the kernel by approximately 4kb.
 
 endmenu		# General setup
 

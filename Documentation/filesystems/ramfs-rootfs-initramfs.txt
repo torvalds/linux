@@ -263,7 +263,7 @@ User Mode Linux, like so:
     sleep(999999999);
   }
   EOF
-  gcc -static hello2.c -o init
+  gcc -static hello.c -o init
   echo init | cpio -o -H newc | gzip > test.cpio.gz
   # Testing external initramfs using the initrd loading mechanism.
   qemu -kernel /boot/vmlinuz -initrd test.cpio.gz /dev/zero

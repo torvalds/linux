@@ -55,7 +55,7 @@ enum {
 	Opt_err
 };
 
-static match_table_t tokens = {
+static const match_table_t tokens = {
 	{Opt_debug, "debug=%x"},
 	{Opt_dfltuid, "dfltuid=%u"},
 	{Opt_dfltgid, "dfltgid=%u"},

@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 
 #include "core.h"
+#include <asm/dcr-regs.h>
 
 static int mal_count;
 
@@ -279,6 +280,10 @@ static irqreturn_t mal_txeob(int irq, void *dev_instance)
 	mal_schedule_poll(mal);
 	set_mal_dcrn(mal, MAL_TXEOBISR, r);
 
+	if (mal_has_feature(mal, MAL_FTR_CLEAR_ICINTSTAT))
+		mtdcri(SDR0, DCRN_SDR_ICINTSTAT,
+				(mfdcri(SDR0, DCRN_SDR_ICINTSTAT) | ICINTSTAT_ICTX));
+
 	return IRQ_HANDLED;
 }
 
@@ -292,6 +297,10 @@ static irqreturn_t mal_rxeob(int irq, void *dev_instance)
 
 	mal_schedule_poll(mal);
 	set_mal_dcrn(mal, MAL_RXEOBISR, r);
+
+	if (mal_has_feature(mal, MAL_FTR_CLEAR_ICINTSTAT))
+		mtdcri(SDR0, DCRN_SDR_ICINTSTAT,
+				(mfdcri(SDR0, DCRN_SDR_ICINTSTAT) | ICINTSTAT_ICRX));
 
 	return IRQ_HANDLED;
 }
@@ -333,6 +342,25 @@ static irqreturn_t mal_rxde(int irq, void *dev_instance)
 	mal_schedule_poll(mal);
 	set_mal_dcrn(mal, MAL_RXDEIR, deir);
 
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t mal_int(int irq, void *dev_instance)
+{
+	struct mal_instance *mal = dev_instance;
+	u32 esr = get_mal_dcrn(mal, MAL_ESR);
+
+	if (esr & MAL_ESR_EVB) {
+		/* descriptor error */
+		if (esr & MAL_ESR_DE) {
+			if (esr & MAL_ESR_CIDT)
+				return mal_rxde(irq, dev_instance);
+			else
+				return mal_txde(irq, dev_instance);
+		} else { /* SERR */
+			return mal_serr(irq, dev_instance);
+		}
+	}
 	return IRQ_HANDLED;
 }
 
@@ -493,6 +521,8 @@ static int __devinit mal_probe(struct of_device *ofdev,
 	unsigned int dcr_base;
 	const u32 *prop;
 	u32 cfg;
+	unsigned long irqflags;
+	irq_handler_t hdlr_serr, hdlr_txde, hdlr_rxde;
 
 	mal = kzalloc(sizeof(struct mal_instance), GFP_KERNEL);
 	if (!mal) {
@@ -542,11 +572,21 @@ static int __devinit mal_probe(struct of_device *ofdev,
 		goto fail;
 	}
 
+	if (of_device_is_compatible(ofdev->node, "ibm,mcmal-405ez"))
+		mal->features |= (MAL_FTR_CLEAR_ICINTSTAT |
+				MAL_FTR_COMMON_ERR_INT);
+
 	mal->txeob_irq = irq_of_parse_and_map(ofdev->node, 0);
 	mal->rxeob_irq = irq_of_parse_and_map(ofdev->node, 1);
 	mal->serr_irq = irq_of_parse_and_map(ofdev->node, 2);
-	mal->txde_irq = irq_of_parse_and_map(ofdev->node, 3);
-	mal->rxde_irq = irq_of_parse_and_map(ofdev->node, 4);
+
+	if (mal_has_feature(mal, MAL_FTR_COMMON_ERR_INT)) {
+		mal->txde_irq = mal->rxde_irq = mal->serr_irq;
+	} else {
+		mal->txde_irq = irq_of_parse_and_map(ofdev->node, 3);
+		mal->rxde_irq = irq_of_parse_and_map(ofdev->node, 4);
+	}
+
 	if (mal->txeob_irq == NO_IRQ || mal->rxeob_irq == NO_IRQ ||
 	    mal->serr_irq == NO_IRQ || mal->txde_irq == NO_IRQ ||
 	    mal->rxde_irq == NO_IRQ) {
@@ -608,16 +648,26 @@ static int __devinit mal_probe(struct of_device *ofdev,
 			     sizeof(struct mal_descriptor) *
 			     mal_rx_bd_offset(mal, i));
 
-	err = request_irq(mal->serr_irq, mal_serr, 0, "MAL SERR", mal);
+	if (mal_has_feature(mal, MAL_FTR_COMMON_ERR_INT)) {
+		irqflags = IRQF_SHARED;
+		hdlr_serr = hdlr_txde = hdlr_rxde = mal_int;
+	} else {
+		irqflags = 0;
+		hdlr_serr = mal_serr;
+		hdlr_txde = mal_txde;
+		hdlr_rxde = mal_rxde;
+	}
+
+	err = request_irq(mal->serr_irq, hdlr_serr, irqflags, "MAL SERR", mal);
 	if (err)
 		goto fail2;
-	err = request_irq(mal->txde_irq, mal_txde, 0, "MAL TX DE", mal);
+	err = request_irq(mal->txde_irq, hdlr_txde, irqflags, "MAL TX DE", mal);
 	if (err)
 		goto fail3;
 	err = request_irq(mal->txeob_irq, mal_txeob, 0, "MAL TX EOB", mal);
 	if (err)
 		goto fail4;
-	err = request_irq(mal->rxde_irq, mal_rxde, 0, "MAL RX DE", mal);
+	err = request_irq(mal->rxde_irq, hdlr_rxde, irqflags, "MAL RX DE", mal);
 	if (err)
 		goto fail5;
 	err = request_irq(mal->rxeob_irq, mal_rxeob, 0, "MAL RX EOB", mal);

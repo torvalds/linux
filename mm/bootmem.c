@@ -48,7 +48,7 @@ early_param("bootmem_debug", bootmem_debug_setup);
 	if (unlikely(bootmem_debug))			\
 		printk(KERN_INFO			\
 			"bootmem::%s " fmt,		\
-			__FUNCTION__, ## args);		\
+			__func__, ## args);		\
 })
 
 static unsigned long __init bootmap_bytes(unsigned long pages)

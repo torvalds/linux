@@ -419,7 +419,7 @@ extern void __suspend_report_result(const char *function, void *fn, int ret);
 
 #define suspend_report_result(fn, ret)					\
 	do {								\
-		__suspend_report_result(__FUNCTION__, fn, ret);		\
+		__suspend_report_result(__func__, fn, ret);		\
 	} while (0)
 
 #else /* !CONFIG_PM_SLEEP */

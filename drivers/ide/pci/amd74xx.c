@@ -92,7 +92,7 @@ static void amd_set_drive(ide_drive_t *drive, const u8 speed)
 
 	ide_timing_compute(drive, speed, &t, T, UT);
 
-	if (peer->present) {
+	if (peer->dev_flags & IDE_DFLAG_PRESENT) {
 		ide_timing_compute(peer, peer->current_speed, &p, T, UT);
 		ide_timing_merge(&p, &t, &t, IDE_TIMING_8BIT);
 	}
@@ -112,13 +112,13 @@ static void amd_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	amd_set_drive(drive, XFER_PIO_0 + pio);
 }
 
-static void __devinit amd7409_cable_detect(struct pci_dev *dev)
+static void amd7409_cable_detect(struct pci_dev *dev)
 {
 	/* no host side cable detection */
 	amd_80w = 0x03;
 }
 
-static void __devinit amd7411_cable_detect(struct pci_dev *dev)
+static void amd7411_cable_detect(struct pci_dev *dev)
 {
 	int i;
 	u32 u = 0;
@@ -140,7 +140,7 @@ static void __devinit amd7411_cable_detect(struct pci_dev *dev)
  * The initialization callback.  Initialize drive independent registers.
  */
 
-static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev)
+static unsigned int init_chipset_amd74xx(struct pci_dev *dev)
 {
 	u8 t = 0, offset = amd_offset(dev);
 
@@ -319,21 +319,23 @@ static const struct pci_device_id amd74xx_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, amd74xx_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver amd74xx_pci_driver = {
 	.name		= "AMD_IDE",
 	.id_table	= amd74xx_pci_tbl,
 	.probe		= amd74xx_probe,
 	.remove		= ide_pci_remove,
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init amd74xx_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&amd74xx_pci_driver);
 }
 
 static void __exit amd74xx_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&amd74xx_pci_driver);
 }
 
 module_init(amd74xx_ide_init);

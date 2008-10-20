@@ -10,7 +10,7 @@ endif
 
 # Object file lists.
 
-obj-y		:= compat.o entry-armv.o entry-common.o irq.o \
+obj-y		:= compat.o elf.o entry-armv.o entry-common.o irq.o \
 		   process.o ptrace.o setup.o signal.o \
 		   sys_arm.o stacktrace.o time.o traps.o
 

@@ -261,7 +261,9 @@ enum { SCTP_ARBITRARY_COOKIE_ECHO_LEN = 200 };
  * must be less than 65535 (2^16 - 1), or we will have overflow
  * problems creating SACK's.
  */
-#define SCTP_TSN_MAP_SIZE 2048
+#define SCTP_TSN_MAP_INITIAL BITS_PER_LONG
+#define SCTP_TSN_MAP_INCREMENT SCTP_TSN_MAP_INITIAL
+#define SCTP_TSN_MAP_SIZE 4096
 #define SCTP_TSN_MAX_GAP  65535
 
 /* We will not record more than this many duplicate TSNs between two

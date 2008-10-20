@@ -29,6 +29,7 @@
  */
 
 #include <linux/blkdev.h>
+#include <linux/bug.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
@@ -181,9 +182,15 @@ struct sbp2_target {
 #define SBP2_MAX_LOGIN_ORB_TIMEOUT	40000U	/* Timeout in ms */
 #define SBP2_ORB_TIMEOUT		2000U	/* Timeout in ms */
 #define SBP2_ORB_NULL			0x80000000
-#define SBP2_MAX_SG_ELEMENT_LENGTH	0xf000
 #define SBP2_RETRY_LIMIT		0xf		/* 15 retries */
 #define SBP2_CYCLE_LIMIT		(0xc8 << 12)	/* 200 125us cycles */
+
+/*
+ * The default maximum s/g segment size of a FireWire controller is
+ * usually 0x10000, but SBP-2 only allows 0xffff. Since buffers have to
+ * be quadlet-aligned, we set the length limit to 0xffff & ~3.
+ */
+#define SBP2_MAX_SEG_SIZE		0xfffc
 
 /* Unit directory keys */
 #define SBP2_CSR_UNIT_CHARACTERISTICS	0x3a
@@ -621,25 +628,15 @@ sbp2_send_management_orb(struct sbp2_logical_unit *lu, int node_id,
 	return retval;
 }
 
-static void
-complete_agent_reset_write(struct fw_card *card, int rcode,
-			   void *payload, size_t length, void *done)
-{
-	complete(done);
-}
-
 static void sbp2_agent_reset(struct sbp2_logical_unit *lu)
 {
 	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
-	DECLARE_COMPLETION_ONSTACK(done);
-	struct fw_transaction t;
-	static u32 z;
+	__be32 d = 0;
 
-	fw_send_request(device->card, &t, TCODE_WRITE_QUADLET_REQUEST,
-			lu->tgt->node_id, lu->generation, device->max_speed,
-			lu->command_block_agent_address + SBP2_AGENT_RESET,
-			&z, sizeof(z), complete_agent_reset_write, &done);
-	wait_for_completion(&done);
+	fw_run_transaction(device->card, TCODE_WRITE_QUADLET_REQUEST,
+			   lu->tgt->node_id, lu->generation, device->max_speed,
+			   lu->command_block_agent_address + SBP2_AGENT_RESET,
+			   &d, sizeof(d));
 }
 
 static void
@@ -653,7 +650,7 @@ static void sbp2_agent_reset_no_wait(struct sbp2_logical_unit *lu)
 {
 	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
 	struct fw_transaction *t;
-	static u32 z;
+	static __be32 d;
 
 	t = kmalloc(sizeof(*t), GFP_ATOMIC);
 	if (t == NULL)
@@ -662,7 +659,7 @@ static void sbp2_agent_reset_no_wait(struct sbp2_logical_unit *lu)
 	fw_send_request(device->card, t, TCODE_WRITE_QUADLET_REQUEST,
 			lu->tgt->node_id, lu->generation, device->max_speed,
 			lu->command_block_agent_address + SBP2_AGENT_RESET,
-			&z, sizeof(z), complete_agent_reset_write_no_wait, t);
+			&d, sizeof(d), complete_agent_reset_write_no_wait, t);
 }
 
 static void sbp2_set_generation(struct sbp2_logical_unit *lu, int generation)
@@ -823,13 +820,6 @@ static void sbp2_target_put(struct sbp2_target *tgt)
 	kref_put(&tgt->kref, sbp2_release_target);
 }
 
-static void
-complete_set_busy_timeout(struct fw_card *card, int rcode,
-			  void *payload, size_t length, void *done)
-{
-	complete(done);
-}
-
 /*
  * Write retransmit retry values into the BUSY_TIMEOUT register.
  * - The single-phase retry protocol is supported by all SBP-2 devices, but the
@@ -849,17 +839,12 @@ complete_set_busy_timeout(struct fw_card *card, int rcode,
 static void sbp2_set_busy_timeout(struct sbp2_logical_unit *lu)
 {
 	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
-	DECLARE_COMPLETION_ONSTACK(done);
-	struct fw_transaction t;
-	static __be32 busy_timeout;
+	__be32 d = cpu_to_be32(SBP2_CYCLE_LIMIT | SBP2_RETRY_LIMIT);
 
-	busy_timeout = cpu_to_be32(SBP2_CYCLE_LIMIT | SBP2_RETRY_LIMIT);
-
-	fw_send_request(device->card, &t, TCODE_WRITE_QUADLET_REQUEST,
-			lu->tgt->node_id, lu->generation, device->max_speed,
-			CSR_REGISTER_BASE + CSR_BUSY_TIMEOUT, &busy_timeout,
-			sizeof(busy_timeout), complete_set_busy_timeout, &done);
-	wait_for_completion(&done);
+	fw_run_transaction(device->card, TCODE_WRITE_QUADLET_REQUEST,
+			   lu->tgt->node_id, lu->generation, device->max_speed,
+			   CSR_REGISTER_BASE + CSR_BUSY_TIMEOUT,
+			   &d, sizeof(d));
 }
 
 static void sbp2_reconnect(struct work_struct *work);
@@ -1121,6 +1106,10 @@ static int sbp2_probe(struct device *dev)
 	struct Scsi_Host *shost;
 	u32 model, firmware_revision;
 
+	if (dma_get_max_seg_size(device->card->device) > SBP2_MAX_SEG_SIZE)
+		BUG_ON(dma_set_max_seg_size(device->card->device,
+					    SBP2_MAX_SEG_SIZE));
+
 	shost = scsi_host_alloc(&scsi_driver_template, sizeof(*tgt));
 	if (shost == NULL)
 		return -ENOMEM;
@@ -1369,14 +1358,12 @@ static int
 sbp2_map_scatterlist(struct sbp2_command_orb *orb, struct fw_device *device,
 		     struct sbp2_logical_unit *lu)
 {
-	struct scatterlist *sg;
-	int sg_len, l, i, j, count;
-	dma_addr_t sg_addr;
+	struct scatterlist *sg = scsi_sglist(orb->cmd);
+	int i, n;
 
-	sg = scsi_sglist(orb->cmd);
-	count = dma_map_sg(device->card->device, sg, scsi_sg_count(orb->cmd),
-			   orb->cmd->sc_data_direction);
-	if (count == 0)
+	n = dma_map_sg(device->card->device, sg, scsi_sg_count(orb->cmd),
+		       orb->cmd->sc_data_direction);
+	if (n == 0)
 		goto fail;
 
 	/*
@@ -1386,7 +1373,7 @@ sbp2_map_scatterlist(struct sbp2_command_orb *orb, struct fw_device *device,
 	 * as the second generation iPod which doesn't support page
 	 * tables.
 	 */
-	if (count == 1 && sg_dma_len(sg) < SBP2_MAX_SG_ELEMENT_LENGTH) {
+	if (n == 1) {
 		orb->request.data_descriptor.high =
 			cpu_to_be32(lu->tgt->address_high);
 		orb->request.data_descriptor.low  =
@@ -1396,29 +1383,9 @@ sbp2_map_scatterlist(struct sbp2_command_orb *orb, struct fw_device *device,
 		return 0;
 	}
 
-	/*
-	 * Convert the scatterlist to an sbp2 page table.  If any
-	 * scatterlist entries are too big for sbp2, we split them as we
-	 * go.  Even if we ask the block I/O layer to not give us sg
-	 * elements larger than 65535 bytes, some IOMMUs may merge sg elements
-	 * during DMA mapping, and Linux currently doesn't prevent this.
-	 */
-	for (i = 0, j = 0; i < count; i++, sg = sg_next(sg)) {
-		sg_len = sg_dma_len(sg);
-		sg_addr = sg_dma_address(sg);
-		while (sg_len) {
-			/* FIXME: This won't get us out of the pinch. */
-			if (unlikely(j >= ARRAY_SIZE(orb->page_table))) {
-				fw_error("page table overflow\n");
-				goto fail_page_table;
-			}
-			l = min(sg_len, SBP2_MAX_SG_ELEMENT_LENGTH);
-			orb->page_table[j].low = cpu_to_be32(sg_addr);
-			orb->page_table[j].high = cpu_to_be32(l << 16);
-			sg_addr += l;
-			sg_len -= l;
-			j++;
-		}
+	for_each_sg(sg, sg, n, i) {
+		orb->page_table[i].high = cpu_to_be32(sg_dma_len(sg) << 16);
+		orb->page_table[i].low = cpu_to_be32(sg_dma_address(sg));
 	}
 
 	orb->page_table_bus =
@@ -1437,13 +1404,13 @@ sbp2_map_scatterlist(struct sbp2_command_orb *orb, struct fw_device *device,
 	orb->request.data_descriptor.high = cpu_to_be32(lu->tgt->address_high);
 	orb->request.data_descriptor.low  = cpu_to_be32(orb->page_table_bus);
 	orb->request.misc |= cpu_to_be32(COMMAND_ORB_PAGE_TABLE_PRESENT |
-					 COMMAND_ORB_DATA_SIZE(j));
+					 COMMAND_ORB_DATA_SIZE(n));
 
 	return 0;
 
  fail_page_table:
-	dma_unmap_sg(device->card->device, sg, scsi_sg_count(orb->cmd),
-		     orb->cmd->sc_data_direction);
+	dma_unmap_sg(device->card->device, scsi_sglist(orb->cmd),
+		     scsi_sg_count(orb->cmd), orb->cmd->sc_data_direction);
  fail:
 	return -ENOMEM;
 }
@@ -1456,7 +1423,7 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
 	struct sbp2_command_orb *orb;
 	unsigned int max_payload;
-	int retval = SCSI_MLQUEUE_HOST_BUSY;
+	int generation, retval = SCSI_MLQUEUE_HOST_BUSY;
 
 	/*
 	 * Bidirectional commands are not yet implemented, and unknown
@@ -1500,6 +1467,9 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	if (cmd->sc_data_direction == DMA_FROM_DEVICE)
 		orb->request.misc |= cpu_to_be32(COMMAND_ORB_DIRECTION);
 
+	generation = device->generation;
+	smp_rmb();    /* sbp2_map_scatterlist looks at tgt->address_high */
+
 	if (scsi_sg_count(cmd) && sbp2_map_scatterlist(orb, device, lu) < 0)
 		goto out;
 
@@ -1512,7 +1482,7 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	if (dma_mapping_error(device->card->device, orb->base.request_bus))
 		goto out;
 
-	sbp2_send_orb(&orb->base, lu, lu->tgt->node_id, lu->generation,
+	sbp2_send_orb(&orb->base, lu, lu->tgt->node_id, generation,
 		      lu->command_block_agent_address + SBP2_ORB_POINTER);
 	retval = 0;
  out:
@@ -1563,6 +1533,8 @@ static int sbp2_scsi_slave_configure(struct scsi_device *sdev)
 
 	if (lu->tgt->workarounds & SBP2_WORKAROUND_128K_MAX_TRANS)
 		blk_queue_max_sectors(sdev->request_queue, 128 * 1024 / 512);
+
+	blk_queue_max_segment_size(sdev->request_queue, SBP2_MAX_SEG_SIZE);
 
 	return 0;
 }

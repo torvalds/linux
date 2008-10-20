@@ -17,9 +17,9 @@
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/init.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/mach-types.h>
 #include <asm/hardware/icst525.h>
 
@@ -184,7 +184,6 @@ static int integrator_cpufreq_init(struct cpufreq_policy *policy)
 {
 
 	/* set default policy and cpuinfo */
-	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	policy->cpuinfo.max_freq = 160000;
 	policy->cpuinfo.min_freq = 12000;
 	policy->cpuinfo.transition_latency = 1000000; /* 1 ms, assumed */

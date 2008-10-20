@@ -179,6 +179,8 @@ extern int CIFSSMBSetPathInfo(const int xid, struct cifsTconInfo *tcon,
 extern int CIFSSMBSetFileInfo(const int xid, struct cifsTconInfo *tcon,
 			const FILE_BASIC_INFO *data, __u16 fid,
 			__u32 pid_of_opener);
+extern int CIFSSMBSetFileDisposition(const int xid, struct cifsTconInfo *tcon,
+			bool delete_file, __u16 fid, __u32 pid_of_opener);
 #if 0
 extern int CIFSSMBSetAttrLegacy(int xid, struct cifsTconInfo *tcon,
 			char *fileName, __u16 dos_attributes,
@@ -229,7 +231,7 @@ extern int CIFSSMBRename(const int xid, struct cifsTconInfo *tcon,
 			const struct nls_table *nls_codepage,
 			int remap_special_chars);
 extern int CIFSSMBRenameOpenFile(const int xid, struct cifsTconInfo *pTcon,
-			int netfid, char *target_name,
+			int netfid, const char *target_name,
 			const struct nls_table *nls_codepage,
 			int remap_special_chars);
 extern int CIFSCreateHardLink(const int xid,

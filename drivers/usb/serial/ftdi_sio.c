@@ -654,6 +654,9 @@ static struct usb_device_id id_table_combined [] = {
 		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
 	{ USB_DEVICE(RATOC_VENDOR_ID, RATOC_PRODUCT_ID_USB60F) },
 	{ USB_DEVICE(FTDI_VID, FTDI_REU_TINY_PID) },
+	{ USB_DEVICE(PAPOUCH_VID, PAPOUCH_QUIDO4x4_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_DOMINTELL_DGQG_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_DOMINTELL_DUSB_PID) },
 	{ },					/* Optional parameter entry */
 	{ }					/* Terminating entry */
 };
@@ -857,7 +860,7 @@ static int update_mctrl(struct usb_serial_port *port, unsigned int set,
 
 	kfree(buf);
 	if (rv < 0) {
-		err("%s Error from MODEM_CTRL urb: DTR %s, RTS %s",
+		dbg("%s Error from MODEM_CTRL urb: DTR %s, RTS %s",
 				__func__,
 				(set & TIOCM_DTR) ? "HIGH" :
 				(clear & TIOCM_DTR) ? "LOW" : "unchanged",
@@ -1805,7 +1808,7 @@ static void ftdi_read_bulk_callback(struct urb *urb)
 	if (port->port.count <= 0)
 		return;
 
-	tty = port->port.tty;
+	tty = tty_port_tty_get(&port->port);
 	if (!tty) {
 		dbg("%s - bad tty pointer - exiting", __func__);
 		return;
@@ -1814,7 +1817,7 @@ static void ftdi_read_bulk_callback(struct urb *urb)
 	priv = usb_get_serial_port_data(port);
 	if (!priv) {
 		dbg("%s - bad port private data pointer - exiting", __func__);
-		return;
+		goto out;
 	}
 
 	if (urb != port->read_urb)
@@ -1824,7 +1827,7 @@ static void ftdi_read_bulk_callback(struct urb *urb)
 		/* This will happen at close every time so it is a dbg not an
 		   err */
 		dbg("(this is ok on close) nonzero read bulk status received: %d", status);
-		return;
+		goto out;
 	}
 
 	/* count data bytes, but not status bytes */
@@ -1835,7 +1838,8 @@ static void ftdi_read_bulk_callback(struct urb *urb)
 	spin_unlock_irqrestore(&priv->rx_lock, flags);
 
 	ftdi_process_read(&priv->rx_work.work);
-
+out:
+	tty_kref_put(tty);
 } /* ftdi_read_bulk_callback */
 
 
@@ -1860,7 +1864,7 @@ static void ftdi_process_read(struct work_struct *work)
 	if (port->port.count <= 0)
 		return;
 
-	tty = port->port.tty;
+	tty = tty_port_tty_get(&port->port);
 	if (!tty) {
 		dbg("%s - bad tty pointer - exiting", __func__);
 		return;
@@ -1869,13 +1873,13 @@ static void ftdi_process_read(struct work_struct *work)
 	priv = usb_get_serial_port_data(port);
 	if (!priv) {
 		dbg("%s - bad port private data pointer - exiting", __func__);
-		return;
+		goto out;
 	}
 
 	urb = port->read_urb;
 	if (!urb) {
 		dbg("%s - bad read_urb pointer - exiting", __func__);
-		return;
+		goto out;
 	}
 
 	data = urb->transfer_buffer;
@@ -2017,7 +2021,7 @@ static void ftdi_process_read(struct work_struct *work)
 			schedule_delayed_work(&priv->rx_work, 1);
 		else
 			dbg("%s - port is closed", __func__);
-		return;
+		goto out;
 	}
 
 	/* urb is completely processed */
@@ -2038,6 +2042,8 @@ static void ftdi_process_read(struct work_struct *work)
 			err("%s - failed resubmitting read urb, error %d",
 							__func__, result);
 	}
+out:
+	tty_kref_put(tty);
 } /* ftdi_process_read */
 
 
@@ -2253,7 +2259,7 @@ static int ftdi_tiocmget(struct tty_struct *tty, struct file *file)
 			   0, 0,
 			   buf, 1, WDR_TIMEOUT);
 		if (ret < 0) {
-			err("%s Could not get modem status of device - err: %d", __func__,
+			dbg("%s Could not get modem status of device - err: %d", __func__,
 			    ret);
 			return ret;
 		}
@@ -2272,7 +2278,7 @@ static int ftdi_tiocmget(struct tty_struct *tty, struct file *file)
 				   0, priv->interface,
 				   buf, 2, WDR_TIMEOUT);
 		if (ret < 0) {
-			err("%s Could not get modem status of device - err: %d", __func__,
+			dbg("%s Could not get modem status of device - err: %d", __func__,
 			    ret);
 			return ret;
 		}
