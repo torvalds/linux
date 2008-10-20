@@ -221,7 +221,7 @@ static void usbip_dump_request_type(__u8 rt)
 static void usbip_dump_usb_ctrlrequest(struct usb_ctrlrequest *cmd)
 {
 	if (!cmd) {
-		printk("      %s : null pointer\n", __FUNCTION__);
+		printk("      %s : null pointer\n", __func__);
 		return;
 	}
 
