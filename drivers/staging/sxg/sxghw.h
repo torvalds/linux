@@ -13,11 +13,11 @@
 /*******************************************************************************
  * Configuration space
  *******************************************************************************/
-//  PCI Vendor ID
-#define SXG_VENDOR_ID			0x139A	// Alacritech's Vendor ID
+/*  PCI Vendor ID */
+#define SXG_VENDOR_ID			0x139A	/* Alacritech's Vendor ID */
 
 //  PCI Device ID
-#define SXG_DEVICE_ID			0x0009	// Sahara Device ID
+#define SXG_DEVICE_ID			0x0009	/* Sahara Device ID */
 
 //
 // Subsystem IDs.
@@ -623,48 +623,48 @@ typedef struct _RCV_BUF_HDR {
  * Queue definitions
  *****************************************************************************/
 
-// Ingress (read only) queue numbers
-#define PXY_BUF_Q		0		// Proxy Buffer Queue
-#define HST_EVT_Q		1		// Host Event Queue
-#define XMT_BUF_Q		2		// Transmit Buffer Queue
-#define SKT_EVL_Q		3		// RcvSqr Socket Event Low Priority Queue
-#define RCV_EVL_Q		4		// RcvSqr Rcv Event Low Priority Queue
-#define SKT_EVH_Q		5		// RcvSqr Socket Event High Priority Queue
-#define RCV_EVH_Q		6		// RcvSqr Rcv Event High Priority Queue
-#define DMA_RSP_Q		7		// Dma Response Queue - one per CPU context
-// Local (read/write) queue numbers
-#define LOCAL_A_Q		8		// Spare local Queue
-#define LOCAL_B_Q		9		// Spare local Queue
-#define LOCAL_C_Q		10		// Spare local Queue
-#define FSM_EVT_Q		11		// Finite-State-Machine Event Queue
-#define SBF_PAL_Q		12		// System Buffer Physical Address (low) Queue
-#define SBF_PAH_Q		13		// System Buffer Physical Address (high) Queue
-#define SBF_VAL_Q		14		// System Buffer Virtual Address (low) Queue
-#define SBF_VAH_Q		15		// System Buffer Virtual Address (high) Queue
-// Egress (write only) queue numbers
-#define H2G_CMD_Q		16		// Host to GlbRam DMA Command Queue
-#define H2D_CMD_Q		17		// Host to DRAM DMA Command Queue
-#define G2H_CMD_Q		18		// GlbRam to Host DMA Command Queue
-#define G2D_CMD_Q		19		// GlbRam to DRAM DMA Command Queue
-#define D2H_CMD_Q		20		// DRAM to Host DMA Command Queue
-#define D2G_CMD_Q		21		// DRAM to GlbRam DMA Command Queue
-#define D2D_CMD_Q		22		// DRAM to DRAM DMA Command Queue
-#define PXL_CMD_Q		23		// Low Priority Proxy Command Queue
-#define PXH_CMD_Q		24		// High Priority Proxy Command Queue
-#define RSQ_CMD_Q		25		// Receive Sequencer Command Queue
-#define RCV_BUF_Q		26		// Receive Buffer Queue
+/* Ingress (read only) queue numbers */
+#define PXY_BUF_Q		0		/* Proxy Buffer Queue */
+#define HST_EVT_Q		1		/* Host Event Queue */
+#define XMT_BUF_Q		2		/* Transmit Buffer Queue */
+#define SKT_EVL_Q		3		/* RcvSqr Socket Event Low Priority Queue */
+#define RCV_EVL_Q		4		/* RcvSqr Rcv Event Low Priority Queue */
+#define SKT_EVH_Q		5		/* RcvSqr Socket Event High Priority Queue */
+#define RCV_EVH_Q		6		/* RcvSqr Rcv Event High Priority Queue */
+#define DMA_RSP_Q		7		/* Dma Response Queue - one per CPU context */
+/* Local (read/write) queue numbers */
+#define LOCAL_A_Q		8		/* Spare local Queue */
+#define LOCAL_B_Q		9		/* Spare local Queue */
+#define LOCAL_C_Q		10		/* Spare local Queue */
+#define FSM_EVT_Q		11		/* Finite-State-Machine Event Queue */
+#define SBF_PAL_Q		12		/* System Buffer Physical Address (low) Queue */
+#define SBF_PAH_Q		13		/* System Buffer Physical Address (high) Queue */
+#define SBF_VAL_Q		14		/* System Buffer Virtual Address (low) Queue */
+#define SBF_VAH_Q		15		/* System Buffer Virtual Address (high) Queue */
+/* Egress (write only) queue numbers */
+#define H2G_CMD_Q		16		/* Host to GlbRam DMA Command Queue */
+#define H2D_CMD_Q		17		/* Host to DRAM DMA Command Queue */
+#define G2H_CMD_Q		18		/* GlbRam to Host DMA Command Queue */
+#define G2D_CMD_Q		19		/* GlbRam to DRAM DMA Command Queue */
+#define D2H_CMD_Q		20		/* DRAM to Host DMA Command Queue */
+#define D2G_CMD_Q		21		/* DRAM to GlbRam DMA Command Queue */
+#define D2D_CMD_Q		22		/* DRAM to DRAM DMA Command Queue */
+#define PXL_CMD_Q		23		/* Low Priority Proxy Command Queue */
+#define PXH_CMD_Q		24		/* High Priority Proxy Command Queue */
+#define RSQ_CMD_Q		25		/* Receive Sequencer Command Queue */
+#define RCV_BUF_Q		26		/* Receive Buffer Queue */
 
-// Bit definitions for the Proxy Command queues (PXL_CMD_Q and PXH_CMD_Q)
-#define PXY_COPY_EN		0x00200000		// enable copy of xmt descriptor to xmt command queue
-#define PXY_SIZE_16		0x00000000		// copy 16 bytes
-#define PXY_SIZE_32		0x00100000		// copy 32 bytes
+/* Bit definitions for the Proxy Command queues (PXL_CMD_Q and PXH_CMD_Q) */
+#define PXY_COPY_EN		0x00200000		/* enable copy of xmt descriptor to xmt command queue */
+#define PXY_SIZE_16		0x00000000		/* copy 16 bytes */
+#define PXY_SIZE_32		0x00100000		/* copy 32 bytes */
 
 /*****************************************************************************
  * SXG EEPROM/Flash Configuration Definitions
  *****************************************************************************/
 #pragma pack(push, 1)
 
-//
+/* */
 typedef struct _HW_CFG_DATA {
 	ushort		Addr;
 	union {
@@ -673,22 +673,22 @@ typedef struct _HW_CFG_DATA {
 	};
 } HW_CFG_DATA, *PHW_CFG_DATA;
 
-//
+/* */
 #define	NUM_HW_CFG_ENTRIES	((128/sizeof(HW_CFG_DATA)) - 4)
 
-// MAC address
+/* MAC address */
 typedef struct _SXG_CONFIG_MAC {
-	unsigned char		MacAddr[6];			// MAC Address
+	unsigned char		MacAddr[6];			/* MAC Address */
 } SXG_CONFIG_MAC, *PSXG_CONFIG_MAC;
 
-//
+/* */
 typedef struct _ATK_FRU {
 	unsigned char		PartNum[6];
 	unsigned char		Revision[2];
 	unsigned char		Serial[14];
 } ATK_FRU, *PATK_FRU;
 
-// OEM FRU Format types
+/* OEM FRU Format types */
 #define	ATK_FRU_FORMAT		0x0000
 #define CPQ_FRU_FORMAT		0x0001
 #define DELL_FRU_FORMAT		0x0002
@@ -697,24 +697,24 @@ typedef struct _ATK_FRU {
 #define EMC_FRU_FORMAT		0x0005
 #define NO_FRU_FORMAT		0xFFFF
 
-// EEPROM/Flash Format
+/* EEPROM/Flash Format */
 typedef struct _SXG_CONFIG {
-	//
-	// Section 1 (128 bytes)
-	//
-	ushort			MagicWord;			// EEPROM/FLASH Magic code 'A5A5'
-	ushort			SpiClks;			// SPI bus clock dividers
+	/* */
+	/* Section 1 (128 bytes) */
+	/* */
+	ushort			MagicWord;			/* EEPROM/FLASH Magic code 'A5A5' */
+	ushort			SpiClks;			/* SPI bus clock dividers */
 	HW_CFG_DATA		HwCfg[NUM_HW_CFG_ENTRIES];
-	//
-	//
-	//
-	ushort			Version;			// EEPROM format version
-	SXG_CONFIG_MAC	MacAddr[4];			// space for 4 MAC addresses
-	ATK_FRU			AtkFru;				// FRU information
-	ushort			OemFruFormat;		// OEM FRU format type
-	unsigned char			OemFru[76];			// OEM FRU information (optional)
-	ushort			Checksum;			// Checksum of section 2
-	// CS info XXXTODO
+	/* */
+	/* */
+	/* */
+	ushort			Version;			/* EEPROM format version */
+	SXG_CONFIG_MAC	MacAddr[4];			/* space for 4 MAC addresses */
+	ATK_FRU			AtkFru;				/* FRU information */
+	ushort			OemFruFormat;		/* OEM FRU format type */
+	unsigned char			OemFru[76];			/* OEM FRU information (optional) */
+	ushort			Checksum;			/* Checksum of section 2 */
+	/* CS info XXXTODO */
 } SXG_CONFIG, *PSXG_CONFIG;
 #pragma pack(pop)
 
