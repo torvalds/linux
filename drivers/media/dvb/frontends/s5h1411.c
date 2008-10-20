@@ -38,6 +38,7 @@ struct s5h1411_state {
 	struct dvb_frontend frontend;
 
 	fe_modulation_t current_modulation;
+	unsigned int first_tune:1;
 
 	u32 current_frequency;
 	int if_freq;
@@ -489,6 +490,12 @@ static int s5h1411_enable_modulation(struct dvb_frontend *fe,
 
 	dprintk("%s(0x%08x)\n", __func__, m);
 
+	if ((state->first_tune == 0) && (m == state->current_modulation)) {
+		dprintk("%s() Already at desired modulation.  Skipping...\n",
+			__func__);
+		return 0;
+	}
+
 	switch (m) {
 	case VSB_8:
 		dprintk("%s() VSB_8\n", __func__);
@@ -513,6 +520,7 @@ static int s5h1411_enable_modulation(struct dvb_frontend *fe,
 	}
 
 	state->current_modulation = m;
+	state->first_tune = 0;
 	s5h1411_softreset(fe);
 
 	return 0;
@@ -621,6 +629,11 @@ static int s5h1411_init(struct dvb_frontend *fe)
 
 	/* The datasheet says that after initialisation, VSB is default */
 	state->current_modulation = VSB_8;
+
+	/* Although the datasheet says it's in VSB, empirical evidence
+	   shows problems getting lock on the first tuning request.  Make
+	   sure we call enable_modulation the first time around */
+	state->first_tune = 1;
 
 	if (state->config->output_mode == S5H1411_SERIAL_OUTPUT)
 		/* Serial */
