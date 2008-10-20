@@ -528,11 +528,9 @@ static unsigned long __init numa_enforce_memory_limit(unsigned long start,
 	/*
 	 * We use lmb_end_of_DRAM() in here instead of memory_limit because
 	 * we've already adjusted it for the limit and it takes care of
-	 * having memory holes below the limit.
+	 * having memory holes below the limit.  Also, in the case of
+	 * iommu_is_off, memory_limit is not set but is implicitly enforced.
 	 */
-
-	if (! memory_limit)
-		return size;
 
 	if (start + size <= lmb_end_of_DRAM())
 		return size;
