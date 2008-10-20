@@ -198,10 +198,17 @@ cmd_modversions =							\
 	fi;
 endif
 
+ifdef CONFIG_FTRACE_MCOUNT_RECORD
+cmd_record_mcount = perl $(srctree)/scripts/recordmcount.pl \
+	"$(ARCH)" "$(OBJDUMP)" "$(OBJCOPY)" "$(CC)" "$(LD)" "$(NM)" "$(RM)" \
+	"$(MV)" "$(@)";
+endif
+
 define rule_cc_o_c
 	$(call echo-cmd,checksrc) $(cmd_checksrc)			  \
 	$(call echo-cmd,cc_o_c) $(cmd_cc_o_c);				  \
 	$(cmd_modversions)						  \
+	$(cmd_record_mcount)						  \
 	scripts/basic/fixdep $(depfile) $@ '$(call make-cmd,cc_o_c)' >    \
 	                                              $(dot-target).tmp;  \
 	rm -f $(depfile);						  \
