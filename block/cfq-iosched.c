@@ -1136,12 +1136,8 @@ static int cfq_dispatch_requests(struct request_queue *q, int force)
 		if (cfq_class_idle(cfqq))
 			max_dispatch = 1;
 
-		if (cfqq->dispatched >= max_dispatch) {
-			if (cfqd->busy_queues > 1)
-				break;
-			if (cfqq->dispatched >= 4 * max_dispatch)
-				break;
-		}
+		if (cfqq->dispatched >= max_dispatch && cfqd->busy_queues > 1)
+			break;
 
 		if (cfqd->sync_flight && !cfq_cfqq_sync(cfqq))
 			break;
