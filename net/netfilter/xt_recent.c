@@ -318,15 +318,15 @@ static bool recent_mt_check(const struct xt_mtchk_param *par)
 	for (i = 0; i < ip_list_hash_size; i++)
 		INIT_LIST_HEAD(&t->iphash[i]);
 #ifdef CONFIG_PROC_FS
-	t->proc = proc_create(t->name, ip_list_perms, recent_proc_dir,
-		  &recent_mt_fops);
+	t->proc = proc_create_data(t->name, ip_list_perms, recent_proc_dir,
+		  &recent_mt_fops, t);
 	if (t->proc == NULL) {
 		kfree(t);
 		goto out;
 	}
 #ifdef CONFIG_NETFILTER_XT_MATCH_RECENT_PROC_COMPAT
-	t->proc_old = proc_create(t->name, ip_list_perms, proc_old_dir,
-		      &recent_old_fops);
+	t->proc_old = proc_create_data(t->name, ip_list_perms, proc_old_dir,
+		      &recent_old_fops, t);
 	if (t->proc_old == NULL) {
 		remove_proc_entry(t->name, proc_old_dir);
 		kfree(t);
@@ -334,11 +334,9 @@ static bool recent_mt_check(const struct xt_mtchk_param *par)
 	}
 	t->proc_old->uid   = ip_list_uid;
 	t->proc_old->gid   = ip_list_gid;
-	t->proc_old->data  = t;
 #endif
 	t->proc->uid       = ip_list_uid;
 	t->proc->gid       = ip_list_gid;
-	t->proc->data      = t;
 #endif
 	spin_lock_bh(&recent_lock);
 	list_add_tail(&t->list, &tables);
