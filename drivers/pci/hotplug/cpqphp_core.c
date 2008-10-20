@@ -436,7 +436,8 @@ static int ctrl_slot_setup(struct controller *ctrl,
 				slot_number);
 		result = pci_hp_register(hotplug_slot,
 					 ctrl->pci_dev->subordinate,
-					 slot->device);
+					 slot->device,
+					 hotplug_slot->name);
 		if (result) {
 			err("pci_hp_register failed with error %d\n", result);
 			goto error_name;

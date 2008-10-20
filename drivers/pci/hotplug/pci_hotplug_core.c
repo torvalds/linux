@@ -547,13 +547,15 @@ out:
  * @bus: bus this slot is on
  * @slot: pointer to the &struct hotplug_slot to register
  * @slot_nr: slot number
+ * @name: name registered with kobject core
  *
  * Registers a hotplug slot with the pci hotplug subsystem, which will allow
  * userspace interaction to the slot.
  *
  * Returns 0 if successful, anything else for an error.
  */
-int pci_hp_register(struct hotplug_slot *slot, struct pci_bus *bus, int slot_nr)
+int pci_hp_register(struct hotplug_slot *slot, struct pci_bus *bus, int slot_nr,
+			const char *name)
 {
 	int result;
 	struct pci_slot *pci_slot;
@@ -569,7 +571,7 @@ int pci_hp_register(struct hotplug_slot *slot, struct pci_bus *bus, int slot_nr)
 	}
 
 	/* Check if we have already registered a slot with the same name. */
-	if (get_slot_from_name(slot->name))
+	if (get_slot_from_name(name))
 		return -EEXIST;
 
 	/*
@@ -577,7 +579,7 @@ int pci_hp_register(struct hotplug_slot *slot, struct pci_bus *bus, int slot_nr)
 	 * driver and call it here again. If we've already created the
 	 * pci_slot, the interface will simply bump the refcount.
 	 */
-	pci_slot = pci_create_slot(bus, slot_nr, slot->name);
+	pci_slot = pci_create_slot(bus, slot_nr, name);
 	if (IS_ERR(pci_slot))
 		return PTR_ERR(pci_slot);
 
@@ -593,8 +595,8 @@ int pci_hp_register(struct hotplug_slot *slot, struct pci_bus *bus, int slot_nr)
 	/*
 	 * Allow pcihp drivers to override the ACPI_PCI_SLOT name.
 	 */
-	if (strcmp(kobject_name(&pci_slot->kobj), slot->name)) {
-		result = kobject_rename(&pci_slot->kobj, slot->name);
+	if (strcmp(kobject_name(&pci_slot->kobj), name)) {
+		result = kobject_rename(&pci_slot->kobj, name);
 		if (result) {
 			pci_destroy_slot(pci_slot);
 			return result;
@@ -607,8 +609,7 @@ int pci_hp_register(struct hotplug_slot *slot, struct pci_bus *bus, int slot_nr)
 
 	result = fs_add_slot(pci_slot);
 	kobject_uevent(&pci_slot->kobj, KOBJ_ADD);
-	dbg("Added slot %s to the list\n", slot->name);
-
+	dbg("Added slot %s to the list\n", name);
 
 	return result;
 }

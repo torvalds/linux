@@ -126,7 +126,8 @@ static int add_slot(struct pci_dev *dev)
 	slot->release = &dummy_release;
 	slot->private = dslot;
 
-	retval = pci_hp_register(slot, dev->bus, PCI_SLOT(dev->devfn));
+	retval = pci_hp_register(slot, dev->bus, PCI_SLOT(dev->devfn),
+				 slot->name);
 	if (retval) {
 		err("pci_hp_register failed with error %d\n", retval);
 		goto error_dslot;

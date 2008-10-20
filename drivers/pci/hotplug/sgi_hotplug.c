@@ -653,7 +653,8 @@ static int sn_hotplug_slot_register(struct pci_bus *pci_bus)
 		bss_hotplug_slot->ops = &sn_hotplug_slot_ops;
 		bss_hotplug_slot->release = &sn_release_slot;
 
-		rc = pci_hp_register(bss_hotplug_slot, pci_bus, device);
+		rc = pci_hp_register(bss_hotplug_slot, pci_bus, device,
+				     bss_hotplug_slot->name);
 		if (rc)
 			goto register_err;
 

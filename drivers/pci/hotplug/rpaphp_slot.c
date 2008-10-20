@@ -137,7 +137,7 @@ int rpaphp_register_slot(struct slot *slot)
 		slotno = PCI_SLOT(PCI_DN(slot->dn->child)->devfn);
 	else
 		slotno = -1;
-	retval = pci_hp_register(php_slot, slot->bus, slotno);
+	retval = pci_hp_register(php_slot, slot->bus, slotno, slot->name);
 	if (retval) {
 		err("pci_hp_register failed with error %d\n", retval);
 		return retval;

@@ -226,7 +226,8 @@ static int init_slots(struct controller *ctrl)
 duplicate_name:
 		retval = pci_hp_register(hotplug_slot,
 					 ctrl->pci_dev->subordinate,
-					 slot->device);
+					 slot->device,
+					 slot->name);
 		if (retval) {
 			/*
 			 * If slot N already exists, we'll try to create
