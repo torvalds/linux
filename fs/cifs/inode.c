@@ -773,16 +773,17 @@ out:
  * anything else.
  */
 static int
-cifs_rename_pending_delete(char *full_path, struct inode *inode, int xid)
+cifs_rename_pending_delete(char *full_path, struct dentry *dentry, int xid)
 {
 	int oplock = 0;
 	int rc;
 	__u16 netfid;
+	struct inode *inode = dentry->d_inode;
 	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifsTconInfo *tcon = cifs_sb->tcon;
-	__u32 dosattr;
-	FILE_BASIC_INFO *info_buf;
+	__u32 dosattr, origattr;
+	FILE_BASIC_INFO *info_buf = NULL;
 
 	rc = CIFSSMBOpen(xid, tcon, full_path, FILE_OPEN,
 			 DELETE|FILE_WRITE_ATTRIBUTES, CREATE_NOT_DIR,
@@ -791,50 +792,87 @@ cifs_rename_pending_delete(char *full_path, struct inode *inode, int xid)
 	if (rc != 0)
 		goto out;
 
-	/* set ATTR_HIDDEN and clear ATTR_READONLY */
-	cifsInode = CIFS_I(inode);
-	dosattr = cifsInode->cifsAttrs & ~ATTR_READONLY;
+	origattr = cifsInode->cifsAttrs;
+	if (origattr == 0)
+		origattr |= ATTR_NORMAL;
+
+	dosattr = origattr & ~ATTR_READONLY;
 	if (dosattr == 0)
 		dosattr |= ATTR_NORMAL;
 	dosattr |= ATTR_HIDDEN;
 
-	info_buf = kzalloc(sizeof(*info_buf), GFP_KERNEL);
-	if (info_buf == NULL) {
-		rc = -ENOMEM;
-		goto out_close;
+	/* set ATTR_HIDDEN and clear ATTR_READONLY, but only if needed */
+	if (dosattr != origattr) {
+		info_buf = kzalloc(sizeof(*info_buf), GFP_KERNEL);
+		if (info_buf == NULL) {
+			rc = -ENOMEM;
+			goto out_close;
+		}
+		info_buf->Attributes = cpu_to_le32(dosattr);
+		rc = CIFSSMBSetFileInfo(xid, tcon, info_buf, netfid,
+					current->tgid);
+		/* although we would like to mark the file hidden
+ 		   if that fails we will still try to rename it */
+		if (rc != 0) {
+			cifsInode->cifsAttrs = dosattr;
+		else
+			dosattr = origattr; /* since not able to change them */
 	}
-	info_buf->Attributes = cpu_to_le32(dosattr);
-	rc = CIFSSMBSetFileInfo(xid, tcon, info_buf, netfid, current->tgid);
-	kfree(info_buf);
-	if (rc != 0)
-		goto out_close;
-	cifsInode->cifsAttrs = dosattr;
 
 	/* rename the file */
 	rc = CIFSSMBRenameOpenFile(xid, tcon, netfid, NULL, cifs_sb->local_nls,
 				   cifs_sb->mnt_cifs_flags &
 					    CIFS_MOUNT_MAP_SPECIAL_CHR);
-	if (rc != 0)
-		goto out;
+	if (rc != 0) {
+		rc = -ETXTBSY;
+		goto undo_setattr;
+	}
 
-	/* set DELETE_ON_CLOSE */
-	rc = CIFSSMBSetFileDisposition(xid, tcon, true, netfid, current->tgid);
-
-	/*
-	 * some samba versions return -ENOENT when we try to set the file
-	 * disposition here. Likely a samba bug, but work around it for now.
-	 * This means that some cifsXXX files may hang around after they
-	 * shouldn't.
-	 *
-	 * BB: remove this once fixed samba servers are in the field
-	 */
-	if (rc == -ENOENT)
-		rc = 0;
+	/* try to set DELETE_ON_CLOSE */
+	if (!cifsInode->delete_pending) {
+		rc = CIFSSMBSetFileDisposition(xid, tcon, true, netfid,
+					       current->tgid);
+		/*
+		 * some samba versions return -ENOENT when we try to set the
+		 * file disposition here. Likely a samba bug, but work around
+		 * it for now. This means that some cifsXXX files may hang
+		 * around after they shouldn't.
+		 *
+		 * BB: remove this hack after more servers have the fix
+		 */
+		if (rc == -ENOENT)
+			rc = 0;
+		else if (rc != 0) {
+			rc = -ETXTBSY;
+			goto undo_rename;
+		}
+		cifsInode->delete_pending = true;
+	}
 
 out_close:
 	CIFSSMBClose(xid, tcon, netfid);
 out:
+	kfree(info_buf);
 	return rc;
+
+	/*
+	 * reset everything back to the original state. Don't bother
+	 * dealing with errors here since we can't do anything about
+	 * them anyway.
+	 */
+undo_rename:
+	CIFSSMBRenameOpenFile(xid, tcon, netfid, dentry->d_name.name,
+				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
+					    CIFS_MOUNT_MAP_SPECIAL_CHR);
+undo_setattr:
+	if (dosattr != origattr) {
+		info_buf->Attributes = cpu_to_le32(origattr);
+		if (!CIFSSMBSetFileInfo(xid, tcon, info_buf, netfid,
+					current->tgid))
+			cifsInode->cifsAttrs = origattr;
+	}
+
+	goto out_close;
 }
 
 int cifs_unlink(struct inode *dir, struct dentry *dentry)
@@ -884,7 +922,7 @@ psx_del_no_retry:
 	} else if (rc == -ENOENT) {
 		d_drop(dentry);
 	} else if (rc == -ETXTBSY) {
-		rc = cifs_rename_pending_delete(full_path, inode, xid);
+		rc = cifs_rename_pending_delete(full_path, dentry, xid);
 		if (rc == 0)
 			drop_nlink(inode);
 	} else if (rc == -EACCES && dosattr == 0) {
