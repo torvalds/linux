@@ -83,6 +83,7 @@ static struct kobj_type pci_slot_ktype = {
  * @parent: struct pci_bus of parent bridge
  * @slot_nr: PCI_SLOT(pci_dev->devfn) or -1 for placeholder
  * @name: user visible string presented in /sys/bus/pci/slots/<name>
+ * @hotplug: set if caller is hotplug driver, NULL otherwise
  *
  * PCI slots have first class attributes such as address, speed, width,
  * and a &struct pci_slot is used to manage them. This interface will
@@ -111,7 +112,8 @@ static struct kobj_type pci_slot_ktype = {
  */
 
 struct pci_slot *pci_create_slot(struct pci_bus *parent, int slot_nr,
-				 const char *name)
+				 const char *name,
+				 struct hotplug_slot *hotplug)
 {
 	struct pci_dev *dev;
 	struct pci_slot *slot;

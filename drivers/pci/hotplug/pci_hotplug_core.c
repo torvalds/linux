@@ -579,7 +579,7 @@ int pci_hp_register(struct hotplug_slot *slot, struct pci_bus *bus, int slot_nr,
 	 * driver and call it here again. If we've already created the
 	 * pci_slot, the interface will simply bump the refcount.
 	 */
-	pci_slot = pci_create_slot(bus, slot_nr, name);
+	pci_slot = pci_create_slot(bus, slot_nr, name, slot);
 	if (IS_ERR(pci_slot))
 		return PTR_ERR(pci_slot);
 
