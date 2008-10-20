@@ -24,7 +24,7 @@
 #include <video/sh_mobile_lcdc.h>
 #include <asm/io.h>
 #include <asm/clock.h>
-#include <asm/sh7723.h>
+#include <cpu/sh7723.h>
 
 static struct smc911x_platdata smc911x_info = {
 	.flags = SMC911X_USE_32BIT,

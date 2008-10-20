@@ -26,7 +26,7 @@
 #include <asm/io.h>
 #include <asm/sh_keysc.h>
 #include <asm/migor.h>
-#include <asm/sh7722.h>
+#include <cpu/sh7722.h>
 
 /* Address     IRQ  Size  Bus  Description
  * 0x00000000       64MB  16   NOR Flash (SP29PL256N)

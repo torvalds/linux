@@ -1,7 +1,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/gpio.h>
-#include <asm/sh7722.h>
+#include <cpu/sh7722.h>
 
 enum {
 	PINMUX_RESERVED = 0,
