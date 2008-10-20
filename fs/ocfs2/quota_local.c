@@ -368,6 +368,10 @@ static int ocfs2_local_free_info(struct super_block *sb, int type)
 	int mark_clean = 1, len;
 	int status;
 
+	/* At this point we know there are no more dquots and thus
+	 * even if there's some sync in the pdflush queue, it won't
+	 * find any dquots and return without doing anything */
+	cancel_delayed_work_sync(&oinfo->dqi_sync_work);
 	iput(oinfo->dqi_gqinode);
 	ocfs2_simple_drop_lockres(OCFS2_SB(sb), &oinfo->dqi_gqlock);
 	ocfs2_lock_res_free(&oinfo->dqi_gqlock);

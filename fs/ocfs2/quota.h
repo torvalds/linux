@@ -39,6 +39,7 @@ struct ocfs2_mem_dqinfo {
 	unsigned int dqi_chunks;	/* Number of chunks in local quota file */
 	unsigned int dqi_blocks;	/* Number of blocks allocated for local quota file */
 	unsigned int dqi_syncms;	/* How often should we sync with other nodes */
+	unsigned int dqi_syncjiff;	/* Precomputed dqi_syncms in jiffies */
 	struct list_head dqi_chunk;	/* List of chunks */
 	struct inode *dqi_gqinode;	/* Global quota file inode */
 	struct ocfs2_lock_res dqi_gqlock;	/* Lock protecting quota information structure */
@@ -47,6 +48,7 @@ struct ocfs2_mem_dqinfo {
 	struct buffer_head *dqi_lqi_bh;	/* Buffer head with local quota file inode */
 	struct buffer_head *dqi_ibh;	/* Buffer with information header */
 	struct qtree_mem_dqinfo dqi_gi;	/* Info about global file */
+	struct delayed_work dqi_sync_work;	/* Work for syncing dquots */
 };
 
 static inline struct ocfs2_dquot *OCFS2_DQUOT(struct dquot *dquot)
@@ -89,5 +91,8 @@ struct buffer_head *ocfs2_read_quota_block(struct inode *inode,
 
 extern struct dquot_operations ocfs2_quota_operations;
 extern struct quota_format_type ocfs2_quota_format;
+
+int ocfs2_quota_setup(void);
+void ocfs2_quota_shutdown(void);
 
 #endif /* _OCFS2_QUOTA_H */
