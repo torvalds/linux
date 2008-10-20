@@ -99,7 +99,7 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 	int fsidtype;
 	char *ep;
 	struct svc_expkey key;
-	struct svc_expkey *ek;
+	struct svc_expkey *ek = NULL;
 
 	if (mesg[mlen-1] != '\n')
 		return -EINVAL;
@@ -107,7 +107,8 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 
 	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	err = -ENOMEM;
-	if (!buf) goto out;
+	if (!buf)
+		goto out;
 
 	err = -EINVAL;
 	if ((len=qword_get(&mesg, buf, PAGE_SIZE)) <= 0)
@@ -151,38 +152,34 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 
 	/* now we want a pathname, or empty meaning NEGATIVE  */
 	err = -EINVAL;
-	if ((len=qword_get(&mesg, buf, PAGE_SIZE)) < 0) {
-		cache_put(&ek->h, &svc_expkey_cache);
+	len = qword_get(&mesg, buf, PAGE_SIZE);
+	if (len < 0)
 		goto out;
-	}
 	dprintk("Path seems to be <%s>\n", buf);
 	err = 0;
 	if (len == 0) {
 		set_bit(CACHE_NEGATIVE, &key.h.flags);
 		ek = svc_expkey_update(&key, ek);
-		if (ek)
-			cache_put(&ek->h, &svc_expkey_cache);
-		else err = -ENOMEM;
+		if (!ek)
+			err = -ENOMEM;
 	} else {
 		struct nameidata nd;
 		err = path_lookup(buf, 0, &nd);
-		if (err) {
-			cache_put(&ek->h, &svc_expkey_cache);
+		if (err)
 			goto out;
-		}
 
 		dprintk("Found the path %s\n", buf);
 		key.ek_path = nd.path;
 
 		ek = svc_expkey_update(&key, ek);
-		if (ek)
-			cache_put(&ek->h, &svc_expkey_cache);
-		else
+		if (!ek)
 			err = -ENOMEM;
 		path_put(&nd.path);
 	}
 	cache_flush();
  out:
+	if (ek)
+		cache_put(&ek->h, &svc_expkey_cache);
 	if (dom)
 		auth_domain_put(dom);
 	kfree(buf);
