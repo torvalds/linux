@@ -6017,14 +6017,14 @@ static int me4000_read_procmem(char *buf, char **start, off_t offset, int count,
 		    sprintf(buf + len, "PLX base register = 0x%lX\n",
 			    board_info->plx_regbase);
 		len +=
-		    sprintf(buf + len, "PLX base register size = 0x%lX\n",
-			    board_info->plx_regbase_size);
+		    sprintf(buf + len, "PLX base register size = 0x%X\n",
+			    (unsigned int)board_info->plx_regbase_size);
 		len +=
-		    sprintf(buf + len, "ME4000 base register = 0x%lX\n",
-			    board_info->me4000_regbase);
+		    sprintf(buf + len, "ME4000 base register = 0x%X\n",
+			    (unsigned int)board_info->me4000_regbase);
 		len +=
-		    sprintf(buf + len, "ME4000 base register size = 0x%lX\n",
-			    board_info->me4000_regbase_size);
+		    sprintf(buf + len, "ME4000 base register size = 0x%X\n",
+			    (unsigned int)board_info->me4000_regbase_size);
 		len +=
 		    sprintf(buf + len, "Serial number = 0x%X\n",
 			    board_info->serial_no);
