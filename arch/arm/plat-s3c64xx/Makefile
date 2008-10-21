@@ -13,3 +13,4 @@ obj-				:=
 # Core files
 
 obj-y				+= dev-uart.o
+obj-y				+= cpu.o
