@@ -11,11 +11,11 @@
  * -traditional must not be used when assembling this file.
  */
 #include <hwregs/reg_rdwr.h>
-#include <asm/arch/memmap.h>
+#include <arch/memmap.h>
 #include <hwregs/intr_vect.h>
 #include <hwregs/asm/mmu_defs_asm.h>
 #include <hwregs/asm/reg_map_asm.h>
-#include <asm/arch/mach/startup.inc>
+#include <mach/startup.inc>
 
 #define CRAMFS_MAGIC 0x28cd3d45
 #define JHEAD_MAGIC 0x1FF528A6

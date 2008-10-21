@@ -19,7 +19,7 @@
 #include <linux/delay.h>
 #include <linux/tty.h>
 #include <asm/system.h>
-#include <asm/arch/svinto.h>
+#include <arch/svinto.h>
 #include <asm/io.h>             /* Get SIMCOUT. */
 
 extern void reset_watchdog(void);
