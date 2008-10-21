@@ -81,6 +81,10 @@ int drm_rmdraw(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	spin_lock_irqsave(&dev->drw_lock, irqflags);
 
 	info = drm_get_drawable_info(dev, draw->handle);
+	if (info == NULL) {
+		spin_unlock_irqrestore(&dev->drw_lock, irqflags);
+		return -EINVAL;
+	}
 	drm_free(info->rects, info->num_rects * sizeof(struct drm_clip_rect),
 			DRM_MEM_BUFS);
 	drm_free(info, sizeof(struct drm_drawable_info), DRM_MEM_BUFS);
