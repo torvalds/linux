@@ -20,6 +20,7 @@ obj-y				+= gpiolib.o
 obj-y				+= time.o
 obj-y				+= clock.o
 obj-y				+= pwm-clock.o
+obj-$(CONFIG_S3C24XX_DCLK)	+= clock-dclk.o
 
 # Architecture dependant builds
 

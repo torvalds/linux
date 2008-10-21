@@ -23,6 +23,11 @@ config S3C2410_CLOCK
 	  Clock code for the S3C2410, and similar processors which
 	  is currently includes the S3C2410, S3C2440, S3C2442.
 
+config S3C24XX_DCLK
+	bool
+	help
+	  Clock code for supporting DCLK/CLKOUT on S3C24XX architectures
+
 config CPU_S3C244X
 	bool
 	depends on ARCH_S3C2410 && (CPU_S3C2440 || CPU_S3C2442)
