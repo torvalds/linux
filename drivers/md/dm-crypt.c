@@ -688,7 +688,6 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io,
 	BUG_ON(io->ctx.idx_out < clone->bi_vcnt);
 
 	clone->bi_sector = cc->start + io->sector;
-	io->sector += bio_sectors(clone);
 
 	if (async)
 		kcryptd_queue_io(io);
@@ -703,13 +702,14 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 	int crypt_finished;
 	unsigned out_of_pages = 0;
 	unsigned remaining = io->base_bio->bi_size;
+	sector_t sector = io->sector;
 	int r;
 
 	/*
 	 * Prevent io from disappearing until this function completes.
 	 */
 	crypt_inc_pending(io);
-	crypt_convert_init(cc, &io->ctx, NULL, io->base_bio, io->sector);
+	crypt_convert_init(cc, &io->ctx, NULL, io->base_bio, sector);
 
 	/*
 	 * The allocated buffers can be smaller than the whole bio,
@@ -726,6 +726,7 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 		io->ctx.idx_out = 0;
 
 		remaining -= clone->bi_size;
+		sector += bio_sectors(clone);
 
 		crypt_inc_pending(io);
 		r = crypt_convert(cc, &io->ctx);
@@ -741,6 +742,8 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 			 */
 			if (unlikely(r < 0))
 				break;
+
+			io->sector = sector;
 		}
 
 		/*
