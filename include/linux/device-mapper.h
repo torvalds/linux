@@ -354,6 +354,9 @@ void *dm_vcalloc(unsigned long nmemb, unsigned long elem_size);
  */
 #define dm_round_up(n, sz) (dm_div_up((n), (sz)) * (sz))
 
+#define dm_array_too_big(fixed, obj, num) \
+	((num) > (UINT_MAX - (fixed)) / (obj))
+
 static inline sector_t to_sector(unsigned long n)
 {
 	return (n >> SECTOR_SHIFT);

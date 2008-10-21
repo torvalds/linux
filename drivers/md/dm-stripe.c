@@ -60,8 +60,8 @@ static inline struct stripe_c *alloc_context(unsigned int stripes)
 {
 	size_t len;
 
-	if (array_too_big(sizeof(struct stripe_c), sizeof(struct stripe),
-			  stripes))
+	if (dm_array_too_big(sizeof(struct stripe_c), sizeof(struct stripe),
+			     stripes))
 		return NULL;
 
 	len = sizeof(struct stripe_c) + (sizeof(struct stripe) * stripes);
