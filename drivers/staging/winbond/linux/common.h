@@ -105,13 +105,6 @@ typedef struct urb * PURB;
 #define OS_MEMORY_CLEAR( _A, _S )	memset( (u8 *)_A,0,_S)
 #define OS_MEMORY_COMPARE( _A, _B, _S )	(memcmp(_A,_B,_S)? 0 : 1) // Definition is reverse with Ndis 1: the same 0: different
 
-
-#define OS_SPIN_LOCK				spinlock_t
-#define OS_SPIN_LOCK_ALLOCATE( _S )		spin_lock_init( _S );
-#define OS_SPIN_LOCK_FREE( _S )
-#define OS_SPIN_LOCK_ACQUIRED( _S )		spin_lock_irq( _S )
-#define OS_SPIN_LOCK_RELEASED( _S )		spin_unlock_irq( _S );
-
 #define OS_TIMER	struct timer_list
 #define OS_TIMER_INITIAL( _T, _F, _P )			\
 {							\

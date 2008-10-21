@@ -26,10 +26,10 @@ EncapAtomicInc(PADAPTER Adapter, void* pAtomic)
 	PWBLINUX pWbLinux = &Adapter->WbLinux;
 	u32	ltmp;
 	u32 *	pltmp = (u32 *)pAtomic;
-	OS_SPIN_LOCK_ACQUIRED( &pWbLinux->AtomicSpinLock );
+	spin_lock_irq( &pWbLinux->AtomicSpinLock );
 	(*pltmp)++;
 	ltmp = (*pltmp);
-	OS_SPIN_LOCK_RELEASED( &pWbLinux->AtomicSpinLock );
+	spin_unlock_irq( &pWbLinux->AtomicSpinLock );
 	return ltmp;
 }
 
@@ -39,10 +39,10 @@ EncapAtomicDec(PADAPTER Adapter, void* pAtomic)
 	PWBLINUX pWbLinux = &Adapter->WbLinux;
 	u32	ltmp;
 	u32 *	pltmp = (u32 *)pAtomic;
-	OS_SPIN_LOCK_ACQUIRED( &pWbLinux->AtomicSpinLock );
+	spin_lock_irq( &pWbLinux->AtomicSpinLock );
 	(*pltmp)--;
 	ltmp = (*pltmp);
-	OS_SPIN_LOCK_RELEASED( &pWbLinux->AtomicSpinLock );
+	spin_unlock_irq( &pWbLinux->AtomicSpinLock );
 	return ltmp;
 }
 
@@ -51,8 +51,8 @@ WBLINUX_Initial(PADAPTER Adapter)
 {
 	PWBLINUX pWbLinux = &Adapter->WbLinux;
 
-	OS_SPIN_LOCK_ALLOCATE( &pWbLinux->SpinLock );
-	OS_SPIN_LOCK_ALLOCATE( &pWbLinux->AtomicSpinLock );
+	spin_lock_init( &pWbLinux->SpinLock );
+	spin_lock_init( &pWbLinux->AtomicSpinLock );
 	return TRUE;
 }
 
@@ -79,7 +79,6 @@ void
 WBLINUX_Destroy(PADAPTER Adapter)
 {
 	WBLINUX_stop( Adapter );
-	OS_SPIN_LOCK_FREE( &pWbNdis->SpinLock );
 #ifdef _PE_USB_INI_DUMP_
 	WBDEBUG(("[w35und] unregister_netdev!\n"));
 #endif

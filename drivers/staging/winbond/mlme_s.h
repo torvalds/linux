@@ -130,7 +130,7 @@ typedef struct _MLME_FRAME
 	u8			DataType;
 	u8			IsInUsed;
 
-	OS_SPIN_LOCK	MLMESpinLock;
+	spinlock_t	MLMESpinLock;
 
     u8		TxMMPDU[MAX_NUM_TX_MMPDU][MAX_MMPDU_SIZE];
 	u8		TxMMPDUInUse[ (MAX_NUM_TX_MMPDU+3) & ~0x03 ];

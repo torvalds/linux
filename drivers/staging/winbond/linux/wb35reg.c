@@ -46,14 +46,14 @@ Wb35Reg_BurstWrite(phw_data_t pHwData, u16 RegisterNo, u32 * pRegisterData, u8 N
 		pRegQueue->pUsbReq = dr;
 		pRegQueue->pUrb = pUrb;
 
-		OS_SPIN_LOCK_ACQUIRED( &pWb35Reg->EP0VM_spin_lock );
+		spin_lock_irq( &pWb35Reg->EP0VM_spin_lock );
 		if (pWb35Reg->pRegFirst == NULL)
 			pWb35Reg->pRegFirst = pRegQueue;
 		else
 			pWb35Reg->pRegLast->Next = pRegQueue;
 		pWb35Reg->pRegLast = pRegQueue;
 
-		OS_SPIN_LOCK_RELEASED( &pWb35Reg->EP0VM_spin_lock );
+		spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
 
 		// Start EP0VM
 		Wb35Reg_EP0VM_start(pHwData);
@@ -193,14 +193,14 @@ Wb35Reg_Write(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 		pRegQueue->pUsbReq = dr;
 		pRegQueue->pUrb = pUrb;
 
-		OS_SPIN_LOCK_ACQUIRED(&pWb35Reg->EP0VM_spin_lock );
+		spin_lock_irq(&pWb35Reg->EP0VM_spin_lock );
 		if (pWb35Reg->pRegFirst == NULL)
 			pWb35Reg->pRegFirst = pRegQueue;
 		else
 			pWb35Reg->pRegLast->Next = pRegQueue;
 		pWb35Reg->pRegLast = pRegQueue;
 
-		OS_SPIN_LOCK_RELEASED( &pWb35Reg->EP0VM_spin_lock );
+		spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
 
 		// Start EP0VM
 		Wb35Reg_EP0VM_start(pHwData);
@@ -254,14 +254,14 @@ Wb35Reg_WriteWithCallbackValue( phw_data_t pHwData, u16 RegisterNo, u32 Register
 		pRegQueue->Next = NULL;
 		pRegQueue->pUsbReq = dr;
 		pRegQueue->pUrb = pUrb;
-		OS_SPIN_LOCK_ACQUIRED (&pWb35Reg->EP0VM_spin_lock );
+		spin_lock_irq (&pWb35Reg->EP0VM_spin_lock );
 		if( pWb35Reg->pRegFirst == NULL )
 			pWb35Reg->pRegFirst = pRegQueue;
 		else
 			pWb35Reg->pRegLast->Next = pRegQueue;
 		pWb35Reg->pRegLast = pRegQueue;
 
-		OS_SPIN_LOCK_RELEASED ( &pWb35Reg->EP0VM_spin_lock );
+		spin_unlock_irq ( &pWb35Reg->EP0VM_spin_lock );
 
 		// Start EP0VM
 		Wb35Reg_EP0VM_start(pHwData);
@@ -359,14 +359,14 @@ Wb35Reg_Read(phw_data_t pHwData, u16 RegisterNo,  u32 * pRegisterValue )
 		pRegQueue->Next = NULL;
 		pRegQueue->pUsbReq = dr;
 		pRegQueue->pUrb = pUrb;
-		OS_SPIN_LOCK_ACQUIRED ( &pWb35Reg->EP0VM_spin_lock );
+		spin_lock_irq ( &pWb35Reg->EP0VM_spin_lock );
 		if( pWb35Reg->pRegFirst == NULL )
 			pWb35Reg->pRegFirst = pRegQueue;
 		else
 			pWb35Reg->pRegLast->Next = pRegQueue;
 		pWb35Reg->pRegLast = pRegQueue;
 
-		OS_SPIN_LOCK_RELEASED( &pWb35Reg->EP0VM_spin_lock );
+		spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
 
 		// Start EP0VM
 		Wb35Reg_EP0VM_start( pHwData );
@@ -411,9 +411,9 @@ Wb35Reg_EP0VM(phw_data_t pHwData )
 		goto cleanup;
 
 	// Get the register data and send to USB through Irp
-	OS_SPIN_LOCK_ACQUIRED( &pWb35Reg->EP0VM_spin_lock );
+	spin_lock_irq( &pWb35Reg->EP0VM_spin_lock );
 	pRegQueue = pWb35Reg->pRegFirst;
-	OS_SPIN_LOCK_RELEASED( &pWb35Reg->EP0VM_spin_lock );
+	spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
 
 	if (!pRegQueue)
 		goto cleanup;
@@ -468,12 +468,12 @@ Wb35Reg_EP0VM_complete(PURB pUrb)
 		OS_ATOMIC_DEC( pHwData->Adapter, &pWb35Reg->RegFireCount );
 	} else {
 		// Complete to send, remove the URB from the first
-		OS_SPIN_LOCK_ACQUIRED( &pWb35Reg->EP0VM_spin_lock );
+		spin_lock_irq( &pWb35Reg->EP0VM_spin_lock );
 		pRegQueue = pWb35Reg->pRegFirst;
 		if (pRegQueue == pWb35Reg->pRegLast)
 			pWb35Reg->pRegLast = NULL;
 		pWb35Reg->pRegFirst = pWb35Reg->pRegFirst->Next;
-		OS_SPIN_LOCK_RELEASED( &pWb35Reg->EP0VM_spin_lock );
+		spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
 
 		if (pWb35Reg->EP0VM_status) {
 #ifdef _PE_REG_DUMP_
@@ -513,7 +513,7 @@ Wb35Reg_destroy(phw_data_t pHwData)
 	OS_SLEEP(10000);  // Delay for waiting function enter 940623.1.b
 
 	// Release all the data in RegQueue
-	OS_SPIN_LOCK_ACQUIRED( &pWb35Reg->EP0VM_spin_lock );
+	spin_lock_irq( &pWb35Reg->EP0VM_spin_lock );
 	pRegQueue = pWb35Reg->pRegFirst;
 	while (pRegQueue) {
 		if (pRegQueue == pWb35Reg->pRegLast)
@@ -521,7 +521,7 @@ Wb35Reg_destroy(phw_data_t pHwData)
 		pWb35Reg->pRegFirst = pWb35Reg->pRegFirst->Next;
 
 		pUrb = pRegQueue->pUrb;
-		OS_SPIN_LOCK_RELEASED( &pWb35Reg->EP0VM_spin_lock );
+		spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
 		if (pUrb) {
 			usb_free_urb(pUrb);
 			kfree(pRegQueue);
@@ -530,14 +530,11 @@ Wb35Reg_destroy(phw_data_t pHwData)
 			WBDEBUG(("EP0 queue release error\n"));
 			#endif
 		}
-		OS_SPIN_LOCK_ACQUIRED( &pWb35Reg->EP0VM_spin_lock );
+		spin_lock_irq( &pWb35Reg->EP0VM_spin_lock );
 
 		pRegQueue = pWb35Reg->pRegFirst;
 	}
-	OS_SPIN_LOCK_RELEASED( &pWb35Reg->EP0VM_spin_lock );
-
-	// Free resource
-	OS_SPIN_LOCK_FREE(  &pWb35Reg->EP0VM_spin_lock );
+	spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
 }
 
 //====================================================================================
@@ -550,7 +547,7 @@ unsigned char Wb35Reg_initial(phw_data_t pHwData)
 	u32 SoftwareSet, VCO_trim, TxVga, Region_ScanInterval;
 
 	// Spin lock is acquired for read and write IRP command
-	OS_SPIN_LOCK_ALLOCATE( &pWb35Reg->EP0VM_spin_lock );
+	spin_lock_init( &pWb35Reg->EP0VM_spin_lock );
 
 	// Getting RF module type from EEPROM ------------------------------------
 	Wb35Reg_WriteSync( pHwData, 0x03b4, 0x080d0000 ); // Start EEPROM access + Read + address(0x0d)
