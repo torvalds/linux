@@ -1,4 +1,4 @@
-/* linux/include/asm-arm/plat-s3c24xx/cpu.h
+/* linux/arch/arm/plat-s3c/include/plat/cpu.h
  *
  * Copyright (c) 2004-2005 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
@@ -18,7 +18,7 @@
 #define MHZ (1000*1000)
 #endif
 
-#define print_mhz(m) ((m) / MHZ), ((m / 1000) % 1000)
+#define print_mhz(m) ((m) / MHZ), (((m) / 1000) % 1000)
 
 /* forward declaration */
 struct s3c24xx_uart_resources;

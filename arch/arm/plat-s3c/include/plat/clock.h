@@ -1,5 +1,4 @@
-/* linux/include/asm-arm/plat-s3c24xx/clock.h
- * linux/arch/arm/mach-s3c2410/clock.h
+/* linux/arch/arm/plat-s3c/include/plat/clock.h
  *
  * Copyright (c) 2004-2005 Simtec Electronics
  *	http://www.simtec.co.uk/products/SWLINUX/
