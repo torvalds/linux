@@ -99,7 +99,7 @@ enum ieee80211_max_queues {
  * The information provided in this structure is required for QoS
  * transmit queue configuration. Cf. IEEE 802.11 7.3.2.29.
  *
- * @aifs: arbitration interface space [0..255]
+ * @aifs: arbitration interframe space [0..255]
  * @cw_min: minimum contention window [a value of the form
  *	2^n-1 in the range 1..32767]
  * @cw_max: maximum contention window [like @cw_min]
@@ -950,7 +950,7 @@ static inline void SET_IEEE80211_DEV(struct ieee80211_hw *hw, struct device *dev
 }
 
 /**
- * SET_IEEE80211_PERM_ADDR - set the permanenet MAC address for 802.11 hardware
+ * SET_IEEE80211_PERM_ADDR - set the permanent MAC address for 802.11 hardware
  *
  * @hw: the &struct ieee80211_hw to set the MAC address for
  * @addr: the address to set
@@ -1043,7 +1043,7 @@ ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
  * This happens everytime the iv16 wraps around (every 65536 packets). The
  * set_key() call will happen only once for each key (unless the AP did
  * rekeying), it will not include a valid phase 1 key. The valid phase 1 key is
- * provided by udpate_tkip_key only. The trigger that makes mac80211 call this
+ * provided by update_tkip_key only. The trigger that makes mac80211 call this
  * handler is software decryption with wrap around of iv16.
  */
 
@@ -1177,7 +1177,7 @@ enum ieee80211_ampdu_mlme_action {
  *	Must be implemented.
  *
  * @add_interface: Called when a netdevice attached to the hardware is
- *	enabled. Because it is not called for monitor mode devices, @open
+ *	enabled. Because it is not called for monitor mode devices, @start
  *	and @stop must be implemented.
  *	The driver should perform any initialization it needs before
  *	the device can be enabled. The initial configuration for the
@@ -1244,7 +1244,7 @@ enum ieee80211_ampdu_mlme_action {
  *	the stack will not do fragmentation.
  *
  * @sta_notify: Notifies low level driver about addition or removal
- *	of assocaited station or AP.
+ *	of associated station or AP.
  *
  * @conf_tx: Configure TX queue parameters (EDCF (aifs, cw_min, cw_max),
  *	bursting) for a hardware TX queue.
@@ -1544,7 +1544,7 @@ void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw,
  * the next beacon frame from the 802.11 code. The low-level is responsible
  * for calling this function before beacon data is needed (e.g., based on
  * hardware interrupt). Returned skb is used only once and low-level driver
- * is responsible of freeing it.
+ * is responsible for freeing it.
  */
 struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif);
