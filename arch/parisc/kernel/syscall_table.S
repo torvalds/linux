@@ -87,7 +87,7 @@
 	ENTRY_SAME(setuid)
 	ENTRY_SAME(getuid)
 	ENTRY_COMP(stime)		/* 25 */
-	ENTRY_SAME(ptrace)
+	ENTRY_COMP(ptrace)
 	ENTRY_SAME(alarm)
 	/* see stat comment */
 	ENTRY_COMP(newfstat)
@@ -149,8 +149,8 @@
 	ENTRY_COMP(getrlimit)
 	ENTRY_COMP(getrusage)
 	/* struct timeval and timezone are maybe?? consistent wide and narrow */
-	ENTRY_DIFF(gettimeofday)
-	ENTRY_DIFF(settimeofday)
+	ENTRY_COMP(gettimeofday)
+	ENTRY_COMP(settimeofday)
 	ENTRY_SAME(getgroups)		/* 80 */
 	ENTRY_SAME(setgroups)
 	/* struct socketaddr... */
@@ -407,6 +407,12 @@
 	ENTRY_SAME(timerfd_create)
 	ENTRY_COMP(timerfd_settime)
 	ENTRY_COMP(timerfd_gettime)
+	ENTRY_COMP(signalfd4)
+	ENTRY_SAME(eventfd2)		/* 310 */
+	ENTRY_SAME(epoll_create1)
+	ENTRY_SAME(dup3)
+	ENTRY_SAME(pipe2)
+	ENTRY_SAME(inotify_init1)
 
 	/* Nothing yet */
 

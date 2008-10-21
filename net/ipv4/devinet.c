@@ -613,9 +613,7 @@ int devinet_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 	if (colon)
 		*colon = 0;
 
-#ifdef CONFIG_KMOD
 	dev_load(net, ifr.ifr_name);
-#endif
 
 	switch (cmd) {
 	case SIOCGIFADDR:	/* Get interface address */
@@ -1283,7 +1281,7 @@ static int devinet_conf_proc(ctl_table *ctl, int write,
 	return ret;
 }
 
-static int devinet_conf_sysctl(ctl_table *table, int __user *name, int nlen,
+static int devinet_conf_sysctl(ctl_table *table,
 			       void __user *oldval, size_t __user *oldlenp,
 			       void __user *newval, size_t newlen)
 {
@@ -1379,12 +1377,11 @@ int ipv4_doint_and_flush(ctl_table *ctl, int write,
 	return ret;
 }
 
-int ipv4_doint_and_flush_strategy(ctl_table *table, int __user *name, int nlen,
+int ipv4_doint_and_flush_strategy(ctl_table *table,
 				  void __user *oldval, size_t __user *oldlenp,
 				  void __user *newval, size_t newlen)
 {
-	int ret = devinet_conf_sysctl(table, name, nlen, oldval, oldlenp,
-				      newval, newlen);
+	int ret = devinet_conf_sysctl(table, oldval, oldlenp, newval, newlen);
 	struct net *net = table->extra2;
 
 	if (ret == 1)

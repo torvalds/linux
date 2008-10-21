@@ -41,8 +41,8 @@
 
 #include <mach/regs-clock.h>
 
-#include <asm/plat-s3c24xx/clock.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/clock.h>
+#include <plat/cpu.h>
 
 static int s3c2440_setparent_armclk(struct clk *clk, struct clk *parent)
 {

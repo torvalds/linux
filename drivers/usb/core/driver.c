@@ -1070,7 +1070,8 @@ static int autosuspend_check(struct usb_device *udev, int reschedule)
 				struct usb_driver *driver;
 
 				driver = to_usb_driver(intf->dev.driver);
-				if (!driver->reset_resume)
+				if (!driver->reset_resume ||
+				    intf->needs_remote_wakeup)
 					return -EOPNOTSUPP;
 			}
 		}

@@ -995,6 +995,9 @@ restart_loop:
 	}
 	spin_unlock(&journal->j_list_lock);
 
+	if (journal->j_commit_callback)
+		journal->j_commit_callback(journal, commit_transaction);
+
 	trace_mark(jbd2_end_commit, "dev %s transaction %d head %d",
 		   journal->j_devname, commit_transaction->t_tid,
 		   journal->j_tail_sequence);

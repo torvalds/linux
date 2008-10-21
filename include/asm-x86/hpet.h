@@ -1,6 +1,8 @@
 #ifndef ASM_X86__HPET_H
 #define ASM_X86__HPET_H
 
+#include <linux/msi.h>
+
 #ifdef CONFIG_HPET_TIMER
 
 #define HPET_MMAP_SIZE		1024
@@ -10,6 +12,11 @@
 #define HPET_CFG		0x010
 #define HPET_STATUS		0x020
 #define HPET_COUNTER		0x0f0
+
+#define HPET_Tn_CFG(n)		(0x100 + 0x20 * n)
+#define HPET_Tn_CMP(n)		(0x108 + 0x20 * n)
+#define HPET_Tn_ROUTE(n)	(0x110 + 0x20 * n)
+
 #define HPET_T0_CFG		0x100
 #define HPET_T0_CMP		0x108
 #define HPET_T0_ROUTE		0x110
@@ -64,6 +71,20 @@ extern int hpet_enable(void);
 extern void hpet_disable(void);
 extern unsigned long hpet_readl(unsigned long a);
 extern void force_hpet_resume(void);
+
+extern void hpet_msi_unmask(unsigned int irq);
+extern void hpet_msi_mask(unsigned int irq);
+extern void hpet_msi_write(unsigned int irq, struct msi_msg *msg);
+extern void hpet_msi_read(unsigned int irq, struct msi_msg *msg);
+
+#ifdef CONFIG_PCI_MSI
+extern int arch_setup_hpet_msi(unsigned int irq);
+#else
+static inline int arch_setup_hpet_msi(unsigned int irq)
+{
+	return -EINVAL;
+}
+#endif
 
 #ifdef CONFIG_HPET_EMULATE_RTC
 

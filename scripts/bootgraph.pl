@@ -37,13 +37,13 @@
 # 	dmesg | perl scripts/bootgraph.pl > output.svg
 #
 
-my @rows;
-my %start, %end, %row;
+my %start, %end;
 my $done = 0;
-my $rowcount = 0;
 my $maxtime = 0;
 my $firsttime = 100;
 my $count = 0;
+my %pids;
+
 while (<>) {
 	my $line = $_;
 	if ($line =~ /([0-9\.]+)\] calling  ([a-zA-Z0-9\_]+)\+/) {
@@ -54,14 +54,8 @@ while (<>) {
 				$firsttime = $1;
 			}
 		}
-		$row{$func} = 1;
 		if ($line =~ /\@ ([0-9]+)/) {
-			my $pid = $1;
-			if (!defined($rows[$pid])) {
-				$rowcount = $rowcount + 1;
-				$rows[$pid] = $rowcount;
-			}
-			$row{$func} = $rows[$pid];
+			$pids{$func} = $1;
 		}
 		$count = $count + 1;
 	}
@@ -109,17 +103,25 @@ $styles[11] = "fill:rgb(128,255,255);fill-opacity:0.5;stroke-width:1;stroke:rgb(
 my $mult = 950.0 / ($maxtime - $firsttime);
 my $threshold = ($maxtime - $firsttime) / 60.0;
 my $stylecounter = 0;
+my %rows;
+my $rowscount = 1;
 while (($key,$value) = each %start) {
 	my $duration = $end{$key} - $start{$key};
 
 	if ($duration >= $threshold) {
 		my $s, $s2, $e, $y;
+		$pid = $pids{$key};
+
+		if (!defined($rows{$pid})) {
+			$rows{$pid} = $rowscount;
+			$rowscount = $rowscount + 1;
+		}
 		$s = ($value - $firsttime) * $mult;
 		$s2 = $s + 6;
 		$e = ($end{$key} - $firsttime) * $mult;
 		$w = $e - $s;
 
-		$y = $row{$key} * 150;
+		$y = $rows{$pid} * 150;
 		$y2 = $y + 4;
 
 		$style = $styles[$stylecounter];

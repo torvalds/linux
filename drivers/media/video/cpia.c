@@ -39,10 +39,6 @@
 #include <asm/io.h>
 #include <linux/mutex.h>
 
-#ifdef CONFIG_KMOD
-#include <linux/kmod.h>
-#endif
-
 #include "cpia.h"
 
 static int video_nr = -1;

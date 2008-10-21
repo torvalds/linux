@@ -40,7 +40,7 @@
 #include <asm/cacheflush.h>
 #include <mach/hardware.h>
 
-#include <asm/plat-s3c/regs-serial.h>
+#include <plat/regs-serial.h>
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-mem.h>
@@ -48,7 +48,7 @@
 
 #include <asm/mach/time.h>
 
-#include <asm/plat-s3c24xx/pm.h>
+#include <plat/pm.h>
 
 /* for external use */
 

@@ -85,6 +85,20 @@ static inline int apicid_to_node(int logical_apicid)
 	return 0;
 #endif
 }
+
+static inline cpumask_t vector_allocation_domain(int cpu)
+{
+        /* Careful. Some cpus do not strictly honor the set of cpus
+         * specified in the interrupt destination when using lowest
+         * priority interrupt delivery mode.
+         *
+         * In particular there was a hyperthreading cpu observed to
+         * deliver interrupts to the wrong hyperthread when only one
+         * hyperthread was specified in the interrupt desitination.
+         */
+        cpumask_t domain = { { [0] = APIC_ALL_CPUS, } };
+        return domain;
+}
 #endif
 
 static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid)
@@ -138,6 +152,5 @@ static inline int check_phys_apicid_present(int boot_cpu_physical_apicid)
 static inline void enable_apic_mode(void)
 {
 }
-
 #endif /* CONFIG_X86_LOCAL_APIC */
 #endif /* ASM_X86__MACH_DEFAULT__MACH_APIC_H */

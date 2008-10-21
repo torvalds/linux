@@ -105,7 +105,7 @@ static irqreturn_t aer_irq(int irq, void *context)
 	unsigned long flags;
 	int pos;
 
-	pos = pci_find_aer_capability(pdev->port);
+	pos = pci_find_ext_capability(pdev->port, PCI_EXT_CAP_ID_ERR);
 	/*
 	 * Must lock access to Root Error Status Reg, Root Error ID Reg,
 	 * and Root error producer/consumer index
@@ -252,7 +252,7 @@ static pci_ers_result_t aer_root_reset(struct pci_dev *dev)
 	u32 status;
 	int pos;
 
-	pos = pci_find_aer_capability(dev);
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
 
 	/* Disable Root's interrupt in response to error messages */
 	pci_write_config_dword(dev, pos + PCI_ERR_ROOT_COMMAND, 0);
@@ -316,7 +316,7 @@ static void aer_error_resume(struct pci_dev *dev)
 	pci_write_config_word(dev, pos + PCI_EXP_DEVSTA, reg16);
 
 	/* Clean AER Root Error Status */
-	pos = pci_find_aer_capability(dev);
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
 	pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_STATUS, &status);
 	pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_SEVER, &mask);
 	if (dev->error_state == pci_channel_io_normal)

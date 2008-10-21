@@ -147,6 +147,9 @@ EXPORT_SYMBOL(snd_jack_set_parent);
  */
 void snd_jack_report(struct snd_jack *jack, int status)
 {
+	if (!jack)
+		return;
+
 	if (jack->type & SND_JACK_HEADPHONE)
 		input_report_switch(jack->input_dev, SW_HEADPHONE_INSERT,
 				    status & SND_JACK_HEADPHONE);

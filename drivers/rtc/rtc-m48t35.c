@@ -18,6 +18,7 @@
 #include <linux/rtc.h>
 #include <linux/platform_device.h>
 #include <linux/bcd.h>
+#include <linux/io.h>
 
 #define DRV_VERSION		"1.0"
 

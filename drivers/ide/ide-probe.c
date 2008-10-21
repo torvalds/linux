@@ -208,6 +208,7 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 		drive->ready_stat = 0;
 		if (ata_id_cdb_intr(id))
 			drive->atapi_flags |= IDE_AFLAG_DRQ_INTERRUPT;
+		drive->dev_flags |= IDE_DFLAG_DOORLOCKING;
 		/* we don't do head unloading on ATAPI devices */
 		drive->dev_flags |= IDE_DFLAG_NO_UNLOAD;
 		return;
@@ -657,8 +658,8 @@ static int ide_register_port(ide_hwif_t *hwif)
 		goto out;
 	}
 
-	hwif->portdev = device_create_drvdata(ide_port_class, &hwif->gendev,
-					      MKDEV(0, 0), hwif, hwif->name);
+	hwif->portdev = device_create(ide_port_class, &hwif->gendev,
+				      MKDEV(0, 0), hwif, hwif->name);
 	if (IS_ERR(hwif->portdev)) {
 		ret = PTR_ERR(hwif->portdev);
 		device_unregister(&hwif->gendev);

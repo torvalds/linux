@@ -36,7 +36,6 @@
 #include <linux/fs.h>
 #include <linux/timer.h>
 #include <linux/poll.h>
-#include <linux/byteorder/swabb.h>
 #include <linux/smp_lock.h>
 
 #include <linux/kernel.h>
@@ -52,6 +51,7 @@
 #include <linux/i2c.h>
 #include <linux/kthread.h>
 #include <asm/unaligned.h>
+#include <asm/byteorder.h>
 
 #include <asm/system.h>
 

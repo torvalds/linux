@@ -2996,7 +2996,6 @@ zoran_do_ioctl (struct inode *inode,
 			break;
 
 		default:
-			dprintk(3, "unsupported\n");
 			dprintk(1,
 				KERN_ERR
 				"%s: VIDIOC_S_FMT - unsupported type %d\n",

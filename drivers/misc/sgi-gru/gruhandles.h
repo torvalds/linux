@@ -91,12 +91,7 @@
 #define GSEGPOFF(h) 		((h) & (GRU_SIZE - 1))
 
 /* Convert an arbitrary handle address to the beginning of the GRU segment */
-#ifndef __PLUGIN__
 #define GRUBASE(h)		((void *)((unsigned long)(h) & ~(GRU_SIZE - 1)))
-#else
-extern void *gmu_grubase(void *h);
-#define GRUBASE(h)		gmu_grubase(h)
-#endif
 
 /* General addressing macros. */
 static inline void *get_gseg_base_address(void *base, int ctxnum)

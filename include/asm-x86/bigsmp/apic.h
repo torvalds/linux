@@ -9,22 +9,17 @@ static inline int apic_id_registered(void)
 	return (1);
 }
 
-/* Round robin the irqs amoung the online cpus */
 static inline cpumask_t target_cpus(void)
 {
-	static unsigned long cpu = NR_CPUS;
-	do {
-		if (cpu >= NR_CPUS)
-			cpu = first_cpu(cpu_online_map);
-		else
-			cpu = next_cpu(cpu, cpu_online_map);
-	} while (cpu >= NR_CPUS);
-	return cpumask_of_cpu(cpu);
+#ifdef CONFIG_SMP
+        return cpu_online_map;
+#else
+        return cpumask_of_cpu(0);
+#endif
 }
 
 #undef APIC_DEST_LOGICAL
 #define APIC_DEST_LOGICAL	0
-#define TARGET_CPUS		(target_cpus())
 #define APIC_DFR_VALUE		(APIC_DFR_FLAT)
 #define INT_DELIVERY_MODE	(dest_Fixed)
 #define INT_DEST_MODE		(0)    /* phys delivery to target proc */

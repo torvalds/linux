@@ -204,6 +204,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 
 	req->mss = mss;
 	ireq->rmt_port = th->source;
+	ireq->loc_port = th->dest;
 	ipv6_addr_copy(&ireq6->rmt_addr, &ipv6_hdr(skb)->saddr);
 	ipv6_addr_copy(&ireq6->loc_addr, &ipv6_hdr(skb)->daddr);
 	if (ipv6_opt_accepted(sk, skb) ||

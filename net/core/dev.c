@@ -924,10 +924,10 @@ int dev_change_name(struct net_device *dev, const char *newname)
 		strlcpy(dev->name, newname, IFNAMSIZ);
 
 rollback:
-	err = device_rename(&dev->dev, dev->name);
-	if (err) {
+	ret = device_rename(&dev->dev, dev->name);
+	if (ret) {
 		memcpy(dev->name, oldname, IFNAMSIZ);
-		return err;
+		return ret;
 	}
 
 	write_lock_bh(&dev_base_lock);
@@ -4956,8 +4956,6 @@ EXPORT_SYMBOL(br_fdb_get_hook);
 EXPORT_SYMBOL(br_fdb_put_hook);
 #endif
 
-#ifdef CONFIG_KMOD
 EXPORT_SYMBOL(dev_load);
-#endif
 
 EXPORT_PER_CPU_SYMBOL(softnet_data);

@@ -1,0 +1,2 @@
+rewrite the driver to use the proper in-kernel wireless stack
+instead of using its own.

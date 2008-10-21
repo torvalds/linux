@@ -115,34 +115,32 @@ EXPORT_SYMBOL_GPL(dma_wait_for_async_tx);
  *	(start) dependent operations on their target channel
  * @tx: transaction with dependencies
  */
-void
-async_tx_run_dependencies(struct dma_async_tx_descriptor *tx)
+void async_tx_run_dependencies(struct dma_async_tx_descriptor *tx)
 {
-	struct dma_async_tx_descriptor *next = tx->next;
+	struct dma_async_tx_descriptor *dep = tx->next;
+	struct dma_async_tx_descriptor *dep_next;
 	struct dma_chan *chan;
 
-	if (!next)
+	if (!dep)
 		return;
 
-	tx->next = NULL;
-	chan = next->chan;
+	chan = dep->chan;
 
 	/* keep submitting up until a channel switch is detected
 	 * in that case we will be called again as a result of
 	 * processing the interrupt from async_tx_channel_switch
 	 */
-	while (next && next->chan == chan) {
-		struct dma_async_tx_descriptor *_next;
+	for (; dep; dep = dep_next) {
+		spin_lock_bh(&dep->lock);
+		dep->parent = NULL;
+		dep_next = dep->next;
+		if (dep_next && dep_next->chan == chan)
+			dep->next = NULL; /* ->next will be submitted */
+		else
+			dep_next = NULL; /* submit current dep and terminate */
+		spin_unlock_bh(&dep->lock);
 
-		spin_lock_bh(&next->lock);
-		next->parent = NULL;
-		_next = next->next;
-		if (_next && _next->chan == chan)
-			next->next = NULL;
-		spin_unlock_bh(&next->lock);
-
-		next->tx_submit(next);
-		next = _next;
+		dep->tx_submit(dep);
 	}
 
 	chan->device->device_issue_pending(chan);

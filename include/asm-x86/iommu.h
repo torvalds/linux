@@ -8,7 +8,7 @@ extern int force_iommu, no_iommu;
 extern int iommu_detected;
 extern int dmar_disabled;
 
-extern unsigned long iommu_num_pages(unsigned long addr, unsigned long len);
+extern unsigned long iommu_nr_pages(unsigned long addr, unsigned long len);
 
 #ifdef CONFIG_GART_IOMMU
 extern int gart_iommu_aperture;

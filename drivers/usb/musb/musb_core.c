@@ -82,9 +82,9 @@
 /*
  * This gets many kinds of configuration information:
  *	- Kconfig for everything user-configurable
- *	- <asm/arch/hdrc_cnf.h> for SOC or family details
  *	- platform_device for addressing, irq, and platform_data
  *	- platform_data is mostly for board-specific informarion
+ *	  (plus recentrly, SOC or family details)
  *
  * Most of the conditional compilation will (someday) vanish.
  */
@@ -974,9 +974,9 @@ static void musb_shutdown(struct platform_device *pdev)
 /*
  * The silicon either has hard-wired endpoint configurations, or else
  * "dynamic fifo" sizing.  The driver has support for both, though at this
- * writing only the dynamic sizing is very well tested.   We use normal
- * idioms to so both modes are compile-tested, but dead code elimination
- * leaves only the relevant one in the object file.
+ * writing only the dynamic sizing is very well tested.   Since we switched
+ * away from compile-time hardware parameters, we can no longer rely on
+ * dead code elimination to leave only the relevant one in the object file.
  *
  * We don't currently use dynamic fifo setup capability to do anything
  * more than selecting one of a bunch of predefined configurations.
@@ -1806,6 +1806,7 @@ allocate_instance(struct device *dev,
 	musb->ctrl_base = mbase;
 	musb->nIrq = -ENODEV;
 	musb->config = config;
+	BUG_ON(musb->config->num_eps > MUSB_C_NUM_EPS);
 	for (epnum = 0, ep = musb->endpoints;
 			epnum < musb->config->num_eps;
 			epnum++, ep++) {
@@ -2054,15 +2055,6 @@ bad_config:
 
 	}
 
-	return 0;
-
-fail:
-	if (musb->clock)
-		clk_put(musb->clock);
-	device_init_wakeup(dev, 0);
-	musb_free(musb);
-	return status;
-
 #ifdef CONFIG_SYSFS
 	status = device_create_file(dev, &dev_attr_mode);
 	status = device_create_file(dev, &dev_attr_vbus);
@@ -2071,12 +2063,31 @@ fail:
 #endif /* CONFIG_USB_GADGET_MUSB_HDRC */
 	status = 0;
 #endif
+	if (status)
+		goto fail2;
+
+	return 0;
+
+fail2:
+#ifdef CONFIG_SYSFS
+	device_remove_file(musb->controller, &dev_attr_mode);
+	device_remove_file(musb->controller, &dev_attr_vbus);
+#ifdef CONFIG_USB_MUSB_OTG
+	device_remove_file(musb->controller, &dev_attr_srp);
+#endif
+#endif
+	musb_platform_exit(musb);
+fail:
+	dev_err(musb->controller,
+		"musb_init_controller failed with status %d\n", status);
+
+	if (musb->clock)
+		clk_put(musb->clock);
+	device_init_wakeup(dev, 0);
+	musb_free(musb);
 
 	return status;
 
-fail2:
-	musb_platform_exit(musb);
-	goto fail;
 }
 
 /*-------------------------------------------------------------------------*/

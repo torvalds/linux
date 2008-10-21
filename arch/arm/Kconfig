@@ -192,6 +192,8 @@ config VECTORS_BASE
 
 source "init/Kconfig"
 
+source "kernel/Kconfig.freezer"
+
 menu "System Type"
 
 choice

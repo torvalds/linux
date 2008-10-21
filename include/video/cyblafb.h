@@ -4,7 +4,7 @@
 #endif
 
 #if CYBLAFB_DEBUG
-#define debug(f,a...)	printk("%s:" f,  __FUNCTION__ , ## a);
+#define debug(f,a...)	printk("%s:" f,  __func__ , ## a);
 #else
 #define debug(f,a...)
 #endif

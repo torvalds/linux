@@ -6,6 +6,7 @@
  * Copyright IBM Corporation 2002, 2008
  */
 
+#include <linux/blktrace_api.h>
 #include "zfcp_ext.h"
 
 static void zfcp_fsf_request_timeout_handler(unsigned long data)
@@ -777,6 +778,7 @@ static int zfcp_fsf_req_send(struct zfcp_fsf_req *req)
 	list_add_tail(&req->list, &adapter->req_list[idx]);
 	spin_unlock(&adapter->req_list_lock);
 
+	req->qdio_outb_usage = atomic_read(&req_q->count);
 	req->issued = get_clock();
 	if (zfcp_qdio_send(req)) {
 		/* Queues are down..... */
@@ -2082,6 +2084,36 @@ static void zfcp_fsf_req_latency(struct zfcp_fsf_req *req)
 	spin_unlock_irqrestore(&unit->latencies.lock, flags);
 }
 
+#ifdef CONFIG_BLK_DEV_IO_TRACE
+static void zfcp_fsf_trace_latency(struct zfcp_fsf_req *fsf_req)
+{
+	struct fsf_qual_latency_info *lat_inf;
+	struct scsi_cmnd *scsi_cmnd = (struct scsi_cmnd *)fsf_req->data;
+	struct request *req = scsi_cmnd->request;
+	struct zfcp_blk_drv_data trace;
+	int ticks = fsf_req->adapter->timer_ticks;
+
+	trace.flags = 0;
+	trace.magic = ZFCP_BLK_DRV_DATA_MAGIC;
+	if (fsf_req->adapter->adapter_features & FSF_FEATURE_MEASUREMENT_DATA) {
+		trace.flags |= ZFCP_BLK_LAT_VALID;
+		lat_inf = &fsf_req->qtcb->prefix.prot_status_qual.latency_info;
+		trace.channel_lat = lat_inf->channel_lat * ticks;
+		trace.fabric_lat = lat_inf->fabric_lat * ticks;
+	}
+	if (fsf_req->status & ZFCP_STATUS_FSFREQ_ERROR)
+		trace.flags |= ZFCP_BLK_REQ_ERROR;
+	trace.inb_usage = fsf_req->qdio_inb_usage;
+	trace.outb_usage = fsf_req->qdio_outb_usage;
+
+	blk_add_driver_data(req->q, req, &trace, sizeof(trace));
+}
+#else
+static inline void zfcp_fsf_trace_latency(struct zfcp_fsf_req *fsf_req)
+{
+}
+#endif
+
 static void zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *req)
 {
 	struct scsi_cmnd *scpnt = req->data;
@@ -2113,6 +2145,8 @@ static void zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *req)
 
 	if (req->adapter->adapter_features & FSF_FEATURE_MEASUREMENT_DATA)
 		zfcp_fsf_req_latency(req);
+
+	zfcp_fsf_trace_latency(req);
 
 	if (unlikely(fcp_rsp_iu->validity.bits.fcp_rsp_len_valid)) {
 		if (fcp_rsp_info[3] == RSP_CODE_GOOD)

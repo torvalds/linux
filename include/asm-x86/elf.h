@@ -186,7 +186,7 @@ do {							\
 	set_fs(USER_DS);				\
 } while (0)
 
-#define COMPAT_SET_PERSONALITY(ex, ibcs2)		\
+#define COMPAT_SET_PERSONALITY(ex)			\
 do {							\
 	if (test_thread_flag(TIF_IA32))			\
 		clear_thread_flag(TIF_ABI_PENDING);	\
@@ -267,7 +267,7 @@ extern int force_personality32;
    For the moment, we have only optimizations for the Intel generations,
    but that could change... */
 
-#define SET_PERSONALITY(ex, ibcs2) set_personality_64bit()
+#define SET_PERSONALITY(ex) set_personality_64bit()
 
 /*
  * An executable for which elf_read_implies_exec() returns TRUE will

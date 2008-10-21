@@ -84,7 +84,7 @@ static int tlv320aic23_write(struct snd_soc_codec *codec, unsigned int reg,
 			     unsigned int value)
 {
 
-	u8 data;
+	u8 data[2];
 
 	/* TLV320AIC23 has 7 bit address and 9 bits of data
 	 * so we need to switch one data bit into reg and rest
@@ -96,12 +96,12 @@ static int tlv320aic23_write(struct snd_soc_codec *codec, unsigned int reg,
 		return -1;
 	}
 
-	data = (reg << 1) | (value >> 8 & 0x01);
+	data[0] = (reg << 1) | (value >> 8 & 0x01);
+	data[1] = value & 0xff;
 
 	tlv320aic23_write_reg_cache(codec, reg, value);
 
-	if (codec->hw_write(codec->control_data, data,
-			    (value & 0xff)) == 0)
+	if (codec->hw_write(codec->control_data, data, 2) == 2)
 		return 0;
 
 	printk(KERN_ERR "%s cannot write %03x to register R%d\n", __func__,
@@ -674,7 +674,7 @@ static int tlv320aic23_probe(struct platform_device *pdev)
 
 	tlv320aic23_socdev = socdev;
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	codec->hw_write = (hw_write_t) i2c_smbus_write_byte_data;
+	codec->hw_write = (hw_write_t) i2c_master_send;
 	codec->hw_read = NULL;
 	ret = i2c_add_driver(&tlv320aic23_i2c_driver);
 	if (ret != 0)

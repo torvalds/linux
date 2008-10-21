@@ -10,11 +10,13 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <asm/asm-compat.h>
-#include <asm/kdump.h>
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
+#else
+#include <asm/types.h>
 #endif
+#include <asm/asm-compat.h>
+#include <asm/kdump.h>
 
 /*
  * On PPC32 page size is 4K. For PPC64 we support either 4K or 64K software

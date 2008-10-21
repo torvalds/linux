@@ -571,8 +571,8 @@ ia32_sys_call_table:
 	.quad compat_sys_setrlimit	/* 75 */
 	.quad compat_sys_old_getrlimit	/* old_getrlimit */
 	.quad compat_sys_getrusage
-	.quad sys32_gettimeofday
-	.quad sys32_settimeofday
+	.quad compat_sys_gettimeofday
+	.quad compat_sys_settimeofday
 	.quad sys_getgroups16	/* 80 */
 	.quad sys_setgroups16
 	.quad sys32_old_select

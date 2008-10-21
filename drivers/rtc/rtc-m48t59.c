@@ -76,10 +76,10 @@ static int m48t59_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	/* Issue the READ command */
 	M48T59_SET_BITS(M48T59_CNTL_READ, M48T59_CNTL);
 
-	tm->tm_year	= BCD2BIN(M48T59_READ(M48T59_YEAR));
+	tm->tm_year	= bcd2bin(M48T59_READ(M48T59_YEAR));
 	/* tm_mon is 0-11 */
-	tm->tm_mon	= BCD2BIN(M48T59_READ(M48T59_MONTH)) - 1;
-	tm->tm_mday	= BCD2BIN(M48T59_READ(M48T59_MDAY));
+	tm->tm_mon	= bcd2bin(M48T59_READ(M48T59_MONTH)) - 1;
+	tm->tm_mday	= bcd2bin(M48T59_READ(M48T59_MDAY));
 
 	val = M48T59_READ(M48T59_WDAY);
 	if ((pdata->type == M48T59RTC_TYPE_M48T59) &&
@@ -88,10 +88,10 @@ static int m48t59_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		tm->tm_year += 100;	/* one century */
 	}
 
-	tm->tm_wday	= BCD2BIN(val & 0x07);
-	tm->tm_hour	= BCD2BIN(M48T59_READ(M48T59_HOUR) & 0x3F);
-	tm->tm_min	= BCD2BIN(M48T59_READ(M48T59_MIN) & 0x7F);
-	tm->tm_sec	= BCD2BIN(M48T59_READ(M48T59_SEC) & 0x7F);
+	tm->tm_wday	= bcd2bin(val & 0x07);
+	tm->tm_hour	= bcd2bin(M48T59_READ(M48T59_HOUR) & 0x3F);
+	tm->tm_min	= bcd2bin(M48T59_READ(M48T59_MIN) & 0x7F);
+	tm->tm_sec	= bcd2bin(M48T59_READ(M48T59_SEC) & 0x7F);
 
 	/* Clear the READ bit */
 	M48T59_CLEAR_BITS(M48T59_CNTL_READ, M48T59_CNTL);
@@ -119,17 +119,17 @@ static int m48t59_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	/* Issue the WRITE command */
 	M48T59_SET_BITS(M48T59_CNTL_WRITE, M48T59_CNTL);
 
-	M48T59_WRITE((BIN2BCD(tm->tm_sec) & 0x7F), M48T59_SEC);
-	M48T59_WRITE((BIN2BCD(tm->tm_min) & 0x7F), M48T59_MIN);
-	M48T59_WRITE((BIN2BCD(tm->tm_hour) & 0x3F), M48T59_HOUR);
-	M48T59_WRITE((BIN2BCD(tm->tm_mday) & 0x3F), M48T59_MDAY);
+	M48T59_WRITE((bin2bcd(tm->tm_sec) & 0x7F), M48T59_SEC);
+	M48T59_WRITE((bin2bcd(tm->tm_min) & 0x7F), M48T59_MIN);
+	M48T59_WRITE((bin2bcd(tm->tm_hour) & 0x3F), M48T59_HOUR);
+	M48T59_WRITE((bin2bcd(tm->tm_mday) & 0x3F), M48T59_MDAY);
 	/* tm_mon is 0-11 */
-	M48T59_WRITE((BIN2BCD(tm->tm_mon + 1) & 0x1F), M48T59_MONTH);
-	M48T59_WRITE(BIN2BCD(tm->tm_year % 100), M48T59_YEAR);
+	M48T59_WRITE((bin2bcd(tm->tm_mon + 1) & 0x1F), M48T59_MONTH);
+	M48T59_WRITE(bin2bcd(tm->tm_year % 100), M48T59_YEAR);
 
 	if (pdata->type == M48T59RTC_TYPE_M48T59 && (tm->tm_year / 100))
 		val = (M48T59_WDAY_CEB | M48T59_WDAY_CB);
-	val |= (BIN2BCD(tm->tm_wday) & 0x07);
+	val |= (bin2bcd(tm->tm_wday) & 0x07);
 	M48T59_WRITE(val, M48T59_WDAY);
 
 	/* Clear the WRITE bit */
@@ -158,18 +158,18 @@ static int m48t59_rtc_readalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	/* Issue the READ command */
 	M48T59_SET_BITS(M48T59_CNTL_READ, M48T59_CNTL);
 
-	tm->tm_year = BCD2BIN(M48T59_READ(M48T59_YEAR));
+	tm->tm_year = bcd2bin(M48T59_READ(M48T59_YEAR));
 	/* tm_mon is 0-11 */
-	tm->tm_mon = BCD2BIN(M48T59_READ(M48T59_MONTH)) - 1;
+	tm->tm_mon = bcd2bin(M48T59_READ(M48T59_MONTH)) - 1;
 
 	val = M48T59_READ(M48T59_WDAY);
 	if ((val & M48T59_WDAY_CEB) && (val & M48T59_WDAY_CB))
 		tm->tm_year += 100;	/* one century */
 
-	tm->tm_mday = BCD2BIN(M48T59_READ(M48T59_ALARM_DATE));
-	tm->tm_hour = BCD2BIN(M48T59_READ(M48T59_ALARM_HOUR));
-	tm->tm_min = BCD2BIN(M48T59_READ(M48T59_ALARM_MIN));
-	tm->tm_sec = BCD2BIN(M48T59_READ(M48T59_ALARM_SEC));
+	tm->tm_mday = bcd2bin(M48T59_READ(M48T59_ALARM_DATE));
+	tm->tm_hour = bcd2bin(M48T59_READ(M48T59_ALARM_HOUR));
+	tm->tm_min = bcd2bin(M48T59_READ(M48T59_ALARM_MIN));
+	tm->tm_sec = bcd2bin(M48T59_READ(M48T59_ALARM_SEC));
 
 	/* Clear the READ bit */
 	M48T59_CLEAR_BITS(M48T59_CNTL_READ, M48T59_CNTL);
@@ -201,18 +201,18 @@ static int m48t59_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	 * 0xff means "always match"
 	 */
 	mday = tm->tm_mday;
-	mday = (mday >= 1 && mday <= 31) ? BIN2BCD(mday) : 0xff;
+	mday = (mday >= 1 && mday <= 31) ? bin2bcd(mday) : 0xff;
 	if (mday == 0xff)
 		mday = M48T59_READ(M48T59_MDAY);
 
 	hour = tm->tm_hour;
-	hour = (hour < 24) ? BIN2BCD(hour) : 0x00;
+	hour = (hour < 24) ? bin2bcd(hour) : 0x00;
 
 	min = tm->tm_min;
-	min = (min < 60) ? BIN2BCD(min) : 0x00;
+	min = (min < 60) ? bin2bcd(min) : 0x00;
 
 	sec = tm->tm_sec;
-	sec = (sec < 60) ? BIN2BCD(sec) : 0x00;
+	sec = (sec < 60) ? bin2bcd(sec) : 0x00;
 
 	spin_lock_irqsave(&m48t59->lock, flags);
 	/* Issue the WRITE command */
@@ -360,7 +360,6 @@ static struct bin_attribute m48t59_nvram_attr = {
 	.attr = {
 		.name = "nvram",
 		.mode = S_IRUGO | S_IWUSR,
-		.owner = THIS_MODULE,
 	},
 	.read = m48t59_nvram_read,
 	.write = m48t59_nvram_write,

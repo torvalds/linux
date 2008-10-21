@@ -1,7 +1,7 @@
 /*
  * Driver for the mt9m111 sensor
  *
- * Copyright (C) 2008 Erik Andren
+ * Copyright (C) 2008 Erik Andrén
  * Copyright (C) 2007 Ilyes Gouta. Based on the m5603x Linux Driver Project.
  * Copyright (C) 2005 m5603x Linux Driver Project <m5602@x3ng.com.br>
  *
@@ -107,7 +107,7 @@ int mt9m111_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 	err = mt9m111_read_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B,
 				  data, 2);
 	*val = data[0] & MT9M111_RMB_MIRROR_ROWS;
-	PDEBUG(DBG_V4L2_CID, "Read vertical flip %d", *val);
+	PDEBUG(D_V4L2, "Read vertical flip %d", *val);
 
 	return (err < 0) ? err : 0;
 }
@@ -118,7 +118,7 @@ int mt9m111_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	u8 data[2] = {0x00, 0x00};
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(DBG_V4L2_CID, "Set vertical flip to %d", val);
+	PDEBUG(D_V4L2, "Set vertical flip to %d", val);
 
 	/* Set the correct page map */
 	err = mt9m111_write_sensor(sd, MT9M111_PAGE_MAP, data, 2);
@@ -145,7 +145,7 @@ int mt9m111_get_hflip(struct gspca_dev *gspca_dev, __s32 *val)
 	err = mt9m111_read_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B,
 				  data, 2);
 	*val = data[0] & MT9M111_RMB_MIRROR_COLS;
-	PDEBUG(DBG_V4L2_CID, "Read horizontal flip %d", *val);
+	PDEBUG(D_V4L2, "Read horizontal flip %d", *val);
 
 	return (err < 0) ? err : 0;
 }
@@ -156,7 +156,7 @@ int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	u8 data[2] = {0x00, 0x00};
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(DBG_V4L2_CID, "Set horizontal flip to %d", val);
+	PDEBUG(D_V4L2, "Set horizontal flip to %d", val);
 
 	/* Set the correct page map */
 	err = mt9m111_write_sensor(sd, MT9M111_PAGE_MAP, data, 2);
@@ -188,7 +188,7 @@ int mt9m111_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
 	      ((tmp & (1 <<  8)) * 2) |
 	       (tmp & 0x7f);
 
-	PDEBUG(DBG_V4L2_CID, "Read gain %d", *val);
+	PDEBUG(D_V4L2, "Read gain %d", *val);
 
 	return (err < 0) ? err : 0;
 }
@@ -222,7 +222,7 @@ int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 
 	data[1] = (tmp & 0xff00) >> 8;
 	data[0] = (tmp & 0xff);
-	PDEBUG(DBG_V4L2_CID, "tmp=%d, data[1]=%d, data[0]=%d", tmp,
+	PDEBUG(D_V4L2, "tmp=%d, data[1]=%d, data[0]=%d", tmp,
 	       data[1], data[0]);
 
 	err = mt9m111_write_sensor(sd, MT9M111_SC_GLOBAL_GAIN,
@@ -257,7 +257,7 @@ int mt9m111_read_sensor(struct sd *sd, const u8 address,
 	for (i = 0; i < len && !err; i++) {
 		err = m5602_read_bridge(sd, M5602_XB_I2C_DATA, &(i2c_data[i]));
 
-		PDEBUG(DBG_TRACE, "Reading sensor register "
+		PDEBUG(D_CONF, "Reading sensor register "
 		       "0x%x contains 0x%x ", address, *i2c_data);
 	}
 out:
@@ -290,7 +290,7 @@ int mt9m111_write_sensor(struct sd *sd, const u8 address,
 		memcpy(p, sensor_urb_skeleton + 16, 4);
 		p[3] = i2c_data[i];
 		p += 4;
-		PDEBUG(DBG_TRACE, "Writing sensor register 0x%x with 0x%x",
+		PDEBUG(D_CONF, "Writing sensor register 0x%x with 0x%x",
 		       address, i2c_data[i]);
 	}
 

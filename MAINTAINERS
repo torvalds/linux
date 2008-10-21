@@ -1198,7 +1198,7 @@ S:	Maintained
 
 CPU FREQUENCY DRIVERS
 P:	Dave Jones
-M:	davej@codemonkey.org.uk
+M:	davej@redhat.com
 L:	cpufreq@vger.kernel.org
 W:	http://www.codemonkey.org.uk/projects/cpufreq/
 T:	git kernel.org/pub/scm/linux/kernel/git/davej/cpufreq.git
@@ -1627,6 +1627,11 @@ S:	Supported
 EPSON 1355 FRAMEBUFFER DRIVER
 P:	Christopher Hoover
 M:	ch@murgatroid.com, ch@hpl.hp.com
+S:	Maintained
+
+EPSON S1D13XXX FRAMEBUFFER DRIVER
+P:	Kristoffer Ericson
+M:	kristoffer.ericson@gmail.com
 S:	Maintained
 
 ETHEREXPRESS-16 NETWORK DRIVER
@@ -2443,7 +2448,14 @@ S:	Supported
 
 KERNEL VIRTUAL MACHINE (KVM)
 P:	Avi Kivity
-M:	avi@qumranet.com
+M:	avi@redhat.com
+L:	kvm@vger.kernel.org
+W:	http://kvm.qumranet.com
+S:	Supported
+
+KERNEL VIRTUAL MACHINE (KVM) FOR AMD-V
+P:	Joerg Roedel
+M:	joerg.roedel@amd.com
 L:	kvm@vger.kernel.org
 W:	http://kvm.qumranet.com
 S:	Supported
@@ -3925,12 +3937,19 @@ M:	jbglaw@lug-owl.de
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
-STABLE BRANCH:
+STABLE BRANCH
 P:	Greg Kroah-Hartman
 M:	greg@kroah.com
 P:	Chris Wright
 M:	chrisw@sous-sol.org
 L:	stable@kernel.org
+S:	Maintained
+
+STAGING SUBSYSTEM
+P:	Greg Kroah-Hartman
+M:	gregkh@suse.de
+L:	linux-kernel@vger.kernel.org
+T:	quilt kernel.org/pub/linux/kernel/people/gregkh/gregkh-2.6/
 S:	Maintained
 
 STARFIRE/DURALAN NETWORK DRIVER
@@ -4089,7 +4108,7 @@ W:	http://tpmdd.sourceforge.net
 P:	Marcel Selhorst
 M:	tpm@selhorst.net
 W:	http://www.prosec.rub.de/tpm/
-L:	tpmdd-devel@lists.sourceforge.net
+L:	tpmdd-devel@lists.sourceforge.net (moderated for non-subscribers)
 S:	Maintained
 
 TRIVIAL PATCHES
@@ -4480,6 +4499,13 @@ W:	http://kernel.org/~kzak/util-linux-ng/
 T:	git://git.kernel.org/pub/scm/utils/util-linux-ng/util-linux-ng.git
 S:	Maintained
 
+UVESAFB DRIVER
+P:	Michal Januszewski
+M:	spock@gentoo.org
+L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
+W:	http://dev.gentoo.org/~spock/projects/uvesafb/
+S:	Maintained
+
 VFAT/FAT/MSDOS FILESYSTEM
 P:	OGAWA Hirofumi
 M:	hirofumi@mail.parknet.co.jp
@@ -4495,6 +4521,14 @@ VIAPRO SMBUS DRIVER
 P:	Jean Delvare
 M:	khali@linux-fr.org
 L:	i2c@lm-sensors.org
+S:	Maintained
+
+VIA UNICHROME(PRO)/CHROME9 FRAMEBUFFER DRIVER
+P:	Joseph Chan
+M:	JosephChan@via.com.tw
+P:	Scott Fang
+M:	ScottFang@viatech.com.cn
+L:	linux-fbdev-devel@lists.sourceforge.net (moderated for non-subscribers)
 S:	Maintained
 
 VIA VELOCITY NETWORK DRIVER
@@ -4598,7 +4632,7 @@ WM97XX TOUCHSCREEN DRIVERS
 P:	Mark Brown
 M:	broonie@opensource.wolfsonmicro.com
 P:	Liam Girdwood
-M:	liam.girdwood@wolfsonmicro.com
+M:	lrg@slimlogic.co.uk
 L:	linux-input@vger.kernel.org
 T:	git git://opensource.wolfsonmicro.com/linux-2.6-touch
 W:	http://opensource.wolfsonmicro.com/node/7

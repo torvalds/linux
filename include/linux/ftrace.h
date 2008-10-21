@@ -1,10 +1,14 @@
 #ifndef _LINUX_FTRACE_H
 #define _LINUX_FTRACE_H
 
-#ifdef CONFIG_FTRACE
-
 #include <linux/linkage.h>
 #include <linux/fs.h>
+#include <linux/ktime.h>
+#include <linux/init.h>
+#include <linux/types.h>
+#include <linux/kallsyms.h>
+
+#ifdef CONFIG_FTRACE
 
 extern int ftrace_enabled;
 extern int
@@ -36,6 +40,7 @@ extern void ftrace_stub(unsigned long a0, unsigned long a1);
 # define register_ftrace_function(ops) do { } while (0)
 # define unregister_ftrace_function(ops) do { } while (0)
 # define clear_ftrace_function(ops) do { } while (0)
+static inline void ftrace_kill_atomic(void) { }
 #endif /* CONFIG_FTRACE */
 
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -76,8 +81,10 @@ extern void mcount_call(void);
 
 extern int skip_trace(unsigned long ip);
 
-void ftrace_disable_daemon(void);
-void ftrace_enable_daemon(void);
+extern void ftrace_release(void *start, unsigned long size);
+
+extern void ftrace_disable_daemon(void);
+extern void ftrace_enable_daemon(void);
 
 #else
 # define skip_trace(ip)				({ 0; })
@@ -85,6 +92,7 @@ void ftrace_enable_daemon(void);
 # define ftrace_set_filter(buf, len, reset)	do { } while (0)
 # define ftrace_disable_daemon()		do { } while (0)
 # define ftrace_enable_daemon()			do { } while (0)
+static inline void ftrace_release(void *start, unsigned long size) { }
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 /* totally disable ftrace - can not re-enable after this */
@@ -98,9 +106,11 @@ static inline void tracer_disable(void)
 #endif
 }
 
-/* Ftrace disable/restore without lock. Some synchronization mechanism
+/*
+ * Ftrace disable/restore without lock. Some synchronization mechanism
  * must be used to prevent ftrace_enabled to be changed between
- * disable/restore. */
+ * disable/restore.
+ */
 static inline int __ftrace_enabled_save(void)
 {
 #ifdef CONFIG_FTRACE
@@ -157,9 +167,71 @@ static inline void __ftrace_enabled_restore(int enabled)
 #ifdef CONFIG_TRACING
 extern void
 ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3);
+
+/**
+ * ftrace_printk - printf formatting in the ftrace buffer
+ * @fmt: the printf format for printing
+ *
+ * Note: __ftrace_printk is an internal function for ftrace_printk and
+ *       the @ip is passed in via the ftrace_printk macro.
+ *
+ * This function allows a kernel developer to debug fast path sections
+ * that printk is not appropriate for. By scattering in various
+ * printk like tracing in the code, a developer can quickly see
+ * where problems are occurring.
+ *
+ * This is intended as a debugging tool for the developer only.
+ * Please refrain from leaving ftrace_printks scattered around in
+ * your code.
+ */
+# define ftrace_printk(fmt...) __ftrace_printk(_THIS_IP_, fmt)
+extern int
+__ftrace_printk(unsigned long ip, const char *fmt, ...)
+	__attribute__ ((format (printf, 2, 3)));
+extern void ftrace_dump(void);
 #else
 static inline void
 ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3) { }
+static inline int
+ftrace_printk(const char *fmt, ...) __attribute__ ((format (printf, 1, 0)));
+
+static inline int
+ftrace_printk(const char *fmt, ...)
+{
+	return 0;
+}
+static inline void ftrace_dump(void) { }
 #endif
+
+#ifdef CONFIG_FTRACE_MCOUNT_RECORD
+extern void ftrace_init(void);
+extern void ftrace_init_module(unsigned long *start, unsigned long *end);
+#else
+static inline void ftrace_init(void) { }
+static inline void
+ftrace_init_module(unsigned long *start, unsigned long *end) { }
+#endif
+
+
+struct boot_trace {
+	pid_t			caller;
+	char			func[KSYM_NAME_LEN];
+	int			result;
+	unsigned long long	duration;		/* usecs */
+	ktime_t			calltime;
+	ktime_t			rettime;
+};
+
+#ifdef CONFIG_BOOT_TRACER
+extern void trace_boot(struct boot_trace *it, initcall_t fn);
+extern void start_boot_trace(void);
+extern void stop_boot_trace(void);
+#else
+static inline void trace_boot(struct boot_trace *it, initcall_t fn) { }
+static inline void start_boot_trace(void) { }
+static inline void stop_boot_trace(void) { }
+#endif
+
+
 
 #endif /* _LINUX_FTRACE_H */

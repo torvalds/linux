@@ -915,6 +915,22 @@ int ps3av_video_mute(int mute)
 
 EXPORT_SYMBOL_GPL(ps3av_video_mute);
 
+/* mute analog output only */
+int ps3av_audio_mute_analog(int mute)
+{
+	int i, res;
+
+	for (i = 0; i < ps3av->av_hw_conf.num_of_avmulti; i++) {
+		res = ps3av_cmd_av_audio_mute(1,
+			&ps3av->av_port[i + ps3av->av_hw_conf.num_of_hdmi],
+			mute);
+		if (res < 0)
+			return -1;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ps3av_audio_mute_analog);
+
 int ps3av_audio_mute(int mute)
 {
 	return ps3av_set_audio_mute(mute ? PS3AV_CMD_MUTE_ON

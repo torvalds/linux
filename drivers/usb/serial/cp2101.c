@@ -753,7 +753,8 @@ static int __init cp2101_init(void)
 	}
 
 	/* Success */
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return 0;
 }
 

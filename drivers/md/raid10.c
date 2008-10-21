@@ -19,6 +19,7 @@
  */
 
 #include "dm-bio-list.h"
+#include <linux/delay.h>
 #include <linux/raid/raid10.h>
 #include <linux/raid/bitmap.h>
 
@@ -2028,8 +2029,9 @@ static int run(mddev_t *mddev)
 	int nc, fc, fo;
 	sector_t stride, size;
 
-	if (mddev->chunk_size == 0) {
-		printk(KERN_ERR "md/raid10: non-zero chunk size required.\n");
+	if (mddev->chunk_size < PAGE_SIZE) {
+		printk(KERN_ERR "md/raid10: chunk size must be "
+		       "at least PAGE_SIZE(%ld).\n", PAGE_SIZE);
 		return -EINVAL;
 	}
 

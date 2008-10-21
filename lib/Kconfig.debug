@@ -652,6 +652,11 @@ config DEBUG_BLOCK_EXT_DEVT
 	depends on BLOCK
 	default n
 	help
+	  BIG FAT WARNING: ENABLING THIS OPTION MIGHT BREAK BOOTING ON
+	  SOME DISTRIBUTIONS.  DO NOT ENABLE THIS UNLESS YOU KNOW WHAT
+	  YOU ARE DOING.  Distros, please enable this and fix whatever
+	  is broken.
+
 	  Conventionally, block device numbers are allocated from
 	  predetermined contiguous area.  However, extended block area
 	  may introduce non-contiguous block device numbers.  This
@@ -806,6 +811,61 @@ menuconfig BUILD_DOCSRC
 	  kernel Documentation/ tree.
 
 	  Say N if you are unsure.
+
+config DYNAMIC_PRINTK_DEBUG
+	bool "Enable dynamic printk() call support"
+	default n
+	depends on PRINTK
+	select PRINTK_DEBUG
+	help
+
+	  Compiles debug level messages into the kernel, which would not
+	  otherwise be available at runtime. These messages can then be
+	  enabled/disabled on a per module basis. This mechanism implicitly
+	  enables all pr_debug() and dev_dbg() calls. The impact of this
+	  compile option is a larger kernel text size of about 2%.
+
+	  Usage:
+
+	  Dynamic debugging is controlled by the debugfs file,
+	  dynamic_printk/modules. This file contains a list of the modules that
+	  can be enabled. The format of the file is the module name, followed
+	  by a set of flags that can be enabled. The first flag is always the
+	  'enabled' flag. For example:
+
+		<module_name> <enabled=0/1>
+				.
+				.
+				.
+
+	  <module_name> : Name of the module in which the debug call resides
+	  <enabled=0/1> : whether the messages are enabled or not
+
+	  From a live system:
+
+		snd_hda_intel enabled=0
+		fixup enabled=0
+		driver enabled=0
+
+	  Enable a module:
+
+	  	$echo "set enabled=1 <module_name>" > dynamic_printk/modules
+
+	  Disable a module:
+
+	  	$echo "set enabled=0 <module_name>" > dynamic_printk/modules
+
+	  Enable all modules:
+
+		$echo "set enabled=1 all" > dynamic_printk/modules
+
+	  Disable all modules:
+
+		$echo "set enabled=0 all" > dynamic_printk/modules
+
+	  Finally, passing "dynamic_printk" at the command line enables
+	  debugging for all modules. This mode can be turned off via the above
+	  disable command.
 
 source "samples/Kconfig"
 

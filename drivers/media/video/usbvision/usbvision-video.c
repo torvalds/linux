@@ -69,10 +69,6 @@
 
 #include <linux/workqueue.h>
 
-#ifdef CONFIG_KMOD
-#include <linux/kmod.h>
-#endif
-
 #include "usbvision.h"
 #include "usbvision-cards.h"
 

@@ -26,6 +26,7 @@ config X86
 	select HAVE_KPROBES
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select HAVE_KRETPROBES
+	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE
 	select HAVE_KVM if ((X86_32 && !X86_VOYAGER && !X86_VISWS && !X86_NUMAQ) || X86_64)
@@ -38,10 +39,6 @@ config ARCH_DEFCONFIG
 	string
 	default "arch/x86/configs/i386_defconfig" if X86_32
 	default "arch/x86/configs/x86_64_defconfig" if X86_64
-
-
-config GENERIC_LOCKBREAK
-	def_bool n
 
 config GENERIC_TIME
 	def_bool y
@@ -95,7 +92,7 @@ config GENERIC_HWEIGHT
 	def_bool y
 
 config GENERIC_GPIO
-	def_bool n
+	bool
 
 config ARCH_MAY_HAVE_PC_FDC
 	def_bool y
@@ -105,12 +102,6 @@ config RWSEM_GENERIC_SPINLOCK
 
 config RWSEM_XCHGADD_ALGORITHM
 	def_bool X86_XADD
-
-config ARCH_HAS_ILOG2_U32
-	def_bool n
-
-config ARCH_HAS_ILOG2_U64
-	def_bool n
 
 config ARCH_HAS_CPU_IDLE_WAIT
 	def_bool y
@@ -203,6 +194,7 @@ config X86_TRAMPOLINE
 config KTIME_SCALAR
 	def_bool X86_32
 source "init/Kconfig"
+source "kernel/Kconfig.freezer"
 
 menu "Processor type and features"
 
@@ -758,9 +750,8 @@ config I8K
 	  Say N otherwise.
 
 config X86_REBOOTFIXUPS
-	def_bool n
-	prompt "Enable X86 board specific fixups for reboot"
-	depends on X86_32 && X86
+	bool "Enable X86 board specific fixups for reboot"
+	depends on X86_32
 	---help---
 	  This enables chipset and/or board specific fixups to be done
 	  in order to get reboot to work correctly. This is only needed on
@@ -944,15 +935,16 @@ config HIGHMEM
 	depends on X86_32 && (HIGHMEM64G || HIGHMEM4G)
 
 config X86_PAE
-	def_bool n
-	prompt "PAE (Physical Address Extension) Support"
+	bool "PAE (Physical Address Extension) Support"
 	depends on X86_32 && !HIGHMEM4G
-	select RESOURCES_64BIT
 	help
 	  PAE is required for NX support, and furthermore enables
 	  larger swapspace support for non-overcommit purposes. It
 	  has the cost of more pagetable lookup overhead, and also
 	  consumes more pagetable space per process.
+
+config ARCH_PHYS_ADDR_T_64BIT
+       def_bool X86_64 || X86_PAE
 
 # Common NUMA Features
 config NUMA
@@ -1238,8 +1230,7 @@ config X86_PAT
 	  If unsure, say Y.
 
 config EFI
-	def_bool n
-	prompt "EFI runtime service support"
+	bool "EFI runtime service support"
 	depends on ACPI
 	---help---
 	This enables the kernel to use EFI runtime services that are
@@ -1251,14 +1242,6 @@ config EFI
   	of EFI runtime services. However, even with this option, the
   	resultant kernel should continue to boot on existing non-EFI
   	platforms.
-
-config IRQBALANCE
-	def_bool y
-	prompt "Enable kernel irq balancing"
-	depends on X86_32 && SMP && X86_IO_APIC
-	help
-	  The default yes will allow the kernel to do irq load balancing.
-	  Saying no will keep the kernel from doing irq load balancing.
 
 config SECCOMP
 	def_bool y

@@ -57,6 +57,19 @@ extern struct workqueue_struct *pciehp_wq;
 #define warn(format, arg...)						\
 	printk(KERN_WARNING "%s: " format, MY_NAME , ## arg)
 
+#define ctrl_dbg(ctrl, format, arg...)					\
+	do {								\
+		if (pciehp_debug)					\
+			dev_printk(, &ctrl->pcie->device,		\
+					format, ## arg);		\
+	} while (0)
+#define ctrl_err(ctrl, format, arg...)					\
+	dev_err(&ctrl->pcie->device, format, ## arg)
+#define ctrl_info(ctrl, format, arg...)					\
+	dev_info(&ctrl->pcie->device, format, ## arg)
+#define ctrl_warn(ctrl, format, arg...)					\
+	dev_warn(&ctrl->pcie->device, format, ## arg)
+
 #define SLOT_NAME_SIZE 10
 struct slot {
 	u8 bus;
@@ -87,6 +100,7 @@ struct controller {
 	int num_slots;			/* Number of slots on ctlr */
 	int slot_num_inc;		/* 1 or -1 */
 	struct pci_dev *pci_dev;
+	struct pcie_device *pcie;	/* PCI Express port service */
 	struct list_head slot_list;
 	struct hpc_ops *hpc_ops;
 	wait_queue_head_t queue;	/* sleep & wake process */
@@ -170,7 +184,7 @@ static inline struct slot *pciehp_find_slot(struct controller *ctrl, u8 device)
 			return slot;
 	}
 
-	err("%s: slot (device=0x%x) not found\n", __func__, device);
+	ctrl_err(ctrl, "%s: slot (device=0x%x) not found\n", __func__, device);
 	return NULL;
 }
 

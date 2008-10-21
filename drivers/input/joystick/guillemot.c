@@ -283,8 +283,7 @@ static struct gameport_driver guillemot_drv = {
 
 static int __init guillemot_init(void)
 {
-	gameport_register_driver(&guillemot_drv);
-	return 0;
+	return gameport_register_driver(&guillemot_drv);
 }
 
 static void __exit guillemot_exit(void)

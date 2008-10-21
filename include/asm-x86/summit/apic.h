@@ -22,7 +22,6 @@ static inline cpumask_t target_cpus(void)
 	 */
 	return cpumask_of_cpu(0);
 }
-#define TARGET_CPUS	(target_cpus())
 
 #define INT_DELIVERY_MODE (dest_LowestPrio)
 #define INT_DEST_MODE 1     /* logical delivery broadcast to all procs */
@@ -160,7 +159,7 @@ static inline unsigned int cpu_mask_to_apicid(cpumask_t cpumask)
 			int new_apicid = cpu_to_logical_apicid(cpu);
 			if (apicid_cluster(apicid) !=
 					apicid_cluster(new_apicid)){
-				printk ("%s: Not a valid mask!\n",__FUNCTION__);
+				printk ("%s: Not a valid mask!\n", __func__);
 				return 0xFF;
 			}
 			apicid = apicid | new_apicid;

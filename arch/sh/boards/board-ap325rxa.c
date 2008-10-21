@@ -18,11 +18,13 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/smc911x.h>
+#include <linux/gpio.h>
 #include <media/soc_camera_platform.h>
 #include <media/sh_mobile_ceu.h>
-#include <asm/sh_mobile_lcdc.h>
+#include <video/sh_mobile_lcdc.h>
 #include <asm/io.h>
 #include <asm/clock.h>
+#include <cpu/sh7723.h>
 
 static struct smc911x_platdata smc911x_info = {
 	.flags = SMC911X_USE_32BIT,
@@ -52,20 +54,33 @@ static struct platform_device smc9118_device = {
 	},
 };
 
+/*
+ * AP320 and AP325RXA has CPLD data in NOR Flash(0xA80000-0xABFFFF).
+ * If this area erased, this board can not boot.
+ */
 static struct mtd_partition ap325rxa_nor_flash_partitions[] = {
 	{
-		 .name = "uboot",
-		 .offset = 0,
-		 .size = (1 * 1024 * 1024),
-		 .mask_flags = MTD_WRITEABLE,	/* Read-only */
+		.name = "uboot",
+		.offset = 0,
+		.size = (1 * 1024 * 1024),
+		.mask_flags = MTD_WRITEABLE,	/* Read-only */
 	}, {
-		 .name = "kernel",
-		 .offset = MTDPART_OFS_APPEND,
-		 .size = (2 * 1024 * 1024),
+		.name = "kernel",
+		.offset = MTDPART_OFS_APPEND,
+		.size = (2 * 1024 * 1024),
 	}, {
-		 .name = "other",
-		 .offset = MTDPART_OFS_APPEND,
-		 .size = MTDPART_SIZ_FULL,
+		.name = "free-area0",
+		.offset = MTDPART_OFS_APPEND,
+		.size = ((7 * 1024 * 1024) + (512 * 1024)),
+	}, {
+		.name = "CPLD-Data",
+		.offset = MTDPART_OFS_APPEND,
+		.mask_flags = MTD_WRITEABLE,	/* Read-only */
+		.size = (1024 * 128 * 2),
+	}, {
+		.name = "free-area1",
+		.offset = MTDPART_OFS_APPEND,
+		.size = MTDPART_SIZ_FULL,
 	},
 };
 
@@ -96,17 +111,7 @@ static struct platform_device ap325rxa_nor_flash_device = {
 #define FPGA_LCDREG	0xB4100180
 #define FPGA_BKLREG	0xB4100212
 #define FPGA_LCDREG_VAL	0x0018
-#define PORT_PHCR	0xA405010E
-#define PORT_PLCR	0xA4050114
-#define PORT_PMCR	0xA4050116
-#define PORT_PRCR	0xA405011C
-#define PORT_PSCR	0xA405011E
-#define PORT_PZCR	0xA405014C
-#define PORT_HIZCRA	0xA4050158
 #define PORT_MSELCRB	0xA4050182
-#define PORT_PSDR	0xA405013E
-#define PORT_PZDR	0xA405016C
-#define PORT_PSELD	0xA4050154
 
 static void ap320_wvga_power_on(void *board_data)
 {
@@ -116,8 +121,7 @@ static void ap320_wvga_power_on(void *board_data)
 	ctrl_outw(FPGA_LCDREG_VAL, FPGA_LCDREG);
 
 	/* backlight */
-	ctrl_outw((ctrl_inw(PORT_PSCR) & ~0x00C0) | 0x40, PORT_PSCR);
-	ctrl_outb(ctrl_inb(PORT_PSDR) & ~0x08, PORT_PSDR);
+	gpio_set_value(GPIO_PTS3, 0);
 	ctrl_outw(0x100, FPGA_BKLREG);
 }
 
@@ -281,12 +285,84 @@ static struct platform_device *ap325rxa_devices[] __initdata = {
 };
 
 static struct i2c_board_info __initdata ap325rxa_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("pcf8563", 0x51),
+	},
 };
 
 static int __init ap325rxa_devices_setup(void)
 {
-	clk_always_enable("mstp200"); /* LCDC */
-	clk_always_enable("mstp203"); /* CEU */
+	/* LD3 and LD4 LEDs */
+	gpio_request(GPIO_PTX5, NULL); /* RUN */
+	gpio_direction_output(GPIO_PTX5, 1);
+	gpio_export(GPIO_PTX5, 0);
+
+	gpio_request(GPIO_PTX4, NULL); /* INDICATOR */
+	gpio_direction_output(GPIO_PTX4, 0);
+	gpio_export(GPIO_PTX4, 0);
+
+	/* SW1 input */
+	gpio_request(GPIO_PTF7, NULL); /* MODE */
+	gpio_direction_input(GPIO_PTF7);
+	gpio_export(GPIO_PTF7, 0);
+
+	/* LCDC */
+	clk_always_enable("mstp200");
+	gpio_request(GPIO_FN_LCDD15, NULL);
+	gpio_request(GPIO_FN_LCDD14, NULL);
+	gpio_request(GPIO_FN_LCDD13, NULL);
+	gpio_request(GPIO_FN_LCDD12, NULL);
+	gpio_request(GPIO_FN_LCDD11, NULL);
+	gpio_request(GPIO_FN_LCDD10, NULL);
+	gpio_request(GPIO_FN_LCDD9, NULL);
+	gpio_request(GPIO_FN_LCDD8, NULL);
+	gpio_request(GPIO_FN_LCDD7, NULL);
+	gpio_request(GPIO_FN_LCDD6, NULL);
+	gpio_request(GPIO_FN_LCDD5, NULL);
+	gpio_request(GPIO_FN_LCDD4, NULL);
+	gpio_request(GPIO_FN_LCDD3, NULL);
+	gpio_request(GPIO_FN_LCDD2, NULL);
+	gpio_request(GPIO_FN_LCDD1, NULL);
+	gpio_request(GPIO_FN_LCDD0, NULL);
+	gpio_request(GPIO_FN_LCDLCLK_PTR, NULL);
+	gpio_request(GPIO_FN_LCDDCK, NULL);
+	gpio_request(GPIO_FN_LCDVEPWC, NULL);
+	gpio_request(GPIO_FN_LCDVCPWC, NULL);
+	gpio_request(GPIO_FN_LCDVSYN, NULL);
+	gpio_request(GPIO_FN_LCDHSYN, NULL);
+	gpio_request(GPIO_FN_LCDDISP, NULL);
+	gpio_request(GPIO_FN_LCDDON, NULL);
+
+	/* LCD backlight */
+	gpio_request(GPIO_PTS3, NULL);
+	gpio_direction_output(GPIO_PTS3, 1);
+
+	/* CEU */
+	clk_always_enable("mstp203");
+	gpio_request(GPIO_FN_VIO_CLK2, NULL);
+	gpio_request(GPIO_FN_VIO_VD2, NULL);
+	gpio_request(GPIO_FN_VIO_HD2, NULL);
+	gpio_request(GPIO_FN_VIO_FLD, NULL);
+	gpio_request(GPIO_FN_VIO_CKO, NULL);
+	gpio_request(GPIO_FN_VIO_D15, NULL);
+	gpio_request(GPIO_FN_VIO_D14, NULL);
+	gpio_request(GPIO_FN_VIO_D13, NULL);
+	gpio_request(GPIO_FN_VIO_D12, NULL);
+	gpio_request(GPIO_FN_VIO_D11, NULL);
+	gpio_request(GPIO_FN_VIO_D10, NULL);
+	gpio_request(GPIO_FN_VIO_D9, NULL);
+	gpio_request(GPIO_FN_VIO_D8, NULL);
+
+	gpio_request(GPIO_PTZ7, NULL);
+	gpio_direction_output(GPIO_PTZ7, 0); /* OE_CAM */
+	gpio_request(GPIO_PTZ6, NULL);
+	gpio_direction_output(GPIO_PTZ6, 0); /* STBY_CAM */
+	gpio_request(GPIO_PTZ5, NULL);
+	gpio_direction_output(GPIO_PTZ5, 1); /* RST_CAM */
+	gpio_request(GPIO_PTZ4, NULL);
+	gpio_direction_output(GPIO_PTZ4, 0); /* SADDR */
+
+	ctrl_outw(ctrl_inw(PORT_MSELCRB) & ~0x0001, PORT_MSELCRB);
 
 	platform_resource_setup_memory(&ceu_device, "ceu", 4 << 20);
 
@@ -300,18 +376,6 @@ device_initcall(ap325rxa_devices_setup);
 
 static void __init ap325rxa_setup(char **cmdline_p)
 {
-	/* LCDC configuration */
-	ctrl_outw(ctrl_inw(PORT_PHCR) & ~0xffff, PORT_PHCR);
-	ctrl_outw(ctrl_inw(PORT_PLCR) & ~0xffff, PORT_PLCR);
-	ctrl_outw(ctrl_inw(PORT_PMCR) & ~0xffff, PORT_PMCR);
-	ctrl_outw(ctrl_inw(PORT_PRCR) & ~0x03ff, PORT_PRCR);
-	ctrl_outw(ctrl_inw(PORT_HIZCRA) & ~0x01C0, PORT_HIZCRA);
-
-	/* CEU */
-	ctrl_outw(ctrl_inw(PORT_MSELCRB) & ~0x0001, PORT_MSELCRB);
-	ctrl_outw(ctrl_inw(PORT_PSELD) & ~0x0003, PORT_PSELD);
-	ctrl_outw((ctrl_inw(PORT_PZCR) & ~0xff00) | 0x5500, PORT_PZCR);
-	ctrl_outb((ctrl_inb(PORT_PZDR) & ~0xf0) | 0x20, PORT_PZDR);
 }
 
 static struct sh_machine_vector mv_ap325rxa __initmv = {

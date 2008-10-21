@@ -233,15 +233,18 @@ static struct hw_interrupt_type hd64465_ss_irq_type = {
  */
 static void hs_map_irq(hs_socket_t *sp, unsigned int irq)
 {
+	struct irq_desc *desc;
+
     	DPRINTK("hs_map_irq(sock=%d irq=%d)\n", sp->number, irq);
 	
 	if (irq >= HS_NUM_MAPPED_IRQS)
 	    return;
 
+	desc = irq_to_desc(irq);
     	hs_mapped_irq[irq].sock = sp;
 	/* insert ourselves as the irq controller */
-	hs_mapped_irq[irq].old_handler = irq_desc[irq].chip;
-	irq_desc[irq].chip = &hd64465_ss_irq_type;
+	hs_mapped_irq[irq].old_handler = desc->chip;
+	desc->chip = &hd64465_ss_irq_type;
 }
 
 
@@ -250,13 +253,16 @@ static void hs_map_irq(hs_socket_t *sp, unsigned int irq)
  */
 static void hs_unmap_irq(hs_socket_t *sp, unsigned int irq)
 {
+	struct irq_desc *desc;
+
     	DPRINTK("hs_unmap_irq(sock=%d irq=%d)\n", sp->number, irq);
 	
 	if (irq >= HS_NUM_MAPPED_IRQS)
 	    return;
 		
+	desc = irq_to_desc(irq);
 	/* restore the original irq controller */
-	irq_desc[irq].chip = hs_mapped_irq[irq].old_handler;
+	desc->chip = hs_mapped_irq[irq].old_handler;
 }
 
 /*============================================================*/

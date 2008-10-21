@@ -32,9 +32,9 @@
 #include <mach/regs-s3c2443-clock.h>
 #include <mach/reset.h>
 
-#include <asm/plat-s3c24xx/s3c2443.h>
-#include <asm/plat-s3c24xx/devs.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/s3c2443.h>
+#include <plat/devs.h>
+#include <plat/cpu.h>
 
 static struct map_desc s3c2443_iodesc[] __initdata = {
 	IODESC_ENT(WATCHDOG),

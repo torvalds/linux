@@ -33,8 +33,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/mempool.h>
 #include <linux/timer.h>
-#include "iova.h"
-#include "intel-iommu.h"
+#include <linux/iova.h>
+#include <linux/intel-iommu.h>
 #include <asm/proto.h> /* force_iommu in this header in x86-64*/
 #include <asm/cacheflush.h>
 #include <asm/iommu.h>
@@ -156,7 +156,7 @@ static inline void *alloc_domain_mem(void)
 	return iommu_kmem_cache_alloc(iommu_domain_cache);
 }
 
-static inline void free_domain_mem(void *vaddr)
+static void free_domain_mem(void *vaddr)
 {
 	kmem_cache_free(iommu_domain_cache, vaddr);
 }
@@ -563,7 +563,7 @@ static int __iommu_flush_context(struct intel_iommu *iommu,
 
 	spin_unlock_irqrestore(&iommu->register_lock, flag);
 
-	/* flush context entry will implictly flush write buffer */
+	/* flush context entry will implicitly flush write buffer */
 	return 0;
 }
 
@@ -656,7 +656,7 @@ static int __iommu_flush_iotlb(struct intel_iommu *iommu, u16 did,
 	if (DMA_TLB_IAIG(val) != DMA_TLB_IIRG(type))
 		pr_debug("IOMMU: tlb flush request %Lx, actual %Lx\n",
 			DMA_TLB_IIRG(type), DMA_TLB_IAIG(val));
-	/* flush context entry will implictly flush write buffer */
+	/* flush iotlb entry will implicitly flush write buffer */
 	return 0;
 }
 
@@ -1341,7 +1341,7 @@ static void domain_remove_dev_info(struct dmar_domain *domain)
  * find_domain
  * Note: we use struct pci_dev->dev.archdata.iommu stores the info
  */
-struct dmar_domain *
+static struct dmar_domain *
 find_domain(struct pci_dev *pdev)
 {
 	struct device_domain_info *info;
@@ -2318,3 +2318,111 @@ int __init intel_iommu_init(void)
 	return 0;
 }
 
+void intel_iommu_domain_exit(struct dmar_domain *domain)
+{
+	u64 end;
+
+	/* Domain 0 is reserved, so dont process it */
+	if (!domain)
+		return;
+
+	end = DOMAIN_MAX_ADDR(domain->gaw);
+	end = end & (~PAGE_MASK_4K);
+
+	/* clear ptes */
+	dma_pte_clear_range(domain, 0, end);
+
+	/* free page tables */
+	dma_pte_free_pagetable(domain, 0, end);
+
+	iommu_free_domain(domain);
+	free_domain_mem(domain);
+}
+EXPORT_SYMBOL_GPL(intel_iommu_domain_exit);
+
+struct dmar_domain *intel_iommu_domain_alloc(struct pci_dev *pdev)
+{
+	struct dmar_drhd_unit *drhd;
+	struct dmar_domain *domain;
+	struct intel_iommu *iommu;
+
+	drhd = dmar_find_matched_drhd_unit(pdev);
+	if (!drhd) {
+		printk(KERN_ERR "intel_iommu_domain_alloc: drhd == NULL\n");
+		return NULL;
+	}
+
+	iommu = drhd->iommu;
+	if (!iommu) {
+		printk(KERN_ERR
+			"intel_iommu_domain_alloc: iommu == NULL\n");
+		return NULL;
+	}
+	domain = iommu_alloc_domain(iommu);
+	if (!domain) {
+		printk(KERN_ERR
+			"intel_iommu_domain_alloc: domain == NULL\n");
+		return NULL;
+	}
+	if (domain_init(domain, DEFAULT_DOMAIN_ADDRESS_WIDTH)) {
+		printk(KERN_ERR
+			"intel_iommu_domain_alloc: domain_init() failed\n");
+		intel_iommu_domain_exit(domain);
+		return NULL;
+	}
+	return domain;
+}
+EXPORT_SYMBOL_GPL(intel_iommu_domain_alloc);
+
+int intel_iommu_context_mapping(
+	struct dmar_domain *domain, struct pci_dev *pdev)
+{
+	int rc;
+	rc = domain_context_mapping(domain, pdev);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(intel_iommu_context_mapping);
+
+int intel_iommu_page_mapping(
+	struct dmar_domain *domain, dma_addr_t iova,
+	u64 hpa, size_t size, int prot)
+{
+	int rc;
+	rc = domain_page_mapping(domain, iova, hpa, size, prot);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(intel_iommu_page_mapping);
+
+void intel_iommu_detach_dev(struct dmar_domain *domain, u8 bus, u8 devfn)
+{
+	detach_domain_for_dev(domain, bus, devfn);
+}
+EXPORT_SYMBOL_GPL(intel_iommu_detach_dev);
+
+struct dmar_domain *
+intel_iommu_find_domain(struct pci_dev *pdev)
+{
+	return find_domain(pdev);
+}
+EXPORT_SYMBOL_GPL(intel_iommu_find_domain);
+
+int intel_iommu_found(void)
+{
+	return g_num_of_iommus;
+}
+EXPORT_SYMBOL_GPL(intel_iommu_found);
+
+u64 intel_iommu_iova_to_pfn(struct dmar_domain *domain, u64 iova)
+{
+	struct dma_pte *pte;
+	u64 pfn;
+
+	pfn = 0;
+	pte = addr_to_dma_pte(domain, iova);
+
+	if (pte)
+		pfn = dma_pte_addr(*pte);
+
+	return pfn >> PAGE_SHIFT_4K;
+}
+EXPORT_SYMBOL_GPL(intel_iommu_iova_to_pfn);

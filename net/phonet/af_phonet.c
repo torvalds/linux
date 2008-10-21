@@ -67,11 +67,10 @@ static int pn_socket_create(struct net *net, struct socket *sock, int protocol)
 	}
 
 	pnp = phonet_proto_get(protocol);
-#ifdef CONFIG_KMOD
 	if (pnp == NULL &&
 	    request_module("net-pf-%d-proto-%d", PF_PHONET, protocol) == 0)
 		pnp = phonet_proto_get(protocol);
-#endif
+
 	if (pnp == NULL)
 		return -EPROTONOSUPPORT;
 	if (sock->type != pnp->sock_type) {

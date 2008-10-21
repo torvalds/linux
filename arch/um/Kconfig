@@ -229,6 +229,8 @@ endmenu
 
 source "init/Kconfig"
 
+source "kernel/Kconfig.freezer"
+
 source "drivers/block/Kconfig"
 
 source "arch/um/Kconfig.char"

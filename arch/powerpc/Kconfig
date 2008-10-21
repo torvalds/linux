@@ -19,6 +19,9 @@ config WORD_SIZE
 	default 64 if PPC64
 	default 32 if !PPC64
 
+config ARCH_PHYS_ADDR_T_64BIT
+       def_bool PPC64 || PHYS_64BIT
+
 config MMU
 	bool
 	default y
@@ -223,6 +226,8 @@ config PPC_OF_PLATFORM_PCI
 	default n
 
 source "init/Kconfig"
+
+source "kernel/Kconfig.freezer"
 
 source "arch/powerpc/sysdev/Kconfig"
 source "arch/powerpc/platforms/Kconfig"

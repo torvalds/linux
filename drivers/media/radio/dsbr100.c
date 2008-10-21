@@ -310,7 +310,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 
 	radio->curfreq = f->frequency;
 	if (dsbr100_setfreq(radio, radio->curfreq)==-1)
-		warn("Set frequency failed");
+		dev_warn(&radio->usbdev->dev, "Set frequency failed\n");
 	return 0;
 }
 
@@ -361,12 +361,14 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	case V4L2_CID_AUDIO_MUTE:
 		if (ctrl->value) {
 			if (dsbr100_stop(radio) == -1) {
-				warn("Radio did not respond properly");
+				dev_warn(&radio->usbdev->dev,
+					 "Radio did not respond properly\n");
 				return -EBUSY;
 			}
 		} else {
 			if (dsbr100_start(radio) == -1) {
-				warn("Radio did not respond properly");
+				dev_warn(&radio->usbdev->dev,
+					 "Radio did not respond properly\n");
 				return -EBUSY;
 			}
 		}
@@ -416,7 +418,8 @@ static int usb_dsbr100_open(struct inode *inode, struct file *file)
 	radio->muted = 1;
 
 	if (dsbr100_start(radio)<0) {
-		warn("Radio did not start up properly");
+		dev_warn(&radio->usbdev->dev,
+			 "Radio did not start up properly\n");
 		radio->users = 0;
 		unlock_kernel();
 		return -EIO;
@@ -501,7 +504,7 @@ static int usb_dsbr100_probe(struct usb_interface *intf,
 	radio->curfreq = FREQ_MIN*FREQ_MUL;
 	video_set_drvdata(radio->videodev, radio);
 	if (video_register_device(radio->videodev, VFL_TYPE_RADIO, radio_nr) < 0) {
-		warn("Could not register video device");
+		dev_warn(&intf->dev, "Could not register video device\n");
 		video_device_release(radio->videodev);
 		kfree(radio->transfer_buffer);
 		kfree(radio);
