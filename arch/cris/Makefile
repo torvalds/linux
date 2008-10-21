@@ -95,8 +95,6 @@ ifdef CONFIG_ETRAX_ARCH_V32
 endif
 	@rm -rf $(SRC_ARCH)/kernel/vmlinux.lds.S
 	@ln -sfn ../$(SARCH)/vmlinux.lds.S $(SRC_ARCH)/kernel/vmlinux.lds.S
-	@rm -rf $(SRC_ARCH)/kernel/asm-offsets.c
-	@ln -sfn ../$(SARCH)/kernel/asm-offsets.c $(SRC_ARCH)/kernel/asm-offsets.c
 	@touch $@
 
 archclean:
@@ -116,8 +114,8 @@ MRPROPER_FILES += \
 	$(SRC_ARCH)/boot \
 	$(SRC_ARCH)/lib \
 	$(SRC_ARCH)/arch \
-	$(SRC_ARCH)/kernel/vmlinux.lds.S \
-	$(SRC_ARCH)/kernel/asm-offsets.c
+	$(SRC_ARCH)/kernel/vmlinux.lds.S
+
 
 define archhelp
   echo  '* zImage        - Compressed kernel image (arch/$(ARCH)/boot/zImage)'

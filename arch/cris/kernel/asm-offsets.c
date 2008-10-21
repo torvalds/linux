@@ -1,5 +1,6 @@
 #include <linux/sched.h>
 #include <asm/thread_info.h>
+#include <linux/autoconf.h>
 
 /*
  * Generate definitions needed by assembly language modules.
@@ -8,9 +9,13 @@
  */
 
 #define DEFINE(sym, val) \
-        asm volatile("\n->" #sym " %0 " #val : : "i" (val))
+	asm volatile("\n->" #sym " %0 " #val : : "i" (val))
 
 #define BLANK() asm volatile("\n->" : : )
+
+#if !defined(CONFIG_ETRAX_ARCH_V10) && !defined(CONFIG_ETRAX_ARCH_V32)
+#error One of ARCH v10 and ARCH v32 must be true!
+#endif
 
 int main(void)
 {
@@ -19,31 +24,41 @@ int main(void)
 	ENTRY(r13);
 	ENTRY(r12);
 	ENTRY(r11);
-        ENTRY(r10);
-        ENTRY(r9);
+	ENTRY(r10);
+	ENTRY(r9);
+#ifdef CONFIG_ETRAX_ARCH_V32
 	ENTRY(acr);
 	ENTRY(srs);
-        ENTRY(mof);
-        ENTRY(ccs);
-        ENTRY(srp);
+#endif
+	ENTRY(mof);
+#ifdef CONFIG_ETRAX_ARCH_V10
+	ENTRY(dccr);
+#else
+	ENTRY(ccs);
+#endif
+	ENTRY(srp);
 	BLANK();
 #undef ENTRY
 #define ENTRY(entry) DEFINE(TI_ ## entry, offsetof(struct thread_info, entry))
-        ENTRY(task);
-        ENTRY(flags);
-        ENTRY(preempt_count);
-        BLANK();
+	ENTRY(task);
+	ENTRY(flags);
+	ENTRY(preempt_count);
+	BLANK();
 #undef ENTRY
 #define ENTRY(entry) DEFINE(THREAD_ ## entry, offsetof(struct thread_struct, entry))
 	ENTRY(ksp);
-        ENTRY(usp);
-        ENTRY(ccs);
-        BLANK();
+	ENTRY(usp);
+#ifdef CONFIG_ETRAX_ARCH_V10
+	ENTRY(dccr);
+#else
+	ENTRY(ccs);
+#endif
+	BLANK();
 #undef ENTRY
 #define ENTRY(entry) DEFINE(TASK_ ## entry, offsetof(struct task_struct, entry))
-        ENTRY(pid);
-        BLANK();
-        DEFINE(LCLONE_VM, CLONE_VM);
-        DEFINE(LCLONE_UNTRACED, CLONE_UNTRACED);
-        return 0;
+	ENTRY(pid);
+	BLANK();
+	DEFINE(LCLONE_VM, CLONE_VM);
+	DEFINE(LCLONE_UNTRACED, CLONE_UNTRACED);
+	return 0;
 }
