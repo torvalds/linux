@@ -437,7 +437,7 @@ Mds_DurationSet(  PADAPTER Adapter,  PDESCRIPTOR pDes,  u8 *buffer )
 	u8	Rate, i;
 	unsigned char	CTS_on = FALSE, RTS_on = FALSE;
 	PT00_DESCRIPTOR pNextT00;
-	u16 BodyLen;
+	u16 BodyLen = 0;
 	unsigned char boGroupAddr = FALSE;
 
 

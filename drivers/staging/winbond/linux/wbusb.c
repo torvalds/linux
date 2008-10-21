@@ -19,16 +19,16 @@ static struct usb_device_id wb35_table[] __devinitdata = {
 	{USB_DEVICE(0x18E8, 0x6230)},
 	{USB_DEVICE(0x18E8, 0x6233)},
 	{USB_DEVICE(0x1131, 0x2035)},
-	{}
+	{ 0, }
 };
 
 MODULE_DEVICE_TABLE(usb, wb35_table);
 
-static const struct ieee80211_rate wbsoft_rates[] = {
+static struct ieee80211_rate wbsoft_rates[] = {
 	{ .bitrate = 10, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
 };
 
-static const struct ieee80211_channel wbsoft_channels[] = {
+static struct ieee80211_channel wbsoft_channels[] = {
 	{ .center_freq = 2412},
 };
 
@@ -49,9 +49,22 @@ static void wbsoft_remove_interface(struct ieee80211_hw *dev,
 	printk("wbsoft_remove interface called\n");
 }
 
-static int wbsoft_nop(void)
+static void wbsoft_stop(struct ieee80211_hw *hw)
 {
-	printk("wbsoft_nop called\n");
+	printk(KERN_INFO "%s called\n", __func__);
+}
+
+static int wbsoft_get_stats(struct ieee80211_hw *hw,
+			    struct ieee80211_low_level_stats *stats)
+{
+	printk(KERN_INFO "%s called\n", __func__);
+	return 0;
+}
+
+static int wbsoft_get_tx_stats(struct ieee80211_hw *hw,
+			       struct ieee80211_tx_queue_stats *stats)
+{
+	printk(KERN_INFO "%s called\n", __func__);
 	return 0;
 }
 
@@ -92,8 +105,7 @@ static void wbsoft_configure_filter(struct ieee80211_hw *dev,
 	*total_flags = new_flags;
 }
 
-static int wbsoft_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
-		      struct ieee80211_tx_control *control)
+static int wbsoft_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	char *buffer = kmalloc(skb->len, GFP_ATOMIC);
 	printk("Sending frame %d bytes\n", skb->len);
@@ -158,14 +170,14 @@ static u64 wbsoft_get_tsf(struct ieee80211_hw *dev)
 static const struct ieee80211_ops wbsoft_ops = {
 	.tx			= wbsoft_tx,
 	.start			= wbsoft_start,		/* Start can be pretty much empty as we do WbWLanInitialize() during probe? */
-	.stop			= wbsoft_nop,
+	.stop			= wbsoft_stop,
 	.add_interface		= wbsoft_add_interface,
 	.remove_interface	= wbsoft_remove_interface,
 	.config			= wbsoft_config,
 	.config_interface	= wbsoft_config_interface,
 	.configure_filter	= wbsoft_configure_filter,
-	.get_stats		= wbsoft_nop,
-	.get_tx_stats		= wbsoft_nop,
+	.get_stats		= wbsoft_get_stats,
+	.get_tx_stats		= wbsoft_get_tx_stats,
 	.get_tsf		= wbsoft_get_tsf,
 // conf_tx: hal_set_cwmin()/hal_set_cwmax;
 };
@@ -224,6 +236,7 @@ int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id_table)
 	{
 		struct wbsoft_priv *priv;
 		struct ieee80211_hw *dev;
+		static struct ieee80211_supported_band band;
 		int res;
 
 		dev = ieee80211_alloc_hw(sizeof(*priv), &wbsoft_ops);
@@ -251,8 +264,6 @@ int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id_table)
 //		dev->max_rssi = 100;
 
 		dev->queues = 1;
-
-		static struct ieee80211_supported_band band;
 
 		band.channels = wbsoft_channels;
 		band.n_channels = ARRAY_SIZE(wbsoft_channels);
