@@ -1439,8 +1439,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0102_chip = 1,
 	 .spk71 = 1,
 	 .emu_model = EMU_MODEL_EMU0404}, /* EMU 0404 */
-#endif
-	/* Audigy4 (Not PRO) SB0610 */
+	/* Note that all E-mu cards require kernel 2.6 or newer. */
 	{.vendor = 0x1102, .device = 0x0008,
 	 .driver = "Audigy2", .name = "SB Audigy 2 Value [Unknown]",
 	 .id = "Audigy2",
