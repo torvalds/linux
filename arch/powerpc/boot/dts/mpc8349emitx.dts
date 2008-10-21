@@ -85,7 +85,6 @@
 			dfsrr;
 
 			rtc@68 {
-				device_type = "rtc";
 				compatible = "dallas,ds1339";
 				reg = <0x68>;
 				interrupts = <18 0x8>;
