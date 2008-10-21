@@ -407,16 +407,24 @@ static int __init ap325rxa_devices_setup(void)
 	ctrl_outw(ctrl_inw(PORT_MSELCRB) & ~0x0001, PORT_MSELCRB);
 
 	/* FLCTL */
-	ctrl_outw(0, PORT_PUCR);
-	ctrl_outw(0, PORT_PVCR);
-	ctrl_outw(0, PORT_PSELC);
+	gpio_request(GPIO_FN_FCE, NULL);
+	gpio_request(GPIO_FN_NAF7, NULL);
+	gpio_request(GPIO_FN_NAF6, NULL);
+	gpio_request(GPIO_FN_NAF5, NULL);
+	gpio_request(GPIO_FN_NAF4, NULL);
+	gpio_request(GPIO_FN_NAF3, NULL);
+	gpio_request(GPIO_FN_NAF2, NULL);
+	gpio_request(GPIO_FN_NAF1, NULL);
+	gpio_request(GPIO_FN_NAF0, NULL);
+	gpio_request(GPIO_FN_FCDE, NULL);
+	gpio_request(GPIO_FN_FOE, NULL);
+	gpio_request(GPIO_FN_FSC, NULL);
+	gpio_request(GPIO_FN_FWE, NULL);
+	gpio_request(GPIO_FN_FRB, NULL);
 
 	ctrl_outw(0, PORT_HIZCRC);
 	ctrl_outw(0xFFFF, PORT_DRVCRA);
 	ctrl_outw(0xFFFF, PORT_DRVCRB);
-
-	ctrl_outw((ctrl_inw(PORT_PXCR) & 0x3fff) | 0x4000, PORT_PXCR);
-	ctrl_outb(0x80, PORT_PXDR);
 
 	platform_resource_setup_memory(&ceu_device, "ceu", 4 << 20);
 
