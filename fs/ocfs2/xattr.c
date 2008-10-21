@@ -3231,7 +3231,9 @@ static int ocfs2_half_xattr_bucket(struct inode *inode,
 
 	for (i = 0; i < blk_per_bucket; i++) {
 		ret = ocfs2_journal_access(handle, inode, t_bhs[i],
-					   OCFS2_JOURNAL_ACCESS_CREATE);
+					   new_bucket_head ?
+					   OCFS2_JOURNAL_ACCESS_CREATE :
+					   OCFS2_JOURNAL_ACCESS_WRITE);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -3393,6 +3395,8 @@ static int ocfs2_cp_xattr_bucket(struct inode *inode,
 
 	for (i = 0; i < blk_per_bucket; i++) {
 		ret = ocfs2_journal_access(handle, inode, t_bhs[i],
+					   t_is_new ?
+					   OCFS2_JOURNAL_ACCESS_CREATE :
 					   OCFS2_JOURNAL_ACCESS_WRITE);
 		if (ret)
 			goto out;
