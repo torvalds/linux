@@ -128,7 +128,6 @@ struct mddev_s
 #define MD_CHANGE_DEVS	0	/* Some device status has changed */
 #define MD_CHANGE_CLEAN 1	/* transition to or from 'clean' */
 #define MD_CHANGE_PENDING 2	/* superblock update in progress */
-#define MD_NOTIFY_ARRAY_STATE 3	/* atomic context wants to notify userspace */
 
 	int				ro;
 
@@ -238,6 +237,10 @@ struct mddev_s
 							 * starts here */
 	sector_t			resync_max;	/* resync should pause
 							 * when it gets here */
+
+	struct sysfs_dirent		*sysfs_state;	/* handle for 'array_state'
+							 * file in sysfs.
+							 */
 
 	spinlock_t			write_lock;
 	wait_queue_head_t		sb_wait;	/* for waiting on superblock updates */
