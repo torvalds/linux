@@ -76,7 +76,6 @@ union map_info *dm_get_mapinfo(struct bio *bio)
  */
 struct dm_wq_req {
 	enum {
-		DM_WQ_FLUSH_ALL,
 		DM_WQ_FLUSH_DEFERRED,
 	} type;
 	struct work_struct work;
@@ -1395,9 +1394,6 @@ static void dm_wq_work(struct work_struct *work)
 
 	down_write(&md->io_lock);
 	switch (req->type) {
-	case DM_WQ_FLUSH_ALL:
-		__merge_pushback_list(md);
-		/* pass through */
 	case DM_WQ_FLUSH_DEFERRED:
 		__flush_deferred_io(md);
 		break;
@@ -1527,7 +1523,7 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 		if (!md->suspended_bdev) {
 			DMWARN("bdget failed in dm_suspend");
 			r = -ENOMEM;
-			goto flush_and_out;
+			goto out;
 		}
 
 		/*
@@ -1577,14 +1573,6 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 	dm_table_postsuspend_targets(map);
 
 	set_bit(DMF_SUSPENDED, &md->flags);
-
-flush_and_out:
-	if (r && noflush)
-		/*
-		 * Because there may be already I/Os in the pushback list,
-		 * flush them before return.
-		 */
-		dm_queue_flush(md, DM_WQ_FLUSH_ALL, NULL);
 
 out:
 	if (r && md->suspended_bdev) {
