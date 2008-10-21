@@ -101,7 +101,7 @@ static unsigned long s3c2410_gettimeoffset (void)
 
 	/* work out how many ticks have gone since last timer interrupt */
 
-        tval =  __raw_readl(S3C2410_TCNTO(4));
+	tval =  __raw_readl(S3C2410_TCNTO(4));
 	tdone = timer_startval - tval;
 
 	/* check to see if there is an interrupt pending */
@@ -144,7 +144,7 @@ static struct irqaction s3c2410_timer_irq = {
 	machine_is_bast()	|| \
 	machine_is_vr1000()	|| \
 	machine_is_anubis()	|| \
-	machine_is_osiris() )
+	machine_is_osiris())
 
 /*
  * Set up timer interrupt, and return the current time in seconds.
@@ -216,7 +216,7 @@ static void s3c2410_timer_setup (void)
 
 	tcnt--;
 
-	printk("timer tcon=%08lx, tcnt %04lx, tcfg %08lx,%08lx, usec %08lx\n",
+	printk(KERN_DEBUG "timer tcon=%08lx, tcnt %04lx, tcfg %08lx,%08lx, usec %08lx\n",
 	       tcon, tcnt, tcfg0, tcfg1, timer_usec_ticks);
 
 	/* check to see if timer is within 16bit range... */
@@ -247,7 +247,7 @@ static void s3c2410_timer_setup (void)
 	__raw_writel(tcon, S3C2410_TCON);
 }
 
-static void __init s3c2410_timer_init (void)
+static void __init s3c2410_timer_init(void)
 {
 	s3c2410_timer_setup();
 	setup_irq(IRQ_TIMER4, &s3c2410_timer_irq);

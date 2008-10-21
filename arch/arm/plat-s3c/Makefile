@@ -12,3 +12,4 @@ obj-				:=
 # Core support for all Samsung SoCs
 
 obj-y				+=  init.o
+obj-y				+= time.o
