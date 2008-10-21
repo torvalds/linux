@@ -508,7 +508,12 @@ config SERIAL_S3C2440
 	help
 	  Serial port support for the Samsung S3C2440 and S3C2442 SoC
 
-
+config SERIAL_S3C24A0
+	tristate "Samsung S3C24A0 Serial port support"
+	depends on SERIAL_SAMSUNG && CPU_S3C24A0
+	default y if CPU_S3C24A0
+	help
+	  Serial port support for the Samsung S3C24A0 SoC
 
 config SERIAL_DZ
 	bool "DECstation DZ serial driver"
