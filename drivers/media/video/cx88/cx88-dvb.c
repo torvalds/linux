@@ -1246,7 +1246,10 @@ fail_core:
 
 static int cx8802_dvb_remove(struct cx8802_driver *drv)
 {
+	struct cx88_core *core = drv->core;
 	struct cx8802_dev *dev = drv->core->dvbdev;
+
+	dprintk( 1, "%s\n", __func__);
 
 	videobuf_dvb_unregister_bus(&dev->frontends);
 
