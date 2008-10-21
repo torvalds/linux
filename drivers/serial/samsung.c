@@ -47,9 +47,9 @@
 #include <asm/irq.h>
 
 #include <mach/hardware.h>
+#include <mach/map.h>
 
 #include <plat/regs-serial.h>
-#include <mach/regs-gpio.h>
 
 #include "samsung.h"
 
@@ -756,6 +756,8 @@ static const char *s3c24xx_serial_type(struct uart_port *port)
 		return "S3C2440";
 	case PORT_S3C2412:
 		return "S3C2412";
+	case PORT_S3C6400:
+		return "S3C6400/10";
 	default:
 		return NULL;
 	}
@@ -1034,8 +1036,8 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 
 	dbg("resource %p (%lx..%lx)\n", res, res->start, res->end);
 
-	port->mapbase	= res->start;
-	port->membase	= S3C24XX_VA_UART + (res->start - S3C24XX_PA_UART);
+	port->mapbase = res->start;
+	port->membase = S3C_VA_UART + res->start - (S3C_PA_UART & 0xfff00000);
 	ret = platform_get_irq(platdev, 0);
 	if (ret < 0)
 		port->irq = 0;

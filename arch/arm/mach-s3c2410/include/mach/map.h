@@ -101,4 +101,6 @@
 #define S3C24XX_PA_SDI      S3C2410_PA_SDI
 #define S3C24XX_PA_NAND	    S3C2410_PA_NAND
 
+#define S3C_PA_UART	    S3C24XX_PA_UART
+
 #endif /* __ASM_ARCH_MAP_H */
