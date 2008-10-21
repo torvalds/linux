@@ -44,6 +44,10 @@
 static unsigned long timer_startval;
 static unsigned long timer_usec_ticks;
 
+#ifndef TICK_MAX
+#define TICK_MAX (0xffff)
+#endif
+
 #define TIMER_USEC_SHIFT 16
 
 /* we use the shifted arithmetic to work out the ratio of timer ticks
@@ -156,7 +160,7 @@ static void s3c2410_timer_setup (void)
 	unsigned long tcfg1;
 	unsigned long tcfg0;
 
-	tcnt = 0xffff;  /* default value for tcnt */
+	tcnt = TICK_MAX;  /* default value for tcnt */
 
 	/* read the current timer configuration bits */
 
@@ -217,7 +221,7 @@ static void s3c2410_timer_setup (void)
 	       tcon, tcnt, tcfg0, tcfg1, timer_usec_ticks);
 
 	/* check to see if timer is within 16bit range... */
-	if (tcnt > 0xffff) {
+	if (tcnt > TICK_MAX) {
 		panic("setup_timer: HZ is too small, cannot configure timer!");
 		return;
 	}
