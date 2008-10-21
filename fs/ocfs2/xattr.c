@@ -111,6 +111,10 @@ static int ocfs2_xattr_bucket_get_name_value(struct inode *inode,
 					     int *block_off,
 					     int *new_offset);
 
+static int ocfs2_xattr_block_find(struct inode *inode,
+				  int name_index,
+				  const char *name,
+				  struct ocfs2_xattr_search *xs);
 static int ocfs2_xattr_index_block_find(struct inode *inode,
 					struct buffer_head *root_bh,
 					int name_index,
@@ -760,46 +764,20 @@ static int ocfs2_xattr_block_get(struct inode *inode,
 				 size_t buffer_size,
 				 struct ocfs2_xattr_search *xs)
 {
-	struct ocfs2_dinode *di = (struct ocfs2_dinode *)xs->inode_bh->b_data;
-	struct buffer_head *blk_bh = NULL;
 	struct ocfs2_xattr_block *xb;
 	struct ocfs2_xattr_value_root *xv;
 	size_t size;
 	int ret = -ENODATA, name_offset, name_len, block_off, i;
 
-	if (!di->i_xattr_loc)
-		return ret;
-
 	memset(&xs->bucket, 0, sizeof(xs->bucket));
 
-	ret = ocfs2_read_block(inode, le64_to_cpu(di->i_xattr_loc), &blk_bh);
-	if (ret < 0) {
+	ret = ocfs2_xattr_block_find(inode, name_index, name, xs);
+	if (ret) {
 		mlog_errno(ret);
-		return ret;
-	}
-
-	xb = (struct ocfs2_xattr_block *)blk_bh->b_data;
-	if (!OCFS2_IS_VALID_XATTR_BLOCK(xb)) {
-		ret = -EIO;
 		goto cleanup;
 	}
 
-	xs->xattr_bh = blk_bh;
-
-	if (!(le16_to_cpu(xb->xb_flags) & OCFS2_XATTR_INDEXED)) {
-		xs->header = &xb->xb_attrs.xb_header;
-		xs->base = (void *)xs->header;
-		xs->end = (void *)(blk_bh->b_data) + blk_bh->b_size;
-		xs->here = xs->header->xh_entries;
-
-		ret = ocfs2_xattr_find_entry(name_index, name, xs);
-	} else
-		ret = ocfs2_xattr_index_block_find(inode, blk_bh,
-						   name_index,
-						   name, xs);
-
-	if (ret)
-		goto cleanup;
+	xb = (struct ocfs2_xattr_block *)xs->xattr_bh->b_data;
 	size = le64_to_cpu(xs->here->xe_value_size);
 	if (buffer) {
 		ret = -ERANGE;
@@ -838,7 +816,8 @@ cleanup:
 		brelse(xs->bucket.bhs[i]);
 	memset(&xs->bucket, 0, sizeof(xs->bucket));
 
-	brelse(blk_bh);
+	brelse(xs->xattr_bh);
+	xs->xattr_bh = NULL;
 	return ret;
 }
 
