@@ -625,7 +625,7 @@ static int check_fmt(const struct v4l2_ioctl_ops *ops, enum v4l2_buf_type type)
 	return -EINVAL;
 }
 
-static int __video_do_ioctl(struct inode *inode, struct file *file,
+static int __video_do_ioctl(struct file *file,
 		unsigned int cmd, void *arg)
 {
 	struct video_device *vfd = video_devdata(file);
@@ -675,7 +675,7 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 	 V4L2 ioctls.
 	 ********************************************************/
 	if (_IOC_TYPE(cmd) == 'v' && _IOC_NR(cmd) < BASE_VIDIOCPRIVATE)
-		return v4l_compat_translate_ioctl(inode, file, cmd, arg,
+		return v4l_compat_translate_ioctl(file, cmd, arg,
 						__video_do_ioctl);
 #endif
 
@@ -1832,7 +1832,7 @@ int video_ioctl2(struct inode *inode, struct file *file,
 	}
 
 	/* Handles IOCTL */
-	err = __video_do_ioctl(inode, file, cmd, parg);
+	err = __video_do_ioctl(file, cmd, parg);
 	if (err == -ENOIOCTLCMD)
 		err = -EINVAL;
 	if (is_ext_ctrl) {

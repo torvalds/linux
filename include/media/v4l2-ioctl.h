@@ -271,13 +271,13 @@ extern const char *v4l2_field_names[];
 extern const char *v4l2_type_names[];
 
 /*  Compatibility layer interface  --  v4l1-compat module */
-typedef int (*v4l2_kioctl)(struct inode *inode, struct file *file,
+typedef int (*v4l2_kioctl)(struct file *file,
 			   unsigned int cmd, void *arg);
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
-int v4l_compat_translate_ioctl(struct inode *inode, struct file *file,
+int v4l_compat_translate_ioctl(struct file *file,
 			       int cmd, void *arg, v4l2_kioctl driver_ioctl);
 #else
-#define v4l_compat_translate_ioctl(inode, file, cmd, arg, ioctl) (-EINVAL)
+#define v4l_compat_translate_ioctl(file, cmd, arg, ioctl) (-EINVAL)
 #endif
 
 /* 32 Bits compatibility layer for 64 bits processors */
