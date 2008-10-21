@@ -6,36 +6,23 @@
 #include "sysdef.h"
 #include <net/mac80211.h>
 
-
-MODULE_AUTHOR( DRIVER_AUTHOR );
-MODULE_DESCRIPTION( DRIVER_DESC );
+MODULE_AUTHOR(DRIVER_AUTHOR);
+MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.1");
 
-
-//============================================================
-// vendor ID and product ID can into here for others
-//============================================================
-static struct usb_device_id Id_Table[] =
-{
-  {USB_DEVICE( 0x0416, 0x0035 )},
-  {USB_DEVICE( 0x18E8, 0x6201 )},
-  {USB_DEVICE( 0x18E8, 0x6206 )},
-  {USB_DEVICE( 0x18E8, 0x6217 )},
-  {USB_DEVICE( 0x18E8, 0x6230 )},
-  {USB_DEVICE( 0x18E8, 0x6233 )},
-  {USB_DEVICE( 0x1131, 0x2035 )},
-  {  }
+static struct usb_device_id wb35_table[] __devinitdata = {
+	{USB_DEVICE(0x0416, 0x0035)},
+	{USB_DEVICE(0x18E8, 0x6201)},
+	{USB_DEVICE(0x18E8, 0x6206)},
+	{USB_DEVICE(0x18E8, 0x6217)},
+	{USB_DEVICE(0x18E8, 0x6230)},
+	{USB_DEVICE(0x18E8, 0x6233)},
+	{USB_DEVICE(0x1131, 0x2035)},
+	{}
 };
 
-MODULE_DEVICE_TABLE(usb, Id_Table);
-
-static struct usb_driver wb35_driver = {
-	.name =		"w35und",
-	.probe =	wb35_probe,
-	.disconnect = wb35_disconnect,
-	.id_table = Id_Table,
-};
+MODULE_DEVICE_TABLE(usb, wb35_table);
 
 static const struct ieee80211_rate wbsoft_rates[] = {
 	{ .bitrate = 10, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
@@ -187,21 +174,6 @@ struct wbsoft_priv {
 };
 
 
-int __init wb35_init(void)
-{
-	printk("[w35und]driver init\n");
-	return usb_register(&wb35_driver);
-}
-
-void __exit wb35_exit(void)
-{
-	printk("[w35und]driver exit\n");
-	usb_deregister( &wb35_driver );
-}
-
-module_init(wb35_init);
-module_exit(wb35_exit);
-
 // Usb kernel subsystem will call this function when a new device is plugged into.
 int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id_table)
 {
@@ -210,28 +182,13 @@ int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id_table)
 	PWBUSB		pWbUsb;
         struct usb_host_interface *interface;
 	struct usb_endpoint_descriptor *endpoint;
-	int	i, ret = -1;
+	int	ret = -1;
 	u32	ltmp;
 	struct usb_device *udev = interface_to_usbdev(intf);
 
 	usb_get_dev(udev);
 
 	printk("[w35und]wb35_probe ->\n");
-
-	for (i=0; i<(sizeof(Id_Table)/sizeof(struct usb_device_id)); i++ ) {
-		if ((udev->descriptor.idVendor == Id_Table[i].idVendor) &&
-			(udev->descriptor.idProduct == Id_Table[i].idProduct)) {
-			printk("[w35und]Found supported hardware\n");
-			break;
-		}
-	}
-
-	if ((i == (sizeof(Id_Table)/sizeof(struct usb_device_id)))) {
-		#ifdef _PE_USB_INI_DUMP_
-		WBDEBUG(("[w35und] This is not the one we are interested about\n"));
-		#endif
-		return -ENODEV;
-	}
 
 	// 20060630.2 Check the device if it already be opened
 	ret = usb_control_msg(udev, usb_rcvctrlpipe( udev, 0 ),
@@ -398,4 +355,22 @@ void wb35_disconnect(struct usb_interface *intf)
 
 }
 
+static struct usb_driver wb35_driver = {
+	.name		= "w35und",
+	.id_table	= wb35_table,
+	.probe		= wb35_probe,
+	.disconnect	= wb35_disconnect,
+};
 
+static int __init wb35_init(void)
+{
+	return usb_register(&wb35_driver);
+}
+
+static void __exit wb35_exit(void)
+{
+	usb_deregister(&wb35_driver);
+}
+
+module_init(wb35_init);
+module_exit(wb35_exit);
