@@ -7917,8 +7917,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		goto mem_alloc_failed;
 	}
 
-	sp->bar0 = ioremap(pci_resource_start(pdev, 0),
-				     pci_resource_len(pdev, 0));
+	sp->bar0 = pci_ioremap_bar(pdev, 0);
 	if (!sp->bar0) {
 		DBG_PRINT(ERR_DBG, "%s: Neterion: cannot remap io mem1\n",
 			  dev->name);
@@ -7926,8 +7925,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		goto bar0_remap_failed;
 	}
 
-	sp->bar1 = ioremap(pci_resource_start(pdev, 2),
-				     pci_resource_len(pdev, 2));
+	sp->bar1 = pci_ioremap_bar(pdev, 2);
 	if (!sp->bar1) {
 		DBG_PRINT(ERR_DBG, "%s: Neterion: cannot remap io mem2\n",
 			  dev->name);

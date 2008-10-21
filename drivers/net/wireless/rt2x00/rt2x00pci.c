@@ -222,8 +222,7 @@ static int rt2x00pci_alloc_reg(struct rt2x00_dev *rt2x00dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(rt2x00dev->dev);
 
-	rt2x00dev->csr.base = ioremap(pci_resource_start(pci_dev, 0),
-				      pci_resource_len(pci_dev, 0));
+	rt2x00dev->csr.base = pci_ioremap_bar(pci_dev, 0);
 	if (!rt2x00dev->csr.base)
 		goto exit;
 

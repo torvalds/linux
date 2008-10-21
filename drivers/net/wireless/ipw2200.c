@@ -11621,7 +11621,7 @@ static int __devinit ipw_pci_probe(struct pci_dev *pdev,
 	length = pci_resource_len(pdev, 0);
 	priv->hw_len = length;
 
-	base = ioremap_nocache(pci_resource_start(pdev, 0), length);
+	base = pci_ioremap_bar(pdev, 0);
 	if (!base) {
 		err = -ENODEV;
 		goto out_pci_release_regions;

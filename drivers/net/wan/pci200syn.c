@@ -343,7 +343,7 @@ static int __devinit pci200_pci_init_one(struct pci_dev *pdev,
 	card->scabase = ioremap(scaphys, PCI200SYN_SCA_SIZE);
 
 	ramphys = pci_resource_start(pdev,3) & PCI_BASE_ADDRESS_MEM_MASK;
-	card->rambase = ioremap(ramphys, pci_resource_len(pdev,3));
+	card->rambase = pci_ioremap_bar(pdev, 3);
 
 	if (card->plxbase == NULL ||
 	    card->scabase == NULL ||

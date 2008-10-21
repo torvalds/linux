@@ -363,7 +363,7 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 	ioaddr = pci_resource_start (pdev, 0);
 #else
 	ioaddr = pci_resource_start (pdev, 1);
-	ioaddr = (long) ioremap (ioaddr, pci_resource_len (pdev, 1));
+	ioaddr = (long) pci_ioremap_bar(pdev, 1);
 	if (!ioaddr) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		goto err_out_free_netdev;

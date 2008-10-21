@@ -3977,9 +3977,7 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 	if (qdev->device_id == QL3032_DEVICE_ID)
 		ndev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
 
-	qdev->mem_map_registers =
-	    ioremap_nocache(pci_resource_start(pdev, 1),
-			    pci_resource_len(qdev->pdev, 1));
+	qdev->mem_map_registers = pci_ioremap_bar(pdev, 1);
 	if (!qdev->mem_map_registers) {
 		printk(KERN_ERR PFX "%s: cannot map device registers\n",
 		       pci_name(pdev));

@@ -730,8 +730,7 @@ static int __devinit dscc4_init_one(struct pci_dev *pdev,
 	        goto err_free_mmio_region_1;
 	}
 
-	ioaddr = ioremap(pci_resource_start(pdev, 0),
-					pci_resource_len(pdev, 0));
+	ioaddr = pci_ioremap_bar(pdev, 0);
 	if (!ioaddr) {
 		printk(KERN_ERR "%s: cannot remap MMIO region %llx @ %llx\n",
 			DRV_NAME, (unsigned long long)pci_resource_len(pdev, 0),

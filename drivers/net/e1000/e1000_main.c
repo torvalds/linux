@@ -966,8 +966,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	hw->back = adapter;
 
 	err = -EIO;
-	hw->hw_addr = ioremap(pci_resource_start(pdev, BAR_0),
-			      pci_resource_len(pdev, BAR_0));
+	hw->hw_addr = pci_ioremap_bar(pdev, BAR_0);
 	if (!hw->hw_addr)
 		goto err_ioremap;
 
@@ -1015,9 +1014,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	 * because it depends on mac_type */
 	if ((hw->mac_type == e1000_ich8lan) &&
 	   (pci_resource_flags(pdev, 1) & IORESOURCE_MEM)) {
-		hw->flash_address =
-			ioremap(pci_resource_start(pdev, 1),
-				pci_resource_len(pdev, 1));
+		hw->flash_address = pci_ioremap_bar(pdev, 1);
 		if (!hw->flash_address)
 			goto err_flashmap;
 	}

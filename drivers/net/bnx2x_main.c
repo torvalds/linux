@@ -10087,8 +10087,7 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 
 	dev->irq = pdev->irq;
 
-	bp->regview = ioremap_nocache(dev->base_addr,
-				      pci_resource_len(pdev, 0));
+	bp->regview = pci_ioremap_bar(pdev, 0);
 	if (!bp->regview) {
 		printk(KERN_ERR PFX "Cannot map register space, aborting\n");
 		rc = -ENOMEM;
