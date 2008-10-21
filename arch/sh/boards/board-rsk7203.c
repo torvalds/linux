@@ -19,7 +19,7 @@
 #include <linux/gpio.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
-#include <asm/sh7203.h>
+#include <cpu/sh7203.h>
 
 static struct smc911x_platdata smc911x_info = {
 	.flags		= SMC911X_USE_16BIT,
