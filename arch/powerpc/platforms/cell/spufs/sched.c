@@ -444,6 +444,11 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 		atomic_dec(&cbe_spu_info[spu->node].reserved_spus);
 
 	if (ctx->gang)
+		/*
+		 * If ctx->gang->aff_sched_count is positive, SPU affinity is
+		 * being considered in this gang. Using atomic_dec_if_positive
+		 * allow us to skip an explicit check for affinity in this gang
+		 */
 		atomic_dec_if_positive(&ctx->gang->aff_sched_count);
 
 	spu_switch_notify(spu, NULL);
