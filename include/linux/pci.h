@@ -18,6 +18,7 @@
 #define LINUX_PCI_H
 
 #include <linux/pci_regs.h>	/* The pci register defines */
+#include <linux/io.h>
 
 /*
  * The PCI interface treats multi-function devices as independent
