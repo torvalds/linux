@@ -150,7 +150,8 @@
 
 #define S3C_IRQ_EINT_BASE	S3C_IRQ(64+5)
 
-#define S3C_EINT(x)	((x) + S3C_IRQ_EINT_BASE)
+#define S3C_EINT(x)		((x) + S3C_IRQ_EINT_BASE)
+#define IRQ_EINT(x)		S3C_EINT(x)
 
 /* Define NR_IRQs here, machine specific can always re-define.
  * Currently the IRQ_EINT27 is the last one we can have. */
