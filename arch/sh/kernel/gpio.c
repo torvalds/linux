@@ -432,7 +432,7 @@ static int __gpio_get_set_value(struct pinmux_info *gpioc,
 		BUG();
 	else
 		value = read_write_reg(dr->reg, dr->reg_width,
-				       1, bit, value, do_write);
+				       1, bit, !!value, do_write);
 
 	return value;
 }
