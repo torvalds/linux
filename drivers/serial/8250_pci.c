@@ -1865,6 +1865,11 @@ static int pci_oxsemi_tornado_init(struct pci_dev *dev, struct pciserial_board *
 	unsigned long deviceID;
 	unsigned int  number_uarts;
 
+	/* OxSemi Tornado devices are all 0xCxxx */
+	if (dev->vendor == PCI_VENDOR_ID_OXSEMI &&
+	    (dev->device & 0xF000) != 0xC000)
+		return 0;
+
 	p = pci_iomap(dev, 0, 5);
 	if (p == NULL)
 		return -ENOMEM;
@@ -1893,7 +1898,8 @@ pciserial_init_ports(struct pci_dev *dev, struct pciserial_board *board)
 	/*
 	 * Find number of ports on board
 	 */
-	if (dev->vendor == PCI_VENDOR_ID_OXSEMI)
+	if (dev->vendor == PCI_VENDOR_ID_OXSEMI ||
+	    dev->vendor == PCI_VENDOR_ID_MAINPINE)
 		pci_oxsemi_tornado_init(dev, board);
 
 	nr_ports = board->num_ports;
@@ -2510,7 +2516,21 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_OXSEMI, 0xc4cf,    /* OXPCIe200 1 Native UART */
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		pbn_oxsemi_1_4000000 },
-
+	/*
+	 * Mainpine Inc. IQ Express "Rev3" utilizing OxSemi Tornado
+	 */
+	{	PCI_VENDOR_ID_MAINPINE, 0x4000,	/* IQ Express 1 Port V.34 Super-G3 Fax */
+		PCI_VENDOR_ID_MAINPINE, 0x4001, 0, 0,
+		pbn_oxsemi_1_4000000 },
+	{	PCI_VENDOR_ID_MAINPINE, 0x4000,	/* IQ Express 2 Port V.34 Super-G3 Fax */
+		PCI_VENDOR_ID_MAINPINE, 0x4002, 0, 0,
+		pbn_oxsemi_2_4000000 },
+	{	PCI_VENDOR_ID_MAINPINE, 0x4000,	/* IQ Express 4 Port V.34 Super-G3 Fax */
+		PCI_VENDOR_ID_MAINPINE, 0x4004, 0, 0,
+		pbn_oxsemi_4_4000000 },
+	{	PCI_VENDOR_ID_MAINPINE, 0x4000,	/* IQ Express 8 Port V.34 Super-G3 Fax */
+		PCI_VENDOR_ID_MAINPINE, 0x4008, 0, 0,
+		pbn_oxsemi_8_4000000 },
 	/*
 	 * SBS Technologies, Inc. P-Octal and PMC-OCTPRO cards,
 	 * from skokodyn@yahoo.com
