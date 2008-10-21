@@ -96,6 +96,8 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_BSS_SHORT_PREAMBLE] = { .type = NLA_U8 },
 	[NL80211_ATTR_BSS_SHORT_SLOT_TIME] = { .type = NLA_U8 },
 
+	[NL80211_ATTR_MESH_PARAMS] = { .type = NLA_NESTED },
+
 	[NL80211_ATTR_HT_CAPABILITY] = { .type = NLA_BINARY,
 					 .len = NL80211_HT_CAPABILITY_LEN },
 };
@@ -1698,6 +1700,183 @@ static int nl80211_req_set_reg(struct sk_buff *skb, struct genl_info *info)
 	return r;
 }
 
+static int nl80211_get_mesh_params(struct sk_buff *skb,
+	struct genl_info *info)
+{
+	struct cfg80211_registered_device *drv;
+	struct mesh_config cur_params;
+	int err;
+	struct net_device *dev;
+	void *hdr;
+	struct nlattr *pinfoattr;
+	struct sk_buff *msg;
+
+	/* Look up our device */
+	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	if (err)
+		return err;
+
+	/* Get the mesh params */
+	rtnl_lock();
+	err = drv->ops->get_mesh_params(&drv->wiphy, dev, &cur_params);
+	rtnl_unlock();
+	if (err)
+		goto out;
+
+	/* Draw up a netlink message to send back */
+	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!msg) {
+		err = -ENOBUFS;
+		goto out;
+	}
+	hdr = nl80211hdr_put(msg, info->snd_pid, info->snd_seq, 0,
+			     NL80211_CMD_GET_MESH_PARAMS);
+	if (!hdr)
+		goto nla_put_failure;
+	pinfoattr = nla_nest_start(msg, NL80211_ATTR_MESH_PARAMS);
+	if (!pinfoattr)
+		goto nla_put_failure;
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, dev->ifindex);
+	NLA_PUT_U16(msg, NL80211_MESHCONF_RETRY_TIMEOUT,
+			cur_params.dot11MeshRetryTimeout);
+	NLA_PUT_U16(msg, NL80211_MESHCONF_CONFIRM_TIMEOUT,
+			cur_params.dot11MeshConfirmTimeout);
+	NLA_PUT_U16(msg, NL80211_MESHCONF_HOLDING_TIMEOUT,
+			cur_params.dot11MeshHoldingTimeout);
+	NLA_PUT_U16(msg, NL80211_MESHCONF_MAX_PEER_LINKS,
+			cur_params.dot11MeshMaxPeerLinks);
+	NLA_PUT_U8(msg, NL80211_MESHCONF_MAX_RETRIES,
+			cur_params.dot11MeshMaxRetries);
+	NLA_PUT_U8(msg, NL80211_MESHCONF_TTL,
+			cur_params.dot11MeshTTL);
+	NLA_PUT_U8(msg, NL80211_MESHCONF_AUTO_OPEN_PLINKS,
+			cur_params.auto_open_plinks);
+	NLA_PUT_U8(msg, NL80211_MESHCONF_HWMP_MAX_PREQ_RETRIES,
+			cur_params.dot11MeshHWMPmaxPREQretries);
+	NLA_PUT_U32(msg, NL80211_MESHCONF_PATH_REFRESH_TIME,
+			cur_params.path_refresh_time);
+	NLA_PUT_U16(msg, NL80211_MESHCONF_MIN_DISCOVERY_TIMEOUT,
+			cur_params.min_discovery_timeout);
+	NLA_PUT_U32(msg, NL80211_MESHCONF_HWMP_ACTIVE_PATH_TIMEOUT,
+			cur_params.dot11MeshHWMPactivePathTimeout);
+	NLA_PUT_U16(msg, NL80211_MESHCONF_HWMP_PREQ_MIN_INTERVAL,
+			cur_params.dot11MeshHWMPpreqMinInterval);
+	NLA_PUT_U16(msg, NL80211_MESHCONF_HWMP_NET_DIAM_TRVS_TIME,
+			cur_params.dot11MeshHWMPnetDiameterTraversalTime);
+	nla_nest_end(msg, pinfoattr);
+	genlmsg_end(msg, hdr);
+	err = genlmsg_unicast(msg, info->snd_pid);
+	goto out;
+
+nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	err = -EMSGSIZE;
+out:
+	/* Cleanup */
+	cfg80211_put_dev(drv);
+	dev_put(dev);
+	return err;
+}
+
+#define FILL_IN_MESH_PARAM_IF_SET(table, cfg, param, mask, attr_num, nla_fn) \
+do {\
+	if (table[attr_num]) {\
+		cfg.param = nla_fn(table[attr_num]); \
+		mask |= (1 << (attr_num - 1)); \
+	} \
+} while (0);\
+
+static struct nla_policy
+nl80211_meshconf_params_policy[NL80211_MESHCONF_ATTR_MAX+1] __read_mostly = {
+	[NL80211_MESHCONF_RETRY_TIMEOUT] = { .type = NLA_U16 },
+	[NL80211_MESHCONF_CONFIRM_TIMEOUT] = { .type = NLA_U16 },
+	[NL80211_MESHCONF_HOLDING_TIMEOUT] = { .type = NLA_U16 },
+	[NL80211_MESHCONF_MAX_PEER_LINKS] = { .type = NLA_U16 },
+	[NL80211_MESHCONF_MAX_RETRIES] = { .type = NLA_U8 },
+	[NL80211_MESHCONF_TTL] = { .type = NLA_U8 },
+	[NL80211_MESHCONF_AUTO_OPEN_PLINKS] = { .type = NLA_U8 },
+
+	[NL80211_MESHCONF_HWMP_MAX_PREQ_RETRIES] = { .type = NLA_U8 },
+	[NL80211_MESHCONF_PATH_REFRESH_TIME] = { .type = NLA_U32 },
+	[NL80211_MESHCONF_MIN_DISCOVERY_TIMEOUT] = { .type = NLA_U16 },
+	[NL80211_MESHCONF_HWMP_ACTIVE_PATH_TIMEOUT] = { .type = NLA_U32 },
+	[NL80211_MESHCONF_HWMP_PREQ_MIN_INTERVAL] = { .type = NLA_U16 },
+	[NL80211_MESHCONF_HWMP_NET_DIAM_TRVS_TIME] = { .type = NLA_U16 },
+};
+
+static int nl80211_set_mesh_params(struct sk_buff *skb, struct genl_info *info)
+{
+	int err;
+	u32 mask;
+	struct cfg80211_registered_device *drv;
+	struct net_device *dev;
+	struct mesh_config cfg;
+	struct nlattr *tb[NL80211_MESHCONF_ATTR_MAX + 1];
+	struct nlattr *parent_attr;
+
+	parent_attr = info->attrs[NL80211_ATTR_MESH_PARAMS];
+	if (!parent_attr)
+		return -EINVAL;
+	if (nla_parse_nested(tb, NL80211_MESHCONF_ATTR_MAX,
+			parent_attr, nl80211_meshconf_params_policy))
+		return -EINVAL;
+
+	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	if (err)
+		return err;
+
+	/* This makes sure that there aren't more than 32 mesh config
+	 * parameters (otherwise our bitfield scheme would not work.) */
+	BUILD_BUG_ON(NL80211_MESHCONF_ATTR_MAX > 32);
+
+	/* Fill in the params struct */
+	mask = 0;
+	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, dot11MeshRetryTimeout,
+			mask, NL80211_MESHCONF_RETRY_TIMEOUT, nla_get_u16);
+	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, dot11MeshConfirmTimeout,
+			mask, NL80211_MESHCONF_CONFIRM_TIMEOUT, nla_get_u16);
+	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, dot11MeshHoldingTimeout,
+			mask, NL80211_MESHCONF_HOLDING_TIMEOUT, nla_get_u16);
+	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, dot11MeshMaxPeerLinks,
+			mask, NL80211_MESHCONF_MAX_PEER_LINKS, nla_get_u16);
+	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, dot11MeshMaxRetries,
+			mask, NL80211_MESHCONF_MAX_RETRIES, nla_get_u8);
+	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, dot11MeshTTL,
+			mask, NL80211_MESHCONF_TTL, nla_get_u8);
+	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, auto_open_plinks,
+			mask, NL80211_MESHCONF_AUTO_OPEN_PLINKS, nla_get_u8);
+	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, dot11MeshHWMPmaxPREQretries,
+			mask, NL80211_MESHCONF_HWMP_MAX_PREQ_RETRIES,
+			nla_get_u8);
+	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, path_refresh_time,
+			mask, NL80211_MESHCONF_PATH_REFRESH_TIME, nla_get_u32);
+	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, min_discovery_timeout,
+			mask, NL80211_MESHCONF_MIN_DISCOVERY_TIMEOUT,
+			nla_get_u16);
+	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, dot11MeshHWMPactivePathTimeout,
+			mask, NL80211_MESHCONF_HWMP_ACTIVE_PATH_TIMEOUT,
+			nla_get_u32);
+	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, dot11MeshHWMPpreqMinInterval,
+			mask, NL80211_MESHCONF_HWMP_PREQ_MIN_INTERVAL,
+			nla_get_u16);
+	FILL_IN_MESH_PARAM_IF_SET(tb, cfg,
+			dot11MeshHWMPnetDiameterTraversalTime,
+			mask, NL80211_MESHCONF_HWMP_NET_DIAM_TRVS_TIME,
+			nla_get_u16);
+
+	/* Apply changes */
+	rtnl_lock();
+	err = drv->ops->set_mesh_params(&drv->wiphy, dev, &cfg, mask);
+	rtnl_unlock();
+
+	/* cleanup */
+	cfg80211_put_dev(drv);
+	dev_put(dev);
+	return err;
+}
+
+#undef FILL_IN_MESH_PARAM_IF_SET
+
 static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *tb[NL80211_REG_RULE_ATTR_MAX + 1];
@@ -1912,6 +2091,18 @@ static struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_REQ_SET_REG,
 		.doit = nl80211_req_set_reg,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_GET_MESH_PARAMS,
+		.doit = nl80211_get_mesh_params,
+		.policy = nl80211_policy,
+		/* can be retrieved by unprivileged users */
+	},
+	{
+		.cmd = NL80211_CMD_SET_MESH_PARAMS,
+		.doit = nl80211_set_mesh_params,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
 	},

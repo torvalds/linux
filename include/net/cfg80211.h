@@ -347,6 +347,25 @@ struct ieee80211_regdomain {
 	.flags = reg_flags, \
 	}
 
+struct mesh_config {
+	/* Timeouts in ms */
+	/* Mesh plink management parameters */
+	u16 dot11MeshRetryTimeout;
+	u16 dot11MeshConfirmTimeout;
+	u16 dot11MeshHoldingTimeout;
+	u16 dot11MeshMaxPeerLinks;
+	u8  dot11MeshMaxRetries;
+	u8  dot11MeshTTL;
+	bool auto_open_plinks;
+	/* HWMP parameters */
+	u8  dot11MeshHWMPmaxPREQretries;
+	u32 path_refresh_time;
+	u16 min_discovery_timeout;
+	u32 dot11MeshHWMPactivePathTimeout;
+	u16 dot11MeshHWMPpreqMinInterval;
+	u16 dot11MeshHWMPnetDiameterTraversalTime;
+};
+
 /* from net/wireless.h */
 struct wiphy;
 
@@ -396,6 +415,12 @@ struct wiphy;
  * @del_station: Remove a station; @mac may be NULL to remove all stations.
  *
  * @change_station: Modify a given station.
+ *
+ * @get_mesh_params: Put the current mesh parameters into *params
+ *
+ * @set_mesh_params: Set mesh parameters.
+ *	The mask is a bitfield which tells us which parameters to
+ *	set, and which to leave alone.
  *
  * @set_mesh_cfg: set mesh parameters (by now, just mesh id)
  *
@@ -452,7 +477,12 @@ struct cfg80211_ops {
 	int	(*dump_mpath)(struct wiphy *wiphy, struct net_device *dev,
 			       int idx, u8 *dst, u8 *next_hop,
 			       struct mpath_info *pinfo);
-
+	int	(*get_mesh_params)(struct wiphy *wiphy,
+				struct net_device *dev,
+				struct mesh_config *conf);
+	int	(*set_mesh_params)(struct wiphy *wiphy,
+				struct net_device *dev,
+				const struct mesh_config *nconf, u32 mask);
 	int	(*change_bss)(struct wiphy *wiphy, struct net_device *dev,
 			      struct bss_parameters *params);
 };

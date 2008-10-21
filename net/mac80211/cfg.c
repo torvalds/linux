@@ -951,6 +951,72 @@ static int ieee80211_dump_mpath(struct wiphy *wiphy, struct net_device *dev,
 	rcu_read_unlock();
 	return 0;
 }
+
+static int ieee80211_get_mesh_params(struct wiphy *wiphy,
+				struct net_device *dev,
+				struct mesh_config *conf)
+{
+	struct ieee80211_sub_if_data *sdata;
+	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	if (sdata->vif.type != NL80211_IFTYPE_MESH_POINT)
+		return -ENOTSUPP;
+	memcpy(conf, &(sdata->u.mesh.mshcfg), sizeof(struct mesh_config));
+	return 0;
+}
+
+static inline bool _chg_mesh_attr(enum nl80211_meshconf_params parm, u32 mask)
+{
+	return (mask >> (parm-1)) & 0x1;
+}
+
+static int ieee80211_set_mesh_params(struct wiphy *wiphy,
+				struct net_device *dev,
+				const struct mesh_config *nconf, u32 mask)
+{
+	struct mesh_config *conf;
+	struct ieee80211_sub_if_data *sdata;
+	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	if (sdata->vif.type != NL80211_IFTYPE_MESH_POINT)
+		return -ENOTSUPP;
+
+	/* Set the config options which we are interested in setting */
+	conf = &(sdata->u.mesh.mshcfg);
+	if (_chg_mesh_attr(NL80211_MESHCONF_RETRY_TIMEOUT, mask))
+		conf->dot11MeshRetryTimeout = nconf->dot11MeshRetryTimeout;
+	if (_chg_mesh_attr(NL80211_MESHCONF_CONFIRM_TIMEOUT, mask))
+		conf->dot11MeshConfirmTimeout = nconf->dot11MeshConfirmTimeout;
+	if (_chg_mesh_attr(NL80211_MESHCONF_HOLDING_TIMEOUT, mask))
+		conf->dot11MeshHoldingTimeout = nconf->dot11MeshHoldingTimeout;
+	if (_chg_mesh_attr(NL80211_MESHCONF_MAX_PEER_LINKS, mask))
+		conf->dot11MeshMaxPeerLinks = nconf->dot11MeshMaxPeerLinks;
+	if (_chg_mesh_attr(NL80211_MESHCONF_MAX_RETRIES, mask))
+		conf->dot11MeshMaxRetries = nconf->dot11MeshMaxRetries;
+	if (_chg_mesh_attr(NL80211_MESHCONF_TTL, mask))
+		conf->dot11MeshTTL = nconf->dot11MeshTTL;
+	if (_chg_mesh_attr(NL80211_MESHCONF_AUTO_OPEN_PLINKS, mask))
+		conf->auto_open_plinks = nconf->auto_open_plinks;
+	if (_chg_mesh_attr(NL80211_MESHCONF_HWMP_MAX_PREQ_RETRIES, mask))
+		conf->dot11MeshHWMPmaxPREQretries =
+			nconf->dot11MeshHWMPmaxPREQretries;
+	if (_chg_mesh_attr(NL80211_MESHCONF_PATH_REFRESH_TIME, mask))
+		conf->path_refresh_time = nconf->path_refresh_time;
+	if (_chg_mesh_attr(NL80211_MESHCONF_MIN_DISCOVERY_TIMEOUT, mask))
+		conf->min_discovery_timeout = nconf->min_discovery_timeout;
+	if (_chg_mesh_attr(NL80211_MESHCONF_HWMP_ACTIVE_PATH_TIMEOUT, mask))
+		conf->dot11MeshHWMPactivePathTimeout =
+			nconf->dot11MeshHWMPactivePathTimeout;
+	if (_chg_mesh_attr(NL80211_MESHCONF_HWMP_PREQ_MIN_INTERVAL, mask))
+		conf->dot11MeshHWMPpreqMinInterval =
+			nconf->dot11MeshHWMPpreqMinInterval;
+	if (_chg_mesh_attr(NL80211_MESHCONF_HWMP_NET_DIAM_TRVS_TIME,
+			   mask))
+		conf->dot11MeshHWMPnetDiameterTraversalTime =
+			nconf->dot11MeshHWMPnetDiameterTraversalTime;
+	return 0;
+}
+
 #endif
 
 static int ieee80211_change_bss(struct wiphy *wiphy,
@@ -1007,6 +1073,8 @@ struct cfg80211_ops mac80211_config_ops = {
 	.change_mpath = ieee80211_change_mpath,
 	.get_mpath = ieee80211_get_mpath,
 	.dump_mpath = ieee80211_dump_mpath,
+	.set_mesh_params = ieee80211_set_mesh_params,
+	.get_mesh_params = ieee80211_get_mesh_params,
 #endif
 	.change_bss = ieee80211_change_bss,
 };
