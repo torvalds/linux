@@ -1206,7 +1206,10 @@ void ata_eh_about_to_do(struct ata_link *link, struct ata_device *dev,
 
 	ata_eh_clear_action(link, dev, ehi, action);
 
-	if (!(ehc->i.flags & ATA_EHI_QUIET))
+	/* About to take EH action, set RECOVERED.  Ignore actions on
+	 * slave links as master will do them again.
+	 */
+	if (!(ehc->i.flags & ATA_EHI_QUIET) && link != ap->slave_link)
 		ap->pflags |= ATA_PFLAG_RECOVERED;
 
 	spin_unlock_irqrestore(ap->lock, flags);
