@@ -12,6 +12,8 @@
 #ifndef __ASM_SH_GPIO_H
 #define __ASM_SH_GPIO_H
 
+#include <linux/errno.h>
+
 #if defined(CONFIG_CPU_SH3)
 #include <cpu/gpio.h>
 #endif
@@ -99,6 +101,19 @@ int gpio_direction_input(unsigned gpio);
 int gpio_direction_output(unsigned gpio, int value);
 int gpio_get_value(unsigned gpio);
 void gpio_set_value(unsigned gpio, int value);
+
+/* IRQ modes are unspported */
+static inline int gpio_to_irq(unsigned gpio)
+{
+	WARN_ON(1);
+	return -EINVAL;
+}
+
+static inline int irq_to_gpio(unsigned irq)
+{
+	WARN_ON(1);
+	return -EINVAL;
+}
 
 #include <asm-generic/gpio.h>
 
