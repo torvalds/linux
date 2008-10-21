@@ -230,7 +230,7 @@ void __init s3c64xx_init_irq(u32 vic0_valid, u32 vic1_valid)
 {
 	int uart, irq;
 
-	printk(KERN_INFO "%s: initialising interrupts\n", __func__);
+	printk(KERN_DEBUG "%s: initialising interrupts\n", __func__);
 
 	/* initialise the pair of VICs */
 	vic_init(S3C_VA_VIC0, S3C_VIC0_BASE, vic0_valid);

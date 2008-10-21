@@ -137,7 +137,7 @@ static unsigned long s3c64xx_clk_doutmpll_get_rate(struct clk *clk)
 {
 	unsigned long rate = clk_get_rate(clk->parent);
 
-	printk(KERN_INFO "%s: parent is %ld\n", __func__, rate);
+	printk(KERN_DEBUG "%s: parent is %ld\n", __func__, rate);
 
 	if (__raw_readl(S3C_CLK_DIV0) & S3C6400_CLKDIV0_MPLL_MASK)
 		rate /= 2;
@@ -573,10 +573,10 @@ void __init_or_cpufreq s3c6400_setup_clocks(void)
 	unsigned int ptr;
 	u32 clkdiv0;
 
-	printk(KERN_INFO "%s: registering clocks\n", __func__);
+	printk(KERN_DEBUG "%s: registering clocks\n", __func__);
 
 	clkdiv0 = __raw_readl(S3C_CLK_DIV0);
-	printk(KERN_INFO "%s: clkdiv0 = %08x\n", __func__, clkdiv0);
+	printk(KERN_DEBUG "%s: clkdiv0 = %08x\n", __func__, clkdiv0);
 
 	xtal_clk = clk_get(NULL, "xtal");
 	BUG_ON(IS_ERR(xtal_clk));
@@ -584,7 +584,7 @@ void __init_or_cpufreq s3c6400_setup_clocks(void)
 	xtal = clk_get_rate(xtal_clk);
 	clk_put(xtal_clk);
 
-	printk(KERN_INFO "%s: xtal is %ld\n", __func__, xtal);
+	printk(KERN_DEBUG "%s: xtal is %ld\n", __func__, xtal);
 
 	epll = s3c6400_get_epll(xtal);
 	mpll = s3c6400_get_pll(xtal, __raw_readl(S3C_MPLL_CON));

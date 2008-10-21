@@ -55,7 +55,7 @@ void __init s3c6410_map_io(void)
 
 void __init s3c6410_init_clocks(int xtal)
 {
-	printk(KERN_INFO "%s: initialising clocks\n", __func__);
+	printk(KERN_DEBUG "%s: initialising clocks\n", __func__);
 	s3c24xx_register_baseclocks(xtal);
 	s3c64xx_register_clocks();
 	s3c6400_register_clocks();
