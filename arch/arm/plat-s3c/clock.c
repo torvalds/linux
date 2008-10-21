@@ -304,6 +304,9 @@ int s3c24xx_register_clock(struct clk *clk)
 
 	/* add to the list of available clocks */
 
+	/* Quick check to see if this clock has already been registered. */
+	BUG_ON(clk->list.prev != clk->list.next);
+
 	spin_lock(&clocks_lock);
 	list_add(&clk->list, &clocks);
 	spin_unlock(&clocks_lock);
