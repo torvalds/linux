@@ -15,6 +15,14 @@ config PLAT_S3C24XX
 
 if PLAT_S3C24XX
 
+# code that is shared between a number of the s3c24xx implementations
+
+config S3C2410_CLOCK
+	bool
+	help
+	  Clock code for the S3C2410, and similar processors which
+	  is currently includes the S3C2410, S3C2440, S3C2442.
+
 config CPU_S3C244X
 	bool
 	depends on ARCH_S3C2410 && (CPU_S3C2440 || CPU_S3C2442)

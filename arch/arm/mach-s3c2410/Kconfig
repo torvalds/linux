@@ -33,11 +33,6 @@ config S3C2410_GPIO
 	help
 	  GPIO code for S3C2410 and similar processors
 
-config S3C2410_CLOCK
-	bool
-	help
-	  Clock code for the S3C2410, and similar processors
-
 config SIMTEC_NOR
 	bool
 	help
