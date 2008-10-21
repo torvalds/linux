@@ -45,7 +45,13 @@ extern struct clk clk_h;
 extern struct clk clk_p;
 extern struct clk clk_mpll;
 extern struct clk clk_upll;
+extern struct clk clk_epll;
 extern struct clk clk_xtal;
+extern struct clk clk_ext;
+
+/* S3C64XX specific clocks */
+extern struct clk clk_27m;
+extern struct clk clk_48m;
 
 /* exports for arch/arm/mach-s3c2410
  *
@@ -60,6 +66,8 @@ extern int s3c24xx_register_clock(struct clk *clk);
 extern int s3c24xx_register_clocks(struct clk **clk, int nr_clks);
 
 extern int s3c24xx_register_baseclocks(unsigned long xtal);
+
+extern void s3c64xx_register_clocks(void);
 
 extern void s3c24xx_setup_clocks(unsigned long fclk,
 				 unsigned long hclk,
