@@ -35,6 +35,7 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/clock.h>
+#include <plat/s3c6400.h>
 #include <plat/s3c6410.h>
 
 /* Initial IO mappings */
@@ -57,6 +58,8 @@ void __init s3c6410_init_clocks(int xtal)
 	printk(KERN_INFO "%s: initialising clocks\n", __func__);
 	s3c24xx_register_baseclocks(xtal);
 	s3c64xx_register_clocks();
+	s3c6400_register_clocks();
+	s3c6400_setup_clocks();
 }
 
 void __init s3c6410_init_irq(void)

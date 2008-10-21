@@ -78,3 +78,6 @@ extern void s3c2412_setup_clocks(void);
 extern void s3c244x_setup_clocks(void);
 extern void s3c2443_setup_clocks(void);
 
+/* S3C64XX specific functions and clocks */
+
+extern int s3c64xx_sclk_ctrl(struct clk *clk, int enable);

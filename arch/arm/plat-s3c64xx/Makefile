@@ -20,3 +20,4 @@ obj-y				+= clock.o
 # CPU support
 
 obj-$(CONFIG_CPU_S3C6400_INIT)	+= s3c6400-init.o
+obj-$(CONFIG_CPU_S3C6400_CLOCK)	+= s3c6400-clock.o
