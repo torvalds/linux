@@ -600,7 +600,6 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	s->valid = 1;
 	s->active = 0;
-	s->last_percent = 0;
 	init_rwsem(&s->lock);
 	spin_lock_init(&s->pe_lock);
 	s->ti = ti;

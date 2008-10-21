@@ -158,9 +158,6 @@ struct dm_snapshot {
 	/* Used for display of table */
 	char type;
 
-	/* The last percentage we notified */
-	int last_percent;
-
 	mempool_t *pending_pool;
 
 	struct exception_table pending;
