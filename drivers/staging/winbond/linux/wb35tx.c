@@ -100,25 +100,24 @@ void Wb35Tx_complete(struct urb * pUrb)
 	pWb35Tx->TxSendIndex++;
 	pWb35Tx->TxSendIndex %= MAX_USB_TX_BUFFER_NUMBER;
 
-	do {
-		if (pHwData->SurpriseRemove || pHwData->HwStop) // Let WbWlanHalt to handle surprise remove
-			break;
+	if (pHwData->SurpriseRemove || pHwData->HwStop) // Let WbWlanHalt to handle surprise remove
+		goto error;
 
-		if (pWb35Tx->tx_halt)
-			break;
+	if (pWb35Tx->tx_halt)
+		goto error;
 
-		// The URB is completed, check the result
-		if (pWb35Tx->EP4VM_status != 0) {
-			printk("URB submission failed\n");
-			pWb35Tx->EP4vm_state = VM_STOP;
-			break; // Exit while(FALSE);
-		}
+	// The URB is completed, check the result
+	if (pWb35Tx->EP4VM_status != 0) {
+		printk("URB submission failed\n");
+		pWb35Tx->EP4vm_state = VM_STOP;
+		goto error;
+	}
 
-		Mds_Tx(Adapter);
-		Wb35Tx(pHwData);
-		return;
-	} while(FALSE);
+	Mds_Tx(Adapter);
+	Wb35Tx(pHwData);
+	return;
 
+error:
 	OS_ATOMIC_DEC( pHwData->Adapter, &pWb35Tx->TxFireCounter );
 	pWb35Tx->EP4vm_state = VM_STOP;
 }
@@ -228,33 +227,30 @@ void Wb35Tx_EP2VM(phw_data_t pHwData)
 	u32 *	pltmp = (u32 *)pWb35Tx->EP2_buf;
 	int		retv;
 
-	do {
-		if (pHwData->SurpriseRemove || pHwData->HwStop)
-			break;
+	if (pHwData->SurpriseRemove || pHwData->HwStop)
+		goto error;
 
-		if (pWb35Tx->tx_halt)
-			break;
+	if (pWb35Tx->tx_halt)
+		goto error;
 
-		//
-		// Issuing URB
-		//
-		usb_fill_int_urb( pUrb, pHwData->WbUsb.udev, usb_rcvintpipe(pHwData->WbUsb.udev,2),
-				  pltmp, MAX_INTERRUPT_LENGTH, Wb35Tx_EP2VM_complete, pHwData, 32);
+	//
+	// Issuing URB
+	//
+	usb_fill_int_urb( pUrb, pHwData->WbUsb.udev, usb_rcvintpipe(pHwData->WbUsb.udev,2),
+			  pltmp, MAX_INTERRUPT_LENGTH, Wb35Tx_EP2VM_complete, pHwData, 32);
 
-		pWb35Tx->EP2vm_state = VM_RUNNING;
-		retv = wb_usb_submit_urb( pUrb );
+	pWb35Tx->EP2vm_state = VM_RUNNING;
+	retv = wb_usb_submit_urb( pUrb );
 
-		if(retv < 0) {
-			#ifdef _PE_TX_DUMP_
-			WBDEBUG(("EP2 Tx Irp sending error\n"));
-			#endif
-			break;
-		}
+	if (retv < 0) {
+		#ifdef _PE_TX_DUMP_
+		WBDEBUG(("EP2 Tx Irp sending error\n"));
+		#endif
+		goto error;
+	}
 
-		return;
-
-	} while(FALSE);
-
+	return;
+error:
 	pWb35Tx->EP2vm_state = VM_STOP;
 	OS_ATOMIC_DEC( pHwData->Adapter, &pWb35Tx->TxResultCount );
 }
@@ -275,38 +271,36 @@ void Wb35Tx_EP2VM_complete(struct urb * pUrb)
 	pWb35Tx->EP2vm_state = VM_COMPLETED;
 	pWb35Tx->EP2VM_status = pUrb->status;
 
-	do {
-		// For Linux 2.4. Interrupt will always trigger
-		if( pHwData->SurpriseRemove || pHwData->HwStop ) // Let WbWlanHalt to handle surprise remove
-			break;
+	// For Linux 2.4. Interrupt will always trigger
+	if (pHwData->SurpriseRemove || pHwData->HwStop) // Let WbWlanHalt to handle surprise remove
+		goto error;
 
-		if( pWb35Tx->tx_halt )
-			break;
+	if (pWb35Tx->tx_halt)
+		goto error;
 
-		//The Urb is completed, check the result
-		if (pWb35Tx->EP2VM_status != 0) {
-			WBDEBUG(("EP2 IoCompleteRoutine return error\n"));
-			pWb35Tx->EP2vm_state= VM_STOP;
-			break; // Exit while(FALSE);
-		}
+	//The Urb is completed, check the result
+	if (pWb35Tx->EP2VM_status != 0) {
+		WBDEBUG(("EP2 IoCompleteRoutine return error\n"));
+		pWb35Tx->EP2vm_state= VM_STOP;
+		goto error;
+	}
 
-		// Update the Tx result
-		InterruptInLength = pUrb->actual_length;
-		// Modify for minimum memory access and DWORD alignment.
-		T02.value = cpu_to_le32(pltmp[0]) >> 8; // [31:8] -> [24:0]
-		InterruptInLength -= 1;// 20051221.1.c Modify the follow for more stable
-		InterruptInLength >>= 2; // InterruptInLength/4
-		for (i=1; i<=InterruptInLength; i++) {
-			T02.value |= ((cpu_to_le32(pltmp[i]) & 0xff) << 24);
+	// Update the Tx result
+	InterruptInLength = pUrb->actual_length;
+	// Modify for minimum memory access and DWORD alignment.
+	T02.value = cpu_to_le32(pltmp[0]) >> 8; // [31:8] -> [24:0]
+	InterruptInLength -= 1;// 20051221.1.c Modify the follow for more stable
+	InterruptInLength >>= 2; // InterruptInLength/4
+	for (i = 1; i <= InterruptInLength; i++) {
+		T02.value |= ((cpu_to_le32(pltmp[i]) & 0xff) << 24);
 
-			TSTATUS.value = T02.value;  //20061009 anson's endian
-			Mds_SendComplete( Adapter, &TSTATUS );
-			T02.value = cpu_to_le32(pltmp[i]) >> 8;
-		}
+		TSTATUS.value = T02.value;  //20061009 anson's endian
+		Mds_SendComplete( Adapter, &TSTATUS );
+		T02.value = cpu_to_le32(pltmp[i]) >> 8;
+	}
 
-		return;
-	} while(FALSE);
-
+	return;
+error:
 	OS_ATOMIC_DEC( pHwData->Adapter, &pWb35Tx->TxResultCount );
 	pWb35Tx->EP2vm_state = VM_STOP;
 }
