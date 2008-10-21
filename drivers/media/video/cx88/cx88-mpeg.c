@@ -768,8 +768,11 @@ static int __devinit cx8802_probe(struct pci_dev *pci_dev,
 {
 	struct cx8802_dev *dev;
 	struct cx88_core  *core;
+	int err;
+#if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
 	struct videobuf_dvb_frontend *demod;
-	int err,i;
+	int i;
+#endif
 
 	/* general setup */
 	core = cx88_core_get(pci_dev);
@@ -801,6 +804,7 @@ static int __devinit cx8802_probe(struct pci_dev *pci_dev,
 	INIT_LIST_HEAD(&dev->drvlist);
 	list_add_tail(&dev->devlist,&cx8802_devlist);
 
+#if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
 	mutex_init(&dev->frontends.lock);
 	INIT_LIST_HEAD(&dev->frontends.felist);
 
@@ -814,6 +818,7 @@ static int __devinit cx8802_probe(struct pci_dev *pci_dev,
 			goto fail_free;
 		}
 	}
+#endif
 
 	/* Maintain a reference so cx88-video can query the 8802 device. */
 	core->dvbdev = dev;
