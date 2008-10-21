@@ -46,10 +46,27 @@ static const struct ide_port_ops delkin_cb_port_ops = {
 	.quirkproc		= ide_undecoded_slave,
 };
 
+static unsigned int delkin_cb_init_chipset(struct pci_dev *dev)
+{
+	unsigned long base = pci_resource_start(dev, 0);
+	int i;
+
+	outb(0x02, base + 0x1e);	/* set nIEN to block interrupts */
+	inb(base + 0x17);		/* read status to clear interrupts */
+
+	for (i = 0; i < sizeof(setup); ++i) {
+		if (setup[i])
+			outb(setup[i], base + i);
+	}
+
+	return 0;
+}
+
 static const struct ide_port_info delkin_cb_port_info = {
 	.port_ops		= &delkin_cb_port_ops,
 	.host_flags		= IDE_HFLAG_IO_32BIT | IDE_HFLAG_UNMASK_IRQS |
 				  IDE_HFLAG_NO_DMA,
+	.init_chipset		= delkin_cb_init_chipset,
 };
 
 static int __devinit
@@ -57,7 +74,7 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct ide_host *host;
 	unsigned long base;
-	int i, rc;
+	int rc;
 	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 
 	rc = pci_enable_device(dev);
@@ -72,12 +89,8 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 		return rc;
 	}
 	base = pci_resource_start(dev, 0);
-	outb(0x02, base + 0x1e);	/* set nIEN to block interrupts */
-	inb(base + 0x17);		/* read status to clear interrupts */
-	for (i = 0; i < sizeof(setup); ++i) {
-		if (setup[i])
-			outb(setup[i], base + i);
-	}
+
+	delkin_cb_init_chipset(dev);
 
 	memset(&hw, 0, sizeof(hw));
 	ide_std_init_ports(&hw, base + 0x10, base + 0x1e);
@@ -110,6 +123,40 @@ delkin_cb_remove (struct pci_dev *dev)
 	pci_disable_device(dev);
 }
 
+#ifdef CONFIG_PM
+static int delkin_cb_suspend(struct pci_dev *dev, pm_message_t state)
+{
+	pci_save_state(dev);
+	pci_disable_device(dev);
+	pci_set_power_state(dev, pci_choose_state(dev, state));
+
+	return 0;
+}
+
+static int delkin_cb_resume(struct pci_dev *dev)
+{
+	struct ide_host *host = pci_get_drvdata(dev);
+	int rc;
+
+	pci_set_power_state(dev, PCI_D0);
+
+	rc = pci_enable_device(dev);
+	if (rc)
+		return rc;
+
+	pci_restore_state(dev);
+	pci_set_master(dev);
+
+	if (host->init_chipset)
+		host->init_chipset(dev);
+
+	return 0;
+}
+#else
+#define delkin_cb_suspend NULL
+#define delkin_cb_resume NULL
+#endif
+
 static struct pci_device_id delkin_cb_pci_tbl[] __devinitdata = {
 	{ 0x1145, 0xf021, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ 0x1145, 0xf024, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -122,6 +169,8 @@ static struct pci_driver delkin_cb_pci_driver = {
 	.id_table	= delkin_cb_pci_tbl,
 	.probe		= delkin_cb_probe,
 	.remove		= delkin_cb_remove,
+	.suspend	= delkin_cb_suspend,
+	.resume		= delkin_cb_resume,
 };
 
 static int __init delkin_cb_init(void)

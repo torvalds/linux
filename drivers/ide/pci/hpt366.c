@@ -3,7 +3,7 @@
  * Portions Copyright (C) 2001	        Sun Microsystems, Inc.
  * Portions Copyright (C) 2003		Red Hat Inc
  * Portions Copyright (C) 2007		Bartlomiej Zolnierkiewicz
- * Portions Copyright (C) 2005-2007	MontaVista Software, Inc.
+ * Portions Copyright (C) 2005-2008	MontaVista Software, Inc.
  *
  * Thanks to HighPoint Technologies for their assistance, and hardware.
  * Special Thanks to Jon Burchmore in SanDiego for the deep pockets, his
@@ -748,26 +748,24 @@ static void hpt3xx_maskproc(ide_drive_t *drive, int mask)
 	struct pci_dev	*dev	= to_pci_dev(hwif->dev);
 	struct hpt_info *info	= hpt3xx_get_info(hwif->dev);
 
-	if (drive->quirk_list) {
-		if (info->chip_type >= HPT370) {
-			u8 scr1 = 0;
+	if (drive->quirk_list == 0)
+		return;
 
-			pci_read_config_byte(dev, 0x5a, &scr1);
-			if (((scr1 & 0x10) >> 4) != mask) {
-				if (mask)
-					scr1 |=  0x10;
-				else
-					scr1 &= ~0x10;
-				pci_write_config_byte(dev, 0x5a, scr1);
-			}
-		} else {
+	if (info->chip_type >= HPT370) {
+		u8 scr1 = 0;
+
+		pci_read_config_byte(dev, 0x5a, &scr1);
+		if (((scr1 & 0x10) >> 4) != mask) {
 			if (mask)
-				disable_irq(hwif->irq);
+				scr1 |=  0x10;
 			else
-				enable_irq (hwif->irq);
+				scr1 &= ~0x10;
+			pci_write_config_byte(dev, 0x5a, scr1);
 		}
-	} else
-		outb(ATA_DEVCTL_OBS | (mask ? 2 : 0), hwif->io_ports.ctl_addr);
+	} else if (mask)
+		disable_irq(hwif->irq);
+	else
+		enable_irq(hwif->irq);
 }
 
 /*
@@ -1289,7 +1287,6 @@ static u8 hpt3xx_cable_detect(ide_hwif_t *hwif)
 
 static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 {
-	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	struct hpt_info *info	= hpt3xx_get_info(hwif->dev);
 	int serialize		= HPT_SERIALIZE_IO;
 	u8  chip_type		= info->chip_type;

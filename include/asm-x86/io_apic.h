@@ -4,6 +4,7 @@
 #include <linux/types.h>
 #include <asm/mpspec.h>
 #include <asm/apicdef.h>
+#include <asm/irq_vectors.h>
 
 /*
  * Intel IO-APIC support for SMP and UP systems.
@@ -87,24 +88,8 @@ struct IO_APIC_route_entry {
 		mask		:  1,	/* 0: enabled, 1: disabled */
 		__reserved_2	: 15;
 
-#ifdef CONFIG_X86_32
-	union {
-		struct {
-			__u32	__reserved_1	: 24,
-				physical_dest	:  4,
-				__reserved_2	:  4;
-		} physical;
-
-		struct {
-			__u32	__reserved_1	: 24,
-				logical_dest	:  8;
-		} logical;
-	} dest;
-#else
 	__u32	__reserved_3	: 24,
 		dest		:  8;
-#endif
-
 } __attribute__ ((packed));
 
 struct IR_IO_APIC_route_entry {
@@ -203,10 +188,17 @@ extern void restore_IO_APIC_setup(void);
 extern void reinit_intr_remapped_IO_APIC(int);
 #endif
 
+extern int probe_nr_irqs(void);
+
 #else  /* !CONFIG_X86_IO_APIC */
 #define io_apic_assign_pci_irqs 0
 static const int timer_through_8259 = 0;
 static inline void ioapic_init_mappings(void) { }
+
+static inline int probe_nr_irqs(void)
+{
+	return NR_IRQS;
+}
 #endif
 
 #endif /* ASM_X86__IO_APIC_H */

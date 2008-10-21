@@ -112,7 +112,7 @@ static void egpio_handler(unsigned int irq, struct irq_desc *desc)
 		/* Run irq handler */
 		pr_debug("got IRQ %d\n", irqpin);
 		irq = ei->irq_start + irqpin;
-		desc = &irq_desc[irq];
+		desc = irq_to_desc(irq);
 		desc->handle_irq(irq, desc);
 	}
 }

@@ -69,6 +69,13 @@ void __init init_ISA_irqs (void)
 	 * 16 old-style INTA-cycle interrupts:
 	 */
 	for (i = 0; i < 16; i++) {
+		/* first time call this irq_desc */
+		struct irq_desc *desc = irq_to_desc(i);
+
+		desc->status = IRQ_DISABLED;
+		desc->action = NULL;
+		desc->depth = 1;
+
 		set_irq_chip_and_handler_name(i, &i8259A_chip,
 					      handle_level_irq, "XT");
 	}
@@ -81,6 +88,27 @@ static struct irqaction irq2 = {
 	.handler = no_action,
 	.mask = CPU_MASK_NONE,
 	.name = "cascade",
+};
+
+DEFINE_PER_CPU(vector_irq_t, vector_irq) = {
+	[0 ... IRQ0_VECTOR - 1] = -1,
+	[IRQ0_VECTOR] = 0,
+	[IRQ1_VECTOR] = 1,
+	[IRQ2_VECTOR] = 2,
+	[IRQ3_VECTOR] = 3,
+	[IRQ4_VECTOR] = 4,
+	[IRQ5_VECTOR] = 5,
+	[IRQ6_VECTOR] = 6,
+	[IRQ7_VECTOR] = 7,
+	[IRQ8_VECTOR] = 8,
+	[IRQ9_VECTOR] = 9,
+	[IRQ10_VECTOR] = 10,
+	[IRQ11_VECTOR] = 11,
+	[IRQ12_VECTOR] = 12,
+	[IRQ13_VECTOR] = 13,
+	[IRQ14_VECTOR] = 14,
+	[IRQ15_VECTOR] = 15,
+	[IRQ15_VECTOR + 1 ... NR_VECTORS - 1] = -1
 };
 
 /* Overridden in paravirt.c */
@@ -98,22 +126,14 @@ void __init native_init_IRQ(void)
 	 * us. (some of these will be overridden and become
 	 * 'special' SMP interrupts)
 	 */
-	for (i = 0; i < (NR_VECTORS - FIRST_EXTERNAL_VECTOR); i++) {
-		int vector = FIRST_EXTERNAL_VECTOR + i;
-		if (i >= NR_IRQS)
-			break;
+	for (i =  FIRST_EXTERNAL_VECTOR; i < NR_VECTORS; i++) {
 		/* SYSCALL_VECTOR was reserved in trap_init. */
-		if (!test_bit(vector, used_vectors))
-			set_intr_gate(vector, interrupt[i]);
+		if (i != SYSCALL_VECTOR)
+			set_intr_gate(i, interrupt[i]);
 	}
 
-#if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_SMP)
-	/*
-	 * IRQ0 must be given a fixed assignment and initialized,
-	 * because it's used before the IO-APIC is set up.
-	 */
-	set_intr_gate(FIRST_DEVICE_VECTOR, interrupt[0]);
 
+#if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_SMP)
 	/*
 	 * The reschedule interrupt is a CPU-to-CPU reschedule-helper
 	 * IPI, driven by wakeup.
@@ -128,6 +148,9 @@ void __init native_init_IRQ(void)
 
 	/* IPI for single call function */
 	set_intr_gate(CALL_FUNCTION_SINGLE_VECTOR, call_function_single_interrupt);
+
+	/* Low priority IPI to cleanup after moving an irq */
+	set_intr_gate(IRQ_MOVE_CLEANUP_VECTOR, irq_move_cleanup_interrupt);
 #endif
 
 #ifdef CONFIG_X86_LOCAL_APIC

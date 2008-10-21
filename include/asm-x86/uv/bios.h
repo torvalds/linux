@@ -2,9 +2,7 @@
 #define ASM_X86__UV__BIOS_H
 
 /*
- * BIOS layer definitions.
- *
- *  Copyright (c) 2008 Silicon Graphics, Inc.  All Rights Reserved.
+ * UV BIOS layer definitions.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,11 +17,43 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ *
+ *  Copyright (c) 2008 Silicon Graphics, Inc.  All Rights Reserved.
+ *  Copyright (c) Russ Anderson
  */
 
 #include <linux/rtc.h>
 
-#define BIOS_FREQ_BASE			0x01000001
+/*
+ * Values for the BIOS calls.  It is passed as the first * argument in the
+ * BIOS call.  Passing any other value in the first argument will result
+ * in a BIOS_STATUS_UNIMPLEMENTED return status.
+ */
+enum uv_bios_cmd {
+	UV_BIOS_COMMON,
+	UV_BIOS_GET_SN_INFO,
+	UV_BIOS_FREQ_BASE
+};
+
+/*
+ * Status values returned from a BIOS call.
+ */
+enum {
+	BIOS_STATUS_SUCCESS		=  0,
+	BIOS_STATUS_UNIMPLEMENTED	= -ENOSYS,
+	BIOS_STATUS_EINVAL		= -EINVAL,
+	BIOS_STATUS_UNAVAIL		= -EBUSY
+};
+
+/*
+ * The UV system table describes specific firmware
+ * capabilities available to the Linux kernel at runtime.
+ */
+struct uv_systab {
+	char signature[4];	/* must be "UVST" */
+	u32 revision;		/* distinguish different firmware revs */
+	u64 function;		/* BIOS runtime callback function ptr */
+};
 
 enum {
 	BIOS_FREQ_BASE_PLATFORM = 0,
@@ -31,38 +61,34 @@ enum {
 	BIOS_FREQ_BASE_REALTIME_CLOCK = 2
 };
 
-# define BIOS_CALL(result, a0, a1, a2, a3, a4, a5, a6, a7)		\
-	do {								\
-		/* XXX - the real call goes here */			\
-		result.status = BIOS_STATUS_UNIMPLEMENTED;		\
-		isrv.v0 = 0;						\
-		isrv.v1 = 0;						\
-	} while (0)
-
-enum {
-	BIOS_STATUS_SUCCESS		=  0,
-	BIOS_STATUS_UNIMPLEMENTED	= -1,
-	BIOS_STATUS_EINVAL		= -2,
-	BIOS_STATUS_ERROR		= -3
+union partition_info_u {
+	u64	val;
+	struct {
+		u64	hub_version	:  8,
+			partition_id	: 16,
+			coherence_id	: 16,
+			region_size	: 24;
+	};
 };
 
-struct uv_bios_retval {
-	/*
-	 * A zero status value indicates call completed without error.
-	 * A negative status value indicates reason of call failure.
-	 * A positive status value indicates success but an
-	 * informational value should be printed (e.g., "reboot for
-	 * change to take effect").
-	 */
-	s64 status;
-	u64 v0;
-	u64 v1;
-	u64 v2;
-};
+/*
+ * bios calls have 6 parameters
+ */
+extern s64 uv_bios_call(enum uv_bios_cmd, u64, u64, u64, u64, u64);
+extern s64 uv_bios_call_irqsave(enum uv_bios_cmd, u64, u64, u64, u64, u64);
+extern s64 uv_bios_call_reentrant(enum uv_bios_cmd, u64, u64, u64, u64, u64);
 
-extern long
-x86_bios_freq_base(unsigned long which, unsigned long *ticks_per_second,
-		   unsigned long *drift_info);
-extern const char *x86_bios_strerror(long status);
+extern s64 uv_bios_get_sn_info(int, int *, long *, long *, long *);
+extern s64 uv_bios_freq_base(u64, u64 *);
+
+extern void uv_bios_init(void);
+
+extern int uv_type;
+extern long sn_partition_id;
+extern long uv_coherency_id;
+extern long uv_region_size;
+#define partition_coherence_id()	(uv_coherency_id)
+
+extern struct kobject *sgi_uv_kobj;	/* /sys/firmware/sgi_uv */
 
 #endif /* ASM_X86__UV__BIOS_H */

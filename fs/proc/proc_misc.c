@@ -30,6 +30,7 @@
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <linux/pagemap.h>
+#include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/swap.h>
 #include <linux/slab.h>
@@ -521,17 +522,13 @@ static const struct file_operations proc_vmalloc_operations = {
 
 static int show_stat(struct seq_file *p, void *v)
 {
-	int i;
+	int i, j;
 	unsigned long jif;
 	cputime64_t user, nice, system, idle, iowait, irq, softirq, steal;
 	cputime64_t guest;
 	u64 sum = 0;
 	struct timespec boottime;
-	unsigned int *per_irq_sum;
-
-	per_irq_sum = kzalloc(sizeof(unsigned int)*NR_IRQS, GFP_KERNEL);
-	if (!per_irq_sum)
-		return -ENOMEM;
+	unsigned int per_irq_sum;
 
 	user = nice = system = idle = iowait =
 		irq = softirq = steal = cputime64_zero;
@@ -540,8 +537,6 @@ static int show_stat(struct seq_file *p, void *v)
 	jif = boottime.tv_sec;
 
 	for_each_possible_cpu(i) {
-		int j;
-
 		user = cputime64_add(user, kstat_cpu(i).cpustat.user);
 		nice = cputime64_add(nice, kstat_cpu(i).cpustat.nice);
 		system = cputime64_add(system, kstat_cpu(i).cpustat.system);
@@ -551,11 +546,10 @@ static int show_stat(struct seq_file *p, void *v)
 		softirq = cputime64_add(softirq, kstat_cpu(i).cpustat.softirq);
 		steal = cputime64_add(steal, kstat_cpu(i).cpustat.steal);
 		guest = cputime64_add(guest, kstat_cpu(i).cpustat.guest);
-		for (j = 0; j < NR_IRQS; j++) {
-			unsigned int temp = kstat_cpu(i).irqs[j];
-			sum += temp;
-			per_irq_sum[j] += temp;
-		}
+
+		for_each_irq_nr(j)
+			sum += kstat_irqs_cpu(j, i);
+
 		sum += arch_irq_stat_cpu(i);
 	}
 	sum += arch_irq_stat();
@@ -597,8 +591,15 @@ static int show_stat(struct seq_file *p, void *v)
 	}
 	seq_printf(p, "intr %llu", (unsigned long long)sum);
 
-	for (i = 0; i < NR_IRQS; i++)
-		seq_printf(p, " %u", per_irq_sum[i]);
+	/* sum again ? it could be updated? */
+	for_each_irq_nr(j) {
+		per_irq_sum = 0;
+
+		for_each_possible_cpu(i)
+			per_irq_sum += kstat_irqs_cpu(j, i);
+
+		seq_printf(p, " %u", per_irq_sum);
+	}
 
 	seq_printf(p,
 		"\nctxt %llu\n"
@@ -612,7 +613,6 @@ static int show_stat(struct seq_file *p, void *v)
 		nr_running(),
 		nr_iowait());
 
-	kfree(per_irq_sum);
 	return 0;
 }
 
@@ -651,22 +651,20 @@ static const struct file_operations proc_stat_operations = {
  */
 static void *int_seq_start(struct seq_file *f, loff_t *pos)
 {
-	return (*pos <= NR_IRQS) ? pos : NULL;
+	return (*pos <= nr_irqs) ? pos : NULL;
 }
+
 
 static void *int_seq_next(struct seq_file *f, void *v, loff_t *pos)
 {
 	(*pos)++;
-	if (*pos > NR_IRQS)
-		return NULL;
-	return pos;
+	return (*pos <= nr_irqs) ? pos : NULL;
 }
 
 static void int_seq_stop(struct seq_file *f, void *v)
 {
 	/* Nothing to do */
 }
-
 
 static const struct seq_operations int_seq_ops = {
 	.start = int_seq_start,

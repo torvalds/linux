@@ -9,7 +9,7 @@ static int proc_idefloppy_read_capacity(char *page, char **start, off_t off,
 	ide_drive_t*drive = (ide_drive_t *)data;
 	int len;
 
-	len = sprintf(page, "%llu\n", (long long)ide_floppy_capacity(drive));
+	len = sprintf(page, "%llu\n", (long long)ide_gd_capacity(drive));
 	PROC_IDE_READ_RETURN(page, start, off, count, eof, len);
 }
 

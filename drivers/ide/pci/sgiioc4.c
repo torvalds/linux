@@ -101,18 +101,8 @@ sgiioc4_init_hwif_ports(hw_regs_t * hw, unsigned long data_port,
 	for (i = 0; i <= 7; i++)
 		hw->io_ports_array[i] = reg + i * 4;
 
-	if (ctrl_port)
-		hw->io_ports.ctl_addr = ctrl_port;
-
-	if (irq_port)
-		hw->io_ports.irq_addr = irq_port;
-}
-
-static void
-sgiioc4_maskproc(ide_drive_t * drive, int mask)
-{
-	writeb(ATA_DEVCTL_OBS | (mask ? 2 : 0),
-	       (void __iomem *)drive->hwif->io_ports.ctl_addr);
+	hw->io_ports.ctl_addr = ctrl_port;
+	hw->io_ports.irq_addr = irq_port;
 }
 
 static int
@@ -310,16 +300,14 @@ static u8 sgiioc4_read_status(ide_hwif_t *hwif)
 	unsigned long port = hwif->io_ports.status_addr;
 	u8 reg = (u8) readb((void __iomem *) port);
 
-	if ((port & 0xFFF) == 0x11C) {	/* Status register of IOC4 */
-		if (!(reg & ATA_BUSY)) { /* Not busy... check for interrupt */
-			unsigned long other_ir = port - 0x110;
-			unsigned int intr_reg = (u32) readl((void __iomem *) other_ir);
+	if (!(reg & ATA_BUSY)) {	/* Not busy... check for interrupt */
+		unsigned long other_ir = port - 0x110;
+		unsigned int intr_reg = (u32) readl((void __iomem *) other_ir);
 
-			/* Clear the Interrupt, Error bits on the IOC4 */
-			if (intr_reg & 0x03) {
-				writel(0x03, (void __iomem *) other_ir);
-				intr_reg = (u32) readl((void __iomem *) other_ir);
-			}
+		/* Clear the Interrupt, Error bits on the IOC4 */
+		if (intr_reg & 0x03) {
+			writel(0x03, (void __iomem *) other_ir);
+			intr_reg = (u32) readl((void __iomem *) other_ir);
 		}
 	}
 
@@ -332,12 +320,8 @@ ide_dma_sgiioc4(ide_hwif_t *hwif, const struct ide_port_info *d)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned long dma_base = pci_resource_start(dev, 0) + IOC4_DMA_OFFSET;
-	void __iomem *virt_dma_base;
 	int num_ports = sizeof (ioc4_dma_regs_t);
 	void *pad;
-
-	if (dma_base == 0)
-		return -1;
 
 	printk(KERN_INFO "    %s: MMIO-DMA\n", hwif->name);
 
@@ -348,14 +332,8 @@ ide_dma_sgiioc4(ide_hwif_t *hwif, const struct ide_port_info *d)
 		return -1;
 	}
 
-	virt_dma_base = ioremap(dma_base, num_ports);
-	if (virt_dma_base == NULL) {
-		printk(KERN_ERR "%s(%s) -- ERROR: unable to map addresses "
-		       "0x%lx to 0x%lx\n", __func__, hwif->name,
-		       dma_base, dma_base + num_ports - 1);
-		goto dma_remap_failure;
-	}
-	hwif->dma_base = (unsigned long) virt_dma_base;
+	hwif->dma_base = (unsigned long)hwif->io_ports.irq_addr +
+			 IOC4_DMA_OFFSET;
 
 	hwif->sg_max_nents = IOC4_PRD_ENTRIES;
 
@@ -379,9 +357,6 @@ ide_dma_sgiioc4(ide_hwif_t *hwif, const struct ide_port_info *d)
 	printk(KERN_INFO "%s: changing from DMA to PIO mode", hwif->name);
 
 dma_pci_alloc_failure:
-	iounmap(virt_dma_base);
-
-dma_remap_failure:
 	release_mem_region(dma_base, num_ports);
 
 	return -1;
@@ -563,8 +538,6 @@ static const struct ide_port_ops sgiioc4_port_ops = {
 	.set_dma_mode		= sgiioc4_set_dma_mode,
 	/* reset DMA engine, clear IRQs */
 	.resetproc		= sgiioc4_resetproc,
-	/* mask on/off NIEN register */
-	.maskproc		= sgiioc4_maskproc,
 };
 
 static const struct ide_dma_ops sgiioc4_dma_ops = {

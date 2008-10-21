@@ -84,20 +84,39 @@ config BLK_DEV_IDE_SATA
 
 	  If unsure, say N.
 
-config BLK_DEV_IDEDISK
-	tristate "Include IDE/ATA-2 DISK support"
-	---help---
-	  This will include enhanced support for MFM/RLL/IDE hard disks.  If
-	  you have a MFM/RLL/IDE disk, and there is no special reason to use
-	  the old hard disk driver instead, say Y.  If you have an SCSI-only
-	  system, you can say N here.
+config IDE_GD
+	tristate "generic ATA/ATAPI disk support"
+	default y
+	help
+	  Support for ATA/ATAPI disks (including ATAPI floppy drives).
 
-	  To compile this driver as a module, choose M here: the
-	  module will be called ide-disk.
-	  Do not compile this driver as a module if your root file system
-	  (the one containing the directory /) is located on the IDE disk.
+	  To compile this driver as a module, choose M here.
+	  The module will be called ide-gd_mod.
 
 	  If unsure, say Y.
+
+config IDE_GD_ATA
+	bool "ATA disk support"
+	depends on IDE_GD
+	default y
+	help
+	  This will include support for ATA hard disks.
+
+	  If unsure, say Y.
+
+config IDE_GD_ATAPI
+	bool "ATAPI floppy support"
+	depends on IDE_GD
+	select IDE_ATAPI
+	help
+	  This will include support for ATAPI floppy drives
+	  (i.e. Iomega ZIP or MKE LS-120).
+
+	  For information about jumper settings and the question
+	  of when a ZIP drive uses a partition table, see
+	  <http://www.win.tue.nl/~aeb/linux/zip/zip-1.html>.
+
+	  If unsure, say N.
 
 config BLK_DEV_IDECS
 	tristate "PCMCIA IDE support"
@@ -162,29 +181,6 @@ config BLK_DEV_IDETAPE
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ide-tape.
-
-config BLK_DEV_IDEFLOPPY
-	tristate "Include IDE/ATAPI FLOPPY support"
-	select IDE_ATAPI
-	---help---
-	  If you have an IDE floppy drive which uses the ATAPI protocol,
-	  answer Y.  ATAPI is a newer protocol used by IDE CD-ROM/tape/floppy
-	  drives, similar to the SCSI protocol.
-
-	  The LS-120 and the IDE/ATAPI Iomega ZIP drive are also supported by
-	  this driver. For information about jumper settings and the question
-	  of when a ZIP drive uses a partition table, see
-	  <http://www.win.tue.nl/~aeb/linux/zip/zip-1.html>.
-	  (ATAPI PD-CD/CDR drives are not supported by this driver; support
-	  for PD-CD/CDR drives is available if you answer Y to
-	  "SCSI emulation support", below).
-
-	  If you say Y here, the FLOPPY drive will be identified along with
-	  other IDE devices, as "hdb" or "hdc", or something similar (check
-	  the boot messages with dmesg).
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ide-floppy.
 
 config BLK_DEV_IDESCSI
 	tristate "SCSI emulation support (DEPRECATED)"
@@ -332,7 +328,7 @@ config IDEPCI_PCIBUS_ORDER
 # TODO: split it on per host driver config options (or module parameters)
 config BLK_DEV_OFFBOARD
 	bool "Boot off-board chipsets first support (DEPRECATED)"
-	depends on BLK_DEV_IDEPCI && (BLK_DEV_AEC62XX || BLK_DEV_GENERIC || BLK_DEV_HPT34X || BLK_DEV_HPT366 || BLK_DEV_PDC202XX_NEW || BLK_DEV_PDC202XX_OLD || BLK_DEV_TC86C001)
+	depends on BLK_DEV_IDEPCI && (BLK_DEV_AEC62XX || BLK_DEV_GENERIC || BLK_DEV_HPT366 || BLK_DEV_PDC202XX_NEW || BLK_DEV_PDC202XX_OLD || BLK_DEV_TC86C001)
 	help
 	  Normally, IDE controllers built into the motherboard (on-board
 	  controllers) are assigned to ide0 and ide1 while those on add-in PCI
@@ -481,28 +477,6 @@ config BLK_DEV_CS5535
 	  This will automatically be detected and configured if found.
 
 	  It is safe to say Y to this question.
-
-config BLK_DEV_HPT34X
-	tristate "HPT34X chipset support"
-	depends on BROKEN
-	select BLK_DEV_IDEDMA_PCI
-	help
-	  This driver adds up to 4 more EIDE devices sharing a single
-	  interrupt. The HPT343 chipset in its current form is a non-bootable
-	  controller; the HPT345/HPT363 chipset is a bootable (needs BIOS FIX)
-	  PCI UDMA controllers. This driver requires dynamic tuning of the
-	  chipset during the ide-probe at boot time. It is reported to support
-	  DVD II drives, by the manufacturer.
-
-config HPT34X_AUTODMA
-	bool "HPT34X AUTODMA support (EXPERIMENTAL)"
-	depends on BLK_DEV_HPT34X && EXPERIMENTAL
-	help
-	  This is a dangerous thing to attempt currently! Please read the
-	  comments at the top of <file:drivers/ide/pci/hpt34x.c>.  If you say Y
-	  here, then say Y to "Use DMA by default when available" as well.
-
-	  If unsure, say N.
 
 config BLK_DEV_HPT366
 	tristate "HPT36X/37X chipset support"
