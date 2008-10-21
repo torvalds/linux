@@ -19,10 +19,8 @@
 #include <linux/io.h>
 
 #include <mach/hardware.h>
+#include <mach/map.h>
 #include <asm/irq.h>
-
-#include <mach/regs-clock.h>
-#include <mach/regs-gpio.h>
 
 #include <plat/clock.h>
 #include <plat/cpu.h>
