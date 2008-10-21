@@ -29,6 +29,8 @@
 #include <mach/hardware.h>
 #include <asm/irq.h>
 
+#include <plat/cpu-freq.h>
+
 #include <mach/regs-clock.h>
 #include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
@@ -71,15 +73,18 @@ void __init s3c244x_map_io(void)
 	s3c_device_usbgadget.name = "s3c2440-usbgadget";
 }
 
-void __init s3c244x_init_clocks(int xtal)
+void __init_or_cpufreq s3c244x_setup_clocks(void)
 {
+	struct clk *xtal_clk;
 	unsigned long clkdiv;
 	unsigned long camdiv;
+	unsigned long xtal;
 	unsigned long hclk, fclk, pclk;
 	int hdiv = 1;
 
-	/* now we've got our machine bits initialised, work out what
-	 * clocks we've got */
+	xtal_clk = clk_get(NULL, "xtal");
+	xtal = clk_get_rate(xtal_clk);
+	clk_put(xtal_clk);
 
 	fclk = s3c24xx_get_pll(__raw_readl(S3C2410_MPLLCON), xtal) * 2;
 
@@ -107,18 +112,24 @@ void __init s3c244x_init_clocks(int xtal)
 	}
 
 	hclk = fclk / hdiv;
-	pclk = hclk / ((clkdiv & S3C2440_CLKDIVN_PDIVN)? 2:1);
+	pclk = hclk / ((clkdiv & S3C2440_CLKDIVN_PDIVN) ? 2 : 1);
 
 	/* print brief summary of clocks, etc */
 
 	printk("S3C244X: core %ld.%03ld MHz, memory %ld.%03ld MHz, peripheral %ld.%03ld MHz\n",
 	       print_mhz(fclk), print_mhz(hclk), print_mhz(pclk));
 
+	s3c24xx_setup_clocks(fclk, hclk, pclk);
+}
+
+void __init s3c244x_init_clocks(int xtal)
+{
 	/* initialise the clocks here, to allow other things like the
 	 * console to use them, and to add new ones after the initialisation
 	 */
 
-	s3c24xx_setup_clocks(xtal, fclk, hclk, pclk);
+	s3c24xx_register_baseclocks(xtal);
+	s3c244x_setup_clocks();
 	s3c2410_baseclk_add();
 }
 

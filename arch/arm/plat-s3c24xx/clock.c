@@ -47,6 +47,8 @@
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
 
+#include <plat/cpu-freq.h>
+
 #include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/pll.h>
@@ -327,24 +329,24 @@ int s3c24xx_register_clocks(struct clk **clks, int nr_clks)
 
 /* initalise all the clocks */
 
-int __init s3c24xx_setup_clocks(unsigned long xtal,
-				unsigned long fclk,
-				unsigned long hclk,
-				unsigned long pclk)
+void __init_or_cpufreq s3c24xx_setup_clocks(unsigned long fclk,
+					   unsigned long hclk,
+					   unsigned long pclk)
 {
-	printk(KERN_INFO "S3C24XX Clocks, (c) 2004 Simtec Electronics\n");
-
-	/* initialise the main system clocks */
-
-	clk_xtal.rate = xtal;
-	clk_upll.rate = s3c24xx_get_pll(__raw_readl(S3C2410_UPLLCON), xtal);
+	clk_upll.rate = s3c24xx_get_pll(__raw_readl(S3C2410_UPLLCON),
+					clk_xtal.rate);
 
 	clk_mpll.rate = fclk;
 	clk_h.rate = hclk;
 	clk_p.rate = pclk;
 	clk_f.rate = fclk;
+}
 
-	/* assume uart clocks are correctly setup */
+int __init s3c24xx_register_baseclocks(unsigned long xtal)
+{
+	printk(KERN_INFO "S3C24XX Clocks, (c) 2004 Simtec Electronics\n");
+
+	clk_xtal.rate = xtal;
 
 	/* register our clocks */
 
@@ -368,3 +370,4 @@ int __init s3c24xx_setup_clocks(unsigned long xtal,
 
 	return 0;
 }
+

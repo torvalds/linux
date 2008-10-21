@@ -60,7 +60,14 @@ extern int s3c2410_clkcon_enable(struct clk *clk, int enable);
 extern int s3c24xx_register_clock(struct clk *clk);
 extern int s3c24xx_register_clocks(struct clk **clk, int nr_clks);
 
-extern int s3c24xx_setup_clocks(unsigned long xtal,
-				unsigned long fclk,
-				unsigned long hclk,
-				unsigned long pclk);
+extern int s3c24xx_register_baseclocks(unsigned long xtal);
+
+extern void s3c24xx_setup_clocks(unsigned long fclk,
+				 unsigned long hclk,
+				 unsigned long pclk);
+
+extern void s3c2410_setup_clocks(void);
+extern void s3c2412_setup_clocks(void);
+extern void s3c244x_setup_clocks(void);
+extern void s3c2443_setup_clocks(void);
+

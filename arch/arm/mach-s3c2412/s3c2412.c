@@ -16,6 +16,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/sysdev.h>
 #include <linux/serial_core.h>
@@ -32,6 +33,8 @@
 
 #include <mach/reset.h>
 #include <mach/idle.h>
+
+#include <plat/cpu-freq.h>
 
 #include <mach/regs-clock.h>
 #include <plat/regs-serial.h>
@@ -156,17 +159,23 @@ void __init s3c2412_map_io(void)
 	iotable_init(s3c2412_iodesc, ARRAY_SIZE(s3c2412_iodesc));
 }
 
-void __init s3c2412_init_clocks(int xtal)
+void __init_or_cpufreq s3c2412_setup_clocks(void)
 {
+	struct clk *xtal_clk;
 	unsigned long tmp;
+	unsigned long xtal;
 	unsigned long fclk;
 	unsigned long hclk;
 	unsigned long pclk;
 
+	xtal_clk = clk_get(NULL, "xtal");
+	xtal = clk_get_rate(xtal_clk);
+	clk_put(xtal_clk);
+
 	/* now we've got our machine bits initialised, work out what
 	 * clocks we've got */
 
-	fclk = s3c24xx_get_pll(__raw_readl(S3C2410_MPLLCON), xtal*2);
+	fclk = s3c24xx_get_pll(__raw_readl(S3C2410_MPLLCON), xtal * 2);
 
 	clk_mpll.rate = fclk;
 
@@ -183,11 +192,17 @@ void __init s3c2412_init_clocks(int xtal)
 	printk("S3C2412: core %ld.%03ld MHz, memory %ld.%03ld MHz, peripheral %ld.%03ld MHz\n",
 	       print_mhz(fclk), print_mhz(hclk), print_mhz(pclk));
 
+	s3c24xx_setup_clocks(fclk, hclk, pclk);
+}
+
+void __init s3c2412_init_clocks(int xtal)
+{
 	/* initialise the clocks here, to allow other things like the
 	 * console to use them
 	 */
 
-	s3c24xx_setup_clocks(xtal, fclk, hclk, pclk);
+	s3c24xx_register_baseclocks(xtal);
+	s3c2412_setup_clocks();
 	s3c2412_baseclk_add();
 }
 

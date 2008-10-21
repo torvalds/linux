@@ -16,6 +16,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/clk.h>
 #include <linux/sysdev.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
@@ -27,6 +28,8 @@
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
+
+#include <plat/cpu-freq.h>
 
 #include <mach/regs-clock.h>
 #include <plat/regs-serial.h>
@@ -65,12 +68,18 @@ void __init s3c2410_map_io(void)
 	iotable_init(s3c2410_iodesc, ARRAY_SIZE(s3c2410_iodesc));
 }
 
-void __init s3c2410_init_clocks(int xtal)
+void __init_or_cpufreq s3c2410_setup_clocks(void)
 {
+	struct clk *xtal_clk;
 	unsigned long tmp;
+	unsigned long xtal;
 	unsigned long fclk;
 	unsigned long hclk;
 	unsigned long pclk;
+
+	xtal_clk = clk_get(NULL, "xtal");
+	xtal = clk_get_rate(xtal_clk);
+	clk_put(xtal_clk);
 
 	/* now we've got our machine bits initialised, work out what
 	 * clocks we've got */
@@ -93,7 +102,13 @@ void __init s3c2410_init_clocks(int xtal)
 	 * console to use them
 	 */
 
-	s3c24xx_setup_clocks(xtal, fclk, hclk, pclk);
+	s3c24xx_setup_clocks(fclk, hclk, pclk);
+}
+
+void __init s3c2410_init_clocks(int xtal)
+{
+	s3c24xx_register_baseclocks(xtal);
+	s3c2410_setup_clocks();
 	s3c2410_baseclk_add();
 }
 
