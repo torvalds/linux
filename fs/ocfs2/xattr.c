@@ -555,14 +555,12 @@ static int ocfs2_xattr_block_list(struct inode *inode,
 		mlog_errno(ret);
 		return ret;
 	}
-	/*Verify the signature of xattr block*/
-	if (memcmp((void *)blk_bh->b_data, OCFS2_XATTR_BLOCK_SIGNATURE,
-		   strlen(OCFS2_XATTR_BLOCK_SIGNATURE))) {
-		ret = -EFAULT;
-		goto cleanup;
-	}
 
 	xb = (struct ocfs2_xattr_block *)blk_bh->b_data;
+	if (!OCFS2_IS_VALID_XATTR_BLOCK(xb)) {
+		ret = -EIO;
+		goto cleanup;
+	}
 
 	if (!(le16_to_cpu(xb->xb_flags) & OCFS2_XATTR_INDEXED)) {
 		struct ocfs2_xattr_header *header = &xb->xb_attrs.xb_header;
@@ -779,15 +777,14 @@ static int ocfs2_xattr_block_get(struct inode *inode,
 		mlog_errno(ret);
 		return ret;
 	}
-	/*Verify the signature of xattr block*/
-	if (memcmp((void *)blk_bh->b_data, OCFS2_XATTR_BLOCK_SIGNATURE,
-		   strlen(OCFS2_XATTR_BLOCK_SIGNATURE))) {
-		ret = -EFAULT;
+
+	xb = (struct ocfs2_xattr_block *)blk_bh->b_data;
+	if (!OCFS2_IS_VALID_XATTR_BLOCK(xb)) {
+		ret = -EIO;
 		goto cleanup;
 	}
 
 	xs->xattr_bh = blk_bh;
-	xb = (struct ocfs2_xattr_block *)blk_bh->b_data;
 
 	if (!(le16_to_cpu(xb->xb_flags) & OCFS2_XATTR_INDEXED)) {
 		xs->header = &xb->xb_attrs.xb_header;
@@ -1527,10 +1524,9 @@ static int ocfs2_xattr_free_block(struct inode *inode,
 		goto out;
 	}
 
-	/*Verify the signature of xattr block*/
-	if (memcmp((void *)blk_bh->b_data, OCFS2_XATTR_BLOCK_SIGNATURE,
-		   strlen(OCFS2_XATTR_BLOCK_SIGNATURE))) {
-		ret = -EFAULT;
+	xb = (struct ocfs2_xattr_block *)blk_bh->b_data;
+	if (!OCFS2_IS_VALID_XATTR_BLOCK(xb)) {
+		ret = -EIO;
 		goto out;
 	}
 
@@ -1540,7 +1536,6 @@ static int ocfs2_xattr_free_block(struct inode *inode,
 		goto out;
 	}
 
-	xb = (struct ocfs2_xattr_block *)blk_bh->b_data;
 	blk = le64_to_cpu(xb->xb_blkno);
 	bit = le16_to_cpu(xb->xb_suballoc_bit);
 	bg_blkno = ocfs2_which_suballoc_group(blk, bit);
@@ -1784,15 +1779,14 @@ static int ocfs2_xattr_block_find(struct inode *inode,
 		mlog_errno(ret);
 		return ret;
 	}
-	/*Verify the signature of xattr block*/
-	if (memcmp((void *)blk_bh->b_data, OCFS2_XATTR_BLOCK_SIGNATURE,
-		   strlen(OCFS2_XATTR_BLOCK_SIGNATURE))) {
-			ret = -EFAULT;
-			goto cleanup;
+
+	xb = (struct ocfs2_xattr_block *)blk_bh->b_data;
+	if (!OCFS2_IS_VALID_XATTR_BLOCK(xb)) {
+		ret = -EIO;
+		goto cleanup;
 	}
 
 	xs->xattr_bh = blk_bh;
-	xb = (struct ocfs2_xattr_block *)blk_bh->b_data;
 
 	if (!(le16_to_cpu(xb->xb_flags) & OCFS2_XATTR_INDEXED)) {
 		xs->header = &xb->xb_attrs.xb_header;
