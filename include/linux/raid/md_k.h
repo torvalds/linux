@@ -115,6 +115,9 @@ struct mdk_rdev_s
 					   * in superblock.
 					   */
 	struct work_struct del_work;	/* used for delayed sysfs removal */
+
+	struct sysfs_dirent *sysfs_state; /* handle for 'state'
+					   * sysfs entry */
 };
 
 struct mddev_s
