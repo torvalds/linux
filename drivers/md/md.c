@@ -3463,6 +3463,11 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	disk->fops = &md_fops;
 	disk->private_data = mddev;
 	disk->queue = mddev->queue;
+	/* Allow extended partitions.  This makes the
+	 * 'mdp' device redundant, but we can really
+	 * remove it now.
+	 */
+	disk->flags |= GENHD_FL_EXT_DEVT;
 	add_disk(disk);
 	mddev->gendisk = disk;
 	error = kobject_init_and_add(&mddev->kobj, &md_ktype,
