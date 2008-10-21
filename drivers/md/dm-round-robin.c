@@ -9,7 +9,8 @@
  * Round-robin path selector.
  */
 
-#include "dm.h"
+#include <linux/device-mapper.h>
+
 #include "dm-path-selector.h"
 
 #include <linux/slab.h>

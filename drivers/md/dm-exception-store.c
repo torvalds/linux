@@ -7,7 +7,6 @@
  * This file is released under the GPL.
  */
 
-#include "dm.h"
 #include "dm-snap.h"
 
 #include <linux/mm.h>

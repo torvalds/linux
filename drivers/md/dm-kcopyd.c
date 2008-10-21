@@ -22,6 +22,7 @@
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+#include <linux/device-mapper.h>
 #include <linux/dm-kcopyd.h>
 
 #include "dm.h"

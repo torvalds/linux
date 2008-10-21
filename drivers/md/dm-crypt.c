@@ -23,7 +23,7 @@
 #include <asm/page.h>
 #include <asm/unaligned.h>
 
-#include "dm.h"
+#include <linux/device-mapper.h>
 
 #define DM_MSG_PREFIX "crypt"
 #define MESG_STR(x) x, sizeof(x)
