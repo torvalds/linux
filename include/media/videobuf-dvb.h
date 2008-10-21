@@ -47,6 +47,7 @@ int videobuf_dvb_register_bus(struct videobuf_dvb_frontends *f,
 void videobuf_dvb_unregister_bus(struct videobuf_dvb_frontends *f);
 
 struct videobuf_dvb_frontend * videobuf_dvb_alloc_frontend(struct videobuf_dvb_frontends *f, int id);
+void videobuf_dvb_dealloc_frontends(struct videobuf_dvb_frontends *f);
 
 struct videobuf_dvb_frontend * videobuf_dvb_get_frontend(struct videobuf_dvb_frontends *f, int id);
 int videobuf_dvb_find_frontend(struct videobuf_dvb_frontends *f, struct dvb_frontend *p);
