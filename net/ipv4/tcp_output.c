@@ -432,7 +432,7 @@ static void tcp_options_write(__be32 *ptr, struct tcp_sock *tp,
 
 		if (tp->rx_opt.dsack) {
 			tp->rx_opt.dsack = 0;
-			tp->rx_opt.eff_sacks--;
+			tp->rx_opt.eff_sacks = tp->rx_opt.num_sacks;
 		}
 	}
 }
