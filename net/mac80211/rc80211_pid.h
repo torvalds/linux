@@ -61,6 +61,7 @@ enum rc_pid_event_type {
 union rc_pid_event_data {
 	/* RC_PID_EVENT_TX_STATUS */
 	struct {
+		u32 flags;
 		struct ieee80211_tx_info tx_status;
 	};
 	/* RC_PID_EVENT_TYPE_RATE_CHANGE */

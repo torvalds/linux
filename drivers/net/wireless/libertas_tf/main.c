@@ -592,14 +592,14 @@ EXPORT_SYMBOL_GPL(lbtf_remove_card);
 void lbtf_send_tx_feedback(struct lbtf_private *priv, u8 retrycnt, u8 fail)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(priv->tx_skb);
-	memset(&info->status, 0, sizeof(info->status));
+
+	ieee80211_tx_info_clear_status(info);
 	/*
 	 * Commented out, otherwise we never go beyond 1Mbit/s using mac80211
 	 * default pid rc algorithm.
 	 *
 	 * info->status.retry_count = MRVL_DEFAULT_RETRIES - retrycnt;
 	 */
-	info->status.excessive_retries = fail ? 1 : 0;
 	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK) && !fail)
 		info->flags |= IEEE80211_TX_STAT_ACK;
 	skb_pull(priv->tx_skb, sizeof(struct txpd));

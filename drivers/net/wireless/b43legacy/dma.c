@@ -1411,6 +1411,7 @@ void b43legacy_dma_handle_txstatus(struct b43legacy_wldev *dev,
 	struct b43legacy_dmaring *ring;
 	struct b43legacy_dmadesc_generic *desc;
 	struct b43legacy_dmadesc_meta *meta;
+	int retry_limit;
 	int slot;
 
 	ring = parse_cookie(dev, status->cookie, &slot);
@@ -1437,25 +1438,42 @@ void b43legacy_dma_handle_txstatus(struct b43legacy_wldev *dev,
 			struct ieee80211_tx_info *info;
 			BUG_ON(!meta->skb);
 			info = IEEE80211_SKB_CB(meta->skb);
+
+			/* preserve the confiured retry limit before clearing the status
+			 * The xmit function has overwritten the rc's value with the actual
+			 * retry limit done by the hardware */
+			retry_limit = info->status.rates[0].count;
+			ieee80211_tx_info_clear_status(info);
+
+			if (status->acked)
+				info->flags |= IEEE80211_TX_STAT_ACK;
+
+			if (status->rts_count > dev->wl->hw->conf.short_frame_max_tx_count) {
+				/*
+				 * If the short retries (RTS, not data frame) have exceeded
+				 * the limit, the hw will not have tried the selected rate,
+				 * but will have used the fallback rate instead.
+				 * Don't let the rate control count attempts for the selected
+				 * rate in this case, otherwise the statistics will be off.
+				 */
+				info->status.rates[0].count = 0;
+				info->status.rates[1].count = status->frame_count;
+			} else {
+				if (status->frame_count > retry_limit) {
+					info->status.rates[0].count = retry_limit;
+					info->status.rates[1].count = status->frame_count -
+							retry_limit;
+
+				} else {
+					info->status.rates[0].count = status->frame_count;
+					info->status.rates[1].idx = -1;
+				}
+			}
+
 			/* Call back to inform the ieee80211 subsystem about the
 			 * status of the transmission.
 			 * Some fields of txstat are already filled in dma_tx().
 			 */
-
-			memset(&info->status, 0, sizeof(info->status));
-
-			if (status->acked) {
-				info->flags |= IEEE80211_TX_STAT_ACK;
-			} else {
-				if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
-					 info->status.excessive_retries = 1;
-			}
-			if (status->frame_count == 0) {
-				/* The frame was not transmitted at all. */
-				info->status.retry_count = 0;
-			} else
-				info->status.retry_count = status->frame_count
-							   - 1;
 			ieee80211_tx_status_irqsafe(dev->wl->hw, meta->skb);
 			/* skb is freed by ieee80211_tx_status_irqsafe() */
 			meta->skb = NULL;

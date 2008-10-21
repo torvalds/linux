@@ -798,7 +798,7 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 	    !(info->flags & IEEE80211_TX_STAT_AMPDU))
 		return;
 
-	retries = info->status.retry_count;
+	retries = info->status.rates[0].count - 1;
 
 	if (retries > 15)
 		retries = 15;
@@ -830,20 +830,15 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 	if (priv->band == IEEE80211_BAND_5GHZ)
 		rs_index -= IWL_FIRST_OFDM_RATE;
 
-	if ((info->tx_rate_idx < 0) ||
-	    (tbl_type.is_SGI ^
-		!!(info->flags & IEEE80211_TX_CTL_SHORT_GI)) ||
-	    (tbl_type.is_fat ^
-		!!(info->flags & IEEE80211_TX_CTL_40_MHZ_WIDTH)) ||
-	    (tbl_type.is_dup ^
-		!!(info->flags & IEEE80211_TX_CTL_DUP_DATA)) ||
-	    (tbl_type.ant_type ^ info->antenna_sel_tx) ||
-	    (!!(tx_rate & RATE_MCS_HT_MSK) ^
-		!!(info->flags & IEEE80211_TX_CTL_OFDM_HT)) ||
-	    (!!(tx_rate & RATE_MCS_GF_MSK) ^
-		!!(info->flags & IEEE80211_TX_CTL_GREEN_FIELD)) ||
+	if ((info->status.rates[0].idx < 0) ||
+	    (tbl_type.is_SGI != !!(info->status.rates[0].flags & IEEE80211_TX_RC_SHORT_GI)) ||
+	    (tbl_type.is_fat != !!(info->status.rates[0].flags & IEEE80211_TX_RC_40_MHZ_WIDTH)) ||
+	    (tbl_type.is_dup != !!(info->status.rates[0].flags & IEEE80211_TX_RC_DUP_DATA)) ||
+	    (tbl_type.ant_type != info->antenna_sel_tx) ||
+	    (!!(tx_rate & RATE_MCS_HT_MSK) != !!(info->status.rates[0].flags & IEEE80211_TX_RC_MCS)) ||
+	    (!!(tx_rate & RATE_MCS_GF_MSK) != !!(info->status.rates[0].flags & IEEE80211_TX_RC_GREEN_FIELD)) ||
 	    (hw->wiphy->bands[priv->band]->bitrates[rs_index].bitrate !=
-	     hw->wiphy->bands[info->band]->bitrates[info->tx_rate_idx].bitrate)) {
+	     hw->wiphy->bands[info->band]->bitrates[info->status.rates[0].idx].bitrate)) {
 		IWL_DEBUG_RATE("initial rate does not match 0x%x\n", tx_rate);
 		goto out;
 	}
@@ -2098,15 +2093,17 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 	return;
 }
 
-static void rs_get_rate(void *priv_r, struct ieee80211_supported_band *sband,
-			struct ieee80211_sta *sta, void *priv_sta,
-			struct sk_buff *skb, struct rate_selection *sel)
+static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
+			struct ieee80211_tx_rate_control *txrc)
 {
 
 	int i;
+	struct sk_buff *skb = txrc->skb;
+	struct ieee80211_supported_band *sband = txrc->sband;
 	struct iwl_priv *priv = (struct iwl_priv *)priv_r;
 	struct ieee80211_conf *conf = &priv->hw->conf;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	__le16 fc;
 	struct iwl_lq_sta *lq_sta;
 
@@ -2117,7 +2114,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_supported_band *sband,
 	fc = hdr->frame_control;
 	if (!ieee80211_is_data(fc) || is_multicast_ether_addr(hdr->addr1) ||
 	    !sta || !priv_sta) {
-		sel->rate_idx = rate_lowest_index(sband, sta);
+		info->control.rates[0].idx = rate_lowest_index(sband, sta);
 		return;
 	}
 
@@ -2143,13 +2140,13 @@ static void rs_get_rate(void *priv_r, struct ieee80211_supported_band *sband,
 	}
 
 	if ((i < 0) || (i > IWL_RATE_COUNT)) {
-		sel->rate_idx = rate_lowest_index(sband, sta);
+		info->control.rates[0].idx = rate_lowest_index(sband, sta);
 		return;
 	}
 
 	if (sband->band == IEEE80211_BAND_5GHZ)
 		i -= IWL_FIRST_OFDM_RATE;
-	sel->rate_idx = i;
+	info->control.rates[0].idx = i;
 }
 
 static void *rs_alloc_sta(void *priv_rate, struct ieee80211_sta *sta,

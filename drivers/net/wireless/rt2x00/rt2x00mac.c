@@ -39,7 +39,7 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 	unsigned int data_length;
 	int retval = 0;
 
-	if (tx_info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT)
+	if (tx_info->control.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT)
 		data_length = sizeof(struct ieee80211_cts);
 	else
 		data_length = sizeof(struct ieee80211_rts);
@@ -64,11 +64,11 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 	 */
 	memcpy(skb->cb, frag_skb->cb, sizeof(skb->cb));
 	rts_info = IEEE80211_SKB_CB(skb);
-	rts_info->flags &= ~IEEE80211_TX_CTL_USE_RTS_CTS;
-	rts_info->flags &= ~IEEE80211_TX_CTL_USE_CTS_PROTECT;
+	rts_info->control.rates[0].flags &= ~IEEE80211_TX_RC_USE_RTS_CTS;
+	rts_info->control.rates[0].flags &= ~IEEE80211_TX_RC_USE_CTS_PROTECT;
 	rts_info->flags &= ~IEEE80211_TX_CTL_REQ_TX_STATUS;
 
-	if (tx_info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT)
+	if (tx_info->control.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT)
 		rts_info->flags |= IEEE80211_TX_CTL_NO_ACK;
 	else
 		rts_info->flags &= ~IEEE80211_TX_CTL_NO_ACK;
@@ -84,7 +84,7 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 		data_length += rt2x00crypto_tx_overhead(tx_info);
 #endif /* CONFIG_RT2X00_LIB_CRYPTO */
 
-	if (tx_info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT)
+	if (tx_info->control.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT)
 		ieee80211_ctstoself_get(rt2x00dev->hw, tx_info->control.vif,
 					frag_skb->data, data_length, tx_info,
 					(struct ieee80211_cts *)(skb->data));
@@ -146,8 +146,8 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * inside the hardware.
 	 */
 	frame_control = le16_to_cpu(ieee80211hdr->frame_control);
-	if ((tx_info->flags & (IEEE80211_TX_CTL_USE_RTS_CTS |
-			       IEEE80211_TX_CTL_USE_CTS_PROTECT)) &&
+	if ((tx_info->control.rates[0].flags & (IEEE80211_TX_RC_USE_RTS_CTS |
+						IEEE80211_TX_RC_USE_CTS_PROTECT)) &&
 	    !rt2x00dev->ops->hw->set_rts_threshold) {
 		if (rt2x00queue_available(queue) <= 1)
 			goto exit_fail;

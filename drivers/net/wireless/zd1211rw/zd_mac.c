@@ -296,15 +296,14 @@ static void zd_op_stop(struct ieee80211_hw *hw)
  * If no status information has been requested, the skb is freed.
  */
 static void tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
-		      u32 flags, int ackssi, bool success)
+		      int ackssi, bool success)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
-	memset(&info->status, 0, sizeof(info->status));
+	ieee80211_tx_info_clear_status(info);
 
-	if (!success)
-		info->status.excessive_retries = 1;
-	info->flags |= flags;
+	if (success)
+		info->flags |= IEEE80211_TX_STAT_ACK;
 	info->status.ack_signal = ackssi;
 	ieee80211_tx_status_irqsafe(hw, skb);
 }
@@ -326,7 +325,7 @@ void zd_mac_tx_failed(struct ieee80211_hw *hw)
 	if (skb == NULL)
 		return;
 
-	tx_status(hw, skb, 0, 0, 0);
+	tx_status(hw, skb, 0, 0);
 }
 
 /**
@@ -342,12 +341,12 @@ void zd_mac_tx_failed(struct ieee80211_hw *hw)
 void zd_mac_tx_to_dev(struct sk_buff *skb, int error)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_hw *hw = info->driver_data[0];
+	struct ieee80211_hw *hw = info->rate_driver_data[0];
 
 	skb_pull(skb, sizeof(struct zd_ctrlset));
 	if (unlikely(error ||
 	    (info->flags & IEEE80211_TX_CTL_NO_ACK))) {
-		tx_status(hw, skb, 0, 0, !error);
+		tx_status(hw, skb, 0, !error);
 	} else {
 		struct sk_buff_head *q =
 			&zd_hw_mac(hw)->ack_wait_queue;
@@ -406,7 +405,8 @@ static int zd_calc_tx_length_us(u8 *service, u8 zd_rate, u16 tx_length)
 }
 
 static void cs_set_control(struct zd_mac *mac, struct zd_ctrlset *cs,
-	                   struct ieee80211_hdr *header, u32 flags)
+	                   struct ieee80211_hdr *header,
+	                   struct ieee80211_tx_info *info)
 {
 	/*
 	 * CONTROL TODO:
@@ -417,7 +417,7 @@ static void cs_set_control(struct zd_mac *mac, struct zd_ctrlset *cs,
 	cs->control = 0;
 
 	/* First fragment */
-	if (flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
+	if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
 		cs->control |= ZD_CS_NEED_RANDOM_BACKOFF;
 
 	/* Multicast */
@@ -428,10 +428,10 @@ static void cs_set_control(struct zd_mac *mac, struct zd_ctrlset *cs,
 	if (ieee80211_is_pspoll(header->frame_control))
 		cs->control |= ZD_CS_PS_POLL_FRAME;
 
-	if (flags & IEEE80211_TX_CTL_USE_RTS_CTS)
+	if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS)
 		cs->control |= ZD_CS_RTS;
 
-	if (flags & IEEE80211_TX_CTL_USE_CTS_PROTECT)
+	if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT)
 		cs->control |= ZD_CS_SELF_CTS;
 
 	/* FIXME: Management frame? */
@@ -517,12 +517,12 @@ static int fill_ctrlset(struct zd_mac *mac,
 	txrate = ieee80211_get_tx_rate(mac->hw, info);
 
 	cs->modulation = txrate->hw_value;
-	if (info->flags & IEEE80211_TX_CTL_SHORT_PREAMBLE)
+	if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
 		cs->modulation = txrate->hw_value_short;
 
 	cs->tx_length = cpu_to_le16(frag_len);
 
-	cs_set_control(mac, cs, hdr, info->flags);
+	cs_set_control(mac, cs, hdr, info);
 
 	packet_length = frag_len + sizeof(struct zd_ctrlset) + 10;
 	ZD_ASSERT(packet_length <= 0xffff);
@@ -577,7 +577,7 @@ static int zd_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	if (r)
 		return r;
 
-	info->driver_data[0] = hw;
+	info->rate_driver_data[0] = hw;
 
 	r = zd_usb_tx(&mac->chip.usb, skb);
 	if (r)
@@ -618,7 +618,7 @@ static int filter_ack(struct ieee80211_hw *hw, struct ieee80211_hdr *rx_hdr,
 		if (likely(!compare_ether_addr(tx_hdr->addr2, rx_hdr->addr1)))
 		{
 			__skb_unlink(skb, q);
-			tx_status(hw, skb, IEEE80211_TX_STAT_ACK, stats->signal, 1);
+			tx_status(hw, skb, stats->signal, 1);
 			goto out;
 		}
 	}

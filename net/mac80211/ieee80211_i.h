@@ -142,7 +142,6 @@ typedef unsigned __bitwise__ ieee80211_tx_result;
 #define IEEE80211_TX_FRAGMENTED		BIT(0)
 #define IEEE80211_TX_UNICAST		BIT(1)
 #define IEEE80211_TX_PS_BUFFERED	BIT(2)
-#define IEEE80211_TX_PROBE_LAST_FRAG	BIT(3)
 
 struct ieee80211_tx_data {
 	struct sk_buff *skb;
@@ -153,11 +152,6 @@ struct ieee80211_tx_data {
 	struct ieee80211_key *key;
 
 	struct ieee80211_channel *channel;
-	s8 rate_idx;
-	/* use this rate (if set) for last fragment; rate can
-	 * be set to lower rate for the first fragments, e.g.,
-	 * when using CTS protection with IEEE 802.11g. */
-	s8 last_frag_rate_idx;
 
 	/* Extra fragments (in addition to the first fragment
 	 * in skb) */
@@ -203,9 +197,7 @@ struct ieee80211_rx_data {
 struct ieee80211_tx_stored_packet {
 	struct sk_buff *skb;
 	struct sk_buff **extra_frag;
-	s8 last_frag_rate_idx;
 	int num_extra_frag;
-	bool last_frag_rate_ctrl_probe;
 };
 
 struct beacon_data {

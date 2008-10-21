@@ -168,7 +168,9 @@ static void fill_min_rates(struct sk_buff *skb, struct ath_tx_control *txctl)
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	fc = hdr->frame_control;
-	tx_info_priv = (struct ath_tx_info_priv *)tx_info->driver_data[0];
+
+	/* XXX: HACK! */
+	tx_info_priv = (struct ath_tx_info_priv *)tx_info->control.vif;
 
 	if (ieee80211_is_mgmt(fc) || ieee80211_is_ctl(fc)) {
 		txctl->use_minrate = 1;
@@ -288,13 +290,16 @@ static int ath_tx_prepare(struct ath_softc *sc,
 
 	if (tx_info->flags & IEEE80211_TX_CTL_NO_ACK)
 		txctl->flags |= ATH9K_TXDESC_NOACK;
-	if (tx_info->flags & IEEE80211_TX_CTL_USE_RTS_CTS)
+
+	if (tx_info->control.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS)
 		txctl->flags |= ATH9K_TXDESC_RTSENA;
 
 	/*
 	 * Setup for rate calculations.
 	 */
-	tx_info_priv = (struct ath_tx_info_priv *)tx_info->driver_data[0];
+
+	/* XXX: HACK! */
+	tx_info_priv = (struct ath_tx_info_priv *)tx_info->control.vif;
 	rcs = tx_info_priv->rcs;
 
 	if (ieee80211_is_data(fc) && !txctl->use_minrate) {
@@ -855,7 +860,9 @@ static int ath_tx_send_normal(struct ath_softc *sc,
 
 	skb = (struct sk_buff *)bf->bf_mpdu;
 	tx_info = IEEE80211_SKB_CB(skb);
-	tx_info_priv = (struct ath_tx_info_priv *)tx_info->driver_data[0];
+
+	/* XXX: HACK! */
+	tx_info_priv = (struct ath_tx_info_priv *)tx_info->control.vif;
 	memcpy(bf->bf_rcs, tx_info_priv->rcs, 4 * sizeof(tx_info_priv->rcs[0]));
 
 	/* update starting sequence number for subsequent ADDBA request */
@@ -1249,8 +1256,9 @@ static int ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		}
 		skb = bf->bf_mpdu;
 		tx_info = IEEE80211_SKB_CB(skb);
-		tx_info_priv = (struct ath_tx_info_priv *)
-			tx_info->driver_data[0];
+
+		/* XXX: HACK! */
+		tx_info_priv = (struct ath_tx_info_priv *) tx_info->control.vif;
 		if (ds->ds_txstat.ts_status & ATH9K_TXERR_FILT)
 			tx_info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
 		if ((ds->ds_txstat.ts_status & ATH9K_TXERR_FILT) == 0 &&
@@ -1431,7 +1439,8 @@ static int ath_tx_send_ampdu(struct ath_softc *sc,
 
 	skb = (struct sk_buff *)bf->bf_mpdu;
 	tx_info = IEEE80211_SKB_CB(skb);
-	tx_info_priv = (struct ath_tx_info_priv *)tx_info->driver_data[0];
+	/* XXX: HACK! */
+	tx_info_priv = (struct ath_tx_info_priv *)tx_info->control.vif;
 	memcpy(bf->bf_rcs, tx_info_priv->rcs, 4 * sizeof(tx_info_priv->rcs[0]));
 
 	/* Add sub-frame to BAW */
@@ -1466,7 +1475,7 @@ static u32 ath_lookup_rate(struct ath_softc *sc,
 	skb = (struct sk_buff *)bf->bf_mpdu;
 	tx_info = IEEE80211_SKB_CB(skb);
 	tx_info_priv = (struct ath_tx_info_priv *)
-		tx_info->driver_data[0];
+		tx_info->control.vif; /* XXX: HACK! */
 	memcpy(bf->bf_rcs,
 		tx_info_priv->rcs, 4 * sizeof(tx_info_priv->rcs[0]));
 
@@ -1927,7 +1936,8 @@ static int ath_tx_start_dma(struct ath_softc *sc,
 
 	bf->bf_flags = txctl->flags;
 	bf->bf_keytype = txctl->keytype;
-	tx_info_priv = (struct ath_tx_info_priv *)tx_info->driver_data[0];
+	/* XXX: HACK! */
+	tx_info_priv = (struct ath_tx_info_priv *)tx_info->control.vif;
 	rcs = tx_info_priv->rcs;
 	bf->bf_rcs[0] = rcs[0];
 	bf->bf_rcs[1] = rcs[1];

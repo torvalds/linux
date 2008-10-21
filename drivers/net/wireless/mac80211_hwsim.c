@@ -209,7 +209,7 @@ static bool mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 	/* TODO: set mactime */
 	rx_status.freq = data->channel->center_freq;
 	rx_status.band = data->channel->band;
-	rx_status.rate_idx = info->tx_rate_idx;
+	rx_status.rate_idx = info->control.rates[0].idx;
 	/* TODO: simulate signal strength (and optional packet drop) */
 
 	/* Copy skb to all enabled radios that are on the current frequency */
@@ -269,13 +269,9 @@ static int mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	if (txi->control.sta)
 		hwsim_check_sta_magic(txi->control.sta);
 
-	memset(&txi->status, 0, sizeof(txi->status));
-	if (!(txi->flags & IEEE80211_TX_CTL_NO_ACK)) {
-		if (ack)
-			txi->flags |= IEEE80211_TX_STAT_ACK;
-		else
-			txi->status.excessive_retries = 1;
-	}
+	ieee80211_tx_info_clear_status(txi);
+	if (!(txi->flags & IEEE80211_TX_CTL_NO_ACK) && ack)
+		txi->flags |= IEEE80211_TX_STAT_ACK;
 	ieee80211_tx_status_irqsafe(hw, skb);
 	return NETDEV_TX_OK;
 }

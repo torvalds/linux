@@ -196,7 +196,7 @@ struct sta_ampdu_mlme {
  * @tx_packets: number of RX/TX MSDUs
  * @tx_bytes: TBD
  * @tx_fragments: number of transmitted MPDUs
- * @last_txrate_idx: Index of the last used transmit rate
+ * @last_txrate: description of the last used transmit rate
  * @tid_seq: TBD
  * @ampdu_mlme: TBD
  * @timer_to_tid: identity mapping to ID timers
@@ -267,7 +267,7 @@ struct sta_info {
 	unsigned long tx_packets;
 	unsigned long tx_bytes;
 	unsigned long tx_fragments;
-	unsigned int last_txrate_idx;
+	struct ieee80211_tx_rate last_tx_rate;
 	u16 tid_seq[IEEE80211_QOS_CTL_TID_MASK + 1];
 
 	/*

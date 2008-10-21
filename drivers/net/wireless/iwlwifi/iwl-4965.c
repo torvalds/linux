@@ -619,10 +619,10 @@ static void iwl4965_gain_computation(struct iwl_priv *priv,
 static void iwl4965_rts_tx_cmd_flag(struct ieee80211_tx_info *info,
 			__le32 *tx_flags)
 {
-	if (info->flags & IEEE80211_TX_CTL_USE_RTS_CTS) {
+	if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS) {
 		*tx_flags |= TX_CMD_FLG_RTS_MSK;
 		*tx_flags &= ~TX_CMD_FLG_CTS_MSK;
-	} else if (info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT) {
+	} else if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT) {
 		*tx_flags &= ~TX_CMD_FLG_RTS_MSK;
 		*tx_flags |= TX_CMD_FLG_CTS_MSK;
 	}
@@ -2070,7 +2070,7 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 				   agg->frame_count, agg->start_idx, idx);
 
 		info = IEEE80211_SKB_CB(priv->txq[txq_id].txb[idx].skb[0]);
-		info->status.retry_count = tx_resp->failure_frame;
+		info->status.rates[0].count = tx_resp->failure_frame + 1;
 		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
 		info->flags |= iwl_is_tx_success(status)?
 			IEEE80211_TX_STAT_ACK : 0;
@@ -2227,7 +2227,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 			iwl_txq_check_empty(priv, sta_id, tid, txq_id);
 		}
 	} else {
-		info->status.retry_count = tx_resp->failure_frame;
+		info->status.rates[0].count = tx_resp->failure_frame + 1;
 		info->flags |=
 			iwl_is_tx_success(status) ? IEEE80211_TX_STAT_ACK : 0;
 		iwl_hwrate_to_tx_control(priv,

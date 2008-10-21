@@ -548,7 +548,7 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 	spin_lock_irqsave(&priv->tx_queue.lock, flags);
 	while (entry != (struct sk_buff *)&priv->tx_queue) {
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(entry);
-		range = (void *)info->driver_data;
+		range = (void *)info->rate_driver_data;
 		if (range->start_addr == addr) {
 			struct p54_control_hdr *entry_hdr;
 			struct p54_tx_control_allocdata *entry_data;
@@ -559,7 +559,7 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 				struct memrecord *mr;
 
 				ni = IEEE80211_SKB_CB(entry->next);
-				mr = (struct memrecord *)ni->driver_data;
+				mr = (struct memrecord *)ni->rate_driver_data;
 				freed = mr->start_addr - last_addr;
 			} else
 				freed = priv->rx_end - last_addr;
@@ -568,7 +568,7 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 			__skb_unlink(entry, &priv->tx_queue);
 			spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
 
-			memset(&info->status, 0, sizeof(info->status));
+			ieee80211_tx_info_clear_status(info);
 			entry_hdr = (struct p54_control_hdr *) entry->data;
 			entry_data = (struct p54_tx_control_allocdata *) entry_hdr->data;
 			if ((entry_hdr->magic1 & cpu_to_le16(0x4000)) != 0)
@@ -578,10 +578,8 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 			if (!(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
 				if (!(payload->status & 0x01))
 					info->flags |= IEEE80211_TX_STAT_ACK;
-				else
-					info->status.excessive_retries = 1;
 			}
-			info->status.retry_count = payload->retries - 1;
+			info->status.rates[0].count = payload->retries;
 			info->status.ack_signal = p54_rssi_to_dbm(dev,
 					le16_to_cpu(payload->ack_rssi));
 			skb_pull(entry, sizeof(*hdr) + pad + sizeof(*entry_data));
@@ -699,7 +697,7 @@ static void p54_assign_address(struct ieee80211_hw *dev, struct sk_buff *skb,
 	while (left--) {
 		u32 hole_size;
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(entry);
-		struct memrecord *range = (void *)info->driver_data;
+		struct memrecord *range = (void *)info->rate_driver_data;
 		hole_size = range->start_addr - last_addr;
 		if (!target_skb && hole_size >= len) {
 			target_skb = entry->prev;
@@ -715,7 +713,7 @@ static void p54_assign_address(struct ieee80211_hw *dev, struct sk_buff *skb,
 		largest_hole = max(largest_hole, priv->rx_end - last_addr - len);
 		if (!skb_queue_empty(&priv->tx_queue)) {
 			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(target_skb);
-			struct memrecord *range = (void *)info->driver_data;
+			struct memrecord *range = (void *)info->rate_driver_data;
 			target_addr = range->end_addr;
 		}
 	} else
@@ -723,7 +721,7 @@ static void p54_assign_address(struct ieee80211_hw *dev, struct sk_buff *skb,
 
 	if (skb) {
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-		struct memrecord *range = (void *)info->driver_data;
+		struct memrecord *range = (void *)info->rate_driver_data;
 		range->start_addr = target_addr;
 		range->end_addr = target_addr + len;
 		__skb_queue_after(&priv->tx_queue, target_skb, skb);
@@ -806,6 +804,7 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	size_t padding, len;
 	u8 rate;
 	u8 cts_rate = 0x20;
+	u8 rc_flags;
 
 	current_queue = &priv->tx_stats[skb_get_queue_mapping(skb) + 4];
 	if (unlikely(current_queue->len > current_queue->limit))
@@ -828,18 +827,19 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 		hdr->magic1 = cpu_to_le16(0x0010);
 	hdr->len = cpu_to_le16(len);
 	hdr->type = (info->flags & IEEE80211_TX_CTL_NO_ACK) ? 0 : cpu_to_le16(1);
-	hdr->retry1 = hdr->retry2 = info->control.retry_limit;
+	hdr->retry1 = hdr->retry2 = info->control.rates[0].count;
 
 	/* TODO: add support for alternate retry TX rates */
 	rate = ieee80211_get_tx_rate(dev, info)->hw_value;
-	if (info->flags & IEEE80211_TX_CTL_SHORT_PREAMBLE) {
+	rc_flags = info->control.rates[0].flags;
+	if (rc_flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE) {
 		rate |= 0x10;
 		cts_rate |= 0x10;
 	}
-	if (info->flags & IEEE80211_TX_CTL_USE_RTS_CTS) {
+	if (rc_flags & IEEE80211_TX_RC_USE_RTS_CTS) {
 		rate |= 0x40;
 		cts_rate |= ieee80211_get_rts_cts_rate(dev, info)->hw_value;
-	} else if (info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT) {
+	} else if (rc_flags & IEEE80211_TX_RC_USE_CTS_PROTECT) {
 		rate |= 0x20;
 		cts_rate |= ieee80211_get_rts_cts_rate(dev, info)->hw_value;
 	}

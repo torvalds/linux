@@ -160,13 +160,13 @@ static void rtl8187_tx_cb(struct urb *urb)
 {
 	struct sk_buff *skb = (struct sk_buff *)urb->context;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_hw *hw = info->driver_data[0];
+	struct ieee80211_hw *hw = info->rate_driver_data[0];
 	struct rtl8187_priv *priv = hw->priv;
 
-	usb_free_urb(info->driver_data[1]);
+	usb_free_urb(info->rate_driver_data[1]);
 	skb_pull(skb, priv->is_rtl8187b ? sizeof(struct rtl8187b_tx_hdr) :
 					  sizeof(struct rtl8187_tx_hdr));
-	memset(&info->status, 0, sizeof(info->status));
+	ieee80211_tx_info_clear_status(info);
 	info->flags |= IEEE80211_TX_STAT_ACK;
 	ieee80211_tx_status_irqsafe(hw, skb);
 }
@@ -194,12 +194,12 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	flags |= ieee80211_get_tx_rate(dev, info)->hw_value << 24;
 	if (ieee80211_has_morefrags(((struct ieee80211_hdr *)skb->data)->frame_control))
 		flags |= RTL818X_TX_DESC_FLAG_MOREFRAG;
-	if (info->flags & IEEE80211_TX_CTL_USE_RTS_CTS) {
+	if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS) {
 		flags |= RTL818X_TX_DESC_FLAG_RTS;
 		flags |= ieee80211_get_rts_cts_rate(dev, info)->hw_value << 19;
 		rts_dur = ieee80211_rts_duration(dev, priv->vif,
 						 skb->len, info);
-	} else if (info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT) {
+	} else if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT) {
 		flags |= RTL818X_TX_DESC_FLAG_CTS;
 		flags |= ieee80211_get_rts_cts_rate(dev, info)->hw_value << 19;
 	}
@@ -210,7 +210,7 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 		hdr->flags = cpu_to_le32(flags);
 		hdr->len = 0;
 		hdr->rts_duration = rts_dur;
-		hdr->retry = cpu_to_le32(info->control.retry_limit << 8);
+		hdr->retry = cpu_to_le32((info->control.rates[0].count - 1) << 8);
 		buf = hdr;
 
 		ep = 2;
@@ -228,7 +228,7 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 		memset(hdr, 0, sizeof(*hdr));
 		hdr->flags = cpu_to_le32(flags);
 		hdr->rts_duration = rts_dur;
-		hdr->retry = cpu_to_le32(info->control.retry_limit << 8);
+		hdr->retry = cpu_to_le32((info->control.rates[0].count - 1) << 8);
 		hdr->tx_duration =
 			ieee80211_generic_frame_duration(dev, priv->vif,
 							 skb->len, txrate);
@@ -240,8 +240,8 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 			ep = epmap[skb_get_queue_mapping(skb)];
 	}
 
-	info->driver_data[0] = dev;
-	info->driver_data[1] = urb;
+	info->rate_driver_data[0] = dev;
+	info->rate_driver_data[1] = urb;
 
 	usb_fill_bulk_urb(urb, priv->udev, usb_sndbulkpipe(priv->udev, ep),
 			  buf, skb->len, rtl8187_tx_cb, skb);

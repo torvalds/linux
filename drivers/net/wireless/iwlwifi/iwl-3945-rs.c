@@ -422,34 +422,6 @@ static void rs_free_sta(void *priv, struct ieee80211_sta *sta,
 }
 
 
-/*
- * get ieee prev rate from rate scale table.
- * for A and B mode we need to overright prev
- * value
- */
-static int rs_adjust_next_rate(struct iwl3945_priv *priv, int rate)
-{
-	int next_rate = iwl3945_get_prev_ieee_rate(rate);
-
-	switch (priv->band) {
-	case IEEE80211_BAND_5GHZ:
-		if (rate == IWL_RATE_12M_INDEX)
-			next_rate = IWL_RATE_9M_INDEX;
-		else if (rate == IWL_RATE_6M_INDEX)
-			next_rate = IWL_RATE_6M_INDEX;
-		break;
-/* XXX cannot be invoked in current mac80211 so not a regression
-	case MODE_IEEE80211B:
-		if (rate == IWL_RATE_11M_INDEX_TABLE)
-			next_rate = IWL_RATE_5M_INDEX_TABLE;
-		break;
- */
-	default:
-		break;
-	}
-
-	return next_rate;
-}
 /**
  * rs_tx_status - Update rate control values based on Tx results
  *
@@ -460,17 +432,21 @@ static void rs_tx_status(void *priv_rate, struct ieee80211_supported_band *sband
 			 struct ieee80211_sta *sta, void *priv_sta,
 			 struct sk_buff *skb)
 {
-	u8 retries, current_count;
+	u8 retries = 0, current_count;
 	int scale_rate_index, first_index, last_index;
 	unsigned long flags;
 	struct iwl3945_priv *priv = (struct iwl3945_priv *)priv_rate;
 	struct iwl3945_rs_sta *rs_sta = priv_sta;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	int i;
 
 	IWL_DEBUG_RATE("enter\n");
 
-	retries = info->status.retry_count;
-	first_index = sband->bitrates[info->tx_rate_idx].hw_value;
+	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++)
+		retries += info->status.rates[i].count;
+	retries--;
+
+	first_index = sband->bitrates[info->status.rates[0].idx].hw_value;
 	if ((first_index < 0) || (first_index >= IWL_RATE_COUNT)) {
 		IWL_DEBUG_RATE("leave: Rate out of bounds: %d\n", first_index);
 		return;
@@ -502,7 +478,7 @@ static void rs_tx_status(void *priv_rate, struct ieee80211_supported_band *sband
 			last_index = scale_rate_index;
 		} else {
 			current_count = priv->retry_rate;
-			last_index = rs_adjust_next_rate(priv,
+			last_index = iwl3945_rs_next_rate(priv,
 							 scale_rate_index);
 		}
 
@@ -518,7 +494,7 @@ static void rs_tx_status(void *priv_rate, struct ieee80211_supported_band *sband
 
 		if (retries)
 			scale_rate_index =
-			    rs_adjust_next_rate(priv, scale_rate_index);
+			    iwl3945_rs_next_rate(priv, scale_rate_index);
 	}
 
 
@@ -630,10 +606,11 @@ static u16 iwl3945_get_adjacent_rate(struct iwl3945_rs_sta *rs_sta,
  * rate table and must reference the driver allocated rate table
  *
  */
-static void rs_get_rate(void *priv_r, struct ieee80211_supported_band *sband,
-			struct ieee80211_sta *sta, void *priv_sta,
-			struct sk_buff *skb, struct rate_selection *sel)
+static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
+			void *priv_sta,	struct ieee80211_tx_rate_control *txrc)
 {
+	struct ieee80211_supported_band *sband = txrc->sband;
+	struct sk_buff *skb = txrc->skb;
 	u8 low = IWL_RATE_INVALID;
 	u8 high = IWL_RATE_INVALID;
 	u16 high_low;
@@ -649,6 +626,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_supported_band *sband,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	u16 fc, rate_mask;
 	struct iwl3945_priv *priv = (struct iwl3945_priv *)priv_r;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	IWL_DEBUG_RATE("enter\n");
 
@@ -659,7 +637,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_supported_band *sband,
 	    is_multicast_ether_addr(hdr->addr1) ||
 	    !sta || !priv_sta) {
 		IWL_DEBUG_RATE("leave: No STA priv data to update!\n");
-		sel->rate_idx = rate_lowest_index(sband, sta);
+		info->control.rates[0].idx = rate_lowest_index(sband, sta);
 		return;
 	}
 
@@ -792,9 +770,10 @@ static void rs_get_rate(void *priv_r, struct ieee80211_supported_band *sband,
 
 	rs_sta->last_txrate_idx = index;
 	if (sband->band == IEEE80211_BAND_5GHZ)
-		sel->rate_idx = rs_sta->last_txrate_idx - IWL_FIRST_OFDM_RATE;
+		info->control.rates[0].idx = rs_sta->last_txrate_idx -
+				IWL_FIRST_OFDM_RATE;
 	else
-		sel->rate_idx = rs_sta->last_txrate_idx;
+		info->control.rates[0].idx = rs_sta->last_txrate_idx;
 
 	IWL_DEBUG_RATE("leave: %d\n", index);
 }

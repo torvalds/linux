@@ -2395,6 +2395,7 @@ static void iwl3945_build_tx_cmd_basic(struct iwl3945_priv *priv,
 {
 	__le16 fc = hdr->frame_control;
 	__le32 tx_flags = cmd->cmd.tx.tx_flags;
+	u8 rc_flags = info->control.rates[0].flags;
 
 	cmd->cmd.tx.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
@@ -2421,10 +2422,10 @@ static void iwl3945_build_tx_cmd_basic(struct iwl3945_priv *priv,
 		tx_flags |= TX_CMD_FLG_SEQ_CTL_MSK;
 	}
 
-	if (info->flags & IEEE80211_TX_CTL_USE_RTS_CTS) {
+	if (rc_flags & IEEE80211_TX_RC_USE_RTS_CTS) {
 		tx_flags |= TX_CMD_FLG_RTS_MSK;
 		tx_flags &= ~TX_CMD_FLG_CTS_MSK;
-	} else if (info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT) {
+	} else if (rc_flags & IEEE80211_TX_RC_USE_CTS_PROTECT) {
 		tx_flags &= ~TX_CMD_FLG_RTS_MSK;
 		tx_flags |= TX_CMD_FLG_CTS_MSK;
 	}

@@ -31,9 +31,8 @@ struct rate_control_ref {
 struct rate_control_ref *rate_control_alloc(const char *name,
 					    struct ieee80211_local *local);
 void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
-			   struct ieee80211_supported_band *sband,
-			   struct sta_info *sta, struct sk_buff *skb,
-			   struct rate_selection *sel);
+			   struct sta_info *sta,
+			   struct ieee80211_tx_rate_control *txrc);
 struct rate_control_ref *rate_control_get(struct rate_control_ref *ref);
 void rate_control_put(struct rate_control_ref *ref);
 

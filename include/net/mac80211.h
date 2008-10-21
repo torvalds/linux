@@ -214,29 +214,24 @@ struct ieee80211_bss_conf {
  * These flags are used with the @flags member of &ieee80211_tx_info.
  *
  * @IEEE80211_TX_CTL_REQ_TX_STATUS: request TX status callback for this frame.
- * @IEEE80211_TX_CTL_USE_RTS_CTS: use RTS-CTS before sending frame
- * @IEEE80211_TX_CTL_USE_CTS_PROTECT: use CTS protection for the frame (e.g.,
- *	for combined 802.11g / 802.11b networks)
+ * @IEEE80211_TX_CTL_ASSIGN_SEQ: The driver has to assign a sequence
+ *	number to this frame, taking care of not overwriting the fragment
+ *	number and increasing the sequence number only when the
+ *	IEEE80211_TX_CTL_FIRST_FRAGMENT flag is set. mac80211 will properly
+ *	assign sequence numbers to QoS-data frames but cannot do so correctly
+ *	for non-QoS-data and management frames because beacons need them from
+ *	that counter as well and mac80211 cannot guarantee proper sequencing.
+ *	If this flag is set, the driver should instruct the hardware to
+ *	assign a sequence number to the frame or assign one itself. Cf. IEEE
+ *	802.11-2007 7.1.3.4.1 paragraph 3. This flag will always be set for
+ *	beacons and always be clear for frames without a sequence number field.
  * @IEEE80211_TX_CTL_NO_ACK: tell the low level not to wait for an ack
- * @IEEE80211_TX_CTL_RATE_CTRL_PROBE: TBD
  * @IEEE80211_TX_CTL_CLEAR_PS_FILT: clear powersave filter for destination
  *	station
- * @IEEE80211_TX_CTL_REQUEUE: TBD
  * @IEEE80211_TX_CTL_FIRST_FRAGMENT: this is a first fragment of the frame
- * @IEEE80211_TX_CTL_SHORT_PREAMBLE: TBD
- * @IEEE80211_TX_CTL_LONG_RETRY_LIMIT: this frame should be send using the
- *	through set_retry_limit configured long retry value
  * @IEEE80211_TX_CTL_SEND_AFTER_DTIM: send this frame after DTIM beacon
  * @IEEE80211_TX_CTL_AMPDU: this frame should be sent as part of an A-MPDU
- * @IEEE80211_TX_CTL_OFDM_HT: this frame can be sent in HT OFDM rates. number
- *	of streams when this flag is on can be extracted from antenna_sel_tx,
- *	so if 1 antenna is marked use SISO, 2 antennas marked use MIMO, n
- *	antennas marked use MIMO_n.
- * @IEEE80211_TX_CTL_GREEN_FIELD: use green field protection for this frame
- * @IEEE80211_TX_CTL_40_MHZ_WIDTH: send this frame using 40 Mhz channel width
- * @IEEE80211_TX_CTL_DUP_DATA: duplicate data frame on both 20 Mhz channels
- * @IEEE80211_TX_CTL_SHORT_GI: send this frame using short guard interval
- * @IEEE80211_TX_CTL_INJECTED: TBD
+ * @IEEE80211_TX_CTL_INJECTED: Frame was injected, internal to mac80211.
  * @IEEE80211_TX_STAT_TX_FILTERED: The frame was not transmitted
  *	because the destination STA was in powersave mode.
  * @IEEE80211_TX_STAT_ACK: Frame was acknowledged
@@ -244,62 +239,70 @@ struct ieee80211_bss_conf {
  * 	is for the whole aggregation.
  * @IEEE80211_TX_STAT_AMPDU_NO_BACK: no block ack was returned,
  * 	so consider using block ack request (BAR).
- * @IEEE80211_TX_CTL_ASSIGN_SEQ: The driver has to assign a sequence
- *	number to this frame, taking care of not overwriting the fragment
- *	number and increasing the sequence number only when the
- *	IEEE80211_TX_CTL_FIRST_FRAGMENT flags is set. mac80211 will properly
- *	assign sequence numbers to QoS-data frames but cannot do so correctly
- *	for non-QoS-data and management frames because beacons need them from
- *	that counter as well and mac80211 cannot guarantee proper sequencing.
- *	If this flag is set, the driver should instruct the hardware to
- *	assign a sequence number to the frame or assign one itself. Cf. IEEE
- *	802.11-2007 7.1.3.4.1 paragraph 3. This flag will always be set for
- *	beacons always be clear for frames without a sequence number field.
+ * @IEEE80211_TX_CTL_RATE_CTRL_PROBE: internal to mac80211, can be
+ *	set by rate control algorithms to indicate probe rate, will
+ *	be cleared for fragmented frames (except on the last fragment)
+ * @IEEE80211_TX_CTL_REQUEUE: REMOVE THIS
  */
 enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_REQ_TX_STATUS		= BIT(0),
-	IEEE80211_TX_CTL_USE_RTS_CTS		= BIT(2),
-	IEEE80211_TX_CTL_USE_CTS_PROTECT	= BIT(3),
-	IEEE80211_TX_CTL_NO_ACK			= BIT(4),
-	IEEE80211_TX_CTL_RATE_CTRL_PROBE	= BIT(5),
-	IEEE80211_TX_CTL_CLEAR_PS_FILT		= BIT(6),
-	IEEE80211_TX_CTL_REQUEUE		= BIT(7),
-	IEEE80211_TX_CTL_FIRST_FRAGMENT		= BIT(8),
-	IEEE80211_TX_CTL_SHORT_PREAMBLE		= BIT(9),
-	IEEE80211_TX_CTL_LONG_RETRY_LIMIT	= BIT(10),
-	IEEE80211_TX_CTL_SEND_AFTER_DTIM	= BIT(12),
-	IEEE80211_TX_CTL_AMPDU			= BIT(13),
-	IEEE80211_TX_CTL_OFDM_HT		= BIT(14),
-	IEEE80211_TX_CTL_GREEN_FIELD		= BIT(15),
-	IEEE80211_TX_CTL_40_MHZ_WIDTH		= BIT(16),
-	IEEE80211_TX_CTL_DUP_DATA		= BIT(17),
-	IEEE80211_TX_CTL_SHORT_GI		= BIT(18),
-	IEEE80211_TX_CTL_INJECTED		= BIT(19),
-	IEEE80211_TX_STAT_TX_FILTERED		= BIT(20),
-	IEEE80211_TX_STAT_ACK			= BIT(21),
-	IEEE80211_TX_STAT_AMPDU			= BIT(22),
-	IEEE80211_TX_STAT_AMPDU_NO_BACK		= BIT(23),
-	IEEE80211_TX_CTL_ASSIGN_SEQ		= BIT(24),
+	IEEE80211_TX_CTL_ASSIGN_SEQ		= BIT(1),
+	IEEE80211_TX_CTL_NO_ACK			= BIT(2),
+	IEEE80211_TX_CTL_CLEAR_PS_FILT		= BIT(3),
+	IEEE80211_TX_CTL_FIRST_FRAGMENT		= BIT(4),
+	IEEE80211_TX_CTL_SEND_AFTER_DTIM	= BIT(5),
+	IEEE80211_TX_CTL_AMPDU			= BIT(6),
+	IEEE80211_TX_CTL_INJECTED		= BIT(7),
+	IEEE80211_TX_STAT_TX_FILTERED		= BIT(8),
+	IEEE80211_TX_STAT_ACK			= BIT(9),
+	IEEE80211_TX_STAT_AMPDU			= BIT(10),
+	IEEE80211_TX_STAT_AMPDU_NO_BACK		= BIT(11),
+	IEEE80211_TX_CTL_RATE_CTRL_PROBE	= BIT(12),
+
+	/* XXX: remove this */
+	IEEE80211_TX_CTL_REQUEUE		= BIT(13),
+};
+
+enum mac80211_rate_control_flags {
+	IEEE80211_TX_RC_USE_RTS_CTS		= BIT(0),
+	IEEE80211_TX_RC_USE_CTS_PROTECT		= BIT(1),
+	IEEE80211_TX_RC_USE_SHORT_PREAMBLE	= BIT(2),
+
+	/* rate index is an MCS rate number instead of an index */
+	IEEE80211_TX_RC_MCS			= BIT(3),
+	IEEE80211_TX_RC_GREEN_FIELD		= BIT(4),
+	IEEE80211_TX_RC_40_MHZ_WIDTH		= BIT(5),
+	IEEE80211_TX_RC_DUP_DATA		= BIT(6),
+	IEEE80211_TX_RC_SHORT_GI		= BIT(7),
 };
 
 
-#define IEEE80211_TX_INFO_DRIVER_DATA_SIZE \
-	(sizeof(((struct sk_buff *)0)->cb) - 8)
-#define IEEE80211_TX_INFO_DRIVER_DATA_PTRS \
-	(IEEE80211_TX_INFO_DRIVER_DATA_SIZE / sizeof(void *))
+/* there are 40 bytes if you don't need the rateset to be kept */
+#define IEEE80211_TX_INFO_DRIVER_DATA_SIZE 40
 
-/* maximum number of alternate rate retry stages */
-#define IEEE80211_TX_MAX_ALTRATE	3
+/* if you do need the rateset, then you have less space */
+#define IEEE80211_TX_INFO_RATE_DRIVER_DATA_SIZE 24
+
+/* maximum number of rate stages */
+#define IEEE80211_TX_MAX_RATES	5
 
 /**
- * struct ieee80211_tx_altrate - alternate rate selection/status
+ * struct ieee80211_tx_rate - rate selection/status
  *
- * @rate_idx: rate index to attempt to send with
+ * @idx: rate index to attempt to send with
+ * @flags: rate control flags (&enum mac80211_rate_control_flags)
  * @limit: number of retries before fallback
+ *
+ * A value of -1 for @idx indicates an invalid rate and, if used
+ * in an array of retry rates, that no more rates should be tried.
+ *
+ * When used for transmit status reporting, the driver should
+ * always report the rate along with the flags it used.
  */
-struct ieee80211_tx_altrate {
-	s8 rate_idx;
-	u8 limit;
+struct ieee80211_tx_rate {
+	s8 idx;
+	u8 count;
+	u8 flags;
 };
 
 /**
@@ -314,15 +317,12 @@ struct ieee80211_tx_altrate {
  * it may be NULL.
  *
  * @flags: transmit info flags, defined above
- * @band: TBD
- * @tx_rate_idx: TBD
+ * @band: the band to transmit on (use for checking for races)
  * @antenna_sel_tx: antenna to use, 0 for automatic diversity
  * @control: union for control data
  * @status: union for status data
  * @driver_data: array of driver_data pointers
  * @retry_count: number of retries
- * @excessive_retries: set to 1 if the frame was retried many times
- *	but not acknowledged
  * @ampdu_ack_len: number of aggregated frames.
  * 	relevant only if IEEE80211_TX_STATUS_AMPDU was set.
  * @ampdu_ack_map: block ack bit map for the aggregation.
@@ -333,37 +333,84 @@ struct ieee80211_tx_info {
 	/* common information */
 	u32 flags;
 	u8 band;
-	s8 tx_rate_idx;
+
 	u8 antenna_sel_tx;
 
-	/* 1 byte hole */
+	/* 2 byte hole */
 
 	union {
 		struct {
+			union {
+				/* rate control */
+				struct {
+					struct ieee80211_tx_rate rates[
+						IEEE80211_TX_MAX_RATES];
+					s8 rts_cts_rate_idx;
+				};
+				/* only needed before rate control */
+				unsigned long jiffies;
+			};
 			/* NB: vif can be NULL for injected frames */
 			struct ieee80211_vif *vif;
 			struct ieee80211_key_conf *hw_key;
 			struct ieee80211_sta *sta;
-			unsigned long jiffies;
-			s8 rts_cts_rate_idx;
-			u8 retry_limit;
-			struct ieee80211_tx_altrate retries[IEEE80211_TX_MAX_ALTRATE];
 		} control;
 		struct {
+			struct ieee80211_tx_rate rates[IEEE80211_TX_MAX_RATES];
+			u8 ampdu_ack_len;
 			u64 ampdu_ack_map;
 			int ack_signal;
-			struct ieee80211_tx_altrate retries[IEEE80211_TX_MAX_ALTRATE + 1];
-			u8 retry_count;
-			bool excessive_retries;
-			u8 ampdu_ack_len;
+			/* 8 bytes free */
 		} status;
-		void *driver_data[IEEE80211_TX_INFO_DRIVER_DATA_PTRS];
+		struct {
+			struct ieee80211_tx_rate driver_rates[
+				IEEE80211_TX_MAX_RATES];
+			void *rate_driver_data[
+				IEEE80211_TX_INFO_RATE_DRIVER_DATA_SIZE / sizeof(void *)];
+		};
+		void *driver_data[
+			IEEE80211_TX_INFO_DRIVER_DATA_SIZE / sizeof(void *)];
 	};
 };
 
 static inline struct ieee80211_tx_info *IEEE80211_SKB_CB(struct sk_buff *skb)
 {
 	return (struct ieee80211_tx_info *)skb->cb;
+}
+
+/**
+ * ieee80211_tx_info_clear_status - clear TX status
+ *
+ * @info: The &struct ieee80211_tx_info to be cleared.
+ *
+ * When the driver passes an skb back to mac80211, it must report
+ * a number of things in TX status. This function clears everything
+ * in the TX status but the rate control information (it does clear
+ * the count since you need to fill that in anyway).
+ *
+ * NOTE: You can only use this function if you do NOT use
+ *	 info->driver_data! Use info->rate_driver_data
+ *	 instead if you need only the less space that allows.
+ */
+static inline void
+ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
+{
+	int i;
+
+	BUILD_BUG_ON(offsetof(struct ieee80211_tx_info, status.rates) !=
+		     offsetof(struct ieee80211_tx_info, control.rates));
+	BUILD_BUG_ON(offsetof(struct ieee80211_tx_info, status.rates) !=
+		     offsetof(struct ieee80211_tx_info, driver_rates));
+	BUILD_BUG_ON(offsetof(struct ieee80211_tx_info, status.rates) != 8);
+	/* clear the rate counts */
+	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++)
+		info->status.rates[i].count = 0;
+
+	BUILD_BUG_ON(
+	    offsetof(struct ieee80211_tx_info, status.ampdu_ack_len) != 23);
+	memset(&info->status.ampdu_ack_len, 0,
+	       sizeof(struct ieee80211_tx_info) -
+	       offsetof(struct ieee80211_tx_info, status.ampdu_ack_len));
 }
 
 
@@ -869,8 +916,8 @@ enum ieee80211_hw_flags {
  * @sta_data_size: size (in bytes) of the drv_priv data area
  *	within &struct ieee80211_sta.
  *
- * @max_altrates: maximum number of alternate rate retry stages
- * @max_altrate_tries: maximum number of tries for each stage
+ * @max_rates: maximum number of alternate rate retry stages
+ * @max_rate_tries: maximum number of tries for each stage
  */
 struct ieee80211_hw {
 	struct ieee80211_conf conf;
@@ -887,8 +934,8 @@ struct ieee80211_hw {
 	u16 ampdu_queues;
 	u16 max_listen_interval;
 	s8 max_signal;
-	u8 max_altrates;
-	u8 max_altrate_tries;
+	u8 max_rates;
+	u8 max_rate_tries;
 };
 
 /**
@@ -927,9 +974,9 @@ static inline struct ieee80211_rate *
 ieee80211_get_tx_rate(const struct ieee80211_hw *hw,
 		      const struct ieee80211_tx_info *c)
 {
-	if (WARN_ON(c->tx_rate_idx < 0))
+	if (WARN_ON(c->control.rates[0].idx < 0))
 		return NULL;
-	return &hw->wiphy->bands[c->band]->bitrates[c->tx_rate_idx];
+	return &hw->wiphy->bands[c->band]->bitrates[c->control.rates[0].idx];
 }
 
 static inline struct ieee80211_rate *
@@ -945,9 +992,9 @@ static inline struct ieee80211_rate *
 ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
 			     const struct ieee80211_tx_info *c, int idx)
 {
-	if (c->control.retries[idx].rate_idx < 0)
+	if (c->control.rates[idx + 1].idx < 0)
 		return NULL;
-	return &hw->wiphy->bands[c->band]->bitrates[c->control.retries[idx].rate_idx];
+	return &hw->wiphy->bands[c->band]->bitrates[c->control.rates[idx + 1].idx];
 }
 
 /**
@@ -1840,17 +1887,30 @@ struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_hw *hw,
 
 
 /* Rate control API */
+
 /**
- * struct rate_selection - rate information for/from rate control algorithms
+ * struct ieee80211_tx_rate_control - rate control information for/from RC algo
  *
- * @rate_idx: selected transmission rate index
- * @nonerp_idx: Non-ERP rate to use instead if ERP cannot be used
- * @probe_idx: rate for probing (or -1)
- * @max_rate_idx: maximum rate index that can be used, this is
- *	input to the algorithm and will be enforced
+ * @hw: The hardware the algorithm is invoked for.
+ * @sband: The band this frame is being transmitted on.
+ * @bss_conf: the current BSS configuration
+ * @reported_rate: The rate control algorithm can fill this in to indicate
+ *	which rate should be reported to userspace as the current rate and
+ *	used for rate calculations in the mesh network.
+ * @rts: whether RTS will be used for this frame because it is longer than the
+ *	RTS threshold
+ * @short_preamble: whether mac80211 will request short-preamble transmission
+ *	if the selected rate supports it
+ * @max_rate_idx: user-requested maximum rate (not MCS for now)
  */
-struct rate_selection {
-	s8 rate_idx, nonerp_idx, probe_idx, max_rate_idx;
+struct ieee80211_tx_rate_control {
+	struct ieee80211_hw *hw;
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_bss_conf *bss_conf;
+	struct sk_buff *skb;
+	struct ieee80211_tx_rate reported_rate;
+	bool rts, short_preamble;
+	u8 max_rate_idx;
 };
 
 struct rate_control_ops {
@@ -1869,10 +1929,8 @@ struct rate_control_ops {
 	void (*tx_status)(void *priv, struct ieee80211_supported_band *sband,
 			  struct ieee80211_sta *sta, void *priv_sta,
 			  struct sk_buff *skb);
-	void (*get_rate)(void *priv, struct ieee80211_supported_band *sband,
-			 struct ieee80211_sta *sta, void *priv_sta,
-			 struct sk_buff *skb,
-			 struct rate_selection *sel);
+	void (*get_rate)(void *priv, struct ieee80211_sta *sta, void *priv_sta,
+			 struct ieee80211_tx_rate_control *txrc);
 
 	void (*add_sta_debugfs)(void *priv, void *priv_sta,
 				struct dentry *dir);

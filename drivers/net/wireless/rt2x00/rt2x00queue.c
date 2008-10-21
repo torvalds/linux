@@ -230,8 +230,15 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	/*
 	 * Determine retry information.
 	 */
-	txdesc->retry_limit = tx_info->control.retry_limit;
-	if (tx_info->flags & IEEE80211_TX_CTL_LONG_RETRY_LIMIT)
+	txdesc->retry_limit = tx_info->control.rates[0].count - 1;
+	/*
+	 * XXX: If at this point we knew whether the HW is going to use
+	 *	the RETRY_MODE bit or the retry_limit (currently all
+	 *	use the RETRY_MODE bit) we could do something like b43
+	 *	does, set the RETRY_MODE bit when the RC algorithm is
+	 *	requesting more than the long retry limit.
+	 */
+	if (tx_info->control.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS)
 		__set_bit(ENTRY_TXD_RETRY_MODE, &txdesc->flags);
 
 	/*
@@ -371,10 +378,12 @@ static void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
 
 int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 {
+	struct ieee80211_tx_info *tx_info;
 	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
 	struct txentry_desc txdesc;
 	struct skb_frame_desc *skbdesc;
 	unsigned int iv_len = 0;
+	u8 rate_idx, rate_flags;
 
 	if (unlikely(rt2x00queue_full(queue)))
 		return -EINVAL;
@@ -399,13 +408,18 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 		iv_len = IEEE80211_SKB_CB(skb)->control.hw_key->iv_len;
 
 	/*
-	 * All information is retreived from the skb->cb array,
+	 * All information is retrieved from the skb->cb array,
 	 * now we should claim ownership of the driver part of that
-	 * array.
+	 * array, preserving the bitrate index and flags.
 	 */
+	tx_info = IEEE80211_SKB_CB(skb);
+	rate_idx = tx_info->control.rates[0].idx;
+	rate_flags = tx_info->control.rates[0].flags;
 	skbdesc = get_skb_frame_desc(entry->skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
 	skbdesc->entry = entry;
+	skbdesc->tx_rate_idx = rate_idx;
+	skbdesc->tx_rate_flags = rate_flags;
 
 	/*
 	 * When hardware encryption is supported, and this frame

@@ -182,15 +182,13 @@ static void rtl8180_handle_tx(struct ieee80211_hw *dev, unsigned int prio)
 				 skb->len, PCI_DMA_TODEVICE);
 
 		info = IEEE80211_SKB_CB(skb);
-		memset(&info->status, 0, sizeof(info->status));
+		ieee80211_tx_info_clear_status(info);
 
-		if (!(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
-			if (flags & RTL818X_TX_DESC_FLAG_TX_OK)
-				info->flags |= IEEE80211_TX_STAT_ACK;
-			else
-				info->status.excessive_retries = 1;
-		}
-		info->status.retry_count = flags & 0xFF;
+		if (!(info->flags & IEEE80211_TX_CTL_NO_ACK) &&
+		    (flags & RTL818X_TX_DESC_FLAG_TX_OK))
+			info->flags |= IEEE80211_TX_STAT_ACK;
+
+		info->status.rates[0].count = (flags & 0xFF) + 1;
 
 		ieee80211_tx_status_irqsafe(dev, skb);
 		if (ring->entries - skb_queue_len(&ring->queue) == 2)
@@ -243,6 +241,7 @@ static int rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	unsigned int idx, prio;
 	dma_addr_t mapping;
 	u32 tx_flags;
+	u8 rc_flags;
 	u16 plcp_len = 0;
 	__le16 rts_duration = 0;
 
@@ -261,15 +260,16 @@ static int rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 		tx_flags |= RTL818X_TX_DESC_FLAG_DMA |
 			    RTL818X_TX_DESC_FLAG_NO_ENC;
 
-	if (info->flags & IEEE80211_TX_CTL_USE_RTS_CTS) {
+	rc_flags = info->control.rates[0].flags;
+	if (rc_flags & IEEE80211_TX_RC_USE_RTS_CTS) {
 		tx_flags |= RTL818X_TX_DESC_FLAG_RTS;
 		tx_flags |= ieee80211_get_rts_cts_rate(dev, info)->hw_value << 19;
-	} else if (info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT) {
+	} else if (rc_flags & IEEE80211_TX_RC_USE_CTS_PROTECT) {
 		tx_flags |= RTL818X_TX_DESC_FLAG_CTS;
 		tx_flags |= ieee80211_get_rts_cts_rate(dev, info)->hw_value << 19;
 	}
 
-	if (info->flags & IEEE80211_TX_CTL_USE_RTS_CTS)
+	if (rc_flags & IEEE80211_TX_RC_USE_RTS_CTS)
 		rts_duration = ieee80211_rts_duration(dev, priv->vif, skb->len,
 						      info);
 
@@ -292,9 +292,9 @@ static int rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	entry->plcp_len = cpu_to_le16(plcp_len);
 	entry->tx_buf = cpu_to_le32(mapping);
 	entry->frame_len = cpu_to_le32(skb->len);
-	entry->flags2 = info->control.retries[0].rate_idx >= 0 ?
+	entry->flags2 = info->control.rates[1].idx >= 0 ?
 		ieee80211_get_alt_retry_rate(dev, info, 0)->bitrate << 4 : 0;
-	entry->retry_limit = info->control.retry_limit;
+	entry->retry_limit = info->control.rates[0].count;
 	entry->flags = cpu_to_le32(tx_flags);
 	__skb_queue_tail(&ring->queue, skb);
 	if (ring->entries - skb_queue_len(&ring->queue) < 2)
@@ -855,7 +855,7 @@ static int __devinit rtl8180_probe(struct pci_dev *pdev,
 	priv = dev->priv;
 	priv->pdev = pdev;
 
-	dev->max_altrates = 1;
+	dev->max_rates = 2;
 	SET_IEEE80211_DEV(dev, &pdev->dev);
 	pci_set_drvdata(pdev, dev);
 

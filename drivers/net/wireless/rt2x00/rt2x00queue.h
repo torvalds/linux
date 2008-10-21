@@ -104,6 +104,8 @@ enum skb_frame_desc_flags {
  *
  * @flags: Frame flags, see &enum skb_frame_desc_flags.
  * @desc_len: Length of the frame descriptor.
+ * @tx_rate_idx: the index of the TX rate, used for TX status reporting
+ * @tx_rate_flags: the TX rate flags, used for TX status reporting
  * @desc: Pointer to descriptor part of the frame.
  *	Note that this pointer could point to something outside
  *	of the scope of the skb->data pointer.
@@ -113,9 +115,12 @@ enum skb_frame_desc_flags {
  * @entry: The entry to which this sk buffer belongs.
  */
 struct skb_frame_desc {
-	unsigned int flags;
+	u8 flags;
 
-	unsigned int desc_len;
+	u8 desc_len;
+	u8 tx_rate_idx;
+	u8 tx_rate_flags;
+
 	void *desc;
 
 	__le32 iv;
