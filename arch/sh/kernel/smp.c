@@ -18,6 +18,7 @@
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/cpu.h>
 #include <linux/interrupt.h>
 #include <asm/atomic.h>
 #include <asm/processor.h>
