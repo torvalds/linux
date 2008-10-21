@@ -21,6 +21,7 @@
 #include <asm/machdep.h>
 #include <asm/rtas.h>
 #include <asm/cell-regs.h>
+#include <asm/kdump.h>
 
 #include "ras.h"
 
@@ -111,9 +112,8 @@ static int __init cbe_ptcal_enable_on_node(int nid, int order)
 	int ret = -ENOMEM;
 	unsigned long addr;
 
-#ifdef CONFIG_CRASH_DUMP
-	rtas_call(ptcal_stop_tok, 1, 1, NULL, nid);
-#endif
+	if (__kdump_flag)
+		rtas_call(ptcal_stop_tok, 1, 1, NULL, nid);
 
 	area = kmalloc(sizeof(*area), GFP_KERNEL);
 	if (!area)
