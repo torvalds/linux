@@ -14,6 +14,9 @@
 #ifndef __ASM_ARCH_24A0_MAP_H
 #define __ASM_ARCH_24A0_MAP_H __FILE__
 
+#include <plat/map-base.h>
+#include <plat/map.h>
+
 #define S3C24A0_PA_IO_BASE	(0x40000000)
 #define S3C24A0_PA_CLKPWR	(0x40000000)
 #define S3C24A0_PA_IRQ		(0x40200000)
@@ -74,5 +77,7 @@
 #define S3C24XX_PA_RTC		S3C24A0_PA_RTC
 #define S3C24XX_PA_ADC		S3C24A0_PA_ADC
 #define S3C24XX_PA_SPI		S3C24A0_PA_SPI
+#define S3C24XX_PA_SDI		S3C24A0_PA_SDI
+#define S3C24XX_PA_NAND		S3C24A0_PA_NAND
 
 #endif /* __ASM_ARCH_24A0_MAP_H */
