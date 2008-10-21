@@ -824,8 +824,10 @@ static struct bio *put_pending_exception(struct dm_snap_pending_exception *pe)
 	 * the bios for the original write to the origin.
 	 */
 	if (primary_pe &&
-	    atomic_dec_and_test(&primary_pe->ref_count))
+	    atomic_dec_and_test(&primary_pe->ref_count)) {
 		origin_bios = bio_list_get(&primary_pe->origin_bios);
+		free_pending_exception(primary_pe);
+	}
 
 	/*
 	 * Free the pe if it's not linked to an origin write or if
@@ -833,12 +835,6 @@ static struct bio *put_pending_exception(struct dm_snap_pending_exception *pe)
 	 */
 	if (!primary_pe || primary_pe != pe)
 		free_pending_exception(pe);
-
-	/*
-	 * Free the primary pe if nothing references it.
-	 */
-	if (primary_pe && !atomic_read(&primary_pe->ref_count))
-		free_pending_exception(primary_pe);
 
 	return origin_bios;
 }
