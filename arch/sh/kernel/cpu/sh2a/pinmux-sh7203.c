@@ -1083,14 +1083,14 @@ static struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PB10_IN, PB10_OUT,
 		PB9_IN, PB9_OUT,
 		PB8_IN, PB8_OUT,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0 }
+		PB7_IN, 0,
+		PB6_IN, 0,
+		PB5_IN, 0,
+		PB4_IN, 0,
+		PB3_IN, 0,
+		PB2_IN, 0,
+		PB1_IN, 0,
+		PB0_IN, 0 }
 	},
 	{ PINMUX_CFG_REG("PBCRL4", 0xfffe3890, 16, 4) {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -1595,5 +1595,4 @@ static int __init plat_pinmux_setup(void)
 {
 	return register_pinmux(&sh7203_pinmux_info);
 }
-
 arch_initcall(plat_pinmux_setup);
