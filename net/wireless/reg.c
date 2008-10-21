@@ -52,7 +52,6 @@ struct regulatory_request {
 };
 
 static LIST_HEAD(regulatory_requests);
-DEFINE_MUTEX(cfg80211_reg_mutex);
 
 /* To trigger userspace events */
 static struct platform_device *reg_pdev;
@@ -62,8 +61,6 @@ static u32 supported_bandwidths[] = {
 	MHZ_TO_KHZ(40),
 	MHZ_TO_KHZ(20),
 };
-
-static struct list_head regulatory_requests;
 
 /* Central wireless core regulatory domains, we only need two,
  * the current one and a world regulatory domain in case we have no
