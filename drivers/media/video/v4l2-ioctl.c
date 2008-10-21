@@ -1768,7 +1768,7 @@ static int __video_do_ioctl(struct file *file,
 	return ret;
 }
 
-int video_ioctl2(struct inode *inode, struct file *file,
+int __video_ioctl2(struct file *file,
 	       unsigned int cmd, unsigned long arg)
 {
 	char	sbuf[128];
@@ -1860,11 +1860,11 @@ out:
 	kfree(mbuf);
 	return err;
 }
-EXPORT_SYMBOL(video_ioctl2);
+EXPORT_SYMBOL(__video_ioctl2);
 
-long video_ioctl2_unlocked(struct file *file,
-		 unsigned int cmd, unsigned long arg)
+int video_ioctl2(struct inode *inode, struct file *file,
+	       unsigned int cmd, unsigned long arg)
 {
-	return video_ioctl2(file->f_path.dentry->d_inode, file, cmd, arg);
+	return __video_ioctl2(file, cmd, arg);
 }
-EXPORT_SYMBOL(video_ioctl2_unlocked);
+EXPORT_SYMBOL(video_ioctl2);

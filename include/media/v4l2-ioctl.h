@@ -284,15 +284,25 @@ int v4l_compat_translate_ioctl(struct file *file,
 extern long v4l_compat_ioctl32(struct file *file, unsigned int cmd,
 				unsigned long arg);
 
-extern int video_ioctl2(struct inode *inode, struct file *file,
-			unsigned int cmd, unsigned long arg);
-extern long video_ioctl2_unlocked(struct file *file,
-			unsigned int cmd, unsigned long arg);
-
 /* Include support for obsoleted stuff */
 extern int video_usercopy(struct inode *inode, struct file *file,
 			  unsigned int cmd, unsigned long arg,
 			  int (*func)(struct inode *inode, struct file *file,
 				      unsigned int cmd, void *arg));
+
+/* Standard handlers for V4L ioctl's */
+
+/* This prototype is used on fops.unlocked_ioctl */
+extern int __video_ioctl2(struct file *file,
+			unsigned int cmd, unsigned long arg);
+
+/* This prototype is used on fops.ioctl
+ * Since fops.ioctl enables Kernel Big Lock, it is preferred
+ * to use __video_ioctl2 instead.
+ * It should be noticed that there's no lock code inside
+ * video_ioctl2().
+ */
+extern int video_ioctl2(struct inode *inode, struct file *file,
+			unsigned int cmd, unsigned long arg);
 
 #endif /* _V4L2_IOCTL_H */

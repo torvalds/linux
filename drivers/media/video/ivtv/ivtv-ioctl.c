@@ -1830,7 +1830,7 @@ static long ivtv_serialized_ioctl(struct ivtv *itv, struct file *filp,
 
 	if (ivtv_debug & IVTV_DBGFLG_IOCTL)
 		vfd->debug = V4L2_DEBUG_IOCTL | V4L2_DEBUG_IOCTL_ARG;
-	ret = video_ioctl2_unlocked(filp, cmd, arg);
+	ret = __video_ioctl2(filp, cmd, arg);
 	vfd->debug = 0;
 	return ret;
 }
