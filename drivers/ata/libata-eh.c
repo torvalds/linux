@@ -2010,8 +2010,13 @@ void ata_eh_autopsy(struct ata_port *ap)
 		struct ata_eh_context *mehc = &ap->link.eh_context;
 		struct ata_eh_context *sehc = &ap->slave_link->eh_context;
 
+		/* transfer control flags from master to slave */
+		sehc->i.flags |= mehc->i.flags & ATA_EHI_TO_SLAVE_MASK;
+
+		/* perform autopsy on the slave link */
 		ata_eh_link_autopsy(ap->slave_link);
 
+		/* transfer actions from slave to master and clear slave */
 		ata_eh_about_to_do(ap->slave_link, NULL, ATA_EH_ALL_ACTIONS);
 		mehc->i.action		|= sehc->i.action;
 		mehc->i.dev_action[1]	|= sehc->i.dev_action[1];
