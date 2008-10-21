@@ -2825,7 +2825,11 @@ static int ocfs2_xattr_create_index_block(struct inode *inode,
 	if (data_bh)
 		ocfs2_journal_dirty(handle, data_bh);
 
-	ocfs2_xattr_update_xattr_search(inode, xs, xb_bh, xh_bh);
+	ret = ocfs2_xattr_update_xattr_search(inode, xs, xb_bh, xh_bh);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
 
 	/* Change from ocfs2_xattr_header to ocfs2_xattr_tree_root */
 	memset(&xb->xb_attrs, 0, inode->i_sb->s_blocksize -
