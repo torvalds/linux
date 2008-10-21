@@ -49,6 +49,22 @@ config S3C2410_DMA_DEBUG
 	  Enable debugging output for the DMA code. This option sends info
 	  to the kernel log, at priority KERN_DEBUG.
 
+# SPI default pin configuration code
+
+config S3C24XX_SPI_BUS0_GPE11_GPE12_GPE13
+	bool
+	help
+	  SPI GPIO configuration code for BUS0 when connected to
+	  GPE11, GPE12 and GPE13.
+
+config S3C24XX_SPI_BUS1_GPG5_GPG6_GPG7
+	bool
+	help
+	  SPI GPIO configuration code for BUS 1 when connected to
+	  GPG5, GPG6 and GPG7.
+
+# common code for s3c24xx based machines, such as the SMDKs.
+
 config MACH_SMDK
 	bool
 	help

@@ -31,4 +31,12 @@ obj-$(CONFIG_PM)		+= pm.o
 obj-$(CONFIG_PM)		+= sleep.o
 obj-$(CONFIG_HAVE_PWM)		+= pwm.o
 obj-$(CONFIG_S3C2410_DMA)	+= dma.o
+
+# SPI gpio central GPIO functions
+
+obj-$(CONFIG_S3C24XX_SPI_BUS0_GPE11_GPE12_GPE13) += spi-bus0-gpe11_12_13.o
+obj-$(CONFIG_S3C24XX_SPI_BUS1_GPG5_GPG6_GPG7)    += spi-bus1-gpg5_6_7.o
+
+# machine common support
+
 obj-$(CONFIG_MACH_SMDK)		+= common-smdk.o
