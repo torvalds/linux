@@ -29,6 +29,8 @@ config TRACING
 	select STACKTRACE
 	select TRACEPOINTS
 
+menu "Tracers"
+
 config FUNCTION_TRACER
 	bool "Kernel Function Tracer"
 	depends on HAVE_FUNCTION_TRACER
@@ -191,3 +193,5 @@ config FTRACE_STARTUP_TEST
 	  a series of tests are made to verify that the tracer is
 	  functioning properly. It will do tests on all the configured
 	  tracers of ftrace.
+
+endmenu
