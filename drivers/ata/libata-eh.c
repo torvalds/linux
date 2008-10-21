@@ -2455,14 +2455,14 @@ int ata_eh_reset(struct ata_link *link, int classify,
 		dev->pio_mode = XFER_PIO_0;
 		dev->flags &= ~ATA_DFLAG_SLEEPING;
 
-		if (ata_phys_link_offline(ata_dev_phys_link(dev)))
-			continue;
-
-		/* apply class override */
-		if (lflags & ATA_LFLAG_ASSUME_ATA)
-			classes[dev->devno] = ATA_DEV_ATA;
-		else if (lflags & ATA_LFLAG_ASSUME_SEMB)
-			classes[dev->devno] = ATA_DEV_SEMB_UNSUP; /* not yet */
+		if (!ata_phys_link_offline(ata_dev_phys_link(dev))) {
+			/* apply class override */
+			if (lflags & ATA_LFLAG_ASSUME_ATA)
+				classes[dev->devno] = ATA_DEV_ATA;
+			else if (lflags & ATA_LFLAG_ASSUME_SEMB)
+				classes[dev->devno] = ATA_DEV_SEMB_UNSUP;
+		} else
+			classes[dev->devno] = ATA_DEV_NONE;
 	}
 
 	/* record current link speed */
