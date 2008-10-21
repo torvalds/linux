@@ -1239,7 +1239,7 @@ static int ocfs2_xattr_set_entry(struct inode *inode,
 
 	free = min_offs - ((void *)last - xs->base) - sizeof(__u32);
 	if (free < 0)
-		return -EFAULT;
+		return -EIO;
 
 	if (!xs->not_found) {
 		size_t size = 0;
