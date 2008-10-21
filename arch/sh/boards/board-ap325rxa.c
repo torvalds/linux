@@ -145,14 +145,9 @@ static struct platform_device nand_flash_device = {
 #define FPGA_BKLREG	0xB4100212
 #define FPGA_LCDREG_VAL	0x0018
 #define PORT_MSELCRB	0xA4050182
-#define PORT_PUCR	0xA4050142
-#define PORT_PVCR	0xA4050144
-#define PORT_PXCR	0xA4050148
 #define PORT_HIZCRC	0xA405015C
 #define PORT_DRVCRA	0xA405018A
 #define PORT_DRVCRB	0xA405018C
-#define PORT_PXDR	0xA4050168
-#define PORT_PSELC	0xA4050152
 
 static void ap320_wvga_power_on(void *board_data)
 {
