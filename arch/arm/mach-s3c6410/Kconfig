@@ -9,6 +9,7 @@
 
 config CPU_S3C6410
 	bool
+	select CPU_S3C6400_INIT
 	help
 	  Enable S3C6410 CPU support
 

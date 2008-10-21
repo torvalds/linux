@@ -15,3 +15,7 @@ obj-				:=
 obj-y				+= dev-uart.o
 obj-y				+= cpu.o
 obj-y				+= irq.o
+
+# CPU support
+
+obj-$(CONFIG_CPU_S3C6400_INIT)	+= s3c6400-init.o
