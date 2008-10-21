@@ -14,3 +14,4 @@ obj-				:=
 
 obj-y				+= dev-uart.o
 obj-y				+= cpu.o
+obj-y				+= irq.o

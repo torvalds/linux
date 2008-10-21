@@ -58,6 +58,12 @@ void __init s3c6410_init_clocks(int xtal)
 	s3c24xx_register_baseclocks(xtal);
 }
 
+void __init s3c6410_init_irq(void)
+{
+	/* VIC0 is missing IRQ7, VIC1 is fully populated. */
+	s3c64xx_init_irq(~0 & ~(1 << 7), ~0);
+}
+
 struct sysdev_class s3c6410_sysclass = {
 	.name	= "s3c6410-core",
 };

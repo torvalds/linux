@@ -15,6 +15,7 @@
 #ifdef CONFIG_CPU_S3C6410
 
 extern  int s3c6410_init(void);
+extern void s3c6410_init_irq(void);
 extern void s3c6410_map_io(void);
 extern void s3c6410_init_clocks(int xtal);
 
