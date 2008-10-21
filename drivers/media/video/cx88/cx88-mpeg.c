@@ -785,11 +785,6 @@ static int __devinit cx8802_probe(struct pci_dev *pci_dev,
 	if (!core->board.mpeg)
 		goto fail_core;
 
-	if (!core->board.num_frontends) {
-		printk(KERN_ERR "%s() .num_frontends should be non-zero, err = %d\n", __func__, err);
-		goto fail_core;
-	}
-
 	err = -ENOMEM;
 	dev = kzalloc(sizeof(*dev),GFP_KERNEL);
 	if (NULL == dev)
@@ -808,7 +803,8 @@ static int __devinit cx8802_probe(struct pci_dev *pci_dev,
 	mutex_init(&dev->frontends.lock);
 	INIT_LIST_HEAD(&dev->frontends.felist);
 
-	printk(KERN_INFO "%s() allocating %d frontend(s)\n", __func__, core->board.num_frontends);
+	if (core->board.num_frontends)
+		printk(KERN_INFO "%s() allocating %d frontend(s)\n", __func__, core->board.num_frontends);
 
 	for (i = 1; i <= core->board.num_frontends; i++) {
 		demod = videobuf_dvb_alloc_frontend(&dev->frontends, i);
