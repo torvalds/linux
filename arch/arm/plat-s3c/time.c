@@ -36,6 +36,7 @@
 #include <plat/regs-timer.h>
 #include <mach/regs-irq.h>
 #include <asm/mach/time.h>
+#include <mach/tick.h>
 
 #include <plat/clock.h>
 #include <plat/cpu.h>
@@ -91,12 +92,9 @@ static inline unsigned long timer_ticks_to_usec(unsigned long ticks)
  * IRQs are disabled before entering here from do_gettimeofday()
  */
 
-#define SRCPND_TIMER4 (1<<(IRQ_TIMER4 - IRQ_EINT0))
-
 static unsigned long s3c2410_gettimeoffset (void)
 {
 	unsigned long tdone;
-	unsigned long irqpend;
 	unsigned long tval;
 
 	/* work out how many ticks have gone since last timer interrupt */
@@ -106,8 +104,7 @@ static unsigned long s3c2410_gettimeoffset (void)
 
 	/* check to see if there is an interrupt pending */
 
-	irqpend = __raw_readl(S3C2410_SRCPND);
-	if (irqpend & SRCPND_TIMER4) {
+	if (s3c24xx_ostimer_pending()) {
 		/* re-read the timer, and try and fix up for the missed
 		 * interrupt. Note, the interrupt may go off before the
 		 * timer has re-loaded from wrapping.
