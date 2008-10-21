@@ -429,7 +429,7 @@ void __init uv_system_init(void)
 
 	uv_bios_init();
 	uv_bios_get_sn_info(0, &uv_type, &sn_partition_id,
-			    &uv_coherency_id, &uv_region_size);
+			    &sn_coherency_id, &sn_region_size);
 	uv_rtc_init();
 
 	for_each_present_cpu(cpu) {
@@ -451,7 +451,7 @@ void __init uv_system_init(void)
 		uv_cpu_hub_info(cpu)->gpa_mask = (1 << (m_val + n_val)) - 1;
 		uv_cpu_hub_info(cpu)->gnode_upper = gnode_upper;
 		uv_cpu_hub_info(cpu)->global_mmr_base = mmr_base;
-		uv_cpu_hub_info(cpu)->coherency_domain_number = uv_coherency_id;
+		uv_cpu_hub_info(cpu)->coherency_domain_number = sn_coherency_id;
 		uv_node_to_blade[nid] = blade;
 		uv_cpu_to_blade[cpu] = blade;
 		max_pnode = max(pnode, max_pnode);

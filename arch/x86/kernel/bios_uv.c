@@ -69,10 +69,10 @@ s64 uv_bios_call_reentrant(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3,
 
 long sn_partition_id;
 EXPORT_SYMBOL_GPL(sn_partition_id);
-long uv_coherency_id;
-EXPORT_SYMBOL_GPL(uv_coherency_id);
-long uv_region_size;
-EXPORT_SYMBOL_GPL(uv_region_size);
+long sn_coherency_id;
+EXPORT_SYMBOL_GPL(sn_coherency_id);
+long sn_region_size;
+EXPORT_SYMBOL_GPL(sn_region_size);
 int uv_type;
 
 

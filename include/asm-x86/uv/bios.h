@@ -85,9 +85,9 @@ extern void uv_bios_init(void);
 
 extern int uv_type;
 extern long sn_partition_id;
-extern long uv_coherency_id;
-extern long uv_region_size;
-#define partition_coherence_id()	(uv_coherency_id)
+extern long sn_coherency_id;
+extern long sn_region_size;
+#define partition_coherence_id()	(sn_coherency_id)
 
 extern struct kobject *sgi_uv_kobj;	/* /sys/firmware/sgi_uv */
 
