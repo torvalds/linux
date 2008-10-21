@@ -6,7 +6,7 @@
 
 config PLAT_S3C
 	bool
-	depends on ARCH_S3C2410 || ARCH_S3C24A0
+	depends on ARCH_S3C2410 || ARCH_S3C24A0 || ARCH_S3C64XX
 	default y
 	select NO_IOPORT
 	help

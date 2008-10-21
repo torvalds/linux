@@ -123,6 +123,8 @@ endif
  machine-$(CONFIG_ARCH_S3C2410)	   := s3c2410 s3c2400 s3c2412 s3c2440 s3c2442 s3c2443
  machine-$(CONFIG_ARCH_S3C24A0)	   := s3c24a0
     plat-$(CONFIG_PLAT_S3C24XX)	   := s3c24xx s3c
+ machine-$(CONFIG_ARCH_S3C64XX)	   := s3c6400
+    plat-$(CONFIG_PLAT_S3C64XX)	   := s3c64xx s3c
  machine-$(CONFIG_ARCH_LH7A40X)	   := lh7a40x
  machine-$(CONFIG_ARCH_VERSATILE)  := versatile
  machine-$(CONFIG_ARCH_IMX)	   := imx

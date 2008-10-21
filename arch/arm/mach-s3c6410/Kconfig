@@ -1,0 +1,8 @@
+# arch/arm/mach-s3c6410/Kconfig
+#
+# Copyright 2008 Openmoko, Inc.
+# Copyright 2008 Simtec Electronics
+#
+# Licensed under GPLv2
+
+# Configuration options for the S3C6410 CPU
