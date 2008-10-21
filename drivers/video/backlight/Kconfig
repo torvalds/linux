@@ -115,13 +115,17 @@ config BACKLIGHT_ATMEL_PWM
 	  called atmel-pwm-bl.
 
 config BACKLIGHT_CORGI
-	tristate "Generic (aka Sharp Corgi) Backlight Driver"
+	tristate "Generic (aka Sharp Corgi) Backlight Driver (DEPRECATED)"
 	depends on BACKLIGHT_CLASS_DEVICE
+	select CORGI_SSP_DEPRECATED
 	default n
 	help
 	  Say y to enable the generic platform backlight driver previously
 	  known as the Corgi backlight driver. If you have a Sharp Zaurus
 	  SL-C7xx, SL-Cxx00 or SL-6000x say y. Most users can say n.
+
+	  Note: this driver is marked as deprecated, try enable SPI and
+	  use the new corgi_lcd driver with integrated backlight control
 
 config BACKLIGHT_LOCOMO
 	tristate "Sharp LOCOMO LCD/Backlight Driver"
