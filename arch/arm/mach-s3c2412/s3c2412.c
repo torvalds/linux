@@ -47,6 +47,7 @@
 #include <plat/devs.h>
 #include <plat/clock.h>
 #include <plat/pm.h>
+#include <plat/pll.h>
 
 #ifndef CONFIG_CPU_S3C2412_ONLY
 void __iomem *s3c24xx_va_gpio2 = S3C24XX_VA_GPIO;
@@ -165,7 +166,7 @@ void __init s3c2412_init_clocks(int xtal)
 	/* now we've got our machine bits initialised, work out what
 	 * clocks we've got */
 
-	fclk = s3c2410_get_pll(__raw_readl(S3C2410_MPLLCON), xtal*2);
+	fclk = s3c24xx_get_pll(__raw_readl(S3C2410_MPLLCON), xtal*2);
 
 	clk_mpll.rate = fclk;
 

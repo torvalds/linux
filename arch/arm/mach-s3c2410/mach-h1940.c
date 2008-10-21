@@ -43,6 +43,7 @@
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
+#include <plat/pll.h>
 #include <plat/pm.h>
 
 static struct map_desc h1940_iodesc[] __initdata = {
@@ -223,10 +224,9 @@ static void __init h1940_init(void)
 			      S3C2410_MISCCR_USBSUSPND0 |
 			      S3C2410_MISCCR_USBSUSPND1, 0x0);
 
-	tmp = (
-		 0x78 << S3C2410_PLLCON_MDIVSHIFT)
-	      | (0x02 << S3C2410_PLLCON_PDIVSHIFT)
-	      | (0x03 << S3C2410_PLLCON_SDIVSHIFT);
+	tmp =   (0x78 << S3C24XX_PLLCON_MDIVSHIFT)
+	      | (0x02 << S3C24XX_PLLCON_PDIVSHIFT)
+	      | (0x03 << S3C24XX_PLLCON_SDIVSHIFT);
 	writel(tmp, S3C2410_UPLLCON);
 
 	platform_add_devices(h1940_devices, ARRAY_SIZE(h1940_devices));

@@ -35,6 +35,7 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/clock.h>
+#include <plat/pll.h>
 
 /* Initial IO mappings */
 
@@ -74,7 +75,7 @@ void __init s3c2410_init_clocks(int xtal)
 	/* now we've got our machine bits initialised, work out what
 	 * clocks we've got */
 
-	fclk = s3c2410_get_pll(__raw_readl(S3C2410_MPLLCON), xtal);
+	fclk = s3c24xx_get_pll(__raw_readl(S3C2410_MPLLCON), xtal);
 
 	tmp = __raw_readl(S3C2410_CLKDIVN);
 

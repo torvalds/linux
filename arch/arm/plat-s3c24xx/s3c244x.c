@@ -42,6 +42,7 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/pm.h>
+#include <plat/pll.h>
 
 static struct map_desc s3c244x_iodesc[] __initdata = {
 	IODESC_ENT(CLKPWR),
@@ -80,7 +81,7 @@ void __init s3c244x_init_clocks(int xtal)
 	/* now we've got our machine bits initialised, work out what
 	 * clocks we've got */
 
-	fclk = s3c2410_get_pll(__raw_readl(S3C2410_MPLLCON), xtal) * 2;
+	fclk = s3c24xx_get_pll(__raw_readl(S3C2410_MPLLCON), xtal) * 2;
 
 	clkdiv = __raw_readl(S3C2410_CLKDIVN);
 	camdiv = __raw_readl(S3C2440_CAMDIVN);

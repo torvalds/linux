@@ -49,6 +49,7 @@
 
 #include <plat/clock.h>
 #include <plat/cpu.h>
+#include <plat/pll.h>
 
 /* clock information */
 
@@ -332,7 +333,7 @@ int __init s3c24xx_setup_clocks(unsigned long xtal,
 	/* initialise the main system clocks */
 
 	clk_xtal.rate = xtal;
-	clk_upll.rate = s3c2410_get_pll(__raw_readl(S3C2410_UPLLCON), xtal);
+	clk_upll.rate = s3c24xx_get_pll(__raw_readl(S3C2410_UPLLCON), xtal);
 
 	clk_mpll.rate = fclk;
 	clk_h.rate = hclk;
