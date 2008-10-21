@@ -283,6 +283,7 @@ config DVB_USB_ANYSEE
 config DVB_USB_DTV5100
 	tristate "AME DTV-5100 USB2.0 DVB-T support"
 	depends on DVB_USB
+	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
 	select MEDIA_TUNER_QT1010 if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the AME DTV-5100 USB2.0 DVB-T receiver.
