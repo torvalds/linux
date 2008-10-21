@@ -11,3 +11,5 @@ obj-n				:= dummy.o
 obj-				:=
 
 # Core files
+
+obj-y				+= dev-uart.o
