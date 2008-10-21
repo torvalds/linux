@@ -14,3 +14,4 @@ obj-				:=
 obj-y				+=  init.o
 obj-y				+= time.o
 obj-y				+= clock.o
+obj-y				+= pwm-clock.o
