@@ -94,7 +94,6 @@ struct crypt_config {
 
 	struct workqueue_struct *io_queue;
 	struct workqueue_struct *crypt_queue;
-	wait_queue_head_t writeq;
 
 	/*
 	 * crypto related data
@@ -656,10 +655,7 @@ static void kcryptd_io_read(struct dm_crypt_io *io)
 static void kcryptd_io_write(struct dm_crypt_io *io)
 {
 	struct bio *clone = io->ctx.bio_out;
-	struct crypt_config *cc = io->target->private;
-
 	generic_make_request(clone);
-	wake_up(&cc->writeq);
 }
 
 static void kcryptd_io(struct work_struct *work)
@@ -791,9 +787,6 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 
 			io = new_io;
 		}
-
-		if (unlikely(remaining))
-			wait_event(cc->writeq, !atomic_read(&io->ctx.pending));
 	}
 
 	crypt_dec_pending(io);
@@ -1120,7 +1113,6 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad_crypt_queue;
 	}
 
-	init_waitqueue_head(&cc->writeq);
 	ti->private = cc;
 	return 0;
 
