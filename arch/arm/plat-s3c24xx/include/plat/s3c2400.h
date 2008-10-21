@@ -17,7 +17,7 @@
 
 extern  int s3c2400_init(void);
 
-extern void s3c2400_map_io(struct map_desc *mach_desc, int size);
+extern void s3c2400_map_io(void);
 
 extern void s3c2400_init_uarts(struct s3c2410_uartcfg *cfg, int no);
 

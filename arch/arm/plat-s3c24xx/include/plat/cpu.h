@@ -26,6 +26,21 @@ struct platform_device;
 struct s3c2410_uartcfg;
 struct map_desc;
 
+/* per-cpu initialisation function table. */
+
+struct cpu_table {
+	unsigned long	idcode;
+	unsigned long	idmask;
+	void		(*map_io)(void);
+	void		(*init_uarts)(struct s3c2410_uartcfg *cfg, int no);
+	void		(*init_clocks)(int xtal);
+	int		(*init)(void);
+	const char	*name;
+};
+
+extern void s3c_init_cpu(unsigned long idcode,
+			 struct cpu_table *cpus, unsigned int cputab_size);
+
 /* core initialisation functions */
 
 extern void s3c24xx_init_irq(void);

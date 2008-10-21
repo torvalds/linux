@@ -56,12 +56,11 @@ void __init s3c244x_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 	s3c24xx_init_uartdevs("s3c2440-uart", s3c2410_uart_resources, cfg, no);
 }
 
-void __init s3c244x_map_io(struct map_desc *mach_desc, int size)
+void __init s3c244x_map_io(void)
 {
 	/* register our io-tables */
 
 	iotable_init(s3c244x_iodesc, ARRAY_SIZE(s3c244x_iodesc));
-	iotable_init(mach_desc, size);
 
 	/* rename any peripherals used differing from the s3c2410 */
 

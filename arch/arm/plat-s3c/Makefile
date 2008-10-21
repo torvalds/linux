@@ -1,3 +1,14 @@
-# dummy makefile, currently just including asm/arm/plat-s3c/include/plat
+# arch/arm/plat-s3c/Makefile
+#
+# Copyright 2008 Simtec Electronics
+#
+# Licensed under GPLv2
 
-obj-n	:= dummy.o
+obj-y				:=
+obj-m				:=
+obj-n				:=
+obj-				:=
+
+# Core support for all Samsung SoCs
+
+obj-y				+=  init.o

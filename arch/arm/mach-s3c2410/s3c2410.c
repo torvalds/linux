@@ -59,12 +59,9 @@ void __init s3c2410_init_uarts(struct s3c2410_uartcfg *cfg, int no)
  * machine specific initialisation.
 */
 
-void __init s3c2410_map_io(struct map_desc *mach_desc, int mach_size)
+void __init s3c2410_map_io(void)
 {
-	/* register our io-tables */
-
 	iotable_init(s3c2410_iodesc, ARRAY_SIZE(s3c2410_iodesc));
-	iotable_init(mach_desc, mach_size);
 }
 
 void __init s3c2410_init_clocks(int xtal)

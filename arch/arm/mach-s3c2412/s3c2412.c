@@ -136,7 +136,7 @@ static void s3c2412_hard_reset(void)
  * machine specific initialisation.
 */
 
-void __init s3c2412_map_io(struct map_desc *mach_desc, int mach_size)
+void __init s3c2412_map_io(void)
 {
 	/* move base of IO */
 
@@ -153,7 +153,6 @@ void __init s3c2412_map_io(struct map_desc *mach_desc, int mach_size)
 	/* register our io-tables */
 
 	iotable_init(s3c2412_iodesc, ARRAY_SIZE(s3c2412_iodesc));
-	iotable_init(mach_desc, mach_size);
 }
 
 void __init s3c2412_init_clocks(int xtal)
