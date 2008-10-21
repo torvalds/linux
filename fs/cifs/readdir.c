@@ -762,14 +762,15 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 				 rc));
 			return rc;
 		}
+		cifs_save_resume_key(cifsFile->srch_inf.last_entry, cifsFile);
 	}
 
 	while ((index_to_find >= cifsFile->srch_inf.index_of_last_entry) &&
 	      (rc == 0) && !cifsFile->srch_inf.endOfSearch) {
 		cFYI(1, ("calling findnext2"));
-		cifs_save_resume_key(cifsFile->srch_inf.last_entry, cifsFile);
 		rc = CIFSFindNext(xid, pTcon, cifsFile->netfid,
 				  &cifsFile->srch_inf);
+		cifs_save_resume_key(cifsFile->srch_inf.last_entry, cifsFile);
 		if (rc)
 			return -ENOENT;
 	}
