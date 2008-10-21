@@ -939,7 +939,7 @@ static int sa1111_resume(struct platform_device *dev)
 #define sa1111_resume  NULL
 #endif
 
-static int sa1111_probe(struct platform_device *pdev)
+static int __devinit sa1111_probe(struct platform_device *pdev)
 {
 	struct resource *mem;
 	int irq;
