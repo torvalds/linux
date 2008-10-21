@@ -37,7 +37,7 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/clk.h>
-#include <linux/mutex.h>
+#include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 
@@ -55,7 +55,11 @@
 
 static LIST_HEAD(clocks);
 
-DEFINE_MUTEX(clocks_mutex);
+/* We originally used an mutex here, but some contexts (see resume)
+ * are calling functions such as clk_set_parent() with IRQs disabled
+ * causing an BUG to be triggered.
+ */
+DEFINE_SPINLOCK(clocks_lock);
 
 /* enable and disable calls for use with the clk struct */
 
@@ -77,7 +81,7 @@ struct clk *clk_get(struct device *dev, const char *id)
 	else
 		idno = to_platform_device(dev)->id;
 
-	mutex_lock(&clocks_mutex);
+	spin_lock(&clocks_lock);
 
 	list_for_each_entry(p, &clocks, list) {
 		if (p->id == idno &&
@@ -101,7 +105,7 @@ struct clk *clk_get(struct device *dev, const char *id)
 		}
 	}
 
-	mutex_unlock(&clocks_mutex);
+	spin_unlock(&clocks_lock);
 	return clk;
 }
 
@@ -117,12 +121,12 @@ int clk_enable(struct clk *clk)
 
 	clk_enable(clk->parent);
 
-	mutex_lock(&clocks_mutex);
+	spin_lock(&clocks_lock);
 
 	if ((clk->usage++) == 0)
 		(clk->enable)(clk, 1);
 
-	mutex_unlock(&clocks_mutex);
+	spin_unlock(&clocks_lock);
 	return 0;
 }
 
@@ -131,12 +135,12 @@ void clk_disable(struct clk *clk)
 	if (IS_ERR(clk) || clk == NULL)
 		return;
 
-	mutex_lock(&clocks_mutex);
+	spin_lock(&clocks_lock);
 
 	if ((--clk->usage) == 0)
 		(clk->enable)(clk, 0);
 
-	mutex_unlock(&clocks_mutex);
+	spin_unlock(&clocks_lock);
 	clk_disable(clk->parent);
 }
 
@@ -182,9 +186,9 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	if (clk->set_rate == NULL)
 		return -EINVAL;
 
-	mutex_lock(&clocks_mutex);
+	spin_lock(&clocks_lock);
 	ret = (clk->set_rate)(clk, rate);
-	mutex_unlock(&clocks_mutex);
+	spin_unlock(&clocks_lock);
 
 	return ret;
 }
@@ -201,12 +205,12 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 	if (IS_ERR(clk))
 		return -EINVAL;
 
-	mutex_lock(&clocks_mutex);
+	spin_lock(&clocks_lock);
 
 	if (clk->set_parent)
 		ret = (clk->set_parent)(clk, parent);
 
-	mutex_unlock(&clocks_mutex);
+	spin_unlock(&clocks_lock);
 
 	return ret;
 }
@@ -302,9 +306,9 @@ int s3c24xx_register_clock(struct clk *clk)
 
 	/* add to the list of available clocks */
 
-	mutex_lock(&clocks_mutex);
+	spin_lock(&clocks_lock);
 	list_add(&clk->list, &clocks);
-	mutex_unlock(&clocks_mutex);
+	spin_unlock(&clocks_lock);
 
 	return 0;
 }

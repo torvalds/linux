@@ -10,6 +10,8 @@
  * published by the Free Software Foundation.
 */
 
+#include <linux/spinlock.h>
+
 struct clk {
 	struct list_head      list;
 	struct module        *owner;
@@ -51,7 +53,7 @@ extern struct clk clk_xtal;
  * Please DO NOT use these outside of arch/arm/mach-s3c2410
 */
 
-extern struct mutex clocks_mutex;
+extern spinlock_t clocks_lock;
 
 extern int s3c2410_clkcon_enable(struct clk *clk, int enable);
 
