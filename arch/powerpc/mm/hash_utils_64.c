@@ -382,8 +382,10 @@ static int __init htab_dt_scan_hugepage_blocks(unsigned long node,
 	printk(KERN_INFO "Huge page(16GB) memory: "
 			"addr = 0x%lX size = 0x%lX pages = %d\n",
 			phys_addr, block_size, expected_pages);
-	lmb_reserve(phys_addr, block_size * expected_pages);
-	add_gpage(phys_addr, block_size, expected_pages);
+	if (phys_addr + (16 * GB) <= lmb_end_of_DRAM()) {
+		lmb_reserve(phys_addr, block_size * expected_pages);
+		add_gpage(phys_addr, block_size, expected_pages);
+	}
 	return 0;
 }
 #endif /* CONFIG_HUGETLB_PAGE */
