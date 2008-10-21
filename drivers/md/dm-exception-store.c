@@ -611,17 +611,22 @@ static void persistent_commit(struct exception_store *store,
 		return;
 
 	/*
+	 * If we completely filled the current area, then wipe the next one.
+	 */
+	if ((ps->current_committed == ps->exceptions_per_area) &&
+	     zero_disk_area(ps, ps->current_area + 1))
+		ps->valid = 0;
+
+	/*
 	 * Commit exceptions to disk.
 	 */
-	if (area_io(ps, WRITE))
+	if (ps->valid && area_io(ps, WRITE))
 		ps->valid = 0;
 
 	/*
 	 * Advance to the next area if this one is full.
 	 */
 	if (ps->current_committed == ps->exceptions_per_area) {
-		if (zero_disk_area(ps, ps->current_area + 1))
-			ps->valid = 0;
 		ps->current_committed = 0;
 		ps->current_area++;
 		zero_memory_area(ps);
