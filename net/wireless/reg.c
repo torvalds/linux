@@ -791,7 +791,7 @@ int regulatory_init(void)
 	 * you have CRDA you get it updated, otherwise you get
 	 * stuck with the static values. We ignore "EU" code as
 	 * that is not a valid ISO / IEC 3166 alpha2 */
-	if (ieee80211_regdom[0] != 'E' && ieee80211_regdom[1] != 'U')
+	if (ieee80211_regdom[0] != 'E' || ieee80211_regdom[1] != 'U')
 		err = __regulatory_hint(NULL, REGDOM_SET_BY_CORE,
 					ieee80211_regdom, NULL);
 #else
