@@ -69,6 +69,7 @@ struct dentry_stat_t dentry_stat = {
 
 static void __d_free(struct dentry *dentry)
 {
+	WARN_ON(!list_empty(&dentry->d_alias));
 	if (dname_external(dentry))
 		kfree(dentry->d_name.name);
 	kmem_cache_free(dentry_cache, dentry); 
