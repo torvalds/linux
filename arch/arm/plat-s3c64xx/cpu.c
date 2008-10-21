@@ -87,11 +87,15 @@ static struct map_desc s3c_iodesc[] __initdata = {
 		.pfn		= __phys_to_pfn(S3C64XX_PA_VIC1),
 		.length		= SZ_16K,
 		.type		= MT_DEVICE,
+	}, {
+		.virtual	= S3C_VA_TIMER,
+		.pfn		= __phys_to_pfn(S3C_PA_TIMER),
+		.length		= SZ_16K,
+		.type		= MT_DEVICE,
 	},
 };
 
 /* read cpu identification code */
-
 
 void __init s3c64xx_init_io(struct map_desc *mach_desc, int size)
 {
