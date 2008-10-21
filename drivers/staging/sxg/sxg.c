@@ -112,12 +112,16 @@ static bool sxg_mac_filter(p_adapter_t adapter,
 static struct net_device_stats *sxg_get_stats(p_net_device dev);
 #endif
 
+#define XXXTODO 0
+
+#if XXXTODO
 static int sxg_mac_set_address(p_net_device dev, void *ptr);
+static void sxg_mcast_set_list(p_net_device dev);
+#endif
 
 static void sxg_adapter_set_hwaddr(p_adapter_t adapter);
 
 static void sxg_unmap_mmio_space(p_adapter_t adapter);
-static void sxg_mcast_set_mask(p_adapter_t adapter);
 
 static int sxg_initialize_adapter(p_adapter_t adapter);
 static void sxg_stock_rcv_buffers(p_adapter_t adapter);
@@ -132,9 +136,6 @@ static int sxg_write_mdio_reg(p_adapter_t adapter,
 			      u32 DevAddr, u32 RegAddr, u32 Value);
 static int sxg_read_mdio_reg(p_adapter_t adapter,
 			     u32 DevAddr, u32 RegAddr, u32 *pValue);
-static void sxg_mcast_set_list(p_net_device dev);
-
-#define XXXTODO 0
 
 static unsigned int sxg_first_init = 1;
 static char *sxg_banner =
@@ -2668,6 +2669,109 @@ static int sxg_read_mdio_reg(p_adapter_t adapter,
 }
 
 /*
+ * Functions to obtain the CRC corresponding to the destination mac address.
+ * This is a standard ethernet CRC in that it is a 32-bit, reflected CRC using
+ * the polynomial:
+ *   x^32 + x^26 + x^23 + x^22 + x^16 + x^12 + x^11 + x^10 + x^8 + x^7 + x^5 + x^4 + x^2 + x^1.
+ *
+ * After the CRC for the 6 bytes is generated (but before the value is complemented),
+ * we must then transpose the value and return bits 30-23.
+ *
+ */
+static u32 sxg_crc_table[256];	/* Table of CRC's for all possible byte values */
+
+/*
+ *  Contruct the CRC32 table
+ */
+static void sxg_mcast_init_crc32(void)
+{
+	u32 c;			/*  CRC shit reg                 */
+	u32 e = 0;		/*  Poly X-or pattern            */
+	int i;			/*  counter                      */
+	int k;			/*  byte being shifted into crc  */
+
+	static int p[] = { 0, 1, 2, 4, 5, 7, 8, 10, 11, 12, 16, 22, 23, 26 };
+
+	for (i = 0; i < sizeof(p) / sizeof(int); i++) {
+		e |= 1L << (31 - p[i]);
+	}
+
+	for (i = 1; i < 256; i++) {
+		c = i;
+		for (k = 8; k; k--) {
+			c = c & 1 ? (c >> 1) ^ e : c >> 1;
+		}
+		sxg_crc_table[i] = c;
+	}
+}
+
+#if XXXTODO
+static u32 sxg_crc_init;	/* Is table initialized */
+/*
+ *  Return the MAC hast as described above.
+ */
+static unsigned char sxg_mcast_get_mac_hash(char *macaddr)
+{
+	u32 crc;
+	char *p;
+	int i;
+	unsigned char machash = 0;
+
+	if (!sxg_crc_init) {
+		sxg_mcast_init_crc32();
+		sxg_crc_init = 1;
+	}
+
+	crc = 0xFFFFFFFF;	/* Preload shift register, per crc-32 spec */
+	for (i = 0, p = macaddr; i < 6; ++p, ++i) {
+		crc = (crc >> 8) ^ sxg_crc_table[(crc ^ *p) & 0xFF];
+	}
+
+	/* Return bits 1-8, transposed */
+	for (i = 1; i < 9; i++) {
+		machash |= (((crc >> i) & 1) << (8 - i));
+	}
+
+	return (machash);
+}
+
+static void sxg_mcast_set_mask(p_adapter_t adapter)
+{
+	PSXG_UCODE_REGS sxg_regs = adapter->UcodeRegs;
+
+	DBG_ERROR("%s ENTER (%s) macopts[%x] mask[%llx]\n", __func__,
+		  adapter->netdev->name, (unsigned int)adapter->MacFilter,
+		  adapter->MulticastMask);
+
+	if (adapter->MacFilter & (MAC_ALLMCAST | MAC_PROMISC)) {
+		/* Turn on all multicast addresses. We have to do this for promiscuous
+		 * mode as well as ALLMCAST mode.  It saves the Microcode from having
+		 * to keep state about the MAC configuration.
+		 */
+/*              DBG_ERROR("sxg: %s macopts = MAC_ALLMCAST | MAC_PROMISC\n      SLUT MODE!!!\n",__func__); */
+		WRITE_REG(sxg_regs->McastLow, 0xFFFFFFFF, FLUSH);
+		WRITE_REG(sxg_regs->McastHigh, 0xFFFFFFFF, FLUSH);
+/*        DBG_ERROR("%s (%s) WRITE to slic_regs slic_mcastlow&high 0xFFFFFFFF\n",__func__, adapter->netdev->name); */
+
+	} else {
+		/* Commit our multicast mast to the SLIC by writing to the multicast
+		 * address mask registers
+		 */
+		DBG_ERROR("%s (%s) WRITE mcastlow[%lx] mcasthigh[%lx]\n",
+			  __func__, adapter->netdev->name,
+			  ((ulong) (adapter->MulticastMask & 0xFFFFFFFF)),
+			  ((ulong)
+			   ((adapter->MulticastMask >> 32) & 0xFFFFFFFF)));
+
+		WRITE_REG(sxg_regs->McastLow,
+			  (u32) (adapter->MulticastMask & 0xFFFFFFFF), FLUSH);
+		WRITE_REG(sxg_regs->McastHigh,
+			  (u32) ((adapter->
+				  MulticastMask >> 32) & 0xFFFFFFFF), FLUSH);
+	}
+}
+
+/*
  *  Allocate a mcast_address structure to hold the multicast address.
  *  Link it in.
  */
@@ -2699,72 +2803,6 @@ static int sxg_mcast_add_list(p_adapter_t adapter, char *address)
 	return (STATUS_SUCCESS);
 }
 
-/*
- * Functions to obtain the CRC corresponding to the destination mac address.
- * This is a standard ethernet CRC in that it is a 32-bit, reflected CRC using
- * the polynomial:
- *   x^32 + x^26 + x^23 + x^22 + x^16 + x^12 + x^11 + x^10 + x^8 + x^7 + x^5 + x^4 + x^2 + x^1.
- *
- * After the CRC for the 6 bytes is generated (but before the value is complemented),
- * we must then transpose the value and return bits 30-23.
- *
- */
-static u32 sxg_crc_table[256];	/* Table of CRC's for all possible byte values */
-static u32 sxg_crc_init;	/* Is table initialized                        */
-
-/*
- *  Contruct the CRC32 table
- */
-static void sxg_mcast_init_crc32(void)
-{
-	u32 c;			/*  CRC shit reg                 */
-	u32 e = 0;		/*  Poly X-or pattern            */
-	int i;			/*  counter                      */
-	int k;			/*  byte being shifted into crc  */
-
-	static int p[] = { 0, 1, 2, 4, 5, 7, 8, 10, 11, 12, 16, 22, 23, 26 };
-
-	for (i = 0; i < sizeof(p) / sizeof(int); i++) {
-		e |= 1L << (31 - p[i]);
-	}
-
-	for (i = 1; i < 256; i++) {
-		c = i;
-		for (k = 8; k; k--) {
-			c = c & 1 ? (c >> 1) ^ e : c >> 1;
-		}
-		sxg_crc_table[i] = c;
-	}
-}
-
-/*
- *  Return the MAC hast as described above.
- */
-static unsigned char sxg_mcast_get_mac_hash(char *macaddr)
-{
-	u32 crc;
-	char *p;
-	int i;
-	unsigned char machash = 0;
-
-	if (!sxg_crc_init) {
-		sxg_mcast_init_crc32();
-		sxg_crc_init = 1;
-	}
-
-	crc = 0xFFFFFFFF;	/* Preload shift register, per crc-32 spec */
-	for (i = 0, p = macaddr; i < 6; ++p, ++i) {
-		crc = (crc >> 8) ^ sxg_crc_table[(crc ^ *p) & 0xFF];
-	}
-
-	/* Return bits 1-8, transposed */
-	for (i = 1; i < 9; i++) {
-		machash |= (((crc >> i) & 1) << (8 - i));
-	}
-
-	return (machash);
-}
-
 static void sxg_mcast_set_bit(p_adapter_t adapter, char *address)
 {
 	unsigned char crcpoly;
@@ -2783,7 +2821,6 @@ static void sxg_mcast_set_bit(p_adapter_t adapter, char *address)
 
 static void sxg_mcast_set_list(p_net_device dev)
 {
-#if XXXTODO
 	p_adapter_t adapter = (p_adapter_t) netdev_priv(dev);
 	int status = STATUS_SUCCESS;
 	int i;
@@ -2835,45 +2872,9 @@ static void sxg_mcast_set_list(p_net_device dev)
 			sxg_mcast_set_mask(adapter);
 		}
 	}
-#endif
 	return;
 }
-
-static void sxg_mcast_set_mask(p_adapter_t adapter)
-{
-	PSXG_UCODE_REGS sxg_regs = adapter->UcodeRegs;
-
-	DBG_ERROR("%s ENTER (%s) macopts[%x] mask[%llx]\n", __func__,
-		  adapter->netdev->name, (unsigned int)adapter->MacFilter,
-		  adapter->MulticastMask);
-
-	if (adapter->MacFilter & (MAC_ALLMCAST | MAC_PROMISC)) {
-		/* Turn on all multicast addresses. We have to do this for promiscuous
-		 * mode as well as ALLMCAST mode.  It saves the Microcode from having
-		 * to keep state about the MAC configuration.
-		 */
-/*              DBG_ERROR("sxg: %s macopts = MAC_ALLMCAST | MAC_PROMISC\n      SLUT MODE!!!\n",__func__); */
-		WRITE_REG(sxg_regs->McastLow, 0xFFFFFFFF, FLUSH);
-		WRITE_REG(sxg_regs->McastHigh, 0xFFFFFFFF, FLUSH);
-/*        DBG_ERROR("%s (%s) WRITE to slic_regs slic_mcastlow&high 0xFFFFFFFF\n",__func__, adapter->netdev->name); */
-
-	} else {
-		/* Commit our multicast mast to the SLIC by writing to the multicast
-		 * address mask registers
-		 */
-		DBG_ERROR("%s (%s) WRITE mcastlow[%lx] mcasthigh[%lx]\n",
-			  __func__, adapter->netdev->name,
-			  ((ulong) (adapter->MulticastMask & 0xFFFFFFFF)),
-			  ((ulong)
-			   ((adapter->MulticastMask >> 32) & 0xFFFFFFFF)));
-
-		WRITE_REG(sxg_regs->McastLow,
-			  (u32) (adapter->MulticastMask & 0xFFFFFFFF), FLUSH);
-		WRITE_REG(sxg_regs->McastHigh,
-			  (u32) ((adapter->
-				  MulticastMask >> 32) & 0xFFFFFFFF), FLUSH);
-	}
-}
+#endif
 
 static void sxg_unmap_mmio_space(p_adapter_t adapter)
 {
@@ -3267,9 +3268,9 @@ static void sxg_adapter_set_hwaddr(p_adapter_t adapter)
 
 }
 
+#if XXXTODO
 static int sxg_mac_set_address(p_net_device dev, void *ptr)
 {
-#if XXXTODO
 	p_adapter_t adapter = (p_adapter_t) netdev_priv(dev);
 	struct sockaddr *addr = ptr;
 
@@ -3295,9 +3296,9 @@ static int sxg_mac_set_address(p_net_device dev, void *ptr)
 		  adapter->currmacaddr[5]);
 
 	sxg_config_set(adapter, TRUE);
-#endif
 	return 0;
 }
+#endif
 
 /*****************************************************************************/
 /*************  SXG DRIVER FUNCTIONS  (below) ********************************/
