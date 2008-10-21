@@ -29,6 +29,7 @@
 #define S3C24XX_VA_UART	   S3C_VA_UART
 #define S3C2410_PA_UART	   (0x50000000)
 #define S3C24XX_SZ_UART	   SZ_1M
+#define S3C_UART_OFFSET	   (0x4000)
 
 /* Timers */
 #define S3C24XX_VA_TIMER   S3C_VA_TIMER
