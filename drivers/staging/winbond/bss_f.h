@@ -2,54 +2,54 @@
 // BSS descriptor DataBase management global function
 //
 
-void vBSSdescriptionInit(PWB32_ADAPTER Adapter);
-void vBSSfoundList(PWB32_ADAPTER Adapter);
-u8 boChanFilter(PWB32_ADAPTER Adapter, u8 ChanNo);
-u16 wBSSallocateEntry(PWB32_ADAPTER Adapter);
-u16 wBSSGetEntry(PWB32_ADAPTER Adapter);
-void vSimpleHouseKeeping(PWB32_ADAPTER Adapter);
-u16 wBSShouseKeeping(PWB32_ADAPTER Adapter);
-void ClearBSSdescpt(PWB32_ADAPTER Adapter, u16 i);
-u16 wBSSfindBssID(PWB32_ADAPTER Adapter, u8 *pbBssid);
-u16 wBSSfindDedicateCandidate(PWB32_ADAPTER Adapter, struct SSID_Element *psSsid, u8 *pbBssid);
-u16 wBSSfindMACaddr(PWB32_ADAPTER Adapter, u8 *pbMacAddr);
-u16 wBSSsearchMACaddr(PWB32_ADAPTER Adapter, u8 *pbMacAddr, u8 band);
-u16 wBSSaddScanData(PWB32_ADAPTER, u16, psRXDATA);
-u16 wBSSUpdateScanData(PWB32_ADAPTER Adapter, u16 wBssIdx, psRXDATA psRcvData);
-u16 wBSScreateIBSSdata(PWB32_ADAPTER Adapter, PWB_BSSDESCRIPTION psDesData);
-void DesiredRate2BSSdescriptor(PWB32_ADAPTER Adapter, PWB_BSSDESCRIPTION psDesData,
+void vBSSdescriptionInit(struct wb35_adapter * adapter);
+void vBSSfoundList(struct wb35_adapter * adapter);
+u8 boChanFilter(struct wb35_adapter * adapter, u8 ChanNo);
+u16 wBSSallocateEntry(struct wb35_adapter * adapter);
+u16 wBSSGetEntry(struct wb35_adapter * adapter);
+void vSimpleHouseKeeping(struct wb35_adapter * adapter);
+u16 wBSShouseKeeping(struct wb35_adapter * adapter);
+void ClearBSSdescpt(struct wb35_adapter * adapter, u16 i);
+u16 wBSSfindBssID(struct wb35_adapter * adapter, u8 *pbBssid);
+u16 wBSSfindDedicateCandidate(struct wb35_adapter * adapter, struct SSID_Element *psSsid, u8 *pbBssid);
+u16 wBSSfindMACaddr(struct wb35_adapter * adapter, u8 *pbMacAddr);
+u16 wBSSsearchMACaddr(struct wb35_adapter * adapter, u8 *pbMacAddr, u8 band);
+u16 wBSSaddScanData(struct wb35_adapter *, u16, psRXDATA);
+u16 wBSSUpdateScanData(struct wb35_adapter * adapter, u16 wBssIdx, psRXDATA psRcvData);
+u16 wBSScreateIBSSdata(struct wb35_adapter * adapter, PWB_BSSDESCRIPTION psDesData);
+void DesiredRate2BSSdescriptor(struct wb35_adapter * adapter, PWB_BSSDESCRIPTION psDesData,
 							 u8 *pBasicRateSet, u8 BasicRateCount,
 							 u8 *pOperationRateSet, u8 OperationRateCount);
-void DesiredRate2InfoElement(PWB32_ADAPTER Adapter, u8	*addr, u16 *iFildOffset,
+void DesiredRate2InfoElement(struct wb35_adapter * adapter, u8	*addr, u16 *iFildOffset,
 							 u8 *pBasicRateSet, u8 BasicRateCount,
 							 u8 *pOperationRateSet, u8 OperationRateCount);
-void BSSAddIBSSdata(PWB32_ADAPTER Adapter, PWB_BSSDESCRIPTION psDesData);
+void BSSAddIBSSdata(struct wb35_adapter * adapter, PWB_BSSDESCRIPTION psDesData);
 unsigned char boCmpMacAddr( u8 *, u8 *);
 unsigned char boCmpSSID(struct SSID_Element *psSSID1, struct SSID_Element *psSSID2);
-u16 wBSSfindSSID(PWB32_ADAPTER Adapter, struct SSID_Element *psSsid);
-u16 wRoamingQuery(PWB32_ADAPTER Adapter);
-void vRateToBitmap(PWB32_ADAPTER Adapter, u16 index);
-u8 bRateToBitmapIndex(PWB32_ADAPTER Adapter, u8 bRate);
+u16 wBSSfindSSID(struct wb35_adapter * adapter, struct SSID_Element *psSsid);
+u16 wRoamingQuery(struct wb35_adapter * adapter);
+void vRateToBitmap(struct wb35_adapter * adapter, u16 index);
+u8 bRateToBitmapIndex(struct wb35_adapter * adapter, u8 bRate);
 u8 bBitmapToRate(u8 i);
-unsigned char boIsERPsta(PWB32_ADAPTER Adapter, u16 i);
-unsigned char boCheckConnect(PWB32_ADAPTER Adapter);
-unsigned char boCheckSignal(PWB32_ADAPTER Adapter);
-void AddIBSSIe(PWB32_ADAPTER Adapter,PWB_BSSDESCRIPTION psDesData );//added by ws for WPA_None06/01/04
-void BssScanUpToDate(PWB32_ADAPTER Adapter);
-void BssUpToDate(PWB32_ADAPTER Adapter);
+unsigned char boIsERPsta(struct wb35_adapter * adapter, u16 i);
+unsigned char boCheckConnect(struct wb35_adapter * adapter);
+unsigned char boCheckSignal(struct wb35_adapter * adapter);
+void AddIBSSIe(struct wb35_adapter * adapter,PWB_BSSDESCRIPTION psDesData );//added by ws for WPA_None06/01/04
+void BssScanUpToDate(struct wb35_adapter * adapter);
+void BssUpToDate(struct wb35_adapter * adapter);
 void RateSort(u8 *RateArray, u8 num, u8 mode);
-void RateReSortForSRate(PWB32_ADAPTER Adapter, u8 *RateArray, u8 num);
-void Assemble_IE(PWB32_ADAPTER Adapter, u16 wBssIdx);
-void SetMaxTxRate(PWB32_ADAPTER Adapter);
+void RateReSortForSRate(struct wb35_adapter * adapter, u8 *RateArray, u8 num);
+void Assemble_IE(struct wb35_adapter * adapter, u16 wBssIdx);
+void SetMaxTxRate(struct wb35_adapter * adapter);
 
-void CreateWpaIE(PWB32_ADAPTER Adapter, u16* iFildOffset, u8 *msg, struct  Management_Frame* msgHeader,
+void CreateWpaIE(struct wb35_adapter * adapter, u16* iFildOffset, u8 *msg, struct  Management_Frame* msgHeader,
 				 struct Association_Request_Frame_Body* msgBody, u16 iMSindex); //added by WS 05/14/05
 
 #ifdef _WPA2_
-void CreateRsnIE(PWB32_ADAPTER Adapter, u16* iFildOffset, u8 *msg, struct  Management_Frame* msgHeader,
+void CreateRsnIE(struct wb35_adapter * adapter, u16* iFildOffset, u8 *msg, struct  Management_Frame* msgHeader,
 				 struct Association_Request_Frame_Body* msgBody, u16 iMSindex);//added by WS 05/14/05
 
-u16 SearchPmkid(PWB32_ADAPTER Adapter, struct  Management_Frame* msgHeader,
+u16 SearchPmkid(struct wb35_adapter * adapter, struct  Management_Frame* msgHeader,
 				   struct PMKID_Information_Element * AssoReq_PMKID );
 #endif
 

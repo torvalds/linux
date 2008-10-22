@@ -26,8 +26,8 @@ typedef struct tkip
 } tkip_t;
 
 //void _append_data( u8 *pData, u16 size, tkip_t *p );
-void Mds_MicGet(  void* Adapter,  void* pRxLayer1,  u8 *pKey,  u8 *pMic );
-void Mds_MicFill(  void* Adapter,  void* pDes,  u8 *XmitBufAddress );
+void Mds_MicGet(  void* adapter,  void* pRxLayer1,  u8 *pKey,  u8 *pMic );
+void Mds_MicFill(  void* adapter,  void* pDes,  u8 *XmitBufAddress );
 
 
 

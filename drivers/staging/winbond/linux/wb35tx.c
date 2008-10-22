@@ -25,20 +25,20 @@ void Wb35Tx_start(phw_data_t pHwData)
 	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
 
 	// Allow only one thread to run into function
-	if (OS_ATOMIC_INC(pHwData->Adapter, &pWb35Tx->TxFireCounter) == 1) {
+	if (OS_ATOMIC_INC(pHwData->adapter, &pWb35Tx->TxFireCounter) == 1) {
 		pWb35Tx->EP4vm_state = VM_RUNNING;
 		Wb35Tx(pHwData);
 	} else
-		OS_ATOMIC_DEC( pHwData->Adapter, &pWb35Tx->TxFireCounter );
+		OS_ATOMIC_DEC( pHwData->adapter, &pWb35Tx->TxFireCounter );
 }
 
 
 void Wb35Tx(phw_data_t pHwData)
 {
 	PWB35TX		pWb35Tx = &pHwData->Wb35Tx;
-	PADAPTER	Adapter = pHwData->Adapter;
+	struct wb35_adapter *adapter = pHwData->adapter;
 	u8		*pTxBufferAddress;
-	PMDS		pMds = &Adapter->Mds;
+	PMDS		pMds = &adapter->Mds;
 	struct urb *	pUrb = (struct urb *)pWb35Tx->Tx4Urb;
 	int         	retv;
 	u32		SendIndex;
@@ -81,16 +81,16 @@ void Wb35Tx(phw_data_t pHwData)
 
  cleanup:
 	pWb35Tx->EP4vm_state = VM_STOP;
-	OS_ATOMIC_DEC( pHwData->Adapter, &pWb35Tx->TxFireCounter );
+	OS_ATOMIC_DEC( pHwData->adapter, &pWb35Tx->TxFireCounter );
 }
 
 
 void Wb35Tx_complete(struct urb * pUrb)
 {
 	phw_data_t	pHwData = pUrb->context;
-	PADAPTER	Adapter = (PADAPTER)pHwData->Adapter;
+	struct wb35_adapter *adapter = pHwData->adapter;
 	PWB35TX		pWb35Tx = &pHwData->Wb35Tx;
-	PMDS		pMds = &Adapter->Mds;
+	PMDS		pMds = &adapter->Mds;
 
 	printk("wb35: tx complete\n");
 	// Variable setting
@@ -113,12 +113,12 @@ void Wb35Tx_complete(struct urb * pUrb)
 		goto error;
 	}
 
-	Mds_Tx(Adapter);
+	Mds_Tx(adapter);
 	Wb35Tx(pHwData);
 	return;
 
 error:
-	OS_ATOMIC_DEC( pHwData->Adapter, &pWb35Tx->TxFireCounter );
+	OS_ATOMIC_DEC( pHwData->adapter, &pWb35Tx->TxFireCounter );
 	pWb35Tx->EP4vm_state = VM_STOP;
 }
 
@@ -211,12 +211,12 @@ void Wb35Tx_EP2VM_start(phw_data_t pHwData)
 	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
 
 	// Allow only one thread to run into function
-	if (OS_ATOMIC_INC( pHwData->Adapter, &pWb35Tx->TxResultCount ) == 1) {
+	if (OS_ATOMIC_INC( pHwData->adapter, &pWb35Tx->TxResultCount ) == 1) {
 		pWb35Tx->EP2vm_state = VM_RUNNING;
 		Wb35Tx_EP2VM( pHwData );
 	}
 	else
-		OS_ATOMIC_DEC( pHwData->Adapter, &pWb35Tx->TxResultCount );
+		OS_ATOMIC_DEC( pHwData->adapter, &pWb35Tx->TxResultCount );
 }
 
 
@@ -252,7 +252,7 @@ void Wb35Tx_EP2VM(phw_data_t pHwData)
 	return;
 error:
 	pWb35Tx->EP2vm_state = VM_STOP;
-	OS_ATOMIC_DEC( pHwData->Adapter, &pWb35Tx->TxResultCount );
+	OS_ATOMIC_DEC( pHwData->adapter, &pWb35Tx->TxResultCount );
 }
 
 
@@ -260,7 +260,7 @@ void Wb35Tx_EP2VM_complete(struct urb * pUrb)
 {
 	phw_data_t	pHwData = pUrb->context;
 	T02_DESCRIPTOR	T02, TSTATUS;
-	PADAPTER	Adapter = (PADAPTER)pHwData->Adapter;
+	struct wb35_adapter *adapter = pHwData->adapter;
 	PWB35TX		pWb35Tx = &pHwData->Wb35Tx;
 	u32 *		pltmp = (u32 *)pWb35Tx->EP2_buf;
 	u32		i;
@@ -295,13 +295,13 @@ void Wb35Tx_EP2VM_complete(struct urb * pUrb)
 		T02.value |= ((cpu_to_le32(pltmp[i]) & 0xff) << 24);
 
 		TSTATUS.value = T02.value;  //20061009 anson's endian
-		Mds_SendComplete( Adapter, &TSTATUS );
+		Mds_SendComplete( adapter, &TSTATUS );
 		T02.value = cpu_to_le32(pltmp[i]) >> 8;
 	}
 
 	return;
 error:
-	OS_ATOMIC_DEC( pHwData->Adapter, &pWb35Tx->TxResultCount );
+	OS_ATOMIC_DEC( pHwData->adapter, &pWb35Tx->TxResultCount );
 	pWb35Tx->EP2vm_state = VM_STOP;
 }
 

@@ -25,7 +25,7 @@
 #define LOCAL_UNKNOWN_5_CHANNEL_NUM			34	//not include 165
 
 
-#define psLOCAL			(&(Adapter->sLocalPara))
+#define psLOCAL			(&(adapter->sLocalPara))
 
 #define MODE_802_11_BG			0
 #define MODE_802_11_A			1

@@ -445,12 +445,12 @@ typedef struct _HW_DATA_T
 	//=======================================================================================
 	// For USB driver, hal need more variables. Due to
 	//	1. NDIS-WDM operation
-	//	2. The SME, MLME and OLD MDS need Adapter structure, but the driver under HAL doesn't
+	//	2. The SME, MLME and OLD MDS need adapter structure, but the driver under HAL doesn't
 	//		have that parameter when receiving and indicating packet.
-	//		The MDS must input the Adapter pointer as the second parameter of hal_init_hardware.
+	//		The MDS must input the adapter pointer as the second parameter of hal_init_hardware.
 	//		The function usage is different than PCI driver.
 	//=======================================================================================
-	void* Adapter;
+	void* adapter;
 
 	//===============================================
 	// Definition for MAC address

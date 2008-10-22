@@ -1,29 +1,29 @@
 #include "os_common.h"
 
-void vRxTimerInit(PWB32_ADAPTER Adapter)
+void vRxTimerInit(struct wb35_adapter * adapter)
 {
-	OS_TIMER_INITIAL(&(Adapter->Mds.nTimer), (void*) RxTimerHandler, (void*) Adapter);
+	OS_TIMER_INITIAL(&(adapter->Mds.nTimer), (void*) RxTimerHandler, (void*) adapter);
 }
 
-void vRxTimerStart(PWB32_ADAPTER Adapter, int timeout_value)
+void vRxTimerStart(struct wb35_adapter * adapter, int timeout_value)
 {
 	if (timeout_value<MIN_TIMEOUT_VAL)
 		timeout_value=MIN_TIMEOUT_VAL;
 
-	OS_TIMER_SET( &(Adapter->Mds.nTimer), timeout_value );
+	OS_TIMER_SET( &(adapter->Mds.nTimer), timeout_value );
 }
 
-void vRxTimerStop(PWB32_ADAPTER Adapter)
+void vRxTimerStop(struct wb35_adapter * adapter)
 {
-	OS_TIMER_CANCEL( &(Adapter->Mds.nTimer), 0 );
+	OS_TIMER_CANCEL( &(adapter->Mds.nTimer), 0 );
 }
 
-void RxTimerHandler_1a( PADAPTER Adapter)
+void RxTimerHandler_1a( struct wb35_adapter * adapter)
 {
-	RxTimerHandler(NULL, Adapter, NULL, NULL);
+	RxTimerHandler(NULL, adapter, NULL, NULL);
 }
 
-void RxTimerHandler(void* SystemSpecific1, PWB32_ADAPTER Adapter,
+void RxTimerHandler(void* SystemSpecific1, struct wb35_adapter * adapter,
 		    void* SystemSpecific2, void* SystemSpecific3)
 {
 	WARN_ON(1);

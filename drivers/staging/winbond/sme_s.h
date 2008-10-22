@@ -196,9 +196,9 @@ typedef struct _SME_PARAMETERS
 
 } SME_PARAMETERS, *PSME_PARAMETERS;
 
-#define psSME			(&(Adapter->sSmePara))
+#define psSME			(&(adapter->sSmePara))
 
-#define wSMEGetCurrentSTAState(Adapter)		((u16)(Adapter)->sSmePara.wState)
+#define wSMEGetCurrentSTAState(adapter)		((u16)(adapter)->sSmePara.wState)
 
 
 

@@ -1,9 +1,9 @@
 #include "os_common.h"
 
 void
-Mds_reset_descriptor(PADAPTER Adapter)
+Mds_reset_descriptor(struct wb35_adapter * adapter)
 {
-	PMDS pMds = &Adapter->Mds;
+	PMDS pMds = &adapter->Mds;
 
 	pMds->TxPause = 0;
 	pMds->TxThreadCount = 0;
@@ -14,30 +14,30 @@ Mds_reset_descriptor(PADAPTER Adapter)
 }
 
 unsigned char
-Mds_initial(PADAPTER Adapter)
+Mds_initial(struct wb35_adapter * adapter)
 {
-	PMDS pMds = &Adapter->Mds;
+	PMDS pMds = &adapter->Mds;
 
 	pMds->TxPause = FALSE;
 	pMds->TxRTSThreshold = DEFAULT_RTSThreshold;
 	pMds->TxFragmentThreshold = DEFAULT_FRAGMENT_THRESHOLD;
 
-	vRxTimerInit(Adapter);//for WPA countermeasure
+	vRxTimerInit(adapter);//for WPA countermeasure
 
-	return hal_get_tx_buffer( &Adapter->sHwData, &pMds->pTxBuffer );
+	return hal_get_tx_buffer( &adapter->sHwData, &pMds->pTxBuffer );
 }
 
 void
-Mds_Destroy(PADAPTER Adapter)
+Mds_Destroy(struct wb35_adapter * adapter)
 {
-	vRxTimerStop(Adapter);
+	vRxTimerStop(adapter);
 }
 
 void
-Mds_Tx(PADAPTER Adapter)
+Mds_Tx(struct wb35_adapter * adapter)
 {
-	phw_data_t	pHwData = &Adapter->sHwData;
-	PMDS		pMds = &Adapter->Mds;
+	phw_data_t	pHwData = &adapter->sHwData;
+	PMDS		pMds = &adapter->Mds;
 	DESCRIPTOR	TxDes;
 	PDESCRIPTOR	pTxDes = &TxDes;
 	u8		*XmitBufAddress;
@@ -52,7 +52,7 @@ Mds_Tx(PADAPTER Adapter)
 		return;
 
 	//Only one thread can be run here
-	if (!OS_ATOMIC_INC( Adapter, &pMds->TxThreadCount) == 1)
+	if (!OS_ATOMIC_INC( adapter, &pMds->TxThreadCount) == 1)
 		goto cleanup;
 
 	// Start to fill the data
@@ -69,7 +69,7 @@ Mds_Tx(PADAPTER Adapter)
 		XmitBufSize = 0;
 		FillCount = 0;
 		do {
-			PacketSize = Adapter->sMlmeFrame.len;
+			PacketSize = adapter->sMlmeFrame.len;
 			if (!PacketSize)
 				break;
 
@@ -98,10 +98,10 @@ Mds_Tx(PADAPTER Adapter)
 			pMds->TxDesIndex++;
 			pMds->TxDesIndex %= MAX_USB_TX_DESCRIPTOR;
 
-			MLME_GetNextPacket( Adapter, pTxDes );
+			MLME_GetNextPacket( adapter, pTxDes );
 
 			// Copy header. 8byte USB + 24byte 802.11Hdr. Set TxRate, Preamble type
-			Mds_HeaderCopy( Adapter, pTxDes, XmitBufAddress );
+			Mds_HeaderCopy( adapter, pTxDes, XmitBufAddress );
 
 			// For speed up Key setting
 			if (pTxDes->EapFix) {
@@ -112,16 +112,16 @@ Mds_Tx(PADAPTER Adapter)
 			}
 
 			// Copy (fragment) frame body, and set USB, 802.11 hdr flag
-			CurrentSize = Mds_BodyCopy(Adapter, pTxDes, XmitBufAddress);
+			CurrentSize = Mds_BodyCopy(adapter, pTxDes, XmitBufAddress);
 
 			// Set RTS/CTS and Normal duration field into buffer
-			Mds_DurationSet(Adapter, pTxDes, XmitBufAddress);
+			Mds_DurationSet(adapter, pTxDes, XmitBufAddress);
 
 			//
 			// Calculation MIC from buffer which maybe fragment, then fill into temporary address 8 byte
 			// 931130.5.e
 			if (MICAdd)
-				Mds_MicFill( Adapter, pTxDes, XmitBufAddress );
+				Mds_MicFill( adapter, pTxDes, XmitBufAddress );
 
 			//Shift to the next address
 			XmitBufSize += CurrentSize;
@@ -133,7 +133,7 @@ Mds_Tx(PADAPTER Adapter)
 				pMds->TxToggle = TRUE;
 
 			// Get packet to transmit completed, 1:TESTSTA 2:MLME 3: Ndis data
-			MLME_SendComplete(Adapter, 0, TRUE);
+			MLME_SendComplete(adapter, 0, TRUE);
 
 			// Software TSC count 20060214
 			pMds->TxTsc++;
@@ -172,14 +172,14 @@ Mds_Tx(PADAPTER Adapter)
 		Wb35Tx_start(pHwData);
 
  cleanup:
-	OS_ATOMIC_DEC( Adapter, &pMds->TxThreadCount );
+	OS_ATOMIC_DEC( adapter, &pMds->TxThreadCount );
 }
 
 void
-Mds_SendComplete(PADAPTER Adapter, PT02_DESCRIPTOR pT02)
+Mds_SendComplete(struct wb35_adapter * adapter, PT02_DESCRIPTOR pT02)
 {
-	PMDS	pMds = &Adapter->Mds;
-	phw_data_t	pHwData = &Adapter->sHwData;
+	PMDS	pMds = &adapter->Mds;
+	phw_data_t	pHwData = &adapter->sHwData;
 	u8	PacketId = (u8)pT02->T02_Tx_PktID;
 	unsigned char	SendOK = TRUE;
 	u8	RetryCount, TxRate;
@@ -205,7 +205,7 @@ Mds_SendComplete(PADAPTER Adapter, PT02_DESCRIPTOR pT02)
 				#ifdef _PE_STATE_DUMP_
 				WBDEBUG(("dto_tx_retry_count =%d\n", pHwData->dto_tx_retry_count));
 				#endif
-				MTO_SetTxCount(Adapter, TxRate, RetryCount);
+				MTO_SetTxCount(adapter, TxRate, RetryCount);
 			}
 			pHwData->dto_tx_frag_count += (RetryCount+1);
 
@@ -219,7 +219,7 @@ Mds_SendComplete(PADAPTER Adapter, PT02_DESCRIPTOR pT02)
 		} else {
 			if (pT02->T02_effective_transmission_rate)
 				pHwData->tx_ETR_count++;
-			MTO_SetTxCount(Adapter, TxRate, RetryCount);
+			MTO_SetTxCount(adapter, TxRate, RetryCount);
 		}
 
 		// Clear send result buffer
@@ -229,9 +229,9 @@ Mds_SendComplete(PADAPTER Adapter, PT02_DESCRIPTOR pT02)
 }
 
 void
-Mds_HeaderCopy(PADAPTER Adapter, PDESCRIPTOR pDes, u8 *TargetBuffer)
+Mds_HeaderCopy(struct wb35_adapter * adapter, PDESCRIPTOR pDes, u8 *TargetBuffer)
 {
-	PMDS	pMds = &Adapter->Mds;
+	PMDS	pMds = &adapter->Mds;
 	u8	*src_buffer = pDes->buffer_address[0];//931130.5.g
 	PT00_DESCRIPTOR	pT00;
 	PT01_DESCRIPTOR	pT01;
@@ -326,10 +326,10 @@ Mds_HeaderCopy(PADAPTER Adapter, PDESCRIPTOR pDes, u8 *TargetBuffer)
 
 // The function return the 4n size of usb pk
 u16
-Mds_BodyCopy(PADAPTER Adapter, PDESCRIPTOR pDes, u8 *TargetBuffer)
+Mds_BodyCopy(struct wb35_adapter * adapter, PDESCRIPTOR pDes, u8 *TargetBuffer)
 {
 	PT00_DESCRIPTOR	pT00;
-	PMDS	pMds = &Adapter->Mds;
+	PMDS	pMds = &adapter->Mds;
 	u8	*buffer;
 	u8	*src_buffer;
 	u8	*pctmp;
@@ -429,7 +429,7 @@ Mds_BodyCopy(PADAPTER Adapter, PDESCRIPTOR pDes, u8 *TargetBuffer)
 
 
 void
-Mds_DurationSet(  PADAPTER Adapter,  PDESCRIPTOR pDes,  u8 *buffer )
+Mds_DurationSet(  struct wb35_adapter * adapter,  PDESCRIPTOR pDes,  u8 *buffer )
 {
 	PT00_DESCRIPTOR	pT00;
 	PT01_DESCRIPTOR	pT01;
@@ -624,9 +624,9 @@ Mds_DurationSet(  PADAPTER Adapter,  PDESCRIPTOR pDes,  u8 *buffer )
 
 }
 
-void MDS_EthernetPacketReceive(  PADAPTER Adapter,  PRXLAYER1 pRxLayer1 )
+void MDS_EthernetPacketReceive(  struct wb35_adapter * adapter,  PRXLAYER1 pRxLayer1 )
 {
-		OS_RECEIVE_PACKET_INDICATE( Adapter, pRxLayer1 );
+		OS_RECEIVE_PACKET_INDICATE( adapter, pRxLayer1 );
 }
 
 

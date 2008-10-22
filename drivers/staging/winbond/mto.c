@@ -353,7 +353,7 @@ void MTO_SetDTORateRange(MTO_FUNC_INPUT,u8 *pRateArray, u8 ArraySize)
 //    This function should be invoked during system initialization.
 //
 //  Arguments:
-//    Adapter      - The pointer to the Miniport Adapter Context
+//    adapter      - The pointer to the Miniport adapter Context
 //
 //  Return Value:
 //    None
@@ -393,8 +393,8 @@ void MTO_Init(MTO_FUNC_INPUT)
     MTO_SQ_ANT(0)       = 0;
     MTO_SQ_ANT(1)       = 0;
     MTO_ANT_DIVERSITY() = MTO_ANTENNA_DIVERSITY_ON;
-    //CardSet_AntennaDiversity(Adapter, MTO_ANT_DIVERSITY());
-    //PLMESetAntennaDiversity( Adapter, MTO_ANT_DIVERSITY());
+    //CardSet_AntennaDiversity(adapter, MTO_ANT_DIVERSITY());
+    //PLMESetAntennaDiversity( adapter, MTO_ANT_DIVERSITY());
 
     MTO_AGING_TIMEOUT() = 0;//MTO_TMR_AGING() / MTO_TMR_PERIODIC();
 
@@ -1210,7 +1210,7 @@ u8 MTO_GetTxFallbackRate(MTO_FUNC_INPUT)
 //    to transmit a packet or when MSDULifeTime expired.
 //
 //  Arguments:
-//    Adapter      - The pointer to the Miniport Adapter Context
+//    adapter      - The pointer to the Miniport adapter Context
 //
 //  Return Value:
 //    None

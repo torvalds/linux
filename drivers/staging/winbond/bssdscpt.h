@@ -78,7 +78,7 @@ typedef struct BSSDescriptionElement
     u16		wState;			// the current state of the system
 	u16		wIndex;			// THIS BSS element entry index
 
-	void*	psAdapter;		// pointer to THIS Adapter
+	void*	psadapter;		// pointer to THIS adapter
 	OS_TIMER	nTimer;  // MLME timer
 
     // Authentication
@@ -148,9 +148,9 @@ typedef struct BSSDescriptionElement
 
 } WB_BSSDESCRIPTION, *PWB_BSSDESCRIPTION;
 
-#define wBSSConnectedSTA(Adapter)             \
-    ((u16)(Adapter)->sLocalPara.wConnectedSTAindex)
+#define wBSSConnectedSTA(adapter)             \
+    ((u16)(adapter)->sLocalPara.wConnectedSTAindex)
 
-#define psBSS(i)			(&(Adapter->asBSSDescriptElement[(i)]))
+#define psBSS(i)			(&(adapter->asBSSDescriptElement[(i)]))
 
 

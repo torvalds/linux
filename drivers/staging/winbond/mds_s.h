@@ -21,20 +21,20 @@
 #define CURRENT_PAIRWISE_KEY			psSME->tx_mic_key
 #define CURRENT_GROUP_KEY				psSME->group_tx_mic_key
 #define CURRENT_ENCRYPT_STATUS			psSME->encrypt_status
-#define CURRENT_WEP_ID					Adapter->sSmePara._dot11WEPDefaultKeyID
-#define CURRENT_CONTROL_PORT_BLOCK		( psSME->wpa_ok!=1 || (Adapter->Mds.boCounterMeasureBlock==1 && (CURRENT_ENCRYPT_STATUS==ENCRYPT_TKIP)) )
-#define CURRENT_FRAGMENT_THRESHOLD		(Adapter->Mds.TxFragmentThreshold & ~0x1)
+#define CURRENT_WEP_ID					adapter->sSmePara._dot11WEPDefaultKeyID
+#define CURRENT_CONTROL_PORT_BLOCK		( psSME->wpa_ok!=1 || (adapter->Mds.boCounterMeasureBlock==1 && (CURRENT_ENCRYPT_STATUS==ENCRYPT_TKIP)) )
+#define CURRENT_FRAGMENT_THRESHOLD		(adapter->Mds.TxFragmentThreshold & ~0x1)
 #define CURRENT_PREAMBLE_MODE			psLOCAL->boShortPreamble?WLAN_PREAMBLE_TYPE_SHORT:WLAN_PREAMBLE_TYPE_LONG
 #define CURRENT_LINK_ON					OS_LINK_STATUS
-#define CURRENT_TX_RATE					Adapter->sLocalPara.CurrentTxRate
-#define CURRENT_FALL_BACK_TX_RATE		Adapter->sLocalPara.CurrentTxFallbackRate
-#define CURRENT_TX_RATE_FOR_MNG			Adapter->sLocalPara.CurrentTxRateForMng
+#define CURRENT_TX_RATE					adapter->sLocalPara.CurrentTxRate
+#define CURRENT_FALL_BACK_TX_RATE		adapter->sLocalPara.CurrentTxFallbackRate
+#define CURRENT_TX_RATE_FOR_MNG			adapter->sLocalPara.CurrentTxRateForMng
 #define CURRENT_PROTECT_MECHANISM		psLOCAL->boProtectMechanism
-#define CURRENT_RTS_THRESHOLD			Adapter->Mds.TxRTSThreshold
+#define CURRENT_RTS_THRESHOLD			adapter->Mds.TxRTSThreshold
 
-#define MIB_GS_XMIT_OK_INC				Adapter->sLocalPara.GS_XMIT_OK++
-#define MIB_GS_RCV_OK_INC				Adapter->sLocalPara.GS_RCV_OK++
-#define MIB_GS_XMIT_ERROR_INC			Adapter->sLocalPara.GS_XMIT_ERROR
+#define MIB_GS_XMIT_OK_INC				adapter->sLocalPara.GS_XMIT_OK++
+#define MIB_GS_RCV_OK_INC				adapter->sLocalPara.GS_RCV_OK++
+#define MIB_GS_XMIT_ERROR_INC			adapter->sLocalPara.GS_XMIT_ERROR
 
 //---------- TX -----------------------------------
 #define ETHERNET_TX_DESCRIPTORS         MAX_USB_TX_BUFFER_NUMBER

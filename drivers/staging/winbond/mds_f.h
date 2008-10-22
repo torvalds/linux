@@ -1,33 +1,33 @@
-unsigned char Mds_initial(  PADAPTER Adapter );
-void Mds_Destroy(  PADAPTER Adapter );
-void Mds_Tx(  PADAPTER Adapter );
-void Mds_HeaderCopy(  PADAPTER Adapter,  PDESCRIPTOR pDes,  u8 *TargetBuffer );
-u16 Mds_BodyCopy(  PADAPTER Adapter,  PDESCRIPTOR pDes,  u8 *TargetBuffer );
-void Mds_DurationSet(  PADAPTER Adapter,  PDESCRIPTOR pDes,  u8 *TargetBuffer );
-void Mds_SendComplete(  PADAPTER Adapter,  PT02_DESCRIPTOR pT02 );
-void Mds_MpduProcess(  PADAPTER Adapter,  PDESCRIPTOR pRxDes );
-void Mds_reset_descriptor(  PADAPTER Adapter );
+unsigned char Mds_initial(  struct wb35_adapter *adapter );
+void Mds_Destroy(  struct wb35_adapter *adapter );
+void Mds_Tx(  struct wb35_adapter *adapter );
+void Mds_HeaderCopy(  struct wb35_adapter *adapter,  PDESCRIPTOR pDes,  u8 *TargetBuffer );
+u16 Mds_BodyCopy(  struct wb35_adapter *adapter,  PDESCRIPTOR pDes,  u8 *TargetBuffer );
+void Mds_DurationSet(  struct wb35_adapter *adapter,  PDESCRIPTOR pDes,  u8 *TargetBuffer );
+void Mds_SendComplete(  struct wb35_adapter *adapter,  PT02_DESCRIPTOR pT02 );
+void Mds_MpduProcess(  struct wb35_adapter *adapter,  PDESCRIPTOR pRxDes );
+void Mds_reset_descriptor(  struct wb35_adapter *adapter );
 extern void DataDmp(u8 *pdata, u32 len, u32 offset);
 
 
-void vRxTimerInit(PWB32_ADAPTER Adapter);
-void vRxTimerStart(PWB32_ADAPTER Adapter, int timeout_value);
-void RxTimerHandler_1a( PADAPTER Adapter);
-void vRxTimerStop(PWB32_ADAPTER Adapter);
+void vRxTimerInit(struct wb35_adapter *adapter);
+void vRxTimerStart(struct wb35_adapter *adapter, int timeout_value);
+void RxTimerHandler_1a( struct wb35_adapter *adapter);
+void vRxTimerStop(struct wb35_adapter *adapter);
 void RxTimerHandler( void*			SystemSpecific1,
-					   PWB32_ADAPTER 	Adapter,
+					   struct wb35_adapter * 	adapter,
 					   void*			SystemSpecific2,
 					   void*			SystemSpecific3);
 
 
 // For Asynchronous indicating. The routine collocates with USB.
-void Mds_MsduProcess(  PWB32_ADAPTER Adapter,  PRXLAYER1 pRxLayer1,  u8 SlotIndex);
+void Mds_MsduProcess(  struct wb35_adapter *adapter,  PRXLAYER1 pRxLayer1,  u8 SlotIndex);
 
 // For data frame sending 20060802
-u16 MDS_GetPacketSize(  PADAPTER Adapter );
-void MDS_GetNextPacket(  PADAPTER Adapter,  PDESCRIPTOR pDes );
-void MDS_GetNextPacketComplete(  PADAPTER Adapter,  PDESCRIPTOR pDes );
-void MDS_SendResult(  PADAPTER Adapter,  u8 PacketId,  unsigned char SendOK );
-void MDS_EthernetPacketReceive(  PADAPTER Adapter,  PRXLAYER1 pRxLayer1 );
+u16 MDS_GetPacketSize(  struct wb35_adapter *adapter );
+void MDS_GetNextPacket(  struct wb35_adapter *adapter,  PDESCRIPTOR pDes );
+void MDS_GetNextPacketComplete(  struct wb35_adapter *adapter,  PDESCRIPTOR pDes );
+void MDS_SendResult(  struct wb35_adapter *adapter,  u8 PacketId,  unsigned char SendOK );
+void MDS_EthernetPacketReceive(  struct wb35_adapter *adapter,  PRXLAYER1 pRxLayer1 );
 
 

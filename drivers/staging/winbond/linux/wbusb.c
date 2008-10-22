@@ -34,7 +34,7 @@ static struct ieee80211_channel wbsoft_channels[] = {
 
 int wbsoft_enabled;
 struct ieee80211_hw *my_dev;
-PADAPTER my_adapter;
+struct wb35_adapter * my_adapter;
 
 static int wbsoft_add_interface(struct ieee80211_hw *dev,
 				 struct ieee80211_if_init_conf *conf)
@@ -187,7 +187,7 @@ struct wbsoft_priv {
 
 static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id_table)
 {
-	PADAPTER	Adapter;
+	struct wb35_adapter *adapter;
 	PWBLINUX	pWbLinux;
 	PWBUSB		pWbUsb;
         struct usb_host_interface *interface;
@@ -211,11 +211,11 @@ static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id
 	if (ltmp)  // Is already initialized?
 		goto error;
 
-	Adapter = kzalloc(sizeof(ADAPTER), GFP_KERNEL);
+	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
 
-	my_adapter = Adapter;
-	pWbLinux = &Adapter->WbLinux;
-	pWbUsb = &Adapter->sHwData.WbUsb;
+	my_adapter = adapter;
+	pWbLinux = &adapter->WbLinux;
+	pWbUsb = &adapter->sHwData.WbUsb;
 	pWbUsb->udev = udev;
 
         interface = intf->cur_altsetting;
@@ -226,7 +226,7 @@ static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id
 		pWbUsb->IsUsb20 = 1;
 	}
 
-	if (!WbWLanInitialize(Adapter)) {
+	if (!WbWLanInitialize(adapter)) {
 		printk("[w35und]WbWLanInitialize fail\n");
 		goto error;
 	}
@@ -248,7 +248,7 @@ static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id
 
 		SET_IEEE80211_DEV(dev, &udev->dev);
 		{
-			phw_data_t pHwData = &Adapter->sHwData;
+			phw_data_t pHwData = &adapter->sHwData;
 			unsigned char		dev_addr[MAX_ADDR_LEN];
 			hal_get_permanent_address(pHwData, dev_addr);
 			SET_IEEE80211_PERM_ADDR(dev, dev_addr);
@@ -284,7 +284,7 @@ static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id
 		BUG_ON(res);
 	}
 
-	usb_set_intfdata( intf, Adapter );
+	usb_set_intfdata( intf, adapter );
 
 	printk("[w35und] _probe OK\n");
 	return 0;
@@ -335,13 +335,13 @@ WbUsb_destroy(phw_data_t pHwData)
 static void wb35_disconnect(struct usb_interface *intf)
 {
 	PWBLINUX pWbLinux;
-	PADAPTER Adapter = usb_get_intfdata(intf);
+	struct wb35_adapter * adapter = usb_get_intfdata(intf);
 	usb_set_intfdata(intf, NULL);
 
-        pWbLinux = &Adapter->WbLinux;
+        pWbLinux = &adapter->WbLinux;
 
 	// Card remove
-	WbWlanHalt(Adapter);
+	WbWlanHalt(adapter);
 
 }
 

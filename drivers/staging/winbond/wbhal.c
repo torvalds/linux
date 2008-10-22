@@ -28,10 +28,10 @@ void hal_get_permanent_address( phw_data_t pHwData, u8 *pethernet_address )
 	memcpy( pethernet_address, pHwData->PermanentMacAddress, 6 );
 }
 
-u8 hal_init_hardware(phw_data_t pHwData, PWB32_ADAPTER Adapter)
+u8 hal_init_hardware(phw_data_t pHwData, struct wb35_adapter * adapter)
 {
 	u16 SoftwareSet;
-	pHwData->Adapter = Adapter;
+	pHwData->adapter = adapter;
 
 	// Initial the variable
 	pHwData->MaxReceiveLifeTime = DEFAULT_MSDU_LIFE_TIME; // Setting Rx maximum MSDU life time
@@ -392,7 +392,7 @@ s32 hal_get_rssi_bss(  phw_data_t pHwData,  u16 idx,  u8 Count )
 	R01_DESCRIPTOR	r01;
 	s32 ltmp = 0, tmp;
 	u8	i, j;
-	PADAPTER	Adapter = pHwData->Adapter;
+	struct wb35_adapter *	adapter = pHwData->adapter;
 //	u32 *HalRssiArry = psBSS(idx)->HalRssi;
 
 	if( pHwData->SurpriseRemove ) return -200;
@@ -443,7 +443,7 @@ void hal_led_control_1a(  phw_data_t pHwData )
 
 void hal_led_control(  void* S1,  phw_data_t pHwData,  void* S3,  void* S4 )
 {
-	PADAPTER	Adapter = pHwData->Adapter;
+	struct wb35_adapter *	adapter = pHwData->adapter;
 	struct wb35_reg *reg = &pHwData->reg;
 	u32	LEDSet = (pHwData->SoftwareSet & HAL_LED_SET_MASK) >> HAL_LED_SET_SHIFT;
 	u8	LEDgray[20] = { 0,3,4,6,8,10,11,12,13,14,15,14,13,12,11,10,8,6,4,2 };
@@ -633,8 +633,8 @@ void hal_led_control(  void* S1,  phw_data_t pHwData,  void* S3,  void* S4 )
 				else
 				{
 					// Is transmitting/receiving ??
-					if( (OS_CURRENT_RX_BYTE( Adapter ) != pHwData->RxByteCountLast ) ||
-						(OS_CURRENT_TX_BYTE( Adapter ) != pHwData->TxByteCountLast ) )
+					if( (OS_CURRENT_RX_BYTE( adapter ) != pHwData->RxByteCountLast ) ||
+						(OS_CURRENT_TX_BYTE( adapter ) != pHwData->TxByteCountLast ) )
 					{
 						if( (reg->U1BC_LEDConfigure & 0x3000) != 0x3000 )
 						{
@@ -643,8 +643,8 @@ void hal_led_control(  void* S1,  phw_data_t pHwData,  void* S3,  void* S4 )
 						}
 
 						// Update variable
-						pHwData->RxByteCountLast = OS_CURRENT_RX_BYTE( Adapter );
-						pHwData->TxByteCountLast = OS_CURRENT_TX_BYTE( Adapter );
+						pHwData->RxByteCountLast = OS_CURRENT_RX_BYTE( adapter );
+						pHwData->TxByteCountLast = OS_CURRENT_TX_BYTE( adapter );
 						TimeInterval = 200;
 					}
 					else
@@ -846,18 +846,18 @@ void hal_system_power_change(phw_data_t pHwData, u32 PowerState)
 
 void hal_surprise_remove(  phw_data_t pHwData )
 {
-	PADAPTER Adapter = pHwData->Adapter;
-	if (OS_ATOMIC_INC( Adapter, &pHwData->SurpriseRemoveCount ) == 1) {
+	struct wb35_adapter * adapter = pHwData->adapter;
+	if (OS_ATOMIC_INC( adapter, &pHwData->SurpriseRemoveCount ) == 1) {
 		#ifdef _PE_STATE_DUMP_
 		WBDEBUG(("Calling hal_surprise_remove\n"));
 		#endif
-		OS_STOP( Adapter );
+		OS_STOP( adapter );
 	}
 }
 
 void hal_rate_change(  phw_data_t pHwData ) // Notify the HAL rate is changing 20060613.1
 {
-	PADAPTER	Adapter = pHwData->Adapter;
+	struct wb35_adapter *	adapter = pHwData->adapter;
 	u8		rate = CURRENT_TX_RATE;
 
 	BBProcessor_RateChanging( pHwData, rate );

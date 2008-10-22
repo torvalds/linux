@@ -78,9 +78,9 @@ typedef struct _SCAN_PARAMETERS
 
 } SCAN_PARAMETERS, *psSCAN_PARAMETERS;
 
-// Encapsulate 'Adapter' data structure
-#define psSCAN			(&(Adapter->sScanPara))
-#define psSCANREQ			(&(Adapter->sScanPara.sScanReq))
+// Encapsulate 'adapter' data structure
+#define psSCAN			(&(adapter->sScanPara))
+#define psSCANREQ			(&(adapter->sScanPara.sScanReq))
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //	scan.h
@@ -109,7 +109,7 @@ typedef struct _SCAN_PARAMETERS
 
 // static functions
 
-//static void ScanTimerHandler(PWB32_ADAPTER Adapter);
-//static void vScanTimerStart(PWB32_ADAPTER	Adapter, int timeout_value);
-//static void vScanTimerStop(PWB32_ADAPTER Adapter);
+//static void ScanTimerHandler(struct wb35_adapter * adapter);
+//static void vScanTimerStart(struct wb35_adapter *	adapter, int timeout_value);
+//static void vScanTimerStop(struct wb35_adapter * adapter);
 

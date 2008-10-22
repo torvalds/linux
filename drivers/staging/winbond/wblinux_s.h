@@ -2,7 +2,7 @@
 // wblinux_s.h
 //
 #define OS_MEMORY_ALLOC( _V, _S )	WBLINUX_MemoryAlloc( _V, _S )
-#define OS_LINK_STATUS			(Adapter->WbLinux.LinkStatus == OS_CONNECTED)
+#define OS_LINK_STATUS			(adapter->WbLinux.LinkStatus == OS_CONNECTED)
 #define OS_SET_SHUTDOWN( _A )		_A->WbLinux.shutdown=1
 #define OS_SET_RESUME( _A )		_A->WbLinux.shutdown=0
 #define OS_CONNECT_STATUS_INDICATE( _A, _F )		WBLINUX_ConnectStatus( _A, _F )

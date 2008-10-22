@@ -21,9 +21,9 @@ WBLINUX_MemoryAlloc(void* *VirtualAddress, u32 Length)
 }
 
 s32
-EncapAtomicInc(PADAPTER Adapter, void* pAtomic)
+EncapAtomicInc(struct wb35_adapter * adapter, void* pAtomic)
 {
-	PWBLINUX pWbLinux = &Adapter->WbLinux;
+	PWBLINUX pWbLinux = &adapter->WbLinux;
 	u32	ltmp;
 	u32 *	pltmp = (u32 *)pAtomic;
 	spin_lock_irq( &pWbLinux->AtomicSpinLock );
@@ -34,9 +34,9 @@ EncapAtomicInc(PADAPTER Adapter, void* pAtomic)
 }
 
 s32
-EncapAtomicDec(PADAPTER Adapter, void* pAtomic)
+EncapAtomicDec(struct wb35_adapter * adapter, void* pAtomic)
 {
-	PWBLINUX pWbLinux = &Adapter->WbLinux;
+	PWBLINUX pWbLinux = &adapter->WbLinux;
 	u32	ltmp;
 	u32 *	pltmp = (u32 *)pAtomic;
 	spin_lock_irq( &pWbLinux->AtomicSpinLock );
@@ -47,9 +47,9 @@ EncapAtomicDec(PADAPTER Adapter, void* pAtomic)
 }
 
 unsigned char
-WBLINUX_Initial(PADAPTER Adapter)
+WBLINUX_Initial(struct wb35_adapter * adapter)
 {
-	PWBLINUX pWbLinux = &Adapter->WbLinux;
+	PWBLINUX pWbLinux = &adapter->WbLinux;
 
 	spin_lock_init( &pWbLinux->SpinLock );
 	spin_lock_init( &pWbLinux->AtomicSpinLock );
@@ -57,40 +57,40 @@ WBLINUX_Initial(PADAPTER Adapter)
 }
 
 void
-WBLinux_ReceivePacket(PADAPTER Adapter, PRXLAYER1 pRxLayer1)
+WBLinux_ReceivePacket(struct wb35_adapter * adapter, PRXLAYER1 pRxLayer1)
 {
 	BUG();
 }
 
 
 void
-WBLINUX_GetNextPacket(PADAPTER Adapter,  PDESCRIPTOR pDes)
+WBLINUX_GetNextPacket(struct wb35_adapter * adapter,  PDESCRIPTOR pDes)
 {
 	BUG();
 }
 
 void
-WBLINUX_GetNextPacketCompleted(PADAPTER Adapter, PDESCRIPTOR pDes)
+WBLINUX_GetNextPacketCompleted(struct wb35_adapter * adapter, PDESCRIPTOR pDes)
 {
 	BUG();
 }
 
 void
-WBLINUX_Destroy(PADAPTER Adapter)
+WBLINUX_Destroy(struct wb35_adapter * adapter)
 {
-	WBLINUX_stop( Adapter );
+	WBLINUX_stop( adapter );
 #ifdef _PE_USB_INI_DUMP_
 	WBDEBUG(("[w35und] unregister_netdev!\n"));
 #endif
 }
 
 void
-WBLINUX_stop(  PADAPTER Adapter )
+WBLINUX_stop(  struct wb35_adapter * adapter )
 {
-	PWBLINUX	pWbLinux = &Adapter->WbLinux;
+	PWBLINUX	pWbLinux = &adapter->WbLinux;
 	struct sk_buff *pSkb;
 
-	if (OS_ATOMIC_INC( Adapter, &pWbLinux->ThreadCount ) == 1) {
+	if (OS_ATOMIC_INC( adapter, &pWbLinux->ThreadCount ) == 1) {
 		// Shutdown module immediately
 		pWbLinux->shutdown = 1;
 
@@ -112,33 +112,33 @@ WBLINUX_stop(  PADAPTER Adapter )
 #endif
 	}
 
-	OS_ATOMIC_DEC( Adapter, &pWbLinux->ThreadCount );
+	OS_ATOMIC_DEC(adapter, &pWbLinux->ThreadCount);
 }
 
 void
-WbWlanHalt(  PADAPTER Adapter )
+WbWlanHalt(struct wb35_adapter *adapter)
 {
 	//---------------------
-	Adapter->sLocalPara.ShutDowned = TRUE;
+	adapter->sLocalPara.ShutDowned = TRUE;
 
-	Mds_Destroy( Adapter );
+	Mds_Destroy(adapter);
 
 	// Turn off Rx and Tx hardware ability
-	hal_stop( &Adapter->sHwData );
+	hal_stop(&adapter->sHwData);
 #ifdef _PE_USB_INI_DUMP_
 	WBDEBUG(("[w35und] Hal_stop O.K.\n"));
 #endif
 	msleep(100);// Waiting Irp completed
 
 	// Destroy the NDIS module
-	WBLINUX_Destroy( Adapter );
+	WBLINUX_Destroy(adapter);
 
 	// Halt the HAL
-	hal_halt(&Adapter->sHwData, NULL);
+	hal_halt(&adapter->sHwData, NULL);
 }
 
 unsigned char
-WbWLanInitialize(PADAPTER Adapter)
+WbWLanInitialize(struct wb35_adapter *adapter)
 {
 	phw_data_t	pHwData;
 	u8		*pMacAddr;
@@ -150,22 +150,22 @@ WbWLanInitialize(PADAPTER Adapter)
 	//
 	// Setting default value for Linux
 	//
-	Adapter->sLocalPara.region_INF = REGION_AUTO;
-	Adapter->sLocalPara.TxRateMode = RATE_AUTO;
+	adapter->sLocalPara.region_INF = REGION_AUTO;
+	adapter->sLocalPara.TxRateMode = RATE_AUTO;
 	psLOCAL->bMacOperationMode = MODE_802_11_BG;	// B/G mode
-	Adapter->Mds.TxRTSThreshold = DEFAULT_RTSThreshold;
-	Adapter->Mds.TxFragmentThreshold = DEFAULT_FRAGMENT_THRESHOLD;
-	hal_set_phy_type( &Adapter->sHwData, RF_WB_242_1 );
-	Adapter->sLocalPara.MTUsize = MAX_ETHERNET_PACKET_SIZE;
+	adapter->Mds.TxRTSThreshold = DEFAULT_RTSThreshold;
+	adapter->Mds.TxFragmentThreshold = DEFAULT_FRAGMENT_THRESHOLD;
+	hal_set_phy_type( &adapter->sHwData, RF_WB_242_1 );
+	adapter->sLocalPara.MTUsize = MAX_ETHERNET_PACKET_SIZE;
 	psLOCAL->bPreambleMode = AUTO_MODE;
-	Adapter->sLocalPara.RadioOffStatus.boSwRadioOff = FALSE;
-	pHwData = &Adapter->sHwData;
+	adapter->sLocalPara.RadioOffStatus.boSwRadioOff = FALSE;
+	pHwData = &adapter->sHwData;
 	hal_set_phy_type( pHwData, RF_DECIDE_BY_INF );
 
 	//
 	// Initial each module and variable
 	//
-	if (!WBLINUX_Initial(Adapter)) {
+	if (!WBLINUX_Initial(adapter)) {
 #ifdef _PE_USB_INI_DUMP_
 		WBDEBUG(("[w35und]WBNDIS initialization failed\n"));
 #endif
@@ -173,17 +173,17 @@ WbWLanInitialize(PADAPTER Adapter)
 	}
 
 	// Initial Software variable
-	Adapter->sLocalPara.ShutDowned = FALSE;
+	adapter->sLocalPara.ShutDowned = FALSE;
 
 	//added by ws for wep key error detection
-	Adapter->sLocalPara.bWepKeyError= FALSE;
-	Adapter->sLocalPara.bToSelfPacketReceived = FALSE;
-	Adapter->sLocalPara.WepKeyDetectTimerCount= 2 * 100; /// 2 seconds
+	adapter->sLocalPara.bWepKeyError= FALSE;
+	adapter->sLocalPara.bToSelfPacketReceived = FALSE;
+	adapter->sLocalPara.WepKeyDetectTimerCount= 2 * 100; /// 2 seconds
 
 	// Initial USB hal
 	InitStep = 1;
-	pHwData = &Adapter->sHwData;
-	if (!hal_init_hardware(pHwData, Adapter))
+	pHwData = &adapter->sHwData;
+	if (!hal_init_hardware(pHwData, adapter))
 		goto error;
 
 	EEPROM_region = hal_get_region_from_EEPROM( pHwData );
@@ -197,9 +197,9 @@ WbWLanInitialize(PADAPTER Adapter)
 	}
 
 	// Get Software setting flag from hal
-	Adapter->sLocalPara.boAntennaDiversity = FALSE;
+	adapter->sLocalPara.boAntennaDiversity = FALSE;
 	if (hal_software_set(pHwData) & 0x00000001)
-		Adapter->sLocalPara.boAntennaDiversity = TRUE;
+		adapter->sLocalPara.boAntennaDiversity = TRUE;
 
 	//
 	// For TS module
@@ -208,7 +208,7 @@ WbWLanInitialize(PADAPTER Adapter)
 
 	// For MDS module
 	InitStep = 3;
-	Mds_initial(Adapter);
+	Mds_initial(adapter);
 
 	//=======================================
 	// Initialize the SME, SCAN, MLME, ROAM
@@ -218,15 +218,15 @@ WbWLanInitialize(PADAPTER Adapter)
 	InitStep = 6;
 
 	// If no user-defined address in the registry, use the addresss "burned" on the NIC instead.
-	pMacAddr = Adapter->sLocalPara.ThisMacAddress;
-	pMacAddr2 = Adapter->sLocalPara.PermanentAddress;
-	hal_get_permanent_address( pHwData, Adapter->sLocalPara.PermanentAddress );// Reading ethernet address from EEPROM
+	pMacAddr = adapter->sLocalPara.ThisMacAddress;
+	pMacAddr2 = adapter->sLocalPara.PermanentAddress;
+	hal_get_permanent_address( pHwData, adapter->sLocalPara.PermanentAddress );// Reading ethernet address from EEPROM
 	if (OS_MEMORY_COMPARE(pMacAddr, "\x00\x00\x00\x00\x00\x00", MAC_ADDR_LENGTH )) // Is equal
 	{
 		memcpy( pMacAddr, pMacAddr2, MAC_ADDR_LENGTH );
 	} else {
 		// Set the user define MAC address
-		hal_set_ethernet_address( pHwData, Adapter->sLocalPara.ThisMacAddress );
+		hal_set_ethernet_address( pHwData, adapter->sLocalPara.ThisMacAddress );
 	}
 
 	//get current antenna
@@ -240,7 +240,7 @@ WbWLanInitialize(PADAPTER Adapter)
 	while (!hal_idle(pHwData))
 		msleep(10);
 
-	MTO_Init(Adapter);
+	MTO_Init(adapter);
 
 	HwRadioOff = hal_get_hw_radio_off( pHwData );
 	psLOCAL->RadioOffStatus.boHwRadioOff = !!HwRadioOff;
@@ -249,16 +249,16 @@ WbWLanInitialize(PADAPTER Adapter)
 
 	hal_driver_init_OK(pHwData) = 1; // Notify hal that the driver is ready now.
 	//set a tx power for reference.....
-//	sme_set_tx_power_level(Adapter, 12);	FIXME?
+//	sme_set_tx_power_level(adapter, 12);	FIXME?
 	return TRUE;
 
 error:
 	switch (InitStep) {
 	case 5:
 	case 4:
-	case 3: Mds_Destroy( Adapter );
+	case 3: Mds_Destroy( adapter );
 	case 2:
-	case 1: WBLINUX_Destroy( Adapter );
+	case 1: WBLINUX_Destroy( adapter );
 		hal_halt( pHwData, NULL );
 	case 0: break;
 	}
@@ -266,9 +266,9 @@ error:
 	return FALSE;
 }
 
-void WBLINUX_ConnectStatus(PADAPTER Adapter, u32 flag)
+void WBLINUX_ConnectStatus(struct wb35_adapter * adapter, u32 flag)
 {
-	PWBLINUX	pWbLinux = &Adapter->WbLinux;
+	PWBLINUX	pWbLinux = &adapter->WbLinux;
 
 	pWbLinux->LinkStatus = flag; // OS_DISCONNECTED	or  OS_CONNECTED
 }

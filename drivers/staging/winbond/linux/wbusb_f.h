@@ -13,7 +13,7 @@
 
 unsigned char WbUsb_initial(phw_data_t pHwData);
 void WbUsb_destroy(phw_data_t pHwData);
-unsigned char WbWLanInitialize(PADAPTER Adapter);
+unsigned char WbWLanInitialize(struct wb35_adapter *adapter);
 #define	WbUsb_Stop( _A )
 
 #define wb_usb_submit_urb(_A) usb_submit_urb(_A, GFP_ATOMIC)

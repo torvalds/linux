@@ -18,8 +18,8 @@
 //====================================================================================
 void hal_remove_mapping_key(  phw_data_t pHwData,  u8 *pmac_addr );
 void hal_remove_default_key(  phw_data_t pHwData,  u32 index );
-unsigned char hal_set_mapping_key(  phw_data_t Adapter,  u8 *pmac_addr,  u8 null_key,  u8 wep_on,  u8 *ptx_tsc,  u8 *prx_tsc,  u8 key_type,  u8 key_len,  u8 *pkey_data );
-unsigned char hal_set_default_key(  phw_data_t Adapter,  u8 index,  u8 null_key,  u8 wep_on,  u8 *ptx_tsc,  u8 *prx_tsc,  u8 key_type,  u8 key_len,  u8 *pkey_data );
+unsigned char hal_set_mapping_key(  phw_data_t adapter,  u8 *pmac_addr,  u8 null_key,  u8 wep_on,  u8 *ptx_tsc,  u8 *prx_tsc,  u8 key_type,  u8 key_len,  u8 *pkey_data );
+unsigned char hal_set_default_key(  phw_data_t adapter,  u8 index,  u8 null_key,  u8 wep_on,  u8 *ptx_tsc,  u8 *prx_tsc,  u8 key_type,  u8 key_len,  u8 *pkey_data );
 void hal_clear_all_default_key(  phw_data_t pHwData );
 void hal_clear_all_group_key(  phw_data_t pHwData );
 void hal_clear_all_mapping_key(  phw_data_t pHwData );
@@ -27,7 +27,7 @@ void hal_clear_all_key(  phw_data_t pHwData );
 void hal_get_ethernet_address(  phw_data_t pHwData,  u8 *current_address );
 void hal_set_ethernet_address(  phw_data_t pHwData,  u8 *current_address );
 void hal_get_permanent_address(  phw_data_t pHwData,  u8 *pethernet_address );
-unsigned char hal_init_hardware(  phw_data_t pHwData,  PADAPTER Adapter );
+unsigned char hal_init_hardware(  phw_data_t pHwData,  struct wb35_adapter * adapter );
 void hal_set_power_save_mode(  phw_data_t pHwData,  unsigned char power_save,  unsigned char wakeup,  unsigned char dtim );
 void hal_get_power_save_mode(  phw_data_t pHwData,   u8 *pin_pwr_save );
 void hal_set_slot_time(  phw_data_t pHwData,  u8 type );
