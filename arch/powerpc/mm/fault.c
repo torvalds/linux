@@ -30,6 +30,7 @@
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
 
+#include <asm/firmware.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
@@ -318,9 +319,16 @@ good_area:
 			goto do_sigbus;
 		BUG();
 	}
-	if (ret & VM_FAULT_MAJOR)
+	if (ret & VM_FAULT_MAJOR) {
 		current->maj_flt++;
-	else
+#ifdef CONFIG_PPC_SMLPAR
+		if (firmware_has_feature(FW_FEATURE_CMO)) {
+			preempt_disable();
+			get_lppaca()->page_ins++;
+			preempt_enable();
+		}
+#endif
+	} else
 		current->min_flt++;
 	up_read(&mm->mmap_sem);
 	return 0;
