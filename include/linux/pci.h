@@ -18,7 +18,6 @@
 #define LINUX_PCI_H
 
 #include <linux/pci_regs.h>	/* The pci register defines */
-#include <linux/io.h>
 
 /*
  * The PCI interface treats multi-function devices as independent
@@ -52,6 +51,7 @@
 #include <linux/kobject.h>
 #include <asm/atomic.h>
 #include <linux/device.h>
+#include <linux/io.h>
 
 /* Include the ID list */
 #include <linux/pci_ids.h>
