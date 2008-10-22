@@ -461,22 +461,22 @@ void __kprobes oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 	if (regs && kexec_should_crash(current))
 		crash_kexec(regs);
 
-	die_owner = -1;
 	bust_spinlocks(0);
+	die_owner = -1;
+	add_taint(TAINT_DIE);
 	die_nest_count--;
 	if (!die_nest_count)
 		/* Nest count reaches zero, release the lock. */
 		__raw_spin_unlock(&die_lock);
 	raw_local_irq_restore(flags);
-	if (!signr) {
-		oops_exit();
+	oops_exit();
+
+	if (!signr)
 		return;
-	}
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");
 	if (panic_on_oops)
 		panic("Fatal exception");
-	oops_exit();
 	do_exit(signr);
 }
 
@@ -499,7 +499,6 @@ int __kprobes __die(const char *str, struct pt_regs *regs, long err)
 		return 1;
 
 	show_registers(regs);
-	add_taint(TAINT_DIE);
 	/* Executive summary in case the oops scrolled away */
 	printk(KERN_ALERT "RIP ");
 	printk_address(regs->ip, 1);
