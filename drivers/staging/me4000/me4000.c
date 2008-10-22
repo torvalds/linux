@@ -1180,7 +1180,7 @@ static int me4000_xilinx_download(struct me4000_info *info)
 
 	/* Wait until /INIT pin is set */
 	udelay(20);
-	if (!inl(info->plx_regbase + PLX_INTCSR) & 0x20) {
+	if (!(inl(info->plx_regbase + PLX_INTCSR) & 0x20)) {
 		printk(KERN_ERR "%s:Can't init Xilinx\n", __func__);
 		return -EIO;
 	}
