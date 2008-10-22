@@ -67,23 +67,19 @@
 #define DEFAULT_DTIM_ALERT_TIME			0
 
 
-typedef struct _REG_QUEUE
-{
-    struct  urb *urb;
-	void*	pUsbReq;
-	void*	Next;
-	union
-	{
+struct wb35_reg_queue {
+	struct urb 	*urb;
+	void		*pUsbReq;
+	void		*Next;
+	union {
 		u32	VALUE;
-		u32 *	pBuffer;
+		u32	*pBuffer;
 	};
-	u8	RESERVED[4];// space reserved for communication
-
-    u16	INDEX; // For storing the register index
-    u8	RESERVED_VALID;	//Indicate whether the RESERVED space is valid at this command.
-	u8	DIRECT; // 0:In   1:Out
-
-} REG_QUEUE, *PREG_QUEUE;
+	u8		RESERVED[4]; // space reserved for communication
+	u16		INDEX; // For storing the register index
+	u8		RESERVED_VALID;	// Indicate whether the RESERVED space is valid at this command.
+	u8		DIRECT; // 0:In   1:Out
+};
 
 //====================================
 // Internal variable for module
@@ -145,8 +141,8 @@ typedef struct _WB35REG
 	//-------------------
 	spinlock_t	EP0VM_spin_lock; // 4B
 	u32	        EP0VM_status;//$$
-	PREG_QUEUE	    pRegFirst;
-	PREG_QUEUE	    pRegLast;
+	struct wb35_reg_queue *reg_first;
+	struct wb35_reg_queue *reg_last;
 	OS_ATOMIC       RegFireCount;
 
 	// Hardware status

@@ -14,7 +14,7 @@ Wb35Reg_BurstWrite(phw_data_t pHwData, u16 RegisterNo, u32 * pRegisterData, u8 N
 {
 	PWB35REG pWb35Reg = &pHwData->Wb35Reg;
 	struct urb	*urb = NULL;
-	PREG_QUEUE	pRegQueue = NULL;
+	struct wb35_reg_queue *reg_queue = NULL;
 	u16		UrbSize;
 	struct      usb_ctrlrequest *dr;
 	u16		i, DataSize = NumberOfData*4;
@@ -24,34 +24,34 @@ Wb35Reg_BurstWrite(phw_data_t pHwData, u16 RegisterNo, u32 * pRegisterData, u8 N
 		return FALSE;
 
 	// Trying to use burst write function if use new hardware
-	UrbSize = sizeof(REG_QUEUE) + DataSize + sizeof(struct usb_ctrlrequest);
-	OS_MEMORY_ALLOC( (void* *)&pRegQueue, UrbSize );
+	UrbSize = sizeof(struct wb35_reg_queue) + DataSize + sizeof(struct usb_ctrlrequest);
+	OS_MEMORY_ALLOC( (void* *)&reg_queue, UrbSize );
 	urb = wb_usb_alloc_urb(0);
-	if( urb && pRegQueue ) {
-		pRegQueue->DIRECT = 2;// burst write register
-		pRegQueue->INDEX = RegisterNo;
-		pRegQueue->pBuffer = (u32 *)((u8 *)pRegQueue + sizeof(REG_QUEUE));
-		memcpy( pRegQueue->pBuffer, pRegisterData, DataSize );
+	if( urb && reg_queue ) {
+		reg_queue->DIRECT = 2;// burst write register
+		reg_queue->INDEX = RegisterNo;
+		reg_queue->pBuffer = (u32 *)((u8 *)reg_queue + sizeof(struct wb35_reg_queue));
+		memcpy( reg_queue->pBuffer, pRegisterData, DataSize );
 		//the function for reversing register data from little endian to big endian
 		for( i=0; i<NumberOfData ; i++ )
-			pRegQueue->pBuffer[i] = cpu_to_le32( pRegQueue->pBuffer[i] );
+			reg_queue->pBuffer[i] = cpu_to_le32( reg_queue->pBuffer[i] );
 
-		dr = (struct usb_ctrlrequest *)((u8 *)pRegQueue + sizeof(REG_QUEUE) + DataSize);
+		dr = (struct usb_ctrlrequest *)((u8 *)reg_queue + sizeof(struct wb35_reg_queue) + DataSize);
 		dr->bRequestType = USB_TYPE_VENDOR | USB_DIR_OUT | USB_RECIP_DEVICE;
 		dr->bRequest = 0x04; // USB or vendor-defined request code, burst mode
 		dr->wValue = cpu_to_le16( Flag ); // 0: Register number auto-increment, 1: No auto increment
 		dr->wIndex = cpu_to_le16( RegisterNo );
 		dr->wLength = cpu_to_le16( DataSize );
-		pRegQueue->Next = NULL;
-		pRegQueue->pUsbReq = dr;
-		pRegQueue->urb = urb;
+		reg_queue->Next = NULL;
+		reg_queue->pUsbReq = dr;
+		reg_queue->urb = urb;
 
 		spin_lock_irq( &pWb35Reg->EP0VM_spin_lock );
-		if (pWb35Reg->pRegFirst == NULL)
-			pWb35Reg->pRegFirst = pRegQueue;
+		if (pWb35Reg->reg_first == NULL)
+			pWb35Reg->reg_first = reg_queue;
 		else
-			pWb35Reg->pRegLast->Next = pRegQueue;
-		pWb35Reg->pRegLast = pRegQueue;
+			pWb35Reg->reg_last->Next = reg_queue;
+		pWb35Reg->reg_last = reg_queue;
 
 		spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
 
@@ -62,8 +62,8 @@ Wb35Reg_BurstWrite(phw_data_t pHwData, u16 RegisterNo, u32 * pRegisterData, u8 N
 	} else {
 		if (urb)
 			usb_free_urb(urb);
-		if (pRegQueue)
-			kfree(pRegQueue);
+		if (reg_queue)
+			kfree(reg_queue);
 		return FALSE;
 	}
    return FALSE;
@@ -164,7 +164,7 @@ Wb35Reg_Write(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
 	struct usb_ctrlrequest *dr;
 	struct urb	*urb = NULL;
-	PREG_QUEUE	pRegQueue = NULL;
+	struct wb35_reg_queue *reg_queue = NULL;
 	u16		UrbSize;
 
 
@@ -173,15 +173,15 @@ Wb35Reg_Write(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 		return FALSE;
 
 	// update the register by send urb request------------------------------------
-	UrbSize = sizeof(REG_QUEUE) + sizeof(struct usb_ctrlrequest);
-	OS_MEMORY_ALLOC( (void* *)&pRegQueue, UrbSize );
+	UrbSize = sizeof(struct wb35_reg_queue) + sizeof(struct usb_ctrlrequest);
+	OS_MEMORY_ALLOC( (void* *)&reg_queue, UrbSize );
 	urb = wb_usb_alloc_urb(0);
-	if (urb && pRegQueue) {
-		pRegQueue->DIRECT = 1;// burst write register
-		pRegQueue->INDEX = RegisterNo;
-		pRegQueue->VALUE = cpu_to_le32(RegisterValue);
-		pRegQueue->RESERVED_VALID = FALSE;
-		dr = (struct usb_ctrlrequest *)((u8 *)pRegQueue + sizeof(REG_QUEUE));
+	if (urb && reg_queue) {
+		reg_queue->DIRECT = 1;// burst write register
+		reg_queue->INDEX = RegisterNo;
+		reg_queue->VALUE = cpu_to_le32(RegisterValue);
+		reg_queue->RESERVED_VALID = FALSE;
+		dr = (struct usb_ctrlrequest *)((u8 *)reg_queue + sizeof(struct wb35_reg_queue));
 		dr->bRequestType = USB_TYPE_VENDOR|USB_DIR_OUT |USB_RECIP_DEVICE;
 		dr->bRequest = 0x03; // USB or vendor-defined request code, burst mode
 		dr->wValue = cpu_to_le16(0x0);
@@ -189,16 +189,16 @@ Wb35Reg_Write(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 		dr->wLength = cpu_to_le16(4);
 
 		// Enter the sending queue
-		pRegQueue->Next = NULL;
-		pRegQueue->pUsbReq = dr;
-		pRegQueue->urb = urb;
+		reg_queue->Next = NULL;
+		reg_queue->pUsbReq = dr;
+		reg_queue->urb = urb;
 
 		spin_lock_irq(&pWb35Reg->EP0VM_spin_lock );
-		if (pWb35Reg->pRegFirst == NULL)
-			pWb35Reg->pRegFirst = pRegQueue;
+		if (pWb35Reg->reg_first == NULL)
+			pWb35Reg->reg_first = reg_queue;
 		else
-			pWb35Reg->pRegLast->Next = pRegQueue;
-		pWb35Reg->pRegLast = pRegQueue;
+			pWb35Reg->reg_last->Next = reg_queue;
+		pWb35Reg->reg_last = reg_queue;
 
 		spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
 
@@ -209,7 +209,7 @@ Wb35Reg_Write(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 	} else {
 		if (urb)
 			usb_free_urb(urb);
-		kfree(pRegQueue);
+		kfree(reg_queue);
 		return FALSE;
 	}
 }
@@ -225,7 +225,7 @@ Wb35Reg_WriteWithCallbackValue( phw_data_t pHwData, u16 RegisterNo, u32 Register
 	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
 	struct usb_ctrlrequest *dr;
 	struct urb	*urb = NULL;
-	PREG_QUEUE	pRegQueue = NULL;
+	struct wb35_reg_queue *reg_queue = NULL;
 	u16		UrbSize;
 
 	// Module shutdown
@@ -233,17 +233,17 @@ Wb35Reg_WriteWithCallbackValue( phw_data_t pHwData, u16 RegisterNo, u32 Register
 		return FALSE;
 
 	// update the register by send urb request------------------------------------
-	UrbSize = sizeof(REG_QUEUE) + sizeof(struct usb_ctrlrequest);
-	OS_MEMORY_ALLOC((void* *) &pRegQueue, UrbSize );
+	UrbSize = sizeof(struct wb35_reg_queue) + sizeof(struct usb_ctrlrequest);
+	OS_MEMORY_ALLOC((void* *) &reg_queue, UrbSize );
 	urb = wb_usb_alloc_urb(0);
-	if (urb && pRegQueue) {
-		pRegQueue->DIRECT = 1;// burst write register
-		pRegQueue->INDEX = RegisterNo;
-		pRegQueue->VALUE = cpu_to_le32(RegisterValue);
+	if (urb && reg_queue) {
+		reg_queue->DIRECT = 1;// burst write register
+		reg_queue->INDEX = RegisterNo;
+		reg_queue->VALUE = cpu_to_le32(RegisterValue);
 		//NOTE : Users must guarantee the size of value will not exceed the buffer size.
-		memcpy(pRegQueue->RESERVED, pValue, Len);
-		pRegQueue->RESERVED_VALID = TRUE;
-		dr = (struct usb_ctrlrequest *)((u8 *)pRegQueue + sizeof(REG_QUEUE));
+		memcpy(reg_queue->RESERVED, pValue, Len);
+		reg_queue->RESERVED_VALID = TRUE;
+		dr = (struct usb_ctrlrequest *)((u8 *)reg_queue + sizeof(struct wb35_reg_queue));
 		dr->bRequestType = USB_TYPE_VENDOR|USB_DIR_OUT |USB_RECIP_DEVICE;
 		dr->bRequest = 0x03; // USB or vendor-defined request code, burst mode
 		dr->wValue = cpu_to_le16(0x0);
@@ -251,15 +251,15 @@ Wb35Reg_WriteWithCallbackValue( phw_data_t pHwData, u16 RegisterNo, u32 Register
 		dr->wLength = cpu_to_le16(4);
 
 		// Enter the sending queue
-		pRegQueue->Next = NULL;
-		pRegQueue->pUsbReq = dr;
-		pRegQueue->urb = urb;
+		reg_queue->Next = NULL;
+		reg_queue->pUsbReq = dr;
+		reg_queue->urb = urb;
 		spin_lock_irq (&pWb35Reg->EP0VM_spin_lock );
-		if( pWb35Reg->pRegFirst == NULL )
-			pWb35Reg->pRegFirst = pRegQueue;
+		if( pWb35Reg->reg_first == NULL )
+			pWb35Reg->reg_first = reg_queue;
 		else
-			pWb35Reg->pRegLast->Next = pRegQueue;
-		pWb35Reg->pRegLast = pRegQueue;
+			pWb35Reg->reg_last->Next = reg_queue;
+		pWb35Reg->reg_last = reg_queue;
 
 		spin_unlock_irq ( &pWb35Reg->EP0VM_spin_lock );
 
@@ -269,7 +269,7 @@ Wb35Reg_WriteWithCallbackValue( phw_data_t pHwData, u16 RegisterNo, u32 Register
 	} else {
 		if (urb)
 			usb_free_urb(urb);
-		kfree(pRegQueue);
+		kfree(reg_queue);
 		return FALSE;
 	}
 }
@@ -332,7 +332,7 @@ Wb35Reg_Read(phw_data_t pHwData, u16 RegisterNo,  u32 * pRegisterValue )
 	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
 	struct usb_ctrlrequest * dr;
 	struct urb	*urb;
-	PREG_QUEUE	pRegQueue;
+	struct wb35_reg_queue *reg_queue;
 	u16		UrbSize;
 
 	// Module shutdown
@@ -340,15 +340,15 @@ Wb35Reg_Read(phw_data_t pHwData, u16 RegisterNo,  u32 * pRegisterValue )
 		return FALSE;
 
 	// update the variable by send Urb to read register ------------------------------------
-	UrbSize = sizeof(REG_QUEUE) + sizeof(struct usb_ctrlrequest);
-	OS_MEMORY_ALLOC( (void* *)&pRegQueue, UrbSize );
+	UrbSize = sizeof(struct wb35_reg_queue) + sizeof(struct usb_ctrlrequest);
+	OS_MEMORY_ALLOC( (void* *)&reg_queue, UrbSize );
 	urb = wb_usb_alloc_urb(0);
-	if( urb && pRegQueue )
+	if( urb && reg_queue )
 	{
-		pRegQueue->DIRECT = 0;// read register
-		pRegQueue->INDEX = RegisterNo;
-		pRegQueue->pBuffer = pRegisterValue;
-		dr = (struct usb_ctrlrequest *)((u8 *)pRegQueue + sizeof(REG_QUEUE));
+		reg_queue->DIRECT = 0;// read register
+		reg_queue->INDEX = RegisterNo;
+		reg_queue->pBuffer = pRegisterValue;
+		dr = (struct usb_ctrlrequest *)((u8 *)reg_queue + sizeof(struct wb35_reg_queue));
 		dr->bRequestType = USB_TYPE_VENDOR|USB_RECIP_DEVICE|USB_DIR_IN;
 		dr->bRequest = 0x01; // USB or vendor-defined request code, burst mode
 		dr->wValue = cpu_to_le16(0x0);
@@ -356,15 +356,15 @@ Wb35Reg_Read(phw_data_t pHwData, u16 RegisterNo,  u32 * pRegisterValue )
 		dr->wLength = cpu_to_le16 (4);
 
 		// Enter the sending queue
-		pRegQueue->Next = NULL;
-		pRegQueue->pUsbReq = dr;
-		pRegQueue->urb = urb;
+		reg_queue->Next = NULL;
+		reg_queue->pUsbReq = dr;
+		reg_queue->urb = urb;
 		spin_lock_irq ( &pWb35Reg->EP0VM_spin_lock );
-		if( pWb35Reg->pRegFirst == NULL )
-			pWb35Reg->pRegFirst = pRegQueue;
+		if( pWb35Reg->reg_first == NULL )
+			pWb35Reg->reg_first = reg_queue;
 		else
-			pWb35Reg->pRegLast->Next = pRegQueue;
-		pWb35Reg->pRegLast = pRegQueue;
+			pWb35Reg->reg_last->Next = reg_queue;
+		pWb35Reg->reg_last = reg_queue;
 
 		spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
 
@@ -375,7 +375,7 @@ Wb35Reg_Read(phw_data_t pHwData, u16 RegisterNo,  u32 * pRegisterValue )
 	} else {
 		if (urb)
 			usb_free_urb( urb );
-		kfree(pRegQueue);
+		kfree(reg_queue);
 		return FALSE;
 	}
 }
@@ -401,7 +401,7 @@ Wb35Reg_EP0VM(phw_data_t pHwData )
 	struct usb_ctrlrequest *dr;
 	u32 *		pBuffer;
 	int			ret = -1;
-	PREG_QUEUE	pRegQueue;
+	struct wb35_reg_queue *reg_queue;
 
 
 	if (pWb35Reg->SyncIoPause)
@@ -412,23 +412,23 @@ Wb35Reg_EP0VM(phw_data_t pHwData )
 
 	// Get the register data and send to USB through Irp
 	spin_lock_irq( &pWb35Reg->EP0VM_spin_lock );
-	pRegQueue = pWb35Reg->pRegFirst;
+	reg_queue = pWb35Reg->reg_first;
 	spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
 
-	if (!pRegQueue)
+	if (!reg_queue)
 		goto cleanup;
 
 	// Get an Urb, send it
-	urb = (struct urb *)pRegQueue->urb;
+	urb = (struct urb *)reg_queue->urb;
 
-	dr = pRegQueue->pUsbReq;
-	urb = pRegQueue->urb;
-	pBuffer = pRegQueue->pBuffer;
-	if (pRegQueue->DIRECT == 1) // output
-		pBuffer = &pRegQueue->VALUE;
+	dr = reg_queue->pUsbReq;
+	urb = reg_queue->urb;
+	pBuffer = reg_queue->pBuffer;
+	if (reg_queue->DIRECT == 1) // output
+		pBuffer = &reg_queue->VALUE;
 
 	usb_fill_control_urb( urb, pHwData->WbUsb.udev,
-			      REG_DIRECTION(pHwData->WbUsb.udev,pRegQueue),
+			      REG_DIRECTION(pHwData->WbUsb.udev,reg_queue),
 			      (u8 *)dr,pBuffer,cpu_to_le16(dr->wLength),
 			      Wb35Reg_EP0VM_complete, (void*)pHwData);
 
@@ -456,7 +456,7 @@ Wb35Reg_EP0VM_complete(struct urb *urb)
 {
 	phw_data_t  pHwData = (phw_data_t)urb->context;
 	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
-	PREG_QUEUE	pRegQueue;
+	struct wb35_reg_queue *reg_queue;
 
 
 	// Variable setting
@@ -469,10 +469,10 @@ Wb35Reg_EP0VM_complete(struct urb *urb)
 	} else {
 		// Complete to send, remove the URB from the first
 		spin_lock_irq( &pWb35Reg->EP0VM_spin_lock );
-		pRegQueue = pWb35Reg->pRegFirst;
-		if (pRegQueue == pWb35Reg->pRegLast)
-			pWb35Reg->pRegLast = NULL;
-		pWb35Reg->pRegFirst = pWb35Reg->pRegFirst->Next;
+		reg_queue = pWb35Reg->reg_first;
+		if (reg_queue == pWb35Reg->reg_last)
+			pWb35Reg->reg_last = NULL;
+		pWb35Reg->reg_first = pWb35Reg->reg_first->Next;
 		spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
 
 		if (pWb35Reg->EP0VM_status) {
@@ -489,7 +489,7 @@ Wb35Reg_EP0VM_complete(struct urb *urb)
 			Wb35Reg_EP0VM(pHwData);
 		}
 
-   		kfree(pRegQueue);
+   		kfree(reg_queue);
 	}
 
 	usb_free_urb(urb);
@@ -501,7 +501,7 @@ Wb35Reg_destroy(phw_data_t pHwData)
 {
 	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
 	struct urb	*urb;
-	PREG_QUEUE	pRegQueue;
+	struct wb35_reg_queue *reg_queue;
 
 
 	Uxx_power_off_procedure(pHwData);
@@ -514,17 +514,17 @@ Wb35Reg_destroy(phw_data_t pHwData)
 
 	// Release all the data in RegQueue
 	spin_lock_irq( &pWb35Reg->EP0VM_spin_lock );
-	pRegQueue = pWb35Reg->pRegFirst;
-	while (pRegQueue) {
-		if (pRegQueue == pWb35Reg->pRegLast)
-			pWb35Reg->pRegLast = NULL;
-		pWb35Reg->pRegFirst = pWb35Reg->pRegFirst->Next;
+	reg_queue = pWb35Reg->reg_first;
+	while (reg_queue) {
+		if (reg_queue == pWb35Reg->reg_last)
+			pWb35Reg->reg_last = NULL;
+		pWb35Reg->reg_first = pWb35Reg->reg_first->Next;
 
-		urb = pRegQueue->urb;
+		urb = reg_queue->urb;
 		spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
 		if (urb) {
 			usb_free_urb(urb);
-			kfree(pRegQueue);
+			kfree(reg_queue);
 		} else {
 			#ifdef _PE_REG_DUMP_
 			WBDEBUG(("EP0 queue release error\n"));
@@ -532,7 +532,7 @@ Wb35Reg_destroy(phw_data_t pHwData)
 		}
 		spin_lock_irq( &pWb35Reg->EP0VM_spin_lock );
 
-		pRegQueue = pWb35Reg->pRegFirst;
+		reg_queue = pWb35Reg->reg_first;
 	}
 	spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
 }
