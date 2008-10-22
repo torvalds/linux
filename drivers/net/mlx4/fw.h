@@ -66,11 +66,13 @@ struct mlx4_dev_cap {
 	int local_ca_ack_delay;
 	int num_ports;
 	u32 max_msg_sz;
-	int max_mtu[MLX4_MAX_PORTS + 1];
+	int ib_mtu[MLX4_MAX_PORTS + 1];
 	int max_port_width[MLX4_MAX_PORTS + 1];
 	int max_vl[MLX4_MAX_PORTS + 1];
 	int max_gids[MLX4_MAX_PORTS + 1];
 	int max_pkeys[MLX4_MAX_PORTS + 1];
+	u64 def_mac[MLX4_MAX_PORTS + 1];
+	u16 eth_mtu[MLX4_MAX_PORTS + 1];
 	u16 stat_rate_support;
 	u32 flags;
 	int reserved_uars;

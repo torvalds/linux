@@ -166,7 +166,9 @@ struct mlx4_caps {
 	u64			fw_ver;
 	int			num_ports;
 	int			vl_cap[MLX4_MAX_PORTS + 1];
-	int			mtu_cap[MLX4_MAX_PORTS + 1];
+	int			ib_mtu_cap[MLX4_MAX_PORTS + 1];
+	u64			def_mac[MLX4_MAX_PORTS + 1];
+	int			eth_mtu_cap[MLX4_MAX_PORTS + 1];
 	int			gid_table_len[MLX4_MAX_PORTS + 1];
 	int			pkey_table_len[MLX4_MAX_PORTS + 1];
 	int			local_ca_ack_delay;

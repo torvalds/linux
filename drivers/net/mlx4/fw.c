@@ -346,7 +346,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 			MLX4_GET(field, outbox, QUERY_DEV_CAP_VL_PORT_OFFSET);
 			dev_cap->max_vl[i]	   = field >> 4;
 			MLX4_GET(field, outbox, QUERY_DEV_CAP_MTU_WIDTH_OFFSET);
-			dev_cap->max_mtu[i]	   = field >> 4;
+			dev_cap->ib_mtu[i]	   = field >> 4;
 			dev_cap->max_port_width[i] = field & 0xf;
 			MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_GID_OFFSET);
 			dev_cap->max_gids[i]	   = 1 << (field & 0xf);
@@ -355,8 +355,10 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		}
 	} else {
 #define QUERY_PORT_MTU_OFFSET			0x01
+#define QUERY_PORT_ETH_MTU_OFFSET		0x02
 #define QUERY_PORT_WIDTH_OFFSET			0x06
 #define QUERY_PORT_MAX_GID_PKEY_OFFSET		0x07
+#define QUERY_PORT_MAC_OFFSET			0x08
 #define QUERY_PORT_MAX_MACVLAN_OFFSET		0x0a
 #define QUERY_PORT_MAX_VL_OFFSET		0x0b
 
@@ -367,7 +369,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 				goto out;
 
 			MLX4_GET(field, outbox, QUERY_PORT_MTU_OFFSET);
-			dev_cap->max_mtu[i]	   = field & 0xf;
+			dev_cap->ib_mtu[i]	   = field & 0xf;
 			MLX4_GET(field, outbox, QUERY_PORT_WIDTH_OFFSET);
 			dev_cap->max_port_width[i] = field & 0xf;
 			MLX4_GET(field, outbox, QUERY_PORT_MAX_GID_PKEY_OFFSET);
@@ -378,7 +380,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 			MLX4_GET(field, outbox, QUERY_PORT_MAX_MACVLAN_OFFSET);
 			dev_cap->log_max_macs[i]  = field & 0xf;
 			dev_cap->log_max_vlans[i] = field >> 4;
-
+			MLX4_GET(dev_cap->eth_mtu[i], outbox, QUERY_PORT_ETH_MTU_OFFSET);
+			MLX4_GET(dev_cap->def_mac[i], outbox, QUERY_PORT_MAC_OFFSET);
 		}
 	}
 
@@ -412,7 +415,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	mlx4_dbg(dev, "Max CQEs: %d, max WQEs: %d, max SRQ WQEs: %d\n",
 		 dev_cap->max_cq_sz, dev_cap->max_qp_sz, dev_cap->max_srq_sz);
 	mlx4_dbg(dev, "Local CA ACK delay: %d, max MTU: %d, port width cap: %d\n",
-		 dev_cap->local_ca_ack_delay, 128 << dev_cap->max_mtu[1],
+		 dev_cap->local_ca_ack_delay, 128 << dev_cap->ib_mtu[1],
 		 dev_cap->max_port_width[1]);
 	mlx4_dbg(dev, "Max SQ desc size: %d, max SQ S/G: %d\n",
 		 dev_cap->max_sq_desc_sz, dev_cap->max_sq_sg);
@@ -824,7 +827,7 @@ int mlx4_INIT_PORT(struct mlx4_dev *dev, int port)
 		flags |= (dev->caps.port_width_cap[port] & 0xf) << INIT_PORT_PORT_WIDTH_SHIFT;
 		MLX4_PUT(inbox, flags,		  INIT_PORT_FLAGS_OFFSET);
 
-		field = 128 << dev->caps.mtu_cap[port];
+		field = 128 << dev->caps.ib_mtu_cap[port];
 		MLX4_PUT(inbox, field, INIT_PORT_MTU_OFFSET);
 		field = dev->caps.gid_table_len[port];
 		MLX4_PUT(inbox, field, INIT_PORT_MAX_GID_OFFSET);

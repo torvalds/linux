@@ -133,10 +133,12 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.num_ports	     = dev_cap->num_ports;
 	for (i = 1; i <= dev->caps.num_ports; ++i) {
 		dev->caps.vl_cap[i]	    = dev_cap->max_vl[i];
-		dev->caps.mtu_cap[i]	    = dev_cap->max_mtu[i];
+		dev->caps.ib_mtu_cap[i]	    = dev_cap->ib_mtu[i];
 		dev->caps.gid_table_len[i]  = dev_cap->max_gids[i];
 		dev->caps.pkey_table_len[i] = dev_cap->max_pkeys[i];
 		dev->caps.port_width_cap[i] = dev_cap->max_port_width[i];
+		dev->caps.eth_mtu_cap[i]    = dev_cap->eth_mtu[i];
+		dev->caps.def_mac[i]        = dev_cap->def_mac[i];
 	}
 
 	dev->caps.num_uars	     = dev_cap->uar_size / PAGE_SIZE;
