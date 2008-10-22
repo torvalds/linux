@@ -32,7 +32,7 @@ struct video_tuner32 {
 
 static int get_video_tuner32(struct video_tuner *kp, struct video_tuner32 __user *up)
 {
-	if(!access_ok(VERIFY_READ, up, sizeof(struct video_tuner32)) ||
+	if (!access_ok(VERIFY_READ, up, sizeof(struct video_tuner32)) ||
 		get_user(kp->tuner, &up->tuner) ||
 		copy_from_user(kp->name, up->name, 32) ||
 		get_user(kp->rangelow, &up->rangelow) ||
@@ -46,7 +46,7 @@ static int get_video_tuner32(struct video_tuner *kp, struct video_tuner32 __user
 
 static int put_video_tuner32(struct video_tuner *kp, struct video_tuner32 __user *up)
 {
-	if(!access_ok(VERIFY_WRITE, up, sizeof(struct video_tuner32)) ||
+	if (!access_ok(VERIFY_WRITE, up, sizeof(struct video_tuner32)) ||
 		put_user(kp->tuner, &up->tuner) ||
 		copy_to_user(up->name, kp->name, 32) ||
 		put_user(kp->rangelow, &up->rangelow) ||
@@ -88,7 +88,7 @@ static int put_video_buffer32(struct video_buffer *kp, struct video_buffer32 __u
 {
 	u32 tmp = (u32)((unsigned long)kp->base);
 
-	if(!access_ok(VERIFY_WRITE, up, sizeof(struct video_buffer32)) ||
+	if (!access_ok(VERIFY_WRITE, up, sizeof(struct video_buffer32)) ||
 		put_user(tmp, &up->base) ||
 		put_user(kp->height, &up->height) ||
 		put_user(kp->width, &up->width) ||
@@ -130,7 +130,7 @@ static int native_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 /* You get back everything except the clips... */
 static int put_video_window32(struct video_window *kp, struct video_window32 __user *up)
 {
-	if(!access_ok(VERIFY_WRITE, up, sizeof(struct video_window32)) ||
+	if (!access_ok(VERIFY_WRITE, up, sizeof(struct video_window32)) ||
 		put_user(kp->x, &up->x) ||
 		put_user(kp->y, &up->y) ||
 		put_user(kp->width, &up->width) ||
@@ -143,14 +143,12 @@ static int put_video_window32(struct video_window *kp, struct video_window32 __u
 }
 #endif
 
-struct v4l2_clip32
-{
+struct v4l2_clip32 {
 	struct v4l2_rect        c;
 	compat_caddr_t 		next;
 };
 
-struct v4l2_window32
-{
+struct v4l2_window32 {
 	struct v4l2_rect        w;
 	enum v4l2_field  	field;
 	__u32			chromakey;
@@ -231,15 +229,13 @@ static inline int put_v4l2_vbi_format(struct v4l2_vbi_format *kp, struct v4l2_vb
 	return 0;
 }
 
-struct v4l2_format32
-{
+struct v4l2_format32 {
 	enum v4l2_buf_type type;
-	union
-	{
-		struct v4l2_pix_format	pix;  // V4L2_BUF_TYPE_VIDEO_CAPTURE
-		struct v4l2_window32	win;  // V4L2_BUF_TYPE_VIDEO_OVERLAY
-		struct v4l2_vbi_format	vbi;  // V4L2_BUF_TYPE_VBI_CAPTURE
-		__u8	raw_data[200];        // user-defined
+	union {
+		struct v4l2_pix_format	pix;  /* V4L2_BUF_TYPE_VIDEO_CAPTURE */
+		struct v4l2_window32	win;  /* V4L2_BUF_TYPE_VIDEO_OVERLAY */
+		struct v4l2_vbi_format	vbi;  /* V4L2_BUF_TYPE_VBI_CAPTURE */
+		__u8	raw_data[200];        /* user-defined */
 	} fmt;
 };
 
@@ -256,7 +252,7 @@ static int get_v4l2_format32(struct v4l2_format *kp, struct v4l2_format32 __user
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
 		return get_v4l2_vbi_format(&kp->fmt.vbi, &up->fmt.vbi);
 	default:
-		printk("compat_ioctl : unexpected VIDIOC_FMT type %d\n",
+		printk(KERN_INFO "compat_ioctl: unexpected VIDIOC_FMT type %d\n",
 								kp->type);
 		return -ENXIO;
 	}
@@ -264,7 +260,7 @@ static int get_v4l2_format32(struct v4l2_format *kp, struct v4l2_format32 __user
 
 static int put_v4l2_format32(struct v4l2_format *kp, struct v4l2_format32 __user *up)
 {
-	if(!access_ok(VERIFY_WRITE, up, sizeof(struct v4l2_format32)) ||
+	if (!access_ok(VERIFY_WRITE, up, sizeof(struct v4l2_format32)) ||
 		put_user(kp->type, &up->type))
 		return -EFAULT;
 	switch (kp->type) {
@@ -294,8 +290,7 @@ static inline int put_v4l2_standard(struct v4l2_standard *kp, struct v4l2_standa
 	return 0;
 }
 
-struct v4l2_standard32
-{
+struct v4l2_standard32 {
 	__u32		     index;
 	__u32		     id[2]; /* __u64 would get the alignment wrong */
 	__u8		     name[24];
@@ -315,7 +310,7 @@ static int get_v4l2_standard32(struct v4l2_standard *kp, struct v4l2_standard32 
 
 static int put_v4l2_standard32(struct v4l2_standard *kp, struct v4l2_standard32 __user *up)
 {
-	if(!access_ok(VERIFY_WRITE, up, sizeof(struct v4l2_standard32)) ||
+	if (!access_ok(VERIFY_WRITE, up, sizeof(struct v4l2_standard32)) ||
 		put_user(kp->index, &up->index) ||
 		copy_to_user(up->id, &kp->id, sizeof(__u64)) ||
 		copy_to_user(up->name, kp->name, 24) ||
@@ -341,8 +336,7 @@ static inline int put_v4l2_tuner(struct v4l2_tuner *kp, struct v4l2_tuner __user
 	return 0;
 }
 
-struct v4l2_buffer32
-{
+struct v4l2_buffer32 {
 	__u32			index;
 	enum v4l2_buf_type      type;
 	__u32			bytesused;
@@ -373,7 +367,7 @@ static int get_v4l2_buffer32(struct v4l2_buffer *kp, struct v4l2_buffer32 __user
 		get_user(kp->memory, &up->memory) ||
 		get_user(kp->input, &up->input))
 			return -EFAULT;
-	switch(kp->memory) {
+	switch (kp->memory) {
 	case V4L2_MEMORY_MMAP:
 		break;
 	case V4L2_MEMORY_USERPTR:
@@ -388,7 +382,7 @@ static int get_v4l2_buffer32(struct v4l2_buffer *kp, struct v4l2_buffer32 __user
 		}
 		break;
 	case V4L2_MEMORY_OVERLAY:
-		if(get_user(kp->m.offset, &up->m.offset))
+		if (get_user(kp->m.offset, &up->m.offset))
 			return -EFAULT;
 		break;
 	}
@@ -404,7 +398,7 @@ static int put_v4l2_buffer32(struct v4l2_buffer *kp, struct v4l2_buffer32 __user
 		put_user(kp->memory, &up->memory) ||
 		put_user(kp->input, &up->input))
 			return -EFAULT;
-	switch(kp->memory) {
+	switch (kp->memory) {
 	case V4L2_MEMORY_MMAP:
 		if (put_user(kp->length, &up->length) ||
 			put_user(kp->m.offset, &up->m.offset))
@@ -431,8 +425,7 @@ static int put_v4l2_buffer32(struct v4l2_buffer *kp, struct v4l2_buffer32 __user
 	return 0;
 }
 
-struct v4l2_framebuffer32
-{
+struct v4l2_framebuffer32 {
 	__u32			capability;
 	__u32			flags;
 	compat_caddr_t 		base;
@@ -457,7 +450,7 @@ static int put_v4l2_framebuffer32(struct v4l2_framebuffer *kp, struct v4l2_frame
 {
 	u32 tmp = (u32)((unsigned long)kp->base);
 
-	if(!access_ok(VERIFY_WRITE, up, sizeof(struct v4l2_framebuffer32)) ||
+	if (!access_ok(VERIFY_WRITE, up, sizeof(struct v4l2_framebuffer32)) ||
 		put_user(tmp, &up->base) ||
 		put_user(kp->capability, &up->capability) ||
 		put_user(kp->flags, &up->flags))
@@ -495,8 +488,7 @@ static inline int put_v4l2_input(struct v4l2_input *kp, struct v4l2_input __user
 }
 
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
-struct video_code32
-{
+struct video_code32 {
 	char		loadwhat[16];	/* name or tag of file being passed */
 	compat_int_t	datasize;
 	unsigned char	*data;
@@ -504,28 +496,28 @@ struct video_code32
 
 static inline int microcode32(struct video_code *kp, struct video_code32 __user *up)
 {
-	if(!access_ok(VERIFY_READ, up, sizeof(struct video_code32)) ||
-		copy_from_user(kp->loadwhat, up->loadwhat, sizeof (up->loadwhat)) ||
+	if (!access_ok(VERIFY_READ, up, sizeof(struct video_code32)) ||
+		copy_from_user(kp->loadwhat, up->loadwhat, sizeof(up->loadwhat)) ||
 		get_user(kp->datasize, &up->datasize) ||
 		copy_from_user(kp->data, up->data, up->datasize))
 			return -EFAULT;
 	return 0;
 }
 
-#define VIDIOCGTUNER32		_IOWR('v',4, struct video_tuner32)
-#define VIDIOCSTUNER32		_IOW('v',5, struct video_tuner32)
-#define VIDIOCGWIN32		_IOR('v',9, struct video_window32)
-#define VIDIOCSWIN32		_IOW('v',10, struct video_window32)
-#define VIDIOCGFBUF32		_IOR('v',11, struct video_buffer32)
-#define VIDIOCSFBUF32		_IOW('v',12, struct video_buffer32)
-#define VIDIOCGFREQ32		_IOR('v',14, u32)
-#define VIDIOCSFREQ32		_IOW('v',15, u32)
-#define VIDIOCSMICROCODE32	_IOW('v',27, struct video_code32)
+#define VIDIOCGTUNER32		_IOWR('v', 4, struct video_tuner32)
+#define VIDIOCSTUNER32		_IOW('v', 5, struct video_tuner32)
+#define VIDIOCGWIN32		_IOR('v', 9, struct video_window32)
+#define VIDIOCSWIN32		_IOW('v', 10, struct video_window32)
+#define VIDIOCGFBUF32		_IOR('v', 11, struct video_buffer32)
+#define VIDIOCSFBUF32		_IOW('v', 12, struct video_buffer32)
+#define VIDIOCGFREQ32		_IOR('v', 14, u32)
+#define VIDIOCSFREQ32		_IOW('v', 15, u32)
+#define VIDIOCSMICROCODE32	_IOW('v', 27, struct video_code32)
 
 #endif
 
 /* VIDIOC_ENUMINPUT32 is VIDIOC_ENUMINPUT minus 4 bytes of padding alignement */
-#define VIDIOC_ENUMINPUT32	VIDIOC_ENUMINPUT - _IOC(0, 0, 0, 4)
+#define VIDIOC_ENUMINPUT32	(VIDIOC_ENUMINPUT - _IOC(0, 0, 0, 4))
 #define VIDIOC_G_FMT32		_IOWR ('V',  4, struct v4l2_format32)
 #define VIDIOC_S_FMT32		_IOWR ('V',  5, struct v4l2_format32)
 #define VIDIOC_QUERYBUF32	_IOWR ('V',  9, struct v4l2_buffer32)
@@ -635,7 +627,7 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 	int realcmd = cmd;
 
 	/* First, convert the command. */
-	switch(cmd) {
+	switch (cmd) {
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	case VIDIOCGTUNER32: realcmd = cmd = VIDIOCGTUNER; break;
 	case VIDIOCSTUNER32: realcmd = cmd = VIDIOCSTUNER; break;
@@ -664,7 +656,7 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 	case VIDIOC_TRY_FMT32: realcmd = cmd = VIDIOC_TRY_FMT; break;
 	};
 
-	switch(cmd) {
+	switch (cmd) {
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	case VIDIOCSTUNER:
 	case VIDIOCGTUNER:
@@ -750,20 +742,20 @@ static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		break;
 #endif
 	};
-	if(err)
+	if (err)
 		goto out;
 
-	if(compatible_arg)
+	if (compatible_arg)
 		err = native_ioctl(file, realcmd, (unsigned long)up);
 	else {
 		mm_segment_t old_fs = get_fs();
 
 		set_fs(KERNEL_DS);
-		err = native_ioctl(file, realcmd, (unsigned long) &karg);
+		err = native_ioctl(file, realcmd, (unsigned long)&karg);
 		set_fs(old_fs);
 	}
-	if(err == 0) {
-		switch(cmd) {
+	if (err == 0) {
+		switch (cmd) {
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 		case VIDIOCGTUNER:
 			err = put_video_tuner32(&karg.vt, up);
