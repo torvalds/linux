@@ -1379,6 +1379,13 @@ static int ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_supported_band *sband;
 	union iwreq_data wrqu;
 
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom + 400);
+	if (!skb) {
+		printk(KERN_DEBUG "%s: failed to allocate buffer for probe "
+		       "response\n", sdata->dev->name);
+		return -ENOMEM;
+	}
+
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
 	/* Remove possible STA entries from other IBSS networks. */
@@ -1404,62 +1411,61 @@ static int ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		return res;
 
 	/* Build IBSS probe response */
-	skb = dev_alloc_skb(local->hw.extra_tx_headroom + 400);
-	if (skb) {
-		skb_reserve(skb, local->hw.extra_tx_headroom);
 
-		mgmt = (struct ieee80211_mgmt *)
-			skb_put(skb, 24 + sizeof(mgmt->u.beacon));
-		memset(mgmt, 0, 24 + sizeof(mgmt->u.beacon));
-		mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
-						  IEEE80211_STYPE_PROBE_RESP);
-		memset(mgmt->da, 0xff, ETH_ALEN);
-		memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
-		memcpy(mgmt->bssid, ifsta->bssid, ETH_ALEN);
-		mgmt->u.beacon.beacon_int =
-			cpu_to_le16(local->hw.conf.beacon_int);
-		mgmt->u.beacon.timestamp = cpu_to_le64(bss->timestamp);
-		mgmt->u.beacon.capab_info = cpu_to_le16(bss->capability);
+	skb_reserve(skb, local->hw.extra_tx_headroom);
 
-		pos = skb_put(skb, 2 + ifsta->ssid_len);
-		*pos++ = WLAN_EID_SSID;
-		*pos++ = ifsta->ssid_len;
-		memcpy(pos, ifsta->ssid, ifsta->ssid_len);
+	mgmt = (struct ieee80211_mgmt *)
+		skb_put(skb, 24 + sizeof(mgmt->u.beacon));
+	memset(mgmt, 0, 24 + sizeof(mgmt->u.beacon));
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+						IEEE80211_STYPE_PROBE_RESP);
+	memset(mgmt->da, 0xff, ETH_ALEN);
+	memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
+	memcpy(mgmt->bssid, ifsta->bssid, ETH_ALEN);
+	mgmt->u.beacon.beacon_int =
+		cpu_to_le16(local->hw.conf.beacon_int);
+	mgmt->u.beacon.timestamp = cpu_to_le64(bss->timestamp);
+	mgmt->u.beacon.capab_info = cpu_to_le16(bss->capability);
 
-		rates = bss->supp_rates_len;
-		if (rates > 8)
-			rates = 8;
-		pos = skb_put(skb, 2 + rates);
-		*pos++ = WLAN_EID_SUPP_RATES;
-		*pos++ = rates;
-		memcpy(pos, bss->supp_rates, rates);
+	pos = skb_put(skb, 2 + ifsta->ssid_len);
+	*pos++ = WLAN_EID_SSID;
+	*pos++ = ifsta->ssid_len;
+	memcpy(pos, ifsta->ssid, ifsta->ssid_len);
 
-		if (bss->band == IEEE80211_BAND_2GHZ) {
-			pos = skb_put(skb, 2 + 1);
-			*pos++ = WLAN_EID_DS_PARAMS;
-			*pos++ = 1;
-			*pos++ = ieee80211_frequency_to_channel(bss->freq);
-		}
+	rates = bss->supp_rates_len;
+	if (rates > 8)
+		rates = 8;
+	pos = skb_put(skb, 2 + rates);
+	*pos++ = WLAN_EID_SUPP_RATES;
+	*pos++ = rates;
+	memcpy(pos, bss->supp_rates, rates);
 
-		pos = skb_put(skb, 2 + 2);
-		*pos++ = WLAN_EID_IBSS_PARAMS;
-		*pos++ = 2;
-		/* FIX: set ATIM window based on scan results */
-		*pos++ = 0;
-		*pos++ = 0;
-
-		if (bss->supp_rates_len > 8) {
-			rates = bss->supp_rates_len - 8;
-			pos = skb_put(skb, 2 + rates);
-			*pos++ = WLAN_EID_EXT_SUPP_RATES;
-			*pos++ = rates;
-			memcpy(pos, &bss->supp_rates[8], rates);
-		}
-
-		ifsta->probe_resp = skb;
-
-		ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON);
+	if (bss->band == IEEE80211_BAND_2GHZ) {
+		pos = skb_put(skb, 2 + 1);
+		*pos++ = WLAN_EID_DS_PARAMS;
+		*pos++ = 1;
+		*pos++ = ieee80211_frequency_to_channel(bss->freq);
 	}
+
+	pos = skb_put(skb, 2 + 2);
+	*pos++ = WLAN_EID_IBSS_PARAMS;
+	*pos++ = 2;
+	/* FIX: set ATIM window based on scan results */
+	*pos++ = 0;
+	*pos++ = 0;
+
+	if (bss->supp_rates_len > 8) {
+		rates = bss->supp_rates_len - 8;
+		pos = skb_put(skb, 2 + rates);
+		*pos++ = WLAN_EID_EXT_SUPP_RATES;
+		*pos++ = rates;
+		memcpy(pos, &bss->supp_rates[8], rates);
+	}
+
+	ifsta->probe_resp = skb;
+
+	ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON);
+
 
 	rates = 0;
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
