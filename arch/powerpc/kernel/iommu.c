@@ -32,6 +32,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/bitops.h>
 #include <linux/iommu-helper.h>
+#include <linux/crash_dump.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/iommu.h>
@@ -460,7 +461,7 @@ void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 
 static void iommu_table_clear(struct iommu_table *tbl)
 {
-	if (!__kdump_flag) {
+	if (!is_kdump_kernel()) {
 		/* Clear the table in case firmware left allocations in it */
 		ppc_md.tce_free(tbl, tbl->it_offset, tbl->it_size);
 		return;

@@ -20,8 +20,6 @@
 
 #ifndef __ASSEMBLY__
 
-extern unsigned long __kdump_flag;
-
 #if defined(CONFIG_CRASH_DUMP) && !defined(CONFIG_RELOCATABLE)
 extern void reserve_kdump_trampoline(void);
 extern void setup_kdump_trampoline(void);
