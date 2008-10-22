@@ -288,8 +288,11 @@ static struct clk *camera_clk;
 
 static void camera_power_on(void)
 {
+	/* Use 10 MHz VIO_CKO instead of 24 MHz to work
+	 * around signal quality issues on Panel Board V2.1.
+	 */
 	camera_clk = clk_get(NULL, "video_clk");
-	clk_set_rate(camera_clk, 24000000);
+	clk_set_rate(camera_clk, 10000000);
 	clk_enable(camera_clk);	/* start VIO_CKO */
 
 	/* use VIO_RST to take camera out of reset */
