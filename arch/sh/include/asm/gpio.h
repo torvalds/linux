@@ -64,6 +64,7 @@ struct pinmux_data_reg {
 struct pinmux_range {
 	pinmux_enum_t begin;
 	pinmux_enum_t end;
+	pinmux_enum_t force;
 };
 
 struct pinmux_info {
