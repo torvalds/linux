@@ -66,6 +66,7 @@ static void stop_cpu(struct work_struct *unused)
 	enum stopmachine_state curstate = STOPMACHINE_NONE;
 	struct stop_machine_data *smdata = &idle;
 	int cpu = smp_processor_id();
+	int err;
 
 	if (!active_cpus) {
 		if (cpu == first_cpu(cpu_online_map))
@@ -86,9 +87,11 @@ static void stop_cpu(struct work_struct *unused)
 				hard_irq_disable();
 				break;
 			case STOPMACHINE_RUN:
-				/* |= allows error detection if functions on
-				 * multiple CPUs. */
-				smdata->fnret |= smdata->fn(smdata->data);
+				/* On multiple CPUs only a single error code
+				 * is needed to tell that something failed. */
+				err = smdata->fn(smdata->data);
+				if (err)
+					smdata->fnret = err;
 				break;
 			default:
 				break;
