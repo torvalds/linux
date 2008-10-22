@@ -1879,6 +1879,37 @@ M:	linux-kernel@vger.kernel.org
 W:	http://www.kernel.org/pub/linux/kernel/people/rml/hdaps/
 S:	Maintained
 
+GSPCA FINEPIX SUBDRIVER
+P:	Frank Zago
+M:	frank@zago.net
+L:	video4linux-list@redhat.com
+S:	Maintained
+
+GSPCA M5602 SUBDRIVER
+P:	Erik Andren
+M:	erik.andren@gmail.com
+L:	video4linux-list@redhat.com
+S:	Maintained
+
+GSPCA PAC207 SONIXB SUBDRIVER
+P:	Hans de Goede
+M:	hdegoede@redhat.com
+L:	video4linux-list@redhat.com
+S:	Maintained
+
+GSPCA T613 SUBDRIVER
+P:	Leandro Costantino
+M:	lcostantino@gmail.com
+L:	video4linux-list@redhat.com
+S:	Maintained
+
+GSPCA USB WEBCAM DRIVER
+P:	Jean-Francois Moine
+M:	moinejf@free.fr
+W:	http://moinejf.free.fr
+L:	video4linux-list@redhat.com
+S:	Maintained
+
 HARDWARE MONITORING
 L:	lm-sensors@lm-sensors.org
 W:	http://www.lm-sensors.org/
