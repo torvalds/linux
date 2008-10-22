@@ -191,26 +191,33 @@ static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id
 	PWBUSB		pWbUsb;
         struct usb_host_interface *interface;
 	struct usb_endpoint_descriptor *endpoint;
-	int	ret = -1;
 	u32	ltmp;
 	struct usb_device *udev = interface_to_usbdev(intf);
+	struct wbsoft_priv *priv;
+	struct ieee80211_hw *dev;
+	static struct ieee80211_supported_band band;
+	int err;
 
 	usb_get_dev(udev);
 
-	printk("[w35und]wb35_probe ->\n");
-
 	// 20060630.2 Check the device if it already be opened
-	ret = usb_control_msg(udev, usb_rcvctrlpipe( udev, 0 ),
+	err = usb_control_msg(udev, usb_rcvctrlpipe( udev, 0 ),
 			      0x01, USB_TYPE_VENDOR|USB_RECIP_DEVICE|USB_DIR_IN,
 			      0x0, 0x400, &ltmp, 4, HZ*100 );
-	if (ret < 0)
+	if (err)
 		goto error;
 
 	ltmp = cpu_to_le32(ltmp);
-	if (ltmp)  // Is already initialized?
+	if (ltmp) {  // Is already initialized?
+		err = -EBUSY;
 		goto error;
+	}
 
 	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
+	if (!adapter) {
+		err = -ENOMEM;
+		goto error;
+	}
 
 	my_adapter = adapter;
 	pWbUsb = &adapter->sHwData.WbUsb;
@@ -225,69 +232,50 @@ static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id
 	}
 
 	if (!WbWLanInitialize(adapter)) {
-		printk("[w35und]WbWLanInitialize fail\n");
-		goto error;
+		err = -EINVAL;
+		goto error_free_adapter;
 	}
 
+	dev = ieee80211_alloc_hw(sizeof(*priv), &wbsoft_ops);
+	if (!dev)
+		goto error_free_adapter;
+
+	my_dev = dev;
+
+	SET_IEEE80211_DEV(dev, &udev->dev);
 	{
-		struct wbsoft_priv *priv;
-		struct ieee80211_hw *dev;
-		static struct ieee80211_supported_band band;
-		int res;
-
-		dev = ieee80211_alloc_hw(sizeof(*priv), &wbsoft_ops);
-
-		if (!dev) {
-			printk("w35und: ieee80211 alloc failed\n" );
-			BUG();
-		}
-
-		my_dev = dev;
-
-		SET_IEEE80211_DEV(dev, &udev->dev);
-		{
-			phw_data_t pHwData = &adapter->sHwData;
-			unsigned char		dev_addr[MAX_ADDR_LEN];
-			hal_get_permanent_address(pHwData, dev_addr);
-			SET_IEEE80211_PERM_ADDR(dev, dev_addr);
-		}
-
-
-		dev->extra_tx_headroom = 12;	/* FIXME */
-		dev->flags = 0;
-
-		dev->channel_change_time = 1000;
-//		dev->max_rssi = 100;
-
-		dev->queues = 1;
-
-		band.channels = wbsoft_channels;
-		band.n_channels = ARRAY_SIZE(wbsoft_channels);
-		band.bitrates = wbsoft_rates;
-		band.n_bitrates = ARRAY_SIZE(wbsoft_rates);
-
-		dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &band;
-#if 0
-		wbsoft_modes[0].num_channels = 1;
-		wbsoft_modes[0].channels = wbsoft_channels;
-		wbsoft_modes[0].mode = MODE_IEEE80211B;
-		wbsoft_modes[0].num_rates = ARRAY_SIZE(wbsoft_rates);
-		wbsoft_modes[0].rates = wbsoft_rates;
-
-		res = ieee80211_register_hwmode(dev, &wbsoft_modes[0]);
-		BUG_ON(res);
-#endif
-
-		res = ieee80211_register_hw(dev);
-		BUG_ON(res);
+		phw_data_t pHwData = &adapter->sHwData;
+		unsigned char dev_addr[MAX_ADDR_LEN];
+		hal_get_permanent_address(pHwData, dev_addr);
+		SET_IEEE80211_PERM_ADDR(dev, dev_addr);
 	}
 
-	usb_set_intfdata( intf, adapter );
+	dev->extra_tx_headroom = 12;	/* FIXME */
+	dev->flags = 0;
 
-	printk("[w35und] _probe OK\n");
+	dev->channel_change_time = 1000;
+	dev->queues = 1;
+
+	band.channels = wbsoft_channels;
+	band.n_channels = ARRAY_SIZE(wbsoft_channels);
+	band.bitrates = wbsoft_rates;
+	band.n_bitrates = ARRAY_SIZE(wbsoft_rates);
+
+	dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &band;
+	err = ieee80211_register_hw(dev);
+	if (err)
+		goto error_free_hw;
+
+	usb_set_intfdata(intf, adapter);
+
 	return 0;
+
+error_free_hw:
+	ieee80211_free_hw(dev);
+error_free_adapter:
+	kfree(adapter);
 error:
-	return -ENOMEM;
+	return err;
 }
 
 void packet_came(char *pRxBufferAddress, int PacketSize)
