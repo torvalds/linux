@@ -946,6 +946,15 @@ config X86_PAE
 config ARCH_PHYS_ADDR_T_64BIT
        def_bool X86_64 || X86_PAE
 
+config DIRECT_GBPAGES
+	bool "Enable 1GB pages for kernel pagetables" if EMBEDDED
+	default y
+	depends on X86_64
+	help
+	  Allow the kernel linear mapping to use 1GB pages on CPUs that
+	  support it. This can improve the kernel's performance a tiny bit by
+	  reducing TLB pressure. If in doubt, say "Y".
+
 # Common NUMA Features
 config NUMA
 	bool "Numa Memory Allocation and Scheduler Support (EXPERIMENTAL)"
