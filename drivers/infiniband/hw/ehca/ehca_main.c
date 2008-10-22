@@ -366,22 +366,23 @@ static int ehca_sense_attributes(struct ehca_shca *shca)
 			shca->hca_cap_mr_pgsize |= pgsize_map[i + 1];
 
 	/* Set maximum number of CQs and QPs to calculate EQ size */
-	if (ehca_max_qp == -1)
-		ehca_max_qp = min_t(int, rblock->max_qp, EHCA_MAX_NUM_QUEUES);
-	else if (ehca_max_qp < 1 || ehca_max_qp > rblock->max_qp) {
-		ehca_gen_err("Requested number of QPs is out of range (1 - %i) "
-			"specified by HW", rblock->max_qp);
-		ret = -EINVAL;
-		goto sense_attributes1;
+	if (shca->max_num_qps == -1)
+		shca->max_num_qps = min_t(int, rblock->max_qp,
+					  EHCA_MAX_NUM_QUEUES);
+	else if (shca->max_num_qps < 1 || shca->max_num_qps > rblock->max_qp) {
+		ehca_gen_warn("The requested number of QPs is out of range "
+			      "(1 - %i) specified by HW. Value is set to %i",
+			      rblock->max_qp, rblock->max_qp);
+		shca->max_num_qps = rblock->max_qp;
 	}
 
-	if (ehca_max_cq == -1)
-		ehca_max_cq = min_t(int, rblock->max_cq, EHCA_MAX_NUM_QUEUES);
-	else if (ehca_max_cq < 1 || ehca_max_cq > rblock->max_cq) {
-		ehca_gen_err("Requested number of CQs is out of range (1 - %i) "
-			"specified by HW", rblock->max_cq);
-		ret = -EINVAL;
-		goto sense_attributes1;
+	if (shca->max_num_cqs == -1)
+		shca->max_num_cqs = min_t(int, rblock->max_cq,
+					  EHCA_MAX_NUM_QUEUES);
+	else if (shca->max_num_cqs < 1 || shca->max_num_cqs > rblock->max_cq) {
+		ehca_gen_warn("The requested number of CQs is out of range "
+			      "(1 - %i) specified by HW. Value is set to %i",
+			      rblock->max_cq, rblock->max_cq);
 	}
 
 	/* query max MTU from first port -- it's the same for all ports */
@@ -733,9 +734,13 @@ static int __devinit ehca_probe(struct of_device *dev,
 		ehca_gen_err("Cannot allocate shca memory.");
 		return -ENOMEM;
 	}
+
 	mutex_init(&shca->modify_mutex);
 	atomic_set(&shca->num_cqs, 0);
 	atomic_set(&shca->num_qps, 0);
+	shca->max_num_qps = ehca_max_qp;
+	shca->max_num_cqs = ehca_max_cq;
+
 	for (i = 0; i < ARRAY_SIZE(shca->sport); i++)
 		spin_lock_init(&shca->sport[i].mod_sqp_lock);
 
@@ -755,7 +760,7 @@ static int __devinit ehca_probe(struct of_device *dev,
 		goto probe1;
 	}
 
-	eq_size = 2 * ehca_max_cq + 4 * ehca_max_qp;
+	eq_size = 2 * shca->max_num_cqs + 4 * shca->max_num_qps;
 	/* create event queues */
 	ret = ehca_create_eq(shca, &shca->eq, EHCA_EQ, eq_size);
 	if (ret) {
