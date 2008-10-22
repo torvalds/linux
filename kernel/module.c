@@ -132,6 +132,29 @@ static unsigned int find_sec(Elf_Ehdr *hdr,
 	return 0;
 }
 
+/* Find a module section, or NULL. */
+static void *section_addr(Elf_Ehdr *hdr, Elf_Shdr *shdrs,
+			  const char *secstrings, const char *name)
+{
+	/* Section 0 has sh_addr 0. */
+	return (void *)shdrs[find_sec(hdr, shdrs, secstrings, name)].sh_addr;
+}
+
+/* Find a module section, or NULL.  Fill in number of "objects" in section. */
+static void *section_objs(Elf_Ehdr *hdr,
+			  Elf_Shdr *sechdrs,
+			  const char *secstrings,
+			  const char *name,
+			  size_t object_size,
+			  unsigned int *num)
+{
+	unsigned int sec = find_sec(hdr, sechdrs, secstrings, name);
+
+	/* Section 0 has sh_addr 0 and sh_size 0. */
+	*num = sechdrs[sec].sh_size / object_size;
+	return (void *)sechdrs[sec].sh_addr;
+}
+
 /* Provided by the linker */
 extern const struct kernel_symbol __start___ksymtab[];
 extern const struct kernel_symbol __stop___ksymtab[];
@@ -1789,32 +1812,20 @@ static inline void add_kallsyms(struct module *mod,
 }
 #endif /* CONFIG_KALLSYMS */
 
+static void dynamic_printk_setup(struct mod_debug *debug, unsigned int num)
+{
 #ifdef CONFIG_DYNAMIC_PRINTK_DEBUG
-static void dynamic_printk_setup(Elf_Shdr *sechdrs, unsigned int verboseindex)
-{
-	struct mod_debug *debug_info;
-	unsigned long pos, end;
-	unsigned int num_verbose;
+	unsigned int i;
 
-	pos = sechdrs[verboseindex].sh_addr;
-	num_verbose = sechdrs[verboseindex].sh_size /
-				sizeof(struct mod_debug);
-	end = pos + (num_verbose * sizeof(struct mod_debug));
-
-	for (; pos < end; pos += sizeof(struct mod_debug)) {
-		debug_info = (struct mod_debug *)pos;
-		register_dynamic_debug_module(debug_info->modname,
-			debug_info->type, debug_info->logical_modname,
-			debug_info->flag_names, debug_info->hash,
-			debug_info->hash2);
+	for (i = 0; i < num; i++) {
+		register_dynamic_debug_module(debug[i].modname,
+					      debug[i].type,
+					      debug[i].logical_modname,
+					      debug[i].flag_names,
+					      debug[i].hash, debug[i].hash2);
 	}
-}
-#else
-static inline void dynamic_printk_setup(Elf_Shdr *sechdrs,
-					unsigned int verboseindex)
-{
-}
 #endif /* CONFIG_DYNAMIC_PRINTK_DEBUG */
+}
 
 static void *module_alloc_update_bounds(unsigned long size)
 {
@@ -1843,37 +1854,14 @@ static noinline struct module *load_module(void __user *umod,
 	unsigned int i;
 	unsigned int symindex = 0;
 	unsigned int strindex = 0;
-	unsigned int setupindex;
-	unsigned int exindex;
-	unsigned int exportindex;
-	unsigned int modindex;
-	unsigned int obsparmindex;
-	unsigned int infoindex;
-	unsigned int gplindex;
-	unsigned int crcindex;
-	unsigned int gplcrcindex;
-	unsigned int versindex;
-	unsigned int pcpuindex;
-	unsigned int gplfutureindex;
-	unsigned int gplfuturecrcindex;
+	unsigned int modindex, versindex, infoindex, pcpuindex;
 	unsigned int unwindex = 0;
-#ifdef CONFIG_UNUSED_SYMBOLS
-	unsigned int unusedindex;
-	unsigned int unusedcrcindex;
-	unsigned int unusedgplindex;
-	unsigned int unusedgplcrcindex;
-#endif
-	unsigned int markersindex;
-	unsigned int markersstringsindex;
-	unsigned int verboseindex;
-	unsigned int tracepointsindex;
-	unsigned int tracepointsstringsindex;
-	unsigned int mcountindex;
+	unsigned int num_kp, num_mcount;
+	struct kernel_param *kp;
 	struct module *mod;
 	long err = 0;
 	void *percpu = NULL, *ptr = NULL; /* Stops spurious gcc warning */
-	void *mseg;
-	struct exception_table_entry *extable;
+	unsigned long *mseg;
 	mm_segment_t old_fs;
 
 	DEBUGP("load_module: umod=%p, len=%lu, uargs=%p\n",
@@ -1937,6 +1925,7 @@ static noinline struct module *load_module(void __user *umod,
 		err = -ENOEXEC;
 		goto free_hdr;
 	}
+	/* This is temporary: point mod into copy of data. */
 	mod = (void *)sechdrs[modindex].sh_addr;
 
 	if (symindex == 0) {
@@ -1946,22 +1935,6 @@ static noinline struct module *load_module(void __user *umod,
 		goto free_hdr;
 	}
 
-	/* Optional sections */
-	exportindex = find_sec(hdr, sechdrs, secstrings, "__ksymtab");
-	gplindex = find_sec(hdr, sechdrs, secstrings, "__ksymtab_gpl");
-	gplfutureindex = find_sec(hdr, sechdrs, secstrings, "__ksymtab_gpl_future");
-	crcindex = find_sec(hdr, sechdrs, secstrings, "__kcrctab");
-	gplcrcindex = find_sec(hdr, sechdrs, secstrings, "__kcrctab_gpl");
-	gplfuturecrcindex = find_sec(hdr, sechdrs, secstrings, "__kcrctab_gpl_future");
-#ifdef CONFIG_UNUSED_SYMBOLS
-	unusedindex = find_sec(hdr, sechdrs, secstrings, "__ksymtab_unused");
-	unusedgplindex = find_sec(hdr, sechdrs, secstrings, "__ksymtab_unused_gpl");
-	unusedcrcindex = find_sec(hdr, sechdrs, secstrings, "__kcrctab_unused");
-	unusedgplcrcindex = find_sec(hdr, sechdrs, secstrings, "__kcrctab_unused_gpl");
-#endif
-	setupindex = find_sec(hdr, sechdrs, secstrings, "__param");
-	exindex = find_sec(hdr, sechdrs, secstrings, "__ex_table");
-	obsparmindex = find_sec(hdr, sechdrs, secstrings, "__obsparm");
 	versindex = find_sec(hdr, sechdrs, secstrings, "__versions");
 	infoindex = find_sec(hdr, sechdrs, secstrings, ".modinfo");
 	pcpuindex = find_pcpusec(hdr, sechdrs, secstrings);
@@ -2117,42 +2090,57 @@ static noinline struct module *load_module(void __user *umod,
 	if (err < 0)
 		goto cleanup;
 
-	/* Set up EXPORTed & EXPORT_GPLed symbols (section 0 is 0 length) */
-	mod->num_syms = sechdrs[exportindex].sh_size / sizeof(*mod->syms);
-	mod->syms = (void *)sechdrs[exportindex].sh_addr;
-	if (crcindex)
-		mod->crcs = (void *)sechdrs[crcindex].sh_addr;
-	mod->num_gpl_syms = sechdrs[gplindex].sh_size / sizeof(*mod->gpl_syms);
-	mod->gpl_syms = (void *)sechdrs[gplindex].sh_addr;
-	if (gplcrcindex)
-		mod->gpl_crcs = (void *)sechdrs[gplcrcindex].sh_addr;
-	mod->num_gpl_future_syms = sechdrs[gplfutureindex].sh_size /
-					sizeof(*mod->gpl_future_syms);
-	mod->gpl_future_syms = (void *)sechdrs[gplfutureindex].sh_addr;
-	if (gplfuturecrcindex)
-		mod->gpl_future_crcs = (void *)sechdrs[gplfuturecrcindex].sh_addr;
+	/* Now we've got everything in the final locations, we can
+	 * find optional sections. */
+	kp = section_objs(hdr, sechdrs, secstrings, "__param", sizeof(*kp),
+			  &num_kp);
+	mod->syms = section_objs(hdr, sechdrs, secstrings, "__ksymtab",
+				 sizeof(*mod->syms), &mod->num_syms);
+	mod->crcs = section_addr(hdr, sechdrs, secstrings, "__kcrctab");
+	mod->gpl_syms = section_objs(hdr, sechdrs, secstrings, "__ksymtab_gpl",
+				     sizeof(*mod->gpl_syms),
+				     &mod->num_gpl_syms);
+	mod->gpl_crcs = section_addr(hdr, sechdrs, secstrings, "__kcrctab_gpl");
+	mod->gpl_future_syms = section_objs(hdr, sechdrs, secstrings,
+					    "__ksymtab_gpl_future",
+					    sizeof(*mod->gpl_future_syms),
+					    &mod->num_gpl_future_syms);
+	mod->gpl_future_crcs = section_addr(hdr, sechdrs, secstrings,
+					    "__kcrctab_gpl_future");
 
 #ifdef CONFIG_UNUSED_SYMBOLS
-	mod->num_unused_syms = sechdrs[unusedindex].sh_size /
-					sizeof(*mod->unused_syms);
-	mod->num_unused_gpl_syms = sechdrs[unusedgplindex].sh_size /
-					sizeof(*mod->unused_gpl_syms);
-	mod->unused_syms = (void *)sechdrs[unusedindex].sh_addr;
-	if (unusedcrcindex)
-		mod->unused_crcs = (void *)sechdrs[unusedcrcindex].sh_addr;
-	mod->unused_gpl_syms = (void *)sechdrs[unusedgplindex].sh_addr;
-	if (unusedgplcrcindex)
-		mod->unused_gpl_crcs
-			= (void *)sechdrs[unusedgplcrcindex].sh_addr;
+	mod->unused_syms = section_objs(hdr, sechdrs, secstrings,
+					"__ksymtab_unused",
+					sizeof(*mod->unused_syms),
+					&mod->num_unused_syms);
+	mod->unused_crcs = section_addr(hdr, sechdrs, secstrings,
+					"__kcrctab_unused");
+	mod->unused_gpl_syms = section_objs(hdr, sechdrs, secstrings,
+					    "__ksymtab_unused_gpl",
+					    sizeof(*mod->unused_gpl_syms),
+					    &mod->num_unused_gpl_syms);
+	mod->unused_gpl_crcs = section_addr(hdr, sechdrs, secstrings,
+					    "__kcrctab_unused_gpl");
+#endif
+
+#ifdef CONFIG_MARKERS
+	mod->markers = section_objs(hdr, sechdrs, secstrings, "__markers",
+				    sizeof(*mod->markers), &mod->num_markers);
+#endif
+#ifdef CONFIG_TRACEPOINTS
+	mod->tracepoints = section_objs(hdr, sechdrs, secstrings,
+					"__tracepoints",
+					sizeof(*mod->tracepoints),
+					&mod->num_tracepoints);
 #endif
 
 #ifdef CONFIG_MODVERSIONS
-	if ((mod->num_syms && !crcindex)
-	    || (mod->num_gpl_syms && !gplcrcindex)
-	    || (mod->num_gpl_future_syms && !gplfuturecrcindex)
+	if ((mod->num_syms && !mod->crcs)
+	    || (mod->num_gpl_syms && !mod->gpl_crcs)
+	    || (mod->num_gpl_future_syms && !mod->gpl_future_crcs)
 #ifdef CONFIG_UNUSED_SYMBOLS
-	    || (mod->num_unused_syms && !unusedcrcindex)
-	    || (mod->num_unused_gpl_syms && !unusedgplcrcindex)
+	    || (mod->num_unused_syms && !mod->unused_crcs)
+	    || (mod->num_unused_gpl_syms && !mod->unused_gpl_crcs)
 #endif
 		) {
 		printk(KERN_WARNING "%s: No versions for exported symbols.\n", mod->name);
@@ -2161,16 +2149,6 @@ static noinline struct module *load_module(void __user *umod,
 			goto cleanup;
 	}
 #endif
-	markersindex = find_sec(hdr, sechdrs, secstrings, "__markers");
- 	markersstringsindex = find_sec(hdr, sechdrs, secstrings,
-					"__markers_strings");
-	verboseindex = find_sec(hdr, sechdrs, secstrings, "__verbose");
-	tracepointsindex = find_sec(hdr, sechdrs, secstrings, "__tracepoints");
-	tracepointsstringsindex = find_sec(hdr, sechdrs, secstrings,
-					"__tracepoints_strings");
-
-	mcountindex = find_sec(hdr, sechdrs, secstrings,
-			       "__mcount_loc");
 
 	/* Now do relocations. */
 	for (i = 1; i < hdr->e_shnum; i++) {
@@ -2193,28 +2171,16 @@ static noinline struct module *load_module(void __user *umod,
 		if (err < 0)
 			goto cleanup;
 	}
-#ifdef CONFIG_MARKERS
-	mod->markers = (void *)sechdrs[markersindex].sh_addr;
-	mod->num_markers =
-		sechdrs[markersindex].sh_size / sizeof(*mod->markers);
-#endif
-#ifdef CONFIG_TRACEPOINTS
-	mod->tracepoints = (void *)sechdrs[tracepointsindex].sh_addr;
-	mod->num_tracepoints =
-		sechdrs[tracepointsindex].sh_size / sizeof(*mod->tracepoints);
-#endif
-
 
         /* Find duplicate symbols */
 	err = verify_export_symbols(mod);
-
 	if (err < 0)
 		goto cleanup;
 
   	/* Set up and sort exception table */
-	mod->num_exentries = sechdrs[exindex].sh_size / sizeof(*mod->extable);
-	mod->extable = extable = (void *)sechdrs[exindex].sh_addr;
-	sort_extable(extable, extable + mod->num_exentries);
+	mod->extable = section_objs(hdr, sechdrs, secstrings, "__ex_table",
+				    sizeof(*mod->extable), &mod->num_exentries);
+	sort_extable(mod->extable, mod->extable + mod->num_exentries);
 
 	/* Finally, copy percpu area over. */
 	percpu_modcopy(mod->percpu, (void *)sechdrs[pcpuindex].sh_addr,
@@ -2223,11 +2189,17 @@ static noinline struct module *load_module(void __user *umod,
 	add_kallsyms(mod, sechdrs, symindex, strindex, secstrings);
 
 	if (!mod->taints) {
+		struct mod_debug *debug;
+		unsigned int num_debug;
+
 #ifdef CONFIG_MARKERS
 		marker_update_probe_range(mod->markers,
 			mod->markers + mod->num_markers);
 #endif
-	dynamic_printk_setup(sechdrs, verboseindex);
+		debug = section_objs(hdr, sechdrs, secstrings, "__verbose",
+				     sizeof(*debug), &num_debug);
+		dynamic_printk_setup(debug, num_debug);
+
 #ifdef CONFIG_TRACEPOINTS
 		tracepoint_update_probe_range(mod->tracepoints,
 			mod->tracepoints + mod->num_tracepoints);
@@ -2235,8 +2207,9 @@ static noinline struct module *load_module(void __user *umod,
 	}
 
 	/* sechdrs[0].sh_size is always zero */
-	mseg = (void *)sechdrs[mcountindex].sh_addr;
-	ftrace_init_module(mseg, mseg + sechdrs[mcountindex].sh_size);
+	mseg = section_objs(hdr, sechdrs, secstrings, "__mcount_loc",
+			    sizeof(*mseg), &num_mcount);
+	ftrace_init_module(mseg, mseg + num_mcount);
 
 	err = module_finalize(hdr, sechdrs, mod);
 	if (err < 0)
@@ -2261,7 +2234,7 @@ static noinline struct module *load_module(void __user *umod,
 	set_fs(old_fs);
 
 	mod->args = args;
-	if (obsparmindex)
+	if (section_addr(hdr, sechdrs, secstrings, "__obsparm"))
 		printk(KERN_WARNING "%s: Ignoring obsolete parameters\n",
 		       mod->name);
 
@@ -2270,21 +2243,11 @@ static noinline struct module *load_module(void __user *umod,
          * strong_try_module_get() will fail. */
 	stop_machine(__link_module, mod, NULL);
 
-	/* Size of section 0 is 0, so this works well if no params */
-	err = parse_args(mod->name, mod->args,
-			 (struct kernel_param *)
-			 sechdrs[setupindex].sh_addr,
-			 sechdrs[setupindex].sh_size
-			 / sizeof(struct kernel_param),
-			 NULL);
+	err = parse_args(mod->name, mod->args, kp, num_kp, NULL);
 	if (err < 0)
 		goto unlink;
 
-	err = mod_sysfs_setup(mod,
-			      (struct kernel_param *)
-			      sechdrs[setupindex].sh_addr,
-			      sechdrs[setupindex].sh_size
-			      / sizeof(struct kernel_param));
+	err = mod_sysfs_setup(mod, kp, num_kp);
 	if (err < 0)
 		goto unlink;
 	add_sect_attrs(mod, hdr->e_shnum, secstrings, sechdrs);

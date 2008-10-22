@@ -277,7 +277,7 @@ struct module
 
 	/* Exception table */
 	unsigned int num_exentries;
-	const struct exception_table_entry *extable;
+	struct exception_table_entry *extable;
 
 	/* Startup function. */
 	int (*init)(void);
