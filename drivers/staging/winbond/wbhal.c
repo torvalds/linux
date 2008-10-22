@@ -92,7 +92,7 @@ void hal_halt(phw_data_t pHwData, void *ppa_data)
 void hal_set_rates(phw_data_t pHwData, u8 *pbss_rates,
 		   u8 length, unsigned char basic_rate_set)
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 	u32		tmp, tmp1;
 	u8		Rate[12]={ 2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108 };
 	u8		SupportedRate[16];
@@ -101,10 +101,10 @@ void hal_set_rates(phw_data_t pHwData, u8 *pbss_rates,
 	if( pHwData->SurpriseRemove ) return;
 
 	if (basic_rate_set) {
-		pWb35Reg->M28_MacControl &= ~0x000fff00;
+		reg->M28_MacControl &= ~0x000fff00;
 		tmp1 = 0x00000100;
 	} else {
-		pWb35Reg->M28_MacControl &= ~0xfff00000;
+		reg->M28_MacControl &= ~0xfff00000;
 		tmp1 = 0x00100000;
 	}
 
@@ -120,8 +120,8 @@ void hal_set_rates(phw_data_t pHwData, u8 *pbss_rates,
 			tmp |= (tmp1<<j);
 	}
 
-	pWb35Reg->M28_MacControl |= tmp;
-	Wb35Reg_Write( pHwData, 0x0828, pWb35Reg->M28_MacControl );
+	reg->M28_MacControl |= tmp;
+	Wb35Reg_Write( pHwData, 0x0828, reg->M28_MacControl );
 
 	// 930206.2.c M78 setting
 	j = k = Count1 = Count2 = 0;
@@ -129,10 +129,10 @@ void hal_set_rates(phw_data_t pHwData, u8 *pbss_rates,
 	tmp = 0x00100000;
 	tmp1 = 0x00000100;
 	for (i=0; i<12; i++) { // Get the supported rate
-		if (tmp & pWb35Reg->M28_MacControl) {
+		if (tmp & reg->M28_MacControl) {
 			SupportedRate[j] = Rate[i];
 
-			if (tmp1 & pWb35Reg->M28_MacControl)
+			if (tmp1 & reg->M28_MacControl)
 				SupportedRate[j] |= 0x80;
 
 			if (k)
@@ -144,7 +144,7 @@ void hal_set_rates(phw_data_t pHwData, u8 *pbss_rates,
 		}
 
 		if (i==4 && k==0) {
-			if( !(pWb35Reg->M28_MacControl & 0x000ff000) ) // if basic rate in 11g domain)
+			if( !(reg->M28_MacControl & 0x000ff000) ) // if basic rate in 11g domain)
 			{
 				k = 1;
 				j = 8;
@@ -161,16 +161,16 @@ void hal_set_rates(phw_data_t pHwData, u8 *pbss_rates,
 		*(u32 *)(SupportedRate+(i<<2)) = cpu_to_le32( *(u32 *)(SupportedRate+(i<<2)) );
 	//--- end 20060926 add by anson's endian
 	Wb35Reg_BurstWrite( pHwData,0x087c, (u32 *)SupportedRate, 4, AUTO_INCREMENT );
-	pWb35Reg->M7C_MacControl = ((u32 *)SupportedRate)[0];
-	pWb35Reg->M80_MacControl = ((u32 *)SupportedRate)[1];
-	pWb35Reg->M84_MacControl = ((u32 *)SupportedRate)[2];
-	pWb35Reg->M88_MacControl = ((u32 *)SupportedRate)[3];
+	reg->M7C_MacControl = ((u32 *)SupportedRate)[0];
+	reg->M80_MacControl = ((u32 *)SupportedRate)[1];
+	reg->M84_MacControl = ((u32 *)SupportedRate)[2];
+	reg->M88_MacControl = ((u32 *)SupportedRate)[3];
 
 	// Fill length
 	tmp = Count1<<28 | Count2<<24;
-	pWb35Reg->M78_ERPInformation &= ~0xff000000;
-	pWb35Reg->M78_ERPInformation |= tmp;
-	Wb35Reg_Write( pHwData, 0x0878, pWb35Reg->M78_ERPInformation );
+	reg->M78_ERPInformation &= ~0xff000000;
+	reg->M78_ERPInformation |= tmp;
+	Wb35Reg_Write( pHwData, 0x0878, reg->M78_ERPInformation );
 }
 
 
@@ -190,7 +190,7 @@ void hal_set_beacon_period(  phw_data_t pHwData,  u16 beacon_period )
 
 void hal_set_current_channel_ex(  phw_data_t pHwData,  ChanInfo channel )
 {
-	PWB35REG pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 
 	if( pHwData->SurpriseRemove )
 		return;
@@ -203,9 +203,9 @@ void hal_set_current_channel_ex(  phw_data_t pHwData,  ChanInfo channel )
 	#ifdef _PE_STATE_DUMP_
 	WBDEBUG(("Set channel is %d, band =%d\n", pHwData->Channel, pHwData->band));
 	#endif
-	pWb35Reg->M28_MacControl &= ~0xff; // Clean channel information field
-	pWb35Reg->M28_MacControl |= channel.ChanNo;
-	Wb35Reg_WriteWithCallbackValue( pHwData, 0x0828, pWb35Reg->M28_MacControl,
+	reg->M28_MacControl &= ~0xff; // Clean channel information field
+	reg->M28_MacControl |= channel.ChanNo;
+	Wb35Reg_WriteWithCallbackValue( pHwData, 0x0828, reg->M28_MacControl,
 					(s8 *)&channel, sizeof(ChanInfo));
 }
 //---------------------------------------------------------------------------------------------------
@@ -222,47 +222,47 @@ void hal_get_current_channel(  phw_data_t pHwData,  ChanInfo *channel )
 //---------------------------------------------------------------------------------------------------
 void hal_set_accept_broadcast(  phw_data_t pHwData,  u8 enable )
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 
 	if( pHwData->SurpriseRemove ) return;
 
-	pWb35Reg->M00_MacControl &= ~0x02000000;//The HW value
+	reg->M00_MacControl &= ~0x02000000;//The HW value
 
 	if (enable)
-		pWb35Reg->M00_MacControl |= 0x02000000;//The HW value
+		reg->M00_MacControl |= 0x02000000;//The HW value
 
-	Wb35Reg_Write( pHwData, 0x0800, pWb35Reg->M00_MacControl );
+	Wb35Reg_Write( pHwData, 0x0800, reg->M00_MacControl );
 }
 
 //for wep key error detection, we need to accept broadcast packets to be received temporary.
 void hal_set_accept_promiscuous( phw_data_t pHwData,  u8 enable)
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 
 	if (pHwData->SurpriseRemove) return;
 	if (enable) {
-		pWb35Reg->M00_MacControl |= 0x00400000;
-		Wb35Reg_Write( pHwData, 0x0800, pWb35Reg->M00_MacControl );
+		reg->M00_MacControl |= 0x00400000;
+		Wb35Reg_Write( pHwData, 0x0800, reg->M00_MacControl );
 	} else {
-		pWb35Reg->M00_MacControl&=~0x00400000;
-		Wb35Reg_Write( pHwData, 0x0800, pWb35Reg->M00_MacControl );
+		reg->M00_MacControl&=~0x00400000;
+		Wb35Reg_Write( pHwData, 0x0800, reg->M00_MacControl );
 	}
 }
 
 void hal_set_accept_multicast(  phw_data_t pHwData,  u8 enable )
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 
 	if( pHwData->SurpriseRemove ) return;
 
-	pWb35Reg->M00_MacControl &= ~0x01000000;//The HW value
-	if (enable)  pWb35Reg->M00_MacControl |= 0x01000000;//The HW value
-	Wb35Reg_Write( pHwData, 0x0800, pWb35Reg->M00_MacControl );
+	reg->M00_MacControl &= ~0x01000000;//The HW value
+	if (enable)  reg->M00_MacControl |= 0x01000000;//The HW value
+	Wb35Reg_Write( pHwData, 0x0800, reg->M00_MacControl );
 }
 
 void hal_set_accept_beacon(  phw_data_t pHwData,  u8 enable )
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 
 	if( pHwData->SurpriseRemove ) return;
 
@@ -270,43 +270,43 @@ void hal_set_accept_beacon(  phw_data_t pHwData,  u8 enable )
 	if( !enable )//Due to SME and MLME are not suitable for 35
 		return;
 
-	pWb35Reg->M00_MacControl &= ~0x04000000;//The HW value
+	reg->M00_MacControl &= ~0x04000000;//The HW value
 	if( enable )
-		pWb35Reg->M00_MacControl |= 0x04000000;//The HW value
+		reg->M00_MacControl |= 0x04000000;//The HW value
 
-	Wb35Reg_Write( pHwData, 0x0800, pWb35Reg->M00_MacControl );
+	Wb35Reg_Write( pHwData, 0x0800, reg->M00_MacControl );
 }
 //---------------------------------------------------------------------------------------------------
 void hal_set_multicast_address( phw_data_t pHwData, u8 *address, u8 number )
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 	u8		Byte, Bit;
 
 	if( pHwData->SurpriseRemove ) return;
 
 	//Erases and refills the card multicast registers. Used when an address
 	//    has been deleted and all bits must be recomputed.
-	pWb35Reg->M04_MulticastAddress1 = 0;
-	pWb35Reg->M08_MulticastAddress2 = 0;
+	reg->M04_MulticastAddress1 = 0;
+	reg->M08_MulticastAddress2 = 0;
 
 	while( number )
 	{
 		number--;
 		CardGetMulticastBit( (address+(number*ETH_LENGTH_OF_ADDRESS)), &Byte, &Bit);
-		pWb35Reg->Multicast[Byte] |= Bit;
+		reg->Multicast[Byte] |= Bit;
 	}
 
 	// Updating register
-	Wb35Reg_BurstWrite( pHwData, 0x0804, (u32 *)pWb35Reg->Multicast, 2, AUTO_INCREMENT );
+	Wb35Reg_BurstWrite( pHwData, 0x0804, (u32 *)reg->Multicast, 2, AUTO_INCREMENT );
 }
 //---------------------------------------------------------------------------------------------------
 u8 hal_get_accept_beacon(  phw_data_t pHwData )
 {
-	PWB35REG pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 
 	if( pHwData->SurpriseRemove ) return 0;
 
-	if( pWb35Reg->M00_MacControl & 0x04000000 )
+	if( reg->M00_MacControl & 0x04000000 )
 		return 1;
 	else
 		return 0;
@@ -320,7 +320,7 @@ unsigned char hal_reset_hardware( phw_data_t pHwData, void* ppa )
 
 void hal_stop(  phw_data_t pHwData )
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 
 	pHwData->Wb35Rx.rx_halt = 1;
 	Wb35Rx_stop( pHwData );
@@ -328,18 +328,18 @@ void hal_stop(  phw_data_t pHwData )
 	pHwData->Wb35Tx.tx_halt = 1;
 	Wb35Tx_stop( pHwData );
 
-	pWb35Reg->D00_DmaControl &= ~0xc0000000;//Tx Off, Rx Off
-	Wb35Reg_Write( pHwData, 0x0400, pWb35Reg->D00_DmaControl );
+	reg->D00_DmaControl &= ~0xc0000000;//Tx Off, Rx Off
+	Wb35Reg_Write( pHwData, 0x0400, reg->D00_DmaControl );
 
 	WbUsb_Stop( pHwData ); // 20051230 Add.4
 }
 
 unsigned char hal_idle(phw_data_t pHwData)
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 	PWBUSB	pWbUsb = &pHwData->WbUsb;
 
-	if( !pHwData->SurpriseRemove && ( pWbUsb->DetectCount || pWb35Reg->EP0vm_state!=VM_STOP ) )
+	if( !pHwData->SurpriseRemove && ( pWbUsb->DetectCount || reg->EP0vm_state!=VM_STOP ) )
 		return FALSE;
 
 	return TRUE;
@@ -347,19 +347,19 @@ unsigned char hal_idle(phw_data_t pHwData)
 //---------------------------------------------------------------------------------------------------
 void hal_set_cwmin(  phw_data_t pHwData,  u8	cwin_min )
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 
 	if( pHwData->SurpriseRemove ) return;
 
 	pHwData->cwmin = cwin_min;
-	pWb35Reg->M2C_MacControl &= ~0x7c00;	//bit 10 ~ 14
-	pWb35Reg->M2C_MacControl |= (pHwData->cwmin<<10);
-	Wb35Reg_Write( pHwData, 0x082c, pWb35Reg->M2C_MacControl );
+	reg->M2C_MacControl &= ~0x7c00;	//bit 10 ~ 14
+	reg->M2C_MacControl |= (pHwData->cwmin<<10);
+	Wb35Reg_Write( pHwData, 0x082c, reg->M2C_MacControl );
 }
 
 s32 hal_get_rssi(  phw_data_t pHwData,  u32 *HalRssiArry,  u8 Count )
 {
-	PWB35REG pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 	R01_DESCRIPTOR	r01;
 	s32 ltmp = 0, tmp;
 	u8	i;
@@ -373,7 +373,7 @@ s32 hal_get_rssi(  phw_data_t pHwData,  u32 *HalRssiArry,  u8 Count )
 	for (i=0; i<Count; i++)
 	{
 		r01.value = HalRssiArry[i];
-		tmp = ((( r01.R01_AGC_state + pWb35Reg->LNAValue[r01.R01_LNA_state]) * 85 ) >>7 ) - 195;
+		tmp = ((( r01.R01_AGC_state + reg->LNAValue[r01.R01_LNA_state]) * 85 ) >>7 ) - 195;
 		ltmp += tmp;
 	}
 	ltmp /= Count;
@@ -388,7 +388,7 @@ s32 hal_get_rssi(  phw_data_t pHwData,  u32 *HalRssiArry,  u8 Count )
 //----------------------------------------------------------------------------------------------------
 s32 hal_get_rssi_bss(  phw_data_t pHwData,  u16 idx,  u8 Count )
 {
-	PWB35REG pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 	R01_DESCRIPTOR	r01;
 	s32 ltmp = 0, tmp;
 	u8	i, j;
@@ -405,7 +405,7 @@ s32 hal_get_rssi_bss(  phw_data_t pHwData,  u16 idx,  u8 Count )
 	for (i=0; i<Count; i++)
 	{
 		r01.value = HalRssiArry[i];
-		tmp = ((( r01.R01_AGC_state + pWb35Reg->LNAValue[r01.R01_LNA_state]) * 85 ) >>7 ) - 195;
+		tmp = ((( r01.R01_AGC_state + reg->LNAValue[r01.R01_LNA_state]) * 85 ) >>7 ) - 195;
 		ltmp += tmp;
 	}
 #else
@@ -416,7 +416,7 @@ s32 hal_get_rssi_bss(  phw_data_t pHwData,  u16 idx,  u8 Count )
 	for (i=0; i<Count; i++)
 	{
 		r01.value = psBSS(idx)->HalRssi[j];
-		tmp = ((( r01.R01_AGC_state + pWb35Reg->LNAValue[r01.R01_LNA_state]) * 85 ) >>7 ) - 195;
+		tmp = ((( r01.R01_AGC_state + reg->LNAValue[r01.R01_LNA_state]) * 85 ) >>7 ) - 195;
 		ltmp += tmp;
 		if (j == 0)
 		{
@@ -444,7 +444,7 @@ void hal_led_control_1a(  phw_data_t pHwData )
 void hal_led_control(  void* S1,  phw_data_t pHwData,  void* S3,  void* S4 )
 {
 	PADAPTER	Adapter = pHwData->Adapter;
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 	u32	LEDSet = (pHwData->SoftwareSet & HAL_LED_SET_MASK) >> HAL_LED_SET_SHIFT;
 	u8	LEDgray[20] = { 0,3,4,6,8,10,11,12,13,14,15,14,13,12,11,10,8,6,4,2 };
 	u8	LEDgray2[30] = { 7,8,9,10,11,12,13,14,15,0,0,0,0,0,0,0,0,0,0,0,0,0,15,14,13,12,11,10,9,8 };
@@ -487,21 +487,21 @@ void hal_led_control(  void* S1,  phw_data_t pHwData,  void* S3,  void* S4 )
 			}
 			pHwData->LED_Blinking++;
 
-			pWb35Reg->U1BC_LEDConfigure = ltmp;
+			reg->U1BC_LEDConfigure = ltmp;
 			if( LEDSet != 7 ) // Only 111 mode has 2 LEDs on PCB.
 			{
-				pWb35Reg->U1BC_LEDConfigure |= (ltmp &0xff)<<8; // Copy LED result to each LED control register
-				pWb35Reg->U1BC_LEDConfigure |= (ltmp &0xff00)>>8;
+				reg->U1BC_LEDConfigure |= (ltmp &0xff)<<8; // Copy LED result to each LED control register
+				reg->U1BC_LEDConfigure |= (ltmp &0xff00)>>8;
 			}
-			Wb35Reg_Write( pHwData, 0x03bc, pWb35Reg->U1BC_LEDConfigure );
+			Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure );
 		}
 	}
 	else if( pHwData->CurrentRadioSw || pHwData->CurrentRadioHw ) // If radio off
 	{
-		if( pWb35Reg->U1BC_LEDConfigure & 0x1010 )
+		if( reg->U1BC_LEDConfigure & 0x1010 )
 		{
-			pWb35Reg->U1BC_LEDConfigure &= ~0x1010;
-			Wb35Reg_Write( pHwData, 0x03bc, pWb35Reg->U1BC_LEDConfigure );
+			reg->U1BC_LEDConfigure &= ~0x1010;
+			Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure );
 		}
 	}
 	else
@@ -516,15 +516,15 @@ void hal_led_control(  void* S1,  phw_data_t pHwData,  void* S3,  void* S4 )
 					{
 						if( pHwData->LED_Blinking == 0 )
 						{
-							pWb35Reg->U1BC_LEDConfigure |= 0x10;
-							Wb35Reg_Write( pHwData, 0x03bc, pWb35Reg->U1BC_LEDConfigure ); // LED_0 On
+							reg->U1BC_LEDConfigure |= 0x10;
+							Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_0 On
 							pHwData->LED_Blinking = 1;
 							TimeInterval = 300;
 						}
 						else
 						{
-							pWb35Reg->U1BC_LEDConfigure &= ~0x10;
-							Wb35Reg_Write( pHwData, 0x03bc, pWb35Reg->U1BC_LEDConfigure ); // LED_0 Off
+							reg->U1BC_LEDConfigure &= ~0x10;
+							Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_0 Off
 							pHwData->LED_Blinking = 0;
 							TimeInterval = 300;
 						}
@@ -532,20 +532,20 @@ void hal_led_control(  void* S1,  phw_data_t pHwData,  void* S3,  void* S4 )
 					else
 					{
 						//Turn Off LED_0
-						if( pWb35Reg->U1BC_LEDConfigure & 0x10 )
+						if( reg->U1BC_LEDConfigure & 0x10 )
 						{
-							pWb35Reg->U1BC_LEDConfigure &= ~0x10;
-							Wb35Reg_Write( pHwData, 0x03bc, pWb35Reg->U1BC_LEDConfigure ); // LED_0 Off
+							reg->U1BC_LEDConfigure &= ~0x10;
+							Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_0 Off
 						}
 					}
 				}
 				else
 				{
 					// Turn On LED_0
-					if( (pWb35Reg->U1BC_LEDConfigure & 0x10) == 0 )
+					if( (reg->U1BC_LEDConfigure & 0x10) == 0 )
 					{
-						pWb35Reg->U1BC_LEDConfigure |= 0x10;
-						Wb35Reg_Write( pHwData, 0x03bc, pWb35Reg->U1BC_LEDConfigure ); // LED_0 Off
+						reg->U1BC_LEDConfigure |= 0x10;
+						Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_0 Off
 					}
 				}
 				break;
@@ -558,16 +558,16 @@ void hal_led_control(  void* S1,  phw_data_t pHwData,  void* S3,  void* S4 )
 					{
 						if( pHwData->LED_Blinking == 0 )
 						{
-							pWb35Reg->U1BC_LEDConfigure &= ~0xf;
-							pWb35Reg->U1BC_LEDConfigure |= 0x10;
-							Wb35Reg_Write( pHwData, 0x03bc, pWb35Reg->U1BC_LEDConfigure ); // LED_0 On
+							reg->U1BC_LEDConfigure &= ~0xf;
+							reg->U1BC_LEDConfigure |= 0x10;
+							Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_0 On
 							pHwData->LED_Blinking = 1;
 							TimeInterval = 300;
 						}
 						else
 						{
-							pWb35Reg->U1BC_LEDConfigure &= ~0x1f;
-							Wb35Reg_Write( pHwData, 0x03bc, pWb35Reg->U1BC_LEDConfigure ); // LED_0 Off
+							reg->U1BC_LEDConfigure &= ~0x1f;
+							Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_0 Off
 							pHwData->LED_Blinking = 0;
 							TimeInterval = 300;
 						}
@@ -575,26 +575,26 @@ void hal_led_control(  void* S1,  phw_data_t pHwData,  void* S3,  void* S4 )
 					else
 					{
 						// 20060901 Gray blinking if in disconnect state and not scanning
-						ltmp = pWb35Reg->U1BC_LEDConfigure;
-						pWb35Reg->U1BC_LEDConfigure &= ~0x1f;
+						ltmp = reg->U1BC_LEDConfigure;
+						reg->U1BC_LEDConfigure &= ~0x1f;
 						if( LEDgray2[(pHwData->LED_Blinking%30)] )
 						{
-							pWb35Reg->U1BC_LEDConfigure |= 0x10;
-							pWb35Reg->U1BC_LEDConfigure |= LEDgray2[ (pHwData->LED_Blinking%30) ];
+							reg->U1BC_LEDConfigure |= 0x10;
+							reg->U1BC_LEDConfigure |= LEDgray2[ (pHwData->LED_Blinking%30) ];
 						}
 						pHwData->LED_Blinking++;
-						if( pWb35Reg->U1BC_LEDConfigure != ltmp )
-							Wb35Reg_Write( pHwData, 0x03bc, pWb35Reg->U1BC_LEDConfigure ); // LED_0 Off
+						if( reg->U1BC_LEDConfigure != ltmp )
+							Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_0 Off
 						TimeInterval = 100;
 					}
 				}
 				else
 				{
 					// Turn On LED_0
-					if( (pWb35Reg->U1BC_LEDConfigure & 0x10) == 0 )
+					if( (reg->U1BC_LEDConfigure & 0x10) == 0 )
 					{
-						pWb35Reg->U1BC_LEDConfigure |= 0x10;
-						Wb35Reg_Write( pHwData, 0x03bc, pWb35Reg->U1BC_LEDConfigure ); // LED_0 Off
+						reg->U1BC_LEDConfigure |= 0x10;
+						Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_0 Off
 					}
 				}
 				break;
@@ -607,15 +607,15 @@ void hal_led_control(  void* S1,  phw_data_t pHwData,  void* S3,  void* S4 )
 					{
 						if( pHwData->LED_Blinking == 0 )
 						{
-							pWb35Reg->U1BC_LEDConfigure |= 0x1000;
-							Wb35Reg_Write( pHwData, 0x03bc, pWb35Reg->U1BC_LEDConfigure ); // LED_1 On
+							reg->U1BC_LEDConfigure |= 0x1000;
+							Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_1 On
 							pHwData->LED_Blinking = 1;
 							TimeInterval = 300;
 						}
 						else
 						{
-							pWb35Reg->U1BC_LEDConfigure &= ~0x1000;
-							Wb35Reg_Write( pHwData, 0x03bc, pWb35Reg->U1BC_LEDConfigure ); // LED_1 Off
+							reg->U1BC_LEDConfigure &= ~0x1000;
+							Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_1 Off
 							pHwData->LED_Blinking = 0;
 							TimeInterval = 300;
 						}
@@ -623,10 +623,10 @@ void hal_led_control(  void* S1,  phw_data_t pHwData,  void* S3,  void* S4 )
 					else
 					{
 						//Turn Off LED_1
-						if( pWb35Reg->U1BC_LEDConfigure & 0x1000 )
+						if( reg->U1BC_LEDConfigure & 0x1000 )
 						{
-							pWb35Reg->U1BC_LEDConfigure &= ~0x1000;
-							Wb35Reg_Write( pHwData, 0x03bc, pWb35Reg->U1BC_LEDConfigure ); // LED_1 Off
+							reg->U1BC_LEDConfigure &= ~0x1000;
+							Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_1 Off
 						}
 					}
 				}
@@ -636,10 +636,10 @@ void hal_led_control(  void* S1,  phw_data_t pHwData,  void* S3,  void* S4 )
 					if( (OS_CURRENT_RX_BYTE( Adapter ) != pHwData->RxByteCountLast ) ||
 						(OS_CURRENT_TX_BYTE( Adapter ) != pHwData->TxByteCountLast ) )
 					{
-						if( (pWb35Reg->U1BC_LEDConfigure & 0x3000) != 0x3000 )
+						if( (reg->U1BC_LEDConfigure & 0x3000) != 0x3000 )
 						{
-							pWb35Reg->U1BC_LEDConfigure |= 0x3000;
-							Wb35Reg_Write( pHwData, 0x03bc, pWb35Reg->U1BC_LEDConfigure ); // LED_1 On
+							reg->U1BC_LEDConfigure |= 0x3000;
+							Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_1 On
 						}
 
 						// Update variable
@@ -650,30 +650,30 @@ void hal_led_control(  void* S1,  phw_data_t pHwData,  void* S3,  void* S4 )
 					else
 					{
 						// Turn On LED_1 and blinking if transmitting/receiving
-						 if( (pWb35Reg->U1BC_LEDConfigure & 0x3000) != 0x1000 )
+						 if( (reg->U1BC_LEDConfigure & 0x3000) != 0x1000 )
 						 {
-							 pWb35Reg->U1BC_LEDConfigure &= ~0x3000;
-							 pWb35Reg->U1BC_LEDConfigure |= 0x1000;
-							 Wb35Reg_Write( pHwData, 0x03bc, pWb35Reg->U1BC_LEDConfigure ); // LED_1 On
+							 reg->U1BC_LEDConfigure &= ~0x3000;
+							 reg->U1BC_LEDConfigure |= 0x1000;
+							 Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure ); // LED_1 On
 						 }
 					}
 				}
 				break;
 
 			default: // Default setting. 2 LED be placed on PCB. LED_0: Link On LED_1 Active
-				if( (pWb35Reg->U1BC_LEDConfigure & 0x3000) != 0x3000 )
+				if( (reg->U1BC_LEDConfigure & 0x3000) != 0x3000 )
 				{
-					pWb35Reg->U1BC_LEDConfigure |= 0x3000;// LED_1 is always on and event enable
-					Wb35Reg_Write( pHwData, 0x03bc, pWb35Reg->U1BC_LEDConfigure );
+					reg->U1BC_LEDConfigure |= 0x3000;// LED_1 is always on and event enable
+					Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure );
 				}
 
 				if( pHwData->LED_Blinking )
 				{
 					// Gray blinking
-					pWb35Reg->U1BC_LEDConfigure &= ~0x0f;
-					pWb35Reg->U1BC_LEDConfigure |= 0x10;
-					pWb35Reg->U1BC_LEDConfigure |= LEDgray[ (pHwData->LED_Blinking-1)%20 ];
-					Wb35Reg_Write( pHwData, 0x03bc, pWb35Reg->U1BC_LEDConfigure );
+					reg->U1BC_LEDConfigure &= ~0x0f;
+					reg->U1BC_LEDConfigure |= 0x10;
+					reg->U1BC_LEDConfigure |= LEDgray[ (pHwData->LED_Blinking-1)%20 ];
+					Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure );
 
 					pHwData->LED_Blinking += 2;
 					if( pHwData->LED_Blinking < 40 )
@@ -681,28 +681,28 @@ void hal_led_control(  void* S1,  phw_data_t pHwData,  void* S3,  void* S4 )
 					else
 					{
 						pHwData->LED_Blinking = 0; // Stop blinking
-						pWb35Reg->U1BC_LEDConfigure &= ~0x0f;
-						Wb35Reg_Write( pHwData, 0x03bc, pWb35Reg->U1BC_LEDConfigure );
+						reg->U1BC_LEDConfigure &= ~0x0f;
+						Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure );
 					}
 					break;
 				}
 
 				if( pHwData->LED_LinkOn )
 				{
-					if( !(pWb35Reg->U1BC_LEDConfigure & 0x10) ) // Check the LED_0
+					if( !(reg->U1BC_LEDConfigure & 0x10) ) // Check the LED_0
 					{
 						//Try to turn ON LED_0 after gray blinking
-						pWb35Reg->U1BC_LEDConfigure |= 0x10;
+						reg->U1BC_LEDConfigure |= 0x10;
 						pHwData->LED_Blinking = 1; //Start blinking
 						TimeInterval = 50;
 					}
 				}
 				else
 				{
-					if( pWb35Reg->U1BC_LEDConfigure & 0x10 ) // Check the LED_0
+					if( reg->U1BC_LEDConfigure & 0x10 ) // Check the LED_0
 					{
-						pWb35Reg->U1BC_LEDConfigure &= ~0x10;
-						Wb35Reg_Write( pHwData, 0x03bc, pWb35Reg->U1BC_LEDConfigure );
+						reg->U1BC_LEDConfigure &= ~0x10;
+						Wb35Reg_Write( pHwData, 0x03bc, reg->U1BC_LEDConfigure );
 					}
 				}
 				break;
@@ -744,28 +744,28 @@ void hal_reset_counter(  phw_data_t pHwData )
 
 void hal_set_radio_mode( phw_data_t pHwData,  unsigned char radio_off)
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 
 	if( pHwData->SurpriseRemove ) return;
 
 	if (radio_off)	//disable Baseband receive off
 	{
 		pHwData->CurrentRadioSw = 1; // off
-		pWb35Reg->M24_MacControl &= 0xffffffbf;
+		reg->M24_MacControl &= 0xffffffbf;
 	}
 	else
 	{
 		pHwData->CurrentRadioSw = 0; // on
-		pWb35Reg->M24_MacControl |= 0x00000040;
+		reg->M24_MacControl |= 0x00000040;
 	}
-	Wb35Reg_Write( pHwData, 0x0824, pWb35Reg->M24_MacControl );
+	Wb35Reg_Write( pHwData, 0x0824, reg->M24_MacControl );
 }
 
 u8 hal_get_antenna_number(  phw_data_t pHwData )
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 
-	if ((pWb35Reg->BB2C & BIT(11)) == 0)
+	if ((reg->BB2C & BIT(11)) == 0)
 		return 0;
 	else
 		return 1;
@@ -774,14 +774,14 @@ u8 hal_get_antenna_number(  phw_data_t pHwData )
 void hal_set_antenna_number(  phw_data_t pHwData, u8 number )
 {
 
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 
 	if (number == 1) {
-		pWb35Reg->BB2C |= BIT(11);
+		reg->BB2C |= BIT(11);
 	} else {
-		pWb35Reg->BB2C &= ~BIT(11);
+		reg->BB2C &= ~BIT(11);
 	}
-	Wb35Reg_Write( pHwData, 0x102c, pWb35Reg->BB2C );
+	Wb35Reg_Write( pHwData, 0x102c, reg->BB2C );
 #ifdef _PE_STATE_DUMP_
 	WBDEBUG(("Current antenna number : %d\n", number));
 #endif
@@ -791,13 +791,13 @@ void hal_set_antenna_number(  phw_data_t pHwData, u8 number )
 //0 : radio on; 1: radio off
 u8 hal_get_hw_radio_off(  phw_data_t pHwData )
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 
 	if( pHwData->SurpriseRemove ) return 1;
 
 	//read the bit16 of register U1B0
-	Wb35Reg_Read( pHwData, 0x3b0, &pWb35Reg->U1B0 );
-	if ((pWb35Reg->U1B0 & 0x00010000)) {
+	Wb35Reg_Read( pHwData, 0x3b0, &reg->U1B0 );
+	if ((reg->U1B0 & 0x00010000)) {
 		pHwData->CurrentRadioHw = 1;
 		return 1;
 	} else {

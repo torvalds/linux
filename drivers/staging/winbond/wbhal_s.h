@@ -506,7 +506,7 @@ typedef struct _HW_DATA_T
 	// Variable for each module
 	//========================================================================
 	WBUSB		WbUsb; // Need WbUsb.h
-	WB35REG		Wb35Reg; // Need Wb35Reg.h
+	struct wb35_reg	reg; // Need Wb35Reg.h
 	WB35TX		Wb35Tx; // Need Wb35Tx.h
 	WB35RX		Wb35Rx; // Need Wb35Rx.h
 

@@ -79,7 +79,7 @@ void hal_descriptor_indicate(  phw_data_t pHwData,  PDESCRIPTOR pDes );
 u8 hal_get_antenna_number(  phw_data_t pHwData );
 void hal_set_antenna_number(  phw_data_t pHwData, u8 number );
 u32 hal_get_bss_pk_cnt(  phw_data_t pHwData );
-#define hal_get_region_from_EEPROM( _A ) ( (_A)->Wb35Reg.EEPROMRegion )
+#define hal_get_region_from_EEPROM( _A ) ( (_A)->reg.EEPROMRegion )
 void hal_set_accept_promiscuous		(  phw_data_t pHwData,  u8 enable);
 #define hal_get_tx_buffer( _A, _B ) Wb35Tx_get_tx_buffer( _A, _B )
 u8 hal_get_hw_radio_off			(  phw_data_t pHwData );

@@ -12,7 +12,7 @@ extern void phy_calibration_winbond(hw_data_t *phw_data, u32 frequency);
 unsigned char
 Wb35Reg_BurstWrite(phw_data_t pHwData, u16 RegisterNo, u32 * pRegisterData, u8 NumberOfData, u8 Flag)
 {
-	PWB35REG pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 	struct urb	*urb = NULL;
 	struct wb35_reg_queue *reg_queue = NULL;
 	u16		UrbSize;
@@ -46,14 +46,14 @@ Wb35Reg_BurstWrite(phw_data_t pHwData, u16 RegisterNo, u32 * pRegisterData, u8 N
 		reg_queue->pUsbReq = dr;
 		reg_queue->urb = urb;
 
-		spin_lock_irq( &pWb35Reg->EP0VM_spin_lock );
-		if (pWb35Reg->reg_first == NULL)
-			pWb35Reg->reg_first = reg_queue;
+		spin_lock_irq( &reg->EP0VM_spin_lock );
+		if (reg->reg_first == NULL)
+			reg->reg_first = reg_queue;
 		else
-			pWb35Reg->reg_last->Next = reg_queue;
-		pWb35Reg->reg_last = reg_queue;
+			reg->reg_last->Next = reg_queue;
+		reg->reg_last = reg_queue;
 
-		spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
+		spin_unlock_irq( &reg->EP0VM_spin_lock );
 
 		// Start EP0VM
 		Wb35Reg_EP0VM_start(pHwData);
@@ -72,43 +72,43 @@ Wb35Reg_BurstWrite(phw_data_t pHwData, u16 RegisterNo, u32 * pRegisterData, u8 N
 void
 Wb35Reg_Update(phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue)
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 	switch (RegisterNo) {
-	case 0x3b0: pWb35Reg->U1B0 = RegisterValue; break;
-	case 0x3bc: pWb35Reg->U1BC_LEDConfigure = RegisterValue; break;
-	case 0x400: pWb35Reg->D00_DmaControl = RegisterValue; break;
-	case 0x800: pWb35Reg->M00_MacControl = RegisterValue; break;
-	case 0x804: pWb35Reg->M04_MulticastAddress1 = RegisterValue; break;
-	case 0x808: pWb35Reg->M08_MulticastAddress2 = RegisterValue; break;
-	case 0x824: pWb35Reg->M24_MacControl = RegisterValue; break;
-	case 0x828: pWb35Reg->M28_MacControl = RegisterValue; break;
-	case 0x82c: pWb35Reg->M2C_MacControl = RegisterValue; break;
-	case 0x838: pWb35Reg->M38_MacControl = RegisterValue; break;
-	case 0x840: pWb35Reg->M40_MacControl = RegisterValue; break;
-	case 0x844: pWb35Reg->M44_MacControl = RegisterValue; break;
-	case 0x848: pWb35Reg->M48_MacControl = RegisterValue; break;
-	case 0x84c: pWb35Reg->M4C_MacStatus = RegisterValue; break;
-	case 0x860: pWb35Reg->M60_MacControl = RegisterValue; break;
-	case 0x868: pWb35Reg->M68_MacControl = RegisterValue; break;
-	case 0x870: pWb35Reg->M70_MacControl = RegisterValue; break;
-	case 0x874: pWb35Reg->M74_MacControl = RegisterValue; break;
-	case 0x878: pWb35Reg->M78_ERPInformation = RegisterValue; break;
-	case 0x87C: pWb35Reg->M7C_MacControl = RegisterValue; break;
-	case 0x880: pWb35Reg->M80_MacControl = RegisterValue; break;
-	case 0x884: pWb35Reg->M84_MacControl = RegisterValue; break;
-	case 0x888: pWb35Reg->M88_MacControl = RegisterValue; break;
-	case 0x898: pWb35Reg->M98_MacControl = RegisterValue; break;
-	case 0x100c: pWb35Reg->BB0C = RegisterValue; break;
-	case 0x102c: pWb35Reg->BB2C = RegisterValue; break;
-	case 0x1030: pWb35Reg->BB30 = RegisterValue; break;
-	case 0x103c: pWb35Reg->BB3C = RegisterValue; break;
-	case 0x1048: pWb35Reg->BB48 = RegisterValue; break;
-	case 0x104c: pWb35Reg->BB4C = RegisterValue; break;
-	case 0x1050: pWb35Reg->BB50 = RegisterValue; break;
-	case 0x1054: pWb35Reg->BB54 = RegisterValue; break;
-	case 0x1058: pWb35Reg->BB58 = RegisterValue; break;
-	case 0x105c: pWb35Reg->BB5C = RegisterValue; break;
-	case 0x1060: pWb35Reg->BB60 = RegisterValue; break;
+	case 0x3b0: reg->U1B0 = RegisterValue; break;
+	case 0x3bc: reg->U1BC_LEDConfigure = RegisterValue; break;
+	case 0x400: reg->D00_DmaControl = RegisterValue; break;
+	case 0x800: reg->M00_MacControl = RegisterValue; break;
+	case 0x804: reg->M04_MulticastAddress1 = RegisterValue; break;
+	case 0x808: reg->M08_MulticastAddress2 = RegisterValue; break;
+	case 0x824: reg->M24_MacControl = RegisterValue; break;
+	case 0x828: reg->M28_MacControl = RegisterValue; break;
+	case 0x82c: reg->M2C_MacControl = RegisterValue; break;
+	case 0x838: reg->M38_MacControl = RegisterValue; break;
+	case 0x840: reg->M40_MacControl = RegisterValue; break;
+	case 0x844: reg->M44_MacControl = RegisterValue; break;
+	case 0x848: reg->M48_MacControl = RegisterValue; break;
+	case 0x84c: reg->M4C_MacStatus = RegisterValue; break;
+	case 0x860: reg->M60_MacControl = RegisterValue; break;
+	case 0x868: reg->M68_MacControl = RegisterValue; break;
+	case 0x870: reg->M70_MacControl = RegisterValue; break;
+	case 0x874: reg->M74_MacControl = RegisterValue; break;
+	case 0x878: reg->M78_ERPInformation = RegisterValue; break;
+	case 0x87C: reg->M7C_MacControl = RegisterValue; break;
+	case 0x880: reg->M80_MacControl = RegisterValue; break;
+	case 0x884: reg->M84_MacControl = RegisterValue; break;
+	case 0x888: reg->M88_MacControl = RegisterValue; break;
+	case 0x898: reg->M98_MacControl = RegisterValue; break;
+	case 0x100c: reg->BB0C = RegisterValue; break;
+	case 0x102c: reg->BB2C = RegisterValue; break;
+	case 0x1030: reg->BB30 = RegisterValue; break;
+	case 0x103c: reg->BB3C = RegisterValue; break;
+	case 0x1048: reg->BB48 = RegisterValue; break;
+	case 0x104c: reg->BB4C = RegisterValue; break;
+	case 0x1050: reg->BB50 = RegisterValue; break;
+	case 0x1054: reg->BB54 = RegisterValue; break;
+	case 0x1058: reg->BB58 = RegisterValue; break;
+	case 0x105c: reg->BB5C = RegisterValue; break;
+	case 0x1060: reg->BB60 = RegisterValue; break;
 	}
 }
 
@@ -117,7 +117,7 @@ Wb35Reg_Update(phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue)
 unsigned char
 Wb35Reg_WriteSync(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 {
-	PWB35REG pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 	int ret = -1;
 
 	// Module shutdown
@@ -127,20 +127,20 @@ Wb35Reg_WriteSync(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 	RegisterValue = cpu_to_le32(RegisterValue);
 
 	// update the register by send usb message------------------------------------
-	pWb35Reg->SyncIoPause = 1;
+	reg->SyncIoPause = 1;
 
 	// 20060717.5 Wait until EP0VM stop
-	while (pWb35Reg->EP0vm_state != VM_STOP)
+	while (reg->EP0vm_state != VM_STOP)
 		msleep(10);
 
 	// Sync IoCallDriver
-	pWb35Reg->EP0vm_state = VM_RUNNING;
+	reg->EP0vm_state = VM_RUNNING;
 	ret = usb_control_msg( pHwData->WbUsb.udev,
 			       usb_sndctrlpipe( pHwData->WbUsb.udev, 0 ),
 			       0x03, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
 			       0x0,RegisterNo, &RegisterValue, 4, HZ*100 );
-	pWb35Reg->EP0vm_state = VM_STOP;
-	pWb35Reg->SyncIoPause = 0;
+	reg->EP0vm_state = VM_STOP;
+	reg->SyncIoPause = 0;
 
 	Wb35Reg_EP0VM_start(pHwData);
 
@@ -161,7 +161,7 @@ Wb35Reg_WriteSync(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 unsigned char
 Wb35Reg_Write(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 	struct usb_ctrlrequest *dr;
 	struct urb	*urb = NULL;
 	struct wb35_reg_queue *reg_queue = NULL;
@@ -193,14 +193,14 @@ Wb35Reg_Write(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 		reg_queue->pUsbReq = dr;
 		reg_queue->urb = urb;
 
-		spin_lock_irq(&pWb35Reg->EP0VM_spin_lock );
-		if (pWb35Reg->reg_first == NULL)
-			pWb35Reg->reg_first = reg_queue;
+		spin_lock_irq(&reg->EP0VM_spin_lock );
+		if (reg->reg_first == NULL)
+			reg->reg_first = reg_queue;
 		else
-			pWb35Reg->reg_last->Next = reg_queue;
-		pWb35Reg->reg_last = reg_queue;
+			reg->reg_last->Next = reg_queue;
+		reg->reg_last = reg_queue;
 
-		spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
+		spin_unlock_irq( &reg->EP0VM_spin_lock );
 
 		// Start EP0VM
 		Wb35Reg_EP0VM_start(pHwData);
@@ -222,7 +222,7 @@ unsigned char
 Wb35Reg_WriteWithCallbackValue( phw_data_t pHwData, u16 RegisterNo, u32 RegisterValue,
 				s8 *pValue, s8 Len)
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 	struct usb_ctrlrequest *dr;
 	struct urb	*urb = NULL;
 	struct wb35_reg_queue *reg_queue = NULL;
@@ -254,14 +254,14 @@ Wb35Reg_WriteWithCallbackValue( phw_data_t pHwData, u16 RegisterNo, u32 Register
 		reg_queue->Next = NULL;
 		reg_queue->pUsbReq = dr;
 		reg_queue->urb = urb;
-		spin_lock_irq (&pWb35Reg->EP0VM_spin_lock );
-		if( pWb35Reg->reg_first == NULL )
-			pWb35Reg->reg_first = reg_queue;
+		spin_lock_irq (&reg->EP0VM_spin_lock );
+		if( reg->reg_first == NULL )
+			reg->reg_first = reg_queue;
 		else
-			pWb35Reg->reg_last->Next = reg_queue;
-		pWb35Reg->reg_last = reg_queue;
+			reg->reg_last->Next = reg_queue;
+		reg->reg_last = reg_queue;
 
-		spin_unlock_irq ( &pWb35Reg->EP0VM_spin_lock );
+		spin_unlock_irq ( &reg->EP0VM_spin_lock );
 
 		// Start EP0VM
 		Wb35Reg_EP0VM_start(pHwData);
@@ -280,7 +280,7 @@ Wb35Reg_WriteWithCallbackValue( phw_data_t pHwData, u16 RegisterNo, u32 Register
 unsigned char
 Wb35Reg_ReadSync(  phw_data_t pHwData,  u16 RegisterNo,   u32 * pRegisterValue )
 {
-	PWB35REG pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 	u32 *	pltmp = pRegisterValue;
 	int ret = -1;
 
@@ -290,13 +290,13 @@ Wb35Reg_ReadSync(  phw_data_t pHwData,  u16 RegisterNo,   u32 * pRegisterValue )
 
 	// Read the register by send usb message------------------------------------
 
-	pWb35Reg->SyncIoPause = 1;
+	reg->SyncIoPause = 1;
 
 	// 20060717.5 Wait until EP0VM stop
-	while (pWb35Reg->EP0vm_state != VM_STOP)
+	while (reg->EP0vm_state != VM_STOP)
 		msleep(10);
 
-	pWb35Reg->EP0vm_state = VM_RUNNING;
+	reg->EP0vm_state = VM_RUNNING;
 	ret = usb_control_msg( pHwData->WbUsb.udev,
 			       usb_rcvctrlpipe(pHwData->WbUsb.udev, 0),
 			       0x01, USB_TYPE_VENDOR|USB_RECIP_DEVICE|USB_DIR_IN,
@@ -304,10 +304,10 @@ Wb35Reg_ReadSync(  phw_data_t pHwData,  u16 RegisterNo,   u32 * pRegisterValue )
 
 	*pRegisterValue = cpu_to_le32(*pltmp);
 
-	pWb35Reg->EP0vm_state = VM_STOP;
+	reg->EP0vm_state = VM_STOP;
 
 	Wb35Reg_Update( pHwData, RegisterNo, *pRegisterValue );
-	pWb35Reg->SyncIoPause = 0;
+	reg->SyncIoPause = 0;
 
 	Wb35Reg_EP0VM_start( pHwData );
 
@@ -329,7 +329,7 @@ Wb35Reg_ReadSync(  phw_data_t pHwData,  u16 RegisterNo,   u32 * pRegisterValue )
 unsigned char
 Wb35Reg_Read(phw_data_t pHwData, u16 RegisterNo,  u32 * pRegisterValue )
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 	struct usb_ctrlrequest * dr;
 	struct urb	*urb;
 	struct wb35_reg_queue *reg_queue;
@@ -359,14 +359,14 @@ Wb35Reg_Read(phw_data_t pHwData, u16 RegisterNo,  u32 * pRegisterValue )
 		reg_queue->Next = NULL;
 		reg_queue->pUsbReq = dr;
 		reg_queue->urb = urb;
-		spin_lock_irq ( &pWb35Reg->EP0VM_spin_lock );
-		if( pWb35Reg->reg_first == NULL )
-			pWb35Reg->reg_first = reg_queue;
+		spin_lock_irq ( &reg->EP0VM_spin_lock );
+		if( reg->reg_first == NULL )
+			reg->reg_first = reg_queue;
 		else
-			pWb35Reg->reg_last->Next = reg_queue;
-		pWb35Reg->reg_last = reg_queue;
+			reg->reg_last->Next = reg_queue;
+		reg->reg_last = reg_queue;
 
-		spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
+		spin_unlock_irq( &reg->EP0VM_spin_lock );
 
 		// Start EP0VM
 		Wb35Reg_EP0VM_start( pHwData );
@@ -384,19 +384,19 @@ Wb35Reg_Read(phw_data_t pHwData, u16 RegisterNo,  u32 * pRegisterValue )
 void
 Wb35Reg_EP0VM_start(  phw_data_t pHwData )
 {
-	PWB35REG pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 
-	if (OS_ATOMIC_INC( pHwData->Adapter, &pWb35Reg->RegFireCount) == 1) {
-		pWb35Reg->EP0vm_state = VM_RUNNING;
+	if (OS_ATOMIC_INC( pHwData->Adapter, &reg->RegFireCount) == 1) {
+		reg->EP0vm_state = VM_RUNNING;
 		Wb35Reg_EP0VM(pHwData);
 	} else
-		OS_ATOMIC_DEC( pHwData->Adapter, &pWb35Reg->RegFireCount );
+		OS_ATOMIC_DEC( pHwData->Adapter, &reg->RegFireCount );
 }
 
 void
 Wb35Reg_EP0VM(phw_data_t pHwData )
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 	struct urb	*urb;
 	struct usb_ctrlrequest *dr;
 	u32 *		pBuffer;
@@ -404,16 +404,16 @@ Wb35Reg_EP0VM(phw_data_t pHwData )
 	struct wb35_reg_queue *reg_queue;
 
 
-	if (pWb35Reg->SyncIoPause)
+	if (reg->SyncIoPause)
 		goto cleanup;
 
 	if (pHwData->SurpriseRemove)
 		goto cleanup;
 
 	// Get the register data and send to USB through Irp
-	spin_lock_irq( &pWb35Reg->EP0VM_spin_lock );
-	reg_queue = pWb35Reg->reg_first;
-	spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
+	spin_lock_irq( &reg->EP0VM_spin_lock );
+	reg_queue = reg->reg_first;
+	spin_unlock_irq( &reg->EP0VM_spin_lock );
 
 	if (!reg_queue)
 		goto cleanup;
@@ -432,7 +432,7 @@ Wb35Reg_EP0VM(phw_data_t pHwData )
 			      (u8 *)dr,pBuffer,cpu_to_le16(dr->wLength),
 			      Wb35Reg_EP0VM_complete, (void*)pHwData);
 
-	pWb35Reg->EP0vm_state = VM_RUNNING;
+	reg->EP0vm_state = VM_RUNNING;
 
 	ret = wb_usb_submit_urb( urb );
 
@@ -446,8 +446,8 @@ Wb35Reg_EP0VM(phw_data_t pHwData )
 	return;
 
  cleanup:
-	pWb35Reg->EP0vm_state = VM_STOP;
-	OS_ATOMIC_DEC( pHwData->Adapter, &pWb35Reg->RegFireCount );
+	reg->EP0vm_state = VM_STOP;
+	OS_ATOMIC_DEC( pHwData->Adapter, &reg->RegFireCount );
 }
 
 
@@ -455,32 +455,32 @@ void
 Wb35Reg_EP0VM_complete(struct urb *urb)
 {
 	phw_data_t  pHwData = (phw_data_t)urb->context;
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 	struct wb35_reg_queue *reg_queue;
 
 
 	// Variable setting
-	pWb35Reg->EP0vm_state = VM_COMPLETED;
-	pWb35Reg->EP0VM_status = urb->status;
+	reg->EP0vm_state = VM_COMPLETED;
+	reg->EP0VM_status = urb->status;
 
 	if (pHwData->SurpriseRemove) { // Let WbWlanHalt to handle surprise remove
-		pWb35Reg->EP0vm_state = VM_STOP;
-		OS_ATOMIC_DEC( pHwData->Adapter, &pWb35Reg->RegFireCount );
+		reg->EP0vm_state = VM_STOP;
+		OS_ATOMIC_DEC( pHwData->Adapter, &reg->RegFireCount );
 	} else {
 		// Complete to send, remove the URB from the first
-		spin_lock_irq( &pWb35Reg->EP0VM_spin_lock );
-		reg_queue = pWb35Reg->reg_first;
-		if (reg_queue == pWb35Reg->reg_last)
-			pWb35Reg->reg_last = NULL;
-		pWb35Reg->reg_first = pWb35Reg->reg_first->Next;
-		spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
+		spin_lock_irq( &reg->EP0VM_spin_lock );
+		reg_queue = reg->reg_first;
+		if (reg_queue == reg->reg_last)
+			reg->reg_last = NULL;
+		reg->reg_first = reg->reg_first->Next;
+		spin_unlock_irq( &reg->EP0VM_spin_lock );
 
-		if (pWb35Reg->EP0VM_status) {
+		if (reg->EP0VM_status) {
 #ifdef _PE_REG_DUMP_
 			WBDEBUG(("EP0 IoCompleteRoutine return error\n"));
-			DebugUsbdStatusInformation( pWb35Reg->EP0VM_status );
+			DebugUsbdStatusInformation( reg->EP0VM_status );
 #endif
-			pWb35Reg->EP0vm_state = VM_STOP;
+			reg->EP0vm_state = VM_STOP;
 			pHwData->SurpriseRemove = 1;
 		} else {
 			// Success. Update the result
@@ -499,7 +499,7 @@ Wb35Reg_EP0VM_complete(struct urb *urb)
 void
 Wb35Reg_destroy(phw_data_t pHwData)
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 	struct urb	*urb;
 	struct wb35_reg_queue *reg_queue;
 
@@ -509,19 +509,19 @@ Wb35Reg_destroy(phw_data_t pHwData)
 	// Wait for Reg operation completed
 	do {
 		msleep(10);	// Delay for waiting function enter 940623.1.a
-	} while (pWb35Reg->EP0vm_state != VM_STOP);
+	} while (reg->EP0vm_state != VM_STOP);
 	msleep(10);	// Delay for waiting function enter 940623.1.b
 
 	// Release all the data in RegQueue
-	spin_lock_irq( &pWb35Reg->EP0VM_spin_lock );
-	reg_queue = pWb35Reg->reg_first;
+	spin_lock_irq(&reg->EP0VM_spin_lock);
+	reg_queue = reg->reg_first;
 	while (reg_queue) {
-		if (reg_queue == pWb35Reg->reg_last)
-			pWb35Reg->reg_last = NULL;
-		pWb35Reg->reg_first = pWb35Reg->reg_first->Next;
+		if (reg_queue == reg->reg_last)
+			reg->reg_last = NULL;
+		reg->reg_first = reg->reg_first->Next;
 
 		urb = reg_queue->urb;
-		spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
+		spin_unlock_irq(&reg->EP0VM_spin_lock);
 		if (urb) {
 			usb_free_urb(urb);
 			kfree(reg_queue);
@@ -530,11 +530,11 @@ Wb35Reg_destroy(phw_data_t pHwData)
 			WBDEBUG(("EP0 queue release error\n"));
 			#endif
 		}
-		spin_lock_irq( &pWb35Reg->EP0VM_spin_lock );
+		spin_lock_irq( &reg->EP0VM_spin_lock );
 
-		reg_queue = pWb35Reg->reg_first;
+		reg_queue = reg->reg_first;
 	}
-	spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
+	spin_unlock_irq( &reg->EP0VM_spin_lock );
 }
 
 //====================================================================================
@@ -542,35 +542,35 @@ Wb35Reg_destroy(phw_data_t pHwData)
 //====================================================================================
 unsigned char Wb35Reg_initial(phw_data_t pHwData)
 {
-	PWB35REG pWb35Reg=&pHwData->Wb35Reg;
+	struct wb35_reg *reg=&pHwData->reg;
 	u32 ltmp;
 	u32 SoftwareSet, VCO_trim, TxVga, Region_ScanInterval;
 
 	// Spin lock is acquired for read and write IRP command
-	spin_lock_init( &pWb35Reg->EP0VM_spin_lock );
+	spin_lock_init( &reg->EP0VM_spin_lock );
 
 	// Getting RF module type from EEPROM ------------------------------------
 	Wb35Reg_WriteSync( pHwData, 0x03b4, 0x080d0000 ); // Start EEPROM access + Read + address(0x0d)
 	Wb35Reg_ReadSync( pHwData, 0x03b4, &ltmp );
 
 	//Update RF module type and determine the PHY type by inf or EEPROM
-	pWb35Reg->EEPROMPhyType = (u8)( ltmp & 0xff );
+	reg->EEPROMPhyType = (u8)( ltmp & 0xff );
 	// 0 V MAX2825, 1 V MAX2827, 2 V MAX2828, 3 V MAX2829
 	// 16V AL2230, 17 - AL7230, 18 - AL2230S
 	// 32 Reserved
 	// 33 - W89RF242(TxVGA 0~19), 34 - W89RF242(TxVGA 0~34)
-	if (pWb35Reg->EEPROMPhyType != RF_DECIDE_BY_INF) {
-		if( (pWb35Reg->EEPROMPhyType == RF_MAXIM_2825)	||
-			(pWb35Reg->EEPROMPhyType == RF_MAXIM_2827)	||
-			(pWb35Reg->EEPROMPhyType == RF_MAXIM_2828)	||
-			(pWb35Reg->EEPROMPhyType == RF_MAXIM_2829)	||
-			(pWb35Reg->EEPROMPhyType == RF_MAXIM_V1)	||
-			(pWb35Reg->EEPROMPhyType == RF_AIROHA_2230)	||
-			(pWb35Reg->EEPROMPhyType == RF_AIROHA_2230S)    ||
-			(pWb35Reg->EEPROMPhyType == RF_AIROHA_7230)	||
-			(pWb35Reg->EEPROMPhyType == RF_WB_242)		||
-			(pWb35Reg->EEPROMPhyType == RF_WB_242_1))
-			pHwData->phy_type = pWb35Reg->EEPROMPhyType;
+	if (reg->EEPROMPhyType != RF_DECIDE_BY_INF) {
+		if( (reg->EEPROMPhyType == RF_MAXIM_2825)	||
+			(reg->EEPROMPhyType == RF_MAXIM_2827)	||
+			(reg->EEPROMPhyType == RF_MAXIM_2828)	||
+			(reg->EEPROMPhyType == RF_MAXIM_2829)	||
+			(reg->EEPROMPhyType == RF_MAXIM_V1)	||
+			(reg->EEPROMPhyType == RF_AIROHA_2230)	||
+			(reg->EEPROMPhyType == RF_AIROHA_2230S)    ||
+			(reg->EEPROMPhyType == RF_AIROHA_7230)	||
+			(reg->EEPROMPhyType == RF_WB_242)		||
+			(reg->EEPROMPhyType == RF_WB_242_1))
+			pHwData->phy_type = reg->EEPROMPhyType;
 	}
 
 	// Power On procedure running. The relative parameter will be set according to phy_type
@@ -606,9 +606,9 @@ unsigned char Wb35Reg_initial(phw_data_t pHwData)
 	if (pHwData->VCO_trim == 0xff)
 		pHwData->VCO_trim = 0x28;
 
-	pWb35Reg->EEPROMRegion = (u8)(Region_ScanInterval>>8); // 20060720
-	if( pWb35Reg->EEPROMRegion<1 || pWb35Reg->EEPROMRegion>6 )
-		pWb35Reg->EEPROMRegion = REGION_AUTO;
+	reg->EEPROMRegion = (u8)(Region_ScanInterval>>8); // 20060720
+	if( reg->EEPROMRegion<1 || reg->EEPROMRegion>6 )
+		reg->EEPROMRegion = REGION_AUTO;
 
 	//For Get Tx VGA from EEPROM 20060315.5 move here
 	GetTxVgaFromEEPROM( pHwData );

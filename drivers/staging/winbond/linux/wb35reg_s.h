@@ -85,8 +85,7 @@ struct wb35_reg_queue {
 // Internal variable for module
 //====================================
 #define MAX_SQ3_FILTER_SIZE		5
-typedef struct _WB35REG
-{
+struct wb35_reg {
 	//============================
 	// Register Bank backup
 	//============================
@@ -161,6 +160,6 @@ typedef struct _WB35REG
 	u32	SQ3_filter[MAX_SQ3_FILTER_SIZE];
 	u32	SQ3_index;
 
-} WB35REG, *PWB35REG;
+};
 
 
