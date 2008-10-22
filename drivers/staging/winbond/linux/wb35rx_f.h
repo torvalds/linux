@@ -10,7 +10,7 @@ void		Wb35Rx_adjust(  PDESCRIPTOR pRxDes );
 void		Wb35Rx_start(  phw_data_t pHwData );
 
 void		Wb35Rx(  phw_data_t pHwData );
-void		Wb35Rx_Complete(  PURB pUrb );
+void		Wb35Rx_Complete(struct urb *urb);
 
 
 

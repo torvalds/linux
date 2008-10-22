@@ -42,7 +42,7 @@ unsigned char Wb35Reg_BurstWrite(  phw_data_t pHwData,  u16 RegisterNo,  u32 * p
 
 void Wb35Reg_EP0VM(  phw_data_t pHwData );
 void Wb35Reg_EP0VM_start(  phw_data_t pHwData );
-void Wb35Reg_EP0VM_complete(  PURB pUrb );
+void Wb35Reg_EP0VM_complete(struct urb *urb);
 
 u32 BitReverse( u32 dwData, u32 DataLength);
 

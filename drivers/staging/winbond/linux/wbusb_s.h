@@ -19,7 +19,7 @@
 typedef struct _RW_CONTEXT
 {
 	void*			pHwData;
-	PURB			pUrb;
+	struct urb		*urb;
 	void*			pCallBackFunctionParameter;
 } RW_CONTEXT, *PRW_CONTEXT;
 

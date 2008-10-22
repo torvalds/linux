@@ -69,7 +69,7 @@
 
 typedef struct _REG_QUEUE
 {
-    struct  urb *pUrb;
+    struct  urb *urb;
 	void*	pUsbReq;
 	void*	Next;
 	union

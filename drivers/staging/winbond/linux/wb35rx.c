@@ -28,7 +28,7 @@ void Wb35Rx(  phw_data_t pHwData )
 {
 	PWB35RX	pWb35Rx = &pHwData->Wb35Rx;
 	u8 *	pRxBufferAddress;
-	PURB	pUrb = (PURB)pWb35Rx->RxUrb;
+	struct urb *urb = pWb35Rx->RxUrb;
 	int	retv;
 	u32	RxBufferId;
 
@@ -63,14 +63,14 @@ void Wb35Rx(  phw_data_t pHwData )
 	}
 	pRxBufferAddress = pWb35Rx->pDRx;
 
-	usb_fill_bulk_urb(pUrb, pHwData->WbUsb.udev,
+	usb_fill_bulk_urb(urb, pHwData->WbUsb.udev,
 			  usb_rcvbulkpipe(pHwData->WbUsb.udev, 3),
 			  pRxBufferAddress, MAX_USB_RX_BUFFER,
 			  Wb35Rx_Complete, pHwData);
 
 	pWb35Rx->EP3vm_state = VM_RUNNING;
 
-	retv = wb_usb_submit_urb(pUrb);
+	retv = wb_usb_submit_urb(urb);
 
 	if (retv != 0) {
 		printk("Rx URB sending error\n");
@@ -84,9 +84,9 @@ error:
 	OS_ATOMIC_DEC( pHwData->Adapter, &pWb35Rx->RxFireCounter );
 }
 
-void Wb35Rx_Complete(PURB pUrb)
+void Wb35Rx_Complete(struct urb *urb)
 {
-	phw_data_t	pHwData = pUrb->context;
+	phw_data_t	pHwData = urb->context;
 	PWB35RX		pWb35Rx = &pHwData->Wb35Rx;
 	u8 *		pRxBufferAddress;
 	u32		SizeCheck;
@@ -96,12 +96,12 @@ void Wb35Rx_Complete(PURB pUrb)
 
 	// Variable setting
 	pWb35Rx->EP3vm_state = VM_COMPLETED;
-	pWb35Rx->EP3VM_status = pUrb->status;//Store the last result of Irp
+	pWb35Rx->EP3VM_status = urb->status;//Store the last result of Irp
 
 	RxBufferId = pWb35Rx->CurrentRxBufferId;
 
 	pRxBufferAddress = pWb35Rx->pDRx;
-	BulkLength = (u16)pUrb->actual_length;
+	BulkLength = (u16)urb->actual_length;
 
 	// The IRP is completed
 	pWb35Rx->EP3vm_state = VM_COMPLETED;
