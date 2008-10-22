@@ -44,6 +44,8 @@
 #include <linux/slab.h>
 #endif
 
+#include <linux/notifier.h>
+#include <linux/memory.h>
 #include "ehca_classes.h"
 #include "ehca_iverbs.h"
 #include "ehca_mrmw.h"
@@ -969,6 +971,41 @@ void ehca_poll_eqs(unsigned long data)
 	spin_unlock(&shca_list_lock);
 }
 
+static int ehca_mem_notifier(struct notifier_block *nb,
+			     unsigned long action, void *data)
+{
+	static unsigned long ehca_dmem_warn_time;
+
+	switch (action) {
+	case MEM_CANCEL_OFFLINE:
+	case MEM_CANCEL_ONLINE:
+	case MEM_ONLINE:
+	case MEM_OFFLINE:
+		return NOTIFY_OK;
+	case MEM_GOING_ONLINE:
+	case MEM_GOING_OFFLINE:
+		/* only ok if no hca is attached to the lpar */
+		spin_lock(&shca_list_lock);
+		if (list_empty(&shca_list)) {
+			spin_unlock(&shca_list_lock);
+			return NOTIFY_OK;
+		} else {
+			spin_unlock(&shca_list_lock);
+			if (printk_timed_ratelimit(&ehca_dmem_warn_time,
+						   30 * 1000))
+				ehca_gen_err("DMEM operations are not allowed"
+					     "as long as an ehca adapter is"
+					     "attached to the LPAR");
+			return NOTIFY_BAD;
+		}
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block ehca_mem_nb = {
+	.notifier_call = ehca_mem_notifier,
+};
+
 static int __init ehca_module_init(void)
 {
 	int ret;
@@ -996,6 +1033,12 @@ static int __init ehca_module_init(void)
 		goto module_init2;
 	}
 
+	ret = register_memory_notifier(&ehca_mem_nb);
+	if (ret) {
+		ehca_gen_err("Failed registering memory add/remove notifier");
+		goto module_init3;
+	}
+
 	if (ehca_poll_all_eqs != 1) {
 		ehca_gen_err("WARNING!!!");
 		ehca_gen_err("It is possible to lose interrupts.");
@@ -1007,6 +1050,9 @@ static int __init ehca_module_init(void)
 	}
 
 	return 0;
+
+module_init3:
+	ibmebus_unregister_driver(&ehca_driver);
 
 module_init2:
 	ehca_destroy_slab_caches();
@@ -1022,6 +1068,8 @@ static void __exit ehca_module_exit(void)
 		del_timer_sync(&poll_eqs_timer);
 
 	ibmebus_unregister_driver(&ehca_driver);
+
+	unregister_memory_notifier(&ehca_mem_nb);
 
 	ehca_destroy_slab_caches();
 
