@@ -825,8 +825,6 @@ void *marker_get_private_data(const char *name, marker_probe_func *probe,
 			if (!e->ptype) {
 				if (num == 0 && e->single.func == probe)
 					return e->single.probe_private;
-				else
-					break;
 			} else {
 				struct marker_probe_closure *closure;
 				int match = 0;
@@ -838,6 +836,7 @@ void *marker_get_private_data(const char *name, marker_probe_func *probe,
 						return closure[i].probe_private;
 				}
 			}
+			break;
 		}
 	}
 	return ERR_PTR(-ENOENT);
