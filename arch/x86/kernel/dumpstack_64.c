@@ -465,7 +465,7 @@ void __kprobes oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 		/* Nest count reaches zero, release the lock. */
 		__raw_spin_unlock(&die_lock);
 	raw_local_irq_restore(flags);
-	if (!regs) {
+	if (!signr) {
 		oops_exit();
 		return;
 	}
@@ -509,13 +509,14 @@ int __kprobes __die(const char *str, struct pt_regs *regs, long err)
 void die(const char *str, struct pt_regs *regs, long err)
 {
 	unsigned long flags = oops_begin();
+	int sig = SIGSEGV;
 
 	if (!user_mode(regs))
 		report_bug(regs->ip, regs);
 
 	if (__die(str, regs, err))
-		regs = NULL;
-	oops_end(flags, regs, SIGSEGV);
+		sig = 0;
+	oops_end(flags, regs, sig);
 }
 
 notrace __kprobes void
@@ -539,7 +540,7 @@ die_nmi(char *str, struct pt_regs *regs, int do_panic)
 		crash_kexec(regs);
 	if (do_panic || panic_on_oops)
 		panic("Non maskable interrupt");
-	oops_end(flags, NULL, SIGBUS);
+	oops_end(flags, regs, 0);
 	nmi_exit();
 	local_irq_enable();
 	do_exit(SIGBUS);

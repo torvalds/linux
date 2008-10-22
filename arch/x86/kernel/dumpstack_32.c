@@ -318,7 +318,7 @@ void __kprobes oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 	__raw_spin_unlock(&die_lock);
 	raw_local_irq_restore(flags);
 
-	if (!regs)
+	if (!signr)
 		return;
 
 	if (in_interrupt())
@@ -371,17 +371,18 @@ int __kprobes __die(const char *str, struct pt_regs *regs, long err)
 void die(const char *str, struct pt_regs *regs, long err)
 {
 	unsigned long flags = oops_begin();
+	int sig = SIGSEGV;
 
 	if (die_nest_count < 3) {
 		report_bug(regs->ip, regs);
 
 		if (__die(str, regs, err))
-			regs = NULL;
+			sig = 0;
 	} else {
 		printk(KERN_EMERG "Recursive die() failure, output suppressed\n");
 	}
 
-	oops_end(flags, regs, SIGSEGV);
+	oops_end(flags, regs, sig);
 }
 
 static DEFINE_SPINLOCK(nmi_print_lock);
