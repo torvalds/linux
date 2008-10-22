@@ -153,6 +153,12 @@ enum mlx4_qp_region {
 	MLX4_NUM_QP_REGION
 };
 
+enum mlx4_special_vlan_idx {
+	MLX4_NO_VLAN_IDX        = 0,
+	MLX4_VLAN_MISS_IDX,
+	MLX4_VLAN_REGULAR
+};
+
 enum {
 	MLX4_NUM_FEXCH          = 64 * 1024,
 };
@@ -437,6 +443,12 @@ int mlx4_CLOSE_PORT(struct mlx4_dev *dev, int port);
 int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 			  int block_mcast_loopback);
 int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16]);
+
+int mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac, int *index);
+void mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, int index);
+
+int mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index);
+void mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, int index);
 
 int mlx4_map_phys_fmr(struct mlx4_dev *dev, struct mlx4_fmr *fmr, u64 *page_list,
 		      int npages, u64 iova, u32 *lkey, u32 *rkey);

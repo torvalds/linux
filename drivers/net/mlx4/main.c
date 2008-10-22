@@ -780,11 +780,22 @@ no_msi:
 		priv->eq_table.eq[i].irq = dev->pdev->irq;
 }
 
+static void mlx4_init_port_info(struct mlx4_dev *dev, int port)
+{
+	struct mlx4_port_info *info = &mlx4_priv(dev)->port[port];
+
+	info->dev = dev;
+	info->port = port;
+	mlx4_init_mac_table(dev, &info->mac_table);
+	mlx4_init_vlan_table(dev, &info->vlan_table);
+}
+
 static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct mlx4_priv *priv;
 	struct mlx4_dev *dev;
 	int err;
+	int port;
 
 	printk(KERN_INFO PFX "Initializing %s\n",
 	       pci_name(pdev));
@@ -893,6 +904,9 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	if (err)
 		goto err_close;
+
+	for (port = 1; port <= dev->caps.num_ports; port++)
+		mlx4_init_port_info(dev, port);
 
 	err = mlx4_register_device(dev);
 	if (err)

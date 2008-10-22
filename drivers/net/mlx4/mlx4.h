@@ -252,6 +252,35 @@ struct mlx4_catas_err {
 	struct list_head	list;
 };
 
+#define MLX4_MAX_MAC_NUM	128
+#define MLX4_MAC_TABLE_SIZE	(MLX4_MAX_MAC_NUM << 3)
+
+struct mlx4_mac_table {
+	__be64			entries[MLX4_MAX_MAC_NUM];
+	int			refs[MLX4_MAX_MAC_NUM];
+	struct mutex		mutex;
+	int			total;
+	int			max;
+};
+
+#define MLX4_MAX_VLAN_NUM	128
+#define MLX4_VLAN_TABLE_SIZE	(MLX4_MAX_VLAN_NUM << 2)
+
+struct mlx4_vlan_table {
+	__be32			entries[MLX4_MAX_VLAN_NUM];
+	int			refs[MLX4_MAX_VLAN_NUM];
+	struct mutex		mutex;
+	int			total;
+	int			max;
+};
+
+struct mlx4_port_info {
+	struct mlx4_dev	       *dev;
+	int			port;
+	struct mlx4_mac_table	mac_table;
+	struct mlx4_vlan_table	vlan_table;
+};
+
 struct mlx4_priv {
 	struct mlx4_dev		dev;
 
@@ -280,6 +309,7 @@ struct mlx4_priv {
 
 	struct mlx4_uar		driver_uar;
 	void __iomem	       *kar;
+	struct mlx4_port_info	port[MLX4_MAX_PORTS + 1];
 };
 
 static inline struct mlx4_priv *mlx4_priv(struct mlx4_dev *dev)
@@ -349,5 +379,8 @@ void mlx4_qp_event(struct mlx4_dev *dev, u32 qpn, int event_type);
 void mlx4_srq_event(struct mlx4_dev *dev, u32 srqn, int event_type);
 
 void mlx4_handle_catas_err(struct mlx4_dev *dev);
+
+void mlx4_init_mac_table(struct mlx4_dev *dev, struct mlx4_mac_table *table);
+void mlx4_init_vlan_table(struct mlx4_dev *dev, struct mlx4_vlan_table *table);
 
 #endif /* MLX4_H */
