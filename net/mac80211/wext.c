@@ -656,6 +656,7 @@ static int ieee80211_ioctl_siwtxpower(struct net_device *dev,
 				      union iwreq_data *data, char *extra)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_channel* chan = local->hw.conf.channel;
 	u32 reconf_flags = 0;
 	int new_power_level;
 
@@ -663,20 +664,13 @@ static int ieee80211_ioctl_siwtxpower(struct net_device *dev,
 		return -EINVAL;
 	if (data->txpower.flags & IW_TXPOW_RANGE)
 		return -EINVAL;
+	if (!chan)
+		return -EINVAL;
 
-	if (data->txpower.fixed) {
-		new_power_level = data->txpower.value;
-	} else {
-		/*
-		 * Automatic power level. Use maximum power for the current
-		 * channel. Should be part of rate control.
-		 */
-		struct ieee80211_channel* chan = local->hw.conf.channel;
-		if (!chan)
-			return -EINVAL;
-
+	if (data->txpower.fixed)
+		new_power_level = min(data->txpower.value, chan->max_power);
+	else /* Automatic power level setting */
 		new_power_level = chan->max_power;
-	}
 
 	if (local->hw.conf.power_level != new_power_level) {
 		local->hw.conf.power_level = new_power_level;
