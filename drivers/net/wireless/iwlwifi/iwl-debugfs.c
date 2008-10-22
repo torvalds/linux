@@ -58,7 +58,8 @@
 #define DEBUGFS_ADD_BOOL(name, parent, ptr) do {                        \
 	dbgfs->dbgfs_##parent##_files.file_##name =                     \
 	debugfs_create_bool(#name, 0644, dbgfs->dir_##parent, ptr);     \
-	if (IS_ERR(dbgfs->dbgfs_##parent##_files.file_##name))          \
+	if (IS_ERR(dbgfs->dbgfs_##parent##_files.file_##name)		\
+			|| !dbgfs->dbgfs_##parent##_files.file_##name)	\
 		goto err;                                               \
 } while (0)
 
