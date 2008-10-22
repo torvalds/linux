@@ -597,6 +597,12 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		if (ret < 0)
 			goto out;
 
+		/* clear the bulk endpoint */
+		if (gspca_dev->alt == 0)	/* if bulk transfer */
+			usb_clear_halt(gspca_dev->dev,
+					usb_rcvintpipe(gspca_dev->dev,
+						 gspca_dev->cam.epaddr));
+
 		/* start the cam */
 		ret = gspca_dev->sd_desc->start(gspca_dev);
 		if (ret < 0) {

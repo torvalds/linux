@@ -314,9 +314,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	int ret;
 	int size_ret;
 
-	/* Reset bulk in endpoint */
-	usb_clear_halt(gspca_dev->dev, gspca_dev->cam.epaddr);
-
 	/* Init the device */
 	memset(gspca_dev->usb_buf, 0, 12);
 	gspca_dev->usb_buf[0] = 0xc6;
