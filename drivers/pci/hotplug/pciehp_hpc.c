@@ -1147,11 +1147,11 @@ struct controller *pcie_init(struct pcie_device *dev)
 	if (!ctrl->cap_base) {
 		ctrl_err(ctrl, "%s: Cannot find PCI Express capability\n",
 			 __func__);
-		goto abort;
+		goto abort_ctrl;
 	}
 	if (pciehp_readl(ctrl, SLOTCAP, &slot_cap)) {
 		ctrl_err(ctrl, "%s: Cannot read SLOTCAP register\n", __func__);
-		goto abort;
+		goto abort_ctrl;
 	}
 
 	ctrl->slot_cap = slot_cap;
