@@ -94,7 +94,7 @@ static int __try_to_free_cp_buf(struct journal_head *jh)
 	struct buffer_head *bh = jh2bh(jh);
 
 	if (jh->b_jlist == BJ_None && !buffer_locked(bh) &&
-	    !buffer_dirty(bh) && buffer_uptodate(bh)) {
+	    !buffer_dirty(bh) && !buffer_write_io_error(bh)) {
 		JBUFFER_TRACE(jh, "remove from checkpoint list");
 		ret = __journal_remove_checkpoint(jh) + 1;
 		jbd_unlock_bh_state(bh);
@@ -199,7 +199,7 @@ restart:
 			spin_lock(&journal->j_list_lock);
 			goto restart;
 		}
-		if (unlikely(!buffer_uptodate(bh)))
+		if (unlikely(buffer_write_io_error(bh)))
 			ret = -EIO;
 
 		/*
@@ -268,7 +268,7 @@ static int __process_buffer(journal_t *journal, struct journal_head *jh,
 		ret = 1;
 	} else if (!buffer_dirty(bh)) {
 		ret = 1;
-		if (unlikely(!buffer_uptodate(bh)))
+		if (unlikely(buffer_write_io_error(bh)))
 			ret = -EIO;
 		J_ASSERT_JH(jh, !buffer_jbddirty(bh));
 		BUFFER_TRACE(bh, "remove from checkpoint");
