@@ -8,6 +8,7 @@
  * the kernel has booted.
  */
 
+#include <linux/autoconf.h>
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/page.h>
 
@@ -17,22 +18,26 @@
 #define __CONFIG_ETRAX_VMEM_SIZE 0
 #endif
 
+
 jiffies = jiffies_64;
 SECTIONS
 {
 	. = DRAM_VIRTUAL_BASE;
 	dram_start = .;
+#ifdef CONFIG_ETRAX_ARCH_V10
+	ibr_start = .;
+#else
 	ebp_start = .;
-
 	/* The boot section is only necessary until the VCS top */
 	/* level testbench includes both flash and DRAM. */
 	.boot : { *(.boot) }
+#endif
 
-	/* See head.S and pages reserved at the start. */
+	/* see head.S and pages reserved at the start */
 	. = DRAM_VIRTUAL_BASE + 0x4000;
 
-	_text = .;		/* Text and read-only data. */
-	text_start = .;		/* Lots of aliases. */
+	_text = .;			/* Text and read-only data. */
+	text_start = .;			/* Lots of aliases. */
 	_stext = .;
 	__stext = .;
 	.text : {
@@ -43,10 +48,10 @@ SECTIONS
 		*(.text.__*)
 	}
 
-	_etext = . ;		/* End of text section. */
+	_etext = . ;			/* End of text section. */
 	__etext = .;
 
-	. = ALIGN(4);		/* Exception table. */
+	. = ALIGN(4);			/* Exception table. */
 	__start___ex_table = .;
 	__ex_table : { *(__ex_table) }
 	__stop___ex_table = .;
@@ -56,16 +61,16 @@ SECTIONS
 	. = ALIGN (4);
 	___data_start = . ;
 	__Sdata = . ;
-	.data : {                     /* Data */
+	.data : {			/* Data */
 		DATA_DATA
 	}
-	__edata = . ;		/* End of data section. */
+	__edata = . ;			/* End of data section. */
 	_edata = . ;
 
 	. = ALIGN(PAGE_SIZE);	/* init_task and stack, must be aligned. */
 	.data.init_task : { *(.data.init_task) }
 
-	. = ALIGN(PAGE_SIZE);	/* Init code and data. */
+	. = ALIGN(PAGE_SIZE);		/* Init code and data. */
 	__init_begin = .;
 	.init.text : {
 		   _sinittext = .;
@@ -77,9 +82,11 @@ SECTIONS
 	__setup_start = .;
 	.init.setup : { *(.init.setup) }
 	__setup_end = .;
+#ifdef CONFIG_ETRAX_ARCH_V32
 	__start___param = .;
 	__param : { *(__param) }
 	__stop___param = .;
+#endif
 	.initcall.init : {
 		__initcall_start = .;
 		INITCALLS
@@ -93,7 +100,17 @@ SECTIONS
 	}
 	SECURITY_INIT
 
-	__vmlinux_end = .;	/* Last address of the physical file. */
+#ifdef CONFIG_ETRAX_ARCH_V10
+#ifdef CONFIG_BLK_DEV_INITRD
+	.init.ramfs : {
+		__initramfs_start = .;
+		*(.init.ramfs)
+		__initramfs_end = .;
+	}
+#endif
+#endif
+	__vmlinux_end = .;		/* Last address of the physical file. */
+#ifdef CONFIG_ETRAX_ARCH_V32
 	PERCPU(PAGE_SIZE)
 
 	.init.ramfs : {
@@ -101,18 +118,19 @@ SECTIONS
 		*(.init.ramfs)
 		__initramfs_end = .;
 	}
+#endif
 
 	/*
 	 * We fill to the next page, so we can discard all init
 	 * pages without needing to consider what payload might be
 	 * appended to the kernel image.
 	 */
-	. = ALIGN (PAGE_SIZE);
+	. = ALIGN(PAGE_SIZE);
 
 	__init_end = .;
 
-	__data_end = . ;	/* Move to _edata? */
-	__bss_start = .;	/* BSS. */
+	__data_end = . ;		/* Move to _edata ? */
+	__bss_start = .;		/* BSS. */
 	.bss : {
 		*(COMMON)
 		*(.bss)
