@@ -750,12 +750,23 @@ multi_t2_fnd:
 	write_unlock(&GlobalSMBSeslock);
 
 	kfree(server->hostname);
+	task_to_wake = xchg(&server->tsk, NULL);
 	kfree(server);
 
 	length = atomic_dec_return(&tcpSesAllocCount);
 	if (length  > 0)
 		mempool_resize(cifs_req_poolp, length + cifs_min_rcv,
 				GFP_KERNEL);
+
+	/* if server->tsk was NULL then wait for a signal before exiting */
+	if (!task_to_wake) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		while (!signal_pending(current)) {
+			schedule();
+			set_current_state(TASK_INTERRUPTIBLE);
+		}
+		set_current_state(TASK_RUNNING);
+	}
 
 	return 0;
 }
@@ -1846,6 +1857,16 @@ convert_delimiter(char *path, char delim)
 	}
 }
 
+static void
+kill_cifsd(struct TCP_Server_Info *server)
+{
+	struct task_struct *task;
+
+	task = xchg(&server->tsk, NULL);
+	if (task)
+		force_sig(SIGKILL, task);
+}
+
 int
 cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	   char *mount_data, const char *devname)
@@ -2233,7 +2254,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			spin_lock(&GlobalMid_Lock);
 			srvTcp->tcpStatus = CifsExiting;
 			spin_unlock(&GlobalMid_Lock);
-			force_sig(SIGKILL, srvTcp->tsk);
+			kill_cifsd(srvTcp);
 		}
 		 /* If find_unc succeeded then rc == 0 so we can not end */
 		if (tcon)  /* up accidently freeing someone elses tcon struct */
@@ -2246,19 +2267,15 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 					temp_rc = CIFSSMBLogoff(xid, pSesInfo);
 					/* if the socketUseCount is now zero */
 					if ((temp_rc == -ESHUTDOWN) &&
-					    (pSesInfo->server) &&
-					    (pSesInfo->server->tsk))
-						force_sig(SIGKILL,
-							pSesInfo->server->tsk);
+					    (pSesInfo->server))
+						kill_cifsd(pSesInfo->server);
 				} else {
 					cFYI(1, ("No session or bad tcon"));
-					if ((pSesInfo->server) &&
-					    (pSesInfo->server->tsk)) {
+					if (pSesInfo->server) {
 						spin_lock(&GlobalMid_Lock);
 						srvTcp->tcpStatus = CifsExiting;
 						spin_unlock(&GlobalMid_Lock);
-						force_sig(SIGKILL,
-							pSesInfo->server->tsk);
+						kill_cifsd(pSesInfo->server);
 					}
 				}
 				sesInfoFree(pSesInfo);
@@ -3545,7 +3562,6 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 	int rc = 0;
 	int xid;
 	struct cifsSesInfo *ses = NULL;
-	struct task_struct *cifsd_task;
 	char *tmp;
 
 	xid = GetXid();
@@ -3561,7 +3577,6 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 		tconInfoFree(cifs_sb->tcon);
 		if ((ses) && (ses->server)) {
 			/* save off task so we do not refer to ses later */
-			cifsd_task = ses->server->tsk;
 			cFYI(1, ("About to do SMBLogoff "));
 			rc = CIFSSMBLogoff(xid, ses);
 			if (rc == -EBUSY) {
@@ -3569,8 +3584,8 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 				return 0;
 			} else if (rc == -ESHUTDOWN) {
 				cFYI(1, ("Waking up socket by sending signal"));
-				if (cifsd_task)
-					force_sig(SIGKILL, cifsd_task);
+				if (ses->server)
+					kill_cifsd(ses->server);
 				rc = 0;
 			} /* else - we have an smb session
 				left on this socket do not kill cifsd */
