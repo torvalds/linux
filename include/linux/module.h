@@ -60,6 +60,7 @@ struct module_kobject
 	struct kobject kobj;
 	struct module *mod;
 	struct kobject *drivers_dir;
+	struct module_param_attrs *mp;
 };
 
 /* These are either module local, or the kernel's dummy ones. */
@@ -242,7 +243,6 @@ struct module
 
 	/* Sysfs stuff. */
 	struct module_kobject mkobj;
-	struct module_param_attrs *param_attrs;
 	struct module_attribute *modinfo_attrs;
 	const char *version;
 	const char *srcversion;
