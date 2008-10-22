@@ -75,7 +75,7 @@ generate_config_rom(struct fw_card *card, size_t *config_rom_length)
 	 * controller, block reads to the config rom accesses the host
 	 * memory, but quadlet read access the hardware bus info block
 	 * registers.  That's just crack, but it means we should make
-	 * sure the contents of bus info block in host memory mathces
+	 * sure the contents of bus info block in host memory matches
 	 * the version stored in the OHCI registers.
 	 */
 
