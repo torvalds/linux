@@ -585,17 +585,14 @@ static void __init param_sysfs_builtin(void)
 {
 	struct kernel_param *kp, *kp_begin = NULL;
 	unsigned int i, name_len, count = 0;
-	char modname[MODULE_NAME_LEN + 1] = "";
+	char modname[MODULE_NAME_LEN] = "";
 
 	for (i=0; i < __stop___param - __start___param; i++) {
 		char *dot;
-		size_t max_name_len;
 
 		kp = &__start___param[i];
-		max_name_len =
-			min_t(size_t, MODULE_NAME_LEN, strlen(kp->name));
 
-		dot = memchr(kp->name, '.', max_name_len);
+		dot = strchr(kp->name, '.');
 		if (!dot) {
 			DEBUGP("couldn't find period in first %d characters "
 			       "of %s\n", MODULE_NAME_LEN, kp->name);
