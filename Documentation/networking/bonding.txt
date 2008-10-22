@@ -922,17 +922,19 @@ USERCTL=no
 NETMASK, NETWORK and BROADCAST) to match your network configuration.
 
 	For later versions of initscripts, such as that found with Fedora
-7 and Red Hat Enterprise Linux version 5 (or later), it is possible, and,
-indeed, preferable, to specify the bonding options in the ifcfg-bond0
+7 (or later) and Red Hat Enterprise Linux version 5 (or later), it is possible,
+and, indeed, preferable, to specify the bonding options in the ifcfg-bond0
 file, e.g. a line of the format:
 
-BONDING_OPTS="mode=active-backup arp_interval=60 arp_ip_target=+192.168.1.254"
+BONDING_OPTS="mode=active-backup arp_interval=60 arp_ip_target=192.168.1.254"
 
 	will configure the bond with the specified options.  The options
 specified in BONDING_OPTS are identical to the bonding module parameters
-except for the arp_ip_target field.  Each target should be included as a
-separate option and should be preceded by a '+' to indicate it should be
-added to the list of queried targets, e.g.,
+except for the arp_ip_target field when using versions of initscripts older
+than and 8.57 (Fedora 8) and 8.45.19 (Red Hat Enterprise Linux 5.2).  When
+using older versions each target should be included as a separate option and
+should be preceded by a '+' to indicate it should be added to the list of
+queried targets, e.g.,
 
 	arp_ip_target=+192.168.1.1 arp_ip_target=+192.168.1.2
 
@@ -940,7 +942,7 @@ added to the list of queried targets, e.g.,
 options via BONDING_OPTS, it is not necessary to edit /etc/modules.conf or
 /etc/modprobe.conf.
 
-	For older versions of initscripts that do not support
+	For even older versions of initscripts that do not support
 BONDING_OPTS, it is necessary to edit /etc/modules.conf (or
 /etc/modprobe.conf, depending upon your distro) to load the bonding module
 with your desired options when the bond0 interface is brought up.  The
