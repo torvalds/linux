@@ -53,6 +53,7 @@
 static int
 p9pdu_writef(struct p9_fcall *pdu, int optional, const char *fmt, ...);
 
+#ifdef CONFIG_NET_9P_DEBUG
 void
 p9pdu_dump(int way, struct p9_fcall *pdu)
 {
@@ -81,6 +82,12 @@ p9pdu_dump(int way, struct p9_fcall *pdu)
 	else
 		P9_DPRINTK(P9_DEBUG_PKT, "]]](%d) %s\n", datalen, buf);
 }
+#else
+void
+p9pdu_dump(int way, struct p9_fcall *pdu)
+{
+}
+#endif
 EXPORT_SYMBOL(p9pdu_dump);
 
 void p9stat_free(struct p9_wstat *stbuf)
@@ -542,8 +549,10 @@ int p9pdu_finalize(struct p9_fcall *pdu)
 	err = p9pdu_writef(pdu, 0, "d", size);
 	pdu->size = size;
 
+#ifdef CONFIG_NET_9P_DEBUG
 	if ((p9_debug_level & P9_DEBUG_PKT) == P9_DEBUG_PKT)
 		p9pdu_dump(0, pdu);
+#endif
 
 	P9_DPRINTK(P9_DEBUG_9P, ">>> size=%d type: %d tag: %d\n", pdu->size,
 							pdu->id, pdu->tag);
