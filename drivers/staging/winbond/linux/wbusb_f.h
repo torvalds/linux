@@ -11,8 +11,6 @@
 //
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-int wb35_open(struct net_device *netdev);
-int wb35_close(struct net_device *netdev);
 unsigned char WbUsb_initial(phw_data_t pHwData);
 void WbUsb_destroy(phw_data_t pHwData);
 unsigned char WbWLanInitialize(PADAPTER Adapter);
