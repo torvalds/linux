@@ -18,10 +18,6 @@ void WbUsb_destroy(phw_data_t pHwData);
 unsigned char WbWLanInitialize(PADAPTER Adapter);
 #define	WbUsb_Stop( _A )
 
-int wb35_probe(struct usb_interface *intf,const struct usb_device_id *id_table);
-void wb35_disconnect(struct usb_interface *intf);
-
-
 #define wb_usb_submit_urb(_A) usb_submit_urb(_A, GFP_ATOMIC)
 #define wb_usb_alloc_urb(_A) usb_alloc_urb(_A, GFP_ATOMIC)
 
