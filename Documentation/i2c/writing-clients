@@ -25,8 +25,6 @@ routines, and should be zero-initialized except for fields with data you
 provide.  A client structure holds device-specific information like the
 driver model device node, and its I2C address.
 
-/* iff driver uses driver model ("new style") binding model: */
-
 static struct i2c_device_id foo_idtable[] = {
 	{ "foo", my_id_for_foo },
 	{ "bar", my_id_for_bar },
@@ -40,7 +38,6 @@ static struct i2c_driver foo_driver = {
 		.name	= "foo",
 	},
 
-	/* iff driver uses driver model ("new style") binding model: */
 	.id_table	= foo_ids,
 	.probe		= foo_probe,
 	.remove		= foo_remove,
@@ -49,11 +46,6 @@ static struct i2c_driver foo_driver = {
 	.detect		= foo_detect,
 	.address_data	= &addr_data,
 
-	/* else, driver uses "legacy" binding model: */
-	.attach_adapter	= foo_attach_adapter,
-	.detach_client	= foo_detach_client,
-
-	/* these may be used regardless of the driver binding model */
 	.shutdown	= foo_shutdown,	/* optional */
 	.suspend	= foo_suspend,	/* optional */
 	.resume		= foo_resume,	/* optional */
@@ -88,7 +80,7 @@ be very useful.
 An example structure is below.
 
   struct foo_data {
-    struct i2c_client client;
+    struct i2c_client *client;
     enum chips type;       /* To keep the chips type for `sensors' drivers. */
    
     /* Because the i2c bus is slow, it is often useful to cache the read
@@ -144,10 +136,10 @@ Probing and attaching
 =====================
 
 The Linux I2C stack was originally written to support access to hardware
-monitoring chips on PC motherboards, and thus it embeds some assumptions
-that are more appropriate to SMBus (and PCs) than to I2C.  One of these
-assumptions is that most adapters and devices drivers support the SMBUS_QUICK
-protocol to probe device presence.  Another is that devices and their drivers
+monitoring chips on PC motherboards, and thus used to embed some assumptions
+that were more appropriate to SMBus (and PCs) than to I2C.  One of these
+assumptions was that most adapters and devices drivers support the SMBUS_QUICK
+protocol to probe device presence.  Another was that devices and their drivers
 can be sufficiently configured using only such probe primitives.
 
 As Linux and its I2C stack became more widely used in embedded systems
@@ -163,6 +155,9 @@ fully compatible with the Linux 2.6 driver model.  These models do not mix,
 since the "legacy" model requires drivers to create "i2c_client" device
 objects after SMBus style probing, while the Linux driver model expects
 drivers to be given such device objects in their probe() routines.
+
+The legacy model is deprecated now and will soon be removed, so we no
+longer document it here.
 
 
 Standard Driver Model Binding ("New Style")
@@ -193,8 +188,8 @@ matches the device's name. It is passed the entry that was matched so
 the driver knows which one in the table matched.
 
 
-Device Creation (Standard driver model)
----------------------------------------
+Device Creation
+---------------
 
 If you know for a fact that an I2C device is connected to a given I2C bus,
 you can instantiate that device by simply filling an i2c_board_info
@@ -221,8 +216,8 @@ in the I2C bus driver. You may want to save the returned i2c_client
 reference for later use.
 
 
-Device Detection (Standard driver model)
-----------------------------------------
+Device Detection
+----------------
 
 Sometimes you do not know in advance which I2C devices are connected to
 a given I2C bus.  This is for example the case of hardware monitoring
@@ -246,236 +241,14 @@ otherwise misdetections are likely to occur and things can get wrong
 quickly.
 
 
-Device Deletion (Standard driver model)
----------------------------------------
+Device Deletion
+---------------
 
 Each I2C device which has been created using i2c_new_device() or
 i2c_new_probed_device() can be unregistered by calling
 i2c_unregister_device().  If you don't call it explicitly, it will be
 called automatically before the underlying I2C bus itself is removed, as a
 device can't survive its parent in the device driver model.
-
-
-Legacy Driver Binding Model
----------------------------
-
-Most i2c devices can be present on several i2c addresses; for some this
-is determined in hardware (by soldering some chip pins to Vcc or Ground),
-for others this can be changed in software (by writing to specific client
-registers). Some devices are usually on a specific address, but not always;
-and some are even more tricky. So you will probably need to scan several
-i2c addresses for your clients, and do some sort of detection to see
-whether it is actually a device supported by your driver.
-
-To give the user a maximum of possibilities, some default module parameters
-are defined to help determine what addresses are scanned. Several macros
-are defined in i2c.h to help you support them, as well as a generic
-detection algorithm.
-
-You do not have to use this parameter interface; but don't try to use
-function i2c_probe() if you don't.
-
-
-Probing classes (Legacy model)
-------------------------------
-
-All parameters are given as lists of unsigned 16-bit integers. Lists are
-terminated by I2C_CLIENT_END.
-The following lists are used internally:
-
-  normal_i2c: filled in by the module writer. 
-     A list of I2C addresses which should normally be examined.
-   probe: insmod parameter. 
-     A list of pairs. The first value is a bus number (-1 for any I2C bus), 
-     the second is the address. These addresses are also probed, as if they 
-     were in the 'normal' list.
-   ignore: insmod parameter.
-     A list of pairs. The first value is a bus number (-1 for any I2C bus), 
-     the second is the I2C address. These addresses are never probed. 
-     This parameter overrules the 'normal_i2c' list only.
-   force: insmod parameter. 
-     A list of pairs. The first value is a bus number (-1 for any I2C bus),
-     the second is the I2C address. A device is blindly assumed to be on
-     the given address, no probing is done. 
-
-Additionally, kind-specific force lists may optionally be defined if
-the driver supports several chip kinds. They are grouped in a
-NULL-terminated list of pointers named forces, those first element if the
-generic force list mentioned above. Each additional list correspond to an
-insmod parameter of the form force_<kind>.
-
-Fortunately, as a module writer, you just have to define the `normal_i2c' 
-parameter. The complete declaration could look like this:
-
-  /* Scan 0x4c to 0x4f */
-  static const unsigned short normal_i2c[] = { 0x4c, 0x4d, 0x4e, 0x4f,
-                                               I2C_CLIENT_END };
-
-  /* Magic definition of all other variables and things */
-  I2C_CLIENT_INSMOD;
-  /* Or, if your driver supports, say, 2 kind of devices: */
-  I2C_CLIENT_INSMOD_2(foo, bar);
-
-If you use the multi-kind form, an enum will be defined for you:
-  enum chips { any_chip, foo, bar, ... }
-You can then (and certainly should) use it in the driver code.
-
-Note that you *have* to call the defined variable `normal_i2c',
-without any prefix!
-
-
-Attaching to an adapter (Legacy model)
---------------------------------------
-
-Whenever a new adapter is inserted, or for all adapters if the driver is
-being registered, the callback attach_adapter() is called. Now is the
-time to determine what devices are present on the adapter, and to register
-a client for each of them.
-
-The attach_adapter callback is really easy: we just call the generic
-detection function. This function will scan the bus for us, using the
-information as defined in the lists explained above. If a device is
-detected at a specific address, another callback is called.
-
-  int foo_attach_adapter(struct i2c_adapter *adapter)
-  {
-    return i2c_probe(adapter,&addr_data,&foo_detect_client);
-  }
-
-Remember, structure `addr_data' is defined by the macros explained above,
-so you do not have to define it yourself.
-
-The i2c_probe function will call the foo_detect_client
-function only for those i2c addresses that actually have a device on
-them (unless a `force' parameter was used). In addition, addresses that
-are already in use (by some other registered client) are skipped.
-
-
-The detect client function (Legacy model)
------------------------------------------
-
-The detect client function is called by i2c_probe. The `kind' parameter
-contains -1 for a probed detection, 0 for a forced detection, or a positive
-number for a forced detection with a chip type forced.
-
-Returning an error different from -ENODEV in a detect function will cause
-the detection to stop: other addresses and adapters won't be scanned.
-This should only be done on fatal or internal errors, such as a memory
-shortage or i2c_attach_client failing.
-
-For now, you can ignore the `flags' parameter. It is there for future use.
-
-  int foo_detect_client(struct i2c_adapter *adapter, int address, 
-                        int kind)
-  {
-    int err = 0;
-    int i;
-    struct i2c_client *client;
-    struct foo_data *data;
-    const char *name = "";
-   
-    /* Let's see whether this adapter can support what we need.
-       Please substitute the things you need here! */
-    if (!i2c_check_functionality(adapter,I2C_FUNC_SMBUS_WORD_DATA |
-                                        I2C_FUNC_SMBUS_WRITE_BYTE))
-       goto ERROR0;
-
-    /* OK. For now, we presume we have a valid client. We now create the
-       client structure, even though we cannot fill it completely yet.
-       But it allows us to access several i2c functions safely */
-    
-    if (!(data = kzalloc(sizeof(struct foo_data), GFP_KERNEL))) {
-      err = -ENOMEM;
-      goto ERROR0;
-    }
-
-    client = &data->client;
-    i2c_set_clientdata(client, data);
-
-    client->addr = address;
-    client->adapter = adapter;
-    client->driver = &foo_driver;
-
-    /* Now, we do the remaining detection. If no `force' parameter is used. */
-
-    /* First, the generic detection (if any), that is skipped if any force
-       parameter was used. */
-    if (kind < 0) {
-      /* The below is of course bogus */
-      if (foo_read(client, FOO_REG_GENERIC) != FOO_GENERIC_VALUE)
-         goto ERROR1;
-    }
-
-    /* Next, specific detection. This is especially important for `sensors'
-       devices. */
-
-    /* Determine the chip type. Not needed if a `force_CHIPTYPE' parameter
-       was used. */
-    if (kind <= 0) {
-      i = foo_read(client, FOO_REG_CHIPTYPE);
-      if (i == FOO_TYPE_1) 
-        kind = chip1; /* As defined in the enum */
-      else if (i == FOO_TYPE_2)
-        kind = chip2;
-      else {
-        printk("foo: Ignoring 'force' parameter for unknown chip at "
-               "adapter %d, address 0x%02x\n",i2c_adapter_id(adapter),address);
-        goto ERROR1;
-      }
-    }
-
-    /* Now set the type and chip names */
-    if (kind == chip1) {
-      name = "chip1";
-    } else if (kind == chip2) {
-      name = "chip2";
-    }
-   
-    /* Fill in the remaining client fields. */
-    strlcpy(client->name, name, I2C_NAME_SIZE);
-    data->type = kind;
-    mutex_init(&data->update_lock); /* Only if you use this field */
-
-    /* Any other initializations in data must be done here too. */
-
-    /* This function can write default values to the client registers, if
-       needed. */
-    foo_init_client(client);
-
-    /* Tell the i2c layer a new client has arrived */
-    if ((err = i2c_attach_client(client)))
-      goto ERROR1;
-
-    return 0;
-
-    /* OK, this is not exactly good programming practice, usually. But it is
-       very code-efficient in this case. */
-
-    ERROR1:
-      kfree(data);
-    ERROR0:
-      return err;
-  }
-
-
-Removing the client (Legacy model)
-==================================
-
-The detach_client call back function is called when a client should be
-removed. It may actually fail, but only when panicking. This code is
-much simpler than the attachment code, fortunately!
-
-  int foo_detach_client(struct i2c_client *client)
-  {
-    int err;
-
-    /* Try to detach the client from i2c space */
-    if ((err = i2c_detach_client(client)))
-      return err;
-
-    kfree(i2c_get_clientdata(client));
-    return 0;
-  }
 
 
 Initializing the module or kernel
