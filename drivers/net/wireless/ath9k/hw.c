@@ -345,7 +345,7 @@ static void ath9k_hw_set_defaults(struct ath_hal *ah)
 		ah->ah_config.spurchans[i][1] = AR_NO_SPUR;
 	}
 
-	ah->ah_config.intr_mitigation = 0;
+	ah->ah_config.intr_mitigation = 1;
 }
 
 static void ath9k_hw_override_ini(struct ath_hal *ah,
