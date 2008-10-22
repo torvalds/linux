@@ -286,7 +286,8 @@ static int ath_tx_prepare(struct ath_softc *sc,
 
 	/* Fill flags */
 
-	txctl->flags |= ATH9K_TXDESC_CLRDMASK; /* needed for crypto errors */
+	txctl->flags |= ATH9K_TXDESC_CLRDMASK /* needed for crypto errors */
+		| ATH9K_TXDESC_INTREQ; /* Generate an interrupt */
 
 	if (tx_info->flags & IEEE80211_TX_CTL_NO_ACK)
 		txctl->flags |= ATH9K_TXDESC_NOACK;
@@ -362,28 +363,6 @@ static int ath_tx_prepare(struct ath_softc *sc,
 		/* reset tries but keep rate index */
 		rcs[0].tries = ATH_TXMAXTRY;
 	}
-
-	/*
-	 * Determine if a tx interrupt should be generated for
-	 * this descriptor.  We take a tx interrupt to reap
-	 * descriptors when the h/w hits an EOL condition or
-	 * when the descriptor is specifically marked to generate
-	 * an interrupt.  We periodically mark descriptors in this
-	 * way to insure timely replenishing of the supply needed
-	 * for sending frames.  Defering interrupts reduces system
-	 * load and potentially allows more concurrent work to be
-	 * done but if done to aggressively can cause senders to
-	 * backup.
-	 *
-	 * NB: use >= to deal with sc_txintrperiod changing
-	 *     dynamically through sysctl.
-	 */
-	spin_lock_bh(&txq->axq_lock);
-	if ((++txq->axq_intrcnt >= sc->sc_txintrperiod)) {
-		txctl->flags |= ATH9K_TXDESC_INTREQ;
-		txq->axq_intrcnt = 0;
-	}
-	spin_unlock_bh(&txq->axq_lock);
 
 	if (is_multicast_ether_addr(hdr->addr1)) {
 		antenna = sc->sc_mcastantenna + 1;
@@ -1166,7 +1145,6 @@ static int ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 	nacked = 0;
 	for (;;) {
 		spin_lock_bh(&txq->axq_lock);
-		txq->axq_intrcnt = 0; /* reset periodic desc intr count */
 		if (list_empty(&txq->axq_q)) {
 			txq->axq_link = NULL;
 			txq->axq_linkbuf = NULL;
@@ -2164,7 +2142,6 @@ struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 		txq->axq_depth = 0;
 		txq->axq_aggr_depth = 0;
 		txq->axq_totalqueued = 0;
-		txq->axq_intrcnt = 0;
 		txq->axq_linkbuf = NULL;
 		sc->sc_txqsetup |= 1<<qnum;
 	}

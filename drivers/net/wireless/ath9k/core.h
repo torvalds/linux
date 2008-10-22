@@ -443,9 +443,6 @@ struct ath_txq {
 	u8 axq_aggr_depth;		/* aggregates queued */
 	u32 axq_totalqueued;		/* total ever queued */
 
-	/* count to determine if descriptor should generate int on this txq. */
-	u32 axq_intrcnt;
-
 	bool stopped;			/* Is mac80211 queue stopped ? */
 	struct ath_buf *axq_linkbuf;	/* virtual addr of last buffer*/
 
@@ -1007,7 +1004,6 @@ struct ath_softc {
 	struct ath_txq sc_txq[ATH9K_NUM_TX_QUEUES];
 	struct ath_descdma sc_txdma;
 	u32 sc_txqsetup;
-	u32 sc_txintrperiod;	/* tx interrupt batching */
 	int sc_haltype2q[ATH9K_WME_AC_VO+1]; /* HAL WME	AC -> h/w qnum */
 	u16 seq_no; /* TX sequence number */
 

@@ -138,6 +138,19 @@ struct ath_desc {
 #define ATH9K_TXDESC_NOACK		0x0002
 #define ATH9K_TXDESC_RTSENA		0x0004
 #define ATH9K_TXDESC_CTSENA		0x0008
+/* ATH9K_TXDESC_INTREQ forces a tx interrupt to be generated for
+ * the descriptor its marked on.  We take a tx interrupt to reap
+ * descriptors when the h/w hits an EOL condition or
+ * when the descriptor is specifically marked to generate
+ * an interrupt with this flag. Descriptors should be
+ * marked periodically to insure timely replenishing of the
+ * supply needed for sending frames. Defering interrupts
+ * reduces system load and potentially allows more concurrent
+ * work to be done but if done to aggressively can cause
+ * senders to backup. When the hardware queue is left too
+ * large rate control information may also be too out of
+ * date. An Alternative for this is TX interrupt mitigation
+ * but this needs more testing. */
 #define ATH9K_TXDESC_INTREQ		0x0010
 #define ATH9K_TXDESC_VEOL		0x0020
 #define ATH9K_TXDESC_EXT_ONLY		0x0040
