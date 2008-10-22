@@ -135,7 +135,7 @@ static int wait_for_pin(struct i2c_algo_pcf_data *adap, int *status) {
 	*status = get_pcf(adap, 1);
 #ifndef STUB_I2C
 	while (timeout-- && (*status & I2C_PCF_PIN)) {
-		adap->waitforpin();
+		adap->waitforpin(adap->data);
 		*status = get_pcf(adap, 1);
 	}
 	if (*status & I2C_PCF_LAB) {
