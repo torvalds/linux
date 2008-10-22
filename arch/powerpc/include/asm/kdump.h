@@ -9,12 +9,6 @@
  * Reserve to the end of the FWNMI area, see head_64.S */
 #define KDUMP_RESERVE_LIMIT	0x10000 /* 64K */
 
-/*
- * Used to differentiate between relocatable kdump kernel and other
- * kernels
- */
-#define KDUMP_SIGNATURE	0xfeed1234
-
 #ifdef CONFIG_CRASH_DUMP
 
 #define KDUMP_TRAMPOLINE_START	0x0100
