@@ -697,13 +697,7 @@ asmlinkage void __init start_kernel(void)
 }
 
 static int initcall_debug;
-
-static int __init initcall_debug_setup(char *str)
-{
-	initcall_debug = 1;
-	return 1;
-}
-__setup("initcall_debug", initcall_debug_setup);
+core_param(initcall_debug, initcall_debug, bool, 0644);
 
 int do_one_initcall(initcall_t fn)
 {
