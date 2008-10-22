@@ -5,6 +5,7 @@
 #include <linux/page_cgroup.h>
 #include <linux/hash.h>
 #include <linux/memory.h>
+#include <linux/vmalloc.h>
 
 static void __meminit
 __init_page_cgroup(struct page_cgroup *pc, unsigned long pfn)
