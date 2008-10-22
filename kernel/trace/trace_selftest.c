@@ -70,7 +70,7 @@ static int trace_test_buffer(struct trace_array *tr, unsigned long *count)
 	return ret;
 }
 
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
@@ -226,7 +226,7 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 
 	return ret;
 }
-#endif /* CONFIG_FTRACE */
+#endif /* CONFIG_FUNCTION_TRACER */
 
 #ifdef CONFIG_IRQSOFF_TRACER
 int
