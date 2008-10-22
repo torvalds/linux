@@ -42,7 +42,7 @@ if ACPI
 
 config ACPI_SLEEP
 	bool
-	depends on PM_SLEEP
+	depends on SUSPEND || HIBERNATION
 	default y
 
 config ACPI_PROCFS
