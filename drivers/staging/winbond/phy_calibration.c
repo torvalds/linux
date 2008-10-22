@@ -431,7 +431,6 @@ void _rxadc_dc_offset_cancellation_winbond(hw_data_t *phw_data, u32 frequency)
 
 	val |= MASK_ADC_DC_CAL_STR;
 	hw_set_dxx_reg(phw_data, REG_MODE_CTRL, val);
-	pa_stall_execution(US); // *MUST* wait for a while
 
 	// e. The result are shown in "adc_dc_cal_i[8:0] and adc_dc_cal_q[8:0]"
 #ifdef _DEBUG
@@ -522,7 +521,6 @@ void _txidac_dc_offset_cancellation_winbond(hw_data_t *phw_data)
 	reg_mode_ctrl |= (MASK_CALIB_START|2|(2<<2));
 	hw_set_dxx_reg(phw_data, REG_MODE_CTRL, reg_mode_ctrl);
 	PHY_DEBUG(("[CAL]    MODE_CTRL (write) = 0x%08X\n", reg_mode_ctrl));
-	pa_stall_execution(US);
 
 	hw_get_dxx_reg(phw_data, 0x5C, &reg_dc_cancel);
 	PHY_DEBUG(("[CAL]    DC_CANCEL (read) = 0x%08X\n", reg_dc_cancel));
@@ -536,7 +534,6 @@ void _txidac_dc_offset_cancellation_winbond(hw_data_t *phw_data)
 		reg_dc_cancel &= ~(0x03FF);
 		PHY_DEBUG(("[CAL]    DC_CANCEL (write) = 0x%08X\n", reg_dc_cancel));
 		hw_set_dxx_reg(phw_data, 0x5C, reg_dc_cancel);
-		pa_stall_execution(US);
 
 		hw_get_dxx_reg(phw_data, REG_CALIB_READ2, &val);
 		PHY_DEBUG(("[CAL]    CALIB_READ2 = 0x%08X\n", val));
@@ -552,7 +549,6 @@ void _txidac_dc_offset_cancellation_winbond(hw_data_t *phw_data)
 		reg_dc_cancel |= (1 << CANCEL_DC_I_SHIFT);
 		PHY_DEBUG(("[CAL]    DC_CANCEL (write) = 0x%08X\n", reg_dc_cancel));
 		hw_set_dxx_reg(phw_data, 0x5C, reg_dc_cancel);
-		pa_stall_execution(US);
 
 		hw_get_dxx_reg(phw_data, REG_CALIB_READ2, &val);
 		PHY_DEBUG(("[CAL]    CALIB_READ2 = 0x%08X\n", val));
@@ -600,7 +596,6 @@ void _txidac_dc_offset_cancellation_winbond(hw_data_t *phw_data)
 	reg_mode_ctrl &= ~MASK_CALIB_START;
 	hw_set_dxx_reg(phw_data, REG_MODE_CTRL, reg_mode_ctrl);
 	PHY_DEBUG(("[CAL]    MODE_CTRL (write) = 0x%08X\n", reg_mode_ctrl));
-	pa_stall_execution(US);
 }
 
 ///////////////////////////////////////////////////////
@@ -651,7 +646,6 @@ void _txqdac_dc_offset_cacellation_winbond(hw_data_t *phw_data)
 	reg_mode_ctrl |= (MASK_CALIB_START|3);
 	hw_set_dxx_reg(phw_data, REG_MODE_CTRL, reg_mode_ctrl);
 	PHY_DEBUG(("[CAL]    MODE_CTRL (write) = 0x%08X\n", reg_mode_ctrl));
-	pa_stall_execution(US);
 
 	hw_get_dxx_reg(phw_data, 0x5C, &reg_dc_cancel);
 	PHY_DEBUG(("[CAL]    DC_CANCEL (read) = 0x%08X\n", reg_dc_cancel));
@@ -665,11 +659,9 @@ void _txqdac_dc_offset_cacellation_winbond(hw_data_t *phw_data)
 		reg_dc_cancel &= ~(0x001F);
 		PHY_DEBUG(("[CAL]    DC_CANCEL (write) = 0x%08X\n", reg_dc_cancel));
 		hw_set_dxx_reg(phw_data, 0x5C, reg_dc_cancel);
-		pa_stall_execution(US);
 
 		hw_get_dxx_reg(phw_data, REG_CALIB_READ2, &val);
 		PHY_DEBUG(("[CAL]    CALIB_READ2 = 0x%08X\n", val));
-		pa_stall_execution(US);
 
 		iqcal_image_i = _s13_to_s32(val & 0x00001FFF);
 		iqcal_image_q = _s13_to_s32((val & 0x03FFE000) >> 13);
@@ -682,11 +674,9 @@ void _txqdac_dc_offset_cacellation_winbond(hw_data_t *phw_data)
 		reg_dc_cancel |= (1 << CANCEL_DC_Q_SHIFT);
 		PHY_DEBUG(("[CAL]    DC_CANCEL (write) = 0x%08X\n", reg_dc_cancel));
 		hw_set_dxx_reg(phw_data, 0x5C, reg_dc_cancel);
-		pa_stall_execution(US);
 
 		hw_get_dxx_reg(phw_data, REG_CALIB_READ2, &val);
 		PHY_DEBUG(("[CAL]    CALIB_READ2 = 0x%08X\n", val));
-		pa_stall_execution(US);
 
 		iqcal_image_i = _s13_to_s32(val & 0x00001FFF);
 		iqcal_image_q = _s13_to_s32((val & 0x03FFE000) >> 13);
@@ -732,7 +722,6 @@ void _txqdac_dc_offset_cacellation_winbond(hw_data_t *phw_data)
 	reg_mode_ctrl &= ~MASK_CALIB_START;
 	hw_set_dxx_reg(phw_data, REG_MODE_CTRL, reg_mode_ctrl);
 	PHY_DEBUG(("[CAL]    MODE_CTRL (write) = 0x%08X\n", reg_mode_ctrl));
-	pa_stall_execution(US);
 }
 
 //20060612.1.a 20060718.1 Modify
@@ -792,12 +781,10 @@ u8 _tx_iq_calibration_loop_winbond(hw_data_t *phw_data,
 			reg_mode_ctrl |= (MASK_CALIB_START|0x02|2<<2);
 			hw_set_dxx_reg(phw_data, REG_MODE_CTRL, reg_mode_ctrl);
 			PHY_DEBUG(("[CAL]    MODE_CTRL (write) = 0x%08X\n", reg_mode_ctrl));
-			pa_stall_execution(US);
 
 			// b.
 			hw_get_dxx_reg(phw_data, REG_CALIB_READ1, &val);
 			PHY_DEBUG(("[CAL]    CALIB_READ1 = 0x%08X\n", val));
-			pa_stall_execution(US);
 
 			iqcal_tone_i0 = _s13_to_s32(val & 0x00001FFF);
 			iqcal_tone_q0 = _s13_to_s32((val & 0x03FFE000) >> 13);
@@ -813,7 +800,6 @@ u8 _tx_iq_calibration_loop_winbond(hw_data_t *phw_data,
 			reg_mode_ctrl &= ~MASK_CALIB_START;
 			hw_set_dxx_reg(phw_data, REG_MODE_CTRL, reg_mode_ctrl);
 			PHY_DEBUG(("[CAL]    MODE_CTRL (write) = 0x%08X\n", reg_mode_ctrl));
-			pa_stall_execution(US);
 
 			// d. Set iqcal_mode[1:0] to 0x3 and set "calib_start" to 0x1 to
 			//    enable "IQ alibration Mode II"
@@ -823,12 +809,10 @@ u8 _tx_iq_calibration_loop_winbond(hw_data_t *phw_data,
 			reg_mode_ctrl |= (MASK_CALIB_START|0x03);
 			hw_set_dxx_reg(phw_data, REG_MODE_CTRL, reg_mode_ctrl);
 			PHY_DEBUG(("[CAL]    MODE_CTRL (write) = 0x%08X\n", reg_mode_ctrl));
-			pa_stall_execution(US);
 
 			// e.
 			hw_get_dxx_reg(phw_data, REG_CALIB_READ1, &val);
 			PHY_DEBUG(("[CAL]    CALIB_READ1 = 0x%08X\n", val));
-			pa_stall_execution(US);
 
 			iqcal_tone_i = _s13_to_s32(val & 0x00001FFF);
 			iqcal_tone_q = _s13_to_s32((val & 0x03FFE000) >> 13);
@@ -1282,13 +1266,11 @@ u8 _rx_iq_calibration_loop_winbond(hw_data_t *phw_data, u16 factor, u32 frequenc
 		if( !hw_set_dxx_reg(phw_data, REG_MODE_CTRL, reg_mode_ctrl) )//20060718.1 modify
 			return 0;
 		PHY_DEBUG(("[CAL]    MODE_CTRL (write) = 0x%08X\n", reg_mode_ctrl));
-		pa_stall_execution(US);
 
 		reg_mode_ctrl &= ~MASK_IQCAL_MODE;
 		reg_mode_ctrl |= (MASK_CALIB_START|0x1);
 		hw_set_dxx_reg(phw_data, REG_MODE_CTRL, reg_mode_ctrl);
 		PHY_DEBUG(("[CAL]    MODE_CTRL (write) = 0x%08X\n", reg_mode_ctrl));
-		pa_stall_execution(US);  //Should be read out after 450us
 
 		// c.
 		hw_get_dxx_reg(phw_data, REG_CALIB_READ1, &val);
@@ -1697,7 +1679,6 @@ unsigned char adjust_TXVGA_for_iq_mag(hw_data_t *phw_data)
 		phy_set_rf_data(phw_data, 5, ((5<<24)|current_txvga) );
 		phw_data->txvga_setting_for_cal = current_txvga;
 
-		//pa_stall_execution(30000);//Sleep(30);
 		msleep(30); // 20060612.1.a
 
 		if( !hw_get_dxx_reg(phw_data, REG_MODE_CTRL, &reg_mode_ctrl) ) // 20060718.1 modify
@@ -1714,18 +1695,14 @@ unsigned char adjust_TXVGA_for_iq_mag(hw_data_t *phw_data)
 		hw_set_dxx_reg(phw_data, REG_MODE_CTRL, reg_mode_ctrl);
 		PHY_DEBUG(("[CAL]    MODE_CTRL (write) = 0x%08X\n", reg_mode_ctrl));
 
-		//pa_stall_execution(US);
 		udelay(1); // 20060612.1.a
 
-		//pa_stall_execution(300);//Sleep(30);
 		udelay(300); // 20060612.1.a
 
 		// b.
 		hw_get_dxx_reg(phw_data, REG_CALIB_READ1, &val);
 
 		PHY_DEBUG(("[CAL]    CALIB_READ1 = 0x%08X\n", val));
-		//pa_stall_execution(US);
-		//pa_stall_execution(300);//Sleep(30);
 		udelay(300); // 20060612.1.a
 
 		iqcal_tone_i0 = _s13_to_s32(val & 0x00001FFF);

@@ -113,7 +113,6 @@ unsigned char hal_set_LED(  phw_data_t pHwData,  u32 Mode ); // 20061108 for WPS
 #define hal_ibss_disconnect(_A) hal_stop_sync_bss(_A)
 #define hal_join_request_stop(_A)
 unsigned char	hal_idle(  phw_data_t pHwData );
-#define pa_stall_execution( _A )	//OS_SLEEP( 1 )
 #define hw_get_cxx_reg( _A, _B, _C )
 #define hw_set_cxx_reg( _A, _B, _C )
 #define hw_get_dxx_reg( _A, _B, _C )	hal_get_dxx_reg( _A, _B, (u32 *)_C )
