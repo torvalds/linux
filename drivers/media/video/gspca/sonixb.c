@@ -132,8 +132,6 @@ struct sensor_data {
    ignore atleast the 2 next frames for the new settings to come into effect
    before doing any other adjustments */
 #define AUTOGAIN_IGNORE_FRAMES 3
-#define AUTOGAIN_DEADZONE 1000
-#define DESIRED_AVG_LUM 7000
 
 /* V4L2 controls supported by the driver */
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
@@ -827,17 +825,28 @@ static void setfreq(struct gspca_dev *gspca_dev)
 
 static void do_autogain(struct gspca_dev *gspca_dev)
 {
+	int deadzone, desired_avg_lum;
 	struct sd *sd = (struct sd *) gspca_dev;
 	int avg_lum = atomic_read(&sd->avg_lum);
 
 	if (avg_lum == -1)
 		return;
 
+	/* SIF / VGA sensors have a different autoexposure area and thus
+	   different avg_lum values for the same picture brightness */
+	if (sensor_data[sd->sensor].flags & F_SIF) {
+		deadzone = 1000;
+		desired_avg_lum = 7000;
+	} else {
+		deadzone = 3000;
+		desired_avg_lum = 23000;
+	}
+
 	if (sd->autogain_ignore_frames > 0)
 		sd->autogain_ignore_frames--;
 	else if (gspca_auto_gain_n_exposure(gspca_dev, avg_lum,
-			sd->brightness * DESIRED_AVG_LUM / 127,
-			AUTOGAIN_DEADZONE, GAIN_KNEE, EXPOSURE_KNEE)) {
+			sd->brightness * desired_avg_lum / 127,
+			deadzone, GAIN_KNEE, EXPOSURE_KNEE)) {
 		PDEBUG(D_FRAM, "autogain: gain changed: gain: %d expo: %d\n",
 			(int)sd->gain, (int)sd->exposure);
 		sd->autogain_ignore_frames = AUTOGAIN_IGNORE_FRAMES;
