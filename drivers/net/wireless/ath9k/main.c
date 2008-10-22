@@ -1250,7 +1250,8 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		sc->sc_ah->ah_channels[pos].chanmode =
 			ath_get_extchanmode(sc, curchan);
 
-	sc->sc_config.txpowlimit = 2 * conf->power_level;
+	if (changed & IEEE80211_CONF_CHANGE_POWER)
+		sc->sc_config.txpowlimit = 2 * conf->power_level;
 
 	/* set h/w channel */
 	if (ath_set_channel(sc, &sc->sc_ah->ah_channels[pos]) < 0)
