@@ -21,6 +21,7 @@
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/i2c.h>
+#include <linux/ata_platform.h>
 #include <asm/mach-types.h>
 #include <asm/gpio.h>
 #include <asm/mach/arch.h>
@@ -64,9 +65,21 @@ static struct hw_pci dns323_pci __initdata = {
 	.map_irq	= dns323_pci_map_irq,
 };
 
+static int __init dns323_dev_id(void)
+{
+	u32 dev, rev;
+
+	orion5x_pcie_id(&dev, &rev);
+
+	return dev;
+}
+
 static int __init dns323_pci_init(void)
 {
-	if (machine_is_dns323())
+	/* The 5182 doesn't really use it's PCI bus, and initialising PCI
+	 * gets in the way of initialising the SATA controller.
+	 */
+	if (machine_is_dns323() && dns323_dev_id() != MV88F5182_DEV_ID)
 		pci_common_init(&dns323_pci);
 
 	return 0;
@@ -283,10 +296,17 @@ static struct platform_device dns323_button_device = {
 	},
 };
 
+/*****************************************************************************
+ * SATA
+ */
+static struct mv_sata_platform_data dns323_sata_data = {
+       .n_ports        = 2,
+};
+
 /****************************************************************************
  * General Setup
  */
-static struct orion5x_mpp_mode dns323_mpp_modes[] __initdata = {
+static struct orion5x_mpp_mode dns323_mv88f5181_mpp_modes[] __initdata = {
 	{  0, MPP_PCIE_RST_OUTn },
 	{  1, MPP_GPIO },		/* right amber LED (sata ch0) */
 	{  2, MPP_GPIO },		/* left amber LED (sata ch1) */
@@ -303,6 +323,30 @@ static struct orion5x_mpp_mode dns323_mpp_modes[] __initdata = {
 	{ 13, MPP_UNUSED },
 	{ 14, MPP_UNUSED },
 	{ 15, MPP_UNUSED },
+	{ 16, MPP_UNUSED },
+	{ 17, MPP_UNUSED },
+	{ 18, MPP_UNUSED },
+	{ 19, MPP_UNUSED },
+	{ -1 },
+};
+
+static struct orion5x_mpp_mode dns323_mv88f5182_mpp_modes[] __initdata = {
+	{  0, MPP_UNUSED },
+	{  1, MPP_GPIO },		/* right amber LED (sata ch0) */
+	{  2, MPP_GPIO },		/* left amber LED (sata ch1) */
+	{  3, MPP_UNUSED },
+	{  4, MPP_GPIO },		/* power button LED */
+	{  5, MPP_GPIO },		/* power button LED */
+	{  6, MPP_GPIO },		/* GMT G751-2f overtemp */
+	{  7, MPP_GPIO },		/* M41T80 nIRQ/OUT/SQW */
+	{  8, MPP_GPIO },		/* triggers power off */
+	{  9, MPP_GPIO },		/* power button switch */
+	{ 10, MPP_GPIO },		/* reset button switch */
+	{ 11, MPP_UNUSED },
+	{ 12, MPP_SATA_LED },
+	{ 13, MPP_SATA_LED },
+	{ 14, MPP_SATA_LED },
+	{ 15, MPP_SATA_LED },
 	{ 16, MPP_UNUSED },
 	{ 17, MPP_UNUSED },
 	{ 18, MPP_UNUSED },
@@ -340,8 +384,15 @@ static void __init dns323_init(void)
 	/* Setup basic Orion functions. Need to be called early. */
 	orion5x_init();
 
-	orion5x_mpp_conf(dns323_mpp_modes);
-	writel(0, MPP_DEV_CTRL);		/* DEV_D[31:16] */
+	/* Just to be tricky, the 5182 has a completely different
+	 * set of MPP modes to the 5181.
+	 */
+	if (dns323_dev_id() == MV88F5182_DEV_ID)
+		orion5x_mpp_conf(dns323_mv88f5182_mpp_modes);
+	else {
+		orion5x_mpp_conf(dns323_mv88f5181_mpp_modes);
+		writel(0, MPP_DEV_CTRL);		/* DEV_D[31:16] */
+	}
 
 	/* setup flash mapping
 	 * CS3 holds a 8 MB Spansion S29GL064M90TFIR4
@@ -366,6 +417,12 @@ static void __init dns323_init(void)
 	orion5x_eth_init(&dns323_eth_data);
 	orion5x_i2c_init();
 	orion5x_uart0_init();
+
+	/* The 5182 has it's SATA controller on-chip, and needs it's own little
+	 * init routine.
+	 */
+	if (dns323_dev_id() == MV88F5182_DEV_ID)
+		orion5x_sata_init(&dns323_sata_data);
 
 	/* register dns323 specific power-off method */
 	if (gpio_request(DNS323_GPIO_POWER_OFF, "POWEROFF") != 0 ||
