@@ -465,6 +465,7 @@ gokernel:
 		mov	%o7, %g4		! Save %o7
 
 		/* Jump to it, and pray... */
+		__INIT
 current_pc:
 		call	1f
 		 nop
