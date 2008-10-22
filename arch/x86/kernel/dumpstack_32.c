@@ -309,6 +309,9 @@ unsigned __kprobes long oops_begin(void)
 
 void __kprobes oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 {
+	if (regs && kexec_should_crash(current))
+		crash_kexec(regs);
+
 	bust_spinlocks(0);
 	die_owner = -1;
 	add_taint(TAINT_DIE);
@@ -318,8 +321,6 @@ void __kprobes oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 	if (!regs)
 		return;
 
-	if (kexec_should_crash(current))
-		crash_kexec(regs);
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");
 	if (panic_on_oops)
