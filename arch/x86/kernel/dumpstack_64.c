@@ -458,6 +458,9 @@ unsigned __kprobes long oops_begin(void)
 
 void __kprobes oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 {
+	if (regs && kexec_should_crash(current))
+		crash_kexec(regs);
+
 	die_owner = -1;
 	bust_spinlocks(0);
 	die_nest_count--;
@@ -501,8 +504,6 @@ int __kprobes __die(const char *str, struct pt_regs *regs, long err)
 	printk(KERN_ALERT "RIP ");
 	printk_address(regs->ip, 1);
 	printk(" RSP <%016lx>\n", regs->sp);
-	if (kexec_should_crash(current))
-		crash_kexec(regs);
 	return 0;
 }
 
@@ -536,11 +537,9 @@ die_nmi(char *str, struct pt_regs *regs, int do_panic)
 	printk(" on CPU%d, ip %08lx, registers:\n",
 		smp_processor_id(), regs->ip);
 	show_registers(regs);
-	if (kexec_should_crash(current))
-		crash_kexec(regs);
+	oops_end(flags, regs, 0);
 	if (do_panic || panic_on_oops)
 		panic("Non maskable interrupt");
-	oops_end(flags, regs, 0);
 	nmi_exit();
 	local_irq_enable();
 	do_exit(SIGBUS);
