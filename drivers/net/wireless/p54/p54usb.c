@@ -230,7 +230,7 @@ static void p54u_tx_3887(struct ieee80211_hw *dev, struct sk_buff *skb,
 
 	usb_fill_bulk_urb(addr_urb, priv->udev,
 			  usb_sndbulkpipe(priv->udev, P54U_PIPE_DATA),
-			  &((struct p54_control_hdr *)skb->data)->req_id, 4,
+			  &((struct p54_hdr *)skb->data)->req_id, 4,
 			  p54u_tx_cb, dev);
 	usb_fill_bulk_urb(data_urb, priv->udev,
 			  usb_sndbulkpipe(priv->udev, P54U_PIPE_DATA),
@@ -262,7 +262,7 @@ static void p54u_tx_lm87(struct ieee80211_hw *dev, struct sk_buff *skb,
 	struct urb *data_urb;
 	struct lm87_tx_hdr *hdr;
 	__le32 checksum;
-	__le32 addr = ((struct p54_control_hdr *)skb->data)->req_id;
+	__le32 addr = ((struct p54_hdr *)skb->data)->req_id;
 
 	data_urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!data_urb)
@@ -313,8 +313,8 @@ static void p54u_tx_net2280(struct ieee80211_hw *dev, struct sk_buff *skb,
 
 	hdr = (void *)skb_push(skb, sizeof(*hdr));
 	memset(hdr, 0, sizeof(*hdr));
-	hdr->device_addr = ((struct p54_control_hdr *)skb->data)->req_id;
-	hdr->len = cpu_to_le16(skb->len + sizeof(struct p54_control_hdr));
+	hdr->device_addr = ((struct p54_hdr *)skb->data)->req_id;
+	hdr->len = cpu_to_le16(skb->len + sizeof(struct p54_hdr));
 
 	usb_fill_bulk_urb(int_urb, priv->udev,
 		usb_sndbulkpipe(priv->udev, P54U_PIPE_DEV), reg, sizeof(*reg),

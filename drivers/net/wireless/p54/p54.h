@@ -14,17 +14,17 @@
  * published by the Free Software Foundation.
  */
 
-enum control_frame_types {
+enum p54_control_frame_types {
 	P54_CONTROL_TYPE_SETUP = 0,
-	P54_CONTROL_TYPE_CHANNEL_CHANGE,
-	P54_CONTROL_TYPE_FREQDONE,
+	P54_CONTROL_TYPE_SCAN,
+	P54_CONTROL_TYPE_TRAP,
 	P54_CONTROL_TYPE_DCFINIT,
-	P54_CONTROL_TYPE_ENCRYPTION,
+	P54_CONTROL_TYPE_RX_KEYCACHE,
 	P54_CONTROL_TYPE_TIM,
-	P54_CONTROL_TYPE_POWERMGT,
-	P54_CONTROL_TYPE_FREEQUEUE,
+	P54_CONTROL_TYPE_PSM,
+	P54_CONTROL_TYPE_TXCANCEL,
 	P54_CONTROL_TYPE_TXDONE,
-	P54_CONTROL_TYPE_PING,
+	P54_CONTROL_TYPE_BURST,
 	P54_CONTROL_TYPE_STAT_READBACK,
 	P54_CONTROL_TYPE_BBP,
 	P54_CONTROL_TYPE_EEPROM_READBACK,
@@ -37,15 +37,20 @@ enum control_frame_types {
 	P54_CONTROL_TYPE_XBOW_SYNTH_CFG,
 	P54_CONTROL_TYPE_CCE_QUIET,
 	P54_CONTROL_TYPE_PSM_STA_UNLOCK,
+	P54_CONTROL_TYPE_PCS,
+	P54_CONTROL_TYPE_BT_BALANCER = 28,
+	P54_CONTROL_TYPE_GROUP_ADDRESS_TABLE = 30,
+	P54_CONTROL_TYPE_ARPTABLE = 31,
+	P54_CONTROL_TYPE_BT_OPTIONS = 35
 };
 
-struct p54_control_hdr {
-	__le16 magic1;
+struct p54_hdr {
+	__le16 flags;
 	__le16 len;
 	__le32 req_id;
-	__le16 type;	/* enum control_frame_types */
-	u8 retry1;
-	u8 retry2;
+	__le16 type;	/* enum p54_control_frame_types */
+	u8 rts_tries;
+	u8 tries;
 	u8 data[0];
 } __attribute__ ((packed));
 

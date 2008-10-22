@@ -33,6 +33,13 @@ struct bootrec_exp_if {
 	__le16 top_compat;
 } __attribute__((packed));
 
+#define BR_DESC_PRIV_CAP_WEP		BIT(0)
+#define BR_DESC_PRIV_CAP_TKIP		BIT(1)
+#define BR_DESC_PRIV_CAP_MICHAEL	BIT(2)
+#define BR_DESC_PRIV_CAP_CCX_CP		BIT(3)
+#define BR_DESC_PRIV_CAP_CCX_MIC	BIT(4)
+#define BR_DESC_PRIV_CAP_AESCCMP	BIT(5)
+
 struct bootrec_desc {
 	__le16 modes;
 	__le16 flags;
@@ -40,7 +47,12 @@ struct bootrec_desc {
 	__le32 rx_end;
 	u8 headroom;
 	u8 tailroom;
-	u8 unimportant[6];
+	u8 tx_queues;
+	u8 tx_depth;
+	u8 privacy_caps;
+	u8 rx_keycache_size;
+	u8 time_size;
+	u8 padding;
 	u8 rates[16];
 	u8 padding2[4];
 	__le16 rx_mtu;
@@ -55,6 +67,34 @@ struct bootrec_desc {
 #define BR_CODE_MAX			0x8FFFFFFF
 #define BR_CODE_END_OF_BRA		0xFF0000FF
 #define LEGACY_BR_CODE_END_OF_BRA	0xFFFFFFFF
+
+#define P54_HDR_FLAG_CONTROL		BIT(15)
+#define P54_HDR_FLAG_CONTROL_OPSET	(BIT(15) + BIT(0))
+
+#define P54_HDR_FLAG_DATA_ALIGN		BIT(14)
+#define P54_HDR_FLAG_DATA_OUT_PROMISC	BIT(0)
+#define P54_HDR_FLAG_DATA_OUT_TIMESTAMP BIT(1)
+#define P54_HDR_FLAG_DATA_OUT_SEQNR	BIT(2)
+#define P54_HDR_FLAG_DATA_OUT_BIT3	BIT(3)
+#define P54_HDR_FLAG_DATA_OUT_BURST	BIT(4)
+#define P54_HDR_FLAG_DATA_OUT_NOCANCEL	BIT(5)
+#define P54_HDR_FLAG_DATA_OUT_CLEARTIM	BIT(6)
+#define P54_HDR_FLAG_DATA_OUT_HITCHHIKE	BIT(7)
+#define P54_HDR_FLAG_DATA_OUT_COMPRESS	BIT(8)
+#define P54_HDR_FLAG_DATA_OUT_CONCAT	BIT(9)
+#define P54_HDR_FLAG_DATA_OUT_PCS_ACCEPT BIT(10)
+#define P54_HDR_FLAG_DATA_OUT_WAITEOSP	BIT(11)
+
+#define P54_HDR_FLAG_DATA_IN_FCS_GOOD	BIT(0)
+#define P54_HDR_FLAG_DATA_IN_MATCH_MAC	BIT(1)
+#define P54_HDR_FLAG_DATA_IN_MCBC	BIT(2)
+#define P54_HDR_FLAG_DATA_IN_BEACON	BIT(3)
+#define P54_HDR_FLAG_DATA_IN_MATCH_BSS	BIT(4)
+#define P54_HDR_FLAG_DATA_IN_BCAST_BSS	BIT(5)
+#define P54_HDR_FLAG_DATA_IN_DATA	BIT(6)
+#define P54_HDR_FLAG_DATA_IN_TRUNCATED	BIT(7)
+#define P54_HDR_FLAG_DATA_IN_BIT8	BIT(8)
+#define P54_HDR_FLAG_DATA_IN_TRANSPARENT BIT(9)
 
 /* PDA defines are Copyright (C) 2005 Nokia Corporation (taken from islsm_pda.h) */
 
@@ -182,42 +222,107 @@ struct p54_eeprom_lm86 {
 	u8 data[0];
 } __attribute__ ((packed));
 
-struct p54_rx_hdr {
-	__le16 magic;
+enum p54_rx_decrypt_status {
+	P54_DECRYPT_NONE = 0,
+	P54_DECRYPT_OK,
+	P54_DECRYPT_NOKEY,
+	P54_DECRYPT_NOMICHAEL,
+	P54_DECRYPT_NOCKIPMIC,
+	P54_DECRYPT_FAIL_WEP,
+	P54_DECRYPT_FAIL_TKIP,
+	P54_DECRYPT_FAIL_MICAHEL,
+	P54_DECRYPT_FAIL_CKIPKP,
+	P54_DECRYPT_FAIL_CKIPMIC,
+	P54_DECRYPT_FAIL_AESCCMP
+};
+
+struct p54_rx_data {
+	__le16 flags;
 	__le16 len;
 	__le16 freq;
 	u8 antenna;
 	u8 rate;
 	u8 rssi;
 	u8 quality;
-	u16 unknown2;
+	u8 decrypt_status;
+	u8 rssi_raw;
 	__le32 tsf32;
 	__le32 unalloc0;
 	u8 align[0];
 } __attribute__ ((packed));
 
-struct p54_frame_sent_hdr {
-	u8 status;
-	u8 retries;
-	__le16 ack_rssi;
-	__le16 seq;
-	u16 rate;
+enum p54_trap_type {
+	P54_TRAP_SCAN = 0,
+	P54_TRAP_TIMER,
+	P54_TRAP_BEACON_TX,
+	P54_TRAP_FAA_RADIO_ON,
+	P54_TRAP_FAA_RADIO_OFF,
+	P54_TRAP_RADAR,
+	P54_TRAP_NO_BEACON,
+	P54_TRAP_TBTT,
+	P54_TRAP_SCO_ENTER,
+	P54_TRAP_SCO_EXIT
+};
+
+struct p54_trap {
+	__le16 event;
+	__le16 frequency;
 } __attribute__ ((packed));
 
-struct p54_tx_control_allocdata {
+enum p54_frame_sent_status {
+	P54_TX_OK = 0,
+	P54_TX_FAILED,
+	P54_TX_PSM,
+	P54_TX_PSM_CANCELLED
+};
+
+struct p54_frame_sent {
+	u8 status;
+	u8 tries;
+	u8 ack_rssi;
+	u8 quality;
+	__le16 seq;
+	u8 antenna;
+	u8 padding;
+} __attribute__ ((packed));
+
+enum  p54_tx_data_crypt {
+	P54_CRYPTO_NONE = 0,
+	P54_CRYPTO_WEP,
+	P54_CRYPTO_TKIP,
+	P54_CRYPTO_TKIPMICHAEL,
+	P54_CRYPTO_CCX_WEPMIC,
+	P54_CRYPTO_CCX_KPMIC,
+	P54_CRYPTO_CCX_KP,
+	P54_CRYPTO_AESCCMP
+};
+
+struct p54_tx_data {
 	u8 rateset[8];
-	u8 unalloc0[2];
+	u8 rts_rate_idx;
+	u8 crypt_offset;
 	u8 key_type;
 	u8 key_len;
 	u8 key[16];
 	u8 hw_queue;
-	u8 unalloc1[9];
+	u8 backlog;
+	__le16 durations[4];
 	u8 tx_antenna;
 	u8 output_power;
 	u8 cts_rate;
 	u8 unalloc2[3];
 	u8 align[0];
 } __attribute__ ((packed));
+
+#define P54_FILTER_TYPE_NONE		0
+#define P54_FILTER_TYPE_STATION		BIT(0)
+#define P54_FILTER_TYPE_IBSS		BIT(1)
+#define P54_FILTER_TYPE_AP		BIT(2)
+#define P54_FILTER_TYPE_TRANSPARENT	BIT(3)
+#define P54_FILTER_TYPE_PROMISCUOUS	BIT(4)
+#define P54_FILTER_TYPE_HIBERNATE	BIT(5)
+#define P54_FILTER_TYPE_NOACK		BIT(6)
+#define P54_FILTER_TYPE_RX_DISABLED	BIT(7)
 
 struct p54_setup_mac {
 	__le16 mac_mode;
@@ -253,8 +358,16 @@ struct p54_setup_mac {
 	} __attribute__ ((packed));
 } __attribute__ ((packed));
 
-struct p54_tx_control_channel {
-	__le16 flags;
+#define P54_SETUP_V1_LEN 40
+#define P54_SETUP_V2_LEN (sizeof(struct p54_setup_mac))
+
+#define P54_SCAN_EXIT	BIT(0)
+#define P54_SCAN_TRAP	BIT(1)
+#define P54_SCAN_ACTIVE BIT(2)
+#define P54_SCAN_FILTER BIT(3)
+
+struct p54_scan {
+	__le16 mode;
 	__le16 dwell;
 	u8 padding1[20];
 	struct pda_iq_autocal_entry iq_autocal;
@@ -277,17 +390,17 @@ struct p54_tx_control_channel {
 
 		struct {
 			__le32 basic_rate_mask;
-			 u8 rts_rates[8];
+			u8 rts_rates[8];
 			__le16 rssical_mul;
 			__le16 rssical_add;
 		} v2 __attribute__ ((packed));
 	} __attribute__ ((packed));
 } __attribute__ ((packed));
 
-#define P54_TX_CONTROL_CHANNEL_V1_LEN (sizeof(struct p54_tx_control_channel)-12)
-#define P54_TX_CONTROL_CHANNEL_V2_LEN (sizeof(struct p54_tx_control_channel))
+#define P54_SCAN_V1_LEN (sizeof(struct p54_scan)-12)
+#define P54_SCAN_V2_LEN (sizeof(struct p54_scan))
 
-struct p54_tx_control_led {
+struct p54_led {
 	__le16 mode;
 	__le16 led_temporary;
 	__le16 led_permanent;
@@ -315,14 +428,103 @@ struct p54_statistics {
 	__le32 tsf32;
 	__le32 airtime;
 	__le32 noise;
-	__le32 unkn[10]; /* CCE / CCA / RADAR */
+	__le32 sample_noise[8];
+	__le32 sample_cca;
+	__le32 sample_tx;
 } __attribute__ ((packed));
 
-struct p54_tx_control_xbow_synth {
+struct p54_xbow_synth {
 	__le16 magic1;
 	__le16 magic2;
 	__le16 freq;
 	u32 padding[5];
+} __attribute__ ((packed));
+
+struct p54_timer {
+	__le32 interval;
+} __attribute__ ((packed));
+
+struct p54_keycache {
+	u8 entry;
+	u8 key_id;
+	u8 mac[ETH_ALEN];
+	u8 padding[2];
+	u8 key_type;
+	u8 key_len;
+	u8 key[24];
+} __attribute__ ((packed));
+
+struct p54_burst {
+	u8 flags;
+	u8 queue;
+	u8 backlog;
+	u8 pad;
+	__le16 durations[32];
+} __attribute__ ((packed));
+
+struct p54_psm_interval {
+	__le16 interval;
+	__le16 periods;
+} __attribute__ ((packed));
+
+#define P54_PSM				BIT(0)
+#define P54_PSM_DTIM			BIT(1)
+#define P54_PSM_MCBC			BIT(2)
+#define P54_PSM_CHECKSUM		BIT(3)
+#define P54_PSM_SKIP_MORE_DATA		BIT(4)
+#define P54_PSM_BEACON_TIMEOUT		BIT(5)
+#define P54_PSM_HFOSLEEP		BIT(6)
+#define P54_PSM_AUTOSWITCH_SLEEP	BIT(7)
+#define P54_PSM_LPIT			BIT(8)
+#define P54_PSM_BF_UCAST_SKIP		BIT(9)
+#define P54_PSM_BF_MCAST_SKIP		BIT(10)
+
+struct p54_psm {
+	__le16 mode;
+	__le16 aid;
+	struct p54_psm_interval intervals[4];
+	u8 beacon_rssi_skip_max;
+	u8 rssi_delta_threshold;
+	u8 nr;
+	u8 exclude[1];
+} __attribute__ ((packed));
+
+#define MC_FILTER_ADDRESS_NUM 4
+
+struct p54_group_address_table {
+	__le16 filter_enable;
+	__le16 num_address;
+	u8 mac_list[MC_FILTER_ADDRESS_NUM][ETH_ALEN];
+} __attribute__ ((packed));
+
+struct p54_txcancel {
+	__le32 req_id;
+} __attribute__ ((packed));
+
+struct p54_sta_unlock {
+	u8 addr[ETH_ALEN];
+	u16 padding;
+} __attribute__ ((packed));
+
+#define P54_TIM_CLEAR BIT(15)
+struct p54_tx_control_tim {
+	u8 count;
+	u8 padding[3];
+	__le16 entry[8];
+} __attribute__ ((packed));
+
+struct p54_cce_quiet {
+	__le32 period;
+} __attribute__ ((packed));
+
+struct p54_bt_balancer {
+	__le16 prio_thresh;
+	__le16 acl_thresh;
+} __attribute__ ((packed));
+
+struct p54_arp_table {
+	__le16 filter_enable;
+	u8 ipv4_addr[4];
 } __attribute__ ((packed));
 
 #endif /* P54COMMON_H */

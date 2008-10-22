@@ -326,7 +326,7 @@ static void p54p_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 				 PCI_DMA_TODEVICE);
 	desc = &ring_control->tx_data[i];
 	desc->host_addr = cpu_to_le32(mapping);
-	desc->device_addr = ((struct p54_control_hdr *)skb->data)->req_id;
+	desc->device_addr = ((struct p54_hdr *)skb->data)->req_id;
 	desc->len = cpu_to_le16(skb->len);
 	desc->flags = 0;
 
