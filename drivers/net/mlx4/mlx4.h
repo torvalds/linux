@@ -277,6 +277,9 @@ struct mlx4_vlan_table {
 struct mlx4_port_info {
 	struct mlx4_dev	       *dev;
 	int			port;
+	char			dev_name[16];
+	struct device_attribute port_attr;
+	enum mlx4_port_type	tmp_type;
 	struct mlx4_mac_table	mac_table;
 	struct mlx4_vlan_table	vlan_table;
 };
@@ -310,6 +313,7 @@ struct mlx4_priv {
 	struct mlx4_uar		driver_uar;
 	void __iomem	       *kar;
 	struct mlx4_port_info	port[MLX4_MAX_PORTS + 1];
+	struct mutex		port_mutex;
 };
 
 static inline struct mlx4_priv *mlx4_priv(struct mlx4_dev *dev)
@@ -382,5 +386,7 @@ void mlx4_handle_catas_err(struct mlx4_dev *dev);
 
 void mlx4_init_mac_table(struct mlx4_dev *dev, struct mlx4_mac_table *table);
 void mlx4_init_vlan_table(struct mlx4_dev *dev, struct mlx4_vlan_table *table);
+
+int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port);
 
 #endif /* MLX4_H */

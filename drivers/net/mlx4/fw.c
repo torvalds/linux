@@ -88,6 +88,7 @@ static void dump_dev_cap_flags(struct mlx4_dev *dev, u32 flags)
 		[ 8] = "P_Key violation counter",
 		[ 9] = "Q_Key violation counter",
 		[10] = "VMM",
+		[12] = "DPDP",
 		[16] = "MW support",
 		[17] = "APM support",
 		[18] = "Atomic ops support",
@@ -354,6 +355,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 			dev_cap->max_pkeys[i]	   = 1 << (field & 0xf);
 		}
 	} else {
+#define QUERY_PORT_SUPPORTED_TYPE_OFFSET	0x00
 #define QUERY_PORT_MTU_OFFSET			0x01
 #define QUERY_PORT_ETH_MTU_OFFSET		0x02
 #define QUERY_PORT_WIDTH_OFFSET			0x06
@@ -368,6 +370,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 			if (err)
 				goto out;
 
+			MLX4_GET(field, outbox, QUERY_PORT_SUPPORTED_TYPE_OFFSET);
+			dev_cap->supported_port_types[i] = field & 3;
 			MLX4_GET(field, outbox, QUERY_PORT_MTU_OFFSET);
 			dev_cap->ib_mtu[i]	   = field & 0xf;
 			MLX4_GET(field, outbox, QUERY_PORT_WIDTH_OFFSET);

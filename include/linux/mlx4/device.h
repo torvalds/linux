@@ -60,6 +60,7 @@ enum {
 	MLX4_DEV_CAP_FLAG_IPOIB_CSUM	= 1 <<  7,
 	MLX4_DEV_CAP_FLAG_BAD_PKEY_CNTR	= 1 <<  8,
 	MLX4_DEV_CAP_FLAG_BAD_QKEY_CNTR	= 1 <<  9,
+	MLX4_DEV_CAP_FLAG_DPDP		= 1 << 12,
 	MLX4_DEV_CAP_FLAG_MEM_WINDOW	= 1 << 16,
 	MLX4_DEV_CAP_FLAG_APM		= 1 << 17,
 	MLX4_DEV_CAP_FLAG_ATOMIC	= 1 << 18,
@@ -153,6 +154,11 @@ enum mlx4_qp_region {
 	MLX4_NUM_QP_REGION
 };
 
+enum mlx4_port_type {
+	MLX4_PORT_TYPE_IB	= 1 << 0,
+	MLX4_PORT_TYPE_ETH	= 1 << 1,
+};
+
 enum mlx4_special_vlan_idx {
 	MLX4_NO_VLAN_IDX        = 0,
 	MLX4_VLAN_MISS_IDX,
@@ -226,6 +232,9 @@ struct mlx4_caps {
 	int                     log_num_macs;
 	int                     log_num_vlans;
 	int                     log_num_prios;
+	enum mlx4_port_type	port_type[MLX4_MAX_PORTS + 1];
+	u8			supported_type[MLX4_MAX_PORTS + 1];
+	u32			port_mask;
 };
 
 struct mlx4_buf_list {
@@ -379,6 +388,11 @@ struct mlx4_init_port_param {
 	u64			node_guid;
 	u64			si_guid;
 };
+
+#define mlx4_foreach_port(port, dev, type)				\
+	for ((port) = 1; (port) <= (dev)->caps.num_ports; (port)++)	\
+		if (((type) == MLX4_PORT_TYPE_IB ? (dev)->caps.port_mask : \
+		     ~(dev)->caps.port_mask) & 1 << ((port) - 1))
 
 int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 		   struct mlx4_buf *buf);

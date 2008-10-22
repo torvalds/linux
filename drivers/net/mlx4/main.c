@@ -98,6 +98,44 @@ module_param_named(use_prio, use_prio, bool, 0444);
 MODULE_PARM_DESC(use_prio, "Enable steering by VLAN priority on ETH ports "
 		  "(0/1, default 0)");
 
+static int mlx4_check_port_params(struct mlx4_dev *dev,
+				  enum mlx4_port_type *port_type)
+{
+	int i;
+
+	for (i = 0; i < dev->caps.num_ports - 1; i++) {
+		if (port_type[i] != port_type[i+1] &&
+		    !(dev->caps.flags & MLX4_DEV_CAP_FLAG_DPDP)) {
+			mlx4_err(dev, "Only same port types supported "
+				 "on this HCA, aborting.\n");
+			return -EINVAL;
+		}
+	}
+	if ((port_type[0] == MLX4_PORT_TYPE_ETH) &&
+	    (port_type[1] == MLX4_PORT_TYPE_IB)) {
+		mlx4_err(dev, "eth-ib configuration is not supported.\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < dev->caps.num_ports; i++) {
+		if (!(port_type[i] & dev->caps.supported_type[i+1])) {
+			mlx4_err(dev, "Requested port type for port %d is not "
+				      "supported on this HCA\n", i + 1);
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
+static void mlx4_set_port_mask(struct mlx4_dev *dev)
+{
+	int i;
+
+	dev->caps.port_mask = 0;
+	for (i = 1; i <= dev->caps.num_ports; ++i)
+		if (dev->caps.port_type[i] == MLX4_PORT_TYPE_IB)
+			dev->caps.port_mask |= 1 << (i - 1);
+}
 static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 {
 	int err;
@@ -139,6 +177,7 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		dev->caps.port_width_cap[i] = dev_cap->max_port_width[i];
 		dev->caps.eth_mtu_cap[i]    = dev_cap->eth_mtu[i];
 		dev->caps.def_mac[i]        = dev_cap->def_mac[i];
+		dev->caps.supported_type[i] = dev_cap->supported_port_types[i];
 	}
 
 	dev->caps.num_uars	     = dev_cap->uar_size / PAGE_SIZE;
@@ -182,6 +221,11 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.log_num_prios = use_prio ? 3 : 0;
 
 	for (i = 1; i <= dev->caps.num_ports; ++i) {
+		if (dev->caps.supported_type[i] != MLX4_PORT_TYPE_ETH)
+			dev->caps.port_type[i] = MLX4_PORT_TYPE_IB;
+		else
+			dev->caps.port_type[i] = MLX4_PORT_TYPE_ETH;
+
 		if (dev->caps.log_num_macs > dev_cap->log_max_macs[i]) {
 			dev->caps.log_num_macs = dev_cap->log_max_macs[i];
 			mlx4_warn(dev, "Requested number of MACs is too much "
@@ -195,6 +239,8 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 				  i, 1 << dev->caps.log_num_vlans);
 		}
 	}
+
+	mlx4_set_port_mask(dev);
 
 	dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW] = dev_cap->reserved_qps;
 	dev->caps.reserved_qps_cnt[MLX4_QP_REGION_ETH_ADDR] =
@@ -211,6 +257,95 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FC_EXCH];
 
 	return 0;
+}
+
+/*
+ * Change the port configuration of the device.
+ * Every user of this function must hold the port mutex.
+ */
+static int mlx4_change_port_types(struct mlx4_dev *dev,
+				  enum mlx4_port_type *port_types)
+{
+	int err = 0;
+	int change = 0;
+	int port;
+
+	for (port = 0; port <  dev->caps.num_ports; port++) {
+		if (port_types[port] != dev->caps.port_type[port + 1]) {
+			change = 1;
+			dev->caps.port_type[port + 1] = port_types[port];
+		}
+	}
+	if (change) {
+		mlx4_unregister_device(dev);
+		for (port = 1; port <= dev->caps.num_ports; port++) {
+			mlx4_CLOSE_PORT(dev, port);
+			err = mlx4_SET_PORT(dev, port);
+			if (err) {
+				mlx4_err(dev, "Failed to set port %d, "
+					      "aborting\n", port);
+				goto out;
+			}
+		}
+		mlx4_set_port_mask(dev);
+		err = mlx4_register_device(dev);
+	}
+
+out:
+	return err;
+}
+
+static ssize_t show_port_type(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	struct mlx4_port_info *info = container_of(attr, struct mlx4_port_info,
+						   port_attr);
+	struct mlx4_dev *mdev = info->dev;
+
+	return sprintf(buf, "%s\n",
+		       mdev->caps.port_type[info->port] == MLX4_PORT_TYPE_IB ?
+		       "ib" : "eth");
+}
+
+static ssize_t set_port_type(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	struct mlx4_port_info *info = container_of(attr, struct mlx4_port_info,
+						   port_attr);
+	struct mlx4_dev *mdev = info->dev;
+	struct mlx4_priv *priv = mlx4_priv(mdev);
+	enum mlx4_port_type types[MLX4_MAX_PORTS];
+	int i;
+	int err = 0;
+
+	if (!strcmp(buf, "ib\n"))
+		info->tmp_type = MLX4_PORT_TYPE_IB;
+	else if (!strcmp(buf, "eth\n"))
+		info->tmp_type = MLX4_PORT_TYPE_ETH;
+	else {
+		mlx4_err(mdev, "%s is not supported port type\n", buf);
+		return -EINVAL;
+	}
+
+	mutex_lock(&priv->port_mutex);
+	for (i = 0; i < mdev->caps.num_ports; i++)
+		types[i] = priv->port[i+1].tmp_type ? priv->port[i+1].tmp_type :
+					mdev->caps.port_type[i+1];
+
+	err = mlx4_check_port_params(mdev, types);
+	if (err)
+		goto out;
+
+	for (i = 1; i <= mdev->caps.num_ports; i++)
+		priv->port[i].tmp_type = 0;
+
+	err = mlx4_change_port_types(mdev, types);
+
+out:
+	mutex_unlock(&priv->port_mutex);
+	return err ? err : count;
 }
 
 static int mlx4_load_fw(struct mlx4_dev *dev)
@@ -617,6 +752,7 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int err;
+	int port;
 
 	err = mlx4_init_uar_table(dev);
 	if (err) {
@@ -715,7 +851,19 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 		goto err_qp_table_free;
 	}
 
+	for (port = 1; port <= dev->caps.num_ports; port++) {
+		err = mlx4_SET_PORT(dev, port);
+		if (err) {
+			mlx4_err(dev, "Failed to set port %d, aborting\n",
+				port);
+			goto err_mcg_table_free;
+		}
+	}
+
 	return 0;
+
+err_mcg_table_free:
+	mlx4_cleanup_mcg_table(dev);
 
 err_qp_table_free:
 	mlx4_cleanup_qp_table(dev);
@@ -780,14 +928,37 @@ no_msi:
 		priv->eq_table.eq[i].irq = dev->pdev->irq;
 }
 
-static void mlx4_init_port_info(struct mlx4_dev *dev, int port)
+static int mlx4_init_port_info(struct mlx4_dev *dev, int port)
 {
 	struct mlx4_port_info *info = &mlx4_priv(dev)->port[port];
+	int err = 0;
 
 	info->dev = dev;
 	info->port = port;
 	mlx4_init_mac_table(dev, &info->mac_table);
 	mlx4_init_vlan_table(dev, &info->vlan_table);
+
+	sprintf(info->dev_name, "mlx4_port%d", port);
+	info->port_attr.attr.name = info->dev_name;
+	info->port_attr.attr.mode = S_IRUGO | S_IWUSR;
+	info->port_attr.show      = show_port_type;
+	info->port_attr.store     = set_port_type;
+
+	err = device_create_file(&dev->pdev->dev, &info->port_attr);
+	if (err) {
+		mlx4_err(dev, "Failed to create file for port %d\n", port);
+		info->port = -1;
+	}
+
+	return err;
+}
+
+static void mlx4_cleanup_port_info(struct mlx4_port_info *info)
+{
+	if (info->port < 0)
+		return;
+
+	device_remove_file(&info->dev->pdev->dev, &info->port_attr);
 }
 
 static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -870,6 +1041,8 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	INIT_LIST_HEAD(&priv->ctx_list);
 	spin_lock_init(&priv->ctx_lock);
 
+	mutex_init(&priv->port_mutex);
+
 	INIT_LIST_HEAD(&priv->pgdir_list);
 	mutex_init(&priv->pgdir_mutex);
 
@@ -905,18 +1078,24 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_close;
 
-	for (port = 1; port <= dev->caps.num_ports; port++)
-		mlx4_init_port_info(dev, port);
+	for (port = 1; port <= dev->caps.num_ports; port++) {
+		err = mlx4_init_port_info(dev, port);
+		if (err)
+			goto err_port;
+	}
 
 	err = mlx4_register_device(dev);
 	if (err)
-		goto err_cleanup;
+		goto err_port;
 
 	pci_set_drvdata(pdev, dev);
 
 	return 0;
 
-err_cleanup:
+err_port:
+	for (port = 1; port <= dev->caps.num_ports; port++)
+		mlx4_cleanup_port_info(&priv->port[port]);
+
 	mlx4_cleanup_mcg_table(dev);
 	mlx4_cleanup_qp_table(dev);
 	mlx4_cleanup_srq_table(dev);
@@ -973,8 +1152,10 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 	if (dev) {
 		mlx4_unregister_device(dev);
 
-		for (p = 1; p <= dev->caps.num_ports; ++p)
+		for (p = 1; p <= dev->caps.num_ports; p++) {
+			mlx4_cleanup_port_info(&priv->port[p]);
 			mlx4_CLOSE_PORT(dev, p);
+		}
 
 		mlx4_cleanup_mcg_table(dev);
 		mlx4_cleanup_qp_table(dev);
@@ -1026,9 +1207,27 @@ static struct pci_driver mlx4_driver = {
 	.remove		= __devexit_p(mlx4_remove_one)
 };
 
+static int __init mlx4_verify_params(void)
+{
+	if ((log_num_mac < 0) || (log_num_mac > 7)) {
+		printk(KERN_WARNING "mlx4_core: bad num_mac: %d\n", log_num_mac);
+		return -1;
+	}
+
+	if ((log_num_vlan < 0) || (log_num_vlan > 7)) {
+		printk(KERN_WARNING "mlx4_core: bad num_vlan: %d\n", log_num_vlan);
+		return -1;
+	}
+
+	return 0;
+}
+
 static int __init mlx4_init(void)
 {
 	int ret;
+
+	if (mlx4_verify_params())
+		return -EINVAL;
 
 	ret = mlx4_catas_init();
 	if (ret)
