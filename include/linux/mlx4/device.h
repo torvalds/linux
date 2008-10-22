@@ -145,6 +145,18 @@ enum {
 	MLX4_MTT_FLAG_PRESENT		= 1
 };
 
+enum mlx4_qp_region {
+	MLX4_QP_REGION_FW = 0,
+	MLX4_QP_REGION_ETH_ADDR,
+	MLX4_QP_REGION_FC_ADDR,
+	MLX4_QP_REGION_FC_EXCH,
+	MLX4_NUM_QP_REGION
+};
+
+enum {
+	MLX4_NUM_FEXCH          = 64 * 1024,
+};
+
 static inline u64 mlx4_fw_ver(u64 major, u64 minor, u64 subminor)
 {
 	return (major << 32) | (minor << 16) | subminor;
@@ -169,7 +181,6 @@ struct mlx4_caps {
 	int			max_rq_desc_sz;
 	int			max_qp_init_rdma;
 	int			max_qp_dest_rdma;
-	int			reserved_qps;
 	int			sqp_start;
 	int			num_srqs;
 	int			max_srq_wqes;
@@ -201,6 +212,12 @@ struct mlx4_caps {
 	u16			stat_rate_support;
 	u8			port_width_cap[MLX4_MAX_PORTS + 1];
 	int			max_gso_sz;
+	int                     reserved_qps_cnt[MLX4_NUM_QP_REGION];
+	int			reserved_qps;
+	int                     reserved_qps_base[MLX4_NUM_QP_REGION];
+	int                     log_num_macs;
+	int                     log_num_vlans;
+	int                     log_num_prios;
 };
 
 struct mlx4_buf_list {

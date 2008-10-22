@@ -85,6 +85,19 @@ static struct mlx4_profile default_profile = {
 	.num_mtt	= 1 << 20,
 };
 
+static int log_num_mac = 2;
+module_param_named(log_num_mac, log_num_mac, int, 0444);
+MODULE_PARM_DESC(log_num_mac, "Log2 max number of MACs per ETH port (1-7)");
+
+static int log_num_vlan;
+module_param_named(log_num_vlan, log_num_vlan, int, 0444);
+MODULE_PARM_DESC(log_num_vlan, "Log2 max number of VLANs per ETH port (0-7)");
+
+static int use_prio;
+module_param_named(use_prio, use_prio, bool, 0444);
+MODULE_PARM_DESC(use_prio, "Enable steering by VLAN priority on ETH ports "
+		  "(0/1, default 0)");
+
 static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 {
 	int err;
@@ -134,7 +147,6 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.max_rq_sg	     = dev_cap->max_rq_sg;
 	dev->caps.max_wqes	     = dev_cap->max_qp_sz;
 	dev->caps.max_qp_init_rdma   = dev_cap->max_requester_per_qp;
-	dev->caps.reserved_qps	     = dev_cap->reserved_qps;
 	dev->caps.max_srq_wqes	     = dev_cap->max_srq_sz;
 	dev->caps.max_srq_sge	     = dev_cap->max_rq_sg - 1;
 	dev->caps.reserved_srqs	     = dev_cap->reserved_srqs;
@@ -162,6 +174,39 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev->caps.reserved_lkey	     = dev_cap->reserved_lkey;
 	dev->caps.stat_rate_support  = dev_cap->stat_rate_support;
 	dev->caps.max_gso_sz	     = dev_cap->max_gso_sz;
+
+	dev->caps.log_num_macs  = log_num_mac;
+	dev->caps.log_num_vlans = log_num_vlan;
+	dev->caps.log_num_prios = use_prio ? 3 : 0;
+
+	for (i = 1; i <= dev->caps.num_ports; ++i) {
+		if (dev->caps.log_num_macs > dev_cap->log_max_macs[i]) {
+			dev->caps.log_num_macs = dev_cap->log_max_macs[i];
+			mlx4_warn(dev, "Requested number of MACs is too much "
+				  "for port %d, reducing to %d.\n",
+				  i, 1 << dev->caps.log_num_macs);
+		}
+		if (dev->caps.log_num_vlans > dev_cap->log_max_vlans[i]) {
+			dev->caps.log_num_vlans = dev_cap->log_max_vlans[i];
+			mlx4_warn(dev, "Requested number of VLANs is too much "
+				  "for port %d, reducing to %d.\n",
+				  i, 1 << dev->caps.log_num_vlans);
+		}
+	}
+
+	dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW] = dev_cap->reserved_qps;
+	dev->caps.reserved_qps_cnt[MLX4_QP_REGION_ETH_ADDR] =
+		dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FC_ADDR] =
+		(1 << dev->caps.log_num_macs) *
+		(1 << dev->caps.log_num_vlans) *
+		(1 << dev->caps.log_num_prios) *
+		dev->caps.num_ports;
+	dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FC_EXCH] = MLX4_NUM_FEXCH;
+
+	dev->caps.reserved_qps = dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW] +
+		dev->caps.reserved_qps_cnt[MLX4_QP_REGION_ETH_ADDR] +
+		dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FC_ADDR] +
+		dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FC_EXCH];
 
 	return 0;
 }
@@ -211,7 +256,8 @@ static int mlx4_init_cmpt_table(struct mlx4_dev *dev, u64 cmpt_base,
 				  ((u64) (MLX4_CMPT_TYPE_QP *
 					  cmpt_entry_sz) << MLX4_CMPT_SHIFT),
 				  cmpt_entry_sz, dev->caps.num_qps,
-				  dev->caps.reserved_qps, 0, 0);
+				  dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW],
+				  0, 0);
 	if (err)
 		goto err;
 
@@ -336,7 +382,8 @@ static int mlx4_init_icm(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap,
 				  init_hca->qpc_base,
 				  dev_cap->qpc_entry_sz,
 				  dev->caps.num_qps,
-				  dev->caps.reserved_qps, 0, 0);
+				  dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW],
+				  0, 0);
 	if (err) {
 		mlx4_err(dev, "Failed to map QP context memory, aborting.\n");
 		goto err_unmap_dmpt;
@@ -346,7 +393,8 @@ static int mlx4_init_icm(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap,
 				  init_hca->auxc_base,
 				  dev_cap->aux_entry_sz,
 				  dev->caps.num_qps,
-				  dev->caps.reserved_qps, 0, 0);
+				  dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW],
+				  0, 0);
 	if (err) {
 		mlx4_err(dev, "Failed to map AUXC context memory, aborting.\n");
 		goto err_unmap_qp;
@@ -356,7 +404,8 @@ static int mlx4_init_icm(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap,
 				  init_hca->altc_base,
 				  dev_cap->altc_entry_sz,
 				  dev->caps.num_qps,
-				  dev->caps.reserved_qps, 0, 0);
+				  dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW],
+				  0, 0);
 	if (err) {
 		mlx4_err(dev, "Failed to map ALTC context memory, aborting.\n");
 		goto err_unmap_auxc;
@@ -366,7 +415,8 @@ static int mlx4_init_icm(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap,
 				  init_hca->rdmarc_base,
 				  dev_cap->rdmarc_entry_sz << priv->qp_table.rdmarc_shift,
 				  dev->caps.num_qps,
-				  dev->caps.reserved_qps, 0, 0);
+				  dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW],
+				  0, 0);
 	if (err) {
 		mlx4_err(dev, "Failed to map RDMARC context memory, aborting\n");
 		goto err_unmap_altc;

@@ -47,13 +47,16 @@ u32 mlx4_bitmap_alloc(struct mlx4_bitmap *bitmap)
 
 	obj = find_next_zero_bit(bitmap->table, bitmap->max, bitmap->last);
 	if (obj >= bitmap->max) {
-		bitmap->top = (bitmap->top + bitmap->max) & bitmap->mask;
+		bitmap->top = (bitmap->top + bitmap->max + bitmap->reserved_top)
+				& bitmap->mask;
 		obj = find_first_zero_bit(bitmap->table, bitmap->max);
 	}
 
 	if (obj < bitmap->max) {
 		set_bit(obj, bitmap->table);
-		bitmap->last = (obj + 1) & (bitmap->max - 1);
+		bitmap->last = (obj + 1);
+		if (bitmap->last == bitmap->max)
+			bitmap->last = 0;
 		obj |= bitmap->top;
 	} else
 		obj = -1;
@@ -109,9 +112,9 @@ u32 mlx4_bitmap_alloc_range(struct mlx4_bitmap *bitmap, int cnt, int align)
 	obj = find_aligned_range(bitmap->table, bitmap->last,
 				 bitmap->max, cnt, align);
 	if (obj >= bitmap->max) {
-		bitmap->top = (bitmap->top + bitmap->max) & bitmap->mask;
-		obj = find_aligned_range(bitmap->table, 0,
-					 bitmap->max,
+		bitmap->top = (bitmap->top + bitmap->max + bitmap->reserved_top)
+				& bitmap->mask;
+		obj = find_aligned_range(bitmap->table, 0, bitmap->max,
 					 cnt, align);
 	}
 
@@ -136,17 +139,19 @@ void mlx4_bitmap_free_range(struct mlx4_bitmap *bitmap, u32 obj, int cnt)
 {
 	u32 i;
 
-	obj &= bitmap->max - 1;
+	obj &= bitmap->max + bitmap->reserved_top - 1;
 
 	spin_lock(&bitmap->lock);
 	for (i = 0; i < cnt; i++)
 		clear_bit(obj + i, bitmap->table);
 	bitmap->last = min(bitmap->last, obj);
-	bitmap->top = (bitmap->top + bitmap->max) & bitmap->mask;
+	bitmap->top = (bitmap->top + bitmap->max + bitmap->reserved_top)
+			& bitmap->mask;
 	spin_unlock(&bitmap->lock);
 }
 
-int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask, u32 reserved)
+int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask,
+		     u32 reserved_bot, u32 reserved_top)
 {
 	int i;
 
@@ -156,14 +161,16 @@ int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask, u32 reserved
 
 	bitmap->last = 0;
 	bitmap->top  = 0;
-	bitmap->max  = num;
+	bitmap->max  = num - reserved_top;
 	bitmap->mask = mask;
+	bitmap->reserved_top = reserved_top;
 	spin_lock_init(&bitmap->lock);
-	bitmap->table = kzalloc(BITS_TO_LONGS(num) * sizeof (long), GFP_KERNEL);
+	bitmap->table = kzalloc(BITS_TO_LONGS(bitmap->max) *
+				sizeof (long), GFP_KERNEL);
 	if (!bitmap->table)
 		return -ENOMEM;
 
-	for (i = 0; i < reserved; ++i)
+	for (i = 0; i < reserved_bot; ++i)
 		set_bit(i, bitmap->table);
 
 	return 0;

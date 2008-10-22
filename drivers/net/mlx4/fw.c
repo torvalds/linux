@@ -357,6 +357,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_PORT_MTU_OFFSET			0x01
 #define QUERY_PORT_WIDTH_OFFSET			0x06
 #define QUERY_PORT_MAX_GID_PKEY_OFFSET		0x07
+#define QUERY_PORT_MAX_MACVLAN_OFFSET		0x0a
 #define QUERY_PORT_MAX_VL_OFFSET		0x0b
 
 		for (i = 1; i <= dev_cap->num_ports; ++i) {
@@ -374,6 +375,10 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 			dev_cap->max_pkeys[i]	   = 1 << (field & 0xf);
 			MLX4_GET(field, outbox, QUERY_PORT_MAX_VL_OFFSET);
 			dev_cap->max_vl[i]	   = field & 0xf;
+			MLX4_GET(field, outbox, QUERY_PORT_MAX_MACVLAN_OFFSET);
+			dev_cap->log_max_macs[i]  = field & 0xf;
+			dev_cap->log_max_vlans[i] = field >> 4;
+
 		}
 	}
 

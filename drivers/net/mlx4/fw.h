@@ -102,6 +102,8 @@ struct mlx4_dev_cap {
 	u32 reserved_lkey;
 	u64 max_icm_sz;
 	int max_gso_sz;
+	u8  log_max_macs[MLX4_MAX_PORTS + 1];
+	u8  log_max_vlans[MLX4_MAX_PORTS + 1];
 };
 
 struct mlx4_adapter {

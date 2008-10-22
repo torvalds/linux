@@ -272,6 +272,7 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 {
 	struct mlx4_qp_table *qp_table = &mlx4_priv(dev)->qp_table;
 	int err;
+	int reserved_from_top = 0;
 
 	spin_lock_init(&qp_table->lock);
 	INIT_RADIX_TREE(&dev->qp_table_tree, GFP_ATOMIC);
@@ -281,9 +282,40 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 	 * block of special QPs must be aligned to a multiple of 8, so
 	 * round up.
 	 */
-	dev->caps.sqp_start = ALIGN(dev->caps.reserved_qps, 8);
+	dev->caps.sqp_start =
+		ALIGN(dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW], 8);
+
+	{
+		int sort[MLX4_NUM_QP_REGION];
+		int i, j, tmp;
+		int last_base = dev->caps.num_qps;
+
+		for (i = 1; i < MLX4_NUM_QP_REGION; ++i)
+			sort[i] = i;
+
+		for (i = MLX4_NUM_QP_REGION; i > 0; --i) {
+			for (j = 2; j < i; ++j) {
+				if (dev->caps.reserved_qps_cnt[sort[j]] >
+				    dev->caps.reserved_qps_cnt[sort[j - 1]]) {
+					tmp             = sort[j];
+					sort[j]         = sort[j - 1];
+					sort[j - 1]     = tmp;
+				}
+			}
+		}
+
+		for (i = 1; i < MLX4_NUM_QP_REGION; ++i) {
+			last_base -= dev->caps.reserved_qps_cnt[sort[i]];
+			dev->caps.reserved_qps_base[sort[i]] = last_base;
+			reserved_from_top +=
+				dev->caps.reserved_qps_cnt[sort[i]];
+		}
+
+	}
+
 	err = mlx4_bitmap_init(&qp_table->bitmap, dev->caps.num_qps,
-			       (1 << 24) - 1, dev->caps.sqp_start + 8);
+			       (1 << 23) - 1, dev->caps.sqp_start + 8,
+			       reserved_from_top);
 	if (err)
 		return err;
 
