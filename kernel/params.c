@@ -637,14 +637,14 @@ static void __init param_sysfs_builtin(void)
 
 		dot = strchr(kp->name, '.');
 		if (!dot) {
-			DEBUGP("couldn't find period in first %d characters "
-			       "of %s\n", MODULE_NAME_LEN, kp->name);
-			continue;
+			/* This happens for core_param() */
+			strcpy(modname, "kernel");
+			name_len = 0;
+		} else {
+			name_len = dot - kp->name + 1;
+			strlcpy(modname, kp->name, name_len);
 		}
-		name_len = dot - kp->name;
-		strncpy(modname, kp->name, name_len);
-		modname[name_len] = '\0';
-		kernel_add_sysfs_param(modname, kp, name_len+1);
+		kernel_add_sysfs_param(modname, kp, name_len);
 	}
 }
 
