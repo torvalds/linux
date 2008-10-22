@@ -239,6 +239,7 @@ static inline void i2c_set_clientdata(struct i2c_client *dev, void *data)
  * @flags: to initialize i2c_client.flags
  * @addr: stored in i2c_client.addr
  * @platform_data: stored in i2c_client.dev.platform_data
+ * @archdata: copied into i2c_client.dev.archdata
  * @irq: stored in i2c_client.irq
  *
  * I2C doesn't actually support hardware probing, although controllers and
@@ -258,6 +259,7 @@ struct i2c_board_info {
 	unsigned short	flags;
 	unsigned short	addr;
 	void		*platform_data;
+	struct dev_archdata	*archdata;
 	int		irq;
 };
 
