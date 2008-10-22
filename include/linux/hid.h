@@ -417,6 +417,11 @@ struct hid_input {
 	struct input_dev *input;
 };
 
+enum hid_type {
+	HID_TYPE_OTHER = 0,
+	HID_TYPE_USBMOUSE
+};
+
 struct hid_driver;
 struct hid_ll_driver;
 
@@ -431,6 +436,7 @@ struct hid_device {							/* device report descriptor */
 	__u32 vendor;							/* Vendor ID */
 	__u32 product;							/* Product ID */
 	__u32 version;							/* HID version */
+	enum hid_type type;						/* device type (mouse, kbd, ...) */
 	unsigned country;						/* HID country */
 	struct hid_report_enum report_enum[HID_REPORT_TYPES];
 
