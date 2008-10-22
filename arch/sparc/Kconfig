@@ -37,6 +37,8 @@ config HZ
 
 source "init/Kconfig"
 
+source "kernel/Kconfig.freezer"
+
 menu "General machine setup"
 
 config SMP

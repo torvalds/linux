@@ -655,7 +655,7 @@ __marvel_rtc_io(u8 b, unsigned long addr, int write)
 
 	case 0x71:					/* RTC_PORT(1) */
 		rtc_access.index = index;
-		rtc_access.data = BCD_TO_BIN(b);
+		rtc_access.data = bcd2bin(b);
 		rtc_access.function = 0x48 + !write;	/* GET/PUT_TOY */
 
 #ifdef CONFIG_SMP
@@ -668,7 +668,7 @@ __marvel_rtc_io(u8 b, unsigned long addr, int write)
 #else
 		__marvel_access_rtc(&rtc_access);
 #endif
-		ret = BIN_TO_BCD(rtc_access.data);
+		ret = bin2bcd(rtc_access.data);
 		break;
 
 	default:

@@ -27,8 +27,6 @@
 #ifndef NET_9P_H
 #define NET_9P_H
 
-#ifdef CONFIG_NET_9P_DEBUG
-
 /**
  * enum p9_debug_flags - bits for mount time debug parameter
  * @P9_DEBUG_ERROR: more verbose error messages including original error string
@@ -39,6 +37,7 @@
  * @P9_DEBUG_TRANS: transport tracing
  * @P9_DEBUG_SLABS: memory management tracing
  * @P9_DEBUG_FCALL: verbose dump of protocol messages
+ * @P9_DEBUG_FID: fid allocation/deallocation tracking
  *
  * These flags are passed at mount time to turn on various levels of
  * verbosity and tracing which will be output to the system logs.
@@ -53,24 +52,27 @@ enum p9_debug_flags {
 	P9_DEBUG_TRANS =	(1<<6),
 	P9_DEBUG_SLABS =      	(1<<7),
 	P9_DEBUG_FCALL =	(1<<8),
+	P9_DEBUG_FID =		(1<<9),
+	P9_DEBUG_PKT =		(1<<10),
 };
 
 extern unsigned int p9_debug_level;
 
+#ifdef CONFIG_NET_9P_DEBUG
 #define P9_DPRINTK(level, format, arg...) \
 do {  \
-	if ((p9_debug_level & level) == level) \
-		printk(KERN_NOTICE "-- %s (%d): " \
-		format , __func__, task_pid_nr(current) , ## arg); \
+	if ((p9_debug_level & level) == level) {\
+		if (level == P9_DEBUG_9P) \
+			printk(KERN_NOTICE "(%8.8d) " \
+			format , task_pid_nr(current) , ## arg); \
+		else \
+			printk(KERN_NOTICE "-- %s (%d): " \
+			format , __func__, task_pid_nr(current) , ## arg); \
+	} \
 } while (0)
-
-#define PRINT_FCALL_ERROR(s, fcall) P9_DPRINTK(P9_DEBUG_ERROR,   \
-	"%s: %.*s\n", s, fcall?fcall->params.rerror.error.len:0, \
-	fcall?fcall->params.rerror.error.str:"");
 
 #else
 #define P9_DPRINTK(level, format, arg...)  do { } while (0)
-#define PRINT_FCALL_ERROR(s, fcall) do { } while (0)
 #endif
 
 #define P9_EPRINTK(level, format, arg...) \
@@ -325,33 +327,6 @@ struct p9_qid {
  * See Also: http://plan9.bell-labs.com/magic/man2html/2/stat
  */
 
-struct p9_stat {
-	u16 size;
-	u16 type;
-	u32 dev;
-	struct p9_qid qid;
-	u32 mode;
-	u32 atime;
-	u32 mtime;
-	u64 length;
-	struct p9_str name;
-	struct p9_str uid;
-	struct p9_str gid;
-	struct p9_str muid;
-	struct p9_str extension;	/* 9p2000.u extensions */
-	u32 n_uid;			/* 9p2000.u extensions */
-	u32 n_gid;			/* 9p2000.u extensions */
-	u32 n_muid;			/* 9p2000.u extensions */
-};
-
-/*
- * file metadata (stat) structure used to create Twstat message
- * The is identical to &p9_stat, but the strings don't point to
- * the same memory block and should be freed separately
- *
- * See Also: http://plan9.bell-labs.com/magic/man2html/2/stat
- */
-
 struct p9_wstat {
 	u16 size;
 	u16 type;
@@ -493,12 +468,12 @@ struct p9_tstat {
 };
 
 struct p9_rstat {
-	struct p9_stat stat;
+	struct p9_wstat stat;
 };
 
 struct p9_twstat {
 	u32 fid;
-	struct p9_stat stat;
+	struct p9_wstat stat;
 };
 
 struct p9_rwstat {
@@ -509,8 +484,9 @@ struct p9_rwstat {
  * @size: prefixed length of the structure
  * @id: protocol operating identifier of type &p9_msg_t
  * @tag: transaction id of the request
+ * @offset: used by marshalling routines to track currentposition in buffer
+ * @capacity: used by marshalling routines to track total capacity
  * @sdata: payload
- * @params: per-operation parameters
  *
  * &p9_fcall represents the structure for all 9P RPC
  * transactions.  Requests are packaged into fcalls, and reponses
@@ -523,68 +499,15 @@ struct p9_fcall {
 	u32 size;
 	u8 id;
 	u16 tag;
-	void *sdata;
 
-	union {
-		struct p9_tversion tversion;
-		struct p9_rversion rversion;
-		struct p9_tauth tauth;
-		struct p9_rauth rauth;
-		struct p9_rerror rerror;
-		struct p9_tflush tflush;
-		struct p9_rflush rflush;
-		struct p9_tattach tattach;
-		struct p9_rattach rattach;
-		struct p9_twalk twalk;
-		struct p9_rwalk rwalk;
-		struct p9_topen topen;
-		struct p9_ropen ropen;
-		struct p9_tcreate tcreate;
-		struct p9_rcreate rcreate;
-		struct p9_tread tread;
-		struct p9_rread rread;
-		struct p9_twrite twrite;
-		struct p9_rwrite rwrite;
-		struct p9_tclunk tclunk;
-		struct p9_rclunk rclunk;
-		struct p9_tremove tremove;
-		struct p9_rremove rremove;
-		struct p9_tstat tstat;
-		struct p9_rstat rstat;
-		struct p9_twstat twstat;
-		struct p9_rwstat rwstat;
-	} params;
+	size_t offset;
+	size_t capacity;
+
+	uint8_t *sdata;
 };
 
 struct p9_idpool;
 
-int p9_deserialize_stat(void *buf, u32 buflen, struct p9_stat *stat,
-	int dotu);
-int p9_deserialize_fcall(void *buf, u32 buflen, struct p9_fcall *fc, int dotu);
-void p9_set_tag(struct p9_fcall *fc, u16 tag);
-struct p9_fcall *p9_create_tversion(u32 msize, char *version);
-struct p9_fcall *p9_create_tattach(u32 fid, u32 afid, char *uname,
-	char *aname, u32 n_uname, int dotu);
-struct p9_fcall *p9_create_tauth(u32 afid, char *uname, char *aname,
-	u32 n_uname, int dotu);
-struct p9_fcall *p9_create_tflush(u16 oldtag);
-struct p9_fcall *p9_create_twalk(u32 fid, u32 newfid, u16 nwname,
-	char **wnames);
-struct p9_fcall *p9_create_topen(u32 fid, u8 mode);
-struct p9_fcall *p9_create_tcreate(u32 fid, char *name, u32 perm, u8 mode,
-	char *extension, int dotu);
-struct p9_fcall *p9_create_tread(u32 fid, u64 offset, u32 count);
-struct p9_fcall *p9_create_twrite(u32 fid, u64 offset, u32 count,
-	const char *data);
-struct p9_fcall *p9_create_twrite_u(u32 fid, u64 offset, u32 count,
-	const char __user *data);
-struct p9_fcall *p9_create_tclunk(u32 fid);
-struct p9_fcall *p9_create_tremove(u32 fid);
-struct p9_fcall *p9_create_tstat(u32 fid);
-struct p9_fcall *p9_create_twstat(u32 fid, struct p9_wstat *wstat,
-	int dotu);
-
-int p9_printfcall(char *buf, int buflen, struct p9_fcall *fc, int dotu);
 int p9_errstr2errno(char *errstr, int len);
 
 struct p9_idpool *p9_idpool_create(void);

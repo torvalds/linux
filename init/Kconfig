@@ -299,6 +299,13 @@ config CGROUP_NS
           for instance virtual servers and checkpoint/restart
           jobs.
 
+config CGROUP_FREEZER
+        bool "control group freezer subsystem"
+        depends on CGROUPS
+        help
+          Provides a way to freeze and unfreeze all tasks in a
+	  cgroup.
+
 config CGROUP_DEVICE
 	bool "Device controller for cgroups"
 	depends on CGROUPS && EXPERIMENTAL
@@ -730,6 +737,14 @@ config VM_EVENT_COUNTERS
 	  on EMBEDDED systems.  /proc/vmstat will only show page counts
 	  if VM event counters are disabled.
 
+config PCI_QUIRKS
+	default y
+	bool "Enable PCI quirk workarounds" if EMBEDDED && PCI
+	help
+	  This enables workarounds for various PCI chipset
+          bugs/quirks. Disable this only if your target machine is
+          unaffected by PCI quirks.
+
 config SLUB_DEBUG
 	default y
 	bool "Enable SLUB debugging support" if EMBEDDED
@@ -778,6 +793,13 @@ config PROFILING
 	help
 	  Say Y here to enable the extended profiling support mechanisms used
 	  by profilers such as OProfile.
+
+#
+# Place an empty function call at each tracepoint site. Can be
+# dynamically changed for a probe function.
+#
+config TRACEPOINTS
+	bool
 
 config MARKERS
 	bool "Activate markers"

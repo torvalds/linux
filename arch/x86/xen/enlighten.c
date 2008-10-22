@@ -871,6 +871,7 @@ static void xen_alloc_ptpage(struct mm_struct *mm, unsigned long pfn, unsigned l
 			/* make sure there are no stray mappings of
 			   this page */
 			kmap_flush_unused();
+			vm_unmap_aliases();
 	}
 }
 

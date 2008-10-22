@@ -37,18 +37,25 @@ obj-$(CONFIG_IDE_H8300)			+= h8300/
 obj-$(CONFIG_IDE_GENERIC)		+= ide-generic.o
 obj-$(CONFIG_BLK_DEV_IDEPNP)		+= ide-pnp.o
 
-ide-disk_mod-y += ide-disk.o ide-disk_ioctl.o
+ide-gd_mod-y += ide-gd.o
 ide-cd_mod-y += ide-cd.o ide-cd_ioctl.o ide-cd_verbose.o
-ide-floppy_mod-y += ide-floppy.o ide-floppy_ioctl.o
 
+ifeq ($(CONFIG_IDE_GD_ATA), y)
+	ide-gd_mod-y += ide-disk.o ide-disk_ioctl.o
 ifeq ($(CONFIG_IDE_PROC_FS), y)
-	ide-disk_mod-y += ide-disk_proc.o
-	ide-floppy_mod-y += ide-floppy_proc.o
+	ide-gd_mod-y += ide-disk_proc.o
+endif
 endif
 
-obj-$(CONFIG_BLK_DEV_IDEDISK)		+= ide-disk_mod.o
+ifeq ($(CONFIG_IDE_GD_ATAPI), y)
+	ide-gd_mod-y += ide-floppy.o ide-floppy_ioctl.o
+ifeq ($(CONFIG_IDE_PROC_FS), y)
+	ide-gd_mod-y += ide-floppy_proc.o
+endif
+endif
+
+obj-$(CONFIG_IDE_GD)			+= ide-gd_mod.o
 obj-$(CONFIG_BLK_DEV_IDECD)		+= ide-cd_mod.o
-obj-$(CONFIG_BLK_DEV_IDEFLOPPY)		+= ide-floppy_mod.o
 obj-$(CONFIG_BLK_DEV_IDETAPE)		+= ide-tape.o
 
 ifeq ($(CONFIG_BLK_DEV_IDECS), y)

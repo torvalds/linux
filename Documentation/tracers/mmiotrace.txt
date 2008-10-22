@@ -36,7 +36,7 @@ $ mount -t debugfs debugfs /debug
 $ echo mmiotrace > /debug/tracing/current_tracer
 $ cat /debug/tracing/trace_pipe > mydump.txt &
 Start X or whatever.
-$ echo "X is up" > /debug/tracing/marker
+$ echo "X is up" > /debug/tracing/trace_marker
 $ echo none > /debug/tracing/current_tracer
 Check for lost events.
 
@@ -59,9 +59,8 @@ The 'cat' process should stay running (sleeping) in the background.
 Load the driver you want to trace and use it. Mmiotrace will only catch MMIO
 accesses to areas that are ioremapped while mmiotrace is active.
 
-[Unimplemented feature:]
 During tracing you can place comments (markers) into the trace by
-$ echo "X is up" > /debug/tracing/marker
+$ echo "X is up" > /debug/tracing/trace_marker
 This makes it easier to see which part of the (huge) trace corresponds to
 which action. It is recommended to place descriptive markers about what you
 do.

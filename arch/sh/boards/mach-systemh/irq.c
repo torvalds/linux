@@ -14,7 +14,7 @@
 #include <linux/interrupt.h>
 
 #include <asm/io.h>
-#include <asm/systemh7751.h>
+#include <mach/systemh7751.h>
 #include <asm/smc37c93x.h>
 
 /* address of external interrupt mask register

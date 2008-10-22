@@ -47,6 +47,7 @@
 #include <linux/blkdev.h>
 #include <linux/task_io_accounting_ops.h>
 #include <linux/tracehook.h>
+#include <trace/sched.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -112,8 +113,6 @@ static void __exit_signal(struct task_struct *tsk)
 		 * We won't ever get here for the group leader, since it
 		 * will have been the last reference on the signal_struct.
 		 */
-		sig->utime = cputime_add(sig->utime, task_utime(tsk));
-		sig->stime = cputime_add(sig->stime, task_stime(tsk));
 		sig->gtime = cputime_add(sig->gtime, task_gtime(tsk));
 		sig->min_flt += tsk->min_flt;
 		sig->maj_flt += tsk->maj_flt;
@@ -122,7 +121,6 @@ static void __exit_signal(struct task_struct *tsk)
 		sig->inblock += task_io_get_inblock(tsk);
 		sig->oublock += task_io_get_oublock(tsk);
 		task_io_accounting_add(&sig->ioac, &tsk->ioac);
-		sig->sum_sched_runtime += tsk->se.sum_exec_runtime;
 		sig = NULL; /* Marker for below. */
 	}
 
@@ -149,7 +147,10 @@ static void __exit_signal(struct task_struct *tsk)
 
 static void delayed_put_task_struct(struct rcu_head *rhp)
 {
-	put_task_struct(container_of(rhp, struct task_struct, rcu));
+	struct task_struct *tsk = container_of(rhp, struct task_struct, rcu);
+
+	trace_sched_process_free(tsk);
+	put_task_struct(tsk);
 }
 
 
@@ -1073,6 +1074,8 @@ NORET_TYPE void do_exit(long code)
 
 	if (group_dead)
 		acct_process();
+	trace_sched_process_exit(tsk);
+
 	exit_sem(tsk);
 	exit_files(tsk);
 	exit_fs(tsk);
@@ -1301,6 +1304,7 @@ static int wait_task_zombie(struct task_struct *p, int options,
 	if (likely(!traced)) {
 		struct signal_struct *psig;
 		struct signal_struct *sig;
+		struct task_cputime cputime;
 
 		/*
 		 * The resource counters for the group leader are in its
@@ -1316,20 +1320,23 @@ static int wait_task_zombie(struct task_struct *p, int options,
 		 * need to protect the access to p->parent->signal fields,
 		 * as other threads in the parent group can be right
 		 * here reaping other children at the same time.
+		 *
+		 * We use thread_group_cputime() to get times for the thread
+		 * group, which consolidates times for all threads in the
+		 * group including the group leader.
 		 */
 		spin_lock_irq(&p->parent->sighand->siglock);
 		psig = p->parent->signal;
 		sig = p->signal;
+		thread_group_cputime(p, &cputime);
 		psig->cutime =
 			cputime_add(psig->cutime,
-			cputime_add(p->utime,
-			cputime_add(sig->utime,
-				    sig->cutime)));
+			cputime_add(cputime.utime,
+				    sig->cutime));
 		psig->cstime =
 			cputime_add(psig->cstime,
-			cputime_add(p->stime,
-			cputime_add(sig->stime,
-				    sig->cstime)));
+			cputime_add(cputime.stime,
+				    sig->cstime));
 		psig->cgtime =
 			cputime_add(psig->cgtime,
 			cputime_add(p->gtime,
@@ -1673,6 +1680,8 @@ static long do_wait(enum pid_type type, struct pid *pid, int options,
 	DECLARE_WAITQUEUE(wait, current);
 	struct task_struct *tsk;
 	int retval;
+
+	trace_sched_process_wait(pid);
 
 	add_wait_queue(&current->signal->wait_chldexit,&wait);
 repeat:

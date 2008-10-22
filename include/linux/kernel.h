@@ -496,4 +496,9 @@ struct sysinfo {
 #define NUMA_BUILD 0
 #endif
 
+/* Rebuild everything on CONFIG_FTRACE_MCOUNT_RECORD */
+#ifdef CONFIG_FTRACE_MCOUNT_RECORD
+# define REBUILD_DUE_TO_FTRACE_MCOUNT_RECORD
+#endif
+
 #endif

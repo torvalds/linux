@@ -792,6 +792,8 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 	/* Must avoid aliasing mappings in the highmem code */
 	kmap_flush_unused();
 
+	vm_unmap_aliases();
+
 	cpa.vaddr = addr;
 	cpa.numpages = numpages;
 	cpa.mask_set = mask_set;

@@ -150,14 +150,14 @@ static int max6900_i2c_read_time(struct i2c_client *client, struct rtc_time *tm)
 	if (rc < 0)
 		return rc;
 
-	tm->tm_sec = BCD2BIN(regs[MAX6900_REG_SC]);
-	tm->tm_min = BCD2BIN(regs[MAX6900_REG_MN]);
-	tm->tm_hour = BCD2BIN(regs[MAX6900_REG_HR] & 0x3f);
-	tm->tm_mday = BCD2BIN(regs[MAX6900_REG_DT]);
-	tm->tm_mon = BCD2BIN(regs[MAX6900_REG_MO]) - 1;
-	tm->tm_year = BCD2BIN(regs[MAX6900_REG_YR]) +
-	    BCD2BIN(regs[MAX6900_REG_CENTURY]) * 100 - 1900;
-	tm->tm_wday = BCD2BIN(regs[MAX6900_REG_DW]);
+	tm->tm_sec = bcd2bin(regs[MAX6900_REG_SC]);
+	tm->tm_min = bcd2bin(regs[MAX6900_REG_MN]);
+	tm->tm_hour = bcd2bin(regs[MAX6900_REG_HR] & 0x3f);
+	tm->tm_mday = bcd2bin(regs[MAX6900_REG_DT]);
+	tm->tm_mon = bcd2bin(regs[MAX6900_REG_MO]) - 1;
+	tm->tm_year = bcd2bin(regs[MAX6900_REG_YR]) +
+		      bcd2bin(regs[MAX6900_REG_CENTURY]) * 100 - 1900;
+	tm->tm_wday = bcd2bin(regs[MAX6900_REG_DW]);
 
 	return 0;
 }
@@ -184,14 +184,14 @@ max6900_i2c_set_time(struct i2c_client *client, struct rtc_time const *tm)
 	if (rc < 0)
 		return rc;
 
-	regs[MAX6900_REG_SC] = BIN2BCD(tm->tm_sec);
-	regs[MAX6900_REG_MN] = BIN2BCD(tm->tm_min);
-	regs[MAX6900_REG_HR] = BIN2BCD(tm->tm_hour);
-	regs[MAX6900_REG_DT] = BIN2BCD(tm->tm_mday);
-	regs[MAX6900_REG_MO] = BIN2BCD(tm->tm_mon + 1);
-	regs[MAX6900_REG_DW] = BIN2BCD(tm->tm_wday);
-	regs[MAX6900_REG_YR] = BIN2BCD(tm->tm_year % 100);
-	regs[MAX6900_REG_CENTURY] = BIN2BCD((tm->tm_year + 1900) / 100);
+	regs[MAX6900_REG_SC] = bin2bcd(tm->tm_sec);
+	regs[MAX6900_REG_MN] = bin2bcd(tm->tm_min);
+	regs[MAX6900_REG_HR] = bin2bcd(tm->tm_hour);
+	regs[MAX6900_REG_DT] = bin2bcd(tm->tm_mday);
+	regs[MAX6900_REG_MO] = bin2bcd(tm->tm_mon + 1);
+	regs[MAX6900_REG_DW] = bin2bcd(tm->tm_wday);
+	regs[MAX6900_REG_YR] = bin2bcd(tm->tm_year % 100);
+	regs[MAX6900_REG_CENTURY] = bin2bcd((tm->tm_year + 1900) / 100);
 	/* set write protect */
 	regs[MAX6900_REG_CT] = MAX6900_REG_CT_WP;
 

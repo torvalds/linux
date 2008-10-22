@@ -22,7 +22,6 @@ static inline cpumask_t target_cpus(void)
 	 */
 	return cpumask_of_cpu(0);
 }
-#define TARGET_CPUS	(target_cpus())
 
 #define INT_DELIVERY_MODE (dest_LowestPrio)
 #define INT_DEST_MODE 1     /* logical delivery broadcast to all procs */

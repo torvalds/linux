@@ -71,14 +71,14 @@ static int bq4802_read_time(struct device *dev, struct rtc_time *tm)
 
 	spin_unlock_irqrestore(&p->lock, flags);
 
-	BCD_TO_BIN(tm->tm_sec);
-	BCD_TO_BIN(tm->tm_min);
-	BCD_TO_BIN(tm->tm_hour);
-	BCD_TO_BIN(tm->tm_mday);
-	BCD_TO_BIN(tm->tm_mon);
-	BCD_TO_BIN(tm->tm_year);
-	BCD_TO_BIN(tm->tm_wday);
-	BCD_TO_BIN(century);
+	tm->tm_sec = bcd2bin(tm->tm_sec);
+	tm->tm_min = bcd2bin(tm->tm_min);
+	tm->tm_hour = bcd2bin(tm->tm_hour);
+	tm->tm_mday = bcd2bin(tm->tm_mday);
+	tm->tm_mon = bcd2bin(tm->tm_mon);
+	tm->tm_year = bcd2bin(tm->tm_year);
+	tm->tm_wday = bcd2bin(tm->tm_wday);
+	century = bcd2bin(century);
 
 	tm->tm_year += (century * 100);
 	tm->tm_year -= 1900;
@@ -106,13 +106,13 @@ static int bq4802_set_time(struct device *dev, struct rtc_time *tm)
 	min = tm->tm_min;
 	sec = tm->tm_sec;
 
-	BIN_TO_BCD(sec);
-	BIN_TO_BCD(min);
-	BIN_TO_BCD(hrs);
-	BIN_TO_BCD(day);
-	BIN_TO_BCD(mon);
-	BIN_TO_BCD(yrs);
-	BIN_TO_BCD(century);
+	sec = bin2bcd(sec);
+	min = bin2bcd(min);
+	hrs = bin2bcd(hrs);
+	day = bin2bcd(day);
+	mon = bin2bcd(mon);
+	yrs = bin2bcd(yrs);
+	century = bin2bcd(century);
 
 	spin_lock_irqsave(&p->lock, flags);
 

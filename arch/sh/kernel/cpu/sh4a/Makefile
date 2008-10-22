@@ -27,5 +27,10 @@ clock-$(CONFIG_CPU_SUBTYPE_SH7723)	:= clock-sh7722.o
 clock-$(CONFIG_CPU_SUBTYPE_SH7366)	:= clock-sh7722.o
 clock-$(CONFIG_CPU_SUBTYPE_SHX3)	:= clock-shx3.o
 
+# Pinmux setup
+pinmux-$(CONFIG_CPU_SUBTYPE_SH7722)	:= pinmux-sh7722.o
+pinmux-$(CONFIG_CPU_SUBTYPE_SH7723)	:= pinmux-sh7723.o
+
 obj-y			+= $(clock-y)
 obj-$(CONFIG_SMP)	+= $(smp-y)
+obj-$(CONFIG_GENERIC_GPIO)	+= $(pinmux-y)

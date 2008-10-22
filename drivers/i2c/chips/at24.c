@@ -460,7 +460,6 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	 */
 	at24->bin.attr.name = "eeprom";
 	at24->bin.attr.mode = chip.flags & AT24_FLAG_IRUGO ? S_IRUGO : S_IRUSR;
-	at24->bin.attr.owner = THIS_MODULE;
 	at24->bin.read = at24_bin_read;
 	at24->bin.size = chip.byte_len;
 

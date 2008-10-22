@@ -1217,7 +1217,7 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 
 	mutex_init(&wm8350->irq_mutex);
 	INIT_WORK(&wm8350->irq_work, wm8350_irq_worker);
-	if (irq != NO_IRQ) {
+	if (irq) {
 		ret = request_irq(irq, wm8350_irq, 0,
 				  "wm8350", wm8350);
 		if (ret != 0) {

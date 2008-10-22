@@ -90,6 +90,8 @@ config HZ
 
 source "init/Kconfig"
 
+source "kernel/Kconfig.freezer"
+
 source "arch/h8300/Kconfig.cpu"
 
 menu "Executable file formats"

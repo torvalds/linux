@@ -101,6 +101,7 @@ parameter is applicable:
 	X86-64	X86-64 architecture is enabled.
 			More X86-64 boot options can be found in
 			Documentation/x86_64/boot-options.txt .
+	X86	Either 32bit or 64bit x86 (same as X86-32+X86-64)
 
 In addition, the following text indicates that the option:
 
@@ -690,7 +691,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			See Documentation/block/as-iosched.txt and
 			Documentation/block/deadline-iosched.txt for details.
 
-	elfcorehdr=	[X86-32, X86_64]
+	elfcorehdr=	[IA64,PPC,SH,X86-32,X86_64]
 			Specifies physical address of start of kernel core
 			image elf header. Generally kexec loader will
 			pass this option to capture kernel.
@@ -795,6 +796,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			default size when mounting hugetlbfs filesystems.
 			Defaults to the default architecture's huge page size
 			if not specified.
+
+	hlt		[BUGS=ARM,SH]
 
 	i8042.debug	[HW] Toggle i8042 debug mode
 	i8042.direct	[HW] Put keyboard port into non-translated mode
@@ -1211,6 +1214,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	mem=nopentium	[BUGS=X86-32] Disable usage of 4MB pages for kernel
 			memory.
 
+	memchunk=nn[KMG]
+			[KNL,SH] Allow user to override the default size for
+			per-device physically contiguous DMA buffers.
+
 	memmap=exactmap	[KNL,X86-32,X86_64] Enable setting of an exact
 			E820 memory map, as specified by the user.
 			Such memmap=exactmap lines can be constructed based on
@@ -1393,6 +1400,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nodisconnect	[HW,SCSI,M68K] Disables SCSI disconnects.
 
+	nodsp		[SH] Disable hardware DSP at boot time.
+
 	noefi		[X86-32,X86-64] Disable EFI runtime services support.
 
 	noexec		[IA-64]
@@ -1409,13 +1418,15 @@ and is between 256 and 4096 characters. It is defined in the file
 			noexec32=off: disable non-executable mappings
 				read implies executable mappings
 
+	nofpu		[SH] Disable hardware FPU at boot time.
+
 	nofxsr		[BUGS=X86-32] Disables x86 floating point extended
 			register save and restore. The kernel will only save
 			legacy floating-point registers on task switch.
 
 	noclflush	[BUGS=X86] Don't use the CLFLUSH instruction
 
-	nohlt		[BUGS=ARM]
+	nohlt		[BUGS=ARM,SH]
 
 	no-hlt		[BUGS=X86-32] Tells the kernel that the hlt
 			instruction doesn't work correctly and not to
@@ -1578,7 +1589,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			See also Documentation/paride.txt.
 
 	pci=option[,option...]	[PCI] various PCI subsystem options:
-		off		[X86-32] don't probe for the PCI bus
+		off		[X86] don't probe for the PCI bus
 		bios		[X86-32] force use of PCI BIOS, don't access
 				the hardware directly. Use this if your machine
 				has a non-standard PCI host bridge.
@@ -1586,9 +1597,9 @@ and is between 256 and 4096 characters. It is defined in the file
 				hardware access methods are allowed. Use this
 				if you experience crashes upon bootup and you
 				suspect they are caused by the BIOS.
-		conf1		[X86-32] Force use of PCI Configuration
+		conf1		[X86] Force use of PCI Configuration
 				Mechanism 1.
-		conf2		[X86-32] Force use of PCI Configuration
+		conf2		[X86] Force use of PCI Configuration
 				Mechanism 2.
 		noaer		[PCIE] If the PCIEAER kernel config parameter is
 				enabled, this kernel boot option can be used to
@@ -1608,37 +1619,37 @@ and is between 256 and 4096 characters. It is defined in the file
 				this option if the kernel is unable to allocate
 				IRQs or discover secondary PCI buses on your
 				motherboard.
-		rom		[X86-32] Assign address space to expansion ROMs.
+		rom		[X86] Assign address space to expansion ROMs.
 				Use with caution as certain devices share
 				address decoders between ROMs and other
 				resources.
-		norom		[X86-32,X86_64] Do not assign address space to
+		norom		[X86] Do not assign address space to
 				expansion ROMs that do not already have
 				BIOS assigned address ranges.
-		irqmask=0xMMMM	[X86-32] Set a bit mask of IRQs allowed to be
+		irqmask=0xMMMM	[X86] Set a bit mask of IRQs allowed to be
 				assigned automatically to PCI devices. You can
 				make the kernel exclude IRQs of your ISA cards
 				this way.
-		pirqaddr=0xAAAAA	[X86-32] Specify the physical address
+		pirqaddr=0xAAAAA	[X86] Specify the physical address
 				of the PIRQ table (normally generated
 				by the BIOS) if it is outside the
 				F0000h-100000h range.
-		lastbus=N	[X86-32] Scan all buses thru bus #N. Can be
+		lastbus=N	[X86] Scan all buses thru bus #N. Can be
 				useful if the kernel is unable to find your
 				secondary buses and you want to tell it
 				explicitly which ones they are.
-		assign-busses	[X86-32] Always assign all PCI bus
+		assign-busses	[X86] Always assign all PCI bus
 				numbers ourselves, overriding
 				whatever the firmware may have done.
-		usepirqmask	[X86-32] Honor the possible IRQ mask stored
+		usepirqmask	[X86] Honor the possible IRQ mask stored
 				in the BIOS $PIR table. This is needed on
 				some systems with broken BIOSes, notably
 				some HP Pavilion N5400 and Omnibook XE3
 				notebooks. This will have no effect if ACPI
 				IRQ routing is enabled.
-		noacpi		[X86-32] Do not use ACPI for IRQ routing
+		noacpi		[X86] Do not use ACPI for IRQ routing
 				or for PCI scanning.
-		use_crs		[X86-32] Use _CRS for PCI resource
+		use_crs		[X86] Use _CRS for PCI resource
 				allocation.
 		routeirq	Do IRQ routing for all PCI devices.
 				This is normally done in pci_enable_device(),
@@ -1666,6 +1677,12 @@ and is between 256 and 4096 characters. It is defined in the file
 		cbmemsize=nn[KMG]	The fixed amount of bus space which is
 				reserved for the CardBus bridge's memory
 				window. The default value is 64 megabytes.
+
+	pcie_aspm=	[PCIE] Forcibly enable or disable PCIe Active State Power
+			Management.
+		off	Disable ASPM.
+		force	Enable ASPM even on devices that claim not to support it.
+			WARNING: Forcing ASPM on may cause system lockups.
 
 	pcmv=		[HW,PCMCIA] BadgePAD 4
 

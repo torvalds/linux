@@ -1384,15 +1384,18 @@ causes the kernel to prefer to reclaim dentries and inodes.
 dirty_background_ratio
 ----------------------
 
-Contains, as a percentage of total system memory, the number of pages at which
-the pdflush background writeback daemon will start writing out dirty data.
+Contains, as a percentage of the dirtyable system memory (free pages + mapped
+pages + file cache, not including locked pages and HugePages), the number of
+pages at which the pdflush background writeback daemon will start writing out
+dirty data.
 
 dirty_ratio
 -----------------
 
-Contains, as a percentage of total system memory, the number of pages at which
-a process which is generating disk writes will itself start writing out dirty
-data.
+Contains, as a percentage of the dirtyable system memory (free pages + mapped
+pages + file cache, not including locked pages and HugePages), the number of
+pages at which a process which is generating disk writes will itself start
+writing out dirty data.
 
 dirty_writeback_centisecs
 -------------------------
@@ -2412,24 +2415,29 @@ will be dumped when the <pid> process is dumped. coredump_filter is a bitmask
 of memory types. If a bit of the bitmask is set, memory segments of the
 corresponding memory type are dumped, otherwise they are not dumped.
 
-The following 4 memory types are supported:
+The following 7 memory types are supported:
   - (bit 0) anonymous private memory
   - (bit 1) anonymous shared memory
   - (bit 2) file-backed private memory
   - (bit 3) file-backed shared memory
   - (bit 4) ELF header pages in file-backed private memory areas (it is
             effective only if the bit 2 is cleared)
+  - (bit 5) hugetlb private memory
+  - (bit 6) hugetlb shared memory
 
   Note that MMIO pages such as frame buffer are never dumped and vDSO pages
   are always dumped regardless of the bitmask status.
 
-Default value of coredump_filter is 0x3; this means all anonymous memory
-segments are dumped.
+  Note bit 0-4 doesn't effect any hugetlb memory. hugetlb memory are only
+  effected by bit 5-6.
+
+Default value of coredump_filter is 0x23; this means all anonymous memory
+segments and hugetlb private memory are dumped.
 
 If you don't want to dump all shared memory segments attached to pid 1234,
-write 1 to the process's proc file.
+write 0x21 to the process's proc file.
 
-  $ echo 0x1 > /proc/1234/coredump_filter
+  $ echo 0x21 > /proc/1234/coredump_filter
 
 When a new process is created, the process inherits the bitmask status from its
 parent. It is useful to set up coredump_filter before the program runs.

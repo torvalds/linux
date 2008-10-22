@@ -759,7 +759,6 @@ static int snd_ca0106_pcm_prepare_playback(struct snd_pcm_substream *substream)
 			       SPCS_CHANNELNUM_LEFT | SPCS_SOURCENUM_UNSPEC |
 			       SPCS_GENERATIONSTATUS | 0x00001200 |
 			       0x00000000 | SPCS_EMPHASIS_NONE | SPCS_COPYRIGHT );
-	}
 #endif
 
 	return 0;

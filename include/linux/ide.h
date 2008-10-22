@@ -461,12 +461,26 @@ struct ide_acpi_drive_link;
 struct ide_acpi_hwif_link;
 #endif
 
+struct ide_drive_s;
+
+struct ide_disk_ops {
+	int		(*check)(struct ide_drive_s *, const char *);
+	int		(*get_capacity)(struct ide_drive_s *);
+	void		(*setup)(struct ide_drive_s *);
+	void		(*flush)(struct ide_drive_s *);
+	int		(*init_media)(struct ide_drive_s *, struct gendisk *);
+	int		(*set_doorlock)(struct ide_drive_s *, struct gendisk *,
+					int);
+	ide_startstop_t	(*do_request)(struct ide_drive_s *, struct request *,
+				      sector_t);
+	int		(*end_request)(struct ide_drive_s *, int, int);
+	int		(*ioctl)(struct ide_drive_s *, struct inode *,
+				 struct file *, unsigned int, unsigned long);
+};
+
 /* ATAPI device flags */
 enum {
 	IDE_AFLAG_DRQ_INTERRUPT		= (1 << 0),
-	IDE_AFLAG_MEDIA_CHANGED		= (1 << 1),
-	/* Drive cannot lock the door. */
-	IDE_AFLAG_NO_DOORLOCK		= (1 << 2),
 
 	/* ide-cd */
 	/* Drive cannot eject the disc. */
@@ -498,14 +512,10 @@ enum {
 	IDE_AFLAG_LE_SPEED_FIELDS	= (1 << 17),
 
 	/* ide-floppy */
-	/* Format in progress */
-	IDE_AFLAG_FORMAT_IN_PROGRESS	= (1 << 18),
 	/* Avoid commands not supported in Clik drive */
 	IDE_AFLAG_CLIK_DRIVE		= (1 << 19),
 	/* Requires BH algorithm for packets */
 	IDE_AFLAG_ZIP_DRIVE		= (1 << 20),
-	/* Write protect */
-	IDE_AFLAG_WP			= (1 << 21),
 	/* Supports format progress report */
 	IDE_AFLAG_SRFP			= (1 << 22),
 
@@ -578,7 +588,11 @@ enum {
 	/* don't unload heads */
 	IDE_DFLAG_NO_UNLOAD		= (1 << 27),
 	/* heads unloaded, please don't reset port */
-	IDE_DFLAG_PARKED		= (1 << 28)
+	IDE_DFLAG_PARKED		= (1 << 28),
+	IDE_DFLAG_MEDIA_CHANGED		= (1 << 29),
+	/* write protect */
+	IDE_DFLAG_WP			= (1 << 30),
+	IDE_DFLAG_FORMAT_IN_PROGRESS	= (1 << 31),
 };
 
 struct ide_drive_s {
@@ -596,6 +610,8 @@ struct ide_drive_s {
 	const struct ide_proc_devset *settings; /* /proc/ide/ drive settings */
 #endif
 	struct hwif_s		*hwif;	/* actually (ide_hwif_t *) */
+
+	const struct ide_disk_ops *disk_ops;
 
 	unsigned long dev_flags;
 
@@ -1123,8 +1139,8 @@ struct ide_driver_s {
 	void		(*resume)(ide_drive_t *);
 	void		(*shutdown)(ide_drive_t *);
 #ifdef CONFIG_IDE_PROC_FS
-	ide_proc_entry_t		*proc;
-	const struct ide_proc_devset	*settings;
+	ide_proc_entry_t *		(*proc_entries)(ide_drive_t *);
+	const struct ide_proc_devset *	(*proc_devsets)(ide_drive_t *);
 #endif
 };
 

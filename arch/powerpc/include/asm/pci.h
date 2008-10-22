@@ -123,6 +123,16 @@ int pci_mmap_page_range(struct pci_dev *pdev, struct vm_area_struct *vma,
 /* Tell drivers/pci/proc.c that we have pci_mmap_page_range() */
 #define HAVE_PCI_MMAP	1
 
+extern int pci_legacy_read(struct pci_bus *bus, loff_t port, u32 *val,
+			   size_t count);
+extern int pci_legacy_write(struct pci_bus *bus, loff_t port, u32 val,
+			   size_t count);
+extern int pci_mmap_legacy_page_range(struct pci_bus *bus,
+				      struct vm_area_struct *vma,
+				      enum pci_mmap_state mmap_state);
+
+#define HAVE_PCI_LEGACY	1
+
 #if defined(CONFIG_PPC64) || defined(CONFIG_NOT_COHERENT_CACHE)
 /*
  * For 64-bit kernels, pci_unmap_{single,page} is not a nop.
@@ -225,6 +235,7 @@ extern void pci_resource_to_user(const struct pci_dev *dev, int bar,
 
 extern void pcibios_do_bus_setup(struct pci_bus *bus);
 extern void pcibios_fixup_of_probed_bus(struct pci_bus *bus);
+
 
 #endif	/* __KERNEL__ */
 #endif /* __ASM_POWERPC_PCI_H */

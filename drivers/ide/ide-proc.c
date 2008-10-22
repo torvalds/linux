@@ -567,10 +567,10 @@ static void ide_remove_proc_entries(struct proc_dir_entry *dir, ide_proc_entry_t
 void ide_proc_register_driver(ide_drive_t *drive, ide_driver_t *driver)
 {
 	mutex_lock(&ide_setting_mtx);
-	drive->settings = driver->settings;
+	drive->settings = driver->proc_devsets(drive);
 	mutex_unlock(&ide_setting_mtx);
 
-	ide_add_proc_entries(drive->proc, driver->proc, drive);
+	ide_add_proc_entries(drive->proc, driver->proc_entries(drive), drive);
 }
 
 EXPORT_SYMBOL(ide_proc_register_driver);
@@ -591,7 +591,7 @@ void ide_proc_unregister_driver(ide_drive_t *drive, ide_driver_t *driver)
 {
 	unsigned long flags;
 
-	ide_remove_proc_entries(drive->proc, driver->proc);
+	ide_remove_proc_entries(drive->proc, driver->proc_entries(drive));
 
 	mutex_lock(&ide_setting_mtx);
 	spin_lock_irqsave(&ide_lock, flags);

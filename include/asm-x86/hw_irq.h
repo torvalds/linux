@@ -96,13 +96,8 @@ extern asmlinkage void qic_call_function_interrupt(void);
 
 /* SMP */
 extern void smp_apic_timer_interrupt(struct pt_regs *);
-#ifdef CONFIG_X86_32
 extern void smp_spurious_interrupt(struct pt_regs *);
 extern void smp_error_interrupt(struct pt_regs *);
-#else
-extern asmlinkage void smp_spurious_interrupt(void);
-extern asmlinkage void smp_error_interrupt(void);
-#endif
 #ifdef CONFIG_X86_SMP
 extern void smp_reschedule_interrupt(struct pt_regs *);
 extern void smp_call_function_interrupt(struct pt_regs *);
@@ -115,13 +110,13 @@ extern asmlinkage void smp_invalidate_interrupt(struct pt_regs *);
 #endif
 
 #ifdef CONFIG_X86_32
-extern void (*const interrupt[NR_IRQS])(void);
-#else
-typedef int vector_irq_t[NR_VECTORS];
-DECLARE_PER_CPU(vector_irq_t, vector_irq);
+extern void (*const interrupt[NR_VECTORS])(void);
 #endif
 
-#if defined(CONFIG_X86_IO_APIC) && defined(CONFIG_X86_64)
+typedef int vector_irq_t[NR_VECTORS];
+DECLARE_PER_CPU(vector_irq_t, vector_irq);
+
+#ifdef CONFIG_X86_IO_APIC
 extern void lock_vector_lock(void);
 extern void unlock_vector_lock(void);
 extern void __setup_vector_irq(int cpu);
