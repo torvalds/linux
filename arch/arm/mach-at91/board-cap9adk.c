@@ -36,11 +36,9 @@
 #include <mach/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
-#include <asm/irq.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/mach/irq.h>
 
 #include <mach/board.h>
 #include <mach/gpio.h>
@@ -376,10 +374,8 @@ static void __init cap9adk_board_init(void)
 	/* Serial */
 	at91_add_device_serial();
 	/* USB Host */
-	set_irq_type(AT91CAP9_ID_UHP, IRQ_TYPE_LEVEL_HIGH);
 	at91_add_device_usbh(&cap9adk_usbh_data);
 	/* USB HS */
-	set_irq_type(AT91CAP9_ID_UDPHS, IRQ_TYPE_LEVEL_HIGH);
 	at91_add_device_usba(&cap9adk_usba_udc_data);
 	/* SPI */
 	at91_add_device_spi(cap9adk_spi_devices, ARRAY_SIZE(cap9adk_spi_devices));
@@ -396,7 +392,6 @@ static void __init cap9adk_board_init(void)
 	/* I2C */
 	at91_add_device_i2c(NULL, 0);
 	/* LCD Controller */
-	set_irq_type(AT91CAP9_ID_LCDC, IRQ_TYPE_LEVEL_HIGH);
 	at91_add_device_lcdc(&cap9adk_lcdc_data);
 	/* AC97 */
 	at91_add_device_ac97(&cap9adk_ac97_data);

@@ -13,6 +13,7 @@
  */
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/mach/irq.h>
 
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
@@ -21,6 +22,7 @@
 #include <video/atmel_lcdc.h>
 
 #include <mach/board.h>
+#include <mach/cpu.h>
 #include <mach/gpio.h>
 #include <mach/at91cap9.h>
 #include <mach/at91cap9_matrix.h>
@@ -68,6 +70,9 @@ void __init at91_add_device_usbh(struct at91_usbh_data *data)
 
 	if (!data)
 		return;
+
+	if (cpu_is_at91cap9_revB())
+		set_irq_type(AT91CAP9_ID_UHP, IRQ_TYPE_LEVEL_HIGH);
 
 	/* Enable VBus control for UHP ports */
 	for (i = 0; i < data->ports; i++) {
@@ -151,8 +156,13 @@ static struct platform_device at91_usba_udc_device = {
 
 void __init at91_add_device_usba(struct usba_platform_data *data)
 {
-	at91_sys_write(AT91_MATRIX_UDPHS, AT91_MATRIX_SELECT_UDPHS |
-					  AT91_MATRIX_UDPHS_BYPASS_LOCK);
+	if (cpu_is_at91cap9_revB()) {
+		set_irq_type(AT91CAP9_ID_UDPHS, IRQ_TYPE_LEVEL_HIGH);
+		at91_sys_write(AT91_MATRIX_UDPHS, AT91_MATRIX_SELECT_UDPHS |
+						  AT91_MATRIX_UDPHS_BYPASS_LOCK);
+	}
+	else
+		at91_sys_write(AT91_MATRIX_UDPHS, AT91_MATRIX_SELECT_UDPHS);
 
 	/*
 	 * Invalid pins are 0 on AT91, but the usba driver is shared
@@ -849,6 +859,9 @@ void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data)
 {
 	if (!data)
 		return;
+
+	if (cpu_is_at91cap9_revB())
+		set_irq_type(AT91CAP9_ID_LCDC, IRQ_TYPE_LEVEL_HIGH);
 
 	at91_set_A_periph(AT91_PIN_PC1, 0);	/* LCDHSYNC */
 	at91_set_A_periph(AT91_PIN_PC2, 0);	/* LCDDOTCK */
