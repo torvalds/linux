@@ -110,6 +110,7 @@ struct controller {
 	struct timer_list poll_timer;
 	int cmd_busy;
 	unsigned int no_cmd_complete:1;
+	unsigned int link_active_reporting:1;
 };
 
 #define INT_BUTTON_IGNORE		0

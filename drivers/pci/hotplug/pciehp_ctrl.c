@@ -226,9 +226,6 @@ static int board_added(struct slot *p_slot)
 	if (PWR_LED(ctrl))
 		p_slot->hpc_ops->green_led_blink(p_slot);
 
-	/* Wait for ~1 second */
-	msleep(1000);
-
 	/* Check link training status */
 	retval = p_slot->hpc_ops->check_lnk_status(ctrl);
 	if (retval) {
