@@ -131,7 +131,7 @@ Wb35Reg_WriteSync(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 
 	// 20060717.5 Wait until EP0VM stop
 	while (pWb35Reg->EP0vm_state != VM_STOP)
-		OS_SLEEP(10000);
+		msleep(10);
 
 	// Sync IoCallDriver
 	pWb35Reg->EP0vm_state = VM_RUNNING;
@@ -294,7 +294,7 @@ Wb35Reg_ReadSync(  phw_data_t pHwData,  u16 RegisterNo,   u32 * pRegisterValue )
 
 	// 20060717.5 Wait until EP0VM stop
 	while (pWb35Reg->EP0vm_state != VM_STOP)
-		OS_SLEEP(10000);
+		msleep(10);
 
 	pWb35Reg->EP0vm_state = VM_RUNNING;
 	ret = usb_control_msg( pHwData->WbUsb.udev,
@@ -508,9 +508,9 @@ Wb35Reg_destroy(phw_data_t pHwData)
 
 	// Wait for Reg operation completed
 	do {
-		OS_SLEEP(10000); // Delay for waiting function enter 940623.1.a
+		msleep(10);	// Delay for waiting function enter 940623.1.a
 	} while (pWb35Reg->EP0vm_state != VM_STOP);
-	OS_SLEEP(10000);  // Delay for waiting function enter 940623.1.b
+	msleep(10);	// Delay for waiting function enter 940623.1.b
 
 	// Release all the data in RegQueue
 	spin_lock_irq( &pWb35Reg->EP0VM_spin_lock );

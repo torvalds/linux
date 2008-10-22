@@ -191,9 +191,9 @@ void Wb35Rx_destroy(phw_data_t pHwData)
 	PWB35RX pWb35Rx = &pHwData->Wb35Rx;
 
 	do {
-		OS_SLEEP(10000); // Delay for waiting function enter 940623.1.a
+		msleep(10); // Delay for waiting function enter 940623.1.a
 	} while (pWb35Rx->EP3vm_state != VM_STOP);
-	OS_SLEEP(10000); // Delay for waiting function exit 940623.1.b
+	msleep(10); // Delay for waiting function exit 940623.1.b
 
 	if (pWb35Rx->RxUrb)
 		usb_free_urb( pWb35Rx->RxUrb );

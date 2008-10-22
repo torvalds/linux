@@ -80,7 +80,7 @@ void hal_halt(phw_data_t pHwData, void *ppa_data)
 	{
 		case 4:
 		case 3: OS_TIMER_CANCEL( &pHwData->LEDTimer, &cancel );
-			OS_SLEEP(100000); // Wait for Timer DPC exit 940623.2
+			msleep(100); // Wait for Timer DPC exit 940623.2
 			Wb35Rx_destroy( pHwData ); // Release the Rx
 		case 2: Wb35Tx_destroy( pHwData ); // Release the Tx
 		case 1: Wb35Reg_destroy( pHwData ); // Release the Wb35 Regisster resources

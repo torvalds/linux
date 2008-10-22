@@ -175,9 +175,9 @@ void Wb35Tx_destroy(phw_data_t pHwData)
 
 	// Wait for VM stop
 	do {
-		OS_SLEEP(10000);  // Delay for waiting function enter 940623.1.a
+		msleep(10);  // Delay for waiting function enter 940623.1.a
 	} while( (pWb35Tx->EP2vm_state != VM_STOP) && (pWb35Tx->EP4vm_state != VM_STOP) );
-	OS_SLEEP(10000);  // Delay for waiting function enter 940623.1.b
+	msleep(10);  // Delay for waiting function enter 940623.1.b
 
 	if (pWb35Tx->Tx4Urb)
 		usb_free_urb( pWb35Tx->Tx4Urb );

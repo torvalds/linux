@@ -976,9 +976,9 @@ void Uxx_power_on_procedure(  phw_data_t pHwData )
 
 		// 20060511.1 Fix the following 4 steps for Rx of RF 2230 initial fail
 		Wb35Reg_WriteSync( pHwData, 0x03d4, 0x80 );// regulator on only
-		OS_SLEEP(10000); // Modify 20051221.1.b
+		msleep(10); // Modify 20051221.1.b
 		Wb35Reg_WriteSync( pHwData, 0x03d4, 0xb8 );// REG_ON RF_RSTN on, and
-		OS_SLEEP(10000); // Modify 20051221.1.b
+		msleep(10); // Modify 20051221.1.b
 
 		ltmp = 0x4968;
 		if( (pHwData->phy_type == RF_WB_242) ||
@@ -988,12 +988,12 @@ void Uxx_power_on_procedure(  phw_data_t pHwData )
 
 		Wb35Reg_WriteSync( pHwData, 0x03d4, 0xa0 );// PLL_PD REF_PD set to 0
 
-		OS_SLEEP(20000); // Modify 20051221.1.b
+		msleep(20); // Modify 20051221.1.b
 		Wb35Reg_ReadSync( pHwData, 0x03d0, &ltmp );
 		loop = 500; // Wait for 5 second 20061101
 		while( !(ltmp & 0x20) && loop-- )
 		{
-			OS_SLEEP(10000); // Modify 20051221.1.b
+			msleep(10); // Modify 20051221.1.b
 			if( !Wb35Reg_ReadSync( pHwData, 0x03d0, &ltmp ) )
 				break;
 		}
@@ -1002,7 +1002,7 @@ void Uxx_power_on_procedure(  phw_data_t pHwData )
 	}
 
 	Wb35Reg_WriteSync( pHwData, 0x03b0, 1 );// Reset hardware first
-	OS_SLEEP(10000); // Add this 20051221.1.b
+	msleep(10); // Add this 20051221.1.b
 
 	// Set burst write delay
 	Wb35Reg_WriteSync( pHwData, 0x03f8, 0x7ff );
@@ -1167,23 +1167,23 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			// 20060511.1 --- Modifying the follow step for Rx issue-----------------
 			ltmp = (1 << 31) | (0 << 30) | (20 << 24) | BitReverse( (0x07<<20)|0xE168E, 20);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(10000);
+			msleep(10);
 			ltmp = (1 << 31) | (0 << 30) | (20 << 24) | BitReverse( al2230_rf_data[7], 20);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(10000);
+			msleep(10);
 
 		case RF_AIROHA_2230S: // 20060420 Add this
 
 			// 20060511.1 --- Modifying the follow step for Rx issue-----------------
 			Wb35Reg_WriteSync( pHwData, 0x03d4, 0x80 );// regulator on only
-			OS_SLEEP(10000); // Modify 20051221.1.b
+			msleep(10); // Modify 20051221.1.b
 
 			Wb35Reg_WriteSync( pHwData, 0x03d4, 0xa0 );// PLL_PD REF_PD set to 0
-			OS_SLEEP(10000); // Modify 20051221.1.b
+			msleep(10); // Modify 20051221.1.b
 
 			Wb35Reg_WriteSync( pHwData, 0x03d4, 0xe0 );// MLK_EN
 			Wb35Reg_WriteSync( pHwData, 0x03b0, 1 );// Reset hardware first
-			OS_SLEEP(10000); // Add this 20051221.1.b
+			msleep(10); // Add this 20051221.1.b
 			//------------------------------------------------------------------------
 
 			// The follow code doesn't use the burst-write mode
@@ -1195,17 +1195,17 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			Wb35Reg_WriteSync( pHwData, 0x105c, ltmp );
 			pHwData->Wb35Reg.BB50 |= 0x13;//(MASK_IQCAL_MODE|MASK_CALIB_START);//20060315.1 modify
         	Wb35Reg_WriteSync( pHwData, 0x1050, pHwData->Wb35Reg.BB50);
-			OS_SLEEP(5000);
+			msleep(5);
 
 			//phy_set_rf_data(phw_data, 0x0F, (0x0F<<20) | 0xF01B0); //Activate Filter Cal.
 			ltmp = (1 << 31) | (0 << 30) | (20 << 24) | BitReverse( (0x0F<<20) | 0xF01B0, 20);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(5000);
+			msleep(5);
 
 			//phy_set_rf_data(phw_data, 0x0F, (0x0F<<20) | 0xF01e0); //Activate TX DCC
 			ltmp = (1 << 31) | (0 << 30) | (20 << 24) | BitReverse( (0x0F<<20) | 0xF01E0, 20);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(5000);
+			msleep(5);
 
 			//phy_set_rf_data(phw_data, 0x0F, (0x0F<<20) | 0xF01A0); //Resotre Initial Setting
 			ltmp = (1 << 31) | (0 << 30) | (20 << 24) | BitReverse( (0x0F<<20) | 0xF01A0, 20);
@@ -1229,16 +1229,16 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//2.4GHz
 			//ltmp = (1 << 31) | (0 << 30) | (24 << 24) | 0x1ABA8F;
 			//Wb35Reg_WriteSync pHwData, 0x0864, ltmp );
-			//OS_SLEEP(1000); // Sleep 1 ms
+			//msleep(1); // Sleep 1 ms
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | 0x9ABA8F;
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(5000);
+			msleep(5);
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | 0x3ABA8F;
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(5000);
+			msleep(5);
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | 0x1ABA8F;
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(5000);
+			msleep(5);
 
 			//5GHz
 			Wb35Reg_WriteSync( pHwData, 0x03dc, 0x00000000 );
@@ -1251,7 +1251,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			// Write to register. number must less and equal than 16
 			for( i=0; i<number; i++ )
 				Wb35Reg_WriteSync( pHwData, 0x0864, pltmp[i] );
-			OS_SLEEP(5000);
+			msleep(5);
 
 			Wb35Reg_WriteSync( pHwData, 0x03dc, 0x00000080 );
 			#ifdef _PE_STATE_DUMP_
@@ -1262,13 +1262,13 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | 0x9ABA8F;
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(5000);
+			msleep(5);
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | 0x3ABA8F;
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(5000);
+			msleep(5);
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | 0x12BACF;
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(5000);
+			msleep(5);
 
 			//Wb35Reg_WriteSync( pHwData, 0x03dc, 0x00000080 );
 			//WBDEBUG(("* PLL_ON    high\n"));
@@ -1290,11 +1290,11 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//Calibration (1a.0). Synthesizer reset (HTHo corrected 2005/05/10)
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x0F<<24) | 0x00101E, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP( 5000 ); // Sleep 5ms
+			msleep(5); // Sleep 5ms
 			//Calibration (1a). VCO frequency calibration mode ; waiting 2msec VCO calibration time
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFE69c0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP( 2000 ); // Sleep 2ms
+			msleep(2); // Sleep 2ms
 
 			//----- Calibration (2). TX baseband Gm-C filter auto-tuning
 			//Calibration (2a). turn off ENCAL signal
@@ -1309,7 +1309,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//Calibration (2c). turn-on TX Gm-C filter auto-tuning
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFCEBC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP( 150 ); // Sleep 150 us
+			udelay(150); // Sleep 150 us
 			//turn off ENCAL signal
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xF8EBC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
@@ -1327,7 +1327,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//Calibration (3c). turn-on RX Gm-C filter auto-tuning
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFEEDC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP( 150 ); // Sleep 150 us
+			udelay(150); // Sleep 150 us
 			//Calibration (3e). turn off ENCAL signal
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFAEDC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
@@ -1336,7 +1336,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//Calibration (4a). TX LO leakage calibration
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFD6BC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP( 150 ); // Sleep 150 us
+			udelay(150); // Sleep 150 us
 
 			//----- Calibration (5). RX DC offset calibration
 			//Calibration (5a). turn off ENCAL signal and set to RX SW DC caliration mode
@@ -1353,7 +1353,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//Calibration (5d). turn on RX DC offset cal function; and waiting 2 msec cal time
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFF6DC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(2000); // Sleep 2ms
+			msleep(2); // Sleep 2ms
 			//Calibration (5f). turn off ENCAL signal
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFAEDC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
@@ -1365,7 +1365,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//Calibration (5d). turn on RX DC offset cal function; and waiting 2 msec cal time
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFF6DC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(2000); // Sleep 2ms
+			msleep(2); // Sleep 2ms
 			//Calibration (5f). turn off ENCAL signal
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFAEDC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
@@ -1377,7 +1377,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//Calibration (5d). turn on RX DC offset cal function; and waiting 2 msec cal time
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFF6DC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(2000); // Sleep 2ms
+			msleep(2); // Sleep 2ms
 			//Calibration (5f). turn off ENCAL signal
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFAEDC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
@@ -1389,7 +1389,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//Calibration (5d). turn on RX DC offset cal function; and waiting 2 msec cal time
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFF6DC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(2000); // Sleep 2ms
+			msleep(2); // Sleep 2ms
 			//Calibration (5f). turn off ENCAL signal
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFAEDC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
@@ -1399,16 +1399,16 @@ RFSynthesizer_initial(phw_data_t pHwData)
 
 			//; ----- Calibration (7). Switch RF chip to normal mode
 			//0x00 0xF86100 ; 3E184   ; Switch RF chip to normal mode
-//			OS_SLEEP(10000); // @@ 20060721
+//			msleep(10); // @@ 20060721
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xF86100, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(5000); // Sleep 5 ms
+			msleep(5); // Sleep 5 ms
 
 //			//write back
 //			Wb35Reg_WriteSync( pHwData, 0x105c, pHwData->Wb35Reg.BB5C );
 //			pHwData->Wb35Reg.BB50 &= ~0x13;//(MASK_IQCAL_MODE|MASK_CALIB_START); // 20060315.1 fix
 //      	Wb35Reg_WriteSync( pHwData, 0x1050, pHwData->Wb35Reg.BB50);
-//			OS_SLEEP(1000); // Sleep 1 ms
+//			msleep(1); // Sleep 1 ms
 			break;
 	}
 }

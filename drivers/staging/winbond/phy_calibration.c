@@ -1075,7 +1075,7 @@ void _tx_iq_calibration_winbond(hw_data_t *phw_data)
 	//; [BB-chip]: Calibration (6h). Caculate TX-path IQ imbalance and setting TX path IQ compensation table
 	//phy_set_rf_data(phw_data, 3, (3<<24)|0x025586);
 
-	OS_SLEEP(30000); // 20060612.1.a 30ms delay. Add the follow 2 lines
+	msleep(30); // 20060612.1.a 30ms delay. Add the follow 2 lines
 	//To adjust TXVGA to fit iq_mag_0 range from 1250 ~ 1750
 	adjust_TXVGA_for_iq_mag( phw_data );
 
@@ -1698,7 +1698,7 @@ unsigned char adjust_TXVGA_for_iq_mag(hw_data_t *phw_data)
 		phw_data->txvga_setting_for_cal = current_txvga;
 
 		//pa_stall_execution(30000);//Sleep(30);
-		OS_SLEEP(30000); // 20060612.1.a
+		msleep(30); // 20060612.1.a
 
 		if( !hw_get_dxx_reg(phw_data, REG_MODE_CTRL, &reg_mode_ctrl) ) // 20060718.1 modify
 			return FALSE;
@@ -1715,10 +1715,10 @@ unsigned char adjust_TXVGA_for_iq_mag(hw_data_t *phw_data)
 		PHY_DEBUG(("[CAL]    MODE_CTRL (write) = 0x%08X\n", reg_mode_ctrl));
 
 		//pa_stall_execution(US);
-		OS_SLEEP(1); // 20060612.1.a
+		udelay(1); // 20060612.1.a
 
 		//pa_stall_execution(300);//Sleep(30);
-		OS_SLEEP(300); // 20060612.1.a
+		udelay(300); // 20060612.1.a
 
 		// b.
 		hw_get_dxx_reg(phw_data, REG_CALIB_READ1, &val);
@@ -1726,7 +1726,7 @@ unsigned char adjust_TXVGA_for_iq_mag(hw_data_t *phw_data)
 		PHY_DEBUG(("[CAL]    CALIB_READ1 = 0x%08X\n", val));
 		//pa_stall_execution(US);
 		//pa_stall_execution(300);//Sleep(30);
-		OS_SLEEP(300); // 20060612.1.a
+		udelay(300); // 20060612.1.a
 
 		iqcal_tone_i0 = _s13_to_s32(val & 0x00001FFF);
 		iqcal_tone_q0 = _s13_to_s32((val & 0x03FFE000) >> 13);

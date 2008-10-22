@@ -128,7 +128,7 @@ WbWlanHalt(  PADAPTER Adapter )
 #ifdef _PE_USB_INI_DUMP_
 	WBDEBUG(("[w35und] Hal_stop O.K.\n"));
 #endif
-	OS_SLEEP(100000);// Waiting Irp completed
+	msleep(100);// Waiting Irp completed
 
 	// Destroy the NDIS module
 	WBLINUX_Destroy( Adapter );
@@ -238,7 +238,7 @@ WbWLanInitialize(PADAPTER Adapter)
 
 	// Waiting for HAL setting OK
 	while (!hal_idle(pHwData))
-		OS_SLEEP(10000);
+		msleep(10);
 
 	MTO_Init(Adapter);
 
