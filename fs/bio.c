@@ -1404,12 +1404,15 @@ void bioset_free(struct bio_set *bs)
 
 struct bio_set *bioset_create(int bio_pool_size, int bvec_pool_size)
 {
-	struct bio_set *bs = kzalloc(sizeof(*bs), GFP_KERNEL);
+	struct bio_set *bs;
 
+	bs = kzalloc(sizeof(*bs), GFP_KERNEL);
 	if (!bs)
 		return NULL;
 
-	bs->bio_pool = mempool_create_slab_pool(bio_pool_size, bio_slab);
+	bs->bio_slab = bio_slab;
+
+	bs->bio_pool = mempool_create_slab_pool(bio_pool_size, bs->bio_slab);
 	if (!bs->bio_pool)
 		goto bad;
 

@@ -400,6 +400,7 @@ static inline void bio_set_completion_cpu(struct bio *bio, unsigned int cpu)
 #define BIOVEC_MAX_IDX	(BIOVEC_NR_POOLS - 1)
 
 struct bio_set {
+	struct kmem_cache *bio_slab;
 	mempool_t *bio_pool;
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 	mempool_t *bio_integrity_pool;
