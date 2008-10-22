@@ -139,18 +139,27 @@ do {								\
 	if (X##_e <= _FP_WFRACBITS_##fs)			\
 	  {							\
 	    _FP_FRAC_SRS_##wc(X, X##_e, _FP_WFRACBITS_##fs);	\
-	    _FP_ROUND(wc, X);					\
 	    if (_FP_FRAC_HIGH_##fs(X)				\
 		& (_FP_OVERFLOW_##fs >> 1))			\
 	      {							\
 	        X##_e = 1;					\
 	        _FP_FRAC_SET_##wc(X, _FP_ZEROFRAC_##wc);	\
-	        FP_SET_EXCEPTION(FP_EX_INEXACT);		\
 	      }							\
 	    else						\
 	      {							\
-		X##_e = 0;					\
-		_FP_FRAC_SRL_##wc(X, _FP_WORKBITS);		\
+		_FP_ROUND(wc, X);				\
+		if (_FP_FRAC_HIGH_##fs(X)			\
+		   & (_FP_OVERFLOW_##fs >> 1))			\
+		  {						\
+		    X##_e = 1;					\
+		    _FP_FRAC_SET_##wc(X, _FP_ZEROFRAC_##wc);	\
+		    FP_SET_EXCEPTION(FP_EX_INEXACT);		\
+		  }						\
+		else						\
+		  {						\
+		    X##_e = 0;					\
+		    _FP_FRAC_SRL_##wc(X, _FP_WORKBITS);		\
+		  }						\
 	      }							\
 	    if ((FP_CUR_EXCEPTIONS & FP_EX_INEXACT) ||		\
 		(FP_TRAPPING_EXCEPTIONS & FP_EX_UNDERFLOW))	\
