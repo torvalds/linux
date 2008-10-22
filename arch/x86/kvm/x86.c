@@ -3373,9 +3373,9 @@ static void seg_desct_to_kvm_desct(struct desc_struct *seg_desc, u16 selector,
 	kvm_desct->padding = 0;
 }
 
-static void get_segment_descritptor_dtable(struct kvm_vcpu *vcpu,
-					   u16 selector,
-					   struct descriptor_table *dtable)
+static void get_segment_descriptor_dtable(struct kvm_vcpu *vcpu,
+					  u16 selector,
+					  struct descriptor_table *dtable)
 {
 	if (selector & 1 << 2) {
 		struct kvm_segment kvm_seg;
@@ -3400,7 +3400,7 @@ static int load_guest_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector,
 	struct descriptor_table dtable;
 	u16 index = selector >> 3;
 
-	get_segment_descritptor_dtable(vcpu, selector, &dtable);
+	get_segment_descriptor_dtable(vcpu, selector, &dtable);
 
 	if (dtable.limit < index * 8 + 7) {
 		kvm_queue_exception_e(vcpu, GP_VECTOR, selector & 0xfffc);
@@ -3419,7 +3419,7 @@ static int save_guest_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector,
 	struct descriptor_table dtable;
 	u16 index = selector >> 3;
 
-	get_segment_descritptor_dtable(vcpu, selector, &dtable);
+	get_segment_descriptor_dtable(vcpu, selector, &dtable);
 
 	if (dtable.limit < index * 8 + 7)
 		return 1;
