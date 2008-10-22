@@ -53,7 +53,6 @@
 #include "../sme_api.h"
 #include "../gl_80211.h"
 #include "../mto.h"
-#include "../wblinux_s.h"
 #include "../wbhal_s.h"
 
 

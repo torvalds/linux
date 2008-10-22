@@ -188,7 +188,6 @@ struct wbsoft_priv {
 static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id_table)
 {
 	struct wb35_adapter *adapter;
-	PWBLINUX	pWbLinux;
 	PWBUSB		pWbUsb;
         struct usb_host_interface *interface;
 	struct usb_endpoint_descriptor *endpoint;
@@ -214,7 +213,6 @@ static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id
 	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
 
 	my_adapter = adapter;
-	pWbLinux = &adapter->WbLinux;
 	pWbUsb = &adapter->sHwData.WbUsb;
 	pWbUsb->udev = udev;
 
@@ -334,11 +332,8 @@ WbUsb_destroy(phw_data_t pHwData)
 
 static void wb35_disconnect(struct usb_interface *intf)
 {
-	PWBLINUX pWbLinux;
 	struct wb35_adapter * adapter = usb_get_intfdata(intf);
 	usb_set_intfdata(intf, NULL);
-
-        pWbLinux = &adapter->WbLinux;
 
 	// Card remove
 	WbWlanHalt(adapter);

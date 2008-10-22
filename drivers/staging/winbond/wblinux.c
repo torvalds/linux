@@ -23,36 +23,32 @@ WBLINUX_MemoryAlloc(void* *VirtualAddress, u32 Length)
 s32
 EncapAtomicInc(struct wb35_adapter * adapter, void* pAtomic)
 {
-	PWBLINUX pWbLinux = &adapter->WbLinux;
 	u32	ltmp;
 	u32 *	pltmp = (u32 *)pAtomic;
-	spin_lock_irq( &pWbLinux->AtomicSpinLock );
+	spin_lock_irq( &adapter->AtomicSpinLock );
 	(*pltmp)++;
 	ltmp = (*pltmp);
-	spin_unlock_irq( &pWbLinux->AtomicSpinLock );
+	spin_unlock_irq( &adapter->AtomicSpinLock );
 	return ltmp;
 }
 
 s32
 EncapAtomicDec(struct wb35_adapter * adapter, void* pAtomic)
 {
-	PWBLINUX pWbLinux = &adapter->WbLinux;
 	u32	ltmp;
 	u32 *	pltmp = (u32 *)pAtomic;
-	spin_lock_irq( &pWbLinux->AtomicSpinLock );
+	spin_lock_irq( &adapter->AtomicSpinLock );
 	(*pltmp)--;
 	ltmp = (*pltmp);
-	spin_unlock_irq( &pWbLinux->AtomicSpinLock );
+	spin_unlock_irq( &adapter->AtomicSpinLock );
 	return ltmp;
 }
 
 unsigned char
 WBLINUX_Initial(struct wb35_adapter * adapter)
 {
-	PWBLINUX pWbLinux = &adapter->WbLinux;
-
-	spin_lock_init( &pWbLinux->SpinLock );
-	spin_lock_init( &pWbLinux->AtomicSpinLock );
+	spin_lock_init( &adapter->SpinLock );
+	spin_lock_init( &adapter->AtomicSpinLock );
 	return TRUE;
 }
 
@@ -87,24 +83,23 @@ WBLINUX_Destroy(struct wb35_adapter * adapter)
 void
 WBLINUX_stop(  struct wb35_adapter * adapter )
 {
-	PWBLINUX	pWbLinux = &adapter->WbLinux;
 	struct sk_buff *pSkb;
 
-	if (OS_ATOMIC_INC( adapter, &pWbLinux->ThreadCount ) == 1) {
+	if (OS_ATOMIC_INC( adapter, &adapter->ThreadCount ) == 1) {
 		// Shutdown module immediately
-		pWbLinux->shutdown = 1;
+		adapter->shutdown = 1;
 
-		while (pWbLinux->skb_array[ pWbLinux->skb_GetIndex ]) {
+		while (adapter->skb_array[ adapter->skb_GetIndex ]) {
 			// Trying to free the un-sending packet
-			pSkb = pWbLinux->skb_array[ pWbLinux->skb_GetIndex ];
-			pWbLinux->skb_array[ pWbLinux->skb_GetIndex ] = NULL;
+			pSkb = adapter->skb_array[ adapter->skb_GetIndex ];
+			adapter->skb_array[ adapter->skb_GetIndex ] = NULL;
 			if( in_irq() )
 				dev_kfree_skb_irq( pSkb );
 			else
 				dev_kfree_skb( pSkb );
 
-			pWbLinux->skb_GetIndex++;
-			pWbLinux->skb_GetIndex %= WBLINUX_PACKET_ARRAY_SIZE;
+			adapter->skb_GetIndex++;
+			adapter->skb_GetIndex %= WBLINUX_PACKET_ARRAY_SIZE;
 		}
 
 #ifdef _PE_STATE_DUMP_
@@ -112,7 +107,7 @@ WBLINUX_stop(  struct wb35_adapter * adapter )
 #endif
 	}
 
-	OS_ATOMIC_DEC(adapter, &pWbLinux->ThreadCount);
+	OS_ATOMIC_DEC(adapter, &adapter->ThreadCount);
 }
 
 void
@@ -268,8 +263,6 @@ error:
 
 void WBLINUX_ConnectStatus(struct wb35_adapter * adapter, u32 flag)
 {
-	PWBLINUX	pWbLinux = &adapter->WbLinux;
-
-	pWbLinux->LinkStatus = flag; // OS_DISCONNECTED	or  OS_CONNECTED
+	adapter->LinkStatus = flag; // OS_DISCONNECTED	or  OS_CONNECTED
 }
 
