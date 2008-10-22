@@ -182,6 +182,7 @@ struct p9_fid {
 	struct list_head dlist;	/* list of all fids attached to a dentry */
 };
 
+int p9_client_version(struct p9_client *);
 struct p9_client *p9_client_create(const char *dev_name, char *options);
 void p9_client_destroy(struct p9_client *clnt);
 void p9_client_disconnect(struct p9_client *clnt);
