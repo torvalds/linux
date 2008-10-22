@@ -196,7 +196,7 @@ int start_spu_profiling(unsigned int cycles_reset)
 	pr_debug("timer resolution: %lu\n", TICK_NSEC);
 	kt = ktime_set(0, profiling_interval);
 	hrtimer_init(&timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	timer.expires = kt;
+	hrtimer_set_expires(&timer, kt);
 	timer.function = profile_spus;
 
 	/* Allocate arrays for collecting SPU PC samples */

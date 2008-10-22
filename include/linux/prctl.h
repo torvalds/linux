@@ -78,4 +78,11 @@
 #define PR_GET_SECUREBITS 27
 #define PR_SET_SECUREBITS 28
 
+/*
+ * Get/set the timerslack as used by poll/select/nanosleep
+ * A value of 0 means "use default"
+ */
+#define PR_SET_TIMERSLACK 29
+#define PR_GET_TIMERSLACK 30
+
 #endif /* _LINUX_PRCTL_H */
