@@ -35,6 +35,8 @@
 #define I7300_IDLE_DRIVER_VERSION	"1.55"
 #define I7300_PRINT			"i7300_idle:"
 
+#define MAX_STOP_RETRIES	10
+
 static int debug;
 module_param_named(debug, debug, uint, 0644);
 MODULE_PARM_DESC(debug, "Enable debug printks in this driver");
@@ -47,12 +49,12 @@ MODULE_PARM_DESC(debug, "Enable debug printks in this driver");
  *  0 = No throttling
  *  1 = Throttle when > 4 activations per eval window (Maximum throttling)
  *  2 = Throttle when > 8 activations
- *  168 = Throttle when > 168 activations (Minimum throttling)
+ *  168 = Throttle when > 672 activations (Minimum throttling)
  */
-#define MAX_THRTLWLIMIT		168
-static uint i7300_idle_thrtlowlm = 1;
-module_param_named(thrtlwlimit, i7300_idle_thrtlowlm, uint, 0644);
-MODULE_PARM_DESC(thrtlwlimit,
+#define MAX_THROTTLE_LOW_LIMIT		168
+static uint throttle_low_limit = 1;
+module_param_named(throttle_low_limit, throttle_low_limit, uint, 0644);
+MODULE_PARM_DESC(throttle_low_limit,
 		"Value for THRTLOWLM activation field "
 		"(0 = disable throttle, 1 = Max throttle, 168 = Min throttle)");
 
@@ -111,9 +113,9 @@ static int i7300_idle_ioat_start(void)
 static void i7300_idle_ioat_stop(void)
 {
 	int i;
-	u8 sts;
+	u64 sts;
 
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < MAX_STOP_RETRIES; i++) {
 		writeb(IOAT_CHANCMD_RESET,
 			ioat_chanbase + IOAT1_CHANCMD_OFFSET);
 
@@ -127,9 +129,10 @@ static void i7300_idle_ioat_stop(void)
 
 	}
 
-	if (i == 5)
-		dprintk("failed to suspend+reset I/O AT after 5 retries\n");
-
+	if (i == MAX_STOP_RETRIES) {
+		dprintk("failed to stop I/O AT after %d retries\n",
+			MAX_STOP_RETRIES);
+	}
 }
 
 /* Test I/O AT by copying 1024 byte from 2k to 1k */
@@ -276,7 +279,7 @@ static void __exit i7300_idle_ioat_exit(void)
 	i7300_idle_ioat_stop();
 
 	/* Wait for a while for the channel to halt before releasing */
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < MAX_STOP_RETRIES; i++) {
 		writeb(IOAT_CHANCMD_RESET,
 		       ioat_chanbase + IOAT1_CHANCMD_OFFSET);
 
@@ -390,9 +393,9 @@ static void i7300_idle_start(void)
 	new_ctl = i7300_idle_thrtctl_saved & ~DIMM_THRTCTL_THRMHUNT;
 	pci_write_config_byte(fbd_dev, DIMM_THRTCTL, new_ctl);
 
-	limit = i7300_idle_thrtlowlm;
-	if (unlikely(limit > MAX_THRTLWLIMIT))
-		limit = MAX_THRTLWLIMIT;
+	limit = throttle_low_limit;
+	if (unlikely(limit > MAX_THROTTLE_LOW_LIMIT))
+		limit = MAX_THROTTLE_LOW_LIMIT;
 
 	pci_write_config_byte(fbd_dev, DIMM_THRTLOW, limit);
 
@@ -441,7 +444,7 @@ static int i7300_idle_notifier(struct notifier_block *nb, unsigned long val,
 	static ktime_t idle_begin_time;
 	static int time_init = 1;
 
-	if (!i7300_idle_thrtlowlm)
+	if (!throttle_low_limit)
 		return 0;
 
 	if (unlikely(time_init)) {
