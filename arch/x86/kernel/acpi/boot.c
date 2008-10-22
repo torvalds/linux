@@ -1598,6 +1598,11 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 		     DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 360"),
 		     },
 	 },
+	{}
+};
+
+/* second table for DMI checks that should run after early-quirks */
+static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
 	/*
 	 * HP laptops which use a DSDT reporting as HP/SB400/10000,
 	 * which includes some code which overrides all temperature
@@ -1726,6 +1731,9 @@ int __init early_acpi_boot_init(void)
 
 int __init acpi_boot_init(void)
 {
+	/* those are executed after early-quirks are executed */
+	dmi_check_system(acpi_dmi_table_late);
+
 	/*
 	 * If acpi_disabled, bail out
 	 * One exception: acpi=ht continues far enough to enumerate LAPICs
