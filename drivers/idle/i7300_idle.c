@@ -25,6 +25,7 @@
 #include <linux/delay.h>
 #include <linux/debugfs.h>
 #include <linux/stop_machine.h>
+#include <linux/i7300_idle.h>
 
 #include <asm/idle.h>
 
@@ -505,76 +506,7 @@ static struct notifier_block i7300_idle_nb = {
 	.notifier_call = i7300_idle_notifier,
 };
 
-/*
- * I/O AT controls (PCI bus 0 device 8 function 0)
- * DIMM controls (PCI bus 0 device 16 function 1)
- */
-#define IOAT_BUS 0
-#define IOAT_DEVFN PCI_DEVFN(8, 0)
-#define MEMCTL_BUS 0
-#define MEMCTL_DEVFN PCI_DEVFN(16, 1)
-
-struct fbd_ioat {
-	unsigned int vendor;
-	unsigned int ioat_dev;
-};
-
-/*
- * The i5000 chip-set has the same hooks as the i7300
- * but support is disabled by default because this driver
- * has not been validated on that platform.
- */
-#define SUPPORT_I5000 0
-
-static const struct fbd_ioat fbd_ioat_list[] = {
-	{PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IOAT_CNB},
-#if SUPPORT_I5000
-	{PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IOAT},
-#endif
-	{0, 0}
-};
-
-/* table of devices that work with this driver */
-static const struct pci_device_id pci_tbl[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_FBD_CNB) },
-#if SUPPORT_I5000
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_5000_ERR) },
-#endif
-	{ } /* Terminating entry */
-};
-
 MODULE_DEVICE_TABLE(pci, pci_tbl);
-
-/* Check for known platforms with I/O-AT */
-static int __init i7300_idle_platform_probe(void)
-{
-	int i;
-
-	fbd_dev = pci_get_bus_and_slot(MEMCTL_BUS, MEMCTL_DEVFN);
-	if (!fbd_dev)
-		return -ENODEV;
-
-	for (i = 0; pci_tbl[i].vendor != 0; i++) {
-		if (fbd_dev->vendor == pci_tbl[i].vendor &&
-		    fbd_dev->device == pci_tbl[i].device) {
-			break;
-		}
-	}
-	if (pci_tbl[i].vendor == 0)
-		return -ENODEV;
-
-	ioat_dev = pci_get_bus_and_slot(IOAT_BUS, IOAT_DEVFN);
-	if (!ioat_dev)
-		return -ENODEV;
-
-	for (i = 0; fbd_ioat_list[i].vendor != 0; i++) {
-		if (ioat_dev->vendor == fbd_ioat_list[i].vendor &&
-		    ioat_dev->device == fbd_ioat_list[i].ioat_dev) {
-			return 0;
-		}
-	}
-	return -ENODEV;
-}
 
 int stats_open_generic(struct inode *inode, struct file *fp)
 {
@@ -617,7 +549,7 @@ static int __init i7300_idle_init(void)
 	cpus_clear(idle_cpumask);
 	total_us = 0;
 
-	if (i7300_idle_platform_probe())
+	if (i7300_idle_platform_probe(&fbd_dev, &ioat_dev))
 		return -ENODEV;
 
 	if (i7300_idle_thrt_save())

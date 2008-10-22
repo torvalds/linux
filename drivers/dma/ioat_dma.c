@@ -33,6 +33,7 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/workqueue.h>
+#include <linux/i7300_idle.h>
 #include "ioatdma.h"
 #include "ioatdma_registers.h"
 #include "ioatdma_hw.h"
@@ -172,7 +173,9 @@ static int ioat_dma_enumerate_channels(struct ioatdma_device *device)
 	xfercap = (xfercap_scale == 0 ? -1 : (1UL << xfercap_scale));
 
 #if CONFIG_I7300_IDLE_IOAT_CHANNEL
-	device->common.chancnt--;
+	if (i7300_idle_platform_probe(NULL, NULL) == 0) {
+		device->common.chancnt--;
+	}
 #endif
 	for (i = 0; i < device->common.chancnt; i++) {
 		ioat_chan = kzalloc(sizeof(*ioat_chan), GFP_KERNEL);
