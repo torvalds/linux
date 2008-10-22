@@ -224,7 +224,7 @@ static inline struct i2c_client *kobj_to_i2c_client(struct kobject *kobj)
 	return to_i2c_client(dev);
 }
 
-static inline void *i2c_get_clientdata (struct i2c_client *dev)
+static inline void *i2c_get_clientdata(const struct i2c_client *dev)
 {
 	return dev_get_drvdata (&dev->dev);
 }
@@ -369,7 +369,7 @@ struct i2c_adapter {
 };
 #define to_i2c_adapter(d) container_of(d, struct i2c_adapter, dev)
 
-static inline void *i2c_get_adapdata (struct i2c_adapter *dev)
+static inline void *i2c_get_adapdata(const struct i2c_adapter *dev)
 {
 	return dev_get_drvdata (&dev->dev);
 }
