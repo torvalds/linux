@@ -264,6 +264,7 @@ static long hidraw_ioctl(struct file *file, unsigned int cmd,
 		default:
 			ret = -ENOTTY;
 	}
+	unlock_kernel();
 	return ret;
 }
 
