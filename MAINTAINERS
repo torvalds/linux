@@ -2899,9 +2899,9 @@ S:	Maintained
 
 NETEFFECT IWARP RNIC DRIVER (IW_NES)
 P:	Faisal Latif
-M:	flatif@neteffect.com
+M:	faisal.latif@intel.com
 P:	Chien Tung
-M:	ctung@neteffect.com
+M:	chien.tin.tung@intel.com
 L:	general@lists.openfabrics.org
 W:	http://www.neteffect.com
 S:	Supported
