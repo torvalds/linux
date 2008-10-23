@@ -98,7 +98,7 @@ static int hpled_add(struct acpi_device *device)
 	adev.device = device;
 	strcpy(acpi_device_name(device), DRIVER_NAME);
 	strcpy(acpi_device_class(device), ACPI_MDPS_CLASS);
-	acpi_driver_data(device) = &adev;
+	device->driver_data = &adev;
 
 	ret = led_classdev_register(NULL, &hpled_led);
 	return ret;
