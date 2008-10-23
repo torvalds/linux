@@ -620,7 +620,6 @@ static int ftrace_update_code(void *ignore);
 
 static int __ftrace_modify_code(void *data)
 {
-	unsigned long addr;
 	int *command = data;
 
 	if (*command & FTRACE_ENABLE_CALLS) {
@@ -638,14 +637,6 @@ static int __ftrace_modify_code(void *data)
 
 	if (*command & FTRACE_UPDATE_TRACE_FUNC)
 		ftrace_update_ftrace_func(ftrace_trace_function);
-
-	if (*command & FTRACE_ENABLE_MCOUNT) {
-		addr = (unsigned long)ftrace_record_ip;
-		ftrace_mcount_set(&addr);
-	} else if (*command & FTRACE_DISABLE_MCOUNT) {
-		addr = (unsigned long)ftrace_stub;
-		ftrace_mcount_set(&addr);
-	}
 
 	return 0;
 }

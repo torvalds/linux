@@ -103,13 +103,6 @@ notrace int ftrace_update_ftrace_func(ftrace_func_t func)
 	return ret;
 }
 
-notrace int ftrace_mcount_set(unsigned long *data)
-{
-	/* mcount is initialized as a nop */
-	*data = 0;
-	return 0;
-}
-
 int __init ftrace_dyn_arch_init(void *data)
 {
 	extern const unsigned char ftrace_test_p6nop[];

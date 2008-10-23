@@ -71,7 +71,6 @@ extern int ftrace_ip_converted(unsigned long ip);
 extern unsigned char *ftrace_nop_replace(void);
 extern unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr);
 extern int ftrace_dyn_arch_init(void *data);
-extern int ftrace_mcount_set(unsigned long *data);
 extern int ftrace_update_ftrace_func(ftrace_func_t func);
 extern void ftrace_caller(void);
 extern void ftrace_call(void);
