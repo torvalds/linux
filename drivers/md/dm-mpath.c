@@ -5,7 +5,8 @@
  * This file is released under the GPL.
  */
 
-#include "dm.h"
+#include <linux/device-mapper.h>
+
 #include "dm-path-selector.h"
 #include "dm-bio-list.h"
 #include "dm-bio-record.h"
