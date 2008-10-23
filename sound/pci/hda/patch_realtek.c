@@ -4996,7 +4996,7 @@ static struct hda_verb alc260_test_init_verbs[] = {
  */
 
 static int alc260_add_playback_controls(struct alc_spec *spec, hda_nid_t nid,
-					const char *pfx)
+					const char *pfx, int *vol_bits)
 {
 	hda_nid_t nid_vol;
 	unsigned long vol_val, sw_val;
@@ -5018,10 +5018,14 @@ static int alc260_add_playback_controls(struct alc_spec *spec, hda_nid_t nid,
 	} else
 		return 0; /* N/A */
 
-	snprintf(name, sizeof(name), "%s Playback Volume", pfx);
-	err = add_control(spec, ALC_CTL_WIDGET_VOL, name, vol_val);
-	if (err < 0)
-		return err;
+	if (!(*vol_bits & (1 << nid_vol))) {
+		/* first control for the volume widget */
+		snprintf(name, sizeof(name), "%s Playback Volume", pfx);
+		err = add_control(spec, ALC_CTL_WIDGET_VOL, name, vol_val);
+		if (err < 0)
+			return err;
+		*vol_bits |= (1 << nid_vol);
+	}
 	snprintf(name, sizeof(name), "%s Playback Switch", pfx);
 	err = add_control(spec, ALC_CTL_WIDGET_MUTE, name, sw_val);
 	if (err < 0)
@@ -5035,6 +5039,7 @@ static int alc260_auto_create_multi_out_ctls(struct alc_spec *spec,
 {
 	hda_nid_t nid;
 	int err;
+	int vols = 0;
 
 	spec->multiout.num_dacs = 1;
 	spec->multiout.dac_nids = spec->private_dac_nids;
@@ -5042,21 +5047,22 @@ static int alc260_auto_create_multi_out_ctls(struct alc_spec *spec,
 
 	nid = cfg->line_out_pins[0];
 	if (nid) {
-		err = alc260_add_playback_controls(spec, nid, "Front");
+		err = alc260_add_playback_controls(spec, nid, "Front", &vols);
 		if (err < 0)
 			return err;
 	}
 
 	nid = cfg->speaker_pins[0];
 	if (nid) {
-		err = alc260_add_playback_controls(spec, nid, "Speaker");
+		err = alc260_add_playback_controls(spec, nid, "Speaker", &vols);
 		if (err < 0)
 			return err;
 	}
 
 	nid = cfg->hp_pins[0];
 	if (nid) {
-		err = alc260_add_playback_controls(spec, nid, "Headphone");
+		err = alc260_add_playback_controls(spec, nid, "Headphone",
+						   &vols);
 		if (err < 0)
 			return err;
 	}
