@@ -3097,7 +3097,7 @@ void ftrace_dump(void)
 	dump_ran = 1;
 
 	/* No turning back! */
-	ftrace_kill_atomic();
+	ftrace_kill();
 
 	for_each_tracing_cpu(cpu) {
 		atomic_inc(&global_trace.data[cpu]->disabled);

@@ -40,7 +40,7 @@ extern void ftrace_stub(unsigned long a0, unsigned long a1);
 # define register_ftrace_function(ops) do { } while (0)
 # define unregister_ftrace_function(ops) do { } while (0)
 # define clear_ftrace_function(ops) do { } while (0)
-static inline void ftrace_kill_atomic(void) { }
+static inline void ftrace_kill(void) { }
 #endif /* CONFIG_FUNCTION_TRACER */
 
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -117,7 +117,6 @@ static inline void ftrace_release(void *start, unsigned long size) { }
 
 /* totally disable ftrace - can not re-enable after this */
 void ftrace_kill(void);
-void ftrace_kill_atomic(void);
 
 static inline void tracer_disable(void)
 {
