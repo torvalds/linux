@@ -131,7 +131,7 @@ static int __init toonie_init(void)
 	toonie->codec.owner = THIS_MODULE;
 	toonie->codec.init = toonie_init_codec;
 	toonie->codec.exit = toonie_exit_codec;
-                                        
+
 	if (aoa_codec_register(&toonie->codec)) {
 		kfree(toonie);
 		return -EINVAL;

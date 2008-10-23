@@ -64,7 +64,7 @@ static void free_dbdma_descriptor_ring(struct i2sbus_dev *i2sdev,
 				       struct dbdma_command_mem *r)
 {
 	if (!r->space) return;
-	
+
 	dma_free_coherent(&macio_get_pci_dev(i2sdev->macio)->dev,
 			    r->size, r->space, r->bus_addr);
 }
@@ -247,7 +247,7 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 		 * but request_resource doesn't know about parents and
 		 * contained resources...
 		 */
-		dev->allocated_resource[i] = 
+		dev->allocated_resource[i] =
 			request_mem_region(dev->resources[i].start,
 					   dev->resources[i].end -
 					   dev->resources[i].start + 1,

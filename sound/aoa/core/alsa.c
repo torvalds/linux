@@ -6,7 +6,7 @@
  * GPL v2, can be found in COPYING.
  */
 #include <linux/module.h>
-#include "snd-aoa-alsa.h"
+#include "alsa.h"
 
 static int index = -1;
 module_param(index, int, 0444);
@@ -64,7 +64,7 @@ int aoa_snd_device_new(snd_device_type_t type,
 {
 	struct snd_card *card = aoa_get_card();
 	int err;
-	
+
 	if (!card) return -ENOMEM;
 
 	err = snd_device_new(card, type, device_data, ops);

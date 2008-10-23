@@ -37,7 +37,7 @@ MODULE_AUTHOR("Johannes Berg <johannes@sipsolutions.net>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("pcm3052 (onyx) codec driver for snd-aoa");
 
-#include "snd-aoa-codec-onyx.h"
+#include "onyx.h"
 #include "../aoa.h"
 #include "../soundbus/soundbus.h"
 
@@ -292,7 +292,7 @@ static int onyx_snd_capture_source_put(struct snd_kcontrol *kcontrol,
 static struct snd_kcontrol_new capture_source_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	/* If we name this 'Input Source', it properly shows up in
-	 * alsamixer as a selection, * but it's shown under the 
+	 * alsamixer as a selection, * but it's shown under the
 	 * 'Playback' category.
 	 * If I name it 'Capture Source', it shows up in strange
 	 * ways (two bools of which one can be selected at a
@@ -477,7 +477,7 @@ static int onyx_spdif_mask_get(struct snd_kcontrol *kcontrol,
 
 	ucontrol->value.iec958.status[3] = 0x3f;
 	ucontrol->value.iec958.status[4] = 0x0f;
-	
+
 	return 0;
 }
 
@@ -682,7 +682,7 @@ static int onyx_usable(struct codec_info_item *cii,
 	onyx_read_register(onyx, ONYX_REG_DIG_INFO4, &v);
 	spdif_enabled = !!(v & ONYX_SPDIF_ENABLE);
 	onyx_read_register(onyx, ONYX_REG_DAC_CONTROL, &v);
-	analog_enabled = 
+	analog_enabled =
 		(v & (ONYX_MUTE_RIGHT|ONYX_MUTE_LEFT))
 		 != (ONYX_MUTE_RIGHT|ONYX_MUTE_LEFT);
 	mutex_unlock(&onyx->mutex);
@@ -882,7 +882,7 @@ static int onyx_init_codec(struct aoa_codec *codec)
 	msleep(1);
 	onyx->codec.gpio->methods->set_hw_reset(onyx->codec.gpio, 0);
 	msleep(1);
-	
+
 	if (onyx_register_init(onyx)) {
 		printk(KERN_ERR PFX "failed to initialise onyx registers\n");
 		return -ENODEV;
@@ -1069,7 +1069,7 @@ static int onyx_i2c_attach(struct i2c_adapter *adapter)
 
 	/* if that didn't work, try desperate mode for older
 	 * machines that have stuff missing from the device tree */
-	
+
 	if (!of_device_is_compatible(busnode, "k2-i2c"))
 		return -ENODEV;
 

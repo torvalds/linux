@@ -71,9 +71,9 @@ MODULE_AUTHOR("Johannes Berg <johannes@sipsolutions.net>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("tas codec driver for snd-aoa");
 
-#include "snd-aoa-codec-tas.h"
-#include "snd-aoa-codec-tas-gain-table.h"
-#include "snd-aoa-codec-tas-basstreble.h"
+#include "tas.h"
+#include "tas-gain-table.h"
+#include "tas-basstreble.h"
 #include "../aoa.h"
 #include "../soundbus/soundbus.h"
 
@@ -880,7 +880,7 @@ static void tas_exit_codec(struct aoa_codec *codec)
 		return;
 	tas->codec.soundbus_dev->detach_codec(tas->codec.soundbus_dev, tas);
 }
-	
+
 
 static struct i2c_driver tas_driver;
 
