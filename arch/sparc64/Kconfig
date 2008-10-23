@@ -11,7 +11,6 @@ config SPARC
 config SPARC64
 	bool
 	default y
-	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FUNCTION_TRACER
 	select HAVE_IDE
 	select HAVE_LMB
