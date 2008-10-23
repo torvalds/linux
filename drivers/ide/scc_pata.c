@@ -536,10 +536,6 @@ static u8 scc_udma_filter(ide_drive_t *drive)
 
 static int setup_mmio_scc (struct pci_dev *dev, const char *name)
 {
-	unsigned long ctl_base = pci_resource_start(dev, 0);
-	unsigned long dma_base = pci_resource_start(dev, 1);
-	unsigned long ctl_size = pci_resource_len(dev, 0);
-	unsigned long dma_size = pci_resource_len(dev, 1);
 	void __iomem *ctl_addr;
 	void __iomem *dma_addr;
 	int i, ret;
@@ -557,10 +553,12 @@ static int setup_mmio_scc (struct pci_dev *dev, const char *name)
 		return ret;
 	}
 
-	if ((ctl_addr = ioremap(ctl_base, ctl_size)) == NULL)
+	ctl_addr = pci_ioremap_bar(dev, 0);
+	if (!ctl_addr)
 		goto fail_0;
 
-	if ((dma_addr = ioremap(dma_base, dma_size)) == NULL)
+	dma_addr = pci_ioremap_bar(dev, 1);
+	if (!dma_addr)
 		goto fail_1;
 
 	pci_set_master(dev);

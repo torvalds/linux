@@ -720,6 +720,16 @@ config BLK_DEV_IDE_AU1XXX_SEQTS_PER_RQ
        default "128"
        depends on BLK_DEV_IDE_AU1XXX
 
+config BLK_DEV_IDE_TX4938
+	tristate "TX4938 internal IDE support"
+	depends on SOC_TX4938
+	select IDE_TIMINGS
+
+config BLK_DEV_IDE_TX4939
+	tristate "TX4939 internal IDE support"
+	depends on SOC_TX4939
+	select BLK_DEV_IDEDMA_SFF
+
 config IDE_ARM
 	tristate "ARM IDE support"
 	depends on ARM && (ARCH_CLPS7500 || ARCH_RPC || ARCH_SHARK)
