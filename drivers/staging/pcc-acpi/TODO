@@ -1,7 +1,0 @@
-TODO:
-	- Lindent fixes
-	- checkpatch.pl fixes
-	- verify that the acpi interface is correct
-	- remove /proc dependancy if needed (not sure yet.)
-
-Please send any patches for this driver to Greg Kroah-Hartman <greg@kroah.com>
