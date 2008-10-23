@@ -311,12 +311,6 @@ static void p9_free_req(struct p9_client *c, struct p9_req_t *r)
 	r->status = REQ_STATUS_IDLE;
 	if (tag != P9_NOTAG && p9_idpool_check(tag, c->tagpool))
 		p9_idpool_put(tag, c->tagpool);
-
-	/* if this was a flush request we have to free response fcall */
-	if (r->rc->id == P9_RFLUSH) {
-		kfree(r->tc);
-		kfree(r->rc);
-	}
 }
 
 /**
