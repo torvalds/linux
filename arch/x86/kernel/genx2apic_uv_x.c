@@ -15,7 +15,6 @@
 #include <linux/ctype.h>
 #include <linux/init.h>
 #include <linux/sched.h>
-#include <linux/bootmem.h>
 #include <linux/module.h>
 #include <linux/hardirq.h>
 #include <asm/smp.h>
@@ -398,16 +397,16 @@ void __init uv_system_init(void)
 	printk(KERN_DEBUG "UV: Found %d blades\n", uv_num_possible_blades());
 
 	bytes = sizeof(struct uv_blade_info) * uv_num_possible_blades();
-	uv_blade_info = alloc_bootmem_pages(bytes);
+	uv_blade_info = kmalloc(bytes, GFP_KERNEL);
 
 	get_lowmem_redirect(&lowmem_redir_base, &lowmem_redir_size);
 
 	bytes = sizeof(uv_node_to_blade[0]) * num_possible_nodes();
-	uv_node_to_blade = alloc_bootmem_pages(bytes);
+	uv_node_to_blade = kmalloc(bytes, GFP_KERNEL);
 	memset(uv_node_to_blade, 255, bytes);
 
 	bytes = sizeof(uv_cpu_to_blade[0]) * num_possible_cpus();
-	uv_cpu_to_blade = alloc_bootmem_pages(bytes);
+	uv_cpu_to_blade = kmalloc(bytes, GFP_KERNEL);
 	memset(uv_cpu_to_blade, 255, bytes);
 
 	blade = 0;
