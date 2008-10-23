@@ -32,6 +32,18 @@
 
 #include "trace.h"
 
+#define FTRACE_WARN_ON(cond)			\
+	do {					\
+		if (WARN_ON(cond))		\
+			ftrace_kill();		\
+	} while (0)
+
+#define FTRACE_WARN_ON_ONCE(cond)		\
+	do {					\
+		if (WARN_ON_ONCE(cond))		\
+			ftrace_kill();		\
+	} while (0)
+
 /* ftrace_enabled is a method to turn ftrace on or off */
 int ftrace_enabled __read_mostly;
 static int last_ftrace_enabled;
@@ -363,10 +375,8 @@ static struct dyn_ftrace *ftrace_alloc_dyn_node(unsigned long ip)
 		rec = ftrace_free_records;
 
 		if (unlikely(!(rec->flags & FTRACE_FL_FREE))) {
-			WARN_ON_ONCE(1);
+			FTRACE_WARN_ON_ONCE(1);
 			ftrace_free_records = NULL;
-			ftrace_disabled = 1;
-			ftrace_enabled = 0;
 			return NULL;
 		}
 
@@ -415,7 +425,7 @@ ftrace_record_ip(unsigned long ip)
 
 	key = hash_long(ip, FTRACE_HASHBITS);
 
-	WARN_ON_ONCE(key >= FTRACE_HASHSIZE);
+	FTRACE_WARN_ON_ONCE(key >= FTRACE_HASHSIZE);
 
 	if (ftrace_ip_in_hash(ip, key))
 		goto out;
@@ -607,12 +617,12 @@ ftrace_code_disable(struct dyn_ftrace *rec)
 	if (ret) {
 		switch (ret) {
 		case -EFAULT:
-			WARN_ON_ONCE(1);
+			FTRACE_WARN_ON_ONCE(1);
 			pr_info("ftrace faulted on modifying ");
 			print_ip_sym(ip);
 			break;
 		case -EINVAL:
-			WARN_ON_ONCE(1);
+			FTRACE_WARN_ON_ONCE(1);
 			pr_info("ftrace failed to modify ");
 			print_ip_sym(ip);
 			print_ip_ins(" expected: ", call);
@@ -621,12 +631,12 @@ ftrace_code_disable(struct dyn_ftrace *rec)
 			printk(KERN_CONT "\n");
 			break;
 		case -EPERM:
-			WARN_ON_ONCE(1);
+			FTRACE_WARN_ON_ONCE(1);
 			pr_info("ftrace faulted on writing ");
 			print_ip_sym(ip);
 			break;
 		default:
-			WARN_ON_ONCE(1);
+			FTRACE_WARN_ON_ONCE(1);
 			pr_info("ftrace faulted on unknown error ");
 			print_ip_sym(ip);
 		}
@@ -1722,8 +1732,7 @@ static int ftraced(void *ignore)
 					ftrace_update_cnt != 1 ? "s" : "",
 					ftrace_update_tot_cnt,
 					usecs, usecs != 1 ? "s" : "");
-				ftrace_disabled = 1;
-				WARN_ON_ONCE(1);
+				FTRACE_WARN_ON_ONCE(1);
 			}
 		}
 		mutex_unlock(&ftraced_lock);
