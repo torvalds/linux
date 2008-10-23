@@ -589,6 +589,9 @@ rdma_create_trans(struct p9_client *client, const char *addr, char *args)
 	if (IS_ERR(rdma->cm_id))
 		goto error;
 
+	/* Associate the client with the transport */
+	client->trans = rdma;
+
 	/* Resolve the server's address */
 	rdma->addr.sin_family = AF_INET;
 	rdma->addr.sin_addr.s_addr = in_aton(addr);
@@ -669,7 +672,6 @@ rdma_create_trans(struct p9_client *client, const char *addr, char *args)
 	if (err || (rdma->state != P9_RDMA_CONNECTED))
 		goto error;
 
-	client->trans = rdma;
 	client->status = Connected;
 
 	return 0;
