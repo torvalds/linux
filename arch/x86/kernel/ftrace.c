@@ -33,17 +33,17 @@ union ftrace_code_union {
 };
 
 
-static int notrace ftrace_calc_offset(long ip, long addr)
+static int ftrace_calc_offset(long ip, long addr)
 {
 	return (int)(addr - ip);
 }
 
-notrace unsigned char *ftrace_nop_replace(void)
+unsigned char *ftrace_nop_replace(void)
 {
 	return (char *)ftrace_nop;
 }
 
-notrace unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
+unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
 {
 	static union ftrace_code_union calc;
 
@@ -57,7 +57,7 @@ notrace unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
 	return calc.code;
 }
 
-notrace int
+int
 ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 		   unsigned char *new_code)
 {
@@ -90,7 +90,7 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 	return 0;
 }
 
-notrace int ftrace_update_ftrace_func(ftrace_func_t func)
+int ftrace_update_ftrace_func(ftrace_func_t func)
 {
 	unsigned long ip = (unsigned long)(&ftrace_call);
 	unsigned char old[MCOUNT_INSN_SIZE], *new;

@@ -9,12 +9,12 @@
 
 static const u32 ftrace_nop = 0x01000000;
 
-notrace unsigned char *ftrace_nop_replace(void)
+unsigned char *ftrace_nop_replace(void)
 {
 	return (char *)&ftrace_nop;
 }
 
-notrace unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
+unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
 {
 	static u32 call;
 	s32 off;
@@ -25,7 +25,7 @@ notrace unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
 	return (unsigned char *) &call;
 }
 
-notrace int
+int
 ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 		   unsigned char *new_code)
 {
@@ -59,7 +59,7 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 	return faulted;
 }
 
-notrace int ftrace_update_ftrace_func(ftrace_func_t func)
+int ftrace_update_ftrace_func(ftrace_func_t func)
 {
 	unsigned long ip = (unsigned long)(&ftrace_call);
 	unsigned char old[MCOUNT_INSN_SIZE], *new;
