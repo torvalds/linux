@@ -582,8 +582,6 @@ static int compat_blk_trace_setup(struct block_device *bdev, char __user *arg)
 static int compat_blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned cmd, unsigned long arg)
 {
-	int ret;
-
 	switch (cmd) {
 	case HDIO_GET_UNMASKINTR:
 	case HDIO_GET_MULTCOUNT:
