@@ -195,4 +195,10 @@
 
 unsigned char *highlander_plat_irq_setup(void);
 
+#ifdef CONFIG_SH_R7785RP
+void highlander_plat_pinmux_setup(void);
+#else
+#define highlander_plat_pinmux_setup()	do { } while (0)
+#endif
+
 #endif  /* __ASM_SH_RENESAS_R7780RP */
