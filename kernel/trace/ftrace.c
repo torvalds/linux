@@ -25,7 +25,6 @@
 #include <linux/ftrace.h>
 #include <linux/sysctl.h>
 #include <linux/ctype.h>
-#include <linux/hash.h>
 #include <linux/list.h>
 
 #include <asm/ftrace.h>
@@ -189,9 +188,7 @@ static int ftrace_filtered;
 static int tracing_on;
 static int frozen_record_count;
 
-static struct hlist_head ftrace_hash[FTRACE_HASHSIZE];
-
-static DEFINE_PER_CPU(int, ftrace_shutdown_disable_cpu);
+static LIST_HEAD(ftrace_new_addrs);
 
 static DEFINE_MUTEX(ftrace_regex_lock);
 
@@ -209,8 +206,6 @@ struct ftrace_page {
 
 static struct ftrace_page	*ftrace_pages_start;
 static struct ftrace_page	*ftrace_pages;
-
-static int ftrace_record_suspend;
 
 static struct dyn_ftrace *ftrace_free_records;
 
@@ -241,72 +236,6 @@ static inline int record_frozen(struct dyn_ftrace *rec)
 # define unfreeze_record(rec)			({ 0; })
 # define record_frozen(rec)			({ 0; })
 #endif /* CONFIG_KPROBES */
-
-int skip_trace(unsigned long ip)
-{
-	unsigned long fl;
-	struct dyn_ftrace *rec;
-	struct hlist_node *t;
-	struct hlist_head *head;
-
-	if (frozen_record_count == 0)
-		return 0;
-
-	head = &ftrace_hash[hash_long(ip, FTRACE_HASHBITS)];
-	hlist_for_each_entry_rcu(rec, t, head, node) {
-		if (rec->ip == ip) {
-			if (record_frozen(rec)) {
-				if (rec->flags & FTRACE_FL_FAILED)
-					return 1;
-
-				if (!(rec->flags & FTRACE_FL_CONVERTED))
-					return 1;
-
-				if (!tracing_on || !ftrace_enabled)
-					return 1;
-
-				if (ftrace_filtered) {
-					fl = rec->flags & (FTRACE_FL_FILTER |
-							   FTRACE_FL_NOTRACE);
-					if (!fl || (fl & FTRACE_FL_NOTRACE))
-						return 1;
-				}
-			}
-			break;
-		}
-	}
-
-	return 0;
-}
-
-static inline int
-ftrace_ip_in_hash(unsigned long ip, unsigned long key)
-{
-	struct dyn_ftrace *p;
-	struct hlist_node *t;
-	int found = 0;
-
-	hlist_for_each_entry_rcu(p, t, &ftrace_hash[key], node) {
-		if (p->ip == ip) {
-			found = 1;
-			break;
-		}
-	}
-
-	return found;
-}
-
-static inline void
-ftrace_add_hash(struct dyn_ftrace *node, unsigned long key)
-{
-	hlist_add_head_rcu(&node->node, &ftrace_hash[key]);
-}
-
-/* called from kstop_machine */
-static inline void ftrace_del_hash(struct dyn_ftrace *node)
-{
-	hlist_del(&node->node);
-}
 
 static void ftrace_free_rec(struct dyn_ftrace *rec)
 {
@@ -362,69 +291,36 @@ static struct dyn_ftrace *ftrace_alloc_dyn_node(unsigned long ip)
 	}
 
 	if (ftrace_pages->index == ENTRIES_PER_PAGE) {
-		if (!ftrace_pages->next)
-			return NULL;
+		if (!ftrace_pages->next) {
+			/* allocate another page */
+			ftrace_pages->next =
+				(void *)get_zeroed_page(GFP_KERNEL);
+			if (!ftrace_pages->next)
+				return NULL;
+		}
 		ftrace_pages = ftrace_pages->next;
 	}
 
 	return &ftrace_pages->records[ftrace_pages->index++];
 }
 
-static void
+static struct dyn_ftrace *
 ftrace_record_ip(unsigned long ip)
 {
-	struct dyn_ftrace *node;
-	unsigned long key;
-	int resched;
-	int cpu;
+	struct dyn_ftrace *rec;
 
 	if (!ftrace_enabled || ftrace_disabled)
-		return;
+		return NULL;
 
-	resched = need_resched();
-	preempt_disable_notrace();
+	rec = ftrace_alloc_dyn_node(ip);
+	if (!rec)
+		return NULL;
 
-	/*
-	 * We simply need to protect against recursion.
-	 * Use the the raw version of smp_processor_id and not
-	 * __get_cpu_var which can call debug hooks that can
-	 * cause a recursive crash here.
-	 */
-	cpu = raw_smp_processor_id();
-	per_cpu(ftrace_shutdown_disable_cpu, cpu)++;
-	if (per_cpu(ftrace_shutdown_disable_cpu, cpu) != 1)
-		goto out;
+	rec->ip = ip;
 
-	if (unlikely(ftrace_record_suspend))
-		goto out;
+	list_add(&rec->list, &ftrace_new_addrs);
 
-	key = hash_long(ip, FTRACE_HASHBITS);
-
-	FTRACE_WARN_ON_ONCE(key >= FTRACE_HASHSIZE);
-
-	if (ftrace_ip_in_hash(ip, key))
-		goto out;
-
-	/* This ip may have hit the hash before the lock */
-	if (ftrace_ip_in_hash(ip, key))
-		goto out;
-
-	node = ftrace_alloc_dyn_node(ip);
-	if (!node)
-		goto out;
-
-	node->ip = ip;
-
-	ftrace_add_hash(node, key);
-
- out:
-	per_cpu(ftrace_shutdown_disable_cpu, cpu)--;
-
-	/* prevent recursion with scheduler */
-	if (resched)
-		preempt_enable_no_resched_notrace();
-	else
-		preempt_enable_notrace();
+	return rec;
 }
 
 #define FTRACE_ADDR ((long)(ftrace_caller))
@@ -543,21 +439,11 @@ static void ftrace_replace_code(int enable)
 				rec->flags |= FTRACE_FL_FAILED;
 				if ((system_state == SYSTEM_BOOTING) ||
 				    !core_kernel_text(rec->ip)) {
-					ftrace_del_hash(rec);
 					ftrace_free_rec(rec);
 				}
 			}
 		}
 	}
-}
-
-static void ftrace_shutdown_replenish(void)
-{
-	if (ftrace_pages->next)
-		return;
-
-	/* allocate another page */
-	ftrace_pages->next = (void *)get_zeroed_page(GFP_KERNEL);
 }
 
 static void print_ip_ins(const char *fmt, unsigned char *p)
@@ -616,18 +502,11 @@ ftrace_code_disable(struct dyn_ftrace *rec)
 	return 1;
 }
 
-static int ftrace_update_code(void *ignore);
-
 static int __ftrace_modify_code(void *data)
 {
 	int *command = data;
 
 	if (*command & FTRACE_ENABLE_CALLS) {
-		/*
-		 * Update any recorded ips now that we have the
-		 * machine stopped
-		 */
-		ftrace_update_code(NULL);
 		ftrace_replace_code(1);
 		tracing_on = 1;
 	} else if (*command & FTRACE_DISABLE_CALLS) {
@@ -738,83 +617,33 @@ static cycle_t		ftrace_update_time;
 static unsigned long	ftrace_update_cnt;
 unsigned long		ftrace_update_tot_cnt;
 
-static int ftrace_update_code(void *ignore)
+static int ftrace_update_code(void)
 {
-	int i, save_ftrace_enabled;
+	struct dyn_ftrace *p, *t;
 	cycle_t start, stop;
-	struct dyn_ftrace *p;
-	struct hlist_node *t, *n;
-	struct hlist_head *head, temp_list;
-
-	/* Don't be recording funcs now */
-	ftrace_record_suspend++;
-	save_ftrace_enabled = ftrace_enabled;
-	ftrace_enabled = 0;
 
 	start = ftrace_now(raw_smp_processor_id());
 	ftrace_update_cnt = 0;
 
-	/* No locks needed, the machine is stopped! */
-	for (i = 0; i < FTRACE_HASHSIZE; i++) {
-		INIT_HLIST_HEAD(&temp_list);
-		head = &ftrace_hash[i];
+	list_for_each_entry_safe(p, t, &ftrace_new_addrs, list) {
 
-		/* all CPUS are stopped, we are safe to modify code */
-		hlist_for_each_entry_safe(p, t, n, head, node) {
-			/* Skip over failed records which have not been
-			 * freed. */
-			if (p->flags & FTRACE_FL_FAILED)
-				continue;
+		/* If something went wrong, bail without enabling anything */
+		if (unlikely(ftrace_disabled))
+			return -1;
 
-			/* Unconverted records are always at the head of the
-			 * hash bucket. Once we encounter a converted record,
-			 * simply skip over to the next bucket. Saves ftraced
-			 * some processor cycles (ftrace does its bid for
-			 * global warming :-p ). */
-			if (p->flags & (FTRACE_FL_CONVERTED))
-				break;
+		list_del_init(&p->list);
 
-			/* Ignore updates to this record's mcount site.
-			 * Reintroduce this record at the head of this
-			 * bucket to attempt to "convert" it again if
-			 * the kprobe on it is unregistered before the
-			 * next run. */
-			if (get_kprobe((void *)p->ip)) {
-				ftrace_del_hash(p);
-				INIT_HLIST_NODE(&p->node);
-				hlist_add_head(&p->node, &temp_list);
-				freeze_record(p);
-				continue;
-			} else {
-				unfreeze_record(p);
-			}
-
-			/* convert record (i.e, patch mcount-call with NOP) */
-			if (ftrace_code_disable(p)) {
-				p->flags |= FTRACE_FL_CONVERTED;
-				ftrace_update_cnt++;
-			} else {
-				if ((system_state == SYSTEM_BOOTING) ||
-				    !core_kernel_text(p->ip)) {
-					ftrace_del_hash(p);
-					ftrace_free_rec(p);
-				}
-			}
-		}
-
-		hlist_for_each_entry_safe(p, t, n, &temp_list, node) {
-			hlist_del(&p->node);
-			INIT_HLIST_NODE(&p->node);
-			hlist_add_head(&p->node, head);
-		}
+		/* convert record (i.e, patch mcount-call with NOP) */
+		if (ftrace_code_disable(p)) {
+			p->flags |= FTRACE_FL_CONVERTED;
+			ftrace_update_cnt++;
+		} else
+			ftrace_free_rec(p);
 	}
 
 	stop = ftrace_now(raw_smp_processor_id());
 	ftrace_update_time = stop - start;
 	ftrace_update_tot_cnt += ftrace_update_cnt;
-
-	ftrace_enabled = save_ftrace_enabled;
-	ftrace_record_suspend--;
 
 	return 0;
 }
@@ -847,7 +676,7 @@ static int __init ftrace_dyn_table_alloc(unsigned long num_to_init)
 	pg = ftrace_pages = ftrace_pages_start;
 
 	cnt = num_to_init / ENTRIES_PER_PAGE;
-	pr_info("ftrace: allocating %ld hash entries in %d pages\n",
+	pr_info("ftrace: allocating %ld entries in %d pages\n",
 		num_to_init, cnt);
 
 	for (i = 0; i < cnt; i++) {
@@ -1451,20 +1280,18 @@ static int ftrace_convert_nops(unsigned long *start,
 	unsigned long addr;
 	unsigned long flags;
 
+	mutex_lock(&ftrace_start_lock);
 	p = start;
 	while (p < end) {
 		addr = ftrace_call_adjust(*p++);
-		/* should not be called from interrupt context */
-		spin_lock(&ftrace_lock);
 		ftrace_record_ip(addr);
-		spin_unlock(&ftrace_lock);
-		ftrace_shutdown_replenish();
 	}
 
-	/* p is ignored */
+	/* disable interrupts to prevent kstop machine */
 	local_irq_save(flags);
-	ftrace_update_code(p);
+	ftrace_update_code();
 	local_irq_restore(flags);
+	mutex_unlock(&ftrace_start_lock);
 
 	return 0;
 }

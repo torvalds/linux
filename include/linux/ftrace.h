@@ -44,8 +44,6 @@ static inline void ftrace_kill(void) { }
 #endif /* CONFIG_FUNCTION_TRACER */
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-# define FTRACE_HASHBITS	10
-# define FTRACE_HASHSIZE	(1<<FTRACE_HASHBITS)
 
 enum {
 	FTRACE_FL_FREE		= (1 << 0),
@@ -58,9 +56,9 @@ enum {
 };
 
 struct dyn_ftrace {
-	struct hlist_node node;
-	unsigned long	  ip; /* address of mcount call-site */
-	unsigned long	  flags;
+	struct list_head	list;
+	unsigned long		ip; /* address of mcount call-site */
+	unsigned long		flags;
 };
 
 int ftrace_force_update(void);

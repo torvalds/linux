@@ -865,9 +865,6 @@ function_trace_call(unsigned long ip, unsigned long parent_ip)
 	if (unlikely(!ftrace_function_enabled))
 		return;
 
-	if (skip_trace(ip))
-		return;
-
 	pc = preempt_count();
 	resched = need_resched();
 	preempt_disable_notrace();
