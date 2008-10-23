@@ -104,7 +104,7 @@ static int memory_get_cur_bandwidth(struct thermal_cooling_device *cdev,
 	if (ACPI_FAILURE(status))
 		return -EFAULT;
 
-	return sprintf(buf, "%ld\n", value);
+	return sprintf(buf, "%llu\n", value);
 }
 
 static int memory_set_cur_bandwidth(struct thermal_cooling_device *cdev,
