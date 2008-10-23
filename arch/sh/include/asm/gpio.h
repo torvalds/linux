@@ -12,6 +12,7 @@
 #ifndef __ASM_SH_GPIO_H
 #define __ASM_SH_GPIO_H
 
+#include <linux/kernel.h>
 #include <linux/errno.h>
 
 #if defined(CONFIG_CPU_SH3)
