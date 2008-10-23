@@ -1,5 +1,5 @@
-#ifndef ASM_X86__I8253_H
-#define ASM_X86__I8253_H
+#ifndef _ASM_X86_I8253_H
+#define _ASM_X86_I8253_H
 
 /* i8253A PIT registers */
 #define PIT_MODE		0x43
@@ -15,4 +15,4 @@ extern void setup_pit_timer(void);
 #define inb_pit		inb_p
 #define outb_pit	outb_p
 
-#endif /* ASM_X86__I8253_H */
+#endif /* _ASM_X86_I8253_H */

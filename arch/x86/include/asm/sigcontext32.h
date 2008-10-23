@@ -1,5 +1,5 @@
-#ifndef ASM_X86__SIGCONTEXT32_H
-#define ASM_X86__SIGCONTEXT32_H
+#ifndef _ASM_X86_SIGCONTEXT32_H
+#define _ASM_X86_SIGCONTEXT32_H
 
 /* signal context for 32bit programs. */
 
@@ -72,4 +72,4 @@ struct sigcontext_ia32 {
        unsigned int cr2;
 };
 
-#endif /* ASM_X86__SIGCONTEXT32_H */
+#endif /* _ASM_X86_SIGCONTEXT32_H */

@@ -1,5 +1,5 @@
-#ifndef ASM_X86__STRING_64_H
-#define ASM_X86__STRING_64_H
+#ifndef _ASM_X86_STRING_64_H
+#define _ASM_X86_STRING_64_H
 
 #ifdef __KERNEL__
 
@@ -57,4 +57,4 @@ int strcmp(const char *cs, const char *ct);
 
 #endif /* __KERNEL__ */
 
-#endif /* ASM_X86__STRING_64_H */
+#endif /* _ASM_X86_STRING_64_H */

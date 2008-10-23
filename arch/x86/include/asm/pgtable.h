@@ -1,5 +1,5 @@
-#ifndef ASM_X86__PGTABLE_H
-#define ASM_X86__PGTABLE_H
+#ifndef _ASM_X86_PGTABLE_H
+#define _ASM_X86_PGTABLE_H
 
 #define FIRST_USER_ADDRESS	0
 
@@ -558,4 +558,4 @@ static inline void clone_pgd_range(pgd_t *dst, pgd_t *src, int count)
 #include <asm-generic/pgtable.h>
 #endif	/* __ASSEMBLY__ */
 
-#endif /* ASM_X86__PGTABLE_H */
+#endif /* _ASM_X86_PGTABLE_H */

@@ -1,8 +1,8 @@
 /*
  * x86 TSC related functions
  */
-#ifndef ASM_X86__TSC_H
-#define ASM_X86__TSC_H
+#ifndef _ASM_X86_TSC_H
+#define _ASM_X86_TSC_H
 
 #include <asm/processor.h>
 
@@ -59,4 +59,4 @@ extern void check_tsc_sync_target(void);
 
 extern int notsc_setup(char *);
 
-#endif /* ASM_X86__TSC_H */
+#endif /* _ASM_X86_TSC_H */

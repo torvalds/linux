@@ -8,8 +8,8 @@
  * From: xen-unstable 10676:af9809f51f81a3c43f276f00c81a52ef558afda4
  */
 
-#ifndef ASM_X86__KVM_X86_EMULATE_H
-#define ASM_X86__KVM_X86_EMULATE_H
+#ifndef _ASM_X86_KVM_X86_EMULATE_H
+#define _ASM_X86_KVM_X86_EMULATE_H
 
 struct x86_emulate_ctxt;
 
@@ -181,4 +181,4 @@ int x86_decode_insn(struct x86_emulate_ctxt *ctxt,
 int x86_emulate_insn(struct x86_emulate_ctxt *ctxt,
 		     struct x86_emulate_ops *ops);
 
-#endif /* ASM_X86__KVM_X86_EMULATE_H */
+#endif /* _ASM_X86_KVM_X86_EMULATE_H */

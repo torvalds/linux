@@ -1,5 +1,5 @@
-#ifndef ASM_X86__KGDB_H
-#define ASM_X86__KGDB_H
+#ifndef _ASM_X86_KGDB_H
+#define _ASM_X86_KGDB_H
 
 /*
  * Copyright (C) 2001-2004 Amit S. Kale
@@ -76,4 +76,4 @@ static inline void arch_kgdb_breakpoint(void)
 #define BREAK_INSTR_SIZE	1
 #define CACHE_FLUSH_IS_SAFE	1
 
-#endif /* ASM_X86__KGDB_H */
+#endif /* _ASM_X86_KGDB_H */

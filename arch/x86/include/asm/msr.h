@@ -1,5 +1,5 @@
-#ifndef ASM_X86__MSR_H
-#define ASM_X86__MSR_H
+#ifndef _ASM_X86_MSR_H
+#define _ASM_X86_MSR_H
 
 #include <asm/msr-index.h>
 
@@ -244,4 +244,4 @@ static inline int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
 #endif /* __KERNEL__ */
 
 
-#endif /* ASM_X86__MSR_H */
+#endif /* _ASM_X86_MSR_H */

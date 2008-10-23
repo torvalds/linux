@@ -1,5 +1,5 @@
-#ifndef ASM_X86__SWIOTLB_H
-#define ASM_X86__SWIOTLB_H
+#ifndef _ASM_X86_SWIOTLB_H
+#define _ASM_X86_SWIOTLB_H
 
 #include <asm/dma-mapping.h>
 
@@ -55,4 +55,4 @@ static inline void pci_swiotlb_init(void)
 
 static inline void dma_mark_clean(void *addr, size_t size) {}
 
-#endif /* ASM_X86__SWIOTLB_H */
+#endif /* _ASM_X86_SWIOTLB_H */

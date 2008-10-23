@@ -1,6 +1,6 @@
 /* Written 2000 by Andi Kleen */
-#ifndef ASM_X86__DESC_DEFS_H
-#define ASM_X86__DESC_DEFS_H
+#ifndef _ASM_X86_DESC_DEFS_H
+#define _ASM_X86_DESC_DEFS_H
 
 /*
  * Segment descriptor structure definitions, usable from both x86_64 and i386
@@ -92,4 +92,4 @@ struct desc_ptr {
 
 #endif /* !__ASSEMBLY__ */
 
-#endif /* ASM_X86__DESC_DEFS_H */
+#endif /* _ASM_X86_DESC_DEFS_H */

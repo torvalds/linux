@@ -1,5 +1,5 @@
-#ifndef ASM_X86__PROCESSOR_H
-#define ASM_X86__PROCESSOR_H
+#ifndef _ASM_X86_PROCESSOR_H
+#define _ASM_X86_PROCESSOR_H
 
 #include <asm/processor-flags.h>
 
@@ -933,4 +933,4 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
 extern int get_tsc_mode(unsigned long adr);
 extern int set_tsc_mode(unsigned int val);
 
-#endif /* ASM_X86__PROCESSOR_H */
+#endif /* _ASM_X86_PROCESSOR_H */

@@ -1,5 +1,5 @@
-#ifndef ASM_X86__TRAPS_H
-#define ASM_X86__TRAPS_H
+#ifndef _ASM_X86_TRAPS_H
+#define _ASM_X86_TRAPS_H
 
 #include <asm/debugreg.h>
 
@@ -78,4 +78,4 @@ unsigned long patch_espfix_desc(unsigned long, unsigned long);
 asmlinkage void math_emulate(long);
 #endif
 
-#endif /* ASM_X86__TRAPS_H */
+#endif /* _ASM_X86_TRAPS_H */

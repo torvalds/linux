@@ -1,5 +1,5 @@
-#ifndef ASM_X86__VSYSCALL_H
-#define ASM_X86__VSYSCALL_H
+#ifndef _ASM_X86_VSYSCALL_H
+#define _ASM_X86_VSYSCALL_H
 
 enum vsyscall_num {
 	__NR_vgettimeofday,
@@ -41,4 +41,4 @@ extern void map_vsyscall(void);
 
 #endif /* __KERNEL__ */
 
-#endif /* ASM_X86__VSYSCALL_H */
+#endif /* _ASM_X86_VSYSCALL_H */

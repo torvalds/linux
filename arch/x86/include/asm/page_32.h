@@ -1,5 +1,5 @@
-#ifndef ASM_X86__PAGE_32_H
-#define ASM_X86__PAGE_32_H
+#ifndef _ASM_X86_PAGE_32_H
+#define _ASM_X86_PAGE_32_H
 
 /*
  * This handles the memory map.
@@ -133,4 +133,4 @@ static inline void copy_page(void *to, void *from)
 #endif	/* CONFIG_X86_3DNOW */
 #endif	/* !__ASSEMBLY__ */
 
-#endif /* ASM_X86__PAGE_32_H */
+#endif /* _ASM_X86_PAGE_32_H */

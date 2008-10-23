@@ -1,5 +1,5 @@
-#ifndef ASM_X86__MMU_H
-#define ASM_X86__MMU_H
+#ifndef _ASM_X86_MMU_H
+#define _ASM_X86_MMU_H
 
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
@@ -23,4 +23,4 @@ static inline void leave_mm(int cpu)
 }
 #endif
 
-#endif /* ASM_X86__MMU_H */
+#endif /* _ASM_X86_MMU_H */

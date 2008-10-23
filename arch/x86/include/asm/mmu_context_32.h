@@ -1,5 +1,5 @@
-#ifndef ASM_X86__MMU_CONTEXT_32_H
-#define ASM_X86__MMU_CONTEXT_32_H
+#ifndef _ASM_X86_MMU_CONTEXT_32_H
+#define _ASM_X86_MMU_CONTEXT_32_H
 
 static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
@@ -53,4 +53,4 @@ static inline void switch_mm(struct mm_struct *prev,
 #define deactivate_mm(tsk, mm)			\
 	asm("movl %0,%%gs": :"r" (0));
 
-#endif /* ASM_X86__MMU_CONTEXT_32_H */
+#endif /* _ASM_X86_MMU_CONTEXT_32_H */

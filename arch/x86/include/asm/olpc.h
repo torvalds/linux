@@ -1,7 +1,7 @@
 /* OLPC machine specific definitions */
 
-#ifndef ASM_X86__OLPC_H
-#define ASM_X86__OLPC_H
+#ifndef _ASM_X86_OLPC_H
+#define _ASM_X86_OLPC_H
 
 #include <asm/geode.h>
 
@@ -129,4 +129,4 @@ extern int olpc_ec_mask_unset(uint8_t bits);
 #define OLPC_GPIO_LID		geode_gpio(26)
 #define OLPC_GPIO_ECSCI		geode_gpio(27)
 
-#endif /* ASM_X86__OLPC_H */
+#endif /* _ASM_X86_OLPC_H */

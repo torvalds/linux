@@ -1,5 +1,5 @@
-#ifndef ASM_X86__USER_32_H
-#define ASM_X86__USER_32_H
+#ifndef _ASM_X86_USER_32_H
+#define _ASM_X86_USER_32_H
 
 #include <asm/page.h>
 /* Core file format: The core file is written in such a way that gdb
@@ -128,4 +128,4 @@ struct user{
 #define HOST_TEXT_START_ADDR (u.start_code)
 #define HOST_STACK_END_ADDR (u.start_stack + u.u_ssize * NBPG)
 
-#endif /* ASM_X86__USER_32_H */
+#endif /* _ASM_X86_USER_32_H */

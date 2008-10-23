@@ -1,5 +1,5 @@
-#ifndef ASM_X86__PROCESSOR_FLAGS_H
-#define ASM_X86__PROCESSOR_FLAGS_H
+#ifndef _ASM_X86_PROCESSOR_FLAGS_H
+#define _ASM_X86_PROCESSOR_FLAGS_H
 /* Various flags defined: can be included from assembler. */
 
 /*
@@ -97,4 +97,4 @@
 #endif
 #endif
 
-#endif /* ASM_X86__PROCESSOR_FLAGS_H */
+#endif /* _ASM_X86_PROCESSOR_FLAGS_H */

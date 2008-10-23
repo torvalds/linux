@@ -1,5 +1,5 @@
-#ifndef ASM_X86__KPROBES_H
-#define ASM_X86__KPROBES_H
+#ifndef _ASM_X86_KPROBES_H
+#define _ASM_X86_KPROBES_H
 /*
  *  Kernel Probes (KProbes)
  *
@@ -85,4 +85,4 @@ struct kprobe_ctlblk {
 extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
 extern int kprobe_exceptions_notify(struct notifier_block *self,
 				    unsigned long val, void *data);
-#endif /* ASM_X86__KPROBES_H */
+#endif /* _ASM_X86_KPROBES_H */

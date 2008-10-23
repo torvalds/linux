@@ -4,8 +4,8 @@
  *
  * Jeremy Fitzhardinge <jeremy@goop.org>
  */
-#ifndef ASM_X86__IRQ_REGS_32_H
-#define ASM_X86__IRQ_REGS_32_H
+#ifndef _ASM_X86_IRQ_REGS_32_H
+#define _ASM_X86_IRQ_REGS_32_H
 
 #include <asm/percpu.h>
 
@@ -26,4 +26,4 @@ static inline struct pt_regs *set_irq_regs(struct pt_regs *new_regs)
 	return old_regs;
 }
 
-#endif /* ASM_X86__IRQ_REGS_32_H */
+#endif /* _ASM_X86_IRQ_REGS_32_H */

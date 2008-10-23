@@ -1,5 +1,5 @@
-#ifndef ASM_X86__MSIDEF_H
-#define ASM_X86__MSIDEF_H
+#ifndef _ASM_X86_MSIDEF_H
+#define _ASM_X86_MSIDEF_H
 
 /*
  * Constants for Intel APIC based MSI messages.
@@ -52,4 +52,4 @@
 #define MSI_ADDR_IR_SHV			(1 << 3)
 #define MSI_ADDR_IR_INDEX1(index)	((index & 0x8000) >> 13)
 #define MSI_ADDR_IR_INDEX2(index)	((index & 0x7fff) << 5)
-#endif /* ASM_X86__MSIDEF_H */
+#endif /* _ASM_X86_MSIDEF_H */

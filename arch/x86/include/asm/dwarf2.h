@@ -1,5 +1,5 @@
-#ifndef ASM_X86__DWARF2_H
-#define ASM_X86__DWARF2_H
+#ifndef _ASM_X86_DWARF2_H
+#define _ASM_X86_DWARF2_H
 
 #ifndef __ASSEMBLY__
 #warning "asm/dwarf2.h should be only included in pure assembly files"
@@ -58,4 +58,4 @@
 
 #endif
 
-#endif /* ASM_X86__DWARF2_H */
+#endif /* _ASM_X86_DWARF2_H */

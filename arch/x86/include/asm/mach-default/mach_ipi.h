@@ -1,5 +1,5 @@
-#ifndef ASM_X86__MACH_DEFAULT__MACH_IPI_H
-#define ASM_X86__MACH_DEFAULT__MACH_IPI_H
+#ifndef _ASM_X86_MACH_DEFAULT__MACH_IPI_H
+#define _ASM_X86_MACH_DEFAULT__MACH_IPI_H
 
 /* Avoid include hell */
 #define NMI_VECTOR 0x02
@@ -61,4 +61,4 @@ static inline void send_IPI_all(int vector)
 }
 #endif
 
-#endif /* ASM_X86__MACH_DEFAULT__MACH_IPI_H */
+#endif /* _ASM_X86_MACH_DEFAULT__MACH_IPI_H */

@@ -1,5 +1,5 @@
-#ifndef ASM_X86__MMAN_H
-#define ASM_X86__MMAN_H
+#ifndef _ASM_X86_MMAN_H
+#define _ASM_X86_MMAN_H
 
 #include <asm-generic/mman.h>
 
@@ -17,4 +17,4 @@
 #define MCL_CURRENT	1		/* lock all current mappings */
 #define MCL_FUTURE	2		/* lock all future mappings */
 
-#endif /* ASM_X86__MMAN_H */
+#endif /* _ASM_X86_MMAN_H */

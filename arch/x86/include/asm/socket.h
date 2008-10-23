@@ -1,5 +1,5 @@
-#ifndef ASM_X86__SOCKET_H
-#define ASM_X86__SOCKET_H
+#ifndef _ASM_X86_SOCKET_H
+#define _ASM_X86_SOCKET_H
 
 #include <asm/sockios.h>
 
@@ -54,4 +54,4 @@
 
 #define SO_MARK			36
 
-#endif /* ASM_X86__SOCKET_H */
+#endif /* _ASM_X86_SOCKET_H */

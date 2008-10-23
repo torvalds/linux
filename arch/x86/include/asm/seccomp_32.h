@@ -1,5 +1,5 @@
-#ifndef ASM_X86__SECCOMP_32_H
-#define ASM_X86__SECCOMP_32_H
+#ifndef _ASM_X86_SECCOMP_32_H
+#define _ASM_X86_SECCOMP_32_H
 
 #include <linux/thread_info.h>
 
@@ -14,4 +14,4 @@
 #define __NR_seccomp_exit __NR_exit
 #define __NR_seccomp_sigreturn __NR_sigreturn
 
-#endif /* ASM_X86__SECCOMP_32_H */
+#endif /* _ASM_X86_SECCOMP_32_H */

@@ -5,8 +5,8 @@
  * Author: Laurent Vivier <Laurent.Vivier@bull.net>
  */
 
-#ifndef ASM_X86__RIO_H
-#define ASM_X86__RIO_H
+#ifndef _ASM_X86_RIO_H
+#define _ASM_X86_RIO_H
 
 #define RIO_TABLE_VERSION	3
 
@@ -60,4 +60,4 @@ enum {
 	ALT_CALGARY	= 5,	/* Second Planar Calgary      */
 };
 
-#endif /* ASM_X86__RIO_H */
+#endif /* _ASM_X86_RIO_H */

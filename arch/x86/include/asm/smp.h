@@ -1,5 +1,5 @@
-#ifndef ASM_X86__SMP_H
-#define ASM_X86__SMP_H
+#ifndef _ASM_X86_SMP_H
+#define _ASM_X86_SMP_H
 #ifndef __ASSEMBLY__
 #include <linux/cpumask.h>
 #include <linux/init.h>
@@ -226,4 +226,4 @@ static inline int hard_smp_processor_id(void)
 #endif /* CONFIG_X86_LOCAL_APIC */
 
 #endif /* __ASSEMBLY__ */
-#endif /* ASM_X86__SMP_H */
+#endif /* _ASM_X86_SMP_H */

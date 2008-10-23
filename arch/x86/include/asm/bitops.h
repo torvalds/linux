@@ -1,5 +1,5 @@
-#ifndef ASM_X86__BITOPS_H
-#define ASM_X86__BITOPS_H
+#ifndef _ASM_X86_BITOPS_H
+#define _ASM_X86_BITOPS_H
 
 /*
  * Copyright 1992, Linus Torvalds.
@@ -448,4 +448,4 @@ static inline int fls(int x)
 #include <asm-generic/bitops/minix.h>
 
 #endif /* __KERNEL__ */
-#endif /* ASM_X86__BITOPS_H */
+#endif /* _ASM_X86_BITOPS_H */

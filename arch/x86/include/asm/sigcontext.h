@@ -1,5 +1,5 @@
-#ifndef ASM_X86__SIGCONTEXT_H
-#define ASM_X86__SIGCONTEXT_H
+#ifndef _ASM_X86_SIGCONTEXT_H
+#define _ASM_X86_SIGCONTEXT_H
 
 #include <linux/compiler.h>
 #include <asm/types.h>
@@ -281,4 +281,4 @@ struct _xstate {
 	/* new processor state extensions go here */
 };
 
-#endif /* ASM_X86__SIGCONTEXT_H */
+#endif /* _ASM_X86_SIGCONTEXT_H */

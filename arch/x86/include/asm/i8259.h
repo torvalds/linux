@@ -1,5 +1,5 @@
-#ifndef ASM_X86__I8259_H
-#define ASM_X86__I8259_H
+#ifndef _ASM_X86_I8259_H
+#define _ASM_X86_I8259_H
 
 #include <linux/delay.h>
 
@@ -60,4 +60,4 @@ extern struct irq_chip i8259A_chip;
 extern void mask_8259A(void);
 extern void unmask_8259A(void);
 
-#endif /* ASM_X86__I8259_H */
+#endif /* _ASM_X86_I8259_H */

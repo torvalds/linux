@@ -15,8 +15,8 @@
  * Copyright (C) 1999 Ingo Molnar <mingo@redhat.com>
  */
 
-#ifndef ASM_X86__HIGHMEM_H
-#define ASM_X86__HIGHMEM_H
+#ifndef _ASM_X86_HIGHMEM_H
+#define _ASM_X86_HIGHMEM_H
 
 #ifdef __KERNEL__
 
@@ -79,4 +79,4 @@ extern void add_highpages_with_active_regions(int nid, unsigned long start_pfn,
 
 #endif /* __KERNEL__ */
 
-#endif /* ASM_X86__HIGHMEM_H */
+#endif /* _ASM_X86_HIGHMEM_H */

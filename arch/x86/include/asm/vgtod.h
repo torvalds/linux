@@ -1,5 +1,5 @@
-#ifndef ASM_X86__VGTOD_H
-#define ASM_X86__VGTOD_H
+#ifndef _ASM_X86_VGTOD_H
+#define _ASM_X86_VGTOD_H
 
 #include <asm/vsyscall.h>
 #include <linux/clocksource.h>
@@ -26,4 +26,4 @@ extern struct vsyscall_gtod_data __vsyscall_gtod_data
 __section_vsyscall_gtod_data;
 extern struct vsyscall_gtod_data vsyscall_gtod_data;
 
-#endif /* ASM_X86__VGTOD_H */
+#endif /* _ASM_X86_VGTOD_H */

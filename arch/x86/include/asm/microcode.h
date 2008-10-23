@@ -1,5 +1,5 @@
-#ifndef ASM_X86__MICROCODE_H
-#define ASM_X86__MICROCODE_H
+#ifndef _ASM_X86_MICROCODE_H
+#define _ASM_X86_MICROCODE_H
 
 struct cpu_signature {
 	unsigned int sig;
@@ -44,4 +44,4 @@ static inline struct microcode_ops * __init init_amd_microcode(void)
 }
 #endif
 
-#endif /* ASM_X86__MICROCODE_H */
+#endif /* _ASM_X86_MICROCODE_H */

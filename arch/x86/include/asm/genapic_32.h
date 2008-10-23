@@ -1,5 +1,5 @@
-#ifndef ASM_X86__GENAPIC_32_H
-#define ASM_X86__GENAPIC_32_H
+#ifndef _ASM_X86_GENAPIC_32_H
+#define _ASM_X86_GENAPIC_32_H
 
 #include <asm/mpspec.h>
 
@@ -123,4 +123,4 @@ enum uv_system_type {UV_NONE, UV_LEGACY_APIC, UV_X2APIC, UV_NON_UNIQUE_APIC};
 #define uv_system_init()		do {} while (0)
 
 
-#endif /* ASM_X86__GENAPIC_32_H */
+#endif /* _ASM_X86_GENAPIC_32_H */

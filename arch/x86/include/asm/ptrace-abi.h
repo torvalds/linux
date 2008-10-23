@@ -1,5 +1,5 @@
-#ifndef ASM_X86__PTRACE_ABI_H
-#define ASM_X86__PTRACE_ABI_H
+#ifndef _ASM_X86_PTRACE_ABI_H
+#define _ASM_X86_PTRACE_ABI_H
 
 #ifdef __i386__
 
@@ -142,4 +142,4 @@ struct ptrace_bts_config {
 */
 #endif /* CONFIG_X86_PTRACE_BTS */
 
-#endif /* ASM_X86__PTRACE_ABI_H */
+#endif /* _ASM_X86_PTRACE_ABI_H */

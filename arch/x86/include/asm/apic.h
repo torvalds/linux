@@ -1,5 +1,5 @@
-#ifndef ASM_X86__APIC_H
-#define ASM_X86__APIC_H
+#ifndef _ASM_X86_APIC_H
+#define _ASM_X86_APIC_H
 
 #include <linux/pm.h>
 #include <linux/delay.h>
@@ -196,4 +196,4 @@ static inline void init_apic_mappings(void) { }
 
 #endif /* !CONFIG_X86_LOCAL_APIC */
 
-#endif /* ASM_X86__APIC_H */
+#endif /* _ASM_X86_APIC_H */

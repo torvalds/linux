@@ -9,8 +9,8 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 
-#ifndef ASM_X86__A_OUT_CORE_H
-#define ASM_X86__A_OUT_CORE_H
+#ifndef _ASM_X86_A_OUT_CORE_H
+#define _ASM_X86_A_OUT_CORE_H
 
 #ifdef __KERNEL__
 #ifdef CONFIG_X86_32
@@ -70,4 +70,4 @@ static inline void aout_dump_thread(struct pt_regs *regs, struct user *dump)
 
 #endif /* CONFIG_X86_32 */
 #endif /* __KERNEL__ */
-#endif /* ASM_X86__A_OUT_CORE_H */
+#endif /* _ASM_X86_A_OUT_CORE_H */

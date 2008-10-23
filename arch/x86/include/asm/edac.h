@@ -1,5 +1,5 @@
-#ifndef ASM_X86__EDAC_H
-#define ASM_X86__EDAC_H
+#ifndef _ASM_X86_EDAC_H
+#define _ASM_X86_EDAC_H
 
 /* ECC atomic, DMA, SMP and interrupt safe scrub function */
 
@@ -15,4 +15,4 @@ static inline void atomic_scrub(void *va, u32 size)
 		asm volatile("lock; addl $0, %0"::"m" (*virt_addr));
 }
 
-#endif /* ASM_X86__EDAC_H */
+#endif /* _ASM_X86_EDAC_H */

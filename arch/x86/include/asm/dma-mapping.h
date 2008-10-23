@@ -1,5 +1,5 @@
-#ifndef ASM_X86__DMA_MAPPING_H
-#define ASM_X86__DMA_MAPPING_H
+#ifndef _ASM_X86_DMA_MAPPING_H
+#define _ASM_X86_DMA_MAPPING_H
 
 /*
  * IOMMU interface. See Documentation/DMA-mapping.txt and DMA-API.txt for
@@ -65,7 +65,7 @@ static inline struct dma_mapping_ops *get_dma_ops(struct device *dev)
 		return dma_ops;
 	else
 		return dev->archdata.dma_ops;
-#endif /* ASM_X86__DMA_MAPPING_H */
+#endif /* _ASM_X86_DMA_MAPPING_H */
 }
 
 /* Make sure we keep the same behaviour */

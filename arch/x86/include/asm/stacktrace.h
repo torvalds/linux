@@ -1,5 +1,5 @@
-#ifndef ASM_X86__STACKTRACE_H
-#define ASM_X86__STACKTRACE_H
+#ifndef _ASM_X86_STACKTRACE_H
+#define _ASM_X86_STACKTRACE_H
 
 extern int kstack_depth_to_print;
 
@@ -18,4 +18,4 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 		unsigned long *stack, unsigned long bp,
 		const struct stacktrace_ops *ops, void *data);
 
-#endif /* ASM_X86__STACKTRACE_H */
+#endif /* _ASM_X86_STACKTRACE_H */

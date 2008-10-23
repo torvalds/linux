@@ -1,5 +1,5 @@
-#ifndef ASM_X86__MMU_CONTEXT_64_H
-#define ASM_X86__MMU_CONTEXT_64_H
+#ifndef _ASM_X86_MMU_CONTEXT_64_H
+#define _ASM_X86_MMU_CONTEXT_64_H
 
 #include <asm/pda.h>
 
@@ -51,4 +51,4 @@ do {						\
 	asm volatile("movl %0,%%fs"::"r"(0));	\
 } while (0)
 
-#endif /* ASM_X86__MMU_CONTEXT_64_H */
+#endif /* _ASM_X86_MMU_CONTEXT_64_H */

@@ -1,5 +1,5 @@
-#ifndef ASM_X86__BIOS_EBDA_H
-#define ASM_X86__BIOS_EBDA_H
+#ifndef _ASM_X86_BIOS_EBDA_H
+#define _ASM_X86_BIOS_EBDA_H
 
 #include <asm/io.h>
 
@@ -33,4 +33,4 @@ static inline void start_periodic_check_for_corruption(void)
 }
 #endif
 
-#endif /* ASM_X86__BIOS_EBDA_H */
+#endif /* _ASM_X86_BIOS_EBDA_H */

@@ -1,5 +1,5 @@
-#ifndef ASM_X86__IO_64_H
-#define ASM_X86__IO_64_H
+#ifndef _ASM_X86_IO_64_H
+#define _ASM_X86_IO_64_H
 
 
 /*
@@ -241,4 +241,4 @@ void memset_io(volatile void __iomem *a, int b, size_t c);
 
 #endif /* __KERNEL__ */
 
-#endif /* ASM_X86__IO_64_H */
+#endif /* _ASM_X86_IO_64_H */

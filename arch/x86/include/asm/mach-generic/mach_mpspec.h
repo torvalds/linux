@@ -1,5 +1,5 @@
-#ifndef ASM_X86__MACH_GENERIC__MACH_MPSPEC_H
-#define ASM_X86__MACH_GENERIC__MACH_MPSPEC_H
+#ifndef _ASM_X86_MACH_GENERIC__MACH_MPSPEC_H
+#define _ASM_X86_MACH_GENERIC__MACH_MPSPEC_H
 
 #define MAX_IRQ_SOURCES 256
 
@@ -9,4 +9,4 @@
 
 extern void numaq_mps_oem_check(struct mp_config_table *mpc, char *oem,
 				char *productid);
-#endif /* ASM_X86__MACH_GENERIC__MACH_MPSPEC_H */
+#endif /* _ASM_X86_MACH_GENERIC__MACH_MPSPEC_H */

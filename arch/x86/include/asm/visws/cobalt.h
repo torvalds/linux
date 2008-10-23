@@ -1,5 +1,5 @@
-#ifndef ASM_X86__VISWS__COBALT_H
-#define ASM_X86__VISWS__COBALT_H
+#ifndef _ASM_X86_VISWS__COBALT_H
+#define _ASM_X86_VISWS__COBALT_H
 
 #include <asm/fixmap.h>
 
@@ -122,4 +122,4 @@ extern char visws_board_type;
 
 extern char visws_board_rev;
 
-#endif /* ASM_X86__VISWS__COBALT_H */
+#endif /* _ASM_X86_VISWS__COBALT_H */

@@ -1,5 +1,5 @@
-#ifndef ASM_X86__FTRACE_H
-#define ASM_X86__FTRACE_H
+#ifndef _ASM_X86_FTRACE_H
+#define _ASM_X86_FTRACE_H
 
 #ifdef CONFIG_FTRACE
 #define MCOUNT_ADDR		((long)(mcount))
@@ -21,4 +21,4 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 
 #endif /* CONFIG_FTRACE */
 
-#endif /* ASM_X86__FTRACE_H */
+#endif /* _ASM_X86_FTRACE_H */

@@ -1,5 +1,5 @@
-#ifndef ASM_X86__SPINLOCK_H
-#define ASM_X86__SPINLOCK_H
+#ifndef _ASM_X86_SPINLOCK_H
+#define _ASM_X86_SPINLOCK_H
 
 #include <asm/atomic.h>
 #include <asm/rwlock.h>
@@ -361,4 +361,4 @@ static inline void __raw_write_unlock(raw_rwlock_t *rw)
 #define _raw_read_relax(lock)	cpu_relax()
 #define _raw_write_relax(lock)	cpu_relax()
 
-#endif /* ASM_X86__SPINLOCK_H */
+#endif /* _ASM_X86_SPINLOCK_H */

@@ -1,5 +1,5 @@
-#ifndef ASM_X86__LOCAL_H
-#define ASM_X86__LOCAL_H
+#ifndef _ASM_X86_LOCAL_H
+#define _ASM_X86_LOCAL_H
 
 #include <linux/percpu.h>
 
@@ -232,4 +232,4 @@ static inline long local_sub_return(long i, local_t *l)
 #define __cpu_local_add(i, l)	cpu_local_add((i), (l))
 #define __cpu_local_sub(i, l)	cpu_local_sub((i), (l))
 
-#endif /* ASM_X86__LOCAL_H */
+#endif /* _ASM_X86_LOCAL_H */

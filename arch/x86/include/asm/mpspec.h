@@ -1,5 +1,5 @@
-#ifndef ASM_X86__MPSPEC_H
-#define ASM_X86__MPSPEC_H
+#ifndef _ASM_X86_MPSPEC_H
+#define _ASM_X86_MPSPEC_H
 
 #include <linux/init.h>
 
@@ -142,4 +142,4 @@ static inline void physid_set_mask_of_physid(int physid, physid_mask_t *map)
 
 extern physid_mask_t phys_cpu_present_map;
 
-#endif /* ASM_X86__MPSPEC_H */
+#endif /* _ASM_X86_MPSPEC_H */

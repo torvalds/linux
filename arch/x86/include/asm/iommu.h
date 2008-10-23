@@ -1,5 +1,5 @@
-#ifndef ASM_X86__IOMMU_H
-#define ASM_X86__IOMMU_H
+#ifndef _ASM_X86_IOMMU_H
+#define _ASM_X86_IOMMU_H
 
 extern void pci_iommu_shutdown(void);
 extern void no_iommu_init(void);
@@ -43,4 +43,4 @@ static inline void gart_iommu_hole_init(void)
 }
 #endif
 
-#endif /* ASM_X86__IOMMU_H */
+#endif /* _ASM_X86_IOMMU_H */

@@ -6,8 +6,8 @@
  *
  *  Copyright (C) 2004, 2005, 2006 Red Hat, Inc., Ingo Molnar <mingo@redhat.com>
  */
-#ifndef ASM_X86__MUTEX_32_H
-#define ASM_X86__MUTEX_32_H
+#ifndef _ASM_X86_MUTEX_32_H
+#define _ASM_X86_MUTEX_32_H
 
 #include <asm/alternative.h>
 
@@ -122,4 +122,4 @@ static inline int __mutex_fastpath_trylock(atomic_t *count,
 #endif
 }
 
-#endif /* ASM_X86__MUTEX_32_H */
+#endif /* _ASM_X86_MUTEX_32_H */

@@ -1,6 +1,6 @@
 /* Architecture specific portion of the lguest hypercalls */
-#ifndef ASM_X86__LGUEST_HCALL_H
-#define ASM_X86__LGUEST_HCALL_H
+#ifndef _ASM_X86_LGUEST_HCALL_H
+#define _ASM_X86_LGUEST_HCALL_H
 
 #define LHCALL_FLUSH_ASYNC	0
 #define LHCALL_LGUEST_INIT	1
@@ -68,4 +68,4 @@ struct hcall_args {
 };
 
 #endif /* !__ASSEMBLY__ */
-#endif /* ASM_X86__LGUEST_HCALL_H */
+#endif /* _ASM_X86_LGUEST_HCALL_H */

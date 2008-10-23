@@ -8,8 +8,8 @@
  * Copyright (C) 2008 Silicon Graphics, Inc. All rights reserved.
  */
 
-#ifndef ASM_X86__UV__UV_IRQ_H
-#define ASM_X86__UV__UV_IRQ_H
+#ifndef _ASM_X86_UV__UV_IRQ_H
+#define _ASM_X86_UV__UV_IRQ_H
 
 /* If a generic version of this structure gets defined, eliminate this one. */
 struct uv_IO_APIC_route_entry {
@@ -33,4 +33,4 @@ extern void arch_disable_uv_irq(int, unsigned long);
 extern int uv_setup_irq(char *, int, int, unsigned long);
 extern void uv_teardown_irq(unsigned int, int, unsigned long);
 
-#endif /* ASM_X86__UV__UV_IRQ_H */
+#endif /* _ASM_X86_UV__UV_IRQ_H */

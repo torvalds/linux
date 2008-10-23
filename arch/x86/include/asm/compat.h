@@ -1,5 +1,5 @@
-#ifndef ASM_X86__COMPAT_H
-#define ASM_X86__COMPAT_H
+#ifndef _ASM_X86_COMPAT_H
+#define _ASM_X86_COMPAT_H
 
 /*
  * Architecture specific compatibility types
@@ -215,4 +215,4 @@ static inline int is_compat_task(void)
 	return current_thread_info()->status & TS_COMPAT;
 }
 
-#endif /* ASM_X86__COMPAT_H */
+#endif /* _ASM_X86_COMPAT_H */

@@ -1,5 +1,5 @@
-#ifndef ASM_X86__PAGE_H
-#define ASM_X86__PAGE_H
+#ifndef _ASM_X86_PAGE_H
+#define _ASM_X86_PAGE_H
 
 #include <linux/const.h>
 
@@ -206,4 +206,4 @@ extern bool __virt_addr_valid(unsigned long kaddr);
 #define __HAVE_ARCH_GATE_AREA 1
 
 #endif	/* __KERNEL__ */
-#endif /* ASM_X86__PAGE_H */
+#endif /* _ASM_X86_PAGE_H */

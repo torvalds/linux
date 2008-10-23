@@ -1,5 +1,5 @@
-#ifndef ASM_X86__PAGE_64_H
-#define ASM_X86__PAGE_64_H
+#ifndef _ASM_X86_PAGE_64_H
+#define _ASM_X86_PAGE_64_H
 
 #define PAGETABLE_LEVELS	4
 
@@ -102,4 +102,4 @@ extern void init_extra_mapping_wb(unsigned long phys, unsigned long size);
 #endif
 
 
-#endif /* ASM_X86__PAGE_64_H */
+#endif /* _ASM_X86_PAGE_64_H */

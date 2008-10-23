@@ -1,5 +1,5 @@
-#ifndef ASM_X86__BOOTPARAM_H
-#define ASM_X86__BOOTPARAM_H
+#ifndef _ASM_X86_BOOTPARAM_H
+#define _ASM_X86_BOOTPARAM_H
 
 #include <linux/types.h>
 #include <linux/screen_info.h>
@@ -108,4 +108,4 @@ struct boot_params {
 	__u8  _pad9[276];				/* 0xeec */
 } __attribute__((packed));
 
-#endif /* ASM_X86__BOOTPARAM_H */
+#endif /* _ASM_X86_BOOTPARAM_H */

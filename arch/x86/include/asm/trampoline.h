@@ -1,5 +1,5 @@
-#ifndef ASM_X86__TRAMPOLINE_H
-#define ASM_X86__TRAMPOLINE_H
+#ifndef _ASM_X86_TRAMPOLINE_H
+#define _ASM_X86_TRAMPOLINE_H
 
 #ifndef __ASSEMBLY__
 
@@ -18,4 +18,4 @@ extern unsigned long setup_trampoline(void);
 
 #endif /* __ASSEMBLY__ */
 
-#endif /* ASM_X86__TRAMPOLINE_H */
+#endif /* _ASM_X86_TRAMPOLINE_H */

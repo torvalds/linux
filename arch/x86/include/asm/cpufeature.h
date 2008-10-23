@@ -1,8 +1,8 @@
 /*
  * Defines x86 CPU feature bits
  */
-#ifndef ASM_X86__CPUFEATURE_H
-#define ASM_X86__CPUFEATURE_H
+#ifndef _ASM_X86_CPUFEATURE_H
+#define _ASM_X86_CPUFEATURE_H
 
 #include <asm/required-features.h>
 
@@ -268,4 +268,4 @@ extern const char * const x86_power_flags[32];
 
 #endif /* defined(__KERNEL__) && !defined(__ASSEMBLY__) */
 
-#endif /* ASM_X86__CPUFEATURE_H */
+#endif /* _ASM_X86_CPUFEATURE_H */

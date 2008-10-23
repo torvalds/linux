@@ -1,5 +1,5 @@
-#ifndef ASM_X86__IO_32_H
-#define ASM_X86__IO_32_H
+#ifndef _ASM_X86_IO_32_H
+#define _ASM_X86_IO_32_H
 
 #include <linux/string.h>
 #include <linux/compiler.h>
@@ -281,4 +281,4 @@ BUILDIO(b, b, char)
 BUILDIO(w, w, short)
 BUILDIO(l, , int)
 
-#endif /* ASM_X86__IO_32_H */
+#endif /* _ASM_X86_IO_32_H */

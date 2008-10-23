@@ -1,5 +1,5 @@
-#ifndef ASM_X86__SYSTEM_H
-#define ASM_X86__SYSTEM_H
+#ifndef _ASM_X86_SYSTEM_H
+#define _ASM_X86_SYSTEM_H
 
 #include <asm/asm.h>
 #include <asm/segment.h>
@@ -422,4 +422,4 @@ static inline void rdtsc_barrier(void)
 	alternative(ASM_NOP3, "lfence", X86_FEATURE_LFENCE_RDTSC);
 }
 
-#endif /* ASM_X86__SYSTEM_H */
+#endif /* _ASM_X86_SYSTEM_H */

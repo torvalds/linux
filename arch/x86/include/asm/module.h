@@ -1,5 +1,5 @@
-#ifndef ASM_X86__MODULE_H
-#define ASM_X86__MODULE_H
+#ifndef _ASM_X86_MODULE_H
+#define _ASM_X86_MODULE_H
 
 /* x86_32/64 are simple */
 struct mod_arch_specific {};
@@ -77,4 +77,4 @@ struct mod_arch_specific {};
 # define MODULE_ARCH_VERMAGIC MODULE_PROC_FAMILY MODULE_STACKSIZE
 #endif
 
-#endif /* ASM_X86__MODULE_H */
+#endif /* _ASM_X86_MODULE_H */

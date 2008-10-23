@@ -1,5 +1,5 @@
-#ifndef ASM_X86__GENAPIC_64_H
-#define ASM_X86__GENAPIC_64_H
+#ifndef _ASM_X86_GENAPIC_64_H
+#define _ASM_X86_GENAPIC_64_H
 
 /*
  * Copyright 2004 James Cleverdon, IBM.
@@ -55,4 +55,4 @@ extern int uv_wakeup_secondary(int phys_apicid, unsigned int start_rip);
 
 extern void setup_apic_routing(void);
 
-#endif /* ASM_X86__GENAPIC_64_H */
+#endif /* _ASM_X86_GENAPIC_64_H */

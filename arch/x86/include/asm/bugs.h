@@ -1,5 +1,5 @@
-#ifndef ASM_X86__BUGS_H
-#define ASM_X86__BUGS_H
+#ifndef _ASM_X86_BUGS_H
+#define _ASM_X86_BUGS_H
 
 extern void check_bugs(void);
 
@@ -9,4 +9,4 @@ int ppro_with_ram_bug(void);
 static inline int ppro_with_ram_bug(void) { return 0; }
 #endif
 
-#endif /* ASM_X86__BUGS_H */
+#endif /* _ASM_X86_BUGS_H */

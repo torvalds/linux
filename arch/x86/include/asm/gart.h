@@ -1,5 +1,5 @@
-#ifndef ASM_X86__GART_H
-#define ASM_X86__GART_H
+#ifndef _ASM_X86_GART_H
+#define _ASM_X86_GART_H
 
 #include <asm/e820.h>
 
@@ -70,4 +70,4 @@ static inline int aperture_valid(u64 aper_base, u32 aper_size, u32 min_size)
 	return 1;
 }
 
-#endif /* ASM_X86__GART_H */
+#endif /* _ASM_X86_GART_H */

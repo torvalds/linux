@@ -8,8 +8,8 @@
  *
  */
 
-#ifndef ASM_X86__KVM_HOST_H
-#define ASM_X86__KVM_HOST_H
+#ifndef _ASM_X86_KVM_HOST_H
+#define _ASM_X86_KVM_HOST_H
 
 #include <linux/types.h>
 #include <linux/mm.h>
@@ -749,4 +749,4 @@ asmlinkage void kvm_handle_fault_on_reboot(void);
 int kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
 int kvm_age_hva(struct kvm *kvm, unsigned long hva);
 
-#endif /* ASM_X86__KVM_HOST_H */
+#endif /* _ASM_X86_KVM_HOST_H */

@@ -1,5 +1,5 @@
-#ifndef ASM_X86__CACHE_H
-#define ASM_X86__CACHE_H
+#ifndef _ASM_X86_CACHE_H
+#define _ASM_X86_CACHE_H
 
 /* L1 cache line size */
 #define L1_CACHE_SHIFT	(CONFIG_X86_L1_CACHE_SHIFT)
@@ -17,4 +17,4 @@
 #endif
 #endif
 
-#endif /* ASM_X86__CACHE_H */
+#endif /* _ASM_X86_CACHE_H */

@@ -1,5 +1,5 @@
-#ifndef ASM_X86__SYNC_BITOPS_H
-#define ASM_X86__SYNC_BITOPS_H
+#ifndef _ASM_X86_SYNC_BITOPS_H
+#define _ASM_X86_SYNC_BITOPS_H
 
 /*
  * Copyright 1992, Linus Torvalds.
@@ -127,4 +127,4 @@ static inline int sync_test_and_change_bit(int nr, volatile unsigned long *addr)
 
 #undef ADDR
 
-#endif /* ASM_X86__SYNC_BITOPS_H */
+#endif /* _ASM_X86_SYNC_BITOPS_H */

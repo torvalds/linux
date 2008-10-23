@@ -1,5 +1,5 @@
-#ifndef ASM_X86__POSIX_TYPES_64_H
-#define ASM_X86__POSIX_TYPES_64_H
+#ifndef _ASM_X86_POSIX_TYPES_64_H
+#define _ASM_X86_POSIX_TYPES_64_H
 
 /*
  * This file is generally used by user-level software, so you need to
@@ -116,4 +116,4 @@ static inline void __FD_ZERO(__kernel_fd_set *p)
 
 #endif /* defined(__KERNEL__) */
 
-#endif /* ASM_X86__POSIX_TYPES_64_H */
+#endif /* _ASM_X86_POSIX_TYPES_64_H */

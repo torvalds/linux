@@ -3,8 +3,8 @@
  * Based on code
  * Copyright 2001 Patrick Mochel <mochel@osdl.org>
  */
-#ifndef ASM_X86__SUSPEND_64_H
-#define ASM_X86__SUSPEND_64_H
+#ifndef _ASM_X86_SUSPEND_64_H
+#define _ASM_X86_SUSPEND_64_H
 
 #include <asm/desc.h>
 #include <asm/i387.h>
@@ -49,4 +49,4 @@ extern int acpi_save_state_mem(void);
 extern char core_restore_code;
 extern char restore_registers;
 
-#endif /* ASM_X86__SUSPEND_64_H */
+#endif /* _ASM_X86_SUSPEND_64_H */

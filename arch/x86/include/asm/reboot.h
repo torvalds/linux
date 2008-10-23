@@ -1,5 +1,5 @@
-#ifndef ASM_X86__REBOOT_H
-#define ASM_X86__REBOOT_H
+#ifndef _ASM_X86_REBOOT_H
+#define _ASM_X86_REBOOT_H
 
 struct pt_regs;
 
@@ -18,4 +18,4 @@ void native_machine_crash_shutdown(struct pt_regs *regs);
 void native_machine_shutdown(void);
 void machine_real_restart(const unsigned char *code, int length);
 
-#endif /* ASM_X86__REBOOT_H */
+#endif /* _ASM_X86_REBOOT_H */

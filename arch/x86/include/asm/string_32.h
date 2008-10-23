@@ -1,5 +1,5 @@
-#ifndef ASM_X86__STRING_32_H
-#define ASM_X86__STRING_32_H
+#ifndef _ASM_X86_STRING_32_H
+#define _ASM_X86_STRING_32_H
 
 #ifdef __KERNEL__
 
@@ -323,4 +323,4 @@ extern void *memscan(void *addr, int c, size_t size);
 
 #endif /* __KERNEL__ */
 
-#endif /* ASM_X86__STRING_32_H */
+#endif /* _ASM_X86_STRING_32_H */

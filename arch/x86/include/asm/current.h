@@ -1,5 +1,5 @@
-#ifndef ASM_X86__CURRENT_H
-#define ASM_X86__CURRENT_H
+#ifndef _ASM_X86_CURRENT_H
+#define _ASM_X86_CURRENT_H
 
 #ifdef CONFIG_X86_32
 #include <linux/compiler.h>
@@ -36,4 +36,4 @@ static __always_inline struct task_struct *get_current(void)
 
 #define current get_current()
 
-#endif /* ASM_X86__CURRENT_H */
+#endif /* _ASM_X86_CURRENT_H */

@@ -1,5 +1,5 @@
-#ifndef ASM_X86__NUMA_64_H
-#define ASM_X86__NUMA_64_H
+#ifndef _ASM_X86_NUMA_64_H
+#define _ASM_X86_NUMA_64_H
 
 #include <linux/nodemask.h>
 #include <asm/apicdef.h>
@@ -40,4 +40,4 @@ static inline void numa_add_cpu(int cpu, int node)	{ }
 static inline void numa_remove_cpu(int cpu)		{ }
 #endif
 
-#endif /* ASM_X86__NUMA_64_H */
+#endif /* _ASM_X86_NUMA_64_H */

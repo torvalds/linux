@@ -1,5 +1,5 @@
-#ifndef ASM_X86__EMERGENCY_RESTART_H
-#define ASM_X86__EMERGENCY_RESTART_H
+#ifndef _ASM_X86_EMERGENCY_RESTART_H
+#define _ASM_X86_EMERGENCY_RESTART_H
 
 enum reboot_type {
 	BOOT_TRIPLE = 't',
@@ -15,4 +15,4 @@ extern enum reboot_type reboot_type;
 
 extern void machine_emergency_restart(void);
 
-#endif /* ASM_X86__EMERGENCY_RESTART_H */
+#endif /* _ASM_X86_EMERGENCY_RESTART_H */

@@ -1,5 +1,5 @@
-#ifndef ASM_X86__KVM_H
-#define ASM_X86__KVM_H
+#ifndef _ASM_X86_KVM_H
+#define _ASM_X86_KVM_H
 
 /*
  * KVM x86 specific structures and definitions
@@ -208,4 +208,4 @@ struct kvm_pit_channel_state {
 struct kvm_pit_state {
 	struct kvm_pit_channel_state channels[3];
 };
-#endif /* ASM_X86__KVM_H */
+#endif /* _ASM_X86_KVM_H */

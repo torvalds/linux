@@ -1,5 +1,5 @@
-#ifndef ASM_X86__EFI_H
-#define ASM_X86__EFI_H
+#ifndef _ASM_X86_EFI_H
+#define _ASM_X86_EFI_H
 
 #ifdef CONFIG_X86_32
 
@@ -107,4 +107,4 @@ extern void efi_call_phys_epilog(void);
 #define efi_call6(_f, _a1, _a2, _a3, _a4, _a5, _a6)	(-ENOSYS)
 #endif /* CONFIG_EFI */
 
-#endif /* ASM_X86__EFI_H */
+#endif /* _ASM_X86_EFI_H */

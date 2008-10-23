@@ -1,5 +1,5 @@
-#ifndef ASM_X86__PDA_H
-#define ASM_X86__PDA_H
+#ifndef _ASM_X86_PDA_H
+#define _ASM_X86_PDA_H
 
 #ifndef __ASSEMBLY__
 #include <linux/stddef.h>
@@ -134,4 +134,4 @@ do {									\
 
 #define PDA_STACKOFFSET (5*8)
 
-#endif /* ASM_X86__PDA_H */
+#endif /* _ASM_X86_PDA_H */

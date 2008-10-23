@@ -1,5 +1,5 @@
-#ifndef ASM_X86__ATOMIC_64_H
-#define ASM_X86__ATOMIC_64_H
+#ifndef _ASM_X86_ATOMIC_64_H
+#define _ASM_X86_ATOMIC_64_H
 
 #include <asm/alternative.h>
 #include <asm/cmpxchg.h>
@@ -470,4 +470,4 @@ static inline void atomic_or_long(unsigned long *v1, unsigned long v2)
 #define smp_mb__after_atomic_inc()	barrier()
 
 #include <asm-generic/atomic.h>
-#endif /* ASM_X86__ATOMIC_64_H */
+#endif /* _ASM_X86_ATOMIC_64_H */

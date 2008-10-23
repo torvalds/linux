@@ -1,5 +1,5 @@
-#ifndef ASM_X86__NMI_H
-#define ASM_X86__NMI_H
+#ifndef _ASM_X86_NMI_H
+#define _ASM_X86_NMI_H
 
 #include <linux/pm.h>
 #include <asm/irq.h>
@@ -78,4 +78,4 @@ void enable_lapic_nmi_watchdog(void);
 void stop_nmi(void);
 void restart_nmi(void);
 
-#endif /* ASM_X86__NMI_H */
+#endif /* _ASM_X86_NMI_H */
