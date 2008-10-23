@@ -620,6 +620,9 @@ pci_mmap_resource(struct kobject *kobj, struct bin_attribute *attr,
 	vma->vm_pgoff += start >> PAGE_SHIFT;
 	mmap_type = res->flags & IORESOURCE_MEM ? pci_mmap_mem : pci_mmap_io;
 
+	if (res->flags & IORESOURCE_MEM && iomem_is_exclusive(start))
+		return -EINVAL;
+
 	return pci_mmap_page_range(pdev, vma, mmap_type, write_combine);
 }
 
