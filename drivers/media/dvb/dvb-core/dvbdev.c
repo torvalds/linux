@@ -50,33 +50,27 @@ static const char * const dnames[] = {
 	"net", "osd"
 };
 
+#ifdef CONFIG_DVB_DYNAMIC_MINORS
+#define MAX_DVB_MINORS		256
+#define DVB_MAX_IDS		MAX_DVB_MINORS
+#else
 #define DVB_MAX_IDS		4
 #define nums2minor(num,type,id)	((num << 6) | (id << 4) | type)
 #define MAX_DVB_MINORS		(DVB_MAX_ADAPTERS*64)
+#endif
 
 static struct class *dvb_class;
 
-static struct dvb_device* dvbdev_find_device (int minor)
-{
-	struct dvb_adapter *adap;
-
-	list_for_each_entry(adap, &dvb_adapter_list, list_head) {
-		struct dvb_device *dev;
-		list_for_each_entry(dev, &adap->device_list, list_head)
-			if (nums2minor(adap->num, dev->type, dev->id) == minor)
-				return dev;
-	}
-
-	return NULL;
-}
-
+static struct dvb_device *dvb_minors[MAX_DVB_MINORS];
+static DECLARE_RWSEM(minor_rwsem);
 
 static int dvb_device_open(struct inode *inode, struct file *file)
 {
 	struct dvb_device *dvbdev;
 
 	lock_kernel();
-	dvbdev = dvbdev_find_device (iminor(inode));
+	down_read(&minor_rwsem);
+	dvbdev = dvb_minors[iminor(inode)];
 
 	if (dvbdev && dvbdev->fops) {
 		int err = 0;
@@ -92,9 +86,11 @@ static int dvb_device_open(struct inode *inode, struct file *file)
 			file->f_op = fops_get(old_fops);
 		}
 		fops_put(old_fops);
+		up_read(&minor_rwsem);
 		unlock_kernel();
 		return err;
 	}
+	up_read(&minor_rwsem);
 	unlock_kernel();
 	return -ENODEV;
 }
@@ -192,6 +188,7 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 	struct dvb_device *dvbdev;
 	struct file_operations *dvbdevfops;
 	struct device *clsdev;
+	int minor;
 	int id;
 
 	mutex_lock(&dvbdev_register_lock);
@@ -231,6 +228,26 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 
 	list_add_tail (&dvbdev->list_head, &adap->device_list);
 
+	down_write(&minor_rwsem);
+#ifdef CONFIG_DVB_DYNAMIC_MINORS
+	for (minor = 0; minor < MAX_DVB_MINORS; minor++)
+		if (dvb_minors[minor] == NULL)
+			break;
+
+	if (minor == MAX_DVB_MINORS) {
+		kfree(dvbdevfops);
+		kfree(dvbdev);
+		mutex_unlock(&dvbdev_register_lock);
+		return -EINVAL;
+	}
+#else
+	minor = nums2minor(adap->num, type, id);
+#endif
+
+	dvbdev->minor = minor;
+	dvb_minors[minor] = dvbdev;
+	up_write(&minor_rwsem);
+
 	mutex_unlock(&dvbdev_register_lock);
 
 	clsdev = device_create(dvb_class, adap->device,
@@ -243,8 +260,7 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 	}
 
 	dprintk(KERN_DEBUG "DVB: register adapter%d/%s%d @ minor: %i (0x%02x)\n",
-		adap->num, dnames[type], id, nums2minor(adap->num, type, id),
-		nums2minor(adap->num, type, id));
+		adap->num, dnames[type], id, minor, minor);
 
 	return 0;
 }
@@ -256,8 +272,11 @@ void dvb_unregister_device(struct dvb_device *dvbdev)
 	if (!dvbdev)
 		return;
 
-	device_destroy(dvb_class, MKDEV(DVB_MAJOR, nums2minor(dvbdev->adapter->num,
-		       dvbdev->type, dvbdev->id)));
+	down_write(&minor_rwsem);
+	dvb_minors[dvbdev->minor] = NULL;
+	up_write(&minor_rwsem);
+
+	device_destroy(dvb_class, MKDEV(DVB_MAJOR, dvbdev->minor));
 
 	list_del (&dvbdev->list_head);
 	kfree (dvbdev->fops);
