@@ -45,7 +45,6 @@
 /* wiphy is set if this request's initiator is REGDOM_SET_BY_DRIVER */
 struct regulatory_request {
 	struct wiphy *wiphy;
-	int granted;
 	enum reg_set_by initiator;
 	char alpha2[2];
 };
@@ -744,7 +743,6 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 
 	/* Tada! */
 	cfg80211_regdomain = rd;
-	last_request->granted = 1;
 
 	return 0;
 }
