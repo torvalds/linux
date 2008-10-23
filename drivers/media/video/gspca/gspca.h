@@ -142,22 +142,21 @@ struct gspca_dev {
 	char fr_q;				/* next frame to queue */
 	char fr_o;				/* next frame to dequeue */
 	signed char fr_queue[GSPCA_MAX_FRAMES];	/* frame queue */
-	char last_packet_type;
+	__u8 last_packet_type;
+	__s8 empty_packet;		/* if (-1) don't check empty packets */
+	__u8 streaming;
 
-	__u8 iface;			/* USB interface number */
-	__u8 alt;			/* USB alternate setting */
 	__u8 curr_mode;			/* current camera mode */
 	__u32 pixfmt;			/* current mode parameters */
 	__u16 width;
 	__u16 height;
+	__u32 sequence;			/* frame sequence number */
 
 	atomic_t nevent;		/* number of frames done */
 	wait_queue_head_t wq;		/* wait queue */
 	struct mutex usb_lock;		/* usb exchange protection */
 	struct mutex read_lock;		/* read protection */
 	struct mutex queue_lock;	/* ISOC queue protection */
-	__u32 sequence;			/* frame sequence number */
-	char streaming;
 #ifdef CONFIG_PM
 	char frozen;			/* suspend - resume */
 #endif
@@ -166,6 +165,8 @@ struct gspca_dev {
 	char nbufread;			/* number of buffers for read() */
 	char nurbs;			/* number of allocated URBs */
 	char memory;			/* memory type (V4L2_MEMORY_xxx) */
+	__u8 iface;			/* USB interface number */
+	__u8 alt;			/* USB alternate setting */
 	__u8 nbalt;			/* number of USB alternate settings */
 };
 

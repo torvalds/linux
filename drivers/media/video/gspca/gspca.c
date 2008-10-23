@@ -150,8 +150,11 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 
 		/* check the packet status and length */
 		len = urb->iso_frame_desc[i].actual_length;
-		if (len == 0)
+		if (len == 0) {
+			if (gspca_dev->empty_packet == 0)
+				gspca_dev->empty_packet = 1;
 			continue;
+		}
 		st = urb->iso_frame_desc[i].status;
 		if (st) {
 			PDEBUG(D_ERR,
@@ -1858,6 +1861,7 @@ int gspca_dev_probe(struct usb_interface *intf,
 	gspca_dev->nbalt = intf->num_altsetting;
 	gspca_dev->sd_desc = sd_desc;
 	gspca_dev->nbufread = 2;
+	gspca_dev->empty_packet = -1;	/* don't check the empty packets */
 
 	/* configure the subdriver and initialize the USB device */
 	ret = gspca_dev->sd_desc->config(gspca_dev, id);
