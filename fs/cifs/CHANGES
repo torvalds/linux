@@ -3,7 +3,8 @@ Version 1.55
 Various fixes to make delete of open files behavior more predictable
 (when delete of an open file fails we mark the file as "delete-on-close"
 in a way that more servers accept, but only if we can first rename the
-file to a temporary name)
+file to a temporary name).  Add experimental support for more safely
+handling fcntl(F_SETLEASE).
 
 Version 1.54
 ------------

@@ -90,7 +90,8 @@ struct smb_vol {
 	bool nocase:1;     /* request case insensitive filenames */
 	bool nobrl:1;      /* disable sending byte range locks to srv */
 	bool seal:1;       /* request transport encryption on share */
-	bool nodfs:1;
+	bool nodfs:1;      /* Do not request DFS, even if available */
+	bool local_lease:1; /* check leases only on local system, not remote */
 	unsigned int rsize;
 	unsigned int wsize;
 	unsigned int sockopt;
@@ -1264,6 +1265,10 @@ cifs_parse_mount_options(char *options, const char *devname,
 			vol->no_psx_acl = 0;
 		} else if (strnicmp(data, "noacl", 5) == 0) {
 			vol->no_psx_acl = 1;
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+		} else if (strnicmp(data, "locallease", 6) == 0) {
+			vol->local_lease = 1;
+#endif
 		} else if (strnicmp(data, "sign", 4) == 0) {
 			vol->secFlg |= CIFSSEC_MUST_SIGN;
 		} else if (strnicmp(data, "seal", 4) == 0) {
@@ -2162,6 +2167,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			   for the retry flag is used */
 			tcon->retry = volume_info.retry;
 			tcon->nocase = volume_info.nocase;
+			tcon->local_lease = volume_info.local_lease;
 			if (tcon->seal != volume_info.seal)
 				cERROR(1, ("transport encryption setting "
 					   "conflicts with existing tid"));

@@ -285,6 +285,7 @@ struct cifsTconInfo {
 	bool seal:1;      /* transport encryption for this mounted share */
 	bool unix_ext:1;  /* if false disable Linux extensions to CIFS protocol
 				for this mount even if server would support */
+	bool local_lease:1; /* check leases (only) on local system not remote */
 	/* BB add field for back pointer to sb struct(s)? */
 };
 
