@@ -55,42 +55,34 @@
  *
  */
 
-void ll_emma2rh_irq_enable(int emma2rh_irq)
-{
-	u32 reg_value;
-	u32 reg_bitmask;
-	u32 reg_index;
-
-	reg_index = EMMA2RH_BHIF_INT_EN_0 +
-		    (EMMA2RH_BHIF_INT_EN_1 - EMMA2RH_BHIF_INT_EN_0) *
-		    (emma2rh_irq / 32);
-	reg_value = emma2rh_in32(reg_index);
-	reg_bitmask = 0x1 << (emma2rh_irq % 32);
-	emma2rh_out32(reg_index, reg_value | reg_bitmask);
-}
-
-void ll_emma2rh_irq_disable(int emma2rh_irq)
-{
-	u32 reg_value;
-	u32 reg_bitmask;
-	u32 reg_index;
-
-	reg_index = EMMA2RH_BHIF_INT_EN_0 +
-		    (EMMA2RH_BHIF_INT_EN_1 - EMMA2RH_BHIF_INT_EN_0) *
-		    (emma2rh_irq / 32);
-	reg_value = emma2rh_in32(reg_index);
-	reg_bitmask = 0x1 << (emma2rh_irq % 32);
-	emma2rh_out32(reg_index, reg_value & ~reg_bitmask);
-}
-
 static void emma2rh_irq_enable(unsigned int irq)
 {
-	ll_emma2rh_irq_enable(irq - EMMA2RH_IRQ_BASE);
+	u32 reg_value;
+	u32 reg_bitmask;
+	u32 reg_index;
+
+	irq -= EMMA2RH_IRQ_BASE;
+
+	reg_index = EMMA2RH_BHIF_INT_EN_0 +
+		    (EMMA2RH_BHIF_INT_EN_1 - EMMA2RH_BHIF_INT_EN_0) * (irq / 32);
+	reg_value = emma2rh_in32(reg_index);
+	reg_bitmask = 0x1 << (irq % 32);
+	emma2rh_out32(reg_index, reg_value | reg_bitmask);
 }
 
 static void emma2rh_irq_disable(unsigned int irq)
 {
-	ll_emma2rh_irq_disable(irq - EMMA2RH_IRQ_BASE);
+	u32 reg_value;
+	u32 reg_bitmask;
+	u32 reg_index;
+
+	irq -= EMMA2RH_IRQ_BASE;
+
+	reg_index = EMMA2RH_BHIF_INT_EN_0 +
+		    (EMMA2RH_BHIF_INT_EN_1 - EMMA2RH_BHIF_INT_EN_0) * (irq / 32);
+	reg_value = emma2rh_in32(reg_index);
+	reg_bitmask = 0x1 << (irq % 32);
+	emma2rh_out32(reg_index, reg_value & ~reg_bitmask);
 }
 
 struct irq_chip emma2rh_irq_controller = {
@@ -111,32 +103,26 @@ void emma2rh_irq_init(void)
 					 handle_level_irq);
 }
 
-void ll_emma2rh_sw_irq_enable(int irq)
+static void emma2rh_sw_irq_enable(unsigned int irq)
 {
 	u32 reg;
+
+	irq -= EMMA2RH_SW_IRQ_BASE;
 
 	reg = emma2rh_in32(EMMA2RH_BHIF_SW_INT_EN);
 	reg |= 1 << irq;
 	emma2rh_out32(EMMA2RH_BHIF_SW_INT_EN, reg);
 }
 
-void ll_emma2rh_sw_irq_disable(int irq)
+static void emma2rh_sw_irq_disable(unsigned int irq)
 {
 	u32 reg;
+
+	irq -= EMMA2RH_SW_IRQ_BASE;
 
 	reg = emma2rh_in32(EMMA2RH_BHIF_SW_INT_EN);
 	reg &= ~(1 << irq);
 	emma2rh_out32(EMMA2RH_BHIF_SW_INT_EN, reg);
-}
-
-static void emma2rh_sw_irq_enable(unsigned int irq)
-{
-	ll_emma2rh_sw_irq_enable(irq - EMMA2RH_SW_IRQ_BASE);
-}
-
-static void emma2rh_sw_irq_disable(unsigned int irq)
-{
-	ll_emma2rh_sw_irq_disable(irq - EMMA2RH_SW_IRQ_BASE);
 }
 
 struct irq_chip emma2rh_sw_irq_controller = {
@@ -157,45 +143,52 @@ void emma2rh_sw_irq_init(void)
 					 handle_level_irq);
 }
 
-void ll_emma2rh_gpio_irq_enable(int irq)
+static void emma2rh_gpio_irq_enable(unsigned int irq)
 {
 	u32 reg;
+
+	irq -= EMMA2RH_GPIO_IRQ_BASE;
 
 	reg = emma2rh_in32(EMMA2RH_GPIO_INT_MASK);
 	reg |= 1 << irq;
 	emma2rh_out32(EMMA2RH_GPIO_INT_MASK, reg);
 }
 
-void ll_emma2rh_gpio_irq_disable(int irq)
+static void emma2rh_gpio_irq_disable(unsigned int irq)
 {
 	u32 reg;
+
+	irq -= EMMA2RH_GPIO_IRQ_BASE;
 
 	reg = emma2rh_in32(EMMA2RH_GPIO_INT_MASK);
 	reg &= ~(1 << irq);
 	emma2rh_out32(EMMA2RH_GPIO_INT_MASK, reg);
 }
 
-static void emma2rh_gpio_irq_enable(unsigned int irq)
-{
-	ll_emma2rh_gpio_irq_enable(irq - EMMA2RH_GPIO_IRQ_BASE);
-}
-
-static void emma2rh_gpio_irq_disable(unsigned int irq)
-{
-	ll_emma2rh_gpio_irq_disable(irq - EMMA2RH_GPIO_IRQ_BASE);
-}
-
 static void emma2rh_gpio_irq_ack(unsigned int irq)
 {
+	u32 reg;
+
 	irq -= EMMA2RH_GPIO_IRQ_BASE;
 	emma2rh_out32(EMMA2RH_GPIO_INT_ST, ~(1 << irq));
-	ll_emma2rh_gpio_irq_disable(irq);
+
+	reg = emma2rh_in32(EMMA2RH_GPIO_INT_MASK);
+	reg &= ~(1 << irq);
+	emma2rh_out32(EMMA2RH_GPIO_INT_MASK, reg);
 }
 
 static void emma2rh_gpio_irq_end(unsigned int irq)
 {
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
-		ll_emma2rh_gpio_irq_enable(irq - EMMA2RH_GPIO_IRQ_BASE);
+	u32 reg;
+
+	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS))) {
+
+		irq -= EMMA2RH_GPIO_IRQ_BASE;
+
+		reg = emma2rh_in32(EMMA2RH_GPIO_INT_MASK);
+		reg |= 1 << irq;
+		emma2rh_out32(EMMA2RH_GPIO_INT_MASK, reg);
+	}
 }
 
 struct irq_chip emma2rh_gpio_irq_controller = {
