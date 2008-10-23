@@ -257,7 +257,6 @@ config MACH_ARMCORE
 	bool "CompuLab CM-X255/CM-X270 modules"
 	select PXA27x
 	select IWMMXT
-	select ZONE_DMA if PCI
 	select PXA25x
 	select PXA_SSP
 

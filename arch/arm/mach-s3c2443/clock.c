@@ -1033,8 +1033,7 @@ void __init s3c2443_init_clocks(int xtal)
 
 	fclk = pll / s3c2443_fclk_div(clkdiv0);
 	hclk = s3c2443_prediv_getrate(&clk_prediv);
-	hclk = hclk / s3c2443_get_hdiv(clkdiv0);
-	hclk = hclk / ((clkdiv0 & S3C2443_CLKDIV0_HALF_HCLK) ? 2 : 1);
+	hclk /= s3c2443_get_hdiv(clkdiv0);
  	pclk = hclk / ((clkdiv0 & S3C2443_CLKDIV0_HALF_PCLK) ? 2 : 1);
 
 	s3c24xx_setup_clocks(xtal, fclk, hclk, pclk);
