@@ -105,7 +105,7 @@ static int event_buffer_open(struct inode *inode, struct file *file)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (test_and_set_bit(0, &buffer_opened))
+	if (test_and_set_bit_lock(0, &buffer_opened))
 		return -EBUSY;
 
 	/* Register as a user of dcookies
@@ -129,7 +129,7 @@ static int event_buffer_open(struct inode *inode, struct file *file)
 fail:
 	dcookie_unregister(file->private_data);
 out:
-	clear_bit(0, &buffer_opened);
+	__clear_bit_unlock(0, &buffer_opened);
 	return err;
 }
 
@@ -141,7 +141,7 @@ static int event_buffer_release(struct inode *inode, struct file *file)
 	dcookie_unregister(file->private_data);
 	buffer_pos = 0;
 	atomic_set(&buffer_ready, 0);
-	clear_bit(0, &buffer_opened);
+	__clear_bit_unlock(0, &buffer_opened);
 	return 0;
 }
 
