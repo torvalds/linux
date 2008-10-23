@@ -21,7 +21,6 @@
 #include <linux/idr.h>
 #include <linux/hdreg.h>
 #include <linux/blktrace_api.h>
-#include <linux/smp_lock.h>
 
 #define DM_MSG_PREFIX "core"
 
@@ -248,13 +247,13 @@ static void __exit dm_exit(void)
 /*
  * Block device functions
  */
-static int dm_blk_open(struct inode *inode, struct file *file)
+static int dm_blk_open(struct block_device *bdev, fmode_t mode)
 {
 	struct mapped_device *md;
 
 	spin_lock(&_minor_lock);
 
-	md = inode->i_bdev->bd_disk->private_data;
+	md = bdev->bd_disk->private_data;
 	if (!md)
 		goto out;
 
@@ -273,11 +272,9 @@ out:
 	return md ? 0 : -ENXIO;
 }
 
-static int dm_blk_close(struct inode *inode, struct file *file)
+static int dm_blk_close(struct gendisk *disk, fmode_t mode)
 {
-	struct mapped_device *md;
-
-	md = inode->i_bdev->bd_disk->private_data;
+	struct mapped_device *md = disk->private_data;
 	atomic_dec(&md->open_count);
 	dm_put(md);
 	return 0;
@@ -314,20 +311,13 @@ static int dm_blk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return dm_get_geometry(md, geo);
 }
 
-static int dm_blk_ioctl(struct inode *inode, struct file *file,
+static int dm_blk_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long arg)
 {
-	struct mapped_device *md;
-	struct dm_table *map;
+	struct mapped_device *md = bdev->bd_disk->private_data;
+	struct dm_table *map = dm_get_table(md);
 	struct dm_target *tgt;
 	int r = -ENOTTY;
-
-	/* We don't really need this lock, but we do need 'inode'. */
-	unlock_kernel();
-
-	md = inode->i_bdev->bd_disk->private_data;
-
-	map = dm_get_table(md);
 
 	if (!map || !dm_table_get_size(map))
 		goto out;
@@ -344,12 +334,11 @@ static int dm_blk_ioctl(struct inode *inode, struct file *file,
 	}
 
 	if (tgt->type->ioctl)
-		r = tgt->type->ioctl(tgt, inode, file, cmd, arg);
+		r = tgt->type->ioctl(tgt, cmd, arg);
 
 out:
 	dm_table_put(map);
 
-	lock_kernel();
 	return r;
 }
 

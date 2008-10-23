@@ -474,8 +474,8 @@ struct ide_disk_ops {
 	ide_startstop_t	(*do_request)(struct ide_drive_s *, struct request *,
 				      sector_t);
 	int		(*end_request)(struct ide_drive_s *, int, int);
-	int		(*ioctl)(struct ide_drive_s *, struct inode *,
-				 struct file *, unsigned int, unsigned long);
+	int		(*ioctl)(struct ide_drive_s *, struct block_device *,
+				 fmode_t, unsigned int, unsigned long);
 };
 
 /* ATAPI device flags */
@@ -1158,8 +1158,7 @@ struct ide_ioctl_devset {
 int ide_setting_ioctl(ide_drive_t *, struct block_device *, unsigned int,
 		      unsigned long, const struct ide_ioctl_devset *);
 
-int generic_ide_ioctl(ide_drive_t *, struct file *, struct block_device *,
-		      unsigned, unsigned long);
+int generic_ide_ioctl(ide_drive_t *, struct block_device *, unsigned, unsigned long);
 
 extern int ide_vlb_clk;
 extern int ide_pci_clk;

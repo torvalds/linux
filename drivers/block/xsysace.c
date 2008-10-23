@@ -870,25 +870,24 @@ static int ace_revalidate_disk(struct gendisk *gd)
 	return ace->id_result;
 }
 
-static int ace_open(struct inode *inode, struct file *filp)
+static int ace_open(struct block_device *bdev, fmode_t mode)
 {
-	struct ace_device *ace = inode->i_bdev->bd_disk->private_data;
+	struct ace_device *ace = bdev->bd_disk->private_data;
 	unsigned long flags;
 
 	dev_dbg(ace->dev, "ace_open() users=%i\n", ace->users + 1);
 
-	filp->private_data = ace;
 	spin_lock_irqsave(&ace->lock, flags);
 	ace->users++;
 	spin_unlock_irqrestore(&ace->lock, flags);
 
-	check_disk_change(inode->i_bdev);
+	check_disk_change(bdev);
 	return 0;
 }
 
-static int ace_release(struct inode *inode, struct file *filp)
+static int ace_release(struct gendisk *disk, fmode_t mode)
 {
-	struct ace_device *ace = inode->i_bdev->bd_disk->private_data;
+	struct ace_device *ace = disk->private_data;
 	unsigned long flags;
 	u16 val;
 
