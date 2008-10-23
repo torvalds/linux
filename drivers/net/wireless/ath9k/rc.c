@@ -2026,7 +2026,7 @@ static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
 	DPRINTF(sc, ATH_DBG_RATE, "%s\n", __func__);
 
 	ath_setup_rates(sc, sband, sta, ath_rc_priv);
-	if (sc->hw->conf.ht.enabled) {
+	if (sta->ht_cap.ht_supported) {
 		for (i = 0; i < 77; i++) {
 			if (sta->ht_cap.mcs.rx_mask[i/8] & (1<<(i%8)))
 				ath_rc_priv->neg_ht_rates.rs_rates[j++] = i;
