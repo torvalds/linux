@@ -109,6 +109,11 @@ if ($#ARGV < 6) {
 my ($arch, $bits, $objdump, $objcopy, $cc,
     $ld, $nm, $rm, $mv, $inputfile) = @ARGV;
 
+# Acceptable sections to record.
+my %text_sections = (
+     ".text" => 1,
+);
+
 $objdump = "objdump" if ((length $objdump) == 0);
 $objcopy = "objcopy" if ((length $objcopy) == 0);
 $cc = "gcc" if ((length $cc) == 0);
@@ -139,7 +144,7 @@ if ($arch eq "x86") {
 }
 
 if ($arch eq "x86_64") {
-    $section_regex = "Disassembly of section";
+    $section_regex = "Disassembly of section\\s+(\\S+):";
     $function_regex = "^([0-9a-fA-F]+)\\s+<(.*?)>:";
     $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\smcount([+-]0x[0-9a-zA-Z]+)?\$";
     $type = ".quad";
@@ -151,7 +156,7 @@ if ($arch eq "x86_64") {
     $cc .= " -m64";
 
 } elsif ($arch eq "i386") {
-    $section_regex = "Disassembly of section";
+    $section_regex = "Disassembly of section\\s+(\\S+):";
     $function_regex = "^([0-9a-fA-F]+)\\s+<(.*?)>:";
     $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\smcount\$";
     $type = ".long";
@@ -298,7 +303,13 @@ my $text;
 while (<IN>) {
     # is it a section?
     if (/$section_regex/) {
-	$read_function = 1;
+
+	# Only record text sections that we know are safe
+	if (defined($text_sections{$1})) {
+	    $read_function = 1;
+	} else {
+	    $read_function = 0;
+	}
 	# print out any recorded offsets
 	update_funcs() if ($text_found);
 
