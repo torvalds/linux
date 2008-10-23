@@ -249,10 +249,9 @@ config MARKEINS
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select SYS_HAS_CPU_R5000
+	select SYS_HAS_CPU_R5500
 	help
-	  This enables support for the R5432-based NEC Mark-eins
-	  boards with R5500 CPU.
+	  This enables support for the NEC Mark-eins board with VR5500 CPU.
 
 config MACH_VR41XX
 	bool "NEC VR4100 series based machines"
@@ -1123,6 +1122,16 @@ config CPU_R5432
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 
+config CPU_R5500
+	bool "R5500"
+	depends on SYS_HAS_CPU_R5500
+	select CPU_HAS_LLSC
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_64BIT_KERNEL
+	help
+	  NEC VR5500 and VR5500A series processors implement 64-bit MIPS IV
+	  instruction set.
+
 config CPU_R6000
 	bool "R6000"
 	depends on EXPERIMENTAL
@@ -1231,6 +1240,9 @@ config SYS_HAS_CPU_R5000
 	bool
 
 config SYS_HAS_CPU_R5432
+	bool
+
+config SYS_HAS_CPU_R5500
 	bool
 
 config SYS_HAS_CPU_R6000
