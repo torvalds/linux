@@ -32,6 +32,7 @@
 #include "ubifs.h"
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/debugfs.h>
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
 
@@ -988,22 +989,20 @@ static int dbg_check_key_order(struct ubifs_info *c, struct ubifs_zbranch *zbr1,
 	err = 1;
 	key_read(c, &dent1->key, &key);
 	if (keys_cmp(c, &zbr1->key, &key)) {
-		dbg_err("1st entry at %d:%d has key %s", zbr1->lnum,
-			zbr1->offs, DBGKEY(&key));
-		dbg_err("but it should have key %s according to tnc",
-			DBGKEY(&zbr1->key));
-			dbg_dump_node(c, dent1);
-			goto out_free;
+		ubifs_err("1st entry at %d:%d has key %s", zbr1->lnum,
+			  zbr1->offs, DBGKEY(&key));
+		ubifs_err("but it should have key %s according to tnc",
+			  DBGKEY(&zbr1->key)); dbg_dump_node(c, dent1);
+		goto out_free;
 	}
 
 	key_read(c, &dent2->key, &key);
 	if (keys_cmp(c, &zbr2->key, &key)) {
-		dbg_err("2nd entry at %d:%d has key %s", zbr1->lnum,
-			zbr1->offs, DBGKEY(&key));
-		dbg_err("but it should have key %s according to tnc",
-			DBGKEY(&zbr2->key));
-			dbg_dump_node(c, dent2);
-			goto out_free;
+		ubifs_err("2nd entry at %d:%d has key %s", zbr1->lnum,
+			  zbr1->offs, DBGKEY(&key));
+		ubifs_err("but it should have key %s according to tnc",
+			  DBGKEY(&zbr2->key)); dbg_dump_node(c, dent2);
+		goto out_free;
 	}
 
 	nlen1 = le16_to_cpu(dent1->nlen);
@@ -1015,14 +1014,14 @@ static int dbg_check_key_order(struct ubifs_info *c, struct ubifs_zbranch *zbr1,
 		goto out_free;
 	}
 	if (cmp == 0 && nlen1 == nlen2)
-		dbg_err("2 xent/dent nodes with the same name");
+		ubifs_err("2 xent/dent nodes with the same name");
 	else
-		dbg_err("bad order of colliding key %s",
+		ubifs_err("bad order of colliding key %s",
 			DBGKEY(&key));
 
-	dbg_msg("first node at %d:%d\n", zbr1->lnum, zbr1->offs);
+	ubifs_msg("first node at %d:%d\n", zbr1->lnum, zbr1->offs);
 	dbg_dump_node(c, dent1);
-	dbg_msg("second node at %d:%d\n", zbr2->lnum, zbr2->offs);
+	ubifs_msg("second node at %d:%d\n", zbr2->lnum, zbr2->offs);
 	dbg_dump_node(c, dent2);
 
 out_free:
@@ -2103,7 +2102,7 @@ static void failure_mode_init(struct ubifs_info *c)
 
 	fmi = kmalloc(sizeof(struct failure_mode_info), GFP_NOFS);
 	if (!fmi) {
-		dbg_err("Failed to register failure mode - no memory");
+		ubifs_err("Failed to register failure mode - no memory");
 		return;
 	}
 	fmi->c = c;
@@ -2381,6 +2380,146 @@ void ubifs_debugging_exit(struct ubifs_info *c)
 	failure_mode_exit(c);
 	vfree(c->dbg->buf);
 	kfree(c->dbg);
+}
+
+/*
+ * Root directory for UBIFS stuff in debugfs. Contains sub-directories which
+ * contain the stuff specific to particular file-system mounts.
+ */
+static struct dentry *debugfs_rootdir;
+
+/**
+ * dbg_debugfs_init - initialize debugfs file-system.
+ *
+ * UBIFS uses debugfs file-system to expose various debugging knobs to
+ * user-space. This function creates "ubifs" directory in the debugfs
+ * file-system. Returns zero in case of success and a negative error code in
+ * case of failure.
+ */
+int dbg_debugfs_init(void)
+{
+	debugfs_rootdir = debugfs_create_dir("ubifs", NULL);
+	if (IS_ERR(debugfs_rootdir)) {
+		int err = PTR_ERR(debugfs_rootdir);
+		ubifs_err("cannot create \"ubifs\" debugfs directory, "
+			  "error %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
+/**
+ * dbg_debugfs_exit - remove the "ubifs" directory from debugfs file-system.
+ */
+void dbg_debugfs_exit(void)
+{
+	debugfs_remove(debugfs_rootdir);
+}
+
+static int open_debugfs_file(struct inode *inode, struct file *file)
+{
+	file->private_data = inode->i_private;
+	return 0;
+}
+
+static ssize_t write_debugfs_file(struct file *file, const char __user *buf,
+				  size_t count, loff_t *ppos)
+{
+	struct ubifs_info *c = file->private_data;
+	struct ubifs_debug_info *d = c->dbg;
+
+	if (file->f_path.dentry == d->dump_lprops)
+		dbg_dump_lprops(c);
+	else if (file->f_path.dentry == d->dump_budg) {
+		spin_lock(&c->space_lock);
+		dbg_dump_budg(c);
+		spin_unlock(&c->space_lock);
+	} else if (file->f_path.dentry == d->dump_budg) {
+		mutex_lock(&c->tnc_mutex);
+		dbg_dump_tnc(c);
+		mutex_unlock(&c->tnc_mutex);
+	} else
+		return -EINVAL;
+
+	*ppos += count;
+	return count;
+}
+
+static const struct file_operations debugfs_fops = {
+	.open = open_debugfs_file,
+	.write = write_debugfs_file,
+	.owner = THIS_MODULE,
+};
+
+/**
+ * dbg_debugfs_init_fs - initialize debugfs for UBIFS instance.
+ * @c: UBIFS file-system description object
+ *
+ * This function creates all debugfs files for this instance of UBIFS. Returns
+ * zero in case of success and a negative error code in case of failure.
+ *
+ * Note, the only reason we have not merged this function with the
+ * 'ubifs_debugging_init()' function is because it is better to initialize
+ * debugfs interfaces at the very end of the mount process, and remove them at
+ * the very beginning of the mount process.
+ */
+int dbg_debugfs_init_fs(struct ubifs_info *c)
+{
+	int err;
+	const char *fname;
+	struct dentry *dent;
+	struct ubifs_debug_info *d = c->dbg;
+
+	sprintf(d->debugfs_dir_name, "ubi%d_%d", c->vi.ubi_num, c->vi.vol_id);
+	d->debugfs_dir = debugfs_create_dir(d->debugfs_dir_name,
+					      debugfs_rootdir);
+	if (IS_ERR(d->debugfs_dir)) {
+		err = PTR_ERR(d->debugfs_dir);
+		ubifs_err("cannot create \"%s\" debugfs directory, error %d\n",
+			  d->debugfs_dir_name, err);
+		goto out;
+	}
+
+	fname = "dump_lprops";
+	dent = debugfs_create_file(fname, S_IWUGO, d->debugfs_dir, c,
+				   &debugfs_fops);
+	if (IS_ERR(dent))
+		goto out_remove;
+	d->dump_lprops = dent;
+
+	fname = "dump_budg";
+	dent = debugfs_create_file(fname, S_IWUGO, d->debugfs_dir, c,
+				   &debugfs_fops);
+	if (IS_ERR(dent))
+		goto out_remove;
+	d->dump_budg = dent;
+
+	fname = "dump_tnc";
+	dent = debugfs_create_file(fname, S_IWUGO, d->debugfs_dir, c,
+				   &debugfs_fops);
+	if (IS_ERR(dent))
+		goto out_remove;
+	d->dump_tnc = dent;
+
+	return 0;
+
+out_remove:
+	err = PTR_ERR(dent);
+	ubifs_err("cannot create \"%s\" debugfs directory, error %d\n",
+		  fname, err);
+	debugfs_remove_recursive(d->debugfs_dir);
+out:
+	return err;
+}
+
+/**
+ * dbg_debugfs_exit_fs - remove all debugfs files.
+ * @c: UBIFS file-system description object
+ */
+void dbg_debugfs_exit_fs(struct ubifs_info *c)
+{
+	debugfs_remove_recursive(c->dbg->debugfs_dir);
 }
 
 #endif /* CONFIG_UBIFS_FS_DEBUG */

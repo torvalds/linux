@@ -1258,6 +1258,10 @@ static int mount_ubifs(struct ubifs_info *c)
 		}
 	}
 
+	err = dbg_debugfs_init_fs(c);
+	if (err)
+		goto out_infos;
+
 	err = dbg_check_filesystem(c);
 	if (err)
 		goto out_infos;
@@ -1369,6 +1373,7 @@ static void ubifs_umount(struct ubifs_info *c)
 	dbg_gen("un-mounting UBI device %d, volume %d", c->vi.ubi_num,
 		c->vi.vol_id);
 
+	dbg_debugfs_exit_fs(c);
 	spin_lock(&ubifs_infos_lock);
 	list_del(&c->infos_list);
 	spin_unlock(&ubifs_infos_lock);
@@ -2079,11 +2084,17 @@ static int __init ubifs_init(void)
 
 	err = ubifs_compressors_init();
 	if (err)
+		goto out_shrinker;
+
+	err = dbg_debugfs_init();
+	if (err)
 		goto out_compr;
 
 	return 0;
 
 out_compr:
+	ubifs_compressors_exit();
+out_shrinker:
 	unregister_shrinker(&ubifs_shrinker_info);
 	kmem_cache_destroy(ubifs_inode_slab);
 out_reg:
@@ -2098,6 +2109,7 @@ static void __exit ubifs_exit(void)
 	ubifs_assert(list_empty(&ubifs_infos));
 	ubifs_assert(atomic_long_read(&ubifs_clean_zn_cnt) == 0);
 
+	dbg_debugfs_exit();
 	ubifs_compressors_exit();
 	unregister_shrinker(&ubifs_shrinker_info);
 	kmem_cache_destroy(ubifs_inode_slab);

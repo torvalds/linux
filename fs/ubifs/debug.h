@@ -43,6 +43,13 @@
  * @new_nhead_offs: used by LPT tree size checker
  * @new_ihead_lnum: used by debugging to check ihead_lnum
  * @new_ihead_offs: used by debugging to check ihead_offs
+ *
+ * debugfs_dir_name: name of debugfs directory containing this file-system's
+ *                   files
+ * debugfs_dir: direntry object of the file-system debugfs directory
+ * dump_lprops: "dump lprops" debugfs knob
+ * dump_budg: "dump budgeting information" debugfs knob
+ * dump_tnc: "dump TNC" debugfs knob
  */
 struct ubifs_debug_info {
 	void *buf;
@@ -61,6 +68,12 @@ struct ubifs_debug_info {
 	int new_nhead_offs;
 	int new_ihead_lnum;
 	int new_ihead_offs;
+
+	char debugfs_dir_name[100];
+	struct dentry *debugfs_dir;
+	struct dentry *dump_lprops;
+	struct dentry *dump_budg;
+	struct dentry *dump_tnc;
 };
 
 #define ubifs_assert(expr) do {                                                \
@@ -251,7 +264,6 @@ int ubifs_debugging_init(struct ubifs_info *c);
 void ubifs_debugging_exit(struct ubifs_info *c);
 
 /* Dump functions */
-
 const char *dbg_ntype(int type);
 const char *dbg_cstate(int cmt_state);
 const char *dbg_get_key_dump(const struct ubifs_info *c,
@@ -274,7 +286,6 @@ void dbg_dump_tnc(struct ubifs_info *c);
 void dbg_dump_index(struct ubifs_info *c);
 
 /* Checking helper functions */
-
 typedef int (*dbg_leaf_callback)(struct ubifs_info *c,
 				 struct ubifs_zbranch *zbr, void *priv);
 typedef int (*dbg_znode_callback)(struct ubifs_info *c,
@@ -353,6 +364,12 @@ static inline int dbg_change(struct ubi_volume_desc *desc, int lnum,
 {
 	return dbg_leb_change(desc, lnum, buf, len, UBI_UNKNOWN);
 }
+
+/* Debugfs-related stuff */
+int dbg_debugfs_init(void);
+void dbg_debugfs_exit(void);
+int dbg_debugfs_init_fs(struct ubifs_info *c);
+void dbg_debugfs_exit_fs(struct ubifs_info *c);
 
 #else /* !CONFIG_UBIFS_FS_DEBUG */
 
@@ -434,6 +451,10 @@ static inline int dbg_change(struct ubi_volume_desc *desc, int lnum,
 #define dbg_force_in_the_gaps()                    0
 #define dbg_failure_mode                           0
 
-#endif /* !CONFIG_UBIFS_FS_DEBUG */
+#define dbg_debugfs_init()                         0
+#define dbg_debugfs_exit()
+#define dbg_debugfs_init_fs(c)                     0
+#define dbg_debugfs_exit_fs(c)                     0
 
+#endif /* !CONFIG_UBIFS_FS_DEBUG */
 #endif /* !__UBIFS_DEBUG_H__ */

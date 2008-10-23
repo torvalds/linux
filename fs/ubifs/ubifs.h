@@ -1158,6 +1158,7 @@ struct ubifs_debug_info;
  * @mount_opts: UBIFS-specific mount options
  *
  * @dbg: debugging-related information
+ * @dfs: debugfs support-related information
  */
 struct ubifs_info {
 	struct super_block *vfs_sb;
