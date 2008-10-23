@@ -510,6 +510,7 @@ fail:
 	return err;
 }
 
+#ifdef CONFIG_MODULES
 static void free_module_param_attrs(struct module_kobject *mk)
 {
 	kfree(mk->mp->grp.attrs);
@@ -517,7 +518,6 @@ static void free_module_param_attrs(struct module_kobject *mk)
 	mk->mp = NULL;
 }
 
-#ifdef CONFIG_MODULES
 /*
  * module_param_sysfs_setup - setup sysfs support for one module
  * @mod: module
