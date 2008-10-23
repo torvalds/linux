@@ -55,7 +55,7 @@
 
 extern void emma2rh_sw_irq_init(u32 base);
 extern void emma2rh_gpio_irq_init(u32 base);
-extern void emma2rh_irq_init(u32 base);
+extern void emma2rh_irq_init(void);
 extern void emma2rh_irq_dispatch(void);
 
 static struct irqaction irq_cascade = {
@@ -102,7 +102,7 @@ void __init arch_init_irq(void)
 	emma2rh_out32(EMMA2RH_GPIO_INT_ST, ~GPIO_PCI);
 
 	/* init all controllers */
-	emma2rh_irq_init(EMMA2RH_IRQ_BASE);
+	emma2rh_irq_init();
 	emma2rh_sw_irq_init(EMMA2RH_SW_IRQ_BASE);
 	emma2rh_gpio_irq_init(EMMA2RH_GPIO_IRQ_BASE);
 	mips_cpu_irq_init();
