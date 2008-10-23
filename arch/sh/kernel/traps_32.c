@@ -105,6 +105,8 @@ void die(const char * str, struct pt_regs * regs, long err)
 		dump_mem("Stack: ", regs->regs[15], THREAD_SIZE +
 			 (unsigned long)task_stack_page(current));
 
+	notify_die(DIE_OOPS, str, regs, err, 255, SIGSEGV);
+
 	bust_spinlocks(0);
 	add_taint(TAINT_DIE);
 	spin_unlock_irq(&die_lock);
