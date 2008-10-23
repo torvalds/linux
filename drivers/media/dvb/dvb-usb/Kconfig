@@ -261,7 +261,7 @@ config DVB_USB_DW2102
 	  Say Y here to support the DvbWorld DVB-S/S2 USB2.0 receivers
 	  and the TeVii S650.
 
-config 	DVB_USB_CINERGY_T2
+config DVB_USB_CINERGY_T2
 	tristate "Terratec CinergyT2/qanu USB 2.0 DVB-T receiver"
 	depends on DVB_USB
 	help
