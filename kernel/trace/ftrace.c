@@ -267,8 +267,6 @@ void ftrace_release(void *start, unsigned long size)
 		}
 	}
 	spin_unlock(&ftrace_lock);
-
-	ftrace_release_hash(s, e);
 }
 
 static struct dyn_ftrace *ftrace_alloc_dyn_node(unsigned long ip)
