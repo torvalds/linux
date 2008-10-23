@@ -38,6 +38,9 @@
 
 #include <asm/emma/emma2rh.h>
 
+/* number of total irqs supported by EMMA2RH */
+#define	NUM_EMMA2RH_IRQ		96
+
 /*
  * IRQ mapping
  *
@@ -53,10 +56,180 @@
  *
  */
 
-extern void emma2rh_sw_irq_init(void);
-extern void emma2rh_gpio_irq_init(void);
-extern void emma2rh_irq_init(void);
-extern void emma2rh_irq_dispatch(void);
+void ll_emma2rh_irq_enable(int emma2rh_irq)
+{
+	u32 reg_value;
+	u32 reg_bitmask;
+	u32 reg_index;
+
+	reg_index = EMMA2RH_BHIF_INT_EN_0 +
+		    (EMMA2RH_BHIF_INT_EN_1 - EMMA2RH_BHIF_INT_EN_0) *
+		    (emma2rh_irq / 32);
+	reg_value = emma2rh_in32(reg_index);
+	reg_bitmask = 0x1 << (emma2rh_irq % 32);
+	db_assert((reg_value & reg_bitmask) == 0);
+	emma2rh_out32(reg_index, reg_value | reg_bitmask);
+}
+
+void ll_emma2rh_irq_disable(int emma2rh_irq)
+{
+	u32 reg_value;
+	u32 reg_bitmask;
+	u32 reg_index;
+
+	reg_index = EMMA2RH_BHIF_INT_EN_0 +
+		    (EMMA2RH_BHIF_INT_EN_1 - EMMA2RH_BHIF_INT_EN_0) *
+		    (emma2rh_irq / 32);
+	reg_value = emma2rh_in32(reg_index);
+	reg_bitmask = 0x1 << (emma2rh_irq % 32);
+	db_assert((reg_value & reg_bitmask) != 0);
+	emma2rh_out32(reg_index, reg_value & ~reg_bitmask);
+}
+
+static void emma2rh_irq_enable(unsigned int irq)
+{
+	ll_emma2rh_irq_enable(irq - EMMA2RH_IRQ_BASE);
+}
+
+static void emma2rh_irq_disable(unsigned int irq)
+{
+	ll_emma2rh_irq_disable(irq - EMMA2RH_IRQ_BASE);
+}
+
+struct irq_chip emma2rh_irq_controller = {
+	.name = "emma2rh_irq",
+	.ack = emma2rh_irq_disable,
+	.mask = emma2rh_irq_disable,
+	.mask_ack = emma2rh_irq_disable,
+	.unmask = emma2rh_irq_enable,
+};
+
+void emma2rh_irq_init(void)
+{
+	u32 i;
+
+	for (i = 0; i < NUM_EMMA2RH_IRQ; i++)
+		set_irq_chip_and_handler(EMMA2RH_IRQ_BASE + i,
+					 &emma2rh_irq_controller,
+					 handle_level_irq);
+}
+
+void ll_emma2rh_sw_irq_enable(int irq)
+{
+	u32 reg;
+
+	db_assert(irq >= 0);
+	db_assert(irq < NUM_EMMA2RH_IRQ_SW);
+
+	reg = emma2rh_in32(EMMA2RH_BHIF_SW_INT_EN);
+	reg |= 1 << irq;
+	emma2rh_out32(EMMA2RH_BHIF_SW_INT_EN, reg);
+}
+
+void ll_emma2rh_sw_irq_disable(int irq)
+{
+	u32 reg;
+
+	db_assert(irq >= 0);
+	db_assert(irq < 32);
+
+	reg = emma2rh_in32(EMMA2RH_BHIF_SW_INT_EN);
+	reg &= ~(1 << irq);
+	emma2rh_out32(EMMA2RH_BHIF_SW_INT_EN, reg);
+}
+
+static void emma2rh_sw_irq_enable(unsigned int irq)
+{
+	ll_emma2rh_sw_irq_enable(irq - EMMA2RH_SW_IRQ_BASE);
+}
+
+static void emma2rh_sw_irq_disable(unsigned int irq)
+{
+	ll_emma2rh_sw_irq_disable(irq - EMMA2RH_SW_IRQ_BASE);
+}
+
+struct irq_chip emma2rh_sw_irq_controller = {
+	.name = "emma2rh_sw_irq",
+	.ack = emma2rh_sw_irq_disable,
+	.mask = emma2rh_sw_irq_disable,
+	.mask_ack = emma2rh_sw_irq_disable,
+	.unmask = emma2rh_sw_irq_enable,
+};
+
+void emma2rh_sw_irq_init(void)
+{
+	u32 i;
+
+	for (i = 0; i < NUM_EMMA2RH_IRQ_SW; i++)
+		set_irq_chip_and_handler(EMMA2RH_SW_IRQ_BASE + i,
+					 &emma2rh_sw_irq_controller,
+					 handle_level_irq);
+}
+
+void ll_emma2rh_gpio_irq_enable(int irq)
+{
+	u32 reg;
+
+	db_assert(irq >= 0);
+	db_assert(irq < NUM_EMMA2RH_IRQ_GPIO);
+
+	reg = emma2rh_in32(EMMA2RH_GPIO_INT_MASK);
+	reg |= 1 << irq;
+	emma2rh_out32(EMMA2RH_GPIO_INT_MASK, reg);
+}
+
+void ll_emma2rh_gpio_irq_disable(int irq)
+{
+	u32 reg;
+
+	db_assert(irq >= 0);
+	db_assert(irq < NUM_EMMA2RH_IRQ_GPIO);
+
+	reg = emma2rh_in32(EMMA2RH_GPIO_INT_MASK);
+	reg &= ~(1 << irq);
+	emma2rh_out32(EMMA2RH_GPIO_INT_MASK, reg);
+}
+
+static void emma2rh_gpio_irq_enable(unsigned int irq)
+{
+	ll_emma2rh_gpio_irq_enable(irq - EMMA2RH_GPIO_IRQ_BASE);
+}
+
+static void emma2rh_gpio_irq_disable(unsigned int irq)
+{
+	ll_emma2rh_gpio_irq_disable(irq - EMMA2RH_GPIO_IRQ_BASE);
+}
+
+static void emma2rh_gpio_irq_ack(unsigned int irq)
+{
+	irq -= EMMA2RH_GPIO_IRQ_BASE;
+	emma2rh_out32(EMMA2RH_GPIO_INT_ST, ~(1 << irq));
+	ll_emma2rh_gpio_irq_disable(irq);
+}
+
+static void emma2rh_gpio_irq_end(unsigned int irq)
+{
+	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
+		ll_emma2rh_gpio_irq_enable(irq - EMMA2RH_GPIO_IRQ_BASE);
+}
+
+struct irq_chip emma2rh_gpio_irq_controller = {
+	.name = "emma2rh_gpio_irq",
+	.ack = emma2rh_gpio_irq_ack,
+	.mask = emma2rh_gpio_irq_disable,
+	.mask_ack = emma2rh_gpio_irq_ack,
+	.unmask = emma2rh_gpio_irq_enable,
+	.end = emma2rh_gpio_irq_end,
+};
+
+void emma2rh_gpio_irq_init(void)
+{
+	u32 i;
+
+	for (i = 0; i < NUM_EMMA2RH_IRQ_GPIO; i++)
+		set_irq_chip(EMMA2RH_GPIO_IRQ_BASE + i,
+			     &emma2rh_gpio_irq_controller);
+}
 
 static struct irqaction irq_cascade = {
 	   .handler = no_action,
@@ -66,6 +239,76 @@ static struct irqaction irq_cascade = {
 	   .dev_id = NULL,
 	   .next = NULL,
 };
+
+/*
+ * the first level int-handler will jump here if it is a emma2rh irq
+ */
+void emma2rh_irq_dispatch(void)
+{
+	u32 intStatus;
+	u32 bitmask;
+	u32 i;
+
+	intStatus = emma2rh_in32(EMMA2RH_BHIF_INT_ST_0) &
+		    emma2rh_in32(EMMA2RH_BHIF_INT_EN_0);
+
+#ifdef EMMA2RH_SW_CASCADE
+	if (intStatus &
+	    (1 << ((EMMA2RH_SW_CASCADE - EMMA2RH_IRQ_INT0) & (32 - 1)))) {
+		u32 swIntStatus;
+		swIntStatus = emma2rh_in32(EMMA2RH_BHIF_SW_INT)
+		    & emma2rh_in32(EMMA2RH_BHIF_SW_INT_EN);
+		for (i = 0, bitmask = 1; i < 32; i++, bitmask <<= 1) {
+			if (swIntStatus & bitmask) {
+				do_IRQ(EMMA2RH_SW_IRQ_BASE + i);
+				return;
+			}
+		}
+	}
+#endif
+
+	for (i = 0, bitmask = 1; i < 32; i++, bitmask <<= 1) {
+		if (intStatus & bitmask) {
+			do_IRQ(EMMA2RH_IRQ_BASE + i);
+			return;
+		}
+	}
+
+	intStatus = emma2rh_in32(EMMA2RH_BHIF_INT_ST_1) &
+		    emma2rh_in32(EMMA2RH_BHIF_INT_EN_1);
+
+#ifdef EMMA2RH_GPIO_CASCADE
+	if (intStatus &
+	    (1 << ((EMMA2RH_GPIO_CASCADE - EMMA2RH_IRQ_INT0) & (32 - 1)))) {
+		u32 gpioIntStatus;
+		gpioIntStatus = emma2rh_in32(EMMA2RH_GPIO_INT_ST)
+		    & emma2rh_in32(EMMA2RH_GPIO_INT_MASK);
+		for (i = 0, bitmask = 1; i < 32; i++, bitmask <<= 1) {
+			if (gpioIntStatus & bitmask) {
+				do_IRQ(EMMA2RH_GPIO_IRQ_BASE + i);
+				return;
+			}
+		}
+	}
+#endif
+
+	for (i = 32, bitmask = 1; i < 64; i++, bitmask <<= 1) {
+		if (intStatus & bitmask) {
+			do_IRQ(EMMA2RH_IRQ_BASE + i);
+			return;
+		}
+	}
+
+	intStatus = emma2rh_in32(EMMA2RH_BHIF_INT_ST_2) &
+		    emma2rh_in32(EMMA2RH_BHIF_INT_EN_2);
+
+	for (i = 64, bitmask = 1; i < 96; i++, bitmask <<= 1) {
+		if (intStatus & bitmask) {
+			do_IRQ(EMMA2RH_IRQ_BASE + i);
+			return;
+		}
+	}
+}
 
 void __init arch_init_irq(void)
 {
