@@ -437,7 +437,7 @@ ifeq ($(config-targets),1)
 # KBUILD_DEFCONFIG may point out an alternative default configuration
 # used for 'make defconfig'
 include $(srctree)/arch/$(SRCARCH)/Makefile
-export KBUILD_DEFCONFIG
+export KBUILD_DEFCONFIG KBUILD_KCONFIG
 
 config %config: scripts_basic outputmakefile FORCE
 	$(Q)mkdir -p include/linux include/config
