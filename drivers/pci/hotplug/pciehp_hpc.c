@@ -316,22 +316,19 @@ static int pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 			 * proceed forward to issue the next command according
 			 * to spec. Just print out the error message.
 			 */
-			ctrl_dbg(ctrl,
-				 "%s: CMD_COMPLETED not clear after 1 sec.\n",
-				 __func__);
+			ctrl_dbg(ctrl, "CMD_COMPLETED not clear after 1 sec\n");
 		} else if (!NO_CMD_CMPL(ctrl)) {
 			/*
 			 * This controller semms to notify of command completed
 			 * event even though it supports none of power
 			 * controller, attention led, power led and EMI.
 			 */
-			ctrl_dbg(ctrl, "%s: Unexpected CMD_COMPLETED. Need to "
-				 "wait for command completed event.\n",
-				 __func__);
+			ctrl_dbg(ctrl, "Unexpected CMD_COMPLETED. Need to "
+				 "wait for command completed event.\n");
 			ctrl->no_cmd_complete = 0;
 		} else {
-			ctrl_dbg(ctrl, "%s: Unexpected CMD_COMPLETED. Maybe "
-				 "the controller is broken.\n", __func__);
+			ctrl_dbg(ctrl, "Unexpected CMD_COMPLETED. Maybe "
+				 "the controller is broken.\n");
 		}
 	}
 
@@ -347,8 +344,7 @@ static int pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 	smp_mb();
 	retval = pciehp_writew(ctrl, SLOTCTRL, slot_ctrl);
 	if (retval)
-		ctrl_err(ctrl, "%s: Cannot write to SLOTCTRL register\n",
-			 __func__);
+		ctrl_err(ctrl, "Cannot write to SLOTCTRL register\n");
 
 	/*
 	 * Wait for command completion.
@@ -418,15 +414,14 @@ static int hpc_check_lnk_status(struct controller *ctrl)
 
 	retval = pciehp_readw(ctrl, LNKSTATUS, &lnk_status);
 	if (retval) {
-		ctrl_err(ctrl, "%s: Cannot read LNKSTATUS register\n",
-			 __func__);
+		ctrl_err(ctrl, "Cannot read LNKSTATUS register\n");
 		return retval;
 	}
 
 	ctrl_dbg(ctrl, "%s: lnk_status = %x\n", __func__, lnk_status);
 	if ( (lnk_status & LNK_TRN) || (lnk_status & LNK_TRN_ERR) ||
 		!(lnk_status & NEG_LINK_WD)) {
-		ctrl_err(ctrl, "%s : Link Training Error occurs \n", __func__);
+		ctrl_err(ctrl, "Link Training Error occurs \n");
 		retval = -1;
 		return retval;
 	}
@@ -551,7 +546,7 @@ static int hpc_query_power_fault(struct slot *slot)
 
 	retval = pciehp_readw(ctrl, SLOTSTATUS, &slot_status);
 	if (retval) {
-		ctrl_err(ctrl, "%s: Cannot check for power fault\n", __func__);
+		ctrl_err(ctrl, "Cannot check for power fault\n");
 		return retval;
 	}
 	pwr_fault = (u8)((slot_status & PWR_FAULT_DETECTED) >> 1);
@@ -567,7 +562,7 @@ static int hpc_get_emi_status(struct slot *slot, u8 *status)
 
 	retval = pciehp_readw(ctrl, SLOTSTATUS, &slot_status);
 	if (retval) {
-		ctrl_err(ctrl, "%s : Cannot check EMI status\n", __func__);
+		ctrl_err(ctrl, "Cannot check EMI status\n");
 		return retval;
 	}
 	*status = (slot_status & EMI_STATE) >> EMI_STATUS_BIT;
@@ -697,8 +692,7 @@ static int hpc_power_on_slot(struct slot * slot)
 	retval = pcie_write_cmd(ctrl, slot_cmd, cmd_mask);
 
 	if (retval) {
-		ctrl_err(ctrl, "%s: Write %x command failed!\n",
-			 __func__, slot_cmd);
+		ctrl_err(ctrl, "Write %x command failed!\n", slot_cmd);
 		return -1;
 	}
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n",
@@ -776,7 +770,7 @@ static int hpc_power_off_slot(struct slot * slot)
 
 	retval = pcie_write_cmd(ctrl, slot_cmd, cmd_mask);
 	if (retval) {
-		ctrl_err(ctrl, "%s: Write command failed!\n", __func__);
+		ctrl_err(ctrl, "Write command failed!\n");
 		retval = -1;
 		goto out;
 	}
@@ -1056,8 +1050,7 @@ int pcie_enable_notification(struct controller *ctrl)
 	       PWR_FAULT_DETECT_ENABLE | HP_INTR_ENABLE | CMD_CMPL_INTR_ENABLE;
 
 	if (pcie_write_cmd(ctrl, cmd, mask)) {
-		ctrl_err(ctrl, "%s: Cannot enable software notification\n",
-			 __func__);
+		ctrl_err(ctrl, "Cannot enable software notification\n");
 		return -1;
 	}
 	return 0;
@@ -1069,8 +1062,7 @@ static void pcie_disable_notification(struct controller *ctrl)
 	mask = PRSN_DETECT_ENABLE | ATTN_BUTTN_ENABLE | MRL_DETECT_ENABLE |
 	       PWR_FAULT_DETECT_ENABLE | HP_INTR_ENABLE | CMD_CMPL_INTR_ENABLE;
 	if (pcie_write_cmd(ctrl, 0, mask))
-		ctrl_warn(ctrl, "%s: Cannot disable software notification\n",
-			  __func__);
+		ctrl_warn(ctrl, "Cannot disable software notification\n");
 }
 
 static int pcie_init_notification(struct controller *ctrl)
@@ -1179,7 +1171,7 @@ struct controller *pcie_init(struct pcie_device *dev)
 
 	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl) {
-		dev_err(&dev->device, "%s : out of memory\n", __func__);
+		dev_err(&dev->device, "%s: Out of memory\n", __func__);
 		goto abort;
 	}
 	INIT_LIST_HEAD(&ctrl->slot_list);
@@ -1188,12 +1180,11 @@ struct controller *pcie_init(struct pcie_device *dev)
 	ctrl->pci_dev = pdev;
 	ctrl->cap_base = pci_find_capability(pdev, PCI_CAP_ID_EXP);
 	if (!ctrl->cap_base) {
-		ctrl_err(ctrl, "%s: Cannot find PCI Express capability\n",
-			 __func__);
+		ctrl_err(ctrl, "Cannot find PCI Express capability\n");
 		goto abort_ctrl;
 	}
 	if (pciehp_readl(ctrl, SLOTCAP, &slot_cap)) {
-		ctrl_err(ctrl, "%s: Cannot read SLOTCAP register\n", __func__);
+		ctrl_err(ctrl, "Cannot read SLOTCAP register\n");
 		goto abort_ctrl;
 	}
 
