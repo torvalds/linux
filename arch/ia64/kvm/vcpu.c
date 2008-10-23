@@ -816,8 +816,9 @@ static void vcpu_set_itc(struct kvm_vcpu *vcpu, u64 val)
 	unsigned long vitv = VCPU(vcpu, itv);
 
 	if (vcpu->vcpu_id == 0) {
-		for (i = 0; i < MAX_VCPU_NUM; i++) {
-			v = (struct kvm_vcpu *)((char *)vcpu + VCPU_SIZE * i);
+		for (i = 0; i < KVM_MAX_VCPUS; i++) {
+			v = (struct kvm_vcpu *)((char *)vcpu +
+					sizeof(struct kvm_vcpu_data) * i);
 			VMX(v, itc_offset) = itc_offset;
 			VMX(v, last_itc) = 0;
 		}
