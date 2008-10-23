@@ -123,7 +123,7 @@ extern void ledtrig_ide_activity(void);
  */
 struct led_info {
 	const char	*name;
-	char		*default_trigger;
+	const char	*default_trigger;
 	int		flags;
 };
 
@@ -135,7 +135,7 @@ struct led_platform_data {
 /* For the leds-gpio driver */
 struct gpio_led {
 	const char *name;
-	char *default_trigger;
+	const char *default_trigger;
 	unsigned 	gpio;
 	u8 		active_low;
 };
