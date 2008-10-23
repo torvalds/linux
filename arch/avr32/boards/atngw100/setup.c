@@ -172,8 +172,6 @@ static int __init atngw100_init(void)
 	 * reserve any pins for it.
 	 */
 
-	at32_add_system_devices();
-
 	at32_add_device_usart(0);
 
 	set_hw_addr(at32_add_device_eth(0, &eth_data[0]));

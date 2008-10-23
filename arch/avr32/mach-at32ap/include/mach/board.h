@@ -14,8 +14,14 @@
  */
 extern unsigned long at32_board_osc_rates[];
   
-/* Add basic devices: system manager, interrupt controller, portmuxes, etc. */
-void at32_add_system_devices(void);
+/*
+ * This used to add essential system devices, but this is now done
+ * automatically. Please don't use it in new board code.
+ */
+static inline void __deprecated at32_add_system_devices(void)
+{
+
+}
 
 #define ATMEL_MAX_UART	4
 extern struct platform_device *atmel_default_console_device;

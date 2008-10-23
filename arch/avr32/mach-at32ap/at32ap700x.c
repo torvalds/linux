@@ -813,7 +813,7 @@ static struct resource pio4_resource[] = {
 DEFINE_DEV(pio, 4);
 DEV_CLK(mck, pio4, pba, 14);
 
-void __init at32_add_system_devices(void)
+static int __init system_device_init(void)
 {
 	platform_device_register(&at32_pm0_device);
 	platform_device_register(&at32_intc0_device);
@@ -832,7 +832,10 @@ void __init at32_add_system_devices(void)
 	platform_device_register(&pio2_device);
 	platform_device_register(&pio3_device);
 	platform_device_register(&pio4_device);
+
+	return 0;
 }
+core_initcall(system_device_init);
 
 /* --------------------------------------------------------------------
  *  PSIF
