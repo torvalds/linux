@@ -1,17 +1,17 @@
 /*
- * Board-specific setup code for the ATNGW100 Network Gateway
+ * Board-specific setup code for the MIMC200
  *
- * Copyright (C) 2005-2006 Atmel Corporation
+ * Copyright (C) 2008 Mercury IMC Ltd
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+extern struct atmel_lcdfb_info mimc200_lcdc_data;
+
 #include <linux/clk.h>
 #include <linux/etherdevice.h>
-#include <linux/gpio.h>
-#include <linux/irq.h>
-#include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 #include <linux/init.h>
 #include <linux/linkage.h>
@@ -19,9 +19,13 @@
 #include <linux/types.h>
 #include <linux/leds.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/eeprom.h>
+
+#include <video/atmel_lcdc.h>
+#include <linux/fb.h>
 
 #include <asm/atmel-mci.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/setup.h>
 
 #include <mach/at32ap700x.h>
@@ -32,12 +36,51 @@
 /* Oscillator frequencies. These are board-specific */
 unsigned long at32_board_osc_rates[3] = {
 	[0] = 32768,	/* 32.768 kHz on RTC osc */
-	[1] = 20000000,	/* 20 MHz on osc0 */
+	[1] = 10000000,	/* 10 MHz on osc0 */
 	[2] = 12000000,	/* 12 MHz on osc1 */
 };
 
 /* Initialized by bootloader-specific startup code. */
 struct tag *bootloader_tags __initdata;
+
+static struct fb_videomode __initdata tx14d14_modes[] = {
+	{
+		.name		= "640x480 @ 60",
+		.refresh	= 60,
+		.xres		= 640,		.yres		= 480,
+		.pixclock	= KHZ2PICOS(11666),
+
+		.left_margin	= 80,		.right_margin	= 1,
+		.upper_margin	= 13,		.lower_margin	= 2,
+		.hsync_len	= 64,		.vsync_len	= 1,
+
+		.sync		= 0,
+		.vmode		= FB_VMODE_NONINTERLACED,
+	},
+};
+
+static struct fb_monspecs __initdata mimc200_default_monspecs = {
+	.manufacturer		= "HIT",
+	.monitor		= "TX14D14VM1BAB",
+	.modedb			= tx14d14_modes,
+	.modedb_len		= ARRAY_SIZE(tx14d14_modes),
+	.hfmin			= 14820,
+	.hfmax			= 22230,
+	.vfmin			= 60,
+	.vfmax			= 73.3,
+	.dclkmax		= 25200000,
+};
+
+struct atmel_lcdfb_info __initdata mimc200_lcdc_data = {
+	.default_bpp		= 16,
+	.default_dmacon		= ATMEL_LCDC_DMAEN | ATMEL_LCDC_DMA2DEN,
+	.default_lcdcon2	= (ATMEL_LCDC_DISTYPE_TFT
+				   | ATMEL_LCDC_INVCLK
+				   | ATMEL_LCDC_CLKMOD_ALWAYSACTIVE
+				   | ATMEL_LCDC_MEMOR_BIG),
+	.default_monspecs	= &mimc200_default_monspecs,
+	.guard_time		= 2,
+};
 
 struct eth_addr {
 	u8 addr[6];
@@ -45,24 +88,33 @@ struct eth_addr {
 static struct eth_addr __initdata hw_addr[2];
 static struct eth_platform_data __initdata eth_data[2];
 
+static struct spi_eeprom eeprom_25lc010 = {
+		.name = "25lc010",
+		.byte_len = 128,
+		.page_size = 16,
+		.flags = EE_ADDR1,
+};
+
 static struct spi_board_info spi0_board_info[] __initdata = {
 	{
-		.modalias	= "mtd_dataflash",
-		.max_speed_hz	= 8000000,
-		.chip_select	= 0,
+		.modalias	= "rtc-ds1390",
+		.max_speed_hz	= 4000000,
+		.chip_select	= 2,
+	},
+	{
+		.modalias	= "at25",
+		.max_speed_hz	= 1000000,
+		.chip_select	= 1,
+		.mode		= SPI_MODE_3,
+		.platform_data	= &eeprom_25lc010,
 	},
 };
 
 static struct mci_platform_data __initdata mci0_data = {
 	.slot[0] = {
 		.bus_width	= 4,
-#ifndef CONFIG_BOARD_ATNGW100_EVKLCD10X
-		.detect_pin	= GPIO_PIN_PC(25),
-		.wp_pin		= GPIO_PIN_PE(0),
-#else
-		.detect_pin	= GPIO_PIN_NONE,
-		.wp_pin		= GPIO_PIN_NONE,
-#endif
+		.detect_pin	= GPIO_PIN_PA(26),
+		.wp_pin		= GPIO_PIN_PA(27),
 	},
 };
 
@@ -123,30 +175,11 @@ static void __init set_hw_addr(struct platform_device *pdev)
 
 void __init setup_board(void)
 {
-	at32_map_usart(1, 0);	/* USART 1: /dev/ttyS0, DB9 */
-	at32_setup_serial_console(0);
+	at32_map_usart(0, 0);	/* USART 0: /dev/ttyS0 (TTL --> Altera) */
+	at32_map_usart(1, 1);	/* USART 1: /dev/ttyS1 (RS232) */
+	at32_map_usart(2, 2);	/* USART 2: /dev/ttyS2 (RS485) */
+	at32_map_usart(3, 3);	/* USART 3: /dev/ttyS3 (RS422 Multidrop) */
 }
-
-static const struct gpio_led ngw_leds[] = {
-	{ .name = "sys", .gpio = GPIO_PIN_PA(16), .active_low = 1,
-		.default_trigger = "heartbeat",
-	},
-	{ .name = "a", .gpio = GPIO_PIN_PA(19), .active_low = 1, },
-	{ .name = "b", .gpio = GPIO_PIN_PE(19), .active_low = 1, },
-};
-
-static const struct gpio_led_platform_data ngw_led_data = {
-	.num_leds =	ARRAY_SIZE(ngw_leds),
-	.leds =		(void *) ngw_leds,
-};
-
-static struct platform_device ngw_gpio_leds = {
-	.name =		"leds-gpio",
-	.id =		-1,
-	.dev = {
-		.platform_data = (void *) &ngw_led_data,
-	}
-};
 
 static struct i2c_gpio_platform_data i2c_gpio_data = {
 	.sda_pin		= GPIO_PIN_PA(6),
@@ -160,24 +193,26 @@ static struct platform_device i2c_gpio_device = {
 	.name		= "i2c-gpio",
 	.id		= 0,
 	.dev		= {
-		.platform_data	= &i2c_gpio_data,
+	.platform_data	= &i2c_gpio_data,
 	},
 };
 
 static struct i2c_board_info __initdata i2c_info[] = {
-	/* NOTE:  original ATtiny24 firmware is at address 0x0b */
 };
 
-static int __init atngw100_init(void)
+static int __init mimc200_init(void)
 {
-	unsigned	i;
-
 	/*
-	 * ATNGW100 uses 16-bit SDRAM interface, so we don't need to
+	 * MIMC200 uses 16-bit SDRAM interface, so we don't need to
 	 * reserve any pins for it.
 	 */
 
+	at32_add_system_devices();
+
 	at32_add_device_usart(0);
+	at32_add_device_usart(1);
+	at32_add_device_usart(2);
+	at32_add_device_usart(3);
 
 	set_hw_addr(at32_add_device_eth(0, &eth_data[0]));
 	set_hw_addr(at32_add_device_eth(1, &eth_data[1]));
@@ -186,17 +221,6 @@ static int __init atngw100_init(void)
 	at32_add_device_mci(0, &mci0_data);
 	at32_add_device_usba(0, NULL);
 
-	for (i = 0; i < ARRAY_SIZE(ngw_leds); i++) {
-		at32_select_gpio(ngw_leds[i].gpio,
-				AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
-	}
-	platform_device_register(&ngw_gpio_leds);
-
-	/* all these i2c/smbus pins should have external pullups for
-	 * open-drain sharing among all I2C devices.  SDA and SCL do;
-	 * PB28/EXTINT3 doesn't; it should be SMBALERT# (for PMBus),
-	 * but it's not available off-board.
-	 */
 	at32_select_periph(GPIO_PIOB_BASE, 1 << 28, 0, AT32_GPIOF_PULLUP);
 	at32_select_gpio(i2c_gpio_data.sda_pin,
 		AT32_GPIOF_MULTIDRV | AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
@@ -205,24 +229,9 @@ static int __init atngw100_init(void)
 	platform_device_register(&i2c_gpio_device);
 	i2c_register_board_info(0, i2c_info, ARRAY_SIZE(i2c_info));
 
+	at32_add_device_lcdc(0, &mimc200_lcdc_data,
+			     fbmem_start, fbmem_size, 1);
+
 	return 0;
 }
-postcore_initcall(atngw100_init);
-
-static int __init atngw100_arch_init(void)
-{
-	/* PB30 is the otherwise unused jumper on the mainboard, with an
-	 * external pullup; the jumper grounds it.  Use it however you
-	 * like, including letting U-Boot or Linux tweak boot sequences.
-	 */
-	at32_select_gpio(GPIO_PIN_PB(30), 0);
-	gpio_request(GPIO_PIN_PB(30), "j15");
-	gpio_direction_input(GPIO_PIN_PB(30));
-	gpio_export(GPIO_PIN_PB(30), false);
-
-	/* set_irq_type() after the arch_initcall for EIC has run, and
-	 * before the I2C subsystem could try using this IRQ.
-	 */
-	return set_irq_type(AT32_EXTINT(3), IRQ_TYPE_EDGE_FALLING);
-}
-arch_initcall(atngw100_arch_init);
+postcore_initcall(mimc200_init);
