@@ -2182,6 +2182,13 @@ M:	maciej.sosnowski@intel.com
 L:	linux-kernel@vger.kernel.org
 S:	Supported
 
+INTEL IOMMU (VT-d)
+P:	David Woodhouse
+M:	dwmw2@infradead.org
+L:	iommu@lists.linux-foundation.org
+T:	git://git.infradead.org/iommu-2.6.git
+S:	Supported
+
 INTEL IOP-ADMA DMA DRIVER
 P:	Dan Williams
 M:	dan.j.williams@intel.com
