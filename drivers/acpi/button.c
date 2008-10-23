@@ -145,7 +145,7 @@ static int acpi_button_state_seq_show(struct seq_file *seq, void *offset)
 {
 	struct acpi_button *button = seq->private;
 	acpi_status status;
-	unsigned long state;
+	unsigned long long state;
 
 	if (!button || !button->device)
 		return 0;
@@ -253,7 +253,7 @@ static int acpi_button_remove_fs(struct acpi_device *device)
    -------------------------------------------------------------------------- */
 static int acpi_lid_send_state(struct acpi_button *button)
 {
-	unsigned long state;
+	unsigned long long state;
 	acpi_status status;
 
 	status = acpi_evaluate_integer(button->device->handle, "_LID", NULL,

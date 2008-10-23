@@ -232,7 +232,7 @@ exit:
 static unsigned int
 get_host_devfn(acpi_handle device_handle, acpi_handle rootbus_handle)
 {
-	unsigned long adr;
+	unsigned long long adr;
 	acpi_handle child;
 	unsigned int devfn;
 	int function;
@@ -292,8 +292,8 @@ get_host_devfn(acpi_handle device_handle, acpi_handle rootbus_handle)
 static acpi_status
 find_matching_device(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
-	unsigned long bbn = -1;
-	unsigned long adr;
+	unsigned long long bbn = -1;
+	unsigned long long adr;
 	acpi_handle parent = NULL;
 	acpi_status status;
 	unsigned int devfn;
@@ -348,7 +348,7 @@ sn_acpi_get_pcidev_info(struct pci_dev *dev, struct pcidev_info **pcidev_info,
 	unsigned int host_devfn;
 	struct sn_pcidev_match pcidev_match;
 	acpi_handle rootbus_handle;
-	unsigned long segment;
+	unsigned long long segment;
 	acpi_status status;
 
 	rootbus_handle = PCI_CONTROLLER(dev)->acpi_handle;

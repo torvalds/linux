@@ -258,7 +258,7 @@ extern int acpi_ec_add_query_handler(struct acpi_ec *ec, u8 query_bit,
 static int acpi_smbus_hc_add(struct acpi_device *device)
 {
 	int status;
-	unsigned long val;
+	unsigned long long val;
 	struct acpi_smb_hc *hc;
 
 	if (!device)

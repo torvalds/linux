@@ -563,7 +563,7 @@ static int acpi_processor_get_info(struct acpi_processor *pr, unsigned has_uid)
 
 	/* Check if it is a Device with HID and UID */
 	if (has_uid) {
-		unsigned long value;
+		unsigned long long value;
 		status = acpi_evaluate_integer(pr->handle, METHOD_NAME__UID,
 						NULL, &value);
 		if (ACPI_FAILURE(status)) {
@@ -875,7 +875,7 @@ static int acpi_processor_remove(struct acpi_device *device, int type)
 static int is_processor_present(acpi_handle handle)
 {
 	acpi_status status;
-	unsigned long sta = 0;
+	unsigned long long sta = 0;
 
 
 	status = acpi_evaluate_integer(handle, "_STA", NULL, &sta);

@@ -226,7 +226,7 @@ static int set_lcd_level_alt(int level)
 
 static int get_lcd_level(void)
 {
-	unsigned long state = 0;
+	unsigned long long state = 0;
 	acpi_status status = AE_OK;
 
 	vdbg_printk(FUJLAPTOP_DBG_TRACE, "get lcd level via GBLL\n");
@@ -248,7 +248,7 @@ static int get_lcd_level(void)
 
 static int get_max_brightness(void)
 {
-	unsigned long state = 0;
+	unsigned long long state = 0;
 	acpi_status status = AE_OK;
 
 	vdbg_printk(FUJLAPTOP_DBG_TRACE, "get max lcd level via RBLL\n");
@@ -265,7 +265,7 @@ static int get_max_brightness(void)
 
 static int get_lcd_level_alt(void)
 {
-	unsigned long state = 0;
+	unsigned long long state = 0;
 	acpi_status status = AE_OK;
 
 	vdbg_printk(FUJLAPTOP_DBG_TRACE, "get lcd level via GBLS\n");
@@ -386,7 +386,7 @@ static ssize_t store_lcd_level(struct device *dev,
 
 static int get_irb(void)
 {
-	unsigned long state = 0;
+	unsigned long long state = 0;
 	acpi_status status = AE_OK;
 
 	vdbg_printk(FUJLAPTOP_DBG_TRACE, "Get irb\n");

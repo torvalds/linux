@@ -139,7 +139,7 @@ acpi_power_get_context(acpi_handle handle,
 static int acpi_power_get_state(acpi_handle handle, int *state)
 {
 	acpi_status status = AE_OK;
-	unsigned long sta = 0;
+	unsigned long long sta = 0;
 
 
 	if (!handle || !state)
