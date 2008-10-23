@@ -629,17 +629,6 @@ static void pxa_camera_activate(struct pxa_camera_dev *pcdev)
 		pdata->init(pcdev->dev);
 	}
 
-	if (pdata && pdata->power) {
-		dev_dbg(pcdev->dev, "%s: Power on camera\n", __func__);
-		pdata->power(pcdev->dev, 1);
-	}
-
-	if (pdata && pdata->reset) {
-		dev_dbg(pcdev->dev, "%s: Releasing camera reset\n",
-			__func__);
-		pdata->reset(pcdev->dev, 1);
-	}
-
 	CICR0 = 0x3FF;   /* disable all interrupts */
 
 	if (pcdev->platform_flags & PXA_CAMERA_PCLK_EN)
@@ -660,20 +649,7 @@ static void pxa_camera_activate(struct pxa_camera_dev *pcdev)
 
 static void pxa_camera_deactivate(struct pxa_camera_dev *pcdev)
 {
-	struct pxacamera_platform_data *board = pcdev->pdata;
-
 	clk_disable(pcdev->clk);
-
-	if (board && board->reset) {
-		dev_dbg(pcdev->dev, "%s: Asserting camera reset\n",
-			__func__);
-		board->reset(pcdev->dev, 0);
-	}
-
-	if (board && board->power) {
-		dev_dbg(pcdev->dev, "%s: Power off camera\n", __func__);
-		board->power(pcdev->dev, 0);
-	}
 }
 
 static irqreturn_t pxa_camera_irq(int irq, void *data)
@@ -1025,9 +1001,9 @@ static int pxa_camera_resume(struct soc_camera_device *icd)
 	struct pxa_camera_dev *pcdev = ici->priv;
 	int i = 0, ret = 0;
 
-	DRCMR68 = pcdev->dma_chans[0] | DRCMR_MAPVLD;
-	DRCMR69 = pcdev->dma_chans[1] | DRCMR_MAPVLD;
-	DRCMR70 = pcdev->dma_chans[2] | DRCMR_MAPVLD;
+	DRCMR(68) = pcdev->dma_chans[0] | DRCMR_MAPVLD;
+	DRCMR(69) = pcdev->dma_chans[1] | DRCMR_MAPVLD;
+	DRCMR(70) = pcdev->dma_chans[2] | DRCMR_MAPVLD;
 
 	CICR0 = pcdev->save_cicr[i++] & ~CICR0_ENB;
 	CICR1 = pcdev->save_cicr[i++];
@@ -1144,36 +1120,36 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	pcdev->dev = &pdev->dev;
 
 	/* request dma */
-	pcdev->dma_chans[0] = pxa_request_dma("CI_Y", DMA_PRIO_HIGH,
-					      pxa_camera_dma_irq_y, pcdev);
-	if (pcdev->dma_chans[0] < 0) {
+	err = pxa_request_dma("CI_Y", DMA_PRIO_HIGH,
+			      pxa_camera_dma_irq_y, pcdev);
+	if (err < 0) {
 		dev_err(pcdev->dev, "Can't request DMA for Y\n");
-		err = -ENOMEM;
 		goto exit_iounmap;
 	}
+	pcdev->dma_chans[0] = err;
 	dev_dbg(pcdev->dev, "got DMA channel %d\n", pcdev->dma_chans[0]);
 
-	pcdev->dma_chans[1] = pxa_request_dma("CI_U", DMA_PRIO_HIGH,
-					      pxa_camera_dma_irq_u, pcdev);
-	if (pcdev->dma_chans[1] < 0) {
+	err = pxa_request_dma("CI_U", DMA_PRIO_HIGH,
+			      pxa_camera_dma_irq_u, pcdev);
+	if (err < 0) {
 		dev_err(pcdev->dev, "Can't request DMA for U\n");
-		err = -ENOMEM;
 		goto exit_free_dma_y;
 	}
+	pcdev->dma_chans[1] = err;
 	dev_dbg(pcdev->dev, "got DMA channel (U) %d\n", pcdev->dma_chans[1]);
 
-	pcdev->dma_chans[2] = pxa_request_dma("CI_V", DMA_PRIO_HIGH,
-					      pxa_camera_dma_irq_v, pcdev);
-	if (pcdev->dma_chans[0] < 0) {
+	err = pxa_request_dma("CI_V", DMA_PRIO_HIGH,
+			      pxa_camera_dma_irq_v, pcdev);
+	if (err < 0) {
 		dev_err(pcdev->dev, "Can't request DMA for V\n");
-		err = -ENOMEM;
 		goto exit_free_dma_u;
 	}
+	pcdev->dma_chans[2] = err;
 	dev_dbg(pcdev->dev, "got DMA channel (V) %d\n", pcdev->dma_chans[2]);
 
-	DRCMR68 = pcdev->dma_chans[0] | DRCMR_MAPVLD;
-	DRCMR69 = pcdev->dma_chans[1] | DRCMR_MAPVLD;
-	DRCMR70 = pcdev->dma_chans[2] | DRCMR_MAPVLD;
+	DRCMR(68) = pcdev->dma_chans[0] | DRCMR_MAPVLD;
+	DRCMR(69) = pcdev->dma_chans[1] | DRCMR_MAPVLD;
+	DRCMR(70) = pcdev->dma_chans[2] | DRCMR_MAPVLD;
 
 	/* request irq */
 	err = request_irq(pcdev->irq, pxa_camera_irq, 0, PXA_CAM_DRV_NAME,

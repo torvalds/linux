@@ -946,7 +946,7 @@ static struct tuner_params tuner_tena_9533_di_params[] = {
 	},
 };
 
-/* ------------ TUNER_PHILIPS_FMD1216ME_MK3 - Philips PAL ------------ */
+/* ------------ TUNER_PHILIPS_FMD1216ME(X)_MK3 - Philips PAL ------------ */
 
 static struct tuner_range tuner_philips_fmd1216me_mk3_pal_ranges[] = {
 	{ 16 * 160.00 /*MHz*/, 0x86, 0x51, },
@@ -984,6 +984,27 @@ static struct tuner_params tuner_philips_fmd1216me_mk3_params[] = {
 	},
 };
 
+static struct tuner_params tuner_philips_fmd1216mex_mk3_params[] = {
+	{
+		.type   = TUNER_PARAM_TYPE_PAL,
+		.ranges = tuner_philips_fmd1216me_mk3_pal_ranges,
+		.count  = ARRAY_SIZE(tuner_philips_fmd1216me_mk3_pal_ranges),
+		.has_tda9887 = 1,
+		.port1_active = 1,
+		.port2_active = 1,
+		.port2_fm_high_sensitivity = 1,
+		.port2_invert_for_secam_lc = 1,
+		.port1_set_for_fm_mono = 1,
+		.radio_if = 1,
+		.fm_gain_normal = 1,
+	},
+	{
+		.type   = TUNER_PARAM_TYPE_DIGITAL,
+		.ranges = tuner_philips_fmd1216me_mk3_dvb_ranges,
+		.count  = ARRAY_SIZE(tuner_philips_fmd1216me_mk3_dvb_ranges),
+		.iffreq = 16 * 36.125, /*MHz*/
+	},
+};
 
 /* ------ TUNER_LG_TDVS_H06XF - LG INNOTEK / INFINEON ATSC ----- */
 
@@ -1213,6 +1234,23 @@ static struct tuner_params tuner_samsung_tcpg_6121p30a_params[] = {
 		.port1_active = 1,
 		.port2_active = 1,
 		.port2_invert_for_secam_lc = 1,
+	},
+};
+
+/* ------------ TUNER_TCL_MF02GIP-5N-E - TCL MF02GIP-5N ------------ */
+
+static struct tuner_range tuner_tcl_mf02gip_5n_ntsc_ranges[] = {
+	{ 16 * 172.00 /*MHz*/, 0x8e, 0x01, },
+	{ 16 * 448.00 /*MHz*/, 0x8e, 0x02, },
+	{ 16 * 999.99        , 0x8e, 0x04, },
+};
+
+static struct tuner_params tuner_tcl_mf02gip_5n_params[] = {
+	{
+		.type   = TUNER_PARAM_TYPE_NTSC,
+		.ranges = tuner_tcl_mf02gip_5n_ntsc_ranges,
+		.count  = ARRAY_SIZE(tuner_tcl_mf02gip_5n_ntsc_ranges),
+		.cb_first_if_lower_freq = 1,
 	},
 };
 
@@ -1640,6 +1678,21 @@ struct tunertype tuners[] = {
 	[TUNER_XC5000] = { /* Xceive 5000 */
 		.name   = "Xceive 5000 tuner",
 		/* see xc5000.c for details */
+	},
+	[TUNER_TCL_MF02GIP_5N] = { /* TCL tuner MF02GIP-5N-E */
+		.name   = "TCL tuner MF02GIP-5N-E",
+		.params = tuner_tcl_mf02gip_5n_params,
+		.count  = ARRAY_SIZE(tuner_tcl_mf02gip_5n_params),
+	},
+	[TUNER_PHILIPS_FMD1216MEX_MK3] = { /* Philips PAL */
+		.name   = "Philips FMD1216MEX MK3 Hybrid Tuner",
+		.params = tuner_philips_fmd1216mex_mk3_params,
+		.count  = ARRAY_SIZE(tuner_philips_fmd1216mex_mk3_params),
+		.min = 16 *  50.87,
+		.max = 16 * 858.00,
+		.stepsize = 166667,
+		.initdata = tua603x_agc112,
+		.sleepdata = (u8[]){ 4, 0x9c, 0x60, 0x85, 0x54 },
 	},
 };
 EXPORT_SYMBOL(tuners);

@@ -519,7 +519,7 @@ static int __init pnpbios_init(void)
 {
 	int ret;
 
-#if defined(CONFIG_PPC_MERGE)
+#if defined(CONFIG_PPC)
 	if (check_legacy_ioport(PNPBIOS_BASE))
 		return -ENODEV;
 #endif
@@ -571,13 +571,13 @@ static int __init pnpbios_init(void)
 	return 0;
 }
 
-subsys_initcall(pnpbios_init);
+fs_initcall(pnpbios_init);
 
 static int __init pnpbios_thread_init(void)
 {
 	struct task_struct *task;
 
-#if defined(CONFIG_PPC_MERGE)
+#if defined(CONFIG_PPC)
 	if (check_legacy_ioport(PNPBIOS_BASE))
 		return 0;
 #endif

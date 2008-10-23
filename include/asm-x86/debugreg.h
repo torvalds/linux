@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_DEBUGREG_H
-#define _ASM_X86_DEBUGREG_H
+#ifndef ASM_X86__DEBUGREG_H
+#define ASM_X86__DEBUGREG_H
 
 
 /* Indicate the register numbers for a number of the specific
@@ -67,4 +67,4 @@
 #define DR_LOCAL_SLOWDOWN (0x100)   /* Local slow the pipeline */
 #define DR_GLOBAL_SLOWDOWN (0x200)  /* Global slow the pipeline */
 
-#endif
+#endif /* ASM_X86__DEBUGREG_H */

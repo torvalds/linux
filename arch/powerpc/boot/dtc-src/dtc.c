@@ -55,7 +55,7 @@ char *join_path(const char *path, const char *name)
 	return str;
 }
 
-void fill_fullpaths(struct node *tree, const char *prefix)
+static void fill_fullpaths(struct node *tree, const char *prefix)
 {
 	struct node *child;
 	const char *unit;
@@ -106,7 +106,7 @@ static void  __attribute__ ((noreturn)) usage(void)
 	fprintf(stderr, "\t\tForce - try to produce output even if the input tree has errors\n");
 	fprintf(stderr, "\t-v\n");
 	fprintf(stderr, "\t\tPrint DTC version and exit\n");
-	exit(2);
+	exit(3);
 }
 
 int main(int argc, char *argv[])
@@ -118,10 +118,9 @@ int main(int argc, char *argv[])
 	int force = 0, check = 0;
 	const char *arg;
 	int opt;
-	FILE *inf = NULL;
 	FILE *outf = NULL;
 	int outversion = DEFAULT_FDT_VERSION;
-	int boot_cpuid_phys = 0xfeedbeef;
+	long long cmdline_boot_cpuid = -1;
 
 	quiet      = 0;
 	reservenum = 0;
@@ -161,11 +160,11 @@ int main(int argc, char *argv[])
 			quiet++;
 			break;
 		case 'b':
-			boot_cpuid_phys = strtol(optarg, NULL, 0);
+			cmdline_boot_cpuid = strtoll(optarg, NULL, 0);
 			break;
 		case 'v':
-		    printf("Version: %s\n", DTC_VERSION);
-		    exit(0);
+			printf("Version: %s\n", DTC_VERSION);
+			exit(0);
 		case 'h':
 		default:
 			usage();
@@ -180,31 +179,27 @@ int main(int argc, char *argv[])
 		arg = argv[optind];
 
 	/* minsize and padsize are mutually exclusive */
-	if ((minsize) && (padsize)) {
+	if (minsize && padsize)
 		die("Can't set both -p and -S\n");
-	}
 
 	fprintf(stderr, "DTC: %s->%s  on file \"%s\"\n",
 		inform, outform, arg);
 
-	if (streq(inform, "dts")) {
+	if (streq(inform, "dts"))
 		bi = dt_from_source(arg);
-	} else if (streq(inform, "fs")) {
+	else if (streq(inform, "fs"))
 		bi = dt_from_fs(arg);
-	} else if(streq(inform, "dtb")) {
-		inf = dtc_open_file(arg);
-		bi = dt_from_blob(inf);
-	} else {
+	else if(streq(inform, "dtb"))
+		bi = dt_from_blob(arg);
+	else
 		die("Unknown input format \"%s\"\n", inform);
-	}
 
-	if (inf && (inf != stdin))
-		fclose(inf);
+	if (cmdline_boot_cpuid != -1)
+		bi->boot_cpuid_phys = cmdline_boot_cpuid;
 
-	if (! bi || ! bi->dt)
-		die("Couldn't read input tree\n");
+	fill_fullpaths(bi->dt, "");
+	process_checks(force, bi);
 
-	process_checks(force, bi, check, outversion, boot_cpuid_phys);
 
 	if (streq(outname, "-")) {
 		outf = stdout;
@@ -218,9 +213,9 @@ int main(int argc, char *argv[])
 	if (streq(outform, "dts")) {
 		dt_to_source(outf, bi);
 	} else if (streq(outform, "dtb")) {
-		dt_to_blob(outf, bi, outversion, boot_cpuid_phys);
+		dt_to_blob(outf, bi, outversion);
 	} else if (streq(outform, "asm")) {
-		dt_to_asm(outf, bi, outversion, boot_cpuid_phys);
+		dt_to_asm(outf, bi, outversion);
 	} else if (streq(outform, "null")) {
 		/* do nothing */
 	} else {

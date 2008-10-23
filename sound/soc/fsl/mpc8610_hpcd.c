@@ -68,10 +68,6 @@ static int mpc8610_hpcd_machine_probe(struct platform_device *sound_device)
 	guts_set_pmuxcr_dma(machine_data->guts, machine_data->dma_id,
 		machine_data->dma_channel_id[1], 0);
 
-	guts_set_pmuxcr_dma(machine_data->guts, 1, 0, 0);
-	guts_set_pmuxcr_dma(machine_data->guts, 1, 3, 0);
-	guts_set_pmuxcr_dma(machine_data->guts, 0, 3, 0);
-
 	switch (machine_data->ssi_id) {
 	case 0:
 		clrsetbits_be32(&machine_data->guts->pmuxcr,
@@ -230,6 +226,8 @@ static int mpc8610_hpcd_probe(struct of_device *ofdev,
 	struct fsl_ssi_info ssi_info;
 	struct fsl_dma_info dma_info;
 	int ret = -ENODEV;
+	unsigned int playback_dma_channel;
+	unsigned int capture_dma_channel;
 
 	machine_data = kzalloc(sizeof(struct mpc8610_hpcd_data), GFP_KERNEL);
 	if (!machine_data)
@@ -381,8 +379,9 @@ static int mpc8610_hpcd_probe(struct of_device *ofdev,
 		goto error;
 	}
 
-	/* Find the DMA channels to use.  For now, we always use the first DMA
-	   controller. */
+	/* Find the DMA channels to use.  Both SSIs need to use the same DMA
+	 * controller, so let's use DMA#1.
+	 */
 	for_each_compatible_node(dma_np, NULL, "fsl,mpc8610-dma") {
 		iprop = of_get_property(dma_np, "cell-index", NULL);
 		if (iprop && (*iprop == 0)) {
@@ -397,14 +396,19 @@ static int mpc8610_hpcd_probe(struct of_device *ofdev,
 	}
 	machine_data->dma_id = *iprop;
 
+	/* SSI1 needs to use DMA Channels 0 and 1, and SSI2 needs to use DMA
+	 * channels 2 and 3.  This is just how the MPC8610 is wired
+	 * internally.
+	 */
+	playback_dma_channel = (machine_data->ssi_id == 0) ? 0 : 2;
+	capture_dma_channel = (machine_data->ssi_id == 0) ? 1 : 3;
+
 	/*
-	 * Find the DMA channels to use.  For now, we always use DMA channel 0
-	 * for playback, and DMA channel 1 for capture.
+	 * Find the DMA channels to use.
 	 */
 	while ((dma_channel_np = of_get_next_child(dma_np, dma_channel_np))) {
 		iprop = of_get_property(dma_channel_np, "cell-index", NULL);
-		/* Is it DMA channel 0? */
-		if (iprop && (*iprop == 0)) {
+		if (iprop && (*iprop == playback_dma_channel)) {
 			/* dma_channel[0] and dma_irq[0] are for playback */
 			dma_info.dma_channel[0] = of_iomap(dma_channel_np, 0);
 			dma_info.dma_irq[0] =
@@ -412,7 +416,7 @@ static int mpc8610_hpcd_probe(struct of_device *ofdev,
 			machine_data->dma_channel_id[0] = *iprop;
 			continue;
 		}
-		if (iprop && (*iprop == 1)) {
+		if (iprop && (*iprop == capture_dma_channel)) {
 			/* dma_channel[1] and dma_irq[1] are for capture */
 			dma_info.dma_channel[1] = of_iomap(dma_channel_np, 0);
 			dma_info.dma_irq[1] =

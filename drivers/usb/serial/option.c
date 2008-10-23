@@ -79,27 +79,16 @@ static int  option_send_setup(struct tty_struct *tty, struct usb_serial_port *po
 #define OPTION_PRODUCT_VIPER			0x6600
 #define OPTION_PRODUCT_VIPER_BUS		0x6601
 #define OPTION_PRODUCT_GT_MAX_READY		0x6701
-#define OPTION_PRODUCT_GT_MAX			0x6711
 #define OPTION_PRODUCT_FUJI_MODEM_LIGHT		0x6721
 #define OPTION_PRODUCT_FUJI_MODEM_GT		0x6741
 #define OPTION_PRODUCT_FUJI_MODEM_EX		0x6761
-#define OPTION_PRODUCT_FUJI_NETWORK_LIGHT	0x6731
-#define OPTION_PRODUCT_FUJI_NETWORK_GT		0x6751
-#define OPTION_PRODUCT_FUJI_NETWORK_EX		0x6771
 #define OPTION_PRODUCT_KOI_MODEM		0x6800
-#define OPTION_PRODUCT_KOI_NETWORK		0x6811
 #define OPTION_PRODUCT_SCORPION_MODEM		0x6901
-#define OPTION_PRODUCT_SCORPION_NETWORK		0x6911
 #define OPTION_PRODUCT_ETNA_MODEM		0x7001
-#define OPTION_PRODUCT_ETNA_NETWORK		0x7011
 #define OPTION_PRODUCT_ETNA_MODEM_LITE		0x7021
 #define OPTION_PRODUCT_ETNA_MODEM_GT		0x7041
 #define OPTION_PRODUCT_ETNA_MODEM_EX		0x7061
-#define OPTION_PRODUCT_ETNA_NETWORK_LITE	0x7031
-#define OPTION_PRODUCT_ETNA_NETWORK_GT		0x7051
-#define OPTION_PRODUCT_ETNA_NETWORK_EX		0x7071
 #define OPTION_PRODUCT_ETNA_KOI_MODEM		0x7100
-#define OPTION_PRODUCT_ETNA_KOI_NETWORK		0x7111
 
 #define HUAWEI_VENDOR_ID			0x12D1
 #define HUAWEI_PRODUCT_E600			0x1001
@@ -220,6 +209,16 @@ static int  option_send_setup(struct tty_struct *tty, struct usb_serial_port *po
 #define ZTE_PRODUCT_MF628			0x0015
 #define ZTE_PRODUCT_CDMA_TECH			0xfffe
 
+/* Ericsson products */
+#define ERICSSON_VENDOR_ID			0x0bdb
+#define ERICSSON_PRODUCT_F3507G			0x1900
+
+/* Pantech products */
+#define PANTECH_VENDOR_ID			0x106c
+#define PANTECH_PRODUCT_PC5740			0x3701
+#define PANTECH_PRODUCT_PC5750			0x3702  /* PX-500 */
+#define PANTECH_PRODUCT_UM150			0x3711
+
 static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COLT) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_RICOLA) },
@@ -235,27 +234,16 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_VIPER) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_VIPER_BUS) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_GT_MAX_READY) },
-	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_GT_MAX) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_FUJI_MODEM_LIGHT) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_FUJI_MODEM_GT) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_FUJI_MODEM_EX) },
-	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_FUJI_NETWORK_LIGHT) },
-	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_FUJI_NETWORK_GT) },
-	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_FUJI_NETWORK_EX) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_KOI_MODEM) },
-	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_KOI_NETWORK) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_SCORPION_MODEM) },
-	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_SCORPION_NETWORK) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_ETNA_MODEM) },
-	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_ETNA_NETWORK) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_ETNA_MODEM_LITE) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_ETNA_MODEM_GT) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_ETNA_MODEM_EX) },
-	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_ETNA_NETWORK_LITE) },
-	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_ETNA_NETWORK_GT) },
-	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_ETNA_NETWORK_EX) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_ETNA_KOI_MODEM) },
-	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_ETNA_KOI_NETWORK) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E600, 0xff, 0xff, 0xff) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E220, 0xff, 0xff, 0xff) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E220BIS, 0xff, 0xff, 0xff) },
@@ -318,7 +306,8 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(DELL_VENDOR_ID, 0x8136) },	/* Dell Wireless HSDPA 5520 == Novatel Expedite EU860D */
 	{ USB_DEVICE(DELL_VENDOR_ID, 0x8137) },	/* Dell Wireless HSDPA 5520 */
 	{ USB_DEVICE(DELL_VENDOR_ID, 0x8138) },	/* Dell Wireless 5520 Voda I Mobile Broadband (3G HSDPA) Minicard */
-	{ USB_DEVICE(ANYDATA_VENDOR_ID, ANYDATA_PRODUCT_ADU_E100A) },
+	{ USB_DEVICE(DELL_VENDOR_ID, 0x8147) },	/* Dell Wireless 5530 Mobile Broadband (3G HSPA) Mini-Card */
+	{ USB_DEVICE(ANYDATA_VENDOR_ID, ANYDATA_PRODUCT_ADU_E100A) },	/* ADU-E100, ADU-310 */
 	{ USB_DEVICE(ANYDATA_VENDOR_ID, ANYDATA_PRODUCT_ADU_500A) },
 	{ USB_DEVICE(ANYDATA_VENDOR_ID, ANYDATA_PRODUCT_ADU_620UW) },
 	{ USB_DEVICE(AXESSTEL_VENDOR_ID, AXESSTEL_PRODUCT_MV110H) },
@@ -349,6 +338,10 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(TELIT_VENDOR_ID, TELIT_PRODUCT_UC864E) },
 	{ USB_DEVICE(ZTE_VENDOR_ID, ZTE_PRODUCT_MF628) },
 	{ USB_DEVICE(ZTE_VENDOR_ID, ZTE_PRODUCT_CDMA_TECH) },
+	{ USB_DEVICE(ERICSSON_VENDOR_ID, ERICSSON_PRODUCT_F3507G) },
+	{ USB_DEVICE(PANTECH_VENDOR_ID, PANTECH_PRODUCT_PC5740) },
+	{ USB_DEVICE(PANTECH_VENDOR_ID, PANTECH_PRODUCT_PC5750) },
+	{ USB_DEVICE(PANTECH_VENDOR_ID, PANTECH_PRODUCT_UM150) },
 	{ } /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, option_ids);
@@ -427,7 +420,8 @@ static int __init option_init(void)
 	if (retval)
 		goto failed_driver_register;
 
-	info(DRIVER_DESC ": " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 
 	return 0;
 
@@ -571,14 +565,14 @@ static void option_indat_callback(struct urb *urb)
 		dbg("%s: nonzero status: %d on endpoint %02x.",
 		    __func__, status, endpoint);
 	} else {
-		tty = port->port.tty;
+		tty = tty_port_tty_get(&port->port);
 		if (urb->actual_length) {
 			tty_buffer_request_room(tty, urb->actual_length);
 			tty_insert_flip_string(tty, data, urb->actual_length);
 			tty_flip_buffer_push(tty);
-		} else {
+		} else 
 			dbg("%s: empty read urb received", __func__);
-		}
+		tty_kref_put(tty);
 
 		/* Resubmit urb so we continue receiving */
 		if (port->port.count && status != -ESHUTDOWN) {
@@ -647,9 +641,13 @@ static void option_instat_callback(struct urb *urb)
 			portdata->dsr_state = ((signals & 0x02) ? 1 : 0);
 			portdata->ri_state = ((signals & 0x08) ? 1 : 0);
 
-			if (port->port.tty && !C_CLOCAL(port->port.tty) &&
-					old_dcd_state && !portdata->dcd_state)
-				tty_hangup(port->port.tty);
+			if (old_dcd_state && !portdata->dcd_state) {
+				struct tty_struct *tty =
+						tty_port_tty_get(&port->port);
+				if (tty && !C_CLOCAL(tty))
+					tty_hangup(tty);
+				tty_kref_put(tty);
+			}
 		} else {
 			dbg("%s: type %x req %x", __func__,
 				req_pkt->bRequestType, req_pkt->bRequest);
@@ -793,7 +791,7 @@ static void option_close(struct tty_struct *tty,
 		for (i = 0; i < N_OUT_URB; i++)
 			usb_kill_urb(portdata->out_urbs[i]);
 	}
-	port->port.tty = NULL;	/* FIXME */
+	tty_port_tty_set(&port->port, NULL);
 }
 
 /* Helper functions used by option_setup_urbs */

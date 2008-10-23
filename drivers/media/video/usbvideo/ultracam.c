@@ -156,10 +156,11 @@ static int ultracam_veio(
 			sizeof(cp),
 			1000);
 #if 1
-		info("USB => %02x%02x%02x%02x%02x%02x%02x%02x "
-		       "(req=$%02x val=$%04x ind=$%04x)",
-		       cp[0],cp[1],cp[2],cp[3],cp[4],cp[5],cp[6],cp[7],
-		       req, value, index);
+		dev_info(&uvd->dev->dev,
+			 "USB => %02x%02x%02x%02x%02x%02x%02x%02x "
+			 "(req=$%02x val=$%04x ind=$%04x)\n",
+			 cp[0],cp[1],cp[2],cp[3],cp[4],cp[5],cp[6],cp[7],
+			 req, value, index);
 #endif
 	} else {
 		i = usb_control_msg(
@@ -517,19 +518,20 @@ static int ultracam_probe(struct usb_interface *intf, const struct usb_device_id
 	unsigned char video_ep = 0;
 
 	if (debug >= 1)
-		info("ultracam_probe(%p)", intf);
+		dev_info(&intf->dev, "ultracam_probe\n");
 
 	/* We don't handle multi-config cameras */
 	if (dev->descriptor.bNumConfigurations != 1)
 		return -ENODEV;
 
-	info("IBM Ultra camera found (rev. 0x%04x)",
-		le16_to_cpu(dev->descriptor.bcdDevice));
+	dev_info(&intf->dev, "IBM Ultra camera found (rev. 0x%04x)\n",
+		 le16_to_cpu(dev->descriptor.bcdDevice));
 
 	/* Validate found interface: must have one ISO endpoint */
 	nas = intf->num_altsetting;
 	if (debug > 0)
-		info("Number of alternate settings=%d.", nas);
+		dev_info(&intf->dev, "Number of alternate settings=%d.\n",
+			 nas);
 	if (nas < 8) {
 		err("Too few alternate settings for this camera!");
 		return -ENODEV;
@@ -576,7 +578,9 @@ static int ultracam_probe(struct usb_interface *intf, const struct usb_device_id
 				actInterface = i;
 				maxPS = le16_to_cpu(endpoint->wMaxPacketSize);
 				if (debug > 0)
-					info("Active setting=%d. maxPS=%d.", i, maxPS);
+					dev_info(&intf->dev,
+						 "Active setting=%d. "
+						 "maxPS=%d.\n", i, maxPS);
 			} else {
 				/* Got another active alt. setting */
 				if (maxPS < le16_to_cpu(endpoint->wMaxPacketSize)) {
@@ -584,8 +588,11 @@ static int ultracam_probe(struct usb_interface *intf, const struct usb_device_id
 					actInterface = i;
 					maxPS = le16_to_cpu(endpoint->wMaxPacketSize);
 					if (debug > 0) {
-						info("Even better ctive setting=%d. maxPS=%d.",
-						     i, maxPS);
+						dev_info(&intf->dev,
+							 "Even better ctive "
+							 "setting=%d. "
+							 "maxPS=%d.\n",
+							 i, maxPS);
 					}
 				}
 			}

@@ -36,7 +36,6 @@ struct tda827x_config
 	/* interface to tda829x driver */
 	unsigned int config;
 	int 	     switch_addr;
-	int (*tuner_callback) (void *dev, int command, int arg);
 
 	void (*agcf)(struct dvb_frontend *fe);
 };

@@ -49,13 +49,13 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/list.h>
 #include <linux/unistd.h>
-#include <linux/byteorder/swab.h>
 #include <linux/pagemap.h>
 #include <linux/scatterlist.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
+#include <asm/byteorder.h>
 
 #include <linux/dvb/video.h>
 #include <linux/dvb/audio.h>
@@ -507,6 +507,8 @@ struct yuv_playback_info
 	struct v4l2_rect main_rect;
 	u32 v4l2_src_w;
 	u32 v4l2_src_h;
+
+	u8 running; /* Have any frames been displayed */
 };
 
 #define IVTV_VBI_FRAMES 32
@@ -750,6 +752,12 @@ void ivtv_read_eeprom(struct ivtv *itv, struct tveeprom *tv);
 
 /* First-open initialization: load firmware, init cx25840, etc. */
 int ivtv_init_on_first_open(struct ivtv *itv);
+
+/* Test if the current VBI mode is raw (1) or sliced (0) */
+static inline int ivtv_raw_vbi(const struct ivtv *itv)
+{
+	return itv->vbi.in.type == V4L2_BUF_TYPE_VBI_CAPTURE;
+}
 
 /* This is a PCI post thing, where if the pci register is not read, then
    the write doesn't always take effect right away. By reading back the

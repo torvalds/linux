@@ -482,4 +482,10 @@ static inline void usbmon_urb_complete(struct usb_bus *bus, struct urb *urb,
  */
 extern struct rw_semaphore ehci_cf_port_reset_rwsem;
 
+/* Keep track of which host controller drivers are loaded */
+#define USB_UHCI_LOADED		0
+#define USB_OHCI_LOADED		1
+#define USB_EHCI_LOADED		2
+extern unsigned long usb_hcds_loaded;
+
 #endif /* __KERNEL__ */

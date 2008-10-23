@@ -62,6 +62,8 @@ struct paca_struct {
 	u16 paca_index;			/* Logical processor number */
 
 	u64 kernel_toc;			/* Kernel TOC address */
+	u64 kernelbase;			/* Base address of kernel */
+	u64 kernel_msr;			/* MSR while running in kernel */
 	u64 stab_real;			/* Absolute address of segment table */
 	u64 stab_addr;			/* Virtual address of segment table */
 	void *emergency_sp;		/* pointer to emergency stack */

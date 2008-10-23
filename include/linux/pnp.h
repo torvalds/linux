@@ -22,9 +22,11 @@ struct pnp_dev;
  * Resource Management
  */
 #ifdef CONFIG_PNP
-struct resource *pnp_get_resource(struct pnp_dev *, unsigned int, unsigned int);
+struct resource *pnp_get_resource(struct pnp_dev *dev, unsigned long type,
+				unsigned int num);
 #else
-static inline struct resource *pnp_get_resource(struct pnp_dev *dev, unsigned int type, unsigned int num)
+static inline struct resource *pnp_get_resource(struct pnp_dev *dev,
+			unsigned long type, unsigned int num)
 {
 	return NULL;
 }

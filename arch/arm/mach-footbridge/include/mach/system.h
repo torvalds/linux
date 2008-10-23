@@ -7,8 +7,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/io.h>
 #include <asm/hardware/dec21285.h>
-#include <asm/io.h>
 #include <mach/hardware.h>
 #include <asm/leds.h>
 #include <asm/mach-types.h>

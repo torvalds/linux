@@ -25,17 +25,17 @@
 #include <linux/errno.h>
 #include <linux/time.h>
 #include <linux/sysdev.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 
 #include <asm/mach-types.h>
 
 #include <mach/regs-gpio.h>
 #include <mach/h1940.h>
 
-#include <asm/plat-s3c24xx/cpu.h>
-#include <asm/plat-s3c24xx/pm.h>
+#include <plat/cpu.h>
+#include <plat/pm.h>
 
 #ifdef CONFIG_S3C2410_PM_DEBUG
 extern void pm_dbg(const char *fmt, ...);

@@ -20,8 +20,8 @@
 #include <linux/agp_backend.h>
 #include <linux/log2.h>
 
-#include <asm-parisc/parisc-device.h>
-#include <asm-parisc/ropes.h>
+#include <asm/parisc-device.h>
+#include <asm/ropes.h>
 
 #include "agp.h"
 
@@ -224,7 +224,9 @@ static const struct agp_bridge_driver parisc_agp_driver = {
 	.alloc_by_type		= agp_generic_alloc_by_type,
 	.free_by_type		= agp_generic_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,
+	.agp_alloc_pages	= agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages	= agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 	.cant_use_aperture	= true,
 };

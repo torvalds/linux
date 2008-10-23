@@ -23,7 +23,7 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/assembler.h>
-#include <asm/elf.h>
+#include <asm/hwcap.h>
 #include <asm/pgtable.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/page.h>
@@ -406,8 +406,6 @@ ENTRY(cpu_xscale_dcache_clean_area)
 
 /* =============================== PageTable ============================== */
 
-#define PTE_CACHE_WRITE_ALLOCATE 0
-
 /*
  * cpu_xscale_switch_mm(pgd)
  *
@@ -431,56 +429,42 @@ ENTRY(cpu_xscale_switch_mm)
  *
  * Errata 40: must set memory to write-through for user read-only pages.
  */
+cpu_xscale_mt_table:
+	.long	0x00						@ L_PTE_MT_UNCACHED
+	.long	PTE_BUFFERABLE					@ L_PTE_MT_BUFFERABLE
+	.long	PTE_CACHEABLE					@ L_PTE_MT_WRITETHROUGH
+	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_WRITEBACK
+	.long	PTE_EXT_TEX(1) | PTE_BUFFERABLE			@ L_PTE_MT_DEV_SHARED
+	.long	0x00						@ unused
+	.long	PTE_EXT_TEX(1) | PTE_CACHEABLE			@ L_PTE_MT_MINICACHE
+	.long	PTE_EXT_TEX(1) | PTE_CACHEABLE | PTE_BUFFERABLE	@ L_PTE_MT_WRITEALLOC
+	.long	0x00						@ unused
+	.long	PTE_BUFFERABLE					@ L_PTE_MT_DEV_WC
+	.long	0x00						@ unused
+	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_DEV_CACHED
+	.long	0x00						@ L_PTE_MT_DEV_NONSHARED
+	.long	0x00						@ unused
+	.long	0x00						@ unused
+	.long	0x00						@ unused
+
 	.align	5
 ENTRY(cpu_xscale_set_pte_ext)
-	str	r1, [r0], #-2048		@ linux version
-
-	bic	r2, r1, #0xff0
-	orr	r2, r2, #PTE_TYPE_EXT		@ extended page
-
-	eor	r3, r1, #L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_WRITE | L_PTE_DIRTY
-
-	tst	r3, #L_PTE_USER			@ User?
-	orrne	r2, r2, #PTE_EXT_AP_URO_SRW	@ yes -> user r/o, system r/w
-
-	tst	r3, #L_PTE_WRITE | L_PTE_DIRTY	@ Write and Dirty?
-	orreq	r2, r2, #PTE_EXT_AP_UNO_SRW	@ yes -> user n/a, system r/w
-						@ combined with user -> user r/w
+	xscale_set_pte_ext_prologue
 
 	@
-	@ Handle the X bit.  We want to set this bit for the minicache
-	@ (U = E = B = W = 0, C = 1) or when write allocate is enabled,
-	@ and we have a writeable, cacheable region.  If we ignore the
-	@ U and E bits, we can allow user space to use the minicache as
-	@ well.
+	@ Erratum 40: must set memory to write-through for user read-only pages
 	@
-	@  X = (C & ~W & ~B) | (C & W & B & write_allocate)
-	@
-	eor	ip, r1, #L_PTE_CACHEABLE
-	tst	ip, #L_PTE_CACHEABLE | L_PTE_WRITE | L_PTE_BUFFERABLE
-#if PTE_CACHE_WRITE_ALLOCATE
-	eorne	ip, r1, #L_PTE_CACHEABLE | L_PTE_WRITE | L_PTE_BUFFERABLE
-	tstne	ip, #L_PTE_CACHEABLE | L_PTE_WRITE | L_PTE_BUFFERABLE
-#endif
-	orreq	r2, r2, #PTE_EXT_TEX(1)
+	and	ip, r1, #(L_PTE_MT_MASK | L_PTE_USER | L_PTE_WRITE) & ~(4 << 2)
+	teq	ip, #L_PTE_MT_WRITEBACK | L_PTE_USER
 
-	@
-	@ Erratum 40: The B bit must be cleared for a user read-only
-	@ cacheable page.
-	@
-	@  B = B & ~(U & C & ~W)
-	@
-	and	ip, r1, #L_PTE_USER | L_PTE_WRITE | L_PTE_CACHEABLE
-	teq	ip, #L_PTE_USER | L_PTE_CACHEABLE
-	biceq	r2, r2, #PTE_BUFFERABLE
+	moveq	r1, #L_PTE_MT_WRITETHROUGH
+	and	r1, r1, #L_PTE_MT_MASK
+	adr	ip, cpu_xscale_mt_table
+	ldr	ip, [ip, r1]
+	bic	r2, r2, #0x0c
+	orr	r2, r2, ip
 
-	tst	r3, #L_PTE_PRESENT | L_PTE_YOUNG	@ Present and Young?
-	movne	r2, #0				@ no -> fault
-
-	str	r2, [r0]			@ hardware version
-	mov	ip, #0
-	mcr	p15, 0, r0, c7, c10, 1		@ Clean D cache line
-	mcr	p15, 0, ip, c7, c10, 4		@ Drain Write (& Fill) Buffer
+	xscale_set_pte_ext_epilogue
 	mov	pc, lr
 
 

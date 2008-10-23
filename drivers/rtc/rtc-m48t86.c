@@ -62,14 +62,14 @@ static int m48t86_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		tm->tm_wday	= ops->readbyte(M48T86_REG_DOW);
 	} else {
 		/* bcd mode */
-		tm->tm_sec	= BCD2BIN(ops->readbyte(M48T86_REG_SEC));
-		tm->tm_min	= BCD2BIN(ops->readbyte(M48T86_REG_MIN));
-		tm->tm_hour	= BCD2BIN(ops->readbyte(M48T86_REG_HOUR) & 0x3F);
-		tm->tm_mday	= BCD2BIN(ops->readbyte(M48T86_REG_DOM));
+		tm->tm_sec	= bcd2bin(ops->readbyte(M48T86_REG_SEC));
+		tm->tm_min	= bcd2bin(ops->readbyte(M48T86_REG_MIN));
+		tm->tm_hour	= bcd2bin(ops->readbyte(M48T86_REG_HOUR) & 0x3F);
+		tm->tm_mday	= bcd2bin(ops->readbyte(M48T86_REG_DOM));
 		/* tm_mon is 0-11 */
-		tm->tm_mon	= BCD2BIN(ops->readbyte(M48T86_REG_MONTH)) - 1;
-		tm->tm_year	= BCD2BIN(ops->readbyte(M48T86_REG_YEAR)) + 100;
-		tm->tm_wday	= BCD2BIN(ops->readbyte(M48T86_REG_DOW));
+		tm->tm_mon	= bcd2bin(ops->readbyte(M48T86_REG_MONTH)) - 1;
+		tm->tm_year	= bcd2bin(ops->readbyte(M48T86_REG_YEAR)) + 100;
+		tm->tm_wday	= bcd2bin(ops->readbyte(M48T86_REG_DOW));
 	}
 
 	/* correct the hour if the clock is in 12h mode */
@@ -103,13 +103,13 @@ static int m48t86_rtc_set_time(struct device *dev, struct rtc_time *tm)
 		ops->writebyte(tm->tm_wday, M48T86_REG_DOW);
 	} else {
 		/* bcd mode */
-		ops->writebyte(BIN2BCD(tm->tm_sec), M48T86_REG_SEC);
-		ops->writebyte(BIN2BCD(tm->tm_min), M48T86_REG_MIN);
-		ops->writebyte(BIN2BCD(tm->tm_hour), M48T86_REG_HOUR);
-		ops->writebyte(BIN2BCD(tm->tm_mday), M48T86_REG_DOM);
-		ops->writebyte(BIN2BCD(tm->tm_mon + 1), M48T86_REG_MONTH);
-		ops->writebyte(BIN2BCD(tm->tm_year % 100), M48T86_REG_YEAR);
-		ops->writebyte(BIN2BCD(tm->tm_wday), M48T86_REG_DOW);
+		ops->writebyte(bin2bcd(tm->tm_sec), M48T86_REG_SEC);
+		ops->writebyte(bin2bcd(tm->tm_min), M48T86_REG_MIN);
+		ops->writebyte(bin2bcd(tm->tm_hour), M48T86_REG_HOUR);
+		ops->writebyte(bin2bcd(tm->tm_mday), M48T86_REG_DOM);
+		ops->writebyte(bin2bcd(tm->tm_mon + 1), M48T86_REG_MONTH);
+		ops->writebyte(bin2bcd(tm->tm_year % 100), M48T86_REG_YEAR);
+		ops->writebyte(bin2bcd(tm->tm_wday), M48T86_REG_DOW);
 	}
 
 	/* update ended */

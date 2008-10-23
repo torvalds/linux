@@ -16,7 +16,6 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/hdreg.h>
 #include <linux/pci.h>
 #include <linux/ide.h>
 #include <linux/init.h>
@@ -60,7 +59,7 @@ static const struct pci_device_id rz1000_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, rz1000_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver rz1000_pci_driver = {
 	.name		= "RZ1000_IDE",
 	.id_table	= rz1000_pci_tbl,
 	.probe		= rz1000_init_one,
@@ -69,12 +68,12 @@ static struct pci_driver driver = {
 
 static int __init rz1000_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&rz1000_pci_driver);
 }
 
 static void __exit rz1000_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&rz1000_pci_driver);
 }
 
 module_init(rz1000_ide_init);

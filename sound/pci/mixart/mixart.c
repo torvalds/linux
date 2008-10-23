@@ -708,7 +708,7 @@ static int snd_mixart_playback_open(struct snd_pcm_substream *subs)
 		pcm_number = MIXART_PCM_ANALOG;
 		runtime->hw = snd_mixart_analog_caps;
 	} else {
-		snd_assert ( pcm == chip->pcm_dig ); 
+		snd_BUG_ON(pcm != chip->pcm_dig);
 		pcm_number = MIXART_PCM_DIGITAL;
 		runtime->hw = snd_mixart_digital_caps;
 	}
@@ -783,7 +783,7 @@ static int snd_mixart_capture_open(struct snd_pcm_substream *subs)
 		pcm_number = MIXART_PCM_ANALOG;
 		runtime->hw = snd_mixart_analog_caps;
 	} else {
-		snd_assert ( pcm == chip->pcm_dig ); 
+		snd_BUG_ON(pcm != chip->pcm_dig);
 		pcm_number = MIXART_PCM_DIGITAL;
 		runtime->hw = snd_mixart_digital_caps;
 	}

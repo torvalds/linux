@@ -84,7 +84,7 @@ static const u8 csr1212_key_id_type_map[0x30] = {
 
 
 #define quads_to_bytes(_q) ((_q) * sizeof(u32))
-#define bytes_to_quads(_b) (((_b) + sizeof(u32) - 1) / sizeof(u32))
+#define bytes_to_quads(_b) DIV_ROUND_UP(_b, sizeof(u32))
 
 static void free_keyval(struct csr1212_keyval *kv)
 {

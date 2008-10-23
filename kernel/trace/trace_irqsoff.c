@@ -95,7 +95,7 @@ irqsoff_tracer_call(unsigned long ip, unsigned long parent_ip)
 	disabled = atomic_inc_return(&data->disabled);
 
 	if (likely(disabled == 1))
-		trace_function(tr, data, ip, parent_ip, flags);
+		trace_function(tr, data, ip, parent_ip, flags, preempt_count());
 
 	atomic_dec(&data->disabled);
 }
@@ -130,6 +130,7 @@ check_critical_timing(struct trace_array *tr,
 	unsigned long latency, t0, t1;
 	cycle_t T0, T1, delta;
 	unsigned long flags;
+	int pc;
 
 	/*
 	 * usecs conversion is slow so we try to delay the conversion
@@ -141,6 +142,8 @@ check_critical_timing(struct trace_array *tr,
 
 	local_save_flags(flags);
 
+	pc = preempt_count();
+
 	if (!report_latency(delta))
 		goto out;
 
@@ -150,7 +153,7 @@ check_critical_timing(struct trace_array *tr,
 	if (!report_latency(delta))
 		goto out_unlock;
 
-	trace_function(tr, data, CALLER_ADDR0, parent_ip, flags);
+	trace_function(tr, data, CALLER_ADDR0, parent_ip, flags, pc);
 
 	latency = nsecs_to_usecs(delta);
 
@@ -173,8 +176,8 @@ out_unlock:
 out:
 	data->critical_sequence = max_sequence;
 	data->preempt_timestamp = ftrace_now(cpu);
-	tracing_reset(data);
-	trace_function(tr, data, CALLER_ADDR0, parent_ip, flags);
+	tracing_reset(tr, cpu);
+	trace_function(tr, data, CALLER_ADDR0, parent_ip, flags, pc);
 }
 
 static inline void
@@ -203,11 +206,11 @@ start_critical_timing(unsigned long ip, unsigned long parent_ip)
 	data->critical_sequence = max_sequence;
 	data->preempt_timestamp = ftrace_now(cpu);
 	data->critical_start = parent_ip ? : ip;
-	tracing_reset(data);
+	tracing_reset(tr, cpu);
 
 	local_save_flags(flags);
 
-	trace_function(tr, data, ip, parent_ip, flags);
+	trace_function(tr, data, ip, parent_ip, flags, preempt_count());
 
 	per_cpu(tracing_cpu, cpu) = 1;
 
@@ -234,14 +237,14 @@ stop_critical_timing(unsigned long ip, unsigned long parent_ip)
 
 	data = tr->data[cpu];
 
-	if (unlikely(!data) || unlikely(!head_page(data)) ||
+	if (unlikely(!data) ||
 	    !data->critical_start || atomic_read(&data->disabled))
 		return;
 
 	atomic_inc(&data->disabled);
 
 	local_save_flags(flags);
-	trace_function(tr, data, ip, parent_ip, flags);
+	trace_function(tr, data, ip, parent_ip, flags, preempt_count());
 	check_critical_timing(tr, data, parent_ip ? : ip, cpu);
 	data->critical_start = 0;
 	atomic_dec(&data->disabled);

@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_PTRACE_ABI_H
-#define _ASM_X86_PTRACE_ABI_H
+#ifndef ASM_X86__PTRACE_ABI_H
+#define ASM_X86__PTRACE_ABI_H
 
 #ifdef __i386__
 
@@ -80,8 +80,9 @@
 
 #define PTRACE_SINGLEBLOCK	33	/* resume execution until next branch */
 
-#ifndef __ASSEMBLY__
+#ifdef CONFIG_X86_PTRACE_BTS
 
+#ifndef __ASSEMBLY__
 #include <asm/types.h>
 
 /* configuration/status structure used in PTRACE_BTS_CONFIG and
@@ -97,20 +98,20 @@ struct ptrace_bts_config {
 	/* actual size of bts_struct in bytes */
 	__u32 bts_size;
 };
-#endif
+#endif /* __ASSEMBLY__ */
 
 #define PTRACE_BTS_O_TRACE	0x1 /* branch trace */
 #define PTRACE_BTS_O_SCHED	0x2 /* scheduling events w/ jiffies */
 #define PTRACE_BTS_O_SIGNAL     0x4 /* send SIG<signal> on buffer overflow
 				       instead of wrapping around */
-#define PTRACE_BTS_O_CUT_SIZE	0x8 /* cut requested size to max available
-				       instead of failing */
+#define PTRACE_BTS_O_ALLOC	0x8 /* (re)allocate buffer */
 
 #define PTRACE_BTS_CONFIG	40
 /* Configure branch trace recording.
    ADDR points to a struct ptrace_bts_config.
    DATA gives the size of that buffer.
-   A new buffer is allocated, iff the size changes.
+   A new buffer is allocated, if requested in the flags.
+   An overflow signal may only be requested for new buffers.
    Returns the number of bytes read.
 */
 #define PTRACE_BTS_STATUS	41
@@ -119,7 +120,7 @@ struct ptrace_bts_config {
    Returns the number of bytes written.
 */
 #define PTRACE_BTS_SIZE		42
-/* Return the number of available BTS records.
+/* Return the number of available BTS records for draining.
    DATA and ADDR are ignored.
 */
 #define PTRACE_BTS_GET		43
@@ -139,5 +140,6 @@ struct ptrace_bts_config {
    BTS records are read from oldest to newest.
    Returns number of BTS records drained.
 */
+#endif /* CONFIG_X86_PTRACE_BTS */
 
-#endif
+#endif /* ASM_X86__PTRACE_ABI_H */

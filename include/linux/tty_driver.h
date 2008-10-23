@@ -7,6 +7,28 @@
  * defined; unless noted otherwise, they are optional, and can be
  * filled in with a null pointer.
  *
+ * struct tty_struct * (*lookup)(struct tty_driver *self, int idx)
+ *
+ *	Return the tty device corresponding to idx, NULL if there is not
+ *	one currently in use and an ERR_PTR value on error. Called under
+ *	tty_mutex (for now!)
+ *
+ *	Optional method. Default behaviour is to use the ttys array
+ *
+ * int (*install)(struct tty_driver *self, struct tty_struct *tty)
+ *
+ *	Install a new tty into the tty driver internal tables. Used in
+ *	conjunction with lookup and remove methods.
+ *
+ *	Optional method. Default behaviour is to use the ttys array
+ *
+ * void (*remove)(struct tty_driver *self, struct tty_struct *tty)
+ *
+ *	Remove a closed tty from the tty driver internal tables. Used in
+ *	conjunction with lookup and remove methods.
+ *
+ *	Optional method. Default behaviour is to use the ttys array
+ *
  * int  (*open)(struct tty_struct * tty, struct file * filp);
  *
  * 	This routine is called when a particular tty device is opened.
@@ -20,6 +42,11 @@
  * 	This routine is called when a particular tty device is closed.
  *
  *	Required method.
+ *
+ * void (*shutdown)(struct tty_struct * tty);
+ *
+ * 	This routine is called when a particular tty device is closed for
+ *	the last time freeing up the resources.
  *
  * int (*write)(struct tty_struct * tty,
  * 		 const unsigned char *buf, int count);
@@ -180,6 +207,14 @@
  *	not force errors here if they are not resizable objects (eg a serial
  *	line). See tty_do_resize() if you need to wrap the standard method
  *	in your own logic - the usual case.
+ *
+ * void (*set_termiox)(struct tty_struct *tty, struct termiox *new);
+ *
+ *	Called when the device receives a termiox based ioctl. Passes down
+ *	the requested data from user space. This method will not be invoked
+ *	unless the tty also has a valid tty->termiox pointer.
+ *
+ *	Optional: Called under the termios lock
  */
 
 #include <linux/fs.h>
@@ -190,8 +225,13 @@ struct tty_struct;
 struct tty_driver;
 
 struct tty_operations {
+	struct tty_struct * (*lookup)(struct tty_driver *driver,
+			struct inode *inode, int idx);
+	int  (*install)(struct tty_driver *driver, struct tty_struct *tty);
+	void (*remove)(struct tty_driver *driver, struct tty_struct *tty);
 	int  (*open)(struct tty_struct * tty, struct file * filp);
 	void (*close)(struct tty_struct * tty, struct file * filp);
+	void (*shutdown)(struct tty_struct *tty);
 	int  (*write)(struct tty_struct * tty,
 		      const unsigned char *buf, int count);
 	int  (*put_char)(struct tty_struct *tty, unsigned char ch);
@@ -220,6 +260,7 @@ struct tty_operations {
 			unsigned int set, unsigned int clear);
 	int (*resize)(struct tty_struct *tty, struct tty_struct *real_tty,
 				struct winsize *ws);
+	int (*set_termiox)(struct tty_struct *tty, struct termiox *tnew);
 #ifdef CONFIG_CONSOLE_POLL
 	int (*poll_init)(struct tty_driver *driver, int line, char *options);
 	int (*poll_get_char)(struct tty_driver *driver, int line);
@@ -229,6 +270,7 @@ struct tty_operations {
 
 struct tty_driver {
 	int	magic;		/* magic number for this structure */
+	struct kref kref;	/* Reference management */
 	struct cdev cdev;
 	struct module	*owner;
 	const char	*driver_name;
@@ -242,7 +284,6 @@ struct tty_driver {
 	short	subtype;	/* subtype of tty driver */
 	struct ktermios init_termios; /* Initial termios */
 	int	flags;		/* tty driver flags */
-	int	refcount;	/* for loadable tty drivers */
 	struct proc_dir_entry *proc_entry; /* /proc fs entry */
 	struct tty_driver *other; /* only used for the PTY driver */
 
@@ -264,11 +305,18 @@ struct tty_driver {
 
 extern struct list_head tty_drivers;
 
-struct tty_driver *alloc_tty_driver(int lines);
-void put_tty_driver(struct tty_driver *driver);
-void tty_set_operations(struct tty_driver *driver,
+extern struct tty_driver *alloc_tty_driver(int lines);
+extern void put_tty_driver(struct tty_driver *driver);
+extern void tty_set_operations(struct tty_driver *driver,
 			const struct tty_operations *op);
 extern struct tty_driver *tty_find_polling_driver(char *name, int *line);
+
+extern void tty_driver_kref_put(struct tty_driver *driver);
+extern inline struct tty_driver *tty_driver_kref_get(struct tty_driver *d)
+{
+	kref_get(&d->kref);
+	return d;
+}
 
 /* tty driver magic number */
 #define TTY_DRIVER_MAGIC		0x5402

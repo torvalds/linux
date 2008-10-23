@@ -128,29 +128,37 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 	return 0;
 }
 
-/* Base page size affects how we walk hugetlb page tables */
-#ifdef CONFIG_PPC_64K_PAGES
-#define hpmd_offset(pud, addr, h)	pmd_offset(pud, addr)
-#define hpmd_alloc(mm, pud, addr, h)	pmd_alloc(mm, pud, addr)
-#else
-static inline
-pmd_t *hpmd_offset(pud_t *pud, unsigned long addr, struct hstate *hstate)
+
+static pud_t *hpud_offset(pgd_t *pgd, unsigned long addr, struct hstate *hstate)
 {
-	if (huge_page_shift(hstate) == PAGE_SHIFT_64K)
+	if (huge_page_shift(hstate) < PUD_SHIFT)
+		return pud_offset(pgd, addr);
+	else
+		return (pud_t *) pgd;
+}
+static pud_t *hpud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long addr,
+			 struct hstate *hstate)
+{
+	if (huge_page_shift(hstate) < PUD_SHIFT)
+		return pud_alloc(mm, pgd, addr);
+	else
+		return (pud_t *) pgd;
+}
+static pmd_t *hpmd_offset(pud_t *pud, unsigned long addr, struct hstate *hstate)
+{
+	if (huge_page_shift(hstate) < PMD_SHIFT)
 		return pmd_offset(pud, addr);
 	else
 		return (pmd_t *) pud;
 }
-static inline
-pmd_t *hpmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long addr,
-		  struct hstate *hstate)
+static pmd_t *hpmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long addr,
+			 struct hstate *hstate)
 {
-	if (huge_page_shift(hstate) == PAGE_SHIFT_64K)
+	if (huge_page_shift(hstate) < PMD_SHIFT)
 		return pmd_alloc(mm, pud, addr);
 	else
 		return (pmd_t *) pud;
 }
-#endif
 
 /* Build list of addresses of gigantic pages.  This function is used in early
  * boot before the buddy or bootmem allocator is setup.
@@ -204,7 +212,7 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 
 	pg = pgd_offset(mm, addr);
 	if (!pgd_none(*pg)) {
-		pu = pud_offset(pg, addr);
+		pu = hpud_offset(pg, addr, hstate);
 		if (!pud_none(*pu)) {
 			pm = hpmd_offset(pu, addr, hstate);
 			if (!pmd_none(*pm))
@@ -233,7 +241,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 	addr &= hstate->mask;
 
 	pg = pgd_offset(mm, addr);
-	pu = pud_alloc(mm, pg, addr);
+	pu = hpud_alloc(mm, pg, addr, hstate);
 
 	if (pu) {
 		pm = hpmd_alloc(mm, pu, addr, hstate);
@@ -316,13 +324,7 @@ static void hugetlb_free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
 	pud = pud_offset(pgd, addr);
 	do {
 		next = pud_addr_end(addr, end);
-#ifdef CONFIG_PPC_64K_PAGES
-		if (pud_none_or_clear_bad(pud))
-			continue;
-		hugetlb_free_pmd_range(tlb, pud, addr, next, floor, ceiling,
-				       psize);
-#else
-		if (shift == PAGE_SHIFT_64K) {
+		if (shift < PMD_SHIFT) {
 			if (pud_none_or_clear_bad(pud))
 				continue;
 			hugetlb_free_pmd_range(tlb, pud, addr, next, floor,
@@ -332,7 +334,6 @@ static void hugetlb_free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
 				continue;
 			free_hugepte_range(tlb, (hugepd_t *)pud, psize);
 		}
-#endif
 	} while (pud++, addr = next, addr != end);
 
 	start &= PGDIR_MASK;
@@ -422,9 +423,15 @@ void hugetlb_free_pgd_range(struct mmu_gather *tlb,
 		psize = get_slice_psize(tlb->mm, addr);
 		BUG_ON(!mmu_huge_psizes[psize]);
 		next = pgd_addr_end(addr, end);
-		if (pgd_none_or_clear_bad(pgd))
-			continue;
-		hugetlb_free_pud_range(tlb, pgd, addr, next, floor, ceiling);
+		if (mmu_psize_to_shift(psize) < PUD_SHIFT) {
+			if (pgd_none_or_clear_bad(pgd))
+				continue;
+			hugetlb_free_pud_range(tlb, pgd, addr, next, floor, ceiling);
+		} else {
+			if (pgd_none(*pgd))
+				continue;
+			free_hugepte_range(tlb, (hugepd_t *)pgd, psize);
+		}
 	} while (pgd++, addr = next, addr != end);
 }
 

@@ -104,12 +104,9 @@ static int vol_cdev_open(struct inode *inode, struct file *file)
 	struct ubi_volume_desc *desc;
 	int vol_id = iminor(inode) - 1, mode, ubi_num;
 
-	lock_kernel();
 	ubi_num = ubi_major2num(imajor(inode));
-	if (ubi_num < 0) {
-		unlock_kernel();
+	if (ubi_num < 0)
 		return ubi_num;
-	}
 
 	if (file->f_mode & FMODE_WRITE)
 		mode = UBI_READWRITE;
@@ -119,7 +116,6 @@ static int vol_cdev_open(struct inode *inode, struct file *file)
 	dbg_gen("open volume %d, mode %d", vol_id, mode);
 
 	desc = ubi_open_volume(ubi_num, vol_id, mode);
-	unlock_kernel();
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
 

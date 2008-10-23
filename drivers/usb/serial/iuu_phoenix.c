@@ -629,13 +629,14 @@ static void read_buf_callback(struct urb *urb)
 	}
 
 	dbg("%s - %i chars to write", __func__, urb->actual_length);
-	tty = port->port.tty;
+	tty = tty_port_tty_get(&port->port);
 	if (data == NULL)
 		dbg("%s - data is NULL !!!", __func__);
 	if (tty && urb->actual_length && data) {
 		tty_insert_flip_string(tty, data, urb->actual_length);
 		tty_flip_buffer_push(tty);
 	}
+	tty_kref_put(tty);
 	iuu_led_activity_on(urb);
 }
 
@@ -1184,7 +1185,8 @@ static int __init iuu_init(void)
 	retval = usb_register(&iuu_driver);
 	if (retval)
 		goto failed_usb_register;
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return 0;
 failed_usb_register:
 	usb_serial_deregister(&iuu_device);

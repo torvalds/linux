@@ -63,7 +63,6 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 
@@ -139,8 +138,7 @@ static void it821x_program_udma(ide_drive_t *drive, u16 timing)
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
 	int channel = hwif->channel;
-	int unit = drive->select.b.unit;
-	u8 conf;
+	u8 unit = drive->dn & 1, conf;
 
 	/* Program UDMA timing bits */
 	if(itdev->clock_mode == ATA_66)
@@ -169,13 +167,11 @@ static void it821x_clock_strategy(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
+	ide_drive_t *pair;
+	int clock, altclock, sel = 0;
+	u8 unit = drive->dn & 1, v;
 
-	u8 unit = drive->select.b.unit;
-	ide_drive_t *pair = &hwif->drives[1-unit];
-
-	int clock, altclock;
-	u8 v;
-	int sel = 0;
+	pair = &hwif->drives[1 - unit];
 
 	if(itdev->want[0][0] > itdev->want[1][0]) {
 		clock = itdev->want[0][1];
@@ -241,15 +237,16 @@ static void it821x_clock_strategy(ide_drive_t *drive)
 
 static void it821x_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	ide_hwif_t *hwif	= drive->hwif;
+	ide_hwif_t *hwif = drive->hwif;
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
-	int unit = drive->select.b.unit;
-	ide_drive_t *pair = &hwif->drives[1 - unit];
-	u8 set_pio = pio;
+	ide_drive_t *pair;
+	u8 unit = drive->dn & 1, set_pio = pio;
 
 	/* Spec says 89 ref driver uses 88 */
 	static u16 pio_timings[]= { 0xAA88, 0xA382, 0xA181, 0x3332, 0x3121 };
 	static u8 pio_want[]    = { ATA_66, ATA_66, ATA_66, ATA_66, ATA_ANY };
+
+	pair = &hwif->drives[1 - unit];
 
 	/*
 	 * Compute the best PIO mode we can for a given device. We must
@@ -287,9 +284,7 @@ static void it821x_tune_mwdma (ide_drive_t *drive, byte mode_wanted)
 	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct it821x_dev *itdev = (void *)ide_get_hwifdata(hwif);
-	int unit = drive->select.b.unit;
-	int channel = hwif->channel;
-	u8 conf;
+	u8 unit = drive->dn & 1, channel = hwif->channel, conf;
 
 	static u16 dma[]	= { 0x8866, 0x3222, 0x3121 };
 	static u8 mwdma_want[]	= { ATA_ANY, ATA_66, ATA_ANY };
@@ -326,9 +321,7 @@ static void it821x_tune_udma (ide_drive_t *drive, byte mode_wanted)
 	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
-	int unit = drive->select.b.unit;
-	int channel = hwif->channel;
-	u8 conf;
+	u8 unit = drive->dn & 1, channel = hwif->channel, conf;
 
 	static u16 udma[]	= { 0x4433, 0x4231, 0x3121, 0x2121, 0x1111, 0x2211, 0x1111 };
 	static u8 udma_want[]	= { ATA_ANY, ATA_50, ATA_ANY, ATA_66, ATA_66, ATA_50, ATA_66 };
@@ -370,7 +363,8 @@ static void it821x_dma_start(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
-	int unit = drive->select.b.unit;
+	u8 unit = drive->dn & 1;
+
 	if(itdev->mwdma[unit] != MWDMA_OFF)
 		it821x_program(drive, itdev->mwdma[unit]);
 	else if(itdev->udma[unit] != UDMA_OFF && itdev->timing10)
@@ -390,9 +384,10 @@ static void it821x_dma_start(ide_drive_t *drive)
 static int it821x_dma_end(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	int unit = drive->select.b.unit;
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
-	int ret = __ide_dma_end(drive);
+	int ret = ide_dma_end(drive);
+	u8 unit = drive->dn & 1;
+
 	if(itdev->mwdma[unit] != MWDMA_OFF)
 		it821x_program(drive, itdev->pio[unit]);
 	return ret;
@@ -446,8 +441,7 @@ static u8 it821x_cable_detect(ide_hwif_t *hwif)
 static void it821x_quirkproc(ide_drive_t *drive)
 {
 	struct it821x_dev *itdev = ide_get_hwifdata(drive->hwif);
-	struct hd_driveid *id = drive->id;
-	u16 *idbits = (u16 *)drive->id;
+	u16 *id = drive->id;
 
 	if (!itdev->smart) {
 		/*
@@ -456,7 +450,7 @@ static void it821x_quirkproc(ide_drive_t *drive)
 		 *	IRQ mask as we may well be in PIO (eg rev 0x10)
 		 *	for now and we know unmasking is safe on this chipset.
 		 */
-		drive->unmask = 1;
+		drive->dev_flags |= IDE_DFLAG_UNMASK;
 	} else {
 	/*
 	 *	Perform fixups on smart mode. We need to "lose" some
@@ -466,36 +460,36 @@ static void it821x_quirkproc(ide_drive_t *drive)
 	 */
 
 		/* Check for RAID v native */
-		if(strstr(id->model, "Integrated Technology Express")) {
+		if (strstr((char *)&id[ATA_ID_PROD],
+			   "Integrated Technology Express")) {
 			/* In raid mode the ident block is slightly buggy
 			   We need to set the bits so that the IDE layer knows
 			   LBA28. LBA48 and DMA ar valid */
-			id->capability |= 3;		/* LBA28, DMA */
-			id->command_set_2 |= 0x0400;	/* LBA48 valid */
-			id->cfs_enable_2 |= 0x0400;	/* LBA48 on */
+			id[ATA_ID_CAPABILITY]    |= (3 << 8); /* LBA28, DMA */
+			id[ATA_ID_COMMAND_SET_2] |= 0x0400;   /* LBA48 valid */
+			id[ATA_ID_CFS_ENABLE_2]  |= 0x0400;   /* LBA48 on */
 			/* Reporting logic */
 			printk(KERN_INFO "%s: IT8212 %sRAID %d volume",
-				drive->name,
-				idbits[147] ? "Bootable ":"",
-				idbits[129]);
-				if(idbits[129] != 1)
-					printk("(%dK stripe)", idbits[146]);
-				printk(".\n");
+				drive->name, id[147] ? "Bootable " : "",
+				id[ATA_ID_CSFO]);
+			if (id[ATA_ID_CSFO] != 1)
+				printk(KERN_CONT "(%dK stripe)", id[146]);
+			printk(KERN_CONT ".\n");
 		} else {
 			/* Non RAID volume. Fixups to stop the core code
 			   doing unsupported things */
-			id->field_valid &= 3;
-			id->queue_depth = 0;
-			id->command_set_1 = 0;
-			id->command_set_2 &= 0xC400;
-			id->cfsse &= 0xC000;
-			id->cfs_enable_1 = 0;
-			id->cfs_enable_2 &= 0xC400;
-			id->csf_default &= 0xC000;
-			id->word127 = 0;
-			id->dlf = 0;
-			id->csfo = 0;
-			id->cfa_power = 0;
+			id[ATA_ID_FIELD_VALID]	 &= 3;
+			id[ATA_ID_QUEUE_DEPTH]	  = 0;
+			id[ATA_ID_COMMAND_SET_1]  = 0;
+			id[ATA_ID_COMMAND_SET_2] &= 0xC400;
+			id[ATA_ID_CFSSE]	 &= 0xC000;
+			id[ATA_ID_CFS_ENABLE_1]	  = 0;
+			id[ATA_ID_CFS_ENABLE_2]	 &= 0xC400;
+			id[ATA_ID_CSF_DEFAULT]	 &= 0xC000;
+			id[127]			  = 0;
+			id[ATA_ID_DLF]		  = 0;
+			id[ATA_ID_CSFO]		  = 0;
+			id[ATA_ID_CFA_POWER]	  = 0;
 			printk(KERN_INFO "%s: Performing identify fixups.\n",
 				drive->name);
 		}
@@ -505,8 +499,8 @@ static void it821x_quirkproc(ide_drive_t *drive)
 		 * IDE core that DMA is supported (it821x hardware
 		 * takes care of DMA mode programming).
 		 */
-		if (id->capability & 1) {
-			id->dma_mword |= 0x0101;
+		if (ata_id_has_dma(id)) {
+			id[ATA_ID_MWDMA_MODES] |= 0x0101;
 			drive->current_speed = XFER_MW_DMA_0;
 		}
 	}
@@ -588,7 +582,7 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 	hwif->mwdma_mask = ATA_MWDMA2;
 }
 
-static void __devinit it8212_disable_raid(struct pci_dev *dev)
+static void it8212_disable_raid(struct pci_dev *dev)
 {
 	/* Reset local CPU, and set BIOS not ready */
 	pci_write_config_byte(dev, 0x5E, 0x01);
@@ -605,7 +599,7 @@ static void __devinit it8212_disable_raid(struct pci_dev *dev)
 	pci_write_config_byte(dev, PCI_LATENCY_TIMER, 0x20);
 }
 
-static unsigned int __devinit init_chipset_it821x(struct pci_dev *dev)
+static unsigned int init_chipset_it821x(struct pci_dev *dev)
 {
 	u8 conf;
 	static char *mode[2] = { "pass through", "smart" };
@@ -682,21 +676,23 @@ static const struct pci_device_id it821x_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, it821x_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver it821x_pci_driver = {
 	.name		= "ITE821x IDE",
 	.id_table	= it821x_pci_tbl,
 	.probe		= it821x_init_one,
 	.remove		= __devexit_p(it821x_remove),
+	.suspend	= ide_pci_suspend,
+	.resume		= ide_pci_resume,
 };
 
 static int __init it821x_ide_init(void)
 {
-	return ide_pci_register_driver(&driver);
+	return ide_pci_register_driver(&it821x_pci_driver);
 }
 
 static void __exit it821x_ide_exit(void)
 {
-	pci_unregister_driver(&driver);
+	pci_unregister_driver(&it821x_pci_driver);
 }
 
 module_init(it821x_ide_init);

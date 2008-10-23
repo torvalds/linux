@@ -13,6 +13,8 @@
 
 #ifdef CONFIG_GUSA_RB
 #include <asm/bitops-grb.h>
+#elif defined(CONFIG_CPU_SH4A)
+#include <asm/bitops-llsc.h>
 #else
 #include <asm/bitops-irq.h>
 #endif

@@ -467,7 +467,7 @@ static struct opl4_voice *snd_opl4_get_voice(struct snd_opl4 *opl4)
 	if (!list_empty(&opl4->off_voices))
 		return list_entry(opl4->off_voices.next, struct opl4_voice, list);
 	/* then get the oldest key-on voice */
-	snd_assert(!list_empty(&opl4->on_voices), );
+	snd_BUG_ON(list_empty(&opl4->on_voices));
 	return list_entry(opl4->on_voices.next, struct opl4_voice, list);
 }
 

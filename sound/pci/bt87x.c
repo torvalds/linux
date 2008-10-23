@@ -227,7 +227,6 @@ static inline void snd_bt87x_writel(struct snd_bt87x *chip, u32 reg, u32 value)
 static int snd_bt87x_create_risc(struct snd_bt87x *chip, struct snd_pcm_substream *substream,
 			       	 unsigned int periods, unsigned int period_bytes)
 {
-	struct snd_sg_buf *sgbuf = snd_pcm_substream_sgbuf(substream);
 	unsigned int i, offset;
 	u32 *risc;
 
@@ -246,6 +245,7 @@ static int snd_bt87x_create_risc(struct snd_bt87x *chip, struct snd_pcm_substrea
 		rest = period_bytes;
 		do {
 			u32 cmd, len;
+			unsigned int addr;
 
 			len = PAGE_SIZE - (offset % PAGE_SIZE);
 			if (len > rest)
@@ -260,7 +260,8 @@ static int snd_bt87x_create_risc(struct snd_bt87x *chip, struct snd_pcm_substrea
 			if (len == rest)
 				cmd |= RISC_EOL | RISC_IRQ;
 			*risc++ = cpu_to_le32(cmd);
-			*risc++ = cpu_to_le32((u32)snd_pcm_sgbuf_get_addr(sgbuf, offset));
+			addr = snd_pcm_sgbuf_get_addr(substream, offset);
+			*risc++ = cpu_to_le32(addr);
 			offset += len;
 			rest -= len;
 		} while (rest > 0);

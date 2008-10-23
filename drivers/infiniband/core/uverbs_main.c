@@ -764,12 +764,9 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	if (cdev_add(uverbs_dev->cdev, IB_UVERBS_BASE_DEV + uverbs_dev->devnum, 1))
 		goto err_cdev;
 
-	uverbs_dev->dev = device_create_drvdata(uverbs_class,
-						device->dma_device,
-						uverbs_dev->cdev->dev,
-						uverbs_dev,
-						"uverbs%d",
-						uverbs_dev->devnum);
+	uverbs_dev->dev = device_create(uverbs_class, device->dma_device,
+					uverbs_dev->cdev->dev, uverbs_dev,
+					"uverbs%d", uverbs_dev->devnum);
 	if (IS_ERR(uverbs_dev->dev))
 		goto err_cdev;
 

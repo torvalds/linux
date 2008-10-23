@@ -24,8 +24,9 @@
 #define NO_IRQ	(-1)
 #endif
 
-#define M48T59_READ(reg)	pdata->read_byte(dev, reg)
-#define M48T59_WRITE(val, reg)	pdata->write_byte(dev, reg, val)
+#define M48T59_READ(reg) (pdata->read_byte(dev, pdata->offset + reg))
+#define M48T59_WRITE(val, reg) \
+	(pdata->write_byte(dev, pdata->offset + reg, val))
 
 #define M48T59_SET_BITS(mask, reg)	\
 	M48T59_WRITE((M48T59_READ(reg) | (mask)), (reg))
@@ -34,7 +35,6 @@
 
 struct m48t59_private {
 	void __iomem *ioaddr;
-	unsigned int size; /* iomem size */
 	int irq;
 	struct rtc_device *rtc;
 	spinlock_t lock; /* serialize the NVRAM and RTC access */
@@ -76,21 +76,22 @@ static int m48t59_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	/* Issue the READ command */
 	M48T59_SET_BITS(M48T59_CNTL_READ, M48T59_CNTL);
 
-	tm->tm_year	= BCD2BIN(M48T59_READ(M48T59_YEAR));
+	tm->tm_year	= bcd2bin(M48T59_READ(M48T59_YEAR));
 	/* tm_mon is 0-11 */
-	tm->tm_mon	= BCD2BIN(M48T59_READ(M48T59_MONTH)) - 1;
-	tm->tm_mday	= BCD2BIN(M48T59_READ(M48T59_MDAY));
+	tm->tm_mon	= bcd2bin(M48T59_READ(M48T59_MONTH)) - 1;
+	tm->tm_mday	= bcd2bin(M48T59_READ(M48T59_MDAY));
 
 	val = M48T59_READ(M48T59_WDAY);
-	if ((val & M48T59_WDAY_CEB) && (val & M48T59_WDAY_CB)) {
+	if ((pdata->type == M48T59RTC_TYPE_M48T59) &&
+	    (val & M48T59_WDAY_CEB) && (val & M48T59_WDAY_CB)) {
 		dev_dbg(dev, "Century bit is enabled\n");
 		tm->tm_year += 100;	/* one century */
 	}
 
-	tm->tm_wday	= BCD2BIN(val & 0x07);
-	tm->tm_hour	= BCD2BIN(M48T59_READ(M48T59_HOUR) & 0x3F);
-	tm->tm_min	= BCD2BIN(M48T59_READ(M48T59_MIN) & 0x7F);
-	tm->tm_sec	= BCD2BIN(M48T59_READ(M48T59_SEC) & 0x7F);
+	tm->tm_wday	= bcd2bin(val & 0x07);
+	tm->tm_hour	= bcd2bin(M48T59_READ(M48T59_HOUR) & 0x3F);
+	tm->tm_min	= bcd2bin(M48T59_READ(M48T59_MIN) & 0x7F);
+	tm->tm_sec	= bcd2bin(M48T59_READ(M48T59_SEC) & 0x7F);
 
 	/* Clear the READ bit */
 	M48T59_CLEAR_BITS(M48T59_CNTL_READ, M48T59_CNTL);
@@ -118,17 +119,17 @@ static int m48t59_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	/* Issue the WRITE command */
 	M48T59_SET_BITS(M48T59_CNTL_WRITE, M48T59_CNTL);
 
-	M48T59_WRITE((BIN2BCD(tm->tm_sec) & 0x7F), M48T59_SEC);
-	M48T59_WRITE((BIN2BCD(tm->tm_min) & 0x7F), M48T59_MIN);
-	M48T59_WRITE((BIN2BCD(tm->tm_hour) & 0x3F), M48T59_HOUR);
-	M48T59_WRITE((BIN2BCD(tm->tm_mday) & 0x3F), M48T59_MDAY);
+	M48T59_WRITE((bin2bcd(tm->tm_sec) & 0x7F), M48T59_SEC);
+	M48T59_WRITE((bin2bcd(tm->tm_min) & 0x7F), M48T59_MIN);
+	M48T59_WRITE((bin2bcd(tm->tm_hour) & 0x3F), M48T59_HOUR);
+	M48T59_WRITE((bin2bcd(tm->tm_mday) & 0x3F), M48T59_MDAY);
 	/* tm_mon is 0-11 */
-	M48T59_WRITE((BIN2BCD(tm->tm_mon + 1) & 0x1F), M48T59_MONTH);
-	M48T59_WRITE(BIN2BCD(tm->tm_year % 100), M48T59_YEAR);
+	M48T59_WRITE((bin2bcd(tm->tm_mon + 1) & 0x1F), M48T59_MONTH);
+	M48T59_WRITE(bin2bcd(tm->tm_year % 100), M48T59_YEAR);
 
-	if (tm->tm_year/100)
+	if (pdata->type == M48T59RTC_TYPE_M48T59 && (tm->tm_year / 100))
 		val = (M48T59_WDAY_CEB | M48T59_WDAY_CB);
-	val |= (BIN2BCD(tm->tm_wday) & 0x07);
+	val |= (bin2bcd(tm->tm_wday) & 0x07);
 	M48T59_WRITE(val, M48T59_WDAY);
 
 	/* Clear the WRITE bit */
@@ -157,18 +158,18 @@ static int m48t59_rtc_readalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	/* Issue the READ command */
 	M48T59_SET_BITS(M48T59_CNTL_READ, M48T59_CNTL);
 
-	tm->tm_year = BCD2BIN(M48T59_READ(M48T59_YEAR));
+	tm->tm_year = bcd2bin(M48T59_READ(M48T59_YEAR));
 	/* tm_mon is 0-11 */
-	tm->tm_mon = BCD2BIN(M48T59_READ(M48T59_MONTH)) - 1;
+	tm->tm_mon = bcd2bin(M48T59_READ(M48T59_MONTH)) - 1;
 
 	val = M48T59_READ(M48T59_WDAY);
 	if ((val & M48T59_WDAY_CEB) && (val & M48T59_WDAY_CB))
 		tm->tm_year += 100;	/* one century */
 
-	tm->tm_mday = BCD2BIN(M48T59_READ(M48T59_ALARM_DATE));
-	tm->tm_hour = BCD2BIN(M48T59_READ(M48T59_ALARM_HOUR));
-	tm->tm_min = BCD2BIN(M48T59_READ(M48T59_ALARM_MIN));
-	tm->tm_sec = BCD2BIN(M48T59_READ(M48T59_ALARM_SEC));
+	tm->tm_mday = bcd2bin(M48T59_READ(M48T59_ALARM_DATE));
+	tm->tm_hour = bcd2bin(M48T59_READ(M48T59_ALARM_HOUR));
+	tm->tm_min = bcd2bin(M48T59_READ(M48T59_ALARM_MIN));
+	tm->tm_sec = bcd2bin(M48T59_READ(M48T59_ALARM_SEC));
 
 	/* Clear the READ bit */
 	M48T59_CLEAR_BITS(M48T59_CNTL_READ, M48T59_CNTL);
@@ -200,18 +201,18 @@ static int m48t59_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	 * 0xff means "always match"
 	 */
 	mday = tm->tm_mday;
-	mday = (mday >= 1 && mday <= 31) ? BIN2BCD(mday) : 0xff;
+	mday = (mday >= 1 && mday <= 31) ? bin2bcd(mday) : 0xff;
 	if (mday == 0xff)
 		mday = M48T59_READ(M48T59_MDAY);
 
 	hour = tm->tm_hour;
-	hour = (hour < 24) ? BIN2BCD(hour) : 0x00;
+	hour = (hour < 24) ? bin2bcd(hour) : 0x00;
 
 	min = tm->tm_min;
-	min = (min < 60) ? BIN2BCD(min) : 0x00;
+	min = (min < 60) ? bin2bcd(min) : 0x00;
 
 	sec = tm->tm_sec;
-	sec = (sec < 60) ? BIN2BCD(sec) : 0x00;
+	sec = (sec < 60) ? bin2bcd(sec) : 0x00;
 
 	spin_lock_irqsave(&m48t59->lock, flags);
 	/* Issue the WRITE command */
@@ -310,6 +311,11 @@ static const struct rtc_class_ops m48t59_rtc_ops = {
 	.proc		= m48t59_rtc_proc,
 };
 
+static const struct rtc_class_ops m48t02_rtc_ops = {
+	.read_time	= m48t59_rtc_read_time,
+	.set_time	= m48t59_rtc_set_time,
+};
+
 static ssize_t m48t59_nvram_read(struct kobject *kobj,
 				struct bin_attribute *bin_attr,
 				char *buf, loff_t pos, size_t size)
@@ -321,7 +327,7 @@ static ssize_t m48t59_nvram_read(struct kobject *kobj,
 	ssize_t cnt = 0;
 	unsigned long flags;
 
-	for (; size > 0 && pos < M48T59_NVRAM_SIZE; cnt++, size--) {
+	for (; size > 0 && pos < pdata->offset; cnt++, size--) {
 		spin_lock_irqsave(&m48t59->lock, flags);
 		*buf++ = M48T59_READ(cnt);
 		spin_unlock_irqrestore(&m48t59->lock, flags);
@@ -341,7 +347,7 @@ static ssize_t m48t59_nvram_write(struct kobject *kobj,
 	ssize_t cnt = 0;
 	unsigned long flags;
 
-	for (; size > 0 && pos < M48T59_NVRAM_SIZE; cnt++, size--) {
+	for (; size > 0 && pos < pdata->offset; cnt++, size--) {
 		spin_lock_irqsave(&m48t59->lock, flags);
 		M48T59_WRITE(*buf++, cnt);
 		spin_unlock_irqrestore(&m48t59->lock, flags);
@@ -354,11 +360,9 @@ static struct bin_attribute m48t59_nvram_attr = {
 	.attr = {
 		.name = "nvram",
 		.mode = S_IRUGO | S_IWUSR,
-		.owner = THIS_MODULE,
 	},
 	.read = m48t59_nvram_read,
 	.write = m48t59_nvram_write,
-	.size = M48T59_NVRAM_SIZE,
 };
 
 static int __devinit m48t59_rtc_probe(struct platform_device *pdev)
@@ -367,6 +371,8 @@ static int __devinit m48t59_rtc_probe(struct platform_device *pdev)
 	struct m48t59_private *m48t59 = NULL;
 	struct resource *res;
 	int ret = -ENOMEM;
+	char *name;
+	const struct rtc_class_ops *ops;
 
 	/* This chip could be memory-mapped or I/O-mapped */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -391,6 +397,8 @@ static int __devinit m48t59_rtc_probe(struct platform_device *pdev)
 			/* Ensure we only kmalloc platform data once */
 			pdev->dev.platform_data = pdata;
 		}
+		if (!pdata->type)
+			pdata->type = M48T59RTC_TYPE_M48T59;
 
 		/* Try to use the generic memory read/write ops */
 		if (!pdata->write_byte)
@@ -403,10 +411,14 @@ static int __devinit m48t59_rtc_probe(struct platform_device *pdev)
 	if (!m48t59)
 		return -ENOMEM;
 
-	m48t59->size = res->end - res->start + 1;
-	m48t59->ioaddr = ioremap(res->start, m48t59->size);
-	if (!m48t59->ioaddr)
-		goto out;
+	m48t59->ioaddr = pdata->ioaddr;
+
+	if (!m48t59->ioaddr) {
+		/* ioaddr not mapped externally */
+		m48t59->ioaddr = ioremap(res->start, res->end - res->start + 1);
+		if (!m48t59->ioaddr)
+			goto out;
+	}
 
 	/* Try to get irq number. We also can work in
 	 * the mode without IRQ.
@@ -421,13 +433,35 @@ static int __devinit m48t59_rtc_probe(struct platform_device *pdev)
 		if (ret)
 			goto out;
 	}
+	switch (pdata->type) {
+	case M48T59RTC_TYPE_M48T59:
+		name = "m48t59";
+		ops = &m48t59_rtc_ops;
+		pdata->offset = 0x1ff0;
+		break;
+	case M48T59RTC_TYPE_M48T02:
+		name = "m48t02";
+		ops = &m48t02_rtc_ops;
+		pdata->offset = 0x7f0;
+		break;
+	case M48T59RTC_TYPE_M48T08:
+		name = "m48t08";
+		ops = &m48t02_rtc_ops;
+		pdata->offset = 0x1ff0;
+		break;
+	default:
+		dev_err(&pdev->dev, "Unknown RTC type\n");
+		ret = -ENODEV;
+		goto out;
+	}
 
-	m48t59->rtc = rtc_device_register("m48t59", &pdev->dev,
-				&m48t59_rtc_ops, THIS_MODULE);
+	m48t59->rtc = rtc_device_register(name, &pdev->dev, ops, THIS_MODULE);
 	if (IS_ERR(m48t59->rtc)) {
 		ret = PTR_ERR(m48t59->rtc);
 		goto out;
 	}
+
+	m48t59_nvram_attr.size = pdata->offset;
 
 	ret = sysfs_create_bin_file(&pdev->dev.kobj, &m48t59_nvram_attr);
 	if (ret)
@@ -452,11 +486,12 @@ out:
 static int __devexit m48t59_rtc_remove(struct platform_device *pdev)
 {
 	struct m48t59_private *m48t59 = platform_get_drvdata(pdev);
+	struct m48t59_plat_data *pdata = pdev->dev.platform_data;
 
 	sysfs_remove_bin_file(&pdev->dev.kobj, &m48t59_nvram_attr);
 	if (!IS_ERR(m48t59->rtc))
 		rtc_device_unregister(m48t59->rtc);
-	if (m48t59->ioaddr)
+	if (m48t59->ioaddr && !pdata->ioaddr)
 		iounmap(m48t59->ioaddr);
 	if (m48t59->irq != NO_IRQ)
 		free_irq(m48t59->irq, &pdev->dev);
@@ -491,5 +526,5 @@ module_init(m48t59_rtc_init);
 module_exit(m48t59_rtc_exit);
 
 MODULE_AUTHOR("Mark Zhan <rongkai.zhan@windriver.com>");
-MODULE_DESCRIPTION("M48T59 RTC driver");
+MODULE_DESCRIPTION("M48T59/M48T02/M48T08 RTC driver");
 MODULE_LICENSE("GPL");

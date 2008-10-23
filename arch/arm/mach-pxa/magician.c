@@ -409,7 +409,7 @@ static struct platform_device backlight = {
  * LEDs
  */
 
-struct gpio_led gpio_leds[] = {
+static struct gpio_led gpio_leds[] = {
 	{
 		.name = "magician::vibra",
 		.default_trigger = "none",
@@ -669,18 +669,10 @@ static struct pxamci_platform_data magician_mci_info = {
  * USB OHCI
  */
 
-static int magician_ohci_init(struct device *dev)
-{
-	UHCHR = (UHCHR | UHCHR_SSEP2 | UHCHR_PCPL | UHCHR_CGR) &
-	    ~(UHCHR_SSEP1 | UHCHR_SSEP3 | UHCHR_SSE);
-
-	return 0;
-}
-
 static struct pxaohci_platform_data magician_ohci_info = {
-	.port_mode    = PMM_PERPORT_MODE,
-	.init         = magician_ohci_init,
-	.power_budget = 0,
+	.port_mode	= PMM_PERPORT_MODE,
+	.flags		= ENABLE_PORT1 | ENABLE_PORT3 | POWER_CONTROL_LOW,
+	.power_budget	= 0,
 };
 
 

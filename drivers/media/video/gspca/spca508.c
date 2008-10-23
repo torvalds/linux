@@ -1528,7 +1528,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-static void sd_start(struct gspca_dev *gspca_dev)
+static int sd_start(struct gspca_dev *gspca_dev)
 {
 	int mode;
 
@@ -1546,6 +1546,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		break;
 	}
 	reg_write(gspca_dev->dev, 0x8112, 0x10 | 0x20);
+	return 0;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)

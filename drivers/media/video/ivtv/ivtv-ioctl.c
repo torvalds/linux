@@ -101,18 +101,15 @@ void ivtv_expand_service_set(struct v4l2_sliced_vbi_format *fmt, int is_pal)
 	}
 }
 
-static int check_service_set(struct v4l2_sliced_vbi_format *fmt, int is_pal)
+static void check_service_set(struct v4l2_sliced_vbi_format *fmt, int is_pal)
 {
 	int f, l;
-	u16 set = 0;
 
 	for (f = 0; f < 2; f++) {
 		for (l = 0; l < 24; l++) {
 			fmt->service_lines[f][l] = select_service_from_set(f, l, fmt->service_lines[f][l], is_pal);
-			set |= fmt->service_lines[f][l];
 		}
 	}
-	return set != 0;
 }
 
 u16 ivtv_get_service_set(struct v4l2_sliced_vbi_format *fmt)
@@ -474,7 +471,7 @@ static int ivtv_try_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format 
 	int h = fmt->fmt.pix.height;
 
 	w = min(w, 720);
-	w = max(w, 1);
+	w = max(w, 2);
 	h = min(h, itv->is_50hz ? 576 : 480);
 	h = max(h, 2);
 	ivtv_g_fmt_vid_cap(file, fh, fmt);
@@ -512,27 +509,34 @@ static int ivtv_try_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_
 static int ivtv_try_fmt_vid_out(struct file *file, void *fh, struct v4l2_format *fmt)
 {
 	struct ivtv_open_id *id = fh;
-	s32 w, h;
-	int field;
-	int ret;
+	s32 w = fmt->fmt.pix.width;
+	s32 h = fmt->fmt.pix.height;
+	int field = fmt->fmt.pix.field;
+	int ret = ivtv_g_fmt_vid_out(file, fh, fmt);
 
-	w = fmt->fmt.pix.width;
-	h = fmt->fmt.pix.height;
-	field = fmt->fmt.pix.field;
-	ret = ivtv_g_fmt_vid_out(file, fh, fmt);
+	w = min(w, 720);
+	w = max(w, 2);
+	/* Why can the height be 576 even when the output is NTSC?
+
+	   Internally the buffers of the PVR350 are always set to 720x576. The
+	   decoded video frame will always be placed in the top left corner of
+	   this buffer. For any video which is not 720x576, the buffer will
+	   then be cropped to remove the unused right and lower areas, with
+	   the remaining image being scaled by the hardware to fit the display
+	   area. The video can be scaled both up and down, so a 720x480 video
+	   can be displayed full-screen on PAL and a 720x576 video can be
+	   displayed without cropping on NTSC.
+
+	   Note that the scaling only occurs on the video stream, the osd
+	   resolution is locked to the broadcast standard and not scaled.
+
+	   Thanks to Ian Armstrong for this explanation. */
+	h = min(h, 576);
+	h = max(h, 2);
+	if (id->type == IVTV_DEC_STREAM_TYPE_YUV)
+		fmt->fmt.pix.field = field;
 	fmt->fmt.pix.width = w;
 	fmt->fmt.pix.height = h;
-	if (!ret && id->type == IVTV_DEC_STREAM_TYPE_YUV) {
-		fmt->fmt.pix.field = field;
-		if (fmt->fmt.pix.width < 2)
-			fmt->fmt.pix.width = 2;
-		if (fmt->fmt.pix.width > 720)
-			fmt->fmt.pix.width = 720;
-		if (fmt->fmt.pix.height < 2)
-			fmt->fmt.pix.height = 2;
-		if (fmt->fmt.pix.height > 576)
-			fmt->fmt.pix.height = 576;
-	}
 	return ret;
 }
 
@@ -560,9 +564,9 @@ static int ivtv_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f
 	struct ivtv_open_id *id = fh;
 	struct ivtv *itv = id->itv;
 	struct cx2341x_mpeg_params *p = &itv->params;
+	int ret = ivtv_try_fmt_vid_cap(file, fh, fmt);
 	int w = fmt->fmt.pix.width;
 	int h = fmt->fmt.pix.height;
-	int ret = ivtv_try_fmt_vid_cap(file, fh, fmt);
 
 	if (ret)
 		return ret;
@@ -585,8 +589,11 @@ static int ivtv_s_fmt_vbi_cap(struct file *file, void *fh, struct v4l2_format *f
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 
+	if (!ivtv_raw_vbi(itv) && atomic_read(&itv->capturing) > 0)
+		return -EBUSY;
 	itv->vbi.sliced_in->service_set = 0;
-	itv->video_dec_func(itv, VIDIOC_S_FMT, &itv->vbi.in);
+	itv->vbi.in.type = V4L2_BUF_TYPE_VBI_CAPTURE;
+	itv->video_dec_func(itv, VIDIOC_S_FMT, fmt);
 	return ivtv_g_fmt_vbi_cap(file, fh, fmt);
 }
 
@@ -600,10 +607,10 @@ static int ivtv_s_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_fo
 	if (ret || id->type == IVTV_DEC_STREAM_TYPE_VBI)
 		return ret;
 
-	if (check_service_set(vbifmt, itv->is_50hz) == 0)
-		return -EINVAL;
-	if (atomic_read(&itv->capturing) > 0)
+	check_service_set(vbifmt, itv->is_50hz);
+	if (ivtv_raw_vbi(itv) && atomic_read(&itv->capturing) > 0)
 		return -EBUSY;
+	itv->vbi.in.type = V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
 	itv->video_dec_func(itv, VIDIOC_S_FMT, fmt);
 	memcpy(itv->vbi.sliced_in, vbifmt, sizeof(*itv->vbi.sliced_in));
 	return 0;
@@ -651,8 +658,6 @@ static int ivtv_s_fmt_vid_out(struct file *file, void *fh, struct v4l2_format *f
 		itv->dma_data_req_size =
 			1080 * ((yi->v4l2_src_h + 31) & ~31);
 
-	/* Force update of yuv registers */
-	yi->yuv_forced_update = 1;
 	return 0;
 }
 
@@ -761,7 +766,7 @@ static int ivtv_querycap(struct file *file, void *fh, struct v4l2_capability *vc
 
 	strlcpy(vcap->driver, IVTV_DRIVER_NAME, sizeof(vcap->driver));
 	strlcpy(vcap->card, itv->card_name, sizeof(vcap->card));
-	strlcpy(vcap->bus_info, pci_name(itv->dev), sizeof(vcap->bus_info));
+	snprintf(vcap->bus_info, sizeof(vcap->bus_info), "PCI:%s", pci_name(itv->dev));
 	vcap->version = IVTV_DRIVER_VERSION; 	    /* version */
 	vcap->capabilities = itv->v4l2_cap; 	    /* capabilities */
 	return 0;
@@ -1370,6 +1375,9 @@ static int ivtv_g_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *fb)
 	if (itv->osd_global_alpha_state)
 		fb->flags |= V4L2_FBUF_FLAG_GLOBAL_ALPHA;
 
+	if (yi->track_osd)
+		fb->flags |= V4L2_FBUF_FLAG_OVERLAY;
+
 	pixfmt &= 7;
 
 	/* no local alpha for RGB565 or unknown formats */
@@ -1389,8 +1397,6 @@ static int ivtv_g_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *fb)
 		else
 			fb->flags |= V4L2_FBUF_FLAG_LOCAL_ALPHA;
 	}
-	if (yi->track_osd)
-		fb->flags |= V4L2_FBUF_FLAG_OVERLAY;
 
 	return 0;
 }

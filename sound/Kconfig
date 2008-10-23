@@ -28,6 +28,10 @@ menuconfig SOUND
 
 if SOUND
 
+config SOUND_OSS_CORE
+	bool
+	default n
+
 source "sound/oss/dmasound/Kconfig"
 
 if !M68K
@@ -80,6 +84,7 @@ endif # SND
 
 menuconfig SOUND_PRIME
 	tristate "Open Sound System (DEPRECATED)"
+	select SOUND_OSS_CORE
 	help
 	  Say 'Y' or 'M' to enable Open Sound System drivers.
 

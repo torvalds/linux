@@ -10,8 +10,8 @@
  * Support of BIGMEM added by Gerhard Wichert, Siemens AG, July 1999
  */
 
-#ifndef _ASM_FIXMAP_32_H
-#define _ASM_FIXMAP_32_H
+#ifndef ASM_X86__FIXMAP_32_H
+#define ASM_X86__FIXMAP_32_H
 
 
 /* used by vmalloc.c, vsyscall.lds.S.
@@ -94,10 +94,10 @@ enum fixed_addresses {
 	 * can have a single pgd entry and a single pte table:
 	 */
 #define NR_FIX_BTMAPS		64
-#define FIX_BTMAPS_NESTING	4
+#define FIX_BTMAPS_SLOTS	4
 	FIX_BTMAP_END = __end_of_permanent_fixed_addresses + 256 -
 			(__end_of_permanent_fixed_addresses & 255),
-	FIX_BTMAP_BEGIN = FIX_BTMAP_END + NR_FIX_BTMAPS*FIX_BTMAPS_NESTING - 1,
+	FIX_BTMAP_BEGIN = FIX_BTMAP_END + NR_FIX_BTMAPS*FIX_BTMAPS_SLOTS - 1,
 	FIX_WP_TEST,
 #ifdef CONFIG_ACPI
 	FIX_ACPI_BEGIN,
@@ -120,4 +120,4 @@ extern void reserve_top_address(unsigned long reserve);
 #define FIXADDR_BOOT_START	(FIXADDR_TOP - __FIXADDR_BOOT_SIZE)
 
 #endif /* !__ASSEMBLY__ */
-#endif
+#endif /* ASM_X86__FIXMAP_32_H */

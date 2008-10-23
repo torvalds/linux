@@ -1,5 +1,5 @@
-#ifndef __XEN_PAGE_H
-#define __XEN_PAGE_H
+#ifndef ASM_X86__XEN__PAGE_H
+#define ASM_X86__XEN__PAGE_H
 
 #include <linux/pfn.h>
 
@@ -76,13 +76,13 @@ static inline unsigned long mfn_to_pfn(unsigned long mfn)
 static inline xmaddr_t phys_to_machine(xpaddr_t phys)
 {
 	unsigned offset = phys.paddr & ~PAGE_MASK;
-	return XMADDR(PFN_PHYS((u64)pfn_to_mfn(PFN_DOWN(phys.paddr))) | offset);
+	return XMADDR(PFN_PHYS(pfn_to_mfn(PFN_DOWN(phys.paddr))) | offset);
 }
 
 static inline xpaddr_t machine_to_phys(xmaddr_t machine)
 {
 	unsigned offset = machine.maddr & ~PAGE_MASK;
-	return XPADDR(PFN_PHYS((u64)mfn_to_pfn(PFN_DOWN(machine.maddr))) | offset);
+	return XPADDR(PFN_PHYS(mfn_to_pfn(PFN_DOWN(machine.maddr))) | offset);
 }
 
 /*
@@ -162,4 +162,4 @@ xmaddr_t arbitrary_virt_to_machine(void *address);
 void make_lowmem_page_readonly(void *vaddr);
 void make_lowmem_page_readwrite(void *vaddr);
 
-#endif /* __XEN_PAGE_H */
+#endif /* ASM_X86__XEN__PAGE_H */

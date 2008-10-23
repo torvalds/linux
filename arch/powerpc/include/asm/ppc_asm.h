@@ -268,7 +268,7 @@ n:
  *   Loads the value of the constant expression 'expr' into register 'rn'
  *   using immediate instructions only.  Use this when it's important not
  *   to reference other data (i.e. on ppc64 when the TOC pointer is not
- *   valid).
+ *   valid) and when 'expr' is a constant or absolute address.
  *
  * LOAD_REG_ADDR(rn, name)
  *   Loads the address of label 'name' into register 'rn'.  Use this when

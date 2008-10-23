@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_A_OUT_H
-#define _ASM_X86_A_OUT_H
+#ifndef ASM_X86__A_OUT_H
+#define ASM_X86__A_OUT_H
 
 struct exec
 {
@@ -17,4 +17,4 @@ struct exec
 #define N_DRSIZE(a)	((a).a_drsize)
 #define N_SYMSIZE(a)	((a).a_syms)
 
-#endif /* _ASM_X86_A_OUT_H */
+#endif /* ASM_X86__A_OUT_H */

@@ -91,6 +91,8 @@
 			rtc@68 {
 				compatible = "dallas,ds3232";
 				reg = <0x68>;
+				interrupts = <0 0x1>;
+				interrupt-parent = <&mpic>;
 			};
 		};
 

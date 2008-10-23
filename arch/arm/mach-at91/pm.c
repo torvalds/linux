@@ -17,8 +17,8 @@
 #include <linux/sysfs.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/atomic.h>
 #include <asm/mach/time.h>

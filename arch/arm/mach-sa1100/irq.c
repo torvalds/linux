@@ -122,14 +122,12 @@ sa1100_high_gpio_handler(unsigned int irq, struct irq_desc *desc)
 		GEDR = mask;
 
 		irq = IRQ_GPIO11;
-		desc = irq_desc + irq;
 		mask >>= 11;
 		do {
 			if (mask & 1)
-				desc_handle_irq(irq, desc);
+				generic_handle_irq(irq);
 			mask >>= 1;
 			irq++;
-			desc++;
 		} while (mask);
 
 		mask = GEDR & 0xfffff800;

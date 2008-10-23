@@ -18,13 +18,13 @@
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/init.h>
+#include <linux/io.h>
 
 #include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
 #include <asm/hardware/dec21285.h>
 #include <asm/irq.h>
-#include <asm/io.h>
 #include <asm/mach-types.h>
 
 static void isa_mask_pic_lo_irq(unsigned int irq)
@@ -94,8 +94,7 @@ isa_irq_handler(unsigned int irq, struct irq_desc *desc)
 		return;
 	}
 
-	desc = irq_desc + isa_irq;
-	desc_handle_irq(isa_irq, desc);
+	generic_handle_irq(isa_irq);
 }
 
 static struct irqaction irq_cascade = {

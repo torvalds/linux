@@ -40,3 +40,13 @@ config USB_WDM
 	  To compile this driver as a module, choose M here: the
 	  module will be called cdc-wdm.
 
+config USB_TMC
+	tristate "USB Test and Measurement Class support"
+	depends on USB
+	help
+	  Say Y here if you want to connect a USB device that follows
+	  the USB.org specification for USB Test and Measurement devices
+	  to your computer's USB port.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called usbtmc.

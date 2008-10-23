@@ -76,8 +76,10 @@ KBUILD_IMAGE		:= $(defaultimage-y)
 # error messages during linking.
 #
 ifdef CONFIG_SUPERH32
+UTS_MACHINE	:= sh
 LDFLAGS_vmlinux	+= -e _stext
 else
+UTS_MACHINE	:= sh64
 LDFLAGS_vmlinux	+= --defsym phys_stext=_stext-$(CONFIG_PAGE_OFFSET) \
 		   --defsym phys_stext_shmedia=phys_stext+1 \
 		   -e phys_stext_shmedia
@@ -122,6 +124,9 @@ ifneq ($(machdir-y),)
 core-y	+= $(addprefix arch/sh/boards/, \
 	     $(filter-out ., $(patsubst %,%/,$(machdir-y))))
 endif
+
+# Common machine type headers. Not part of the arch/sh/boards/ hierarchy.
+machdir-y	+= mach-common
 
 # Companion chips
 core-$(CONFIG_HD6446X_SERIES)	+= arch/sh/cchips/hd6446x/

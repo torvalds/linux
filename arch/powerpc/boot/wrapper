@@ -307,7 +307,9 @@ fi
 # post-processing needed for some platforms
 case "$platform" in
 pseries|chrp)
-    $objbin/addnote "$ofile"
+    ${CROSS}objcopy -O binary -j .fakeelf "$kernel" "$ofile".rpanote
+    $objbin/addnote "$ofile" "$ofile".rpanote
+    rm -r "$ofile".rpanote
     ;;
 coff)
     ${CROSS}objcopy -O aixcoff-rs6000 --set-start "$entry" "$ofile"

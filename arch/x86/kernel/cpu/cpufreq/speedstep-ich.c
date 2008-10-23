@@ -431,7 +431,7 @@ static void __exit speedstep_exit(void)
 }
 
 
-MODULE_AUTHOR ("Dave Jones <davej@codemonkey.org.uk>, Dominik Brodowski <linux@brodo.de>");
+MODULE_AUTHOR ("Dave Jones <davej@redhat.com>, Dominik Brodowski <linux@brodo.de>");
 MODULE_DESCRIPTION ("Speedstep driver for Intel mobile processors on chipsets with ICH-M southbridges.");
 MODULE_LICENSE ("GPL");
 

@@ -31,6 +31,7 @@
 #include <linux/cpumask.h>
 
 #include <asm/asm.h>
+#include <asm/bios_ebda.h>
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -47,6 +48,7 @@
 #include <asm/paravirt.h>
 #include <asm/setup.h>
 #include <asm/cacheflush.h>
+#include <asm/smp.h>
 
 unsigned int __VMALLOC_RESERVE = 128 << 20;
 
@@ -194,11 +196,30 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base,
 	pgd_t *pgd;
 	pmd_t *pmd;
 	pte_t *pte;
-	unsigned pages_2m = 0, pages_4k = 0;
+	unsigned pages_2m, pages_4k;
+	int mapping_iter;
+
+	/*
+	 * First iteration will setup identity mapping using large/small pages
+	 * based on use_pse, with other attributes same as set by
+	 * the early code in head_32.S
+	 *
+	 * Second iteration will setup the appropriate attributes (NX, GLOBAL..)
+	 * as desired for the kernel identity mapping.
+	 *
+	 * This two pass mechanism conforms to the TLB app note which says:
+	 *
+	 *     "Software should not write to a paging-structure entry in a way
+	 *      that would change, for any linear address, both the page size
+	 *      and either the page frame or attributes."
+	 */
+	mapping_iter = 1;
 
 	if (!cpu_has_pse)
 		use_pse = 0;
 
+repeat:
+	pages_2m = pages_4k = 0;
 	pfn = start_pfn;
 	pgd_idx = pgd_index((pfn<<PAGE_SHIFT) + PAGE_OFFSET);
 	pgd = pgd_base + pgd_idx;
@@ -224,6 +245,13 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base,
 			if (use_pse) {
 				unsigned int addr2;
 				pgprot_t prot = PAGE_KERNEL_LARGE;
+				/*
+				 * first pass will use the same initial
+				 * identity mapping attribute + _PAGE_PSE.
+				 */
+				pgprot_t init_prot =
+					__pgprot(PTE_IDENT_ATTR |
+						 _PAGE_PSE);
 
 				addr2 = (pfn + PTRS_PER_PTE-1) * PAGE_SIZE +
 					PAGE_OFFSET + PAGE_SIZE-1;
@@ -233,7 +261,10 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base,
 					prot = PAGE_KERNEL_LARGE_EXEC;
 
 				pages_2m++;
-				set_pmd(pmd, pfn_pmd(pfn, prot));
+				if (mapping_iter == 1)
+					set_pmd(pmd, pfn_pmd(pfn, init_prot));
+				else
+					set_pmd(pmd, pfn_pmd(pfn, prot));
 
 				pfn += PTRS_PER_PTE;
 				continue;
@@ -245,17 +276,43 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base,
 			for (; pte_ofs < PTRS_PER_PTE && pfn < end_pfn;
 			     pte++, pfn++, pte_ofs++, addr += PAGE_SIZE) {
 				pgprot_t prot = PAGE_KERNEL;
+				/*
+				 * first pass will use the same initial
+				 * identity mapping attribute.
+				 */
+				pgprot_t init_prot = __pgprot(PTE_IDENT_ATTR);
 
 				if (is_kernel_text(addr))
 					prot = PAGE_KERNEL_EXEC;
 
 				pages_4k++;
-				set_pte(pte, pfn_pte(pfn, prot));
+				if (mapping_iter == 1)
+					set_pte(pte, pfn_pte(pfn, init_prot));
+				else
+					set_pte(pte, pfn_pte(pfn, prot));
 			}
 		}
 	}
-	update_page_count(PG_LEVEL_2M, pages_2m);
-	update_page_count(PG_LEVEL_4K, pages_4k);
+	if (mapping_iter == 1) {
+		/*
+		 * update direct mapping page count only in the first
+		 * iteration.
+		 */
+		update_page_count(PG_LEVEL_2M, pages_2m);
+		update_page_count(PG_LEVEL_4K, pages_4k);
+
+		/*
+		 * local global flush tlb, which will flush the previous
+		 * mappings present in both small and large page TLB's.
+		 */
+		__flush_tlb_all();
+
+		/*
+		 * Second iteration will set the actual desired PTE attributes.
+		 */
+		mapping_iter = 2;
+		goto repeat;
+	}
 }
 
 /*
@@ -501,7 +558,7 @@ void zap_low_mappings(void)
 
 int nx_enabled;
 
-pteval_t __supported_pte_mask __read_mostly = ~(_PAGE_NX | _PAGE_GLOBAL);
+pteval_t __supported_pte_mask __read_mostly = ~(_PAGE_NX | _PAGE_GLOBAL | _PAGE_IOMAP);
 EXPORT_SYMBOL_GPL(__supported_pte_mask);
 
 #ifdef CONFIG_X86_PAE
@@ -718,7 +775,7 @@ void __init setup_bootmem_allocator(void)
 	after_init_bootmem = 1;
 }
 
-static void __init find_early_table_space(unsigned long end)
+static void __init find_early_table_space(unsigned long end, int use_pse)
 {
 	unsigned long puds, pmds, ptes, tables, start;
 
@@ -728,7 +785,7 @@ static void __init find_early_table_space(unsigned long end)
 	pmds = (end + PMD_SIZE - 1) >> PMD_SHIFT;
 	tables += PAGE_ALIGN(pmds * sizeof(pmd_t));
 
-	if (cpu_has_pse) {
+	if (use_pse) {
 		unsigned long extra;
 
 		extra = end - ((end>>PMD_SHIFT) << PMD_SHIFT);
@@ -768,12 +825,22 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	pgd_t *pgd_base = swapper_pg_dir;
 	unsigned long start_pfn, end_pfn;
 	unsigned long big_page_start;
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	/*
+	 * For CONFIG_DEBUG_PAGEALLOC, identity mapping will use small pages.
+	 * This will simplify cpa(), which otherwise needs to support splitting
+	 * large pages into small in interrupt context, etc.
+	 */
+	int use_pse = 0;
+#else
+	int use_pse = cpu_has_pse;
+#endif
 
 	/*
 	 * Find space for the kernel direct mapping tables.
 	 */
 	if (!after_init_bootmem)
-		find_early_table_space(end);
+		find_early_table_space(end, use_pse);
 
 #ifdef CONFIG_X86_PAE
 	set_nx();
@@ -819,7 +886,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	end_pfn = (end>>PMD_SHIFT) << (PMD_SHIFT - PAGE_SHIFT);
 	if (start_pfn < end_pfn)
 		kernel_physical_mapping_init(pgd_base, start_pfn, end_pfn,
-						cpu_has_pse);
+					     use_pse);
 
 	/* tail is not big page alignment ? */
 	start_pfn = end_pfn;
@@ -903,6 +970,8 @@ void __init mem_init(void)
 	int codesize, reservedpages, datasize, initsize;
 	int tmp;
 
+	start_periodic_check_for_corruption();
+
 #ifdef CONFIG_FLATMEM
 	BUG_ON(!mem_map);
 #endif
@@ -982,7 +1051,6 @@ void __init mem_init(void)
 	if (boot_cpu_data.wp_works_ok < 0)
 		test_wp_bit();
 
-	cpa_init();
 	save_pg_dir();
 	zap_low_mappings();
 }

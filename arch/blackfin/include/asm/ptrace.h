@@ -158,6 +158,8 @@ extern void show_regs(struct pt_regs *);
 #define PT_SEQSTAT 8
 #define PT_IPEND 4
 
+#define PT_ORIG_R0 208
+#define PT_ORIG_P0 212
 #define PT_SYSCFG 216
 #define PT_TEXT_ADDR 220
 #define PT_TEXT_END_ADDR 224

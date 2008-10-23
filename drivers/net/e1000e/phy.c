@@ -476,7 +476,9 @@ s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	if ((phy->type == e1000_phy_m88) && (phy->revision < 4)) {
+	if ((phy->type == e1000_phy_m88) &&
+	    (phy->revision < E1000_REVISION_4) &&
+	    (phy->id != BME1000_E_PHY_ID_R2)) {
 		/*
 		 * Force TX_CLK in the Extended PHY Specific Control Register
 		 * to 25MHz clock.
@@ -500,6 +502,18 @@ s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw)
 				     M88E1000_EPSCR_SLAVE_DOWNSHIFT_1X);
 		}
 		ret_val = e1e_wphy(hw, M88E1000_EXT_PHY_SPEC_CTRL, phy_data);
+		if (ret_val)
+			return ret_val;
+	}
+
+	if ((phy->type == e1000_phy_bm) && (phy->id == BME1000_E_PHY_ID_R2)) {
+		/* Set PHY page 0, register 29 to 0x0003 */
+		ret_val = e1e_wphy(hw, 29, 0x0003);
+		if (ret_val)
+			return ret_val;
+
+		/* Set PHY page 0, register 30 to 0x0000 */
+		ret_val = e1e_wphy(hw, 30, 0x0000);
 		if (ret_val)
 			return ret_val;
 	}
@@ -1720,6 +1734,91 @@ s32 e1000e_get_cfg_done(struct e1000_hw *hw)
 	return 0;
 }
 
+/**
+ *  e1000e_phy_init_script_igp3 - Inits the IGP3 PHY
+ *  @hw: pointer to the HW structure
+ *
+ *  Initializes a Intel Gigabit PHY3 when an EEPROM is not present.
+ **/
+s32 e1000e_phy_init_script_igp3(struct e1000_hw *hw)
+{
+	hw_dbg(hw, "Running IGP 3 PHY init script\n");
+
+	/* PHY init IGP 3 */
+	/* Enable rise/fall, 10-mode work in class-A */
+	e1e_wphy(hw, 0x2F5B, 0x9018);
+	/* Remove all caps from Replica path filter */
+	e1e_wphy(hw, 0x2F52, 0x0000);
+	/* Bias trimming for ADC, AFE and Driver (Default) */
+	e1e_wphy(hw, 0x2FB1, 0x8B24);
+	/* Increase Hybrid poly bias */
+	e1e_wphy(hw, 0x2FB2, 0xF8F0);
+	/* Add 4% to Tx amplitude in Gig mode */
+	e1e_wphy(hw, 0x2010, 0x10B0);
+	/* Disable trimming (TTT) */
+	e1e_wphy(hw, 0x2011, 0x0000);
+	/* Poly DC correction to 94.6% + 2% for all channels */
+	e1e_wphy(hw, 0x20DD, 0x249A);
+	/* ABS DC correction to 95.9% */
+	e1e_wphy(hw, 0x20DE, 0x00D3);
+	/* BG temp curve trim */
+	e1e_wphy(hw, 0x28B4, 0x04CE);
+	/* Increasing ADC OPAMP stage 1 currents to max */
+	e1e_wphy(hw, 0x2F70, 0x29E4);
+	/* Force 1000 ( required for enabling PHY regs configuration) */
+	e1e_wphy(hw, 0x0000, 0x0140);
+	/* Set upd_freq to 6 */
+	e1e_wphy(hw, 0x1F30, 0x1606);
+	/* Disable NPDFE */
+	e1e_wphy(hw, 0x1F31, 0xB814);
+	/* Disable adaptive fixed FFE (Default) */
+	e1e_wphy(hw, 0x1F35, 0x002A);
+	/* Enable FFE hysteresis */
+	e1e_wphy(hw, 0x1F3E, 0x0067);
+	/* Fixed FFE for short cable lengths */
+	e1e_wphy(hw, 0x1F54, 0x0065);
+	/* Fixed FFE for medium cable lengths */
+	e1e_wphy(hw, 0x1F55, 0x002A);
+	/* Fixed FFE for long cable lengths */
+	e1e_wphy(hw, 0x1F56, 0x002A);
+	/* Enable Adaptive Clip Threshold */
+	e1e_wphy(hw, 0x1F72, 0x3FB0);
+	/* AHT reset limit to 1 */
+	e1e_wphy(hw, 0x1F76, 0xC0FF);
+	/* Set AHT master delay to 127 msec */
+	e1e_wphy(hw, 0x1F77, 0x1DEC);
+	/* Set scan bits for AHT */
+	e1e_wphy(hw, 0x1F78, 0xF9EF);
+	/* Set AHT Preset bits */
+	e1e_wphy(hw, 0x1F79, 0x0210);
+	/* Change integ_factor of channel A to 3 */
+	e1e_wphy(hw, 0x1895, 0x0003);
+	/* Change prop_factor of channels BCD to 8 */
+	e1e_wphy(hw, 0x1796, 0x0008);
+	/* Change cg_icount + enable integbp for channels BCD */
+	e1e_wphy(hw, 0x1798, 0xD008);
+	/*
+	 * Change cg_icount + enable integbp + change prop_factor_master
+	 * to 8 for channel A
+	 */
+	e1e_wphy(hw, 0x1898, 0xD918);
+	/* Disable AHT in Slave mode on channel A */
+	e1e_wphy(hw, 0x187A, 0x0800);
+	/*
+	 * Enable LPLU and disable AN to 1000 in non-D0a states,
+	 * Enable SPD+B2B
+	 */
+	e1e_wphy(hw, 0x0019, 0x008D);
+	/* Enable restart AN on an1000_dis change */
+	e1e_wphy(hw, 0x001B, 0x2080);
+	/* Enable wh_fifo read clock in 10/100 modes */
+	e1e_wphy(hw, 0x0014, 0x0045);
+	/* Restart AN, Speed selection is 1000 */
+	e1e_wphy(hw, 0x0000, 0x1340);
+
+	return 0;
+}
+
 /* Internal function pointers */
 
 /**
@@ -1965,6 +2064,99 @@ s32 e1000e_read_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 *data)
 	hw->phy.ops.release_phy(hw);
 
 out:
+	return ret_val;
+}
+
+/**
+ *  e1000e_read_phy_reg_bm2 - Read BM PHY register
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to be read
+ *  @data: pointer to the read data
+ *
+ *  Acquires semaphore, if necessary, then reads the PHY register at offset
+ *  and storing the retrieved information in data.  Release any acquired
+ *  semaphores before exiting.
+ **/
+s32 e1000e_read_phy_reg_bm2(struct e1000_hw *hw, u32 offset, u16 *data)
+{
+	s32 ret_val;
+	u16 page = (u16)(offset >> IGP_PAGE_SHIFT);
+
+	/* Page 800 works differently than the rest so it has its own func */
+	if (page == BM_WUC_PAGE) {
+		ret_val = e1000_access_phy_wakeup_reg_bm(hw, offset, data,
+							 true);
+		return ret_val;
+	}
+
+	ret_val = hw->phy.ops.acquire_phy(hw);
+	if (ret_val)
+		return ret_val;
+
+	hw->phy.addr = 1;
+
+	if (offset > MAX_PHY_MULTI_PAGE_REG) {
+
+		/* Page is shifted left, PHY expects (page x 32) */
+		ret_val = e1000e_write_phy_reg_mdic(hw, BM_PHY_PAGE_SELECT,
+						    page);
+
+		if (ret_val) {
+			hw->phy.ops.release_phy(hw);
+			return ret_val;
+		}
+	}
+
+	ret_val = e1000e_read_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & offset,
+					   data);
+	hw->phy.ops.release_phy(hw);
+
+	return ret_val;
+}
+
+/**
+ *  e1000e_write_phy_reg_bm2 - Write BM PHY register
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to write to
+ *  @data: data to write at register offset
+ *
+ *  Acquires semaphore, if necessary, then writes the data to PHY register
+ *  at the offset.  Release any acquired semaphores before exiting.
+ **/
+s32 e1000e_write_phy_reg_bm2(struct e1000_hw *hw, u32 offset, u16 data)
+{
+	s32 ret_val;
+	u16 page = (u16)(offset >> IGP_PAGE_SHIFT);
+
+	/* Page 800 works differently than the rest so it has its own func */
+	if (page == BM_WUC_PAGE) {
+		ret_val = e1000_access_phy_wakeup_reg_bm(hw, offset, &data,
+							 false);
+		return ret_val;
+	}
+
+	ret_val = hw->phy.ops.acquire_phy(hw);
+	if (ret_val)
+		return ret_val;
+
+	hw->phy.addr = 1;
+
+	if (offset > MAX_PHY_MULTI_PAGE_REG) {
+		/* Page is shifted left, PHY expects (page x 32) */
+		ret_val = e1000e_write_phy_reg_mdic(hw, BM_PHY_PAGE_SELECT,
+						    page);
+
+		if (ret_val) {
+			hw->phy.ops.release_phy(hw);
+			return ret_val;
+		}
+	}
+
+	ret_val = e1000e_write_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & offset,
+					    data);
+
+	hw->phy.ops.release_phy(hw);
+
 	return ret_val;
 }
 

@@ -112,14 +112,22 @@ the per cgroup LRU.
 
 2.2.1 Accounting details
 
-All mapped pages (RSS) and unmapped user pages (Page Cache) are accounted.
-RSS pages are accounted at the time of page_add_*_rmap() unless they've already
-been accounted for earlier. A file page will be accounted for as Page Cache;
-it's mapped into the page tables of a process, duplicate accounting is carefully
-avoided. Page Cache pages are accounted at the time of add_to_page_cache().
-The corresponding routines that remove a page from the page tables or removes
-a page from Page Cache is used to decrement the accounting counters of the
-cgroup.
+All mapped anon pages (RSS) and cache pages (Page Cache) are accounted.
+(some pages which never be reclaimable and will not be on global LRU
+ are not accounted. we just accounts pages under usual vm management.)
+
+RSS pages are accounted at page_fault unless they've already been accounted
+for earlier. A file page will be accounted for as Page Cache when it's
+inserted into inode (radix-tree). While it's mapped into the page tables of
+processes, duplicate accounting is carefully avoided.
+
+A RSS page is unaccounted when it's fully unmapped. A PageCache page is
+unaccounted when it's removed from radix-tree.
+
+At page migration, accounting information is kept.
+
+Note: we just account pages-on-lru because our purpose is to control amount
+of used pages. not-on-lru pages are tend to be out-of-control from vm view.
 
 2.3 Shared Page Accounting
 

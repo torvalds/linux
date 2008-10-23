@@ -1537,7 +1537,7 @@ static int config_sensor_500(struct camera_data *cam,
  *
  *  This sets all user changeable properties to the values in cam->params.
  *****************************************************************************/
-int set_all_properties(struct camera_data *cam)
+static int set_all_properties(struct camera_data *cam)
 {
 	/**
 	 * Don't set target_kb here, it will be set later.
@@ -1588,7 +1588,7 @@ void cpia2_save_camera_state(struct camera_data *cam)
  *  get_color_params
  *
  *****************************************************************************/
-void get_color_params(struct camera_data *cam)
+static void get_color_params(struct camera_data *cam)
 {
 	cpia2_do_command(cam, CPIA2_CMD_GET_VP_BRIGHTNESS, TRANSFER_READ, 0);
 	cpia2_do_command(cam, CPIA2_CMD_GET_VP_SATURATION, TRANSFER_READ, 0);
@@ -1881,7 +1881,7 @@ void cpia2_set_saturation(struct camera_data *cam, unsigned char value)
  *  wake_system
  *
  *****************************************************************************/
-void wake_system(struct camera_data *cam)
+static void wake_system(struct camera_data *cam)
 {
 	cpia2_do_command(cam, CPIA2_CMD_SET_WAKEUP, TRANSFER_WRITE, 0);
 }
@@ -1892,7 +1892,7 @@ void wake_system(struct camera_data *cam)
  *
  *  Valid for STV500 sensor only
  *****************************************************************************/
-void set_lowlight_boost(struct camera_data *cam)
+static void set_lowlight_boost(struct camera_data *cam)
 {
 	struct cpia2_command cmd;
 
@@ -2169,7 +2169,7 @@ void cpia2_dbg_dump_registers(struct camera_data *cam)
  *
  *  Sets all values to the defaults
  *****************************************************************************/
-void reset_camera_struct(struct camera_data *cam)
+static void reset_camera_struct(struct camera_data *cam)
 {
 	/***
 	 * The following parameter values are the defaults from the register map.

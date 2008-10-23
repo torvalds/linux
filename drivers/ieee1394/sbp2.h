@@ -139,13 +139,10 @@ struct sbp2_logout_orb {
 	u32 status_fifo_lo;
 } __attribute__((packed));
 
-#define PAGE_TABLE_SET_SEGMENT_BASE_HI(v)	((v) & 0xffff)
-#define PAGE_TABLE_SET_SEGMENT_LENGTH(v)	(((v) & 0xffff) << 16)
-
 struct sbp2_unrestricted_page_table {
-	u32 length_segment_base_hi;
-	u32 segment_base_lo;
-} __attribute__((packed));
+	__be32 high;
+	__be32 low;
+};
 
 #define RESP_STATUS_REQUEST_COMPLETE		0x0
 #define RESP_STATUS_TRANSPORT_FAILURE		0x1
@@ -216,15 +213,18 @@ struct sbp2_status_block {
 #define SBP2_UNIT_SPEC_ID_ENTRY			0x0000609e
 #define SBP2_SW_VERSION_ENTRY			0x00010483
 
+/*
+ * The default maximum s/g segment size of a FireWire controller is
+ * usually 0x10000, but SBP-2 only allows 0xffff. Since buffers have to
+ * be quadlet-aligned, we set the length limit to 0xffff & ~3.
+ */
+#define SBP2_MAX_SEG_SIZE			0xfffc
 
 /*
- * SCSI specific definitions
- */
-
-#define SBP2_MAX_SG_ELEMENT_LENGTH		0xf000
-/* There is no real limitation of the queue depth (i.e. length of the linked
+ * There is no real limitation of the queue depth (i.e. length of the linked
  * list of command ORBs) at the target. The chosen depth is merely an
- * implementation detail of the sbp2 driver. */
+ * implementation detail of the sbp2 driver.
+ */
 #define SBP2_MAX_CMDS				8
 
 #define SBP2_SCSI_STATUS_GOOD			0x0
@@ -240,12 +240,6 @@ struct sbp2_status_block {
  * Representations of commands and devices
  */
 
-enum sbp2_dma_types {
-	CMD_DMA_NONE,
-	CMD_DMA_PAGE,
-	CMD_DMA_SINGLE
-};
-
 /* Per SCSI command */
 struct sbp2_command_info {
 	struct list_head list;
@@ -258,11 +252,6 @@ struct sbp2_command_info {
 	struct sbp2_unrestricted_page_table
 		scatter_gather_element[SG_ALL] __attribute__((aligned(8)));
 	dma_addr_t sge_dma;
-	void *sge_buffer;
-	dma_addr_t cmd_dma;
-	enum sbp2_dma_types dma_type;
-	unsigned long dma_size;
-	enum dma_data_direction dma_dir;
 };
 
 /* Per FireWire host */

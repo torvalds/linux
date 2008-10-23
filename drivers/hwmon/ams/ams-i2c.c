@@ -60,26 +60,34 @@ enum ams_i2c_cmd {
 	AMS_CMD_START,
 };
 
-static int ams_i2c_attach(struct i2c_adapter *adapter);
-static int ams_i2c_detach(struct i2c_adapter *adapter);
+static int ams_i2c_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id);
+static int ams_i2c_remove(struct i2c_client *client);
+
+static const struct i2c_device_id ams_id[] = {
+	{ "ams", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, ams_id);
 
 static struct i2c_driver ams_i2c_driver = {
 	.driver = {
 		.name   = "ams",
 		.owner  = THIS_MODULE,
 	},
-	.attach_adapter = ams_i2c_attach,
-	.detach_adapter = ams_i2c_detach,
+	.probe          = ams_i2c_probe,
+	.remove         = ams_i2c_remove,
+	.id_table       = ams_id,
 };
 
 static s32 ams_i2c_read(u8 reg)
 {
-	return i2c_smbus_read_byte_data(&ams_info.i2c_client, reg);
+	return i2c_smbus_read_byte_data(ams_info.i2c_client, reg);
 }
 
 static int ams_i2c_write(u8 reg, u8 value)
 {
-	return i2c_smbus_write_byte_data(&ams_info.i2c_client, reg, value);
+	return i2c_smbus_write_byte_data(ams_info.i2c_client, reg, value);
 }
 
 static int ams_i2c_cmd(enum ams_i2c_cmd cmd)
@@ -152,9 +160,9 @@ static void ams_i2c_get_xyz(s8 *x, s8 *y, s8 *z)
 	*z = ams_i2c_read(AMS_DATAZ);
 }
 
-static int ams_i2c_attach(struct i2c_adapter *adapter)
+static int ams_i2c_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
-	unsigned long bus;
 	int vmaj, vmin;
 	int result;
 
@@ -162,17 +170,7 @@ static int ams_i2c_attach(struct i2c_adapter *adapter)
 	if (unlikely(ams_info.has_device))
 		return -ENODEV;
 
-	if (strncmp(adapter->name, "uni-n", 5))
-		return -ENODEV;
-
-	bus = simple_strtoul(adapter->name + 6, NULL, 10);
-	if (bus != ams_info.i2c_bus)
-		return -ENODEV;
-
-	ams_info.i2c_client.addr = ams_info.i2c_address;
-	ams_info.i2c_client.adapter = adapter;
-	ams_info.i2c_client.driver = &ams_i2c_driver;
-	strcpy(ams_info.i2c_client.name, "Apple Motion Sensor");
+	ams_info.i2c_client = client;
 
 	if (ams_i2c_cmd(AMS_CMD_RESET)) {
 		printk(KERN_INFO "ams: Failed to reset the device\n");
@@ -237,7 +235,7 @@ static int ams_i2c_attach(struct i2c_adapter *adapter)
 	return 0;
 }
 
-static int ams_i2c_detach(struct i2c_adapter *adapter)
+static int ams_i2c_remove(struct i2c_client *client)
 {
 	if (ams_info.has_device) {
 		/* Disable interrupts */
@@ -261,11 +259,7 @@ static void ams_i2c_exit(void)
 
 int __init ams_i2c_init(struct device_node *np)
 {
-	char *tmp_bus;
 	int result;
-	const u32 *prop;
-
-	mutex_lock(&ams_info.lock);
 
 	/* Set implementation stuff */
 	ams_info.of_node = np;
@@ -275,25 +269,7 @@ int __init ams_i2c_init(struct device_node *np)
 	ams_info.clear_irq = ams_i2c_clear_irq;
 	ams_info.bustype = BUS_I2C;
 
-	/* look for bus either using "reg" or by path */
-	prop = of_get_property(ams_info.of_node, "reg", NULL);
-	if (!prop) {
-		result = -ENODEV;
-
-		goto exit;
-	}
-
-	tmp_bus = strstr(ams_info.of_node->full_name, "/i2c-bus@");
-	if (tmp_bus)
-		ams_info.i2c_bus = *(tmp_bus + 9) - '0';
-	else
-		ams_info.i2c_bus = ((*prop) >> 8) & 0x0f;
-	ams_info.i2c_address = ((*prop) & 0xff) >> 1;
-
 	result = i2c_add_driver(&ams_i2c_driver);
-
-exit:
-	mutex_unlock(&ams_info.lock);
 
 	return result;
 }
