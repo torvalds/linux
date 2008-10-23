@@ -206,7 +206,6 @@ static inline void emma2rh_out32(u32 offset, u32 val)
 static inline u32 emma2rh_in32(u32 offset)
 {
 	u32 val = *(volatile u32 *)(EMMA2RH_BASE | offset);
-	emma2rh_sync();
 	return val;
 }
 
@@ -219,7 +218,6 @@ static inline void emma2rh_out16(u32 offset, u16 val)
 static inline u16 emma2rh_in16(u32 offset)
 {
 	u16 val = *(volatile u16 *)(EMMA2RH_BASE | offset);
-	emma2rh_sync();
 	return val;
 }
 
@@ -232,7 +230,6 @@ static inline void emma2rh_out8(u32 offset, u8 val)
 static inline u8 emma2rh_in8(u32 offset)
 {
 	u8 val = *(volatile u8 *)(EMMA2RH_BASE | offset);
-	emma2rh_sync();
 	return val;
 }
 
