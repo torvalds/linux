@@ -1079,7 +1079,6 @@ static struct tda10023_config tda10023_config = {
 /* TT S2-3200 DVB-S (STB0899) Inittab */
 static const struct stb0899_s1_reg tt3200_stb0899_s1_init_1[] = {
 
-//	 0x0000000b ,	/* SYSREG */
 	{ STB0899_DEV_ID		, 0x81 },
 	{ STB0899_DISCNTRL1		, 0x32 },
 	{ STB0899_DISCNTRL2     	, 0x80 },
@@ -1090,7 +1089,7 @@ static const struct stb0899_s1_reg tt3200_stb0899_s1_init_1[] = {
 	{ STB0899_DISSTATUS		, 0x20 },
 	{ STB0899_DISF22        	, 0x8c },
 	{ STB0899_DISF22RX      	, 0x9a },
-	//SYSREG ?
+	{ STB0899_SYSREG		, 0x0b },
 	{ STB0899_ACRPRESC      	, 0x11 },
 	{ STB0899_ACRDIV1       	, 0x0a },
 	{ STB0899_ACRDIV2       	, 0x05 },
