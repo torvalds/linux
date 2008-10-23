@@ -70,6 +70,7 @@ enum {
 static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 static int svia_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val);
 static int svia_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val);
+static void svia_tf_load(struct ata_port *ap, const struct ata_taskfile *tf);
 static void svia_noop_freeze(struct ata_port *ap);
 static int vt6420_prereset(struct ata_link *link, unsigned long deadline);
 static int vt6421_pata_cable_detect(struct ata_port *ap);
@@ -103,21 +104,26 @@ static struct scsi_host_template svia_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 
-static struct ata_port_operations vt6420_sata_ops = {
+static struct ata_port_operations svia_base_ops = {
 	.inherits		= &ata_bmdma_port_ops,
+	.sff_tf_load		= svia_tf_load,
+};
+
+static struct ata_port_operations vt6420_sata_ops = {
+	.inherits		= &svia_base_ops,
 	.freeze			= svia_noop_freeze,
 	.prereset		= vt6420_prereset,
 };
 
 static struct ata_port_operations vt6421_pata_ops = {
-	.inherits		= &ata_bmdma_port_ops,
+	.inherits		= &svia_base_ops,
 	.cable_detect		= vt6421_pata_cable_detect,
 	.set_piomode		= vt6421_set_pio_mode,
 	.set_dmamode		= vt6421_set_dma_mode,
 };
 
 static struct ata_port_operations vt6421_sata_ops = {
-	.inherits		= &ata_bmdma_port_ops,
+	.inherits		= &svia_base_ops,
 	.scr_read		= svia_scr_read,
 	.scr_write		= svia_scr_write,
 };
@@ -166,6 +172,29 @@ static int svia_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val)
 		return -EINVAL;
 	iowrite32(val, link->ap->ioaddr.scr_addr + (4 * sc_reg));
 	return 0;
+}
+
+/**
+ *	svia_tf_load - send taskfile registers to host controller
+ *	@ap: Port to which output is sent
+ *	@tf: ATA taskfile register set
+ *
+ *	Outputs ATA taskfile to standard ATA host controller.
+ *
+ *	This is to fix the internal bug of via chipsets, which will
+ *	reset the device register after changing the IEN bit on ctl
+ *	register.
+ */
+static void svia_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
+{
+	struct ata_taskfile ttf;
+
+	if (tf->ctl != ap->last_ctl)  {
+		ttf = *tf;
+		ttf.flags |= ATA_TFLAG_DEVICE;
+		tf = &ttf;
+	}
+	ata_sff_tf_load(ap, tf);
 }
 
 static void svia_noop_freeze(struct ata_port *ap)
