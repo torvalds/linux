@@ -1541,14 +1541,6 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 	if (len < IEEE80211_MIN_ACTION_SIZE + 1)
 		return RX_DROP_MONITOR;
 
-	/*
-	 * FIXME: revisit this, I'm sure we should handle most
-	 *	  of these frames in other modes as well!
-	 */
-	if (sdata->vif.type != NL80211_IFTYPE_STATION &&
-	    sdata->vif.type != NL80211_IFTYPE_ADHOC)
-		return RX_CONTINUE;
-
 	switch (mgmt->u.action.category) {
 	case WLAN_CATEGORY_BACK:
 		switch (mgmt->u.action.u.addba_req.action_code) {
