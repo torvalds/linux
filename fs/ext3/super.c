@@ -2836,7 +2836,7 @@ static int ext3_quota_on(struct super_block *sb, int type, int format_id,
 		err = journal_flush(EXT3_SB(sb)->s_journal);
 		journal_unlock_updates(EXT3_SB(sb)->s_journal);
 		if (err) {
-			path_put(&nd.path);
+			path_put(&path);
 			return err;
 		}
 	}
