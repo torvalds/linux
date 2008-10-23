@@ -116,6 +116,13 @@ unsigned int num_io_spaces;
  */
 #define	I_CACHE_STRIDE_SHIFT	5	/* Safest way to go: 32 bytes by 32 bytes */
 unsigned long ia64_i_cache_stride_shift = ~0;
+/*
+ * "clflush_cache_range()" needs to know what processor dependent stride size to
+ * use when it flushes cache lines including both d-cache and i-cache.
+ */
+/* Safest way to go: 32 bytes by 32 bytes */
+#define	CACHE_STRIDE_SHIFT	5
+unsigned long ia64_cache_stride_shift = ~0;
 
 /*
  * The merge_mask variable needs to be set to (max(iommu_page_size(iommu)) - 1).  This
@@ -852,13 +859,14 @@ setup_per_cpu_areas (void)
 }
 
 /*
- * Calculate the max. cache line size.
+ * Do the following calculations:
  *
- * In addition, the minimum of the i-cache stride sizes is calculated for
- * "flush_icache_range()".
+ * 1. the max. cache line size.
+ * 2. the minimum of the i-cache stride sizes for "flush_icache_range()".
+ * 3. the minimum of the cache stride sizes for "clflush_cache_range()".
  */
 static void __cpuinit
-get_max_cacheline_size (void)
+get_cache_info(void)
 {
 	unsigned long line_size, max = 1;
 	u64 l, levels, unique_caches;
@@ -872,12 +880,14 @@ get_max_cacheline_size (void)
                 max = SMP_CACHE_BYTES;
 		/* Safest setup for "flush_icache_range()" */
 		ia64_i_cache_stride_shift = I_CACHE_STRIDE_SHIFT;
+		/* Safest setup for "clflush_cache_range()" */
+		ia64_cache_stride_shift = CACHE_STRIDE_SHIFT;
 		goto out;
         }
 
 	for (l = 0; l < levels; ++l) {
-		status = ia64_pal_cache_config_info(l, /* cache_type (data_or_unified)= */ 2,
-						    &cci);
+		/* cache_type (data_or_unified)=2 */
+		status = ia64_pal_cache_config_info(l, 2, &cci);
 		if (status != 0) {
 			printk(KERN_ERR
 			       "%s: ia64_pal_cache_config_info(l=%lu, 2) failed (status=%ld)\n",
@@ -885,15 +895,21 @@ get_max_cacheline_size (void)
 			max = SMP_CACHE_BYTES;
 			/* The safest setup for "flush_icache_range()" */
 			cci.pcci_stride = I_CACHE_STRIDE_SHIFT;
+			/* The safest setup for "clflush_cache_range()" */
+			ia64_cache_stride_shift = CACHE_STRIDE_SHIFT;
 			cci.pcci_unified = 1;
+		} else {
+			if (cci.pcci_stride < ia64_cache_stride_shift)
+				ia64_cache_stride_shift = cci.pcci_stride;
+
+			line_size = 1 << cci.pcci_line_size;
+			if (line_size > max)
+				max = line_size;
 		}
-		line_size = 1 << cci.pcci_line_size;
-		if (line_size > max)
-			max = line_size;
+
 		if (!cci.pcci_unified) {
-			status = ia64_pal_cache_config_info(l,
-						    /* cache_type (instruction)= */ 1,
-						    &cci);
+			/* cache_type (instruction)=1*/
+			status = ia64_pal_cache_config_info(l, 1, &cci);
 			if (status != 0) {
 				printk(KERN_ERR
 				"%s: ia64_pal_cache_config_info(l=%lu, 1) failed (status=%ld)\n",
@@ -947,7 +963,7 @@ cpu_init (void)
 	}
 #endif
 
-	get_max_cacheline_size();
+	get_cache_info();
 
 	/*
 	 * We can't pass "local_cpu_data" to identify_cpu() because we haven't called
