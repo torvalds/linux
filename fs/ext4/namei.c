@@ -1083,16 +1083,7 @@ struct dentry *ext4_get_parent(struct dentry *child)
 		return ERR_PTR(-EIO);
 	}
 
-	inode = ext4_iget(child->d_inode->i_sb, ino);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-
-	parent = d_alloc_anon(inode);
-	if (!parent) {
-		iput(inode);
-		parent = ERR_PTR(-ENOMEM);
-	}
-	return parent;
+	return d_obtain_alias(ext4_iget(child->d_inode->i_sb, ino));
 }
 
 #define S_SHIFT 12

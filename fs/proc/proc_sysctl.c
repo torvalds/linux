@@ -298,13 +298,19 @@ static int proc_sys_permission(struct inode *inode, int mask)
 	 * sysctl entries that are not writeable,
 	 * are _NOT_ writeable, capabilities or not.
 	 */
-	struct ctl_table_header *head = grab_header(inode);
-	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
+	struct ctl_table_header *head;
+	struct ctl_table *table;
 	int error;
 
+	/* Executable files are not allowed under /proc/sys/ */
+	if ((mask & MAY_EXEC) && S_ISREG(inode->i_mode))
+		return -EACCES;
+
+	head = grab_header(inode);
 	if (IS_ERR(head))
 		return PTR_ERR(head);
 
+	table = PROC_I(inode)->sysctl_entry;
 	if (!table) /* global root - r-xr-xr-x */
 		error = mask & MAY_WRITE ? -EACCES : 0;
 	else /* Use the permissions on the sysctl table entry */
@@ -353,6 +359,7 @@ static const struct file_operations proc_sys_file_operations = {
 
 static const struct file_operations proc_sys_dir_file_operations = {
 	.readdir	= proc_sys_readdir,
+	.llseek		= generic_file_llseek,
 };
 
 static const struct inode_operations proc_sys_inode_operations = {

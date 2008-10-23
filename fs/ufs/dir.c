@@ -667,4 +667,5 @@ const struct file_operations ufs_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= ufs_readdir,
 	.fsync		= file_fsync,
+	.llseek		= generic_file_llseek,
 };

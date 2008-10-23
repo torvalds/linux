@@ -313,19 +313,6 @@ static inline int check_space(struct dm_table *t)
 }
 
 /*
- * Convert a device path to a dev_t.
- */
-static int lookup_device(const char *path, dev_t *dev)
-{
-	struct block_device *bdev = lookup_bdev(path);
-	if (IS_ERR(bdev))
-		return PTR_ERR(bdev);
-	*dev = bdev->bd_dev;
-	bdput(bdev);
-	return 0;
-}
-
-/*
  * See if we've already got a device in the list.
  */
 static struct dm_dev_internal *find_device(struct list_head *l, dev_t dev)
@@ -437,8 +424,12 @@ static int __table_get_device(struct dm_table *t, struct dm_target *ti,
 			return -EOVERFLOW;
 	} else {
 		/* convert the path to a device */
-		if ((r = lookup_device(path, &dev)))
-			return r;
+		struct block_device *bdev = lookup_bdev(path);
+
+		if (IS_ERR(bdev))
+			return PTR_ERR(bdev);
+		dev = bdev->bd_dev;
+		bdput(bdev);
 	}
 
 	dd = find_device(&t->devices, dev);

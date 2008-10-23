@@ -275,9 +275,12 @@ static int cifs_permission(struct inode *inode, int mask)
 
 	cifs_sb = CIFS_SB(inode->i_sb);
 
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
-		return 0;
-	else /* file mode might have been restricted at mount time
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM) {
+		if ((mask & MAY_EXEC) && !execute_ok(inode))
+			return -EACCES;
+		else
+			return 0;
+	} else /* file mode might have been restricted at mount time
 		on the client (above and beyond ACL on servers) for
 		servers which do not support setting and viewing mode bits,
 		so allowing client to check permissions is useful */
@@ -765,6 +768,7 @@ const struct file_operations cifs_dir_ops = {
 	.dir_notify = cifs_dir_notify,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
 	.unlocked_ioctl  = cifs_ioctl,
+	.llseek = generic_file_llseek,
 };
 
 static void

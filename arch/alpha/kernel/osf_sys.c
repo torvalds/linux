@@ -165,14 +165,11 @@ osf_getdirentries(unsigned int fd, struct osf_dirent __user *dirent,
 	buf.error = 0;
 
 	error = vfs_readdir(file, osf_filldir, &buf);
-	if (error < 0)
-		goto out_putf;
-
-	error = buf.error;
+	if (error >= 0)
+		error = buf.error;
 	if (count != buf.count)
 		error = count - buf.count;
 
- out_putf:
 	fput(file);
  out:
 	return error;

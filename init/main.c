@@ -672,7 +672,6 @@ asmlinkage void __init start_kernel(void)
 	fork_init(num_physpages);
 	proc_caches_init();
 	buffer_init();
-	unnamed_dev_init();
 	key_init();
 	security_init();
 	vfs_caches_init(num_physpages);
