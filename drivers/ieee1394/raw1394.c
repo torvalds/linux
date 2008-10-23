@@ -34,6 +34,7 @@
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/vmalloc.h>
@@ -2267,6 +2268,8 @@ static ssize_t raw1394_write(struct file *file, const char __user * buffer,
 		return -EFAULT;
 	}
 
+	mutex_lock(&fi->state_mutex);
+
 	switch (fi->state) {
 	case opened:
 		retval = state_opened(fi, req);
@@ -2280,6 +2283,8 @@ static ssize_t raw1394_write(struct file *file, const char __user * buffer,
 		retval = state_connected(fi, req);
 		break;
 	}
+
+	mutex_unlock(&fi->state_mutex);
 
 	if (retval < 0) {
 		free_pending_request(req);
@@ -2541,109 +2546,120 @@ static int raw1394_read_cycle_timer(struct file_info *fi, void __user * uaddr)
 static int raw1394_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct file_info *fi = file->private_data;
+	int ret;
+
+	mutex_lock(&fi->state_mutex);
 
 	if (fi->iso_state == RAW1394_ISO_INACTIVE)
-		return -EINVAL;
+		ret = -EINVAL;
+	else
+		ret = dma_region_mmap(&fi->iso_handle->data_buf, file, vma);
 
-	return dma_region_mmap(&fi->iso_handle->data_buf, file, vma);
+	mutex_unlock(&fi->state_mutex);
+
+	return ret;
+}
+
+static long raw1394_ioctl_inactive(struct file_info *fi, unsigned int cmd,
+				   void __user *argp)
+{
+	switch (cmd) {
+	case RAW1394_IOC_ISO_XMIT_INIT:
+		return raw1394_iso_xmit_init(fi, argp);
+	case RAW1394_IOC_ISO_RECV_INIT:
+		return raw1394_iso_recv_init(fi, argp);
+	default:
+		return -EINVAL;
+	}
+}
+
+static long raw1394_ioctl_recv(struct file_info *fi, unsigned int cmd,
+			       unsigned long arg)
+{
+	void __user *argp = (void __user *)arg;
+
+	switch (cmd) {
+	case RAW1394_IOC_ISO_RECV_START:{
+			int args[3];
+
+			if (copy_from_user(&args[0], argp, sizeof(args)))
+				return -EFAULT;
+			return hpsb_iso_recv_start(fi->iso_handle,
+						   args[0], args[1], args[2]);
+		}
+	case RAW1394_IOC_ISO_XMIT_RECV_STOP:
+		hpsb_iso_stop(fi->iso_handle);
+		return 0;
+	case RAW1394_IOC_ISO_RECV_LISTEN_CHANNEL:
+		return hpsb_iso_recv_listen_channel(fi->iso_handle, arg);
+	case RAW1394_IOC_ISO_RECV_UNLISTEN_CHANNEL:
+		return hpsb_iso_recv_unlisten_channel(fi->iso_handle, arg);
+	case RAW1394_IOC_ISO_RECV_SET_CHANNEL_MASK:{
+			u64 mask;
+
+			if (copy_from_user(&mask, argp, sizeof(mask)))
+				return -EFAULT;
+			return hpsb_iso_recv_set_channel_mask(fi->iso_handle,
+							      mask);
+		}
+	case RAW1394_IOC_ISO_GET_STATUS:
+		return raw1394_iso_get_status(fi, argp);
+	case RAW1394_IOC_ISO_RECV_PACKETS:
+		return raw1394_iso_recv_packets(fi, argp);
+	case RAW1394_IOC_ISO_RECV_RELEASE_PACKETS:
+		return hpsb_iso_recv_release_packets(fi->iso_handle, arg);
+	case RAW1394_IOC_ISO_RECV_FLUSH:
+		return hpsb_iso_recv_flush(fi->iso_handle);
+	case RAW1394_IOC_ISO_SHUTDOWN:
+		raw1394_iso_shutdown(fi);
+		return 0;
+	case RAW1394_IOC_ISO_QUEUE_ACTIVITY:
+		queue_rawiso_event(fi);
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+static long raw1394_ioctl_xmit(struct file_info *fi, unsigned int cmd,
+			       void __user *argp)
+{
+	switch (cmd) {
+	case RAW1394_IOC_ISO_XMIT_START:{
+			int args[2];
+
+			if (copy_from_user(&args[0], argp, sizeof(args)))
+				return -EFAULT;
+			return hpsb_iso_xmit_start(fi->iso_handle,
+						   args[0], args[1]);
+		}
+	case RAW1394_IOC_ISO_XMIT_SYNC:
+		return hpsb_iso_xmit_sync(fi->iso_handle);
+	case RAW1394_IOC_ISO_XMIT_RECV_STOP:
+		hpsb_iso_stop(fi->iso_handle);
+		return 0;
+	case RAW1394_IOC_ISO_GET_STATUS:
+		return raw1394_iso_get_status(fi, argp);
+	case RAW1394_IOC_ISO_XMIT_PACKETS:
+		return raw1394_iso_send_packets(fi, argp);
+	case RAW1394_IOC_ISO_SHUTDOWN:
+		raw1394_iso_shutdown(fi);
+		return 0;
+	case RAW1394_IOC_ISO_QUEUE_ACTIVITY:
+		queue_rawiso_event(fi);
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
 /* ioctl is only used for rawiso operations */
-static long do_raw1394_ioctl(struct file *file, unsigned int cmd,
-							unsigned long arg)
+static long raw1394_ioctl(struct file *file, unsigned int cmd,
+			  unsigned long arg)
 {
 	struct file_info *fi = file->private_data;
 	void __user *argp = (void __user *)arg;
-
-	switch (fi->iso_state) {
-	case RAW1394_ISO_INACTIVE:
-		switch (cmd) {
-		case RAW1394_IOC_ISO_XMIT_INIT:
-			return raw1394_iso_xmit_init(fi, argp);
-		case RAW1394_IOC_ISO_RECV_INIT:
-			return raw1394_iso_recv_init(fi, argp);
-		default:
-			break;
-		}
-		break;
-	case RAW1394_ISO_RECV:
-		switch (cmd) {
-		case RAW1394_IOC_ISO_RECV_START:{
-				/* copy args from user-space */
-				int args[3];
-				if (copy_from_user
-				    (&args[0], argp, sizeof(args)))
-					return -EFAULT;
-				return hpsb_iso_recv_start(fi->iso_handle,
-							   args[0], args[1],
-							   args[2]);
-			}
-		case RAW1394_IOC_ISO_XMIT_RECV_STOP:
-			hpsb_iso_stop(fi->iso_handle);
-			return 0;
-		case RAW1394_IOC_ISO_RECV_LISTEN_CHANNEL:
-			return hpsb_iso_recv_listen_channel(fi->iso_handle,
-							    arg);
-		case RAW1394_IOC_ISO_RECV_UNLISTEN_CHANNEL:
-			return hpsb_iso_recv_unlisten_channel(fi->iso_handle,
-							      arg);
-		case RAW1394_IOC_ISO_RECV_SET_CHANNEL_MASK:{
-				/* copy the u64 from user-space */
-				u64 mask;
-				if (copy_from_user(&mask, argp, sizeof(mask)))
-					return -EFAULT;
-				return hpsb_iso_recv_set_channel_mask(fi->
-								      iso_handle,
-								      mask);
-			}
-		case RAW1394_IOC_ISO_GET_STATUS:
-			return raw1394_iso_get_status(fi, argp);
-		case RAW1394_IOC_ISO_RECV_PACKETS:
-			return raw1394_iso_recv_packets(fi, argp);
-		case RAW1394_IOC_ISO_RECV_RELEASE_PACKETS:
-			return hpsb_iso_recv_release_packets(fi->iso_handle,
-							     arg);
-		case RAW1394_IOC_ISO_RECV_FLUSH:
-			return hpsb_iso_recv_flush(fi->iso_handle);
-		case RAW1394_IOC_ISO_SHUTDOWN:
-			raw1394_iso_shutdown(fi);
-			return 0;
-		case RAW1394_IOC_ISO_QUEUE_ACTIVITY:
-			queue_rawiso_event(fi);
-			return 0;
-		}
-		break;
-	case RAW1394_ISO_XMIT:
-		switch (cmd) {
-		case RAW1394_IOC_ISO_XMIT_START:{
-				/* copy two ints from user-space */
-				int args[2];
-				if (copy_from_user
-				    (&args[0], argp, sizeof(args)))
-					return -EFAULT;
-				return hpsb_iso_xmit_start(fi->iso_handle,
-							   args[0], args[1]);
-			}
-		case RAW1394_IOC_ISO_XMIT_SYNC:
-			return hpsb_iso_xmit_sync(fi->iso_handle);
-		case RAW1394_IOC_ISO_XMIT_RECV_STOP:
-			hpsb_iso_stop(fi->iso_handle);
-			return 0;
-		case RAW1394_IOC_ISO_GET_STATUS:
-			return raw1394_iso_get_status(fi, argp);
-		case RAW1394_IOC_ISO_XMIT_PACKETS:
-			return raw1394_iso_send_packets(fi, argp);
-		case RAW1394_IOC_ISO_SHUTDOWN:
-			raw1394_iso_shutdown(fi);
-			return 0;
-		case RAW1394_IOC_ISO_QUEUE_ACTIVITY:
-			queue_rawiso_event(fi);
-			return 0;
-		}
-		break;
-	default:
-		break;
-	}
+	long ret;
 
 	/* state-independent commands */
 	switch(cmd) {
@@ -2653,16 +2669,25 @@ static long do_raw1394_ioctl(struct file *file, unsigned int cmd,
 		break;
 	}
 
-	return -EINVAL;
-}
+	mutex_lock(&fi->state_mutex);
 
-static long raw1394_ioctl(struct file *file, unsigned int cmd,
-							unsigned long arg)
-{
-	long ret;
-	lock_kernel();
-	ret = do_raw1394_ioctl(file, cmd, arg);
-	unlock_kernel();
+	switch (fi->iso_state) {
+	case RAW1394_ISO_INACTIVE:
+		ret = raw1394_ioctl_inactive(fi, cmd, argp);
+		break;
+	case RAW1394_ISO_RECV:
+		ret = raw1394_ioctl_recv(fi, cmd, arg);
+		break;
+	case RAW1394_ISO_XMIT:
+		ret = raw1394_ioctl_xmit(fi, cmd, argp);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	mutex_unlock(&fi->state_mutex);
+
 	return ret;
 }
 
@@ -2700,7 +2725,7 @@ static long raw1394_iso_xmit_recv_packets32(struct file *file, unsigned int cmd,
 	    !copy_from_user(&infos32, &arg->infos, sizeof infos32)) {
 		infos = compat_ptr(infos32);
 		if (!copy_to_user(&dst->infos, &infos, sizeof infos))
-			err = do_raw1394_ioctl(file, cmd, (unsigned long)dst);
+			err = raw1394_ioctl(file, cmd, (unsigned long)dst);
 	}
 	return err;
 }
@@ -2724,7 +2749,6 @@ static long raw1394_compat_ioctl(struct file *file,
 	void __user *argp = (void __user *)arg;
 	long err;
 
-	lock_kernel();
 	switch (cmd) {
 	/* These requests have same format as long as 'int' has same size. */
 	case RAW1394_IOC_ISO_RECV_INIT:
@@ -2741,7 +2765,7 @@ static long raw1394_compat_ioctl(struct file *file,
 	case RAW1394_IOC_ISO_GET_STATUS:
 	case RAW1394_IOC_ISO_SHUTDOWN:
 	case RAW1394_IOC_ISO_QUEUE_ACTIVITY:
-		err = do_raw1394_ioctl(file, cmd, arg);
+		err = raw1394_ioctl(file, cmd, arg);
 		break;
 	/* These request have different format. */
 	case RAW1394_IOC_ISO_RECV_PACKETS32:
@@ -2757,7 +2781,6 @@ static long raw1394_compat_ioctl(struct file *file,
 		err = -EINVAL;
 		break;
 	}
-	unlock_kernel();
 
 	return err;
 }
@@ -2791,6 +2814,7 @@ static int raw1394_open(struct inode *inode, struct file *file)
 	fi->notification = (u8) RAW1394_NOTIFY_ON;	/* busreset notification */
 
 	INIT_LIST_HEAD(&fi->list);
+	mutex_init(&fi->state_mutex);
 	fi->state = opened;
 	INIT_LIST_HEAD(&fi->req_pending);
 	INIT_LIST_HEAD(&fi->req_complete);
@@ -3010,10 +3034,10 @@ static int __init init_raw1394(void)
 	hpsb_register_highlevel(&raw1394_highlevel);
 
 	if (IS_ERR
-	    (device_create_drvdata(
-	      hpsb_protocol_class, NULL,
-	      MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16),
-	      NULL, RAW1394_DEVICE_NAME))) {
+	    (device_create(hpsb_protocol_class, NULL,
+			   MKDEV(IEEE1394_MAJOR,
+				 IEEE1394_MINOR_BLOCK_RAW1394 * 16),
+			   NULL, RAW1394_DEVICE_NAME))) {
 		ret = -EFAULT;
 		goto out_unreg;
 	}

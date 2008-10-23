@@ -1,5 +1,5 @@
-#ifndef __ASM_X86_XEN_INTERFACE_64_H
-#define __ASM_X86_XEN_INTERFACE_64_H
+#ifndef ASM_X86__XEN__INTERFACE_64_H
+#define ASM_X86__XEN__INTERFACE_64_H
 
 /*
  * 64-bit segment selectors
@@ -156,4 +156,4 @@ typedef unsigned long xen_callback_t;
 #endif /* !__ASSEMBLY__ */
 
 
-#endif	/* __ASM_X86_XEN_INTERFACE_64_H */
+#endif /* ASM_X86__XEN__INTERFACE_64_H */

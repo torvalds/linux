@@ -25,12 +25,12 @@
 #include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/sysdev.h>
+#include <linux/io.h>
 
 #include <asm/mach-types.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/io.h>
 
 #include <asm/mach/irq.h>
 
@@ -38,7 +38,7 @@
 #include <mach/bast-map.h>
 #include <mach/bast-irq.h>
 
-#include <asm/plat-s3c24xx/irq.h>
+#include <plat/irq.h>
 
 #if 0
 #include <asm/debug-ll.h>
@@ -130,8 +130,7 @@ bast_irq_pc104_demux(unsigned int irq,
 		for (i = 0; stat != 0; i++, stat >>= 1) {
 			if (stat & 1) {
 				irqno = bast_pc104_irqs[i];
-				desc = irq_desc + irqno;
-				desc_handle_irq(irqno, desc);
+				generic_handle_irq(irqno);
 			}
 		}
 	}

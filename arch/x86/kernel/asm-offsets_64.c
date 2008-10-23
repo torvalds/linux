@@ -22,7 +22,7 @@
 
 #define __NO_STUBS 1
 #undef __SYSCALL
-#undef _ASM_X86_64_UNISTD_H_
+#undef ASM_X86__UNISTD_64_H
 #define __SYSCALL(nr, sym) [nr] = 1,
 static char syscalls[] = {
 #include <asm/unistd.h>

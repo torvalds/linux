@@ -28,7 +28,7 @@
 #include <linux/wait.h>
 #include <linux/moduleparam.h>
 #include <sound/core.h>
-#include <sound/ad1848.h>
+#include <sound/wss.h>
 #include <sound/initval.h>
 
 #define CRD_NAME "Generic AD1848/AD1847/CS4248"
@@ -87,7 +87,7 @@ static int __devinit snd_ad1848_match(struct device *dev, unsigned int n)
 static int __devinit snd_ad1848_probe(struct device *dev, unsigned int n)
 {
 	struct snd_card *card;
-	struct snd_ad1848 *chip;
+	struct snd_wss *chip;
 	struct snd_pcm *pcm;
 	int error;
 
@@ -95,18 +95,19 @@ static int __devinit snd_ad1848_probe(struct device *dev, unsigned int n)
 	if (!card)
 		return -EINVAL;
 
-	error = snd_ad1848_create(card, port[n], irq[n], dma1[n],
-			thinkpad[n] ? AD1848_HW_THINKPAD : AD1848_HW_DETECT, &chip);
+	error = snd_wss_create(card, port[n], -1, irq[n], dma1[n], -1,
+			thinkpad[n] ? WSS_HW_THINKPAD : WSS_HW_DETECT,
+			0, &chip);
 	if (error < 0)
 		goto out;
 
 	card->private_data = chip;
 
-	error = snd_ad1848_pcm(chip, 0, &pcm);
+	error = snd_wss_pcm(chip, 0, &pcm);
 	if (error < 0)
 		goto out;
 
-	error = snd_ad1848_mixer(chip);
+	error = snd_wss_mixer(chip);
 	if (error < 0)
 		goto out;
 
@@ -142,7 +143,7 @@ static int __devexit snd_ad1848_remove(struct device *dev, unsigned int n)
 static int snd_ad1848_suspend(struct device *dev, unsigned int n, pm_message_t state)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
-	struct snd_ad1848 *chip = card->private_data;
+	struct snd_wss *chip = card->private_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	chip->suspend(chip);
@@ -152,7 +153,7 @@ static int snd_ad1848_suspend(struct device *dev, unsigned int n, pm_message_t s
 static int snd_ad1848_resume(struct device *dev, unsigned int n)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
-	struct snd_ad1848 *chip = card->private_data;
+	struct snd_wss *chip = card->private_data;
 
 	chip->resume(chip);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);

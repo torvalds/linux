@@ -337,6 +337,7 @@ static int attach_inform(struct i2c_client *client)
 		case 0x47:
 		case 0x71:
 		case 0x2d:
+		case 0x30:
 		{
 			struct IR_i2c *ir = i2c_get_clientdata(client);
 			d1printk("%s i2c IR detected (%s).\n",
@@ -426,6 +427,16 @@ void saa7134_i2c_call_clients(struct saa7134_dev *dev,
 	BUG_ON(NULL == dev->i2c_adap.algo_data);
 	i2c_clients_command(&dev->i2c_adap, cmd, arg);
 }
+
+int saa7134_i2c_call_saa6752(struct saa7134_dev *dev,
+					      unsigned int cmd, void *arg)
+{
+	if (dev->mpeg_i2c_client == NULL)
+		return -EINVAL;
+	return dev->mpeg_i2c_client->driver->command(dev->mpeg_i2c_client,
+								cmd, arg);
+}
+EXPORT_SYMBOL_GPL(saa7134_i2c_call_saa6752);
 
 int saa7134_i2c_register(struct saa7134_dev *dev)
 {

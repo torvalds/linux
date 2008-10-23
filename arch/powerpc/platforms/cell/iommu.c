@@ -556,11 +556,11 @@ static struct iommu_table *cell_get_iommu_table(struct device *dev)
 	 * node's iommu. We -might- do something smarter later though it may
 	 * never be necessary
 	 */
-	iommu = cell_iommu_for_node(archdata->numa_node);
+	iommu = cell_iommu_for_node(dev_to_node(dev));
 	if (iommu == NULL || list_empty(&iommu->windows)) {
 		printk(KERN_ERR "iommu: missing iommu for %s (node %d)\n",
 		       archdata->of_node ? archdata->of_node->full_name : "?",
-		       archdata->numa_node);
+		       dev_to_node(dev));
 		return NULL;
 	}
 	window = list_entry(iommu->windows.next, struct iommu_window, list);
@@ -577,7 +577,7 @@ static void *dma_fixed_alloc_coherent(struct device *dev, size_t size,
 		return iommu_alloc_coherent(dev, cell_get_iommu_table(dev),
 					    size, dma_handle,
 					    device_to_mask(dev), flag,
-					    dev->archdata.numa_node);
+					    dev_to_node(dev));
 	else
 		return dma_direct_ops.alloc_coherent(dev, size, dma_handle,
 						     flag);

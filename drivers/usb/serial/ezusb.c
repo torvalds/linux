@@ -28,7 +28,8 @@ int ezusb_writememory(struct usb_serial *serial, int address,
 
 	/* dbg("ezusb_writememory %x, %d", address, length); */
 	if (!serial->dev) {
-		err("%s - no physical device present, failing.", __func__);
+		printk(KERN_ERR "ezusb: %s - no physical device present, "
+		       "failing.\n", __func__);
 		return -ENODEV;
 	}
 

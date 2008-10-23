@@ -12,7 +12,7 @@
 #include <linux/uio_driver.h>
 #include <linux/stringify.h>
 
-#define DRIVER_NAME "uio"
+#define DRIVER_NAME "uio_pdrv"
 
 struct uio_platdata {
 	struct uio_info *uioinfo;

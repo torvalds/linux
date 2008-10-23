@@ -6,8 +6,8 @@
  * Copyright (c) 2004, K A Fraser
  */
 
-#ifndef __ASM_X86_XEN_INTERFACE_H
-#define __ASM_X86_XEN_INTERFACE_H
+#ifndef ASM_X86__XEN__INTERFACE_H
+#define ASM_X86__XEN__INTERFACE_H
 
 #ifdef __XEN__
 #define __DEFINE_GUEST_HANDLE(name, type) \
@@ -172,4 +172,4 @@ DEFINE_GUEST_HANDLE_STRUCT(vcpu_guest_context);
 #define XEN_CPUID          XEN_EMULATE_PREFIX "cpuid"
 #endif
 
-#endif	/* __ASM_X86_XEN_INTERFACE_H */
+#endif /* ASM_X86__XEN__INTERFACE_H */

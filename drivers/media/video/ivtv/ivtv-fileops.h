@@ -38,11 +38,6 @@ void ivtv_unmute(struct ivtv *itv);
 
 /* Utilities */
 
-/* Try to claim a stream for the filehandle. Return 0 on success,
-   -EBUSY if stream already claimed. Once a stream is claimed, it
-   remains claimed until the associated filehandle is closed. */
-int ivtv_claim_stream(struct ivtv_open_id *id, int type);
-
 /* Release a previously claimed stream. */
 void ivtv_release_stream(struct ivtv_stream *s);
 

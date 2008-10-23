@@ -335,11 +335,11 @@ static struct xenbus_driver xenkbd = {
 
 static int __init xenkbd_init(void)
 {
-	if (!is_running_on_xen())
+	if (!xen_domain())
 		return -ENODEV;
 
 	/* Nothing to do if running in dom0. */
-	if (is_initial_xendomain())
+	if (xen_initial_domain())
 		return -ENODEV;
 
 	return xenbus_register_frontend(&xenkbd);

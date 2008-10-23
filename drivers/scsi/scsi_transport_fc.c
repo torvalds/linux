@@ -40,31 +40,7 @@
 
 static int fc_queue_work(struct Scsi_Host *, struct work_struct *);
 static void fc_vport_sched_delete(struct work_struct *work);
-
-/*
- * This is a temporary carrier for creating a vport. It will eventually
- * be replaced  by a real message definition for sgio or netlink.
- *
- * fc_vport_identifiers: This set of data contains all elements
- * to uniquely identify and instantiate a FC virtual port.
- *
- * Notes:
- *   symbolic_name: The driver is to append the symbolic_name string data
- *      to the symbolic_node_name data that it generates by default.
- *      the resulting combination should then be registered with the switch.
- *      It is expected that things like Xen may stuff a VM title into
- *      this field.
- */
-struct fc_vport_identifiers {
-	u64 node_name;
-	u64 port_name;
-	u32 roles;
-	bool disable;
-	enum fc_port_type vport_type;	/* only FC_PORTTYPE_NPIV allowed */
-	char symbolic_name[FC_VPORT_SYMBOLIC_NAMELEN];
-};
-
-static int fc_vport_create(struct Scsi_Host *shost, int channel,
+static int fc_vport_setup(struct Scsi_Host *shost, int channel,
 	struct device *pdev, struct fc_vport_identifiers  *ids,
 	struct fc_vport **vport);
 
@@ -1760,7 +1736,7 @@ store_fc_host_vport_create(struct device *dev, struct device_attribute *attr,
 	vid.disable = false;		/* always enabled */
 
 	/* we only allow support on Channel 0 !!! */
-	stat = fc_vport_create(shost, 0, &shost->shost_gendev, &vid, &vport);
+	stat = fc_vport_setup(shost, 0, &shost->shost_gendev, &vid, &vport);
 	return stat ? stat : count;
 }
 static FC_DEVICE_ATTR(host, vport_create, S_IWUSR, NULL,
@@ -1950,15 +1926,15 @@ static int fc_vport_match(struct attribute_container *cont,
  * Notes:
  *	This routine assumes no locks are held on entry.
  */
-static enum scsi_eh_timer_return
+static enum blk_eh_timer_return
 fc_timed_out(struct scsi_cmnd *scmd)
 {
 	struct fc_rport *rport = starget_to_rport(scsi_target(scmd->device));
 
 	if (rport->port_state == FC_PORTSTATE_BLOCKED)
-		return EH_RESET_TIMER;
+		return BLK_EH_RESET_TIMER;
 
-	return EH_NOT_HANDLED;
+	return BLK_EH_NOT_HANDLED;
 }
 
 /*
@@ -2157,8 +2133,7 @@ fc_attach_transport(struct fc_function_template *ft)
 	SETUP_PRIVATE_RPORT_ATTRIBUTE_RD(roles);
 	SETUP_PRIVATE_RPORT_ATTRIBUTE_RD(port_state);
 	SETUP_PRIVATE_RPORT_ATTRIBUTE_RD(scsi_target_id);
-	if (ft->terminate_rport_io)
-		SETUP_PRIVATE_RPORT_ATTRIBUTE_RW(fast_io_fail_tmo);
+	SETUP_PRIVATE_RPORT_ATTRIBUTE_RW(fast_io_fail_tmo);
 
 	BUG_ON(count > FC_RPORT_NUM_ATTRS);
 
@@ -2352,6 +2327,22 @@ fc_remove_host(struct Scsi_Host *shost)
 }
 EXPORT_SYMBOL(fc_remove_host);
 
+static void fc_terminate_rport_io(struct fc_rport *rport)
+{
+	struct Scsi_Host *shost = rport_to_shost(rport);
+	struct fc_internal *i = to_fc_internal(shost->transportt);
+
+	/* Involve the LLDD if possible to terminate all io on the rport. */
+	if (i->f->terminate_rport_io)
+		i->f->terminate_rport_io(rport);
+
+	/*
+	 * must unblock to flush queued IO. The caller will have set
+	 * the port_state or flags, so that fc_remote_port_chkready will
+	 * fail IO.
+	 */
+	scsi_target_unblock(&rport->dev);
+}
 
 /**
  * fc_starget_delete - called to delete the scsi decendents of an rport
@@ -2364,13 +2355,8 @@ fc_starget_delete(struct work_struct *work)
 {
 	struct fc_rport *rport =
 		container_of(work, struct fc_rport, stgt_delete_work);
-	struct Scsi_Host *shost = rport_to_shost(rport);
-	struct fc_internal *i = to_fc_internal(shost->transportt);
 
-	/* Involve the LLDD if possible to terminate all io on the rport. */
-	if (i->f->terminate_rport_io)
-		i->f->terminate_rport_io(rport);
-
+	fc_terminate_rport_io(rport);
 	scsi_remove_target(&rport->dev);
 }
 
@@ -2396,10 +2382,7 @@ fc_rport_final_delete(struct work_struct *work)
 	if (rport->flags & FC_RPORT_SCAN_PENDING)
 		scsi_flush_work(shost);
 
-	/* involve the LLDD to terminate all pending i/o */
-	if (i->f->terminate_rport_io)
-		i->f->terminate_rport_io(rport);
-
+	fc_terminate_rport_io(rport);
 	/*
 	 * Cancel any outstanding timers. These should really exist
 	 * only when rmmod'ing the LLDD and we're asking for
@@ -2663,7 +2646,8 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 
 				spin_lock_irqsave(shost->host_lock, flags);
 
-				rport->flags &= ~FC_RPORT_DEVLOSS_PENDING;
+				rport->flags &= ~(FC_RPORT_FAST_FAIL_TIMEDOUT |
+						  FC_RPORT_DEVLOSS_PENDING);
 
 				/* if target, initiate a scan */
 				if (rport->scsi_target_id != -1) {
@@ -2726,6 +2710,7 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 			rport->port_id = ids->port_id;
 			rport->roles = ids->roles;
 			rport->port_state = FC_PORTSTATE_ONLINE;
+			rport->flags &= ~FC_RPORT_FAST_FAIL_TIMEDOUT;
 
 			if (fci->f->dd_fcrport_size)
 				memset(rport->dd_data, 0,
@@ -2808,7 +2793,6 @@ void
 fc_remote_port_delete(struct fc_rport  *rport)
 {
 	struct Scsi_Host *shost = rport_to_shost(rport);
-	struct fc_internal *i = to_fc_internal(shost->transportt);
 	int timeout = rport->dev_loss_tmo;
 	unsigned long flags;
 
@@ -2854,7 +2838,7 @@ fc_remote_port_delete(struct fc_rport  *rport)
 
 	/* see if we need to kill io faster than waiting for device loss */
 	if ((rport->fast_io_fail_tmo != -1) &&
-	    (rport->fast_io_fail_tmo < timeout) && (i->f->terminate_rport_io))
+	    (rport->fast_io_fail_tmo < timeout))
 		fc_queue_devloss_work(shost, &rport->fail_io_work,
 					rport->fast_io_fail_tmo * HZ);
 
@@ -2930,7 +2914,8 @@ fc_remote_port_rolechg(struct fc_rport  *rport, u32 roles)
 			fc_flush_devloss(shost);
 
 		spin_lock_irqsave(shost->host_lock, flags);
-		rport->flags &= ~FC_RPORT_DEVLOSS_PENDING;
+		rport->flags &= ~(FC_RPORT_FAST_FAIL_TIMEDOUT |
+				  FC_RPORT_DEVLOSS_PENDING);
 		spin_unlock_irqrestore(shost->host_lock, flags);
 
 		/* ensure any stgt delete functions are done */
@@ -3025,6 +3010,7 @@ fc_timeout_deleted_rport(struct work_struct *work)
 	rport->supported_classes = FC_COS_UNSPECIFIED;
 	rport->roles = FC_PORT_ROLE_UNKNOWN;
 	rport->port_state = FC_PORTSTATE_NOTPRESENT;
+	rport->flags &= ~FC_RPORT_FAST_FAIL_TIMEDOUT;
 
 	/* remove the identifiers that aren't used in the consisting binding */
 	switch (fc_host->tgtid_bind_type) {
@@ -3067,13 +3053,12 @@ fc_timeout_fail_rport_io(struct work_struct *work)
 {
 	struct fc_rport *rport =
 		container_of(work, struct fc_rport, fail_io_work.work);
-	struct Scsi_Host *shost = rport_to_shost(rport);
-	struct fc_internal *i = to_fc_internal(shost->transportt);
 
 	if (rport->port_state != FC_PORTSTATE_BLOCKED)
 		return;
 
-	i->f->terminate_rport_io(rport);
+	rport->flags |= FC_RPORT_FAST_FAIL_TIMEDOUT;
+	fc_terminate_rport_io(rport);
 }
 
 /**
@@ -3103,7 +3088,7 @@ fc_scsi_scan_rport(struct work_struct *work)
 
 
 /**
- * fc_vport_create - allocates and creates a FC virtual port.
+ * fc_vport_setup - allocates and creates a FC virtual port.
  * @shost:	scsi host the virtual port is connected to.
  * @channel:	Channel on shost port connected to.
  * @pdev:	parent device for vport
@@ -3118,7 +3103,7 @@ fc_scsi_scan_rport(struct work_struct *work)
  *	This routine assumes no locks are held on entry.
  */
 static int
-fc_vport_create(struct Scsi_Host *shost, int channel, struct device *pdev,
+fc_vport_setup(struct Scsi_Host *shost, int channel, struct device *pdev,
 	struct fc_vport_identifiers  *ids, struct fc_vport **ret_vport)
 {
 	struct fc_host_attrs *fc_host = shost_to_fc_host(shost);
@@ -3231,6 +3216,28 @@ delete_vport:
 	return error;
 }
 
+/**
+ * fc_vport_create - Admin App or LLDD requests creation of a vport
+ * @shost:	scsi host the virtual port is connected to.
+ * @channel:	channel on shost port connected to.
+ * @ids:	The world wide names, FC4 port roles, etc for
+ *              the virtual port.
+ *
+ * Notes:
+ *	This routine assumes no locks are held on entry.
+ */
+struct fc_vport *
+fc_vport_create(struct Scsi_Host *shost, int channel,
+	struct fc_vport_identifiers *ids)
+{
+	int stat;
+	struct fc_vport *vport;
+
+	stat = fc_vport_setup(shost, channel, &shost->shost_gendev,
+		 ids, &vport);
+	return stat ? NULL : vport;
+}
+EXPORT_SYMBOL(fc_vport_create);
 
 /**
  * fc_vport_terminate - Admin App or LLDD requests termination of a vport

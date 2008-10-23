@@ -770,6 +770,8 @@ extern void sun4v_patch_tlb_handlers(void);
 
 extern unsigned long cmdline_memory_size;
 
+extern asmlinkage void do_sparc64_fault(struct pt_regs *regs);
+
 #endif /* !(__ASSEMBLY__) */
 
 #endif /* !(_SPARC64_PGTABLE_H) */

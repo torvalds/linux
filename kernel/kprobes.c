@@ -404,7 +404,7 @@ void kretprobe_hash_lock(struct task_struct *tsk,
 	spin_lock_irqsave(hlist_lock, *flags);
 }
 
-void kretprobe_table_lock(unsigned long hash, unsigned long *flags)
+static void kretprobe_table_lock(unsigned long hash, unsigned long *flags)
 {
 	spinlock_t *hlist_lock = kretprobe_table_lock_ptr(hash);
 	spin_lock_irqsave(hlist_lock, *flags);

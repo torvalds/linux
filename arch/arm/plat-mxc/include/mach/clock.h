@@ -39,7 +39,7 @@ struct clk {
 	/* Register bit position for clock's enable/disable control. */
 	u8 enable_shift;
 	/* Register address for clock's enable/disable control. */
-	u32 enable_reg;
+	void __iomem *enable_reg;
 	u32 flags;
 	/* get the current clock rate (always a fresh value) */
 	unsigned long (*get_rate) (struct clk *);

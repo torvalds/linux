@@ -79,6 +79,6 @@ extern int cfg80211_dev_rename(struct cfg80211_registered_device *drv,
 			       char *newname);
 
 void ieee80211_set_bitrate_flags(struct wiphy *wiphy);
-void wiphy_update_regulatory(struct wiphy *wiphy);
+void wiphy_update_regulatory(struct wiphy *wiphy, enum reg_set_by setby);
 
 #endif /* __NET_WIRELESS_CORE_H */

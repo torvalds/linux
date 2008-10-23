@@ -31,7 +31,6 @@
 #include <asm/mbus.h>
 #include <asm/cache.h>
 #include <asm/oplib.h>
-#include <asm/sbus.h>
 #include <asm/asi.h>
 #include <asm/msi.h>
 #include <asm/mmu_context.h>

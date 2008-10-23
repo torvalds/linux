@@ -33,7 +33,6 @@
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 
-#include <mach/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
@@ -42,6 +41,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include <mach/hardware.h>
 #include <mach/board.h>
 #include <mach/gpio.h>
 #include <mach/at91rm9200_mc.h>
@@ -150,27 +150,27 @@ static struct mtd_partition __initdata yl9200_nand_partition[] = {
 	{
 		.name	= "AT91 NAND partition 1, boot",
 		.offset	= 0,
-		.size	= 1 * SZ_256K
+		.size	= SZ_256K
 	},
 	{
 		.name	= "AT91 NAND partition 2, kernel",
-		.offset	= 1 * SZ_256K,
-		.size	= 2 * SZ_1M - 1 * SZ_256K
+		.offset	= MTDPART_OFS_NXTBLK,
+		.size	= (2 * SZ_1M) - SZ_256K
 	},
 	{
 		.name	= "AT91 NAND partition 3, filesystem",
-		.offset	= 2 * SZ_1M,
+		.offset	= MTDPART_OFS_NXTBLK,
 		.size	= 14 * SZ_1M
 	},
 	{
 		.name	= "AT91 NAND partition 4, storage",
-		.offset	= 16 * SZ_1M,
-		.size	= 16 * SZ_1M
+		.offset	= MTDPART_OFS_NXTBLK,
+		.size	= SZ_16M
 	},
 	{
 		.name	= "AT91 NAND partition 5, ext-fs",
-		.offset	= 32 * SZ_1M,
-		.size	= 32 * SZ_1M
+		.offset	= MTDPART_OFS_NXTBLK,
+		.size	= SZ_32M
 	}
 };
 
@@ -193,24 +193,24 @@ static struct atmel_nand_data __initdata yl9200_nand_data = {
  * NOR Flash
  */
 #define YL9200_FLASH_BASE	AT91_CHIPSELECT_0
-#define YL9200_FLASH_SIZE	0x1000000
+#define YL9200_FLASH_SIZE	SZ_16M
 
 static struct mtd_partition yl9200_flash_partitions[] = {
 	{
 		.name		= "Bootloader",
-		.size		= 0x00040000,
 		.offset		= 0,
+		.size		= SZ_256K,
 		.mask_flags	= MTD_WRITEABLE,	/* force read-only */
 	},
 	{
 		.name		= "Kernel",
-		.size		= 0x001C0000,
-		.offset		= 0x00040000,
+		.offset		= MTDPART_OFS_NXTBLK,
+		.size		= (2 * SZ_1M) - SZ_256K
 	},
 	{
 		.name		= "Filesystem",
-		.size		= MTDPART_SIZ_FULL,
-		.offset		= 0x00200000
+		.offset		= MTDPART_OFS_NXTBLK,
+		.size		= MTDPART_SIZ_FULL
 	}
 };
 
@@ -390,10 +390,6 @@ static struct spi_board_info yl9200_spi_devices[] = {
 #if defined(CONFIG_FB_S1D135XX) || defined(CONFIG_FB_S1D13XXX_MODULE)
 #include <video/s1d13xxxfb.h>
 
-#define AT91_FB_REG_BASE	0x80000000L
-#define AT91_FB_REG_SIZE	0x200
-#define AT91_FB_VMEM_BASE	0x80200000L
-#define AT91_FB_VMEM_SIZE	0x200000L
 
 static void __init yl9200_init_video(void)
 {
@@ -516,28 +512,32 @@ static struct s1d13xxxfb_regval yl9200_s1dfb_initregs[] =
 	{S1DREG_COM_DISP_MODE,		0x01},	/* Display Mode Register, LCD only*/
 };
 
-static u64 s1dfb_dmamask = DMA_BIT_MASK(32);
-
 static struct s1d13xxxfb_pdata yl9200_s1dfb_pdata = {
 	.initregs		= yl9200_s1dfb_initregs,
 	.initregssize		= ARRAY_SIZE(yl9200_s1dfb_initregs),
 	.platform_init_video	= yl9200_init_video,
 };
 
+#define YL9200_FB_REG_BASE	AT91_CHIPSELECT_7
+#define YL9200_FB_VMEM_BASE	YL9200_FB_REG_BASE + SZ_2M
+#define YL9200_FB_VMEM_SIZE	SZ_2M
+
 static struct resource yl9200_s1dfb_resource[] = {
 	[0] = {	/* video mem */
 		.name	= "s1d13xxxfb memory",
-		.start	= AT91_FB_VMEM_BASE,
-		.end	= AT91_FB_VMEM_BASE + AT91_FB_VMEM_SIZE -1,
+		.start	= YL9200_FB_VMEM_BASE,
+		.end	= YL9200_FB_VMEM_BASE + YL9200_FB_VMEM_SIZE -1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {	/* video registers */
 		.name	= "s1d13xxxfb registers",
-		.start	= AT91_FB_REG_BASE,
-		.end	= AT91_FB_REG_BASE + AT91_FB_REG_SIZE -1,
+		.start	= YL9200_FB_REG_BASE,
+		.end	= YL9200_FB_REG_BASE + SZ_512 -1,
 		.flags	= IORESOURCE_MEM,
 	},
 };
+
+static u64 s1dfb_dmamask = DMA_BIT_MASK(32);
 
 static struct platform_device yl9200_s1dfb_device = {
 	.name		= "s1d13806fb",

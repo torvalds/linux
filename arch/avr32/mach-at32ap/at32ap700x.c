@@ -813,7 +813,7 @@ static struct resource pio4_resource[] = {
 DEFINE_DEV(pio, 4);
 DEV_CLK(mck, pio4, pba, 14);
 
-void __init at32_add_system_devices(void)
+static int __init system_device_init(void)
 {
 	platform_device_register(&at32_pm0_device);
 	platform_device_register(&at32_intc0_device);
@@ -832,7 +832,10 @@ void __init at32_add_system_devices(void)
 	platform_device_register(&pio2_device);
 	platform_device_register(&pio3_device);
 	platform_device_register(&pio4_device);
+
+	return 0;
 }
+core_initcall(system_device_init);
 
 /* --------------------------------------------------------------------
  *  PSIF
@@ -1474,7 +1477,7 @@ at32_add_device_lcdc(unsigned int id, struct atmel_lcdfb_info *data,
 			pin_mask = ATMEL_LCDC_PRI_24BIT | ATMEL_LCDC_PRI_CONTROL;
 
 		/* LCDC on port C */
-		portc_mask = (pin_mask & 0xfff80000) >> 19;
+		portc_mask = pin_mask & 0xfff80000;
 		select_peripheral(PIOC, portc_mask, PERIPH_A, 0);
 
 		/* LCDC on port D */

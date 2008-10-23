@@ -213,10 +213,13 @@ int pci_bus_find_capability(struct pci_bus *bus, unsigned int devfn, int cap)
 int pci_find_ext_capability(struct pci_dev *dev, int cap)
 {
 	u32 header;
-	int ttl = 480; /* 3840 bytes, minimum 8 bytes per capability */
-	int pos = 0x100;
+	int ttl;
+	int pos = PCI_CFG_SPACE_SIZE;
 
-	if (dev->cfg_size <= 256)
+	/* minimum 8 bytes per capability */
+	ttl = (PCI_CFG_SPACE_EXP_SIZE - PCI_CFG_SPACE_SIZE) / 8;
+
+	if (dev->cfg_size <= PCI_CFG_SPACE_SIZE)
 		return 0;
 
 	if (pci_read_config_dword(dev, pos, &header) != PCIBIOS_SUCCESSFUL)
@@ -234,7 +237,7 @@ int pci_find_ext_capability(struct pci_dev *dev, int cap)
 			return pos;
 
 		pos = PCI_EXT_CAP_NEXT(header);
-		if (pos < 0x100)
+		if (pos < PCI_CFG_SPACE_SIZE)
 			break;
 
 		if (pci_read_config_dword(dev, pos, &header) != PCIBIOS_SUCCESSFUL)
@@ -1127,6 +1130,27 @@ int pci_enable_wake(struct pci_dev *dev, pci_power_t state, int enable)
 }
 
 /**
+ * pci_wake_from_d3 - enable/disable device to wake up from D3_hot or D3_cold
+ * @dev: PCI device to prepare
+ * @enable: True to enable wake-up event generation; false to disable
+ *
+ * Many drivers want the device to wake up the system from D3_hot or D3_cold
+ * and this function allows them to set that up cleanly - pci_enable_wake()
+ * should not be called twice in a row to enable wake-up due to PCI PM vs ACPI
+ * ordering constraints.
+ *
+ * This function only returns error code if the device is not capable of
+ * generating PME# from both D3_hot and D3_cold, and the platform is unable to
+ * enable wake-up power for it.
+ */
+int pci_wake_from_d3(struct pci_dev *dev, bool enable)
+{
+	return pci_pme_capable(dev, PCI_D3cold) ?
+			pci_enable_wake(dev, PCI_D3cold, enable) :
+			pci_enable_wake(dev, PCI_D3hot, enable);
+}
+
+/**
  * pci_target_state - find an appropriate low power state for a given PCI dev
  * @dev: PCI device
  *
@@ -1242,25 +1266,25 @@ void pci_pm_init(struct pci_dev *dev)
 	dev->d1_support = false;
 	dev->d2_support = false;
 	if (!pci_no_d1d2(dev)) {
-		if (pmc & PCI_PM_CAP_D1) {
-			dev_printk(KERN_DEBUG, &dev->dev, "supports D1\n");
+		if (pmc & PCI_PM_CAP_D1)
 			dev->d1_support = true;
-		}
-		if (pmc & PCI_PM_CAP_D2) {
-			dev_printk(KERN_DEBUG, &dev->dev, "supports D2\n");
+		if (pmc & PCI_PM_CAP_D2)
 			dev->d2_support = true;
-		}
+
+		if (dev->d1_support || dev->d2_support)
+			dev_printk(KERN_DEBUG, &dev->dev, "supports%s%s\n",
+				   dev->d1_support ? " D1" : "",
+				   dev->d2_support ? " D2" : "");
 	}
 
 	pmc &= PCI_PM_CAP_PME_MASK;
 	if (pmc) {
-		dev_printk(KERN_INFO, &dev->dev,
-			"PME# supported from%s%s%s%s%s\n",
-			(pmc & PCI_PM_CAP_PME_D0) ? " D0" : "",
-			(pmc & PCI_PM_CAP_PME_D1) ? " D1" : "",
-			(pmc & PCI_PM_CAP_PME_D2) ? " D2" : "",
-			(pmc & PCI_PM_CAP_PME_D3) ? " D3hot" : "",
-			(pmc & PCI_PM_CAP_PME_D3cold) ? " D3cold" : "");
+		dev_info(&dev->dev, "PME# supported from%s%s%s%s%s\n",
+			 (pmc & PCI_PM_CAP_PME_D0) ? " D0" : "",
+			 (pmc & PCI_PM_CAP_PME_D1) ? " D1" : "",
+			 (pmc & PCI_PM_CAP_PME_D2) ? " D2" : "",
+			 (pmc & PCI_PM_CAP_PME_D3) ? " D3hot" : "",
+			 (pmc & PCI_PM_CAP_PME_D3cold) ? " D3cold" : "");
 		dev->pme_support = pmc >> PCI_PM_CAP_PME_SHIFT;
 		/*
 		 * Make device's PM flags reflect the wake-up capability, but
@@ -1273,6 +1297,38 @@ void pci_pm_init(struct pci_dev *dev)
 	} else {
 		dev->pme_support = 0;
 	}
+}
+
+/**
+ * pci_enable_ari - enable ARI forwarding if hardware support it
+ * @dev: the PCI device
+ */
+void pci_enable_ari(struct pci_dev *dev)
+{
+	int pos;
+	u32 cap;
+	u16 ctrl;
+
+	if (!dev->is_pcie)
+		return;
+
+	if (dev->pcie_type != PCI_EXP_TYPE_ROOT_PORT &&
+	    dev->pcie_type != PCI_EXP_TYPE_DOWNSTREAM)
+		return;
+
+	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	if (!pos)
+		return;
+
+	pci_read_config_dword(dev, pos + PCI_EXP_DEVCAP2, &cap);
+	if (!(cap & PCI_EXP_DEVCAP2_ARI))
+		return;
+
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL2, &ctrl);
+	ctrl |= PCI_EXP_DEVCTL2_ARI;
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL2, ctrl);
+
+	dev->ari_enabled = 1;
 }
 
 int
@@ -1358,11 +1414,10 @@ int pci_request_region(struct pci_dev *pdev, int bar, const char *res_name)
 	return 0;
 
 err_out:
-	dev_warn(&pdev->dev, "BAR %d: can't reserve %s region [%#llx-%#llx]\n",
+	dev_warn(&pdev->dev, "BAR %d: can't reserve %s region %pR\n",
 		 bar,
 		 pci_resource_flags(pdev, bar) & IORESOURCE_IO ? "I/O" : "mem",
-		 (unsigned long long)pci_resource_start(pdev, bar),
-		 (unsigned long long)pci_resource_end(pdev, bar));
+		 &pdev->resource[bar]);
 	return -EBUSY;
 }
 
@@ -1943,6 +1998,7 @@ EXPORT_SYMBOL(pci_restore_state);
 EXPORT_SYMBOL(pci_pme_capable);
 EXPORT_SYMBOL(pci_pme_active);
 EXPORT_SYMBOL(pci_enable_wake);
+EXPORT_SYMBOL(pci_wake_from_d3);
 EXPORT_SYMBOL(pci_target_state);
 EXPORT_SYMBOL(pci_prepare_to_sleep);
 EXPORT_SYMBOL(pci_back_from_sleep);

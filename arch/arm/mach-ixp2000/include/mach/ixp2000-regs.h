@@ -41,13 +41,7 @@
  * Most of the registers are clumped in 4K regions spread throughout
  * the 0xc0000000 -> 0xc0100000 address range, but we just map in
  * the whole range using a single 1 MB section instead of small
- * 4K pages.  This has two advantages for us:
- *
- * 1) We use only one TLB entry for large number of on-chip I/O devices.
- *
- * 2) We can easily set the Section attributes to XCB=101 on the IXP2400
- *    as required per erratum #66.  We accomplish this by using a
- *    new MT_IXP2000_DEVICE memory type with the bits set as required.
+ * 4K pages.
  *
  * CAP stands for CSR Access Proxy.
  *

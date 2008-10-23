@@ -575,6 +575,7 @@ static int e1000_set_eeprom(struct net_device *netdev,
 	 * and flush shadow RAM for 82573 controllers
 	 */
 	if ((ret_val == 0) && ((first_word <= NVM_CHECKSUM_REG) ||
+			       (hw->mac.type == e1000_82574) ||
 			       (hw->mac.type == e1000_82573)))
 		e1000e_update_nvm_checksum(hw);
 
@@ -786,8 +787,10 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 		toggle = 0x7FFFF3FF;
 		break;
 	case e1000_82573:
+	case e1000_82574:
 	case e1000_ich8lan:
 	case e1000_ich9lan:
+	case e1000_ich10lan:
 		toggle = 0x7FFFF033;
 		break;
 	default:
@@ -840,7 +843,9 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	REG_PATTERN_TEST(E1000_TIDV, 0x0000FFFF, 0x0000FFFF);
 	for (i = 0; i < mac->rar_entry_count; i++)
 		REG_PATTERN_TEST_ARRAY(E1000_RA, ((i << 1) + 1),
-				       0x8003FFFF, 0xFFFFFFFF);
+				       ((mac->type == e1000_ich10lan) ?
+					   0x8007FFFF : 0x8003FFFF),
+				       0xFFFFFFFF);
 
 	for (i = 0; i < mac->mta_reg_count; i++)
 		REG_PATTERN_TEST_ARRAY(E1000_MTA, i, 0xFFFFFFFF, 0xFFFFFFFF);
@@ -891,10 +896,18 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 	u32 shared_int = 1;
 	u32 irq = adapter->pdev->irq;
 	int i;
+	int ret_val = 0;
+	int int_mode = E1000E_INT_MODE_LEGACY;
 
 	*data = 0;
 
-	/* NOTE: we don't test MSI interrupts here, yet */
+	/* NOTE: we don't test MSI/MSI-X interrupts here, yet */
+	if (adapter->int_mode == E1000E_INT_MODE_MSIX) {
+		int_mode = adapter->int_mode;
+		e1000e_reset_interrupt_capability(adapter);
+		adapter->int_mode = E1000E_INT_MODE_LEGACY;
+		e1000e_set_interrupt_capability(adapter);
+	}
 	/* Hook up test interrupt handler just for this test */
 	if (!request_irq(irq, &e1000_test_intr, IRQF_PROBE_SHARED, netdev->name,
 			 netdev)) {
@@ -902,7 +915,8 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 	} else if (request_irq(irq, &e1000_test_intr, IRQF_SHARED,
 		 netdev->name, netdev)) {
 		*data = 1;
-		return -1;
+		ret_val = -1;
+		goto out;
 	}
 	e_info("testing %s interrupt\n", (shared_int ? "shared" : "unshared"));
 
@@ -912,11 +926,22 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 
 	/* Test each interrupt */
 	for (i = 0; i < 10; i++) {
-		if ((adapter->flags & FLAG_IS_ICH) && (i == 8))
-			continue;
-
 		/* Interrupt to test */
 		mask = 1 << i;
+
+		if (adapter->flags & FLAG_IS_ICH) {
+			switch (mask) {
+			case E1000_ICR_RXSEQ:
+				continue;
+			case 0x00000100:
+				if (adapter->hw.mac.type == e1000_ich8lan ||
+				    adapter->hw.mac.type == e1000_ich9lan)
+					continue;
+				break;
+			default:
+				break;
+			}
+		}
 
 		if (!shared_int) {
 			/*
@@ -981,7 +1006,14 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 	/* Unhook test interrupt handler */
 	free_irq(irq, netdev);
 
-	return *data;
+out:
+	if (int_mode == E1000E_INT_MODE_MSIX) {
+		e1000e_reset_interrupt_capability(adapter);
+		adapter->int_mode = int_mode;
+		e1000e_set_interrupt_capability(adapter);
+	}
+
+	return ret_val;
 }
 
 static void e1000_free_desc_rings(struct e1000_adapter *adapter)
@@ -1762,11 +1794,13 @@ static void e1000_led_blink_callback(unsigned long data)
 static int e1000_phys_id(struct net_device *netdev, u32 data)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
 
 	if (!data)
 		data = INT_MAX;
 
-	if (adapter->hw.phy.type == e1000_phy_ife) {
+	if ((hw->phy.type == e1000_phy_ife) ||
+	    (hw->mac.type == e1000_82574)) {
 		if (!adapter->blink_timer.function) {
 			init_timer(&adapter->blink_timer);
 			adapter->blink_timer.function =
@@ -1776,16 +1810,16 @@ static int e1000_phys_id(struct net_device *netdev, u32 data)
 		mod_timer(&adapter->blink_timer, jiffies);
 		msleep_interruptible(data * 1000);
 		del_timer_sync(&adapter->blink_timer);
-		e1e_wphy(&adapter->hw,
-				    IFE_PHY_SPECIAL_CONTROL_LED, 0);
+		if (hw->phy.type == e1000_phy_ife)
+			e1e_wphy(hw, IFE_PHY_SPECIAL_CONTROL_LED, 0);
 	} else {
-		e1000e_blink_led(&adapter->hw);
+		e1000e_blink_led(hw);
 		msleep_interruptible(data * 1000);
 	}
 
-	adapter->hw.mac.ops.led_off(&adapter->hw);
+	hw->mac.ops.led_off(hw);
 	clear_bit(E1000_LED_ON, &adapter->led_status);
-	adapter->hw.mac.ops.cleanup_led(&adapter->hw);
+	hw->mac.ops.cleanup_led(hw);
 
 	return 0;
 }

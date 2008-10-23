@@ -137,6 +137,7 @@ void *kmap_atomic_pfn(unsigned long pfn, enum km_type type)
 
 	return (void*) vaddr;
 }
+EXPORT_SYMBOL_GPL(kmap_atomic_pfn); /* temporarily in use by i915 GEM until vmap */
 
 struct page *kmap_atomic_to_page(void *ptr)
 {

@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_EFI_H
-#define _ASM_X86_EFI_H
+#ifndef ASM_X86__EFI_H
+#define ASM_X86__EFI_H
 
 #ifdef CONFIG_X86_32
 
@@ -94,4 +94,17 @@ extern void efi_reserve_early(void);
 extern void efi_call_phys_prelog(void);
 extern void efi_call_phys_epilog(void);
 
-#endif
+#ifndef CONFIG_EFI
+/*
+ * IF EFI is not configured, have the EFI calls return -ENOSYS.
+ */
+#define efi_call0(_f)					(-ENOSYS)
+#define efi_call1(_f, _a1)				(-ENOSYS)
+#define efi_call2(_f, _a1, _a2)				(-ENOSYS)
+#define efi_call3(_f, _a1, _a2, _a3)			(-ENOSYS)
+#define efi_call4(_f, _a1, _a2, _a3, _a4)		(-ENOSYS)
+#define efi_call5(_f, _a1, _a2, _a3, _a4, _a5)		(-ENOSYS)
+#define efi_call6(_f, _a1, _a2, _a3, _a4, _a5, _a6)	(-ENOSYS)
+#endif /* CONFIG_EFI */
+
+#endif /* ASM_X86__EFI_H */

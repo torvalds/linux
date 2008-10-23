@@ -54,17 +54,9 @@
 #include <linux/cpu.h>
 #include <linux/random.h>
 #include <linux/delay.h>
-#include <linux/byteorder/swabb.h>
 #include <linux/cpumask.h>
 #include <linux/rcupreempt_trace.h>
-
-/*
- * Macro that prevents the compiler from reordering accesses, but does
- * absolutely -nothing- to prevent CPUs from reordering.  This is used
- * only to mediate communication between mainline code and hardware
- * interrupt and NMI handlers.
- */
-#define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
+#include <asm/byteorder.h>
 
 /*
  * PREEMPT_RCU data structures.

@@ -41,7 +41,7 @@ randomize_stack_top(unsigned long stack_top);
 #define elf_map				elf32_map
 
 #undef SET_PERSONALITY
-#define SET_PERSONALITY(ex, ibcs2)	elf32_set_personality()
+#define SET_PERSONALITY(ex)	elf32_set_personality()
 
 #define elf_read_implies_exec(ex, have_pt_gnu_stack)	(!(have_pt_gnu_stack))
 

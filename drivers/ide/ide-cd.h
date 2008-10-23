@@ -88,7 +88,6 @@ struct cdrom_info {
 	struct request_sense sense_data;
 
 	struct request request_sense_request;
-	int dma;
 	unsigned long last_block;
 	unsigned long start_seek;
 

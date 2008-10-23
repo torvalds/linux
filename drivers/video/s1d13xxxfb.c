@@ -50,6 +50,11 @@
 #define dbg(fmt, args...) do { } while (0)
 #endif
 
+static const int __devinitconst s1d13xxxfb_revisions[] = {
+	S1D13506_CHIP_REV,	/* Rev.4 on HP Jornada 7xx S1D13506 */
+	S1D13806_CHIP_REV,	/* Rev.7 on .. */
+};
+
 /*
  * Here we define the default struct fb_fix_screeninfo
  */
@@ -538,6 +543,7 @@ s1d13xxxfb_probe(struct platform_device *pdev)
 	struct fb_info *info;
 	struct s1d13xxxfb_pdata *pdata = NULL;
 	int ret = 0;
+	int i;
 	u8 revision;
 
 	dbg("probe called: device is %p\n", pdev);
@@ -607,10 +613,19 @@ s1d13xxxfb_probe(struct platform_device *pdev)
 		goto bail;
 	}
 
-	revision = s1d13xxxfb_readreg(default_par, S1DREG_REV_CODE);
-	if ((revision >> 2) != S1D_CHIP_REV) {
-		printk(KERN_INFO PFX "chip not found: %i\n", (revision >> 2));
-		ret = -ENODEV;
+	revision = s1d13xxxfb_readreg(default_par, S1DREG_REV_CODE) >> 2;
+
+	ret = -ENODEV;
+
+	for (i = 0; i < ARRAY_SIZE(s1d13xxxfb_revisions); i++) {
+		if (revision == s1d13xxxfb_revisions[i])
+			ret = 0;
+	}
+
+	if (!ret)
+		printk(KERN_INFO PFX "chip revision %i\n", revision);
+	else {
+		printk(KERN_INFO PFX "unknown chip revision %i\n", revision);
 		goto bail;
 	}
 

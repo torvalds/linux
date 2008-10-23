@@ -22,16 +22,26 @@
 #include <asm/prom.h>
 #include <asm/time.h>
 
+#include <sysdev/fsl_pci.h>
+
 #include "mpc512x.h"
 #include "mpc5121_ads.h"
 
 static void __init mpc5121_ads_setup_arch(void)
 {
+#ifdef CONFIG_PCI
+	struct device_node *np;
+#endif
 	printk(KERN_INFO "MPC5121 ADS board from Freescale Semiconductor\n");
 	/*
 	 * cpld regs are needed early
 	 */
 	mpc5121_ads_cpld_map();
+
+#ifdef CONFIG_PCI
+	for_each_compatible_node(np, "pci", "fsl,mpc5121-pci")
+		mpc83xx_add_bridge(np);
+#endif
 }
 
 static void __init mpc5121_ads_init_IRQ(void)

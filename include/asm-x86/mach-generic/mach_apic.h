@@ -1,5 +1,5 @@
-#ifndef __ASM_MACH_APIC_H
-#define __ASM_MACH_APIC_H
+#ifndef ASM_X86__MACH_GENERIC__MACH_APIC_H
+#define ASM_X86__MACH_GENERIC__MACH_APIC_H
 
 #include <asm/genapic.h>
 
@@ -24,9 +24,10 @@
 #define check_phys_apicid_present (genapic->check_phys_apicid_present)
 #define check_apicid_used (genapic->check_apicid_used)
 #define cpu_mask_to_apicid (genapic->cpu_mask_to_apicid)
+#define vector_allocation_domain (genapic->vector_allocation_domain)
 #define enable_apic_mode (genapic->enable_apic_mode)
 #define phys_pkg_id (genapic->phys_pkg_id)
 
 extern void generic_bigsmp_probe(void);
 
-#endif /* __ASM_MACH_APIC_H */
+#endif /* ASM_X86__MACH_GENERIC__MACH_APIC_H */

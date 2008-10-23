@@ -28,6 +28,7 @@
 #include "ocfs2.h"  /* For struct ocfs2_lock_res */
 #include "stackglue.h"
 
+#include <linux/dlm_plock.h>
 
 /*
  * The control protocol starts with a handshake.  Until the handshake
@@ -746,6 +747,37 @@ static void user_dlm_dump_lksb(union ocfs2_dlm_lksb *lksb)
 {
 }
 
+static int user_plock(struct ocfs2_cluster_connection *conn,
+		      u64 ino,
+		      struct file *file,
+		      int cmd,
+		      struct file_lock *fl)
+{
+	/*
+	 * This more or less just demuxes the plock request into any
+	 * one of three dlm calls.
+	 *
+	 * Internally, fs/dlm will pass these to a misc device, which
+	 * a userspace daemon will read and write to.
+	 *
+	 * For now, cancel requests (which happen internally only),
+	 * are turned into unlocks. Most of this function taken from
+	 * gfs2_lock.
+	 */
+
+	if (cmd == F_CANCELLK) {
+		cmd = F_SETLK;
+		fl->fl_type = F_UNLCK;
+	}
+
+	if (IS_GETLK(cmd))
+		return dlm_posix_get(conn->cc_lockspace, ino, file, fl);
+	else if (fl->fl_type == F_UNLCK)
+		return dlm_posix_unlock(conn->cc_lockspace, ino, file, fl);
+	else
+		return dlm_posix_lock(conn->cc_lockspace, ino, file, cmd, fl);
+}
+
 /*
  * Compare a requested locking protocol version against the current one.
  *
@@ -839,6 +871,7 @@ static struct ocfs2_stack_operations ocfs2_user_plugin_ops = {
 	.dlm_unlock	= user_dlm_unlock,
 	.lock_status	= user_dlm_lock_status,
 	.lock_lvb	= user_dlm_lvb,
+	.plock		= user_plock,
 	.dump_lksb	= user_dlm_dump_lksb,
 };
 

@@ -316,6 +316,9 @@ static inline int qdio_do_siga_output(struct qdio_q *q, unsigned int *busy_bit)
 	unsigned int fc = 0;
 	unsigned long schid;
 
+	if (q->u.out.use_enh_siga) {
+		fc = 3;
+	}
 	if (!is_qebsm(q))
 		schid = *((u32 *)&q->irq_ptr->schid);
 	else {
@@ -851,6 +854,12 @@ static void __qdio_outbound_processing(struct qdio_q *q)
 	if (queue_type(q) == QDIO_IQDIO_QFMT && !multicast_outbound(q))
 		return;
 
+	if ((queue_type(q) == QDIO_IQDIO_QFMT) &&
+	    (atomic_read(&q->nr_buf_used)) > QDIO_IQDIO_POLL_LVL) {
+		tasklet_schedule(&q->tasklet);
+		return;
+	}
+
 	if (q->u.out.pci_out_enabled)
 		return;
 
@@ -956,7 +965,7 @@ static void qdio_handle_activate_check(struct ccw_device *cdev,
 	char dbf_text[15];
 
 	QDIO_DBF_TEXT2(1, trace, "ick2");
-	sprintf(dbf_text, "%s", cdev->dev.bus_id);
+	sprintf(dbf_text, "%s", dev_name(&cdev->dev));
 	QDIO_DBF_TEXT2(1, trace, dbf_text);
 	QDIO_DBF_HEX2(0, trace, &intparm, sizeof(int));
 	QDIO_DBF_HEX2(0, trace, &dstat, sizeof(int));
@@ -1443,6 +1452,8 @@ int qdio_establish(struct qdio_initialize *init_data)
 	}
 
 	qdio_setup_ssqd_info(irq_ptr);
+	sprintf(dbf_text, "qDmmwc%2x", irq_ptr->ssqd_desc.mmwc);
+	QDIO_DBF_TEXT2(0, setup, dbf_text);
 	sprintf(dbf_text, "qib ac%2x", irq_ptr->qib.ac);
 	QDIO_DBF_TEXT2(0, setup, dbf_text);
 
@@ -1615,12 +1626,21 @@ static void handle_outbound(struct qdio_q *q, unsigned int callflags,
 		if (multicast_outbound(q))
 			qdio_kick_outbound_q(q);
 		else
-			/*
-			 * One siga-w per buffer required for unicast
-			 * HiperSockets.
-			 */
-			while (count--)
+			if ((q->irq_ptr->ssqd_desc.mmwc > 1) &&
+			    (count > 1) &&
+			    (count <= q->irq_ptr->ssqd_desc.mmwc)) {
+				/* exploit enhanced SIGA */
+				q->u.out.use_enh_siga = 1;
 				qdio_kick_outbound_q(q);
+			} else {
+				/*
+				* One siga-w per buffer required for unicast
+				* HiperSockets.
+				*/
+				q->u.out.use_enh_siga = 0;
+				while (count--)
+					qdio_kick_outbound_q(q);
+			}
 		goto out;
 	}
 

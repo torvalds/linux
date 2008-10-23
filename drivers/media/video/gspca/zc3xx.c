@@ -6576,8 +6576,8 @@ static int setlightfreq(struct gspca_dev *gspca_dev)
 		 cs2102_60HZ, cs2102_60HZScale},
 /* SENSOR_CS2102K 1 */
 		{cs2102_NoFliker, cs2102_NoFlikerScale,
-		 cs2102_50HZ, cs2102_50HZScale,
-		 cs2102_60HZ, cs2102_60HZScale},
+		 NULL, NULL, /* currently disabled */
+		 NULL, NULL},
 /* SENSOR_GC0305 2 */
 		{gc0305_NoFliker, gc0305_NoFliker,
 		 gc0305_50HZ, gc0305_50HZ,
@@ -7178,7 +7178,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-static void sd_start(struct gspca_dev *gspca_dev)
+static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct usb_device *dev = gspca_dev->dev;
@@ -7331,6 +7331,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		reg_w(dev, 0x02, 0x0008);
 		break;
 	}
+	return 0;
 }
 
 static void sd_stop0(struct gspca_dev *gspca_dev)

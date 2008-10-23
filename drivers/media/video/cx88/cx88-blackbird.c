@@ -1057,12 +1057,15 @@ static int mpeg_open(struct inode *inode, struct file *file)
 	struct cx8802_driver *drv = NULL;
 	int err;
 
+	lock_kernel();
 	dev = cx8802_get_device(inode);
 
 	dprintk( 1, "%s\n", __func__);
 
-	if (dev == NULL)
+	if (dev == NULL) {
+		unlock_kernel();
 		return -ENODEV;
+	}
 
 	/* Make sure we can acquire the hardware */
 	drv = cx8802_get_driver(dev, CX88_MPEG_BLACKBIRD);
@@ -1070,6 +1073,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 		err = drv->request_acquire(drv);
 		if(err != 0) {
 			dprintk(1,"%s: Unable to acquire hardware, %d\n", __func__, err);
+			unlock_kernel();
 			return err;
 		}
 	}
@@ -1077,6 +1081,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 	if (blackbird_initialize_codec(dev) < 0) {
 		if (drv)
 			drv->request_release(drv);
+		unlock_kernel();
 		return -EINVAL;
 	}
 	dprintk(1,"open minor=%d\n",minor);
@@ -1086,6 +1091,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 	if (NULL == fh) {
 		if (drv)
 			drv->request_release(drv);
+		unlock_kernel();
 		return -ENOMEM;
 	}
 	file->private_data = fh;
@@ -1101,6 +1107,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 	/* FIXME: locking against other video device */
 	cx88_set_scale(dev->core, dev->width, dev->height,
 			fh->mpegq.field);
+	unlock_kernel();
 
 	return 0;
 }

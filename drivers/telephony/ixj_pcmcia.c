@@ -124,65 +124,53 @@ static void ixj_get_serial(struct pcmcia_device * link, IXJ * j)
 	return;
 }
 
+static int ixj_config_check(struct pcmcia_device *p_dev,
+			    cistpl_cftable_entry_t *cfg,
+			    cistpl_cftable_entry_t *dflt,
+			    unsigned int vcc,
+			    void *priv_data)
+{
+	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
+		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
+		p_dev->io.BasePort1 = io->win[0].base;
+		p_dev->io.NumPorts1 = io->win[0].len;
+		if (io->nwin == 2) {
+			p_dev->io.BasePort2 = io->win[1].base;
+			p_dev->io.NumPorts2 = io->win[1].len;
+		}
+		if (!pcmcia_request_io(p_dev, &p_dev->io))
+			return 0;
+	}
+	return -ENODEV;
+}
+
 static int ixj_config(struct pcmcia_device * link)
 {
 	IXJ *j;
 	ixj_info_t *info;
-	tuple_t tuple;
-	u_short buf[128];
-	cisparse_t parse;
-	cistpl_cftable_entry_t *cfg = &parse.cftable_entry;
-	cistpl_cftable_entry_t dflt =
-	{
-		0
-	};
-	int last_ret, last_fn;
+	cistpl_cftable_entry_t dflt = { 0 };
+
 	info = link->priv;
 	DEBUG(0, "ixj_config(0x%p)\n", link);
-	tuple.TupleData = (cisdata_t *) buf;
-	tuple.TupleOffset = 0;
-	tuple.TupleDataMax = 255;
-	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	tuple.Attributes = 0;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-	while (1) {
-		if (pcmcia_get_tuple_data(link, &tuple) != 0 ||
-				pcmcia_parse_tuple(link, &tuple, &parse) != 0)
-			goto next_entry;
-		if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
-			cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
-			link->conf.ConfigIndex = cfg->index;
-			link->io.BasePort1 = io->win[0].base;
-			link->io.NumPorts1 = io->win[0].len;
-			if (io->nwin == 2) {
-				link->io.BasePort2 = io->win[1].base;
-				link->io.NumPorts2 = io->win[1].len;
-			}
-			if (pcmcia_request_io(link, &link->io) != 0)
-				goto next_entry;
-			/* If we've got this far, we're done */
-			break;
-		}
-	      next_entry:
-		if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
-			dflt = *cfg;
-		CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(link, &tuple));
-	}
 
-	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
+	if (pcmcia_loop_config(link, ixj_config_check, &dflt))
+		goto cs_failed;
+
+	if (pcmcia_request_configuration(link, &link->conf))
+		goto cs_failed;
 
 	/*
  	 *	Register the card with the core.
- 	 */	
-	j=ixj_pcmcia_probe(link->io.BasePort1,link->io.BasePort1 + 0x10);
+	 */
+	j = ixj_pcmcia_probe(link->io.BasePort1, link->io.BasePort1 + 0x10);
 
 	info->ndev = 1;
 	info->node.major = PHONE_MAJOR;
 	link->dev_node = &info->node;
 	ixj_get_serial(link, j);
 	return 0;
+
       cs_failed:
-	cs_error(link, last_fn, last_ret);
 	ixj_cs_release(link);
 	return -ENODEV;
 }

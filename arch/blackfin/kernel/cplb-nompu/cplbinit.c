@@ -23,6 +23,7 @@
 #include <linux/module.h>
 
 #include <asm/blackfin.h>
+#include <asm/cacheflush.h>
 #include <asm/cplb.h>
 #include <asm/cplbinit.h>
 
@@ -168,8 +169,8 @@ static struct cplb_desc cplb_data[] = {
 		.end = L2_START + L2_LENGTH,
 		.psize = SIZE_1M,
 		.attr = SWITCH_T | I_CPLB | D_CPLB,
-		.i_conf = L2_MEMORY,
-		.d_conf = L2_MEMORY,
+		.i_conf = L2_IMEMORY,
+		.d_conf = L2_DMEMORY,
 		.valid = (L2_LENGTH > 0),
 		.name = "L2 Memory",
 	},
@@ -308,7 +309,7 @@ __fill_data_cplbtab(struct cplb_tab *t, int i, u32 a_start, u32 a_end)
 	}
 }
 
-void __init generate_cpl_tables(void)
+void __init generate_cplb_tables(void)
 {
 
 	u16 i, j, process;

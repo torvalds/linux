@@ -52,6 +52,7 @@ config BCM47XX
 	select SSB
 	select SSB_DRIVER_MIPS
 	select SSB_DRIVER_EXTIF
+	select SSB_EMBEDDED
 	select SSB_PCICORE_HOSTMODE if PCI
 	select GENERIC_GPIO
 	select SYS_HAS_EARLY_PRINTK
@@ -211,6 +212,7 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_MIPS_CMP if BROKEN	# because SYNC_R4K is broken
 	select SYS_SUPPORTS_MULTITHREADING
 	select SYS_SUPPORTS_SMARTMIPS
 	help
@@ -567,7 +569,7 @@ config MIKROTIK_RB532
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SWAP_IO_SPACE
 	select BOOT_RAW
-	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support the Mikrotik(tm) RouterBoard 532 series,
 	  based on the IDT RC32434 SoC.
@@ -597,7 +599,7 @@ config WR_PPMC
 
 endchoice
 
-source "arch/mips/au1000/Kconfig"
+source "arch/mips/alchemy/Kconfig"
 source "arch/mips/basler/excite/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/lasat/Kconfig"
@@ -608,11 +610,6 @@ source "arch/mips/txx9/Kconfig"
 source "arch/mips/vr41xx/Kconfig"
 
 endmenu
-
-config GENERIC_LOCKBREAK
-	bool
-	default y
-	depends on SMP && PREEMPT
 
 config RWSEM_GENERIC_SPINLOCK
 	bool
@@ -1272,6 +1269,13 @@ config CPU_SUPPORTS_32BIT_KERNEL
 config CPU_SUPPORTS_64BIT_KERNEL
 	bool
 
+#
+# Set to y for ptrace access to watch registers.
+#
+config HARDWARE_WATCHPOINTS
+       bool
+       default y if CPU_MIPS32 || CPU_MIPS64
+
 menu "Kernel type"
 
 choice
@@ -1499,6 +1503,18 @@ config MIPS_APSP_KSPD
 	  "exit" syscall notifying other kernel modules the SP program is
 	  exiting.  You probably want to say yes here.
 
+config MIPS_CMP
+	bool "MIPS CMP framework support"
+	depends on SYS_SUPPORTS_MIPS_CMP
+	select SYNC_R4K if BROKEN
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_SCHED_SMT if SMP
+	select WEAK_ORDERING
+	default n
+	help
+	  This is a placeholder option for the GCMP work. It will need to
+	  be handled differently...
+
 config SB1_PASS_1_WORKAROUNDS
 	bool
 	depends on CPU_SB1_PASS_1
@@ -1675,6 +1691,9 @@ config SMP
 config SMP_UP
 	bool
 
+config SYS_SUPPORTS_MIPS_CMP
+	bool
+
 config SYS_SUPPORTS_SMP
 	bool
 
@@ -1721,17 +1740,6 @@ config NR_CPUS
 	  approximately eight kilobytes to the kernel image.  For best
 	  performance should round up your number of processors to the next
 	  power of two.
-
-config MIPS_CMP
-	bool "MIPS CMP framework support"
-	depends on SMP
-	select SYNC_R4K
-	select SYS_SUPPORTS_SCHED_SMT
-	select WEAK_ORDERING
-	default n
-	help
-	  This is a placeholder option for the GCMP work. It will need to
-	  be handled differently...
 
 source "kernel/time/Kconfig"
 
@@ -1876,6 +1884,8 @@ config PROBE_INITRD_HEADER
 	  Say Y here if you are using arch/mips/boot/addinitrd.c to
 	  add initrd or initramfs image to the kernel image.
 	  Otherwise, say N.
+
+source "kernel/Kconfig.freezer"
 
 menu "Bus options (PCI, PCMCIA, EISA, ISA, TC)"
 

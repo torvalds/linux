@@ -74,20 +74,20 @@ rs5c348_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	txbuf[3] = 0;	/* dummy */
 	txbuf[4] = RS5C348_CMD_MW(RS5C348_REG_SECS); /* cmd, sec, ... */
 	txp = &txbuf[5];
-	txp[RS5C348_REG_SECS] = BIN2BCD(tm->tm_sec);
-	txp[RS5C348_REG_MINS] = BIN2BCD(tm->tm_min);
+	txp[RS5C348_REG_SECS] = bin2bcd(tm->tm_sec);
+	txp[RS5C348_REG_MINS] = bin2bcd(tm->tm_min);
 	if (pdata->rtc_24h) {
-		txp[RS5C348_REG_HOURS] = BIN2BCD(tm->tm_hour);
+		txp[RS5C348_REG_HOURS] = bin2bcd(tm->tm_hour);
 	} else {
 		/* hour 0 is AM12, noon is PM12 */
-		txp[RS5C348_REG_HOURS] = BIN2BCD((tm->tm_hour + 11) % 12 + 1) |
+		txp[RS5C348_REG_HOURS] = bin2bcd((tm->tm_hour + 11) % 12 + 1) |
 			(tm->tm_hour >= 12 ? RS5C348_BIT_PM : 0);
 	}
-	txp[RS5C348_REG_WDAY] = BIN2BCD(tm->tm_wday);
-	txp[RS5C348_REG_DAY] = BIN2BCD(tm->tm_mday);
-	txp[RS5C348_REG_MONTH] = BIN2BCD(tm->tm_mon + 1) |
+	txp[RS5C348_REG_WDAY] = bin2bcd(tm->tm_wday);
+	txp[RS5C348_REG_DAY] = bin2bcd(tm->tm_mday);
+	txp[RS5C348_REG_MONTH] = bin2bcd(tm->tm_mon + 1) |
 		(tm->tm_year >= 100 ? RS5C348_BIT_Y2K : 0);
-	txp[RS5C348_REG_YEAR] = BIN2BCD(tm->tm_year % 100);
+	txp[RS5C348_REG_YEAR] = bin2bcd(tm->tm_year % 100);
 	/* write in one transfer to avoid data inconsistency */
 	ret = spi_write_then_read(spi, txbuf, sizeof(txbuf), NULL, 0);
 	udelay(62);	/* Tcsr 62us */
@@ -116,20 +116,20 @@ rs5c348_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	if (ret < 0)
 		return ret;
 
-	tm->tm_sec = BCD2BIN(rxbuf[RS5C348_REG_SECS] & RS5C348_SECS_MASK);
-	tm->tm_min = BCD2BIN(rxbuf[RS5C348_REG_MINS] & RS5C348_MINS_MASK);
-	tm->tm_hour = BCD2BIN(rxbuf[RS5C348_REG_HOURS] & RS5C348_HOURS_MASK);
+	tm->tm_sec = bcd2bin(rxbuf[RS5C348_REG_SECS] & RS5C348_SECS_MASK);
+	tm->tm_min = bcd2bin(rxbuf[RS5C348_REG_MINS] & RS5C348_MINS_MASK);
+	tm->tm_hour = bcd2bin(rxbuf[RS5C348_REG_HOURS] & RS5C348_HOURS_MASK);
 	if (!pdata->rtc_24h) {
 		tm->tm_hour %= 12;
 		if (rxbuf[RS5C348_REG_HOURS] & RS5C348_BIT_PM)
 			tm->tm_hour += 12;
 	}
-	tm->tm_wday = BCD2BIN(rxbuf[RS5C348_REG_WDAY] & RS5C348_WDAY_MASK);
-	tm->tm_mday = BCD2BIN(rxbuf[RS5C348_REG_DAY] & RS5C348_DAY_MASK);
+	tm->tm_wday = bcd2bin(rxbuf[RS5C348_REG_WDAY] & RS5C348_WDAY_MASK);
+	tm->tm_mday = bcd2bin(rxbuf[RS5C348_REG_DAY] & RS5C348_DAY_MASK);
 	tm->tm_mon =
-		BCD2BIN(rxbuf[RS5C348_REG_MONTH] & RS5C348_MONTH_MASK) - 1;
+		bcd2bin(rxbuf[RS5C348_REG_MONTH] & RS5C348_MONTH_MASK) - 1;
 	/* year is 1900 + tm->tm_year */
-	tm->tm_year = BCD2BIN(rxbuf[RS5C348_REG_YEAR]) +
+	tm->tm_year = bcd2bin(rxbuf[RS5C348_REG_YEAR]) +
 		((rxbuf[RS5C348_REG_MONTH] & RS5C348_BIT_Y2K) ? 100 : 0);
 
 	if (rtc_valid_tm(tm) < 0) {

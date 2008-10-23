@@ -191,7 +191,7 @@ static int __init eic_probe(struct platform_device *pdev)
 	struct eic *eic;
 	struct resource *regs;
 	unsigned int i;
-	unsigned int nr_irqs;
+	unsigned int nr_of_irqs;
 	unsigned int int_irq;
 	int ret;
 	u32 pattern;
@@ -224,7 +224,7 @@ static int __init eic_probe(struct platform_device *pdev)
 	eic_writel(eic, IDR, ~0UL);
 	eic_writel(eic, MODE, ~0UL);
 	pattern = eic_readl(eic, MODE);
-	nr_irqs = fls(pattern);
+	nr_of_irqs = fls(pattern);
 
 	/* Trigger on low level unless overridden by driver */
 	eic_writel(eic, EDGE, 0UL);
@@ -232,7 +232,7 @@ static int __init eic_probe(struct platform_device *pdev)
 
 	eic->chip = &eic_chip;
 
-	for (i = 0; i < nr_irqs; i++) {
+	for (i = 0; i < nr_of_irqs; i++) {
 		set_irq_chip_and_handler(eic->first_irq + i, &eic_chip,
 					 handle_level_irq);
 		set_irq_chip_data(eic->first_irq + i, eic);
@@ -256,7 +256,7 @@ static int __init eic_probe(struct platform_device *pdev)
 		 eic->regs, int_irq);
 	dev_info(&pdev->dev,
 		 "Handling %u external IRQs, starting with IRQ %u\n",
-		 nr_irqs, eic->first_irq);
+		 nr_of_irqs, eic->first_irq);
 
 	return 0;
 

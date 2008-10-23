@@ -136,12 +136,12 @@ static int gfar_mdio_reset(struct mii_bus *bus)
 
 	/* Wait until the bus is free */
 	while ((gfar_read(&regs->miimind) & MIIMIND_BUSY) &&
-			timeout--)
+			--timeout)
 		cpu_relax();
 
 	mutex_unlock(&bus->mdio_lock);
 
-	if(timeout <= 0) {
+	if(timeout == 0) {
 		printk(KERN_ERR "%s: The MII Bus is stuck!\n",
 				bus->name);
 		return -EBUSY;
@@ -164,8 +164,7 @@ static int gfar_mdio_probe(struct device *dev)
 	if (NULL == dev)
 		return -EINVAL;
 
-	new_bus = kzalloc(sizeof(struct mii_bus), GFP_KERNEL);
-
+	new_bus = mdiobus_alloc();
 	if (NULL == new_bus)
 		return -ENOMEM;
 
@@ -196,7 +195,7 @@ static int gfar_mdio_probe(struct device *dev)
 
 	new_bus->irq = pdata->irq;
 
-	new_bus->dev = dev;
+	new_bus->parent = dev;
 	dev_set_drvdata(dev, new_bus);
 
 	/*
@@ -211,19 +210,21 @@ static int gfar_mdio_probe(struct device *dev)
 	gfar_write(&enet_regs->tbipa, 0);
 	for (i = PHY_MAX_ADDR; i > 0; i--) {
 		u32 phy_id;
-		int r;
 
-		r = get_phy_id(new_bus, i, &phy_id);
-		if (r)
-			return r;
+		err = get_phy_id(new_bus, i, &phy_id);
+		if (err)
+			goto bus_register_fail;
 
 		if (phy_id == 0xffffffff)
 			break;
 	}
 
 	/* The bus is full.  We don't support using 31 PHYs, sorry */
-	if (i == 0)
-		return -EBUSY;
+	if (i == 0) {
+		err = -EBUSY;
+
+		goto bus_register_fail;
+	}
 
 	gfar_write(&enet_regs->tbipa, i);
 
@@ -240,7 +241,7 @@ static int gfar_mdio_probe(struct device *dev)
 bus_register_fail:
 	iounmap(regs);
 reg_map_fail:
-	kfree(new_bus);
+	mdiobus_free(new_bus);
 
 	return err;
 }
@@ -256,7 +257,7 @@ static int gfar_mdio_remove(struct device *dev)
 
 	iounmap((void __iomem *)bus->priv);
 	bus->priv = NULL;
-	kfree(bus);
+	mdiobus_free(bus);
 
 	return 0;
 }
