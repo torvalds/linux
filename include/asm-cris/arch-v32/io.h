@@ -43,7 +43,7 @@ extern struct crisv32_iopin crisv32_led_net1_red;
 
 static inline void crisv32_io_set(struct crisv32_iopin *iopin, int val)
 {
-	long flags;
+	unsigned long flags;
 	spin_lock_irqsave(&iopin->port->lock, flags);
 
 	if (val)
@@ -57,7 +57,7 @@ static inline void crisv32_io_set(struct crisv32_iopin *iopin, int val)
 static inline void crisv32_io_set_dir(struct crisv32_iopin* iopin,
 			       enum crisv32_io_dir dir)
 {
-	long flags;
+	unsigned long flags;
 	spin_lock_irqsave(&iopin->port->lock, flags);
 
 	if (dir == crisv32_io_dir_in)
