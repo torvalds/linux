@@ -28,7 +28,7 @@
 #include <linux/ptrace.h>
 
 #include <asm/debug.h>
-#include <asm/emma2rh/emma2rh.h>
+#include <asm/emma/emma2rh.h>
 
 static int emma2rh_sw_irq_base = -1;
 static int emma2rh_gpio_irq_base = -1;

@@ -32,7 +32,7 @@
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
 
-#include <asm/emma2rh/emma2rh.h>
+#include <asm/emma/emma2rh.h>
 
 /*
  * the first level int-handler will jump here if it is a emma2rh irq

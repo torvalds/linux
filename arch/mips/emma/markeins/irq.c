@@ -36,7 +36,7 @@
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
 
-#include <asm/emma2rh/emma2rh.h>
+#include <asm/emma/emma2rh.h>
 
 /*
  * IRQ mapping

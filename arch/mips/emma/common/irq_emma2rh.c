@@ -36,7 +36,7 @@
 
 #include <asm/debug.h>
 
-#include <asm/emma2rh/emma2rh.h>
+#include <asm/emma/emma2rh.h>
 
 /* number of total irqs supported by EMMA2RH */
 #define	NUM_EMMA2RH_IRQ		96
