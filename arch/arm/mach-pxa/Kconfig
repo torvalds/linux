@@ -202,6 +202,10 @@ config MACH_E800
 config TRIZEPS_PXA
 	bool "PXA based Keith und Koep Trizeps DIMM-Modules"
 
+config MACH_H5000
+	bool "HP iPAQ h5000"
+	select PXA25x
+
 config MACH_TRIZEPS4
 	bool "Keith und Koep Trizeps4 DIMM-Module"
 	depends on TRIZEPS_PXA
