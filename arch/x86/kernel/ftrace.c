@@ -67,15 +67,14 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 	 * Note: Due to modules and __init, code can
 	 *  disappear and change, we need to protect against faulting
 	 *  as well as code changing. We do this by using the
-	 *  __copy_*_user functions.
+	 *  probe_kernel_* functions.
 	 *
 	 * No real locking needed, this code is run through
 	 * kstop_machine, or before SMP starts.
 	 */
 
 	/* read the text we want to modify */
-	if (__copy_from_user_inatomic(replaced, (char __user *)ip,
-				      MCOUNT_INSN_SIZE))
+	if (probe_kernel_read(replaced, (void *)ip, MCOUNT_INSN_SIZE))
 		return -EFAULT;
 
 	/* Make sure it is what we expect it to be */
@@ -83,8 +82,7 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 		return -EINVAL;
 
 	/* replace the text with the new text */
-	if (__copy_to_user_inatomic((char __user *)ip, new_code,
-				    MCOUNT_INSN_SIZE))
+	if (probe_kernel_write((void *)ip, new_code, MCOUNT_INSN_SIZE))
 		return -EPERM;
 
 	sync_core();
