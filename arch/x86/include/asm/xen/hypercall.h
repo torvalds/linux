@@ -30,8 +30,8 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef _ASM_X86_XEN__HYPERCALL_H
-#define _ASM_X86_XEN__HYPERCALL_H
+#ifndef _ASM_X86_XEN_HYPERCALL_H
+#define _ASM_X86_XEN_HYPERCALL_H
 
 #include <linux/errno.h>
 #include <linux/string.h>
@@ -524,4 +524,4 @@ MULTI_stack_switch(struct multicall_entry *mcl,
 	mcl->args[1] = esp;
 }
 
-#endif /* _ASM_X86_XEN__HYPERCALL_H */
+#endif /* _ASM_X86_XEN_HYPERCALL_H */

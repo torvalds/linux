@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_XEN__EVENTS_H
-#define _ASM_X86_XEN__EVENTS_H
+#ifndef _ASM_X86_XEN_EVENTS_H
+#define _ASM_X86_XEN_EVENTS_H
 
 enum ipi_vector {
 	XEN_RESCHEDULE_VECTOR,
@@ -21,4 +21,4 @@ static inline void xen_do_IRQ(int irq, struct pt_regs *regs)
 	do_IRQ(regs);
 }
 
-#endif /* _ASM_X86_XEN__EVENTS_H */
+#endif /* _ASM_X86_XEN_EVENTS_H */

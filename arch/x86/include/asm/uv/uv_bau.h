@@ -8,8 +8,8 @@
  * Copyright (C) 2008 Silicon Graphics, Inc. All rights reserved.
  */
 
-#ifndef _ASM_X86_UV__UV_BAU_H
-#define _ASM_X86_UV__UV_BAU_H
+#ifndef _ASM_X86_UV_UV_BAU_H
+#define _ASM_X86_UV_UV_BAU_H
 
 #include <linux/bitmap.h>
 #define BITSPERBYTE 8
@@ -329,4 +329,4 @@ extern int uv_flush_tlb_others(cpumask_t *, struct mm_struct *, unsigned long);
 extern void uv_bau_message_intr1(void);
 extern void uv_bau_timeout_intr1(void);
 
-#endif /* _ASM_X86_UV__UV_BAU_H */
+#endif /* _ASM_X86_UV_UV_BAU_H */

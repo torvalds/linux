@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_UV__BIOS_H
-#define _ASM_X86_UV__BIOS_H
+#ifndef _ASM_X86_UV_BIOS_H
+#define _ASM_X86_UV_BIOS_H
 
 /*
  * UV BIOS layer definitions.
@@ -91,4 +91,4 @@ extern long uv_region_size;
 
 extern struct kobject *sgi_uv_kobj;	/* /sys/firmware/sgi_uv */
 
-#endif /* _ASM_X86_UV__BIOS_H */
+#endif /* _ASM_X86_UV_BIOS_H */

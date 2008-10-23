@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_MACH_DEFAULT__MACH_APICDEF_H
-#define _ASM_X86_MACH_DEFAULT__MACH_APICDEF_H
+#ifndef _ASM_X86_MACH_DEFAULT_MACH_APICDEF_H
+#define _ASM_X86_MACH_DEFAULT_MACH_APICDEF_H
 
 #include <asm/apic.h>
 
@@ -21,4 +21,4 @@ static inline unsigned get_apic_id(unsigned long x)
 #define		GET_APIC_ID(x)	get_apic_id(x)
 #endif
 
-#endif /* _ASM_X86_MACH_DEFAULT__MACH_APICDEF_H */
+#endif /* _ASM_X86_MACH_DEFAULT_MACH_APICDEF_H */

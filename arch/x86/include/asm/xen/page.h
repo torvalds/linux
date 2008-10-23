@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_XEN__PAGE_H
-#define _ASM_X86_XEN__PAGE_H
+#ifndef _ASM_X86_XEN_PAGE_H
+#define _ASM_X86_XEN_PAGE_H
 
 #include <linux/pfn.h>
 
@@ -162,4 +162,4 @@ xmaddr_t arbitrary_virt_to_machine(void *address);
 void make_lowmem_page_readonly(void *vaddr);
 void make_lowmem_page_readwrite(void *vaddr);
 
-#endif /* _ASM_X86_XEN__PAGE_H */
+#endif /* _ASM_X86_XEN_PAGE_H */

@@ -2,8 +2,8 @@
  *  Machine specific NMI handling for generic.
  *  Split out from traps.c by Osamu Tomita <tomita@cinet.co.jp>
  */
-#ifndef _ASM_X86_MACH_DEFAULT__MACH_TRAPS_H
-#define _ASM_X86_MACH_DEFAULT__MACH_TRAPS_H
+#ifndef _ASM_X86_MACH_DEFAULT_MACH_TRAPS_H
+#define _ASM_X86_MACH_DEFAULT_MACH_TRAPS_H
 
 #include <asm/mc146818rtc.h>
 
@@ -30,4 +30,4 @@ static inline void reassert_nmi(void)
 		unlock_cmos();
 }
 
-#endif /* _ASM_X86_MACH_DEFAULT__MACH_TRAPS_H */
+#endif /* _ASM_X86_MACH_DEFAULT_MACH_TRAPS_H */

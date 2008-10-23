@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_MACH_RDC321X__GPIO_H
-#define _ASM_X86_MACH_RDC321X__GPIO_H
+#ifndef _ASM_X86_MACH_RDC321X_GPIO_H
+#define _ASM_X86_MACH_RDC321X_GPIO_H
 
 #include <linux/kernel.h>
 
@@ -57,4 +57,4 @@ static inline int irq_to_gpio(unsigned irq)
 /* For cansleep */
 #include <asm-generic/gpio.h>
 
-#endif /* _ASM_X86_MACH_RDC321X__GPIO_H */
+#endif /* _ASM_X86_MACH_RDC321X_GPIO_H */

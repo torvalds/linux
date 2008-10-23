@@ -8,8 +8,8 @@
  * Copyright (C) 2007-2008 Silicon Graphics, Inc. All rights reserved.
  */
 
-#ifndef _ASM_X86_UV__UV_HUB_H
-#define _ASM_X86_UV__UV_HUB_H
+#ifndef _ASM_X86_UV_UV_HUB_H
+#define _ASM_X86_UV_UV_HUB_H
 
 #include <linux/numa.h>
 #include <linux/percpu.h>
@@ -350,5 +350,5 @@ static inline int uv_num_possible_blades(void)
 	return uv_possible_blades;
 }
 
-#endif /* _ASM_X86_UV__UV_HUB_H */
+#endif /* _ASM_X86_UV_UV_HUB_H */
 
