@@ -159,7 +159,7 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 	struct i2sbus_dev *dev;
 	struct device_node *child = NULL, *sound = NULL;
 	struct resource *r;
-	int i, layout = 0, rlen;
+	int i, layout = 0, rlen, ok = force;
 	static const char *rnames[] = { "i2sbus: %s (control)",
 					"i2sbus: %s (tx)",
 					"i2sbus: %s (rx)" };
@@ -192,7 +192,7 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 			layout = *layout_id;
 			snprintf(dev->sound.modalias, 32,
 				 "sound-layout-%d", layout);
-			force = 1;
+			ok = 1;
 		}
 	}
 	/* for the time being, until we can handle non-layout-id
@@ -201,7 +201,7 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 	 * When there are two i2s busses and only one has a layout-id,
 	 * then this depends on the order, but that isn't important
 	 * either as the second one in that case is just a modem. */
-	if (!force) {
+	if (!ok) {
 		kfree(dev);
 		return -ENODEV;
 	}
