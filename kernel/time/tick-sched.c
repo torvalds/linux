@@ -567,11 +567,21 @@ static void tick_nohz_switch_to_nohz(void)
 static void tick_nohz_kick_tick(int cpu)
 {
 	struct tick_sched *ts = &per_cpu(tick_cpu_sched, cpu);
+	ktime_t delta, now;
 
 	if (!ts->tick_stopped)
 		return;
 
-	tick_nohz_restart(ts, ktime_get());
+	/*
+	 * Do not touch the tick device, when the next expiry is either
+	 * already reached or less/equal than the tick period.
+	 */
+	now = ktime_get();
+	delta =	ktime_sub(ts->sched_timer.expires, now);
+	if (delta.tv64 <= tick_period.tv64)
+		return;
+
+	tick_nohz_restart(ts, now);
 }
 
 #else
