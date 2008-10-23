@@ -357,7 +357,7 @@ sn_acpi_get_pcidev_info(struct pci_dev *dev, struct pcidev_info **pcidev_info,
         if (ACPI_SUCCESS(status)) {
 		if (segment != pci_domain_nr(dev)) {
 			printk(KERN_ERR
-			       "%s: Segment number mismatch, 0x%lx vs 0x%x for: ",
+			       "%s: Segment number mismatch, 0x%llx vs 0x%x for: ",
 			       __func__, segment, pci_domain_nr(dev));
 			acpi_ns_print_node_pathname(rootbus_handle, NULL);
 			printk("\n");
