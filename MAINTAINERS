@@ -1433,8 +1433,8 @@ M:	rdunlap@xenotime.net
 S:	Maintained
 
 DOCKING STATION DRIVER
-P:	Kristen Carlson Accardi
-M:	kristen.c.accardi@intel.com
+P:	Shaohua Li
+M:	shaohua.li@intel.com
 L:	linux-acpi@vger.kernel.org
 S:	Supported
 
@@ -2108,6 +2108,12 @@ IDE-SCSI DRIVER
 L:	linux-ide@vger.kernel.org
 L:	linux-scsi@vger.kernel.org
 S:	Orphan
+
+IDLE-I7300
+P:	Andy Henroid
+M:	andrew.d.henroid@intel.com
+L:	linux-pm@lists.linux-foundation.org
+S:	Supported
 
 IEEE 1394 SUBSYSTEM (drivers/ieee1394)
 P:	Ben Collins
@@ -3184,6 +3190,11 @@ PA SEMI SMBUS DRIVER
 P:	Olof Johansson
 M:	olof@lixom.net
 L:	i2c@lm-sensors.org
+S:	Maintained
+
+PANASONIC LAPTOP ACPI EXTRAS DRIVER
+P:	Harald Welte
+M:	laforge@gnumonks.org
 S:	Maintained
 
 PANASONIC MN10300/AM33 PORT

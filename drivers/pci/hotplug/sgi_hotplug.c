@@ -413,7 +413,7 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 	/*
 	 * Add the slot's devices to the ACPI infrastructure */
 	if (SN_ACPI_BASE_SUPPORT() && ssdt) {
-		unsigned long adr;
+		unsigned long long adr;
 		struct acpi_device *pdevice;
 		struct acpi_device *device;
 		acpi_handle phandle;
@@ -505,7 +505,7 @@ static int disable_slot(struct hotplug_slot *bss_hotplug_slot)
 	/* free the ACPI resources for the slot */
 	if (SN_ACPI_BASE_SUPPORT() &&
             PCI_CONTROLLER(slot->pci_bus)->acpi_handle) {
-		unsigned long adr;
+		unsigned long long adr;
 		struct acpi_device *device;
 		acpi_handle phandle;
 		acpi_handle chandle = NULL;

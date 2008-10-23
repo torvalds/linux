@@ -386,8 +386,8 @@ static ssize_t counter_set(struct kobject *kobj,
 		goto end;
 
 	if (!(all_counters[index].flags & ACPI_EVENT_VALID)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-			"Can not change Invalid GPE/Fixed Event status\n"));
+		printk(KERN_WARNING PREFIX
+			"Can not change Invalid GPE/Fixed Event status\n");
 		return -EINVAL;
 	}
 
