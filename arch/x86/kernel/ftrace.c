@@ -62,7 +62,6 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 		   unsigned char *new_code)
 {
 	unsigned char replaced[MCOUNT_INSN_SIZE];
-	int ret;
 
 	/*
 	 * Note: Due to modules and __init, code can
@@ -72,15 +71,16 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 	 * No real locking needed, this code is run through
 	 * kstop_machine, or before SMP starts.
 	 */
-	if (__copy_from_user_inatomic(replaced, (char __user *)ip, MCOUNT_INSN_SIZE))
-		return 1;
+	if (__copy_from_user_inatomic(replaced, (char __user *)ip,
+				      MCOUNT_INSN_SIZE))
+		return -EFAULT;
 
 	if (memcmp(replaced, old_code, MCOUNT_INSN_SIZE) != 0)
-		return 2;
+		return -EINVAL;
 
-	ret = __copy_to_user_inatomic((char __user *)ip, new_code,
-					MCOUNT_INSN_SIZE);
-	WARN_ON_ONCE(ret);
+	if (__copy_to_user_inatomic((char __user *)ip, new_code,
+				    MCOUNT_INSN_SIZE))
+		return -EPERM;
 
 	sync_core();
 

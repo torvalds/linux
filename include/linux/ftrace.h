@@ -72,12 +72,32 @@ extern unsigned char *ftrace_nop_replace(void);
 extern unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr);
 extern int ftrace_dyn_arch_init(void *data);
 extern int ftrace_mcount_set(unsigned long *data);
-extern int ftrace_modify_code(unsigned long ip, unsigned char *old_code,
-			      unsigned char *new_code);
 extern int ftrace_update_ftrace_func(ftrace_func_t func);
 extern void ftrace_caller(void);
 extern void ftrace_call(void);
 extern void mcount_call(void);
+
+/**
+ * ftrace_modify_code - modify code segment
+ * @ip: the address of the code segment
+ * @old_code: the contents of what is expected to be there
+ * @new_code: the code to patch in
+ *
+ * This is a very sensitive operation and great care needs
+ * to be taken by the arch.  The operation should carefully
+ * read the location, check to see if what is read is indeed
+ * what we expect it to be, and then on success of the compare,
+ * it should write to the location.
+ *
+ * Return must be:
+ *  0 on success
+ *  -EFAULT on error reading the location
+ *  -EINVAL on a failed compare of the contents
+ *  -EPERM  on error writing to the location
+ * Any other value will be considered a failure.
+ */
+extern int ftrace_modify_code(unsigned long ip, unsigned char *old_code,
+			      unsigned char *new_code);
 
 extern int skip_trace(unsigned long ip);
 

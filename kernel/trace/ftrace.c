@@ -596,22 +596,22 @@ ftrace_code_disable(struct dyn_ftrace *rec)
 {
 	unsigned long ip;
 	unsigned char *nop, *call;
-	int failed;
+	int ret;
 
 	ip = rec->ip;
 
 	nop = ftrace_nop_replace();
 	call = ftrace_call_replace(ip, mcount_addr);
 
-	failed = ftrace_modify_code(ip, call, nop);
-	if (failed) {
-		switch (failed) {
-		case 1:
+	ret = ftrace_modify_code(ip, call, nop);
+	if (ret) {
+		switch (ret) {
+		case -EFAULT:
 			WARN_ON_ONCE(1);
 			pr_info("ftrace faulted on modifying ");
 			print_ip_sym(ip);
 			break;
-		case 2:
+		case -EINVAL:
 			WARN_ON_ONCE(1);
 			pr_info("ftrace failed to modify ");
 			print_ip_sym(ip);
@@ -620,6 +620,15 @@ ftrace_code_disable(struct dyn_ftrace *rec)
 			print_ip_ins(" replace: ", nop);
 			printk(KERN_CONT "\n");
 			break;
+		case -EPERM:
+			WARN_ON_ONCE(1);
+			pr_info("ftrace faulted on writing ");
+			print_ip_sym(ip);
+			break;
+		default:
+			WARN_ON_ONCE(1);
+			pr_info("ftrace faulted on unknown error ");
+			print_ip_sym(ip);
 		}
 
 		rec->flags |= FTRACE_FL_FAILED;
