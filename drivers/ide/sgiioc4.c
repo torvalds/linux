@@ -590,7 +590,8 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 		printk(KERN_ERR "%s %s -- ERROR: addresses 0x%08lx to 0x%08lx "
 		       "already in use\n", DRV_NAME, pci_name(dev),
 		       cmd_phys_base, cmd_phys_base + IOC4_CMD_CTL_BLK_SIZE);
-		return -EBUSY;
+		rc = -EBUSY;
+		goto req_mem_rgn_err;
 	}
 
 	/* Initialize the IO registers */
@@ -618,6 +619,7 @@ err_free:
 	ide_host_free(host);
 err:
 	release_mem_region(cmd_phys_base, IOC4_CMD_CTL_BLK_SIZE);
+req_mem_rgn_err:
 	iounmap(virt_base);
 	return rc;
 }
