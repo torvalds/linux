@@ -30,7 +30,6 @@
 #include <asm/debug.h>
 #include <asm/emma/emma2rh.h>
 
-static int emma2rh_sw_irq_base = -1;
 static int emma2rh_gpio_irq_base = -1;
 
 void ll_emma2rh_sw_irq_enable(int reg);
@@ -40,12 +39,12 @@ void ll_emma2rh_gpio_irq_disable(int reg);
 
 static void emma2rh_sw_irq_enable(unsigned int irq)
 {
-	ll_emma2rh_sw_irq_enable(irq - emma2rh_sw_irq_base);
+	ll_emma2rh_sw_irq_enable(irq - EMMA2RH_SW_IRQ_BASE);
 }
 
 static void emma2rh_sw_irq_disable(unsigned int irq)
 {
-	ll_emma2rh_sw_irq_disable(irq - emma2rh_sw_irq_base);
+	ll_emma2rh_sw_irq_disable(irq - EMMA2RH_SW_IRQ_BASE);
 }
 
 struct irq_chip emma2rh_sw_irq_controller = {
@@ -56,15 +55,14 @@ struct irq_chip emma2rh_sw_irq_controller = {
 	.unmask = emma2rh_sw_irq_enable,
 };
 
-void emma2rh_sw_irq_init(u32 irq_base)
+void emma2rh_sw_irq_init(void)
 {
 	u32 i;
 
-	for (i = irq_base; i < irq_base + NUM_EMMA2RH_IRQ_SW; i++)
-		set_irq_chip_and_handler(i, &emma2rh_sw_irq_controller,
+	for (i = 0; i < NUM_EMMA2RH_IRQ_SW; i++)
+		set_irq_chip_and_handler(EMMA2RH_SW_IRQ_BASE + i,
+					 &emma2rh_sw_irq_controller,
 					 handle_level_irq);
-
-	emma2rh_sw_irq_base = irq_base;
 }
 
 void ll_emma2rh_sw_irq_enable(int irq)
