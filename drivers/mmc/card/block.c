@@ -145,7 +145,7 @@ struct mmc_blk_request {
 static u32 mmc_sd_num_wr_blocks(struct mmc_card *card)
 {
 	int err;
-	u32 blocks;
+	__be32 blocks;
 
 	struct mmc_request mrq;
 	struct mmc_command cmd;
@@ -204,9 +204,7 @@ static u32 mmc_sd_num_wr_blocks(struct mmc_card *card)
 	if (cmd.error || data.error)
 		return (u32)-1;
 
-	blocks = ntohl(blocks);
-
-	return blocks;
+	return ntohl(blocks);
 }
 
 static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
