@@ -401,6 +401,9 @@ static int check_ownership(struct scsi_device *sdev, struct rdac_dh_data *h)
 		}
 	}
 
+	if (h->lun_state == RDAC_LUN_UNOWNED)
+		h->state = RDAC_STATE_PASSIVE;
+
 	return err;
 }
 

@@ -1049,7 +1049,6 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 		good_bytes = sd_completed_bytes(SCpnt);
 		break;
 	case RECOVERED_ERROR:
-	case NO_SENSE:
 		/* Inform the user, but make sure that it's not treated
 		 * as a hard error.
 		 */
@@ -1057,6 +1056,15 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 		SCpnt->result = 0;
 		memset(SCpnt->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 		good_bytes = scsi_bufflen(SCpnt);
+		break;
+	case NO_SENSE:
+		/* This indicates a false check condition, so ignore it.  An
+		 * unknown amount of data was transferred so treat it as an
+		 * error.
+		 */
+		scsi_print_sense("sd", SCpnt);
+		SCpnt->result = 0;
+		memset(SCpnt->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 		break;
 	case ABORTED_COMMAND:
 		if (sshdr.asc == 0x10) { /* DIF: Disk detected corruption */
@@ -1071,15 +1079,6 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 			scsi_print_sense("sd", SCpnt);
 			good_bytes = sd_completed_bytes(SCpnt);
 		}
-		if (!scsi_device_protection(SCpnt->device) &&
-		    SCpnt->device->use_10_for_rw &&
-		    (SCpnt->cmnd[0] == READ_10 ||
-		     SCpnt->cmnd[0] == WRITE_10))
-			SCpnt->device->use_10_for_rw = 0;
-		if (SCpnt->device->use_10_for_ms &&
-		    (SCpnt->cmnd[0] == MODE_SENSE_10 ||
-		     SCpnt->cmnd[0] == MODE_SELECT_10))
-			SCpnt->device->use_10_for_ms = 0;
 		break;
 	default:
 		break;
@@ -1432,7 +1431,7 @@ got_data:
 
 	{
 		char cap_str_2[10], cap_str_10[10];
-		u64 sz = sdkp->capacity << ffz(~sector_size);
+		u64 sz = (u64)sdkp->capacity << ilog2(sector_size);
 
 		string_get_size(sz, STRING_UNITS_2, cap_str_2,
 				sizeof(cap_str_2));
