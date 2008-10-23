@@ -1061,7 +1061,6 @@ static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, stru
 struct dentry *ext4_get_parent(struct dentry *child)
 {
 	unsigned long ino;
-	struct dentry *parent;
 	struct inode *inode;
 	static const struct qstr dotdot = {
 		.name = "..",
