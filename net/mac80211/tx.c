@@ -563,8 +563,8 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 				IEEE80211_TX_RC_USE_RTS_CTS;
 
 		/* RC is busted */
-		if (WARN_ON(info->control.rates[i].idx >=
-			    sband->n_bitrates)) {
+		if (WARN_ON_ONCE(info->control.rates[i].idx >=
+				 sband->n_bitrates)) {
 			info->control.rates[i].idx = -1;
 			continue;
 		}
