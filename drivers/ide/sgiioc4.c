@@ -572,7 +572,7 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 
 	/*  Get the CmdBlk and CtrlBlk Base Registers */
 	bar0 = pci_resource_start(dev, 0);
-	virt_base = ioremap(bar0, pci_resource_len(dev, 0));
+	virt_base = pci_ioremap_bar(dev, 0);
 	if (virt_base == NULL) {
 		printk(KERN_ERR "%s: Unable to remap BAR 0 address: 0x%lx\n",
 				DRV_NAME, bar0);
