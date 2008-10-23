@@ -3257,11 +3257,6 @@ L:	linux-pci@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/jbarnes/pci-2.6.git
 S:	Supported
 
-PCI HOTPLUG CORE
-P:	Kristen Carlson Accardi
-M:	kristen.c.accardi@intel.com
-S:	Supported
-
 PCIE HOTPLUG DRIVER
 P:	Kristen Carlson Accardi
 M:	kristen.c.accardi@intel.com

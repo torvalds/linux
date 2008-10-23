@@ -125,6 +125,7 @@ static inline int pciehp_writel(struct controller *ctrl, int reg, u32 value)
 /* Field definitions in Link Capabilities Register */
 #define MAX_LNK_SPEED		0x000F
 #define MAX_LNK_WIDTH		0x03F0
+#define LINK_ACTIVE_REPORTING	0x00100000
 
 /* Link Width Encoding */
 #define LNK_X1		0x01
@@ -141,6 +142,7 @@ static inline int pciehp_writel(struct controller *ctrl, int reg, u32 value)
 #define LNK_TRN_ERR	0x0400
 #define	LNK_TRN		0x0800
 #define SLOT_CLK_CONF	0x1000
+#define LINK_ACTIVE	0x2000
 
 /* Field definitions in Slot Capabilities Register */
 #define ATTN_BUTTN_PRSN	0x00000001
@@ -368,10 +370,51 @@ static int pcie_write_cmd(struct controller *ctrl, u16 cmd, u16 mask)
 	return retval;
 }
 
+static inline int check_link_active(struct controller *ctrl)
+{
+	u16 link_status;
+
+	if (pciehp_readw(ctrl, LNKSTATUS, &link_status))
+		return 0;
+	return !!(link_status & LINK_ACTIVE);
+}
+
+static void pcie_wait_link_active(struct controller *ctrl)
+{
+	int timeout = 1000;
+
+	if (check_link_active(ctrl))
+		return;
+	while (timeout > 0) {
+		msleep(10);
+		timeout -= 10;
+		if (check_link_active(ctrl))
+			return;
+	}
+	ctrl_dbg(ctrl, "Data Link Layer Link Active not set in 1000 msec\n");
+}
+
 static int hpc_check_lnk_status(struct controller *ctrl)
 {
 	u16 lnk_status;
 	int retval = 0;
+
+        /*
+         * Data Link Layer Link Active Reporting must be capable for
+         * hot-plug capable downstream port. But old controller might
+         * not implement it. In this case, we wait for 1000 ms.
+         */
+        if (ctrl->link_active_reporting){
+                /* Wait for Data Link Layer Link Active bit to be set */
+                pcie_wait_link_active(ctrl);
+                /*
+                 * We must wait for 100 ms after the Data Link Layer
+                 * Link Active bit reads 1b before initiating a
+                 * configuration access to the hot added device.
+                 */
+                msleep(100);
+        } else
+                msleep(1000);
 
 	retval = pciehp_readw(ctrl, LNKSTATUS, &lnk_status);
 	if (retval) {
@@ -1061,7 +1104,6 @@ static int pcie_init_slot(struct controller *ctrl)
 	slot->device = ctrl->slot_device_offset + slot->hp_slot;
 	slot->hpc_ops = ctrl->hpc_ops;
 	slot->number = ctrl->first_slot;
-	snprintf(slot->name, SLOT_NAME_SIZE, "%d", slot->number);
 	mutex_init(&slot->lock);
 	INIT_DELAYED_WORK(&slot->work, pciehp_queue_pushbutton_work);
 	list_add(&slot->slot_list, &ctrl->slot_list);
@@ -1132,7 +1174,7 @@ static inline void dbg_ctrl(struct controller *ctrl)
 struct controller *pcie_init(struct pcie_device *dev)
 {
 	struct controller *ctrl;
-	u32 slot_cap;
+	u32 slot_cap, link_cap;
 	struct pci_dev *pdev = dev->port;
 
 	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
@@ -1148,11 +1190,11 @@ struct controller *pcie_init(struct pcie_device *dev)
 	if (!ctrl->cap_base) {
 		ctrl_err(ctrl, "%s: Cannot find PCI Express capability\n",
 			 __func__);
-		goto abort;
+		goto abort_ctrl;
 	}
 	if (pciehp_readl(ctrl, SLOTCAP, &slot_cap)) {
 		ctrl_err(ctrl, "%s: Cannot read SLOTCAP register\n", __func__);
-		goto abort;
+		goto abort_ctrl;
 	}
 
 	ctrl->slot_cap = slot_cap;
@@ -1173,6 +1215,16 @@ struct controller *pcie_init(struct pcie_device *dev)
 	if (NO_CMD_CMPL(ctrl) ||
 	    !(POWER_CTRL(ctrl) | ATTN_LED(ctrl) | PWR_LED(ctrl) | EMI(ctrl)))
 	    ctrl->no_cmd_complete = 1;
+
+        /* Check if Data Link Layer Link Active Reporting is implemented */
+        if (pciehp_readl(ctrl, LNKCAP, &link_cap)) {
+                ctrl_err(ctrl, "%s: Cannot read LNKCAP register\n", __func__);
+                goto abort_ctrl;
+        }
+        if (link_cap & LINK_ACTIVE_REPORTING) {
+                ctrl_dbg(ctrl, "Link Active Reporting supported\n");
+                ctrl->link_active_reporting = 1;
+        }
 
 	/* Clear all remaining event bits in Slot Status register */
 	if (pciehp_writew(ctrl, SLOTSTATUS, 0x1f))
