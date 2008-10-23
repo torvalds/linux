@@ -503,6 +503,8 @@ do {							\
     R##_c = FP_CLS_NAN;					\
     _FP_FRAC_SET_##wc(R, _FP_NANFRAC_##fs);		\
     FP_SET_EXCEPTION(FP_EX_INVALID | FP_EX_INVALID_IDI);\
+    break;						\
+							\
   case _FP_CLS_COMBINE(FP_CLS_ZERO,FP_CLS_ZERO):	\
     R##_s = _FP_NANSIGN_##fs;				\
     R##_c = FP_CLS_NAN;					\
