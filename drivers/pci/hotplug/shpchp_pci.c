@@ -49,9 +49,7 @@ static void program_fw_provided_values(struct pci_dev *dev)
 	/* use default values if we can't get them from firmware */
 	if (get_hp_params_from_firmware(dev, &hpp) ||
 	    !hpp.t0 || (hpp.t0->revision > 1)) {
-		printk(KERN_WARNING
-		       "%s: Could not get hotplug parameters. Use defaults\n",
-		       __func__);
+		warn("Could not get hotplug parameters. Use defaults\n");
 		hpp.t0 = &hpp.type0_data;
 		hpp.t0->revision = 0;
 		hpp.t0->cache_line_size = 8;
@@ -105,9 +103,9 @@ int __ref shpchp_configure_device(struct slot *p_slot)
 
 	dev = pci_get_slot(parent, PCI_DEVFN(p_slot->device, 0));
 	if (dev) {
-		ctrl_err(ctrl,
-			 "Device %s already exists at %x:%x, cannot hot-add\n",
-			 pci_name(dev), p_slot->bus, p_slot->device);
+		ctrl_err(ctrl, "Device %s already exists "
+			 "at %04x:%02x:%02x, cannot hot-add\n", pci_name(dev),
+			 pci_domain_nr(parent), p_slot->bus, p_slot->device);
 		pci_dev_put(dev);
 		return -EINVAL;
 	}
@@ -173,8 +171,8 @@ int shpchp_unconfigure_device(struct slot *p_slot)
 	struct pci_bus *parent = p_slot->ctrl->pci_dev->subordinate;
 	struct controller *ctrl = p_slot->ctrl;
 
-	ctrl_dbg(ctrl, "%s: bus/dev = %x/%x\n",
-		 __func__, p_slot->bus, p_slot->device);
+	ctrl_dbg(ctrl, "%s: domain:bus:dev = %04x:%02x:%02x\n",
+		 __func__, pci_domain_nr(parent), p_slot->bus, p_slot->device);
 
 	for (j=0; j<8 ; j++) {
 		struct pci_dev* temp = pci_get_slot(parent,
