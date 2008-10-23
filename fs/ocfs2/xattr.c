@@ -78,7 +78,7 @@ struct xattr_handler *ocfs2_xattr_handlers[] = {
 	NULL
 };
 
-static struct xattr_handler *ocfs2_xattr_handler_map[] = {
+static struct xattr_handler *ocfs2_xattr_handler_map[OCFS2_XATTR_MAX] = {
 	[OCFS2_XATTR_INDEX_USER]	= &ocfs2_xattr_user_handler,
 	[OCFS2_XATTR_INDEX_TRUSTED]	= &ocfs2_xattr_trusted_handler,
 };
