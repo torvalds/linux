@@ -1311,7 +1311,6 @@ int stb0899_get_dev_id(struct stb0899_state *state)
 
 static const struct dvbfe_info dvbs_info	= {
 	.name					= "STB0899 DVB-S",
-	.delivery				= DVBFE_DELSYS_DVBS,
 	.delsys					= {
 		.dvbs.modulation		= DVBFE_MOD_QPSK,
 		.dvbs.fec			= DVBFE_FEC_1_2	| DVBFE_FEC_2_3 |
@@ -1329,7 +1328,6 @@ static const struct dvbfe_info dvbs_info	= {
 
 static const struct dvbfe_info dss_info		= {
 	.name					= "STB0899 DSS",
-	.delivery				= DVBFE_DELSYS_DSS,
 	.delsys					= {
 		.dss.modulation			= DVBFE_MOD_BPSK | DVBFE_MOD_QPSK,
 		.dss.fec			= DVBFE_FEC_1_2	 | DVBFE_FEC_2_3 |
@@ -1347,7 +1345,6 @@ static const struct dvbfe_info dss_info		= {
 
 static const struct dvbfe_info dvbs2_info	= {
 	.name					= "STB0899 DVB-S2",
-	.delivery				= DVBFE_DELSYS_DVBS2,
 	.delsys					= {
 		.dvbs2.modulation		= DVBFE_MOD_QPSK   | DVBFE_MOD_8PSK |
 						  DVBFE_MOD_16APSK | DVBFE_MOD_32APSK,
