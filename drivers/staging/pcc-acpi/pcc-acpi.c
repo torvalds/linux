@@ -1011,7 +1011,7 @@ static int __devinit acpi_pcc_hotkey_add(struct acpi_device *device)
 	hotkey->device   = device;
 	hotkey->handle   = device->handle;
 	hotkey->num_sifr = num_sifr;
-	acpi_driver_data(device) = hotkey;
+	device->driver_data = hotkey;
 	strcpy(acpi_device_name(device),  ACPI_PCC_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_PCC_CLASS);
 
