@@ -10,8 +10,8 @@
  * See asm-generic/syscall.h for descriptions of what we must do here.
  */
 
-#ifndef _ASM_SYSCALL_H
-#define _ASM_SYSCALL_H	1
+#ifndef _ASM_X86_SYSCALL_H
+#define _ASM_X86_SYSCALL_H
 
 #include <linux/sched.h>
 #include <linux/err.h>
@@ -208,4 +208,4 @@ static inline void syscall_set_arguments(struct task_struct *task,
 
 #endif	/* CONFIG_X86_32 */
 
-#endif	/* _ASM_SYSCALL_H */
+#endif	/* _ASM_X86_SYSCALL_H */

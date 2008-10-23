@@ -13,8 +13,8 @@
  * (at your option) any later version.
  */
 
-#ifndef _ASM_I386_GPIO_H
-#define _ASM_I386_GPIO_H
+#ifndef _ASM_X86_GPIO_H
+#define _ASM_X86_GPIO_H
 
 #include <asm-generic/gpio.h>
 
