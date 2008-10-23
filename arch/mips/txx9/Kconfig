@@ -46,7 +46,7 @@ config TOSHIBA_RBTX4938
 	  support this machine type
 
 config TOSHIBA_RBTX4939
-	bool "Toshiba RBTX4939 bobard"
+	bool "Toshiba RBTX4939 board"
 	depends on MACH_TX49XX
 	select SOC_TX4939
 	select TXX9_7SEGLED
