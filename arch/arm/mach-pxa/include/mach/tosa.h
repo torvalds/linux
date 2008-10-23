@@ -193,4 +193,7 @@
 #define TOSA_KEY_MAIL		KEY_MAIL
 #endif
 
+struct spi_device;
+extern int tosa_bl_enable(struct spi_device *spi, int enable);
+
 #endif /* _ASM_ARCH_TOSA_H_ */
