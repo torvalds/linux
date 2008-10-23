@@ -11,7 +11,7 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  *
- * Usage: addnote zImage [note.elf]
+ * Usage: addnote [-r realbase] zImage [note.elf]
  *
  * If note.elf is supplied, it is the name of an ELF file that contains
  * an RPA note to use instead of the built-in one.  Alternatively, the
@@ -153,18 +153,31 @@ unsigned char *read_rpanote(const char *fname, int *nnp)
 int
 main(int ac, char **av)
 {
-	int fd, n, i;
+	int fd, n, i, ai;
 	int ph, ps, np;
 	int nnote, nnote2, ns;
 	unsigned char *rpap;
+	char *p, *endp;
 
-	if (ac != 2 && ac != 3) {
-		fprintf(stderr, "Usage: %s elf-file [rpanote.elf]\n", av[0]);
+	ai = 1;
+	if (ac >= ai + 2 && strcmp(av[ai], "-r") == 0) {
+		/* process -r realbase */
+		p = av[ai + 1];
+		descr[1] = strtol(p, &endp, 16);
+		if (endp == p || *endp != 0) {
+			fprintf(stderr, "Can't parse -r argument '%s' as hex\n",
+				p);
+			exit(1);
+		}
+		ai += 2;
+	}
+	if (ac != ai + 1 && ac != ai + 2) {
+		fprintf(stderr, "Usage: %s [-r realbase] elf-file [rpanote.elf]\n", av[0]);
 		exit(1);
 	}
-	fd = open(av[1], O_RDWR);
+	fd = open(av[ai], O_RDWR);
 	if (fd < 0) {
-		perror(av[1]);
+		perror(av[ai]);
 		exit(1);
 	}
 
@@ -184,12 +197,12 @@ main(int ac, char **av)
 	if (buf[E_IDENT+EI_CLASS] != ELFCLASS32
 	    || buf[E_IDENT+EI_DATA] != ELFDATA2MSB) {
 		fprintf(stderr, "%s is not a big-endian 32-bit ELF image\n",
-			av[1]);
+			av[ai]);
 		exit(1);
 	}
 
-	if (ac == 3)
-		rpap = read_rpanote(av[2], &nnote2);
+	if (ac == ai + 2)
+		rpap = read_rpanote(av[ai + 1], &nnote2);
 
 	ph = GET_32BE(buf, E_PHOFF);
 	ps = GET_16BE(buf, E_PHENTSIZE);
@@ -202,7 +215,7 @@ main(int ac, char **av)
 	for (i = 0; i < np; ++i) {
 		if (GET_32BE(buf, ph + PH_TYPE) == PT_NOTE) {
 			fprintf(stderr, "%s already has a note entry\n",
-				av[1]);
+				av[ai]);
 			exit(0);
 		}
 		ph += ps;
@@ -260,18 +273,18 @@ main(int ac, char **av)
 		exit(1);
 	}
 	if (i < n) {
-		fprintf(stderr, "%s: write truncated\n", av[1]);
+		fprintf(stderr, "%s: write truncated\n", av[ai]);
 		exit(1);
 	}
 
 	exit(0);
 
  notelf:
-	fprintf(stderr, "%s does not appear to be an ELF file\n", av[1]);
+	fprintf(stderr, "%s does not appear to be an ELF file\n", av[ai]);
 	exit(1);
 
  nospace:
 	fprintf(stderr, "sorry, I can't find space in %s to put the note\n",
-		av[1]);
+		av[ai]);
 	exit(1);
 }

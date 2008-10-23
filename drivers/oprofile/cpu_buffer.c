@@ -38,11 +38,24 @@ static int work_enabled;
 void free_cpu_buffers(void)
 {
 	int i;
- 
+
 	for_each_online_cpu(i) {
 		vfree(per_cpu(cpu_buffer, i).buffer);
 		per_cpu(cpu_buffer, i).buffer = NULL;
 	}
+}
+
+unsigned long oprofile_get_cpu_buffer_size(void)
+{
+	return fs_cpu_buffer_size;
+}
+
+void oprofile_cpu_buffer_inc_smpl_lost(void)
+{
+	struct oprofile_cpu_buffer *cpu_buf
+		= &__get_cpu_var(cpu_buffer);
+
+	cpu_buf->sample_lost_overflow++;
 }
 
 int alloc_cpu_buffers(void)

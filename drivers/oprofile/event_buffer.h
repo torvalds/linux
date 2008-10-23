@@ -17,6 +17,13 @@ int alloc_event_buffer(void);
 
 void free_event_buffer(void);
  
+/**
+ * Add data to the event buffer.
+ * The data passed is free-form, but typically consists of
+ * file offsets, dcookies, context information, and ESCAPE codes.
+ */
+void add_event_entry(unsigned long data);
+
 /* wake up the process sleeping on the event file */
 void wake_up_buffer_waiter(void);
 

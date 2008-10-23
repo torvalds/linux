@@ -312,6 +312,15 @@ static struct spu *aff_ref_location(struct spu_context *ctx, int mem_aff,
 	 */
 	node = cpu_to_node(raw_smp_processor_id());
 	for (n = 0; n < MAX_NUMNODES; n++, node++) {
+		/*
+		 * "available_spus" counts how many spus are not potentially
+		 * going to be used by other affinity gangs whose reference
+		 * context is already in place. Although this code seeks to
+		 * avoid having affinity gangs with a summed amount of
+		 * contexts bigger than the amount of spus in the node,
+		 * this may happen sporadically. In this case, available_spus
+		 * becomes negative, which is harmless.
+		 */
 		int available_spus;
 
 		node = (node < MAX_NUMNODES) ? node : 0;
@@ -321,12 +330,10 @@ static struct spu *aff_ref_location(struct spu_context *ctx, int mem_aff,
 		available_spus = 0;
 		mutex_lock(&cbe_spu_info[node].list_mutex);
 		list_for_each_entry(spu, &cbe_spu_info[node].spus, cbe_list) {
-			if (spu->ctx && spu->ctx->gang
-					&& spu->ctx->aff_offset == 0)
-				available_spus -=
-					(spu->ctx->gang->contexts - 1);
-			else
-				available_spus++;
+			if (spu->ctx && spu->ctx->gang && !spu->ctx->aff_offset
+					&& spu->ctx->gang->aff_ref_spu)
+				available_spus -= spu->ctx->gang->contexts;
+			available_spus++;
 		}
 		if (available_spus < ctx->gang->contexts) {
 			mutex_unlock(&cbe_spu_info[node].list_mutex);
@@ -437,6 +444,11 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 		atomic_dec(&cbe_spu_info[spu->node].reserved_spus);
 
 	if (ctx->gang)
+		/*
+		 * If ctx->gang->aff_sched_count is positive, SPU affinity is
+		 * being considered in this gang. Using atomic_dec_if_positive
+		 * allow us to skip an explicit check for affinity in this gang
+		 */
 		atomic_dec_if_positive(&ctx->gang->aff_sched_count);
 
 	spu_switch_notify(spu, NULL);

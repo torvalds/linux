@@ -23,12 +23,11 @@
 
 static u32 *samples;
 
-static int spu_prof_running;
+int spu_prof_running;
 static unsigned int profiling_interval;
 
 #define NUM_SPU_BITS_TRBUF 16
 #define SPUS_PER_TB_ENTRY   4
-#define SPUS_PER_NODE	     8
 
 #define SPU_PC_MASK	     0xFFFF
 
@@ -208,6 +207,7 @@ int start_spu_profiling(unsigned int cycles_reset)
 
 	spu_prof_running = 1;
 	hrtimer_start(&timer, kt, HRTIMER_MODE_REL);
+	schedule_delayed_work(&spu_work, DEFAULT_TIMER_EXPIRE);
 
 	return 0;
 }

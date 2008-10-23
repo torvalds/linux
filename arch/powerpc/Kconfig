@@ -19,9 +19,6 @@ config WORD_SIZE
 	default 64 if PPC64
 	default 32 if !PPC64
 
-config PPC_MERGE
-	def_bool y
-
 config ARCH_PHYS_ADDR_T_64BIT
        def_bool PPC64 || PHYS_64BIT
 
@@ -326,13 +323,11 @@ config KEXEC
 
 config CRASH_DUMP
 	bool "Build a kdump crash kernel"
-	depends on PPC_MULTIPLATFORM && PPC64
+	depends on PPC_MULTIPLATFORM && PPC64 && RELOCATABLE
 	help
 	  Build a kernel suitable for use as a kdump capture kernel.
-	  The kernel will be linked at a different address than normal, and
-	  so can only be used for Kdump.
-
-	  Don't change this unless you know what you are doing.
+	  The same kernel binary can be used as production kernel and dump
+	  capture kernel.
 
 config PHYP_DUMP
 	bool "Hypervisor-assisted dump (EXPERIMENTAL)"
@@ -832,11 +827,9 @@ config PAGE_OFFSET
 	default "0xc000000000000000"
 config KERNEL_START
 	hex
-	default "0xc000000002000000" if CRASH_DUMP
 	default "0xc000000000000000"
 config PHYSICAL_START
 	hex
-	default "0x02000000" if CRASH_DUMP
 	default "0x00000000"
 endif
 
