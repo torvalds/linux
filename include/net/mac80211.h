@@ -287,7 +287,7 @@ enum mac80211_rate_control_flags {
  *
  * @idx: rate index to attempt to send with
  * @flags: rate control flags (&enum mac80211_rate_control_flags)
- * @limit: number of retries before fallback
+ * @count: number of tries in this rate before going to the next rate
  *
  * A value of -1 for @idx indicates an invalid rate and, if used
  * in an array of retry rates, that no more rates should be tried.
@@ -1902,6 +1902,8 @@ struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_hw *hw,
  * @short_preamble: whether mac80211 will request short-preamble transmission
  *	if the selected rate supports it
  * @max_rate_idx: user-requested maximum rate (not MCS for now)
+ * @skb: the skb that will be transmitted, the control information in it needs
+ *	to be filled in
  */
 struct ieee80211_tx_rate_control {
 	struct ieee80211_hw *hw;
