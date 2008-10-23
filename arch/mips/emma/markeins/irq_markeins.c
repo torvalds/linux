@@ -30,8 +30,6 @@
 #include <asm/debug.h>
 #include <asm/emma/emma2rh.h>
 
-static int emma2rh_gpio_irq_base = -1;
-
 void ll_emma2rh_sw_irq_enable(int reg);
 void ll_emma2rh_sw_irq_disable(int reg);
 void ll_emma2rh_gpio_irq_enable(int reg);
@@ -91,17 +89,17 @@ void ll_emma2rh_sw_irq_disable(int irq)
 
 static void emma2rh_gpio_irq_enable(unsigned int irq)
 {
-	ll_emma2rh_gpio_irq_enable(irq - emma2rh_gpio_irq_base);
+	ll_emma2rh_gpio_irq_enable(irq - EMMA2RH_GPIO_IRQ_BASE);
 }
 
 static void emma2rh_gpio_irq_disable(unsigned int irq)
 {
-	ll_emma2rh_gpio_irq_disable(irq - emma2rh_gpio_irq_base);
+	ll_emma2rh_gpio_irq_disable(irq - EMMA2RH_GPIO_IRQ_BASE);
 }
 
 static void emma2rh_gpio_irq_ack(unsigned int irq)
 {
-	irq -= emma2rh_gpio_irq_base;
+	irq -= EMMA2RH_GPIO_IRQ_BASE;
 	emma2rh_out32(EMMA2RH_GPIO_INT_ST, ~(1 << irq));
 	ll_emma2rh_gpio_irq_disable(irq);
 }
@@ -109,7 +107,7 @@ static void emma2rh_gpio_irq_ack(unsigned int irq)
 static void emma2rh_gpio_irq_end(unsigned int irq)
 {
 	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
-		ll_emma2rh_gpio_irq_enable(irq - emma2rh_gpio_irq_base);
+		ll_emma2rh_gpio_irq_enable(irq - EMMA2RH_GPIO_IRQ_BASE);
 }
 
 struct irq_chip emma2rh_gpio_irq_controller = {
@@ -121,14 +119,13 @@ struct irq_chip emma2rh_gpio_irq_controller = {
 	.end = emma2rh_gpio_irq_end,
 };
 
-void emma2rh_gpio_irq_init(u32 irq_base)
+void emma2rh_gpio_irq_init(void)
 {
 	u32 i;
 
-	for (i = irq_base; i < irq_base + NUM_EMMA2RH_IRQ_GPIO; i++)
-		set_irq_chip(i, &emma2rh_gpio_irq_controller);
-
-	emma2rh_gpio_irq_base = irq_base;
+	for (i = 0; i < NUM_EMMA2RH_IRQ_GPIO; i++)
+		set_irq_chip(EMMA2RH_GPIO_IRQ_BASE + i,
+			     &emma2rh_gpio_irq_controller);
 }
 
 void ll_emma2rh_gpio_irq_enable(int irq)
