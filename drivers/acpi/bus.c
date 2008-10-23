@@ -525,6 +525,19 @@ static int acpi_bus_check_scope(struct acpi_device *device)
 	return 0;
 }
 
+static BLOCKING_NOTIFIER_HEAD(acpi_bus_notify_list);
+int register_acpi_bus_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&acpi_bus_notify_list, nb);
+}
+EXPORT_SYMBOL_GPL(register_acpi_bus_notifier);
+
+void unregister_acpi_bus_notifier(struct notifier_block *nb)
+{
+	blocking_notifier_chain_unregister(&acpi_bus_notify_list, nb);
+}
+EXPORT_SYMBOL_GPL(unregister_acpi_bus_notifier);
+
 /**
  * acpi_bus_notify
  * ---------------
@@ -535,6 +548,8 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 	int result = 0;
 	struct acpi_device *device = NULL;
 
+	blocking_notifier_call_chain(&acpi_bus_notify_list,
+		type, (void *)handle);
 
 	if (acpi_bus_get_device(handle, &device))
 		return;
