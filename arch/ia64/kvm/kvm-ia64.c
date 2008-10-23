@@ -439,7 +439,6 @@ int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 		expires = div64_u64(itc_diff, cyc_per_usec);
 		kt = ktime_set(0, 1000 * expires);
 
-		down_read(&vcpu->kvm->slots_lock);
 		vcpu->arch.ht_active = 1;
 		hrtimer_start(p_ht, kt, HRTIMER_MODE_ABS);
 
@@ -452,7 +451,6 @@ int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 			if (vcpu->arch.mp_state == KVM_MP_STATE_HALTED)
 				vcpu->arch.mp_state =
 					KVM_MP_STATE_RUNNABLE;
-		up_read(&vcpu->kvm->slots_lock);
 
 		if (vcpu->arch.mp_state != KVM_MP_STATE_RUNNABLE)
 			return -EINTR;
