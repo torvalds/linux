@@ -784,7 +784,7 @@ static int __devinit siimage_init_one(struct pci_dev *dev,
 			printk(KERN_WARNING DRV_NAME " %s: MMIO ports not "
 				"available\n", pci_name(dev));
 		} else {
-			ioaddr = ioremap(bar5, barsize);
+			ioaddr = pci_ioremap_bar(dev, 5);
 			if (ioaddr == NULL)
 				release_mem_region(bar5, barsize);
 		}
