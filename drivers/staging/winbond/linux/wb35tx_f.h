@@ -3,7 +3,7 @@
 //====================================
 unsigned char Wb35Tx_initial(	 phw_data_t pHwData );
 void Wb35Tx_destroy(  phw_data_t pHwData );
-unsigned char Wb35Tx_get_tx_buffer(  phw_data_t pHwData,  PUCHAR *pBuffer );
+unsigned char Wb35Tx_get_tx_buffer(  phw_data_t pHwData,  u8 **pBuffer );
 
 void Wb35Tx_EP2VM(  phw_data_t pHwData );
 void Wb35Tx_EP2VM_start(  phw_data_t pHwData );

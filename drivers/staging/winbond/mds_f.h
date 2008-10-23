@@ -1,9 +1,9 @@
 unsigned char Mds_initial(  PADAPTER Adapter );
 void Mds_Destroy(  PADAPTER Adapter );
 void Mds_Tx(  PADAPTER Adapter );
-void Mds_HeaderCopy(  PADAPTER Adapter,  PDESCRIPTOR pDes,  PUCHAR TargetBuffer );
-u16 Mds_BodyCopy(  PADAPTER Adapter,  PDESCRIPTOR pDes,  PUCHAR TargetBuffer );
-void Mds_DurationSet(  PADAPTER Adapter,  PDESCRIPTOR pDes,  PUCHAR TargetBuffer );
+void Mds_HeaderCopy(  PADAPTER Adapter,  PDESCRIPTOR pDes,  u8 *TargetBuffer );
+u16 Mds_BodyCopy(  PADAPTER Adapter,  PDESCRIPTOR pDes,  u8 *TargetBuffer );
+void Mds_DurationSet(  PADAPTER Adapter,  PDESCRIPTOR pDes,  u8 *TargetBuffer );
 void Mds_SendComplete(  PADAPTER Adapter,  PT02_DESCRIPTOR pT02 );
 void Mds_MpduProcess(  PADAPTER Adapter,  PDESCRIPTOR pRxDes );
 void Mds_reset_descriptor(  PADAPTER Adapter );

@@ -1,0 +1,11 @@
+config PCC_ACPI
+	tristate "Panasonic ACPI Hotkey support"
+	depends on ACPI
+	default n
+	---help---
+	  This driver provides support for Panasonic hotkeys through the
+	  ACPI interface.  This works for the Panasonic R1 (N variant),
+	  R2, R3, T2, W2, and Y2 laptops.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called pcc-acpi.

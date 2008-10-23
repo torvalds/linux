@@ -97,7 +97,6 @@
 #include "et131x_isr.h"
 
 #include "et1310_address_map.h"
-#include "et1310_jagcore.h"
 #include "et1310_tx.h"
 #include "et1310_rx.h"
 #include "et1310_mac.h"

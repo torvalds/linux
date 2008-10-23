@@ -25,24 +25,21 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
-#include <asm/io.h>
-#include <asm/system.h>
-#include <asm/uaccess.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
-#include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/unistd.h>
 #include <linux/list.h>
 #include <linux/proc_fs.h>
-
+#include <linux/types.h>
 #include <linux/poll.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
-#include <linux/types.h>
-
-#include <linux/slab.h>
+#include <asm/io.h>
+#include <asm/system.h>
+#include <asm/uaccess.h>
 
 /* Include-File for the Meilhaus ME-4000 I/O board */
 #include "me4000.h"
@@ -57,14 +54,14 @@ MODULE_SUPPORTED_DEVICE("Meilhaus ME-4000 Multi I/O boards");
 MODULE_LICENSE("GPL");
 
 /* Board specific data are kept in a global list */
-LIST_HEAD(me4000_board_info_list);
+static LIST_HEAD(me4000_board_info_list);
 
 /* Major Device Numbers. 0 means to get it automatically from the System */
-static int me4000_ao_major_driver_no = 0;
-static int me4000_ai_major_driver_no = 0;
-static int me4000_dio_major_driver_no = 0;
-static int me4000_cnt_major_driver_no = 0;
-static int me4000_ext_int_major_driver_no = 0;
+static int me4000_ao_major_driver_no;
+static int me4000_ai_major_driver_no;
+static int me4000_dio_major_driver_no;
+static int me4000_cnt_major_driver_no;
+static int me4000_ext_int_major_driver_no;
 
 /* Let the user specify a custom major driver number */
 module_param(me4000_ao_major_driver_no, int, 0);
@@ -88,36 +85,22 @@ MODULE_PARM_DESC(me4000_ext_int_major_driver_no,
 		 "Major driver number for external interrupt (default 0)");
 
 /*-----------------------------------------------------------------------------
-  Module stuff
-  ---------------------------------------------------------------------------*/
-int init_module(void);
-void cleanup_module(void);
-
-/*-----------------------------------------------------------------------------
   Board detection and initialization
   ---------------------------------------------------------------------------*/
 static int me4000_probe(struct pci_dev *dev, const struct pci_device_id *id);
-static int me4000_xilinx_download(me4000_info_t *);
-static int me4000_reset_board(me4000_info_t *);
+static int me4000_xilinx_download(struct me4000_info *);
+static int me4000_reset_board(struct me4000_info *);
 
 static void clear_board_info_list(void);
-static int get_registers(struct pci_dev *dev, me4000_info_t * info);
-static int init_board_info(struct pci_dev *dev, me4000_info_t * board_info);
-static int alloc_ao_contexts(me4000_info_t * info);
-static void release_ao_contexts(me4000_info_t * board_info);
-static int alloc_ai_context(me4000_info_t * info);
-static int alloc_dio_context(me4000_info_t * info);
-static int alloc_cnt_context(me4000_info_t * info);
-static int alloc_ext_int_context(me4000_info_t * info);
-
+static void release_ao_contexts(struct me4000_info *board_info);
 /*-----------------------------------------------------------------------------
   Stuff used by all device parts
   ---------------------------------------------------------------------------*/
 static int me4000_open(struct inode *, struct file *);
 static int me4000_release(struct inode *, struct file *);
 
-static int me4000_get_user_info(me4000_user_info_t *,
-				me4000_info_t * board_info);
+static int me4000_get_user_info(struct me4000_user_info *,
+				struct me4000_info *board_info);
 static int me4000_read_procmem(char *, char **, off_t, int, int *, void *);
 
 /*-----------------------------------------------------------------------------
@@ -140,40 +123,42 @@ static int me4000_ao_ioctl_cont(struct inode *, struct file *, unsigned int,
 static unsigned int me4000_ao_poll_cont(struct file *, poll_table *);
 static int me4000_ao_fsync_cont(struct file *, struct dentry *, int);
 
-static int me4000_ao_start(unsigned long *, me4000_ao_context_t *);
-static int me4000_ao_stop(me4000_ao_context_t *);
-static int me4000_ao_immediate_stop(me4000_ao_context_t *);
-static int me4000_ao_timer_set_divisor(u32 *, me4000_ao_context_t *);
-static int me4000_ao_preload(me4000_ao_context_t *);
-static int me4000_ao_preload_update(me4000_ao_context_t *);
-static int me4000_ao_ex_trig_set_edge(int *, me4000_ao_context_t *);
-static int me4000_ao_ex_trig_enable(me4000_ao_context_t *);
-static int me4000_ao_ex_trig_disable(me4000_ao_context_t *);
-static int me4000_ao_prepare(me4000_ao_context_t * ao_info);
-static int me4000_ao_reset(me4000_ao_context_t * ao_info);
-static int me4000_ao_enable_do(me4000_ao_context_t *);
-static int me4000_ao_disable_do(me4000_ao_context_t *);
-static int me4000_ao_fsm_state(int *, me4000_ao_context_t *);
+static int me4000_ao_start(unsigned long *, struct me4000_ao_context *);
+static int me4000_ao_stop(struct me4000_ao_context *);
+static int me4000_ao_immediate_stop(struct me4000_ao_context *);
+static int me4000_ao_timer_set_divisor(u32 *, struct me4000_ao_context *);
+static int me4000_ao_preload(struct me4000_ao_context *);
+static int me4000_ao_preload_update(struct me4000_ao_context *);
+static int me4000_ao_ex_trig_set_edge(int *, struct me4000_ao_context *);
+static int me4000_ao_ex_trig_enable(struct me4000_ao_context *);
+static int me4000_ao_ex_trig_disable(struct me4000_ao_context *);
+static int me4000_ao_prepare(struct me4000_ao_context *ao_info);
+static int me4000_ao_reset(struct me4000_ao_context *ao_info);
+static int me4000_ao_enable_do(struct me4000_ao_context *);
+static int me4000_ao_disable_do(struct me4000_ao_context *);
+static int me4000_ao_fsm_state(int *, struct me4000_ao_context *);
 
-static int me4000_ao_simultaneous_ex_trig(me4000_ao_context_t * ao_context);
-static int me4000_ao_simultaneous_sw(me4000_ao_context_t * ao_context);
-static int me4000_ao_simultaneous_disable(me4000_ao_context_t * ao_context);
-static int me4000_ao_simultaneous_update(me4000_ao_channel_list_t * channels,
-					 me4000_ao_context_t * ao_context);
+static int me4000_ao_simultaneous_ex_trig(struct me4000_ao_context *ao_context);
+static int me4000_ao_simultaneous_sw(struct me4000_ao_context *ao_context);
+static int me4000_ao_simultaneous_disable(struct me4000_ao_context *ao_context);
+static int me4000_ao_simultaneous_update(
+					struct me4000_ao_channel_list *channels,
+					struct me4000_ao_context *ao_context);
 
-static int me4000_ao_synchronous_ex_trig(me4000_ao_context_t * ao_context);
-static int me4000_ao_synchronous_sw(me4000_ao_context_t * ao_context);
-static int me4000_ao_synchronous_disable(me4000_ao_context_t * ao_context);
+static int me4000_ao_synchronous_ex_trig(struct me4000_ao_context *ao_context);
+static int me4000_ao_synchronous_sw(struct me4000_ao_context *ao_context);
+static int me4000_ao_synchronous_disable(struct me4000_ao_context *ao_context);
 
 static int me4000_ao_ex_trig_timeout(unsigned long *arg,
-				     me4000_ao_context_t * ao_context);
+				     struct me4000_ao_context *ao_context);
 static int me4000_ao_get_free_buffer(unsigned long *arg,
-				     me4000_ao_context_t * ao_context);
+				     struct me4000_ao_context *ao_context);
 
 /*-----------------------------------------------------------------------------
   Analog input stuff
   ---------------------------------------------------------------------------*/
-static int me4000_ai_single(me4000_ai_single_t *, me4000_ai_context_t *);
+static int me4000_ai_single(struct me4000_ai_single *,
+				struct me4000_ai_context *);
 static int me4000_ai_ioctl_sing(struct inode *, struct file *, unsigned int,
 				unsigned long);
 
@@ -186,68 +171,69 @@ static int me4000_ai_fasync(int fd, struct file *file_p, int mode);
 static int me4000_ai_ioctl_ext(struct inode *, struct file *, unsigned int,
 			       unsigned long);
 
-static int me4000_ai_prepare(me4000_ai_context_t * ai_context);
-static int me4000_ai_reset(me4000_ai_context_t * ai_context);
-static int me4000_ai_config(me4000_ai_config_t *, me4000_ai_context_t *);
-static int me4000_ai_start(me4000_ai_context_t *);
-static int me4000_ai_start_ex(unsigned long *, me4000_ai_context_t *);
-static int me4000_ai_stop(me4000_ai_context_t *);
-static int me4000_ai_immediate_stop(me4000_ai_context_t *);
-static int me4000_ai_ex_trig_enable(me4000_ai_context_t *);
-static int me4000_ai_ex_trig_disable(me4000_ai_context_t *);
-static int me4000_ai_ex_trig_setup(me4000_ai_trigger_t *,
-				   me4000_ai_context_t *);
-static int me4000_ai_sc_setup(me4000_ai_sc_t * arg,
-			      me4000_ai_context_t * ai_context);
-static int me4000_ai_offset_enable(me4000_ai_context_t * ai_context);
-static int me4000_ai_offset_disable(me4000_ai_context_t * ai_context);
-static int me4000_ai_fullscale_enable(me4000_ai_context_t * ai_context);
-static int me4000_ai_fullscale_disable(me4000_ai_context_t * ai_context);
-static int me4000_ai_fsm_state(int *arg, me4000_ai_context_t * ai_context);
+static int me4000_ai_prepare(struct me4000_ai_context *ai_context);
+static int me4000_ai_reset(struct me4000_ai_context *ai_context);
+static int me4000_ai_config(struct me4000_ai_config *,
+				struct me4000_ai_context *);
+static int me4000_ai_start(struct me4000_ai_context *);
+static int me4000_ai_start_ex(unsigned long *, struct me4000_ai_context *);
+static int me4000_ai_stop(struct me4000_ai_context *);
+static int me4000_ai_immediate_stop(struct me4000_ai_context *);
+static int me4000_ai_ex_trig_enable(struct me4000_ai_context *);
+static int me4000_ai_ex_trig_disable(struct me4000_ai_context *);
+static int me4000_ai_ex_trig_setup(struct me4000_ai_trigger *,
+				   struct me4000_ai_context *);
+static int me4000_ai_sc_setup(struct me4000_ai_sc *arg,
+			      struct me4000_ai_context *ai_context);
+static int me4000_ai_offset_enable(struct me4000_ai_context *ai_context);
+static int me4000_ai_offset_disable(struct me4000_ai_context *ai_context);
+static int me4000_ai_fullscale_enable(struct me4000_ai_context *ai_context);
+static int me4000_ai_fullscale_disable(struct me4000_ai_context *ai_context);
+static int me4000_ai_fsm_state(int *arg, struct me4000_ai_context *ai_context);
 static int me4000_ai_get_count_buffer(unsigned long *arg,
-				      me4000_ai_context_t * ai_context);
+				      struct me4000_ai_context *ai_context);
 
 /*-----------------------------------------------------------------------------
   EEPROM stuff
   ---------------------------------------------------------------------------*/
-static int me4000_eeprom_read(me4000_eeprom_t * arg,
-			      me4000_ai_context_t * ai_context);
-static int me4000_eeprom_write(me4000_eeprom_t * arg,
-			       me4000_ai_context_t * ai_context);
-static unsigned short eeprom_read_cmd(me4000_ai_context_t * ai_context,
-				      unsigned long cmd, int length);
-static int eeprom_write_cmd(me4000_ai_context_t * ai_context, unsigned long cmd,
-			    int length);
+static int me4000_eeprom_read(struct me4000_eeprom *arg,
+			      struct me4000_ai_context *ai_context);
+static int me4000_eeprom_write(struct me4000_eeprom *arg,
+			       struct me4000_ai_context *ai_context);
 
 /*-----------------------------------------------------------------------------
   Digital I/O stuff
   ---------------------------------------------------------------------------*/
 static int me4000_dio_ioctl(struct inode *, struct file *, unsigned int,
 			    unsigned long);
-static int me4000_dio_config(me4000_dio_config_t *, me4000_dio_context_t *);
-static int me4000_dio_get_byte(me4000_dio_byte_t *, me4000_dio_context_t *);
-static int me4000_dio_set_byte(me4000_dio_byte_t *, me4000_dio_context_t *);
-static int me4000_dio_reset(me4000_dio_context_t *);
+static int me4000_dio_config(struct me4000_dio_config *,
+				struct me4000_dio_context *);
+static int me4000_dio_get_byte(struct me4000_dio_byte *,
+				struct me4000_dio_context *);
+static int me4000_dio_set_byte(struct me4000_dio_byte *,
+				struct me4000_dio_context *);
+static int me4000_dio_reset(struct me4000_dio_context *);
 
 /*-----------------------------------------------------------------------------
   Counter stuff
   ---------------------------------------------------------------------------*/
 static int me4000_cnt_ioctl(struct inode *, struct file *, unsigned int,
 			    unsigned long);
-static int me4000_cnt_config(me4000_cnt_config_t *, me4000_cnt_context_t *);
-static int me4000_cnt_read(me4000_cnt_t *, me4000_cnt_context_t *);
-static int me4000_cnt_write(me4000_cnt_t *, me4000_cnt_context_t *);
-static int me4000_cnt_reset(me4000_cnt_context_t *);
+static int me4000_cnt_config(struct me4000_cnt_config *,
+				struct me4000_cnt_context *);
+static int me4000_cnt_read(struct me4000_cnt *, struct me4000_cnt_context *);
+static int me4000_cnt_write(struct me4000_cnt *, struct me4000_cnt_context *);
+static int me4000_cnt_reset(struct me4000_cnt_context *);
 
 /*-----------------------------------------------------------------------------
   External interrupt routines
   ---------------------------------------------------------------------------*/
 static int me4000_ext_int_ioctl(struct inode *, struct file *, unsigned int,
 				unsigned long);
-static int me4000_ext_int_enable(me4000_ext_int_context_t *);
-static int me4000_ext_int_disable(me4000_ext_int_context_t *);
+static int me4000_ext_int_enable(struct me4000_ext_int_context *);
+static int me4000_ext_int_disable(struct me4000_ext_int_context *);
 static int me4000_ext_int_count(unsigned long *arg,
-				me4000_ext_int_context_t * ext_int_context);
+				struct me4000_ext_int_context *ext_int_context);
 static int me4000_ext_int_fasync(int fd, struct file *file_ptr, int mode);
 
 /*-----------------------------------------------------------------------------
@@ -260,27 +246,18 @@ static irqreturn_t me4000_ext_int_isr(int, void *);
 /*-----------------------------------------------------------------------------
   Inline functions
   ---------------------------------------------------------------------------*/
-static int inline me4000_buf_count(me4000_circ_buf_t, int);
-static int inline me4000_buf_space(me4000_circ_buf_t, int);
-static int inline me4000_space_to_end(me4000_circ_buf_t, int);
-static int inline me4000_values_to_end(me4000_circ_buf_t, int);
 
-static void inline me4000_outb(unsigned char value, unsigned long port);
-static void inline me4000_outl(unsigned long value, unsigned long port);
-static unsigned long inline me4000_inl(unsigned long port);
-static unsigned char inline me4000_inb(unsigned long port);
-
-static int me4000_buf_count(me4000_circ_buf_t buf, int size)
+static int inline me4000_buf_count(struct me4000_circ_buf buf, int size)
 {
 	return ((buf.head - buf.tail) & (size - 1));
 }
 
-static int me4000_buf_space(me4000_circ_buf_t buf, int size)
+static int inline me4000_buf_space(struct me4000_circ_buf buf, int size)
 {
 	return ((buf.tail - (buf.head + 1)) & (size - 1));
 }
 
-static int me4000_values_to_end(me4000_circ_buf_t buf, int size)
+static int inline me4000_values_to_end(struct me4000_circ_buf buf, int size)
 {
 	int end;
 	int n;
@@ -289,7 +266,7 @@ static int me4000_values_to_end(me4000_circ_buf_t buf, int size)
 	return (n < end) ? n : end;
 }
 
-static int me4000_space_to_end(me4000_circ_buf_t buf, int size)
+static int inline me4000_space_to_end(struct me4000_circ_buf buf, int size)
 {
 	int end;
 	int n;
@@ -299,19 +276,19 @@ static int me4000_space_to_end(me4000_circ_buf_t buf, int size)
 	return (n <= end) ? n : (end + 1);
 }
 
-static void me4000_outb(unsigned char value, unsigned long port)
+static void inline me4000_outb(unsigned char value, unsigned long port)
 {
 	PORT_PDEBUG("--> 0x%02X port 0x%04lX\n", value, port);
 	outb(value, port);
 }
 
-static void me4000_outl(unsigned long value, unsigned long port)
+static void inline me4000_outl(unsigned long value, unsigned long port)
 {
 	PORT_PDEBUG("--> 0x%08lX port 0x%04lX\n", value, port);
 	outl(value, port);
 }
 
-static unsigned long me4000_inl(unsigned long port)
+static unsigned long inline me4000_inl(unsigned long port)
 {
 	unsigned long value;
 	value = inl(port);
@@ -319,7 +296,7 @@ static unsigned long me4000_inl(unsigned long port)
 	return value;
 }
 
-static unsigned char me4000_inb(unsigned long port)
+static unsigned char inline me4000_inb(unsigned long port)
 {
 	unsigned char value;
 	value = inb(port);
@@ -327,102 +304,102 @@ static unsigned char me4000_inb(unsigned long port)
 	return value;
 }
 
-struct pci_driver me4000_driver = {
+static struct pci_driver me4000_driver = {
 	.name = ME4000_NAME,
 	.id_table = me4000_pci_table,
 	.probe = me4000_probe
 };
 
 static struct file_operations me4000_ao_fops_sing = {
-      owner:THIS_MODULE,
-      write:me4000_ao_write_sing,
-      ioctl:me4000_ao_ioctl_sing,
-      open:me4000_open,
-      release:me4000_release,
+      .owner = THIS_MODULE,
+      .write = me4000_ao_write_sing,
+      .ioctl = me4000_ao_ioctl_sing,
+      .open = me4000_open,
+      .release = me4000_release,
 };
 
 static struct file_operations me4000_ao_fops_wrap = {
-      owner:THIS_MODULE,
-      write:me4000_ao_write_wrap,
-      ioctl:me4000_ao_ioctl_wrap,
-      open:me4000_open,
-      release:me4000_release,
+      .owner = THIS_MODULE,
+      .write = me4000_ao_write_wrap,
+      .ioctl = me4000_ao_ioctl_wrap,
+      .open = me4000_open,
+      .release = me4000_release,
 };
 
 static struct file_operations me4000_ao_fops_cont = {
-      owner:THIS_MODULE,
-      write:me4000_ao_write_cont,
-      poll:me4000_ao_poll_cont,
-      ioctl:me4000_ao_ioctl_cont,
-      open:me4000_open,
-      release:me4000_release,
-      fsync:me4000_ao_fsync_cont,
+      .owner = THIS_MODULE,
+      .write = me4000_ao_write_cont,
+      .poll = me4000_ao_poll_cont,
+      .ioctl = me4000_ao_ioctl_cont,
+      .open = me4000_open,
+      .release = me4000_release,
+      .fsync = me4000_ao_fsync_cont,
 };
 
 static struct file_operations me4000_ai_fops_sing = {
-      owner:THIS_MODULE,
-      ioctl:me4000_ai_ioctl_sing,
-      open:me4000_open,
-      release:me4000_release,
+      .owner = THIS_MODULE,
+      .ioctl = me4000_ai_ioctl_sing,
+      .open = me4000_open,
+      .release = me4000_release,
 };
 
 static struct file_operations me4000_ai_fops_cont_sw = {
-      owner:THIS_MODULE,
-      read:me4000_ai_read,
-      poll:me4000_ai_poll,
-      ioctl:me4000_ai_ioctl_sw,
-      open:me4000_open,
-      release:me4000_release,
-      fasync:me4000_ai_fasync,
+      .owner = THIS_MODULE,
+      .read = me4000_ai_read,
+      .poll = me4000_ai_poll,
+      .ioctl = me4000_ai_ioctl_sw,
+      .open = me4000_open,
+      .release = me4000_release,
+      .fasync = me4000_ai_fasync,
 };
 
 static struct file_operations me4000_ai_fops_cont_et = {
-      owner:THIS_MODULE,
-      read:me4000_ai_read,
-      poll:me4000_ai_poll,
-      ioctl:me4000_ai_ioctl_ext,
-      open:me4000_open,
-      release:me4000_release,
+      .owner = THIS_MODULE,
+      .read = me4000_ai_read,
+      .poll = me4000_ai_poll,
+      .ioctl = me4000_ai_ioctl_ext,
+      .open = me4000_open,
+      .release = me4000_release,
 };
 
 static struct file_operations me4000_ai_fops_cont_et_value = {
-      owner:THIS_MODULE,
-      read:me4000_ai_read,
-      poll:me4000_ai_poll,
-      ioctl:me4000_ai_ioctl_ext,
-      open:me4000_open,
-      release:me4000_release,
+      .owner = THIS_MODULE,
+      .read = me4000_ai_read,
+      .poll = me4000_ai_poll,
+      .ioctl = me4000_ai_ioctl_ext,
+      .open = me4000_open,
+      .release = me4000_release,
 };
 
 static struct file_operations me4000_ai_fops_cont_et_chanlist = {
-      owner:THIS_MODULE,
-      read:me4000_ai_read,
-      poll:me4000_ai_poll,
-      ioctl:me4000_ai_ioctl_ext,
-      open:me4000_open,
-      release:me4000_release,
+      .owner = THIS_MODULE,
+      .read = me4000_ai_read,
+      .poll = me4000_ai_poll,
+      .ioctl = me4000_ai_ioctl_ext,
+      .open = me4000_open,
+      .release = me4000_release,
 };
 
 static struct file_operations me4000_dio_fops = {
-      owner:THIS_MODULE,
-      ioctl:me4000_dio_ioctl,
-      open:me4000_open,
-      release:me4000_release,
+      .owner = THIS_MODULE,
+      .ioctl = me4000_dio_ioctl,
+      .open = me4000_open,
+      .release = me4000_release,
 };
 
 static struct file_operations me4000_cnt_fops = {
-      owner:THIS_MODULE,
-      ioctl:me4000_cnt_ioctl,
-      open:me4000_open,
-      release:me4000_release,
+      .owner = THIS_MODULE,
+      .ioctl = me4000_cnt_ioctl,
+      .open = me4000_open,
+      .release = me4000_release,
 };
 
 static struct file_operations me4000_ext_int_fops = {
-      owner:THIS_MODULE,
-      ioctl:me4000_ext_int_ioctl,
-      open:me4000_open,
-      release:me4000_release,
-      fasync:me4000_ext_int_fasync,
+      .owner = THIS_MODULE,
+      .ioctl = me4000_ext_int_ioctl,
+      .open = me4000_open,
+      .release = me4000_release,
+      .fasync = me4000_ext_int_fasync,
 };
 
 static struct file_operations *me4000_ao_fops_array[] = {
@@ -439,9 +416,9 @@ static struct file_operations *me4000_ai_fops_array[] = {
 	&me4000_ai_fops_cont_et_chanlist,	// work through one channel list by external trigger
 };
 
-int __init me4000_init_module(void)
+static int __init me4000_init_module(void)
 {
-	int result = 0;
+	int result;
 
 	CALL_PDEBUG("init_module() is executed\n");
 
@@ -533,26 +510,26 @@ int __init me4000_init_module(void)
 
 	return 0;
 
-      INIT_ERROR_7:
+INIT_ERROR_7:
 	unregister_chrdev(me4000_ext_int_major_driver_no, ME4000_EXT_INT_NAME);
 
-      INIT_ERROR_6:
+INIT_ERROR_6:
 	unregister_chrdev(me4000_cnt_major_driver_no, ME4000_CNT_NAME);
 
-      INIT_ERROR_5:
+INIT_ERROR_5:
 	unregister_chrdev(me4000_dio_major_driver_no, ME4000_DIO_NAME);
 
-      INIT_ERROR_4:
+INIT_ERROR_4:
 	unregister_chrdev(me4000_ai_major_driver_no, ME4000_AI_NAME);
 
-      INIT_ERROR_3:
+INIT_ERROR_3:
 	unregister_chrdev(me4000_ao_major_driver_no, ME4000_AO_NAME);
 
-      INIT_ERROR_2:
+INIT_ERROR_2:
 	pci_unregister_driver(&me4000_driver);
 	clear_board_info_list();
 
-      INIT_ERROR_1:
+INIT_ERROR_1:
 	return result;
 }
 
@@ -562,18 +539,18 @@ static void clear_board_info_list(void)
 {
 	struct list_head *board_p;
 	struct list_head *dac_p;
-	me4000_info_t *board_info;
-	me4000_ao_context_t *ao_context;
+	struct me4000_info *board_info;
+	struct me4000_ao_context *ao_context;
 
 	/* Clear context lists */
 	for (board_p = me4000_board_info_list.next;
 	     board_p != &me4000_board_info_list; board_p = board_p->next) {
-		board_info = list_entry(board_p, me4000_info_t, list);
+		board_info = list_entry(board_p, struct me4000_info, list);
 		/* Clear analog output context list */
 		while (!list_empty(&board_info->ao_context_list)) {
 			dac_p = board_info->ao_context_list.next;
 			ao_context =
-			    list_entry(dac_p, me4000_ao_context_t, list);
+			    list_entry(dac_p, struct me4000_ao_context, list);
 			me4000_ao_reset(ao_context);
 			free_irq(ao_context->irq, ao_context);
 			if (ao_context->circ_buf.buf)
@@ -600,14 +577,14 @@ static void clear_board_info_list(void)
 	/* Clear the board info list */
 	while (!list_empty(&me4000_board_info_list)) {
 		board_p = me4000_board_info_list.next;
-		board_info = list_entry(board_p, me4000_info_t, list);
+		board_info = list_entry(board_p, struct me4000_info, list);
 		pci_release_regions(board_info->pci_dev_p);
 		list_del(board_p);
 		kfree(board_info);
 	}
 }
 
-static int get_registers(struct pci_dev *dev, me4000_info_t * board_info)
+static int get_registers(struct pci_dev *dev, struct me4000_info *board_info)
 {
 
 	/*--------------------------- plx regbase ---------------------------------*/
@@ -667,20 +644,20 @@ static int get_registers(struct pci_dev *dev, me4000_info_t * board_info)
 }
 
 static int init_board_info(struct pci_dev *pci_dev_p,
-			   me4000_info_t * board_info)
+			   struct me4000_info *board_info)
 {
 	int i;
 	int result;
 	struct list_head *board_p;
 	board_info->pci_dev_p = pci_dev_p;
 
-	for (i = 0; i < ME4000_BOARD_VERSIONS; i++) {
+	for (i = 0; i < ARRAY_SIZE(me4000_boards); i++) {
 		if (me4000_boards[i].device_id == pci_dev_p->device) {
 			board_info->board_p = &me4000_boards[i];
 			break;
 		}
 	}
-	if (i == ME4000_BOARD_VERSIONS) {
+	if (i == ARRAY_SIZE(me4000_boards)) {
 		printk(KERN_ERR
 		       "ME4000:init_board_info():Device ID not valid\n");
 		return -ENODEV;
@@ -755,21 +732,21 @@ static int init_board_info(struct pci_dev *pci_dev_p,
 	return 0;
 }
 
-static int alloc_ao_contexts(me4000_info_t * info)
+static int alloc_ao_contexts(struct me4000_info *info)
 {
 	int i;
 	int err;
-	me4000_ao_context_t *ao_context;
+	struct me4000_ao_context *ao_context;
 
 	for (i = 0; i < info->board_p->ao.count; i++) {
-		ao_context = kmalloc(sizeof(me4000_ao_context_t), GFP_KERNEL);
+		ao_context = kzalloc(sizeof(struct me4000_ao_context),
+								GFP_KERNEL);
 		if (!ao_context) {
 			printk(KERN_ERR
 			       "alloc_ao_contexts():Can't get memory for ao context\n");
 			release_ao_contexts(info);
 			return -ENOMEM;
 		}
-		memset(ao_context, 0, sizeof(me4000_ao_context_t));
 
 		spin_lock_init(&ao_context->use_lock);
 		spin_lock_init(&ao_context->int_lock);
@@ -780,15 +757,13 @@ static int alloc_ao_contexts(me4000_info_t * info)
 		if (info->board_p->ao.fifo_count) {
 			/* Allocate circular buffer */
 			ao_context->circ_buf.buf =
-			    kmalloc(ME4000_AO_BUFFER_SIZE, GFP_KERNEL);
+			    kzalloc(ME4000_AO_BUFFER_SIZE, GFP_KERNEL);
 			if (!ao_context->circ_buf.buf) {
 				printk(KERN_ERR
 				       "alloc_ao_contexts():Can't get circular buffer\n");
 				release_ao_contexts(info);
 				return -ENOMEM;
 			}
-			memset(ao_context->circ_buf.buf, 0,
-			       ME4000_AO_BUFFER_SIZE);
 
 			/* Clear the circular buffer */
 			ao_context->circ_buf.head = 0;
@@ -872,9 +847,8 @@ static int alloc_ao_contexts(me4000_info_t * info)
 					ME4000_NAME, ao_context);
 			if (err) {
 				printk(KERN_ERR
-				       "alloc_ao_contexts():Can't get interrupt line");
-				if (ao_context->circ_buf.buf)
-					kfree(ao_context->circ_buf.buf);
+				       "%s:Can't get interrupt line", __func__);
+				kfree(ao_context->circ_buf.buf);
 				kfree(ao_context);
 				release_ao_contexts(info);
 				return -ENODEV;
@@ -888,35 +862,34 @@ static int alloc_ao_contexts(me4000_info_t * info)
 	return 0;
 }
 
-static void release_ao_contexts(me4000_info_t * board_info)
+static void release_ao_contexts(struct me4000_info *board_info)
 {
 	struct list_head *dac_p;
-	me4000_ao_context_t *ao_context;
+	struct me4000_ao_context *ao_context;
 
 	/* Clear analog output context list */
 	while (!list_empty(&board_info->ao_context_list)) {
 		dac_p = board_info->ao_context_list.next;
-		ao_context = list_entry(dac_p, me4000_ao_context_t, list);
+		ao_context = list_entry(dac_p, struct me4000_ao_context, list);
 		free_irq(ao_context->irq, ao_context);
-		if (ao_context->circ_buf.buf)
-			kfree(ao_context->circ_buf.buf);
+		kfree(ao_context->circ_buf.buf);
 		list_del(dac_p);
 		kfree(ao_context);
 	}
 }
 
-static int alloc_ai_context(me4000_info_t * info)
+static int alloc_ai_context(struct me4000_info *info)
 {
-	me4000_ai_context_t *ai_context;
+	struct me4000_ai_context *ai_context;
 
 	if (info->board_p->ai.count) {
-		ai_context = kmalloc(sizeof(me4000_ai_context_t), GFP_KERNEL);
+		ai_context = kzalloc(sizeof(struct me4000_ai_context),
+								GFP_KERNEL);
 		if (!ai_context) {
 			printk(KERN_ERR
 			       "ME4000:alloc_ai_context():Can't get memory for ai context\n");
 			return -ENOMEM;
 		}
-		memset(ai_context, 0, sizeof(me4000_ai_context_t));
 
 		info->ai_context = ai_context;
 
@@ -958,18 +931,18 @@ static int alloc_ai_context(me4000_info_t * info)
 	return 0;
 }
 
-static int alloc_dio_context(me4000_info_t * info)
+static int alloc_dio_context(struct me4000_info *info)
 {
-	me4000_dio_context_t *dio_context;
+	struct me4000_dio_context *dio_context;
 
 	if (info->board_p->dio.count) {
-		dio_context = kmalloc(sizeof(me4000_dio_context_t), GFP_KERNEL);
+		dio_context = kzalloc(sizeof(struct me4000_dio_context),
+								GFP_KERNEL);
 		if (!dio_context) {
 			printk(KERN_ERR
 			       "ME4000:alloc_dio_context():Can't get memory for dio context\n");
 			return -ENOMEM;
 		}
-		memset(dio_context, 0, sizeof(me4000_dio_context_t));
 
 		info->dio_context = dio_context;
 
@@ -995,18 +968,18 @@ static int alloc_dio_context(me4000_info_t * info)
 	return 0;
 }
 
-static int alloc_cnt_context(me4000_info_t * info)
+static int alloc_cnt_context(struct me4000_info *info)
 {
-	me4000_cnt_context_t *cnt_context;
+	struct me4000_cnt_context *cnt_context;
 
 	if (info->board_p->cnt.count) {
-		cnt_context = kmalloc(sizeof(me4000_cnt_context_t), GFP_KERNEL);
+		cnt_context = kzalloc(sizeof(struct me4000_cnt_context),
+								GFP_KERNEL);
 		if (!cnt_context) {
 			printk(KERN_ERR
 			       "ME4000:alloc_cnt_context():Can't get memory for cnt context\n");
 			return -ENOMEM;
 		}
-		memset(cnt_context, 0, sizeof(me4000_cnt_context_t));
 
 		info->cnt_context = cnt_context;
 
@@ -1026,19 +999,18 @@ static int alloc_cnt_context(me4000_info_t * info)
 	return 0;
 }
 
-static int alloc_ext_int_context(me4000_info_t * info)
+static int alloc_ext_int_context(struct me4000_info *info)
 {
-	me4000_ext_int_context_t *ext_int_context;
+	struct me4000_ext_int_context *ext_int_context;
 
 	if (info->board_p->cnt.count) {
 		ext_int_context =
-		    kmalloc(sizeof(me4000_ext_int_context_t), GFP_KERNEL);
+		    kzalloc(sizeof(struct me4000_ext_int_context), GFP_KERNEL);
 		if (!ext_int_context) {
 			printk(KERN_ERR
 			       "ME4000:alloc_ext_int_context():Can't get memory for cnt context\n");
 			return -ENOMEM;
 		}
-		memset(ext_int_context, 0, sizeof(me4000_ext_int_context_t));
 
 		info->ext_int_context = ext_int_context;
 
@@ -1060,19 +1032,18 @@ static int alloc_ext_int_context(me4000_info_t * info)
 static int me4000_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	int result = 0;
-	me4000_info_t *board_info;
+	struct me4000_info *board_info;
 
 	CALL_PDEBUG("me4000_probe() is executed\n");
 
 	/* Allocate structure for board context */
-	board_info = kmalloc(sizeof(me4000_info_t), GFP_KERNEL);
+	board_info = kzalloc(sizeof(struct me4000_info), GFP_KERNEL);
 	if (!board_info) {
 		printk(KERN_ERR
 		       "ME4000:Can't get memory for board info structure\n");
 		result = -ENOMEM;
 		goto PROBE_ERROR_1;
 	}
-	memset(board_info, 0, sizeof(me4000_info_t));
 
 	/* Add to global linked list */
 	list_add_tail(&board_info->list, &me4000_board_info_list);
@@ -1080,70 +1051,70 @@ static int me4000_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	/* Get the PCI base registers */
 	result = get_registers(dev, board_info);
 	if (result) {
-		printk(KERN_ERR "me4000_probe():Cannot get registers\n");
+		printk(KERN_ERR "%s:Cannot get registers\n", __func__);
 		goto PROBE_ERROR_2;
 	}
 
 	/* Enable the device */
 	result = pci_enable_device(dev);
 	if (result < 0) {
-		printk(KERN_ERR "me4000_probe():Cannot enable PCI device\n");
+		printk(KERN_ERR "%s:Cannot enable PCI device\n", __func__);
 		goto PROBE_ERROR_2;
 	}
 
 	/* Request the PCI register regions */
 	result = pci_request_regions(dev, ME4000_NAME);
 	if (result < 0) {
-		printk(KERN_ERR "me4000_probe():Cannot request I/O regions\n");
+		printk(KERN_ERR "%s:Cannot request I/O regions\n", __func__);
 		goto PROBE_ERROR_2;
 	}
 
 	/* Initialize board info */
 	result = init_board_info(dev, board_info);
 	if (result) {
-		printk(KERN_ERR "me4000_probe():Cannot init baord info\n");
+		printk(KERN_ERR "%s:Cannot init baord info\n", __func__);
 		goto PROBE_ERROR_3;
 	}
 
 	/* Download the xilinx firmware */
 	result = me4000_xilinx_download(board_info);
 	if (result) {
-		printk(KERN_ERR "me4000_probe:Can't download firmware\n");
+		printk(KERN_ERR "%s:Can't download firmware\n", __func__);
 		goto PROBE_ERROR_3;
 	}
 
 	/* Make a hardware reset */
 	result = me4000_reset_board(board_info);
 	if (result) {
-		printk(KERN_ERR "me4000_probe:Can't reset board\n");
+		printk(KERN_ERR "%s :Can't reset board\n", __func__);
 		goto PROBE_ERROR_3;
 	}
 
 	/* Allocate analog output context structures */
 	result = alloc_ao_contexts(board_info);
 	if (result) {
-		printk(KERN_ERR "me4000_probe():Cannot allocate ao contexts\n");
+		printk(KERN_ERR "%s:Cannot allocate ao contexts\n", __func__);
 		goto PROBE_ERROR_3;
 	}
 
 	/* Allocate analog input context */
 	result = alloc_ai_context(board_info);
 	if (result) {
-		printk(KERN_ERR "me4000_probe():Cannot allocate ai context\n");
+		printk(KERN_ERR "%s:Cannot allocate ai context\n", __func__);
 		goto PROBE_ERROR_4;
 	}
 
 	/* Allocate digital I/O context */
 	result = alloc_dio_context(board_info);
 	if (result) {
-		printk(KERN_ERR "me4000_probe():Cannot allocate dio context\n");
+		printk(KERN_ERR "%s:Cannot allocate dio context\n", __func__);
 		goto PROBE_ERROR_5;
 	}
 
 	/* Allocate counter context */
 	result = alloc_cnt_context(board_info);
 	if (result) {
-		printk(KERN_ERR "me4000_probe():Cannot allocate cnt context\n");
+		printk(KERN_ERR "%s:Cannot allocate cnt context\n", __func__);
 		goto PROBE_ERROR_6;
 	}
 
@@ -1151,36 +1122,36 @@ static int me4000_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	result = alloc_ext_int_context(board_info);
 	if (result) {
 		printk(KERN_ERR
-		       "me4000_probe():Cannot allocate ext_int context\n");
+		       "%s:Cannot allocate ext_int context\n", __func__);
 		goto PROBE_ERROR_7;
 	}
 
 	return 0;
 
-      PROBE_ERROR_7:
+PROBE_ERROR_7:
 	kfree(board_info->cnt_context);
 
-      PROBE_ERROR_6:
+PROBE_ERROR_6:
 	kfree(board_info->dio_context);
 
-      PROBE_ERROR_5:
+PROBE_ERROR_5:
 	kfree(board_info->ai_context);
 
-      PROBE_ERROR_4:
+PROBE_ERROR_4:
 	release_ao_contexts(board_info);
 
-      PROBE_ERROR_3:
+PROBE_ERROR_3:
 	pci_release_regions(dev);
 
-      PROBE_ERROR_2:
+PROBE_ERROR_2:
 	list_del(&board_info->list);
 	kfree(board_info);
 
-      PROBE_ERROR_1:
+PROBE_ERROR_1:
 	return result;
 }
 
-static int me4000_xilinx_download(me4000_info_t * info)
+static int me4000_xilinx_download(struct me4000_info *info)
 {
 	int size = 0;
 	u32 value = 0;
@@ -1211,7 +1182,7 @@ static int me4000_xilinx_download(me4000_info_t * info)
 	/* Wait until /INIT pin is set */
 	udelay(20);
 	if (!inl(info->plx_regbase + PLX_INTCSR) & 0x20) {
-		printk(KERN_ERR "me4000_xilinx_download():Can't init Xilinx\n");
+		printk(KERN_ERR "%s:Can't init Xilinx\n", __func__);
 		return -EIO;
 	}
 
@@ -1232,7 +1203,7 @@ static int me4000_xilinx_download(me4000_info_t * info)
 		/* Check if BUSY flag is low */
 		if (inl(info->plx_regbase + PLX_ICR) & 0x20) {
 			printk(KERN_ERR
-			       "me4000_xilinx_download():Xilinx is still busy (idx = %d)\n",
+			       "%s:Xilinx is still busy (idx = %d)\n", __func__,
 			       idx);
 			return -EIO;
 		}
@@ -1246,9 +1217,9 @@ static int me4000_xilinx_download(me4000_info_t * info)
 		PDEBUG("me4000_xilinx_download():Download was successful\n");
 	} else {
 		printk(KERN_ERR
-		       "ME4000:me4000_xilinx_download():DONE flag is not set\n");
+		       "ME4000:%s:DONE flag is not set\n", __func__);
 		printk(KERN_ERR
-		       "ME4000:me4000_xilinx_download():Download not succesful\n");
+		       "ME4000:%s:Download not succesful\n", __func__);
 		return -EIO;
 	}
 
@@ -1260,7 +1231,7 @@ static int me4000_xilinx_download(me4000_info_t * info)
 	return 0;
 }
 
-static int me4000_reset_board(me4000_info_t * info)
+static int me4000_reset_board(struct me4000_info *info)
 {
 	unsigned long icr;
 
@@ -1314,12 +1285,12 @@ static int me4000_open(struct inode *inode_p, struct file *file_p)
 	int err = 0;
 	int i;
 	struct list_head *ptr;
-	me4000_info_t *board_info = NULL;
-	me4000_ao_context_t *ao_context = NULL;
-	me4000_ai_context_t *ai_context = NULL;
-	me4000_dio_context_t *dio_context = NULL;
-	me4000_cnt_context_t *cnt_context = NULL;
-	me4000_ext_int_context_t *ext_int_context = NULL;
+	struct me4000_info *board_info = NULL;
+	struct me4000_ao_context *ao_context = NULL;
+	struct me4000_ai_context *ai_context = NULL;
+	struct me4000_dio_context *dio_context = NULL;
+	struct me4000_cnt_context *cnt_context = NULL;
+	struct me4000_ext_int_context *ext_int_context = NULL;
 
 	CALL_PDEBUG("me4000_open() is executed\n");
 
@@ -1335,7 +1306,7 @@ static int me4000_open(struct inode *inode_p, struct file *file_p)
 		/* Search for the board context */
 		for (ptr = me4000_board_info_list.next, i = 0;
 		     ptr != &me4000_board_info_list; ptr = ptr->next, i++) {
-			board_info = list_entry(ptr, me4000_info_t, list);
+			board_info = list_entry(ptr, struct me4000_info, list);
 			if (i == board)
 				break;
 		}
@@ -1351,7 +1322,8 @@ static int me4000_open(struct inode *inode_p, struct file *file_p)
 		for (ptr = board_info->ao_context_list.next, i = 0;
 		     ptr != &board_info->ao_context_list;
 		     ptr = ptr->next, i++) {
-			ao_context = list_entry(ptr, me4000_ao_context_t, list);
+			ao_context = list_entry(ptr, struct me4000_ao_context,
+									list);
 			if (i == dev)
 				break;
 		}
@@ -1415,7 +1387,7 @@ static int me4000_open(struct inode *inode_p, struct file *file_p)
 		/* Search for the board context */
 		for (ptr = me4000_board_info_list.next, i = 0;
 		     ptr != &me4000_board_info_list; ptr = ptr->next, i++) {
-			board_info = list_entry(ptr, me4000_info_t, list);
+			board_info = list_entry(ptr, struct me4000_info, list);
 			if (i == board)
 				break;
 		}
@@ -1469,7 +1441,7 @@ static int me4000_open(struct inode *inode_p, struct file *file_p)
 		/* Search for the board context */
 		for (ptr = me4000_board_info_list.next;
 		     ptr != &me4000_board_info_list; ptr = ptr->next) {
-			board_info = list_entry(ptr, me4000_info_t, list);
+			board_info = list_entry(ptr, struct me4000_info, list);
 			if (board_info->board_count == board)
 				break;
 		}
@@ -1514,7 +1486,7 @@ static int me4000_open(struct inode *inode_p, struct file *file_p)
 		/* Search for the board context */
 		for (ptr = me4000_board_info_list.next;
 		     ptr != &me4000_board_info_list; ptr = ptr->next) {
-			board_info = list_entry(ptr, me4000_info_t, list);
+			board_info = list_entry(ptr, struct me4000_info, list);
 			if (board_info->board_count == board)
 				break;
 		}
@@ -1557,7 +1529,7 @@ static int me4000_open(struct inode *inode_p, struct file *file_p)
 		/* Search for the board context */
 		for (ptr = me4000_board_info_list.next;
 		     ptr != &me4000_board_info_list; ptr = ptr->next) {
-			board_info = list_entry(ptr, me4000_info_t, list);
+			board_info = list_entry(ptr, struct me4000_info, list);
 			if (board_info->board_count == board)
 				break;
 		}
@@ -1613,11 +1585,11 @@ static int me4000_open(struct inode *inode_p, struct file *file_p)
 
 static int me4000_release(struct inode *inode_p, struct file *file_p)
 {
-	me4000_ao_context_t *ao_context;
-	me4000_ai_context_t *ai_context;
-	me4000_dio_context_t *dio_context;
-	me4000_cnt_context_t *cnt_context;
-	me4000_ext_int_context_t *ext_int_context;
+	struct me4000_ao_context *ao_context;
+	struct me4000_ai_context *ai_context;
+	struct me4000_dio_context *dio_context;
+	struct me4000_cnt_context *cnt_context;
+	struct me4000_ext_int_context *ext_int_context;
 
 	CALL_PDEBUG("me4000_release() is executed\n");
 
@@ -1677,7 +1649,7 @@ static int me4000_release(struct inode *inode_p, struct file *file_p)
 
 /*------------------------------- Analog output stuff --------------------------------------*/
 
-static int me4000_ao_prepare(me4000_ao_context_t * ao_context)
+static int me4000_ao_prepare(struct me4000_ao_context *ao_context)
 {
 	unsigned long flags;
 
@@ -1756,7 +1728,7 @@ static int me4000_ao_prepare(me4000_ao_context_t * ao_context)
 	return 0;
 }
 
-static int me4000_ao_reset(me4000_ao_context_t * ao_context)
+static int me4000_ao_reset(struct me4000_ao_context *ao_context)
 {
 	u32 tmp;
 	wait_queue_head_t queue;
@@ -1777,9 +1749,10 @@ static int me4000_ao_reset(me4000_ao_context_t * ao_context)
 		tmp |= ME4000_AO_CTRL_BIT_IMMEDIATE_STOP;
 		me4000_outl(tmp, ao_context->ctrl_reg);
 
-		while (inl(ao_context->status_reg) & ME4000_AO_STATUS_BIT_FSM) {
-			sleep_on_timeout(&queue, 1);
-		}
+		wait_event_timeout(queue,
+			(inl(ao_context->status_reg) &
+				ME4000_AO_STATUS_BIT_FSM) == 0,
+			1);
 
 		/* Set to transparent mode */
 		me4000_ao_simultaneous_disable(ao_context);
@@ -1812,9 +1785,10 @@ static int me4000_ao_reset(me4000_ao_context_t * ao_context)
 		me4000_outl(tmp, ao_context->ctrl_reg);
 		spin_unlock_irqrestore(&ao_context->int_lock, flags);
 
-		while (inl(ao_context->status_reg) & ME4000_AO_STATUS_BIT_FSM) {
-			sleep_on_timeout(&queue, 1);
-		}
+		wait_event_timeout(queue,
+			(inl(ao_context->status_reg) &
+				ME4000_AO_STATUS_BIT_FSM) == 0,
+			1);
 
 		/* Clear the circular buffer */
 		ao_context->circ_buf.head = 0;
@@ -1853,9 +1827,9 @@ static int me4000_ao_reset(me4000_ao_context_t * ao_context)
 }
 
 static ssize_t me4000_ao_write_sing(struct file *filep, const char *buff,
-				    size_t cnt, loff_t * offp)
+				    size_t cnt, loff_t *offp)
 {
-	me4000_ao_context_t *ao_context = filep->private_data;
+	struct me4000_ao_context *ao_context = filep->private_data;
 	u32 value;
 	const u16 *buffer = (const u16 *)buff;
 
@@ -1863,13 +1837,13 @@ static ssize_t me4000_ao_write_sing(struct file *filep, const char *buff,
 
 	if (cnt != 2) {
 		printk(KERN_ERR
-		       "me4000_ao_write_sing():Write count is not 2\n");
+		       "%s:Write count is not 2\n", __func__);
 		return -EINVAL;
 	}
 
 	if (get_user(value, buffer)) {
 		printk(KERN_ERR
-		       "me4000_ao_write_sing():Cannot copy data from user\n");
+		       "%s:Cannot copy data from user\n", __func__);
 		return -EFAULT;
 	}
 
@@ -1879,9 +1853,9 @@ static ssize_t me4000_ao_write_sing(struct file *filep, const char *buff,
 }
 
 static ssize_t me4000_ao_write_wrap(struct file *filep, const char *buff,
-				    size_t cnt, loff_t * offp)
+				    size_t cnt, loff_t *offp)
 {
-	me4000_ao_context_t *ao_context = filep->private_data;
+	struct me4000_ao_context *ao_context = filep->private_data;
 	size_t i;
 	u32 value;
 	u32 tmp;
@@ -1893,13 +1867,13 @@ static ssize_t me4000_ao_write_wrap(struct file *filep, const char *buff,
 	/* Check if a conversion is already running */
 	if (inl(ao_context->status_reg) & ME4000_AO_STATUS_BIT_FSM) {
 		printk(KERN_ERR
-		       "ME4000:me4000_ao_write_wrap():There is already a conversion running\n");
+		       "%s:There is already a conversion running\n", __func__);
 		return -EBUSY;
 	}
 
 	if (count > ME4000_AO_FIFO_COUNT) {
 		printk(KERN_ERR
-		       "me4000_ao_write_wrap():Can't load more than %d values\n",
+		       "%s:Can't load more than %d values\n", __func__,
 		       ME4000_AO_FIFO_COUNT);
 		return -ENOSPC;
 	}
@@ -1914,7 +1888,7 @@ static ssize_t me4000_ao_write_wrap(struct file *filep, const char *buff,
 	for (i = 0; i < count; i++) {
 		if (get_user(value, buffer + i)) {
 			printk(KERN_ERR
-			       "me4000_ao_write_single():Cannot copy data from user\n");
+			       "%s:Cannot copy data from user\n", __func__);
 			return -EFAULT;
 		}
 		if (((ao_context->fifo_reg & 0xFF) == ME4000_AO_01_FIFO_REG)
@@ -1928,9 +1902,9 @@ static ssize_t me4000_ao_write_wrap(struct file *filep, const char *buff,
 }
 
 static ssize_t me4000_ao_write_cont(struct file *filep, const char *buff,
-				    size_t cnt, loff_t * offp)
+				    size_t cnt, loff_t *offp)
 {
-	me4000_ao_context_t *ao_context = filep->private_data;
+	struct me4000_ao_context *ao_context = filep->private_data;
 	const u16 *buffer = (const u16 *)buff;
 	size_t count = cnt / 2;
 	unsigned long flags;
@@ -2154,9 +2128,9 @@ static ssize_t me4000_ao_write_cont(struct file *filep, const char *buff,
 	return 2 * ret;
 }
 
-static unsigned int me4000_ao_poll_cont(struct file *file_p, poll_table * wait)
+static unsigned int me4000_ao_poll_cont(struct file *file_p, poll_table *wait)
 {
-	me4000_ao_context_t *ao_context;
+	struct me4000_ao_context *ao_context;
 	unsigned long mask = 0;
 
 	CALL_PDEBUG("me4000_ao_poll_cont() is executed\n");
@@ -2177,7 +2151,7 @@ static unsigned int me4000_ao_poll_cont(struct file *file_p, poll_table * wait)
 static int me4000_ao_fsync_cont(struct file *file_p, struct dentry *dentry_p,
 				int datasync)
 {
-	me4000_ao_context_t *ao_context;
+	struct me4000_ao_context *ao_context;
 	wait_queue_head_t queue;
 
 	CALL_PDEBUG("me4000_ao_fsync_cont() is executed\n");
@@ -2187,15 +2161,19 @@ static int me4000_ao_fsync_cont(struct file *file_p, struct dentry *dentry_p,
 
 	while (inl(ao_context->status_reg) & ME4000_AO_STATUS_BIT_FSM) {
 		interruptible_sleep_on_timeout(&queue, 1);
+			wait_event_interruptible_timeout(queue,
+			!(inl(ao_context->status_reg) & ME4000_AO_STATUS_BIT_FSM),
+			1);
 		if (ao_context->pipe_flag) {
 			printk(KERN_ERR
-			       "me4000_ao_fsync_cont():Broken pipe detected\n");
+			       "%s:Broken pipe detected\n", __func__);
 			return -EPIPE;
 		}
 
 		if (signal_pending(current)) {
 			printk(KERN_ERR
-			       "me4000_ao_fsync_cont():Wait on state machine interrupted\n");
+			       "%s:Wait on state machine interrupted\n",
+			       __func__);
 			return -EINTR;
 		}
 	}
@@ -2206,7 +2184,7 @@ static int me4000_ao_fsync_cont(struct file *file_p, struct dentry *dentry_p,
 static int me4000_ao_ioctl_sing(struct inode *inode_p, struct file *file_p,
 				unsigned int service, unsigned long arg)
 {
-	me4000_ao_context_t *ao_context;
+	struct me4000_ao_context *ao_context;
 
 	CALL_PDEBUG("me4000_ao_ioctl_sing() is executed\n");
 
@@ -2229,7 +2207,7 @@ static int me4000_ao_ioctl_sing(struct inode *inode_p, struct file *file_p,
 	case ME4000_AO_PRELOAD_UPDATE:
 		return me4000_ao_preload_update(ao_context);
 	case ME4000_GET_USER_INFO:
-		return me4000_get_user_info((me4000_user_info_t *) arg,
+		return me4000_get_user_info((struct me4000_user_info *)arg,
 					    ao_context->board_info);
 	case ME4000_AO_SIMULTANEOUS_EX_TRIG:
 		return me4000_ao_simultaneous_ex_trig(ao_context);
@@ -2239,8 +2217,9 @@ static int me4000_ao_ioctl_sing(struct inode *inode_p, struct file *file_p,
 		return me4000_ao_simultaneous_disable(ao_context);
 	case ME4000_AO_SIMULTANEOUS_UPDATE:
 		return
-		    me4000_ao_simultaneous_update((me4000_ao_channel_list_t *)
-						  arg, ao_context);
+		    me4000_ao_simultaneous_update(
+		    		(struct me4000_ao_channel_list *)arg,
+				ao_context);
 	case ME4000_AO_EX_TRIG_TIMEOUT:
 		return me4000_ao_ex_trig_timeout((unsigned long *)arg,
 						 ao_context);
@@ -2258,7 +2237,7 @@ static int me4000_ao_ioctl_sing(struct inode *inode_p, struct file *file_p,
 static int me4000_ao_ioctl_wrap(struct inode *inode_p, struct file *file_p,
 				unsigned int service, unsigned long arg)
 {
-	me4000_ao_context_t *ao_context;
+	struct me4000_ao_context *ao_context;
 
 	CALL_PDEBUG("me4000_ao_ioctl_wrap() is executed\n");
 
@@ -2287,7 +2266,7 @@ static int me4000_ao_ioctl_wrap(struct inode *inode_p, struct file *file_p,
 	case ME4000_AO_EX_TRIG_DISABLE:
 		return me4000_ao_ex_trig_disable(ao_context);
 	case ME4000_GET_USER_INFO:
-		return me4000_get_user_info((me4000_user_info_t *) arg,
+		return me4000_get_user_info((struct me4000_user_info *)arg,
 					    ao_context->board_info);
 	case ME4000_AO_FSM_STATE:
 		return me4000_ao_fsm_state((int *)arg, ao_context);
@@ -2310,7 +2289,7 @@ static int me4000_ao_ioctl_wrap(struct inode *inode_p, struct file *file_p,
 static int me4000_ao_ioctl_cont(struct inode *inode_p, struct file *file_p,
 				unsigned int service, unsigned long arg)
 {
-	me4000_ao_context_t *ao_context;
+	struct me4000_ao_context *ao_context;
 
 	CALL_PDEBUG("me4000_ao_ioctl_cont() is executed\n");
 
@@ -2345,7 +2324,7 @@ static int me4000_ao_ioctl_cont(struct inode *inode_p, struct file *file_p,
 	case ME4000_AO_FSM_STATE:
 		return me4000_ao_fsm_state((int *)arg, ao_context);
 	case ME4000_GET_USER_INFO:
-		return me4000_get_user_info((me4000_user_info_t *) arg,
+		return me4000_get_user_info((struct me4000_user_info *)arg,
 					    ao_context->board_info);
 	case ME4000_AO_SYNCHRONOUS_EX_TRIG:
 		return me4000_ao_synchronous_ex_trig(ao_context);
@@ -2362,7 +2341,8 @@ static int me4000_ao_ioctl_cont(struct inode *inode_p, struct file *file_p,
 	return 0;
 }
 
-static int me4000_ao_start(unsigned long *arg, me4000_ao_context_t * ao_context)
+static int me4000_ao_start(unsigned long *arg,
+			   struct me4000_ao_context *ao_context)
 {
 	u32 tmp;
 	wait_queue_head_t queue;
@@ -2412,7 +2392,7 @@ static int me4000_ao_start(unsigned long *arg, me4000_ao_context_t * ao_context)
 	return 0;
 }
 
-static int me4000_ao_stop(me4000_ao_context_t * ao_context)
+static int me4000_ao_stop(struct me4000_ao_context *ao_context)
 {
 	u32 tmp;
 	wait_queue_head_t queue;
@@ -2445,7 +2425,7 @@ static int me4000_ao_stop(me4000_ao_context_t * ao_context)
 	return 0;
 }
 
-static int me4000_ao_immediate_stop(me4000_ao_context_t * ao_context)
+static int me4000_ao_immediate_stop(struct me4000_ao_context *ao_context)
 {
 	u32 tmp;
 	wait_queue_head_t queue;
@@ -2477,8 +2457,8 @@ static int me4000_ao_immediate_stop(me4000_ao_context_t * ao_context)
 	return 0;
 }
 
-static int me4000_ao_timer_set_divisor(u32 * arg,
-				       me4000_ao_context_t * ao_context)
+static int me4000_ao_timer_set_divisor(u32 *arg,
+				       struct me4000_ao_context *ao_context)
 {
 	u32 divisor;
 	u32 tmp;
@@ -2518,7 +2498,7 @@ static int me4000_ao_timer_set_divisor(u32 * arg,
 }
 
 static int me4000_ao_ex_trig_set_edge(int *arg,
-				      me4000_ao_context_t * ao_context)
+				      struct me4000_ao_context *ao_context)
 {
 	int mode;
 	u32 tmp;
@@ -2569,7 +2549,7 @@ static int me4000_ao_ex_trig_set_edge(int *arg,
 	return 0;
 }
 
-static int me4000_ao_ex_trig_enable(me4000_ao_context_t * ao_context)
+static int me4000_ao_ex_trig_enable(struct me4000_ao_context *ao_context)
 {
 	u32 tmp;
 	unsigned long flags;
@@ -2593,7 +2573,7 @@ static int me4000_ao_ex_trig_enable(me4000_ao_context_t * ao_context)
 	return 0;
 }
 
-static int me4000_ao_ex_trig_disable(me4000_ao_context_t * ao_context)
+static int me4000_ao_ex_trig_disable(struct me4000_ao_context *ao_context)
 {
 	u32 tmp;
 	unsigned long flags;
@@ -2617,7 +2597,7 @@ static int me4000_ao_ex_trig_disable(me4000_ao_context_t * ao_context)
 	return 0;
 }
 
-static int me4000_ao_simultaneous_disable(me4000_ao_context_t * ao_context)
+static int me4000_ao_simultaneous_disable(struct me4000_ao_context *ao_context)
 {
 	u32 tmp;
 
@@ -2643,7 +2623,7 @@ static int me4000_ao_simultaneous_disable(me4000_ao_context_t * ao_context)
 	return 0;
 }
 
-static int me4000_ao_simultaneous_ex_trig(me4000_ao_context_t * ao_context)
+static int me4000_ao_simultaneous_ex_trig(struct me4000_ao_context *ao_context)
 {
 	u32 tmp;
 
@@ -2659,7 +2639,7 @@ static int me4000_ao_simultaneous_ex_trig(me4000_ao_context_t * ao_context)
 	return 0;
 }
 
-static int me4000_ao_simultaneous_sw(me4000_ao_context_t * ao_context)
+static int me4000_ao_simultaneous_sw(struct me4000_ao_context *ao_context)
 {
 	u32 tmp;
 
@@ -2675,13 +2655,13 @@ static int me4000_ao_simultaneous_sw(me4000_ao_context_t * ao_context)
 	return 0;
 }
 
-static int me4000_ao_preload(me4000_ao_context_t * ao_context)
+static int me4000_ao_preload(struct me4000_ao_context *ao_context)
 {
 	CALL_PDEBUG("me4000_ao_preload() is executed\n");
 	return me4000_ao_simultaneous_sw(ao_context);
 }
 
-static int me4000_ao_preload_update(me4000_ao_context_t * ao_context)
+static int me4000_ao_preload_update(struct me4000_ao_context *ao_context)
 {
 	u32 tmp;
 	u32 ctrl;
@@ -2705,10 +2685,12 @@ static int me4000_ao_preload_update(me4000_ao_context_t * ao_context)
 			if (!
 			    (tmp &
 			     (0x1 <<
-			      (((me4000_ao_context_t *) entry)->index + 16)))) {
+			      (((struct me4000_ao_context *)entry)->index
+			      					      + 16)))) {
 				tmp &=
 				    ~(0x1 <<
-				      (((me4000_ao_context_t *) entry)->index));
+				      (((struct me4000_ao_context *)entry)->
+				      					index));
 			}
 		}
 	}
@@ -2718,18 +2700,19 @@ static int me4000_ao_preload_update(me4000_ao_context_t * ao_context)
 	return 0;
 }
 
-static int me4000_ao_simultaneous_update(me4000_ao_channel_list_t * arg,
-					 me4000_ao_context_t * ao_context)
+static int me4000_ao_simultaneous_update(struct me4000_ao_channel_list *arg,
+					 struct me4000_ao_context *ao_context)
 {
 	int err;
 	int i;
 	u32 tmp;
-	me4000_ao_channel_list_t channels;
+	struct me4000_ao_channel_list channels;
 
 	CALL_PDEBUG("me4000_ao_simultaneous_update() is executed\n");
 
 	/* Copy data from user */
-	err = copy_from_user(&channels, arg, sizeof(me4000_ao_channel_list_t));
+	err = copy_from_user(&channels, arg,
+			sizeof(struct me4000_ao_channel_list));
 	if (err) {
 		printk(KERN_ERR
 		       "ME4000:me4000_ao_simultaneous_update():Can't copy command\n");
@@ -2737,13 +2720,12 @@ static int me4000_ao_simultaneous_update(me4000_ao_channel_list_t * arg,
 	}
 
 	channels.list =
-	    kmalloc(sizeof(unsigned long) * channels.count, GFP_KERNEL);
+	    kzalloc(sizeof(unsigned long) * channels.count, GFP_KERNEL);
 	if (!channels.list) {
 		printk(KERN_ERR
 		       "ME4000:me4000_ao_simultaneous_update():Can't get buffer\n");
 		return -ENOMEM;
 	}
-	memset(channels.list, 0, sizeof(unsigned long) * channels.count);
 
 	/* Copy channel list from user */
 	err =
@@ -2777,7 +2759,7 @@ static int me4000_ao_simultaneous_update(me4000_ao_channel_list_t * arg,
 	return 0;
 }
 
-static int me4000_ao_synchronous_ex_trig(me4000_ao_context_t * ao_context)
+static int me4000_ao_synchronous_ex_trig(struct me4000_ao_context *ao_context)
 {
 	u32 tmp;
 	unsigned long flags;
@@ -2813,7 +2795,7 @@ static int me4000_ao_synchronous_ex_trig(me4000_ao_context_t * ao_context)
 	return 0;
 }
 
-static int me4000_ao_synchronous_sw(me4000_ao_context_t * ao_context)
+static int me4000_ao_synchronous_sw(struct me4000_ao_context *ao_context)
 {
 	u32 tmp;
 	unsigned long flags;
@@ -2848,13 +2830,13 @@ static int me4000_ao_synchronous_sw(me4000_ao_context_t * ao_context)
 	return 0;
 }
 
-static int me4000_ao_synchronous_disable(me4000_ao_context_t * ao_context)
+static int me4000_ao_synchronous_disable(struct me4000_ao_context *ao_context)
 {
 	return me4000_ao_simultaneous_disable(ao_context);
 }
 
 static int me4000_ao_get_free_buffer(unsigned long *arg,
-				     me4000_ao_context_t * ao_context)
+				     struct me4000_ao_context *ao_context)
 {
 	unsigned long c;
 	int err;
@@ -2864,7 +2846,7 @@ static int me4000_ao_get_free_buffer(unsigned long *arg,
 	err = copy_to_user(arg, &c, sizeof(unsigned long));
 	if (err) {
 		printk(KERN_ERR
-		       "ME4000:me4000_ao_get_free_buffer():Can't copy to user space\n");
+		       "%s:Can't copy to user space\n", __func__);
 		return -EFAULT;
 	}
 
@@ -2872,7 +2854,7 @@ static int me4000_ao_get_free_buffer(unsigned long *arg,
 }
 
 static int me4000_ao_ex_trig_timeout(unsigned long *arg,
-				     me4000_ao_context_t * ao_context)
+				     struct me4000_ao_context *ao_context)
 {
 	u32 tmp;
 	wait_queue_head_t queue;
@@ -2928,7 +2910,7 @@ static int me4000_ao_ex_trig_timeout(unsigned long *arg,
 	return 0;
 }
 
-static int me4000_ao_enable_do(me4000_ao_context_t * ao_context)
+static int me4000_ao_enable_do(struct me4000_ao_context *ao_context)
 {
 	u32 tmp;
 	unsigned long flags;
@@ -2959,7 +2941,7 @@ static int me4000_ao_enable_do(me4000_ao_context_t * ao_context)
 	return 0;
 }
 
-static int me4000_ao_disable_do(me4000_ao_context_t * ao_context)
+static int me4000_ao_disable_do(struct me4000_ao_context *ao_context)
 {
 	u32 tmp;
 	unsigned long flags;
@@ -2989,7 +2971,7 @@ static int me4000_ao_disable_do(me4000_ao_context_t * ao_context)
 	return 0;
 }
 
-static int me4000_ao_fsm_state(int *arg, me4000_ao_context_t * ao_context)
+static int me4000_ao_fsm_state(int *arg, struct me4000_ao_context *ao_context)
 {
 	unsigned long tmp;
 
@@ -3012,9 +2994,9 @@ static int me4000_ao_fsm_state(int *arg, me4000_ao_context_t * ao_context)
 	return 0;
 }
 
-/*------------------------------- Analog input stuff --------------------------------------*/
+/*------------------------- Analog input stuff -------------------------------*/
 
-static int me4000_ai_prepare(me4000_ai_context_t * ai_context)
+static int me4000_ai_prepare(struct me4000_ai_context *ai_context)
 {
 	wait_queue_head_t queue;
 	int err;
@@ -3057,14 +3039,13 @@ static int me4000_ai_prepare(me4000_ai_context_t * ai_context)
 
 		/* Allocate circular buffer */
 		ai_context->circ_buf.buf =
-		    kmalloc(ME4000_AI_BUFFER_SIZE, GFP_KERNEL);
+		    kzalloc(ME4000_AI_BUFFER_SIZE, GFP_KERNEL);
 		if (!ai_context->circ_buf.buf) {
 			printk(KERN_ERR
 			       "ME4000:me4000_ai_prepare():Can't get circular buffer\n");
 			free_irq(ai_context->irq, ai_context);
 			return -ENOMEM;
 		}
-		memset(ai_context->circ_buf.buf, 0, ME4000_AI_BUFFER_SIZE);
 
 		/* Clear the circular buffer */
 		ai_context->circ_buf.head = 0;
@@ -3074,7 +3055,7 @@ static int me4000_ai_prepare(me4000_ai_context_t * ai_context)
 	return 0;
 }
 
-static int me4000_ai_reset(me4000_ai_context_t * ai_context)
+static int me4000_ai_reset(struct me4000_ai_context *ai_context)
 {
 	wait_queue_head_t queue;
 	u32 tmp;
@@ -3139,7 +3120,7 @@ static int me4000_ai_reset(me4000_ai_context_t * ai_context)
 static int me4000_ai_ioctl_sing(struct inode *inode_p, struct file *file_p,
 				unsigned int service, unsigned long arg)
 {
-	me4000_ai_context_t *ai_context;
+	struct me4000_ai_context *ai_context;
 
 	CALL_PDEBUG("me4000_ai_ioctl_sing() is executed\n");
 
@@ -3157,16 +3138,17 @@ static int me4000_ai_ioctl_sing(struct inode *inode_p, struct file *file_p,
 
 	switch (service) {
 	case ME4000_AI_SINGLE:
-		return me4000_ai_single((me4000_ai_single_t *) arg, ai_context);
+		return me4000_ai_single((struct me4000_ai_single *)arg,
+								ai_context);
 	case ME4000_AI_EX_TRIG_ENABLE:
 		return me4000_ai_ex_trig_enable(ai_context);
 	case ME4000_AI_EX_TRIG_DISABLE:
 		return me4000_ai_ex_trig_disable(ai_context);
 	case ME4000_AI_EX_TRIG_SETUP:
-		return me4000_ai_ex_trig_setup((me4000_ai_trigger_t *) arg,
+		return me4000_ai_ex_trig_setup((struct me4000_ai_trigger *)arg,
 					       ai_context);
 	case ME4000_GET_USER_INFO:
-		return me4000_get_user_info((me4000_user_info_t *) arg,
+		return me4000_get_user_info((struct me4000_user_info *)arg,
 					    ai_context->board_info);
 	case ME4000_AI_OFFSET_ENABLE:
 		return me4000_ai_offset_enable(ai_context);
@@ -3177,9 +3159,11 @@ static int me4000_ai_ioctl_sing(struct inode *inode_p, struct file *file_p,
 	case ME4000_AI_FULLSCALE_DISABLE:
 		return me4000_ai_fullscale_disable(ai_context);
 	case ME4000_AI_EEPROM_READ:
-		return me4000_eeprom_read((me4000_eeprom_t *) arg, ai_context);
+		return me4000_eeprom_read((struct me4000_eeprom *)arg,
+								ai_context);
 	case ME4000_AI_EEPROM_WRITE:
-		return me4000_eeprom_write((me4000_eeprom_t *) arg, ai_context);
+		return me4000_eeprom_write((struct me4000_eeprom *)arg,
+								ai_context);
 	default:
 		printk(KERN_ERR
 		       "me4000_ai_ioctl_sing():Invalid service number\n");
@@ -3188,10 +3172,10 @@ static int me4000_ai_ioctl_sing(struct inode *inode_p, struct file *file_p,
 	return 0;
 }
 
-static int me4000_ai_single(me4000_ai_single_t * arg,
-			    me4000_ai_context_t * ai_context)
+static int me4000_ai_single(struct me4000_ai_single *arg,
+			    struct me4000_ai_context *ai_context)
 {
-	me4000_ai_single_t cmd;
+	struct me4000_ai_single cmd;
 	int err;
 	u32 tmp;
 	wait_queue_head_t queue;
@@ -3202,7 +3186,7 @@ static int me4000_ai_single(me4000_ai_single_t * arg,
 	init_waitqueue_head(&queue);
 
 	/* Copy data from user */
-	err = copy_from_user(&cmd, arg, sizeof(me4000_ai_single_t));
+	err = copy_from_user(&cmd, arg, sizeof(struct me4000_ai_single));
 	if (err) {
 		printk(KERN_ERR
 		       "ME4000:me4000_ai_single():Can't copy from user space\n");
@@ -3301,7 +3285,7 @@ static int me4000_ai_single(me4000_ai_single_t * arg,
 	cmd.value = me4000_inl(ai_context->data_reg) & 0xFFFF;
 
 	/* Copy result back to user */
-	err = copy_to_user(arg, &cmd, sizeof(me4000_ai_single_t));
+	err = copy_to_user(arg, &cmd, sizeof(struct me4000_ai_single));
 	if (err) {
 		printk(KERN_ERR
 		       "ME4000:me4000_ai_single():Can't copy to user space\n");
@@ -3314,7 +3298,7 @@ static int me4000_ai_single(me4000_ai_single_t * arg,
 static int me4000_ai_ioctl_sw(struct inode *inode_p, struct file *file_p,
 			      unsigned int service, unsigned long arg)
 {
-	me4000_ai_context_t *ai_context;
+	struct me4000_ai_context *ai_context;
 
 	CALL_PDEBUG("me4000_ai_ioctl_sw() is executed\n");
 
@@ -3332,9 +3316,11 @@ static int me4000_ai_ioctl_sw(struct inode *inode_p, struct file *file_p,
 
 	switch (service) {
 	case ME4000_AI_SC_SETUP:
-		return me4000_ai_sc_setup((me4000_ai_sc_t *) arg, ai_context);
+		return me4000_ai_sc_setup((struct me4000_ai_sc *)arg,
+								ai_context);
 	case ME4000_AI_CONFIG:
-		return me4000_ai_config((me4000_ai_config_t *) arg, ai_context);
+		return me4000_ai_config((struct me4000_ai_config *)arg,
+								ai_context);
 	case ME4000_AI_START:
 		return me4000_ai_start(ai_context);
 	case ME4000_AI_STOP:
@@ -3344,19 +3330,20 @@ static int me4000_ai_ioctl_sw(struct inode *inode_p, struct file *file_p,
 	case ME4000_AI_FSM_STATE:
 		return me4000_ai_fsm_state((int *)arg, ai_context);
 	case ME4000_GET_USER_INFO:
-		return me4000_get_user_info((me4000_user_info_t *) arg,
+		return me4000_get_user_info((struct me4000_user_info *)arg,
 					    ai_context->board_info);
 	case ME4000_AI_EEPROM_READ:
-		return me4000_eeprom_read((me4000_eeprom_t *) arg, ai_context);
+		return me4000_eeprom_read((struct me4000_eeprom *)arg,
+								ai_context);
 	case ME4000_AI_EEPROM_WRITE:
-		return me4000_eeprom_write((me4000_eeprom_t *) arg, ai_context);
+		return me4000_eeprom_write((struct me4000_eeprom *)arg,
+								ai_context);
 	case ME4000_AI_GET_COUNT_BUFFER:
 		return me4000_ai_get_count_buffer((unsigned long *)arg,
 						  ai_context);
 	default:
 		printk(KERN_ERR
-		       "ME4000:me4000_ai_ioctl_sw():Invalid service number %d\n",
-		       service);
+		       "%s:Invalid service number %d\n", __func__, service);
 		return -ENOTTY;
 	}
 	return 0;
@@ -3365,7 +3352,7 @@ static int me4000_ai_ioctl_sw(struct inode *inode_p, struct file *file_p,
 static int me4000_ai_ioctl_ext(struct inode *inode_p, struct file *file_p,
 			       unsigned int service, unsigned long arg)
 {
-	me4000_ai_context_t *ai_context;
+	struct me4000_ai_context *ai_context;
 
 	CALL_PDEBUG("me4000_ai_ioctl_ext() is executed\n");
 
@@ -3383,9 +3370,11 @@ static int me4000_ai_ioctl_ext(struct inode *inode_p, struct file *file_p,
 
 	switch (service) {
 	case ME4000_AI_SC_SETUP:
-		return me4000_ai_sc_setup((me4000_ai_sc_t *) arg, ai_context);
+		return me4000_ai_sc_setup((struct me4000_ai_sc *)arg,
+								ai_context);
 	case ME4000_AI_CONFIG:
-		return me4000_ai_config((me4000_ai_config_t *) arg, ai_context);
+		return me4000_ai_config((struct me4000_ai_config *)arg,
+								ai_context);
 	case ME4000_AI_START:
 		return me4000_ai_start_ex((unsigned long *)arg, ai_context);
 	case ME4000_AI_STOP:
@@ -3397,20 +3386,19 @@ static int me4000_ai_ioctl_ext(struct inode *inode_p, struct file *file_p,
 	case ME4000_AI_EX_TRIG_DISABLE:
 		return me4000_ai_ex_trig_disable(ai_context);
 	case ME4000_AI_EX_TRIG_SETUP:
-		return me4000_ai_ex_trig_setup((me4000_ai_trigger_t *) arg,
+		return me4000_ai_ex_trig_setup((struct me4000_ai_trigger *)arg,
 					       ai_context);
 	case ME4000_AI_FSM_STATE:
 		return me4000_ai_fsm_state((int *)arg, ai_context);
 	case ME4000_GET_USER_INFO:
-		return me4000_get_user_info((me4000_user_info_t *) arg,
+		return me4000_get_user_info((struct me4000_user_info *)arg,
 					    ai_context->board_info);
 	case ME4000_AI_GET_COUNT_BUFFER:
 		return me4000_ai_get_count_buffer((unsigned long *)arg,
 						  ai_context);
 	default:
 		printk(KERN_ERR
-		       "ME4000:me4000_ai_ioctl_ext():Invalid service number %d\n",
-		       service);
+		       "%s:Invalid service number %d\n", __func__ , service);
 		return -ENOTTY;
 	}
 	return 0;
@@ -3418,7 +3406,7 @@ static int me4000_ai_ioctl_ext(struct inode *inode_p, struct file *file_p,
 
 static int me4000_ai_fasync(int fd, struct file *file_p, int mode)
 {
-	me4000_ai_context_t *ai_context;
+	struct me4000_ai_context *ai_context;
 
 	CALL_PDEBUG("me4000_ao_fasync_cont() is executed\n");
 
@@ -3426,10 +3414,10 @@ static int me4000_ai_fasync(int fd, struct file *file_p, int mode)
 	return fasync_helper(fd, file_p, mode, &ai_context->fasync_p);
 }
 
-static int me4000_ai_config(me4000_ai_config_t * arg,
-			    me4000_ai_context_t * ai_context)
+static int me4000_ai_config(struct me4000_ai_config *arg,
+			    struct me4000_ai_context *ai_context)
 {
-	me4000_ai_config_t cmd;
+	struct me4000_ai_config cmd;
 	u32 *list = NULL;
 	u32 mode;
 	int i;
@@ -3451,7 +3439,7 @@ static int me4000_ai_config(me4000_ai_config_t * arg,
 	}
 
 	/* Copy data from user */
-	err = copy_from_user(&cmd, arg, sizeof(me4000_ai_config_t));
+	err = copy_from_user(&cmd, arg, sizeof(struct me4000_ai_config));
 	if (err) {
 		printk(KERN_ERR
 		       "ME4000:me4000_ai_config():Can't copy from user space\n");
@@ -3671,7 +3659,7 @@ static int me4000_ai_config(me4000_ai_config_t * arg,
 
 	return 0;
 
-      AI_CONFIG_ERR:
+AI_CONFIG_ERR:
 
 	/* Reset the timers */
 	ai_context->chan_timer = 66;
@@ -3699,7 +3687,7 @@ static int me4000_ai_config(me4000_ai_config_t * arg,
 
 }
 
-static int ai_common_start(me4000_ai_context_t * ai_context)
+static int ai_common_start(struct me4000_ai_context *ai_context)
 {
 	u32 tmp;
 	CALL_PDEBUG("ai_common_start() is executed\n");
@@ -3762,7 +3750,7 @@ static int ai_common_start(me4000_ai_context_t * ai_context)
 	return 0;
 }
 
-static int me4000_ai_start(me4000_ai_context_t * ai_context)
+static int me4000_ai_start(struct me4000_ai_context *ai_context)
 {
 	int err;
 	CALL_PDEBUG("me4000_ai_start() is executed\n");
@@ -3779,7 +3767,7 @@ static int me4000_ai_start(me4000_ai_context_t * ai_context)
 }
 
 static int me4000_ai_start_ex(unsigned long *arg,
-			      me4000_ai_context_t * ai_context)
+			      struct me4000_ai_context *ai_context)
 {
 	int err;
 	wait_queue_head_t queue;
@@ -3834,7 +3822,7 @@ static int me4000_ai_start_ex(unsigned long *arg,
 	return 0;
 }
 
-static int me4000_ai_stop(me4000_ai_context_t * ai_context)
+static int me4000_ai_stop(struct me4000_ai_context *ai_context)
 {
 	wait_queue_head_t queue;
 	u32 tmp;
@@ -3871,7 +3859,7 @@ static int me4000_ai_stop(me4000_ai_context_t * ai_context)
 	return 0;
 }
 
-static int me4000_ai_immediate_stop(me4000_ai_context_t * ai_context)
+static int me4000_ai_immediate_stop(struct me4000_ai_context *ai_context)
 {
 	wait_queue_head_t queue;
 	u32 tmp;
@@ -3908,7 +3896,7 @@ static int me4000_ai_immediate_stop(me4000_ai_context_t * ai_context)
 	return 0;
 }
 
-static int me4000_ai_ex_trig_enable(me4000_ai_context_t * ai_context)
+static int me4000_ai_ex_trig_enable(struct me4000_ai_context *ai_context)
 {
 	u32 tmp;
 	unsigned long flags;
@@ -3924,7 +3912,7 @@ static int me4000_ai_ex_trig_enable(me4000_ai_context_t * ai_context)
 	return 0;
 }
 
-static int me4000_ai_ex_trig_disable(me4000_ai_context_t * ai_context)
+static int me4000_ai_ex_trig_disable(struct me4000_ai_context *ai_context)
 {
 	u32 tmp;
 	unsigned long flags;
@@ -3940,10 +3928,10 @@ static int me4000_ai_ex_trig_disable(me4000_ai_context_t * ai_context)
 	return 0;
 }
 
-static int me4000_ai_ex_trig_setup(me4000_ai_trigger_t * arg,
-				   me4000_ai_context_t * ai_context)
+static int me4000_ai_ex_trig_setup(struct me4000_ai_trigger *arg,
+				   struct me4000_ai_context *ai_context)
 {
-	me4000_ai_trigger_t cmd;
+	struct me4000_ai_trigger cmd;
 	int err;
 	u32 tmp;
 	unsigned long flags;
@@ -3951,7 +3939,7 @@ static int me4000_ai_ex_trig_setup(me4000_ai_trigger_t * arg,
 	CALL_PDEBUG("me4000_ai_ex_trig_setup() is executed\n");
 
 	/* Copy data from user */
-	err = copy_from_user(&cmd, arg, sizeof(me4000_ai_trigger_t));
+	err = copy_from_user(&cmd, arg, sizeof(struct me4000_ai_trigger));
 	if (err) {
 		printk(KERN_ERR
 		       "ME4000:me4000_ai_ex_trig_setup():Can't copy from user space\n");
@@ -4000,16 +3988,16 @@ static int me4000_ai_ex_trig_setup(me4000_ai_trigger_t * arg,
 	return 0;
 }
 
-static int me4000_ai_sc_setup(me4000_ai_sc_t * arg,
-			      me4000_ai_context_t * ai_context)
+static int me4000_ai_sc_setup(struct me4000_ai_sc *arg,
+			      struct me4000_ai_context *ai_context)
 {
-	me4000_ai_sc_t cmd;
+	struct me4000_ai_sc cmd;
 	int err;
 
 	CALL_PDEBUG("me4000_ai_sc_setup() is executed\n");
 
 	/* Copy data from user */
-	err = copy_from_user(&cmd, arg, sizeof(me4000_ai_sc_t));
+	err = copy_from_user(&cmd, arg, sizeof(struct me4000_ai_sc));
 	if (err) {
 		printk(KERN_ERR
 		       "ME4000:me4000_ai_sc_setup():Can't copy from user space\n");
@@ -4023,9 +4011,9 @@ static int me4000_ai_sc_setup(me4000_ai_sc_t * arg,
 }
 
 static ssize_t me4000_ai_read(struct file *filep, char *buff, size_t cnt,
-			      loff_t * offp)
+			      loff_t *offp)
 {
-	me4000_ai_context_t *ai_context = filep->private_data;
+	struct me4000_ai_context *ai_context = filep->private_data;
 	s16 *buffer = (s16 *) buff;
 	size_t count = cnt / 2;
 	unsigned long flags;
@@ -4150,9 +4138,9 @@ static ssize_t me4000_ai_read(struct file *filep, char *buff, size_t cnt,
 	return ret * 2;
 }
 
-static unsigned int me4000_ai_poll(struct file *file_p, poll_table * wait)
+static unsigned int me4000_ai_poll(struct file *file_p, poll_table *wait)
 {
-	me4000_ai_context_t *ai_context;
+	struct me4000_ai_context *ai_context;
 	unsigned long mask = 0;
 
 	CALL_PDEBUG("me4000_ai_poll() is executed\n");
@@ -4171,7 +4159,7 @@ static unsigned int me4000_ai_poll(struct file *file_p, poll_table * wait)
 	return mask;
 }
 
-static int me4000_ai_offset_enable(me4000_ai_context_t * ai_context)
+static int me4000_ai_offset_enable(struct me4000_ai_context *ai_context)
 {
 	unsigned long tmp;
 
@@ -4184,7 +4172,7 @@ static int me4000_ai_offset_enable(me4000_ai_context_t * ai_context)
 	return 0;
 }
 
-static int me4000_ai_offset_disable(me4000_ai_context_t * ai_context)
+static int me4000_ai_offset_disable(struct me4000_ai_context *ai_context)
 {
 	unsigned long tmp;
 
@@ -4197,7 +4185,7 @@ static int me4000_ai_offset_disable(me4000_ai_context_t * ai_context)
 	return 0;
 }
 
-static int me4000_ai_fullscale_enable(me4000_ai_context_t * ai_context)
+static int me4000_ai_fullscale_enable(struct me4000_ai_context *ai_context)
 {
 	unsigned long tmp;
 
@@ -4210,7 +4198,7 @@ static int me4000_ai_fullscale_enable(me4000_ai_context_t * ai_context)
 	return 0;
 }
 
-static int me4000_ai_fullscale_disable(me4000_ai_context_t * ai_context)
+static int me4000_ai_fullscale_disable(struct me4000_ai_context *ai_context)
 {
 	unsigned long tmp;
 
@@ -4223,7 +4211,7 @@ static int me4000_ai_fullscale_disable(me4000_ai_context_t * ai_context)
 	return 0;
 }
 
-static int me4000_ai_fsm_state(int *arg, me4000_ai_context_t * ai_context)
+static int me4000_ai_fsm_state(int *arg, struct me4000_ai_context *ai_context)
 {
 	unsigned long tmp;
 
@@ -4242,7 +4230,7 @@ static int me4000_ai_fsm_state(int *arg, me4000_ai_context_t * ai_context)
 }
 
 static int me4000_ai_get_count_buffer(unsigned long *arg,
-				      me4000_ai_context_t * ai_context)
+				      struct me4000_ai_context *ai_context)
 {
 	unsigned long c;
 	int err;
@@ -4252,7 +4240,7 @@ static int me4000_ai_get_count_buffer(unsigned long *arg,
 	err = copy_to_user(arg, &c, sizeof(unsigned long));
 	if (err) {
 		printk(KERN_ERR
-		       "ME4000:me4000_ai_get_count_buffer():Can't copy to user space\n");
+		       "%s:Can't copy to user space\n", __func__);
 		return -EFAULT;
 	}
 
@@ -4261,7 +4249,7 @@ static int me4000_ai_get_count_buffer(unsigned long *arg,
 
 /*---------------------------------- EEPROM stuff ---------------------------*/
 
-static int eeprom_write_cmd(me4000_ai_context_t * ai_context, unsigned long cmd,
+static int eeprom_write_cmd(struct me4000_ai_context *ai_context, unsigned long cmd,
 			    int length)
 {
 	int i;
@@ -4318,7 +4306,7 @@ static int eeprom_write_cmd(me4000_ai_context_t * ai_context, unsigned long cmd,
 	return 0;
 }
 
-static unsigned short eeprom_read_cmd(me4000_ai_context_t * ai_context,
+static unsigned short eeprom_read_cmd(struct me4000_ai_context *ai_context,
 				      unsigned long cmd, int length)
 {
 	int i;
@@ -4397,11 +4385,11 @@ static unsigned short eeprom_read_cmd(me4000_ai_context_t * ai_context,
 	return id;
 }
 
-static int me4000_eeprom_write(me4000_eeprom_t * arg,
-			       me4000_ai_context_t * ai_context)
+static int me4000_eeprom_write(struct me4000_eeprom *arg,
+			       struct me4000_ai_context *ai_context)
 {
 	int err;
-	me4000_eeprom_t setup;
+	struct me4000_eeprom setup;
 	unsigned long cmd;
 	unsigned long date_high;
 	unsigned long date_low;
@@ -4594,12 +4582,12 @@ static int me4000_eeprom_write(me4000_eeprom_t * arg,
 	return 0;
 }
 
-static int me4000_eeprom_read(me4000_eeprom_t * arg,
-			      me4000_ai_context_t * ai_context)
+static int me4000_eeprom_read(struct me4000_eeprom *arg,
+			      struct me4000_ai_context *ai_context)
 {
 	int err;
 	unsigned long cmd;
-	me4000_eeprom_t setup;
+	struct me4000_eeprom setup;
 
 	CALL_PDEBUG("me4000_eeprom_read() is executed\n");
 
@@ -4687,7 +4675,7 @@ static int me4000_eeprom_read(me4000_eeprom_t * arg,
 static int me4000_dio_ioctl(struct inode *inode_p, struct file *file_p,
 			    unsigned int service, unsigned long arg)
 {
-	me4000_dio_context_t *dio_context;
+	struct me4000_dio_context *dio_context;
 
 	CALL_PDEBUG("me4000_dio_ioctl() is executed\n");
 
@@ -4704,13 +4692,13 @@ static int me4000_dio_ioctl(struct inode *inode_p, struct file *file_p,
 
 	switch (service) {
 	case ME4000_DIO_CONFIG:
-		return me4000_dio_config((me4000_dio_config_t *) arg,
+		return me4000_dio_config((struct me4000_dio_config *)arg,
 					 dio_context);
 	case ME4000_DIO_SET_BYTE:
-		return me4000_dio_set_byte((me4000_dio_byte_t *) arg,
+		return me4000_dio_set_byte((struct me4000_dio_byte *)arg,
 					   dio_context);
 	case ME4000_DIO_GET_BYTE:
-		return me4000_dio_get_byte((me4000_dio_byte_t *) arg,
+		return me4000_dio_get_byte((struct me4000_dio_byte *)arg,
 					   dio_context);
 	case ME4000_DIO_RESET:
 		return me4000_dio_reset(dio_context);
@@ -4723,17 +4711,17 @@ static int me4000_dio_ioctl(struct inode *inode_p, struct file *file_p,
 	return 0;
 }
 
-static int me4000_dio_config(me4000_dio_config_t * arg,
-			     me4000_dio_context_t * dio_context)
+static int me4000_dio_config(struct me4000_dio_config *arg,
+			     struct me4000_dio_context *dio_context)
 {
-	me4000_dio_config_t cmd;
+	struct me4000_dio_config cmd;
 	u32 tmp;
 	int err;
 
 	CALL_PDEBUG("me4000_dio_config() is executed\n");
 
 	/* Copy data from user */
-	err = copy_from_user(&cmd, arg, sizeof(me4000_dio_config_t));
+	err = copy_from_user(&cmd, arg, sizeof(struct me4000_dio_config));
 	if (err) {
 		printk(KERN_ERR
 		       "ME4000:me4000_dio_config():Can't copy from user space\n");
@@ -4964,16 +4952,16 @@ static int me4000_dio_config(me4000_dio_config_t * arg,
 	return 0;
 }
 
-static int me4000_dio_set_byte(me4000_dio_byte_t * arg,
-			       me4000_dio_context_t * dio_context)
+static int me4000_dio_set_byte(struct me4000_dio_byte *arg,
+			       struct me4000_dio_context *dio_context)
 {
-	me4000_dio_byte_t cmd;
+	struct me4000_dio_byte cmd;
 	int err;
 
 	CALL_PDEBUG("me4000_dio_set_byte() is executed\n");
 
 	/* Copy data from user */
-	err = copy_from_user(&cmd, arg, sizeof(me4000_dio_byte_t));
+	err = copy_from_user(&cmd, arg, sizeof(struct me4000_dio_byte));
 	if (err) {
 		printk(KERN_ERR
 		       "ME4000:me4000_dio_set_byte():Can't copy from user space\n");
@@ -5030,16 +5018,16 @@ static int me4000_dio_set_byte(me4000_dio_byte_t * arg,
 	return 0;
 }
 
-static int me4000_dio_get_byte(me4000_dio_byte_t * arg,
-			       me4000_dio_context_t * dio_context)
+static int me4000_dio_get_byte(struct me4000_dio_byte *arg,
+			       struct me4000_dio_context *dio_context)
 {
-	me4000_dio_byte_t cmd;
+	struct me4000_dio_byte cmd;
 	int err;
 
 	CALL_PDEBUG("me4000_dio_get_byte() is executed\n");
 
 	/* Copy data from user */
-	err = copy_from_user(&cmd, arg, sizeof(me4000_dio_byte_t));
+	err = copy_from_user(&cmd, arg, sizeof(struct me4000_dio_byte));
 	if (err) {
 		printk(KERN_ERR
 		       "ME4000:me4000_dio_get_byte():Can't copy from user space\n");
@@ -5070,7 +5058,7 @@ static int me4000_dio_get_byte(me4000_dio_byte_t * arg,
 	}
 
 	/* Copy result back to user */
-	err = copy_to_user(arg, &cmd, sizeof(me4000_dio_byte_t));
+	err = copy_to_user(arg, &cmd, sizeof(struct me4000_dio_byte));
 	if (err) {
 		printk(KERN_ERR
 		       "ME4000:me4000_dio_get_byte():Can't copy to user space\n");
@@ -5080,7 +5068,7 @@ static int me4000_dio_get_byte(me4000_dio_byte_t * arg,
 	return 0;
 }
 
-static int me4000_dio_reset(me4000_dio_context_t * dio_context)
+static int me4000_dio_reset(struct me4000_dio_context *dio_context)
 {
 	CALL_PDEBUG("me4000_dio_reset() is executed\n");
 
@@ -5101,7 +5089,7 @@ static int me4000_dio_reset(me4000_dio_context_t * dio_context)
 static int me4000_cnt_ioctl(struct inode *inode_p, struct file *file_p,
 			    unsigned int service, unsigned long arg)
 {
-	me4000_cnt_context_t *cnt_context;
+	struct me4000_cnt_context *cnt_context;
 
 	CALL_PDEBUG("me4000_cnt_ioctl() is executed\n");
 
@@ -5118,11 +5106,11 @@ static int me4000_cnt_ioctl(struct inode *inode_p, struct file *file_p,
 
 	switch (service) {
 	case ME4000_CNT_READ:
-		return me4000_cnt_read((me4000_cnt_t *) arg, cnt_context);
+		return me4000_cnt_read((struct me4000_cnt *)arg, cnt_context);
 	case ME4000_CNT_WRITE:
-		return me4000_cnt_write((me4000_cnt_t *) arg, cnt_context);
+		return me4000_cnt_write((struct me4000_cnt *)arg, cnt_context);
 	case ME4000_CNT_CONFIG:
-		return me4000_cnt_config((me4000_cnt_config_t *) arg,
+		return me4000_cnt_config((struct me4000_cnt_config *)arg,
 					 cnt_context);
 	case ME4000_CNT_RESET:
 		return me4000_cnt_reset(cnt_context);
@@ -5135,10 +5123,10 @@ static int me4000_cnt_ioctl(struct inode *inode_p, struct file *file_p,
 	return 0;
 }
 
-static int me4000_cnt_config(me4000_cnt_config_t * arg,
-			     me4000_cnt_context_t * cnt_context)
+static int me4000_cnt_config(struct me4000_cnt_config *arg,
+			     struct me4000_cnt_context *cnt_context)
 {
-	me4000_cnt_config_t cmd;
+	struct me4000_cnt_config cmd;
 	u8 counter;
 	u8 mode;
 	int err;
@@ -5146,7 +5134,7 @@ static int me4000_cnt_config(me4000_cnt_config_t * arg,
 	CALL_PDEBUG("me4000_cnt_config() is executed\n");
 
 	/* Copy data from user */
-	err = copy_from_user(&cmd, arg, sizeof(me4000_cnt_config_t));
+	err = copy_from_user(&cmd, arg, sizeof(struct me4000_cnt_config));
 	if (err) {
 		printk(KERN_ERR
 		       "ME4000:me4000_cnt_config():Can't copy from user space\n");
@@ -5204,17 +5192,17 @@ static int me4000_cnt_config(me4000_cnt_config_t * arg,
 	return 0;
 }
 
-static int me4000_cnt_read(me4000_cnt_t * arg,
-			   me4000_cnt_context_t * cnt_context)
+static int me4000_cnt_read(struct me4000_cnt *arg,
+			   struct me4000_cnt_context *cnt_context)
 {
-	me4000_cnt_t cmd;
+	struct me4000_cnt cmd;
 	u8 tmp;
 	int err;
 
 	CALL_PDEBUG("me4000_cnt_read() is executed\n");
 
 	/* Copy data from user */
-	err = copy_from_user(&cmd, arg, sizeof(me4000_cnt_t));
+	err = copy_from_user(&cmd, arg, sizeof(struct me4000_cnt));
 	if (err) {
 		printk(KERN_ERR
 		       "ME4000:me4000_cnt_read():Can't copy from user space\n");
@@ -5249,7 +5237,7 @@ static int me4000_cnt_read(me4000_cnt_t * arg,
 	}
 
 	/* Copy result back to user */
-	err = copy_to_user(arg, &cmd, sizeof(me4000_cnt_t));
+	err = copy_to_user(arg, &cmd, sizeof(struct me4000_cnt));
 	if (err) {
 		printk(KERN_ERR
 		       "ME4000:me4000_cnt_read():Can't copy to user space\n");
@@ -5259,17 +5247,17 @@ static int me4000_cnt_read(me4000_cnt_t * arg,
 	return 0;
 }
 
-static int me4000_cnt_write(me4000_cnt_t * arg,
-			    me4000_cnt_context_t * cnt_context)
+static int me4000_cnt_write(struct me4000_cnt *arg,
+			    struct me4000_cnt_context *cnt_context)
 {
-	me4000_cnt_t cmd;
+	struct me4000_cnt cmd;
 	u8 tmp;
 	int err;
 
 	CALL_PDEBUG("me4000_cnt_write() is executed\n");
 
 	/* Copy data from user */
-	err = copy_from_user(&cmd, arg, sizeof(me4000_cnt_t));
+	err = copy_from_user(&cmd, arg, sizeof(struct me4000_cnt));
 	if (err) {
 		printk(KERN_ERR
 		       "ME4000:me4000_cnt_write():Can't copy from user space\n");
@@ -5306,7 +5294,7 @@ static int me4000_cnt_write(me4000_cnt_t * arg,
 	return 0;
 }
 
-static int me4000_cnt_reset(me4000_cnt_context_t * cnt_context)
+static int me4000_cnt_reset(struct me4000_cnt_context *cnt_context)
 {
 	CALL_PDEBUG("me4000_cnt_reset() is executed\n");
 
@@ -5333,7 +5321,7 @@ static int me4000_cnt_reset(me4000_cnt_context_t * cnt_context)
 static int me4000_ext_int_ioctl(struct inode *inode_p, struct file *file_p,
 				unsigned int service, unsigned long arg)
 {
-	me4000_ext_int_context_t *ext_int_context;
+	struct me4000_ext_int_context *ext_int_context;
 
 	CALL_PDEBUG("me4000_ext_int_ioctl() is executed\n");
 
@@ -5366,7 +5354,7 @@ static int me4000_ext_int_ioctl(struct inode *inode_p, struct file *file_p,
 	return 0;
 }
 
-static int me4000_ext_int_enable(me4000_ext_int_context_t * ext_int_context)
+static int me4000_ext_int_enable(struct me4000_ext_int_context *ext_int_context)
 {
 	unsigned long tmp;
 
@@ -5379,7 +5367,7 @@ static int me4000_ext_int_enable(me4000_ext_int_context_t * ext_int_context)
 	return 0;
 }
 
-static int me4000_ext_int_disable(me4000_ext_int_context_t * ext_int_context)
+static int me4000_ext_int_disable(struct me4000_ext_int_context *ext_int_context)
 {
 	unsigned long tmp;
 
@@ -5393,7 +5381,7 @@ static int me4000_ext_int_disable(me4000_ext_int_context_t * ext_int_context)
 }
 
 static int me4000_ext_int_count(unsigned long *arg,
-				me4000_ext_int_context_t * ext_int_context)
+				struct me4000_ext_int_context *ext_int_context)
 {
 
 	CALL_PDEBUG("me4000_ext_int_count() is executed\n");
@@ -5404,10 +5392,10 @@ static int me4000_ext_int_count(unsigned long *arg,
 
 /*------------------------------------ General stuff ------------------------------------*/
 
-static int me4000_get_user_info(me4000_user_info_t * arg,
-				me4000_info_t * board_info)
+static int me4000_get_user_info(struct me4000_user_info *arg,
+				struct me4000_info *board_info)
 {
-	me4000_user_info_t user_info;
+	struct me4000_user_info user_info;
 
 	CALL_PDEBUG("me4000_get_user_info() is executed\n");
 
@@ -5437,7 +5425,7 @@ static int me4000_get_user_info(me4000_user_info_t * arg,
 
 	user_info.cnt_count = board_info->board_p->cnt.count;
 
-	if (copy_to_user(arg, &user_info, sizeof(me4000_user_info_t)))
+	if (copy_to_user(arg, &user_info, sizeof(struct me4000_user_info)))
 		return -EFAULT;
 
 	return 0;
@@ -5448,7 +5436,7 @@ static int me4000_get_user_info(me4000_user_info_t * arg,
 static int me4000_ext_int_fasync(int fd, struct file *file_ptr, int mode)
 {
 	int result = 0;
-	me4000_ext_int_context_t *ext_int_context;
+	struct me4000_ext_int_context *ext_int_context;
 
 	CALL_PDEBUG("me4000_ext_int_fasync() is executed\n");
 
@@ -5465,7 +5453,7 @@ static irqreturn_t me4000_ao_isr(int irq, void *dev_id)
 {
 	u32 tmp;
 	u32 value;
-	me4000_ao_context_t *ao_context;
+	struct me4000_ao_context *ao_context;
 	int i;
 	int c = 0;
 	int c1 = 0;
@@ -5589,7 +5577,7 @@ static irqreturn_t me4000_ao_isr(int irq, void *dev_id)
 static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 {
 	u32 tmp;
-	me4000_ai_context_t *ai_context;
+	struct me4000_ai_context *ai_context;
 	int i;
 	int c = 0;
 	int c1 = 0;
@@ -5933,7 +5921,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 
 static irqreturn_t me4000_ext_int_isr(int irq, void *dev_id)
 {
-	me4000_ext_int_context_t *ext_int_context;
+	struct me4000_ext_int_context *ext_int_context;
 	unsigned long tmp;
 
 	ISR_PDEBUG("me4000_ext_int_isr() is executed\n");
@@ -5969,10 +5957,10 @@ static irqreturn_t me4000_ext_int_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-void __exit me4000_module_exit(void)
+static void __exit me4000_module_exit(void)
 {
 	struct list_head *board_p;
-	me4000_info_t *board_info;
+	struct me4000_info *board_info;
 
 	CALL_PDEBUG("cleanup_module() is executed\n");
 
@@ -5993,7 +5981,7 @@ void __exit me4000_module_exit(void)
 	/* Reset the boards */
 	for (board_p = me4000_board_info_list.next;
 	     board_p != &me4000_board_info_list; board_p = board_p->next) {
-		board_info = list_entry(board_p, me4000_info_t, list);
+		board_info = list_entry(board_p, struct me4000_info, list);
 		me4000_reset_board(board_info);
 	}
 
@@ -6007,7 +5995,7 @@ static int me4000_read_procmem(char *buf, char **start, off_t offset, int count,
 {
 	int len = 0;
 	int limit = count - 1000;
-	me4000_info_t *board_info;
+	struct me4000_info *board_info;
 	struct list_head *ptr;
 
 	len += sprintf(buf + len, "\nME4000 DRIVER VERSION %X.%X.%X\n\n",
@@ -6019,7 +6007,7 @@ static int me4000_read_procmem(char *buf, char **start, off_t offset, int count,
 	for (ptr = me4000_board_info_list.next;
 	     (ptr != &me4000_board_info_list) && (len < limit);
 	     ptr = ptr->next) {
-		board_info = list_entry(ptr, me4000_info_t, list);
+		board_info = list_entry(ptr, struct me4000_info, list);
 
 		len +=
 		    sprintf(buf + len, "Board number %d:\n",
@@ -6029,14 +6017,14 @@ static int me4000_read_procmem(char *buf, char **start, off_t offset, int count,
 		    sprintf(buf + len, "PLX base register = 0x%lX\n",
 			    board_info->plx_regbase);
 		len +=
-		    sprintf(buf + len, "PLX base register size = 0x%lX\n",
-			    board_info->plx_regbase_size);
+		    sprintf(buf + len, "PLX base register size = 0x%X\n",
+			    (unsigned int)board_info->plx_regbase_size);
 		len +=
-		    sprintf(buf + len, "ME4000 base register = 0x%lX\n",
-			    board_info->me4000_regbase);
+		    sprintf(buf + len, "ME4000 base register = 0x%X\n",
+			    (unsigned int)board_info->me4000_regbase);
 		len +=
-		    sprintf(buf + len, "ME4000 base register size = 0x%lX\n",
-			    board_info->me4000_regbase_size);
+		    sprintf(buf + len, "ME4000 base register size = 0x%X\n",
+			    (unsigned int)board_info->me4000_regbase_size);
 		len +=
 		    sprintf(buf + len, "Serial number = 0x%X\n",
 			    board_info->serial_no);

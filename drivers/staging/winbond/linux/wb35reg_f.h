@@ -29,16 +29,16 @@ void EEPROMTxVgaAdjust(  phw_data_t pHwData ); // 20060619.5 Add
 
 void Wb35Reg_destroy(  phw_data_t pHwData );
 
-unsigned char Wb35Reg_Read(  phw_data_t pHwData,  u16 RegisterNo,   PULONG pRegisterValue );
-unsigned char Wb35Reg_ReadSync(  phw_data_t pHwData,  u16 RegisterNo,   PULONG pRegisterValue );
+unsigned char Wb35Reg_Read(  phw_data_t pHwData,  u16 RegisterNo,   u32 * pRegisterValue );
+unsigned char Wb35Reg_ReadSync(  phw_data_t pHwData,  u16 RegisterNo,   u32 * pRegisterValue );
 unsigned char Wb35Reg_Write(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue );
 unsigned char Wb35Reg_WriteSync(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue );
 unsigned char Wb35Reg_WriteWithCallbackValue(  phw_data_t pHwData,
 								 u16 RegisterNo,
 								 u32 RegisterValue,
-								 PCHAR pValue,
-								 s8	Len);
-unsigned char Wb35Reg_BurstWrite(  phw_data_t pHwData,  u16 RegisterNo,  PULONG pRegisterData,  u8 NumberOfData,  u8 Flag );
+								 s8 *pValue,
+								 s8 Len);
+unsigned char Wb35Reg_BurstWrite(  phw_data_t pHwData,  u16 RegisterNo,  u32 * pRegisterData,  u8 NumberOfData,  u8 Flag );
 
 void Wb35Reg_EP0VM(  phw_data_t pHwData );
 void Wb35Reg_EP0VM_start(  phw_data_t pHwData );
@@ -47,7 +47,7 @@ void Wb35Reg_EP0VM_complete(  PURB pUrb );
 u32 BitReverse( u32 dwData, u32 DataLength);
 
 void CardGetMulticastBit(   u8 Address[MAC_ADDR_LENGTH],  u8 *Byte,  u8 *Value );
-u32 CardComputeCrc(  PUCHAR Buffer,  u32 Length );
+u32 CardComputeCrc(  u8 * Buffer,  u32 Length );
 
 void Wb35Reg_phy_calibration(  phw_data_t pHwData );
 void Wb35Reg_Update(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue );
