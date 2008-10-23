@@ -165,6 +165,8 @@ static inline void __ftrace_enabled_restore(int enabled)
 #endif
 
 #ifdef CONFIG_TRACING
+extern int ftrace_dump_on_oops;
+
 extern void
 ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3);
 
