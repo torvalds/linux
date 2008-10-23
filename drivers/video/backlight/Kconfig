@@ -117,7 +117,6 @@ config BACKLIGHT_ATMEL_PWM
 config BACKLIGHT_CORGI
 	tristate "Generic (aka Sharp Corgi) Backlight Driver (DEPRECATED)"
 	depends on BACKLIGHT_CLASS_DEVICE
-	select CORGI_SSP_DEPRECATED
 	default n
 	help
 	  Say y to enable the generic platform backlight driver previously
