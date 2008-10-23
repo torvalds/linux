@@ -410,15 +410,15 @@ libs-$(CONFIG_PNX8550_STB810)	+= arch/mips/nxp/pnx8550/stb810/
 load-$(CONFIG_PNX8550_STB810)	+= 0xffffffff80060000
 
 #
-# NEC EMMA2RH boards
+# Common NEC EMMAXXX
 #
-core-$(CONFIG_SOC_EMMA2RH)	+= arch/mips/emma2rh/common/
+core-$(CONFIG_SOC_EMMA)		+= arch/mips/emma/common/
 cflags-$(CONFIG_SOC_EMMA2RH)	+= -I$(srctree)/arch/mips/include/asm/mach-emma2rh
 
 #
 # NEC EMMA2RH Mark-eins
 #
-core-$(CONFIG_NEC_MARKEINS)	+= arch/mips/emma2rh/markeins/
+core-$(CONFIG_NEC_MARKEINS)	+= arch/mips/emma/markeins/
 load-$(CONFIG_NEC_MARKEINS)	+= 0xffffffff88100000
 
 #
