@@ -32,7 +32,7 @@ static int op_mips_setup(void)
         return 0;
 }
 
-static int op_mips_create_files(struct super_block * sb, struct dentry * root)
+static int op_mips_create_files(struct super_block *sb, struct dentry *root)
 {
 	int i;
 

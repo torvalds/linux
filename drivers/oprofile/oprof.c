@@ -19,7 +19,7 @@
 #include "cpu_buffer.h"
 #include "buffer_sync.h"
 #include "oprofile_stats.h"
- 
+
 struct oprofile_operations oprofile_ops;
 
 unsigned long oprofile_started;
@@ -36,7 +36,7 @@ static int timer = 0;
 int oprofile_setup(void)
 {
 	int err;
- 
+
 	mutex_lock(&start_mutex);
 
 	if ((err = alloc_cpu_buffers()))
@@ -44,10 +44,10 @@ int oprofile_setup(void)
 
 	if ((err = alloc_event_buffer()))
 		goto out1;
- 
+
 	if (oprofile_ops.setup && (err = oprofile_ops.setup()))
 		goto out2;
- 
+
 	/* Note even though this starts part of the
 	 * profiling overhead, it's necessary to prevent
 	 * us missing task deaths and eventually oopsing
@@ -74,7 +74,7 @@ post_sync:
 	is_setup = 1;
 	mutex_unlock(&start_mutex);
 	return 0;
- 
+
 out3:
 	if (oprofile_ops.shutdown)
 		oprofile_ops.shutdown();
@@ -92,17 +92,17 @@ out:
 int oprofile_start(void)
 {
 	int err = -EINVAL;
- 
+
 	mutex_lock(&start_mutex);
- 
+
 	if (!is_setup)
 		goto out;
 
-	err = 0; 
- 
+	err = 0;
+
 	if (oprofile_started)
 		goto out;
- 
+
 	oprofile_reset_stats();
 
 	if ((err = oprofile_ops.start()))
@@ -114,7 +114,7 @@ out:
 	return err;
 }
 
- 
+
 /* echo 0>/dev/oprofile/enable */
 void oprofile_stop(void)
 {
@@ -204,13 +204,13 @@ static void __exit oprofile_exit(void)
 	oprofile_arch_exit();
 }
 
- 
+
 module_init(oprofile_init);
 module_exit(oprofile_exit);
 
 module_param_named(timer, timer, int, 0644);
 MODULE_PARM_DESC(timer, "force use of timer interrupt");
- 
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("John Levon <levon@movementarian.org>");
 MODULE_DESCRIPTION("OProfile system profiler");
