@@ -37,24 +37,6 @@
 
 #include <asm/emma/emma2rh.h>
 
-/* number of total irqs supported by EMMA2RH */
-#define	NUM_EMMA2RH_IRQ		96
-
-/*
- * IRQ mapping
- *
- *  0-7: 8 CPU interrupts
- *	0 -	software interrupt 0
- *	1 - 	software interrupt 1
- *	2 - 	most Vrc5477 interrupts are routed to this pin
- *	3 - 	(optional) some other interrupts routed to this pin for debugg
- *	4 - 	not used
- *	5 - 	not used
- *	6 - 	not used
- *	7 - 	cpu timer (used by default)
- *
- */
-
 static void emma2rh_irq_enable(unsigned int irq)
 {
 	u32 reg_value;
@@ -347,5 +329,3 @@ asmlinkage void plat_irq_dispatch(void)
 	else
 		spurious_interrupt();
 }
-
-
