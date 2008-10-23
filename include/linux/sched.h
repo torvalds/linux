@@ -680,10 +680,6 @@ struct sched_info {
 };
 #endif /* defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT) */
 
-#ifdef CONFIG_SCHEDSTATS
-extern const struct file_operations proc_schedstat_operations;
-#endif /* CONFIG_SCHEDSTATS */
-
 #ifdef CONFIG_TASK_DELAY_ACCT
 struct task_delay_info {
 	spinlock_t	lock;

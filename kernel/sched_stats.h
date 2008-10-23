@@ -90,12 +90,19 @@ static int schedstat_open(struct inode *inode, struct file *file)
 	return res;
 }
 
-const struct file_operations proc_schedstat_operations = {
+static const struct file_operations proc_schedstat_operations = {
 	.open    = schedstat_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
 	.release = single_release,
 };
+
+static int __init proc_schedstat_init(void)
+{
+	proc_create("schedstat", 0, NULL, &proc_schedstat_operations);
+	return 0;
+}
+module_init(proc_schedstat_init);
 
 /*
  * Expects runqueue lock to be held for atomicity of update

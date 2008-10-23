@@ -348,7 +348,8 @@ static inline void native_pagetable_setup_start(pgd_t *base) {}
 static inline void native_pagetable_setup_done(pgd_t *base) {}
 #endif
 
-extern int arch_report_meminfo(char *page);
+struct seq_file;
+extern void arch_report_meminfo(struct seq_file *m);
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
