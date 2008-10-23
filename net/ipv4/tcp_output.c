@@ -362,6 +362,17 @@ struct tcp_out_options {
 	__u32 tsval, tsecr;	/* need to include OPTION_TS */
 };
 
+/* Beware: Something in the Internet is very sensitive to the ordering of
+ * TCP options, we learned this through the hard way, so be careful here.
+ * Luckily we can at least blame others for their non-compliance but from
+ * inter-operatibility perspective it seems that we're somewhat stuck with
+ * the ordering which we have been using if we want to keep working with
+ * those broken things (not that it currently hurts anybody as there isn't
+ * particular reason why the ordering would need to be changed).
+ *
+ * At least SACK_PERM as the first option is known to lead to a disaster
+ * (but it may well be that other scenarios fail similarly).
+ */
 static void tcp_options_write(__be32 *ptr, struct tcp_sock *tp,
 			      const struct tcp_out_options *opts,
 			      __u8 **md5_hash) {
@@ -374,6 +385,12 @@ static void tcp_options_write(__be32 *ptr, struct tcp_sock *tp,
 		ptr += 4;
 	} else {
 		*md5_hash = NULL;
+	}
+
+	if (unlikely(opts->mss)) {
+		*ptr++ = htonl((TCPOPT_MSS << 24) |
+			       (TCPOLEN_MSS << 16) |
+			       opts->mss);
 	}
 
 	if (likely(OPTION_TS & opts->options)) {
@@ -390,12 +407,6 @@ static void tcp_options_write(__be32 *ptr, struct tcp_sock *tp,
 		}
 		*ptr++ = htonl(opts->tsval);
 		*ptr++ = htonl(opts->tsecr);
-	}
-
-	if (unlikely(opts->mss)) {
-		*ptr++ = htonl((TCPOPT_MSS << 24) |
-			       (TCPOLEN_MSS << 16) |
-			       opts->mss);
 	}
 
 	if (unlikely(OPTION_SACK_ADVERTISE & opts->options &&
