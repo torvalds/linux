@@ -1074,7 +1074,7 @@ static struct tda10023_config tda10023_config = {
 	.deltaf = 0xa511,
 };
 
-/*	TT S2-3200 DVB-S (STB0899) Inittab	*/
+/* TT S2-3200 DVB-S (STB0899) Inittab */
 static const struct stb0899_s1_reg tt3200_stb0899_s1_init_1[] = {
 
 //	 0x0000000b ,	/* SYSREG */
@@ -1136,9 +1136,9 @@ static const struct stb0899_s1_reg tt3200_stb0899_s1_init_1[] = {
 	{ STB0899_GPIO20CFG     	, 0x82 },
 	{ STB0899_SDATCFG       	, 0xb8 },
 	{ STB0899_SCLTCFG       	, 0xba },
-	{ STB0899_AGCRFCFG      	, 0x1c },	// 0x11
-	{ STB0899_GPIO22        	, 0x82 },	// AGCBB2CFG
-	{ STB0899_GPIO21        	, 0x91 },	// AGCBB1CFG
+	{ STB0899_AGCRFCFG      	, 0x1c }, /* 0x11 */
+	{ STB0899_GPIO22        	, 0x82 }, /* AGCBB2CFG */
+	{ STB0899_GPIO21        	, 0x91 }, /* AGCBB1CFG */
 	{ STB0899_DIRCLKCFG     	, 0x82 },
 	{ STB0899_CLKOUT27CFG   	, 0x7e },
 	{ STB0899_STDBYCFG      	, 0x82 },
@@ -1153,8 +1153,8 @@ static const struct stb0899_s1_reg tt3200_stb0899_s1_init_1[] = {
 	{ STB0899_GPIO37CFG		, 0x82 },
 	{ STB0899_GPIO38CFG		, 0x82 },
 	{ STB0899_GPIO39CFG		, 0x82 },
-	{ STB0899_NCOARSE       	, 0x15 }, // 0x15 = 27 Mhz Clock, F/3 = 198MHz, F/6 = 99MHz
-	{ STB0899_SYNTCTRL      	, 0x02 }, // 0x00 = CLK from CLKI, 0x02 = CLK from XTALI
+	{ STB0899_NCOARSE       	, 0x15 }, /* 0x15 = 27 Mhz Clock, F/3 = 198MHz, F/6 = 99MHz */
+	{ STB0899_SYNTCTRL      	, 0x02 }, /* 0x00 = CLK from CLKI, 0x02 = CLK from XTALI */
 	{ STB0899_FILTCTRL      	, 0x00 },
 	{ STB0899_SYSCTRL       	, 0x00 },
 	{ STB0899_STOPCLK1      	, 0x20 },
@@ -1419,7 +1419,7 @@ static const struct stb0899_s1_reg tt3200_stb0899_s1_init_3[] = {
 	{ STB0899_VTH78         	, 0x38 },
 	{ STB0899_PRVIT         	, 0xff },
 	{ STB0899_VITSYNC       	, 0x19 },
-	{ STB0899_RSULC         	, 0xb1 }, // DVB = 0xb1, DSS = 0xa1
+	{ STB0899_RSULC         	, 0xb1 }, /* DVB = 0xb1, DSS = 0xa1 */
 	{ STB0899_TSULC         	, 0x42 },
 	{ STB0899_RSLLC         	, 0x40 },
 	{ STB0899_TSLPL	        	, 0x12 },
@@ -1545,17 +1545,141 @@ static const struct stb0899_s1_reg tt3200_stb0899_s1_init_5[] = {
 	{ 0xffff		, 0xff },
 };
 
+#define TT3200_DVBS2_ESNO_AVE			3
+#define TT3200_DVBS2_ESNO_QUANT			32
+#define TT3200_DVBS2_AVFRAMES_COARSE		10
+#define TT3200_DVBS2_AVFRAMES_FINE		20
+#define TT3200_DVBS2_MISS_THRESHOLD		6
+#define TT3200_DVBS2_UWP_THRESHOLD_ACQ		1125
+#define TT3200_DVBS2_UWP_THRESHOLD_TRACK	758
+#define TT3200_DVBS2_UWP_THRESHOLD_SOF		1350
+#define TT3200_DVBS2_SOF_SEARCH_TIMEOUT		1664100
+
+#define TT3200_DVBS2_BTR_NCO_BITS		28
+#define TT3200_DVBS2_BTR_GAIN_SHIFT_OFFSET	15
+#define TT3200_DVBS2_CRL_NCO_BITS		30
+#define TT3200_DVBS2_LDPC_MAX_ITER		70
+
+static int stb6100_get_frequency(struct dvb_frontend *fe, u32 *frequency)
+{
+	struct dvb_frontend_ops	*frontend_ops = NULL;
+	struct dvb_tuner_ops	*tuner_ops = NULL;
+	struct tuner_state	t_state;
+	int err = 0;
+
+	if (&fe->ops)
+		frontend_ops = &fe->ops;
+	if (&frontend_ops->tuner_ops)
+		tuner_ops = &frontend_ops->tuner_ops;
+	if (tuner_ops->get_state) {
+		if ((err = tuner_ops->get_state(fe, DVBFE_TUNER_FREQUENCY, &t_state)) < 0) {
+			printk("%s: Invalid parameter\n", __func__);
+			return err;
+		}
+		*frequency = t_state.frequency;
+		printk("%s: Frequency=%d\n", __func__, t_state.frequency);
+	}
+	return 0;
+}
+
+static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
+{
+	struct dvb_frontend_ops	*frontend_ops = NULL;
+	struct dvb_tuner_ops	*tuner_ops = NULL;
+	struct tuner_state	t_state;
+	int err = 0;
+
+	t_state.frequency = frequency;
+	if (&fe->ops)
+		frontend_ops = &fe->ops;
+	if (&frontend_ops->tuner_ops)
+		tuner_ops = &frontend_ops->tuner_ops;
+	if (tuner_ops->set_state) {
+		if ((err = tuner_ops->set_state(fe, DVBFE_TUNER_FREQUENCY, &t_state)) < 0) {
+			printk("%s: Invalid parameter\n", __func__);
+			return err;
+		}
+	}
+	printk("%s: Frequency=%d\n", __func__, t_state.frequency);
+	return 0;
+}
+
+static int stb6100_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
+{
+	struct dvb_frontend_ops	*frontend_ops = &fe->ops;
+	struct dvb_tuner_ops	*tuner_ops = &frontend_ops->tuner_ops;
+	struct tuner_state	t_state;
+	int err = 0;
+
+	if (&fe->ops)
+		frontend_ops = &fe->ops;
+	if (&frontend_ops->tuner_ops)
+		tuner_ops = &frontend_ops->tuner_ops;
+	if (tuner_ops->get_state) {
+		if ((err = tuner_ops->get_state(fe, DVBFE_TUNER_BANDWIDTH, &t_state)) < 0) {
+			printk("%s: Invalid parameter\n", __func__);
+			return err;
+		}
+		*bandwidth = t_state.bandwidth;
+	}
+	printk("%s: Bandwidth=%d\n", __func__, t_state.bandwidth);
+	return 0;
+}
+
+static int stb6100_set_bandwidth(struct dvb_frontend *fe, u32 bandwidth)
+{
+	struct dvb_frontend_ops	*frontend_ops = NULL;
+	struct dvb_tuner_ops	*tuner_ops = NULL;
+	struct tuner_state	t_state;
+	int err = 0;
+
+	t_state.frequency = bandwidth;
+	if (&fe->ops)
+		frontend_ops = &fe->ops;
+	if (&frontend_ops->tuner_ops)
+		tuner_ops = &frontend_ops->tuner_ops;
+	if (tuner_ops->set_state) {
+		if ((err = tuner_ops->set_state(fe, DVBFE_TUNER_BANDWIDTH, &t_state)) < 0) {
+			printk("%s: Invalid parameter\n", __func__);
+			return err;
+		}
+	}
+	printk("%s: Bandwidth=%d\n", __func__, t_state.frequency);
+	return 0;
+}
+
 static struct stb0899_config tt3200_config = {
 	.init_dev		= tt3200_stb0899_s1_init_1,
-	.init_s2_demod	= tt3200_stb0899_s2_init_2,
-	.init_s1_demod	= tt3200_stb0899_s1_init_3,
-	.init_s2_fec	= tt3200_stb0899_s2_init_4,
+	.init_s2_demod		= tt3200_stb0899_s2_init_2,
+	.init_s1_demod		= tt3200_stb0899_s1_init_3,
+	.init_s2_fec		= tt3200_stb0899_s2_init_4,
 	.init_tst		= tt3200_stb0899_s1_init_5,
 
-	.demod_address = 0x68,
+	.demod_address 		= 0x68,
 
 	.xtal_freq		= 27000000,
 	.inversion		= 1,
+
+	.esno_ave		= TT3200_DVBS2_ESNO_AVE,
+	.esno_quant		= TT3200_DVBS2_ESNO_QUANT,
+	.avframes_coarse	= TT3200_DVBS2_AVFRAMES_COARSE,
+	.avframes_fine		= TT3200_DVBS2_AVFRAMES_FINE,
+	.miss_threshold		= TT3200_DVBS2_MISS_THRESHOLD,
+	.uwp_threshold_acq	= TT3200_DVBS2_UWP_THRESHOLD_ACQ,
+	.uwp_threshold_track	= TT3200_DVBS2_UWP_THRESHOLD_TRACK,
+	.uwp_threshold_sof	= TT3200_DVBS2_UWP_THRESHOLD_SOF,
+	.sof_search_timeout	= TT3200_DVBS2_SOF_SEARCH_TIMEOUT,
+
+	.btr_nco_bits		= TT3200_DVBS2_BTR_NCO_BITS,
+	.btr_gain_shift_offset	= TT3200_DVBS2_BTR_GAIN_SHIFT_OFFSET,
+	.crl_nco_bits		= TT3200_DVBS2_CRL_NCO_BITS,
+	.ldpc_max_iter		= TT3200_DVBS2_LDPC_MAX_ITER,
+
+	.tuner_get_frequency	= stb6100_get_frequency,
+	.tuner_set_frequency	= stb6100_set_frequency,
+	.tuner_set_bandwidth	= stb6100_set_bandwidth,
+	.tuner_get_bandwidth	= stb6100_get_bandwidth,
+	.tuner_set_rfsiggain	= NULL,
 };
 
 struct stb6100_config tt3200_stb6100_config = {
