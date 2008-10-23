@@ -189,6 +189,9 @@ static struct p9_req_t *p9_tag_alloc(struct p9_client *c, u16 tag)
 			printk(KERN_ERR "Couldn't grow tag array\n");
 			kfree(req->tc);
 			kfree(req->rc);
+			kfree(req->wq);
+			req->tc = req->rc = NULL;
+			req->wq = NULL;
 			return ERR_PTR(-ENOMEM);
 		}
 		req->tc->sdata = (char *) req->tc + sizeof(struct p9_fcall);
