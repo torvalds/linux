@@ -391,8 +391,8 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 		/* Initialize the Index reference object */
 
 		index = operand[1]->integer.value;
-		return_desc->reference.offset = (u32) index;
-		return_desc->reference.opcode = AML_INDEX_OP;
+		return_desc->reference.value = (u32) index;
+		return_desc->reference.class = ACPI_REFCLASS_INDEX;
 
 		/*
 		 * At this point, the Source operand is a String, Buffer, or Package.

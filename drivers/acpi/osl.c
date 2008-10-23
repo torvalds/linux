@@ -729,8 +729,8 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 	INIT_WORK(&dpc->work, acpi_os_execute_deferred);
 	queue = (type == OSL_NOTIFY_HANDLER) ? kacpi_notify_wq : kacpid_wq;
 	if (!queue_work(queue, &dpc->work)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			  "Call to queue_work() failed.\n"));
+		printk(KERN_ERR PREFIX
+			  "Call to queue_work() failed.\n");
 		status = AE_ERROR;
 		kfree(dpc);
 	}

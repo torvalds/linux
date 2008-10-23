@@ -1530,8 +1530,8 @@ acpi_video_bus_get_one_device(struct acpi_device *device,
 						     acpi_video_device_notify,
 						     data);
 		if (ACPI_FAILURE(status)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Error installing notify handler\n"));
+			printk(KERN_ERR PREFIX
+					  "Error installing notify handler\n");
 			if(data->brightness)
 				kfree(data->brightness->levels);
 			kfree(data->brightness);
@@ -1745,8 +1745,8 @@ acpi_video_bus_get_devices(struct acpi_video_bus *video,
 
 		status = acpi_video_bus_get_one_device(dev, video);
 		if (ACPI_FAILURE(status)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-					"Cant attach device"));
+			printk(KERN_WARNING PREFIX
+					"Cant attach device");
 			continue;
 		}
 	}
@@ -2003,8 +2003,8 @@ static int acpi_video_bus_add(struct acpi_device *device)
 					     ACPI_DEVICE_NOTIFY,
 					     acpi_video_bus_notify, video);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Error installing notify handler\n"));
+		printk(KERN_ERR PREFIX
+				  "Error installing notify handler\n");
 		error = -ENODEV;
 		goto err_stop_video;
 	}
