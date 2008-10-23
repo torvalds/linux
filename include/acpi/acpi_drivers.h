@@ -101,6 +101,7 @@ extern int acpi_power_nocheck;
    -------------------------------------------------------------------------- */
 #ifdef CONFIG_ACPI_EC
 int acpi_ec_ecdt_probe(void);
+int acpi_boot_ec_enable(void);
 #endif
 
 /* --------------------------------------------------------------------------
