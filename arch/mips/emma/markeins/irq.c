@@ -32,7 +32,6 @@
 #include <asm/irq_cpu.h>
 #include <asm/system.h>
 #include <asm/mipsregs.h>
-#include <asm/debug.h>
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
 
@@ -67,7 +66,6 @@ void ll_emma2rh_irq_enable(int emma2rh_irq)
 		    (emma2rh_irq / 32);
 	reg_value = emma2rh_in32(reg_index);
 	reg_bitmask = 0x1 << (emma2rh_irq % 32);
-	db_assert((reg_value & reg_bitmask) == 0);
 	emma2rh_out32(reg_index, reg_value | reg_bitmask);
 }
 
@@ -82,7 +80,6 @@ void ll_emma2rh_irq_disable(int emma2rh_irq)
 		    (emma2rh_irq / 32);
 	reg_value = emma2rh_in32(reg_index);
 	reg_bitmask = 0x1 << (emma2rh_irq % 32);
-	db_assert((reg_value & reg_bitmask) != 0);
 	emma2rh_out32(reg_index, reg_value & ~reg_bitmask);
 }
 
@@ -118,9 +115,6 @@ void ll_emma2rh_sw_irq_enable(int irq)
 {
 	u32 reg;
 
-	db_assert(irq >= 0);
-	db_assert(irq < NUM_EMMA2RH_IRQ_SW);
-
 	reg = emma2rh_in32(EMMA2RH_BHIF_SW_INT_EN);
 	reg |= 1 << irq;
 	emma2rh_out32(EMMA2RH_BHIF_SW_INT_EN, reg);
@@ -129,9 +123,6 @@ void ll_emma2rh_sw_irq_enable(int irq)
 void ll_emma2rh_sw_irq_disable(int irq)
 {
 	u32 reg;
-
-	db_assert(irq >= 0);
-	db_assert(irq < 32);
 
 	reg = emma2rh_in32(EMMA2RH_BHIF_SW_INT_EN);
 	reg &= ~(1 << irq);
@@ -170,9 +161,6 @@ void ll_emma2rh_gpio_irq_enable(int irq)
 {
 	u32 reg;
 
-	db_assert(irq >= 0);
-	db_assert(irq < NUM_EMMA2RH_IRQ_GPIO);
-
 	reg = emma2rh_in32(EMMA2RH_GPIO_INT_MASK);
 	reg |= 1 << irq;
 	emma2rh_out32(EMMA2RH_GPIO_INT_MASK, reg);
@@ -181,9 +169,6 @@ void ll_emma2rh_gpio_irq_enable(int irq)
 void ll_emma2rh_gpio_irq_disable(int irq)
 {
 	u32 reg;
-
-	db_assert(irq >= 0);
-	db_assert(irq < NUM_EMMA2RH_IRQ_GPIO);
 
 	reg = emma2rh_in32(EMMA2RH_GPIO_INT_MASK);
 	reg &= ~(1 << irq);
@@ -313,8 +298,6 @@ void emma2rh_irq_dispatch(void)
 void __init arch_init_irq(void)
 {
 	u32 reg;
-
-	db_run(printk("markeins_irq_setup invoked.\n"));
 
 	/* by default, interrupts are disabled. */
 	emma2rh_out32(EMMA2RH_BHIF_INT_EN_0, 0);
