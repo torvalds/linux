@@ -23,6 +23,7 @@
 #include "sleep.h"
 
 u8 sleep_states[ACPI_S_STATE_COUNT];
+static u32 acpi_target_sleep_state = ACPI_STATE_S0;
 
 static int acpi_sleep_prepare(u32 acpi_state)
 {
@@ -45,9 +46,7 @@ static int acpi_sleep_prepare(u32 acpi_state)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static u32 acpi_target_sleep_state = ACPI_STATE_S0;
-
+#ifdef CONFIG_ACPI_SLEEP
 /*
  * ACPI 1.0 wants us to execute _PTS before suspending devices, so we allow the
  * user to request that behavior by using the 'acpi_old_suspend_ordering'
@@ -132,7 +131,7 @@ static void acpi_pm_end(void)
 	 */
 	acpi_target_sleep_state = ACPI_STATE_S0;
 }
-#endif /* CONFIG_PM_SLEEP */
+#endif /* CONFIG_ACPI_SLEEP */
 
 #ifdef CONFIG_SUSPEND
 extern void do_suspend_lowlevel(void);

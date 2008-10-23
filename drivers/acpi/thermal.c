@@ -388,10 +388,12 @@ static int acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 			} else if (crt > 0) {
 				unsigned long crt_k = CELSIUS_TO_KELVIN(crt);
 				/*
-				 * Allow override to lower critical threshold
+				 * Allow override critical threshold
 				 */
-				if (crt_k < tz->trips.critical.temperature)
-					tz->trips.critical.temperature = crt_k;
+				if (crt_k > tz->trips.critical.temperature)
+					printk(KERN_WARNING PREFIX
+						"Critical threshold %d C\n", crt);
+				tz->trips.critical.temperature = crt_k;
 			}
 		}
 	}
@@ -1647,7 +1649,7 @@ static int acpi_thermal_add(struct acpi_device *device)
 	strcpy(tz->name, device->pnp.bus_id);
 	strcpy(acpi_device_name(device), ACPI_THERMAL_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_THERMAL_CLASS);
-	acpi_driver_data(device) = tz;
+	device->driver_data = tz;
 	mutex_init(&tz->lock);
 
 

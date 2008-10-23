@@ -543,7 +543,7 @@ static int __init setup_acpi_notify(struct ibm_struct *ibm)
 		return -ENODEV;
 	}
 
-	acpi_driver_data(ibm->acpi->device) = ibm;
+	ibm->acpi->device->driver_data = ibm;
 	sprintf(acpi_device_class(ibm->acpi->device), "%s/%s",
 		TPACPI_ACPI_EVENT_PREFIX,
 		ibm->name);

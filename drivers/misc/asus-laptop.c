@@ -139,6 +139,7 @@ ASUS_HANDLE(lcd_switch, "\\_SB.PCI0.SBRG.EC0._Q10",	/* All new models */
 	    "\\_SB.PCI0.PX40.ECD0._Q10",	/* L3C */
 	    "\\_SB.PCI0.PX40.EC0.Q10",	/* M1A */
 	    "\\_SB.PCI0.LPCB.EC0._Q10",	/* P30 */
+	    "\\_SB.PCI0.LPCB.EC0._Q0E", /* P30/P35 */
 	    "\\_SB.PCI0.PX40.Q10",	/* S1x */
 	    "\\Q10");		/* A2x, L2D, L3D, M2E */
 
@@ -350,7 +351,7 @@ static void write_status(acpi_handle handle, int out, int mask)
 	static void object##_led_set(struct led_classdev *led_cdev,	\
 				     enum led_brightness value)		\
 	{								\
-		object##_led_wk = value;				\
+		object##_led_wk = (value > 0) ? 1 : 0;			\
 		queue_work(led_workqueue, &object##_led_work);		\
 	}								\
 	static void object##_led_update(struct work_struct *ignored)	\
@@ -996,7 +997,7 @@ static int asus_hotk_add(struct acpi_device *device)
 	hotk->handle = device->handle;
 	strcpy(acpi_device_name(device), ASUS_HOTK_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ASUS_HOTK_CLASS);
-	acpi_driver_data(device) = hotk;
+	device->driver_data = hotk;
 	hotk->device = device;
 
 	result = asus_hotk_check();

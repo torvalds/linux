@@ -1244,6 +1244,8 @@ static int asus_hotk_get_info(void)
 			       "default values\n", string);
 			printk(KERN_NOTICE
 			       "  send /proc/acpi/dsdt to the developers\n");
+			kfree(model);
+			return -ENODEV;
 		}
 		hotk->methods = &model_conf[hotk->model];
 		return AE_OK;
@@ -1321,7 +1323,7 @@ static int asus_hotk_add(struct acpi_device *device)
 	hotk->handle = device->handle;
 	strcpy(acpi_device_name(device), ACPI_HOTK_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_HOTK_CLASS);
-	acpi_driver_data(device) = hotk;
+	device->driver_data = hotk;
 	hotk->device = device;
 
 	result = asus_hotk_check();

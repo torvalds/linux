@@ -206,7 +206,7 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	root->device = device;
 	strcpy(acpi_device_name(device), ACPI_PCI_ROOT_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_PCI_ROOT_CLASS);
-	acpi_driver_data(device) = root;
+	device->driver_data = root;
 
 	device->ops.bind = acpi_pci_bind;
 
