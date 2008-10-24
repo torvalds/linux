@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
-SUBLEVEL = 27
-EXTRAVERSION =
-NAME = Rotary Wombat
+SUBLEVEL = 28
+EXTRAVERSION = -rc1
+NAME = Killer Bat of Doom
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
