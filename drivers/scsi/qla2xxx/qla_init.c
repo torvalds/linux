@@ -964,7 +964,6 @@ qla2x00_setup_chip(scsi_qla_host_t *ha)
 				    &ha->fw_minor_version,
 				    &ha->fw_subminor_version,
 				    &ha->fw_attributes, &ha->fw_memory_size);
-				qla2x00_resize_request_q(ha);
 				ha->flags.npiv_supported = 0;
 				if ((IS_QLA24XX(ha) || IS_QLA25XX(ha) ||
 				     IS_QLA84XX(ha)) &&
@@ -976,6 +975,7 @@ qla2x00_setup_chip(scsi_qla_host_t *ha)
 						ha->max_npiv_vports =
 						    MIN_MULTI_ID_FABRIC - 1;
 				}
+				qla2x00_resize_request_q(ha);
 
 				if (ql2xallocfwdump)
 					qla2x00_alloc_fw_dump(ha);

@@ -1964,7 +1964,7 @@ qla2x00_get_resource_cnts(scsi_qla_host_t *ha, uint16_t *cur_xchg_cnt,
 			*cur_iocb_cnt = mcp->mb[7];
 		if (orig_iocb_cnt)
 			*orig_iocb_cnt = mcp->mb[10];
-		if (max_npiv_vports)
+		if (ha->flags.npiv_supported && max_npiv_vports)
 			*max_npiv_vports = mcp->mb[11];
 	}
 
