@@ -310,6 +310,10 @@ int __init rb532_gpio_init(void)
 		return -ENXIO;
 	}
 
+	/* Set the interrupt status and level for the CF pin */
+	rb532_gpio_set_int_level(&rb532_gpio_chip->chip, CF_GPIO_NUM, 1);
+	rb532_gpio_set_int_status(&rb532_gpio_chip->chip, CF_GPIO_NUM, 0);
+
 	return 0;
 }
 arch_initcall(rb532_gpio_init);
