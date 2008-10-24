@@ -519,10 +519,10 @@ static void iwl4965_chain_noise_reset(struct iwl_priv *priv)
 	struct iwl_chain_noise_data *data = &(priv->chain_noise_data);
 
 	if ((data->state == IWL_CHAIN_NOISE_ALIVE) && iwl_is_associated(priv)) {
-		struct iwl4965_calibration_cmd cmd;
+		struct iwl_calib_diff_gain_cmd cmd;
 
 		memset(&cmd, 0, sizeof(cmd));
-		cmd.opCode = PHY_CALIBRATE_DIFF_GAIN_CMD;
+		cmd.opCode = IWL_PHY_CALIBRATE_DIFF_GAIN_CMD;
 		cmd.diff_gain_a = 0;
 		cmd.diff_gain_b = 0;
 		cmd.diff_gain_c = 0;
@@ -569,11 +569,11 @@ static void iwl4965_gain_computation(struct iwl_priv *priv,
 
 	/* Differential gain gets sent to uCode only once */
 	if (!data->radio_write) {
-		struct iwl4965_calibration_cmd cmd;
+		struct iwl_calib_diff_gain_cmd cmd;
 		data->radio_write = 1;
 
 		memset(&cmd, 0, sizeof(cmd));
-		cmd.opCode = PHY_CALIBRATE_DIFF_GAIN_CMD;
+		cmd.opCode = IWL_PHY_CALIBRATE_DIFF_GAIN_CMD;
 		cmd.diff_gain_a = data->delta_gain_code[0];
 		cmd.diff_gain_b = data->delta_gain_code[1];
 		cmd.diff_gain_c = data->delta_gain_code[2];

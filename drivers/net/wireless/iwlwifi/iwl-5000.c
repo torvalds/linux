@@ -337,10 +337,10 @@ static void iwl5000_gain_computation(struct iwl_priv *priv,
 			data->delta_gain_code[1], data->delta_gain_code[2]);
 
 	if (!data->radio_write) {
-		struct iwl5000_calibration_chain_noise_gain_cmd cmd;
+		struct iwl_calib_chain_noise_gain_cmd cmd;
 		memset(&cmd, 0, sizeof(cmd));
 
-		cmd.op_code = IWL5000_PHY_CALIBRATE_CHAIN_NOISE_GAIN_CMD;
+		cmd.op_code = IWL_PHY_CALIBRATE_CHAIN_NOISE_GAIN_CMD;
 		cmd.delta_gain_1 = data->delta_gain_code[1];
 		cmd.delta_gain_2 = data->delta_gain_code[2];
 		iwl_send_cmd_pdu_async(priv, REPLY_PHY_CALIBRATION_CMD,
@@ -364,10 +364,10 @@ static void iwl5000_chain_noise_reset(struct iwl_priv *priv)
 	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
 
 	if ((data->state == IWL_CHAIN_NOISE_ALIVE) && iwl_is_associated(priv)) {
-		struct iwl5000_calibration_chain_noise_reset_cmd cmd;
+		struct iwl_calib_chain_noise_reset_cmd cmd;
 
 		memset(&cmd, 0, sizeof(cmd));
-		cmd.op_code = IWL5000_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD;
+		cmd.op_code = IWL_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD;
 		if (iwl_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
 			sizeof(cmd), &cmd))
 			IWL_ERROR("Could not send REPLY_PHY_CALIBRATION_CMD\n");
@@ -420,25 +420,25 @@ static const u8 *iwl5000_eeprom_query_addr(const struct iwl_priv *priv,
  */
 static int iwl5000_set_Xtal_calib(struct iwl_priv *priv)
 {
-	u8 data[sizeof(struct iwl5000_calib_hdr) +
+	u8 data[sizeof(struct iwl_calib_hdr) +
 		sizeof(struct iwl_cal_xtal_freq)];
-	struct iwl5000_calib_cmd *cmd = (struct iwl5000_calib_cmd *)data;
+	struct iwl_calib_cmd *cmd = (struct iwl_calib_cmd *)data;
 	struct iwl_cal_xtal_freq *xtal = (struct iwl_cal_xtal_freq *)cmd->data;
 	u16 *xtal_calib = (u16 *)iwl_eeprom_query_addr(priv, EEPROM_5000_XTAL);
 
-	cmd->hdr.op_code = IWL5000_PHY_CALIBRATE_CRYSTAL_FRQ_CMD;
+	cmd->hdr.op_code = IWL_PHY_CALIBRATE_CRYSTAL_FRQ_CMD;
 	xtal->cap_pin1 = (u8)xtal_calib[0];
 	xtal->cap_pin2 = (u8)xtal_calib[1];
-	return iwl_calib_set(&priv->calib_results[IWL5000_CALIB_XTAL],
+	return iwl_calib_set(&priv->calib_results[IWL_CALIB_XTAL],
 			     data, sizeof(data));
 }
 
 static int iwl5000_send_calib_cfg(struct iwl_priv *priv)
 {
-	struct iwl5000_calib_cfg_cmd calib_cfg_cmd;
+	struct iwl_calib_cfg_cmd calib_cfg_cmd;
 	struct iwl_host_cmd cmd = {
 		.id = CALIBRATION_CFG_CMD,
-		.len = sizeof(struct iwl5000_calib_cfg_cmd),
+		.len = sizeof(struct iwl_calib_cfg_cmd),
 		.data = &calib_cfg_cmd,
 	};
 
@@ -455,7 +455,7 @@ static void iwl5000_rx_calib_result(struct iwl_priv *priv,
 			     struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
-	struct iwl5000_calib_hdr *hdr = (struct iwl5000_calib_hdr *)pkt->u.raw;
+	struct iwl_calib_hdr *hdr = (struct iwl_calib_hdr *)pkt->u.raw;
 	int len = le32_to_cpu(pkt->len) & FH_RSCSR_FRAME_SIZE_MSK;
 	int index;
 
@@ -466,14 +466,14 @@ static void iwl5000_rx_calib_result(struct iwl_priv *priv,
 	 * uCode. iwl_send_calib_results sends them in a row according to their
 	 * index. We sort them here */
 	switch (hdr->op_code) {
-	case IWL5000_PHY_CALIBRATE_LO_CMD:
-		index = IWL5000_CALIB_LO;
+	case IWL_PHY_CALIBRATE_LO_CMD:
+		index = IWL_CALIB_LO;
 		break;
-	case IWL5000_PHY_CALIBRATE_TX_IQ_CMD:
-		index = IWL5000_CALIB_TX_IQ;
+	case IWL_PHY_CALIBRATE_TX_IQ_CMD:
+		index = IWL_CALIB_TX_IQ;
 		break;
-	case IWL5000_PHY_CALIBRATE_TX_IQ_PERD_CMD:
-		index = IWL5000_CALIB_TX_IQ_PERD;
+	case IWL_PHY_CALIBRATE_TX_IQ_PERD_CMD:
+		index = IWL_CALIB_TX_IQ_PERD;
 		break;
 	default:
 		IWL_ERROR("Unknown calibration notification %d\n",
@@ -839,10 +839,10 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	case CSR_HW_REV_TYPE_5300:
 	case CSR_HW_REV_TYPE_5350:
 		priv->hw_params.calib_init_cfg =
-			BIT(IWL5000_CALIB_XTAL)		|
-			BIT(IWL5000_CALIB_LO)		|
-			BIT(IWL5000_CALIB_TX_IQ) 	|
-			BIT(IWL5000_CALIB_TX_IQ_PERD);
+			BIT(IWL_CALIB_XTAL)		|
+			BIT(IWL_CALIB_LO)		|
+			BIT(IWL_CALIB_TX_IQ) 	|
+			BIT(IWL_CALIB_TX_IQ_PERD);
 		break;
 	case CSR_HW_REV_TYPE_5150:
 		priv->hw_params.calib_init_cfg = 0;

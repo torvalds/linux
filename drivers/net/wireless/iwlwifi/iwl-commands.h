@@ -2875,35 +2875,24 @@ struct iwl_sensitivity_cmd {
  * 1-0: amount of gain, units of 1.5 dB
  */
 
-/* "Differential Gain" opcode used in REPLY_PHY_CALIBRATION_CMD. */
-#define PHY_CALIBRATE_DIFF_GAIN_CMD (7)
-
-struct iwl4965_calibration_cmd {
-	u8 opCode;		/* PHY_CALIBRATE_DIFF_GAIN_CMD (7) */
-	u8 flags;		/* not used */
-	__le16 reserved;
-	s8 diff_gain_a;		/* see above */
-	s8 diff_gain_b;
-	s8 diff_gain_c;
-	u8 reserved1;
-} __attribute__ ((packed));
-
-/* Phy calibration command for 5000 series */
+/* Phy calibration command for series */
 
 enum {
-	IWL5000_PHY_CALIBRATE_DC_CMD		= 8,
-	IWL5000_PHY_CALIBRATE_LO_CMD		= 9,
-	IWL5000_PHY_CALIBRATE_RX_BB_CMD		= 10,
-	IWL5000_PHY_CALIBRATE_TX_IQ_CMD		= 11,
-	IWL5000_PHY_CALIBRATE_RX_IQ_CMD		= 12,
-	IWL5000_PHY_CALIBRATION_NOISE_CMD	= 13,
-	IWL5000_PHY_CALIBRATE_AGC_TABLE_CMD	= 14,
-	IWL5000_PHY_CALIBRATE_CRYSTAL_FRQ_CMD	= 15,
-	IWL5000_PHY_CALIBRATE_BASE_BAND_CMD	= 16,
-	IWL5000_PHY_CALIBRATE_TX_IQ_PERD_CMD	= 17,
-	IWL5000_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD = 18,
-	IWL5000_PHY_CALIBRATE_CHAIN_NOISE_GAIN_CMD = 19,
+	IWL_PHY_CALIBRATE_DIFF_GAIN_CMD		= 7,
+	IWL_PHY_CALIBRATE_DC_CMD		= 8,
+	IWL_PHY_CALIBRATE_LO_CMD		= 9,
+	IWL_PHY_CALIBRATE_RX_BB_CMD		= 10,
+	IWL_PHY_CALIBRATE_TX_IQ_CMD		= 11,
+	IWL_PHY_CALIBRATE_RX_IQ_CMD		= 12,
+	IWL_PHY_CALIBRATION_NOISE_CMD		= 13,
+	IWL_PHY_CALIBRATE_AGC_TABLE_CMD		= 14,
+	IWL_PHY_CALIBRATE_CRYSTAL_FRQ_CMD	= 15,
+	IWL_PHY_CALIBRATE_BASE_BAND_CMD		= 16,
+	IWL_PHY_CALIBRATE_TX_IQ_PERD_CMD	= 17,
+	IWL_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD	= 18,
+	IWL_PHY_CALIBRATE_CHAIN_NOISE_GAIN_CMD	= 19,
 };
+
 
 struct iwl_cal_xtal_freq {
 	u8 cap_pin1;
@@ -2926,32 +2915,44 @@ struct iwl_calib_cfg_status_s {
 	__le32 flags;
 } __attribute__ ((packed));
 
-struct iwl5000_calib_cfg_cmd {
+struct iwl_calib_cfg_cmd {
 	struct iwl_calib_cfg_status_s ucd_calib_cfg;
 	struct iwl_calib_cfg_status_s drv_calib_cfg;
 	__le32 reserved1;
 } __attribute__ ((packed));
 
-struct iwl5000_calib_hdr {
+struct iwl_calib_hdr {
 	u8 op_code;
 	u8 first_group;
 	u8 groups_num;
 	u8 data_valid;
 } __attribute__ ((packed));
 
-struct iwl5000_calib_cmd {
-	struct iwl5000_calib_hdr hdr;
+struct iwl_calib_cmd {
+	struct iwl_calib_hdr hdr;
 	u8 data[0];
 } __attribute__ ((packed));
 
-struct iwl5000_calibration_chain_noise_reset_cmd {
-	u8 op_code;	/* IWL5000_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD */
+/* "Differential Gain" opcode used in REPLY_PHY_CALIBRATION_CMD. */
+
+struct iwl_calib_diff_gain_cmd {
+	u8 opCode;		/* IWL_PHY_CALIBRATE_DIFF_GAIN_CMD (7) */
+	u8 flags;		/* not used */
+	__le16 reserved;
+	s8 diff_gain_a;		/* see above */
+	s8 diff_gain_b;
+	s8 diff_gain_c;
+	u8 reserved1;
+} __attribute__ ((packed));
+
+struct iwl_calib_chain_noise_reset_cmd {
+	u8 op_code;	/* IWL_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD */
 	u8 flags;	/* not used */
 	__le16 reserved;
 } __attribute__ ((packed));
 
-struct iwl5000_calibration_chain_noise_gain_cmd {
-	u8 op_code;	/* IWL5000_PHY_CALIBRATE_CHAIN_NOISE_GAIN_CMD */
+struct iwl_calib_chain_noise_gain_cmd {
+	u8 op_code;	/* IWL_PHY_CALIBRATE_CHAIN_NOISE_GAIN_CMD */
 	u8 flags;	/* not used */
 	__le16 reserved;
 	u8 delta_gain_1;
