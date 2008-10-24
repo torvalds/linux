@@ -21,8 +21,7 @@
 #include <asm/nops.h>
 
 
-/* Long is fine, even if it is only 4 bytes ;-) */
-static unsigned long *ftrace_nop;
+static unsigned char ftrace_nop[MCOUNT_INSN_SIZE];
 
 union ftrace_code_union {
 	char code[MCOUNT_INSN_SIZE];
@@ -40,7 +39,7 @@ static int ftrace_calc_offset(long ip, long addr)
 
 unsigned char *ftrace_nop_replace(void)
 {
-	return (char *)ftrace_nop;
+	return ftrace_nop;
 }
 
 unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
@@ -125,9 +124,6 @@ int __init ftrace_dyn_arch_init(void *data)
 	 * TODO: check the cpuid to determine the best nop.
 	 */
 	asm volatile (
-		"jmp ftrace_test_jmp\n"
-		/* This code needs to stay around */
-		".section .text, \"ax\"\n"
 		"ftrace_test_jmp:"
 		"jmp ftrace_test_p6nop\n"
 		"nop\n"
@@ -138,8 +134,6 @@ int __init ftrace_dyn_arch_init(void *data)
 		"jmp 1f\n"
 		"ftrace_test_nop5:"
 		".byte 0x66,0x66,0x66,0x66,0x90\n"
-		"jmp 1f\n"
-		".previous\n"
 		"1:"
 		".section .fixup, \"ax\"\n"
 		"2:	movl $1, %0\n"
@@ -154,15 +148,15 @@ int __init ftrace_dyn_arch_init(void *data)
 	switch (faulted) {
 	case 0:
 		pr_info("ftrace: converting mcount calls to 0f 1f 44 00 00\n");
-		ftrace_nop = (unsigned long *)ftrace_test_p6nop;
+		memcpy(ftrace_nop, ftrace_test_p6nop, MCOUNT_INSN_SIZE);
 		break;
 	case 1:
 		pr_info("ftrace: converting mcount calls to 66 66 66 66 90\n");
-		ftrace_nop = (unsigned long *)ftrace_test_nop5;
+		memcpy(ftrace_nop, ftrace_test_nop5, MCOUNT_INSN_SIZE);
 		break;
 	case 2:
 		pr_info("ftrace: converting mcount calls to jmp . + 5\n");
-		ftrace_nop = (unsigned long *)ftrace_test_jmp;
+		memcpy(ftrace_nop, ftrace_test_jmp, MCOUNT_INSN_SIZE);
 		break;
 	}
 
