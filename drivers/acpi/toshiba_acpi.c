@@ -371,6 +371,7 @@ static void bt_poll_rfkill(struct input_polled_dev *poll_dev)
 				   RFKILL_STATE_HARD_BLOCKED);
 		input_report_switch(poll_dev->input, SW_RFKILL_ALL,
 				    new_rfk_state);
+		input_sync(poll_dev->input);
 	}
 }
 
@@ -842,6 +843,7 @@ static int __init toshiba_acpi_init(void)
 	set_bit(EV_SW, toshiba_acpi.poll_dev->input->evbit);
 	set_bit(SW_RFKILL_ALL, toshiba_acpi.poll_dev->input->swbit);
 	input_report_switch(toshiba_acpi.poll_dev->input, SW_RFKILL_ALL, TRUE);
+	input_sync(toshiba_acpi.poll_dev->input);
 
 	ret = input_register_polled_device(toshiba_acpi.poll_dev);
 	if (ret) {
