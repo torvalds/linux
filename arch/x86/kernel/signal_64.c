@@ -199,12 +199,10 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
  */
 
 static void __user *
-get_stack(struct k_sigaction *ka, struct pt_regs *regs, unsigned long size)
+get_stack(struct k_sigaction *ka, unsigned long sp, unsigned long size)
 {
-	unsigned long sp;
-
 	/* Default to using normal stack - redzone*/
-	sp = regs->sp - 128;
+	sp -= 128;
 
 	/* This is the X/Open sanctioned signal stack switching.  */
 	if (ka->sa.sa_flags & SA_ONSTACK) {
@@ -224,14 +222,14 @@ static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	struct task_struct *me = current;
 
 	if (used_math()) {
-		fp = get_stack(ka, regs, sig_xstate_size);
+		fp = get_stack(ka, regs->sp, sig_xstate_size);
 		frame = (void __user *)round_down(
 			(unsigned long)fp - sizeof(struct rt_sigframe), 16) - 8;
 
 		if (save_i387_xstate(fp) < 0)
 			return -EFAULT;
 	} else
-		frame = get_stack(ka, regs, sizeof(struct rt_sigframe)) - 8;
+		frame = get_stack(ka, regs->sp, sizeof(struct rt_sigframe)) - 8;
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		return -EFAULT;
