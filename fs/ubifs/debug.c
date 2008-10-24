@@ -364,8 +364,8 @@ void dbg_dump_node(const struct ubifs_info *c, const void *node)
 		       le32_to_cpu(mst->ihead_lnum));
 		printk(KERN_DEBUG "\tihead_offs     %u\n",
 		       le32_to_cpu(mst->ihead_offs));
-		printk(KERN_DEBUG "\tindex_size     %u\n",
-		       le32_to_cpu(mst->index_size));
+		printk(KERN_DEBUG "\tindex_size     %llu\n",
+		       (unsigned long long)le64_to_cpu(mst->index_size));
 		printk(KERN_DEBUG "\tlpt_lnum       %u\n",
 		       le32_to_cpu(mst->lpt_lnum));
 		printk(KERN_DEBUG "\tlpt_offs       %u\n",

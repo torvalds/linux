@@ -428,7 +428,8 @@ static int ubifs_readdir(struct file *file, void *dirent, filldir_t filldir)
 		dbg_gen("feed '%s', ino %llu, new f_pos %#x",
 			dent->name, (unsigned long long)le64_to_cpu(dent->inum),
 			key_hash_flash(c, &dent->key));
-		ubifs_assert(dent->ch.sqnum > ubifs_inode(dir)->creat_sqnum);
+		ubifs_assert(le64_to_cpu(dent->ch.sqnum) >
+			     ubifs_inode(dir)->creat_sqnum);
 
 		nm.len = le16_to_cpu(dent->nlen);
 		over = filldir(dirent, dent->name, nm.len, file->f_pos,

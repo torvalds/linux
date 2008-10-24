@@ -72,7 +72,7 @@ static int read_block(struct inode *inode, void *addr, unsigned int block,
 		return err;
 	}
 
-	ubifs_assert(dn->ch.sqnum > ubifs_inode(inode)->creat_sqnum);
+	ubifs_assert(le64_to_cpu(dn->ch.sqnum) > ubifs_inode(inode)->creat_sqnum);
 
 	len = le32_to_cpu(dn->size);
 	if (len <= 0 || len > UBIFS_BLOCK_SIZE)
@@ -626,7 +626,7 @@ static int populate_page(struct ubifs_info *c, struct page *page,
 
 			dn = bu->buf + (bu->zbranch[nn].offs - offs);
 
-			ubifs_assert(dn->ch.sqnum >
+			ubifs_assert(le64_to_cpu(dn->ch.sqnum) >
 				     ubifs_inode(inode)->creat_sqnum);
 
 			len = le32_to_cpu(dn->size);
