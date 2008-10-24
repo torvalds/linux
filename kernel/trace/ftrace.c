@@ -186,7 +186,6 @@ enum {
 
 static int ftrace_filtered;
 static int tracing_on;
-static int frozen_record_count;
 
 static LIST_HEAD(ftrace_new_addrs);
 
@@ -211,6 +210,9 @@ static struct dyn_ftrace *ftrace_free_records;
 
 
 #ifdef CONFIG_KPROBES
+
+static int frozen_record_count;
+
 static inline void freeze_record(struct dyn_ftrace *rec)
 {
 	if (!(rec->flags & FTRACE_FL_FROZEN)) {
@@ -1443,3 +1445,4 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 	mutex_unlock(&ftrace_sysctl_lock);
 	return ret;
 }
+
