@@ -223,6 +223,27 @@ static inline s64 entity_key(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	return se->vruntime - cfs_rq->min_vruntime;
 }
 
+static void update_min_vruntime(struct cfs_rq *cfs_rq)
+{
+	u64 vruntime = cfs_rq->min_vruntime;
+
+	if (cfs_rq->curr)
+		vruntime = cfs_rq->curr->vruntime;
+
+	if (cfs_rq->rb_leftmost) {
+		struct sched_entity *se = rb_entry(cfs_rq->rb_leftmost,
+						   struct sched_entity,
+						   run_node);
+
+		if (vruntime == cfs_rq->min_vruntime)
+			vruntime = se->vruntime;
+		else
+			vruntime = min_vruntime(vruntime, se->vruntime);
+	}
+
+	cfs_rq->min_vruntime = max_vruntime(cfs_rq->min_vruntime, vruntime);
+}
+
 /*
  * Enqueue an entity into the rb-tree:
  */
@@ -256,15 +277,8 @@ static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	 * Maintain a cache of leftmost tree entries (it is frequently
 	 * used):
 	 */
-	if (leftmost) {
+	if (leftmost)
 		cfs_rq->rb_leftmost = &se->run_node;
-		/*
-		 * maintain cfs_rq->min_vruntime to be a monotonic increasing
-		 * value tracking the leftmost vruntime in the tree.
-		 */
-		cfs_rq->min_vruntime =
-			max_vruntime(cfs_rq->min_vruntime, se->vruntime);
-	}
 
 	rb_link_node(&se->run_node, parent, link);
 	rb_insert_color(&se->run_node, &cfs_rq->tasks_timeline);
@@ -274,18 +288,9 @@ static void __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	if (cfs_rq->rb_leftmost == &se->run_node) {
 		struct rb_node *next_node;
-		struct sched_entity *next;
 
 		next_node = rb_next(&se->run_node);
 		cfs_rq->rb_leftmost = next_node;
-
-		if (next_node) {
-			next = rb_entry(next_node,
-					struct sched_entity, run_node);
-			cfs_rq->min_vruntime =
-				max_vruntime(cfs_rq->min_vruntime,
-					     next->vruntime);
-		}
 	}
 
 	if (cfs_rq->next == se)
@@ -424,6 +429,7 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 	schedstat_add(cfs_rq, exec_clock, delta_exec);
 	delta_exec_weighted = calc_delta_fair(delta_exec, curr);
 	curr->vruntime += delta_exec_weighted;
+	update_min_vruntime(cfs_rq);
 }
 
 static void update_curr(struct cfs_rq *cfs_rq)
@@ -613,13 +619,7 @@ static void check_spread(struct cfs_rq *cfs_rq, struct sched_entity *se)
 static void
 place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 {
-	u64 vruntime;
-
-	if (first_fair(cfs_rq)) {
-		vruntime = min_vruntime(cfs_rq->min_vruntime,
-				__pick_next_entity(cfs_rq)->vruntime);
-	} else
-		vruntime = cfs_rq->min_vruntime;
+	u64 vruntime = cfs_rq->min_vruntime;
 
 	/*
 	 * The 'current' period is already promised to the current tasks,
@@ -696,6 +696,7 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 	if (se != cfs_rq->curr)
 		__dequeue_entity(cfs_rq, se);
 	account_entity_dequeue(cfs_rq, se);
+	update_min_vruntime(cfs_rq);
 }
 
 /*
