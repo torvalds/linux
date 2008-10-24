@@ -226,6 +226,16 @@ int generic_permission(struct inode *inode, int mask,
 	return -EACCES;
 }
 
+/**
+ * inode_permission  -  check for access rights to a given inode
+ * @inode:	inode to check permission on
+ * @mask:	right to check for (%MAY_READ, %MAY_WRITE, %MAY_EXEC)
+ *
+ * Used to check for read/write/execute permissions on an inode.
+ * We use "fsuid" for this, letting us set arbitrary permissions
+ * for filesystem access without changing the "normal" uids which
+ * are used for other things.
+ */
 int inode_permission(struct inode *inode, int mask)
 {
 	int retval;
@@ -264,21 +274,6 @@ int inode_permission(struct inode *inode, int mask)
 }
 
 /**
- * vfs_permission  -  check for access rights to a given path
- * @nd:		lookup result that describes the path
- * @mask:	right to check for (%MAY_READ, %MAY_WRITE, %MAY_EXEC)
- *
- * Used to check for read/write/execute permissions on a path.
- * We use "fsuid" for this, letting us set arbitrary permissions
- * for filesystem access without changing the "normal" uids which
- * are used for other things.
- */
-int vfs_permission(struct nameidata *nd, int mask)
-{
-	return inode_permission(nd->path.dentry->d_inode, mask);
-}
-
-/**
  * file_permission  -  check for additional access rights to a given file
  * @file:	file to check access rights for
  * @mask:	right to check for (%MAY_READ, %MAY_WRITE, %MAY_EXEC)
@@ -288,7 +283,7 @@ int vfs_permission(struct nameidata *nd, int mask)
  *
  * Note:
  *	Do not use this function in new code.  All access checks should
- *	be done using vfs_permission().
+ *	be done using inode_permission().
  */
 int file_permission(struct file *file, int mask)
 {
@@ -853,7 +848,8 @@ static int __link_path_walk(const char *name, struct nameidata *nd)
 		nd->flags |= LOOKUP_CONTINUE;
 		err = exec_permission_lite(inode);
 		if (err == -EAGAIN)
-			err = vfs_permission(nd, MAY_EXEC);
+			err = inode_permission(nd->path.dentry->d_inode,
+					       MAY_EXEC);
  		if (err)
 			break;
 
@@ -2882,7 +2878,6 @@ EXPORT_SYMBOL(path_lookup);
 EXPORT_SYMBOL(kern_path);
 EXPORT_SYMBOL(vfs_path_lookup);
 EXPORT_SYMBOL(inode_permission);
-EXPORT_SYMBOL(vfs_permission);
 EXPORT_SYMBOL(file_permission);
 EXPORT_SYMBOL(unlock_rename);
 EXPORT_SYMBOL(vfs_create);
