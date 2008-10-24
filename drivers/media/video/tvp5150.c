@@ -912,6 +912,21 @@ static int tvp5150_command(struct i2c_client *c,
 		int i;
 
 		fmt = arg;
+		/* raw vbi */
+		if (fmt->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
+			/* this is for capturing 36 raw vbi lines
+			   if there's a way to cut off the beginning 2 vbi lines
+			   with the tvp5150 then the vbi line count could be lowered
+			   to 17 lines/field again, although I couldn't find a register
+			   which could do that cropping */
+			if (fmt->fmt.vbi.sample_format == V4L2_PIX_FMT_GREY)
+				tvp5150_write(c, TVP5150_LUMA_PROC_CTL_1, 0x70);
+			if (fmt->fmt.vbi.count[0] == 18 && fmt->fmt.vbi.count[1] == 18) {
+				tvp5150_write(c, TVP5150_VERT_BLANKING_START, 0x00);
+				tvp5150_write(c, TVP5150_VERT_BLANKING_STOP, 0x01);
+			}
+			break;
+		}
 		if (fmt->type != V4L2_BUF_TYPE_SLICED_VBI_CAPTURE)
 			return -EINVAL;
 		svbi = &fmt->fmt.sliced;
