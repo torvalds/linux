@@ -347,15 +347,21 @@ int br_min_mtu(const struct net_bridge *br)
 void br_features_recompute(struct net_bridge *br)
 {
 	struct net_bridge_port *p;
-	unsigned long features;
+	unsigned long features, mask;
 
-	features = br->feature_mask;
+	features = mask = br->feature_mask;
+	if (list_empty(&br->port_list))
+		goto done;
+
+	features &= ~NETIF_F_ONE_FOR_ALL;
 
 	list_for_each_entry(p, &br->port_list, list) {
-		features = netdev_compute_features(features, p->dev->features);
+		features = netdev_increment_features(features,
+						     p->dev->features, mask);
 	}
 
-	br->dev->features = features;
+done:
+	br->dev->features = netdev_fix_features(features, NULL);
 }
 
 /* called with RTNL */

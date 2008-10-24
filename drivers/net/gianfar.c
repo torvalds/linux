@@ -161,7 +161,7 @@ static int gfar_probe(struct platform_device *pdev)
 	struct gfar_private *priv = NULL;
 	struct gianfar_platform_data *einfo;
 	struct resource *r;
-	int err = 0;
+	int err = 0, irq;
 	DECLARE_MAC_BUF(mac);
 
 	einfo = (struct gianfar_platform_data *) pdev->dev.platform_data;
@@ -187,15 +187,25 @@ static int gfar_probe(struct platform_device *pdev)
 
 	/* fill out IRQ fields */
 	if (einfo->device_flags & FSL_GIANFAR_DEV_HAS_MULTI_INTR) {
-		priv->interruptTransmit = platform_get_irq_byname(pdev, "tx");
-		priv->interruptReceive = platform_get_irq_byname(pdev, "rx");
-		priv->interruptError = platform_get_irq_byname(pdev, "error");
-		if (priv->interruptTransmit < 0 || priv->interruptReceive < 0 || priv->interruptError < 0)
+		irq = platform_get_irq_byname(pdev, "tx");
+		if (irq < 0)
 			goto regs_fail;
+		priv->interruptTransmit = irq;
+
+		irq = platform_get_irq_byname(pdev, "rx");
+		if (irq < 0)
+			goto regs_fail;
+		priv->interruptReceive = irq;
+
+		irq = platform_get_irq_byname(pdev, "error");
+		if (irq < 0)
+			goto regs_fail;
+		priv->interruptError = irq;
 	} else {
-		priv->interruptTransmit = platform_get_irq(pdev, 0);
-		if (priv->interruptTransmit < 0)
+		irq = platform_get_irq(pdev, 0);
+		if (irq < 0)
 			goto regs_fail;
+		priv->interruptTransmit = irq;
 	}
 
 	/* get a pointer to the register memory */

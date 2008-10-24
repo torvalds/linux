@@ -1341,18 +1341,24 @@ static int bond_compute_features(struct bonding *bond)
 	int i;
 
 	features &= ~(NETIF_F_ALL_CSUM | BOND_VLAN_FEATURES);
-	features |= NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
-		    NETIF_F_GSO_MASK | NETIF_F_NO_CSUM;
+	features |=  NETIF_F_GSO_MASK | NETIF_F_NO_CSUM;
+
+	if (!bond->first_slave)
+		goto done;
+
+	features &= ~NETIF_F_ONE_FOR_ALL;
 
 	bond_for_each_slave(bond, slave, i) {
-		features = netdev_compute_features(features,
-						   slave->dev->features);
+		features = netdev_increment_features(features,
+						     slave->dev->features,
+						     NETIF_F_ONE_FOR_ALL);
 		if (slave->dev->hard_header_len > max_hard_header_len)
 			max_hard_header_len = slave->dev->hard_header_len;
 	}
 
+done:
 	features |= (bond_dev->features & BOND_VLAN_FEATURES);
-	bond_dev->features = features;
+	bond_dev->features = netdev_fix_features(features, NULL);
 	bond_dev->hard_header_len = max_hard_header_len;
 
 	return 0;

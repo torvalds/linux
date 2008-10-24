@@ -894,7 +894,7 @@ config SMC91X
 	select CRC32
 	select MII
 	depends on ARM || REDWOOD_5 || REDWOOD_6 || M32R || SUPERH || \
-		SOC_AU1X00 || BLACKFIN || MN10300
+		MIPS || BLACKFIN || MN10300
 	help
 	  This is a driver for SMC's 91x series of Ethernet chipsets,
 	  including the SMC91C94 and the SMC91C111. Say Y if you want it
@@ -966,7 +966,7 @@ config SMC911X
 	tristate "SMSC LAN911[5678] support"
 	select CRC32
 	select MII
-	depends on ARCH_PXA || SUPERH
+	depends on ARM || SUPERH
 	help
 	  This is a driver for SMSC's LAN911x series of Ethernet chipsets
 	  including the new LAN9115, LAN9116, LAN9117, and LAN9118.
@@ -2008,6 +2008,11 @@ config IGB_LRO
 	  Say Y here if you want to use large receive offload. 
 
 	  If in doubt, say N.
+
+config IGB_DCA
+	bool "Enable DCA"
+	default y
+	depends on IGB && DCA && !(IGB=y && DCA=m)
 
 source "drivers/net/ixp2000/Kconfig"
 
