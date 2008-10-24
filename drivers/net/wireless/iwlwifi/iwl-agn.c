@@ -1484,7 +1484,7 @@ static void iwl4965_enable_interrupts(struct iwl_priv *priv)
 /* call this function to flush any scheduled tasklet */
 static inline void iwl_synchronize_irq(struct iwl_priv *priv)
 {
-	/* wait to make sure we flush pedding tasklet*/
+	/* wait to make sure we flush pending tasklet*/
 	synchronize_irq(priv->pci_dev->irq);
 	tasklet_kill(&priv->irq_tasklet);
 }

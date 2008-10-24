@@ -94,7 +94,7 @@ static int iwl5000_apm_init(struct iwl_priv *priv)
 	iwl_set_bit(priv, CSR_GIO_CHICKEN_BITS,
 		    CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_NO_L0S_RX);
 
-	/* Set FH wait treshold to maximum (HW error during stress W/A) */
+	/* Set FH wait threshold to maximum (HW error during stress W/A) */
 	iwl_set_bit(priv, CSR_DBG_HPET_MEM_REG, CSR_DBG_HPET_MEM_REG_VAL);
 
 	/* enable HAP INTA to move device L1a -> L0s */
@@ -134,7 +134,7 @@ static int iwl5000_apm_init(struct iwl_priv *priv)
 	return ret;
 }
 
-/* FIXME: this is indentical to 4965 */
+/* FIXME: this is identical to 4965 */
 static void iwl5000_apm_stop(struct iwl_priv *priv)
 {
 	unsigned long flags;
@@ -219,7 +219,7 @@ static void iwl5000_nic_config(struct iwl_priv *priv)
 
 	/* L1 is enabled by BIOS */
 	if ((link & PCI_CFG_LINK_CTRL_VAL_L1_EN) == PCI_CFG_LINK_CTRL_VAL_L1_EN)
-		/* diable L0S disabled L1A enabled */
+		/* disable L0S disabled L1A enabled */
 		iwl_set_bit(priv, CSR_GIO_REG, CSR_GIO_REG_VAL_L0S_ENABLED);
 	else
 		/* L0S enabled L1A disabled */
@@ -1093,7 +1093,7 @@ static u16 iwl5000_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
 
 
 /*
- * Activate/Deactivat Tx DMA/FIFO channels according tx fifos mask
+ * Activate/Deactivate Tx DMA/FIFO channels according tx fifos mask
  * must be called under priv->lock and mac access
  */
 static void iwl5000_txq_set_sched(struct iwl_priv *priv, u32 mask)
@@ -1311,7 +1311,7 @@ static void iwl5000_rx_reply_tx(struct iwl_priv *priv,
 		IWL_ERROR("TODO:  Implement Tx ABORT REQUIRED!!!\n");
 }
 
-/* Currently 5000 is the supperset of everything */
+/* Currently 5000 is the superset of everything */
 static u16 iwl5000_get_hcmd_size(u8 cmd_id, u16 len)
 {
 	return len;

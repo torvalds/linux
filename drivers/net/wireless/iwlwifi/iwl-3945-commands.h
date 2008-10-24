@@ -121,7 +121,7 @@ enum {
 	REPLY_TX_PWR_TABLE_CMD = 0x97,
 	MEASURE_ABORT_NOTIFICATION = 0x99,	/* not used */
 
-	/* Bluetooth device coexistance config command */
+	/* Bluetooth device coexistence config command */
 	REPLY_BT_CONFIG = 0x9b,
 
 	/* Statistics */
@@ -158,7 +158,7 @@ struct iwl3945_cmd_header {
 	u8 cmd;		/* Command ID:  REPLY_RXON, etc. */
 	u8 flags;	/* IWL_CMD_* */
 	/*
-	 * The driver sets up the sequence number to values of its chosing.
+	 * The driver sets up the sequence number to values of its choosing.
 	 * uCode does not use this value, but passes it back to the driver
 	 * when sending the response to each driver-originated command, so
 	 * the driver can match the response to the command.  Since the values
@@ -991,7 +991,7 @@ struct iwl3945_rate_scaling_cmd {
  *
  * 3945 and 4965 support hardware handshake with Bluetooth device on
  * same platform.  Bluetooth device alerts wireless device when it will Tx;
- * wireless device can delay or kill its own Tx to accomodate.
+ * wireless device can delay or kill its own Tx to accommodate.
  */
 struct iwl3945_bt_cmd {
 	u8 flags;

@@ -100,7 +100,7 @@ struct iwl_hcmd_utils_ops {
 };
 
 struct iwl_lib_ops {
-	/* set hw dependant perameters */
+	/* set hw dependent parameters */
 	int (*set_hw_params)(struct iwl_priv *priv);
 	/* ucode shared memory */
 	int (*alloc_shared_mem)(struct iwl_priv *priv);

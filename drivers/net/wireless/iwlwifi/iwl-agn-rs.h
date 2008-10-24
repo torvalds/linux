@@ -229,7 +229,7 @@ enum {
 #define IWL_MIMO2_SWITCH_SISO_C         4
 #define IWL_MIMO2_SWITCH_GI             5
 
-/*FIXME:RS:add posible acctions for MIMO3*/
+/*FIXME:RS:add possible actions for MIMO3*/
 
 #define IWL_ACTION_LIMIT		3	/* # possible actions */
 

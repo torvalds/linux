@@ -200,7 +200,7 @@ static int iwl3945_hwrate_to_plcp_idx(u8 plcp)
  * priv->eeprom  is used to determine if antenna AUX/MAIN are reversed
  * priv->antenna specifies the antenna diversity mode:
  *
- * IWL_ANTENNA_DIVERISTY - NIC selects best antenna by itself
+ * IWL_ANTENNA_DIVERSITY - NIC selects best antenna by itself
  * IWL_ANTENNA_MAIN      - Force MAIN antenna
  * IWL_ANTENNA_AUX       - Force AUX antenna
  */
@@ -1882,7 +1882,7 @@ static int iwl3945_hw_reg_comp_txpower_temp(struct iwl3945_priv *priv)
 		ref_temp = (s16)priv->eeprom.groups[ch_info->group_index].
 		    temperature;
 
-		/* get power index adjustment based on curr and factory
+		/* get power index adjustment based on current and factory
 		 * temps */
 		delta_index = iwl3945_hw_reg_adjust_power_by_temp(temperature,
 							      ref_temp);

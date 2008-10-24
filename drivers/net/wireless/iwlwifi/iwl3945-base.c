@@ -1805,7 +1805,7 @@ static void iwl3945_activate_qos(struct iwl3945_priv *priv, u8 force)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	if (force || iwl3945_is_associated(priv)) {
-		IWL_DEBUG_QOS("send QoS cmd with Qos active %d \n",
+		IWL_DEBUG_QOS("send QoS cmd with QoS active %d \n",
 			      priv->qos_data.qos_active);
 
 		iwl3945_send_qos_params_command(priv,
@@ -1829,7 +1829,7 @@ static void iwl3945_activate_qos(struct iwl3945_priv *priv, u8 force)
 
 
 /* default power management (not Tx power) table values */
-/* for tim  0-10 */
+/* for TIM  0-10 */
 static struct iwl3945_power_vec_entry range_0[IWL_POWER_AC] = {
 	{{NOSLP, SLP_TIMEOUT(0), SLP_TIMEOUT(0), SLP_VEC(0, 0, 0, 0, 0)}, 0},
 	{{SLP, SLP_TIMEOUT(200), SLP_TIMEOUT(500), SLP_VEC(1, 2, 3, 4, 4)}, 0},
@@ -1839,7 +1839,7 @@ static struct iwl3945_power_vec_entry range_0[IWL_POWER_AC] = {
 	{{SLP, SLP_TIMEOUT(25), SLP_TIMEOUT(25), SLP_VEC(4, 7, 10, 10, 10)}, 1}
 };
 
-/* for tim > 10 */
+/* for TIM > 10 */
 static struct iwl3945_power_vec_entry range_1[IWL_POWER_AC] = {
 	{{NOSLP, SLP_TIMEOUT(0), SLP_TIMEOUT(0), SLP_VEC(0, 0, 0, 0, 0)}, 0},
 	{{SLP, SLP_TIMEOUT(200), SLP_TIMEOUT(500),
@@ -2282,7 +2282,7 @@ static int iwl3945_set_mode(struct iwl3945_priv *priv, int mode)
 
 	iwl3945_clear_stations_table(priv);
 
-	/* dont commit rxon if rf-kill is on*/
+	/* don't commit rxon if rf-kill is on*/
 	if (!iwl3945_is_ready_rf(priv))
 		return -EAGAIN;
 
@@ -2311,7 +2311,7 @@ static void iwl3945_build_tx_cmd_hwcrypto(struct iwl3945_priv *priv,
 	case ALG_CCMP:
 		cmd->cmd.tx.sec_ctl = TX_CMD_SEC_CCM;
 		memcpy(cmd->cmd.tx.key, keyinfo->key, keyinfo->keylen);
-		IWL_DEBUG_TX("tx_cmd with aes hwcrypto\n");
+		IWL_DEBUG_TX("tx_cmd with AES hwcrypto\n");
 		break;
 
 	case ALG_TKIP:
@@ -4002,7 +4002,7 @@ static void iwl3945_enable_interrupts(struct iwl3945_priv *priv)
 /* call this function to flush any scheduled tasklet */
 static inline void iwl_synchronize_irq(struct iwl3945_priv *priv)
 {
-	/* wait to make sure we flush pedding tasklet*/
+	/* wait to make sure we flush pending tasklet*/
 	synchronize_irq(priv->pci_dev->irq);
 	tasklet_kill(&priv->irq_tasklet);
 }
@@ -5559,7 +5559,7 @@ static int iwl3945_set_ucode_ptrs(struct iwl3945_priv *priv)
 	iwl3945_write_prph(priv, BSM_DRAM_DATA_BYTECOUNT_REG,
 				 priv->ucode_data.len);
 
-	/* Inst bytecount must be last to set up, bit 31 signals uCode
+	/* Inst byte count must be last to set up, bit 31 signals uCode
 	 *   that all new ptr/size info is in place */
 	iwl3945_write_prph(priv, BSM_DRAM_INST_BYTECOUNT_REG,
 				 priv->ucode_code.len | BSM_DRAM_INST_LOAD);
@@ -5651,7 +5651,7 @@ static void iwl3945_alive_start(struct iwl3945_priv *priv)
 
 	rc = iwl3945_grab_nic_access(priv);
 	if (rc) {
-		IWL_WARNING("Can not read rfkill status from adapter\n");
+		IWL_WARNING("Can not read RFKILL status from adapter\n");
 		return;
 	}
 
@@ -5661,7 +5661,7 @@ static void iwl3945_alive_start(struct iwl3945_priv *priv)
 
 	if (rfkill & 0x1) {
 		clear_bit(STATUS_RF_KILL_HW, &priv->status);
-		/* if rfkill is not on, then wait for thermal
+		/* if RFKILL is not on, then wait for thermal
 		 * sensor in adapter to kick in */
 		while (iwl3945_hw_get_temperature(priv) == 0) {
 			thermal_spin++;
@@ -5855,7 +5855,7 @@ static int __iwl3945_up(struct iwl3945_priv *priv)
 	}
 
 	if (!priv->ucode_data_backup.v_addr || !priv->ucode_data.v_addr) {
-		IWL_ERROR("ucode not available for device bringup\n");
+		IWL_ERROR("ucode not available for device bring up\n");
 		return -EIO;
 	}
 
@@ -6065,7 +6065,7 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 		goto done;
 	}
 
-	/* Make sure the scan wasn't cancelled before this queued work
+	/* Make sure the scan wasn't canceled before this queued work
 	 * was given the chance to run... */
 	if (!test_bit(STATUS_SCANNING, &priv->status))
 		goto done;
@@ -7728,7 +7728,7 @@ static DEVICE_ATTR(dump_events, S_IWUSR, NULL, dump_event_log);
 
 /*****************************************************************************
  *
- * driver setup and teardown
+ * driver setup and tear down
  *
  *****************************************************************************/
 
@@ -8157,7 +8157,7 @@ static int iwl3945_rfkill_soft_rf_kill(void *data, enum rfkill_state state)
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return 0;
 
-	IWL_DEBUG_RF_KILL("we recieved soft RFKILL set to state %d\n", state);
+	IWL_DEBUG_RF_KILL("we received soft RFKILL set to state %d\n", state);
 	mutex_lock(&priv->mutex);
 
 	switch (state) {
@@ -8172,7 +8172,7 @@ static int iwl3945_rfkill_soft_rf_kill(void *data, enum rfkill_state state)
 		iwl3945_radio_kill_sw(priv, 1);
 		break;
 	default:
-		IWL_WARNING("we recieved unexpected RFKILL state %d\n", state);
+		IWL_WARNING("we received unexpected RFKILL state %d\n", state);
 		break;
 	}
 out_unlock:

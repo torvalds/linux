@@ -693,7 +693,7 @@ static int iwl_set_tkip_dynamic_key_info(struct iwl_priv *priv,
 	/* else, we are overriding an existing key => no need to allocated room
 	 * in uCode. */
 
-	/* This copy is acutally not needed: we get the key with each TX */
+	/* This copy is actually not needed: we get the key with each TX */
 	memcpy(priv->stations[sta_id].keyinfo.key, keyconf->key, 16);
 
 	memcpy(priv->stations[sta_id].sta.key.key, keyconf->key, 16);
@@ -788,7 +788,7 @@ static void iwl_dump_lq_cmd(struct iwl_priv *priv,
 {
 	int i;
 	IWL_DEBUG_RATE("lq station id 0x%x\n", lq->sta_id);
-	IWL_DEBUG_RATE("lq dta 0x%X 0x%X\n",
+	IWL_DEBUG_RATE("lq ant 0x%X 0x%X\n",
 		       lq->general_params.single_stream_ant_msk,
 		       lq->general_params.dual_stream_ant_msk);
 
@@ -890,7 +890,7 @@ static void iwl_sta_init_lq(struct iwl_priv *priv, const u8 *addr, int is_ap)
  * iwl_rxon_add_station - add station into station table.
  *
  * there is only one AP station with id= IWL_AP_ID
- * NOTE: mutex must be held before calling this fnction
+ * NOTE: mutex must be held before calling this function
  */
 int iwl_rxon_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
 {

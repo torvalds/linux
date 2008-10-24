@@ -278,7 +278,7 @@ static int iwl_get_blink_rate(struct iwl_priv *priv)
 	/* FIXME: + priv->rx_stats[2].bytes; */
 	s64 tpt = current_tpt - priv->led_tpt;
 
-	if (tpt < 0) /* wrapparound */
+	if (tpt < 0) /* wraparound */
 		tpt = -tpt;
 
 	IWL_DEBUG_LED("tpt %lld current_tpt %llu\n",

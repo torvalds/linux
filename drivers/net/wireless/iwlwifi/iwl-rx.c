@@ -407,7 +407,7 @@ int iwl_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 			   (priv->shared_phys + priv->rb_closed_offset) >> 4);
 
 	/* Enable Rx DMA
-	 * FH_RCSR_CHNL0_RX_IGNORE_RXF_EMPTY is set becuase of HW bug in
+	 * FH_RCSR_CHNL0_RX_IGNORE_RXF_EMPTY is set because of HW bug in
 	 *      the credit mechanism in 5000 HW RX FIFO
 	 * Direct rx interrupts to hosts
 	 * Rx buffer size 4 or 8k
@@ -1149,7 +1149,7 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 		priv->last_rx_noise = IWL_NOISE_MEAS_NOT_AVAILABLE;
 
 	/* Set "1" to report good data frames in groups of 100 */
-	/* FIXME: need to optimze the call: */
+	/* FIXME: need to optimize the call: */
 	iwl_dbg_report_frame(priv, pkt, header, 1);
 
 	IWL_DEBUG_STATS_LIMIT("Rssi %d, noise %d, qual %d, TSF %llu\n",
@@ -1160,12 +1160,12 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 	 * "antenna number"
 	 *
 	 * It seems that the antenna field in the phy flags value
-	 * is actually a bitfield. This is undefined by radiotap,
+	 * is actually a bit field. This is undefined by radiotap,
 	 * it wants an actual antenna number but I always get "7"
 	 * for most legacy frames I receive indicating that the
 	 * same frame was received on all three RX chains.
 	 *
-	 * I think this field should be removed in favour of a
+	 * I think this field should be removed in favor of a
 	 * new 802.11n radiotap field "RX chains" that is defined
 	 * as a bitmask.
 	 */

@@ -71,7 +71,7 @@
 
 #include "iwl-fh.h"
 
-/* EERPROM */
+/* EEPROM */
 #define IWL4965_EEPROM_IMG_SIZE			1024
 
 /*
@@ -286,13 +286,13 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
  *     that target txpower.
  *
  *
- * 3)  Determine (EEPROM) calibration subband for the target channel, by
- *     comparing against first and last channels in each subband
+ * 3)  Determine (EEPROM) calibration sub band for the target channel, by
+ *     comparing against first and last channels in each sub band
  *     (see struct iwl4965_eeprom_calib_subband_info).
  *
  *
  * 4)  Linearly interpolate (EEPROM) factory calibration measurement sets,
- *     referencing the 2 factory-measured (sample) channels within the subband.
+ *     referencing the 2 factory-measured (sample) channels within the sub band.
  *
  *     Interpolation is based on difference between target channel's frequency
  *     and the sample channels' frequencies.  Since channel numbers are based
@@ -300,7 +300,7 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
  *     to interpolating based on channel number differences.
  *
  *     Note that the sample channels may or may not be the channels at the
- *     edges of the subband.  The target channel may be "outside" of the
+ *     edges of the sub band.  The target channel may be "outside" of the
  *     span of the sampled channels.
  *
  *     Driver may choose the pair (for 2 Tx chains) of measurements (see
@@ -344,7 +344,7 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
  *     "4965 temperature calculation".
  *
  *     If current temperature is higher than factory temperature, driver must
- *     increase gain (lower gain table index), and vice versa.
+ *     increase gain (lower gain table index), and vice verse.
  *
  *     Temperature affects gain differently for different channels:
  *

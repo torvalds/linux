@@ -747,7 +747,7 @@ static int iwl_get_idle_rx_chain_count(struct iwl_priv *priv, int active_cnt)
 		break;
 	case WLAN_HT_CAP_SM_PS_INVALID:
 	default:
-		IWL_ERROR("invalide mimo ps mode %d\n",
+		IWL_ERROR("invalid mimo ps mode %d\n",
 			   priv->current_ht_config.sm_ps);
 		WARN_ON(1);
 		idle_cnt = -1;

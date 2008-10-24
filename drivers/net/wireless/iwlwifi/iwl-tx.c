@@ -524,7 +524,7 @@ EXPORT_SYMBOL(iwl_hw_txq_ctx_free);
 
 /**
  * iwl_txq_ctx_reset - Reset TX queue context
- * Destroys all DMA structures and initialise them again
+ * Destroys all DMA structures and initialize them again
  *
  * @param priv
  * @return error code
@@ -764,7 +764,7 @@ static void iwl_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
 		memcpy(tx_cmd->key, keyconf->key, keyconf->keylen);
 		if (info->flags & IEEE80211_TX_CTL_AMPDU)
 			tx_cmd->tx_flags |= TX_CMD_FLG_AGG_CCMP_MSK;
-		IWL_DEBUG_TX("tx_cmd with aes hwcrypto\n");
+		IWL_DEBUG_TX("tx_cmd with AES hwcrypto\n");
 		break;
 
 	case ALG_TKIP:

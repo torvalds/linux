@@ -55,7 +55,7 @@
  * _iwl_read32.)
  *
  * These declarations are *extremely* useful in quickly isolating code deltas
- * which result in misconfiguring of the hardware I/O.  In combination with
+ * which result in misconfiguration of the hardware I/O.  In combination with
  * git-bisect and the IO debug level you can quickly determine the specific
  * commit which breaks the IO sequence to the hardware.
  *

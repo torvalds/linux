@@ -188,7 +188,7 @@ static void rs_dbgfs_set_mcs(struct iwl_lq_sta *lq_sta,
  * 1, 2, 5.5, 11, 6, 9, 12, 18, 24, 36, 48, 54, 60 MBits
  * "G" is the only table that supports CCK (the first 4 rates).
  */
-/*FIXME:RS:need to spearate tables for MIMO2/MIMO3*/
+/*FIXME:RS:need to separate tables for MIMO2/MIMO3*/
 static s32 expected_tpt_A[IWL_RATE_COUNT] = {
 	0, 0, 0, 0, 40, 57, 72, 98, 121, 154, 177, 186, 186
 };
@@ -2253,7 +2253,7 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 		     lq_sta->active_mimo2_rate,
 		     lq_sta->active_mimo3_rate);
 
-	/* These values will be overriden later */
+	/* These values will be overridden later */
 	lq_sta->lq.general_params.single_stream_ant_msk = ANT_A;
 	lq_sta->lq.general_params.dual_stream_ant_msk = ANT_AB;
 

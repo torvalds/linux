@@ -246,7 +246,7 @@ static int iwl4965_set_ucode_ptrs(struct iwl_priv *priv)
 	iwl_write_prph(priv, BSM_DRAM_DATA_BYTECOUNT_REG,
 				 priv->ucode_data.len);
 
-	/* Inst bytecount must be last to set up, bit 31 signals uCode
+	/* Inst byte count must be last to set up, bit 31 signals uCode
 	 *   that all new ptr/size info is in place */
 	iwl_write_prph(priv, BSM_DRAM_INST_BYTECOUNT_REG,
 				 priv->ucode_code.len | BSM_DRAM_INST_LOAD);
@@ -324,7 +324,7 @@ static u16 iwl4965_eeprom_calib_version(struct iwl_priv *priv)
 }
 
 /*
- * Activate/Deactivat Tx DMA/FIFO channels according tx fifos mask
+ * Activate/Deactivate Tx DMA/FIFO channels according tx fifos mask
  * must be called under priv->lock and mac access
  */
 static void iwl4965_txq_set_sched(struct iwl_priv *priv, u32 mask)
@@ -396,7 +396,7 @@ static void iwl4965_nic_config(struct iwl_priv *priv)
 
 	/* L1 is enabled by BIOS */
 	if ((link & PCI_CFG_LINK_CTRL_VAL_L1_EN) == PCI_CFG_LINK_CTRL_VAL_L1_EN)
-		/* diable L0S disabled L1A enabled */
+		/* disable L0S disabled L1A enabled */
 		iwl_set_bit(priv, CSR_GIO_REG, CSR_GIO_REG_VAL_L0S_ENABLED);
 	else
 		/* L0S enabled L1A disabled */
@@ -625,7 +625,7 @@ static void iwl4965_bg_txpower_work(struct work_struct *work)
 
 	mutex_lock(&priv->mutex);
 
-	/* Regardless of if we are assocaited, we must reconfigure the
+	/* Regardless of if we are associated, we must reconfigure the
 	 * TX power since frames can be sent on non-radar channels while
 	 * not associated */
 	iwl4965_send_tx_power(priv);
@@ -2019,7 +2019,7 @@ static inline u32 iwl4965_get_scd_ssn(struct iwl4965_tx_resp *tx_resp)
 }
 
 /**
- * iwl4965_tx_status_reply_tx - Handle Tx rspnse for frames in aggregation queue
+ * iwl4965_tx_status_reply_tx - Handle Tx response for frames in aggregation queue
  */
 static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 				      struct iwl_ht_agg *agg,
