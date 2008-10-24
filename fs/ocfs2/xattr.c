@@ -155,6 +155,7 @@ static inline u16 ocfs2_xattr_max_xe_in_bucket(struct super_block *sb)
 }
 
 #define bucket_blkno(_b) ((_b)->bu_bhs[0]->b_blocknr)
+#define bucket_block(_b, _n) ((_b)->bu_bhs[(_n)]->b_data)
 
 static inline const char *ocfs2_xattr_prefix(int name_index)
 {
@@ -801,7 +802,7 @@ static int ocfs2_xattr_block_get(struct inode *inode,
 								i,
 								&block_off,
 								&name_offset);
-			xs->base = xs->bucket.bu_bhs[block_off]->b_data;
+			xs->base = bucket_block(&xs->bucket, block_off);
 		}
 		if (ocfs2_xattr_is_local(xs->here)) {
 			memcpy(buffer, (void *)xs->base +
@@ -2280,11 +2281,11 @@ static int ocfs2_xattr_bucket_find(struct inode *inode,
 	}
 	xs->bucket.bu_bhs[0] = lower_bh;
 	xs->bucket.bu_xh = (struct ocfs2_xattr_header *)
-					xs->bucket.bu_bhs[0]->b_data;
+					bucket_block(&xs->bucket, 0);
 	lower_bh = NULL;
 
 	xs->header = xs->bucket.bu_xh;
-	xs->base = xs->bucket.bu_bhs[0]->b_data;
+	xs->base = bucket_block(&xs->bucket, 0);
 	xs->end = xs->base + inode->i_sb->s_blocksize;
 
 	if (found) {
@@ -2378,7 +2379,7 @@ static int ocfs2_iterate_xattr_buckets(struct inode *inode,
 			goto out;
 		}
 
-		bucket.bu_xh = (struct ocfs2_xattr_header *)bucket.bu_bhs[0]->b_data;
+		bucket.bu_xh = (struct ocfs2_xattr_header *)bucket_block(&bucket, 0);
 		/*
 		 * The real bucket num in this series of blocks is stored
 		 * in the 1st bucket.
@@ -2457,7 +2458,7 @@ static int ocfs2_list_xattr_bucket(struct inode *inode,
 			if (ret)
 				break;
 
-			name = (const char *)bucket->bu_bhs[block_off]->b_data +
+			name = (const char *)bucket_block(bucket, block_off) +
 				new_offset;
 			ret = ocfs2_xattr_list_entry(xl->buffer,
 						     xl->buffer_size,
@@ -2630,7 +2631,7 @@ static int ocfs2_xattr_update_xattr_search(struct inode *inode,
 
 	xs->bucket.bu_bhs[0] = new_bh;
 	get_bh(new_bh);
-	xs->bucket.bu_xh = (struct ocfs2_xattr_header *)xs->bucket.bu_bhs[0]->b_data;
+	xs->bucket.bu_xh = (struct ocfs2_xattr_header *)bucket_block(&xs->bucket, 0);
 	xs->header = xs->bucket.bu_xh;
 
 	xs->base = new_bh->b_data;
@@ -3931,7 +3932,7 @@ static inline char *ocfs2_xattr_bucket_get_val(struct inode *inode,
 	int block_off = offs >> inode->i_sb->s_blocksize_bits;
 
 	offs = offs % inode->i_sb->s_blocksize;
-	return bucket->bu_bhs[block_off]->b_data + offs;
+	return bucket_block(bucket, block_off) + offs;
 }
 
 /*
