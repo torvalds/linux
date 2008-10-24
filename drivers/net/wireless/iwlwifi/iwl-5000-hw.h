@@ -76,30 +76,31 @@
 /* EERPROM */
 #define IWL_5000_EEPROM_IMG_SIZE			2048
 
-
-#define IWL50_MAX_WIN_SIZE                64
-#define IWL50_QUEUE_SIZE                 256
 #define IWL50_CMD_FIFO_NUM                 7
 #define IWL50_NUM_QUEUES                  20
 #define IWL50_NUM_AMPDU_QUEUES		  10
 #define IWL50_FIRST_AMPDU_QUEUE		  10
 
-#define IWL_sta_id_POS 12
-#define IWL_sta_id_LEN 4
-#define IWL_sta_id_SYM val
-
 /* Fixed (non-configurable) rx data from phy */
 
-/* Base physical address of iwl5000_shared is provided to SCD_DRAM_BASE_ADDR
- * and &iwl5000_shared.val0 is provided to FH_RSCSR_CHNL0_STTS_WPTR_REG */
-struct iwl5000_sched_queue_byte_cnt_tbl {
-	struct iwl4965_queue_byte_cnt_entry tfd_offset[IWL50_QUEUE_SIZE +
-						       IWL50_MAX_WIN_SIZE];
+/**
+ * struct iwl5000_schedq_bc_tbl scheduler byte count table
+ * 	base physical address of iwl5000_shared
+ * 	is provided to SCD_DRAM_BASE_ADDR
+ * @tfd_offset  0-12 - tx command byte count
+ *	       12-16 - station index
+ */
+struct iwl5000_schedq_bc_tbl {
+	__le16 tfd_offset[TFD_QUEUE_BC_SIZE];
 } __attribute__ ((packed));
 
+/**
+ * struct iwl5000_shared
+ * @rb_closed
+ * 	address is provided to FH_RSCSR_CHNL0_STTS_WPTR_REG
+ */
 struct iwl5000_shared {
-	struct iwl5000_sched_queue_byte_cnt_tbl
-	 queues_byte_cnt_tbls[IWL50_NUM_QUEUES];
+	struct iwl5000_schedq_bc_tbl queues_bc_tbls[IWL50_NUM_QUEUES];
 	__le32 rb_closed;
 
 	/* __le32 rb_closed_stts_rb_num:12; */

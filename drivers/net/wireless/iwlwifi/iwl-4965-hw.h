@@ -111,7 +111,6 @@
 #define PCI_CFG_CMD_REG_INT_DIS_MSK	0x04
 #define PCI_CFG_PMC_PME_FROM_D3COLD_SUPPORT         (0x80000000)
 
-#define TFD_QUEUE_SIZE_MAX      (256)
 
 #define IWL_NUM_SCAN_RATES         (2)
 
@@ -815,8 +814,6 @@ enum {
  * up to 7 DMA channels (FIFOs).  Each Tx queue is supported by a circular array
  * in DRAM containing 256 Transmit Frame Descriptors (TFDs).
  */
-#define IWL49_MAX_WIN_SIZE	64
-#define IWL49_QUEUE_SIZE	256
 #define IWL49_NUM_FIFOS 	7
 #define IWL49_CMD_FIFO_NUM	4
 #define IWL49_NUM_QUEUES	16
@@ -882,26 +879,7 @@ struct iwl_tfd {
 
 
 /**
- * struct iwl4965_queue_byte_cnt_entry
- *
- * Byte Count Table Entry
- *
- * Bit fields:
- * 15-12: reserved
- * 11- 0: total to-be-transmitted byte count of frame (does not include command)
- */
-struct iwl4965_queue_byte_cnt_entry {
-	__le16 val;
-	/* __le16 byte_cnt:12; */
-#define IWL_byte_cnt_POS 0
-#define IWL_byte_cnt_LEN 12
-#define IWL_byte_cnt_SYM val
-	/* __le16 rsvd:4; */
-} __attribute__ ((packed));
-
-
-/**
- * struct iwl4965_sched_queue_byte_cnt_tbl
+ * struct iwl4965_schedq_bc_tbl
  *
  * Byte Count table
  *
@@ -915,15 +893,12 @@ struct iwl4965_queue_byte_cnt_entry {
  * count table for the chosen Tx queue.  If the TFD index is 0-63, the driver
  * must duplicate the byte count entry in corresponding index 256-319.
  *
- * "dont_care" padding puts each byte count table on a 1024-byte boundary;
+ * padding puts each byte count table on a 1024-byte boundary;
  * 4965 assumes tables are separated by 1024 bytes.
  */
-struct iwl4965_sched_queue_byte_cnt_tbl {
-	struct iwl4965_queue_byte_cnt_entry tfd_offset[IWL49_QUEUE_SIZE +
-						       IWL49_MAX_WIN_SIZE];
-	u8 dont_care[1024 -
-		     (IWL49_QUEUE_SIZE + IWL49_MAX_WIN_SIZE) *
-		     sizeof(__le16)];
+struct iwl4965_schedq_bc_tbl {
+	__le16 tfd_offset[TFD_QUEUE_BC_SIZE];
+	u8 pad[1024 - (TFD_QUEUE_BC_SIZE) * sizeof(__le16)];
 } __attribute__ ((packed));
 
 
@@ -951,8 +926,7 @@ struct iwl4965_sched_queue_byte_cnt_tbl {
  * 31- 0:  Not used
  */
 struct iwl4965_shared {
-	struct iwl4965_sched_queue_byte_cnt_tbl
-	 queues_byte_cnt_tbls[IWL49_NUM_QUEUES];
+	struct iwl4965_schedq_bc_tbl queues_bc_tbls[IWL49_NUM_QUEUES];
 	__le32 rb_closed;
 
 	/* __le32 rb_closed_stts_rb_num:12; */
