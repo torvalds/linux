@@ -358,8 +358,7 @@ ieee80211_get_channel(struct wiphy *wiphy, int freq)
  * for a regulatory domain structure for the respective country. If
  * a regulatory domain is build and passed you should set the alpha2
  * if possible, otherwise set it to the special value of "99" which tells
- * the wireless core it is unknown. If you pass a built regulatory domain
- * and we return non zero you are in charge of kfree()'ing the structure.
+ * the wireless core it is unknown.
  *
  * Returns -EALREADY if *a regulatory domain* has already been set. Note that
  * this could be by another driver. It is safe for drivers to continue if

@@ -605,7 +605,6 @@ int __regulatory_hint(struct wiphy *wiphy, enum reg_set_by set_by,
 	return r;
 }
 
-/* If rd is not NULL and if this call fails the caller must free it */
 int regulatory_hint(struct wiphy *wiphy, const char *alpha2,
 	struct ieee80211_regdomain *rd)
 {
@@ -690,6 +689,7 @@ void print_regdomain_info(const struct ieee80211_regdomain *rd)
 	print_rd_rules(rd);
 }
 
+/* Takes ownership of rd only if it doesn't fail */
 static int __set_regdom(const struct ieee80211_regdomain *rd)
 {
 	/* Some basic sanity checks first */
@@ -750,16 +750,17 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 
 /* Use this call to set the current regulatory domain. Conflicts with
  * multiple drivers can be ironed out later. Caller must've already
- * kmalloc'd the rd structure. If this calls fails you should kfree()
- * the passed rd. Caller must hold cfg80211_drv_mutex */
+ * kmalloc'd the rd structure. Caller must hold cfg80211_drv_mutex */
 int set_regdom(const struct ieee80211_regdomain *rd)
 {
 	int r;
 
 	/* Note that this doesn't update the wiphys, this is done below */
 	r = __set_regdom(rd);
-	if (r)
+	if (r) {
+		kfree(rd);
 		return r;
+	}
 
 	/* This would make this whole thing pointless */
 	BUG_ON(rd != cfg80211_regdomain);
