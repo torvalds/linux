@@ -1307,7 +1307,7 @@ const struct wm8350_reg_access wm8350_reg_io_map[] = {
 	{ 0xFF3F, 0xE03F, 0x0000 }, /* R216 - Main Bandgap Control */
 	{ 0xEF2F, 0xE02F, 0x0000 }, /* R217 - OSC Control */
 	{ 0xF3FF, 0xB3FF, 0xc000 }, /* R218 - RTC Tick Control */
-	{ 0xFFFF, 0xFFFF, 0xFFFF }, /* R219 */
+	{ 0xFFFF, 0xFFFF, 0x0000 }, /* R219 - Security */
 	{ 0x09FF, 0x01FF, 0x0000 }, /* R220 - RAM BIST 1 */
 	{ 0x0000, 0x0000, 0x0000 }, /* R221 */
 	{ 0xFFFF, 0xFFFF, 0xFFFF }, /* R222 */
