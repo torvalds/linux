@@ -137,6 +137,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
 	union acpi_parse_object *next;
 	const struct acpi_opcode_info *parent_info;
 	union acpi_parse_object *replacement_op = NULL;
+	acpi_status status = AE_OK;
 
 	ACPI_FUNCTION_TRACE_PTR(ps_complete_this_op, op);
 
@@ -186,7 +187,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
 			replacement_op =
 			    acpi_ps_alloc_op(AML_INT_RETURN_VALUE_OP);
 			if (!replacement_op) {
-				goto allocate_error;
+				status = AE_NO_MEMORY;
 			}
 			break;
 
@@ -211,7 +212,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
 				replacement_op =
 				    acpi_ps_alloc_op(AML_INT_RETURN_VALUE_OP);
 				if (!replacement_op) {
-					goto allocate_error;
+					status = AE_NO_MEMORY;
 				}
 			} else
 			    if ((op->common.parent->common.aml_opcode ==
@@ -226,13 +227,13 @@ acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
 					    acpi_ps_alloc_op(op->common.
 							     aml_opcode);
 					if (!replacement_op) {
-						goto allocate_error;
+						status = AE_NO_MEMORY;
+					} else {
+						replacement_op->named.data =
+						    op->named.data;
+						replacement_op->named.length =
+						    op->named.length;
 					}
-
-					replacement_op->named.data =
-					    op->named.data;
-					replacement_op->named.length =
-					    op->named.length;
 				}
 			}
 			break;
@@ -242,7 +243,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
 			replacement_op =
 			    acpi_ps_alloc_op(AML_INT_RETURN_VALUE_OP);
 			if (!replacement_op) {
-				goto allocate_error;
+				status = AE_NO_MEMORY;
 			}
 		}
 
@@ -302,14 +303,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state * walk_state,
 	/* Now we can actually delete the subtree rooted at Op */
 
 	acpi_ps_delete_parse_tree(op);
-	return_ACPI_STATUS(AE_OK);
-
-      allocate_error:
-
-	/* Always delete the subtree, even on error */
-
-	acpi_ps_delete_parse_tree(op);
-	return_ACPI_STATUS(AE_NO_MEMORY);
+	return_ACPI_STATUS(status);
 }
 
 /*******************************************************************************
@@ -641,10 +635,12 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 					    ACPI_WALK_METHOD_RESTART;
 				}
 			} else {
-				/* On error, delete any return object */
+				/* On error, delete any return object or implicit return */
 
 				acpi_ut_remove_reference(previous_walk_state->
 							 return_desc);
+				acpi_ds_clear_implicit_return
+				    (previous_walk_state);
 			}
 		}
 

@@ -183,6 +183,9 @@ static int wm8350_write(struct wm8350 *wm8350, u8 reg, int num_regs, u16 *src)
 			(wm8350->reg_cache[i] & ~wm8350_reg_io_map[i].writable)
 			| src[i - reg];
 
+		/* Don't store volatile bits */
+		wm8350->reg_cache[i] &= ~wm8350_reg_io_map[i].vol;
+
 		src[i - reg] = cpu_to_be16(src[i - reg]);
 	}
 
@@ -1120,6 +1123,7 @@ static int wm8350_create_cache(struct wm8350 *wm8350, int mode)
 			}
 			value = be16_to_cpu(value);
 			value &= wm8350_reg_io_map[i].readable;
+			value &= ~wm8350_reg_io_map[i].vol;
 			wm8350->reg_cache[i] = value;
 		} else
 			wm8350->reg_cache[i] = reg_map[i];
@@ -1128,7 +1132,6 @@ static int wm8350_create_cache(struct wm8350 *wm8350, int mode)
 out:
 	return ret;
 }
-EXPORT_SYMBOL_GPL(wm8350_create_cache);
 
 /*
  * Register a client device.  This is non-fatal since there is no need to
@@ -1217,7 +1220,7 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 
 	mutex_init(&wm8350->irq_mutex);
 	INIT_WORK(&wm8350->irq_work, wm8350_irq_worker);
-	if (irq != NO_IRQ) {
+	if (irq) {
 		ret = request_irq(irq, wm8350_irq, 0,
 				  "wm8350", wm8350);
 		if (ret != 0) {

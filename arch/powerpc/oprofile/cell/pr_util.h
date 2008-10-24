@@ -24,6 +24,11 @@
 #define SKIP_GENERIC_SYNC 0
 #define SYNC_START_ERROR -1
 #define DO_GENERIC_SYNC 1
+#define SPUS_PER_NODE   8
+#define DEFAULT_TIMER_EXPIRE  (HZ / 10)
+
+extern struct delayed_work spu_work;
+extern int spu_prof_running;
 
 struct spu_overlay_info {	/* map of sections within an SPU overlay */
 	unsigned int vma;	/* SPU virtual memory address from elf */
@@ -61,6 +66,14 @@ struct vma_to_fileoffset_map {	/* map of sections within an SPU program */
 	 */
 
 };
+
+struct spu_buffer {
+	int last_guard_val;
+	int ctx_sw_seen;
+	unsigned long *buff;
+	unsigned int head, tail;
+};
+
 
 /* The three functions below are for maintaining and accessing
  * the vma-to-fileoffset map.

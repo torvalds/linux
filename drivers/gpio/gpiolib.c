@@ -248,7 +248,7 @@ static ssize_t gpio_value_show(struct device *dev,
 	if (!test_bit(FLAG_EXPORT, &desc->flags))
 		status = -EIO;
 	else
-		status = sprintf(buf, "%d\n", gpio_get_value_cansleep(gpio));
+		status = sprintf(buf, "%d\n", !!gpio_get_value_cansleep(gpio));
 
 	mutex_unlock(&sysfs_lock);
 	return status;
@@ -1105,7 +1105,7 @@ int gpio_get_value_cansleep(unsigned gpio)
 
 	might_sleep_if(extra_checks);
 	chip = gpio_to_chip(gpio);
-	return chip->get(chip, gpio - chip->base);
+	return chip->get ? chip->get(chip, gpio - chip->base) : 0;
 }
 EXPORT_SYMBOL_GPL(gpio_get_value_cansleep);
 
@@ -1143,7 +1143,7 @@ static void gpiolib_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 
 		if (!is_out) {
 			int		irq = gpio_to_irq(gpio);
-			struct irq_desc	*desc = irq_desc + irq;
+			struct irq_desc	*desc = irq_to_desc(irq);
 
 			/* This races with request_irq(), set_irq_type(),
 			 * and set_irq_wake() ... but those are "rare".

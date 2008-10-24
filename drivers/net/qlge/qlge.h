@@ -1375,7 +1375,6 @@ struct ql_adapter {
 	spinlock_t adapter_lock;
 	spinlock_t hw_lock;
 	spinlock_t stats_lock;
-	spinlock_t legacy_lock;	/* used for maintaining legacy intr sync */
 
 	/* PCI Bus Relative Register Addresses */
 	void __iomem *reg_base;
@@ -1398,8 +1397,6 @@ struct ql_adapter {
 	u32 intr_count;
 	struct msix_entry *msi_x_entry;
 	struct intr_context intr_context[MAX_RX_RINGS];
-
-	int (*legacy_check) (struct ql_adapter *);
 
 	int tx_ring_count;	/* One per online CPU. */
 	u32 rss_ring_first_cq_id;/* index of first inbound (rss) rx_ring */
@@ -1502,7 +1499,7 @@ void ql_mpi_work(struct work_struct *work);
 void ql_mpi_reset_work(struct work_struct *work);
 int ql_wait_reg_rdy(struct ql_adapter *qdev, u32 reg, u32 bit, u32 ebit);
 void ql_queue_asic_error(struct ql_adapter *qdev);
-void ql_enable_completion_interrupt(struct ql_adapter *qdev, u32 intr);
+u32 ql_enable_completion_interrupt(struct ql_adapter *qdev, u32 intr);
 void ql_set_ethtool_ops(struct net_device *ndev);
 int ql_read_xgmac_reg64(struct ql_adapter *qdev, u32 reg, u64 *data);
 

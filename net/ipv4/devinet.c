@@ -613,9 +613,7 @@ int devinet_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 	if (colon)
 		*colon = 0;
 
-#ifdef CONFIG_KMOD
 	dev_load(net, ifr.ifr_name);
-#endif
 
 	switch (cmd) {
 	case SIOCGIFADDR:	/* Get interface address */

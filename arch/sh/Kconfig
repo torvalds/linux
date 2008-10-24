@@ -12,6 +12,7 @@ config SUPERH
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_GENERIC_DMA_COHERENT
+	select HAVE_IOREMAP_PROT if MMU
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
 	  and consumer electronics; it was also used in the Sega Dreamcast
@@ -20,6 +21,10 @@ config SUPERH
 
 config SUPERH32
 	def_bool !SUPERH64
+	select HAVE_KPROBES
+	select HAVE_KRETPROBES
+	select HAVE_ARCH_TRACEHOOK
+	select HAVE_FTRACE
 
 config SUPERH64
 	def_bool y if CPU_SH5
@@ -54,8 +59,11 @@ config GENERIC_HARDIRQS_NO__DO_IRQ
 config GENERIC_IRQ_PROBE
 	def_bool y
 
+config GENERIC_GPIO
+	def_bool n
+
 config GENERIC_CALIBRATE_DELAY
-	def_bool y
+	bool
 
 config GENERIC_IOMAP
 	bool
@@ -65,6 +73,9 @@ config GENERIC_TIME
 
 config GENERIC_CLOCKEVENTS
 	def_bool n
+
+config GENERIC_CLOCKEVENTS_BROADCAST
+	bool
 
 config GENERIC_LOCKBREAK
 	def_bool y
@@ -92,6 +103,10 @@ config STACKTRACE_SUPPORT
 config LOCKDEP_SUPPORT
 	def_bool y
 
+config HAVE_LATENCYTOP_SUPPORT
+	def_bool y
+	depends on !SMP
+
 config ARCH_HAS_ILOG2_U32
 	def_bool n
 
@@ -105,6 +120,8 @@ config IO_TRAPPED
 	bool
 
 source "init/Kconfig"
+
+source "kernel/Kconfig.freezer"
 
 menu "System type"
 
@@ -323,6 +340,7 @@ config CPU_SUBTYPE_SHX3
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_NUMA
 	select SYS_SUPPORTS_SMP
+	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
 
 # SH4AL-DSP Processor Support
 
@@ -490,7 +508,6 @@ config CRASH_DUMP
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
 	depends on PROC_FS
-	default y
 	help
 	  This kernel feature is useful for number crunching applications
 	  that may need to compute untrusted bytecode during their

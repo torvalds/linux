@@ -328,6 +328,12 @@ after_lock_tlb:
 
 	wrpr		%g0, 0, %wstate
 
+	sethi		%hi(prom_entry_lock), %g2
+1:	ldstub		[%g2 + %lo(prom_entry_lock)], %g1
+	membar		#StoreLoad | #StoreStore
+	brnz,pn		%g1, 1b
+	 nop
+
 	/* As a hack, put &init_thread_union into %g6.
 	 * prom_world() loads from here to restore the %asi
 	 * register.
@@ -337,7 +343,7 @@ after_lock_tlb:
 
 	sethi		%hi(is_sun4v), %o0
 	lduw		[%o0 + %lo(is_sun4v)], %o0
-	brz,pt		%o0, 1f
+	brz,pt		%o0, 2f
 	 nop
 
 	TRAP_LOAD_TRAP_BLOCK(%g2, %g3)
@@ -369,10 +375,10 @@ after_lock_tlb:
 	call		%o1
 	 add		%sp, (2047 + 128), %o0
 
-	ba,pt		%xcc, 2f
+	ba,pt		%xcc, 3f
 	 nop
 
-1:	sethi		%hi(sparc64_ttable_tl0), %o0
+2:	sethi		%hi(sparc64_ttable_tl0), %o0
 	set		prom_set_trap_table_name, %g2
 	stx		%g2, [%sp + 2047 + 128 + 0x00]
 	mov		1, %g2
@@ -386,7 +392,11 @@ after_lock_tlb:
 	call		%o1
 	 add		%sp, (2047 + 128), %o0
 
-2:	ldx		[%l0], %g6
+3:	sethi		%hi(prom_entry_lock), %g2
+	stb		%g0, [%g2 + %lo(prom_entry_lock)]
+	membar		#StoreStore | #StoreLoad
+
+	ldx		[%l0], %g6
 	ldx		[%g6 + TI_TASK], %g4
 
 	mov		1, %g5

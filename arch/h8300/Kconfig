@@ -90,6 +90,8 @@ config HZ
 
 source "init/Kconfig"
 
+source "kernel/Kconfig.freezer"
+
 source "arch/h8300/Kconfig.cpu"
 
 menu "Executable file formats"
@@ -213,6 +215,8 @@ source "drivers/i2c/Kconfig"
 source "drivers/hwmon/Kconfig"
 
 source "drivers/usb/Kconfig"
+
+source "drivers/uwb/Kconfig"
 
 endmenu
 

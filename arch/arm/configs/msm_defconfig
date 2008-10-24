@@ -133,7 +133,7 @@ CONFIG_DEFAULT_IOSCHED="anticipatory"
 # CONFIG_ARCH_LH7A40X is not set
 # CONFIG_ARCH_DAVINCI is not set
 # CONFIG_ARCH_OMAP is not set
-CONFIG_ARCH_MSM7X00A=y
+CONFIG_ARCH_MSM=y
 
 #
 # Boot options

@@ -52,12 +52,28 @@ config HTC_PASIC3
 
 config UCB1400_CORE
 	tristate "Philips UCB1400 Core driver"
+	depends on AC97_BUS
+	depends on GPIOLIB
 	help
 	  This enables support for the Philips UCB1400 core functions.
 	  The UCB1400 is an AC97 audio codec.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ucb1400_core.
+
+config TWL4030_CORE
+	bool "Texas Instruments TWL4030/TPS659x0 Support"
+	depends on I2C=y && GENERIC_HARDIRQS && (ARCH_OMAP2 || ARCH_OMAP3)
+	help
+	  Say yes here if you have TWL4030 family chip on your board.
+	  This core driver provides register access and IRQ handling
+	  facilities, and registers devices for the various functions
+	  so that function-specific drivers can bind to them.
+
+	  These multi-function chips are found on many OMAP2 and OMAP3
+	  boards, providing power management, RTC, GPIO, keypad, a
+	  high speed USB OTG transceiver, an audio codec (on most
+	  versions) and many other features.
 
 config MFD_TMIO
 	bool

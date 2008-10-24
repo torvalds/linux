@@ -117,7 +117,7 @@ static inline void paravirt_post_smp_prepare_boot_cpu(void)
 struct pv_iosapic_ops {
 	void (*pcat_compat_init)(void);
 
-	struct irq_chip *(*get_irq_chip)(unsigned long trigger);
+	struct irq_chip *(*__get_irq_chip)(unsigned long trigger);
 
 	unsigned int (*__read)(char __iomem *iosapic, unsigned int reg);
 	void (*__write)(char __iomem *iosapic, unsigned int reg, u32 val);
@@ -135,7 +135,7 @@ iosapic_pcat_compat_init(void)
 static inline struct irq_chip*
 iosapic_get_irq_chip(unsigned long trigger)
 {
-	return pv_iosapic_ops.get_irq_chip(trigger);
+	return pv_iosapic_ops.__get_irq_chip(trigger);
 }
 
 static inline unsigned int

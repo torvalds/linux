@@ -1070,7 +1070,8 @@ static int autosuspend_check(struct usb_device *udev, int reschedule)
 				struct usb_driver *driver;
 
 				driver = to_usb_driver(intf->dev.driver);
-				if (!driver->reset_resume)
+				if (!driver->reset_resume ||
+				    intf->needs_remote_wakeup)
 					return -EOPNOTSUPP;
 			}
 		}
@@ -1609,7 +1610,8 @@ int usb_external_resume_device(struct usb_device *udev)
 	status = usb_resume_both(udev);
 	udev->last_busy = jiffies;
 	usb_pm_unlock(udev);
-	do_unbind_rebind(udev, DO_REBIND);
+	if (status == 0)
+		do_unbind_rebind(udev, DO_REBIND);
 
 	/* Now that the device is awake, we can start trying to autosuspend
 	 * it again. */

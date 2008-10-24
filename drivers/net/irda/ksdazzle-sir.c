@@ -705,7 +705,8 @@ static int ksdazzle_probe(struct usb_interface *intf,
 	if (ret != 0)
 		goto free_mem;
 
-	info("IrDA: Registered KingSun/Dazzle device %s", net->name);
+	dev_info(&net->dev, "IrDA: Registered KingSun/Dazzle device %s\n",
+		 net->name);
 
 	usb_set_intfdata(intf, kingsun);
 

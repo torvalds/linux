@@ -37,36 +37,6 @@
 #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
 
 /*
- * Isolate one page from the LRU lists. If successful put it onto
- * the indicated list with elevated page count.
- *
- * Result:
- *  -EBUSY: page not on LRU list
- *  0: page removed from LRU list and added to the specified list.
- */
-int isolate_lru_page(struct page *page, struct list_head *pagelist)
-{
-	int ret = -EBUSY;
-
-	if (PageLRU(page)) {
-		struct zone *zone = page_zone(page);
-
-		spin_lock_irq(&zone->lru_lock);
-		if (PageLRU(page) && get_page_unless_zero(page)) {
-			ret = 0;
-			ClearPageLRU(page);
-			if (PageActive(page))
-				del_page_from_active_list(zone, page);
-			else
-				del_page_from_inactive_list(zone, page);
-			list_add_tail(&page->lru, pagelist);
-		}
-		spin_unlock_irq(&zone->lru_lock);
-	}
-	return ret;
-}
-
-/*
  * migrate_prep() needs to be called before we start compiling a list of pages
  * to be migrated using isolate_lru_page().
  */
@@ -83,23 +53,9 @@ int migrate_prep(void)
 	return 0;
 }
 
-static inline void move_to_lru(struct page *page)
-{
-	if (PageActive(page)) {
-		/*
-		 * lru_cache_add_active checks that
-		 * the PG_active bit is off.
-		 */
-		ClearPageActive(page);
-		lru_cache_add_active(page);
-	} else {
-		lru_cache_add(page);
-	}
-	put_page(page);
-}
-
 /*
- * Add isolated pages on the list back to the LRU.
+ * Add isolated pages on the list back to the LRU under page lock
+ * to avoid leaking evictable pages back onto unevictable list.
  *
  * returns the number of pages put back.
  */
@@ -111,7 +67,7 @@ int putback_lru_pages(struct list_head *l)
 
 	list_for_each_entry_safe(page, page2, l, lru) {
 		list_del(&page->lru);
-		move_to_lru(page);
+		putback_lru_page(page);
 		count++;
 	}
 	return count;
@@ -374,8 +330,6 @@ static int migrate_page_move_mapping(struct address_space *mapping,
 	__inc_zone_page_state(newpage, NR_FILE_PAGES);
 
 	spin_unlock_irq(&mapping->tree_lock);
-	if (!PageSwapCache(newpage))
-		mem_cgroup_uncharge_cache_page(page);
 
 	return 0;
 }
@@ -385,6 +339,8 @@ static int migrate_page_move_mapping(struct address_space *mapping,
  */
 static void migrate_page_copy(struct page *newpage, struct page *page)
 {
+	int anon;
+
 	copy_highpage(newpage, page);
 
 	if (PageError(page))
@@ -393,8 +349,11 @@ static void migrate_page_copy(struct page *newpage, struct page *page)
 		SetPageReferenced(newpage);
 	if (PageUptodate(page))
 		SetPageUptodate(newpage);
-	if (PageActive(page))
+	if (TestClearPageActive(page)) {
+		VM_BUG_ON(PageUnevictable(page));
 		SetPageActive(newpage);
+	} else
+		unevictable_migrate_page(newpage, page);
 	if (PageChecked(page))
 		SetPageChecked(newpage);
 	if (PageMappedToDisk(page))
@@ -412,13 +371,19 @@ static void migrate_page_copy(struct page *newpage, struct page *page)
 		__set_page_dirty_nobuffers(newpage);
  	}
 
+	mlock_migrate_page(newpage, page);
+
 #ifdef CONFIG_SWAP
 	ClearPageSwapCache(page);
 #endif
-	ClearPageActive(page);
 	ClearPagePrivate(page);
 	set_page_private(page, 0);
+	/* page->mapping contains a flag for PageAnon() */
+	anon = PageAnon(page);
 	page->mapping = NULL;
+
+	if (!anon) /* This page was removed from radix-tree. */
+		mem_cgroup_uncharge_cache_page(page);
 
 	/*
 	 * If any waiters have accumulated on the new page then
@@ -594,6 +559,10 @@ static int fallback_migrate_page(struct address_space *mapping,
  *
  * The new page will have replaced the old page if this function
  * is successful.
+ *
+ * Return value:
+ *   < 0 - error code
+ *  == 0 - success
  */
 static int move_to_new_page(struct page *newpage, struct page *page)
 {
@@ -611,6 +580,8 @@ static int move_to_new_page(struct page *newpage, struct page *page)
 	/* Prepare mapping for the new page.*/
 	newpage->index = page->index;
 	newpage->mapping = page->mapping;
+	if (PageSwapBacked(page))
+		SetPageSwapBacked(newpage);
 
 	mapping = page_mapping(page);
 	if (!mapping)
@@ -654,9 +625,10 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
 	if (!newpage)
 		return -ENOMEM;
 
-	if (page_count(page) == 1)
+	if (page_count(page) == 1) {
 		/* page was freed from under us. So we are done. */
 		goto move_newpage;
+	}
 
 	charge = mem_cgroup_prepare_migration(page, newpage);
 	if (charge == -ENOMEM) {
@@ -730,7 +702,6 @@ rcu_unlock:
 		rcu_read_unlock();
 
 unlock:
-
 	unlock_page(page);
 
 	if (rc != -EAGAIN) {
@@ -741,17 +712,19 @@ unlock:
  		 * restored.
  		 */
  		list_del(&page->lru);
- 		move_to_lru(page);
+		putback_lru_page(page);
 	}
 
 move_newpage:
 	if (!charge)
 		mem_cgroup_end_migration(newpage);
+
 	/*
 	 * Move the new page to the LRU. If migration was not successful
 	 * then this will free the page.
 	 */
-	move_to_lru(newpage);
+	putback_lru_page(newpage);
+
 	if (result) {
 		if (rc)
 			*result = rc;
@@ -858,9 +831,11 @@ static struct page *new_page_node(struct page *p, unsigned long private,
  * Move a set of pages as indicated in the pm array. The addr
  * field must be set to the virtual address of the page to be moved
  * and the node number must contain a valid target node.
+ * The pm array ends with node = MAX_NUMNODES.
  */
-static int do_move_pages(struct mm_struct *mm, struct page_to_node *pm,
-				int migrate_all)
+static int do_move_page_to_node_array(struct mm_struct *mm,
+				      struct page_to_node *pm,
+				      int migrate_all)
 {
 	int err;
 	struct page_to_node *pp;
@@ -914,7 +889,9 @@ static int do_move_pages(struct mm_struct *mm, struct page_to_node *pm,
 				!migrate_all)
 			goto put_and_set;
 
-		err = isolate_lru_page(page, &pagelist);
+		err = isolate_lru_page(page);
+		if (!err)
+			list_add_tail(&page->lru, &pagelist);
 put_and_set:
 		/*
 		 * Either remove the duplicate refcount from
@@ -926,36 +903,118 @@ set_status:
 		pp->status = err;
 	}
 
+	err = 0;
 	if (!list_empty(&pagelist))
 		err = migrate_pages(&pagelist, new_page_node,
 				(unsigned long)pm);
-	else
-		err = -ENOENT;
 
 	up_read(&mm->mmap_sem);
 	return err;
 }
 
 /*
- * Determine the nodes of a list of pages. The addr in the pm array
- * must have been set to the virtual address of which we want to determine
- * the node number.
+ * Migrate an array of page address onto an array of nodes and fill
+ * the corresponding array of status.
  */
-static int do_pages_stat(struct mm_struct *mm, struct page_to_node *pm)
+static int do_pages_move(struct mm_struct *mm, struct task_struct *task,
+			 unsigned long nr_pages,
+			 const void __user * __user *pages,
+			 const int __user *nodes,
+			 int __user *status, int flags)
 {
-	down_read(&mm->mmap_sem);
+	struct page_to_node *pm = NULL;
+	nodemask_t task_nodes;
+	int err = 0;
+	int i;
 
-	for ( ; pm->node != MAX_NUMNODES; pm++) {
-		struct vm_area_struct *vma;
-		struct page *page;
-		int err;
+	task_nodes = cpuset_mems_allowed(task);
+
+	/* Limit nr_pages so that the multiplication may not overflow */
+	if (nr_pages >= ULONG_MAX / sizeof(struct page_to_node) - 1) {
+		err = -E2BIG;
+		goto out;
+	}
+
+	pm = vmalloc((nr_pages + 1) * sizeof(struct page_to_node));
+	if (!pm) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	/*
+	 * Get parameters from user space and initialize the pm
+	 * array. Return various errors if the user did something wrong.
+	 */
+	for (i = 0; i < nr_pages; i++) {
+		const void __user *p;
 
 		err = -EFAULT;
-		vma = find_vma(mm, pm->addr);
+		if (get_user(p, pages + i))
+			goto out_pm;
+
+		pm[i].addr = (unsigned long)p;
+		if (nodes) {
+			int node;
+
+			if (get_user(node, nodes + i))
+				goto out_pm;
+
+			err = -ENODEV;
+			if (!node_state(node, N_HIGH_MEMORY))
+				goto out_pm;
+
+			err = -EACCES;
+			if (!node_isset(node, task_nodes))
+				goto out_pm;
+
+			pm[i].node = node;
+		} else
+			pm[i].node = 0;	/* anything to not match MAX_NUMNODES */
+	}
+	/* End marker */
+	pm[nr_pages].node = MAX_NUMNODES;
+
+	err = do_move_page_to_node_array(mm, pm, flags & MPOL_MF_MOVE_ALL);
+	if (err >= 0)
+		/* Return status information */
+		for (i = 0; i < nr_pages; i++)
+			if (put_user(pm[i].status, status + i))
+				err = -EFAULT;
+
+out_pm:
+	vfree(pm);
+out:
+	return err;
+}
+
+/*
+ * Determine the nodes of an array of pages and store it in an array of status.
+ */
+static int do_pages_stat(struct mm_struct *mm, unsigned long nr_pages,
+			 const void __user * __user *pages,
+			 int __user *status)
+{
+	unsigned long i;
+	int err;
+
+	down_read(&mm->mmap_sem);
+
+	for (i = 0; i < nr_pages; i++) {
+		const void __user *p;
+		unsigned long addr;
+		struct vm_area_struct *vma;
+		struct page *page;
+
+		err = -EFAULT;
+		if (get_user(p, pages+i))
+			goto out;
+		addr = (unsigned long) p;
+
+		vma = find_vma(mm, addr);
 		if (!vma)
 			goto set_status;
 
-		page = follow_page(vma, pm->addr, 0);
+		page = follow_page(vma, addr, 0);
 
 		err = PTR_ERR(page);
 		if (IS_ERR(page))
@@ -968,11 +1027,13 @@ static int do_pages_stat(struct mm_struct *mm, struct page_to_node *pm)
 
 		err = page_to_nid(page);
 set_status:
-		pm->status = err;
+		put_user(err, status+i);
 	}
+	err = 0;
 
+out:
 	up_read(&mm->mmap_sem);
-	return 0;
+	return err;
 }
 
 /*
@@ -984,12 +1045,9 @@ asmlinkage long sys_move_pages(pid_t pid, unsigned long nr_pages,
 			const int __user *nodes,
 			int __user *status, int flags)
 {
-	int err = 0;
-	int i;
 	struct task_struct *task;
-	nodemask_t task_nodes;
 	struct mm_struct *mm;
-	struct page_to_node *pm = NULL;
+	int err;
 
 	/* Check flags */
 	if (flags & ~(MPOL_MF_MOVE|MPOL_MF_MOVE_ALL))
@@ -1021,75 +1079,21 @@ asmlinkage long sys_move_pages(pid_t pid, unsigned long nr_pages,
 	    (current->uid != task->suid) && (current->uid != task->uid) &&
 	    !capable(CAP_SYS_NICE)) {
 		err = -EPERM;
-		goto out2;
+		goto out;
 	}
 
  	err = security_task_movememory(task);
  	if (err)
- 		goto out2;
+		goto out;
 
-
-	task_nodes = cpuset_mems_allowed(task);
-
-	/* Limit nr_pages so that the multiplication may not overflow */
-	if (nr_pages >= ULONG_MAX / sizeof(struct page_to_node) - 1) {
-		err = -E2BIG;
-		goto out2;
+	if (nodes) {
+		err = do_pages_move(mm, task, nr_pages, pages, nodes, status,
+				    flags);
+	} else {
+		err = do_pages_stat(mm, nr_pages, pages, status);
 	}
-
-	pm = vmalloc((nr_pages + 1) * sizeof(struct page_to_node));
-	if (!pm) {
-		err = -ENOMEM;
-		goto out2;
-	}
-
-	/*
-	 * Get parameters from user space and initialize the pm
-	 * array. Return various errors if the user did something wrong.
-	 */
-	for (i = 0; i < nr_pages; i++) {
-		const void __user *p;
-
-		err = -EFAULT;
-		if (get_user(p, pages + i))
-			goto out;
-
-		pm[i].addr = (unsigned long)p;
-		if (nodes) {
-			int node;
-
-			if (get_user(node, nodes + i))
-				goto out;
-
-			err = -ENODEV;
-			if (!node_state(node, N_HIGH_MEMORY))
-				goto out;
-
-			err = -EACCES;
-			if (!node_isset(node, task_nodes))
-				goto out;
-
-			pm[i].node = node;
-		} else
-			pm[i].node = 0;	/* anything to not match MAX_NUMNODES */
-	}
-	/* End marker */
-	pm[nr_pages].node = MAX_NUMNODES;
-
-	if (nodes)
-		err = do_move_pages(mm, pm, flags & MPOL_MF_MOVE_ALL);
-	else
-		err = do_pages_stat(mm, pm);
-
-	if (err >= 0)
-		/* Return status information */
-		for (i = 0; i < nr_pages; i++)
-			if (put_user(pm[i].status, status + i))
-				err = -EFAULT;
 
 out:
-	vfree(pm);
-out2:
 	mmput(mm);
 	return err;
 }

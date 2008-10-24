@@ -172,9 +172,9 @@ static int mspro_block_complete_req(struct memstick_dev *card, int error);
 
 /*** Block device ***/
 
-static int mspro_block_bd_open(struct inode *inode, struct file *filp)
+static int mspro_block_bd_open(struct block_device *bdev, fmode_t mode)
 {
-	struct gendisk *disk = inode->i_bdev->bd_disk;
+	struct gendisk *disk = bdev->bd_disk;
 	struct mspro_block_data *msb = disk->private_data;
 	int rc = -ENXIO;
 
@@ -182,7 +182,7 @@ static int mspro_block_bd_open(struct inode *inode, struct file *filp)
 
 	if (msb && msb->card) {
 		msb->usage_count++;
-		if ((filp->f_mode & FMODE_WRITE) && msb->read_only)
+		if ((mode & FMODE_WRITE) && msb->read_only)
 			rc = -EROFS;
 		else
 			rc = 0;
@@ -218,9 +218,8 @@ static int mspro_block_disk_release(struct gendisk *disk)
 	return 0;
 }
 
-static int mspro_block_bd_release(struct inode *inode, struct file *filp)
+static int mspro_block_bd_release(struct gendisk *disk, fmode_t mode)
 {
-	struct gendisk *disk = inode->i_bdev->bd_disk;
 	return mspro_block_disk_release(disk);
 }
 
@@ -1044,7 +1043,6 @@ static int mspro_block_read_attributes(struct memstick_dev *card)
 
 		s_attr->dev_attr.attr.name = s_attr->name;
 		s_attr->dev_attr.attr.mode = S_IRUGO;
-		s_attr->dev_attr.attr.owner = THIS_MODULE;
 		s_attr->dev_attr.show = mspro_block_attr_show(s_attr->id);
 
 		if (!rc)

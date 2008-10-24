@@ -1,18 +1,13 @@
-if ARCH_MSM7X00A
+if ARCH_MSM
 
-comment "MSM7X00A Board Type"
-	depends on ARCH_MSM7X00A
+comment "MSM Board Type"
+	depends on ARCH_MSM
 
 config MACH_HALIBUT
-	depends on ARCH_MSM7X00A
+	depends on ARCH_MSM
 	default y
-	bool "Halibut Board (QCT SURF7200A)"
+	bool "Halibut Board (QCT SURF7201A)"
 	help
-	  Support for the Qualcomm SURF7200A eval board.
-
-config MSM7X00A_IDLE
-	depends on ARCH_MSM7X00A
-	default y
-	bool "Idle Support for MSM7X00A"
+	  Support for the Qualcomm SURF7201A eval board.
 
 endif

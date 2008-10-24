@@ -813,6 +813,7 @@ out:
 	return err;
 }
 
+#ifdef CONFIG_NF_NAT_NEEDED
 static int
 ctnetlink_parse_nat_setup(struct nf_conn *ct,
 			  enum nf_nat_manip_type manip,
@@ -822,7 +823,7 @@ ctnetlink_parse_nat_setup(struct nf_conn *ct,
 
 	parse_nat_setup = rcu_dereference(nfnetlink_parse_nat_setup_hook);
 	if (!parse_nat_setup) {
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 		rcu_read_unlock();
 		nfnl_unlock();
 		if (request_module("nf-nat-ipv4") < 0) {
@@ -840,6 +841,7 @@ ctnetlink_parse_nat_setup(struct nf_conn *ct,
 
 	return parse_nat_setup(ct, manip, attr);
 }
+#endif
 
 static int
 ctnetlink_change_status(struct nf_conn *ct, struct nlattr *cda[])

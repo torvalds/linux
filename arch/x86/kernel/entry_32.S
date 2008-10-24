@@ -629,7 +629,7 @@ ENTRY(interrupt)
 ENTRY(irq_entries_start)
 	RING0_INT_FRAME
 vector=0
-.rept NR_IRQS
+.rept NR_VECTORS
 	ALIGN
  .if vector
 	CFI_ADJUST_CFA_OFFSET -4
@@ -1024,7 +1024,7 @@ ENTRY(machine_check)
 	RING0_INT_FRAME
 	pushl $0
 	CFI_ADJUST_CFA_OFFSET 4
-	pushl $do_machine_check
+	pushl machine_check_vector
 	CFI_ADJUST_CFA_OFFSET 4
 	jmp error_code
 	CFI_ENDPROC
@@ -1153,20 +1153,6 @@ ENDPROC(xen_failsafe_callback)
 #ifdef CONFIG_DYNAMIC_FTRACE
 
 ENTRY(mcount)
-	pushl %eax
-	pushl %ecx
-	pushl %edx
-	movl 0xc(%esp), %eax
-	subl $MCOUNT_INSN_SIZE, %eax
-
-.globl mcount_call
-mcount_call:
-	call ftrace_stub
-
-	popl %edx
-	popl %ecx
-	popl %eax
-
 	ret
 END(mcount)
 

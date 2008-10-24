@@ -238,22 +238,12 @@ static void hfsplus_set_perms(struct inode *inode, struct hfsplus_perm *perms)
 	perms->dev = cpu_to_be32(HFSPLUS_I(inode).dev);
 }
 
-static int hfsplus_permission(struct inode *inode, int mask)
-{
-	/* MAY_EXEC is also used for lookup, if no x bit is set allow lookup,
-	 * open_exec has the same test, so it's still not executable, if a x bit
-	 * is set fall back to standard permission check.
-	 */
-	if (S_ISREG(inode->i_mode) && mask & MAY_EXEC && !(inode->i_mode & 0111))
-		return 0;
-	return generic_permission(inode, mask, NULL);
-}
-
-
 static int hfsplus_file_open(struct inode *inode, struct file *file)
 {
 	if (HFSPLUS_IS_RSRC(inode))
 		inode = HFSPLUS_I(inode).rsrc_inode;
+	if (!(file->f_flags & O_LARGEFILE) && i_size_read(inode) > MAX_NON_LFS)
+		return -EOVERFLOW;
 	atomic_inc(&HFSPLUS_I(inode).opencnt);
 	return 0;
 }
@@ -279,7 +269,6 @@ static int hfsplus_file_release(struct inode *inode, struct file *file)
 static const struct inode_operations hfsplus_file_inode_operations = {
 	.lookup		= hfsplus_file_lookup,
 	.truncate	= hfsplus_file_truncate,
-	.permission	= hfsplus_permission,
 	.setxattr	= hfsplus_setxattr,
 	.getxattr	= hfsplus_getxattr,
 	.listxattr	= hfsplus_listxattr,

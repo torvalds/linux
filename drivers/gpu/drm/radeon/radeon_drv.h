@@ -122,9 +122,12 @@ enum radeon_family {
 	CHIP_RV350,
 	CHIP_RV380,
 	CHIP_R420,
+	CHIP_R423,
 	CHIP_RV410,
+	CHIP_RS400,
 	CHIP_RS480,
 	CHIP_RS690,
+	CHIP_RS740,
 	CHIP_RV515,
 	CHIP_R520,
 	CHIP_RV530,
@@ -378,17 +381,17 @@ extern void radeon_mem_release(struct drm_file *file_priv,
 			       struct mem_block *heap);
 
 				/* radeon_irq.c */
+extern void radeon_irq_set_state(struct drm_device *dev, u32 mask, int state);
 extern int radeon_irq_emit(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int radeon_irq_wait(struct drm_device *dev, void *data, struct drm_file *file_priv);
 
 extern void radeon_do_release(struct drm_device * dev);
-extern int radeon_driver_vblank_wait(struct drm_device * dev,
-				     unsigned int *sequence);
-extern int radeon_driver_vblank_wait2(struct drm_device * dev,
-				      unsigned int *sequence);
+extern u32 radeon_get_vblank_counter(struct drm_device *dev, int crtc);
+extern int radeon_enable_vblank(struct drm_device *dev, int crtc);
+extern void radeon_disable_vblank(struct drm_device *dev, int crtc);
 extern irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS);
 extern void radeon_driver_irq_preinstall(struct drm_device * dev);
-extern void radeon_driver_irq_postinstall(struct drm_device * dev);
+extern int radeon_driver_irq_postinstall(struct drm_device *dev);
 extern void radeon_driver_irq_uninstall(struct drm_device * dev);
 extern void radeon_enable_interrupt(struct drm_device *dev);
 extern int radeon_vblank_crtc_get(struct drm_device *dev);
@@ -397,19 +400,22 @@ extern int radeon_vblank_crtc_set(struct drm_device *dev, int64_t value);
 extern int radeon_driver_load(struct drm_device *dev, unsigned long flags);
 extern int radeon_driver_unload(struct drm_device *dev);
 extern int radeon_driver_firstopen(struct drm_device *dev);
-extern void radeon_driver_preclose(struct drm_device * dev, struct drm_file *file_priv);
-extern void radeon_driver_postclose(struct drm_device * dev, struct drm_file * filp);
+extern void radeon_driver_preclose(struct drm_device *dev,
+				   struct drm_file *file_priv);
+extern void radeon_driver_postclose(struct drm_device *dev,
+				    struct drm_file *file_priv);
 extern void radeon_driver_lastclose(struct drm_device * dev);
-extern int radeon_driver_open(struct drm_device * dev, struct drm_file * filp_priv);
+extern int radeon_driver_open(struct drm_device *dev,
+			      struct drm_file *file_priv);
 extern long radeon_compat_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg);
 
 /* r300_cmdbuf.c */
 extern void r300_init_reg_flags(struct drm_device *dev);
 
-extern int r300_do_cp_cmdbuf(struct drm_device * dev,
+extern int r300_do_cp_cmdbuf(struct drm_device *dev,
 			     struct drm_file *file_priv,
-			     drm_radeon_kcmd_buffer_t * cmdbuf);
+			     drm_radeon_kcmd_buffer_t *cmdbuf);
 
 /* Flags for stats.boxes
  */
@@ -434,8 +440,31 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 #	define RADEON_SCISSOR_1_ENABLE		(1 << 29)
 #	define RADEON_SCISSOR_2_ENABLE		(1 << 30)
 
+/*
+ * PCIE radeons (rv370/rv380, rv410, r423/r430/r480, r5xx)
+ * don't have an explicit bus mastering disable bit.  It's handled
+ * by the PCI D-states.  PMI_BM_DIS disables D-state bus master
+ * handling, not bus mastering itself.
+ */
 #define RADEON_BUS_CNTL			0x0030
+/* r1xx, r2xx, r300, r(v)350, r420/r481, rs480 */
 #	define RADEON_BUS_MASTER_DIS		(1 << 6)
+/* rs400, rs690/rs740 */
+#	define RS400_BUS_MASTER_DIS		(1 << 14)
+#	define RS400_MSI_REARM		        (1 << 20)
+/* see RS480_MSI_REARM in AIC_CNTL for rs480 */
+
+#define RADEON_BUS_CNTL1		0x0034
+#	define RADEON_PMI_BM_DIS		(1 << 2)
+#	define RADEON_PMI_INT_DIS		(1 << 3)
+
+#define RV370_BUS_CNTL			0x004c
+#	define RV370_PMI_BM_DIS		        (1 << 5)
+#	define RV370_PMI_INT_DIS		(1 << 6)
+
+#define RADEON_MSI_REARM_EN		0x0160
+/* rv370/rv380, rv410, r423/r430/r480, r5xx */
+#	define RV370_MSI_REARM_EN		(1 << 0)
 
 #define RADEON_CLOCK_CNTL_DATA		0x000c
 #	define RADEON_PLL_WR_EN			(1 << 7)
@@ -623,6 +652,7 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 #	define RADEON_SW_INT_TEST		(1 << 25)
 #	define RADEON_SW_INT_TEST_ACK		(1 << 25)
 #	define RADEON_SW_INT_FIRE		(1 << 26)
+#       define R500_DISPLAY_INT_STATUS          (1 << 0)
 
 #define RADEON_HOST_PATH_CNTL		0x0130
 #	define RADEON_HDP_SOFT_RESET		(1 << 26)
@@ -907,6 +937,7 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 
 #define RADEON_AIC_CNTL			0x01d0
 #	define RADEON_PCIGART_TRANSLATE_EN	(1 << 0)
+#	define RS480_MSI_REARM	                (1 << 3)
 #define RADEON_AIC_STAT			0x01d4
 #define RADEON_AIC_PT_BASE		0x01d8
 #define RADEON_AIC_LO_ADDR		0x01dc
@@ -1116,6 +1147,9 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 
 #define R200_VAP_PVS_CNTL_1               0x22D0
 
+#define RADEON_CRTC_CRNT_FRAME 0x0214
+#define RADEON_CRTC2_CRNT_FRAME 0x0314
+
 #define R500_D1CRTC_STATUS 0x609c
 #define R500_D2CRTC_STATUS 0x689c
 #define R500_CRTC_V_BLANK (1<<0)
@@ -1200,7 +1234,8 @@ do {								\
 
 #define IGP_WRITE_MCIND(addr, val)				\
 do {									\
-	if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690)       \
+	if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||   \
+	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740))      \
 		RS690_WRITE_MCIND(addr, val);				\
 	else								\
 		RS480_WRITE_MCIND(addr, val);				\

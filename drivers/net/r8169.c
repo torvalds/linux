@@ -81,6 +81,10 @@ static const int multicast_filter_limit = 32;
 #define RTL8169_TX_TIMEOUT	(6*HZ)
 #define RTL8169_PHY_TIMEOUT	(10*HZ)
 
+#define RTL_EEPROM_SIG		cpu_to_le32(0x8129)
+#define RTL_EEPROM_SIG_MASK	cpu_to_le32(0xffff)
+#define RTL_EEPROM_SIG_ADDR	0x0000
+
 /* write/read MMIO register */
 #define RTL_W8(reg, val8)	writeb ((val8), ioaddr + (reg))
 #define RTL_W16(reg, val16)	writew ((val16), ioaddr + (reg))
@@ -1944,14 +1948,15 @@ static void rtl_init_mac_address(struct rtl8169_private *tp,
 				 void __iomem *ioaddr)
 {
 	struct pci_dev *pdev = tp->pci_dev;
-	u8 cfg1;
 	int vpd_cap;
+	__le32 sig;
 	u8 mac[8];
-	DECLARE_MAC_BUF(buf);
+	u8 cfg1;
 
 	cfg1 = RTL_R8(Config1);
 	if (!(cfg1  & VPD)) {
-		dprintk("VPD access not enabled, enabling\n");
+		if (netif_msg_probe(tp))
+			dev_info(&pdev->dev, "VPD access disabled, enabling\n");
 		RTL_W8(Cfg9346, Cfg9346_Unlock);
 		RTL_W8(Config1, cfg1 | VPD);
 		RTL_W8(Cfg9346, Cfg9346_Lock);
@@ -1961,7 +1966,16 @@ static void rtl_init_mac_address(struct rtl8169_private *tp,
 	if (!vpd_cap)
 		return;
 
-	/* MAC address is stored in EEPROM at offset 0x0e
+	if (rtl_eeprom_read(pdev, vpd_cap, RTL_EEPROM_SIG_ADDR, &sig) < 0)
+		return;
+
+	if ((sig & RTL_EEPROM_SIG_MASK) != RTL_EEPROM_SIG) {
+		dev_info(&pdev->dev, "Missing EEPROM signature: %08x\n", sig);
+		return;
+	}
+
+	/*
+	 * MAC address is stored in EEPROM at offset 0x0e
 	 * Realtek says: "The VPD address does not have to be a DWORD-aligned
 	 * address as defined in the PCI 2.2 Specifications, but the VPD data
 	 * is always consecutive 4-byte data starting from the VPD address
@@ -1969,14 +1983,22 @@ static void rtl_init_mac_address(struct rtl8169_private *tp,
 	 */
 	if (rtl_eeprom_read(pdev, vpd_cap, 0x000e, (__le32*)&mac[0]) < 0 ||
 	    rtl_eeprom_read(pdev, vpd_cap, 0x0012, (__le32*)&mac[4]) < 0) {
-		dprintk("Reading MAC address from EEPROM failed\n");
+		if (netif_msg_probe(tp)) {
+			dev_warn(&pdev->dev,
+				 "reading MAC address from EEPROM failed\n");
+		}
 		return;
 	}
 
-	dprintk("MAC address found in EEPROM: %s\n", print_mac(buf, mac));
+	if (netif_msg_probe(tp)) {
+		DECLARE_MAC_BUF(buf);
 
-	/* Write MAC address */
-	rtl_rar_set(tp, mac);
+		dev_info(&pdev->dev, "MAC address found in EEPROM: %s\n",
+			 print_mac(buf, mac));
+	}
+
+	if (is_valid_ether_addr(mac))
+		rtl_rar_set(tp, mac);
 }
 
 static int __devinit

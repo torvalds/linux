@@ -26,6 +26,7 @@ config X86
 	select HAVE_KPROBES
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select HAVE_KRETPROBES
+	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE
 	select HAVE_KVM if ((X86_32 && !X86_VOYAGER && !X86_VISWS && !X86_NUMAQ) || X86_64)
@@ -115,6 +116,9 @@ config GENERIC_TIME_VSYSCALL
 config ARCH_HAS_CPU_RELAX
 	def_bool y
 
+config ARCH_HAS_DEFAULT_IDLE
+	def_bool y
+
 config ARCH_HAS_CACHE_LINE_SIZE
 	def_bool y
 
@@ -193,6 +197,7 @@ config X86_TRAMPOLINE
 config KTIME_SCALAR
 	def_bool X86_32
 source "init/Kconfig"
+source "kernel/Kconfig.freezer"
 
 menu "Processor type and features"
 
@@ -1241,14 +1246,6 @@ config EFI
   	resultant kernel should continue to boot on existing non-EFI
   	platforms.
 
-config IRQBALANCE
-	def_bool y
-	prompt "Enable kernel irq balancing"
-	depends on X86_32 && SMP && X86_IO_APIC
-	help
-	  The default yes will allow the kernel to do irq load balancing.
-	  Saying no will keep the kernel from doing irq load balancing.
-
 config SECCOMP
 	def_bool y
 	prompt "Enable seccomp to safely compute untrusted bytecode"
@@ -1640,6 +1637,8 @@ endif # APM
 source "arch/x86/kernel/cpu/cpufreq/Kconfig"
 
 source "drivers/cpuidle/Kconfig"
+
+source "drivers/idle/Kconfig"
 
 endmenu
 

@@ -354,11 +354,11 @@ ext2_readdir (struct file * filp, void * dirent, filldir_t filldir)
  * (as a parameter - res_dir). Page is returned mapped and unlocked.
  * Entry is guaranteed to be valid.
  */
-struct ext2_dir_entry_2 * ext2_find_entry (struct inode * dir,
-			struct dentry *dentry, struct page ** res_page)
+struct ext2_dir_entry_2 *ext2_find_entry (struct inode * dir,
+			struct qstr *child, struct page ** res_page)
 {
-	const char *name = dentry->d_name.name;
-	int namelen = dentry->d_name.len;
+	const char *name = child->name;
+	int namelen = child->len;
 	unsigned reclen = EXT2_DIR_REC_LEN(namelen);
 	unsigned long start, n;
 	unsigned long npages = dir_pages(dir);
@@ -431,13 +431,13 @@ struct ext2_dir_entry_2 * ext2_dotdot (struct inode *dir, struct page **p)
 	return de;
 }
 
-ino_t ext2_inode_by_name(struct inode * dir, struct dentry *dentry)
+ino_t ext2_inode_by_name(struct inode *dir, struct qstr *child)
 {
 	ino_t res = 0;
-	struct ext2_dir_entry_2 * de;
+	struct ext2_dir_entry_2 *de;
 	struct page *page;
 	
-	de = ext2_find_entry (dir, dentry, &page);
+	de = ext2_find_entry (dir, child, &page);
 	if (de) {
 		res = le32_to_cpu(de->inode);
 		ext2_put_page(page);

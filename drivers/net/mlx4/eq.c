@@ -558,7 +558,7 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
 	int i;
 
 	err = mlx4_bitmap_init(&priv->eq_table.bitmap, dev->caps.num_eqs,
-			       dev->caps.num_eqs - 1, dev->caps.reserved_eqs);
+			       dev->caps.num_eqs - 1, dev->caps.reserved_eqs, 0);
 	if (err)
 		return err;
 

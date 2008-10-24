@@ -640,7 +640,7 @@ static int iss_net_configure(int index, char *init)
 	*lp = ((struct iss_net_private) {
 		.device_list		= LIST_HEAD_INIT(lp->device_list),
 		.opened_list		= LIST_HEAD_INIT(lp->opened_list),
-		.lock			= SPIN_LOCK_UNLOCKED,
+		.lock			= __SPIN_LOCK_UNLOCKED(lp.lock),
 		.dev			= dev,
 		.index			= index,
 		//.fd                   = -1,

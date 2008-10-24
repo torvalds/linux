@@ -331,7 +331,7 @@ static int __devinit usb_hcd_pnx4008_probe(struct platform_device *pdev)
 
 	int ret = 0, irq;
 
-	dev_dbg(&pdev->dev, "%s: " DRIVER_INFO " (pnx4008)\n", hcd_name);
+	dev_dbg(&pdev->dev, "%s: " DRIVER_DESC " (pnx4008)\n", hcd_name);
 	if (usb_disabled()) {
 		err("USB is disabled");
 		ret = -ENODEV;

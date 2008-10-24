@@ -359,7 +359,7 @@ config USB_SI470X
 	  computer's USB port.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called radio-silabs.
+	  module will be called radio-si470x.
 
 config USB_MR800
 	tristate "AverMedia MR 800 USB FM radio support"

@@ -99,9 +99,6 @@ struct ext4_sb_info {
 	struct inode *s_buddy_cache;
 	long s_blocks_reserved;
 	spinlock_t s_reserve_lock;
-	struct list_head s_active_transaction;
-	struct list_head s_closed_transaction;
-	struct list_head s_committed_transaction;
 	spinlock_t s_md_lock;
 	tid_t s_last_transaction;
 	unsigned short *s_mb_offsets, *s_mb_maxs;

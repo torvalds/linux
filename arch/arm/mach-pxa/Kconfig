@@ -71,6 +71,14 @@ config PXA_SHARPSL
 	  SL-C3000 (Spitz), SL-C3100 (Borzoi) or SL-C6000x (Tosa)
 	  handheld computer.
 
+config CORGI_SSP_DEPRECATED
+	bool
+	select PXA_SSP
+	help
+	  This option will include corgi_ssp.c and corgi_lcd.c
+	  that corgi_ts.c and other legacy drivers (corgi_bl.c
+	  and sharpsl_pm.c) may depend on.
+
 config MACH_POODLE
 	bool "Enable Sharp SL-5600 (Poodle) Support"
 	depends on PXA_SHARPSL
@@ -257,7 +265,6 @@ config MACH_ARMCORE
 	bool "CompuLab CM-X255/CM-X270 modules"
 	select PXA27x
 	select IWMMXT
-	select ZONE_DMA if PCI
 	select PXA25x
 	select PXA_SSP
 

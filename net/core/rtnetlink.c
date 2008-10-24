@@ -1040,7 +1040,7 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct nlattr *linkinfo[IFLA_INFO_MAX+1];
 	int err;
 
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 replay:
 #endif
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFLA_MAX, ifla_policy);
@@ -1129,7 +1129,7 @@ replay:
 			return -EOPNOTSUPP;
 
 		if (!ops) {
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 			if (kind[0]) {
 				__rtnl_unlock();
 				request_module("rtnl-link-%s", kind);

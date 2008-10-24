@@ -755,7 +755,7 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	 
 	udelay(1);
 	SELECT_DRIVE(drive);
-	SELECT_MASK(drive, 0);
+	SELECT_MASK(drive, 1);
 	udelay(1);
 	tp_ops->set_irq(hwif, 0);
 

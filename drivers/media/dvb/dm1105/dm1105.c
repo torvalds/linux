@@ -595,6 +595,18 @@ static void dm1105dvb_hw_exit(struct dm1105dvb *dm1105dvb)
 	dm1105dvb_dma_unmap(dm1105dvb);
 }
 
+static struct stv0299_config sharp_z0194a_config = {
+	.demod_address = 0x68,
+	.inittab = sharp_z0194a_inittab,
+	.mclk = 88000000UL,
+	.invert = 1,
+	.skip_reinit = 0,
+	.lock_output = STV0299_LOCKOUTPUT_1,
+	.volt13_op0_op1 = STV0299_VOLT13_OP1,
+	.min_delay_ms = 100,
+	.set_symbol_rate = sharp_z0194a_set_symbol_rate,
+};
+
 static struct stv0288_config earda_config = {
 	.demod_address = 0x68,
 	.min_delay_ms = 100,

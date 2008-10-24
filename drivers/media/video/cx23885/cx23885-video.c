@@ -285,11 +285,10 @@ static void cx23885_video_wakeup(struct cx23885_dev *dev,
 		list_del(&buf->vb.queue);
 		wake_up(&buf->vb.done);
 	}
-	if (list_empty(&q->active)) {
+	if (list_empty(&q->active))
 		del_timer(&q->timeout);
-	} else {
+	else
 		mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
-	}
 	if (bc != 1)
 		printk(KERN_ERR "%s: %d buffers handled (should be 1)\n",
 			__func__, bc);
@@ -379,12 +378,12 @@ static int res_get(struct cx23885_dev *dev, struct cx23885_fh *fh,
 
 static int res_check(struct cx23885_fh *fh, unsigned int bit)
 {
-	return (fh->resources & bit);
+	return fh->resources & bit;
 }
 
 static int res_locked(struct cx23885_dev *dev, unsigned int bit)
 {
-	return (dev->resources & bit);
+	return dev->resources & bit;
 }
 
 static void res_free(struct cx23885_dev *dev, struct cx23885_fh *fh,
@@ -887,14 +886,16 @@ static int video_mmap(struct file *file, struct vm_area_struct *vma)
 /* ------------------------------------------------------------------ */
 /* VIDEO CTRL IOCTLS                                                  */
 
-static int cx23885_get_control(struct cx23885_dev *dev, struct v4l2_control *ctl)
+static int cx23885_get_control(struct cx23885_dev *dev,
+	struct v4l2_control *ctl)
 {
 	dprintk(1, "%s() calling cx25840(VIDIOC_G_CTRL)\n", __func__);
 	cx23885_call_i2c_clients(&dev->i2c_bus[2], VIDIOC_G_CTRL, ctl);
 	return 0;
 }
 
-static int cx23885_set_control(struct cx23885_dev *dev, struct v4l2_control *ctl)
+static int cx23885_set_control(struct cx23885_dev *dev,
+	struct v4l2_control *ctl)
 {
 	dprintk(1, "%s() calling cx25840(VIDIOC_S_CTRL)"
 		" (disabled - no action)\n", __func__);
@@ -1073,29 +1074,29 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	struct v4l2_requestbuffers *p)
 {
 	struct cx23885_fh *fh = priv;
-	return (videobuf_reqbufs(get_queue(fh), p));
+	return videobuf_reqbufs(get_queue(fh), p);
 }
 
 static int vidioc_querybuf(struct file *file, void *priv,
 	struct v4l2_buffer *p)
 {
 	struct cx23885_fh *fh = priv;
-	return (videobuf_querybuf(get_queue(fh), p));
+	return videobuf_querybuf(get_queue(fh), p);
 }
 
 static int vidioc_qbuf(struct file *file, void *priv,
 	struct v4l2_buffer *p)
 {
 	struct cx23885_fh *fh = priv;
-	return (videobuf_qbuf(get_queue(fh), p));
+	return videobuf_qbuf(get_queue(fh), p);
 }
 
 static int vidioc_dqbuf(struct file *file, void *priv,
 	struct v4l2_buffer *p)
 {
 	struct cx23885_fh *fh = priv;
-	return (videobuf_dqbuf(get_queue(fh), p,
-				file->f_flags & O_NONBLOCK));
+	return videobuf_dqbuf(get_queue(fh), p,
+				file->f_flags & O_NONBLOCK);
 }
 
 static int vidioc_streamon(struct file *file, void *priv,
@@ -1542,7 +1543,7 @@ int cx23885_video_register(struct cx23885_dev *dev)
 		goto fail_unreg;
 	}
 	printk(KERN_INFO "%s/0: registered device video%d [v4l2]\n",
-	       dev->name, dev->video_dev->minor & 0x1f);
+	       dev->name, dev->video_dev->num);
 	/* initial device configuration */
 	mutex_lock(&dev->lock);
 	cx23885_set_tvnorm(dev, dev->tvnorm);

@@ -240,8 +240,7 @@ static int generic_drive_reset(ide_drive_t *drive)
 	return ret;
 }
 
-int generic_ide_ioctl(ide_drive_t *drive, struct file *file,
-		      struct block_device *bdev,
+int generic_ide_ioctl(ide_drive_t *drive, struct block_device *bdev,
 		      unsigned int cmd, unsigned long arg)
 {
 	int err;

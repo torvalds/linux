@@ -435,7 +435,7 @@ static int netlink_create(struct net *net, struct socket *sock, int protocol)
 		return -EPROTONOSUPPORT;
 
 	netlink_lock_table();
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 	if (!nl_table[protocol].registered) {
 		netlink_unlock_table();
 		request_module("net-pf-%d-proto-%d", PF_NETLINK, protocol);

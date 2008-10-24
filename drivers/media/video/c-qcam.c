@@ -815,7 +815,7 @@ static int init_cqcam(struct parport *port)
 	}
 
 	printk(KERN_INFO "video%d: Colour QuickCam found on %s\n",
-	       qcam->vdev.minor, qcam->pport->name);
+	       qcam->vdev.num, qcam->pport->name);
 
 	qcams[num_cams++] = qcam;
 

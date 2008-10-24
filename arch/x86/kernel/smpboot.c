@@ -543,10 +543,10 @@ static inline void __inquire_remote_apic(int apicid)
 	int timeout;
 	u32 status;
 
-	printk(KERN_INFO "Inquiring remote APIC #%d...\n", apicid);
+	printk(KERN_INFO "Inquiring remote APIC 0x%x...\n", apicid);
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
-		printk(KERN_INFO "... APIC #%d %s: ", apicid, names[i]);
+		printk(KERN_INFO "... APIC 0x%x %s: ", apicid, names[i]);
 
 		/*
 		 * Wait for idle.
@@ -874,7 +874,7 @@ do_rest:
 	start_ip = setup_trampoline();
 
 	/* So we see what's up   */
-	printk(KERN_INFO "Booting processor %d/%d ip %lx\n",
+	printk(KERN_INFO "Booting processor %d APIC 0x%x ip 0x%lx\n",
 			  cpu, apicid, start_ip);
 
 	/*
@@ -893,9 +893,11 @@ do_rest:
 		smpboot_setup_warm_reset_vector(start_ip);
 		/*
 		 * Be paranoid about clearing APIC errors.
-	 	*/
-		apic_write(APIC_ESR, 0);
-		apic_read(APIC_ESR);
+		*/
+		if (APIC_INTEGRATED(apic_version[boot_cpu_physical_apicid])) {
+			apic_write(APIC_ESR, 0);
+			apic_read(APIC_ESR);
+		}
 	}
 
 	/*

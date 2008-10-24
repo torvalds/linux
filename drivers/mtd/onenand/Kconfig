@@ -27,8 +27,16 @@ config MTD_ONENAND_GENERIC
 	help
 	  Support for OneNAND flash via platform device driver.
 
+config MTD_ONENAND_OMAP2
+	tristate "OneNAND on OMAP2/OMAP3 support"
+	depends on MTD_ONENAND && (ARCH_OMAP2 || ARCH_OMAP3)
+	help
+	  Support for a OneNAND flash device connected to an OMAP2/OMAP3 CPU
+	  via the GPMC memory controller.
+
 config MTD_ONENAND_OTP
 	bool "OneNAND OTP Support"
+	select HAVE_MTD_OTP
 	help
 	  One Block of the NAND Flash Array memory is reserved as
 	  a One-Time Programmable Block memory area.

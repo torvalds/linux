@@ -1,7 +1,7 @@
 /*
  * USB Driver for ALi m5602 based webcams
  *
- * Copyright (C) 2008 Erik Andren
+ * Copyright (C) 2008 Erik Andrén
  * Copyright (C) 2007 Ilyes Gouta. Based on the m5603x Linux Driver Project.
  * Copyright (C) 2005 m5603x Linux Driver Project <m5602@x3ng.com.br>
  *
@@ -22,33 +22,6 @@
 #include "gspca.h"
 
 #define MODULE_NAME "ALi m5602"
-
-/*****************************************************************************/
-
-#undef PDEBUG
-#undef info
-#undef err
-
-#define err(format, arg...) printk(KERN_ERR KBUILD_MODNAME ": " \
-	format "\n" , ## arg)
-#define info(format, arg...) printk(KERN_INFO KBUILD_MODNAME ": " \
-	format "\n" , ## arg)
-
-/* Debug parameters */
-#define DBG_INIT 0x1
-#define DBG_PROBE 0x2
-#define DBG_V4L2 0x4
-#define DBG_TRACE 0x8
-#define DBG_DATA 0x10
-#define DBG_V4L2_CID 0x20
-#define DBG_GSPCA 0x40
-
-#define PDEBUG(level, fmt, args...) \
-	do { \
-		if (m5602_debug & level)     \
-			info("[%s:%d] " fmt, __func__, __LINE__ , \
-			## args); \
-	} while (0)
 
 /*****************************************************************************/
 

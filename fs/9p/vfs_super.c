@@ -111,7 +111,7 @@ static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
 	struct inode *inode = NULL;
 	struct dentry *root = NULL;
 	struct v9fs_session_info *v9ses = NULL;
-	struct p9_stat *st = NULL;
+	struct p9_wstat *st = NULL;
 	int mode = S_IRWXUGO | S_ISVTX;
 	uid_t uid = current->fsuid;
 	gid_t gid = current->fsgid;
@@ -161,10 +161,14 @@ static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
 
 	sb->s_root = root;
 	root->d_inode->i_ino = v9fs_qid2ino(&st->qid);
+
 	v9fs_stat2inode(st, root->d_inode, sb);
+
 	v9fs_fid_add(root, fid);
+	p9stat_free(st);
 	kfree(st);
 
+P9_DPRINTK(P9_DEBUG_VFS, " return simple set mount\n");
 	return simple_set_mnt(mnt, sb);
 
 release_sb:

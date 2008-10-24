@@ -2,7 +2,6 @@
 #define GSPCAV2_H
 
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/usb.h>
 #include <linux/videodev2.h>

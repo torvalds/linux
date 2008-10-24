@@ -44,6 +44,8 @@ extern void __chk_io_ptr(const volatile void __iomem *);
 # error Sorry, your compiler is too old/not recognized.
 #endif
 
+#define notrace __attribute__((no_instrument_function))
+
 /* Intel compiler defines __GNUC__. So we will overwrite implementations
  * coming from above header files here
  */

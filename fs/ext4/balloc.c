@@ -568,8 +568,16 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 
 	/* this isn't the right place to decide whether block is metadata
 	 * inode.c/extents.c knows better, but for safety ... */
-	if (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode) ||
-			ext4_should_journal_data(inode))
+	if (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode))
+		metadata = 1;
+
+	/* We need to make sure we don't reuse
+	 * block released untill the transaction commit.
+	 * writeback mode have weak data consistency so
+	 * don't force data as metadata when freeing block
+	 * for writeback mode.
+	 */
+	if (metadata == 0 && !ext4_should_writeback_data(inode))
 		metadata = 1;
 
 	sb = inode->i_sb;

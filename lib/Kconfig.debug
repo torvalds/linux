@@ -652,6 +652,11 @@ config DEBUG_BLOCK_EXT_DEVT
 	depends on BLOCK
 	default n
 	help
+	  BIG FAT WARNING: ENABLING THIS OPTION MIGHT BREAK BOOTING ON
+	  SOME DISTRIBUTIONS.  DO NOT ENABLE THIS UNLESS YOU KNOW WHAT
+	  YOU ARE DOING.  Distros, please enable this and fix whatever
+	  is broken.
+
 	  Conventionally, block device numbers are allocated from
 	  predetermined contiguous area.  However, extended block area
 	  may introduce non-contiguous block device numbers.  This

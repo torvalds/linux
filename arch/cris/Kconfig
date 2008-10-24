@@ -62,6 +62,8 @@ config HZ
 
 source "init/Kconfig"
 
+source "kernel/Kconfig.freezer"
+
 menu "General setup"
 
 source "fs/Kconfig.binfmt"
@@ -676,6 +678,8 @@ source "drivers/char/Kconfig"
 source "fs/Kconfig"
 
 source "drivers/usb/Kconfig"
+
+source "drivers/uwb/Kconfig"
 
 source "arch/cris/Kconfig.debug"
 

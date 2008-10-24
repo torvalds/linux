@@ -168,7 +168,7 @@ static void sysrq_handle_show_timers(int key, struct tty_struct *tty)
 static struct sysrq_key_op sysrq_show_timers_op = {
 	.handler	= sysrq_handle_show_timers,
 	.help_msg	= "show-all-timers(Q)",
-	.action_msg	= "Show Pending Timers",
+	.action_msg	= "Show clockevent devices & pending hrtimers (no others)",
 };
 
 static void sysrq_handle_mountro(int key, struct tty_struct *tty)

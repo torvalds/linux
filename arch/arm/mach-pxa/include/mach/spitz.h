@@ -142,7 +142,7 @@
 
 #define SPITZ_SCP2_GPIO_BASE		(NR_BUILTIN_GPIO + 12)
 #define SPITZ_GPIO_IR_ON		(SPITZ_SCP2_GPIO_BASE + 0)
-#define SPITZ_GPIO_AKIN_PULLUP		(SPITZ_SCP2_GPIO_BASE + 1
+#define SPITZ_GPIO_AKIN_PULLUP		(SPITZ_SCP2_GPIO_BASE + 1)
 #define SPITZ_GPIO_RESERVED_1		(SPITZ_SCP2_GPIO_BASE + 2)
 #define SPITZ_GPIO_RESERVED_2		(SPITZ_SCP2_GPIO_BASE + 3)
 #define SPITZ_GPIO_RESERVED_3		(SPITZ_SCP2_GPIO_BASE + 4)
@@ -187,4 +187,5 @@
  */
 extern struct platform_device spitzscoop_device;
 extern struct platform_device spitzscoop2_device;
+extern struct platform_device spitzssp_device;
 extern struct sharpsl_charger_machinfo spitz_pm_machinfo;

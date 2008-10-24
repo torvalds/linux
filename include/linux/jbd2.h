@@ -641,6 +641,11 @@ struct transaction_s
 	 */
 	int t_handle_count;
 
+	/*
+	 * For use by the filesystem to store fs-specific data
+	 * structures associated with the transaction
+	 */
+	struct list_head	t_private_list;
 };
 
 struct transaction_run_stats_s {
@@ -934,6 +939,10 @@ struct journal_s
 	int			j_wbufsize;
 
 	pid_t			j_last_sync_writer;
+
+	/* This function is called when a transaction is closed */
+	void			(*j_commit_callback)(journal_t *,
+						     transaction_t *);
 
 	/*
 	 * Journal statistics

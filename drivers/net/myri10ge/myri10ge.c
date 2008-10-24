@@ -75,7 +75,7 @@
 #include "myri10ge_mcp.h"
 #include "myri10ge_mcp_gen_header.h"
 
-#define MYRI10GE_VERSION_STR "1.4.3-1.369"
+#define MYRI10GE_VERSION_STR "1.4.3-1.371"
 
 MODULE_DESCRIPTION("Myricom 10G driver (10GbE)");
 MODULE_AUTHOR("Maintainer: help@myri.com");
@@ -188,7 +188,7 @@ struct myri10ge_slice_state {
 	dma_addr_t fw_stats_bus;
 	int watchdog_tx_done;
 	int watchdog_tx_req;
-#if (defined CONFIG_DCA) || (defined CONFIG_DCA_MODULE)
+#ifdef CONFIG_MYRI10GE_DCA
 	int cached_dca_tag;
 	int cpu;
 	__be32 __iomem *dca_tag;
@@ -220,7 +220,7 @@ struct myri10ge_priv {
 	int msi_enabled;
 	int msix_enabled;
 	struct msix_entry *msix_vectors;
-#if (defined CONFIG_DCA) || (defined CONFIG_DCA_MODULE)
+#ifdef CONFIG_MYRI10GE_DCA
 	int dca_enabled;
 #endif
 	u32 link_state;
@@ -902,7 +902,7 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 	struct myri10ge_slice_state *ss;
 	int i, status;
 	size_t bytes;
-#if (defined CONFIG_DCA) || (defined CONFIG_DCA_MODULE)
+#ifdef CONFIG_MYRI10GE_DCA
 	unsigned long dca_tag_off;
 #endif
 
@@ -1012,7 +1012,7 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 	}
 	put_be32(htonl(mgp->intr_coal_delay), mgp->intr_coal_delay_ptr);
 
-#if (defined CONFIG_DCA) || (defined CONFIG_DCA_MODULE)
+#ifdef CONFIG_MYRI10GE_DCA
 	status = myri10ge_send_cmd(mgp, MXGEFW_CMD_GET_DCA_OFFSET, &cmd, 0);
 	dca_tag_off = cmd.data0;
 	for (i = 0; i < mgp->num_slices; i++) {
@@ -1051,7 +1051,7 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 	return status;
 }
 
-#if (defined CONFIG_DCA) || (defined CONFIG_DCA_MODULE)
+#ifdef CONFIG_MYRI10GE_DCA
 static void
 myri10ge_write_dca(struct myri10ge_slice_state *ss, int cpu, int tag)
 {
@@ -1505,7 +1505,7 @@ static int myri10ge_poll(struct napi_struct *napi, int budget)
 	struct net_device *netdev = ss->mgp->dev;
 	int work_done;
 
-#if (defined CONFIG_DCA) || (defined CONFIG_DCA_MODULE)
+#ifdef CONFIG_MYRI10GE_DCA
 	if (ss->mgp->dca_enabled)
 		myri10ge_update_dca(ss);
 #endif
@@ -1736,7 +1736,7 @@ static const char myri10ge_gstrings_main_stats[][ETH_GSTRING_LEN] = {
 	"tx_boundary", "WC", "irq", "MSI", "MSIX",
 	"read_dma_bw_MBs", "write_dma_bw_MBs", "read_write_dma_bw_MBs",
 	"serial_number", "watchdog_resets",
-#if (defined CONFIG_DCA) || (defined CONFIG_DCA_MODULE)
+#ifdef CONFIG_MYRI10GE_DCA
 	"dca_capable_firmware", "dca_device_present",
 #endif
 	"link_changes", "link_up", "dropped_link_overflow",
@@ -1815,7 +1815,7 @@ myri10ge_get_ethtool_stats(struct net_device *netdev,
 	data[i++] = (unsigned int)mgp->read_write_dma;
 	data[i++] = (unsigned int)mgp->serial_number;
 	data[i++] = (unsigned int)mgp->watchdog_resets;
-#if (defined CONFIG_DCA) || (defined CONFIG_DCA_MODULE)
+#ifdef CONFIG_MYRI10GE_DCA
 	data[i++] = (unsigned int)(mgp->ss[0].dca_tag != NULL);
 	data[i++] = (unsigned int)(mgp->dca_enabled);
 #endif
@@ -2497,6 +2497,10 @@ static int myri10ge_open(struct net_device *dev)
 	return 0;
 
 abort_with_rings:
+	while (slice) {
+		slice--;
+		napi_disable(&mgp->ss[slice].napi);
+	}
 	for (i = 0; i < mgp->num_slices; i++)
 		myri10ge_free_rings(&mgp->ss[i]);
 
@@ -3844,7 +3848,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "failed reset\n");
 		goto abort_with_slices;
 	}
-#if (defined CONFIG_DCA) || (defined CONFIG_DCA_MODULE)
+#ifdef CONFIG_MYRI10GE_DCA
 	myri10ge_setup_dca(mgp);
 #endif
 	pci_set_drvdata(pdev, mgp);
@@ -3948,7 +3952,7 @@ static void myri10ge_remove(struct pci_dev *pdev)
 	netdev = mgp->dev;
 	unregister_netdev(netdev);
 
-#if (defined CONFIG_DCA) || (defined CONFIG_DCA_MODULE)
+#ifdef CONFIG_MYRI10GE_DCA
 	myri10ge_teardown_dca(mgp);
 #endif
 	myri10ge_dummy_rdma(mgp, 0);
@@ -3993,7 +3997,7 @@ static struct pci_driver myri10ge_driver = {
 #endif
 };
 
-#if (defined CONFIG_DCA) || (defined CONFIG_DCA_MODULE)
+#ifdef CONFIG_MYRI10GE_DCA
 static int
 myri10ge_notify_dca(struct notifier_block *nb, unsigned long event, void *p)
 {
@@ -4024,7 +4028,7 @@ static __init int myri10ge_init_module(void)
 		       myri10ge_driver.name, myri10ge_rss_hash);
 		myri10ge_rss_hash = MXGEFW_RSS_HASH_TYPE_SRC_PORT;
 	}
-#if (defined CONFIG_DCA) || (defined CONFIG_DCA_MODULE)
+#ifdef CONFIG_MYRI10GE_DCA
 	dca_register_notify(&myri10ge_dca_notifier);
 #endif
 	if (myri10ge_max_slices > MYRI10GE_MAX_SLICES)
@@ -4037,7 +4041,7 @@ module_init(myri10ge_init_module);
 
 static __exit void myri10ge_cleanup_module(void)
 {
-#if (defined CONFIG_DCA) || (defined CONFIG_DCA_MODULE)
+#ifdef CONFIG_MYRI10GE_DCA
 	dca_unregister_notify(&myri10ge_dca_notifier);
 #endif
 	pci_unregister_driver(&myri10ge_driver);

@@ -127,7 +127,6 @@ static unsigned int gef_sbc610_get_fpga_rev(void)
 
 static void gef_sbc610_show_cpuinfo(struct seq_file *m)
 {
-	uint memsize = total_memory;
 	uint svid = mfspr(SPRN_SVR);
 
 	seq_printf(m, "Vendor\t\t: GE Fanuc Intelligent Platforms\n");
@@ -137,7 +136,6 @@ static void gef_sbc610_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "FPGA Revision\t: %u\n", gef_sbc610_get_fpga_rev());
 
 	seq_printf(m, "SVR\t\t: 0x%x\n", svid);
-	seq_printf(m, "Memory\t\t: %d MB\n", memsize / (1024 * 1024));
 }
 
 static void __init gef_sbc610_nec_fixup(struct pci_dev *pdev)

@@ -1,37 +1,9 @@
 #ifndef __IDE_FLOPPY_H
 #define __IDE_FLOPPY_H
 
-/*
- * Most of our global data which we need to save even as we leave the driver
- * due to an interrupt or a timer event is stored in a variable of type
- * idefloppy_floppy_t, defined below.
- */
-typedef struct ide_floppy_obj {
-	ide_drive_t	*drive;
-	ide_driver_t	*driver;
-	struct gendisk	*disk;
-	struct kref	kref;
-	unsigned int	openers;	/* protected by BKL for now */
+#include "ide-gd.h"
 
-	/* Last failed packet command */
-	struct ide_atapi_pc *failed_pc;
-	/* used for blk_{fs,pc}_request() requests */
-	struct ide_atapi_pc queued_pc;
-
-	/* Last error information */
-	u8 sense_key, asc, ascq;
-
-	int progress_indication;
-
-	/* Device information */
-	/* Current format */
-	int blocks, block_size, bs_factor;
-	/* Last format capacity descriptor */
-	u8 cap_desc[8];
-	/* Copy of the flexible disk page */
-	u8 flexible_disk_page[32];
-} idefloppy_floppy_t;
-
+#ifdef CONFIG_IDE_GD_ATAPI
 /*
  * Pages of the SELECT SENSE / MODE SENSE packet commands.
  * See SFF-8070i spec.
@@ -46,17 +18,22 @@ typedef struct ide_floppy_obj {
 #define IDEFLOPPY_IOCTL_FORMAT_GET_PROGRESS	0x4603
 
 /* ide-floppy.c */
+extern const struct ide_disk_ops ide_atapi_disk_ops;
 void ide_floppy_create_mode_sense_cmd(struct ide_atapi_pc *, u8);
 void ide_floppy_create_read_capacity_cmd(struct ide_atapi_pc *);
-sector_t ide_floppy_capacity(ide_drive_t *);
 
 /* ide-floppy_ioctl.c */
-int ide_floppy_ioctl(struct inode *, struct file *, unsigned, unsigned long);
+int ide_floppy_ioctl(ide_drive_t *, struct block_device *, fmode_t,
+		     unsigned int, unsigned long);
 
 #ifdef CONFIG_IDE_PROC_FS
 /* ide-floppy_proc.c */
 extern ide_proc_entry_t ide_floppy_proc[];
 extern const struct ide_proc_devset ide_floppy_settings[];
+#endif
+#else
+#define ide_floppy_proc		NULL
+#define ide_floppy_settings	NULL
 #endif
 
 #endif /*__IDE_FLOPPY_H */

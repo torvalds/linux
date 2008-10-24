@@ -353,7 +353,7 @@ void qla4xxx_mark_device_missing(struct scsi_qla_host *ha,
 		      ha->host_no, ddb_entry->bus, ddb_entry->target,
 		      ddb_entry->fw_ddb_index));
 	iscsi_block_session(ddb_entry->sess);
-	iscsi_conn_error(ddb_entry->conn, ISCSI_ERR_CONN_FAILED);
+	iscsi_conn_error_event(ddb_entry->conn, ISCSI_ERR_CONN_FAILED);
 }
 
 static struct srb* qla4xxx_get_new_srb(struct scsi_qla_host *ha,
@@ -439,7 +439,7 @@ static int qla4xxx_queuecommand(struct scsi_cmnd *cmd,
 			cmd->result = DID_NO_CONNECT << 16;
 			goto qc_fail_command;
 		}
-		goto qc_host_busy;
+		return SCSI_MLQUEUE_TARGET_BUSY;
 	}
 
 	if (test_bit(DPC_RESET_HA_INTR, &ha->dpc_flags))

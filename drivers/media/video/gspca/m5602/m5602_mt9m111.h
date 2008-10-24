@@ -1,7 +1,7 @@
 /*
  * Driver for the mt9m111 sensor
  *
- * Copyright (C) 2008 Erik Andren
+ * Copyright (C) 2008 Erik Andrén
  * Copyright (C) 2007 Ilyes Gouta. Based on the m5603x Linux Driver Project.
  * Copyright (C) 2005 m5603x Linux Driver Project <m5602@x3ng.com.br>
  *
@@ -82,7 +82,6 @@
 /* Kernel module parameters */
 extern int force_sensor;
 extern int dump_sensor;
-extern unsigned int m5602_debug;
 
 int mt9m111_probe(struct sd *sd);
 int mt9m111_init(struct sd *sd);
@@ -152,8 +151,8 @@ static struct m5602_sensor mt9m111 = {
 			.default_value  = DEFAULT_GAIN,
 			.flags          = V4L2_CTRL_FLAG_SLIDER
 		},
-		.set = mt9m111_set_hflip,
-		.get = mt9m111_get_hflip
+		.set = mt9m111_set_gain,
+		.get = mt9m111_get_gain
 	}
 	},
 

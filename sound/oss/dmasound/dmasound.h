@@ -129,7 +129,7 @@ typedef struct {
     int (*mixer_ioctl)(u_int, u_long);	/* optional */
     int (*write_sq_setup)(void);	/* optional */
     int (*read_sq_setup)(void);		/* optional */
-    int (*sq_open)(mode_t);		/* optional */
+    int (*sq_open)(fmode_t);		/* optional */
     int (*state_info)(char *, size_t);	/* optional */
     void (*abort_read)(void);		/* optional */
     int min_dsp_speed;
@@ -235,7 +235,7 @@ struct sound_queue {
      */
     int active;
     wait_queue_head_t action_queue, open_queue, sync_queue;
-    int open_mode;
+    fmode_t open_mode;
     int busy, syncing, xruns, died;
 };
 

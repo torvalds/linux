@@ -9,65 +9,29 @@ static inline int trace_valid_entry(struct trace_entry *entry)
 	case TRACE_FN:
 	case TRACE_CTX:
 	case TRACE_WAKE:
+	case TRACE_CONT:
 	case TRACE_STACK:
+	case TRACE_PRINT:
 	case TRACE_SPECIAL:
 		return 1;
 	}
 	return 0;
 }
 
-static int
-trace_test_buffer_cpu(struct trace_array *tr, struct trace_array_cpu *data)
+static int trace_test_buffer_cpu(struct trace_array *tr, int cpu)
 {
-	struct trace_entry *entries;
-	struct page *page;
-	int idx = 0;
-	int i;
+	struct ring_buffer_event *event;
+	struct trace_entry *entry;
 
-	BUG_ON(list_empty(&data->trace_pages));
-	page = list_entry(data->trace_pages.next, struct page, lru);
-	entries = page_address(page);
+	while ((event = ring_buffer_consume(tr->buffer, cpu, NULL))) {
+		entry = ring_buffer_event_data(event);
 
-	check_pages(data);
-	if (head_page(data) != entries)
-		goto failed;
-
-	/*
-	 * The starting trace buffer always has valid elements,
-	 * if any element exists.
-	 */
-	entries = head_page(data);
-
-	for (i = 0; i < tr->entries; i++) {
-
-		if (i < data->trace_idx && !trace_valid_entry(&entries[idx])) {
+		if (!trace_valid_entry(entry)) {
 			printk(KERN_CONT ".. invalid entry %d ",
-				entries[idx].type);
+				entry->type);
 			goto failed;
 		}
-
-		idx++;
-		if (idx >= ENTRIES_PER_PAGE) {
-			page = virt_to_page(entries);
-			if (page->lru.next == &data->trace_pages) {
-				if (i != tr->entries - 1) {
-					printk(KERN_CONT ".. entries buffer mismatch");
-					goto failed;
-				}
-			} else {
-				page = list_entry(page->lru.next, struct page, lru);
-				entries = page_address(page);
-			}
-			idx = 0;
-		}
 	}
-
-	page = virt_to_page(entries);
-	if (page->lru.next != &data->trace_pages) {
-		printk(KERN_CONT ".. too many entries");
-		goto failed;
-	}
-
 	return 0;
 
  failed:
@@ -89,13 +53,11 @@ static int trace_test_buffer(struct trace_array *tr, unsigned long *count)
 	/* Don't allow flipping of max traces now */
 	raw_local_irq_save(flags);
 	__raw_spin_lock(&ftrace_max_lock);
+
+	cnt = ring_buffer_entries(tr->buffer);
+
 	for_each_possible_cpu(cpu) {
-		if (!head_page(tr->data[cpu]))
-			continue;
-
-		cnt += tr->data[cpu]->trace_idx;
-
-		ret = trace_test_buffer_cpu(tr, tr->data[cpu]);
+		ret = trace_test_buffer_cpu(tr, cpu);
 		if (ret)
 			break;
 	}
@@ -120,11 +82,11 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 					   struct trace_array *tr,
 					   int (*func)(void))
 {
-	unsigned long count;
-	int ret;
 	int save_ftrace_enabled = ftrace_enabled;
 	int save_tracer_enabled = tracer_enabled;
+	unsigned long count;
 	char *func_name;
+	int ret;
 
 	/* The ftrace test PASSED */
 	printk(KERN_CONT "PASSED\n");
@@ -157,6 +119,7 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 	/* enable tracing */
 	tr->ctrl = 1;
 	trace->init(tr);
+
 	/* Sleep for a 1/10 of a second */
 	msleep(100);
 
@@ -212,10 +175,10 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 int
 trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 {
-	unsigned long count;
-	int ret;
 	int save_ftrace_enabled = ftrace_enabled;
 	int save_tracer_enabled = tracer_enabled;
+	unsigned long count;
+	int ret;
 
 	/* make sure msleep has been recorded */
 	msleep(1);
@@ -415,6 +378,15 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 }
 #endif /* CONFIG_IRQSOFF_TRACER && CONFIG_PREEMPT_TRACER */
 
+#ifdef CONFIG_NOP_TRACER
+int
+trace_selftest_startup_nop(struct tracer *trace, struct trace_array *tr)
+{
+	/* What could possibly go wrong? */
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_SCHED_TRACER
 static int trace_wakeup_test_thread(void *data)
 {
@@ -485,6 +457,9 @@ trace_selftest_startup_wakeup(struct tracer *trace, struct trace_array *tr)
 	 */
 
 	wake_up_process(p);
+
+	/* give a little time to let the thread wake up */
+	msleep(100);
 
 	/* stop the tracing. */
 	tr->ctrl = 0;

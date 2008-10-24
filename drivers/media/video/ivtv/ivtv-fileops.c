@@ -600,13 +600,14 @@ retry:
 	since we may get here before the stream has been fully set-up */
 	if (mode == OUT_YUV && s->q_full.length == 0 && itv->dma_data_req_size) {
 		while (count >= itv->dma_data_req_size) {
-			if (!ivtv_yuv_udma_stream_frame (itv, (void __user *)user_buf)) {
-				bytes_written += itv->dma_data_req_size;
-				user_buf += itv->dma_data_req_size;
-				count -= itv->dma_data_req_size;
-			} else {
-				break;
-			}
+			rc = ivtv_yuv_udma_stream_frame(itv, (void __user *)user_buf);
+
+			if (rc < 0)
+				return rc;
+
+			bytes_written += itv->dma_data_req_size;
+			user_buf += itv->dma_data_req_size;
+			count -= itv->dma_data_req_size;
 		}
 		if (count == 0) {
 			IVTV_DEBUG_HI_FILE("Wrote %d bytes to %s (%d)\n", bytes_written, s->name, s->q_full.bytesused);

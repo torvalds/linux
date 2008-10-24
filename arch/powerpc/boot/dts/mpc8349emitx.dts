@@ -83,6 +83,14 @@
 			interrupts = <15 0x8>;
 			interrupt-parent = <&ipic>;
 			dfsrr;
+
+			rtc@68 {
+				device_type = "rtc";
+				compatible = "dallas,ds1339";
+				reg = <0x68>;
+				interrupts = <18 0x8>;
+				interrupt-parent = <&ipic>;
+			};
 		};
 
 		spi@7000 {
@@ -130,6 +138,14 @@
 				cell-index = <3>;
 				interrupt-parent = <&ipic>;
 				interrupts = <71 8>;
+			};
+
+			mcu_pio: mcu@a {
+				#gpio-cells = <2>;
+				compatible = "fsl,mc9s08qg8-mpc8349emitx",
+					     "fsl,mcu-mpc8349emitx";
+				reg = <0x0a>;
+				gpio-controller;
 			};
 		};
 

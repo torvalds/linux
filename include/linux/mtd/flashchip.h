@@ -73,6 +73,10 @@ struct flchip {
 	int buffer_write_time;
 	int erase_time;
 
+	int word_write_time_max;
+	int buffer_write_time_max;
+	int erase_time_max;
+
 	void *priv;
 };
 

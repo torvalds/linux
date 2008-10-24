@@ -659,9 +659,9 @@ static ssize_t poll_timeout_store(struct bus_type *bus, const char *buf,
 	hr_time = ktime_set(0, poll_timeout);
 
 	if (!hrtimer_is_queued(&ap_poll_timer) ||
-	    !hrtimer_forward(&ap_poll_timer, ap_poll_timer.expires, hr_time)) {
-		ap_poll_timer.expires = hr_time;
-		hrtimer_start(&ap_poll_timer, hr_time, HRTIMER_MODE_ABS);
+	    !hrtimer_forward(&ap_poll_timer, hrtimer_get_expires(&ap_poll_timer), hr_time)) {
+		hrtimer_set_expires(&ap_poll_timer, hr_time);
+		hrtimer_start_expires(&ap_poll_timer, HRTIMER_MODE_ABS);
 	}
 	return count;
 }

@@ -1109,7 +1109,12 @@ restart:
 		printk("\n");
 	}
 #endif
-	rt_hash_table[hash].chain = rt;
+	/*
+	 * Since lookup is lockfree, we must make sure
+	 * previous writes to rt are comitted to memory
+	 * before making rt visible to other CPUS.
+	 */
+	rcu_assign_pointer(rt_hash_table[hash].chain, rt);
 	spin_unlock_bh(rt_hash_lock_addr(hash));
 	*rp = rt;
 	return 0;

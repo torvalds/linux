@@ -116,6 +116,7 @@ static int __init get_active_region_work_fn(unsigned long start_pfn,
 
 /*
  * get_node_active_region - Return active region containing start_pfn
+ * Active range returned is empty if none found.
  * @start_pfn: The page to return the region for.
  * @node_ar: Returned set to the active region containing start_pfn
  */
@@ -126,6 +127,7 @@ static void __init get_node_active_region(unsigned long start_pfn,
 
 	node_ar->nid = nid;
 	node_ar->start_pfn = start_pfn;
+	node_ar->end_pfn = start_pfn;
 	work_with_active_regions(nid, get_active_region_work_fn, node_ar);
 }
 
@@ -526,11 +528,9 @@ static unsigned long __init numa_enforce_memory_limit(unsigned long start,
 	/*
 	 * We use lmb_end_of_DRAM() in here instead of memory_limit because
 	 * we've already adjusted it for the limit and it takes care of
-	 * having memory holes below the limit.
+	 * having memory holes below the limit.  Also, in the case of
+	 * iommu_is_off, memory_limit is not set but is implicitly enforced.
 	 */
-
-	if (! memory_limit)
-		return size;
 
 	if (start + size <= lmb_end_of_DRAM())
 		return size;
@@ -933,18 +933,20 @@ void __init do_init_bootmem(void)
 		struct node_active_region node_ar;
 
 		get_node_active_region(start_pfn, &node_ar);
-		while (start_pfn < end_pfn) {
+		while (start_pfn < end_pfn &&
+			node_ar.start_pfn < node_ar.end_pfn) {
+			unsigned long reserve_size = size;
 			/*
 			 * if reserved region extends past active region
 			 * then trim size to active region
 			 */
 			if (end_pfn > node_ar.end_pfn)
-				size = (node_ar.end_pfn << PAGE_SHIFT)
+				reserve_size = (node_ar.end_pfn << PAGE_SHIFT)
 					- (start_pfn << PAGE_SHIFT);
-			dbg("reserve_bootmem %lx %lx nid=%d\n", physbase, size,
-				node_ar.nid);
+			dbg("reserve_bootmem %lx %lx nid=%d\n", physbase,
+				reserve_size, node_ar.nid);
 			reserve_bootmem_node(NODE_DATA(node_ar.nid), physbase,
-						size, BOOTMEM_DEFAULT);
+						reserve_size, BOOTMEM_DEFAULT);
 			/*
 			 * if reserved region is contained in the active region
 			 * then done.
@@ -959,6 +961,7 @@ void __init do_init_bootmem(void)
 			 */
 			start_pfn = node_ar.end_pfn;
 			physbase = start_pfn << PAGE_SHIFT;
+			size = size - reserve_size;
 			get_node_active_region(start_pfn, &node_ar);
 		}
 

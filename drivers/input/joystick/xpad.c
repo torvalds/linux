@@ -911,7 +911,7 @@ static int __init usb_xpad_init(void)
 {
 	int result = usb_register(&xpad_driver);
 	if (result == 0)
-		info(DRIVER_DESC);
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC "\n");
 	return result;
 }
 

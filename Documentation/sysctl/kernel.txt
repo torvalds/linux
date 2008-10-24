@@ -369,4 +369,5 @@ can be ORed together:
   2 - A module was force loaded by insmod -f.
       Set by modutils >= 2.4.9 and module-init-tools.
   4 - Unsafe SMP processors: SMP with CPUs not designed for SMP.
+ 64 - A module from drivers/staging was loaded.
 

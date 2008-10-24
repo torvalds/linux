@@ -509,7 +509,6 @@ static int ivtv_try_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_
 static int ivtv_try_fmt_vid_out(struct file *file, void *fh, struct v4l2_format *fmt)
 {
 	struct ivtv_open_id *id = fh;
-	struct ivtv *itv = id->itv;
 	s32 w = fmt->fmt.pix.width;
 	s32 h = fmt->fmt.pix.height;
 	int field = fmt->fmt.pix.field;
@@ -517,7 +516,22 @@ static int ivtv_try_fmt_vid_out(struct file *file, void *fh, struct v4l2_format 
 
 	w = min(w, 720);
 	w = max(w, 2);
-	h = min(h, itv->is_out_50hz ? 576 : 480);
+	/* Why can the height be 576 even when the output is NTSC?
+
+	   Internally the buffers of the PVR350 are always set to 720x576. The
+	   decoded video frame will always be placed in the top left corner of
+	   this buffer. For any video which is not 720x576, the buffer will
+	   then be cropped to remove the unused right and lower areas, with
+	   the remaining image being scaled by the hardware to fit the display
+	   area. The video can be scaled both up and down, so a 720x480 video
+	   can be displayed full-screen on PAL and a 720x576 video can be
+	   displayed without cropping on NTSC.
+
+	   Note that the scaling only occurs on the video stream, the osd
+	   resolution is locked to the broadcast standard and not scaled.
+
+	   Thanks to Ian Armstrong for this explanation. */
+	h = min(h, 576);
 	h = max(h, 2);
 	if (id->type == IVTV_DEC_STREAM_TYPE_YUV)
 		fmt->fmt.pix.field = field;
@@ -1742,12 +1756,12 @@ static int ivtv_default(struct file *file, void *fh, int cmd, void *arg)
 	return 0;
 }
 
-static int ivtv_serialized_ioctl(struct ivtv *itv, struct inode *inode, struct file *filp,
+static long ivtv_serialized_ioctl(struct ivtv *itv, struct file *filp,
 		unsigned int cmd, unsigned long arg)
 {
 	struct video_device *vfd = video_devdata(filp);
 	struct ivtv_open_id *id = (struct ivtv_open_id *)filp->private_data;
-	int ret;
+	long ret;
 
 	/* Filter dvb ioctls that cannot be handled by the v4l ioctl framework */
 	switch (cmd) {
@@ -1816,20 +1830,19 @@ static int ivtv_serialized_ioctl(struct ivtv *itv, struct inode *inode, struct f
 
 	if (ivtv_debug & IVTV_DBGFLG_IOCTL)
 		vfd->debug = V4L2_DEBUG_IOCTL | V4L2_DEBUG_IOCTL_ARG;
-	ret = video_ioctl2(inode, filp, cmd, arg);
+	ret = __video_ioctl2(filp, cmd, arg);
 	vfd->debug = 0;
 	return ret;
 }
 
-int ivtv_v4l2_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
-		    unsigned long arg)
+long ivtv_v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct ivtv_open_id *id = (struct ivtv_open_id *)filp->private_data;
 	struct ivtv *itv = id->itv;
-	int res;
+	long res;
 
 	mutex_lock(&itv->serialize_lock);
-	res = ivtv_serialized_ioctl(itv, inode, filp, cmd, arg);
+	res = ivtv_serialized_ioctl(itv, filp, cmd, arg);
 	mutex_unlock(&itv->serialize_lock);
 	return res;
 }

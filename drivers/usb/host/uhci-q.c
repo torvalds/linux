@@ -1065,13 +1065,18 @@ static int uhci_submit_interrupt(struct uhci_hcd *uhci, struct urb *urb,
 		}
 		if (exponent < 0)
 			return -EINVAL;
-		qh->period = 1 << exponent;
-		qh->skel = SKEL_INDEX(exponent);
 
-		/* For now, interrupt phase is fixed by the layout
-		 * of the QH lists. */
-		qh->phase = (qh->period / 2) & (MAX_PHASE - 1);
-		ret = uhci_check_bandwidth(uhci, qh);
+		/* If the slot is full, try a lower period */
+		do {
+			qh->period = 1 << exponent;
+			qh->skel = SKEL_INDEX(exponent);
+
+			/* For now, interrupt phase is fixed by the layout
+			 * of the QH lists.
+			 */
+			qh->phase = (qh->period / 2) & (MAX_PHASE - 1);
+			ret = uhci_check_bandwidth(uhci, qh);
+		} while (ret != 0 && --exponent >= 0);
 		if (ret)
 			return ret;
 	} else if (qh->period > urb->interval)

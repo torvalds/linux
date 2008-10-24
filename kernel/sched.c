@@ -55,6 +55,7 @@
 #include <linux/cpuset.h>
 #include <linux/percpu.h>
 #include <linux/kthread.h>
+#include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/sysctl.h>
 #include <linux/syscalls.h>
@@ -71,6 +72,7 @@
 #include <linux/debugfs.h>
 #include <linux/ctype.h>
 #include <linux/ftrace.h>
+#include <trace/sched.h>
 
 #include <asm/tlb.h>
 #include <asm/irq_regs.h>
@@ -226,9 +228,8 @@ static void start_rt_bandwidth(struct rt_bandwidth *rt_b)
 
 		now = hrtimer_cb_get_time(&rt_b->rt_period_timer);
 		hrtimer_forward(&rt_b->rt_period_timer, now, rt_b->rt_period);
-		hrtimer_start(&rt_b->rt_period_timer,
-			      rt_b->rt_period_timer.expires,
-			      HRTIMER_MODE_ABS);
+		hrtimer_start_expires(&rt_b->rt_period_timer,
+				HRTIMER_MODE_ABS);
 	}
 	spin_unlock(&rt_b->rt_runtime_lock);
 }
@@ -1070,7 +1071,7 @@ static void hrtick_start(struct rq *rq, u64 delay)
 	struct hrtimer *timer = &rq->hrtick_timer;
 	ktime_t time = ktime_add_ns(timer->base->get_time(), delay);
 
-	timer->expires = time;
+	hrtimer_set_expires(timer, time);
 
 	if (rq == this_rq()) {
 		hrtimer_restart(timer);
@@ -1941,6 +1942,7 @@ unsigned long wait_task_inactive(struct task_struct *p, long match_state)
 		 * just go back and repeat.
 		 */
 		rq = task_rq_lock(p, &flags);
+		trace_sched_wait_task(rq, p);
 		running = task_running(rq, p);
 		on_rq = p->se.on_rq;
 		ncsw = 0;
@@ -2302,9 +2304,7 @@ out_activate:
 	success = 1;
 
 out_running:
-	trace_mark(kernel_sched_wakeup,
-		"pid %d state %ld ## rq %p task %p rq->curr %p",
-		p->pid, p->state, rq, p, rq->curr);
+	trace_sched_wakeup(rq, p);
 	check_preempt_curr(rq, p, sync);
 
 	p->state = TASK_RUNNING;
@@ -2437,9 +2437,7 @@ void wake_up_new_task(struct task_struct *p, unsigned long clone_flags)
 		p->sched_class->task_new(rq, p);
 		inc_nr_running(rq);
 	}
-	trace_mark(kernel_sched_wakeup_new,
-		"pid %d state %ld ## rq %p task %p rq->curr %p",
-		p->pid, p->state, rq, p, rq->curr);
+	trace_sched_wakeup_new(rq, p);
 	check_preempt_curr(rq, p, 0);
 #ifdef CONFIG_SMP
 	if (p->sched_class->task_wake_up)
@@ -2612,11 +2610,7 @@ context_switch(struct rq *rq, struct task_struct *prev,
 	struct mm_struct *mm, *oldmm;
 
 	prepare_task_switch(rq, prev, next);
-	trace_mark(kernel_sched_schedule,
-		"prev_pid %d next_pid %d prev_state %ld "
-		"## rq %p prev %p next %p",
-		prev->pid, next->pid, prev->state,
-		rq, prev, next);
+	trace_sched_switch(rq, prev, next);
 	mm = next->mm;
 	oldmm = prev->active_mm;
 	/*
@@ -2856,6 +2850,7 @@ static void sched_migrate_task(struct task_struct *p, int dest_cpu)
 	    || unlikely(!cpu_active(dest_cpu)))
 		goto out;
 
+	trace_sched_migrate_task(rq, p, dest_cpu);
 	/* force the process onto the specified CPU */
 	if (migrate_task(p, dest_cpu, &req)) {
 		/* Need to wait for migration thread (might exit: take ref). */
@@ -4057,23 +4052,26 @@ DEFINE_PER_CPU(struct kernel_stat, kstat);
 EXPORT_PER_CPU_SYMBOL(kstat);
 
 /*
- * Return p->sum_exec_runtime plus any more ns on the sched_clock
- * that have not yet been banked in case the task is currently running.
+ * Return any ns on the sched_clock that have not yet been banked in
+ * @p in case that task is currently running.
  */
-unsigned long long task_sched_runtime(struct task_struct *p)
+unsigned long long task_delta_exec(struct task_struct *p)
 {
 	unsigned long flags;
-	u64 ns, delta_exec;
 	struct rq *rq;
+	u64 ns = 0;
 
 	rq = task_rq_lock(p, &flags);
-	ns = p->se.sum_exec_runtime;
+
 	if (task_current(rq, p)) {
+		u64 delta_exec;
+
 		update_rq_clock(rq);
 		delta_exec = rq->clock - p->se.exec_start;
 		if ((s64)delta_exec > 0)
-			ns += delta_exec;
+			ns = delta_exec;
 	}
+
 	task_rq_unlock(rq, &flags);
 
 	return ns;
@@ -4090,6 +4088,7 @@ void account_user_time(struct task_struct *p, cputime_t cputime)
 	cputime64_t tmp;
 
 	p->utime = cputime_add(p->utime, cputime);
+	account_group_user_time(p, cputime);
 
 	/* Add user time to cpustat. */
 	tmp = cputime_to_cputime64(cputime);
@@ -4114,6 +4113,7 @@ static void account_guest_time(struct task_struct *p, cputime_t cputime)
 	tmp = cputime_to_cputime64(cputime);
 
 	p->utime = cputime_add(p->utime, cputime);
+	account_group_user_time(p, cputime);
 	p->gtime = cputime_add(p->gtime, cputime);
 
 	cpustat->user = cputime64_add(cpustat->user, tmp);
@@ -4149,6 +4149,7 @@ void account_system_time(struct task_struct *p, int hardirq_offset,
 	}
 
 	p->stime = cputime_add(p->stime, cputime);
+	account_group_system_time(p, cputime);
 
 	/* Add system time to cpustat. */
 	tmp = cputime_to_cputime64(cputime);
@@ -4190,6 +4191,7 @@ void account_steal_time(struct task_struct *p, cputime_t steal)
 
 	if (p == rq->idle) {
 		p->stime = cputime_add(p->stime, steal);
+		account_group_system_time(p, steal);
 		if (atomic_read(&rq->nr_iowait) > 0)
 			cpustat->iowait = cputime64_add(cpustat->iowait, tmp);
 		else

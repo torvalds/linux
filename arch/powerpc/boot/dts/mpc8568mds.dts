@@ -52,7 +52,7 @@
 	};
 
 	bcsr@f8000000 {
-		device_type = "board-control";
+		compatible = "fsl,mpc8568mds-bcsr";
 		reg = <0xf8000000 0x8000>;
 	};
 
