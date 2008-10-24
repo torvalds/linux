@@ -116,6 +116,7 @@ config PMIC_DA903X
 
 config MFD_WM8400
 	tristate "Support Wolfson Microelectronics WM8400"
+	depends on I2C
 	help
 	  Support for the Wolfson Microelecronics WM8400 PMIC and audio
 	  CODEC.  This driver adds provides common support for accessing
