@@ -279,7 +279,23 @@ EXPORT_SYMBOL(iwl_eeprom_free);
 
 int iwl_eeprom_check_version(struct iwl_priv *priv)
 {
-	return priv->cfg->ops->lib->eeprom_ops.check_version(priv);
+	u16 eeprom_ver;
+	u16 calib_ver;
+
+	eeprom_ver = iwl_eeprom_query16(priv, EEPROM_VERSION);
+	calib_ver = priv->cfg->ops->lib->eeprom_ops.calib_version(priv);
+
+	if (eeprom_ver < priv->cfg->eeprom_ver ||
+	    calib_ver < priv->cfg->eeprom_calib_ver)
+		goto err;
+
+	return 0;
+err:
+	IWL_ERROR("Unsuported EEPROM VER=0x%x < 0x%x CALIB=0x%x < 0x%x\n",
+		  eeprom_ver, priv->cfg->eeprom_ver,
+		  calib_ver,  priv->cfg->eeprom_calib_ver);
+	return -EINVAL;
+
 }
 EXPORT_SYMBOL(iwl_eeprom_check_version);
 

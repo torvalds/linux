@@ -173,6 +173,8 @@ struct iwl_cfg {
 	const char *fw_name;
 	unsigned int sku;
 	int eeprom_size;
+	u16  eeprom_ver;
+	u16  eeprom_calib_ver;
 	const struct iwl_ops *ops;
 	const struct iwl_mod_params *mod_params;
 };

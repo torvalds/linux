@@ -174,6 +174,9 @@ struct iwl_eeprom_channel {
 #define EEPROM_5000_REG_BAND_52_FAT_CHANNELS  ((0x92)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 22  bytes */
 
+/* 5050 Specific */
+#define EEPROM_5050_TX_POWER_VERSION    (4)
+#define EEPROM_5050_EEPROM_VERSION	(0x21E)
 
 /* 2.4 GHz */
 extern const u8 iwl_eeprom_band_1[14];
@@ -371,7 +374,7 @@ struct iwl_eeprom_ops {
 	int (*verify_signature) (struct iwl_priv *priv);
 	int (*acquire_semaphore) (struct iwl_priv *priv);
 	void (*release_semaphore) (struct iwl_priv *priv);
-	int (*check_version) (struct iwl_priv *priv);
+	u16 (*calib_version) (struct iwl_priv *priv);
 	const u8* (*query_addr) (const struct iwl_priv *priv, size_t offset);
 };
 

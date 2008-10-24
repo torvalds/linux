@@ -318,27 +318,9 @@ static int is_fat_channel(__le32 rxon_flags)
 /*
  * EEPROM handlers
  */
-
-static int iwl4965_eeprom_check_version(struct iwl_priv *priv)
+static u16 iwl4965_eeprom_calib_version(struct iwl_priv *priv)
 {
-	u16 eeprom_ver;
-	u16 calib_ver;
-
-	eeprom_ver = iwl_eeprom_query16(priv, EEPROM_VERSION);
-
-	calib_ver = iwl_eeprom_query16(priv, EEPROM_4965_CALIB_VERSION_OFFSET);
-
-	if (eeprom_ver < EEPROM_4965_EEPROM_VERSION ||
-	    calib_ver < EEPROM_4965_TX_POWER_VERSION)
-		goto err;
-
-	return 0;
-err:
-	IWL_ERROR("Unsuported EEPROM VER=0x%x < 0x%x CALIB=0x%x < 0x%x\n",
-		  eeprom_ver, EEPROM_4965_EEPROM_VERSION,
-		  calib_ver, EEPROM_4965_TX_POWER_VERSION);
-	return -EINVAL;
-
+	return iwl_eeprom_query16(priv, EEPROM_4965_CALIB_VERSION_OFFSET);
 }
 
 /*
@@ -2355,7 +2337,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 		.verify_signature  = iwlcore_eeprom_verify_signature,
 		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
 		.release_semaphore = iwlcore_eeprom_release_semaphore,
-		.check_version = iwl4965_eeprom_check_version,
+		.calib_version = iwl4965_eeprom_calib_version,
 		.query_addr = iwlcore_eeprom_query_addr,
 	},
 	.send_tx_power	= iwl4965_send_tx_power,
@@ -2374,6 +2356,8 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.fw_name = "iwlwifi-4965" IWL4965_UCODE_API ".ucode",
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.eeprom_size = IWL4965_EEPROM_IMG_SIZE,
+	.eeprom_ver = EEPROM_4965_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_4965_TX_POWER_VERSION,
 	.ops = &iwl4965_ops,
 	.mod_params = &iwl4965_mod_params,
 };
