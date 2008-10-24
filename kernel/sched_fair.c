@@ -791,16 +791,14 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	se->prev_sum_exec_runtime = se->sum_exec_runtime;
 }
 
+static int
+wakeup_preempt_entity(struct sched_entity *curr, struct sched_entity *se);
+
 static struct sched_entity *
 pick_next(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	struct rq *rq = rq_of(cfs_rq);
-	u64 pair_slice = rq->clock - cfs_rq->pair_start;
-
-	if (!cfs_rq->next || pair_slice > sysctl_sched_min_granularity) {
-		cfs_rq->pair_start = rq->clock;
+	if (!cfs_rq->next || wakeup_preempt_entity(cfs_rq->next, se) == 1)
 		return se;
-	}
 
 	return cfs_rq->next;
 }
