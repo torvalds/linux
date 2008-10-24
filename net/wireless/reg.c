@@ -298,69 +298,6 @@ static int call_crda(const char *alpha2)
 	return kobject_uevent_env(&reg_pdev->dev.kobj, KOBJ_CHANGE, envp);
 }
 
-/* This has the logic which determines when a new request
- * should be ignored. */
-static int ignore_request(struct wiphy *wiphy, enum reg_set_by set_by,
-			  const char *alpha2)
-{
-	/* All initial requests are respected */
-	if (!last_request)
-		return 0;
-
-	switch (set_by) {
-	case REGDOM_SET_BY_INIT:
-		return -EINVAL;
-	case REGDOM_SET_BY_CORE:
-		/*
-		 * Always respect new wireless core hints, should only happen
-		 * when updating the world regulatory domain at init.
-		 */
-		return 0;
-	case REGDOM_SET_BY_COUNTRY_IE:
-		if (unlikely(!is_an_alpha2(alpha2)))
-			return -EINVAL;
-		if (last_request->initiator == REGDOM_SET_BY_COUNTRY_IE) {
-			if (last_request->wiphy != wiphy) {
-				/*
-				 * Two cards with two APs claiming different
-				 * different Country IE alpha2s. We could
-				 * intersect them, but that seems unlikely
-				 * to be correct. Reject second one for now.
-				 */
-				if (!alpha2_equal(alpha2,
-						  cfg80211_regdomain->alpha2))
-					return -EOPNOTSUPP;
-				return -EALREADY;
-			}
-			/* Two consecutive Country IE hints on the same wiphy */
-			if (!alpha2_equal(cfg80211_regdomain->alpha2, alpha2))
-				return 0;
-			return -EALREADY;
-		}
-		/*
-		 * Ignore Country IE hints for now, need to think about
-		 * what we need to do to support multi-domain operation.
-		 */
-		return -EOPNOTSUPP;
-	case REGDOM_SET_BY_DRIVER:
-		if (last_request->initiator == REGDOM_SET_BY_DRIVER)
-			return -EALREADY;
-		return 0;
-	case REGDOM_SET_BY_USER:
-		/*
-		 * If the user wants to override the AP's hint, we may
-		 * need to follow both and use the intersection. For now,
-		 * reject any such attempt (but we don't support country
-		 * IEs right now anyway.)
-		 */
-		if (last_request->initiator == REGDOM_SET_BY_COUNTRY_IE)
-			return -EOPNOTSUPP;
-		return 0;
-	}
-
-	return -EINVAL;
-}
-
 /* Used by nl80211 before kmalloc'ing our regulatory domain */
 bool reg_is_valid_request(const char *alpha2)
 {
@@ -529,6 +466,69 @@ void wiphy_update_regulatory(struct wiphy *wiphy, enum reg_set_by setby)
 		if (wiphy->reg_notifier)
 			wiphy->reg_notifier(wiphy, setby);
 	}
+}
+
+/* This has the logic which determines when a new request
+ * should be ignored. */
+static int ignore_request(struct wiphy *wiphy, enum reg_set_by set_by,
+			  const char *alpha2)
+{
+	/* All initial requests are respected */
+	if (!last_request)
+		return 0;
+
+	switch (set_by) {
+	case REGDOM_SET_BY_INIT:
+		return -EINVAL;
+	case REGDOM_SET_BY_CORE:
+		/*
+		 * Always respect new wireless core hints, should only happen
+		 * when updating the world regulatory domain at init.
+		 */
+		return 0;
+	case REGDOM_SET_BY_COUNTRY_IE:
+		if (unlikely(!is_an_alpha2(alpha2)))
+			return -EINVAL;
+		if (last_request->initiator == REGDOM_SET_BY_COUNTRY_IE) {
+			if (last_request->wiphy != wiphy) {
+				/*
+				 * Two cards with two APs claiming different
+				 * different Country IE alpha2s. We could
+				 * intersect them, but that seems unlikely
+				 * to be correct. Reject second one for now.
+				 */
+				if (!alpha2_equal(alpha2,
+						  cfg80211_regdomain->alpha2))
+					return -EOPNOTSUPP;
+				return -EALREADY;
+			}
+			/* Two consecutive Country IE hints on the same wiphy */
+			if (!alpha2_equal(cfg80211_regdomain->alpha2, alpha2))
+				return 0;
+			return -EALREADY;
+		}
+		/*
+		 * Ignore Country IE hints for now, need to think about
+		 * what we need to do to support multi-domain operation.
+		 */
+		return -EOPNOTSUPP;
+	case REGDOM_SET_BY_DRIVER:
+		if (last_request->initiator == REGDOM_SET_BY_DRIVER)
+			return -EALREADY;
+		return 0;
+	case REGDOM_SET_BY_USER:
+		/*
+		 * If the user wants to override the AP's hint, we may
+		 * need to follow both and use the intersection. For now,
+		 * reject any such attempt (but we don't support country
+		 * IEs right now anyway.)
+		 */
+		if (last_request->initiator == REGDOM_SET_BY_COUNTRY_IE)
+			return -EOPNOTSUPP;
+		return 0;
+	}
+
+	return -EINVAL;
 }
 
 /* Caller must hold &cfg80211_drv_mutex */
