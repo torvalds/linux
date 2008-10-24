@@ -143,6 +143,49 @@ static inline struct sched_entity *parent_entity(struct sched_entity *se)
 	return se->parent;
 }
 
+/* return depth at which a sched entity is present in the hierarchy */
+static inline int depth_se(struct sched_entity *se)
+{
+	int depth = 0;
+
+	for_each_sched_entity(se)
+		depth++;
+
+	return depth;
+}
+
+static void
+find_matching_se(struct sched_entity **se, struct sched_entity **pse)
+{
+	int se_depth, pse_depth;
+
+	/*
+	 * preemption test can be made between sibling entities who are in the
+	 * same cfs_rq i.e who have a common parent. Walk up the hierarchy of
+	 * both tasks until we find their ancestors who are siblings of common
+	 * parent.
+	 */
+
+	/* First walk up until both entities are at same depth */
+	se_depth = depth_se(*se);
+	pse_depth = depth_se(*pse);
+
+	while (se_depth > pse_depth) {
+		se_depth--;
+		*se = parent_entity(*se);
+	}
+
+	while (pse_depth > se_depth) {
+		pse_depth--;
+		*pse = parent_entity(*pse);
+	}
+
+	while (!is_same_group(*se, *pse)) {
+		*se = parent_entity(*se);
+		*pse = parent_entity(*pse);
+	}
+}
+
 #else	/* CONFIG_FAIR_GROUP_SCHED */
 
 static inline struct rq *rq_of(struct cfs_rq *cfs_rq)
@@ -191,6 +234,11 @@ is_same_group(struct sched_entity *se, struct sched_entity *pse)
 static inline struct sched_entity *parent_entity(struct sched_entity *se)
 {
 	return NULL;
+}
+
+static inline void
+find_matching_se(struct sched_entity **se, struct sched_entity **pse)
+{
 }
 
 #endif	/* CONFIG_FAIR_GROUP_SCHED */
@@ -1244,10 +1292,39 @@ static unsigned long wakeup_gran(struct sched_entity *se)
 	 * More easily preempt - nice tasks, while not making it harder for
 	 * + nice tasks.
 	 */
-	if (sched_feat(ASYM_GRAN))
-		gran = calc_delta_mine(gran, NICE_0_LOAD, &se->load);
+	if (!sched_feat(ASYM_GRAN) || se->load.weight > NICE_0_LOAD)
+		gran = calc_delta_fair(sysctl_sched_wakeup_granularity, se);
 
 	return gran;
+}
+
+/*
+ * Should 'se' preempt 'curr'.
+ *
+ *             |s1
+ *        |s2
+ *   |s3
+ *         g
+ *      |<--->|c
+ *
+ *  w(c, s1) = -1
+ *  w(c, s2) =  0
+ *  w(c, s3) =  1
+ *
+ */
+static int
+wakeup_preempt_entity(struct sched_entity *curr, struct sched_entity *se)
+{
+	s64 gran, vdiff = curr->vruntime - se->vruntime;
+
+	if (vdiff <= 0)
+		return -1;
+
+	gran = wakeup_gran(curr);
+	if (vdiff > gran)
+		return 1;
+
+	return 0;
 }
 
 /*
@@ -1258,7 +1335,6 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int sync)
 	struct task_struct *curr = rq->curr;
 	struct cfs_rq *cfs_rq = task_cfs_rq(curr);
 	struct sched_entity *se = &curr->se, *pse = &p->se;
-	s64 delta_exec;
 
 	if (unlikely(rt_prio(p->prio))) {
 		update_rq_clock(rq);
@@ -1296,9 +1372,19 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int sync)
 		return;
 	}
 
-	delta_exec = se->sum_exec_runtime - se->prev_sum_exec_runtime;
-	if (delta_exec > wakeup_gran(pse))
-		resched_task(curr);
+	find_matching_se(&se, &pse);
+
+	while (se) {
+		BUG_ON(!pse);
+
+		if (wakeup_preempt_entity(se, pse) == 1) {
+			resched_task(curr);
+			break;
+		}
+
+		se = parent_entity(se);
+		pse = parent_entity(pse);
+	}
 }
 
 static struct task_struct *pick_next_task_fair(struct rq *rq)
