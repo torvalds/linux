@@ -1123,10 +1123,9 @@ wake_affine(struct sched_domain *this_sd, struct rq *this_rq,
 	if (!(this_sd->flags & SD_WAKE_AFFINE) || !sched_feat(AFFINE_WAKEUPS))
 		return 0;
 
-	if (!sync && sched_feat(SYNC_WAKEUPS) &&
-	    curr->se.avg_overlap < sysctl_sched_migration_cost &&
-	    p->se.avg_overlap < sysctl_sched_migration_cost)
-		sync = 1;
+	if (sync && (curr->se.avg_overlap > sysctl_sched_migration_cost ||
+			p->se.avg_overlap > sysctl_sched_migration_cost))
+		sync = 0;
 
 	/*
 	 * If sync wakeup then subtract the (maximum possible)
