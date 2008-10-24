@@ -391,6 +391,7 @@ static irqreturn_t mmci_irq(int irq, void *dev_id)
 static void mmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct mmci_host *host = mmc_priv(mmc);
+	unsigned long flags;
 
 	WARN_ON(host->mrq != NULL);
 
@@ -402,7 +403,7 @@ static void mmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		return;
 	}
 
-	spin_lock_irq(&host->lock);
+	spin_lock_irqsave(&host->lock, flags);
 
 	host->mrq = mrq;
 
@@ -411,7 +412,7 @@ static void mmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	mmci_start_command(host, mrq->cmd, 0);
 
-	spin_unlock_irq(&host->lock);
+	spin_unlock_irqrestore(&host->lock, flags);
 }
 
 static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
