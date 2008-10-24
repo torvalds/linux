@@ -23,10 +23,10 @@ MODULE_PARM_DESC(debug,"s921 debugging (default off)");
 
 struct s921_state
 {
-        struct dvb_frontend frontend;
-        fe_modulation_t current_modulation;
-        __u32 snr;
-        __u32 current_frequency;
+	struct dvb_frontend frontend;
+	fe_modulation_t current_modulation;
+	__u32 snr;
+	__u32 current_frequency;
 	__u8 addr;
 	struct s921_isdb_t dev;
 	struct i2c_adapter *i2c;
@@ -46,7 +46,7 @@ static int s921_set_parameters(struct dvb_frontend *fe, struct dvb_frontend_para
 
 static int s921_init(struct dvb_frontend *fe) {
 	printk("s921 init\n");
-        return 0;
+	return 0;
 }
 
 static int s921_sleep(struct dvb_frontend *fe) {
@@ -127,7 +127,7 @@ static struct dvb_frontend_ops demod_s921={
 static int s921_write(void *dev, u8 reg, u8 val) {
 	struct s921_state *state = dev;
 	char buf[2]={reg,val};
-        int err;
+	int err;
 	struct i2c_msg i2cmsgs = {
 		.addr = state->addr,
 		.flags = 0,
@@ -137,11 +137,11 @@ static int s921_write(void *dev, u8 reg, u8 val) {
 
 	if((err = i2c_transfer(state->i2c, &i2cmsgs, 1))<0) {
 		printk("%s i2c_transfer error %d\n", __FUNCTION__, err);
-                if (err < 0)
-                        return err;
-                else
-                        return -EREMOTEIO;
-        }
+		if (err < 0)
+			return err;
+		else
+			return -EREMOTEIO;
+	}
 
 	return 0;
 }

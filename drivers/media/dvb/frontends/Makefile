@@ -5,6 +5,8 @@
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core/
 EXTRA_CFLAGS += -Idrivers/media/common/tuners/
 
+s921-objs := s921_module.o s921_core.o
+
 obj-$(CONFIG_DVB_PLL) += dvb-pll.o
 obj-$(CONFIG_DVB_STV0299) += stv0299.o
 obj-$(CONFIG_DVB_SP8870) += sp8870.o
@@ -55,3 +57,4 @@ obj-$(CONFIG_DVB_CX24116) += cx24116.o
 obj-$(CONFIG_DVB_SI21XX) += si21xx.o
 obj-$(CONFIG_DVB_STV0288) += stv0288.o
 obj-$(CONFIG_DVB_STB6000) += stb6000.o
+obj-$(CONFIG_DVB_S921) += s921.o
