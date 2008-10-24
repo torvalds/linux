@@ -433,7 +433,7 @@ static int ctrl_slot_setup(struct controller *ctrl,
 				slot->number, ctrl->slot_device_offset,
 				slot_number);
 		result = pci_hp_register(hotplug_slot,
-					 ctrl->pci_dev->subordinate,
+					 ctrl->pci_dev->bus,
 					 slot->device,
 					 name);
 		if (result) {
