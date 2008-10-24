@@ -17,12 +17,14 @@ snd-page-alloc-$(CONFIG_HAS_DMA) += sgbuf.o
 
 snd-rawmidi-objs  := rawmidi.o
 snd-timer-objs    := timer.o
+snd-hrtimer-objs  := hrtimer.o
 snd-rtctimer-objs := rtctimer.o
 snd-hwdep-objs    := hwdep.o
 
 obj-$(CONFIG_SND) 		+= snd.o
 obj-$(CONFIG_SND_HWDEP)		+= snd-hwdep.o
 obj-$(CONFIG_SND_TIMER)		+= snd-timer.o
+obj-$(CONFIG_SND_HRTIMER)	+= snd-hrtimer.o
 obj-$(CONFIG_SND_RTCTIMER)	+= snd-rtctimer.o
 obj-$(CONFIG_SND_PCM)		+= snd-pcm.o snd-page-alloc.o
 obj-$(CONFIG_SND_RAWMIDI)	+= snd-rawmidi.o
