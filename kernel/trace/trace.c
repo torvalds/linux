@@ -656,7 +656,11 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
 	entry->preempt_count		= pc & 0xff;
 	entry->pid			= (tsk) ? tsk->pid : 0;
 	entry->flags =
+#ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
 		(irqs_disabled_flags(flags) ? TRACE_FLAG_IRQS_OFF : 0) |
+#else
+		TRACE_FLAG_IRQS_NOSUPPORT |
+#endif
 		((pc & HARDIRQ_MASK) ? TRACE_FLAG_HARDIRQ : 0) |
 		((pc & SOFTIRQ_MASK) ? TRACE_FLAG_SOFTIRQ : 0) |
 		(need_resched() ? TRACE_FLAG_NEED_RESCHED : 0);
@@ -1244,7 +1248,8 @@ lat_print_generic(struct trace_seq *s, struct trace_entry *entry, int cpu)
 	trace_seq_printf(s, "%8.8s-%-5d ", comm, entry->pid);
 	trace_seq_printf(s, "%3d", cpu);
 	trace_seq_printf(s, "%c%c",
-			(entry->flags & TRACE_FLAG_IRQS_OFF) ? 'd' : '.',
+			(entry->flags & TRACE_FLAG_IRQS_OFF) ? 'd' :
+			 (entry->flags & TRACE_FLAG_IRQS_NOSUPPORT) ? 'X' : '.',
 			((entry->flags & TRACE_FLAG_NEED_RESCHED) ? 'N' : '.'));
 
 	hardirq = entry->flags & TRACE_FLAG_HARDIRQ;
