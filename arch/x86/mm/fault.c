@@ -53,7 +53,7 @@
 
 static inline int kmmio_fault(struct pt_regs *regs, unsigned long addr)
 {
-#ifdef CONFIG_MMIOTRACE_HOOKS
+#ifdef CONFIG_MMIOTRACE
 	if (unlikely(is_kmmio_active()))
 		if (kmmio_handler(regs, addr) == 1)
 			return -1;
