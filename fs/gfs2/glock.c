@@ -293,6 +293,8 @@ static void gfs2_holder_wake(struct gfs2_holder *gh)
  */
 
 static int do_promote(struct gfs2_glock *gl)
+__releases(&gl->gl_spin)
+__acquires(&gl->gl_spin)
 {
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	struct gfs2_holder *gh, *tmp;
@@ -511,6 +513,8 @@ static unsigned int gfs2_lm_lock(struct gfs2_sbd *sdp, void *lock,
  */
 
 static void do_xmote(struct gfs2_glock *gl, struct gfs2_holder *gh, unsigned int target)
+__releases(&gl->gl_spin)
+__acquires(&gl->gl_spin)
 {
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	struct gfs2_sbd *sdp = gl->gl_sbd;
@@ -576,6 +580,8 @@ static inline struct gfs2_holder *find_first_holder(const struct gfs2_glock *gl)
  */
 
 static void run_queue(struct gfs2_glock *gl, const int nonblock)
+__releases(&gl->gl_spin)
+__acquires(&gl->gl_spin)
 {
 	struct gfs2_holder *gh = NULL;
 
@@ -877,6 +883,8 @@ void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...)
  */
 
 static inline void add_to_queue(struct gfs2_holder *gh)
+__releases(&gl->gl_spin)
+__acquires(&gl->gl_spin)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
 	struct gfs2_sbd *sdp = gl->gl_sbd;
