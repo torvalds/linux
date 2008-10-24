@@ -822,7 +822,6 @@ static int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 	}
 
 	priv->hw_params.max_txq_num = priv->cfg->mod_params->num_of_queues;
-	priv->hw_params.first_ampdu_q = IWL49_FIRST_AMPDU_QUEUE;
 	priv->hw_params.max_stations = IWL4965_STATION_COUNT;
 	priv->hw_params.bcast_sta_id = IWL4965_BROADCAST_ID;
 	priv->hw_params.max_data_size = IWL49_RTC_DATA_SIZE;
@@ -2059,7 +2058,7 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 	agg->rate_n_flags = rate_n_flags;
 	agg->bitmap = 0;
 
-	/* # frames attempted by Tx command */
+	/* num frames attempted by Tx command */
 	if (agg->frame_count == 1) {
 		/* Only one frame was attempted; no block-ack will arrive */
 		status = le16_to_cpu(frame_status[0].status);
@@ -2158,12 +2157,13 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	int index = SEQ_TO_INDEX(sequence);
 	struct iwl_tx_queue *txq = &priv->txq[txq_id];
+	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *info;
 	struct iwl4965_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
 	u32  status = le32_to_cpu(tx_resp->u.status);
-	int tid = MAX_TID_COUNT, sta_id = IWL_INVALID_STATION;
-	__le16 fc;
-	struct ieee80211_hdr *hdr;
+	int tid = MAX_TID_COUNT;
+	int sta_id;
+	int freed;
 	u8 *qc = NULL;
 
 	if ((index >= txq->q.n_bd) || (iwl_queue_used(&txq->q, index) == 0)) {
@@ -2178,8 +2178,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 	memset(&info->status, 0, sizeof(info->status));
 
 	hdr = iwl_tx_queue_get_hdr(priv, txq_id, index);
-	fc = hdr->frame_control;
-	if (ieee80211_is_data_qos(fc)) {
+	if (ieee80211_is_data_qos(hdr->frame_control)) {
 		qc = ieee80211_get_qos_ctl(hdr);
 		tid = qc[0] & 0xf;
 	}
@@ -2194,8 +2193,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 		const u32 scd_ssn = iwl4965_get_scd_ssn(tx_resp);
 		struct iwl_ht_agg *agg = NULL;
 
-		if (!qc)
-			return;
+		WARN_ON(!qc);
 
 		agg = &priv->stations[sta_id].tid[tid].agg;
 
@@ -2206,53 +2204,48 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 			info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
 
 		if (txq->q.read_ptr != (scd_ssn & 0xff)) {
-			int freed, ampdu_q;
 			index = iwl_queue_dec_wrap(scd_ssn & 0xff, txq->q.n_bd);
 			IWL_DEBUG_TX_REPLY("Retry scheduler reclaim scd_ssn "
 					   "%d index %d\n", scd_ssn , index);
 			freed = iwl_tx_queue_reclaim(priv, txq_id, index);
 			priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
 
-			if (iwl_queue_space(&txq->q) > txq->q.low_mark &&
-			    txq_id >= 0 && priv->mac80211_registered &&
-			    agg->state != IWL_EMPTYING_HW_QUEUE_DELBA) {
-				/* calculate mac80211 ampdu sw queue to wake */
-				ampdu_q = txq_id - IWL49_FIRST_AMPDU_QUEUE +
-					  priv->hw->queues;
+			if (priv->mac80211_registered &&
+			    (iwl_queue_space(&txq->q) > txq->q.low_mark) &&
+			    (agg->state != IWL_EMPTYING_HW_QUEUE_DELBA)) {
 				if (agg->state == IWL_AGG_OFF)
 					ieee80211_wake_queue(priv->hw, txq_id);
 				else
-					ieee80211_wake_queue(priv->hw, ampdu_q);
+					ieee80211_wake_queue(priv->hw,
+							     txq->swq_id);
 			}
-			iwl_txq_check_empty(priv, sta_id, tid, txq_id);
 		}
 	} else {
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
-		info->flags |=
-			iwl_is_tx_success(status) ? IEEE80211_TX_STAT_ACK : 0;
+		info->flags |= iwl_is_tx_success(status) ?
+					IEEE80211_TX_STAT_ACK : 0;
 		iwl_hwrate_to_tx_control(priv,
 					le32_to_cpu(tx_resp->rate_n_flags),
 					info);
 
-		IWL_DEBUG_TX("Tx queue %d Status %s (0x%08x) rate_n_flags "
-			     "0x%x retries %d\n", txq_id,
-				iwl_get_tx_fail_reason(status),
-				status, le32_to_cpu(tx_resp->rate_n_flags),
-				tx_resp->failure_frame);
+		IWL_DEBUG_TX_REPLY("TXQ %d status %s (0x%08x) "
+				   "rate_n_flags 0x%x retries %d\n",
+				   txq_id,
+				   iwl_get_tx_fail_reason(status), status,
+				   le32_to_cpu(tx_resp->rate_n_flags),
+				   tx_resp->failure_frame);
 
-		IWL_DEBUG_TX_REPLY("Tx queue reclaim %d\n", index);
-
-		if (index != -1) {
-		    int freed = iwl_tx_queue_reclaim(priv, txq_id, index);
-		    if (tid != MAX_TID_COUNT)
+		freed = iwl_tx_queue_reclaim(priv, txq_id, index);
+		if (qc)
 			priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
-		    if (iwl_queue_space(&txq->q) > txq->q.low_mark &&
-			(txq_id >= 0) && priv->mac80211_registered)
+
+		if (priv->mac80211_registered &&
+		    (iwl_queue_space(&txq->q) > txq->q.low_mark))
 			ieee80211_wake_queue(priv->hw, txq_id);
-		    if (tid != MAX_TID_COUNT)
-			iwl_txq_check_empty(priv, sta_id, tid, txq_id);
-		}
 	}
+
+	if (qc)
+		iwl_txq_check_empty(priv, sta_id, tid, txq_id);
 
 	if (iwl_check_bits(status, TX_ABORT_REQUIRED_MSK))
 		IWL_ERROR("TODO:  Implement Tx ABORT REQUIRED!!!\n");

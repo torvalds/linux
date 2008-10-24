@@ -1413,21 +1413,21 @@ enum {
 };
 
 enum {
-	TX_STATUS_MSK = 0x000000ff,	/* bits 0:7 */
+	TX_STATUS_MSK = 0x000000ff,		/* bits 0:7 */
 	TX_STATUS_DELAY_MSK = 0x00000040,
 	TX_STATUS_ABORT_MSK = 0x00000080,
 	TX_PACKET_MODE_MSK = 0x0000ff00,	/* bits 8:15 */
 	TX_FIFO_NUMBER_MSK = 0x00070000,	/* bits 16:18 */
-	TX_RESERVED = 0x00780000,	/* bits 19:22 */
+	TX_RESERVED = 0x00780000,		/* bits 19:22 */
 	TX_POWER_PA_DETECT_MSK = 0x7f800000,	/* bits 23:30 */
 	TX_ABORT_REQUIRED_MSK = 0x80000000,	/* bits 31:31 */
 };
 
-static inline int iwl_is_tx_success(u32 status)
+static inline bool iwl_is_tx_success(u32 status)
 {
 	status &= TX_STATUS_MSK;
-	return (status == TX_STATUS_SUCCESS)
-	    || (status == TX_STATUS_DIRECT_DONE);
+	return (status == TX_STATUS_SUCCESS) ||
+	       (status == TX_STATUS_DIRECT_DONE);
 }
 
 
@@ -1452,10 +1452,9 @@ enum {
 	AGG_TX_STATE_DELAY_TX_MSK = 0x400
 };
 
-#define AGG_TX_STATE_LAST_SENT_MSK \
-(AGG_TX_STATE_LAST_SENT_TTL_MSK | \
- AGG_TX_STATE_LAST_SENT_TRY_CNT_MSK | \
- AGG_TX_STATE_LAST_SENT_BT_KILL_MSK)
+#define AGG_TX_STATE_LAST_SENT_MSK  (AGG_TX_STATE_LAST_SENT_TTL_MSK | \
+				     AGG_TX_STATE_LAST_SENT_TRY_CNT_MSK | \
+				     AGG_TX_STATE_LAST_SENT_BT_KILL_MSK)
 
 /* # tx attempts for first frame in aggregation */
 #define AGG_TX_STATE_TRY_CNT_POS 12
@@ -1528,6 +1527,28 @@ struct iwl4965_tx_resp {
 	} u;
 } __attribute__ ((packed));
 
+/*
+ * definitions for initial rate index field
+ * bits [3:0] inital rate index
+ * bits [6:4] rate table color, used for the initial rate
+ * bit-7 invalid rate indication
+ *   i.e. rate was not chosen from rate table
+ *   or rate table color was changed during frame retries
+ * refer tlc rate info
+ */
+
+#define IWL50_TX_RES_INIT_RATE_INDEX_POS	0
+#define IWL50_TX_RES_INIT_RATE_INDEX_MSK	0x0f
+#define IWL50_TX_RES_RATE_TABLE_COLOR_POS	4
+#define IWL50_TX_RES_RATE_TABLE_COLOR_MSK	0x70
+#define IWL50_TX_RES_INV_RATE_INDEX_MSK	0x80
+
+/* refer to ra_tid */
+#define IWL50_TX_RES_TID_POS	0
+#define IWL50_TX_RES_TID_MSK	0x0f
+#define IWL50_TX_RES_RA_POS	4
+#define IWL50_TX_RES_RA_MSK	0xf0
+
 struct iwl5000_tx_resp {
 	u8 frame_count;		/* 1 no aggregation, >1 aggregation */
 	u8 bt_kill_count;	/* # blocked by bluetooth (unused for agg) */
@@ -1542,14 +1563,17 @@ struct iwl5000_tx_resp {
 	 * For agg:  RTS + CTS + aggregation tx time + block-ack time. */
 	__le16 wireless_media_time;	/* uSecs */
 
-	__le16 reserved;
-	__le32 pa_power1;	/* RF power amplifier measurement (not used) */
-	__le32 pa_power2;
+	u8 pa_status;		/* RF power amplifier measurement (not used) */
+	u8 pa_integ_res_a[3];
+	u8 pa_integ_res_b[3];
+	u8 pa_integ_res_C[3];
 
 	__le32 tfd_info;
 	__le16 seq_ctl;
 	__le16 byte_cnt;
-	__le32 tlc_info;
+	u8 tlc_info;
+	u8 ra_tid;		/* tid (0:3), sta_id (4:7) */
+	__le16 frame_ctrl;
 	/*
 	 * For non-agg:  frame status TX_STATUS_*
 	 * For agg:  status of 1st frame, AGG_TX_STATE_*; other frame status

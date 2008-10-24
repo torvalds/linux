@@ -895,9 +895,9 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		priv->stations[sta_id].tid[tid].tfds_in_queue++;
 	}
 
-	/* Descriptor for chosen Tx queue */
 	txq = &priv->txq[txq_id];
 	q = &txq->q;
+	txq->swq_id = swq_id;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -1023,7 +1023,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 			iwl_txq_update_write_ptr(priv, txq);
 			spin_unlock_irqrestore(&priv->lock, flags);
 		} else {
-			ieee80211_stop_queue(priv->hw, swq_id);
+			ieee80211_stop_queue(priv->hw, txq->swq_id);
 		}
 	}
 
@@ -1395,8 +1395,8 @@ int iwl_txq_check_empty(struct iwl_priv *priv, int sta_id, u8 tid, int txq_id)
 	case IWL_EMPTYING_HW_QUEUE_DELBA:
 		/* We are reclaiming the last packet of the */
 		/* aggregated HW queue */
-		if (txq_id  == tid_data->agg.txq_id &&
-		    q->read_ptr == q->write_ptr) {
+		if ((txq_id  == tid_data->agg.txq_id) &&
+		    (q->read_ptr == q->write_ptr)) {
 			u16 ssn = SEQ_TO_SN(tid_data->seq_number);
 			int tx_fifo = default_tid_to_tx_fifo[tid];
 			IWL_DEBUG_HT("HW queue empty: continue DELBA flow\n");
@@ -1447,7 +1447,7 @@ static int iwl_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 	IWL_DEBUG_TX_REPLY("BA %d %d\n", agg->start_idx, ba_resp->seq_ctl);
 
 	/* Calculate shift to align block-ack bits with our Tx window bits */
-	sh = agg->start_idx - SEQ_TO_INDEX(seq_ctl>>4);
+	sh = agg->start_idx - SEQ_TO_INDEX(seq_ctl >> 4);
 	if (sh < 0) /* tbw something is wrong with indices */
 		sh += 0x100;
 
@@ -1497,9 +1497,11 @@ void iwl_rx_reply_compressed_ba(struct iwl_priv *priv,
 {
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	struct iwl_compressed_ba_resp *ba_resp = &pkt->u.compressed_ba;
-	int index;
 	struct iwl_tx_queue *txq = NULL;
 	struct iwl_ht_agg *agg;
+	int index;
+	int sta_id;
+	int tid;
 
 	/* "flow" corresponds to Tx queue */
 	u16 scd_flow = le16_to_cpu(ba_resp->scd_flow);
@@ -1514,14 +1516,16 @@ void iwl_rx_reply_compressed_ba(struct iwl_priv *priv,
 	}
 
 	txq = &priv->txq[scd_flow];
-	agg = &priv->stations[ba_resp->sta_id].tid[ba_resp->tid].agg;
+	sta_id = ba_resp->sta_id;
+	tid = ba_resp->tid;
+	agg = &priv->stations[sta_id].tid[tid].agg;
 
 	/* Find index just before block-ack window */
 	index = iwl_queue_dec_wrap(ba_resp_scd_ssn & 0xff, txq->q.n_bd);
 
 	/* TODO: Need to get this copy more safely - now good for debug */
 
-	IWL_DEBUG_TX_REPLY("REPLY_COMPRESSED_BA [%d]Received from %pM, "
+	IWL_DEBUG_TX_REPLY("REPLY_COMPRESSED_BA [%d] Received from %pM, "
 			   "sta_id = %d\n",
 			   agg->wait_for_ba,
 			   (u8 *) &ba_resp->sta_addr_lo32,
@@ -1545,18 +1549,15 @@ void iwl_rx_reply_compressed_ba(struct iwl_priv *priv,
 	 * transmitted ... if not, it's too late anyway). */
 	if (txq->q.read_ptr != (ba_resp_scd_ssn & 0xff)) {
 		/* calculate mac80211 ampdu sw queue to wake */
-		int ampdu_q =
-		   scd_flow - priv->hw_params.first_ampdu_q + priv->hw->queues;
 		int freed = iwl_tx_queue_reclaim(priv, scd_flow, index);
-		priv->stations[ba_resp->sta_id].
-			tid[ba_resp->tid].tfds_in_queue -= freed;
-		if (iwl_queue_space(&txq->q) > txq->q.low_mark &&
-			priv->mac80211_registered &&
-			agg->state != IWL_EMPTYING_HW_QUEUE_DELBA)
-			ieee80211_wake_queue(priv->hw, ampdu_q);
+		priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
 
-		iwl_txq_check_empty(priv, ba_resp->sta_id,
-				    ba_resp->tid, scd_flow);
+		if ((iwl_queue_space(&txq->q) > txq->q.low_mark) &&
+		    priv->mac80211_registered &&
+		    (agg->state != IWL_EMPTYING_HW_QUEUE_DELBA))
+			ieee80211_wake_queue(priv->hw, txq->swq_id);
+
+		iwl_txq_check_empty(priv, sta_id, tid, scd_flow);
 	}
 }
 EXPORT_SYMBOL(iwl_rx_reply_compressed_ba);

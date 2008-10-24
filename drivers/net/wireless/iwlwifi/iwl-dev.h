@@ -135,9 +135,10 @@ struct iwl_tx_queue {
 	struct iwl_tfd *tfds;
 	struct iwl_cmd *cmd[TFD_TX_CMD_SLOTS];
 	struct iwl_tx_info *txb;
-	int need_update;
-	int sched_retry;
-	int active;
+	u8 need_update;
+	u8 sched_retry;
+	u8 active;
+	u8 swq_id;
 };
 
 #define IWL_NUM_SCAN_RATES         (2)
@@ -519,7 +520,6 @@ struct iwl_sensitivity_ranges {
  * @ct_kill_threshold: temperature threshold
  * @calib_init_cfg: setup initial claibrations for the hw
  * @struct iwl_sensitivity_ranges: range of sensitivity values
- * @first_ampdu_q: first HW queue available for ampdu
  */
 struct iwl_hw_params {
 	u16 max_txq_num;
@@ -541,7 +541,6 @@ struct iwl_hw_params {
 	u32 ct_kill_threshold; /* value in hw-dependent units */
 	u32 calib_init_cfg;
 	const struct iwl_sensitivity_ranges *sens;
-	u8 first_ampdu_q;
 };
 
 #define HT_SHORT_GI_20MHZ	(1 << 0)
