@@ -10,6 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/threads.h>
+#include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
@@ -18,6 +19,8 @@
 #include <linux/bootmem.h>
 #include <linux/module.h>
 #include <linux/hardirq.h>
+#include <linux/timer.h>
+#include <asm/current.h>
 #include <asm/smp.h>
 #include <asm/ipi.h>
 #include <asm/genapic.h>
@@ -357,6 +360,103 @@ static __init void uv_rtc_init(void)
 }
 
 /*
+ * percpu heartbeat timer
+ */
+static void uv_heartbeat(unsigned long ignored)
+{
+	struct timer_list *timer = &uv_hub_info->scir.timer;
+	unsigned char bits = uv_hub_info->scir.state;
+
+	/* flip heartbeat bit */
+	bits ^= SCIR_CPU_HEARTBEAT;
+
+	/* are we the idle thread? */
+	if (current->pid == 0)
+		bits &= ~SCIR_CPU_ACTIVITY;
+	else
+		bits |= SCIR_CPU_ACTIVITY;
+
+	/* update system controller interface reg */
+	uv_set_scir_bits(bits);
+
+	/* enable next timer period */
+	mod_timer(timer, jiffies + SCIR_CPU_HB_INTERVAL);
+}
+
+static void __cpuinit uv_heartbeat_enable(int cpu)
+{
+	if (!uv_cpu_hub_info(cpu)->scir.enabled) {
+		struct timer_list *timer = &uv_cpu_hub_info(cpu)->scir.timer;
+
+		uv_set_cpu_scir_bits(cpu, SCIR_CPU_HEARTBEAT|SCIR_CPU_ACTIVITY);
+		setup_timer(timer, uv_heartbeat, cpu);
+		timer->expires = jiffies + SCIR_CPU_HB_INTERVAL;
+		add_timer_on(timer, cpu);
+		uv_cpu_hub_info(cpu)->scir.enabled = 1;
+	}
+
+	/* check boot cpu */
+	if (!uv_cpu_hub_info(0)->scir.enabled)
+		uv_heartbeat_enable(0);
+}
+
+static void __cpuinit uv_heartbeat_disable(int cpu)
+{
+	if (uv_cpu_hub_info(cpu)->scir.enabled) {
+		uv_cpu_hub_info(cpu)->scir.enabled = 0;
+		del_timer(&uv_cpu_hub_info(cpu)->scir.timer);
+	}
+	uv_set_cpu_scir_bits(cpu, 0xff);
+}
+
+#ifdef CONFIG_HOTPLUG_CPU
+/*
+ * cpu hotplug notifier
+ */
+static __cpuinit int uv_scir_cpu_notify(struct notifier_block *self,
+				       unsigned long action, void *hcpu)
+{
+	long cpu = (long)hcpu;
+
+	switch (action) {
+	case CPU_ONLINE:
+		uv_heartbeat_enable(cpu);
+		break;
+	case CPU_DOWN_PREPARE:
+		uv_heartbeat_disable(cpu);
+		break;
+	default:
+		break;
+	}
+	return NOTIFY_OK;
+}
+
+static __init void uv_scir_register_cpu_notifier(void)
+{
+	hotcpu_notifier(uv_scir_cpu_notify, 0);
+}
+
+#else /* !CONFIG_HOTPLUG_CPU */
+
+static __init void uv_scir_register_cpu_notifier(void)
+{
+}
+
+static __init int uv_init_heartbeat(void)
+{
+	int cpu;
+
+	if (is_uv_system())
+		for_each_online_cpu(cpu)
+			uv_heartbeat_enable(cpu);
+	return 0;
+}
+
+late_initcall(uv_init_heartbeat);
+
+#endif /* !CONFIG_HOTPLUG_CPU */
+
+/*
  * Called on each cpu to initialize the per_cpu UV data area.
  * 	ZZZ hotplug not supported yet
  */
@@ -452,6 +552,7 @@ void __init uv_system_init(void)
 		uv_cpu_hub_info(cpu)->gnode_upper = gnode_upper;
 		uv_cpu_hub_info(cpu)->global_mmr_base = mmr_base;
 		uv_cpu_hub_info(cpu)->coherency_domain_number = sn_coherency_id;
+		uv_cpu_hub_info(cpu)->scir.offset = SCIR_LOCAL_MMR_BASE + lcpu;
 		uv_node_to_blade[nid] = blade;
 		uv_cpu_to_blade[cpu] = blade;
 		max_pnode = max(pnode, max_pnode);
@@ -468,4 +569,5 @@ void __init uv_system_init(void)
 	map_mmioh_high(max_pnode);
 
 	uv_cpu_init();
+	uv_scir_register_cpu_notifier();
 }
