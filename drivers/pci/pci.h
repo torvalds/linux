@@ -10,6 +10,10 @@ extern int pci_uevent(struct device *dev, struct kobj_uevent_env *env);
 extern int pci_create_sysfs_dev_files(struct pci_dev *pdev);
 extern void pci_remove_sysfs_dev_files(struct pci_dev *pdev);
 extern void pci_cleanup_rom(struct pci_dev *dev);
+#ifdef HAVE_PCI_MMAP
+extern int pci_mmap_fits(struct pci_dev *pdev, int resno,
+			 struct vm_area_struct *vma);
+#endif
 
 /**
  * Firmware PM callbacks
