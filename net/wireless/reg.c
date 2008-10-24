@@ -42,7 +42,10 @@
 #include "core.h"
 #include "reg.h"
 
-/* wiphy is set if this request's initiator is REGDOM_SET_BY_DRIVER */
+/*
+ * wiphy is set if this request's initiator is
+ * REGDOM_SET_BY_COUNTRY_IE or _DRIVER
+ */
 struct regulatory_request {
 	struct wiphy *wiphy;
 	enum reg_set_by initiator;
@@ -298,7 +301,7 @@ static int call_crda(const char *alpha2)
 /* This has the logic which determines when a new request
  * should be ignored. */
 static int ignore_request(struct wiphy *wiphy, enum reg_set_by set_by,
-	char *alpha2, struct ieee80211_regdomain *rd)
+			  const char *alpha2)
 {
 	/* All initial requests are respected */
 	if (!last_request)
@@ -343,22 +346,8 @@ static int ignore_request(struct wiphy *wiphy, enum reg_set_by set_by,
 		return 1;
 	case REGDOM_SET_BY_DRIVER:
 		BUG_ON(!wiphy);
-		if (last_request->initiator == REGDOM_SET_BY_DRIVER) {
-			/* Two separate drivers hinting different things,
-			 * this is possible if you have two devices present
-			 * on a system with different EEPROM regulatory
-			 * readings. XXX: Do intersection, we support only
-			 * the first regulatory hint for now */
-			if (last_request->wiphy != wiphy)
-				return -EALREADY;
-			if (rd)
-				return -EALREADY;
-			/* Driver should not be trying to hint different
-			 * regulatory domains! */
-			BUG_ON(!alpha2_equal(alpha2,
-					cfg80211_regdomain->alpha2));
+		if (last_request->initiator == REGDOM_SET_BY_DRIVER)
 			return -EALREADY;
-		}
 		if (last_request->initiator == REGDOM_SET_BY_CORE)
 			return 0;
 		/* XXX: Handle intersection, and add the
@@ -557,20 +546,14 @@ void wiphy_update_regulatory(struct wiphy *wiphy, enum reg_set_by setby)
 
 /* Caller must hold &cfg80211_drv_mutex */
 int __regulatory_hint(struct wiphy *wiphy, enum reg_set_by set_by,
-		      const char *alpha2, struct ieee80211_regdomain *rd)
+		      const char *alpha2)
 {
 	struct regulatory_request *request;
-	char *rd_alpha2;
 	int r = 0;
 
-	r = ignore_request(wiphy, set_by, (char *) alpha2, rd);
+	r = ignore_request(wiphy, set_by, alpha2);
 	if (r)
 		return r;
-
-	if (rd)
-		rd_alpha2 = rd->alpha2;
-	else
-		rd_alpha2 = (char *) alpha2;
 
 	switch (set_by) {
 	case REGDOM_SET_BY_CORE:
@@ -578,19 +561,17 @@ int __regulatory_hint(struct wiphy *wiphy, enum reg_set_by set_by,
 	case REGDOM_SET_BY_DRIVER:
 	case REGDOM_SET_BY_USER:
 		request = kzalloc(sizeof(struct regulatory_request),
-			GFP_KERNEL);
+				  GFP_KERNEL);
 		if (!request)
 			return -ENOMEM;
 
-		request->alpha2[0] = rd_alpha2[0];
-		request->alpha2[1] = rd_alpha2[1];
+		request->alpha2[0] = alpha2[0];
+		request->alpha2[1] = alpha2[1];
 		request->initiator = set_by;
 		request->wiphy = wiphy;
 
 		kfree(last_request);
 		last_request = request;
-		if (rd)
-			break;
 		r = call_crda(alpha2);
 #ifndef CONFIG_WIRELESS_OLD_REGULATORY
 		if (r)
@@ -605,25 +586,13 @@ int __regulatory_hint(struct wiphy *wiphy, enum reg_set_by set_by,
 	return r;
 }
 
-int regulatory_hint(struct wiphy *wiphy, const char *alpha2,
-	struct ieee80211_regdomain *rd)
+void regulatory_hint(struct wiphy *wiphy, const char *alpha2)
 {
-	int r;
-	BUG_ON(!rd && !alpha2);
+	BUG_ON(!alpha2);
 
 	mutex_lock(&cfg80211_drv_mutex);
-
-	r = __regulatory_hint(wiphy, REGDOM_SET_BY_DRIVER, alpha2, rd);
-	if (r || !rd)
-		goto unlock_and_exit;
-
-	/* If the driver passed a regulatory domain we skipped asking
-	 * userspace for one so we can now go ahead and set it */
-	r = set_regdom(rd);
-
-unlock_and_exit:
+	__regulatory_hint(wiphy, REGDOM_SET_BY_DRIVER, alpha2);
 	mutex_unlock(&cfg80211_drv_mutex);
-	return r;
 }
 EXPORT_SYMBOL(regulatory_hint);
 
@@ -792,11 +761,11 @@ int regulatory_init(void)
 	 * that is not a valid ISO / IEC 3166 alpha2 */
 	if (ieee80211_regdom[0] != 'E' || ieee80211_regdom[1] != 'U')
 		err = __regulatory_hint(NULL, REGDOM_SET_BY_CORE,
-					ieee80211_regdom, NULL);
+					ieee80211_regdom);
 #else
 	cfg80211_regdomain = cfg80211_world_regdom;
 
-	err = __regulatory_hint(NULL, REGDOM_SET_BY_CORE, "00", NULL);
+	err = __regulatory_hint(NULL, REGDOM_SET_BY_CORE, "00");
 	if (err)
 		printk(KERN_ERR "cfg80211: calling CRDA failed - "
 		       "unable to update world regulatory domain, "

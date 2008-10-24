@@ -171,7 +171,7 @@ int zd_mac_init_hw(struct ieee80211_hw *hw)
 
 	r = zd_reg2alpha2(mac->regdomain, alpha2);
 	if (!r)
-		regulatory_hint(hw->wiphy, alpha2, NULL);
+		regulatory_hint(hw->wiphy, alpha2);
 
 	r = 0;
 disable_int:
