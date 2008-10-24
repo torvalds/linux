@@ -953,10 +953,7 @@ static int ath_attach(u16 devid,
 			&sc->sbands[IEEE80211_BAND_5GHZ];
 	}
 
-	/* FIXME: Have to figure out proper hw init values later */
-
 	hw->queues = 4;
-	hw->ampdu_queues = 1;
 
 	/* Register rate control */
 	hw->rate_control_algorithm = "ath9k_rate_control";
@@ -1745,7 +1742,8 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
 		IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 		IEEE80211_HW_SIGNAL_DBM |
-		IEEE80211_HW_NOISE_DBM;
+		IEEE80211_HW_NOISE_DBM |
+		IEEE80211_HW_AMPDU_AGGREGATION;
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_AP) |
