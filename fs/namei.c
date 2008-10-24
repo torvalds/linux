@@ -1487,9 +1487,9 @@ int vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	return error;
 }
 
-int may_open(struct nameidata *nd, int acc_mode, int flag)
+int may_open(struct path *path, int acc_mode, int flag)
 {
-	struct dentry *dentry = nd->path.dentry;
+	struct dentry *dentry = path->dentry;
 	struct inode *inode = dentry->d_inode;
 	int error;
 
@@ -1510,13 +1510,13 @@ int may_open(struct nameidata *nd, int acc_mode, int flag)
 	if (S_ISFIFO(inode->i_mode) || S_ISSOCK(inode->i_mode)) {
 	    	flag &= ~O_TRUNC;
 	} else if (S_ISBLK(inode->i_mode) || S_ISCHR(inode->i_mode)) {
-		if (nd->path.mnt->mnt_flags & MNT_NODEV)
+		if (path->mnt->mnt_flags & MNT_NODEV)
 			return -EACCES;
 
 		flag &= ~O_TRUNC;
 	}
 
-	error = vfs_permission(nd, acc_mode);
+	error = inode_permission(inode, acc_mode);
 	if (error)
 		return error;
 	/*
@@ -1551,7 +1551,7 @@ int may_open(struct nameidata *nd, int acc_mode, int flag)
 		 */
 		error = locks_verify_locked(inode);
 		if (!error)
-			error = security_path_truncate(&nd->path, 0,
+			error = security_path_truncate(path, 0,
 					       ATTR_MTIME|ATTR_CTIME|ATTR_OPEN);
 		if (!error) {
 			DQUOT_INIT(inode);
@@ -1594,7 +1594,7 @@ out_unlock:
 	if (error)
 		return error;
 	/* Don't check for write permission, don't truncate */
-	return may_open(nd, 0, flag & ~O_TRUNC);
+	return may_open(&nd->path, 0, flag & ~O_TRUNC);
 }
 
 /*
@@ -1780,7 +1780,7 @@ ok:
 		if (error)
 			goto exit;
 	}
-	error = may_open(&nd, acc_mode, flag);
+	error = may_open(&nd.path, acc_mode, flag);
 	if (error) {
 		if (will_write)
 			mnt_drop_write(nd.path.mnt);
