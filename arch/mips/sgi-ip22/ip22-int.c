@@ -68,7 +68,7 @@ static void enable_local1_irq(unsigned int irq)
 		sgint->imask1 |= (1 << (irq - SGINT_LOCAL1));
 }
 
-void disable_local1_irq(unsigned int irq)
+static void disable_local1_irq(unsigned int irq)
 {
 	sgint->imask1 &= ~(1 << (irq - SGINT_LOCAL1));
 }
@@ -87,7 +87,7 @@ static void enable_local2_irq(unsigned int irq)
 	sgint->cmeimask0 |= (1 << (irq - SGINT_LOCAL2));
 }
 
-void disable_local2_irq(unsigned int irq)
+static void disable_local2_irq(unsigned int irq)
 {
 	sgint->cmeimask0 &= ~(1 << (irq - SGINT_LOCAL2));
 	if (!sgint->cmeimask0)
@@ -108,7 +108,7 @@ static void enable_local3_irq(unsigned int irq)
 	sgint->cmeimask1 |= (1 << (irq - SGINT_LOCAL3));
 }
 
-void disable_local3_irq(unsigned int irq)
+static void disable_local3_irq(unsigned int irq)
 {
 	sgint->cmeimask1 &= ~(1 << (irq - SGINT_LOCAL3));
 	if (!sgint->cmeimask1)
@@ -344,6 +344,6 @@ void __init arch_init_irq(void)
 
 #ifdef CONFIG_EISA
 	if (ip22_is_fullhouse())	/* Only Indigo-2 has EISA stuff */
-	        ip22_eisa_init();
+		ip22_eisa_init();
 #endif
 }
