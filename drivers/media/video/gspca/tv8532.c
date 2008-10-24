@@ -30,15 +30,14 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	int buflen;			/* current length of tmpbuf */
+	__u32 buflen;			/* current length of tmpbuf */
 	__u8 tmpbuf[352 * 288 + 10 * 288];	/* no protection... */
 	__u8 tmpbuf2[352 * 288];		/* no protection... */
 
-	unsigned short brightness;
-	unsigned short contrast;
+	__u16 brightness;
+	__u16 contrast;
 
-	char packet;
-	char synchro;
+	__u8 packet;
 };
 
 /* V4L2 controls supported by the driver */
@@ -443,6 +442,9 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	/************************************************/
 	tv_8532_PollReg(gspca_dev);
 	reg_w_1(gspca_dev, TV8532_UDP_UPDATE, 0x00);	/* 0x31 */
+
+	gspca_dev->empty_packet = 0;		/* check the empty packets */
+
 	return 0;
 }
 
@@ -455,7 +457,7 @@ static void tv8532_preprocess(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 /* we should received a whole frame with header and EOL marker
- * in gspca_dev->tmpbuf and return a GBRG pattern in gspca_dev->tmpbuf2
+ * in sd->tmpbuf and return a GBRG pattern in sd->tmpbuf2
  * sequence 2bytes header the Alternate pixels bayer GB 4 bytes
  * Alternate pixels bayer RG 4 bytes EOL */
 	int width = gspca_dev->width;
@@ -509,23 +511,24 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 
 	/* header 0x80 0x80 0x80 0x80 0x80 */
 	/* packet  00   63  127  145  00   */
-	/* sof     0     1   1    0    0   */
+	/* empty    1    0   0    1    1   */
 
 	/* update sequence */
 	if (sd->packet == 63 || sd->packet == 127)
-		sd->synchro = 1;
+		gspca_dev->empty_packet = 0;
 
 	/* is there a frame start ? */
+	/* (each packet is 2 lines plus 10 bytes) */
 	if (sd->packet >= (gspca_dev->height >> 1) - 1) {
-		PDEBUG(D_PACK, "SOF > %d packet %d", sd->synchro,
-		       sd->packet);
-		if (!sd->synchro) {	/* start of frame */
+		PDEBUG(D_PACK, "empty %d packet %d",
+			gspca_dev->empty_packet, sd->packet);
+		if (gspca_dev->empty_packet) {	/* start of frame */
 			if (gspca_dev->last_packet_type == FIRST_PACKET) {
 				tv8532_preprocess(gspca_dev);
 				frame = gspca_frame_add(gspca_dev,
 							LAST_PACKET,
 							frame, sd->tmpbuf2,
-							gspca_dev->width *
+							gspca_dev->height *
 							    gspca_dev->width);
 			}
 			gspca_frame_add(gspca_dev, FIRST_PACKET,
@@ -544,18 +547,13 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		return;
 	}
 
-	if (!sd->synchro) {
+	if (gspca_dev->empty_packet) {
 		/* Drop packet frame corrupt */
-		PDEBUG(D_PACK, "DROP SOF %d packet %d",
-		       sd->synchro, sd->packet);
+		PDEBUG(D_PACK, "DROP empty %d packet %d",
+			gspca_dev->empty_packet, sd->packet);
 		sd->packet = 0;
 		gspca_dev->last_packet_type = DISCARD_PACKET;
-		return;
 	}
-	sd->synchro = 1;
-	sd->packet++;
-	memcpy(&sd->tmpbuf[sd->buflen], data, len);
-	sd->buflen += len;
 }
 
 static void setcontrast(struct gspca_dev *gspca_dev)
