@@ -1684,8 +1684,9 @@ asmlinkage long compat_sys_select(int n, compat_ulong_t __user *inp,
 			return -EFAULT;
 
 		to = &end_time;
-		if (poll_select_set_timeout(to, tv.tv_sec,
-					    tv.tv_usec * NSEC_PER_USEC))
+		if (poll_select_set_timeout(to,
+				tv.tv_sec + (tv.tv_usec / USEC_PER_SEC),
+				(tv.tv_usec % USEC_PER_SEC) * NSEC_PER_USEC))
 			return -EINVAL;
 	}
 
