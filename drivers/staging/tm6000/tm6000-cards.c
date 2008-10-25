@@ -40,6 +40,7 @@
 #define TM6000_BOARD_ADSTECH_DUAL_TV		6
 #define TM6000_BOARD_FREECOM_AND_SIMILAR	7
 #define TM6000_BOARD_ADSTECH_MINI_DUAL_TV	8
+#define TM6010_BOARD_HAUPPAUGE_900H		9
 
 #define TM6000_MAXBOARDS        16
 static unsigned int card[]     = {[0 ... (TM6000_MAXBOARDS - 1)] = UNSET };
@@ -161,6 +162,20 @@ struct tm6000_board tm6000_boards[] = {
 		},
 		.gpio_addr_tun_reset = TM6000_GPIO_4,
 	},
+	[TM6010_BOARD_HAUPPAUGE_900H] = {
+		.name         = "Hauppauge HVR-900H",
+		.tuner_type   = TUNER_XC2028, /* has a XC3028 */
+		.tuner_addr   = 0xc2,
+		.demod_addr   = 0x1e,
+		.type         = TM6010,
+		.caps = {
+			.has_tuner    = 1,
+			.has_dvb      = 1,
+			.has_zl10353  = 1,
+			.has_eeprom   = 1,
+		},
+		.gpio_addr_tun_reset = TM6000_GPIO_2,
+	},
 };
 
 /* table of devices that work with this driver */
@@ -170,23 +185,19 @@ struct usb_device_id tm6000_id_table [] = {
 	{ USB_DEVICE(0x06e1, 0xf332), .driver_info = TM6000_BOARD_ADSTECH_DUAL_TV },
 	{ USB_DEVICE(0x14aa, 0x0620), .driver_info = TM6000_BOARD_FREECOM_AND_SIMILAR },
 	{ USB_DEVICE(0x06e1, 0xb339), .driver_info = TM6000_BOARD_ADSTECH_MINI_DUAL_TV },
+	{ USB_DEVICE(0x2040, 0x6600), .driver_info = TM6010_BOARD_HAUPPAUGE_900H },
 	{ },
 };
 
 static void tm6000_config_tuner (struct tm6000_core *dev)
 {
-	struct v4l2_priv_tun_config  xc2028_cfg;
-	struct xc2028_ctrl           ctl;
-
-	memset (&ctl,0,sizeof(ctl));
-
 	request_module ("tuner");
 
 	if (dev->tuner_type == TUNER_XC2028) {
-		if (dev->dev_type == TM6010)
-			ctl.fname = "xc3028-v27.fw";
-		else
-			ctl.fname = "tm6000-xc3028.fw";
+		struct v4l2_priv_tun_config  xc2028_cfg;
+		struct xc2028_ctrl           ctl;
+
+		memset (&ctl,0,sizeof(ctl));
 
 		ctl.mts   = 1;
 		ctl.read_not_reliable = 1;
@@ -194,6 +205,17 @@ static void tm6000_config_tuner (struct tm6000_core *dev)
 
 		xc2028_cfg.tuner = TUNER_XC2028;
 		xc2028_cfg.priv  = &ctl;
+
+		switch(dev->model) {
+		case TM6010_BOARD_HAUPPAUGE_900H:
+			ctl.fname = "xc3028L-v36.fw";
+			break;
+		default:
+			if (dev->dev_type == TM6010)
+				ctl.fname = "xc3028-v27.fw";
+			else
+				ctl.fname = "tm6000-xc3028.fw";
+		}
 
 		printk(KERN_INFO "Setting firmware parameters for xc2028\n");
 
