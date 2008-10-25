@@ -140,12 +140,16 @@ int tm6000_get_reg16 (struct tm6000_core *dev, u8 req, u16 value, u16 index)
 
 void tm6000_set_fourcc_format(struct tm6000_core *dev)
 {
-	if (dev->fourcc==V4L2_PIX_FMT_UYVY) {
-		/* Sets driver to UYUV */
-		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0xc1, 0xd0);
+	if (dev->dev_type == TM6010) {
+		if (dev->fourcc == V4L2_PIX_FMT_UYVY)
+			tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0xc1, 0xfc);
+		else
+			tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0xc1, 0xfd);
 	} else {
-		/* Sets driver to YUV2 */
-		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0xc1, 0x90);
+		if (dev->fourcc == V4L2_PIX_FMT_UYVY)
+			tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0xc1, 0xd0);
+		else
+			tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0xc1, 0x90);
 	}
 }
 
