@@ -33,6 +33,7 @@
 #include <linux/version.h>
 #include <linux/usb.h>
 #include <linux/videodev2.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/interrupt.h>
 #include <linux/kthread.h>
 #include <linux/highmem.h>
@@ -866,7 +867,7 @@ static int vidioc_querycap (struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_enum_fmt_cap (struct file *file, void  *priv,
+static int vidioc_enum_fmt_vid_cap (struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
 	if (unlikely(f->index >= ARRAY_SIZE(format)))
@@ -877,7 +878,7 @@ static int vidioc_enum_fmt_cap (struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_g_fmt_cap (struct file *file, void *priv,
+static int vidioc_g_fmt_vid_cap (struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct tm6000_fh  *fh=priv;
@@ -904,7 +905,7 @@ static struct tm6000_fmt* format_by_fourcc(unsigned int fourcc)
 	return NULL;
 }
 
-static int vidioc_try_fmt_cap (struct file *file, void *priv,
+static int vidioc_try_fmt_vid_cap (struct file *file, void *priv,
 			struct v4l2_format *f)
 {
 	struct tm6000_core *dev = ((struct tm6000_fh *)priv)->dev;
@@ -946,12 +947,12 @@ static int vidioc_try_fmt_cap (struct file *file, void *priv,
 }
 
 /*FIXME: This seems to be generic enough to be at videodev2 */
-static int vidioc_s_fmt_cap (struct file *file, void *priv,
+static int vidioc_s_fmt_vid_cap (struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct tm6000_fh  *fh=priv;
 	struct tm6000_core *dev = fh->dev;
-	int ret = vidioc_try_fmt_cap(file,fh,f);
+	int ret = vidioc_try_fmt_vid_cap(file,fh,f);
 	if (ret < 0)
 		return (ret);
 
@@ -1435,41 +1436,44 @@ static struct file_operations tm6000_fops = {
 	.llseek         = no_llseek,
 };
 
+static const struct v4l2_ioctl_ops video_ioctl_ops = {
+	.vidioc_querycap          = vidioc_querycap,
+	.vidioc_enum_fmt_vid_cap  = vidioc_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap     = vidioc_g_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap   = vidioc_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap     = vidioc_s_fmt_vid_cap,
+	.vidioc_s_std             = vidioc_s_std,
+	.vidioc_enum_input        = vidioc_enum_input,
+	.vidioc_g_input           = vidioc_g_input,
+	.vidioc_s_input           = vidioc_s_input,
+	.vidioc_queryctrl         = vidioc_queryctrl,
+	.vidioc_g_ctrl            = vidioc_g_ctrl,
+	.vidioc_s_ctrl            = vidioc_s_ctrl,
+	.vidioc_g_tuner           = vidioc_g_tuner,
+	.vidioc_s_tuner           = vidioc_s_tuner,
+	.vidioc_g_frequency       = vidioc_g_frequency,
+	.vidioc_s_frequency       = vidioc_s_frequency,
+	.vidioc_streamon          = vidioc_streamon,
+	.vidioc_streamoff         = vidioc_streamoff,
+	.vidioc_reqbufs           = vidioc_reqbufs,
+	.vidioc_querybuf          = vidioc_querybuf,
+	.vidioc_qbuf              = vidioc_qbuf,
+	.vidioc_dqbuf             = vidioc_dqbuf,
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
+	.vidiocgmbuf              = vidiocgmbuf,
+#endif
+};
+
 static struct video_device tm6000_template = {
 	.name		= "tm6000",
-	.type		= VID_TYPE_CAPTURE,
 	.fops           = &tm6000_fops,
+	.ioctl_ops      = &video_ioctl_ops,
 	.minor		= -1,
 	.release	= video_device_release,
-
-	.vidioc_querycap      = vidioc_querycap,
-	.vidioc_enum_fmt_cap  = vidioc_enum_fmt_cap,
-	.vidioc_g_fmt_cap     = vidioc_g_fmt_cap,
-	.vidioc_try_fmt_cap   = vidioc_try_fmt_cap,
-	.vidioc_s_fmt_cap     = vidioc_s_fmt_cap,
-	.vidioc_s_std         = vidioc_s_std,
-	.vidioc_enum_input    = vidioc_enum_input,
-	.vidioc_g_input       = vidioc_g_input,
-	.vidioc_s_input       = vidioc_s_input,
-	.vidioc_queryctrl     = vidioc_queryctrl,
-	.vidioc_g_ctrl        = vidioc_g_ctrl,
-	.vidioc_s_ctrl        = vidioc_s_ctrl,
-	.vidioc_g_tuner       = vidioc_g_tuner,
-	.vidioc_s_tuner       = vidioc_s_tuner,
-	.vidioc_g_frequency   = vidioc_g_frequency,
-	.vidioc_s_frequency   = vidioc_s_frequency,
-	.vidioc_streamon      = vidioc_streamon,
-	.vidioc_streamoff     = vidioc_streamoff,
-	.vidioc_reqbufs       = vidioc_reqbufs,
-	.vidioc_querybuf      = vidioc_querybuf,
-	.vidioc_qbuf          = vidioc_qbuf,
-	.vidioc_dqbuf         = vidioc_dqbuf,
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf          = vidiocgmbuf,
-#endif
-	.tvnorms              = TM6000_STD,
-	.current_norm         = V4L2_STD_NTSC_M,
+	.tvnorms        = TM6000_STD,
+	.current_norm   = V4L2_STD_NTSC_M,
 };
+
 /* -----------------------------------------------------------------
 	Initialization and module stuff
    ------------------------------------------------------------------*/
