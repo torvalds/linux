@@ -201,7 +201,7 @@ config USB_GSPCA_VC032X
 	  module will be called gspca_vc032x.
 
 config USB_GSPCA_ZC3XX
-	tristate "VC3xx USB Camera Driver"
+	tristate "ZC3XX USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA
 	help
 	  Say Y here if you want support for cameras based on the ZC3XX chip.
