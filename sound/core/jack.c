@@ -34,6 +34,7 @@ static int snd_jack_dev_free(struct snd_device *device)
 	else
 		input_free_device(jack->input_dev);
 
+	kfree(jack->id);
 	kfree(jack);
 
 	return 0;
@@ -87,7 +88,7 @@ int snd_jack_new(struct snd_card *card, const char *id, int type,
 	if (jack == NULL)
 		return -ENOMEM;
 
-	jack->id = id;
+	jack->id = kstrdup(id, GFP_KERNEL);
 
 	jack->input_dev = input_allocate_device();
 	if (jack->input_dev == NULL) {
