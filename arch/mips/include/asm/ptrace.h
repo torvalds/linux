@@ -116,6 +116,7 @@ struct pt_watch_regs {
 
 #include <linux/compiler.h>
 #include <linux/linkage.h>
+#include <linux/types.h>
 #include <asm/isadep.h>
 
 struct task_struct;
