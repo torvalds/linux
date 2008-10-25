@@ -860,6 +860,13 @@ int snd_hda_resume(struct hda_bus *bus);
 #endif
 
 /*
+ * get widget information
+ */
+const char *snd_hda_get_jack_connectivity(u32 cfg);
+const char *snd_hda_get_jack_type(u32 cfg);
+const char *snd_hda_get_jack_location(u32 cfg);
+
+/*
  * power saving
  */
 #ifdef CONFIG_SND_HDA_POWER_SAVE
