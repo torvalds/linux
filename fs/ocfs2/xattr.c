@@ -157,6 +157,17 @@ static inline u16 ocfs2_xattr_max_xe_in_bucket(struct super_block *sb)
 #define bucket_block(_b, _n) ((_b)->bu_bhs[(_n)]->b_data)
 #define bucket_xh(_b) ((struct ocfs2_xattr_header *)bucket_block((_b), 0))
 
+static void ocfs2_xattr_bucket_relse(struct inode *inode,
+				     struct ocfs2_xattr_bucket *bucket)
+{
+	int i, blks = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
+
+	for (i = 0; i < blks; i++) {
+		brelse(bucket->bu_bhs[i]);
+		bucket->bu_bhs[i] = NULL;
+	}
+}
+
 static inline const char *ocfs2_xattr_prefix(int name_index)
 {
 	struct xattr_handler *handler = NULL;
@@ -820,8 +831,7 @@ static int ocfs2_xattr_block_get(struct inode *inode,
 	}
 	ret = size;
 cleanup:
-	for (i = 0; i < OCFS2_XATTR_MAX_BLOCKS_PER_BUCKET; i++)
-		brelse(xs->bucket.bu_bhs[i]);
+	ocfs2_xattr_bucket_relse(inode, &xs->bucket);
 	memset(&xs->bucket, 0, sizeof(xs->bucket));
 
 	brelse(xs->xattr_bh);
@@ -1932,7 +1942,6 @@ int ocfs2_xattr_set(struct inode *inode,
 	struct buffer_head *di_bh = NULL;
 	struct ocfs2_dinode *di;
 	int ret;
-	u16 i, blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
 
 	struct ocfs2_xattr_info xi = {
 		.name_index = name_index,
@@ -2034,8 +2043,7 @@ cleanup:
 	ocfs2_inode_unlock(inode, 1);
 	brelse(di_bh);
 	brelse(xbs.xattr_bh);
-	for (i = 0; i < blk_per_bucket; i++)
-		brelse(xbs.bucket.bu_bhs[i]);
+	ocfs2_xattr_bucket_relse(inode, &xbs.bucket);
 
 	return ret;
 }
@@ -2358,7 +2366,7 @@ static int ocfs2_iterate_xattr_buckets(struct inode *inode,
 				       xattr_bucket_func *func,
 				       void *para)
 {
-	int i, j, ret = 0;
+	int i, ret = 0;
 	int blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
 	u32 bpc = ocfs2_xattr_buckets_per_cluster(OCFS2_SB(inode->i_sb));
 	u32 num_buckets = clusters * bpc;
@@ -2395,14 +2403,12 @@ static int ocfs2_iterate_xattr_buckets(struct inode *inode,
 			}
 		}
 
-		for (j = 0; j < blk_per_bucket; j++)
-			brelse(bucket.bu_bhs[j]);
+		ocfs2_xattr_bucket_relse(inode, &bucket);
 		memset(&bucket, 0, sizeof(bucket));
 	}
 
 out:
-	for (j = 0; j < blk_per_bucket; j++)
-		brelse(bucket.bu_bhs[j]);
+	ocfs2_xattr_bucket_relse(inode, &bucket);
 
 	return ret;
 }
@@ -4554,11 +4560,10 @@ static int ocfs2_xattr_set_entry_index_block(struct inode *inode,
 	struct ocfs2_xattr_header *xh;
 	struct ocfs2_xattr_entry *xe;
 	u16 count, header_size, xh_free_start;
-	int i, free, max_free, need, old;
+	int free, max_free, need, old;
 	size_t value_size = 0, name_len = strlen(xi->name);
 	size_t blocksize = inode->i_sb->s_blocksize;
 	int ret, allocation = 0;
-	u16 blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
 
 	mlog_entry("Set xattr %s in xattr index block\n", xi->name);
 
@@ -4672,9 +4677,7 @@ try_again:
 			goto out;
 		}
 
-		for (i = 0; i < blk_per_bucket; i++)
-			brelse(xs->bucket.bu_bhs[i]);
-
+		ocfs2_xattr_bucket_relse(inode, &xs->bucket);
 		memset(&xs->bucket, 0, sizeof(xs->bucket));
 
 		ret = ocfs2_xattr_index_block_find(inode, xs->xattr_bh,
