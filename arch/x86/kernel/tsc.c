@@ -32,6 +32,7 @@ static int tsc_unstable;
    erroneous rdtsc usage on !cpu_has_tsc processors */
 static int tsc_disabled = -1;
 
+static int tsc_clocksource_reliable;
 /*
  * Scheduler clock - returns current time in nanosec units.
  */
@@ -98,6 +99,15 @@ int __init notsc_setup(char *str)
 #endif
 
 __setup("notsc", notsc_setup);
+
+static int __init tsc_setup(char *str)
+{
+	if (!strcmp(str, "reliable"))
+		tsc_clocksource_reliable = 1;
+	return 1;
+}
+
+__setup("tsc=", tsc_setup);
 
 #define MAX_RETRIES     5
 #define SMI_TRESHOLD    50000
@@ -738,24 +748,21 @@ static struct dmi_system_id __initdata bad_tsc_dmi_table[] = {
 	{}
 };
 
-/*
- * Geode_LX - the OLPC CPU has a possibly a very reliable TSC
- */
-#ifdef CONFIG_MGEODE_LX
-/* RTSC counts during suspend */
-#define RTSC_SUSP 0x100
-
-static void __init check_geode_tsc_reliable(void)
+static void __init check_system_tsc_reliable(void)
 {
+#ifdef CONFIG_MGEODE_LX
+	/* RTSC counts during suspend */
+#define RTSC_SUSP 0x100
 	unsigned long res_low, res_high;
 
 	rdmsr_safe(MSR_GEODE_BUSCONT_CONF0, &res_low, &res_high);
+	/* Geode_LX - the OLPC CPU has a possibly a very reliable TSC */
 	if (res_low & RTSC_SUSP)
-		clocksource_tsc.flags &= ~CLOCK_SOURCE_MUST_VERIFY;
-}
-#else
-static inline void check_geode_tsc_reliable(void) { }
+		tsc_clocksource_reliable = 1;
 #endif
+	if (boot_cpu_has(X86_FEATURE_TSC_RELIABLE))
+		tsc_clocksource_reliable = 1;
+}
 
 /*
  * Make an educated guess if the TSC is trustworthy and synchronized
@@ -790,6 +797,8 @@ static void __init init_tsc_clocksource(void)
 {
 	clocksource_tsc.mult = clocksource_khz2mult(tsc_khz,
 			clocksource_tsc.shift);
+	if (tsc_clocksource_reliable)
+		clocksource_tsc.flags &= ~CLOCK_SOURCE_MUST_VERIFY;
 	/* lower the rating if we already know its unstable: */
 	if (check_tsc_unstable()) {
 		clocksource_tsc.rating = 0;
@@ -850,7 +859,7 @@ void __init tsc_init(void)
 	if (unsynchronized_tsc())
 		mark_tsc_unstable("TSCs unsynchronized");
 
-	check_geode_tsc_reliable();
+	check_system_tsc_reliable();
 	init_tsc_clocksource();
 }
 
