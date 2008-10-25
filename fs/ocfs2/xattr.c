@@ -62,7 +62,6 @@ struct ocfs2_xattr_def_value_root {
 
 struct ocfs2_xattr_bucket {
 	struct buffer_head *bu_bhs[OCFS2_XATTR_MAX_BLOCKS_PER_BUCKET];
-	struct ocfs2_xattr_header *bu_xh;
 };
 
 #define OCFS2_XATTR_ROOT_SIZE	(sizeof(struct ocfs2_xattr_def_value_root))
@@ -156,6 +155,7 @@ static inline u16 ocfs2_xattr_max_xe_in_bucket(struct super_block *sb)
 
 #define bucket_blkno(_b) ((_b)->bu_bhs[0]->b_blocknr)
 #define bucket_block(_b, _n) ((_b)->bu_bhs[(_n)]->b_data)
+#define bucket_xh(_b) ((struct ocfs2_xattr_header *)bucket_block((_b), 0))
 
 static inline const char *ocfs2_xattr_prefix(int name_index)
 {
@@ -798,7 +798,7 @@ static int ocfs2_xattr_block_get(struct inode *inode,
 
 		if (le16_to_cpu(xb->xb_flags) & OCFS2_XATTR_INDEXED) {
 			ret = ocfs2_xattr_bucket_get_name_value(inode,
-								xs->bucket.bu_xh,
+								bucket_xh(&xs->bucket),
 								i,
 								&block_off,
 								&name_offset);
@@ -2280,11 +2280,9 @@ static int ocfs2_xattr_bucket_find(struct inode *inode,
 		bh = NULL;
 	}
 	xs->bucket.bu_bhs[0] = lower_bh;
-	xs->bucket.bu_xh = (struct ocfs2_xattr_header *)
-					bucket_block(&xs->bucket, 0);
 	lower_bh = NULL;
 
-	xs->header = xs->bucket.bu_xh;
+	xs->header = bucket_xh(&xs->bucket);
 	xs->base = bucket_block(&xs->bucket, 0);
 	xs->end = xs->base + inode->i_sb->s_blocksize;
 
@@ -2379,17 +2377,16 @@ static int ocfs2_iterate_xattr_buckets(struct inode *inode,
 			goto out;
 		}
 
-		bucket.bu_xh = (struct ocfs2_xattr_header *)bucket_block(&bucket, 0);
 		/*
 		 * The real bucket num in this series of blocks is stored
 		 * in the 1st bucket.
 		 */
 		if (i == 0)
-			num_buckets = le16_to_cpu(bucket.bu_xh->xh_num_buckets);
+			num_buckets = le16_to_cpu(bucket_xh(&bucket)->xh_num_buckets);
 
 		mlog(0, "iterating xattr bucket %llu, first hash %u\n",
 		     (unsigned long long)blkno,
-		     le32_to_cpu(bucket.bu_xh->xh_entries[0].xe_name_hash));
+		     le32_to_cpu(bucket_xh(&bucket)->xh_entries[0].xe_name_hash));
 		if (func) {
 			ret = func(inode, &bucket, para);
 			if (ret) {
@@ -2444,14 +2441,14 @@ static int ocfs2_list_xattr_bucket(struct inode *inode,
 	int i, block_off, new_offset;
 	const char *prefix, *name;
 
-	for (i = 0 ; i < le16_to_cpu(bucket->bu_xh->xh_count); i++) {
-		struct ocfs2_xattr_entry *entry = &bucket->bu_xh->xh_entries[i];
+	for (i = 0 ; i < le16_to_cpu(bucket_xh(bucket)->xh_count); i++) {
+		struct ocfs2_xattr_entry *entry = &bucket_xh(bucket)->xh_entries[i];
 		type = ocfs2_xattr_get_type(entry);
 		prefix = ocfs2_xattr_prefix(type);
 
 		if (prefix) {
 			ret = ocfs2_xattr_bucket_get_name_value(inode,
-								bucket->bu_xh,
+								bucket_xh(bucket),
 								i,
 								&block_off,
 								&new_offset);
@@ -2631,8 +2628,7 @@ static int ocfs2_xattr_update_xattr_search(struct inode *inode,
 
 	xs->bucket.bu_bhs[0] = new_bh;
 	get_bh(new_bh);
-	xs->bucket.bu_xh = (struct ocfs2_xattr_header *)bucket_block(&xs->bucket, 0);
-	xs->header = xs->bucket.bu_xh;
+	xs->header = bucket_xh(&xs->bucket);
 
 	xs->base = new_bh->b_data;
 	xs->end = xs->base + inode->i_sb->s_blocksize;
@@ -4398,7 +4394,7 @@ static void ocfs2_xattr_bucket_remove_xs(struct inode *inode,
 					 struct ocfs2_xattr_search *xs)
 {
 	handle_t *handle = NULL;
-	struct ocfs2_xattr_header *xh = xs->bucket.bu_xh;
+	struct ocfs2_xattr_header *xh = bucket_xh(&xs->bucket);
 	struct ocfs2_xattr_entry *last = &xh->xh_entries[
 						le16_to_cpu(xh->xh_count) - 1];
 	int ret = 0;
@@ -4533,7 +4529,7 @@ static int ocfs2_check_xattr_bucket_collision(struct inode *inode,
 					      struct ocfs2_xattr_bucket *bucket,
 					      const char *name)
 {
-	struct ocfs2_xattr_header *xh = bucket->bu_xh;
+	struct ocfs2_xattr_header *xh = bucket_xh(bucket);
 	u32 name_hash = ocfs2_xattr_name_hash(inode, name, strlen(name));
 
 	if (name_hash != le32_to_cpu(xh->xh_entries[0].xe_name_hash))
@@ -4703,7 +4699,7 @@ static int ocfs2_delete_xattr_in_bucket(struct inode *inode,
 					void *para)
 {
 	int ret = 0;
-	struct ocfs2_xattr_header *xh = bucket->bu_xh;
+	struct ocfs2_xattr_header *xh = bucket_xh(bucket);
 	u16 i;
 	struct ocfs2_xattr_entry *xe;
 
