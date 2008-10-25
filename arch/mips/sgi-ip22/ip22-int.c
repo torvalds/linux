@@ -12,20 +12,11 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/kernel_stat.h>
-#include <linux/signal.h>
-#include <linux/sched.h>
 #include <linux/interrupt.h>
-#include <linux/irq.h>
 
-#include <asm/mipsregs.h>
-#include <asm/addrspace.h>
 #include <asm/irq_cpu.h>
-#include <asm/sgi/ioc.h>
 #include <asm/sgi/hpc3.h>
 #include <asm/sgi/ip22.h>
-#include <asm/time.h>
-
-/* #define DEBUG_SGINT */
 
 /* So far nothing hangs here */
 #undef USE_LIO3_IRQ
