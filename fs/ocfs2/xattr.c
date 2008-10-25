@@ -240,6 +240,19 @@ static void ocfs2_xattr_bucket_journal_dirty(handle_t *handle,
 		ocfs2_journal_dirty(handle, bucket->bu_bhs[i]);
 }
 
+static void ocfs2_xattr_bucket_copy_data(struct inode *inode,
+					 struct ocfs2_xattr_bucket *dest,
+					 struct ocfs2_xattr_bucket *src)
+{
+	int i;
+	int blocksize = inode->i_sb->s_blocksize;
+	int blks = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
+
+	for (i = 0; i < blks; i++) {
+		memcpy(bucket_block(dest, i), bucket_block(src, i),
+		       blocksize);
+	}
+}
 
 static inline const char *ocfs2_xattr_prefix(int name_index)
 {
@@ -3299,9 +3312,7 @@ static int ocfs2_divide_xattr_bucket(struct inode *inode,
 	}
 
 	/* copy the whole bucket to the new first. */
-	for (i = 0; i < blk_per_bucket; i++)
-		memcpy(bucket_block(&t_bucket, i), bucket_block(&s_bucket, i),
-		       blocksize);
+	ocfs2_xattr_bucket_copy_data(inode, &t_bucket, &s_bucket);
 
 	/* update the new bucket. */
 	xh = bucket_xh(&t_bucket);
@@ -3410,9 +3421,7 @@ static int ocfs2_cp_xattr_bucket(struct inode *inode,
 				 u64 t_blkno,
 				 int t_is_new)
 {
-	int ret, i;
-	int blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
-	int blocksize = inode->i_sb->s_blocksize;
+	int ret;
 	struct ocfs2_xattr_bucket s_bucket, t_bucket;
 
 	BUG_ON(s_blkno == t_blkno);
@@ -3443,10 +3452,7 @@ static int ocfs2_cp_xattr_bucket(struct inode *inode,
 	if (ret)
 		goto out;
 
-	for (i = 0; i < blk_per_bucket; i++) {
-		memcpy(bucket_block(&t_bucket, i), bucket_block(&s_bucket, i),
-		       blocksize);
-	}
+	ocfs2_xattr_bucket_copy_data(inode, &t_bucket, &s_bucket);
 	ocfs2_xattr_bucket_journal_dirty(handle, inode, &t_bucket);
 
 out:
