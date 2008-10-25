@@ -961,6 +961,7 @@ export CPPFLAGS_vmlinux.lds += -P -C -U$(ARCH)
 
 # The asm symlink changes when $(ARCH) changes.
 # Detect this and ask user to run make mrproper
+# If asm is a stale symlink (point to dir that does not exist) remove it
 define check-symlink
 	set -e;                                                            \
 	if [ -L include/asm ]; then                                        \
@@ -970,6 +971,10 @@ define check-symlink
 			echo "       set ARCH or save .config and run 'make mrproper' to fix it";             \
 			exit 1;                                            \
 		fi;                                                        \
+		test -e $$asmlink || rm include/asm;                       \
+	elif [ -d include/asm ]; then                                      \
+		echo "ERROR: $@ is a directory but a symlink was expected";\
+		exit 1;                                                    \
 	fi
 endef
 
