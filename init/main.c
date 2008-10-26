@@ -768,6 +768,7 @@ static void __init do_initcalls(void)
 static void __init do_basic_setup(void)
 {
 	rcu_init_sched(); /* needed by module_init stage. */
+	init_workqueues();
 	usermodehelper_init();
 	driver_init();
 	init_irq_proc();
@@ -850,8 +851,6 @@ static int __init kernel_init(void * unused)
 	init_pid_ns.child_reaper = current;
 
 	cad_pid = task_pid(current);
-
-	init_workqueues();
 
 	smp_prepare_cpus(setup_max_cpus);
 

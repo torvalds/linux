@@ -160,4 +160,4 @@ static int __init stop_machine_init(void)
 	stop_machine_work = alloc_percpu(struct work_struct);
 	return 0;
 }
-early_initcall(stop_machine_init);
+core_initcall(stop_machine_init);
