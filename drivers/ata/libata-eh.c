@@ -1164,6 +1164,7 @@ void ata_eh_detach_dev(struct ata_device *dev)
 {
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
+	struct ata_eh_context *ehc = &link->eh_context;
 	unsigned long flags;
 
 	ata_dev_disable(dev);
@@ -1177,9 +1178,11 @@ void ata_eh_detach_dev(struct ata_device *dev)
 		ap->pflags |= ATA_PFLAG_SCSI_HOTPLUG;
 	}
 
-	/* clear per-dev EH actions */
+	/* clear per-dev EH info */
 	ata_eh_clear_action(link, dev, &link->eh_info, ATA_EH_PERDEV_MASK);
 	ata_eh_clear_action(link, dev, &link->eh_context.i, ATA_EH_PERDEV_MASK);
+	ehc->saved_xfer_mode[dev->devno] = 0;
+	ehc->saved_ncq_enabled &= ~(1 << dev->devno);
 
 	spin_unlock_irqrestore(ap->lock, flags);
 }
