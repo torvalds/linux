@@ -149,9 +149,9 @@ irqreturn_t cx18_irq_handler(int irq, void *dev_id)
 	sw1_mask = cx18_read_reg(cx, SW1_INT_ENABLE_PCI) | IRQ_EPU_TO_HPU;
 	sw1 = cx18_read_reg(cx, SW1_INT_STATUS) & sw1_mask;
 
-	cx18_write_reg(cx, sw2&sw2_mask, SW2_INT_STATUS);
-	cx18_write_reg(cx, sw1&sw1_mask, SW1_INT_STATUS);
-	cx18_write_reg(cx, hw2&hw2_mask, HW2_INT_CLR_STATUS);
+	cx18_write_reg_noretry(cx, sw2&sw2_mask, SW2_INT_STATUS);
+	cx18_write_reg_noretry(cx, sw1&sw1_mask, SW1_INT_STATUS);
+	cx18_write_reg_noretry(cx, hw2&hw2_mask, HW2_INT_CLR_STATUS);
 
 	if (sw1 || sw2 || hw2)
 		CX18_DEBUG_HI_IRQ("SW1: %x  SW2: %x  HW2: %x\n", sw1, sw2, hw2);
