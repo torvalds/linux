@@ -90,6 +90,7 @@ enum psmouse_type {
 	PSMOUSE_TOUCHKIT_PS2,
 	PSMOUSE_CORTRON,
 	PSMOUSE_HGPK,
+	PSMOUSE_ELANTECH,
 	PSMOUSE_AUTO		/* This one should always be last */
 };
 
