@@ -2216,7 +2216,7 @@ ath5k_init(struct ath5k_softc *sc, bool is_resume)
 	 */
 	sc->curchan = sc->hw->conf.channel;
 	sc->curband = &sc->sbands[sc->curchan->band];
-	sc->imask = AR5K_INT_RX | AR5K_INT_TX | AR5K_INT_RXEOL |
+	sc->imask = AR5K_INT_RXOK | AR5K_INT_TXOK | AR5K_INT_RXEOL |
 		AR5K_INT_RXORN | AR5K_INT_FATAL | AR5K_INT_GLOBAL |
 		AR5K_INT_MIB;
 	ret = ath5k_reset(sc, false, false);
@@ -2410,9 +2410,10 @@ ath5k_intr(int irq, void *dev_id)
 				/* bump tx trigger level */
 				ath5k_hw_update_tx_triglevel(ah, true);
 			}
-			if (status & AR5K_INT_RX)
+			if (status & (AR5K_INT_RXOK | AR5K_INT_RXERR))
 				tasklet_schedule(&sc->rxtq);
-			if (status & AR5K_INT_TX)
+			if (status & (AR5K_INT_TXOK | AR5K_INT_TXDESC
+					| AR5K_INT_TXERR | AR5K_INT_TXEOL))
 				tasklet_schedule(&sc->txtq);
 			if (status & AR5K_INT_BMISS) {
 			}

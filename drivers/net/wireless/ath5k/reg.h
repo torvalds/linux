@@ -234,6 +234,7 @@
 #define AR5K_TXNOFRM		0x004c
 #define	AR5K_TXNOFRM_M		0x000003ff
 #define	AR5K_TXNOFRM_QCU	0x000ffc00
+#define	AR5K_TXNOFRM_QCU_S	10
 
 /*
  * Receive frame gap timeout register
@@ -350,7 +351,7 @@
 
 #define AR5K_SISR3		0x0090			/* Register Address [5211+] */
 #define AR5K_SISR3_QCBRORN	0x000003ff	/* Mask for QCBRORN */
-#define AR5K_SISR3_QCBORN_S	0
+#define AR5K_SISR3_QCBRORN_S	0
 #define AR5K_SISR3_QCBRURN	0x03ff0000	/* Mask for QCBRURN */
 #define AR5K_SISR3_QCBRURN_S	16
 

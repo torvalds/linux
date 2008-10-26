@@ -472,9 +472,6 @@ bool ath5k_hw_is_intr_pending(struct ath5k_hw *ah)
  *
  * NOTE: We use read-and-clear register, so after this function is called ISR
  * is zeroed.
- *
- * XXX: Why filter interrupts in sw with interrupt_mask ? No benefit at all
- * plus it can be misleading (one might thing that we save interrupts this way)
  */
 int ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 {
@@ -494,11 +491,16 @@ int ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 		}
 	} else {
 		/*
-		 * Read interrupt status from the Read-And-Clear
-		 * shadow register.
+		 * Read interrupt status from Interrupt
+		 * Status Register shadow copy (Read And Clear)
+		 *
 		 * Note: PISR/SISR Not available on 5210
 		 */
 		data = ath5k_hw_reg_read(ah, AR5K_RAC_PISR);
+		if (unlikely(data == AR5K_INT_NOCARD)) {
+			*interrupt_mask = data;
+			return -ENODEV;
+		}
 	}
 
 	/*
@@ -506,17 +508,9 @@ int ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 	 */
 	*interrupt_mask = (data & AR5K_INT_COMMON) & ah->ah_imr;
 
-	if (unlikely(data == AR5K_INT_NOCARD))
-		return -ENODEV;
-
-	if (data & (AR5K_ISR_RXOK | AR5K_ISR_RXERR))
-		*interrupt_mask |= AR5K_INT_RX;
-
-	if (data & (AR5K_ISR_TXOK | AR5K_ISR_TXERR
-		| AR5K_ISR_TXDESC | AR5K_ISR_TXEOL))
-		*interrupt_mask |= AR5K_INT_TX;
-
 	if (ah->ah_version != AR5K_AR5210) {
+		u32 sisr2 = ath5k_hw_reg_read(ah, AR5K_RAC_SISR2);
+
 		/*HIU = Host Interface Unit (PCI etc)*/
 		if (unlikely(data & (AR5K_ISR_HIUERR)))
 			*interrupt_mask |= AR5K_INT_FATAL;
@@ -524,24 +518,93 @@ int ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask)
 		/*Beacon Not Ready*/
 		if (unlikely(data & (AR5K_ISR_BNR)))
 			*interrupt_mask |= AR5K_INT_BNR;
-	}
 
-	/*
-	 * XXX: BMISS interrupts may occur after association.
-	 * I found this on 5210 code but it needs testing. If this is
-	 * true we should disable them before assoc and re-enable them
-	 * after a successfull assoc + some jiffies.
-	 */
-#if 0
-	interrupt_mask &= ~AR5K_INT_BMISS;
-#endif
+		if (unlikely(sisr2 & (AR5K_SISR2_SSERR |
+					AR5K_SISR2_DPERR |
+					AR5K_SISR2_MCABT)))
+			*interrupt_mask |= AR5K_INT_FATAL;
+
+		if (data & AR5K_ISR_TIM)
+			*interrupt_mask |= AR5K_INT_TIM;
+
+		if (data & AR5K_ISR_BCNMISC) {
+			if (sisr2 & AR5K_SISR2_TIM)
+				*interrupt_mask |= AR5K_INT_TIM;
+			if (sisr2 & AR5K_SISR2_DTIM)
+				*interrupt_mask |= AR5K_INT_DTIM;
+			if (sisr2 & AR5K_SISR2_DTIM_SYNC)
+				*interrupt_mask |= AR5K_INT_DTIM_SYNC;
+			if (sisr2 & AR5K_SISR2_BCN_TIMEOUT)
+				*interrupt_mask |= AR5K_INT_BCN_TIMEOUT;
+			if (sisr2 & AR5K_SISR2_CAB_TIMEOUT)
+				*interrupt_mask |= AR5K_INT_CAB_TIMEOUT;
+		}
+
+		if (data & AR5K_ISR_RXDOPPLER)
+			*interrupt_mask |= AR5K_INT_RX_DOPPLER;
+		if (data & AR5K_ISR_QCBRORN) {
+			*interrupt_mask |= AR5K_INT_QCBRORN;
+			ah->ah_txq_isr |= AR5K_REG_MS(
+					ath5k_hw_reg_read(ah, AR5K_RAC_SISR3),
+					AR5K_SISR3_QCBRORN);
+		}
+		if (data & AR5K_ISR_QCBRURN) {
+			*interrupt_mask |= AR5K_INT_QCBRURN;
+			ah->ah_txq_isr |= AR5K_REG_MS(
+					ath5k_hw_reg_read(ah, AR5K_RAC_SISR3),
+					AR5K_SISR3_QCBRURN);
+		}
+		if (data & AR5K_ISR_QTRIG) {
+			*interrupt_mask |= AR5K_INT_QTRIG;
+			ah->ah_txq_isr |= AR5K_REG_MS(
+					ath5k_hw_reg_read(ah, AR5K_RAC_SISR4),
+					AR5K_SISR4_QTRIG);
+		}
+
+		if (data & AR5K_ISR_TXOK)
+			ah->ah_txq_isr |= AR5K_REG_MS(
+					ath5k_hw_reg_read(ah, AR5K_RAC_SISR0),
+					AR5K_SISR0_QCU_TXOK);
+
+		if (data & AR5K_ISR_TXDESC)
+			ah->ah_txq_isr |= AR5K_REG_MS(
+					ath5k_hw_reg_read(ah, AR5K_RAC_SISR0),
+					AR5K_SISR0_QCU_TXDESC);
+
+		if (data & AR5K_ISR_TXERR)
+			ah->ah_txq_isr |= AR5K_REG_MS(
+					ath5k_hw_reg_read(ah, AR5K_RAC_SISR1),
+					AR5K_SISR1_QCU_TXERR);
+
+		if (data & AR5K_ISR_TXEOL)
+			ah->ah_txq_isr |= AR5K_REG_MS(
+					ath5k_hw_reg_read(ah, AR5K_RAC_SISR1),
+					AR5K_SISR1_QCU_TXEOL);
+
+		if (data & AR5K_ISR_TXURN)
+			ah->ah_txq_isr |= AR5K_REG_MS(
+					ath5k_hw_reg_read(ah, AR5K_RAC_SISR2),
+					AR5K_SISR2_QCU_TXURN);
+	} else {
+		if (unlikely(data & (AR5K_ISR_SSERR | AR5K_ISR_MCABT
+				| AR5K_ISR_HIUERR | AR5K_ISR_DPERR)))
+			*interrupt_mask |= AR5K_INT_FATAL;
+
+		/*
+		 * XXX: BMISS interrupts may occur after association.
+		 * I found this on 5210 code but it needs testing. If this is
+		 * true we should disable them before assoc and re-enable them
+		 * after a successfull assoc + some jiffies.
+			interrupt_mask &= ~AR5K_INT_BMISS;
+		 */
+	}
 
 	/*
 	 * In case we didn't handle anything,
 	 * print the register value.
 	 */
 	if (unlikely(*interrupt_mask == 0 && net_ratelimit()))
-		ATH5K_PRINTF("0x%08x\n", data);
+		ATH5K_PRINTF("ISR: 0x%08x IMR: 0x%08x\n", data, ah->ah_imr);
 
 	return 0;
 }
@@ -560,14 +623,17 @@ enum ath5k_int ath5k_hw_set_imr(struct ath5k_hw *ah, enum ath5k_int new_mask)
 {
 	enum ath5k_int old_mask, int_mask;
 
+	old_mask = ah->ah_imr;
+
 	/*
 	 * Disable card interrupts to prevent any race conditions
-	 * (they will be re-enabled afterwards).
+	 * (they will be re-enabled afterwards if AR5K_INT GLOBAL
+	 * is set again on the new mask).
 	 */
-	ath5k_hw_reg_write(ah, AR5K_IER_DISABLE, AR5K_IER);
-	ath5k_hw_reg_read(ah, AR5K_IER);
-
-	old_mask = ah->ah_imr;
+	if (old_mask & AR5K_INT_GLOBAL) {
+		ath5k_hw_reg_write(ah, AR5K_IER_DISABLE, AR5K_IER);
+		ath5k_hw_reg_read(ah, AR5K_IER);
+	}
 
 	/*
 	 * Add additional, chipset-dependent interrupt mask flags
@@ -575,30 +641,64 @@ enum ath5k_int ath5k_hw_set_imr(struct ath5k_hw *ah, enum ath5k_int new_mask)
 	 */
 	int_mask = new_mask & AR5K_INT_COMMON;
 
-	if (new_mask & AR5K_INT_RX)
-		int_mask |= AR5K_IMR_RXOK | AR5K_IMR_RXERR | AR5K_IMR_RXORN |
-			AR5K_IMR_RXDESC;
-
-	if (new_mask & AR5K_INT_TX)
-		int_mask |= AR5K_IMR_TXOK | AR5K_IMR_TXERR | AR5K_IMR_TXDESC |
-			AR5K_IMR_TXURN;
-
 	if (ah->ah_version != AR5K_AR5210) {
+		/* Preserve per queue TXURN interrupt mask */
+		u32 simr2 = ath5k_hw_reg_read(ah, AR5K_SIMR2)
+				& AR5K_SIMR2_QCU_TXURN;
+
 		if (new_mask & AR5K_INT_FATAL) {
 			int_mask |= AR5K_IMR_HIUERR;
-			AR5K_REG_ENABLE_BITS(ah, AR5K_SIMR2, AR5K_SIMR2_MCABT |
-					AR5K_SIMR2_SSERR | AR5K_SIMR2_DPERR);
+			simr2 |= (AR5K_SIMR2_MCABT | AR5K_SIMR2_SSERR
+				| AR5K_SIMR2_DPERR);
 		}
+
+		/*Beacon Not Ready*/
+		if (new_mask & AR5K_INT_BNR)
+			int_mask |= AR5K_INT_BNR;
+
+		if (new_mask & AR5K_INT_TIM)
+			int_mask |= AR5K_IMR_TIM;
+
+		if (new_mask & AR5K_INT_TIM)
+			simr2 |= AR5K_SISR2_TIM;
+		if (new_mask & AR5K_INT_DTIM)
+			simr2 |= AR5K_SISR2_DTIM;
+		if (new_mask & AR5K_INT_DTIM_SYNC)
+			simr2 |= AR5K_SISR2_DTIM_SYNC;
+		if (new_mask & AR5K_INT_BCN_TIMEOUT)
+			simr2 |= AR5K_SISR2_BCN_TIMEOUT;
+		if (new_mask & AR5K_INT_CAB_TIMEOUT)
+			simr2 |= AR5K_SISR2_CAB_TIMEOUT;
+
+		if (new_mask & AR5K_INT_RX_DOPPLER)
+			int_mask |= AR5K_IMR_RXDOPPLER;
+
+		/* Note: Per queue interrupt masks
+		 * are set via reset_tx_queue (qcu.c) */
+		ath5k_hw_reg_write(ah, int_mask, AR5K_PIMR);
+		ath5k_hw_reg_write(ah, simr2, AR5K_SIMR2);
+
+	} else {
+		if (new_mask & AR5K_INT_FATAL)
+			int_mask |= (AR5K_IMR_SSERR | AR5K_IMR_MCABT
+				| AR5K_IMR_HIUERR | AR5K_IMR_DPERR);
+
+		ath5k_hw_reg_write(ah, int_mask, AR5K_IMR);
 	}
 
-	ath5k_hw_reg_write(ah, int_mask, AR5K_PIMR);
+	/* If RXNOFRM interrupt is masked disable it
+	 * by setting AR5K_RXNOFRM to zero */
+	if (!(new_mask & AR5K_INT_RXNOFRM))
+		ath5k_hw_reg_write(ah, 0, AR5K_RXNOFRM);
 
 	/* Store new interrupt mask */
 	ah->ah_imr = new_mask;
 
-	/* ..re-enable interrupts */
-	ath5k_hw_reg_write(ah, AR5K_IER_ENABLE, AR5K_IER);
-	ath5k_hw_reg_read(ah, AR5K_IER);
+	/* ..re-enable interrupts if AR5K_INT_GLOBAL is set */
+	if (new_mask & AR5K_INT_GLOBAL) {
+		ath5k_hw_reg_write(ah, AR5K_IER_ENABLE, AR5K_IER);
+		ath5k_hw_reg_read(ah, AR5K_IER);
+	}
 
 	return old_mask;
 }

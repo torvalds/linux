@@ -864,8 +864,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 
 	/* Pre-enable interrupts on 5211/5212*/
 	if (ah->ah_version != AR5K_AR5210)
-		ath5k_hw_set_imr(ah, AR5K_INT_RX | AR5K_INT_TX |
-				AR5K_INT_FATAL);
+		ath5k_hw_set_imr(ah, ah->ah_imr);
 
 	/*
 	 * Set RF kill flags if supported by the device (read from the EEPROM)
