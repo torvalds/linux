@@ -160,7 +160,7 @@ enum stb0899_fec {
 struct stb0899_params {
 	u32	freq;					/* Frequency	*/
 	u32	srate;					/* Symbol rate	*/
-	enum dvbfe_fec fecrate;
+	enum fe_code_rate fecrate;
 };
 
 struct stb0899_internal {
@@ -220,7 +220,7 @@ struct stb0899_state {
 	struct stb0899_internal		internal;	/* Device internal parameters		*/
 
 	/*	cached params from API	*/
-	enum dvbfe_delsys		delsys;
+	enum fe_delivery_system		delsys;
 	struct stb0899_params		params;
 
 	u32				rx_freq;	/* DiSEqC 2.0 receiver freq		*/

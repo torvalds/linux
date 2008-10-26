@@ -305,7 +305,7 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	int rc;
 	const struct stb6100_lkup *ptr;
 	struct stb6100_state *state = fe->tuner_priv;
-	struct dvbfe_params params;
+	struct dvb_frontend_parameters p;
 
 	u32 srate = 0, fvco, nint, nfrac;
 	u8 regs[STB6100_NUMREGS];
@@ -313,28 +313,12 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 
 	if ((rc = stb6100_read_regs(state, regs)) < 0)
 		return rc;
-	if (fe->ops.get_params) {
-		dprintk(verbose, FE_DEBUG, 1, "Get Frontend parameters");
-		fe->ops.get_params(fe, &params);
+
+	if (fe->ops.get_frontend) {
+		dprintk(verbose, FE_DEBUG, 1, "Get frontend parameters");
+		fe->ops.get_frontend(fe, &p);
 	}
-	switch (params.delivery) {
-	case DVBFE_DELSYS_DVBS:
-		srate = params.delsys.dvbs.symbol_rate;
-		dprintk(verbose, FE_DEBUG, 1, "Delivery system = DVB-S, Symbol Rate=[%d]", srate);
-		break;
-	case DVBFE_DELSYS_DSS:
-		dprintk(verbose, FE_DEBUG, 1, "Delivery system = DSS, Symbol Rate=[%d]", srate);
-		srate = params.delsys.dss.symbol_rate;
-		break;
-	case DVBFE_DELSYS_DVBS2:
-		dprintk(verbose, FE_DEBUG, 1, "Delivery system = DVB-S2, Symbol Rate=[%d]", srate);
-		srate = params.delsys.dvbs2.symbol_rate;
-		break;
-	default:
-		dprintk(verbose, FE_NOTICE, 1, "symbol rate unknown!");
-		srate = 22000000; /* just a typical default value	*/
-		break;
-	}
+	srate = p.u.qpsk.symbol_rate;
 
 	/* Baseband gain.	*/
 	if (srate >= 15000000)

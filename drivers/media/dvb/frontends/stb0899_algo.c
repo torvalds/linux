@@ -293,7 +293,7 @@ static enum stb0899_status stb0899_search_carrier(struct stb0899_state *state)
 		if (stb0899_check_carrier(state) == NOCARRIER) {
 			index++;
 			last_derot_freq = derot_freq;
-			derot_freq += index * internal->direction * internal->derot_step; /* next zig zag derotator position	*/
+			derot_freq += index * internal->direction * internal->derot_step; /* next zig zag derotator position */
 
 			if(ABS(derot_freq) > derot_limit)
 				next_loop--;
@@ -309,11 +309,11 @@ static enum stb0899_status stb0899_search_carrier(struct stb0899_state *state)
 			}
 		}
 
-		internal->direction = -internal->direction; /* Change zigzag direction	*/
+		internal->direction = -internal->direction; /* Change zigzag direction */
 	} while ((internal->status != CARRIEROK) && next_loop);
 
 	if (internal->status == CARRIEROK) {
-		stb0899_read_regs(state, STB0899_CFRM, cfr, 2); /* get derotator frequency	*/
+		stb0899_read_regs(state, STB0899_CFRM, cfr, 2); /* get derotator frequency */
 		internal->derot_freq = state->config->inversion * MAKEWORD16(cfr[0], cfr[1]);
 		dprintk(state->verbose, FE_DEBUG, 1, "----> CARRIER OK !, Derot Freq=%d", internal->derot_freq);
 	} else {
@@ -396,7 +396,7 @@ static enum stb0899_status stb0899_search_data(struct stb0899_state *state)
 	do {
 		if ((internal->status != CARRIEROK) || (stb0899_check_data(state) != DATAOK)) {
 
-			derot_freq += index * internal->direction * derot_step;	/* next zig zag derotator position	*/
+			derot_freq += index * internal->direction * derot_step;	/* next zig zag derotator position */
 			if (ABS(derot_freq) > derot_limit)
 				next_loop--;
 
@@ -414,11 +414,11 @@ static enum stb0899_status stb0899_search_data(struct stb0899_state *state)
 				index++;
 			}
 		}
-		internal->direction = -internal->direction; /* change zig zag direction		*/
+		internal->direction = -internal->direction; /* change zig zag direction */
 	} while ((internal->status != DATAOK) && next_loop);
 
 	if (internal->status == DATAOK) {
-		stb0899_read_regs(state, STB0899_CFRM, cfr, 2); /* get derotator frequency	*/
+		stb0899_read_regs(state, STB0899_CFRM, cfr, 2); /* get derotator frequency */
 		internal->derot_freq = state->config->inversion * MAKEWORD16(cfr[0], cfr[1]);
 		dprintk(state->verbose, FE_DEBUG, 1, "------> DATAOK ! Derot Freq=%d", internal->derot_freq);
 	}
@@ -568,12 +568,12 @@ enum stb0899_status stb0899_dvbs_algo(struct stb0899_state *state)
 	STB0899_SETFIELD_VAL(DEMAPVIT_KDIVIDER, reg, 60);
 	stb0899_write_reg(state, STB0899_DEMAPVIT, reg);
 
-	stb0899_write_reg(state, STB0899_EQON, 0x01); /* Equalizer OFF while acquiring	*/
+	stb0899_write_reg(state, STB0899_EQON, 0x01); /* Equalizer OFF while acquiring */
 	stb0899_write_reg(state, STB0899_VITSYNC, 0x19);
 
 	stb0899_first_subrange(state);
 	do {
-		/* Initialisations	*/
+		/* Initialisations */
 		cfr[0] = cfr[1] = 0;
 		stb0899_write_regs(state, STB0899_CFRM, cfr, 2); /* RESET derotator frequency	*/
 
@@ -588,7 +588,7 @@ enum stb0899_status stb0899_dvbs_algo(struct stb0899_state *state)
 		/* enable tuner I/O */
 		stb0899_i2c_gate_ctrl(&state->frontend, 1);
 
-		/* Move tuner to frequency	*/
+		/* Move tuner to frequency */
 		dprintk(state->verbose, FE_DEBUG, 1, "Tuner set frequency");
 		if (state->config->tuner_set_frequency)
 			state->config->tuner_set_frequency(&state->frontend, internal->freq);
