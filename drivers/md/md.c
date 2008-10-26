@@ -222,6 +222,9 @@ static void mddev_put(mddev_t *mddev)
 		list_del(&mddev->all_mddevs);
 		spin_unlock(&all_mddevs_lock);
 		blk_cleanup_queue(mddev->queue);
+		if (mddev->sysfs_state)
+			sysfs_put(mddev->sysfs_state);
+		mddev->sysfs_state = NULL;
 		kobject_put(&mddev->kobj);
 	} else
 		spin_unlock(&all_mddevs_lock);
@@ -1459,6 +1462,8 @@ static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 		kobject_del(&rdev->kobj);
 		goto fail;
 	}
+	rdev->sysfs_state = sysfs_get_dirent(rdev->kobj.sd, "state");
+
 	list_add_rcu(&rdev->same_set, &mddev->disks);
 	bd_claim_by_disk(rdev->bdev, rdev->bdev->bd_holder, mddev->gendisk);
 	return 0;
@@ -1488,7 +1493,8 @@ static void unbind_rdev_from_array(mdk_rdev_t * rdev)
 	printk(KERN_INFO "md: unbind<%s>\n", bdevname(rdev->bdev,b));
 	rdev->mddev = NULL;
 	sysfs_remove_link(&rdev->kobj, "block");
-
+	sysfs_put(rdev->sysfs_state);
+	rdev->sysfs_state = NULL;
 	/* We need to delay this, otherwise we can deadlock when
 	 * writing to 'remove' to "dev/state".  We also need
 	 * to delay it due to rcu usage.
@@ -1923,8 +1929,8 @@ state_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 
 		err = 0;
 	}
-	if (!err)
-		sysfs_notify(&rdev->kobj, NULL, "state");
+	if (!err && rdev->sysfs_state)
+		sysfs_notify_dirent(rdev->sysfs_state);
 	return err ? err : len;
 }
 static struct rdev_sysfs_entry rdev_state =
@@ -2019,7 +2025,7 @@ slot_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 			rdev->raid_disk = -1;
 			return err;
 		} else
-			sysfs_notify(&rdev->kobj, NULL, "state");
+			sysfs_notify_dirent(rdev->sysfs_state);
 		sprintf(nm, "rd%d", rdev->raid_disk);
 		if (sysfs_create_link(&rdev->mddev->kobj, &rdev->kobj, nm))
 			printk(KERN_WARNING
@@ -2036,7 +2042,7 @@ slot_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 		clear_bit(Faulty, &rdev->flags);
 		clear_bit(WriteMostly, &rdev->flags);
 		set_bit(In_sync, &rdev->flags);
-		sysfs_notify(&rdev->kobj, NULL, "state");
+		sysfs_notify_dirent(rdev->sysfs_state);
 	}
 	return len;
 }
@@ -2770,7 +2776,7 @@ array_state_store(mddev_t *mddev, const char *buf, size_t len)
 	if (err)
 		return err;
 	else {
-		sysfs_notify(&mddev->kobj, NULL, "array_state");
+		sysfs_notify_dirent(mddev->sysfs_state);
 		return len;
 	}
 }
@@ -3457,6 +3463,11 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	disk->fops = &md_fops;
 	disk->private_data = mddev;
 	disk->queue = mddev->queue;
+	/* Allow extended partitions.  This makes the
+	 * 'mdp' device redundant, but we can really
+	 * remove it now.
+	 */
+	disk->flags |= GENHD_FL_EXT_DEVT;
 	add_disk(disk);
 	mddev->gendisk = disk;
 	error = kobject_init_and_add(&mddev->kobj, &md_ktype,
@@ -3465,8 +3476,10 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	if (error)
 		printk(KERN_WARNING "md: cannot register %s/md - name in use\n",
 		       disk->disk_name);
-	else
+	else {
 		kobject_uevent(&mddev->kobj, KOBJ_ADD);
+		mddev->sysfs_state = sysfs_get_dirent(mddev->kobj.sd, "array_state");
+	}
 	return NULL;
 }
 
@@ -3477,7 +3490,7 @@ static void md_safemode_timeout(unsigned long data)
 	if (!atomic_read(&mddev->writes_pending)) {
 		mddev->safemode = 1;
 		if (mddev->external)
-			set_bit(MD_NOTIFY_ARRAY_STATE, &mddev->flags);
+			sysfs_notify_dirent(mddev->sysfs_state);
 	}
 	md_wakeup_thread(mddev->thread);
 }
@@ -3578,7 +3591,7 @@ static int do_md_run(mddev_t * mddev)
 				return -EINVAL;
 			}
 		}
-		sysfs_notify(&rdev->kobj, NULL, "state");
+		sysfs_notify_dirent(rdev->sysfs_state);
 	}
 
 	md_probe(mddev->unit, NULL, NULL);
@@ -3740,7 +3753,7 @@ static int do_md_run(mddev_t * mddev)
 
 	mddev->changed = 1;
 	md_new_event(mddev);
-	sysfs_notify(&mddev->kobj, NULL, "array_state");
+	sysfs_notify_dirent(mddev->sysfs_state);
 	sysfs_notify(&mddev->kobj, NULL, "sync_action");
 	sysfs_notify(&mddev->kobj, NULL, "degraded");
 	kobject_uevent(&disk_to_dev(mddev->gendisk)->kobj, KOBJ_CHANGE);
@@ -3767,7 +3780,7 @@ static int restart_array(mddev_t *mddev)
 	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	md_wakeup_thread(mddev->thread);
 	md_wakeup_thread(mddev->sync_thread);
-	sysfs_notify(&mddev->kobj, NULL, "array_state");
+	sysfs_notify_dirent(mddev->sysfs_state);
 	return 0;
 }
 
@@ -3847,7 +3860,7 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 			module_put(mddev->pers->owner);
 			mddev->pers = NULL;
 			/* tell userspace to handle 'inactive' */
-			sysfs_notify(&mddev->kobj, NULL, "array_state");
+			sysfs_notify_dirent(mddev->sysfs_state);
 
 			set_capacity(disk, 0);
 			mddev->changed = 1;
@@ -3933,7 +3946,7 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 			mdname(mddev));
 	err = 0;
 	md_new_event(mddev);
-	sysfs_notify(&mddev->kobj, NULL, "array_state");
+	sysfs_notify_dirent(mddev->sysfs_state);
 out:
 	return err;
 }
@@ -4297,7 +4310,7 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 		if (err)
 			export_rdev(rdev);
 		else
-			sysfs_notify(&rdev->kobj, NULL, "state");
+			sysfs_notify_dirent(rdev->sysfs_state);
 
 		md_update_sb(mddev, 1);
 		if (mddev->degraded)
@@ -4938,7 +4951,7 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 	if (_IOC_TYPE(cmd) == MD_MAJOR && mddev->ro && mddev->pers) {
 		if (mddev->ro == 2) {
 			mddev->ro = 0;
-			sysfs_notify(&mddev->kobj, NULL, "array_state");
+			sysfs_notify_dirent(mddev->sysfs_state);
 			set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 			md_wakeup_thread(mddev->thread);
 		} else {
@@ -5612,7 +5625,7 @@ void md_write_start(mddev_t *mddev, struct bio *bi)
 		spin_unlock_irq(&mddev->write_lock);
 	}
 	if (did_change)
-		sysfs_notify(&mddev->kobj, NULL, "array_state");
+		sysfs_notify_dirent(mddev->sysfs_state);
 	wait_event(mddev->sb_wait,
 		   !test_bit(MD_CHANGE_CLEAN, &mddev->flags) &&
 		   !test_bit(MD_CHANGE_PENDING, &mddev->flags));
@@ -5655,7 +5668,7 @@ int md_allow_write(mddev_t *mddev)
 			mddev->safemode = 1;
 		spin_unlock_irq(&mddev->write_lock);
 		md_update_sb(mddev, 0);
-		sysfs_notify(&mddev->kobj, NULL, "array_state");
+		sysfs_notify_dirent(mddev->sysfs_state);
 	} else
 		spin_unlock_irq(&mddev->write_lock);
 
@@ -6048,9 +6061,6 @@ void md_check_recovery(mddev_t *mddev)
 	if (mddev->bitmap)
 		bitmap_daemon_work(mddev->bitmap);
 
-	if (test_and_clear_bit(MD_NOTIFY_ARRAY_STATE, &mddev->flags))
-		sysfs_notify(&mddev->kobj, NULL, "array_state");
-
 	if (mddev->ro)
 		return;
 
@@ -6103,7 +6113,7 @@ void md_check_recovery(mddev_t *mddev)
 				mddev->safemode = 0;
 			spin_unlock_irq(&mddev->write_lock);
 			if (did_change)
-				sysfs_notify(&mddev->kobj, NULL, "array_state");
+				sysfs_notify_dirent(mddev->sysfs_state);
 		}
 
 		if (mddev->flags)
@@ -6111,7 +6121,7 @@ void md_check_recovery(mddev_t *mddev)
 
 		rdev_for_each(rdev, rtmp, mddev)
 			if (test_and_clear_bit(StateChanged, &rdev->flags))
-				sysfs_notify(&rdev->kobj, NULL, "state");
+				sysfs_notify_dirent(rdev->sysfs_state);
 
 
 		if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery) &&
@@ -6221,7 +6231,7 @@ void md_check_recovery(mddev_t *mddev)
 
 void md_wait_for_blocked_rdev(mdk_rdev_t *rdev, mddev_t *mddev)
 {
-	sysfs_notify(&rdev->kobj, NULL, "state");
+	sysfs_notify_dirent(rdev->sysfs_state);
 	wait_event_timeout(rdev->blocked_wait,
 			   !test_bit(Blocked, &rdev->flags),
 			   msecs_to_jiffies(5000));
