@@ -131,20 +131,28 @@ static LIST_HEAD(tm6000_corelist);
 /*
  * video-buf generic routine to get the next available buffer
  */
-static inline int get_next_buf(struct tm6000_dmaqueue *dma_q,
+static inline void get_next_buf(struct tm6000_dmaqueue *dma_q,
 			       struct tm6000_buffer   **buf)
 {
 	struct tm6000_core *dev = container_of(dma_q, struct tm6000_core, vidq);
+	char *outp;
 
 	if (list_empty(&dma_q->active)) {
 		dprintk(dev, V4L2_DEBUG_QUEUE, "No active queue to serve\n");
-		return 0;
+		return;
 	}
 
 	*buf = list_entry(dma_q->active.next,
 			struct tm6000_buffer, vb.queue);
 
-	return 1;
+	if (!buf)
+		return;
+
+	/* Cleans up buffer - Usefull for testing for frame/URB loss */
+	outp = videobuf_to_vmalloc(&(*buf)->vb);
+	memset(outp, 0, (*buf)->vb.size);
+
+	return;
 }
 
 /*
@@ -261,7 +269,9 @@ static int copy_packet(struct urb *urb, u32 header, u8 **ptr, u8 *endp,
 					buffer_filled (dev, dma_q, *buf);
 					dprintk(dev, V4L2_DEBUG_ISOC,
 							"new buffer filled\n");
-					rc=get_next_buf (dma_q, buf);
+					get_next_buf (dma_q, buf);
+					if (!*buf)
+						return rc;
 				}
 			}
 
@@ -406,11 +416,9 @@ static int copy_multiplexed(u8 *ptr, u8 *out_p, unsigned long len,
 			/* Announces that a new buffer were filled */
 			buffer_filled (dev, dma_q, *buf);
 			dprintk(dev, V4L2_DEBUG_ISOC, "new buffer filled\n");
-			rc=get_next_buf (dma_q, buf);
-			if (rc<=0) {
-				*buf=NULL;
+			get_next_buf (dma_q, buf);
+			if (!*buf)
 				break;
-			}
 		}
 	}
 
@@ -517,34 +525,26 @@ static inline int tm6000_isoc_copy(struct urb *urb, struct tm6000_buffer **buf)
  */
 static void tm6000_irq_callback(struct urb *urb)
 {
-	struct tm6000_buffer    *buf;
+	struct tm6000_buffer    *buf = NULL;
 	struct tm6000_dmaqueue  *dma_q = urb->context;
 	struct tm6000_core *dev = container_of(dma_q, struct tm6000_core, vidq);
-	int rc;
 	unsigned long flags;
+
+	if (!dev)
+		return;
 
 	spin_lock_irqsave(&dev->slock, flags);
 
-	buf = dev->isoc_ctl.buf;
+	get_next_buf(dma_q, &buf);
+	if (buf)
+		 tm6000_isoc_copy(urb, &buf);
+	spin_unlock_irqrestore(&dev->slock, flags);
 
-	if (!buf) {
-		rc = get_next_buf(dma_q, &buf);
-		if (rc <= 0)
-			goto ret;
-	}
-
-	/* Copy data from URB */
-	rc = tm6000_isoc_copy(urb, &buf);
-
-	dev->isoc_ctl.buf = buf;
-ret:
 
 	urb->status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (urb->status)
 		tm6000_err("urb resubmit failed (error=%i)\n",
 			urb->status);
-
-	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
 /*
@@ -724,10 +724,27 @@ buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 
 static void free_buffer(struct videobuf_queue *vq, struct tm6000_buffer *buf)
 {
+	struct tm6000_fh *fh = vq->priv_data;
+	struct tm6000_core   *dev = fh->dev;
+	unsigned long flags;
+
 	if (in_interrupt())
 		BUG();
 
-	videobuf_waiton(&buf->vb,0,0);
+	/* We used to wait for the buffer to finish here, but this didn't work
+	   because, as we were keeping the state as VIDEOBUF_QUEUED,
+	   videobuf_queue_cancel marked it as finished for us.
+	   (Also, it could wedge forever if the hardware was misconfigured.)
+
+	   This should be safe; by the time we get here, the buffer isn't
+	   queued anymore. If we ever start marking the buffers as
+	   VIDEOBUF_ACTIVE, it won't be, though.
+	*/
+	spin_lock_irqsave(&dev->slock, flags);
+	if (dev->isoc_ctl.buf == buf)
+		dev->isoc_ctl.buf = NULL;
+	spin_unlock_irqrestore(&dev->slock, flags);
+
 	videobuf_vmalloc_free(&buf->vb);
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
 }
