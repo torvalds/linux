@@ -3110,25 +3110,73 @@ static int ocfs2_read_xattr_bucket(struct inode *inode,
 }
 
 /*
- * Move half num of the xattrs in old bucket(blk) to new bucket(new_blk).
- * first_hash will record the 1st hash of the new bucket.
+ * Find the suitable pos when we divide a bucket into 2.
+ * We have to make sure the xattrs with the same hash value exist
+ * in the same bucket.
+ *
+ * If this ocfs2_xattr_header covers more than one hash value, find a
+ * place where the hash value changes.  Try to find the most even split.
+ * The most common case is that all entries have different hash values,
+ * and the first check we make will find a place to split.
  */
-static int ocfs2_half_xattr_bucket(struct inode *inode,
-				   handle_t *handle,
-				   u64 blk,
-				   u64 new_blk,
-				   u32 *first_hash,
-				   int new_bucket_head)
+static int ocfs2_xattr_find_divide_pos(struct ocfs2_xattr_header *xh)
+{
+	struct ocfs2_xattr_entry *entries = xh->xh_entries;
+	int count = le16_to_cpu(xh->xh_count);
+	int delta, middle = count / 2;
+
+	/*
+	 * We start at the middle.  Each step gets farther away in both
+	 * directions.  We therefore hit the change in hash value
+	 * nearest to the middle.  Note that this loop does not execute for
+	 * count < 2.
+	 */
+	for (delta = 0; delta < middle; delta++) {
+		/* Let's check delta earlier than middle */
+		if (cmp_xe(&entries[middle - delta - 1],
+			   &entries[middle - delta]))
+			return middle - delta;
+
+		/* For even counts, don't walk off the end */
+		if ((middle + delta + 1) == count)
+			continue;
+
+		/* Now try delta past middle */
+		if (cmp_xe(&entries[middle + delta],
+			   &entries[middle + delta + 1]))
+			return middle + delta + 1;
+	}
+
+	/* Every entry had the same hash */
+	return count;
+}
+
+/*
+ * Move some xattrs in old bucket(blk) to new bucket(new_blk).
+ * first_hash will record the 1st hash of the new bucket.
+ *
+ * Normally half of the xattrs will be moved.  But we have to make
+ * sure that the xattrs with the same hash value are stored in the
+ * same bucket. If all the xattrs in this bucket have the same hash
+ * value, the new bucket will be initialized as an empty one and the
+ * first_hash will be initialized as (hash_value+1).
+ */
+static int ocfs2_divide_xattr_bucket(struct inode *inode,
+				    handle_t *handle,
+				    u64 blk,
+				    u64 new_blk,
+				    u32 *first_hash,
+				    int new_bucket_head)
 {
 	int ret, i;
-	u16 count, start, len, name_value_len, xe_len, name_offset;
+	int count, start, len, name_value_len = 0, xe_len, name_offset = 0;
 	u16 blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
 	struct buffer_head **s_bhs, **t_bhs = NULL;
 	struct ocfs2_xattr_header *xh;
 	struct ocfs2_xattr_entry *xe;
 	int blocksize = inode->i_sb->s_blocksize;
 
-	mlog(0, "move half of xattrs from bucket %llu to %llu\n",
+	mlog(0, "move some of xattrs from bucket %llu to %llu\n",
 	     blk, new_blk);
 
 	s_bhs = kcalloc(blk_per_bucket, sizeof(struct buffer_head *), GFP_NOFS);
@@ -3171,14 +3219,35 @@ static int ocfs2_half_xattr_bucket(struct inode *inode,
 		}
 	}
 
+	xh = (struct ocfs2_xattr_header *)s_bhs[0]->b_data;
+	count = le16_to_cpu(xh->xh_count);
+	start = ocfs2_xattr_find_divide_pos(xh);
+
+	if (start == count) {
+		xe = &xh->xh_entries[start-1];
+
+		/*
+		 * initialized a new empty bucket here.
+		 * The hash value is set as one larger than
+		 * that of the last entry in the previous bucket.
+		 */
+		for (i = 0; i < blk_per_bucket; i++)
+			memset(t_bhs[i]->b_data, 0, blocksize);
+
+		xh = (struct ocfs2_xattr_header *)t_bhs[0]->b_data;
+		xh->xh_free_start = cpu_to_le16(blocksize);
+		xh->xh_entries[0].xe_name_hash = xe->xe_name_hash;
+		le32_add_cpu(&xh->xh_entries[0].xe_name_hash, 1);
+
+		goto set_num_buckets;
+	}
+
 	/* copy the whole bucket to the new first. */
 	for (i = 0; i < blk_per_bucket; i++)
 		memcpy(t_bhs[i]->b_data, s_bhs[i]->b_data, blocksize);
 
 	/* update the new bucket. */
 	xh = (struct ocfs2_xattr_header *)t_bhs[0]->b_data;
-	count = le16_to_cpu(xh->xh_count);
-	start = count / 2;
 
 	/*
 	 * Calculate the total name/value len and xh_free_start for
@@ -3235,6 +3304,7 @@ static int ocfs2_half_xattr_bucket(struct inode *inode,
 			xh->xh_free_start = xe->xe_name_offset;
 	}
 
+set_num_buckets:
 	/* set xh->xh_num_buckets for the new xh. */
 	if (new_bucket_head)
 		xh->xh_num_buckets = cpu_to_le16(1);
@@ -3252,9 +3322,13 @@ static int ocfs2_half_xattr_bucket(struct inode *inode,
 		*first_hash = le32_to_cpu(xh->xh_entries[0].xe_name_hash);
 
 	/*
-	 * Now only update the 1st block of the old bucket.
-	 * Please note that the entry has been sorted already above.
+	 * Now only update the 1st block of the old bucket.  If we
+	 * just added a new empty bucket, there is no need to modify
+	 * it.
 	 */
+	if (start == count)
+		goto out;
+
 	xh = (struct ocfs2_xattr_header *)s_bhs[0]->b_data;
 	memset(&xh->xh_entries[start], 0,
 	       sizeof(struct ocfs2_xattr_entry) * (count - start));
@@ -3439,15 +3513,15 @@ out:
 }
 
 /*
- * Move half of the xattrs in this cluster to the new cluster.
+ * Move some xattrs in this cluster to the new cluster.
  * This function should only be called when bucket size == cluster size.
  * Otherwise ocfs2_mv_xattr_bucket_cross_cluster should be used instead.
  */
-static int ocfs2_half_xattr_cluster(struct inode *inode,
-				    handle_t *handle,
-				    u64 prev_blk,
-				    u64 new_blk,
-				    u32 *first_hash)
+static int ocfs2_divide_xattr_cluster(struct inode *inode,
+				      handle_t *handle,
+				      u64 prev_blk,
+				      u64 new_blk,
+				      u32 *first_hash)
 {
 	u16 blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
 	int ret, credits = 2 * blk_per_bucket;
@@ -3461,8 +3535,8 @@ static int ocfs2_half_xattr_cluster(struct inode *inode,
 	}
 
 	/* Move half of the xattr in start_blk to the next bucket. */
-	return  ocfs2_half_xattr_bucket(inode, handle, prev_blk,
-					new_blk, first_hash, 1);
+	return  ocfs2_divide_xattr_bucket(inode, handle, prev_blk,
+					  new_blk, first_hash, 1);
 }
 
 /*
@@ -3524,9 +3598,9 @@ static int ocfs2_adjust_xattr_cross_cluster(struct inode *inode,
 						     last_blk, new_blk,
 						     v_start);
 		else {
-			ret = ocfs2_half_xattr_cluster(inode, handle,
-						       last_blk, new_blk,
-						       v_start);
+			ret = ocfs2_divide_xattr_cluster(inode, handle,
+							 last_blk, new_blk,
+							 v_start);
 
 			if ((*header_bh)->b_blocknr == last_blk && extend)
 				*extend = 0;
@@ -3743,8 +3817,8 @@ static int ocfs2_extend_xattr_bucket(struct inode *inode,
 	}
 
 	/* Move half of the xattr in start_blk to the next bucket. */
-	ret = ocfs2_half_xattr_bucket(inode, handle, start_blk,
-				      start_blk + blk_per_bucket, NULL, 0);
+	ret = ocfs2_divide_xattr_bucket(inode, handle, start_blk,
+					start_blk + blk_per_bucket, NULL, 0);
 
 	le16_add_cpu(&first_xh->xh_num_buckets, 1);
 	ocfs2_journal_dirty(handle, first_bh);
@@ -4435,11 +4509,21 @@ out:
 	return ret;
 }
 
-/* check whether the xattr bucket is filled up with the same hash value. */
+/*
+ * check whether the xattr bucket is filled up with the same hash value.
+ * If we want to insert the xattr with the same hash, return -ENOSPC.
+ * If we want to insert a xattr with different hash value, go ahead
+ * and ocfs2_divide_xattr_bucket will handle this.
+ */
 static int ocfs2_check_xattr_bucket_collision(struct inode *inode,
-					      struct ocfs2_xattr_bucket *bucket)
+					      struct ocfs2_xattr_bucket *bucket,
+					      const char *name)
 {
 	struct ocfs2_xattr_header *xh = bucket->xh;
+	u32 name_hash = ocfs2_xattr_name_hash(inode, name, strlen(name));
+
+	if (name_hash != le32_to_cpu(xh->xh_entries[0].xe_name_hash))
+		return 0;
 
 	if (xh->xh_entries[le16_to_cpu(xh->xh_count) - 1].xe_name_hash ==
 	    xh->xh_entries[0].xe_name_hash) {
@@ -4562,7 +4646,9 @@ try_again:
 		 * one bucket's worth, so check it here whether we need to
 		 * add a new bucket for the insert.
 		 */
-		ret = ocfs2_check_xattr_bucket_collision(inode, &xs->bucket);
+		ret = ocfs2_check_xattr_bucket_collision(inode,
+							 &xs->bucket,
+							 xi->name);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
