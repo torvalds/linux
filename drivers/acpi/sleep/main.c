@@ -101,6 +101,19 @@ void __init acpi_old_suspend_ordering(void)
  * cases.
  */
 static bool set_sci_en_on_resume;
+/*
+ * The ACPI specification wants us to save NVS memory regions during hibernation
+ * and to restore them during the subsequent resume.  However, it is not certain
+ * if this mechanism is going to work on all machines, so we allow the user to
+ * disable this mechanism using the 'acpi_sleep=s4_nonvs' kernel command line
+ * option.
+ */
+static bool s4_no_nvs;
+
+void __init acpi_s4_no_nvs(void)
+{
+	s4_no_nvs = true;
+}
 
 /**
  *	acpi_pm_disable_gpes - Disable the GPEs.
@@ -396,7 +409,7 @@ static int acpi_hibernation_begin(void)
 {
 	int error;
 
-	error = hibernate_nvs_alloc();
+	error = s4_no_nvs ? 0 : hibernate_nvs_alloc();
 	if (!error) {
 		acpi_target_sleep_state = ACPI_STATE_S4;
 		acpi_sleep_tts_switch(acpi_target_sleep_state);
@@ -494,7 +507,8 @@ static int acpi_hibernation_begin_old(void)
 	error = acpi_sleep_prepare(ACPI_STATE_S4);
 
 	if (!error) {
-		error = hibernate_nvs_alloc();
+		if (!s4_no_nvs)
+			error = hibernate_nvs_alloc();
 		if (!error)
 			acpi_target_sleep_state = ACPI_STATE_S4;
 	}

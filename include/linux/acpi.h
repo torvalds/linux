@@ -270,6 +270,7 @@ int acpi_check_mem_region(resource_size_t start, resource_size_t n,
 #ifdef CONFIG_PM_SLEEP
 void __init acpi_no_s4_hw_signature(void);
 void __init acpi_old_suspend_ordering(void);
+void __init acpi_s4_no_nvs(void);
 #endif /* CONFIG_PM_SLEEP */
 #else	/* CONFIG_ACPI */
 
