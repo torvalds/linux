@@ -739,8 +739,6 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 		cx->std = V4L2_STD_NTSC_M;
 
 	if (cx->options.tuner == -1) {
-		int i;
-
 		for (i = 0; i < CX18_CARD_MAX_TUNERS; i++) {
 			if ((cx->std & cx->card->tuners[i].std) == 0)
 				continue;
