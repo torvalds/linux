@@ -119,10 +119,10 @@ void ubifs_compress(const void *in_buf, int in_len, void *out_buf, int *out_len,
 	}
 
 	/*
-	 * Presently, we just require that compression results in less data,
-	 * rather than any defined minimum compression ratio or amount.
+	 * If the data compressed only slightly, it is better to leave it
+	 * uncompressed to improve read speed.
 	 */
-	if (ALIGN(*out_len, 8) >= ALIGN(in_len, 8))
+	if (in_len - *out_len < UBIFS_MIN_COMPRESS_DIFF)
 		goto no_compr;
 
 	return;

@@ -51,6 +51,13 @@
  */
 #define UBIFS_MIN_COMPR_LEN 128
 
+/*
+ * If compressed data length is less than %UBIFS_MIN_COMPRESS_DIFF bytes
+ * shorter than uncompressed data length, UBIFS preferes to leave this data
+ * node uncompress, because it'll be read faster.
+ */
+#define UBIFS_MIN_COMPRESS_DIFF 64
+
 /* Root inode number */
 #define UBIFS_ROOT_INO 1
 
