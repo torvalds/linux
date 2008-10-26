@@ -8,11 +8,13 @@ choice
 
 config ARCH_MX2
 	bool "MX2-based"
+	select CPU_ARM926T
 	help
 	  This enables support for systems based on the Freescale i.MX2 family
 
 config ARCH_MX3
 	bool "MX3-based"
+	select CPU_V6
 	help
 	  This enables support for systems based on the Freescale i.MX3 family
 

@@ -10,6 +10,7 @@ config MACH_REALVIEW_EB
 config REALVIEW_EB_ARM11MP
 	bool "Support ARM11MPCore tile"
 	depends on MACH_REALVIEW_EB
+	select CPU_V6
 	help
 	  Enable support for the ARM11MPCore tile on the Realview platform.
 
@@ -33,6 +34,7 @@ config MACH_REALVIEW_PB11MP
 
 config MACH_REALVIEW_PB1176
 	bool "Support RealView/PB1176 platform"
+	select CPU_V6
 	select ARM_GIC
 	help
 	  Include support for the ARM(R) RealView ARM1176 Platform Baseboard.
