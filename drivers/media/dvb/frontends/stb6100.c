@@ -320,6 +320,13 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	}
 	srate = p.u.qpsk.symbol_rate;
 
+	regs[STB6100_DLB] = 0xdc;
+	/* Disable LPEN */
+	regs[STB6100_LPEN] &= ~STB6100_LPEN_LPEN; /* PLL Loop disabled */
+
+	if ((rc = stb6100_write_regs(state, regs)) < 0)
+		return rc;
+
 	/* Baseband gain.	*/
 	if (srate >= 15000000)
 		g = 9;  //  +4 dB
@@ -376,9 +383,11 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	/* Power up. */
 	regs[STB6100_LPEN] |= STB6100_LPEN_SYNP	| STB6100_LPEN_OSCP | STB6100_LPEN_BEN;
 
+	msleep(2);
 	if ((rc = stb6100_write_regs(state, regs)) < 0)
 		return rc;
 
+	msleep(2);
 	regs[STB6100_LPEN] |= STB6100_LPEN_LPEN;	/* PLL loop enabled		*/
 	if ((rc = stb6100_write_reg(state, STB6100_LPEN, regs[STB6100_LPEN])) < 0)
 		return rc;
@@ -393,7 +402,8 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	if ((rc = stb6100_write_reg(state, STB6100_VCO, regs[STB6100_VCO])) < 0)
 		return rc;
 	regs[STB6100_FCCK] &= ~STB6100_FCCK_FCCK;       /* LPF BW clock disabled	*/
-	if ((rc = stb6100_write_reg(state, STB6100_FCCK, regs[STB6100_FCCK])) < 0)
+	stb6100_normalise_regs(regs);
+	if ((rc = stb6100_write_reg_range(state, &regs[1], 1, STB6100_NUMREGS - 3)) < 0)
 		return rc;
 
 	msleep(30);
