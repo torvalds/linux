@@ -1755,7 +1755,7 @@ static enum print_line_t print_bin_fmt(struct trace_iterator *iter)
 		return TRACE_TYPE_HANDLED;
 
 	SEQ_PUT_FIELD_RET(s, entry->pid);
-	SEQ_PUT_FIELD_RET(s, iter->cpu);
+	SEQ_PUT_FIELD_RET(s, entry->cpu);
 	SEQ_PUT_FIELD_RET(s, iter->ts);
 
 	switch (entry->type) {
