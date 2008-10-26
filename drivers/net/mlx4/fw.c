@@ -360,9 +360,9 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_PORT_ETH_MTU_OFFSET		0x02
 #define QUERY_PORT_WIDTH_OFFSET			0x06
 #define QUERY_PORT_MAX_GID_PKEY_OFFSET		0x07
-#define QUERY_PORT_MAC_OFFSET			0x08
 #define QUERY_PORT_MAX_MACVLAN_OFFSET		0x0a
 #define QUERY_PORT_MAX_VL_OFFSET		0x0b
+#define QUERY_PORT_MAC_OFFSET			0x10
 
 		for (i = 1; i <= dev_cap->num_ports; ++i) {
 			err = mlx4_cmd_box(dev, 0, mailbox->dma, i, 0, MLX4_CMD_QUERY_PORT,
