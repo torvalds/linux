@@ -690,9 +690,9 @@ static int __init icside_init(void)
 	return ecard_register_driver(&icside_driver);
 }
 
-static void __exit icside_exit(void);
+static void __exit icside_exit(void)
 {
-	ecard_unregister_driver(&icside_driver);
+	ecard_remove_driver(&icside_driver);
 }
 
 MODULE_AUTHOR("Russell King <rmk@arm.linux.org.uk>");

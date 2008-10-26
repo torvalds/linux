@@ -11,7 +11,7 @@
 
 #include <asm/ecard.h>
 
-static struct const ide_port_info rapide_port_info = {
+static const struct ide_port_info rapide_port_info = {
 	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_NO_DMA,
 };
 
@@ -97,7 +97,7 @@ static int __init rapide_init(void)
 
 static void __exit rapide_exit(void)
 {
-	ecard_unregister_driver(&rapide_driver);
+	ecard_remove_driver(&rapide_driver);
 }
 
 MODULE_LICENSE("GPL");
