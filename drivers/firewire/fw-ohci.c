@@ -2365,8 +2365,8 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 
 	ohci = kzalloc(sizeof(*ohci), GFP_KERNEL);
 	if (ohci == NULL) {
-		fw_error("Could not malloc fw_ohci data.\n");
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto fail;
 	}
 
 	fw_card_initialize(&ohci->card, &ohci_driver, &dev->dev);
@@ -2375,7 +2375,7 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 
 	err = pci_enable_device(dev);
 	if (err) {
-		fw_error("Failed to enable OHCI hardware.\n");
+		fw_error("Failed to enable OHCI hardware\n");
 		goto fail_free;
 	}
 
@@ -2443,9 +2443,8 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	ohci->ir_context_list = kzalloc(size, GFP_KERNEL);
 
 	if (ohci->it_context_list == NULL || ohci->ir_context_list == NULL) {
-		fw_error("Out of memory for it/ir contexts.\n");
 		err = -ENOMEM;
-		goto fail_registers;
+		goto fail_contexts;
 	}
 
 	/* self-id dma buffer allocation */
@@ -2454,9 +2453,8 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 					       &ohci->self_id_bus,
 					       GFP_KERNEL);
 	if (ohci->self_id_cpu == NULL) {
-		fw_error("Out of memory for self ID buffer.\n");
 		err = -ENOMEM;
-		goto fail_registers;
+		goto fail_contexts;
 	}
 
 	bus_options = reg_read(ohci, OHCI1394_BusOptions);
@@ -2476,9 +2474,13 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
  fail_self_id:
 	dma_free_coherent(ohci->card.device, SELF_ID_BUF_SIZE,
 			  ohci->self_id_cpu, ohci->self_id_bus);
- fail_registers:
-	kfree(ohci->it_context_list);
+ fail_contexts:
 	kfree(ohci->ir_context_list);
+	kfree(ohci->it_context_list);
+	context_release(&ohci->at_response_ctx);
+	context_release(&ohci->at_request_ctx);
+	ar_context_release(&ohci->ar_response_ctx);
+	ar_context_release(&ohci->ar_request_ctx);
 	pci_iounmap(dev, ohci->registers);
  fail_iomem:
 	pci_release_region(dev, 0);
@@ -2487,6 +2489,9 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
  fail_free:
 	kfree(&ohci->card);
 	ohci_pmac_off(dev);
+ fail:
+	if (err == -ENOMEM)
+		fw_error("Out of memory\n");
 
 	return err;
 }
