@@ -461,6 +461,8 @@ static ssize_t show_temphyst(struct device *dev, struct device_attribute *devatt
 
 	if (data->kind == adt7461)
 		temp = temp_from_u8_adt7461(data, data->temp8[attr->index]);
+	else if (data->kind == max6646)
+		temp = temp_from_u8(data->temp8[attr->index]);
 	else
 		temp = temp_from_s8(data->temp8[attr->index]);
 
@@ -473,12 +475,19 @@ static ssize_t set_temphyst(struct device *dev, struct device_attribute *dummy,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm90_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
-	long hyst;
+	int temp;
 
 	mutex_lock(&data->update_lock);
-	hyst = temp_from_s8(data->temp8[2]) - val;
+	if (data->kind == adt7461)
+		temp = temp_from_u8_adt7461(data, data->temp8[2]);
+	else if (data->kind == max6646)
+		temp = temp_from_u8(data->temp8[2]);
+	else
+		temp = temp_from_s8(data->temp8[2]);
+
+	data->temp_hyst = hyst_to_reg(temp - val);
 	i2c_smbus_write_byte_data(client, LM90_REG_W_TCRIT_HYST,
-				  hyst_to_reg(hyst));
+				  data->temp_hyst);
 	mutex_unlock(&data->update_lock);
 	return count;
 }
