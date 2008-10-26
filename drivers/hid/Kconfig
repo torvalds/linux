@@ -247,7 +247,6 @@ config HID_SUNPLUS
 
 config THRUSTMASTER_FF
 	tristate "ThrustMaster devices support"
-	default m
 	depends on USB_HID
 	select INPUT_FF_MEMLESS
 	help
@@ -256,7 +255,6 @@ config THRUSTMASTER_FF
 
 config ZEROPLUS_FF
 	tristate "Zeroplus based game controller support"
-	default m
 	depends on USB_HID
 	select INPUT_FF_MEMLESS
 	help

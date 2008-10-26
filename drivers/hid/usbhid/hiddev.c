@@ -436,8 +436,7 @@ static noinline int hiddev_ioctl_usage(struct hiddev *hiddev, unsigned int cmd, 
 		if (copy_to_user(user_arg, uref, sizeof(*uref)))
 			goto fault;
 
-		kfree(uref_multi);
-		return 0;
+		goto goodreturn;
 
 	default:
 		if (cmd != HIDIOCGUSAGE &&
