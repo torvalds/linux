@@ -880,43 +880,6 @@ static int at76_set_pm_mode(struct at76_priv *priv)
 	return ret;
 }
 
-/* Set the association id for power save mode */
-static int at76_set_associd(struct at76_priv *priv, u16 id)
-{
-	int ret = 0;
-
-	priv->mib_buf.type = MIB_MAC_MGMT;
-	priv->mib_buf.size = 2;
-	priv->mib_buf.index = offsetof(struct mib_mac_mgmt, station_id);
-	priv->mib_buf.data.word = cpu_to_le16(id);
-
-	ret = at76_set_mib(priv, &priv->mib_buf);
-	if (ret < 0)
-		printk(KERN_ERR "%s: set_mib (associd) failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
-
-	return ret;
-}
-
-/* Set the listen interval for power save mode */
-static int at76_set_listen_interval(struct at76_priv *priv, u16 interval)
-{
-	int ret = 0;
-
-	priv->mib_buf.type = MIB_MAC;
-	priv->mib_buf.size = 2;
-	priv->mib_buf.index = offsetof(struct mib_mac, listen_interval);
-	priv->mib_buf.data.word = cpu_to_le16(interval);
-
-	ret = at76_set_mib(priv, &priv->mib_buf);
-	if (ret < 0)
-		printk(KERN_ERR
-		       "%s: set_mib (listen_interval) failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
-
-	return ret;
-}
-
 static int at76_set_preamble(struct at76_priv *priv, u8 type)
 {
 	int ret = 0;
@@ -980,23 +943,6 @@ static int at76_set_autorate_fallback(struct at76_priv *priv, int onoff)
 	ret = at76_set_mib(priv, &priv->mib_buf);
 	if (ret < 0)
 		printk(KERN_ERR "%s: set_mib (autorate fallback) failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
-
-	return ret;
-}
-
-static int at76_add_mac_address(struct at76_priv *priv, void *addr)
-{
-	int ret = 0;
-
-	priv->mib_buf.type = MIB_MAC_ADDR;
-	priv->mib_buf.size = ETH_ALEN;
-	priv->mib_buf.index = offsetof(struct mib_mac_addr, mac_addr);
-	memcpy(priv->mib_buf.data.addr, addr, ETH_ALEN);
-
-	ret = at76_set_mib(priv, &priv->mib_buf);
-	if (ret < 0)
-		printk(KERN_ERR "%s: set_mib (MAC_ADDR, mac_addr) failed: %d\n",
 		       wiphy_name(priv->hw->wiphy), ret);
 
 	return ret;
