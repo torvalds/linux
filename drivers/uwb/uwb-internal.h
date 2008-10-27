@@ -66,14 +66,14 @@ extern int uwb_rc_scan(struct uwb_rc *rc,
 		       unsigned channel, enum uwb_scan_type type,
 		       unsigned bpst_offset);
 extern int uwb_rc_send_all_drp_ie(struct uwb_rc *rc);
-extern ssize_t uwb_rc_print_IEs(struct uwb_rc *rc, char *, size_t);
-extern void uwb_rc_ie_init(struct uwb_rc *);
-extern void uwb_rc_ie_init(struct uwb_rc *);
-extern ssize_t uwb_rc_ie_setup(struct uwb_rc *);
-extern void uwb_rc_ie_release(struct uwb_rc *);
-extern int uwb_rc_ie_add(struct uwb_rc *,
-			 const struct uwb_ie_hdr *, size_t);
-extern int uwb_rc_ie_rm(struct uwb_rc *, enum uwb_ie);
+
+void uwb_rc_ie_init(struct uwb_rc *);
+int uwb_rc_ie_setup(struct uwb_rc *);
+void uwb_rc_ie_release(struct uwb_rc *);
+int uwb_ie_dump_hex(const struct uwb_ie_hdr *ies, size_t len,
+		    char *buf, size_t size);
+int uwb_rc_set_ie(struct uwb_rc *, struct uwb_rc_cmd_set_ie *);
+
 
 extern const char *uwb_rc_strerror(unsigned code);
 

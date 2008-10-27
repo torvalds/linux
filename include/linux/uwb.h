@@ -444,7 +444,6 @@ ssize_t uwb_rc_vcmd(struct uwb_rc *rc, const char *cmd_name,
 		    struct uwb_rccb *cmd, size_t cmd_size,
 		    u8 expected_type, u16 expected_event,
 		    struct uwb_rceb **preply);
-ssize_t uwb_rc_get_ie(struct uwb_rc *, struct uwb_rc_evt_get_ie **);
 int uwb_bg_joined(struct uwb_rc *rc);
 
 size_t __uwb_addr_print(char *, size_t, const unsigned char *, int);
@@ -653,22 +652,9 @@ static inline int edc_inc(struct edc *err_hist, u16 max_err, u16 timeframe)
 
 /* Information Element handling */
 
-/* For representing the state of writing to a buffer when iterating */
-struct uwb_buf_ctx {
-	char *buf;
-	size_t bytes, size;
-};
-
-typedef int (*uwb_ie_f)(struct uwb_dev *, const struct uwb_ie_hdr *,
-			size_t, void *);
 struct uwb_ie_hdr *uwb_ie_next(void **ptr, size_t *len);
-ssize_t uwb_ie_for_each(struct uwb_dev *uwb_dev, uwb_ie_f fn, void *data,
-			const void *buf, size_t size);
-int uwb_ie_dump_hex(struct uwb_dev *, const struct uwb_ie_hdr *,
-		    size_t, void *);
-int uwb_rc_set_ie(struct uwb_rc *, struct uwb_rc_cmd_set_ie *);
-struct uwb_ie_hdr *uwb_ie_next(void **ptr, size_t *len);
-
+int uwb_rc_ie_add(struct uwb_rc *uwb_rc, const struct uwb_ie_hdr *ies, size_t size);
+int uwb_rc_ie_rm(struct uwb_rc *uwb_rc, enum uwb_ie element_id);
 
 /*
  * Transmission statistics

@@ -349,22 +349,22 @@ ssize_t uwb_bce_print_IEs(struct uwb_dev *uwb_dev, struct uwb_beca_e *bce,
 	ssize_t result = 0;
 	struct uwb_rc_evt_beacon *be;
 	struct uwb_beacon_frame *bf;
-	struct uwb_buf_ctx ctx = {
-		.buf = buf,
-		.bytes = 0,
-		.size = size
-	};
+	int ies_len;
+	struct uwb_ie_hdr *ies;
 
 	mutex_lock(&bce->mutex);
+
 	be = bce->be;
-	if (be == NULL)
-		goto out;
-	bf = (void *) be->BeaconInfo;
-	uwb_ie_for_each(uwb_dev, uwb_ie_dump_hex, &ctx,
-			bf->IEData, be->wBeaconInfoLength - sizeof(*bf));
-	result = ctx.bytes;
-out:
+	if (be) {
+		bf = (struct uwb_beacon_frame *)bce->be->BeaconInfo;
+		ies_len = be->wBeaconInfoLength - sizeof(struct uwb_beacon_frame);
+		ies = (struct uwb_ie_hdr *)bf->IEData;
+
+		result = uwb_ie_dump_hex(ies, ies_len, buf, size);
+	}
+
 	mutex_unlock(&bce->mutex);
+
 	return result;
 }
 

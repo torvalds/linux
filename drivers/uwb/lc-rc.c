@@ -468,28 +468,3 @@ void uwb_rc_put(struct uwb_rc *rc)
 	__uwb_rc_put(rc);
 }
 EXPORT_SYMBOL_GPL(uwb_rc_put);
-
-/*
- *
- *
- */
-ssize_t uwb_rc_print_IEs(struct uwb_rc *uwb_rc, char *buf, size_t size)
-{
-	ssize_t result;
-	struct uwb_rc_evt_get_ie *ie_info;
-	struct uwb_buf_ctx ctx;
-
-	result = uwb_rc_get_ie(uwb_rc, &ie_info);
-	if (result < 0)
-		goto error_get_ie;
-	ctx.buf = buf;
-	ctx.size = size;
-	ctx.bytes = 0;
-	uwb_ie_for_each(&uwb_rc->uwb_dev, uwb_ie_dump_hex, &ctx,
-			ie_info->IEData, result - sizeof(*ie_info));
-	result = ctx.bytes;
-	kfree(ie_info);
-error_get_ie:
-	return result;
-}
-
