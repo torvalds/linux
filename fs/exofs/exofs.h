@@ -138,4 +138,8 @@ int exofs_setattr(struct dentry *, struct iattr *);
 extern const struct inode_operations exofs_file_inode_operations;
 extern const struct file_operations exofs_file_operations;
 
+/* symlink.c         */
+extern const struct inode_operations exofs_symlink_inode_operations;
+extern const struct inode_operations exofs_fast_symlink_inode_operations;
+
 #endif
