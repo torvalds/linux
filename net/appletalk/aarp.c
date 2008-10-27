@@ -995,7 +995,6 @@ static int aarp_seq_show(struct seq_file *seq, void *v)
 	struct aarp_iter_state *iter = seq->private;
 	struct aarp_entry *entry = v;
 	unsigned long now = jiffies;
-	DECLARE_MAC_BUF(mac);
 
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq,
@@ -1006,7 +1005,7 @@ static int aarp_seq_show(struct seq_file *seq, void *v)
 			   ntohs(entry->target_addr.s_net),
 			   (unsigned int) entry->target_addr.s_node,
 			   entry->dev ? entry->dev->name : "????");
-		seq_printf(seq, "%s", print_mac(mac, entry->hwaddr));
+		seq_printf(seq, "%pM", entry->hwaddr);
 		seq_printf(seq, " %8s",
 			   dt2str((long)entry->expires_at - (long)now));
 		if (iter->table == unresolved)

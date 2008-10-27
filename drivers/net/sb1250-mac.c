@@ -2292,7 +2292,6 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 	uint64_t ea_reg;
 	int i;
 	int err;
-	DECLARE_MAC_BUF(mac);
 
 	sc->sbm_dev = dev;
 	sc->sbe_idx = idx;
@@ -2373,8 +2372,8 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 	 * process so we need to finish off the config message that
 	 * was being displayed)
 	 */
-	pr_info("%s: SiByte Ethernet at 0x%08Lx, address: %s\n",
-	       dev->name, base, print_mac(mac, eaddr));
+	pr_info("%s: SiByte Ethernet at 0x%08Lx, address: %pM\n",
+	       dev->name, base, eaddr);
 
 	sc->mii_bus->name = sbmac_mdio_string;
 	snprintf(sc->mii_bus->id, MII_BUS_ID_SIZE, "%x", idx);

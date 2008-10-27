@@ -1385,13 +1385,11 @@ dm9000_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ndev);
 	ret = register_netdev(ndev);
 
-	if (ret == 0) {
-		DECLARE_MAC_BUF(mac);
-		printk(KERN_INFO "%s: dm9000%c at %p,%p IRQ %d MAC: %s (%s)\n",
+	if (ret == 0)
+		printk(KERN_INFO "%s: dm9000%c at %p,%p IRQ %d MAC: %pM (%s)\n",
 		       ndev->name, dm9000_type_to_char(db->type),
 		       db->io_addr, db->io_data, ndev->irq,
-		       print_mac(mac, ndev->dev_addr), mac_src);
-	}
+		       ndev->dev_addr, mac_src);
 	return 0;
 
 out:

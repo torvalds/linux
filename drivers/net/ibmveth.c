@@ -1371,13 +1371,12 @@ static int ibmveth_show(struct seq_file *seq, void *v)
 	struct ibmveth_adapter *adapter = seq->private;
 	char *current_mac = ((char*) &adapter->netdev->dev_addr);
 	char *firmware_mac = ((char*) &adapter->mac_addr) ;
-	DECLARE_MAC_BUF(mac);
 
 	seq_printf(seq, "%s %s\n\n", ibmveth_driver_string, ibmveth_driver_version);
 
 	seq_printf(seq, "Unit Address:    0x%x\n", adapter->vdev->unit_address);
-	seq_printf(seq, "Current MAC:     %s\n", print_mac(mac, current_mac));
-	seq_printf(seq, "Firmware MAC:    %s\n", print_mac(mac, firmware_mac));
+	seq_printf(seq, "Current MAC:     %pM\n", current_mac);
+	seq_printf(seq, "Firmware MAC:    %pM\n", firmware_mac);
 
 	seq_printf(seq, "\nAdapter Statistics:\n");
 	seq_printf(seq, "  TX:  vio_map_single failres:      %ld\n", adapter->tx_map_failed);

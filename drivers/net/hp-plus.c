@@ -166,7 +166,6 @@ static int __init hpp_probe1(struct net_device *dev, int ioaddr)
 	const char name[] = "HP-PC-LAN+";
 	int mem_start;
 	static unsigned version_printed;
-	DECLARE_MAC_BUF(mac);
 
 	if (!request_region(ioaddr, HP_IO_EXTENT, DRV_NAME))
 		return -EBUSY;
@@ -193,7 +192,7 @@ static int __init hpp_probe1(struct net_device *dev, int ioaddr)
 	}
 	checksum += inb(ioaddr + 14);
 
-	printk("%s", print_mac(mac, dev->dev_addr));
+	printk("%pM", dev->dev_addr);
 
 	if (checksum != 0xff) {
 		printk(" bad checksum %2.2x.\n", checksum);

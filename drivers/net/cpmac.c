@@ -1103,7 +1103,6 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 	struct cpmac_priv *priv;
 	struct net_device *dev;
 	struct plat_cpmac_data *pdata;
-	DECLARE_MAC_BUF(mac);
 
 	pdata = pdev->dev.platform_data;
 
@@ -1180,8 +1179,8 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 	if (netif_msg_probe(priv)) {
 		printk(KERN_INFO
 		       "cpmac: device %s (regs: %p, irq: %d, phy: %s, "
-		       "mac: %s)\n", dev->name, (void *)mem->start, dev->irq,
-		       priv->phy_name, print_mac(mac, dev->dev_addr));
+		       "mac: %pM)\n", dev->name, (void *)mem->start, dev->irq,
+		       priv->phy_name, dev->dev_addr);
 	}
 	return 0;
 

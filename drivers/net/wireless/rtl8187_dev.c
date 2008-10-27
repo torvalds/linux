@@ -1026,7 +1026,6 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	const char *chip_name;
 	u16 txpwr, reg;
 	int err, i;
-	DECLARE_MAC_BUF(mac);
 
 	dev = ieee80211_alloc_hw(sizeof(*priv), &rtl8187_ops);
 	if (!dev) {
@@ -1209,8 +1208,8 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	}
 	mutex_init(&priv->conf_mutex);
 
-	printk(KERN_INFO "%s: hwaddr %s, %s V%d + %s\n",
-	       wiphy_name(dev->wiphy), print_mac(mac, dev->wiphy->perm_addr),
+	printk(KERN_INFO "%s: hwaddr %pM, %s V%d + %s\n",
+	       wiphy_name(dev->wiphy), dev->wiphy->perm_addr,
 	       chip_name, priv->asic_rev, priv->rf->name);
 
 	return 0;

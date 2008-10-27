@@ -925,7 +925,6 @@ static int __devinit rtl8139_init_one (struct pci_dev *pdev,
 	int i, addr_len, option;
 	void __iomem *ioaddr;
 	static int board_idx = -1;
-	DECLARE_MAC_BUF(mac);
 
 	assert (pdev != NULL);
 	assert (ent != NULL);
@@ -1024,11 +1023,11 @@ static int __devinit rtl8139_init_one (struct pci_dev *pdev,
 	pci_set_drvdata (pdev, dev);
 
 	printk (KERN_INFO "%s: %s at 0x%lx, "
-		"%s, IRQ %d\n",
+		"%pM, IRQ %d\n",
 		dev->name,
 		board_info[ent->driver_data].name,
 		dev->base_addr,
-		print_mac(mac, dev->dev_addr),
+		dev->dev_addr,
 		dev->irq);
 
 	printk (KERN_DEBUG "%s:  Identified 8139 chip type '%s'\n",

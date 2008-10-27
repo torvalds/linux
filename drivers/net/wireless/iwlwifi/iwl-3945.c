@@ -759,7 +759,6 @@ u8 iwl3945_hw_find_station(struct iwl3945_priv *priv, const u8 *addr)
 	int i;
 	int ret = IWL_INVALID_STATION;
 	unsigned long flags;
-	DECLARE_MAC_BUF(mac);
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 	for (i = IWL_STA_ID; i < priv->hw_setting.max_stations; i++)
@@ -770,8 +769,8 @@ u8 iwl3945_hw_find_station(struct iwl3945_priv *priv, const u8 *addr)
 			goto out;
 		}
 
-	IWL_DEBUG_INFO("can not find STA %s (total %d)\n",
-		       print_mac(mac, addr), priv->num_stations);
+	IWL_DEBUG_INFO("can not find STA %pM (total %d)\n",
+		       addr, priv->num_stations);
  out:
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 	return ret;

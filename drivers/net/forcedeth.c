@@ -5420,7 +5420,6 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	u32 powerstate, txreg;
 	u32 phystate_orig = 0, phystate;
 	int phyinitialized = 0;
-	DECLARE_MAC_BUF(mac);
 	static int printed_version;
 
 	if (!printed_version++)
@@ -5653,8 +5652,8 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		 * to 01:23:45:67:89:ab
 		 */
 		dev_printk(KERN_ERR, &pci_dev->dev,
-			"Invalid Mac address detected: %s\n",
-		        print_mac(mac, dev->dev_addr));
+			"Invalid Mac address detected: %pM\n",
+		        dev->dev_addr);
 		dev_printk(KERN_ERR, &pci_dev->dev,
 			"Please complain to your hardware vendor. Switching to a random MAC.\n");
 		dev->dev_addr[0] = 0x00;
@@ -5663,8 +5662,8 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		get_random_bytes(&dev->dev_addr[3], 3);
 	}
 
-	dprintk(KERN_DEBUG "%s: MAC Address %s\n",
-		pci_name(pci_dev), print_mac(mac, dev->dev_addr));
+	dprintk(KERN_DEBUG "%s: MAC Address %pM\n",
+		pci_name(pci_dev), dev->dev_addr);
 
 	/* set mac address */
 	nv_copy_mac_to_hw(dev);

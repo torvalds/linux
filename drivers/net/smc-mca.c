@@ -196,7 +196,6 @@ static int __init ultramca_probe(struct device *gen_dev)
 	int tirq = 0;
 	int base_addr = ultra_io[ultra_found];
 	int irq = ultra_irq[ultra_found];
-	DECLARE_MAC_BUF(mac);
 
 	if (base_addr || irq) {
 		printk(KERN_INFO "Probing for SMC MCA adapter");
@@ -334,8 +333,8 @@ static int __init ultramca_probe(struct device *gen_dev)
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = inb(ioaddr + 8 + i);
 
-	printk(KERN_INFO "smc_mca[%d]: Parameters: %#3x, %s",
-	       slot + 1, ioaddr, print_mac(mac, dev->dev_addr));
+	printk(KERN_INFO "smc_mca[%d]: Parameters: %#3x, %pM",
+	       slot + 1, ioaddr, dev->dev_addr);
 
 	/* Switch from the station address to the alternate register set
 	 * and read the useful registers there.

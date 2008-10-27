@@ -787,10 +787,8 @@ int __init gether_setup(struct usb_gadget *g, u8 ethaddr[ETH_ALEN])
 		dev_dbg(&g->dev, "register_netdev failed, %d\n", status);
 		free_netdev(net);
 	} else {
-		DECLARE_MAC_BUF(tmp);
-
-		INFO(dev, "MAC %s\n", print_mac(tmp, net->dev_addr));
-		INFO(dev, "HOST MAC %s\n", print_mac(tmp, dev->host_mac));
+		INFO(dev, "MAC %pM\n", net->dev_addr);
+		INFO(dev, "HOST MAC %pM\n", dev->host_mac);
 
 		the_dev = dev;
 	}

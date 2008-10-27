@@ -296,7 +296,6 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	int i, blocks, last, len;
 	size_t data_len = skb->len - hdr_len - CCMP_HDR_LEN - CCMP_MIC_LEN;
 	u8 *mic = skb->data + skb->len - CCMP_MIC_LEN;
-	DECLARE_MAC_BUF(mac);
 
 	if (skb->len < hdr_len + CCMP_HDR_LEN + CCMP_MIC_LEN) {
 		key->dot11RSNAStatsCCMPFormatErrors++;
@@ -309,7 +308,7 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	if (!(keyidx & (1 << 5))) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "CCMP: received packet without ExtIV"
-			       " flag from %s\n", print_mac(mac, hdr->addr2));
+			       " flag from %pM\n", hdr->addr2);
 		}
 		key->dot11RSNAStatsCCMPFormatErrors++;
 		return -2;
@@ -322,9 +321,9 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	}
 	if (!key->key_set) {
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "CCMP: received packet from %s"
+			printk(KERN_DEBUG "CCMP: received packet from %pM"
 			       " with keyid=%d that does not have a configured"
-			       " key\n", print_mac(mac, hdr->addr2), keyidx);
+			       " key\n", hdr->addr2, keyidx);
 		}
 		return -3;
 	}
@@ -339,10 +338,10 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	if (ccmp_replay_check(pn, key->rx_pn)) {
 		if (ieee80211_ratelimit_debug(IEEE80211_DL_DROP)) {
-			IEEE80211_DEBUG_DROP("CCMP: replay detected: STA=%s "
+			IEEE80211_DEBUG_DROP("CCMP: replay detected: STA=%pM "
 				 "previous PN %02x%02x%02x%02x%02x%02x "
 				 "received PN %02x%02x%02x%02x%02x%02x\n",
-				 print_mac(mac, hdr->addr2),
+				 hdr->addr2,
 				 key->rx_pn[0], key->rx_pn[1], key->rx_pn[2],
 				 key->rx_pn[3], key->rx_pn[4], key->rx_pn[5],
 				 pn[0], pn[1], pn[2], pn[3], pn[4], pn[5]);
@@ -373,7 +372,7 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	if (memcmp(mic, a, CCMP_MIC_LEN) != 0) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "CCMP: decrypt failed: STA="
-			       "%s\n", print_mac(mac, hdr->addr2));
+			       "%pM\n", hdr->addr2);
 		}
 		key->dot11RSNAStatsCCMPDecryptErrors++;
 		return -5;

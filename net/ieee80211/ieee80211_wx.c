@@ -264,7 +264,6 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 	char *ev = extra;
 	char *stop = ev + wrqu->data.length;
 	int i = 0;
-	DECLARE_MAC_BUF(mac);
 
 	IEEE80211_DEBUG_WX("Getting scan\n");
 
@@ -283,10 +282,10 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 						      info);
 		else
 			IEEE80211_DEBUG_SCAN("Not showing network '%s ("
-					     "%s)' due to age (%dms).\n",
+					     "%pM)' due to age (%dms).\n",
 					     escape_essid(network->ssid,
 							  network->ssid_len),
-					     print_mac(mac, network->bssid),
+					     network->bssid,
 					     jiffies_to_msecs(jiffies -
 							      network->
 							      last_scanned));

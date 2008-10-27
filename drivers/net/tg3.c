@@ -13252,7 +13252,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	int err, pm_cap;
 	char str[40];
 	u64 dma_mask, persist_dma_mask;
-	DECLARE_MAC_BUF(mac);
 
 	if (tg3_version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
@@ -13536,7 +13535,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	}
 
 	printk(KERN_INFO "%s: Tigon3 [partno(%s) rev %04x PHY(%s)] "
-	       "(%s) %s Ethernet %s\n",
+	       "(%s) %s Ethernet %pM\n",
 	       dev->name,
 	       tp->board_part_number,
 	       tp->pci_chip_rev_id,
@@ -13545,7 +13544,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	       ((tp->tg3_flags & TG3_FLAG_10_100_ONLY) ? "10/100Base-TX" :
 		((tp->tg3_flags2 & TG3_FLG2_ANY_SERDES) ? "1000Base-SX" :
 		 "10/100/1000Base-T")),
-	       print_mac(mac, dev->dev_addr));
+	       dev->dev_addr);
 
 	printk(KERN_INFO "%s: RXcsums[%d] LinkChgREG[%d] "
 	       "MIirq[%d] ASF[%d] WireSpeed[%d] TSOcap[%d]\n",

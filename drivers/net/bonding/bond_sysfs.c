@@ -1391,13 +1391,11 @@ static ssize_t bonding_show_ad_partner_mac(struct device *d,
 {
 	int count = 0;
 	struct bonding *bond = to_bond(d);
-	DECLARE_MAC_BUF(mac);
 
 	if (bond->params.mode == BOND_MODE_8023AD) {
 		struct ad_info ad_info;
 		if (!bond_3ad_get_active_agg_info(bond, &ad_info)) {
-			count = sprintf(buf,"%s\n",
-					print_mac(mac, ad_info.partner_system));
+			count = sprintf(buf, "%pM\n", ad_info.partner_system);
 		}
 	}
 

@@ -466,7 +466,6 @@ static unsigned long __init lance_probe1( struct net_device *dev,
 	int 					i;
 	static int 				did_version;
 	unsigned short			save1, save2;
-	DECLARE_MAC_BUF(mac);
 
 	PROBE_PRINT(( "Probing for Lance card at mem %#lx io %#lx\n",
 				  (long)memaddr, (long)ioaddr ));
@@ -595,7 +594,7 @@ static unsigned long __init lance_probe1( struct net_device *dev,
 		i = IO->mem;
 		break;
 	}
-	printk("%s\n", print_mac(mac, dev->dev_addr));
+	printk("%pM\n", dev->dev_addr);
 	if (lp->cardtype == OLD_RIEBL) {
 		printk( "%s: Warning: This is a default ethernet address!\n",
 				dev->name );
@@ -778,8 +777,6 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 	int entry, len;
 	struct lance_tx_head *head;
 	unsigned long flags;
-	DECLARE_MAC_BUF(mac);
-	DECLARE_MAC_BUF(mac2);
 
 	DPRINTK( 2, ( "%s: lance_start_xmit() called, csr0 %4.4x.\n",
 				  dev->name, DREG ));
@@ -802,12 +799,10 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 
 	/* Fill in a Tx ring entry */
 	if (lance_debug >= 3) {
-		printk( "%s: TX pkt type 0x%04x from "
-				"%s to %s"
+		printk( "%s: TX pkt type 0x%04x from %pM to %pM"
 				" data at 0x%08x len %d\n",
 				dev->name, ((u_short *)skb->data)[6],
-				print_mac(mac, &skb->data[6]),
-				print_mac(mac2, skb->data),
+				&skb->data[6], skb->data,
 				(int)skb->data, (int)skb->len );
 	}
 
@@ -1019,14 +1014,12 @@ static int lance_rx( struct net_device *dev )
 
 				if (lance_debug >= 3) {
 					u_char *data = PKTBUF_ADDR(head);
-					DECLARE_MAC_BUF(mac);
-					DECLARE_MAC_BUF(mac2);
 
-					printk(KERN_DEBUG "%s: RX pkt type 0x%04x from %s to %s "
+					printk(KERN_DEBUG "%s: RX pkt type 0x%04x from %pM to %pM "
 						   "data %02x %02x %02x %02x %02x %02x %02x %02x "
 						   "len %d\n",
 						   dev->name, ((u_short *)data)[6],
-						   print_mac(mac, &data[6]), print_mac(mac2, data),
+						   &data[6], data,
 						   data[15], data[16], data[17], data[18],
 						   data[19], data[20], data[21], data[22],
 						   pkt_len);

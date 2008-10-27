@@ -2416,7 +2416,6 @@ enum ATH_AGGR_CHECK ath_tx_aggr_check(struct ath_softc *sc,
 				      u8 tidno)
 {
 	struct ath_atx_tid *txtid;
-	DECLARE_MAC_BUF(mac);
 
 	if (!(sc->sc_flags & SC_OP_TXAGGR))
 		return AGGR_NOT_REQUIRED;

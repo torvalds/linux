@@ -396,7 +396,6 @@ ewrk3_hw_init(struct net_device *dev, u_long iobase)
 	u_long mem_start, shmem_length;
 	u_char cr, cmr, icr, nicsr, lemac, hard_strapped = 0;
 	u_char eeprom_image[EEPROM_MAX], chksum, eisa_cr = 0;
-	DECLARE_MAC_BUF(mac);
 
 	/*
 	** Stop the EWRK3. Enable the DBR ROM. Disable interrupts and remote boot.
@@ -461,7 +460,7 @@ ewrk3_hw_init(struct net_device *dev, u_long iobase)
 	if (lemac != LeMAC2)
 		DevicePresent(iobase);	/* need after EWRK3_INIT */
 	status = get_hw_addr(dev, eeprom_image, lemac);
-	printk("%s\n", print_mac(mac, dev->dev_addr));
+	printk("%pM\n", dev->dev_addr);
 
 	if (status) {
 		printk("      which has an EEPROM CRC error.\n");
@@ -646,10 +645,8 @@ static int ewrk3_open(struct net_device *dev)
 			ewrk3_init(dev);
 
 			if (ewrk3_debug > 1) {
-				DECLARE_MAC_BUF(mac);
 				printk("%s: ewrk3 open with irq %d\n", dev->name, dev->irq);
-				printk("  physical address: %s\n",
-				       print_mac(mac, dev->dev_addr));
+				printk("  physical address: %pM\n", dev->dev_addr);
 				if (lp->shmem_length == 0) {
 					printk("  no shared memory, I/O only mode\n");
 				} else {

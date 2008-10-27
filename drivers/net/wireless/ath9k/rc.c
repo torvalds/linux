@@ -1942,7 +1942,6 @@ static void ath_get_rate(void *priv, struct ieee80211_supported_band *sband,
 	s8 lowest_idx;
 	__le16 fc = hdr->frame_control;
 	u8 *qc, tid;
-	DECLARE_MAC_BUF(mac);
 
 	DPRINTF(sc, ATH_DBG_RATE, "%s\n", __func__);
 
@@ -2003,14 +2002,14 @@ static void ath_get_rate(void *priv, struct ieee80211_supported_band *sband,
 				if (ret)
 					DPRINTF(sc, ATH_DBG_AGGR,
 						"%s: Unable to start tx "
-						"aggr for: %s\n",
+						"aggr for: %pM\n",
 						__func__,
-						print_mac(mac, hdr->addr1));
+						hdr->addr1);
 				else
 					DPRINTF(sc, ATH_DBG_AGGR,
-						"%s: Started tx aggr for: %s\n",
+						"%s: Started tx aggr for: %pM\n",
 						__func__,
-						print_mac(mac, hdr->addr1));
+						hdr->addr1);
 			} else if (chk == AGGR_EXCHANGE_PROGRESS)
 				ath_tx_aggr_resp(sc, sband, sta, an, tid);
 		}

@@ -106,7 +106,6 @@ static int prism2_wds_proc_read(char *page, char **start, off_t off,
 	local_info_t *local = (local_info_t *) data;
 	struct list_head *ptr;
 	struct hostap_interface *iface;
-	DECLARE_MAC_BUF(mac);
 
 	if (off > PROC_LIMIT) {
 		*eof = 1;
@@ -118,9 +117,9 @@ static int prism2_wds_proc_read(char *page, char **start, off_t off,
 		iface = list_entry(ptr, struct hostap_interface, list);
 		if (iface->type != HOSTAP_INTERFACE_WDS)
 			continue;
-		p += sprintf(p, "%s\t%s\n",
+		p += sprintf(p, "%s\t%pM\n",
 			     iface->dev->name,
-			     print_mac(mac, iface->u.wds.remote_addr));
+			     iface->u.wds.remote_addr);
 		if ((p - page) > PROC_LIMIT) {
 			printk(KERN_DEBUG "%s: wds proc did not fit\n",
 			       local->dev->name);
@@ -148,7 +147,6 @@ static int prism2_bss_list_proc_read(char *page, char **start, off_t off,
 	struct list_head *ptr;
 	struct hostap_bss_info *bss;
 	int i;
-	DECLARE_MAC_BUF(mac);
 
 	if (off > PROC_LIMIT) {
 		*eof = 1;
@@ -160,8 +158,8 @@ static int prism2_bss_list_proc_read(char *page, char **start, off_t off,
 	spin_lock_bh(&local->lock);
 	list_for_each(ptr, &local->bss_list) {
 		bss = list_entry(ptr, struct hostap_bss_info, list);
-		p += sprintf(p, "%s\t%lu\t%u\t0x%x\t",
-			     print_mac(mac, bss->bssid), bss->last_update,
+		p += sprintf(p, "%pM\t%lu\t%u\t0x%x\t",
+			     bss->bssid, bss->last_update,
 			     bss->count, bss->capab_info);
 		for (i = 0; i < bss->ssid_len; i++) {
 			p += sprintf(p, "%c",
@@ -314,7 +312,6 @@ static int prism2_scan_results_proc_read(char *page, char **start, off_t off,
 	int entry, i, len, total = 0;
 	struct hfa384x_hostscan_result *scanres;
 	u8 *pos;
-	DECLARE_MAC_BUF(mac);
 
 	p += sprintf(p, "CHID ANL SL BcnInt Capab Rate BSSID ATIM SupRates "
 		     "SSID\n");
@@ -332,14 +329,14 @@ static int prism2_scan_results_proc_read(char *page, char **start, off_t off,
 		if ((p - page) > (PAGE_SIZE - 200))
 			break;
 
-		p += sprintf(p, "%d %d %d %d 0x%02x %d %s %d ",
+		p += sprintf(p, "%d %d %d %d 0x%02x %d %pM %d ",
 			     le16_to_cpu(scanres->chid),
 			     (s16) le16_to_cpu(scanres->anl),
 			     (s16) le16_to_cpu(scanres->sl),
 			     le16_to_cpu(scanres->beacon_interval),
 			     le16_to_cpu(scanres->capability),
 			     le16_to_cpu(scanres->rate),
-			     print_mac(mac, scanres->bssid),
+			     scanres->bssid,
 			     le16_to_cpu(scanres->atim));
 
 		pos = scanres->sup_rates;

@@ -1276,12 +1276,11 @@ static int rndis_iw_get_bssid(struct net_device *dev,
 	struct usbnet *usbdev = dev->priv;
 	unsigned char bssid[ETH_ALEN];
 	int ret;
-	DECLARE_MAC_BUF(mac);
 
 	ret = get_bssid(usbdev, bssid);
 
 	if (ret == 0)
-		devdbg(usbdev, "SIOCGIWAP: %s", print_mac(mac, bssid));
+		devdbg(usbdev, "SIOCGIWAP: %pM", bssid);
 	else
 		devdbg(usbdev, "SIOCGIWAP: <not associated>");
 
@@ -1297,10 +1296,9 @@ static int rndis_iw_set_bssid(struct net_device *dev,
 {
 	struct usbnet *usbdev = dev->priv;
 	u8 *bssid = (u8 *)wrqu->ap_addr.sa_data;
-	DECLARE_MAC_BUF(mac);
 	int ret;
 
-	devdbg(usbdev, "SIOCSIWAP: %s", print_mac(mac, bssid));
+	devdbg(usbdev, "SIOCSIWAP: %pM", bssid);
 
 	ret = rndis_set_oid(usbdev, OID_802_11_BSSID, bssid, ETH_ALEN);
 
@@ -1660,11 +1658,10 @@ static char *rndis_translate_scan(struct net_device *dev,
 	u32 beacon, atim;
 	struct iw_event iwe;
 	unsigned char sbuf[32];
-	DECLARE_MAC_BUF(mac);
 
 	bssid_len = le32_to_cpu(bssid->length);
 
-	devdbg(usbdev, "BSSID %s", print_mac(mac, bssid->mac));
+	devdbg(usbdev, "BSSID %pM", bssid->mac);
 	iwe.cmd = SIOCGIWAP;
 	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
 	memcpy(iwe.u.ap_addr.sa_data, bssid->mac, ETH_ALEN);

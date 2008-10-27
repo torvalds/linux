@@ -776,7 +776,6 @@ ether3_probe(struct expansion_card *ec, const struct ecard_id *id)
 	const struct ether3_data *data = id->data;
 	struct net_device *dev;
 	int bus_type, ret;
-	DECLARE_MAC_BUF(mac);
 
 	ether3_banner();
 
@@ -859,8 +858,8 @@ ether3_probe(struct expansion_card *ec, const struct ecard_id *id)
 	if (ret)
 		goto free;
 
-	printk("%s: %s in slot %d, %s\n",
-	       dev->name, data->name, ec->slot_no, print_mac(mac, dev->dev_addr));
+	printk("%s: %s in slot %d, %pM\n",
+	       dev->name, data->name, ec->slot_no, dev->dev_addr);
 
 	ecard_set_drvdata(ec, dev);
 	return 0;

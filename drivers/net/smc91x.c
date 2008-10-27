@@ -1778,7 +1778,6 @@ static int __init smc_probe(struct net_device *dev, void __iomem *ioaddr,
 	int retval;
 	unsigned int val, revision_register;
 	const char *version_string;
-	DECLARE_MAC_BUF(mac);
 
 	DBG(2, "%s: %s\n", CARDNAME, __func__);
 
@@ -1972,8 +1971,8 @@ static int __init smc_probe(struct net_device *dev, void __iomem *ioaddr,
 			       "set using ifconfig\n", dev->name);
 		} else {
 			/* Print the Ethernet address */
-			printk("%s: Ethernet addr: %s\n",
-			       dev->name, print_mac(mac, dev->dev_addr));
+			printk("%s: Ethernet addr: %pM\n",
+			       dev->name, dev->dev_addr);
 		}
 
 		if (lp->phy_type == 0) {

@@ -1027,7 +1027,6 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip)
 	struct flowi fl;
 	struct neighbour *neigh;
 	int rc = -1;
-	DECLARE_MAC_BUF(mac);
 
 	memset(&fl, 0, sizeof fl);
 	fl.nl_u.ip4_u.daddr = htonl(dst_ip);
@@ -1041,8 +1040,8 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip)
 	if (neigh) {
 		if (neigh->nud_state & NUD_VALID) {
 			nes_debug(NES_DBG_CM, "Neighbor MAC address for 0x%08X"
-				  " is %s, Gateway is 0x%08X \n", dst_ip,
-				  print_mac(mac, neigh->ha), ntohl(rt->rt_gateway));
+				  " is %pM, Gateway is 0x%08X \n", dst_ip,
+				  neigh->ha, ntohl(rt->rt_gateway));
 			nes_manage_arp_cache(nesvnic->netdev, neigh->ha,
 					     dst_ip, NES_ARP_ADD);
 			rc = nes_arp_table(nesvnic->nesdev, dst_ip, NULL,
@@ -1071,7 +1070,6 @@ static struct nes_cm_node *make_cm_node(struct nes_cm_core *cm_core,
 	int arpindex = 0;
 	struct nes_device *nesdev;
 	struct nes_adapter *nesadapter;
-	DECLARE_MAC_BUF(mac);
 
 	/* create an hte and cm_node for this instance */
 	cm_node = kzalloc(sizeof(*cm_node), GFP_ATOMIC);
@@ -1137,8 +1135,8 @@ static struct nes_cm_node *make_cm_node(struct nes_cm_core *cm_core,
 
 	/* copy the mac addr to node context */
 	memcpy(cm_node->rem_mac, nesadapter->arp_table[arpindex].mac_addr, ETH_ALEN);
-	nes_debug(NES_DBG_CM, "Remote mac addr from arp table: %s\n",
-		  print_mac(mac, cm_node->rem_mac));
+	nes_debug(NES_DBG_CM, "Remote mac addr from arp table: %pM\n",
+		  cm_node->rem_mac);
 
 	add_hte_node(cm_core, cm_node);
 	atomic_inc(&cm_nodes_created);

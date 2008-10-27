@@ -758,13 +758,10 @@ static int ax_init_dev(struct net_device *dev, int first_init)
 #endif
 	ax_NS8390_init(dev, 0);
 
-	if (first_init) {
-		DECLARE_MAC_BUF(mac);
-
-		dev_info(&ax->dev->dev, "%dbit, irq %d, %lx, MAC: %s\n",
+	if (first_init)
+		dev_info(&ax->dev->dev, "%dbit, irq %d, %lx, MAC: %pM\n",
 			 ei_status.word16 ? 16:8, dev->irq, dev->base_addr,
-			 print_mac(mac, dev->dev_addr));
-	}
+			 dev->dev_addr);
 
 	ret = register_netdev(dev);
 	if (ret)

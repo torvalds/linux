@@ -759,7 +759,6 @@ static int smsc95xx_reset(struct usbnet *dev)
 	struct smsc95xx_priv *pdata = (struct smsc95xx_priv *)(dev->data[0]);
 	u32 read_buf, write_buf, burst_cap;
 	int ret = 0, timeout;
-	DECLARE_MAC_BUF(mac);
 
 	if (netif_msg_ifup(dev))
 		devdbg(dev, "entering smsc95xx_reset");
@@ -818,8 +817,7 @@ static int smsc95xx_reset(struct usbnet *dev)
 		return ret;
 
 	if (netif_msg_ifup(dev))
-		devdbg(dev, "MAC Address: %s",
-			print_mac(mac, dev->net->dev_addr));
+		devdbg(dev, "MAC Address: %pM", dev->net->dev_addr);
 
 	ret = smsc95xx_read_reg(dev, HW_CFG, &read_buf);
 	if (ret < 0) {

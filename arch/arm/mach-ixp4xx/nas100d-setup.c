@@ -231,7 +231,6 @@ static irqreturn_t nas100d_reset_handler(int irq, void *dev_id)
 
 static void __init nas100d_init(void)
 {
-	DECLARE_MAC_BUF(mac_buf);
 	uint8_t __iomem *f;
 	int i;
 
@@ -294,8 +293,8 @@ static void __init nas100d_init(void)
 #endif
 		iounmap(f);
 	}
-	printk(KERN_INFO "NAS100D: Using MAC address %s for port 0\n",
-	       print_mac(mac_buf, nas100d_plat_eth[0].hwaddr));
+	printk(KERN_INFO "NAS100D: Using MAC address %pM for port 0\n",
+	       nas100d_plat_eth[0].hwaddr);
 
 }
 

@@ -87,7 +87,6 @@ int lbs_update_hw_spec(struct lbs_private *priv)
 	struct cmd_ds_get_hw_spec cmd;
 	int ret = -1;
 	u32 i;
-	DECLARE_MAC_BUF(mac);
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
@@ -110,8 +109,8 @@ int lbs_update_hw_spec(struct lbs_private *priv)
 	 * CF card    firmware 5.0.16p0:   cap 0x00000303
 	 * USB dongle firmware 5.110.17p2: cap 0x00000303
 	 */
-	lbs_pr_info("%s, fw %u.%u.%up%u, cap 0x%08x\n",
-		print_mac(mac, cmd.permanentaddr),
+	lbs_pr_info("%pM, fw %u.%u.%up%u, cap 0x%08x\n",
+		cmd.permanentaddr,
 		priv->fwrelease >> 24 & 0xff,
 		priv->fwrelease >> 16 & 0xff,
 		priv->fwrelease >>  8 & 0xff,

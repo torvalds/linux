@@ -1385,7 +1385,6 @@ static int __init elplus_setup(struct net_device *dev)
 	unsigned long timeout;
 	unsigned long cookie = 0;
 	int err = -ENODEV;
-	DECLARE_MAC_BUF(mac);
 
 	/*
 	 *  setup adapter structure
@@ -1522,9 +1521,9 @@ static int __init elplus_setup(struct net_device *dev)
 	 * print remainder of startup message
 	 */
 	printk(KERN_INFO "%s: 3c505 at %#lx, irq %d, dma %d, "
-	       "addr %s, ",
+	       "addr %pM, ",
 	       dev->name, dev->base_addr, dev->irq, dev->dma,
-	       print_mac(mac, dev->dev_addr));
+	       dev->dev_addr);
 
 	/*
 	 * read more information from the adapter

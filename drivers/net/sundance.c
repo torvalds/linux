@@ -468,7 +468,6 @@ static int __devinit sundance_probe1 (struct pci_dev *pdev,
 	int bar = 1;
 #endif
 	int phy, phy_end, phy_idx = 0;
-	DECLARE_MAC_BUF(mac);
 
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
@@ -547,9 +546,9 @@ static int __devinit sundance_probe1 (struct pci_dev *pdev,
 	if (i)
 		goto err_out_unmap_rx;
 
-	printk(KERN_INFO "%s: %s at %p, %s, IRQ %d.\n",
+	printk(KERN_INFO "%s: %s at %p, %pM, IRQ %d.\n",
 	       dev->name, pci_id_tbl[chip_idx].name, ioaddr,
-	       print_mac(mac, dev->dev_addr), irq);
+	       dev->dev_addr, irq);
 
 	np->phys[0] = 1;		/* Default setting */
 	np->mii_preamble_required++;

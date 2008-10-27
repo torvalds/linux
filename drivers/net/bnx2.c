@@ -7700,7 +7700,6 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct bnx2 *bp;
 	int rc;
 	char str[40];
-	DECLARE_MAC_BUF(mac);
 
 	if (version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
@@ -7767,14 +7766,14 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	printk(KERN_INFO "%s: %s (%c%d) %s found at mem %lx, "
-		"IRQ %d, node addr %s\n",
+		"IRQ %d, node addr %pM\n",
 		dev->name,
 		board_info[ent->driver_data].name,
 		((CHIP_ID(bp) & 0xf000) >> 12) + 'A',
 		((CHIP_ID(bp) & 0x0ff0) >> 4),
 		bnx2_bus_string(bp, str),
 		dev->base_addr,
-		bp->pdev->irq, print_mac(mac, dev->dev_addr));
+		bp->pdev->irq, dev->dev_addr);
 
 	return 0;
 }

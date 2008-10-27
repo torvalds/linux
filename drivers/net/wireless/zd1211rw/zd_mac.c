@@ -852,14 +852,12 @@ static void zd_op_configure_filter(struct ieee80211_hw *hw,
 	if (*new_flags & (FIF_PROMISC_IN_BSS | FIF_ALLMULTI)) {
 		zd_mc_add_all(&hash);
 	} else {
-		DECLARE_MAC_BUF(macbuf);
-
 		zd_mc_clear(&hash);
 		for (i = 0; i < mc_count; i++) {
 			if (!mclist)
 				break;
-			dev_dbg_f(zd_mac_dev(mac), "mc addr %s\n",
-				  print_mac(macbuf, mclist->dmi_addr));
+			dev_dbg_f(zd_mac_dev(mac), "mc addr %pM\n",
+				  mclist->dmi_addr);
 			zd_mc_add_addr(&hash, mclist->dmi_addr);
 			mclist = mclist->next;
 		}

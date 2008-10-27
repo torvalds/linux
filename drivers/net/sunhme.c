@@ -2617,7 +2617,6 @@ static int __devinit happy_meal_sbus_probe_one(struct of_device *op, int is_qfe)
 	struct net_device *dev;
 	int i, qfe_slot = -1;
 	int err = -ENODEV;
-	DECLARE_MAC_BUF(mac);
 
 	if (is_qfe) {
 		qp = quattro_sbus_find(op);
@@ -2797,7 +2796,7 @@ static int __devinit happy_meal_sbus_probe_one(struct of_device *op, int is_qfe)
 		printk(KERN_INFO "%s: HAPPY MEAL (SBUS) 10/100baseT Ethernet ",
 		       dev->name);
 
-	printk("%s\n", print_mac(mac, dev->dev_addr));
+	printk("%pM\n", dev->dev_addr);
 
 	return 0;
 
@@ -2932,7 +2931,6 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 	int i, qfe_slot = -1;
 	char prom_name[64];
 	int err;
-	DECLARE_MAC_BUF(mac);
 
 	/* Now make sure pci_dev cookie is there. */
 #ifdef CONFIG_SPARC
@@ -3141,7 +3139,7 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 		printk(KERN_INFO "%s: HAPPY MEAL (PCI/CheerIO) 10/100BaseT Ethernet ",
 		       dev->name);
 
-	printk("%s\n", print_mac(mac, dev->dev_addr));
+	printk("%pM\n", dev->dev_addr);
 
 	return 0;
 

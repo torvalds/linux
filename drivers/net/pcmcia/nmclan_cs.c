@@ -659,7 +659,6 @@ static int nmclan_config(struct pcmcia_device *link)
   u_char buf[64];
   int i, last_ret, last_fn;
   unsigned int ioaddr;
-  DECLARE_MAC_BUF(mac);
 
   DEBUG(0, "nmclan_config(0x%p)\n", link);
 
@@ -719,9 +718,9 @@ static int nmclan_config(struct pcmcia_device *link)
   strcpy(lp->node.dev_name, dev->name);
 
   printk(KERN_INFO "%s: nmclan: port %#3lx, irq %d, %s port,"
-	 " hw_addr %s\n",
+	 " hw_addr %pM\n",
 	 dev->name, dev->base_addr, dev->irq, if_names[dev->if_port],
-	 print_mac(mac, dev->dev_addr));
+	 dev->dev_addr);
   return 0;
 
 cs_failed:

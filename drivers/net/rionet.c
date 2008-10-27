@@ -435,7 +435,6 @@ static int rionet_setup_netdev(struct rio_mport *mport)
 	struct net_device *ndev = NULL;
 	struct rionet_private *rnet;
 	u16 device_id;
-	DECLARE_MAC_BUF(mac);
 
 	/* Allocate our net_device structure */
 	ndev = alloc_etherdev(sizeof(struct rionet_private));
@@ -485,12 +484,12 @@ static int rionet_setup_netdev(struct rio_mport *mport)
 	if (rc != 0)
 		goto out;
 
-	printk("%s: %s %s Version %s, MAC %s\n",
+	printk("%s: %s %s Version %s, MAC %pM\n",
 	       ndev->name,
 	       DRV_NAME,
 	       DRV_DESC,
 	       DRV_VERSION,
-	       print_mac(mac, ndev->dev_addr));
+	       ndev->dev_addr);
 
       out:
 	return rc;

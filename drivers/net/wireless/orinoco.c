@@ -1477,12 +1477,11 @@ static void orinoco_rx(struct net_device *dev,
 			   MICHAEL_MIC_LEN)) {
 			union iwreq_data wrqu;
 			struct iw_michaelmicfailure wxmic;
-			DECLARE_MAC_BUF(mac);
 
 			printk(KERN_WARNING "%s: "
-			       "Invalid Michael MIC in data frame from %s, "
+			       "Invalid Michael MIC in data frame from %pM, "
 			       "using key %i\n",
-			       dev->name, print_mac(mac, src), key_id);
+			       dev->name, src, key_id);
 
 			/* TODO: update stats */
 
@@ -3277,7 +3276,6 @@ static int orinoco_init(struct net_device *dev)
 	struct hermes_idstring nickbuf;
 	u16 reclen;
 	int len;
-	DECLARE_MAC_BUF(mac);
 
 	/* No need to lock, the hw_unavailable flag is already set in
 	 * alloc_orinocodev() */
@@ -3348,8 +3346,8 @@ static int orinoco_init(struct net_device *dev)
 		goto out;
 	}
 
-	printk(KERN_DEBUG "%s: MAC address %s\n",
-	       dev->name, print_mac(mac, dev->dev_addr));
+	printk(KERN_DEBUG "%s: MAC address %pM\n",
+	       dev->name, dev->dev_addr);
 
 	/* Get the station name */
 	err = hermes_read_ltv(hw, USER_BAP, HERMES_RID_CNFOWNNAME,

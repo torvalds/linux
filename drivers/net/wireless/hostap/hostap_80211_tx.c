@@ -17,7 +17,6 @@ void hostap_dump_tx_80211(const char *name, struct sk_buff *skb)
 {
 	struct ieee80211_hdr_4addr *hdr;
 	u16 fc;
-	DECLARE_MAC_BUF(mac);
 
 	hdr = (struct ieee80211_hdr_4addr *) skb->data;
 
@@ -41,11 +40,11 @@ void hostap_dump_tx_80211(const char *name, struct sk_buff *skb)
 	printk(" dur=0x%04x seq=0x%04x\n", le16_to_cpu(hdr->duration_id),
 	       le16_to_cpu(hdr->seq_ctl));
 
-	printk(KERN_DEBUG "   A1=%s", print_mac(mac, hdr->addr1));
-	printk(" A2=%s", print_mac(mac, hdr->addr2));
-	printk(" A3=%s", print_mac(mac, hdr->addr3));
+	printk(KERN_DEBUG "   A1=%pM", hdr->addr1);
+	printk(" A2=%pM", hdr->addr2);
+	printk(" A3=%pM", hdr->addr3);
 	if (skb->len >= 30)
-		printk(" A4=%s", print_mac(mac, hdr->addr4));
+		printk(" A4=%pM", hdr->addr4);
 	printk("\n");
 }
 
@@ -328,10 +327,8 @@ static struct sk_buff * hostap_tx_encrypt(struct sk_buff *skb,
 		hdr = (struct ieee80211_hdr_4addr *) skb->data;
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
-			       "TX packet to " MAC_FMT "\n",
-			       local->dev->name,
-			       hdr->addr1[0], hdr->addr1[1], hdr->addr1[2],
-			       hdr->addr1[3], hdr->addr1[4], hdr->addr1[5]);
+			       "TX packet to %pM\n",
+			       local->dev->name, hdr->addr1);
 		}
 		kfree_skb(skb);
 		return NULL;

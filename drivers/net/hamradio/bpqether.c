@@ -441,16 +441,15 @@ static int bpq_seq_show(struct seq_file *seq, void *v)
 			 "dev   ether      destination        accept from\n");
 	else {
 		const struct bpqdev *bpqdev = v;
-		DECLARE_MAC_BUF(mac);
 
-		seq_printf(seq, "%-5s %-10s %s  ",
+		seq_printf(seq, "%-5s %-10s %pM  ",
 			bpqdev->axdev->name, bpqdev->ethdev->name,
-			print_mac(mac, bpqdev->dest_addr));
+			bpqdev->dest_addr);
 
 		if (is_multicast_ether_addr(bpqdev->acpt_addr))
 			seq_printf(seq, "*\n");
 		else
-			seq_printf(seq, "%s\n", print_mac(mac, bpqdev->acpt_addr));
+			seq_printf(seq, "%pM\n", bpqdev->acpt_addr);
 
 	}
 	return 0;

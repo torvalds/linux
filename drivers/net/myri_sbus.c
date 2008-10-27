@@ -318,13 +318,10 @@ static void myri_is_not_so_happy(struct myri_eth *mp)
 #ifdef DEBUG_HEADER
 static void dump_ehdr(struct ethhdr *ehdr)
 {
-	DECLARE_MAC_BUF(mac);
-	DECLARE_MAC_BUF(mac2);
-	printk("ehdr[h_dst(%s)"
-	       "h_source(%s)"
+	printk("ehdr[h_dst(%pM)"
+	       "h_source(%pM)"
 	       "h_proto(%04x)]\n",
-	       print_mac(mac, ehdr->h_dest), print_mac(mac2, ehdr->h_source),
-	       ehdr->h_proto);
+	       ehdr->h_dest, ehdr->h_source, ehdr->h_proto);
 }
 
 static void dump_ehdr_and_myripad(unsigned char *stuff)
@@ -905,7 +902,6 @@ static int __devinit myri_sbus_probe(struct of_device *op, const struct of_devic
 	struct device_node *dp = op->node;
 	static unsigned version_printed;
 	struct net_device *dev;
-	DECLARE_MAC_BUF(mac);
 	struct myri_eth *mp;
 	const void *prop;
 	static int num;
@@ -1088,8 +1084,8 @@ static int __devinit myri_sbus_probe(struct of_device *op, const struct of_devic
 
 	num++;
 
-	printk("%s: MyriCOM MyriNET Ethernet %s\n",
-	       dev->name, print_mac(mac, dev->dev_addr));
+	printk("%s: MyriCOM MyriNET Ethernet %pM\n",
+	       dev->name, dev->dev_addr);
 
 	return 0;
 

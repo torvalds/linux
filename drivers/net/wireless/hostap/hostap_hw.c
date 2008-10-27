@@ -2335,10 +2335,6 @@ static void prism2_txexc(local_info_t *local)
 	int show_dump, res;
 	char *payload = NULL;
 	struct hfa384x_tx_frame txdesc;
-	DECLARE_MAC_BUF(mac);
-	DECLARE_MAC_BUF(mac2);
-	DECLARE_MAC_BUF(mac3);
-	DECLARE_MAC_BUF(mac4);
 
 	show_dump = local->frame_dump & PRISM2_DUMP_TXEXC_HDR;
 	local->stats.tx_errors++;
@@ -2404,9 +2400,9 @@ static void prism2_txexc(local_info_t *local)
 	       WLAN_FC_GET_STYPE(fc) >> 4,
 	       fc & IEEE80211_FCTL_TODS ? " ToDS" : "",
 	       fc & IEEE80211_FCTL_FROMDS ? " FromDS" : "");
-	PDEBUG(DEBUG_EXTRA, "   A1=%s A2=%s A3=%s A4=%s\n",
-	       print_mac(mac, txdesc.addr1), print_mac(mac2, txdesc.addr2),
-	       print_mac(mac3, txdesc.addr3), print_mac(mac4, txdesc.addr4));
+	PDEBUG(DEBUG_EXTRA, "   A1=%pM A2=%pM A3=%pM A4=%pM\n",
+	       txdesc.addr1, txdesc.addr2,
+	       txdesc.addr3, txdesc.addr4);
 }
 
 

@@ -2117,7 +2117,6 @@ static int __devinit b44_init_one(struct ssb_device *sdev,
 	struct net_device *dev;
 	struct b44 *bp;
 	int err;
-	DECLARE_MAC_BUF(mac);
 
 	instance++;
 
@@ -2213,8 +2212,8 @@ static int __devinit b44_init_one(struct ssb_device *sdev,
 	 */
 	b44_chip_reset(bp, B44_CHIP_RESET_FULL);
 
-	printk(KERN_INFO "%s: Broadcom 44xx/47xx 10/100BaseT Ethernet %s\n",
-	       dev->name, print_mac(mac, dev->dev_addr));
+	printk(KERN_INFO "%s: Broadcom 44xx/47xx 10/100BaseT Ethernet %pM\n",
+	       dev->name, dev->dev_addr);
 
 	return 0;
 

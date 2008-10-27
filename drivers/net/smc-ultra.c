@@ -198,7 +198,6 @@ static int __init ultra_probe1(struct net_device *dev, int ioaddr)
 	unsigned char num_pages, irqreg, addr, piomode;
 	unsigned char idreg = inb(ioaddr + 7);
 	unsigned char reg4 = inb(ioaddr + 4) & 0x7f;
-	DECLARE_MAC_BUF(mac);
 
 	if (!request_region(ioaddr, ULTRA_IO_EXTENT, DRV_NAME))
 		return -EBUSY;
@@ -228,8 +227,8 @@ static int __init ultra_probe1(struct net_device *dev, int ioaddr)
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = inb(ioaddr + 8 + i);
 
-	printk("%s: %s at %#3x, %s", dev->name, model_name,
-	       ioaddr, print_mac(mac, dev->dev_addr));
+	printk("%s: %s at %#3x, %pM", dev->name, model_name,
+	       ioaddr, dev->dev_addr);
 
 	/* Switch from the station address to the alternate register set and
 	   read the useful registers there. */

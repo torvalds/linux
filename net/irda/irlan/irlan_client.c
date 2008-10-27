@@ -436,7 +436,6 @@ static void irlan_check_response_param(struct irlan_cb *self, char *param,
 	__u16 tmp_cpu; /* Temporary value in host order */
 	__u8 *bytes;
 	int i;
-	DECLARE_MAC_BUF(mac);
 
 	IRDA_DEBUG(4, "%s(), parm=%s\n", __func__ , param);
 
@@ -521,8 +520,7 @@ static void irlan_check_response_param(struct irlan_cb *self, char *param,
 	/* FILTER_ENTRY, have we got an ethernet address? */
 	if (strcmp(param, "FILTER_ENTRY") == 0) {
 		bytes = value;
-		IRDA_DEBUG(4, "Ethernet address = %s\n",
-			   print_mac(mac, bytes));
+		IRDA_DEBUG(4, "Ethernet address = %pM\n", bytes);
 		for (i = 0; i < 6; i++)
 			self->dev->dev_addr[i] = bytes[i];
 	}

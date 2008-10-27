@@ -348,7 +348,6 @@ static int fmvj18x_config(struct pcmcia_device *link)
     cardtype_t cardtype;
     char *card_name = "unknown";
     u_char *node_id;
-    DECLARE_MAC_BUF(mac);
 
     DEBUG(0, "fmvj18x_config(0x%p)\n", link);
 
@@ -539,9 +538,9 @@ static int fmvj18x_config(struct pcmcia_device *link)
 
     /* print current configuration */
     printk(KERN_INFO "%s: %s, sram %s, port %#3lx, irq %d, "
-	   "hw_addr %s\n",
+	   "hw_addr %pM\n",
 	   dev->name, card_name, sram_config == 0 ? "4K TX*2" : "8K TX*2", 
-	   dev->base_addr, dev->irq, print_mac(mac, dev->dev_addr));
+	   dev->base_addr, dev->irq, dev->dev_addr);
 
     return 0;
     

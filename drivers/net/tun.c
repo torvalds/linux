@@ -883,7 +883,6 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 	void __user* argp = (void __user*)arg;
 	struct ifreq ifr;
 	int ret;
-	DECLARE_MAC_BUF(mac);
 
 	if (cmd == TUNSETIFF || _IOC_TYPE(cmd) == 0x89)
 		if (copy_from_user(&ifr, argp, sizeof ifr))
@@ -1011,8 +1010,8 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 
 	case SIOCSIFHWADDR:
 		/* Set hw address */
-		DBG(KERN_DEBUG "%s: set hw address: %s\n",
-			tun->dev->name, print_mac(mac, ifr.ifr_hwaddr.sa_data));
+		DBG(KERN_DEBUG "%s: set hw address: %pM\n",
+			tun->dev->name, ifr.ifr_hwaddr.sa_data);
 
 		rtnl_lock();
 		ret = dev_set_mac_address(tun->dev, &ifr.ifr_hwaddr);

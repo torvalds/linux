@@ -10192,7 +10192,6 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	struct net_device *dev = NULL;
 	struct bnx2x *bp;
 	int rc;
-	DECLARE_MAC_BUF(mac);
 
 	if (version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
@@ -10236,7 +10235,7 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	       bnx2x_get_pcie_width(bp),
 	       (bnx2x_get_pcie_speed(bp) == 2) ? "5GHz (Gen2)" : "2.5GHz",
 	       dev->base_addr, bp->pdev->irq);
-	printk(KERN_CONT "node addr %s\n", print_mac(mac, dev->dev_addr));
+	printk(KERN_CONT "node addr %pM\n", dev->dev_addr);
 	return 0;
 
 init_one_exit:

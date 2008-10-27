@@ -301,10 +301,9 @@ static void mac80211_hwsim_stop(struct ieee80211_hw *hw)
 static int mac80211_hwsim_add_interface(struct ieee80211_hw *hw,
 					struct ieee80211_if_init_conf *conf)
 {
-	DECLARE_MAC_BUF(mac);
-	printk(KERN_DEBUG "%s:%s (type=%d mac_addr=%s)\n",
+	printk(KERN_DEBUG "%s:%s (type=%d mac_addr=%pM)\n",
 	       wiphy_name(hw->wiphy), __func__, conf->type,
-	       print_mac(mac, conf->mac_addr));
+	       conf->mac_addr);
 	hwsim_set_magic(conf->vif);
 	return 0;
 }
@@ -313,10 +312,9 @@ static int mac80211_hwsim_add_interface(struct ieee80211_hw *hw,
 static void mac80211_hwsim_remove_interface(
 	struct ieee80211_hw *hw, struct ieee80211_if_init_conf *conf)
 {
-	DECLARE_MAC_BUF(mac);
-	printk(KERN_DEBUG "%s:%s (type=%d mac_addr=%s)\n",
+	printk(KERN_DEBUG "%s:%s (type=%d mac_addr=%pM)\n",
 	       wiphy_name(hw->wiphy), __func__, conf->type,
-	       print_mac(mac, conf->mac_addr));
+	       conf->mac_addr);
 	hwsim_check_magic(conf->vif);
 	hwsim_clear_magic(conf->vif);
 }
@@ -505,7 +503,6 @@ static int __init init_mac80211_hwsim(void)
 	u8 addr[ETH_ALEN];
 	struct mac80211_hwsim_data *data;
 	struct ieee80211_hw *hw;
-	DECLARE_MAC_BUF(mac);
 
 	if (radios < 1 || radios > 100)
 		return -EINVAL;
@@ -588,9 +585,9 @@ static int __init init_mac80211_hwsim(void)
 			goto failed_hw;
 		}
 
-		printk(KERN_DEBUG "%s: hwaddr %s registered\n",
+		printk(KERN_DEBUG "%s: hwaddr %pM registered\n",
 		       wiphy_name(hw->wiphy),
-		       print_mac(mac, hw->wiphy->perm_addr));
+		       hw->wiphy->perm_addr);
 
 		setup_timer(&data->beacon_timer, mac80211_hwsim_beacon,
 			    (unsigned long) hw);

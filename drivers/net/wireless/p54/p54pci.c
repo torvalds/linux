@@ -481,7 +481,6 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 	struct ieee80211_hw *dev;
 	unsigned long mem_addr, mem_len;
 	int err;
-	DECLARE_MAC_BUF(mac);
 
 	err = pci_enable_device(pdev);
 	if (err) {

@@ -2104,7 +2104,6 @@ static int lbs_set_wap(struct net_device *dev, struct iw_request_info *info,
 	struct lbs_private *priv = dev->priv;
 	struct assoc_request * assoc_req;
 	int ret = 0;
-	DECLARE_MAC_BUF(mac);
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -2114,7 +2113,7 @@ static int lbs_set_wap(struct net_device *dev, struct iw_request_info *info,
 	if (awrq->sa_family != ARPHRD_ETHER)
 		return -EINVAL;
 
-	lbs_deb_wext("ASSOC: WAP: sa_data %s\n", print_mac(mac, awrq->sa_data));
+	lbs_deb_wext("ASSOC: WAP: sa_data %pM\n", awrq->sa_data);
 
 	mutex_lock(&priv->lock);
 

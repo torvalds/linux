@@ -1791,7 +1791,6 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	struct slave *slave, *oldcurrent;
 	struct sockaddr addr;
 	int mac_addr_differ;
-	DECLARE_MAC_BUF(mac);
 
 	/* slave is not a slave or master is not master of this slave */
 	if (!(slave_dev->flags & IFF_SLAVE) ||
@@ -1820,11 +1819,11 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 		if (!mac_addr_differ && (bond->slave_cnt > 1))
 			printk(KERN_WARNING DRV_NAME
 			       ": %s: Warning: the permanent HWaddr of %s - "
-			       "%s - is still in use by %s. "
+			       "%pM - is still in use by %s. "
 			       "Set the HWaddr of %s to a different address "
 			       "to avoid conflicts.\n",
 			       bond_dev->name, slave_dev->name,
-			       print_mac(mac, slave->perm_hwaddr),
+			       slave->perm_hwaddr,
 			       bond_dev->name, slave_dev->name);
 	}
 
@@ -3285,7 +3284,6 @@ static void bond_info_show_master(struct seq_file *seq)
 
 	if (bond->params.mode == BOND_MODE_8023AD) {
 		struct ad_info ad_info;
-		DECLARE_MAC_BUF(mac);
 
 		seq_puts(seq, "\n802.3ad info\n");
 		seq_printf(seq, "LACP rate: %s\n",
@@ -3305,8 +3303,8 @@ static void bond_info_show_master(struct seq_file *seq)
 				   ad_info.actor_key);
 			seq_printf(seq, "\tPartner Key: %d\n",
 				   ad_info.partner_key);
-			seq_printf(seq, "\tPartner Mac Address: %s\n",
-				   print_mac(mac, ad_info.partner_system));
+			seq_printf(seq, "\tPartner Mac Address: %pM\n",
+				   ad_info.partner_system);
 		}
 	}
 }
@@ -3314,7 +3312,6 @@ static void bond_info_show_master(struct seq_file *seq)
 static void bond_info_show_slave(struct seq_file *seq, const struct slave *slave)
 {
 	struct bonding *bond = seq->private;
-	DECLARE_MAC_BUF(mac);
 
 	seq_printf(seq, "\nSlave Interface: %s\n", slave->dev->name);
 	seq_printf(seq, "MII Status: %s\n",
@@ -3322,9 +3319,7 @@ static void bond_info_show_slave(struct seq_file *seq, const struct slave *slave
 	seq_printf(seq, "Link Failure Count: %u\n",
 		   slave->link_failure_count);
 
-	seq_printf(seq,
-		   "Permanent HW addr: %s\n",
-		   print_mac(mac, slave->perm_hwaddr));
+	seq_printf(seq, "Permanent HW addr: %pM\n", slave->perm_hwaddr);
 
 	if (bond->params.mode == BOND_MODE_8023AD) {
 		const struct aggregator *agg

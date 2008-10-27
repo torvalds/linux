@@ -265,7 +265,6 @@ static int __init at1700_probe1(struct net_device *dev, int ioaddr)
 	unsigned int i, irq, is_fmv18x = 0, is_at1700 = 0;
 	int slot, ret = -ENODEV;
 	struct net_local *lp = netdev_priv(dev);
-	DECLARE_MAC_BUF(mac);
 
 	if (!request_region(ioaddr, AT1700_IO_EXTENT, DRV_NAME))
 		return -EBUSY;
@@ -397,7 +396,7 @@ found:
 			dev->dev_addr[i] = val;
 		}
 	}
-	printk("%s", print_mac(mac, dev->dev_addr));
+	printk("%pM", dev->dev_addr);
 
 	/* The EEPROM word 12 bit 0x0400 means use regular 100 ohm 10baseT signals,
 	   rather than 150 ohm shielded twisted pair compensation.

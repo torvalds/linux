@@ -1023,7 +1023,6 @@ static int __init dec_lance_probe(struct device *bdev, const int type)
 	int i, ret;
 	unsigned long esar_base;
 	unsigned char *esar;
-	DECLARE_MAC_BUF(mac);
 
 	if (dec_lance_debug && version_printed++ == 0)
 		printk(version);
@@ -1223,8 +1222,7 @@ static int __init dec_lance_probe(struct device *bdev, const int type)
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = esar[i * 4];
 
-	printk(", addr = %s, irq = %d\n",
-	       print_mac(mac, dev->dev_addr), dev->irq);
+	printk(", addr = %pM, irq = %d\n", dev->dev_addr, dev->irq);
 
 	dev->open = &lance_open;
 	dev->stop = &lance_close;

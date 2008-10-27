@@ -321,7 +321,6 @@ static int axnet_config(struct pcmcia_device *link)
     struct net_device *dev = link->priv;
     axnet_dev_t *info = PRIV(dev);
     int i, j, last_ret, last_fn;
-    DECLARE_MAC_BUF(mac);
 
     DEBUG(0, "axnet_config(0x%p)\n", link);
 
@@ -397,10 +396,10 @@ static int axnet_config(struct pcmcia_device *link)
     strcpy(info->node.dev_name, dev->name);
 
     printk(KERN_INFO "%s: Asix AX88%d90: io %#3lx, irq %d, "
-	   "hw_addr %s\n",
+	   "hw_addr %pM\n",
 	   dev->name, ((info->flags & IS_AX88790) ? 7 : 1),
 	   dev->base_addr, dev->irq,
-	   print_mac(mac, dev->dev_addr));
+	   dev->dev_addr);
     if (info->phy_id != -1) {
 	DEBUG(0, "  MII transceiver at index %d, status %x.\n", info->phy_id, j);
     } else {

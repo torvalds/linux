@@ -800,7 +800,6 @@ struct net_device * __init de620_probe(int unit)
 	struct net_device *dev;
 	int err = -ENOMEM;
 	int i;
-	DECLARE_MAC_BUF(mac);
 
 	dev = alloc_etherdev(0);
 	if (!dev)
@@ -853,7 +852,7 @@ struct net_device * __init de620_probe(int unit)
 		dev->broadcast[i] = 0xff;
 	}
 
-	printk(", Ethernet Address: %s", print_mac(mac, dev->dev_addr));
+	printk(", Ethernet Address: %pM", dev->dev_addr);
 
 	printk(" (%dk RAM,",
 		(nic_data.RAM_Size) ? (nic_data.RAM_Size >> 2) : 64);

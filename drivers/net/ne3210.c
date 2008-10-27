@@ -99,7 +99,6 @@ static int __init ne3210_eisa_probe (struct device *device)
 	int i, retval, port_index;
 	struct eisa_device *edev = to_eisa_device (device);
 	struct net_device *dev;
-	DECLARE_MAC_BUF(mac);
 
 	/* Allocate dev->priv and fill in 8390 specific dev fields. */
 	if (!(dev = alloc_ei_netdev ())) {
@@ -131,8 +130,8 @@ static int __init ne3210_eisa_probe (struct device *device)
 	port_index = inb(ioaddr + NE3210_CFG2) >> 6;
 	for(i = 0; i < ETHER_ADDR_LEN; i++)
 		dev->dev_addr[i] = inb(ioaddr + NE3210_SA_PROM + i);
-	printk("ne3210.c: NE3210 in EISA slot %d, media: %s, addr: %s.\n",
-		edev->slot, ifmap[port_index], print_mac(mac, dev->dev_addr));
+	printk("ne3210.c: NE3210 in EISA slot %d, media: %s, addr: %pM.\n",
+		edev->slot, ifmap[port_index], dev->dev_addr);
 
 	/* Snarf the interrupt now. CFG file has them all listed as `edge' with share=NO */
 	dev->irq = irq_map[(inb(ioaddr + NE3210_CFG2) >> 3) & 0x07];

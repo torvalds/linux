@@ -892,7 +892,6 @@ static int __devinit ace_init(struct net_device *dev)
 	int board_idx, ecode = 0;
 	short i;
 	unsigned char cache_size;
-	DECLARE_MAC_BUF(mac);
 
 	ap = netdev_priv(dev);
 	regs = ap->regs;
@@ -1019,7 +1018,7 @@ static int __devinit ace_init(struct net_device *dev)
 	dev->dev_addr[4] = (mac2 >> 8) & 0xff;
 	dev->dev_addr[5] = mac2 & 0xff;
 
-	printk("MAC: %s\n", print_mac(mac, dev->dev_addr));
+	printk("MAC: %pM\n", dev->dev_addr);
 
 	/*
 	 * Looks like this is necessary to deal with on all architectures,

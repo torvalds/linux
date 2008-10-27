@@ -737,7 +737,6 @@ static int __devinit netdrv_init_one (struct pci_dev *pdev,
 	int i, addr_len, option;
 	void *ioaddr = NULL;
 	static int board_idx = -1;
-	DECLARE_MAC_BUF(mac);
 
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
@@ -797,11 +796,11 @@ static int __devinit netdrv_init_one (struct pci_dev *pdev,
 
 	tp->phys[0] = 32;
 
-	printk (KERN_INFO "%s: %s at 0x%lx, %sIRQ %d\n",
+	printk (KERN_INFO "%s: %s at 0x%lx, %pM IRQ %d\n",
 		dev->name,
 		board_info[ent->driver_data].name,
 		dev->base_addr,
-		print_mac(mac, dev->dev_addr),
+		dev->dev_addr,
 		dev->irq);
 
 	printk (KERN_DEBUG "%s:  Identified 8139 chip type '%s'\n",

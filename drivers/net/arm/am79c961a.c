@@ -745,10 +745,8 @@ static int __init am79c961_probe(struct platform_device *pdev)
 
 	ret = register_netdev(dev);
 	if (ret == 0) {
-		DECLARE_MAC_BUF(mac);
-
-		printk(KERN_INFO "%s: ether address %s\n",
-		       dev->name, print_mac(mac, dev->dev_addr));
+		printk(KERN_INFO "%s: ether address %pM\n",
+		       dev->name, dev->dev_addr);
 		return 0;
 	}
 

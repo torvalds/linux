@@ -3529,7 +3529,6 @@ static void ql_display_dev_info(struct net_device *ndev)
 {
 	struct ql3_adapter *qdev = (struct ql3_adapter *)netdev_priv(ndev);
 	struct pci_dev *pdev = qdev->pdev;
-	DECLARE_MAC_BUF(mac);
 
 	printk(KERN_INFO PFX
 	       "\n%s Adapter %d RevisionID %d found %s on PCI slot %d.\n",
@@ -3555,8 +3554,8 @@ static void ql_display_dev_info(struct net_device *ndev)
 
 	if (netif_msg_probe(qdev))
 		printk(KERN_INFO PFX
-		       "%s: MAC address %s\n",
-		       ndev->name, print_mac(mac, ndev->dev_addr));
+		       "%s: MAC address %pM\n",
+		       ndev->name, ndev->dev_addr);
 }
 
 static int ql_adapter_down(struct ql3_adapter *qdev, int do_reset)

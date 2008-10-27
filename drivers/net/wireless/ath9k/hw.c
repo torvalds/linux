@@ -1291,7 +1291,6 @@ static int ath9k_hw_init_macaddr(struct ath_hal *ah)
 	int i;
 	u16 eeval;
 	struct ath_hal_5416 *ahp = AH5416(ah);
-	DECLARE_MAC_BUF(mac);
 
 	sum = 0;
 	for (i = 0; i < 3; i++) {
@@ -1302,8 +1301,8 @@ static int ath9k_hw_init_macaddr(struct ath_hal *ah)
 	}
 	if (sum == 0 || sum == 0xffff * 3) {
 		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-			 "%s: mac address read failed: %s\n", __func__,
-			 print_mac(mac, ahp->ah_macaddr));
+			 "%s: mac address read failed: %pM\n", __func__,
+			 ahp->ah_macaddr);
 		return -EADDRNOTAVAIL;
 	}
 

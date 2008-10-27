@@ -511,7 +511,6 @@ static int __devinit rr_init(struct net_device *dev)
 	struct rr_private *rrpriv;
 	struct rr_regs __iomem *regs;
 	u32 sram_size, rev;
-	DECLARE_MAC_BUF(mac);
 
 	rrpriv = netdev_priv(dev);
 	regs = rrpriv->regs;
@@ -549,7 +548,7 @@ static int __devinit rr_init(struct net_device *dev)
 	*(__be32 *)(dev->dev_addr+2) =
 	  htonl(rr_read_eeprom_word(rrpriv, offsetof(struct eeprom, manf.BoardULA[4])));
 
-	printk("  MAC: %s\n", print_mac(mac, dev->dev_addr));
+	printk("  MAC: %pM\n", dev->dev_addr);
 
 	sram_size = rr_read_eeprom_word(rrpriv, 8);
 	printk("  SRAM size 0x%06x\n", sram_size);

@@ -370,7 +370,6 @@ static int __init znet_probe (void)
 	struct net_device *dev;
 	char *p;
 	int err = -ENOMEM;
-	DECLARE_MAC_BUF(mac);
 
 	/* This code scans the region 0xf0000 to 0xfffff for a "NETIDBLK". */
 	for(p = (char *)phys_to_virt(0xf0000); p < (char *)phys_to_virt(0x100000); p++)
@@ -397,9 +396,9 @@ static int __init znet_probe (void)
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = netinfo->netid[i];
 
-	printk(KERN_INFO "%s: ZNET at %#3lx, %s"
+	printk(KERN_INFO "%s: ZNET at %#3lx, %pM"
 	       ", using IRQ %d DMA %d and %d.\n",
-	       dev->name, dev->base_addr, print_mac(mac, dev->dev_addr),
+	       dev->name, dev->base_addr, dev->dev_addr,
 	       dev->irq, netinfo->dma1, netinfo->dma2);
 
 	if (znet_debug > 1) {

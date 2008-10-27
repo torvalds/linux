@@ -4118,11 +4118,10 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 static void __devinit sky2_show_addr(struct net_device *dev)
 {
 	const struct sky2_port *sky2 = netdev_priv(dev);
-	DECLARE_MAC_BUF(mac);
 
 	if (netif_msg_probe(sky2))
-		printk(KERN_INFO PFX "%s: addr %s\n",
-		       dev->name, print_mac(mac, dev->dev_addr));
+		printk(KERN_INFO PFX "%s: addr %pM\n",
+		       dev->name, dev->dev_addr);
 }
 
 /* Handle software interrupt used during MSI test */

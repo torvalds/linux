@@ -1309,7 +1309,6 @@ static int pegasus_probe(struct usb_interface *intf,
 	pegasus_t *pegasus;
 	int dev_index = id - pegasus_ids;
 	int res = -ENOMEM;
-	DECLARE_MAC_BUF(mac);
 
 	usb_get_dev(dev);
 
@@ -1386,10 +1385,10 @@ static int pegasus_probe(struct usb_interface *intf,
 	queue_delayed_work(pegasus_workqueue, &pegasus->carrier_check,
 				CARRIER_CHECK_DELAY);
 
-	dev_info(&intf->dev, "%s, %s, %s\n",
+	dev_info(&intf->dev, "%s, %s, %pM\n",
 		 net->name,
 		 usb_dev_id[dev_index].name,
-		 print_mac(mac, net->dev_addr));
+		 net->dev_addr);
 	return 0;
 
 out3:

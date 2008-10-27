@@ -1791,7 +1791,6 @@ static int __devinit adm8211_probe(struct pci_dev *pdev,
 	int err;
 	u32 reg;
 	u8 perm_addr[ETH_ALEN];
-	DECLARE_MAC_BUF(mac);
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -1925,8 +1924,8 @@ static int __devinit adm8211_probe(struct pci_dev *pdev,
 		goto err_free_desc;
 	}
 
-	printk(KERN_INFO "%s: hwaddr %s, Rev 0x%02x\n",
-	       wiphy_name(dev->wiphy), print_mac(mac, dev->wiphy->perm_addr),
+	printk(KERN_INFO "%s: hwaddr %pM, Rev 0x%02x\n",
+	       wiphy_name(dev->wiphy), dev->wiphy->perm_addr,
 	       pdev->revision);
 
 	return 0;

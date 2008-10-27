@@ -204,7 +204,6 @@ static int __init ne_probe1(struct net_device *dev, int ioaddr)
 	static unsigned version_printed;
 	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
 	unsigned char bus_width;
-	DECLARE_MAC_BUF(mac);
 
 	if (!request_region(ioaddr, NE_IO_EXTENT, DRV_NAME))
 		return -EBUSY;
@@ -299,7 +298,7 @@ static int __init ne_probe1(struct net_device *dev, int ioaddr)
 
 	for(i = 0; i < ETHER_ADDR_LEN; i++)
 		dev->dev_addr[i] = SA_prom[i];
-	printk(" %s\n", print_mac(mac, dev->dev_addr));
+	printk(" %pM\n", dev->dev_addr);
 
 	printk("%s: %s found at %#x, using IRQ %d.\n",
 		dev->name, name, ioaddr, dev->irq);

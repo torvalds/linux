@@ -320,7 +320,6 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 	int err;
 	u8 *end = (u8 *)eeprom + len;
 	u16 synth;
-	DECLARE_MAC_BUF(mac);
 
 	wrap = (struct eeprom_pda_wrap *) eeprom;
 	entry = (void *)wrap->data + le16_to_cpu(wrap->len);
@@ -445,9 +444,9 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 		SET_IEEE80211_PERM_ADDR(dev, perm_addr);
 	}
 
-	printk(KERN_INFO "%s: hwaddr %s, MAC:isl38%02x RF:%s\n",
+	printk(KERN_INFO "%s: hwaddr %pM, MAC:isl38%02x RF:%s\n",
 		wiphy_name(dev->wiphy),
-		print_mac(mac, dev->wiphy->perm_addr),
+		dev->wiphy->perm_addr,
 		priv->version, p54_rf_chips[priv->rxhw]);
 
 	return 0;

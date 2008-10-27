@@ -1081,7 +1081,6 @@ static int __devinit bigmac_ether_init(struct of_device *op,
 	static int version_printed;
 	struct net_device *dev;
 	u8 bsizes, bsizes_more;
-	DECLARE_MAC_BUF(mac);
 	struct bigmac *bp;
 	int i;
 
@@ -1212,8 +1211,8 @@ static int __devinit bigmac_ether_init(struct of_device *op,
 
 	dev_set_drvdata(&bp->bigmac_op->dev, bp);
 
-	printk(KERN_INFO "%s: BigMAC 100baseT Ethernet %s\n",
-	       dev->name, print_mac(mac, dev->dev_addr));
+	printk(KERN_INFO "%s: BigMAC 100baseT Ethernet %pM\n",
+	       dev->name, dev->dev_addr);
 
 	return 0;
 

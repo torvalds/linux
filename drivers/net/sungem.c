@@ -2966,7 +2966,6 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 	struct net_device *dev;
 	struct gem *gp;
 	int err, pci_using_dac;
-	DECLARE_MAC_BUF(mac);
 
 	if (gem_version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
@@ -3150,9 +3149,8 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 		goto err_out_free_consistent;
 	}
 
-	printk(KERN_INFO "%s: Sun GEM (PCI) 10/100/1000BaseT Ethernet "
-	       "%s\n",
-	       dev->name, print_mac(mac, dev->dev_addr));
+	printk(KERN_INFO "%s: Sun GEM (PCI) 10/100/1000BaseT Ethernet %pM\n",
+	       dev->name, dev->dev_addr);
 
 	if (gp->phy_type == phy_mii_mdio0 ||
      	    gp->phy_type == phy_mii_mdio1)

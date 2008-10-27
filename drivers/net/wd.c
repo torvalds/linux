@@ -156,7 +156,6 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 	int word16 = 0;				/* 0 = 8 bit, 1 = 16 bit */
 	const char *model_name;
 	static unsigned version_printed;
-	DECLARE_MAC_BUF(mac);
 
 	for (i = 0; i < 8; i++)
 		checksum += inb(ioaddr + 8 + i);
@@ -178,8 +177,8 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = inb(ioaddr + 8 + i);
 
-	printk("%s: WD80x3 at %#3x, %s",
-	       dev->name, ioaddr, print_mac(mac, dev->dev_addr));
+	printk("%s: WD80x3 at %#3x, %pM",
+	       dev->name, ioaddr, dev->dev_addr);
 
 	/* The following PureData probe code was contributed by
 	   Mike Jagdis <jaggy@purplet.demon.co.uk>. Puredata does software

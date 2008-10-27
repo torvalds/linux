@@ -912,7 +912,6 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	u16 eeprom_data = 0;
 	u16 eeprom_apme_mask = E1000_EEPROM_APME;
 	int bars, need_ioport;
-	DECLARE_MAC_BUF(mac);
 
 	/* do not allocate ioport bars when not needed */
 	need_ioport = e1000_is_need_ioport(pdev);
@@ -1194,7 +1193,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 		 (hw->bus_width == e1000_bus_width_pciex_1) ? "Width x1" :
 		 "32-bit"));
 
-	printk("%s\n", print_mac(mac, netdev->dev_addr));
+	printk("%pM\n", netdev->dev_addr);
 
 	if (hw->bus_type == e1000_bus_type_pci_express) {
 		DPRINTK(PROBE, WARNING, "This device (id %04x:%04x) will no "

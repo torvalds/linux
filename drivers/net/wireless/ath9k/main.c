@@ -362,7 +362,6 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 	struct ieee80211_channel *curchan = hw->conf.channel;
 	struct ath_vap *avp;
 	int pos;
-	DECLARE_MAC_BUF(mac);
 
 	if (bss_conf->assoc) {
 		DPRINTF(sc, ATH_DBG_CONFIG, "%s: Bss Info ASSOC %d\n",
@@ -397,9 +396,9 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 		ath_update_chainmask(sc, bss_conf->assoc_ht);
 
 		DPRINTF(sc, ATH_DBG_CONFIG,
-			"%s: bssid %s aid 0x%x\n",
+			"%s: bssid %pM aid 0x%x\n",
 			__func__,
-			print_mac(mac, sc->sc_curbssid), sc->sc_curaid);
+			sc->sc_curbssid, sc->sc_curaid);
 
 		DPRINTF(sc, ATH_DBG_CONFIG, "%s: Set channel: %d MHz\n",
 			__func__,
@@ -1278,7 +1277,6 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 	struct ath_vap *avp;
 	u32 rfilt = 0;
 	int error, i;
-	DECLARE_MAC_BUF(mac);
 
 	avp = sc->sc_vaps[0];
 	if (avp == NULL) {
@@ -1333,9 +1331,9 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 			sc->sc_imask &= ~(ATH9K_INT_SWBA | ATH9K_INT_BMISS);
 
 			DPRINTF(sc, ATH_DBG_CONFIG,
-				"%s: RX filter 0x%x bssid %s aid 0x%x\n",
+				"%s: RX filter 0x%x bssid %pM aid 0x%x\n",
 				__func__, rfilt,
-				print_mac(mac, sc->sc_curbssid), sc->sc_curaid);
+				sc->sc_curbssid, sc->sc_curaid);
 
 			/* need to reconfigure the beacon */
 			sc->sc_flags &= ~SC_OP_BEACONS ;
@@ -1424,7 +1422,6 @@ static void ath9k_sta_notify(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	struct ath_node *an;
 	unsigned long flags;
-	DECLARE_MAC_BUF(mac);
 
 	spin_lock_irqsave(&sc->node_lock, flags);
 	an = ath_node_find(sc, sta->addr);
@@ -1435,8 +1432,8 @@ static void ath9k_sta_notify(struct ieee80211_hw *hw,
 		spin_lock_irqsave(&sc->node_lock, flags);
 		if (!an) {
 			ath_node_attach(sc, sta->addr, 0);
-			DPRINTF(sc, ATH_DBG_CONFIG, "%s: Attach a node: %s\n",
-				__func__, print_mac(mac, sta->addr));
+			DPRINTF(sc, ATH_DBG_CONFIG, "%s: Attach a node: %pM\n",
+				__func__, sta->addr);
 		} else {
 			ath_node_get(sc, sta->addr);
 		}
@@ -1449,9 +1446,9 @@ static void ath9k_sta_notify(struct ieee80211_hw *hw,
 				__func__);
 		else {
 			ath_node_put(sc, an, ATH9K_BH_STATUS_INTACT);
-			DPRINTF(sc, ATH_DBG_CONFIG, "%s: Put a node: %s\n",
+			DPRINTF(sc, ATH_DBG_CONFIG, "%s: Put a node: %pM\n",
 				__func__,
-				print_mac(mac, sta->addr));
+				sta->addr);
 		}
 		break;
 	default:

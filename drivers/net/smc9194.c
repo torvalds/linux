@@ -876,8 +876,6 @@ static int __init smc_probe(struct net_device *dev, int ioaddr)
 	word memory_info_register;
 	word memory_cfg_register;
 
-	DECLARE_MAC_BUF(mac);
-
 	/* Grab the region so that no one else tries to probe our ioports. */
 	if (!request_region(ioaddr, SMC_IO_EXTENT, DRV_NAME))
 		return -EBUSY;
@@ -1033,7 +1031,7 @@ static int __init smc_probe(struct net_device *dev, int ioaddr)
 	/*
 	 . Print the Ethernet address
 	*/
-	printk("ADDR: %s\n", print_mac(mac, dev->dev_addr));
+	printk("ADDR: %pM\n", dev->dev_addr);
 
 	/* set the private data to zero by default */
 	memset(dev->priv, 0, sizeof(struct smc_local));

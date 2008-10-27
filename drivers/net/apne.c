@@ -207,7 +207,6 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
     int neX000, ctron;
 #endif
     static unsigned version_printed;
-    DECLARE_MAC_BUF(mac);
 
     if (ei_debug  &&  version_printed++ == 0)
 	printk(version);
@@ -323,7 +322,7 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
     for(i = 0; i < ETHER_ADDR_LEN; i++)
 	dev->dev_addr[i] = SA_prom[i];
 
-    printk(" %s\n", print_mac(mac, dev->dev_addr));
+    printk(" %pM\n", dev->dev_addr);
 
     printk("%s: %s found.\n", dev->name, name);
 

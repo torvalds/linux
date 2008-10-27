@@ -261,7 +261,6 @@ static int __devinit uli526x_init_one (struct pci_dev *pdev,
 	struct uli526x_board_info *db;	/* board information structure */
 	struct net_device *dev;
 	int i, err;
-	DECLARE_MAC_BUF(mac);
 
 	ULI526X_DBUG(0, "uli526x_init_one()", 0);
 
@@ -379,9 +378,9 @@ static int __devinit uli526x_init_one (struct pci_dev *pdev,
 	if (err)
 		goto err_out_res;
 
-	printk(KERN_INFO "%s: ULi M%04lx at pci%s, %s, irq %d.\n",
+	printk(KERN_INFO "%s: ULi M%04lx at pci%s, %pM, irq %d.\n",
 	       dev->name,ent->driver_data >> 16,pci_name(pdev),
-	       print_mac(mac, dev->dev_addr), dev->irq);
+	       dev->dev_addr, dev->irq);
 
 	pci_set_master(pdev);
 

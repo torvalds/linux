@@ -648,7 +648,6 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 	struct net_device *dev;
 	struct etherh_priv *eh;
 	int ret;
-	DECLARE_MAC_BUF(mac);
 
 	etherh_banner();
 
@@ -746,8 +745,8 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 	if (ret)
 		goto free;
 
-	printk(KERN_INFO "%s: %s in slot %d, %s\n",
-		dev->name, data->name, ec->slot_no, print_mac(mac, dev->dev_addr));
+	printk(KERN_INFO "%s: %s in slot %d, %pM\n",
+		dev->name, data->name, ec->slot_no, dev->dev_addr);
 
 	ecard_set_drvdata(ec, dev);
 

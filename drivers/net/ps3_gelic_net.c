@@ -1443,7 +1443,6 @@ int gelic_net_setup_netdev(struct net_device *netdev, struct gelic_card *card)
 {
 	int status;
 	u64 v1, v2;
-	DECLARE_MAC_BUF(mac);
 
 	netdev->features = NETIF_F_IP_CSUM;
 
@@ -1474,9 +1473,8 @@ int gelic_net_setup_netdev(struct net_device *netdev, struct gelic_card *card)
 			__func__, netdev->name, status);
 		return status;
 	}
-	dev_info(ctodev(card), "%s: MAC addr %s\n",
-		 netdev->name,
-		 print_mac(mac, netdev->dev_addr));
+	dev_info(ctodev(card), "%s: MAC addr %pM\n",
+		 netdev->name, netdev->dev_addr);
 
 	return 0;
 }

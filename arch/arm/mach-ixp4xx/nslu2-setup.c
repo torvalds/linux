@@ -220,7 +220,6 @@ static struct sys_timer nslu2_timer = {
 
 static void __init nslu2_init(void)
 {
-	DECLARE_MAC_BUF(mac_buf);
 	uint8_t __iomem *f;
 	int i;
 
@@ -275,8 +274,8 @@ static void __init nslu2_init(void)
 #endif
 		iounmap(f);
 	}
-	printk(KERN_INFO "NSLU2: Using MAC address %s for port 0\n",
-	       print_mac(mac_buf, nslu2_plat_eth[0].hwaddr));
+	printk(KERN_INFO "NSLU2: Using MAC address %pM for port 0\n",
+	       nslu2_plat_eth[0].hwaddr);
 
 }
 

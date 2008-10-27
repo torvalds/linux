@@ -786,7 +786,6 @@ static int __devinit p54u_probe(struct usb_interface *intf,
 	struct p54u_priv *priv;
 	int err;
 	unsigned int i, recognized_pipes;
-	DECLARE_MAC_BUF(mac);
 
 	dev = p54_init_common(sizeof(*priv));
 	if (!dev) {

@@ -530,10 +530,6 @@ int hostap_set_auth_algs(local_info_t *local)
 void hostap_dump_rx_header(const char *name, const struct hfa384x_rx_frame *rx)
 {
 	u16 status, fc;
-	DECLARE_MAC_BUF(mac);
-	DECLARE_MAC_BUF(mac2);
-	DECLARE_MAC_BUF(mac3);
-	DECLARE_MAC_BUF(mac4);
 
 	status = __le16_to_cpu(rx->status);
 
@@ -552,12 +548,11 @@ void hostap_dump_rx_header(const char *name, const struct hfa384x_rx_frame *rx)
 	       fc & IEEE80211_FCTL_TODS ? " [ToDS]" : "",
 	       fc & IEEE80211_FCTL_FROMDS ? " [FromDS]" : "");
 
-	printk(KERN_DEBUG "   A1=%s A2=%s A3=%s A4=%s\n",
-	       print_mac(mac, rx->addr1), print_mac(mac2, rx->addr2),
-	       print_mac(mac3, rx->addr3), print_mac(mac4, rx->addr4));
+	printk(KERN_DEBUG "   A1=%pM A2=%pM A3=%pM A4=%pM\n",
+	       rx->addr1, rx->addr2, rx->addr3, rx->addr4);
 
-	printk(KERN_DEBUG "   dst=%s src=%s len=%d\n",
-	       print_mac(mac, rx->dst_addr), print_mac(mac2, rx->src_addr),
+	printk(KERN_DEBUG "   dst=%pM src=%pM len=%d\n",
+	       rx->dst_addr, rx->src_addr,
 	       __be16_to_cpu(rx->len));
 }
 
@@ -565,10 +560,6 @@ void hostap_dump_rx_header(const char *name, const struct hfa384x_rx_frame *rx)
 void hostap_dump_tx_header(const char *name, const struct hfa384x_tx_frame *tx)
 {
 	u16 fc;
-	DECLARE_MAC_BUF(mac);
-	DECLARE_MAC_BUF(mac2);
-	DECLARE_MAC_BUF(mac3);
-	DECLARE_MAC_BUF(mac4);
 
 	printk(KERN_DEBUG "%s: TX status=0x%04x retry_count=%d tx_rate=%d "
 	       "tx_control=0x%04x; jiffies=%ld\n",
@@ -584,12 +575,11 @@ void hostap_dump_tx_header(const char *name, const struct hfa384x_tx_frame *tx)
 	       fc & IEEE80211_FCTL_TODS ? " [ToDS]" : "",
 	       fc & IEEE80211_FCTL_FROMDS ? " [FromDS]" : "");
 
-	printk(KERN_DEBUG "   A1=%s A2=%s A3=%s A4=%s\n",
-	       print_mac(mac, tx->addr1), print_mac(mac2, tx->addr2),
-	       print_mac(mac3, tx->addr3), print_mac(mac4, tx->addr4));
+	printk(KERN_DEBUG "   A1=%pM A2=%pM A3=%pM A4=%pM\n",
+	       tx->addr1, tx->addr2, tx->addr3, tx->addr4);
 
-	printk(KERN_DEBUG "   dst=%s src=%s len=%d\n",
-	       print_mac(mac, tx->dst_addr), print_mac(mac2, tx->src_addr),
+	printk(KERN_DEBUG "   dst=%pM src=%pM len=%d\n",
+	       tx->dst_addr, tx->src_addr,
 	       __be16_to_cpu(tx->len));
 }
 

@@ -806,7 +806,6 @@ static int __devinit rtl8180_probe(struct pci_dev *pdev,
 	const char *chip_name, *rf_name = NULL;
 	u32 reg;
 	u16 eeprom_val;
-	DECLARE_MAC_BUF(mac);
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -1002,8 +1001,8 @@ static int __devinit rtl8180_probe(struct pci_dev *pdev,
 		goto err_iounmap;
 	}
 
-	printk(KERN_INFO "%s: hwaddr %s, %s + %s\n",
-	       wiphy_name(dev->wiphy), print_mac(mac, dev->wiphy->perm_addr),
+	printk(KERN_INFO "%s: hwaddr %pM, %s + %s\n",
+	       wiphy_name(dev->wiphy), dev->wiphy->perm_addr,
 	       chip_name, priv->rf->name);
 
 	return 0;

@@ -1479,7 +1479,6 @@ struct net_device *init_atmel_card(unsigned short irq, unsigned long port,
 	struct net_device *dev;
 	struct atmel_private *priv;
 	int rc;
-	DECLARE_MAC_BUF(mac);
 
 	/* Create the network device object. */
         dev = alloc_etherdev(sizeof(*priv));
@@ -1591,8 +1590,8 @@ struct net_device *init_atmel_card(unsigned short irq, unsigned long port,
 	if (!ent)
 		printk(KERN_WARNING "atmel: unable to create /proc entry.\n");
 
-	printk(KERN_INFO "%s: Atmel at76c50x. Version %d.%d. MAC %s\n",
-	       dev->name, DRIVER_MAJOR, DRIVER_MINOR, print_mac(mac, dev->dev_addr));
+	printk(KERN_INFO "%s: Atmel at76c50x. Version %d.%d. MAC %pM\n",
+	       dev->name, DRIVER_MAJOR, DRIVER_MINOR, dev->dev_addr);
 
 	return dev;
 

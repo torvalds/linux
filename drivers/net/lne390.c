@@ -169,7 +169,6 @@ static int __init lne390_probe1(struct net_device *dev, int ioaddr)
 {
 	int i, revision, ret;
 	unsigned long eisa_id;
-	DECLARE_MAC_BUF(mac);
 
 	if (inb_p(ioaddr + LNE390_ID_PORT) == 0xff) return -ENODEV;
 
@@ -203,8 +202,8 @@ static int __init lne390_probe1(struct net_device *dev, int ioaddr)
 
 	for(i = 0; i < ETHER_ADDR_LEN; i++)
 		dev->dev_addr[i] = inb(ioaddr + LNE390_SA_PROM + i);
-	printk("lne390.c: LNE390%X in EISA slot %d, address %s.\n",
-	       0xa+revision, ioaddr/0x1000, print_mac(mac, dev->dev_addr));
+	printk("lne390.c: LNE390%X in EISA slot %d, address %pM.\n",
+	       0xa+revision, ioaddr/0x1000, dev->dev_addr);
 
 	printk("lne390.c: ");
 

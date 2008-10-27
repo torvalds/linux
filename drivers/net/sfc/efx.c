@@ -612,17 +612,15 @@ static int efx_probe_port(struct efx_nic *efx)
 	if (is_valid_ether_addr(efx->mac_address)) {
 		memcpy(efx->net_dev->dev_addr, efx->mac_address, ETH_ALEN);
 	} else {
-		DECLARE_MAC_BUF(mac);
-
-		EFX_ERR(efx, "invalid MAC address %s\n",
-			print_mac(mac, efx->mac_address));
+		EFX_ERR(efx, "invalid MAC address %pM\n",
+			efx->mac_address);
 		if (!allow_bad_hwaddr) {
 			rc = -EINVAL;
 			goto err;
 		}
 		random_ether_addr(efx->net_dev->dev_addr);
-		EFX_INFO(efx, "using locally-generated MAC %s\n",
-			 print_mac(mac, efx->net_dev->dev_addr));
+		EFX_INFO(efx, "using locally-generated MAC %pM\n",
+			 efx->net_dev->dev_addr);
 	}
 
 	return 0;
@@ -1401,9 +1399,8 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
 	if (!is_valid_ether_addr(new_addr)) {
-		DECLARE_MAC_BUF(mac);
-		EFX_ERR(efx, "invalid ethernet MAC address requested: %s\n",
-			print_mac(mac, new_addr));
+		EFX_ERR(efx, "invalid ethernet MAC address requested: %pM\n",
+			new_addr);
 		return -EINVAL;
 	}
 

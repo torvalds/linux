@@ -1955,7 +1955,6 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 	long addr;
 	int err;
 	int using_dac = 0;
-	DECLARE_MAC_BUF(mac);
 
 	/* See if we can set the dma mask early on; failure is fatal. */
 	if (sizeof(dma_addr_t) == 8 &&
@@ -2220,12 +2219,11 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 		ndev->features |= NETIF_F_HIGHDMA;
 	}
 
-	printk(KERN_INFO "%s: ns83820 v" VERSION ": DP83820 v%u.%u: %s io=0x%08lx irq=%d f=%s\n",
+	printk(KERN_INFO "%s: ns83820 v" VERSION ": DP83820 v%u.%u: %pM io=0x%08lx irq=%d f=%s\n",
 		ndev->name,
 		(unsigned)readl(dev->base + SRR) >> 8,
 		(unsigned)readl(dev->base + SRR) & 0xff,
-		print_mac(mac, ndev->dev_addr),
-		addr, pci_dev->irq,
+		ndev->dev_addr, addr, pci_dev->irq,
 		(ndev->features & NETIF_F_HIGHDMA) ? "h,sg" : "sg"
 		);
 

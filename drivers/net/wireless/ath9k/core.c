@@ -1325,7 +1325,6 @@ struct ath_node *ath_node_attach(struct ath_softc *sc, u8 *addr, int if_id)
 {
 	struct ath_vap *avp;
 	struct ath_node *an;
-	DECLARE_MAC_BUF(mac);
 
 	avp = sc->sc_vaps[if_id];
 	ASSERT(avp != NULL);
@@ -1354,8 +1353,6 @@ struct ath_node *ath_node_attach(struct ath_softc *sc, u8 *addr, int if_id)
 void ath_node_detach(struct ath_softc *sc, struct ath_node *an, bool bh_flag)
 {
 	unsigned long flags;
-
-	DECLARE_MAC_BUF(mac);
 
 	ath_chainmask_sel_timerstop(&an->an_chainmask_sel);
 	an->an_flags |= ATH_NODE_CLEAN;

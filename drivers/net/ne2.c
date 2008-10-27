@@ -302,7 +302,6 @@ out:
 static int ne2_procinfo(char *buf, int slot, struct net_device *dev)
 {
 	int len=0;
-	DECLARE_MAC_BUF(mac);
 
 	len += sprintf(buf+len, "The NE/2 Ethernet Adapter\n" );
 	len += sprintf(buf+len, "Driver written by Wim Dumon ");
@@ -313,7 +312,7 @@ static int ne2_procinfo(char *buf, int slot, struct net_device *dev)
 	len += sprintf(buf+len, "Based on the original NE2000 drivers\n" );
 	len += sprintf(buf+len, "Base IO: %#x\n", (unsigned int)dev->base_addr);
 	len += sprintf(buf+len, "IRQ    : %d\n", dev->irq);
-	len += sprintf(buf+len, "HW addr : %s\n", print_mac(mac, dev->dev_addr));
+	len += sprintf(buf+len, "HW addr : %pM\n", dev->dev_addr);
 
 	return len;
 }
@@ -326,7 +325,6 @@ static int __init ne2_probe1(struct net_device *dev, int slot)
 	const char *name = "NE/2";
 	int start_page, stop_page;
 	static unsigned version_printed;
-	DECLARE_MAC_BUF(mac);
 
 	if (ei_debug && version_printed++ == 0)
 		printk(version);
@@ -469,7 +467,7 @@ static int __init ne2_probe1(struct net_device *dev, int slot)
 	for(i = 0; i < ETHER_ADDR_LEN; i++)
 		dev->dev_addr[i] = SA_prom[i];
 
-	printk(" %s\n", print_mac(mac, dev->dev_addr));
+	printk(" %pM\n", dev->dev_addr);
 
 	printk("%s: %s found at %#x, using IRQ %d.\n",
 			dev->name, name, base_addr, dev->irq);

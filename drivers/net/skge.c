@@ -3885,11 +3885,10 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 static void __devinit skge_show_addr(struct net_device *dev)
 {
 	const struct skge_port *skge = netdev_priv(dev);
-	DECLARE_MAC_BUF(mac);
 
 	if (netif_msg_probe(skge))
-		printk(KERN_INFO PFX "%s: addr %s\n",
-		       dev->name, print_mac(mac, dev->dev_addr));
+		printk(KERN_INFO PFX "%s: addr %pM\n",
+		       dev->name, dev->dev_addr);
 }
 
 static int __devinit skge_probe(struct pci_dev *pdev,

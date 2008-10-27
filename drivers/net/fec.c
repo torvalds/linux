@@ -2562,7 +2562,6 @@ static int __init fec_enet_module_init(void)
 {
 	struct net_device *dev;
 	int i, err;
-	DECLARE_MAC_BUF(mac);
 
 	printk("FEC ENET Version 0.2\n");
 
@@ -2581,8 +2580,7 @@ static int __init fec_enet_module_init(void)
 			return -EIO;
 		}
 
-		printk("%s: ethernet %s\n",
-		       dev->name, print_mac(mac, dev->dev_addr));
+		printk("%s: ethernet %pM\n", dev->name, dev->dev_addr);
 	}
 	return 0;
 }

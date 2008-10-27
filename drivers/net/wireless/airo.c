@@ -2757,7 +2757,6 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	struct net_device *dev;
 	struct airo_info *ai;
 	int i, rc;
-	DECLARE_MAC_BUF(mac);
 
 	/* Create the network device object. */
 	dev = alloc_netdev(sizeof(*ai), "", ether_setup);
@@ -2860,8 +2859,7 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 		goto err_out_reg;
 
 	set_bit(FLAG_REGISTERED,&ai->flags);
-	airo_print_info(dev->name, "MAC enabled %s",
-			print_mac(mac, dev->dev_addr));
+	airo_print_info(dev->name, "MAC enabled %pM", dev->dev_addr);
 
 	/* Allocate the transmit buffers */
 	if (probe && !test_bit(FLAG_MPI,&ai->flags))
@@ -2918,7 +2916,6 @@ int reset_airo_card( struct net_device *dev )
 {
 	int i;
 	struct airo_info *ai = dev->priv;
-	DECLARE_MAC_BUF(mac);
 
 	if (reset_card (dev, 1))
 		return -1;
@@ -2927,8 +2924,7 @@ int reset_airo_card( struct net_device *dev )
 		airo_print_err(dev->name, "MAC could not be enabled");
 		return -1;
 	}
-	airo_print_info(dev->name, "MAC enabled %s",
-			print_mac(mac, dev->dev_addr));
+	airo_print_info(dev->name, "MAC enabled %pM", dev->dev_addr);
 	/* Allocate the transmit buffers if needed */
 	if (!test_bit(FLAG_MPI,&ai->flags))
 		for( i = 0; i < MAX_FIDS; i++ )
@@ -5330,7 +5326,6 @@ static int proc_APList_open( struct inode *inode, struct file *file ) {
 	int i;
 	char *ptr;
 	APListRid APList_rid;
-	DECLARE_MAC_BUF(mac);
 
 	if ((file->private_data = kzalloc(sizeof(struct proc_data ), GFP_KERNEL)) == NULL)
 		return -ENOMEM;
@@ -5354,8 +5349,7 @@ static int proc_APList_open( struct inode *inode, struct file *file ) {
 // We end when we find a zero MAC
 		if ( !*(int*)APList_rid.ap[i] &&
 		     !*(int*)&APList_rid.ap[i][2]) break;
-		ptr += sprintf(ptr, "%s\n",
-			       print_mac(mac, APList_rid.ap[i]));
+		ptr += sprintf(ptr, "%pM\n", APList_rid.ap[i]);
 	}
 	if (i==0) ptr += sprintf(ptr, "Not using specific APs\n");
 
@@ -5374,7 +5368,6 @@ static int proc_BSSList_open( struct inode *inode, struct file *file ) {
 	int rc;
 	/* If doLoseSync is not 1, we won't do a Lose Sync */
 	int doLoseSync = -1;
-	DECLARE_MAC_BUF(mac);
 
 	if ((file->private_data = kzalloc(sizeof(struct proc_data ), GFP_KERNEL)) == NULL)
 		return -ENOMEM;
@@ -5411,8 +5404,8 @@ static int proc_BSSList_open( struct inode *inode, struct file *file ) {
            we have to add a spin lock... */
 	rc = readBSSListRid(ai, doLoseSync, &BSSList_rid);
 	while(rc == 0 && BSSList_rid.index != cpu_to_le16(0xffff)) {
-		ptr += sprintf(ptr, "%s %*s rssi = %d",
-			       print_mac(mac, BSSList_rid.bssid),
+		ptr += sprintf(ptr, "%pM %*s rssi = %d",
+			       BSSList_rid.bssid,
 				(int)BSSList_rid.ssidLen,
 				BSSList_rid.ssid,
 				le16_to_cpu(BSSList_rid.dBm));

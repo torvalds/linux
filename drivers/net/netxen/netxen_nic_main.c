@@ -439,7 +439,6 @@ netxen_read_mac_addr(struct netxen_adapter *adapter)
 	int i;
 	unsigned char *p;
 	__le64 mac_addr;
-	DECLARE_MAC_BUF(mac);
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
 
@@ -462,10 +461,9 @@ netxen_read_mac_addr(struct netxen_adapter *adapter)
 
 	/* set station address */
 
-	if (!is_valid_ether_addr(netdev->perm_addr)) {
-		dev_warn(&pdev->dev, "Bad MAC address %s.\n",
-				print_mac(mac, netdev->dev_addr));
-	} else
+	if (!is_valid_ether_addr(netdev->perm_addr))
+		dev_warn(&pdev->dev, "Bad MAC address %pM.\n", netdev->dev_addr);
+	else
 		adapter->macaddr_set(adapter, netdev->dev_addr);
 
 	return 0;

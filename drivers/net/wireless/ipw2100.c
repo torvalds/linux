@@ -1914,7 +1914,6 @@ static void isr_indicate_associated(struct ipw2100_priv *priv, u32 status)
 	u32 chan;
 	char *txratename;
 	u8 bssid[ETH_ALEN];
-	DECLARE_MAC_BUF(mac);
 
 	/*
 	 * TBD: BSSID is usually 00:00:00:00:00:00 here and not
@@ -1975,10 +1974,9 @@ static void isr_indicate_associated(struct ipw2100_priv *priv, u32 status)
 		break;
 	}
 
-	IPW_DEBUG_INFO("%s: Associated with '%s' at %s, channel %d (BSSID="
-		       "%s)\n",
+	IPW_DEBUG_INFO("%s: Associated with '%s' at %s, channel %d (BSSID=%pM)\n",
 		       priv->net_dev->name, escape_essid(essid, essid_len),
-		       txratename, chan, print_mac(mac, bssid));
+		       txratename, chan, bssid);
 
 	/* now we copy read ssid into dev */
 	if (!(priv->config & CFG_STATIC_ESSID)) {
@@ -2046,12 +2044,10 @@ static int ipw2100_set_essid(struct ipw2100_priv *priv, char *essid,
 
 static void isr_indicate_association_lost(struct ipw2100_priv *priv, u32 status)
 {
-	DECLARE_MAC_BUF(mac);
-
 	IPW_DEBUG(IPW_DL_NOTIF | IPW_DL_STATE | IPW_DL_ASSOC,
-		  "disassociated: '%s' %s \n",
+		  "disassociated: '%s' %pM \n",
 		  escape_essid(priv->essid, priv->essid_len),
-		  print_mac(mac, priv->bssid));
+		  priv->bssid);
 
 	priv->status &= ~(STATUS_ASSOCIATED | STATUS_ASSOCIATING);
 
@@ -4058,7 +4054,6 @@ static ssize_t show_bssinfo(struct device *d, struct device_attribute *attr,
 	char *out = buf;
 	int length;
 	int ret;
-	DECLARE_MAC_BUF(mac);
 
 	if (priv->status & STATUS_RF_KILL_MASK)
 		return 0;
@@ -4086,7 +4081,7 @@ static ssize_t show_bssinfo(struct device *d, struct device_attribute *attr,
 			       __LINE__);
 
 	out += sprintf(out, "ESSID: %s\n", essid);
-	out += sprintf(out, "BSSID:   %s\n", print_mac(mac, bssid));
+	out += sprintf(out, "BSSID:   %pM\n", bssid);
 	out += sprintf(out, "Channel: %d\n", chan);
 
 	return out - buf;
@@ -4662,7 +4657,6 @@ static int ipw2100_read_mac_address(struct ipw2100_priv *priv)
 {
 	u32 length = ETH_ALEN;
 	u8 addr[ETH_ALEN];
-	DECLARE_MAC_BUF(mac);
 
 	int err;
 
@@ -4673,8 +4667,7 @@ static int ipw2100_read_mac_address(struct ipw2100_priv *priv)
 	}
 
 	memcpy(priv->net_dev->dev_addr, addr, ETH_ALEN);
-	IPW_DEBUG_INFO("card MAC is %s\n",
-		       print_mac(mac, priv->net_dev->dev_addr));
+	IPW_DEBUG_INFO("card MAC is %pM\n", priv->net_dev->dev_addr);
 
 	return 0;
 }
@@ -5053,10 +5046,8 @@ static int ipw2100_set_mandatory_bssid(struct ipw2100_priv *priv, u8 * bssid,
 	int err;
 
 #ifdef CONFIG_IPW2100_DEBUG
-	DECLARE_MAC_BUF(mac);
 	if (bssid != NULL)
-		IPW_DEBUG_HC("MANDATORY_BSSID: %s\n",
-			     print_mac(mac, bssid));
+		IPW_DEBUG_HC("MANDATORY_BSSID: %pM\n", bssid);
 	else
 		IPW_DEBUG_HC("MANDATORY_BSSID: <clear>\n");
 #endif
@@ -6905,7 +6896,6 @@ static int ipw2100_wx_set_wap(struct net_device *dev,
 	static const unsigned char off[] = {
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	};
-	DECLARE_MAC_BUF(mac);
 
 	// sanity checks
 	if (wrqu->ap_addr.sa_family != ARPHRD_ETHER)
@@ -6931,8 +6921,7 @@ static int ipw2100_wx_set_wap(struct net_device *dev,
 
 	err = ipw2100_set_mandatory_bssid(priv, wrqu->ap_addr.sa_data, 0);
 
-	IPW_DEBUG_WX("SET BSSID -> %s\n",
-		     print_mac(mac, wrqu->ap_addr.sa_data));
+	IPW_DEBUG_WX("SET BSSID -> %pM\n", wrqu->ap_addr.sa_data);
 
       done:
 	mutex_unlock(&priv->action_mutex);
@@ -6948,7 +6937,6 @@ static int ipw2100_wx_get_wap(struct net_device *dev,
 	 */
 
 	struct ipw2100_priv *priv = ieee80211_priv(dev);
-	DECLARE_MAC_BUF(mac);
 
 	/* If we are associated, trying to associate, or have a statically
 	 * configured BSSID then return that; otherwise return ANY */
@@ -6958,8 +6946,7 @@ static int ipw2100_wx_get_wap(struct net_device *dev,
 	} else
 		memset(wrqu->ap_addr.sa_data, 0, ETH_ALEN);
 
-	IPW_DEBUG_WX("Getting WAP BSSID: %s\n",
-		     print_mac(mac, wrqu->ap_addr.sa_data));
+	IPW_DEBUG_WX("Getting WAP BSSID: %pM\n", wrqu->ap_addr.sa_data);
 	return 0;
 }
 

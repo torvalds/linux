@@ -1149,7 +1149,6 @@ static int __devinit vnet_port_probe(struct vio_dev *vdev,
 	struct vnet *vp;
 	const u64 *rmac;
 	int len, i, err, switch_port;
-	DECLARE_MAC_BUF(mac);
 
 	print_version();
 
@@ -1214,8 +1213,8 @@ static int __devinit vnet_port_probe(struct vio_dev *vdev,
 
 	dev_set_drvdata(&vdev->dev, port);
 
-	printk(KERN_INFO "%s: PORT ( remote-mac %s%s )\n",
-	       vp->dev->name, print_mac(mac, port->raddr),
+	printk(KERN_INFO "%s: PORT ( remote-mac %pM%s )\n",
+	       vp->dev->name, port->raddr,
 	       switch_port ? " switch-port" : "");
 
 	vio_port_up(&port->vio);

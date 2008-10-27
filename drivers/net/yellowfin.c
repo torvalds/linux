@@ -374,7 +374,6 @@ static int __devinit yellowfin_init_one(struct pci_dev *pdev,
 #else
 	int bar = 1;
 #endif
-	DECLARE_MAC_BUF(mac);
 
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
@@ -481,10 +480,10 @@ static int __devinit yellowfin_init_one(struct pci_dev *pdev,
 	if (i)
 		goto err_out_unmap_status;
 
-	printk(KERN_INFO "%s: %s type %8x at %p, %s, IRQ %d.\n",
+	printk(KERN_INFO "%s: %s type %8x at %p, %pM, IRQ %d.\n",
 		   dev->name, pci_id_tbl[chip_idx].name,
 		   ioread32(ioaddr + ChipRev), ioaddr,
-		   print_mac(mac, dev->dev_addr), irq);
+		   dev->dev_addr, irq);
 
 	if (np->drv_flags & HasMII) {
 		int phy, phy_idx = 0;
@@ -1100,11 +1099,9 @@ static int yellowfin_rx(struct net_device *dev)
 			memcmp(le32_to_cpu(yp->rx_ring_dma +
 				entry*sizeof(struct yellowfin_desc)),
 				"\377\377\377\377\377\377", 6) != 0) {
-			if (bogus_rx++ == 0) {
-				DECLARE_MAC_BUF(mac);
-				printk(KERN_WARNING "%s: Bad frame to %s\n",
-					   dev->name, print_mac(mac, buf_addr));
-			}
+			if (bogus_rx++ == 0)
+				printk(KERN_WARNING "%s: Bad frame to %pM\n",
+					   dev->name, buf_addr);
 #endif
 		} else {
 			struct sk_buff *skb;

@@ -2093,9 +2093,8 @@ static void hp100_set_multicast_list(struct net_device *dev)
 				addrs = dmi->dmi_addr;
 				if ((*addrs & 0x01) == 0x01) {	/* multicast address? */
 #ifdef HP100_DEBUG
-					DECLARE_MAC_BUF(mac);
-					printk("hp100: %s: multicast = %s, ",
-						     dev->name, print_mac(mac, addrs));
+					printk("hp100: %s: multicast = %pM, ",
+						     dev->name, addrs);
 #endif
 					for (j = idx = 0; j < 6; j++) {
 						idx ^= *addrs++ & 0x3f;

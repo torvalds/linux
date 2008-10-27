@@ -2981,7 +2981,6 @@ static void myri10ge_set_multicast_list(struct net_device *dev)
 	struct dev_mc_list *mc_list;
 	__be32 data[2] = { 0, 0 };
 	int err;
-	DECLARE_MAC_BUF(mac);
 
 	/* can be called from atomic contexts,
 	 * pass 1 to force atomicity in myri10ge_send_cmd() */
@@ -3028,8 +3027,7 @@ static void myri10ge_set_multicast_list(struct net_device *dev)
 			printk(KERN_ERR "myri10ge: %s: Failed "
 			       "MXGEFW_JOIN_MULTICAST_GROUP, error status:"
 			       "%d\t", dev->name, err);
-			printk(KERN_ERR "MAC %s\n",
-			       print_mac(mac, mc_list->dmi_addr));
+			printk(KERN_ERR "MAC %pM\n", mc_list->dmi_addr);
 			goto abort;
 		}
 	}

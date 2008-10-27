@@ -162,7 +162,6 @@ static int gfar_probe(struct platform_device *pdev)
 	struct gianfar_platform_data *einfo;
 	struct resource *r;
 	int err = 0, irq;
-	DECLARE_MAC_BUF(mac);
 
 	einfo = (struct gianfar_platform_data *) pdev->dev.platform_data;
 
@@ -364,8 +363,7 @@ static int gfar_probe(struct platform_device *pdev)
 	gfar_init_sysfs(dev);
 
 	/* Print out the device info */
-	printk(KERN_INFO DEVICE_NAME "%s\n",
-	       dev->name, print_mac(mac, dev->dev_addr));
+	printk(KERN_INFO DEVICE_NAME "%pM\n", dev->name, dev->dev_addr);
 
 	/* Even more device info helps when determining which kernel */
 	/* provided which set of benchmarks. */

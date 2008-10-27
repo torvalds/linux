@@ -325,9 +325,7 @@ static int xmit_skb(struct virtnet_info *vi, struct sk_buff *skb)
 
 	sg_init_table(sg, 2+MAX_SKB_FRAGS);
 
-	pr_debug("%s: xmit %p " MAC_FMT "\n", vi->dev->name, skb,
-		 dest[0], dest[1], dest[2],
-		 dest[3], dest[4], dest[5]);
+	pr_debug("%s: xmit %p %pM\n", vi->dev->name, skb, dest);
 
 	/* Encode metadata header at front. */
 	hdr = skb_vnet_hdr(skb);

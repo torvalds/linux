@@ -179,7 +179,6 @@ static int __init es_probe1(struct net_device *dev, int ioaddr)
 {
 	int i, retval;
 	unsigned long eisa_id;
-	DECLARE_MAC_BUF(mac);
 
 	if (!request_region(ioaddr + ES_SA_PROM, ES_IO_EXTENT, "es3210"))
 		return -ENODEV;
@@ -205,14 +204,14 @@ static int __init es_probe1(struct net_device *dev, int ioaddr)
 	if (dev->dev_addr[0] != ES_ADDR0 ||
 	    dev->dev_addr[1] != ES_ADDR1 ||
 	    dev->dev_addr[2] != ES_ADDR2) {
-		printk("es3210.c: card not found %s (invalid_prefix).\n",
-		       print_mac(mac, dev->dev_addr));
+		printk("es3210.c: card not found %pM (invalid_prefix).\n",
+		       dev->dev_addr);
 		retval = -ENODEV;
 		goto out;
 	}
 
-	printk("es3210.c: ES3210 rev. %ld at %#x, node %s",
-	       eisa_id>>24, ioaddr, print_mac(mac, dev->dev_addr));
+	printk("es3210.c: ES3210 rev. %ld at %#x, node %pM",
+	       eisa_id>>24, ioaddr, dev->dev_addr);
 
 	/* Snarf the interrupt now. */
 	if (dev->irq == 0) {
