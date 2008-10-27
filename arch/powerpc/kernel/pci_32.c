@@ -26,12 +26,6 @@
 
 #undef DEBUG
 
-#ifdef DEBUG
-#define DBG(x...) printk(x)
-#else
-#define DBG(x...)
-#endif
-
 unsigned long isa_io_base     = 0;
 unsigned long pci_dram_offset = 0;
 int pcibios_assign_bus_offset = 1;
@@ -275,14 +269,14 @@ pci_busdev_to_OF_node(struct pci_bus *bus, int devfn)
 	if (!have_of)
 		return NULL;
 
-	DBG("pci_busdev_to_OF_node(%d,0x%x)\n", bus->number, devfn);
+	pr_debug("pci_busdev_to_OF_node(%d,0x%x)\n", bus->number, devfn);
 	parent = scan_OF_for_pci_bus(bus);
 	if (parent == NULL)
 		return NULL;
-	DBG(" parent is %s\n", parent ? parent->full_name : "<NULL>");
+	pr_debug(" parent is %s\n", parent ? parent->full_name : "<NULL>");
 	np = scan_OF_for_pci_dev(parent, devfn);
 	of_node_put(parent);
-	DBG(" result is %s\n", np ? np->full_name : "<NULL>");
+	pr_debug(" result is %s\n", np ? np->full_name : "<NULL>");
 
 	/* XXX most callers don't release the returned node
 	 * mostly because ppc64 doesn't increase the refcount,

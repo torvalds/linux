@@ -38,13 +38,6 @@
 #include <asm/ppc-pci.h>
 #include <asm/firmware.h>
 
-#ifdef DEBUG
-#include <asm/udbg.h>
-#define DBG(fmt...) printk(fmt)
-#else
-#define DBG(fmt...)
-#endif
-
 static DEFINE_SPINLOCK(hose_spinlock);
 
 /* XXX kill that some day ... */
@@ -215,8 +208,8 @@ void __devinit pcibios_setup_new_device(struct pci_dev *dev)
 
 	sd->of_node = pci_device_to_OF_node(dev);
 
-	DBG("PCI: device %s OF node: %s\n", pci_name(dev),
-	    sd->of_node ? sd->of_node->full_name : "<none>");
+	pr_debug("PCI: device %s OF node: %s\n", pci_name(dev),
+		 sd->of_node ? sd->of_node->full_name : "<none>");
 
 	sd->dma_ops = pci_dma_ops;
 #ifdef CONFIG_PPC32
@@ -253,7 +246,7 @@ int pci_read_irq_line(struct pci_dev *pci_dev)
 		return -1;
 #endif
 
-	DBG("Try to map irq for %s...\n", pci_name(pci_dev));
+	pr_debug("PCI: Try to map irq for %s...\n", pci_name(pci_dev));
 
 #ifdef DEBUG
 	memset(&oirq, 0xff, sizeof(oirq));
@@ -277,26 +270,26 @@ int pci_read_irq_line(struct pci_dev *pci_dev)
 		    line == 0xff || line == 0) {
 			return -1;
 		}
-		DBG(" -> no map ! Using line %d (pin %d) from PCI config\n",
-		    line, pin);
+		pr_debug(" No map ! Using line %d (pin %d) from PCI config\n",
+			 line, pin);
 
 		virq = irq_create_mapping(NULL, line);
 		if (virq != NO_IRQ)
 			set_irq_type(virq, IRQ_TYPE_LEVEL_LOW);
 	} else {
-		DBG(" -> got one, spec %d cells (0x%08x 0x%08x...) on %s\n",
-		    oirq.size, oirq.specifier[0], oirq.specifier[1],
+		pr_debug(" Got one, spec %d cells (0x%08x 0x%08x...) on %s\n",
+			 oirq.size, oirq.specifier[0], oirq.specifier[1],
 		    oirq.controller->full_name);
 
 		virq = irq_create_of_mapping(oirq.controller, oirq.specifier,
 					     oirq.size);
 	}
 	if(virq == NO_IRQ) {
-		DBG(" -> failed to map !\n");
+		pr_debug(" Failed to map !\n");
 		return -1;
 	}
 
-	DBG(" -> mapped to linux irq %d\n", virq);
+	pr_debug(" Mapped to linux irq %d\n", virq);
 
 	pci_dev->irq = virq;
 
@@ -452,8 +445,8 @@ pgprot_t pci_phys_mem_access_prot(struct file *file,
 		pci_dev_put(pdev);
 	}
 
-	DBG("non-PCI map for %llx, prot: %lx\n",
-	    (unsigned long long)offset, prot);
+	pr_debug("PCI: Non-PCI map for %llx, prot: %lx\n",
+		 (unsigned long long)offset, prot);
 
 	return __pgprot(prot);
 }
@@ -1196,10 +1189,10 @@ static int __init reparent_resources(struct resource *parent,
 	*pp = NULL;
 	for (p = res->child; p != NULL; p = p->sibling) {
 		p->parent = res;
-		DBG(KERN_INFO "PCI: reparented %s [%llx..%llx] under %s\n",
-		    p->name,
-		    (unsigned long long)p->start,
-		    (unsigned long long)p->end, res->name);
+		pr_debug("PCI: Reparented %s [%llx..%llx] under %s\n",
+			 p->name,
+			 (unsigned long long)p->start,
+			 (unsigned long long)p->end, res->name);
 	}
 	return 0;
 }
@@ -1269,14 +1262,14 @@ void pcibios_allocate_bus_resources(struct pci_bus *bus)
 			}
 		}
 
-		DBG("PCI: %s (bus %d) bridge rsrc %d: %016llx-%016llx "
-		    "[0x%x], parent %p (%s)\n",
-		    bus->self ? pci_name(bus->self) : "PHB",
-		    bus->number, i,
-		    (unsigned long long)res->start,
-		    (unsigned long long)res->end,
-		    (unsigned int)res->flags,
-		    pr, (pr && pr->name) ? pr->name : "nil");
+		pr_debug("PCI: %s (bus %d) bridge rsrc %d: %016llx-%016llx "
+			 "[0x%x], parent %p (%s)\n",
+			 bus->self ? pci_name(bus->self) : "PHB",
+			 bus->number, i,
+			 (unsigned long long)res->start,
+			 (unsigned long long)res->end,
+			 (unsigned int)res->flags,
+			 pr, (pr && pr->name) ? pr->name : "nil");
 
 		if (pr && !(pr->flags & IORESOURCE_UNSET)) {
 			if (request_resource(pr, res) == 0)
@@ -1303,11 +1296,11 @@ static inline void __devinit alloc_resource(struct pci_dev *dev, int idx)
 {
 	struct resource *pr, *r = &dev->resource[idx];
 
-	DBG("PCI: Allocating %s: Resource %d: %016llx..%016llx [%x]\n",
-	    pci_name(dev), idx,
-	    (unsigned long long)r->start,
-	    (unsigned long long)r->end,
-	    (unsigned int)r->flags);
+	pr_debug("PCI: Allocating %s: Resource %d: %016llx..%016llx [%x]\n",
+		 pci_name(dev), idx,
+		 (unsigned long long)r->start,
+		 (unsigned long long)r->end,
+		 (unsigned int)r->flags);
 
 	pr = pci_find_parent_resource(dev, r);
 	if (!pr || (pr->flags & IORESOURCE_UNSET) ||
@@ -1315,10 +1308,11 @@ static inline void __devinit alloc_resource(struct pci_dev *dev, int idx)
 		printk(KERN_WARNING "PCI: Cannot allocate resource region %d"
 		       " of device %s, will remap\n", idx, pci_name(dev));
 		if (pr)
-			DBG("PCI:  parent is %p: %016llx-%016llx [%x]\n", pr,
-			    (unsigned long long)pr->start,
-			    (unsigned long long)pr->end,
-			    (unsigned int)pr->flags);
+			pr_debug("PCI:  parent is %p: %016llx-%016llx [%x]\n",
+				 pr,
+				 (unsigned long long)pr->start,
+				 (unsigned long long)pr->end,
+				 (unsigned int)pr->flags);
 		/* We'll assign a new address later */
 		r->flags |= IORESOURCE_UNSET;
 		r->end -= r->start;
@@ -1356,7 +1350,8 @@ static void __init pcibios_allocate_resources(int pass)
 			 * but keep it unregistered.
 			 */
 			u32 reg;
-			DBG("PCI: Switching off ROM of %s\n", pci_name(dev));
+			pr_debug("PCI: Switching off ROM of %s\n",
+				 pci_name(dev));
 			r->flags &= ~IORESOURCE_ROM_ENABLE;
 			pci_read_config_dword(dev, dev->rom_base_reg, &reg);
 			pci_write_config_dword(dev, dev->rom_base_reg,
@@ -1381,7 +1376,7 @@ void __init pcibios_resource_survey(void)
 	}
 
 	if (!(ppc_pci_flags & PPC_PCI_PROBE_ONLY)) {
-		DBG("PCI: Assigning unassigned resouces...\n");
+		pr_debug("PCI: Assigning unassigned resouces...\n");
 		pci_assign_unassigned_resources();
 	}
 
