@@ -285,7 +285,8 @@ void uwb_rsv_set_state(struct uwb_rsv *rsv, enum uwb_rsv_state new_state)
 	switch (new_state) {
 	case UWB_RSV_STATE_NONE:
 		uwb_drp_avail_release(rsv->rc, &rsv->mas);
-		uwb_rsv_put_stream(rsv);
+		if (uwb_rsv_is_owner(rsv))
+			uwb_rsv_put_stream(rsv);
 		uwb_rsv_state_update(rsv, UWB_RSV_STATE_NONE);
 		uwb_rsv_callback(rsv);
 		break;
@@ -532,7 +533,6 @@ static struct uwb_rsv *uwb_rsv_new_target(struct uwb_rc *rc,
 	rsv->target.dev  = &rc->uwb_dev;
 	rsv->type        = uwb_ie_drp_type(drp_ie);
 	rsv->stream      = uwb_ie_drp_stream_index(drp_ie);
-	set_bit(rsv->stream, rsv->owner->streams);
 	uwb_drp_ie_to_bm(&rsv->mas, drp_ie);
 
 	/*
