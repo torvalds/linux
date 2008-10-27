@@ -250,18 +250,14 @@ error_alloc:
  * wusbhc_stop - stop transmitting MMCs
  * @wusbhc: the HC to stop
  *
- * Send a Host Disconnect IE, wait, remove all the MMCs (stop sending MMCs).
- *
- * If we can't allocate a Host Stop IE, screw it, we don't notify the
- * devices we are disconnecting...
+ * Stops the WUSB channel and removes the cluster reservation.
  */
 void wusbhc_stop(struct wusbhc *wusbhc)
 {
 	if (wusbhc->active) {
 		wusbhc->active = 0;
-		wusbhc->stop(wusbhc);
+		wusbhc->stop(wusbhc, WUSB_CHANNEL_STOP_DELAY_MS);
 		wusbhc_sec_stop(wusbhc);
-		__wusbhc_host_disconnect_ie(wusbhc);
 		wusbhc_devconnect_stop(wusbhc);
 		wusbhc_rsv_terminate(wusbhc);
 	}

@@ -171,11 +171,6 @@ static int hwahc_op_start(struct usb_hcd *usb_hcd)
 	if (result < 0)
 		goto error_set_cluster_id;
 
-	result = wa_nep_arm(&hwahc->wa, GFP_KERNEL);
-	if (result < 0) {
-		dev_err(dev, "cannot listen to notifications: %d\n", result);
-		goto error_stop;
-	}
 	usb_hcd->uses_new_polling = 1;
 	usb_hcd->poll_rh = 1;
 	usb_hcd->state = HC_STATE_RUNNING;
@@ -185,46 +180,11 @@ out:
 	d_fnend(4, dev, "(hwahc %p) = %d\n", hwahc, result);
 	return result;
 
-error_stop:
-	__wa_stop(&hwahc->wa);
 error_set_cluster_id:
 	wusb_cluster_id_put(wusbhc->cluster_id);
 error_cluster_id_get:
 	goto out;
 
-}
-
-/*
- * FIXME: break this function up
- */
-static int __hwahc_op_wusbhc_start(struct wusbhc *wusbhc)
-{
-	int result;
-	struct hwahc *hwahc = container_of(wusbhc, struct hwahc, wusbhc);
-	struct device *dev = &hwahc->wa.usb_iface->dev;
-
-	/* Set up a Host Info WUSB Information Element */
-	d_fnstart(4, dev, "(hwahc %p)\n", hwahc);
-	result = -ENOSPC;
-
-	result = __wa_set_feature(&hwahc->wa, WA_ENABLE);
-	if (result < 0) {
-		dev_err(dev, "error commanding HC to start: %d\n", result);
-		goto error_stop;
-	}
-	result = __wa_wait_status(&hwahc->wa, WA_ENABLE, WA_ENABLE);
-	if (result < 0) {
-		dev_err(dev, "error waiting for HC to start: %d\n", result);
-		goto error_stop;
-	}
-	result = 0;
-out:
-	d_fnend(4, dev, "(hwahc %p) = %d\n", hwahc, result);
-	return result;
-
-error_stop:
-	result = __wa_clear_feature(&hwahc->wa, WA_ENABLE);
-	goto out;
 }
 
 static int hwahc_op_suspend(struct usb_hcd *usb_hcd, pm_message_t msg)
@@ -246,18 +206,6 @@ static int hwahc_op_resume(struct usb_hcd *usb_hcd)
 	return -ENOSYS;
 }
 
-static void __hwahc_op_wusbhc_stop(struct wusbhc *wusbhc)
-{
-	int result;
-	struct hwahc *hwahc = container_of(wusbhc, struct hwahc, wusbhc);
-	struct device *dev = &hwahc->wa.usb_iface->dev;
-
-	d_fnstart(4, dev, "(hwahc %p)\n", hwahc);
-	/* Nothing for now */
-	d_fnend(4, dev, "(hwahc %p) = %d\n", hwahc, result);
-	return;
-}
-
 /*
  * No need to abort pipes, as when this is called, all the children
  * has been disconnected and that has done it [through
@@ -275,8 +223,6 @@ static void hwahc_op_stop(struct usb_hcd *usb_hcd)
 	d_fnstart(4, dev, "(hwahc %p)\n", hwahc);
 	mutex_lock(&wusbhc->mutex);
 	wusbhc_stop(wusbhc);
-	wa_nep_disarm(&hwahc->wa);
-	result = __wa_stop(&hwahc->wa);
 	wusb_cluster_id_put(wusbhc->cluster_id);
 	mutex_unlock(&wusbhc->mutex);
 	d_fnend(4, dev, "(hwahc %p) = %d\n", hwahc, result);
@@ -323,6 +269,54 @@ static void hwahc_op_endpoint_disable(struct usb_hcd *usb_hcd,
 	struct hwahc *hwahc = container_of(wusbhc, struct hwahc, wusbhc);
 
 	rpipe_ep_disable(&hwahc->wa, ep);
+}
+
+static int __hwahc_op_wusbhc_start(struct wusbhc *wusbhc)
+{
+	int result;
+	struct hwahc *hwahc = container_of(wusbhc, struct hwahc, wusbhc);
+	struct device *dev = &hwahc->wa.usb_iface->dev;
+
+	result = __wa_set_feature(&hwahc->wa, WA_ENABLE);
+	if (result < 0) {
+		dev_err(dev, "error commanding HC to start: %d\n", result);
+		goto error_stop;
+	}
+	result = __wa_wait_status(&hwahc->wa, WA_ENABLE, WA_ENABLE);
+	if (result < 0) {
+		dev_err(dev, "error waiting for HC to start: %d\n", result);
+		goto error_stop;
+	}
+	result = wa_nep_arm(&hwahc->wa, GFP_KERNEL);
+	if (result < 0) {
+		dev_err(dev, "cannot listen to notifications: %d\n", result);
+		goto error_stop;
+	}
+	return result;
+
+error_stop:
+	__wa_clear_feature(&hwahc->wa, WA_ENABLE);
+	return result;
+}
+
+static void __hwahc_op_wusbhc_stop(struct wusbhc *wusbhc, int delay)
+{
+	struct hwahc *hwahc = container_of(wusbhc, struct hwahc, wusbhc);
+	struct wahc *wa = &hwahc->wa;
+	u8 iface_no = wa->usb_iface->cur_altsetting->desc.bInterfaceNumber;
+	int ret;
+
+	ret = usb_control_msg(wa->usb_dev, usb_sndctrlpipe(wa->usb_dev, 0),
+			      WUSB_REQ_CHAN_STOP,
+			      USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
+			      delay * 1000,
+			      iface_no,
+			      NULL, 0, 1000 /* FIXME: arbitrary */);
+	if (ret == 0)
+		msleep(delay);
+
+	wa_nep_disarm(&hwahc->wa);
+	__wa_stop(&hwahc->wa);
 }
 
 /*

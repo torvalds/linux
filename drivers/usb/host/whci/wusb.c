@@ -64,8 +64,9 @@ static int whc_update_di(struct whc *whc, int idx)
 }
 
 /*
- * WHCI starts and stops MMCs based on there being a valid GTK so
- * these need only start/stop the asynchronous and periodic schedules.
+ * WHCI starts MMCs based on there being a valid GTK so these need
+ * only start/stop the asynchronous and periodic schedules and send a
+ * channel stop command.
  */
 
 int whc_wusbhc_start(struct wusbhc *wusbhc)
@@ -78,12 +79,20 @@ int whc_wusbhc_start(struct wusbhc *wusbhc)
 	return 0;
 }
 
-void whc_wusbhc_stop(struct wusbhc *wusbhc)
+void whc_wusbhc_stop(struct wusbhc *wusbhc, int delay)
 {
 	struct whc *whc = wusbhc_to_whc(wusbhc);
+	u32 stop_time, now_time;
+	int ret;
 
 	pzl_stop(whc);
 	asl_stop(whc);
+
+	now_time = le_readl(whc->base + WUSBTIME) & WUSBTIME_CHANNEL_TIME_MASK;
+	stop_time = (now_time + ((delay * 8) << 7)) & 0x00ffffff;
+	ret = whc_do_gencmd(whc, WUSBGENCMDSTS_CHAN_STOP, stop_time, NULL, 0);
+	if (ret == 0)
+		msleep(delay);
 }
 
 int whc_mmcie_add(struct wusbhc *wusbhc, u8 interval, u8 repeat_cnt,

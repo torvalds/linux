@@ -136,7 +136,7 @@ int whc_do_gencmd(struct whc *whc, u32 cmd, u32 params, void *addr, size_t len);
 
 /* wusb.c */
 int whc_wusbhc_start(struct wusbhc *wusbhc);
-void whc_wusbhc_stop(struct wusbhc *wusbhc);
+void whc_wusbhc_stop(struct wusbhc *wusbhc, int delay);
 int whc_mmcie_add(struct wusbhc *wusbhc, u8 interval, u8 repeat_cnt,
 		  u8 handle, struct wuie_hdr *wuie);
 int whc_mmcie_rm(struct wusbhc *wusbhc, u8 handle);

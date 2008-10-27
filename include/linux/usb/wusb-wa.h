@@ -51,6 +51,7 @@ enum {
 	WUSB_REQ_GET_TIME       = 25,
 	WUSB_REQ_SET_STREAM_IDX = 26,
 	WUSB_REQ_SET_WUSB_MAS   = 27,
+	WUSB_REQ_CHAN_STOP      = 28,
 };
 
 
