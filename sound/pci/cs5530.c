@@ -2,7 +2,7 @@
  * cs5530.c - Initialisation code for Cyrix/NatSemi VSA1 softaudio
  *
  * 	(C) Copyright 2007 Ash Willis <ashwillis@programmer.net>
- *	(C) Copyright 2003 Red Hat Inc <alan@redhat.com>
+ *	(C) Copyright 2003 Red Hat Inc <alan@lxorguk.ukuu.org.uk>
  *
  * This driver was ported (shamelessly ripped ;) from oss/kahlua.c but I did
  * mess with it a bit. The chip seems to have to have trouble with full duplex
