@@ -124,4 +124,18 @@ static inline struct exofs_i_info *exofs_i(struct inode *inode)
 	return container_of(inode, struct exofs_i_info, vfs_inode);
 }
 
+/*************************
+ * function declarations *
+ *************************/
+/* inode.c               */
+void exofs_truncate(struct inode *inode);
+int exofs_setattr(struct dentry *, struct iattr *);
+
+/*********************
+ * operation vectors *
+ *********************/
+/* file.c            */
+extern const struct inode_operations exofs_file_inode_operations;
+extern const struct file_operations exofs_file_operations;
+
 #endif
