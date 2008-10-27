@@ -844,8 +844,11 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	 * correctly in testing on 945G.
 	 * This may be a side effect of MSI having been made available for PEG
 	 * and the registers being closely associated.
+	 *
+	 * According to chipset errata, on the 965GM, MSI interrupts may
+	 * be lost or delayed
 	 */
-	if (!IS_I945G(dev) && !IS_I945GM(dev))
+	if (!IS_I945G(dev) && !IS_I945GM(dev) && !IS_I965GM(dev))
 		if (pci_enable_msi(dev->pdev))
 			DRM_ERROR("failed to enable MSI\n");
 

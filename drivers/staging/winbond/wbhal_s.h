@@ -461,7 +461,7 @@ typedef struct _HW_DATA_T
 	//=====================================================================
 	// Definition for 802.11
 	//=====================================================================
-	PUCHAR	bssid_pointer; // Used by hal_get_bssid for return value
+	u8	*bssid_pointer; // Used by hal_get_bssid for return value
 	u8	bssid[8];// Only 6 byte will be used. 8 byte is required for read buffer
 	u8	ssid[32];// maximum ssid length is 32 byte
 
@@ -486,7 +486,7 @@ typedef struct _HW_DATA_T
 	u32	CurrentRadioSw; // 20060320.2 0:On 1:Off
 	u32	CurrentRadioHw; // 20060825 0:On 1:Off
 
-	PUCHAR	power_save_point;  // Used by hal_get_power_save_mode for return value
+	u8	*power_save_point;  // Used by hal_get_power_save_mode for return value
 	u8	cwmin;
 	u8	desired_power_save;
 	u8	dtim;// Is running dtim

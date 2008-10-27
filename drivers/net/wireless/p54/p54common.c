@@ -306,8 +306,8 @@ static int p54_convert_rev1(struct ieee80211_hw *dev,
 	return 0;
 }
 
-static const char *p54_rf_chips[] = { "NULL", "Indigo?", "Duette",
-                              "Frisbee", "Xbow", "Longbow" };
+static const char *p54_rf_chips[] = { "NULL", "Duette3", "Duette2",
+                              "Frisbee", "Xbow", "Longbow", "NULL", "NULL" };
 static int p54_init_xbow_synth(struct ieee80211_hw *dev);
 
 static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
@@ -319,6 +319,7 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 	void *tmp;
 	int err;
 	u8 *end = (u8 *)eeprom + len;
+	u16 synth;
 	DECLARE_MAC_BUF(mac);
 
 	wrap = (struct eeprom_pda_wrap *) eeprom;
@@ -400,8 +401,8 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 			tmp = entry->data;
 			while ((u8 *)tmp < entry->data + data_len) {
 				struct bootrec_exp_if *exp_if = tmp;
-				if (le16_to_cpu(exp_if->if_id) == 0xF)
-					priv->rxhw = le16_to_cpu(exp_if->variant) & 0x07;
+				if (le16_to_cpu(exp_if->if_id) == 0xf)
+					synth = le16_to_cpu(exp_if->variant);
 				tmp += sizeof(struct bootrec_exp_if);
 			}
 			break;
@@ -427,22 +428,13 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 		goto err;
 	}
 
-	switch (priv->rxhw) {
-	case 4: /* XBow */
+	priv->rxhw = synth & 0x07;
+	if (priv->rxhw == 4)
 		p54_init_xbow_synth(dev);
-	case 1: /* Indigo? */
-	case 2: /* Duette */
-		dev->wiphy->bands[IEEE80211_BAND_5GHZ] = &band_5GHz;
-	case 3: /* Frisbee */
-	case 5: /* Longbow */
+	if (!(synth & 0x40))
 		dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &band_2GHz;
-		break;
-	default:
-		printk(KERN_ERR "%s: unsupported RF-Chip\n",
-			wiphy_name(dev->wiphy));
-		err = -EINVAL;
-		goto err;
-	}
+	if (!(synth & 0x80))
+		dev->wiphy->bands[IEEE80211_BAND_5GHZ] = &band_5GHz;
 
 	if (!is_valid_ether_addr(dev->wiphy->perm_addr)) {
 		u8 perm_addr[ETH_ALEN];

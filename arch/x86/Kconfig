@@ -116,6 +116,9 @@ config GENERIC_TIME_VSYSCALL
 config ARCH_HAS_CPU_RELAX
 	def_bool y
 
+config ARCH_HAS_DEFAULT_IDLE
+	def_bool y
+
 config ARCH_HAS_CACHE_LINE_SIZE
 	def_bool y
 
@@ -1634,6 +1637,8 @@ endif # APM
 source "arch/x86/kernel/cpu/cpufreq/Kconfig"
 
 source "drivers/cpuidle/Kconfig"
+
+source "drivers/idle/Kconfig"
 
 endmenu
 

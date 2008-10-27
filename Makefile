@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
-SUBLEVEL = 27
-EXTRAVERSION =
-NAME = Rotary Wombat
+SUBLEVEL = 28
+EXTRAVERSION = -rc2
+NAME = Killer Bat of Doom
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
@@ -437,7 +437,7 @@ ifeq ($(config-targets),1)
 # KBUILD_DEFCONFIG may point out an alternative default configuration
 # used for 'make defconfig'
 include $(srctree)/arch/$(SRCARCH)/Makefile
-export KBUILD_DEFCONFIG
+export KBUILD_DEFCONFIG KBUILD_KCONFIG
 
 config %config: scripts_basic outputmakefile FORCE
 	$(Q)mkdir -p include/linux include/config

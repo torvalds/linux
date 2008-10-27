@@ -22,7 +22,7 @@
 #include <linux/oprofile.h>
 #include <linux/vmalloc.h>
 #include <linux/errno.h>
- 
+
 #include "event_buffer.h"
 #include "cpu_buffer.h"
 #include "buffer_sync.h"
@@ -38,27 +38,40 @@ static int work_enabled;
 void free_cpu_buffers(void)
 {
 	int i;
- 
-	for_each_online_cpu(i) {
+
+	for_each_possible_cpu(i) {
 		vfree(per_cpu(cpu_buffer, i).buffer);
 		per_cpu(cpu_buffer, i).buffer = NULL;
 	}
 }
 
+unsigned long oprofile_get_cpu_buffer_size(void)
+{
+	return fs_cpu_buffer_size;
+}
+
+void oprofile_cpu_buffer_inc_smpl_lost(void)
+{
+	struct oprofile_cpu_buffer *cpu_buf
+		= &__get_cpu_var(cpu_buffer);
+
+	cpu_buf->sample_lost_overflow++;
+}
+
 int alloc_cpu_buffers(void)
 {
 	int i;
- 
+
 	unsigned long buffer_size = fs_cpu_buffer_size;
- 
-	for_each_online_cpu(i) {
+
+	for_each_possible_cpu(i) {
 		struct oprofile_cpu_buffer *b = &per_cpu(cpu_buffer, i);
- 
+
 		b->buffer = vmalloc_node(sizeof(struct op_sample) * buffer_size,
 			cpu_to_node(i));
 		if (!b->buffer)
 			goto fail;
- 
+
 		b->last_task = NULL;
 		b->last_is_kernel = -1;
 		b->tracing = 0;
@@ -112,7 +125,7 @@ void end_cpu_work(void)
 }
 
 /* Resets the cpu buffer to a sane state. */
-void cpu_buffer_reset(struct oprofile_cpu_buffer * cpu_buf)
+void cpu_buffer_reset(struct oprofile_cpu_buffer *cpu_buf)
 {
 	/* reset these to invalid values; the next sample
 	 * collected will populate the buffer with proper
@@ -123,7 +136,7 @@ void cpu_buffer_reset(struct oprofile_cpu_buffer * cpu_buf)
 }
 
 /* compute number of available slots in cpu_buffer queue */
-static unsigned long nr_available_slots(struct oprofile_cpu_buffer const * b)
+static unsigned long nr_available_slots(struct oprofile_cpu_buffer const *b)
 {
 	unsigned long head = b->head_pos;
 	unsigned long tail = b->tail_pos;
@@ -134,7 +147,7 @@ static unsigned long nr_available_slots(struct oprofile_cpu_buffer const * b)
 	return tail + (b->buffer_size - head) - 1;
 }
 
-static void increment_head(struct oprofile_cpu_buffer * b)
+static void increment_head(struct oprofile_cpu_buffer *b)
 {
 	unsigned long new_head = b->head_pos + 1;
 
@@ -149,17 +162,17 @@ static void increment_head(struct oprofile_cpu_buffer * b)
 }
 
 static inline void
-add_sample(struct oprofile_cpu_buffer * cpu_buf,
-           unsigned long pc, unsigned long event)
+add_sample(struct oprofile_cpu_buffer *cpu_buf,
+	   unsigned long pc, unsigned long event)
 {
-	struct op_sample * entry = &cpu_buf->buffer[cpu_buf->head_pos];
+	struct op_sample *entry = &cpu_buf->buffer[cpu_buf->head_pos];
 	entry->eip = pc;
 	entry->event = event;
 	increment_head(cpu_buf);
 }
 
 static inline void
-add_code(struct oprofile_cpu_buffer * buffer, unsigned long value)
+add_code(struct oprofile_cpu_buffer *buffer, unsigned long value)
 {
 	add_sample(buffer, ESCAPE_CODE, value);
 }
@@ -173,10 +186,10 @@ add_code(struct oprofile_cpu_buffer * buffer, unsigned long value)
  * pc. We tag this in the buffer by generating kernel enter/exit
  * events whenever is_kernel changes
  */
-static int log_sample(struct oprofile_cpu_buffer * cpu_buf, unsigned long pc,
+static int log_sample(struct oprofile_cpu_buffer *cpu_buf, unsigned long pc,
 		      int is_kernel, unsigned long event)
 {
-	struct task_struct * task;
+	struct task_struct *task;
 
 	cpu_buf->sample_received++;
 
@@ -205,7 +218,7 @@ static int log_sample(struct oprofile_cpu_buffer * cpu_buf, unsigned long pc,
 		cpu_buf->last_task = task;
 		add_code(cpu_buf, (unsigned long)task);
 	}
- 
+
 	add_sample(cpu_buf, pc, event);
 	return 1;
 }
@@ -222,7 +235,7 @@ static int oprofile_begin_trace(struct oprofile_cpu_buffer *cpu_buf)
 	return 1;
 }
 
-static void oprofile_end_trace(struct oprofile_cpu_buffer * cpu_buf)
+static void oprofile_end_trace(struct oprofile_cpu_buffer *cpu_buf)
 {
 	cpu_buf->tracing = 0;
 }
@@ -257,20 +270,22 @@ void oprofile_add_sample(struct pt_regs * const regs, unsigned long event)
 
 #ifdef CONFIG_OPROFILE_IBS
 
-#define MAX_IBS_SAMPLE_SIZE	14
-static int log_ibs_sample(struct oprofile_cpu_buffer *cpu_buf,
-	unsigned long pc, int is_kernel, unsigned  int *ibs, int ibs_code)
+#define MAX_IBS_SAMPLE_SIZE 14
+
+void oprofile_add_ibs_sample(struct pt_regs *const regs,
+			     unsigned int *const ibs_sample, int ibs_code)
 {
+	int is_kernel = !user_mode(regs);
+	struct oprofile_cpu_buffer *cpu_buf = &__get_cpu_var(cpu_buffer);
 	struct task_struct *task;
 
 	cpu_buf->sample_received++;
 
 	if (nr_available_slots(cpu_buf) < MAX_IBS_SAMPLE_SIZE) {
+		/* we can't backtrace since we lost the source of this event */
 		cpu_buf->sample_lost_overflow++;
-		return 0;
+		return;
 	}
-
-	is_kernel = !!is_kernel;
 
 	/* notice a switch from user->kernel or vice versa */
 	if (cpu_buf->last_is_kernel != is_kernel) {
@@ -281,7 +296,6 @@ static int log_ibs_sample(struct oprofile_cpu_buffer *cpu_buf,
 	/* notice a task switch */
 	if (!is_kernel) {
 		task = current;
-
 		if (cpu_buf->last_task != task) {
 			cpu_buf->last_task = task;
 			add_code(cpu_buf, (unsigned long)task);
@@ -289,36 +303,17 @@ static int log_ibs_sample(struct oprofile_cpu_buffer *cpu_buf,
 	}
 
 	add_code(cpu_buf, ibs_code);
-	add_sample(cpu_buf, ibs[0], ibs[1]);
-	add_sample(cpu_buf, ibs[2], ibs[3]);
-	add_sample(cpu_buf, ibs[4], ibs[5]);
+	add_sample(cpu_buf, ibs_sample[0], ibs_sample[1]);
+	add_sample(cpu_buf, ibs_sample[2], ibs_sample[3]);
+	add_sample(cpu_buf, ibs_sample[4], ibs_sample[5]);
 
 	if (ibs_code == IBS_OP_BEGIN) {
-	add_sample(cpu_buf, ibs[6], ibs[7]);
-	add_sample(cpu_buf, ibs[8], ibs[9]);
-	add_sample(cpu_buf, ibs[10], ibs[11]);
+		add_sample(cpu_buf, ibs_sample[6], ibs_sample[7]);
+		add_sample(cpu_buf, ibs_sample[8], ibs_sample[9]);
+		add_sample(cpu_buf, ibs_sample[10], ibs_sample[11]);
 	}
 
-	return 1;
-}
-
-void oprofile_add_ibs_sample(struct pt_regs *const regs,
-				unsigned int * const ibs_sample, u8 code)
-{
-	int is_kernel = !user_mode(regs);
-	unsigned long pc = profile_pc(regs);
-
-	struct oprofile_cpu_buffer *cpu_buf =
-			 &per_cpu(cpu_buffer, smp_processor_id());
-
-	if (!backtrace_depth) {
-		log_ibs_sample(cpu_buf, pc, is_kernel, ibs_sample, code);
-		return;
-	}
-
-	/* if log_sample() fails we can't backtrace since we lost the source
-	* of this event */
-	if (log_ibs_sample(cpu_buf, pc, is_kernel, ibs_sample, code))
+	if (backtrace_depth)
 		oprofile_ops.backtrace(regs, backtrace_depth);
 }
 
@@ -363,11 +358,16 @@ void oprofile_add_trace(unsigned long pc)
  */
 static void wq_sync_buffer(struct work_struct *work)
 {
-	struct oprofile_cpu_buffer * b =
+	struct oprofile_cpu_buffer *b =
 		container_of(work, struct oprofile_cpu_buffer, work.work);
 	if (b->cpu != smp_processor_id()) {
 		printk(KERN_DEBUG "WQ on CPU%d, prefer CPU%d\n",
 		       smp_processor_id(), b->cpu);
+
+		if (!cpu_online(b->cpu)) {
+			cancel_delayed_work(&b->work);
+			return;
+		}
 	}
 	sync_buffer(b->cpu);
 

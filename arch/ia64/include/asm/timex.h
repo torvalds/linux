@@ -39,4 +39,6 @@ get_cycles (void)
 	return ret;
 }
 
+extern void ia64_cpu_local_tick (void);
+
 #endif /* _ASM_IA64_TIMEX_H */

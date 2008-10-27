@@ -613,6 +613,7 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 				const struct pci_device_id *pci_id)
 {
 	int retval = 0;
+	int i;
 	int vbi_buf_size;
 	u32 devtype;
 	struct cx18 *cx;
@@ -698,7 +699,8 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 
 	/* active i2c  */
 	CX18_DEBUG_INFO("activating i2c...\n");
-	if (init_cx18_i2c(cx)) {
+	retval = init_cx18_i2c(cx);
+	if (retval) {
 		CX18_ERR("Could not initialize i2c\n");
 		goto free_map;
 	}
@@ -836,8 +838,11 @@ err:
 	CX18_ERR("Error %d on initialization\n", retval);
 	cx18_log_statistics(cx);
 
-	kfree(cx18_cards[cx18_cards_active]);
-	cx18_cards[cx18_cards_active] = NULL;
+	i = cx->num;
+	spin_lock(&cx18_cards_lock);
+	kfree(cx18_cards[i]);
+	cx18_cards[i] = NULL;
+	spin_unlock(&cx18_cards_lock);
 	return retval;
 }
 

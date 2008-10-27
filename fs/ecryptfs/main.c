@@ -471,31 +471,26 @@ out:
  */
 static int ecryptfs_read_super(struct super_block *sb, const char *dev_name)
 {
+	struct path path;
 	int rc;
-	struct nameidata nd;
-	struct dentry *lower_root;
-	struct vfsmount *lower_mnt;
 
-	memset(&nd, 0, sizeof(struct nameidata));
-	rc = path_lookup(dev_name, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &nd);
+	rc = kern_path(dev_name, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &path);
 	if (rc) {
 		ecryptfs_printk(KERN_WARNING, "path_lookup() failed\n");
 		goto out;
 	}
-	lower_root = nd.path.dentry;
-	lower_mnt = nd.path.mnt;
-	ecryptfs_set_superblock_lower(sb, lower_root->d_sb);
-	sb->s_maxbytes = lower_root->d_sb->s_maxbytes;
-	sb->s_blocksize = lower_root->d_sb->s_blocksize;
-	ecryptfs_set_dentry_lower(sb->s_root, lower_root);
-	ecryptfs_set_dentry_lower_mnt(sb->s_root, lower_mnt);
-	rc = ecryptfs_interpose(lower_root, sb->s_root, sb, 0);
+	ecryptfs_set_superblock_lower(sb, path.dentry->d_sb);
+	sb->s_maxbytes = path.dentry->d_sb->s_maxbytes;
+	sb->s_blocksize = path.dentry->d_sb->s_blocksize;
+	ecryptfs_set_dentry_lower(sb->s_root, path.dentry);
+	ecryptfs_set_dentry_lower_mnt(sb->s_root, path.mnt);
+	rc = ecryptfs_interpose(path.dentry, sb->s_root, sb, 0);
 	if (rc)
 		goto out_free;
 	rc = 0;
 	goto out;
 out_free:
-	path_put(&nd.path);
+	path_put(&path);
 out:
 	return rc;
 }

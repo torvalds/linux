@@ -31,8 +31,8 @@
 #define PRINT_WARN(x...)  printk(KERN_WARNING DCSSBLK_NAME " warning: " x)
 #define PRINT_ERR(x...)	  printk(KERN_ERR DCSSBLK_NAME " error: " x)
 
-static int dcssblk_open(struct inode *inode, struct file *filp);
-static int dcssblk_release(struct inode *inode, struct file *filp);
+static int dcssblk_open(struct block_device *bdev, fmode_t mode);
+static int dcssblk_release(struct gendisk *disk, fmode_t mode);
 static int dcssblk_make_request(struct request_queue *q, struct bio *bio);
 static int dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
 				 void **kaddr, unsigned long *pfn);
@@ -776,32 +776,31 @@ out_buf:
 }
 
 static int
-dcssblk_open(struct inode *inode, struct file *filp)
+dcssblk_open(struct block_device *bdev, fmode_t mode)
 {
 	struct dcssblk_dev_info *dev_info;
 	int rc;
 
-	dev_info = inode->i_bdev->bd_disk->private_data;
+	dev_info = bdev->bd_disk->private_data;
 	if (NULL == dev_info) {
 		rc = -ENODEV;
 		goto out;
 	}
 	atomic_inc(&dev_info->use_count);
-	inode->i_bdev->bd_block_size = 4096;
+	bdev->bd_block_size = 4096;
 	rc = 0;
 out:
 	return rc;
 }
 
 static int
-dcssblk_release(struct inode *inode, struct file *filp)
+dcssblk_release(struct gendisk *disk, fmode_t mode)
 {
-	struct dcssblk_dev_info *dev_info;
+	struct dcssblk_dev_info *dev_info = disk->private_data;
 	struct segment_info *entry;
 	int rc;
 
-	dev_info = inode->i_bdev->bd_disk->private_data;
-	if (NULL == dev_info) {
+	if (!dev_info) {
 		rc = -ENODEV;
 		goto out;
 	}

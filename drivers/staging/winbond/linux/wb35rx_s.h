@@ -41,7 +41,7 @@ typedef struct _WB35RX
 	u32		Ep3ErrorCount2; // 20060625.1 Usbd for Rx DMA error count
 
 	int		EP3VM_status;
-	PUCHAR	pDRx;
+	u8 *	pDRx;
 
 } WB35RX, *PWB35RX;
 

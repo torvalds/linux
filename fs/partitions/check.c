@@ -485,10 +485,10 @@ void register_disk(struct gendisk *disk)
 		goto exit;
 
 	bdev->bd_invalidated = 1;
-	err = blkdev_get(bdev, FMODE_READ, 0);
+	err = blkdev_get(bdev, FMODE_READ);
 	if (err < 0)
 		goto exit;
-	blkdev_put(bdev);
+	blkdev_put(bdev, FMODE_READ);
 
 exit:
 	/* announce disk after possible partitions are created */

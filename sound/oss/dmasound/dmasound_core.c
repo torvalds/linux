@@ -212,7 +212,7 @@ static int irq_installed;
 #endif /* MODULE */
 
 /* control over who can modify resources shared between play/record */
-static mode_t shared_resource_owner;
+static fmode_t shared_resource_owner;
 static int shared_resources_initialised;
 
     /*
@@ -668,7 +668,7 @@ static inline void sq_init_waitqueue(struct sound_queue *sq)
 
 #if 0 /* blocking open() */
 static inline void sq_wake_up(struct sound_queue *sq, struct file *file,
-			      mode_t mode)
+			      fmode_t mode)
 {
 	if (file->f_mode & mode) {
 		sq->busy = 0; /* CHECK: IS THIS OK??? */
@@ -677,7 +677,7 @@ static inline void sq_wake_up(struct sound_queue *sq, struct file *file,
 }
 #endif
 
-static int sq_open2(struct sound_queue *sq, struct file *file, mode_t mode,
+static int sq_open2(struct sound_queue *sq, struct file *file, fmode_t mode,
 		    int numbufs, int bufsize)
 {
 	int rc = 0;
@@ -891,10 +891,10 @@ static int sq_release(struct inode *inode, struct file *file)
    is the owner - if we have problems.
 */
 
-static int shared_resources_are_mine(mode_t md)
+static int shared_resources_are_mine(fmode_t md)
 {
 	if (shared_resource_owner)
-		return (shared_resource_owner & md ) ;
+		return (shared_resource_owner & md) != 0;
 	else {
 		shared_resource_owner = md ;
 		return 1 ;

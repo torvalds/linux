@@ -2,13 +2,13 @@
 
 Required properties:
 
- - device_type : Should be "board-control"
+ - compatible : Should be "fsl,<board>-bcsr"
  - reg : Offset and length of the register set for the device
 
 Example:
 
 	bcsr@f8000000 {
-		device_type = "board-control";
+		compatible = "fsl,mpc8360mds-bcsr";
 		reg = <f8000000 8000>;
 	};
 

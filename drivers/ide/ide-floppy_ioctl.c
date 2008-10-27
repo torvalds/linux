@@ -241,7 +241,7 @@ static int ide_floppy_lockdoor(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	return 0;
 }
 
-static int ide_floppy_format_ioctl(ide_drive_t *drive, struct file *file,
+static int ide_floppy_format_ioctl(ide_drive_t *drive, fmode_t mode,
 				   unsigned int cmd, void __user *argp)
 {
 	switch (cmd) {
@@ -250,7 +250,7 @@ static int ide_floppy_format_ioctl(ide_drive_t *drive, struct file *file,
 	case IDEFLOPPY_IOCTL_FORMAT_GET_CAPACITY:
 		return ide_floppy_get_format_capacities(drive, argp);
 	case IDEFLOPPY_IOCTL_FORMAT_START:
-		if (!(file->f_mode & 2))
+		if (!(mode & FMODE_WRITE))
 			return -EPERM;
 		return ide_floppy_format_unit(drive, (int __user *)argp);
 	case IDEFLOPPY_IOCTL_FORMAT_GET_PROGRESS:
@@ -260,10 +260,9 @@ static int ide_floppy_format_ioctl(ide_drive_t *drive, struct file *file,
 	}
 }
 
-int ide_floppy_ioctl(ide_drive_t *drive, struct inode *inode,
-		     struct file *file, unsigned int cmd, unsigned long arg)
+int ide_floppy_ioctl(ide_drive_t *drive, struct block_device *bdev,
+		     fmode_t mode, unsigned int cmd, unsigned long arg)
 {
-	struct block_device *bdev = inode->i_bdev;
 	struct ide_atapi_pc pc;
 	void __user *argp = (void __user *)arg;
 	int err;
@@ -271,7 +270,7 @@ int ide_floppy_ioctl(ide_drive_t *drive, struct inode *inode,
 	if (cmd == CDROMEJECT || cmd == CDROM_LOCKDOOR)
 		return ide_floppy_lockdoor(drive, &pc, arg, cmd);
 
-	err = ide_floppy_format_ioctl(drive, file, cmd, argp);
+	err = ide_floppy_format_ioctl(drive, mode, cmd, argp);
 	if (err != -ENOTTY)
 		return err;
 
@@ -280,11 +279,11 @@ int ide_floppy_ioctl(ide_drive_t *drive, struct inode *inode,
 	 * and CDROM_SEND_PACKET (legacy) ioctls
 	 */
 	if (cmd != CDROM_SEND_PACKET && cmd != SCSI_IOCTL_SEND_COMMAND)
-		err = scsi_cmd_ioctl(file, bdev->bd_disk->queue,
-					bdev->bd_disk, cmd, argp);
+		err = scsi_cmd_ioctl(bdev->bd_disk->queue, bdev->bd_disk,
+				mode, cmd, argp);
 
 	if (err == -ENOTTY)
-		err = generic_ide_ioctl(drive, file, bdev, cmd, arg);
+		err = generic_ide_ioctl(drive, bdev, cmd, arg);
 
 	return err;
 }

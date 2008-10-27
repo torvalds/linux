@@ -27,7 +27,7 @@ void Wb35Rx_start(phw_data_t pHwData)
 void Wb35Rx(  phw_data_t pHwData )
 {
 	PWB35RX	pWb35Rx = &pHwData->Wb35Rx;
-	PUCHAR	pRxBufferAddress;
+	u8 *	pRxBufferAddress;
 	PURB	pUrb = (PURB)pWb35Rx->RxUrb;
 	int	retv;
 	u32	RxBufferId;
@@ -35,51 +35,50 @@ void Wb35Rx(  phw_data_t pHwData )
 	//
 	// Issuing URB
 	//
-	do {
-		if (pHwData->SurpriseRemove || pHwData->HwStop)
-			break;
+	if (pHwData->SurpriseRemove || pHwData->HwStop)
+		goto error;
 
-		if (pWb35Rx->rx_halt)
-			break;
+	if (pWb35Rx->rx_halt)
+		goto error;
 
-		// Get RxBuffer's ID
-		RxBufferId = pWb35Rx->RxBufferId;
-		if (!pWb35Rx->RxOwner[RxBufferId]) {
-			// It's impossible to run here.
-			#ifdef _PE_RX_DUMP_
-			WBDEBUG(("Rx driver fifo unavailable\n"));
-			#endif
-			break;
-		}
+	// Get RxBuffer's ID
+	RxBufferId = pWb35Rx->RxBufferId;
+	if (!pWb35Rx->RxOwner[RxBufferId]) {
+		// It's impossible to run here.
+		#ifdef _PE_RX_DUMP_
+		WBDEBUG(("Rx driver fifo unavailable\n"));
+		#endif
+		goto error;
+	}
 
-		// Update buffer point, then start to bulkin the data from USB
-		pWb35Rx->RxBufferId++;
-		pWb35Rx->RxBufferId %= MAX_USB_RX_BUFFER_NUMBER;
+	// Update buffer point, then start to bulkin the data from USB
+	pWb35Rx->RxBufferId++;
+	pWb35Rx->RxBufferId %= MAX_USB_RX_BUFFER_NUMBER;
 
-		pWb35Rx->CurrentRxBufferId = RxBufferId;
+	pWb35Rx->CurrentRxBufferId = RxBufferId;
 
-		if (1 != OS_MEMORY_ALLOC((void* *)&pWb35Rx->pDRx, MAX_USB_RX_BUFFER)) {
-			printk("w35und: Rx memory alloc failed\n");
-			break;
-		}
-		pRxBufferAddress = pWb35Rx->pDRx;
+	if (1 != OS_MEMORY_ALLOC((void* *)&pWb35Rx->pDRx, MAX_USB_RX_BUFFER)) {
+		printk("w35und: Rx memory alloc failed\n");
+		goto error;
+	}
+	pRxBufferAddress = pWb35Rx->pDRx;
 
-		usb_fill_bulk_urb(pUrb, pHwData->WbUsb.udev,
-				  usb_rcvbulkpipe(pHwData->WbUsb.udev, 3),
-				  pRxBufferAddress, MAX_USB_RX_BUFFER,
-				  Wb35Rx_Complete, pHwData);
+	usb_fill_bulk_urb(pUrb, pHwData->WbUsb.udev,
+			  usb_rcvbulkpipe(pHwData->WbUsb.udev, 3),
+			  pRxBufferAddress, MAX_USB_RX_BUFFER,
+			  Wb35Rx_Complete, pHwData);
 
-		pWb35Rx->EP3vm_state = VM_RUNNING;
+	pWb35Rx->EP3vm_state = VM_RUNNING;
 
-		retv = wb_usb_submit_urb(pUrb);
+	retv = wb_usb_submit_urb(pUrb);
 
-		if (retv != 0) {
-			printk("Rx URB sending error\n");
-			break;
-		}
-		return;
-	} while(FALSE);
+	if (retv != 0) {
+		printk("Rx URB sending error\n");
+		goto error;
+	}
+	return;
 
+error:
 	// VM stop
 	pWb35Rx->EP3vm_state = VM_STOP;
 	OS_ATOMIC_DEC( pHwData->Adapter, &pWb35Rx->RxFireCounter );
@@ -89,7 +88,7 @@ void Wb35Rx_Complete(PURB pUrb)
 {
 	phw_data_t	pHwData = pUrb->context;
 	PWB35RX		pWb35Rx = &pHwData->Wb35Rx;
-	PUCHAR		pRxBufferAddress;
+	u8 *		pRxBufferAddress;
 	u32		SizeCheck;
 	u16		BulkLength;
 	u32		RxBufferId;
@@ -99,65 +98,63 @@ void Wb35Rx_Complete(PURB pUrb)
 	pWb35Rx->EP3vm_state = VM_COMPLETED;
 	pWb35Rx->EP3VM_status = pUrb->status;//Store the last result of Irp
 
-	do {
-		RxBufferId = pWb35Rx->CurrentRxBufferId;
+	RxBufferId = pWb35Rx->CurrentRxBufferId;
 
-		pRxBufferAddress = pWb35Rx->pDRx;
-		BulkLength = (u16)pUrb->actual_length;
+	pRxBufferAddress = pWb35Rx->pDRx;
+	BulkLength = (u16)pUrb->actual_length;
 
-		// The IRP is completed
-		pWb35Rx->EP3vm_state = VM_COMPLETED;
+	// The IRP is completed
+	pWb35Rx->EP3vm_state = VM_COMPLETED;
 
-		if (pHwData->SurpriseRemove || pHwData->HwStop) // Must be here, or RxBufferId is invalid
-			break;
+	if (pHwData->SurpriseRemove || pHwData->HwStop) // Must be here, or RxBufferId is invalid
+		goto error;
 
-		if (pWb35Rx->rx_halt)
-			break;
+	if (pWb35Rx->rx_halt)
+		goto error;
 
-		// Start to process the data only in successful condition
-		pWb35Rx->RxOwner[ RxBufferId ] = 0; // Set the owner to driver
-		R00.value = le32_to_cpu(*(PULONG)pRxBufferAddress);
+	// Start to process the data only in successful condition
+	pWb35Rx->RxOwner[ RxBufferId ] = 0; // Set the owner to driver
+	R00.value = le32_to_cpu(*(u32 *)pRxBufferAddress);
 
-		// The URB is completed, check the result
-		if (pWb35Rx->EP3VM_status != 0) {
-			#ifdef _PE_USB_STATE_DUMP_
-			WBDEBUG(("EP3 IoCompleteRoutine return error\n"));
-			DebugUsbdStatusInformation( pWb35Rx->EP3VM_status );
-			#endif
+	// The URB is completed, check the result
+	if (pWb35Rx->EP3VM_status != 0) {
+		#ifdef _PE_USB_STATE_DUMP_
+		WBDEBUG(("EP3 IoCompleteRoutine return error\n"));
+		DebugUsbdStatusInformation( pWb35Rx->EP3VM_status );
+		#endif
+		pWb35Rx->EP3vm_state = VM_STOP;
+		goto error;
+	}
+
+	// 20060220 For recovering. check if operating in single USB mode
+	if (!HAL_USB_MODE_BURST(pHwData)) {
+		SizeCheck = R00.R00_receive_byte_count;  //20060926 anson's endian
+		if ((SizeCheck & 0x03) > 0)
+			SizeCheck -= 4;
+		SizeCheck = (SizeCheck + 3) & ~0x03;
+		SizeCheck += 12; // 8 + 4 badbeef
+		if ((BulkLength > 1600) ||
+			(SizeCheck > 1600) ||
+			(BulkLength != SizeCheck) ||
+			(BulkLength == 0)) { // Add for fail Urb
 			pWb35Rx->EP3vm_state = VM_STOP;
-			break;
+			pWb35Rx->Ep3ErrorCount2++;
 		}
+	}
 
-		// 20060220 For recovering. check if operating in single USB mode
-		if (!HAL_USB_MODE_BURST(pHwData)) {
-			SizeCheck = R00.R00_receive_byte_count;  //20060926 anson's endian
-			if ((SizeCheck & 0x03) > 0)
-				SizeCheck -= 4;
-			SizeCheck = (SizeCheck + 3) & ~0x03;
-			SizeCheck += 12; // 8 + 4 badbeef
-			if ((BulkLength > 1600) ||
-				(SizeCheck > 1600) ||
-				(BulkLength != SizeCheck) ||
-				(BulkLength == 0)) { // Add for fail Urb
-				pWb35Rx->EP3vm_state = VM_STOP;
-				pWb35Rx->Ep3ErrorCount2++;
-			}
-		}
+	// Indicating the receiving data
+	pWb35Rx->ByteReceived += BulkLength;
+	pWb35Rx->RxBufferSize[ RxBufferId ] = BulkLength;
 
-		// Indicating the receiving data
-		pWb35Rx->ByteReceived += BulkLength;
-		pWb35Rx->RxBufferSize[ RxBufferId ] = BulkLength;
+	if (!pWb35Rx->RxOwner[ RxBufferId ])
+		Wb35Rx_indicate(pHwData);
 
-		if (!pWb35Rx->RxOwner[ RxBufferId ])
-			Wb35Rx_indicate(pHwData);
+	kfree(pWb35Rx->pDRx);
+	// Do the next receive
+	Wb35Rx(pHwData);
+	return;
 
-		kfree(pWb35Rx->pDRx);
-		// Do the next receive
-		Wb35Rx(pHwData);
-		return;
-
-	} while(FALSE);
-
+error:
 	pWb35Rx->RxOwner[ RxBufferId ] = 1; // Set the owner to hardware
 	OS_ATOMIC_DEC( pHwData->Adapter, &pWb35Rx->RxFireCounter );
 	pWb35Rx->EP3vm_state = VM_STOP;
@@ -223,7 +220,7 @@ void Wb35Rx_reset_descriptor(  phw_data_t pHwData )
 
 void Wb35Rx_adjust(PDESCRIPTOR pRxDes)
 {
-	PULONG	pRxBufferAddress;
+	u32 *	pRxBufferAddress;
 	u32	DecryptionMethod;
 	u32	i;
 	u16	BufferSize;
@@ -264,7 +261,7 @@ u16 Wb35Rx_indicate(phw_data_t pHwData)
 {
 	DESCRIPTOR	RxDes;
 	PWB35RX	pWb35Rx = &pHwData->Wb35Rx;
-	PUCHAR		pRxBufferAddress;
+	u8 *		pRxBufferAddress;
 	u16		PacketSize;
 	u16		stmp, BufferSize, stmp2 = 0;
 	u32		RxBufferId;
@@ -283,13 +280,13 @@ u16 Wb35Rx_indicate(phw_data_t pHwData)
 
 		// Parse the bulkin buffer
 		while (BufferSize >= 4) {
-			if ((cpu_to_le32(*(PULONG)pRxBufferAddress) & 0x0fffffff) == RX_END_TAG) //Is ending? 921002.9.a
+			if ((cpu_to_le32(*(u32 *)pRxBufferAddress) & 0x0fffffff) == RX_END_TAG) //Is ending? 921002.9.a
 				break;
 
 			// Get the R00 R01 first
-			RxDes.R00.value = le32_to_cpu(*(PULONG)pRxBufferAddress);
+			RxDes.R00.value = le32_to_cpu(*(u32 *)pRxBufferAddress);
 			PacketSize = (u16)RxDes.R00.R00_receive_byte_count;
-			RxDes.R01.value = le32_to_cpu(*((PULONG)(pRxBufferAddress+4)));
+			RxDes.R01.value = le32_to_cpu(*((u32 *)(pRxBufferAddress+4)));
 			// For new DMA 4k
 			if ((PacketSize & 0x03) > 0)
 				PacketSize -= 4;

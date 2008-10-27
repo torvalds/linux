@@ -152,9 +152,9 @@ static ctlr_info_t *hba[MAX_CTLR];
 
 static void do_cciss_request(struct request_queue *q);
 static irqreturn_t do_cciss_intr(int irq, void *dev_id);
-static int cciss_open(struct inode *inode, struct file *filep);
-static int cciss_release(struct inode *inode, struct file *filep);
-static int cciss_ioctl(struct inode *inode, struct file *filep,
+static int cciss_open(struct block_device *bdev, fmode_t mode);
+static int cciss_release(struct gendisk *disk, fmode_t mode);
+static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 		       unsigned int cmd, unsigned long arg);
 static int cciss_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
@@ -192,14 +192,15 @@ static void cciss_procinit(int i)
 #endif				/* CONFIG_PROC_FS */
 
 #ifdef CONFIG_COMPAT
-static long cciss_compat_ioctl(struct file *f, unsigned cmd, unsigned long arg);
+static int cciss_compat_ioctl(struct block_device *, fmode_t,
+			      unsigned, unsigned long);
 #endif
 
 static struct block_device_operations cciss_fops = {
 	.owner = THIS_MODULE,
 	.open = cciss_open,
 	.release = cciss_release,
-	.ioctl = cciss_ioctl,
+	.locked_ioctl = cciss_ioctl,
 	.getgeo = cciss_getgeo,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = cciss_compat_ioctl,
@@ -547,13 +548,13 @@ static inline drive_info_struct *get_drv(struct gendisk *disk)
 /*
  * Open.  Make sure the device is really there.
  */
-static int cciss_open(struct inode *inode, struct file *filep)
+static int cciss_open(struct block_device *bdev, fmode_t mode)
 {
-	ctlr_info_t *host = get_host(inode->i_bdev->bd_disk);
-	drive_info_struct *drv = get_drv(inode->i_bdev->bd_disk);
+	ctlr_info_t *host = get_host(bdev->bd_disk);
+	drive_info_struct *drv = get_drv(bdev->bd_disk);
 
 #ifdef CCISS_DEBUG
-	printk(KERN_DEBUG "cciss_open %s\n", inode->i_bdev->bd_disk->disk_name);
+	printk(KERN_DEBUG "cciss_open %s\n", bdev->bd_disk->disk_name);
 #endif				/* CCISS_DEBUG */
 
 	if (host->busy_initializing || drv->busy_configuring)
@@ -567,9 +568,9 @@ static int cciss_open(struct inode *inode, struct file *filep)
 	 * for "raw controller".
 	 */
 	if (drv->heads == 0) {
-		if (iminor(inode) != 0) {	/* not node 0? */
+		if (MINOR(bdev->bd_dev) != 0) {	/* not node 0? */
 			/* if not node 0 make sure it is a partition = 0 */
-			if (iminor(inode) & 0x0f) {
+			if (MINOR(bdev->bd_dev) & 0x0f) {
 				return -ENXIO;
 				/* if it is, make sure we have a LUN ID */
 			} else if (drv->LunID == 0) {
@@ -587,14 +588,13 @@ static int cciss_open(struct inode *inode, struct file *filep)
 /*
  * Close.  Sync first.
  */
-static int cciss_release(struct inode *inode, struct file *filep)
+static int cciss_release(struct gendisk *disk, fmode_t mode)
 {
-	ctlr_info_t *host = get_host(inode->i_bdev->bd_disk);
-	drive_info_struct *drv = get_drv(inode->i_bdev->bd_disk);
+	ctlr_info_t *host = get_host(disk);
+	drive_info_struct *drv = get_drv(disk);
 
 #ifdef CCISS_DEBUG
-	printk(KERN_DEBUG "cciss_release %s\n",
-	       inode->i_bdev->bd_disk->disk_name);
+	printk(KERN_DEBUG "cciss_release %s\n", disk->disk_name);
 #endif				/* CCISS_DEBUG */
 
 	drv->usage_count--;
@@ -604,21 +604,23 @@ static int cciss_release(struct inode *inode, struct file *filep)
 
 #ifdef CONFIG_COMPAT
 
-static int do_ioctl(struct file *f, unsigned cmd, unsigned long arg)
+static int do_ioctl(struct block_device *bdev, fmode_t mode,
+		    unsigned cmd, unsigned long arg)
 {
 	int ret;
 	lock_kernel();
-	ret = cciss_ioctl(f->f_path.dentry->d_inode, f, cmd, arg);
+	ret = cciss_ioctl(bdev, mode, cmd, arg);
 	unlock_kernel();
 	return ret;
 }
 
-static int cciss_ioctl32_passthru(struct file *f, unsigned cmd,
-				  unsigned long arg);
-static int cciss_ioctl32_big_passthru(struct file *f, unsigned cmd,
-				      unsigned long arg);
+static int cciss_ioctl32_passthru(struct block_device *bdev, fmode_t mode,
+				  unsigned cmd, unsigned long arg);
+static int cciss_ioctl32_big_passthru(struct block_device *bdev, fmode_t mode,
+				      unsigned cmd, unsigned long arg);
 
-static long cciss_compat_ioctl(struct file *f, unsigned cmd, unsigned long arg)
+static int cciss_compat_ioctl(struct block_device *bdev, fmode_t mode,
+			      unsigned cmd, unsigned long arg)
 {
 	switch (cmd) {
 	case CCISS_GETPCIINFO:
@@ -636,20 +638,20 @@ static long cciss_compat_ioctl(struct file *f, unsigned cmd, unsigned long arg)
 	case CCISS_REGNEWD:
 	case CCISS_RESCANDISK:
 	case CCISS_GETLUNINFO:
-		return do_ioctl(f, cmd, arg);
+		return do_ioctl(bdev, mode, cmd, arg);
 
 	case CCISS_PASSTHRU32:
-		return cciss_ioctl32_passthru(f, cmd, arg);
+		return cciss_ioctl32_passthru(bdev, mode, cmd, arg);
 	case CCISS_BIG_PASSTHRU32:
-		return cciss_ioctl32_big_passthru(f, cmd, arg);
+		return cciss_ioctl32_big_passthru(bdev, mode, cmd, arg);
 
 	default:
 		return -ENOIOCTLCMD;
 	}
 }
 
-static int cciss_ioctl32_passthru(struct file *f, unsigned cmd,
-				  unsigned long arg)
+static int cciss_ioctl32_passthru(struct block_device *bdev, fmode_t mode,
+				  unsigned cmd, unsigned long arg)
 {
 	IOCTL32_Command_struct __user *arg32 =
 	    (IOCTL32_Command_struct __user *) arg;
@@ -676,7 +678,7 @@ static int cciss_ioctl32_passthru(struct file *f, unsigned cmd,
 	if (err)
 		return -EFAULT;
 
-	err = do_ioctl(f, CCISS_PASSTHRU, (unsigned long)p);
+	err = do_ioctl(bdev, mode, CCISS_PASSTHRU, (unsigned long)p);
 	if (err)
 		return err;
 	err |=
@@ -687,8 +689,8 @@ static int cciss_ioctl32_passthru(struct file *f, unsigned cmd,
 	return err;
 }
 
-static int cciss_ioctl32_big_passthru(struct file *file, unsigned cmd,
-				      unsigned long arg)
+static int cciss_ioctl32_big_passthru(struct block_device *bdev, fmode_t mode,
+				      unsigned cmd, unsigned long arg)
 {
 	BIG_IOCTL32_Command_struct __user *arg32 =
 	    (BIG_IOCTL32_Command_struct __user *) arg;
@@ -717,7 +719,7 @@ static int cciss_ioctl32_big_passthru(struct file *file, unsigned cmd,
 	if (err)
 		return -EFAULT;
 
-	err = do_ioctl(file, CCISS_BIG_PASSTHRU, (unsigned long)p);
+	err = do_ioctl(bdev, mode, CCISS_BIG_PASSTHRU, (unsigned long)p);
 	if (err)
 		return err;
 	err |=
@@ -745,10 +747,9 @@ static int cciss_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 /*
  * ioctl
  */
-static int cciss_ioctl(struct inode *inode, struct file *filep,
+static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 		       unsigned int cmd, unsigned long arg)
 {
-	struct block_device *bdev = inode->i_bdev;
 	struct gendisk *disk = bdev->bd_disk;
 	ctlr_info_t *host = get_host(disk);
 	drive_info_struct *drv = get_drv(disk);
@@ -1232,7 +1233,7 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 	case SG_EMULATED_HOST:
 	case SG_IO:
 	case SCSI_IOCTL_SEND_COMMAND:
-		return scsi_cmd_ioctl(filep, disk->queue, disk, cmd, argp);
+		return scsi_cmd_ioctl(disk->queue, disk, mode, cmd, argp);
 
 	/* scsi_cmd_ioctl would normally handle these, below, but */
 	/* they aren't a good fit for cciss, as CD-ROMs are */

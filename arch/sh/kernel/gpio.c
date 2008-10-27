@@ -267,8 +267,12 @@ int pinmux_config_gpio(struct pinmux_info *gpioc, unsigned gpio,
 			break;
 
 		in_range = enum_in_range(enum_id, &gpioc->function);
-		if (!in_range && range)
+		if (!in_range && range) {
 			in_range = enum_in_range(enum_id, range);
+
+			if (in_range && enum_id == range->force)
+				continue;
+		}
 
 		if (!in_range)
 			continue;
@@ -432,7 +436,7 @@ static int __gpio_get_set_value(struct pinmux_info *gpioc,
 		BUG();
 	else
 		value = read_write_reg(dr->reg, dr->reg_width,
-				       1, bit, value, do_write);
+				       1, bit, !!value, do_write);
 
 	return value;
 }

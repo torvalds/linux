@@ -102,6 +102,7 @@ static struct hv_ops hvc_ops = {
 	.put_chars = write_console,
 	.notifier_add = notifier_add_irq,
 	.notifier_del = notifier_del_irq,
+	.notifier_hangup = notifier_hangup_irq,
 };
 
 static int __init xen_init(void)

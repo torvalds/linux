@@ -10,7 +10,7 @@ extern void phy_calibration_winbond(hw_data_t *phw_data, u32 frequency);
 // Flag : AUTO_INCREMENT - RegisterNo will auto increment 4
 //		  NO_INCREMENT - Function will write data into the same register
 unsigned char
-Wb35Reg_BurstWrite(phw_data_t pHwData, u16 RegisterNo, PULONG pRegisterData, u8 NumberOfData, u8 Flag)
+Wb35Reg_BurstWrite(phw_data_t pHwData, u16 RegisterNo, u32 * pRegisterData, u8 NumberOfData, u8 Flag)
 {
 	PWB35REG pWb35Reg = &pHwData->Wb35Reg;
 	PURB		pUrb = NULL;
@@ -30,13 +30,13 @@ Wb35Reg_BurstWrite(phw_data_t pHwData, u16 RegisterNo, PULONG pRegisterData, u8 
 	if( pUrb && pRegQueue ) {
 		pRegQueue->DIRECT = 2;// burst write register
 		pRegQueue->INDEX = RegisterNo;
-		pRegQueue->pBuffer = (PULONG)((PUCHAR)pRegQueue + sizeof(REG_QUEUE));
+		pRegQueue->pBuffer = (u32 *)((u8 *)pRegQueue + sizeof(REG_QUEUE));
 		memcpy( pRegQueue->pBuffer, pRegisterData, DataSize );
 		//the function for reversing register data from little endian to big endian
 		for( i=0; i<NumberOfData ; i++ )
 			pRegQueue->pBuffer[i] = cpu_to_le32( pRegQueue->pBuffer[i] );
 
-		dr = (struct usb_ctrlrequest *)((PUCHAR)pRegQueue + sizeof(REG_QUEUE) + DataSize);
+		dr = (struct usb_ctrlrequest *)((u8 *)pRegQueue + sizeof(REG_QUEUE) + DataSize);
 		dr->bRequestType = USB_TYPE_VENDOR | USB_DIR_OUT | USB_RECIP_DEVICE;
 		dr->bRequest = 0x04; // USB or vendor-defined request code, burst mode
 		dr->wValue = cpu_to_le16( Flag ); // 0: Register number auto-increment, 1: No auto increment
@@ -46,14 +46,14 @@ Wb35Reg_BurstWrite(phw_data_t pHwData, u16 RegisterNo, PULONG pRegisterData, u8 
 		pRegQueue->pUsbReq = dr;
 		pRegQueue->pUrb = pUrb;
 
-		OS_SPIN_LOCK_ACQUIRED( &pWb35Reg->EP0VM_spin_lock );
+		spin_lock_irq( &pWb35Reg->EP0VM_spin_lock );
 		if (pWb35Reg->pRegFirst == NULL)
 			pWb35Reg->pRegFirst = pRegQueue;
 		else
 			pWb35Reg->pRegLast->Next = pRegQueue;
 		pWb35Reg->pRegLast = pRegQueue;
 
-		OS_SPIN_LOCK_RELEASED( &pWb35Reg->EP0VM_spin_lock );
+		spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
 
 		// Start EP0VM
 		Wb35Reg_EP0VM_start(pHwData);
@@ -181,7 +181,7 @@ Wb35Reg_Write(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 		pRegQueue->INDEX = RegisterNo;
 		pRegQueue->VALUE = cpu_to_le32(RegisterValue);
 		pRegQueue->RESERVED_VALID = FALSE;
-		dr = (struct usb_ctrlrequest *)((PUCHAR)pRegQueue + sizeof(REG_QUEUE));
+		dr = (struct usb_ctrlrequest *)((u8 *)pRegQueue + sizeof(REG_QUEUE));
 		dr->bRequestType = USB_TYPE_VENDOR|USB_DIR_OUT |USB_RECIP_DEVICE;
 		dr->bRequest = 0x03; // USB or vendor-defined request code, burst mode
 		dr->wValue = cpu_to_le16(0x0);
@@ -193,14 +193,14 @@ Wb35Reg_Write(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 		pRegQueue->pUsbReq = dr;
 		pRegQueue->pUrb = pUrb;
 
-		OS_SPIN_LOCK_ACQUIRED(&pWb35Reg->EP0VM_spin_lock );
+		spin_lock_irq(&pWb35Reg->EP0VM_spin_lock );
 		if (pWb35Reg->pRegFirst == NULL)
 			pWb35Reg->pRegFirst = pRegQueue;
 		else
 			pWb35Reg->pRegLast->Next = pRegQueue;
 		pWb35Reg->pRegLast = pRegQueue;
 
-		OS_SPIN_LOCK_RELEASED( &pWb35Reg->EP0VM_spin_lock );
+		spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
 
 		// Start EP0VM
 		Wb35Reg_EP0VM_start(pHwData);
@@ -220,7 +220,7 @@ Wb35Reg_Write(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 // FALSE : register not support
 unsigned char
 Wb35Reg_WriteWithCallbackValue( phw_data_t pHwData, u16 RegisterNo, u32 RegisterValue,
-				PCHAR pValue, s8 Len)
+				s8 *pValue, s8 Len)
 {
 	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
 	struct usb_ctrlrequest *dr;
@@ -243,7 +243,7 @@ Wb35Reg_WriteWithCallbackValue( phw_data_t pHwData, u16 RegisterNo, u32 Register
 		//NOTE : Users must guarantee the size of value will not exceed the buffer size.
 		memcpy(pRegQueue->RESERVED, pValue, Len);
 		pRegQueue->RESERVED_VALID = TRUE;
-		dr = (struct usb_ctrlrequest *)((PUCHAR)pRegQueue + sizeof(REG_QUEUE));
+		dr = (struct usb_ctrlrequest *)((u8 *)pRegQueue + sizeof(REG_QUEUE));
 		dr->bRequestType = USB_TYPE_VENDOR|USB_DIR_OUT |USB_RECIP_DEVICE;
 		dr->bRequest = 0x03; // USB or vendor-defined request code, burst mode
 		dr->wValue = cpu_to_le16(0x0);
@@ -254,14 +254,14 @@ Wb35Reg_WriteWithCallbackValue( phw_data_t pHwData, u16 RegisterNo, u32 Register
 		pRegQueue->Next = NULL;
 		pRegQueue->pUsbReq = dr;
 		pRegQueue->pUrb = pUrb;
-		OS_SPIN_LOCK_ACQUIRED (&pWb35Reg->EP0VM_spin_lock );
+		spin_lock_irq (&pWb35Reg->EP0VM_spin_lock );
 		if( pWb35Reg->pRegFirst == NULL )
 			pWb35Reg->pRegFirst = pRegQueue;
 		else
 			pWb35Reg->pRegLast->Next = pRegQueue;
 		pWb35Reg->pRegLast = pRegQueue;
 
-		OS_SPIN_LOCK_RELEASED ( &pWb35Reg->EP0VM_spin_lock );
+		spin_unlock_irq ( &pWb35Reg->EP0VM_spin_lock );
 
 		// Start EP0VM
 		Wb35Reg_EP0VM_start(pHwData);
@@ -278,10 +278,10 @@ Wb35Reg_WriteWithCallbackValue( phw_data_t pHwData, u16 RegisterNo, u32 Register
 // FALSE : register not support
 // pRegisterValue : It must be a resident buffer due to asynchronous read register.
 unsigned char
-Wb35Reg_ReadSync(  phw_data_t pHwData,  u16 RegisterNo,   PULONG pRegisterValue )
+Wb35Reg_ReadSync(  phw_data_t pHwData,  u16 RegisterNo,   u32 * pRegisterValue )
 {
 	PWB35REG pWb35Reg = &pHwData->Wb35Reg;
-	PULONG	pltmp = pRegisterValue;
+	u32 *	pltmp = pRegisterValue;
 	int ret = -1;
 
 	// Module shutdown
@@ -327,7 +327,7 @@ Wb35Reg_ReadSync(  phw_data_t pHwData,  u16 RegisterNo,   PULONG pRegisterValue 
 // FALSE : register not support
 // pRegisterValue : It must be a resident buffer due to asynchronous read register.
 unsigned char
-Wb35Reg_Read(phw_data_t pHwData, u16 RegisterNo,  PULONG pRegisterValue )
+Wb35Reg_Read(phw_data_t pHwData, u16 RegisterNo,  u32 * pRegisterValue )
 {
 	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
 	struct usb_ctrlrequest * dr;
@@ -348,7 +348,7 @@ Wb35Reg_Read(phw_data_t pHwData, u16 RegisterNo,  PULONG pRegisterValue )
 		pRegQueue->DIRECT = 0;// read register
 		pRegQueue->INDEX = RegisterNo;
 		pRegQueue->pBuffer = pRegisterValue;
-		dr = (struct usb_ctrlrequest *)((PUCHAR)pRegQueue + sizeof(REG_QUEUE));
+		dr = (struct usb_ctrlrequest *)((u8 *)pRegQueue + sizeof(REG_QUEUE));
 		dr->bRequestType = USB_TYPE_VENDOR|USB_RECIP_DEVICE|USB_DIR_IN;
 		dr->bRequest = 0x01; // USB or vendor-defined request code, burst mode
 		dr->wValue = cpu_to_le16(0x0);
@@ -359,14 +359,14 @@ Wb35Reg_Read(phw_data_t pHwData, u16 RegisterNo,  PULONG pRegisterValue )
 		pRegQueue->Next = NULL;
 		pRegQueue->pUsbReq = dr;
 		pRegQueue->pUrb = pUrb;
-		OS_SPIN_LOCK_ACQUIRED ( &pWb35Reg->EP0VM_spin_lock );
+		spin_lock_irq ( &pWb35Reg->EP0VM_spin_lock );
 		if( pWb35Reg->pRegFirst == NULL )
 			pWb35Reg->pRegFirst = pRegQueue;
 		else
 			pWb35Reg->pRegLast->Next = pRegQueue;
 		pWb35Reg->pRegLast = pRegQueue;
 
-		OS_SPIN_LOCK_RELEASED( &pWb35Reg->EP0VM_spin_lock );
+		spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
 
 		// Start EP0VM
 		Wb35Reg_EP0VM_start( pHwData );
@@ -399,7 +399,7 @@ Wb35Reg_EP0VM(phw_data_t pHwData )
 	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
 	PURB		pUrb;
 	struct usb_ctrlrequest *dr;
-	PULONG		pBuffer;
+	u32 *		pBuffer;
 	int			ret = -1;
 	PREG_QUEUE	pRegQueue;
 
@@ -411,9 +411,9 @@ Wb35Reg_EP0VM(phw_data_t pHwData )
 		goto cleanup;
 
 	// Get the register data and send to USB through Irp
-	OS_SPIN_LOCK_ACQUIRED( &pWb35Reg->EP0VM_spin_lock );
+	spin_lock_irq( &pWb35Reg->EP0VM_spin_lock );
 	pRegQueue = pWb35Reg->pRegFirst;
-	OS_SPIN_LOCK_RELEASED( &pWb35Reg->EP0VM_spin_lock );
+	spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
 
 	if (!pRegQueue)
 		goto cleanup;
@@ -429,7 +429,7 @@ Wb35Reg_EP0VM(phw_data_t pHwData )
 
 	usb_fill_control_urb( pUrb, pHwData->WbUsb.udev,
 			      REG_DIRECTION(pHwData->WbUsb.udev,pRegQueue),
-			      (PUCHAR)dr,pBuffer,cpu_to_le16(dr->wLength),
+			      (u8 *)dr,pBuffer,cpu_to_le16(dr->wLength),
 			      Wb35Reg_EP0VM_complete, (void*)pHwData);
 
 	pWb35Reg->EP0vm_state = VM_RUNNING;
@@ -468,12 +468,12 @@ Wb35Reg_EP0VM_complete(PURB pUrb)
 		OS_ATOMIC_DEC( pHwData->Adapter, &pWb35Reg->RegFireCount );
 	} else {
 		// Complete to send, remove the URB from the first
-		OS_SPIN_LOCK_ACQUIRED( &pWb35Reg->EP0VM_spin_lock );
+		spin_lock_irq( &pWb35Reg->EP0VM_spin_lock );
 		pRegQueue = pWb35Reg->pRegFirst;
 		if (pRegQueue == pWb35Reg->pRegLast)
 			pWb35Reg->pRegLast = NULL;
 		pWb35Reg->pRegFirst = pWb35Reg->pRegFirst->Next;
-		OS_SPIN_LOCK_RELEASED( &pWb35Reg->EP0VM_spin_lock );
+		spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
 
 		if (pWb35Reg->EP0VM_status) {
 #ifdef _PE_REG_DUMP_
@@ -513,7 +513,7 @@ Wb35Reg_destroy(phw_data_t pHwData)
 	OS_SLEEP(10000);  // Delay for waiting function enter 940623.1.b
 
 	// Release all the data in RegQueue
-	OS_SPIN_LOCK_ACQUIRED( &pWb35Reg->EP0VM_spin_lock );
+	spin_lock_irq( &pWb35Reg->EP0VM_spin_lock );
 	pRegQueue = pWb35Reg->pRegFirst;
 	while (pRegQueue) {
 		if (pRegQueue == pWb35Reg->pRegLast)
@@ -521,7 +521,7 @@ Wb35Reg_destroy(phw_data_t pHwData)
 		pWb35Reg->pRegFirst = pWb35Reg->pRegFirst->Next;
 
 		pUrb = pRegQueue->pUrb;
-		OS_SPIN_LOCK_RELEASED( &pWb35Reg->EP0VM_spin_lock );
+		spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
 		if (pUrb) {
 			usb_free_urb(pUrb);
 			kfree(pRegQueue);
@@ -530,14 +530,11 @@ Wb35Reg_destroy(phw_data_t pHwData)
 			WBDEBUG(("EP0 queue release error\n"));
 			#endif
 		}
-		OS_SPIN_LOCK_ACQUIRED( &pWb35Reg->EP0VM_spin_lock );
+		spin_lock_irq( &pWb35Reg->EP0VM_spin_lock );
 
 		pRegQueue = pWb35Reg->pRegFirst;
 	}
-	OS_SPIN_LOCK_RELEASED( &pWb35Reg->EP0VM_spin_lock );
-
-	// Free resource
-	OS_SPIN_LOCK_FREE(  &pWb35Reg->EP0VM_spin_lock );
+	spin_unlock_irq( &pWb35Reg->EP0VM_spin_lock );
 }
 
 //====================================================================================
@@ -550,7 +547,7 @@ unsigned char Wb35Reg_initial(phw_data_t pHwData)
 	u32 SoftwareSet, VCO_trim, TxVga, Region_ScanInterval;
 
 	// Spin lock is acquired for read and write IRP command
-	OS_SPIN_LOCK_ALLOCATE( &pWb35Reg->EP0VM_spin_lock );
+	spin_lock_init( &pWb35Reg->EP0VM_spin_lock );
 
 	// Getting RF module type from EEPROM ------------------------------------
 	Wb35Reg_WriteSync( pHwData, 0x03b4, 0x080d0000 ); // Start EEPROM access + Read + address(0x0d)
@@ -655,7 +652,7 @@ unsigned char Wb35Reg_initial(phw_data_t pHwData)
 //    version in _GENREQ.ASM of the DWB NE1000/2000 driver.
 //==================================================================================
 u32
-CardComputeCrc(PUCHAR Buffer, u32 Length)
+CardComputeCrc(u8 * Buffer, u32 Length)
 {
     u32 Crc, Carry;
     u32  i, j;

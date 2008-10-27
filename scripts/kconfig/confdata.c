@@ -852,8 +852,7 @@ void conf_set_all_new_symbols(enum conf_def_mode mode)
 
 	}
 
-	if (modules_sym)
-		sym_calc_value(modules_sym);
+	sym_clear_all_valid();
 
 	if (mode != def_random)
 		return;

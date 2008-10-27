@@ -12,7 +12,9 @@
 #include <linux/kmod.h>
 #include <linux/module.h>
 #include <linux/personality.h>
+#include <linux/proc_fs.h>
 #include <linux/sched.h>
+#include <linux/seq_file.h>
 #include <linux/syscalls.h>
 #include <linux/sysctl.h>
 #include <linux/types.h>
@@ -173,20 +175,39 @@ __set_personality(u_long personality)
 	return 0;
 }
 
-int
-get_exec_domain_list(char *page)
+#ifdef CONFIG_PROC_FS
+static int execdomains_proc_show(struct seq_file *m, void *v)
 {
 	struct exec_domain	*ep;
-	int			len = 0;
 
 	read_lock(&exec_domains_lock);
-	for (ep = exec_domains; ep && len < PAGE_SIZE - 80; ep = ep->next)
-		len += sprintf(page + len, "%d-%d\t%-16s\t[%s]\n",
+	for (ep = exec_domains; ep; ep = ep->next)
+		seq_printf(m, "%d-%d\t%-16s\t[%s]\n",
 			       ep->pers_low, ep->pers_high, ep->name,
 			       module_name(ep->module));
 	read_unlock(&exec_domains_lock);
-	return (len);
+	return 0;
 }
+
+static int execdomains_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, execdomains_proc_show, NULL);
+}
+
+static const struct file_operations execdomains_proc_fops = {
+	.open		= execdomains_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int __init proc_execdomains_init(void)
+{
+	proc_create("execdomains", 0, NULL, &execdomains_proc_fops);
+	return 0;
+}
+module_init(proc_execdomains_init);
+#endif
 
 asmlinkage long
 sys_personality(u_long personality)

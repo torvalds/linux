@@ -679,6 +679,8 @@ source "fs/Kconfig"
 
 source "drivers/usb/Kconfig"
 
+source "drivers/uwb/Kconfig"
+
 source "arch/cris/Kconfig.debug"
 
 source "security/Kconfig"

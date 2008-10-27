@@ -67,8 +67,9 @@ static unsigned long reset_value[NUM_COUNTERS];
 
 /* The function interface needs to be fixed, something like add
    data. Should then be added to linux/oprofile.h. */
-extern void oprofile_add_ibs_sample(struct pt_regs *const regs,
-				    unsigned int * const ibs_sample, u8 code);
+extern void
+oprofile_add_ibs_sample(struct pt_regs *const regs,
+			unsigned int *const ibs_sample, int ibs_code);
 
 struct ibs_fetch_sample {
 	/* MSRC001_1031 IBS Fetch Linear Address Register */
@@ -309,12 +310,15 @@ static void op_amd_start(struct op_msrs const * const msrs)
 #ifdef CONFIG_OPROFILE_IBS
 	if (ibs_allowed && ibs_config.fetch_enabled) {
 		low = (ibs_config.max_cnt_fetch >> 4) & 0xFFFF;
-		high = IBS_FETCH_HIGH_ENABLE;
+		high = ((ibs_config.rand_en & 0x1) << 25) /* bit 57 */
+			+ IBS_FETCH_HIGH_ENABLE;
 		wrmsr(MSR_AMD64_IBSFETCHCTL, low, high);
 	}
 
 	if (ibs_allowed && ibs_config.op_enabled) {
-		low = ((ibs_config.max_cnt_op >> 4) & 0xFFFF) + IBS_OP_LOW_ENABLE;
+		low = ((ibs_config.max_cnt_op >> 4) & 0xFFFF)
+			+ ((ibs_config.dispatched_ops & 0x1) << 19) /* bit 19 */
+			+ IBS_OP_LOW_ENABLE;
 		high = 0;
 		wrmsr(MSR_AMD64_IBSOPCTL, low, high);
 	}
@@ -468,11 +472,10 @@ static void clear_ibs_nmi(void)
 		on_each_cpu(apic_clear_ibs_nmi_per_cpu, NULL, 1);
 }
 
-static int (*create_arch_files)(struct super_block * sb, struct dentry * root);
+static int (*create_arch_files)(struct super_block *sb, struct dentry *root);
 
-static int setup_ibs_files(struct super_block * sb, struct dentry * root)
+static int setup_ibs_files(struct super_block *sb, struct dentry *root)
 {
-	char buf[12];
 	struct dentry *dir;
 	int ret = 0;
 
@@ -494,22 +497,22 @@ static int setup_ibs_files(struct super_block * sb, struct dentry * root)
 	ibs_config.max_cnt_op = 250000;
 	ibs_config.op_enabled = 0;
 	ibs_config.dispatched_ops = 1;
-	snprintf(buf,  sizeof(buf), "ibs_fetch");
-	dir = oprofilefs_mkdir(sb, root, buf);
+
+	dir = oprofilefs_mkdir(sb, root, "ibs_fetch");
+	oprofilefs_create_ulong(sb, dir, "enable",
+				&ibs_config.fetch_enabled);
+	oprofilefs_create_ulong(sb, dir, "max_count",
+				&ibs_config.max_cnt_fetch);
 	oprofilefs_create_ulong(sb, dir, "rand_enable",
 				&ibs_config.rand_en);
+
+	dir = oprofilefs_mkdir(sb, root, "ibs_op");
 	oprofilefs_create_ulong(sb, dir, "enable",
-		&ibs_config.fetch_enabled);
+				&ibs_config.op_enabled);
 	oprofilefs_create_ulong(sb, dir, "max_count",
-		&ibs_config.max_cnt_fetch);
-	snprintf(buf,  sizeof(buf), "ibs_uops");
-	dir = oprofilefs_mkdir(sb, root, buf);
-	oprofilefs_create_ulong(sb, dir, "enable",
-		&ibs_config.op_enabled);
-	oprofilefs_create_ulong(sb, dir, "max_count",
-		&ibs_config.max_cnt_op);
+				&ibs_config.max_cnt_op);
 	oprofilefs_create_ulong(sb, dir, "dispatched_ops",
-		&ibs_config.dispatched_ops);
+				&ibs_config.dispatched_ops);
 
 	return 0;
 }
@@ -530,14 +533,14 @@ static void op_amd_exit(void)
 #endif
 
 struct op_x86_model_spec const op_amd_spec = {
-	.init = op_amd_init,
-	.exit = op_amd_exit,
-	.num_counters = NUM_COUNTERS,
-	.num_controls = NUM_CONTROLS,
-	.fill_in_addresses = &op_amd_fill_in_addresses,
-	.setup_ctrs = &op_amd_setup_ctrs,
-	.check_ctrs = &op_amd_check_ctrs,
-	.start = &op_amd_start,
-	.stop = &op_amd_stop,
-	.shutdown = &op_amd_shutdown
+	.init			= op_amd_init,
+	.exit			= op_amd_exit,
+	.num_counters		= NUM_COUNTERS,
+	.num_controls		= NUM_CONTROLS,
+	.fill_in_addresses	= &op_amd_fill_in_addresses,
+	.setup_ctrs		= &op_amd_setup_ctrs,
+	.check_ctrs		= &op_amd_check_ctrs,
+	.start			= &op_amd_start,
+	.stop			= &op_amd_stop,
+	.shutdown		= &op_amd_shutdown
 };

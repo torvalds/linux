@@ -14,7 +14,7 @@ extern void (*mach_sched_init) (irq_handler_t handler);
 /* machine dependent irq functions */
 extern void (*mach_init_IRQ) (void);
 extern void (*mach_get_model) (char *model);
-extern int (*mach_get_hardware_list) (char *buffer);
+extern void (*mach_get_hardware_list) (struct seq_file *m);
 /* machine dependent timer functions */
 extern unsigned long (*mach_gettimeoffset)(void);
 extern int (*mach_hwclk)(int, struct rtc_time*);

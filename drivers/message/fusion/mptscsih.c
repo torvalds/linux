@@ -1760,10 +1760,9 @@ mptscsih_get_tm_timeout(MPT_ADAPTER *ioc)
 	case FC:
 		return 40;
 	case SAS:
-		return 10;
 	case SPI:
 	default:
-		return 2;
+		return 10;
 	}
 }
 

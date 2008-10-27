@@ -681,33 +681,24 @@ static struct dentry *fat_fh_to_dentry(struct super_block *sb,
 			inode = NULL;
 		}
 	}
-	if (!inode) {
-		/* For now, do nothing
-		 * What we could do is:
-		 * follow the file starting at fh[4], and record
-		 * the ".." entry, and the name of the fh[2] entry.
-		 * The follow the ".." file finding the next step up.
-		 * This way we build a path to the root of
-		 * the tree. If this works, we lookup the path and so
-		 * get this inode into the cache.
-		 * Finally try the fat_iget lookup again
-		 * If that fails, then weare totally out of luck
-		 * But all that is for another day
-		 */
-	}
-	if (!inode)
-		return ERR_PTR(-ESTALE);
 
-
-	/* now to find a dentry.
-	 * If possible, get a well-connected one
+	/*
+	 * For now, do nothing if the inode is not found.
+	 *
+	 * What we could do is:
+	 *
+	 *	- follow the file starting at fh[4], and record the ".." entry,
+	 *	  and the name of the fh[2] entry.
+	 *	- then follow the ".." file finding the next step up.
+	 *
+	 * This way we build a path to the root of the tree. If this works, we
+	 * lookup the path and so get this inode into the cache.  Finally try
+	 * the fat_iget lookup again.  If that fails, then we are totally out
+	 * of luck.  But all that is for another day
 	 */
-	result = d_alloc_anon(inode);
-	if (result == NULL) {
-		iput(inode);
-		return ERR_PTR(-ENOMEM);
-	}
-	result->d_op = sb->s_root->d_op;
+	result = d_obtain_alias(inode);
+	if (!IS_ERR(result))
+		result->d_op = sb->s_root->d_op;
 	return result;
 }
 
@@ -754,15 +745,8 @@ static struct dentry *fat_get_parent(struct dentry *child)
 	}
 	inode = fat_build_inode(sb, de, i_pos);
 	brelse(bh);
-	if (IS_ERR(inode)) {
-		parent = ERR_CAST(inode);
-		goto out;
-	}
-	parent = d_alloc_anon(inode);
-	if (!parent) {
-		iput(inode);
-		parent = ERR_PTR(-ENOMEM);
-	}
+
+	parent = d_obtain_alias(inode);
 out:
 	unlock_super(sb);
 

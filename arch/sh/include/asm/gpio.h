@@ -12,6 +12,9 @@
 #ifndef __ASM_SH_GPIO_H
 #define __ASM_SH_GPIO_H
 
+#include <linux/kernel.h>
+#include <linux/errno.h>
+
 #if defined(CONFIG_CPU_SH3)
 #include <cpu/gpio.h>
 #endif
@@ -62,6 +65,7 @@ struct pinmux_data_reg {
 struct pinmux_range {
 	pinmux_enum_t begin;
 	pinmux_enum_t end;
+	pinmux_enum_t force;
 };
 
 struct pinmux_info {
@@ -99,9 +103,20 @@ int gpio_direction_input(unsigned gpio);
 int gpio_direction_output(unsigned gpio, int value);
 int gpio_get_value(unsigned gpio);
 void gpio_set_value(unsigned gpio, int value);
-static inline int gpio_export(unsigned gpio, bool direction_may_change)
+
+/* IRQ modes are unspported */
+static inline int gpio_to_irq(unsigned gpio)
 {
-	return 0;
+	WARN_ON(1);
+	return -EINVAL;
 }
+
+static inline int irq_to_gpio(unsigned irq)
+{
+	WARN_ON(1);
+	return -EINVAL;
+}
+
+#include <asm-generic/gpio.h>
 
 #endif /* __ASM_SH_GPIO_H */

@@ -86,7 +86,7 @@ typedef struct _MDS
 {
 	// For Tx usage
 	u8	TxOwner[ ((MAX_USB_TX_BUFFER_NUMBER + 3) & ~0x03) ];
-	PUCHAR	pTxBuffer;
+	u8	*pTxBuffer;
 	u16	TxBufferSize[ ((MAX_USB_TX_BUFFER_NUMBER + 1) & ~0x01) ];
 	u8	TxDesFrom[ ((MAX_USB_TX_DESCRIPTOR + 3) & ~0x03) ];//931130.4.u // 1: MLME 2: NDIS control 3: NDIS data
 	u8	TxCountInBuffer[ ((MAX_USB_TX_DESCRIPTOR + 3) & ~0x03) ]; // 20060928
@@ -103,7 +103,7 @@ typedef struct _MDS
 	u16	TxResult[ ((MAX_USB_TX_DESCRIPTOR + 1) & ~0x01) ];//Collect the sending result of Mpdu
 
 	u8	MicRedundant[8]; // For tmp use
-	PUCHAR	MicWriteAddress[2]; //The start address to fill the Mic, use 2 point due to Mic maybe fragment
+	u8	*MicWriteAddress[2]; //The start address to fill the Mic, use 2 point due to Mic maybe fragment
 
 	u16	MicWriteSize[2]; //931130.4.x
 
@@ -144,7 +144,7 @@ typedef struct _MDS
 
 typedef struct _RxBuffer
 {
-    PUCHAR  pBufferAddress;     // Pointer the received data buffer.
+    u8 * pBufferAddress;     // Pointer the received data buffer.
 	u16	BufferSize;
 	u8	RESERVED;
 	u8	BufferIndex;// Only 1 byte
@@ -176,7 +176,7 @@ typedef struct _RXLAYER1
 	/////////////////////////////////////////////////////////////////////////////////////////////
 	// For brand-new Rx system
 	u8	ReservedBuffer[ 2400 ];//If Buffer ID is reserved one, it must copy the data into this area
-	PUCHAR	ReservedBufferPoint;// Point to the next availabe address of reserved buffer
+	u8	*ReservedBufferPoint;// Point to the next availabe address of reserved buffer
 
 }RXLAYER1, * PRXLAYER1;
 

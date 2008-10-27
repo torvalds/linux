@@ -1088,7 +1088,6 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 	int node;
 
 	if (unlikely((cont->parent) == NULL)) {
-		page_cgroup_init();
 		mem = &init_mem_cgroup;
 	} else {
 		mem = mem_cgroup_alloc();
