@@ -98,6 +98,7 @@
 
 #include <mach_apic.h>
 #include <asm/paravirt.h>
+#include <asm/hypervisor.h>
 
 #include <asm/percpu.h>
 #include <asm/topology.h>
@@ -908,6 +909,12 @@ void __init setup_arch(char **cmdline_p)
 	dmi_scan_machine();
 
 	dmi_check_system(bad_bios_dmi_table);
+
+	/*
+	 * VMware detection requires dmi to be available, so this
+	 * needs to be done after dmi_scan_machine, for the BP.
+	 */
+	init_hypervisor(&boot_cpu_data);
 
 #ifdef CONFIG_X86_32
 	probe_roms();
