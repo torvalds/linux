@@ -192,6 +192,7 @@
 #define PM_16M		0x01ffe000
 #define PM_64M		0x07ffe000
 #define PM_256M		0x1fffe000
+#define PM_1G		0x7fffe000
 
 #endif
 

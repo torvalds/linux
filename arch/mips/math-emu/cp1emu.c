@@ -1299,12 +1299,12 @@ static int __init debugfs_fpuemu(void)
 	if (!mips_debugfs_dir)
 		return -ENODEV;
 	dir = debugfs_create_dir("fpuemustats", mips_debugfs_dir);
-	if (IS_ERR(dir))
-		return PTR_ERR(dir);
+	if (!dir)
+		return -ENOMEM;
 	for (i = 0; i < ARRAY_SIZE(vars); i++) {
 		d = debugfs_create_u32(vars[i].name, S_IRUGO, dir, vars[i].v);
-		if (IS_ERR(d))
-			return PTR_ERR(d);
+		if (!d)
+			return -ENOMEM;
 	}
 	return 0;
 }

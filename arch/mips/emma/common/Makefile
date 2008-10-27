@@ -10,4 +10,4 @@
 #  (at your option) any later version.
 #
 
-obj-$(CONFIG_MARKEINS)	+= irq.o irq_emma2rh.o prom.o
+obj-$(CONFIG_NEC_MARKEINS)	+= prom.o

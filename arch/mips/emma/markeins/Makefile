@@ -10,4 +10,4 @@
 #  (at your option) any later version.
 #
 
-obj-$(CONFIG_MARKEINS) += irq.o irq_markeins.o setup.o led.o platform.o
+obj-$(CONFIG_NEC_MARKEINS) += irq.o setup.o led.o platform.o

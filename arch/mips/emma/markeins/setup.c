@@ -29,7 +29,7 @@
 #include <asm/time.h>
 #include <asm/reboot.h>
 
-#include <asm/emma2rh/emma2rh.h>
+#include <asm/emma/emma2rh.h>
 
 #define	USE_CPU_COUNTER_TIMER	/* whether we use cpu counter */
 
