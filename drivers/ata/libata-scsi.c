@@ -1107,6 +1107,15 @@ static int ata_scsi_dev_config(struct scsi_device *sdev,
 
 		depth = min(sdev->host->can_queue, ata_id_queue_depth(dev->id));
 		depth = min(ATA_MAX_QUEUE - 1, depth);
+
+		/*
+		 * If this device is behind a port multiplier, we have
+		 * to share the tag map between all devices on that PMP.
+		 * Set up the shared tag map here and we get automatic.
+		 */
+		if (dev->link->ap->pmp_link)
+			scsi_init_shared_tag_map(sdev->host, ATA_MAX_QUEUE - 1);
+
 		scsi_set_tag_type(sdev, MSG_SIMPLE_TAG);
 		scsi_activate_tcq(sdev, depth);
 	}
