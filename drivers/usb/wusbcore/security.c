@@ -338,8 +338,7 @@ static void hs_printk(unsigned level, struct device *dev,
  * Before the device's address (as known by it) was usb_dev->devnum |
  * 0x80 (unauthenticated address). With this we update it to usb_dev->devnum.
  */
-static int wusb_dev_update_address(struct wusbhc *wusbhc,
-				   struct wusb_dev *wusb_dev)
+int wusb_dev_update_address(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev)
 {
 	int result = -ENOMEM;
 	struct usb_device *usb_dev = wusb_dev->usb_dev;

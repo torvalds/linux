@@ -77,13 +77,17 @@
 /*
  * Reset a fake port
  *
- * This can be called to reset a port from any other state or to reset
- * it when connecting. In Wireless USB they are different; when doing
- * a new connect that involves going over the authentication. When
- * just reseting, its a different story.
+ * Using a Reset Device IE is too heavyweight as it causes the device
+ * to enter the UnConnected state and leave the cluster, this can mean
+ * that when the device reconnects it is connected to a different fake
+ * port.
  *
- * The Linux USB stack resets a port twice before it considers it
- * enabled, so we have to detect and ignore that.
+ * Instead, reset authenticated devices with a SetAddress(0), followed
+ * by a SetAddresss(AuthAddr).
+ *
+ * For unauthenticated devices just pretend to reset but do nothing.
+ * If the device initialization continues to fail it will eventually
+ * time out after TrustTimeout and enter the UnConnected state.
  *
  * @wusbhc is assumed referenced and @wusbhc->mutex unlocked.
  *
@@ -97,20 +101,20 @@ static int wusbhc_rh_port_reset(struct wusbhc *wusbhc, u8 port_idx)
 {
 	int result = 0;
 	struct wusb_port *port = wusb_port_by_idx(wusbhc, port_idx);
+	struct wusb_dev *wusb_dev = port->wusb_dev;
 
-	d_fnstart(3, wusbhc->dev, "(wusbhc %p port_idx %u)\n",
-		  wusbhc, port_idx);
-	if (port->reset_count == 0) {
-		wusbhc_devconnect_auth(wusbhc, port_idx);
-		port->reset_count++;
-	} else if (port->reset_count == 1)
-		/* see header */
-		d_printf(2, wusbhc->dev, "Ignoring second reset on port_idx "
-			"%u\n", port_idx);
+	port->status |= USB_PORT_STAT_RESET;
+	port->change |= USB_PORT_STAT_C_RESET;
+
+	if (wusb_dev->addr & WUSB_DEV_ADDR_UNAUTH)
+		result = 0;
 	else
-		result = wusbhc_dev_reset(wusbhc, port_idx);
-	d_fnend(3, wusbhc->dev, "(wusbhc %p port_idx %u) = %d\n",
-		wusbhc, port_idx, result);
+		result = wusb_dev_update_address(wusbhc, wusb_dev);
+
+	port->status &= ~USB_PORT_STAT_RESET;
+	port->status |= USB_PORT_STAT_ENABLE;
+	port->change |= USB_PORT_STAT_C_RESET | USB_PORT_STAT_C_ENABLE;	
+
 	return result;
 }
 

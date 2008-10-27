@@ -154,7 +154,6 @@ struct wusb_port {
 	u16 status;
 	u16 change;
 	struct wusb_dev *wusb_dev;	/* connected device's info */
-	unsigned reset_count;
 	u32 ptk_tkid;
 };
 
@@ -387,10 +386,8 @@ extern void wusbhc_devconnect_destroy(struct wusbhc *);
 extern int wusbhc_devconnect_start(struct wusbhc *wusbhc,
 				   const struct wusb_ckhdid *chid);
 extern void wusbhc_devconnect_stop(struct wusbhc *wusbhc);
-extern int wusbhc_devconnect_auth(struct wusbhc *, u8);
 extern void wusbhc_handle_dn(struct wusbhc *, u8 srcaddr,
 			     struct wusb_dn_hdr *dn_hdr, size_t size);
-extern int wusbhc_dev_reset(struct wusbhc *wusbhc, u8 port);
 extern void __wusbhc_dev_disable(struct wusbhc *wusbhc, u8 port);
 extern int wusb_usb_ncb(struct notifier_block *nb, unsigned long val,
 			void *priv);
@@ -436,6 +433,7 @@ extern void wusb_dev_sec_rm(struct wusb_dev *) ;
 extern int wusb_dev_4way_handshake(struct wusbhc *, struct wusb_dev *,
 				   struct wusb_ckhdid *ck);
 void wusbhc_gtk_rekey(struct wusbhc *wusbhc);
+int wusb_dev_update_address(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev);
 
 
 /* WUSB Cluster ID handling */
