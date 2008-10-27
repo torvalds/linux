@@ -70,7 +70,7 @@ void Wb35Rx(  phw_data_t pHwData )
 
 	pWb35Rx->EP3vm_state = VM_RUNNING;
 
-	retv = wb_usb_submit_urb(urb);
+	retv = usb_submit_urb(urb, GFP_ATOMIC);
 
 	if (retv != 0) {
 		printk("Rx URB sending error\n");

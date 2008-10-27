@@ -65,7 +65,7 @@ void Wb35Tx(phw_data_t pHwData)
 			  Wb35Tx_complete, pHwData);
 
 	pWb35Tx->EP4vm_state = VM_RUNNING;
-	retv = wb_usb_submit_urb( pUrb );
+	retv = usb_submit_urb(pUrb, GFP_ATOMIC);
 	if (retv<0) {
 		printk("EP4 Tx Irp sending error\n");
 		goto cleanup;
@@ -240,7 +240,7 @@ void Wb35Tx_EP2VM(phw_data_t pHwData)
 			  pltmp, MAX_INTERRUPT_LENGTH, Wb35Tx_EP2VM_complete, pHwData, 32);
 
 	pWb35Tx->EP2vm_state = VM_RUNNING;
-	retv = wb_usb_submit_urb( pUrb );
+	retv = usb_submit_urb(pUrb, GFP_ATOMIC);
 
 	if (retv < 0) {
 		#ifdef _PE_TX_DUMP_

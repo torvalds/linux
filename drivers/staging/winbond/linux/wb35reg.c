@@ -434,7 +434,7 @@ Wb35Reg_EP0VM(phw_data_t pHwData )
 
 	reg->EP0vm_state = VM_RUNNING;
 
-	ret = wb_usb_submit_urb( urb );
+	ret = usb_submit_urb(urb, GFP_ATOMIC);
 
 	if (ret < 0) {
 #ifdef _PE_REG_DUMP_
