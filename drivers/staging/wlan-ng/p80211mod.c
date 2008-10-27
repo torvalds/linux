@@ -109,7 +109,7 @@ int wlan_watchdog = 5000;
 module_param(wlan_watchdog, int, 0644);
 MODULE_PARM_DESC(wlan_watchdog, "transmit timeout in milliseconds");
 
-int wlan_wext_write = 0;
+int wlan_wext_write = 1;
 #if WIRELESS_EXT > 12
 module_param(wlan_wext_write, int, 0644);
 MODULE_PARM_DESC(wlan_wext_write, "enable write wireless extensions");
