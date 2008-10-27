@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
+#include <linux/workqueue.h>
 #include <linux/mfd/da903x.h>
 
 #define DA9030_LED1_CONTROL	0x20
