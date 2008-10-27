@@ -781,6 +781,13 @@ static void svm_get_segment(struct kvm_vcpu *vcpu,
 	if (seg == VCPU_SREG_CS)
 		var->g = s->limit > 0xfffff;
 
+	/*
+	 * Work around a bug where the busy flag in the tr selector
+	 * isn't exposed
+	 */
+	if (seg == VCPU_SREG_TR)
+		var->type |= 0x2;
+
 	var->unusable = !var->present;
 }
 
