@@ -201,7 +201,7 @@ static int ixp4xx_flash_probe(struct platform_device *dev)
 		err = -ENOMEM;
 		goto Error;
 	}
-	memzero(info, sizeof(struct ixp4xx_flash_info));
+	memset(info, 0, sizeof(struct ixp4xx_flash_info));
 
 	platform_set_drvdata(dev, info);
 

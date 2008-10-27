@@ -474,9 +474,9 @@ static __init int asic3_gpio_probe(struct platform_device *pdev,
 	u16 dir_reg[ASIC3_NUM_GPIO_BANKS];
 	int i;
 
-	memzero(alt_reg, ASIC3_NUM_GPIO_BANKS * sizeof(u16));
-	memzero(out_reg, ASIC3_NUM_GPIO_BANKS * sizeof(u16));
-	memzero(dir_reg, ASIC3_NUM_GPIO_BANKS * sizeof(u16));
+	memset(alt_reg, 0, ASIC3_NUM_GPIO_BANKS * sizeof(u16));
+	memset(out_reg, 0, ASIC3_NUM_GPIO_BANKS * sizeof(u16));
+	memset(dir_reg, 0, ASIC3_NUM_GPIO_BANKS * sizeof(u16));
 
 	/* Enable all GPIOs */
 	asic3_write_register(asic, ASIC3_GPIO_OFFSET(A, MASK), 0xffff);

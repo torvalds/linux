@@ -896,7 +896,7 @@ void __init paging_init(struct meminfo *mi, struct machine_desc *mdesc)
 	 * allocate the zero page.  Note that we count on this going ok.
 	 */
 	zero_page = alloc_bootmem_low_pages(PAGE_SIZE);
-	memzero(zero_page, PAGE_SIZE);
+	memset(zero_page, 0, PAGE_SIZE);
 	empty_zero_page = virt_to_page(zero_page);
 	flush_dcache_page(empty_zero_page);
 }
