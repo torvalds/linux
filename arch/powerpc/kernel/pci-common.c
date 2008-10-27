@@ -1421,3 +1421,61 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 
 	return pci_enable_resources(dev, mask);
 }
+
+void __devinit pcibios_setup_phb_resources(struct pci_controller *hose)
+{
+	struct pci_bus *bus = hose->bus;
+	struct resource *res;
+	int i;
+
+	/* Hookup PHB IO resource */
+	bus->resource[0] = res = &hose->io_resource;
+
+	if (!res->flags) {
+		printk(KERN_WARNING "PCI: I/O resource not set for host"
+		       " bridge %s (domain %d)\n",
+		       hose->dn->full_name, hose->global_number);
+#ifdef CONFIG_PPC32
+		/* Workaround for lack of IO resource only on 32-bit */
+		res->start = (unsigned long)hose->io_base_virt - isa_io_base;
+		res->end = res->start + IO_SPACE_LIMIT;
+		res->flags = IORESOURCE_IO;
+#endif /* CONFIG_PPC32 */
+	}
+
+	pr_debug("PCI: PHB IO resource    = %016llx-%016llx [%lx]\n",
+		 (unsigned long long)res->start,
+		 (unsigned long long)res->end,
+		 (unsigned long)res->flags);
+
+	/* Hookup PHB Memory resources */
+	for (i = 0; i < 3; ++i) {
+		res = &hose->mem_resources[i];
+		if (!res->flags) {
+			if (i > 0)
+				continue;
+			printk(KERN_ERR "PCI: Memory resource 0 not set for "
+			       "host bridge %s (domain %d)\n",
+			       hose->dn->full_name, hose->global_number);
+#ifdef CONFIG_PPC32
+			/* Workaround for lack of MEM resource only on 32-bit */
+			res->start = hose->pci_mem_offset;
+			res->end = (resource_size_t)-1LL;
+			res->flags = IORESOURCE_MEM;
+#endif /* CONFIG_PPC32 */
+		}
+		bus->resource[i+1] = res;
+
+		pr_debug("PCI: PHB MEM resource %d = %016llx-%016llx [%lx]\n", i,
+			 (unsigned long long)res->start,
+			 (unsigned long long)res->end,
+			 (unsigned long)res->flags);
+	}
+
+	pr_debug("PCI: PHB MEM offset     = %016llx\n",
+		 (unsigned long long)hose->pci_mem_offset);
+	pr_debug("PCI: PHB IO  offset     = %08lx\n",
+		 (unsigned long)hose->io_base_virt - _IO_BASE);
+
+}
+

@@ -322,7 +322,7 @@ void __devinit scan_phb(struct pci_controller *hose)
 {
 	struct pci_bus *bus;
 	struct device_node *node = hose->dn;
-	int i, mode;
+	int mode;
 
 	pr_debug("PCI: Scanning PHB %s\n",
 		 node ? node->full_name : "<NO NAME>");
@@ -341,20 +341,7 @@ void __devinit scan_phb(struct pci_controller *hose)
 	pcibios_map_io_space(bus);
 
 	/* Wire up PHB bus resources */
-	pr_debug("PCI: PHB IO resource    = %016lx-%016lx [%lx]\n",
-		 hose->io_resource.start, hose->io_resource.end,
-		 hose->io_resource.flags);
-	bus->resource[0] = &hose->io_resource;
-	for (i = 0; i < 3; ++i) {
-		pr_debug("PCI: PHB MEM resource %d = %016lx-%016lx [%lx]\n", i,
-			 hose->mem_resources[i].start,
-			 hose->mem_resources[i].end,
-			 hose->mem_resources[i].flags);
-		bus->resource[i+1] = &hose->mem_resources[i];
-	}
-	pr_debug("PCI: PHB MEM offset     = %016lx\n", hose->pci_mem_offset);
-	pr_debug("PCI: PHB IO  offset     = %08lx\n",
-	    (unsigned long)hose->io_base_virt - _IO_BASE);
+	pcibios_setup_phb_resources(hose);
 
 	/* Get probe mode and perform scan */
 	mode = PCI_PROBE_NORMAL;
@@ -376,7 +363,7 @@ static int __init pcibios_init(void)
 
 	printk(KERN_INFO "PCI: Probing PCI hardware\n");
 
-	/* For now, override phys_mem_access_prot. If we need it,
+	/* For now, override phys_mem_access_prot. If we need it,g
 	 * later, we may move that initialization to each ppc_md
 	 */
 	ppc_md.phys_mem_access_prot = pci_phys_mem_access_prot;
