@@ -134,6 +134,8 @@ typedef int64_t		INT64;
 #define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
 #endif
 
+#define WLAN_RELEASE	"0.3.0-lkml"
+
 #include <linux/hardirq.h>
 
 #define WLAN_LOG_ERROR(x,args...) printk(KERN_ERR "%s: " x , __func__ , ##args);

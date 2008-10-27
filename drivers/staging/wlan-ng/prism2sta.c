@@ -54,8 +54,6 @@
 /* System Includes */
 #define WLAN_DBVAR	prism2_debug
 
-#include "version.h"
-
 #include <linux/version.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -2221,9 +2219,9 @@ prism2sta_proc_read(
 	// XXX 0x0001 for prism2.5/3, 0x0000 for prism2.
 	hwtype = BIT0;
 
-	p += sprintf(p, "# %s version %s (%s)\n\n",
+	p += sprintf(p, "# %s version %s\n\n",
 		     dev_info,
-		     WLAN_RELEASE, WLAN_BUILD_DATE);
+		     WLAN_RELEASE);
 
 	p += sprintf(p, "# nic h/w: id=0x%02x %d.%d.%d\n",
 		     hw->ident_nic.id, hw->ident_nic.major,

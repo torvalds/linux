@@ -68,7 +68,6 @@
 #include <linux/wireless.h>
 #include <linux/netdevice.h>
 
-#include "version.h"
 #include "wlan_compat.h"
 
 /*================================================================*/

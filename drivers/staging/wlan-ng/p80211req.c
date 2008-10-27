@@ -68,7 +68,6 @@
 #include <net/sock.h>
 #include <linux/netlink.h>
 
-#include "version.h"
 #include "wlan_compat.h"
 
 /*================================================================*/

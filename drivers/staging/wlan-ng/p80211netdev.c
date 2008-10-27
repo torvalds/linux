@@ -85,7 +85,6 @@
 /*================================================================*/
 /* Project Includes */
 
-#include "version.h"
 #include "wlan_compat.h"
 #include "p80211types.h"
 #include "p80211hdr.h"
@@ -1102,8 +1101,8 @@ p80211netdev_proc_read(
 		goto exit;
 	}
 
-	p += sprintf(p, "p80211 version: %s (%s)\n\n",
-		     WLAN_RELEASE, WLAN_BUILD_DATE);
+	p += sprintf(p, "p80211 version: %s\n\n",
+		     WLAN_RELEASE);
 	p += sprintf(p, "name       : %s\n", wlandev->name);
 	p += sprintf(p, "nsd name   : %s\n", wlandev->nsdname);
 	p += sprintf(p, "address    : %02x:%02x:%02x:%02x:%02x:%02x\n",

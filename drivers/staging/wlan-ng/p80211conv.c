@@ -70,7 +70,6 @@
 
 #include <asm/byteorder.h>
 
-#include "version.h"
 #include "wlan_compat.h"
 
 /*================================================================*/

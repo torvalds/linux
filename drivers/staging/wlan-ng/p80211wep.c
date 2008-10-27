@@ -56,7 +56,6 @@
 #include <linux/slab.h>
 #include <linux/random.h>
 
-#include "version.h"
 #include "wlan_compat.h"
 
 // #define WEP_DEBUG

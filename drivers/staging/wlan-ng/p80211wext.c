@@ -56,7 +56,6 @@
 /*================================================================*/
 /* Project Includes */
 
-#include "version.h"
 #include "wlan_compat.h"
 
 #include "p80211types.h"
