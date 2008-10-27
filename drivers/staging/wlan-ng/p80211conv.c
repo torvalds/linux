@@ -444,16 +444,6 @@ int skb_p80211_to_ether( wlandevice_t *wlandev, UINT32 ethconv, struct sk_buff *
 		/*  build an 802.3 frame */
 		/* allocate space and setup hostbuf */
 
-		/* Test for an overlength frame */
-		if ( payload_length > netdev->mtu ) {
-			/* A bogus length ethfrm has been sent. */
-			/* Is someone trying an oflow attack? */
-			WLAN_LOG_ERROR("OTHER frame too large (%d > %d)\n",
-				payload_length,
-				netdev->mtu);
-			return 1;
-		}
-
 		/* Chop off the 802.11 header. */
 		skb_pull(skb, payload_offset);
 
