@@ -2894,21 +2894,11 @@ static int ocfs2_defrag_xattr_bucket(struct inode *inode,
 	struct ocfs2_xattr_header *xh;
 	char *entries, *buf, *bucket_buf = NULL;
 	u64 blkno = bucket_blkno(bucket);
-	u16 blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
 	u16 xh_free_start;
 	size_t blocksize = inode->i_sb->s_blocksize;
 	handle_t *handle;
-	struct buffer_head **bhs;
 	struct ocfs2_xattr_entry *xe;
-
-	bhs = kzalloc(sizeof(struct buffer_head *) * blk_per_bucket,
-			GFP_NOFS);
-	if (!bhs)
-		return -ENOMEM;
-
-	ret = ocfs2_read_blocks(inode, blkno, blk_per_bucket, bhs, 0);
-	if (ret)
-		goto out;
+	struct ocfs2_xattr_bucket *wb = NULL;
 
 	/*
 	 * In order to make the operation more efficient and generic,
@@ -2922,11 +2912,21 @@ static int ocfs2_defrag_xattr_bucket(struct inode *inode,
 		goto out;
 	}
 
-	buf = bucket_buf;
-	for (i = 0; i < blk_per_bucket; i++, buf += blocksize)
-		memcpy(buf, bhs[i]->b_data, blocksize);
+	wb = ocfs2_xattr_bucket_new(inode);
+	if (!wb) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
-	handle = ocfs2_start_trans((OCFS2_SB(inode->i_sb)), blk_per_bucket);
+	ret = ocfs2_read_xattr_bucket(wb, blkno);
+	if (ret)
+		goto out;
+
+	buf = bucket_buf;
+	for (i = 0; i < wb->bu_blocks; i++, buf += blocksize)
+		memcpy(buf, bucket_block(wb, i), blocksize);
+
+	handle = ocfs2_start_trans((OCFS2_SB(inode->i_sb)), wb->bu_blocks);
 	if (IS_ERR(handle)) {
 		ret = PTR_ERR(handle);
 		handle = NULL;
@@ -2934,13 +2934,11 @@ static int ocfs2_defrag_xattr_bucket(struct inode *inode,
 		goto out;
 	}
 
-	for (i = 0; i < blk_per_bucket; i++) {
-		ret = ocfs2_journal_access(handle, inode, bhs[i],
-					   OCFS2_JOURNAL_ACCESS_WRITE);
-		if (ret < 0) {
-			mlog_errno(ret);
-			goto commit;
-		}
+	ret = ocfs2_xattr_bucket_journal_access(handle, wb,
+						OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto commit;
 	}
 
 	xh = (struct ocfs2_xattr_header *)bucket_buf;
@@ -3009,21 +3007,14 @@ static int ocfs2_defrag_xattr_bucket(struct inode *inode,
 	     cmp_xe, swap_xe);
 
 	buf = bucket_buf;
-	for (i = 0; i < blk_per_bucket; i++, buf += blocksize) {
-		memcpy(bhs[i]->b_data, buf, blocksize);
-		ocfs2_journal_dirty(handle, bhs[i]);
-	}
+	for (i = 0; i < wb->bu_blocks; i++, buf += blocksize)
+		memcpy(bucket_block(wb, i), buf, blocksize);
+	ocfs2_xattr_bucket_journal_dirty(handle, wb);
 
 commit:
 	ocfs2_commit_trans(OCFS2_SB(inode->i_sb), handle);
 out:
-
-	if (bhs) {
-		for (i = 0; i < blk_per_bucket; i++)
-			brelse(bhs[i]);
-	}
-	kfree(bhs);
-
+	ocfs2_xattr_bucket_free(wb);
 	kfree(bucket_buf);
 	return ret;
 }
