@@ -112,10 +112,6 @@
 
 #define __NO_VERSION__		/* prevent the static definition */
 
-#ifdef CONFIG_PROC_FS
-static struct proc_dir_entry	*proc_p80211;
-#endif
-
 /*================================================================*/
 /* Local Function Declarations */
 
@@ -134,16 +130,6 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr);
 static void p80211knetdev_tx_timeout(netdevice_t *netdev);
 static int p80211_rx_typedrop( wlandevice_t *wlandev, UINT16 fc);
 
-#ifdef CONFIG_PROC_FS
-static int
-p80211netdev_proc_read(
-	char	*page,
-	char	**start,
-	off_t	offset,
-	int	count,
-	int	*eof,
-	void	*data);
-#endif
 
 /*================================================================*/
 /* Function Definitions */
@@ -164,14 +150,6 @@ void p80211netdev_startup(void)
 {
 	DBFENTER;
 
-#ifdef CONFIG_PROC_FS
-	if (init_net.proc_net != NULL) {
-		proc_p80211 = create_proc_entry(
-				"p80211",
-				(S_IFDIR|S_IRUGO|S_IXUGO),
-				init_net.proc_net);
-	}
-#endif
 	DBFEXIT;
 	return;
 }
@@ -192,11 +170,6 @@ void
 p80211netdev_shutdown(void)
 {
 	DBFENTER;
-#ifdef CONFIG_PROC_FS
-	if (proc_p80211 != NULL) {
-		remove_proc_entry("p80211", init_net.proc_net);
-	}
-#endif
 	DBFEXIT;
 }
 
@@ -997,23 +970,6 @@ int register_wlandev(wlandevice_t *wlandev)
 
 	strcpy(wlandev->name, dev->name);
 
-#ifdef CONFIG_PROC_FS
-	if (proc_p80211) {
-		wlandev->procdir = proc_mkdir(wlandev->name, proc_p80211);
-		if ( wlandev->procdir )
-			wlandev->procwlandev =
-				create_proc_read_entry("wlandev", 0,
-						       wlandev->procdir,
-						       p80211netdev_proc_read,
-						       wlandev);
-		if (wlandev->nsd_proc_read)
-			create_proc_read_entry("nsd", 0,
-					       wlandev->procdir,
-					       wlandev->nsd_proc_read,
-					       wlandev);
-	}
-#endif
-
 	DBFEXIT;
 	return 0;
 }
@@ -1042,18 +998,6 @@ int unregister_wlandev(wlandevice_t *wlandev)
 
 	DBFENTER;
 
-#ifdef CONFIG_PROC_FS
-	if ( wlandev->procwlandev ) {
-		remove_proc_entry("wlandev", wlandev->procdir);
-	}
-	if ( wlandev->nsd_proc_read ) {
-		remove_proc_entry("nsd", wlandev->procdir);
-	}
-	if (wlandev->procdir) {
-		remove_proc_entry(wlandev->name, proc_p80211);
-	}
-#endif
-
 	unregister_netdev(wlandev->netdev);
 
 	/* Now to clean out the rx queue */
@@ -1065,76 +1009,6 @@ int unregister_wlandev(wlandevice_t *wlandev)
 	return 0;
 }
 
-#ifdef CONFIG_PROC_FS
-/*----------------------------------------------------------------
-* proc_read
-*
-* Read function for /proc/net/p80211/<device>/wlandev
-*
-* Arguments:
-*	buf
-*	start
-*	offset
-*	count
-*	eof
-*	data
-* Returns:
-*	zero on success, non-zero otherwise.
-* Call Context:
-*	Can be either interrupt or not.
-----------------------------------------------------------------*/
-static int
-p80211netdev_proc_read(
-	char	*page,
-	char	**start,
-	off_t	offset,
-	int	count,
-	int	*eof,
-	void	*data)
-{
-	char	 *p = page;
-	wlandevice_t *wlandev = (wlandevice_t *) data;
-
-	DBFENTER;
-	if (offset != 0) {
-		*eof = 1;
-		goto exit;
-	}
-
-	p += sprintf(p, "p80211 version: %s\n\n",
-		     WLAN_RELEASE);
-	p += sprintf(p, "name       : %s\n", wlandev->name);
-	p += sprintf(p, "nsd name   : %s\n", wlandev->nsdname);
-	p += sprintf(p, "address    : %02x:%02x:%02x:%02x:%02x:%02x\n",
-		     wlandev->netdev->dev_addr[0], wlandev->netdev->dev_addr[1], wlandev->netdev->dev_addr[2],
-		     wlandev->netdev->dev_addr[3], wlandev->netdev->dev_addr[4], wlandev->netdev->dev_addr[5]);
-	p += sprintf(p, "nsd caps   : %s%s%s%s%s%s%s%s%s%s\n",
-		     (wlandev->nsdcaps & P80211_NSDCAP_HARDWAREWEP) ? "wep_hw " : "",
-		     (wlandev->nsdcaps & P80211_NSDCAP_TIEDWEP) ? "wep_tied " : "",
-		     (wlandev->nsdcaps & P80211_NSDCAP_NOHOSTWEP) ? "wep_hw_only " : "",
-		     (wlandev->nsdcaps & P80211_NSDCAP_PBCC) ? "pbcc " : "",
-		     (wlandev->nsdcaps & P80211_NSDCAP_SHORT_PREAMBLE) ? "short_preamble " : "",
-		     (wlandev->nsdcaps & P80211_NSDCAP_AGILITY) ? "agility " : "",
-		     (wlandev->nsdcaps & P80211_NSDCAP_AP_RETRANSMIT) ? "ap_retransmit " : "",
-		     (wlandev->nsdcaps & P80211_NSDCAP_HWFRAGMENT) ? "hw_frag " : "",
-		     (wlandev->nsdcaps & P80211_NSDCAP_AUTOJOIN) ? "autojoin " : "",
-		     (wlandev->nsdcaps & P80211_NSDCAP_NOSCAN) ? "" : "scan ");
-
-
-	p += sprintf(p, "bssid      : %02x:%02x:%02x:%02x:%02x:%02x\n",
-		     wlandev->bssid[0], wlandev->bssid[1], wlandev->bssid[2],
-		     wlandev->bssid[3], wlandev->bssid[4], wlandev->bssid[5]);
-
-	p += sprintf(p, "Enabled    : %s%s\n",
-		     (wlandev->shortpreamble) ? "short_preamble " : "",
-		     (wlandev->hostwep & HOSTWEP_PRIVACYINVOKED) ? "privacy" : "");
-
-
- exit:
-	DBFEXIT;
-	return (p - page);
-}
-#endif
 
 /*----------------------------------------------------------------
 * p80211netdev_hwremoved

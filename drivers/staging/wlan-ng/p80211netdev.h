@@ -203,10 +203,6 @@ typedef struct wlandevice
 					      netdevice_t *dev);
 	void		(*tx_timeout)(struct wlandevice *wlandev);
 
-#ifdef CONFIG_PROC_FS
-	int             (*nsd_proc_read)(char *page, char **start, off_t offset, int count, int	*eof, void *data);
-#endif
-
 	/* 802.11 State */
 	UINT8		bssid[WLAN_BSSID_LEN];
 	p80211pstr32_t	ssid;
@@ -227,12 +223,6 @@ typedef struct wlandevice
 	/* Linux netdevice and support */
 	netdevice_t		*netdev;	/* ptr to linux netdevice */
 	struct net_device_stats linux_stats;
-
-#ifdef CONFIG_PROC_FS
-	/* Procfs support */
-	struct proc_dir_entry	*procdir;
-	struct proc_dir_entry	*procwlandev;
-#endif
 
 	/* Rx bottom half */
 	struct tasklet_struct	rx_bh;

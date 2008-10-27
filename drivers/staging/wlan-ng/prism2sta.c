@@ -164,17 +164,6 @@ static void	prism2sta_inf_authreq_defer(
 static void	prism2sta_inf_psusercnt(
 			wlandevice_t *wlandev, hfa384x_InfFrame_t *inf);
 
-#ifdef CONFIG_PROC_FS
-static int
-prism2sta_proc_read(
-	char	*page,
-	char	**start,
-	off_t	offset,
-	int	count,
-	int	*eof,
-	void	*data);
-#endif
-
 /*================================================================*/
 /* Function Definitions */
 
@@ -2177,9 +2166,6 @@ static wlandevice_t *create_wlan(void)
 	wlandev->open = prism2sta_open;
 	wlandev->close = prism2sta_close;
 	wlandev->reset = prism2sta_reset;
-#ifdef CONFIG_PROC_FS
-	wlandev->nsd_proc_read = prism2sta_proc_read;
-#endif
 	wlandev->txframe = prism2sta_txframe;
 	wlandev->mlmerequest = prism2sta_mlmerequest;
 	wlandev->set_multicast_list = prism2sta_setmulticast;
@@ -2193,59 +2179,6 @@ static wlandevice_t *create_wlan(void)
 
 	return wlandev;
 }
-
-#ifdef CONFIG_PROC_FS
-static int
-prism2sta_proc_read(
-	char	*page,
-	char	**start,
-	off_t	offset,
-	int	count,
-	int	*eof,
-	void	*data)
-{
-	char	 *p = page;
-	wlandevice_t *wlandev = (wlandevice_t *) data;
-	hfa384x_t *hw = (hfa384x_t *) wlandev->priv;
-
-	UINT16 hwtype = 0;
-
-	DBFENTER;
-	if (offset != 0) {
-		*eof = 1;
-		goto exit;
-	}
-
-	// XXX 0x0001 for prism2.5/3, 0x0000 for prism2.
-	hwtype = BIT0;
-
-	p += sprintf(p, "# %s version %s\n\n",
-		     dev_info,
-		     WLAN_RELEASE);
-
-	p += sprintf(p, "# nic h/w: id=0x%02x %d.%d.%d\n",
-		     hw->ident_nic.id, hw->ident_nic.major,
-		     hw->ident_nic.minor, hw->ident_nic.variant);
-
-	p += sprintf(p, "# pri f/w: id=0x%02x %d.%d.%d\n",
-		     hw->ident_pri_fw.id, hw->ident_pri_fw.major,
-		     hw->ident_pri_fw.minor, hw->ident_pri_fw.variant);
-
-	if (hw->ident_sta_fw.id == 0x1f) {
-		p += sprintf(p, "# sta f/w: id=0x%02x %d.%d.%d\n",
-			     hw->ident_sta_fw.id, hw->ident_sta_fw.major,
-			     hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
-	} else {
-		p += sprintf(p, "# ap f/w: id=0x%02x %d.%d.%d\n",
-			     hw->ident_sta_fw.id, hw->ident_sta_fw.major,
-			     hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
-	}
-
- exit:
-	DBFEXIT;
-	return (p - page);
-}
-#endif
 
 void prism2sta_commsqual_defer(struct work_struct *data)
 {
