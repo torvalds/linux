@@ -1243,9 +1243,12 @@ void pcibios_allocate_bus_resources(struct pci_bus *bus)
 	int i;
 	struct resource *res, *pr;
 
+	pr_debug("PCI: Allocating bus resources for %04x:%02x...\n",
+		 pci_domain_nr(bus), bus->number);
+
 	for (i = 0; i < PCI_BUS_NUM_RESOURCES; ++i) {
 		if ((res = bus->resource[i]) == NULL || !res->flags
-		    || res->start > res->end)
+		    || res->start > res->end || res->parent)
 			continue;
 		if (bus->parent == NULL)
 			pr = (res->flags & IORESOURCE_IO) ?
