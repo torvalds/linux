@@ -27,7 +27,7 @@
  * The lower layers may not require more space, ever. Make sure it's
  * enough.
  */
-#define MAX_PHONET_HEADER	8
+#define MAX_PHONET_HEADER	(8 + MAX_HEADER)
 
 /*
  * Every Phonet* socket has this structure first in its
