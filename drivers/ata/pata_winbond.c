@@ -1,6 +1,6 @@
 /*
  *    pata_winbond.c - Winbond VLB ATA controllers
- *	(C) 2006 Red Hat <alan@redhat.com>
+ *	(C) 2006 Red Hat
  *
  *    Support for the Winbond 83759A when operating in advanced mode.
  *    Multichip mode is not currently supported.

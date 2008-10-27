@@ -1,7 +1,6 @@
 /*
  * pata_ninja32.c 	- Ninja32 PATA for new ATA layer
  *			  (C) 2007 Red Hat Inc
- *			  Alan Cox <alan@redhat.com>
  *
  * Note: The controller like many controllers has shared timings for
  * PIO and DMA. We thus flip to the DMA timings in dma_start and flip back
