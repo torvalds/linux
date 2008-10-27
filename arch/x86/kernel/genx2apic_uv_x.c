@@ -370,8 +370,8 @@ static void uv_heartbeat(unsigned long ignored)
 	/* flip heartbeat bit */
 	bits ^= SCIR_CPU_HEARTBEAT;
 
-	/* are we the idle thread? */
-	if (current->pid == 0)
+	/* is this cpu idle? */
+	if (idle_cpu(raw_smp_processor_id()))
 		bits &= ~SCIR_CPU_ACTIVITY;
 	else
 		bits |= SCIR_CPU_ACTIVITY;

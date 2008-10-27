@@ -128,19 +128,19 @@ struct uv_scir_s {
  * They are kept together in a struct to minimize cache misses.
  */
 struct uv_hub_info_s {
-	unsigned long	global_mmr_base;
-	unsigned long	gpa_mask;
-	unsigned long	gnode_upper;
-	unsigned long	lowmem_remap_top;
-	unsigned long	lowmem_remap_base;
-	unsigned short	pnode;
-	unsigned short	pnode_mask;
-	unsigned short	coherency_domain_number;
-	unsigned short	numa_blade_id;
-	unsigned char	blade_processor_id;
-	unsigned char	m_val;
-	unsigned char	n_val;
-	struct uv_scir_s scir;
+	unsigned long		global_mmr_base;
+	unsigned long		gpa_mask;
+	unsigned long		gnode_upper;
+	unsigned long		lowmem_remap_top;
+	unsigned long		lowmem_remap_base;
+	unsigned short		pnode;
+	unsigned short		pnode_mask;
+	unsigned short		coherency_domain_number;
+	unsigned short		numa_blade_id;
+	unsigned char		blade_processor_id;
+	unsigned char		m_val;
+	unsigned char		n_val;
+	struct uv_scir_s	scir;
 };
 
 DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
