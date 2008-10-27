@@ -131,6 +131,11 @@ static void report_broken_nmi(int cpu, int *prev_nmi_count)
 	atomic_dec(&nmi_active);
 }
 
+static void __acpi_nmi_disable(void *__unused)
+{
+	apic_write(APIC_LVT0, APIC_DM_NMI | APIC_LVT_MASKED);
+}
+
 int __init check_nmi_watchdog(void)
 {
 	unsigned int *prev_nmi_count;
@@ -179,8 +184,12 @@ int __init check_nmi_watchdog(void)
 	kfree(prev_nmi_count);
 	return 0;
 error:
-	if (nmi_watchdog == NMI_IO_APIC && !timer_through_8259)
-		disable_8259A_irq(0);
+	if (nmi_watchdog == NMI_IO_APIC) {
+		if (!timer_through_8259)
+			disable_8259A_irq(0);
+		on_each_cpu(__acpi_nmi_disable, NULL, 1);
+	}
+
 #ifdef CONFIG_X86_32
 	timer_ack = 0;
 #endif
@@ -283,11 +292,6 @@ void acpi_nmi_enable(void)
 {
 	if (atomic_read(&nmi_active) && nmi_watchdog == NMI_IO_APIC)
 		on_each_cpu(__acpi_nmi_enable, NULL, 1);
-}
-
-static void __acpi_nmi_disable(void *__unused)
-{
-	apic_write(APIC_LVT0, APIC_DM_NMI | APIC_LVT_MASKED);
 }
 
 /*
