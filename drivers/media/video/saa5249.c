@@ -8,7 +8,7 @@
  *	you can add arbitary multiple teletext devices to Linux video4linux
  *	now (well 32 anyway).
  *
- *	Alan Cox <Alan.Cox@linux.org>
+ *	Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  *	The original driver was heavily modified to match the i2c interface
  *	It was truncated to use the WinTV boards, too.

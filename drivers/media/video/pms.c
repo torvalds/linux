@@ -10,8 +10,8 @@
  *	14478 Potsdam, Germany
  *
  *	Most of this code is directly derived from his userspace driver.
- *	His driver works so send any reports to alan@redhat.com unless the
- *	userspace driver also doesn't work for you...
+ *	His driver works so send any reports to alan@lxorguk.ukuu.org.uk
+ *	unless the userspace driver also doesn't work for you...
  *
  *      Changes:
  *      08/07/2003        Daniele Bellucci <bellucda@tiscali.it>

@@ -15,7 +15,7 @@
  * <richard.guenther@student.uni-tuebingen.de>
  *
  * with changes by
- * Alan Cox <Alan.Cox@linux.org>
+ * Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  * and
  *
