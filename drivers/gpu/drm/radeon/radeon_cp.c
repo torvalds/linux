@@ -653,15 +653,16 @@ static void radeon_cp_init_ring_buffer(struct drm_device * dev,
 	RADEON_WRITE(RADEON_SCRATCH_UMSK, 0x7);
 
 	/* Turn on bus mastering */
-	if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS400) ||
-	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||
+	if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740)) {
-		/* rs400, rs690/rs740 */
-		tmp = RADEON_READ(RADEON_BUS_CNTL) & ~RS400_BUS_MASTER_DIS;
+		/* rs600/rs690/rs740 */
+		tmp = RADEON_READ(RADEON_BUS_CNTL) & ~RS600_BUS_MASTER_DIS;
 		RADEON_WRITE(RADEON_BUS_CNTL, tmp);
-	} else if (!(((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV380) ||
-		    ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R423))) {
-		/* r1xx, r2xx, r300, r(v)350, r420/r481, rs480 */
+	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) <= CHIP_RV350) ||
+		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R420) ||
+		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS400) ||
+		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS480)) {
+		/* r1xx, r2xx, r300, r(v)350, r420/r481, rs400/rs480 */
 		tmp = RADEON_READ(RADEON_BUS_CNTL) & ~RADEON_BUS_MASTER_DIS;
 		RADEON_WRITE(RADEON_BUS_CNTL, tmp);
 	} /* PCIE cards appears to not need this */
