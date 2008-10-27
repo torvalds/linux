@@ -177,8 +177,8 @@ static void fill_min_rates(struct sk_buff *skb, struct ath_tx_control *txctl)
 		txctl->min_rate = tx_info_priv->min_rate;
 	} else if (ieee80211_is_data(fc)) {
 		if (ieee80211_is_nullfunc(fc) ||
-			/* Port Access Entity (IEEE 802.1X) */
-			(skb->protocol == cpu_to_be16(0x888E))) {
+				/* Port Access Entity (IEEE 802.1X) */
+				(skb->protocol == cpu_to_be16(ETH_P_PAE))) {
 			txctl->use_minrate = 1;
 			txctl->min_rate = tx_info_priv->min_rate;
 		}
