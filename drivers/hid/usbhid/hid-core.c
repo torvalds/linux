@@ -1047,7 +1047,7 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 	spin_lock_irq(&usbhid->inlock);	/* Sync with error handler */
 	set_bit(HID_SUSPENDED, &usbhid->iofl);
 	spin_unlock_irq(&usbhid->inlock);
-	del_timer(&usbhid->io_retry);
+	del_timer_sync(&usbhid->io_retry);
 	usb_kill_urb(usbhid->urbin);
 	mutex_unlock(&usbhid->setup);
 	dev_dbg(&intf->dev, "suspend\n");
