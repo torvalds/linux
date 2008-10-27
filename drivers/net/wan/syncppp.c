@@ -756,10 +756,11 @@ static void sppp_cisco_input (struct sppp *sp, struct sk_buff *skb)
 	case CISCO_ADDR_REQ:
 		/* Stolen from net/ipv4/devinet.c -- SIOCGIFADDR ioctl */
 		{
-		struct in_device *in_dev;
-		struct in_ifaddr *ifa;
 		__be32 addr = 0, mask = htonl(~0U); /* FIXME: is the mask correct? */
 #ifdef CONFIG_INET
+		struct in_device *in_dev;
+		struct in_ifaddr *ifa;
+
 		rcu_read_lock();
 		if ((in_dev = __in_dev_get_rcu(dev)) != NULL)
 		{
