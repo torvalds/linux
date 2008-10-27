@@ -383,7 +383,6 @@ struct dentry *reiserfs_get_parent(struct dentry *child)
 	struct inode *inode = NULL;
 	struct reiserfs_dir_entry de;
 	INITIALIZE_PATH(path_to_entry);
-	struct dentry *parent;
 	struct inode *dir = child->d_inode;
 
 	if (dir->i_nlink == 0) {
@@ -401,15 +400,7 @@ struct dentry *reiserfs_get_parent(struct dentry *child)
 	inode = reiserfs_iget(dir->i_sb, (struct cpu_key *)&(de.de_dir_id));
 	reiserfs_write_unlock(dir->i_sb);
 
-	if (!inode || IS_ERR(inode)) {
-		return ERR_PTR(-EACCES);
-	}
-	parent = d_alloc_anon(inode);
-	if (!parent) {
-		iput(inode);
-		parent = ERR_PTR(-ENOMEM);
-	}
-	return parent;
+	return d_obtain_alias(inode);
 }
 
 /* add entry to the directory (entry can be hidden). 

@@ -26,6 +26,7 @@
 
 #include <linux/types.h>
 #include <linux/mm.h>
+#include <linux/seq_file.h>
 #include <linux/console.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -63,7 +64,7 @@ int atari_rtc_year_offset;
 /* local function prototypes */
 static void atari_reset(void);
 static void atari_get_model(char *model);
-static int atari_get_hardware_list(char *buffer);
+static void atari_get_hardware_list(struct seq_file *m);
 
 /* atari specific irq functions */
 extern void atari_init_IRQ (void);
@@ -611,21 +612,21 @@ static void atari_get_model(char *model)
 }
 
 
-static int atari_get_hardware_list(char *buffer)
+static void atari_get_hardware_list(struct seq_file *m)
 {
-	int len = 0, i;
+	int i;
 
 	for (i = 0; i < m68k_num_memory; i++)
-		len += sprintf(buffer+len, "\t%3ld MB at 0x%08lx (%s)\n",
+		seq_printf(m, "\t%3ld MB at 0x%08lx (%s)\n",
 				m68k_memory[i].size >> 20, m68k_memory[i].addr,
 				(m68k_memory[i].addr & 0xff000000 ?
 				 "alternate RAM" : "ST-RAM"));
 
 #define ATARIHW_ANNOUNCE(name, str)			\
 	if (ATARIHW_PRESENT(name))			\
-		len += sprintf(buffer + len, "\t%s\n", str)
+		seq_printf(m, "\t%s\n", str)
 
-	len += sprintf(buffer + len, "Detected hardware:\n");
+	seq_printf(m, "Detected hardware:\n");
 	ATARIHW_ANNOUNCE(STND_SHIFTER, "ST Shifter");
 	ATARIHW_ANNOUNCE(EXTD_SHIFTER, "STe Shifter");
 	ATARIHW_ANNOUNCE(TT_SHIFTER, "TT Shifter");
@@ -654,6 +655,4 @@ static int atari_get_hardware_list(char *buffer)
 	ATARIHW_ANNOUNCE(BLITTER, "Blitter");
 	ATARIHW_ANNOUNCE(VME, "VME Bus");
 	ATARIHW_ANNOUNCE(DSP56K, "DSP56001 processor");
-
-	return len;
 }

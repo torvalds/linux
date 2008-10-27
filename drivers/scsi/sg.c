@@ -1059,7 +1059,7 @@ sg_ioctl(struct inode *inode, struct file *filp,
 			if (sg_allow_access(filp, &opcode))
 				return -EPERM;
 		}
-		return sg_scsi_ioctl(filp, sdp->device->request_queue, NULL, p);
+		return sg_scsi_ioctl(sdp->device->request_queue, NULL, filp->f_mode, p);
 	case SG_SET_DEBUG:
 		result = get_user(val, ip);
 		if (result)

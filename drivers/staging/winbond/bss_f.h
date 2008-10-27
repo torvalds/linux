@@ -24,7 +24,7 @@ void DesiredRate2InfoElement(PWB32_ADAPTER Adapter, u8	*addr, u16 *iFildOffset,
 							 u8 *pBasicRateSet, u8 BasicRateCount,
 							 u8 *pOperationRateSet, u8 OperationRateCount);
 void BSSAddIBSSdata(PWB32_ADAPTER Adapter, PWB_BSSDESCRIPTION psDesData);
-unsigned char boCmpMacAddr( PUCHAR, PUCHAR );
+unsigned char boCmpMacAddr( u8 *, u8 *);
 unsigned char boCmpSSID(struct SSID_Element *psSSID1, struct SSID_Element *psSSID2);
 u16 wBSSfindSSID(PWB32_ADAPTER Adapter, struct SSID_Element *psSsid);
 u16 wRoamingQuery(PWB32_ADAPTER Adapter);
@@ -42,11 +42,11 @@ void RateReSortForSRate(PWB32_ADAPTER Adapter, u8 *RateArray, u8 num);
 void Assemble_IE(PWB32_ADAPTER Adapter, u16 wBssIdx);
 void SetMaxTxRate(PWB32_ADAPTER Adapter);
 
-void CreateWpaIE(PWB32_ADAPTER Adapter, u16* iFildOffset, PUCHAR msg, struct  Management_Frame* msgHeader,
+void CreateWpaIE(PWB32_ADAPTER Adapter, u16* iFildOffset, u8 *msg, struct  Management_Frame* msgHeader,
 				 struct Association_Request_Frame_Body* msgBody, u16 iMSindex); //added by WS 05/14/05
 
 #ifdef _WPA2_
-void CreateRsnIE(PWB32_ADAPTER Adapter, u16* iFildOffset, PUCHAR msg, struct  Management_Frame* msgHeader,
+void CreateRsnIE(PWB32_ADAPTER Adapter, u16* iFildOffset, u8 *msg, struct  Management_Frame* msgHeader,
 				 struct Association_Request_Frame_Body* msgBody, u16 iMSindex);//added by WS 05/14/05
 
 u16 SearchPmkid(PWB32_ADAPTER Adapter, struct  Management_Frame* msgHeader,

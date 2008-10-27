@@ -110,16 +110,16 @@ KBUILD_CFLAGS += $(call cc-option,-mno-sse -mno-mmx -mno-sse2 -mno-3dnow,)
 mcore-y  := arch/x86/mach-default/
 
 # Voyager subarch support
-mflags-$(CONFIG_X86_VOYAGER)	:= -Iinclude/asm-x86/mach-voyager
+mflags-$(CONFIG_X86_VOYAGER)	:= -Iarch/x86/include/asm/mach-voyager
 mcore-$(CONFIG_X86_VOYAGER)	:= arch/x86/mach-voyager/
 
 # generic subarchitecture
-mflags-$(CONFIG_X86_GENERICARCH):= -Iinclude/asm-x86/mach-generic
+mflags-$(CONFIG_X86_GENERICARCH):= -Iarch/x86/include/asm/mach-generic
 fcore-$(CONFIG_X86_GENERICARCH)	+= arch/x86/mach-generic/
 mcore-$(CONFIG_X86_GENERICARCH)	:= arch/x86/mach-default/
 
 # default subarch .h files
-mflags-y += -Iinclude/asm-x86/mach-default
+mflags-y += -Iarch/x86/include/asm/mach-default
 
 # 64 bit does not support subarch support - clear sub arch variables
 fcore-$(CONFIG_X86_64)  :=

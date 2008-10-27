@@ -169,9 +169,9 @@ static ide_driver_t ide_gd_driver = {
 #endif
 };
 
-static int ide_gd_open(struct inode *inode, struct file *filp)
+static int ide_gd_open(struct block_device *bdev, fmode_t mode)
 {
-	struct gendisk *disk = inode->i_bdev->bd_disk;
+	struct gendisk *disk = bdev->bd_disk;
 	struct ide_disk_obj *idkp;
 	ide_drive_t *drive;
 	int ret = 0;
@@ -197,12 +197,12 @@ static int ide_gd_open(struct inode *inode, struct file *filp)
 		 * unreadable disk, so that we can get the format capacity
 		 * of the drive or begin the format - Sam
 		 */
-		if (ret && (filp->f_flags & O_NDELAY) == 0) {
+		if (ret && (mode & FMODE_NDELAY) == 0) {
 			ret = -EIO;
 			goto out_put_idkp;
 		}
 
-		if ((drive->dev_flags & IDE_DFLAG_WP) && (filp->f_mode & 2)) {
+		if ((drive->dev_flags & IDE_DFLAG_WP) && (mode & FMODE_WRITE)) {
 			ret = -EROFS;
 			goto out_put_idkp;
 		}
@@ -214,7 +214,7 @@ static int ide_gd_open(struct inode *inode, struct file *filp)
 		 */
 		drive->disk_ops->set_doorlock(drive, disk, 1);
 		drive->dev_flags |= IDE_DFLAG_MEDIA_CHANGED;
-		check_disk_change(inode->i_bdev);
+		check_disk_change(bdev);
 	} else if (drive->dev_flags & IDE_DFLAG_FORMAT_IN_PROGRESS) {
 		ret = -EBUSY;
 		goto out_put_idkp;
@@ -227,9 +227,8 @@ out_put_idkp:
 	return ret;
 }
 
-static int ide_gd_release(struct inode *inode, struct file *filp)
+static int ide_gd_release(struct gendisk *disk, fmode_t mode)
 {
-	struct gendisk *disk = inode->i_bdev->bd_disk;
 	struct ide_disk_obj *idkp = ide_drv_g(disk, ide_disk_obj);
 	ide_drive_t *drive = idkp->drive;
 
@@ -286,21 +285,20 @@ static int ide_gd_revalidate_disk(struct gendisk *disk)
 	return 0;
 }
 
-static int ide_gd_ioctl(struct inode *inode, struct file *file,
+static int ide_gd_ioctl(struct block_device *bdev, fmode_t mode,
 			     unsigned int cmd, unsigned long arg)
 {
-	struct block_device *bdev = inode->i_bdev;
 	struct ide_disk_obj *idkp = ide_drv_g(bdev->bd_disk, ide_disk_obj);
 	ide_drive_t *drive = idkp->drive;
 
-	return drive->disk_ops->ioctl(drive, inode, file, cmd, arg);
+	return drive->disk_ops->ioctl(drive, bdev, mode, cmd, arg);
 }
 
 static struct block_device_operations ide_gd_ops = {
 	.owner			= THIS_MODULE,
 	.open			= ide_gd_open,
 	.release		= ide_gd_release,
-	.ioctl			= ide_gd_ioctl,
+	.locked_ioctl		= ide_gd_ioctl,
 	.getgeo			= ide_gd_getgeo,
 	.media_changed		= ide_gd_media_changed,
 	.revalidate_disk	= ide_gd_revalidate_disk

@@ -1,32 +1,34 @@
 /*
  * @file op_model_ppro.h
- * pentium pro / P6 model-specific MSR operations
+ * Family 6 perfmon and architectural perfmon MSR operations
  *
  * @remark Copyright 2002 OProfile authors
+ * @remark Copyright 2008 Intel Corporation
  * @remark Read the file COPYING
  *
  * @author John Levon
  * @author Philippe Elie
  * @author Graydon Hoare
+ * @author Andi Kleen
  */
 
 #include <linux/oprofile.h>
+#include <linux/slab.h>
 #include <asm/ptrace.h>
 #include <asm/msr.h>
 #include <asm/apic.h>
 #include <asm/nmi.h>
+#include <asm/intel_arch_perfmon.h>
 
 #include "op_x86_model.h"
 #include "op_counter.h"
 
-#define NUM_COUNTERS 2
-#define NUM_CONTROLS 2
+static int num_counters = 2;
+static int counter_width = 32;
 
 #define CTR_IS_RESERVED(msrs, c) (msrs->counters[(c)].addr ? 1 : 0)
 #define CTR_READ(l, h, msrs, c) do {rdmsr(msrs->counters[(c)].addr, (l), (h)); } while (0)
-#define CTR_32BIT_WRITE(l, msrs, c)	\
-	do {wrmsr(msrs->counters[(c)].addr, -(u32)(l), 0); } while (0)
-#define CTR_OVERFLOWED(n) (!((n) & (1U<<31)))
+#define CTR_OVERFLOWED(n) (!((n) & (1U<<(counter_width-1))))
 
 #define CTRL_IS_RESERVED(msrs, c) (msrs->controls[(c)].addr ? 1 : 0)
 #define CTRL_READ(l, h, msrs, c) do {rdmsr((msrs->controls[(c)].addr), (l), (h)); } while (0)
@@ -40,20 +42,20 @@
 #define CTRL_SET_UM(val, m) (val |= (m << 8))
 #define CTRL_SET_EVENT(val, e) (val |= e)
 
-static unsigned long reset_value[NUM_COUNTERS];
+static u64 *reset_value;
 
 static void ppro_fill_in_addresses(struct op_msrs * const msrs)
 {
 	int i;
 
-	for (i = 0; i < NUM_COUNTERS; i++) {
+	for (i = 0; i < num_counters; i++) {
 		if (reserve_perfctr_nmi(MSR_P6_PERFCTR0 + i))
 			msrs->counters[i].addr = MSR_P6_PERFCTR0 + i;
 		else
 			msrs->counters[i].addr = 0;
 	}
 
-	for (i = 0; i < NUM_CONTROLS; i++) {
+	for (i = 0; i < num_counters; i++) {
 		if (reserve_evntsel_nmi(MSR_P6_EVNTSEL0 + i))
 			msrs->controls[i].addr = MSR_P6_EVNTSEL0 + i;
 		else
@@ -67,8 +69,22 @@ static void ppro_setup_ctrs(struct op_msrs const * const msrs)
 	unsigned int low, high;
 	int i;
 
+	if (!reset_value) {
+		reset_value = kmalloc(sizeof(unsigned) * num_counters,
+					GFP_ATOMIC);
+		if (!reset_value)
+			return;
+	}
+
+	if (cpu_has_arch_perfmon) {
+		union cpuid10_eax eax;
+		eax.full = cpuid_eax(0xa);
+		if (counter_width < eax.split.bit_width)
+			counter_width = eax.split.bit_width;
+	}
+
 	/* clear all counters */
-	for (i = 0 ; i < NUM_CONTROLS; ++i) {
+	for (i = 0 ; i < num_counters; ++i) {
 		if (unlikely(!CTRL_IS_RESERVED(msrs, i)))
 			continue;
 		CTRL_READ(low, high, msrs, i);
@@ -77,18 +93,18 @@ static void ppro_setup_ctrs(struct op_msrs const * const msrs)
 	}
 
 	/* avoid a false detection of ctr overflows in NMI handler */
-	for (i = 0; i < NUM_COUNTERS; ++i) {
+	for (i = 0; i < num_counters; ++i) {
 		if (unlikely(!CTR_IS_RESERVED(msrs, i)))
 			continue;
-		CTR_32BIT_WRITE(1, msrs, i);
+		wrmsrl(msrs->counters[i].addr, -1LL);
 	}
 
 	/* enable active counters */
-	for (i = 0; i < NUM_COUNTERS; ++i) {
+	for (i = 0; i < num_counters; ++i) {
 		if ((counter_config[i].enabled) && (CTR_IS_RESERVED(msrs, i))) {
 			reset_value[i] = counter_config[i].count;
 
-			CTR_32BIT_WRITE(counter_config[i].count, msrs, i);
+			wrmsrl(msrs->counters[i].addr, -reset_value[i]);
 
 			CTRL_READ(low, high, msrs, i);
 			CTRL_CLEAR(low);
@@ -111,13 +127,13 @@ static int ppro_check_ctrs(struct pt_regs * const regs,
 	unsigned int low, high;
 	int i;
 
-	for (i = 0 ; i < NUM_COUNTERS; ++i) {
+	for (i = 0 ; i < num_counters; ++i) {
 		if (!reset_value[i])
 			continue;
 		CTR_READ(low, high, msrs, i);
 		if (CTR_OVERFLOWED(low)) {
 			oprofile_add_sample(regs, i);
-			CTR_32BIT_WRITE(reset_value[i], msrs, i);
+			wrmsrl(msrs->counters[i].addr, -reset_value[i]);
 		}
 	}
 
@@ -141,7 +157,7 @@ static void ppro_start(struct op_msrs const * const msrs)
 	unsigned int low, high;
 	int i;
 
-	for (i = 0; i < NUM_COUNTERS; ++i) {
+	for (i = 0; i < num_counters; ++i) {
 		if (reset_value[i]) {
 			CTRL_READ(low, high, msrs, i);
 			CTRL_SET_ACTIVE(low);
@@ -156,7 +172,7 @@ static void ppro_stop(struct op_msrs const * const msrs)
 	unsigned int low, high;
 	int i;
 
-	for (i = 0; i < NUM_COUNTERS; ++i) {
+	for (i = 0; i < num_counters; ++i) {
 		if (!reset_value[i])
 			continue;
 		CTRL_READ(low, high, msrs, i);
@@ -169,24 +185,70 @@ static void ppro_shutdown(struct op_msrs const * const msrs)
 {
 	int i;
 
-	for (i = 0 ; i < NUM_COUNTERS ; ++i) {
+	for (i = 0 ; i < num_counters ; ++i) {
 		if (CTR_IS_RESERVED(msrs, i))
 			release_perfctr_nmi(MSR_P6_PERFCTR0 + i);
 	}
-	for (i = 0 ; i < NUM_CONTROLS ; ++i) {
+	for (i = 0 ; i < num_counters ; ++i) {
 		if (CTRL_IS_RESERVED(msrs, i))
 			release_evntsel_nmi(MSR_P6_EVNTSEL0 + i);
+	}
+	if (reset_value) {
+		kfree(reset_value);
+		reset_value = NULL;
 	}
 }
 
 
-struct op_x86_model_spec const op_ppro_spec = {
-	.num_counters = NUM_COUNTERS,
-	.num_controls = NUM_CONTROLS,
-	.fill_in_addresses = &ppro_fill_in_addresses,
-	.setup_ctrs = &ppro_setup_ctrs,
-	.check_ctrs = &ppro_check_ctrs,
-	.start = &ppro_start,
-	.stop = &ppro_stop,
-	.shutdown = &ppro_shutdown
+struct op_x86_model_spec op_ppro_spec = {
+	.num_counters		= 2,	/* can be overriden */
+	.num_controls		= 2,	/* dito */
+	.fill_in_addresses	= &ppro_fill_in_addresses,
+	.setup_ctrs		= &ppro_setup_ctrs,
+	.check_ctrs		= &ppro_check_ctrs,
+	.start			= &ppro_start,
+	.stop			= &ppro_stop,
+	.shutdown		= &ppro_shutdown
+};
+
+/*
+ * Architectural performance monitoring.
+ *
+ * Newer Intel CPUs (Core1+) have support for architectural
+ * events described in CPUID 0xA. See the IA32 SDM Vol3b.18 for details.
+ * The advantage of this is that it can be done without knowing about
+ * the specific CPU.
+ */
+
+void arch_perfmon_setup_counters(void)
+{
+	union cpuid10_eax eax;
+
+	eax.full = cpuid_eax(0xa);
+
+	/* Workaround for BIOS bugs in 6/15. Taken from perfmon2 */
+	if (eax.split.version_id == 0 && current_cpu_data.x86 == 6 &&
+		current_cpu_data.x86_model == 15) {
+		eax.split.version_id = 2;
+		eax.split.num_counters = 2;
+		eax.split.bit_width = 40;
+	}
+
+	num_counters = eax.split.num_counters;
+
+	op_arch_perfmon_spec.num_counters = num_counters;
+	op_arch_perfmon_spec.num_controls = num_counters;
+	op_ppro_spec.num_counters = num_counters;
+	op_ppro_spec.num_controls = num_counters;
+}
+
+struct op_x86_model_spec op_arch_perfmon_spec = {
+	/* num_counters/num_controls filled in at runtime */
+	.fill_in_addresses	= &ppro_fill_in_addresses,
+	/* user space does the cpuid check for available events */
+	.setup_ctrs		= &ppro_setup_ctrs,
+	.check_ctrs		= &ppro_check_ctrs,
+	.start			= &ppro_start,
+	.stop			= &ppro_stop,
+	.shutdown		= &ppro_shutdown
 };

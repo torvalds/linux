@@ -47,7 +47,6 @@
 #include <acpi/acinterp.h>
 #include <acpi/amlcode.h>
 #include <acpi/acnamesp.h>
-#include <acpi/acparser.h>
 
 #define _COMPONENT          ACPI_EXECUTER
 ACPI_MODULE_NAME("exstore")
@@ -179,22 +178,26 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 
 	case ACPI_TYPE_LOCAL_REFERENCE:
 
-		if (source_desc->reference.opcode == AML_INDEX_OP) {
-			ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT,
-					      "[%s, 0x%X]\n",
-					      acpi_ps_get_opcode_name
-					      (source_desc->reference.opcode),
-					      source_desc->reference.offset));
-		} else {
-			ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT, "[%s]",
-					      acpi_ps_get_opcode_name
-					      (source_desc->reference.opcode)));
-		}
+		ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT, "[%s] ",
+				      acpi_ut_get_reference_name(source_desc)));
 
-		if (source_desc->reference.opcode == AML_LOAD_OP) {	/* Load and load_table */
+		/* Decode the reference */
+
+		switch (source_desc->reference.class) {
+		case ACPI_REFCLASS_INDEX:
+
+			ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT, "0x%X\n",
+					      source_desc->reference.value));
+			break;
+
+		case ACPI_REFCLASS_TABLE:
+
 			ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT,
-					      " Table OwnerId %p\n",
-					      source_desc->reference.object));
+					      "Table Index 0x%X\n",
+					      source_desc->reference.value));
+			break;
+
+		default:
 			break;
 		}
 
@@ -347,15 +350,15 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 	}
 
 	/*
-	 * Examine the Reference opcode.  These cases are handled:
+	 * Examine the Reference class. These cases are handled:
 	 *
 	 * 1) Store to Name (Change the object associated with a name)
 	 * 2) Store to an indexed area of a Buffer or Package
 	 * 3) Store to a Method Local or Arg
 	 * 4) Store to the debug object
 	 */
-	switch (ref_desc->reference.opcode) {
-	case AML_REF_OF_OP:
+	switch (ref_desc->reference.class) {
+	case ACPI_REFCLASS_REFOF:
 
 		/* Storing an object into a Name "container" */
 
@@ -365,7 +368,7 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 						      ACPI_IMPLICIT_CONVERSION);
 		break;
 
-	case AML_INDEX_OP:
+	case ACPI_REFCLASS_INDEX:
 
 		/* Storing to an Index (pointer into a packager or buffer) */
 
@@ -374,18 +377,18 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 						  walk_state);
 		break;
 
-	case AML_LOCAL_OP:
-	case AML_ARG_OP:
+	case ACPI_REFCLASS_LOCAL:
+	case ACPI_REFCLASS_ARG:
 
 		/* Store to a method local/arg  */
 
 		status =
-		    acpi_ds_store_object_to_local(ref_desc->reference.opcode,
-						  ref_desc->reference.offset,
+		    acpi_ds_store_object_to_local(ref_desc->reference.class,
+						  ref_desc->reference.value,
 						  source_desc, walk_state);
 		break;
 
-	case AML_DEBUG_OP:
+	case ACPI_REFCLASS_DEBUG:
 
 		/*
 		 * Storing to the Debug object causes the value stored to be
@@ -401,9 +404,9 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown Reference opcode %X",
-			    ref_desc->reference.opcode));
-		ACPI_DUMP_ENTRY(ref_desc, ACPI_LV_ERROR);
+		ACPI_ERROR((AE_INFO, "Unknown Reference Class %2.2X",
+			    ref_desc->reference.class));
+		ACPI_DUMP_ENTRY(ref_desc, ACPI_LV_INFO);
 
 		status = AE_AML_INTERNAL;
 		break;
@@ -458,7 +461,7 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
 
 		if (ACPI_GET_OBJECT_TYPE(source_desc) ==
 		    ACPI_TYPE_LOCAL_REFERENCE
-		    && source_desc->reference.opcode == AML_LOAD_OP) {
+		    && source_desc->reference.class == ACPI_REFCLASS_TABLE) {
 
 			/* This is a DDBHandle, just add a reference to it */
 
@@ -553,7 +556,7 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
 
 		/* Store the source value into the target buffer byte */
 
-		obj_desc->buffer.pointer[index_desc->reference.offset] = value;
+		obj_desc->buffer.pointer[index_desc->reference.value] = value;
 		break;
 
 	default:

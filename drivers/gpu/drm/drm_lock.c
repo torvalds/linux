@@ -232,6 +232,7 @@ int drm_lock_take(struct drm_lock_data *lock_data,
 	}
 	return 0;
 }
+EXPORT_SYMBOL(drm_lock_take);
 
 /**
  * This takes a lock forcibly and hands it to context.	Should ONLY be used
@@ -299,6 +300,7 @@ int drm_lock_free(struct drm_lock_data *lock_data, unsigned int context)
 	wake_up_interruptible(&lock_data->lock_queue);
 	return 0;
 }
+EXPORT_SYMBOL(drm_lock_free);
 
 /**
  * If we get here, it means that the process has called DRM_IOCTL_LOCK

@@ -38,7 +38,6 @@
 #include <asm/bvme6000hw.h>
 
 static void bvme6000_get_model(char *model);
-static int  bvme6000_get_hardware_list(char *buffer);
 extern void bvme6000_sched_init(irq_handler_t handler);
 extern unsigned long bvme6000_gettimeoffset (void);
 extern int bvme6000_hwclk (int, struct rtc_time *);
@@ -82,15 +81,6 @@ static void bvme6000_get_model(char *model)
     sprintf(model, "BVME%d000", m68k_cputype == CPU_68060 ? 6 : 4);
 }
 
-
-/* No hardware options on BVME6000? */
-
-static int bvme6000_get_hardware_list(char *buffer)
-{
-    *buffer = '\0';
-    return 0;
-}
-
 /*
  * This function is called during kernel startup to initialize
  * the bvme6000 IRQ handling routines.
@@ -127,7 +117,6 @@ void __init config_bvme6000(void)
     mach_set_clock_mmss	 = bvme6000_set_clock_mmss;
     mach_reset		 = bvme6000_reset;
     mach_get_model       = bvme6000_get_model;
-    mach_get_hardware_list = bvme6000_get_hardware_list;
 
     printk ("Board is %sconfigured as a System Controller\n",
 		*config_reg_ptr & BVME_CONFIG_SW1 ? "" : "not ");

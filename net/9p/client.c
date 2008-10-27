@@ -159,6 +159,7 @@ static struct p9_req_t *p9_tag_alloc(struct p9_client *c, u16 tag)
 
 			if (!c->reqs[row]) {
 				printk(KERN_ERR "Couldn't grow tag array\n");
+				spin_unlock_irqrestore(&c->lock, flags);
 				return ERR_PTR(-ENOMEM);
 			}
 			for (col = 0; col < P9_ROW_MAXTAG; col++) {

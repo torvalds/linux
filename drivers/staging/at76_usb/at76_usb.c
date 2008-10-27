@@ -2319,9 +2319,11 @@ static int at76_iw_handler_get_scan(struct net_device *netdev,
 	if (!iwe)
 		return -ENOMEM;
 
-	if (priv->scan_state != SCAN_COMPLETED)
+	if (priv->scan_state != SCAN_COMPLETED) {
 		/* scan not yet finished */
+		kfree(iwe);
 		return -EAGAIN;
+	}
 
 	spin_lock_irqsave(&priv->bss_list_spinlock, flags);
 

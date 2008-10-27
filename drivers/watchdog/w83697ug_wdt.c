@@ -102,7 +102,7 @@ static void w83697ug_select_wd_register(void)
 
 	} else {
 		printk(KERN_ERR PFX "No W83697UG/UF could be found\n");
-		return -EIO;
+		return;
 	}
 
 	outb_p(0x07, WDT_EFER); /* point to logical device number reg */

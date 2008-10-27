@@ -132,6 +132,15 @@ enum {
 	MLX4_MAILBOX_SIZE	=  4096
 };
 
+enum {
+	/* set port opcode modifiers */
+	MLX4_SET_PORT_GENERAL   = 0x0,
+	MLX4_SET_PORT_RQP_CALC  = 0x1,
+	MLX4_SET_PORT_MAC_TABLE = 0x2,
+	MLX4_SET_PORT_VLAN_TABLE = 0x3,
+	MLX4_SET_PORT_PRIO_MAP  = 0x4,
+};
+
 struct mlx4_dev;
 
 struct mlx4_cmd_mailbox {

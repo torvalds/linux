@@ -39,7 +39,7 @@ static inline void cx18_io_delay(struct cx18 *cx)
 
 /* Statistics gathering */
 static inline
-void cx18_log_write_retries(struct cx18 *cx, int i, const void *addr)
+void cx18_log_write_retries(struct cx18 *cx, int i, const void __iomem *addr)
 {
 	if (i > CX18_MAX_MMIO_RETRIES)
 		i = CX18_MAX_MMIO_RETRIES;
@@ -48,7 +48,7 @@ void cx18_log_write_retries(struct cx18 *cx, int i, const void *addr)
 }
 
 static inline
-void cx18_log_read_retries(struct cx18 *cx, int i, const void *addr)
+void cx18_log_read_retries(struct cx18 *cx, int i, const void __iomem *addr)
 {
 	if (i > CX18_MAX_MMIO_RETRIES)
 		i = CX18_MAX_MMIO_RETRIES;

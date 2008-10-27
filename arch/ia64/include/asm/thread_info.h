@@ -87,9 +87,6 @@ struct thread_info {
 #define alloc_task_struct()	((struct task_struct *)__get_free_pages(GFP_KERNEL | __GFP_COMP, KERNEL_STACK_SIZE_ORDER))
 #define free_task_struct(tsk)	free_pages((unsigned long) (tsk), KERNEL_STACK_SIZE_ORDER)
 
-#define tsk_set_notify_resume(tsk) \
-	set_ti_thread_flag(task_thread_info(tsk), TIF_NOTIFY_RESUME)
-extern void tsk_clear_notify_resume(struct task_struct *tsk);
 #endif /* !__ASSEMBLY */
 
 /*

@@ -1,13 +1,13 @@
 #include "os_common.h"
 
-void hal_get_ethernet_address( phw_data_t pHwData, PUCHAR current_address )
+void hal_get_ethernet_address( phw_data_t pHwData, u8 *current_address )
 {
 	if( pHwData->SurpriseRemove ) return;
 
 	memcpy( current_address, pHwData->CurrentMacAddress, ETH_LENGTH_OF_ADDRESS );
 }
 
-void hal_set_ethernet_address( phw_data_t pHwData, PUCHAR current_address )
+void hal_set_ethernet_address( phw_data_t pHwData, u8 *current_address )
 {
 	u32 ltmp[2];
 
@@ -15,13 +15,13 @@ void hal_set_ethernet_address( phw_data_t pHwData, PUCHAR current_address )
 
 	memcpy( pHwData->CurrentMacAddress, current_address, ETH_LENGTH_OF_ADDRESS );
 
-	ltmp[0]= cpu_to_le32( *(PULONG)pHwData->CurrentMacAddress );
-	ltmp[1]= cpu_to_le32( *(PULONG)(pHwData->CurrentMacAddress + 4) ) & 0xffff;
+	ltmp[0]= cpu_to_le32( *(u32 *)pHwData->CurrentMacAddress );
+	ltmp[1]= cpu_to_le32( *(u32 *)(pHwData->CurrentMacAddress + 4) ) & 0xffff;
 
 	Wb35Reg_BurstWrite( pHwData, 0x03e8, ltmp, 2, AUTO_INCREMENT );
 }
 
-void hal_get_permanent_address( phw_data_t pHwData, PUCHAR pethernet_address )
+void hal_get_permanent_address( phw_data_t pHwData, u8 *pethernet_address )
 {
 	if( pHwData->SurpriseRemove ) return;
 
@@ -89,7 +89,7 @@ void hal_halt(phw_data_t pHwData, void *ppa_data)
 }
 
 //---------------------------------------------------------------------------------------------------
-void hal_set_rates(phw_data_t pHwData, PUCHAR pbss_rates,
+void hal_set_rates(phw_data_t pHwData, u8 *pbss_rates,
 		   u8 length, unsigned char basic_rate_set)
 {
 	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
@@ -158,13 +158,13 @@ void hal_set_rates(phw_data_t pHwData, PUCHAR pbss_rates,
 	// Fill data into support rate until buffer full
 	//---20060926 add by anson's endian
 	for (i=0; i<4; i++)
-		*(PULONG)(SupportedRate+(i<<2)) = cpu_to_le32( *(PULONG)(SupportedRate+(i<<2)) );
+		*(u32 *)(SupportedRate+(i<<2)) = cpu_to_le32( *(u32 *)(SupportedRate+(i<<2)) );
 	//--- end 20060926 add by anson's endian
-	Wb35Reg_BurstWrite( pHwData,0x087c, (PULONG)SupportedRate, 4, AUTO_INCREMENT );
-	pWb35Reg->M7C_MacControl = ((PULONG)SupportedRate)[0];
-	pWb35Reg->M80_MacControl = ((PULONG)SupportedRate)[1];
-	pWb35Reg->M84_MacControl = ((PULONG)SupportedRate)[2];
-	pWb35Reg->M88_MacControl = ((PULONG)SupportedRate)[3];
+	Wb35Reg_BurstWrite( pHwData,0x087c, (u32 *)SupportedRate, 4, AUTO_INCREMENT );
+	pWb35Reg->M7C_MacControl = ((u32 *)SupportedRate)[0];
+	pWb35Reg->M80_MacControl = ((u32 *)SupportedRate)[1];
+	pWb35Reg->M84_MacControl = ((u32 *)SupportedRate)[2];
+	pWb35Reg->M88_MacControl = ((u32 *)SupportedRate)[3];
 
 	// Fill length
 	tmp = Count1<<28 | Count2<<24;
@@ -206,7 +206,7 @@ void hal_set_current_channel_ex(  phw_data_t pHwData,  ChanInfo channel )
 	pWb35Reg->M28_MacControl &= ~0xff; // Clean channel information field
 	pWb35Reg->M28_MacControl |= channel.ChanNo;
 	Wb35Reg_WriteWithCallbackValue( pHwData, 0x0828, pWb35Reg->M28_MacControl,
-					(PCHAR)&channel, sizeof(ChanInfo));
+					(s8 *)&channel, sizeof(ChanInfo));
 }
 //---------------------------------------------------------------------------------------------------
 void hal_set_current_channel(  phw_data_t pHwData,  ChanInfo channel )
@@ -277,7 +277,7 @@ void hal_set_accept_beacon(  phw_data_t pHwData,  u8 enable )
 	Wb35Reg_Write( pHwData, 0x0800, pWb35Reg->M00_MacControl );
 }
 //---------------------------------------------------------------------------------------------------
-void hal_set_multicast_address( phw_data_t pHwData, PUCHAR address, u8 number )
+void hal_set_multicast_address( phw_data_t pHwData, u8 *address, u8 number )
 {
 	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
 	u8		Byte, Bit;
@@ -297,7 +297,7 @@ void hal_set_multicast_address( phw_data_t pHwData, PUCHAR address, u8 number )
 	}
 
 	// Updating register
-	Wb35Reg_BurstWrite( pHwData, 0x0804, (PULONG)pWb35Reg->Multicast, 2, AUTO_INCREMENT );
+	Wb35Reg_BurstWrite( pHwData, 0x0804, (u32 *)pWb35Reg->Multicast, 2, AUTO_INCREMENT );
 }
 //---------------------------------------------------------------------------------------------------
 u8 hal_get_accept_beacon(  phw_data_t pHwData )
@@ -806,7 +806,7 @@ u8 hal_get_hw_radio_off(  phw_data_t pHwData )
 	}
 }
 
-unsigned char hal_get_dxx_reg(  phw_data_t pHwData,  u16 number,  PULONG pValue )
+unsigned char hal_get_dxx_reg(  phw_data_t pHwData,  u16 number,  u32 * pValue )
 {
 	if( number < 0x1000 )
 		number += 0x1000;

@@ -739,7 +739,8 @@ config VM_EVENT_COUNTERS
 
 config PCI_QUIRKS
 	default y
-	bool "Enable PCI quirk workarounds" if EMBEDDED && PCI
+	bool "Enable PCI quirk workarounds" if EMBEDDED
+	depends on PCI
 	help
 	  This enables workarounds for various PCI chipset
           bugs/quirks. Disable this only if your target machine is

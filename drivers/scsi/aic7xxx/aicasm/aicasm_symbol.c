@@ -539,6 +539,9 @@ symtable_dump(FILE *ofile, FILE *dfile)
 	aic_print_include(dfile, stock_include_file);
 	SLIST_FOREACH(curnode, &registers, links) {
 
+		if (curnode->symbol->dont_generate_debug_code)
+			continue;
+
 		switch(curnode->symbol->type) {
 		case REGISTER:
 		case SCBLOC:

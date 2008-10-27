@@ -19,6 +19,7 @@
 #include <linux/spi/orion_spi.h>
 #include <linux/spi/flash.h>
 #include <linux/ethtool.h>
+#include <net/dsa.h>
 #include <asm/mach-types.h>
 #include <asm/gpio.h>
 #include <asm/leds.h>
@@ -32,6 +33,15 @@ static struct mv643xx_eth_platform_data rd88f6183ap_ge_eth_data = {
 	.phy_addr	= -1,
 	.speed		= SPEED_1000,
 	.duplex		= DUPLEX_FULL,
+};
+
+static struct dsa_platform_data rd88f6183ap_ge_switch_data = {
+	.port_names[0]	= "lan1",
+	.port_names[1]	= "lan2",
+	.port_names[2]	= "lan3",
+	.port_names[3]	= "lan4",
+	.port_names[4]	= "wan",
+	.port_names[5]	= "cpu",
 };
 
 static struct mtd_partition rd88f6183ap_ge_partitions[] = {
@@ -79,6 +89,7 @@ static void __init rd88f6183ap_ge_init(void)
 	 */
 	orion5x_ehci0_init();
 	orion5x_eth_init(&rd88f6183ap_ge_eth_data);
+	orion5x_eth_switch_init(&rd88f6183ap_ge_switch_data, gpio_to_irq(3));
 	spi_register_board_info(rd88f6183ap_ge_spi_slave_info,
 				ARRAY_SIZE(rd88f6183ap_ge_spi_slave_info));
 	orion5x_spi_init();

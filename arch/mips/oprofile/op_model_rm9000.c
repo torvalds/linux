@@ -80,7 +80,7 @@ static void rm9000_cpu_stop(void *args)
 	write_c0_perfcontrol(0);
 }
 
-static irqreturn_t rm9000_perfcount_handler(int irq, void * dev_id)
+static irqreturn_t rm9000_perfcount_handler(int irq, void *dev_id)
 {
 	unsigned int control = read_c0_perfcontrol();
 	struct pt_regs *regs = get_irq_regs();

@@ -39,8 +39,7 @@ static void program_hpp_type0(struct pci_dev *dev, struct hpp_type0 *hpp)
 	u16 pci_cmd, pci_bctl;
 
 	if (hpp->revision > 1) {
-		printk(KERN_WARNING "%s: Rev.%d type0 record not supported\n",
-		       __func__, hpp->revision);
+		warn("Rev.%d type0 record not supported\n", hpp->revision);
 		return;
 	}
 
@@ -81,8 +80,7 @@ static void program_hpp_type2(struct pci_dev *dev, struct hpp_type2 *hpp)
 	u32 reg32;
 
 	if (hpp->revision > 1) {
-		printk(KERN_WARNING "%s: Rev.%d type2 record not supported\n",
-		       __func__, hpp->revision);
+		warn("Rev.%d type2 record not supported\n", hpp->revision);
 		return;
 	}
 
@@ -149,8 +147,7 @@ static void program_fw_provided_values(struct pci_dev *dev)
 		return;
 
 	if (pciehp_get_hp_params_from_firmware(dev, &hpp)) {
-		printk(KERN_WARNING "%s: Could not get hotplug parameters\n",
-		       __func__);
+		warn("Could not get hotplug parameters\n");
 		return;
 	}
 
@@ -202,9 +199,9 @@ int pciehp_configure_device(struct slot *p_slot)
 
 	dev = pci_get_slot(parent, PCI_DEVFN(p_slot->device, 0));
 	if (dev) {
-		ctrl_err(ctrl,
-			 "Device %s already exists at %x:%x, cannot hot-add\n",
-			 pci_name(dev), p_slot->bus, p_slot->device);
+		ctrl_err(ctrl, "Device %s already exists "
+			 "at %04x:%02x:%02x, cannot hot-add\n", pci_name(dev),
+			 pci_domain_nr(parent), p_slot->bus, p_slot->device);
 		pci_dev_put(dev);
 		return -EINVAL;
 	}
@@ -248,8 +245,8 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 	u16 command;
 	struct controller *ctrl = p_slot->ctrl;
 
-	ctrl_dbg(ctrl, "%s: bus/dev = %x/%x\n", __func__,
-		 p_slot->bus, p_slot->device);
+	ctrl_dbg(ctrl, "%s: domain:bus:dev = %04x:%02x:%02x\n",
+		 __func__, pci_domain_nr(parent), p_slot->bus, p_slot->device);
 	ret = p_slot->hpc_ops->get_adapter_status(p_slot, &presence);
 	if (ret)
 		presence = 0;

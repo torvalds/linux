@@ -37,6 +37,10 @@ static void platform_fixups(void)
 	 * this can do a simple path lookup.
 	 */
 	soc = find_node_by_devtype(NULL, "soc");
+	if (!soc)
+		soc = find_node_by_compatible(NULL, "fsl,mpc5200-immr");
+	if (!soc)
+		soc = find_node_by_compatible(NULL, "fsl,mpc5200b-immr");
 	if (soc) {
 		setprop(soc, "bus-frequency", &bd.bi_ipbfreq,
 			sizeof(bd.bi_ipbfreq));

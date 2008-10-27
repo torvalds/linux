@@ -97,6 +97,12 @@ __secondary_hold_spinloop:
 __secondary_hold_acknowledge:
 	.llong	0x0
 
+	/* This flag is set by purgatory if we should be a kdump kernel. */
+	/* Do not move this variable as purgatory knows about it. */
+	.globl	__kdump_flag
+__kdump_flag:
+	.llong	0x0
+
 #ifdef CONFIG_PPC_ISERIES
 	/*
 	 * At offset 0x20, there is a pointer to iSeries LPAR data.
@@ -1384,7 +1390,13 @@ _STATIC(__after_prom_start)
 	/* process relocations for the final address of the kernel */
 	lis	r25,PAGE_OFFSET@highest	/* compute virtual base of kernel */
 	sldi	r25,r25,32
-	mr	r3,r25
+#ifdef CONFIG_CRASH_DUMP
+	ld	r7,__kdump_flag-_stext(r26)
+	cmpldi	cr0,r7,1	/* kdump kernel ? - stay where we are */
+	bne	1f
+	add	r25,r25,r26
+#endif
+1:	mr	r3,r25
 	bl	.relocate
 #endif
 
@@ -1398,10 +1410,25 @@ _STATIC(__after_prom_start)
 	li	r3,0			/* target addr */
 	mr.	r4,r26			/* In some cases the loader may  */
 	beq	9f			/* have already put us at zero */
-	lis	r5,(copy_to_here - _stext)@ha
-	addi	r5,r5,(copy_to_here - _stext)@l /* # bytes of memory to copy */
 	li	r6,0x100		/* Start offset, the first 0x100 */
 					/* bytes were copied earlier.	 */
+
+#ifdef CONFIG_CRASH_DUMP
+/*
+ * Check if the kernel has to be running as relocatable kernel based on the
+ * variable __kdump_flag, if it is set the kernel is treated as relocatable
+ * kernel, otherwise it will be moved to PHYSICAL_START
+ */
+	ld	r7,__kdump_flag-_stext(r26)
+	cmpldi	cr0,r7,1
+	bne	3f
+
+	li	r5,__end_interrupts - _stext	/* just copy interrupts */
+	b	5f
+3:
+#endif
+	lis	r5,(copy_to_here - _stext)@ha
+	addi	r5,r5,(copy_to_here - _stext)@l /* # bytes of memory to copy */
 
 	bl	.copy_and_flush		/* copy the first n bytes	 */
 					/* this includes the code being	 */
@@ -1411,14 +1438,14 @@ _STATIC(__after_prom_start)
 	mtctr	r8
 	bctr
 
+p_end:	.llong	_end - _stext
+
 4:	/* Now copy the rest of the kernel up to _end */
 	addis	r5,r26,(p_end - _stext)@ha
 	ld	r5,(p_end - _stext)@l(r5)	/* get _end */
-	bl	.copy_and_flush		/* copy the rest */
+5:	bl	.copy_and_flush		/* copy the rest */
 
 9:	b	.start_here_multiplatform
-
-p_end:	.llong	_end - _stext
 
 /*
  * Copy routine used to copy the kernel to start at physical address 0

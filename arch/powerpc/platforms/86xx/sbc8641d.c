@@ -63,13 +63,11 @@ sbc8641_setup_arch(void)
 static void
 sbc8641_show_cpuinfo(struct seq_file *m)
 {
-	uint memsize = total_memory;
 	uint svid = mfspr(SPRN_SVR);
 
 	seq_printf(m, "Vendor\t\t: Wind River Systems\n");
 
 	seq_printf(m, "SVR\t\t: 0x%x\n", svid);
-	seq_printf(m, "Memory\t\t: %d MB\n", memsize / (1024 * 1024));
 }
 
 
