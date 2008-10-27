@@ -188,10 +188,11 @@ static struct cplb_desc cplb_data[] = {
 
 static u16 __init lock_kernel_check(u32 start, u32 end)
 {
-	if ((end   <= (u32) _end && end   >= (u32)_stext) ||
-	    (start <= (u32) _end && start >= (u32)_stext))
-		return IN_KERNEL;
-	return 0;
+	if (start >= (u32)_end || end <= (u32)_stext)
+		return 0;
+
+	/* This cplb block overlapped with kernel area. */
+	return IN_KERNEL;
 }
 
 static unsigned short __init
