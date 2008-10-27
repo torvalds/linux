@@ -156,7 +156,7 @@ bail:
 /**
  * ipath_get_rwqe - copy the next RWQE into the QP's RWQE
  * @qp: the QP
- * @wr_id_only: update wr_id only, not SGEs
+ * @wr_id_only: update qp->r_wr_id only, not qp->r_sge
  *
  * Return 0 if no RWQE is available, otherwise return 1.
  *
@@ -172,8 +172,6 @@ int ipath_get_rwqe(struct ipath_qp *qp, int wr_id_only)
 	void (*handler)(struct ib_event *, void *);
 	u32 tail;
 	int ret;
-
-	qp->r_sge.sg_list = qp->r_sg_list;
 
 	if (qp->ibqp.srq) {
 		srq = to_isrq(qp->ibqp.srq);
@@ -206,8 +204,10 @@ int ipath_get_rwqe(struct ipath_qp *qp, int wr_id_only)
 		wqe = get_rwqe_ptr(rq, tail);
 		if (++tail >= rq->size)
 			tail = 0;
-	} while (!wr_id_only && !ipath_init_sge(qp, wqe, &qp->r_len,
-						&qp->r_sge));
+		if (wr_id_only)
+			break;
+		qp->r_sge.sg_list = qp->r_sg_list;
+	} while (!ipath_init_sge(qp, wqe, &qp->r_len, &qp->r_sge));
 	qp->r_wr_id = wqe->wr_id;
 	wq->tail = tail;
 
