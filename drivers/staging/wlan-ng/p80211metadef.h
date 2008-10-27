@@ -1189,52 +1189,6 @@
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(16) | \
 			P80211DID_MKITEM(2) | 0x00000000)
-#define DIDmsg_p2req_channel_info \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(17))
-#define DIDmsg_p2req_channel_info_channellist \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(17) | \
-			P80211DID_MKITEM(1) | 0x00000000)
-#define DIDmsg_p2req_channel_info_channeldwelltime \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(17) | \
-			P80211DID_MKITEM(2) | 0x00000000)
-#define DIDmsg_p2req_channel_info_resultcode \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(17) | \
-			P80211DID_MKITEM(3) | 0x00000000)
-#define DIDmsg_p2req_channel_info_numchinfo \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(17) | \
-			P80211DID_MKITEM(4) | 0x00000000)
-#define DIDmsg_p2req_channel_info_results \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(18))
-#define DIDmsg_p2req_channel_info_results_channel \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(18) | \
-			P80211DID_MKITEM(1) | 0x00000000)
-#define DIDmsg_p2req_channel_info_results_resultcode \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(18) | \
-			P80211DID_MKITEM(2) | 0x00000000)
-#define DIDmsg_p2req_channel_info_results_avgnoiselevel \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(18) | \
-			P80211DID_MKITEM(3) | 0x00000000)
-#define DIDmsg_p2req_channel_info_results_peaknoiselevel \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(18) | \
-			P80211DID_MKITEM(4) | 0x00000000)
-#define DIDmsg_p2req_channel_info_results_bssactive \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(18) | \
-			P80211DID_MKITEM(5) | 0x00000000)
-#define DIDmsg_p2req_channel_info_results_pcfactive \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(18) | \
-			P80211DID_MKITEM(6) | 0x00000000)
 #define DIDmsg_p2req_enable \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(19))
@@ -1258,22 +1212,10 @@
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(2) | \
 			P80211DID_MKITEM(1) | 0x18000000)
-#define DIDmib_dot11smt_dot11StationConfigTable_dot11MediumOccupancyLimit \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(2) | 0x18000000)
 #define DIDmib_dot11smt_dot11StationConfigTable_dot11CFPollable \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(2) | \
 			P80211DID_MKITEM(3) | 0x10000000)
-#define DIDmib_dot11smt_dot11StationConfigTable_dot11CFPPeriod \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(4) | 0x18000000)
-#define DIDmib_dot11smt_dot11StationConfigTable_dot11CFPMaxDuration \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(5) | 0x18000000)
 #define DIDmib_dot11smt_dot11StationConfigTable_dot11AuthenticationResponseTimeOut \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(2) | \
@@ -1915,10 +1857,6 @@
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(1) | \
 			P80211DID_MKITEM(1) | 0x18000000)
-#define DIDmib_p2_p2Table_p2EarlyBeacon \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(1) | \
-			P80211DID_MKITEM(2) | 0x18000000)
 #define DIDmib_p2_p2Table_p2ReceivedFrameStatistics \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(1) | \
@@ -1927,38 +1865,10 @@
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(1) | \
 			P80211DID_MKITEM(4) | 0x10000000)
-#define DIDmib_p2_p2Table_p2Authenticated \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(1) | \
-			P80211DID_MKITEM(5) | 0x10000000)
-#define DIDmib_p2_p2Table_p2Associated \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(1) | \
-			P80211DID_MKITEM(6) | 0x10000000)
-#define DIDmib_p2_p2Table_p2PowerSaveUserCount \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(1) | \
-			P80211DID_MKITEM(7) | 0x10000000)
 #define DIDmib_p2_p2Table_p2Comment \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(1) | \
 			P80211DID_MKITEM(8) | 0x18000000)
-#define DIDmib_p2_p2Table_p2AccessMode \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(1) | \
-			P80211DID_MKITEM(9) | 0x18000000)
-#define DIDmib_p2_p2Table_p2AccessAllow \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(1) | \
-			P80211DID_MKITEM(10) | 0x18000000)
-#define DIDmib_p2_p2Table_p2AccessDeny \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(1) | \
-			P80211DID_MKITEM(11) | 0x18000000)
-#define DIDmib_p2_p2Table_p2ChannelInfoResults \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(1) | \
-			P80211DID_MKITEM(12) | 0x10000000)
 #define DIDmib_p2_p2Static \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(2))
@@ -2026,34 +1936,6 @@
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(2) | \
 			P80211DID_MKITEM(16) | 0x18000000)
-#define DIDmib_p2_p2Static_p2CnfWDSAddress1 \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(17) | 0x18000000)
-#define DIDmib_p2_p2Static_p2CnfWDSAddress2 \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(18) | 0x18000000)
-#define DIDmib_p2_p2Static_p2CnfWDSAddress3 \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(19) | 0x18000000)
-#define DIDmib_p2_p2Static_p2CnfWDSAddress4 \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(20) | 0x18000000)
-#define DIDmib_p2_p2Static_p2CnfWDSAddress5 \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(21) | 0x18000000)
-#define DIDmib_p2_p2Static_p2CnfWDSAddress6 \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(22) | 0x18000000)
-#define DIDmib_p2_p2Static_p2CnfMulticastPMBuffering \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(23) | 0x18000000)
 #define DIDmib_p2_p2Static_p2CnfWEPDefaultKeyID \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(2) | \
@@ -2082,10 +1964,6 @@
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(2) | \
 			P80211DID_MKITEM(30) | 0x18000000)
-#define DIDmib_p2_p2Static_p2CnfMaxAssociatedStations \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(31) | 0x18000000)
 #define DIDmib_p2_p2Static_p2CnfTxControl \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(2) | \
@@ -2094,10 +1972,6 @@
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(2) | \
 			P80211DID_MKITEM(33) | 0x18000000)
-#define DIDmib_p2_p2Static_p2CnfHostAuthentication \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(34) | 0x18000000)
 #define DIDmib_p2_p2Static_p2CnfRcvCrcError \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(2) | \
@@ -2106,26 +1980,6 @@
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(2) | \
 			P80211DID_MKITEM(36) | 0x18000000)
-#define DIDmib_p2_p2Static_p2CnfBeaconInterval \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(37) | 0x18000000)
-#define DIDmib_p2_p2Static_p2CnfMediumOccupancyLimit \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(38) | 0x18000000)
-#define DIDmib_p2_p2Static_p2CnfCFPPeriod \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(39) | 0x18000000)
-#define DIDmib_p2_p2Static_p2CnfCFPMaxDuration \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(40) | 0x18000000)
-#define DIDmib_p2_p2Static_p2CnfCFPFlags \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(41) | 0x18000000)
 #define DIDmib_p2_p2Static_p2CnfSTAPCFInfo \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(2) | \
@@ -2142,18 +1996,10 @@
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(2) | \
 			P80211DID_MKITEM(45) | 0x18000000)
-#define DIDmib_p2_p2Static_p2CnfEnhSecurity \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(46) | 0x18000000)
 #define DIDmib_p2_p2Static_p2CnfShortPreamble \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(2) | \
 			P80211DID_MKITEM(47) | 0x18000000)
-#define DIDmib_p2_p2Static_p2CnfExcludeLongPreamble \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(48) | 0x18000000)
 #define DIDmib_p2_p2Static_p2CnfAuthenticationRspTO \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(2) | \
@@ -2367,10 +2213,6 @@
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(5) | \
 			P80211DID_MKITEM(21) | 0x10000000)
-#define DIDmib_p2_p2NIC_p2TertiaryFWID \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(5) | \
-			P80211DID_MKITEM(22) | 0x10000000)
 #define DIDmib_p2_p2MAC \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(6))
@@ -2430,10 +2272,6 @@
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(6) | \
 			P80211DID_MKITEM(14) | 0x10000000)
-#define DIDmib_p2_p2MAC_p2APCurrentScaleThresholds \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(15) | 0x10000000)
 #define DIDmib_p2_p2MAC_p2ProtocolRspTime \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(6) | \
@@ -2466,34 +2304,6 @@
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(6) | \
 			P80211DID_MKITEM(23) | 0x10000000)
-#define DIDmib_p2_p2MAC_p2CurrentTxRate1 \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(24) | 0x10000000)
-#define DIDmib_p2_p2MAC_p2CurrentTxRate2 \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(25) | 0x10000000)
-#define DIDmib_p2_p2MAC_p2CurrentTxRate3 \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(26) | 0x10000000)
-#define DIDmib_p2_p2MAC_p2CurrentTxRate4 \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(27) | 0x10000000)
-#define DIDmib_p2_p2MAC_p2CurrentTxRate5 \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(28) | 0x10000000)
-#define DIDmib_p2_p2MAC_p2CurrentTxRate6 \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(29) | 0x10000000)
-#define DIDmib_p2_p2MAC_p2OwnMACAddress \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(30) | 0x10000000)
 #define DIDmib_p2_p2Modem \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(7))

@@ -93,10 +93,9 @@
 /*================================================================*/
 /* Local Types */
 
-#define  F_AP         0x1        /* MIB is supported on Access Points. */
-#define  F_STA        0x2        /* MIB is supported on stations. */
-#define  F_READ       0x4        /* MIB may be read. */
-#define  F_WRITE      0x8        /* MIB may be written. */
+#define  F_STA        0x1        /* MIB is supported on stations. */
+#define  F_READ       0x2        /* MIB may be read. */
+#define  F_WRITE      0x4        /* MIB may be written. */
 
 typedef struct mibrec
 {
@@ -173,14 +172,6 @@ p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
 
 static int prism2mib_flag(
-mibrec_t                     *mib,
-int                          isget,
-wlandevice_t                 *wlandev,
-hfa384x_t                    *hw,
-p80211msg_dot11req_mibset_t  *msg,
-void                         *data);
-
-static int prism2mib_appcfinfoflag(
 mibrec_t                     *mib,
 int                          isget,
 wlandevice_t                 *wlandev,
@@ -284,26 +275,6 @@ hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data);
 
-static void prism2mib_priv_authlist(
-hfa384x_t      *hw,
-prism2sta_authlist_t  *list);
-
-static void prism2mib_priv_accessmode(
-hfa384x_t         *hw,
-UINT32            mode);
-
-static void prism2mib_priv_accessallow(
-hfa384x_t         *hw,
-p80211macarray_t  *macarray);
-
-static void prism2mib_priv_accessdeny(
-hfa384x_t         *hw,
-p80211macarray_t  *macarray);
-
-static void prism2mib_priv_deauthenticate(
-hfa384x_t         *hw,
-UINT8             *addr);
-
 /*================================================================*/
 /* Local Static Definitions */
 
@@ -312,31 +283,19 @@ static mibrec_t mibtab[] = {
     /* dot11smt MIB's */
 
     { DIDmib_dot11smt_dot11StationConfigTable_dot11StationID,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFOWNMACADDR, HFA384x_RID_CNFOWNMACADDR_LEN, 0,
           prism2mib_bytearea2pstr },
-    { DIDmib_dot11smt_dot11StationConfigTable_dot11MediumOccupancyLimit,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_CNFAPPCFINFO, HFA384x_RID_CNFAPPCFINFO_LEN, 0,
-          prism2mib_uint32offset },
     { DIDmib_dot11smt_dot11StationConfigTable_dot11CFPollable,
           F_STA | F_READ,
           HFA384x_RID_CFPOLLABLE, 0, 0,
           prism2mib_uint32 },
-    { DIDmib_dot11smt_dot11StationConfigTable_dot11CFPPeriod,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_CNFAPPCFINFO, HFA384x_RID_CNFAPPCFINFO_LEN, 1,
-          prism2mib_uint32offset },
-    { DIDmib_dot11smt_dot11StationConfigTable_dot11CFPMaxDuration,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_CNFAPPCFINFO, HFA384x_RID_CNFAPPCFINFO_LEN, 2,
-          prism2mib_uint32offset },
     { DIDmib_dot11smt_dot11StationConfigTable_dot11AuthenticationResponseTimeOut,
           F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFAUTHRSPTIMEOUT, 0, 0,
           prism2mib_uint32 },
     { DIDmib_dot11smt_dot11StationConfigTable_dot11PrivacyOptionImplemented,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_PRIVACYOPTIMP, 0, 0,
           prism2mib_uint32 },
     { DIDmib_dot11smt_dot11StationConfigTable_dot11PowerManagementMode,
@@ -355,139 +314,123 @@ static mibrec_t mibtab[] = {
           F_STA | F_READ | F_WRITE,
           HFA384x_RID_TXRATECNTL, 0, 0,
           prism2mib_operationalrateset },
-    { DIDmib_dot11smt_dot11StationConfigTable_dot11OperationalRateSet,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_TXRATECNTL0, 0, 0,
-          prism2mib_operationalrateset },
-    { DIDmib_dot11smt_dot11StationConfigTable_dot11BeaconPeriod,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_CNFAPBCNINT, 0, 0,
-          prism2mib_uint32 },
     { DIDmib_dot11smt_dot11StationConfigTable_dot11DTIMPeriod,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFOWNDTIMPER, 0, 0,
           prism2mib_uint32 },
     { DIDmib_dot11smt_dot11StationConfigTable_dot11AssociationResponseTimeOut,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_PROTOCOLRSPTIME, 0, 0,
           prism2mib_uint32 },
     { DIDmib_dot11smt_dot11AuthenticationAlgorithmsTable_dot11AuthenticationAlgorithm1,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           1, 0, 0,
           prism2mib_authalg },
     { DIDmib_dot11smt_dot11AuthenticationAlgorithmsTable_dot11AuthenticationAlgorithm2,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           2, 0, 0,
           prism2mib_authalg },
     { DIDmib_dot11smt_dot11AuthenticationAlgorithmsTable_dot11AuthenticationAlgorithm3,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           3, 0, 0,
           prism2mib_authalg },
     { DIDmib_dot11smt_dot11AuthenticationAlgorithmsTable_dot11AuthenticationAlgorithm4,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           4, 0, 0,
           prism2mib_authalg },
     { DIDmib_dot11smt_dot11AuthenticationAlgorithmsTable_dot11AuthenticationAlgorithm5,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           5, 0, 0,
           prism2mib_authalg },
     { DIDmib_dot11smt_dot11AuthenticationAlgorithmsTable_dot11AuthenticationAlgorithm6,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           6, 0, 0,
           prism2mib_authalg },
     { DIDmib_dot11smt_dot11AuthenticationAlgorithmsTable_dot11AuthenticationAlgorithmsEnable1,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           1, 0, 0,
           prism2mib_authalgenable },
     { DIDmib_dot11smt_dot11AuthenticationAlgorithmsTable_dot11AuthenticationAlgorithmsEnable2,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           2, 0, 0,
           prism2mib_authalgenable },
     { DIDmib_dot11smt_dot11AuthenticationAlgorithmsTable_dot11AuthenticationAlgorithmsEnable3,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           3, 0, 0,
           prism2mib_authalgenable },
     { DIDmib_dot11smt_dot11AuthenticationAlgorithmsTable_dot11AuthenticationAlgorithmsEnable4,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           4, 0, 0,
           prism2mib_authalgenable },
     { DIDmib_dot11smt_dot11AuthenticationAlgorithmsTable_dot11AuthenticationAlgorithmsEnable5,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           5, 0, 0,
           prism2mib_authalgenable },
     { DIDmib_dot11smt_dot11AuthenticationAlgorithmsTable_dot11AuthenticationAlgorithmsEnable6,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           6, 0, 0,
           prism2mib_authalgenable },
     { DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey0,
-          F_AP | F_STA | F_WRITE,
+          F_STA | F_WRITE,
           HFA384x_RID_CNFWEPDEFAULTKEY0, 0, 0,
           prism2mib_wepdefaultkey },
     { DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey1,
-          F_AP | F_STA | F_WRITE,
+          F_STA | F_WRITE,
           HFA384x_RID_CNFWEPDEFAULTKEY1, 0, 0,
           prism2mib_wepdefaultkey },
     { DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey2,
-          F_AP | F_STA | F_WRITE,
+          F_STA | F_WRITE,
           HFA384x_RID_CNFWEPDEFAULTKEY2, 0, 0,
           prism2mib_wepdefaultkey },
     { DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey3,
-          F_AP | F_STA | F_WRITE,
+          F_STA | F_WRITE,
           HFA384x_RID_CNFWEPDEFAULTKEY3, 0, 0,
           prism2mib_wepdefaultkey },
     { DIDmib_dot11smt_dot11PrivacyTable_dot11PrivacyInvoked,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFWEPFLAGS, HFA384x_WEPFLAGS_PRIVINVOKED, 0,
           prism2mib_privacyinvoked },
     { DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFWEPDEFAULTKEYID, 0, 0,
           prism2mib_uint32 },
     { DIDmib_dot11smt_dot11PrivacyTable_dot11ExcludeUnencrypted,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFWEPFLAGS, HFA384x_WEPFLAGS_EXCLUDE, 0,
           prism2mib_excludeunencrypted },
     { DIDmib_dot11phy_dot11PhyOperationTable_dot11ShortPreambleEnabled,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFSHORTPREAMBLE, 0, 0,
           prism2mib_preamble },
 
     /* dot11mac MIB's */
 
     { DIDmib_dot11mac_dot11OperationTable_dot11MACAddress,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFOWNMACADDR, HFA384x_RID_CNFOWNMACADDR_LEN, 0,
           prism2mib_bytearea2pstr },
     { DIDmib_dot11mac_dot11OperationTable_dot11RTSThreshold,
           F_STA | F_READ | F_WRITE,
           HFA384x_RID_RTSTHRESH, 0, 0,
           prism2mib_uint32 },
-    { DIDmib_dot11mac_dot11OperationTable_dot11RTSThreshold,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_RTSTHRESH0, 0, 0,
-          prism2mib_uint32 },
     { DIDmib_dot11mac_dot11OperationTable_dot11ShortRetryLimit,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_SHORTRETRYLIMIT, 0, 0,
           prism2mib_uint32 },
     { DIDmib_dot11mac_dot11OperationTable_dot11LongRetryLimit,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_LONGRETRYLIMIT, 0, 0,
           prism2mib_uint32 },
     { DIDmib_dot11mac_dot11OperationTable_dot11FragmentationThreshold,
           F_STA | F_READ | F_WRITE,
           HFA384x_RID_FRAGTHRESH, 0, 0,
           prism2mib_fragmentationthreshold },
-    { DIDmib_dot11mac_dot11OperationTable_dot11FragmentationThreshold,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_FRAGTHRESH0, 0, 0,
-          prism2mib_fragmentationthreshold },
     { DIDmib_dot11mac_dot11OperationTable_dot11MaxTransmitMSDULifetime,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_MAXTXLIFETIME, 0, 0,
           prism2mib_uint32 },
     { DIDmib_dot11mac_dot11OperationTable_dot11MaxReceiveLifetime,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_MAXRXLIFETIME, 0, 0,
           prism2mib_uint32 },
     { DIDmib_dot11mac_dot11GroupAddressesTable_dot11Address1,
@@ -622,74 +565,38 @@ static mibrec_t mibtab[] = {
     /* dot11phy MIB's */
 
     { DIDmib_dot11phy_dot11PhyOperationTable_dot11PHYType,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_PHYTYPE, 0, 0,
           prism2mib_uint32 },
     { DIDmib_dot11phy_dot11PhyOperationTable_dot11TempType,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_TEMPTYPE, 0, 0,
           prism2mib_uint32 },
     { DIDmib_dot11phy_dot11PhyDSSSTable_dot11CurrentChannel,
           F_STA | F_READ,
           HFA384x_RID_CURRENTCHANNEL, 0, 0,
           prism2mib_uint32 },
-    { DIDmib_dot11phy_dot11PhyDSSSTable_dot11CurrentChannel,
-          F_AP | F_READ,
-          HFA384x_RID_CNFOWNCHANNEL, 0, 0,
-          prism2mib_uint32 },
     { DIDmib_dot11phy_dot11PhyDSSSTable_dot11CurrentCCAMode,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_CCAMODE, 0, 0,
           prism2mib_uint32 },
 
     /* p2Table MIB's */
 
     { DIDmib_p2_p2Table_p2MMTx,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           0, 0, 0,
           prism2mib_priv },
-    { DIDmib_p2_p2Table_p2EarlyBeacon,
-          F_AP | F_READ | F_WRITE,
-          BIT7, 0, 0,
-          prism2mib_appcfinfoflag },
     { DIDmib_p2_p2Table_p2ReceivedFrameStatistics,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           0, 0, 0,
           prism2mib_priv },
     { DIDmib_p2_p2Table_p2CommunicationTallies,
-          F_AP | F_STA | F_READ,
-          0, 0, 0,
-          prism2mib_priv },
-    { DIDmib_p2_p2Table_p2Authenticated,
-          F_AP | F_READ,
-          0, 0, 0,
-          prism2mib_priv },
-    { DIDmib_p2_p2Table_p2Associated,
-          F_AP | F_READ,
-          0, 0, 0,
-          prism2mib_priv },
-    { DIDmib_p2_p2Table_p2PowerSaveUserCount,
-          F_AP | F_READ,
+          F_STA | F_READ,
           0, 0, 0,
           prism2mib_priv },
     { DIDmib_p2_p2Table_p2Comment,
-          F_AP | F_STA | F_READ | F_WRITE,
-          0, 0, 0,
-          prism2mib_priv },
-    { DIDmib_p2_p2Table_p2AccessMode,
-          F_AP | F_READ | F_WRITE,
-          0, 0, 0,
-          prism2mib_priv },
-    { DIDmib_p2_p2Table_p2AccessAllow,
-          F_AP | F_READ | F_WRITE,
-          0, 0, 0,
-          prism2mib_priv },
-    { DIDmib_p2_p2Table_p2AccessDeny,
-          F_AP | F_READ | F_WRITE,
-          0, 0, 0,
-          prism2mib_priv },
-    { DIDmib_p2_p2Table_p2ChannelInfoResults,
-          F_AP | F_READ,
+          F_STA | F_READ | F_WRITE,
           0, 0, 0,
           prism2mib_priv },
 
@@ -700,7 +607,7 @@ static mibrec_t mibtab[] = {
           HFA384x_RID_CNFPORTTYPE, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2Static_p2CnfOwnMACAddress,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFOWNMACADDR, HFA384x_RID_CNFOWNMACADDR_LEN, 0,
           prism2mib_bytearea2pstr },
     { DIDmib_p2_p2Static_p2CnfDesiredSSID,
@@ -708,11 +615,11 @@ static mibrec_t mibtab[] = {
           HFA384x_RID_CNFDESIREDSSID, HFA384x_RID_CNFDESIREDSSID_LEN, 0,
           prism2mib_bytestr2pstr },
     { DIDmib_p2_p2Static_p2CnfOwnChannel,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFOWNCHANNEL, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2Static_p2CnfOwnSSID,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFOWNSSID, HFA384x_RID_CNFOWNSSID_LEN, 0,
           prism2mib_bytestr2pstr },
     { DIDmib_p2_p2Static_p2CnfOwnATIMWindow,
@@ -720,11 +627,11 @@ static mibrec_t mibtab[] = {
           HFA384x_RID_CNFOWNATIMWIN, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2Static_p2CnfSystemScale,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFSYSSCALE, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2Static_p2CnfMaxDataLength,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFMAXDATALEN, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2Static_p2CnfWDSAddress,
@@ -752,151 +659,87 @@ static mibrec_t mibtab[] = {
           HFA384x_RID_CNFPMHOLDDUR, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2Static_p2CnfOwnName,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFOWNNAME, HFA384x_RID_CNFOWNNAME_LEN, 0,
           prism2mib_bytestr2pstr },
     { DIDmib_p2_p2Static_p2CnfOwnDTIMPeriod,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFOWNDTIMPER, 0, 0,
           prism2mib_uint32 },
-    { DIDmib_p2_p2Static_p2CnfWDSAddress1,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_CNFWDSADDR1, HFA384x_RID_CNFWDSADDR1_LEN, 0,
-          prism2mib_bytearea2pstr },
-    { DIDmib_p2_p2Static_p2CnfWDSAddress2,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_CNFWDSADDR2, HFA384x_RID_CNFWDSADDR2_LEN, 0,
-          prism2mib_bytearea2pstr },
-    { DIDmib_p2_p2Static_p2CnfWDSAddress3,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_CNFWDSADDR3, HFA384x_RID_CNFWDSADDR3_LEN, 0,
-          prism2mib_bytearea2pstr },
-    { DIDmib_p2_p2Static_p2CnfWDSAddress4,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_CNFWDSADDR4, HFA384x_RID_CNFWDSADDR4_LEN, 0,
-          prism2mib_bytearea2pstr },
-    { DIDmib_p2_p2Static_p2CnfWDSAddress5,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_CNFWDSADDR5, HFA384x_RID_CNFWDSADDR5_LEN, 0,
-          prism2mib_bytearea2pstr },
-    { DIDmib_p2_p2Static_p2CnfWDSAddress6,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_CNFWDSADDR6, HFA384x_RID_CNFWDSADDR6_LEN, 0,
-          prism2mib_bytearea2pstr },
-    { DIDmib_p2_p2Static_p2CnfMulticastPMBuffering,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_CNFMCASTPMBUFF, 0, 0,
-          prism2mib_truth },
     { DIDmib_p2_p2Static_p2CnfWEPDefaultKeyID,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFWEPDEFAULTKEYID, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2Static_p2CnfWEPDefaultKey0,
-          F_AP | F_STA | F_WRITE,
+          F_STA | F_WRITE,
           HFA384x_RID_CNFWEPDEFAULTKEY0, 0, 0,
           prism2mib_wepdefaultkey },
     { DIDmib_p2_p2Static_p2CnfWEPDefaultKey1,
-          F_AP | F_STA | F_WRITE,
+          F_STA | F_WRITE,
           HFA384x_RID_CNFWEPDEFAULTKEY1, 0, 0,
           prism2mib_wepdefaultkey },
     { DIDmib_p2_p2Static_p2CnfWEPDefaultKey2,
-          F_AP | F_STA | F_WRITE,
+          F_STA | F_WRITE,
           HFA384x_RID_CNFWEPDEFAULTKEY2, 0, 0,
           prism2mib_wepdefaultkey },
     { DIDmib_p2_p2Static_p2CnfWEPDefaultKey3,
-          F_AP | F_STA | F_WRITE,
+          F_STA | F_WRITE,
           HFA384x_RID_CNFWEPDEFAULTKEY3, 0, 0,
           prism2mib_wepdefaultkey },
     { DIDmib_p2_p2Static_p2CnfWEPFlags,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFWEPFLAGS, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2Static_p2CnfAuthentication,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFAUTHENTICATION, 0, 0,
           prism2mib_uint32 },
-    { DIDmib_p2_p2Static_p2CnfMaxAssociatedStations,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_CNFMAXASSOCSTATIONS, 0, 0,
-          prism2mib_uint32 },
     { DIDmib_p2_p2Static_p2CnfTxControl,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFTXCONTROL, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2Static_p2CnfRoamingMode,
           F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFROAMINGMODE, 0, 0,
           prism2mib_uint32 },
-    { DIDmib_p2_p2Static_p2CnfHostAuthentication,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_CNFHOSTAUTHASSOC, 0, 0,
-          prism2mib_truth },
     { DIDmib_p2_p2Static_p2CnfRcvCrcError,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFRCVCRCERROR, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2Static_p2CnfAltRetryCount,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFALTRETRYCNT, 0, 0,
           prism2mib_uint32 },
-    { DIDmib_p2_p2Static_p2CnfBeaconInterval,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_CNFAPBCNINT, 0, 0,
-          prism2mib_uint32 },
-    { DIDmib_p2_p2Static_p2CnfMediumOccupancyLimit,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_CNFAPPCFINFO, HFA384x_RID_CNFAPPCFINFO_LEN, 0,
-          prism2mib_uint32offset },
-    { DIDmib_p2_p2Static_p2CnfCFPPeriod,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_CNFAPPCFINFO, HFA384x_RID_CNFAPPCFINFO_LEN, 1,
-          prism2mib_uint32offset },
-    { DIDmib_p2_p2Static_p2CnfCFPMaxDuration,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_CNFAPPCFINFO, HFA384x_RID_CNFAPPCFINFO_LEN, 2,
-          prism2mib_uint32offset },
-    { DIDmib_p2_p2Static_p2CnfCFPFlags,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_CNFAPPCFINFO, HFA384x_RID_CNFAPPCFINFO_LEN, 3,
-          prism2mib_uint32offset },
     { DIDmib_p2_p2Static_p2CnfSTAPCFInfo,
           F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFSTAPCFINFO, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2Static_p2CnfPriorityQUsage,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFPRIORITYQUSAGE, HFA384x_RID_CNFPRIOQUSAGE_LEN, 0,
           prism2mib_uint32array },
     { DIDmib_p2_p2Static_p2CnfTIMCtrl,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFTIMCTRL, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2Static_p2CnfThirty2Tally,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFTHIRTY2TALLY, 0, 0,
           prism2mib_truth },
-    { DIDmib_p2_p2Static_p2CnfEnhSecurity,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_CNFENHSECURITY, 0, 0,
-          prism2mib_uint32 },
     { DIDmib_p2_p2Static_p2CnfShortPreamble,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFSHORTPREAMBLE, 0, 0,
           prism2mib_preamble },
-    { DIDmib_p2_p2Static_p2CnfExcludeLongPreamble,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_CNFEXCLONGPREAMBLE, 0, 0,
-          prism2mib_truth },
     { DIDmib_p2_p2Static_p2CnfAuthenticationRspTO,
           F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFAUTHRSPTIMEOUT, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2Static_p2CnfBasicRates,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFBASICRATES, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2Static_p2CnfSupportedRates,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_CNFSUPPRATES, 0, 0,
           prism2mib_uint32 },
 
@@ -922,186 +765,98 @@ static mibrec_t mibtab[] = {
           F_STA | F_READ | F_WRITE,
           HFA384x_RID_PROMISCMODE, 0, 0,
           prism2mib_truth },
-    { DIDmib_p2_p2Dynamic_p2FragmentationThreshold0,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_FRAGTHRESH0, 0, 0,
-          prism2mib_fragmentationthreshold },
-    { DIDmib_p2_p2Dynamic_p2FragmentationThreshold1,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_FRAGTHRESH1, 0, 0,
-          prism2mib_fragmentationthreshold },
-    { DIDmib_p2_p2Dynamic_p2FragmentationThreshold2,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_FRAGTHRESH2, 0, 0,
-          prism2mib_fragmentationthreshold },
-    { DIDmib_p2_p2Dynamic_p2FragmentationThreshold3,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_FRAGTHRESH3, 0, 0,
-          prism2mib_fragmentationthreshold },
-    { DIDmib_p2_p2Dynamic_p2FragmentationThreshold4,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_FRAGTHRESH4, 0, 0,
-          prism2mib_fragmentationthreshold },
-    { DIDmib_p2_p2Dynamic_p2FragmentationThreshold5,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_FRAGTHRESH5, 0, 0,
-          prism2mib_fragmentationthreshold },
-    { DIDmib_p2_p2Dynamic_p2FragmentationThreshold6,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_FRAGTHRESH6, 0, 0,
-          prism2mib_fragmentationthreshold },
-    { DIDmib_p2_p2Dynamic_p2RTSThreshold0,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_RTSTHRESH0, 0, 0,
-          prism2mib_uint32 },
-    { DIDmib_p2_p2Dynamic_p2RTSThreshold1,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_RTSTHRESH1, 0, 0,
-          prism2mib_uint32 },
-    { DIDmib_p2_p2Dynamic_p2RTSThreshold2,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_RTSTHRESH2, 0, 0,
-          prism2mib_uint32 },
-    { DIDmib_p2_p2Dynamic_p2RTSThreshold3,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_RTSTHRESH3, 0, 0,
-          prism2mib_uint32 },
-    { DIDmib_p2_p2Dynamic_p2RTSThreshold4,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_RTSTHRESH4, 0, 0,
-          prism2mib_uint32 },
-    { DIDmib_p2_p2Dynamic_p2RTSThreshold5,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_RTSTHRESH5, 0, 0,
-          prism2mib_uint32 },
-    { DIDmib_p2_p2Dynamic_p2RTSThreshold6,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_RTSTHRESH6, 0, 0,
-          prism2mib_uint32 },
-    { DIDmib_p2_p2Dynamic_p2TxRateControl0,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_TXRATECNTL0, 0, 0,
-          prism2mib_uint32 },
-    { DIDmib_p2_p2Dynamic_p2TxRateControl1,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_TXRATECNTL1, 0, 0,
-          prism2mib_uint32 },
-    { DIDmib_p2_p2Dynamic_p2TxRateControl2,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_TXRATECNTL2, 0, 0,
-          prism2mib_uint32 },
-    { DIDmib_p2_p2Dynamic_p2TxRateControl3,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_TXRATECNTL3, 0, 0,
-          prism2mib_uint32 },
-    { DIDmib_p2_p2Dynamic_p2TxRateControl4,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_TXRATECNTL4, 0, 0,
-          prism2mib_uint32 },
-    { DIDmib_p2_p2Dynamic_p2TxRateControl5,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_TXRATECNTL5, 0, 0,
-          prism2mib_uint32 },
-    { DIDmib_p2_p2Dynamic_p2TxRateControl6,
-          F_AP | F_READ | F_WRITE,
-          HFA384x_RID_TXRATECNTL6, 0, 0,
-          prism2mib_uint32 },
 
     /* p2Behavior MIB's */
 
     { DIDmib_p2_p2Behavior_p2TickTime,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_ITICKTIME, 0, 0,
           prism2mib_uint32 },
 
     /* p2NIC MIB's */
 
     { DIDmib_p2_p2NIC_p2MaxLoadTime,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_MAXLOADTIME, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2NIC_p2DLBufferPage,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_DOWNLOADBUFFER, HFA384x_RID_DOWNLOADBUFFER_LEN, 0,
           prism2mib_uint32offset },
     { DIDmib_p2_p2NIC_p2DLBufferOffset,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_DOWNLOADBUFFER, HFA384x_RID_DOWNLOADBUFFER_LEN, 1,
           prism2mib_uint32offset },
     { DIDmib_p2_p2NIC_p2DLBufferLength,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_DOWNLOADBUFFER, HFA384x_RID_DOWNLOADBUFFER_LEN, 2,
           prism2mib_uint32offset },
     { DIDmib_p2_p2NIC_p2PRIIdentity,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_PRIIDENTITY, HFA384x_RID_PRIIDENTITY_LEN, 0,
           prism2mib_uint32array },
     { DIDmib_p2_p2NIC_p2PRISupRange,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_PRISUPRANGE, HFA384x_RID_PRISUPRANGE_LEN, 0,
           prism2mib_uint32array },
     { DIDmib_p2_p2NIC_p2CFIActRanges,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_PRI_CFIACTRANGES, HFA384x_RID_CFIACTRANGES_LEN, 0,
           prism2mib_uint32array },
     { DIDmib_p2_p2NIC_p2BuildSequence,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_BUILDSEQ, HFA384x_RID_BUILDSEQ_LEN, 0,
           prism2mib_uint32array },
     { DIDmib_p2_p2NIC_p2PrimaryFWID,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           0, 0, 0,
           prism2mib_fwid },
     { DIDmib_p2_p2NIC_p2SecondaryFWID,
-          F_AP | F_STA | F_READ,
-          0, 0, 0,
-          prism2mib_fwid },
-    { DIDmib_p2_p2NIC_p2TertiaryFWID,
-          F_AP | F_READ,
+          F_STA | F_READ,
           0, 0, 0,
           prism2mib_fwid },
     { DIDmib_p2_p2NIC_p2NICSerialNumber,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_NICSERIALNUMBER, HFA384x_RID_NICSERIALNUMBER_LEN, 0,
           prism2mib_bytearea2pstr },
     { DIDmib_p2_p2NIC_p2NICIdentity,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_NICIDENTITY, HFA384x_RID_NICIDENTITY_LEN, 0,
           prism2mib_uint32array },
     { DIDmib_p2_p2NIC_p2MFISupRange,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_MFISUPRANGE, HFA384x_RID_MFISUPRANGE_LEN, 0,
           prism2mib_uint32array },
     { DIDmib_p2_p2NIC_p2CFISupRange,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_CFISUPRANGE, HFA384x_RID_CFISUPRANGE_LEN, 0,
           prism2mib_uint32array },
     { DIDmib_p2_p2NIC_p2ChannelList,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_CHANNELLIST, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2NIC_p2RegulatoryDomains,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_REGULATORYDOMAINS, HFA384x_RID_REGULATORYDOMAINS_LEN, 0,
           prism2mib_regulatorydomains },
     { DIDmib_p2_p2NIC_p2TempType,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_TEMPTYPE, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2NIC_p2STAIdentity,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_STAIDENTITY, HFA384x_RID_STAIDENTITY_LEN, 0,
           prism2mib_uint32array },
     { DIDmib_p2_p2NIC_p2STASupRange,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_STASUPRANGE, HFA384x_RID_STASUPRANGE_LEN, 0,
           prism2mib_uint32array },
     { DIDmib_p2_p2NIC_p2MFIActRanges,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_STA_MFIACTRANGES, HFA384x_RID_MFIACTRANGES_LEN, 0,
           prism2mib_uint32array },
     { DIDmib_p2_p2NIC_p2STACFIActRanges,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_STA_CFIACTRANGES, HFA384x_RID_CFIACTRANGES2_LEN, 0,
           prism2mib_uint32array },
 
@@ -1156,35 +911,31 @@ static mibrec_t mibtab[] = {
           HFA384x_RID_CURRENTTXRATE, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2MAC_p2CurrentBeaconInterval,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_CURRENTBCNINT, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2MAC_p2StaCurrentScaleThresholds,
           F_STA | F_READ,
           HFA384x_RID_CURRENTSCALETHRESH, HFA384x_RID_STACURSCALETHRESH_LEN, 0,
           prism2mib_uint32array },
-    { DIDmib_p2_p2MAC_p2APCurrentScaleThresholds,
-          F_AP | F_READ,
-          HFA384x_RID_CURRENTSCALETHRESH, HFA384x_RID_APCURSCALETHRESH_LEN, 0,
-          prism2mib_uint32array },
     { DIDmib_p2_p2MAC_p2ProtocolRspTime,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_PROTOCOLRSPTIME, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2MAC_p2ShortRetryLimit,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_SHORTRETRYLIMIT, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2MAC_p2LongRetryLimit,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_LONGRETRYLIMIT, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2MAC_p2MaxTransmitLifetime,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_MAXTXLIFETIME, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2MAC_p2MaxReceiveLifetime,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_MAXRXLIFETIME, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2MAC_p2CFPollable,
@@ -1192,70 +943,42 @@ static mibrec_t mibtab[] = {
           HFA384x_RID_CFPOLLABLE, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2MAC_p2AuthenticationAlgorithms,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_AUTHALGORITHMS, HFA384x_RID_AUTHALGORITHMS_LEN, 0,
           prism2mib_uint32array },
     { DIDmib_p2_p2MAC_p2PrivacyOptionImplemented,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_PRIVACYOPTIMP, 0, 0,
           prism2mib_uint32 },
-    { DIDmib_p2_p2MAC_p2CurrentTxRate1,
-          F_AP | F_READ,
-          HFA384x_RID_CURRENTTXRATE1, 0, 0,
-          prism2mib_uint32 },
-    { DIDmib_p2_p2MAC_p2CurrentTxRate2,
-          F_AP | F_READ,
-          HFA384x_RID_CURRENTTXRATE2, 0, 0,
-          prism2mib_uint32 },
-    { DIDmib_p2_p2MAC_p2CurrentTxRate3,
-          F_AP | F_READ,
-          HFA384x_RID_CURRENTTXRATE3, 0, 0,
-          prism2mib_uint32 },
-    { DIDmib_p2_p2MAC_p2CurrentTxRate4,
-          F_AP | F_READ,
-          HFA384x_RID_CURRENTTXRATE4, 0, 0,
-          prism2mib_uint32 },
-    { DIDmib_p2_p2MAC_p2CurrentTxRate5,
-          F_AP | F_READ,
-          HFA384x_RID_CURRENTTXRATE5, 0, 0,
-          prism2mib_uint32 },
-    { DIDmib_p2_p2MAC_p2CurrentTxRate6,
-          F_AP | F_READ,
-          HFA384x_RID_CURRENTTXRATE6, 0, 0,
-          prism2mib_uint32 },
-    { DIDmib_p2_p2MAC_p2OwnMACAddress,
-          F_AP | F_READ,
-          HFA384x_RID_OWNMACADDRESS, HFA384x_RID_OWNMACADDRESS_LEN, 0,
-          prism2mib_bytearea2pstr },
 
     /* p2Modem MIB's */
 
     { DIDmib_p2_p2Modem_p2PHYType,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_PHYTYPE, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2Modem_p2CurrentChannel,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_CURRENTCHANNEL, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2Modem_p2CurrentPowerState,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_CURRENTPOWERSTATE, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2Modem_p2CCAMode,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_CCAMODE, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2Modem_p2TxPowerMax,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_TXPOWERMAX, 0, 0,
           prism2mib_uint32 },
     { DIDmib_dot11phy_dot11PhyTxPowerTable_dot11CurrentTxPowerLevel,
-          F_AP | F_STA | F_READ | F_WRITE,
+          F_STA | F_READ | F_WRITE,
           HFA384x_RID_TXPOWERMAX, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2Modem_p2SupportedDataRates,
-          F_AP | F_STA | F_READ,
+          F_STA | F_READ,
           HFA384x_RID_SUPPORTEDDATARATES, HFA384x_RID_SUPPORTEDDATARATES_LEN, 0,
           prism2mib_bytestr2pstr },
 
@@ -1382,6 +1105,7 @@ int prism2mgmt_mibset_mibget(wlandevice_t *wlandev, void *msgp)
 	hfa384x_t		*hw = wlandev->priv;
 	int			result, isget;
 	mibrec_t		*mib;
+
 	UINT16			which;
 
 	p80211msg_dot11req_mibset_t	*msg = msgp;
@@ -1396,7 +1120,7 @@ int prism2mgmt_mibset_mibget(wlandevice_t *wlandev, void *msgp)
 	** Determine if this is an Access Point or a station.
 	*/
 
-	which = hw->ap ? F_AP : F_STA;
+	which = F_STA;
 
 	/*
 	** Find the MIB in the MIB table.  Note that a MIB may be in the
@@ -1866,67 +1590,6 @@ void                         *data)
 			 */
 			*wordbuf = flags;
 			result = hfa384x_drvr_setconfig16(hw, mib->parm1, *wordbuf);
-		}
-	}
-
-	DBFEXIT;
-	return(result);
-}
-
-/*----------------------------------------------------------------
-* prism2mib_appcfinfoflag
-*
-* Get/set a single flag in the APPCFINFO record.
-*
-* MIB record parameters:
-*       parm1    Bit to get/set.
-*       parm2    Not used.
-*       parm3    Not used.
-*
-* Arguments:
-*       mib      MIB record.
-*       isget    MIBGET/MIBSET flag.
-*       wlandev  wlan device structure.
-*       priv     "priv" structure.
-*       hw       "hw" structure.
-*       msg      Message structure.
-*       data     Data buffer.
-*
-* Returns:
-*       0   - Success.
-*       ~0  - Error.
-*
-----------------------------------------------------------------*/
-
-static int prism2mib_appcfinfoflag(
-mibrec_t                     *mib,
-int                          isget,
-wlandevice_t                 *wlandev,
-hfa384x_t                    *hw,
-p80211msg_dot11req_mibset_t  *msg,
-void                         *data)
-{
-	int     result;
-	UINT32  *uint32 = (UINT32*) data;
-	UINT8   bytebuf[MIB_TMP_MAXLEN];
-	UINT16  *wordbuf = (UINT16*) bytebuf;
-	UINT16  word;
-
-	DBFENTER;
-
-	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_CNFAPPCFINFO,
-					bytebuf, HFA384x_RID_CNFAPPCFINFO_LEN);
-	if (result == 0) {
-		if (isget) {
-			*uint32 = (hfa384x2host_16(wordbuf[3]) & mib->parm1) ?
-				P80211ENUM_truth_true : P80211ENUM_truth_false;
-		} else {
-			word = hfa384x2host_16(wordbuf[3]);
-			word = ((*uint32) == P80211ENUM_truth_true) ?
-				(word | mib->parm1) : (word & ~mib->parm1);
-			wordbuf[3] = host2hfa384x_16(word);
-			result = hfa384x_drvr_setconfig(hw, HFA384x_RID_CNFAPPCFINFO,
-					bytebuf, HFA384x_RID_CNFAPPCFINFO_LEN);
 		}
 	}
 
@@ -2673,11 +2336,8 @@ void                         *data)
 {
 	UINT32            *uint32 = (UINT32*) data;
 	p80211pstrd_t     *pstr = (p80211pstrd_t*) data;
-	p80211macarray_t  *macarray = (p80211macarray_t *) data;
 
-	int  i, cnt, result, done;
-
-	prism2sta_authlist_t  old;
+	int  i, cnt, result;
 
 	/*
 	** "test" is a lot longer than necessary but who cares?  ...as long as
@@ -2757,45 +2417,6 @@ void                         *data)
 
 		break;
 
-	case DIDmib_p2_p2Table_p2Authenticated:
-
-		if (isget) {
-			prism2mib_priv_authlist(hw, &old);
-
-			macarray->cnt = 0;
-			for (i = 0; i < old.cnt; i++) {
-				if (!old.assoc[i]) {
-					memcpy(macarray->data[macarray->cnt], old.addr[i], WLAN_ADDR_LEN);
-					macarray->cnt++;
-				}
-			}
-		}
-
-		break;
-
-	case DIDmib_p2_p2Table_p2Associated:
-
-		if (isget) {
-			prism2mib_priv_authlist(hw, &old);
-
-			macarray->cnt = 0;
-			for (i = 0; i < old.cnt; i++) {
-				if (old.assoc[i]) {
-					memcpy(macarray->data[macarray->cnt], old.addr[i], WLAN_ADDR_LEN);
-					macarray->cnt++;
-				}
-			}
-		}
-
-		break;
-
-	case DIDmib_p2_p2Table_p2PowerSaveUserCount:
-
-		if (isget)
-			*uint32 = hw->psusercount;
-
-		break;
-
 	case DIDmib_p2_p2Table_p2Comment:
 
 		if (isget) {
@@ -2808,63 +2429,6 @@ void                         *data)
 				cnt = sizeof(hw->comment)-1;
 			memcpy(hw->comment, pstr->data, cnt);
 			pstr->data[cnt] = '\0';
-		}
-
-		break;
-
-	case DIDmib_p2_p2Table_p2AccessMode:
-
-		if (isget)
-			*uint32 = hw->accessmode;
-		else
-			prism2mib_priv_accessmode(hw, *uint32);
-
-		break;
-
-	case DIDmib_p2_p2Table_p2AccessAllow:
-
-		if (isget) {
-			macarray->cnt = hw->allow.cnt;
-			memcpy(macarray->data, hw->allow.addr,
-			       macarray->cnt*WLAN_ADDR_LEN);
-		} else {
-			prism2mib_priv_accessallow(hw, macarray);
-		}
-
-		break;
-
-	case DIDmib_p2_p2Table_p2AccessDeny:
-
-		if (isget) {
-			macarray->cnt = hw->deny.cnt;
-			memcpy(macarray->data, hw->deny.addr,
-			       macarray->cnt*WLAN_ADDR_LEN);
-		} else {
-			prism2mib_priv_accessdeny(hw, macarray);
-		}
-
-		break;
-
-	case DIDmib_p2_p2Table_p2ChannelInfoResults:
-
-		if (isget) {
-			done = atomic_read(&hw->channel_info.done);
-			if (done == 0) {
-				msg->resultcode.status = P80211ENUM_msgitem_status_no_value;
-				break;
-			}
-			if (done == 1) {
-				msg->resultcode.status = P80211ENUM_msgitem_status_incomplete_itemdata;
-				break;
-			}
-
-			for (i = 0; i < 14; i++, uint32 += 5) {
-				uint32[0] = i+1;
-				uint32[1] = hw->channel_info.results.result[i].anl;
-				uint32[2] = hw->channel_info.results.result[i].pnl;
-				uint32[3] = (hw->channel_info.results.result[i].active & HFA384x_CHINFORESULT_BSSACTIVE) ? 1 : 0;
-				uint32[4] = (hw->channel_info.results.result[i].active & HFA384x_CHINFORESULT_PCFACTIVE) ? 1 : 0;
-			}
 		}
 
 		break;
@@ -2901,345 +2465,6 @@ void                         *data)
 	DBFEXIT;
 	return(0);
 }
-
-/*----------------------------------------------------------------
-* prism2mib_priv_authlist
-*
-* Get a copy of the list of authenticated stations.
-*
-* Arguments:
-*       priv     "priv" structure.
-*       list     List of authenticated stations.
-*
-* Returns:
-*	Nothing
-*
-----------------------------------------------------------------*/
-
-static void prism2mib_priv_authlist(
-hfa384x_t             *hw,
-prism2sta_authlist_t  *list)
-{
-	prism2sta_authlist_t  test;
-	int                   i;
-
-	DBFENTER;
-
-	/*
-	** Note: The values in this record are changed by the interrupt
-	** handler and therefore cannot be guaranteed to be stable while
-	** they are being copied.  However, the interrupt handler will
-	** take priority over this code.  Hence, if the same values are
-	** copied twice, then we are ensured that the values have not
-	** been changed.  If they have, then just try again.  Don't try
-	** more than 10 times...the list of authenticated stations is
-	** unlikely to be changing frequently enough that we can't get
-	** a snapshot in 10 tries.  Don't try more than this so that we
-	** don't risk locking-up for long periods of time.  If we still
-	** haven't got the snapshot, then generate an error message and
-	** return an empty list (since this is the only valid list that
-	** we can guarentee).  This scheme for copying values is used in
-	** order to prevent having to block the interrupt handler while
-	** we copy the values.
-	*/
-
-	for (i = 0; i < 10; i++) {
-		memcpy(list, &hw->authlist, sizeof(prism2sta_authlist_t));
-		memcpy(&test, &hw->authlist, sizeof(prism2sta_authlist_t));
-		if (memcmp(list, &test, sizeof(prism2sta_authlist_t)) == 0)
-			break;
-	}
-
-	if (i >= 10) {
-		list->cnt = 0;
-		WLAN_LOG_ERROR("Could not obtain snapshot of authenticated stations.\n");
-		}
-
-	DBFEXIT;
-	return;
-}
-
-/*----------------------------------------------------------------
-* prism2mib_priv_accessmode
-*
-* Set the Access Mode.
-*
-* Arguments:
-*       priv     "priv" structure.
-*       hw       "hw" structure.
-*       mode     New access mode.
-*
-* Returns:
-*	Nothing
-*
-----------------------------------------------------------------*/
-
-static void prism2mib_priv_accessmode(
-hfa384x_t         *hw,
-UINT32            mode)
-{
-	prism2sta_authlist_t  old;
-	int                   i, j, deauth;
-	UINT8                 *addr;
-
-	DBFENTER;
-
-	/*
-	** If the mode is not changing or it is changing to "All", then it's
-	** okay to go ahead without a lot of messing around.  Otherwise, the
-	** access mode is changing in a way that may leave some stations
-	** authenticated which should not be authenticated.  It will be
-	** necessary to de-authenticate these stations.
-	*/
-
-	if (mode == WLAN_ACCESS_ALL || mode == hw->accessmode) {
-		hw->accessmode = mode;
-		return;
-	}
-
-	/*
-	** Switch to the new access mode.  Once this is done, then the interrupt
-	** handler (which uses this value) will be prevented from authenticating
-	** ADDITIONAL stations which should not be authenticated.  Then get a
-	** copy of the current list of authenticated stations.
-	*/
-
-	hw->accessmode = mode;
-
-	prism2mib_priv_authlist(hw, &old);
-
-	/*
-	** Now go through the list of previously authenticated stations (some
-	** of which might de-authenticate themselves while we are processing it
-	** but that is okay).  Any station which no longer matches the access
-	** mode, must be de-authenticated.
-	*/
-
-	for (i = 0; i < old.cnt; i++) {
-		addr = old.addr[i];
-
-		if (mode == WLAN_ACCESS_NONE)
-			deauth = 1;
-		else {
-			if (mode == WLAN_ACCESS_ALLOW) {
-				for (j = 0; j < hw->allow.cnt; j++)
-					if (memcmp(addr, hw->allow.addr[j],
-							WLAN_ADDR_LEN) == 0)
-						break;
-				deauth = (j >= hw->allow.cnt);
-			} else {
-				for (j = 0; j < hw->deny.cnt; j++)
-					if (memcmp(addr, hw->deny.addr[j],
-							WLAN_ADDR_LEN) == 0)
-						break;
-				deauth = (j < hw->deny.cnt);
-			}
-		}
-
-		if (deauth) prism2mib_priv_deauthenticate(hw, addr);
-	}
-
-	DBFEXIT;
-	return;
-}
-
-/*----------------------------------------------------------------
-* prism2mib_priv_accessallow
-*
-* Change the list of allowed MAC addresses.
-*
-* Arguments:
-*       priv      "priv" structure.
-*       hw        "hw" structure.
-*       macarray  New array of MAC addresses.
-*
-* Returns:
-*	Nothing
-*
-----------------------------------------------------------------*/
-
-static void prism2mib_priv_accessallow(
-hfa384x_t         *hw,
-p80211macarray_t  *macarray)
-{
-	prism2sta_authlist_t  old;
-	int                   i, j;
-
-	DBFENTER;
-
-	/*
-	** Change the access list.  Note that the interrupt handler may be in
-	** the middle of using the access list!!!  Since the interrupt handler
-	** will	always have priority over this process and this is the only
-	** process that will modify the list, this problem can be handled as
-	** follows:
-	**
-	**    1. Set the "modify" flag.
-	**    2. Change the first copy of the list.
-	**    3. Clear the "modify" flag.
-	**    4. Change the backup copy of the list.
-	**
-	** The interrupt handler will check the "modify" flag.  If NOT set, then
-	** the first copy of the list is valid and may be used.  Otherwise, the
-	** first copy is being changed but the backup copy is valid and may be
-	** used.  Doing things this way prevents having to have the interrupt
-	** handler block while the list is being updated.
-	*/
-
-	hw->allow.modify = 1;
-
-	hw->allow.cnt = macarray->cnt;
-	memcpy(hw->allow.addr, macarray->data, macarray->cnt*WLAN_ADDR_LEN);
-
-	hw->allow.modify = 0;
-
-	hw->allow.cnt1 = macarray->cnt;
-	memcpy(hw->allow.addr1, macarray->data, macarray->cnt*WLAN_ADDR_LEN);
-
-	/*
-	** If the current access mode is "Allow", then changing the access
-	** list may leave some stations authenticated which should not be
-	** authenticated.  It will be necessary to de-authenticate these
-	** stations.  Otherwise, the list can be changed without a lot of fuss.
-	*/
-
-	if (hw->accessmode == WLAN_ACCESS_ALLOW) {
-
-		/*
-		** Go through the list of authenticated stations (some of
-		** which might de-authenticate themselves while we are
-		** processing it but that is okay).  Any station which is
-		** no longer in the list of allowed stations, must be
-		** de-authenticated.
-		*/
-
-		prism2mib_priv_authlist(hw, &old);
-
-		for (i = 0; i < old.cnt; i++) {
-			for (j = 0; j < hw->allow.cnt; j++)
-				if (memcmp(old.addr[i], hw->allow.addr[j],
-							WLAN_ADDR_LEN) == 0)
-					break;
-			if (j >= hw->allow.cnt)
-				prism2mib_priv_deauthenticate(hw, old.addr[i]);
-		}
-	}
-
-	DBFEXIT;
-	return;
-}
-
-/*----------------------------------------------------------------
-* prism2mib_priv_accessdeny
-*
-* Change the list of denied MAC addresses.
-*
-* Arguments:
-*       priv      "priv" structure.
-*       hw        "hw" structure.
-*       macarray  New array of MAC addresses.
-*
-* Returns:
-*	Nothing
-*
-----------------------------------------------------------------*/
-
-static void prism2mib_priv_accessdeny(
-hfa384x_t         *hw,
-p80211macarray_t  *macarray)
-{
-	prism2sta_authlist_t  old;
-	int                   i, j;
-
-	DBFENTER;
-
-	/*
-	** Change the access list.  Note that the interrupt handler may be in
-	** the middle of using the access list!!!  Since the interrupt handler
-	** will always have priority over this process and this is the only
-	** process that will modify the list, this problem can be handled as
-	** follows:
-	**
-	**    1. Set the "modify" flag.
-	**    2. Change the first copy of the list.
-	**    3. Clear the "modify" flag.
-	**    4. Change the backup copy of the list.
-	**
-	** The interrupt handler will check the "modify" flag.  If NOT set, then
-	** the first copy of the list is valid and may be used.  Otherwise, the
-	** first copy is being changed but the backup copy is valid and may be
-	** used.  Doing things this way prevents having to have the interrupt
-	** handler block while the list is being updated.
-	*/
-
-	hw->deny.modify = 1;
-
-	hw->deny.cnt = macarray->cnt;
-	memcpy(hw->deny.addr, macarray->data, macarray->cnt*WLAN_ADDR_LEN);
-
-	hw->deny.modify = 0;
-
-	hw->deny.cnt1 = macarray->cnt;
-	memcpy(hw->deny.addr1, macarray->data, macarray->cnt*WLAN_ADDR_LEN);
-
-	/*
-	** If the current access mode is "Deny", then changing the access
-	** list may leave some stations authenticated which should not be
-	** authenticated.  It will be necessary to de-authenticate these
-	** stations.  Otherwise, the list can be changed without a lot of fuss.
-	*/
-
-	if (hw->accessmode == WLAN_ACCESS_DENY) {
-
-		/*
-		** Go through the list of authenticated stations (some of
-		** which might de-authenticate themselves while we are
-		** processing it but that is okay).  Any station which is
-		** now in the list of denied stations, must be de-authenticated.
-		*/
-
-		prism2mib_priv_authlist(hw, &old);
-
-		for (i = 0; i < old.cnt; i++)
-			for (j = 0; j < hw->deny.cnt; j++)
-				if (memcmp(old.addr[i], hw->deny.addr[j],
-							 WLAN_ADDR_LEN) == 0) {
-					prism2mib_priv_deauthenticate(hw, old.addr[i]);
-					break;
-				}
-	}
-
-	DBFEXIT;
-	return;
-}
-
-/*----------------------------------------------------------------
-* prism2mib_priv_deauthenticate
-*
-* De-authenticate a station.  This is done by sending a HandoverAddress
-* information frame to the firmware.  This should work, according to
-* Intersil.
-*
-* Arguments:
-*       priv     "priv" structure.
-*       hw       "hw" structure.
-*       addr     MAC address of station to be de-authenticated.
-*
-* Returns:
-*	Nothing
-*
-----------------------------------------------------------------*/
-
-static void prism2mib_priv_deauthenticate(
-hfa384x_t         *hw,
-UINT8             *addr)
-{
-	DBFENTER;
-	hfa384x_drvr_handover(hw, addr);
-	DBFEXIT;
-	return;
-}
-
 
 /*----------------------------------------------------------------
 * prism2mgmt_pstr2bytestr

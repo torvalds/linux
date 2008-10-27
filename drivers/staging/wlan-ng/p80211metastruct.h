@@ -609,30 +609,6 @@ typedef struct p80211msg_p2req_dump_state
 	p80211item_uint32_t	resultcode	;
 } __WLAN_ATTRIB_PACK__ p80211msg_p2req_dump_state_t;
 
-typedef struct p80211msg_p2req_channel_info
-{
-	UINT32		msgcode	;
-	UINT32		msglen	;
-	UINT8		devname[WLAN_DEVNAMELEN_MAX]	;
-	p80211item_uint32_t	channellist	;
-	p80211item_uint32_t	channeldwelltime	;
-	p80211item_uint32_t	resultcode	;
-	p80211item_uint32_t	numchinfo	;
-} __WLAN_ATTRIB_PACK__ p80211msg_p2req_channel_info_t;
-
-typedef struct p80211msg_p2req_channel_info_results
-{
-	UINT32		msgcode	;
-	UINT32		msglen	;
-	UINT8		devname[WLAN_DEVNAMELEN_MAX]	;
-	p80211item_uint32_t	channel	;
-	p80211item_uint32_t	resultcode	;
-	p80211item_uint32_t	avgnoiselevel	;
-	p80211item_uint32_t	peaknoiselevel	;
-	p80211item_uint32_t	bssactive	;
-	p80211item_uint32_t	pcfactive	;
-} __WLAN_ATTRIB_PACK__ p80211msg_p2req_channel_info_results_t;
-
 typedef struct p80211msg_p2req_enable
 {
 	UINT32		msgcode	;

@@ -129,8 +129,6 @@ int prism2mgmt_flashdl_write(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_mm_state(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_dump_state(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_enable(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_channel_info(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_channel_info_results(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_autojoin(wlandevice_t *wlandev, void *msgp);
 
 /*---------------------------------------------------------------

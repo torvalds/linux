@@ -497,14 +497,6 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 		WLAN_LOG_DEBUG(2,"Received mlme dump_state request\n");
 		result = prism2mgmt_dump_state(wlandev, msg);
 		break;
-	case DIDmsg_p2req_channel_info :
-		WLAN_LOG_DEBUG(2,"Received mlme channel_info request\n");
-		result = prism2mgmt_channel_info(wlandev, msg);
-		break;
-	case DIDmsg_p2req_channel_info_results :
-		WLAN_LOG_DEBUG(2,"Received mlme channel_info_results request\n");
-		result = prism2mgmt_channel_info_results(wlandev, msg);
-		break;
 	/*
 	 * Linux specific messages
 	 */
