@@ -2248,7 +2248,7 @@ typedef int (xattr_bucket_func)(struct inode *inode,
 				void *para);
 
 static int ocfs2_find_xe_in_bucket(struct inode *inode,
-				   struct buffer_head *header_bh,
+				   struct ocfs2_xattr_bucket *bucket,
 				   int name_index,
 				   const char *name,
 				   u32 name_hash,
@@ -2256,11 +2256,9 @@ static int ocfs2_find_xe_in_bucket(struct inode *inode,
 				   int *found)
 {
 	int i, ret = 0, cmp = 1, block_off, new_offset;
-	struct ocfs2_xattr_header *xh =
-			(struct ocfs2_xattr_header *)header_bh->b_data;
+	struct ocfs2_xattr_header *xh = bucket_xh(bucket);
 	size_t name_len = strlen(name);
 	struct ocfs2_xattr_entry *xe = NULL;
-	struct buffer_head *name_bh = NULL;
 	char *xe_name;
 
 	/*
@@ -2291,19 +2289,8 @@ static int ocfs2_find_xe_in_bucket(struct inode *inode,
 			break;
 		}
 
-		ret = ocfs2_read_block(inode, header_bh->b_blocknr + block_off,
-				       &name_bh);
-		if (ret) {
-			mlog_errno(ret);
-			break;
-		}
-		xe_name = name_bh->b_data + new_offset;
-
-		cmp = memcmp(name, xe_name, name_len);
-		brelse(name_bh);
-		name_bh = NULL;
-
-		if (cmp == 0) {
+		xe_name = bucket_block(bucket, block_off) + new_offset;
+		if (!memcmp(name, xe_name, name_len)) {
 			*xe_index = i;
 			*found = 1;
 			ret = 0;
@@ -2333,39 +2320,42 @@ static int ocfs2_xattr_bucket_find(struct inode *inode,
 				   struct ocfs2_xattr_search *xs)
 {
 	int ret, found = 0;
-	struct buffer_head *bh = NULL;
-	struct buffer_head *lower_bh = NULL;
 	struct ocfs2_xattr_header *xh = NULL;
 	struct ocfs2_xattr_entry *xe = NULL;
 	u16 index = 0;
 	u16 blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
 	int low_bucket = 0, bucket, high_bucket;
+	struct ocfs2_xattr_bucket *search;
 	u32 last_hash;
-	u64 blkno;
+	u64 blkno, lower_blkno = 0;
 
-	ret = ocfs2_read_block(inode, p_blkno, &bh);
+	search = ocfs2_xattr_bucket_new(inode);
+	if (!search) {
+		ret = -ENOMEM;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_read_xattr_bucket(search, p_blkno);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
 	}
 
-	xh = (struct ocfs2_xattr_header *)bh->b_data;
+	xh = bucket_xh(search);
 	high_bucket = le16_to_cpu(xh->xh_num_buckets) - 1;
-
 	while (low_bucket <= high_bucket) {
-		brelse(bh);
-		bh = NULL;
+		ocfs2_xattr_bucket_relse(search);
+
 		bucket = (low_bucket + high_bucket) / 2;
-
 		blkno = p_blkno + bucket * blk_per_bucket;
-
-		ret = ocfs2_read_block(inode, blkno, &bh);
+		ret = ocfs2_read_xattr_bucket(search, blkno);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
 		}
 
-		xh = (struct ocfs2_xattr_header *)bh->b_data;
+		xh = bucket_xh(search);
 		xe = &xh->xh_entries[0];
 		if (name_hash < le32_to_cpu(xe->xe_name_hash)) {
 			high_bucket = bucket - 1;
@@ -2382,10 +2372,8 @@ static int ocfs2_xattr_bucket_find(struct inode *inode,
 
 		last_hash = le32_to_cpu(xe->xe_name_hash);
 
-		/* record lower_bh which may be the insert place. */
-		brelse(lower_bh);
-		lower_bh = bh;
-		bh = NULL;
+		/* record lower_blkno which may be the insert place. */
+		lower_blkno = blkno;
 
 		if (name_hash > le32_to_cpu(xe->xe_name_hash)) {
 			low_bucket = bucket + 1;
@@ -2393,7 +2381,7 @@ static int ocfs2_xattr_bucket_find(struct inode *inode,
 		}
 
 		/* the searched xattr should reside in this bucket if exists. */
-		ret = ocfs2_find_xe_in_bucket(inode, lower_bh,
+		ret = ocfs2_find_xe_in_bucket(inode, search,
 					      name_index, name, name_hash,
 					      &index, &found);
 		if (ret) {
@@ -2408,35 +2396,21 @@ static int ocfs2_xattr_bucket_find(struct inode *inode,
 	 * When the xattr's hash value is in the gap of 2 buckets, we will
 	 * always set it to the previous bucket.
 	 */
-	if (!lower_bh) {
-		/*
-		 * We can't find any bucket whose first name_hash is less
-		 * than the find name_hash.
-		 */
-		BUG_ON(bh->b_blocknr != p_blkno);
-		lower_bh = bh;
-		bh = NULL;
+	if (!lower_blkno)
+		lower_blkno = p_blkno;
+
+	/* This should be in cache - we just read it during the search */
+	ret = ocfs2_read_xattr_bucket(xs->bucket, lower_blkno);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
 	}
-	xs->bucket->bu_bhs[0] = lower_bh;
-	lower_bh = NULL;
 
 	xs->header = bucket_xh(xs->bucket);
 	xs->base = bucket_block(xs->bucket, 0);
 	xs->end = xs->base + inode->i_sb->s_blocksize;
 
 	if (found) {
-		/*
-		 * If we have found the xattr enty, read all the blocks in
-		 * this bucket.
-		 */
-		ret = ocfs2_read_blocks(inode, bucket_blkno(xs->bucket) + 1,
-					blk_per_bucket - 1, &xs->bucket->bu_bhs[1],
-					0);
-		if (ret) {
-			mlog_errno(ret);
-			goto out;
-		}
-
 		xs->here = &xs->header->xh_entries[index];
 		mlog(0, "find xattr %s in bucket %llu, entry = %u\n", name,
 		     (unsigned long long)bucket_blkno(xs->bucket), index);
@@ -2444,8 +2418,7 @@ static int ocfs2_xattr_bucket_find(struct inode *inode,
 		ret = -ENODATA;
 
 out:
-	brelse(bh);
-	brelse(lower_bh);
+	ocfs2_xattr_bucket_free(search);
 	return ret;
 }
 
