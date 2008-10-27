@@ -49,14 +49,6 @@
 #define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
 #endif
 
-/* WLAN_HOSTIF (generally set on the command line, not detected) */
-#define WLAN_NONE                       0
-#define WLAN_PCMCIA                     1
-#define WLAN_ISA                        2
-#define WLAN_PCI                        3
-#define WLAN_USB                        4
-#define WLAN_PLX                        5
-#define WLAN_SLAVE                      6
 #define WLAN_RELEASE	"0.2.8"
 #define WLAN_RELEASE_CODE 0x000208
 #define WLAN_BUILD_DATE "Thu Oct  2 11:04:42 PDT 2008"

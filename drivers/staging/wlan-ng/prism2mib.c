@@ -69,26 +69,7 @@
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <asm/byteorder.h>
-
-#include "wlan_compat.h"
-
-//#if (WLAN_HOSTIF == WLAN_PCMCIA)
-//#include <pcmcia/version.h>
-//#include <pcmcia/cs_types.h>
-//#include <pcmcia/cs.h>
-//#include <pcmcia/cistpl.h>
-//#include <pcmcia/ds.h>
-//#include <pcmcia/cisreg.h>
-//#endif
-//
-//#if ((WLAN_HOSTIF == WLAN_PLX) || (WLAN_HOSTIF == WLAN_PCI))
-//#include <linux/ioport.h>
-//#include <linux/pci.h>
-//endif
-
-//#if (WLAN_HOSTIF == WLAN_USB)
 #include <linux/usb.h>
-//#endif
 
 /*================================================================*/
 /* Project Includes */

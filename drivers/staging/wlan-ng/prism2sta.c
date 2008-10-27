@@ -83,21 +83,7 @@
 #include <asm/byteorder.h>
 #include <linux/if_arp.h>
 
-#if (WLAN_HOSTIF == WLAN_PCMCIA)
-#include <pcmcia/version.h>
-#include <pcmcia/cs_types.h>
-#include <pcmcia/cs.h>
-#include <pcmcia/cistpl.h>
-#include <pcmcia/ds.h>
-#include <pcmcia/cisreg.h>
-#endif
-
 #include "wlan_compat.h"
-
-#if ((WLAN_HOSTIF == WLAN_PLX) || (WLAN_HOSTIF == WLAN_PCI))
-#include <linux/ioport.h>
-#include <linux/pci.h>
-#endif
 
 /*================================================================*/
 /* Project Includes */
@@ -126,34 +112,9 @@
 /*================================================================*/
 /* Local Static Definitions */
 
-#if (WLAN_HOSTIF == WLAN_PCMCIA)
-#define DRIVER_SUFFIX	"_cs"
-#elif (WLAN_HOSTIF == WLAN_PLX)
-#define DRIVER_SUFFIX	"_plx"
 typedef char* dev_info_t;
-#elif (WLAN_HOSTIF == WLAN_PCI)
-#define DRIVER_SUFFIX	"_pci"
-typedef char* dev_info_t;
-#elif (WLAN_HOSTIF == WLAN_USB)
-#define DRIVER_SUFFIX	"_usb"
-typedef char* dev_info_t;
-#else
-#error "HOSTIF unsupported or undefined!"
-#endif
 
-static char		*version = "prism2" DRIVER_SUFFIX ".o: " WLAN_RELEASE;
-static dev_info_t	dev_info = "prism2" DRIVER_SUFFIX;
-
-#if (WLAN_HOSTIF == WLAN_PLX || WLAN_HOSTIF == WLAN_PCI)
-#ifdef CONFIG_PM
-static int prism2sta_suspend_pci(struct pci_dev *pdev, pm_message_t state);
-static int prism2sta_resume_pci(struct pci_dev *pdev);
-#endif
-#endif
-
-#if (WLAN_HOSTIF == WLAN_PCI)
-
-#endif /* WLAN_PCI */
+static dev_info_t	dev_info = "prism2_usb";
 
 static wlandevice_t *create_wlan(void);
 
@@ -163,16 +124,7 @@ static wlandevice_t *create_wlan(void);
 int      prism2_reset_holdtime=30;	/* Reset hold time in ms */
 int	 prism2_reset_settletime=100;	/* Reset settle time in ms */
 
-#if (WLAN_HOSTIF == WLAN_USB)
 static int	prism2_doreset=0;		/* Do a reset at init? */
-#else
-static int      prism2_doreset=1;		/* Do a reset at init? */
-int             prism2_bap_timeout=1000;        /* BAP timeout */
-int		prism2_irq_evread_max=20;	/* Maximum number of
-						 * ev_reads (loops)
-						 * in irq handler
-						 */
-#endif
 
 #ifdef WLAN_INCLUDE_DEBUG
 int prism2_debug=0;
@@ -187,13 +139,6 @@ module_param( prism2_reset_holdtime, int, 0644);
 MODULE_PARM_DESC( prism2_reset_holdtime, "reset hold time in ms");
 module_param( prism2_reset_settletime, int, 0644);
 MODULE_PARM_DESC( prism2_reset_settletime, "reset settle time in ms");
-
-#if (WLAN_HOSTIF != WLAN_USB)
-module_param( prism2_bap_timeout, int, 0644);
-MODULE_PARM_DESC(prism2_bap_timeout, "BufferAccessPath Timeout in 10*n us");
-module_param( prism2_irq_evread_max, int, 0644);
-MODULE_PARM_DESC( prism2_irq_evread_max, "Maximim number of event reads in interrupt handler");
-#endif
 
 MODULE_LICENSE("Dual MPL/GPL");
 
@@ -299,10 +244,6 @@ static int prism2sta_open(wlandevice_t *wlandev)
 {
 	DBFENTER;
 
-#ifdef ANCIENT_MODULE_CODE
-	MOD_INC_USE_COUNT;
-#endif
-
 	/* We don't currently have to do anything else.
 	 * The setup of the MAC should be subsequently completed via
 	 * the mlme commands.
@@ -340,10 +281,6 @@ static int prism2sta_open(wlandevice_t *wlandev)
 static int prism2sta_close(wlandevice_t *wlandev)
 {
 	DBFENTER;
-
-#ifdef ANCIENT_MODULE_CODE
-	MOD_DEC_USE_COUNT;
-#endif
 
 	/* We don't currently have to do anything else.
 	 * Higher layers know we're not ready from dev->start==0 and
@@ -679,9 +616,6 @@ UINT32 prism2sta_ifstate(wlandevice_t *wlandev, UINT32 ifstate)
 			 * Initialize the device+driver sufficiently
 			 * for firmware loading.
 			 */
-#if (WLAN_HOSTIF != WLAN_USB)
-			result=hfa384x_cmd_initialize(hw);
-#else
 			if ((result=hfa384x_drvr_start(hw))) {
 				WLAN_LOG_ERROR(
 					"hfa384x_drvr_start() failed,"
@@ -691,7 +625,6 @@ UINT32 prism2sta_ifstate(wlandevice_t *wlandev, UINT32 ifstate)
 				wlandev->msdstate = WLAN_MSD_HWPRESENT;
 				break;
 			}
-#endif
 			wlandev->msdstate = WLAN_MSD_FWLOAD;
 			result = P80211ENUM_resultcode_success;
 			break;
@@ -2253,41 +2186,6 @@ void prism2sta_ev_alloc(wlandevice_t *wlandev)
 	return;
 }
 
-#if (WLAN_HOSTIF == WLAN_PLX || WLAN_HOSTIF == WLAN_PCI)
-#ifdef CONFIG_PM
-static int prism2sta_suspend_pci(struct pci_dev *pdev, pm_message_t state)
-{
-       	wlandevice_t		*wlandev;
-
-	wlandev = (wlandevice_t *) pci_get_drvdata(pdev);
-
-	/* reset hardware */
-	if (wlandev) {
-		prism2sta_ifstate(wlandev, P80211ENUM_ifstate_disable);
-		p80211_suspend(wlandev);
-	}
-
-	// call a netif_device_detach(wlandev->netdev) ?
-
-	return 0;
-}
-
-static int prism2sta_resume_pci (struct pci_dev *pdev)
-{
-       	wlandevice_t		*wlandev;
-
-	wlandev = (wlandevice_t *) pci_get_drvdata(pdev);
-
-	if (wlandev) {
-		prism2sta_ifstate(wlandev, P80211ENUM_ifstate_disable);
-		p80211_resume(wlandev);
-	}
-
-        return 0;
-}
-#endif
-#endif
-
 /*----------------------------------------------------------------
 * create_wlan
 *
@@ -2376,20 +2274,9 @@ prism2sta_proc_read(
 	// XXX 0x0001 for prism2.5/3, 0x0000 for prism2.
 	hwtype = BIT0;
 
-#if (WLAN_HOSTIF != WLAN_USB)
-	if (hw->isram16)
-		hwtype |= BIT1;
-#endif
-
-#if (WLAN_HOSTIF == WLAN_PCI)
-	hwtype |= BIT2;
-#endif
-
-#define PRISM2_CVS_ID "$Id: prism2sta.c 1826 2007-03-19 15:37:00Z pizza $"
-
-	p += sprintf(p, "# %s version %s (%s) '%s'\n\n",
+	p += sprintf(p, "# %s version %s (%s)\n\n",
 		     dev_info,
-		     WLAN_RELEASE, WLAN_BUILD_DATE, PRISM2_CVS_ID);
+		     WLAN_RELEASE, WLAN_BUILD_DATE);
 
 	p += sprintf(p, "# nic h/w: id=0x%02x %d.%d.%d\n",
 		     hw->ident_nic.id, hw->ident_nic.major,
@@ -2408,11 +2295,6 @@ prism2sta_proc_read(
 			     hw->ident_sta_fw.id, hw->ident_sta_fw.major,
 			     hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
 	}
-
-#if (WLAN_HOSTIF != WLAN_USB)
-	p += sprintf(p, "# initial nic hw type, needed for SSF ramdl\n");
-	p += sprintf(p, "initnichw=%04x\n", hwtype);
-#endif
 
  exit:
 	DBFEXIT;

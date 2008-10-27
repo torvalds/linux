@@ -79,19 +79,7 @@
 #include <asm/io.h>
 #include <asm/byteorder.h>
 #include <linux/random.h>
-
-#if (WLAN_HOSTIF == WLAN_USB)
 #include <linux/usb.h>
-#endif
-
-#if (WLAN_HOSTIF == WLAN_PCMCIA)
-#include <pcmcia/version.h>
-#include <pcmcia/cs_types.h>
-#include <pcmcia/cs.h>
-#include <pcmcia/cistpl.h>
-#include <pcmcia/ds.h>
-#include <pcmcia/cisreg.h>
-#endif
 
 #include "wlan_compat.h"
 
@@ -1766,29 +1754,10 @@ int prism2mgmt_auxport_state(wlandevice_t *wlandev, void *msgp)
 {
 	p80211msg_p2req_auxport_state_t	*msg = msgp;
 
-#if (WLAN_HOSTIF != WLAN_USB)
-	hfa384x_t		*hw = wlandev->priv;
-	DBFENTER;
-
-	msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-	if (msg->enable.data == P80211ENUM_truth_true) {
-		if ( hfa384x_cmd_aux_enable(hw, 0) ) {
-			msg->resultcode.data = P80211ENUM_resultcode_implementation_failure;
-		} else {
-			msg->resultcode.data = P80211ENUM_resultcode_success;
-		}
-	} else {
-		hfa384x_cmd_aux_disable(hw);
-		msg->resultcode.data = P80211ENUM_resultcode_success;
-	}
-
-#else /* !USB */
 	DBFENTER;
 
 	msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
 	msg->resultcode.data = P80211ENUM_resultcode_not_supported;
-
-#endif /* WLAN_HOSTIF != WLAN_USB */
 
 	DBFEXIT;
 	return 0;
@@ -1817,43 +1786,12 @@ int prism2mgmt_auxport_state(wlandevice_t *wlandev, void *msgp)
 ----------------------------------------------------------------*/
 int prism2mgmt_auxport_read(wlandevice_t *wlandev, void *msgp)
 {
-#if (WLAN_HOSTIF != WLAN_USB)
-	hfa384x_t		*hw = wlandev->priv;
-	p80211msg_p2req_auxport_read_t	*msg = msgp;
-	UINT32			addr;
-	UINT32			len;
-	UINT8*			buf;
-	UINT32			maxlen = sizeof(msg->data.data);
-	DBFENTER;
-
-	if ( hw->auxen ) {
-		addr = msg->addr.data;
-		len = msg->len.data;
-		buf = msg->data.data;
-		if ( len <= maxlen ) {  /* max read/write size */
-			hfa384x_copy_from_aux(hw, addr, HFA384x_AUX_CTL_EXTDS, buf, len);
-			msg->resultcode.data = P80211ENUM_resultcode_success;
-		} else {
-			WLAN_LOG_DEBUG(1,"Attempt to read > maxlen from auxport.\n");
-			msg->resultcode.data = P80211ENUM_resultcode_refused;
-		}
-
-	} else {
-		msg->resultcode.data = P80211ENUM_resultcode_refused;
-	}
-	msg->data.status = P80211ENUM_msgitem_status_data_ok;
-	msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-
-	DBFEXIT;
-	return 0;
-#else
 	DBFENTER;
 
 	WLAN_LOG_ERROR("prism2mgmt_auxport_read: Not supported on USB.\n");
 
 	DBFEXIT;
 	return 0;
-#endif
 }
 
 
@@ -1879,40 +1817,10 @@ int prism2mgmt_auxport_read(wlandevice_t *wlandev, void *msgp)
 ----------------------------------------------------------------*/
 int prism2mgmt_auxport_write(wlandevice_t *wlandev, void *msgp)
 {
-#if (WLAN_HOSTIF != WLAN_USB)
-	hfa384x_t		*hw = wlandev->priv;
-	p80211msg_p2req_auxport_write_t	*msg = msgp;
-	UINT32			addr;
-	UINT32			len;
-	UINT8*			buf;
-	UINT32			maxlen = sizeof(msg->data.data);
-	DBFENTER;
-
-	if ( hw->auxen ) {
-		addr = msg->addr.data;
-		len = msg->len.data;
-		buf = msg->data.data;
-		if ( len <= maxlen ) {  /* max read/write size */
-			hfa384x_copy_to_aux(hw, addr, HFA384x_AUX_CTL_EXTDS, buf, len);
-		} else {
-			WLAN_LOG_DEBUG(1,"Attempt to write > maxlen from auxport.\n");
-			msg->resultcode.data = P80211ENUM_resultcode_refused;
-		}
-
-	} else {
-		msg->resultcode.data = P80211ENUM_resultcode_refused;
-	}
-	msg->data.status = P80211ENUM_msgitem_status_data_ok;
-	msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-
-	DBFEXIT;
-	return 0;
-#else
 	DBFENTER;
 	WLAN_LOG_ERROR("prism2mgmt_auxport_read: Not supported on USB.\n");
 	DBFEXIT;
 	return 0;
-#endif
 }
 
 /*----------------------------------------------------------------
@@ -2386,47 +2294,11 @@ int prism2mgmt_dump_state(wlandevice_t *wlandev, void *msgp)
 	p80211msg_p2req_dump_state_t	*msg = msgp;
 	int				result = 0;
 
-#if (WLAN_HOSTIF != WLAN_USB)
-	hfa384x_t		*hw = wlandev->priv;
-	UINT16				auxbuf[15];
-	DBFENTER;
-
-	WLAN_LOG_NOTICE("prism2 driver and hardware state:\n");
-	if  ( (result = hfa384x_cmd_aux_enable(hw, 0)) ) {
-		WLAN_LOG_ERROR("aux_enable failed, result=%d\n", result);
-		goto failed;
-	}
-	hfa384x_copy_from_aux(hw,
-		0x01e2,
-		HFA384x_AUX_CTL_EXTDS,
-		auxbuf,
-		sizeof(auxbuf));
-	hfa384x_cmd_aux_disable(hw);
-	WLAN_LOG_NOTICE("  cmac: FreeBlocks=%d\n", auxbuf[5]);
-	WLAN_LOG_NOTICE("  cmac: IntEn=0x%02x EvStat=0x%02x\n",
-		hfa384x_getreg(hw, HFA384x_INTEN),
-		hfa384x_getreg(hw, HFA384x_EVSTAT));
-
-	#ifdef USE_FID_STACK
-	WLAN_LOG_NOTICE("  drvr: txfid_top=%d stacksize=%d\n",
-		hw->txfid_top,HFA384x_DRVR_FIDSTACKLEN_MAX);
-	#else
-	WLAN_LOG_NOTICE("  drvr: txfid_head=%d txfid_tail=%d txfid_N=%d\n",
-		hw->txfid_head, hw->txfid_tail, hw->txfid_N);
-	#endif
-
-	msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-	msg->resultcode.data = P80211ENUM_resultcode_success;
-
-#else /* (WLAN_HOSTIF == WLAN_USB) */
-
 	DBFENTER;
 
 	msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
 	msg->resultcode.data = P80211ENUM_resultcode_not_supported;
 	goto failed;
-
-#endif /* (WLAN_HOSTIF != WLAN_USB) */
 
 failed:
 	DBFEXIT;

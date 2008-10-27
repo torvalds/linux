@@ -1,12 +1,7 @@
-#define WLAN_HOSTIF WLAN_USB
 #include "hfa384x_usb.c"
 #include "prism2mgmt.c"
 #include "prism2mib.c"
 #include "prism2sta.c"
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0))
-#error "prism2_usb requires at least a 2.4.x kernel!"
-#endif
 
 #define PRISM_USB_DEVICE(vid, pid, name) \
            USB_DEVICE(vid, pid),  \
@@ -80,23 +75,11 @@ MODULE_DEVICE_TABLE(usb, usb_prism_tbl);
 *	I'm not sure, assume it's interrupt.
 *
 ----------------------------------------------------------------*/
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-static void __devinit *prism2sta_probe_usb(
-	struct usb_device *dev,
-	unsigned int ifnum,
-	const struct usb_device_id *id)
-#else
 static int prism2sta_probe_usb(
 	struct usb_interface *interface,
 	const struct usb_device_id *id)
-#endif
 {
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-	struct usb_interface *interface;
-#else
 	struct usb_device *dev;
-#endif
 
 	wlandevice_t	*wlandev = NULL;
 	hfa384x_t	*hw = NULL;
@@ -104,12 +87,7 @@ static int prism2sta_probe_usb(
 
 	DBFENTER;
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-	interface = &dev->actconfig->interface[ifnum];
-#else
 	dev = interface_to_usbdev(interface);
-#endif
-
 
 	if ((wlandev = create_wlan()) == NULL) {
 		WLAN_LOG_ERROR("%s: Memory allocation failure.\n", dev_info);
@@ -131,9 +109,7 @@ static int prism2sta_probe_usb(
 	/* Register the wlandev, this gets us a name and registers the
 	 * linux netdevice.
 	 */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0))
 	SET_NETDEV_DEV(wlandev->netdev, &(interface->dev));
-#endif
         if ( register_wlandev(wlandev) != 0 ) {
 		WLAN_LOG_ERROR("%s: register_wlandev() failed.\n", dev_info);
 		result = -EIO;
@@ -156,9 +132,6 @@ static int prism2sta_probe_usb(
 		}
 	}
 
-#ifndef NEW_MODULE_CODE
-	usb_inc_dev_use(dev);
-#endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15))
 	usb_get_dev(dev);
 #endif
@@ -175,12 +148,8 @@ static int prism2sta_probe_usb(
  done:
 	DBFEXIT;
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-	return wlandev;
-#else
 	usb_set_intfdata(interface, wlandev);
 	return result;
-#endif
 }
 
 
@@ -203,25 +172,14 @@ static int prism2sta_probe_usb(
 * Call context:
 *	process
 ----------------------------------------------------------------*/
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-static void __devexit
-prism2sta_disconnect_usb(struct usb_device *dev, void *ptr)
-#else
 static void
 prism2sta_disconnect_usb(struct usb_interface *interface)
-#endif
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0))
 	wlandevice_t		*wlandev;
-#else
-	wlandevice_t		*wlandev = (wlandevice_t*)ptr;
-#endif
 
         DBFENTER;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0))
 	wlandev = (wlandevice_t *) usb_get_intfdata(interface);
-#endif
 
 	if ( wlandev != NULL ) {
 		LIST_HEAD(cleanlist);
@@ -296,9 +254,6 @@ prism2sta_disconnect_usb(struct usb_interface *interface)
 		unregister_wlandev(wlandev);
 		wlan_unsetup(wlandev);
 
-#ifndef NEW_MODULE_CODE
-		usb_dec_dev_use(hw->usb);
-#endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15))
 		usb_put_dev(hw->usb);
 #endif
@@ -311,15 +266,13 @@ prism2sta_disconnect_usb(struct usb_interface *interface)
 
  exit:
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0))
 	usb_set_intfdata(interface, NULL);
-#endif
 	DBFEXIT;
 }
 
 
 static struct usb_driver prism2_usb_driver = {
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,4,19)) && (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16))
 	.owner = THIS_MODULE,
 #endif
 	.name = "prism2_usb",
@@ -329,14 +282,9 @@ static struct usb_driver prism2_usb_driver = {
 	/* fops, minor? */
 };
 
-#ifdef MODULE
-
 static int __init prism2usb_init(void)
 {
         DBFENTER;
-
-        WLAN_LOG_NOTICE("%s Loaded\n", version);
-        WLAN_LOG_NOTICE("dev_info is: %s\n", dev_info);
 
 	/* This call will result in calls to prism2sta_probe_usb. */
 	return usb_register(&prism2_usb_driver);
@@ -350,12 +298,8 @@ static void __exit prism2usb_cleanup(void)
 
 	usb_deregister(&prism2_usb_driver);
 
-        printk(KERN_NOTICE "%s Unloaded\n", version);
-
 	DBFEXIT;
 };
 
 module_init(prism2usb_init);
 module_exit(prism2usb_cleanup);
-
-#endif // module

@@ -205,40 +205,6 @@
 #define		HFA384x_DLSTATE_FLASHWRITEPENDING	4
 #define		HFA384x_DLSTATE_GENESIS 		5
 
-/*--- Register I/O offsets --------------------------*/
-#if ((WLAN_HOSTIF == WLAN_PCMCIA) || (WLAN_HOSTIF == WLAN_PLX))
-
-#define		HFA384x_CMD_OFF			(0x00)
-#define		HFA384x_PARAM0_OFF		(0x02)
-#define		HFA384x_PARAM1_OFF		(0x04)
-#define		HFA384x_PARAM2_OFF		(0x06)
-#define		HFA384x_STATUS_OFF		(0x08)
-#define		HFA384x_RESP0_OFF		(0x0A)
-#define		HFA384x_RESP1_OFF		(0x0C)
-#define		HFA384x_RESP2_OFF		(0x0E)
-#define		HFA384x_INFOFID_OFF		(0x10)
-#define		HFA384x_RXFID_OFF		(0x20)
-#define		HFA384x_ALLOCFID_OFF		(0x22)
-#define		HFA384x_TXCOMPLFID_OFF		(0x24)
-#define		HFA384x_SELECT0_OFF		(0x18)
-#define		HFA384x_OFFSET0_OFF		(0x1C)
-#define		HFA384x_DATA0_OFF		(0x36)
-#define		HFA384x_SELECT1_OFF		(0x1A)
-#define		HFA384x_OFFSET1_OFF		(0x1E)
-#define		HFA384x_DATA1_OFF		(0x38)
-#define		HFA384x_EVSTAT_OFF		(0x30)
-#define		HFA384x_INTEN_OFF		(0x32)
-#define		HFA384x_EVACK_OFF		(0x34)
-#define		HFA384x_CONTROL_OFF		(0x14)
-#define		HFA384x_SWSUPPORT0_OFF		(0x28)
-#define		HFA384x_SWSUPPORT1_OFF		(0x2A)
-#define		HFA384x_SWSUPPORT2_OFF		(0x2C)
-#define		HFA384x_AUXPAGE_OFF		(0x3A)
-#define		HFA384x_AUXOFFSET_OFF		(0x3C)
-#define		HFA384x_AUXDATA_OFF		(0x3E)
-
-#elif (WLAN_HOSTIF == WLAN_PCI || WLAN_HOSTIF == WLAN_USB)
-
 #define		HFA384x_CMD_OFF			(0x00)
 #define		HFA384x_PARAM0_OFF		(0x04)
 #define		HFA384x_PARAM1_OFF		(0x08)
@@ -278,8 +244,6 @@
 #define		HFA384x_PCI_M1_ADDRL_OFF	(0xa4)
 #define		HFA384x_PCI_M1_LEN_OFF		(0xa8)
 #define		HFA384x_PCI_M1_CTL_OFF		(0xac)
-
-#endif
 
 /*--- Register Field Masks --------------------------*/
 #define		HFA384x_CMD_BUSY		((UINT16)BIT15)
@@ -1986,7 +1950,6 @@ typedef struct hfa384x_InfFrame
 	hfa384x_infodata_t	info;
 } __WLAN_ATTRIB_PACK__ hfa384x_InfFrame_t;
 
-#if (WLAN_HOSTIF == WLAN_USB)
 /*--------------------------------------------------------------------
 USB Packet structures and constants.
 --------------------------------------------------------------------*/
@@ -2137,8 +2100,6 @@ typedef union hfa384x_usbin {
 	hfa384x_usb_error_t	usberror;
 	UINT8			boguspad[3000];
 } __WLAN_ATTRIB_PACK__ hfa384x_usbin_t;
-
-#endif /* WLAN_USB */
 
 /*--------------------------------------------------------------------
 PD record structures.
@@ -2397,8 +2358,6 @@ typedef struct hfa384x_statusresult
 	UINT16	resp2;
 } hfa384x_cmdresult_t;
 
-#if (WLAN_HOSTIF == WLAN_USB)
-
 /* USB Control Exchange (CTLX):
  *  A queue of the structure below is maintained for all of the
  *  Request/Response type USB packets supported by Prism2.
@@ -2467,7 +2426,6 @@ typedef struct hfa384x_usbctlxq
 	struct list_head	completing;
 	struct list_head	reapable;
 } hfa384x_usbctlxq_t;
-#endif
 
 typedef struct hfa484x_metacmd
 {
@@ -2476,12 +2434,6 @@ typedef struct hfa484x_metacmd
 	UINT16          parm0;
 	UINT16          parm1;
 	UINT16          parm2;
-
-#if 0 //XXX cmd irq stuff
-	UINT16          bulkid;         /* what RID/FID to copy down. */
-	int             bulklen;        /* how much to copy from BAP */
-        char            *bulkdata;      /* And to where? */
-#endif
 
 	hfa384x_cmdresult_t result;
 } hfa384x_metacmd_t;
@@ -2523,12 +2475,6 @@ typedef struct prism2sta_accesslist
 
 typedef struct hfa384x
 {
-#if (WLAN_HOSTIF != WLAN_USB)
-	/* Resource config */
-	UINT32			iobase;
-	char			__iomem *membase;
-	UINT32			irq;
-#else
 	/* USB support data */
 	struct usb_device	*usb;
 	struct urb		rx_urb;
@@ -2560,16 +2506,6 @@ typedef struct hfa384x
 
 	int                     endp_in;
 	int                     endp_out;
-#endif /* !USB */
-
-#if (WLAN_HOSTIF == WLAN_PCMCIA)
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,16)
-	struct pcmcia_device *pdev;
-#else
-	dev_link_t	*link;
-#endif
-	dev_node_t	node;
-#endif
 
 	int                     sniff_fcs;
 	int                     sniff_channel;
@@ -2582,33 +2518,11 @@ typedef struct hfa384x
 	UINT32		state;
 	UINT32		isap;
 	UINT8		port_enabled[HFA384x_NUMPORTS_MAX];
-#if (WLAN_HOSTIF != WLAN_USB)
-	UINT		auxen;
-	UINT            isram16;
-#endif /* !USB */
 
 	/* Download support */
 	UINT				dlstate;
 	hfa384x_downloadbuffer_t	bufinfo;
 	UINT16				dltimeout;
-
-#if (WLAN_HOSTIF != WLAN_USB)
-	spinlock_t	cmdlock;
-	volatile int    cmdflag;        /* wait queue flag */
-	hfa384x_metacmd_t *cmddata;      /* for our async callback */
-
-	/* BAP support */
-	spinlock_t	baplock;
-	struct tasklet_struct   bap_tasklet;
-
-	/* MAC buffer ids */
-        UINT16          txfid_head;
-        UINT16          txfid_tail;
-        UINT            txfid_N;
-        UINT16          txfid_queue[HFA384x_DRVR_FIDSTACKLEN_MAX];
-	UINT16			infofid;
-	struct semaphore	infofid_sem;
-#endif /* !USB */
 
 	int                          scanflag;    /* to signal scan comlete */
 	int                          join_ap;        /* are we joined to a specific ap */
@@ -2687,19 +2601,10 @@ typedef struct hfa384x
 /*=============================================================*/
 /*--- Function Declarations -----------------------------------*/
 /*=============================================================*/
-#if (WLAN_HOSTIF == WLAN_USB)
 void
 hfa384x_create(
 	hfa384x_t *hw,
 	struct usb_device *usb);
-#else
-void
-hfa384x_create(
-	hfa384x_t *hw,
-	UINT irq,
-	UINT32 iobase,
-	UINT8 __iomem *membase);
-#endif
 
 void hfa384x_destroy(hfa384x_t *hw);
 
@@ -2785,7 +2690,6 @@ hfa384x_drvr_setconfig32(hfa384x_t *hw, UINT16 rid, UINT32 val)
 	return hfa384x_drvr_setconfig(hw, rid, &value, sizeof(value));
 }
 
-#if (WLAN_HOSTIF == WLAN_USB)
 int
 hfa384x_drvr_getconfig_async(hfa384x_t     *hw,
                               UINT16        rid,
@@ -2799,16 +2703,6 @@ hfa384x_drvr_setconfig_async(hfa384x_t *hw,
                               UINT16 len,
                               ctlx_usercb_t usercb,
                               void *usercb_data);
-#else
-static inline int
-hfa384x_drvr_setconfig_async(hfa384x_t *hw, UINT16 rid, void *buf, UINT16 len,
-			     void *ptr1, void *ptr2)
-{
-         (void)ptr1;
-         (void)ptr2;
-         return hfa384x_drvr_setconfig(hw, rid, buf, len);
-}
-#endif
 
 static inline int
 hfa384x_drvr_setconfig16_async(hfa384x_t *hw, UINT16 rid, UINT16 val)
@@ -2900,168 +2794,6 @@ hfa384x_copy_to_aux(
 	void	*buf,
 	UINT	len);
 
-#if (WLAN_HOSTIF != WLAN_USB)
-
-/*
-   HFA384x is a LITTLE ENDIAN part.
-
-   the get/setreg functions implicitly byte-swap the data to LE.
-   the _noswap variants do not perform a byte-swap on the data.
-*/
-
-static inline UINT16
-__hfa384x_getreg(hfa384x_t *hw, UINT reg);
-
-static inline void
-__hfa384x_setreg(hfa384x_t *hw, UINT16 val, UINT reg);
-
-static inline UINT16
-__hfa384x_getreg_noswap(hfa384x_t *hw, UINT reg);
-
-static inline void
-__hfa384x_setreg_noswap(hfa384x_t *hw, UINT16 val, UINT reg);
-
-#ifdef REVERSE_ENDIAN
-#define hfa384x_getreg __hfa384x_getreg_noswap
-#define hfa384x_setreg __hfa384x_setreg_noswap
-#define hfa384x_getreg_noswap __hfa384x_getreg
-#define hfa384x_setreg_noswap __hfa384x_setreg
-#else
-#define hfa384x_getreg __hfa384x_getreg
-#define hfa384x_setreg __hfa384x_setreg
-#define hfa384x_getreg_noswap __hfa384x_getreg_noswap
-#define hfa384x_setreg_noswap __hfa384x_setreg_noswap
-#endif
-
-/*----------------------------------------------------------------
-* hfa384x_getreg
-*
-* Retrieve the value of one of the MAC registers.  Done here
-* because different PRISM2 MAC parts use different buses and such.
-* NOTE: This function returns the value in HOST ORDER!!!!!!
-*
-* Arguments:
-*       hw         MAC part structure
-*       reg        Register identifier (offset for I/O based i/f)
-*
-* Returns:
-*       Value from the register in HOST ORDER!!!!
-----------------------------------------------------------------*/
-static inline UINT16
-__hfa384x_getreg(hfa384x_t *hw, UINT reg)
-{
-/*	printk(KERN_DEBUG "Reading from 0x%0x\n", hw->membase + reg); */
-#if ((WLAN_HOSTIF == WLAN_PCMCIA) || (WLAN_HOSTIF == WLAN_PLX))
-	return wlan_inw_le16_to_cpu(hw->iobase+reg);
-#elif (WLAN_HOSTIF == WLAN_PCI)
-	return __le16_to_cpu(readw(hw->membase + reg));
-#endif
-}
-
-/*----------------------------------------------------------------
-* hfa384x_setreg
-*
-* Set the value of one of the MAC registers.  Done here
-* because different PRISM2 MAC parts use different buses and such.
-* NOTE: This function assumes the value is in HOST ORDER!!!!!!
-*
-* Arguments:
-*       hw	MAC part structure
-*	val	Value, in HOST ORDER!!, to put in the register
-*       reg	Register identifier (offset for I/O based i/f)
-*
-* Returns:
-*       Nothing
-----------------------------------------------------------------*/
-static inline void
-__hfa384x_setreg(hfa384x_t *hw, UINT16 val, UINT reg)
-{
-#if ((WLAN_HOSTIF == WLAN_PCMCIA) || (WLAN_HOSTIF == WLAN_PLX))
-	wlan_outw_cpu_to_le16( val, hw->iobase + reg);
-	return;
-#elif (WLAN_HOSTIF == WLAN_PCI)
-	writew(__cpu_to_le16(val), hw->membase + reg);
-	return;
-#endif
-}
-
-
-/*----------------------------------------------------------------
-* hfa384x_getreg_noswap
-*
-* Retrieve the value of one of the MAC registers.  Done here
-* because different PRISM2 MAC parts use different buses and such.
-*
-* Arguments:
-*       hw         MAC part structure
-*       reg        Register identifier (offset for I/O based i/f)
-*
-* Returns:
-*       Value from the register.
-----------------------------------------------------------------*/
-static inline UINT16
-__hfa384x_getreg_noswap(hfa384x_t *hw, UINT reg)
-{
-#if ((WLAN_HOSTIF == WLAN_PCMCIA) || (WLAN_HOSTIF == WLAN_PLX))
-	return wlan_inw(hw->iobase+reg);
-#elif (WLAN_HOSTIF == WLAN_PCI)
-	return readw(hw->membase + reg);
-#endif
-}
-
-
-/*----------------------------------------------------------------
-* hfa384x_setreg_noswap
-*
-* Set the value of one of the MAC registers.  Done here
-* because different PRISM2 MAC parts use different buses and such.
-*
-* Arguments:
-*       hw	MAC part structure
-*	val	Value to put in the register
-*       reg	Register identifier (offset for I/O based i/f)
-*
-* Returns:
-*       Nothing
-----------------------------------------------------------------*/
-static inline void
-__hfa384x_setreg_noswap(hfa384x_t *hw, UINT16 val, UINT reg)
-{
-#if ((WLAN_HOSTIF == WLAN_PCMCIA) || (WLAN_HOSTIF == WLAN_PLX))
-	wlan_outw( val, hw->iobase + reg);
-	return;
-#elif (WLAN_HOSTIF == WLAN_PCI)
-	writew(val, hw->membase + reg);
-	return;
-#endif
-}
-
-
-static inline void hfa384x_events_all(hfa384x_t *hw)
-{
-	hfa384x_setreg(hw,
-		       HFA384x_INT_NORMAL
-#ifdef CMD_IRQ
-		       | HFA384x_INTEN_CMD_SET(1)
-#endif
-		       ,
-		       HFA384x_INTEN);
-
-}
-
-static inline void hfa384x_events_nobap(hfa384x_t *hw)
-{
-	hfa384x_setreg(hw,
-		        (HFA384x_INT_NORMAL & ~HFA384x_INT_BAP_OP)
-#ifdef CMD_IRQ
-		       | HFA384x_INTEN_CMD_SET(1)
-#endif
-		       ,
-		       HFA384x_INTEN);
-
-}
-
-#endif /* WLAN_HOSTIF != WLAN_USB */
 #endif /* __KERNEL__ */
 
 #endif  /* _HFA384x_H */

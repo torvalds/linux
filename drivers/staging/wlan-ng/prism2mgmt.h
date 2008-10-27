@@ -73,10 +73,6 @@
 /*=============================================================*/
 /*------ Static variable externs ------------------------------*/
 
-#if (WLAN_HOSTIF != WLAN_USB)
-extern int      prism2_bap_timeout;
-extern int	prism2_irq_evread_max;
-#endif
 extern int	prism2_debug;
 extern int      prism2_reset_holdtime;
 extern int      prism2_reset_settletime;

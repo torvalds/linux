@@ -136,11 +136,6 @@
 
 #include "wlan_compat.h"
 
-#if (WLAN_HOSTIF != WLAN_USB)
-#error "This file is specific to USB"
-#endif
-
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
 static int
 wait_for_completion_interruptible(struct completion *x)
