@@ -456,6 +456,7 @@ static inline void update_gtod(u64 new_tb_stamp, u64 new_stamp_xsec,
 	vdso_data->tb_to_xs = new_tb_to_xs;
 	vdso_data->wtom_clock_sec = wall_to_monotonic.tv_sec;
 	vdso_data->wtom_clock_nsec = wall_to_monotonic.tv_nsec;
+	vdso_data->stamp_xtime = xtime;
 	smp_wmb();
 	++(vdso_data->tb_update_count);
 }
