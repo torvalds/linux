@@ -107,11 +107,8 @@ static void wbsoft_configure_filter(struct ieee80211_hw *dev,
 
 static int wbsoft_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
-	char *buffer = kmalloc(skb->len, GFP_ATOMIC);
-	printk("Sending frame %d bytes\n", skb->len);
-	memcpy(buffer, skb->data, skb->len);
-	if (1 == MLMESendFrame(my_adapter, buffer, skb->len, FRAME_TYPE_802_11_MANAGEMENT))
-		printk("frame sent ok (%d bytes)?\n", skb->len);
+	MLMESendFrame(my_adapter, skb->data, skb->len, FRAME_TYPE_802_11_MANAGEMENT);
+
 	return NETDEV_TX_OK;
 }
 
