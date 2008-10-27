@@ -275,6 +275,7 @@ error_free_hw:
 error_free_adapter:
 	kfree(adapter);
 error:
+	usb_put_dev(udev);
 	return err;
 }
 
@@ -308,12 +309,12 @@ void packet_came(char *pRxBufferAddress, int PacketSize)
 
 static void wb35_disconnect(struct usb_interface *intf)
 {
-	struct wb35_adapter * adapter = usb_get_intfdata(intf);
-	usb_set_intfdata(intf, NULL);
+	struct wb35_adapter *adapter = usb_get_intfdata(intf);
 
-	// Card remove
 	WbWlanHalt(adapter);
 
+	usb_set_intfdata(intf, NULL);
+	usb_put_dev(interface_to_usbdev(intf));
 }
 
 static struct usb_driver wb35_driver = {
