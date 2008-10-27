@@ -60,12 +60,6 @@ struct dma_mapping_ops {
 				dma_addr_t *dma_handle, gfp_t flag);
 	void		(*free_coherent)(struct device *dev, size_t size,
 				void *vaddr, dma_addr_t dma_handle);
-	dma_addr_t	(*map_single)(struct device *dev, void *ptr,
-				size_t size, enum dma_data_direction direction,
-				struct dma_attrs *attrs);
-	void		(*unmap_single)(struct device *dev, dma_addr_t dma_addr,
-				size_t size, enum dma_data_direction direction,
-				struct dma_attrs *attrs);
 	int		(*map_sg)(struct device *dev, struct scatterlist *sg,
 				int nents, enum dma_data_direction direction,
 				struct dma_attrs *attrs);
@@ -149,10 +143,9 @@ static inline int dma_set_mask(struct device *dev, u64 dma_mask)
 }
 
 /*
- * TODO: map_/unmap_single will ideally go away, to be completely
- * replaced by map/unmap_page.   Until then, we allow dma_ops to have
- * one or the other, or both by checking to see if the specific
- * function requested exists; and if not, falling back on the other set.
+ * map_/unmap_single actually call through to map/unmap_page now that all the
+ * dma_mapping_ops have been converted over. We just have to get the page and
+ * offset to pass through to map_page
  */
 static inline dma_addr_t dma_map_single_attrs(struct device *dev,
 					      void *cpu_addr,
@@ -163,10 +156,6 @@ static inline dma_addr_t dma_map_single_attrs(struct device *dev,
 	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
 
 	BUG_ON(!dma_ops);
-
-	if (dma_ops->map_single)
-		return dma_ops->map_single(dev, cpu_addr, size, direction,
-					   attrs);
 
 	return dma_ops->map_page(dev, virt_to_page(cpu_addr),
 				 (unsigned long)cpu_addr % PAGE_SIZE, size,
@@ -183,11 +172,6 @@ static inline void dma_unmap_single_attrs(struct device *dev,
 
 	BUG_ON(!dma_ops);
 
-	if (dma_ops->unmap_single) {
-		dma_ops->unmap_single(dev, dma_addr, size, direction, attrs);
-		return;
-	}
-
 	dma_ops->unmap_page(dev, dma_addr, size, direction, attrs);
 }
 
@@ -201,12 +185,7 @@ static inline dma_addr_t dma_map_page_attrs(struct device *dev,
 
 	BUG_ON(!dma_ops);
 
-	if (dma_ops->map_page)
-		return dma_ops->map_page(dev, page, offset, size, direction,
-					 attrs);
-
-	return dma_ops->map_single(dev, page_address(page) + offset, size,
-				   direction, attrs);
+	return dma_ops->map_page(dev, page, offset, size, direction, attrs);
 }
 
 static inline void dma_unmap_page_attrs(struct device *dev,
@@ -219,12 +198,7 @@ static inline void dma_unmap_page_attrs(struct device *dev,
 
 	BUG_ON(!dma_ops);
 
-	if (dma_ops->unmap_page) {
-		dma_ops->unmap_page(dev, dma_address, size, direction, attrs);
-		return;
-	}
-
-	dma_ops->unmap_single(dev, dma_address, size, direction, attrs);
+	dma_ops->unmap_page(dev, dma_address, size, direction, attrs);
 }
 
 static inline int dma_map_sg_attrs(struct device *dev, struct scatterlist *sg,
