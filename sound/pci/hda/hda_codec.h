@@ -520,6 +520,26 @@ enum {
 #define HDA_MAX_CODEC_ADDRESS	0x0f
 
 /*
+ * generic arrays
+ */
+struct snd_array {
+	unsigned int used;
+	unsigned int alloced;
+	unsigned int elem_size;
+	unsigned int alloc_align;
+	void *list;
+};
+
+void *snd_array_new(struct snd_array *array);
+void snd_array_free(struct snd_array *array);
+static inline void snd_array_init(struct snd_array *array, unsigned int size,
+				  unsigned int align)
+{
+	array->elem_size = size;
+	array->alloc_align = align;
+}
+
+/*
  * Structures
  */
 
@@ -542,6 +562,8 @@ struct hda_bus_ops {
 	unsigned int (*get_response)(struct hda_codec *codec);
 	/* free the private data */
 	void (*private_free)(struct hda_bus *);
+	/* attach a PCM stream */
+	int (*attach_pcm)(struct hda_codec *codec, struct hda_pcm *pcm);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	/* notify power-up/down from codec to controller */
 	void (*pm_notify)(struct hda_codec *codec);
@@ -635,10 +657,7 @@ struct hda_amp_info {
 
 struct hda_cache_rec {
 	u16 hash[64];			/* hash table for index */
-	unsigned int num_entries;	/* number of assigned entries */
-	unsigned int size;		/* allocated size */
-	unsigned int record_size;	/* record size (including header) */
-	void *buffer;			/* hash table entries */
+	struct snd_array buf;		/* record entries */
 };
 
 /* PCM callbacks */
@@ -680,7 +699,8 @@ struct hda_pcm {
 	char *name;
 	struct hda_pcm_stream stream[2];
 	unsigned int pcm_type;	/* HDA_PCM_TYPE_XXX */
-	int device;	/* assigned device number */
+	int device;		/* device number to assign */
+	struct snd_pcm *pcm;	/* assigned PCM instance */
 };
 
 /* codec information */
@@ -699,6 +719,8 @@ struct hda_codec {
 
 	/* detected preset */
 	const struct hda_codec_preset *preset;
+	const char *name;	/* codec name */
+	const char *modelname;	/* model name for preset */
 
 	/* set by patch */
 	struct hda_codec_ops patch_ops;
@@ -718,6 +740,8 @@ struct hda_codec {
 	hda_nid_t start_nid;
 	u32 *wcaps;
 
+	struct snd_array mixers;	/* list of assigned mixer elements */
+
 	struct hda_cache_rec amp_cache;	/* cache for amp access */
 	struct hda_cache_rec cmd_cache;	/* cache for other commands */
 
@@ -727,7 +751,11 @@ struct hda_codec {
 	unsigned int spdif_in_enable;	/* SPDIF input enable? */
 	hda_nid_t *slave_dig_outs; /* optional digital out slave widgets */
 
+#ifdef CONFIG_SND_HDA_HWDEP
 	struct snd_hwdep *hwdep;	/* assigned hwdep device */
+	struct snd_array init_verbs;	/* additional init verbs */
+	struct snd_array hints;		/* additional hints */
+#endif
 
 	/* misc flags */
 	unsigned int spdif_status_reset :1; /* needs to toggle SPDIF for each
@@ -799,6 +827,7 @@ void snd_hda_codec_resume_cache(struct hda_codec *codec);
  * Mixer
  */
 int snd_hda_build_controls(struct hda_bus *bus);
+int snd_hda_codec_build_controls(struct hda_codec *codec);
 
 /*
  * PCM
@@ -829,6 +858,13 @@ void snd_hda_get_codec_name(struct hda_codec *codec, char *name, int namelen);
 int snd_hda_suspend(struct hda_bus *bus, pm_message_t state);
 int snd_hda_resume(struct hda_bus *bus);
 #endif
+
+/*
+ * get widget information
+ */
+const char *snd_hda_get_jack_connectivity(u32 cfg);
+const char *snd_hda_get_jack_type(u32 cfg);
+const char *snd_hda_get_jack_location(u32 cfg);
 
 /*
  * power saving
