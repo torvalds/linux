@@ -603,6 +603,9 @@ void ata_scsi_error(struct Scsi_Host *host)
 			ata_link_for_each_dev(dev, link) {
 				int devno = dev->devno;
 
+				if (!ata_dev_enabled(dev))
+					continue;
+
 				ehc->saved_xfer_mode[devno] = dev->xfer_mode;
 				if (ata_ncq_enabled(dev))
 					ehc->saved_ncq_enabled |= 1 << devno;
@@ -2787,6 +2790,9 @@ int ata_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 
 	/* if data transfer is verified, clear DUBIOUS_XFER on ering top */
 	ata_link_for_each_dev(dev, link) {
+		if (!ata_dev_enabled(dev))
+			continue;
+
 		if (!(dev->flags & ATA_DFLAG_DUBIOUS_XFER)) {
 			struct ata_ering_entry *ent;
 
@@ -2807,6 +2813,9 @@ int ata_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 		struct ata_eh_context *ehc = &link->eh_context;
 		u8 saved_xfer_mode = ehc->saved_xfer_mode[dev->devno];
 		u8 saved_ncq = !!(ehc->saved_ncq_enabled & (1 << dev->devno));
+
+		if (!ata_dev_enabled(dev))
+			continue;
 
 		if (dev->xfer_mode != saved_xfer_mode ||
 		    ata_ncq_enabled(dev) != saved_ncq)
