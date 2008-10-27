@@ -772,6 +772,15 @@ static void svm_get_segment(struct kvm_vcpu *vcpu,
 	var->l = (s->attrib >> SVM_SELECTOR_L_SHIFT) & 1;
 	var->db = (s->attrib >> SVM_SELECTOR_DB_SHIFT) & 1;
 	var->g = (s->attrib >> SVM_SELECTOR_G_SHIFT) & 1;
+
+	/*
+	 * SVM always stores 0 for the 'G' bit in the CS selector in
+	 * the VMCB on a VMEXIT. This hurts cross-vendor migration:
+	 * Intel's VMENTRY has a check on the 'G' bit.
+	 */
+	if (seg == VCPU_SREG_CS)
+		var->g = s->limit > 0xfffff;
+
 	var->unusable = !var->present;
 }
 
