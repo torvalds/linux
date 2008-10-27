@@ -130,6 +130,9 @@ static inline struct exofs_i_info *exofs_i(struct inode *inode)
 /* inode.c               */
 void exofs_truncate(struct inode *inode);
 int exofs_setattr(struct dentry *, struct iattr *);
+int exofs_write_begin(struct file *file, struct address_space *mapping,
+		loff_t pos, unsigned len, unsigned flags,
+		struct page **pagep, void **fsdata);
 
 /*********************
  * operation vectors *
@@ -137,6 +140,9 @@ int exofs_setattr(struct dentry *, struct iattr *);
 /* file.c            */
 extern const struct inode_operations exofs_file_inode_operations;
 extern const struct file_operations exofs_file_operations;
+
+/* inode.c           */
+extern const struct address_space_operations exofs_aops;
 
 /* symlink.c         */
 extern const struct inode_operations exofs_symlink_inode_operations;
