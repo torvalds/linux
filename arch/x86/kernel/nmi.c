@@ -340,6 +340,8 @@ void stop_apic_nmi_watchdog(void *unused)
 		return;
 	if (nmi_watchdog == NMI_LOCAL_APIC)
 		lapic_watchdog_stop();
+	else
+		__acpi_nmi_disable(NULL);
 	__get_cpu_var(wd_enabled) = 0;
 	atomic_dec(&nmi_active);
 }
@@ -465,6 +467,24 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 
 #ifdef CONFIG_SYSCTL
 
+static void enable_ioapic_nmi_watchdog_single(void *unused)
+{
+	__get_cpu_var(wd_enabled) = 1;
+	atomic_inc(&nmi_active);
+	__acpi_nmi_enable(NULL);
+}
+
+static void enable_ioapic_nmi_watchdog(void)
+{
+	on_each_cpu(enable_ioapic_nmi_watchdog_single, NULL, 1);
+	touch_nmi_watchdog();
+}
+
+static void disable_ioapic_nmi_watchdog(void)
+{
+	on_each_cpu(stop_apic_nmi_watchdog, NULL, 1);
+}
+
 static int __init setup_unknown_nmi_panic(char *str)
 {
 	unknown_nmi_panic = 1;
@@ -507,6 +527,11 @@ int proc_nmi_enabled(struct ctl_table *table, int write, struct file *file,
 			enable_lapic_nmi_watchdog();
 		else
 			disable_lapic_nmi_watchdog();
+	} else if (nmi_watchdog == NMI_IO_APIC) {
+		if (nmi_watchdog_enabled)
+			enable_ioapic_nmi_watchdog();
+		else
+			disable_ioapic_nmi_watchdog();
 	} else {
 		printk(KERN_WARNING
 			"NMI watchdog doesn't know what hardware to touch\n");
