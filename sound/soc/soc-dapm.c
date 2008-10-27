@@ -1007,28 +1007,6 @@ err:
 }
 
 /**
- * snd_soc_dapm_connect_input - connect dapm widgets
- * @codec: audio codec
- * @sink: name of target widget
- * @control: mixer control name
- * @source: name of source name
- *
- * Connects 2 dapm widgets together via a named audio path. The sink is
- * the widget receiving the audio signal, whilst the source is the sender
- * of the audio signal.
- *
- * This function has been deprecated in favour of snd_soc_dapm_add_routes().
- *
- * Returns 0 for success else error.
- */
-int snd_soc_dapm_connect_input(struct snd_soc_codec *codec, const char *sink,
-	const char *control, const char *source)
-{
-	return snd_soc_dapm_add_route(codec, sink, control, source);
-}
-EXPORT_SYMBOL_GPL(snd_soc_dapm_connect_input);
-
-/**
  * snd_soc_dapm_add_routes - Add routes between DAPM widgets
  * @codec: codec
  * @route: audio routes
