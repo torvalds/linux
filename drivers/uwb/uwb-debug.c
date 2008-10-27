@@ -104,6 +104,11 @@ static void uwb_dbg_rsv_cb(struct uwb_rsv *rsv)
 
 	dev_dbg(dev, "debug: rsv %s -> %s: %s\n",
 		owner, target, uwb_rsv_state_str(rsv->state));
+
+	if (rsv->state == UWB_RSV_STATE_NONE) {
+		list_del(&rsv->pal_node);
+		uwb_rsv_destroy(rsv);
+	}
 }
 
 static int cmd_rsv_establish(struct uwb_rc *rc,
@@ -153,11 +158,11 @@ static int cmd_rsv_terminate(struct uwb_rc *rc,
 			found = rsv;
 			break;
 		}
+		i++;
 	}
 	if (!found)
 		return -EINVAL;
 
-	list_del(&found->pal_node);
 	uwb_rsv_terminate(found);
 
 	return 0;
@@ -287,8 +292,10 @@ static void uwb_dbg_new_rsv(struct uwb_rsv *rsv)
 {
 	struct uwb_rc *rc = rsv->rc;
 
-	if (rc->dbg->accept)
+	if (rc->dbg->accept) {
+		list_add_tail(&rsv->pal_node, &rc->dbg->rsvs);
 		uwb_rsv_accept(rsv, uwb_dbg_rsv_cb, NULL);
+	}
 }
 
 /**
@@ -336,7 +343,7 @@ void uwb_dbg_del_rc(struct uwb_rc *rc)
 		return;
 
 	list_for_each_entry_safe(rsv, t, &rc->dbg->rsvs, pal_node) {
-		uwb_rsv_destroy(rsv);
+		uwb_rsv_terminate(rsv);
 	}
 
 	uwb_pal_unregister(rc, &rc->dbg->pal);

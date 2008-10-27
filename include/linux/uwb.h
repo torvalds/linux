@@ -201,6 +201,7 @@ struct uwb_rsv {
 	struct uwb_rc *rc;
 	struct list_head rc_node;
 	struct list_head pal_node;
+	struct kref kref;
 
 	struct uwb_dev *owner;
 	struct uwb_rsv_target target;

@@ -82,6 +82,23 @@ static void uwb_rsv_dump(struct uwb_rsv *rsv)
 	dev_dbg(dev, "rsv %s -> %s: %s\n", owner, target, uwb_rsv_state_str(rsv->state));
 }
 
+static void uwb_rsv_release(struct kref *kref)
+{
+	struct uwb_rsv *rsv = container_of(kref, struct uwb_rsv, kref);
+
+	kfree(rsv);
+}
+
+static void uwb_rsv_get(struct uwb_rsv *rsv)
+{
+	kref_get(&rsv->kref);
+}
+
+static void uwb_rsv_put(struct uwb_rsv *rsv)
+{
+	kref_put(&rsv->kref, uwb_rsv_release);
+}
+
 /*
  * Get a free stream index for a reservation.
  *
@@ -325,6 +342,7 @@ static struct uwb_rsv *uwb_rsv_alloc(struct uwb_rc *rc)
 
 	INIT_LIST_HEAD(&rsv->rc_node);
 	INIT_LIST_HEAD(&rsv->pal_node);
+	kref_init(&rsv->kref);
 	init_timer(&rsv->timer);
 	rsv->timer.function = uwb_rsv_timer;
 	rsv->timer.data     = (unsigned long)rsv;
@@ -332,14 +350,6 @@ static struct uwb_rsv *uwb_rsv_alloc(struct uwb_rc *rc)
 	rsv->rc = rc;
 
 	return rsv;
-}
-
-static void uwb_rsv_free(struct uwb_rsv *rsv)
-{
-	uwb_dev_put(rsv->owner);
-	if (rsv->target.type == UWB_RSV_TARGET_DEV)
-		uwb_dev_put(rsv->target.dev);
-	kfree(rsv);
 }
 
 /**
@@ -375,23 +385,23 @@ void uwb_rsv_remove(struct uwb_rsv *rsv)
 	if (rsv->state != UWB_RSV_STATE_NONE)
 		uwb_rsv_set_state(rsv, UWB_RSV_STATE_NONE);
 	del_timer_sync(&rsv->timer);
-	list_del(&rsv->rc_node);
-	uwb_rsv_free(rsv);
+	uwb_dev_put(rsv->owner);
+	if (rsv->target.type == UWB_RSV_TARGET_DEV)
+		uwb_dev_put(rsv->target.dev);
+
+	list_del_init(&rsv->rc_node);
+	uwb_rsv_put(rsv);
 }
 
 /**
  * uwb_rsv_destroy - free a UWB reservation structure
  * @rsv: the reservation to free
  *
- * The reservation will be terminated if it is pending or established.
+ * The reservation must already be terminated.
  */
 void uwb_rsv_destroy(struct uwb_rsv *rsv)
 {
-	struct uwb_rc *rc = rsv->rc;
-
-	mutex_lock(&rc->rsvs_mutex);
-	uwb_rsv_remove(rsv);
-	mutex_unlock(&rc->rsvs_mutex);
+	uwb_rsv_put(rsv);
 }
 EXPORT_SYMBOL_GPL(uwb_rsv_destroy);
 
@@ -423,6 +433,7 @@ int uwb_rsv_establish(struct uwb_rsv *rsv)
 		goto out;
 	}
 
+	uwb_rsv_get(rsv);
 	list_add_tail(&rsv->rc_node, &rc->reservations);
 	rsv->owner = &rc->uwb_dev;
 	uwb_dev_get(rsv->owner);
@@ -478,9 +489,14 @@ EXPORT_SYMBOL_GPL(uwb_rsv_terminate);
  *
  * Reservation requests from peers are denied unless a PAL accepts it
  * by calling this function.
+ *
+ * The PAL call uwb_rsv_destroy() for all accepted reservations before
+ * calling uwb_pal_unregister().
  */
 void uwb_rsv_accept(struct uwb_rsv *rsv, uwb_rsv_cb_f cb, void *pal_priv)
 {
+	uwb_rsv_get(rsv);
+
 	rsv->callback = cb;
 	rsv->pal_priv = pal_priv;
 	rsv->state    = UWB_RSV_STATE_T_ACCEPTED;

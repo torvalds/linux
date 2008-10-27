@@ -59,7 +59,6 @@ static void wusbhc_rsv_complete_cb(struct uwb_rsv *rsv)
 	case UWB_RSV_STATE_NONE:
 		dev_dbg(dev, "removed reservation\n");
 		wusbhc_bwa_set(wusbhc, 0, NULL);
-		wusbhc->rsv = NULL;
 		break;
 	default:
 		dev_dbg(dev, "unexpected reservation state: %d\n", rsv->state);
@@ -105,11 +104,11 @@ int wusbhc_rsv_establish(struct wusbhc *wusbhc)
 
 
 /**
- * wusbhc_rsv_terminate - terminate any cluster reservation
+ * wusbhc_rsv_terminate - terminate the cluster reservation
  * @wusbhc: the WUSB host whose reservation is to be terminated
  */
 void wusbhc_rsv_terminate(struct wusbhc *wusbhc)
 {
-	if (wusbhc->rsv)
-		uwb_rsv_terminate(wusbhc->rsv);
+	uwb_rsv_terminate(wusbhc->rsv);
+	uwb_rsv_destroy(wusbhc->rsv);
 }
