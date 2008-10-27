@@ -10,16 +10,6 @@
 //============================================================================
 #include "os_common.h"
 
-u32
-WBLINUX_MemoryAlloc(void* *VirtualAddress, u32 Length)
-{
-	*VirtualAddress = kzalloc( Length, GFP_ATOMIC ); //GFP_KERNEL is not suitable
-
-	if (*VirtualAddress == NULL)
-		return 0;
-	return 1;
-}
-
 s32
 EncapAtomicInc(struct wb35_adapter * adapter, void* pAtomic)
 {

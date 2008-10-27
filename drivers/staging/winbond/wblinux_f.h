@@ -3,7 +3,6 @@
 //
 // wblinux_f.h
 //
-u32 WBLINUX_MemoryAlloc(  void* *VirtualAddress,  u32 Length );
 s32 EncapAtomicInc(  struct wb35_adapter *adapter,  void* pAtomic );
 s32 EncapAtomicDec(  struct wb35_adapter *adapter,  void* pAtomic );
 void WBLinux_ReceivePacket(  struct wb35_adapter *adapter,  PRXLAYER1 pRxLayer1 );

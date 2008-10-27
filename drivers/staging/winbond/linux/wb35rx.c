@@ -57,7 +57,8 @@ void Wb35Rx(  phw_data_t pHwData )
 
 	pWb35Rx->CurrentRxBufferId = RxBufferId;
 
-	if (1 != OS_MEMORY_ALLOC((void* *)&pWb35Rx->pDRx, MAX_USB_RX_BUFFER)) {
+	pWb35Rx->pDRx = kzalloc(MAX_USB_RX_BUFFER, GFP_ATOMIC);
+	if (!pWb35Rx->pDRx) {
 		printk("w35und: Rx memory alloc failed\n");
 		goto error;
 	}
