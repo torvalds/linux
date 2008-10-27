@@ -156,10 +156,22 @@ static struct txx9_board_vec *__init find_board_byname(const char *name)
 
 static void __init prom_init_cmdline(void)
 {
-	int argc = (int)fw_arg0;
-	int *argv32 = (int *)fw_arg1;
+	int argc;
+	int *argv32;
 	int i;			/* Always ignore the "-c" at argv[0] */
 	char builtin[CL_SIZE];
+
+	if (fw_arg0 >= CKSEG0 || fw_arg1 < CKSEG0) {
+		/*
+		 * argc is not a valid number, or argv32 is not a valid
+		 * pointer
+		 */
+		argc = 0;
+		argv32 = NULL;
+	} else {
+		argc = (int)fw_arg0;
+		argv32 = (int *)fw_arg1;
+	}
 
 	/* ignore all built-in args if any f/w args given */
 	/*
@@ -414,10 +426,12 @@ char * __init prom_getcmdline(void)
 
 const char *__init prom_getenv(const char *name)
 {
-	const s32 *str = (const s32 *)fw_arg2;
+	const s32 *str;
 
-	if (!str)
+	if (fw_arg2 < CKSEG0)
 		return NULL;
+
+	str = (const s32 *)fw_arg2;
 	/* YAMON style ("name", "value" pairs) */
 	while (str[0] && str[1]) {
 		if (!strcmp((const char *)(unsigned long)str[0], name))
