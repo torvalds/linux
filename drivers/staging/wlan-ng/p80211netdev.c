@@ -285,9 +285,6 @@ static int p80211knetdev_open( netdevice_t *netdev )
 	if ( wlandev->open != NULL) {
 		result = wlandev->open(wlandev);
 		if ( result == 0 ) {
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,3,43) )
-			netdev->interrupt = 0;
-#endif
 			p80211netdev_start_queue(wlandev);
 			wlandev->state = WLAN_DEVICE_OPEN;
 		}
@@ -478,15 +475,6 @@ static int p80211knetdev_hard_start_xmit( struct sk_buff *skb, netdevice_t *netd
 	memset(&p80211_hdr, 0, sizeof(p80211_hdr_t));
 	memset(&p80211_wep, 0, sizeof(p80211_metawep_t));
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,38) )
-	if ( test_and_set_bit(0, (void*)&(netdev->tbusy)) != 0 ) {
-		/* We've been called w/ tbusy set, has the tx */
-		/* path stalled?   */
-		WLAN_LOG_DEBUG(1, "called when tbusy set\n");
-		result = 1;
-		goto failed;
-	}
-#else
 	if ( netif_queue_stopped(netdev) ) {
 		WLAN_LOG_DEBUG(1, "called when queue stopped.\n");
 		result = 1;
@@ -494,12 +482,6 @@ static int p80211knetdev_hard_start_xmit( struct sk_buff *skb, netdevice_t *netd
 	}
 
 	netif_stop_queue(netdev);
-
-	/* No timeout handling here, 2.3.38+ kernels call the
-	 * timeout function directly.
-	 * TODO: Add timeout handling.
-	*/
-#endif
 
 	/* Check to see that a valid mode is set */
 	switch( wlandev->macmode ) {
@@ -792,15 +774,9 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 
 	DBFENTER;
 	/* If we're running, we don't allow MAC address changes */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,38) )
-	if ( dev->start) {
-		return -EBUSY;
-	}
-#else
 	if (netif_running(dev)) {
 		return -EBUSY;
 	}
-#endif
 
 	/* Set up some convenience pointers. */
 	mibattr = &dot11req.mibattribute;
@@ -939,12 +915,7 @@ int wlan_setup(wlandevice_t *wlandev)
 #endif
 #endif
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,38) )
-		dev->tbusy = 1;
-		dev->start = 0;
-#else
 		netif_stop_queue(dev);
-#endif
 #ifdef HAVE_CHANGE_MTU
 		dev->change_mtu = wlan_change_mtu;
 #endif
@@ -1039,11 +1010,7 @@ int register_wlandev(wlandevice_t *wlandev)
 		return -EIO;
 	}
 
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0) )
-	dev->name = wlandev->name;
-#else
 	strcpy(wlandev->name, dev->name);
-#endif
 
 #ifdef CONFIG_PROC_FS
 	if (proc_p80211) {
@@ -1060,10 +1027,6 @@ int register_wlandev(wlandevice_t *wlandev)
 					       wlandev->nsd_proc_read,
 					       wlandev);
 	}
-#endif
-
-#ifdef CONFIG_HOTPLUG
-	p80211_run_sbin_hotplug(wlandev, WLAN_HOTPLUG_REGISTER);
 #endif
 
 	DBFEXIT;
@@ -1093,10 +1056,6 @@ int unregister_wlandev(wlandevice_t *wlandev)
 	struct sk_buff *skb;
 
 	DBFENTER;
-
-#ifdef CONFIG_HOTPLUG
-	p80211_run_sbin_hotplug(wlandev, WLAN_HOTPLUG_REMOVE);
-#endif
 
 #ifdef CONFIG_PROC_FS
 	if ( wlandev->procwlandev ) {
@@ -1416,60 +1375,10 @@ static int p80211_rx_typedrop( wlandevice_t *wlandev, UINT16 fc)
 	return drop;
 }
 
-#ifdef CONFIG_HOTPLUG
-/* Notify userspace when a netdevice event occurs,
- * by running '/sbin/hotplug net' with certain
- * environment variables set.
- */
-int p80211_run_sbin_hotplug(wlandevice_t *wlandev, char *action)
-{
-        char *argv[3], *envp[7], ifname[12 + IFNAMSIZ], action_str[32];
-	char nsdname[32], wlan_wext[32];
-        int i;
-
-	if (wlandev) {
-		sprintf(ifname, "INTERFACE=%s", wlandev->name);
-		sprintf(nsdname, "NSDNAME=%s", wlandev->nsdname);
-	} else {
-		sprintf(ifname, "INTERFACE=null");
-		sprintf(nsdname, "NSDNAME=null");
-	}
-
-	sprintf(wlan_wext, "WLAN_WEXT=%s", wlan_wext_write ? "y" : "");
-        sprintf(action_str, "ACTION=%s", action);
-
-        i = 0;
-        argv[i++] = hotplug_path;
-        argv[i++] = "wlan";
-        argv[i] = NULL;
-
-        i = 0;
-        /* minimal command environment */
-        envp [i++] = "HOME=/";
-        envp [i++] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
-        envp [i++] = ifname;
-        envp [i++] = action_str;
-        envp [i++] = nsdname;
-        envp [i++] = wlan_wext;
-        envp [i] = NULL;
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,62))
-        return call_usermodehelper(argv [0], argv, envp);
-#else
-        return call_usermodehelper(argv [0], argv, envp, 0);
-#endif
-}
-
-#endif
-
 
 void    p80211_suspend(wlandevice_t *wlandev)
 {
 	DBFENTER;
-
-#ifdef CONFIG_HOTPLUG
-	p80211_run_sbin_hotplug(wlandev, WLAN_HOTPLUG_SUSPEND);
-#endif
 
 	DBFEXIT;
 }
@@ -1477,10 +1386,6 @@ void    p80211_suspend(wlandevice_t *wlandev)
 void    p80211_resume(wlandevice_t *wlandev)
 {
 	DBFENTER;
-
-#ifdef CONFIG_HOTPLUG
-	p80211_run_sbin_hotplug(wlandev, WLAN_HOTPLUG_RESUME);
-#endif
 
 	DBFEXIT;
 }

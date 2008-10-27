@@ -60,9 +60,7 @@
 #include <linux/version.h>
 
 #include <linux/module.h>
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,25))
 #include <linux/moduleparam.h>
-#endif
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -154,14 +152,7 @@ int init_module(void)
 {
         DBFENTER;
 
-#if 0
-        printk(KERN_NOTICE "%s (%s) Loaded\n", version, WLAN_BUILD_DATE);
-#endif
-
 	p80211netdev_startup();
-#ifdef CONFIG_HOTPLUG
-	p80211_run_sbin_hotplug(NULL, WLAN_HOTPLUG_STARTUP);
-#endif
 
         DBFEXIT;
         return 0;
@@ -191,11 +182,7 @@ void cleanup_module(void)
 {
         DBFENTER;
 
-#ifdef CONFIG_HOTPLUG
-	p80211_run_sbin_hotplug(NULL, WLAN_HOTPLUG_SHUTDOWN);
-#endif
 	p80211netdev_shutdown();
-        printk(KERN_NOTICE "%s Unloaded\n", version);
 
         DBFEXIT;
         return;

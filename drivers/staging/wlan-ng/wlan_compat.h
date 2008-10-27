@@ -267,10 +267,6 @@ typedef struct net_device netdevice_t;
 typedef u32 pm_message_t;
 #endif
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,9))
-#define hotplug_path  "/etc/hotplug/wlan.agent"
-#endif
-
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9))
 #define eth_hdr(x)           (x)->mac.ethernet
 #endif

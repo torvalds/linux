@@ -289,12 +289,7 @@ p80211netdev_stop_queue(wlandevice_t *wlandev)
 {
 	if ( !wlandev ) return;
 	if ( !wlandev->netdev ) return;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,38) )
-	wlandev->netdev->tbusy = 1;
-	wlandev->netdev->start = 0;
-#else
 	netif_stop_queue(wlandev->netdev);
-#endif
 }
 
 static inline void
@@ -302,12 +297,7 @@ p80211netdev_start_queue(wlandevice_t *wlandev)
 {
 	if ( !wlandev ) return;
 	if ( !wlandev->netdev ) return;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,38) )
-	wlandev->netdev->tbusy = 0;
-	wlandev->netdev->start = 1;
-#else
 	netif_start_queue(wlandev->netdev);
-#endif
 }
 
 static inline void
@@ -315,22 +305,7 @@ p80211netdev_wake_queue(wlandevice_t *wlandev)
 {
 	if ( !wlandev ) return;
 	if ( !wlandev->netdev ) return;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,38) )
-	wlandev->netdev->tbusy = 0;
-	mark_bh(NET_BH);
-#else
 	netif_wake_queue(wlandev->netdev);
-#endif
 }
-
-#ifdef CONFIG_HOTPLUG
-#define WLAN_HOTPLUG_REGISTER "register"
-#define WLAN_HOTPLUG_REMOVE   "remove"
-#define WLAN_HOTPLUG_STARTUP  "startup"
-#define WLAN_HOTPLUG_SHUTDOWN "shutdown"
-#define WLAN_HOTPLUG_SUSPEND "suspend"
-#define WLAN_HOTPLUG_RESUME "resume"
-int p80211_run_sbin_hotplug(wlandevice_t *wlandev, char *action);
-#endif
 
 #endif

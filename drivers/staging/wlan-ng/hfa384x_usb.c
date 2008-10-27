@@ -171,23 +171,7 @@ out:
 }
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,69)
-static void
-usb_init_urb(struct urb *urb)
-{
-	memset(urb, 0, sizeof(*urb));
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0) /* tune me! */
-	urb->count = (atomic_t)ATOMIC_INIT(1);
-#endif
-	spin_lock_init(&urb->lock);
-}
-#endif
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0) /* tune me! */
-#  define SUBMIT_URB(u,f)  usb_submit_urb(u,f)
-#else
-#  define SUBMIT_URB(u,f)  usb_submit_urb(u)
-#endif
+#define SUBMIT_URB(u,f)  usb_submit_urb(u,f)
 
 /*================================================================*/
 /* Project Includes */
@@ -1594,77 +1578,9 @@ hfa384x_copy_to_aux(
 ----------------------------------------------------------------*/
 int hfa384x_corereset(hfa384x_t *hw, int holdtime, int settletime, int genesis)
 {
-#if 0
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-	struct usb_device	*parent = hw->usb->parent;
-	int			i;
-	int			port = -1;
-#endif
-#endif
 	int 			result = 0;
 
-
-#define P2_USB_RT_PORT		(USB_TYPE_CLASS | USB_RECIP_OTHER)
-#define P2_USB_FEAT_RESET	4
-#define P2_USB_FEAT_C_RESET	20
-
 	DBFENTER;
-
-#if 0
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-	/* Find the hub port */
-	for ( i = 0; i < parent->maxchild; i++) {
-		if (parent->children[i] == hw->usb) {
-			port = i;
-			break;
-		}
-	}
-	if (port < 0) return -ENOENT;
-
-	/* Set and clear the reset */
-	usb_control_msg(parent, usb_sndctrlpipe(parent, 0),
-		USB_REQ_SET_FEATURE, P2_USB_RT_PORT, P2_USB_FEAT_RESET,
-		port+1, NULL, 0, 1*HZ);
-	wait_ms(holdtime);
-	usb_control_msg(parent, usb_sndctrlpipe(parent, 0),
-		USB_REQ_CLEAR_FEATURE, P2_USB_RT_PORT, P2_USB_FEAT_C_RESET,
-		port+1, NULL, 0, 1*HZ);
-	wait_ms(settletime);
-
-	/* Set the device address */
-	result=usb_set_address(hw->usb);
-	if (result < 0) {
-		WLAN_LOG_ERROR("reset_usbdev: Dev not accepting address, "
-			"result=%d\n", result);
-		clear_bit(hw->usb->devnum, &hw->usb->bus->devmap.devicemap);
-		hw->usb->devnum = -1;
-		goto done;
-	}
-	/* Let the address settle */
-	wait_ms(20);
-
-	/* Assume we're reusing the original descriptor data */
-
-	/* Set the configuration. */
-	WLAN_LOG_DEBUG(3, "Setting Configuration %d\n",
-		hw->usb->config[0].bConfigurationValue);
-	result=usb_set_configuration(hw->usb, hw->usb->config[0].bConfigurationValue);
-	if ( result ) {
-		WLAN_LOG_ERROR("usb_set_configuration() failed, result=%d.\n",
-				result);
-		goto done;
-	}
-	/* Let the configuration settle */
-	wait_ms(20);
-
- done:
-#else
-	result=usb_reset_device(hw->usb);
-	if(result<0) {
-		WLAN_LOG_ERROR("usb_reset_device() failed, result=%d.\n",result);
-	}
-#endif
-#endif
 
 	result=usb_reset_device(hw->usb);
 	if(result<0) {

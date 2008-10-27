@@ -56,14 +56,9 @@
 
 #include "version.h"
 
-
 #include <linux/version.h>
-
 #include <linux/module.h>
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,25))
 #include <linux/moduleparam.h>
-#endif
-
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/types.h>
@@ -71,12 +66,7 @@
 #include <linux/slab.h>
 #include <linux/wireless.h>
 #include <linux/netdevice.h>
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-#include <linux/tqueue.h>
-#else
 #include <linux/workqueue.h>
-#endif
 
 #include <asm/io.h>
 #include <linux/delay.h>
