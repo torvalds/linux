@@ -96,21 +96,15 @@ u8 MLMESendFrame(struct wb35_adapter * adapter, u8 *pMMPDU, u16 len, u8 DataType
 	return true;
 }
 
-void
-MLME_GetNextPacket(struct wb35_adapter * adapter, PDESCRIPTOR pDes)
+void MLME_GetNextPacket(struct wb35_adapter *adapter, PDESCRIPTOR desc)
 {
-#define DESCRIPTOR_ADD_BUFFER( _D, _A, _S ) \
-{\
-	_D->InternalUsed = _D->buffer_start_index + _D->buffer_number; \
-	_D->InternalUsed %= MAX_DESCRIPTOR_BUFFER_INDEX; \
-	_D->buffer_address[ _D->InternalUsed ] = _A; \
-	_D->buffer_size[ _D->InternalUsed ] = _S; \
-	_D->buffer_total_size += _S; \
-	_D->buffer_number++;\
-}
-
-	DESCRIPTOR_ADD_BUFFER( pDes, adapter->sMlmeFrame.pMMPDU, adapter->sMlmeFrame.len );
-	pDes->Type = adapter->sMlmeFrame.DataType;
+	desc->InternalUsed = desc->buffer_start_index + desc->buffer_number;
+	desc->InternalUsed %= MAX_DESCRIPTOR_BUFFER_INDEX;
+	desc->buffer_address[desc->InternalUsed] = adapter->sMlmeFrame.pMMPDU;
+	desc->buffer_size[desc->InternalUsed] = adapter->sMlmeFrame.len;
+	desc->buffer_total_size += adapter->sMlmeFrame.len;
+	desc->buffer_number++;
+	desc->Type = adapter->sMlmeFrame.DataType;
 }
 
 void MLMEfreeMMPDUBuffer(struct wb35_adapter * adapter, s8 *pData)
