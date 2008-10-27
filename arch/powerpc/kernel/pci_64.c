@@ -507,17 +507,6 @@ int __devinit pcibios_map_io_space(struct pci_bus *bus)
 }
 EXPORT_SYMBOL_GPL(pcibios_map_io_space);
 
-void __devinit pcibios_do_bus_setup(struct pci_bus *bus)
-{
-	struct pci_dev *dev;
-
-	if (ppc_md.pci_dma_bus_setup)
-		ppc_md.pci_dma_bus_setup(bus);
-
-	list_for_each_entry(dev, &bus->devices, bus_list)
-		pcibios_setup_new_device(dev);
-}
-
 unsigned long pci_address_to_pio(phys_addr_t address)
 {
 	struct pci_controller *hose, *tmp;

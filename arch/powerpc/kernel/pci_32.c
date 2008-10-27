@@ -446,17 +446,6 @@ static int __init pcibios_init(void)
 
 subsys_initcall(pcibios_init);
 
-void __devinit pcibios_do_bus_setup(struct pci_bus *bus)
-{
-	struct pci_dev *dev;
-
-	if (ppc_md.pci_dma_bus_setup)
-		ppc_md.pci_dma_bus_setup(bus);
-
-	list_for_each_entry(dev, &bus->devices, bus_list)
-		pcibios_setup_new_device(dev);
-}
-
 /* the next one is stolen from the alpha port... */
 void __init
 pcibios_update_irq(struct pci_dev *dev, int irq)

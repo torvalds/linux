@@ -1076,18 +1076,24 @@ static void __devinit pcibios_fixup_bridge(struct pci_bus *bus)
 
 static void __devinit __pcibios_fixup_bus(struct pci_bus *bus)
 {
-	struct pci_dev *dev = bus->self;
+	struct pci_dev *dev;
 
-	pr_debug("PCI: Fixup bus %d (%s)\n", bus->number, dev ? pci_name(dev) : "PHB");
+	pr_debug("PCI: Fixup bus %d (%s)\n",
+		 bus->number, bus->self ? pci_name(bus->self) : "PHB");
 
 	/* Fixup PCI<->PCI bridges. Host bridges are handled separately, for
 	 * now differently between 32 and 64 bits.
 	 */
-	if (dev != NULL)
+	if (bus->self != NULL)
 		pcibios_fixup_bridge(bus);
 
-	/* Additional setup that is different between 32 and 64 bits for now */
-	pcibios_do_bus_setup(bus);
+	/* Setup bus DMA mappings */
+	if (ppc_md.pci_dma_bus_setup)
+		ppc_md.pci_dma_bus_setup(bus);
+
+	/* Setup DMA for all PCI devices on that bus */
+	list_for_each_entry(dev, &bus->devices, bus_list)
+		pcibios_setup_new_device(dev);
 
 	/* Platform specific bus fixups */
 	if (ppc_md.pcibios_fixup_bus)
