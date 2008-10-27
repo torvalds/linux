@@ -18,6 +18,5 @@ struct net_device_stats * wb35_netdev_stats( struct net_device *netdev );
 void WBLINUX_stop(  struct wb35_adapter *adapter );
 void WbWlanHalt(  struct wb35_adapter *adapter );
 void WBLINUX_ConnectStatus(  struct wb35_adapter *adapter,  u32 flag );
-
-
+unsigned char WbWLanInitialize(struct wb35_adapter *adapter);
 

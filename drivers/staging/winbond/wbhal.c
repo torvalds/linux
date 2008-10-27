@@ -37,34 +37,32 @@ u8 hal_init_hardware(phw_data_t pHwData, struct wb35_adapter * adapter)
 	pHwData->MaxReceiveLifeTime = DEFAULT_MSDU_LIFE_TIME; // Setting Rx maximum MSDU life time
 	pHwData->FragmentThreshold = DEFAULT_FRAGMENT_THRESHOLD; // Setting default fragment threshold
 
-	if (WbUsb_initial(pHwData)) {
-		pHwData->InitialResource = 1;
-		if( Wb35Reg_initial(pHwData)) {
-			pHwData->InitialResource = 2;
-			if (Wb35Tx_initial(pHwData)) {
-				pHwData->InitialResource = 3;
-				if (Wb35Rx_initial(pHwData)) {
-					pHwData->InitialResource = 4;
-					OS_TIMER_INITIAL( &pHwData->LEDTimer, hal_led_control, pHwData );
-					OS_TIMER_SET( &pHwData->LEDTimer, 1000 ); // 20060623
+	pHwData->InitialResource = 1;
+	if( Wb35Reg_initial(pHwData)) {
+		pHwData->InitialResource = 2;
+		if (Wb35Tx_initial(pHwData)) {
+			pHwData->InitialResource = 3;
+			if (Wb35Rx_initial(pHwData)) {
+				pHwData->InitialResource = 4;
+				OS_TIMER_INITIAL( &pHwData->LEDTimer, hal_led_control, pHwData );
+				OS_TIMER_SET( &pHwData->LEDTimer, 1000 ); // 20060623
 
-					//
-					// For restrict to vendor's hardware
-					//
-					SoftwareSet = hal_software_set( pHwData );
+				//
+				// For restrict to vendor's hardware
+				//
+				SoftwareSet = hal_software_set( pHwData );
 
-					#ifdef Vendor2
-					// Try to make sure the EEPROM contain
-					SoftwareSet >>= 8;
-					if( SoftwareSet != 0x82 )
-						return FALSE;
-					#endif
+				#ifdef Vendor2
+				// Try to make sure the EEPROM contain
+				SoftwareSet >>= 8;
+				if( SoftwareSet != 0x82 )
+					return FALSE;
+				#endif
 
-					Wb35Rx_start( pHwData );
-					Wb35Tx_EP2VM_start( pHwData );
+				Wb35Rx_start( pHwData );
+				Wb35Tx_EP2VM_start( pHwData );
 
-					return TRUE;
-				}
+				return TRUE;
 			}
 		}
 	}
@@ -84,7 +82,6 @@ void hal_halt(phw_data_t pHwData, void *ppa_data)
 			Wb35Rx_destroy( pHwData ); // Release the Rx
 		case 2: Wb35Tx_destroy( pHwData ); // Release the Tx
 		case 1: Wb35Reg_destroy( pHwData ); // Release the Wb35 Regisster resources
-				WbUsb_destroy( pHwData );// Release the WbUsb
 	}
 }
 
@@ -330,8 +327,6 @@ void hal_stop(  phw_data_t pHwData )
 
 	reg->D00_DmaControl &= ~0xc0000000;//Tx Off, Rx Off
 	Wb35Reg_Write( pHwData, 0x0400, reg->D00_DmaControl );
-
-	WbUsb_Stop( pHwData ); // 20051230 Add.4
 }
 
 unsigned char hal_idle(phw_data_t pHwData)

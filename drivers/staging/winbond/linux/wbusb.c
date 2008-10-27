@@ -306,18 +306,6 @@ void packet_came(char *pRxBufferAddress, int PacketSize)
 	ieee80211_rx_irqsafe(my_dev, skb, &rx_status);
 }
 
-unsigned char
-WbUsb_initial(phw_data_t pHwData)
-{
-	return 1;
-}
-
-
-void
-WbUsb_destroy(phw_data_t pHwData)
-{
-}
-
 static void wb35_disconnect(struct usb_interface *intf)
 {
 	struct wb35_adapter * adapter = usb_get_intfdata(intf);
