@@ -54,6 +54,10 @@
 #define D_LOCAL 0
 #include <linux/uwb/debug.h>
 
+static int debug_crypto_verify = 0;
+
+module_param(debug_crypto_verify, int, 0);
+MODULE_PARM_DESC(debug_crypto_verify, "verify the key generation algorithms");
 
 /*
  * Block of data, as understood by AES-CCM
@@ -526,10 +530,13 @@ int wusb_crypto_init(void)
 {
 	int result;
 
-	result = wusb_key_derive_verify();
-	if (result < 0)
-		return result;
-	return wusb_oob_mic_verify();
+	if (debug_crypto_verify) {
+		result = wusb_key_derive_verify();
+		if (result < 0)
+			return result;
+		return wusb_oob_mic_verify();
+	}
+	return 0;
 }
 
 void wusb_crypto_exit(void)
