@@ -90,7 +90,6 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_rx_data *rx)
 	u8 mic[MICHAEL_MIC_LEN];
 	struct sk_buff *skb = rx->skb;
 	int authenticator = 1, wpa_test = 0;
-	DECLARE_MAC_BUF(mac);
 
 	/*
 	 * No way to verify the MIC if the hardware stripped it
@@ -227,7 +226,6 @@ ieee80211_crypto_tkip_decrypt(struct ieee80211_rx_data *rx)
 	int hdrlen, res, hwaccel = 0, wpa_test = 0;
 	struct ieee80211_key *key = rx->key;
 	struct sk_buff *skb = rx->skb;
-	DECLARE_MAC_BUF(mac);
 
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
 
@@ -453,7 +451,6 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 	struct sk_buff *skb = rx->skb;
 	u8 pn[CCMP_PN_LEN];
 	int data_len;
-	DECLARE_MAC_BUF(mac);
 
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
 

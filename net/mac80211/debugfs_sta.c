@@ -246,15 +246,14 @@ STA_OPS_WR(agg_status);
 void ieee80211_sta_debugfs_add(struct sta_info *sta)
 {
 	struct dentry *stations_dir = sta->local->debugfs.stations;
-	DECLARE_MAC_BUF(mbuf);
-	u8 *mac;
+	u8 mac[3*ETH_ALEN];
 
 	sta->debugfs.add_has_run = true;
 
 	if (!stations_dir)
 		return;
 
-	mac = print_mac(mbuf, sta->sta.addr);
+	snprintf(mac, sizeof(mac), "%pM", sta->sta.addr);
 
 	/*
 	 * This might fail due to a race condition:

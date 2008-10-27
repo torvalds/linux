@@ -201,10 +201,9 @@ ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 			     tx->sdata->vif.type != NL80211_IFTYPE_ADHOC &&
 			     ieee80211_is_data(hdr->frame_control))) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-			DECLARE_MAC_BUF(mac);
 			printk(KERN_DEBUG "%s: dropped data frame to not "
-			       "associated station %s\n",
-			       tx->dev->name, print_mac(mac, hdr->addr1));
+			       "associated station %pM\n",
+			       tx->dev->name, hdr->addr1);
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 			I802_DEBUG_INC(tx->local->tx_handlers_drop_not_assoc);
 			return TX_DROP;
@@ -331,7 +330,6 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
 	u32 staflags;
-	DECLARE_MAC_BUF(mac);
 
 	if (unlikely(!sta || ieee80211_is_probe_resp(hdr->frame_control)))
 		return TX_CONTINUE;
@@ -341,9 +339,9 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 	if (unlikely((staflags & WLAN_STA_PS) &&
 		     !(staflags & WLAN_STA_PSPOLL))) {
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-		printk(KERN_DEBUG "STA %s aid %d: PS buffer (entries "
+		printk(KERN_DEBUG "STA %pM aid %d: PS buffer (entries "
 		       "before %d)\n",
-		       print_mac(mac, sta->sta.addr), sta->sta.aid,
+		       sta->sta.addr, sta->sta.aid,
 		       skb_queue_len(&sta->ps_tx_buf));
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 		if (tx->local->total_ps_buffered >= TOTAL_MAX_TX_BUFFER)
@@ -352,9 +350,9 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 			struct sk_buff *old = skb_dequeue(&sta->ps_tx_buf);
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 			if (net_ratelimit()) {
-				printk(KERN_DEBUG "%s: STA %s TX "
+				printk(KERN_DEBUG "%s: STA %pM TX "
 				       "buffer full - dropping oldest frame\n",
-				       tx->dev->name, print_mac(mac, sta->sta.addr));
+				       tx->dev->name, sta->sta.addr);
 			}
 #endif
 			dev_kfree_skb(old);
@@ -371,9 +369,9 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 	}
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	else if (unlikely(test_sta_flags(sta, WLAN_STA_PS))) {
-		printk(KERN_DEBUG "%s: STA %s in PS mode, but pspoll "
+		printk(KERN_DEBUG "%s: STA %pM in PS mode, but pspoll "
 		       "set -> send frame\n", tx->dev->name,
-		       print_mac(mac, sta->sta.addr));
+		       sta->sta.addr);
 	}
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 	clear_sta_flags(sta, WLAN_STA_PSPOLL);
@@ -1593,12 +1591,10 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 		       compare_ether_addr(dev->dev_addr,
 					  skb->data + ETH_ALEN) == 0))) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-		DECLARE_MAC_BUF(mac);
-
 		if (net_ratelimit())
-			printk(KERN_DEBUG "%s: dropped frame to %s"
+			printk(KERN_DEBUG "%s: dropped frame to %pM"
 			       " (unauthorized port)\n", dev->name,
-			       print_mac(mac, hdr.addr1));
+			       hdr.addr1);
 #endif
 
 		I802_DEBUG_INC(local->tx_handlers_drop_unauth_port);

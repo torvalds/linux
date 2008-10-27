@@ -188,7 +188,6 @@ void ieee80211_debugfs_key_add(struct ieee80211_key *key)
   {
 	static int keycount;
 	char buf[50];
-	DECLARE_MAC_BUF(mac);
 	struct sta_info *sta;
 
 	if (!key->local->debugfs.keys)
@@ -206,8 +205,7 @@ void ieee80211_debugfs_key_add(struct ieee80211_key *key)
 	rcu_read_lock();
 	sta = rcu_dereference(key->sta);
 	if (sta)
-		sprintf(buf, "../../stations/%s",
-			print_mac(mac, sta->sta.addr));
+		sprintf(buf, "../../stations/%pM", sta->sta.addr);
 	rcu_read_unlock();
 
 	/* using sta as a boolean is fine outside RCU lock */

@@ -206,13 +206,11 @@ int ieee80211_ht_agg_queue_add(struct ieee80211_local *local,
 			 * on the previous queue
 			 * since HT is strict in order */
 #ifdef CONFIG_MAC80211_HT_DEBUG
-			if (net_ratelimit()) {
-				DECLARE_MAC_BUF(mac);
+			if (net_ratelimit())
 				printk(KERN_DEBUG "allocated aggregation queue"
-					" %d tid %d addr %s pool=0x%lX\n",
-					i, tid, print_mac(mac, sta->sta.addr),
+					" %d tid %d addr %pM pool=0x%lX\n",
+					i, tid, sta->sta.addr,
 					local->queue_pool[0]);
-			}
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 			return 0;
 		}

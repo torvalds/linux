@@ -257,9 +257,6 @@ static void mesh_plink_timer(unsigned long data)
 	struct sta_info *sta;
 	__le16 llid, plid, reason;
 	struct ieee80211_sub_if_data *sdata;
-#ifdef CONFIG_MAC80211_VERBOSE_MPL_DEBUG
-	DECLARE_MAC_BUF(mac);
-#endif
 
 	/*
 	 * This STA is valid because sta_info_destroy() will
@@ -274,8 +271,8 @@ static void mesh_plink_timer(unsigned long data)
 		spin_unlock_bh(&sta->lock);
 		return;
 	}
-	mpl_dbg("Mesh plink timer for %s fired on state %d\n",
-			print_mac(mac, sta->sta.addr), sta->plink_state);
+	mpl_dbg("Mesh plink timer for %pM fired on state %d\n",
+		sta->sta.addr, sta->plink_state);
 	reason = 0;
 	llid = sta->llid;
 	plid = sta->plid;
@@ -287,9 +284,9 @@ static void mesh_plink_timer(unsigned long data)
 		/* retry timer */
 		if (sta->plink_retries < dot11MeshMaxRetries(sdata)) {
 			u32 rand;
-			mpl_dbg("Mesh plink for %s (retry, timeout): %d %d\n",
-					print_mac(mac, sta->sta.addr),
-					sta->plink_retries, sta->plink_timeout);
+			mpl_dbg("Mesh plink for %pM (retry, timeout): %d %d\n",
+				sta->sta.addr, sta->plink_retries,
+				sta->plink_timeout);
 			get_random_bytes(&rand, sizeof(u32));
 			sta->plink_timeout = sta->plink_timeout +
 					     rand % sta->plink_timeout;
@@ -337,9 +334,6 @@ int mesh_plink_open(struct sta_info *sta)
 {
 	__le16 llid;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
-#ifdef CONFIG_MAC80211_VERBOSE_MPL_DEBUG
-	DECLARE_MAC_BUF(mac);
-#endif
 
 	spin_lock_bh(&sta->lock);
 	get_random_bytes(&llid, 2);
@@ -351,8 +345,8 @@ int mesh_plink_open(struct sta_info *sta)
 	sta->plink_state = PLINK_OPN_SNT;
 	mesh_plink_timer_set(sta, dot11MeshRetryTimeout(sdata));
 	spin_unlock_bh(&sta->lock);
-	mpl_dbg("Mesh plink: starting establishment with %s\n",
-		print_mac(mac, sta->sta.addr));
+	mpl_dbg("Mesh plink: starting establishment with %pM\n",
+		sta->sta.addr);
 
 	return mesh_plink_frame_tx(sdata, PLINK_OPEN,
 				   sta->sta.addr, llid, 0, 0);
@@ -360,10 +354,6 @@ int mesh_plink_open(struct sta_info *sta)
 
 void mesh_plink_block(struct sta_info *sta)
 {
-#ifdef CONFIG_MAC80211_VERBOSE_MPL_DEBUG
-	DECLARE_MAC_BUF(mac);
-#endif
-
 	spin_lock_bh(&sta->lock);
 	__mesh_plink_deactivate(sta);
 	sta->plink_state = PLINK_BLOCKED;
@@ -374,12 +364,8 @@ int mesh_plink_close(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	__le16 llid, plid, reason;
-#ifdef CONFIG_MAC80211_VERBOSE_MPL_DEBUG
-	DECLARE_MAC_BUF(mac);
-#endif
 
-	mpl_dbg("Mesh plink: closing link with %s\n",
-			print_mac(mac, sta->sta.addr));
+	mpl_dbg("Mesh plink: closing link with %pM\n", sta->sta.addr);
 	spin_lock_bh(&sta->lock);
 	sta->reason = cpu_to_le16(MESH_LINK_CANCELLED);
 	reason = sta->reason;
@@ -417,9 +403,6 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 	u8 ie_len;
 	u8 *baseaddr;
 	__le16 plid, llid, reason;
-#ifdef CONFIG_MAC80211_VERBOSE_MPL_DEBUG
-	DECLARE_MAC_BUF(mac);
-#endif
 
 	/* need action_code, aux */
 	if (len < IEEE80211_MIN_ACTION_SIZE + 3)
@@ -557,10 +540,10 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		}
 	}
 
-	mpl_dbg("Mesh plink (peer, state, llid, plid, event): %s %d %d %d %d\n",
-			print_mac(mac, mgmt->sa), sta->plink_state,
-			le16_to_cpu(sta->llid), le16_to_cpu(sta->plid),
-			event);
+	mpl_dbg("Mesh plink (peer, state, llid, plid, event): %pM %d %d %d %d\n",
+		mgmt->sa, sta->plink_state,
+		le16_to_cpu(sta->llid), le16_to_cpu(sta->plid),
+		event);
 	reason = 0;
 	switch (sta->plink_state) {
 		/* spin_unlock as soon as state is updated at each case */
@@ -660,8 +643,8 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 			sta->plink_state = PLINK_ESTAB;
 			mesh_plink_inc_estab_count(sdata);
 			spin_unlock_bh(&sta->lock);
-			mpl_dbg("Mesh plink with %s ESTABLISHED\n",
-					print_mac(mac, sta->sta.addr));
+			mpl_dbg("Mesh plink with %pM ESTABLISHED\n",
+				sta->sta.addr);
 			break;
 		default:
 			spin_unlock_bh(&sta->lock);
@@ -693,8 +676,8 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 			sta->plink_state = PLINK_ESTAB;
 			mesh_plink_inc_estab_count(sdata);
 			spin_unlock_bh(&sta->lock);
-			mpl_dbg("Mesh plink with %s ESTABLISHED\n",
-					print_mac(mac, sta->sta.addr));
+			mpl_dbg("Mesh plink with %pM ESTABLISHED\n",
+				sta->sta.addr);
 			mesh_plink_frame_tx(sdata, PLINK_CONFIRM, sta->sta.addr, llid,
 					    plid, 0);
 			break;
