@@ -189,8 +189,8 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 }
 EXPORT_SYMBOL(of_create_pci_dev);
 
-void __devinit of_scan_bus(struct device_node *node,
-			   struct pci_bus *bus)
+static void __devinit __of_scan_bus(struct device_node *node,
+				    struct pci_bus *bus, int rescan_existing)
 {
 	struct device_node *child;
 	const u32 *reg;
@@ -215,8 +215,12 @@ void __devinit of_scan_bus(struct device_node *node,
 		pr_debug("    dev header type: %x\n", dev->hdr_type);
 	}
 
-	/* Ally all fixups */
-	pcibios_fixup_of_probed_bus(bus);
+	/* Apply all fixups necessary. We don't fixup the bus "self"
+	 * for an existing bridge that is being rescanned
+	 */
+	if (!rescan_existing)
+		pcibios_setup_bus_self(bus);
+	pcibios_setup_bus_devices(bus);
 
 	/* Now scan child busses */
 	list_for_each_entry(dev, &bus->devices, bus_list) {
@@ -228,7 +232,20 @@ void __devinit of_scan_bus(struct device_node *node,
 		}
 	}
 }
-EXPORT_SYMBOL(of_scan_bus);
+
+void __devinit of_scan_bus(struct device_node *node,
+			   struct pci_bus *bus)
+{
+	__of_scan_bus(node, bus, 0);
+}
+EXPORT_SYMBOL_GPL(of_scan_bus);
+
+void __devinit of_rescan_bus(struct device_node *node,
+			     struct pci_bus *bus)
+{
+	__of_scan_bus(node, bus, 1);
+}
+EXPORT_SYMBOL_GPL(of_rescan_bus);
 
 void __devinit of_scan_pci_bridge(struct device_node *node,
 				  struct pci_dev *dev)

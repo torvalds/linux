@@ -17,8 +17,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#ifndef _PPC64_EEH_H
-#define _PPC64_EEH_H
+#ifndef _POWERPC_EEH_H
+#define _POWERPC_EEH_H
 #ifdef __KERNEL__
 
 #include <linux/init.h>
@@ -110,6 +110,7 @@ static inline void eeh_remove_bus_device(struct pci_dev *dev) { }
 #define EEH_IO_ERROR_VALUE(size) (-1UL)
 #endif /* CONFIG_EEH */
 
+#ifdef CONFIG_PPC64
 /*
  * MMIO read/write operations with EEH support.
  */
@@ -207,5 +208,6 @@ static inline void eeh_readsl(const volatile void __iomem *addr, void * buf,
 		eeh_check_failure(addr, *(u32*)buf);
 }
 
+#endif /* CONFIG_PPC64 */
 #endif /* __KERNEL__ */
-#endif /* _PPC64_EEH_H */
+#endif /* _POWERPC_EEH_H */

@@ -37,6 +37,7 @@
 #include <asm/machdep.h>
 #include <asm/ppc-pci.h>
 #include <asm/firmware.h>
+#include <asm/eeh.h>
 
 static DEFINE_SPINLOCK(hose_spinlock);
 
@@ -1074,30 +1075,16 @@ static void __devinit pcibios_fixup_bridge(struct pci_bus *bus)
 	}
 }
 
-static void __devinit __pcibios_fixup_bus(struct pci_bus *bus)
+void __devinit pcibios_setup_bus_devices(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 
 	pr_debug("PCI: Fixup bus %d (%s)\n",
 		 bus->number, bus->self ? pci_name(bus->self) : "PHB");
 
-	/* Fixup PCI<->PCI bridges. Host bridges are handled separately, for
-	 * now differently between 32 and 64 bits.
-	 */
-	if (bus->self != NULL)
-		pcibios_fixup_bridge(bus);
-
-	/* Setup bus DMA mappings */
-	if (ppc_md.pci_dma_bus_setup)
-		ppc_md.pci_dma_bus_setup(bus);
-
 	/* Setup DMA for all PCI devices on that bus */
 	list_for_each_entry(dev, &bus->devices, bus_list)
 		pcibios_setup_new_device(dev);
-
-	/* Platform specific bus fixups */
-	if (ppc_md.pcibios_fixup_bus)
-		ppc_md.pcibios_fixup_bus(bus);
 
 	/* Read default IRQs and fixup if necessary */
 	list_for_each_entry(dev, &bus->devices, bus_list) {
@@ -1107,25 +1094,39 @@ static void __devinit __pcibios_fixup_bus(struct pci_bus *bus)
 	}
 }
 
+void __devinit pcibios_setup_bus_self(struct pci_bus *bus)
+{
+	/* Fix up the bus resources */
+	if (bus->self != NULL)
+		pcibios_fixup_bridge(bus);
+
+	/* Platform specific bus fixups. This is currently only used
+	 * by fsl_pci and I'm hoping getting rid of it at some point
+	 */
+	if (ppc_md.pcibios_fixup_bus)
+		ppc_md.pcibios_fixup_bus(bus);
+
+	/* Setup bus DMA mappings */
+	if (ppc_md.pci_dma_bus_setup)
+		ppc_md.pci_dma_bus_setup(bus);
+}
+
 void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 {
 	/* When called from the generic PCI probe, read PCI<->PCI bridge
-	 * bases before proceeding
+	 * bases. This isn't called when generating the PCI tree from
+	 * the OF device-tree.
 	 */
 	if (bus->self != NULL)
 		pci_read_bridge_bases(bus);
-	__pcibios_fixup_bus(bus);
+
+	/* Now fixup the bus bus */
+	pcibios_setup_bus_self(bus);
+
+	/* Now fixup devices on that bus */
+	pcibios_setup_bus_devices(bus);
 }
 EXPORT_SYMBOL(pcibios_fixup_bus);
-
-/* When building a bus from the OF tree rather than probing, we need a
- * slightly different version of the fixup which doesn't read the
- * bridge bases using config space accesses
- */
-void __devinit pcibios_fixup_of_probed_bus(struct pci_bus *bus)
-{
-	__pcibios_fixup_bus(bus);
-}
 
 static int skip_isa_ioresource_align(struct pci_dev *dev)
 {
@@ -1392,6 +1393,7 @@ void __init pcibios_resource_survey(void)
 }
 
 #ifdef CONFIG_HOTPLUG
+
 /* This is used by the pSeries hotplug driver to allocate resource
  * of newly plugged busses. We can try to consolidate with the
  * rest of the code later, for now, keep it as-is
