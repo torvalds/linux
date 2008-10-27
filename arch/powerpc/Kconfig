@@ -230,6 +230,8 @@ config PPC_OF_PLATFORM_PCI
 
 source "init/Kconfig"
 
+source "kernel/Kconfig.freezer"
+
 source "arch/powerpc/sysdev/Kconfig"
 source "arch/powerpc/platforms/Kconfig"
 

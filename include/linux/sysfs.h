@@ -21,8 +21,9 @@ struct kobject;
 struct module;
 
 /* FIXME
- * The *owner field is no longer used, but leave around
- * until the tree gets cleaned up fully.
+ * The *owner field is no longer used.
+ * x86 tree has been cleaned up. The owner
+ * attribute is still left for other arches.
  */
 struct attribute {
 	const char		*name;

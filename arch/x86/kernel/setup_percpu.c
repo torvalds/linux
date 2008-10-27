@@ -140,25 +140,30 @@ static void __init setup_cpu_pda_map(void)
  */
 void __init setup_per_cpu_areas(void)
 {
-	ssize_t size = PERCPU_ENOUGH_ROOM;
+	ssize_t size, old_size;
 	char *ptr;
 	int cpu;
+	unsigned long align = 1;
 
 	/* Setup cpu_pda map */
 	setup_cpu_pda_map();
 
 	/* Copy section for each CPU (we discard the original) */
-	size = PERCPU_ENOUGH_ROOM;
+	old_size = PERCPU_ENOUGH_ROOM;
+	align = max_t(unsigned long, PAGE_SIZE, align);
+	size = roundup(old_size, align);
 	printk(KERN_INFO "PERCPU: Allocating %zd bytes of per cpu data\n",
 			  size);
 
 	for_each_possible_cpu(cpu) {
 #ifndef CONFIG_NEED_MULTIPLE_NODES
-		ptr = alloc_bootmem_pages(size);
+		ptr = __alloc_bootmem(size, align,
+				 __pa(MAX_DMA_ADDRESS));
 #else
 		int node = early_cpu_to_node(cpu);
 		if (!node_online(node) || !NODE_DATA(node)) {
-			ptr = alloc_bootmem_pages(size);
+			ptr = __alloc_bootmem(size, align,
+					 __pa(MAX_DMA_ADDRESS));
 			printk(KERN_INFO
 			       "cpu %d has no node %d or node-local memory\n",
 				cpu, node);
@@ -167,7 +172,8 @@ void __init setup_per_cpu_areas(void)
 					 cpu, __pa(ptr));
 		}
 		else {
-			ptr = alloc_bootmem_pages_node(NODE_DATA(node), size);
+			ptr = __alloc_bootmem_node(NODE_DATA(node), size, align,
+							__pa(MAX_DMA_ADDRESS));
 			if (ptr)
 				printk(KERN_DEBUG "per cpu data for cpu%d on node%d at %016lx\n",
 					 cpu, node, __pa(ptr));
@@ -175,7 +181,6 @@ void __init setup_per_cpu_areas(void)
 #endif
 		per_cpu_offset(cpu) = ptr - __per_cpu_start;
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
-
 	}
 
 	printk(KERN_DEBUG "NR_CPUS: %d, nr_cpu_ids: %d, nr_node_ids %d\n",

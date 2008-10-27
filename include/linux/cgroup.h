@@ -9,12 +9,12 @@
  */
 
 #include <linux/sched.h>
-#include <linux/kref.h>
 #include <linux/cpumask.h>
 #include <linux/nodemask.h>
 #include <linux/rcupdate.h>
 #include <linux/cgroupstats.h>
 #include <linux/prio_heap.h>
+#include <linux/rwsem.h>
 
 #ifdef CONFIG_CGROUPS
 
@@ -137,6 +137,15 @@ struct cgroup {
 	 * release_list_lock
 	 */
 	struct list_head release_list;
+
+	/* pids_mutex protects the fields below */
+	struct rw_semaphore pids_mutex;
+	/* Array of process ids in the cgroup */
+	pid_t *tasks_pids;
+	/* How many files are using the current tasks_pids array */
+	int pids_use_count;
+	/* Length of the current tasks_pids array */
+	int pids_length;
 };
 
 /* A css_set is a structure holding pointers to a set of
@@ -149,7 +158,7 @@ struct cgroup {
 struct css_set {
 
 	/* Reference count */
-	struct kref ref;
+	atomic_t refcount;
 
 	/*
 	 * List running through all cgroup groups in the same hash
@@ -394,6 +403,9 @@ void cgroup_iter_end(struct cgroup *cgrp, struct cgroup_iter *it);
 int cgroup_scan_tasks(struct cgroup_scanner *scan);
 int cgroup_attach_task(struct cgroup *, struct task_struct *);
 
+void cgroup_mm_owner_callbacks(struct task_struct *old,
+			       struct task_struct *new);
+
 #else /* !CONFIG_CGROUPS */
 
 static inline int cgroup_init_early(void) { return 0; }
@@ -412,15 +424,9 @@ static inline int cgroupstats_build(struct cgroupstats *stats,
 	return -EINVAL;
 }
 
+static inline void cgroup_mm_owner_callbacks(struct task_struct *old,
+					     struct task_struct *new) {}
+
 #endif /* !CONFIG_CGROUPS */
 
-#ifdef CONFIG_MM_OWNER
-extern void
-cgroup_mm_owner_callbacks(struct task_struct *old, struct task_struct *new);
-#else /* !CONFIG_MM_OWNER */
-static inline void
-cgroup_mm_owner_callbacks(struct task_struct *old, struct task_struct *new)
-{
-}
-#endif /* CONFIG_MM_OWNER */
 #endif /* _LINUX_CGROUP_H */

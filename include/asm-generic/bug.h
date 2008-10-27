@@ -41,7 +41,7 @@ extern void warn_slowpath(const char *file, const int line,
 #define __WARN() warn_on_slowpath(__FILE__, __LINE__)
 #define __WARN_printf(arg...) warn_slowpath(__FILE__, __LINE__, arg)
 #else
-#define __WARN_printf(arg...) __WARN()
+#define __WARN_printf(arg...) do { printk(arg); __WARN(); } while (0)
 #endif
 
 #ifndef WARN_ON

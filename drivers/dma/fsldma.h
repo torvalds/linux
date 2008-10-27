@@ -114,6 +114,7 @@ struct fsl_dma_device {
 	struct dma_device common;
 	struct fsl_dma_chan *chan[FSL_DMA_MAX_CHANS_PER_DEVICE];
 	u32 feature;		/* The same as DMA channels */
+	int irq;		/* Channel IRQ */
 };
 
 /* Define macros for fsl_dma_chan->feature property */

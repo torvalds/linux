@@ -26,6 +26,7 @@ config X86
 	select HAVE_KPROBES
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select HAVE_KRETPROBES
+	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE
 	select HAVE_KVM if ((X86_32 && !X86_VOYAGER && !X86_VISWS && !X86_NUMAQ) || X86_64)
@@ -193,6 +194,7 @@ config X86_TRAMPOLINE
 config KTIME_SCALAR
 	def_bool X86_32
 source "init/Kconfig"
+source "kernel/Kconfig.freezer"
 
 menu "Processor type and features"
 
@@ -1240,14 +1242,6 @@ config EFI
   	of EFI runtime services. However, even with this option, the
   	resultant kernel should continue to boot on existing non-EFI
   	platforms.
-
-config IRQBALANCE
-	def_bool y
-	prompt "Enable kernel irq balancing"
-	depends on X86_32 && SMP && X86_IO_APIC
-	help
-	  The default yes will allow the kernel to do irq load balancing.
-	  Saying no will keep the kernel from doing irq load balancing.
 
 config SECCOMP
 	def_bool y

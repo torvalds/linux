@@ -1403,9 +1403,7 @@ void hrtimer_run_queues(void)
 		if (!base->first)
 			continue;
 
-		if (base->get_softirq_time)
-			base->softirq_time = base->get_softirq_time();
-		else if (gettime) {
+		if (gettime) {
 			hrtimer_get_softirq_time(cpu_base);
 			gettime = 0;
 		}
@@ -1688,9 +1686,11 @@ static void migrate_hrtimers(int cpu)
 	new_base = &get_cpu_var(hrtimer_bases);
 
 	tick_cancel_sched_timer(cpu);
-
-	local_irq_disable();
-	spin_lock(&new_base->lock);
+	/*
+	 * The caller is globally serialized and nobody else
+	 * takes two locks at once, deadlock is not possible.
+	 */
+	spin_lock_irq(&new_base->lock);
 	spin_lock_nested(&old_base->lock, SINGLE_DEPTH_NESTING);
 
 	for (i = 0; i < HRTIMER_MAX_CLOCK_BASES; i++) {
@@ -1703,8 +1703,7 @@ static void migrate_hrtimers(int cpu)
 		raise = 1;
 
 	spin_unlock(&old_base->lock);
-	spin_unlock(&new_base->lock);
-	local_irq_enable();
+	spin_unlock_irq(&new_base->lock);
 	put_cpu_var(hrtimer_bases);
 
 	if (raise)

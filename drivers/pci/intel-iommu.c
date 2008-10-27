@@ -563,7 +563,7 @@ static int __iommu_flush_context(struct intel_iommu *iommu,
 
 	spin_unlock_irqrestore(&iommu->register_lock, flag);
 
-	/* flush context entry will implictly flush write buffer */
+	/* flush context entry will implicitly flush write buffer */
 	return 0;
 }
 
@@ -656,7 +656,7 @@ static int __iommu_flush_iotlb(struct intel_iommu *iommu, u16 did,
 	if (DMA_TLB_IAIG(val) != DMA_TLB_IIRG(type))
 		pr_debug("IOMMU: tlb flush request %Lx, actual %Lx\n",
 			DMA_TLB_IIRG(type), DMA_TLB_IAIG(val));
-	/* flush context entry will implictly flush write buffer */
+	/* flush iotlb entry will implicitly flush write buffer */
 	return 0;
 }
 

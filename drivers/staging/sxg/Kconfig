@@ -1,6 +1,7 @@
 config SXG
 	tristate "Alacritech SLIC Technology Non-Accelerated 10Gbe support"
 	depends on PCI && NETDEV_10000
+	depends on X86
 	default n
 	help
 	  This driver supports the Alacritech SLIC Technology Non-Accelerated

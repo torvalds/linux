@@ -3,6 +3,9 @@
  *
  *  Copyright (C) 2004-2006 maintech GmbH, Thomas Kleffel <tk@maintech.de>
  *
+ * Current driver maintained by Ben Dooks and Simtec Electronics
+ *  Copyright (C) 2008 Simtec Electronics <ben-linux@fluff.org>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -13,6 +16,7 @@
 #include <linux/clk.h>
 #include <linux/mmc/host.h>
 #include <linux/platform_device.h>
+#include <linux/cpufreq.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 
@@ -39,9 +43,9 @@ enum dbg_channels {
 	dbg_conf  = (1 << 8),
 };
 
-static const int dbgmap_err   = dbg_err | dbg_fail;
+static const int dbgmap_err   = dbg_fail;
 static const int dbgmap_info  = dbg_info | dbg_conf;
-static const int dbgmap_debug = dbg_debug;
+static const int dbgmap_debug = dbg_err | dbg_debug;
 
 #define dbg(host, channels, args...)		  \
 	do {					  \
@@ -189,7 +193,7 @@ static inline void clear_imask(struct s3cmci_host *host)
 }
 
 static inline int get_data_buffer(struct s3cmci_host *host,
-				  u32 *words, u32 **pointer)
+				  u32 *bytes, u32 **pointer)
 {
 	struct scatterlist *sg;
 
@@ -206,7 +210,7 @@ static inline int get_data_buffer(struct s3cmci_host *host,
 	}
 	sg = &host->mrq->data->sg[host->pio_sgptr];
 
-	*words = sg->length >> 2;
+	*bytes = sg->length;
 	*pointer = sg_virt(sg);
 
 	host->pio_sgptr++;
@@ -222,7 +226,7 @@ static inline u32 fifo_count(struct s3cmci_host *host)
 	u32 fifostat = readl(host->base + S3C2410_SDIFSTA);
 
 	fifostat &= S3C2410_SDIFSTA_COUNTMASK;
-	return fifostat >> 2;
+	return fifostat;
 }
 
 static inline u32 fifo_free(struct s3cmci_host *host)
@@ -230,13 +234,15 @@ static inline u32 fifo_free(struct s3cmci_host *host)
 	u32 fifostat = readl(host->base + S3C2410_SDIFSTA);
 
 	fifostat &= S3C2410_SDIFSTA_COUNTMASK;
-	return (63 - fifostat) >> 2;
+	return 63 - fifostat;
 }
 
 static void do_pio_read(struct s3cmci_host *host)
 {
 	int res;
 	u32 fifo;
+	u32 *ptr;
+	u32 fifo_words;
 	void __iomem *from_ptr;
 
 	/* write real prescaler to host, it might be set slow to fix */
@@ -245,8 +251,8 @@ static void do_pio_read(struct s3cmci_host *host)
 	from_ptr = host->base + host->sdidata;
 
 	while ((fifo = fifo_count(host))) {
-		if (!host->pio_words) {
-			res = get_data_buffer(host, &host->pio_words,
+		if (!host->pio_bytes) {
+			res = get_data_buffer(host, &host->pio_bytes,
 					      &host->pio_ptr);
 			if (res) {
 				host->pio_active = XFER_NONE;
@@ -259,26 +265,47 @@ static void do_pio_read(struct s3cmci_host *host)
 
 			dbg(host, dbg_pio,
 			    "pio_read(): new target: [%i]@[%p]\n",
-			    host->pio_words, host->pio_ptr);
+			    host->pio_bytes, host->pio_ptr);
 		}
 
 		dbg(host, dbg_pio,
 		    "pio_read(): fifo:[%02i] buffer:[%03i] dcnt:[%08X]\n",
-		    fifo, host->pio_words,
+		    fifo, host->pio_bytes,
 		    readl(host->base + S3C2410_SDIDCNT));
 
-		if (fifo > host->pio_words)
-			fifo = host->pio_words;
+		/* If we have reached the end of the block, we can
+		 * read a word and get 1 to 3 bytes.  If we in the
+		 * middle of the block, we have to read full words,
+		 * otherwise we will write garbage, so round down to
+		 * an even multiple of 4. */
+		if (fifo >= host->pio_bytes)
+			fifo = host->pio_bytes;
+		else
+			fifo -= fifo & 3;
 
-		host->pio_words -= fifo;
+		host->pio_bytes -= fifo;
 		host->pio_count += fifo;
 
-		while (fifo--)
-			*(host->pio_ptr++) = readl(from_ptr);
+		fifo_words = fifo >> 2;
+		ptr = host->pio_ptr;
+		while (fifo_words--)
+			*ptr++ = readl(from_ptr);
+		host->pio_ptr = ptr;
+
+		if (fifo & 3) {
+			u32 n = fifo & 3;
+			u32 data = readl(from_ptr);
+			u8 *p = (u8 *)host->pio_ptr;
+
+			while (n--) {
+				*p++ = data;
+				data >>= 8;
+			}
+		}
 	}
 
-	if (!host->pio_words) {
-		res = get_data_buffer(host, &host->pio_words, &host->pio_ptr);
+	if (!host->pio_bytes) {
+		res = get_data_buffer(host, &host->pio_bytes, &host->pio_ptr);
 		if (res) {
 			dbg(host, dbg_pio,
 			    "pio_read(): complete (no more buffers).\n");
@@ -298,12 +325,13 @@ static void do_pio_write(struct s3cmci_host *host)
 	void __iomem *to_ptr;
 	int res;
 	u32 fifo;
+	u32 *ptr;
 
 	to_ptr = host->base + host->sdidata;
 
 	while ((fifo = fifo_free(host))) {
-		if (!host->pio_words) {
-			res = get_data_buffer(host, &host->pio_words,
+		if (!host->pio_bytes) {
+			res = get_data_buffer(host, &host->pio_bytes,
 							&host->pio_ptr);
 			if (res) {
 				dbg(host, dbg_pio,
@@ -315,18 +343,27 @@ static void do_pio_write(struct s3cmci_host *host)
 
 			dbg(host, dbg_pio,
 			    "pio_write(): new source: [%i]@[%p]\n",
-			    host->pio_words, host->pio_ptr);
+			    host->pio_bytes, host->pio_ptr);
 
 		}
 
-		if (fifo > host->pio_words)
-			fifo = host->pio_words;
+		/* If we have reached the end of the block, we have to
+		 * write exactly the remaining number of bytes.  If we
+		 * in the middle of the block, we have to write full
+		 * words, so round down to an even multiple of 4. */
+		if (fifo >= host->pio_bytes)
+			fifo = host->pio_bytes;
+		else
+			fifo -= fifo & 3;
 
-		host->pio_words -= fifo;
+		host->pio_bytes -= fifo;
 		host->pio_count += fifo;
 
+		fifo = (fifo + 3) >> 2;
+		ptr = host->pio_ptr;
 		while (fifo--)
-			writel(*(host->pio_ptr++), to_ptr);
+			writel(*ptr++, to_ptr);
+		host->pio_ptr = ptr;
 	}
 
 	enable_imask(host, S3C2410_SDIIMSK_TXFIFOHALF);
@@ -349,9 +386,9 @@ static void pio_tasklet(unsigned long data)
 		clear_imask(host);
 		if (host->pio_active != XFER_NONE) {
 			dbg(host, dbg_err, "unfinished %s "
-			    "- pio_count:[%u] pio_words:[%u]\n",
+			    "- pio_count:[%u] pio_bytes:[%u]\n",
 			    (host->pio_active == XFER_READ) ? "read" : "write",
-			    host->pio_count, host->pio_words);
+			    host->pio_count, host->pio_bytes);
 
 			if (host->mrq->data)
 				host->mrq->data->error = -EINVAL;
@@ -812,11 +849,10 @@ static int s3cmci_setup_data(struct s3cmci_host *host, struct mmc_data *data)
 		/* We cannot deal with unaligned blocks with more than
 		 * one block being transfered. */
 
-		if (data->blocks > 1)
+		if (data->blocks > 1) {
+			pr_warning("%s: can't do non-word sized block transfers (blksz %d)\n", __func__, data->blksz);
 			return -EINVAL;
-
-		/* No support yet for non-word block transfers. */
-		return -EINVAL;
+		}
 	}
 
 	while (readl(host->base + S3C2410_SDIDSTA) &
@@ -896,7 +932,7 @@ static int s3cmci_prepare_pio(struct s3cmci_host *host, struct mmc_data *data)
 	BUG_ON((data->flags & BOTH_DIR) == BOTH_DIR);
 
 	host->pio_sgptr = 0;
-	host->pio_words = 0;
+	host->pio_bytes = 0;
 	host->pio_count = 0;
 	host->pio_active = rw ? XFER_WRITE : XFER_READ;
 
@@ -1033,10 +1069,33 @@ static void s3cmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		s3cmci_send_request(mmc);
 }
 
+static void s3cmci_set_clk(struct s3cmci_host *host, struct mmc_ios *ios)
+{
+	u32 mci_psc;
+
+	/* Set clock */
+	for (mci_psc = 0; mci_psc < 255; mci_psc++) {
+		host->real_rate = host->clk_rate / (host->clk_div*(mci_psc+1));
+
+		if (host->real_rate <= ios->clock)
+			break;
+	}
+
+	if (mci_psc > 255)
+		mci_psc = 255;
+
+	host->prescaler = mci_psc;
+	writel(host->prescaler, host->base + S3C2410_SDIPRE);
+
+	/* If requested clock is 0, real_rate will be 0, too */
+	if (ios->clock == 0)
+		host->real_rate = 0;
+}
+
 static void s3cmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct s3cmci_host *host = mmc_priv(mmc);
-	u32 mci_psc, mci_con;
+	u32 mci_con;
 
 	/* Set the power state */
 
@@ -1074,23 +1133,7 @@ static void s3cmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		break;
 	}
 
-	/* Set clock */
-	for (mci_psc = 0; mci_psc < 255; mci_psc++) {
-		host->real_rate = host->clk_rate / (host->clk_div*(mci_psc+1));
-
-		if (host->real_rate <= ios->clock)
-			break;
-	}
-
-	if (mci_psc > 255)
-		mci_psc = 255;
-
-	host->prescaler = mci_psc;
-	writel(host->prescaler, host->base + S3C2410_SDIPRE);
-
-	/* If requested clock is 0, real_rate will be 0, too */
-	if (ios->clock == 0)
-		host->real_rate = 0;
+	s3cmci_set_clk(host, ios);
 
 	/* Set CLOCK_ENABLE */
 	if (ios->clock)
@@ -1147,6 +1190,61 @@ static struct s3c24xx_mci_pdata s3cmci_def_pdata = {
 	/* This is currently here to avoid a number of if (host->pdata)
 	 * checks. Any zero fields to ensure reaonable defaults are picked. */
 };
+
+#ifdef CONFIG_CPU_FREQ
+
+static int s3cmci_cpufreq_transition(struct notifier_block *nb,
+				     unsigned long val, void *data)
+{
+	struct s3cmci_host *host;
+	struct mmc_host *mmc;
+	unsigned long newclk;
+	unsigned long flags;
+
+	host = container_of(nb, struct s3cmci_host, freq_transition);
+	newclk = clk_get_rate(host->clk);
+	mmc = host->mmc;
+
+	if ((val == CPUFREQ_PRECHANGE && newclk > host->clk_rate) ||
+	    (val == CPUFREQ_POSTCHANGE && newclk < host->clk_rate)) {
+		spin_lock_irqsave(&mmc->lock, flags);
+
+		host->clk_rate = newclk;
+
+		if (mmc->ios.power_mode != MMC_POWER_OFF &&
+		    mmc->ios.clock != 0)
+			s3cmci_set_clk(host, &mmc->ios);
+
+		spin_unlock_irqrestore(&mmc->lock, flags);
+	}
+
+	return 0;
+}
+
+static inline int s3cmci_cpufreq_register(struct s3cmci_host *host)
+{
+	host->freq_transition.notifier_call = s3cmci_cpufreq_transition;
+
+	return cpufreq_register_notifier(&host->freq_transition,
+					 CPUFREQ_TRANSITION_NOTIFIER);
+}
+
+static inline void s3cmci_cpufreq_deregister(struct s3cmci_host *host)
+{
+	cpufreq_unregister_notifier(&host->freq_transition,
+				    CPUFREQ_TRANSITION_NOTIFIER);
+}
+
+#else
+static inline int s3cmci_cpufreq_register(struct s3cmci_host *host)
+{
+	return 0;
+}
+
+static inline void s3cmci_cpufreq_deregister(struct s3cmci_host *host)
+{
+}
+#endif
 
 static int __devinit s3cmci_probe(struct platform_device *pdev, int is2440)
 {
@@ -1298,16 +1396,25 @@ static int __devinit s3cmci_probe(struct platform_device *pdev, int is2440)
 	    (host->is2440?"2440":""),
 	    host->base, host->irq, host->irq_cd, host->dma);
 
+	ret = s3cmci_cpufreq_register(host);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register cpufreq\n");
+		goto free_dmabuf;
+	}
+
 	ret = mmc_add_host(mmc);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add mmc host.\n");
-		goto free_dmabuf;
+		goto free_cpufreq;
 	}
 
 	platform_set_drvdata(pdev, mmc);
 	dev_info(&pdev->dev, "initialisation done.\n");
 
 	return 0;
+
+ free_cpufreq:
+	s3cmci_cpufreq_deregister(host);
 
  free_dmabuf:
 	clk_disable(host->clk);
@@ -1342,6 +1449,7 @@ static void s3cmci_shutdown(struct platform_device *pdev)
 	if (host->irq_cd >= 0)
 		free_irq(host->irq_cd, host);
 
+	s3cmci_cpufreq_deregister(host);
 	mmc_remove_host(mmc);
 	clk_disable(host->clk);
 }
@@ -1455,7 +1563,7 @@ module_exit(s3cmci_exit);
 
 MODULE_DESCRIPTION("Samsung S3C MMC/SD Card Interface driver");
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Thomas Kleffel <tk@maintech.de>");
+MODULE_AUTHOR("Thomas Kleffel <tk@maintech.de>, Ben Dooks <ben-linux@fluff.org>");
 MODULE_ALIAS("platform:s3c2410-sdi");
 MODULE_ALIAS("platform:s3c2412-sdi");
 MODULE_ALIAS("platform:s3c2440-sdi");

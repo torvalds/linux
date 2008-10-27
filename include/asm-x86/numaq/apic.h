@@ -12,8 +12,6 @@ static inline cpumask_t target_cpus(void)
 	return CPU_MASK_ALL;
 }
 
-#define TARGET_CPUS (target_cpus())
-
 #define NO_BALANCE_IRQ (1)
 #define esr_disable (1)
 

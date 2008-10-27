@@ -39,18 +39,6 @@ struct anon_vma {
 
 #ifdef CONFIG_MMU
 
-extern struct kmem_cache *anon_vma_cachep;
-
-static inline struct anon_vma *anon_vma_alloc(void)
-{
-	return kmem_cache_alloc(anon_vma_cachep, GFP_KERNEL);
-}
-
-static inline void anon_vma_free(struct anon_vma *anon_vma)
-{
-	kmem_cache_free(anon_vma_cachep, anon_vma);
-}
-
 static inline void anon_vma_lock(struct vm_area_struct *vma)
 {
 	struct anon_vma *anon_vma = vma->anon_vma;
@@ -74,6 +62,9 @@ void __anon_vma_merge(struct vm_area_struct *, struct vm_area_struct *);
 void anon_vma_unlink(struct vm_area_struct *);
 void anon_vma_link(struct vm_area_struct *);
 void __anon_vma_link(struct vm_area_struct *);
+
+extern struct anon_vma *page_lock_anon_vma(struct page *page);
+extern void page_unlock_anon_vma(struct anon_vma *anon_vma);
 
 /*
  * rmap interfaces called when adding or removing pte of page
@@ -117,6 +108,19 @@ unsigned long page_address_in_vma(struct page *, struct vm_area_struct *);
  */
 int page_mkclean(struct page *);
 
+#ifdef CONFIG_UNEVICTABLE_LRU
+/*
+ * called in munlock()/munmap() path to check for other vmas holding
+ * the page mlocked.
+ */
+int try_to_munlock(struct page *);
+#else
+static inline int try_to_munlock(struct page *page)
+{
+	return 0;	/* a.k.a. SWAP_SUCCESS */
+}
+#endif
+
 #else	/* !CONFIG_MMU */
 
 #define anon_vma_init()		do {} while (0)
@@ -140,5 +144,6 @@ static inline int page_mkclean(struct page *page)
 #define SWAP_SUCCESS	0
 #define SWAP_AGAIN	1
 #define SWAP_FAIL	2
+#define SWAP_MLOCK	3
 
 #endif	/* _LINUX_RMAP_H */

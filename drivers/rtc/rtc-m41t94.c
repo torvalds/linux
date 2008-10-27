@@ -41,17 +41,17 @@ static int m41t94_set_time(struct device *dev, struct rtc_time *tm)
 		tm->tm_mon, tm->tm_year, tm->tm_wday);
 
 	buf[0] = 0x80 | M41T94_REG_SECONDS; /* write time + date */
-	buf[M41T94_REG_SECONDS] = BIN2BCD(tm->tm_sec);
-	buf[M41T94_REG_MINUTES] = BIN2BCD(tm->tm_min);
-	buf[M41T94_REG_HOURS]   = BIN2BCD(tm->tm_hour);
-	buf[M41T94_REG_WDAY]    = BIN2BCD(tm->tm_wday + 1);
-	buf[M41T94_REG_DAY]     = BIN2BCD(tm->tm_mday);
-	buf[M41T94_REG_MONTH]   = BIN2BCD(tm->tm_mon + 1);
+	buf[M41T94_REG_SECONDS] = bin2bcd(tm->tm_sec);
+	buf[M41T94_REG_MINUTES] = bin2bcd(tm->tm_min);
+	buf[M41T94_REG_HOURS]   = bin2bcd(tm->tm_hour);
+	buf[M41T94_REG_WDAY]    = bin2bcd(tm->tm_wday + 1);
+	buf[M41T94_REG_DAY]     = bin2bcd(tm->tm_mday);
+	buf[M41T94_REG_MONTH]   = bin2bcd(tm->tm_mon + 1);
 
 	buf[M41T94_REG_HOURS] |= M41T94_BIT_CEB;
 	if (tm->tm_year >= 100)
 		buf[M41T94_REG_HOURS] |= M41T94_BIT_CB;
-	buf[M41T94_REG_YEAR] = BIN2BCD(tm->tm_year % 100);
+	buf[M41T94_REG_YEAR] = bin2bcd(tm->tm_year % 100);
 
 	return spi_write(spi, buf, 8);
 }
@@ -82,14 +82,14 @@ static int m41t94_read_time(struct device *dev, struct rtc_time *tm)
 		spi_write(spi, buf, 2);
 	}
 
-	tm->tm_sec  = BCD2BIN(spi_w8r8(spi, M41T94_REG_SECONDS));
-	tm->tm_min  = BCD2BIN(spi_w8r8(spi, M41T94_REG_MINUTES));
+	tm->tm_sec  = bcd2bin(spi_w8r8(spi, M41T94_REG_SECONDS));
+	tm->tm_min  = bcd2bin(spi_w8r8(spi, M41T94_REG_MINUTES));
 	hour = spi_w8r8(spi, M41T94_REG_HOURS);
-	tm->tm_hour = BCD2BIN(hour & 0x3f);
-	tm->tm_wday = BCD2BIN(spi_w8r8(spi, M41T94_REG_WDAY)) - 1;
-	tm->tm_mday = BCD2BIN(spi_w8r8(spi, M41T94_REG_DAY));
-	tm->tm_mon  = BCD2BIN(spi_w8r8(spi, M41T94_REG_MONTH)) - 1;
-	tm->tm_year = BCD2BIN(spi_w8r8(spi, M41T94_REG_YEAR));
+	tm->tm_hour = bcd2bin(hour & 0x3f);
+	tm->tm_wday = bcd2bin(spi_w8r8(spi, M41T94_REG_WDAY)) - 1;
+	tm->tm_mday = bcd2bin(spi_w8r8(spi, M41T94_REG_DAY));
+	tm->tm_mon  = bcd2bin(spi_w8r8(spi, M41T94_REG_MONTH)) - 1;
+	tm->tm_year = bcd2bin(spi_w8r8(spi, M41T94_REG_YEAR));
 	if ((hour & M41T94_BIT_CB) || !(hour & M41T94_BIT_CEB))
 		tm->tm_year += 100;
 

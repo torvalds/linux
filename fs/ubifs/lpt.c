@@ -109,7 +109,8 @@ static void do_calc_lpt_geom(struct ubifs_info *c)
 	c->lpt_sz = (long long)c->pnode_cnt * c->pnode_sz;
 	c->lpt_sz += (long long)c->nnode_cnt * c->nnode_sz;
 	c->lpt_sz += c->ltab_sz;
-	c->lpt_sz += c->lsave_sz;
+	if (c->big_lpt)
+		c->lpt_sz += c->lsave_sz;
 
 	/* Add wastage */
 	sz = c->lpt_sz;
@@ -287,25 +288,56 @@ uint32_t ubifs_unpack_bits(uint8_t **addr, int *pos, int nrbits)
 	const int k = 32 - nrbits;
 	uint8_t *p = *addr;
 	int b = *pos;
-	uint32_t val;
+	uint32_t uninitialized_var(val);
+	const int bytes = (nrbits + b + 7) >> 3;
 
 	ubifs_assert(nrbits > 0);
 	ubifs_assert(nrbits <= 32);
 	ubifs_assert(*pos >= 0);
 	ubifs_assert(*pos < 8);
 	if (b) {
-		val = p[1] | ((uint32_t)p[2] << 8) | ((uint32_t)p[3] << 16) |
-		      ((uint32_t)p[4] << 24);
+		switch (bytes) {
+		case 2:
+			val = p[1];
+			break;
+		case 3:
+			val = p[1] | ((uint32_t)p[2] << 8);
+			break;
+		case 4:
+			val = p[1] | ((uint32_t)p[2] << 8) |
+				     ((uint32_t)p[3] << 16);
+			break;
+		case 5:
+			val = p[1] | ((uint32_t)p[2] << 8) |
+				     ((uint32_t)p[3] << 16) |
+				     ((uint32_t)p[4] << 24);
+		}
 		val <<= (8 - b);
 		val |= *p >> b;
 		nrbits += b;
-	} else
-		val = p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) |
-		      ((uint32_t)p[3] << 24);
+	} else {
+		switch (bytes) {
+		case 1:
+			val = p[0];
+			break;
+		case 2:
+			val = p[0] | ((uint32_t)p[1] << 8);
+			break;
+		case 3:
+			val = p[0] | ((uint32_t)p[1] << 8) |
+				     ((uint32_t)p[2] << 16);
+			break;
+		case 4:
+			val = p[0] | ((uint32_t)p[1] << 8) |
+				     ((uint32_t)p[2] << 16) |
+				     ((uint32_t)p[3] << 24);
+			break;
+		}
+	}
 	val <<= k;
 	val >>= k;
 	b = nrbits & 7;
-	p += nrbits / 8;
+	p += nrbits >> 3;
 	*addr = p;
 	*pos = b;
 	ubifs_assert((val >> nrbits) == 0 || nrbits - b == 32);

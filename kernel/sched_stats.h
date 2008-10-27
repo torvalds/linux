@@ -270,3 +270,89 @@ sched_info_switch(struct task_struct *prev, struct task_struct *next)
 #define sched_info_switch(t, next)		do { } while (0)
 #endif /* CONFIG_SCHEDSTATS || CONFIG_TASK_DELAY_ACCT */
 
+/*
+ * The following are functions that support scheduler-internal time accounting.
+ * These functions are generally called at the timer tick.  None of this depends
+ * on CONFIG_SCHEDSTATS.
+ */
+
+/**
+ * account_group_user_time - Maintain utime for a thread group.
+ *
+ * @tsk:	Pointer to task structure.
+ * @cputime:	Time value by which to increment the utime field of the
+ *		thread_group_cputime structure.
+ *
+ * If thread group time is being maintained, get the structure for the
+ * running CPU and update the utime field there.
+ */
+static inline void account_group_user_time(struct task_struct *tsk,
+					   cputime_t cputime)
+{
+	struct signal_struct *sig;
+
+	sig = tsk->signal;
+	if (unlikely(!sig))
+		return;
+	if (sig->cputime.totals) {
+		struct task_cputime *times;
+
+		times = per_cpu_ptr(sig->cputime.totals, get_cpu());
+		times->utime = cputime_add(times->utime, cputime);
+		put_cpu_no_resched();
+	}
+}
+
+/**
+ * account_group_system_time - Maintain stime for a thread group.
+ *
+ * @tsk:	Pointer to task structure.
+ * @cputime:	Time value by which to increment the stime field of the
+ *		thread_group_cputime structure.
+ *
+ * If thread group time is being maintained, get the structure for the
+ * running CPU and update the stime field there.
+ */
+static inline void account_group_system_time(struct task_struct *tsk,
+					     cputime_t cputime)
+{
+	struct signal_struct *sig;
+
+	sig = tsk->signal;
+	if (unlikely(!sig))
+		return;
+	if (sig->cputime.totals) {
+		struct task_cputime *times;
+
+		times = per_cpu_ptr(sig->cputime.totals, get_cpu());
+		times->stime = cputime_add(times->stime, cputime);
+		put_cpu_no_resched();
+	}
+}
+
+/**
+ * account_group_exec_runtime - Maintain exec runtime for a thread group.
+ *
+ * @tsk:	Pointer to task structure.
+ * @ns:		Time value by which to increment the sum_exec_runtime field
+ *		of the thread_group_cputime structure.
+ *
+ * If thread group time is being maintained, get the structure for the
+ * running CPU and update the sum_exec_runtime field there.
+ */
+static inline void account_group_exec_runtime(struct task_struct *tsk,
+					      unsigned long long ns)
+{
+	struct signal_struct *sig;
+
+	sig = tsk->signal;
+	if (unlikely(!sig))
+		return;
+	if (sig->cputime.totals) {
+		struct task_cputime *times;
+
+		times = per_cpu_ptr(sig->cputime.totals, get_cpu());
+		times->sum_exec_runtime += ns;
+		put_cpu_no_resched();
+	}
+}

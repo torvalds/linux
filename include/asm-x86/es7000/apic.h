@@ -17,7 +17,6 @@ static inline cpumask_t target_cpus(void)
 	return cpumask_of_cpu(smp_processor_id());
 #endif
 }
-#define TARGET_CPUS	(target_cpus())
 
 #if defined CONFIG_ES7000_CLUSTERED_APIC
 #define APIC_DFR_VALUE		(APIC_DFR_CLUSTER)
@@ -81,7 +80,7 @@ static inline void setup_apic_routing(void)
 	int apic = per_cpu(x86_bios_cpu_apicid, smp_processor_id());
 	printk("Enabling APIC mode:  %s.  Using %d I/O APICs, target cpus %lx\n",
 		(apic_version[apic] == 0x14) ?
-		"Physical Cluster" : "Logical Cluster", nr_ioapics, cpus_addr(TARGET_CPUS)[0]);
+		"Physical Cluster" : "Logical Cluster", nr_ioapics, cpus_addr(target_cpus())[0]);
 }
 
 static inline int multi_timer_check(int apic, int irq)

@@ -191,7 +191,7 @@ int ide_set_media_lock(ide_drive_t *drive, struct gendisk *disk, int on)
 {
 	struct ide_atapi_pc pc;
 
-	if (drive->atapi_flags & IDE_AFLAG_NO_DOORLOCK)
+	if ((drive->dev_flags & IDE_DFLAG_DOORLOCKING) == 0)
 		return 0;
 
 	ide_init_pc(&pc);

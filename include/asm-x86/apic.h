@@ -40,8 +40,6 @@ extern void generic_apic_probe(void);
 extern unsigned int apic_verbosity;
 extern int local_apic_timer_c2_ok;
 
-extern int ioapic_force;
-
 extern int disable_apic;
 /*
  * Basic functions accessing APICs.
@@ -100,6 +98,20 @@ extern void check_x2apic(void);
 extern void enable_x2apic(void);
 extern void enable_IR_x2apic(void);
 extern void x2apic_icr_write(u32 low, u32 id);
+static inline int x2apic_enabled(void)
+{
+	int msr, msr2;
+
+	if (!cpu_has_x2apic)
+		return 0;
+
+	rdmsr(MSR_IA32_APICBASE, msr, msr2);
+	if (msr & X2APIC_ENABLE)
+		return 1;
+	return 0;
+}
+#else
+#define x2apic_enabled()	0
 #endif
 
 struct apic_ops {

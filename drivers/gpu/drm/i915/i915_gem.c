@@ -171,6 +171,37 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
+/*
+ * Try to write quickly with an atomic kmap. Return true on success.
+ *
+ * If this fails (which includes a partial write), we'll redo the whole
+ * thing with the slow version.
+ *
+ * This is a workaround for the low performance of iounmap (approximate
+ * 10% cpu cost on normal 3D workloads).  kmap_atomic on HIGHMEM kernels
+ * happens to let us map card memory without taking IPIs.  When the vmap
+ * rework lands we should be able to dump this hack.
+ */
+static inline int fast_user_write(unsigned long pfn, char __user *user_data,
+				  int l, int o)
+{
+#ifdef CONFIG_HIGHMEM
+	unsigned long unwritten;
+	char *vaddr_atomic;
+
+	vaddr_atomic = kmap_atomic_pfn(pfn, KM_USER0);
+#if WATCH_PWRITE
+	DRM_INFO("pwrite i %d o %d l %d pfn %ld vaddr %p\n",
+		 i, o, l, pfn, vaddr_atomic);
+#endif
+	unwritten = __copy_from_user_inatomic_nocache(vaddr_atomic + o, user_data, l);
+	kunmap_atomic(vaddr_atomic, KM_USER0);
+	return !unwritten;
+#else
+	return 0;
+#endif
+}
+
 static int
 i915_gem_gtt_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 		    struct drm_i915_gem_pwrite *args,
@@ -180,12 +211,7 @@ i915_gem_gtt_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 	ssize_t remain;
 	loff_t offset;
 	char __user *user_data;
-	char __iomem *vaddr;
-	char *vaddr_atomic;
-	int i, o, l;
 	int ret = 0;
-	unsigned long pfn;
-	unsigned long unwritten;
 
 	user_data = (char __user *) (uintptr_t) args->data_ptr;
 	remain = args->size;
@@ -209,6 +235,9 @@ i915_gem_gtt_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 	obj_priv->dirty = 1;
 
 	while (remain > 0) {
+		unsigned long pfn;
+		int i, o, l;
+
 		/* Operation in this page
 		 *
 		 * i = page number
@@ -223,25 +252,10 @@ i915_gem_gtt_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 
 		pfn = (dev->agp->base >> PAGE_SHIFT) + i;
 
-#ifdef CONFIG_HIGHMEM
-		/* This is a workaround for the low performance of iounmap
-		 * (approximate 10% cpu cost on normal 3D workloads).
-		 * kmap_atomic on HIGHMEM kernels happens to let us map card
-		 * memory without taking IPIs.  When the vmap rework lands
-		 * we should be able to dump this hack.
-		 */
-		vaddr_atomic = kmap_atomic_pfn(pfn, KM_USER0);
-#if WATCH_PWRITE
-		DRM_INFO("pwrite i %d o %d l %d pfn %ld vaddr %p\n",
-			 i, o, l, pfn, vaddr_atomic);
-#endif
-		unwritten = __copy_from_user_inatomic_nocache(vaddr_atomic + o,
-							      user_data, l);
-		kunmap_atomic(vaddr_atomic, KM_USER0);
+		if (!fast_user_write(pfn, user_data, l, o)) {
+			unsigned long unwritten;
+			char __iomem *vaddr;
 
-		if (unwritten)
-#endif /* CONFIG_HIGHMEM */
-		{
 			vaddr = ioremap_wc(pfn << PAGE_SHIFT, PAGE_SIZE);
 #if WATCH_PWRITE
 			DRM_INFO("pwrite slow i %d o %d l %d "

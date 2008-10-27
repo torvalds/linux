@@ -2158,7 +2158,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	}
 
 	chip->addr = pci_resource_start(pci, 0);
-	chip->remap_addr = ioremap_nocache(chip->addr, pci_resource_len(pci,0));
+	chip->remap_addr = pci_ioremap_bar(pci, 0);
 	if (chip->remap_addr == NULL) {
 		snd_printk(KERN_ERR SFX "ioremap error\n");
 		err = -ENXIO;

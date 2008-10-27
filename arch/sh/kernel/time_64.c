@@ -39,6 +39,7 @@
 #include <asm/processor.h>
 #include <asm/uaccess.h>
 #include <asm/delay.h>
+#include <asm/clock.h>
 
 #define TMU_TOCR_INIT	0x00
 #define TMU0_TCR_INIT	0x0020
@@ -50,14 +51,6 @@
 #define RTC_BASE	PHYS_PERIPHERAL_BLOCK + RTC_BLOCK_OFF
 #define RTC_RCR1_CIE	0x10	/* Carry Interrupt Enable */
 #define RTC_RCR1	(rtc_base + 0x38)
-
-/* Clock, Power and Reset Controller */
-#define	CPRC_BLOCK_OFF	0x01010000
-#define CPRC_BASE	PHYS_PERIPHERAL_BLOCK + CPRC_BLOCK_OFF
-
-#define FRQCR		(cprc_base+0x0)
-#define WTCSR		(cprc_base+0x0018)
-#define STBCR		(cprc_base+0x0030)
 
 /* Time Management Unit */
 #define	TMU_BLOCK_OFF	0x01020000
@@ -293,103 +286,17 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-
-static __init unsigned int get_cpu_hz(void)
-{
-	unsigned int count;
-	unsigned long __dummy;
-	unsigned long ctc_val_init, ctc_val;
-
-	/*
-	** Regardless the toolchain, force the compiler to use the
-	** arbitrary register r3 as a clock tick counter.
-	** NOTE: r3 must be in accordance with sh64_rtc_interrupt()
-	*/
-	register unsigned long long  __rtc_irq_flag __asm__ ("r3");
-
-	local_irq_enable();
-	do {} while (ctrl_inb(rtc_base) != 0);
-	ctrl_outb(RTC_RCR1_CIE, RTC_RCR1); /* Enable carry interrupt */
-
-	/*
-	 * r3 is arbitrary. CDC does not support "=z".
-	 */
-	ctc_val_init = 0xffffffff;
-	ctc_val = ctc_val_init;
-
-	asm volatile("gettr	tr0, %1\n\t"
-		     "putcon	%0, " __CTC "\n\t"
-		     "and	%2, r63, %2\n\t"
-		     "pta	$+4, tr0\n\t"
-		     "beq/l	%2, r63, tr0\n\t"
-		     "ptabs	%1, tr0\n\t"
-		     "getcon	" __CTC ", %0\n\t"
-		: "=r"(ctc_val), "=r" (__dummy), "=r" (__rtc_irq_flag)
-		: "0" (0));
-	local_irq_disable();
-	/*
-	 * SH-3:
-	 * CPU clock = 4 stages * loop
-	 * tst    rm,rm      if id ex
-	 * bt/s   1b            if id ex
-	 * add    #1,rd            if id ex
-         *                            (if) pipe line stole
-	 * tst    rm,rm                  if id ex
-         * ....
-	 *
-	 *
-	 * SH-4:
-	 * CPU clock = 6 stages * loop
-	 * I don't know why.
-         * ....
-	 *
-	 * SH-5:
-	 * Use CTC register to count.  This approach returns the right value
-	 * even if the I-cache is disabled (e.g. whilst debugging.)
-	 *
-	 */
-
-	count = ctc_val_init - ctc_val; /* CTC counts down */
-
-	/*
-	 * This really is count by the number of clock cycles
-         * by the ratio between a complete R64CNT
-         * wrap-around (128) and CUI interrupt being raised (64).
-	 */
-	return count*2;
-}
-
-static irqreturn_t sh64_rtc_interrupt(int irq, void *dev_id)
-{
-	struct pt_regs *regs = get_irq_regs();
-
-	ctrl_outb(0, RTC_RCR1);	/* Disable Carry Interrupts */
-	regs->regs[3] = 1;	/* Using r3 */
-
-	return IRQ_HANDLED;
-}
-
 static struct irqaction irq0  = {
 	.handler = timer_interrupt,
 	.flags = IRQF_DISABLED,
 	.mask = CPU_MASK_NONE,
 	.name = "timer",
 };
-static struct irqaction irq1  = {
-	.handler = sh64_rtc_interrupt,
-	.flags = IRQF_DISABLED,
-	.mask = CPU_MASK_NONE,
-	.name = "rtc",
-};
 
 void __init time_init(void)
 {
-	unsigned int cpu_clock, master_clock, bus_clock, module_clock;
 	unsigned long interval;
-	unsigned long frqcr, ifc, pfc;
-	static int ifc_table[] = { 2, 4, 6, 8, 10, 12, 16, 24 };
-#define bfc_table ifc_table	/* Same */
-#define pfc_table ifc_table	/* Same */
+	struct clk *clk;
 
 	tmu_base = onchip_remap(TMU_BASE, 1024, "TMU");
 	if (!tmu_base) {
@@ -401,49 +308,18 @@ void __init time_init(void)
 		panic("Unable to remap RTC\n");
 	}
 
-	cprc_base = onchip_remap(CPRC_BASE, 1024, "CPRC");
-	if (!cprc_base) {
-		panic("Unable to remap CPRC\n");
-	}
+	clk = clk_get(NULL, "cpu_clk");
+	scaled_recip_ctc_ticks_per_jiffy = ((1ULL << CTC_JIFFY_SCALE_SHIFT) /
+			(unsigned long long)(clk_get_rate(clk) / HZ));
 
 	rtc_sh_get_time(&xtime);
 
 	setup_irq(TIMER_IRQ, &irq0);
-	setup_irq(RTC_IRQ, &irq1);
 
-	/* Check how fast it is.. */
-	cpu_clock = get_cpu_hz();
-
-	/* Note careful order of operations to maintain reasonable precision and avoid overflow. */
-	scaled_recip_ctc_ticks_per_jiffy = ((1ULL << CTC_JIFFY_SCALE_SHIFT) / (unsigned long long)(cpu_clock / HZ));
-
-	free_irq(RTC_IRQ, NULL);
-
-	printk("CPU clock: %d.%02dMHz\n",
-	       (cpu_clock / 1000000), (cpu_clock % 1000000)/10000);
-	{
-		unsigned short bfc;
-		frqcr = ctrl_inl(FRQCR);
-		ifc  = ifc_table[(frqcr>> 6) & 0x0007];
-		bfc  = bfc_table[(frqcr>> 3) & 0x0007];
-		pfc  = pfc_table[(frqcr>> 12) & 0x0007];
-		master_clock = cpu_clock * ifc;
-		bus_clock = master_clock/bfc;
-	}
-
-	printk("Bus clock: %d.%02dMHz\n",
-	       (bus_clock/1000000), (bus_clock % 1000000)/10000);
-	module_clock = master_clock/pfc;
-	printk("Module clock: %d.%02dMHz\n",
-	       (module_clock/1000000), (module_clock % 1000000)/10000);
-	interval = (module_clock/(HZ*4));
+	clk = clk_get(NULL, "module_clk");
+	interval = (clk_get_rate(clk)/(HZ*4));
 
 	printk("Interval = %ld\n", interval);
-
-	current_cpu_data.cpu_clock    = cpu_clock;
-	current_cpu_data.master_clock = master_clock;
-	current_cpu_data.bus_clock    = bus_clock;
-	current_cpu_data.module_clock = module_clock;
 
 	/* Start TMU0 */
 	ctrl_outb(TMU_TSTR_OFF, TMU_TSTR);
@@ -452,36 +328,6 @@ void __init time_init(void)
 	ctrl_outl(interval, TMU0_TCOR);
 	ctrl_outl(interval, TMU0_TCNT);
 	ctrl_outb(TMU_TSTR_INIT, TMU_TSTR);
-}
-
-void enter_deep_standby(void)
-{
-	/* Disable watchdog timer */
-	ctrl_outl(0xa5000000, WTCSR);
-	/* Configure deep standby on sleep */
-	ctrl_outl(0x03, STBCR);
-
-#ifdef CONFIG_SH_ALPHANUMERIC
-	{
-		extern void mach_alphanum(int position, unsigned char value);
-		extern void mach_alphanum_brightness(int setting);
-		char halted[] = "Halted. ";
-		int i;
-		mach_alphanum_brightness(6); /* dimmest setting above off */
-		for (i=0; i<8; i++) {
-			mach_alphanum(i, halted[i]);
-		}
-		asm __volatile__ ("synco");
-	}
-#endif
-
-	asm __volatile__ ("sleep");
-	asm __volatile__ ("synci");
-	asm __volatile__ ("nop");
-	asm __volatile__ ("nop");
-	asm __volatile__ ("nop");
-	asm __volatile__ ("nop");
-	panic("Unexpected wakeup!\n");
 }
 
 static struct resource rtc_resources[] = {

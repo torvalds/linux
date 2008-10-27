@@ -78,6 +78,8 @@ config S390
 
 source "init/Kconfig"
 
+source "kernel/Kconfig.freezer"
+
 menu "Base setup"
 
 comment "Processor type and features"

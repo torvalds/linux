@@ -49,10 +49,15 @@ static ssize_t address_read_file(struct pci_slot *slot, char *buf)
 
 static void pci_slot_release(struct kobject *kobj)
 {
+	struct pci_dev *dev;
 	struct pci_slot *slot = to_pci_slot(kobj);
 
 	pr_debug("%s: releasing pci_slot on %x:%d\n", __func__,
 		 slot->bus->number, slot->number);
+
+	list_for_each_entry(dev, &slot->bus->devices, bus_list)
+		if (PCI_SLOT(dev->devfn) == slot->number)
+			dev->slot = NULL;
 
 	list_del(&slot->list);
 
@@ -108,6 +113,7 @@ static struct kobj_type pci_slot_ktype = {
 struct pci_slot *pci_create_slot(struct pci_bus *parent, int slot_nr,
 				 const char *name)
 {
+	struct pci_dev *dev;
 	struct pci_slot *slot;
 	int err;
 
@@ -149,6 +155,10 @@ placeholder:
 
 	INIT_LIST_HEAD(&slot->list);
 	list_add(&slot->list, &parent->slots);
+
+	list_for_each_entry(dev, &parent->devices, bus_list)
+		if (PCI_SLOT(dev->devfn) == slot_nr)
+			dev->slot = slot;
 
 	/* Don't care if debug printk has a -1 for slot_nr */
 	pr_debug("%s: created pci_slot on %04x:%02x:%02x\n",

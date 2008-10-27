@@ -617,7 +617,6 @@ static int __devinit init_setup_scc(struct pci_dev *dev,
 	unsigned long intmask_port;
 	unsigned long mode_port;
 	unsigned long ecmode_port;
-	unsigned long dma_status_port;
 	u32 reg = 0;
 	struct scc_ports *ports;
 	int rc;
@@ -637,7 +636,6 @@ static int __devinit init_setup_scc(struct pci_dev *dev,
 	intmask_port = dma_base + 0x010;
 	mode_port = ctl_base + 0x024;
 	ecmode_port = ctl_base + 0xf00;
-	dma_status_port = dma_base + 0x004;
 
 	/* controller initialization */
 	reg = 0;
@@ -843,8 +841,6 @@ static u8 scc_cable_detect(ide_hwif_t *hwif)
 
 static void __devinit init_hwif_scc(ide_hwif_t *hwif)
 {
-	struct scc_ports *ports = ide_get_hwifdata(hwif);
-
 	/* PTERADD */
 	out_be32((void __iomem *)(hwif->dma_base + 0x018), hwif->dmatable_dma);
 

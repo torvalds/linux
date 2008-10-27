@@ -7,6 +7,8 @@ mainmenu "IA-64 Linux Kernel Configuration"
 
 source "init/Kconfig"
 
+source "kernel/Kconfig.freezer"
+
 menu "Processor type and features"
 
 config IA64

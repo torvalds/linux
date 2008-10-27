@@ -87,6 +87,30 @@ int power_supply_am_i_supplied(struct power_supply *psy)
 	return error;
 }
 
+static int __power_supply_is_system_supplied(struct device *dev, void *data)
+{
+	union power_supply_propval ret = {0,};
+	struct power_supply *psy = dev_get_drvdata(dev);
+
+	if (psy->type != POWER_SUPPLY_TYPE_BATTERY) {
+		if (psy->get_property(psy, POWER_SUPPLY_PROP_ONLINE, &ret))
+			return 0;
+		if (ret.intval)
+			return ret.intval;
+	}
+	return 0;
+}
+
+int power_supply_is_system_supplied(void)
+{
+	int error;
+
+	error = class_for_each_device(power_supply_class, NULL, NULL,
+				      __power_supply_is_system_supplied);
+
+	return error;
+}
+
 int power_supply_register(struct device *parent, struct power_supply *psy)
 {
 	int rc = 0;
@@ -148,6 +172,7 @@ static void __exit power_supply_class_exit(void)
 
 EXPORT_SYMBOL_GPL(power_supply_changed);
 EXPORT_SYMBOL_GPL(power_supply_am_i_supplied);
+EXPORT_SYMBOL_GPL(power_supply_is_system_supplied);
 EXPORT_SYMBOL_GPL(power_supply_register);
 EXPORT_SYMBOL_GPL(power_supply_unregister);
 

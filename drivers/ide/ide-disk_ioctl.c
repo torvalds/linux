@@ -13,12 +13,10 @@ static const struct ide_ioctl_devset ide_disk_ioctl_settings[] = {
 { 0 }
 };
 
-int ide_disk_ioctl(struct inode *inode, struct file *file,
+int ide_disk_ioctl(ide_drive_t *drive, struct inode *inode, struct file *file,
 		   unsigned int cmd, unsigned long arg)
 {
 	struct block_device *bdev = inode->i_bdev;
-	struct ide_disk_obj *idkp = ide_disk_g(bdev->bd_disk);
-	ide_drive_t *drive = idkp->drive;
 	int err;
 
 	err = ide_setting_ioctl(drive, bdev, cmd, arg, ide_disk_ioctl_settings);
