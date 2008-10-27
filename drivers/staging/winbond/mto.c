@@ -208,7 +208,7 @@ static int TotalTxPktRetry = 0;
 static int TxPktPerAnt[3] = {0,0,0};
 static int RXRSSIANT[3] ={-70,-70,-70};
 static int TxPktRetryPerAnt[3] = {0,0,0};
-//static int TxDominateFlag=FALSE;
+//static int TxDominateFlag=false;
 static u8 old_antenna[4]={1 ,0 ,1 ,0};
 static int retryrate_rec[MTO_MAX_DATA_RATE_LEVELS];//this record the retry rate at different data rate
 
@@ -236,7 +236,7 @@ static RSSI2RATE RSSI2RateTbl[RSSI2RATE_SIZE] =
 static u8 untogglecount;
 static u8 last_rate_ant; //this is used for antenna backoff-hh
 
-u8	boSparseTxTraffic = FALSE;
+u8	boSparseTxTraffic = false;
 
 void MTO_Init(MTO_FUNC_INPUT);
 void AntennaToggleInitiator(MTO_FUNC_INPUT);
@@ -569,9 +569,9 @@ unsigned char TxDominate(int index)
 	tmp = TxPktPerAnt[index] + DTO_Rx_Info[0][index];
 
 	if(Divide(TxPktPerAnt[index]*100, tmp) > 40)
-		return TRUE;
+		return true;
 	else
-		return FALSE;
+		return false;
 }
 
 unsigned char CmpTxRetryRate(int index1, int index2)
@@ -584,9 +584,9 @@ unsigned char CmpTxRetryRate(int index1, int index2)
 	#endif
 
 	if(tx_retry_rate1 > tx_retry_rate2)
-		return TRUE;
+		return true;
 	else
-		return FALSE;
+		return false;
 }
 
 void GetFreshAntennaData(MTO_FUNC_INPUT)

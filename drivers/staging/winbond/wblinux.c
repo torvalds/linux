@@ -49,7 +49,7 @@ WBLINUX_Initial(struct wb35_adapter * adapter)
 {
 	spin_lock_init( &adapter->SpinLock );
 	spin_lock_init( &adapter->AtomicSpinLock );
-	return TRUE;
+	return true;
 }
 
 void
@@ -114,7 +114,7 @@ void
 WbWlanHalt(struct wb35_adapter *adapter)
 {
 	//---------------------
-	adapter->sLocalPara.ShutDowned = TRUE;
+	adapter->sLocalPara.ShutDowned = true;
 
 	Mds_Destroy(adapter);
 
@@ -153,7 +153,7 @@ WbWLanInitialize(struct wb35_adapter *adapter)
 	hal_set_phy_type( &adapter->sHwData, RF_WB_242_1 );
 	adapter->sLocalPara.MTUsize = MAX_ETHERNET_PACKET_SIZE;
 	psLOCAL->bPreambleMode = AUTO_MODE;
-	adapter->sLocalPara.RadioOffStatus.boSwRadioOff = FALSE;
+	adapter->sLocalPara.RadioOffStatus.boSwRadioOff = false;
 	pHwData = &adapter->sHwData;
 	hal_set_phy_type( pHwData, RF_DECIDE_BY_INF );
 
@@ -168,11 +168,11 @@ WbWLanInitialize(struct wb35_adapter *adapter)
 	}
 
 	// Initial Software variable
-	adapter->sLocalPara.ShutDowned = FALSE;
+	adapter->sLocalPara.ShutDowned = false;
 
 	//added by ws for wep key error detection
-	adapter->sLocalPara.bWepKeyError= FALSE;
-	adapter->sLocalPara.bToSelfPacketReceived = FALSE;
+	adapter->sLocalPara.bWepKeyError= false;
+	adapter->sLocalPara.bToSelfPacketReceived = false;
 	adapter->sLocalPara.WepKeyDetectTimerCount= 2 * 100; /// 2 seconds
 
 	// Initial USB hal
@@ -192,9 +192,9 @@ WbWLanInitialize(struct wb35_adapter *adapter)
 	}
 
 	// Get Software setting flag from hal
-	adapter->sLocalPara.boAntennaDiversity = FALSE;
+	adapter->sLocalPara.boAntennaDiversity = false;
 	if (hal_software_set(pHwData) & 0x00000001)
-		adapter->sLocalPara.boAntennaDiversity = TRUE;
+		adapter->sLocalPara.boAntennaDiversity = true;
 
 	//
 	// For TS module
@@ -245,7 +245,7 @@ WbWLanInitialize(struct wb35_adapter *adapter)
 	hal_driver_init_OK(pHwData) = 1; // Notify hal that the driver is ready now.
 	//set a tx power for reference.....
 //	sme_set_tx_power_level(adapter, 12);	FIXME?
-	return TRUE;
+	return true;
 
 error:
 	switch (InitStep) {
@@ -258,7 +258,7 @@ error:
 	case 0: break;
 	}
 
-	return FALSE;
+	return false;
 }
 
 void WBLINUX_ConnectStatus(struct wb35_adapter * adapter, u32 flag)

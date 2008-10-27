@@ -17,7 +17,7 @@ Wb35Tx_get_tx_buffer(phw_data_t pHwData, u8 **pBuffer)
 	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
 
 	*pBuffer = pWb35Tx->TxBuffer[0];
-	return TRUE;
+	return true;
 }
 
 void Wb35Tx_start(phw_data_t pHwData)
@@ -136,16 +136,16 @@ unsigned char Wb35Tx_initial(phw_data_t pHwData)
 
 	pWb35Tx->Tx4Urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!pWb35Tx->Tx4Urb)
-		return FALSE;
+		return false;
 
 	pWb35Tx->Tx2Urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!pWb35Tx->Tx2Urb)
 	{
 		usb_free_urb( pWb35Tx->Tx4Urb );
-		return FALSE;
+		return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
 //======================================================
@@ -193,12 +193,12 @@ void Wb35Tx_destroy(phw_data_t pHwData)
 void Wb35Tx_CurrentTime(phw_data_t pHwData, u32 TimeCount)
 {
 	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
-	unsigned char Trigger = FALSE;
+	unsigned char Trigger = false;
 
 	if (pWb35Tx->TxTimer > TimeCount)
-		Trigger = TRUE;
+		Trigger = true;
 	else if (TimeCount > (pWb35Tx->TxTimer+500))
-		Trigger = TRUE;
+		Trigger = true;
 
 	if (Trigger) {
 		pWb35Tx->TxTimer = TimeCount;

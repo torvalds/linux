@@ -2,8 +2,8 @@
 
 extern void phy_calibration_winbond(hw_data_t *phw_data, u32 frequency);
 
-// TRUE  : read command process successfully
-// FALSE : register not support
+// true  : read command process successfully
+// false : register not support
 // RegisterNo : start base
 // pRegisterData : data point
 // NumberOfData : number of register data
@@ -21,7 +21,7 @@ Wb35Reg_BurstWrite(phw_data_t pHwData, u16 RegisterNo, u32 * pRegisterData, u8 N
 
 	// Module shutdown
 	if (pHwData->SurpriseRemove)
-		return FALSE;
+		return false;
 
 	// Trying to use burst write function if use new hardware
 	UrbSize = sizeof(struct wb35_reg_queue) + DataSize + sizeof(struct usb_ctrlrequest);
@@ -58,15 +58,15 @@ Wb35Reg_BurstWrite(phw_data_t pHwData, u16 RegisterNo, u32 * pRegisterData, u8 N
 		// Start EP0VM
 		Wb35Reg_EP0VM_start(pHwData);
 
-		return TRUE;
+		return true;
 	} else {
 		if (urb)
 			usb_free_urb(urb);
 		if (reg_queue)
 			kfree(reg_queue);
-		return FALSE;
+		return false;
 	}
-   return FALSE;
+   return false;
 }
 
 void
@@ -112,8 +112,8 @@ Wb35Reg_Update(phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue)
 	}
 }
 
-// TRUE  : read command process successfully
-// FALSE : register not support
+// true  : read command process successfully
+// false : register not support
 unsigned char
 Wb35Reg_WriteSync(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 {
@@ -122,7 +122,7 @@ Wb35Reg_WriteSync(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 
 	// Module shutdown
 	if (pHwData->SurpriseRemove)
-		return FALSE;
+		return false;
 
 	RegisterValue = cpu_to_le32(RegisterValue);
 
@@ -150,14 +150,14 @@ Wb35Reg_WriteSync(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 		#endif
 
 		pHwData->SurpriseRemove = 1; // 20060704.2
-		return FALSE;
+		return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
-// TRUE  : read command process successfully
-// FALSE : register not support
+// true  : read command process successfully
+// false : register not support
 unsigned char
 Wb35Reg_Write(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 {
@@ -170,7 +170,7 @@ Wb35Reg_Write(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 
 	// Module shutdown
 	if (pHwData->SurpriseRemove)
-		return FALSE;
+		return false;
 
 	// update the register by send urb request------------------------------------
 	UrbSize = sizeof(struct wb35_reg_queue) + sizeof(struct usb_ctrlrequest);
@@ -180,7 +180,7 @@ Wb35Reg_Write(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 		reg_queue->DIRECT = 1;// burst write register
 		reg_queue->INDEX = RegisterNo;
 		reg_queue->VALUE = cpu_to_le32(RegisterValue);
-		reg_queue->RESERVED_VALID = FALSE;
+		reg_queue->RESERVED_VALID = false;
 		dr = (struct usb_ctrlrequest *)((u8 *)reg_queue + sizeof(struct wb35_reg_queue));
 		dr->bRequestType = USB_TYPE_VENDOR|USB_DIR_OUT |USB_RECIP_DEVICE;
 		dr->bRequest = 0x03; // USB or vendor-defined request code, burst mode
@@ -205,19 +205,19 @@ Wb35Reg_Write(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 		// Start EP0VM
 		Wb35Reg_EP0VM_start(pHwData);
 
-		return TRUE;
+		return true;
 	} else {
 		if (urb)
 			usb_free_urb(urb);
 		kfree(reg_queue);
-		return FALSE;
+		return false;
 	}
 }
 
 //This command will be executed with a user defined value. When it completes,
 //this value is useful. For example, hal_set_current_channel will use it.
-// TRUE  : read command process successfully
-// FALSE : register not support
+// true  : read command process successfully
+// false : register not support
 unsigned char
 Wb35Reg_WriteWithCallbackValue( phw_data_t pHwData, u16 RegisterNo, u32 RegisterValue,
 				s8 *pValue, s8 Len)
@@ -230,7 +230,7 @@ Wb35Reg_WriteWithCallbackValue( phw_data_t pHwData, u16 RegisterNo, u32 Register
 
 	// Module shutdown
 	if (pHwData->SurpriseRemove)
-		return FALSE;
+		return false;
 
 	// update the register by send urb request------------------------------------
 	UrbSize = sizeof(struct wb35_reg_queue) + sizeof(struct usb_ctrlrequest);
@@ -242,7 +242,7 @@ Wb35Reg_WriteWithCallbackValue( phw_data_t pHwData, u16 RegisterNo, u32 Register
 		reg_queue->VALUE = cpu_to_le32(RegisterValue);
 		//NOTE : Users must guarantee the size of value will not exceed the buffer size.
 		memcpy(reg_queue->RESERVED, pValue, Len);
-		reg_queue->RESERVED_VALID = TRUE;
+		reg_queue->RESERVED_VALID = true;
 		dr = (struct usb_ctrlrequest *)((u8 *)reg_queue + sizeof(struct wb35_reg_queue));
 		dr->bRequestType = USB_TYPE_VENDOR|USB_DIR_OUT |USB_RECIP_DEVICE;
 		dr->bRequest = 0x03; // USB or vendor-defined request code, burst mode
@@ -265,17 +265,17 @@ Wb35Reg_WriteWithCallbackValue( phw_data_t pHwData, u16 RegisterNo, u32 Register
 
 		// Start EP0VM
 		Wb35Reg_EP0VM_start(pHwData);
-		return TRUE;
+		return true;
 	} else {
 		if (urb)
 			usb_free_urb(urb);
 		kfree(reg_queue);
-		return FALSE;
+		return false;
 	}
 }
 
-// TRUE  : read command process successfully
-// FALSE : register not support
+// true  : read command process successfully
+// false : register not support
 // pRegisterValue : It must be a resident buffer due to asynchronous read register.
 unsigned char
 Wb35Reg_ReadSync(  phw_data_t pHwData,  u16 RegisterNo,   u32 * pRegisterValue )
@@ -286,7 +286,7 @@ Wb35Reg_ReadSync(  phw_data_t pHwData,  u16 RegisterNo,   u32 * pRegisterValue )
 
 	// Module shutdown
 	if (pHwData->SurpriseRemove)
-		return FALSE;
+		return false;
 
 	// Read the register by send usb message------------------------------------
 
@@ -317,14 +317,14 @@ Wb35Reg_ReadSync(  phw_data_t pHwData,  u16 RegisterNo,   u32 * pRegisterValue )
 		#endif
 
 		pHwData->SurpriseRemove = 1; // 20060704.2
-		return FALSE;
+		return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
-// TRUE  : read command process successfully
-// FALSE : register not support
+// true  : read command process successfully
+// false : register not support
 // pRegisterValue : It must be a resident buffer due to asynchronous read register.
 unsigned char
 Wb35Reg_Read(phw_data_t pHwData, u16 RegisterNo,  u32 * pRegisterValue )
@@ -337,7 +337,7 @@ Wb35Reg_Read(phw_data_t pHwData, u16 RegisterNo,  u32 * pRegisterValue )
 
 	// Module shutdown
 	if (pHwData->SurpriseRemove)
-		return FALSE;
+		return false;
 
 	// update the variable by send Urb to read register ------------------------------------
 	UrbSize = sizeof(struct wb35_reg_queue) + sizeof(struct usb_ctrlrequest);
@@ -371,12 +371,12 @@ Wb35Reg_Read(phw_data_t pHwData, u16 RegisterNo,  u32 * pRegisterValue )
 		// Start EP0VM
 		Wb35Reg_EP0VM_start( pHwData );
 
-		return TRUE;
+		return true;
 	} else {
 		if (urb)
 			usb_free_urb( urb );
 		kfree(reg_queue);
-		return FALSE;
+		return false;
 	}
 }
 
@@ -629,9 +629,9 @@ unsigned char Wb35Reg_initial(phw_data_t pHwData)
 	Dxx_initial(pHwData);
 
 	if (pHwData->SurpriseRemove)
-		return FALSE;
+		return false;
 	else
-		return TRUE; // Initial fail
+		return true; // Initial fail
 }
 
 //===================================================================================

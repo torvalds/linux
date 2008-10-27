@@ -45,23 +45,6 @@
 #define	FAILURE     0
 
 
-#ifndef true
-#define true        1
-#endif
-
-#ifndef false
-#define false       0
-#endif
-
-// PD43 20021108
-#ifndef TRUE
-#define TRUE        1
-#endif
-
-#ifndef FALSE
-#define FALSE       0
-#endif
-
 #define STATUS_MEDIA_CONNECT 1
 #define STATUS_MEDIA_DISCONNECT 0
 

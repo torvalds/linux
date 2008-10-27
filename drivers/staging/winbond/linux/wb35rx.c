@@ -326,7 +326,7 @@ u16 Wb35Rx_indicate(phw_data_t pHwData)
 
 		// Reclaim resource
 		pWb35Rx->RxOwner[ RxBufferId ] = 1;
-	} while(TRUE);
+	} while (true);
 
 	return stmp2;
 }

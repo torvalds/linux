@@ -56,19 +56,19 @@ u8 hal_init_hardware(phw_data_t pHwData, struct wb35_adapter * adapter)
 				// Try to make sure the EEPROM contain
 				SoftwareSet >>= 8;
 				if( SoftwareSet != 0x82 )
-					return FALSE;
+					return false;
 				#endif
 
 				Wb35Rx_start( pHwData );
 				Wb35Tx_EP2VM_start( pHwData );
 
-				return TRUE;
+				return true;
 			}
 		}
 	}
 
 	pHwData->SurpriseRemove = 1;
-	return FALSE;
+	return false;
 }
 
 
@@ -312,7 +312,7 @@ u8 hal_get_accept_beacon(  phw_data_t pHwData )
 unsigned char hal_reset_hardware( phw_data_t pHwData, void* ppa )
 {
 	// Not implement yet
-	return TRUE;
+	return true;
 }
 
 void hal_stop(  phw_data_t pHwData )
@@ -335,9 +335,9 @@ unsigned char hal_idle(phw_data_t pHwData)
 	PWBUSB	pWbUsb = &pHwData->WbUsb;
 
 	if( !pHwData->SurpriseRemove && ( pWbUsb->DetectCount || reg->EP0vm_state!=VM_STOP ) )
-		return FALSE;
+		return false;
 
-	return TRUE;
+	return true;
 }
 //---------------------------------------------------------------------------------------------------
 void hal_set_cwmin(  phw_data_t pHwData,  u8	cwin_min )
@@ -868,6 +868,6 @@ unsigned char hal_set_LED(phw_data_t pHwData, u32 Mode) // 20061108 for WPS led 
 	pHwData->LED_Blinking = 0;
 	pHwData->LED_control = Mode;
 	OS_TIMER_SET( &pHwData->LEDTimer, 10 ); // 20060623
-	return TRUE;
+	return true;
 }
 

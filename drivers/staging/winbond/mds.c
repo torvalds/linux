@@ -18,7 +18,7 @@ Mds_initial(struct wb35_adapter * adapter)
 {
 	PMDS pMds = &adapter->Mds;
 
-	pMds->TxPause = FALSE;
+	pMds->TxPause = false;
 	pMds->TxRTSThreshold = DEFAULT_RTSThreshold;
 	pMds->TxFragmentThreshold = DEFAULT_FRAGMENT_THRESHOLD;
 
@@ -43,7 +43,7 @@ Mds_Tx(struct wb35_adapter * adapter)
 	u8		*XmitBufAddress;
 	u16		XmitBufSize, PacketSize, stmp, CurrentSize, FragmentThreshold;
 	u8		FillIndex, TxDesIndex, FragmentCount, FillCount;
-	unsigned char	BufferFilled = FALSE, MICAdd = 0;
+	unsigned char	BufferFilled = false, MICAdd = 0;
 
 
 	if (pMds->TxPause)
@@ -87,7 +87,7 @@ Mds_Tx(struct wb35_adapter * adapter)
 			//
 			// Start transmitting
 			//
-			BufferFilled = TRUE;
+			BufferFilled = true;
 
 			/* Leaves first u8 intact */
 			memset((u8 *)pTxDes + 1, 0, sizeof(DESCRIPTOR) - 1);
@@ -130,10 +130,10 @@ Mds_Tx(struct wb35_adapter * adapter)
 #ifdef _IBSS_BEACON_SEQ_STICK_
 			if ((XmitBufAddress[ DOT_11_DA_OFFSET+8 ] & 0xfc) != MAC_SUBTYPE_MNGMNT_PROBE_REQUEST) // +8 for USB hdr
 #endif
-				pMds->TxToggle = TRUE;
+				pMds->TxToggle = true;
 
 			// Get packet to transmit completed, 1:TESTSTA 2:MLME 3: Ndis data
-			MLME_SendComplete(adapter, 0, TRUE);
+			MLME_SendComplete(adapter, 0, true);
 
 			// Software TSC count 20060214
 			pMds->TxTsc++;
@@ -141,7 +141,7 @@ Mds_Tx(struct wb35_adapter * adapter)
 				pMds->TxTsc_2++;
 
 			FillCount++; // 20060928
-		} while (HAL_USB_MODE_BURST(pHwData)); // End of multiple MSDU copy loop. FALSE = single TRUE = multiple sending
+		} while (HAL_USB_MODE_BURST(pHwData)); // End of multiple MSDU copy loop. false = single true = multiple sending
 
 		// Move to the next one, if necessary
 		if (BufferFilled) {
@@ -156,14 +156,14 @@ Mds_Tx(struct wb35_adapter * adapter)
 
 			pMds->TxFillIndex++;
 			pMds->TxFillIndex %= MAX_USB_TX_BUFFER_NUMBER;
-			BufferFilled = FALSE;
+			BufferFilled = false;
 		} else
 			break;
 
 		if (!PacketSize) // No more pk for transmitting
 			break;
 
-	} while(TRUE);
+	} while(true);
 
 	//
 	// Start to send by lower module
@@ -181,7 +181,7 @@ Mds_SendComplete(struct wb35_adapter * adapter, PT02_DESCRIPTOR pT02)
 	PMDS	pMds = &adapter->Mds;
 	phw_data_t	pHwData = &adapter->sHwData;
 	u8	PacketId = (u8)pT02->T02_Tx_PktID;
-	unsigned char	SendOK = TRUE;
+	unsigned char	SendOK = true;
 	u8	RetryCount, TxRate;
 
 	if (pT02->T02_IgnoreResult) // Don't care the result
@@ -192,7 +192,7 @@ Mds_SendComplete(struct wb35_adapter * adapter, PT02_DESCRIPTOR pT02)
 		TxRate = pMds->TxRate[ PacketId ][ 0 ];
 		RetryCount = (u8)pT02->T02_MPDU_Cnt;
 		if (pT02->value & FLAG_ERROR_TX_MASK) {
-			SendOK = FALSE;
+			SendOK = false;
 
 			if (pT02->T02_transmit_abort || pT02->T02_out_of_MaxTxMSDULiftTime) {
 				//retry error
@@ -435,11 +435,10 @@ Mds_DurationSet(  struct wb35_adapter * adapter,  PDESCRIPTOR pDes,  u8 *buffer 
 	PT01_DESCRIPTOR	pT01;
 	u16	Duration, NextBodyLen, OffsetSize;
 	u8	Rate, i;
-	unsigned char	CTS_on = FALSE, RTS_on = FALSE;
+	unsigned char	CTS_on = false, RTS_on = false;
 	PT00_DESCRIPTOR pNextT00;
 	u16 BodyLen = 0;
-	unsigned char boGroupAddr = FALSE;
-
+	unsigned char boGroupAddr = false;
 
 	OffsetSize = pDes->FragmentThreshold + 32 + 3;
 	OffsetSize &= ~0x03;
@@ -452,7 +451,7 @@ Mds_DurationSet(  struct wb35_adapter * adapter,  PDESCRIPTOR pDes,  u8 *buffer 
 	pNextT00 = (PT00_DESCRIPTOR)(buffer+OffsetSize);
 
 	if( buffer[ DOT_11_DA_OFFSET+8 ] & 0x1 ) // +8 for USB hdr
-		boGroupAddr = TRUE;
+		boGroupAddr = true;
 
 	//========================================
 	// Set RTS/CTS mechanism
@@ -467,13 +466,13 @@ Mds_DurationSet(  struct wb35_adapter * adapter,  PDESCRIPTOR pDes,  u8 *buffer 
 		BodyLen += 4;	//CRC
 
 		if( BodyLen >= CURRENT_RTS_THRESHOLD )
-			RTS_on = TRUE; // Using RTS
+			RTS_on = true; // Using RTS
 		else
 		{
 			if( pT01->T01_modulation_type ) // Is using OFDM
 			{
 				if( CURRENT_PROTECT_MECHANISM ) // Is using protect
-					CTS_on = TRUE; // Using CTS
+					CTS_on = true; // Using CTS
 			}
 		}
 	}

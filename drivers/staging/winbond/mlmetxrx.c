@@ -23,16 +23,16 @@ void MLMEResetTxRx(struct wb35_adapter * adapter)
 
 	// Reset the interface between MDS and MLME
 	for (i = 0; i < MAX_NUM_TX_MMPDU; i++)
-		adapter->sMlmeFrame.TxMMPDUInUse[i] = FALSE;
+		adapter->sMlmeFrame.TxMMPDUInUse[i] = false;
 	for (i = 0; i < MAX_NUM_RX_MMPDU; i++)
-		adapter->sMlmeFrame.SaveRxBufSlotInUse[i] = FALSE;
+		adapter->sMlmeFrame.SaveRxBufSlotInUse[i] = false;
 
 	adapter->sMlmeFrame.wNumRxMMPDUInMLME   = 0;
 	adapter->sMlmeFrame.wNumRxMMPDUDiscarded = 0;
 	adapter->sMlmeFrame.wNumRxMMPDU          = 0;
 	adapter->sMlmeFrame.wNumTxMMPDUDiscarded = 0;
 	adapter->sMlmeFrame.wNumTxMMPDU          = 0;
-	adapter->sLocalPara.boCCAbusy    = FALSE;
+	adapter->sLocalPara.boCCAbusy    = false;
 	adapter->sLocalPara.iPowerSaveMode     = PWR_ACTIVE;     // Power active
 }
 
@@ -59,13 +59,13 @@ u8 *MLMEGetMMPDUBuffer(struct wb35_adapter * adapter)
 	u8 *returnVal;
 
 	for (i = 0; i< MAX_NUM_TX_MMPDU; i++) {
-		if (adapter->sMlmeFrame.TxMMPDUInUse[i] == FALSE)
+		if (adapter->sMlmeFrame.TxMMPDUInUse[i] == false)
 			break;
 	}
 	if (i >= MAX_NUM_TX_MMPDU) return NULL;
 
 	returnVal = (u8 *)&(adapter->sMlmeFrame.TxMMPDU[i]);
-	adapter->sMlmeFrame.TxMMPDUInUse[i] = TRUE;
+	adapter->sMlmeFrame.TxMMPDUInUse[i] = true;
 
 	return returnVal;
 }
@@ -77,7 +77,7 @@ u8 MLMESendFrame(struct wb35_adapter * adapter, u8 *pMMPDU, u16 len, u8 DataType
 {
 	if (adapter->sMlmeFrame.IsInUsed != PACKET_FREE_TO_USE) {
 		adapter->sMlmeFrame.wNumTxMMPDUDiscarded++;
-		return FALSE;
+		return false;
 	}
 	adapter->sMlmeFrame.IsInUsed = PACKET_COME_FROM_MLME;
 
@@ -93,7 +93,7 @@ u8 MLMESendFrame(struct wb35_adapter * adapter, u8 *pMMPDU, u16 len, u8 DataType
 
 	// Transmit NDIS packet
 	Mds_Tx(adapter);
-	return TRUE;
+	return true;
 }
 
 void
@@ -123,7 +123,7 @@ void MLMEfreeMMPDUBuffer(struct wb35_adapter * adapter, s8 *pData)
 			break;
 	}
 	if (adapter->sMlmeFrame.TxMMPDUInUse[i])
-		adapter->sMlmeFrame.TxMMPDUInUse[i] = FALSE;
+		adapter->sMlmeFrame.TxMMPDUInUse[i] = false;
 	else  {
 		// Something wrong
 		// PD43 Add debug code here???

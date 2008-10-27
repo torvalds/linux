@@ -1682,7 +1682,7 @@ unsigned char adjust_TXVGA_for_iq_mag(hw_data_t *phw_data)
 		msleep(30); // 20060612.1.a
 
 		if( !hw_get_dxx_reg(phw_data, REG_MODE_CTRL, &reg_mode_ctrl) ) // 20060718.1 modify
-			return FALSE;
+			return false;
 
 		PHY_DEBUG(("[CAL]    MODE_CTRL (read) = 0x%08X\n", reg_mode_ctrl));
 
@@ -1727,9 +1727,9 @@ unsigned char adjust_TXVGA_for_iq_mag(hw_data_t *phw_data)
 	}
 
 	if( iq_mag_0_tx>=700 && iq_mag_0_tx<=1750 )
-		return TRUE;
+		return true;
 	else
-		return FALSE;
+		return false;
 }
 
 
