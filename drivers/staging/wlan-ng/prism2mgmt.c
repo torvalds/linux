@@ -97,88 +97,11 @@
 #include "hfa384x.h"
 #include "prism2mgmt.h"
 
-/*================================================================*/
-/* Local Constants */
-
-
-/*================================================================*/
-/* Local Macros */
-
 /* Converts 802.11 format rate specifications to prism2 */
 #define p80211rate_to_p2bit(n)	((((n)&~BIT7) == 2) ? BIT0 : \
 				 (((n)&~BIT7) == 4) ? BIT1 : \
 				 (((n)&~BIT7) == 11) ? BIT2 : \
 				 (((n)&~BIT7) == 22) ? BIT3 : 0)
-
-/*================================================================*/
-/* Local Types */
-
-
-/*================================================================*/
-/* Local Static Definitions */
-
-
-/*================================================================*/
-/* Local Function Declarations */
-
-
-/*================================================================*/
-/* Function Definitions */
-
-
-/*----------------------------------------------------------------
-* prism2mgmt_powermgmt
-*
-* Set the power management state of this station's MAC.
-*
-* Arguments:
-*	wlandev		wlan device structure
-*	msgp		ptr to msg buffer
-*
-* Returns:
-*	0	success and done
-*	<0	success, but we're waiting for something to finish.
-*	>0	an error occurred while handling the message.
-* Side effects:
-*
-* Call context:
-*	process thread  (usually)
-*	interrupt
-----------------------------------------------------------------*/
-int prism2mgmt_powermgmt(wlandevice_t *wlandev, void *msgp)
-{
-	int 			result = 0;
-	hfa384x_t		*hw = wlandev->priv;
-	p80211msg_dot11req_powermgmt_t	*msg = msgp;
-
-	DBFENTER;
-
-	if (!hw->ap) {
-
-		/*** STATION ***/
-
-		/*
-		 * Set CNFPMENABLED (on or off)
-		 * Set CNFMULTICASTRX (if PM on, otherwise clear)
-		 * Spout a notice stating that SleepDuration and
-		 * HoldoverDuration and PMEPS also have an impact.
-		 */
-		/* Powermgmt is currently unsupported for STA */
-		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		msg->resultcode.data = P80211ENUM_resultcode_not_supported;
-	} else {
-
-		/*** ACCESS POINT ***/
-
-		/* Powermgmt is never supported for AP */
-		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		msg->resultcode.data = P80211ENUM_resultcode_not_supported;
-	}
-
-	DBFEXIT;
-	return result;
-}
-
 
 /*----------------------------------------------------------------
 * prism2mgmt_scan
@@ -216,13 +139,6 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
         hfa384x_HostScanRequest_data_t  scanreq;
 
 	DBFENTER;
-
-        if (hw->ap) {
-                WLAN_LOG_ERROR("Prism2 in AP mode cannot perform scans.\n");
-                result = 1;
-                msg->resultcode.data = P80211ENUM_resultcode_not_supported;
-                goto exit;
-        }
 
         /* gatekeeper check */
         if (HFA384x_FIRMWARE_VERSION(hw->ident_sta_fw.major,
@@ -468,12 +384,6 @@ int prism2mgmt_scan_results(wlandevice_t *wlandev, void *msgp)
 
 	req->resultcode.status = P80211ENUM_msgitem_status_data_ok;
 
-	if (hw->ap) {
-		result = 1;
-		req->resultcode.data = P80211ENUM_resultcode_not_supported;
-		goto exit;
-	}
-
 	if (! hw->scanresults) {
 		WLAN_LOG_ERROR("dot11req_scan_results can only be used after a successful dot11req_scan.\n");
 		result = 2;
@@ -600,55 +510,6 @@ int prism2mgmt_scan_results(wlandevice_t *wlandev, void *msgp)
 	return result;
 }
 
-
-/*----------------------------------------------------------------
-* prism2mgmt_join
-*
-* Join a BSS whose BSS description was previously obtained with
-* a scan.
-*
-* Arguments:
-*	wlandev		wlan device structure
-*	msgp		ptr to msg buffer
-*
-* Returns:
-*	0	success and done
-*	<0	success, but we're waiting for something to finish.
-*	>0	an error occurred while handling the message.
-* Side effects:
-*
-* Call context:
-*	process thread  (usually)
-*	interrupt
-----------------------------------------------------------------*/
-int prism2mgmt_join(wlandevice_t *wlandev, void *msgp)
-{
-	int 			result = 0;
-	hfa384x_t		*hw = wlandev->priv;
-	p80211msg_dot11req_join_t	*msg = msgp;
-	DBFENTER;
-
-	if (!hw->ap) {
-
-		/*** STATION ***/
-
-		/* TODO: Implement after scan */
-		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		msg->resultcode.data = P80211ENUM_resultcode_not_supported;
-	} else {
-
-		/*** ACCESS POINT ***/
-
-		/* Never supported by APs */
-		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		msg->resultcode.data = P80211ENUM_resultcode_not_supported;
-	}
-
-	DBFEXIT;
-	return result;
-}
-
-
 /*----------------------------------------------------------------
 * prism2mgmt_p2_join
 *
@@ -680,156 +541,144 @@ int prism2mgmt_p2_join(wlandevice_t *wlandev, void *msgp)
         hfa384x_JoinRequest_data_t	joinreq;
 	DBFENTER;
 
-	if (!hw->ap) {
+	wlandev->macmode = WLAN_MACMODE_NONE;
 
-		wlandev->macmode = WLAN_MACMODE_NONE;
+	/* Set the PortType */
+	msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
+	msg->resultcode.data = P80211ENUM_resultcode_success;
 
-		/*** STATION ***/
-		/* Set the PortType */
-		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		msg->resultcode.data = P80211ENUM_resultcode_success;
+	/* ess port */
+	result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFPORTTYPE, 1);
+	if ( result ) {
+		WLAN_LOG_ERROR("Failed to set Port Type\n");
+		goto failed;
+	}
 
-		/* ess port */
-		result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFPORTTYPE, 1);
-		if ( result ) {
-			WLAN_LOG_ERROR("Failed to set Port Type\n");
-			goto failed;
-		}
-
-		/* Set the auth type */
-		if ( msg->authtype.data == P80211ENUM_authalg_sharedkey ) {
-			reg = HFA384x_CNFAUTHENTICATION_SHAREDKEY;
-		} else {
-			reg = HFA384x_CNFAUTHENTICATION_OPENSYSTEM;
-		}
-		result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFAUTHENTICATION, reg);
-		if ( result ) {
-			WLAN_LOG_ERROR("Failed to set Authentication\n");
-			goto failed;
-		}
-
-		/* Turn off all roaming */
-		hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFROAMINGMODE, 3);
-		if ( result ) {
-			WLAN_LOG_ERROR("Failed to Turn off Roaming\n");
-			goto failed;
-		}
-
-		/* Basic rates */
-                reg = 0;
-		if ( msg->basicrate1.status == P80211ENUM_msgitem_status_data_ok ) {
-			reg = p80211rate_to_p2bit(msg->basicrate1.data);
-		}
-		if ( msg->basicrate2.status == P80211ENUM_msgitem_status_data_ok ) {
-			reg |= p80211rate_to_p2bit(msg->basicrate2.data);
-		}
-		if ( msg->basicrate3.status == P80211ENUM_msgitem_status_data_ok ) {
-			reg |= p80211rate_to_p2bit(msg->basicrate3.data);
-		}
-		if ( msg->basicrate4.status == P80211ENUM_msgitem_status_data_ok ) {
-			reg |= p80211rate_to_p2bit(msg->basicrate4.data);
-		}
-		if ( msg->basicrate5.status == P80211ENUM_msgitem_status_data_ok ) {
-			reg |= p80211rate_to_p2bit(msg->basicrate5.data);
-		}
-		if ( msg->basicrate6.status == P80211ENUM_msgitem_status_data_ok ) {
-			reg |= p80211rate_to_p2bit(msg->basicrate6.data);
-		}
-		if ( msg->basicrate7.status == P80211ENUM_msgitem_status_data_ok ) {
-			reg |= p80211rate_to_p2bit(msg->basicrate7.data);
-		}
-		if ( msg->basicrate8.status == P80211ENUM_msgitem_status_data_ok ) {
-			reg |= p80211rate_to_p2bit(msg->basicrate8.data);
-		}
-		if( reg == 0)
-			 reg = 0x03;
-		result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFBASICRATES, reg);
-		if ( result ) {
-			WLAN_LOG_ERROR("Failed to set basicrates=%d.\n", reg);
-			goto failed;
-		}
-
-		/* Operational rates (supprates and txratecontrol) */
-		reg = 0;
-		if ( msg->operationalrate1.status == P80211ENUM_msgitem_status_data_ok ) {
-			reg = p80211rate_to_p2bit(msg->operationalrate1.data);
-		}
-		if ( msg->operationalrate2.status == P80211ENUM_msgitem_status_data_ok ) {
-			reg |= p80211rate_to_p2bit(msg->operationalrate2.data);
-		}
-		if ( msg->operationalrate3.status == P80211ENUM_msgitem_status_data_ok ) {
-			reg |= p80211rate_to_p2bit(msg->operationalrate3.data);
-		}
-		if ( msg->operationalrate4.status == P80211ENUM_msgitem_status_data_ok ) {
-			reg |= p80211rate_to_p2bit(msg->operationalrate4.data);
-		}
-		if ( msg->operationalrate5.status == P80211ENUM_msgitem_status_data_ok ) {
-			reg |= p80211rate_to_p2bit(msg->operationalrate5.data);
-		}
-		if ( msg->operationalrate6.status == P80211ENUM_msgitem_status_data_ok ) {
-			reg |= p80211rate_to_p2bit(msg->operationalrate6.data);
-		}
-		if ( msg->operationalrate7.status == P80211ENUM_msgitem_status_data_ok ) {
-			reg |= p80211rate_to_p2bit(msg->operationalrate7.data);
-		}
-		if ( msg->operationalrate8.status == P80211ENUM_msgitem_status_data_ok ) {
-			reg |= p80211rate_to_p2bit(msg->operationalrate8.data);
-		}
-		if( reg == 0)
-			 reg = 0x0f;
-		result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFSUPPRATES, reg);
-		if ( result ) {
-			WLAN_LOG_ERROR("Failed to set supprates=%d.\n", reg);
-			goto failed;
-		}
-
- 		result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_TXRATECNTL, reg);
-		if ( result ) {
-			WLAN_LOG_ERROR("Failed to set txrates=%d.\n", reg);
-			goto failed;
-		}
-
-		/* Set the ssid */
-		memset(bytebuf, 0, 256);
-		pstr = (p80211pstrd_t*)&(msg->ssid.data);
-		prism2mgmt_pstr2bytestr(p2bytestr, pstr);
-		result = hfa384x_drvr_setconfig(
-			hw, HFA384x_RID_CNFDESIREDSSID,
-			bytebuf, HFA384x_RID_CNFDESIREDSSID_LEN);
-		if ( result ) {
-			WLAN_LOG_ERROR("Failed to set SSID\n");
-			goto failed;
-		}
-
-		/* Enable the Port */
-		result = hfa384x_cmd_enable(hw, 0);
-		if ( result ) {
-			WLAN_LOG_ERROR("Enable macport failed, result=%d.\n", result);
-			goto failed;
-		}
-
-		/* Fill in the join request */
-		joinreq.channel = msg->channel.data;
-		memcpy( joinreq.bssid, ((unsigned char *) &msg->bssid.data) + 1, WLAN_BSSID_LEN);
-		hw->joinreq = joinreq;
-		hw->join_ap = 1;
-
-		/* Send the join request */
-		result = hfa384x_drvr_setconfig( hw,
-			HFA384x_RID_JOINREQUEST,
-			&joinreq, HFA384x_RID_JOINREQUEST_LEN);
-                if(result != 0) {
-			WLAN_LOG_ERROR("Join request failed, result=%d.\n", result);
-			goto failed;
-		}
-
+	/* Set the auth type */
+	if ( msg->authtype.data == P80211ENUM_authalg_sharedkey ) {
+		reg = HFA384x_CNFAUTHENTICATION_SHAREDKEY;
 	} else {
+		reg = HFA384x_CNFAUTHENTICATION_OPENSYSTEM;
+	}
+	result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFAUTHENTICATION, reg);
+	if ( result ) {
+		WLAN_LOG_ERROR("Failed to set Authentication\n");
+		goto failed;
+	}
 
-		/*** ACCESS POINT ***/
+	/* Turn off all roaming */
+	hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFROAMINGMODE, 3);
+	if ( result ) {
+		WLAN_LOG_ERROR("Failed to Turn off Roaming\n");
+		goto failed;
+	}
 
-		/* Never supported by APs */
-		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		msg->resultcode.data = P80211ENUM_resultcode_not_supported;
+	/* Basic rates */
+	reg = 0;
+	if ( msg->basicrate1.status == P80211ENUM_msgitem_status_data_ok ) {
+		reg = p80211rate_to_p2bit(msg->basicrate1.data);
+	}
+	if ( msg->basicrate2.status == P80211ENUM_msgitem_status_data_ok ) {
+		reg |= p80211rate_to_p2bit(msg->basicrate2.data);
+	}
+	if ( msg->basicrate3.status == P80211ENUM_msgitem_status_data_ok ) {
+		reg |= p80211rate_to_p2bit(msg->basicrate3.data);
+	}
+	if ( msg->basicrate4.status == P80211ENUM_msgitem_status_data_ok ) {
+		reg |= p80211rate_to_p2bit(msg->basicrate4.data);
+	}
+	if ( msg->basicrate5.status == P80211ENUM_msgitem_status_data_ok ) {
+		reg |= p80211rate_to_p2bit(msg->basicrate5.data);
+	}
+	if ( msg->basicrate6.status == P80211ENUM_msgitem_status_data_ok ) {
+		reg |= p80211rate_to_p2bit(msg->basicrate6.data);
+	}
+	if ( msg->basicrate7.status == P80211ENUM_msgitem_status_data_ok ) {
+		reg |= p80211rate_to_p2bit(msg->basicrate7.data);
+	}
+	if ( msg->basicrate8.status == P80211ENUM_msgitem_status_data_ok ) {
+		reg |= p80211rate_to_p2bit(msg->basicrate8.data);
+	}
+	if( reg == 0)
+		reg = 0x03;
+	result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFBASICRATES, reg);
+	if ( result ) {
+		WLAN_LOG_ERROR("Failed to set basicrates=%d.\n", reg);
+		goto failed;
+	}
+
+	/* Operational rates (supprates and txratecontrol) */
+	reg = 0;
+	if ( msg->operationalrate1.status == P80211ENUM_msgitem_status_data_ok ) {
+		reg = p80211rate_to_p2bit(msg->operationalrate1.data);
+	}
+	if ( msg->operationalrate2.status == P80211ENUM_msgitem_status_data_ok ) {
+		reg |= p80211rate_to_p2bit(msg->operationalrate2.data);
+	}
+	if ( msg->operationalrate3.status == P80211ENUM_msgitem_status_data_ok ) {
+		reg |= p80211rate_to_p2bit(msg->operationalrate3.data);
+	}
+	if ( msg->operationalrate4.status == P80211ENUM_msgitem_status_data_ok ) {
+		reg |= p80211rate_to_p2bit(msg->operationalrate4.data);
+	}
+	if ( msg->operationalrate5.status == P80211ENUM_msgitem_status_data_ok ) {
+		reg |= p80211rate_to_p2bit(msg->operationalrate5.data);
+	}
+	if ( msg->operationalrate6.status == P80211ENUM_msgitem_status_data_ok ) {
+		reg |= p80211rate_to_p2bit(msg->operationalrate6.data);
+	}
+	if ( msg->operationalrate7.status == P80211ENUM_msgitem_status_data_ok ) {
+		reg |= p80211rate_to_p2bit(msg->operationalrate7.data);
+	}
+	if ( msg->operationalrate8.status == P80211ENUM_msgitem_status_data_ok ) {
+		reg |= p80211rate_to_p2bit(msg->operationalrate8.data);
+	}
+	if( reg == 0)
+		reg = 0x0f;
+	result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFSUPPRATES, reg);
+	if ( result ) {
+		WLAN_LOG_ERROR("Failed to set supprates=%d.\n", reg);
+		goto failed;
+	}
+
+	result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_TXRATECNTL, reg);
+	if ( result ) {
+		WLAN_LOG_ERROR("Failed to set txrates=%d.\n", reg);
+		goto failed;
+	}
+
+	/* Set the ssid */
+	memset(bytebuf, 0, 256);
+	pstr = (p80211pstrd_t*)&(msg->ssid.data);
+	prism2mgmt_pstr2bytestr(p2bytestr, pstr);
+	result = hfa384x_drvr_setconfig(
+		hw, HFA384x_RID_CNFDESIREDSSID,
+		bytebuf, HFA384x_RID_CNFDESIREDSSID_LEN);
+	if ( result ) {
+		WLAN_LOG_ERROR("Failed to set SSID\n");
+		goto failed;
+	}
+
+	/* Enable the Port */
+	result = hfa384x_cmd_enable(hw, 0);
+	if ( result ) {
+		WLAN_LOG_ERROR("Enable macport failed, result=%d.\n", result);
+		goto failed;
+	}
+
+	/* Fill in the join request */
+	joinreq.channel = msg->channel.data;
+	memcpy( joinreq.bssid, ((unsigned char *) &msg->bssid.data) + 1, WLAN_BSSID_LEN);
+	hw->joinreq = joinreq;
+	hw->join_ap = 1;
+
+	/* Send the join request */
+	result = hfa384x_drvr_setconfig( hw,
+					 HFA384x_RID_JOINREQUEST,
+					 &joinreq, HFA384x_RID_JOINREQUEST_LEN);
+	if(result != 0) {
+		WLAN_LOG_ERROR("Join request failed, result=%d.\n", result);
+		goto failed;
 	}
 
         goto done;
@@ -843,104 +692,6 @@ done:
 	DBFEXIT;
 	return result;
 }
-
-
-/*----------------------------------------------------------------
-* prism2mgmt_authenticate
-*
-* Station should be begin an authentication exchange.
-*
-* Arguments:
-*	wlandev		wlan device structure
-*	msgp		ptr to msg buffer
-*
-* Returns:
-*	0	success and done
-*	<0	success, but we're waiting for something to finish.
-*	>0	an error occurred while handling the message.
-* Side effects:
-*
-* Call context:
-*	process thread  (usually)
-*	interrupt
-----------------------------------------------------------------*/
-int prism2mgmt_authenticate(wlandevice_t *wlandev, void *msgp)
-{
-	int 			result = 0;
-	hfa384x_t		*hw = wlandev->priv;
-	p80211msg_dot11req_authenticate_t	*msg = msgp;
-	DBFENTER;
-
-	if (!hw->ap) {
-
-		/*** STATION ***/
-
-		/* TODO: Decide how we're going to handle this one w/ Prism2 */
-		/*       It could be entertaining since Prism2 doesn't have  */
-		/*       an explicit way to control this */
-		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		msg->resultcode.data = P80211ENUM_resultcode_not_supported;
-	} else {
-
-		/*** ACCESS POINT ***/
-
-		/* Never supported by APs */
-		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		msg->resultcode.data = P80211ENUM_resultcode_not_supported;
-	}
-
-	DBFEXIT;
-	return result;
-}
-
-
-/*----------------------------------------------------------------
-* prism2mgmt_deauthenticate
-*
-* Send a deauthenticate notification.
-*
-* Arguments:
-*	wlandev		wlan device structure
-*	msgp		ptr to msg buffer
-*
-* Returns:
-*	0	success and done
-*	<0	success, but we're waiting for something to finish.
-*	>0	an error occurred while handling the message.
-* Side effects:
-*
-* Call context:
-*	process thread  (usually)
-*	interrupt
-----------------------------------------------------------------*/
-int prism2mgmt_deauthenticate(wlandevice_t *wlandev, void *msgp)
-{
-	int 			result = 0;
-	hfa384x_t		*hw = wlandev->priv;
-	p80211msg_dot11req_deauthenticate_t	*msg = msgp;
-	DBFENTER;
-
-	if (!hw->ap) {
-
-		/*** STATION ***/
-
-		/* TODO: Decide how we're going to handle this one w/ Prism2 */
-		/*       It could be entertaining since Prism2 doesn't have  */
-		/*       an explicit way to control this */
-		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		msg->resultcode.data = P80211ENUM_resultcode_not_supported;
-	} else {
-
-		/*** ACCESS POINT ***/
-		hfa384x_drvr_handover(hw, msg->peerstaaddress.data.data);
-		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		msg->resultcode.data = P80211ENUM_resultcode_success;
-	}
-
-	DBFEXIT;
-	return result;
-}
-
 
 /*----------------------------------------------------------------
 * prism2mgmt_associate
@@ -968,133 +719,26 @@ int prism2mgmt_associate(wlandevice_t *wlandev, void *msgp)
 	p80211msg_dot11req_associate_t	*msg = msgp;
 	DBFENTER;
 
-	if (!hw->ap) {
-
-		/*** STATION ***/
-
 #if 0
-		/* Set the TxRates */
-		reg = 0x000f;
-		hfa384x_drvr_setconfig16(hw, HFA384x_RID_TXRATECNTL, reg);
+	/* Set the TxRates */
+	reg = 0x000f;
+	hfa384x_drvr_setconfig16(hw, HFA384x_RID_TXRATECNTL, reg);
 #endif
 
-		/* Set the PortType */
-		/* ess port */
-		hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFPORTTYPE, 1);
+	/* Set the PortType */
+	/* ess port */
+	hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFPORTTYPE, 1);
 
-		/* Enable the Port */
-		hfa384x_drvr_enable(hw, 0);
+	/* Enable the Port */
+	hfa384x_drvr_enable(hw, 0);
 
-		/* Set the resultcode */
-		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		msg->resultcode.data = P80211ENUM_resultcode_success;
-
-	} else {
-
-		/*** ACCESS POINT ***/
-
-		/* Never supported on AP */
-		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		msg->resultcode.data = P80211ENUM_resultcode_not_supported;
-	}
+	/* Set the resultcode */
+	msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
+	msg->resultcode.data = P80211ENUM_resultcode_success;
 
 	DBFEXIT;
 	return result;
 }
-
-
-/*----------------------------------------------------------------
-* prism2mgmt_reassociate
-*
-* Renew association because of a BSS change.
-*
-* Arguments:
-*	wlandev		wlan device structure
-*	msgp		ptr to msg buffer
-*
-* Returns:
-*	0	success and done
-*	<0	success, but we're waiting for something to finish.
-*	>0	an error occurred while handling the message.
-* Side effects:
-*
-* Call context:
-*	process thread  (usually)
-*	interrupt
-----------------------------------------------------------------*/
-int prism2mgmt_reassociate(wlandevice_t *wlandev, void *msgp)
-{
-	int 			result = 0;
-	hfa384x_t		*hw = wlandev->priv;
-	p80211msg_dot11req_reassociate_t	*msg = msgp;
-	DBFENTER;
-
-	if (!hw->ap) {
-
-		/*** STATION ***/
-
-		/* TODO: Not supported yet...not sure how we're going to do it */
-		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		msg->resultcode.data = P80211ENUM_resultcode_not_supported;
-	} else {
-
-		/*** ACCESS POINT ***/
-
-		/* Never supported on AP */
-		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		msg->resultcode.data = P80211ENUM_resultcode_not_supported;
-	}
-
-	DBFEXIT;
-	return result;
-}
-
-
-/*----------------------------------------------------------------
-* prism2mgmt_disassociate
-*
-* Send a disassociation notification.
-*
-* Arguments:
-*	wlandev		wlan device structure
-*	msgp		ptr to msg buffer
-*
-* Returns:
-*	0	success and done
-*	<0	success, but we're waiting for something to finish.
-*	>0	an error occurred while handling the message.
-* Side effects:
-*
-* Call context:
-*	process thread  (usually)
-*	interrupt
-----------------------------------------------------------------*/
-int prism2mgmt_disassociate(wlandevice_t *wlandev, void *msgp)
-{
-	int 			result = 0;
-	hfa384x_t		*hw = wlandev->priv;
-	p80211msg_dot11req_disassociate_t	*msg = msgp;
-	DBFENTER;
-
-	if (!hw->ap) {
-
-		/*** STATION ***/
-
-		/* TODO: Not supported yet...not sure how to do it */
-		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		msg->resultcode.data = P80211ENUM_resultcode_not_supported;
-	} else {
-
-		/*** ACCESS POINT ***/
-		hfa384x_drvr_handover(hw, msg->peerstaaddress.data.data);
-		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		msg->resultcode.data = P80211ENUM_resultcode_success;
-	}
-
-	DBFEXIT;
-	return result;
-}
-
 
 /*----------------------------------------------------------------
 * prism2mgmt_reset
@@ -1189,7 +833,6 @@ int prism2mgmt_start(wlandevice_t *wlandev, void *msgp)
 	p80211pstrd_t		*pstr;
 	UINT8			bytebuf[80];
 	hfa384x_bytestr_t	*p2bytestr = (hfa384x_bytestr_t*)bytebuf;
-	hfa384x_PCFInfo_data_t	*pcfinfo = (hfa384x_PCFInfo_data_t*)bytebuf;
 	UINT16			word;
 	DBFENTER;
 
@@ -1198,166 +841,41 @@ int prism2mgmt_start(wlandevice_t *wlandev, void *msgp)
 	/* Set the SSID */
 	memcpy(&wlandev->ssid, &msg->ssid.data, sizeof(msg->ssid.data));
 
-	if (!hw->ap) {
-		/*** ADHOC IBSS ***/
-		/* see if current f/w is less than 8c3 */
-		if (HFA384x_FIRMWARE_VERSION(hw->ident_sta_fw.major,
-					     hw->ident_sta_fw.minor,
-					     hw->ident_sta_fw.variant) <
-		    HFA384x_FIRMWARE_VERSION(0,8,3)) {
-			/* Ad-Hoc not quite supported on Prism2 */
-			msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-			msg->resultcode.data = P80211ENUM_resultcode_not_supported;
-			goto done;
-		}
-
-  		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-
-		/*** STATION ***/
-		/* Set the REQUIRED config items */
-		/* SSID */
-		pstr = (p80211pstrd_t*)&(msg->ssid.data);
-		prism2mgmt_pstr2bytestr(p2bytestr, pstr);
-		result = hfa384x_drvr_setconfig( hw, HFA384x_RID_CNFOWNSSID,
-				bytebuf, HFA384x_RID_CNFOWNSSID_LEN);
-		if ( result ) {
-			WLAN_LOG_ERROR("Failed to set CnfOwnSSID\n");
-			goto failed;
-		}
-		result = hfa384x_drvr_setconfig( hw, HFA384x_RID_CNFDESIREDSSID,
-				bytebuf, HFA384x_RID_CNFDESIREDSSID_LEN);
-		if ( result ) {
-			WLAN_LOG_ERROR("Failed to set CnfDesiredSSID\n");
-			goto failed;
-		}
-
-		/* bsstype - we use the default in the ap firmware */
-		/* IBSS port */
-		hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFPORTTYPE, 0);
-
-		/* beacon period */
-		word = msg->beaconperiod.data;
-		result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFAPBCNINT, word);
-		if ( result ) {
-			WLAN_LOG_ERROR("Failed to set beacon period=%d.\n", word);
-			goto failed;
-		}
-
-		/* dschannel */
-		word = msg->dschannel.data;
-		result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFOWNCHANNEL, word);
-		if ( result ) {
-			WLAN_LOG_ERROR("Failed to set channel=%d.\n", word);
-			goto failed;
-		}
-		/* Basic rates */
-		word = p80211rate_to_p2bit(msg->basicrate1.data);
-		if ( msg->basicrate2.status == P80211ENUM_msgitem_status_data_ok ) {
-			word |= p80211rate_to_p2bit(msg->basicrate2.data);
-		}
-		if ( msg->basicrate3.status == P80211ENUM_msgitem_status_data_ok ) {
-			word |= p80211rate_to_p2bit(msg->basicrate3.data);
-		}
-		if ( msg->basicrate4.status == P80211ENUM_msgitem_status_data_ok ) {
-			word |= p80211rate_to_p2bit(msg->basicrate4.data);
-		}
-		if ( msg->basicrate5.status == P80211ENUM_msgitem_status_data_ok ) {
-			word |= p80211rate_to_p2bit(msg->basicrate5.data);
-		}
-		if ( msg->basicrate6.status == P80211ENUM_msgitem_status_data_ok ) {
-			word |= p80211rate_to_p2bit(msg->basicrate6.data);
-		}
-		if ( msg->basicrate7.status == P80211ENUM_msgitem_status_data_ok ) {
-			word |= p80211rate_to_p2bit(msg->basicrate7.data);
-		}
-		if ( msg->basicrate8.status == P80211ENUM_msgitem_status_data_ok ) {
-			word |= p80211rate_to_p2bit(msg->basicrate8.data);
-		}
-		result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFBASICRATES, word);
-		if ( result ) {
-			WLAN_LOG_ERROR("Failed to set basicrates=%d.\n", word);
-			goto failed;
-		}
-
-		/* Operational rates (supprates and txratecontrol) */
-		word = p80211rate_to_p2bit(msg->operationalrate1.data);
-		if ( msg->operationalrate2.status == P80211ENUM_msgitem_status_data_ok ) {
-			word |= p80211rate_to_p2bit(msg->operationalrate2.data);
-		}
-		if ( msg->operationalrate3.status == P80211ENUM_msgitem_status_data_ok ) {
-			word |= p80211rate_to_p2bit(msg->operationalrate3.data);
-		}
-		if ( msg->operationalrate4.status == P80211ENUM_msgitem_status_data_ok ) {
-			word |= p80211rate_to_p2bit(msg->operationalrate4.data);
-		}
-		if ( msg->operationalrate5.status == P80211ENUM_msgitem_status_data_ok ) {
-			word |= p80211rate_to_p2bit(msg->operationalrate5.data);
-		}
-		if ( msg->operationalrate6.status == P80211ENUM_msgitem_status_data_ok ) {
-			word |= p80211rate_to_p2bit(msg->operationalrate6.data);
-		}
-		if ( msg->operationalrate7.status == P80211ENUM_msgitem_status_data_ok ) {
-			word |= p80211rate_to_p2bit(msg->operationalrate7.data);
-		}
-		if ( msg->operationalrate8.status == P80211ENUM_msgitem_status_data_ok ) {
-			word |= p80211rate_to_p2bit(msg->operationalrate8.data);
-		}
-		result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFSUPPRATES, word);
-		if ( result ) {
-			WLAN_LOG_ERROR("Failed to set supprates=%d.\n", word);
-			goto failed;
-		}
-
- 		result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_TXRATECNTL, word);
-		if ( result ) {
-			WLAN_LOG_ERROR("Failed to set txrates=%d.\n", word);
-			goto failed;
-		}
-
-		/* Set the macmode so the frame setup code knows what to do */
-		if ( msg->bsstype.data == P80211ENUM_bsstype_independent ) {
-			wlandev->macmode = WLAN_MACMODE_IBSS_STA;
-			/* lets extend the data length a bit */
-			hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFMAXDATALEN, 2304);
-		}
-
-		/* Enable the Port */
-		result = hfa384x_drvr_enable(hw, 0);
-		if ( result ) {
-			WLAN_LOG_ERROR("Enable macport failed, result=%d.\n", result);
-			goto failed;
-		}
-
-		msg->resultcode.data = P80211ENUM_resultcode_success;
-
+	/*** ADHOC IBSS ***/
+	/* see if current f/w is less than 8c3 */
+	if (HFA384x_FIRMWARE_VERSION(hw->ident_sta_fw.major,
+				     hw->ident_sta_fw.minor,
+				     hw->ident_sta_fw.variant) <
+	    HFA384x_FIRMWARE_VERSION(0,8,3)) {
+		/* Ad-Hoc not quite supported on Prism2 */
+		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
+		msg->resultcode.data = P80211ENUM_resultcode_not_supported;
 		goto done;
 	}
 
-	/*** ACCESS POINT ***/
-
 	msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
 
-	/* Validate the command, if BSStype=infra is the tertiary loaded? */
-	if ( msg->bsstype.data == P80211ENUM_bsstype_independent ) {
-		WLAN_LOG_ERROR("AP driver cannot create IBSS.\n");
-		goto failed;
-	} else if ( hw->cap_sup_sta.id != 5) {
-		WLAN_LOG_ERROR("AP driver failed to detect AP firmware.\n");
-		goto failed;
-	}
-
+	/*** STATION ***/
 	/* Set the REQUIRED config items */
 	/* SSID */
 	pstr = (p80211pstrd_t*)&(msg->ssid.data);
 	prism2mgmt_pstr2bytestr(p2bytestr, pstr);
 	result = hfa384x_drvr_setconfig( hw, HFA384x_RID_CNFOWNSSID,
-				bytebuf, HFA384x_RID_CNFOWNSSID_LEN);
+					 bytebuf, HFA384x_RID_CNFOWNSSID_LEN);
 	if ( result ) {
-		WLAN_LOG_ERROR("Failed to set SSID, result=0x%04x\n", result);
+		WLAN_LOG_ERROR("Failed to set CnfOwnSSID\n");
+		goto failed;
+	}
+	result = hfa384x_drvr_setconfig( hw, HFA384x_RID_CNFDESIREDSSID,
+					 bytebuf, HFA384x_RID_CNFDESIREDSSID_LEN);
+	if ( result ) {
+		WLAN_LOG_ERROR("Failed to set CnfDesiredSSID\n");
 		goto failed;
 	}
 
 	/* bsstype - we use the default in the ap firmware */
+	/* IBSS port */
+	hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFPORTTYPE, 0);
 
 	/* beacon period */
 	word = msg->beaconperiod.data;
@@ -1431,97 +949,19 @@ int prism2mgmt_start(wlandevice_t *wlandev, void *msgp)
 		WLAN_LOG_ERROR("Failed to set supprates=%d.\n", word);
 		goto failed;
 	}
-	result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_TXRATECNTL0, word);
+
+	result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_TXRATECNTL, word);
 	if ( result ) {
 		WLAN_LOG_ERROR("Failed to set txrates=%d.\n", word);
 		goto failed;
 	}
 
-	/* ibssatimwindow */
-	if (msg->ibssatimwindow.status == P80211ENUM_msgitem_status_data_ok) {
-		WLAN_LOG_INFO("prism2mgmt_start: atimwindow not used in "
-			       "Infrastructure mode, ignored.\n");
-	}
-
-	/* DTIM period */
-	word = msg->dtimperiod.data;
-	result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFOWNDTIMPER, word);
-	if ( result ) {
-		WLAN_LOG_ERROR("Failed to set dtim period=%d.\n", word);
-		goto failed;
-	}
-
-	/* probedelay */
-	if (msg->probedelay.status == P80211ENUM_msgitem_status_data_ok) {
-		WLAN_LOG_INFO("prism2mgmt_start: probedelay not "
-			       "supported in prism2, ignored.\n");
-	}
-
-	/* cfpollable, cfpollreq, cfpperiod, cfpmaxduration */
-	if (msg->cfpollable.data == P80211ENUM_truth_true &&
-	    msg->cfpollreq.data == P80211ENUM_truth_true ) {
-		WLAN_LOG_ERROR("cfpollable=cfpollreq=true is illegal.\n");
-		result = -1;
-		goto failed;
-	}
-
-	/* read the PCFInfo and update */
-	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_CNFAPPCFINFO,
-					pcfinfo, HFA384x_RID_CNFAPPCFINFO_LEN);
-	if ( result ) {
-		WLAN_LOG_INFO("prism2mgmt_start: read(pcfinfo) failed, "
-				"assume it's "
-				"not supported, pcf settings ignored.\n");
-		goto pcf_skip;
-	}
-	if ((msg->cfpollable.data == P80211ENUM_truth_false &&
-	     msg->cfpollreq.data == P80211ENUM_truth_false) ) {
-	    	pcfinfo->MediumOccupancyLimit = 0;
-		pcfinfo->CFPPeriod = 0;
-		pcfinfo->CFPMaxDuration = 0;
-		pcfinfo->CFPFlags &= host2hfa384x_16((UINT16)~BIT0);
-
-		if ( msg->cfpperiod.status == P80211ENUM_msgitem_status_data_ok ||
-		     msg->cfpmaxduration.status == P80211ENUM_msgitem_status_data_ok ) {
-			WLAN_LOG_WARNING(
-				"Setting cfpperiod or cfpmaxduration when "
-				"cfpollable and cfreq are false is pointless.\n");
-		}
-	}
-	if ((msg->cfpollable.data == P80211ENUM_truth_true ||
-	     msg->cfpollreq.data == P80211ENUM_truth_true) ) {
-		if ( msg->cfpollable.data == P80211ENUM_truth_true) {
-			pcfinfo->CFPFlags |= host2hfa384x_16((UINT16)BIT0);
-		}
-
-		if ( msg->cfpperiod.status == P80211ENUM_msgitem_status_data_ok) {
-			pcfinfo->CFPPeriod = msg->cfpperiod.data;
-			pcfinfo->CFPPeriod = host2hfa384x_16(pcfinfo->CFPPeriod);
-		}
-
-		if ( msg->cfpmaxduration.status == P80211ENUM_msgitem_status_data_ok) {
-			pcfinfo->CFPMaxDuration = msg->cfpmaxduration.data;
-			pcfinfo->CFPMaxDuration = host2hfa384x_16(pcfinfo->CFPMaxDuration);
-			pcfinfo->MediumOccupancyLimit = pcfinfo->CFPMaxDuration;
-		}
-	}
-	result = hfa384x_drvr_setconfig(hw, HFA384x_RID_CNFAPPCFINFO,
-					pcfinfo, HFA384x_RID_CNFAPPCFINFO_LEN);
-	if ( result ) {
-		WLAN_LOG_ERROR("write(pcfinfo) failed.\n");
-		goto failed;
-	}
-
-pcf_skip:
 	/* Set the macmode so the frame setup code knows what to do */
-	if ( msg->bsstype.data == P80211ENUM_bsstype_infrastructure ) {
-		wlandev->macmode = WLAN_MACMODE_ESS_AP;
+	if ( msg->bsstype.data == P80211ENUM_bsstype_independent ) {
+		wlandev->macmode = WLAN_MACMODE_IBSS_STA;
 		/* lets extend the data length a bit */
 		hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFMAXDATALEN, 2304);
 	}
-
-	/* Set the BSSID to the same as our MAC */
-	memcpy( wlandev->bssid, wlandev->netdev->dev_addr, WLAN_BSSID_LEN);
 
 	/* Enable the Port */
 	result = hfa384x_drvr_enable(hw, 0);
@@ -1543,80 +983,6 @@ done:
 	DBFEXIT;
 	return result;
 }
-
-
-/*----------------------------------------------------------------
-* prism2mgmt_enable
-*
-* Start a BSS.  Any station can do this for IBSS, only AP for ESS.
-*
-* Arguments:
-*	wlandev		wlan device structure
-*	msgp		ptr to msg buffer
-*
-* Returns:
-*	0	success and done
-*	<0	success, but we're waiting for something to finish.
-*	>0	an error occurred while handling the message.
-* Side effects:
-*
-* Call context:
-*	process thread  (usually)
-*	interrupt
-----------------------------------------------------------------*/
-int prism2mgmt_enable(wlandevice_t *wlandev, void *msgp)
-{
-	int			result = 0;
-	hfa384x_t		*hw = wlandev->priv;
-	p80211msg_p2req_enable_t	*msg = msgp;
-	DBFENTER;
-
-	if (!hw->ap) {
-
-		/*** STATION ***/
-
-		/* Ad-Hoc not quite supported on Prism2 */
-		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		msg->resultcode.data = P80211ENUM_resultcode_not_supported;
-		goto done;
-	}
-
-	/*** ACCESS POINT ***/
-
-	msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-
-	/* Is the tertiary loaded? */
-	if ( hw->cap_sup_sta.id != 5) {
-		WLAN_LOG_ERROR("AP driver failed to detect AP firmware.\n");
-		goto failed;
-	}
-
-	/* Set the macmode so the frame setup code knows what to do */
-	wlandev->macmode = WLAN_MACMODE_ESS_AP;
-
-	/* Set the BSSID to the same as our MAC */
-	memcpy( wlandev->bssid, wlandev->netdev->dev_addr, WLAN_BSSID_LEN);
-
-	/* Enable the Port */
-	result = hfa384x_drvr_enable(hw, 0);
-	if ( result ) {
-		WLAN_LOG_ERROR("Enable macport failed, result=%d.\n", result);
-		goto failed;
-	}
-
-	msg->resultcode.data = P80211ENUM_resultcode_success;
-
-	goto done;
-failed:
-	msg->resultcode.data = P80211ENUM_resultcode_invalid_parameters;
-
-done:
-	result = 0;
-
-	DBFEXIT;
-	return result;
-}
-
 
 /*----------------------------------------------------------------
 * prism2mgmt_readpda
@@ -2341,16 +1707,6 @@ int prism2mgmt_autojoin(wlandevice_t *wlandev, void *msgp)
 	/* Set the SSID */
 	memcpy(&wlandev->ssid, &msg->ssid.data, sizeof(msg->ssid.data));
 
-	if (hw->ap) {
-
-		/*** ACCESS POINT ***/
-
-		/* Never supported on AP */
-		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		msg->resultcode.data = P80211ENUM_resultcode_not_supported;
-		goto done;
-	}
-
 	/* Disable the Port */
 	hfa384x_drvr_disable(hw, 0);
 
@@ -2402,7 +1758,6 @@ int prism2mgmt_autojoin(wlandevice_t *wlandev, void *msgp)
 	msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
 	msg->resultcode.data = P80211ENUM_resultcode_success;
 
-done:
 	DBFEXIT;
 	return result;
 }

@@ -2547,7 +2547,6 @@ typedef struct hfa384x
 	UINT		presniff_port_type;
 	UINT16		presniff_wepflags;
 	UINT32		dot11_desired_bss_type;
-	int		ap;	/* AP flag: 0 - Station, 1 - Access Point. */
 
 	int             dbmadjust;
 

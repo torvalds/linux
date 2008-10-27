@@ -390,10 +390,6 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 		WLAN_LOG_DEBUG(2,"Received mibset request\n");
 		result = prism2mgmt_mibset_mibget(wlandev, msg);
 		break;
-	case DIDmsg_dot11req_powermgmt :
-		WLAN_LOG_DEBUG(2,"Received powermgmt request\n");
-		result = prism2mgmt_powermgmt(wlandev, msg);
-		break;
 	case DIDmsg_dot11req_scan :
 		WLAN_LOG_DEBUG(2,"Received scan request\n");
 		result = prism2mgmt_scan(wlandev, msg);
@@ -402,29 +398,9 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 		WLAN_LOG_DEBUG(2,"Received scan_results request\n");
 		result = prism2mgmt_scan_results(wlandev, msg);
 		break;
-	case DIDmsg_dot11req_join :
-		WLAN_LOG_DEBUG(2,"Received join request\n");
-		result = prism2mgmt_join(wlandev, msg);
-		break;
-	case DIDmsg_dot11req_authenticate :
-		WLAN_LOG_DEBUG(2,"Received authenticate request\n");
-		result = prism2mgmt_authenticate(wlandev, msg);
-		break;
-	case DIDmsg_dot11req_deauthenticate :
-		WLAN_LOG_DEBUG(2,"Received mlme deauthenticate request\n");
-		result = prism2mgmt_deauthenticate(wlandev, msg);
-		break;
 	case DIDmsg_dot11req_associate :
 		WLAN_LOG_DEBUG(2,"Received mlme associate request\n");
 		result = prism2mgmt_associate(wlandev, msg);
-		break;
-	case DIDmsg_dot11req_reassociate :
-		WLAN_LOG_DEBUG(2,"Received mlme reassociate request\n");
-		result = prism2mgmt_reassociate(wlandev, msg);
-		break;
-	case DIDmsg_dot11req_disassociate :
-		WLAN_LOG_DEBUG(2,"Received mlme disassociate request\n");
-		result = prism2mgmt_disassociate(wlandev, msg);
 		break;
 	case DIDmsg_dot11req_reset :
 		WLAN_LOG_DEBUG(2,"Received mlme reset request\n");
@@ -522,17 +498,10 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 		WLAN_LOG_DEBUG(2,"Received mlme autojoin request\n");
 		result = prism2mgmt_autojoin(wlandev, msg);
 		break;
-	case DIDmsg_p2req_enable :
-		WLAN_LOG_DEBUG(2,"Received mlme enable request\n");
-		result = prism2mgmt_enable(wlandev, msg);
-		break;
 	case DIDmsg_lnxreq_commsquality: {
 		p80211msg_lnxreq_commsquality_t *qualmsg;
 
 		WLAN_LOG_DEBUG(2,"Received commsquality request\n");
-
-		if (hw->ap)
-			break;
 
 		qualmsg = (p80211msg_lnxreq_commsquality_t*) msg;
 
@@ -825,17 +794,17 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	hw->ident_sta_fw.variant &= ~((UINT16)(BIT14 | BIT15));
 
 	if  ( hw->ident_sta_fw.id == 0x1f ) {
-		hw->ap = 0;
 		WLAN_LOG_INFO(
 			"ident: sta f/w: id=0x%02x %d.%d.%d\n",
 			hw->ident_sta_fw.id, hw->ident_sta_fw.major,
 			hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
 	} else {
-		hw->ap = 1;
 		WLAN_LOG_INFO(
 			"ident:  ap f/w: id=0x%02x %d.%d.%d\n",
 			hw->ident_sta_fw.id, hw->ident_sta_fw.major,
 			hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
+		WLAN_LOG_ERROR("Unsupported Tertiary AP firmeare loaded!\n");
+		goto failed;
 	}
 
 	/* Compatibility range, Modem supplier */
@@ -1089,10 +1058,6 @@ static int prism2sta_setmulticast(wlandevice_t *wlandev, netdevice_t *dev)
 
 	/* If we're not ready, what's the point? */
 	if ( hw->state != HFA384x_STATE_RUNNING )
-		goto exit;
-
-	/* If we're an AP, do nothing here */
-	if (hw->ap)
 		goto exit;
 
 	if ( (dev->flags & (IFF_PROMISC | IFF_ALLMULTI)) != 0 )

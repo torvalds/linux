@@ -100,16 +100,10 @@ prism2sta_ev_alloc(wlandevice_t *wlandev);
 
 
 int prism2mgmt_mibset_mibget(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_powermgmt(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_scan_results(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_join(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_p2_join(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_authenticate(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_deauthenticate(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_associate(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_reassociate(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_disassociate(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_reset(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_start(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp);
@@ -128,7 +122,6 @@ int prism2mgmt_flashdl_state(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_flashdl_write(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_mm_state(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_dump_state(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_enable(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_autojoin(wlandevice_t *wlandev, void *msgp);
 
 /*---------------------------------------------------------------

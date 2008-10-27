@@ -72,25 +72,6 @@
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(2) | \
 			P80211DID_MKITEM(2) | 0x00000000)
-#define DIDmsg_dot11req_powermgmt \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(3))
-#define DIDmsg_dot11req_powermgmt_powermgmtmode \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(3) | \
-			P80211DID_MKITEM(1) | 0x00000000)
-#define DIDmsg_dot11req_powermgmt_wakeup \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(3) | \
-			P80211DID_MKITEM(2) | 0x00000000)
-#define DIDmsg_dot11req_powermgmt_receivedtims \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(3) | \
-			P80211DID_MKITEM(3) | 0x00000000)
-#define DIDmsg_dot11req_powermgmt_resultcode \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(3) | \
-			P80211DID_MKITEM(4) | 0x00000000)
 #define DIDmsg_dot11req_scan \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(4))
@@ -301,119 +282,6 @@
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(5) | \
 			P80211DID_MKITEM(40) | 0x00000000)
-#define DIDmsg_dot11req_join \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6))
-#define DIDmsg_dot11req_join_bssid \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(1) | 0x00000000)
-#define DIDmsg_dot11req_join_joinfailuretimeout \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(2) | 0x00000000)
-#define DIDmsg_dot11req_join_basicrate1 \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(3) | 0x00000000)
-#define DIDmsg_dot11req_join_basicrate2 \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(4) | 0x00000000)
-#define DIDmsg_dot11req_join_basicrate3 \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(5) | 0x00000000)
-#define DIDmsg_dot11req_join_basicrate4 \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(6) | 0x00000000)
-#define DIDmsg_dot11req_join_basicrate5 \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(7) | 0x00000000)
-#define DIDmsg_dot11req_join_basicrate6 \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(8) | 0x00000000)
-#define DIDmsg_dot11req_join_basicrate7 \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(9) | 0x00000000)
-#define DIDmsg_dot11req_join_basicrate8 \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(10) | 0x00000000)
-#define DIDmsg_dot11req_join_operationalrate1 \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(11) | 0x00000000)
-#define DIDmsg_dot11req_join_operationalrate2 \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(12) | 0x00000000)
-#define DIDmsg_dot11req_join_operationalrate3 \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(13) | 0x00000000)
-#define DIDmsg_dot11req_join_operationalrate4 \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(14) | 0x00000000)
-#define DIDmsg_dot11req_join_operationalrate5 \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(15) | 0x00000000)
-#define DIDmsg_dot11req_join_operationalrate6 \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(16) | 0x00000000)
-#define DIDmsg_dot11req_join_operationalrate7 \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(17) | 0x00000000)
-#define DIDmsg_dot11req_join_operationalrate8 \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(18) | 0x00000000)
-#define DIDmsg_dot11req_join_resultcode \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(19) | 0x00000000)
-#define DIDmsg_dot11req_authenticate \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(7))
-#define DIDmsg_dot11req_authenticate_peerstaaddress \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(7) | \
-			P80211DID_MKITEM(1) | 0x00000000)
-#define DIDmsg_dot11req_authenticate_authenticationtype \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(7) | \
-			P80211DID_MKITEM(2) | 0x00000000)
-#define DIDmsg_dot11req_authenticate_authenticationfailuretimeout \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(7) | \
-			P80211DID_MKITEM(3) | 0x00000000)
-#define DIDmsg_dot11req_authenticate_resultcode \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(7) | \
-			P80211DID_MKITEM(4) | 0x00000000)
-#define DIDmsg_dot11req_deauthenticate \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(8))
-#define DIDmsg_dot11req_deauthenticate_peerstaaddress \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(8) | \
-			P80211DID_MKITEM(1) | 0x00000000)
-#define DIDmsg_dot11req_deauthenticate_reasoncode \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(8) | \
-			P80211DID_MKITEM(2) | 0x00000000)
-#define DIDmsg_dot11req_deauthenticate_resultcode \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(8) | \
-			P80211DID_MKITEM(3) | 0x00000000)
 #define DIDmsg_dot11req_associate \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(9))
@@ -445,52 +313,6 @@
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(9) | \
 			P80211DID_MKITEM(7) | 0x00000000)
-#define DIDmsg_dot11req_reassociate \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(10))
-#define DIDmsg_dot11req_reassociate_newapaddress \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(10) | \
-			P80211DID_MKITEM(1) | 0x00000000)
-#define DIDmsg_dot11req_reassociate_reassociatefailuretimeout \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(10) | \
-			P80211DID_MKITEM(2) | 0x00000000)
-#define DIDmsg_dot11req_reassociate_cfpollable \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(10) | \
-			P80211DID_MKITEM(3) | 0x00000000)
-#define DIDmsg_dot11req_reassociate_cfpollreq \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(10) | \
-			P80211DID_MKITEM(4) | 0x00000000)
-#define DIDmsg_dot11req_reassociate_privacy \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(10) | \
-			P80211DID_MKITEM(5) | 0x00000000)
-#define DIDmsg_dot11req_reassociate_listeninterval \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(10) | \
-			P80211DID_MKITEM(6) | 0x00000000)
-#define DIDmsg_dot11req_reassociate_resultcode \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(10) | \
-			P80211DID_MKITEM(7) | 0x00000000)
-#define DIDmsg_dot11req_disassociate \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(11))
-#define DIDmsg_dot11req_disassociate_peerstaaddress \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(11) | \
-			P80211DID_MKITEM(1) | 0x00000000)
-#define DIDmsg_dot11req_disassociate_reasoncode \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(11) | \
-			P80211DID_MKITEM(2) | 0x00000000)
-#define DIDmsg_dot11req_disassociate_resultcode \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(11) | \
-			P80211DID_MKITEM(3) | 0x00000000)
 #define DIDmsg_dot11req_reset \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(12))
@@ -1189,13 +1011,6 @@
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(16) | \
 			P80211DID_MKITEM(2) | 0x00000000)
-#define DIDmsg_p2req_enable \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(19))
-#define DIDmsg_p2req_enable_resultcode \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(19) | \
-			P80211DID_MKITEM(1) | 0x00000000)
 #define DIDmib_cat_dot11smt \
 			P80211DID_MKSECTION(1)
 #define DIDmib_dot11smt_p80211Table \
