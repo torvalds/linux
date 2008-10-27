@@ -91,18 +91,18 @@
 
 /* Use our own dbg macro */
 #define at76_dbg(bits, format, arg...) \
-	do { \
-		if (at76_debug & (bits)) \
+do {	\
+	if (at76_debug & (bits))	\
 		printk(KERN_DEBUG DRIVER_NAME ": " format "\n" , ## arg); \
-	} while (0)
+} while (0)
 
 #define at76_dbg_dump(bits, buf, len, format, arg...)	\
-	do { \
-		if (at76_debug & (bits)) { \
+do {	\
+	if (at76_debug & (bits)) {	\
 		printk(KERN_DEBUG DRIVER_NAME ": " format "\n" , ## arg); \
-		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, buf, len); \
+		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, buf, len);	\
 		}							\
-	} while (0)
+} while (0)
 
 static int at76_debug = DBG_DEFAULTS;
 
@@ -300,22 +300,30 @@ struct dfu_status {
 
 static inline int at76_is_intersil(enum board_type board)
 {
-	return (board == BOARD_503_ISL3861 || board == BOARD_503_ISL3863);
+	if (board == BOARD_503_ISL3861 || board == BOARD_503_ISL3863)
+		return 1;
+	return 0;
 }
 
 static inline int at76_is_503rfmd(enum board_type board)
 {
-	return (board == BOARD_503 || board == BOARD_503_ACC);
+	if (board == BOARD_503 || board == BOARD_503_ACC)
+		return 1;
+	return 0;
 }
 
 static inline int at76_is_505(enum board_type board)
 {
-	return (board == BOARD_505 || BOARD_505_2958);
+	if (board == BOARD_505 || board == BOARD_505_2958)
+		return 1;
+	return 0;
 }
 
 static inline int at76_is_505a(enum board_type board)
 {
-	return (board == BOARD_505A || board == BOARD_505AMX);
+	if (board == BOARD_505A || board == BOARD_505AMX)
+		return 1;
+	return 0;
 }
 
 /* Load a block of the first (internal) part of the firmware */
@@ -1054,20 +1062,23 @@ static void at76_dump_mib_mac_encryption(struct at76_priv *priv)
 	int i;
 	int ret;
 	/*int key_len;*/
-	struct mib_mac_encryption *m = kmalloc(sizeof(struct mib_mac_encryption), GFP_KERNEL);
+	struct mib_mac_encryption *m;
 
+	m = kmalloc(sizeof(struct mib_mac_encryption), GFP_KERNEL);
 	if (!m)
 		return;
 
 	ret = at76_get_mib(priv->udev, MIB_MAC_ENCRYPTION, m,
 			   sizeof(struct mib_mac_encryption));
 	if (ret < 0) {
-		printk(KERN_ERR "%s: at76_get_mib (MAC_ENCRYPTION) failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
+		dev_err(&priv->udev->dev,
+			"%s: at76_get_mib (MAC_ENCRYPTION) failed: %d\n",
+			wiphy_name(priv->hw->wiphy), ret);
 		goto exit;
 	}
 
-	at76_dbg(DBG_MIB, "%s: MIB MAC_ENCRYPTION: tkip_bssid %s priv_invoked %u "
+	at76_dbg(DBG_MIB,
+		 "%s: MIB MAC_ENCRYPTION: tkip_bssid %s priv_invoked %u "
 		 "ciph_key_id %u grp_key_id %u excl_unencr %u "
 		 "ckip_key_perm %u wep_icv_err %u wep_excluded %u",
 		 wiphy_name(priv->hw->wiphy), mac2str(m->tkip_bssid),
@@ -1083,7 +1094,8 @@ static void at76_dump_mib_mac_encryption(struct at76_priv *priv)
 	for (i = 0; i < CIPHER_KEYS; i++)
 		at76_dbg(DBG_MIB, "%s: MIB MAC_ENCRYPTION: key %d: %s",
 			 wiphy_name(priv->hw->wiphy), i,
-			 hex2str(m->cipher_default_keyvalue[i], CIPHER_KEY_LEN));
+			 hex2str(m->cipher_default_keyvalue[i],
+				 CIPHER_KEY_LEN));
 exit:
 	kfree(m);
 }
@@ -1622,10 +1634,12 @@ static void at76_rx_tasklet(unsigned long param)
 
 	skb_trim(priv->rx_skb, le16_to_cpu(buf->wlength) + AT76_RX_HDRLEN);
 	at76_dbg_dump(DBG_RX_DATA, &priv->rx_skb->data[AT76_RX_HDRLEN],
-		      priv->rx_skb->len, "RX: len=%d", (int)(priv->rx_skb->len - AT76_RX_HDRLEN));
+		      priv->rx_skb->len, "RX: len=%d",
+		      (int)(priv->rx_skb->len - AT76_RX_HDRLEN));
 
 	rx_status.signal = buf->rssi;
-	rx_status.rate_idx = buf->rx_rate;	/* FIXME: is rate_idx still present in structure? */
+	/* FIXME: is rate_idx still present in structure? */
+	rx_status.rate_idx = buf->rx_rate;
 	rx_status.flag |= RX_FLAG_DECRYPTED;
 	rx_status.flag |= RX_FLAG_IV_STRIPPED;
 
@@ -1726,7 +1740,9 @@ static void at76_mac80211_tx_callback(struct urb *urb)
 	switch (urb->status) {
 	case 0:
 		/* success */
-		info->flags |= IEEE80211_TX_STAT_ACK;	/* FIXME: is the frame really ACKed when tx_callback is called ? */
+		/* FIXME:
+		 * is the frame really ACKed when tx_callback is called ? */
+		info->flags |= IEEE80211_TX_STAT_ACK;
 		break;
 	case -ENOENT:
 	case -ECONNRESET:
@@ -1780,8 +1796,10 @@ static int at76_mac80211_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	tx_buffer->tx_rate = ieee80211_get_tx_rate(hw, info)->hw_value;
 	if (FIRMWARE_IS_WPA(priv->fw_version) && info->control.hw_key) {
 		tx_buffer->key_id = (info->control.hw_key->keyidx);
-		tx_buffer->cipher_type = priv->keys[info->control.hw_key->keyidx].cipher;
-		tx_buffer->cipher_length = priv->keys[info->control.hw_key->keyidx].keylen;
+		tx_buffer->cipher_type =
+			priv->keys[info->control.hw_key->keyidx].cipher;
+		tx_buffer->cipher_length =
+			priv->keys[info->control.hw_key->keyidx].keylen;
 		tx_buffer->reserved = 0;
 	} else {
 		tx_buffer->key_id = 0;
@@ -2183,41 +2201,40 @@ static int at76_set_key_newfw(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		memcpy(priv->mib_buf.data.data, key->key, key->keylen);
 
 		switch (key->alg) {
-			case ALG_WEP:
-				if (key->keylen == 5) {
-					priv->keys[key->keyidx].cipher =
-						CIPHER_WEP64;
-					priv->keys[key->keyidx].keylen = 8;
-				} else if (key->keylen == 13) {
-					priv->keys[key->keyidx].cipher =
-						CIPHER_WEP128;
-					/* Firmware needs this */
-					priv->keys[key->keyidx].keylen = 8;
-				} else {
-					ret = -EOPNOTSUPP;
-					goto exit;
-				};
-				break;
-			case ALG_TKIP:
-				key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
-				priv->keys[key->keyidx].cipher = CIPHER_TKIP;
-				priv->keys[key->keyidx].keylen = 12;
-				break;
-
-			case ALG_CCMP:
-				if (!at76_is_505a(priv->board_type)) {
-					ret = -EOPNOTSUPP;
-					goto exit;
-				};
-				key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
-				priv->keys[key->keyidx].cipher = CIPHER_CCMP;
-				priv->keys[key->keyidx].keylen = 16;
-				break;
-
-			default:
+		case ALG_WEP:
+			if (key->keylen == 5) {
+				priv->keys[key->keyidx].cipher =
+					CIPHER_WEP64;
+				priv->keys[key->keyidx].keylen = 8;
+			} else if (key->keylen == 13) {
+				priv->keys[key->keyidx].cipher =
+					CIPHER_WEP128;
+				/* Firmware needs this */
+				priv->keys[key->keyidx].keylen = 8;
+			} else {
 				ret = -EOPNOTSUPP;
 				goto exit;
+			};
+			break;
+		case ALG_TKIP:
+			key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
+			priv->keys[key->keyidx].cipher = CIPHER_TKIP;
+			priv->keys[key->keyidx].keylen = 12;
+			break;
 
+		case ALG_CCMP:
+			if (!at76_is_505a(priv->board_type)) {
+				ret = -EOPNOTSUPP;
+				goto exit;
+			};
+			key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
+			priv->keys[key->keyidx].cipher = CIPHER_CCMP;
+			priv->keys[key->keyidx].keylen = 16;
+			break;
+
+		default:
+			ret = -EOPNOTSUPP;
+			goto exit;
 		};
 
 		priv->mib_buf.data.data[38] = priv->keys[key->keyidx].cipher;
@@ -2260,8 +2277,8 @@ static int at76_set_key_newfw(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		priv->mib_buf.data.data[1] = priv->default_pairwise_key;
 		priv->mib_buf.data.data[2] = priv->default_group_key;
 
-		if ((ret = at76_set_mib(priv, &priv->mib_buf)) !=
-				CMD_STATUS_COMPLETE)
+		ret = at76_set_mib(priv, &priv->mib_buf);
+		if (ret != CMD_STATUS_COMPLETE)
 			goto exit;
 
 		/* second block of settings */
@@ -2272,8 +2289,8 @@ static int at76_set_key_newfw(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		priv->mib_buf.data.data[1] = 0;	/* wep_encryption_type */
 		priv->mib_buf.data.data[2] = 0;	/* ckip_key_permutation */
 
-		if ((ret = at76_set_mib(priv, &priv->mib_buf)) !=
-				CMD_STATUS_COMPLETE)
+		ret = at76_set_mib(priv, &priv->mib_buf);
+		if (ret != CMD_STATUS_COMPLETE)
 			goto exit;
 		ret = 0;
 	};
@@ -2288,8 +2305,6 @@ static int at76_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			struct ieee80211_key_conf *key)
 {
 	struct at76_priv *priv = hw->priv;
-
-	// int i;
 
 	at76_dbg(DBG_MAC80211, "%s(): cmd %d key->alg %d key->keyidx %d "
 		 "key->keylen %d",
@@ -2444,6 +2459,7 @@ static struct ieee80211_supported_band at76_supported_band = {
 static int at76_init_new_device(struct at76_priv *priv,
 				struct usb_interface *interface)
 {
+	struct device *dev = &interface->dev;
 	int ret;
 
 	/* set up the endpoint information */
@@ -2459,8 +2475,7 @@ static int at76_init_new_device(struct at76_priv *priv,
 	/* MAC address */
 	ret = at76_get_hw_config(priv);
 	if (ret < 0) {
-		dev_printk(KERN_ERR, &interface->dev,
-			   "cannot get MAC address\n");
+		dev_err(dev, "cannot get MAC address\n");
 		goto exit;
 	}
 
@@ -2499,22 +2514,21 @@ static int at76_init_new_device(struct at76_priv *priv,
 
 	ret = ieee80211_register_hw(priv->hw);
 	if (ret) {
-		printk(KERN_ERR "cannot register mac80211 hw (status %d)!\n",
-		       ret);
+		dev_err(dev, "cannot register mac80211 hw (status %d)!\n", ret);
 		goto exit;
 	}
 
 	priv->mac80211_registered = 1;
 
-	printk(KERN_INFO "%s: USB %s, MAC %s, firmware %d.%d.%d-%d\n",
-	       wiphy_name(priv->hw->wiphy),
-	       interface->dev.bus_id, mac2str(priv->mac_addr),
-	       priv->fw_version.major, priv->fw_version.minor,
-	       priv->fw_version.patch, priv->fw_version.build);
-	printk(KERN_INFO "%s: regulatory domain 0x%02x: %s\n",
-	       wiphy_name(priv->hw->wiphy),
-	       priv->regulatory_domain, priv->domain->name);
-	printk(KERN_INFO "%s: WPA support: ", wiphy_name(priv->hw->wiphy));
+	dev_info(dev, "%s: USB %s, MAC %s, firmware %d.%d.%d-%d\n",
+		 wiphy_name(priv->hw->wiphy),
+		 interface->dev.bus_id, mac2str(priv->mac_addr),
+		 priv->fw_version.major, priv->fw_version.minor,
+		 priv->fw_version.patch, priv->fw_version.build);
+	dev_info(dev, "%s: regulatory domain 0x%02x: %s\n",
+		 wiphy_name(priv->hw->wiphy),
+		 priv->regulatory_domain, priv->domain->name);
+	dev_info(dev, "%s: WPA support: ", wiphy_name(priv->hw->wiphy));
 	if (!FIRMWARE_IS_WPA(priv->fw_version))
 		printk("none\n");
 	else {
@@ -2595,8 +2609,8 @@ static int at76_probe(struct usb_interface *interface,
 	   we get 204 with 2.4.23, Fiberline FL-WL240u (505A+RFMD2958) ??? */
 
 	if (op_mode == OPMODE_HW_CONFIG_MODE) {
-		dev_printk(KERN_ERR, &interface->dev,
-			   "cannot handle a device in HW_CONFIG_MODE\n");
+		dev_err(&interface->dev,
+			"cannot handle a device in HW_CONFIG_MODE\n");
 		ret = -EBUSY;
 		goto error;
 	}
@@ -2604,13 +2618,12 @@ static int at76_probe(struct usb_interface *interface,
 	if (op_mode != OPMODE_NORMAL_NIC_WITH_FLASH
 	    && op_mode != OPMODE_NORMAL_NIC_WITHOUT_FLASH) {
 		/* download internal firmware part */
-		dev_printk(KERN_DEBUG, &interface->dev,
-			   "downloading internal firmware\n");
+		dev_dbg(&interface->dev, "downloading internal firmware\n");
 		ret = at76_load_internal_fw(udev, fwe);
 		if (ret < 0) {
-			dev_printk(KERN_ERR, &interface->dev,
-				   "error %d downloading internal firmware\n",
-				   ret);
+			dev_err(&interface->dev,
+				"error %d downloading internal firmware\n",
+				ret);
 			goto error;
 		}
 		usb_put_dev(udev);
@@ -2635,8 +2648,7 @@ static int at76_probe(struct usb_interface *interface,
 		need_ext_fw = 1;
 
 	if (need_ext_fw) {
-		dev_printk(KERN_DEBUG, &interface->dev,
-			   "downloading external firmware\n");
+		dev_dbg(&interface->dev, "downloading external firmware\n");
 
 		ret = at76_load_external_fw(udev, fwe);
 		if (ret)
@@ -2645,8 +2657,8 @@ static int at76_probe(struct usb_interface *interface,
 		/* Re-check firmware version */
 		ret = at76_get_mib(udev, MIB_FW_VERSION, &fwv, sizeof(fwv));
 		if (ret < 0) {
-			dev_printk(KERN_ERR, &interface->dev,
-				   "error %d getting firmware version\n", ret);
+			dev_err(&interface->dev,
+				"error %d getting firmware version\n", ret);
 			goto error;
 		}
 	}
