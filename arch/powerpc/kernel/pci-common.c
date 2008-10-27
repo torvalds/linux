@@ -203,7 +203,7 @@ char __devinit *pcibios_setup(char *str)
 	return str;
 }
 
-void __devinit pcibios_setup_new_device(struct pci_dev *dev)
+static void __devinit pcibios_setup_new_device(struct pci_dev *dev)
 {
 	struct dev_archdata *sd = &dev->dev.archdata;
 
@@ -221,7 +221,6 @@ void __devinit pcibios_setup_new_device(struct pci_dev *dev)
 	if (ppc_md.pci_dma_dev_setup)
 		ppc_md.pci_dma_dev_setup(dev);
 }
-EXPORT_SYMBOL(pcibios_setup_new_device);
 
 /*
  * Reads the interrupt pin to determine if interrupt is use by card.
@@ -1397,9 +1396,10 @@ void __init pcibios_resource_survey(void)
 
 #ifdef CONFIG_HOTPLUG
 
-/* This is used by the pSeries hotplug driver to allocate resource
+/* This is used by the PCI hotplug driver to allocate resource
  * of newly plugged busses. We can try to consolidate with the
- * rest of the code later, for now, keep it as-is
+ * rest of the code later, for now, keep it as-is as our main
+ * resource allocation function doesn't deal with sub-trees yet.
  */
 void __devinit pcibios_claim_one_bus(struct pci_bus *bus)
 {
@@ -1414,6 +1414,14 @@ void __devinit pcibios_claim_one_bus(struct pci_bus *bus)
 
 			if (r->parent || !r->start || !r->flags)
 				continue;
+
+			pr_debug("PCI: Claiming %s: "
+				 "Resource %d: %016llx..%016llx [%x]\n",
+				 pci_name(dev), i,
+				 (unsigned long long)r->start,
+				 (unsigned long long)r->end,
+				 (unsigned int)r->flags);
+
 			pci_claim_resource(dev, i);
 		}
 	}
@@ -1422,6 +1430,31 @@ void __devinit pcibios_claim_one_bus(struct pci_bus *bus)
 		pcibios_claim_one_bus(child_bus);
 }
 EXPORT_SYMBOL_GPL(pcibios_claim_one_bus);
+
+
+/* pcibios_finish_adding_to_bus
+ *
+ * This is to be called by the hotplug code after devices have been
+ * added to a bus, this include calling it for a PHB that is just
+ * being added
+ */
+void pcibios_finish_adding_to_bus(struct pci_bus *bus)
+{
+	pr_debug("PCI: Finishing adding to hotplug bus %04x:%02x\n",
+		 pci_domain_nr(bus), bus->number);
+
+	/* Allocate bus and devices resources */
+	pcibios_allocate_bus_resources(bus);
+	pcibios_claim_one_bus(bus);
+
+	/* Add new devices to global lists.  Register in proc, sysfs. */
+	pci_bus_add_devices(bus);
+
+	/* Fixup EEH */
+	eeh_add_device_tree_late(bus);
+}
+EXPORT_SYMBOL_GPL(pcibios_finish_adding_to_bus);
+
 #endif /* CONFIG_HOTPLUG */
 
 int pcibios_enable_device(struct pci_dev *dev, int mask)
