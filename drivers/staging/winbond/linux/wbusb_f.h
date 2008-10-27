@@ -16,12 +16,5 @@ void WbUsb_destroy(phw_data_t pHwData);
 unsigned char WbWLanInitialize(struct wb35_adapter *adapter);
 #define	WbUsb_Stop( _A )
 
-#define wb_usb_alloc_urb(_A) usb_alloc_urb(_A, GFP_ATOMIC)
-
 #define WbUsb_CheckForHang( _P )
 #define WbUsb_DetectStart( _P, _I )
-
-
-
-
-

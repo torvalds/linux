@@ -26,7 +26,7 @@ Wb35Reg_BurstWrite(phw_data_t pHwData, u16 RegisterNo, u32 * pRegisterData, u8 N
 	// Trying to use burst write function if use new hardware
 	UrbSize = sizeof(struct wb35_reg_queue) + DataSize + sizeof(struct usb_ctrlrequest);
 	OS_MEMORY_ALLOC( (void* *)&reg_queue, UrbSize );
-	urb = wb_usb_alloc_urb(0);
+	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if( urb && reg_queue ) {
 		reg_queue->DIRECT = 2;// burst write register
 		reg_queue->INDEX = RegisterNo;
@@ -175,7 +175,7 @@ Wb35Reg_Write(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 	// update the register by send urb request------------------------------------
 	UrbSize = sizeof(struct wb35_reg_queue) + sizeof(struct usb_ctrlrequest);
 	OS_MEMORY_ALLOC( (void* *)&reg_queue, UrbSize );
-	urb = wb_usb_alloc_urb(0);
+	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (urb && reg_queue) {
 		reg_queue->DIRECT = 1;// burst write register
 		reg_queue->INDEX = RegisterNo;
@@ -235,7 +235,7 @@ Wb35Reg_WriteWithCallbackValue( phw_data_t pHwData, u16 RegisterNo, u32 Register
 	// update the register by send urb request------------------------------------
 	UrbSize = sizeof(struct wb35_reg_queue) + sizeof(struct usb_ctrlrequest);
 	OS_MEMORY_ALLOC((void* *) &reg_queue, UrbSize );
-	urb = wb_usb_alloc_urb(0);
+	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (urb && reg_queue) {
 		reg_queue->DIRECT = 1;// burst write register
 		reg_queue->INDEX = RegisterNo;
@@ -342,7 +342,7 @@ Wb35Reg_Read(phw_data_t pHwData, u16 RegisterNo,  u32 * pRegisterValue )
 	// update the variable by send Urb to read register ------------------------------------
 	UrbSize = sizeof(struct wb35_reg_queue) + sizeof(struct usb_ctrlrequest);
 	OS_MEMORY_ALLOC( (void* *)&reg_queue, UrbSize );
-	urb = wb_usb_alloc_urb(0);
+	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if( urb && reg_queue )
 	{
 		reg_queue->DIRECT = 0;// read register

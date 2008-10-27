@@ -168,7 +168,7 @@ unsigned char Wb35Rx_initial(phw_data_t pHwData)
 	// Initial the Buffer Queue
 	Wb35Rx_reset_descriptor( pHwData );
 
-	pWb35Rx->RxUrb = wb_usb_alloc_urb(0);
+	pWb35Rx->RxUrb = usb_alloc_urb(0, GFP_ATOMIC);
 	return (!!pWb35Rx->RxUrb);
 }
 

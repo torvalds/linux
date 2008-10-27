@@ -134,11 +134,11 @@ unsigned char Wb35Tx_initial(phw_data_t pHwData)
 {
 	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
 
-	pWb35Tx->Tx4Urb = wb_usb_alloc_urb(0);
+	pWb35Tx->Tx4Urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!pWb35Tx->Tx4Urb)
 		return FALSE;
 
-	pWb35Tx->Tx2Urb = wb_usb_alloc_urb(0);
+	pWb35Tx->Tx2Urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!pWb35Tx->Tx2Urb)
 	{
 		usb_free_urb( pWb35Tx->Tx4Urb );
