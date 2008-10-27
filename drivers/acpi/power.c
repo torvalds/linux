@@ -153,7 +153,8 @@ static int acpi_power_get_state(acpi_handle handle, int *state)
 			      ACPI_POWER_RESOURCE_STATE_OFF;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Resource [%s] is %s\n",
-			  acpi_ut_get_node_name(handle), state ? "on" : "off"));
+			  acpi_ut_get_node_name(handle),
+				*state ? "on" : "off"));
 
 	return 0;
 }
