@@ -517,11 +517,6 @@ int acpi_power_transition(struct acpi_device *device, int state)
 	cl = &device->power.states[device->power.state].resources;
 	tl = &device->power.states[state].resources;
 
-	if (!cl->count && !tl->count) {
-		result = -ENODEV;
-		goto end;
-	}
-
 	/* TBD: Resources must be ordered. */
 
 	/*
