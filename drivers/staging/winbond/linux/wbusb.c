@@ -32,6 +32,13 @@ static struct ieee80211_channel wbsoft_channels[] = {
 	{ .center_freq = 2412},
 };
 
+static struct ieee80211_supported_band wbsoft_band_2GHz = {
+	.channels	= wbsoft_channels,
+	.n_channels	= ARRAY_SIZE(wbsoft_channels),
+	.bitrates	= wbsoft_rates,
+	.n_bitrates	= ARRAY_SIZE(wbsoft_rates),
+};
+
 int wbsoft_enabled;
 struct ieee80211_hw *my_dev;
 struct wb35_adapter * my_adapter;
@@ -192,7 +199,6 @@ static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct wbsoft_priv *priv;
 	struct ieee80211_hw *dev;
-	static struct ieee80211_supported_band band;
 	int err;
 
 	usb_get_dev(udev);
@@ -253,12 +259,8 @@ static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id
 	dev->channel_change_time = 1000;
 	dev->queues = 1;
 
-	band.channels = wbsoft_channels;
-	band.n_channels = ARRAY_SIZE(wbsoft_channels);
-	band.bitrates = wbsoft_rates;
-	band.n_bitrates = ARRAY_SIZE(wbsoft_rates);
+	dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &wbsoft_band_2GHz;
 
-	dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &band;
 	err = ieee80211_register_hw(dev);
 	if (err)
 		goto error_free_hw;
