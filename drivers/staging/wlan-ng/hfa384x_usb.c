@@ -136,41 +136,6 @@
 
 #include "wlan_compat.h"
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
-static int
-wait_for_completion_interruptible(struct completion *x)
-{
-  int ret = 0;
-
-  might_sleep();
-
-  spin_lock_irq(&x->wait.lock);
-  if (!x->done) {
-    DECLARE_WAITQUEUE(wait, current);
-
-    wait.flags |= WQ_FLAG_EXCLUSIVE;
-    __add_wait_queue_tail(&x->wait, &wait);
-    do {
-      if (signal_pending(current)) {
-        ret = -ERESTARTSYS;
-        __remove_wait_queue(&x->wait, &wait);
-        goto out;
-      }
-      __set_current_state(TASK_INTERRUPTIBLE);
-      spin_unlock_irq(&x->wait.lock);
-      schedule();
-      spin_lock_irq(&x->wait.lock);
-    } while (!x->done);
-    __remove_wait_queue(&x->wait, &wait);
-  }
-  x->done--;
-out:
-  spin_unlock_irq(&x->wait.lock);
-
-  return ret;
-}
-#endif
-
 #define SUBMIT_URB(u,f)  usb_submit_urb(u,f)
 
 /*================================================================*/

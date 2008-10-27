@@ -47,9 +47,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/wireless.h>
-#if WIRELESS_EXT > 12
 #include <net/iw_handler.h>
-#endif
 #include <linux/if_arp.h>
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
@@ -245,20 +243,14 @@ struct iw_statistics* p80211wext_get_wireless_stats (netdevice_t *dev)
 	wstats->qual.level = quality.level.data;  /* instant signal level */
 	wstats->qual.noise = quality.noise.data;  /* instant noise level */
 
-#if WIRELESS_EXT > 18
 	wstats->qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
-#else
-	wstats->qual.updated = 7;
-#endif
 	wstats->discard.code = wlandev->rx.decrypt_err;
 	wstats->discard.nwid = 0;
 	wstats->discard.misc = 0;
 
-#if WIRELESS_EXT > 11
 	wstats->discard.fragment = 0;  // incomplete fragments
 	wstats->discard.retries = 0;   // tx retries.
 	wstats->miss.beacon = 0;
-#endif
 
 	DBFEXIT;
 
@@ -374,8 +366,6 @@ static int p80211wext_siwfreq(netdevice_t *dev,
 	return err;
 }
 
-#if WIRELESS_EXT > 8
-
 static int p80211wext_giwmode(netdevice_t *dev,
 			      struct iw_request_info *info,
 			      __u32 *mode, char *extra)
@@ -479,12 +469,9 @@ static int p80211wext_giwrange(netdevice_t *dev,
 	data->length = sizeof(*range);
 	memset(range,0,sizeof(*range));
 
-#if WIRELESS_EXT > 9
 	range->txpower_capa = IW_TXPOW_DBM;
 	// XXX what about min/max_pmp, min/max_pmt, etc.
-#endif
 
-#if WIRELESS_EXT > 10
 	range->we_version_compiled = WIRELESS_EXT;
 	range->we_version_source = 13;
 
@@ -492,16 +479,13 @@ static int p80211wext_giwrange(netdevice_t *dev,
 	range->retry_flags = IW_RETRY_LIMIT;
 	range->min_retry = 0;
 	range->max_retry = 255;
-#endif /* WIRELESS_EXT > 10 */
 
-#if WIRELESS_EXT > 16
         range->event_capa[0] = (IW_EVENT_CAPA_K_0 |  //mode/freq/ssid
                                 IW_EVENT_CAPA_MASK(SIOCGIWAP) |
                                 IW_EVENT_CAPA_MASK(SIOCGIWSCAN));
         range->event_capa[1] = IW_EVENT_CAPA_K_1;  //encode
         range->event_capa[4] = (IW_EVENT_CAPA_MASK(IWEVQUAL) |
                                 IW_EVENT_CAPA_MASK(IWEVCUSTOM) );
-#endif
 
 	range->num_channels = NUM_CHANNELS;
 
@@ -543,7 +527,6 @@ static int p80211wext_giwrange(netdevice_t *dev,
 	DBFEXIT;
 	return 0;
 }
-#endif
 
 static int p80211wext_giwap(netdevice_t *dev,
 			    struct iw_request_info *info,
@@ -561,7 +544,6 @@ static int p80211wext_giwap(netdevice_t *dev,
 	return 0;
 }
 
-#if WIRELESS_EXT > 8
 static int p80211wext_giwencode(netdevice_t *dev,
 				struct iw_request_info *info,
 				struct iw_point *erq, char *key)
@@ -1031,10 +1013,6 @@ static int p80211wext_siwfrag(netdevice_t *dev,
 	return err;
 }
 
-#endif  /* WIRELESS_EXT > 8 */
-
-#if WIRELESS_EXT > 10
-
 #ifndef IW_RETRY_LONG
 #define IW_RETRY_LONG IW_RETRY_MAX
 #endif
@@ -1191,9 +1169,6 @@ static int p80211wext_siwretry(netdevice_t *dev,
 
 }
 
-#endif /* WIRELESS_EXT > 10 */
-
-#if WIRELESS_EXT > 9
 static int p80211wext_siwtxpow(netdevice_t *dev,
                                struct iw_request_info *info,
                                struct iw_param *rrq, char *extra)
@@ -1275,7 +1250,6 @@ static int p80211wext_giwtxpow(netdevice_t *dev,
 	DBFEXIT;
 	return err;
 }
-#endif /* WIRELESS_EXT > 9 */
 
 static int p80211wext_siwspy(netdevice_t *dev,
 			     struct iw_request_info *info,
@@ -1373,7 +1347,6 @@ static int prism2_result2err (int prism2_result)
 	return err;
 }
 
-#if WIRELESS_EXT > 13
 static int p80211wext_siwscan(netdevice_t *dev,
 			     struct iw_request_info *info,
 			     struct iw_point *srq, char *extra)
@@ -1540,12 +1513,10 @@ static int p80211wext_giwscan(netdevice_t *dev,
 	DBFEXIT;
 	return err;
 }
-#endif
 
 /*****************************************************/
 //extra wireless extensions stuff to support NetworkManager (I hope)
 
-#if WIRELESS_EXT > 17
 /* SIOCSIWENCODEEXT */
 static int p80211wext_set_encodeext(struct net_device *dev,
 				struct iw_request_info *info,
@@ -1763,26 +1734,6 @@ static int p80211_wext_get_iwauth (struct net_device *dev,
   return result;
 }
 
-
-#endif
-
-
-
-
-
-
-/*****************************************************/
-
-
-
-
-
-/*
-typedef int (*iw_handler)(netdevice_t *dev, struct iw_request_info *info,
-                          union iwreq_data *wrqu, char *extra);
-*/
-
-#if WIRELESS_EXT > 12
 static iw_handler p80211wext_handlers[] =  {
 	(iw_handler) p80211wext_siwcommit,		/* SIOCSIWCOMMIT */
 	(iw_handler) p80211wext_giwname,		/* SIOCGIWNAME */
@@ -1808,13 +1759,10 @@ static iw_handler p80211wext_handlers[] =  {
 	(iw_handler) p80211wext_giwap,         		/* SIOCGIWAP */
 	(iw_handler) NULL,				/* -- hole -- */
 	(iw_handler) NULL,                  		/* SIOCGIWAPLIST */
-#if WIRELESS_EXT > 13
-	(iw_handler) p80211wext_siwscan,			/* SIOCSIWSCAN */
-	(iw_handler) p80211wext_giwscan,			/* SIOCGIWSCAN */
-#else /* WIRELESS_EXT > 13 */
+	(iw_handler) p80211wext_siwscan,		/* SIOCSIWSCAN */
+	(iw_handler) p80211wext_giwscan,		/* SIOCGIWSCAN */
 	(iw_handler) NULL,	/* null */		/* SIOCSIWSCAN */
 	(iw_handler) NULL,	/* null */		/* SIOCGIWSCAN */
-#endif /* WIRELESS_EXT > 13 */
 	(iw_handler) p80211wext_siwessid,  		/* SIOCSIWESSID */
 	(iw_handler) p80211wext_giwessid,      		/* SIOCGIWESSID */
 	(iw_handler) NULL,                 		/* SIOCSIWNICKN */
@@ -1835,9 +1783,7 @@ static iw_handler p80211wext_handlers[] =  {
 	(iw_handler) p80211wext_giwencode,  		/* SIOCGIWENCODE */
 	(iw_handler) NULL,                 		/* SIOCSIWPOWER */
 	(iw_handler) NULL,                  		/* SIOCGIWPOWER */
-#if WIRELESS_EXT > 17
 /* WPA operations */
-
 	(iw_handler) NULL,				/* -- hole -- */
 	(iw_handler) NULL,				/* -- hole -- */
 	(iw_handler) NULL, /* SIOCSIWGENIE	set generic IE */
@@ -1848,7 +1794,6 @@ static iw_handler p80211wext_handlers[] =  {
 	(iw_handler) p80211wext_set_encodeext, /* SIOCSIWENCODEEXT  set encoding token & mode */
 	(iw_handler) p80211wext_get_encodeext, /* SIOCGIWENCODEEXT  get encoding token & mode */
 	(iw_handler) NULL, /* SIOCSIWPMKSA	PMKSA cache operation */
-#endif
 };
 
 struct iw_handler_def p80211wext_handler_def = {
@@ -1858,160 +1803,9 @@ struct iw_handler_def p80211wext_handler_def = {
         .standard = p80211wext_handlers,
 	.private = NULL,
 	.private_args = NULL,
-#if WIRELESS_EXT > 16
 	.get_wireless_stats = p80211wext_get_wireless_stats
-#endif
 };
 
-#endif
-
-/* wireless extensions' ioctls */
-int p80211wext_support_ioctl(netdevice_t *dev, struct ifreq *ifr, int cmd)
-{
-	wlandevice_t *wlandev = dev->ml_priv;
-
-#if WIRELESS_EXT < 13
-	struct iwreq *iwr = (struct iwreq*)ifr;
-#endif
-
-	p80211item_uint32_t             mibitem;
-	int err = 0;
-
-	DBFENTER;
-
-	mibitem.status = P80211ENUM_msgitem_status_data_ok;
-
-	if ( wlandev->msdstate != WLAN_MSD_RUNNING ) {
-		err = -ENODEV;
-		goto exit;
-	}
-
-	WLAN_LOG_DEBUG(1, "Received wireless extension ioctl #%d.\n", cmd);
-
-	switch (cmd) {
-#if WIRELESS_EXT < 13
-	case SIOCSIWNAME:  /* unused  */
-		err = (-EOPNOTSUPP);
-		break;
-	case SIOCGIWNAME: /* get name == wireless protocol */
-                err = p80211wext_giwname(dev, NULL, (char *) &iwr->u, NULL);
-		break;
-	case SIOCSIWNWID:
-	case SIOCGIWNWID:
-		err = (-EOPNOTSUPP);
-		break;
-	case SIOCSIWFREQ: /* set channel */
-                err = p80211wext_siwfreq(dev, NULL, &(iwr->u.freq), NULL);
-		break;
-	case SIOCGIWFREQ: /* get channel */
-                err = p80211wext_giwfreq(dev, NULL, &(iwr->u.freq), NULL);
-		break;
-	case SIOCSIWRANGE:
-	case SIOCSIWPRIV:
-	case SIOCSIWAP: /* set access point MAC addresses (BSSID) */
-		err = (-EOPNOTSUPP);
-		break;
-
-	case SIOCGIWAP:	/* get access point MAC addresses (BSSID) */
-                err = p80211wext_giwap(dev, NULL, &(iwr->u.ap_addr), NULL);
-		break;
-
-#if WIRELESS_EXT > 8
-	case SIOCSIWMODE: /* set operation mode */
-	case SIOCSIWESSID: /* set SSID (network name) */
-	case SIOCSIWRATE: /* set default bit rate (bps) */
-		err = (-EOPNOTSUPP);
-		break;
-
-	case SIOCGIWMODE: /* get operation mode */
-		err = p80211wext_giwmode(dev, NULL, &iwr->u.mode, NULL);
-
-		break;
-	case SIOCGIWNICKN: /* get node name/nickname */
-	case SIOCGIWESSID: /* get SSID */
-		if(iwr->u.essid.pointer) {
-                        char ssid[IW_ESSID_MAX_SIZE+1];
-			memset(ssid, 0, sizeof(ssid));
-
-			err = p80211wext_giwessid(dev, NULL, &iwr->u.essid, ssid);
-			if(copy_to_user(iwr->u.essid.pointer, ssid, sizeof(ssid)))
-				err = (-EFAULT);
-		}
-		break;
-	case SIOCGIWRATE:
-                err = p80211wext_giwrate(dev, NULL, &iwr->u.bitrate, NULL);
-		break;
-	case SIOCGIWRTS:
-		err = p80211wext_giwrts(dev, NULL, &iwr->u.rts, NULL);
-		break;
-	case SIOCGIWFRAG:
-		err = p80211wext_giwfrag(dev, NULL, &iwr->u.rts, NULL);
-		break;
-	case SIOCGIWENCODE:
-		if (!capable(CAP_NET_ADMIN))
-			err = -EPERM;
-		else if (iwr->u.encoding.pointer) {
-			char keybuf[MAX_KEYLEN];
-			err = p80211wext_giwencode(dev, NULL,
-						     &iwr->u.encoding, keybuf);
-			if (copy_to_user(iwr->u.encoding.pointer, keybuf,
-					 iwr->u.encoding.length))
-				err = -EFAULT;
-		}
-		break;
-	case SIOCGIWAPLIST:
-	case SIOCSIWRTS:
-	case SIOCSIWFRAG:
-	case SIOCSIWSENS:
-	case SIOCGIWSENS:
-	case SIOCSIWNICKN: /* set node name/nickname */
-	case SIOCSIWENCODE: /* set encoding token & mode */
-	case SIOCSIWSPY:
-	case SIOCGIWSPY:
-	case SIOCSIWPOWER:
-	case SIOCGIWPOWER:
-	case SIOCGIWPRIV:
-		err = (-EOPNOTSUPP);
-		break;
-	case SIOCGIWRANGE:
-		if(iwr->u.data.pointer != NULL) {
-                        struct iw_range range;
-                        err = p80211wext_giwrange(dev, NULL, &iwr->u.data,
-						  (char *) &range);
-			/* Push that up to the caller */
-			if (copy_to_user(iwr->u.data.pointer, &range, sizeof(range)))
-				err = -EFAULT;
-		}
-		break;
-#endif /* WIRELESS_EXT > 8 */
-#if WIRELESS_EXT > 9
-	case SIOCSIWTXPOW:
-		err = (-EOPNOTSUPP);
-		break;
-	case SIOCGIWTXPOW:
-		err = p80211wext_giwtxpow(dev, NULL, &iwr->u.txpower, NULL);
-		break;
-#endif /* WIRELESS_EXT > 9 */
-#if WIRELESS_EXT > 10
-	case SIOCSIWRETRY:
-		err = (-EOPNOTSUPP);
-		break;
-	case SIOCGIWRETRY:
-		err = p80211wext_giwretry(dev, NULL, &iwr->u.retry, NULL);
-		break;
-#endif /* WIRELESS_EXT > 10 */
-
-#endif /* WIRELESS_EXT <= 12 */
-
-	default:
-		err = (-EOPNOTSUPP);
-		break;
-	}
-
- exit:
-	DBFEXIT;
-	return (err);
-}
 
 int p80211wext_event_associated(wlandevice_t *wlandev, int assoc)
 {
@@ -2019,7 +1813,6 @@ int p80211wext_event_associated(wlandevice_t *wlandev, int assoc)
 
         DBFENTER;
 
-#if WIRELESS_EXT > 13
         /* Send the association state first */
         data.ap_addr.sa_family = ARPHRD_ETHER;
         if (assoc) {
@@ -2034,7 +1827,7 @@ int p80211wext_event_associated(wlandevice_t *wlandev, int assoc)
         if (!assoc) goto done;
 
         // XXX send association data, like IEs, etc etc.
-#endif
+
  done:
         DBFEXIT;
         return 0;

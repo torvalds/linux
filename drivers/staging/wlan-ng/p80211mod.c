@@ -97,9 +97,6 @@
 /*================================================================*/
 /* Local Static Definitions */
 
-static char *version = "p80211.o: " WLAN_RELEASE;
-
-
 /*----------------------------------------------------------------*/
 /* --Module Parameters */
 
@@ -108,10 +105,8 @@ module_param(wlan_watchdog, int, 0644);
 MODULE_PARM_DESC(wlan_watchdog, "transmit timeout in milliseconds");
 
 int wlan_wext_write = 1;
-#if WIRELESS_EXT > 12
 module_param(wlan_wext_write, int, 0644);
 MODULE_PARM_DESC(wlan_wext_write, "enable write wireless extensions");
-#endif
 
 #ifdef WLAN_INCLUDE_DEBUG
 int wlan_debug=0;

@@ -153,12 +153,8 @@ typedef struct p80211_frmrx_t
 struct iw_statistics* p80211wext_get_wireless_stats(netdevice_t *dev);
 /* wireless extensions' ioctls */
 int p80211wext_support_ioctl(netdevice_t *dev, struct ifreq *ifr, int cmd);
-#if WIRELESS_EXT > 12
 extern struct iw_handler_def p80211wext_handler_def;
-#endif
-
 int p80211wext_event_associated(struct wlandevice *wlandev, int assoc);
-
 #endif /* wireless extensions */
 
 /* WEP stuff */

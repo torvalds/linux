@@ -79,9 +79,7 @@
 #include <linux/ethtool.h>
 #endif
 
-#if WIRELESS_EXT > 12
 #include <net/iw_handler.h>
-#endif
 #include <net/net_namespace.h>
 
 /*================================================================*/
@@ -684,16 +682,6 @@ static int p80211knetdev_do_ioctl(netdevice_t *dev, struct ifreq *ifr, int cmd)
 
 	WLAN_LOG_DEBUG(2, "rx'd ioctl, cmd=%d, len=%d\n", cmd, req->len);
 
-#if WIRELESS_EXT < 13
-	/* Is this a wireless extensions ioctl? */
-	if ((cmd >= SIOCIWFIRST) && (cmd <= SIOCIWLAST)) {
-		if ((result = p80211wext_support_ioctl(dev, ifr, cmd))
-		    != (-EOPNOTSUPP)) {
-			goto bail;
-		}
-	}
-#endif
-
 #ifdef SIOCETHTOOL
 	if (cmd == SIOCETHTOOL) {
 		result = p80211netdev_ethtool(wlandev, (void __user *) ifr->ifr_data);
@@ -907,12 +895,10 @@ int wlan_setup(wlandevice_t *wlandev)
 		dev->stop =		p80211knetdev_stop;
 
 #ifdef CONFIG_NET_WIRELESS
-#if ((WIRELESS_EXT < 17) && (WIRELESS_EXT < 21))
+#if (WIRELESS_EXT < 21)
 		dev->get_wireless_stats = p80211wext_get_wireless_stats;
 #endif
-#if WIRELESS_EXT > 12
 		dev->wireless_handlers = &p80211wext_handler_def;
-#endif
 #endif
 
 		netif_stop_queue(dev);

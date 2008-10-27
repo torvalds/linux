@@ -134,11 +134,7 @@ typedef int64_t		INT64;
 #define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
 #endif
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,8))
-#  include <linux/hardirq.h>
-#else
-#  include <asm/hardirq.h>
-#endif
+#include <linux/hardirq.h>
 
 #define WLAN_LOG_ERROR(x,args...) printk(KERN_ERR "%s: " x , __func__ , ##args);
 
@@ -184,10 +180,6 @@ typedef int64_t		INT64;
 #define PT_REGS    , struct pt_regs *regs
 #else
 #define PT_REGS
-#endif
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,7))
-#  define del_singleshot_timer_sync(a)  del_timer_sync(a)
 #endif
 
 #define CONFIG_NETLINK		1
@@ -251,25 +243,8 @@ typedef struct net_device netdevice_t;
 #define in_atomic()  0
 #endif
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,13))
 #define URB_ASYNC_UNLINK 0
-#endif
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,7))
-#define URB_ASYNC_UNLINK  USB_ASYNC_UNLINK
-#define usb_fill_bulk_urb  FILL_BULK_URB
-#define usb_kill_urb  usb_unlink_urb
-#else
 #define USB_QUEUE_BULK 0
-#endif
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11))
-typedef u32 pm_message_t;
-#endif
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9))
-#define eth_hdr(x)           (x)->mac.ethernet
-#endif
 
 #ifndef might_sleep
 #define might_sleep(a)   do { } while (0)
