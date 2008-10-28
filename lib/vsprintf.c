@@ -598,6 +598,24 @@ static char *mac_address_string(char *buf, char *end, u8 *addr, int field_width,
 	return string(buf, end, mac_addr, field_width, precision, flags & ~SPECIAL);
 }
 
+static char *ip6_addr_string(char *buf, char *end, u8 *addr, int field_width,
+			 int precision, int flags)
+{
+	char ip6_addr[8 * 5]; /* (8 * 4 hex digits), 7 colons and trailing zero */
+	char *p = ip6_addr;
+	int i;
+
+	for (i = 0; i < 8; i++) {
+		p = pack_hex_byte(p, addr[2 * i]);
+		p = pack_hex_byte(p, addr[2 * i + 1]);
+		if (!(flags & SPECIAL) && i != 7)
+			*p++ = ':';
+	}
+	*p = '\0';
+
+	return string(buf, end, ip6_addr, field_width, precision, flags & ~SPECIAL);
+}
+
 /*
  * Show a '%p' thing.  A kernel extension is that the '%p' is followed
  * by an extra set of alphanumeric characters that are extended format
@@ -611,6 +629,8 @@ static char *mac_address_string(char *buf, char *end, u8 *addr, int field_width,
  *       addresses (not the name nor the flags)
  * - 'M' For a 6-byte MAC address, it prints the address in the
  *       usual colon-separated hex notation
+ * - '6' For a IPv6 address prints the address in network-ordered 16 bit hex
+ *       with colon separators
  *
  * Note: The difference between 'S' and 'F' is that on ia64 and ppc64
  * function pointers are really function descriptors, which contain a
@@ -628,6 +648,8 @@ static char *pointer(const char *fmt, char *buf, char *end, void *ptr, int field
 		return resource_string(buf, end, ptr, field_width, precision, flags);
 	case 'M':
 		return mac_address_string(buf, end, ptr, field_width, precision, flags);
+	case '6':
+		return ip6_addr_string(buf, end, ptr, field_width, precision, flags);
 	}
 	flags |= SMALL;
 	if (field_width == -1) {
