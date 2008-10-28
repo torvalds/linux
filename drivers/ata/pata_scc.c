@@ -8,7 +8,7 @@
  *  Copyright 2003-2005 Jeff Garzik
  *  Copyright (C) 1998-1999 Andrzej Krzysztofowicz, Author and Maintainer
  *  Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
- *  Copyright (C) 2003 Red Hat Inc <alan@redhat.com>
+ *  Copyright (C) 2003 Red Hat Inc
  *
  * and drivers/ata/ahci.c:
  *  Copyright 2004-2005 Red Hat, Inc.

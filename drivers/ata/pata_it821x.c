@@ -1,7 +1,7 @@
 /*
  * pata_it821x.c 	- IT821x PATA for new ATA layer
  *			  (C) 2005 Red Hat Inc
- *			  Alan Cox <alan@redhat.com>
+ *			  Alan Cox <alan@lxorguk.ukuu.org.uk>
  *			  (C) 2007 Bartlomiej Zolnierkiewicz
  *
  * based upon
@@ -10,7 +10,7 @@
  *
  * linux/drivers/ide/pci/it821x.c		Version 0.09	December 2004
  *
- * Copyright (C) 2004		Red Hat <alan@redhat.com>
+ * Copyright (C) 2004		Red Hat
  *
  *  May be copied or modified under the terms of the GNU General Public License
  *  Based in part on the ITE vendor provided SCSI driver.
@@ -557,9 +557,8 @@ static unsigned int it821x_read_id(struct ata_device *adev,
 	if (strstr(model_num, "Integrated Technology Express")) {
 		/* Set feature bits the firmware neglects */
 		id[49] |= 0x0300;	/* LBA, DMA */
-		id[82] |= 0x0400;	/* LBA48 */
 		id[83] &= 0x7FFF;
-		id[83] |= 0x4000;	/* Word 83 is valid */
+		id[83] |= 0x4400;	/* Word 83 is valid and LBA48 */
 		id[86] |= 0x0400;	/* LBA48 on */
 		id[ATA_ID_MAJOR_VER] |= 0x1F;
 	}
