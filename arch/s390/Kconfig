@@ -384,7 +384,7 @@ config IPL
 choice
 	prompt "IPL method generated into head.S"
 	depends on IPL
-	default IPL_TAPE
+	default IPL_VM
 	help
 	  Select "tape" if you want to IPL the image from a Tape.
 
