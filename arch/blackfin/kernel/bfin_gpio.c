@@ -881,13 +881,13 @@ int peripheral_request(unsigned short per, const char *label)
 	if (!(per & P_DEFINED))
 		return -ENODEV;
 
-	if (check_gpio(ident))
-		return -EINVAL;
-
 	local_irq_save(flags);
 
-	/* Can't do GPIO and peripheral at the same time */
-	if (unlikely(reserved_gpio_map[gpio_bank(ident)] & gpio_bit(ident))) {
+	/* If a pin can be muxed as either GPIO or peripheral, make
+	 * sure it is not already a GPIO pin when we request it.
+	 */
+	if (unlikely(!check_gpio(ident) &&
+	    reserved_gpio_map[gpio_bank(ident)] & gpio_bit(ident))) {
 		dump_stack();
 		printk(KERN_ERR
 		       "%s: Peripheral %d is already reserved as GPIO by %s !\n",
