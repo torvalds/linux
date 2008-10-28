@@ -827,7 +827,7 @@ void __init setup_arch(char **cmdline_p)
 				printk(KERN_ERR "Warning: Compiled for Rev %d, but running on Rev %d\n",
 				       bfin_compiled_revid(), bfin_revid());
 		}
-		if (bfin_revid() <= CONFIG_BF_REV_MIN || bfin_revid() > CONFIG_BF_REV_MAX)
+		if (bfin_revid() < CONFIG_BF_REV_MIN || bfin_revid() > CONFIG_BF_REV_MAX)
 			printk(KERN_ERR "Warning: Unsupported Chip Revision ADSP-%s Rev 0.%d detected\n",
 			       CPU, bfin_revid());
 	}
