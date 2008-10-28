@@ -252,7 +252,7 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 
 	clsdev = device_create(dvb_class, adap->device,
 			       MKDEV(DVB_MAJOR, nums2minor(adap->num, type, id)),
-			       NULL, "dvb%d.%s%d", adap->num, dnames[type], id);
+			       dvbdev, "dvb%d.%s%d", adap->num, dnames[type], id);
 	if (IS_ERR(clsdev)) {
 		printk(KERN_ERR "%s: failed to create device dvb%d.%s%d (%ld)\n",
 		       __func__, adap->num, dnames[type], id, PTR_ERR(clsdev));
@@ -432,6 +432,15 @@ out:
 	return err;
 }
 
+static int dvb_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	struct dvb_device *dvbdev = dev_get_drvdata(dev);
+
+	add_uevent_var(env, "DVB_DEVICE_NUM=%d", dvbdev->id);
+	add_uevent_var(env, "DVB_ADAPTER_NUM=%d", dvbdev->adapter->num);
+	return 0;
+}
+
 static int __init init_dvbdev(void)
 {
 	int retval;
@@ -453,6 +462,7 @@ static int __init init_dvbdev(void)
 		retval = PTR_ERR(dvb_class);
 		goto error;
 	}
+	dvb_class->dev_uevent = dvb_uevent;
 	return 0;
 
 error:
