@@ -406,7 +406,7 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 	if ((rc = stb6100_write_reg_range(state, &regs[1], 1, STB6100_NUMREGS - 3)) < 0)
 		return rc;
 
-	msleep(30);
+	msleep(100);
 
 	return 0;
 }
