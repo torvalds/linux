@@ -183,10 +183,10 @@ static void __init l2_sram_init(void)
 		return;
 	}
 
-	free_l2_sram_head.next->paddr = (void *)L2_START +
-		(_etext_l2 - _stext_l2) + (_edata_l2 - _sdata_l2);
-	free_l2_sram_head.next->size = L2_LENGTH -
-		(_etext_l2 - _stext_l2) + (_edata_l2 - _sdata_l2);
+	free_l2_sram_head.next->paddr =
+		(void *)L2_START + (_ebss_l2 - _stext_l2);
+	free_l2_sram_head.next->size =
+		L2_LENGTH - (_ebss_l2 - _stext_l2);
 	free_l2_sram_head.next->pid = 0;
 	free_l2_sram_head.next->next = NULL;
 
