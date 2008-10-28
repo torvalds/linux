@@ -155,12 +155,14 @@ static unsigned char gpio_int_unmasked[3];
 static unsigned char gpio_int_enabled[3];
 static unsigned char gpio_int_type1[3];
 static unsigned char gpio_int_type2[3];
+static unsigned char gpio_int_debouce[3];
 
 /* Port ordering is: A B F */
 static const u8 int_type1_register_offset[3]	= { 0x90, 0xac, 0x4c };
 static const u8 int_type2_register_offset[3]	= { 0x94, 0xb0, 0x50 };
 static const u8 eoi_register_offset[3]		= { 0x98, 0xb4, 0x54 };
 static const u8 int_en_register_offset[3]	= { 0x9c, 0xb8, 0x58 };
+static const u8 int_debounce_register_offset[3]	= { 0xa8, 0xc4, 0x64 };
 
 void ep93xx_gpio_update_int_params(unsigned port)
 {
@@ -182,6 +184,22 @@ void ep93xx_gpio_int_mask(unsigned line)
 {
 	gpio_int_unmasked[line >> 3] &= ~(1 << (line & 7));
 }
+
+void ep93xx_gpio_int_debounce(unsigned int irq, int enable)
+{
+	int line = irq_to_gpio(irq);
+	int port = line >> 3;
+	int port_mask = 1 << (line & 7);
+
+	if (enable)
+		gpio_int_debouce[port] |= port_mask;
+	else
+		gpio_int_debouce[port] &= ~port_mask;
+
+	__raw_writeb(gpio_int_debouce[port],
+		EP93XX_GPIO_REG(int_debounce_register_offset[port]));
+}
+EXPORT_SYMBOL(ep93xx_gpio_int_debounce);
 
 /*************************************************************************
  * EP93xx IRQ handling
