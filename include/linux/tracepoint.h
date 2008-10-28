@@ -112,6 +112,10 @@ extern int tracepoint_probe_register(const char *name, void *probe);
  */
 extern int tracepoint_probe_unregister(const char *name, void *probe);
 
+extern int tracepoint_probe_register_noupdate(const char *name, void *probe);
+extern int tracepoint_probe_unregister_noupdate(const char *name, void *probe);
+extern void tracepoint_probe_update_all(void);
+
 struct tracepoint_iter {
 	struct module *module;
 	struct tracepoint *tracepoint;
