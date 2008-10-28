@@ -81,7 +81,8 @@ OBJCOPYFLAGS	:= -O binary -R .note -R .note.gnu.build-id -R .comment \
 		   -R .stab -R .stabstr -S
 
 # Give the various platforms the opportunity to set default image types
-defaultimage-$(CONFIG_SUPERH32)	:= zImage
+defaultimage-$(CONFIG_SUPERH32)			:= zImage
+defaultimage-$(CONFIG_SH_SH7785LCR)		:= uImage
 
 # Set some sensible Kbuild defaults
 KBUILD_DEFCONFIG	:= shx3_defconfig
