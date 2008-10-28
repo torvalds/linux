@@ -1772,7 +1772,7 @@ special_insn:
 			c->eip = saved_eip;
 			goto cannot_emulate;
 		}
-		return 0;
+		break;
 	case 0xf4:              /* hlt */
 		ctxt->vcpu->arch.halt_request = 1;
 		break;

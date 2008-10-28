@@ -2687,6 +2687,7 @@ static int handle_io(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	rep = (exit_qualification & 32) != 0;
 	port = exit_qualification >> 16;
 
+	skip_emulated_instruction(vcpu);
 	return kvm_emulate_pio(vcpu, kvm_run, in, size, port);
 }
 
