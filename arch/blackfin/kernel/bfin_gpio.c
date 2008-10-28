@@ -216,24 +216,18 @@ static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PROG0_INT
 #endif
 #endif /* CONFIG_PM */
 
-#if defined(BF548_FAMILY)
 inline int check_gpio(unsigned gpio)
 {
+#if defined(BF548_FAMILY)
 	if (gpio == GPIO_PB15 || gpio == GPIO_PC14 || gpio == GPIO_PC15
 	    || gpio == GPIO_PH14 || gpio == GPIO_PH15
-	    || gpio == GPIO_PJ14 || gpio == GPIO_PJ15
-	    || gpio >= MAX_BLACKFIN_GPIOS)
+	    || gpio == GPIO_PJ14 || gpio == GPIO_PJ15)
 		return -EINVAL;
-	return 0;
-}
-#else
-inline int check_gpio(unsigned gpio)
-{
+#endif
 	if (gpio >= MAX_BLACKFIN_GPIOS)
 		return -EINVAL;
 	return 0;
 }
-#endif
 
 static void gpio_error(unsigned gpio)
 {
