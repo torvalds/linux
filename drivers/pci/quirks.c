@@ -1692,24 +1692,24 @@ static void __devinit quirk_brcm_570x_limit_vpd(struct pci_dev *dev)
 	}
 }
 
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM,
-			 PCI_DEVICE_ID_NX2_5706,
-			 quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM,
-			 PCI_DEVICE_ID_NX2_5706S,
-			 quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM,
-			 PCI_DEVICE_ID_NX2_5708,
-			 quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM,
-			 PCI_DEVICE_ID_NX2_5708S,
-			 quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM,
-			 PCI_DEVICE_ID_NX2_5709,
-			 quirk_brcm_570x_limit_vpd);
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_BROADCOM,
-			 PCI_DEVICE_ID_NX2_5709S,
-			 quirk_brcm_570x_limit_vpd);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
+			PCI_DEVICE_ID_NX2_5706,
+			quirk_brcm_570x_limit_vpd);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
+			PCI_DEVICE_ID_NX2_5706S,
+			quirk_brcm_570x_limit_vpd);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
+			PCI_DEVICE_ID_NX2_5708,
+			quirk_brcm_570x_limit_vpd);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
+			PCI_DEVICE_ID_NX2_5708S,
+			quirk_brcm_570x_limit_vpd);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
+			PCI_DEVICE_ID_NX2_5709,
+			quirk_brcm_570x_limit_vpd);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
+			PCI_DEVICE_ID_NX2_5709S,
+			quirk_brcm_570x_limit_vpd);
 
 #ifdef CONFIG_PCI_MSI
 /* Some chipsets do not support MSI. We cannot easily rely on setting
