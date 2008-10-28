@@ -882,6 +882,7 @@ struct xfrm_dst
 	u32 path_cookie;
 };
 
+#ifdef CONFIG_XFRM
 static inline void xfrm_dst_destroy(struct xfrm_dst *xdst)
 {
 	dst_release(xdst->route);
@@ -894,6 +895,7 @@ static inline void xfrm_dst_destroy(struct xfrm_dst *xdst)
 	xdst->partner = NULL;
 #endif
 }
+#endif
 
 extern void xfrm_dst_ifdown(struct dst_entry *dst, struct net_device *dev);
 
@@ -1536,9 +1538,11 @@ static inline void xfrm_states_delete(struct xfrm_state **states, int n)
 }
 #endif
 
+#ifdef CONFIG_XFRM
 static inline struct xfrm_state *xfrm_input_state(struct sk_buff *skb)
 {
 	return skb->sp->xvec[skb->sp->len - 1];
 }
+#endif
 
 #endif	/* _NET_XFRM_H */

@@ -269,8 +269,9 @@ struct sk_buff {
 		struct  dst_entry	*dst;
 		struct  rtable		*rtable;
 	};
+#ifdef CONFIG_XFRM
 	struct	sec_path	*sp;
-
+#endif
 	/*
 	 * This is the control buffer. It is free to use for every
 	 * layer. Please put your private variables there. If you
@@ -1863,6 +1864,18 @@ static inline void skb_copy_queue_mapping(struct sk_buff *to, const struct sk_bu
 {
 	to->queue_mapping = from->queue_mapping;
 }
+
+#ifdef CONFIG_XFRM
+static inline struct sec_path *skb_sec_path(struct sk_buff *skb)
+{
+	return skb->sp;
+}
+#else
+static inline struct sec_path *skb_sec_path(struct sk_buff *skb)
+{
+	return NULL;
+}
+#endif
 
 static inline int skb_is_gso(const struct sk_buff *skb)
 {

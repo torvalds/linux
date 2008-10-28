@@ -229,7 +229,9 @@ struct sock {
 	} sk_backlog;
 	wait_queue_head_t	*sk_sleep;
 	struct dst_entry	*sk_dst_cache;
+#ifdef CONFIG_XFRM
 	struct xfrm_policy	*sk_policy[2];
+#endif
 	rwlock_t		sk_dst_lock;
 	atomic_t		sk_rmem_alloc;
 	atomic_t		sk_wmem_alloc;

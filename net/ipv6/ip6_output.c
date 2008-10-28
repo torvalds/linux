@@ -490,7 +490,7 @@ int ip6_forward(struct sk_buff *skb)
 	   We don't send redirects to frames decapsulated from IPsec.
 	 */
 	if (skb->dev == dst->dev && dst->neighbour && opt->srcrt == 0 &&
-	    !skb->sp) {
+	    !skb_sec_path(skb)) {
 		struct in6_addr *target = NULL;
 		struct rt6_info *rt;
 		struct neighbour *n = dst->neighbour;
