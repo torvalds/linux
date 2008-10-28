@@ -256,8 +256,7 @@ static int cmp_label(unsigned short ident, const char *label)
 	}
 
 	if (label)
-		return strncmp(str_ident[ident].name,
-				 label, strlen(label));
+		return strcmp(str_ident[ident].name, label);
 	else
 		return -EINVAL;
 }
