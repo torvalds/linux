@@ -14,3 +14,4 @@ obj-$(CONFIG_PRISM2_USB)	+= wlan-ng/
 obj-$(CONFIG_ECHO)		+= echo/
 obj-$(CONFIG_USB_ATMEL)		+= at76_usb/
 obj-$(CONFIG_POCH)		+= poch/
+obj-$(CONFIG_AGNX)		+= agnx/
