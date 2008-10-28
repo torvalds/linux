@@ -843,3 +843,275 @@ int exofs_setattr(struct dentry *dentry, struct iattr *iattr)
 	error = inode_setattr(inode, iattr);
 	return error;
 }
+
+/*
+ * Read an inode from the OSD, and return it as is.  We also return the size
+ * attribute in the 'sanity' argument if we got compiled with debugging turned
+ * on.
+ */
+static int exofs_get_inode(struct super_block *sb, struct exofs_i_info *oi,
+		    struct exofs_fcb *inode, uint64_t *sanity)
+{
+	struct exofs_sb_info *sbi = sb->s_fs_info;
+	struct osd_request *or;
+	struct osd_attr attr;
+	struct osd_obj_id obj = {sbi->s_pid,
+				 oi->vfs_inode.i_ino + EXOFS_OBJ_OFF};
+	int ret;
+
+	exofs_make_credential(oi->i_cred, &obj);
+
+	or = osd_start_request(sbi->s_dev, GFP_KERNEL);
+	if (unlikely(!or)) {
+		EXOFS_ERR("exofs_get_inode: osd_start_request failed.\n");
+		return -ENOMEM;
+	}
+	osd_req_get_attributes(or, &obj);
+
+	/* we need the inode attribute */
+	osd_req_add_get_attr_list(or, &g_attr_inode_data, 1);
+
+#ifdef EXOFS_DEBUG_OBJ_ISIZE
+	/* we get the size attributes to do a sanity check */
+	osd_req_add_get_attr_list(or, &g_attr_logical_length, 1);
+#endif
+
+	ret = exofs_sync_op(or, sbi->s_timeout, oi->i_cred);
+	if (ret)
+		goto out;
+
+	attr = g_attr_inode_data;
+	ret = extract_attr_from_req(or, &attr);
+	if (ret) {
+		EXOFS_ERR("exofs_get_inode: extract_attr_from_req failed\n");
+		goto out;
+	}
+
+	WARN_ON(attr.len != EXOFS_INO_ATTR_SIZE);
+	memcpy(inode, attr.val_ptr, EXOFS_INO_ATTR_SIZE);
+
+#ifdef EXOFS_DEBUG_OBJ_ISIZE
+	attr = g_attr_logical_length;
+	ret = extract_attr_from_req(or, &attr);
+	if (ret) {
+		EXOFS_ERR("ERROR: extract attr from or failed\n");
+		goto out;
+	}
+	*sanity = get_unaligned_be64(attr.val_ptr);
+#endif
+
+out:
+	osd_end_request(or);
+	return ret;
+}
+
+/*
+ * Fill in an inode read from the OSD and set it up for use
+ */
+struct inode *exofs_iget(struct super_block *sb, unsigned long ino)
+{
+	struct exofs_i_info *oi;
+	struct exofs_fcb fcb;
+	struct inode *inode;
+	uint64_t uninitialized_var(sanity);
+	int ret;
+
+	inode = iget_locked(sb, ino);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+	if (!(inode->i_state & I_NEW))
+		return inode;
+	oi = exofs_i(inode);
+
+	/* read the inode from the osd */
+	ret = exofs_get_inode(sb, oi, &fcb, &sanity);
+	if (ret)
+		goto bad_inode;
+
+	init_waitqueue_head(&oi->i_wq);
+	set_obj_created(oi);
+
+	/* copy stuff from on-disk struct to in-memory struct */
+	inode->i_mode = le16_to_cpu(fcb.i_mode);
+	inode->i_uid = le32_to_cpu(fcb.i_uid);
+	inode->i_gid = le32_to_cpu(fcb.i_gid);
+	inode->i_nlink = le16_to_cpu(fcb.i_links_count);
+	inode->i_ctime.tv_sec = (signed)le32_to_cpu(fcb.i_ctime);
+	inode->i_atime.tv_sec = (signed)le32_to_cpu(fcb.i_atime);
+	inode->i_mtime.tv_sec = (signed)le32_to_cpu(fcb.i_mtime);
+	inode->i_ctime.tv_nsec =
+		inode->i_atime.tv_nsec = inode->i_mtime.tv_nsec = 0;
+	oi->i_commit_size = le64_to_cpu(fcb.i_size);
+	i_size_write(inode, oi->i_commit_size);
+	inode->i_blkbits = EXOFS_BLKSHIFT;
+	inode->i_generation = le32_to_cpu(fcb.i_generation);
+
+#ifdef EXOFS_DEBUG_OBJ_ISIZE
+	if ((inode->i_size != sanity) &&
+		(!exofs_inode_is_fast_symlink(inode))) {
+		EXOFS_ERR("WARNING: Size of object from inode and "
+			  "attributes differ (%lld != %llu)\n",
+			  inode->i_size, _LLU(sanity));
+	}
+#endif
+
+	oi->i_dir_start_lookup = 0;
+
+	if ((inode->i_nlink == 0) && (inode->i_mode == 0)) {
+		ret = -ESTALE;
+		goto bad_inode;
+	}
+
+	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode)) {
+		if (fcb.i_data[0])
+			inode->i_rdev =
+				old_decode_dev(le32_to_cpu(fcb.i_data[0]));
+		else
+			inode->i_rdev =
+				new_decode_dev(le32_to_cpu(fcb.i_data[1]));
+	} else {
+		memcpy(oi->i_data, fcb.i_data, sizeof(fcb.i_data));
+	}
+
+	if (S_ISREG(inode->i_mode)) {
+		inode->i_op = &exofs_file_inode_operations;
+		inode->i_fop = &exofs_file_operations;
+		inode->i_mapping->a_ops = &exofs_aops;
+	} else if (S_ISDIR(inode->i_mode)) {
+		inode->i_op = &exofs_dir_inode_operations;
+		inode->i_fop = &exofs_dir_operations;
+		inode->i_mapping->a_ops = &exofs_aops;
+	} else if (S_ISLNK(inode->i_mode)) {
+		if (exofs_inode_is_fast_symlink(inode))
+			inode->i_op = &exofs_fast_symlink_inode_operations;
+		else {
+			inode->i_op = &exofs_symlink_inode_operations;
+			inode->i_mapping->a_ops = &exofs_aops;
+		}
+	} else {
+		inode->i_op = &exofs_special_inode_operations;
+		if (fcb.i_data[0])
+			init_special_inode(inode, inode->i_mode,
+			   old_decode_dev(le32_to_cpu(fcb.i_data[0])));
+		else
+			init_special_inode(inode, inode->i_mode,
+			   new_decode_dev(le32_to_cpu(fcb.i_data[1])));
+	}
+
+	unlock_new_inode(inode);
+	return inode;
+
+bad_inode:
+	iget_failed(inode);
+	return ERR_PTR(ret);
+}
+
+int __exofs_wait_obj_created(struct exofs_i_info *oi)
+{
+	if (!obj_created(oi)) {
+		BUG_ON(!obj_2bcreated(oi));
+		wait_event(oi->i_wq, obj_created(oi));
+	}
+	return unlikely(is_bad_inode(&oi->vfs_inode)) ? -EIO : 0;
+}
+/*
+ * Callback function from exofs_new_inode().  The important thing is that we
+ * set the obj_created flag so that other methods know that the object exists on
+ * the OSD.
+ */
+static void create_done(struct osd_request *or, void *p)
+{
+	struct inode *inode = p;
+	struct exofs_i_info *oi = exofs_i(inode);
+	struct exofs_sb_info *sbi = inode->i_sb->s_fs_info;
+	int ret;
+
+	ret = exofs_check_ok(or);
+	osd_end_request(or);
+	atomic_dec(&sbi->s_curr_pending);
+
+	if (unlikely(ret)) {
+		EXOFS_ERR("object=0x%llx creation faild in pid=0x%llx",
+			  _LLU(sbi->s_pid), _LLU(inode->i_ino + EXOFS_OBJ_OFF));
+		make_bad_inode(inode);
+	} else
+		set_obj_created(oi);
+
+	atomic_dec(&inode->i_count);
+	wake_up(&oi->i_wq);
+}
+
+/*
+ * Set up a new inode and create an object for it on the OSD
+ */
+struct inode *exofs_new_inode(struct inode *dir, int mode)
+{
+	struct super_block *sb;
+	struct inode *inode;
+	struct exofs_i_info *oi;
+	struct exofs_sb_info *sbi;
+	struct osd_request *or;
+	struct osd_obj_id obj;
+	int ret;
+
+	sb = dir->i_sb;
+	inode = new_inode(sb);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+
+	oi = exofs_i(inode);
+
+	init_waitqueue_head(&oi->i_wq);
+	set_obj_2bcreated(oi);
+
+	sbi = sb->s_fs_info;
+
+	sb->s_dirt = 1;
+	inode->i_uid = current->cred->fsuid;
+	if (dir->i_mode & S_ISGID) {
+		inode->i_gid = dir->i_gid;
+		if (S_ISDIR(mode))
+			mode |= S_ISGID;
+	} else {
+		inode->i_gid = current->cred->fsgid;
+	}
+	inode->i_mode = mode;
+
+	inode->i_ino = sbi->s_nextid++;
+	inode->i_blkbits = EXOFS_BLKSHIFT;
+	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
+	oi->i_commit_size = inode->i_size = 0;
+	spin_lock(&sbi->s_next_gen_lock);
+	inode->i_generation = sbi->s_next_generation++;
+	spin_unlock(&sbi->s_next_gen_lock);
+	insert_inode_hash(inode);
+
+	mark_inode_dirty(inode);
+
+	obj.partition = sbi->s_pid;
+	obj.id = inode->i_ino + EXOFS_OBJ_OFF;
+	exofs_make_credential(oi->i_cred, &obj);
+
+	or = osd_start_request(sbi->s_dev, GFP_KERNEL);
+	if (unlikely(!or)) {
+		EXOFS_ERR("exofs_new_inode: osd_start_request failed\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	osd_req_create_object(or, &obj);
+
+	/* increment the refcount so that the inode will still be around when we
+	 * reach the callback
+	 */
+	atomic_inc(&inode->i_count);
+
+	ret = exofs_async_op(or, create_done, inode, oi->i_cred);
+	if (ret) {
+		atomic_dec(&inode->i_count);
+		osd_end_request(or);
+		return ERR_PTR(-EIO);
+	}
+	atomic_inc(&sbi->s_curr_pending);
+
+	return inode;
+}

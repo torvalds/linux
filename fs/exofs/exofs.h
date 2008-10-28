@@ -124,6 +124,11 @@ static inline struct exofs_i_info *exofs_i(struct inode *inode)
 	return container_of(inode, struct exofs_i_info, vfs_inode);
 }
 
+/*
+ * Maximum count of links to a file
+ */
+#define EXOFS_LINK_MAX           32000
+
 /*************************
  * function declarations *
  *************************/
@@ -133,16 +138,37 @@ int exofs_setattr(struct dentry *, struct iattr *);
 int exofs_write_begin(struct file *file, struct address_space *mapping,
 		loff_t pos, unsigned len, unsigned flags,
 		struct page **pagep, void **fsdata);
+extern struct inode *exofs_iget(struct super_block *, unsigned long);
+struct inode *exofs_new_inode(struct inode *, int);
+
+/* dir.c:                */
+int exofs_add_link(struct dentry *, struct inode *);
+ino_t exofs_inode_by_name(struct inode *, struct dentry *);
+int exofs_delete_entry(struct exofs_dir_entry *, struct page *);
+int exofs_make_empty(struct inode *, struct inode *);
+struct exofs_dir_entry *exofs_find_entry(struct inode *, struct dentry *,
+					 struct page **);
+int exofs_empty_dir(struct inode *);
+struct exofs_dir_entry *exofs_dotdot(struct inode *, struct page **);
+int exofs_set_link(struct inode *, struct exofs_dir_entry *, struct page *,
+		    struct inode *);
 
 /*********************
  * operation vectors *
  *********************/
+/* dir.c:            */
+extern const struct file_operations exofs_dir_operations;
+
 /* file.c            */
 extern const struct inode_operations exofs_file_inode_operations;
 extern const struct file_operations exofs_file_operations;
 
 /* inode.c           */
 extern const struct address_space_operations exofs_aops;
+
+/* namei.c           */
+extern const struct inode_operations exofs_dir_inode_operations;
+extern const struct inode_operations exofs_special_inode_operations;
 
 /* symlink.c         */
 extern const struct inode_operations exofs_symlink_inode_operations;
