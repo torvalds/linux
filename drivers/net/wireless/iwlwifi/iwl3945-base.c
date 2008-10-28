@@ -6148,14 +6148,6 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 		memcpy(scan->direct_scan[0].ssid,
 		       priv->direct_ssid, priv->direct_ssid_len);
 		n_probes++;
-	} else if (!iwl3945_is_associated(priv) && priv->essid_len) {
-		IWL_DEBUG_SCAN
-		  ("Kicking off one direct scan for '%s' when not associated\n",
-		   print_ssid(ssid, priv->essid, priv->essid_len));
-		scan->direct_scan[0].id = WLAN_EID_SSID;
-		scan->direct_scan[0].len = priv->essid_len;
-		memcpy(scan->direct_scan[0].ssid, priv->essid, priv->essid_len);
-		n_probes++;
 	} else
 		IWL_DEBUG_SCAN("Kicking off one indirect scan.\n");
 
