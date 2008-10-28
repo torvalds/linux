@@ -13,7 +13,6 @@ RTS7751R2D		SH_RTS7751R2D
 # List of companion chips / MFDs.
 #
 HD64461			HD64461
-HD64465			HD64465
 
 #
 # List of boards.
