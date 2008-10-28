@@ -2377,9 +2377,10 @@ tracing_set_trace_write(struct file *filp, const char __user *ubuf,
 	int i;
 	size_t ret;
 
+	ret = cnt;
+
 	if (cnt > max_tracer_type_len)
 		cnt = max_tracer_type_len;
-	ret = cnt;
 
 	if (copy_from_user(&buf, ubuf, cnt))
 		return -EFAULT;
@@ -2412,8 +2413,8 @@ tracing_set_trace_write(struct file *filp, const char __user *ubuf,
  out:
 	mutex_unlock(&trace_types_lock);
 
-	if (ret == cnt)
-		filp->f_pos += cnt;
+	if (ret > 0)
+		filp->f_pos += ret;
 
 	return ret;
 }
