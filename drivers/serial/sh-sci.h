@@ -79,7 +79,6 @@
 # define SCSPTR0		SCPDR0
 # define SCIF_ORER		0x0001  /* overrun error bit */
 # define SCSCR_INIT(port)	0x0038  /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
-# define SCIF_ONLY
 #elif defined(CONFIG_CPU_SUBTYPE_SH7723)
 # define SCSPTR0                0xa4050160
 # define SCSPTR1                0xa405013e
