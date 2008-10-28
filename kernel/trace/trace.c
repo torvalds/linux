@@ -34,6 +34,7 @@
 
 #include <linux/stacktrace.h>
 #include <linux/ring_buffer.h>
+#include <linux/irqflags.h>
 
 #include "trace.h"
 
