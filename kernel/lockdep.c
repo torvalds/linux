@@ -3417,9 +3417,10 @@ retry:
 		}
 		printk(" ignoring it.\n");
 		unlock = 0;
+	} else {
+		if (count != 10)
+			printk(KERN_CONT " locked it.\n");
 	}
-	if (count != 10)
-		printk(" locked it.\n");
 
 	do_each_thread(g, p) {
 		/*
