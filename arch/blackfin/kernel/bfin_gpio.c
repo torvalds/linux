@@ -261,29 +261,25 @@ static int cmp_label(unsigned short ident, const char *label)
 		return -EINVAL;
 }
 
+static void port_setup(unsigned gpio, unsigned short usage)
+{
+	if (check_gpio(gpio))
+		return;
+
 #if defined(BF527_FAMILY) || defined(BF537_FAMILY) || defined(BF518_FAMILY)
-static void port_setup(unsigned gpio, unsigned short usage)
-{
-	if (!check_gpio(gpio)) {
-		if (usage == GPIO_USAGE)
-			*port_fer[gpio_bank(gpio)] &= ~gpio_bit(gpio);
-		else
-			*port_fer[gpio_bank(gpio)] |= gpio_bit(gpio);
-		SSYNC();
-	}
-}
+	if (usage == GPIO_USAGE)
+		*port_fer[gpio_bank(gpio)] &= ~gpio_bit(gpio);
+	else
+		*port_fer[gpio_bank(gpio)] |= gpio_bit(gpio);
+	SSYNC();
 #elif defined(BF548_FAMILY)
-static void port_setup(unsigned gpio, unsigned short usage)
-{
 	if (usage == GPIO_USAGE)
 		gpio_array[gpio_bank(gpio)]->port_fer &= ~gpio_bit(gpio);
 	else
 		gpio_array[gpio_bank(gpio)]->port_fer |= gpio_bit(gpio);
 	SSYNC();
-}
-#else
-# define port_setup(...)  do { } while (0)
 #endif
+}
 
 #ifdef BF537_FAMILY
 static struct {
