@@ -1555,7 +1555,8 @@ _last_cplb_fault_retx:
 .bss
 #endif
 _exception_stack:
-.size _exception_stack, 1024 * 4
-.set _exception_stack_top, _exception_stack + 1024 * 4
-.size _exception_stack_top, 0
+	.rept 1024
+	.long 0
+	.endr
+_exception_stack_top:
 #endif
