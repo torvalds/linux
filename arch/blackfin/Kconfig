@@ -667,6 +667,17 @@ config APP_STACK_L1
 
 	  Currently only works with FLAT binaries.
 
+config EXCEPTION_L1_SCRATCH
+	bool "Locate exception stack in L1 Scratch Memory"
+	default n
+	depends on !APP_STACK_L1 && !SYSCALL_TAB_L1
+	help
+	  Whenever an exception occurs, use the L1 Scratch memory for
+	  stack storage.  You cannot place the stacks of FLAT binaries
+	  in L1 when using this option.
+
+	  If you don't use L1 Scratch, then you should say Y here.
+
 comment "Speed Optimizations"
 config BFIN_INS_LOWOVERHEAD
 	bool "ins[bwl] low overhead, higher interrupt latency"

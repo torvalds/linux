@@ -1539,14 +1539,23 @@ ENTRY(_sys_call_table)
 	.endr
 END(_sys_call_table)
 
-_exception_stack:
-	.rept 1024
-	.long 0;
-	.endr
-_exception_stack_top:
-
 #if ANOMALY_05000261
 /* Used by the assembly entry point to work around an anomaly.  */
 _last_cplb_fault_retx:
 	.long 0;
+#endif
+
+#ifdef CONFIG_EXCEPTION_L1_SCRATCH
+/* .section .l1.bss.scratch */
+.set _exception_stack_top, L1_SCRATCH_START + L1_SCRATCH_LENGTH
+#else
+#ifdef CONFIG_SYSCALL_TAB_L1
+.section .l1.bss
+#else
+.bss
+#endif
+_exception_stack:
+.size _exception_stack, 1024 * 4
+.set _exception_stack_top, _exception_stack + 1024 * 4
+.size _exception_stack_top, 0
 #endif
