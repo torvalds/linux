@@ -10,7 +10,7 @@
  */
 #include <linux/init.h>
 #include <asm/machvec.h>
-#include <asm/edosk7705/io.h>
+#include <mach/edosk7705.h>
 
 static void __init sh_edosk7705_init_irq(void)
 {

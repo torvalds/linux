@@ -42,7 +42,6 @@
  */
 
 #include <acpi/acpi.h>
-#include <acpi/amlcode.h>
 #include <acpi/acnamesp.h>
 
 
@@ -176,20 +175,24 @@ acpi_ut_copy_isimple_to_esimple(union acpi_operand_object *internal_object,
 
 		/* This is an object reference. */
 
-		switch (internal_object->reference.opcode) {
-		case AML_INT_NAMEPATH_OP:
+		switch (internal_object->reference.class) {
+		case ACPI_REFCLASS_NAME:
 
-			/* For namepath, return the object handle ("reference") */
-
-		default:
-
-			/* We are referring to the namespace node */
-
+			/*
+			 * For namepath, return the object handle ("reference")
+			 * We are referring to the namespace node
+			 */
 			external_object->reference.handle =
 			    internal_object->reference.node;
 			external_object->reference.actual_type =
 			    acpi_ns_get_type(internal_object->reference.node);
 			break;
+
+		default:
+
+			/* All other reference types are unsupported */
+
+			return_ACPI_STATUS(AE_TYPE);
 		}
 		break;
 
@@ -533,7 +536,7 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 
 		/* TBD: should validate incoming handle */
 
-		internal_object->reference.opcode = AML_INT_NAMEPATH_OP;
+		internal_object->reference.class = ACPI_REFCLASS_NAME;
 		internal_object->reference.node =
 		    external_object->reference.handle;
 		break;
@@ -743,11 +746,11 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 		 * We copied the reference object, so we now must add a reference
 		 * to the object pointed to by the reference
 		 *
-		 * DDBHandle reference (from Load/load_table is a special reference,
-		 * it's Reference.Object is the table index, so does not need to
+		 * DDBHandle reference (from Load/load_table) is a special reference,
+		 * it does not have a Reference.Object, so does not need to
 		 * increase the reference count
 		 */
-		if (source_desc->reference.opcode == AML_LOAD_OP) {
+		if (source_desc->reference.class == ACPI_REFCLASS_TABLE) {
 			break;
 		}
 

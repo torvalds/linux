@@ -40,6 +40,7 @@
 #include <linux/capability.h>
 #include <linux/rcupdate.h>
 #include <linux/completion.h>
+#include <linux/tracehook.h>
 
 #include <asm/errno.h>
 #include <asm/intrinsics.h>
@@ -3684,7 +3685,7 @@ pfm_restart(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs)
 
 		PFM_SET_WORK_PENDING(task, 1);
 
-		tsk_set_notify_resume(task);
+		set_notify_resume(task);
 
 		/*
 		 * XXX: send reschedule if task runs on another CPU
@@ -5044,8 +5045,6 @@ pfm_handle_work(void)
 
 	PFM_SET_WORK_PENDING(current, 0);
 
-	tsk_clear_notify_resume(current);
-
 	regs = task_pt_regs(current);
 
 	/*
@@ -5414,7 +5413,7 @@ pfm_overflow_handler(struct task_struct *task, pfm_context_t *ctx, u64 pmc0, str
 			 * when coming from ctxsw, current still points to the
 			 * previous task, therefore we must work with task and not current.
 			 */
-			tsk_set_notify_resume(task);
+			set_notify_resume(task);
 		}
 		/*
 		 * defer until state is changed (shorten spin window). the context is locked

@@ -26,7 +26,7 @@
 #include <linux/pnp.h>
 #include <linux/moduleparam.h>
 #include <sound/core.h>
-#include <sound/cs4231.h>
+#include <sound/wss.h>
 #include <sound/mpu401.h>
 #include <sound/opl3.h>
 #include <sound/initval.h>
@@ -134,7 +134,7 @@ static int pnp_registered;
 #endif /* CONFIG_PNP */
 
 struct snd_card_cs4236 {
-	struct snd_cs4231 *chip;
+	struct snd_wss *chip;
 	struct resource *res_sb_port;
 #ifdef CONFIG_PNP
 	struct pnp_dev *wss;
@@ -239,6 +239,8 @@ static struct pnp_card_device_id snd_cs423x_pnpids[] = {
 	{ .id = "CSC9836", .devs = { { "CSC0000" }, { "CSC0010" }, { "CSC0003" } } },
 	/* Gallant SC-70P */
 	{ .id = "CSC9837", .devs = { { "CSC0000" }, { "CSC0010" }, { "CSC0003" } } },
+	/* Techmakers MF-4236PW */
+	{ .id = "CSCa736", .devs = { { "CSC0000" }, { "CSC0010" }, { "CSC0003" } } },
 	/* TerraTec AudioSystem EWS64XL - CS4236B */
 	{ .id = "CSCa836", .devs = { { "CSCa800" }, { "CSCa810" }, { "CSCa803" } } },
 	/* TerraTec AudioSystem EWS64XL - CS4236B */
@@ -396,7 +398,7 @@ static int __devinit snd_cs423x_probe(struct snd_card *card, int dev)
 {
 	struct snd_card_cs4236 *acard;
 	struct snd_pcm *pcm;
-	struct snd_cs4231 *chip;
+	struct snd_wss *chip;
 	struct snd_opl3 *opl3;
 	int err;
 
@@ -408,41 +410,37 @@ static int __devinit snd_cs423x_probe(struct snd_card *card, int dev)
 		}
 
 #ifdef CS4232
-	if ((err = snd_cs4231_create(card,
-				     port[dev],
-				     cport[dev],
-				     irq[dev],
-				     dma1[dev],
-				     dma2[dev],
-				     CS4231_HW_DETECT,
-				     0,
-				     &chip)) < 0)
+	err = snd_wss_create(card, port[dev], cport[dev],
+			     irq[dev],
+			     dma1[dev], dma2[dev],
+			     WSS_HW_DETECT, 0, &chip);
+	if (err < 0)
 		return err;
 	acard->chip = chip;
 
-	if ((err = snd_cs4231_pcm(chip, 0, &pcm)) < 0)
+	err = snd_wss_pcm(chip, 0, &pcm);
+	if (err < 0)
 		return err;
 
-	if ((err = snd_cs4231_mixer(chip)) < 0)
+	err = snd_wss_mixer(chip);
+	if (err < 0)
 		return err;
 
 #else /* CS4236 */
-	if ((err = snd_cs4236_create(card,
-				     port[dev],
-				     cport[dev],
-				     irq[dev],
-				     dma1[dev],
-				     dma2[dev],
-				     CS4231_HW_DETECT,
-				     0,
-				     &chip)) < 0)
+	err = snd_cs4236_create(card,
+				port[dev], cport[dev],
+				irq[dev], dma1[dev], dma2[dev],
+				WSS_HW_DETECT, 0, &chip);
+	if (err < 0)
 		return err;
 	acard->chip = chip;
 
-	if ((err = snd_cs4236_pcm(chip, 0, &pcm)) < 0)
+	err = snd_cs4236_pcm(chip, 0, &pcm);
+	if (err < 0)
 		return err;
 
-	if ((err = snd_cs4236_mixer(chip)) < 0)
+	err = snd_cs4236_mixer(chip);
+	if (err < 0)
 		return err;
 #endif
 	strcpy(card->driver, pcm->name);
@@ -455,7 +453,8 @@ static int __devinit snd_cs423x_probe(struct snd_card *card, int dev)
 	if (dma2[dev] >= 0)
 		sprintf(card->longname + strlen(card->longname), "&%d", dma2[dev]);
 
-	if ((err = snd_cs4231_timer(chip, 0, NULL)) < 0)
+	err = snd_wss_timer(chip, 0, NULL);
+	if (err < 0)
 		return err;
 
 	if (fm_port[dev] > 0 && fm_port[dev] != SNDRV_AUTO_PORT) {

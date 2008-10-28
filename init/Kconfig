@@ -299,6 +299,13 @@ config CGROUP_NS
           for instance virtual servers and checkpoint/restart
           jobs.
 
+config CGROUP_FREEZER
+        bool "control group freezer subsystem"
+        depends on CGROUPS
+        help
+          Provides a way to freeze and unfreeze all tasks in a
+	  cgroup.
+
 config CGROUP_DEVICE
 	bool "Device controller for cgroups"
 	depends on CGROUPS && EXPERIMENTAL
@@ -713,6 +720,14 @@ config SHMEM
 	  option replaces shmem and tmpfs with the much simpler ramfs code,
 	  which may be appropriate on small systems without swap.
 
+config AIO
+	bool "Enable AIO support" if EMBEDDED
+	default y
+	help
+	  This option enables POSIX asynchronous I/O which may by used
+          by some high performance threaded applications. Disabling
+          this option saves about 7k.
+
 config VM_EVENT_COUNTERS
 	default y
 	bool "Enable VM event counters for /proc/vmstat" if EMBEDDED
@@ -721,6 +736,15 @@ config VM_EVENT_COUNTERS
 	  This option allows the disabling of the VM event counters
 	  on EMBEDDED systems.  /proc/vmstat will only show page counts
 	  if VM event counters are disabled.
+
+config PCI_QUIRKS
+	default y
+	bool "Enable PCI quirk workarounds" if EMBEDDED
+	depends on PCI
+	help
+	  This enables workarounds for various PCI chipset
+          bugs/quirks. Disable this only if your target machine is
+          unaffected by PCI quirks.
 
 config SLUB_DEBUG
 	default y
@@ -771,6 +795,13 @@ config PROFILING
 	  Say Y here to enable the extended profiling support mechanisms used
 	  by profilers such as OProfile.
 
+#
+# Place an empty function call at each tracepoint site. Can be
+# dynamically changed for a probe function.
+#
+config TRACEPOINTS
+	bool
+
 config MARKERS
 	bool "Activate markers"
 	help
@@ -778,16 +809,6 @@ config MARKERS
 	  dynamically changed for a probe function.
 
 source "arch/Kconfig"
-
-config PROC_PAGE_MONITOR
- 	default y
-	depends on PROC_FS && MMU
-	bool "Enable /proc page monitoring" if EMBEDDED
- 	help
-	  Various /proc files exist to monitor process memory utilization:
-	  /proc/pid/smaps, /proc/pid/clear_refs, /proc/pid/pagemap,
-	  /proc/kpagecount, and /proc/kpageflags. Disabling these
-          interfaces will reduce the size of the kernel by approximately 4kb.
 
 endmenu		# General setup
 

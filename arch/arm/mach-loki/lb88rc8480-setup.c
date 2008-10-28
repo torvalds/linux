@@ -67,7 +67,7 @@ static struct platform_device lb88rc8480_boot_flash = {
 };
 
 static struct mv643xx_eth_platform_data lb88rc8480_ge0_data = {
-	.phy_addr	= 1,
+	.phy_addr	= MV643XX_ETH_PHY_ADDR(1),
 	.mac_addr	= { 0x00, 0x50, 0x43, 0x11, 0x22, 0x33 },
 };
 

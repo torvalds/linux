@@ -45,7 +45,7 @@ void __ptrace_link(struct task_struct *child, struct task_struct *new_parent)
  * TASK_TRACED, resume it now.
  * Requires that irqs be disabled.
  */
-void ptrace_untrace(struct task_struct *child)
+static void ptrace_untrace(struct task_struct *child)
 {
 	spin_lock(&child->sighand->siglock);
 	if (task_is_traced(child)) {

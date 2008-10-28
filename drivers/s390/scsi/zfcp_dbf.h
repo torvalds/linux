@@ -151,6 +151,7 @@ struct zfcp_hba_dbf_record {
 		struct zfcp_hba_dbf_record_response response;
 		struct zfcp_hba_dbf_record_status status;
 		struct zfcp_hba_dbf_record_qdio qdio;
+		struct fsf_bit_error_payload berr;
 	} u;
 } __attribute__ ((packed));
 

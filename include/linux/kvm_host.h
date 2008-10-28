@@ -34,6 +34,8 @@
 #define KVM_REQ_MMU_RELOAD         3
 #define KVM_REQ_TRIPLE_FAULT       4
 #define KVM_REQ_PENDING_TIMER      5
+#define KVM_REQ_UNHALT             6
+#define KVM_REQ_MMU_SYNC           7
 
 struct kvm_vcpu;
 extern struct kmem_cache *kvm_vcpu_cache;
@@ -279,11 +281,67 @@ void kvm_free_physmem(struct kvm *kvm);
 
 struct  kvm *kvm_arch_create_vm(void);
 void kvm_arch_destroy_vm(struct kvm *kvm);
+void kvm_free_all_assigned_devices(struct kvm *kvm);
 
 int kvm_cpu_get_interrupt(struct kvm_vcpu *v);
 int kvm_cpu_has_interrupt(struct kvm_vcpu *v);
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu);
 void kvm_vcpu_kick(struct kvm_vcpu *vcpu);
+
+int kvm_is_mmio_pfn(pfn_t pfn);
+
+struct kvm_irq_ack_notifier {
+	struct hlist_node link;
+	unsigned gsi;
+	void (*irq_acked)(struct kvm_irq_ack_notifier *kian);
+};
+
+struct kvm_assigned_dev_kernel {
+	struct kvm_irq_ack_notifier ack_notifier;
+	struct work_struct interrupt_work;
+	struct list_head list;
+	int assigned_dev_id;
+	int host_busnr;
+	int host_devfn;
+	int host_irq;
+	int guest_irq;
+	int irq_requested;
+	struct pci_dev *dev;
+	struct kvm *kvm;
+};
+void kvm_set_irq(struct kvm *kvm, int irq, int level);
+void kvm_notify_acked_irq(struct kvm *kvm, unsigned gsi);
+void kvm_register_irq_ack_notifier(struct kvm *kvm,
+				   struct kvm_irq_ack_notifier *kian);
+void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
+				     struct kvm_irq_ack_notifier *kian);
+
+#ifdef CONFIG_DMAR
+int kvm_iommu_map_pages(struct kvm *kvm, gfn_t base_gfn,
+			unsigned long npages);
+int kvm_iommu_map_guest(struct kvm *kvm,
+			struct kvm_assigned_dev_kernel *assigned_dev);
+int kvm_iommu_unmap_guest(struct kvm *kvm);
+#else /* CONFIG_DMAR */
+static inline int kvm_iommu_map_pages(struct kvm *kvm,
+				      gfn_t base_gfn,
+				      unsigned long npages)
+{
+	return 0;
+}
+
+static inline int kvm_iommu_map_guest(struct kvm *kvm,
+				      struct kvm_assigned_dev_kernel
+				      *assigned_dev)
+{
+	return -ENODEV;
+}
+
+static inline int kvm_iommu_unmap_guest(struct kvm *kvm)
+{
+	return 0;
+}
+#endif /* CONFIG_DMAR */
 
 static inline void kvm_guest_enter(void)
 {
@@ -307,6 +365,11 @@ static inline gpa_t gfn_to_gpa(gfn_t gfn)
 	return (gpa_t)gfn << PAGE_SHIFT;
 }
 
+static inline hpa_t pfn_to_hpa(pfn_t pfn)
+{
+	return (hpa_t)pfn << PAGE_SHIFT;
+}
+
 static inline void kvm_migrate_timers(struct kvm_vcpu *vcpu)
 {
 	set_bit(KVM_REQ_MIGRATE_TIMER, &vcpu->requests);
@@ -325,6 +388,25 @@ struct kvm_stats_debugfs_item {
 };
 extern struct kvm_stats_debugfs_item debugfs_entries[];
 extern struct dentry *kvm_debugfs_dir;
+
+#define KVMTRACE_5D(evt, vcpu, d1, d2, d3, d4, d5, name) \
+	trace_mark(kvm_trace_##name, "%u %p %u %u %u %u %u %u", KVM_TRC_##evt, \
+						vcpu, 5, d1, d2, d3, d4, d5)
+#define KVMTRACE_4D(evt, vcpu, d1, d2, d3, d4, name) \
+	trace_mark(kvm_trace_##name, "%u %p %u %u %u %u %u %u", KVM_TRC_##evt, \
+						vcpu, 4, d1, d2, d3, d4, 0)
+#define KVMTRACE_3D(evt, vcpu, d1, d2, d3, name) \
+	trace_mark(kvm_trace_##name, "%u %p %u %u %u %u %u %u", KVM_TRC_##evt, \
+						vcpu, 3, d1, d2, d3, 0, 0)
+#define KVMTRACE_2D(evt, vcpu, d1, d2, name) \
+	trace_mark(kvm_trace_##name, "%u %p %u %u %u %u %u %u", KVM_TRC_##evt, \
+						vcpu, 2, d1, d2, 0, 0, 0)
+#define KVMTRACE_1D(evt, vcpu, d1, name) \
+	trace_mark(kvm_trace_##name, "%u %p %u %u %u %u %u %u", KVM_TRC_##evt, \
+						vcpu, 1, d1, 0, 0, 0, 0)
+#define KVMTRACE_0D(evt, vcpu, name) \
+	trace_mark(kvm_trace_##name, "%u %p %u %u %u %u %u %u", KVM_TRC_##evt, \
+						vcpu, 0, 0, 0, 0, 0, 0)
 
 #ifdef CONFIG_KVM_TRACE
 int kvm_trace_ioctl(unsigned int ioctl, unsigned long arg);

@@ -2,6 +2,7 @@
 #define _LINUX_VMALLOC_H
 
 #include <linux/spinlock.h>
+#include <linux/init.h>
 #include <asm/page.h>		/* pgprot_t */
 
 struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
@@ -23,7 +24,6 @@ struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
 #endif
 
 struct vm_struct {
-	/* keep next,addr,size together to speedup lookups */
 	struct vm_struct	*next;
 	void			*addr;
 	unsigned long		size;
@@ -37,6 +37,19 @@ struct vm_struct {
 /*
  *	Highlevel APIs for driver use
  */
+extern void vm_unmap_ram(const void *mem, unsigned int count);
+extern void *vm_map_ram(struct page **pages, unsigned int count,
+				int node, pgprot_t prot);
+extern void vm_unmap_aliases(void);
+
+#ifdef CONFIG_MMU
+extern void __init vmalloc_init(void);
+#else
+static inline void vmalloc_init(void)
+{
+}
+#endif
+
 extern void *vmalloc(unsigned long size);
 extern void *vmalloc_user(unsigned long size);
 extern void *vmalloc_node(unsigned long size, int node);
@@ -89,7 +102,5 @@ extern void free_vm_area(struct vm_struct *area);
  */
 extern rwlock_t vmlist_lock;
 extern struct vm_struct *vmlist;
-
-extern const struct seq_operations vmalloc_op;
 
 #endif /* _LINUX_VMALLOC_H */

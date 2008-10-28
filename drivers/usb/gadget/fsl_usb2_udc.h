@@ -424,16 +424,6 @@ struct ep_td_struct {
 /* Controller dma boundary */
 #define UDC_DMA_BOUNDARY			0x1000
 
-/* -----------------------------------------------------------------------*/
-/* ##### enum data
-*/
-typedef enum {
-	e_ULPI,
-	e_UTMI_8BIT,
-	e_UTMI_16BIT,
-	e_SERIAL
-} e_PhyInterface;
-
 /*-------------------------------------------------------------------------*/
 
 /* ### driver private data
@@ -469,9 +459,9 @@ struct fsl_ep {
 #define EP_DIR_OUT	0
 
 struct fsl_udc {
-
 	struct usb_gadget gadget;
 	struct usb_gadget_driver *driver;
+	struct completion *done;	/* to make sure release() is done */
 	struct fsl_ep *eps;
 	unsigned int max_ep;
 	unsigned int irq;
@@ -492,20 +482,13 @@ struct fsl_udc {
 	size_t ep_qh_size;		/* size after alignment adjustment*/
 	dma_addr_t ep_qh_dma;		/* dma address of QH */
 
-	u32 max_pipes;		/* Device max pipes */
-	u32 max_use_endpts;	/* Max endpointes to be used */
-	u32 bus_reset;		/* Device is bus reseting */
+	u32 max_pipes;          /* Device max pipes */
 	u32 resume_state;	/* USB state to resume */
 	u32 usb_state;		/* USB current state */
-	u32 usb_next_state;	/* USB next state */
 	u32 ep0_state;		/* Endpoint zero state */
 	u32 ep0_dir;		/* Endpoint zero direction: can be
 				   USB_DIR_IN or USB_DIR_OUT */
-	u32 usb_sof_count;	/* SOF count */
-	u32 errors;		/* USB ERRORs count */
 	u8 device_address;	/* Device USB address */
-
-	struct completion *done;	/* to make sure release() is done */
 };
 
 /*-------------------------------------------------------------------------*/

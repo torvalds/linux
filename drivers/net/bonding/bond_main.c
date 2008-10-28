@@ -1341,18 +1341,24 @@ static int bond_compute_features(struct bonding *bond)
 	int i;
 
 	features &= ~(NETIF_F_ALL_CSUM | BOND_VLAN_FEATURES);
-	features |= NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
-		    NETIF_F_GSO_MASK | NETIF_F_NO_CSUM;
+	features |=  NETIF_F_GSO_MASK | NETIF_F_NO_CSUM;
+
+	if (!bond->first_slave)
+		goto done;
+
+	features &= ~NETIF_F_ONE_FOR_ALL;
 
 	bond_for_each_slave(bond, slave, i) {
-		features = netdev_compute_features(features,
-						   slave->dev->features);
+		features = netdev_increment_features(features,
+						     slave->dev->features,
+						     NETIF_F_ONE_FOR_ALL);
 		if (slave->dev->hard_header_len > max_hard_header_len)
 			max_hard_header_len = slave->dev->hard_header_len;
 	}
 
+done:
 	features |= (bond_dev->features & BOND_VLAN_FEATURES);
-	bond_dev->features = features;
+	bond_dev->features = netdev_fix_features(features, NULL);
 	bond_dev->hard_header_len = max_hard_header_len;
 
 	return 0;
@@ -3702,7 +3708,7 @@ static int bond_xmit_hash_policy_l23(struct sk_buff *skb,
 	struct ethhdr *data = (struct ethhdr *)skb->data;
 	struct iphdr *iph = ip_hdr(skb);
 
-	if (skb->protocol == __constant_htons(ETH_P_IP)) {
+	if (skb->protocol == htons(ETH_P_IP)) {
 		return ((ntohl(iph->saddr ^ iph->daddr) & 0xffff) ^
 			(data->h_dest[5] ^ bond_dev->dev_addr[5])) % count;
 	}
@@ -3723,8 +3729,8 @@ static int bond_xmit_hash_policy_l34(struct sk_buff *skb,
 	__be16 *layer4hdr = (__be16 *)((u32 *)iph + iph->ihl);
 	int layer4_xor = 0;
 
-	if (skb->protocol == __constant_htons(ETH_P_IP)) {
-		if (!(iph->frag_off & __constant_htons(IP_MF|IP_OFFSET)) &&
+	if (skb->protocol == htons(ETH_P_IP)) {
+		if (!(iph->frag_off & htons(IP_MF|IP_OFFSET)) &&
 		    (iph->protocol == IPPROTO_TCP ||
 		     iph->protocol == IPPROTO_UDP)) {
 			layer4_xor = ntohs((*layer4hdr ^ *(layer4hdr + 1)));
@@ -4493,6 +4499,12 @@ static void bond_ethtool_get_drvinfo(struct net_device *bond_dev,
 
 static const struct ethtool_ops bond_ethtool_ops = {
 	.get_drvinfo		= bond_ethtool_get_drvinfo,
+	.get_link		= ethtool_op_get_link,
+	.get_tx_csum		= ethtool_op_get_tx_csum,
+	.get_sg			= ethtool_op_get_sg,
+	.get_tso		= ethtool_op_get_tso,
+	.get_ufo		= ethtool_op_get_ufo,
+	.get_flags		= ethtool_op_get_flags,
 };
 
 /*

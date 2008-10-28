@@ -25,7 +25,6 @@
 #define PCIE_CAPABILITIES_REG		0x2
 #define PCIE_SLOT_CAPABILITIES_REG	0x14
 #define PCIE_PORT_DEVICE_MAXSERVICES	4
-#define PCI_CFG_SPACE_SIZE		256
 
 #define get_descriptor_id(type, service) (((type - 4) << 4) | service)
 

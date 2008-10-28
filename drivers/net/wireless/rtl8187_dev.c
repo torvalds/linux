@@ -33,10 +33,13 @@ MODULE_LICENSE("GPL");
 static struct usb_device_id rtl8187_table[] __devinitdata = {
 	/* Asus */
 	{USB_DEVICE(0x0b05, 0x171d), .driver_info = DEVICE_RTL8187},
+	/* Belkin */
+	{USB_DEVICE(0x050d, 0x705e), .driver_info = DEVICE_RTL8187B},
 	/* Realtek */
 	{USB_DEVICE(0x0bda, 0x8187), .driver_info = DEVICE_RTL8187},
 	{USB_DEVICE(0x0bda, 0x8189), .driver_info = DEVICE_RTL8187B},
 	{USB_DEVICE(0x0bda, 0x8197), .driver_info = DEVICE_RTL8187B},
+	{USB_DEVICE(0x0bda, 0x8198), .driver_info = DEVICE_RTL8187B},
 	/* Netgear */
 	{USB_DEVICE(0x0846, 0x6100), .driver_info = DEVICE_RTL8187},
 	{USB_DEVICE(0x0846, 0x6a00), .driver_info = DEVICE_RTL8187},
@@ -187,18 +190,18 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	}
 
 	flags = skb->len;
-	flags |= RTL8187_TX_FLAG_NO_ENCRYPT;
+	flags |= RTL818X_TX_DESC_FLAG_NO_ENC;
 
 	flags |= ieee80211_get_tx_rate(dev, info)->hw_value << 24;
 	if (ieee80211_has_morefrags(((struct ieee80211_hdr *)skb->data)->frame_control))
-		flags |= RTL8187_TX_FLAG_MORE_FRAG;
+		flags |= RTL818X_TX_DESC_FLAG_MOREFRAG;
 	if (info->flags & IEEE80211_TX_CTL_USE_RTS_CTS) {
-		flags |= RTL8187_TX_FLAG_RTS;
+		flags |= RTL818X_TX_DESC_FLAG_RTS;
 		flags |= ieee80211_get_rts_cts_rate(dev, info)->hw_value << 19;
 		rts_dur = ieee80211_rts_duration(dev, priv->vif,
 						 skb->len, info);
 	} else if (info->flags & IEEE80211_TX_CTL_USE_CTS_PROTECT) {
-		flags |= RTL8187_TX_FLAG_CTS;
+		flags |= RTL818X_TX_DESC_FLAG_CTS;
 		flags |= ieee80211_get_rts_cts_rate(dev, info)->hw_value << 19;
 	}
 
@@ -354,7 +357,7 @@ static void rtl8187_rx_cb(struct urb *urb)
 	rx_status.freq = dev->conf.channel->center_freq;
 	rx_status.band = dev->conf.channel->band;
 	rx_status.flag |= RX_FLAG_TSFT;
-	if (flags & (1 << 13))
+	if (flags & RTL818X_RX_DESC_FLAG_CRC32_ERR)
 		rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
 	ieee80211_rx_irqsafe(dev, skb, &rx_status);
 
@@ -836,11 +839,11 @@ static int rtl8187_add_interface(struct ieee80211_hw *dev,
 	struct rtl8187_priv *priv = dev->priv;
 	int i;
 
-	if (priv->mode != IEEE80211_IF_TYPE_MNTR)
+	if (priv->mode != NL80211_IFTYPE_MONITOR)
 		return -EOPNOTSUPP;
 
 	switch (conf->type) {
-	case IEEE80211_IF_TYPE_STA:
+	case NL80211_IFTYPE_STATION:
 		priv->mode = conf->type;
 		break;
 	default:
@@ -865,7 +868,7 @@ static void rtl8187_remove_interface(struct ieee80211_hw *dev,
 {
 	struct rtl8187_priv *priv = dev->priv;
 	mutex_lock(&priv->conf_mutex);
-	priv->mode = IEEE80211_IF_TYPE_MNTR;
+	priv->mode = NL80211_IFTYPE_MONITOR;
 	priv->vif = NULL;
 	mutex_unlock(&priv->conf_mutex);
 }
@@ -1057,7 +1060,7 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->band;
 
 
-	priv->mode = IEEE80211_IF_TYPE_MNTR;
+	priv->mode = NL80211_IFTYPE_MONITOR;
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 		     IEEE80211_HW_RX_INCLUDES_FCS;
 
@@ -1183,6 +1186,8 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 		dev->flags |= IEEE80211_HW_SIGNAL_UNSPEC;
 		dev->max_signal = 65;
 	}
+
+	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
 	if ((id->driver_info == DEVICE_RTL8187) && priv->is_rtl8187b)
 		printk(KERN_INFO "rtl8187: inconsistency between id with OEM"

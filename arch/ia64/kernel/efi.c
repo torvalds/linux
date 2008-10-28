@@ -1232,9 +1232,10 @@ efi_initialize_iomem_resources(struct resource *code_resource,
 				if (md->attribute & EFI_MEMORY_WP) {
 					name = "System ROM";
 					flags |= IORESOURCE_READONLY;
-				} else {
+				} else if (md->attribute == EFI_MEMORY_UC)
+					name = "Uncached RAM";
+				else
 					name = "System RAM";
-				}
 				break;
 
 			case EFI_ACPI_MEMORY_NVS:
@@ -1334,7 +1335,7 @@ kdump_find_rsvd_region (unsigned long size, struct rsvd_region *r, int n)
 }
 #endif
 
-#ifdef CONFIG_PROC_VMCORE
+#ifdef CONFIG_CRASH_DUMP
 /* locate the size find a the descriptor at a certain address */
 unsigned long __init
 vmcore_find_descriptor_size (unsigned long address)

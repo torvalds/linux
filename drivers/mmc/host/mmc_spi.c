@@ -95,8 +95,6 @@
  * reads which takes nowhere near that long.  Older cards may be able to use
  * shorter timeouts ... but why bother?
  */
-#define readblock_timeout	ktime_set(0, 100 * 1000 * 1000)
-#define writeblock_timeout	ktime_set(0, 250 * 1000 * 1000)
 #define r1b_timeout		ktime_set(3, 0)
 
 
@@ -220,9 +218,9 @@ mmc_spi_wait_unbusy(struct mmc_spi_host *host, ktime_t timeout)
 	return mmc_spi_skip(host, timeout, sizeof(host->data->status), 0);
 }
 
-static int mmc_spi_readtoken(struct mmc_spi_host *host)
+static int mmc_spi_readtoken(struct mmc_spi_host *host, ktime_t timeout)
 {
-	return mmc_spi_skip(host, readblock_timeout, 1, 0xff);
+	return mmc_spi_skip(host, timeout, 1, 0xff);
 }
 
 
@@ -605,7 +603,8 @@ mmc_spi_setup_data_message(
  * Return negative errno, else success.
  */
 static int
-mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t)
+mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t,
+	ktime_t timeout)
 {
 	struct spi_device	*spi = host->spi;
 	int			status, i;
@@ -673,7 +672,7 @@ mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t)
 		if (scratch->status[i] != 0)
 			return 0;
 	}
-	return mmc_spi_wait_unbusy(host, writeblock_timeout);
+	return mmc_spi_wait_unbusy(host, timeout);
 }
 
 /*
@@ -693,7 +692,8 @@ mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t)
  * STOP_TRANSMISSION command.
  */
 static int
-mmc_spi_readblock(struct mmc_spi_host *host, struct spi_transfer *t)
+mmc_spi_readblock(struct mmc_spi_host *host, struct spi_transfer *t,
+	ktime_t timeout)
 {
 	struct spi_device	*spi = host->spi;
 	int			status;
@@ -707,7 +707,7 @@ mmc_spi_readblock(struct mmc_spi_host *host, struct spi_transfer *t)
 		return status;
 	status = scratch->status[0];
 	if (status == 0xff || status == 0)
-		status = mmc_spi_readtoken(host);
+		status = mmc_spi_readtoken(host, timeout);
 
 	if (status == SPI_TOKEN_SINGLE) {
 		if (host->dma_dev) {
@@ -778,6 +778,8 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 	struct scatterlist	*sg;
 	unsigned		n_sg;
 	int			multiple = (data->blocks > 1);
+	u32			clock_rate;
+	ktime_t			timeout;
 
 	if (data->flags & MMC_DATA_READ)
 		direction = DMA_FROM_DEVICE;
@@ -785,6 +787,14 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 		direction = DMA_TO_DEVICE;
 	mmc_spi_setup_data_message(host, multiple, direction);
 	t = &host->t;
+
+	if (t->speed_hz)
+		clock_rate = t->speed_hz;
+	else
+		clock_rate = spi->max_speed_hz;
+
+	timeout = ktime_add_ns(ktime_set(0, 0), data->timeout_ns +
+			data->timeout_clks * 1000000 / clock_rate);
 
 	/* Handle scatterlist segments one at a time, with synch for
 	 * each 512-byte block
@@ -832,9 +842,9 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 				t->len);
 
 			if (direction == DMA_TO_DEVICE)
-				status = mmc_spi_writeblock(host, t);
+				status = mmc_spi_writeblock(host, t, timeout);
 			else
-				status = mmc_spi_readblock(host, t);
+				status = mmc_spi_readblock(host, t, timeout);
 			if (status < 0)
 				break;
 
@@ -917,7 +927,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 			if (scratch->status[tmp] != 0)
 				return;
 		}
-		tmp = mmc_spi_wait_unbusy(host, writeblock_timeout);
+		tmp = mmc_spi_wait_unbusy(host, timeout);
 		if (tmp < 0 && !data->error)
 			data->error = tmp;
 	}

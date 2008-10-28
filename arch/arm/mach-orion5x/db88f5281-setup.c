@@ -285,7 +285,7 @@ subsys_initcall(db88f5281_pci_init);
  * Ethernet
  ****************************************************************************/
 static struct mv643xx_eth_platform_data db88f5281_eth_data = {
-	.phy_addr	= 8,
+	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
 };
 
 /*****************************************************************************

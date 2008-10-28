@@ -32,6 +32,14 @@ struct mtd_blkcore_priv {
 	spinlock_t queue_lock;
 };
 
+static int blktrans_discard_request(struct request_queue *q,
+				    struct request *req)
+{
+	req->cmd_type = REQ_TYPE_LINUX_BLOCK;
+	req->cmd[0] = REQ_LB_OP_DISCARD;
+	return 0;
+}
+
 static int do_blktrans_request(struct mtd_blktrans_ops *tr,
 			       struct mtd_blktrans_dev *dev,
 			       struct request *req)
@@ -43,6 +51,10 @@ static int do_blktrans_request(struct mtd_blktrans_ops *tr,
 	nsect = req->current_nr_sectors << 9 >> tr->blkshift;
 
 	buf = req->buffer;
+
+	if (req->cmd_type == REQ_TYPE_LINUX_BLOCK &&
+	    req->cmd[0] == REQ_LB_OP_DISCARD)
+		return !tr->discard(dev, block, nsect);
 
 	if (!blk_fs_request(req))
 		return 0;
@@ -121,14 +133,11 @@ static void mtd_blktrans_request(struct request_queue *rq)
 }
 
 
-static int blktrans_open(struct inode *i, struct file *f)
+static int blktrans_open(struct block_device *bdev, fmode_t mode)
 {
-	struct mtd_blktrans_dev *dev;
-	struct mtd_blktrans_ops *tr;
+	struct mtd_blktrans_dev *dev = bdev->bd_disk->private_data;
+	struct mtd_blktrans_ops *tr = dev->tr;
 	int ret = -ENODEV;
-
-	dev = i->i_bdev->bd_disk->private_data;
-	tr = dev->tr;
 
 	if (!try_module_get(dev->mtd->owner))
 		goto out;
@@ -152,14 +161,11 @@ static int blktrans_open(struct inode *i, struct file *f)
 	return ret;
 }
 
-static int blktrans_release(struct inode *i, struct file *f)
+static int blktrans_release(struct gendisk *disk, fmode_t mode)
 {
-	struct mtd_blktrans_dev *dev;
-	struct mtd_blktrans_ops *tr;
+	struct mtd_blktrans_dev *dev = disk->private_data;
+	struct mtd_blktrans_ops *tr = dev->tr;
 	int ret = 0;
-
-	dev = i->i_bdev->bd_disk->private_data;
-	tr = dev->tr;
 
 	if (tr->release)
 		ret = tr->release(dev);
@@ -182,10 +188,10 @@ static int blktrans_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return -ENOTTY;
 }
 
-static int blktrans_ioctl(struct inode *inode, struct file *file,
+static int blktrans_ioctl(struct block_device *bdev, fmode_t mode,
 			      unsigned int cmd, unsigned long arg)
 {
-	struct mtd_blktrans_dev *dev = inode->i_bdev->bd_disk->private_data;
+	struct mtd_blktrans_dev *dev = bdev->bd_disk->private_data;
 	struct mtd_blktrans_ops *tr = dev->tr;
 
 	switch (cmd) {
@@ -203,7 +209,7 @@ static struct block_device_operations mtd_blktrans_ops = {
 	.owner		= THIS_MODULE,
 	.open		= blktrans_open,
 	.release	= blktrans_release,
-	.ioctl		= blktrans_ioctl,
+	.locked_ioctl	= blktrans_ioctl,
 	.getgeo		= blktrans_getgeo,
 };
 
@@ -367,6 +373,10 @@ int register_mtd_blktrans(struct mtd_blktrans_ops *tr)
 
 	tr->blkcore_priv->rq->queuedata = tr;
 	blk_queue_hardsect_size(tr->blkcore_priv->rq, tr->blksize);
+	if (tr->discard)
+		blk_queue_set_discard(tr->blkcore_priv->rq,
+				      blktrans_discard_request);
+
 	tr->blkshift = ffs(tr->blksize) - 1;
 
 	tr->blkcore_priv->thread = kthread_run(mtd_blktrans_thread, tr,

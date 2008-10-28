@@ -10,6 +10,8 @@
 # License.  See the file "COPYING" in the main directory of this archive
 # for more details.
 
+KBUILD_DEFCONFIG := etrax-100lx_v2_defconfig
+
 arch-y := v10
 arch-$(CONFIG_ETRAX_ARCH_V10) := v10
 arch-$(CONFIG_ETRAX_ARCH_V32) := v32

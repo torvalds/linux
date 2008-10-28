@@ -511,13 +511,6 @@ void hfs_clear_inode(struct inode *inode)
 	}
 }
 
-static int hfs_permission(struct inode *inode, int mask)
-{
-	if (S_ISREG(inode->i_mode) && mask & MAY_EXEC)
-		return 0;
-	return generic_permission(inode, mask, NULL);
-}
-
 static int hfs_file_open(struct inode *inode, struct file *file)
 {
 	if (HFS_IS_RSRC(inode))
@@ -616,7 +609,6 @@ static const struct inode_operations hfs_file_inode_operations = {
 	.lookup		= hfs_file_lookup,
 	.truncate	= hfs_file_truncate,
 	.setattr	= hfs_inode_setattr,
-	.permission	= hfs_permission,
 	.setxattr	= hfs_setxattr,
 	.getxattr	= hfs_getxattr,
 	.listxattr	= hfs_listxattr,

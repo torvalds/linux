@@ -21,6 +21,7 @@
 #include <asm/fpu.h>
 #include <asm/mipsregs.h>
 #include <asm/system.h>
+#include <asm/watch.h>
 
 /*
  * Not all of the MIPS CPUs have the "wait" instruction available. Moreover,
@@ -54,14 +55,18 @@ extern void r4k_wait(void);
  * interrupt is requested" restriction in the MIPS32/MIPS64 architecture makes
  * using this version a gamble.
  */
-static void r4k_wait_irqoff(void)
+void r4k_wait_irqoff(void)
 {
 	local_irq_disable();
 	if (!need_resched())
-		__asm__("	.set	mips3		\n"
+		__asm__("	.set	push		\n"
+			"	.set	mips3		\n"
 			"	wait			\n"
-			"	.set	mips0		\n");
+			"	.set	pop		\n");
 	local_irq_enable();
+	__asm__(" 	.globl __pastwait	\n"
+		"__pastwait:			\n");
+	return;
 }
 
 /*
@@ -673,6 +678,7 @@ static inline void spram_config(void) {}
 static inline void cpu_probe_mips(struct cpuinfo_mips *c)
 {
 	decode_configs(c);
+	mips_probe_watch_registers(c);
 	switch (c->processor_id & 0xff00) {
 	case PRID_IMP_4KC:
 		c->cputype = CPU_4KC;

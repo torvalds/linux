@@ -105,12 +105,9 @@ static struct pcmcia_low_level cmx270_pcmcia_ops __initdata = {
 
 static struct platform_device *cmx270_pcmcia_device;
 
-static int __init cmx270_pcmcia_init(void)
+int __init cmx270_pcmcia_init(void)
 {
 	int ret;
-
-	if (!machine_is_armcore())
-		return -ENODEV;
 
 	cmx270_pcmcia_device = platform_device_alloc("pxa2xx-pcmcia", -1);
 
@@ -131,14 +128,7 @@ static int __init cmx270_pcmcia_init(void)
 	return ret;
 }
 
-static void __exit cmx270_pcmcia_exit(void)
+void __exit cmx270_pcmcia_exit(void)
 {
 	platform_device_unregister(cmx270_pcmcia_device);
 }
-
-module_init(cmx270_pcmcia_init);
-module_exit(cmx270_pcmcia_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mike Rapoport <mike@compulab.co.il>");
-MODULE_DESCRIPTION("CM-x270 PCMCIA driver");

@@ -73,6 +73,12 @@ static mfp_cfg_t common_mfp_cfg[] __initdata = {
 	GPIO27_AC97_SDATA_OUT,
 	GPIO28_AC97_SYNC,
 
+	/* SSP3 */
+	GPIO91_SSP3_SCLK,
+	GPIO92_SSP3_FRM,
+	GPIO93_SSP3_TXD,
+	GPIO94_SSP3_RXD,
+
 	/* WM9713 IRQ */
 	GPIO26_GPIO,
 
@@ -112,6 +118,10 @@ static mfp_cfg_t common_mfp_cfg[] __initdata = {
 	GPIO12_MMC2_DAT3,
 	GPIO13_MMC2_CLK,
 	GPIO14_MMC2_CMD,
+
+	/* USB Host */
+	GPIO0_2_USBH_PEN,
+	GPIO1_2_USBH_PWR,
 
 	/* Standard I2C */
 	GPIO21_I2C_SCL,
@@ -209,7 +219,7 @@ static struct pca953x_platform_data gpio_exp[] = {
 	},
 };
 
-struct i2c_board_info zylonite_i2c_board_info[] = {
+static struct i2c_board_info zylonite_i2c_board_info[] = {
 	{
 		.type		= "pca9539",
 		.addr		= 0x74,

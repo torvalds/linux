@@ -292,7 +292,7 @@ au1x00_pcmcia_set_io_map(struct pcmcia_socket *sock, struct pccard_io_map *map)
 		skt->spd_io[map->map] = speed;
 	}
 
-	map->start=(ioaddr_t)(u32)skt->virt_io;
+	map->start=(unsigned int)(u32)skt->virt_io;
 	map->stop=map->start+MAP_SIZE;
 	return 0;
 

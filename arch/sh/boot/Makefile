@@ -33,10 +33,16 @@ $(obj)/zImage: $(obj)/compressed/vmlinux FORCE
 $(obj)/compressed/vmlinux: FORCE
 	$(Q)$(MAKE) $(build)=$(obj)/compressed $@
 
+ifeq ($(CONFIG_32BIT),y)
+KERNEL_LOAD	:= $(shell /bin/bash -c 'printf "0x%08x" \
+		     $$[$(CONFIG_PAGE_OFFSET)  + \
+			$(CONFIG_ZERO_PAGE_OFFSET)]')
+else
 KERNEL_LOAD	:= $(shell /bin/bash -c 'printf "0x%08x" \
 		     $$[$(CONFIG_PAGE_OFFSET)  + \
 			$(CONFIG_MEMORY_START) + \
 			$(CONFIG_ZERO_PAGE_OFFSET)]')
+endif
 
 KERNEL_ENTRY	:= $(shell /bin/bash -c 'printf "0x%08x" \
 		     $$[$(CONFIG_PAGE_OFFSET)  + \

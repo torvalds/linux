@@ -66,6 +66,8 @@ mainmenu "Fujitsu FR-V Kernel Configuration"
 
 source "init/Kconfig"
 
+source "kernel/Kconfig.freezer"
+
 
 menu "Fujitsu FR-V system setup"
 

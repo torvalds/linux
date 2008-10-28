@@ -4,7 +4,7 @@
  * This file is released under the GPL.
  */
 
-#include "dm.h"
+#include <linux/device-mapper.h>
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -60,8 +60,8 @@ static inline struct stripe_c *alloc_context(unsigned int stripes)
 {
 	size_t len;
 
-	if (array_too_big(sizeof(struct stripe_c), sizeof(struct stripe),
-			  stripes))
+	if (dm_array_too_big(sizeof(struct stripe_c), sizeof(struct stripe),
+			     stripes))
 		return NULL;
 
 	len = sizeof(struct stripe_c) + (sizeof(struct stripe) * stripes);
@@ -284,8 +284,8 @@ static int stripe_end_io(struct dm_target *ti, struct bio *bio,
 
 	memset(major_minor, 0, sizeof(major_minor));
 	sprintf(major_minor, "%d:%d",
-		bio->bi_bdev->bd_disk->major,
-		bio->bi_bdev->bd_disk->first_minor);
+		MAJOR(disk_devt(bio->bi_bdev->bd_disk)),
+		MINOR(disk_devt(bio->bi_bdev->bd_disk)));
 
 	/*
 	 * Test to see which stripe drive triggered the event

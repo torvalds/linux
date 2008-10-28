@@ -18,7 +18,6 @@
 #include <linux/poll.h>
 #include <linux/module.h>
 #include <linux/mc146818rtc.h>	/* For struct rtc_time and ioctls, etc */
-#include <linux/smp_lock.h>
 #include <linux/bcd.h>
 #include <asm/bvme6000hw.h>
 
@@ -57,16 +56,16 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		rtc->msr = 0x40;
 		memset(&wtime, 0, sizeof(struct rtc_time));
 		do {
-			wtime.tm_sec =  BCD2BIN(rtc->bcd_sec);
-			wtime.tm_min =  BCD2BIN(rtc->bcd_min);
-			wtime.tm_hour = BCD2BIN(rtc->bcd_hr);
-			wtime.tm_mday =  BCD2BIN(rtc->bcd_dom);
-			wtime.tm_mon =  BCD2BIN(rtc->bcd_mth)-1;
-			wtime.tm_year = BCD2BIN(rtc->bcd_year);
+			wtime.tm_sec =  bcd2bin(rtc->bcd_sec);
+			wtime.tm_min =  bcd2bin(rtc->bcd_min);
+			wtime.tm_hour = bcd2bin(rtc->bcd_hr);
+			wtime.tm_mday =  bcd2bin(rtc->bcd_dom);
+			wtime.tm_mon =  bcd2bin(rtc->bcd_mth)-1;
+			wtime.tm_year = bcd2bin(rtc->bcd_year);
 			if (wtime.tm_year < 70)
 				wtime.tm_year += 100;
-			wtime.tm_wday = BCD2BIN(rtc->bcd_dow)-1;
-		} while (wtime.tm_sec != BCD2BIN(rtc->bcd_sec));
+			wtime.tm_wday = bcd2bin(rtc->bcd_dow)-1;
+		} while (wtime.tm_sec != bcd2bin(rtc->bcd_sec));
 		rtc->msr = msr;
 		local_irq_restore(flags);
 		return copy_to_user(argp, &wtime, sizeof wtime) ?
@@ -114,14 +113,14 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 		rtc->t0cr_rtmr = yrs%4;
 		rtc->bcd_tenms = 0;
-		rtc->bcd_sec   = BIN2BCD(sec);
-		rtc->bcd_min   = BIN2BCD(min);
-		rtc->bcd_hr    = BIN2BCD(hrs);
-		rtc->bcd_dom   = BIN2BCD(day);
-		rtc->bcd_mth   = BIN2BCD(mon);
-		rtc->bcd_year  = BIN2BCD(yrs%100);
+		rtc->bcd_sec   = bin2bcd(sec);
+		rtc->bcd_min   = bin2bcd(min);
+		rtc->bcd_hr    = bin2bcd(hrs);
+		rtc->bcd_dom   = bin2bcd(day);
+		rtc->bcd_mth   = bin2bcd(mon);
+		rtc->bcd_year  = bin2bcd(yrs%100);
 		if (rtc_tm.tm_wday >= 0)
-			rtc->bcd_dow = BIN2BCD(rtc_tm.tm_wday+1);
+			rtc->bcd_dow = bin2bcd(rtc_tm.tm_wday+1);
 		rtc->t0cr_rtmr = yrs%4 | 0x08;
 
 		rtc->msr = msr;

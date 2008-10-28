@@ -222,8 +222,10 @@ load:
 				continue;
 			if (def == S_DEF_USER) {
 				sym = sym_find(line + 9);
-				if (!sym)
+				if (!sym) {
+					sym_add_change_count(1);
 					break;
+				}
 			} else {
 				sym = sym_lookup(line + 9, 0);
 				if (sym->type == S_UNKNOWN)
@@ -259,8 +261,10 @@ load:
 			}
 			if (def == S_DEF_USER) {
 				sym = sym_find(line + 7);
-				if (!sym)
+				if (!sym) {
+					sym_add_change_count(1);
 					break;
+				}
 			} else {
 				sym = sym_lookup(line + 7, 0);
 				if (sym->type == S_UNKNOWN)
@@ -848,8 +852,7 @@ void conf_set_all_new_symbols(enum conf_def_mode mode)
 
 	}
 
-	if (modules_sym)
-		sym_calc_value(modules_sym);
+	sym_clear_all_valid();
 
 	if (mode != def_random)
 		return;

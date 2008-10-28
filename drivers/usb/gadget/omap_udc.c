@@ -787,7 +787,7 @@ static void dma_channel_claim(struct omap_ep *ep, unsigned channel)
 			omap_set_dma_dest_params(ep->lch,
 				OMAP_DMA_PORT_TIPB,
 				OMAP_DMA_AMODE_CONSTANT,
-				(unsigned long) io_v2p(UDC_DATA_DMA),
+				UDC_DATA_DMA,
 				0, 0);
 		}
 	} else {
@@ -804,7 +804,7 @@ static void dma_channel_claim(struct omap_ep *ep, unsigned channel)
 			omap_set_dma_src_params(ep->lch,
 				OMAP_DMA_PORT_TIPB,
 				OMAP_DMA_AMODE_CONSTANT,
-				(unsigned long) io_v2p(UDC_DATA_DMA),
+				UDC_DATA_DMA,
 				0, 0);
 			/* EMIFF or SDRC */
 			omap_set_dma_dest_burst_mode(ep->lch,
@@ -2313,6 +2313,13 @@ static int proc_otg_show(struct seq_file *s)
 
 	tmp = omap_readl(OTG_REV);
 	if (cpu_is_omap24xx()) {
+		/*
+		 * REVISIT: Not clear how this works on OMAP2.  trans
+		 * is ANDed to produce bits 7 and 8, which might make
+		 * sense for USB_TRANSCEIVER_CTRL on OMAP1,
+		 * but with CONTROL_DEVCONF, these bits have something to
+		 * do with the frame adjustment counter and McBSP2.
+		 */
 		ctrl_name = "control_devconf";
 		trans = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
 	} else {

@@ -54,10 +54,6 @@ APICs
 		 apicmaintimer. Useful when your PIT timer is totally
 		 broken.
 
-   disable_8254_timer / enable_8254_timer
-		 Enable interrupt 0 timer routing over the 8254 in addition to over
-	         the IO-APIC. The kernel tries to set a sensible default.
-
 Early Console
 
    syntax: earlyprintk=vga

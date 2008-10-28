@@ -143,7 +143,7 @@ void __init device_scan(void)
 #endif
 	clock_stop_probe();
 
-	if (ARCH_SUN4C_SUN4)
+	if (ARCH_SUN4C)
 		sun4c_probe_memerr_reg();
 
 	return;

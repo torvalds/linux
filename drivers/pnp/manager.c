@@ -25,7 +25,7 @@ static int pnp_assign_port(struct pnp_dev *dev, struct pnp_port *rule, int idx)
 
 	res = pnp_get_resource(dev, IORESOURCE_IO, idx);
 	if (res) {
-		dev_dbg(&dev->dev, "  io %d already set to %#llx-%#llx "
+		pnp_dbg(&dev->dev, "  io %d already set to %#llx-%#llx "
 			"flags %#lx\n", idx, (unsigned long long) res->start,
 			(unsigned long long) res->end, res->flags);
 		return 0;
@@ -38,7 +38,7 @@ static int pnp_assign_port(struct pnp_dev *dev, struct pnp_port *rule, int idx)
 
 	if (!rule->size) {
 		res->flags |= IORESOURCE_DISABLED;
-		dev_dbg(&dev->dev, "  io %d disabled\n", idx);
+		pnp_dbg(&dev->dev, "  io %d disabled\n", idx);
 		goto __add;
 	}
 
@@ -49,7 +49,7 @@ static int pnp_assign_port(struct pnp_dev *dev, struct pnp_port *rule, int idx)
 		res->start += rule->align;
 		res->end = res->start + rule->size - 1;
 		if (res->start > rule->max || !rule->align) {
-			dev_dbg(&dev->dev, "  couldn't assign io %d "
+			pnp_dbg(&dev->dev, "  couldn't assign io %d "
 				"(min %#llx max %#llx)\n", idx,
 				(unsigned long long) rule->min,
 				(unsigned long long) rule->max);
@@ -68,7 +68,7 @@ static int pnp_assign_mem(struct pnp_dev *dev, struct pnp_mem *rule, int idx)
 
 	res = pnp_get_resource(dev, IORESOURCE_MEM, idx);
 	if (res) {
-		dev_dbg(&dev->dev, "  mem %d already set to %#llx-%#llx "
+		pnp_dbg(&dev->dev, "  mem %d already set to %#llx-%#llx "
 			"flags %#lx\n", idx, (unsigned long long) res->start,
 			(unsigned long long) res->end, res->flags);
 		return 0;
@@ -90,7 +90,7 @@ static int pnp_assign_mem(struct pnp_dev *dev, struct pnp_mem *rule, int idx)
 
 	if (!rule->size) {
 		res->flags |= IORESOURCE_DISABLED;
-		dev_dbg(&dev->dev, "  mem %d disabled\n", idx);
+		pnp_dbg(&dev->dev, "  mem %d disabled\n", idx);
 		goto __add;
 	}
 
@@ -101,7 +101,7 @@ static int pnp_assign_mem(struct pnp_dev *dev, struct pnp_mem *rule, int idx)
 		res->start += rule->align;
 		res->end = res->start + rule->size - 1;
 		if (res->start > rule->max || !rule->align) {
-			dev_dbg(&dev->dev, "  couldn't assign mem %d "
+			pnp_dbg(&dev->dev, "  couldn't assign mem %d "
 				"(min %#llx max %#llx)\n", idx,
 				(unsigned long long) rule->min,
 				(unsigned long long) rule->max);
@@ -126,7 +126,7 @@ static int pnp_assign_irq(struct pnp_dev *dev, struct pnp_irq *rule, int idx)
 
 	res = pnp_get_resource(dev, IORESOURCE_IRQ, idx);
 	if (res) {
-		dev_dbg(&dev->dev, "  irq %d already set to %d flags %#lx\n",
+		pnp_dbg(&dev->dev, "  irq %d already set to %d flags %#lx\n",
 			idx, (int) res->start, res->flags);
 		return 0;
 	}
@@ -138,7 +138,7 @@ static int pnp_assign_irq(struct pnp_dev *dev, struct pnp_irq *rule, int idx)
 
 	if (bitmap_empty(rule->map.bits, PNP_IRQ_NR)) {
 		res->flags |= IORESOURCE_DISABLED;
-		dev_dbg(&dev->dev, "  irq %d disabled\n", idx);
+		pnp_dbg(&dev->dev, "  irq %d disabled\n", idx);
 		goto __add;
 	}
 
@@ -160,11 +160,11 @@ static int pnp_assign_irq(struct pnp_dev *dev, struct pnp_irq *rule, int idx)
 		res->start = -1;
 		res->end = -1;
 		res->flags |= IORESOURCE_DISABLED;
-		dev_dbg(&dev->dev, "  irq %d disabled (optional)\n", idx);
+		pnp_dbg(&dev->dev, "  irq %d disabled (optional)\n", idx);
 		goto __add;
 	}
 
-	dev_dbg(&dev->dev, "  couldn't assign irq %d\n", idx);
+	pnp_dbg(&dev->dev, "  couldn't assign irq %d\n", idx);
 	return -EBUSY;
 
 __add:
@@ -184,7 +184,7 @@ static int pnp_assign_dma(struct pnp_dev *dev, struct pnp_dma *rule, int idx)
 
 	res = pnp_get_resource(dev, IORESOURCE_DMA, idx);
 	if (res) {
-		dev_dbg(&dev->dev, "  dma %d already set to %d flags %#lx\n",
+		pnp_dbg(&dev->dev, "  dma %d already set to %d flags %#lx\n",
 			idx, (int) res->start, res->flags);
 		return 0;
 	}
@@ -205,7 +205,7 @@ static int pnp_assign_dma(struct pnp_dev *dev, struct pnp_dma *rule, int idx)
 	res->start = res->end = MAX_DMA_CHANNELS;
 #endif
 	res->flags |= IORESOURCE_DISABLED;
-	dev_dbg(&dev->dev, "  disable dma %d\n", idx);
+	pnp_dbg(&dev->dev, "  disable dma %d\n", idx);
 
 __add:
 	pnp_add_dma_resource(dev, res->start, res->flags);
@@ -238,7 +238,7 @@ static int pnp_assign_resources(struct pnp_dev *dev, int set)
 	int nport = 0, nmem = 0, nirq = 0, ndma = 0;
 	int ret = 0;
 
-	dev_dbg(&dev->dev, "pnp_assign_resources, try dependent set %d\n", set);
+	pnp_dbg(&dev->dev, "pnp_assign_resources, try dependent set %d\n", set);
 	mutex_lock(&pnp_res_mutex);
 	pnp_clean_resource_table(dev);
 
@@ -270,7 +270,7 @@ static int pnp_assign_resources(struct pnp_dev *dev, int set)
 
 	mutex_unlock(&pnp_res_mutex);
 	if (ret < 0) {
-		dev_dbg(&dev->dev, "pnp_assign_resources failed (%d)\n", ret);
+		pnp_dbg(&dev->dev, "pnp_assign_resources failed (%d)\n", ret);
 		pnp_clean_resource_table(dev);
 	} else
 		dbg_pnp_show_resources(dev, "pnp_assign_resources succeeded");
@@ -286,7 +286,7 @@ int pnp_auto_config_dev(struct pnp_dev *dev)
 	int i, ret;
 
 	if (!pnp_can_configure(dev)) {
-		dev_dbg(&dev->dev, "configuration not supported\n");
+		pnp_dbg(&dev->dev, "configuration not supported\n");
 		return -ENODEV;
 	}
 
@@ -313,7 +313,7 @@ int pnp_auto_config_dev(struct pnp_dev *dev)
 int pnp_start_dev(struct pnp_dev *dev)
 {
 	if (!pnp_can_write(dev)) {
-		dev_dbg(&dev->dev, "activation not supported\n");
+		pnp_dbg(&dev->dev, "activation not supported\n");
 		return -EINVAL;
 	}
 
@@ -336,7 +336,7 @@ int pnp_start_dev(struct pnp_dev *dev)
 int pnp_stop_dev(struct pnp_dev *dev)
 {
 	if (!pnp_can_disable(dev)) {
-		dev_dbg(&dev->dev, "disabling not supported\n");
+		pnp_dbg(&dev->dev, "disabling not supported\n");
 		return -EINVAL;
 	}
 	if (dev->protocol->disable(dev) < 0) {

@@ -310,4 +310,31 @@ static inline int ubifs_tnc_lookup(struct ubifs_info *c,
 	return ubifs_tnc_locate(c, key, node, NULL, NULL);
 }
 
+/**
+ * ubifs_get_lprops - get reference to LEB properties.
+ * @c: the UBIFS file-system description object
+ *
+ * This function locks lprops. Lprops have to be unlocked by
+ * 'ubifs_release_lprops()'.
+ */
+static inline void ubifs_get_lprops(struct ubifs_info *c)
+{
+	mutex_lock(&c->lp_mutex);
+}
+
+/**
+ * ubifs_release_lprops - release lprops lock.
+ * @c: the UBIFS file-system description object
+ *
+ * This function has to be called after each 'ubifs_get_lprops()' call to
+ * unlock lprops.
+ */
+static inline void ubifs_release_lprops(struct ubifs_info *c)
+{
+	ubifs_assert(mutex_is_locked(&c->lp_mutex));
+	ubifs_assert(c->lst.empty_lebs >= 0 &&
+		     c->lst.empty_lebs <= c->main_lebs);
+	mutex_unlock(&c->lp_mutex);
+}
+
 #endif /* __UBIFS_MISC_H__ */

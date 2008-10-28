@@ -24,8 +24,8 @@
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <mach/hardware.h>

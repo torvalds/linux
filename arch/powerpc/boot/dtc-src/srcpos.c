@@ -20,86 +20,97 @@
 #include "dtc.h"
 #include "srcpos.h"
 
-
-/*
- * Record the complete unique set of opened file names.
- * Primarily used to cache source position file names.
- */
-#define MAX_N_FILE_NAMES	(100)
-
-const char *file_names[MAX_N_FILE_NAMES];
-static int n_file_names = 0;
-
 /*
  * Like yylineno, this is the current open file pos.
  */
 
-int srcpos_filenum = -1;
+struct dtc_file *srcpos_file;
 
-
-
-FILE *dtc_open_file(const char *fname)
+static int dtc_open_one(struct dtc_file *file,
+                        const char *search,
+                        const char *fname)
 {
-	FILE *f;
+	char *fullname;
 
-	if (lookup_file_name(fname, 1) < 0)
-		die("Too many files opened\n");
+	if (search) {
+		fullname = xmalloc(strlen(search) + strlen(fname) + 2);
 
-	if (streq(fname, "-"))
-		f = stdin;
-	else
-		f = fopen(fname, "r");
+		strcpy(fullname, search);
+		strcat(fullname, "/");
+		strcat(fullname, fname);
+	} else {
+		fullname = strdup(fname);
+	}
 
-	if (! f)
-		die("Couldn't open \"%s\": %s\n", fname, strerror(errno));
+	file->file = fopen(fullname, "r");
+	if (!file->file) {
+		free(fullname);
+		return 0;
+	}
 
-	return f;
+	file->name = fullname;
+	return 1;
 }
 
 
-
-/*
- * Locate and optionally add filename fname in the file_names[] array.
- *
- * If the filename is currently not in the array and the boolean
- * add_it is non-zero, an attempt to add the filename will be made.
- *
- * Returns;
- *    Index [0..MAX_N_FILE_NAMES) where the filename is kept
- *    -1 if the name can not be recorded
- */
-
-int lookup_file_name(const char *fname, int add_it)
+struct dtc_file *dtc_open_file(const char *fname,
+                               const struct search_path *search)
 {
-	int i;
+	static const struct search_path default_search = { NULL, NULL, NULL };
 
-	for (i = 0; i < n_file_names; i++) {
-		if (strcmp(file_names[i], fname) == 0)
-			return i;
+	struct dtc_file *file;
+	const char *slash;
+
+	file = xmalloc(sizeof(struct dtc_file));
+
+	slash = strrchr(fname, '/');
+	if (slash) {
+		char *dir = xmalloc(slash - fname + 1);
+
+		memcpy(dir, fname, slash - fname);
+		dir[slash - fname] = 0;
+		file->dir = dir;
+	} else {
+		file->dir = NULL;
 	}
 
-	if (add_it) {
-		if (n_file_names < MAX_N_FILE_NAMES) {
-			file_names[n_file_names] = strdup(fname);
-			return n_file_names++;
-		}
+	if (streq(fname, "-")) {
+		file->name = "stdin";
+		file->file = stdin;
+		return file;
 	}
 
-	return -1;
+	if (fname[0] == '/') {
+		file->file = fopen(fname, "r");
+		if (!file->file)
+			goto fail;
+
+		file->name = strdup(fname);
+		return file;
+	}
+
+	if (!search)
+		search = &default_search;
+
+	while (search) {
+		if (dtc_open_one(file, search->dir, fname))
+			return file;
+
+		if (errno != ENOENT)
+			goto fail;
+
+		search = search->next;
+	}
+
+fail:
+	die("Couldn't open \"%s\": %s\n", fname, strerror(errno));
 }
 
-
-const char *srcpos_filename_for_num(int filenum)
+void dtc_close_file(struct dtc_file *file)
 {
-	if (0 <= filenum && filenum < n_file_names) {
-		return file_names[filenum];
-	}
+	if (fclose(file->file))
+		die("Error closing \"%s\": %s\n", file->name, strerror(errno));
 
-	return 0;
-}
-
-
-const char *srcpos_get_filename(void)
-{
-	return srcpos_filename_for_num(srcpos_filenum);
+	free(file->dir);
+	free(file);
 }

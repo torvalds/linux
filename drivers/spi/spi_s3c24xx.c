@@ -247,6 +247,9 @@ static void s3c24xx_spi_initialsetup(struct s3c24xx_spi *hw)
 	writeb(0xff, hw->regs + S3C2410_SPPRE);
 	writeb(SPPIN_DEFAULT, hw->regs + S3C2410_SPPIN);
 	writeb(SPCON_DEFAULT, hw->regs + S3C2410_SPCON);
+
+	if (hw->pdata && hw->pdata->gpio_setup)
+		hw->pdata->gpio_setup(hw->pdata, 1);
 }
 
 static int __init s3c24xx_spi_probe(struct platform_device *pdev)
@@ -411,6 +414,9 @@ static int __exit s3c24xx_spi_remove(struct platform_device *dev)
 static int s3c24xx_spi_suspend(struct platform_device *pdev, pm_message_t msg)
 {
 	struct s3c24xx_spi *hw = platform_get_drvdata(pdev);
+
+	if (hw->pdata && hw->pdata->gpio_setup)
+		hw->pdata->gpio_setup(hw->pdata, 0);
 
 	clk_disable(hw->clk);
 	return 0;

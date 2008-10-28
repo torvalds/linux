@@ -42,7 +42,7 @@ if ACPI
 
 config ACPI_SLEEP
 	bool
-	depends on PM_SLEEP
+	depends on SUSPEND || HIBERNATION
 	default y
 
 config ACPI_PROCFS
@@ -157,18 +157,11 @@ config ACPI_FAN
 	  applications to perform basic fan control (on, off, status).
 
 config ACPI_DOCK
-	tristate "Dock"
+	bool "Dock"
 	depends on EXPERIMENTAL
 	help
-	  This driver adds support for ACPI controlled docking stations
-
-config ACPI_BAY
-	tristate "Removable Drive Bay (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	depends on ACPI_DOCK
-	help
-	  This driver adds support for ACPI controlled removable drive
-	  bays such as the IBM ultrabay or the Dell Module Bay.
+	  This driver adds support for ACPI controlled docking stations and removable
+	  drive bays such as the IBM ultrabay or the Dell Module Bay.
 
 config ACPI_PROCESSOR
 	tristate "Processor"
@@ -259,7 +252,10 @@ config ACPI_ASUS
 
 config ACPI_TOSHIBA
 	tristate "Toshiba Laptop Extras"
-	depends on X86
+	depends on X86 && INPUT
+	select INPUT_POLLDEV
+	select NET
+	select RFKILL
 	select BACKLIGHT_CLASS_DEVICE
 	---help---
 	  This driver adds support for access to certain system settings

@@ -378,6 +378,7 @@ static void iscsi_iser_session_destroy(struct iscsi_cls_session *cls_session)
 {
 	struct Scsi_Host *shost = iscsi_session_to_shost(cls_session);
 
+	iscsi_session_teardown(cls_session);
 	iscsi_host_remove(shost);
 	iscsi_host_free(shost);
 }
@@ -597,7 +598,7 @@ static struct scsi_host_template iscsi_iser_sht = {
 	.cmd_per_lun            = ISCSI_MAX_CMD_PER_LUN,
 	.eh_abort_handler       = iscsi_eh_abort,
 	.eh_device_reset_handler= iscsi_eh_device_reset,
-	.eh_host_reset_handler	= iscsi_eh_host_reset,
+	.eh_target_reset_handler= iscsi_eh_target_reset,
 	.use_clustering         = DISABLE_CLUSTERING,
 	.proc_name              = "iscsi_iser",
 	.this_id                = -1,

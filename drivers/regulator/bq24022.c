@@ -18,13 +18,13 @@
 #include <linux/regulator/bq24022.h>
 #include <linux/regulator/driver.h>
 
+
 static int bq24022_set_current_limit(struct regulator_dev *rdev,
 					int min_uA, int max_uA)
 {
-	struct platform_device *pdev = rdev_get_drvdata(rdev);
-	struct bq24022_mach_info *pdata = pdev->dev.platform_data;
+	struct bq24022_mach_info *pdata = rdev_get_drvdata(rdev);
 
-	dev_dbg(&pdev->dev, "setting current limit to %s mA\n",
+	dev_dbg(rdev_get_dev(rdev), "setting current limit to %s mA\n",
 		max_uA >= 500000 ? "500" : "100");
 
 	/* REVISIT: maybe return error if min_uA != 0 ? */
@@ -34,18 +34,16 @@ static int bq24022_set_current_limit(struct regulator_dev *rdev,
 
 static int bq24022_get_current_limit(struct regulator_dev *rdev)
 {
-	struct platform_device *pdev = rdev_get_drvdata(rdev);
-	struct bq24022_mach_info *pdata = pdev->dev.platform_data;
+	struct bq24022_mach_info *pdata = rdev_get_drvdata(rdev);
 
 	return gpio_get_value(pdata->gpio_iset2) ? 500000 : 100000;
 }
 
 static int bq24022_enable(struct regulator_dev *rdev)
 {
-	struct platform_device *pdev = rdev_get_drvdata(rdev);
-	struct bq24022_mach_info *pdata = pdev->dev.platform_data;
+	struct bq24022_mach_info *pdata = rdev_get_drvdata(rdev);
 
-	dev_dbg(&pdev->dev, "enabling charger\n");
+	dev_dbg(rdev_get_dev(rdev), "enabling charger\n");
 
 	gpio_set_value(pdata->gpio_nce, 0);
 	return 0;
@@ -53,10 +51,9 @@ static int bq24022_enable(struct regulator_dev *rdev)
 
 static int bq24022_disable(struct regulator_dev *rdev)
 {
-	struct platform_device *pdev = rdev_get_drvdata(rdev);
-	struct bq24022_mach_info *pdata = pdev->dev.platform_data;
+	struct bq24022_mach_info *pdata = rdev_get_drvdata(rdev);
 
-	dev_dbg(&pdev->dev, "disabling charger\n");
+	dev_dbg(rdev_get_dev(rdev), "disabling charger\n");
 
 	gpio_set_value(pdata->gpio_nce, 1);
 	return 0;
@@ -108,7 +105,7 @@ static int __init bq24022_probe(struct platform_device *pdev)
 	ret = gpio_direction_output(pdata->gpio_iset2, 0);
 	ret = gpio_direction_output(pdata->gpio_nce, 1);
 
-	bq24022 = regulator_register(&bq24022_desc, pdev);
+	bq24022 = regulator_register(&bq24022_desc, &pdev->dev, pdata);
 	if (IS_ERR(bq24022)) {
 		dev_dbg(&pdev->dev, "couldn't register regulator\n");
 		ret = PTR_ERR(bq24022);

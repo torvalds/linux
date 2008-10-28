@@ -194,7 +194,7 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 		unsigned long tprot = prot;
 
 		/* Make kernel text executable */
-		if (in_kernel_text(vaddr))
+		if (overlaps_kernel_text(vaddr, vaddr + step))
 			tprot &= ~HPTE_R_N;
 
 		hash = hpt_hash(va, shift, ssize);
@@ -348,6 +348,7 @@ static int __init htab_dt_scan_page_sizes(unsigned long node,
 	return 0;
 }
 
+#ifdef CONFIG_HUGETLB_PAGE
 /* Scan for 16G memory blocks that have been set aside for huge pages
  * and reserve those blocks for 16G huge pages.
  */
@@ -381,10 +382,13 @@ static int __init htab_dt_scan_hugepage_blocks(unsigned long node,
 	printk(KERN_INFO "Huge page(16GB) memory: "
 			"addr = 0x%lX size = 0x%lX pages = %d\n",
 			phys_addr, block_size, expected_pages);
-	lmb_reserve(phys_addr, block_size * expected_pages);
-	add_gpage(phys_addr, block_size, expected_pages);
+	if (phys_addr + (16 * GB) <= lmb_end_of_DRAM()) {
+		lmb_reserve(phys_addr, block_size * expected_pages);
+		add_gpage(phys_addr, block_size, expected_pages);
+	}
 	return 0;
 }
+#endif /* CONFIG_HUGETLB_PAGE */
 
 static void __init htab_init_page_sizes(void)
 {
@@ -539,7 +543,7 @@ static unsigned long __init htab_get_table_size(void)
 void create_section_mapping(unsigned long start, unsigned long end)
 {
 	BUG_ON(htab_bolt_mapping(start, end, __pa(start),
-				 PAGE_KERNEL, mmu_linear_psize,
+				 pgprot_val(PAGE_KERNEL), mmu_linear_psize,
 				 mmu_kernel_ssize));
 }
 
@@ -647,7 +651,7 @@ void __init htab_initialize(void)
 		mtspr(SPRN_SDR1, _SDR1);
 	}
 
-	prot = PAGE_KERNEL;
+	prot = pgprot_val(PAGE_KERNEL);
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
 	linear_map_hash_count = lmb_end_of_DRAM() >> PAGE_SHIFT;

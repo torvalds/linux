@@ -14,6 +14,7 @@
 #	M68k port by Geert Uytterhoeven and Andreas Schwab
 #	AVR32 port by Haavard Skinnemoen <hskinnemoen@atmel.com>
 #	PARISC port by Kyle McMartin <kyle@parisc-linux.org>
+#	sparc port by Martin Habets <errandir_news@mph.eclipse.co.uk>
 #
 #	Usage:
 #	objdump -d vmlinux | scripts/checkstack.pl [arch]
@@ -81,7 +82,10 @@ my (@stack, $re, $dre, $x, $xs);
 		$re = qr/.*st[dw]u.*r1,-($x{1,8})\(r1\)/o;
 	} elsif ($arch =~ /^s390x?$/) {
 		#   11160:       a7 fb ff 60             aghi   %r15,-160
-		$re = qr/.*ag?hi.*\%r15,-(([0-9]{2}|[3-9])[0-9]{2})/o;
+		# or
+		#  100092:	 e3 f0 ff c8 ff 71	 lay	 %r15,-56(%r15)
+		$re = qr/.*(?:lay|ag?hi).*\%r15,-(([0-9]{2}|[3-9])[0-9]{2})
+		      (?:\(\%r15\))?$/ox;
 	} elsif ($arch =~ /^sh64$/) {
 		#XXX: we only check for the immediate case presently,
 		#     though we will want to check for the movi/sub
@@ -91,6 +95,9 @@ my (@stack, $re, $dre, $x, $xs);
 	} elsif ($arch =~ /^blackfin$/) {
 		#   0:   00 e8 38 01     LINK 0x4e0;
 		$re = qr/.*[[:space:]]LINK[[:space:]]*(0x$x{1,8})/o;
+	} elsif ($arch eq 'sparc' || $arch eq 'sparc64') {
+		# f0019d10:       9d e3 bf 90     save  %sp, -112, %sp
+		$re = qr/.*save.*%sp, -(([0-9]{2}|[3-9])[0-9]{2}), %sp/o;
 	} else {
 		print("wrong or unknown architecture \"$arch\"\n");
 		exit

@@ -34,6 +34,8 @@
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 
+#include "internal.h"
+
 void *high_memory;
 struct page *mem_map;
 unsigned long max_mapnr;
@@ -128,20 +130,16 @@ unsigned int kobjsize(const void *objp)
 	return PAGE_SIZE << compound_order(page);
 }
 
-/*
- * get a list of pages in an address range belonging to the specified process
- * and indicate the VMA that covers each page
- * - this is potentially dodgy as we may end incrementing the page count of a
- *   slab page or a secondary page from a compound page
- * - don't permit access to VMAs that don't support it, such as I/O mappings
- */
-int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-	unsigned long start, int len, int write, int force,
-	struct page **pages, struct vm_area_struct **vmas)
+int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+		     unsigned long start, int len, int flags,
+		struct page **pages, struct vm_area_struct **vmas)
 {
 	struct vm_area_struct *vma;
 	unsigned long vm_flags;
 	int i;
+	int write = !!(flags & GUP_FLAGS_WRITE);
+	int force = !!(flags & GUP_FLAGS_FORCE);
+	int ignore = !!(flags & GUP_FLAGS_IGNORE_VMA_PERMISSIONS);
 
 	/* calculate required read or write permissions.
 	 * - if 'force' is set, we only require the "MAY" flags.
@@ -156,7 +154,7 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 
 		/* protect what we can, including chardevs */
 		if (vma->vm_flags & (VM_IO | VM_PFNMAP) ||
-		    !(vm_flags & vma->vm_flags))
+		    (!ignore && !(vm_flags & vma->vm_flags)))
 			goto finish_or_fault;
 
 		if (pages) {
@@ -173,6 +171,30 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 
 finish_or_fault:
 	return i ? : -EFAULT;
+}
+
+
+/*
+ * get a list of pages in an address range belonging to the specified process
+ * and indicate the VMA that covers each page
+ * - this is potentially dodgy as we may end incrementing the page count of a
+ *   slab page or a secondary page from a compound page
+ * - don't permit access to VMAs that don't support it, such as I/O mappings
+ */
+int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+	unsigned long start, int len, int write, int force,
+	struct page **pages, struct vm_area_struct **vmas)
+{
+	int flags = 0;
+
+	if (write)
+		flags |= GUP_FLAGS_WRITE;
+	if (force)
+		flags |= GUP_FLAGS_FORCE;
+
+	return __get_user_pages(tsk, mm,
+				start, len, flags,
+				pages, vmas);
 }
 EXPORT_SYMBOL(get_user_pages);
 

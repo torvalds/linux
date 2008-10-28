@@ -141,10 +141,11 @@ int cx25840_vbi(struct i2c_client *client, unsigned int cmd, void *arg)
 		u8 lcr[24];
 
 		fmt = arg;
-		if (fmt->type != V4L2_BUF_TYPE_SLICED_VBI_CAPTURE)
+		if (fmt->type != V4L2_BUF_TYPE_SLICED_VBI_CAPTURE &&
+		    fmt->type != V4L2_BUF_TYPE_VBI_CAPTURE)
 			return -EINVAL;
 		svbi = &fmt->fmt.sliced;
-		if (svbi->service_set == 0) {
+		if (fmt->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
 			/* raw VBI */
 			memset(svbi, 0, sizeof(*svbi));
 

@@ -87,12 +87,18 @@ struct pt_dspregs {
 	unsigned long	mod;
 };
 
+#define PTRACE_GETREGS		12	/* General registers */
+#define PTRACE_SETREGS		13
+
+#define PTRACE_GETFPREGS	14	/* FPU registers */
+#define PTRACE_SETFPREGS	15
+
 #define PTRACE_GETFDPIC		31	/* get the ELF fdpic loadmap address */
 
 #define PTRACE_GETFDPIC_EXEC	0	/* [addr] request the executable loadmap */
 #define PTRACE_GETFDPIC_INTERP	1	/* [addr] request the interpreter loadmap */
 
-#define	PTRACE_GETDSPREGS	55
+#define	PTRACE_GETDSPREGS	55	/* DSP registers */
 #define	PTRACE_SETDSPREGS	56
 #endif
 
@@ -117,6 +123,9 @@ extern void user_disable_single_step(struct task_struct *);
 #define task_pt_regs(task) \
 	((struct pt_regs *) (task_stack_page(task) + THREAD_SIZE \
 		 - sizeof(struct pt_dspregs) - sizeof(unsigned long)) - 1)
+#define task_pt_dspregs(task) \
+	((struct pt_dspregs *) (task_stack_page(task) + THREAD_SIZE \
+		 - sizeof(unsigned long)) - 1)
 #else
 #define task_pt_regs(task) \
 	((struct pt_regs *) (task_stack_page(task) + THREAD_SIZE \

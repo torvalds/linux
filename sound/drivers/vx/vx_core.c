@@ -205,7 +205,8 @@ static int vx_read_status(struct vx_core *chip, struct vx_rmh *rmh)
 
 	if (size < 1)
 		return 0;
-	snd_assert(size <= SIZE_MAX_STATUS, return -EINVAL);
+	if (snd_BUG_ON(size > SIZE_MAX_STATUS))
+		return -EINVAL;
 
 	for (i = 1; i <= size; i++) {
 		/* trigger an irq MESS_WRITE_NEXT */
@@ -425,13 +426,16 @@ int snd_vx_load_boot_image(struct vx_core *chip, const struct firmware *boot)
 	int no_fillup = vx_has_new_dsp(chip);
 
 	/* check the length of boot image */
-	snd_assert(boot->size > 0, return -EINVAL);
-	snd_assert(boot->size % 3 == 0, return -EINVAL);
+	if (boot->size <= 0)
+		return -EINVAL;
+	if (boot->size % 3)
+		return -EINVAL;
 #if 0
 	{
 		/* more strict check */
 		unsigned int c = ((u32)boot->data[0] << 16) | ((u32)boot->data[1] << 8) | boot->data[2];
-		snd_assert(boot->size == (c + 2) * 3, return -EINVAL);
+		if (boot->size != (c + 2) * 3)
+			return -EINVAL;
 	}
 #endif
 
@@ -554,7 +558,8 @@ EXPORT_SYMBOL(snd_vx_irq_handler);
  */
 static void vx_reset_board(struct vx_core *chip, int cold_reset)
 {
-	snd_assert(chip->ops->reset_board, return);
+	if (snd_BUG_ON(!chip->ops->reset_board))
+		return;
 
 	/* current source, later sync'ed with target */
 	chip->audio_source = VX_AUDIO_SRC_LINE;
@@ -673,7 +678,8 @@ int snd_vx_dsp_load(struct vx_core *chip, const struct firmware *dsp)
 	unsigned int csum = 0;
 	const unsigned char *image, *cptr;
 
-	snd_assert(dsp->size % 3 == 0, return -EINVAL);
+	if (dsp->size % 3)
+		return -EINVAL;
 
 	vx_toggle_dac_mute(chip, 1);
 
@@ -775,7 +781,8 @@ struct vx_core *snd_vx_create(struct snd_card *card, struct snd_vx_hardware *hw,
 {
 	struct vx_core *chip;
 
-	snd_assert(card && hw && ops, return NULL);
+	if (snd_BUG_ON(!card || !hw || !ops))
+		return NULL;
 
 	chip = kzalloc(sizeof(*chip) + extra_size, GFP_KERNEL);
 	if (! chip) {

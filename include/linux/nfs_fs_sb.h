@@ -119,7 +119,6 @@ struct nfs_server {
 	void (*destroy)(struct nfs_server *);
 
 	atomic_t active; /* Keep trace of any activity to this server */
-	wait_queue_head_t active_wq;  /* Wait for any activity to stop  */
 
 	/* mountd-related mount options */
 	struct sockaddr_storage	mountd_address;

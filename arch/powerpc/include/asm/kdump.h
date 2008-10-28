@@ -9,6 +9,12 @@
  * Reserve to the end of the FWNMI area, see head_64.S */
 #define KDUMP_RESERVE_LIMIT	0x10000 /* 64K */
 
+/*
+ * Used to differentiate between relocatable kdump kernel and other
+ * kernels
+ */
+#define KDUMP_SIGNATURE	0xfeed1234
+
 #ifdef CONFIG_CRASH_DUMP
 
 #define KDUMP_TRAMPOLINE_START	0x0100
@@ -19,17 +25,18 @@
 #endif /* CONFIG_CRASH_DUMP */
 
 #ifndef __ASSEMBLY__
-#ifdef CONFIG_CRASH_DUMP
 
+extern unsigned long __kdump_flag;
+
+#if defined(CONFIG_CRASH_DUMP) && !defined(CONFIG_RELOCATABLE)
 extern void reserve_kdump_trampoline(void);
 extern void setup_kdump_trampoline(void);
-
-#else /* !CONFIG_CRASH_DUMP */
-
+#else
+/* !CRASH_DUMP || RELOCATABLE */
 static inline void reserve_kdump_trampoline(void) { ; }
 static inline void setup_kdump_trampoline(void) { ; }
+#endif
 
-#endif /* CONFIG_CRASH_DUMP */
 #endif /* __ASSEMBLY__ */
 
 #endif /* __PPC64_KDUMP_H */

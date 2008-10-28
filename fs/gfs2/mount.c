@@ -42,10 +42,11 @@ enum {
 	Opt_nosuiddir,
 	Opt_data_writeback,
 	Opt_data_ordered,
+	Opt_meta,
 	Opt_err,
 };
 
-static match_table_t tokens = {
+static const match_table_t tokens = {
 	{Opt_lockproto, "lockproto=%s"},
 	{Opt_locktable, "locktable=%s"},
 	{Opt_hostdata, "hostdata=%s"},
@@ -66,6 +67,7 @@ static match_table_t tokens = {
 	{Opt_nosuiddir, "nosuiddir"},
 	{Opt_data_writeback, "data=writeback"},
 	{Opt_data_ordered, "data=ordered"},
+	{Opt_meta, "meta"},
 	{Opt_err, NULL}
 };
 
@@ -238,6 +240,11 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, char *data_arg, int remount)
 			break;
 		case Opt_data_ordered:
 			args->ar_data = GFS2_DATA_ORDERED;
+			break;
+		case Opt_meta:
+			if (remount && args->ar_meta != 1)
+				goto cant_remount;
+			args->ar_meta = 1;
 			break;
 		case Opt_err:
 		default:

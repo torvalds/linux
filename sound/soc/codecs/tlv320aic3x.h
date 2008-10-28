@@ -1,7 +1,7 @@
 /*
  * ALSA SoC TLV320AIC3X codec driver
  *
- * Author:      Vladimir Barinov, <vbarinov@ru.mvista.com>
+ * Author:      Vladimir Barinov, <vbarinov@embeddedalley.com>
  * Copyright:   (C) 2007 MontaVista Software, Inc., <source@mvista.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -224,6 +224,7 @@ int aic3x_get_gpio(struct snd_soc_codec *codec, int gpio);
 int aic3x_headset_detected(struct snd_soc_codec *codec);
 
 struct aic3x_setup_data {
+	int i2c_bus;
 	unsigned short i2c_address;
 	unsigned int gpio_func[2];
 };

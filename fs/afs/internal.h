@@ -728,8 +728,12 @@ extern int afs_volume_release_fileserver(struct afs_vnode *,
  */
 extern int afs_set_page_dirty(struct page *);
 extern void afs_put_writeback(struct afs_writeback *);
-extern int afs_prepare_write(struct file *, struct page *, unsigned, unsigned);
-extern int afs_commit_write(struct file *, struct page *, unsigned, unsigned);
+extern int afs_write_begin(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned flags,
+			struct page **pagep, void **fsdata);
+extern int afs_write_end(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned copied,
+			struct page *page, void *fsdata);
 extern int afs_writepage(struct page *, struct writeback_control *);
 extern int afs_writepages(struct address_space *, struct writeback_control *);
 extern int afs_write_inode(struct inode *, int);

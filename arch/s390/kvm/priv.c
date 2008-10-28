@@ -157,8 +157,8 @@ static int handle_stfl(struct kvm_vcpu *vcpu)
 	int rc;
 
 	vcpu->stat.instruction_stfl++;
-	facility_list &= ~(1UL<<24); /* no stfle */
-	facility_list &= ~(1UL<<23); /* no large pages */
+	/* only pass the facility bits, which we can handle */
+	facility_list &= 0xfe00fff3;
 
 	rc = copy_to_guest(vcpu, offsetof(struct _lowcore, stfl_fac_list),
 			   &facility_list, sizeof(facility_list));

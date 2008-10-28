@@ -274,12 +274,13 @@ typedef unsigned long mfp_cfg_t;
 #define MFP_DS_MASK		(0x7 << 13)
 #define MFP_DS(x)		(((x) >> 13) & 0x7)
 
-#define MFP_LPM_INPUT		(0x0 << 16)
+#define MFP_LPM_DEFAULT		(0x0 << 16)
 #define MFP_LPM_DRIVE_LOW	(0x1 << 16)
 #define MFP_LPM_DRIVE_HIGH	(0x2 << 16)
 #define MFP_LPM_PULL_LOW	(0x3 << 16)
 #define MFP_LPM_PULL_HIGH	(0x4 << 16)
 #define MFP_LPM_FLOAT		(0x5 << 16)
+#define MFP_LPM_INPUT		(0x6 << 16)
 #define MFP_LPM_STATE_MASK	(0x7 << 16)
 #define MFP_LPM_STATE(x)	(((x) >> 16) & 0x7)
 
@@ -297,7 +298,7 @@ typedef unsigned long mfp_cfg_t;
 #define MFP_PULL_MASK		(0x3 << 21)
 #define MFP_PULL(x)		(((x) >> 21) & 0x3)
 
-#define MFP_CFG_DEFAULT		(MFP_AF0 | MFP_DS03X | MFP_LPM_INPUT |\
+#define MFP_CFG_DEFAULT		(MFP_AF0 | MFP_DS03X | MFP_LPM_DEFAULT |\
 				 MFP_LPM_EDGE_NONE | MFP_PULL_NONE)
 
 #define MFP_CFG(pin, af)		\

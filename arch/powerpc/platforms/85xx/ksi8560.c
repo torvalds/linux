@@ -193,7 +193,6 @@ static void __init ksi8560_setup_arch(void)
 static void ksi8560_show_cpuinfo(struct seq_file *m)
 {
 	uint pvid, svid, phid1;
-	uint memsize = total_memory;
 
 	pvid = mfspr(SPRN_PVR);
 	svid = mfspr(SPRN_SVR);
@@ -215,9 +214,6 @@ static void ksi8560_show_cpuinfo(struct seq_file *m)
 	/* Display cpu Pll setting */
 	phid1 = mfspr(SPRN_HID1);
 	seq_printf(m, "PLL setting\t: 0x%x\n", ((phid1 >> 24) & 0x3f));
-
-	/* Display the amount of memory */
-	seq_printf(m, "Memory\t\t: %d MB\n", memsize / (1024 * 1024));
 }
 
 static struct of_device_id __initdata of_bus_ids[] = {

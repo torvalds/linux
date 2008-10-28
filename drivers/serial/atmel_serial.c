@@ -131,7 +131,8 @@ struct atmel_uart_char {
 struct atmel_uart_port {
 	struct uart_port	uart;		/* uart */
 	struct clk		*clk;		/* uart clock */
-	unsigned short		suspended;	/* is port suspended? */
+	int			may_wakeup;	/* cached value of device_may_wakeup for times we need to disable it */
+	u32			backup_imr;	/* IMR saved during suspend */
 	int			break_active;	/* break being received */
 
 	short			use_dma_rx;	/* enable PDC receiver */
@@ -984,8 +985,15 @@ static void atmel_serial_pm(struct uart_port *port, unsigned int state,
 		 * This is called on uart_open() or a resume event.
 		 */
 		clk_enable(atmel_port->clk);
+
+		/* re-enable interrupts if we disabled some on suspend */
+		UART_PUT_IER(port, atmel_port->backup_imr);
 		break;
 	case 3:
+		/* Back up the interrupt mask and disable all interrupts */
+		atmel_port->backup_imr = UART_GET_IMR(port);
+		UART_PUT_IDR(port, -1);
+
 		/*
 		 * Disable the peripheral clock for this serial port.
 		 * This is called on uart_close() or a suspend event.
@@ -1475,13 +1483,12 @@ static int atmel_serial_suspend(struct platform_device *pdev,
 			cpu_relax();
 	}
 
-	if (device_may_wakeup(&pdev->dev)
-	    && !atmel_serial_clk_will_stop())
-		enable_irq_wake(port->irq);
-	else {
-		uart_suspend_port(&atmel_uart, port);
-		atmel_port->suspended = 1;
-	}
+	/* we can not wake up if we're running on slow clock */
+	atmel_port->may_wakeup = device_may_wakeup(&pdev->dev);
+	if (atmel_serial_clk_will_stop())
+		device_set_wakeup_enable(&pdev->dev, 0);
+
+	uart_suspend_port(&atmel_uart, port);
 
 	return 0;
 }
@@ -1491,11 +1498,8 @@ static int atmel_serial_resume(struct platform_device *pdev)
 	struct uart_port *port = platform_get_drvdata(pdev);
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 
-	if (atmel_port->suspended) {
-		uart_resume_port(&atmel_uart, port);
-		atmel_port->suspended = 0;
-	} else
-		disable_irq_wake(port->irq);
+	uart_resume_port(&atmel_uart, port);
+	device_set_wakeup_enable(&pdev->dev, atmel_port->may_wakeup);
 
 	return 0;
 }
@@ -1513,6 +1517,8 @@ static int __devinit atmel_serial_probe(struct platform_device *pdev)
 	BUILD_BUG_ON(!is_power_of_2(ATMEL_SERIAL_RINGSIZE));
 
 	port = &atmel_ports[pdev->id];
+	port->backup_imr = 0;
+
 	atmel_init_port(port, pdev);
 
 	if (!atmel_use_dma_rx(&port->uart)) {
