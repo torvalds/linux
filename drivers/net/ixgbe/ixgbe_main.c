@@ -3877,8 +3877,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	pci_read_config_word(pdev, IXGBE_PCI_LINK_STATUS, &link_status);
 	link_speed = link_status & IXGBE_PCI_LINK_SPEED;
 	link_width = link_status & IXGBE_PCI_LINK_WIDTH;
-	dev_info(&pdev->dev, "(PCI Express:%s:%s) "
-	         "%02x:%02x:%02x:%02x:%02x:%02x\n",
+	dev_info(&pdev->dev, "(PCI Express:%s:%s) %pM\n",
 	        ((link_speed == IXGBE_PCI_LINK_SPEED_5000) ? "5.0Gb/s" :
 	         (link_speed == IXGBE_PCI_LINK_SPEED_2500) ? "2.5Gb/s" :
 	         "Unknown"),
@@ -3887,8 +3886,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	         (link_width == IXGBE_PCI_LINK_WIDTH_2) ? "Width x2" :
 	         (link_width == IXGBE_PCI_LINK_WIDTH_1) ? "Width x1" :
 	         "Unknown"),
-	        netdev->dev_addr[0], netdev->dev_addr[1], netdev->dev_addr[2],
-	        netdev->dev_addr[3], netdev->dev_addr[4], netdev->dev_addr[5]);
+	        netdev->dev_addr);
 	ixgbe_read_pba_num_generic(hw, &part_num);
 	dev_info(&pdev->dev, "MAC: %d, PHY: %d, PBA No: %06x-%03x\n",
 	         hw->mac.type, hw->phy.type,

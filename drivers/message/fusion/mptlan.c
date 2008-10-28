@@ -1462,11 +1462,9 @@ mptlan_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		printk(KERN_INFO MYNAM ": %s: Fusion MPT LAN device "
 		       "registered as '%s'\n", ioc->name, dev->name);
 		printk(KERN_INFO MYNAM ": %s/%s: "
-		       "LanAddr = %02X:%02X:%02X:%02X:%02X:%02X\n",
+		       "LanAddr = %pM\n",
 		       IOC_AND_NETDEV_NAMES_s_s(dev),
-		       dev->dev_addr[0], dev->dev_addr[1],
-		       dev->dev_addr[2], dev->dev_addr[3],
-		       dev->dev_addr[4], dev->dev_addr[5]);
+		       dev->dev_addr);
 	
 		ioc->netdev = dev;
 
@@ -1551,9 +1549,8 @@ mpt_lan_type_trans(struct sk_buff *skb, struct net_device *dev)
 
 		printk (KERN_WARNING MYNAM ": %s: WARNING - Broadcast swap F/W bug detected!\n",
 				NETDEV_PTR_TO_IOC_NAME_s(dev));
-		printk (KERN_WARNING MYNAM ": Please update sender @ MAC_addr = %02x:%02x:%02x:%02x:%02x:%02x\n",
-				fch->saddr[0], fch->saddr[1], fch->saddr[2],
-				fch->saddr[3], fch->saddr[4], fch->saddr[5]);
+		printk (KERN_WARNING MYNAM ": Please update sender @ MAC_addr = %pM\n",
+				fch->saddr);
 	}
 
 	if (*fch->daddr & 1) {
@@ -1628,10 +1625,9 @@ mpt_lan_type_trans(struct sk_buff *skb, struct net_device *dev)
 				nh->NAA = source_naa; /* Set the S_NAA value. */
 				for (i = 0; i < FC_ALEN; i++)
 					nh->ieee[i] = fch->saddr[i];
-				dlprintk ((KERN_INFO "Got ARP from %02x:%02x:%02x:%02x:"
-					  "%02x:%02x with non-compliant S_NAA value.\n",
-					  fch->saddr[0], fch->saddr[1], fch->saddr[2],
-					  fch->saddr[3], fch->saddr[4],fch->saddr[5]));
+				dlprintk ((KERN_INFO "Got ARP from %pM with"
+					  " non-compliant S_NAA value.\n",
+					  fch->saddr));
 			} else {
 				printk (KERN_ERR "mptlan/type_trans: Unable to"
 					" kmalloc a NAA_Hosed struct.\n");

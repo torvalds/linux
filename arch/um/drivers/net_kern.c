@@ -418,12 +418,7 @@ static void eth_configure(int n, void *init, char *mac,
 
 	setup_etheraddr(mac, device->mac, dev->name);
 
-	printk(KERN_INFO "Netdevice %d ", n);
-	printk("(%02x:%02x:%02x:%02x:%02x:%02x) ",
-	       device->mac[0], device->mac[1],
-	       device->mac[2], device->mac[3],
-	       device->mac[4], device->mac[5]);
-	printk(": ");
+	printk(KERN_INFO "Netdevice %d (%pM) : ", n, device->mac);
 
 	lp = dev->priv;
 	/* This points to the transport private data. It's still clear, but we

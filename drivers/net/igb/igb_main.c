@@ -1275,16 +1275,14 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 
 	dev_info(&pdev->dev, "Intel(R) Gigabit Ethernet Network Connection\n");
 	/* print bus type/speed/width info */
-	dev_info(&pdev->dev,
-		 "%s: (PCIe:%s:%s) %02x:%02x:%02x:%02x:%02x:%02x\n",
+	dev_info(&pdev->dev, "%s: (PCIe:%s:%s) %pM\n",
 		 netdev->name,
 		 ((hw->bus.speed == e1000_bus_speed_2500)
 		  ? "2.5Gb/s" : "unknown"),
 		 ((hw->bus.width == e1000_bus_width_pcie_x4)
 		  ? "Width x4" : (hw->bus.width == e1000_bus_width_pcie_x1)
 		  ? "Width x1" : "unknown"),
-		 netdev->dev_addr[0], netdev->dev_addr[1], netdev->dev_addr[2],
-		 netdev->dev_addr[3], netdev->dev_addr[4], netdev->dev_addr[5]);
+		 netdev->dev_addr);
 
 	igb_read_part_num(hw, &part_num);
 	dev_info(&pdev->dev, "%s: PBA No: %06x-%03x\n", netdev->name,

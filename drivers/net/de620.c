@@ -875,10 +875,7 @@ struct net_device * __init de620_probe(int unit)
 	if (de620_debug) {
 		printk("\nEEPROM contents:\n");
 		printk("RAM_Size = 0x%02X\n", nic_data.RAM_Size);
-		printk("NodeID = %02X:%02X:%02X:%02X:%02X:%02X\n",
-			nic_data.NodeID[0], nic_data.NodeID[1],
-			nic_data.NodeID[2], nic_data.NodeID[3],
-			nic_data.NodeID[4], nic_data.NodeID[5]);
+		printk("NodeID = %pM\n", nic_data.NodeID);
 		printk("Model = %d\n", nic_data.Model);
 		printk("Media = %d\n", nic_data.Media);
 		printk("SCR = 0x%02x\n", nic_data.SCR);

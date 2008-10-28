@@ -390,11 +390,8 @@ static int nic_init(struct ioc3 *ioc3)
 	}
 
 	printk("Found %s NIC", type);
-	if (type != unknown) {
-		printk (" registration number %02x:%02x:%02x:%02x:%02x:%02x,"
-			" CRC %02x", serial[0], serial[1], serial[2],
-			serial[3], serial[4], serial[5], crc);
-	}
+	if (type != unknown)
+		printk (" registration number %pM, CRC %02x", serial, crc);
 	printk(".\n");
 
 	return 0;

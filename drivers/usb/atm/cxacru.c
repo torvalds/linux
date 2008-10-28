@@ -286,9 +286,7 @@ static ssize_t cxacru_sysfs_show_mac_address(struct device *dev,
 	struct usbatm_data *usbatm_instance = usb_get_intfdata(intf);
 	struct atm_dev *atm_dev = usbatm_instance->atm_dev;
 
-	return snprintf(buf, PAGE_SIZE, "%02x:%02x:%02x:%02x:%02x:%02x\n",
-			atm_dev->esi[0], atm_dev->esi[1], atm_dev->esi[2],
-			atm_dev->esi[3], atm_dev->esi[4], atm_dev->esi[5]);
+	return snprintf(buf, PAGE_SIZE, "%pM\n", atm_dev->esi);
 }
 
 static ssize_t cxacru_sysfs_show_adsl_state(struct device *dev,

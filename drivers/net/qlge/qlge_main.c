@@ -336,12 +336,11 @@ static int ql_set_mac_addr_reg(struct ql_adapter *qdev, u8 *addr, u32 type,
 			    (addr[5]);
 
 			QPRINTK(qdev, IFUP, INFO,
-				"Adding %s address %02x:%02x:%02x:%02x:%02x:%02x"
+				"Adding %s address %pM"
 				" at index %d in the CAM.\n",
 				((type ==
 				  MAC_ADDR_TYPE_MULTI_MAC) ? "MULTICAST" :
-				 "UNICAST"), addr[0], addr[1], addr[2], addr[3],
-				addr[4], addr[5], index);
+				 "UNICAST"), addr, index);
 
 			status =
 			    ql_wait_reg_rdy(qdev,
@@ -3127,11 +3126,7 @@ static void ql_display_dev_info(struct net_device *ndev)
 		qdev->chip_rev_id >> 4 & 0x0000000f,
 		qdev->chip_rev_id >> 8 & 0x0000000f,
 		qdev->chip_rev_id >> 12 & 0x0000000f);
-	QPRINTK(qdev, PROBE, INFO,
-		"MAC address %02x:%02x:%02x:%02x:%02x:%02x\n",
-		ndev->dev_addr[0], ndev->dev_addr[1],
-		ndev->dev_addr[2], ndev->dev_addr[3], ndev->dev_addr[4],
-		ndev->dev_addr[5]);
+	QPRINTK(qdev, PROBE, INFO, "MAC address %pM\n", ndev->dev_addr);
 }
 
 static int ql_adapter_down(struct ql_adapter *qdev)

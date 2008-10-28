@@ -2235,13 +2235,7 @@ static int wavelan_set_wap(struct net_device *dev,
 			   char *extra)
 {
 #ifdef DEBUG_IOCTL_INFO
-	printk(KERN_DEBUG "Set AP to : %02X:%02X:%02X:%02X:%02X:%02X\n",
-	       wrqu->ap_addr.sa_data[0],
-	       wrqu->ap_addr.sa_data[1],
-	       wrqu->ap_addr.sa_data[2],
-	       wrqu->ap_addr.sa_data[3],
-	       wrqu->ap_addr.sa_data[4],
-	       wrqu->ap_addr.sa_data[5]);
+	printk(KERN_DEBUG "Set AP to : %pM\n", wrqu->ap_addr.sa_data);
 #endif	/* DEBUG_IOCTL_INFO */
 
 	return -EOPNOTSUPP;

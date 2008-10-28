@@ -1165,11 +1165,7 @@ static int gelic_wl_set_ap(struct net_device *netdev,
 		       ETH_ALEN);
 		set_bit(GELIC_WL_STAT_BSSID_SET, &wl->stat);
 		set_bit(GELIC_WL_STAT_CONFIGURED, &wl->stat);
-		pr_debug("%s: bss=%02x:%02x:%02x:%02x:%02x:%02x\n",
-			 __func__,
-			 wl->bssid[0], wl->bssid[1],
-			 wl->bssid[2], wl->bssid[3],
-			 wl->bssid[4], wl->bssid[5]);
+		pr_debug("%s: bss=%pM\n", __func__, wl->bssid);
 	} else {
 		pr_debug("%s: clear bssid\n", __func__);
 		clear_bit(GELIC_WL_STAT_BSSID_SET, &wl->stat);

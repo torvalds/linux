@@ -2862,18 +2862,10 @@ jme_init_one(struct pci_dev *pdev,
 		goto err_out_free_shadow;
 	}
 
-	msg_probe(jme,
-		"JMC250 gigabit%s ver:%x rev:%x "
-		"macaddr:%02x:%02x:%02x:%02x:%02x:%02x\n",
+	msg_probe(jme, "JMC250 gigabit%s ver:%x rev:%x macaddr:%pM\n",
 		(jme->fpgaver != 0) ? " (FPGA)" : "",
 		(jme->fpgaver != 0) ? jme->fpgaver : jme->chiprev,
-		jme->rev,
-		netdev->dev_addr[0],
-		netdev->dev_addr[1],
-		netdev->dev_addr[2],
-		netdev->dev_addr[3],
-		netdev->dev_addr[4],
-		netdev->dev_addr[5]);
+		jme->rev, netdev->dev_addr);
 
 	return 0;
 
