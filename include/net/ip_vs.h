@@ -87,8 +87,8 @@ static inline const char *ip_vs_dbg_addr(int af, char *buf, size_t buf_len,
 	int len;
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6)
-		len = snprintf(&buf[*idx], buf_len - *idx, "[" NIP6_FMT "]",
-			       NIP6(addr->in6)) + 1;
+		len = snprintf(&buf[*idx], buf_len - *idx, "[%p6]",
+			       &addr->in6) + 1;
 	else
 #endif
 		len = snprintf(&buf[*idx], buf_len - *idx, NIPQUAD_FMT,
