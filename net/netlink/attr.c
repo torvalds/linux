@@ -233,7 +233,7 @@ size_t nla_strlcpy(char *dst, const struct nlattr *nla, size_t dstsize)
  *
  * Returns the number of bytes copied.
  */
-int nla_memcpy(void *dest, struct nlattr *src, int count)
+int nla_memcpy(void *dest, const struct nlattr *src, int count)
 {
 	int minlen = min_t(int, count, nla_len(src));
 
