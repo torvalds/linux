@@ -13,7 +13,6 @@ fmul(void *frD, void *frA, void *frB)
 	FP_DECL_D(B);
 	FP_DECL_D(R);
 	FP_DECL_EX;
-	int ret = 0;
 
 #ifdef DEBUG
 	printk("%s: %p %p %p\n", __func__, frD, frA, frB);
@@ -31,7 +30,7 @@ fmul(void *frD, void *frA, void *frB)
 
 	if ((A_c == FP_CLS_INF && B_c == FP_CLS_ZERO) ||
 	    (A_c == FP_CLS_ZERO && B_c == FP_CLS_INF))
-		ret |= EFLAG_VXIMZ;
+		FP_SET_EXCEPTION(EFLAG_VXIMZ);
 
 	FP_MUL_D(R, A, B);
 

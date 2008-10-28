@@ -12,7 +12,6 @@ fsqrt(void *frD, void *frB)
 	FP_DECL_D(B);
 	FP_DECL_D(R);
 	FP_DECL_EX;
-	int ret = 0;
 
 #ifdef DEBUG
 	printk("%s: %p %p %p %p\n", __func__, frD, frB);
@@ -25,9 +24,9 @@ fsqrt(void *frD, void *frB)
 #endif
 
 	if (B_s && B_c != FP_CLS_ZERO)
-		ret |= EFLAG_VXSQRT;
+		FP_SET_EXCEPTION(EFLAG_VXSQRT);
 	if (B_c == FP_CLS_NAN)
-		ret |= EFLAG_VXSNAN;
+		FP_SET_EXCEPTION(EFLAG_VXSNAN);
 
 	FP_SQRT_D(R, B);
 
