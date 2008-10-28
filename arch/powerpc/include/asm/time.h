@@ -48,26 +48,6 @@ extern unsigned long ppc_proc_freq;
 extern unsigned long ppc_tb_freq;
 #define DEFAULT_TB_FREQ		125000000UL
 
-/*
- * By putting all of this stuff into a single struct we 
- * reduce the number of cache lines touched by do_gettimeofday.
- * Both by collecting all of the data in one cache line and
- * by touching only one TOC entry on ppc64.
- */
-struct gettimeofday_vars {
-	u64 tb_to_xs;
-	u64 stamp_xsec;
-	u64 tb_orig_stamp;
-};
-
-struct gettimeofday_struct {
-	unsigned long tb_ticks_per_sec;
-	struct gettimeofday_vars vars[2];
-	struct gettimeofday_vars * volatile varp;
-	unsigned      var_idx;
-	unsigned      tb_to_us;
-};
-
 struct div_result {
 	u64 result_high;
 	u64 result_low;
