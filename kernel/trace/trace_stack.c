@@ -44,6 +44,10 @@ static inline void check_stack(void)
 	if (this_size <= max_stack_size)
 		return;
 
+	/* we do not handle interrupt stacks yet */
+	if (!object_is_on_stack(&this_size))
+		return;
+
 	raw_local_irq_save(flags);
 	__raw_spin_lock(&max_stack_lock);
 

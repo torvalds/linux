@@ -1,11 +1,12 @@
 #
-# Architectures that offer an FTRACE implementation should select HAVE_FTRACE:
+# Architectures that offer an FUNCTION_TRACER implementation should
+#  select HAVE_FUNCTION_TRACER:
 #
 
 config NOP_TRACER
 	bool
 
-config HAVE_FTRACE
+config HAVE_FUNCTION_TRACER
 	bool
 	select NOP_TRACER
 
@@ -28,9 +29,11 @@ config TRACING
 	select STACKTRACE
 	select TRACEPOINTS
 
-config FTRACE
+menu "Tracers"
+
+config FUNCTION_TRACER
 	bool "Kernel Function Tracer"
-	depends on HAVE_FTRACE
+	depends on HAVE_FUNCTION_TRACER
 	depends on DEBUG_KERNEL
 	select FRAME_POINTER
 	select TRACING
@@ -49,7 +52,6 @@ config IRQSOFF_TRACER
 	default n
 	depends on TRACE_IRQFLAGS_SUPPORT
 	depends on GENERIC_TIME
-	depends on HAVE_FTRACE
 	depends on DEBUG_KERNEL
 	select TRACE_IRQFLAGS
 	select TRACING
@@ -73,7 +75,6 @@ config PREEMPT_TRACER
 	default n
 	depends on GENERIC_TIME
 	depends on PREEMPT
-	depends on HAVE_FTRACE
 	depends on DEBUG_KERNEL
 	select TRACING
 	select TRACER_MAX_TRACE
@@ -101,7 +102,6 @@ config SYSPROF_TRACER
 
 config SCHED_TRACER
 	bool "Scheduling Latency Tracer"
-	depends on HAVE_FTRACE
 	depends on DEBUG_KERNEL
 	select TRACING
 	select CONTEXT_SWITCH_TRACER
@@ -112,7 +112,6 @@ config SCHED_TRACER
 
 config CONTEXT_SWITCH_TRACER
 	bool "Trace process context switches"
-	depends on HAVE_FTRACE
 	depends on DEBUG_KERNEL
 	select TRACING
 	select MARKERS
@@ -122,9 +121,9 @@ config CONTEXT_SWITCH_TRACER
 
 config BOOT_TRACER
 	bool "Trace boot initcalls"
-	depends on HAVE_FTRACE
 	depends on DEBUG_KERNEL
 	select TRACING
+	select CONTEXT_SWITCH_TRACER
 	help
 	  This tracer helps developers to optimize boot times: it records
 	  the timings of the initcalls and traces key events and the identity
@@ -141,9 +140,9 @@ config BOOT_TRACER
 
 config STACK_TRACER
 	bool "Trace max stack"
-	depends on HAVE_FTRACE
+	depends on HAVE_FUNCTION_TRACER
 	depends on DEBUG_KERNEL
-	select FTRACE
+	select FUNCTION_TRACER
 	select STACKTRACE
 	help
 	  This special tracer records the maximum stack footprint of the
@@ -160,7 +159,7 @@ config STACK_TRACER
 
 config DYNAMIC_FTRACE
 	bool "enable/disable ftrace tracepoints dynamically"
-	depends on FTRACE
+	depends on FUNCTION_TRACER
 	depends on HAVE_DYNAMIC_FTRACE
 	depends on DEBUG_KERNEL
 	default y
@@ -170,7 +169,7 @@ config DYNAMIC_FTRACE
 	 with a No-Op instruction) as they are called. A table is
 	 created to dynamically enable them again.
 
-	 This way a CONFIG_FTRACE kernel is slightly larger, but otherwise
+	 This way a CONFIG_FUNCTION_TRACER kernel is slightly larger, but otherwise
 	 has native performance as long as no tracing is active.
 
 	 The changes to the code are done by a kernel thread that
@@ -195,3 +194,5 @@ config FTRACE_STARTUP_TEST
 	  a series of tests are made to verify that the tracer is
 	  functioning properly. It will do tests on all the configured
 	  tracers of ftrace.
+
+endmenu
