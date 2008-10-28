@@ -455,7 +455,7 @@ need_lock:
 	}
 	if (test_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) == 0)
 		rpcauth_unhash_cred(cred);
-	else if (test_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags) != 0) {
+	if (test_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags) != 0) {
 		cred->cr_expire = jiffies;
 		list_add_tail(&cred->cr_lru, &cred_unused);
 		number_cred_unused++;
