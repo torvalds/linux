@@ -1,45 +1,25 @@
 /*
- * File:         arch/blackfin/kernel/bfin_ksyms.c
- * Based on:     none - original work
- * Author:
+ * arch/blackfin/kernel/bfin_ksyms.c - exports for random symbols
  *
- * Created:
- * Description:
+ * Copyright 2004-2008 Analog Devices Inc.
  *
- * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later.
  */
 
 #include <linux/module.h>
-#include <linux/irq.h>
 #include <linux/uaccess.h>
 
-#include <asm/checksum.h>
 #include <asm/cacheflush.h>
 
-/* platform dependent support */
-
-EXPORT_SYMBOL(__ioremap);
-
-EXPORT_SYMBOL(is_in_rom);
+/* Allow people to have their own Blackfin exception handler in a module */
 EXPORT_SYMBOL(bfin_return_from_exception);
+
+/* All the Blackfin cache functions: mach-common/cache.S */
+EXPORT_SYMBOL(blackfin_dcache_invalidate_range);
+EXPORT_SYMBOL(blackfin_icache_dcache_flush_range);
+EXPORT_SYMBOL(blackfin_icache_flush_range);
+EXPORT_SYMBOL(blackfin_dcache_flush_range);
+EXPORT_SYMBOL(blackfin_dflush_page);
 
 /* The following are special because they're not called
  * explicitly (the C compiler generates them).  Fortunately,
@@ -67,8 +47,6 @@ extern void __modsi3(void);
 extern void __muldi3(void);
 extern void __udivsi3(void);
 extern void __umodsi3(void);
-
-/* gcc lib functions */
 EXPORT_SYMBOL(__ashldi3);
 EXPORT_SYMBOL(__ashrdi3);
 EXPORT_SYMBOL(__umulsi3_highpart);
@@ -80,6 +58,7 @@ EXPORT_SYMBOL(__muldi3);
 EXPORT_SYMBOL(__udivsi3);
 EXPORT_SYMBOL(__umodsi3);
 
+/* Input/output symbols: lib/{in,out}s.S */
 EXPORT_SYMBOL(outsb);
 EXPORT_SYMBOL(insb);
 EXPORT_SYMBOL(outsw);
@@ -89,18 +68,3 @@ EXPORT_SYMBOL(insw_8);
 EXPORT_SYMBOL(outsl);
 EXPORT_SYMBOL(insl);
 EXPORT_SYMBOL(insl_16);
-EXPORT_SYMBOL(iounmap);
-EXPORT_SYMBOL(blackfin_dcache_invalidate_range);
-EXPORT_SYMBOL(blackfin_icache_dcache_flush_range);
-EXPORT_SYMBOL(blackfin_icache_flush_range);
-EXPORT_SYMBOL(blackfin_dcache_flush_range);
-EXPORT_SYMBOL(blackfin_dflush_page);
-
-EXPORT_SYMBOL(__init_begin);
-EXPORT_SYMBOL(__init_end);
-EXPORT_SYMBOL(_ebss_l1);
-EXPORT_SYMBOL(_stext_l1);
-EXPORT_SYMBOL(_etext_l1);
-EXPORT_SYMBOL(_sdata_l1);
-EXPORT_SYMBOL(_ebss_b_l1);
-EXPORT_SYMBOL(_sdata_b_l1);
