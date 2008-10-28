@@ -2503,6 +2503,57 @@ static int xfrm_send_report(u8 proto, struct xfrm_selector *sel,
 	return nlmsg_multicast(xfrm_nl, skb, 0, XFRMNLGRP_REPORT, GFP_ATOMIC);
 }
 
+static inline size_t xfrm_mapping_msgsize(void)
+{
+	return NLMSG_ALIGN(sizeof(struct xfrm_user_mapping));
+}
+
+static int build_mapping(struct sk_buff *skb, struct xfrm_state *x,
+			 xfrm_address_t *new_saddr, __be16 new_sport)
+{
+	struct xfrm_user_mapping *um;
+	struct nlmsghdr *nlh;
+
+	nlh = nlmsg_put(skb, 0, 0, XFRM_MSG_MAPPING, sizeof(*um), 0);
+	if (nlh == NULL)
+		return -EMSGSIZE;
+
+	um = nlmsg_data(nlh);
+
+	memcpy(&um->id.daddr, &x->id.daddr, sizeof(um->id.daddr));
+	um->id.spi = x->id.spi;
+	um->id.family = x->props.family;
+	um->id.proto = x->id.proto;
+	memcpy(&um->new_saddr, new_saddr, sizeof(um->new_saddr));
+	memcpy(&um->old_saddr, &x->props.saddr, sizeof(um->old_saddr));
+	um->new_sport = new_sport;
+	um->old_sport = x->encap->encap_sport;
+	um->reqid = x->props.reqid;
+
+	return nlmsg_end(skb, nlh);
+}
+
+static int xfrm_send_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr,
+			     __be16 sport)
+{
+	struct sk_buff *skb;
+
+	if (x->id.proto != IPPROTO_ESP)
+		return -EINVAL;
+
+	if (!x->encap)
+		return -EINVAL;
+
+	skb = nlmsg_new(xfrm_mapping_msgsize(), GFP_ATOMIC);
+	if (skb == NULL)
+		return -ENOMEM;
+
+	if (build_mapping(skb, x, ipaddr, sport) < 0)
+		BUG();
+
+	return nlmsg_multicast(xfrm_nl, skb, 0, XFRMNLGRP_MAPPING, GFP_ATOMIC);
+}
+
 static struct xfrm_mgr netlink_mgr = {
 	.id		= "netlink",
 	.notify		= xfrm_send_state_notify,
@@ -2511,6 +2562,7 @@ static struct xfrm_mgr netlink_mgr = {
 	.notify_policy	= xfrm_send_policy_notify,
 	.report		= xfrm_send_report,
 	.migrate	= xfrm_send_migrate,
+	.new_mapping	= xfrm_send_mapping,
 };
 
 static int __init xfrm_user_init(void)
