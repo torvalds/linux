@@ -891,6 +891,9 @@ static inline __le16 ext4_rec_len_to_disk(unsigned len)
 #define DX_HASH_LEGACY		0
 #define DX_HASH_HALF_MD4	1
 #define DX_HASH_TEA		2
+#define DX_HASH_LEGACY_UNSIGNED	3
+#define DX_HASH_HALF_MD4_UNSIGNED	4
+#define DX_HASH_TEA_UNSIGNED		5
 
 #ifdef __KERNEL__
 

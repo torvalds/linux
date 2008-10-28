@@ -372,6 +372,8 @@ dx_probe(const struct qstr *d_name, struct inode *dir,
 		goto fail;
 	}
 	hinfo->hash_version = root->info.hash_version;
+	if (hinfo->hash_version <= DX_HASH_TEA)
+		hinfo->hash_version += EXT4_SB(dir->i_sb)->s_hash_unsigned;
 	hinfo->seed = EXT4_SB(dir->i_sb)->s_hash_seed;
 	if (d_name)
 		ext4fs_dirhash(d_name->name, d_name->len, hinfo);
@@ -641,6 +643,9 @@ int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 	dir = dir_file->f_path.dentry->d_inode;
 	if (!(EXT4_I(dir)->i_flags & EXT4_INDEX_FL)) {
 		hinfo.hash_version = EXT4_SB(dir->i_sb)->s_def_hash_version;
+		if (hinfo.hash_version <= DX_HASH_TEA)
+			hinfo.hash_version +=
+				EXT4_SB(dir->i_sb)->s_hash_unsigned;
 		hinfo.seed = EXT4_SB(dir->i_sb)->s_hash_seed;
 		count = htree_dirblock_to_tree(dir_file, dir, 0, &hinfo,
 					       start_hash, start_minor_hash);
@@ -1408,6 +1413,8 @@ static int make_indexed_dir(handle_t *handle, struct dentry *dentry,
 
 	/* Initialize as for dx_probe */
 	hinfo.hash_version = root->info.hash_version;
+	if (hinfo.hash_version <= DX_HASH_TEA)
+		hinfo.hash_version += EXT4_SB(dir->i_sb)->s_hash_unsigned;
 	hinfo.seed = EXT4_SB(dir->i_sb)->s_hash_seed;
 	ext4fs_dirhash(name, namelen, &hinfo);
 	frame = frames;
