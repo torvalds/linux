@@ -4083,25 +4083,24 @@ static int ocfs2_xattr_set_entry_in_bucket(struct inode *inode,
 {
 	int ret;
 	handle_t *handle = NULL;
-	u16 blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	u64 blkno;
 
 	mlog(0, "Set xattr entry len = %lu index = %d in bucket %llu\n",
 	     (unsigned long)xi->value_len, xi->name_index,
 	     (unsigned long long)bucket_blkno(xs->bucket));
 
 	if (!xs->bucket->bu_bhs[1]) {
-		ret = ocfs2_read_blocks(inode,
-					bucket_blkno(xs->bucket) + 1,
-					blk_per_bucket - 1, &xs->bucket->bu_bhs[1],
-					0);
+		blkno = bucket_blkno(xs->bucket);
+		ocfs2_xattr_bucket_relse(xs->bucket);
+		ret = ocfs2_read_xattr_bucket(xs->bucket, blkno);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
 		}
 	}
 
-	handle = ocfs2_start_trans(osb, blk_per_bucket);
+	handle = ocfs2_start_trans(osb, xs->bucket->bu_blocks);
 	if (IS_ERR(handle)) {
 		ret = PTR_ERR(handle);
 		handle = NULL;
