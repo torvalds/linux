@@ -489,6 +489,9 @@ struct kvm_assigned_pci_dev {
 	__u32 busnr;
 	__u32 devfn;
 	__u32 flags;
+	union {
+		__u32 reserved[12];
+	};
 };
 
 struct kvm_assigned_irq {
@@ -496,6 +499,9 @@ struct kvm_assigned_irq {
 	__u32 host_irq;
 	__u32 guest_irq;
 	__u32 flags;
+	union {
+		__u32 reserved[12];
+	};
 };
 
 #define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
