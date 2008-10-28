@@ -59,7 +59,7 @@
 #endif
 
 
-#ifdef CONFIG_VERBOSE_DEBUG
+#ifdef CONFIG_DEBUG_VERBOSE
 #define verbose_printk(fmt, arg...) \
 	printk(fmt, ##arg)
 #else
@@ -574,7 +574,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 #endif
 			panic("Kernel exception");
 		} else {
-#ifdef CONFIG_VERBOSE_DEBUG
+#ifdef CONFIG_DEBUG_VERBOSE
 			unsigned long *stack;
 			/* Dump the user space stack */
 			stack = (unsigned long *)rdusp();
