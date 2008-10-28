@@ -122,7 +122,7 @@ static void nlm_display_address(const struct sockaddr *sap,
 			snprintf(buf, len, NIPQUAD_FMT,
 				 NIPQUAD(sin6->sin6_addr.s6_addr32[3]));
 		else
-			snprintf(buf, len, NIP6_FMT, NIP6(sin6->sin6_addr));
+			snprintf(buf, len, "%p6", &sin6->sin6_addr);
 		break;
 	default:
 		snprintf(buf, len, "unsupported address family");

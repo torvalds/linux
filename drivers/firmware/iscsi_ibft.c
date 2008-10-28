@@ -290,9 +290,7 @@ static ssize_t sprintf_ipaddr(char *buf, u8 *ip)
 		/*
 		 * IPv6
 		 */
-		str += sprintf(str, NIP6_FMT, ntohs(ip[0]), ntohs(ip[1]),
-			       ntohs(ip[2]), ntohs(ip[3]), ntohs(ip[4]),
-			       ntohs(ip[5]), ntohs(ip[6]), ntohs(ip[7]));
+		str += sprintf(str, "%p6", ip);
 	}
 	str += sprintf(str, "\n");
 	return str - buf;
