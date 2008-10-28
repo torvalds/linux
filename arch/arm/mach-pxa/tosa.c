@@ -733,6 +733,43 @@ static void tosa_tc6393xb_teardown(struct platform_device *dev)
 	gpio_free(TOSA_GPIO_CARD_VCC_ON);
 }
 
+static struct fb_videomode tosa_tc6393xb_lcd_mode[] = {
+	{
+		.xres = 480,
+		.yres = 640,
+		.pixclock = 0x002cdf00,/* PLL divisor */
+		.left_margin = 0x004c,
+		.right_margin = 0x005b,
+		.upper_margin = 0x0001,
+		.lower_margin = 0x000d,
+		.hsync_len = 0x0002,
+		.vsync_len = 0x0001,
+		.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+		.vmode = FB_VMODE_NONINTERLACED,
+	},{
+		.xres = 240,
+		.yres = 320,
+		.pixclock = 0x00e7f203,/* PLL divisor */
+		.left_margin = 0x0024,
+		.right_margin = 0x002f,
+		.upper_margin = 0x0001,
+		.lower_margin = 0x000d,
+		.hsync_len = 0x0002,
+		.vsync_len = 0x0001,
+		.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+		.vmode = FB_VMODE_NONINTERLACED,
+	}
+};
+
+static struct tmio_fb_data tosa_tc6393xb_fb_config = {
+	.lcd_set_power	= tc6393xb_lcd_set_power,
+	.lcd_mode	= tc6393xb_lcd_mode,
+	.num_modes	= ARRAY_SIZE(tosa_tc6393xb_lcd_mode),
+	.modes		= &tosa_tc6393xb_lcd_mode[0],
+	.height		= 82,
+	.width		= 60,
+};
+
 static struct tc6393xb_platform_data tosa_tc6393xb_data = {
 	.scr_pll2cr	= 0x0cc1,
 	.scr_gper	= 0x3300,
@@ -748,6 +785,7 @@ static struct tc6393xb_platform_data tosa_tc6393xb_data = {
 	.resume		= tosa_tc6393xb_resume,
 
 	.nand_data	= &tosa_tc6393xb_nand_config,
+	.fb_data	= &tosa_tc6393xb_fb_config,
 
 	.resume_restore = 1,
 };
