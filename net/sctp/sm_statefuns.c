@@ -1123,11 +1123,10 @@ sctp_disposition_t sctp_sf_backbeat_8_3(const struct sctp_endpoint *ep,
 		if (from_addr.sa.sa_family == AF_INET6) {
 			if (net_ratelimit())
 				printk(KERN_WARNING
-				    "%s association %p could not find address "
-				    NIP6_FMT "\n",
+				    "%s association %p could not find address %p6\n",
 				    __func__,
 				    asoc,
-				    NIP6(from_addr.v6.sin6_addr));
+				    &from_addr.v6.sin6_addr);
 		} else {
 			if (net_ratelimit())
 				printk(KERN_WARNING

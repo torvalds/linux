@@ -2115,10 +2115,8 @@ static void xfrm_audit_helper_sainfo(struct xfrm_state *x,
 				 NIPQUAD(x->id.daddr.a4));
 		break;
 	case AF_INET6:
-		audit_log_format(audit_buf,
-				 " src=" NIP6_FMT " dst=" NIP6_FMT,
-				 NIP6(*(struct in6_addr *)x->props.saddr.a6),
-				 NIP6(*(struct in6_addr *)x->id.daddr.a6));
+		audit_log_format(audit_buf, " src=%p6 dst=%p6",
+				 x->props.saddr.a6, x->id.daddr.a6);
 		break;
 	}
 
@@ -2142,10 +2140,8 @@ static void xfrm_audit_helper_pktinfo(struct sk_buff *skb, u16 family,
 	case AF_INET6:
 		iph6 = ipv6_hdr(skb);
 		audit_log_format(audit_buf,
-				 " src=" NIP6_FMT " dst=" NIP6_FMT
-				 " flowlbl=0x%x%02x%02x",
-				 NIP6(iph6->saddr),
-				 NIP6(iph6->daddr),
+				 " src=%p6 dst=%p6 flowlbl=0x%x%02x%02x",
+				 &iph6->saddr,&iph6->daddr,
 				 iph6->flow_lbl[0] & 0x0f,
 				 iph6->flow_lbl[1],
 				 iph6->flow_lbl[2]);

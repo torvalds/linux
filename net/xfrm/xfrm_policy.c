@@ -2467,13 +2467,11 @@ static void xfrm_audit_common_policyinfo(struct xfrm_policy *xp,
 					 sel->prefixlen_d);
 		break;
 	case AF_INET6:
-		audit_log_format(audit_buf, " src=" NIP6_FMT,
-				 NIP6(*(struct in6_addr *)sel->saddr.a6));
+		audit_log_format(audit_buf, " src=%p6", sel->saddr.a6);
 		if (sel->prefixlen_s != 128)
 			audit_log_format(audit_buf, " src_prefixlen=%d",
 					 sel->prefixlen_s);
-		audit_log_format(audit_buf, " dst=" NIP6_FMT,
-				 NIP6(*(struct in6_addr *)sel->daddr.a6));
+		audit_log_format(audit_buf, " dst=%p6", sel->daddr.a6);
 		if (sel->prefixlen_d != 128)
 			audit_log_format(audit_buf, " dst_prefixlen=%d",
 					 sel->prefixlen_d);

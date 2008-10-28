@@ -168,7 +168,7 @@ static void ip_map_request(struct cache_detail *cd,
 				ntohl(im->m_addr.s6_addr32[3]) >>  8 & 0xff,
 				ntohl(im->m_addr.s6_addr32[3]) >>  0 & 0xff);
 	} else {
-		snprintf(text_addr, 40, NIP6_FMT, NIP6(im->m_addr));
+		snprintf(text_addr, 40, "%p6", &im->m_addr);
 	}
 	qword_add(bpp, blen, im->m_class);
 	qword_add(bpp, blen, text_addr);
@@ -286,8 +286,7 @@ static int ip_map_show(struct seq_file *m,
 			ntohl(addr.s6_addr32[3]) >>  0 & 0xff,
 			dom);
 	} else {
-		seq_printf(m, "%s " NIP6_FMT " %s\n",
-			im->m_class, NIP6(addr), dom);
+		seq_printf(m, "%s %p6 %s\n", im->m_class, &addr, dom);
 	}
 	return 0;
 }

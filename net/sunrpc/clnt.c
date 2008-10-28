@@ -278,8 +278,8 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 		case AF_INET6: {
 			struct sockaddr_in6 *sin =
 					(struct sockaddr_in6 *)args->address;
-			snprintf(servername, sizeof(servername), NIP6_FMT,
-				 NIP6(sin->sin6_addr));
+			snprintf(servername, sizeof(servername), "%p6",
+				 &sin->sin6_addr);
 			break;
 		}
 		default:
