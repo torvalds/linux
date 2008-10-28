@@ -15,13 +15,8 @@
  * Size of kernel stack for each process
  */
 #ifndef __s390x__
-#ifndef __SMALL_STACK
 #define THREAD_ORDER 1
 #define ASYNC_ORDER  1
-#else
-#define THREAD_ORDER 0
-#define ASYNC_ORDER  0
-#endif
 #else /* __s390x__ */
 #ifndef __SMALL_STACK
 #define THREAD_ORDER 2
