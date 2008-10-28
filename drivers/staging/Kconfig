@@ -65,5 +65,7 @@ source "drivers/staging/poch/Kconfig"
 
 source "drivers/staging/agnx/Kconfig"
 
+source "drivers/staging/otus/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
