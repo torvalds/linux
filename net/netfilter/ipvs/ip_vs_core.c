@@ -805,9 +805,9 @@ static int ip_vs_out_icmp_v6(struct sk_buff *skb, int *related)
 	if (ic == NULL)
 		return NF_DROP;
 
-	IP_VS_DBG(12, "Outgoing ICMPv6 (%d,%d) " NIP6_FMT "->" NIP6_FMT "\n",
+	IP_VS_DBG(12, "Outgoing ICMPv6 (%d,%d) %p6->%p6\n",
 		  ic->icmp6_type, ntohs(icmpv6_id(ic)),
-		  NIP6(iph->saddr), NIP6(iph->daddr));
+		  &iph->saddr, &iph->daddr);
 
 	/*
 	 * Work through seeing if this is for us.
@@ -1175,9 +1175,9 @@ ip_vs_in_icmp_v6(struct sk_buff *skb, int *related, unsigned int hooknum)
 	if (ic == NULL)
 		return NF_DROP;
 
-	IP_VS_DBG(12, "Incoming ICMPv6 (%d,%d) " NIP6_FMT "->" NIP6_FMT "\n",
+	IP_VS_DBG(12, "Incoming ICMPv6 (%d,%d) %p6->%p6\n",
 		  ic->icmp6_type, ntohs(icmpv6_id(ic)),
-		  NIP6(iph->saddr), NIP6(iph->daddr));
+		  &iph->saddr, &iph->daddr);
 
 	/*
 	 * Work through seeing if this is for us.

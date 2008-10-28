@@ -467,11 +467,9 @@ static int help(struct sk_buff *skb,
 				 NIPQUAD(cmd.u3.ip),
 				 NIPQUAD(ct->tuplehash[dir].tuple.src.u3.ip));
 		} else {
-			pr_debug("conntrack_ftp: NOT RECORDING: " NIP6_FMT
-				 " != " NIP6_FMT "\n",
-				 NIP6(*((struct in6_addr *)cmd.u3.ip6)),
-				 NIP6(*((struct in6_addr *)
-					ct->tuplehash[dir].tuple.src.u3.ip6)));
+			pr_debug("conntrack_ftp: NOT RECORDING: %p6 != %p6\n",
+				 cmd.u3.ip6,
+				 ct->tuplehash[dir].tuple.src.u3.ip6);
 		}
 
 		/* Thanks to Cristiano Lincoln Mattos
