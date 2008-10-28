@@ -67,7 +67,7 @@ ENDPROC(_blackfin_icache_flush_range)
 
 /* Flush all cache lines assocoiated with this area of memory. */
 ENTRY(_blackfin_icache_dcache_flush_range)
-	do_flush IFLUSH, FLUSH
+	do_flush FLUSH, IFLUSH
 ENDPROC(_blackfin_icache_dcache_flush_range)
 
 /* Throw away all D-cached data in specified region without any obligation to
