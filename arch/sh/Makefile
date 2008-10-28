@@ -2,7 +2,7 @@
 # arch/sh/Makefile
 #
 # Copyright (C) 1999  Kaz Kojima
-# Copyright (C) 2002, 2003, 2004  Paul Mundt
+# Copyright (C) 2002 - 2008  Paul Mundt
 # Copyright (C) 2002  M. R. Brown
 #
 # This file is subject to the terms and conditions of the GNU General Public
@@ -19,14 +19,6 @@ isa-$(CONFIG_CPU_SH4A)			:= sh4a
 isa-$(CONFIG_CPU_SH4AL_DSP)		:= sh4al
 isa-$(CONFIG_CPU_SH5)			:= shmedia
 isa-$(CONFIG_SH_DSP)			:= $(isa-y)-dsp
-
-ifndef CONFIG_SH_DSP
-ifndef CONFIG_SH_FPU
-isa-y			:= $(isa-y)-nofpu
-endif
-endif
-
-isa-y			:= $(isa-y)-up
 
 cflags-$(CONFIG_CPU_SH2)		:= $(call cc-option,-m2,)
 cflags-$(CONFIG_CPU_SH2A)		+= $(call cc-option,-m2a,) \
