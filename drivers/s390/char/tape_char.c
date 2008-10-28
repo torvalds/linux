@@ -109,7 +109,7 @@ tapechar_check_idalbuffer(struct tape_device *device, size_t block_size)
 
 	/* The current idal buffer is not correct. Allocate a new one. */
 	new = idal_buffer_alloc(block_size, 0);
-	if (new == NULL)
+	if (IS_ERR(new))
 		return -ENOMEM;
 
 	if (device->char_data.idal_buf != NULL)

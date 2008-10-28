@@ -74,6 +74,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 #include <linux/sched.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/mutex.h>
 #include <asm/uaccess.h>
 
@@ -494,7 +495,7 @@ static void qc_set(struct qcam_device *q)
 		val2 = (((q->port_mode & QC_MODE_MASK) == QC_BIDIR) ? 24 : 8) *
 		    q->transfer_scale;
 	}
-	val = (val + val2 - 1) / val2;
+	val = DIV_ROUND_UP(val, val2);
 	qc_command(q, 0x13);
 	qc_command(q, val);
 
@@ -650,7 +651,7 @@ static long qc_capture(struct qcam_device * q, char __user *buf, unsigned long l
 	transperline = q->width * q->bpp;
 	divisor = (((q->port_mode & QC_MODE_MASK) == QC_BIDIR) ? 24 : 8) *
 	    q->transfer_scale;
-	transperline = (transperline + divisor - 1) / divisor;
+	transperline = DIV_ROUND_UP(transperline, divisor);
 
 	for (i = 0, yield = yieldlines; i < linestotrans; i++)
 	{
@@ -893,10 +894,27 @@ static ssize_t qcam_read(struct file *file, char __user *buf,
 	return len;
 }
 
+static int qcam_exclusive_open(struct inode *inode, struct file *file)
+{
+	struct video_device *dev = video_devdata(file);
+	struct qcam_device *qcam = (struct qcam_device *)dev;
+
+	return test_and_set_bit(0, &qcam->in_use) ? -EBUSY : 0;
+}
+
+static int qcam_exclusive_release(struct inode *inode, struct file *file)
+{
+	struct video_device *dev = video_devdata(file);
+	struct qcam_device *qcam = (struct qcam_device *)dev;
+
+	clear_bit(0, &qcam->in_use);
+	return 0;
+}
+
 static const struct file_operations qcam_fops = {
 	.owner		= THIS_MODULE,
-	.open           = video_exclusive_open,
-	.release        = video_exclusive_release,
+	.open           = qcam_exclusive_open,
+	.release        = qcam_exclusive_release,
 	.ioctl          = qcam_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,
@@ -906,10 +924,9 @@ static const struct file_operations qcam_fops = {
 };
 static struct video_device qcam_template=
 {
-	.owner		= THIS_MODULE,
 	.name		= "Connectix Quickcam",
-	.type		= VID_TYPE_CAPTURE,
 	.fops           = &qcam_fops,
+	.release 	= video_device_release_empty,
 };
 
 #define MAX_CAMS 4
@@ -947,8 +964,7 @@ static int init_bwqcam(struct parport *port)
 
 	printk(KERN_INFO "Connectix Quickcam on %s\n", qcam->pport->name);
 
-	if(video_register_device(&qcam->vdev, VFL_TYPE_GRABBER, video_nr)==-1)
-	{
+	if (video_register_device(&qcam->vdev, VFL_TYPE_GRABBER, video_nr) < 0) {
 		parport_unregister_device(qcam->pdev);
 		kfree(qcam);
 		return -ENODEV;

@@ -202,6 +202,9 @@ struct snd_soc_dapm_path;
 struct snd_soc_dapm_pin;
 struct snd_soc_dapm_route;
 
+int dapm_reg_event(struct snd_soc_dapm_widget *w,
+		   struct snd_kcontrol *kcontrol, int event);
+
 /* dapm controls */
 int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
@@ -237,6 +240,7 @@ int snd_soc_dapm_sys_add(struct device *dev);
 /* dapm audio pin control and status */
 int snd_soc_dapm_enable_pin(struct snd_soc_codec *codec, char *pin);
 int snd_soc_dapm_disable_pin(struct snd_soc_codec *codec, char *pin);
+int snd_soc_dapm_nc_pin(struct snd_soc_codec *codec, char *pin);
 int snd_soc_dapm_get_pin_status(struct snd_soc_codec *codec, char *pin);
 int snd_soc_dapm_sync(struct snd_soc_codec *codec);
 

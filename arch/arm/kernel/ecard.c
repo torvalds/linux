@@ -46,7 +46,7 @@
 
 #include <asm/dma.h>
 #include <asm/ecard.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mmu_context.h>
 #include <asm/mach/irq.h>
@@ -587,8 +587,7 @@ ecard_irq_handler(unsigned int irq, struct irq_desc *desc)
 			pending = ecard_default_ops.irqpending(ec);
 
 		if (pending) {
-			struct irq_desc *d = irq_desc + ec->irq;
-			desc_handle_irq(ec->irq, d);
+			generic_handle_irq(ec->irq);
 			called ++;
 		}
 	}
@@ -622,7 +621,6 @@ ecard_irqexp_handler(unsigned int irq, struct irq_desc *desc)
 		ecard_t *ec = slot_to_ecard(slot);
 
 		if (ec->claimed) {
-			struct irq_desc *d = irq_desc + ec->irq;
 			/*
 			 * this ugly code is so that we can operate a
 			 * prioritorising system:
@@ -635,7 +633,7 @@ ecard_irqexp_handler(unsigned int irq, struct irq_desc *desc)
 			 * Serial cards should go in 0/1, ethernet/scsi in 2/3
 			 * otherwise you will lose serial data at high speeds!
 			 */
-			desc_handle_irq(ec->irq, d);
+			generic_handle_irq(ec->irq);
 		} else {
 			printk(KERN_WARNING "card%d: interrupt from unclaimed "
 			       "card???\n", slot);
@@ -783,7 +781,7 @@ static void ecard_proc_init(void)
 
 #define ec_set_resource(ec,nr,st,sz)				\
 	do {							\
-		(ec)->resource[nr].name = ec->dev.bus_id;	\
+		(ec)->resource[nr].name = dev_name(&ec->dev);	\
 		(ec)->resource[nr].start = st;			\
 		(ec)->resource[nr].end = (st) + (sz) - 1;	\
 		(ec)->resource[nr].flags = IORESOURCE_MEM;	\
@@ -853,8 +851,7 @@ static struct expansion_card *__init ecard_alloc_card(int type, int slot)
 	for (i = 0; i < ECARD_NUM_RESOURCES; i++) {
 		if (ec->resource[i].flags &&
 		    request_resource(&iomem_resource, &ec->resource[i])) {
-			printk(KERN_ERR "%s: resource(s) not available\n",
-				ec->dev.bus_id);
+			dev_err(&ec->dev, "resource(s) not available\n");
 			ec->resource[i].end -= ec->resource[i].start;
 			ec->resource[i].start = 0;
 			ec->resource[i].flags = 0;

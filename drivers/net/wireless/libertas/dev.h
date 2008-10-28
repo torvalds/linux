@@ -58,6 +58,7 @@ struct lbs_802_11_security {
 	u8 WPA2enabled;
 	u8 wep_enabled;
 	u8 auth_mode;
+	u32 key_mgmt;
 };
 
 /** Current Basic Service Set State Structure */
@@ -140,6 +141,8 @@ struct lbs_private {
 	wait_queue_head_t waitq;
 	struct workqueue_struct *work_thread;
 
+	struct work_struct mcast_work;
+
 	/** Scanning */
 	struct delayed_work scan_work;
 	struct delayed_work assoc_work;
@@ -151,6 +154,7 @@ struct lbs_private {
 
 	/** Hardware access */
 	int (*hw_host_to_card) (struct lbs_private *priv, u8 type, u8 *payload, u16 nb);
+	void (*reset_card) (struct lbs_private *priv);
 
 	/* Wake On LAN */
 	uint32_t wol_criteria;
@@ -234,11 +238,8 @@ struct lbs_private {
 	/** 802.11 statistics */
 //	struct cmd_DS_802_11_GET_STAT wlan802_11Stat;
 
-	u16 enablehwauto;
-	u16 ratebitmap;
-
-	u32 fragthsd;
-	u32 rtsthsd;
+	uint16_t enablehwauto;
+	uint16_t ratebitmap;
 
 	u8 txretrycount;
 
@@ -250,7 +251,9 @@ struct lbs_private {
 	u32 connect_status;
 	u32 mesh_connect_status;
 	u16 regioncode;
-	u16 txpowerlevel;
+	s16 txpower_cur;
+	s16 txpower_min;
+	s16 txpower_max;
 
 	/** POWER MANAGEMENT AND PnP SUPPORT */
 	u8 surpriseremoved;
@@ -288,12 +291,10 @@ struct lbs_private {
 	u16 nextSNRNF;
 	u16 numSNRNF;
 
-	u8 radioon;
-	u32 preamble;
+	u8 radio_on;
 
 	/** data rate stuff */
 	u8 cur_rate;
-	u8 auto_rate;
 
 	/** RF calibration data */
 

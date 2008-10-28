@@ -3,254 +3,17 @@
  *      data structure and functionality definitions
  */
 
-#ifndef _IP_VS_H
-#define _IP_VS_H
+#ifndef _NET_IP_VS_H
+#define _NET_IP_VS_H
 
-#include <asm/types.h>		/* For __uXX types */
-#include <linux/types.h>	/* For __beXX types in userland */
+#include <linux/ip_vs.h>                /* definitions shared with userland */
 
-#include <linux/sysctl.h>	/* For ctl_path */
-
-#define IP_VS_VERSION_CODE	0x010201
-#define NVERSION(version)			\
-	(version >> 16) & 0xFF,			\
-	(version >> 8) & 0xFF,			\
-	version & 0xFF
-
-/*
- *      Virtual Service Flags
- */
-#define IP_VS_SVC_F_PERSISTENT	0x0001		/* persistent port */
-#define IP_VS_SVC_F_HASHED	0x0002		/* hashed entry */
-
-/*
- *      Destination Server Flags
- */
-#define IP_VS_DEST_F_AVAILABLE	0x0001		/* server is available */
-#define IP_VS_DEST_F_OVERLOAD	0x0002		/* server is overloaded */
-
-/*
- *      IPVS sync daemon states
- */
-#define IP_VS_STATE_NONE	0x0000		/* daemon is stopped */
-#define IP_VS_STATE_MASTER	0x0001		/* started as master */
-#define IP_VS_STATE_BACKUP	0x0002		/* started as backup */
-
-/*
- *      IPVS socket options
- */
-#define IP_VS_BASE_CTL		(64+1024+64)		/* base */
-
-#define IP_VS_SO_SET_NONE	IP_VS_BASE_CTL		/* just peek */
-#define IP_VS_SO_SET_INSERT	(IP_VS_BASE_CTL+1)
-#define IP_VS_SO_SET_ADD	(IP_VS_BASE_CTL+2)
-#define IP_VS_SO_SET_EDIT	(IP_VS_BASE_CTL+3)
-#define IP_VS_SO_SET_DEL	(IP_VS_BASE_CTL+4)
-#define IP_VS_SO_SET_FLUSH	(IP_VS_BASE_CTL+5)
-#define IP_VS_SO_SET_LIST	(IP_VS_BASE_CTL+6)
-#define IP_VS_SO_SET_ADDDEST	(IP_VS_BASE_CTL+7)
-#define IP_VS_SO_SET_DELDEST	(IP_VS_BASE_CTL+8)
-#define IP_VS_SO_SET_EDITDEST	(IP_VS_BASE_CTL+9)
-#define IP_VS_SO_SET_TIMEOUT	(IP_VS_BASE_CTL+10)
-#define IP_VS_SO_SET_STARTDAEMON (IP_VS_BASE_CTL+11)
-#define IP_VS_SO_SET_STOPDAEMON (IP_VS_BASE_CTL+12)
-#define IP_VS_SO_SET_RESTORE    (IP_VS_BASE_CTL+13)
-#define IP_VS_SO_SET_SAVE       (IP_VS_BASE_CTL+14)
-#define IP_VS_SO_SET_ZERO	(IP_VS_BASE_CTL+15)
-#define IP_VS_SO_SET_MAX	IP_VS_SO_SET_ZERO
-
-#define IP_VS_SO_GET_VERSION	IP_VS_BASE_CTL
-#define IP_VS_SO_GET_INFO	(IP_VS_BASE_CTL+1)
-#define IP_VS_SO_GET_SERVICES	(IP_VS_BASE_CTL+2)
-#define IP_VS_SO_GET_SERVICE	(IP_VS_BASE_CTL+3)
-#define IP_VS_SO_GET_DESTS	(IP_VS_BASE_CTL+4)
-#define IP_VS_SO_GET_DEST	(IP_VS_BASE_CTL+5)	/* not used now */
-#define IP_VS_SO_GET_TIMEOUT	(IP_VS_BASE_CTL+6)
-#define IP_VS_SO_GET_DAEMON	(IP_VS_BASE_CTL+7)
-#define IP_VS_SO_GET_MAX	IP_VS_SO_GET_DAEMON
-
-
-/*
- *      IPVS Connection Flags
- */
-#define IP_VS_CONN_F_FWD_MASK	0x0007		/* mask for the fwd methods */
-#define IP_VS_CONN_F_MASQ	0x0000		/* masquerading/NAT */
-#define IP_VS_CONN_F_LOCALNODE	0x0001		/* local node */
-#define IP_VS_CONN_F_TUNNEL	0x0002		/* tunneling */
-#define IP_VS_CONN_F_DROUTE	0x0003		/* direct routing */
-#define IP_VS_CONN_F_BYPASS	0x0004		/* cache bypass */
-#define IP_VS_CONN_F_SYNC	0x0020		/* entry created by sync */
-#define IP_VS_CONN_F_HASHED	0x0040		/* hashed entry */
-#define IP_VS_CONN_F_NOOUTPUT	0x0080		/* no output packets */
-#define IP_VS_CONN_F_INACTIVE	0x0100		/* not established */
-#define IP_VS_CONN_F_OUT_SEQ	0x0200		/* must do output seq adjust */
-#define IP_VS_CONN_F_IN_SEQ	0x0400		/* must do input seq adjust */
-#define IP_VS_CONN_F_SEQ_MASK	0x0600		/* in/out sequence mask */
-#define IP_VS_CONN_F_NO_CPORT	0x0800		/* no client port set yet */
-#define IP_VS_CONN_F_TEMPLATE	0x1000		/* template, not connection */
-
-/* Move it to better place one day, for now keep it unique */
-#define NFC_IPVS_PROPERTY	0x10000
-
-#define IP_VS_SCHEDNAME_MAXLEN	16
-#define IP_VS_IFNAME_MAXLEN	16
-
-
-/*
- *	The struct ip_vs_service_user and struct ip_vs_dest_user are
- *	used to set IPVS rules through setsockopt.
- */
-struct ip_vs_service_user {
-	/* virtual service addresses */
-	u_int16_t		protocol;
-	__be32			addr;		/* virtual ip address */
-	__be16			port;
-	u_int32_t		fwmark;		/* firwall mark of service */
-
-	/* virtual service options */
-	char			sched_name[IP_VS_SCHEDNAME_MAXLEN];
-	unsigned		flags;		/* virtual service flags */
-	unsigned		timeout;	/* persistent timeout in sec */
-	__be32			netmask;	/* persistent netmask */
-};
-
-
-struct ip_vs_dest_user {
-	/* destination server address */
-	__be32			addr;
-	__be16			port;
-
-	/* real server options */
-	unsigned		conn_flags;	/* connection flags */
-	int			weight;		/* destination weight */
-
-	/* thresholds for active connections */
-	u_int32_t		u_threshold;	/* upper threshold */
-	u_int32_t		l_threshold;	/* lower threshold */
-};
-
-
-/*
- *	IPVS statistics object (for user space)
- */
-struct ip_vs_stats_user
-{
-	__u32                   conns;          /* connections scheduled */
-	__u32                   inpkts;         /* incoming packets */
-	__u32                   outpkts;        /* outgoing packets */
-	__u64                   inbytes;        /* incoming bytes */
-	__u64                   outbytes;       /* outgoing bytes */
-
-	__u32			cps;		/* current connection rate */
-	__u32			inpps;		/* current in packet rate */
-	__u32			outpps;		/* current out packet rate */
-	__u32			inbps;		/* current in byte rate */
-	__u32			outbps;		/* current out byte rate */
-};
-
-
-/* The argument to IP_VS_SO_GET_INFO */
-struct ip_vs_getinfo {
-	/* version number */
-	unsigned int		version;
-
-	/* size of connection hash table */
-	unsigned int		size;
-
-	/* number of virtual services */
-	unsigned int		num_services;
-};
-
-
-/* The argument to IP_VS_SO_GET_SERVICE */
-struct ip_vs_service_entry {
-	/* which service: user fills in these */
-	u_int16_t		protocol;
-	__be32			addr;		/* virtual address */
-	__be16			port;
-	u_int32_t		fwmark;		/* firwall mark of service */
-
-	/* service options */
-	char			sched_name[IP_VS_SCHEDNAME_MAXLEN];
-	unsigned		flags;          /* virtual service flags */
-	unsigned		timeout;	/* persistent timeout */
-	__be32			netmask;	/* persistent netmask */
-
-	/* number of real servers */
-	unsigned int		num_dests;
-
-	/* statistics */
-	struct ip_vs_stats_user stats;
-};
-
-
-struct ip_vs_dest_entry {
-	__be32			addr;		/* destination address */
-	__be16			port;
-	unsigned		conn_flags;	/* connection flags */
-	int			weight;		/* destination weight */
-
-	u_int32_t		u_threshold;	/* upper threshold */
-	u_int32_t		l_threshold;	/* lower threshold */
-
-	u_int32_t		activeconns;	/* active connections */
-	u_int32_t		inactconns;	/* inactive connections */
-	u_int32_t		persistconns;	/* persistent connections */
-
-	/* statistics */
-	struct ip_vs_stats_user stats;
-};
-
-
-/* The argument to IP_VS_SO_GET_DESTS */
-struct ip_vs_get_dests {
-	/* which service: user fills in these */
-	u_int16_t		protocol;
-	__be32			addr;		/* virtual address */
-	__be16			port;
-	u_int32_t		fwmark;		/* firwall mark of service */
-
-	/* number of real servers */
-	unsigned int		num_dests;
-
-	/* the real servers */
-	struct ip_vs_dest_entry	entrytable[0];
-};
-
-
-/* The argument to IP_VS_SO_GET_SERVICES */
-struct ip_vs_get_services {
-	/* number of virtual services */
-	unsigned int		num_services;
-
-	/* service table */
-	struct ip_vs_service_entry entrytable[0];
-};
-
-
-/* The argument to IP_VS_SO_GET_TIMEOUT */
-struct ip_vs_timeout_user {
-	int			tcp_timeout;
-	int			tcp_fin_timeout;
-	int			udp_timeout;
-};
-
-
-/* The argument to IP_VS_SO_GET_DAEMON */
-struct ip_vs_daemon_user {
-	/* sync daemon state (master/backup) */
-	int			state;
-
-	/* multicast interface name */
-	char			mcast_ifn[IP_VS_IFNAME_MAXLEN];
-
-	/* SyncID we belong to */
-	int			syncid;
-};
-
-
+/* old ipvsadm versions still include this file directly */
 #ifdef __KERNEL__
 
+#include <asm/types.h>                  /* for __uXX types */
+
+#include <linux/sysctl.h>               /* for ctl_path */
 #include <linux/list.h>                 /* for struct list_head */
 #include <linux/spinlock.h>             /* for struct rwlock_t */
 #include <asm/atomic.h>                 /* for struct atomic_t */
@@ -258,11 +21,104 @@ struct ip_vs_daemon_user {
 #include <linux/timer.h>
 
 #include <net/checksum.h>
+#include <linux/netfilter.h>		/* for union nf_inet_addr */
+#include <linux/ip.h>
+#include <linux/ipv6.h>			/* for struct ipv6hdr */
+#include <net/ipv6.h>			/* for ipv6_addr_copy */
+
+struct ip_vs_iphdr {
+	int len;
+	__u8 protocol;
+	union nf_inet_addr saddr;
+	union nf_inet_addr daddr;
+};
+
+static inline void
+ip_vs_fill_iphdr(int af, const void *nh, struct ip_vs_iphdr *iphdr)
+{
+#ifdef CONFIG_IP_VS_IPV6
+	if (af == AF_INET6) {
+		const struct ipv6hdr *iph = nh;
+		iphdr->len = sizeof(struct ipv6hdr);
+		iphdr->protocol = iph->nexthdr;
+		ipv6_addr_copy(&iphdr->saddr.in6, &iph->saddr);
+		ipv6_addr_copy(&iphdr->daddr.in6, &iph->daddr);
+	} else
+#endif
+	{
+		const struct iphdr *iph = nh;
+		iphdr->len = iph->ihl * 4;
+		iphdr->protocol = iph->protocol;
+		iphdr->saddr.ip = iph->saddr;
+		iphdr->daddr.ip = iph->daddr;
+	}
+}
+
+static inline void ip_vs_addr_copy(int af, union nf_inet_addr *dst,
+				   const union nf_inet_addr *src)
+{
+#ifdef CONFIG_IP_VS_IPV6
+	if (af == AF_INET6)
+		ipv6_addr_copy(&dst->in6, &src->in6);
+	else
+#endif
+	dst->ip = src->ip;
+}
+
+static inline int ip_vs_addr_equal(int af, const union nf_inet_addr *a,
+				   const union nf_inet_addr *b)
+{
+#ifdef CONFIG_IP_VS_IPV6
+	if (af == AF_INET6)
+		return ipv6_addr_equal(&a->in6, &b->in6);
+#endif
+	return a->ip == b->ip;
+}
 
 #ifdef CONFIG_IP_VS_DEBUG
 #include <linux/net.h>
 
 extern int ip_vs_get_debug_level(void);
+
+static inline const char *ip_vs_dbg_addr(int af, char *buf, size_t buf_len,
+					 const union nf_inet_addr *addr,
+					 int *idx)
+{
+	int len;
+#ifdef CONFIG_IP_VS_IPV6
+	if (af == AF_INET6)
+		len = snprintf(&buf[*idx], buf_len - *idx, "[" NIP6_FMT "]",
+			       NIP6(addr->in6)) + 1;
+	else
+#endif
+		len = snprintf(&buf[*idx], buf_len - *idx, NIPQUAD_FMT,
+			       NIPQUAD(addr->ip)) + 1;
+
+	*idx += len;
+	BUG_ON(*idx > buf_len + 1);
+	return &buf[*idx - len];
+}
+
+#define IP_VS_DBG_BUF(level, msg...)			\
+    do {						\
+	    char ip_vs_dbg_buf[160];			\
+	    int ip_vs_dbg_idx = 0;			\
+	    if (level <= ip_vs_get_debug_level())	\
+		    printk(KERN_DEBUG "IPVS: " msg);	\
+    } while (0)
+#define IP_VS_ERR_BUF(msg...)				\
+    do {						\
+	    char ip_vs_dbg_buf[160];			\
+	    int ip_vs_dbg_idx = 0;			\
+	    printk(KERN_ERR "IPVS: " msg);		\
+    } while (0)
+
+/* Only use from within IP_VS_DBG_BUF() or IP_VS_ERR_BUF macros */
+#define IP_VS_DBG_ADDR(af, addr)			\
+    ip_vs_dbg_addr(af, ip_vs_dbg_buf,			\
+		   sizeof(ip_vs_dbg_buf), addr,		\
+		   &ip_vs_dbg_idx)
+
 #define IP_VS_DBG(level, msg...)			\
     do {						\
 	    if (level <= ip_vs_get_debug_level())	\
@@ -285,6 +141,8 @@ extern int ip_vs_get_debug_level(void);
 		pp->debug_packet(pp, skb, ofs, msg);	\
     } while (0)
 #else	/* NO DEBUGGING at ALL */
+#define IP_VS_DBG_BUF(level, msg...)  do {} while (0)
+#define IP_VS_ERR_BUF(msg...)  do {} while (0)
 #define IP_VS_DBG(level, msg...)  do {} while (0)
 #define IP_VS_DBG_RL(msg...)  do {} while (0)
 #define IP_VS_DBG_PKT(level, pp, skb, ofs, msg)		do {} while (0)
@@ -307,13 +165,13 @@ extern int ip_vs_get_debug_level(void);
     do {								\
 	    if (level <= ip_vs_get_debug_level())			\
 		    printk(KERN_DEBUG "Enter: %s, %s line %i\n",	\
-			   __FUNCTION__, __FILE__, __LINE__);		\
+			   __func__, __FILE__, __LINE__);		\
     } while (0)
 #define LeaveFunction(level)                                            \
     do {                                                                \
 	    if (level <= ip_vs_get_debug_level())                       \
 			printk(KERN_DEBUG "Leave: %s, %s line %i\n",    \
-			       __FUNCTION__, __FILE__, __LINE__);       \
+			       __func__, __FILE__, __LINE__);       \
     } while (0)
 #else
 #define EnterFunction(level)   do {} while (0)
@@ -377,21 +235,28 @@ struct ip_vs_seq {
 
 
 /*
- *	IPVS statistics object
+ *	IPVS statistics objects
  */
+struct ip_vs_estimator {
+	struct list_head	list;
+
+	u64			last_inbytes;
+	u64			last_outbytes;
+	u32			last_conns;
+	u32			last_inpkts;
+	u32			last_outpkts;
+
+	u32			cps;
+	u32			inpps;
+	u32			outpps;
+	u32			inbps;
+	u32			outbps;
+};
+
 struct ip_vs_stats
 {
-	__u32                   conns;          /* connections scheduled */
-	__u32                   inpkts;         /* incoming packets */
-	__u32                   outpkts;        /* outgoing packets */
-	__u64                   inbytes;        /* incoming bytes */
-	__u64                   outbytes;       /* outgoing bytes */
-
-	__u32			cps;		/* current connection rate */
-	__u32			inpps;		/* current in packet rate */
-	__u32			outpps;		/* current out packet rate */
-	__u32			inbps;		/* current in byte rate */
-	__u32			outbps;		/* current out byte rate */
+	struct ip_vs_stats_user	ustats;         /* statistics */
+	struct ip_vs_estimator	est;		/* estimator */
 
 	spinlock_t              lock;           /* spin lock */
 };
@@ -415,21 +280,23 @@ struct ip_vs_protocol {
 
 	void (*exit)(struct ip_vs_protocol *pp);
 
-	int (*conn_schedule)(struct sk_buff *skb,
+	int (*conn_schedule)(int af, struct sk_buff *skb,
 			     struct ip_vs_protocol *pp,
 			     int *verdict, struct ip_vs_conn **cpp);
 
 	struct ip_vs_conn *
-	(*conn_in_get)(const struct sk_buff *skb,
+	(*conn_in_get)(int af,
+		       const struct sk_buff *skb,
 		       struct ip_vs_protocol *pp,
-		       const struct iphdr *iph,
+		       const struct ip_vs_iphdr *iph,
 		       unsigned int proto_off,
 		       int inverse);
 
 	struct ip_vs_conn *
-	(*conn_out_get)(const struct sk_buff *skb,
+	(*conn_out_get)(int af,
+			const struct sk_buff *skb,
 			struct ip_vs_protocol *pp,
-			const struct iphdr *iph,
+			const struct ip_vs_iphdr *iph,
 			unsigned int proto_off,
 			int inverse);
 
@@ -439,7 +306,8 @@ struct ip_vs_protocol {
 	int (*dnat_handler)(struct sk_buff *skb,
 			    struct ip_vs_protocol *pp, struct ip_vs_conn *cp);
 
-	int (*csum_check)(struct sk_buff *skb, struct ip_vs_protocol *pp);
+	int (*csum_check)(int af, struct sk_buff *skb,
+			  struct ip_vs_protocol *pp);
 
 	const char *(*state_name)(int state);
 
@@ -472,9 +340,10 @@ struct ip_vs_conn {
 	struct list_head        c_list;         /* hashed list heads */
 
 	/* Protocol, addresses and port numbers */
-	__be32                   caddr;          /* client address */
-	__be32                   vaddr;          /* virtual address */
-	__be32                   daddr;          /* destination address */
+	u16                      af;		/* address family */
+	union nf_inet_addr       caddr;          /* client address */
+	union nf_inet_addr       vaddr;          /* virtual address */
+	union nf_inet_addr       daddr;          /* destination address */
 	__be16                   cport;
 	__be16                   vport;
 	__be16                   dport;
@@ -518,6 +387,45 @@ struct ip_vs_conn {
 
 
 /*
+ *	Extended internal versions of struct ip_vs_service_user and
+ *	ip_vs_dest_user for IPv6 support.
+ *
+ *	We need these to conveniently pass around service and destination
+ *	options, but unfortunately, we also need to keep the old definitions to
+ *	maintain userspace backwards compatibility for the setsockopt interface.
+ */
+struct ip_vs_service_user_kern {
+	/* virtual service addresses */
+	u16			af;
+	u16			protocol;
+	union nf_inet_addr	addr;		/* virtual ip address */
+	u16			port;
+	u32			fwmark;		/* firwall mark of service */
+
+	/* virtual service options */
+	char			*sched_name;
+	unsigned		flags;		/* virtual service flags */
+	unsigned		timeout;	/* persistent timeout in sec */
+	u32			netmask;	/* persistent netmask */
+};
+
+
+struct ip_vs_dest_user_kern {
+	/* destination server address */
+	union nf_inet_addr	addr;
+	u16			port;
+
+	/* real server options */
+	unsigned		conn_flags;	/* connection flags */
+	int			weight;		/* destination weight */
+
+	/* thresholds for active connections */
+	u32			u_threshold;	/* upper threshold */
+	u32			l_threshold;	/* lower threshold */
+};
+
+
+/*
  *	The information about the virtual service offered to the net
  *	and the forwarding entries
  */
@@ -527,8 +435,9 @@ struct ip_vs_service {
 	atomic_t		refcnt;   /* reference counter */
 	atomic_t		usecnt;   /* use counter */
 
+	u16			af;       /* address family */
 	__u16			protocol; /* which protocol (TCP/UDP) */
-	__be32			addr;	  /* IP address for virtual service */
+	union nf_inet_addr	addr;	  /* IP address for virtual service */
 	__be16			port;	  /* port number for the service */
 	__u32                   fwmark;   /* firewall mark of the service */
 	unsigned		flags;	  /* service status flags */
@@ -555,7 +464,8 @@ struct ip_vs_dest {
 	struct list_head	n_list;   /* for the dests in the service */
 	struct list_head	d_list;   /* for table with all the dests */
 
-	__be32			addr;		/* IP address of the server */
+	u16			af;		/* address family */
+	union nf_inet_addr	addr;		/* IP address of the server */
 	__be16			port;		/* port number of the server */
 	volatile unsigned	flags;		/* dest status flags */
 	atomic_t		conn_flags;	/* flags to copy to conn */
@@ -579,7 +489,7 @@ struct ip_vs_dest {
 	/* for virtual service */
 	struct ip_vs_service	*svc;		/* service it belongs to */
 	__u16			protocol;	/* which protocol (TCP/UDP) */
-	__be32			vaddr;		/* virtual IP address */
+	union nf_inet_addr	vaddr;		/* virtual IP address */
 	__be16			vport;		/* virtual port number */
 	__u32			vfwmark;	/* firewall mark of service */
 };
@@ -593,6 +503,9 @@ struct ip_vs_scheduler {
 	char			*name;		/* scheduler name */
 	atomic_t		refcnt;		/* reference counter */
 	struct module		*module;	/* THIS_MODULE/NULL */
+#ifdef CONFIG_IP_VS_IPV6
+	int			supports_ipv6;	/* scheduler has IPv6 support */
+#endif
 
 	/* scheduler initializing service */
 	int (*init_service)(struct ip_vs_service *svc);
@@ -677,7 +590,7 @@ struct ip_vs_app
  */
 extern const char *ip_vs_proto_name(unsigned proto);
 extern void ip_vs_init_hash_table(struct list_head *table, int rows);
-#define IP_VS_INIT_HASH_TABLE(t) ip_vs_init_hash_table(t, sizeof(t)/sizeof(t[0]))
+#define IP_VS_INIT_HASH_TABLE(t) ip_vs_init_hash_table((t), ARRAY_SIZE((t)))
 
 #define IP_VS_APP_TYPE_FTP	1
 
@@ -692,16 +605,8 @@ extern void ip_vs_init_hash_table(struct list_head *table, int rows);
 #ifndef CONFIG_IP_VS_TAB_BITS
 #define CONFIG_IP_VS_TAB_BITS   12
 #endif
-/* make sure that IP_VS_CONN_TAB_BITS is located in [8, 20] */
-#if CONFIG_IP_VS_TAB_BITS < 8
-#define IP_VS_CONN_TAB_BITS	8
-#endif
-#if CONFIG_IP_VS_TAB_BITS > 20
-#define IP_VS_CONN_TAB_BITS	20
-#endif
-#if 8 <= CONFIG_IP_VS_TAB_BITS && CONFIG_IP_VS_TAB_BITS <= 20
+
 #define IP_VS_CONN_TAB_BITS	CONFIG_IP_VS_TAB_BITS
-#endif
 #define IP_VS_CONN_TAB_SIZE     (1 << IP_VS_CONN_TAB_BITS)
 #define IP_VS_CONN_TAB_MASK     (IP_VS_CONN_TAB_SIZE - 1)
 
@@ -713,11 +618,16 @@ enum {
 };
 
 extern struct ip_vs_conn *ip_vs_conn_in_get
-(int protocol, __be32 s_addr, __be16 s_port, __be32 d_addr, __be16 d_port);
+(int af, int protocol, const union nf_inet_addr *s_addr, __be16 s_port,
+ const union nf_inet_addr *d_addr, __be16 d_port);
+
 extern struct ip_vs_conn *ip_vs_ct_in_get
-(int protocol, __be32 s_addr, __be16 s_port, __be32 d_addr, __be16 d_port);
+(int af, int protocol, const union nf_inet_addr *s_addr, __be16 s_port,
+ const union nf_inet_addr *d_addr, __be16 d_port);
+
 extern struct ip_vs_conn *ip_vs_conn_out_get
-(int protocol, __be32 s_addr, __be16 s_port, __be32 d_addr, __be16 d_port);
+(int af, int protocol, const union nf_inet_addr *s_addr, __be16 s_port,
+ const union nf_inet_addr *d_addr, __be16 d_port);
 
 /* put back the conn without restarting its timer */
 static inline void __ip_vs_conn_put(struct ip_vs_conn *cp)
@@ -728,8 +638,9 @@ extern void ip_vs_conn_put(struct ip_vs_conn *cp);
 extern void ip_vs_conn_fill_cport(struct ip_vs_conn *cp, __be16 cport);
 
 extern struct ip_vs_conn *
-ip_vs_conn_new(int proto, __be32 caddr, __be16 cport, __be32 vaddr, __be16 vport,
-	       __be32 daddr, __be16 dport, unsigned flags,
+ip_vs_conn_new(int af, int proto, const union nf_inet_addr *caddr, __be16 cport,
+	       const union nf_inet_addr *vaddr, __be16 vport,
+	       const union nf_inet_addr *daddr, __be16 dport, unsigned flags,
 	       struct ip_vs_dest *dest);
 extern void ip_vs_conn_expire_now(struct ip_vs_conn *cp);
 
@@ -745,24 +656,32 @@ static inline void ip_vs_control_del(struct ip_vs_conn *cp)
 {
 	struct ip_vs_conn *ctl_cp = cp->control;
 	if (!ctl_cp) {
-		IP_VS_ERR("request control DEL for uncontrolled: "
-			  "%d.%d.%d.%d:%d to %d.%d.%d.%d:%d\n",
-			  NIPQUAD(cp->caddr),ntohs(cp->cport),
-			  NIPQUAD(cp->vaddr),ntohs(cp->vport));
+		IP_VS_ERR_BUF("request control DEL for uncontrolled: "
+			      "%s:%d to %s:%d\n",
+			      IP_VS_DBG_ADDR(cp->af, &cp->caddr),
+			      ntohs(cp->cport),
+			      IP_VS_DBG_ADDR(cp->af, &cp->vaddr),
+			      ntohs(cp->vport));
+
 		return;
 	}
 
-	IP_VS_DBG(7, "DELeting control for: "
-		  "cp.dst=%d.%d.%d.%d:%d ctl_cp.dst=%d.%d.%d.%d:%d\n",
-		  NIPQUAD(cp->caddr),ntohs(cp->cport),
-		  NIPQUAD(ctl_cp->caddr),ntohs(ctl_cp->cport));
+	IP_VS_DBG_BUF(7, "DELeting control for: "
+		      "cp.dst=%s:%d ctl_cp.dst=%s:%d\n",
+		      IP_VS_DBG_ADDR(cp->af, &cp->caddr),
+		      ntohs(cp->cport),
+		      IP_VS_DBG_ADDR(cp->af, &ctl_cp->caddr),
+		      ntohs(ctl_cp->cport));
 
 	cp->control = NULL;
 	if (atomic_read(&ctl_cp->n_control) == 0) {
-		IP_VS_ERR("BUG control DEL with n=0 : "
-			  "%d.%d.%d.%d:%d to %d.%d.%d.%d:%d\n",
-			  NIPQUAD(cp->caddr),ntohs(cp->cport),
-			  NIPQUAD(cp->vaddr),ntohs(cp->vport));
+		IP_VS_ERR_BUF("BUG control DEL with n=0 : "
+			      "%s:%d to %s:%d\n",
+			      IP_VS_DBG_ADDR(cp->af, &cp->caddr),
+			      ntohs(cp->cport),
+			      IP_VS_DBG_ADDR(cp->af, &cp->vaddr),
+			      ntohs(cp->vport));
+
 		return;
 	}
 	atomic_dec(&ctl_cp->n_control);
@@ -772,17 +691,22 @@ static inline void
 ip_vs_control_add(struct ip_vs_conn *cp, struct ip_vs_conn *ctl_cp)
 {
 	if (cp->control) {
-		IP_VS_ERR("request control ADD for already controlled: "
-			  "%d.%d.%d.%d:%d to %d.%d.%d.%d:%d\n",
-			  NIPQUAD(cp->caddr),ntohs(cp->cport),
-			  NIPQUAD(cp->vaddr),ntohs(cp->vport));
+		IP_VS_ERR_BUF("request control ADD for already controlled: "
+			      "%s:%d to %s:%d\n",
+			      IP_VS_DBG_ADDR(cp->af, &cp->caddr),
+			      ntohs(cp->cport),
+			      IP_VS_DBG_ADDR(cp->af, &cp->vaddr),
+			      ntohs(cp->vport));
+
 		ip_vs_control_del(cp);
 	}
 
-	IP_VS_DBG(7, "ADDing control for: "
-		  "cp.dst=%d.%d.%d.%d:%d ctl_cp.dst=%d.%d.%d.%d:%d\n",
-		  NIPQUAD(cp->caddr),ntohs(cp->cport),
-		  NIPQUAD(ctl_cp->caddr),ntohs(ctl_cp->cport));
+	IP_VS_DBG_BUF(7, "ADDing control for: "
+		      "cp.dst=%s:%d ctl_cp.dst=%s:%d\n",
+		      IP_VS_DBG_ADDR(cp->af, &cp->caddr),
+		      ntohs(cp->cport),
+		      IP_VS_DBG_ADDR(cp->af, &ctl_cp->caddr),
+		      ntohs(ctl_cp->cport));
 
 	cp->control = ctl_cp;
 	atomic_inc(&ctl_cp->n_control);
@@ -857,10 +781,11 @@ extern int sysctl_ip_vs_expire_quiescent_template;
 extern int sysctl_ip_vs_sync_threshold[2];
 extern int sysctl_ip_vs_nat_icmp_send;
 extern struct ip_vs_stats ip_vs_stats;
-extern struct ctl_path net_vs_ctl_path[];
+extern const struct ctl_path net_vs_ctl_path[];
 
 extern struct ip_vs_service *
-ip_vs_service_get(__u32 fwmark, __u16 protocol, __be32 vaddr, __be16 vport);
+ip_vs_service_get(int af, __u32 fwmark, __u16 protocol,
+		  const union nf_inet_addr *vaddr, __be16 vport);
 
 static inline void ip_vs_service_put(struct ip_vs_service *svc)
 {
@@ -868,14 +793,16 @@ static inline void ip_vs_service_put(struct ip_vs_service *svc)
 }
 
 extern struct ip_vs_dest *
-ip_vs_lookup_real_service(__u16 protocol, __be32 daddr, __be16 dport);
+ip_vs_lookup_real_service(int af, __u16 protocol,
+			  const union nf_inet_addr *daddr, __be16 dport);
+
 extern int ip_vs_use_count_inc(void);
 extern void ip_vs_use_count_dec(void);
 extern int ip_vs_control_init(void);
 extern void ip_vs_control_cleanup(void);
 extern struct ip_vs_dest *
-ip_vs_find_dest(__be32 daddr, __be16 dport,
-		 __be32 vaddr, __be16 vport, __u16 protocol);
+ip_vs_find_dest(int af, const union nf_inet_addr *daddr, __be16 dport,
+		const union nf_inet_addr *vaddr, __be16 vport, __u16 protocol);
 extern struct ip_vs_dest *ip_vs_try_bind_dest(struct ip_vs_conn *cp);
 
 
@@ -896,7 +823,9 @@ extern void ip_vs_sync_conn(struct ip_vs_conn *cp);
 /*
  *      IPVS rate estimator prototypes (from ip_vs_est.c)
  */
-extern int ip_vs_new_estimator(struct ip_vs_stats *stats);
+extern int ip_vs_estimator_init(void);
+extern void ip_vs_estimator_cleanup(void);
+extern void ip_vs_new_estimator(struct ip_vs_stats *stats);
 extern void ip_vs_kill_estimator(struct ip_vs_stats *stats);
 extern void ip_vs_zero_estimator(struct ip_vs_stats *stats);
 
@@ -917,6 +846,19 @@ extern int ip_vs_icmp_xmit
 (struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp, int offset);
 extern void ip_vs_dst_reset(struct ip_vs_dest *dest);
 
+#ifdef CONFIG_IP_VS_IPV6
+extern int ip_vs_bypass_xmit_v6
+(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
+extern int ip_vs_nat_xmit_v6
+(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
+extern int ip_vs_tunnel_xmit_v6
+(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
+extern int ip_vs_dr_xmit_v6
+(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
+extern int ip_vs_icmp_xmit_v6
+(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp,
+ int offset);
+#endif
 
 /*
  *	This is a simple mechanism to ignore packets when
@@ -961,7 +903,12 @@ static inline char ip_vs_fwd_tag(struct ip_vs_conn *cp)
 }
 
 extern void ip_vs_nat_icmp(struct sk_buff *skb, struct ip_vs_protocol *pp,
-		struct ip_vs_conn *cp, int dir);
+			   struct ip_vs_conn *cp, int dir);
+
+#ifdef CONFIG_IP_VS_IPV6
+extern void ip_vs_nat_icmp_v6(struct sk_buff *skb, struct ip_vs_protocol *pp,
+			      struct ip_vs_conn *cp, int dir);
+#endif
 
 extern __sum16 ip_vs_checksum_complete(struct sk_buff *skb, int offset);
 
@@ -972,6 +919,17 @@ static inline __wsum ip_vs_check_diff4(__be32 old, __be32 new, __wsum oldsum)
 	return csum_partial((char *) diff, sizeof(diff), oldsum);
 }
 
+#ifdef CONFIG_IP_VS_IPV6
+static inline __wsum ip_vs_check_diff16(const __be32 *old, const __be32 *new,
+					__wsum oldsum)
+{
+	__be32 diff[8] = { ~old[3], ~old[2], ~old[1], ~old[0],
+			    new[3],  new[2],  new[1],  new[0] };
+
+	return csum_partial((char *) diff, sizeof(diff), oldsum);
+}
+#endif
+
 static inline __wsum ip_vs_check_diff2(__be16 old, __be16 new, __wsum oldsum)
 {
 	__be16 diff[2] = { ~old, new };
@@ -981,4 +939,4 @@ static inline __wsum ip_vs_check_diff2(__be16 old, __be16 new, __wsum oldsum)
 
 #endif /* __KERNEL__ */
 
-#endif	/* _IP_VS_H */
+#endif	/* _NET_IP_VS_H */

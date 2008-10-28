@@ -10,6 +10,7 @@
 #include <linux/spinlock.h>
 #include <linux/pci.h>
 #include <linux/msi.h>
+#include <linux/of_device.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/iommu.h>
@@ -56,14 +57,10 @@ struct sparc64_msiq_cookie {
 };
 #endif
 
-struct pci_controller_info;
-
 struct pci_pbm_info {
 	struct pci_pbm_info		*next;
+	struct pci_pbm_info		*sibling;
 	int				index;
-
-	/* PCI controller we sit under. */
-	struct pci_controller_info	*parent;
 
 	/* Physical address base of controller registers. */
 	unsigned long			controller_regs;
@@ -94,7 +91,7 @@ struct pci_pbm_info {
 	char				*name;
 
 	/* OBP specific information. */
-	struct device_node		*prom_node;
+	struct of_device		*op;
 	u64				ino_bitmap;
 
 	/* PBM I/O and Memory space resources. */
@@ -106,6 +103,10 @@ struct pci_pbm_info {
 
 	/* This will be 12 on PCI-E controllers, 8 elsewhere.  */
 	unsigned long			config_space_reg_bits;
+
+	unsigned long			pci_afsr;
+	unsigned long			pci_afar;
+	unsigned long			pci_csr;
 
 	/* State of 66MHz capabilities on this PBM. */
 	int				is_66mhz_capable;
@@ -146,16 +147,9 @@ struct pci_pbm_info {
 	unsigned int			pci_first_busno;
 	unsigned int			pci_last_busno;
 	struct pci_bus			*pci_bus;
-	void (*scan_bus)(struct pci_pbm_info *);
 	struct pci_ops			*pci_ops;
 
 	int				numa_node;
-};
-
-struct pci_controller_info {
-	/* The PCI bus modules controlled by us. */
-	struct pci_pbm_info		pbm_A;
-	struct pci_pbm_info		pbm_B;
 };
 
 extern struct pci_pbm_info *pci_pbm_root;
@@ -164,7 +158,8 @@ extern int pci_num_pbms;
 
 /* PCI bus scanning and fixup support. */
 extern void pci_get_pbm_props(struct pci_pbm_info *pbm);
-extern struct pci_bus *pci_scan_one_pbm(struct pci_pbm_info *pbm);
+extern struct pci_bus *pci_scan_one_pbm(struct pci_pbm_info *pbm,
+					struct device *parent);
 extern void pci_determine_mem_io_space(struct pci_pbm_info *pbm);
 
 /* Error reporting support. */
@@ -182,5 +177,9 @@ extern void pci_config_write32(u32 *addr, u32 val);
 
 extern struct pci_ops sun4u_pci_ops;
 extern struct pci_ops sun4v_pci_ops;
+
+extern volatile int pci_poke_in_progress;
+extern volatile int pci_poke_cpu;
+extern volatile int pci_poke_faulted;
 
 #endif /* !(PCI_IMPL_H) */

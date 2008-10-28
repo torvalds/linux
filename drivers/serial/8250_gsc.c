@@ -111,7 +111,7 @@ static struct parisc_driver serial_driver = {
 	.probe		= serial_init_chip,
 };
 
-int __init probe_serial_gsc(void)
+static int __init probe_serial_gsc(void)
 {
 	register_parisc_driver(&lasi_driver);
 	register_parisc_driver(&serial_driver);
@@ -119,3 +119,5 @@ int __init probe_serial_gsc(void)
 }
 
 module_init(probe_serial_gsc);
+
+MODULE_LICENSE("GPL");

@@ -792,6 +792,9 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 	if (args.token == RTAS_UNKNOWN_SERVICE)
 		return -EINVAL;
 
+	args.rets = &args.args[nargs];
+	memset(args.rets, 0, args.nret * sizeof(rtas_arg_t));
+
 	/* Need to handle ibm,suspend_me call specially */
 	if (args.token == ibm_suspend_me_token) {
 		rc = rtas_ibm_suspend_me(&args);
@@ -807,8 +810,6 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 	rtas.args = args;
 	enter_rtas(__pa(&rtas.args));
 	args = rtas.args;
-
-	args.rets = &args.args[nargs];
 
 	/* A -1 return code indicates that the last command couldn't
 	   be completed due to a hardware error. */

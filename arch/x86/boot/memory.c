@@ -13,7 +13,6 @@
  */
 
 #include "boot.h"
-#include <linux/kernel.h>
 
 #define SMAP	0x534d4150	/* ASCII "SMAP" */
 

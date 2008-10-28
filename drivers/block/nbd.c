@@ -391,7 +391,7 @@ static ssize_t pid_show(struct device *dev,
 }
 
 static struct device_attribute pid_attr = {
-	.attr = { .name = "pid", .mode = S_IRUGO, .owner = THIS_MODULE },
+	.attr = { .name = "pid", .mode = S_IRUGO},
 	.show = pid_show,
 };
 
@@ -403,7 +403,7 @@ static int nbd_do_it(struct nbd_device *lo)
 	BUG_ON(lo->magic != LO_MAGIC);
 
 	lo->pid = current->pid;
-	ret = sysfs_create_file(&lo->disk->dev.kobj, &pid_attr.attr);
+	ret = sysfs_create_file(&disk_to_dev(lo->disk)->kobj, &pid_attr.attr);
 	if (ret) {
 		printk(KERN_ERR "nbd: sysfs_create_file failed!");
 		return ret;
@@ -412,7 +412,7 @@ static int nbd_do_it(struct nbd_device *lo)
 	while ((req = nbd_read_stat(lo)) != NULL)
 		nbd_end_request(req);
 
-	sysfs_remove_file(&lo->disk->dev.kobj, &pid_attr.attr);
+	sysfs_remove_file(&disk_to_dev(lo->disk)->kobj, &pid_attr.attr);
 	return 0;
 }
 
@@ -557,10 +557,11 @@ static void do_nbd_request(struct request_queue * q)
 	}
 }
 
-static int nbd_ioctl(struct inode *inode, struct file *file,
+static int nbd_ioctl(struct block_device *bdev, fmode_t mode,
 		     unsigned int cmd, unsigned long arg)
 {
-	struct nbd_device *lo = inode->i_bdev->bd_disk->private_data;
+	struct nbd_device *lo = bdev->bd_disk->private_data;
+	struct file *file;
 	int error;
 	struct request sreq ;
 	struct task_struct *thread;
@@ -612,8 +613,7 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 		error = -EINVAL;
 		file = fget(arg);
 		if (file) {
-			struct block_device *bdev = inode->i_bdev;
-			inode = file->f_path.dentry->d_inode;
+			struct inode *inode = file->f_path.dentry->d_inode;
 			if (S_ISSOCK(inode->i_mode)) {
 				lo->file = file;
 				lo->sock = SOCKET_I(inode);
@@ -628,14 +628,14 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 	case NBD_SET_BLKSIZE:
 		lo->blksize = arg;
 		lo->bytesize &= ~(lo->blksize-1);
-		inode->i_bdev->bd_inode->i_size = lo->bytesize;
-		set_blocksize(inode->i_bdev, lo->blksize);
+		bdev->bd_inode->i_size = lo->bytesize;
+		set_blocksize(bdev, lo->blksize);
 		set_capacity(lo->disk, lo->bytesize >> 9);
 		return 0;
 	case NBD_SET_SIZE:
 		lo->bytesize = arg & ~(lo->blksize-1);
-		inode->i_bdev->bd_inode->i_size = lo->bytesize;
-		set_blocksize(inode->i_bdev, lo->blksize);
+		bdev->bd_inode->i_size = lo->bytesize;
+		set_blocksize(bdev, lo->blksize);
 		set_capacity(lo->disk, lo->bytesize >> 9);
 		return 0;
 	case NBD_SET_TIMEOUT:
@@ -643,8 +643,8 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 		return 0;
 	case NBD_SET_SIZE_BLOCKS:
 		lo->bytesize = ((u64) arg) * lo->blksize;
-		inode->i_bdev->bd_inode->i_size = lo->bytesize;
-		set_blocksize(inode->i_bdev, lo->blksize);
+		bdev->bd_inode->i_size = lo->bytesize;
+		set_blocksize(bdev, lo->blksize);
 		set_capacity(lo->disk, lo->bytesize >> 9);
 		return 0;
 	case NBD_DO_IT:
@@ -666,10 +666,10 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 		if (file)
 			fput(file);
 		lo->bytesize = 0;
-		inode->i_bdev->bd_inode->i_size = 0;
+		bdev->bd_inode->i_size = 0;
 		set_capacity(lo->disk, 0);
 		if (max_part > 0)
-			ioctl_by_bdev(inode->i_bdev, BLKRRPART, 0);
+			ioctl_by_bdev(bdev, BLKRRPART, 0);
 		return lo->harderror;
 	case NBD_CLEAR_QUE:
 		/*
@@ -680,7 +680,7 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 		return 0;
 	case NBD_PRINT_DEBUG:
 		printk(KERN_INFO "%s: next = %p, prev = %p, head = %p\n",
-			inode->i_bdev->bd_disk->disk_name,
+			bdev->bd_disk->disk_name,
 			lo->queue_head.next, lo->queue_head.prev,
 			&lo->queue_head);
 		return 0;
@@ -691,7 +691,7 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 static struct block_device_operations nbd_fops =
 {
 	.owner =	THIS_MODULE,
-	.ioctl =	nbd_ioctl,
+	.locked_ioctl =	nbd_ioctl,
 };
 
 /*
@@ -707,14 +707,14 @@ static int __init nbd_init(void)
 
 	BUILD_BUG_ON(sizeof(struct nbd_request) != 28);
 
-	nbd_dev = kcalloc(nbds_max, sizeof(*nbd_dev), GFP_KERNEL);
-	if (!nbd_dev)
-		return -ENOMEM;
-
 	if (max_part < 0) {
 		printk(KERN_CRIT "nbd: max_part must be >= 0\n");
 		return -EINVAL;
 	}
+
+	nbd_dev = kcalloc(nbds_max, sizeof(*nbd_dev), GFP_KERNEL);
+	if (!nbd_dev)
+		return -ENOMEM;
 
 	part_shift = 0;
 	if (max_part > 0)
@@ -779,6 +779,7 @@ out:
 		blk_cleanup_queue(nbd_dev[i].disk->queue);
 		put_disk(nbd_dev[i].disk);
 	}
+	kfree(nbd_dev);
 	return err;
 }
 
@@ -795,6 +796,7 @@ static void __exit nbd_cleanup(void)
 		}
 	}
 	unregister_blkdev(NBD_MAJOR, "nbd");
+	kfree(nbd_dev);
 	printk(KERN_INFO "nbd: unregistered device at major %d\n", NBD_MAJOR);
 }
 

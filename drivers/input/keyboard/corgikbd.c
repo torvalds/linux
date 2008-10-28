@@ -20,10 +20,10 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-#include <asm/arch/corgi.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
+#include <mach/corgi.h>
+#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-gpio.h>
 #include <asm/hardware/scoop.h>
 
 #define KB_ROWS				8
@@ -80,9 +80,9 @@ struct corgikbd {
 #define KB_ACTIVATE_DELAY	10
 
 /* Helper functions for reading the keyboard matrix
- * Note: We should really be using pxa_gpio_mode to alter GPDR but it
- *       requires a function call per GPIO bit which is excessive
- *       when we need to access 12 bits at once multiple times.
+ * Note: We should really be using the generic gpio functions to alter
+ *       GPDR but it requires a function call per GPIO bit which is
+ *       excessive when we need to access 12 bits at once, multiple times.
  * These functions must be called within local_irq_save()/local_irq_restore()
  * or similar.
  */

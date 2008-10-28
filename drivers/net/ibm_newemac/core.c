@@ -130,6 +130,7 @@ static inline void emac_report_timeout_error(struct emac_instance *dev,
 					     const char *error)
 {
 	if (emac_has_feature(dev, EMAC_FTR_440GX_PHY_CLK_FIX |
+				  EMAC_FTR_460EX_PHY_CLK_FIX |
 				  EMAC_FTR_440EP_PHY_CLK_FIX))
 		DBG(dev, "%s" NL, error);
 	else if (net_ratelimit())
@@ -201,13 +202,15 @@ static inline int emac_phy_supports_gige(int phy_mode)
 {
 	return  phy_mode == PHY_MODE_GMII ||
 		phy_mode == PHY_MODE_RGMII ||
+		phy_mode == PHY_MODE_SGMII ||
 		phy_mode == PHY_MODE_TBI ||
 		phy_mode == PHY_MODE_RTBI;
 }
 
 static inline int emac_phy_gpcs(int phy_mode)
 {
-	return  phy_mode == PHY_MODE_TBI ||
+	return  phy_mode == PHY_MODE_SGMII ||
+		phy_mode == PHY_MODE_TBI ||
 		phy_mode == PHY_MODE_RTBI;
 }
 
@@ -295,7 +298,9 @@ static void emac_rx_disable(struct emac_instance *dev)
 static inline void emac_netif_stop(struct emac_instance *dev)
 {
 	netif_tx_lock_bh(dev->ndev);
+	netif_addr_lock(dev->ndev);
 	dev->no_mcast = 1;
+	netif_addr_unlock(dev->ndev);
 	netif_tx_unlock_bh(dev->ndev);
 	dev->ndev->trans_start = jiffies;	/* prevent tx timeout */
 	mal_poll_disable(dev->mal, &dev->commac);
@@ -305,9 +310,11 @@ static inline void emac_netif_stop(struct emac_instance *dev)
 static inline void emac_netif_start(struct emac_instance *dev)
 {
 	netif_tx_lock_bh(dev->ndev);
+	netif_addr_lock(dev->ndev);
 	dev->no_mcast = 0;
 	if (dev->mcast_pending && netif_running(dev->ndev))
 		__emac_set_multicast_list(dev);
+	netif_addr_unlock(dev->ndev);
 	netif_tx_unlock_bh(dev->ndev);
 
 	netif_wake_queue(dev->ndev);
@@ -347,9 +354,23 @@ static int emac_reset(struct emac_instance *dev)
 		emac_tx_disable(dev);
 	}
 
+#ifdef CONFIG_PPC_DCR_NATIVE
+	/* Enable internal clock source */
+	if (emac_has_feature(dev, EMAC_FTR_460EX_PHY_CLK_FIX))
+		dcri_clrset(SDR0, SDR0_ETH_CFG,
+			    0, SDR0_ETH_CFG_ECS << dev->cell_index);
+#endif
+
 	out_be32(&p->mr0, EMAC_MR0_SRST);
 	while ((in_be32(&p->mr0) & EMAC_MR0_SRST) && n)
 		--n;
+
+#ifdef CONFIG_PPC_DCR_NATIVE
+	 /* Enable external clock source */
+	if (emac_has_feature(dev, EMAC_FTR_460EX_PHY_CLK_FIX))
+		dcri_clrset(SDR0, SDR0_ETH_CFG,
+			    SDR0_ETH_CFG_ECS << dev->cell_index, 0);
+#endif
 
 	if (n) {
 		dev->reset_failed = 0;
@@ -543,8 +564,9 @@ static int emac_configure(struct emac_instance *dev)
 	switch (dev->phy.speed) {
 	case SPEED_1000:
 		if (emac_phy_gpcs(dev->phy.mode)) {
-			mr1 |= EMAC_MR1_MF_1000GPCS |
-				EMAC_MR1_MF_IPPA(dev->phy.address);
+			mr1 |= EMAC_MR1_MF_1000GPCS | EMAC_MR1_MF_IPPA(
+				(dev->phy.gpcs_address != 0xffffffff) ?
+				 dev->phy.gpcs_address : dev->phy.address);
 
 			/* Put some arbitrary OUI, Manuf & Rev IDs so we can
 			 * identify this GPCS PHY later.
@@ -656,11 +678,12 @@ static int emac_configure(struct emac_instance *dev)
 	out_be32(&p->iser,  r);
 
 	/* We need to take GPCS PHY out of isolate mode after EMAC reset */
-	if (emac_phy_gpcs(dev->phy.mode))
-		emac_mii_reset_phy(&dev->phy);
-
-	/* Required for Pause packet support in EMAC */
-	dev_mc_add(ndev, default_mcast_addr, sizeof(default_mcast_addr), 1);
+	if (emac_phy_gpcs(dev->phy.mode)) {
+		if (dev->phy.gpcs_address != 0xffffffff)
+			emac_mii_reset_gpcs(&dev->phy);
+		else
+			emac_mii_reset_phy(&dev->phy);
+	}
 
 	return 0;
 }
@@ -865,7 +888,9 @@ static int emac_mdio_read(struct net_device *ndev, int id, int reg)
 	struct emac_instance *dev = netdev_priv(ndev);
 	int res;
 
-	res = __emac_mdio_read(dev->mdio_instance ? dev->mdio_instance : dev,
+	res = __emac_mdio_read((dev->mdio_instance &&
+				dev->phy.gpcs_address != id) ?
+				dev->mdio_instance : dev,
 			       (u8) id, (u8) reg);
 	return res;
 }
@@ -874,7 +899,9 @@ static void emac_mdio_write(struct net_device *ndev, int id, int reg, int val)
 {
 	struct emac_instance *dev = netdev_priv(ndev);
 
-	__emac_mdio_write(dev->mdio_instance ? dev->mdio_instance : dev,
+	__emac_mdio_write((dev->mdio_instance &&
+			   dev->phy.gpcs_address != id) ?
+			   dev->mdio_instance : dev,
 			  (u8) id, (u8) reg, (u16) val);
 }
 
@@ -1145,6 +1172,9 @@ static int emac_open(struct net_device *ndev)
 		emac_print_link_status(dev);
 	} else
 		netif_carrier_on(dev->ndev);
+
+	/* Required for Pause packet support in EMAC */
+	dev_mc_add(ndev, default_mcast_addr, sizeof(default_mcast_addr), 1);
 
 	emac_configure(dev);
 	mal_poll_add(dev->mal, &dev->commac);
@@ -2363,7 +2393,11 @@ static int __devinit emac_init_phy(struct emac_instance *dev)
 		 * XXX I probably should move these settings to the dev tree
 		 */
 		dev->phy.address = -1;
-		dev->phy.features = SUPPORTED_100baseT_Full | SUPPORTED_MII;
+		dev->phy.features = SUPPORTED_MII;
+		if (emac_phy_supports_gige(dev->phy_mode))
+			dev->phy.features |= SUPPORTED_1000baseT_Full;
+		else
+			dev->phy.features |= SUPPORTED_100baseT_Full;
 		dev->phy.pause = 1;
 
 		return 0;
@@ -2402,7 +2436,9 @@ static int __devinit emac_init_phy(struct emac_instance *dev)
 		 * Note that the busy_phy_map is currently global
 		 * while it should probably be per-ASIC...
 		 */
-		dev->phy.address = dev->cell_index;
+		dev->phy.gpcs_address = dev->gpcs_address;
+		if (dev->phy.gpcs_address == 0xffffffff)
+			dev->phy.address = dev->cell_index;
 	}
 
 	emac_configure(dev);
@@ -2512,6 +2548,8 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 		dev->phy_address = 0xffffffff;
 	if (emac_read_uint_prop(np, "phy-map", &dev->phy_map, 0))
 		dev->phy_map = 0xffffffff;
+	if (emac_read_uint_prop(np, "gpcs-address", &dev->gpcs_address, 0))
+		dev->gpcs_address = 0xffffffff;
 	if (emac_read_uint_prop(np->parent, "clock-frequency", &dev->opb_bus_freq, 1))
 		return -ENXIO;
 	if (emac_read_uint_prop(np, "tah-device", &dev->tah_ph, 0))
@@ -2555,6 +2593,9 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 	/* Check EMAC version */
 	if (of_device_is_compatible(np, "ibm,emac4sync")) {
 		dev->features |= (EMAC_FTR_EMAC4 | EMAC_FTR_EMAC4SYNC);
+		if (of_device_is_compatible(np, "ibm,emac-460ex") ||
+		    of_device_is_compatible(np, "ibm,emac-460gt"))
+			dev->features |= EMAC_FTR_460EX_PHY_CLK_FIX;
 	} else if (of_device_is_compatible(np, "ibm,emac4")) {
 		dev->features |= EMAC_FTR_EMAC4;
 		if (of_device_is_compatible(np, "ibm,emac-440gx"))
@@ -2563,6 +2604,16 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 		if (of_device_is_compatible(np, "ibm,emac-440ep") ||
 		    of_device_is_compatible(np, "ibm,emac-440gr"))
 			dev->features |= EMAC_FTR_440EP_PHY_CLK_FIX;
+		if (of_device_is_compatible(np, "ibm,emac-405ez")) {
+#ifdef CONFIG_IBM_NEW_EMAC_NO_FLOW_CONTROL
+			dev->features |= EMAC_FTR_NO_FLOW_CONTROL_40x;
+#else
+			printk(KERN_ERR "%s: Flow control not disabled!\n",
+					np->full_name);
+			return -ENXIO;
+#endif
+		}
+
 	}
 
 	/* Fixup some feature bits based on the device tree */
@@ -2819,6 +2870,9 @@ static int __devinit emac_probe(struct of_device *ofdev,
 	       ndev->name, dev->cell_index, np->full_name,
 	       ndev->dev_addr[0], ndev->dev_addr[1], ndev->dev_addr[2],
 	       ndev->dev_addr[3], ndev->dev_addr[4], ndev->dev_addr[5]);
+
+	if (dev->phy_mode == PHY_MODE_SGMII)
+		printk(KERN_NOTICE "%s: in SGMII mode\n", ndev->name);
 
 	if (dev->phy.address >= 0)
 		printk("%s: found %s PHY (0x%02x)\n", ndev->name,

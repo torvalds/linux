@@ -146,8 +146,7 @@ static int acpi_bind_one(struct device *dev, acpi_handle handle)
 	acpi_status status;
 
 	if (dev->archdata.acpi_handle) {
-		printk(KERN_WARNING PREFIX
-		       "Drivers changed 'acpi_handle' for %s\n", dev->bus_id);
+		dev_warn(dev, "Drivers changed 'acpi_handle'\n");
 		return -EINVAL;
 	}
 	get_device(dev);
@@ -166,8 +165,11 @@ static int acpi_bind_one(struct device *dev, acpi_handle handle)
 				"firmware_node");
 		ret = sysfs_create_link(&acpi_dev->dev.kobj, &dev->kobj,
 				"physical_node");
-		if (acpi_dev->wakeup.flags.valid)
+		if (acpi_dev->wakeup.flags.valid) {
 			device_set_wakeup_capable(dev, true);
+			device_set_wakeup_enable(dev,
+						acpi_dev->wakeup.state.enabled);
+		}
 	}
 
 	return 0;
@@ -195,8 +197,7 @@ static int acpi_unbind_one(struct device *dev)
 		/* acpi_bind_one increase refcnt by one */
 		put_device(dev);
 	} else {
-		printk(KERN_ERR PREFIX
-		       "Oops, 'acpi_handle' corrupt for %s\n", dev->bus_id);
+		dev_err(dev, "Oops, 'acpi_handle' corrupt\n");
 	}
 	return 0;
 }
@@ -259,119 +260,3 @@ static int __init init_acpi_device_notify(void)
 }
 
 arch_initcall(init_acpi_device_notify);
-
-
-#if defined(CONFIG_RTC_DRV_CMOS) || defined(CONFIG_RTC_DRV_CMOS_MODULE)
-
-#ifdef CONFIG_PM
-static u32 rtc_handler(void *context)
-{
-	acpi_clear_event(ACPI_EVENT_RTC);
-	acpi_disable_event(ACPI_EVENT_RTC, 0);
-	return ACPI_INTERRUPT_HANDLED;
-}
-
-static inline void rtc_wake_setup(void)
-{
-	acpi_install_fixed_event_handler(ACPI_EVENT_RTC, rtc_handler, NULL);
-	/*
-	 * After the RTC handler is installed, the Fixed_RTC event should
-	 * be disabled. Only when the RTC alarm is set will it be enabled.
-	 */
-	acpi_clear_event(ACPI_EVENT_RTC);
-	acpi_disable_event(ACPI_EVENT_RTC, 0);
-}
-
-static void rtc_wake_on(struct device *dev)
-{
-	acpi_clear_event(ACPI_EVENT_RTC);
-	acpi_enable_event(ACPI_EVENT_RTC, 0);
-}
-
-static void rtc_wake_off(struct device *dev)
-{
-	acpi_disable_event(ACPI_EVENT_RTC, 0);
-}
-#else
-#define rtc_wake_setup()	do{}while(0)
-#define rtc_wake_on		NULL
-#define rtc_wake_off		NULL
-#endif
-
-/* Every ACPI platform has a mc146818 compatible "cmos rtc".  Here we find
- * its device node and pass extra config data.  This helps its driver use
- * capabilities that the now-obsolete mc146818 didn't have, and informs it
- * that this board's RTC is wakeup-capable (per ACPI spec).
- */
-#include <linux/mc146818rtc.h>
-
-static struct cmos_rtc_board_info rtc_info;
-
-
-/* PNP devices are registered in a subsys_initcall();
- * ACPI specifies the PNP IDs to use.
- */
-#include <linux/pnp.h>
-
-static int __init pnp_match(struct device *dev, void *data)
-{
-	static const char *ids[] = { "PNP0b00", "PNP0b01", "PNP0b02", };
-	struct pnp_dev *pnp = to_pnp_dev(dev);
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(ids); i++) {
-		if (compare_pnp_id(pnp->id, ids[i]) != 0)
-			return 1;
-	}
-	return 0;
-}
-
-static struct device *__init get_rtc_dev(void)
-{
-	return bus_find_device(&pnp_bus_type, NULL, NULL, pnp_match);
-}
-
-static int __init acpi_rtc_init(void)
-{
-	struct device *dev = get_rtc_dev();
-
-	if (acpi_disabled)
-		return 0;
-
-	if (acpi_disabled)
-		return 0;
-
-	if (dev) {
-		rtc_wake_setup();
-		rtc_info.wake_on = rtc_wake_on;
-		rtc_info.wake_off = rtc_wake_off;
-
-		/* workaround bug in some ACPI tables */
-		if (acpi_gbl_FADT.month_alarm && !acpi_gbl_FADT.day_alarm) {
-			DBG("bogus FADT month_alarm\n");
-			acpi_gbl_FADT.month_alarm = 0;
-		}
-
-		rtc_info.rtc_day_alarm = acpi_gbl_FADT.day_alarm;
-		rtc_info.rtc_mon_alarm = acpi_gbl_FADT.month_alarm;
-		rtc_info.rtc_century = acpi_gbl_FADT.century;
-
-		/* NOTE:  S4_RTC_WAKE is NOT currently useful to Linux */
-		if (acpi_gbl_FADT.flags & ACPI_FADT_S4_RTC_WAKE)
-			printk(PREFIX "RTC can wake from S4\n");
-
-
-		dev->platform_data = &rtc_info;
-
-		/* RTC always wakes from S1/S2/S3, and often S4/STD */
-		device_init_wakeup(dev, 1);
-
-		put_device(dev);
-	} else
-		DBG("RTC unavailable?\n");
-	return 0;
-}
-/* do this between RTC subsys_initcall() and rtc_cmos driver_initcall() */
-fs_initcall(acpi_rtc_init);
-
-#endif

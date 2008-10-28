@@ -242,7 +242,7 @@ static void input_handle_event(struct input_dev *dev,
 		break;
 	}
 
-	if (type != EV_SYN)
+	if (disposition != INPUT_IGNORE_EVENT && type != EV_SYN)
 		dev->sync = 0;
 
 	if ((disposition & INPUT_PASS_TO_DEVICE) && dev->event)

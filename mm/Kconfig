@@ -101,7 +101,7 @@ config HAVE_MEMORY_PRESENT
 # with gcc 3.4 and later.
 #
 config SPARSEMEM_STATIC
-	def_bool n
+	bool
 
 #
 # Architecture platforms which require a two level mem_section in SPARSEMEM
@@ -113,7 +113,7 @@ config SPARSEMEM_EXTREME
 	depends on SPARSEMEM && !SPARSEMEM_STATIC
 
 config SPARSEMEM_VMEMMAP_ENABLE
-	def_bool n
+	bool
 
 config SPARSEMEM_VMEMMAP
 	bool "Sparse Memory virtual memmap"
@@ -174,7 +174,7 @@ config SPLIT_PTLOCK_CPUS
 config MIGRATION
 	bool "Page migration"
 	def_bool y
-	depends on NUMA
+	depends on NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE
 	help
 	  Allows the migration of the physical location of pages of processes
 	  while the virtual addresses are not changed. This is useful for
@@ -186,6 +186,9 @@ config RESOURCES_64BIT
 	default 64BIT
 	help
 	  This option allows memory and IO resources to be 64 bit.
+
+config PHYS_ADDR_T_64BIT
+	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
 
 config ZONE_DMA_FLAG
 	int
@@ -205,3 +208,17 @@ config NR_QUICK
 config VIRT_TO_BUS
 	def_bool y
 	depends on !ARCH_NO_VIRT_TO_BUS
+
+config UNEVICTABLE_LRU
+	bool "Add LRU list to track non-evictable pages"
+	default y
+	depends on MMU
+	help
+	  Keeps unevictable pages off of the active and inactive pageout
+	  lists, so kswapd will not waste CPU time or have its balancing
+	  algorithms thrown off by scanning these pages.  Selecting this
+	  will use one page flag and increase the code size a little,
+	  say Y unless you know what you are doing.
+
+config MMU_NOTIFIER
+	bool

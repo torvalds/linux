@@ -33,12 +33,6 @@
 #ifndef	__rio_errors_h__
 #define	__rio_errors_h__
 
-#ifdef SCCS_LABELS
-#ifndef lint
-static char *_errors_h_sccs_ = "@(#)errors.h	1.2";
-#endif
-#endif
-
 /*
 ** error codes
 */

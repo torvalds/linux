@@ -32,7 +32,7 @@ enum {
 	GPS			= (1<<30)
 };
 
-#define PAGE_TESTBIT	__pgprot(_PAGE_UNUSED1)
+#define PAGE_CPA_TEST	__pgprot(_PAGE_CPA_TEST)
 
 static int pte_testbit(pte_t pte)
 {
@@ -118,6 +118,7 @@ static int pageattr_test(void)
 	unsigned int level;
 	int i, k;
 	int err;
+	unsigned long test_addr;
 
 	if (print)
 		printk(KERN_INFO "CPA self-test:\n");
@@ -172,7 +173,8 @@ static int pageattr_test(void)
 			continue;
 		}
 
-		err = change_page_attr_set(addr[i], len[i], PAGE_TESTBIT);
+		test_addr = addr[i];
+		err = change_page_attr_set(&test_addr, len[i], PAGE_CPA_TEST, 0);
 		if (err < 0) {
 			printk(KERN_ERR "CPA %d failed %d\n", i, err);
 			failed++;
@@ -204,7 +206,8 @@ static int pageattr_test(void)
 			failed++;
 			continue;
 		}
-		err = change_page_attr_clear(addr[i], len[i], PAGE_TESTBIT);
+		test_addr = addr[i];
+		err = change_page_attr_clear(&test_addr, len[i], PAGE_CPA_TEST, 0);
 		if (err < 0) {
 			printk(KERN_ERR "CPA reverting failed: %d\n", err);
 			failed++;
@@ -221,8 +224,7 @@ static int pageattr_test(void)
 	failed += print_split(&sc);
 
 	if (failed) {
-		printk(KERN_ERR "NOT PASSED. Please report.\n");
-		WARN_ON(1);
+		WARN(1, KERN_ERR "NOT PASSED. Please report.\n");
 		return -EINVAL;
 	} else {
 		if (print)

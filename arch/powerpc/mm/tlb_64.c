@@ -34,7 +34,7 @@
 DEFINE_PER_CPU(struct ppc64_tlb_batch, ppc64_tlb_batch);
 
 /* This is declared as we are using the more or less generic
- * include/asm-powerpc/tlb.h file -- tgall
+ * arch/powerpc/include/asm/tlb.h file -- tgall
  */
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 static DEFINE_PER_CPU(struct pte_freelist_batch *, pte_freelist_cur);
@@ -147,7 +147,7 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 	 */
 	if (huge) {
 #ifdef CONFIG_HUGETLB_PAGE
-		psize = mmu_huge_psize;
+		psize = get_slice_psize(mm, addr);;
 #else
 		BUG();
 		psize = pte_pagesize_index(mm, addr, pte); /* shutup gcc */

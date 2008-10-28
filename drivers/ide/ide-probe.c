@@ -39,8 +39,6 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-static ide_hwif_t ide_hwifs[MAX_HWIFS]; /* master data repository */
-
 /**
  *	generic_id		-	add a generic drive id
  *	@drive:	drive to make an ID block for
@@ -52,59 +50,54 @@ static ide_hwif_t ide_hwifs[MAX_HWIFS]; /* master data repository */
  
 static void generic_id(ide_drive_t *drive)
 {
-	drive->id->cyls = drive->cyl;
-	drive->id->heads = drive->head;
-	drive->id->sectors = drive->sect;
-	drive->id->cur_cyls = drive->cyl;
-	drive->id->cur_heads = drive->head;
-	drive->id->cur_sectors = drive->sect;
+	u16 *id = drive->id;
+
+	id[ATA_ID_CUR_CYLS]	= id[ATA_ID_CYLS]	= drive->cyl;
+	id[ATA_ID_CUR_HEADS]	= id[ATA_ID_HEADS]	= drive->head;
+	id[ATA_ID_CUR_SECTORS]	= id[ATA_ID_SECTORS]	= drive->sect;
 }
 
 static void ide_disk_init_chs(ide_drive_t *drive)
 {
-	struct hd_driveid *id = drive->id;
+	u16 *id = drive->id;
 
 	/* Extract geometry if we did not already have one for the drive */
 	if (!drive->cyl || !drive->head || !drive->sect) {
-		drive->cyl  = drive->bios_cyl  = id->cyls;
-		drive->head = drive->bios_head = id->heads;
-		drive->sect = drive->bios_sect = id->sectors;
+		drive->cyl  = drive->bios_cyl  = id[ATA_ID_CYLS];
+		drive->head = drive->bios_head = id[ATA_ID_HEADS];
+		drive->sect = drive->bios_sect = id[ATA_ID_SECTORS];
 	}
 
 	/* Handle logical geometry translation by the drive */
-	if ((id->field_valid & 1) && id->cur_cyls &&
-	    id->cur_heads && (id->cur_heads <= 16) && id->cur_sectors) {
-		drive->cyl  = id->cur_cyls;
-		drive->head = id->cur_heads;
-		drive->sect = id->cur_sectors;
+	if (ata_id_current_chs_valid(id)) {
+		drive->cyl  = id[ATA_ID_CUR_CYLS];
+		drive->head = id[ATA_ID_CUR_HEADS];
+		drive->sect = id[ATA_ID_CUR_SECTORS];
 	}
 
 	/* Use physical geometry if what we have still makes no sense */
-	if (drive->head > 16 && id->heads && id->heads <= 16) {
-		drive->cyl  = id->cyls;
-		drive->head = id->heads;
-		drive->sect = id->sectors;
+	if (drive->head > 16 && id[ATA_ID_HEADS] && id[ATA_ID_HEADS] <= 16) {
+		drive->cyl  = id[ATA_ID_CYLS];
+		drive->head = id[ATA_ID_HEADS];
+		drive->sect = id[ATA_ID_SECTORS];
 	}
 }
 
 static void ide_disk_init_mult_count(ide_drive_t *drive)
 {
-	struct hd_driveid *id = drive->id;
+	u16 *id = drive->id;
+	u8 max_multsect = id[ATA_ID_MAX_MULTSECT] & 0xff;
 
-	drive->mult_count = 0;
-	if (id->max_multsect) {
-#ifdef CONFIG_IDEDISK_MULTI_MODE
-		id->multsect = ((id->max_multsect/2) > 1) ? id->max_multsect : 0;
-		id->multsect_valid = id->multsect ? 1 : 0;
-		drive->mult_req = id->multsect_valid ? id->max_multsect : 0;
-		drive->special.b.set_multmode = drive->mult_req ? 1 : 0;
-#else	/* original, pre IDE-NFG, per request of AC */
-		drive->mult_req = 0;
-		if (drive->mult_req > id->max_multsect)
-			drive->mult_req = id->max_multsect;
-		if (drive->mult_req || ((id->multsect_valid & 1) && id->multsect))
+	if (max_multsect) {
+		if ((max_multsect / 2) > 1)
+			id[ATA_ID_MULTSECT] = max_multsect | 0x100;
+		else
+			id[ATA_ID_MULTSECT] &= ~0x1ff;
+
+		drive->mult_req = id[ATA_ID_MULTSECT] & 0xff;
+
+		if (drive->mult_req)
 			drive->special.b.set_multmode = 1;
-#endif
 	}
 }
 
@@ -121,14 +114,15 @@ static void ide_disk_init_mult_count(ide_drive_t *drive)
 static inline void do_identify (ide_drive_t *drive, u8 cmd)
 {
 	ide_hwif_t *hwif = HWIF(drive);
-	int bswap = 1;
-	struct hd_driveid *id;
+	u16 *id = drive->id;
+	char *m = (char *)&id[ATA_ID_PROD];
+	int bswap = 1, is_cfa;
 
-	id = drive->id;
 	/* read 512 bytes of id info */
-	hwif->input_data(drive, NULL, id, SECTOR_SIZE);
+	hwif->tp_ops->input_data(drive, NULL, id, SECTOR_SIZE);
 
-	drive->id_read = 1;
+	drive->dev_flags |= IDE_DFLAG_ID_READ;
+
 	local_irq_enable();
 #ifdef DEBUG
 	printk(KERN_INFO "%s: dumping identify data\n", drive->name);
@@ -136,92 +130,87 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 #endif
 	ide_fix_driveid(id);
 
-#if defined (CONFIG_SCSI_EATA_PIO) || defined (CONFIG_SCSI_EATA)
 	/*
-	 * EATA SCSI controllers do a hardware ATA emulation:
-	 * Ignore them if there is a driver for them available.
+	 *  ATA_CMD_ID_ATA returns little-endian info,
+	 *  ATA_CMD_ID_ATAPI *usually* returns little-endian info.
 	 */
-	if ((id->model[0] == 'P' && id->model[1] == 'M') ||
-	    (id->model[0] == 'S' && id->model[1] == 'K')) {
-		printk("%s: EATA SCSI HBA %.10s\n", drive->name, id->model);
-		goto err_misc;
-	}
-#endif /* CONFIG_SCSI_EATA || CONFIG_SCSI_EATA_PIO */
-
-	/*
-	 *  WIN_IDENTIFY returns little-endian info,
-	 *  WIN_PIDENTIFY *usually* returns little-endian info.
-	 */
-	if (cmd == WIN_PIDENTIFY) {
-		if ((id->model[0] == 'N' && id->model[1] == 'E') /* NEC */
-		 || (id->model[0] == 'F' && id->model[1] == 'X') /* Mitsumi */
-		 || (id->model[0] == 'P' && id->model[1] == 'i'))/* Pioneer */
+	if (cmd == ATA_CMD_ID_ATAPI) {
+		if ((m[0] == 'N' && m[1] == 'E') ||  /* NEC */
+		    (m[0] == 'F' && m[1] == 'X') ||  /* Mitsumi */
+		    (m[0] == 'P' && m[1] == 'i'))    /* Pioneer */
 			/* Vertos drives may still be weird */
-			bswap ^= 1;	
+			bswap ^= 1;
 	}
-	ide_fixstring(id->model,     sizeof(id->model),     bswap);
-	ide_fixstring(id->fw_rev,    sizeof(id->fw_rev),    bswap);
-	ide_fixstring(id->serial_no, sizeof(id->serial_no), bswap);
+
+	ide_fixstring(m, ATA_ID_PROD_LEN, bswap);
+	ide_fixstring((char *)&id[ATA_ID_FW_REV], ATA_ID_FW_REV_LEN, bswap);
+	ide_fixstring((char *)&id[ATA_ID_SERNO], ATA_ID_SERNO_LEN, bswap);
 
 	/* we depend on this a lot! */
-	id->model[sizeof(id->model)-1] = '\0';
+	m[ATA_ID_PROD_LEN - 1] = '\0';
 
-	if (strstr(id->model, "E X A B Y T E N E S T"))
+	if (strstr(m, "E X A B Y T E N E S T"))
 		goto err_misc;
 
-	printk("%s: %s, ", drive->name, id->model);
-	drive->present = 1;
-	drive->dead = 0;
+	printk(KERN_INFO "%s: %s, ", drive->name, m);
+
+	drive->dev_flags |= IDE_DFLAG_PRESENT;
+	drive->dev_flags &= ~IDE_DFLAG_DEAD;
 
 	/*
 	 * Check for an ATAPI device
 	 */
-	if (cmd == WIN_PIDENTIFY) {
-		u8 type = (id->config >> 8) & 0x1f;
-		printk("ATAPI ");
+	if (cmd == ATA_CMD_ID_ATAPI) {
+		u8 type = (id[ATA_ID_CONFIG] >> 8) & 0x1f;
+
+		printk(KERN_CONT "ATAPI ");
 		switch (type) {
 			case ide_floppy:
-				if (!strstr(id->model, "CD-ROM")) {
-					if (!strstr(id->model, "oppy") &&
-					    !strstr(id->model, "poyp") &&
-					    !strstr(id->model, "ZIP"))
-						printk("cdrom or floppy?, assuming ");
+				if (!strstr(m, "CD-ROM")) {
+					if (!strstr(m, "oppy") &&
+					    !strstr(m, "poyp") &&
+					    !strstr(m, "ZIP"))
+						printk(KERN_CONT "cdrom or floppy?, assuming ");
 					if (drive->media != ide_cdrom) {
-						printk ("FLOPPY");
-						drive->removable = 1;
+						printk(KERN_CONT "FLOPPY");
+						drive->dev_flags |= IDE_DFLAG_REMOVABLE;
 						break;
 					}
 				}
 				/* Early cdrom models used zero */
 				type = ide_cdrom;
 			case ide_cdrom:
-				drive->removable = 1;
+				drive->dev_flags |= IDE_DFLAG_REMOVABLE;
 #ifdef CONFIG_PPC
 				/* kludge for Apple PowerBook internal zip */
-				if (!strstr(id->model, "CD-ROM") &&
-				    strstr(id->model, "ZIP")) {
-					printk ("FLOPPY");
+				if (!strstr(m, "CD-ROM") && strstr(m, "ZIP")) {
+					printk(KERN_CONT "FLOPPY");
 					type = ide_floppy;
 					break;
 				}
 #endif
-				printk ("CD/DVD-ROM");
+				printk(KERN_CONT "CD/DVD-ROM");
 				break;
 			case ide_tape:
-				printk ("TAPE");
+				printk(KERN_CONT "TAPE");
 				break;
 			case ide_optical:
-				printk ("OPTICAL");
-				drive->removable = 1;
+				printk(KERN_CONT "OPTICAL");
+				drive->dev_flags |= IDE_DFLAG_REMOVABLE;
 				break;
 			default:
-				printk("UNKNOWN (type %d)", type);
+				printk(KERN_CONT "UNKNOWN (type %d)", type);
 				break;
 		}
-		printk (" drive\n");
+		printk(KERN_CONT " drive\n");
 		drive->media = type;
 		/* an ATAPI device ignores DRDY */
 		drive->ready_stat = 0;
+		if (ata_id_cdb_intr(id))
+			drive->atapi_flags |= IDE_AFLAG_DRQ_INTERRUPT;
+		drive->dev_flags |= IDE_DFLAG_DOORLOCKING;
+		/* we don't do head unloading on ATAPI devices */
+		drive->dev_flags |= IDE_DFLAG_NO_UNLOAD;
 		return;
 	}
 
@@ -229,22 +218,24 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 	 * Not an ATAPI device: looks like a "regular" hard disk
 	 */
 
-	/*
-	 * 0x848a = CompactFlash device
-	 * These are *not* removable in Linux definition of the term
-	 */
+	is_cfa = ata_id_is_cfa(id);
 
-	if ((id->config != 0x848a) && (id->config & (1<<7)))
-		drive->removable = 1;
+	/* CF devices are *not* removable in Linux definition of the term */
+	if (is_cfa == 0 && (id[ATA_ID_CONFIG] & (1 << 7)))
+		drive->dev_flags |= IDE_DFLAG_REMOVABLE;
 
 	drive->media = ide_disk;
-	printk("%s DISK drive\n", (id->config == 0x848a) ? "CFA" : "ATA" );
+
+	if (!ata_id_has_unload(drive->id))
+		drive->dev_flags |= IDE_DFLAG_NO_UNLOAD;
+
+	printk(KERN_CONT "%s DISK drive\n", is_cfa ? "CFA" : "ATA");
 
 	return;
 
 err_misc:
 	kfree(id);
-	drive->present = 0;
+	drive->dev_flags &= ~IDE_DFLAG_PRESENT;
 	return;
 }
 
@@ -267,6 +258,7 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	struct ide_io_ports *io_ports = &hwif->io_ports;
+	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	int use_altstatus = 0, rc;
 	unsigned long timeout;
 	u8 s = 0, a = 0;
@@ -275,9 +267,9 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 	msleep(50);
 
 	if (io_ports->ctl_addr) {
-		a = ide_read_altstatus(drive);
-		s = ide_read_status(drive);
-		if ((a ^ s) & ~INDEX_STAT)
+		a = tp_ops->read_altstatus(hwif);
+		s = tp_ops->read_status(hwif);
+		if ((a ^ s) & ~ATA_IDX)
 			/* ancient Seagate drives, broken interfaces */
 			printk(KERN_INFO "%s: probing with STATUS(0x%02x) "
 					 "instead of ALTSTATUS(0x%02x)\n",
@@ -290,31 +282,29 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 	/* set features register for atapi
 	 * identify command to be sure of reply
 	 */
-	if ((cmd == WIN_PIDENTIFY))
-		/* disable dma & overlap */
-		hwif->OUTB(0, io_ports->feature_addr);
+	if (cmd == ATA_CMD_ID_ATAPI) {
+		ide_task_t task;
+
+		memset(&task, 0, sizeof(task));
+		/* disable DMA & overlap */
+		task.tf_flags = IDE_TFLAG_OUT_FEATURE;
+
+		tp_ops->tf_load(drive, &task);
+	}
 
 	/* ask drive for ID */
-	hwif->OUTBSYNC(hwif, cmd, hwif->io_ports.command_addr);
+	tp_ops->exec_command(hwif, cmd);
 
-	timeout = ((cmd == WIN_IDENTIFY) ? WAIT_WORSTCASE : WAIT_PIDENTIFY) / 2;
-	timeout += jiffies;
-	do {
-		if (time_after(jiffies, timeout)) {
-			/* drive timed-out */
-			return 1;
-		}
-		/* give drive a breather */
-		msleep(50);
-		s = use_altstatus ? ide_read_altstatus(drive)
-				  : ide_read_status(drive);
-	} while (s & BUSY_STAT);
+	timeout = ((cmd == ATA_CMD_ID_ATA) ? WAIT_WORSTCASE : WAIT_PIDENTIFY) / 2;
 
-	/* wait for IRQ and DRQ_STAT */
+	if (ide_busy_sleep(hwif, timeout, use_altstatus))
+		return 1;
+
+	/* wait for IRQ and ATA_DRQ */
 	msleep(50);
-	s = ide_read_status(drive);
+	s = tp_ops->read_status(hwif);
 
-	if (OK_STAT(s, DRQ_STAT, BAD_R_STAT)) {
+	if (OK_STAT(s, ATA_DRQ, BAD_R_STAT)) {
 		unsigned long flags;
 
 		/* local CPU only; some systems need this */
@@ -324,7 +314,7 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 		/* drive responded with ID */
 		rc = 0;
 		/* clear drive IRQ */
-		(void)ide_read_status(drive);
+		(void)tp_ops->read_status(hwif);
 		local_irq_restore(flags);
 	} else {
 		/* drive refused ID */
@@ -346,6 +336,7 @@ static int actual_try_to_identify (ide_drive_t *drive, u8 cmd)
 static int try_to_identify (ide_drive_t *drive, u8 cmd)
 {
 	ide_hwif_t *hwif = HWIF(drive);
+	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	int retval;
 	int autoprobe = 0;
 	unsigned long cookie = 0;
@@ -361,7 +352,7 @@ static int try_to_identify (ide_drive_t *drive, u8 cmd)
 			autoprobe = 1;
 			cookie = probe_irq_on();
 		}
-		ide_set_irq(drive, autoprobe);
+		tp_ops->set_irq(hwif, autoprobe);
 	}
 
 	retval = actual_try_to_identify(drive, cmd);
@@ -369,9 +360,9 @@ static int try_to_identify (ide_drive_t *drive, u8 cmd)
 	if (autoprobe) {
 		int irq;
 
-		ide_set_irq(drive, 0);
+		tp_ops->set_irq(hwif, 0);
 		/* clear drive IRQ */
-		(void)ide_read_status(drive);
+		(void)tp_ops->read_status(hwif);
 		udelay(5);
 		irq = probe_irq_off(cookie);
 		if (!hwif->irq) {
@@ -381,7 +372,7 @@ static int try_to_identify (ide_drive_t *drive, u8 cmd)
 				/* Mmmm.. multiple IRQs..
 				 * don't know which was ours
 				 */
-				printk("%s: IRQ probe failed (0x%lx)\n",
+				printk(KERN_ERR "%s: IRQ probe failed (0x%lx)\n",
 					drive->name, cookie);
 			}
 		}
@@ -389,19 +380,33 @@ static int try_to_identify (ide_drive_t *drive, u8 cmd)
 	return retval;
 }
 
-static int ide_busy_sleep(ide_hwif_t *hwif)
+int ide_busy_sleep(ide_hwif_t *hwif, unsigned long timeout, int altstatus)
 {
-	unsigned long timeout = jiffies + WAIT_WORSTCASE;
 	u8 stat;
 
+	timeout += jiffies;
+
 	do {
-		msleep(50);
-		stat = hwif->INB(hwif->io_ports.status_addr);
-		if ((stat & BUSY_STAT) == 0)
+		msleep(50);	/* give drive a breather */
+		stat = altstatus ? hwif->tp_ops->read_altstatus(hwif)
+				 : hwif->tp_ops->read_status(hwif);
+		if ((stat & ATA_BUSY) == 0)
 			return 0;
 	} while (time_before(jiffies, timeout));
 
-	return 1;
+	return 1;	/* drive timed-out */
+}
+
+static u8 ide_read_device(ide_drive_t *drive)
+{
+	ide_task_t task;
+
+	memset(&task, 0, sizeof(task));
+	task.tf_flags = IDE_TFLAG_IN_DEVICE;
+
+	drive->hwif->tp_ops->tf_read(drive, &task);
+
+	return task.tf.device;
 }
 
 /**
@@ -428,19 +433,18 @@ static int ide_busy_sleep(ide_hwif_t *hwif)
 static int do_probe (ide_drive_t *drive, u8 cmd)
 {
 	ide_hwif_t *hwif = HWIF(drive);
-	struct ide_io_ports *io_ports = &hwif->io_ports;
+	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	int rc;
-	u8 stat;
+	u8 present = !!(drive->dev_flags & IDE_DFLAG_PRESENT), stat;
 
-	if (drive->present) {
-		/* avoid waiting for inappropriate probes */
-		if ((drive->media != ide_disk) && (cmd == WIN_IDENTIFY))
-			return 4;
-	}
+	/* avoid waiting for inappropriate probes */
+	if (present && drive->media != ide_disk && cmd == ATA_CMD_ID_ATA)
+		return 4;
+
 #ifdef DEBUG
-	printk("probing for %s: present=%d, media=%d, probetype=%s\n",
-		drive->name, drive->present, drive->media,
-		(cmd == WIN_IDENTIFY) ? "ATA" : "ATAPI");
+	printk(KERN_INFO "probing for %s: present=%d, media=%d, probetype=%s\n",
+		drive->name, present, drive->media,
+		(cmd == ATA_CMD_ID_ATA) ? "ATA" : "ATAPI");
 #endif
 
 	/* needed for some systems
@@ -449,46 +453,46 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 	msleep(50);
 	SELECT_DRIVE(drive);
 	msleep(50);
-	if (hwif->INB(io_ports->device_addr) != drive->select.all &&
-	    !drive->present) {
-		if (drive->select.b.unit != 0) {
+
+	if (ide_read_device(drive) != drive->select && present == 0) {
+		if (drive->dn & 1) {
 			/* exit with drive0 selected */
 			SELECT_DRIVE(&hwif->drives[0]);
-			/* allow BUSY_STAT to assert & clear */
+			/* allow ATA_BUSY to assert & clear */
 			msleep(50);
 		}
 		/* no i/f present: mmm.. this should be a 4 -ml */
 		return 3;
 	}
 
-	stat = ide_read_status(drive);
+	stat = tp_ops->read_status(hwif);
 
-	if (OK_STAT(stat, READY_STAT, BUSY_STAT) ||
-	    drive->present || cmd == WIN_PIDENTIFY) {
+	if (OK_STAT(stat, ATA_DRDY, ATA_BUSY) ||
+	    present || cmd == ATA_CMD_ID_ATAPI) {
 		/* send cmd and wait */
 		if ((rc = try_to_identify(drive, cmd))) {
 			/* failed: try again */
 			rc = try_to_identify(drive,cmd);
 		}
 
-		stat = ide_read_status(drive);
+		stat = tp_ops->read_status(hwif);
 
-		if (stat == (BUSY_STAT | READY_STAT))
+		if (stat == (ATA_BUSY | ATA_DRDY))
 			return 4;
 
-		if (rc == 1 && cmd == WIN_PIDENTIFY) {
+		if (rc == 1 && cmd == ATA_CMD_ID_ATAPI) {
 			printk(KERN_ERR "%s: no response (status = 0x%02x), "
 					"resetting drive\n", drive->name, stat);
 			msleep(50);
 			SELECT_DRIVE(drive);
 			msleep(50);
-			hwif->OUTBSYNC(hwif, WIN_SRST, io_ports->command_addr);
-			(void)ide_busy_sleep(hwif);
+			tp_ops->exec_command(hwif, ATA_CMD_DEV_RESET);
+			(void)ide_busy_sleep(hwif, WAIT_WORSTCASE, 0);
 			rc = try_to_identify(drive, cmd);
 		}
 
 		/* ensure drive IRQ is clear */
-		stat = ide_read_status(drive);
+		stat = tp_ops->read_status(hwif);
 
 		if (rc == 1)
 			printk(KERN_ERR "%s: no response (status = 0x%02x)\n",
@@ -497,12 +501,12 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 		/* not present or maybe ATAPI */
 		rc = 3;
 	}
-	if (drive->select.b.unit != 0) {
+	if (drive->dn & 1) {
 		/* exit with drive0 selected */
 		SELECT_DRIVE(&hwif->drives[0]);
 		msleep(50);
 		/* ensure drive irq is clear */
-		(void)ide_read_status(drive);
+		(void)tp_ops->read_status(hwif);
 	}
 	return rc;
 }
@@ -513,32 +517,29 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 static void enable_nest (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
+	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	u8 stat;
 
-	printk("%s: enabling %s -- ", hwif->name, drive->id->model);
+	printk(KERN_INFO "%s: enabling %s -- ",
+		hwif->name, (char *)&drive->id[ATA_ID_PROD]);
+
 	SELECT_DRIVE(drive);
 	msleep(50);
-	hwif->OUTBSYNC(hwif, EXABYTE_ENABLE_NEST, hwif->io_ports.command_addr);
+	tp_ops->exec_command(hwif, ATA_EXABYTE_ENABLE_NEST);
 
-	if (ide_busy_sleep(hwif)) {
+	if (ide_busy_sleep(hwif, WAIT_WORSTCASE, 0)) {
 		printk(KERN_CONT "failed (timeout)\n");
 		return;
 	}
 
 	msleep(50);
 
-	stat = ide_read_status(drive);
+	stat = tp_ops->read_status(hwif);
 
 	if (!OK_STAT(stat, 0, BAD_STAT))
 		printk(KERN_CONT "failed (status = 0x%02x)\n", stat);
 	else
 		printk(KERN_CONT "success\n");
-
-	/* if !(success||timed-out) */
-	if (do_probe(drive, WIN_IDENTIFY) >= 2) {
-		/* look for ATAPI device */
-		(void) do_probe(drive, WIN_PIDENTIFY);
-	}
 }
 
 /**
@@ -549,12 +550,14 @@ static void enable_nest (ide_drive_t *drive)
  *	and presents things to the user as needed.
  *
  *	Returns:	0  no device was found
- *			1  device was found (note: drive->present might
- *			   still be 0)
+ *			1  device was found
+ *			   (note: IDE_DFLAG_PRESENT might still be not set)
  */
  
 static inline u8 probe_for_drive (ide_drive_t *drive)
 {
+	char *m;
+
 	/*
 	 *	In order to keep things simple we have an id
 	 *	block for all drives at all times. If the device
@@ -564,31 +567,36 @@ static inline u8 probe_for_drive (ide_drive_t *drive)
 	 *	Also note that 0 everywhere means "can't do X"
 	 */
  
-	drive->id = kzalloc(SECTOR_WORDS *4, GFP_KERNEL);
-	drive->id_read = 0;
-	if(drive->id == NULL)
-	{
+	drive->dev_flags &= ~IDE_DFLAG_ID_READ;
+
+	drive->id = kzalloc(SECTOR_SIZE, GFP_KERNEL);
+	if (drive->id == NULL) {
 		printk(KERN_ERR "ide: out of memory for id data.\n");
 		return 0;
 	}
-	strcpy(drive->id->model, "UNKNOWN");
-	
+
+	m = (char *)&drive->id[ATA_ID_PROD];
+	strcpy(m, "UNKNOWN");
+
 	/* skip probing? */
-	if (!drive->noprobe)
-	{
+	if ((drive->dev_flags & IDE_DFLAG_NOPROBE) == 0) {
+retry:
 		/* if !(success||timed-out) */
-		if (do_probe(drive, WIN_IDENTIFY) >= 2) {
+		if (do_probe(drive, ATA_CMD_ID_ATA) >= 2)
 			/* look for ATAPI device */
-			(void) do_probe(drive, WIN_PIDENTIFY);
-		}
-		if (!drive->present)
+			(void)do_probe(drive, ATA_CMD_ID_ATAPI);
+
+		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 			/* drive not found */
 			return 0;
-		if (strstr(drive->id->model, "E X A B Y T E N E S T"))
+
+		if (strstr(m, "E X A B Y T E N E S T")) {
 			enable_nest(drive);
-	
+			goto retry;
+		}
+
 		/* identification failed? */
-		if (!drive->id_read) {
+		if ((drive->dev_flags & IDE_DFLAG_ID_READ) == 0) {
 			if (drive->media == ide_disk) {
 				printk(KERN_INFO "%s: non-IDE drive, CHS=%d/%d/%d\n",
 					drive->name, drive->cyl,
@@ -598,15 +606,17 @@ static inline u8 probe_for_drive (ide_drive_t *drive)
 			} else {
 				/* nuke it */
 				printk(KERN_WARNING "%s: Unknown device on bus refused identification. Ignoring.\n", drive->name);
-				drive->present = 0;
+				drive->dev_flags &= ~IDE_DFLAG_PRESENT;
 			}
 		}
 		/* drive was found */
 	}
-	if(!drive->present)
+
+	if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 		return 0;
+
 	/* The drive wasn't being helpful. Add generic info only */
-	if (drive->id_read == 0) {
+	if ((drive->dev_flags & IDE_DFLAG_ID_READ) == 0) {
 		generic_id(drive);
 		return 1;
 	}
@@ -616,10 +626,10 @@ static inline u8 probe_for_drive (ide_drive_t *drive)
 		ide_disk_init_mult_count(drive);
 	}
 
-	return drive->present;
+	return !!(drive->dev_flags & IDE_DFLAG_PRESENT);
 }
 
-static void hwif_release_dev (struct device *dev)
+static void hwif_release_dev(struct device *dev)
 {
 	ide_hwif_t *hwif = container_of(dev, ide_hwif_t, gendev);
 
@@ -648,8 +658,8 @@ static int ide_register_port(ide_hwif_t *hwif)
 		goto out;
 	}
 
-	hwif->portdev = device_create_drvdata(ide_port_class, &hwif->gendev,
-					      MKDEV(0, 0), hwif, hwif->name);
+	hwif->portdev = device_create(ide_port_class, &hwif->gendev,
+				      MKDEV(0, 0), hwif, hwif->name);
 	if (IS_ERR(hwif->portdev)) {
 		ret = PTR_ERR(hwif->portdev);
 		device_unregister(&hwif->gendev);
@@ -707,9 +717,10 @@ static int ide_port_wait_ready(ide_hwif_t *hwif)
 		ide_drive_t *drive = &hwif->drives[unit];
 
 		/* Ignore disks that we will not probe for later. */
-		if (!drive->noprobe || drive->present) {
+		if ((drive->dev_flags & IDE_DFLAG_NOPROBE) == 0 ||
+		    (drive->dev_flags & IDE_DFLAG_PRESENT)) {
 			SELECT_DRIVE(drive);
-			ide_set_irq(drive, 1);
+			hwif->tp_ops->set_irq(hwif, 1);
 			mdelay(2);
 			rc = ide_wait_not_busy(hwif, 35000);
 			if (rc)
@@ -728,36 +739,38 @@ out:
 
 /**
  *	ide_undecoded_slave	-	look for bad CF adapters
- *	@drive1: drive
+ *	@dev1: slave device
  *
  *	Analyse the drives on the interface and attempt to decide if we
  *	have the same drive viewed twice. This occurs with crap CF adapters
  *	and PCMCIA sometimes.
  */
 
-void ide_undecoded_slave(ide_drive_t *drive1)
+void ide_undecoded_slave(ide_drive_t *dev1)
 {
-	ide_drive_t *drive0 = &drive1->hwif->drives[0];
+	ide_drive_t *dev0 = &dev1->hwif->drives[0];
 
-	if ((drive1->dn & 1) == 0 || drive0->present == 0)
+	if ((dev1->dn & 1) == 0 || (dev0->dev_flags & IDE_DFLAG_PRESENT) == 0)
 		return;
 
 	/* If the models don't match they are not the same product */
-	if (strcmp(drive0->id->model, drive1->id->model))
+	if (strcmp((char *)&dev0->id[ATA_ID_PROD],
+		   (char *)&dev1->id[ATA_ID_PROD]))
 		return;
 
 	/* Serial numbers do not match */
-	if (strncmp(drive0->id->serial_no, drive1->id->serial_no, 20))
+	if (strncmp((char *)&dev0->id[ATA_ID_SERNO],
+		    (char *)&dev1->id[ATA_ID_SERNO], ATA_ID_SERNO_LEN))
 		return;
 
 	/* No serial number, thankfully very rare for CF */
-	if (drive0->id->serial_no[0] == 0)
+	if (*(char *)&dev0->id[ATA_ID_SERNO] == 0)
 		return;
 
 	/* Appears to be an IDE flash adapter with decode bugs */
 	printk(KERN_WARNING "ide-probe: ignoring undecoded slave\n");
 
-	drive1->present = 0;
+	dev1->dev_flags &= ~IDE_DFLAG_PRESENT;
 }
 
 EXPORT_SYMBOL_GPL(ide_undecoded_slave);
@@ -770,7 +783,8 @@ static int ide_probe_port(ide_hwif_t *hwif)
 
 	BUG_ON(hwif->present);
 
-	if (hwif->drives[0].noprobe && hwif->drives[1].noprobe)
+	if ((hwif->drives[0].dev_flags & IDE_DFLAG_NOPROBE) &&
+	    (hwif->drives[1].dev_flags & IDE_DFLAG_NOPROBE))
 		return -EACCES;
 
 	/*
@@ -792,9 +806,9 @@ static int ide_probe_port(ide_hwif_t *hwif)
 	 */
 	for (unit = 0; unit < MAX_DRIVES; ++unit) {
 		ide_drive_t *drive = &hwif->drives[unit];
-		drive->dn = (hwif->channel ? 2 : 0) + unit;
+
 		(void) probe_for_drive(drive);
-		if (drive->present)
+		if (drive->dev_flags & IDE_DFLAG_PRESENT)
 			rc = 0;
 	}
 
@@ -818,17 +832,19 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 	for (unit = 0; unit < MAX_DRIVES; unit++) {
 		ide_drive_t *drive = &hwif->drives[unit];
 
-		if (drive->present && port_ops && port_ops->quirkproc)
-			port_ops->quirkproc(drive);
+		if (drive->dev_flags & IDE_DFLAG_PRESENT) {
+			if (port_ops && port_ops->quirkproc)
+				port_ops->quirkproc(drive);
+		}
 	}
 
 	for (unit = 0; unit < MAX_DRIVES; ++unit) {
 		ide_drive_t *drive = &hwif->drives[unit];
 
-		if (drive->present) {
+		if (drive->dev_flags & IDE_DFLAG_PRESENT) {
 			ide_set_max_pio(drive);
 
-			drive->nice1 = 1;
+			drive->dev_flags |= IDE_DFLAG_NICE1;
 
 			if (hwif->dma_ops)
 				ide_set_dma(drive);
@@ -838,14 +854,14 @@ static void ide_port_tune_devices(ide_hwif_t *hwif)
 	for (unit = 0; unit < MAX_DRIVES; ++unit) {
 		ide_drive_t *drive = &hwif->drives[unit];
 
-		if (hwif->host_flags & IDE_HFLAG_NO_IO_32BIT)
-			drive->no_io_32bit = 1;
+		if ((hwif->host_flags & IDE_HFLAG_NO_IO_32BIT) ||
+		    drive->id[ATA_ID_DWORD_IO])
+			drive->dev_flags |= IDE_DFLAG_NO_IO_32BIT;
 		else
-			drive->no_io_32bit = drive->id->dword_io ? 1 : 0;
+			drive->dev_flags &= ~IDE_DFLAG_NO_IO_32BIT;
 	}
 }
 
-#if MAX_HWIFS > 1
 /*
  * save_match() is used to simplify logic in init_irq() below.
  *
@@ -864,13 +880,12 @@ static void save_match(ide_hwif_t *hwif, ide_hwif_t *new, ide_hwif_t **match)
 	if (m && m->hwgroup && m->hwgroup != new->hwgroup) {
 		if (!new->hwgroup)
 			return;
-		printk("%s: potential irq problem with %s and %s\n",
+		printk(KERN_WARNING "%s: potential IRQ problem with %s and %s\n",
 			hwif->name, new->name, m->name);
 	}
 	if (!m || m->irq != hwif->irq) /* don't undo a prior perfect match */
 		*match = new;
 }
-#endif /* MAX_HWIFS > 1 */
 
 /*
  * init request queue
@@ -949,26 +964,72 @@ static void ide_add_drive_to_hwgroup(ide_drive_t *drive)
  * - allocate the block device queue
  * - link drive into the hwgroup
  */
-static void ide_port_setup_devices(ide_hwif_t *hwif)
+static int ide_port_setup_devices(ide_hwif_t *hwif)
 {
-	int i;
+	int i, j = 0;
 
 	mutex_lock(&ide_cfg_mtx);
 	for (i = 0; i < MAX_DRIVES; i++) {
 		ide_drive_t *drive = &hwif->drives[i];
 
-		if (!drive->present)
+		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 			continue;
 
 		if (ide_init_queue(drive)) {
 			printk(KERN_ERR "ide: failed to init %s\n",
 					drive->name);
+			kfree(drive->id);
+			drive->id = NULL;
+			drive->dev_flags &= ~IDE_DFLAG_PRESENT;
 			continue;
 		}
+
+		j++;
 
 		ide_add_drive_to_hwgroup(drive);
 	}
 	mutex_unlock(&ide_cfg_mtx);
+
+	return j;
+}
+
+static ide_hwif_t *ide_ports[MAX_HWIFS];
+
+void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
+{
+	ide_hwgroup_t *hwgroup = hwif->hwgroup;
+
+	ide_ports[hwif->index] = NULL;
+
+	spin_lock_irq(&ide_lock);
+	/*
+	 * Remove us from the hwgroup, and free
+	 * the hwgroup if we were the only member
+	 */
+	if (hwif->next == hwif) {
+		BUG_ON(hwgroup->hwif != hwif);
+		kfree(hwgroup);
+	} else {
+		/* There is another interface in hwgroup.
+		 * Unlink us, and set hwgroup->drive and ->hwif to
+		 * something sane.
+		 */
+		ide_hwif_t *g = hwgroup->hwif;
+
+		while (g->next != hwif)
+			g = g->next;
+		g->next = hwif->next;
+		if (hwgroup->hwif == hwif) {
+			/* Chose a random hwif for hwgroup->hwif.
+			 * It's guaranteed that there are no drives
+			 * left in the hwgroup.
+			 */
+			BUG_ON(hwgroup->drive != NULL);
+			hwgroup->hwif = g;
+		}
+		BUG_ON(hwgroup->hwif == hwif);
+	}
+	spin_unlock_irq(&ide_lock);
 }
 
 /*
@@ -986,20 +1047,16 @@ static int init_irq (ide_hwif_t *hwif)
 	ide_hwgroup_t *hwgroup;
 	ide_hwif_t *match = NULL;
 
-
-	BUG_ON(in_interrupt());
-	BUG_ON(irqs_disabled());	
-	BUG_ON(hwif == NULL);
-
 	mutex_lock(&ide_cfg_mtx);
 	hwif->hwgroup = NULL;
-#if MAX_HWIFS > 1
+
 	/*
 	 * Group up with any other hwifs that share our irq(s).
 	 */
 	for (index = 0; index < MAX_HWIFS; index++) {
-		ide_hwif_t *h = &ide_hwifs[index];
-		if (h->hwgroup) {  /* scan only initialized hwif's */
+		ide_hwif_t *h = ide_ports[index];
+
+		if (h && h->hwgroup) {  /* scan only initialized ports */
 			if (hwif->irq == h->irq) {
 				hwif->sharing_irq = h->sharing_irq = 1;
 				if (hwif->chipset != ide_pci ||
@@ -1017,7 +1074,7 @@ static int init_irq (ide_hwif_t *hwif)
 			}
 		}
 	}
-#endif /* MAX_HWIFS > 1 */
+
 	/*
 	 * If we are still without a hwgroup, then form a new one
 	 */
@@ -1053,6 +1110,8 @@ static int init_irq (ide_hwif_t *hwif)
 		hwgroup->timer.data = (unsigned long) hwgroup;
 	}
 
+	ide_ports[hwif->index] = hwif;
+
 	/*
 	 * Allocate the irq, if not already obtained for another hwif
 	 */
@@ -1062,12 +1121,12 @@ static int init_irq (ide_hwif_t *hwif)
 		sa = IRQF_SHARED;
 #endif /* __mc68000__ */
 
-		if (IDE_CHIPSET_IS_PCI(hwif->chipset))
+		if (hwif->chipset == ide_pci || hwif->chipset == ide_cmd646 ||
+		    hwif->chipset == ide_ali14xx)
 			sa = IRQF_SHARED;
 
 		if (io_ports->ctl_addr)
-			/* clear nIEN */
-			hwif->OUTBSYNC(hwif, ATA_DEVCTL_OBS, io_ports->ctl_addr);
+			hwif->tp_ops->set_irq(hwif, 1);
 
 		if (request_irq(hwif->irq,&ide_intr,sa,hwif->name,hwgroup))
 	       		goto out_unlink;
@@ -1082,17 +1141,17 @@ static int init_irq (ide_hwif_t *hwif)
 	}
 
 #if !defined(__mc68000__)
-	printk("%s at 0x%03lx-0x%03lx,0x%03lx on irq %d", hwif->name,
+	printk(KERN_INFO "%s at 0x%03lx-0x%03lx,0x%03lx on irq %d", hwif->name,
 		io_ports->data_addr, io_ports->status_addr,
 		io_ports->ctl_addr, hwif->irq);
 #else
-	printk("%s at 0x%08lx on irq %d", hwif->name,
+	printk(KERN_INFO "%s at 0x%08lx on irq %d", hwif->name,
 		io_ports->data_addr, hwif->irq);
 #endif /* __mc68000__ */
 	if (match)
-		printk(" (%sed with %s)",
+		printk(KERN_CONT " (%sed with %s)",
 			hwif->sharing_irq ? "shar" : "serializ", match->name);
-	printk("\n");
+	printk(KERN_CONT "\n");
 
 	mutex_unlock(&ide_cfg_mtx);
 	return 0;
@@ -1114,12 +1173,13 @@ static struct kobject *ata_probe(dev_t dev, int *part, void *data)
 	ide_hwif_t *hwif = data;
 	int unit = *part >> PARTN_BITS;
 	ide_drive_t *drive = &hwif->drives[unit];
-	if (!drive->present)
+
+	if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 		return NULL;
 
 	if (drive->media == ide_disk)
 		request_module("ide-disk");
-	if (drive->scsi)
+	if (drive->dev_flags & IDE_DFLAG_SCSI)
 		request_module("ide-scsi");
 	if (drive->media == ide_cdrom || drive->media == ide_optical)
 		request_module("ide-cd");
@@ -1135,7 +1195,7 @@ static struct kobject *exact_match(dev_t dev, int *part, void *data)
 {
 	struct gendisk *p = data;
 	*part &= (1 << PARTN_BITS) - 1;
-	return &p->dev.kobj;
+	return &disk_to_dev(p)->kobj;
 }
 
 static int exact_lock(dev_t dev, void *data)
@@ -1166,7 +1226,7 @@ EXPORT_SYMBOL_GPL(ide_unregister_region);
 void ide_init_disk(struct gendisk *disk, ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	unsigned int unit = (drive->select.all >> 4) & 1;
+	unsigned int unit = drive->dn & 1;
 
 	disk->major = hwif->major;
 	disk->first_minor = unit << PARTN_BITS;
@@ -1209,7 +1269,7 @@ static void drive_release_dev (struct device *dev)
 	ide_remove_drive_from_hwgroup(drive);
 	kfree(drive->id);
 	drive->id = NULL;
-	drive->present = 0;
+	drive->dev_flags &= ~IDE_DFLAG_PRESENT;
 	/* Messed up locking ... */
 	spin_unlock_irq(&ide_lock);
 	blk_cleanup_queue(drive->queue);
@@ -1227,7 +1287,7 @@ static int hwif_init(ide_hwif_t *hwif)
 	if (!hwif->irq) {
 		hwif->irq = __ide_default_irq(hwif->io_ports.data_addr);
 		if (!hwif->irq) {
-			printk("%s: DISABLED, NO IRQ\n", hwif->name);
+			printk(KERN_ERR "%s: disabled, no IRQ\n", hwif->name);
 			return 0;
 		}
 	}
@@ -1257,16 +1317,16 @@ static int hwif_init(ide_hwif_t *hwif)
 	 */
 	hwif->irq = __ide_default_irq(hwif->io_ports.data_addr);
 	if (!hwif->irq) {
-		printk("%s: Disabled unable to get IRQ %d.\n",
+		printk(KERN_ERR "%s: disabled, unable to get IRQ %d\n",
 			hwif->name, old_irq);
 		goto out;
 	}
 	if (init_irq(hwif)) {
-		printk("%s: probed IRQ %d and default IRQ %d failed.\n",
+		printk(KERN_ERR "%s: probed IRQ %d and default IRQ %d failed\n",
 			hwif->name, old_irq, hwif->irq);
 		goto out;
 	}
-	printk("%s: probed IRQ %d failed, using default.\n",
+	printk(KERN_WARNING "%s: probed IRQ %d failed, using default\n",
 		hwif->name, hwif->irq);
 
 done:
@@ -1288,10 +1348,8 @@ static void hwif_register_devices(ide_hwif_t *hwif)
 		struct device *dev = &drive->gendev;
 		int ret;
 
-		if (!drive->present)
+		if ((drive->dev_flags & IDE_DFLAG_PRESENT) == 0)
 			continue;
-
-		ide_add_generic_settings(drive);
 
 		snprintf(dev->bus_id, BUS_ID_SIZE, "%u.%u", hwif->index, i);
 		dev->parent = &hwif->gendev;
@@ -1314,12 +1372,14 @@ static void ide_port_init_devices(ide_hwif_t *hwif)
 	for (i = 0; i < MAX_DRIVES; i++) {
 		ide_drive_t *drive = &hwif->drives[i];
 
+		drive->dn = i + hwif->channel * 2;
+
 		if (hwif->host_flags & IDE_HFLAG_IO_32BIT)
 			drive->io_32bit = 1;
 		if (hwif->host_flags & IDE_HFLAG_UNMASK_IRQS)
-			drive->unmask = 1;
+			drive->dev_flags |= IDE_DFLAG_UNMASK;
 		if (hwif->host_flags & IDE_HFLAG_NO_UNMASK_IRQS)
-			drive->no_unmask = 1;
+			drive->dev_flags |= IDE_DFLAG_NO_UNMASK;
 
 		if (port_ops && port_ops->init_dev)
 			port_ops->init_dev(drive);
@@ -1345,6 +1405,9 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 	hwif->host_flags |= d->host_flags;
 	hwif->pio_mask = d->pio_mask;
 
+	if (d->tp_ops)
+		hwif->tp_ops = d->tp_ops;
+
 	/* ->set_pio_mode for DTC2278 is currently limited to port 0 */
 	if (hwif->chipset != ide_dtc2278 || hwif->channel == 0)
 		hwif->port_ops = d->port_ops;
@@ -1363,6 +1426,7 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 
 		if (rc < 0) {
 			printk(KERN_INFO "%s: DMA disabled\n", hwif->name);
+			hwif->dma_base = 0;
 			hwif->swdma_mask = 0;
 			hwif->mwdma_mask = 0;
 			hwif->ultra_mask = 0;
@@ -1435,7 +1499,7 @@ static struct device_attribute *ide_port_attrs[] = {
 
 static int ide_sysfs_register_port(ide_hwif_t *hwif)
 {
-	int i, rc;
+	int i, uninitialized_var(rc);
 
 	for (i = 0; ide_port_attrs[i]; i++) {
 		rc = device_create_file(hwif->portdev, ide_port_attrs[i]);
@@ -1446,18 +1510,20 @@ static int ide_sysfs_register_port(ide_hwif_t *hwif)
 	return rc;
 }
 
+static unsigned int ide_indexes;
+
 /**
- *	ide_find_port_slot	-	find free ide_hwifs[] slot
+ *	ide_find_port_slot	-	find free port slot
  *	@d: IDE port info
  *
- *	Return the new hwif.  If we are out of free slots return NULL.
+ *	Return the new port slot index or -ENOENT if we are out of free slots.
  */
 
-ide_hwif_t *ide_find_port_slot(const struct ide_port_info *d)
+static int ide_find_port_slot(const struct ide_port_info *d)
 {
-	ide_hwif_t *hwif;
-	int i;
+	int idx = -ENOENT;
 	u8 bootable = (d && (d->host_flags & IDE_HFLAG_NON_BOOTABLE)) ? 0 : 1;
+	u8 i = (d && (d->host_flags & IDE_HFLAG_QD_2ND_PORT)) ? 1 : 0;;
 
 	/*
 	 * Claim an unassigned slot.
@@ -1469,75 +1535,122 @@ ide_hwif_t *ide_find_port_slot(const struct ide_port_info *d)
 	 * Unless there is a bootable card that does not use the standard
 	 * ports 0x1f0/0x170 (the ide0/ide1 defaults).
 	 */
+	mutex_lock(&ide_cfg_mtx);
 	if (bootable) {
-		i = (d && (d->host_flags & IDE_HFLAG_QD_2ND_PORT)) ? 1 : 0;
-
-		for (; i < MAX_HWIFS; i++) {
-			hwif = &ide_hwifs[i];
-			if (hwif->chipset == ide_unknown)
-				goto out_found;
-		}
+		if ((ide_indexes | i) != (1 << MAX_HWIFS) - 1)
+			idx = ffz(ide_indexes | i);
 	} else {
-		for (i = 2; i < MAX_HWIFS; i++) {
-			hwif = &ide_hwifs[i];
-			if (hwif->chipset == ide_unknown)
-				goto out_found;
+		if ((ide_indexes | 3) != (1 << MAX_HWIFS) - 1)
+			idx = ffz(ide_indexes | 3);
+		else if ((ide_indexes & 3) != 3)
+			idx = ffz(ide_indexes);
+	}
+	if (idx >= 0)
+		ide_indexes |= (1 << idx);
+	mutex_unlock(&ide_cfg_mtx);
+
+	return idx;
+}
+
+static void ide_free_port_slot(int idx)
+{
+	mutex_lock(&ide_cfg_mtx);
+	ide_indexes &= ~(1 << idx);
+	mutex_unlock(&ide_cfg_mtx);
+}
+
+struct ide_host *ide_host_alloc(const struct ide_port_info *d, hw_regs_t **hws)
+{
+	struct ide_host *host;
+	int i;
+
+	host = kzalloc(sizeof(*host), GFP_KERNEL);
+	if (host == NULL)
+		return NULL;
+
+	for (i = 0; i < MAX_HOST_PORTS; i++) {
+		ide_hwif_t *hwif;
+		int idx;
+
+		if (hws[i] == NULL)
+			continue;
+
+		hwif = kzalloc(sizeof(*hwif), GFP_KERNEL);
+		if (hwif == NULL)
+			continue;
+
+		idx = ide_find_port_slot(d);
+		if (idx < 0) {
+			printk(KERN_ERR "%s: no free slot for interface\n",
+					d ? d->name : "ide");
+			kfree(hwif);
+			continue;
 		}
-		for (i = 0; i < 2 && i < MAX_HWIFS; i++) {
-			hwif = &ide_hwifs[i];
-			if (hwif->chipset == ide_unknown)
-				goto out_found;
-		}
+
+		ide_init_port_data(hwif, idx);
+
+		hwif->host = host;
+
+		host->ports[i] = hwif;
+		host->n_ports++;
 	}
 
-	printk(KERN_ERR "%s: no free slot for interface\n",
-			d ? d->name : "ide");
+	if (host->n_ports == 0) {
+		kfree(host);
+		return NULL;
+	}
 
-	return NULL;
+	if (hws[0])
+		host->dev[0] = hws[0]->dev;
 
-out_found:
-	ide_init_port_data(hwif, i);
-	return hwif;
+	if (d) {
+		host->init_chipset = d->init_chipset;
+		host->host_flags = d->host_flags;
+	}
+
+	return host;
 }
-EXPORT_SYMBOL_GPL(ide_find_port_slot);
+EXPORT_SYMBOL_GPL(ide_host_alloc);
 
-int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
+int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
+		      hw_regs_t **hws)
 {
 	ide_hwif_t *hwif, *mate = NULL;
-	int i, rc = 0;
+	int i, j = 0;
 
-	for (i = 0; i < MAX_HWIFS; i++) {
-		if (idx[i] == 0xff) {
+	for (i = 0; i < MAX_HOST_PORTS; i++) {
+		hwif = host->ports[i];
+
+		if (hwif == NULL) {
 			mate = NULL;
 			continue;
 		}
 
-		hwif = &ide_hwifs[idx[i]];
-
+		ide_init_port_hw(hwif, hws[i]);
 		ide_port_apply_params(hwif);
 
 		if (d == NULL) {
 			mate = NULL;
-			continue;
+		} else {
+			if ((i & 1) && mate) {
+				hwif->mate = mate;
+				mate->mate = hwif;
+			}
+
+			mate = (i & 1) ? NULL : hwif;
+
+			ide_init_port(hwif, i & 1, d);
+			ide_port_cable_detect(hwif);
 		}
 
-		if ((i & 1) && mate) {
-			hwif->mate = mate;
-			mate->mate = hwif;
-		}
-
-		mate = (i & 1) ? NULL : hwif;
-
-		ide_init_port(hwif, i & 1, d);
-		ide_port_cable_detect(hwif);
 		ide_port_init_devices(hwif);
 	}
 
-	for (i = 0; i < MAX_HWIFS; i++) {
-		if (idx[i] == 0xff)
-			continue;
+	for (i = 0; i < MAX_HOST_PORTS; i++) {
+		hwif = host->ports[i];
 
-		hwif = &ide_hwifs[idx[i]];
+		if (hwif == NULL)
+			continue;
 
 		if (ide_probe_port(hwif) == 0)
 			hwif->present = 1;
@@ -1550,22 +1663,26 @@ int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 			ide_port_tune_devices(hwif);
 	}
 
-	for (i = 0; i < MAX_HWIFS; i++) {
-		if (idx[i] == 0xff)
-			continue;
+	for (i = 0; i < MAX_HOST_PORTS; i++) {
+		hwif = host->ports[i];
 
-		hwif = &ide_hwifs[idx[i]];
+		if (hwif == NULL)
+			continue;
 
 		if (hwif_init(hwif) == 0) {
 			printk(KERN_INFO "%s: failed to initialize IDE "
 					 "interface\n", hwif->name);
 			hwif->present = 0;
-			rc = -1;
 			continue;
 		}
 
 		if (hwif->present)
-			ide_port_setup_devices(hwif);
+			if (ide_port_setup_devices(hwif) == 0) {
+				hwif->present = 0;
+				continue;
+			}
+
+		j++;
 
 		ide_acpi_init(hwif);
 
@@ -1573,11 +1690,11 @@ int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 			ide_acpi_port_init_devices(hwif);
 	}
 
-	for (i = 0; i < MAX_HWIFS; i++) {
-		if (idx[i] == 0xff)
-			continue;
+	for (i = 0; i < MAX_HOST_PORTS; i++) {
+		hwif = host->ports[i];
 
-		hwif = &ide_hwifs[idx[i]];
+		if (hwif == NULL)
+			continue;
 
 		if (hwif->chipset == ide_unknown)
 			hwif->chipset = ide_generic;
@@ -1586,11 +1703,11 @@ int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 			hwif_register_devices(hwif);
 	}
 
-	for (i = 0; i < MAX_HWIFS; i++) {
-		if (idx[i] == 0xff)
-			continue;
+	for (i = 0; i < MAX_HOST_PORTS; i++) {
+		hwif = host->ports[i];
 
-		hwif = &ide_hwifs[idx[i]];
+		if (hwif == NULL)
+			continue;
 
 		ide_sysfs_register_port(hwif);
 		ide_proc_register_port(hwif);
@@ -1599,21 +1716,64 @@ int ide_device_add_all(u8 *idx, const struct ide_port_info *d)
 			ide_proc_port_register_devices(hwif);
 	}
 
-	return rc;
+	return j ? 0 : -1;
 }
-EXPORT_SYMBOL_GPL(ide_device_add_all);
+EXPORT_SYMBOL_GPL(ide_host_register);
 
-int ide_device_add(u8 idx[4], const struct ide_port_info *d)
+int ide_host_add(const struct ide_port_info *d, hw_regs_t **hws,
+		 struct ide_host **hostp)
 {
-	u8 idx_all[MAX_HWIFS];
+	struct ide_host *host;
+	int rc;
+
+	host = ide_host_alloc(d, hws);
+	if (host == NULL)
+		return -ENOMEM;
+
+	rc = ide_host_register(host, d, hws);
+	if (rc) {
+		ide_host_free(host);
+		return rc;
+	}
+
+	if (hostp)
+		*hostp = host;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ide_host_add);
+
+void ide_host_free(struct ide_host *host)
+{
+	ide_hwif_t *hwif;
 	int i;
 
-	for (i = 0; i < MAX_HWIFS; i++)
-		idx_all[i] = (i < 4) ? idx[i] : 0xff;
+	for (i = 0; i < MAX_HOST_PORTS; i++) {
+		hwif = host->ports[i];
 
-	return ide_device_add_all(idx_all, d);
+		if (hwif == NULL)
+			continue;
+
+		ide_free_port_slot(hwif->index);
+		kfree(hwif);
+	}
+
+	kfree(host);
 }
-EXPORT_SYMBOL_GPL(ide_device_add);
+EXPORT_SYMBOL_GPL(ide_host_free);
+
+void ide_host_remove(struct ide_host *host)
+{
+	int i;
+
+	for (i = 0; i < MAX_HOST_PORTS; i++) {
+		if (host->ports[i])
+			ide_unregister(host->ports[i]);
+	}
+
+	ide_host_free(host);
+}
+EXPORT_SYMBOL_GPL(ide_host_remove);
 
 void ide_port_scan(ide_hwif_t *hwif)
 {
@@ -1634,11 +1794,10 @@ void ide_port_scan(ide_hwif_t *hwif)
 }
 EXPORT_SYMBOL_GPL(ide_port_scan);
 
-static void ide_legacy_init_one(u8 *idx, hw_regs_t *hw, u8 port_no,
-				const struct ide_port_info *d,
+static void ide_legacy_init_one(hw_regs_t **hws, hw_regs_t *hw,
+				u8 port_no, const struct ide_port_info *d,
 				unsigned long config)
 {
-	ide_hwif_t *hwif;
 	unsigned long base, ctl;
 	int irq;
 
@@ -1668,33 +1827,25 @@ static void ide_legacy_init_one(u8 *idx, hw_regs_t *hw, u8 port_no,
 	ide_std_init_ports(hw, base, ctl);
 	hw->irq = irq;
 	hw->chipset = d->chipset;
+	hw->config = config;
 
-	hwif = ide_find_port_slot(d);
-	if (hwif) {
-		ide_init_port_hw(hwif, hw);
-		if (config)
-			hwif->config_data = config;
-		idx[port_no] = hwif->index;
-	}
+	hws[port_no] = hw;
 }
 
 int ide_legacy_device_add(const struct ide_port_info *d, unsigned long config)
 {
-	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-	hw_regs_t hw[2];
+	hw_regs_t hw[2], *hws[] = { NULL, NULL, NULL, NULL };
 
 	memset(&hw, 0, sizeof(hw));
 
 	if ((d->host_flags & IDE_HFLAG_QD_2ND_PORT) == 0)
-		ide_legacy_init_one(idx, &hw[0], 0, d, config);
-	ide_legacy_init_one(idx, &hw[1], 1, d, config);
+		ide_legacy_init_one(hws, &hw[0], 0, d, config);
+	ide_legacy_init_one(hws, &hw[1], 1, d, config);
 
-	if (idx[0] == 0xff && idx[1] == 0xff &&
+	if (hws[0] == NULL && hws[1] == NULL &&
 	    (d->host_flags & IDE_HFLAG_SINGLE))
 		return -ENOENT;
 
-	ide_device_add(idx, d);
-
-	return 0;
+	return ide_host_add(d, hws, NULL);
 }
 EXPORT_SYMBOL_GPL(ide_legacy_device_add);

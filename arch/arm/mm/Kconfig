@@ -187,7 +187,7 @@ config CPU_ARM926T
 		ARCH_AT91SAM9260 || ARCH_AT91SAM9261 || \
 		ARCH_AT91SAM9263 || ARCH_AT91SAM9RL || \
 		ARCH_AT91SAM9G20 || ARCH_AT91CAP9 || \
-		ARCH_NS9XXX || ARCH_DAVINCI
+		ARCH_NS9XXX || ARCH_DAVINCI || ARCH_MX2
 	default y if ARCH_VERSATILE_PB || MACH_VERSATILE_AB || \
 		ARCH_OMAP730 || ARCH_OMAP16XX || \
 		ARCH_PNX4008 || ARCH_NETX || CPU_S3C2412 || \
@@ -400,9 +400,9 @@ config CPU_FEROCEON_OLD_ID
 # ARMv6
 config CPU_V6
 	bool "Support ARM V6 processor"
-	depends on ARCH_INTEGRATOR || MACH_REALVIEW_EB || ARCH_OMAP2 || ARCH_MX3 || ARCH_MSM7X00A || MACH_REALVIEW_PB11MP || MACH_REALVIEW_PB1176
+	depends on ARCH_INTEGRATOR || MACH_REALVIEW_EB || ARCH_OMAP2 || ARCH_MX3 || ARCH_MSM || MACH_REALVIEW_PB11MP || MACH_REALVIEW_PB1176
 	default y if ARCH_MX3
-	default y if ARCH_MSM7X00A
+	default y if ARCH_MSM
 	select CPU_32v6
 	select CPU_ABRT_EV6
 	select CPU_PABRT_NOIFAR
@@ -428,7 +428,7 @@ config CPU_32v6K
 # ARMv7
 config CPU_V7
 	bool "Support ARM V7 processor"
-	depends on ARCH_INTEGRATOR || MACH_REALVIEW_EB
+	depends on ARCH_INTEGRATOR || MACH_REALVIEW_EB || ARCH_OMAP3
 	select CPU_32v6K
 	select CPU_32v7
 	select CPU_ABRT_EV7
@@ -735,6 +735,14 @@ config CACHE_FEROCEON_L2
 	help
 	  This option enables the Feroceon L2 cache controller.
 
+config CACHE_FEROCEON_L2_WRITETHROUGH
+	bool "Force Feroceon L2 cache write through"
+	depends on CACHE_FEROCEON_L2
+	default n
+	help
+	  Say Y here to use the Feroceon L2 cache in writethrough mode.
+	  Unless you specifically require this, say N for writeback mode.
+
 config CACHE_L2X0
 	bool "Enable the L2x0 outer cache controller"
 	depends on REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP || MACH_REALVIEW_PB1176
@@ -742,3 +750,11 @@ config CACHE_L2X0
 	select OUTER_CACHE
 	help
 	  This option enables the L2x0 PrimeCell.
+
+config CACHE_XSC3L2
+	bool "Enable the L2 cache on XScale3"
+	depends on CPU_XSC3
+	default y
+	select OUTER_CACHE
+	help
+	  This option enables the L2 cache on XScale3.

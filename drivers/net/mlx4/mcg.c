@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2006, 2007 Cisco Systems, Inc.  All rights reserved.
+ * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -367,8 +368,8 @@ int mlx4_init_mcg_table(struct mlx4_dev *dev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int err;
 
-	err = mlx4_bitmap_init(&priv->mcg_table.bitmap,
-			       dev->caps.num_amgms, dev->caps.num_amgms - 1, 0);
+	err = mlx4_bitmap_init(&priv->mcg_table.bitmap, dev->caps.num_amgms,
+			       dev->caps.num_amgms - 1, 0, 0);
 	if (err)
 		return err;
 

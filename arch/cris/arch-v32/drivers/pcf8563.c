@@ -118,7 +118,7 @@ get_rtc_time(struct rtc_time *tm)
 		       "information is no longer guaranteed!\n", PCF8563_NAME);
 	}
 
-	tm->tm_year  = BCD_TO_BIN(tm->tm_year) +
+	tm->tm_year  = bcd2bin(tm->tm_year) +
 		       ((tm->tm_mon & 0x80) ? 100 : 0);
 	tm->tm_sec  &= 0x7F;
 	tm->tm_min  &= 0x7F;
@@ -127,11 +127,11 @@ get_rtc_time(struct rtc_time *tm)
 	tm->tm_wday &= 0x07; /* Not coded in BCD. */
 	tm->tm_mon  &= 0x1F;
 
-	BCD_TO_BIN(tm->tm_sec);
-	BCD_TO_BIN(tm->tm_min);
-	BCD_TO_BIN(tm->tm_hour);
-	BCD_TO_BIN(tm->tm_mday);
-	BCD_TO_BIN(tm->tm_mon);
+	tm->tm_sec = bcd2bin(tm->tm_sec);
+	tm->tm_min = bcd2bin(tm->tm_min);
+	tm->tm_hour = bcd2bin(tm->tm_hour);
+	tm->tm_mday = bcd2bin(tm->tm_mday);
+	tm->tm_mon = bcd2bin(tm->tm_mon);
 	tm->tm_mon--; /* Month is 1..12 in RTC but 0..11 in linux */
 }
 
@@ -229,7 +229,7 @@ int pcf8563_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 
 		if (copy_to_user((struct rtc_time *) arg, &tm,
 				 sizeof tm)) {
-			spin_unlock(&rtc_lock);
+			mutex_unlock(&rtc_lock);
 			return -EFAULT;
 		}
 
@@ -279,12 +279,12 @@ int pcf8563_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 		century = (tm.tm_year >= 2000) ? 0x80 : 0;
 		tm.tm_year = tm.tm_year % 100;
 
-		BIN_TO_BCD(tm.tm_year);
-		BIN_TO_BCD(tm.tm_mon);
-		BIN_TO_BCD(tm.tm_mday);
-		BIN_TO_BCD(tm.tm_hour);
-		BIN_TO_BCD(tm.tm_min);
-		BIN_TO_BCD(tm.tm_sec);
+		tm.tm_year = bin2bcd(tm.tm_year);
+		tm.tm_mon = bin2bcd(tm.tm_mon);
+		tm.tm_mday = bin2bcd(tm.tm_mday);
+		tm.tm_hour = bin2bcd(tm.tm_hour);
+		tm.tm_min = bin2bcd(tm.tm_min);
+		tm.tm_sec = bin2bcd(tm.tm_sec);
 		tm.tm_mon |= century;
 
 		mutex_lock(&rtc_lock);

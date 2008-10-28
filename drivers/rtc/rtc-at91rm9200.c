@@ -29,10 +29,10 @@
 #include <linux/completion.h>
 
 #include <asm/uaccess.h>
-#include <asm/arch/at91_rtc.h>
+
+#include <mach/at91_rtc.h>
 
 
-#define AT91_RTC_FREQ		1
 #define AT91_RTC_EPOCH		1900UL	/* just like arch/arm/common/rtctime.c */
 
 static DECLARE_COMPLETION(at91_rtc_updated);
@@ -53,21 +53,21 @@ static void at91_rtc_decodetime(unsigned int timereg, unsigned int calreg,
 	} while ((time != at91_sys_read(timereg)) ||
 			(date != at91_sys_read(calreg)));
 
-	tm->tm_sec  = BCD2BIN((time & AT91_RTC_SEC) >> 0);
-	tm->tm_min  = BCD2BIN((time & AT91_RTC_MIN) >> 8);
-	tm->tm_hour = BCD2BIN((time & AT91_RTC_HOUR) >> 16);
+	tm->tm_sec  = bcd2bin((time & AT91_RTC_SEC) >> 0);
+	tm->tm_min  = bcd2bin((time & AT91_RTC_MIN) >> 8);
+	tm->tm_hour = bcd2bin((time & AT91_RTC_HOUR) >> 16);
 
 	/*
 	 * The Calendar Alarm register does not have a field for
 	 * the year - so these will return an invalid value.  When an
 	 * alarm is set, at91_alarm_year wille store the current year.
 	 */
-	tm->tm_year  = BCD2BIN(date & AT91_RTC_CENT) * 100;	/* century */
-	tm->tm_year += BCD2BIN((date & AT91_RTC_YEAR) >> 8);	/* year */
+	tm->tm_year  = bcd2bin(date & AT91_RTC_CENT) * 100;	/* century */
+	tm->tm_year += bcd2bin((date & AT91_RTC_YEAR) >> 8);	/* year */
 
-	tm->tm_wday = BCD2BIN((date & AT91_RTC_DAY) >> 21) - 1;	/* day of the week [0-6], Sunday=0 */
-	tm->tm_mon  = BCD2BIN((date & AT91_RTC_MONTH) >> 16) - 1;
-	tm->tm_mday = BCD2BIN((date & AT91_RTC_DATE) >> 24);
+	tm->tm_wday = bcd2bin((date & AT91_RTC_DAY) >> 21) - 1;	/* day of the week [0-6], Sunday=0 */
+	tm->tm_mon  = bcd2bin((date & AT91_RTC_MONTH) >> 16) - 1;
+	tm->tm_mday = bcd2bin((date & AT91_RTC_DATE) >> 24);
 }
 
 /*
@@ -106,16 +106,16 @@ static int at91_rtc_settime(struct device *dev, struct rtc_time *tm)
 	at91_sys_write(AT91_RTC_IDR, AT91_RTC_ACKUPD);
 
 	at91_sys_write(AT91_RTC_TIMR,
-			  BIN2BCD(tm->tm_sec) << 0
-			| BIN2BCD(tm->tm_min) << 8
-			| BIN2BCD(tm->tm_hour) << 16);
+			  bin2bcd(tm->tm_sec) << 0
+			| bin2bcd(tm->tm_min) << 8
+			| bin2bcd(tm->tm_hour) << 16);
 
 	at91_sys_write(AT91_RTC_CALR,
-			  BIN2BCD((tm->tm_year + 1900) / 100)	/* century */
-			| BIN2BCD(tm->tm_year % 100) << 8	/* year */
-			| BIN2BCD(tm->tm_mon + 1) << 16		/* tm_mon starts at zero */
-			| BIN2BCD(tm->tm_wday + 1) << 21	/* day of the week [0-6], Sunday=0 */
-			| BIN2BCD(tm->tm_mday) << 24);
+			  bin2bcd((tm->tm_year + 1900) / 100)	/* century */
+			| bin2bcd(tm->tm_year % 100) << 8	/* year */
+			| bin2bcd(tm->tm_mon + 1) << 16		/* tm_mon starts at zero */
+			| bin2bcd(tm->tm_wday + 1) << 21	/* day of the week [0-6], Sunday=0 */
+			| bin2bcd(tm->tm_mday) << 24);
 
 	/* Restart Time/Calendar */
 	cr = at91_sys_read(AT91_RTC_CR);
@@ -162,17 +162,19 @@ static int at91_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	at91_sys_write(AT91_RTC_IDR, AT91_RTC_ALARM);
 	at91_sys_write(AT91_RTC_TIMALR,
-		  BIN2BCD(tm.tm_sec) << 0
-		| BIN2BCD(tm.tm_min) << 8
-		| BIN2BCD(tm.tm_hour) << 16
+		  bin2bcd(tm.tm_sec) << 0
+		| bin2bcd(tm.tm_min) << 8
+		| bin2bcd(tm.tm_hour) << 16
 		| AT91_RTC_HOUREN | AT91_RTC_MINEN | AT91_RTC_SECEN);
 	at91_sys_write(AT91_RTC_CALALR,
-		  BIN2BCD(tm.tm_mon + 1) << 16		/* tm_mon starts at zero */
-		| BIN2BCD(tm.tm_mday) << 24
+		  bin2bcd(tm.tm_mon + 1) << 16		/* tm_mon starts at zero */
+		| bin2bcd(tm.tm_mday) << 24
 		| AT91_RTC_DATEEN | AT91_RTC_MTHEN);
 
-	if (alrm->enabled)
+	if (alrm->enabled) {
+		at91_sys_write(AT91_RTC_SCCR, AT91_RTC_ALARM);
 		at91_sys_write(AT91_RTC_IER, AT91_RTC_ALARM);
+	}
 
 	pr_debug("%s(): %4d-%02d-%02d %02d:%02d:%02d\n", __func__,
 		at91_alarm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour,
@@ -191,27 +193,21 @@ static int at91_rtc_ioctl(struct device *dev, unsigned int cmd,
 
 	pr_debug("%s(): cmd=%08x, arg=%08lx.\n", __func__, cmd, arg);
 
+	/* important:  scrub old status before enabling IRQs */
 	switch (cmd) {
 	case RTC_AIE_OFF:	/* alarm off */
 		at91_sys_write(AT91_RTC_IDR, AT91_RTC_ALARM);
 		break;
 	case RTC_AIE_ON:	/* alarm on */
+		at91_sys_write(AT91_RTC_SCCR, AT91_RTC_ALARM);
 		at91_sys_write(AT91_RTC_IER, AT91_RTC_ALARM);
 		break;
 	case RTC_UIE_OFF:	/* update off */
-	case RTC_PIE_OFF:	/* periodic off */
 		at91_sys_write(AT91_RTC_IDR, AT91_RTC_SECEV);
 		break;
 	case RTC_UIE_ON:	/* update on */
-	case RTC_PIE_ON:	/* periodic on */
+		at91_sys_write(AT91_RTC_SCCR, AT91_RTC_SECEV);
 		at91_sys_write(AT91_RTC_IER, AT91_RTC_SECEV);
-		break;
-	case RTC_IRQP_READ:	/* read periodic alarm frequency */
-		ret = put_user(AT91_RTC_FREQ, (unsigned long *) arg);
-		break;
-	case RTC_IRQP_SET:	/* set periodic alarm frequency */
-		if (arg != AT91_RTC_FREQ)
-			ret = -EINVAL;
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -232,8 +228,6 @@ static int at91_rtc_proc(struct device *dev, struct seq_file *seq)
 			(imr & AT91_RTC_ACKUPD) ? "yes" : "no");
 	seq_printf(seq, "periodic_IRQ\t: %s\n",
 			(imr & AT91_RTC_SECEV) ? "yes" : "no");
-	seq_printf(seq, "periodic_freq\t: %ld\n",
-			(unsigned long) AT91_RTC_FREQ);
 
 	return 0;
 }

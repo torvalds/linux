@@ -26,14 +26,6 @@ menuconfig NETDEVICES
 # that for each of the symbols.
 if NETDEVICES
 
-config NETDEVICES_MULTIQUEUE
-	bool "Netdevice multiple hardware queue support"
-	---help---
-	  Say Y here if you want to allow the network stack to use multiple
-	  hardware TX queues on an ethernet device.
-
-	  Most people will say N here.
-
 config IFB
 	tristate "Intermediate Functional Block support"
 	depends on NET_CLS_ACT
@@ -333,15 +325,6 @@ config APNE
 	  To compile this driver as a module, choose M here: the module
 	  will be called apne.
 
-config APOLLO_ELPLUS
-	tristate "Apollo 3c505 support"
-	depends on APOLLO
-	help
-	  Say Y or M here if your Apollo has a 3Com 3c505 ISA Ethernet card.
-	  If you don't have one made for Apollos, you can use one from a PC,
-	  except that your Apollo won't be able to boot from it (because the
-	  code in the ROM will be for a PC).
-
 config MAC8390
 	bool "Macintosh NS 8390 based ethernet cards"
 	depends on MAC
@@ -481,6 +464,12 @@ config MIPS_JAZZ_SONIC
 	  This is the driver for the onboard card of MIPS Magnum 4000,
 	  Acer PICA, Olivetti M700-10 and a few other identical OEM systems.
 
+config XTENSA_XT2000_SONIC
+	tristate "Xtensa XT2000 onboard SONIC Ethernet support"
+	depends on XTENSA_PLATFORM_XT2000
+	help
+	  This is the driver for the onboard card of the Xtensa XT2000 board.
+
 config MIPS_AU1X00_ENET
 	bool "MIPS AU1000 Ethernet support"
 	depends on SOC_AU1X00
@@ -523,6 +512,19 @@ config STNIC
 	  <http://www.national.com/pf/DP/DP83902A.html>.
 
 	  If unsure, say N.
+
+config SH_ETH
+	tristate "Renesas SuperH Ethernet support"
+	depends on SUPERH && \
+		(CPU_SUBTYPE_SH7710 || CPU_SUBTYPE_SH7712 || CPU_SUBTYPE_SH7763 || \
+		 CPU_SUBTYPE_SH7619)
+	select CRC32
+	select MII
+	select MDIO_BITBANG
+	select PHYLIB
+	help
+	  Renesas SuperH Ethernet device driver.
+	  This driver support SH7710, SH7712, SH7763 and SH7619.
 
 config SUNLANCE
 	tristate "Sun LANCE support"
@@ -826,14 +828,14 @@ config ULTRA32
 	  will be called smc-ultra32.
 
 config BFIN_MAC
-	tristate "Blackfin 527/536/537 on-chip mac support"
-	depends on NET_ETHERNET && (BF527 || BF537 || BF536)
+	tristate "Blackfin on-chip MAC support"
+	depends on NET_ETHERNET && (BF526 || BF527 || BF536 || BF537)
 	select CRC32
 	select MII
 	select PHYLIB
 	select BFIN_MAC_USE_L1 if DMA_UNCACHED_NONE
 	help
-	  This is the driver for blackfin on-chip mac device. Say Y if you want it
+	  This is the driver for Blackfin on-chip mac device. Say Y if you want it
 	  compiled into the kernel. This driver is also available as a module
 	  ( = code which can be inserted in and removed from the running kernel
 	  whenever you want). The module will be called bfin_mac.
@@ -892,7 +894,7 @@ config SMC91X
 	select CRC32
 	select MII
 	depends on ARM || REDWOOD_5 || REDWOOD_6 || M32R || SUPERH || \
-		SOC_AU1X00 || BLACKFIN || MN10300
+		MIPS || BLACKFIN || MN10300
 	help
 	  This is a driver for SMC's 91x series of Ethernet chipsets,
 	  including the SMC91C94 and the SMC91C111. Say Y if you want it
@@ -926,6 +928,23 @@ config DM9000
 	  To compile this driver as a module, choose M here.  The module
 	  will be called dm9000.
 
+config DM9000_DEBUGLEVEL
+	int "DM9000 maximum debug level"
+	depends on DM9000
+	default 4
+	help
+	  The maximum level of debugging code compiled into the DM9000
+	  driver.
+
+config DM9000_FORCE_SIMPLE_PHY_POLL
+	bool "Force simple NSR based PHY polling"
+	depends on DM9000
+	---help---
+	  This configuration forces the DM9000 to use the NSR's LinkStatus
+	  bit to determine if the link is up or down instead of the more
+	  costly MII PHY reads. Note, this will not work if the chip is
+	  operating with an external PHY.
+
 config ENC28J60
 	tristate "ENC28J60 support"
 	depends on EXPERIMENTAL && SPI && NET_ETHERNET
@@ -943,19 +962,11 @@ config ENC28J60_WRITEVERIFY
 	  Enable the verify after the buffer write useful for debugging purpose.
 	  If unsure, say N.
 
-config DM9000_DEBUGLEVEL
-	int "DM9000 maximum debug level"
-	depends on DM9000
-	default 4
-	help
-	  The maximum level of debugging code compiled into the DM9000
-	  driver.
-
 config SMC911X
 	tristate "SMSC LAN911[5678] support"
 	select CRC32
 	select MII
-	depends on ARCH_PXA || SH_MAGIC_PANEL_R2
+	depends on ARM || SUPERH
 	help
 	  This is a driver for SMSC's LAN911x series of Ethernet chipsets
 	  including the new LAN9115, LAN9116, LAN9117, and LAN9118.
@@ -1167,7 +1178,7 @@ config ETH16I
 
 config NE2000
 	tristate "NE2000/NE1000 support"
-	depends on NET_ISA || (Q40 && m) || M32R || TOSHIBA_RBTX4927 || TOSHIBA_RBTX4938
+	depends on NET_ISA || (Q40 && m) || M32R || MACH_TX49XX
 	select CRC32
 	---help---
 	  If you have a network (Ethernet) card of this type, say Y and read
@@ -1243,7 +1254,6 @@ config IBMVETH
 	  To compile this driver as a module, choose M here. The module will
 	  be called ibmveth.
 
-source "drivers/net/ibm_emac/Kconfig"
 source "drivers/net/ibm_newemac/Kconfig"
 
 config NET_PCI
@@ -1286,20 +1296,6 @@ config AMD8111_ETH
 	  To compile this driver as a module, choose M here. The module
 	  will be called amd8111e.
 
-config AMD8111E_NAPI
-	bool "Use RX polling (NAPI)"
-	depends on AMD8111_ETH
-	help
-	  NAPI is a new driver API designed to reduce CPU and interrupt load
-	  when the driver is receiving lots of packets from the card. It is
-	  still somewhat experimental and thus not yet enabled by default.
-
-	  If your estimated Rx load is 10kpps or more, or if the card will be
-	  deployed on potentially unfriendly networks (e.g. in a firewall),
-	  then say Y here.
-
-	  If in doubt, say N.
-
 config ADAPTEC_STARFIRE
 	tristate "Adaptec Starfire/DuraLAN support"
 	depends on NET_PCI && PCI
@@ -1313,20 +1309,6 @@ config ADAPTEC_STARFIRE
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called starfire.  This is recommended.
-
-config ADAPTEC_STARFIRE_NAPI
-	bool "Use Rx Polling (NAPI) (EXPERIMENTAL)"
-	depends on ADAPTEC_STARFIRE && EXPERIMENTAL
-	help
-	  NAPI is a new driver API designed to reduce CPU and interrupt load
-	  when the driver is receiving lots of packets from the card. It is
-	  still somewhat experimental and thus not yet enabled by default.
-
-	  If your estimated Rx load is 10kpps or more, or if the card will be
-	  deployed on potentially unfriendly networks (e.g. in a firewall),
-	  then say Y here.
-
-	  If in doubt, say N.
 
 config AC3200
 	tristate "Ansel Communications EISA 3200 support (EXPERIMENTAL)"
@@ -1410,7 +1392,8 @@ config FORCEDETH_NAPI
 
 config CS89x0
 	tristate "CS89x0 support"
-	depends on NET_PCI && (ISA || MACH_IXDP2351 || ARCH_IXDP2X01 || ARCH_PNX010X)
+	depends on NET_ETHERNET && (ISA || EISA || MACH_IXDP2351 \
+		|| ARCH_IXDP2X01 || ARCH_PNX010X || MACH_MX31ADS)
 	---help---
 	  Support for CS89x0 chipset based Ethernet cards. If you have a
 	  network (Ethernet) card of this type, say Y and read the
@@ -1420,6 +1403,11 @@ config CS89x0
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called cs89x0.
+
+config CS89x0_NONISA_IRQ
+	def_bool y
+	depends on CS89x0 != n
+	depends on MACH_IXDP2351 || ARCH_IXDP2X01 || ARCH_PNX010X || MACH_MX31ADS
 
 config TC35815
 	tristate "TOSHIBA TC35815 Ethernet support"
@@ -1670,7 +1658,7 @@ config SUNDANCE_MMIO
 
 config TLAN
 	tristate "TI ThunderLAN support"
-	depends on NET_PCI && (PCI || EISA) && !64BIT
+	depends on NET_PCI && (PCI || EISA)
 	---help---
 	  If you have a PCI Ethernet network card based on the ThunderLAN chip
 	  which is supported by this driver, say Y and read the
@@ -1709,26 +1697,6 @@ config VIA_RHINE_MMIO
 	  processing time in parts of the driver.
 
 	  If unsure, say Y.
-
-config VIA_RHINE_NAPI
-	bool "Use Rx Polling (NAPI)"
-	depends on VIA_RHINE
-	help
-	  NAPI is a new driver API designed to reduce CPU and interrupt load
-	  when the driver is receiving lots of packets from the card.
-
-	  If your estimated Rx load is 10kpps or more, or if the card will be
-	  deployed on potentially unfriendly networks (e.g. in a firewall),
-	  then say Y here.
-
-config LAN_SAA9730
-	bool "Philips SAA9730 Ethernet support"
-	depends on NET_PCI && PCI && MIPS_ATLAS
-	help
-	  The SAA9730 is a combined multimedia and peripheral controller used
-	  in thin clients, Internet access terminals, and diskless
-	  workstations.
-	  See <http://www.semiconductors.philips.com/pip/SAA9730_flyer_1>.
 
 config SC92031
 	tristate "Silan SC92031 PCI Fast Ethernet Adapter driver (EXPERIMENTAL)"
@@ -1857,7 +1825,7 @@ config FEC2
 
 config FEC_MPC52xx
 	tristate "MPC52xx FEC driver"
-	depends on PPC_MERGE && PPC_MPC52xx && PPC_BESTCOMM_FEC
+	depends on PPC_MPC52xx && PPC_BESTCOMM_FEC
 	select CRC32
 	select PHYLIB
 	---help---
@@ -1883,6 +1851,17 @@ config NE_H8300
 	help
 	  Say Y here if you want to use the NE2000 compatible
 	  controller on the Renesas H8/300 processor.
+
+config ATL2
+	tristate "Atheros L2 Fast Ethernet support"
+	depends on PCI
+	select CRC32
+	select MII
+	help
+	  This driver supports the Atheros L2 fast ethernet adapter.
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called atl2.
 
 source "drivers/net/fs_enet/Kconfig"
 
@@ -1971,29 +1950,6 @@ config E1000
 	  To compile this driver as a module, choose M here. The module
 	  will be called e1000.
 
-config E1000_NAPI
-	bool "Use Rx Polling (NAPI)"
-	depends on E1000
-	help
-	  NAPI is a new driver API designed to reduce CPU and interrupt load
-	  when the driver is receiving lots of packets from the card. It is
-	  still somewhat experimental and thus not yet enabled by default.
-
-	  If your estimated Rx load is 10kpps or more, or if the card will be
-	  deployed on potentially unfriendly networks (e.g. in a firewall),
-	  then say Y here.
-
-	  If in doubt, say N.
-
-config E1000_DISABLE_PACKET_SPLIT
-	bool "Disable Packet Split for PCI express adapters"
-	depends on E1000
-	help
-	  Say Y here if you want to use the legacy receive path for PCI express
-	  hardware.
-
-	  If in doubt, say N.
-
 config E1000E
 	tristate "Intel(R) PRO/1000 PCI-Express Gigabit Ethernet support"
 	depends on PCI && (!SPARC32 || BROKEN)
@@ -2012,9 +1968,6 @@ config E1000E
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called e1000e.
-
-config E1000E_ENABLED
-	def_bool E1000E != n
 
 config IP1000
 	tristate "IP1000 Gigabit Ethernet support"
@@ -2046,6 +1999,20 @@ config IGB
 
          To compile this driver as a module, choose M here. The module
          will be called igb.
+
+config IGB_LRO 
+	bool "Use software LRO"
+	depends on IGB && INET
+	select INET_LRO
+	---help---
+	  Say Y here if you want to use large receive offload. 
+
+	  If in doubt, say N.
+
+config IGB_DCA
+	bool "Enable DCA"
+	default y
+	depends on IGB && DCA && !(IGB=y && DCA=m)
 
 source "drivers/net/ixp2000/Kconfig"
 
@@ -2098,25 +2065,12 @@ config R8169
 	tristate "Realtek 8169 gigabit ethernet support"
 	depends on PCI
 	select CRC32
+	select MII
 	---help---
 	  Say Y here if you have a Realtek 8169 PCI Gigabit Ethernet adapter.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called r8169.  This is recommended.
-
-config R8169_NAPI
-	bool "Use Rx Polling (NAPI) (EXPERIMENTAL)"
-	depends on R8169 && EXPERIMENTAL
-	help
-	  NAPI is a new driver API designed to reduce CPU and interrupt load
-	  when the driver is receiving lots of packets from the card. It is
-	  still somewhat experimental and thus not yet enabled by default.
-
-	  If your estimated Rx load is 10kpps or more, or if the card will be
-	  deployed on potentially unfriendly networks (e.g. in a firewall),
-	  then say Y here.
-
-	  If in doubt, say N.
 
 config R8169_VLAN
 	bool "VLAN support"
@@ -2124,7 +2078,7 @@ config R8169_VLAN
 	---help---
 	  Say Y here for the r8169 driver to support the functions required
 	  by the kernel 802.1Q code.
-	  
+
 	  If in doubt, say Y.
 
 config SB1250_MAC
@@ -2227,6 +2181,7 @@ config VIA_VELOCITY
 config TIGON3
 	tristate "Broadcom Tigon3 support"
 	depends on PCI
+	select PHYLIB
 	help
 	  This driver supports Broadcom Tigon3 based gigabit Ethernet cards.
 
@@ -2282,6 +2237,19 @@ config GELIC_WIRELESS
 	  the driver automatically distinguishes the models, you can
 	  safely enable this option even if you have a wireless-less model.
 
+config GELIC_WIRELESS_OLD_PSK_INTERFACE
+       bool "PS3 Wireless private PSK interface (OBSOLETE)"
+       depends on GELIC_WIRELESS
+       help
+          This option retains the obsolete private interface to pass
+          the PSK from user space programs to the driver.  The PSK
+          stands for 'Pre Shared Key' and is used for WPA[2]-PSK
+          (WPA-Personal) environment.
+          If WPA[2]-PSK is used and you need to use old programs that
+          support only this old interface, say Y.  Otherwise N.
+
+          If unsure, say N.
+
 config GIANFAR
 	tristate "Gianfar Ethernet"
 	depends on FSL_SOC
@@ -2291,10 +2259,6 @@ config GIANFAR
 	  This driver supports the Gigabit TSEC on the MPC83xx, MPC85xx,
 	  and MPC86xx family of chips, and the FEC on the 8540.
 
-config GFAR_NAPI
-	bool "Use Rx Polling (NAPI)"
-	depends on GIANFAR
-
 config UCC_GETH
 	tristate "Freescale QE Gigabit Ethernet"
 	depends on QUICC_ENGINE
@@ -2302,10 +2266,6 @@ config UCC_GETH
 	help
 	  This driver supports the Gigabit Ethernet mode of the QUICC Engine,
 	  which is available on some Freescale SOCs.
-
-config UGETH_NAPI
-	bool "Use Rx Polling (NAPI)"
-	depends on UCC_GETH
 
 config UGETH_MAGIC_PACKET
 	bool "Magic Packet detection support"
@@ -2322,7 +2282,7 @@ config UGETH_TX_ON_DEMAND
 config MV643XX_ETH
 	tristate "Marvell Discovery (643XX) and Orion ethernet support"
 	depends on MV64360 || MV64X60 || (PPC_MULTIPLATFORM && PPC32) || PLAT_ORION
-	select MII
+	select PHYLIB
 	help
 	  This driver supports the gigabit ethernet MACs in the
 	  Marvell Discovery PPC/MIPS chipset family (MV643XX) and
@@ -2341,15 +2301,39 @@ config QLA3XXX
 	  will be called qla3xxx.
 
 config ATL1
-	tristate "Attansic L1 Gigabit Ethernet support (EXPERIMENTAL)"
+	tristate "Atheros/Attansic L1 Gigabit Ethernet support"
+	depends on PCI
+	select CRC32
+	select MII
+	help
+	  This driver supports the Atheros/Attansic L1 gigabit ethernet
+	  adapter.
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called atl1.
+
+config ATL1E
+	tristate "Atheros L1E Gigabit Ethernet support (EXPERIMENTAL)"
 	depends on PCI && EXPERIMENTAL
 	select CRC32
 	select MII
 	help
-	  This driver supports the Attansic L1 gigabit ethernet adapter.
+	  This driver supports the Atheros L1E gigabit ethernet adapter.
 
 	  To compile this driver as a module, choose M here.  The module
-	  will be called atl1.
+	  will be called atl1e.
+
+config JME
+	tristate "JMicron(R) PCI-Express Gigabit Ethernet support"
+	depends on PCI
+	select CRC32
+	select MII
+	---help---
+	  This driver supports the PCI-Express gigabit ethernet adapters
+	  based on JMicron JMC250 chipset.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called jme.
 
 endif # NETDEV_1000
 
@@ -2396,18 +2380,11 @@ config CHELSIO_T1_1G
           Enables support for Chelsio's gigabit Ethernet PCI cards.  If you
           are using only 10G cards say 'N' here.
 
-config CHELSIO_T1_NAPI
-	bool "Use Rx Polling (NAPI)"
-	depends on CHELSIO_T1
-	default y
-	help
-	  NAPI is a driver API designed to reduce CPU and interrupt load
-	  when the driver is receiving lots of packets from the card.
-
 config CHELSIO_T3
 	tristate "Chelsio Communications T3 10Gb Ethernet support"
-	depends on PCI
+	depends on PCI && INET
 	select FW_LOADER
+	select INET_LRO
 	help
 	  This driver supports Chelsio T3-based gigabit and 10Gb Ethernet
 	  adapters.
@@ -2433,9 +2410,17 @@ config EHEA
 	  To compile the driver as a module, choose M here. The module
 	  will be called ehea.
 
+config ENIC
+	tristate "Cisco 10G Ethernet NIC support"
+	depends on PCI && INET
+	select INET_LRO
+	help
+	  This enables the support for the Cisco 10G Ethernet card.
+
 config IXGBE
 	tristate "Intel(R) 10GbE PCI Express adapters support"
-	depends on PCI
+	depends on PCI && INET
+	select INET_LRO
 	---help---
 	  This driver supports Intel(R) 10GbE PCI Express family of
 	  adapters.  For more information on how to identify your adapter, go
@@ -2450,6 +2435,11 @@ config IXGBE
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ixgbe.
+
+config IXGBE_DCA
+	bool
+	default y
+	depends on IXGBE && DCA && !(IXGBE=y && DCA=m)
 
 config IXGB
 	tristate "Intel(R) PRO/10GbE support"
@@ -2473,20 +2463,6 @@ config IXGB
 	  To compile this driver as a module, choose M here. The module
 	  will be called ixgb.
 
-config IXGB_NAPI
-	bool "Use Rx Polling (NAPI) (EXPERIMENTAL)"
-	depends on IXGB && EXPERIMENTAL
-	help
-	  NAPI is a new driver API designed to reduce CPU and interrupt load
-	  when the driver is receiving lots of packets from the card. It is
-	  still somewhat experimental and thus not yet enabled by default.
-
-	  If your estimated Rx load is 10kpps or more, or if the card will be
-	  deployed on potentially unfriendly networks (e.g. in a firewall),
-	  then say Y here.
-
-	  If in doubt, say N.
-
 config S2IO
 	tristate "S2IO 10Gbe XFrame NIC"
 	depends on PCI
@@ -2494,20 +2470,6 @@ config S2IO
 	  This driver supports the 10Gbe XFrame NIC of S2IO. 
 	  More specific information on configuring the driver is in 
 	  <file:Documentation/networking/s2io.txt>.
-
-config S2IO_NAPI
-	bool "Use Rx Polling (NAPI) (EXPERIMENTAL)"
-	depends on S2IO && EXPERIMENTAL
-	help
-	  NAPI is a new driver API designed to reduce CPU and interrupt load
-	  when the driver is receiving lots of packets from the card. It is
-	  still somewhat experimental and thus not yet enabled by default.
-
-	  If your estimated Rx load is 10kpps or more, or if the card will be
-	  deployed on potentially unfriendly networks (e.g. in a firewall),
-	  then say Y here.
-
-	  If in doubt, say N.
 
 config MYRI10GE
 	tristate "Myricom Myri-10G Ethernet support"
@@ -2525,6 +2487,11 @@ config MYRI10GE
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called myri10ge.
+
+config MYRI10GE_DCA
+	bool
+	default y
+	depends on MYRI10GE && DCA && !(MYRI10GE=y && DCA=m)
 
 config NETXEN_NIC
 	tristate "NetXen Multi port (1/10) Gigabit Ethernet NIC"
@@ -2547,6 +2514,15 @@ config PASEMI_MAC
 	help
 	  This driver supports the on-chip 1/10Gbit Ethernet controller on
 	  PA Semi's PWRficient line of chips.
+
+config MLX4_EN
+	tristate "Mellanox Technologies 10Gbit Ethernet support"
+	depends on PCI && INET
+	select MLX4_CORE
+	select INET_LRO
+	help
+	  This driver supports Mellanox Technologies ConnectX Ethernet
+	  devices.
 
 config MLX4_CORE
 	tristate
@@ -2573,10 +2549,20 @@ config BNX2X
 	tristate "Broadcom NetXtremeII 10Gb support"
 	depends on PCI
 	select ZLIB_INFLATE
+	select LIBCRC32C
 	help
 	  This driver supports Broadcom NetXtremeII 10 gigabit Ethernet cards.
 	  To compile this driver as a module, choose M here: the module
 	  will be called bnx2x.  This is recommended.
+
+config QLGE
+	tristate "QLogic QLGE 10Gb Ethernet Driver Support"
+	depends on PCI
+	help
+	  This driver supports QLogic ISP8XXX 10Gb Ethernet cards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called qlge.
 
 source "drivers/net/sfc/Kconfig"
 

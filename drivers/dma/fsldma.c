@@ -366,10 +366,14 @@ static struct fsl_desc_sw *fsl_dma_alloc_descriptor(
  *
  * Return - The number of descriptors allocated.
  */
-static int fsl_dma_alloc_chan_resources(struct dma_chan *chan)
+static int fsl_dma_alloc_chan_resources(struct dma_chan *chan,
+					struct dma_client *client)
 {
 	struct fsl_dma_chan *fsl_chan = to_fsl_chan(chan);
-	LIST_HEAD(tmp_list);
+
+	/* Has this channel already been allocated? */
+	if (fsl_chan->desc_pool)
+		return 1;
 
 	/* We need the descriptor to be aligned to 32bytes
 	 * for meeting FSL DMA specification requirement.
@@ -409,6 +413,8 @@ static void fsl_dma_free_chan_resources(struct dma_chan *chan)
 	}
 	spin_unlock_irqrestore(&fsl_chan->desc_lock, flags);
 	dma_pool_destroy(fsl_chan->desc_pool);
+
+	fsl_chan->desc_pool = NULL;
 }
 
 static struct dma_async_tx_descriptor *
@@ -785,161 +791,29 @@ static void dma_do_tasklet(unsigned long data)
 	fsl_chan_ld_cleanup(fsl_chan);
 }
 
-static void fsl_dma_callback_test(void *param)
+static int __devinit fsl_dma_chan_probe(struct fsl_dma_device *fdev,
+	struct device_node *node, u32 feature, const char *compatible)
 {
-	struct fsl_dma_chan *fsl_chan = param;
-	if (fsl_chan)
-		dev_dbg(fsl_chan->dev, "selftest: callback is ok!\n");
-}
-
-static int fsl_dma_self_test(struct fsl_dma_chan *fsl_chan)
-{
-	struct dma_chan *chan;
-	int err = 0;
-	dma_addr_t dma_dest, dma_src;
-	dma_cookie_t cookie;
-	u8 *src, *dest;
-	int i;
-	size_t test_size;
-	struct dma_async_tx_descriptor *tx1, *tx2, *tx3;
-
-	test_size = 4096;
-
-	src = kmalloc(test_size * 2, GFP_KERNEL);
-	if (!src) {
-		dev_err(fsl_chan->dev,
-				"selftest: Cannot alloc memory for test!\n");
-		err = -ENOMEM;
-		goto out;
-	}
-
-	dest = src + test_size;
-
-	for (i = 0; i < test_size; i++)
-		src[i] = (u8) i;
-
-	chan = &fsl_chan->common;
-
-	if (fsl_dma_alloc_chan_resources(chan) < 1) {
-		dev_err(fsl_chan->dev,
-				"selftest: Cannot alloc resources for DMA\n");
-		err = -ENODEV;
-		goto out;
-	}
-
-	/* TX 1 */
-	dma_src = dma_map_single(fsl_chan->dev, src, test_size / 2,
-				 DMA_TO_DEVICE);
-	dma_dest = dma_map_single(fsl_chan->dev, dest, test_size / 2,
-				  DMA_FROM_DEVICE);
-	tx1 = fsl_dma_prep_memcpy(chan, dma_dest, dma_src, test_size / 2, 0);
-	async_tx_ack(tx1);
-
-	cookie = fsl_dma_tx_submit(tx1);
-	fsl_dma_memcpy_issue_pending(chan);
-	msleep(2);
-
-	if (fsl_dma_is_complete(chan, cookie, NULL, NULL) != DMA_SUCCESS) {
-		dev_err(fsl_chan->dev, "selftest: Time out!\n");
-		err = -ENODEV;
-		goto out;
-	}
-
-	/* Test free and re-alloc channel resources */
-	fsl_dma_free_chan_resources(chan);
-
-	if (fsl_dma_alloc_chan_resources(chan) < 1) {
-		dev_err(fsl_chan->dev,
-				"selftest: Cannot alloc resources for DMA\n");
-		err = -ENODEV;
-		goto free_resources;
-	}
-
-	/* Continue to test
-	 * TX 2
-	 */
-	dma_src = dma_map_single(fsl_chan->dev, src + test_size / 2,
-					test_size / 4, DMA_TO_DEVICE);
-	dma_dest = dma_map_single(fsl_chan->dev, dest + test_size / 2,
-					test_size / 4, DMA_FROM_DEVICE);
-	tx2 = fsl_dma_prep_memcpy(chan, dma_dest, dma_src, test_size / 4, 0);
-	async_tx_ack(tx2);
-
-	/* TX 3 */
-	dma_src = dma_map_single(fsl_chan->dev, src + test_size * 3 / 4,
-					test_size / 4, DMA_TO_DEVICE);
-	dma_dest = dma_map_single(fsl_chan->dev, dest + test_size * 3 / 4,
-					test_size / 4, DMA_FROM_DEVICE);
-	tx3 = fsl_dma_prep_memcpy(chan, dma_dest, dma_src, test_size / 4, 0);
-	async_tx_ack(tx3);
-
-	/* Interrupt tx test */
-	tx1 = fsl_dma_prep_interrupt(chan, 0);
-	async_tx_ack(tx1);
-	cookie = fsl_dma_tx_submit(tx1);
-
-	/* Test exchanging the prepared tx sort */
-	cookie = fsl_dma_tx_submit(tx3);
-	cookie = fsl_dma_tx_submit(tx2);
-
-	if (dma_has_cap(DMA_INTERRUPT, ((struct fsl_dma_device *)
-	    dev_get_drvdata(fsl_chan->dev->parent))->common.cap_mask)) {
-		tx3->callback = fsl_dma_callback_test;
-		tx3->callback_param = fsl_chan;
-	}
-	fsl_dma_memcpy_issue_pending(chan);
-	msleep(2);
-
-	if (fsl_dma_is_complete(chan, cookie, NULL, NULL) != DMA_SUCCESS) {
-		dev_err(fsl_chan->dev, "selftest: Time out!\n");
-		err = -ENODEV;
-		goto free_resources;
-	}
-
-	err = memcmp(src, dest, test_size);
-	if (err) {
-		for (i = 0; (*(src + i) == *(dest + i)) && (i < test_size);
-				i++);
-		dev_err(fsl_chan->dev, "selftest: Test failed, data %d/%ld is "
-				"error! src 0x%x, dest 0x%x\n",
-				i, (long)test_size, *(src + i), *(dest + i));
-	}
-
-free_resources:
-	fsl_dma_free_chan_resources(chan);
-out:
-	kfree(src);
-	return err;
-}
-
-static int __devinit of_fsl_dma_chan_probe(struct of_device *dev,
-			const struct of_device_id *match)
-{
-	struct fsl_dma_device *fdev;
 	struct fsl_dma_chan *new_fsl_chan;
 	int err;
-
-	fdev = dev_get_drvdata(dev->dev.parent);
-	BUG_ON(!fdev);
 
 	/* alloc channel */
 	new_fsl_chan = kzalloc(sizeof(struct fsl_dma_chan), GFP_KERNEL);
 	if (!new_fsl_chan) {
-		dev_err(&dev->dev, "No free memory for allocating "
+		dev_err(fdev->dev, "No free memory for allocating "
 				"dma channels!\n");
-		err = -ENOMEM;
-		goto err;
+		return -ENOMEM;
 	}
 
 	/* get dma channel register base */
-	err = of_address_to_resource(dev->node, 0, &new_fsl_chan->reg);
+	err = of_address_to_resource(node, 0, &new_fsl_chan->reg);
 	if (err) {
-		dev_err(&dev->dev, "Can't get %s property 'reg'\n",
-				dev->node->full_name);
-		goto err;
+		dev_err(fdev->dev, "Can't get %s property 'reg'\n",
+				node->full_name);
+		goto err_no_reg;
 	}
 
-	new_fsl_chan->feature = *(u32 *)match->data;
+	new_fsl_chan->feature = feature;
 
 	if (!fdev->feature)
 		fdev->feature = new_fsl_chan->feature;
@@ -949,16 +823,16 @@ static int __devinit of_fsl_dma_chan_probe(struct of_device *dev,
 	 */
 	WARN_ON(fdev->feature != new_fsl_chan->feature);
 
-	new_fsl_chan->dev = &dev->dev;
+	new_fsl_chan->dev = &new_fsl_chan->common.dev;
 	new_fsl_chan->reg_base = ioremap(new_fsl_chan->reg.start,
 			new_fsl_chan->reg.end - new_fsl_chan->reg.start + 1);
 
 	new_fsl_chan->id = ((new_fsl_chan->reg.start - 0x100) & 0xfff) >> 7;
 	if (new_fsl_chan->id > FSL_DMA_MAX_CHANS_PER_DEVICE) {
-		dev_err(&dev->dev, "There is no %d channel!\n",
+		dev_err(fdev->dev, "There is no %d channel!\n",
 				new_fsl_chan->id);
 		err = -EINVAL;
-		goto err;
+		goto err_no_chan;
 	}
 	fdev->chan[new_fsl_chan->id] = new_fsl_chan;
 	tasklet_init(&new_fsl_chan->tasklet, dma_do_tasklet,
@@ -989,73 +863,51 @@ static int __devinit of_fsl_dma_chan_probe(struct of_device *dev,
 			&fdev->common.channels);
 	fdev->common.chancnt++;
 
-	new_fsl_chan->irq = irq_of_parse_and_map(dev->node, 0);
+	new_fsl_chan->irq = irq_of_parse_and_map(node, 0);
 	if (new_fsl_chan->irq != NO_IRQ) {
 		err = request_irq(new_fsl_chan->irq,
 					&fsl_dma_chan_do_interrupt, IRQF_SHARED,
 					"fsldma-channel", new_fsl_chan);
 		if (err) {
-			dev_err(&dev->dev, "DMA channel %s request_irq error "
-				"with return %d\n", dev->node->full_name, err);
-			goto err;
+			dev_err(fdev->dev, "DMA channel %s request_irq error "
+				"with return %d\n", node->full_name, err);
+			goto err_no_irq;
 		}
 	}
 
-	err = fsl_dma_self_test(new_fsl_chan);
-	if (err)
-		goto err;
-
-	dev_info(&dev->dev, "#%d (%s), irq %d\n", new_fsl_chan->id,
-				match->compatible, new_fsl_chan->irq);
+	dev_info(fdev->dev, "#%d (%s), irq %d\n", new_fsl_chan->id,
+				compatible, new_fsl_chan->irq);
 
 	return 0;
-err:
-	dma_halt(new_fsl_chan);
-	iounmap(new_fsl_chan->reg_base);
-	free_irq(new_fsl_chan->irq, new_fsl_chan);
+
+err_no_irq:
 	list_del(&new_fsl_chan->common.device_node);
+err_no_chan:
+	iounmap(new_fsl_chan->reg_base);
+err_no_reg:
 	kfree(new_fsl_chan);
 	return err;
 }
 
-const u32 mpc8540_dma_ip_feature = FSL_DMA_IP_85XX | FSL_DMA_BIG_ENDIAN;
-const u32 mpc8349_dma_ip_feature = FSL_DMA_IP_83XX | FSL_DMA_LITTLE_ENDIAN;
-
-static struct of_device_id of_fsl_dma_chan_ids[] = {
-	{
-		.compatible = "fsl,eloplus-dma-channel",
-		.data = (void *)&mpc8540_dma_ip_feature,
-	},
-	{
-		.compatible = "fsl,elo-dma-channel",
-		.data = (void *)&mpc8349_dma_ip_feature,
-	},
-	{}
-};
-
-static struct of_platform_driver of_fsl_dma_chan_driver = {
-	.name = "of-fsl-dma-channel",
-	.match_table = of_fsl_dma_chan_ids,
-	.probe = of_fsl_dma_chan_probe,
-};
-
-static __init int of_fsl_dma_chan_init(void)
+static void fsl_dma_chan_remove(struct fsl_dma_chan *fchan)
 {
-	return of_register_platform_driver(&of_fsl_dma_chan_driver);
+	free_irq(fchan->irq, fchan);
+	list_del(&fchan->common.device_node);
+	iounmap(fchan->reg_base);
+	kfree(fchan);
 }
 
 static int __devinit of_fsl_dma_probe(struct of_device *dev,
 			const struct of_device_id *match)
 {
 	int err;
-	unsigned int irq;
 	struct fsl_dma_device *fdev;
+	struct device_node *child;
 
 	fdev = kzalloc(sizeof(struct fsl_dma_device), GFP_KERNEL);
 	if (!fdev) {
 		dev_err(&dev->dev, "No enough memory for 'priv'\n");
-		err = -ENOMEM;
-		goto err;
+		return -ENOMEM;
 	}
 	fdev->dev = &dev->dev;
 	INIT_LIST_HEAD(&fdev->common.channels);
@@ -1065,7 +917,7 @@ static int __devinit of_fsl_dma_probe(struct of_device *dev,
 	if (err) {
 		dev_err(&dev->dev, "Can't get %s property 'reg'\n",
 				dev->node->full_name);
-		goto err;
+		goto err_no_reg;
 	}
 
 	dev_info(&dev->dev, "Probe the Freescale DMA driver for %s "
@@ -1084,9 +936,9 @@ static int __devinit of_fsl_dma_probe(struct of_device *dev,
 	fdev->common.device_issue_pending = fsl_dma_memcpy_issue_pending;
 	fdev->common.dev = &dev->dev;
 
-	irq = irq_of_parse_and_map(dev->node, 0);
-	if (irq != NO_IRQ) {
-		err = request_irq(irq, &fsl_dma_do_interrupt, IRQF_SHARED,
+	fdev->irq = irq_of_parse_and_map(dev->node, 0);
+	if (fdev->irq != NO_IRQ) {
+		err = request_irq(fdev->irq, &fsl_dma_do_interrupt, IRQF_SHARED,
 					"fsldma-device", fdev);
 		if (err) {
 			dev_err(&dev->dev, "DMA device request_irq error "
@@ -1096,15 +948,54 @@ static int __devinit of_fsl_dma_probe(struct of_device *dev,
 	}
 
 	dev_set_drvdata(&(dev->dev), fdev);
-	of_platform_bus_probe(dev->node, of_fsl_dma_chan_ids, &dev->dev);
+
+	/* We cannot use of_platform_bus_probe() because there is no
+	 * of_platform_bus_remove.  Instead, we manually instantiate every DMA
+	 * channel object.
+	 */
+	for_each_child_of_node(dev->node, child) {
+		if (of_device_is_compatible(child, "fsl,eloplus-dma-channel"))
+			fsl_dma_chan_probe(fdev, child,
+				FSL_DMA_IP_85XX | FSL_DMA_BIG_ENDIAN,
+				"fsl,eloplus-dma-channel");
+		if (of_device_is_compatible(child, "fsl,elo-dma-channel"))
+			fsl_dma_chan_probe(fdev, child,
+				FSL_DMA_IP_83XX | FSL_DMA_LITTLE_ENDIAN,
+				"fsl,elo-dma-channel");
+	}
 
 	dma_async_device_register(&fdev->common);
 	return 0;
 
 err:
 	iounmap(fdev->reg_base);
+err_no_reg:
 	kfree(fdev);
 	return err;
+}
+
+static int of_fsl_dma_remove(struct of_device *of_dev)
+{
+	struct fsl_dma_device *fdev;
+	unsigned int i;
+
+	fdev = dev_get_drvdata(&of_dev->dev);
+
+	dma_async_device_unregister(&fdev->common);
+
+	for (i = 0; i < FSL_DMA_MAX_CHANS_PER_DEVICE; i++)
+		if (fdev->chan[i])
+			fsl_dma_chan_remove(fdev->chan[i]);
+
+	if (fdev->irq != NO_IRQ)
+		free_irq(fdev->irq, fdev);
+
+	iounmap(fdev->reg_base);
+
+	kfree(fdev);
+	dev_set_drvdata(&of_dev->dev, NULL);
+
+	return 0;
 }
 
 static struct of_device_id of_fsl_dma_ids[] = {
@@ -1114,15 +1005,32 @@ static struct of_device_id of_fsl_dma_ids[] = {
 };
 
 static struct of_platform_driver of_fsl_dma_driver = {
-	.name = "of-fsl-dma",
+	.name = "fsl-elo-dma",
 	.match_table = of_fsl_dma_ids,
 	.probe = of_fsl_dma_probe,
+	.remove = of_fsl_dma_remove,
 };
 
 static __init int of_fsl_dma_init(void)
 {
-	return of_register_platform_driver(&of_fsl_dma_driver);
+	int ret;
+
+	pr_info("Freescale Elo / Elo Plus DMA driver\n");
+
+	ret = of_register_platform_driver(&of_fsl_dma_driver);
+	if (ret)
+		pr_err("fsldma: failed to register platform driver\n");
+
+	return ret;
 }
 
-subsys_initcall(of_fsl_dma_chan_init);
+static void __exit of_fsl_dma_exit(void)
+{
+	of_unregister_platform_driver(&of_fsl_dma_driver);
+}
+
 subsys_initcall(of_fsl_dma_init);
+module_exit(of_fsl_dma_exit);
+
+MODULE_DESCRIPTION("Freescale Elo / Elo Plus DMA driver");
+MODULE_LICENSE("GPL");

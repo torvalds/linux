@@ -59,7 +59,7 @@ unsigned long profile_pc(struct pt_regs *regs)
 
 	if (in_lock_functions(pc)) {
 		fp = regs->ARM_fp;
-		pc = pc_pointer(((unsigned long *)fp)[-1]);
+		pc = ((unsigned long *)fp)[-1];
 	}
 
 	return pc;
@@ -130,7 +130,9 @@ static const struct leds_evt_name evt_names[] = {
 	{ "red",   led_red_on,   led_red_off   },
 };
 
-static ssize_t leds_store(struct sys_device *dev, const char *buf, size_t size)
+static ssize_t leds_store(struct sys_device *dev,
+			struct sysdev_attribute *attr,
+			const char *buf, size_t size)
 {
 	int ret = -EINVAL, len = strcspn(buf, " ");
 

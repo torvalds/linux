@@ -125,42 +125,42 @@
 			dma-channel@0 {
 				compatible = "fsl,mpc8360-dma-channel", "fsl,elo-dma-channel";
 				reg = <0 0x80>;
+				cell-index = <0>;
 				interrupt-parent = <&ipic>;
 				interrupts = <71 8>;
 			};
 			dma-channel@80 {
 				compatible = "fsl,mpc8360-dma-channel", "fsl,elo-dma-channel";
 				reg = <0x80 0x80>;
+				cell-index = <1>;
 				interrupt-parent = <&ipic>;
 				interrupts = <71 8>;
 			};
 			dma-channel@100 {
 				compatible = "fsl,mpc8360-dma-channel", "fsl,elo-dma-channel";
 				reg = <0x100 0x80>;
+				cell-index = <2>;
 				interrupt-parent = <&ipic>;
 				interrupts = <71 8>;
 			};
 			dma-channel@180 {
 				compatible = "fsl,mpc8360-dma-channel", "fsl,elo-dma-channel";
 				reg = <0x180 0x28>;
+				cell-index = <3>;
 				interrupt-parent = <&ipic>;
 				interrupts = <71 8>;
 			};
 		};
 
 		crypto@30000 {
-			compatible = "fsl,sec2-crypto";
+			compatible = "fsl,sec2.0";
 			reg = <0x30000 0x10000>;
-			interrupts = <11 8>;
+			interrupts = <11 0x8>;
 			interrupt-parent = <&ipic>;
-			num-channels = <4>;
-			channel-fifo-len = <24>;
-			exec-units-mask = <0x7e>;
-			/*
-			 * desc mask is for rev1.x, we need runtime fixup
-			 * for >=2.x
-			 */
-			descriptor-types-mask = <0x1010ebf>;
+			fsl,num-channels = <4>;
+			fsl,channel-fifo-len = <24>;
+			fsl,exec-units-mask = <0x7e>;
+			fsl,descriptor-types-mask = <0x01010ebf>;
 		};
 
 		ipic: interrupt-controller@700 {
@@ -387,6 +387,18 @@
 			device-width = <1>;
 		};
 
+		upm@1,0 {
+			compatible = "fsl,upm-nand";
+			reg = <1 0 1>;
+			fsl,upm-addr-offset = <16>;
+			fsl,upm-cmd-offset = <8>;
+			gpios = <&qe_pio_e 18 0>;
+
+			flash {
+				compatible = "stm,nand512-a";
+			};
+		};
+
 		display@2,0 {
 			device_type = "display";
 			compatible = "fujitsu,MB86277", "fujitsu,mint";
@@ -409,7 +421,8 @@
 		#interrupt-cells = <1>;
 		device_type = "pci";
 		compatible = "fsl,mpc8360-pci", "fsl,mpc8349-pci";
-		reg = <0xe0008500 0x100>;
+		reg = <0xe0008500 0x100		/* internal registers */
+		       0xe0008300 0x8>;		/* config space access registers */
 		ranges = <0x02000000 0 0x90000000 0x90000000 0 0x10000000
 			  0x42000000 0 0x80000000 0x80000000 0 0x10000000
 			  0x01000000 0 0xe0300000 0xe0300000 0 0x00100000>;

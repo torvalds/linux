@@ -192,8 +192,8 @@ xfs_qm_destroy(
 		xfs_qm_list_destroy(&(xqm->qm_usr_dqhtable[i]));
 		xfs_qm_list_destroy(&(xqm->qm_grp_dqhtable[i]));
 	}
-	kmem_free(xqm->qm_usr_dqhtable, hsize * sizeof(xfs_dqhash_t));
-	kmem_free(xqm->qm_grp_dqhtable, hsize * sizeof(xfs_dqhash_t));
+	kmem_free(xqm->qm_usr_dqhtable);
+	kmem_free(xqm->qm_grp_dqhtable);
 	xqm->qm_usr_dqhtable = NULL;
 	xqm->qm_grp_dqhtable = NULL;
 	xqm->qm_dqhashmask = 0;
@@ -201,7 +201,7 @@ xfs_qm_destroy(
 #ifdef DEBUG
 	mutex_destroy(&qcheck_lock);
 #endif
-	kmem_free(xqm, sizeof(xfs_qm_t));
+	kmem_free(xqm);
 }
 
 /*
@@ -310,8 +310,7 @@ xfs_qm_unmount_quotadestroy(
  */
 void
 xfs_qm_mount_quotas(
-	xfs_mount_t	*mp,
-	int		mfsi_flags)
+	xfs_mount_t	*mp)
 {
 	int		error = 0;
 	uint		sbf;
@@ -346,8 +345,7 @@ xfs_qm_mount_quotas(
 	/*
 	 * If any of the quotas are not consistent, do a quotacheck.
 	 */
-	if (XFS_QM_NEED_QUOTACHECK(mp) &&
-	    !(mfsi_flags & XFS_MFSI_NO_QUOTACHECK)) {
+	if (XFS_QM_NEED_QUOTACHECK(mp)) {
 		error = xfs_qm_quotacheck(mp);
 		if (error) {
 			/* Quotacheck failed and disabled quotas. */
@@ -445,11 +443,11 @@ xfs_qm_unmount_quotas(
 		}
 	}
 	if (uqp) {
-		 XFS_PURGE_INODE(uqp);
+		 IRELE(uqp);
 		 mp->m_quotainfo->qi_uquotaip = NULL;
 	}
 	if (gqp) {
-		XFS_PURGE_INODE(gqp);
+		IRELE(gqp);
 		mp->m_quotainfo->qi_gquotaip = NULL;
 	}
 out:
@@ -484,7 +482,7 @@ again:
 		xfs_dqtrace_entry(dqp, "FLUSHALL: DQDIRTY");
 		/* XXX a sentinel would be better */
 		recl = XFS_QI_MPLRECLAIMS(mp);
-		if (! xfs_qm_dqflock_nowait(dqp)) {
+		if (!xfs_dqflock_nowait(dqp)) {
 			/*
 			 * If we can't grab the flush lock then check
 			 * to see if the dquot has been flushed delayed
@@ -631,7 +629,7 @@ xfs_qm_dqpurge_int(
 		 * freelist in INACTIVE state.
 		 */
 		nextdqp = dqp->MPL_NEXT;
-		nmisses += xfs_qm_dqpurge(dqp, flags);
+		nmisses += xfs_qm_dqpurge(dqp);
 		dqp = nextdqp;
 	}
 	xfs_qm_mplist_unlock(mp);
@@ -1062,7 +1060,7 @@ xfs_qm_sync(
 
 		/* XXX a sentinel would be better */
 		recl = XFS_QI_MPLRECLAIMS(mp);
-		if (! xfs_qm_dqflock_nowait(dqp)) {
+		if (!xfs_dqflock_nowait(dqp)) {
 			if (nowait) {
 				xfs_dqunlock(dqp);
 				continue;
@@ -1134,7 +1132,7 @@ xfs_qm_init_quotainfo(
 	 * and change the superblock accordingly.
 	 */
 	if ((error = xfs_qm_init_quotainos(mp))) {
-		kmem_free(qinf, sizeof(xfs_quotainfo_t));
+		kmem_free(qinf);
 		mp->m_quotainfo = NULL;
 		return error;
 	}
@@ -1240,15 +1238,15 @@ xfs_qm_destroy_quotainfo(
 	xfs_qm_list_destroy(&qi->qi_dqlist);
 
 	if (qi->qi_uquotaip) {
-		XFS_PURGE_INODE(qi->qi_uquotaip);
+		IRELE(qi->qi_uquotaip);
 		qi->qi_uquotaip = NULL; /* paranoia */
 	}
 	if (qi->qi_gquotaip) {
-		XFS_PURGE_INODE(qi->qi_gquotaip);
+		IRELE(qi->qi_gquotaip);
 		qi->qi_gquotaip = NULL;
 	}
 	mutex_destroy(&qi->qi_quotaofflock);
-	kmem_free(qi, sizeof(xfs_quotainfo_t));
+	kmem_free(qi);
 	mp->m_quotainfo = NULL;
 }
 
@@ -1394,7 +1392,7 @@ xfs_qm_qino_alloc(
 	 * locked exclusively and joined to the transaction already.
 	 */
 	ASSERT(xfs_isilocked(*ip, XFS_ILOCK_EXCL));
-	VN_HOLD(XFS_ITOV((*ip)));
+	IHOLD(*ip);
 
 	/*
 	 * Make the changes in the superblock, and log those too.
@@ -1623,7 +1621,7 @@ xfs_qm_dqiterate(
 			break;
 	} while (nmaps > 0);
 
-	kmem_free(map, XFS_DQITER_MAP_SIZE * sizeof(*map));
+	kmem_free(map);
 
 	return error;
 }
@@ -2079,7 +2077,7 @@ xfs_qm_shake_freelist(
 		 * Try to grab the flush lock. If this dquot is in the process of
 		 * getting flushed to disk, we don't want to reclaim it.
 		 */
-		if (! xfs_qm_dqflock_nowait(dqp)) {
+		if (!xfs_dqflock_nowait(dqp)) {
 			xfs_dqunlock(dqp);
 			dqp = dqp->dq_flnext;
 			continue;
@@ -2257,7 +2255,7 @@ xfs_qm_dqreclaim_one(void)
 		 * Try to grab the flush lock. If this dquot is in the process of
 		 * getting flushed to disk, we don't want to reclaim it.
 		 */
-		if (! xfs_qm_dqflock_nowait(dqp)) {
+		if (!xfs_dqflock_nowait(dqp)) {
 			xfs_dqunlock(dqp);
 			continue;
 		}

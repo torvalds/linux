@@ -59,7 +59,7 @@
  * by Martin Mares <mj@atrey.karlin.mff.cuni.cz>, July 1998
  *
  * Removed old-style timers, introduced console_timer, made timer
- * deletion SMP-safe.  17Jun00, Andrew Morton <andrewm@uow.edu.au>
+ * deletion SMP-safe.  17Jun00, Andrew Morton
  *
  * Removed console_lock, enabled interrupts across all console operations
  * 13 March 2001, Andrew Morton
@@ -100,10 +100,10 @@
 #include <linux/font.h>
 #include <linux/bitops.h>
 #include <linux/notifier.h>
-
-#include <asm/io.h>
+#include <linux/device.h>
+#include <linux/io.h>
 #include <asm/system.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define MAX_NR_CON_DRIVER 16
 
@@ -261,7 +261,7 @@ static void notify_update(struct vc_data *vc)
 #ifdef VT_BUF_VRAM_ONLY
 #define DO_UPDATE(vc)	0
 #else
-#define DO_UPDATE(vc)	CON_IS_VISIBLE(vc)
+#define DO_UPDATE(vc)	(CON_IS_VISIBLE(vc) && !console_blanked)
 #endif
 
 static inline unsigned short *screenpos(struct vc_data *vc, int offset, int viewed)
@@ -301,7 +301,7 @@ static void scrup(struct vc_data *vc, unsigned int t, unsigned int b, int nr)
 	d = (unsigned short *)(vc->vc_origin + vc->vc_size_row * t);
 	s = (unsigned short *)(vc->vc_origin + vc->vc_size_row * (t + nr));
 	scr_memmovew(d, s, (b - t - nr) * vc->vc_size_row);
-	scr_memsetw(d + (b - t - nr) * vc->vc_cols, vc->vc_scrl_erase_char,
+	scr_memsetw(d + (b - t - nr) * vc->vc_cols, vc->vc_video_erase_char,
 		    vc->vc_size_row * nr);
 }
 
@@ -319,7 +319,7 @@ static void scrdown(struct vc_data *vc, unsigned int t, unsigned int b, int nr)
 	s = (unsigned short *)(vc->vc_origin + vc->vc_size_row * t);
 	step = vc->vc_cols * nr;
 	scr_memmovew(s + step, s, (b - t - nr) * vc->vc_size_row);
-	scr_memsetw(s, vc->vc_scrl_erase_char, 2 * step);
+	scr_memsetw(s, vc->vc_video_erase_char, 2 * step);
 }
 
 static void do_update_region(struct vc_data *vc, unsigned long start, int count)
@@ -434,7 +434,6 @@ static void update_attr(struct vc_data *vc)
 	              vc->vc_blink, vc->vc_underline,
 	              vc->vc_reverse ^ vc->vc_decscnm, vc->vc_italic);
 	vc->vc_video_erase_char = (build_attr(vc, vc->vc_color, 1, vc->vc_blink, 0, vc->vc_decscnm, 0) << 8) | ' ';
-	vc->vc_scrl_erase_char = (build_attr(vc, vc->vc_def_color, 1, false, false, vc->vc_decscnm, false) << 8) | ' ';
 }
 
 /* Note: inverting the screen twice should revert to the original state */
@@ -803,7 +802,25 @@ static inline int resize_screen(struct vc_data *vc, int width, int height,
  */
 #define VC_RESIZE_MAXCOL (32767)
 #define VC_RESIZE_MAXROW (32767)
-int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
+
+/**
+ *	vc_do_resize	-	resizing method for the tty
+ *	@tty: tty being resized
+ *	@real_tty: real tty (different to tty if a pty/tty pair)
+ *	@vc: virtual console private data
+ *	@cols: columns
+ *	@lines: lines
+ *
+ *	Resize a virtual console, clipping according to the actual constraints.
+ *	If the caller passes a tty structure then update the termios winsize
+ *	information and perform any neccessary signal handling.
+ *
+ *	Caller must hold the console semaphore. Takes the termios mutex and
+ *	ctrl_lock of the tty IFF a tty is passed.
+ */
+
+static int vc_do_resize(struct tty_struct *tty, struct tty_struct *real_tty,
+		struct vc_data *vc, unsigned int cols, unsigned int lines)
 {
 	unsigned long old_origin, new_origin, new_scr_end, rlth, rrem, err = 0;
 	unsigned int old_cols, old_rows, old_row_size, old_screen_size;
@@ -907,26 +924,15 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
 	gotoxy(vc, vc->vc_x, vc->vc_y);
 	save_cur(vc);
 
-	if (vc->vc_tty) {
-		struct winsize ws, *cws = &vc->vc_tty->winsize;
-		struct pid *pgrp = NULL;
-
+	if (tty) {
+		/* Rewrite the requested winsize data with the actual
+		   resulting sizes */
+		struct winsize ws;
 		memset(&ws, 0, sizeof(ws));
 		ws.ws_row = vc->vc_rows;
 		ws.ws_col = vc->vc_cols;
 		ws.ws_ypixel = vc->vc_scan_lines;
-
-		mutex_lock(&vc->vc_tty->termios_mutex);
-		spin_lock_irq(&vc->vc_tty->ctrl_lock);
-		if ((ws.ws_row != cws->ws_row || ws.ws_col != cws->ws_col))
-			pgrp = get_pid(vc->vc_tty->pgrp);
-		spin_unlock_irq(&vc->vc_tty->ctrl_lock);
-		if (pgrp) {
-			kill_pgrp(vc->vc_tty->pgrp, SIGWINCH, 1);
-			put_pid(pgrp);
-		}
-		*cws = ws;
-		mutex_unlock(&vc->vc_tty->termios_mutex);
+		tty_do_resize(tty, real_tty, &ws);
 	}
 
 	if (CON_IS_VISIBLE(vc))
@@ -934,14 +940,47 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
 	return err;
 }
 
-int vc_lock_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
+/**
+ *	vc_resize		-	resize a VT
+ *	@vc: virtual console
+ *	@cols: columns
+ *	@rows: rows
+ *
+ *	Resize a virtual console as seen from the console end of things. We
+ *	use the common vc_do_resize methods to update the structures. The
+ *	caller must hold the console sem to protect console internals and
+ *	vc->vc_tty
+ */
+
+int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int rows)
 {
-	int rc;
+	return vc_do_resize(vc->vc_tty, vc->vc_tty, vc, cols, rows);
+}
+
+/**
+ *	vt_resize		-	resize a VT
+ *	@tty: tty to resize
+ *	@real_tty: tty if a pty/tty pair
+ *	@ws: winsize attributes
+ *
+ *	Resize a virtual terminal. This is called by the tty layer as we
+ *	register our own handler for resizing. The mutual helper does all
+ *	the actual work.
+ *
+ *	Takes the console sem and the called methods then take the tty
+ *	termios_mutex and the tty ctrl_lock in that order.
+ */
+
+int vt_resize(struct tty_struct *tty, struct tty_struct *real_tty,
+	struct winsize *ws)
+{
+	struct vc_data *vc = tty->driver_data;
+	int ret;
 
 	acquire_console_sem();
-	rc = vc_resize(vc, cols, lines);
+	ret = vc_do_resize(tty, real_tty, vc, ws->ws_col, ws->ws_row);
 	release_console_sem();
-	return rc;
+	return ret;
 }
 
 void vc_deallocate(unsigned int currcons)
@@ -2096,26 +2135,8 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 	    release_console_sem();
 	    return 0;
 	}
-	release_console_sem();
-
 	orig_buf = buf;
 	orig_count = count;
-
-	/* At this point 'buf' is guaranteed to be a kernel buffer
-	 * and therefore no access to userspace (and therefore sleeping)
-	 * will be needed.  The con_buf_mtx serializes all tty based
-	 * console rendering and vcs write/read operations.  We hold
-	 * the console spinlock during the entire write.
-	 */
-
-	acquire_console_sem();
-
-	vc = tty->driver_data;
-	if (vc == NULL) {
-		printk(KERN_ERR "vt: argh, driver_data _became_ NULL !\n");
-		release_console_sem();
-		goto out;
-	}
 
 	himask = vc->vc_hi_font_mask;
 	charmask = himask ? 0x1ff : 0xff;
@@ -2211,7 +2232,7 @@ rescan_last_byte:
 			c = 0xfffd;
 		    tc = c;
 		} else {	/* no utf or alternate charset mode */
-		    tc = vc->vc_translate[vc->vc_toggle_meta ? (c | 0x80) : c];
+		    tc = vc_translate(vc, c);
 		}
 
 		param.c = tc;
@@ -2330,8 +2351,6 @@ rescan_last_byte:
 	FLUSH
 	console_conditional_schedule();
 	release_console_sem();
-
-out:
 	notify_update(vc);
 	return n;
 #undef FLUSH
@@ -2543,8 +2562,6 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 	int lines;
 	int ret;
 
-	if (tty->driver->type != TTY_DRIVER_TYPE_CONSOLE)
-		return -EINVAL;
 	if (current->signal->tty != tty && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 	if (get_user(type, p))
@@ -2738,6 +2755,12 @@ static int con_open(struct tty_struct *tty, struct file *filp)
 		ret = vc_allocate(currcons);
 		if (ret == 0) {
 			struct vc_data *vc = vc_cons[currcons].d;
+
+			/* Still being freed */
+			if (vc->vc_tty) {
+				release_console_sem();
+				return -ERESTARTSYS;
+			}
 			tty->driver_data = vc;
 			vc->vc_tty = tty;
 
@@ -2749,8 +2772,8 @@ static int con_open(struct tty_struct *tty, struct file *filp)
 				tty->termios->c_iflag |= IUTF8;
 			else
 				tty->termios->c_iflag &= ~IUTF8;
-			release_console_sem();
 			vcs_make_sysfs(tty);
+			release_console_sem();
 			return ret;
 		}
 	}
@@ -2758,34 +2781,20 @@ static int con_open(struct tty_struct *tty, struct file *filp)
 	return ret;
 }
 
-/*
- * We take tty_mutex in here to prevent another thread from coming in via init_dev
- * and taking a ref against the tty while we're in the process of forgetting
- * about it and cleaning things up.
- *
- * This is because vcs_remove_sysfs() can sleep and will drop the BKL.
- */
 static void con_close(struct tty_struct *tty, struct file *filp)
 {
-	mutex_lock(&tty_mutex);
-	acquire_console_sem();
-	if (tty && tty->count == 1) {
-		struct vc_data *vc = tty->driver_data;
+	/* Nothing to do - we defer to shutdown */
+}
 
-		if (vc)
-			vc->vc_tty = NULL;
-		tty->driver_data = NULL;
-		release_console_sem();
-		vcs_remove_sysfs(tty);
-		mutex_unlock(&tty_mutex);
-		/*
-		 * tty_mutex is released, but we still hold BKL, so there is
-		 * still exclusion against init_dev()
-		 */
-		return;
-	}
+static void con_shutdown(struct tty_struct *tty)
+{
+	struct vc_data *vc = tty->driver_data;
+	BUG_ON(vc == NULL);
+	acquire_console_sem();
+	vc->vc_tty = NULL;
+	vcs_remove_sysfs(tty);
 	release_console_sem();
-	mutex_unlock(&tty_mutex);
+	tty_shutdown(tty);
 }
 
 static int default_italic_color    = 2; // green (ASCII)
@@ -2909,10 +2918,20 @@ static const struct tty_operations con_ops = {
 	.start = con_start,
 	.throttle = con_throttle,
 	.unthrottle = con_unthrottle,
+	.resize = vt_resize,
+	.shutdown = con_shutdown
 };
 
-int __init vty_init(void)
+static struct cdev vc0_cdev;
+
+int __init vty_init(const struct file_operations *console_fops)
 {
+	cdev_init(&vc0_cdev, console_fops);
+	if (cdev_add(&vc0_cdev, MKDEV(TTY_MAJOR, 0), 1) ||
+	    register_chrdev_region(MKDEV(TTY_MAJOR, 0), 1, "/dev/vc/0") < 0)
+		panic("Couldn't register /dev/tty0 driver\n");
+	device_create(tty_class, NULL, MKDEV(TTY_MAJOR, 0), NULL, "tty0");
+
 	vcs_init();
 
 	console_driver = alloc_tty_driver(MAX_NR_CONSOLES);
@@ -2931,7 +2950,6 @@ int __init vty_init(void)
 	tty_set_operations(console_driver, &con_ops);
 	if (tty_register_driver(console_driver))
 		panic("Couldn't register console driver\n");
-
 	kbd_init();
 	console_map_init();
 #ifdef CONFIG_PROM_CONSOLE
@@ -3426,8 +3444,9 @@ int register_con_driver(const struct consw *csw, int first, int last)
 		goto err;
 
 	con_driver->dev = device_create(vtconsole_class, NULL,
-					MKDEV(0, con_driver->node),
-					"vtcon%i", con_driver->node);
+						MKDEV(0, con_driver->node),
+						NULL, "vtcon%i",
+						con_driver->node);
 
 	if (IS_ERR(con_driver->dev)) {
 		printk(KERN_WARNING "Unable to create device for %s; "
@@ -3536,8 +3555,9 @@ static int __init vtconsole_class_init(void)
 
 		if (con->con && !con->dev) {
 			con->dev = device_create(vtconsole_class, NULL,
-						 MKDEV(0, con->node),
-						 "vtcon%i", con->node);
+							 MKDEV(0, con->node),
+							 NULL, "vtcon%i",
+							 con->node);
 
 			if (IS_ERR(con->dev)) {
 				printk(KERN_WARNING "Unable to create "
@@ -4061,7 +4081,6 @@ EXPORT_SYMBOL(default_blu);
 EXPORT_SYMBOL(update_region);
 EXPORT_SYMBOL(redraw_screen);
 EXPORT_SYMBOL(vc_resize);
-EXPORT_SYMBOL(vc_lock_resize);
 EXPORT_SYMBOL(fg_console);
 EXPORT_SYMBOL(console_blank_hook);
 EXPORT_SYMBOL(console_blanked);

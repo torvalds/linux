@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2006, 2007 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -83,6 +84,11 @@ struct mlx4_ib_mr {
 	struct ib_umem	       *umem;
 };
 
+struct mlx4_ib_fast_reg_page_list {
+	struct ib_fast_reg_page_list	ibfrpl;
+	dma_addr_t			map;
+};
+
 struct mlx4_ib_fmr {
 	struct ib_fmr           ibfmr;
 	struct mlx4_fmr         mfmr;
@@ -156,6 +162,7 @@ struct mlx4_ib_ah {
 struct mlx4_ib_dev {
 	struct ib_device	ib_dev;
 	struct mlx4_dev	       *dev;
+	int			num_ports;
 	void __iomem	       *uar_map;
 
 	struct mlx4_uar		priv_uar;
@@ -199,6 +206,11 @@ static inline struct mlx4_ib_mr *to_mmr(struct ib_mr *ibmr)
 	return container_of(ibmr, struct mlx4_ib_mr, ibmr);
 }
 
+static inline struct mlx4_ib_fast_reg_page_list *to_mfrpl(struct ib_fast_reg_page_list *ibfrpl)
+{
+	return container_of(ibfrpl, struct mlx4_ib_fast_reg_page_list, ibfrpl);
+}
+
 static inline struct mlx4_ib_fmr *to_mfmr(struct ib_fmr *ibfmr)
 {
 	return container_of(ibfmr, struct mlx4_ib_fmr, ibfmr);
@@ -239,6 +251,11 @@ struct ib_mr *mlx4_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				  u64 virt_addr, int access_flags,
 				  struct ib_udata *udata);
 int mlx4_ib_dereg_mr(struct ib_mr *mr);
+struct ib_mr *mlx4_ib_alloc_fast_reg_mr(struct ib_pd *pd,
+					int max_page_list_len);
+struct ib_fast_reg_page_list *mlx4_ib_alloc_fast_reg_page_list(struct ib_device *ibdev,
+							       int page_list_len);
+void mlx4_ib_free_fast_reg_page_list(struct ib_fast_reg_page_list *page_list);
 
 int mlx4_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period);
 int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata);

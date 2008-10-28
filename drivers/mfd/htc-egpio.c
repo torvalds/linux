@@ -112,7 +112,7 @@ static void egpio_handler(unsigned int irq, struct irq_desc *desc)
 		/* Run irq handler */
 		pr_debug("got IRQ %d\n", irqpin);
 		irq = ei->irq_start + irqpin;
-		desc = &irq_desc[irq];
+		desc = irq_to_desc(irq);
 		desc->handle_irq(irq, desc);
 	}
 }
@@ -289,7 +289,7 @@ static int __init egpio_probe(struct platform_device *pdev)
 	ei->base_addr = ioremap_nocache(res->start, res->end - res->start);
 	if (!ei->base_addr)
 		goto fail;
-	pr_debug("EGPIO phys=%08x virt=%p\n", res->start, ei->base_addr);
+	pr_debug("EGPIO phys=%08x virt=%p\n", (u32)res->start, ei->base_addr);
 
 	if ((pdata->bus_width != 16) && (pdata->bus_width != 32))
 		goto fail;
@@ -318,6 +318,8 @@ static int __init egpio_probe(struct platform_device *pdev)
 		ei->chip[i].dev = &(pdev->dev);
 		chip = &(ei->chip[i].chip);
 		chip->label           = "htc-egpio";
+		chip->dev             = &pdev->dev;
+		chip->owner           = THIS_MODULE;
 		chip->get             = egpio_get;
 		chip->set             = egpio_set;
 		chip->direction_input = egpio_direction_input;

@@ -108,9 +108,8 @@ static unsigned long gpte_addr(pgd_t gpgd, unsigned long vaddr)
 }
 /*:*/
 
-/*M:014 get_pfn is slow; it takes the mmap sem and calls get_user_pages.  We
- * could probably try to grab batches of pages here as an optimization
- * (ie. pre-faulting). :*/
+/*M:014 get_pfn is slow: we could probably try to grab batches of pages here as
+ * an optimization (ie. pre-faulting). :*/
 
 /*H:350 This routine takes a page number given by the Guest and converts it to
  * an actual, physical page number.  It can fail for several reasons: the
@@ -123,19 +122,13 @@ static unsigned long gpte_addr(pgd_t gpgd, unsigned long vaddr)
 static unsigned long get_pfn(unsigned long virtpfn, int write)
 {
 	struct page *page;
-	/* This value indicates failure. */
-	unsigned long ret = -1UL;
 
-	/* get_user_pages() is a complex interface: it gets the "struct
-	 * vm_area_struct" and "struct page" assocated with a range of pages.
-	 * It also needs the task's mmap_sem held, and is not very quick.
-	 * It returns the number of pages it got. */
-	down_read(&current->mm->mmap_sem);
-	if (get_user_pages(current, current->mm, virtpfn << PAGE_SHIFT,
-			   1, write, 1, &page, NULL) == 1)
-		ret = page_to_pfn(page);
-	up_read(&current->mm->mmap_sem);
-	return ret;
+	/* gup me one page at this address please! */
+	if (get_user_pages_fast(virtpfn << PAGE_SHIFT, 1, write, &page) == 1)
+		return page_to_pfn(page);
+
+	/* This value indicates failure. */
+	return -1UL;
 }
 
 /*H:340 Converting a Guest page table entry to a shadow (ie. real) page table
@@ -174,7 +167,7 @@ static pte_t gpte_to_spte(struct lg_cpu *cpu, pte_t gpte, int write)
 /*H:460 And to complete the chain, release_pte() looks like this: */
 static void release_pte(pte_t pte)
 {
-	/* Remember that get_user_pages() took a reference to the page, in
+	/* Remember that get_user_pages_fast() took a reference to the page, in
 	 * get_pfn()?  We have to put it back now. */
 	if (pte_flags(pte) & _PAGE_PRESENT)
 		put_page(pfn_to_page(pte_pfn(pte)));

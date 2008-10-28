@@ -288,7 +288,7 @@ static void se401_button_irq(struct urb *urb)
 	int status;
 
 	if (!se401->dev) {
-		info("ohoh: device vapourished");
+		dev_info(&urb->dev->dev, "device vapourished\n");
 		return;
 	}
 
@@ -328,7 +328,7 @@ static void se401_video_irq(struct urb *urb)
 		return;
 
 	if (!se401->dev) {
-		info ("ohoh: device vapourished");
+		dev_info(&urb->dev->dev, "device vapourished\n");
 		return;
 	}
 
@@ -375,7 +375,7 @@ static void se401_video_irq(struct urb *urb)
 	urb->status=0;
 	urb->dev=se401->dev;
 	if(usb_submit_urb(urb, GFP_KERNEL))
-		info("urb burned down");
+		dev_info(&urb->dev->dev, "urb burned down\n");
 	return;
 }
 
@@ -860,7 +860,8 @@ static int se401_newframe(struct usb_se401 *se401, int framenr)
 		);
 		if (se401->nullpackets > SE401_MAX_NULLPACKETS) {
 			se401->nullpackets=0;
-			info("to many null length packets, restarting capture");
+			dev_info(&se401->dev->dev,
+				 "too many null length packets, restarting capture\n");
 			se401_stop_stream(se401);
 			se401_start_stream(se401);
 		} else {
@@ -880,7 +881,8 @@ static int se401_newframe(struct usb_se401 *se401, int framenr)
 				se401->scratch_use=0;
 			if (errors > SE401_MAX_ERRORS) {
 				errors=0;
-				info("to much errors, restarting capture");
+				dev_info(&se401->dev->dev,
+					 "too many errors, restarting capture\n");
 				se401_stop_stream(se401);
 				se401_start_stream(se401);
 			}
@@ -913,7 +915,7 @@ static void usb_se401_remove_disconnected (struct usb_se401 *se401)
 		usb_kill_urb(se401->inturb);
 		usb_free_urb(se401->inturb);
 	}
-	info("%s disconnected", se401->camera_name);
+	dev_info(&se401->dev->dev, "%s disconnected", se401->camera_name);
 
 	/* Free the memory */
 	kfree(se401->width);
@@ -936,14 +938,18 @@ static int se401_open(struct inode *inode, struct file *file)
 	struct usb_se401 *se401 = (struct usb_se401 *)dev;
 	int err = 0;
 
-	if (se401->user)
+	lock_kernel();
+	if (se401->user) {
+		unlock_kernel();
 		return -EBUSY;
+	}
 	se401->fbuf = rvmalloc(se401->maxframesize * SE401_NUMFRAMES);
 	if (se401->fbuf)
 		file->private_data = dev;
 	else
 		err = -ENOMEM;
 	se401->user = !err;
+	unlock_kernel();
 
 	return err;
 }
@@ -956,8 +962,8 @@ static int se401_close(struct inode *inode, struct file *file)
 
 	rvfree(se401->fbuf, se401->maxframesize * SE401_NUMFRAMES);
 	if (se401->removed) {
+		dev_info(&se401->dev->dev, "device unregistered\n");
 		usb_se401_remove_disconnected(se401);
-		info("device unregistered");
 	} else {
 		for (i=0; i<SE401_NUMFRAMES; i++)
 			se401->frame[i].grabstate=FRAME_UNUSED;
@@ -1230,10 +1236,9 @@ static const struct file_operations se401_fops = {
 	.llseek =       no_llseek,
 };
 static struct video_device se401_template = {
-	.owner =	THIS_MODULE,
 	.name =         "se401 USB camera",
-	.type =         VID_TYPE_CAPTURE,
 	.fops =         &se401_fops,
+	.release = video_device_release_empty,
 };
 
 
@@ -1273,7 +1278,7 @@ static int se401_init(struct usb_se401 *se401, int button)
 	for (i=0; i<se401->sizes; i++) {
 		sprintf(temp, "%s %dx%d", temp, se401->width[i], se401->height[i]);
 	}
-	info("%s", temp);
+	dev_info(&se401->dev->dev, "%s\n", temp);
 	se401->maxframesize=se401->width[se401->sizes-1]*se401->height[se401->sizes-1]*3;
 
 	rc=se401_sndctrl(0, se401, SE401_REQ_GET_WIDTH, 0, cp, sizeof(cp));
@@ -1307,7 +1312,8 @@ static int se401_init(struct usb_se401 *se401, int button)
 	if (button) {
 		se401->inturb=usb_alloc_urb(0, GFP_KERNEL);
 		if (!se401->inturb) {
-			info("Allocation of inturb failed");
+			dev_info(&se401->dev->dev,
+				 "Allocation of inturb failed\n");
 			return 1;
 		}
 		usb_fill_int_urb(se401->inturb, se401->dev,
@@ -1318,7 +1324,7 @@ static int se401_init(struct usb_se401 *se401, int button)
 		    8
 		);
 		if (usb_submit_urb(se401->inturb, GFP_KERNEL)) {
-			info("int urb burned down");
+			dev_info(&se401->dev->dev, "int urb burned down\n");
 			return 1;
 		}
 	} else
@@ -1375,7 +1381,7 @@ static int se401_probe(struct usb_interface *intf,
 		return -ENODEV;
 
 	/* We found one */
-	info("SE401 camera found: %s", camera_name);
+	dev_info(&intf->dev, "SE401 camera found: %s\n", camera_name);
 
 	if ((se401 = kzalloc(sizeof(*se401), GFP_KERNEL)) == NULL) {
 		err("couldn't kmalloc se401 struct");
@@ -1386,7 +1392,8 @@ static int se401_probe(struct usb_interface *intf,
 	se401->iface = interface->bInterfaceNumber;
 	se401->camera_name = camera_name;
 
-	info("firmware version: %02x", le16_to_cpu(dev->descriptor.bcdDevice) & 255);
+	dev_info(&intf->dev, "firmware version: %02x\n",
+		 le16_to_cpu(dev->descriptor.bcdDevice) & 255);
 
 	if (se401_init(se401, button)) {
 		kfree(se401);
@@ -1399,12 +1406,13 @@ static int se401_probe(struct usb_interface *intf,
 	mutex_init(&se401->lock);
 	wmb();
 
-	if (video_register_device(&se401->vdev, VFL_TYPE_GRABBER, video_nr) == -1) {
+	if (video_register_device(&se401->vdev, VFL_TYPE_GRABBER, video_nr) < 0) {
 		kfree(se401);
 		err("video_register_device failed");
 		return -EIO;
 	}
-	info("registered new video device: video%d", se401->vdev.minor);
+	dev_info(&intf->dev, "registered new video device: video%d\n",
+		 se401->vdev.num);
 
 	usb_set_intfdata (intf, se401);
 	return 0;
@@ -1448,10 +1456,10 @@ static struct usb_driver se401_driver = {
 
 static int __init usb_se401_init(void)
 {
-	info("SE401 usb camera driver version %s registering", version);
+	printk(KERN_INFO "SE401 usb camera driver version %s registering\n", version);
 	if (flickerless)
 		if (flickerless!=50 && flickerless!=60) {
-			info("Invallid flickerless value, use 0, 50 or 60.");
+			printk(KERN_ERR "Invallid flickerless value, use 0, 50 or 60.\n");
 			return -1;
 	}
 	return usb_register(&se401_driver);
@@ -1460,7 +1468,7 @@ static int __init usb_se401_init(void)
 static void __exit usb_se401_exit(void)
 {
 	usb_deregister(&se401_driver);
-	info("SE401 driver deregistered");
+	printk(KERN_INFO "SE401 driver deregistered\frame");
 }
 
 module_init(usb_se401_init);

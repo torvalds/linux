@@ -70,9 +70,8 @@ struct tape_class_device *register_tape_dev(
 		goto fail_with_cdev;
 
 	tcd->class_device = device_create(tape_class, device,
-					  tcd->char_device->dev,
-					  "%s", tcd->device_name
-			);
+					  tcd->char_device->dev, NULL,
+					  "%s", tcd->device_name);
 	rc = IS_ERR(tcd->class_device) ? PTR_ERR(tcd->class_device) : 0;
 	if (rc)
 		goto fail_with_cdev;

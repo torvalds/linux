@@ -23,7 +23,7 @@
 #include <linux/kallsyms.h>
 
 int panic_on_oops;
-int tainted;
+static unsigned long tainted_mask;
 static int pause_on_oops;
 static int pause_on_oops_flag;
 static DEFINE_SPINLOCK(pause_on_oops_lock);
@@ -33,13 +33,6 @@ int panic_timeout;
 ATOMIC_NOTIFIER_HEAD(panic_notifier_list);
 
 EXPORT_SYMBOL(panic_notifier_list);
-
-static int __init panic_setup(char *str)
-{
-	panic_timeout = simple_strtoul(str, NULL, 0);
-	return 1;
-}
-__setup("panic=", panic_setup);
 
 static long no_blink(long time)
 {
@@ -143,6 +136,27 @@ NORET_TYPE void panic(const char * fmt, ...)
 
 EXPORT_SYMBOL(panic);
 
+
+struct tnt {
+	u8 bit;
+	char true;
+	char false;
+};
+
+static const struct tnt tnts[] = {
+	{ TAINT_PROPRIETARY_MODULE, 'P', 'G' },
+	{ TAINT_FORCED_MODULE, 'F', ' ' },
+	{ TAINT_UNSAFE_SMP, 'S', ' ' },
+	{ TAINT_FORCED_RMMOD, 'R', ' ' },
+	{ TAINT_MACHINE_CHECK, 'M', ' ' },
+	{ TAINT_BAD_PAGE, 'B', ' ' },
+	{ TAINT_USER, 'U', ' ' },
+	{ TAINT_DIE, 'D', ' ' },
+	{ TAINT_OVERRIDDEN_ACPI_TABLE, 'A', ' ' },
+	{ TAINT_WARN, 'W', ' ' },
+	{ TAINT_CRAP, 'C', ' ' },
+};
+
 /**
  *	print_tainted - return a string to represent the kernel taint state.
  *
@@ -155,44 +169,47 @@ EXPORT_SYMBOL(panic);
  *  'U' - Userspace-defined naughtiness.
  *  'A' - ACPI table overridden.
  *  'W' - Taint on warning.
+ *  'C' - modules from drivers/staging are loaded.
  *
  *	The string is overwritten by the next call to print_taint().
  */
-
 const char *print_tainted(void)
 {
-	static char buf[20];
-	if (tainted) {
-		snprintf(buf, sizeof(buf), "Tainted: %c%c%c%c%c%c%c%c%c%c",
-			tainted & TAINT_PROPRIETARY_MODULE ? 'P' : 'G',
-			tainted & TAINT_FORCED_MODULE ? 'F' : ' ',
-			tainted & TAINT_UNSAFE_SMP ? 'S' : ' ',
-			tainted & TAINT_FORCED_RMMOD ? 'R' : ' ',
-			tainted & TAINT_MACHINE_CHECK ? 'M' : ' ',
-			tainted & TAINT_BAD_PAGE ? 'B' : ' ',
-			tainted & TAINT_USER ? 'U' : ' ',
-			tainted & TAINT_DIE ? 'D' : ' ',
-			tainted & TAINT_OVERRIDDEN_ACPI_TABLE ? 'A' : ' ',
-			tainted & TAINT_WARN ? 'W' : ' ');
-	}
-	else
+	static char buf[ARRAY_SIZE(tnts) + sizeof("Tainted: ") + 1];
+
+	if (tainted_mask) {
+		char *s;
+		int i;
+
+		s = buf + sprintf(buf, "Tainted: ");
+		for (i = 0; i < ARRAY_SIZE(tnts); i++) {
+			const struct tnt *t = &tnts[i];
+			*s++ = test_bit(t->bit, &tainted_mask) ?
+					t->true : t->false;
+		}
+		*s = 0;
+	} else
 		snprintf(buf, sizeof(buf), "Not tainted");
 	return(buf);
+}
+
+int test_taint(unsigned flag)
+{
+	return test_bit(flag, &tainted_mask);
+}
+EXPORT_SYMBOL(test_taint);
+
+unsigned long get_taint(void)
+{
+	return tainted_mask;
 }
 
 void add_taint(unsigned flag)
 {
 	debug_locks = 0; /* can't trust the integrity of the kernel anymore */
-	tainted |= flag;
+	set_bit(flag, &tainted_mask);
 }
 EXPORT_SYMBOL(add_taint);
-
-static int __init pause_on_oops_setup(char *str)
-{
-	pause_on_oops = simple_strtoul(str, NULL, 0);
-	return 1;
-}
-__setup("pause_on_oops=", pause_on_oops_setup);
 
 static void spin_msec(int msecs)
 {
@@ -318,6 +335,28 @@ void warn_on_slowpath(const char *file, int line)
 	add_taint(TAINT_WARN);
 }
 EXPORT_SYMBOL(warn_on_slowpath);
+
+
+void warn_slowpath(const char *file, int line, const char *fmt, ...)
+{
+	va_list args;
+	char function[KSYM_SYMBOL_LEN];
+	unsigned long caller = (unsigned long)__builtin_return_address(0);
+	sprint_symbol(function, caller);
+
+	printk(KERN_WARNING "------------[ cut here ]------------\n");
+	printk(KERN_WARNING "WARNING: at %s:%d %s()\n", file,
+		line, function);
+	va_start(args, fmt);
+	vprintk(fmt, args);
+	va_end(args);
+
+	print_modules();
+	dump_stack();
+	print_oops_end_marker();
+	add_taint(TAINT_WARN);
+}
+EXPORT_SYMBOL(warn_slowpath);
 #endif
 
 #ifdef CONFIG_CC_STACKPROTECTOR
@@ -331,3 +370,6 @@ void __stack_chk_fail(void)
 }
 EXPORT_SYMBOL(__stack_chk_fail);
 #endif
+
+core_param(panic, panic_timeout, int, 0644);
+core_param(pause_on_oops, pause_on_oops, int, 0644);

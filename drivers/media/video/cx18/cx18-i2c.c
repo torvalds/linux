@@ -22,12 +22,11 @@
  */
 
 #include "cx18-driver.h"
+#include "cx18-io.h"
 #include "cx18-cards.h"
 #include "cx18-gpio.h"
 #include "cx18-av-core.h"
 #include "cx18-i2c.h"
-
-#include <media/ir-kbd-i2c.h>
 
 #define CX18_REG_I2C_1_WR   0xf15000
 #define CX18_REG_I2C_1_RD   0xf15008
@@ -38,10 +37,6 @@
 #define SETSDL_BIT      0x0002
 #define GETSCL_BIT      0x0004
 #define GETSDL_BIT      0x0008
-
-#ifndef I2C_ADAP_CLASS_TV_ANALOG
-#define I2C_ADAP_CLASS_TV_ANALOG I2C_CLASS_TV_ANALOG
-#endif
 
 #define CX18_CS5345_I2C_ADDR		0x4c
 
@@ -162,12 +157,12 @@ static void cx18_setscl(void *data, int state)
 	struct cx18 *cx = ((struct cx18_i2c_algo_callback_data *)data)->cx;
 	int bus_index = ((struct cx18_i2c_algo_callback_data *)data)->bus_index;
 	u32 addr = bus_index ? CX18_REG_I2C_2_WR : CX18_REG_I2C_1_WR;
-	u32 r = read_reg(addr);
+	u32 r = cx18_read_reg(cx, addr);
 
 	if (state)
-		write_reg_sync(r | SETSCL_BIT, addr);
+		cx18_write_reg_sync(cx, r | SETSCL_BIT, addr);
 	else
-		write_reg_sync(r & ~SETSCL_BIT, addr);
+		cx18_write_reg_sync(cx, r & ~SETSCL_BIT, addr);
 }
 
 static void cx18_setsda(void *data, int state)
@@ -175,12 +170,12 @@ static void cx18_setsda(void *data, int state)
 	struct cx18 *cx = ((struct cx18_i2c_algo_callback_data *)data)->cx;
 	int bus_index = ((struct cx18_i2c_algo_callback_data *)data)->bus_index;
 	u32 addr = bus_index ? CX18_REG_I2C_2_WR : CX18_REG_I2C_1_WR;
-	u32 r = read_reg(addr);
+	u32 r = cx18_read_reg(cx, addr);
 
 	if (state)
-		write_reg_sync(r | SETSDL_BIT, addr);
+		cx18_write_reg_sync(cx, r | SETSDL_BIT, addr);
 	else
-		write_reg_sync(r & ~SETSDL_BIT, addr);
+		cx18_write_reg_sync(cx, r & ~SETSDL_BIT, addr);
 }
 
 static int cx18_getscl(void *data)
@@ -189,7 +184,7 @@ static int cx18_getscl(void *data)
 	int bus_index = ((struct cx18_i2c_algo_callback_data *)data)->bus_index;
 	u32 addr = bus_index ? CX18_REG_I2C_2_RD : CX18_REG_I2C_1_RD;
 
-	return read_reg(addr) & GETSCL_BIT;
+	return cx18_read_reg(cx, addr) & GETSCL_BIT;
 }
 
 static int cx18_getsda(void *data)
@@ -198,7 +193,7 @@ static int cx18_getsda(void *data)
 	int bus_index = ((struct cx18_i2c_algo_callback_data *)data)->bus_index;
 	u32 addr = bus_index ? CX18_REG_I2C_2_RD : CX18_REG_I2C_1_RD;
 
-	return read_reg(addr) & GETSDL_BIT;
+	return cx18_read_reg(cx, addr) & GETSDL_BIT;
 }
 
 /* template for i2c-bit-algo */
@@ -311,8 +306,12 @@ int cx18_i2c_hw(struct cx18 *cx, u32 hw, unsigned int cmd, void *arg)
 {
 	int addr;
 
-	if (hw == CX18_HW_GPIO || hw == 0)
+	if (hw == 0)
 		return 0;
+
+	if (hw == CX18_HW_GPIO)
+		return cx18_gpio(cx, cmd, arg);
+
 	if (hw == CX18_HW_CX23418)
 		return cx18_av_cmd(cx, cmd, arg);
 
@@ -350,6 +349,8 @@ void cx18_call_i2c_clients(struct cx18 *cx, unsigned int cmd, void *arg)
 	cx18_av_cmd(cx, cmd, arg);
 	i2c_clients_command(&cx->i2c_adap[0], cmd, arg);
 	i2c_clients_command(&cx->i2c_adap[1], cmd, arg);
+	if (cx->hw_flags & CX18_HW_GPIO)
+		cx18_gpio(cx, cmd, arg);
 }
 
 /* init + register i2c algo-bit adapter */
@@ -357,6 +358,18 @@ int init_cx18_i2c(struct cx18 *cx)
 {
 	int i;
 	CX18_DEBUG_I2C("i2c init\n");
+
+	/* Sanity checks for the I2C hardware arrays. They must be the
+	 * same size and GPIO/CX23418 must be the last entries.
+	 */
+	if (ARRAY_SIZE(hw_driverids) != ARRAY_SIZE(hw_addrs) ||
+	    ARRAY_SIZE(hw_devicenames) != ARRAY_SIZE(hw_addrs) ||
+	    CX18_HW_GPIO != (1 << (ARRAY_SIZE(hw_addrs) - 2)) ||
+	    CX18_HW_CX23418 != (1 << (ARRAY_SIZE(hw_addrs) - 1)) ||
+	    hw_driverids[ARRAY_SIZE(hw_addrs) - 1]) {
+		CX18_ERR("Mismatched I2C hardware arrays\n");
+		return -ENODEV;
+	}
 
 	for (i = 0; i < 2; i++) {
 		memcpy(&cx->i2c_adap[i], &cx18_i2c_adap_template,
@@ -380,28 +393,33 @@ int init_cx18_i2c(struct cx18 *cx)
 		cx->i2c_adap[i].dev.parent = &cx->dev->dev;
 	}
 
-	if (read_reg(CX18_REG_I2C_2_WR) != 0x0003c02f) {
+	if (cx18_read_reg(cx, CX18_REG_I2C_2_WR) != 0x0003c02f) {
 		/* Reset/Unreset I2C hardware block */
-		write_reg(0x10000000, 0xc71004); /* Clock select 220MHz */
-		write_reg_sync(0x10001000, 0xc71024); /* Clock Enable */
+		/* Clock select 220MHz */
+		cx18_write_reg(cx, 0x10000000, 0xc71004);
+		/* Clock Enable */
+		cx18_write_reg_sync(cx, 0x10001000, 0xc71024);
 	}
 	/* courtesy of Steven Toth <stoth@hauppauge.com> */
-	write_reg_sync(0x00c00000, 0xc7001c);
+	cx18_write_reg_sync(cx, 0x00c00000, 0xc7001c);
 	mdelay(10);
-	write_reg_sync(0x00c000c0, 0xc7001c);
+	cx18_write_reg_sync(cx, 0x00c000c0, 0xc7001c);
 	mdelay(10);
-	write_reg_sync(0x00c00000, 0xc7001c);
+	cx18_write_reg_sync(cx, 0x00c00000, 0xc7001c);
+	mdelay(10);
 
-	write_reg_sync(0x00c00000, 0xc730c8); /* Set to edge-triggered intrs. */
-	write_reg_sync(0x00c00000, 0xc730c4); /* Clear any stale intrs */
+	/* Set to edge-triggered intrs. */
+	cx18_write_reg_sync(cx, 0x00c00000, 0xc730c8);
+	/* Clear any stale intrs */
+	cx18_write_reg_sync(cx, 0x00c00000, 0xc730c4);
 
 	/* Hw I2C1 Clock Freq ~100kHz */
-	write_reg_sync(0x00021c0f & ~4, CX18_REG_I2C_1_WR);
+	cx18_write_reg_sync(cx, 0x00021c0f & ~4, CX18_REG_I2C_1_WR);
 	cx18_setscl(&cx->i2c_algo_cb_data[0], 1);
 	cx18_setsda(&cx->i2c_algo_cb_data[0], 1);
 
 	/* Hw I2C2 Clock Freq ~100kHz */
-	write_reg_sync(0x00021c0f & ~4, CX18_REG_I2C_2_WR);
+	cx18_write_reg_sync(cx, 0x00021c0f & ~4, CX18_REG_I2C_2_WR);
 	cx18_setscl(&cx->i2c_algo_cb_data[1], 1);
 	cx18_setsda(&cx->i2c_algo_cb_data[1], 1);
 
@@ -415,8 +433,10 @@ void exit_cx18_i2c(struct cx18 *cx)
 {
 	int i;
 	CX18_DEBUG_I2C("i2c exit\n");
-	write_reg(read_reg(CX18_REG_I2C_1_WR) | 4, CX18_REG_I2C_1_WR);
-	write_reg(read_reg(CX18_REG_I2C_2_WR) | 4, CX18_REG_I2C_2_WR);
+	cx18_write_reg(cx, cx18_read_reg(cx, CX18_REG_I2C_1_WR) | 4,
+							CX18_REG_I2C_1_WR);
+	cx18_write_reg(cx, cx18_read_reg(cx, CX18_REG_I2C_2_WR) | 4,
+							CX18_REG_I2C_2_WR);
 
 	for (i = 0; i < 2; i++) {
 		i2c_del_adapter(&cx->i2c_adap[i]);

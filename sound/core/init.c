@@ -545,10 +545,12 @@ int snd_card_register(struct snd_card *card)
 {
 	int err;
 
-	snd_assert(card != NULL, return -EINVAL);
+	if (snd_BUG_ON(!card))
+		return -EINVAL;
 #ifndef CONFIG_SYSFS_DEPRECATED
 	if (!card->card_dev) {
-		card->card_dev = device_create(sound_class, card->dev, 0,
+		card->card_dev = device_create(sound_class, card->dev,
+					       MKDEV(0, 0), NULL,
 					       "card%i", card->number);
 		if (IS_ERR(card->card_dev))
 			card->card_dev = NULL;

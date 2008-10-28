@@ -96,11 +96,6 @@ initial testing of the ADM1027 it was 1.00 degC steps. Analog Devices has
 confirmed this "bug". The ADT7463 is reported to work as described in the
 documentation. The current lm85 driver does not show the offset register.
 
-The ADT7463 has a THERM asserted counter. This counter has a 22.76ms
-resolution and a range of 5.8 seconds. The driver implements a 32-bit
-accumulator of the counter value to extend the range to over a year. The
-counter will stay at it's max value until read.
-
 See the vendor datasheets for more information. There is application note
 from National (AN-1260) with some additional information about the LM85.
 The Analog Devices datasheet is very detailed and describes a procedure for
@@ -168,16 +163,6 @@ configured individually according to the following options.
 * pwm#_auto_pwm_min - this specifies the PWM value for temp#_auto_temp_off
                       temperature. (PWM value from 0 to 255)
 
-* pwm#_auto_pwm_freq - select base frequency of PWM output. You can select
-                       in range of 10.0 to 94.0 Hz in .1 Hz units.
-		       (Values 100 to 940).
-
-The pwm#_auto_pwm_freq can be set to one of the following 8 values. Setting the
-frequency to a value not on this list, will result in the next higher frequency
-being selected. The actual device frequency may vary slightly from this
-specification as designed by the manufacturer. Consult the datasheet for more
-details. (PWM Frequency values:  100, 150, 230, 300, 380, 470, 620, 940)
-
 * pwm#_auto_pwm_minctl - this flags selects for temp#_auto_temp_off temperature
                          the bahaviour of fans. Write 1 to let fans spinning at
 			 pwm#_auto_pwm_min or write 0 to let them off.
@@ -206,13 +191,15 @@ Configuration choices:
 
 The National LM85's have two vendor specific configuration
 features. Tach. mode and Spinup Control. For more details on these,
-see the LM85 datasheet or Application Note AN-1260.
+see the LM85 datasheet or Application Note AN-1260. These features
+are not currently supported by the lm85 driver.
 
 The Analog Devices ADM1027 has several vendor specific enhancements.
 The number of pulses-per-rev of the fans can be set, Tach monitoring
 can be optimized for PWM operation, and an offset can be applied to
 the temperatures to compensate for systemic errors in the
-measurements.
+measurements. These features are not currently supported by the lm85
+driver.
 
 In addition to the ADM1027 features, the ADT7463 also has Tmin control
 and THERM asserted counts. Automatic Tmin control acts to adjust the

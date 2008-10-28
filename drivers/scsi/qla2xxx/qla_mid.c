@@ -6,7 +6,6 @@
  */
 #include "qla_def.h"
 
-#include <linux/version.h>
 #include <linux/moduleparam.h>
 #include <linux/vmalloc.h>
 #include <linux/smp_lock.h>
@@ -43,6 +42,7 @@ qla24xx_allocate_vp_id(scsi_qla_host_t *vha)
 
 	set_bit(vp_id, ha->vp_idx_map);
 	ha->num_vhosts++;
+	ha->cur_vport_count++;
 	vha->vp_idx = vp_id;
 	list_add_tail(&vha->vp_list, &ha->vp_list);
 	mutex_unlock(&ha->vport_lock);
@@ -58,6 +58,7 @@ qla24xx_deallocate_vp_id(scsi_qla_host_t *vha)
 	mutex_lock(&ha->vport_lock);
 	vp_id = vha->vp_idx;
 	ha->num_vhosts--;
+	ha->cur_vport_count--;
 	clear_bit(vp_id, ha->vp_idx_map);
 	list_del(&vha->vp_list);
 	mutex_unlock(&ha->vport_lock);
@@ -103,8 +104,8 @@ qla2x00_mark_vp_devices_dead(scsi_qla_host_t *vha)
 		    "loop_id=0x%04x :%x\n",
 		    vha->host_no, fcport->loop_id, fcport->vp_idx));
 
-		atomic_set(&fcport->state, FCS_DEVICE_DEAD);
 		qla2x00_mark_device_lost(vha, fcport, 0, 0);
+		atomic_set(&fcport->state, FCS_UNCONFIGURED);
 	}
 }
 
@@ -276,7 +277,8 @@ qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 		clear_bit(RESET_ACTIVE, &vha->dpc_flags);
 	}
 
-	if (test_and_clear_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags)) {
+	if (atomic_read(&vha->vp_state) == VP_ACTIVE &&
+	    test_and_clear_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags)) {
 		if (!(test_and_set_bit(LOOP_RESYNC_ACTIVE, &vha->dpc_flags))) {
 			qla2x00_loop_resync(vha);
 			clear_bit(LOOP_RESYNC_ACTIVE, &vha->dpc_flags);
@@ -390,7 +392,6 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 	vha->parent = ha;
 	vha->fc_vport = fc_vport;
 	vha->device_flags = 0;
-	vha->instance = num_hosts;
 	vha->vp_idx = qla24xx_allocate_vp_id(vha);
 	if (vha->vp_idx > ha->max_npiv_vports) {
 		DEBUG15(printk("scsi(%ld): Couldn't allocate vp_id.\n",
@@ -428,7 +429,7 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 	host->max_cmd_len = MAX_CMDSZ;
 	host->max_channel = MAX_BUSES - 1;
 	host->max_lun = MAX_LUNS;
-	host->unique_id = vha->instance;
+	host->unique_id = host->host_no;
 	host->max_id = MAX_TARGETS_2200;
 	host->transportt = qla2xxx_transport_vport_template;
 
@@ -436,12 +437,6 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 	    vha->host_no, vha));
 
 	vha->flags.init_done = 1;
-	num_hosts++;
-
-	mutex_lock(&ha->vport_lock);
-	set_bit(vha->vp_idx, ha->vp_idx_map);
-	ha->cur_vport_count++;
-	mutex_unlock(&ha->vport_lock);
 
 	return vha;
 

@@ -197,9 +197,6 @@ static void mpc52xx_fec_adjust_link(struct net_device *dev)
 		if (priv->link == PHY_DOWN) {
 			new_state = 1;
 			priv->link = phydev->link;
-			netif_schedule(dev);
-			netif_carrier_on(dev);
-			netif_start_queue(dev);
 		}
 
 	} else if (priv->link) {
@@ -207,8 +204,6 @@ static void mpc52xx_fec_adjust_link(struct net_device *dev)
 		priv->link = PHY_DOWN;
 		priv->speed = 0;
 		priv->duplex = -1;
-		netif_stop_queue(dev);
-		netif_carrier_off(dev);
 	}
 
 	if (new_state && netif_msg_link(priv))
@@ -405,6 +400,21 @@ static int mpc52xx_fec_hard_start_xmit(struct sk_buff *skb, struct net_device *d
 
 	return 0;
 }
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void mpc52xx_fec_poll_controller(struct net_device *dev)
+{
+	struct mpc52xx_fec_priv *priv = netdev_priv(dev);
+
+	disable_irq(priv->t_irq);
+	mpc52xx_fec_tx_interrupt(priv->t_irq, dev);
+	enable_irq(priv->t_irq);
+	disable_irq(priv->r_irq);
+	mpc52xx_fec_rx_interrupt(priv->r_irq, dev);
+	enable_irq(priv->r_irq);
+}
+#endif
+
 
 /* This handles BestComm transmit task interrupts
  */
@@ -931,6 +941,9 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 	ndev->tx_timeout	= mpc52xx_fec_tx_timeout;
 	ndev->watchdog_timeo	= FEC_WATCHDOG_TIMEOUT;
 	ndev->base_addr		= mem.start;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	ndev->poll_controller = mpc52xx_fec_poll_controller;
+#endif
 
 	priv->t_irq = priv->r_irq = ndev->irq = NO_IRQ; /* IRQ are free for now */
 

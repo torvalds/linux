@@ -46,6 +46,8 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
+#include <linux/string.h>
+#include <linux/dmi.h>
 #include <asm/io.h>
 
 #define DRVNAME "it87"
@@ -151,9 +153,9 @@ static int fix_pwm_polarity;
 /* The IT8718F has the VID value in a different register, in Super-I/O
    configuration space. */
 #define IT87_REG_VID           0x0a
-/* Warning: register 0x0b is used for something completely different in
-   new chips/revisions. I suspect only 16-bit tachometer mode will work
-   for these. */
+/* The IT8705F and IT8712F earlier than revision 0x08 use register 0x0b
+   for fan divisors. Later IT8712F revisions must use 16-bit tachometer
+   mode. */
 #define IT87_REG_FAN_DIV       0x0b
 #define IT87_REG_FAN_16BIT     0x0c
 
@@ -234,7 +236,10 @@ static const unsigned int pwm_freq[8] = {
 struct it87_sio_data {
 	enum chips type;
 	/* Values read from Super-I/O config space */
+	u8 revision;
 	u8 vid_value;
+	/* Values set based on DMI strings */
+	u8 skip_pwm;
 };
 
 /* For each registered chip, we need to keep some data in memory.
@@ -242,6 +247,7 @@ struct it87_sio_data {
 struct it87_data {
 	struct device *hwmon_dev;
 	enum chips type;
+	u8 revision;
 
 	unsigned short addr;
 	const char *name;
@@ -268,6 +274,16 @@ struct it87_data {
 	u8 manual_pwm_ctl[3];   /* manual PWM value set by user */
 };
 
+static inline int has_16bit_fans(const struct it87_data *data)
+{
+	/* IT8705F Datasheet 0.4.1, 3h == Version G.
+	   IT8712F Datasheet 0.9.1, section 8.3.5 indicates 8h == Version J.
+	   These are the first revisions with 16bit tachometer support. */
+	return (data->type == it87 && data->revision >= 0x03)
+	    || (data->type == it8712 && data->revision >= 0x08)
+	    || data->type == it8716
+	    || data->type == it8718;
+}
 
 static int it87_probe(struct platform_device *pdev);
 static int __devexit it87_remove(struct platform_device *pdev);
@@ -461,7 +477,7 @@ static ssize_t show_sensor(struct device *dev, struct device_attribute *attr,
 	if (reg & (1 << nr))
 		return sprintf(buf, "3\n");  /* thermal diode */
 	if (reg & (8 << nr))
-		return sprintf(buf, "2\n");  /* thermistor */
+		return sprintf(buf, "4\n");  /* thermistor */
 	return sprintf(buf, "0\n");      /* disabled */
 }
 static ssize_t set_sensor(struct device *dev, struct device_attribute *attr,
@@ -477,10 +493,15 @@ static ssize_t set_sensor(struct device *dev, struct device_attribute *attr,
 
 	data->sensor &= ~(1 << nr);
 	data->sensor &= ~(8 << nr);
-	/* 3 = thermal diode; 2 = thermistor; 0 = disabled */
+	if (val == 2) {	/* backwards compatibility */
+		dev_warn(dev, "Sensor type 2 is deprecated, please use 4 "
+			 "instead\n");
+		val = 4;
+	}
+	/* 3 = thermal diode; 4 = thermistor; 0 = disabled */
 	if (val == 3)
 	    data->sensor |= 1 << nr;
-	else if (val == 2)
+	else if (val == 4)
 	    data->sensor |= 8 << nr;
 	else if (val != 0) {
 		mutex_unlock(&data->update_lock);
@@ -952,6 +973,7 @@ static int __init it87_find(unsigned short *address,
 {
 	int err = -ENODEV;
 	u16 chip_type;
+	const char *board_vendor, *board_name;
 
 	superio_enter();
 	chip_type = force_id ? force_id : superio_inw(DEVID);
@@ -991,8 +1013,9 @@ static int __init it87_find(unsigned short *address,
 	}
 
 	err = 0;
+	sio_data->revision = superio_inb(DEVREV) & 0x0f;
 	pr_info("it87: Found IT%04xF chip at 0x%x, revision %d\n",
-		chip_type, *address, superio_inb(DEVREV) & 0x0f);
+		chip_type, *address, sio_data->revision);
 
 	/* Read GPIO config and VID value from LDN 7 (GPIO) */
 	if (chip_type != IT8705F_DEVID) {
@@ -1007,6 +1030,24 @@ static int __init it87_find(unsigned short *address,
 			pr_info("it87: in3 is VCC (+5V)\n");
 		if (reg & (1 << 1))
 			pr_info("it87: in7 is VCCH (+5V Stand-By)\n");
+	}
+
+	/* Disable specific features based on DMI strings */
+	board_vendor = dmi_get_system_info(DMI_BOARD_VENDOR);
+	board_name = dmi_get_system_info(DMI_BOARD_NAME);
+	if (board_vendor && board_name) {
+		if (strcmp(board_vendor, "nVIDIA") == 0
+		 && strcmp(board_name, "FN68PT") == 0) {
+			/* On the Shuttle SN68PT, FAN_CTL2 is apparently not
+			   connected to a fan, but to something else. One user
+			   has reported instant system power-off when changing
+			   the PWM2 duty cycle, so we disable it.
+			   I use the board name string as the trigger in case
+			   the same board is ever used in other systems. */
+			pr_info("it87: Disabling pwm2 due to "
+				"hardware constraints\n");
+			sio_data->skip_pwm = (1 << 1);
+		}
 	}
 
 exit:
@@ -1045,6 +1086,7 @@ static int __devinit it87_probe(struct platform_device *pdev)
 
 	data->addr = res->start;
 	data->type = sio_data->type;
+	data->revision = sio_data->revision;
 	data->name = names[sio_data->type];
 
 	/* Now, we do the remaining detection. */
@@ -1069,7 +1111,7 @@ static int __devinit it87_probe(struct platform_device *pdev)
 		goto ERROR2;
 
 	/* Do not create fan files for disabled fans */
-	if (data->type == it8716 || data->type == it8718) {
+	if (has_16bit_fans(data)) {
 		/* 16-bit tachometers */
 		if (data->has_fan & (1 << 0)) {
 			if ((err = device_create_file(dev,
@@ -1154,25 +1196,33 @@ static int __devinit it87_probe(struct platform_device *pdev)
 	}
 
 	if (enable_pwm_interface) {
-		if ((err = device_create_file(dev,
-		     &sensor_dev_attr_pwm1_enable.dev_attr))
-		 || (err = device_create_file(dev,
-		     &sensor_dev_attr_pwm2_enable.dev_attr))
-		 || (err = device_create_file(dev,
-		     &sensor_dev_attr_pwm3_enable.dev_attr))
-		 || (err = device_create_file(dev,
-		     &sensor_dev_attr_pwm1.dev_attr))
-		 || (err = device_create_file(dev,
-		     &sensor_dev_attr_pwm2.dev_attr))
-		 || (err = device_create_file(dev,
-		     &sensor_dev_attr_pwm3.dev_attr))
-		 || (err = device_create_file(dev,
-		     &dev_attr_pwm1_freq))
-		 || (err = device_create_file(dev,
-		     &dev_attr_pwm2_freq))
-		 || (err = device_create_file(dev,
-		     &dev_attr_pwm3_freq)))
-			goto ERROR4;
+		if (!(sio_data->skip_pwm & (1 << 0))) {
+			if ((err = device_create_file(dev,
+			     &sensor_dev_attr_pwm1_enable.dev_attr))
+			 || (err = device_create_file(dev,
+			     &sensor_dev_attr_pwm1.dev_attr))
+			 || (err = device_create_file(dev,
+			     &dev_attr_pwm1_freq)))
+				goto ERROR4;
+		}
+		if (!(sio_data->skip_pwm & (1 << 1))) {
+			if ((err = device_create_file(dev,
+			     &sensor_dev_attr_pwm2_enable.dev_attr))
+			 || (err = device_create_file(dev,
+			     &sensor_dev_attr_pwm2.dev_attr))
+			 || (err = device_create_file(dev,
+			     &dev_attr_pwm2_freq)))
+				goto ERROR4;
+		}
+		if (!(sio_data->skip_pwm & (1 << 2))) {
+			if ((err = device_create_file(dev,
+			     &sensor_dev_attr_pwm3_enable.dev_attr))
+			 || (err = device_create_file(dev,
+			     &sensor_dev_attr_pwm3.dev_attr))
+			 || (err = device_create_file(dev,
+			     &dev_attr_pwm3_freq)))
+				goto ERROR4;
+		}
 	}
 
 	if (data->type == it8712 || data->type == it8716
@@ -1350,7 +1400,7 @@ static void __devinit it87_init_device(struct platform_device *pdev)
 	data->has_fan = (data->fan_main_ctrl >> 4) & 0x07;
 
 	/* Set tachometers to 16-bit mode if needed */
-	if (data->type == it8716 || data->type == it8718) {
+	if (has_16bit_fans(data)) {
 		tmp = it87_read_value(data, IT87_REG_FAN_16BIT);
 		if (~tmp & 0x07 & data->has_fan) {
 			dev_dbg(&pdev->dev,
@@ -1358,10 +1408,13 @@ static void __devinit it87_init_device(struct platform_device *pdev)
 			it87_write_value(data, IT87_REG_FAN_16BIT,
 					 tmp | 0x07);
 		}
-		if (tmp & (1 << 4))
-			data->has_fan |= (1 << 3);	/* fan4 enabled */
-		if (tmp & (1 << 5))
-			data->has_fan |= (1 << 4);	/* fan5 enabled */
+		/* IT8705F only supports three fans. */
+		if (data->type != it87) {
+			if (tmp & (1 << 4))
+				data->has_fan |= (1 << 3); /* fan4 enabled */
+			if (tmp & (1 << 5))
+				data->has_fan |= (1 << 4); /* fan5 enabled */
+		}
 	}
 
 	/* Set current fan mode registers and the default settings for the
@@ -1426,7 +1479,7 @@ static struct it87_data *it87_update_device(struct device *dev)
 			data->fan[i] = it87_read_value(data,
 				       IT87_REG_FAN[i]);
 			/* Add high byte if in 16-bit mode */
-			if (data->type == it8716 || data->type == it8718) {
+			if (has_16bit_fans(data)) {
 				data->fan[i] |= it87_read_value(data,
 						IT87_REG_FANX[i]) << 8;
 				data->fan_min[i] |= it87_read_value(data,
@@ -1443,8 +1496,7 @@ static struct it87_data *it87_update_device(struct device *dev)
 		}
 
 		/* Newer chips don't have clock dividers */
-		if ((data->has_fan & 0x07) && data->type != it8716
-		 && data->type != it8718) {
+		if ((data->has_fan & 0x07) && !has_16bit_fans(data)) {
 			i = it87_read_value(data, IT87_REG_FAN_DIV);
 			data->fan_div[0] = i & 0x07;
 			data->fan_div[1] = (i >> 3) & 0x07;
@@ -1460,7 +1512,8 @@ static struct it87_data *it87_update_device(struct device *dev)
 		data->fan_ctl = it87_read_value(data, IT87_REG_FAN_CTL);
 
 		data->sensor = it87_read_value(data, IT87_REG_TEMP_ENABLE);
-		/* The 8705 does not have VID capability */
+		/* The 8705 does not have VID capability.
+		   The 8718 does not use IT87_REG_VID for the same purpose. */
 		if (data->type == it8712 || data->type == it8716) {
 			data->vid = it87_read_value(data, IT87_REG_VID);
 			/* The older IT8712F revisions had only 5 VID pins,
@@ -1529,6 +1582,7 @@ static int __init sm_it87_init(void)
 	unsigned short isa_address=0;
 	struct it87_sio_data sio_data;
 
+	memset(&sio_data, 0, sizeof(struct it87_sio_data));
 	err = it87_find(&isa_address, &sio_data);
 	if (err)
 		return err;

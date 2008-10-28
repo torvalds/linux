@@ -1522,7 +1522,6 @@ static struct dentry *reiserfs_get_dentry(struct super_block *sb,
 
 {
 	struct cpu_key key;
-	struct dentry *result;
 	struct inode *inode;
 
 	key.on_disk_key.k_objectid = objectid;
@@ -1535,16 +1534,8 @@ static struct dentry *reiserfs_get_dentry(struct super_block *sb,
 		inode = NULL;
 	}
 	reiserfs_write_unlock(sb);
-	if (!inode)
-		inode = ERR_PTR(-ESTALE);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-	result = d_alloc_anon(inode);
-	if (!result) {
-		iput(inode);
-		return ERR_PTR(-ENOMEM);
-	}
-	return result;
+
+	return d_obtain_alias(inode);
 }
 
 struct dentry *reiserfs_fh_to_dentry(struct super_block *sb, struct fid *fid,
@@ -2435,7 +2426,7 @@ static int reiserfs_write_full_page(struct page *page,
 		if (wbc->sync_mode != WB_SYNC_NONE || !wbc->nonblocking) {
 			lock_buffer(bh);
 		} else {
-			if (test_set_buffer_locked(bh)) {
+			if (!trylock_buffer(bh)) {
 				redirty_page_for_writepage(wbc, page);
 				continue;
 			}

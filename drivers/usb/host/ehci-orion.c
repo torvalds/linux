@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/mbus.h>
-#include <asm/plat-orion/ehci-orion.h>
+#include <plat/ehci-orion.h>
 
 #define rdl(off)	__raw_readl(hcd->regs + (off))
 #define wrl(off, val)	__raw_writel((val), hcd->regs + (off))
@@ -204,7 +204,7 @@ static int __init ehci_orion_drv_probe(struct platform_device *pdev)
 	if (irq <= 0) {
 		dev_err(&pdev->dev,
 			"Found HC with no IRQ. Check %s setup!\n",
-			pdev->dev.bus_id);
+			dev_name(&pdev->dev));
 		err = -ENODEV;
 		goto err1;
 	}
@@ -213,7 +213,7 @@ static int __init ehci_orion_drv_probe(struct platform_device *pdev)
 	if (!res) {
 		dev_err(&pdev->dev,
 			"Found HC with no register addr. Check %s setup!\n",
-			pdev->dev.bus_id);
+			dev_name(&pdev->dev));
 		err = -ENODEV;
 		goto err1;
 	}
@@ -233,7 +233,7 @@ static int __init ehci_orion_drv_probe(struct platform_device *pdev)
 	}
 
 	hcd = usb_create_hcd(&ehci_orion_hc_driver,
-			&pdev->dev, pdev->dev.bus_id);
+			&pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
 		err = -ENOMEM;
 		goto err3;
@@ -276,7 +276,7 @@ err2:
 	release_mem_region(res->start, res->end - res->start + 1);
 err1:
 	dev_err(&pdev->dev, "init %s fail, %d\n",
-		pdev->dev.bus_id, err);
+		dev_name(&pdev->dev), err);
 
 	return err;
 }

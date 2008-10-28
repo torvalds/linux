@@ -5,6 +5,10 @@
 menu "Multifunction device drivers"
 	depends on HAS_IOMEM
 
+config MFD_CORE
+	tristate
+	default n
+
 config MFD_SM501
 	tristate "Support for Silicon Motion SM501"
 	 ---help---
@@ -15,16 +19,24 @@ config MFD_SM501
 	  interface. The device may be connected by PCI or local bus with
 	  varying functions enabled.
 
+config MFD_SM501_GPIO
+	bool "Export GPIO via GPIO layer"
+	depends on MFD_SM501 && GPIOLIB
+	 ---help---
+	 This option uses the gpio library layer to export the 64 GPIO
+	 lines on the SM501. The platform data is used to supply the
+	 base number for the first GPIO line to register.
+
 config MFD_ASIC3
 	bool "Support for Compaq ASIC3"
-	depends on GENERIC_HARDIRQS && ARM
+	depends on GENERIC_HARDIRQS && GPIOLIB && ARM
 	 ---help---
 	  This driver supports the ASIC3 multifunction chip found on many
 	  PDAs (mainly iPAQ and HTC based ones)
 
 config HTC_EGPIO
 	bool "HTC EGPIO support"
-	depends on GENERIC_HARDIRQS && HAVE_GPIO_LIB && ARM
+	depends on GENERIC_HARDIRQS && GPIOLIB && ARM
 	help
 	    This driver supports the CPLD egpio chip present on
 	    several HTC phones.  It provides basic support for input
@@ -37,6 +49,97 @@ config HTC_PASIC3
 	  chips labeled "AIC2" and "AIC3", found on HTC Blueangel and
 	  HTC Magician devices, respectively. Actual functionality is
 	  handled by the leds-pasic3 and ds1wm drivers.
+
+config UCB1400_CORE
+	tristate "Philips UCB1400 Core driver"
+	depends on AC97_BUS
+	depends on GPIOLIB
+	help
+	  This enables support for the Philips UCB1400 core functions.
+	  The UCB1400 is an AC97 audio codec.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ucb1400_core.
+
+config TWL4030_CORE
+	bool "Texas Instruments TWL4030/TPS659x0 Support"
+	depends on I2C=y && GENERIC_HARDIRQS && (ARCH_OMAP2 || ARCH_OMAP3)
+	help
+	  Say yes here if you have TWL4030 family chip on your board.
+	  This core driver provides register access and IRQ handling
+	  facilities, and registers devices for the various functions
+	  so that function-specific drivers can bind to them.
+
+	  These multi-function chips are found on many OMAP2 and OMAP3
+	  boards, providing power management, RTC, GPIO, keypad, a
+	  high speed USB OTG transceiver, an audio codec (on most
+	  versions) and many other features.
+
+config MFD_TMIO
+	bool
+	default n
+
+config MFD_T7L66XB
+	bool "Support Toshiba T7L66XB"
+	depends on ARM
+	select MFD_CORE
+	select MFD_TMIO
+	help
+	  Support for Toshiba Mobile IO Controller T7L66XB
+
+config MFD_TC6387XB
+	bool "Support Toshiba TC6387XB"
+	depends on ARM
+	select MFD_CORE
+	select MFD_TMIO
+	help
+	  Support for Toshiba Mobile IO Controller TC6387XB
+
+config MFD_TC6393XB
+	bool "Support Toshiba TC6393XB"
+	depends on GPIOLIB && ARM
+	select MFD_CORE
+	select MFD_TMIO
+	help
+	  Support for Toshiba Mobile IO Controller TC6393XB
+
+config MFD_WM8400
+	tristate "Support Wolfson Microelectronics WM8400"
+	help
+	  Support for the Wolfson Microelecronics WM8400 PMIC and audio
+	  CODEC.  This driver adds provides common support for accessing
+	  the device, additional drivers must be enabled in order to use
+	  the functionality of the device.
+
+config MFD_WM8350
+	tristate
+
+config MFD_WM8350_CONFIG_MODE_0
+	bool
+	depends on MFD_WM8350
+
+config MFD_WM8350_CONFIG_MODE_1
+	bool
+	depends on MFD_WM8350
+
+config MFD_WM8350_CONFIG_MODE_2
+	bool
+	depends on MFD_WM8350
+
+config MFD_WM8350_CONFIG_MODE_3
+	bool
+	depends on MFD_WM8350
+
+config MFD_WM8350_I2C
+	tristate "Support Wolfson Microelectronics WM8350 with I2C"
+	select MFD_WM8350
+	depends on I2C
+	help
+	  The WM8350 is an integrated audio and power management
+	  subsystem with watchdog and RTC functionality for embedded
+	  systems.  This option enables core support for the WM8350 with
+	  I2C as the control interface.  Additional options must be
+	  selected to enable support for the functionality of the chip.
 
 endmenu
 

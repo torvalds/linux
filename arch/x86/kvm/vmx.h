@@ -40,6 +40,7 @@
 #define CPU_BASED_CR8_LOAD_EXITING              0x00080000
 #define CPU_BASED_CR8_STORE_EXITING             0x00100000
 #define CPU_BASED_TPR_SHADOW                    0x00200000
+#define CPU_BASED_VIRTUAL_NMI_PENDING		0x00400000
 #define CPU_BASED_MOV_DR_EXITING                0x00800000
 #define CPU_BASED_UNCOND_IO_EXITING             0x01000000
 #define CPU_BASED_USE_IO_BITMAPS                0x02000000
@@ -216,7 +217,7 @@ enum vmcs_field {
 #define EXIT_REASON_TRIPLE_FAULT        2
 
 #define EXIT_REASON_PENDING_INTERRUPT   7
-
+#define EXIT_REASON_NMI_WINDOW		8
 #define EXIT_REASON_TASK_SWITCH         9
 #define EXIT_REASON_CPUID               10
 #define EXIT_REASON_HLT                 12
@@ -251,7 +252,9 @@ enum vmcs_field {
 #define INTR_INFO_VECTOR_MASK           0xff            /* 7:0 */
 #define INTR_INFO_INTR_TYPE_MASK        0x700           /* 10:8 */
 #define INTR_INFO_DELIVER_CODE_MASK     0x800           /* 11 */
+#define INTR_INFO_UNBLOCK_NMI		0x1000		/* 12 */
 #define INTR_INFO_VALID_MASK            0x80000000      /* 31 */
+#define INTR_INFO_RESVD_BITS_MASK       0x7ffff000
 
 #define VECTORING_INFO_VECTOR_MASK           	INTR_INFO_VECTOR_MASK
 #define VECTORING_INFO_TYPE_MASK        	INTR_INFO_INTR_TYPE_MASK
@@ -259,8 +262,15 @@ enum vmcs_field {
 #define VECTORING_INFO_VALID_MASK       	INTR_INFO_VALID_MASK
 
 #define INTR_TYPE_EXT_INTR              (0 << 8) /* external interrupt */
+#define INTR_TYPE_NMI_INTR		(2 << 8) /* NMI */
 #define INTR_TYPE_EXCEPTION             (3 << 8) /* processor exception */
 #define INTR_TYPE_SOFT_INTR             (4 << 8) /* software interrupt */
+
+/* GUEST_INTERRUPTIBILITY_INFO flags. */
+#define GUEST_INTR_STATE_STI		0x00000001
+#define GUEST_INTR_STATE_MOV_SS		0x00000002
+#define GUEST_INTR_STATE_SMI		0x00000004
+#define GUEST_INTR_STATE_NMI		0x00000008
 
 /*
  * Exit Qualifications for MOV for Control Register Access
@@ -321,24 +331,6 @@ enum vmcs_field {
 
 #define AR_RESERVD_MASK 0xfffe0f00
 
-#define MSR_IA32_VMX_BASIC                      0x480
-#define MSR_IA32_VMX_PINBASED_CTLS              0x481
-#define MSR_IA32_VMX_PROCBASED_CTLS             0x482
-#define MSR_IA32_VMX_EXIT_CTLS                  0x483
-#define MSR_IA32_VMX_ENTRY_CTLS                 0x484
-#define MSR_IA32_VMX_MISC                       0x485
-#define MSR_IA32_VMX_CR0_FIXED0                 0x486
-#define MSR_IA32_VMX_CR0_FIXED1                 0x487
-#define MSR_IA32_VMX_CR4_FIXED0                 0x488
-#define MSR_IA32_VMX_CR4_FIXED1                 0x489
-#define MSR_IA32_VMX_VMCS_ENUM                  0x48a
-#define MSR_IA32_VMX_PROCBASED_CTLS2            0x48b
-#define MSR_IA32_VMX_EPT_VPID_CAP               0x48c
-
-#define MSR_IA32_FEATURE_CONTROL                0x3a
-#define MSR_IA32_FEATURE_CONTROL_LOCKED         0x1
-#define MSR_IA32_FEATURE_CONTROL_VMXON_ENABLED  0x4
-
 #define APIC_ACCESS_PAGE_PRIVATE_MEMSLOT	9
 #define IDENTITY_PAGETABLE_PRIVATE_MEMSLOT	10
 
@@ -360,8 +352,6 @@ enum vmcs_field {
 #define VMX_EPT_READABLE_MASK			0x1ull
 #define VMX_EPT_WRITABLE_MASK			0x2ull
 #define VMX_EPT_EXECUTABLE_MASK			0x4ull
-#define VMX_EPT_FAKE_ACCESSED_MASK		(1ull << 62)
-#define VMX_EPT_FAKE_DIRTY_MASK			(1ull << 63)
 
 #define VMX_EPT_IDENTITY_PAGETABLE_ADDR		0xfffbc000ul
 

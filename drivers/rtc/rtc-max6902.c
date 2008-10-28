@@ -20,8 +20,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/version.h>
-
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/init.h>
@@ -126,15 +124,15 @@ static int max6902_get_datetime(struct device *dev, struct rtc_time *dt)
 
 	/* The chip sends data in this order:
 	 * Seconds, Minutes, Hours, Date, Month, Day, Year */
-	dt->tm_sec	= BCD2BIN(chip->buf[1]);
-	dt->tm_min	= BCD2BIN(chip->buf[2]);
-	dt->tm_hour	= BCD2BIN(chip->buf[3]);
-	dt->tm_mday	= BCD2BIN(chip->buf[4]);
-	dt->tm_mon	= BCD2BIN(chip->buf[5]) - 1;
-	dt->tm_wday	= BCD2BIN(chip->buf[6]);
-	dt->tm_year = BCD2BIN(chip->buf[7]);
+	dt->tm_sec	= bcd2bin(chip->buf[1]);
+	dt->tm_min	= bcd2bin(chip->buf[2]);
+	dt->tm_hour	= bcd2bin(chip->buf[3]);
+	dt->tm_mday	= bcd2bin(chip->buf[4]);
+	dt->tm_mon	= bcd2bin(chip->buf[5]) - 1;
+	dt->tm_wday	= bcd2bin(chip->buf[6]);
+	dt->tm_year = bcd2bin(chip->buf[7]);
 
-	century = BCD2BIN(tmp) * 100;
+	century = bcd2bin(tmp) * 100;
 
 	dt->tm_year += century;
 	dt->tm_year -= 1900;
@@ -170,15 +168,15 @@ static int max6902_set_datetime(struct device *dev, struct rtc_time *dt)
 	/* Remove write protection */
 	max6902_set_reg(dev, 0xF, 0);
 
-	max6902_set_reg(dev, 0x01, BIN2BCD(dt->tm_sec));
-	max6902_set_reg(dev, 0x03, BIN2BCD(dt->tm_min));
-	max6902_set_reg(dev, 0x05, BIN2BCD(dt->tm_hour));
+	max6902_set_reg(dev, 0x01, bin2bcd(dt->tm_sec));
+	max6902_set_reg(dev, 0x03, bin2bcd(dt->tm_min));
+	max6902_set_reg(dev, 0x05, bin2bcd(dt->tm_hour));
 
-	max6902_set_reg(dev, 0x07, BIN2BCD(dt->tm_mday));
-	max6902_set_reg(dev, 0x09, BIN2BCD(dt->tm_mon+1));
-	max6902_set_reg(dev, 0x0B, BIN2BCD(dt->tm_wday));
-	max6902_set_reg(dev, 0x0D, BIN2BCD(dt->tm_year%100));
-	max6902_set_reg(dev, 0x13, BIN2BCD(dt->tm_year/100));
+	max6902_set_reg(dev, 0x07, bin2bcd(dt->tm_mday));
+	max6902_set_reg(dev, 0x09, bin2bcd(dt->tm_mon+1));
+	max6902_set_reg(dev, 0x0B, bin2bcd(dt->tm_wday));
+	max6902_set_reg(dev, 0x0D, bin2bcd(dt->tm_year%100));
+	max6902_set_reg(dev, 0x13, bin2bcd(dt->tm_year/100));
 
 	/* Compulab used a delay here. However, the datasheet
 	 * does not mention a delay being required anywhere... */

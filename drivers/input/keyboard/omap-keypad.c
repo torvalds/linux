@@ -34,14 +34,13 @@
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/errno.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/keypad.h>
-#include <asm/arch/menelaus.h>
+#include <mach/gpio.h>
+#include <mach/keypad.h>
+#include <mach/menelaus.h>
 #include <asm/irq.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
-#include <asm/mach-types.h>
-#include <asm/arch/mux.h>
+#include <mach/mux.h>
 
 #undef NEW_BOARD_LEARNING_MODE
 
@@ -63,7 +62,7 @@ struct omap_kp {
 	unsigned int debounce;
 };
 
-DECLARE_TASKLET_DISABLED(kp_tasklet, omap_kp_tasklet, 0);
+static DECLARE_TASKLET_DISABLED(kp_tasklet, omap_kp_tasklet, 0);
 
 static int *keymap;
 static unsigned int *row_gpios;
@@ -73,12 +72,9 @@ static unsigned int *col_gpios;
 static void set_col_gpio_val(struct omap_kp *omap_kp, u8 value)
 {
 	int col;
-	for (col = 0; col < omap_kp->cols; col++) {
-		if (value & (1 << col))
-			omap_set_gpio_dataout(col_gpios[col], 1);
-		else
-			omap_set_gpio_dataout(col_gpios[col], 0);
-	}
+
+	for (col = 0; col < omap_kp->cols; col++)
+		gpio_set_value(col_gpios[col], value & (1 << col));
 }
 
 static u8 get_row_gpio_val(struct omap_kp *omap_kp)
@@ -87,7 +83,7 @@ static u8 get_row_gpio_val(struct omap_kp *omap_kp)
 	u8 value = 0;
 
 	for (row = 0; row < omap_kp->rows; row++) {
-		if (omap_get_gpio_datain(row_gpios[row]))
+		if (gpio_get_value(row_gpios[row]))
 			value |= (1 << row);
 	}
 	return value;
@@ -334,23 +330,23 @@ static int __init omap_kp_probe(struct platform_device *pdev)
 	if (cpu_is_omap24xx()) {
 		/* Cols: outputs */
 		for (col_idx = 0; col_idx < omap_kp->cols; col_idx++) {
-			if (omap_request_gpio(col_gpios[col_idx]) < 0) {
+			if (gpio_request(col_gpios[col_idx], "omap_kp_col") < 0) {
 				printk(KERN_ERR "Failed to request"
 				       "GPIO%d for keypad\n",
 				       col_gpios[col_idx]);
 				goto err1;
 			}
-			omap_set_gpio_direction(col_gpios[col_idx], 0);
+			gpio_direction_output(col_gpios[col_idx], 0);
 		}
 		/* Rows: inputs */
 		for (row_idx = 0; row_idx < omap_kp->rows; row_idx++) {
-			if (omap_request_gpio(row_gpios[row_idx]) < 0) {
+			if (gpio_request(row_gpios[row_idx], "omap_kp_row") < 0) {
 				printk(KERN_ERR "Failed to request"
 				       "GPIO%d for keypad\n",
 				       row_gpios[row_idx]);
 				goto err2;
 			}
-			omap_set_gpio_direction(row_gpios[row_idx], 1);
+			gpio_direction_input(row_gpios[row_idx]);
 		}
 	} else {
 		col_idx = 0;
@@ -419,10 +415,10 @@ err3:
 	device_remove_file(&pdev->dev, &dev_attr_enable);
 err2:
 	for (i = row_idx - 1; i >=0; i--)
-		omap_free_gpio(row_gpios[i]);
+		gpio_free(row_gpios[i]);
 err1:
 	for (i = col_idx - 1; i >=0; i--)
-		omap_free_gpio(col_gpios[i]);
+		gpio_free(col_gpios[i]);
 
 	kfree(omap_kp);
 	input_free_device(input_dev);
@@ -439,9 +435,9 @@ static int omap_kp_remove(struct platform_device *pdev)
 	if (cpu_is_omap24xx()) {
 		int i;
 		for (i = 0; i < omap_kp->cols; i++)
-			omap_free_gpio(col_gpios[i]);
+			gpio_free(col_gpios[i]);
 		for (i = 0; i < omap_kp->rows; i++) {
-			omap_free_gpio(row_gpios[i]);
+			gpio_free(row_gpios[i]);
 			free_irq(OMAP_GPIO_IRQ(row_gpios[i]), 0);
 		}
 	} else {

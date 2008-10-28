@@ -276,13 +276,6 @@ typedef struct compat_siginfo {
 	} _sifields;
 } compat_siginfo_t;
 
-struct old_linux32_dirent {
-	u32	d_ino;
-	u32	d_offset;
-	u16	d_namlen;
-	char	d_name[1];
-};
-
 /*
  * IA-32 ELF specific definitions for IA-64.
  */
@@ -339,8 +332,8 @@ void ia64_elf32_init(struct pt_regs *regs);
 #define ELF_PLATFORM	NULL
 
 #ifdef __KERNEL__
-# define SET_PERSONALITY(EX,IBCS2)				\
-	(current->personality = (IBCS2) ? PER_SVR4 : PER_LINUX)
+# define SET_PERSONALITY(EX)				\
+	(current->personality = PER_LINUX)
 #endif
 
 #define IA32_EFLAG	0x200

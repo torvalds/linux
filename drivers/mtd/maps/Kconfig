@@ -1,5 +1,4 @@
 # drivers/mtd/maps/Kconfig
-# $Id: Kconfig,v 1.61 2005/11/07 11:14:26 gleixner Exp $
 
 menu "Mapping drivers for chip access"
 	depends on MTD!=n
@@ -333,30 +332,6 @@ config MTD_CFI_FLAGADM
 	  Mapping for the Flaga digital module. If you don't have one, ignore
 	  this setting.
 
-config MTD_WALNUT
-	tristate "Flash device mapped on IBM 405GP Walnut"
-	depends on MTD_JEDECPROBE && WALNUT && !PPC_MERGE
-	help
-	  This enables access routines for the flash chips on the IBM 405GP
-	  Walnut board. If you have one of these boards and would like to
-	  use the flash chips on it, say 'Y'.
-
-config MTD_EBONY
-	tristate "Flash devices mapped on IBM 440GP Ebony"
-	depends on MTD_JEDECPROBE && EBONY && !PPC_MERGE
-	help
-	  This enables access routines for the flash chips on the IBM 440GP
-	  Ebony board. If you have one of these boards and would like to
-	  use the flash chips on it, say 'Y'.
-
-config MTD_OCOTEA
-	tristate "Flash devices mapped on IBM 440GX Ocotea"
-	depends on MTD_CFI && OCOTEA && !PPC_MERGE
-	help
-	  This enables access routines for the flash chips on the IBM 440GX
-	  Ocotea board. If you have one of these boards and would like to
-	  use the flash chips on it, say 'Y'.
-
 config MTD_REDWOOD
 	tristate "CFI Flash devices mapped on IBM Redwood"
 	depends on MTD_CFI && ( REDWOOD_4 || REDWOOD_5 || REDWOOD_6 )
@@ -459,13 +434,6 @@ config MTD_CEIVA
 	  PhotoMax Digital Picture Frame.
 	  If you have such a device, say 'Y'.
 
-config MTD_NOR_TOTO
-	tristate "NOR Flash device on TOTO board"
-	depends on ARCH_OMAP && OMAP_TOTO
-	help
-	  This enables access to the NOR flash on the Texas Instruments
-	  TOTO board.
-
 config MTD_H720X
 	tristate "Hynix evaluation board mappings"
 	depends on MTD_CFI && ( ARCH_H7201 || ARCH_H7202 )
@@ -510,9 +478,20 @@ config MTD_PCMCIA_ANONYMOUS
 
 	  If unsure, say N.
 
+config MTD_BFIN_ASYNC
+	tristate "Blackfin BF533-STAMP Flash Chip Support"
+	depends on BFIN533_STAMP && MTD_CFI
+	select MTD_PARTITIONS
+	default y
+	help
+	  Map driver which allows for simultaneous utilization of
+	  ethernet and CFI parallel flash.
+
+	  If compiled as a module, it will be called bfin-async-flash.
+
 config MTD_UCLINUX
 	tristate "Generic uClinux RAM/ROM filesystem support"
-	depends on MTD_PARTITIONS && !MMU
+	depends on MTD_PARTITIONS && MTD_RAM && !MMU
 	help
 	  Map driver to support image based filesystems for uClinux.
 
@@ -538,24 +517,6 @@ config MTD_DMV182
 	select MTD_CFI_AMDSTD
         help
           Map driver for Dy-4 SVME/DMV-182 board.
-
-config MTD_BAST
-	tristate "Map driver for Simtec BAST (EB2410ITX) or Thorcom VR1000"
-	depends on ARCH_BAST || MACH_VR1000
-	select MTD_PARTITIONS
-	select MTD_MAP_BANK_WIDTH_16
-	select MTD_JEDECPROBE
-	help
-	  Map driver for NOR flash on the Simtec BAST (EB2410ITX), or the
-	  Thorcom VR1000
-
-	  Note, this driver *cannot* over-ride the WP link on the
-	  board, or currently detect the state of the link.
-
-config MTD_BAST_MAXSIZE
-	int "Maximum size for BAST flash area (MiB)"
-	depends on MTD_BAST
-	default "4"
 
 config MTD_SHARP_SL
 	tristate "ROM mapped on Sharp SL Series"

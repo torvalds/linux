@@ -12,8 +12,12 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/mm.h>
+#include <linux/module.h>
 
 #include <asm/setup.h>
+
+struct dentry *arch_debugfs_dir;
+EXPORT_SYMBOL(arch_debugfs_dir);
 
 #ifdef CONFIG_DEBUG_BOOT_PARAMS
 struct setup_data_node {
@@ -135,6 +139,7 @@ static int __init create_setup_data_nodes(struct dentry *parent)
 		if (PageHighMem(pg)) {
 			data = ioremap_cache(pa_data, sizeof(*data));
 			if (!data) {
+				kfree(node);
 				error = -ENXIO;
 				goto err_dir;
 			}
@@ -208,6 +213,10 @@ err_return:
 static int __init arch_kdebugfs_init(void)
 {
 	int error = 0;
+
+	arch_debugfs_dir = debugfs_create_dir("x86", NULL);
+	if (!arch_debugfs_dir)
+		return -ENOMEM;
 
 #ifdef CONFIG_DEBUG_BOOT_PARAMS
 	error = boot_params_kdebugfs_init();

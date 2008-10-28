@@ -141,10 +141,6 @@ asmlinkage void plat_irq_dispatch(void)
 	}
 }
 
-#ifdef CONFIG_KGDB
-extern void init_second_port(void);
-#endif
-
 /*
  * Initialize the next level interrupt handler
  */
@@ -155,11 +151,6 @@ void __init arch_init_irq(void)
 	mips_cpu_irq_init();
 	rm7k_cpu_irq_init();
 	rm9k_cpu_irq_init();
-
-#ifdef CONFIG_KGDB
-	/* At this point, initialize the second serial port */
-	init_second_port();
-#endif
 
 #ifdef CONFIG_GDB_CONSOLE
 	register_gdb_console();

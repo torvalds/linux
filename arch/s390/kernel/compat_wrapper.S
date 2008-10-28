@@ -128,8 +128,6 @@ sys32_alarm_wrapper:
 	llgfr	%r2,%r2			# unsigned int
 	jg	sys_alarm		# branch to system call
 
-#sys32_pause_wrapper			# void
-
 	.globl	compat_sys_utime_wrapper
 compat_sys_utime_wrapper:
 	llgtr	%r2,%r2			# char *
@@ -334,17 +332,17 @@ compat_sys_getrusage_wrapper:
 	llgtr	%r3,%r3			# struct rusage_emu31 *
 	jg	compat_sys_getrusage	# branch to system call
 
-	.globl	sys32_gettimeofday_wrapper
-sys32_gettimeofday_wrapper:
+	.globl	compat_sys_gettimeofday_wrapper
+compat_sys_gettimeofday_wrapper:
 	llgtr	%r2,%r2			# struct timeval_emu31 *
 	llgtr	%r3,%r3			# struct timezone *
-	jg	sys32_gettimeofday	# branch to system call
+	jg	compat_sys_gettimeofday	# branch to system call
 
-	.globl	sys32_settimeofday_wrapper
-sys32_settimeofday_wrapper:
+	.globl	compat_sys_settimeofday_wrapper
+compat_sys_settimeofday_wrapper:
 	llgtr	%r2,%r2			# struct timeval_emu31 *
 	llgtr	%r3,%r3			# struct timezone *
-	jg	sys32_settimeofday	# branch to system call
+	jg	compat_sys_settimeofday	# branch to system call
 
 	.globl	sys32_getgroups16_wrapper
 sys32_getgroups16_wrapper:
@@ -1732,3 +1730,40 @@ compat_sys_timerfd_gettime_wrapper:
 	lgfr	%r2,%r2			# int
 	llgtr	%r3,%r3			# struct compat_itimerspec *
 	jg	compat_sys_timerfd_gettime
+
+	.globl compat_sys_signalfd4_wrapper
+compat_sys_signalfd4_wrapper:
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# compat_sigset_t *
+	llgfr	%r4,%r4			# compat_size_t
+	lgfr	%r5,%r5			# int
+	jg	compat_sys_signalfd4
+
+	.globl sys_eventfd2_wrapper
+sys_eventfd2_wrapper:
+	llgfr	%r2,%r2			# unsigned int
+	lgfr	%r3,%r3			# int
+	jg	sys_eventfd2
+
+	.globl	sys_inotify_init1_wrapper
+sys_inotify_init1_wrapper:
+	lgfr	%r2,%r2			# int
+	jg	sys_inotify_init1
+
+	.globl	sys_pipe2_wrapper
+sys_pipe2_wrapper:
+	llgtr	%r2,%r2			# u32 *
+	lgfr	%r3,%r3			# int
+	jg	sys_pipe2		# branch to system call
+
+	.globl	sys_dup3_wrapper
+sys_dup3_wrapper:
+	llgfr	%r2,%r2			# unsigned int
+	llgfr	%r3,%r3			# unsigned int
+	lgfr	%r4,%r4			# int
+	jg	sys_dup3		# branch to system call
+
+	.globl	sys_epoll_create1_wrapper
+sys_epoll_create1_wrapper:
+	lgfr	%r2,%r2			# int
+	jg	sys_epoll_create1	# branch to system call

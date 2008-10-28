@@ -7,6 +7,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/types.h>
 #include <linux/list.h>
 #include <linux/cpumask.h>
 
@@ -16,7 +17,8 @@ struct call_single_data {
 	struct list_head list;
 	void (*func) (void *info);
 	void *info;
-	unsigned int flags;
+	u16 flags;
+	u16 priv;
 };
 
 #ifdef CONFIG_SMP
@@ -74,15 +76,10 @@ void __smp_call_function_single(int cpuid, struct call_single_data *data);
 #ifdef CONFIG_USE_GENERIC_SMP_HELPERS
 void generic_smp_call_function_single_interrupt(void);
 void generic_smp_call_function_interrupt(void);
-void init_call_single_data(void);
 void ipi_call_lock(void);
 void ipi_call_unlock(void);
 void ipi_call_lock_irq(void);
 void ipi_call_unlock_irq(void);
-#else
-static inline void init_call_single_data(void)
-{
-}
 #endif
 
 /*

@@ -20,7 +20,7 @@
 struct hostfs_inode_info {
 	char *host_filename;
 	int fd;
-	int mode;
+	fmode_t mode;
 	struct inode vfs_inode;
 };
 
@@ -373,7 +373,8 @@ int hostfs_readdir(struct file *file, void *ent, filldir_t filldir)
 int hostfs_file_open(struct inode *ino, struct file *file)
 {
 	char *name;
-	int mode = 0, r = 0, w = 0, fd;
+	fmode_t mode = 0;
+	int r = 0, w = 0, fd;
 
 	mode = file->f_mode & (FMODE_READ | FMODE_WRITE);
 	if ((mode & HOSTFS_I(ino)->mode) == mode)
@@ -822,7 +823,7 @@ int hostfs_rename(struct inode *from_ino, struct dentry *from,
 	return err;
 }
 
-int hostfs_permission(struct inode *ino, int desired, struct nameidata *nd)
+int hostfs_permission(struct inode *ino, int desired)
 {
 	char *name;
 	int r = 0, w = 0, x = 0, err;

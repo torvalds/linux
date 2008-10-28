@@ -137,7 +137,7 @@ static int kvmppc_emul_tlbwe(struct kvm_vcpu *vcpu, u32 inst)
 	if (tlbe->word0 & PPC44x_TLB_VALID) {
 		eaddr = get_tlb_eaddr(tlbe);
 		asid = (tlbe->word0 & PPC44x_TLB_TS) | tlbe->tid;
-		kvmppc_mmu_invalidate(vcpu, eaddr, asid);
+		kvmppc_mmu_invalidate(vcpu, eaddr, get_tlb_end(tlbe), asid);
 	}
 
 	switch (ws) {
@@ -169,6 +169,10 @@ static int kvmppc_emul_tlbwe(struct kvm_vcpu *vcpu, u32 inst)
 		 * are mapped on the fly. */
 		kvmppc_mmu_map(vcpu, eaddr, raddr >> PAGE_SHIFT, asid, flags);
 	}
+
+	KVMTRACE_5D(GTLB_WRITE, vcpu, index,
+			tlbe->tid, tlbe->word0, tlbe->word1, tlbe->word2,
+			handler);
 
 	return EMULATE_DONE;
 }
@@ -504,7 +508,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			case SPRN_MMUCR:
 				vcpu->arch.mmucr = vcpu->arch.gpr[rs]; break;
 			case SPRN_PID:
-				vcpu->arch.pid = vcpu->arch.gpr[rs]; break;
+				kvmppc_set_pid(vcpu, vcpu->arch.gpr[rs]); break;
 			case SPRN_CCR0:
 				vcpu->arch.ccr0 = vcpu->arch.gpr[rs]; break;
 			case SPRN_CCR1:
@@ -764,6 +768,8 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		emulated = EMULATE_FAIL;
 		break;
 	}
+
+	KVMTRACE_3D(PPC_INSTR, vcpu, inst, vcpu->arch.pc, emulated, entryexit);
 
 	if (advance)
 		vcpu->arch.pc += 4; /* Advance past emulated instruction. */

@@ -202,7 +202,12 @@
 			fsl,has-rstcr;
 		};
 
-		i2s@16000 {
+		wdt@e4000 {
+			compatible = "fsl,mpc8610-wdt";
+			reg = <0xe4000 0x100>;
+		};
+
+		ssi@16000 {
 			compatible = "fsl,mpc8610-ssi";
 			cell-index = <0>;
 			reg = <0x16000 0x100>;
@@ -210,6 +215,8 @@
 			interrupts = <62 2>;
 			fsl,mode = "i2s-slave";
 			codec-handle = <&cs4270>;
+			fsl,playback-dma = <&dma00>;
+			fsl,capture-dma = <&dma01>;
 		};
 
 		ssi@16100 {
@@ -228,17 +235,17 @@
 			reg = <0x21300 0x4>; /* DMA general status register */
 			ranges = <0x0 0x21100 0x200>;
 
-			dma-channel@0 {
+			dma00: dma-channel@0 {
 				compatible = "fsl,mpc8610-dma-channel",
-					"fsl,eloplus-dma-channel";
+					"fsl,ssi-dma-channel";
 				cell-index = <0>;
 				reg = <0x0 0x80>;
 				interrupt-parent = <&mpic>;
 				interrupts = <20 2>;
 			};
-			dma-channel@1 {
+			dma01: dma-channel@1 {
 				compatible = "fsl,mpc8610-dma-channel",
-					"fsl,eloplus-dma-channel";
+					"fsl,ssi-dma-channel";
 				cell-index = <1>;
 				reg = <0x80 0x80>;
 				interrupt-parent = <&mpic>;
@@ -276,7 +283,7 @@
 				cell-index = <0>;
 				reg = <0x0 0x80>;
 				interrupt-parent = <&mpic>;
-				interrupts = <60 2>;
+				interrupts = <76 2>;
 			};
 			dma-channel@1 {
 				compatible = "fsl,mpc8610-dma-channel",
@@ -284,7 +291,7 @@
 				cell-index = <1>;
 				reg = <0x80 0x80>;
 				interrupt-parent = <&mpic>;
-				interrupts = <61 2>;
+				interrupts = <77 2>;
 			};
 			dma-channel@2 {
 				compatible = "fsl,mpc8610-dma-channel",
@@ -292,7 +299,7 @@
 				cell-index = <2>;
 				reg = <0x100 0x80>;
 				interrupt-parent = <&mpic>;
-				interrupts = <62 2>;
+				interrupts = <78 2>;
 			};
 			dma-channel@3 {
 				compatible = "fsl,mpc8610-dma-channel",
@@ -300,7 +307,7 @@
 				cell-index = <3>;
 				reg = <0x180 0x80>;
 				interrupt-parent = <&mpic>;
-				interrupts = <63 2>;
+				interrupts = <79 2>;
 			};
 		};
 
@@ -388,6 +395,20 @@
 					  0x01000000 0x0 0x00000000
 					  0x01000000 0x0 0x00000000
 					  0x0 0x00100000>;
+
+				isa@1e {
+					device_type = "isa";
+					#size-cells = <1>;
+					#address-cells = <2>;
+					reg = <0xf000 0 0 0 0>;
+					ranges = <1 0 0x01000000 0 0
+						  0x00001000>;
+
+					rtc@70 {
+						compatible = "pnpPNP,b00";
+						reg = <1 0x70 2>;
+					};
+				};
 			};
 		};
 	};

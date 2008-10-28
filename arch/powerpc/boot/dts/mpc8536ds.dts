@@ -49,6 +49,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		device_type = "soc";
+		compatible = "simple-bus";
 		ranges = <0x0 0xffe00000 0x100000>;
 		reg = <0xffe00000 0x1000>;
 		bus-frequency = <0>;		// Filled out by uboot.
@@ -90,6 +91,8 @@
 			rtc@68 {
 				compatible = "dallas,ds3232";
 				reg = <0x68>;
+				interrupts = <0 0x1>;
+				interrupt-parent = <&mpic>;
 			};
 		};
 
@@ -106,7 +109,7 @@
 				reg = <0x0 0x80>;
 				cell-index = <0>;
 				interrupt-parent = <&mpic>;
-				interrupts = <14 0x2>;
+				interrupts = <20 2>;
 			};
 			dma-channel@80 {
 				compatible = "fsl,mpc8536-dma-channel",
@@ -114,7 +117,7 @@
 				reg = <0x80 0x80>;
 				cell-index = <1>;
 				interrupt-parent = <&mpic>;
-				interrupts = <15 0x2>;
+				interrupts = <21 2>;
 			};
 			dma-channel@100 {
 				compatible = "fsl,mpc8536-dma-channel",
@@ -122,7 +125,7 @@
 				reg = <0x100 0x80>;
 				cell-index = <2>;
 				interrupt-parent = <&mpic>;
-				interrupts = <16 0x2>;
+				interrupts = <22 2>;
 			};
 			dma-channel@180 {
 				compatible = "fsl,mpc8536-dma-channel",
@@ -130,7 +133,7 @@
 				reg = <0x180 0x80>;
 				cell-index = <3>;
 				interrupt-parent = <&mpic>;
-				interrupts = <17 0x2>;
+				interrupts = <23 2>;
 			};
 		};
 
@@ -177,7 +180,7 @@
 		enet0: ethernet@24000 {
 			cell-index = <0>;
 			device_type = "network";
-			model = "TSEC";
+			model = "eTSEC";
 			compatible = "gianfar";
 			reg = <0x24000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
@@ -190,7 +193,7 @@
 		enet1: ethernet@26000 {
 			cell-index = <1>;
 			device_type = "network";
-			model = "TSEC";
+			model = "eTSEC";
 			compatible = "gianfar";
 			reg = <0x26000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];

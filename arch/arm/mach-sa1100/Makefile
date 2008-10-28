@@ -46,9 +46,6 @@ led-$(CONFIG_SA1100_SIMPAD)		+= leds-simpad.o
 # LEDs support
 obj-$(CONFIG_LEDS) += $(led-y)
 
-# SA1110 USB client support
-#obj-$(CONFIG_SA1100_USB)		+= usb/
-
 # Miscelaneous functions
 obj-$(CONFIG_PM)			+= pm.o sleep.o
 obj-$(CONFIG_SA1100_SSP)		+= ssp.o

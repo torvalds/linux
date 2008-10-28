@@ -1,6 +1,4 @@
 /*
- * $Id: iforce-packets.c,v 1.16 2002/07/07 10:22:50 jdeneux Exp $
- *
  *  Copyright (c) 2000-2002 Vojtech Pavlik <vojtech@ucw.cz>
  *  Copyright (c) 2001-2002, 2007 Johann Deneux <johann.deneux@gmail.com>
  *
@@ -67,7 +65,8 @@ int iforce_send_packet(struct iforce *iforce, u16 cmd, unsigned char* data)
 
 
 	if (CIRC_SPACE(head, tail, XMIT_SIZE) < n+2) {
-		warn("not enough space in xmit buffer to send new packet");
+		dev_warn(&iforce->dev->dev,
+			 "not enough space in xmit buffer to send new packet\n");
 		spin_unlock_irqrestore(&iforce->xmit_lock, flags);
 		return -1;
 	}
@@ -150,7 +149,7 @@ static int mark_core_as_ready(struct iforce *iforce, unsigned short addr)
 			return 0;
 		}
 	}
-	warn("unused effect %04x updated !!!", addr);
+	dev_warn(&iforce->dev->dev, "unused effect %04x updated !!!\n", addr);
 	return -1;
 }
 
@@ -161,7 +160,8 @@ void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data)
 	static int being_used = 0;
 
 	if (being_used)
-		warn("re-entrant call to iforce_process %d", being_used);
+		dev_warn(&iforce->dev->dev,
+			 "re-entrant call to iforce_process %d\n", being_used);
 	being_used++;
 
 #ifdef CONFIG_JOYSTICK_IFORCE_232

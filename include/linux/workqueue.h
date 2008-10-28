@@ -149,11 +149,11 @@ struct execute_work {
 
 extern struct workqueue_struct *
 __create_workqueue_key(const char *name, int singlethread,
-		       int freezeable, struct lock_class_key *key,
+		       int freezeable, int rt, struct lock_class_key *key,
 		       const char *lock_name);
 
 #ifdef CONFIG_LOCKDEP
-#define __create_workqueue(name, singlethread, freezeable)	\
+#define __create_workqueue(name, singlethread, freezeable, rt)	\
 ({								\
 	static struct lock_class_key __key;			\
 	const char *__lock_name;				\
@@ -164,21 +164,25 @@ __create_workqueue_key(const char *name, int singlethread,
 		__lock_name = #name;				\
 								\
 	__create_workqueue_key((name), (singlethread),		\
-			       (freezeable), &__key,		\
+			       (freezeable), (rt), &__key,	\
 			       __lock_name);			\
 })
 #else
-#define __create_workqueue(name, singlethread, freezeable)	\
-	__create_workqueue_key((name), (singlethread), (freezeable), NULL, NULL)
+#define __create_workqueue(name, singlethread, freezeable, rt)	\
+	__create_workqueue_key((name), (singlethread), (freezeable), (rt), \
+			       NULL, NULL)
 #endif
 
-#define create_workqueue(name) __create_workqueue((name), 0, 0)
-#define create_freezeable_workqueue(name) __create_workqueue((name), 1, 1)
-#define create_singlethread_workqueue(name) __create_workqueue((name), 1, 0)
+#define create_workqueue(name) __create_workqueue((name), 0, 0, 0)
+#define create_rt_workqueue(name) __create_workqueue((name), 0, 0, 1)
+#define create_freezeable_workqueue(name) __create_workqueue((name), 1, 1, 0)
+#define create_singlethread_workqueue(name) __create_workqueue((name), 1, 0, 0)
 
 extern void destroy_workqueue(struct workqueue_struct *wq);
 
 extern int queue_work(struct workqueue_struct *wq, struct work_struct *work);
+extern int queue_work_on(int cpu, struct workqueue_struct *wq,
+			struct work_struct *work);
 extern int queue_delayed_work(struct workqueue_struct *wq,
 			struct delayed_work *work, unsigned long delay);
 extern int queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
@@ -188,6 +192,7 @@ extern void flush_workqueue(struct workqueue_struct *wq);
 extern void flush_scheduled_work(void);
 
 extern int schedule_work(struct work_struct *work);
+extern int schedule_work_on(int cpu, struct work_struct *work);
 extern int schedule_delayed_work(struct delayed_work *work, unsigned long delay);
 extern int schedule_delayed_work_on(int cpu, struct delayed_work *work,
 					unsigned long delay);
@@ -197,6 +202,8 @@ extern int keventd_up(void);
 
 extern void init_workqueues(void);
 int execute_in_process_context(work_func_t fn, struct execute_work *);
+
+extern int flush_work(struct work_struct *work);
 
 extern int cancel_work_sync(struct work_struct *work);
 

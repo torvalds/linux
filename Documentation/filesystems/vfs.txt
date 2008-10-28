@@ -143,7 +143,7 @@ struct file_system_type {
 
 The get_sb() method has the following arguments:
 
-  struct file_system_type *fs_type: decribes the filesystem, partly initialized
+  struct file_system_type *fs_type: describes the filesystem, partly initialized
   	by the specific filesystem code
 
   int flags: mount flags
@@ -895,9 +895,9 @@ struct dentry_operations {
 	iput() yourself
 
   d_dname: called when the pathname of a dentry should be generated.
-	Usefull for some pseudo filesystems (sockfs, pipefs, ...) to delay
+	Useful for some pseudo filesystems (sockfs, pipefs, ...) to delay
 	pathname generation. (Instead of doing it when dentry is created,
-	its done only when the path is needed.). Real filesystems probably
+	it's done only when the path is needed.). Real filesystems probably
 	dont want to use it, because their dentries are present in global
 	dcache hash, so their hash should be an invariant. As no lock is
 	held, d_dname() should not try to modify the dentry itself, unless

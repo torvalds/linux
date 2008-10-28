@@ -268,10 +268,9 @@ struct ipoib_lro {
 };
 
 /*
- * Device private locking: tx_lock protects members used in TX fast
- * path (and we use LLTX so upper layers don't do extra locking).
- * lock protects everything else.  lock nests inside of tx_lock (ie
- * tx_lock must be acquired first if needed).
+ * Device private locking: network stack tx_lock protects members used
+ * in TX fast path, lock protects everything else.  lock nests inside
+ * of tx_lock (ie tx_lock must be acquired first if needed).
  */
 struct ipoib_dev_priv {
 	spinlock_t lock;
@@ -293,6 +292,7 @@ struct ipoib_dev_priv {
 
 	struct delayed_work pkey_poll_task;
 	struct delayed_work mcast_task;
+	struct work_struct carrier_on_task;
 	struct work_struct flush_light;
 	struct work_struct flush_normal;
 	struct work_struct flush_heavy;
@@ -319,7 +319,6 @@ struct ipoib_dev_priv {
 
 	struct ipoib_rx_buf *rx_ring;
 
-	spinlock_t	     tx_lock;
 	struct ipoib_tx_buf *tx_ring;
 	unsigned	     tx_head;
 	unsigned	     tx_tail;
@@ -464,6 +463,7 @@ int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port);
 void ipoib_dev_cleanup(struct net_device *dev);
 
 void ipoib_mcast_join_task(struct work_struct *work);
+void ipoib_mcast_carrier_on_task(struct work_struct *work);
 void ipoib_mcast_send(struct net_device *dev, void *mgid, struct sk_buff *skb);
 
 void ipoib_mcast_restart_task(struct work_struct *work);
@@ -507,6 +507,7 @@ int ipoib_pkey_dev_delay_open(struct net_device *dev);
 void ipoib_drain_cq(struct net_device *dev);
 
 void ipoib_set_ethtool_ops(struct net_device *dev);
+int ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca);
 
 #ifdef CONFIG_INFINIBAND_IPOIB_CM
 

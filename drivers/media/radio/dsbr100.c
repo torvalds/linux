@@ -85,6 +85,7 @@
 #include <linux/input.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/usb.h>
 
 /*
@@ -170,11 +171,11 @@ static int dsbr100_start(struct dsbr100_device *radio)
 	if (usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
 			USB_REQ_GET_STATUS,
 			USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-			0x00, 0xC7, radio->transfer_buffer, 8, 300)<0 ||
+			0x00, 0xC7, radio->transfer_buffer, 8, 300) < 0 ||
 	usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
 			DSB100_ONOFF,
 			USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-			0x01, 0x00, radio->transfer_buffer, 8, 300)<0)
+			0x01, 0x00, radio->transfer_buffer, 8, 300) < 0)
 		return -1;
 	radio->muted=0;
 	return (radio->transfer_buffer)[0];
@@ -187,11 +188,11 @@ static int dsbr100_stop(struct dsbr100_device *radio)
 	if (usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
 			USB_REQ_GET_STATUS,
 			USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-			0x16, 0x1C, radio->transfer_buffer, 8, 300)<0 ||
+			0x16, 0x1C, radio->transfer_buffer, 8, 300) < 0 ||
 	usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
 			DSB100_ONOFF,
 			USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-			0x00, 0x00, radio->transfer_buffer, 8, 300)<0)
+			0x00, 0x00, radio->transfer_buffer, 8, 300) < 0)
 		return -1;
 	radio->muted=1;
 	return (radio->transfer_buffer)[0];
@@ -200,24 +201,24 @@ static int dsbr100_stop(struct dsbr100_device *radio)
 /* set a frequency, freq is defined by v4l's TUNER_LOW, i.e. 1/16th kHz */
 static int dsbr100_setfreq(struct dsbr100_device *radio, int freq)
 {
-	freq = (freq/16*80)/1000+856;
+	freq = (freq / 16 * 80) / 1000 + 856;
 	if (usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
 			DSB100_TUNE,
 			USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-			(freq>>8)&0x00ff, freq&0xff,
-			radio->transfer_buffer, 8, 300)<0 ||
+			(freq >> 8) & 0x00ff, freq & 0xff,
+			radio->transfer_buffer, 8, 300) < 0 ||
 	   usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
 			USB_REQ_GET_STATUS,
 			USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-			0x96, 0xB7, radio->transfer_buffer, 8, 300)<0 ||
+			0x96, 0xB7, radio->transfer_buffer, 8, 300) < 0 ||
 	usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
 			USB_REQ_GET_STATUS,
 			USB_TYPE_VENDOR | USB_RECIP_DEVICE |  USB_DIR_IN,
-			0x00, 0x24, radio->transfer_buffer, 8, 300)<0) {
+			0x00, 0x24, radio->transfer_buffer, 8, 300) < 0) {
 		radio->stereo = -1;
 		return -1;
 	}
-	radio->stereo = ! ((radio->transfer_buffer)[0]&0x01);
+	radio->stereo = !((radio->transfer_buffer)[0] & 0x01);
 	return (radio->transfer_buffer)[0];
 }
 
@@ -228,10 +229,10 @@ static void dsbr100_getstat(struct dsbr100_device *radio)
 	if (usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
 		USB_REQ_GET_STATUS,
 		USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-		0x00 , 0x24, radio->transfer_buffer, 8, 300)<0)
+		0x00 , 0x24, radio->transfer_buffer, 8, 300) < 0)
 		radio->stereo = -1;
 	else
-		radio->stereo = ! (radio->transfer_buffer[0]&0x01);
+		radio->stereo = !(radio->transfer_buffer[0] & 0x01);
 }
 
 
@@ -264,7 +265,7 @@ static int vidioc_querycap(struct file *file, void *priv,
 {
 	strlcpy(v->driver, "dsbr100", sizeof(v->driver));
 	strlcpy(v->card, "D-Link R-100 USB FM Radio", sizeof(v->card));
-	sprintf(v->bus_info, "ISA");
+	sprintf(v->bus_info, "USB");
 	v->version = RADIO_VERSION;
 	v->capabilities = V4L2_CAP_TUNER;
 	return 0;
@@ -273,7 +274,7 @@ static int vidioc_querycap(struct file *file, void *priv,
 static int vidioc_g_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *v)
 {
-	struct dsbr100_device *radio = video_get_drvdata(video_devdata(file));
+	struct dsbr100_device *radio = video_drvdata(file);
 
 	if (v->index > 0)
 		return -EINVAL;
@@ -281,9 +282,9 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	dsbr100_getstat(radio);
 	strcpy(v->name, "FM");
 	v->type = V4L2_TUNER_RADIO;
-	v->rangelow = FREQ_MIN*FREQ_MUL;
-	v->rangehigh = FREQ_MAX*FREQ_MUL;
-	v->rxsubchans = V4L2_TUNER_SUB_MONO|V4L2_TUNER_SUB_STEREO;
+	v->rangelow = FREQ_MIN * FREQ_MUL;
+	v->rangehigh = FREQ_MAX * FREQ_MUL;
+	v->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
 	v->capability = V4L2_TUNER_CAP_LOW;
 	if(radio->stereo)
 		v->audmode = V4L2_TUNER_MODE_STEREO;
@@ -305,18 +306,18 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 static int vidioc_s_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
-	struct dsbr100_device *radio = video_get_drvdata(video_devdata(file));
+	struct dsbr100_device *radio = video_drvdata(file);
 
 	radio->curfreq = f->frequency;
-	if (dsbr100_setfreq(radio, radio->curfreq)==-1)
-		warn("Set frequency failed");
+	if (dsbr100_setfreq(radio, radio->curfreq) == -1)
+		dev_warn(&radio->usbdev->dev, "Set frequency failed\n");
 	return 0;
 }
 
 static int vidioc_g_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
-	struct dsbr100_device *radio = video_get_drvdata(video_devdata(file));
+	struct dsbr100_device *radio = video_drvdata(file);
 
 	f->type = V4L2_TUNER_RADIO;
 	f->frequency = radio->curfreq;
@@ -330,8 +331,7 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 
 	for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
 		if (qc->id && qc->id == radio_qctrl[i].id) {
-			memcpy(qc, &(radio_qctrl[i]),
-						sizeof(*qc));
+			memcpy(qc, &(radio_qctrl[i]), sizeof(*qc));
 			return 0;
 		}
 	}
@@ -341,7 +341,7 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 static int vidioc_g_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
-	struct dsbr100_device *radio = video_get_drvdata(video_devdata(file));
+	struct dsbr100_device *radio = video_drvdata(file);
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
@@ -354,16 +354,22 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 static int vidioc_s_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
-	struct dsbr100_device *radio = video_get_drvdata(video_devdata(file));
+	struct dsbr100_device *radio = video_drvdata(file);
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
 		if (ctrl->value) {
-			if (dsbr100_stop(radio)==-1)
-				warn("Radio did not respond properly");
+			if (dsbr100_stop(radio) == -1) {
+				dev_warn(&radio->usbdev->dev,
+					 "Radio did not respond properly\n");
+				return -EBUSY;
+			}
 		} else {
-			if (dsbr100_start(radio)==-1)
-				warn("Radio did not respond properly");
+			if (dsbr100_start(radio) == -1) {
+				dev_warn(&radio->usbdev->dev,
+					 "Radio did not respond properly\n");
+				return -EBUSY;
+			}
 		}
 		return 0;
 	}
@@ -404,23 +410,33 @@ static int vidioc_s_audio(struct file *file, void *priv,
 
 static int usb_dsbr100_open(struct inode *inode, struct file *file)
 {
-	struct dsbr100_device *radio=video_get_drvdata(video_devdata(file));
+	struct dsbr100_device *radio = video_drvdata(file);
+	int retval;
 
+	lock_kernel();
 	radio->users = 1;
 	radio->muted = 1;
 
-	if (dsbr100_start(radio)<0) {
-		warn("Radio did not start up properly");
+	if (dsbr100_start(radio) < 0) {
+		dev_warn(&radio->usbdev->dev,
+			 "Radio did not start up properly\n");
 		radio->users = 0;
+		unlock_kernel();
 		return -EIO;
 	}
-	dsbr100_setfreq(radio, radio->curfreq);
+
+	retval = dsbr100_setfreq(radio, radio->curfreq);
+
+	if (retval == -1)
+		printk(KERN_WARNING KBUILD_MODNAME ": Set frequency failed\n");
+
+	unlock_kernel();
 	return 0;
 }
 
 static int usb_dsbr100_close(struct inode *inode, struct file *file)
 {
-	struct dsbr100_device *radio=video_get_drvdata(video_devdata(file));
+	struct dsbr100_device *radio = video_drvdata(file);
 
 	if (!radio)
 		return -ENODEV;
@@ -444,14 +460,7 @@ static const struct file_operations usb_dsbr100_fops = {
 	.llseek		= no_llseek,
 };
 
-/* V4L2 interface */
-static struct video_device dsbr100_videodev_template =
-{
-	.owner		= THIS_MODULE,
-	.name		= "D-Link DSB-R 100",
-	.type		= VID_TYPE_TUNER,
-	.fops		= &usb_dsbr100_fops,
-	.release	= video_device_release,
+static const struct v4l2_ioctl_ops usb_dsbr100_ioctl_ops = {
 	.vidioc_querycap    = vidioc_querycap,
 	.vidioc_g_tuner     = vidioc_g_tuner,
 	.vidioc_s_tuner     = vidioc_s_tuner,
@@ -466,6 +475,14 @@ static struct video_device dsbr100_videodev_template =
 	.vidioc_s_input     = vidioc_s_input,
 };
 
+/* V4L2 interface */
+static struct video_device dsbr100_videodev_template = {
+	.name		= "D-Link DSB-R 100",
+	.fops		= &usb_dsbr100_fops,
+	.ioctl_ops 	= &usb_dsbr100_ioctl_ops,
+	.release	= video_device_release,
+};
+
 /* check if the device is present and register with v4l and
 usb if it is */
 static int usb_dsbr100_probe(struct usb_interface *intf,
@@ -473,13 +490,20 @@ static int usb_dsbr100_probe(struct usb_interface *intf,
 {
 	struct dsbr100_device *radio;
 
-	if (!(radio = kmalloc(sizeof(struct dsbr100_device), GFP_KERNEL)))
+	radio = kmalloc(sizeof(struct dsbr100_device), GFP_KERNEL);
+
+	if (!radio)
 		return -ENOMEM;
-	if (!(radio->transfer_buffer = kmalloc(TB_LEN, GFP_KERNEL))) {
+
+	radio->transfer_buffer = kmalloc(TB_LEN, GFP_KERNEL);
+
+	if (!(radio->transfer_buffer)) {
 		kfree(radio);
 		return -ENOMEM;
 	}
-	if (!(radio->videodev = video_device_alloc())) {
+	radio->videodev = video_device_alloc();
+
+	if (!(radio->videodev)) {
 		kfree(radio->transfer_buffer);
 		kfree(radio);
 		return -ENOMEM;
@@ -489,10 +513,10 @@ static int usb_dsbr100_probe(struct usb_interface *intf,
 	radio->removed = 0;
 	radio->users = 0;
 	radio->usbdev = interface_to_usbdev(intf);
-	radio->curfreq = FREQ_MIN*FREQ_MUL;
+	radio->curfreq = FREQ_MIN * FREQ_MUL;
 	video_set_drvdata(radio->videodev, radio);
-	if (video_register_device(radio->videodev, VFL_TYPE_RADIO,radio_nr)) {
-		warn("Could not register video device");
+	if (video_register_device(radio->videodev, VFL_TYPE_RADIO, radio_nr) < 0) {
+		dev_warn(&intf->dev, "Could not register video device\n");
 		video_device_release(radio->videodev);
 		kfree(radio->transfer_buffer);
 		kfree(radio);
@@ -505,7 +529,8 @@ static int usb_dsbr100_probe(struct usb_interface *intf,
 static int __init dsbr100_init(void)
 {
 	int retval = usb_register(&usb_dsbr100_driver);
-	info(DRIVER_VERSION ":" DRIVER_DESC);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return retval;
 }
 

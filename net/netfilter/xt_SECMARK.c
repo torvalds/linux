@@ -5,7 +5,7 @@
  * Based on the nfmark match by:
  * (C) 1999-2001 Marc Boucher <marc@mbsi.ca>
  *
- * (C) 2006 Red Hat, Inc., James Morris <jmorris@redhat.com>
+ * (C) 2006,2008 Red Hat, Inc., James Morris <jmorris@redhat.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -29,12 +29,10 @@ MODULE_ALIAS("ip6t_SECMARK");
 static u8 mode;
 
 static unsigned int
-secmark_tg(struct sk_buff *skb, const struct net_device *in,
-           const struct net_device *out, unsigned int hooknum,
-           const struct xt_target *target, const void *targinfo)
+secmark_tg(struct sk_buff *skb, const struct xt_target_param *par)
 {
 	u32 secmark = 0;
-	const struct xt_secmark_target_info *info = targinfo;
+	const struct xt_secmark_target_info *info = par->targinfo;
 
 	BUG_ON(info->mode != mode);
 
@@ -82,12 +80,16 @@ static bool checkentry_selinux(struct xt_secmark_target_info *info)
 	return true;
 }
 
-static bool
-secmark_tg_check(const char *tablename, const void *entry,
-                 const struct xt_target *target, void *targinfo,
-                 unsigned int hook_mask)
+static bool secmark_tg_check(const struct xt_tgchk_param *par)
 {
-	struct xt_secmark_target_info *info = targinfo;
+	struct xt_secmark_target_info *info = par->targinfo;
+
+	if (strcmp(par->table, "mangle") != 0 &&
+	    strcmp(par->table, "security") != 0) {
+		printk(KERN_INFO PFX "target only valid in the \'mangle\' "
+		       "or \'security\' tables, not \'%s\'.\n", par->table);
+		return false;
+	}
 
 	if (mode && mode != info->mode) {
 		printk(KERN_INFO PFX "mode already set to %hu cannot mix with "
@@ -111,7 +113,7 @@ secmark_tg_check(const char *tablename, const void *entry,
 	return true;
 }
 
-static void secmark_tg_destroy(const struct xt_target *target, void *targinfo)
+static void secmark_tg_destroy(const struct xt_tgdtor_param *par)
 {
 	switch (mode) {
 	case SECMARK_MODE_SEL:
@@ -119,37 +121,25 @@ static void secmark_tg_destroy(const struct xt_target *target, void *targinfo)
 	}
 }
 
-static struct xt_target secmark_tg_reg[] __read_mostly = {
-	{
-		.name		= "SECMARK",
-		.family		= AF_INET,
-		.checkentry	= secmark_tg_check,
-		.destroy	= secmark_tg_destroy,
-		.target		= secmark_tg,
-		.targetsize	= sizeof(struct xt_secmark_target_info),
-		.table		= "mangle",
-		.me		= THIS_MODULE,
-	},
-	{
-		.name		= "SECMARK",
-		.family		= AF_INET6,
-		.checkentry	= secmark_tg_check,
-		.destroy	= secmark_tg_destroy,
-		.target		= secmark_tg,
-		.targetsize	= sizeof(struct xt_secmark_target_info),
-		.table		= "mangle",
-		.me		= THIS_MODULE,
-	},
+static struct xt_target secmark_tg_reg __read_mostly = {
+	.name       = "SECMARK",
+	.revision   = 0,
+	.family     = NFPROTO_UNSPEC,
+	.checkentry = secmark_tg_check,
+	.destroy    = secmark_tg_destroy,
+	.target     = secmark_tg,
+	.targetsize = sizeof(struct xt_secmark_target_info),
+	.me         = THIS_MODULE,
 };
 
 static int __init secmark_tg_init(void)
 {
-	return xt_register_targets(secmark_tg_reg, ARRAY_SIZE(secmark_tg_reg));
+	return xt_register_target(&secmark_tg_reg);
 }
 
 static void __exit secmark_tg_exit(void)
 {
-	xt_unregister_targets(secmark_tg_reg, ARRAY_SIZE(secmark_tg_reg));
+	xt_unregister_target(&secmark_tg_reg);
 }
 
 module_init(secmark_tg_init);

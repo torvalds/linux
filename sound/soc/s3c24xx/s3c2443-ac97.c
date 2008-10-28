@@ -27,13 +27,13 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/plat-s3c/regs-ac97.h>
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/regs-clock.h>
-#include <asm/arch/audio.h>
+#include <mach/regs-gpio.h>
+#include <mach/regs-clock.h>
+#include <mach/audio.h>
 #include <asm/dma.h>
-#include <asm/arch/dma.h>
+#include <mach/dma.h>
 
 #include "s3c24xx-pcm.h"
 #include "s3c24xx-ac97.h"

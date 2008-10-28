@@ -188,11 +188,11 @@ struct av7110 {
 	struct dvb_net		dvb_net1;
 	spinlock_t		feedlock1;
 	int			feeding1;
-	u8			tsf;
 	u32			ttbp;
 	unsigned char           *grabbing;
 	struct saa7146_pgtable  pt;
 	struct tasklet_struct   vpe_tasklet;
+	bool			full_ts;
 
 	int			fe_synced;
 	struct mutex		pid_mutex;

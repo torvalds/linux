@@ -67,4 +67,201 @@ config HIDRAW
 
 source "drivers/hid/usbhid/Kconfig"
 
+menu "Special HID drivers"
+	depends on HID
+
+config HID_COMPAT
+	bool "Load all HID drivers on hid core load"
+	default y
+	---help---
+	Compatible option for older userspace. If you have system without udev
+	support of module loading through aliases and also old
+	module-init-tools which can't handle hid bus, choose Y here. Otherwise
+	say N. If you say N and your userspace is old enough, the only
+	functionality you lose is modules autoloading.
+
+	If unsure, say Y.
+
+config HID_A4TECH
+	tristate "A4 tech" if EMBEDDED
+	depends on USB_HID
+	default y
+	---help---
+	Support for A4 tech X5 and WOP-35 / Trust 450L mice.
+
+config HID_APPLE
+	tristate "Apple" if EMBEDDED
+	depends on (USB_HID || BT_HIDP)
+	default y
+	---help---
+	Support for some Apple devices which less or more break
+	HID specification.
+
+	Say Y here if you want support for keyboards of	Apple iBooks, PowerBooks,
+	MacBooks, MacBook Pros and Apple Aluminum.
+
+config HID_BELKIN
+	tristate "Belkin" if EMBEDDED
+	depends on USB_HID
+	default y
+	---help---
+	Support for Belkin Flip KVM and Wireless keyboard.
+
+config HID_BRIGHT
+	tristate "Bright" if EMBEDDED
+	depends on USB_HID
+	default y
+	---help---
+	Support for Bright ABNT-2 keyboard.
+
+config HID_CHERRY
+	tristate "Cherry" if EMBEDDED
+	depends on USB_HID
+	default y
+	---help---
+	Support for Cherry Cymotion keyboard.
+
+config HID_CHICONY
+	tristate "Chicony" if EMBEDDED
+	depends on USB_HID
+	default y
+	---help---
+	Support for Chicony Tactical pad.
+
+config HID_CYPRESS
+	tristate "Cypress" if EMBEDDED
+	depends on USB_HID
+	default y
+	---help---
+	Support for cypress mouse and barcode readers.
+
+config HID_DELL
+	tristate "Dell" if EMBEDDED
+	depends on USB_HID
+	default y
+	---help---
+	Support for quirky Dell HID hardware that require
+	special LED handling (W7658 and SK8115 models)
+
+config HID_EZKEY
+	tristate "Ezkey" if EMBEDDED
+	depends on USB_HID
+	default y
+	---help---
+	Support for Ezkey BTC 8193 keyboard.
+
+config HID_GYRATION
+	tristate "Gyration" if EMBEDDED
+	depends on USB_HID
+	default y
+	---help---
+	Support for Gyration remote control.
+
+config HID_LOGITECH
+	tristate "Logitech" if EMBEDDED
+	depends on USB_HID
+	default y
+	---help---
+	Support for Logitech devices that are not fully compliant with HID standard.
+
+config LOGITECH_FF
+	bool "Logitech force feedback"
+	depends on HID_LOGITECH
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you have one of these devices:
+	  - Logitech WingMan Cordless RumblePad
+	  - Logitech WingMan Cordless RumblePad 2
+	  - Logitech WingMan Force 3D
+	  - Logitech Formula Force EX
+	  - Logitech MOMO Force wheel
+
+	  and if you want to enable force feedback for them.
+	  Note: if you say N here, this device will still be supported, but without
+	  force feedback.
+
+config LOGIRUMBLEPAD2_FF
+	bool "Logitech Rumblepad 2 force feedback"
+	depends on HID_LOGITECH
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you want to enable force feedback support for Logitech
+	  Rumblepad 2 devices.
+
+config HID_MICROSOFT
+	tristate "Microsoft" if EMBEDDED
+	depends on USB_HID
+	default y
+	---help---
+	Support for Microsoft devices that are not fully compliant with HID standard.
+
+config HID_MONTEREY
+	tristate "Monterey" if EMBEDDED
+	depends on USB_HID
+	default y
+	---help---
+	Support for Monterey Genius KB29E.
+
+config HID_PANTHERLORD
+	tristate "Pantherlord devices support" if EMBEDDED
+	depends on USB_HID
+	default y
+	---help---
+	Support for PantherLord/GreenAsia based device support.
+
+config PANTHERLORD_FF
+	bool "Pantherlord force feedback support"
+	depends on HID_PANTHERLORD
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you have a PantherLord/GreenAsia based game controller
+	  or adapter and want to enable force feedback support for it.
+
+config HID_PETALYNX
+	tristate "Petalynx" if EMBEDDED
+	depends on USB_HID
+	default y
+	---help---
+	Support for Petalynx Maxter remote control.
+
+config HID_SAMSUNG
+	tristate "Samsung" if EMBEDDED
+	depends on USB_HID
+	default y
+	---help---
+	Support for Samsung InfraRed remote control.
+
+config HID_SONY
+	tristate "Sony" if EMBEDDED
+	depends on USB_HID
+	default y
+	---help---
+	Support for Sony PS3 controller.
+
+config HID_SUNPLUS
+	tristate "Sunplus" if EMBEDDED
+	depends on USB_HID
+	default y
+	---help---
+	Support for Sunplus wireless desktop.
+
+config THRUSTMASTER_FF
+	tristate "ThrustMaster devices support"
+	default m
+	depends on USB_HID
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you have a THRUSTMASTER FireStore Dual Power 2 or
+	  a THRUSTMASTER Ferrari GT Rumble Force or Force Feedback Wheel.
+
+config ZEROPLUS_FF
+	tristate "Zeroplus based game controller support"
+	default m
+	depends on USB_HID
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you have a Zeroplus based game controller.
+
+endmenu
+
 endif # HID_SUPPORT

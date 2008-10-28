@@ -125,6 +125,7 @@ sctp_state_fn_t sctp_sf_beat_8_3;
 sctp_state_fn_t sctp_sf_backbeat_8_3;
 sctp_state_fn_t sctp_sf_do_9_2_final;
 sctp_state_fn_t sctp_sf_do_9_2_shutdown;
+sctp_state_fn_t sctp_sf_do_9_2_shut_ctsn;
 sctp_state_fn_t sctp_sf_do_ecn_cwr;
 sctp_state_fn_t sctp_sf_do_ecne;
 sctp_state_fn_t sctp_sf_ootb;
@@ -227,6 +228,9 @@ struct sctp_chunk *sctp_make_abort_violation(const struct sctp_association *,
 				   const struct sctp_chunk *,
 				   const __u8 *,
 				   const size_t );
+struct sctp_chunk *sctp_make_violation_paramlen(const struct sctp_association *,
+				   const struct sctp_chunk *,
+				   struct sctp_paramhdr *);
 struct sctp_chunk *sctp_make_heartbeat(const struct sctp_association *,
 				  const struct sctp_transport *,
 				  const void *payload,

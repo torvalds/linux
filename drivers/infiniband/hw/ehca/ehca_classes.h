@@ -128,6 +128,8 @@ struct ehca_shca {
 	/* MR pgsize: bit 0-3 means 4K, 64K, 1M, 16M respectively */
 	u32 hca_cap_mr_pgsize;
 	int max_mtu;
+	int max_num_qps;
+	int max_num_cqs;
 	atomic_t num_cqs;
 	atomic_t num_qps;
 };
@@ -156,6 +158,21 @@ struct ehca_mod_qp_parm {
 
 #define EHCA_MOD_QP_PARM_MAX 4
 
+#define QMAP_IDX_MASK 0xFFFFULL
+
+/* struct for tracking if cqes have been reported to the application */
+struct ehca_qmap_entry {
+	u16 app_wr_id;
+	u16 reported;
+};
+
+struct ehca_queue_map {
+	struct ehca_qmap_entry *map;
+	unsigned int entries;
+	unsigned int tail;
+	unsigned int left_to_poll;
+};
+
 struct ehca_qp {
 	union {
 		struct ib_qp ib_qp;
@@ -165,7 +182,9 @@ struct ehca_qp {
 	enum ehca_ext_qp_type ext_type;
 	enum ib_qp_state state;
 	struct ipz_queue ipz_squeue;
+	struct ehca_queue_map sq_map;
 	struct ipz_queue ipz_rqueue;
+	struct ehca_queue_map rq_map;
 	struct h_galpas galpas;
 	u32 qkey;
 	u32 real_qp_num;
@@ -194,6 +213,9 @@ struct ehca_qp {
 	u32 packet_count;
 	atomic_t nr_events; /* events seen */
 	wait_queue_head_t wait_completion;
+	int mig_armed;
+	struct list_head sq_err_node;
+	struct list_head rq_err_node;
 };
 
 #define IS_SRQ(qp) (qp->ext_type == EQPT_SRQ)
@@ -223,6 +245,8 @@ struct ehca_cq {
 	/* mmap counter for resources mapped into user space */
 	u32 mm_count_queue;
 	u32 mm_count_galpa;
+	struct list_head sqp_err_list;
+	struct list_head rqp_err_list;
 };
 
 enum ehca_mr_flag {

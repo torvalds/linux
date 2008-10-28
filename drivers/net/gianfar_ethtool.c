@@ -479,14 +479,13 @@ static int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rva
 static int gfar_set_rx_csum(struct net_device *dev, uint32_t data)
 {
 	struct gfar_private *priv = netdev_priv(dev);
+	unsigned long flags;
 	int err = 0;
 
 	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
 		return -EOPNOTSUPP;
 
 	if (dev->flags & IFF_UP) {
-		unsigned long flags;
-
 		/* Halt TX and RX, and process the frames which
 		 * have already been received */
 		spin_lock_irqsave(&priv->txlock, flags);
@@ -502,7 +501,9 @@ static int gfar_set_rx_csum(struct net_device *dev, uint32_t data)
 		stop_gfar(dev);
 	}
 
+	spin_lock_irqsave(&priv->bflock, flags);
 	priv->rx_csum_enable = data;
+	spin_unlock_irqrestore(&priv->bflock, flags);
 
 	if (dev->flags & IFF_UP)
 		err = startup_gfar(dev);
@@ -564,6 +565,38 @@ static void gfar_set_msglevel(struct net_device *dev, uint32_t data)
 	priv->msg_enable = data;
 }
 
+#ifdef CONFIG_PM
+static void gfar_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct gfar_private *priv = netdev_priv(dev);
+
+	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET) {
+		wol->supported = WAKE_MAGIC;
+		wol->wolopts = priv->wol_en ? WAKE_MAGIC : 0;
+	} else {
+		wol->supported = wol->wolopts = 0;
+	}
+}
+
+static int gfar_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct gfar_private *priv = netdev_priv(dev);
+	unsigned long flags;
+
+	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET) &&
+	    wol->wolopts != 0)
+		return -EINVAL;
+
+	if (wol->wolopts & ~WAKE_MAGIC)
+		return -EINVAL;
+
+	spin_lock_irqsave(&priv->bflock, flags);
+	priv->wol_en = wol->wolopts & WAKE_MAGIC ? 1 : 0;
+	spin_unlock_irqrestore(&priv->bflock, flags);
+
+	return 0;
+}
+#endif
 
 const struct ethtool_ops gfar_ethtool_ops = {
 	.get_settings = gfar_gsettings,
@@ -585,4 +618,8 @@ const struct ethtool_ops gfar_ethtool_ops = {
 	.set_tx_csum = gfar_set_tx_csum,
 	.get_msglevel = gfar_get_msglevel,
 	.set_msglevel = gfar_set_msglevel,
+#ifdef CONFIG_PM
+	.get_wol = gfar_get_wol,
+	.set_wol = gfar_set_wol,
+#endif
 };

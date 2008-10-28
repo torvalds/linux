@@ -51,25 +51,21 @@
  */
 struct stliport {
 	unsigned long		magic;
+	struct tty_port		port;
 	unsigned int		portnr;
 	unsigned int		panelnr;
 	unsigned int		brdnr;
 	unsigned long		state;
 	unsigned int		devnr;
-	int			flags;
 	int			baud_base;
 	int			custom_divisor;
 	int			close_delay;
 	int			closing_wait;
-	int			refcount;
 	int			openwaitcnt;
 	int			rc;
 	int			argsize;
 	void			*argp;
 	unsigned int		rxmarkmsk;
-	struct tty_struct	*tty;
-	wait_queue_head_t	open_wait;
-	wait_queue_head_t	close_wait;
 	wait_queue_head_t	raw_wait;
 	struct asysigs		asig;
 	unsigned long		addr;

@@ -30,7 +30,6 @@
 
 #include "wm8990.h"
 
-#define AUDIO_NAME "wm8990"
 #define WM8990_VERSION "0.2"
 
 /* codec private data */
@@ -82,7 +81,7 @@ static const u16 wm8990_reg[] = {
 	0x0003,     /* R35 - ClassD1 */
 	0x0000,     /* R36 */
 	0x0100,     /* R37 - ClassD3 */
-	0x0000,     /* R38 */
+	0x0079,     /* R38 - ClassD4 */
 	0x0000,     /* R39 - Input Mixer1 */
 	0x0000,     /* R40 - Input Mixer2 */
 	0x0000,     /* R41 - Input Mixer3 */
@@ -311,11 +310,15 @@ SOC_SINGLE("Speaker Mode Switch", WM8990_CLASSD1,
 	WM8990_CDMODE_BIT, 1, 0),
 
 SOC_SINGLE("Speaker Output Attenuation Volume", WM8990_SPEAKER_VOLUME,
-	WM8990_SPKVOL_SHIFT, WM8990_SPKVOL_MASK, 0),
+	WM8990_SPKATTN_SHIFT, WM8990_SPKATTN_MASK, 0),
 SOC_SINGLE("Speaker DC Boost Volume", WM8990_CLASSD3,
 	WM8990_DCGAIN_SHIFT, WM8990_DCGAIN_MASK, 0),
 SOC_SINGLE("Speaker AC Boost Volume", WM8990_CLASSD3,
 	WM8990_ACGAIN_SHIFT, WM8990_ACGAIN_MASK, 0),
+SOC_SINGLE_TLV("Speaker Volume", WM8990_CLASSD4,
+	WM8990_SPKVOL_SHIFT, WM8990_SPKVOL_MASK, 0, out_pga_tlv),
+SOC_SINGLE("Speaker ZC Switch", WM8990_CLASSD4,
+	WM8990_SPKZC_SHIFT, WM8990_SPKZC_MASK, 0),
 
 SOC_WM899X_OUTPGA_SINGLE_R_TLV("Left DAC Digital Volume",
 	WM8990_LEFT_DAC_DIGITAL_VOLUME,
@@ -920,7 +923,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"SPKMIX", "SPKMIX Left Mixer PGA Switch", "LOPGA"},
 	{"SPKMIX", "SPKMIX Right Mixer PGA Switch", "ROPGA"},
 	{"SPKMIX", "SPKMIX Right DAC Switch", "Right DAC"},
-	{"SPKMIX", "SPKMIX Left DAC Switch", "Right DAC"},
+	{"SPKMIX", "SPKMIX Left DAC Switch", "Left DAC"},
 
 	/* LONMIX */
 	{"LONMIX", "LONMIX Left Mixer PGA Switch", "LOPGA"},
@@ -1473,83 +1476,86 @@ static struct snd_soc_device *wm8990_socdev;
  *    low  = 0x34
  *    high = 0x36
  */
-static unsigned short normal_i2c[] = { 0, I2C_CLIENT_END };
 
-/* Magic definition of all other variables and things */
-I2C_CLIENT_INSMOD;
-
-static struct i2c_driver wm8990_i2c_driver;
-static struct i2c_client client_template;
-
-static int wm8990_codec_probe(struct i2c_adapter *adap, int addr, int kind)
+static int wm8990_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct snd_soc_device *socdev = wm8990_socdev;
-	struct wm8990_setup_data *setup = socdev->codec_data;
 	struct snd_soc_codec *codec = socdev->codec;
-	struct i2c_client *i2c;
 	int ret;
 
-	if (addr != setup->i2c_address)
-		return -ENODEV;
-
-	client_template.adapter = adap;
-	client_template.addr = addr;
-
-	i2c =  kmemdup(&client_template, sizeof(client_template), GFP_KERNEL);
-	if (i2c == NULL) {
-		kfree(codec);
-		return -ENOMEM;
-	}
 	i2c_set_clientdata(i2c, codec);
 	codec->control_data = i2c;
 
-	ret = i2c_attach_client(i2c);
-	if (ret < 0) {
-		pr_err("failed to attach codec at addr %x\n", addr);
-		goto err;
-	}
-
 	ret = wm8990_init(socdev);
-	if (ret < 0) {
+	if (ret < 0)
 		pr_err("failed to initialise WM8990\n");
-		goto err;
-	}
-	return ret;
 
-err:
-	kfree(codec);
-	kfree(i2c);
 	return ret;
 }
 
-static int wm8990_i2c_detach(struct i2c_client *client)
+static int wm8990_i2c_remove(struct i2c_client *client)
 {
 	struct snd_soc_codec *codec = i2c_get_clientdata(client);
-	i2c_detach_client(client);
 	kfree(codec->reg_cache);
-	kfree(client);
 	return 0;
 }
 
-static int wm8990_i2c_attach(struct i2c_adapter *adap)
-{
-	return i2c_probe(adap, &addr_data, wm8990_codec_probe);
-}
+static const struct i2c_device_id wm8990_i2c_id[] = {
+	{ "wm8990", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, wm8990_i2c_id);
 
 static struct i2c_driver wm8990_i2c_driver = {
 	.driver = {
 		.name = "WM8990 I2C Codec",
 		.owner = THIS_MODULE,
 	},
-	.attach_adapter = wm8990_i2c_attach,
-	.detach_client =  wm8990_i2c_detach,
-	.command =        NULL,
+	.probe =    wm8990_i2c_probe,
+	.remove =   wm8990_i2c_remove,
+	.id_table = wm8990_i2c_id,
 };
 
-static struct i2c_client client_template = {
-	.name =   "WM8990",
-	.driver = &wm8990_i2c_driver,
-};
+static int wm8990_add_i2c_device(struct platform_device *pdev,
+				 const struct wm8990_setup_data *setup)
+{
+	struct i2c_board_info info;
+	struct i2c_adapter *adapter;
+	struct i2c_client *client;
+	int ret;
+
+	ret = i2c_add_driver(&wm8990_i2c_driver);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "can't add i2c driver\n");
+		return ret;
+	}
+
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	info.addr = setup->i2c_address;
+	strlcpy(info.type, "wm8990", I2C_NAME_SIZE);
+
+	adapter = i2c_get_adapter(setup->i2c_bus);
+	if (!adapter) {
+		dev_err(&pdev->dev, "can't get i2c adapter %d\n",
+			setup->i2c_bus);
+		goto err_driver;
+	}
+
+	client = i2c_new_device(adapter, &info);
+	i2c_put_adapter(adapter);
+	if (!client) {
+		dev_err(&pdev->dev, "can't add i2c device at 0x%x\n",
+			(unsigned int)info.addr);
+		goto err_driver;
+	}
+
+	return 0;
+
+err_driver:
+	i2c_del_driver(&wm8990_i2c_driver);
+	return -ENODEV;
+}
 #endif
 
 static int wm8990_probe(struct platform_device *pdev)
@@ -1558,7 +1564,7 @@ static int wm8990_probe(struct platform_device *pdev)
 	struct wm8990_setup_data *setup;
 	struct snd_soc_codec *codec;
 	struct wm8990_priv *wm8990;
-	int ret = 0;
+	int ret;
 
 	pr_info("WM8990 Audio Codec %s\n", WM8990_VERSION);
 
@@ -1580,17 +1586,19 @@ static int wm8990_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&codec->dapm_paths);
 	wm8990_socdev = socdev;
 
+	ret = -ENODEV;
+
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	if (setup->i2c_address) {
-		normal_i2c[0] = setup->i2c_address;
 		codec->hw_write = (hw_write_t)i2c_master_send;
-		ret = i2c_add_driver(&wm8990_i2c_driver);
-		if (ret != 0)
-			printk(KERN_ERR "can't add i2c driver");
+		ret = wm8990_add_i2c_device(pdev, setup);
 	}
-#else
-		/* Add other interfaces here */
 #endif
+
+	if (ret != 0) {
+		kfree(codec->private_data);
+		kfree(codec);
+	}
 	return ret;
 }
 
@@ -1605,6 +1613,7 @@ static int wm8990_remove(struct platform_device *pdev)
 	snd_soc_free_pcms(socdev);
 	snd_soc_dapm_free(socdev);
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+	i2c_unregister_device(codec->control_data);
 	i2c_del_driver(&wm8990_i2c_driver);
 #endif
 	kfree(codec->private_data);

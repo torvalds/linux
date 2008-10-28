@@ -5,9 +5,6 @@
  * Contains information about the location and state of a given flash device
  *
  * (C) 2000 Red Hat. GPLd.
- *
- * $Id: flashchip.h,v 1.18 2005/11/07 11:14:54 gleixner Exp $
- *
  */
 
 #ifndef __MTD_FLASHCHIP_H__
@@ -75,6 +72,10 @@ struct flchip {
 	int word_write_time;
 	int buffer_write_time;
 	int erase_time;
+
+	int word_write_time_max;
+	int buffer_write_time_max;
+	int erase_time_max;
 
 	void *priv;
 };

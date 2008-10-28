@@ -748,7 +748,7 @@ struct ring_info {
 
 	/* interface MTU value */
         unsigned mtu;
-    
+
 	/* Buffer Address store. */
 	struct buffAdd **ba;
 
@@ -962,6 +962,7 @@ struct s2io_nic {
 	int task_flag;
 	unsigned long long start_time;
 	struct vlan_group *vlgrp;
+	int vlan_strip_flag;
 #define MSIX_FLG                0xA5
 	int num_entries;
 	struct msix_entry *entries;
@@ -1107,6 +1108,7 @@ static int init_shared_mem(struct s2io_nic *sp);
 static void free_shared_mem(struct s2io_nic *sp);
 static int init_nic(struct s2io_nic *nic);
 static int rx_intr_handler(struct ring_info *ring_data, int budget);
+static void s2io_txpic_intr_handle(struct s2io_nic *sp);
 static void tx_intr_handler(struct fifo_info *fifo_data);
 static void s2io_handle_errors(void * dev_id);
 

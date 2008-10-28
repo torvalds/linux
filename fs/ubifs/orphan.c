@@ -310,10 +310,10 @@ static int write_orph_node(struct ubifs_info *c, int atomic)
 	c->cmt_orphans -= cnt;
 	spin_unlock(&c->orphan_lock);
 	if (c->cmt_orphans)
-		orph->cmt_no = cpu_to_le64(c->cmt_no + 1);
+		orph->cmt_no = cpu_to_le64(c->cmt_no);
 	else
 		/* Mark the last node of the commit */
-		orph->cmt_no = cpu_to_le64((c->cmt_no + 1) | (1ULL << 63));
+		orph->cmt_no = cpu_to_le64((c->cmt_no) | (1ULL << 63));
 	ubifs_assert(c->ohead_offs + len <= c->leb_size);
 	ubifs_assert(c->ohead_lnum >= c->orph_first);
 	ubifs_assert(c->ohead_lnum <= c->orph_last);

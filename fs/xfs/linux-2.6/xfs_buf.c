@@ -58,7 +58,7 @@ xfs_buf_trace(
 		bp, id,
 		(void *)(unsigned long)bp->b_flags,
 		(void *)(unsigned long)bp->b_hold.counter,
-		(void *)(unsigned long)bp->b_sema.count.counter,
+		(void *)(unsigned long)bp->b_sema.count,
 		(void *)current,
 		data, ra,
 		(void *)(unsigned long)((bp->b_file_offset>>32) & 0xffffffff),
@@ -253,7 +253,7 @@ _xfs_buf_initialize(
 
 	memset(bp, 0, sizeof(xfs_buf_t));
 	atomic_set(&bp->b_hold, 1);
-	init_MUTEX_LOCKED(&bp->b_iodonesema);
+	init_completion(&bp->b_iowait);
 	INIT_LIST_HEAD(&bp->b_list);
 	INIT_LIST_HEAD(&bp->b_hash_list);
 	init_MUTEX_LOCKED(&bp->b_sema); /* held, no waiters */
@@ -310,8 +310,7 @@ _xfs_buf_free_pages(
 	xfs_buf_t	*bp)
 {
 	if (bp->b_pages != bp->b_page_array) {
-		kmem_free(bp->b_pages,
-			  bp->b_page_count * sizeof(struct page *));
+		kmem_free(bp->b_pages);
 	}
 }
 
@@ -839,6 +838,7 @@ xfs_buf_rele(
 		return;
 	}
 
+	ASSERT(atomic_read(&bp->b_hold) > 0);
 	if (atomic_dec_and_lock(&bp->b_hold, &hash->bh_lock)) {
 		if (bp->b_relse) {
 			atomic_inc(&bp->b_hold);
@@ -852,11 +852,6 @@ xfs_buf_rele(
 			spin_unlock(&hash->bh_lock);
 			xfs_buf_free(bp);
 		}
-	} else {
-		/*
-		 * Catch reference count leaks
-		 */
-		ASSERT(atomic_read(&bp->b_hold) >= 0);
 	}
 }
 
@@ -1006,12 +1001,13 @@ xfs_buf_iodone_work(
 	 * We can get an EOPNOTSUPP to ordered writes.  Here we clear the
 	 * ordered flag and reissue them.  Because we can't tell the higher
 	 * layers directly that they should not issue ordered I/O anymore, they
-	 * need to check if the ordered flag was cleared during I/O completion.
+	 * need to check if the _XFS_BARRIER_FAILED flag was set during I/O completion.
 	 */
 	if ((bp->b_error == EOPNOTSUPP) &&
 	    (bp->b_flags & (XBF_ORDERED|XBF_ASYNC)) == (XBF_ORDERED|XBF_ASYNC)) {
 		XB_TRACE(bp, "ordered_retry", bp->b_iodone);
 		bp->b_flags &= ~XBF_ORDERED;
+		bp->b_flags |= _XFS_BARRIER_FAILED;
 		xfs_buf_iorequest(bp);
 	} else if (bp->b_iodone)
 		(*(bp->b_iodone))(bp);
@@ -1038,7 +1034,7 @@ xfs_buf_ioend(
 			xfs_buf_iodone_work(&bp->b_iodone_work);
 		}
 	} else {
-		up(&bp->b_iodonesema);
+		complete(&bp->b_iowait);
 	}
 }
 
@@ -1276,7 +1272,7 @@ xfs_buf_iowait(
 	XB_TRACE(bp, "iowait", 0);
 	if (atomic_read(&bp->b_io_remaining))
 		blk_run_address_space(bp->b_target->bt_mapping);
-	down(&bp->b_iodonesema);
+	wait_for_completion(&bp->b_iowait);
 	XB_TRACE(bp, "iowaited", (long)bp->b_error);
 	return bp->b_error;
 }
@@ -1398,7 +1394,7 @@ STATIC void
 xfs_free_bufhash(
 	xfs_buftarg_t		*btp)
 {
-	kmem_free(btp->bt_hash, (1<<btp->bt_hashshift) * sizeof(xfs_bufhash_t));
+	kmem_free(btp->bt_hash);
 	btp->bt_hash = NULL;
 }
 
@@ -1428,13 +1424,10 @@ xfs_unregister_buftarg(
 
 void
 xfs_free_buftarg(
-	xfs_buftarg_t		*btp,
-	int			external)
+	xfs_buftarg_t		*btp)
 {
 	xfs_flush_buftarg(btp, 1);
 	xfs_blkdev_issue_flush(btp);
-	if (external)
-		xfs_blkdev_put(btp->bt_bdev);
 	xfs_free_bufhash(btp);
 	iput(btp->bt_mapping->host);
 
@@ -1444,7 +1437,7 @@ xfs_free_buftarg(
 	xfs_unregister_buftarg(btp);
 	kthread_stop(btp->bt_task);
 
-	kmem_free(btp, sizeof(*btp));
+	kmem_free(btp);
 }
 
 STATIC int
@@ -1575,7 +1568,7 @@ xfs_alloc_buftarg(
 	return btp;
 
 error:
-	kmem_free(btp, sizeof(*btp));
+	kmem_free(btp);
 	return NULL;
 }
 
@@ -1803,7 +1796,7 @@ int __init
 xfs_buf_init(void)
 {
 #ifdef XFS_BUF_TRACE
-	xfs_buf_trace_buf = ktrace_alloc(XFS_BUF_TRACE_SIZE, KM_SLEEP);
+	xfs_buf_trace_buf = ktrace_alloc(XFS_BUF_TRACE_SIZE, KM_NOFS);
 #endif
 
 	xfs_buf_zone = kmem_zone_init_flags(sizeof(xfs_buf_t), "xfs_buf",

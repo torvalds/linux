@@ -18,24 +18,20 @@ obj-$(CONFIG_USB_AT91)		+= at91_udc.o
 obj-$(CONFIG_USB_ATMEL_USBA)	+= atmel_usba_udc.o
 obj-$(CONFIG_USB_FSL_USB2)	+= fsl_usb2_udc.o
 obj-$(CONFIG_USB_M66592)	+= m66592-udc.o
+obj-$(CONFIG_USB_FSL_QE)	+= fsl_qe_udc.o
 
 #
 # USB gadget drivers
 #
-g_zero-objs			:= zero.o usbstring.o config.o epautoconf.o
-g_ether-objs			:= ether.o usbstring.o config.o epautoconf.o
-g_serial-objs			:= serial.o usbstring.o config.o epautoconf.o
-g_midi-objs			:= gmidi.o usbstring.o config.o epautoconf.o
+g_zero-objs			:= zero.o
+g_ether-objs			:= ether.o
+g_serial-objs			:= serial.o
+g_midi-objs			:= gmidi.o
 gadgetfs-objs			:= inode.o
-g_file_storage-objs		:= file_storage.o usbstring.o config.o \
-					epautoconf.o
-g_printer-objs			:= printer.o usbstring.o config.o \
-					epautoconf.o
+g_file_storage-objs		:= file_storage.o
+g_printer-objs			:= printer.o
+g_cdc-objs			:= cdc2.o
 
-ifeq ($(CONFIG_USB_ETH_RNDIS),y)
-	g_ether-objs		+= rndis.o
-endif
- 
 obj-$(CONFIG_USB_ZERO)		+= g_zero.o
 obj-$(CONFIG_USB_ETH)		+= g_ether.o
 obj-$(CONFIG_USB_GADGETFS)	+= gadgetfs.o
@@ -43,4 +39,5 @@ obj-$(CONFIG_USB_FILE_STORAGE)	+= g_file_storage.o
 obj-$(CONFIG_USB_G_SERIAL)	+= g_serial.o
 obj-$(CONFIG_USB_G_PRINTER)	+= g_printer.o
 obj-$(CONFIG_USB_MIDI_GADGET)	+= g_midi.o
+obj-$(CONFIG_USB_CDC_COMPOSITE) += g_cdc.o
 

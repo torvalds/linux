@@ -95,13 +95,6 @@
 #include "check.h"
 #include "efi.h"
 
-#undef EFI_DEBUG
-#ifdef EFI_DEBUG
-#define Dprintk(x...) printk(KERN_DEBUG x)
-#else
-#define Dprintk(x...)
-#endif
-
 /* This allows a kernel command line option 'gpt' to override
  * the test for invalid PMBR.  Not __initdata because reloading
  * the partition tables happens after init too.
@@ -305,10 +298,10 @@ is_gpt_valid(struct block_device *bdev, u64 lba,
 
 	/* Check the GUID Partition Table signature */
 	if (le64_to_cpu((*gpt)->signature) != GPT_HEADER_SIGNATURE) {
-		Dprintk("GUID Partition Table Header signature is wrong:"
-			"%lld != %lld\n",
-			(unsigned long long)le64_to_cpu((*gpt)->signature),
-			(unsigned long long)GPT_HEADER_SIGNATURE);
+		pr_debug("GUID Partition Table Header signature is wrong:"
+			 "%lld != %lld\n",
+			 (unsigned long long)le64_to_cpu((*gpt)->signature),
+			 (unsigned long long)GPT_HEADER_SIGNATURE);
 		goto fail;
 	}
 
@@ -318,9 +311,8 @@ is_gpt_valid(struct block_device *bdev, u64 lba,
 	crc = efi_crc32((const unsigned char *) (*gpt), le32_to_cpu((*gpt)->header_size));
 
 	if (crc != origcrc) {
-		Dprintk
-		    ("GUID Partition Table Header CRC is wrong: %x != %x\n",
-		     crc, origcrc);
+		pr_debug("GUID Partition Table Header CRC is wrong: %x != %x\n",
+			 crc, origcrc);
 		goto fail;
 	}
 	(*gpt)->header_crc32 = cpu_to_le32(origcrc);
@@ -328,9 +320,9 @@ is_gpt_valid(struct block_device *bdev, u64 lba,
 	/* Check that the my_lba entry points to the LBA that contains
 	 * the GUID Partition Table */
 	if (le64_to_cpu((*gpt)->my_lba) != lba) {
-		Dprintk("GPT my_lba incorrect: %lld != %lld\n",
-			(unsigned long long)le64_to_cpu((*gpt)->my_lba),
-			(unsigned long long)lba);
+		pr_debug("GPT my_lba incorrect: %lld != %lld\n",
+			 (unsigned long long)le64_to_cpu((*gpt)->my_lba),
+			 (unsigned long long)lba);
 		goto fail;
 	}
 
@@ -339,15 +331,15 @@ is_gpt_valid(struct block_device *bdev, u64 lba,
 	 */
 	lastlba = last_lba(bdev);
 	if (le64_to_cpu((*gpt)->first_usable_lba) > lastlba) {
-		Dprintk("GPT: first_usable_lba incorrect: %lld > %lld\n",
-			(unsigned long long)le64_to_cpu((*gpt)->first_usable_lba),
-			(unsigned long long)lastlba);
+		pr_debug("GPT: first_usable_lba incorrect: %lld > %lld\n",
+			 (unsigned long long)le64_to_cpu((*gpt)->first_usable_lba),
+			 (unsigned long long)lastlba);
 		goto fail;
 	}
 	if (le64_to_cpu((*gpt)->last_usable_lba) > lastlba) {
-		Dprintk("GPT: last_usable_lba incorrect: %lld > %lld\n",
-			(unsigned long long)le64_to_cpu((*gpt)->last_usable_lba),
-			(unsigned long long)lastlba);
+		pr_debug("GPT: last_usable_lba incorrect: %lld > %lld\n",
+			 (unsigned long long)le64_to_cpu((*gpt)->last_usable_lba),
+			 (unsigned long long)lastlba);
 		goto fail;
 	}
 
@@ -360,7 +352,7 @@ is_gpt_valid(struct block_device *bdev, u64 lba,
 			le32_to_cpu((*gpt)->sizeof_partition_entry));
 
 	if (crc != le32_to_cpu((*gpt)->partition_entry_array_crc32)) {
-		Dprintk("GUID Partitition Entry Array CRC check failed.\n");
+		pr_debug("GUID Partitition Entry Array CRC check failed.\n");
 		goto fail_ptes;
 	}
 
@@ -616,7 +608,7 @@ efi_partition(struct parsed_partitions *state, struct block_device *bdev)
 		return 0;
 	}
 
-	Dprintk("GUID Partition Table is valid!  Yea!\n");
+	pr_debug("GUID Partition Table is valid!  Yea!\n");
 
 	for (i = 0; i < le32_to_cpu(gpt->num_partition_entries) && i < state->limit-1; i++) {
 		if (!is_pte_valid(&ptes[i], last_lba(bdev)))

@@ -564,7 +564,13 @@ static void get_detailed_timing(unsigned char *block,
 		mode->sync |= FB_SYNC_VERT_HIGH_ACT;
 	mode->refresh = PIXEL_CLOCK/((H_ACTIVE + H_BLANKING) *
 				     (V_ACTIVE + V_BLANKING));
-	mode->vmode = 0;
+	if (INTERLACED) {
+		mode->yres *= 2;
+		mode->upper_margin *= 2;
+		mode->lower_margin *= 2;
+		mode->vsync_len *= 2;
+		mode->vmode |= FB_VMODE_INTERLACED;
+	}
 	mode->flag = FB_MODE_IS_DETAILED;
 
 	DPRINTK("      %d MHz ",  PIXEL_CLOCK/1000000);
@@ -879,7 +885,7 @@ int fb_parse_edid(unsigned char *edid, struct fb_var_screeninfo *var)
 		if (edid_is_timing_block(block)) {
 			var->xres = var->xres_virtual = H_ACTIVE;
 			var->yres = var->yres_virtual = V_ACTIVE;
-			var->height = var->width = -1;
+			var->height = var->width = 0;
 			var->right_margin = H_SYNC_OFFSET;
 			var->left_margin = (H_ACTIVE + H_BLANKING) -
 				(H_ACTIVE + H_SYNC_OFFSET + H_SYNC_WIDTH);

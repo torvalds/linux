@@ -18,14 +18,14 @@
  */
 #include <linux/pci.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach/pci.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/arch/pci.h>
+#include <mach/pci.h>
 #include <asm/mach/time.h>
-#include <asm/arch/time.h>
+#include <mach/time.h>
 
 extern int init_atu; /* Flag to select which ATU(s) to initialize / disable */
 

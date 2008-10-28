@@ -175,6 +175,8 @@ out_no_root:
 	if (inode)
 		iput(inode);
 
+	cifs_umount(sb, cifs_sb);
+
 out_mount_failed:
 	if (cifs_sb) {
 #ifdef CONFIG_CIFS_DFS_UPCALL
@@ -267,15 +269,18 @@ cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static int cifs_permission(struct inode *inode, int mask, struct nameidata *nd)
+static int cifs_permission(struct inode *inode, int mask)
 {
 	struct cifs_sb_info *cifs_sb;
 
 	cifs_sb = CIFS_SB(inode->i_sb);
 
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
-		return 0;
-	else /* file mode might have been restricted at mount time
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM) {
+		if ((mask & MAY_EXEC) && !execute_ok(inode))
+			return -EACCES;
+		else
+			return 0;
+	} else /* file mode might have been restricted at mount time
 		on the client (above and beyond ACL on servers) for
 		servers which do not support setting and viewing mode bits,
 		so allowing client to check permissions is useful */
@@ -307,6 +312,7 @@ cifs_alloc_inode(struct super_block *sb)
 	file data or metadata */
 	cifs_inode->clientCanCacheRead = false;
 	cifs_inode->clientCanCacheAll = false;
+	cifs_inode->delete_pending = false;
 	cifs_inode->vfs_inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
 
 	/* Can not set i_flags here - they get immediately overwritten
@@ -615,6 +621,37 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
 	return generic_file_llseek_unlocked(file, offset, origin);
 }
 
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+static int cifs_setlease(struct file *file, long arg, struct file_lock **lease)
+{
+	/* note that this is called by vfs setlease with the BKL held
+	   although I doubt that BKL is needed here in cifs */
+	struct inode *inode = file->f_path.dentry->d_inode;
+
+	if (!(S_ISREG(inode->i_mode)))
+		return -EINVAL;
+
+	/* check if file is oplocked */
+	if (((arg == F_RDLCK) &&
+		(CIFS_I(inode)->clientCanCacheRead)) ||
+	    ((arg == F_WRLCK) &&
+		(CIFS_I(inode)->clientCanCacheAll)))
+		return generic_setlease(file, arg, lease);
+	else if (CIFS_SB(inode->i_sb)->tcon->local_lease &&
+			!CIFS_I(inode)->clientCanCacheRead)
+		/* If the server claims to support oplock on this
+		   file, then we still need to check oplock even
+		   if the local_lease mount option is set, but there
+		   are servers which do not support oplock for which
+		   this mount option may be useful if the user
+		   knows that the file won't be changed on the server
+		   by anyone else */
+		return generic_setlease(file, arg, lease);
+	else
+		return -EAGAIN;
+}
+#endif
+
 struct file_system_type cifs_fs_type = {
 	.owner = THIS_MODULE,
 	.name = "cifs",
@@ -693,6 +730,7 @@ const struct file_operations cifs_file_ops = {
 
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	.dir_notify = cifs_dir_notify,
+	.setlease = cifs_setlease,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
 };
 
@@ -713,6 +751,7 @@ const struct file_operations cifs_file_direct_ops = {
 	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	.dir_notify = cifs_dir_notify,
+	.setlease = cifs_setlease,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
 };
 const struct file_operations cifs_file_nobrl_ops = {
@@ -733,6 +772,7 @@ const struct file_operations cifs_file_nobrl_ops = {
 
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	.dir_notify = cifs_dir_notify,
+	.setlease = cifs_setlease,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
 };
 
@@ -752,6 +792,7 @@ const struct file_operations cifs_file_direct_nobrl_ops = {
 	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	.dir_notify = cifs_dir_notify,
+	.setlease = cifs_setlease,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
 };
 
@@ -763,10 +804,11 @@ const struct file_operations cifs_dir_ops = {
 	.dir_notify = cifs_dir_notify,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
 	.unlocked_ioctl  = cifs_ioctl,
+	.llseek = generic_file_llseek,
 };
 
 static void
-cifs_init_once(struct kmem_cache *cachep, void *inode)
+cifs_init_once(void *inode)
 {
 	struct cifsInodeInfo *cifsi = inode;
 
@@ -930,36 +972,40 @@ static int cifs_oplock_thread(void *dummyarg)
 			schedule_timeout(39*HZ);
 		} else {
 			oplock_item = list_entry(GlobalOplock_Q.next,
-				struct oplock_q_entry, qhead);
-			if (oplock_item) {
-				cFYI(1, ("found oplock item to write out"));
-				pTcon = oplock_item->tcon;
-				inode = oplock_item->pinode;
-				netfid = oplock_item->netfid;
-				spin_unlock(&GlobalMid_Lock);
-				DeleteOplockQEntry(oplock_item);
-				/* can not grab inode sem here since it would
+						struct oplock_q_entry, qhead);
+			cFYI(1, ("found oplock item to write out"));
+			pTcon = oplock_item->tcon;
+			inode = oplock_item->pinode;
+			netfid = oplock_item->netfid;
+			spin_unlock(&GlobalMid_Lock);
+			DeleteOplockQEntry(oplock_item);
+			/* can not grab inode sem here since it would
 				deadlock when oplock received on delete
 				since vfs_unlink holds the i_mutex across
 				the call */
-				/* mutex_lock(&inode->i_mutex);*/
-				if (S_ISREG(inode->i_mode)) {
-					rc =
-					   filemap_fdatawrite(inode->i_mapping);
-					if (CIFS_I(inode)->clientCanCacheRead
-									 == 0) {
-						waitrc = filemap_fdatawait(inode->i_mapping);
-						invalidate_remote_inode(inode);
-					}
-					if (rc == 0)
-						rc = waitrc;
-				} else
-					rc = 0;
-				/* mutex_unlock(&inode->i_mutex);*/
-				if (rc)
-					CIFS_I(inode)->write_behind_rc = rc;
-				cFYI(1, ("Oplock flush inode %p rc %d",
-					inode, rc));
+			/* mutex_lock(&inode->i_mutex);*/
+			if (S_ISREG(inode->i_mode)) {
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+				if (CIFS_I(inode)->clientCanCacheAll == 0)
+					break_lease(inode, FMODE_READ);
+				else if (CIFS_I(inode)->clientCanCacheRead == 0)
+					break_lease(inode, FMODE_WRITE);
+#endif
+				rc = filemap_fdatawrite(inode->i_mapping);
+				if (CIFS_I(inode)->clientCanCacheRead == 0) {
+					waitrc = filemap_fdatawait(
+							      inode->i_mapping);
+					invalidate_remote_inode(inode);
+				}
+				if (rc == 0)
+					rc = waitrc;
+			} else
+				rc = 0;
+			/* mutex_unlock(&inode->i_mutex);*/
+			if (rc)
+				CIFS_I(inode)->write_behind_rc = rc;
+			cFYI(1, ("Oplock flush inode %p rc %d",
+				inode, rc));
 
 				/* releasing stale oplock after recent reconnect
 				of smb session using a now incorrect file
@@ -967,15 +1013,13 @@ static int cifs_oplock_thread(void *dummyarg)
 				not bother sending an oplock release if session
 				to server still is disconnected since oplock
 				already released by the server in that case */
-				if (pTcon->tidStatus != CifsNeedReconnect) {
-				    rc = CIFSSMBLock(0, pTcon, netfid,
-					    0 /* len */ , 0 /* offset */, 0,
-					    0, LOCKING_ANDX_OPLOCK_RELEASE,
-					    false /* wait flag */);
-					cFYI(1, ("Oplock release rc = %d", rc));
-				}
-			} else
-				spin_unlock(&GlobalMid_Lock);
+			if (pTcon->tidStatus != CifsNeedReconnect) {
+				rc = CIFSSMBLock(0, pTcon, netfid,
+						0 /* len */ , 0 /* offset */, 0,
+						0, LOCKING_ANDX_OPLOCK_RELEASE,
+						false /* wait flag */);
+				cFYI(1, ("Oplock release rc = %d", rc));
+			}
 			set_current_state(TASK_INTERRUPTIBLE);
 			schedule_timeout(1);  /* yield in case q were corrupt */
 		}
@@ -1001,8 +1045,7 @@ static int cifs_dnotify_thread(void *dummyarg)
 		list_for_each(tmp, &GlobalSMBSessionList) {
 			ses = list_entry(tmp, struct cifsSesInfo,
 				cifsSessionList);
-			if (ses && ses->server &&
-			     atomic_read(&ses->server->inFlight))
+			if (ses->server && atomic_read(&ses->server->inFlight))
 				wake_up_all(&ses->server->response_q);
 		}
 		read_unlock(&GlobalSMBSeslock);

@@ -135,7 +135,8 @@ extern int iscsi_unregister_transport(struct iscsi_transport *tt);
 /*
  * control plane upcalls
  */
-extern void iscsi_conn_error(struct iscsi_cls_conn *conn, enum iscsi_err error);
+extern void iscsi_conn_error_event(struct iscsi_cls_conn *conn,
+				   enum iscsi_err error);
 extern int iscsi_recv_pdu(struct iscsi_cls_conn *conn, struct iscsi_hdr *hdr,
 			  char *data, uint32_t data_size);
 
@@ -198,7 +199,7 @@ struct iscsi_cls_host {
 	atomic_t nr_scans;
 	struct mutex mutex;
 	struct workqueue_struct *scan_workq;
-	char scan_workq_name[KOBJ_NAME_LEN];
+	char scan_workq_name[20];
 };
 
 extern void iscsi_host_for_each_session(struct Scsi_Host *shost,
@@ -207,7 +208,7 @@ extern void iscsi_host_for_each_session(struct Scsi_Host *shost,
 struct iscsi_endpoint {
 	void *dd_data;			/* LLD private data */
 	struct device dev;
-	unsigned int id;
+	uint64_t id;
 };
 
 /*

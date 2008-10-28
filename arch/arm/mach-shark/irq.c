@@ -4,16 +4,16 @@
  * by Alexander Schulz
  *
  * derived from linux/arch/ppc/kernel/i8259.c and:
- * include/asm-arm/arch-ebsa110/irq.h
+ * arch/arm/mach-ebsa110/include/mach/irq.h
  * Copyright (C) 1996-1998 Russell King
  */
 
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 
 #include <asm/irq.h>
-#include <asm/io.h>
 #include <asm/mach/irq.h>
 
 /*

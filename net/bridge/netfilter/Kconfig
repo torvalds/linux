@@ -2,21 +2,22 @@
 # Bridge netfilter configuration
 #
 
-menu "Bridge: Netfilter Configuration"
-	depends on BRIDGE && BRIDGE_NETFILTER
-
-config BRIDGE_NF_EBTABLES
+menuconfig BRIDGE_NF_EBTABLES
 	tristate "Ethernet Bridge tables (ebtables) support"
+	depends on BRIDGE && BRIDGE_NETFILTER
+	select NETFILTER_XTABLES
 	help
 	  ebtables is a general, extensible frame/packet identification
 	  framework. Say 'Y' or 'M' here if you want to do Ethernet
 	  filtering/NAT/brouting on the Ethernet bridge.
+
+if BRIDGE_NF_EBTABLES
+
 #
 # tables
 #
 config BRIDGE_EBT_BROUTE
 	tristate "ebt: broute table support"
-	depends on BRIDGE_NF_EBTABLES
 	help
 	  The ebtables broute table is used to define rules that decide between
 	  bridging and routing frames, giving Linux the functionality of a
@@ -27,7 +28,6 @@ config BRIDGE_EBT_BROUTE
 
 config BRIDGE_EBT_T_FILTER
 	tristate "ebt: filter table support"
-	depends on BRIDGE_NF_EBTABLES
 	help
 	  The ebtables filter table is used to define frame filtering rules at
 	  local input, forwarding and local output. See the man page for
@@ -37,7 +37,6 @@ config BRIDGE_EBT_T_FILTER
 
 config BRIDGE_EBT_T_NAT
 	tristate "ebt: nat table support"
-	depends on BRIDGE_NF_EBTABLES
 	help
 	  The ebtables nat table is used to define rules that alter the MAC
 	  source address (MAC SNAT) or the MAC destination address (MAC DNAT).
@@ -49,7 +48,6 @@ config BRIDGE_EBT_T_NAT
 #
 config BRIDGE_EBT_802_3
 	tristate "ebt: 802.3 filter support"
-	depends on BRIDGE_NF_EBTABLES
 	help
 	  This option adds matching support for 802.3 Ethernet frames.
 
@@ -57,7 +55,6 @@ config BRIDGE_EBT_802_3
 
 config BRIDGE_EBT_AMONG
 	tristate "ebt: among filter support"
-	depends on BRIDGE_NF_EBTABLES
 	help
 	  This option adds the among match, which allows matching the MAC source
 	  and/or destination address on a list of addresses. Optionally,
@@ -67,7 +64,6 @@ config BRIDGE_EBT_AMONG
 
 config BRIDGE_EBT_ARP
 	tristate "ebt: ARP filter support"
-	depends on BRIDGE_NF_EBTABLES
 	help
 	  This option adds the ARP match, which allows ARP and RARP header field
 	  filtering.
@@ -76,16 +72,23 @@ config BRIDGE_EBT_ARP
 
 config BRIDGE_EBT_IP
 	tristate "ebt: IP filter support"
-	depends on BRIDGE_NF_EBTABLES
 	help
 	  This option adds the IP match, which allows basic IP header field
 	  filtering.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config BRIDGE_EBT_IP6
+	tristate "ebt: IP6 filter support"
+	depends on BRIDGE_NF_EBTABLES && IPV6
+	help
+	  This option adds the IP6 match, which allows basic IPV6 header field
+	  filtering.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config BRIDGE_EBT_LIMIT
 	tristate "ebt: limit match support"
-	depends on BRIDGE_NF_EBTABLES
 	help
 	  This option adds the limit match, which allows you to control
 	  the rate at which a rule can be matched. This match is the
@@ -96,7 +99,6 @@ config BRIDGE_EBT_LIMIT
 
 config BRIDGE_EBT_MARK
 	tristate "ebt: mark filter support"
-	depends on BRIDGE_NF_EBTABLES
 	help
 	  This option adds the mark match, which allows matching frames based on
 	  the 'nfmark' value in the frame. This can be set by the mark target.
@@ -107,7 +109,6 @@ config BRIDGE_EBT_MARK
 
 config BRIDGE_EBT_PKTTYPE
 	tristate "ebt: packet type filter support"
-	depends on BRIDGE_NF_EBTABLES
 	help
 	  This option adds the packet type match, which allows matching on the
 	  type of packet based on its Ethernet "class" (as determined by
@@ -118,7 +119,6 @@ config BRIDGE_EBT_PKTTYPE
 
 config BRIDGE_EBT_STP
 	tristate "ebt: STP filter support"
-	depends on BRIDGE_NF_EBTABLES
 	help
 	  This option adds the Spanning Tree Protocol match, which
 	  allows STP header field filtering.
@@ -127,7 +127,6 @@ config BRIDGE_EBT_STP
 
 config BRIDGE_EBT_VLAN
 	tristate "ebt: 802.1Q VLAN filter support"
-	depends on BRIDGE_NF_EBTABLES
 	help
 	  This option adds the 802.1Q vlan match, which allows the filtering of
 	  802.1Q vlan fields.
@@ -147,7 +146,6 @@ config BRIDGE_EBT_ARPREPLY
 
 config BRIDGE_EBT_DNAT
 	tristate "ebt: dnat target support"
-	depends on BRIDGE_NF_EBTABLES
 	help
 	  This option adds the MAC DNAT target, which allows altering the MAC
 	  destination address of frames.
@@ -156,7 +154,6 @@ config BRIDGE_EBT_DNAT
 
 config BRIDGE_EBT_MARK_T
 	tristate "ebt: mark target support"
-	depends on BRIDGE_NF_EBTABLES
 	help
 	  This option adds the mark target, which allows marking frames by
 	  setting the 'nfmark' value in the frame.
@@ -167,7 +164,6 @@ config BRIDGE_EBT_MARK_T
 
 config BRIDGE_EBT_REDIRECT
 	tristate "ebt: redirect target support"
-	depends on BRIDGE_NF_EBTABLES
 	help
 	  This option adds the MAC redirect target, which allows altering the MAC
 	  destination address of a frame to that of the device it arrived on.
@@ -176,7 +172,6 @@ config BRIDGE_EBT_REDIRECT
 
 config BRIDGE_EBT_SNAT
 	tristate "ebt: snat target support"
-	depends on BRIDGE_NF_EBTABLES
 	help
 	  This option adds the MAC SNAT target, which allows altering the MAC
 	  source address of frames.
@@ -187,7 +182,6 @@ config BRIDGE_EBT_SNAT
 #
 config BRIDGE_EBT_LOG
 	tristate "ebt: log support"
-	depends on BRIDGE_NF_EBTABLES
 	help
 	  This option adds the log watcher, that you can use in any rule
 	  in any ebtables table. It records info about the frame header
@@ -197,7 +191,6 @@ config BRIDGE_EBT_LOG
 
 config BRIDGE_EBT_ULOG
 	tristate "ebt: ulog support (OBSOLETE)"
-	depends on BRIDGE_NF_EBTABLES
 	help
 	  This option enables the old bridge-specific "ebt_ulog" implementation
 	  which has been obsoleted by the new "nfnetlink_log" code (see
@@ -214,16 +207,15 @@ config BRIDGE_EBT_ULOG
 
 config BRIDGE_EBT_NFLOG
 	tristate "ebt: nflog support"
-	depends on BRIDGE_NF_EBTABLES
 	help
 	  This option enables the nflog watcher, which allows to LOG
 	  messages through the netfilter logging API, which can use
 	  either the old LOG target, the old ULOG target or nfnetlink_log
 	  as backend.
 
-	  This option adds the ulog watcher, that you can use in any rule
+	  This option adds the nflog watcher, that you can use in any rule
 	  in any ebtables table.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-endmenu
+endif # BRIDGE_NF_EBTABLES

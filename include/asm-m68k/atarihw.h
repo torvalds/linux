@@ -39,7 +39,6 @@ extern int atari_dont_touch_floppy_select;
 #define MACH_IS_TT	((atari_mch_cookie >> 16) == ATARI_MCH_TT)
 #define MACH_IS_FALCON	((atari_mch_cookie >> 16) == ATARI_MCH_FALCON)
 #define MACH_IS_MEDUSA	(atari_mch_type == ATARI_MACH_MEDUSA)
-#define MACH_IS_HADES	(atari_mch_type == ATARI_MACH_HADES)
 #define MACH_IS_AB40	(atari_mch_type == ATARI_MACH_AB40)
 
 /* values for atari_switches */

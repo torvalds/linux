@@ -10,13 +10,13 @@
 
 #include <linux/mm.h>
 #include <linux/time.h>
-#include <linux/timer.h>
 #include <linux/timex.h>
 #include <linux/jiffies.h>
 #include <linux/hrtimer.h>
 #include <linux/capability.h>
 #include <linux/math64.h>
 #include <linux/clocksource.h>
+#include <linux/workqueue.h>
 #include <asm/timex.h>
 
 /*
@@ -142,8 +142,7 @@ static enum hrtimer_restart ntp_leap_second(struct hrtimer *timer)
 		time_state = TIME_OOP;
 		printk(KERN_NOTICE "Clock: "
 		       "inserting leap second 23:59:60 UTC\n");
-		leap_timer.expires = ktime_add_ns(leap_timer.expires,
-						  NSEC_PER_SEC);
+		hrtimer_add_expires_ns(&leap_timer, NSEC_PER_SEC);
 		res = HRTIMER_RESTART;
 		break;
 	case TIME_DEL:
@@ -218,11 +217,11 @@ void second_overflow(void)
 /* Disable the cmos update - used by virtualization and embedded */
 int no_sync_cmos_clock  __read_mostly;
 
-static void sync_cmos_clock(unsigned long dummy);
+static void sync_cmos_clock(struct work_struct *work);
 
-static DEFINE_TIMER(sync_cmos_timer, sync_cmos_clock, 0, 0);
+static DECLARE_DELAYED_WORK(sync_cmos_work, sync_cmos_clock);
 
-static void sync_cmos_clock(unsigned long dummy)
+static void sync_cmos_clock(struct work_struct *work)
 {
 	struct timespec now, next;
 	int fail = 1;
@@ -245,7 +244,7 @@ static void sync_cmos_clock(unsigned long dummy)
 	if (abs(now.tv_nsec - (NSEC_PER_SEC / 2)) <= tick_nsec / 2)
 		fail = update_persistent_clock(now);
 
-	next.tv_nsec = (NSEC_PER_SEC / 2) - now.tv_nsec;
+	next.tv_nsec = (NSEC_PER_SEC / 2) - now.tv_nsec - (TICK_NSEC / 2);
 	if (next.tv_nsec <= 0)
 		next.tv_nsec += NSEC_PER_SEC;
 
@@ -258,13 +257,13 @@ static void sync_cmos_clock(unsigned long dummy)
 		next.tv_sec++;
 		next.tv_nsec -= NSEC_PER_SEC;
 	}
-	mod_timer(&sync_cmos_timer, jiffies + timespec_to_jiffies(&next));
+	schedule_delayed_work(&sync_cmos_work, timespec_to_jiffies(&next));
 }
 
 static void notify_cmos_timer(void)
 {
 	if (!no_sync_cmos_clock)
-		mod_timer(&sync_cmos_timer, jiffies + 1);
+		schedule_delayed_work(&sync_cmos_work, 0);
 }
 
 #else
@@ -277,38 +276,50 @@ static inline void notify_cmos_timer(void) { }
 int do_adjtimex(struct timex *txc)
 {
 	struct timespec ts;
-	long save_adjust, sec;
 	int result;
 
-	/* In order to modify anything, you gotta be super-user! */
-	if (txc->modes && !capable(CAP_SYS_TIME))
-		return -EPERM;
-
-	/* Now we validate the data before disabling interrupts */
-
-	if ((txc->modes & ADJ_OFFSET_SINGLESHOT) == ADJ_OFFSET_SINGLESHOT) {
+	/* Validate the data before disabling interrupts */
+	if (txc->modes & ADJ_ADJTIME) {
 		/* singleshot must not be used with any other mode bits */
-		if (txc->modes & ~ADJ_OFFSET_SS_READ)
+		if (!(txc->modes & ADJ_OFFSET_SINGLESHOT))
 			return -EINVAL;
+		if (!(txc->modes & ADJ_OFFSET_READONLY) &&
+		    !capable(CAP_SYS_TIME))
+			return -EPERM;
+	} else {
+		/* In order to modify anything, you gotta be super-user! */
+		 if (txc->modes && !capable(CAP_SYS_TIME))
+			return -EPERM;
+
+		/* if the quartz is off by more than 10% something is VERY wrong! */
+		if (txc->modes & ADJ_TICK &&
+		    (txc->tick <  900000/USER_HZ ||
+		     txc->tick > 1100000/USER_HZ))
+				return -EINVAL;
+
+		if (txc->modes & ADJ_STATUS && time_state != TIME_OK)
+			hrtimer_cancel(&leap_timer);
 	}
 
-	/* if the quartz is off by more than 10% something is VERY wrong ! */
-	if (txc->modes & ADJ_TICK)
-		if (txc->tick <  900000/USER_HZ ||
-		    txc->tick > 1100000/USER_HZ)
-			return -EINVAL;
-
-	if (time_state != TIME_OK && txc->modes & ADJ_STATUS)
-		hrtimer_cancel(&leap_timer);
 	getnstimeofday(&ts);
 
 	write_seqlock_irq(&xtime_lock);
 
-	/* Save for later - semantics of adjtime is to return old value */
-	save_adjust = time_adjust;
-
 	/* If there are input parameters, then process them */
+	if (txc->modes & ADJ_ADJTIME) {
+		long save_adjust = time_adjust;
+
+		if (!(txc->modes & ADJ_OFFSET_READONLY)) {
+			/* adjtime() is independent from ntp_adjtime() */
+			time_adjust = txc->offset;
+			ntp_update_frequency();
+		}
+		txc->offset = save_adjust;
+		goto adj_done;
+	}
 	if (txc->modes) {
+		long sec;
+
 		if (txc->modes & ADJ_STATUS) {
 			if ((time_status & STA_PLL) &&
 			    !(txc->status & STA_PLL)) {
@@ -375,13 +386,8 @@ int do_adjtimex(struct timex *txc)
 		if (txc->modes & ADJ_TAI && txc->constant > 0)
 			time_tai = txc->constant;
 
-		if (txc->modes & ADJ_OFFSET) {
-			if (txc->modes == ADJ_OFFSET_SINGLESHOT)
-				/* adjtime() is independent from ntp_adjtime() */
-				time_adjust = txc->offset;
-			else
-				ntp_update_offset(txc->offset);
-		}
+		if (txc->modes & ADJ_OFFSET)
+			ntp_update_offset(txc->offset);
 		if (txc->modes & ADJ_TICK)
 			tick_usec = txc->tick;
 
@@ -389,22 +395,18 @@ int do_adjtimex(struct timex *txc)
 			ntp_update_frequency();
 	}
 
+	txc->offset = shift_right(time_offset * NTP_INTERVAL_FREQ,
+				  NTP_SCALE_SHIFT);
+	if (!(time_status & STA_NANO))
+		txc->offset /= NSEC_PER_USEC;
+
+adj_done:
 	result = time_state;	/* mostly `TIME_OK' */
 	if (time_status & (STA_UNSYNC|STA_CLOCKERR))
 		result = TIME_ERROR;
 
-	if ((txc->modes == ADJ_OFFSET_SINGLESHOT) ||
-	    (txc->modes == ADJ_OFFSET_SS_READ))
-		txc->offset = save_adjust;
-	else {
-		txc->offset = shift_right(time_offset * NTP_INTERVAL_FREQ,
-					  NTP_SCALE_SHIFT);
-		if (!(time_status & STA_NANO))
-			txc->offset /= NSEC_PER_USEC;
-	}
-	txc->freq	   = shift_right((s32)(time_freq >> PPM_SCALE_INV_SHIFT) *
-					 (s64)PPM_SCALE_INV,
-					 NTP_SCALE_SHIFT);
+	txc->freq	   = shift_right((time_freq >> PPM_SCALE_INV_SHIFT) *
+					 (s64)PPM_SCALE_INV, NTP_SCALE_SHIFT);
 	txc->maxerror	   = time_maxerror;
 	txc->esterror	   = time_esterror;
 	txc->status	   = time_status;

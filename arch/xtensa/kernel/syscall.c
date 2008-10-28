@@ -49,7 +49,7 @@ asmlinkage long xtensa_pipe(int __user *userfds)
 	int fd[2];
 	int error;
 
-	error = do_pipe(fd);
+	error = do_pipe_flags(fd, 0);
 	if (!error) {
 		if (copy_to_user(userfds, fd, 2 * sizeof(int)))
 			error = -EFAULT;

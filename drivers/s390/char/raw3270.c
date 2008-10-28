@@ -1169,16 +1169,16 @@ static int raw3270_create_attributes(struct raw3270 *rp)
 		goto out;
 
 	rp->clttydev = device_create(class3270, &rp->cdev->dev,
-				     MKDEV(IBM_TTY3270_MAJOR, rp->minor),
-				     "tty%s", rp->cdev->dev.bus_id);
+				     MKDEV(IBM_TTY3270_MAJOR, rp->minor), NULL,
+				     "tty%s", dev_name(&rp->cdev->dev));
 	if (IS_ERR(rp->clttydev)) {
 		rc = PTR_ERR(rp->clttydev);
 		goto out_ttydev;
 	}
 
 	rp->cltubdev = device_create(class3270, &rp->cdev->dev,
-				     MKDEV(IBM_FS3270_MAJOR, rp->minor),
-				     "tub%s", rp->cdev->dev.bus_id);
+				     MKDEV(IBM_FS3270_MAJOR, rp->minor), NULL,
+				     "tub%s", dev_name(&rp->cdev->dev));
 	if (!IS_ERR(rp->cltubdev))
 		goto out;
 

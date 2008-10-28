@@ -114,7 +114,9 @@ int ehca_query_device(struct ib_device *ibdev, struct ib_device_attr *props)
 	}
 
 	props->max_pkeys           = 16;
-	props->local_ca_ack_delay  = min_t(u8, rblock->local_ca_ack_delay, 255);
+	/* Some FW versions say 0 here; insert sensible value in that case */
+	props->local_ca_ack_delay  = rblock->local_ca_ack_delay ?
+		min_t(u8, rblock->local_ca_ack_delay, 255) : 12;
 	props->max_raw_ipv6_qp     = limit_uint(rblock->max_raw_ipv6_qp);
 	props->max_raw_ethy_qp     = limit_uint(rblock->max_raw_ethy_qp);
 	props->max_mcast_grp       = limit_uint(rblock->max_mcast_grp);

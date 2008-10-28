@@ -117,8 +117,6 @@ enum mac8390_access {
 	ACCESS_16,
 };
 
-extern enum mac8390_type mac8390_ident(struct nubus_dev * dev);
-extern int mac8390_memsize(unsigned long membase);
 extern int mac8390_memtest(struct net_device * dev);
 static int mac8390_initdev(struct net_device * dev, struct nubus_dev * ndev,
 			   enum mac8390_type type);
@@ -163,7 +161,7 @@ static void slow_sane_block_output(struct net_device *dev, int count,
 static void word_memcpy_tocard(void *tp, const void *fp, int count);
 static void word_memcpy_fromcard(void *tp, const void *fp, int count);
 
-enum mac8390_type __init mac8390_ident(struct nubus_dev * dev)
+static enum mac8390_type __init mac8390_ident(struct nubus_dev *dev)
 {
 	switch (dev->dr_sw) {
 		case NUBUS_DRSW_3COM:
@@ -234,7 +232,7 @@ enum mac8390_type __init mac8390_ident(struct nubus_dev * dev)
 	return MAC8390_NONE;
 }
 
-enum mac8390_access __init mac8390_testio(volatile unsigned long membase)
+static enum mac8390_access __init mac8390_testio(volatile unsigned long membase)
 {
 	unsigned long outdata = 0xA5A0B5B0;
 	unsigned long indata =  0x00000000;
@@ -252,7 +250,7 @@ enum mac8390_access __init mac8390_testio(volatile unsigned long membase)
 	return ACCESS_UNKNOWN;
 }
 
-int __init mac8390_memsize(unsigned long membase)
+static int __init mac8390_memsize(unsigned long membase)
 {
 	unsigned long flags;
 	int i, j;

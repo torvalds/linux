@@ -26,12 +26,12 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/hardware.h>
-#include <asm/arch/serial.h>
-#include <asm/arch/irqs.h>
+#include <mach/hardware.h>
+#include <mach/serial.h>
+#include <mach/irqs.h>
 
 #define UART_DAVINCI_PWREMU 0x0c
 

@@ -20,6 +20,11 @@ config GENERIC_ISA_DMA
 	bool
 	default y
 
+config GENERIC_GPIO
+	bool
+	help
+	  Generic GPIO API support
+
 config ARCH_NO_VIRT_TO_BUS
 	def_bool y
 
@@ -31,6 +36,8 @@ config HZ
 	default 100
 
 source "init/Kconfig"
+
+source "kernel/Kconfig.freezer"
 
 menu "General machine setup"
 
@@ -68,6 +75,10 @@ config SPARC
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_ARCH_KGDB if !SMP
+	select HAVE_ARCH_TRACEHOOK
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select RTC_CLASS
+	select RTC_DRV_M48T59
 
 # Identify this as a Sparc32 build
 config SPARC32
@@ -203,17 +214,6 @@ config SUN_PM
 	  Enable power management and CPU standby features on supported
 	  SPARC platforms.
 
-config SUN4
-	bool "Support for SUN4 machines (disables SUN4[CDM] support)"
-	depends on !SMP
-	default n
-	help
-	  Say Y here if, and only if, your machine is a sun4. Note that
-	  a kernel compiled with this option will run only on sun4.
-	  (And the current version will probably work only on sun4/330.)
-
-if !SUN4
-
 config PCI
 	bool "Support for PCI and PS/2 keyboard/mouse"
 	help
@@ -225,11 +225,6 @@ config PCI_SYSCALL
 	def_bool PCI
 
 source "drivers/pci/Kconfig"
-
-endif
-
-config NO_DMA
-	def_bool !PCI
 
 config SUN_OPENPROMFS
 	tristate "Openprom tree appears in /proc/openprom"
@@ -262,9 +257,7 @@ source "net/Kconfig"
 
 source "drivers/Kconfig"
 
-if !SUN4
 source "drivers/sbus/char/Kconfig"
-endif
 
 # This one must be before the filesystem configs. -DaveM
 
@@ -297,20 +290,6 @@ config UNIX98_PTYS
 	  or later (equal to libc-6.1, check with "ls -l /lib/libc.so.*").
 	  Read the instructions in <file:Documentation/Changes> pertaining to
 	  pseudo terminals. It's safe to say N.
-
-config UNIX98_PTY_COUNT
-	int "Maximum number of Unix98 PTYs in use (0-2048)"
-	depends on UNIX98_PTYS
-	default "256"
-	help
-	  The maximum number of Unix98 PTYs that can be used at any one time.
-	  The default is 256, and should be enough for desktop systems. Server
-	  machines which support incoming telnet/rlogin/ssh connections and/or
-	  serve several X terminals may want to increase this: every incoming
-	  connection and every xterm uses up one PTY.
-
-	  When not in use, each additional set of 256 PTYs occupy
-	  approximately 8 KB of kernel memory on 32-bit architectures.
 
 endmenu
 

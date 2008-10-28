@@ -16,6 +16,7 @@
 #include <asm/prom.h>
 #include <asm/hw_irq.h>
 #include <asm/ppc-pci.h>
+#include <asm/msi_bitmap.h>
 
 #include "mpic.h"
 
@@ -101,7 +102,8 @@ static void u3msi_teardown_msi_irqs(struct pci_dev *pdev)
 			continue;
 
 		set_irq_msi(entry->irq, NULL);
-		mpic_msi_free_hwirqs(msi_mpic, virq_to_hw(entry->irq), 1);
+		msi_bitmap_free_hwirqs(&msi_mpic->msi_bitmap,
+				       virq_to_hw(entry->irq), 1);
 		irq_dispose_mapping(entry->irq);
 	}
 
@@ -110,29 +112,27 @@ static void u3msi_teardown_msi_irqs(struct pci_dev *pdev)
 
 static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 {
-	irq_hw_number_t hwirq;
 	unsigned int virq;
 	struct msi_desc *entry;
 	struct msi_msg msg;
 	u64 addr;
-	int ret;
+	int hwirq;
 
 	addr = find_ht_magic_addr(pdev);
 	msg.address_lo = addr & 0xFFFFFFFF;
 	msg.address_hi = addr >> 32;
 
 	list_for_each_entry(entry, &pdev->msi_list, list) {
-		ret = mpic_msi_alloc_hwirqs(msi_mpic, 1);
-		if (ret < 0) {
+		hwirq = msi_bitmap_alloc_hwirqs(&msi_mpic->msi_bitmap, 1);
+		if (hwirq < 0) {
 			pr_debug("u3msi: failed allocating hwirq\n");
-			return ret;
+			return hwirq;
 		}
-		hwirq = ret;
 
 		virq = irq_create_mapping(msi_mpic->irqhost, hwirq);
 		if (virq == NO_IRQ) {
-			pr_debug("u3msi: failed mapping hwirq 0x%lx\n", hwirq);
-			mpic_msi_free_hwirqs(msi_mpic, hwirq, 1);
+			pr_debug("u3msi: failed mapping hwirq 0x%x\n", hwirq);
+			msi_bitmap_free_hwirqs(&msi_mpic->msi_bitmap, hwirq, 1);
 			return -ENOSPC;
 		}
 
@@ -140,8 +140,8 @@ static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		set_irq_chip(virq, &mpic_u3msi_chip);
 		set_irq_type(virq, IRQ_TYPE_EDGE_RISING);
 
-		pr_debug("u3msi: allocated virq 0x%x (hw 0x%lx) addr 0x%lx\n",
-			  virq, hwirq, addr);
+		pr_debug("u3msi: allocated virq 0x%x (hw 0x%x) addr 0x%lx\n",
+			  virq, hwirq, (unsigned long)addr);
 
 		msg.data = hwirq;
 		write_msi_msg(virq, &msg);

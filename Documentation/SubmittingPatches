@@ -77,7 +77,7 @@ Quilt:
 http://savannah.nongnu.org/projects/quilt
 
 Andrew Morton's patch scripts:
-http://www.zip.com.au/~akpm/linux/patches/
+http://userweb.kernel.org/~akpm/stuff/patch-scripts.tar.gz
 Instead of these scripts, quilt is the recommended patch management
 tool (see above).
 
@@ -405,7 +405,7 @@ person it names.  This tag documents that potentially interested parties
 have been included in the discussion
 
 
-14) Using Test-by: and Reviewed-by:
+14) Using Tested-by: and Reviewed-by:
 
 A Tested-by: tag indicates that the patch has been successfully tested (in
 some environment) by the person named.  This tag informs maintainers that
@@ -528,7 +528,33 @@ See more details on the proper patch format in the following
 references.
 
 
+16) Sending "git pull" requests  (from Linus emails)
 
+Please write the git repo address and branch name alone on the same line
+so that I can't even by mistake pull from the wrong branch, and so
+that a triple-click just selects the whole thing.
+
+So the proper format is something along the lines of:
+
+	"Please pull from
+
+		git://jdelvare.pck.nerim.net/jdelvare-2.6 i2c-for-linus
+
+	 to get these changes:"
+
+so that I don't have to hunt-and-peck for the address and inevitably
+get it wrong (actually, I've only gotten it wrong a few times, and
+checking against the diffstat tells me when I get it wrong, but I'm
+just a lot more comfortable when I don't have to "look for" the right
+thing to pull, and double-check that I have the right branch-name).
+
+
+Please use "git diff -M --stat --summary" to generate the diffstat:
+the -M enables rename detection, and the summary enables a summary of
+new/deleted or renamed files.
+
+With rename detection, the statistics are rather different [...]
+because git will notice that a fair number of the changes are renames.
 
 -----------------------------------
 SECTION 2 - HINTS, TIPS, AND TRICKS
@@ -627,7 +653,7 @@ SECTION 3 - REFERENCES
 ----------------------
 
 Andrew Morton, "The perfect patch" (tpp).
-  <http://www.zip.com.au/~akpm/linux/patches/stuff/tpp.txt>
+  <http://userweb.kernel.org/~akpm/stuff/tpp.txt>
 
 Jeff Garzik, "Linux kernel patch submission format".
   <http://linux.yyz.us/patch-format.html>
@@ -646,4 +672,9 @@ Kernel Documentation/CodingStyle:
 
 Linus Torvalds's mail on the canonical patch format:
   <http://lkml.org/lkml/2005/4/7/183>
+
+Andi Kleen, "On submitting kernel patches"
+  Some strategies to get difficult or controversal changes in.
+  http://halobates.de/on-submitting-patches.pdf
+
 --

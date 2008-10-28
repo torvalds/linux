@@ -1,7 +1,7 @@
 /*
     Samsung S5H1411 VSB/QAM demodulator driver
 
-    Copyright (C) 2008 Steven Toth <stoth@hauppauge.com>
+    Copyright (C) 2008 Steven Toth <stoth@linuxtv.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include "dvb_frontend.h"
-#include "dvb-pll.h"
 #include "s5h1411.h"
 
 struct s5h1411_state {
@@ -39,6 +38,7 @@ struct s5h1411_state {
 	struct dvb_frontend frontend;
 
 	fe_modulation_t current_modulation;
+	unsigned int first_tune:1;
 
 	u32 current_frequency;
 	int if_freq;
@@ -63,7 +63,7 @@ static struct init_tab {
 	{ S5H1411_I2C_TOP_ADDR, 0x08, 0x0047, },
 	{ S5H1411_I2C_TOP_ADDR, 0x1c, 0x0400, },
 	{ S5H1411_I2C_TOP_ADDR, 0x1e, 0x0370, },
-	{ S5H1411_I2C_TOP_ADDR, 0x1f, 0x342a, },
+	{ S5H1411_I2C_TOP_ADDR, 0x1f, 0x342c, },
 	{ S5H1411_I2C_TOP_ADDR, 0x24, 0x0231, },
 	{ S5H1411_I2C_TOP_ADDR, 0x25, 0x1011, },
 	{ S5H1411_I2C_TOP_ADDR, 0x26, 0x0f07, },
@@ -101,7 +101,6 @@ static struct init_tab {
 	{ S5H1411_I2C_TOP_ADDR, 0x78, 0x3141, },
 	{ S5H1411_I2C_TOP_ADDR, 0x7a, 0x3141, },
 	{ S5H1411_I2C_TOP_ADDR, 0xb3, 0x8003, },
-	{ S5H1411_I2C_TOP_ADDR, 0xb5, 0xafbb, },
 	{ S5H1411_I2C_TOP_ADDR, 0xb5, 0xa6bb, },
 	{ S5H1411_I2C_TOP_ADDR, 0xb6, 0x0609, },
 	{ S5H1411_I2C_TOP_ADDR, 0xb7, 0x2f06, },
@@ -344,7 +343,7 @@ static int s5h1411_writereg(struct s5h1411_state *state,
 	u8 addr, u8 reg, u16 data)
 {
 	int ret;
-	u8 buf [] = { reg, data >> 8,  data & 0xff };
+	u8 buf[] = { reg, data >> 8,  data & 0xff };
 
 	struct i2c_msg msg = { .addr = addr, .flags = 0, .buf = buf, .len = 3 };
 
@@ -360,10 +359,10 @@ static int s5h1411_writereg(struct s5h1411_state *state,
 static u16 s5h1411_readreg(struct s5h1411_state *state, u8 addr, u8 reg)
 {
 	int ret;
-	u8 b0 [] = { reg };
-	u8 b1 [] = { 0, 0 };
+	u8 b0[] = { reg };
+	u8 b1[] = { 0, 0 };
 
-	struct i2c_msg msg [] = {
+	struct i2c_msg msg[] = {
 		{ .addr = addr, .flags = 0, .buf = b0, .len = 1 },
 		{ .addr = addr, .flags = I2C_M_RD, .buf = b1, .len = 2 } };
 
@@ -394,7 +393,7 @@ static int s5h1411_set_if_freq(struct dvb_frontend *fe, int KHz)
 
 	switch (KHz) {
 	case 3250:
-		s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0x38, 0x10d9);
+		s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0x38, 0x10d5);
 		s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0x39, 0x5342);
 		s5h1411_writereg(state, S5H1411_I2C_QAM_ADDR, 0x2c, 0x10d9);
 		break;
@@ -465,11 +464,23 @@ static int s5h1411_set_spectralinversion(struct dvb_frontend *fe, int inversion)
 
 	if (inversion == 1)
 		val |= 0x1000; /* Inverted */
-	else
-		val |= 0x0000;
 
 	state->inversion = inversion;
 	return s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0x24, val);
+}
+
+static int s5h1411_set_serialmode(struct dvb_frontend *fe, int serial)
+{
+	struct s5h1411_state *state = fe->demodulator_priv;
+	u16 val;
+
+	dprintk("%s(%d)\n", __func__, serial);
+	val = s5h1411_readreg(state, S5H1411_I2C_TOP_ADDR, 0xbd) & ~0x100;
+
+	if (serial == 1)
+		val |= 0x100;
+
+	return s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0xbd, val);
 }
 
 static int s5h1411_enable_modulation(struct dvb_frontend *fe,
@@ -478,6 +489,12 @@ static int s5h1411_enable_modulation(struct dvb_frontend *fe,
 	struct s5h1411_state *state = fe->demodulator_priv;
 
 	dprintk("%s(0x%08x)\n", __func__, m);
+
+	if ((state->first_tune == 0) && (m == state->current_modulation)) {
+		dprintk("%s() Already at desired modulation.  Skipping...\n",
+			__func__);
+		return 0;
+	}
 
 	switch (m) {
 	case VSB_8:
@@ -489,6 +506,7 @@ static int s5h1411_enable_modulation(struct dvb_frontend *fe,
 		break;
 	case QAM_64:
 	case QAM_256:
+	case QAM_AUTO:
 		dprintk("%s() QAM_AUTO (64/256)\n", __func__);
 		s5h1411_set_if_freq(fe, state->config->qam_if);
 		s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0x00, 0x0171);
@@ -502,6 +520,7 @@ static int s5h1411_enable_modulation(struct dvb_frontend *fe,
 	}
 
 	state->current_modulation = m;
+	state->first_tune = 0;
 	s5h1411_softreset(fe);
 
 	return 0;
@@ -535,7 +554,7 @@ static int s5h1411_set_gpio(struct dvb_frontend *fe, int enable)
 		return s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0xe0, val);
 }
 
-static int s5h1411_sleep(struct dvb_frontend *fe, int enable)
+static int s5h1411_set_powerstate(struct dvb_frontend *fe, int enable)
 {
 	struct s5h1411_state *state = fe->demodulator_priv;
 
@@ -549,6 +568,11 @@ static int s5h1411_sleep(struct dvb_frontend *fe, int enable)
 	}
 
 	return 0;
+}
+
+static int s5h1411_sleep(struct dvb_frontend *fe)
+{
+	return s5h1411_set_powerstate(fe, 1);
 }
 
 static int s5h1411_register_reset(struct dvb_frontend *fe)
@@ -574,9 +598,6 @@ static int s5h1411_set_frontend(struct dvb_frontend *fe,
 
 	s5h1411_enable_modulation(fe, p->u.vsb.modulation);
 
-	/* Allow the demod to settle */
-	msleep(100);
-
 	if (fe->ops.tuner_ops.set_params) {
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 1);
@@ -586,6 +607,10 @@ static int s5h1411_set_frontend(struct dvb_frontend *fe,
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 	}
+
+	/* Issue a reset to the demod so it knows to resync against the
+	   newly tuned frequency */
+	s5h1411_softreset(fe);
 
 	return 0;
 }
@@ -599,7 +624,7 @@ static int s5h1411_init(struct dvb_frontend *fe)
 
 	dprintk("%s()\n", __func__);
 
-	s5h1411_sleep(fe, 0);
+	s5h1411_set_powerstate(fe, 0);
 	s5h1411_register_reset(fe);
 
 	for (i = 0; i < ARRAY_SIZE(init_tab); i++)
@@ -610,12 +635,17 @@ static int s5h1411_init(struct dvb_frontend *fe)
 	/* The datasheet says that after initialisation, VSB is default */
 	state->current_modulation = VSB_8;
 
+	/* Although the datasheet says it's in VSB, empirical evidence
+	   shows problems getting lock on the first tuning request.  Make
+	   sure we call enable_modulation the first time around */
+	state->first_tune = 1;
+
 	if (state->config->output_mode == S5H1411_SERIAL_OUTPUT)
 		/* Serial */
-		s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0xbd, 0x1101);
+		s5h1411_set_serialmode(fe, 1);
 	else
 		/* Parallel */
-		s5h1411_writereg(state, S5H1411_I2C_TOP_ADDR, 0xbd, 0x1001);
+		s5h1411_set_serialmode(fe, 0);
 
 	s5h1411_set_spectralinversion(fe, state->config->inversion);
 	s5h1411_set_if_freq(fe, state->config->vsb_if);
@@ -637,28 +667,29 @@ static int s5h1411_read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 	*status = 0;
 
-	/* Get the demodulator status */
-	reg = (s5h1411_readreg(state, S5H1411_I2C_TOP_ADDR, 0xf2) >> 15)
-		& 0x0001;
-	if (reg)
-		*status |= FE_HAS_LOCK | FE_HAS_CARRIER | FE_HAS_SIGNAL;
+	/* Register F2 bit 15 = Master Lock, removed */
 
 	switch (state->current_modulation) {
 	case QAM_64:
 	case QAM_256:
 		reg = s5h1411_readreg(state, S5H1411_I2C_TOP_ADDR, 0xf0);
-		if (reg & 0x100)
-			*status |= FE_HAS_VITERBI;
-		if (reg & 0x10)
-			*status |= FE_HAS_SYNC;
+		if (reg & 0x10) /* QAM FEC Lock */
+			*status |= FE_HAS_SYNC | FE_HAS_LOCK;
+		if (reg & 0x100) /* QAM EQ Lock */
+			*status |= FE_HAS_VITERBI | FE_HAS_CARRIER | FE_HAS_SIGNAL;
+
 		break;
 	case VSB_8:
-		reg = s5h1411_readreg(state, S5H1411_I2C_TOP_ADDR, 0x5e);
-		if (reg & 0x0001)
-			*status |= FE_HAS_SYNC;
 		reg = s5h1411_readreg(state, S5H1411_I2C_TOP_ADDR, 0xf2);
-		if (reg & 0x1000)
-			*status |= FE_HAS_VITERBI;
+		if (reg & 0x1000) /* FEC Lock */
+			*status |= FE_HAS_SYNC | FE_HAS_LOCK;
+		if (reg & 0x2000) /* EQ Lock */
+			*status |= FE_HAS_VITERBI | FE_HAS_CARRIER | FE_HAS_SIGNAL;
+
+		reg = s5h1411_readreg(state, S5H1411_I2C_TOP_ADDR, 0x53);
+		if (reg & 0x1) /* AFC Lock */
+			*status |= FE_HAS_SIGNAL;
+
 		break;
 	default:
 		return -EINVAL;
@@ -863,6 +894,7 @@ static struct dvb_frontend_ops s5h1411_ops = {
 	},
 
 	.init                 = s5h1411_init,
+	.sleep                = s5h1411_sleep,
 	.i2c_gate_ctrl        = s5h1411_i2c_gate_ctrl,
 	.set_frontend         = s5h1411_set_frontend,
 	.get_frontend         = s5h1411_get_frontend,

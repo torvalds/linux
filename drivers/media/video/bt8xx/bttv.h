@@ -176,7 +176,7 @@
 #define BTTV_BOARD_TYPHOON_TVTUNERPCI	   0x95
 #define BTTV_BOARD_GEOVISION_GV600	   0x96
 #define BTTV_BOARD_KOZUMI_KTV_01C          0x97
-
+#define BTTV_BOARD_ENLTV_FM_2		   0x98
 
 /* more card-specific defines */
 #define PT2254_L_CHANNEL 0x10
@@ -298,7 +298,6 @@ extern int bttv_write_gpio(unsigned int card,
 
 /* ---------------------------------------------------------- */
 /* sysfs/driver-moded based gpio access interface             */
-
 
 struct bttv_sub_device {
 	struct device    dev;

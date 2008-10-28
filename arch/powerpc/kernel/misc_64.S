@@ -426,8 +426,10 @@ _GLOBAL(kernel_thread)
 	li	r4,0		/* new sp (unused) */
 	li	r0,__NR_clone
 	sc
-	cmpdi	0,r3,0		/* parent or child? */
-	bne	1f		/* return if parent */
+	bns+	1f		/* did system call indicate error? */
+	neg	r3,r3		/* if so, make return code negative */
+1:	cmpdi	0,r3,0		/* parent or child? */
+	bne	2f		/* return if parent */
 	li	r0,0
 	stdu	r0,-STACK_FRAME_OVERHEAD(r1)
 	ld	r2,8(r29)
@@ -438,7 +440,7 @@ _GLOBAL(kernel_thread)
 	li	r0,__NR_exit	/* exit after child exits */
         li	r3,0
 	sc
-1:	addi	r1,r1,STACK_FRAME_OVERHEAD	
+2:	addi	r1,r1,STACK_FRAME_OVERHEAD
 	ld	r29,-24(r1)
 	ld	r30,-16(r1)
 	blr
@@ -609,10 +611,12 @@ real_mode:	/* assume normal blr return */
 
 
 /*
- * kexec_sequence(newstack, start, image, control, clear_all())
+ * kexec_sequence(newstack, start, image, control, clear_all(), kdump_flag)
  *
  * does the grungy work with stack switching and real mode switches
  * also does simple calls to other code
+ *
+ * kdump_flag says whether the next kernel should be a kdump kernel.
  */
 
 _GLOBAL(kexec_sequence)
@@ -645,7 +649,7 @@ _GLOBAL(kexec_sequence)
 	mr	r29,r5			/* image (virt) */
 	mr	r28,r6			/* control, unused */
 	mr	r27,r7			/* clear_all() fn desc */
-	mr	r26,r8			/* spare */
+	mr	r26,r8			/* kdump flag */
 	lhz	r25,PACAHWCPUID(r13)	/* get our phys cpu from paca */
 
 	/* disable interrupts, we are overwriting kernel data next */
@@ -707,5 +711,6 @@ _GLOBAL(kexec_sequence)
 	mr	r4,r30	# start, aka phys mem offset
 	mtlr	4
 	li	r5,0
-	blr	/* image->start(physid, image->start, 0); */
+	mr	r6,r26			/* kdump_flag */
+	blr	/* image->start(physid, image->start, 0, kdump_flag); */
 #endif /* CONFIG_KEXEC */

@@ -42,7 +42,7 @@ extern int max_threads;
 
 static struct workqueue_struct *khelper_wq;
 
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 
 /*
 	modprobe_path is set via /proc/sys.
@@ -113,7 +113,7 @@ int request_module(const char *fmt, ...)
 	return ret;
 }
 EXPORT_SYMBOL(request_module);
-#endif /* CONFIG_KMOD */
+#endif /* CONFIG_MODULES */
 
 struct subprocess_info {
 	struct work_struct work;
@@ -265,7 +265,7 @@ static void __call_usermodehelper(struct work_struct *work)
 	}
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /*
  * If set, call_usermodehelper_exec() will exit immediately returning -EBUSY
  * (used for preventing user land processes from being created after the user
@@ -288,39 +288,37 @@ static DECLARE_WAIT_QUEUE_HEAD(running_helpers_waitq);
  */
 #define RUNNING_HELPERS_TIMEOUT	(5 * HZ)
 
-static int usermodehelper_pm_callback(struct notifier_block *nfb,
-					unsigned long action,
-					void *ignored)
+/**
+ * usermodehelper_disable - prevent new helpers from being started
+ */
+int usermodehelper_disable(void)
 {
 	long retval;
 
-	switch (action) {
-	case PM_HIBERNATION_PREPARE:
-	case PM_SUSPEND_PREPARE:
-		usermodehelper_disabled = 1;
-		smp_mb();
-		/*
-		 * From now on call_usermodehelper_exec() won't start any new
-		 * helpers, so it is sufficient if running_helpers turns out to
-		 * be zero at one point (it may be increased later, but that
-		 * doesn't matter).
-		 */
-		retval = wait_event_timeout(running_helpers_waitq,
+	usermodehelper_disabled = 1;
+	smp_mb();
+	/*
+	 * From now on call_usermodehelper_exec() won't start any new
+	 * helpers, so it is sufficient if running_helpers turns out to
+	 * be zero at one point (it may be increased later, but that
+	 * doesn't matter).
+	 */
+	retval = wait_event_timeout(running_helpers_waitq,
 					atomic_read(&running_helpers) == 0,
 					RUNNING_HELPERS_TIMEOUT);
-		if (retval) {
-			return NOTIFY_OK;
-		} else {
-			usermodehelper_disabled = 0;
-			return NOTIFY_BAD;
-		}
-	case PM_POST_HIBERNATION:
-	case PM_POST_SUSPEND:
-		usermodehelper_disabled = 0;
-		return NOTIFY_OK;
-	}
+	if (retval)
+		return 0;
 
-	return NOTIFY_DONE;
+	usermodehelper_disabled = 0;
+	return -EAGAIN;
+}
+
+/**
+ * usermodehelper_enable - allow new helpers to be started again
+ */
+void usermodehelper_enable(void)
+{
+	usermodehelper_disabled = 0;
 }
 
 static void helper_lock(void)
@@ -334,34 +332,29 @@ static void helper_unlock(void)
 	if (atomic_dec_and_test(&running_helpers))
 		wake_up(&running_helpers_waitq);
 }
-
-static void register_pm_notifier_callback(void)
-{
-	pm_notifier(usermodehelper_pm_callback, 0);
-}
-#else /* CONFIG_PM */
+#else /* CONFIG_PM_SLEEP */
 #define usermodehelper_disabled	0
 
 static inline void helper_lock(void) {}
 static inline void helper_unlock(void) {}
-static inline void register_pm_notifier_callback(void) {}
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 /**
  * call_usermodehelper_setup - prepare to call a usermode helper
  * @path: path to usermode executable
  * @argv: arg vector for process
  * @envp: environment for process
+ * @gfp_mask: gfp mask for memory allocation
  *
  * Returns either %NULL on allocation failure, or a subprocess_info
  * structure.  This should be passed to call_usermodehelper_exec to
  * exec the process and free the structure.
  */
-struct subprocess_info *call_usermodehelper_setup(char *path,
-						  char **argv, char **envp)
+struct subprocess_info *call_usermodehelper_setup(char *path, char **argv,
+						  char **envp, gfp_t gfp_mask)
 {
 	struct subprocess_info *sub_info;
-	sub_info = kzalloc(sizeof(struct subprocess_info),  GFP_ATOMIC);
+	sub_info = kzalloc(sizeof(struct subprocess_info), gfp_mask);
 	if (!sub_info)
 		goto out;
 
@@ -417,12 +410,12 @@ int call_usermodehelper_stdinpipe(struct subprocess_info *sub_info,
 {
 	struct file *f;
 
-	f = create_write_pipe();
+	f = create_write_pipe(0);
 	if (IS_ERR(f))
 		return PTR_ERR(f);
 	*filp = f;
 
-	f = create_read_pipe(f);
+	f = create_read_pipe(f, 0);
 	if (IS_ERR(f)) {
 		free_write_pipe(*filp);
 		return PTR_ERR(f);
@@ -494,7 +487,7 @@ int call_usermodehelper_pipe(char *path, char **argv, char **envp,
 	struct subprocess_info *sub_info;
 	int ret;
 
-	sub_info = call_usermodehelper_setup(path, argv, envp);
+	sub_info = call_usermodehelper_setup(path, argv, envp, GFP_KERNEL);
 	if (sub_info == NULL)
 		return -ENOMEM;
 
@@ -514,5 +507,4 @@ void __init usermodehelper_init(void)
 {
 	khelper_wq = create_singlethread_workqueue("khelper");
 	BUG_ON(!khelper_wq);
-	register_pm_notifier_callback();
 }

@@ -45,7 +45,6 @@
 #include <acpi/acinterp.h>
 #include <acpi/acnamesp.h>
 #include <acpi/acevents.h>
-#include <acpi/amlcode.h>
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utdelete")
@@ -135,6 +134,10 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 		obj_pointer = object->package.elements;
 		break;
 
+		/*
+		 * These objects have a possible list of notify handlers.
+		 * Device object also may have a GPE block.
+		 */
 	case ACPI_TYPE_DEVICE:
 
 		if (object->device.gpe_block) {
@@ -142,9 +145,14 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 						       gpe_block);
 		}
 
-		/* Walk the handler list for this device */
+		/*lint -fallthrough */
 
-		handler_desc = object->device.handler;
+	case ACPI_TYPE_PROCESSOR:
+	case ACPI_TYPE_THERMAL:
+
+		/* Walk the notify handler list for this object */
+
+		handler_desc = object->common_notify.handler;
 		while (handler_desc) {
 			next_desc = handler_desc->address_space.next;
 			acpi_ut_remove_reference(handler_desc);
@@ -539,8 +547,8 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 			 * reference must track changes to the ref count of the index or
 			 * target object.
 			 */
-			if ((object->reference.opcode == AML_INDEX_OP) ||
-			    (object->reference.opcode == AML_INT_NAMEPATH_OP)) {
+			if ((object->reference.class == ACPI_REFCLASS_INDEX) ||
+			    (object->reference.class == ACPI_REFCLASS_NAME)) {
 				next_object = object->reference.object;
 			}
 			break;
@@ -576,6 +584,13 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 
 	ACPI_EXCEPTION((AE_INFO, status,
 			"Could not update object reference count"));
+
+	/* Free any stacked Update State objects */
+
+	while (state_list) {
+		state = acpi_ut_pop_generic_state(&state_list);
+		acpi_ut_delete_generic_state(state);
+	}
 
 	return_ACPI_STATUS(status);
 }

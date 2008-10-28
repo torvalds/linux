@@ -63,7 +63,7 @@ static int mcp2120_open(struct sir_dev *dev)
 {
 	struct qos_info *qos = &dev->qos;
 
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
+	IRDA_DEBUG(2, "%s()\n", __func__);
 
 	/* seems no explicit power-on required here and reset switching it on anyway */
 
@@ -76,7 +76,7 @@ static int mcp2120_open(struct sir_dev *dev)
 
 static int mcp2120_close(struct sir_dev *dev)
 {
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
+	IRDA_DEBUG(2, "%s()\n", __func__);
 
 	/* Power off dongle */
         /* reset and inhibit mcp2120 */
@@ -102,7 +102,7 @@ static int mcp2120_change_speed(struct sir_dev *dev, unsigned speed)
 	u8 control[2];
 	static int ret = 0;
 
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
+	IRDA_DEBUG(2, "%s()\n", __func__);
 
 	switch (state) {
 	case SIRDEV_STATE_DONGLE_SPEED:
@@ -155,7 +155,7 @@ static int mcp2120_change_speed(struct sir_dev *dev, unsigned speed)
 		break;
 
 	default:
-		IRDA_ERROR("%s(), undefine state %d\n", __FUNCTION__, state);
+		IRDA_ERROR("%s(), undefine state %d\n", __func__, state);
 		ret = -EINVAL;
 		break;
 	}
@@ -187,7 +187,7 @@ static int mcp2120_reset(struct sir_dev *dev)
 	unsigned delay = 0;
 	int ret = 0;
 
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
+	IRDA_DEBUG(2, "%s()\n", __func__);
 
 	switch (state) {
 	case SIRDEV_STATE_DONGLE_RESET:
@@ -213,7 +213,7 @@ static int mcp2120_reset(struct sir_dev *dev)
 		break;
 
 	default:
-		IRDA_ERROR("%s(), undefined state %d\n", __FUNCTION__, state);
+		IRDA_ERROR("%s(), undefined state %d\n", __func__, state);
 		ret = -EINVAL;
 		break;
 	}

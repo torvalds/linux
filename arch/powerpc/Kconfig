@@ -19,8 +19,8 @@ config WORD_SIZE
 	default 64 if PPC64
 	default 32 if !PPC64
 
-config PPC_MERGE
-	def_bool y
+config ARCH_PHYS_ADDR_T_64BIT
+       def_bool PPC64 || PHYS_64BIT
 
 config MMU
 	bool
@@ -110,9 +110,14 @@ config PPC
 	default y
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select HAVE_IDE
+	select HAVE_IOREMAP_PROT
+	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select HAVE_KPROBES
+	select HAVE_ARCH_KGDB
 	select HAVE_KRETPROBES
+	select HAVE_ARCH_TRACEHOOK
 	select HAVE_LMB
 	select HAVE_DMA_ATTRS if PPC64
 	select USE_GENERIC_SMP_HELPERS if SMP
@@ -199,7 +204,7 @@ config ARCH_HIBERNATION_POSSIBLE
 
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
-	depends on ADB_PMU || PPC_EFIKA || PPC_LITE5200
+	depends on ADB_PMU || PPC_EFIKA || PPC_LITE5200 || PPC_83xx
 
 config PPC_DCR_NATIVE
 	bool
@@ -221,6 +226,8 @@ config PPC_OF_PLATFORM_PCI
 	default n
 
 source "init/Kconfig"
+
+source "kernel/Kconfig.freezer"
 
 source "arch/powerpc/sysdev/Kconfig"
 source "arch/powerpc/platforms/Kconfig"
@@ -316,13 +323,11 @@ config KEXEC
 
 config CRASH_DUMP
 	bool "Build a kdump crash kernel"
-	depends on PPC_MULTIPLATFORM && PPC64
+	depends on PPC_MULTIPLATFORM && PPC64 && RELOCATABLE
 	help
 	  Build a kernel suitable for use as a kdump capture kernel.
-	  The kernel will be linked at a different address than normal, and
-	  so can only be used for Kdump.
-
-	  Don't change this unless you know what you are doing.
+	  The same kernel binary can be used as production kernel and dump
+	  capture kernel.
 
 config PHYP_DUMP
 	bool "Hypervisor-assisted dump (EXPERIMENTAL)"
@@ -410,8 +415,11 @@ config PPC_64K_PAGES
 
 config FORCE_MAX_ZONEORDER
 	int "Maximum zone order"
+	range 9 64 if PPC_64K_PAGES
 	default "9" if PPC_64K_PAGES
+	range 13 64 if PPC64 && !PPC_64K_PAGES
 	default "13" if PPC64 && !PPC_64K_PAGES
+	range 11 64
 	default "11"
 	help
 	  The kernel memory allocator divides physically contiguous memory
@@ -568,11 +576,15 @@ config FSL_GTM
 config MCA
 	bool
 
+# Platforms that what PCI turned unconditionally just do select PCI
+# in their config node.  Platforms that want to choose at config
+# time should select PPC_PCI_CHOICE
+config PPC_PCI_CHOICE
+	bool
+
 config PCI
-	bool "PCI support" if 40x || CPM2 || PPC_83xx || PPC_85xx || PPC_86xx \
-		|| PPC_MPC52xx || (EMBEDDED && (PPC_PSERIES || PPC_ISERIES)) \
-		|| PPC_PS3 || 44x
-	default y if !40x && !CPM2 && !8xx && !PPC_MPC512x && !PPC_83xx \
+	bool "PCI support" if PPC_PCI_CHOICE
+	default y if !40x && !CPM2 && !8xx && !PPC_83xx \
 		&& !PPC_85xx && !PPC_86xx
 	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx
 	default PCI_QSPAN if !4xx && !CPM2 && 8xx
@@ -797,16 +809,27 @@ config PIN_TLB
 endmenu
 
 if PPC64
+config RELOCATABLE
+	bool "Build a relocatable kernel"
+	help
+	  This builds a kernel image that is capable of running anywhere
+	  in the RMA (real memory area) at any 16k-aligned base address.
+	  The kernel is linked as a position-independent executable (PIE)
+	  and contains dynamic relocations which are processed early
+	  in the bootup process.
+
+	  One use is for the kexec on panic case where the recovery kernel
+	  must live at a different physical address than the primary
+	  kernel.
+
 config PAGE_OFFSET
 	hex
 	default "0xc000000000000000"
 config KERNEL_START
 	hex
-	default "0xc000000002000000" if CRASH_DUMP
 	default "0xc000000000000000"
 config PHYSICAL_START
 	hex
-	default "0x02000000" if CRASH_DUMP
 	default "0x00000000"
 endif
 
@@ -838,6 +861,7 @@ source "crypto/Kconfig"
 config PPC_CLOCK
 	bool
 	default n
+	select HAVE_CLK
 
 config PPC_LIB_RHEAP
 	bool

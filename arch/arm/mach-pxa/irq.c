@@ -17,10 +17,10 @@
 #include <linux/interrupt.h>
 #include <linux/sysdev.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 
 #include "generic.h"
 
@@ -57,7 +57,7 @@ void __init pxa_init_irq(int irq_nr, set_wake_t fn)
 
 	pxa_internal_irq_nr = irq_nr;
 
-	for (irq = 0; irq < irq_nr; irq += 32) {
+	for (irq = PXA_IRQ(0); irq < PXA_IRQ(irq_nr); irq += 32) {
 		_ICMR(irq) = 0;	/* disable all IRQs */
 		_ICLR(irq) = 0;	/* all IRQs are IRQ, not FIQ */
 	}

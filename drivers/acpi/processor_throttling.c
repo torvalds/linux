@@ -274,7 +274,7 @@ static int acpi_processor_throttling_notifier(unsigned long event, void *data)
 static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
 {
 	acpi_status status = 0;
-	unsigned long tpc = 0;
+	unsigned long long tpc = 0;
 
 	if (!pr)
 		return -EINVAL;
@@ -528,13 +528,13 @@ static int acpi_processor_get_tsd(struct acpi_processor *pr)
 
 	tsd = buffer.pointer;
 	if (!tsd || (tsd->type != ACPI_TYPE_PACKAGE)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid _TSD data\n"));
+		printk(KERN_ERR PREFIX "Invalid _TSD data\n");
 		result = -EFAULT;
 		goto end;
 	}
 
 	if (tsd->package.count != 1) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid _TSD data\n"));
+		printk(KERN_ERR PREFIX "Invalid _TSD data\n");
 		result = -EFAULT;
 		goto end;
 	}
@@ -547,19 +547,19 @@ static int acpi_processor_get_tsd(struct acpi_processor *pr)
 	status = acpi_extract_package(&(tsd->package.elements[0]),
 				      &format, &state);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid _TSD data\n"));
+		printk(KERN_ERR PREFIX "Invalid _TSD data\n");
 		result = -EFAULT;
 		goto end;
 	}
 
 	if (pdomain->num_entries != ACPI_TSD_REV0_ENTRIES) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Unknown _TSD:num_entries\n"));
+		printk(KERN_ERR PREFIX "Unknown _TSD:num_entries\n");
 		result = -EFAULT;
 		goto end;
 	}
 
 	if (pdomain->revision != ACPI_TSD_REV0_REVISION) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Unknown _TSD:revision\n"));
+		printk(KERN_ERR PREFIX "Unknown _TSD:revision\n");
 		result = -EFAULT;
 		goto end;
 	}
@@ -1013,7 +1013,7 @@ int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 	 * affected cpu in order to get one proper T-state.
 	 * The notifier event is THROTTLING_PRECHANGE.
 	 */
-	for_each_cpu_mask(i, online_throttling_cpus) {
+	for_each_cpu_mask_nr(i, online_throttling_cpus) {
 		t_state.cpu = i;
 		acpi_processor_throttling_notifier(THROTTLING_PRECHANGE,
 							&t_state);
@@ -1034,7 +1034,7 @@ int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 		 * it is necessary to set T-state for every affected
 		 * cpus.
 		 */
-		for_each_cpu_mask(i, online_throttling_cpus) {
+		for_each_cpu_mask_nr(i, online_throttling_cpus) {
 			match_pr = per_cpu(processors, i);
 			/*
 			 * If the pointer is invalid, we will report the
@@ -1068,7 +1068,7 @@ int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 	 * affected cpu to update the T-states.
 	 * The notifier event is THROTTLING_POSTCHANGE
 	 */
-	for_each_cpu_mask(i, online_throttling_cpus) {
+	for_each_cpu_mask_nr(i, online_throttling_cpus) {
 		t_state.cpu = i;
 		acpi_processor_throttling_notifier(THROTTLING_POSTCHANGE,
 							&t_state);

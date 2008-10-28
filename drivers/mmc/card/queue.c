@@ -31,7 +31,7 @@ static int mmc_prep_request(struct request_queue *q, struct request *req)
 	/*
 	 * We only like normal block requests.
 	 */
-	if (!blk_fs_request(req) && !blk_pc_request(req)) {
+	if (!blk_fs_request(req)) {
 		blk_dump_rq_flags(req, "MMC bad request");
 		return BLKPREP_KILL;
 	}
@@ -131,6 +131,8 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 	mq->req = NULL;
 
 	blk_queue_prep_rq(mq->queue, mmc_prep_request);
+	blk_queue_ordered(mq->queue, QUEUE_ORDERED_DRAIN, NULL);
+	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, mq->queue);
 
 #ifdef CONFIG_MMC_BLOCK_BOUNCE
 	if (host->max_hw_segs == 1) {
@@ -142,13 +144,20 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 			bouncesz = host->max_req_size;
 		if (bouncesz > host->max_seg_size)
 			bouncesz = host->max_seg_size;
+		if (bouncesz > (host->max_blk_count * 512))
+			bouncesz = host->max_blk_count * 512;
 
-		mq->bounce_buf = kmalloc(bouncesz, GFP_KERNEL);
-		if (!mq->bounce_buf) {
-			printk(KERN_WARNING "%s: unable to allocate "
-				"bounce buffer\n", mmc_card_name(card));
-		} else {
-			blk_queue_bounce_limit(mq->queue, BLK_BOUNCE_HIGH);
+		if (bouncesz > 512) {
+			mq->bounce_buf = kmalloc(bouncesz, GFP_KERNEL);
+			if (!mq->bounce_buf) {
+				printk(KERN_WARNING "%s: unable to "
+					"allocate bounce buffer\n",
+					mmc_card_name(card));
+			}
+		}
+
+		if (mq->bounce_buf) {
+			blk_queue_bounce_limit(mq->queue, BLK_BOUNCE_ANY);
 			blk_queue_max_sectors(mq->queue, bouncesz / 512);
 			blk_queue_max_phys_segments(mq->queue, bouncesz / 512);
 			blk_queue_max_hw_segments(mq->queue, bouncesz / 512);
@@ -175,7 +184,8 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 
 	if (!mq->bounce_buf) {
 		blk_queue_bounce_limit(mq->queue, limit);
-		blk_queue_max_sectors(mq->queue, host->max_req_size / 512);
+		blk_queue_max_sectors(mq->queue,
+			min(host->max_blk_count, host->max_req_size / 512));
 		blk_queue_max_phys_segments(mq->queue, host->max_phys_segs);
 		blk_queue_max_hw_segments(mq->queue, host->max_hw_segs);
 		blk_queue_max_segment_size(mq->queue, host->max_seg_size);
@@ -290,55 +300,15 @@ void mmc_queue_resume(struct mmc_queue *mq)
 	}
 }
 
-static void copy_sg(struct scatterlist *dst, unsigned int dst_len,
-	struct scatterlist *src, unsigned int src_len)
-{
-	unsigned int chunk;
-	char *dst_buf, *src_buf;
-	unsigned int dst_size, src_size;
-
-	dst_buf = NULL;
-	src_buf = NULL;
-	dst_size = 0;
-	src_size = 0;
-
-	while (src_len) {
-		BUG_ON(dst_len == 0);
-
-		if (dst_size == 0) {
-			dst_buf = sg_virt(dst);
-			dst_size = dst->length;
-		}
-
-		if (src_size == 0) {
-			src_buf = sg_virt(src);
-			src_size = src->length;
-		}
-
-		chunk = min(dst_size, src_size);
-
-		memcpy(dst_buf, src_buf, chunk);
-
-		dst_buf += chunk;
-		src_buf += chunk;
-		dst_size -= chunk;
-		src_size -= chunk;
-
-		if (dst_size == 0) {
-			dst++;
-			dst_len--;
-		}
-
-		if (src_size == 0) {
-			src++;
-			src_len--;
-		}
-	}
-}
-
+/*
+ * Prepare the sg list(s) to be handed of to the host driver
+ */
 unsigned int mmc_queue_map_sg(struct mmc_queue *mq)
 {
 	unsigned int sg_len;
+	size_t buflen;
+	struct scatterlist *sg;
+	int i;
 
 	if (!mq->bounce_buf)
 		return blk_rq_map_sg(mq->queue, mq->req, mq->sg);
@@ -349,47 +319,52 @@ unsigned int mmc_queue_map_sg(struct mmc_queue *mq)
 
 	mq->bounce_sg_len = sg_len;
 
-	/*
-	 * Shortcut in the event we only get a single entry.
-	 */
-	if (sg_len == 1) {
-		memcpy(mq->sg, mq->bounce_sg, sizeof(struct scatterlist));
-		return 1;
-	}
+	buflen = 0;
+	for_each_sg(mq->bounce_sg, sg, sg_len, i)
+		buflen += sg->length;
 
-	sg_init_one(mq->sg, mq->bounce_buf, 0);
-
-	while (sg_len) {
-		mq->sg[0].length += mq->bounce_sg[sg_len - 1].length;
-		sg_len--;
-	}
+	sg_init_one(mq->sg, mq->bounce_buf, buflen);
 
 	return 1;
 }
 
+/*
+ * If writing, bounce the data to the buffer before the request
+ * is sent to the host driver
+ */
 void mmc_queue_bounce_pre(struct mmc_queue *mq)
 {
+	unsigned long flags;
+
 	if (!mq->bounce_buf)
 		return;
 
-	if (mq->bounce_sg_len == 1)
-		return;
 	if (rq_data_dir(mq->req) != WRITE)
 		return;
 
-	copy_sg(mq->sg, 1, mq->bounce_sg, mq->bounce_sg_len);
+	local_irq_save(flags);
+	sg_copy_to_buffer(mq->bounce_sg, mq->bounce_sg_len,
+		mq->bounce_buf, mq->sg[0].length);
+	local_irq_restore(flags);
 }
 
+/*
+ * If reading, bounce the data from the buffer after the request
+ * has been handled by the host driver
+ */
 void mmc_queue_bounce_post(struct mmc_queue *mq)
 {
+	unsigned long flags;
+
 	if (!mq->bounce_buf)
 		return;
 
-	if (mq->bounce_sg_len == 1)
-		return;
 	if (rq_data_dir(mq->req) != READ)
 		return;
 
-	copy_sg(mq->bounce_sg, mq->bounce_sg_len, mq->sg, 1);
+	local_irq_save(flags);
+	sg_copy_from_buffer(mq->bounce_sg, mq->bounce_sg_len,
+		mq->bounce_buf, mq->sg[0].length);
+	local_irq_restore(flags);
 }
 

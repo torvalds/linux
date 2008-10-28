@@ -4,8 +4,6 @@
  * (C) 2000 Nicolas Pitre <nico@cam.org>
  *
  * This code is GPL
- *
- * $Id: partitions.h,v 1.17 2005/11/07 11:14:55 gleixner Exp $
  */
 
 #ifndef MTD_PARTITIONS_H
@@ -75,7 +73,6 @@ struct device;
 struct device_node;
 
 int __devinit of_mtd_parse_partitions(struct device *dev,
-                                      struct mtd_info *mtd,
                                       struct device_node *node,
                                       struct mtd_partition **pparts);
 

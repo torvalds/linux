@@ -18,8 +18,8 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <asm/arch/common.h>
-#include <asm/arch/prcm.h>
+#include <mach/common.h>
+#include <mach/prcm.h>
 
 #include "clock.h"
 #include "prm.h"

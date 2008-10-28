@@ -71,8 +71,8 @@
 #include <linux/pm.h>
 #endif
 
-#include <asm/hardware.h>
-#include <asm/arch/h3600.h>
+#include <mach/hardware.h>
+#include <mach/h3600.h>
 #include <asm/mach-types.h>
 #include <asm/dma.h>
 
@@ -442,7 +442,8 @@ static void audio_process_dma(struct audio_stream *s)
                 
 	/* we are requested to process synchronization DMA transfer */
 	if (s->tx_spin) {
-		snd_assert(s->stream_id == SNDRV_PCM_STREAM_PLAYBACK, return);
+		if (snd_BUG_ON(s->stream_id != SNDRV_PCM_STREAM_PLAYBACK))
+			return;
 		/* fill the xmit dma buffers and return */
 #ifdef HH_VERSION
 		sa1100_dma_set_spin(s->dmach, FORCE_CLOCK_ADDR, FORCE_CLOCK_SIZE);
@@ -472,7 +473,7 @@ static void audio_process_dma(struct audio_stream *s)
 				continue;		/* special case */
 		} else {
 			offset = dma_size * s->period;
-			snd_assert(dma_size <= DMA_BUF_SIZE, );
+			snd_BUG_ON(dma_size > DMA_BUF_SIZE);
 		}
 #ifdef HH_VERSION
 		ret = sa1100_dma_queue_buffer(s->dmach, s, runtime->dma_addr + offset, dma_size);
@@ -879,7 +880,7 @@ void snd_sa11xx_uda1341_free(struct snd_card *card)
 	audio_dma_free(&chip->s[SNDRV_PCM_STREAM_CAPTURE]);
 }
 
-static int __init sa11xx_uda1341_probe(struct platform_device *devptr)
+static int __devinit sa11xx_uda1341_probe(struct platform_device *devptr)
 {
 	int err;
 	struct snd_card *card;

@@ -369,22 +369,33 @@ complete_transaction(struct fw_card *card, int rcode,
 	struct response *response = data;
 	struct client *client = response->client;
 	unsigned long flags;
+	struct fw_cdev_event_response *r = &response->response;
 
-	if (length < response->response.length)
-		response->response.length = length;
+	if (length < r->length)
+		r->length = length;
 	if (rcode == RCODE_COMPLETE)
-		memcpy(response->response.data, payload,
-		       response->response.length);
+		memcpy(r->data, payload, r->length);
 
 	spin_lock_irqsave(&client->lock, flags);
 	list_del(&response->resource.link);
 	spin_unlock_irqrestore(&client->lock, flags);
 
-	response->response.type   = FW_CDEV_EVENT_RESPONSE;
-	response->response.rcode  = rcode;
-	queue_event(client, &response->event,
-		    &response->response, sizeof(response->response),
-		    response->response.data, response->response.length);
+	r->type   = FW_CDEV_EVENT_RESPONSE;
+	r->rcode  = rcode;
+
+	/*
+	 * In the case that sizeof(*r) doesn't align with the position of the
+	 * data, and the read is short, preserve an extra copy of the data
+	 * to stay compatible with a pre-2.6.27 bug.  Since the bug is harmless
+	 * for short reads and some apps depended on it, this is both safe
+	 * and prudent for compatibility.
+	 */
+	if (r->length <= sizeof(*r) - offsetof(typeof(*r), data))
+		queue_event(client, &response->event, r, sizeof(*r),
+			    r->data, r->length);
+	else
+		queue_event(client, &response->event, r, sizeof(*r) + r->length,
+			    NULL, 0);
 }
 
 static int ioctl_send_request(struct client *client, void *buffer)
@@ -709,8 +720,8 @@ static int ioctl_create_iso_context(struct client *client, void *buffer)
 #define GET_PAYLOAD_LENGTH(v)	((v) & 0xffff)
 #define GET_INTERRUPT(v)	(((v) >> 16) & 0x01)
 #define GET_SKIP(v)		(((v) >> 17) & 0x01)
-#define GET_TAG(v)		(((v) >> 18) & 0x02)
-#define GET_SY(v)		(((v) >> 20) & 0x04)
+#define GET_TAG(v)		(((v) >> 18) & 0x03)
+#define GET_SY(v)		(((v) >> 20) & 0x0f)
 #define GET_HEADER_LENGTH(v)	(((v) >> 24) & 0xff)
 
 static int ioctl_queue_iso(struct client *client, void *buffer)
@@ -902,7 +913,7 @@ dispatch_ioctl(struct client *client, unsigned int cmd, void __user *arg)
 			return -EFAULT;
 	}
 
-	return 0;
+	return retval;
 }
 
 static long

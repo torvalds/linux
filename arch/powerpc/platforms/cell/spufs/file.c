@@ -288,9 +288,32 @@ spufs_mem_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	return VM_FAULT_NOPAGE;
 }
 
+static int spufs_mem_mmap_access(struct vm_area_struct *vma,
+				unsigned long address,
+				void *buf, int len, int write)
+{
+	struct spu_context *ctx = vma->vm_file->private_data;
+	unsigned long offset = address - vma->vm_start;
+	char *local_store;
+
+	if (write && !(vma->vm_flags & VM_WRITE))
+		return -EACCES;
+	if (spu_acquire(ctx))
+		return -EINTR;
+	if ((offset + len) > vma->vm_end)
+		len = vma->vm_end - offset;
+	local_store = ctx->ops->get_ls(ctx);
+	if (write)
+		memcpy_toio(local_store + offset, buf, len);
+	else
+		memcpy_fromio(buf, local_store + offset, len);
+	spu_release(ctx);
+	return len;
+}
 
 static struct vm_operations_struct spufs_mem_mmap_vmops = {
 	.fault = spufs_mem_mmap_fault,
+	.access = spufs_mem_mmap_access,
 };
 
 static int spufs_mem_mmap(struct file *file, struct vm_area_struct *vma)
@@ -524,6 +547,11 @@ spufs_regs_read(struct file *file, char __user *buffer,
 {
 	int ret;
 	struct spu_context *ctx = file->private_data;
+
+	/* pre-check for file position: if we'd return EOF, there's no point
+	 * causing a deschedule */
+	if (*pos >= sizeof(ctx->csa.lscsa->gprs))
+		return 0;
 
 	ret = spu_acquire_saved(ctx);
 	if (ret)
@@ -2403,38 +2431,49 @@ static inline int spufs_switch_log_avail(struct spu_context *ctx)
 static int spufs_switch_log_open(struct inode *inode, struct file *file)
 {
 	struct spu_context *ctx = SPUFS_I(inode)->i_ctx;
+	int rc;
 
-	/*
-	 * We (ab-)use the mapping_lock here because it serves the similar
-	 * purpose for synchronizing open/close elsewhere.  Maybe it should
-	 * be renamed eventually.
-	 */
-	mutex_lock(&ctx->mapping_lock);
+	rc = spu_acquire(ctx);
+	if (rc)
+		return rc;
+
 	if (ctx->switch_log) {
-		spin_lock(&ctx->switch_log->lock);
-		ctx->switch_log->head = 0;
-		ctx->switch_log->tail = 0;
-		spin_unlock(&ctx->switch_log->lock);
-	} else {
-		/*
-		 * We allocate the switch log data structures on first open.
-		 * They will never be free because we assume a context will
-		 * be traced until it goes away.
-		 */
-		ctx->switch_log = kzalloc(sizeof(struct switch_log) +
-			SWITCH_LOG_BUFSIZE * sizeof(struct switch_log_entry),
-			GFP_KERNEL);
-		if (!ctx->switch_log)
-			goto out;
-		spin_lock_init(&ctx->switch_log->lock);
-		init_waitqueue_head(&ctx->switch_log->wait);
+		rc = -EBUSY;
+		goto out;
 	}
-	mutex_unlock(&ctx->mapping_lock);
+
+	ctx->switch_log = kmalloc(sizeof(struct switch_log) +
+		SWITCH_LOG_BUFSIZE * sizeof(struct switch_log_entry),
+		GFP_KERNEL);
+
+	if (!ctx->switch_log) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	ctx->switch_log->head = ctx->switch_log->tail = 0;
+	init_waitqueue_head(&ctx->switch_log->wait);
+	rc = 0;
+
+out:
+	spu_release(ctx);
+	return rc;
+}
+
+static int spufs_switch_log_release(struct inode *inode, struct file *file)
+{
+	struct spu_context *ctx = SPUFS_I(inode)->i_ctx;
+	int rc;
+
+	rc = spu_acquire(ctx);
+	if (rc)
+		return rc;
+
+	kfree(ctx->switch_log);
+	ctx->switch_log = NULL;
+	spu_release(ctx);
 
 	return 0;
- out:
-	mutex_unlock(&ctx->mapping_lock);
-	return -ENOMEM;
 }
 
 static int switch_log_sprint(struct spu_context *ctx, char *tbuf, int n)
@@ -2462,42 +2501,54 @@ static ssize_t spufs_switch_log_read(struct file *file, char __user *buf,
 	if (!buf || len < 0)
 		return -EINVAL;
 
+	error = spu_acquire(ctx);
+	if (error)
+		return error;
+
 	while (cnt < len) {
 		char tbuf[128];
 		int width;
 
-		if (file->f_flags & O_NONBLOCK) {
-			if (spufs_switch_log_used(ctx) <= 0)
-				return cnt ? cnt : -EAGAIN;
-		} else {
-			/* Wait for data in buffer */
-			error = wait_event_interruptible(ctx->switch_log->wait,
-					spufs_switch_log_used(ctx) > 0);
-			if (error)
+		if (spufs_switch_log_used(ctx) == 0) {
+			if (cnt > 0) {
+				/* If there's data ready to go, we can
+				 * just return straight away */
 				break;
-		}
 
-		spin_lock(&ctx->switch_log->lock);
-		if (ctx->switch_log->head == ctx->switch_log->tail) {
-			/* multiple readers race? */
-			spin_unlock(&ctx->switch_log->lock);
-			continue;
+			} else if (file->f_flags & O_NONBLOCK) {
+				error = -EAGAIN;
+				break;
+
+			} else {
+				/* spufs_wait will drop the mutex and
+				 * re-acquire, but since we're in read(), the
+				 * file cannot be _released (and so
+				 * ctx->switch_log is stable).
+				 */
+				error = spufs_wait(ctx->switch_log->wait,
+						spufs_switch_log_used(ctx) > 0);
+
+				/* On error, spufs_wait returns without the
+				 * state mutex held */
+				if (error)
+					return error;
+
+				/* We may have had entries read from underneath
+				 * us while we dropped the mutex in spufs_wait,
+				 * so re-check */
+				if (spufs_switch_log_used(ctx) == 0)
+					continue;
+			}
 		}
 
 		width = switch_log_sprint(ctx, tbuf, sizeof(tbuf));
-		if (width < len) {
+		if (width < len)
 			ctx->switch_log->tail =
 				(ctx->switch_log->tail + 1) %
 				 SWITCH_LOG_BUFSIZE;
-		}
-
-		spin_unlock(&ctx->switch_log->lock);
-
-		/*
-		 * If the record is greater than space available return
-		 * partial buffer (so far)
-		 */
-		if (width >= len)
+		else
+			/* If the record is greater than space available return
+			 * partial buffer (so far) */
 			break;
 
 		error = copy_to_user(buf + cnt, tbuf, width);
@@ -2505,6 +2556,8 @@ static ssize_t spufs_switch_log_read(struct file *file, char __user *buf,
 			break;
 		cnt += width;
 	}
+
+	spu_release(ctx);
 
 	return cnt == 0 ? error : cnt;
 }
@@ -2514,29 +2567,41 @@ static unsigned int spufs_switch_log_poll(struct file *file, poll_table *wait)
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct spu_context *ctx = SPUFS_I(inode)->i_ctx;
 	unsigned int mask = 0;
+	int rc;
 
 	poll_wait(file, &ctx->switch_log->wait, wait);
 
+	rc = spu_acquire(ctx);
+	if (rc)
+		return rc;
+
 	if (spufs_switch_log_used(ctx) > 0)
 		mask |= POLLIN;
+
+	spu_release(ctx);
 
 	return mask;
 }
 
 static const struct file_operations spufs_switch_log_fops = {
-	.owner	= THIS_MODULE,
-	.open	= spufs_switch_log_open,
-	.read	= spufs_switch_log_read,
-	.poll	= spufs_switch_log_poll,
+	.owner		= THIS_MODULE,
+	.open		= spufs_switch_log_open,
+	.read		= spufs_switch_log_read,
+	.poll		= spufs_switch_log_poll,
+	.release	= spufs_switch_log_release,
 };
 
+/**
+ * Log a context switch event to a switch log reader.
+ *
+ * Must be called with ctx->state_mutex held.
+ */
 void spu_switch_log_notify(struct spu *spu, struct spu_context *ctx,
 		u32 type, u32 val)
 {
 	if (!ctx->switch_log)
 		return;
 
-	spin_lock(&ctx->switch_log->lock);
 	if (spufs_switch_log_avail(ctx) > 1) {
 		struct switch_log_entry *p;
 
@@ -2550,7 +2615,6 @@ void spu_switch_log_notify(struct spu *spu, struct spu_context *ctx,
 		ctx->switch_log->head =
 			(ctx->switch_log->head + 1) % SWITCH_LOG_BUFSIZE;
 	}
-	spin_unlock(&ctx->switch_log->lock);
 
 	wake_up(&ctx->switch_log->wait);
 }

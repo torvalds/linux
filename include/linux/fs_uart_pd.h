@@ -12,7 +12,6 @@
 #ifndef FS_UART_PD_H
 #define FS_UART_PD_H
 
-#include <linux/version.h>
 #include <asm/types.h>
 
 enum fs_uart_id {

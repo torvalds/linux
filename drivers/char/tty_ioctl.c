@@ -40,6 +40,15 @@
 #define TERMIOS_OLD	8
 
 
+/**
+ *	tty_chars_in_buffer	-	characters pending
+ *	@tty: terminal
+ *
+ *	Return the number of bytes of data in the device private
+ *	output queue. If no private method is supplied there is assumed
+ *	to be no queue on the device.
+ */
+
 int tty_chars_in_buffer(struct tty_struct *tty)
 {
 	if (tty->ops->chars_in_buffer)
@@ -47,25 +56,48 @@ int tty_chars_in_buffer(struct tty_struct *tty)
 	else
 		return 0;
 }
-
 EXPORT_SYMBOL(tty_chars_in_buffer);
 
+/**
+ *	tty_write_room		-	write queue space
+ *	@tty: terminal
+ *
+ *	Return the number of bytes that can be queued to this device
+ *	at the present time. The result should be treated as a guarantee
+ *	and the driver cannot offer a value it later shrinks by more than
+ *	the number of bytes written. If no method is provided 2K is always
+ *	returned and data may be lost as there will be no flow control.
+ */
+ 
 int tty_write_room(struct tty_struct *tty)
 {
 	if (tty->ops->write_room)
 		return tty->ops->write_room(tty);
 	return 2048;
 }
-
 EXPORT_SYMBOL(tty_write_room);
 
+/**
+ *	tty_driver_flush_buffer	-	discard internal buffer
+ *	@tty: terminal
+ *
+ *	Discard the internal output buffer for this device. If no method
+ *	is provided then either the buffer cannot be hardware flushed or
+ *	there is no buffer driver side.
+ */
 void tty_driver_flush_buffer(struct tty_struct *tty)
 {
 	if (tty->ops->flush_buffer)
 		tty->ops->flush_buffer(tty);
 }
-
 EXPORT_SYMBOL(tty_driver_flush_buffer);
+
+/**
+ *	tty_throttle		-	flow control
+ *	@tty: terminal
+ *
+ *	Indicate that a tty should stop transmitting data down the stack.
+ */
 
 void tty_throttle(struct tty_struct *tty)
 {
@@ -75,6 +107,13 @@ void tty_throttle(struct tty_struct *tty)
 		tty->ops->throttle(tty);
 }
 EXPORT_SYMBOL(tty_throttle);
+
+/**
+ *	tty_unthrottle		-	flow control
+ *	@tty: terminal
+ *
+ *	Indicate that a tty may continue transmitting data down the stack.
+ */
 
 void tty_unthrottle(struct tty_struct *tty)
 {
@@ -111,6 +150,11 @@ void tty_wait_until_sent(struct tty_struct *tty, long timeout)
 	}
 }
 EXPORT_SYMBOL(tty_wait_until_sent);
+
+
+/*
+ *		Termios Helper Methods
+ */
 
 static void unset_locked_termios(struct ktermios *termios,
 				 struct ktermios *old,
@@ -346,6 +390,16 @@ void tty_termios_encode_baud_rate(struct ktermios *termios,
 }
 EXPORT_SYMBOL_GPL(tty_termios_encode_baud_rate);
 
+/**
+ *	tty_encode_baud_rate		-	set baud rate of the tty
+ *	@ibaud: input baud rate
+ *	@obad: output baud rate
+ *
+ *	Update the current termios data for the tty with the new speed
+ *	settings. The caller must hold the termios_mutex for the tty in
+ *	question.
+ */
+
 void tty_encode_baud_rate(struct tty_struct *tty, speed_t ibaud, speed_t obaud)
 {
 	tty_termios_encode_baud_rate(tty->termios, ibaud, obaud);
@@ -430,12 +484,11 @@ EXPORT_SYMBOL(tty_termios_hw_change);
  *	is a bit of layering violation here with n_tty in terms of the
  *	internal knowledge of this function.
  *
- *	Locking: termios_sem
+ *	Locking: termios_mutex
  */
 
 static void change_termios(struct tty_struct *tty, struct ktermios *new_termios)
 {
-	int canon_change;
 	struct ktermios old_termios;
 	struct tty_ldisc *ld;
 	unsigned long flags;
@@ -451,18 +504,6 @@ static void change_termios(struct tty_struct *tty, struct ktermios *new_termios)
 	old_termios = *tty->termios;
 	*tty->termios = *new_termios;
 	unset_locked_termios(tty->termios, &old_termios, tty->termios_locked);
-	canon_change = (old_termios.c_lflag ^ tty->termios->c_lflag) & ICANON;
-	if (canon_change) {
-		memset(&tty->read_flags, 0, sizeof tty->read_flags);
-		tty->canon_head = tty->read_tail;
-		tty->canon_data = 0;
-		tty->erasing = 0;
-	}
-
-	/* This bit should be in the ldisc code */
-	if (canon_change && !L_ICANON(tty) && tty->read_cnt)
-		/* Get characters left over from canonical mode. */
-		wake_up_interruptible(&tty->read_wait);
 
 	/* See if packet mode change of state. */
 	if (tty->link && tty->link->packet) {
@@ -491,8 +532,8 @@ static void change_termios(struct tty_struct *tty, struct ktermios *new_termios)
 
 	ld = tty_ldisc_ref(tty);
 	if (ld != NULL) {
-		if (ld->set_termios)
-			(ld->set_termios)(tty, &old_termios);
+		if (ld->ops->set_termios)
+			(ld->ops->set_termios)(tty, &old_termios);
 		tty_ldisc_deref(ld);
 	}
 	mutex_unlock(&tty->termios_mutex);
@@ -508,7 +549,7 @@ static void change_termios(struct tty_struct *tty, struct ktermios *new_termios)
  *	functions before using change_termios to do the actual changes.
  *
  *	Locking:
- *		Called functions take ldisc and termios_sem locks
+ *		Called functions take ldisc and termios_mutex locks
  */
 
 static int set_termios(struct tty_struct *tty, void __user *arg, int opt)
@@ -552,8 +593,8 @@ static int set_termios(struct tty_struct *tty, void __user *arg, int opt)
 	ld = tty_ldisc_ref(tty);
 
 	if (ld != NULL) {
-		if ((opt & TERMIOS_FLUSH) && ld->flush_buffer)
-			ld->flush_buffer(tty);
+		if ((opt & TERMIOS_FLUSH) && ld->ops->flush_buffer)
+			ld->ops->flush_buffer(tty);
 		tty_ldisc_deref(ld);
 	}
 
@@ -579,24 +620,50 @@ static int get_termio(struct tty_struct *tty, struct termio __user *termio)
 	return 0;
 }
 
-static unsigned long inq_canon(struct tty_struct *tty)
-{
-	int nr, head, tail;
 
-	if (!tty->canon_data || !tty->read_buf)
-		return 0;
-	head = tty->canon_head;
-	tail = tty->read_tail;
-	nr = (head - tail) & (N_TTY_BUF_SIZE-1);
-	/* Skip EOF-chars.. */
-	while (head != tail) {
-		if (test_bit(tail, tty->read_flags) &&
-		    tty->read_buf[tail] == __DISABLED_CHAR)
-			nr--;
-		tail = (tail+1) & (N_TTY_BUF_SIZE-1);
+#ifdef TCGETX
+
+/**
+ *	set_termiox	-	set termiox fields if possible
+ *	@tty: terminal
+ *	@arg: termiox structure from user
+ *	@opt: option flags for ioctl type
+ *
+ *	Implement the device calling points for the SYS5 termiox ioctl
+ *	interface in Linux
+ */
+
+static int set_termiox(struct tty_struct *tty, void __user *arg, int opt)
+{
+	struct termiox tnew;
+	struct tty_ldisc *ld;
+
+	if (tty->termiox == NULL)
+		return -EINVAL;
+	if (copy_from_user(&tnew, arg, sizeof(struct termiox)))
+		return -EFAULT;
+
+	ld = tty_ldisc_ref(tty);
+	if (ld != NULL) {
+		if ((opt & TERMIOS_FLUSH) && ld->ops->flush_buffer)
+			ld->ops->flush_buffer(tty);
+		tty_ldisc_deref(ld);
 	}
-	return nr;
+	if (opt & TERMIOS_WAIT) {
+		tty_wait_until_sent(tty, 0);
+		if (signal_pending(current))
+			return -EINTR;
+	}
+
+	mutex_lock(&tty->termios_mutex);
+	if (tty->ops->set_termiox)
+		tty->ops->set_termiox(tty, &tnew);
+	mutex_unlock(&tty->termios_mutex);
+	return 0;
 }
+
+#endif
+
 
 #ifdef TIOCGETP
 /*
@@ -671,7 +738,7 @@ static void set_sgflags(struct ktermios *termios, int flags)
  *	Updates a terminal from the legacy BSD style terminal information
  *	structure.
  *
- *	Locking: termios_sem
+ *	Locking: termios_mutex
  */
 
 static int set_sgttyb(struct tty_struct *tty, struct sgttyb __user *sgttyb)
@@ -849,6 +916,7 @@ int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
 {
 	struct tty_struct *real_tty;
 	void __user *p = (void __user *)arg;
+	int ret = 0;
 
 	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
 	    tty->driver->subtype == PTY_TYPE_MASTER)
@@ -884,18 +952,24 @@ int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
 		return set_termios(real_tty, p, TERMIOS_OLD);
 #ifndef TCGETS2
 	case TCGETS:
+		mutex_lock(&real_tty->termios_mutex);
 		if (kernel_termios_to_user_termios((struct termios __user *)arg, real_tty->termios))
-			return -EFAULT;
-		return 0;
+			ret = -EFAULT;
+		mutex_unlock(&real_tty->termios_mutex);
+		return ret;
 #else
 	case TCGETS:
+		mutex_lock(&real_tty->termios_mutex);
 		if (kernel_termios_to_user_termios_1((struct termios __user *)arg, real_tty->termios))
-			return -EFAULT;
-		return 0;
+			ret = -EFAULT;
+		mutex_unlock(&real_tty->termios_mutex);
+		return ret;
 	case TCGETS2:
+		mutex_lock(&real_tty->termios_mutex);
 		if (kernel_termios_to_user_termios((struct termios2 __user *)arg, real_tty->termios))
-			return -EFAULT;
-		return 0;
+			ret = -EFAULT;
+		mutex_unlock(&real_tty->termios_mutex);
+		return ret;
 	case TCSETSF2:
 		return set_termios(real_tty, p,  TERMIOS_FLUSH | TERMIOS_WAIT);
 	case TCSETSW2:
@@ -913,36 +987,63 @@ int tty_mode_ioctl(struct tty_struct *tty, struct file *file,
 		return set_termios(real_tty, p, TERMIOS_TERMIO);
 #ifndef TCGETS2
 	case TIOCGLCKTRMIOS:
+		mutex_lock(&real_tty->termios_mutex);
 		if (kernel_termios_to_user_termios((struct termios __user *)arg, real_tty->termios_locked))
-			return -EFAULT;
-		return 0;
+			ret = -EFAULT;
+		mutex_unlock(&real_tty->termios_mutex);
+		return ret;
 	case TIOCSLCKTRMIOS:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
+		mutex_lock(&real_tty->termios_mutex);
 		if (user_termios_to_kernel_termios(real_tty->termios_locked,
 					       (struct termios __user *) arg))
-			return -EFAULT;
-		return 0;
+			ret = -EFAULT;
+		mutex_unlock(&real_tty->termios_mutex);
+		return ret;
 #else
 	case TIOCGLCKTRMIOS:
+		mutex_lock(&real_tty->termios_mutex);
 		if (kernel_termios_to_user_termios_1((struct termios __user *)arg, real_tty->termios_locked))
-			return -EFAULT;
-		return 0;
+			ret = -EFAULT;
+		mutex_unlock(&real_tty->termios_mutex);
+		return ret;
 	case TIOCSLCKTRMIOS:
 		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
+			ret = -EPERM;
+		mutex_lock(&real_tty->termios_mutex);
 		if (user_termios_to_kernel_termios_1(real_tty->termios_locked,
 					       (struct termios __user *) arg))
-			return -EFAULT;
-			return 0;
+			ret = -EFAULT;
+		mutex_unlock(&real_tty->termios_mutex);
+		return ret;
 #endif
+#ifdef TCGETX
+	case TCGETX:
+		if (real_tty->termiox == NULL)
+			return -EINVAL;
+		mutex_lock(&real_tty->termios_mutex);
+		if (copy_to_user(p, real_tty->termiox, sizeof(struct termiox)))
+			ret = -EFAULT;
+		mutex_unlock(&real_tty->termios_mutex);
+		return ret;
+	case TCSETX:
+		return set_termiox(real_tty, p, 0);
+	case TCSETXW:
+		return set_termiox(real_tty, p, TERMIOS_WAIT);
+	case TCSETXF:
+		return set_termiox(real_tty, p, TERMIOS_FLUSH);
+#endif		
 	case TIOCGSOFTCAR:
-		return put_user(C_CLOCAL(tty) ? 1 : 0,
+		mutex_lock(&real_tty->termios_mutex);
+		ret = put_user(C_CLOCAL(real_tty) ? 1 : 0,
 						(int __user *)arg);
+		mutex_unlock(&real_tty->termios_mutex);
+		return ret;
 	case TIOCSSOFTCAR:
 		if (get_user(arg, (unsigned int __user *) arg))
 			return -EFAULT;
-		return tty_change_softcar(tty, arg);
+		return tty_change_softcar(real_tty, arg);
 	default:
 		return -ENOIOCTLCMD;
 	}
@@ -959,12 +1060,12 @@ int tty_perform_flush(struct tty_struct *tty, unsigned long arg)
 	ld = tty_ldisc_ref(tty);
 	switch (arg) {
 	case TCIFLUSH:
-		if (ld && ld->flush_buffer)
-			ld->flush_buffer(tty);
+		if (ld && ld->ops->flush_buffer)
+			ld->ops->flush_buffer(tty);
 		break;
 	case TCIOFLUSH:
-		if (ld && ld->flush_buffer)
-			ld->flush_buffer(tty);
+		if (ld && ld->ops->flush_buffer)
+			ld->ops->flush_buffer(tty);
 		/* fall through */
 	case TCOFLUSH:
 		tty_driver_flush_buffer(tty);
@@ -978,7 +1079,7 @@ int tty_perform_flush(struct tty_struct *tty, unsigned long arg)
 }
 EXPORT_SYMBOL_GPL(tty_perform_flush);
 
-int n_tty_ioctl(struct tty_struct *tty, struct file *file,
+int n_tty_ioctl_helper(struct tty_struct *tty, struct file *file,
 		       unsigned int cmd, unsigned long arg)
 {
 	unsigned long flags;
@@ -1016,13 +1117,6 @@ int n_tty_ioctl(struct tty_struct *tty, struct file *file,
 		return 0;
 	case TCFLSH:
 		return tty_perform_flush(tty, arg);
-	case TIOCOUTQ:
-		return put_user(tty_chars_in_buffer(tty), (int __user *) arg);
-	case TIOCINQ:
-		retval = tty->read_cnt;
-		if (L_ICANON(tty))
-			retval = inq_canon(tty);
-		return put_user(retval, (unsigned int __user *) arg);
 	case TIOCPKT:
 	{
 		int pktmode;
@@ -1048,4 +1142,4 @@ int n_tty_ioctl(struct tty_struct *tty, struct file *file,
 		return tty_mode_ioctl(tty, file, cmd, arg);
 	}
 }
-EXPORT_SYMBOL(n_tty_ioctl);
+EXPORT_SYMBOL(n_tty_ioctl_helper);

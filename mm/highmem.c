@@ -40,6 +40,7 @@
 #ifdef CONFIG_HIGHMEM
 
 unsigned long totalhigh_pages __read_mostly;
+EXPORT_SYMBOL(totalhigh_pages);
 
 unsigned int nr_free_highpages (void)
 {
@@ -69,6 +70,7 @@ static DECLARE_WAIT_QUEUE_HEAD(pkmap_map_wait);
 static void flush_all_zero_pkmaps(void)
 {
 	int i;
+	int need_flush = 0;
 
 	flush_cache_kmaps();
 
@@ -100,8 +102,10 @@ static void flush_all_zero_pkmaps(void)
 			  &pkmap_page_table[i]);
 
 		set_page_address(page, NULL);
+		need_flush = 1;
 	}
-	flush_tlb_kernel_range(PKMAP_ADDR(0), PKMAP_ADDR(LAST_PKMAP));
+	if (need_flush)
+		flush_tlb_kernel_range(PKMAP_ADDR(0), PKMAP_ADDR(LAST_PKMAP));
 }
 
 /**

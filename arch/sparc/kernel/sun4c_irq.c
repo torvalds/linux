@@ -18,6 +18,8 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/init.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include "irq.h"
 
 #include <asm/ptrace.h>
@@ -31,15 +33,8 @@
 #include <asm/traps.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/sun4paddr.h>
 #include <asm/idprom.h>
 #include <asm/machines.h>
-#include <asm/sbus.h>
-
-#if 0
-static struct resource sun4c_timer_eb = { "sun4c_timer" };
-static struct resource sun4c_intr_eb = { "sun4c_intr" };
-#endif
 
 /*
  * Bit field defines for the interrupt registers on various
@@ -64,18 +59,7 @@ static struct resource sun4c_intr_eb = { "sun4c_intr" };
  *
  * so don't go making it static, like I tried. sigh.
  */
-unsigned char *interrupt_enable = NULL;
-
-static int sun4c_pil_map[] = { 0, 1, 2, 3, 5, 7, 8, 9 };
-
-unsigned int sun4c_sbint_to_irq(struct sbus_dev *sdev, unsigned int sbint)
-{
-	if (sbint >= sizeof(sun4c_pil_map)) {
-		printk(KERN_ERR "%s: bogus SBINT %d\n", sdev->prom_name, sbint);
-		BUG();
-	}
-	return sun4c_pil_map[sbint];
-}
+unsigned char __iomem *interrupt_enable = NULL;
 
 static void sun4c_disable_irq(unsigned int irq_nr)
 {
@@ -84,7 +68,7 @@ static void sun4c_disable_irq(unsigned int irq_nr)
     
 	local_irq_save(flags);
 	irq_nr &= (NR_IRQS - 1);
-	current_mask = *interrupt_enable;
+	current_mask = sbus_readb(interrupt_enable);
 	switch(irq_nr) {
 	case 1:
 		new_mask = ((current_mask) & (~(SUN4C_INT_E1)));
@@ -102,7 +86,7 @@ static void sun4c_disable_irq(unsigned int irq_nr)
 		local_irq_restore(flags);
 		return;
 	}
-	*interrupt_enable = new_mask;
+	sbus_writeb(new_mask, interrupt_enable);
 	local_irq_restore(flags);
 }
 
@@ -113,7 +97,7 @@ static void sun4c_enable_irq(unsigned int irq_nr)
     
 	local_irq_save(flags);
 	irq_nr &= (NR_IRQS - 1);
-	current_mask = *interrupt_enable;
+	current_mask = sbus_readb(interrupt_enable);
 	switch(irq_nr) {
 	case 1:
 		new_mask = ((current_mask) | SUN4C_INT_E1);
@@ -131,37 +115,22 @@ static void sun4c_enable_irq(unsigned int irq_nr)
 		local_irq_restore(flags);
 		return;
 	}
-	*interrupt_enable = new_mask;
+	sbus_writeb(new_mask, interrupt_enable);
 	local_irq_restore(flags);
 }
 
-#define TIMER_IRQ  	10    /* Also at level 14, but we ignore that one. */
-#define PROFILE_IRQ	14    /* Level14 ticker.. used by OBP for polling */
+struct sun4c_timer_info {
+	u32		l10_count;
+	u32		l10_limit;
+	u32		l14_count;
+	u32		l14_limit;
+};
 
-volatile struct sun4c_timer_info *sun4c_timers;
-
-#ifdef CONFIG_SUN4
-/* This is an ugly hack to work around the
-   current timer code, and make it work with 
-   the sun4/260 intersil 
-   */
-volatile struct sun4c_timer_info sun4_timer;
-#endif
+static struct sun4c_timer_info __iomem *sun4c_timers;
 
 static void sun4c_clear_clock_irq(void)
 {
-	volatile unsigned int clear_intr;
-#ifdef CONFIG_SUN4
-	if (idprom->id_machtype == (SM_SUN4 | SM_4_260)) 
-	  clear_intr = sun4_timer.timer_limit10;
-	else
-#endif
-	clear_intr = sun4c_timers->timer_limit10;
-}
-
-static void sun4c_clear_profile_irq(int cpu)
-{
-	/* Errm.. not sure how to do this.. */
+	sbus_readl(&sun4c_timers->l10_limit);
 }
 
 static void sun4c_load_profile_irq(int cpu, unsigned int limit)
@@ -171,41 +140,48 @@ static void sun4c_load_profile_irq(int cpu, unsigned int limit)
 
 static void __init sun4c_init_timers(irq_handler_t counter_fn)
 {
-	int irq;
+	const struct linux_prom_irqs *irq;
+	struct device_node *dp;
+	const u32 *addr;
+	int err;
 
-	/* Map the Timer chip, this is implemented in hardware inside
-	 * the cache chip on the sun4c.
-	 */
-#ifdef CONFIG_SUN4
-	if (idprom->id_machtype == (SM_SUN4 | SM_4_260))
-		sun4c_timers = &sun4_timer;
-	else
-#endif
-	sun4c_timers = ioremap(SUN_TIMER_PHYSADDR,
-	    sizeof(struct sun4c_timer_info));
+	dp = of_find_node_by_name(NULL, "counter-timer");
+	if (!dp) {
+		prom_printf("sun4c_init_timers: Unable to find counter-timer\n");
+		prom_halt();
+	}
+
+	addr = of_get_property(dp, "address", NULL);
+	if (!addr) {
+		prom_printf("sun4c_init_timers: No address property\n");
+		prom_halt();
+	}
+
+	sun4c_timers = (void __iomem *) (unsigned long) addr[0];
+
+	irq = of_get_property(dp, "intr", NULL);
+	if (!irq) {
+		prom_printf("sun4c_init_timers: No intr property\n");
+		prom_halt();
+	}
 
 	/* Have the level 10 timer tick at 100HZ.  We don't touch the
 	 * level 14 timer limit since we are letting the prom handle
 	 * them until we have a real console driver so L1-A works.
 	 */
-	sun4c_timers->timer_limit10 = (((1000000/HZ) + 1) << 10);
-	master_l10_counter = &sun4c_timers->cur_count10;
-	master_l10_limit = &sun4c_timers->timer_limit10;
+	sbus_writel((((1000000/HZ) + 1) << 10), &sun4c_timers->l10_limit);
 
-	irq = request_irq(TIMER_IRQ,
-			  counter_fn,
+	master_l10_counter = &sun4c_timers->l10_count;
+
+	err = request_irq(irq[0].pri, counter_fn,
 			  (IRQF_DISABLED | SA_STATIC_ALLOC),
 			  "timer", NULL);
-	if (irq) {
-		prom_printf("time_init: unable to attach IRQ%d\n",TIMER_IRQ);
+	if (err) {
+		prom_printf("sun4c_init_timers: request_irq() fails with %d\n", err);
 		prom_halt();
 	}
     
-#if 0
-	/* This does not work on 4/330 */
-	sun4c_enable_irq(10);
-#endif
-	claim_ticker14(NULL, PROFILE_IRQ, 0);
+	sun4c_disable_irq(irq[1].pri);
 }
 
 #ifdef CONFIG_SMP
@@ -214,41 +190,28 @@ static void sun4c_nop(void) {}
 
 void __init sun4c_init_IRQ(void)
 {
-	struct linux_prom_registers int_regs[2];
-	int ie_node;
+	struct device_node *dp;
+	const u32 *addr;
 
-	if (ARCH_SUN4) {
-		interrupt_enable = (char *)
-		    ioremap(sun4_ie_physaddr, PAGE_SIZE);
-	} else {
-		struct resource phyres;
-
-		ie_node = prom_searchsiblings (prom_getchild(prom_root_node),
-				       	"interrupt-enable");
-		if(ie_node == 0)
-			panic("Cannot find /interrupt-enable node");
-
-		/* Depending on the "address" property is bad news... */
-		interrupt_enable = NULL;
-		if (prom_getproperty(ie_node, "reg", (char *) int_regs,
-				     sizeof(int_regs)) != -1) {
-			memset(&phyres, 0, sizeof(struct resource));
-			phyres.flags = int_regs[0].which_io;
-			phyres.start = int_regs[0].phys_addr;
-			interrupt_enable = (char *) sbus_ioremap(&phyres, 0,
-			    int_regs[0].reg_size, "sun4c_intr");
-		}
+	dp = of_find_node_by_name(NULL, "interrupt-enable");
+	if (!dp) {
+		prom_printf("sun4c_init_IRQ: Unable to find interrupt-enable\n");
+		prom_halt();
 	}
-	if (!interrupt_enable)
-		panic("Cannot map interrupt_enable");
 
-	BTFIXUPSET_CALL(sbint_to_irq, sun4c_sbint_to_irq, BTFIXUPCALL_NORM);
+	addr = of_get_property(dp, "address", NULL);
+	if (!addr) {
+		prom_printf("sun4c_init_IRQ: No address property\n");
+		prom_halt();
+	}
+
+	interrupt_enable = (void __iomem *) (unsigned long) addr[0];
+
 	BTFIXUPSET_CALL(enable_irq, sun4c_enable_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(disable_irq, sun4c_disable_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(enable_pil_irq, sun4c_enable_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(disable_pil_irq, sun4c_disable_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(clear_clock_irq, sun4c_clear_clock_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(clear_profile_irq, sun4c_clear_profile_irq, BTFIXUPCALL_NOP);
 	BTFIXUPSET_CALL(load_profile_irq, sun4c_load_profile_irq, BTFIXUPCALL_NOP);
 	sparc_init_timers = sun4c_init_timers;
 #ifdef CONFIG_SMP
@@ -256,6 +219,6 @@ void __init sun4c_init_IRQ(void)
 	BTFIXUPSET_CALL(clear_cpu_int, sun4c_nop, BTFIXUPCALL_NOP);
 	BTFIXUPSET_CALL(set_irq_udt, sun4c_nop, BTFIXUPCALL_NOP);
 #endif
-	*interrupt_enable = (SUN4C_INT_ENABLE);
+	sbus_writeb(SUN4C_INT_ENABLE, interrupt_enable);
 	/* Cannot enable interrupts until OBP ticker is disabled. */
 }

@@ -10,6 +10,7 @@ extern u32 get_baudrate(void);
 extern u32 fsl_get_sys_freq(void);
 
 struct spi_board_info;
+struct device_node;
 
 extern int fsl_spi_init(struct spi_board_info *board_infos,
 			unsigned int num_board_infos,
@@ -19,14 +20,7 @@ extern int fsl_spi_init(struct spi_board_info *board_infos,
 extern void fsl_rstcr_restart(char *cmd);
 
 #if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
-#include <linux/bootmem.h>
-#include <asm/rheap.h>
 struct platform_diu_data_ops {
-	rh_block_t diu_rh_block[16];
-	rh_info_t diu_rh_info;
-	unsigned long diu_size;
-	void *diu_mem;
-
 	unsigned int (*get_pixel_format) (unsigned int bits_per_pixel,
 		int monitor_port);
 	void (*set_gamma_table) (int monitor_port, char *gamma_table_base);
@@ -37,7 +31,6 @@ struct platform_diu_data_ops {
 };
 
 extern struct platform_diu_data_ops diu_ops;
-int __init preallocate_diu_videomemory(void);
 #endif
 
 #endif

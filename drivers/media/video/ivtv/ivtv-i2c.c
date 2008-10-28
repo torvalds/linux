@@ -64,8 +64,6 @@
 #include "ivtv-gpio.h"
 #include "ivtv-i2c.h"
 
-#include <media/ir-kbd-i2c.h>
-
 /* i2c implementation for cx23415/6 chip, ivtv project.
  * Author: Kevin Thayer (nufan_wfk at yahoo.com)
  */
@@ -74,10 +72,6 @@
 #define IVTV_REG_I2C_SETSDA_OFFSET 0x7004
 #define IVTV_REG_I2C_GETSCL_OFFSET 0x7008
 #define IVTV_REG_I2C_GETSDA_OFFSET 0x700c
-
-#ifndef I2C_ADAP_CLASS_TV_ANALOG
-#define I2C_ADAP_CLASS_TV_ANALOG I2C_CLASS_TV_ANALOG
-#endif /* I2C_ADAP_CLASS_TV_ANALOG */
 
 #define IVTV_CS53L32A_I2C_ADDR		0x11
 #define IVTV_M52790_I2C_ADDR		0x48
@@ -139,7 +133,7 @@ static const u8 hw_addrs[] = {
 static const char * const hw_devicenames[] = {
 	"cx25840",
 	"saa7115",
-	"saa7127",
+	"saa7127_auto",	/* saa7127 or saa7129 */
 	"msp3400",
 	"tuner",
 	"wm8775",
@@ -732,6 +726,7 @@ int ivtv_saa7127(struct ivtv *itv, unsigned int cmd, void *arg)
 {
 	return ivtv_call_i2c_client(itv, IVTV_SAA7127_I2C_ADDR, cmd, arg);
 }
+EXPORT_SYMBOL(ivtv_saa7127);
 
 int ivtv_saa717x(struct ivtv *itv, unsigned int cmd, void *arg)
 {

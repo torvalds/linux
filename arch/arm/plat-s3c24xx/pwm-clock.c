@@ -18,16 +18,16 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 
-#include <asm/arch/regs-clock.h>
-#include <asm/arch/regs-gpio.h>
+#include <mach/regs-clock.h>
+#include <mach/regs-gpio.h>
 
-#include <asm/plat-s3c24xx/clock.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/clock.h>
+#include <plat/cpu.h>
 
-#include <asm/plat-s3c/regs-timer.h>
+#include <plat/regs-timer.h>
 
 /* Each of the timers 0 through 5 go through the following
  * clock tree, with the inputs depending on the timers.
@@ -89,7 +89,7 @@ static unsigned long clk_pwm_scaler_getrate(struct clk *clk)
 
 /* TODO - add set rate calls. */
 
-struct clk clk_timer_scaler[] = {
+static struct clk clk_timer_scaler[] = {
 	[0]	= {
 		.name		= "pwm-scaler0",
 		.id		= -1,
@@ -102,7 +102,7 @@ struct clk clk_timer_scaler[] = {
 	},
 };
 
-struct clk clk_timer_tclk[] = {
+static struct clk clk_timer_tclk[] = {
 	[0]	= {
 		.name		= "pwm-tclk0",
 		.id		= -1,
@@ -232,7 +232,7 @@ static int clk_pwm_tdiv_set_rate(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
-struct pwm_tdiv_clk clk_timer_tdiv[] = {
+static struct pwm_tdiv_clk clk_timer_tdiv[] = {
 	[0]	= {
 		.clk	= {
 			.name		= "pwm-tdiv",
@@ -315,7 +315,7 @@ static int clk_pwm_tin_set_parent(struct clk *clk, struct clk *parent)
 	if (parent == s3c24xx_pwmclk_tclk(id))
 		bits = S3C2410_TCFG1_MUX_TCLK << shift;
 	else if (parent == s3c24xx_pwmclk_tdiv(id))
-		bits = clk_pwm_tdiv_bits(to_tdiv(clk)) << shift;
+		bits = clk_pwm_tdiv_bits(to_tdiv(parent)) << shift;
 	else
 		return -EINVAL;
 

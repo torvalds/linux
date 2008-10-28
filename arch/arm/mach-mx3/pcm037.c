@@ -23,15 +23,17 @@
 #include <linux/mtd/physmap.h>
 #include <linux/memory.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <asm/arch/common.h>
-#include <asm/arch/imx-uart.h>
-#include <asm/arch/iomux-mx3.h>
-#include <asm/arch/board-pcm037.h>
+#include <mach/common.h>
+#include <mach/imx-uart.h>
+#include <mach/iomux-mx3.h>
+#include <mach/board-pcm037.h>
+
+#include "devices.h"
 
 static struct physmap_flash_data pcm037_flash_data = {
 	.width  = 2,
@@ -54,7 +56,7 @@ static struct platform_device pcm037_flash = {
 };
 
 static struct imxuart_platform_data uart_pdata = {
-	.flags = 0,
+	.flags = IMXUART_HAVE_RTSCTS,
 };
 
 static struct platform_device *devices[] __initdata = {
@@ -73,12 +75,12 @@ static void __init mxc_board_init(void)
 	mxc_iomux_mode(MX31_PIN_TXD1__TXD1);
 	mxc_iomux_mode(MX31_PIN_RXD1__RXD1);
 
-	imx_init_uart(0, &uart_pdata);
+	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 
 	mxc_iomux_mode(MX31_PIN_CSPI3_MOSI__RXD3);
 	mxc_iomux_mode(MX31_PIN_CSPI3_MISO__TXD3);
 
-	imx_init_uart(2, &uart_pdata);
+	mxc_register_device(&mxc_uart_device2, &uart_pdata);
 }
 
 /*

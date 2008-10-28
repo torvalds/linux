@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
@@ -34,10 +34,10 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/gpio.h>
+#include <mach/board.h>
+#include <mach/gpio.h>
 
-#include <asm/arch/at91rm9200_mc.h>
+#include <mach/at91rm9200_mc.h>
 
 #include "generic.h"
 
@@ -105,7 +105,7 @@ static struct mtd_partition * __init nand_partitions(int size, int *num_partitio
 	return kb9202_nand_partition;
 }
 
-static struct at91_nand_data __initdata kb9202_nand_data = {
+static struct atmel_nand_data __initdata kb9202_nand_data = {
 	.ale		= 22,
 	.cle		= 21,
 	// .det_pin	= ... not there

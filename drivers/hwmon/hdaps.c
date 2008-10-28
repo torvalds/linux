@@ -581,6 +581,8 @@ static int __init hdaps_init(void)
 	/* initialize the input class */
 	idev = hdaps_idev->input;
 	idev->name = "hdaps";
+	idev->phys = "isa1600/input0";
+	idev->id.bustype = BUS_ISA;
 	idev->dev.parent = &pdev->dev;
 	idev->evbit[0] = BIT_MASK(EV_ABS);
 	input_set_abs_params(idev, ABS_X,

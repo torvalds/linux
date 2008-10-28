@@ -49,16 +49,7 @@ static int novmerge = 1;
 
 static int protect4gb = 1;
 
-static inline unsigned long iommu_num_pages(unsigned long vaddr,
-					    unsigned long slen)
-{
-	unsigned long npages;
-
-	npages = IOMMU_PAGE_ALIGN(vaddr + slen) - (vaddr & IOMMU_PAGE_MASK);
-	npages >>= IOMMU_PAGE_SHIFT;
-
-	return npages;
-}
+static void __iommu_free(struct iommu_table *, dma_addr_t, unsigned int);
 
 static int __init setup_protect4gb(char *str)
 {
@@ -186,10 +177,12 @@ static unsigned long iommu_range_alloc(struct device *dev,
 static dma_addr_t iommu_alloc(struct device *dev, struct iommu_table *tbl,
 			      void *page, unsigned int npages,
 			      enum dma_data_direction direction,
-			      unsigned long mask, unsigned int align_order)
+			      unsigned long mask, unsigned int align_order,
+			      struct dma_attrs *attrs)
 {
 	unsigned long entry, flags;
 	dma_addr_t ret = DMA_ERROR_CODE;
+	int build_fail;
 
 	spin_lock_irqsave(&(tbl->it_lock), flags);
 
@@ -204,9 +197,21 @@ static dma_addr_t iommu_alloc(struct device *dev, struct iommu_table *tbl,
 	ret = entry << IOMMU_PAGE_SHIFT;	/* Set the return dma address */
 
 	/* Put the TCEs in the HW table */
-	ppc_md.tce_build(tbl, entry, npages, (unsigned long)page & IOMMU_PAGE_MASK,
-			 direction);
+	build_fail = ppc_md.tce_build(tbl, entry, npages,
+	                              (unsigned long)page & IOMMU_PAGE_MASK,
+	                              direction, attrs);
 
+	/* ppc_md.tce_build() only returns non-zero for transient errors.
+	 * Clean up the table bitmap in this case and return
+	 * DMA_ERROR_CODE. For all other errors the functionality is
+	 * not altered.
+	 */
+	if (unlikely(build_fail)) {
+		__iommu_free(tbl, ret, npages);
+
+		spin_unlock_irqrestore(&(tbl->it_lock), flags);
+		return DMA_ERROR_CODE;
+	}
 
 	/* Flush/invalidate TLB caches if necessary */
 	if (ppc_md.tce_flush)
@@ -275,7 +280,7 @@ int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 	dma_addr_t dma_next = 0, dma_addr;
 	unsigned long flags;
 	struct scatterlist *s, *outs, *segstart;
-	int outcount, incount, i;
+	int outcount, incount, i, build_fail = 0;
 	unsigned int align;
 	unsigned long handle;
 	unsigned int max_seg_size;
@@ -309,7 +314,7 @@ int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 		}
 		/* Allocate iommu entries for that segment */
 		vaddr = (unsigned long) sg_virt(s);
-		npages = iommu_num_pages(vaddr, slen);
+		npages = iommu_num_pages(vaddr, slen, IOMMU_PAGE_SIZE);
 		align = 0;
 		if (IOMMU_PAGE_SHIFT < PAGE_SHIFT && slen >= PAGE_SIZE &&
 		    (vaddr & ~PAGE_MASK) == 0)
@@ -336,7 +341,11 @@ int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 			    npages, entry, dma_addr);
 
 		/* Insert into HW table */
-		ppc_md.tce_build(tbl, entry, npages, vaddr & IOMMU_PAGE_MASK, direction);
+		build_fail = ppc_md.tce_build(tbl, entry, npages,
+		                              vaddr & IOMMU_PAGE_MASK,
+		                              direction, attrs);
+		if(unlikely(build_fail))
+			goto failure;
 
 		/* If we are in an open segment, try merging */
 		if (segstart != s) {
@@ -398,7 +407,8 @@ int iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 			unsigned long vaddr, npages;
 
 			vaddr = s->dma_address & IOMMU_PAGE_MASK;
-			npages = iommu_num_pages(s->dma_address, s->dma_length);
+			npages = iommu_num_pages(s->dma_address, s->dma_length,
+						 IOMMU_PAGE_SIZE);
 			__iommu_free(tbl, vaddr, npages);
 			s->dma_address = DMA_ERROR_CODE;
 			s->dma_length = 0;
@@ -432,7 +442,8 @@ void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 
 		if (sg->dma_length == 0)
 			break;
-		npages = iommu_num_pages(dma_handle, sg->dma_length);
+		npages = iommu_num_pages(dma_handle, sg->dma_length,
+					 IOMMU_PAGE_SIZE);
 		__iommu_free(tbl, dma_handle, npages);
 		sg = sg_next(sg);
 	}
@@ -445,6 +456,42 @@ void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 		ppc_md.tce_flush(tbl);
 
 	spin_unlock_irqrestore(&(tbl->it_lock), flags);
+}
+
+static void iommu_table_clear(struct iommu_table *tbl)
+{
+	if (!__kdump_flag) {
+		/* Clear the table in case firmware left allocations in it */
+		ppc_md.tce_free(tbl, tbl->it_offset, tbl->it_size);
+		return;
+	}
+
+#ifdef CONFIG_CRASH_DUMP
+	if (ppc_md.tce_get) {
+		unsigned long index, tceval, tcecount = 0;
+
+		/* Reserve the existing mappings left by the first kernel. */
+		for (index = 0; index < tbl->it_size; index++) {
+			tceval = ppc_md.tce_get(tbl, index + tbl->it_offset);
+			/*
+			 * Freed TCE entry contains 0x7fffffffffffffff on JS20
+			 */
+			if (tceval && (tceval != 0x7fffffffffffffffUL)) {
+				__set_bit(index, tbl->it_map);
+				tcecount++;
+			}
+		}
+
+		if ((tbl->it_size - tcecount) < KDUMP_MIN_TCE_ENTRIES) {
+			printk(KERN_WARNING "TCE table is full; freeing ");
+			printk(KERN_WARNING "%d entries for the kdump boot\n",
+				KDUMP_MIN_TCE_ENTRIES);
+			for (index = tbl->it_size - KDUMP_MIN_TCE_ENTRIES;
+				index < tbl->it_size; index++)
+				__clear_bit(index, tbl->it_map);
+		}
+	}
+#endif
 }
 
 /*
@@ -473,38 +520,7 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid)
 	tbl->it_largehint = tbl->it_halfpoint;
 	spin_lock_init(&tbl->it_lock);
 
-#ifdef CONFIG_CRASH_DUMP
-	if (ppc_md.tce_get) {
-		unsigned long index;
-		unsigned long tceval;
-		unsigned long tcecount = 0;
-
-		/*
-		 * Reserve the existing mappings left by the first kernel.
-		 */
-		for (index = 0; index < tbl->it_size; index++) {
-			tceval = ppc_md.tce_get(tbl, index + tbl->it_offset);
-			/*
-			 * Freed TCE entry contains 0x7fffffffffffffff on JS20
-			 */
-			if (tceval && (tceval != 0x7fffffffffffffffUL)) {
-				__set_bit(index, tbl->it_map);
-				tcecount++;
-			}
-		}
-		if ((tbl->it_size - tcecount) < KDUMP_MIN_TCE_ENTRIES) {
-			printk(KERN_WARNING "TCE table is full; ");
-			printk(KERN_WARNING "freeing %d entries for the kdump boot\n",
-				KDUMP_MIN_TCE_ENTRIES);
-			for (index = tbl->it_size - KDUMP_MIN_TCE_ENTRIES;
-				index < tbl->it_size; index++)
-				__clear_bit(index, tbl->it_map);
-		}
-	}
-#else
-	/* Clear the hardware table in case firmware left allocations in it */
-	ppc_md.tce_free(tbl, tbl->it_offset, tbl->it_size);
-#endif
+	iommu_table_clear(tbl);
 
 	if (!welcomed) {
 		printk(KERN_INFO "IOMMU table initialized, virtual merging %s\n",
@@ -564,7 +580,7 @@ dma_addr_t iommu_map_single(struct device *dev, struct iommu_table *tbl,
 	BUG_ON(direction == DMA_NONE);
 
 	uaddr = (unsigned long)vaddr;
-	npages = iommu_num_pages(uaddr, size);
+	npages = iommu_num_pages(uaddr, size, IOMMU_PAGE_SIZE);
 
 	if (tbl) {
 		align = 0;
@@ -573,7 +589,8 @@ dma_addr_t iommu_map_single(struct device *dev, struct iommu_table *tbl,
 			align = PAGE_SHIFT - IOMMU_PAGE_SHIFT;
 
 		dma_handle = iommu_alloc(dev, tbl, vaddr, npages, direction,
-					 mask >> IOMMU_PAGE_SHIFT, align);
+					 mask >> IOMMU_PAGE_SHIFT, align,
+					 attrs);
 		if (dma_handle == DMA_ERROR_CODE) {
 			if (printk_ratelimit())  {
 				printk(KERN_INFO "iommu_alloc failed, "
@@ -596,7 +613,7 @@ void iommu_unmap_single(struct iommu_table *tbl, dma_addr_t dma_handle,
 	BUG_ON(direction == DMA_NONE);
 
 	if (tbl) {
-		npages = iommu_num_pages(dma_handle, size);
+		npages = iommu_num_pages(dma_handle, size, IOMMU_PAGE_SIZE);
 		iommu_free(tbl, dma_handle, npages);
 	}
 }
@@ -642,7 +659,7 @@ void *iommu_alloc_coherent(struct device *dev, struct iommu_table *tbl,
 	nio_pages = size >> IOMMU_PAGE_SHIFT;
 	io_order = get_iommu_order(size);
 	mapping = iommu_alloc(dev, tbl, ret, nio_pages, DMA_BIDIRECTIONAL,
-			      mask >> IOMMU_PAGE_SHIFT, io_order);
+			      mask >> IOMMU_PAGE_SHIFT, io_order, NULL);
 	if (mapping == DMA_ERROR_CODE) {
 		free_pages((unsigned long)ret, order);
 		return NULL;

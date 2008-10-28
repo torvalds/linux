@@ -72,7 +72,8 @@ extern atomic_t rdma_stat_sq_prod;
  */
 struct svc_rdma_op_ctxt {
 	struct svc_rdma_op_ctxt *read_hdr;
-	struct list_head free_list;
+	struct svc_rdma_fastreg_mr *frmr;
+	int hdr_count;
 	struct xdr_buf arg;
 	struct list_head dto_q;
 	enum ib_wr_opcode wr_op;
@@ -86,14 +87,52 @@ struct svc_rdma_op_ctxt {
 	struct page *pages[RPCSVC_MAXPAGES];
 };
 
+/*
+ * NFS_ requests are mapped on the client side by the chunk lists in
+ * the RPCRDMA header. During the fetching of the RPC from the client
+ * and the writing of the reply to the client, the memory in the
+ * client and the memory in the server must be mapped as contiguous
+ * vaddr/len for access by the hardware. These data strucures keep
+ * these mappings.
+ *
+ * For an RDMA_WRITE, the 'sge' maps the RPC REPLY. For RDMA_READ, the
+ * 'sge' in the svc_rdma_req_map maps the server side RPC reply and the
+ * 'ch' field maps the read-list of the RPCRDMA header to the 'sge'
+ * mapping of the reply.
+ */
+struct svc_rdma_chunk_sge {
+	int start;		/* sge no for this chunk */
+	int count;		/* sge count for this chunk */
+};
+struct svc_rdma_fastreg_mr {
+	struct ib_mr *mr;
+	void *kva;
+	struct ib_fast_reg_page_list *page_list;
+	int page_list_len;
+	unsigned long access_flags;
+	unsigned long map_len;
+	enum dma_data_direction direction;
+	struct list_head frmr_list;
+};
+struct svc_rdma_req_map {
+	struct svc_rdma_fastreg_mr *frmr;
+	unsigned long count;
+	union {
+		struct kvec sge[RPCSVC_MAXPAGES];
+		struct svc_rdma_chunk_sge ch[RPCSVC_MAXPAGES];
+	};
+};
+#define RDMACTXT_F_FAST_UNREG	1
 #define RDMACTXT_F_LAST_CTXT	2
+
+#define	SVCRDMA_DEVCAP_FAST_REG		1	/* fast mr registration */
+#define	SVCRDMA_DEVCAP_READ_W_INV	2	/* read w/ invalidate */
 
 struct svcxprt_rdma {
 	struct svc_xprt      sc_xprt;		/* SVC transport structure */
 	struct rdma_cm_id    *sc_cm_id;		/* RDMA connection id */
 	struct list_head     sc_accept_q;	/* Conn. waiting accept */
 	int		     sc_ord;		/* RDMA read limit */
-	wait_queue_head_t    sc_read_wait;
 	int                  sc_max_sge;
 
 	int                  sc_sq_depth;	/* Depth of SQ */
@@ -104,18 +143,19 @@ struct svcxprt_rdma {
 
 	struct ib_pd         *sc_pd;
 
+	atomic_t	     sc_dma_used;
 	atomic_t	     sc_ctxt_used;
-	struct list_head     sc_ctxt_free;
-	int		     sc_ctxt_cnt;
-	int		     sc_ctxt_bump;
-	int		     sc_ctxt_max;
-	spinlock_t	     sc_ctxt_lock;
 	struct list_head     sc_rq_dto_q;
 	spinlock_t	     sc_rq_dto_lock;
 	struct ib_qp         *sc_qp;
 	struct ib_cq         *sc_rq_cq;
 	struct ib_cq         *sc_sq_cq;
 	struct ib_mr         *sc_phys_mr;	/* MR for server memory */
+	u32		     sc_dev_caps;	/* distilled device caps */
+	u32		     sc_dma_lkey;	/* local dma key */
+	unsigned int	     sc_frmr_pg_list_len;
+	struct list_head     sc_frmr_q;
+	spinlock_t	     sc_frmr_q_lock;
 
 	spinlock_t	     sc_lock;		/* transport lock */
 
@@ -123,7 +163,6 @@ struct svcxprt_rdma {
 	unsigned long	     sc_flags;
 	struct list_head     sc_dto_q;		/* DTO tasklet I/O pending Q */
 	struct list_head     sc_read_complete_q;
-	spinlock_t           sc_read_complete_lock;
 	struct work_struct   sc_work;
 };
 /* sc_flags */
@@ -173,6 +212,13 @@ extern int svc_rdma_post_recv(struct svcxprt_rdma *);
 extern int svc_rdma_create_listen(struct svc_serv *, int, struct sockaddr *);
 extern struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *);
 extern void svc_rdma_put_context(struct svc_rdma_op_ctxt *, int);
+extern void svc_rdma_unmap_dma(struct svc_rdma_op_ctxt *ctxt);
+extern struct svc_rdma_req_map *svc_rdma_get_req_map(void);
+extern void svc_rdma_put_req_map(struct svc_rdma_req_map *);
+extern int svc_rdma_fastreg(struct svcxprt_rdma *, struct svc_rdma_fastreg_mr *);
+extern struct svc_rdma_fastreg_mr *svc_rdma_get_frmr(struct svcxprt_rdma *);
+extern void svc_rdma_put_frmr(struct svcxprt_rdma *,
+			      struct svc_rdma_fastreg_mr *);
 extern void svc_sq_reap(struct svcxprt_rdma *);
 extern void svc_rq_reap(struct svcxprt_rdma *);
 extern struct svc_xprt_class svc_rdma_class;

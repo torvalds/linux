@@ -31,6 +31,9 @@
 #include <linux/configfs.h>
 #include "configfs_internal.h"
 
+/* Protects attachments of new symlinks */
+DEFINE_MUTEX(configfs_symlink_mutex);
+
 static int item_depth(struct config_item * item)
 {
 	struct config_item * p = item;
@@ -73,11 +76,20 @@ static int create_link(struct config_item *parent_item,
 	struct configfs_symlink *sl;
 	int ret;
 
+	ret = -ENOENT;
+	if (!configfs_dirent_is_ready(target_sd))
+		goto out;
 	ret = -ENOMEM;
 	sl = kmalloc(sizeof(struct configfs_symlink), GFP_KERNEL);
 	if (sl) {
 		sl->sl_target = config_item_get(item);
 		spin_lock(&configfs_dirent_lock);
+		if (target_sd->s_type & CONFIGFS_USET_DROPPING) {
+			spin_unlock(&configfs_dirent_lock);
+			config_item_put(item);
+			kfree(sl);
+			return -ENOENT;
+		}
 		list_add(&sl->sl_list, &target_sd->s_links);
 		spin_unlock(&configfs_dirent_lock);
 		ret = configfs_create_link(sl, parent_item->ci_dentry,
@@ -91,22 +103,23 @@ static int create_link(struct config_item *parent_item,
 		}
 	}
 
+out:
 	return ret;
 }
 
 
-static int get_target(const char *symname, struct nameidata *nd,
+static int get_target(const char *symname, struct path *path,
 		      struct config_item **target)
 {
 	int ret;
 
-	ret = path_lookup(symname, LOOKUP_FOLLOW|LOOKUP_DIRECTORY, nd);
+	ret = kern_path(symname, LOOKUP_FOLLOW|LOOKUP_DIRECTORY, path);
 	if (!ret) {
-		if (nd->path.dentry->d_sb == configfs_sb) {
-			*target = configfs_get_config_item(nd->path.dentry);
+		if (path->dentry->d_sb == configfs_sb) {
+			*target = configfs_get_config_item(path->dentry);
 			if (!*target) {
 				ret = -ENOENT;
-				path_put(&nd->path);
+				path_put(path);
 			}
 		} else
 			ret = -EPERM;
@@ -119,7 +132,8 @@ static int get_target(const char *symname, struct nameidata *nd,
 int configfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 {
 	int ret;
-	struct nameidata nd;
+	struct path path;
+	struct configfs_dirent *sd;
 	struct config_item *parent_item;
 	struct config_item *target_item;
 	struct config_item_type *type;
@@ -128,27 +142,39 @@ int configfs_symlink(struct inode *dir, struct dentry *dentry, const char *symna
 	if (dentry->d_parent == configfs_sb->s_root)
 		goto out;
 
+	sd = dentry->d_parent->d_fsdata;
+	/*
+	 * Fake invisibility if dir belongs to a group/default groups hierarchy
+	 * being attached
+	 */
+	ret = -ENOENT;
+	if (!configfs_dirent_is_ready(sd))
+		goto out;
+
 	parent_item = configfs_get_config_item(dentry->d_parent);
 	type = parent_item->ci_type;
 
+	ret = -EPERM;
 	if (!type || !type->ct_item_ops ||
 	    !type->ct_item_ops->allow_link)
 		goto out_put;
 
-	ret = get_target(symname, &nd, &target_item);
+	ret = get_target(symname, &path, &target_item);
 	if (ret)
 		goto out_put;
 
 	ret = type->ct_item_ops->allow_link(parent_item, target_item);
 	if (!ret) {
+		mutex_lock(&configfs_symlink_mutex);
 		ret = create_link(parent_item, target_item, dentry);
+		mutex_unlock(&configfs_symlink_mutex);
 		if (ret && type->ct_item_ops->drop_link)
 			type->ct_item_ops->drop_link(parent_item,
 						     target_item);
 	}
 
 	config_item_put(target_item);
-	path_put(&nd.path);
+	path_put(&path);
 
 out_put:
 	config_item_put(parent_item);

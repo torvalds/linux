@@ -17,7 +17,7 @@
    Last modified: 18-JAN-1998 Richard Gooch <rgooch@atnf.csiro.au> Devfs support
  */
 
-static const char *verstr = "20080224";
+static const char *verstr = "20080504";
 
 #include <linux/module.h>
 
@@ -631,7 +631,7 @@ static int cross_eof(struct scsi_tape * STp, int forward)
 /* Flush the write buffer (never need to write if variable blocksize). */
 static int st_flush_write_buffer(struct scsi_tape * STp)
 {
-	int offset, transfer, blks;
+	int transfer, blks;
 	int result;
 	unsigned char cmd[MAX_COMMAND_SIZE];
 	struct st_request *SRpnt;
@@ -644,13 +644,9 @@ static int st_flush_write_buffer(struct scsi_tape * STp)
 	result = 0;
 	if (STp->dirty == 1) {
 
-		offset = (STp->buffer)->buffer_bytes;
-		transfer = ((offset + STp->block_size - 1) /
-			    STp->block_size) * STp->block_size;
+		transfer = STp->buffer->buffer_bytes;
                 DEBC(printk(ST_DEB_MSG "%s: Flushing %d bytes.\n",
                                tape_name(STp), transfer));
-
-		memset((STp->buffer)->b_data + offset, 0, transfer - offset);
 
 		memset(cmd, 0, MAX_COMMAND_SIZE);
 		cmd[0] = WRITE_6;
@@ -1670,6 +1666,7 @@ st_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 				if (undone <= do_count) {
 					/* Only data from this write is not written */
 					count += undone;
+					b_point -= undone;
 					do_count -= undone;
 					if (STp->block_size)
 						blks = (transfer - undone) / STp->block_size;
@@ -3266,7 +3263,8 @@ static long st_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
 	 * may try and take the device offline, in which case all further
 	 * access to the device is prohibited.
 	 */
-	retval = scsi_nonblockable_ioctl(STp->device, cmd_in, p, file);
+	retval = scsi_nonblockable_ioctl(STp->device, cmd_in, p,
+					file->f_flags & O_NDELAY);
 	if (!scsi_block_when_processing_errors(STp->device) || retval != -ENODEV)
 		goto out;
 	retval = 0;
@@ -3570,8 +3568,8 @@ static long st_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
 			    !capable(CAP_SYS_RAWIO))
 				i = -EPERM;
 			else
-				i = scsi_cmd_ioctl(file, STp->disk->queue,
-						   STp->disk, cmd_in, p);
+				i = scsi_cmd_ioctl(STp->disk->queue, STp->disk,
+						   file->f_mode, cmd_in, p);
 			if (i != -ENOTTY)
 				return i;
 			break;
@@ -4431,13 +4429,10 @@ static int do_create_class_files(struct scsi_tape *STp, int dev_num, int mode)
 		snprintf(name, 10, "%s%s%s", rew ? "n" : "",
 			 STp->disk->disk_name, st_formats[i]);
 		st_class_member =
-			device_create_drvdata(st_sysfs_class,
-					      &STp->device->sdev_gendev,
-					      MKDEV(SCSI_TAPE_MAJOR,
-						    TAPE_MINOR(dev_num,
-							      mode, rew)),
-					      &STp->modes[mode],
-					      "%s", name);
+			device_create(st_sysfs_class, &STp->device->sdev_gendev,
+				      MKDEV(SCSI_TAPE_MAJOR,
+					    TAPE_MINOR(dev_num, mode, rew)),
+				      &STp->modes[mode], "%s", name);
 		if (IS_ERR(st_class_member)) {
 			printk(KERN_WARNING "st%d: device_create failed\n",
 			       dev_num);

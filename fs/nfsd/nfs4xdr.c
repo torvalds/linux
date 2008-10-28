@@ -413,6 +413,18 @@ out_nfserr:
 }
 
 static __be32
+nfsd4_decode_stateid(struct nfsd4_compoundargs *argp, stateid_t *sid)
+{
+	DECODE_HEAD;
+
+	READ_BUF(sizeof(stateid_t));
+	READ32(sid->si_generation);
+	COPYMEM(&sid->si_opaque, sizeof(stateid_opaque_t));
+
+	DECODE_TAIL;
+}
+
+static __be32
 nfsd4_decode_access(struct nfsd4_compoundargs *argp, struct nfsd4_access *access)
 {
 	DECODE_HEAD;
@@ -429,10 +441,9 @@ nfsd4_decode_close(struct nfsd4_compoundargs *argp, struct nfsd4_close *close)
 	DECODE_HEAD;
 
 	close->cl_stateowner = NULL;
-	READ_BUF(4 + sizeof(stateid_t));
+	READ_BUF(4);
 	READ32(close->cl_seqid);
-	READ32(close->cl_stateid.si_generation);
-	COPYMEM(&close->cl_stateid.si_opaque, sizeof(stateid_opaque_t));
+	return nfsd4_decode_stateid(argp, &close->cl_stateid);
 
 	DECODE_TAIL;
 }
@@ -493,13 +504,7 @@ nfsd4_decode_create(struct nfsd4_compoundargs *argp, struct nfsd4_create *create
 static inline __be32
 nfsd4_decode_delegreturn(struct nfsd4_compoundargs *argp, struct nfsd4_delegreturn *dr)
 {
-	DECODE_HEAD;
-
-	READ_BUF(sizeof(stateid_t));
-	READ32(dr->dr_stateid.si_generation);
-	COPYMEM(&dr->dr_stateid.si_opaque, sizeof(stateid_opaque_t));
-
-	DECODE_TAIL;
+	return nfsd4_decode_stateid(argp, &dr->dr_stateid);
 }
 
 static inline __be32
@@ -542,20 +547,22 @@ nfsd4_decode_lock(struct nfsd4_compoundargs *argp, struct nfsd4_lock *lock)
 	READ32(lock->lk_is_new);
 
 	if (lock->lk_is_new) {
-		READ_BUF(36);
+		READ_BUF(4);
 		READ32(lock->lk_new_open_seqid);
-		READ32(lock->lk_new_open_stateid.si_generation);
-
-		COPYMEM(&lock->lk_new_open_stateid.si_opaque, sizeof(stateid_opaque_t));
+		status = nfsd4_decode_stateid(argp, &lock->lk_new_open_stateid);
+		if (status)
+			return status;
+		READ_BUF(8 + sizeof(clientid_t));
 		READ32(lock->lk_new_lock_seqid);
 		COPYMEM(&lock->lk_new_clientid, sizeof(clientid_t));
 		READ32(lock->lk_new_owner.len);
 		READ_BUF(lock->lk_new_owner.len);
 		READMEM(lock->lk_new_owner.data, lock->lk_new_owner.len);
 	} else {
-		READ_BUF(20);
-		READ32(lock->lk_old_lock_stateid.si_generation);
-		COPYMEM(&lock->lk_old_lock_stateid.si_opaque, sizeof(stateid_opaque_t));
+		status = nfsd4_decode_stateid(argp, &lock->lk_old_lock_stateid);
+		if (status)
+			return status;
+		READ_BUF(4);
 		READ32(lock->lk_old_lock_seqid);
 	}
 
@@ -587,13 +594,15 @@ nfsd4_decode_locku(struct nfsd4_compoundargs *argp, struct nfsd4_locku *locku)
 	DECODE_HEAD;
 
 	locku->lu_stateowner = NULL;
-	READ_BUF(24 + sizeof(stateid_t));
+	READ_BUF(8);
 	READ32(locku->lu_type);
 	if ((locku->lu_type < NFS4_READ_LT) || (locku->lu_type > NFS4_WRITEW_LT))
 		goto xdr_error;
 	READ32(locku->lu_seqid);
-	READ32(locku->lu_stateid.si_generation);
-	COPYMEM(&locku->lu_stateid.si_opaque, sizeof(stateid_opaque_t));
+	status = nfsd4_decode_stateid(argp, &locku->lu_stateid);
+	if (status)
+		return status;
+	READ_BUF(16);
 	READ64(locku->lu_offset);
 	READ64(locku->lu_length);
 
@@ -678,8 +687,10 @@ nfsd4_decode_open(struct nfsd4_compoundargs *argp, struct nfsd4_open *open)
 		READ32(open->op_delegate_type);
 		break;
 	case NFS4_OPEN_CLAIM_DELEGATE_CUR:
-		READ_BUF(sizeof(stateid_t) + 4);
-		COPYMEM(&open->op_delegate_stateid, sizeof(stateid_t));
+		status = nfsd4_decode_stateid(argp, &open->op_delegate_stateid);
+		if (status)
+			return status;
+		READ_BUF(4);
 		READ32(open->op_fname.len);
 		READ_BUF(open->op_fname.len);
 		SAVEMEM(open->op_fname.data, open->op_fname.len);
@@ -699,9 +710,10 @@ nfsd4_decode_open_confirm(struct nfsd4_compoundargs *argp, struct nfsd4_open_con
 	DECODE_HEAD;
 		    
 	open_conf->oc_stateowner = NULL;
-	READ_BUF(4 + sizeof(stateid_t));
-	READ32(open_conf->oc_req_stateid.si_generation);
-	COPYMEM(&open_conf->oc_req_stateid.si_opaque, sizeof(stateid_opaque_t));
+	status = nfsd4_decode_stateid(argp, &open_conf->oc_req_stateid);
+	if (status)
+		return status;
+	READ_BUF(4);
 	READ32(open_conf->oc_seqid);
 						        
 	DECODE_TAIL;
@@ -713,9 +725,10 @@ nfsd4_decode_open_downgrade(struct nfsd4_compoundargs *argp, struct nfsd4_open_d
 	DECODE_HEAD;
 		    
 	open_down->od_stateowner = NULL;
-	READ_BUF(12 + sizeof(stateid_t));
-	READ32(open_down->od_stateid.si_generation);
-	COPYMEM(&open_down->od_stateid.si_opaque, sizeof(stateid_opaque_t));
+	status = nfsd4_decode_stateid(argp, &open_down->od_stateid);
+	if (status)
+		return status;
+	READ_BUF(12);
 	READ32(open_down->od_seqid);
 	READ32(open_down->od_share_access);
 	READ32(open_down->od_share_deny);
@@ -743,9 +756,10 @@ nfsd4_decode_read(struct nfsd4_compoundargs *argp, struct nfsd4_read *read)
 {
 	DECODE_HEAD;
 
-	READ_BUF(sizeof(stateid_t) + 12);
-	READ32(read->rd_stateid.si_generation);
-	COPYMEM(&read->rd_stateid.si_opaque, sizeof(stateid_opaque_t));
+	status = nfsd4_decode_stateid(argp, &read->rd_stateid);
+	if (status)
+		return status;
+	READ_BUF(12);
 	READ64(read->rd_offset);
 	READ32(read->rd_length);
 
@@ -834,15 +848,13 @@ nfsd4_decode_secinfo(struct nfsd4_compoundargs *argp,
 static __be32
 nfsd4_decode_setattr(struct nfsd4_compoundargs *argp, struct nfsd4_setattr *setattr)
 {
-	DECODE_HEAD;
+	__be32 status;
 
-	READ_BUF(sizeof(stateid_t));
-	READ32(setattr->sa_stateid.si_generation);
-	COPYMEM(&setattr->sa_stateid.si_opaque, sizeof(stateid_opaque_t));
-	if ((status = nfsd4_decode_fattr(argp, setattr->sa_bmval, &setattr->sa_iattr, &setattr->sa_acl)))
-		goto out;
-
-	DECODE_TAIL;
+	status = nfsd4_decode_stateid(argp, &setattr->sa_stateid);
+	if (status)
+		return status;
+	return nfsd4_decode_fattr(argp, setattr->sa_bmval,
+				  &setattr->sa_iattr, &setattr->sa_acl);
 }
 
 static __be32
@@ -927,9 +939,10 @@ nfsd4_decode_write(struct nfsd4_compoundargs *argp, struct nfsd4_write *write)
 	int len;
 	DECODE_HEAD;
 
-	READ_BUF(sizeof(stateid_opaque_t) + 20);
-	READ32(write->wr_stateid.si_generation);
-	COPYMEM(&write->wr_stateid.si_opaque, sizeof(stateid_opaque_t));
+	status = nfsd4_decode_stateid(argp, &write->wr_stateid);
+	if (status)
+		return status;
+	READ_BUF(16);
 	READ64(write->wr_offset);
 	READ32(write->wr_stable_how);
 	if (write->wr_stable_how > 2)
@@ -986,10 +999,74 @@ nfsd4_decode_release_lockowner(struct nfsd4_compoundargs *argp, struct nfsd4_rel
 }
 
 static __be32
+nfsd4_decode_noop(struct nfsd4_compoundargs *argp, void *p)
+{
+	return nfs_ok;
+}
+
+static __be32
+nfsd4_decode_notsupp(struct nfsd4_compoundargs *argp, void *p)
+{
+	return nfserr_opnotsupp;
+}
+
+typedef __be32(*nfsd4_dec)(struct nfsd4_compoundargs *argp, void *);
+
+static nfsd4_dec nfsd4_dec_ops[] = {
+	[OP_ACCESS]		= (nfsd4_dec)nfsd4_decode_access,
+	[OP_CLOSE]		= (nfsd4_dec)nfsd4_decode_close,
+	[OP_COMMIT]		= (nfsd4_dec)nfsd4_decode_commit,
+	[OP_CREATE]		= (nfsd4_dec)nfsd4_decode_create,
+	[OP_DELEGPURGE]		= (nfsd4_dec)nfsd4_decode_notsupp,
+	[OP_DELEGRETURN]	= (nfsd4_dec)nfsd4_decode_delegreturn,
+	[OP_GETATTR]		= (nfsd4_dec)nfsd4_decode_getattr,
+	[OP_GETFH]		= (nfsd4_dec)nfsd4_decode_noop,
+	[OP_LINK]		= (nfsd4_dec)nfsd4_decode_link,
+	[OP_LOCK]		= (nfsd4_dec)nfsd4_decode_lock,
+	[OP_LOCKT]		= (nfsd4_dec)nfsd4_decode_lockt,
+	[OP_LOCKU]		= (nfsd4_dec)nfsd4_decode_locku,
+	[OP_LOOKUP]		= (nfsd4_dec)nfsd4_decode_lookup,
+	[OP_LOOKUPP]		= (nfsd4_dec)nfsd4_decode_noop,
+	[OP_NVERIFY]		= (nfsd4_dec)nfsd4_decode_verify,
+	[OP_OPEN]		= (nfsd4_dec)nfsd4_decode_open,
+	[OP_OPENATTR]		= (nfsd4_dec)nfsd4_decode_notsupp,
+	[OP_OPEN_CONFIRM]	= (nfsd4_dec)nfsd4_decode_open_confirm,
+	[OP_OPEN_DOWNGRADE]	= (nfsd4_dec)nfsd4_decode_open_downgrade,
+	[OP_PUTFH]		= (nfsd4_dec)nfsd4_decode_putfh,
+	[OP_PUTPUBFH]		= (nfsd4_dec)nfsd4_decode_notsupp,
+	[OP_PUTROOTFH]		= (nfsd4_dec)nfsd4_decode_noop,
+	[OP_READ]		= (nfsd4_dec)nfsd4_decode_read,
+	[OP_READDIR]		= (nfsd4_dec)nfsd4_decode_readdir,
+	[OP_READLINK]		= (nfsd4_dec)nfsd4_decode_noop,
+	[OP_REMOVE]		= (nfsd4_dec)nfsd4_decode_remove,
+	[OP_RENAME]		= (nfsd4_dec)nfsd4_decode_rename,
+	[OP_RENEW]		= (nfsd4_dec)nfsd4_decode_renew,
+	[OP_RESTOREFH]		= (nfsd4_dec)nfsd4_decode_noop,
+	[OP_SAVEFH]		= (nfsd4_dec)nfsd4_decode_noop,
+	[OP_SECINFO]		= (nfsd4_dec)nfsd4_decode_secinfo,
+	[OP_SETATTR]		= (nfsd4_dec)nfsd4_decode_setattr,
+	[OP_SETCLIENTID]	= (nfsd4_dec)nfsd4_decode_setclientid,
+	[OP_SETCLIENTID_CONFIRM] = (nfsd4_dec)nfsd4_decode_setclientid_confirm,
+	[OP_VERIFY]		= (nfsd4_dec)nfsd4_decode_verify,
+	[OP_WRITE]		= (nfsd4_dec)nfsd4_decode_write,
+	[OP_RELEASE_LOCKOWNER]	= (nfsd4_dec)nfsd4_decode_release_lockowner,
+};
+
+struct nfsd4_minorversion_ops {
+	nfsd4_dec *decoders;
+	int nops;
+};
+
+static struct nfsd4_minorversion_ops nfsd4_minorversion[] = {
+	[0] = { nfsd4_dec_ops, ARRAY_SIZE(nfsd4_dec_ops) },
+};
+
+static __be32
 nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 {
 	DECODE_HEAD;
 	struct nfsd4_op *op;
+	struct nfsd4_minorversion_ops *ops;
 	int i;
 
 	/*
@@ -1019,6 +1096,10 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 		}
 	}
 
+	if (argp->minorversion >= ARRAY_SIZE(nfsd4_minorversion))
+		argp->opcnt = 0;
+
+	ops = &nfsd4_minorversion[argp->minorversion];
 	for (i = 0; i < argp->opcnt; i++) {
 		op = &argp->ops[i];
 		op->replay = NULL;
@@ -1056,120 +1137,11 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 		}
 		op->opnum = ntohl(*argp->p++);
 
-		switch (op->opnum) {
-		case 2: /* Reserved operation */
-			op->opnum = OP_ILLEGAL;
-			if (argp->minorversion == 0)
-				op->status = nfserr_op_illegal;
-			else
-				op->status = nfserr_minor_vers_mismatch;
-			break;
-		case OP_ACCESS:
-			op->status = nfsd4_decode_access(argp, &op->u.access);
-			break;
-		case OP_CLOSE:
-			op->status = nfsd4_decode_close(argp, &op->u.close);
-			break;
-		case OP_COMMIT:
-			op->status = nfsd4_decode_commit(argp, &op->u.commit);
-			break;
-		case OP_CREATE:
-			op->status = nfsd4_decode_create(argp, &op->u.create);
-			break;
-		case OP_DELEGRETURN:
-			op->status = nfsd4_decode_delegreturn(argp, &op->u.delegreturn);
-			break;
-		case OP_GETATTR:
-			op->status = nfsd4_decode_getattr(argp, &op->u.getattr);
-			break;
-		case OP_GETFH:
-			op->status = nfs_ok;
-			break;
-		case OP_LINK:
-			op->status = nfsd4_decode_link(argp, &op->u.link);
-			break;
-		case OP_LOCK:
-			op->status = nfsd4_decode_lock(argp, &op->u.lock);
-			break;
-		case OP_LOCKT:
-			op->status = nfsd4_decode_lockt(argp, &op->u.lockt);
-			break;
-		case OP_LOCKU:
-			op->status = nfsd4_decode_locku(argp, &op->u.locku);
-			break;
-		case OP_LOOKUP:
-			op->status = nfsd4_decode_lookup(argp, &op->u.lookup);
-			break;
-		case OP_LOOKUPP:
-			op->status = nfs_ok;
-			break;
-		case OP_NVERIFY:
-			op->status = nfsd4_decode_verify(argp, &op->u.nverify);
-			break;
-		case OP_OPEN:
-			op->status = nfsd4_decode_open(argp, &op->u.open);
-			break;
-		case OP_OPEN_CONFIRM:
-			op->status = nfsd4_decode_open_confirm(argp, &op->u.open_confirm);
-			break;
-		case OP_OPEN_DOWNGRADE:
-			op->status = nfsd4_decode_open_downgrade(argp, &op->u.open_downgrade);
-			break;
-		case OP_PUTFH:
-			op->status = nfsd4_decode_putfh(argp, &op->u.putfh);
-			break;
-		case OP_PUTROOTFH:
-			op->status = nfs_ok;
-			break;
-		case OP_READ:
-			op->status = nfsd4_decode_read(argp, &op->u.read);
-			break;
-		case OP_READDIR:
-			op->status = nfsd4_decode_readdir(argp, &op->u.readdir);
-			break;
-		case OP_READLINK:
-			op->status = nfs_ok;
-			break;
-		case OP_REMOVE:
-			op->status = nfsd4_decode_remove(argp, &op->u.remove);
-			break;
-		case OP_RENAME:
-			op->status = nfsd4_decode_rename(argp, &op->u.rename);
-			break;
-		case OP_RESTOREFH:
-			op->status = nfs_ok;
-			break;
-		case OP_RENEW:
-			op->status = nfsd4_decode_renew(argp, &op->u.renew);
-			break;
-		case OP_SAVEFH:
-			op->status = nfs_ok;
-			break;
-		case OP_SECINFO:
-			op->status = nfsd4_decode_secinfo(argp, &op->u.secinfo);
-			break;
-		case OP_SETATTR:
-			op->status = nfsd4_decode_setattr(argp, &op->u.setattr);
-			break;
-		case OP_SETCLIENTID:
-			op->status = nfsd4_decode_setclientid(argp, &op->u.setclientid);
-			break;
-		case OP_SETCLIENTID_CONFIRM:
-			op->status = nfsd4_decode_setclientid_confirm(argp, &op->u.setclientid_confirm);
-			break;
-		case OP_VERIFY:
-			op->status = nfsd4_decode_verify(argp, &op->u.verify);
-			break;
-		case OP_WRITE:
-			op->status = nfsd4_decode_write(argp, &op->u.write);
-			break;
-		case OP_RELEASE_LOCKOWNER:
-			op->status = nfsd4_decode_release_lockowner(argp, &op->u.release_lockowner);
-			break;
-		default:
+		if (op->opnum >= OP_ACCESS && op->opnum < ops->nops)
+			op->status = ops->decoders[op->opnum](argp, &op->u);
+		else {
 			op->opnum = OP_ILLEGAL;
 			op->status = nfserr_op_illegal;
-			break;
 		}
 
 		if (op->status) {
@@ -1201,11 +1173,11 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 	*p++ = htonl((u32)((n) >> 32));				\
 	*p++ = htonl((u32)(n));					\
 } while (0)
-#define WRITEMEM(ptr,nbytes)     do {				\
+#define WRITEMEM(ptr,nbytes)     do { if (nbytes > 0) {		\
 	*(p + XDR_QUADLEN(nbytes) -1) = 0;                      \
 	memcpy(p, ptr, nbytes);					\
 	p += XDR_QUADLEN(nbytes);				\
-} while (0)
+}} while (0)
 #define WRITECINFO(c)		do {				\
 	*p++ = htonl(c.atomic);					\
 	*p++ = htonl(c.before_ctime_sec);				\
@@ -1224,7 +1196,6 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
  * Header routine to setup seqid operation replay cache
  */
 #define ENCODE_SEQID_OP_HEAD					\
-	__be32 *p;						\
 	__be32 *save;						\
 								\
 	save = resp->p;
@@ -1992,6 +1963,17 @@ fail:
 }
 
 static void
+nfsd4_encode_stateid(struct nfsd4_compoundres *resp, stateid_t *sid)
+{
+	ENCODE_HEAD;
+
+	RESERVE_SPACE(sizeof(stateid_t));
+	WRITE32(sid->si_generation);
+	WRITEMEM(&sid->si_opaque, sizeof(stateid_opaque_t));
+	ADJUST_ARGS();
+}
+
+static __be32
 nfsd4_encode_access(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_access *access)
 {
 	ENCODE_HEAD;
@@ -2002,24 +1984,23 @@ nfsd4_encode_access(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_
 		WRITE32(access->ac_resp_access);
 		ADJUST_ARGS();
 	}
+	return nfserr;
 }
 
-static void
+static __be32
 nfsd4_encode_close(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_close *close)
 {
 	ENCODE_SEQID_OP_HEAD;
 
-	if (!nfserr) {
-		RESERVE_SPACE(sizeof(stateid_t));
-		WRITE32(close->cl_stateid.si_generation);
-		WRITEMEM(&close->cl_stateid.si_opaque, sizeof(stateid_opaque_t));
-		ADJUST_ARGS();
-	}
+	if (!nfserr)
+		nfsd4_encode_stateid(resp, &close->cl_stateid);
+
 	ENCODE_SEQID_OP_TAIL(close->cl_stateowner);
+	return nfserr;
 }
 
 
-static void
+static __be32
 nfsd4_encode_commit(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_commit *commit)
 {
 	ENCODE_HEAD;
@@ -2029,9 +2010,10 @@ nfsd4_encode_commit(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_
 		WRITEMEM(commit->co_verf.data, 8);
 		ADJUST_ARGS();
 	}
+	return nfserr;
 }
 
-static void
+static __be32
 nfsd4_encode_create(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_create *create)
 {
 	ENCODE_HEAD;
@@ -2044,6 +2026,7 @@ nfsd4_encode_create(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_
 		WRITE32(create->cr_bmval[1]);
 		ADJUST_ARGS();
 	}
+	return nfserr;
 }
 
 static __be32
@@ -2064,9 +2047,10 @@ nfsd4_encode_getattr(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 	return nfserr;
 }
 
-static void
-nfsd4_encode_getfh(struct nfsd4_compoundres *resp, __be32 nfserr, struct svc_fh *fhp)
+static __be32
+nfsd4_encode_getfh(struct nfsd4_compoundres *resp, __be32 nfserr, struct svc_fh **fhpp)
 {
+	struct svc_fh *fhp = *fhpp;
 	unsigned int len;
 	ENCODE_HEAD;
 
@@ -2077,6 +2061,7 @@ nfsd4_encode_getfh(struct nfsd4_compoundres *resp, __be32 nfserr, struct svc_fh 
 		WRITEMEM(&fhp->fh_handle.fh_base, len);
 		ADJUST_ARGS();
 	}
+	return nfserr;
 }
 
 /*
@@ -2104,46 +2089,42 @@ nfsd4_encode_lock_denied(struct nfsd4_compoundres *resp, struct nfsd4_lock_denie
 	ADJUST_ARGS();
 }
 
-static void
+static __be32
 nfsd4_encode_lock(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_lock *lock)
 {
 	ENCODE_SEQID_OP_HEAD;
 
-	if (!nfserr) {
-		RESERVE_SPACE(4 + sizeof(stateid_t));
-		WRITE32(lock->lk_resp_stateid.si_generation);
-		WRITEMEM(&lock->lk_resp_stateid.si_opaque, sizeof(stateid_opaque_t));
-		ADJUST_ARGS();
-	} else if (nfserr == nfserr_denied)
+	if (!nfserr)
+		nfsd4_encode_stateid(resp, &lock->lk_resp_stateid);
+	else if (nfserr == nfserr_denied)
 		nfsd4_encode_lock_denied(resp, &lock->lk_denied);
 
 	ENCODE_SEQID_OP_TAIL(lock->lk_replay_owner);
+	return nfserr;
 }
 
-static void
+static __be32
 nfsd4_encode_lockt(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_lockt *lockt)
 {
 	if (nfserr == nfserr_denied)
 		nfsd4_encode_lock_denied(resp, &lockt->lt_denied);
+	return nfserr;
 }
 
-static void
+static __be32
 nfsd4_encode_locku(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_locku *locku)
 {
 	ENCODE_SEQID_OP_HEAD;
 
-	if (!nfserr) {
-		RESERVE_SPACE(sizeof(stateid_t));
-		WRITE32(locku->lu_stateid.si_generation);
-		WRITEMEM(&locku->lu_stateid.si_opaque, sizeof(stateid_opaque_t));
-		ADJUST_ARGS();
-	}
-				        
+	if (!nfserr)
+		nfsd4_encode_stateid(resp, &locku->lu_stateid);
+
 	ENCODE_SEQID_OP_TAIL(locku->lu_stateowner);
+	return nfserr;
 }
 
 
-static void
+static __be32
 nfsd4_encode_link(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_link *link)
 {
 	ENCODE_HEAD;
@@ -2153,20 +2134,21 @@ nfsd4_encode_link(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_li
 		WRITECINFO(link->li_cinfo);
 		ADJUST_ARGS();
 	}
+	return nfserr;
 }
 
 
-static void
+static __be32
 nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_open *open)
 {
+	ENCODE_HEAD;
 	ENCODE_SEQID_OP_HEAD;
 
 	if (nfserr)
 		goto out;
 
-	RESERVE_SPACE(36 + sizeof(stateid_t));
-	WRITE32(open->op_stateid.si_generation);
-	WRITEMEM(&open->op_stateid.si_opaque, sizeof(stateid_opaque_t));
+	nfsd4_encode_stateid(resp, &open->op_stateid);
+	RESERVE_SPACE(40);
 	WRITECINFO(open->op_cinfo);
 	WRITE32(open->op_rflags);
 	WRITE32(2);
@@ -2179,8 +2161,8 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_op
 	case NFS4_OPEN_DELEGATE_NONE:
 		break;
 	case NFS4_OPEN_DELEGATE_READ:
-		RESERVE_SPACE(20 + sizeof(stateid_t));
-		WRITEMEM(&open->op_delegate_stateid, sizeof(stateid_t));
+		nfsd4_encode_stateid(resp, &open->op_delegate_stateid);
+		RESERVE_SPACE(20);
 		WRITE32(open->op_recall);
 
 		/*
@@ -2193,8 +2175,8 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_op
 		ADJUST_ARGS();
 		break;
 	case NFS4_OPEN_DELEGATE_WRITE:
-		RESERVE_SPACE(32 + sizeof(stateid_t));
-		WRITEMEM(&open->op_delegate_stateid, sizeof(stateid_t));
+		nfsd4_encode_stateid(resp, &open->op_delegate_stateid);
+		RESERVE_SPACE(32);
 		WRITE32(0);
 
 		/*
@@ -2219,36 +2201,31 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_op
 	/* XXX save filehandle here */
 out:
 	ENCODE_SEQID_OP_TAIL(open->op_stateowner);
+	return nfserr;
 }
 
-static void
+static __be32
 nfsd4_encode_open_confirm(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_open_confirm *oc)
 {
 	ENCODE_SEQID_OP_HEAD;
-				        
-	if (!nfserr) {
-		RESERVE_SPACE(sizeof(stateid_t));
-		WRITE32(oc->oc_resp_stateid.si_generation);
-		WRITEMEM(&oc->oc_resp_stateid.si_opaque, sizeof(stateid_opaque_t));
-		ADJUST_ARGS();
-	}
+
+	if (!nfserr)
+		nfsd4_encode_stateid(resp, &oc->oc_resp_stateid);
 
 	ENCODE_SEQID_OP_TAIL(oc->oc_stateowner);
+	return nfserr;
 }
 
-static void
+static __be32
 nfsd4_encode_open_downgrade(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_open_downgrade *od)
 {
 	ENCODE_SEQID_OP_HEAD;
-				        
-	if (!nfserr) {
-		RESERVE_SPACE(sizeof(stateid_t));
-		WRITE32(od->od_stateid.si_generation);
-		WRITEMEM(&od->od_stateid.si_opaque, sizeof(stateid_opaque_t));
-		ADJUST_ARGS();
-	}
+
+	if (!nfserr)
+		nfsd4_encode_stateid(resp, &od->od_stateid);
 
 	ENCODE_SEQID_OP_TAIL(od->od_stateowner);
+	return nfserr;
 }
 
 static __be32
@@ -2443,7 +2420,7 @@ err_no_verf:
 	return nfserr;
 }
 
-static void
+static __be32
 nfsd4_encode_remove(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_remove *remove)
 {
 	ENCODE_HEAD;
@@ -2453,9 +2430,10 @@ nfsd4_encode_remove(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_
 		WRITECINFO(remove->rm_cinfo);
 		ADJUST_ARGS();
 	}
+	return nfserr;
 }
 
-static void
+static __be32
 nfsd4_encode_rename(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_rename *rename)
 {
 	ENCODE_HEAD;
@@ -2466,9 +2444,10 @@ nfsd4_encode_rename(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_
 		WRITECINFO(rename->rn_tinfo);
 		ADJUST_ARGS();
 	}
+	return nfserr;
 }
 
-static void
+static __be32
 nfsd4_encode_secinfo(struct nfsd4_compoundres *resp, __be32 nfserr,
 		     struct nfsd4_secinfo *secinfo)
 {
@@ -2532,13 +2511,14 @@ nfsd4_encode_secinfo(struct nfsd4_compoundres *resp, __be32 nfserr,
 out:
 	if (exp)
 		exp_put(exp);
+	return nfserr;
 }
 
 /*
  * The SETATTR encode routine is special -- it always encodes a bitmap,
  * regardless of the error status.
  */
-static void
+static __be32
 nfsd4_encode_setattr(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_setattr *setattr)
 {
 	ENCODE_HEAD;
@@ -2555,9 +2535,10 @@ nfsd4_encode_setattr(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 		WRITE32(setattr->sa_bmval[1]);
 	}
 	ADJUST_ARGS();
+	return nfserr;
 }
 
-static void
+static __be32
 nfsd4_encode_setclientid(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_setclientid *scd)
 {
 	ENCODE_HEAD;
@@ -2574,9 +2555,10 @@ nfsd4_encode_setclientid(struct nfsd4_compoundres *resp, __be32 nfserr, struct n
 		WRITE32(0);
 		ADJUST_ARGS();
 	}
+	return nfserr;
 }
 
-static void
+static __be32
 nfsd4_encode_write(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_write *write)
 {
 	ENCODE_HEAD;
@@ -2588,7 +2570,55 @@ nfsd4_encode_write(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_w
 		WRITEMEM(write->wr_verifier.data, 8);
 		ADJUST_ARGS();
 	}
+	return nfserr;
 }
+
+static __be32
+nfsd4_encode_noop(struct nfsd4_compoundres *resp, __be32 nfserr, void *p)
+{
+	return nfserr;
+}
+
+typedef __be32(* nfsd4_enc)(struct nfsd4_compoundres *, __be32, void *);
+
+static nfsd4_enc nfsd4_enc_ops[] = {
+	[OP_ACCESS]		= (nfsd4_enc)nfsd4_encode_access,
+	[OP_CLOSE]		= (nfsd4_enc)nfsd4_encode_close,
+	[OP_COMMIT]		= (nfsd4_enc)nfsd4_encode_commit,
+	[OP_CREATE]		= (nfsd4_enc)nfsd4_encode_create,
+	[OP_DELEGPURGE]		= (nfsd4_enc)nfsd4_encode_noop,
+	[OP_DELEGRETURN]	= (nfsd4_enc)nfsd4_encode_noop,
+	[OP_GETATTR]		= (nfsd4_enc)nfsd4_encode_getattr,
+	[OP_GETFH]		= (nfsd4_enc)nfsd4_encode_getfh,
+	[OP_LINK]		= (nfsd4_enc)nfsd4_encode_link,
+	[OP_LOCK]		= (nfsd4_enc)nfsd4_encode_lock,
+	[OP_LOCKT]		= (nfsd4_enc)nfsd4_encode_lockt,
+	[OP_LOCKU]		= (nfsd4_enc)nfsd4_encode_locku,
+	[OP_LOOKUP]		= (nfsd4_enc)nfsd4_encode_noop,
+	[OP_LOOKUPP]		= (nfsd4_enc)nfsd4_encode_noop,
+	[OP_NVERIFY]		= (nfsd4_enc)nfsd4_encode_noop,
+	[OP_OPEN]		= (nfsd4_enc)nfsd4_encode_open,
+	[OP_OPEN_CONFIRM]	= (nfsd4_enc)nfsd4_encode_open_confirm,
+	[OP_OPEN_DOWNGRADE]	= (nfsd4_enc)nfsd4_encode_open_downgrade,
+	[OP_PUTFH]		= (nfsd4_enc)nfsd4_encode_noop,
+	[OP_PUTPUBFH]		= (nfsd4_enc)nfsd4_encode_noop,
+	[OP_PUTROOTFH]		= (nfsd4_enc)nfsd4_encode_noop,
+	[OP_READ]		= (nfsd4_enc)nfsd4_encode_read,
+	[OP_READDIR]		= (nfsd4_enc)nfsd4_encode_readdir,
+	[OP_READLINK]		= (nfsd4_enc)nfsd4_encode_readlink,
+	[OP_REMOVE]		= (nfsd4_enc)nfsd4_encode_remove,
+	[OP_RENAME]		= (nfsd4_enc)nfsd4_encode_rename,
+	[OP_RENEW]		= (nfsd4_enc)nfsd4_encode_noop,
+	[OP_RESTOREFH]		= (nfsd4_enc)nfsd4_encode_noop,
+	[OP_SAVEFH]		= (nfsd4_enc)nfsd4_encode_noop,
+	[OP_SECINFO]		= (nfsd4_enc)nfsd4_encode_secinfo,
+	[OP_SETATTR]		= (nfsd4_enc)nfsd4_encode_setattr,
+	[OP_SETCLIENTID]	= (nfsd4_enc)nfsd4_encode_setclientid,
+	[OP_SETCLIENTID_CONFIRM] = (nfsd4_enc)nfsd4_encode_noop,
+	[OP_VERIFY]		= (nfsd4_enc)nfsd4_encode_noop,
+	[OP_WRITE]		= (nfsd4_enc)nfsd4_encode_write,
+	[OP_RELEASE_LOCKOWNER]	= (nfsd4_enc)nfsd4_encode_noop,
+};
 
 void
 nfsd4_encode_operation(struct nfsd4_compoundres *resp, struct nfsd4_op *op)
@@ -2601,101 +2631,12 @@ nfsd4_encode_operation(struct nfsd4_compoundres *resp, struct nfsd4_op *op)
 	statp = p++;	/* to be backfilled at the end */
 	ADJUST_ARGS();
 
-	switch (op->opnum) {
-	case OP_ACCESS:
-		nfsd4_encode_access(resp, op->status, &op->u.access);
-		break;
-	case OP_CLOSE:
-		nfsd4_encode_close(resp, op->status, &op->u.close);
-		break;
-	case OP_COMMIT:
-		nfsd4_encode_commit(resp, op->status, &op->u.commit);
-		break;
-	case OP_CREATE:
-		nfsd4_encode_create(resp, op->status, &op->u.create);
-		break;
-	case OP_DELEGRETURN:
-		break;
-	case OP_GETATTR:
-		op->status = nfsd4_encode_getattr(resp, op->status, &op->u.getattr);
-		break;
-	case OP_GETFH:
-		nfsd4_encode_getfh(resp, op->status, op->u.getfh);
-		break;
-	case OP_LINK:
-		nfsd4_encode_link(resp, op->status, &op->u.link);
-		break;
-	case OP_LOCK:
-		nfsd4_encode_lock(resp, op->status, &op->u.lock);
-		break;
-	case OP_LOCKT:
-		nfsd4_encode_lockt(resp, op->status, &op->u.lockt);
-		break;
-	case OP_LOCKU:
-		nfsd4_encode_locku(resp, op->status, &op->u.locku);
-		break;
-	case OP_LOOKUP:
-		break;
-	case OP_LOOKUPP:
-		break;
-	case OP_NVERIFY:
-		break;
-	case OP_OPEN:
-		nfsd4_encode_open(resp, op->status, &op->u.open);
-		break;
-	case OP_OPEN_CONFIRM:
-		nfsd4_encode_open_confirm(resp, op->status, &op->u.open_confirm);
-		break;
-	case OP_OPEN_DOWNGRADE:
-		nfsd4_encode_open_downgrade(resp, op->status, &op->u.open_downgrade);
-		break;
-	case OP_PUTFH:
-		break;
-	case OP_PUTROOTFH:
-		break;
-	case OP_READ:
-		op->status = nfsd4_encode_read(resp, op->status, &op->u.read);
-		break;
-	case OP_READDIR:
-		op->status = nfsd4_encode_readdir(resp, op->status, &op->u.readdir);
-		break;
-	case OP_READLINK:
-		op->status = nfsd4_encode_readlink(resp, op->status, &op->u.readlink);
-		break;
-	case OP_REMOVE:
-		nfsd4_encode_remove(resp, op->status, &op->u.remove);
-		break;
-	case OP_RENAME:
-		nfsd4_encode_rename(resp, op->status, &op->u.rename);
-		break;
-	case OP_RENEW:
-		break;
-	case OP_RESTOREFH:
-		break;
-	case OP_SAVEFH:
-		break;
-	case OP_SECINFO:
-		nfsd4_encode_secinfo(resp, op->status, &op->u.secinfo);
-		break;
-	case OP_SETATTR:
-		nfsd4_encode_setattr(resp, op->status, &op->u.setattr);
-		break;
-	case OP_SETCLIENTID:
-		nfsd4_encode_setclientid(resp, op->status, &op->u.setclientid);
-		break;
-	case OP_SETCLIENTID_CONFIRM:
-		break;
-	case OP_VERIFY:
-		break;
-	case OP_WRITE:
-		nfsd4_encode_write(resp, op->status, &op->u.write);
-		break;
-	case OP_RELEASE_LOCKOWNER:
-		break;
-	default:
-		break;
-	}
-
+	if (op->opnum == OP_ILLEGAL)
+		goto status;
+	BUG_ON(op->opnum < 0 || op->opnum >= ARRAY_SIZE(nfsd4_enc_ops) ||
+	       !nfsd4_enc_ops[op->opnum]);
+	op->status = nfsd4_enc_ops[op->opnum](resp, op->status, &op->u);
+status:
 	/*
 	 * Note: We write the status directly, instead of using WRITE32(),
 	 * since it is already in network byte order.

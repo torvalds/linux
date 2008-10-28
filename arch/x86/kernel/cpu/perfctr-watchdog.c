@@ -17,6 +17,8 @@
 #include <linux/bitops.h>
 #include <linux/smp.h>
 #include <linux/nmi.h>
+#include <linux/kprobes.h>
+
 #include <asm/apic.h>
 #include <asm/intel_arch_perfmon.h>
 
@@ -250,7 +252,7 @@ static void write_watchdog_counter(unsigned int perfctr_msr,
 
 	do_div(count, nmi_hz);
 	if(descr)
-		Dprintk("setting %s to -0x%08Lx\n", descr, count);
+		pr_debug("setting %s to -0x%08Lx\n", descr, count);
 	wrmsrl(perfctr_msr, 0 - count);
 }
 
@@ -261,7 +263,7 @@ static void write_watchdog_counter32(unsigned int perfctr_msr,
 
 	do_div(count, nmi_hz);
 	if(descr)
-		Dprintk("setting %s to -0x%08Lx\n", descr, count);
+		pr_debug("setting %s to -0x%08Lx\n", descr, count);
 	wrmsr(perfctr_msr, (u32)(-count), 0);
 }
 
@@ -295,13 +297,19 @@ static int setup_k7_watchdog(unsigned nmi_hz)
 	/* setup the timer */
 	wrmsr(evntsel_msr, evntsel, 0);
 	write_watchdog_counter(perfctr_msr, "K7_PERFCTR0",nmi_hz);
+
+	/* initialize the wd struct before enabling */
+	wd->perfctr_msr = perfctr_msr;
+	wd->evntsel_msr = evntsel_msr;
+	wd->cccr_msr = 0;  /* unused */
+
+	/* ok, everything is initialized, announce that we're set */
+	cpu_nmi_set_wd_enabled();
+
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
 	evntsel |= K7_EVNTSEL_ENABLE;
 	wrmsr(evntsel_msr, evntsel, 0);
 
-	wd->perfctr_msr = perfctr_msr;
-	wd->evntsel_msr = evntsel_msr;
-	wd->cccr_msr = 0;  /* unused */
 	return 1;
 }
 
@@ -330,7 +338,8 @@ static void single_msr_unreserve(void)
 	release_perfctr_nmi(wd_ops->perfctr);
 }
 
-static void single_msr_rearm(struct nmi_watchdog_ctlblk *wd, unsigned nmi_hz)
+static void __kprobes
+single_msr_rearm(struct nmi_watchdog_ctlblk *wd, unsigned nmi_hz)
 {
 	/* start the cycle over again */
 	write_watchdog_counter(wd->perfctr_msr, NULL, nmi_hz);
@@ -379,17 +388,23 @@ static int setup_p6_watchdog(unsigned nmi_hz)
 	wrmsr(evntsel_msr, evntsel, 0);
 	nmi_hz = adjust_for_32bit_ctr(nmi_hz);
 	write_watchdog_counter32(perfctr_msr, "P6_PERFCTR0",nmi_hz);
+
+	/* initialize the wd struct before enabling */
+	wd->perfctr_msr = perfctr_msr;
+	wd->evntsel_msr = evntsel_msr;
+	wd->cccr_msr = 0;  /* unused */
+
+	/* ok, everything is initialized, announce that we're set */
+	cpu_nmi_set_wd_enabled();
+
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
 	evntsel |= P6_EVNTSEL0_ENABLE;
 	wrmsr(evntsel_msr, evntsel, 0);
 
-	wd->perfctr_msr = perfctr_msr;
-	wd->evntsel_msr = evntsel_msr;
-	wd->cccr_msr = 0;  /* unused */
 	return 1;
 }
 
-static void p6_rearm(struct nmi_watchdog_ctlblk *wd, unsigned nmi_hz)
+static void __kprobes p6_rearm(struct nmi_watchdog_ctlblk *wd, unsigned nmi_hz)
 {
 	/*
 	 * P6 based Pentium M need to re-unmask
@@ -432,6 +447,27 @@ static const struct wd_ops p6_wd_ops = {
 #define P4_CCCR_ENABLE		(1 << 12)
 #define P4_CCCR_OVF 		(1 << 31)
 
+#define P4_CONTROLS 18
+static unsigned int p4_controls[18] = {
+	MSR_P4_BPU_CCCR0,
+	MSR_P4_BPU_CCCR1,
+	MSR_P4_BPU_CCCR2,
+	MSR_P4_BPU_CCCR3,
+	MSR_P4_MS_CCCR0,
+	MSR_P4_MS_CCCR1,
+	MSR_P4_MS_CCCR2,
+	MSR_P4_MS_CCCR3,
+	MSR_P4_FLAME_CCCR0,
+	MSR_P4_FLAME_CCCR1,
+	MSR_P4_FLAME_CCCR2,
+	MSR_P4_FLAME_CCCR3,
+	MSR_P4_IQ_CCCR0,
+	MSR_P4_IQ_CCCR1,
+	MSR_P4_IQ_CCCR2,
+	MSR_P4_IQ_CCCR3,
+	MSR_P4_IQ_CCCR4,
+	MSR_P4_IQ_CCCR5,
+};
 /*
  * Set up IQ_COUNTER0 to behave like a clock, by having IQ_CCCR0 filter
  * CRU_ESCR0 (with any non-null event selector) through a complemented
@@ -473,12 +509,38 @@ static int setup_p4_watchdog(unsigned nmi_hz)
 		evntsel_msr = MSR_P4_CRU_ESCR0;
 		cccr_msr = MSR_P4_IQ_CCCR0;
 		cccr_val = P4_CCCR_OVF_PMI0 | P4_CCCR_ESCR_SELECT(4);
+
+		/*
+		 * If we're on the kdump kernel or other situation, we may
+		 * still have other performance counter registers set to
+		 * interrupt and they'll keep interrupting forever because
+		 * of the P4_CCCR_OVF quirk. So we need to ACK all the
+		 * pending interrupts and disable all the registers here,
+		 * before reenabling the NMI delivery. Refer to p4_rearm()
+		 * about the P4_CCCR_OVF quirk.
+		 */
+		if (reset_devices) {
+			unsigned int low, high;
+			int i;
+
+			for (i = 0; i < P4_CONTROLS; i++) {
+				rdmsr(p4_controls[i], low, high);
+				low &= ~(P4_CCCR_ENABLE | P4_CCCR_OVF);
+				wrmsr(p4_controls[i], low, high);
+			}
+		}
 	} else {
 		/* logical cpu 1 */
 		perfctr_msr = MSR_P4_IQ_PERFCTR1;
 		evntsel_msr = MSR_P4_CRU_ESCR0;
 		cccr_msr = MSR_P4_IQ_CCCR1;
-		cccr_val = P4_CCCR_OVF_PMI1 | P4_CCCR_ESCR_SELECT(4);
+
+		/* Pentium 4 D processors don't support P4_CCCR_OVF_PMI1 */
+		if (boot_cpu_data.x86_model == 4 && boot_cpu_data.x86_mask == 4)
+			cccr_val = P4_CCCR_OVF_PMI0;
+		else
+			cccr_val = P4_CCCR_OVF_PMI1;
+		cccr_val |= P4_CCCR_ESCR_SELECT(4);
 	}
 
 	evntsel = P4_ESCR_EVENT_SELECT(0x3F)
@@ -493,12 +555,17 @@ static int setup_p4_watchdog(unsigned nmi_hz)
 	wrmsr(evntsel_msr, evntsel, 0);
 	wrmsr(cccr_msr, cccr_val, 0);
 	write_watchdog_counter(perfctr_msr, "P4_IQ_COUNTER0", nmi_hz);
-	apic_write(APIC_LVTPC, APIC_DM_NMI);
-	cccr_val |= P4_CCCR_ENABLE;
-	wrmsr(cccr_msr, cccr_val, 0);
+
 	wd->perfctr_msr = perfctr_msr;
 	wd->evntsel_msr = evntsel_msr;
 	wd->cccr_msr = cccr_msr;
+
+	/* ok, everything is initialized, announce that we're set */
+	cpu_nmi_set_wd_enabled();
+
+	apic_write(APIC_LVTPC, APIC_DM_NMI);
+	cccr_val |= P4_CCCR_ENABLE;
+	wrmsr(cccr_msr, cccr_val, 0);
 	return 1;
 }
 
@@ -541,7 +608,7 @@ static void p4_unreserve(void)
 	release_perfctr_nmi(MSR_P4_IQ_PERFCTR0);
 }
 
-static void p4_rearm(struct nmi_watchdog_ctlblk *wd, unsigned nmi_hz)
+static void __kprobes p4_rearm(struct nmi_watchdog_ctlblk *wd, unsigned nmi_hz)
 {
 	unsigned dummy;
 	/*
@@ -614,13 +681,17 @@ static int setup_intel_arch_watchdog(unsigned nmi_hz)
 	wrmsr(evntsel_msr, evntsel, 0);
 	nmi_hz = adjust_for_32bit_ctr(nmi_hz);
 	write_watchdog_counter32(perfctr_msr, "INTEL_ARCH_PERFCTR0", nmi_hz);
-	apic_write(APIC_LVTPC, APIC_DM_NMI);
-	evntsel |= ARCH_PERFMON_EVENTSEL0_ENABLE;
-	wrmsr(evntsel_msr, evntsel, 0);
 
 	wd->perfctr_msr = perfctr_msr;
 	wd->evntsel_msr = evntsel_msr;
 	wd->cccr_msr = 0;  /* unused */
+
+	/* ok, everything is initialized, announce that we're set */
+	cpu_nmi_set_wd_enabled();
+
+	apic_write(APIC_LVTPC, APIC_DM_NMI);
+	evntsel |= ARCH_PERFMON_EVENTSEL0_ENABLE;
+	wrmsr(evntsel_msr, evntsel, 0);
 	intel_arch_wd_ops.checkbit = 1ULL << (eax.split.bit_width - 1);
 	return 1;
 }
@@ -716,7 +787,7 @@ unsigned lapic_adjust_nmi_hz(unsigned hz)
 	return hz;
 }
 
-int lapic_wd_event(unsigned nmi_hz)
+int __kprobes lapic_wd_event(unsigned nmi_hz)
 {
 	struct nmi_watchdog_ctlblk *wd = &__get_cpu_var(nmi_watchdog_ctlblk);
 	u64 ctr;

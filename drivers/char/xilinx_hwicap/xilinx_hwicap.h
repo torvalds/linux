@@ -38,7 +38,6 @@
 
 #include <linux/types.h>
 #include <linux/cdev.h>
-#include <linux/version.h>
 #include <linux/platform_device.h>
 
 #include <asm/io.h>

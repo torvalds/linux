@@ -11,7 +11,6 @@ struct ip_tunnel
 {
 	struct ip_tunnel	*next;
 	struct net_device	*dev;
-	struct net_device_stats	stat;
 
 	int			recursion;	/* Depth of hard_start_xmit recursion */
 	int			err_count;	/* Number of arrived ICMP errors */
@@ -38,7 +37,7 @@ struct ip_tunnel_prl_entry
 
 #define IPTUNNEL_XMIT() do {						\
 	int err;							\
-	int pkt_len = skb->len;						\
+	int pkt_len = skb->len - skb_transport_offset(skb);		\
 									\
 	skb->ip_summed = CHECKSUM_NONE;					\
 	ip_select_ident(iph, &rt->u.dst, NULL);				\

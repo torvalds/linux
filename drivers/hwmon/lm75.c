@@ -30,14 +30,37 @@
 #include "lm75.h"
 
 
-/* Addresses to scan */
+/*
+ * This driver handles the LM75 and compatible digital temperature sensors.
+ * Only types which are _not_ listed in I2C_CLIENT_INSMOD_*() need to be
+ * listed here.  We start at 9 since I2C_CLIENT_INSMOD_*() currently allow
+ * definition of up to 8 chip types (plus zero).
+ */
+
+enum lm75_type {		/* keep sorted in alphabetical order */
+	ds1775 = 9,
+	ds75,
+	/* lm75 -- in I2C_CLIENT_INSMOD_1() */
+	lm75a,
+	max6625,
+	max6626,
+	mcp980x,
+	stds75,
+	tcn75,
+	tmp100,
+	tmp101,
+	tmp175,
+	tmp275,
+	tmp75,
+};
+
+/* Addresses scanned */
 static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, 0x4c,
 					0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
 /* Insmod parameters */
 I2C_CLIENT_INSMOD_1(lm75);
 
-/* Many LM75 constants specified below */
 
 /* The LM75 registers */
 #define LM75_REG_CONF		0x01
@@ -49,10 +72,10 @@ static const u8 LM75_REG_TEMP[3] = {
 
 /* Each client has this additional data */
 struct lm75_data {
-	struct i2c_client	client;
-	struct device *hwmon_dev;
+	struct device		*hwmon_dev;
 	struct mutex		update_lock;
-	char			valid;		/* !=0 if following fields are valid */
+	u8			orig_conf;
+	char			valid;		/* !=0 if registers are valid */
 	unsigned long		last_updated;	/* In jiffies */
 	u16			temp[3];	/* Register values,
 						   0 = input
@@ -60,23 +83,14 @@ struct lm75_data {
 						   2 = hyst */
 };
 
-static int lm75_attach_adapter(struct i2c_adapter *adapter);
-static int lm75_detect(struct i2c_adapter *adapter, int address, int kind);
-static void lm75_init_client(struct i2c_client *client);
-static int lm75_detach_client(struct i2c_client *client);
 static int lm75_read_value(struct i2c_client *client, u8 reg);
 static int lm75_write_value(struct i2c_client *client, u8 reg, u16 value);
 static struct lm75_data *lm75_update_device(struct device *dev);
 
 
-/* This is the driver that will be inserted */
-static struct i2c_driver lm75_driver = {
-	.driver = {
-		.name	= "lm75",
-	},
-	.attach_adapter	= lm75_attach_adapter,
-	.detach_client	= lm75_detach_client,
-};
+/*-----------------------------------------------------------------------*/
+
+/* sysfs attributes for hwmon */
 
 static ssize_t show_temp(struct device *dev, struct device_attribute *da,
 			 char *buf)
@@ -109,13 +123,6 @@ static SENSOR_DEVICE_ATTR(temp1_max_hyst, S_IWUSR | S_IRUGO,
 			show_temp, set_temp, 2);
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
 
-static int lm75_attach_adapter(struct i2c_adapter *adapter)
-{
-	if (!(adapter->class & I2C_CLASS_HWMON))
-		return 0;
-	return i2c_probe(adapter, &addr_data, lm75_detect);
-}
-
 static struct attribute *lm75_attributes[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
@@ -128,33 +135,114 @@ static const struct attribute_group lm75_group = {
 	.attrs = lm75_attributes,
 };
 
-/* This function is called by i2c_probe */
-static int lm75_detect(struct i2c_adapter *adapter, int address, int kind)
+/*-----------------------------------------------------------------------*/
+
+/* device probe and removal */
+
+static int
+lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
-	int i;
-	struct i2c_client *new_client;
 	struct lm75_data *data;
-	int err = 0;
-	const char *name = "";
+	int status;
+	u8 set_mask, clr_mask;
+	int new;
+
+	if (!i2c_check_functionality(client->adapter,
+			I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA))
+		return -EIO;
+
+	data = kzalloc(sizeof(struct lm75_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	i2c_set_clientdata(client, data);
+	mutex_init(&data->update_lock);
+
+	/* Set to LM75 resolution (9 bits, 1/2 degree C) and range.
+	 * Then tweak to be more precise when appropriate.
+	 */
+	set_mask = 0;
+	clr_mask = (1 << 0)			/* continuous conversions */
+		| (1 << 6) | (1 << 5);		/* 9-bit mode */
+
+	/* configure as specified */
+	status = lm75_read_value(client, LM75_REG_CONF);
+	if (status < 0) {
+		dev_dbg(&client->dev, "Can't read config? %d\n", status);
+		goto exit_free;
+	}
+	data->orig_conf = status;
+	new = status & ~clr_mask;
+	new |= set_mask;
+	if (status != new)
+		lm75_write_value(client, LM75_REG_CONF, new);
+	dev_dbg(&client->dev, "Config %02x\n", new);
+
+	/* Register sysfs hooks */
+	status = sysfs_create_group(&client->dev.kobj, &lm75_group);
+	if (status)
+		goto exit_free;
+
+	data->hwmon_dev = hwmon_device_register(&client->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		status = PTR_ERR(data->hwmon_dev);
+		goto exit_remove;
+	}
+
+	dev_info(&client->dev, "%s: sensor '%s'\n",
+		data->hwmon_dev->bus_id, client->name);
+
+	return 0;
+
+exit_remove:
+	sysfs_remove_group(&client->dev.kobj, &lm75_group);
+exit_free:
+	i2c_set_clientdata(client, NULL);
+	kfree(data);
+	return status;
+}
+
+static int lm75_remove(struct i2c_client *client)
+{
+	struct lm75_data *data = i2c_get_clientdata(client);
+
+	hwmon_device_unregister(data->hwmon_dev);
+	sysfs_remove_group(&client->dev.kobj, &lm75_group);
+	lm75_write_value(client, LM75_REG_CONF, data->orig_conf);
+	i2c_set_clientdata(client, NULL);
+	kfree(data);
+	return 0;
+}
+
+static const struct i2c_device_id lm75_ids[] = {
+	{ "ds1775", ds1775, },
+	{ "ds75", ds75, },
+	{ "lm75", lm75, },
+	{ "lm75a", lm75a, },
+	{ "max6625", max6625, },
+	{ "max6626", max6626, },
+	{ "mcp980x", mcp980x, },
+	{ "stds75", stds75, },
+	{ "tcn75", tcn75, },
+	{ "tmp100", tmp100, },
+	{ "tmp101", tmp101, },
+	{ "tmp175", tmp175, },
+	{ "tmp275", tmp275, },
+	{ "tmp75", tmp75, },
+	{ /* LIST END */ }
+};
+MODULE_DEVICE_TABLE(i2c, lm75_ids);
+
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static int lm75_detect(struct i2c_client *new_client, int kind,
+		       struct i2c_board_info *info)
+{
+	struct i2c_adapter *adapter = new_client->adapter;
+	int i;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_WORD_DATA))
-		goto exit;
-
-	/* OK. For now, we presume we have a valid client. We now create the
-	   client structure, even though we cannot fill it completely yet.
-	   But it allows us to access lm75_{read,write}_value. */
-	if (!(data = kzalloc(sizeof(struct lm75_data), GFP_KERNEL))) {
-		err = -ENOMEM;
-		goto exit;
-	}
-
-	new_client = &data->client;
-	i2c_set_clientdata(new_client, data);
-	new_client->addr = address;
-	new_client->adapter = adapter;
-	new_client->driver = &lm75_driver;
-	new_client->flags = 0;
+		return -ENODEV;
 
 	/* Now, we do the remaining detection. There is no identification-
 	   dedicated register so we have to rely on several tricks:
@@ -174,77 +262,49 @@ static int lm75_detect(struct i2c_adapter *adapter, int address, int kind)
 		 || i2c_smbus_read_word_data(new_client, 5) != hyst
 		 || i2c_smbus_read_word_data(new_client, 6) != hyst
 		 || i2c_smbus_read_word_data(new_client, 7) != hyst)
-		 	goto exit_free;
+			return -ENODEV;
 		os = i2c_smbus_read_word_data(new_client, 3);
 		if (i2c_smbus_read_word_data(new_client, 4) != os
 		 || i2c_smbus_read_word_data(new_client, 5) != os
 		 || i2c_smbus_read_word_data(new_client, 6) != os
 		 || i2c_smbus_read_word_data(new_client, 7) != os)
-		 	goto exit_free;
+			return -ENODEV;
 
 		/* Unused bits */
 		if (conf & 0xe0)
-		 	goto exit_free;
+			return -ENODEV;
 
 		/* Addresses cycling */
 		for (i = 8; i < 0xff; i += 8)
 			if (i2c_smbus_read_byte_data(new_client, i + 1) != conf
 			 || i2c_smbus_read_word_data(new_client, i + 2) != hyst
 			 || i2c_smbus_read_word_data(new_client, i + 3) != os)
-				goto exit_free;
+				return -ENODEV;
 	}
 
-	/* Determine the chip type - only one kind supported! */
-	if (kind <= 0)
-		kind = lm75;
-
-	if (kind == lm75) {
-		name = "lm75";
-	}
-
-	/* Fill in the remaining client fields and put it into the global list */
-	strlcpy(new_client->name, name, I2C_NAME_SIZE);
-	data->valid = 0;
-	mutex_init(&data->update_lock);
-
-	/* Tell the I2C layer a new client has arrived */
-	if ((err = i2c_attach_client(new_client)))
-		goto exit_free;
-
-	/* Initialize the LM75 chip */
-	lm75_init_client(new_client);
-	
-	/* Register sysfs hooks */
-	if ((err = sysfs_create_group(&new_client->dev.kobj, &lm75_group)))
-		goto exit_detach;
-
-	data->hwmon_dev = hwmon_device_register(&new_client->dev);
-	if (IS_ERR(data->hwmon_dev)) {
-		err = PTR_ERR(data->hwmon_dev);
-		goto exit_remove;
-	}
+	/* NOTE: we treat "force=..." and "force_lm75=..." the same.
+	 * Only new-style driver binding distinguishes chip types.
+	 */
+	strlcpy(info->type, "lm75", I2C_NAME_SIZE);
 
 	return 0;
-
-exit_remove:
-	sysfs_remove_group(&new_client->dev.kobj, &lm75_group);
-exit_detach:
-	i2c_detach_client(new_client);
-exit_free:
-	kfree(data);
-exit:
-	return err;
 }
 
-static int lm75_detach_client(struct i2c_client *client)
-{
-	struct lm75_data *data = i2c_get_clientdata(client);
-	hwmon_device_unregister(data->hwmon_dev);
-	sysfs_remove_group(&client->dev.kobj, &lm75_group);
-	i2c_detach_client(client);
-	kfree(data);
-	return 0;
-}
+static struct i2c_driver lm75_driver = {
+	.class		= I2C_CLASS_HWMON,
+	.driver = {
+		.name	= "lm75",
+	},
+	.probe		= lm75_probe,
+	.remove		= lm75_remove,
+	.id_table	= lm75_ids,
+	.detect		= lm75_detect,
+	.address_data	= &addr_data,
+};
+
+/*-----------------------------------------------------------------------*/
+
+/* register access */
 
 /* All registers are word-sized, except for the configuration register.
    LM75 uses a high-byte first convention, which is exactly opposite to
@@ -266,16 +326,6 @@ static int lm75_write_value(struct i2c_client *client, u8 reg, u16 value)
 		return i2c_smbus_write_byte_data(client, reg, value);
 	else
 		return i2c_smbus_write_word_data(client, reg, swab16(value));
-}
-
-static void lm75_init_client(struct i2c_client *client)
-{
-	int reg;
-
-	/* Enable if in shutdown mode */
-	reg = lm75_read_value(client, LM75_REG_CONF);
-	if (reg >= 0 && (reg & 0x01))
-		lm75_write_value(client, LM75_REG_CONF, reg & 0xfe);
 }
 
 static struct lm75_data *lm75_update_device(struct device *dev)
@@ -308,6 +358,10 @@ static struct lm75_data *lm75_update_device(struct device *dev)
 
 	return data;
 }
+
+/*-----------------------------------------------------------------------*/
+
+/* module glue */
 
 static int __init sensors_lm75_init(void)
 {

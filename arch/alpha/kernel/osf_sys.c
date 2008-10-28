@@ -121,24 +121,29 @@ osf_filldir(void *__buf, const char *name, int namlen, loff_t offset,
 	if (reclen > buf->count)
 		return -EINVAL;
 	d_ino = ino;
-	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino)
+	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino) {
+		buf->error = -EOVERFLOW;
 		return -EOVERFLOW;
+	}
 	if (buf->basep) {
 		if (put_user(offset, buf->basep))
-			return -EFAULT;
+			goto Efault;
 		buf->basep = NULL;
 	}
 	dirent = buf->dirent;
-	put_user(d_ino, &dirent->d_ino);
-	put_user(namlen, &dirent->d_namlen);
-	put_user(reclen, &dirent->d_reclen);
-	if (copy_to_user(dirent->d_name, name, namlen) ||
+	if (put_user(d_ino, &dirent->d_ino) ||
+	    put_user(namlen, &dirent->d_namlen) ||
+	    put_user(reclen, &dirent->d_reclen) ||
+	    copy_to_user(dirent->d_name, name, namlen) ||
 	    put_user(0, dirent->d_name + namlen))
-		return -EFAULT;
+		goto Efault;
 	dirent = (void __user *)dirent + reclen;
 	buf->dirent = dirent;
 	buf->count -= reclen;
 	return 0;
+Efault:
+	buf->error = -EFAULT;
+	return -EFAULT;
 }
 
 asmlinkage int
@@ -160,14 +165,11 @@ osf_getdirentries(unsigned int fd, struct osf_dirent __user *dirent,
 	buf.error = 0;
 
 	error = vfs_readdir(file, osf_filldir, &buf);
-	if (error < 0)
-		goto out_putf;
-
-	error = buf.error;
+	if (error >= 0)
+		error = buf.error;
 	if (count != buf.count)
 		error = count - buf.count;
 
- out_putf:
 	fput(file);
  out:
 	return error;
@@ -253,15 +255,15 @@ do_osf_statfs(struct dentry * dentry, struct osf_statfs __user *buffer,
 }
 
 asmlinkage int
-osf_statfs(char __user *path, struct osf_statfs __user *buffer, unsigned long bufsiz)
+osf_statfs(char __user *pathname, struct osf_statfs __user *buffer, unsigned long bufsiz)
 {
-	struct nameidata nd;
+	struct path path;
 	int retval;
 
-	retval = user_path_walk(path, &nd);
+	retval = user_path(pathname, &path);
 	if (!retval) {
-		retval = do_osf_statfs(nd.path.dentry, buffer, bufsiz);
-		path_put(&nd.path);
+		retval = do_osf_statfs(path.dentry, buffer, bufsiz);
+		path_put(&path);
 	}
 	return retval;
 }
@@ -981,9 +983,11 @@ asmlinkage int
 osf_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp,
 	   struct timeval32 __user *tvp)
 {
-	s64 timeout = MAX_SCHEDULE_TIMEOUT;
+	struct timespec end_time, *to = NULL;
 	if (tvp) {
 		time_t sec, usec;
+
+		to = &end_time;
 
 		if (!access_ok(VERIFY_READ, tvp, sizeof(*tvp))
 		    || __get_user(sec, &tvp->tv_sec)
@@ -994,14 +998,13 @@ osf_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp,
 		if (sec < 0 || usec < 0)
 			return -EINVAL;
 
-		if ((unsigned long) sec < MAX_SELECT_SECONDS) {
-			timeout = (usec + 1000000/HZ - 1) / (1000000/HZ);
-			timeout += sec * (unsigned long) HZ;
-		}
+		if (poll_select_set_timeout(to, sec, usec * NSEC_PER_USEC))
+			return -EINVAL;		
+
 	}
 
 	/* OSF does not copy back the remaining time.  */
-	return core_sys_select(n, inp, outp, exp, &timeout);
+	return core_sys_select(n, inp, outp, exp, to);
 }
 
 struct rusage32 {

@@ -238,6 +238,8 @@ static int pasic3_remove(struct platform_device *pdev)
 	return 0;
 }
 
+MODULE_ALIAS("platform:pasic3");
+
 static struct platform_driver pasic3_driver = {
 	.driver		= {
 		.name	= "pasic3",

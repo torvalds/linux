@@ -57,7 +57,7 @@ Similarly to JFFS2, UBIFS supports on-the-flight compression which makes
 it possible to fit quite a lot of data to the flash.
 
 Similarly to JFFS2, UBIFS is tolerant of unclean reboots and power-cuts.
-It does not need stuff like ckfs.ext2. UBIFS automatically replays its
+It does not need stuff like fsck.ext2. UBIFS automatically replays its
 journal and recovers from crashes, ensuring that the on-flash data
 structures are consistent.
 
@@ -86,6 +86,15 @@ norm_unmount (*)	commit on unmount; the journal is committed
 fast_unmount		do not commit on unmount; this option makes
 			unmount faster, but the next mount slower
 			because of the need to replay the journal.
+bulk_read		read more in one go to take advantage of flash
+			media that read faster sequentially
+no_bulk_read (*)	do not bulk-read
+no_chk_data_crc		skip checking of CRCs on data nodes in order to
+			improve read performance. Use this option only
+			if the flash media is highly reliable. The effect
+			of this option is that corruption of the contents
+			of a file can go unnoticed.
+chk_data_crc (*)	do not skip checking CRCs on data nodes
 
 
 Quick usage instructions

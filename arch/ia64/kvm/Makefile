@@ -43,7 +43,12 @@ $(obj)/$(offsets-file): arch/ia64/kvm/asm-offsets.s
 EXTRA_CFLAGS += -Ivirt/kvm -Iarch/ia64/kvm/
 EXTRA_AFLAGS += -Ivirt/kvm -Iarch/ia64/kvm/
 
-common-objs = $(addprefix ../../../virt/kvm/, kvm_main.o ioapic.o)
+common-objs = $(addprefix ../../../virt/kvm/, kvm_main.o ioapic.o \
+		coalesced_mmio.o irq_comm.o)
+
+ifeq ($(CONFIG_DMAR),y)
+common-objs += $(addprefix ../../../virt/kvm/, vtd.o)
+endif
 
 kvm-objs := $(common-objs) kvm-ia64.o kvm_fw.o
 obj-$(CONFIG_KVM) += kvm.o

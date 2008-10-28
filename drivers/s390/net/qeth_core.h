@@ -90,11 +90,11 @@ struct qeth_dbf_info {
 #define CARD_RDEV(card) card->read.ccwdev
 #define CARD_WDEV(card) card->write.ccwdev
 #define CARD_DDEV(card) card->data.ccwdev
-#define CARD_BUS_ID(card) card->gdev->dev.bus_id
-#define CARD_RDEV_ID(card) card->read.ccwdev->dev.bus_id
-#define CARD_WDEV_ID(card) card->write.ccwdev->dev.bus_id
-#define CARD_DDEV_ID(card) card->data.ccwdev->dev.bus_id
-#define CHANNEL_ID(channel) channel->ccwdev->dev.bus_id
+#define CARD_BUS_ID(card) dev_name(&card->gdev->dev)
+#define CARD_RDEV_ID(card) dev_name(&card->read.ccwdev->dev)
+#define CARD_WDEV_ID(card) dev_name(&card->write.ccwdev->dev)
+#define CARD_DDEV_ID(card) dev_name(&card->data.ccwdev->dev)
+#define CHANNEL_ID(channel) dev_name(&channel->ccwdev->dev)
 
 /**
  * card stuff
@@ -419,6 +419,7 @@ struct qeth_qdio_out_buffer {
 	int next_element_to_fill;
 	struct sk_buff_head skb_list;
 	struct list_head ctx_list;
+	int is_header[16];
 };
 
 struct qeth_card;
@@ -688,6 +689,7 @@ struct qeth_mc_mac {
 	struct list_head list;
 	__u8 mc_addr[MAX_ADDR_LEN];
 	unsigned char mc_addrlen;
+	int is_vmac;
 };
 
 struct qeth_card {
@@ -785,7 +787,7 @@ void qeth_core_remove_osn_attributes(struct device *);
 
 /* exports for qeth discipline device drivers */
 extern struct qeth_card_list_struct qeth_core_card_list;
-
+extern struct kmem_cache *qeth_core_header_cache;
 extern struct qeth_dbf_info qeth_dbf[QETH_DBF_INFOS];
 
 void qeth_set_allowed_threads(struct qeth_card *, unsigned long , int);
@@ -843,7 +845,7 @@ int qeth_get_priority_queue(struct qeth_card *, struct sk_buff *, int, int);
 int qeth_get_elements_no(struct qeth_card *, void *, struct sk_buff *, int);
 int qeth_do_send_packet_fast(struct qeth_card *, struct qeth_qdio_out_q *,
 			struct sk_buff *, struct qeth_hdr *, int,
-			struct qeth_eddp_context *);
+			struct qeth_eddp_context *, int, int);
 int qeth_do_send_packet(struct qeth_card *, struct qeth_qdio_out_q *,
 		    struct sk_buff *, struct qeth_hdr *,
 		    int, struct qeth_eddp_context *);

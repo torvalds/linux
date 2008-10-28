@@ -5,6 +5,7 @@
 config M68K
 	bool
 	default y
+	select HAVE_AOUT
 	select HAVE_IDE
 
 config MMU
@@ -53,9 +54,6 @@ config NO_IOPORT
 config NO_DMA
 	def_bool SUN3
 
-config ARCH_SUPPORTS_AOUT
-	def_bool y
-
 config HZ
 	int
 	default 100
@@ -63,6 +61,8 @@ config HZ
 mainmenu "Linux/68k Kernel Configuration"
 
 source "init/Kconfig"
+
+source "kernel/Kconfig.freezer"
 
 menu "Platform dependent setup"
 
@@ -107,21 +107,9 @@ config PCMCIA
 	  To compile this driver as modules, choose M here: the
 	  modules will be called pcmcia_core and ds.
 
-config SUN3
-	bool "Sun3 support"
-	select M68020
-	select MMU_SUN3 if MMU
-	help
-	  This option enables support for the Sun 3 series of workstations
-	  (3/50, 3/60, 3/1xx, 3/2xx systems). Enabling this option requires
-	  that all other hardware types must be disabled, as Sun 3 kernels
-	  are incompatible with all other m68k targets (including Sun 3x!).
-
-	  If you don't want to compile a kernel exclusively for a Sun 3, say N.
-
 config AMIGA
 	bool "Amiga support"
-	depends on !MMU_SUN3
+	select MMU_MOTOROLA if MMU
 	help
 	  This option enables support for the Amiga series of computers. If
 	  you plan to use this kernel on an Amiga, say Y here and browse the
@@ -129,33 +117,16 @@ config AMIGA
 
 config ATARI
 	bool "Atari support"
-	depends on !MMU_SUN3
+	select MMU_MOTOROLA if MMU
 	help
 	  This option enables support for the 68000-based Atari series of
 	  computers (including the TT, Falcon and Medusa). If you plan to use
 	  this kernel on an Atari, say Y here and browse the material
 	  available in <file:Documentation/m68k>; otherwise say N.
 
-config HADES
-	bool "Hades support"
-	depends on ATARI && BROKEN
-	help
-	  This option enables support for the Hades Atari clone. If you plan
-	  to use this kernel on a Hades, say Y here; otherwise say N.
-
-config PCI
-	bool
-	depends on HADES
-	default y
-	help
-	  Find out whether you have a PCI motherboard. PCI is the name of a
-	  bus system, i.e. the way the CPU talks to the other stuff inside
-	  your box. Other bus systems are ISA, EISA, MicroChannel (MCA) or
-	  VESA. If you have PCI, say Y, otherwise N.
-
 config MAC
 	bool "Macintosh support"
-	depends on !MMU_SUN3
+	select MMU_MOTOROLA if MMU
 	help
 	  This option enables support for the Apple Macintosh series of
 	  computers (yes, there is experimental support now, at least for part
@@ -176,14 +147,14 @@ config M68K_L2_CACHE
 
 config APOLLO
 	bool "Apollo support"
-	depends on !MMU_SUN3
+	select MMU_MOTOROLA if MMU
 	help
 	  Say Y here if you want to run Linux on an MC680x0-based Apollo
 	  Domain workstation such as the DN3500.
 
 config VME
 	bool "VME (Motorola and BVM) support"
-	depends on !MMU_SUN3
+	select MMU_MOTOROLA if MMU
 	help
 	  Say Y here if you want to build a kernel for a 680x0 based VME
 	  board.  Boards currently supported include Motorola boards MVME147,
@@ -220,7 +191,7 @@ config BVME6000
 
 config HP300
 	bool "HP9000/300 and HP9000/400 support"
-	depends on !MMU_SUN3
+	select MMU_MOTOROLA if MMU
 	help
 	  This option enables support for the HP9000/300 and HP9000/400 series
 	  of workstations. Support for these machines is still somewhat
@@ -239,7 +210,7 @@ config DIO
 
 config SUN3X
 	bool "Sun3x support"
-	depends on !MMU_SUN3
+	select MMU_MOTOROLA if MMU
 	select M68030
 	help
 	  This option enables support for the Sun 3x series of workstations.
@@ -252,13 +223,26 @@ config SUN3X
 
 config Q40
 	bool "Q40/Q60 support"
-	depends on !MMU_SUN3
+	select MMU_MOTOROLA if MMU
 	help
 	  The Q40 is a Motorola 68040-based successor to the Sinclair QL
 	  manufactured in Germany.  There is an official Q40 home page at
 	  <http://www.q40.de/>.  This option enables support for the Q40 and
 	  Q60. Select your CPU below.  For 68LC060 don't forget to enable FPU
 	  emulation.
+
+config SUN3
+	bool "Sun3 support"
+	depends on !MMU_MOTOROLA
+	select MMU_SUN3 if MMU
+	select M68020
+	help
+	  This option enables support for the Sun 3 series of workstations
+	  (3/50, 3/60, 3/1xx, 3/2xx systems). Enabling this option requires
+	  that all other hardware types must be disabled, as Sun 3 kernels
+	  are incompatible with all other m68k targets (including Sun 3x!).
+
+	  If you don't want to compile a kernel exclusively for a Sun 3, say N.
 
 comment "Processor type"
 
@@ -297,10 +281,10 @@ config M68060
 config MMU_MOTOROLA
 	bool
 	depends on MMU && !MMU_SUN3
-	default y
 
 config MMU_SUN3
 	bool
+	depends on MMU && !MMU_MOTOROLA
 
 config M68KFPU_EMU
 	bool "Math emulation support (EXPERIMENTAL)"
@@ -490,28 +474,6 @@ config ATARI_MFPSER
 	  Note for Falcon users: You also have an MFP port, it's just not
 	  wired to the outside... But you could use the port under Linux.
 
-config ATARI_SCC
-	tristate "Atari SCC serial support"
-	depends on ATARI
-	---help---
-	  If you have serial ports based on a Zilog SCC chip (Modem2, Serial2,
-	  LAN) and like to use them under Linux, say Y. All built-in SCC's are
-	  supported (TT, MegaSTE, Falcon), and also the ST-ESCC. If you have
-	  two connectors for channel A (Serial2 and LAN), they are visible as
-	  two separate devices.
-
-	  To compile this driver as a module, choose M here.
-
-config ATARI_SCC_DMA
-	bool "Atari SCC serial DMA support"
-	depends on ATARI_SCC
-	help
-	  This enables DMA support for receiving data on channel A of the SCC.
-	  If you have a TT you may say Y here and read
-	  drivers/char/atari_SCC.README. All other users should say N here,
-	  because only the TT has SCC-DMA, even if your machine keeps claiming
-	  so at boot time.
-
 config ATARI_MIDI
 	tristate "Atari MIDI serial support"
 	depends on ATARI
@@ -578,18 +540,6 @@ config MAC_HID
 	depends on INPUT_ADBHID
 	default y
 
-config ADB_KEYBOARD
-	bool "Support for ADB keyboard (old driver)"
-	depends on MAC && !INPUT_ADBHID
-	help
-	  This option allows you to use an ADB keyboard attached to your
-	  machine. Note that this disables any other (ie. PS/2) keyboard
-	  support, even if your machine is physically capable of using both at
-	  the same time.
-
-	  If you use an ADB keyboard (4 pin connector), say Y here.
-	  If you use a PS/2 keyboard (6 pin connector), say N here.
-
 config HPDCA
 	tristate "HP DCA serial support"
 	depends on DIO && SERIAL_8250
@@ -640,7 +590,7 @@ config DN_SERIAL
 
 config SERIAL_CONSOLE
 	bool "Support for serial port console"
-	depends on (AMIGA || ATARI || MAC || SUN3 || SUN3X || VME || APOLLO) && (ATARI_MFPSER=y || ATARI_SCC=y || ATARI_MIDI=y || MAC_SCC=y || AMIGA_BUILTIN_SERIAL=y || GVPIOEXT=y || MULTIFACE_III_TTY=y || SERIAL=y || MVME147_SCC || SERIAL167 || MVME162_SCC || BVME6000_SCC || DN_SERIAL)
+	depends on (AMIGA || ATARI || MAC || SUN3 || SUN3X || VME || APOLLO) && (ATARI_MFPSER=y || ATARI_MIDI=y || MAC_SCC=y || AMIGA_BUILTIN_SERIAL=y || GVPIOEXT=y || MULTIFACE_III_TTY=y || SERIAL=y || MVME147_SCC || SERIAL167 || MVME162_SCC || BVME6000_SCC || DN_SERIAL)
 	---help---
 	  If you say Y here, it will be possible to use a serial port as the
 	  system console (the system console is the device which receives all

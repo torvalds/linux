@@ -23,6 +23,7 @@
 #include <linux/serial_reg.h>
 #include <linux/rtc.h>
 #include <linux/vt_kern.h>
+#include <linux/bcd.h>
 
 #include <asm/io.h>
 #include <asm/rtc.h>
@@ -38,17 +39,14 @@
 extern irqreturn_t q40_process_int(int level, struct pt_regs *regs);
 extern void q40_init_IRQ(void);
 static void q40_get_model(char *model);
-static int  q40_get_hardware_list(char *buffer);
 extern void q40_sched_init(irq_handler_t handler);
 
-extern unsigned long q40_gettimeoffset(void);
-extern int q40_hwclk(int, struct rtc_time *);
-extern unsigned int q40_get_ss(void);
-extern int q40_set_clock_mmss(unsigned long);
+static unsigned long q40_gettimeoffset(void);
+static int q40_hwclk(int, struct rtc_time *);
+static unsigned int q40_get_ss(void);
+static int q40_set_clock_mmss(unsigned long);
 static int q40_get_rtc_pll(struct rtc_pll_info *pll);
 static int q40_set_rtc_pll(struct rtc_pll_info *pll);
-extern void q40_reset(void);
-void q40_halt(void);
 extern void q40_waitbut(void);
 void q40_set_vectors(void);
 
@@ -127,7 +125,7 @@ static void q40_heartbeat(int on)
 }
 #endif
 
-void q40_reset(void)
+static void q40_reset(void)
 {
         halted = 1;
         printk("\n\n*******************************************\n"
@@ -137,7 +135,8 @@ void q40_reset(void)
 	while (1)
 		;
 }
-void q40_halt(void)
+
+static void q40_halt(void)
 {
         halted = 1;
         printk("\n\n*******************\n"
@@ -153,19 +152,12 @@ static void q40_get_model(char *model)
 	sprintf(model, "Q40");
 }
 
-/* No hardware options on Q40? */
-
-static int q40_get_hardware_list(char *buffer)
-{
-	*buffer = '\0';
-	return 0;
-}
-
 static unsigned int serports[] =
 {
 	0x3f8,0x2f8,0x3e8,0x2e8,0
 };
-void q40_disable_irqs(void)
+
+static void q40_disable_irqs(void)
 {
 	unsigned i, j;
 
@@ -190,7 +182,6 @@ void __init config_q40(void)
 
 	mach_reset = q40_reset;
 	mach_get_model = q40_get_model;
-	mach_get_hardware_list = q40_get_hardware_list;
 
 #if defined(CONFIG_INPUT_M68K_BEEP) || defined(CONFIG_INPUT_M68K_BEEP_MODULE)
 	mach_beep = q40_mksound;
@@ -216,18 +207,7 @@ int q40_parse_bootinfo(const struct bi_record *rec)
 }
 
 
-static inline unsigned char bcd2bin(unsigned char b)
-{
-	return (b >> 4) * 10 + (b & 15);
-}
-
-static inline unsigned char bin2bcd(unsigned char b)
-{
-	return (b / 10) * 16 + (b % 10);
-}
-
-
-unsigned long q40_gettimeoffset(void)
+static unsigned long q40_gettimeoffset(void)
 {
 	return 5000 * (ql_ticks != 0);
 }
@@ -248,7 +228,7 @@ unsigned long q40_gettimeoffset(void)
  * };
  */
 
-int q40_hwclk(int op, struct rtc_time *t)
+static int q40_hwclk(int op, struct rtc_time *t)
 {
 	if (op) {
 		/* Write.... */
@@ -285,7 +265,7 @@ int q40_hwclk(int op, struct rtc_time *t)
 	return 0;
 }
 
-unsigned int q40_get_ss(void)
+static unsigned int q40_get_ss(void)
 {
 	return bcd2bin(Q40_RTC_SECS);
 }
@@ -295,7 +275,7 @@ unsigned int q40_get_ss(void)
  * clock is out by > 30 minutes.  Logic lifted from atari code.
  */
 
-int q40_set_clock_mmss(unsigned long nowtime)
+static int q40_set_clock_mmss(unsigned long nowtime)
 {
 	int retval = 0;
 	short real_seconds = nowtime % 60, real_minutes = (nowtime / 60) % 60;

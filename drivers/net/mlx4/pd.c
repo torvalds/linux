@@ -62,7 +62,7 @@ int mlx4_init_pd_table(struct mlx4_dev *dev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
 	return mlx4_bitmap_init(&priv->pd_bitmap, dev->caps.num_pds,
-				(1 << 24) - 1, dev->caps.reserved_pds);
+				(1 << 24) - 1, dev->caps.reserved_pds, 0);
 }
 
 void mlx4_cleanup_pd_table(struct mlx4_dev *dev)
@@ -91,9 +91,16 @@ EXPORT_SYMBOL_GPL(mlx4_uar_free);
 
 int mlx4_init_uar_table(struct mlx4_dev *dev)
 {
+	if (dev->caps.num_uars <= 128) {
+		mlx4_err(dev, "Only %d UAR pages (need more than 128)\n",
+			 dev->caps.num_uars);
+		mlx4_err(dev, "Increase firmware log2_uar_bar_megabytes?\n");
+		return -ENODEV;
+	}
+
 	return mlx4_bitmap_init(&mlx4_priv(dev)->uar_table.bitmap,
 				dev->caps.num_uars, dev->caps.num_uars - 1,
-				max(128, dev->caps.reserved_uars));
+				max(128, dev->caps.reserved_uars), 0);
 }
 
 void mlx4_cleanup_uar_table(struct mlx4_dev *dev)

@@ -39,7 +39,6 @@ EXPORT_SYMBOL(numa_cpu_lookup_table);
 EXPORT_SYMBOL(numa_cpumask_lookup_table);
 EXPORT_SYMBOL(node_data);
 
-static bootmem_data_t __initdata plat_node_bdata[MAX_NUMNODES];
 static int min_common_depth;
 static int n_mem_addr_cells, n_mem_size_cells;
 
@@ -88,6 +87,48 @@ static int __cpuinit fake_numa_create_new_node(unsigned long end_pfn,
 		return 1;
 	}
 	return 0;
+}
+
+/*
+ * get_active_region_work_fn - A helper function for get_node_active_region
+ *	Returns datax set to the start_pfn and end_pfn if they contain
+ *	the initial value of datax->start_pfn between them
+ * @start_pfn: start page(inclusive) of region to check
+ * @end_pfn: end page(exclusive) of region to check
+ * @datax: comes in with ->start_pfn set to value to search for and
+ *	goes out with active range if it contains it
+ * Returns 1 if search value is in range else 0
+ */
+static int __init get_active_region_work_fn(unsigned long start_pfn,
+					unsigned long end_pfn, void *datax)
+{
+	struct node_active_region *data;
+	data = (struct node_active_region *)datax;
+
+	if (start_pfn <= data->start_pfn && end_pfn > data->start_pfn) {
+		data->start_pfn = start_pfn;
+		data->end_pfn = end_pfn;
+		return 1;
+	}
+	return 0;
+
+}
+
+/*
+ * get_node_active_region - Return active region containing start_pfn
+ * Active range returned is empty if none found.
+ * @start_pfn: The page to return the region for.
+ * @node_ar: Returned set to the active region containing start_pfn
+ */
+static void __init get_node_active_region(unsigned long start_pfn,
+		       struct node_active_region *node_ar)
+{
+	int nid = early_pfn_to_nid(start_pfn);
+
+	node_ar->nid = nid;
+	node_ar->start_pfn = start_pfn;
+	node_ar->end_pfn = start_pfn;
+	work_with_active_regions(nid, get_active_region_work_fn, node_ar);
 }
 
 static void __cpuinit map_cpu_to_node(int cpu, int node)
@@ -149,6 +190,21 @@ static struct device_node * __cpuinit find_cpu_node(unsigned int cpu)
 static const int *of_get_associativity(struct device_node *dev)
 {
 	return of_get_property(dev, "ibm,associativity", NULL);
+}
+
+/*
+ * Returns the property linux,drconf-usable-memory if
+ * it exists (the property exists only in kexec/kdump kernels,
+ * added by kexec-tools)
+ */
+static const u32 *of_get_usable_memory(struct device_node *memory)
+{
+	const u32 *prop;
+	u32 len;
+	prop = of_get_property(memory, "linux,drconf-usable-memory", &len);
+	if (!prop || len < sizeof(unsigned int))
+		return 0;
+	return prop;
 }
 
 /* Returns nid in the range [0..MAX_NUMNODES-1], or -1 if no useful numa
@@ -472,11 +528,9 @@ static unsigned long __init numa_enforce_memory_limit(unsigned long start,
 	/*
 	 * We use lmb_end_of_DRAM() in here instead of memory_limit because
 	 * we've already adjusted it for the limit and it takes care of
-	 * having memory holes below the limit.
+	 * having memory holes below the limit.  Also, in the case of
+	 * iommu_is_off, memory_limit is not set but is implicitly enforced.
 	 */
-
-	if (! memory_limit)
-		return size;
 
 	if (start + size <= lmb_end_of_DRAM())
 		return size;
@@ -488,14 +542,29 @@ static unsigned long __init numa_enforce_memory_limit(unsigned long start,
 }
 
 /*
+ * Reads the counter for a given entry in
+ * linux,drconf-usable-memory property
+ */
+static inline int __init read_usm_ranges(const u32 **usm)
+{
+	/*
+	 * For each lmb in ibm,dynamic-memory a corresponding
+	 * entry in linux,drconf-usable-memory property contains
+	 * a counter followed by that many (base, size) duple.
+	 * read the counter from linux,drconf-usable-memory
+	 */
+	return read_n_cells(n_mem_size_cells, usm);
+}
+
+/*
  * Extract NUMA information from the ibm,dynamic-reconfiguration-memory
  * node.  This assumes n_mem_{addr,size}_cells have been set.
  */
 static void __init parse_drconf_memory(struct device_node *memory)
 {
-	const u32 *dm;
-	unsigned int n, rc;
-	unsigned long lmb_size, size;
+	const u32 *dm, *usm;
+	unsigned int n, rc, ranges, is_kexec_kdump = 0;
+	unsigned long lmb_size, base, size, sz;
 	int nid;
 	struct assoc_arrays aa;
 
@@ -511,6 +580,11 @@ static void __init parse_drconf_memory(struct device_node *memory)
 	if (rc)
 		return;
 
+	/* check if this is a kexec/kdump kernel */
+	usm = of_get_usable_memory(memory);
+	if (usm != NULL)
+		is_kexec_kdump = 1;
+
 	for (; n != 0; --n) {
 		struct of_drconf_cell drmem;
 
@@ -522,21 +596,31 @@ static void __init parse_drconf_memory(struct device_node *memory)
 		    || !(drmem.flags & DRCONF_MEM_ASSIGNED))
 			continue;
 
-		nid = of_drconf_to_nid_single(&drmem, &aa);
+		base = drmem.base_addr;
+		size = lmb_size;
+		ranges = 1;
 
-		fake_numa_create_new_node(
-				((drmem.base_addr + lmb_size) >> PAGE_SHIFT),
+		if (is_kexec_kdump) {
+			ranges = read_usm_ranges(&usm);
+			if (!ranges) /* there are no (base, size) duple */
+				continue;
+		}
+		do {
+			if (is_kexec_kdump) {
+				base = read_n_cells(n_mem_addr_cells, &usm);
+				size = read_n_cells(n_mem_size_cells, &usm);
+			}
+			nid = of_drconf_to_nid_single(&drmem, &aa);
+			fake_numa_create_new_node(
+				((base + size) >> PAGE_SHIFT),
 					   &nid);
-
-		node_set_online(nid);
-
-		size = numa_enforce_memory_limit(drmem.base_addr, lmb_size);
-		if (!size)
-			continue;
-
-		add_active_range(nid, drmem.base_addr >> PAGE_SHIFT,
-				 (drmem.base_addr >> PAGE_SHIFT)
-				 + (size >> PAGE_SHIFT));
+			node_set_online(nid);
+			sz = numa_enforce_memory_limit(base, size);
+			if (sz)
+				add_active_range(nid, base >> PAGE_SHIFT,
+						 (base >> PAGE_SHIFT)
+						 + (sz >> PAGE_SHIFT));
+		} while (--ranges);
 	}
 }
 
@@ -816,7 +900,7 @@ void __init do_init_bootmem(void)
   		dbg("node %d\n", nid);
 		dbg("NODE_DATA() = %p\n", NODE_DATA(nid));
 
-		NODE_DATA(nid)->bdata = &plat_node_bdata[nid];
+		NODE_DATA(nid)->bdata = &bootmem_node_data[nid];
 		NODE_DATA(nid)->node_start_pfn = start_pfn;
 		NODE_DATA(nid)->node_spanned_pages = end_pfn - start_pfn;
 
@@ -838,38 +922,53 @@ void __init do_init_bootmem(void)
 				  start_pfn, end_pfn);
 
 		free_bootmem_with_active_regions(nid, end_pfn);
+	}
 
-		/* Mark reserved regions on this node */
-		for (i = 0; i < lmb.reserved.cnt; i++) {
-			unsigned long physbase = lmb.reserved.region[i].base;
-			unsigned long size = lmb.reserved.region[i].size;
-			unsigned long start_paddr = start_pfn << PAGE_SHIFT;
-			unsigned long end_paddr = end_pfn << PAGE_SHIFT;
+	/* Mark reserved regions */
+	for (i = 0; i < lmb.reserved.cnt; i++) {
+		unsigned long physbase = lmb.reserved.region[i].base;
+		unsigned long size = lmb.reserved.region[i].size;
+		unsigned long start_pfn = physbase >> PAGE_SHIFT;
+		unsigned long end_pfn = ((physbase + size) >> PAGE_SHIFT);
+		struct node_active_region node_ar;
 
-			if (early_pfn_to_nid(physbase >> PAGE_SHIFT) != nid &&
-			    early_pfn_to_nid((physbase+size-1) >> PAGE_SHIFT) != nid)
-				continue;
+		get_node_active_region(start_pfn, &node_ar);
+		while (start_pfn < end_pfn &&
+			node_ar.start_pfn < node_ar.end_pfn) {
+			unsigned long reserve_size = size;
+			/*
+			 * if reserved region extends past active region
+			 * then trim size to active region
+			 */
+			if (end_pfn > node_ar.end_pfn)
+				reserve_size = (node_ar.end_pfn << PAGE_SHIFT)
+					- (start_pfn << PAGE_SHIFT);
+			dbg("reserve_bootmem %lx %lx nid=%d\n", physbase,
+				reserve_size, node_ar.nid);
+			reserve_bootmem_node(NODE_DATA(node_ar.nid), physbase,
+						reserve_size, BOOTMEM_DEFAULT);
+			/*
+			 * if reserved region is contained in the active region
+			 * then done.
+			 */
+			if (end_pfn <= node_ar.end_pfn)
+				break;
 
-			if (physbase < end_paddr &&
-			    (physbase+size) > start_paddr) {
-				/* overlaps */
-				if (physbase < start_paddr) {
-					size -= start_paddr - physbase;
-					physbase = start_paddr;
-				}
-
-				if (size > end_paddr - physbase)
-					size = end_paddr - physbase;
-
-				dbg("reserve_bootmem %lx %lx\n", physbase,
-				    size);
-				reserve_bootmem_node(NODE_DATA(nid), physbase,
-						     size, BOOTMEM_DEFAULT);
-			}
+			/*
+			 * reserved region extends past the active region
+			 *   get next active region that contains this
+			 *   reserved region
+			 */
+			start_pfn = node_ar.end_pfn;
+			physbase = start_pfn << PAGE_SHIFT;
+			size = size - reserve_size;
+			get_node_active_region(start_pfn, &node_ar);
 		}
 
-		sparse_memory_present_with_active_regions(nid);
 	}
+
+	for_each_online_node(nid)
+		sparse_memory_present_with_active_regions(nid);
 }
 
 void __init paging_init(void)

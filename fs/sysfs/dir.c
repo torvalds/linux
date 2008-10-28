@@ -370,17 +370,17 @@ void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt,
 	memset(acxt, 0, sizeof(*acxt));
 	acxt->parent_sd = parent_sd;
 
-	/* Lookup parent inode.  inode initialization and I_NEW
-	 * clearing are protected by sysfs_mutex.  By grabbing it and
-	 * looking up with _nowait variant, inode state can be
-	 * determined reliably.
+	/* Lookup parent inode.  inode initialization is protected by
+	 * sysfs_mutex, so inode existence can be determined by
+	 * looking up inode while holding sysfs_mutex.
 	 */
 	mutex_lock(&sysfs_mutex);
 
-	inode = ilookup5_nowait(sysfs_sb, parent_sd->s_ino, sysfs_ilookup_test,
-				parent_sd);
+	inode = ilookup5(sysfs_sb, parent_sd->s_ino, sysfs_ilookup_test,
+			 parent_sd);
+	if (inode) {
+		WARN_ON(inode->i_state & I_NEW);
 
-	if (inode && !(inode->i_state & I_NEW)) {
 		/* parent inode available */
 		acxt->parent_inode = inode;
 
@@ -393,8 +393,44 @@ void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt,
 			mutex_lock(&inode->i_mutex);
 			mutex_lock(&sysfs_mutex);
 		}
-	} else
-		iput(inode);
+	}
+}
+
+/**
+ *	__sysfs_add_one - add sysfs_dirent to parent without warning
+ *	@acxt: addrm context to use
+ *	@sd: sysfs_dirent to be added
+ *
+ *	Get @acxt->parent_sd and set sd->s_parent to it and increment
+ *	nlink of parent inode if @sd is a directory and link into the
+ *	children list of the parent.
+ *
+ *	This function should be called between calls to
+ *	sysfs_addrm_start() and sysfs_addrm_finish() and should be
+ *	passed the same @acxt as passed to sysfs_addrm_start().
+ *
+ *	LOCKING:
+ *	Determined by sysfs_addrm_start().
+ *
+ *	RETURNS:
+ *	0 on success, -EEXIST if entry with the given name already
+ *	exists.
+ */
+int __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
+{
+	if (sysfs_find_dirent(acxt->parent_sd, sd->s_name))
+		return -EEXIST;
+
+	sd->s_parent = sysfs_get(acxt->parent_sd);
+
+	if (sysfs_type(sd) == SYSFS_DIR && acxt->parent_inode)
+		inc_nlink(acxt->parent_inode);
+
+	acxt->cnt++;
+
+	sysfs_link_sibling(sd);
+
+	return 0;
 }
 
 /**
@@ -419,19 +455,12 @@ void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt,
  */
 int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 {
-	if (sysfs_find_dirent(acxt->parent_sd, sd->s_name))
-		return -EEXIST;
+	int ret;
 
-	sd->s_parent = sysfs_get(acxt->parent_sd);
-
-	if (sysfs_type(sd) == SYSFS_DIR && acxt->parent_inode)
-		inc_nlink(acxt->parent_inode);
-
-	acxt->cnt++;
-
-	sysfs_link_sibling(sd);
-
-	return 0;
+	ret = __sysfs_add_one(acxt, sd);
+	WARN(ret == -EEXIST, KERN_WARNING "sysfs: duplicate filename '%s' "
+		       "can not be created\n", sd->s_name);
+	return ret;
 }
 
 /**
@@ -606,6 +635,7 @@ struct sysfs_dirent *sysfs_get_dirent(struct sysfs_dirent *parent_sd,
 
 	return sd;
 }
+EXPORT_SYMBOL_GPL(sysfs_get_dirent);
 
 static int create_dir(struct kobject *kobj, struct sysfs_dirent *parent_sd,
 		      const char *name, struct sysfs_dirent **p_sd)
@@ -799,14 +829,10 @@ int sysfs_rename_dir(struct kobject * kobj, const char *new_name)
 	if (!new_dentry)
 		goto out_unlock;
 
-	/* rename kobject and sysfs_dirent */
+	/* rename sysfs_dirent */
 	error = -ENOMEM;
 	new_name = dup_name = kstrdup(new_name, GFP_KERNEL);
 	if (!new_name)
-		goto out_unlock;
-
-	error = kobject_set_name(kobj, "%s", new_name);
-	if (error)
 		goto out_unlock;
 
 	dup_name = sd->s_name;
@@ -957,4 +983,5 @@ static int sysfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
 const struct file_operations sysfs_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= sysfs_readdir,
+	.llseek		= generic_file_llseek,
 };

@@ -24,34 +24,8 @@
  */
 #ifdef CONFIG_FIRMWARE_MEMMAP
 
-/**
- * Adds a firmware mapping entry. This function uses kmalloc() for memory
- * allocation. Use firmware_map_add_early() if you want to use the bootmem
- * allocator.
- *
- * That function must be called before late_initcall.
- *
- * @start: Start of the memory range.
- * @end:   End of the memory range (inclusive).
- * @type:  Type of the memory range.
- *
- * Returns 0 on success, or -ENOMEM if no memory could be allocated.
- */
 int firmware_map_add(resource_size_t start, resource_size_t end,
 		     const char *type);
-
-/**
- * Adds a firmware mapping entry. This function uses the bootmem allocator
- * for memory allocation. Use firmware_map_add() if you want to use kmalloc().
- *
- * That function must be called before late_initcall.
- *
- * @start: Start of the memory range.
- * @end:   End of the memory range (inclusive).
- * @type:  Type of the memory range.
- *
- * Returns 0 on success, or -ENOMEM if no memory could be allocated.
- */
 int firmware_map_add_early(resource_size_t start, resource_size_t end,
 			   const char *type);
 

@@ -47,7 +47,8 @@ MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 
 #define PDEBUG(level, fmt, args...) { \
 		if (i2c_debug & (level)) \
-			info("[%s:%d] " fmt, __func__, __LINE__ , ## args); \
+			printk(KERN_INFO KBUILD_MODNAME ":[%s:%d] " fmt, \
+				__func__, __LINE__ , ## args); \
 	}
 
 static int usbvision_i2c_write(struct usb_usbvision *usbvision, unsigned char addr, char *buf,
@@ -190,7 +191,6 @@ static u32 functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_10BIT_ADDR;
 }
 
-
 /* -----exported algorithm data: -------------------------------------	*/
 
 static struct i2c_algorithm usbvision_algo = {
@@ -236,7 +236,7 @@ int usbvision_i2c_register(struct usb_usbvision *usbvision)
 	       sizeof(struct i2c_client));
 
 	sprintf(usbvision->i2c_adap.name + strlen(usbvision->i2c_adap.name),
-		" #%d", usbvision->vdev->minor & 0x1f);
+		" #%d", usbvision->vdev->num);
 	PDEBUG(DBG_I2C,"Adaptername: %s", usbvision->i2c_adap.name);
 	usbvision->i2c_adap.dev.parent = &usbvision->dev->dev;
 
@@ -514,11 +514,7 @@ static struct i2c_adapter i2c_adap_template = {
 	.id                = I2C_HW_B_BT848, /* FIXME */
 	.client_register   = attach_inform,
 	.client_unregister = detach_inform,
-#ifdef I2C_ADAP_CLASS_TV_ANALOG
-	.class             = I2C_ADAP_CLASS_TV_ANALOG,
-#else
 	.class		   = I2C_CLASS_TV_ANALOG,
-#endif
 };
 
 static struct i2c_client i2c_client_template = {

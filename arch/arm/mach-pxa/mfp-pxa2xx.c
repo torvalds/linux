@@ -18,14 +18,19 @@
 #include <linux/init.h>
 #include <linux/sysdev.h>
 
-#include <asm/arch/hardware.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/mfp-pxa2xx.h>
+#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/mfp-pxa2xx.h>
 
 #include "generic.h"
 
-#define PGSR(x)		__REG2(0x40F00020, ((x) & 0x60) >> 3)
+#define gpio_to_bank(gpio)	((gpio) >> 5)
+
+#define PGSR(x)		__REG2(0x40F00020, (x) << 2)
+#define __GAFR(u, x)	__REG2((u) ? 0x40E00058 : 0x40E00054, (x) << 3)
+#define GAFR_L(x)	__GAFR(0, x)
+#define GAFR_U(x)	__GAFR(1, x)
 
 #define PWER_WE35	(1 << 24)
 
@@ -38,40 +43,59 @@ struct gpio_desc {
 };
 
 static struct gpio_desc gpio_desc[MFP_PIN_GPIO127 + 1];
+static int gpio_nr;
+
+static unsigned long gpdr_lpm[4];
 
 static int __mfp_config_gpio(unsigned gpio, unsigned long c)
 {
 	unsigned long gafr, mask = GPIO_bit(gpio);
-	int fn;
+	int bank = gpio_to_bank(gpio);
+	int uorl = !!(gpio & 0x10); /* GAFRx_U or GAFRx_L ? */
+	int shft = (gpio & 0xf) << 1;
+	int fn = MFP_AF(c);
+	int dir = c & MFP_DIR_OUT;
 
-	fn = MFP_AF(c);
 	if (fn > 3)
 		return -EINVAL;
 
-	/* alternate function and direction */
-	gafr = GAFR(gpio) & ~(0x3 << ((gpio & 0xf) * 2));
-	GAFR(gpio) = gafr |  (fn  << ((gpio & 0xf) * 2));
+	/* alternate function and direction at run-time */
+	gafr = (uorl == 0) ? GAFR_L(bank) : GAFR_U(bank);
+	gafr = (gafr & ~(0x3 << shft)) | (fn << shft);
 
-	if (c & MFP_DIR_OUT)
+	if (uorl == 0)
+		GAFR_L(bank) = gafr;
+	else
+		GAFR_U(bank) = gafr;
+
+	if (dir == MFP_DIR_OUT)
 		GPDR(gpio) |= mask;
 	else
 		GPDR(gpio) &= ~mask;
 
-	/* low power state */
+	/* alternate function and direction at low power mode */
 	switch (c & MFP_LPM_STATE_MASK) {
 	case MFP_LPM_DRIVE_HIGH:
-		PGSR(gpio) |= mask;
+		PGSR(bank) |= mask;
+		dir = MFP_DIR_OUT;
 		break;
 	case MFP_LPM_DRIVE_LOW:
-		PGSR(gpio) &= ~mask;
+		PGSR(bank) &= ~mask;
+		dir = MFP_DIR_OUT;
 		break;
-	case MFP_LPM_INPUT:
+	case MFP_LPM_DEFAULT:
 		break;
 	default:
-		pr_warning("%s: invalid low power state for GPIO%d\n",
+		/* warning and fall through, treat as MFP_LPM_DEFAULT */
+		pr_warning("%s: GPIO%d: unsupported low power mode\n",
 				__func__, gpio);
-		return -EINVAL;
+		break;
 	}
+
+	if (dir == MFP_DIR_OUT)
+		gpdr_lpm[bank] |= mask;
+	else
+		gpdr_lpm[bank] &= ~mask;
 
 	/* give early warning if MFP_LPM_CAN_WAKEUP is set on the
 	 * configurations of those pins not able to wakeup
@@ -82,13 +106,25 @@ static int __mfp_config_gpio(unsigned gpio, unsigned long c)
 		return -EINVAL;
 	}
 
-	if ((c & MFP_LPM_CAN_WAKEUP) && (c & MFP_DIR_OUT)) {
+	if ((c & MFP_LPM_CAN_WAKEUP) && (dir == MFP_DIR_OUT)) {
 		pr_warning("%s: output GPIO%d unable to wakeup\n",
 				__func__, gpio);
 		return -EINVAL;
 	}
 
 	return 0;
+}
+
+static inline int __mfp_validate(int mfp)
+{
+	int gpio = mfp_to_gpio(mfp);
+
+	if ((mfp > MFP_PIN_GPIO127) || !gpio_desc[gpio].valid) {
+		pr_warning("%s: GPIO%d is invalid pin\n", __func__, gpio);
+		return -1;
+	}
+
+	return gpio;
 }
 
 void pxa2xx_mfp_config(unsigned long *mfp_cfgs, int num)
@@ -99,13 +135,9 @@ void pxa2xx_mfp_config(unsigned long *mfp_cfgs, int num)
 
 	for (i = 0, c = mfp_cfgs; i < num; i++, c++) {
 
-		gpio = mfp_to_gpio(MFP_PIN(*c));
-
-		if (!gpio_desc[gpio].valid) {
-			pr_warning("%s: GPIO%d is invalid pin\n",
-				__func__, gpio);
+		gpio = __mfp_validate(MFP_PIN(*c));
+		if (gpio < 0)
 			continue;
-		}
 
 		local_irq_save(flags);
 
@@ -114,6 +146,24 @@ void pxa2xx_mfp_config(unsigned long *mfp_cfgs, int num)
 
 		local_irq_restore(flags);
 	}
+}
+
+void pxa2xx_mfp_set_lpm(int mfp, unsigned long lpm)
+{
+	unsigned long flags, c;
+	int gpio;
+
+	gpio = __mfp_validate(mfp);
+	if (gpio < 0)
+		return;
+
+	local_irq_save(flags);
+
+	c = gpio_desc[gpio].config;
+	c = (c & ~MFP_LPM_STATE_MASK) | lpm;
+	__mfp_config_gpio(gpio, c);
+
+	local_irq_restore(flags);
 }
 
 int gpio_set_wake(unsigned int gpio, unsigned int on)
@@ -156,23 +206,22 @@ int gpio_set_wake(unsigned int gpio, unsigned int on)
 }
 
 #ifdef CONFIG_PXA25x
-static int __init pxa25x_mfp_init(void)
+static void __init pxa25x_mfp_init(void)
 {
 	int i;
 
-	if (cpu_is_pxa25x()) {
-		for (i = 0; i <= 84; i++)
-			gpio_desc[i].valid = 1;
+	for (i = 0; i <= 84; i++)
+		gpio_desc[i].valid = 1;
 
-		for (i = 0; i <= 15; i++) {
-			gpio_desc[i].can_wakeup = 1;
-			gpio_desc[i].mask = GPIO_bit(i);
-		}
+	for (i = 0; i <= 15; i++) {
+		gpio_desc[i].can_wakeup = 1;
+		gpio_desc[i].mask = GPIO_bit(i);
 	}
 
-	return 0;
+	gpio_nr = 85;
 }
-postcore_initcall(pxa25x_mfp_init);
+#else
+static inline void pxa25x_mfp_init(void) {}
 #endif /* CONFIG_PXA25x */
 
 #ifdef CONFIG_PXA27x
@@ -202,45 +251,106 @@ int keypad_set_wake(unsigned int on)
 	return 0;
 }
 
-static int __init pxa27x_mfp_init(void)
+static void __init pxa27x_mfp_init(void)
 {
 	int i, gpio;
 
-	if (cpu_is_pxa27x()) {
-		for (i = 0; i <= 120; i++) {
-			/* skip GPIO2, 5, 6, 7, 8, they are not
-			 * valid pins allow configuration
-			 */
-			if (i == 2 || i == 5 || i == 6 ||
-			    i == 7 || i == 8)
-				continue;
+	for (i = 0; i <= 120; i++) {
+		/* skip GPIO2, 5, 6, 7, 8, they are not
+		 * valid pins allow configuration
+		 */
+		if (i == 2 || i == 5 || i == 6 || i == 7 || i == 8)
+			continue;
 
-			gpio_desc[i].valid = 1;
-		}
-
-		/* Keypad GPIOs */
-		for (i = 0; i < ARRAY_SIZE(pxa27x_pkwr_gpio); i++) {
-			gpio = pxa27x_pkwr_gpio[i];
-			gpio_desc[gpio].can_wakeup = 1;
-			gpio_desc[gpio].keypad_gpio = 1;
-			gpio_desc[gpio].mask = 1 << i;
-		}
-
-		/* Overwrite GPIO13 as a PWER wakeup source */
-		for (i = 0; i <= 15; i++) {
-			/* skip GPIO2, 5, 6, 7, 8 */
-			if (GPIO_bit(i) & 0x1e4)
-				continue;
-
-			gpio_desc[i].can_wakeup = 1;
-			gpio_desc[i].mask = GPIO_bit(i);
-		}
-
-		gpio_desc[35].can_wakeup = 1;
-		gpio_desc[35].mask = PWER_WE35;
+		gpio_desc[i].valid = 1;
 	}
 
+	/* Keypad GPIOs */
+	for (i = 0; i < ARRAY_SIZE(pxa27x_pkwr_gpio); i++) {
+		gpio = pxa27x_pkwr_gpio[i];
+		gpio_desc[gpio].can_wakeup = 1;
+		gpio_desc[gpio].keypad_gpio = 1;
+		gpio_desc[gpio].mask = 1 << i;
+	}
+
+	/* Overwrite GPIO13 as a PWER wakeup source */
+	for (i = 0; i <= 15; i++) {
+		/* skip GPIO2, 5, 6, 7, 8 */
+		if (GPIO_bit(i) & 0x1e4)
+			continue;
+
+		gpio_desc[i].can_wakeup = 1;
+		gpio_desc[i].mask = GPIO_bit(i);
+	}
+
+	gpio_desc[35].can_wakeup = 1;
+	gpio_desc[35].mask = PWER_WE35;
+
+	gpio_nr = 121;
+}
+#else
+static inline void pxa27x_mfp_init(void) {}
+#endif /* CONFIG_PXA27x */
+
+#ifdef CONFIG_PM
+static unsigned long saved_gafr[2][4];
+static unsigned long saved_gpdr[4];
+
+static int pxa2xx_mfp_suspend(struct sys_device *d, pm_message_t state)
+{
+	int i;
+
+	for (i = 0; i <= gpio_to_bank(gpio_nr); i++) {
+
+		saved_gafr[0][i] = GAFR_L(i);
+		saved_gafr[1][i] = GAFR_U(i);
+		saved_gpdr[i] = GPDR(i * 32);
+
+		GPDR(i * 32) = gpdr_lpm[i];
+	}
 	return 0;
 }
-postcore_initcall(pxa27x_mfp_init);
-#endif /* CONFIG_PXA27x */
+
+static int pxa2xx_mfp_resume(struct sys_device *d)
+{
+	int i;
+
+	for (i = 0; i <= gpio_to_bank(gpio_nr); i++) {
+		GAFR_L(i) = saved_gafr[0][i];
+		GAFR_U(i) = saved_gafr[1][i];
+		GPDR(i * 32) = saved_gpdr[i];
+	}
+	PSSR = PSSR_RDH | PSSR_PH;
+	return 0;
+}
+#else
+#define pxa2xx_mfp_suspend	NULL
+#define pxa2xx_mfp_resume	NULL
+#endif
+
+struct sysdev_class pxa2xx_mfp_sysclass = {
+	.name		= "mfp",
+	.suspend	= pxa2xx_mfp_suspend,
+	.resume		= pxa2xx_mfp_resume,
+};
+
+static int __init pxa2xx_mfp_init(void)
+{
+	int i;
+
+	if (!cpu_is_pxa2xx())
+		return 0;
+
+	if (cpu_is_pxa25x())
+		pxa25x_mfp_init();
+
+	if (cpu_is_pxa27x())
+		pxa27x_mfp_init();
+
+	/* initialize gafr_run[], pgsr_lpm[] from existing values */
+	for (i = 0; i <= gpio_to_bank(gpio_nr); i++)
+		gpdr_lpm[i] = GPDR(i * 32);
+
+	return sysdev_class_register(&pxa2xx_mfp_sysclass);
+}
+postcore_initcall(pxa2xx_mfp_init);

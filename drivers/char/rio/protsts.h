@@ -37,13 +37,6 @@
 #ifndef _protsts_h
 #define _protsts_h 1
 
-
-#ifdef SCCS_LABELS
-#ifndef lint
-/* static char *_rio_protsts_h_sccs = "@(#)protsts.h	1.4"; */
-#endif
-#endif
-
 /*************************************************
  * ACK bit. Last Packet received OK. Set by
  * rxpkt to indicate that the Packet has been

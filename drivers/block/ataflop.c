@@ -361,13 +361,13 @@ static void finish_fdc( void );
 static void finish_fdc_done( int dummy );
 static void setup_req_params( int drive );
 static void redo_fd_request( void);
-static int fd_ioctl( struct inode *inode, struct file *filp, unsigned int
+static int fd_ioctl(struct block_device *bdev, fmode_t mode, unsigned int
                      cmd, unsigned long param);
 static void fd_probe( int drive );
 static int fd_test_drive_present( int drive );
 static void config_types( void );
-static int floppy_open( struct inode *inode, struct file *filp );
-static int floppy_release( struct inode * inode, struct file * filp );
+static int floppy_open(struct block_device *bdev, fmode_t mode);
+static int floppy_release(struct gendisk *disk, fmode_t mode);
 
 /************************* End of Prototypes **************************/
 
@@ -1483,10 +1483,10 @@ void do_fd_request(struct request_queue * q)
 	atari_enable_irq( IRQ_MFP_FDC );
 }
 
-static int fd_ioctl(struct inode *inode, struct file *filp,
+static int fd_ioctl(struct block_device *bdev, fmode_t mode,
 		    unsigned int cmd, unsigned long param)
 {
-	struct gendisk *disk = inode->i_bdev->bd_disk;
+	struct gendisk *disk = bdev->bd_disk;
 	struct atari_floppy_struct *floppy = disk->private_data;
 	int drive = floppy - unit;
 	int type = floppy->type;
@@ -1661,7 +1661,7 @@ static int fd_ioctl(struct inode *inode, struct file *filp,
 		/* invalidate the buffer track to force a reread */
 		BufferDrive = -1;
 		set_bit(drive, &fake_change);
-		check_disk_change(inode->i_bdev);
+		check_disk_change(bdev);
 		return 0;
 	default:
 		return -EINVAL;
@@ -1804,37 +1804,36 @@ static void __init config_types( void )
  * drive with different device numbers.
  */
 
-static int floppy_open( struct inode *inode, struct file *filp )
+static int floppy_open(struct block_device *bdev, fmode_t mode)
 {
-	struct atari_floppy_struct *p = inode->i_bdev->bd_disk->private_data;
-	int type  = iminor(inode) >> 2;
+	struct atari_floppy_struct *p = bdev->bd_disk->private_data;
+	int type  = MINOR(bdev->bd_dev) >> 2;
 
 	DPRINT(("fd_open: type=%d\n",type));
 	if (p->ref && p->type != type)
 		return -EBUSY;
 
-	if (p->ref == -1 || (p->ref && filp->f_flags & O_EXCL))
+	if (p->ref == -1 || (p->ref && mode & FMODE_EXCL))
 		return -EBUSY;
 
-	if (filp->f_flags & O_EXCL)
+	if (mode & FMODE_EXCL)
 		p->ref = -1;
 	else
 		p->ref++;
 
 	p->type = type;
 
-	if (filp->f_flags & O_NDELAY)
+	if (mode & FMODE_NDELAY)
 		return 0;
 
-	if (filp->f_mode & 3) {
-		check_disk_change(inode->i_bdev);
-		if (filp->f_mode & 2) {
+	if (mode & (FMODE_READ|FMODE_WRITE)) {
+		check_disk_change(bdev);
+		if (mode & FMODE_WRITE) {
 			if (p->wpstat) {
 				if (p->ref < 0)
 					p->ref = 0;
 				else
 					p->ref--;
-				floppy_release(inode, filp);
 				return -EROFS;
 			}
 		}
@@ -1843,9 +1842,9 @@ static int floppy_open( struct inode *inode, struct file *filp )
 }
 
 
-static int floppy_release( struct inode * inode, struct file * filp )
+static int floppy_release(struct gendisk *disk, fmode_t mode)
 {
-	struct atari_floppy_struct *p = inode->i_bdev->bd_disk->private_data;
+	struct atari_floppy_struct *p = disk->private_data;
 	if (p->ref < 0)
 		p->ref = 0;
 	else if (!p->ref--) {
@@ -1859,7 +1858,7 @@ static struct block_device_operations floppy_fops = {
 	.owner		= THIS_MODULE,
 	.open		= floppy_open,
 	.release	= floppy_release,
-	.ioctl		= fd_ioctl,
+	.locked_ioctl	= fd_ioctl,
 	.media_changed	= check_floppy_change,
 	.revalidate_disk= floppy_revalidate,
 };
@@ -1880,11 +1879,7 @@ static int __init atari_floppy_init (void)
 
 	if (!MACH_IS_ATARI)
 		/* Amiga, Mac, ... don't have Atari-compatible floppy :-) */
-		return -ENXIO;
-
-	if (MACH_IS_HADES)
-		/* Hades doesn't have Atari-compatible floppy */
-		return -ENXIO;
+		return -ENODEV;
 
 	if (register_blkdev(FLOPPY_MAJOR,"fd"))
 		return -EBUSY;

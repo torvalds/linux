@@ -1,4 +1,4 @@
-/* linux/include/asm-arm/arch-s3c2410/iic.h
+/* arch/arm/mach-s3c2410/include/mach/iic.h
  *
  * Copyright (c) 2004 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
@@ -21,6 +21,7 @@
 */
 
 struct s3c2410_platform_i2c {
+	int		bus_num;	/* bus number to use */
 	unsigned int	flags;
 	unsigned int	slave_addr;	/* slave address for controller */
 	unsigned long	bus_freq;	/* standard bus frequency */

@@ -2560,9 +2560,6 @@ Your cooperation is appreciated.
 		 96 = /dev/usb/hiddev0	1st USB HID device
 		    ...
 		111 = /dev/usb/hiddev15	16th USB HID device
-		112 = /dev/usb/auer0	1st auerswald ISDN device
-		    ...
-		127 = /dev/usb/auer15	16th auerswald ISDN device
 		128 = /dev/usb/brlvgr0	First Braille Voyager device
 		    ...
 		131 = /dev/usb/brlvgr3	Fourth Braille Voyager device
@@ -2574,6 +2571,9 @@ Your cooperation is appreciated.
 		160 = /dev/usb/legousbtower0	1st USB Legotower device
 		    ...
 		175 = /dev/usb/legousbtower15	16th USB Legotower device
+		176 = /dev/usb/usbtmc1	First USB TMC device
+		   ...
+		192 = /dev/usb/usbtmc16	16th USB TMC device
 		240 = /dev/usb/dabusb0	First daubusb device
 		    ...
 		243 = /dev/usb/dabusb3	Fourth dabusb device

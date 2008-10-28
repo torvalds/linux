@@ -73,9 +73,9 @@
 #define PTRACE_GETXTREGS	18
 #define PTRACE_SETXTREGS	19
 
-#ifndef __ASSEMBLY__
-
 #ifdef __KERNEL__
+
+#ifndef __ASSEMBLY__
 
 /*
  * This struct defines the way the registers are stored on the
@@ -122,14 +122,14 @@ extern void show_regs(struct pt_regs *);
 # ifndef CONFIG_SMP
 #  define profile_pc(regs) instruction_pointer(regs)
 # endif
-#endif /* __KERNEL__ */
 
 #else	/* __ASSEMBLY__ */
 
-#ifdef __KERNEL__
 # include <asm/asm-offsets.h>
 #define PT_REGS_OFFSET	  (KERNEL_STACK_SIZE - PT_USER_SIZE)
-#endif
 
 #endif	/* !__ASSEMBLY__ */
+
+#endif  /* __KERNEL__ */
+
 #endif	/* _XTENSA_PTRACE_H */

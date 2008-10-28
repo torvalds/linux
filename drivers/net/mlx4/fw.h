@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2006, 2007 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -66,11 +66,13 @@ struct mlx4_dev_cap {
 	int local_ca_ack_delay;
 	int num_ports;
 	u32 max_msg_sz;
-	int max_mtu[MLX4_MAX_PORTS + 1];
+	int ib_mtu[MLX4_MAX_PORTS + 1];
 	int max_port_width[MLX4_MAX_PORTS + 1];
 	int max_vl[MLX4_MAX_PORTS + 1];
 	int max_gids[MLX4_MAX_PORTS + 1];
 	int max_pkeys[MLX4_MAX_PORTS + 1];
+	u64 def_mac[MLX4_MAX_PORTS + 1];
+	u16 eth_mtu[MLX4_MAX_PORTS + 1];
 	u16 stat_rate_support;
 	u32 flags;
 	int reserved_uars;
@@ -98,10 +100,13 @@ struct mlx4_dev_cap {
 	int cmpt_entry_sz;
 	int mtt_entry_sz;
 	int resize_srq;
-	u8  bmme_flags;
+	u32 bmme_flags;
 	u32 reserved_lkey;
 	u64 max_icm_sz;
 	int max_gso_sz;
+	u8  supported_port_types[MLX4_MAX_PORTS + 1];
+	u8  log_max_macs[MLX4_MAX_PORTS + 1];
+	u8  log_max_vlans[MLX4_MAX_PORTS + 1];
 };
 
 struct mlx4_adapter {

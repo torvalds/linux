@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
+#include <linux/interrupt.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/tx4938.h>
 
@@ -113,7 +114,7 @@ int __init tx4938_pciclk66_setup(void)
 	return pciclk;
 }
 
-int tx4938_pcic1_map_irq(const struct pci_dev *dev, u8 slot)
+int __init tx4938_pcic1_map_irq(const struct pci_dev *dev, u8 slot)
 {
 	if (get_tx4927_pcicptr(dev->bus->sysdata) == tx4938_pcic1ptr) {
 		switch (slot) {
@@ -131,4 +132,13 @@ int tx4938_pcic1_map_irq(const struct pci_dev *dev, u8 slot)
 		return 0;
 	}
 	return -1;
+}
+
+void __init tx4938_setup_pcierr_irq(void)
+{
+	if (request_irq(TXX9_IRQ_BASE + TX4938_IR_PCIERR,
+			tx4927_pcierr_interrupt,
+			IRQF_DISABLED, "PCI error",
+			(void *)TX4927_PCIC_REG))
+		printk(KERN_WARNING "Failed to request irq for PCIERR\n");
 }

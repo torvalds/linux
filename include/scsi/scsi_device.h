@@ -6,6 +6,7 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/blkdev.h>
+#include <scsi/scsi.h>
 #include <asm/atomic.h>
 
 struct request_queue;
@@ -41,9 +42,11 @@ enum scsi_device_state {
 				 * originate in the mid-layer) */
 	SDEV_OFFLINE,		/* Device offlined (by error handling or
 				 * user request */
-	SDEV_BLOCK,		/* Device blocked by scsi lld.  No scsi 
-				 * commands from user or midlayer should be issued
-				 * to the scsi lld. */
+	SDEV_BLOCK,		/* Device blocked by scsi lld.  No
+				 * scsi commands from user or midlayer
+				 * should be issued to the scsi
+				 * lld. */
+	SDEV_CREATED_BLOCK,	/* same as above but for created devices */
 };
 
 enum scsi_device_event {
@@ -140,7 +143,8 @@ struct scsi_device {
 	unsigned fix_capacity:1;	/* READ_CAPACITY is too high by 1 */
 	unsigned guess_capacity:1;	/* READ_CAPACITY might be too high by 1 */
 	unsigned retry_hwerror:1;	/* Retry HARDWARE_ERROR */
-	unsigned last_sector_bug:1;	/* Always read last sector in a 1 sector read */
+	unsigned last_sector_bug:1;	/* do not use multisector accesses on
+					   SD_LAST_BUGGY_SECTORS */
 
 	DECLARE_BITMAP(supported_events, SDEV_EVT_MAXBITS); /* supported events */
 	struct list_head event_list;	/* asserted events */
@@ -167,15 +171,22 @@ struct scsi_device {
 	unsigned long		sdev_data[0];
 } __attribute__((aligned(sizeof(unsigned long))));
 
+struct scsi_dh_devlist {
+	char *vendor;
+	char *model;
+};
+
 struct scsi_device_handler {
 	/* Used by the infrastructure */
 	struct list_head list; /* list of scsi_device_handlers */
-	struct notifier_block nb;
 
 	/* Filled by the hardware handler */
 	struct module *module;
 	const char *name;
+	const struct scsi_dh_devlist *devlist;
 	int (*check_sense)(struct scsi_device *, struct scsi_sense_hdr *);
+	int (*attach)(struct scsi_device *);
+	void (*detach)(struct scsi_device *);
 	int (*activate)(struct scsi_device *);
 	int (*prep_fn)(struct scsi_device *, struct request *);
 };
@@ -227,6 +238,16 @@ struct scsi_target {
 						 * for the device at a time. */
 	unsigned int		pdt_1f_for_no_lun;	/* PDT = 0x1f */
 						/* means no lun present */
+	/* commands actually active on LLD. protected by host lock. */
+	unsigned int		target_busy;
+	/*
+	 * LLDs should set this in the slave_alloc host template callout.
+	 * If set to zero then there is not limit.
+	 */
+	unsigned int		can_queue;
+	unsigned int		target_blocked;
+	unsigned int		max_target_blocked;
+#define SCSI_DEFAULT_TARGET_BLOCKED	3
 
 	char			scsi_level;
 	struct execute_work	ew;
@@ -375,9 +396,22 @@ static inline unsigned int sdev_id(struct scsi_device *sdev)
 #define scmd_id(scmd) sdev_id((scmd)->device)
 #define scmd_channel(scmd) sdev_channel((scmd)->device)
 
+/*
+ * checks for positions of the SCSI state machine
+ */
 static inline int scsi_device_online(struct scsi_device *sdev)
 {
 	return sdev->sdev_state != SDEV_OFFLINE;
+}
+static inline int scsi_device_blocked(struct scsi_device *sdev)
+{
+	return sdev->sdev_state == SDEV_BLOCK ||
+		sdev->sdev_state == SDEV_CREATED_BLOCK;
+}
+static inline int scsi_device_created(struct scsi_device *sdev)
+{
+	return sdev->sdev_state == SDEV_CREATED ||
+		sdev->sdev_state == SDEV_CREATED_BLOCK;
 }
 
 /* accessor functions for the SCSI parameters */
@@ -414,6 +448,11 @@ static inline int scsi_device_qas(struct scsi_device *sdev)
 static inline int scsi_device_enclosure(struct scsi_device *sdev)
 {
 	return sdev->inquiry[6] & (1<<6);
+}
+
+static inline int scsi_device_protection(struct scsi_device *sdev)
+{
+	return sdev->scsi_level > SCSI_2 && sdev->inquiry[5] & (1<<0);
 }
 
 #define MODULE_ALIAS_SCSI_DEVICE(type) \

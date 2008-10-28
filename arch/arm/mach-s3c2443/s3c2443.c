@@ -20,21 +20,21 @@
 #include <linux/serial_core.h>
 #include <linux/sysdev.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 
-#include <asm/arch/regs-s3c2443-clock.h>
-#include <asm/arch/reset.h>
+#include <mach/regs-s3c2443-clock.h>
+#include <mach/reset.h>
 
-#include <asm/plat-s3c24xx/s3c2443.h>
-#include <asm/plat-s3c24xx/devs.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/s3c2443.h>
+#include <plat/devs.h>
+#include <plat/cpu.h>
 
 static struct map_desc s3c2443_iodesc[] __initdata = {
 	IODESC_ENT(WATCHDOG),

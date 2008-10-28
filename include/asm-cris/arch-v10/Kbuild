@@ -1,4 +1,3 @@
-header-y += ptrace.h
 header-y += user.h
 header-y += svinto.h
 header-y += sv_addr_ag.h

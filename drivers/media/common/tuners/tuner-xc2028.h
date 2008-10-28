@@ -10,6 +10,7 @@
 #include "dvb_frontend.h"
 
 #define XC2028_DEFAULT_FIRMWARE "xc3028-v27.fw"
+#define XC3028L_DEFAULT_FIRMWARE "xc3028L-v36.fw"
 
 /*      Dmoduler		IF (kHz) */
 #define	XC3028_FE_DEFAULT	0		/* Don't load SCODE */
@@ -23,24 +24,28 @@
 #define	XC3028_FE_ZARLINK456	4560
 #define	XC3028_FE_CHINA		5200
 
+enum firmware_type {
+	XC2028_AUTO = 0,        /* By default, auto-detects */
+	XC2028_D2633,
+	XC2028_D2620,
+};
+
 struct xc2028_ctrl {
 	char			*fname;
 	int			max_len;
 	unsigned int		scode_table;
 	unsigned int		mts   :1;
-	unsigned int		d2633 :1;
 	unsigned int		input1:1;
 	unsigned int		vhfbw7:1;
 	unsigned int		uhfbw8:1;
 	unsigned int		demod;
+	enum firmware_type	type:2;
 };
 
 struct xc2028_config {
 	struct i2c_adapter *i2c_adap;
 	u8 		   i2c_addr;
-	void               *video_dev;
 	struct xc2028_ctrl *ctrl;
-	int                (*callback) (void *dev, int command, int arg);
 };
 
 /* xc2028 commands for callback */

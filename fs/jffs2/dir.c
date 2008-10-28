@@ -38,8 +38,9 @@ const struct file_operations jffs2_dir_operations =
 {
 	.read =		generic_read_dir,
 	.readdir =	jffs2_readdir,
-	.ioctl =	jffs2_ioctl,
-	.fsync =	jffs2_fsync
+	.unlocked_ioctl=jffs2_ioctl,
+	.fsync =	jffs2_fsync,
+	.llseek =	generic_file_llseek,
 };
 
 
@@ -108,9 +109,7 @@ static struct dentry *jffs2_lookup(struct inode *dir_i, struct dentry *target,
 		}
 	}
 
-	d_add(target, inode);
-
-	return NULL;
+	return d_splice_alias(inode, target);
 }
 
 /***********************************************************************/
@@ -311,7 +310,7 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 	/* FIXME: If you care. We'd need to use frags for the target
 	   if it grows much more than this */
 	if (targetlen > 254)
-		return -EINVAL;
+		return -ENAMETOOLONG;
 
 	ri = jffs2_alloc_raw_inode();
 

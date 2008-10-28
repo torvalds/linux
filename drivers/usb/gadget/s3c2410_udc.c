@@ -35,7 +35,6 @@
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/version.h>
 #include <linux/clk.h>
 
 #include <linux/debugfs.h>
@@ -49,15 +48,14 @@
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/unaligned.h>
-#include <asm/arch/irqs.h>
+#include <mach/irqs.h>
 
-#include <asm/arch/hardware.h>
-#include <asm/arch/regs-gpio.h>
+#include <mach/hardware.h>
+#include <mach/regs-gpio.h>
 
 #include <asm/plat-s3c24xx/regs-udc.h>
 #include <asm/plat-s3c24xx/udc.h>
 
-#include <asm/mach-types.h>
 
 #include "s3c2410_udc.h"
 
@@ -888,7 +886,7 @@ static void s3c2410_udc_handle_ep(struct s3c2410_ep *ep)
 	}
 }
 
-#include <asm/arch/regs-irq.h>
+#include <mach/regs-irq.h>
 
 /*
  *	s3c2410_udc_irq - interrupt handler
@@ -1653,7 +1651,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 		return -EBUSY;
 
 	if (!driver->bind || !driver->setup
-			|| driver->speed != USB_SPEED_FULL) {
+			|| driver->speed < USB_SPEED_FULL) {
 		printk(KERN_ERR "Invalid driver: bind %p setup %p speed %d\n",
 			driver->bind, driver->setup, driver->speed);
 		return -EINVAL;
@@ -1896,11 +1894,8 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 		udc->regs_info = debugfs_create_file("registers", S_IRUGO,
 				s3c2410_udc_debugfs_root,
 				udc, &s3c2410_udc_debugfs_fops);
-		if (IS_ERR(udc->regs_info)) {
-			dev_warn(dev, "debugfs file creation failed %ld\n",
-				 PTR_ERR(udc->regs_info));
-			udc->regs_info = NULL;
-		}
+		if (!udc->regs_info)
+			dev_warn(dev, "debugfs file creation failed\n");
 	}
 
 	dev_dbg(dev, "probe ok\n");

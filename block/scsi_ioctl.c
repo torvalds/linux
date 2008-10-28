@@ -105,12 +105,96 @@ static int sg_emulated_host(struct request_queue *q, int __user *p)
 	return put_user(1, p);
 }
 
+void blk_set_cmd_filter_defaults(struct blk_cmd_filter *filter)
+{
+	/* Basic read-only commands */
+	__set_bit(TEST_UNIT_READY, filter->read_ok);
+	__set_bit(REQUEST_SENSE, filter->read_ok);
+	__set_bit(READ_6, filter->read_ok);
+	__set_bit(READ_10, filter->read_ok);
+	__set_bit(READ_12, filter->read_ok);
+	__set_bit(READ_16, filter->read_ok);
+	__set_bit(READ_BUFFER, filter->read_ok);
+	__set_bit(READ_DEFECT_DATA, filter->read_ok);
+	__set_bit(READ_CAPACITY, filter->read_ok);
+	__set_bit(READ_LONG, filter->read_ok);
+	__set_bit(INQUIRY, filter->read_ok);
+	__set_bit(MODE_SENSE, filter->read_ok);
+	__set_bit(MODE_SENSE_10, filter->read_ok);
+	__set_bit(LOG_SENSE, filter->read_ok);
+	__set_bit(START_STOP, filter->read_ok);
+	__set_bit(GPCMD_VERIFY_10, filter->read_ok);
+	__set_bit(VERIFY_16, filter->read_ok);
+	__set_bit(REPORT_LUNS, filter->read_ok);
+	__set_bit(SERVICE_ACTION_IN, filter->read_ok);
+	__set_bit(RECEIVE_DIAGNOSTIC, filter->read_ok);
+	__set_bit(MAINTENANCE_IN, filter->read_ok);
+	__set_bit(GPCMD_READ_BUFFER_CAPACITY, filter->read_ok);
+
+	/* Audio CD commands */
+	__set_bit(GPCMD_PLAY_CD, filter->read_ok);
+	__set_bit(GPCMD_PLAY_AUDIO_10, filter->read_ok);
+	__set_bit(GPCMD_PLAY_AUDIO_MSF, filter->read_ok);
+	__set_bit(GPCMD_PLAY_AUDIO_TI, filter->read_ok);
+	__set_bit(GPCMD_PAUSE_RESUME, filter->read_ok);
+
+	/* CD/DVD data reading */
+	__set_bit(GPCMD_READ_CD, filter->read_ok);
+	__set_bit(GPCMD_READ_CD_MSF, filter->read_ok);
+	__set_bit(GPCMD_READ_DISC_INFO, filter->read_ok);
+	__set_bit(GPCMD_READ_CDVD_CAPACITY, filter->read_ok);
+	__set_bit(GPCMD_READ_DVD_STRUCTURE, filter->read_ok);
+	__set_bit(GPCMD_READ_HEADER, filter->read_ok);
+	__set_bit(GPCMD_READ_TRACK_RZONE_INFO, filter->read_ok);
+	__set_bit(GPCMD_READ_SUBCHANNEL, filter->read_ok);
+	__set_bit(GPCMD_READ_TOC_PMA_ATIP, filter->read_ok);
+	__set_bit(GPCMD_REPORT_KEY, filter->read_ok);
+	__set_bit(GPCMD_SCAN, filter->read_ok);
+	__set_bit(GPCMD_GET_CONFIGURATION, filter->read_ok);
+	__set_bit(GPCMD_READ_FORMAT_CAPACITIES, filter->read_ok);
+	__set_bit(GPCMD_GET_EVENT_STATUS_NOTIFICATION, filter->read_ok);
+	__set_bit(GPCMD_GET_PERFORMANCE, filter->read_ok);
+	__set_bit(GPCMD_SEEK, filter->read_ok);
+	__set_bit(GPCMD_STOP_PLAY_SCAN, filter->read_ok);
+
+	/* Basic writing commands */
+	__set_bit(WRITE_6, filter->write_ok);
+	__set_bit(WRITE_10, filter->write_ok);
+	__set_bit(WRITE_VERIFY, filter->write_ok);
+	__set_bit(WRITE_12, filter->write_ok);
+	__set_bit(WRITE_VERIFY_12, filter->write_ok);
+	__set_bit(WRITE_16, filter->write_ok);
+	__set_bit(WRITE_LONG, filter->write_ok);
+	__set_bit(WRITE_LONG_2, filter->write_ok);
+	__set_bit(ERASE, filter->write_ok);
+	__set_bit(GPCMD_MODE_SELECT_10, filter->write_ok);
+	__set_bit(MODE_SELECT, filter->write_ok);
+	__set_bit(LOG_SELECT, filter->write_ok);
+	__set_bit(GPCMD_BLANK, filter->write_ok);
+	__set_bit(GPCMD_CLOSE_TRACK, filter->write_ok);
+	__set_bit(GPCMD_FLUSH_CACHE, filter->write_ok);
+	__set_bit(GPCMD_FORMAT_UNIT, filter->write_ok);
+	__set_bit(GPCMD_REPAIR_RZONE_TRACK, filter->write_ok);
+	__set_bit(GPCMD_RESERVE_RZONE_TRACK, filter->write_ok);
+	__set_bit(GPCMD_SEND_DVD_STRUCTURE, filter->write_ok);
+	__set_bit(GPCMD_SEND_EVENT, filter->write_ok);
+	__set_bit(GPCMD_SEND_KEY, filter->write_ok);
+	__set_bit(GPCMD_SEND_OPC, filter->write_ok);
+	__set_bit(GPCMD_SEND_CUE_SHEET, filter->write_ok);
+	__set_bit(GPCMD_SET_SPEED, filter->write_ok);
+	__set_bit(GPCMD_PREVENT_ALLOW_MEDIUM_REMOVAL, filter->write_ok);
+	__set_bit(GPCMD_LOAD_UNLOAD, filter->write_ok);
+	__set_bit(GPCMD_SET_STREAMING, filter->write_ok);
+	__set_bit(GPCMD_SET_READ_AHEAD, filter->write_ok);
+}
+EXPORT_SYMBOL_GPL(blk_set_cmd_filter_defaults);
+
 static int blk_fill_sghdr_rq(struct request_queue *q, struct request *rq,
-			     struct sg_io_hdr *hdr, struct file *file)
+			     struct sg_io_hdr *hdr, fmode_t mode)
 {
 	if (copy_from_user(rq->cmd, hdr->cmdp, hdr->cmd_len))
 		return -EFAULT;
-	if (blk_verify_command(file, rq->cmd))
+	if (blk_verify_command(&q->cmd_filter, rq->cmd, mode & FMODE_WRITE))
 		return -EPERM;
 
 	/*
@@ -175,8 +259,8 @@ static int blk_complete_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr,
 	return r;
 }
 
-static int sg_io(struct file *file, struct request_queue *q,
-		struct gendisk *bd_disk, struct sg_io_hdr *hdr)
+static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
+		struct sg_io_hdr *hdr, fmode_t mode)
 {
 	unsigned long start_time;
 	int writing = 0, ret = 0;
@@ -208,7 +292,7 @@ static int sg_io(struct file *file, struct request_queue *q,
 	if (!rq)
 		return -ENOMEM;
 
-	if (blk_fill_sghdr_rq(q, rq, hdr, file)) {
+	if (blk_fill_sghdr_rq(q, rq, hdr, mode)) {
 		blk_put_request(rq);
 		return -EFAULT;
 	}
@@ -229,11 +313,12 @@ static int sg_io(struct file *file, struct request_queue *q,
 			goto out;
 		}
 
-		ret = blk_rq_map_user_iov(q, rq, iov, hdr->iovec_count,
-					  hdr->dxfer_len);
+		ret = blk_rq_map_user_iov(q, rq, NULL, iov, hdr->iovec_count,
+					  hdr->dxfer_len, GFP_KERNEL);
 		kfree(iov);
 	} else if (hdr->dxfer_len)
-		ret = blk_rq_map_user(q, rq, hdr->dxferp, hdr->dxfer_len);
+		ret = blk_rq_map_user(q, rq, NULL, hdr->dxferp, hdr->dxfer_len,
+				      GFP_KERNEL);
 
 	if (ret)
 		goto out;
@@ -294,8 +379,8 @@ out:
  *      bytes in one int) where the lowest byte is the SCSI status.
  */
 #define OMAX_SB_LEN 16          /* For backward compatibility */
-int sg_scsi_ioctl(struct file *file, struct request_queue *q,
-		  struct gendisk *disk, struct scsi_ioctl_command __user *sic)
+int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
+		struct scsi_ioctl_command __user *sic)
 {
 	struct request *rq;
 	int err;
@@ -340,7 +425,7 @@ int sg_scsi_ioctl(struct file *file, struct request_queue *q,
 	if (in_len && copy_from_user(buffer, sic->data + cmdlen, in_len))
 		goto error;
 
-	err = blk_verify_command(file, rq->cmd);
+	err = blk_verify_command(&q->cmd_filter, rq->cmd, mode & FMODE_WRITE);
 	if (err)
 		goto error;
 
@@ -432,8 +517,8 @@ static inline int blk_send_start_stop(struct request_queue *q,
 	return __blk_send_generic(q, bd_disk, GPCMD_START_STOP_UNIT, data);
 }
 
-int scsi_cmd_ioctl(struct file *file, struct request_queue *q,
-		   struct gendisk *bd_disk, unsigned int cmd, void __user *arg)
+int scsi_cmd_ioctl(struct request_queue *q, struct gendisk *bd_disk, fmode_t mode,
+		   unsigned int cmd, void __user *arg)
 {
 	int err;
 
@@ -474,7 +559,7 @@ int scsi_cmd_ioctl(struct file *file, struct request_queue *q,
 			err = -EFAULT;
 			if (copy_from_user(&hdr, arg, sizeof(hdr)))
 				break;
-			err = sg_io(file, q, bd_disk, &hdr);
+			err = sg_io(q, bd_disk, &hdr, mode);
 			if (err == -EFAULT)
 				break;
 
@@ -518,11 +603,11 @@ int scsi_cmd_ioctl(struct file *file, struct request_queue *q,
 			hdr.sbp = cgc.sense;
 			if (hdr.sbp)
 				hdr.mx_sb_len = sizeof(struct request_sense);
-			hdr.timeout = cgc.timeout;
+			hdr.timeout = jiffies_to_msecs(cgc.timeout);
 			hdr.cmdp = ((struct cdrom_generic_command __user*) arg)->cmd;
 			hdr.cmd_len = sizeof(cgc.cmd);
 
-			err = sg_io(file, q, bd_disk, &hdr);
+			err = sg_io(q, bd_disk, &hdr, mode);
 			if (err == -EFAULT)
 				break;
 
@@ -546,7 +631,7 @@ int scsi_cmd_ioctl(struct file *file, struct request_queue *q,
 			if (!arg)
 				break;
 
-			err = sg_scsi_ioctl(file, q, bd_disk, arg);
+			err = sg_scsi_ioctl(q, bd_disk, mode, arg);
 			break;
 		case CDROMCLOSETRAY:
 			err = blk_send_start_stop(q, bd_disk, 0x03);

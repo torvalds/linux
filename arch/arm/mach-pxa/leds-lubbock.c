@@ -13,11 +13,11 @@
 
 #include <linux/init.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/leds.h>
 #include <asm/system.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/lubbock.h>
+#include <mach/pxa-regs.h>
+#include <mach/lubbock.h>
 
 #include "leds.h"
 

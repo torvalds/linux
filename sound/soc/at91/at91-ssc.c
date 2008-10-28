@@ -5,7 +5,7 @@
  *         Endrelia Technologies Inc.
  *
  * Based on pxa2xx Platform drivers by
- * Liam Girdwood <liam.girdwood@wolfsonmicro.com>
+ * Liam Girdwood <lrg@slimlogic.co.uk>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -28,9 +28,9 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
-#include <asm/arch/hardware.h>
-#include <asm/arch/at91_pmc.h>
-#include <asm/arch/at91_ssc.h>
+#include <mach/hardware.h>
+#include <mach/at91_pmc.h>
+#include <mach/at91_ssc.h>
 
 #include "at91-pcm.h"
 #include "at91-ssc.h"
@@ -408,7 +408,7 @@ static int at91_ssc_hw_params(struct snd_pcm_substream *substream,
 		dma_params->pdc_xfer_size = 4;
 		break;
 	default:
-		printk(KERN_WARNING "at91-ssc: unsupported PCM format");
+		printk(KERN_WARNING "at91-ssc: unsupported PCM format\n");
 		return -EINVAL;
 	}
 

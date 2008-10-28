@@ -111,16 +111,17 @@ void led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trigger)
 			flags);
 		if (led_cdev->trigger->deactivate)
 			led_cdev->trigger->deactivate(led_cdev);
+		led_cdev->trigger = NULL;
 		led_set_brightness(led_cdev, LED_OFF);
 	}
 	if (trigger) {
 		write_lock_irqsave(&trigger->leddev_list_lock, flags);
 		list_add_tail(&led_cdev->trig_list, &trigger->led_cdevs);
 		write_unlock_irqrestore(&trigger->leddev_list_lock, flags);
+		led_cdev->trigger = trigger;
 		if (trigger->activate)
 			trigger->activate(led_cdev);
 	}
-	led_cdev->trigger = trigger;
 }
 EXPORT_SYMBOL_GPL(led_trigger_set);
 

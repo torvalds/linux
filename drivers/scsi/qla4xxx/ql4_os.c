@@ -46,6 +46,8 @@ MODULE_PARM_DESC(ql4xextended_error_logging,
 
 int ql4_mod_unload = 0;
 
+#define QL4_DEF_QDEPTH 32
+
 /*
  * SCSI host template entry points
  */
@@ -351,7 +353,7 @@ void qla4xxx_mark_device_missing(struct scsi_qla_host *ha,
 		      ha->host_no, ddb_entry->bus, ddb_entry->target,
 		      ddb_entry->fw_ddb_index));
 	iscsi_block_session(ddb_entry->sess);
-	iscsi_conn_error(ddb_entry->conn, ISCSI_ERR_CONN_FAILED);
+	iscsi_conn_error_event(ddb_entry->conn, ISCSI_ERR_CONN_FAILED);
 }
 
 static struct srb* qla4xxx_get_new_srb(struct scsi_qla_host *ha,
@@ -437,7 +439,7 @@ static int qla4xxx_queuecommand(struct scsi_cmnd *cmd,
 			cmd->result = DID_NO_CONNECT << 16;
 			goto qc_fail_command;
 		}
-		goto qc_host_busy;
+		return SCSI_MLQUEUE_TARGET_BUSY;
 	}
 
 	if (test_bit(DPC_RESET_HA_INTR, &ha->dpc_flags))
@@ -1387,7 +1389,7 @@ static int qla4xxx_slave_alloc(struct scsi_device *sdev)
 
 	sdev->hostdata = ddb;
 	sdev->tagged_supported = 1;
-	scsi_activate_tcq(sdev, sdev->host->can_queue);
+	scsi_activate_tcq(sdev, QL4_DEF_QDEPTH);
 	return 0;
 }
 
@@ -1540,7 +1542,7 @@ static int qla4xxx_eh_device_reset(struct scsi_cmnd *cmd)
 	DEBUG2(printk(KERN_INFO
 		      "scsi%ld: DEVICE_RESET cmd=%p jiffies = 0x%lx, to=%x,"
 		      "dpc_flags=%lx, status=%x allowed=%d\n", ha->host_no,
-		      cmd, jiffies, cmd->timeout_per_command / HZ,
+		      cmd, jiffies, cmd->request->timeout / HZ,
 		      ha->dpc_flags, cmd->result, cmd->allowed));
 
 	/* FIXME: wait for hba to go online */
@@ -1596,7 +1598,7 @@ static int qla4xxx_eh_target_reset(struct scsi_cmnd *cmd)
 	DEBUG2(printk(KERN_INFO
 		      "scsi%ld: TARGET_DEVICE_RESET cmd=%p jiffies = 0x%lx, "
 		      "to=%x,dpc_flags=%lx, status=%x allowed=%d\n",
-		      ha->host_no, cmd, jiffies, cmd->timeout_per_command / HZ,
+		      ha->host_no, cmd, jiffies, cmd->request->timeout / HZ,
 		      ha->dpc_flags, cmd->result, cmd->allowed));
 
 	stat = qla4xxx_reset_target(ha, ddb_entry);

@@ -1,6 +1,5 @@
 /*
  *
- *  $Id$
  *
  *  Copyright (C) 2005 Mike Isely <isely@pobox.com>
  *
@@ -50,7 +49,7 @@ int pvr2_ctrl_get_max(struct pvr2_ctrl *);
 int pvr2_ctrl_get_min(struct pvr2_ctrl *);
 
 /* Retrieve control's default value (any type) */
-int pvr2_ctrl_get_def(struct pvr2_ctrl *);
+int pvr2_ctrl_get_def(struct pvr2_ctrl *, int *valptr);
 
 /* Retrieve control's enumeration count (enum only) */
 int pvr2_ctrl_get_cnt(struct pvr2_ctrl *);

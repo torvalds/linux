@@ -1,7 +1,5 @@
 /* Special Initializers for certain USB Mass Storage devices
  *
- * $Id: initializers.c,v 1.2 2000/09/06 22:35:57 mdharm Exp $
- *
  * Current development and maintenance by:
  *   (c) 1999, 2000 Matthew Dharm (mdharm-usb@one-eyed-alien.net)
  *
@@ -97,11 +95,10 @@ int usb_stor_huawei_e220_init(struct us_data *us)
 {
 	int result;
 
-	us->iobuf[0] = 0x1;
 	result = usb_stor_control_msg(us, us->send_ctrl_pipe,
 				      USB_REQ_SET_FEATURE,
 				      USB_TYPE_STANDARD | USB_RECIP_DEVICE,
-				      0x01, 0x0, us->iobuf, 0x1, 1000);
+				      0x01, 0x0, NULL, 0x0, 1000);
 	US_DEBUGP("usb_control_msg performing result is %d\n", result);
 	return (result ? 0 : -1);
 }

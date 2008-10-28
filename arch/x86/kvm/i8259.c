@@ -30,6 +30,19 @@
 
 #include <linux/kvm_host.h>
 
+static void pic_clear_isr(struct kvm_kpic_state *s, int irq)
+{
+	s->isr &= ~(1 << irq);
+	s->isr_ack |= (1 << irq);
+}
+
+void kvm_pic_clear_isr_ack(struct kvm *kvm)
+{
+	struct kvm_pic *s = pic_irqchip(kvm);
+	s->pics[0].isr_ack = 0xff;
+	s->pics[1].isr_ack = 0xff;
+}
+
 /*
  * set irq level. If an edge is detected, then the IRR is set to 1
  */
@@ -130,8 +143,10 @@ void kvm_pic_set_irq(void *opaque, int irq, int level)
 {
 	struct kvm_pic *s = opaque;
 
-	pic_set_irq1(&s->pics[irq >> 3], irq & 7, level);
-	pic_update_irq(s);
+	if (irq >= 0 && irq < PIC_NUM_PINS) {
+		pic_set_irq1(&s->pics[irq >> 3], irq & 7, level);
+		pic_update_irq(s);
+	}
 }
 
 /*
@@ -139,11 +154,12 @@ void kvm_pic_set_irq(void *opaque, int irq, int level)
  */
 static inline void pic_intack(struct kvm_kpic_state *s, int irq)
 {
+	s->isr |= 1 << irq;
 	if (s->auto_eoi) {
 		if (s->rotate_on_auto_eoi)
 			s->priority_add = (irq + 1) & 7;
-	} else
-		s->isr |= (1 << irq);
+		pic_clear_isr(s, irq);
+	}
 	/*
 	 * We don't clear a level sensitive interrupt here
 	 */
@@ -151,9 +167,10 @@ static inline void pic_intack(struct kvm_kpic_state *s, int irq)
 		s->irr &= ~(1 << irq);
 }
 
-int kvm_pic_read_irq(struct kvm_pic *s)
+int kvm_pic_read_irq(struct kvm *kvm)
 {
 	int irq, irq2, intno;
+	struct kvm_pic *s = pic_irqchip(kvm);
 
 	irq = pic_get_irq(&s->pics[0]);
 	if (irq >= 0) {
@@ -179,16 +196,32 @@ int kvm_pic_read_irq(struct kvm_pic *s)
 		intno = s->pics[0].irq_base + irq;
 	}
 	pic_update_irq(s);
+	kvm_notify_acked_irq(kvm, irq);
 
 	return intno;
 }
 
 void kvm_pic_reset(struct kvm_kpic_state *s)
 {
+	int irq, irqbase;
+	struct kvm *kvm = s->pics_state->irq_request_opaque;
+	struct kvm_vcpu *vcpu0 = kvm->vcpus[0];
+
+	if (s == &s->pics_state->pics[0])
+		irqbase = 0;
+	else
+		irqbase = 8;
+
+	for (irq = 0; irq < PIC_NUM_PINS/2; irq++) {
+		if (vcpu0 && kvm_apic_accept_pic_intr(vcpu0))
+			if (s->irr & (1 << irq) || s->isr & (1 << irq))
+				kvm_notify_acked_irq(kvm, irq+irqbase);
+	}
 	s->last_irr = 0;
 	s->irr = 0;
 	s->imr = 0;
 	s->isr = 0;
+	s->isr_ack = 0xff;
 	s->priority_add = 0;
 	s->irq_base = 0;
 	s->read_reg_select = 0;
@@ -241,7 +274,7 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 				priority = get_priority(s, s->isr);
 				if (priority != 8) {
 					irq = (priority + s->priority_add) & 7;
-					s->isr &= ~(1 << irq);
+					pic_clear_isr(s, irq);
 					if (cmd == 5)
 						s->priority_add = (irq + 1) & 7;
 					pic_update_irq(s->pics_state);
@@ -249,7 +282,7 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 				break;
 			case 3:
 				irq = val & 7;
-				s->isr &= ~(1 << irq);
+				pic_clear_isr(s, irq);
 				pic_update_irq(s->pics_state);
 				break;
 			case 6:
@@ -258,8 +291,8 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 				break;
 			case 7:
 				irq = val & 7;
-				s->isr &= ~(1 << irq);
 				s->priority_add = (irq + 1) & 7;
+				pic_clear_isr(s, irq);
 				pic_update_irq(s->pics_state);
 				break;
 			default:
@@ -301,7 +334,7 @@ static u32 pic_poll_read(struct kvm_kpic_state *s, u32 addr1)
 			s->pics_state->pics[0].irr &= ~(1 << 2);
 		}
 		s->irr &= ~(1 << ret);
-		s->isr &= ~(1 << ret);
+		pic_clear_isr(s, ret);
 		if (addr1 >> 7 || ret != 2)
 			pic_update_irq(s->pics_state);
 	} else {
@@ -346,7 +379,8 @@ static u32 elcr_ioport_read(void *opaque, u32 addr1)
 	return s->elcr;
 }
 
-static int picdev_in_range(struct kvm_io_device *this, gpa_t addr)
+static int picdev_in_range(struct kvm_io_device *this, gpa_t addr,
+			   int len, int is_write)
 {
 	switch (addr) {
 	case 0x20:
@@ -419,10 +453,14 @@ static void pic_irq_request(void *opaque, int level)
 {
 	struct kvm *kvm = opaque;
 	struct kvm_vcpu *vcpu = kvm->vcpus[0];
+	struct kvm_pic *s = pic_irqchip(kvm);
+	int irq = pic_get_irq(&s->pics[0]);
 
-	pic_irqchip(kvm)->output = level;
-	if (vcpu)
+	s->output = level;
+	if (vcpu && level && (s->pics[0].isr_ack & (1 << irq))) {
+		s->pics[0].isr_ack &= ~(1 << irq);
 		kvm_vcpu_kick(vcpu);
+	}
 }
 
 struct kvm_pic *kvm_create_pic(struct kvm *kvm)

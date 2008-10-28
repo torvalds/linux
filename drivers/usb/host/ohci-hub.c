@@ -36,18 +36,6 @@
 
 /*-------------------------------------------------------------------------*/
 
-/* hcd->hub_irq_enable() */
-static void ohci_rhsc_enable (struct usb_hcd *hcd)
-{
-	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
-
-	spin_lock_irq(&ohci->lock);
-	if (!ohci->autostop)
-		del_timer(&hcd->rh_timer);	/* Prevent next poll */
-	ohci_writel(ohci, OHCI_INTR_RHSC, &ohci->regs->intrenable);
-	spin_unlock_irq(&ohci->lock);
-}
-
 #define OHCI_SCHED_ENABLES \
 	(OHCI_CTRL_CLE|OHCI_CTRL_BLE|OHCI_CTRL_PLE|OHCI_CTRL_IE)
 
@@ -371,21 +359,34 @@ static void ohci_finish_controller_resume(struct usb_hcd *hcd)
 
 /* Carry out polling-, autostop-, and autoresume-related state changes */
 static int ohci_root_hub_state_changes(struct ohci_hcd *ohci, int changed,
-		int any_connected)
+		int any_connected, int rhsc_status)
 {
 	int	poll_rh = 1;
+	int	rhsc_enable;
+
+	/* Some broken controllers never turn off RHCS in the interrupt
+	 * status register.  For their sake we won't re-enable RHSC
+	 * interrupts if the interrupt bit is already active.
+	 */
+	rhsc_enable = ohci_readl(ohci, &ohci->regs->intrenable) &
+			OHCI_INTR_RHSC;
 
 	switch (ohci->hc_control & OHCI_CTRL_HCFS) {
-
 	case OHCI_USB_OPER:
-		/* keep on polling until we know a device is connected
-		 * and RHSC is enabled */
+		/* If no status changes are pending, enable RHSC interrupts. */
+		if (!rhsc_enable && !rhsc_status && !changed) {
+			rhsc_enable = OHCI_INTR_RHSC;
+			ohci_writel(ohci, rhsc_enable, &ohci->regs->intrenable);
+		}
+
+		/* Keep on polling until we know a device is connected
+		 * and RHSC is enabled, or until we autostop.
+		 */
 		if (!ohci->autostop) {
 			if (any_connected ||
 					!device_may_wakeup(&ohci_to_hcd(ohci)
 						->self.root_hub->dev)) {
-				if (ohci_readl(ohci, &ohci->regs->intrenable) &
-						OHCI_INTR_RHSC)
+				if (rhsc_enable)
 					poll_rh = 0;
 			} else {
 				ohci->autostop = 1;
@@ -404,21 +405,39 @@ static int ohci_root_hub_state_changes(struct ohci_hcd *ohci, int changed,
 					&& !(ohci->hc_control &
 						OHCI_SCHED_ENABLES)) {
 				ohci_rh_suspend(ohci, 1);
+				if (rhsc_enable)
+					poll_rh = 0;
 			}
 		}
 		break;
 
-	/* if there is a port change, autostart or ask to be resumed */
 	case OHCI_USB_SUSPEND:
 	case OHCI_USB_RESUME:
+		/* if there is a port change, autostart or ask to be resumed */
 		if (changed) {
 			if (ohci->autostop)
 				ohci_rh_resume(ohci);
 			else
 				usb_hcd_resume_root_hub(ohci_to_hcd(ohci));
-		} else {
-			/* everything is idle, no need for polling */
+
+		/* If remote wakeup is disabled, stop polling */
+		} else if (!ohci->autostop &&
+				!ohci_to_hcd(ohci)->self.root_hub->
+					do_remote_wakeup) {
 			poll_rh = 0;
+
+		} else {
+			/* If no status changes are pending,
+			 * enable RHSC interrupts
+			 */
+			if (!rhsc_enable && !rhsc_status) {
+				rhsc_enable = OHCI_INTR_RHSC;
+				ohci_writel(ohci, rhsc_enable,
+						&ohci->regs->intrenable);
+			}
+			/* Keep polling until RHSC is enabled */
+			if (rhsc_enable)
+				poll_rh = 0;
 		}
 		break;
 	}
@@ -436,14 +455,22 @@ static inline int ohci_rh_resume(struct ohci_hcd *ohci)
  * autostop isn't used when CONFIG_PM is turned off.
  */
 static int ohci_root_hub_state_changes(struct ohci_hcd *ohci, int changed,
-		int any_connected)
+		int any_connected, int rhsc_status)
 {
-	int	poll_rh = 1;
-
-	/* keep on polling until RHSC is enabled */
+	/* If RHSC is enabled, don't poll */
 	if (ohci_readl(ohci, &ohci->regs->intrenable) & OHCI_INTR_RHSC)
-		poll_rh = 0;
-	return poll_rh;
+		return 0;
+
+	/* If status changes are pending, continue polling.
+	 * Conversely, if no status changes are pending but the RHSC
+	 * status bit was set, then RHSC may be broken so continue polling.
+	 */
+	if (changed || rhsc_status)
+		return 1;
+
+	/* It's safe to re-enable RHSC interrupts */
+	ohci_writel(ohci, OHCI_INTR_RHSC, &ohci->regs->intrenable);
+	return 0;
 }
 
 #endif	/* CONFIG_PM */
@@ -458,6 +485,7 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 	int		i, changed = 0, length = 1;
 	int		any_connected = 0;
+	int		rhsc_status;
 	unsigned long	flags;
 
 	spin_lock_irqsave (&ohci->lock, flags);
@@ -483,6 +511,11 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 		length++;
 	}
 
+	/* Clear the RHSC status flag before reading the port statuses */
+	ohci_writel(ohci, OHCI_INTR_RHSC, &ohci->regs->intrstatus);
+	rhsc_status = ohci_readl(ohci, &ohci->regs->intrstatus) &
+			OHCI_INTR_RHSC;
+
 	/* look at each port */
 	for (i = 0; i < ohci->num_ports; i++) {
 		u32	status = roothub_portstatus (ohci, i);
@@ -501,7 +534,7 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 	}
 
 	hcd->poll_rh = ohci_root_hub_state_changes(ohci, changed,
-			any_connected);
+			any_connected, rhsc_status);
 
 done:
 	spin_unlock_irqrestore (&ohci->lock, flags);
@@ -571,8 +604,6 @@ static int ohci_start_port_reset (struct usb_hcd *hcd, unsigned port)
 	ohci_writel(ohci, RH_PS_PRS, &ohci->regs->roothub.portstatus [port]);
 	return 0;
 }
-
-static void start_hnp(struct ohci_hcd *ohci);
 
 #else
 
@@ -760,7 +791,7 @@ static int ohci_hub_control (
 #ifdef	CONFIG_USB_OTG
 			if (hcd->self.otg_port == (wIndex + 1)
 					&& hcd->self.b_hnp_enable)
-				start_hnp(ohci);
+				ohci->start_hnp(ohci);
 			else
 #endif
 			ohci_writel (ohci, RH_PS_PSS,

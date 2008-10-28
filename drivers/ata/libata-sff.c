@@ -1315,11 +1315,6 @@ fsm_start:
 		break;
 
 	case HSM_ST_ERR:
-		/* make sure qc->err_mask is available to
-		 * know what's wrong and recover
-		 */
-		WARN_ON(!(qc->err_mask & (AC_ERR_DEV | AC_ERR_HSM)));
-
 		ap->hsm_task_state = HSM_ST_IDLE;
 
 		/* complete taskfile transaction */
@@ -2158,8 +2153,17 @@ void ata_sff_error_handler(struct ata_port *ap)
  */
 void ata_sff_post_internal_cmd(struct ata_queued_cmd *qc)
 {
-	if (qc->ap->ioaddr.bmdma_addr)
+	struct ata_port *ap = qc->ap;
+	unsigned long flags;
+
+	spin_lock_irqsave(ap->lock, flags);
+
+	ap->hsm_task_state = HSM_ST_IDLE;
+
+	if (ap->ioaddr.bmdma_addr)
 		ata_bmdma_stop(qc);
+
+	spin_unlock_irqrestore(ap->lock, flags);
 }
 
 /**

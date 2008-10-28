@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/module.h>
+#include <linux/pci-aspm.h>
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
 #include <acpi/acresrc.h>
@@ -23,16 +24,16 @@ struct acpi_osc_data {
 	acpi_handle handle;
 	u32 support_set;
 	u32 control_set;
-	int is_queried;
-	u32 query_result;
 	struct list_head sibiling;
 };
 static LIST_HEAD(acpi_osc_data_list);
 
 struct acpi_osc_args {
 	u32 capbuf[3];
-	u32 query_result;
+	u32 ctrl_result;
 };
+
+static DEFINE_MUTEX(pci_acpi_lock);
 
 static struct acpi_osc_data *acpi_get_osc_data(acpi_handle handle)
 {
@@ -107,13 +108,34 @@ static acpi_status acpi_run_osc(acpi_handle handle,
 		goto out_kfree;
 	}
 out_success:
-	if (flags & OSC_QUERY_ENABLE)
-		osc_args->query_result =
-			*((u32 *)(out_obj->buffer.pointer + 8));
+	osc_args->ctrl_result =
+		*((u32 *)(out_obj->buffer.pointer + 8));
 	status = AE_OK;
 
 out_kfree:
 	kfree(output.pointer);
+	return status;
+}
+
+static acpi_status __acpi_query_osc(u32 flags, struct acpi_osc_data *osc_data,
+				    u32 *result)
+{
+	acpi_status status;
+	u32 support_set;
+	struct acpi_osc_args osc_args;
+
+	/* do _OSC query for all possible controls */
+	support_set = osc_data->support_set | (flags & OSC_SUPPORT_MASKS);
+	osc_args.capbuf[OSC_QUERY_TYPE] = OSC_QUERY_ENABLE;
+	osc_args.capbuf[OSC_SUPPORT_TYPE] = support_set;
+	osc_args.capbuf[OSC_CONTROL_TYPE] = OSC_CONTROL_MASKS;
+
+	status = acpi_run_osc(osc_data->handle, &osc_args);
+	if (ACPI_SUCCESS(status)) {
+		osc_data->support_set = support_set;
+		*result = osc_args.ctrl_result;
+	}
+
 	return status;
 }
 
@@ -122,34 +144,24 @@ static acpi_status acpi_query_osc(acpi_handle handle,
 {
 	acpi_status status;
 	struct acpi_osc_data *osc_data;
-	u32 flags = (unsigned long)context, support_set;
+	u32 flags = (unsigned long)context, dummy;
 	acpi_handle tmp;
-	struct acpi_osc_args osc_args;
 
 	status = acpi_get_handle(handle, "_OSC", &tmp);
 	if (ACPI_FAILURE(status))
-		return status;
+		return AE_OK;
 
+	mutex_lock(&pci_acpi_lock);
 	osc_data = acpi_get_osc_data(handle);
 	if (!osc_data) {
 		printk(KERN_ERR "acpi osc data array is full\n");
-		return AE_ERROR;
+		goto out;
 	}
 
-	/* do _OSC query for all possible controls */
-	support_set = osc_data->support_set | (flags & OSC_SUPPORT_MASKS);
-	osc_args.capbuf[OSC_QUERY_TYPE] = OSC_QUERY_ENABLE;
-	osc_args.capbuf[OSC_SUPPORT_TYPE] = support_set;
-	osc_args.capbuf[OSC_CONTROL_TYPE] = OSC_CONTROL_MASKS;
-
-	status = acpi_run_osc(handle, &osc_args);
-	if (ACPI_SUCCESS(status)) {
-		osc_data->support_set = support_set;
-		osc_data->query_result = osc_args.query_result;
-		osc_data->is_queried = 1;
-	}
-
-	return status;
+	__acpi_query_osc(flags, osc_data, &dummy);
+out:
+	mutex_unlock(&pci_acpi_lock);
+	return AE_OK;
 }
 
 /**
@@ -180,7 +192,7 @@ acpi_status __pci_osc_support_set(u32 flags, const char *hid)
 acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 {
 	acpi_status status;
-	u32 ctrlset, control_set;
+	u32 ctrlset, control_set, result;
 	acpi_handle tmp;
 	struct acpi_osc_data *osc_data;
 	struct acpi_osc_args osc_args;
@@ -189,19 +201,28 @@ acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 	if (ACPI_FAILURE(status))
 		return status;
 
+	mutex_lock(&pci_acpi_lock);
 	osc_data = acpi_get_osc_data(handle);
 	if (!osc_data) {
 		printk(KERN_ERR "acpi osc data array is full\n");
-		return AE_ERROR;
+		status = AE_ERROR;
+		goto out;
 	}
 
 	ctrlset = (flags & OSC_CONTROL_MASKS);
-	if (!ctrlset)
-		return AE_TYPE;
+	if (!ctrlset) {
+		status = AE_TYPE;
+		goto out;
+	}
 
-	if (osc_data->is_queried &&
-	    ((osc_data->query_result & ctrlset) != ctrlset))
-		return AE_SUPPORT;
+	status = __acpi_query_osc(osc_data->support_set, osc_data, &result);
+	if (ACPI_FAILURE(status))
+		goto out;
+
+	if ((result & ctrlset) != ctrlset) {
+		status = AE_SUPPORT;
+		goto out;
+	}
 
 	control_set = osc_data->control_set | ctrlset;
 	osc_args.capbuf[OSC_QUERY_TYPE] = 0;
@@ -210,7 +231,8 @@ acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 	status = acpi_run_osc(handle, &osc_args);
 	if (ACPI_SUCCESS(status))
 		osc_data->control_set = control_set;
-
+out:
+	mutex_unlock(&pci_acpi_lock);
 	return status;
 }
 EXPORT_SYMBOL(pci_osc_control_set);
@@ -372,6 +394,12 @@ static int __init acpi_pci_init(void)
 		printk(KERN_INFO"ACPI FADT declares the system doesn't support MSI, so disable it\n");
 		pci_no_msi();
 	}
+
+	if (acpi_gbl_FADT.boot_flags & BAF_PCIE_ASPM_CONTROL) {
+		printk(KERN_INFO"ACPI FADT declares the system doesn't support PCIe ASPM, so disable it\n");
+		pcie_no_aspm();
+	}
+
 	ret = register_acpi_bus_type(&acpi_pci_bus);
 	if (ret)
 		return 0;

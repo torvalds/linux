@@ -9,7 +9,7 @@
  * this archive for more details.
  */
 
-#include <linux/ptrace.h>
+#include <linux/tracehook.h>
 #include <linux/signal.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -112,7 +112,7 @@ static void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
 	}
 }
 
-int do_signal(sigset_t *oldset, struct pt_regs *regs)
+static int do_signal_pending(sigset_t *oldset, struct pt_regs *regs)
 {
 	siginfo_t info;
 	int signr;
@@ -145,8 +145,12 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 	 * user space. The DABR will have been cleared if it
 	 * triggered inside the kernel.
 	 */
-	if (current->thread.dabr)
+	if (current->thread.dabr) {
 		set_dabr(current->thread.dabr);
+#if defined(CONFIG_BOOKE)
+		mtspr(SPRN_DBCR0, current->thread.dbcr0);
+#endif
+	}
 
 	if (is32) {
         	if (ka.sa.sa_flags & SA_SIGINFO)
@@ -173,9 +177,26 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs)
 		 * its frame, and we can clear the TLF_RESTORE_SIGMASK flag.
 		 */
 		current_thread_info()->local_flags &= ~_TLF_RESTORE_SIGMASK;
+
+		/*
+		 * Let tracing know that we've done the handler setup.
+		 */
+		tracehook_signal_handler(signr, &info, &ka, regs,
+					 test_thread_flag(TIF_SINGLESTEP));
 	}
 
 	return ret;
+}
+
+void do_signal(struct pt_regs *regs, unsigned long thread_info_flags)
+{
+	if (thread_info_flags & _TIF_SIGPENDING)
+		do_signal_pending(NULL, regs);
+
+	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
+		clear_thread_flag(TIF_NOTIFY_RESUME);
+		tracehook_notify_resume(regs);
+	}
 }
 
 long sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,

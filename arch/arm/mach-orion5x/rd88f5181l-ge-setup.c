@@ -15,13 +15,15 @@
 #include <linux/irq.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mv643xx_eth.h>
+#include <linux/ethtool.h>
 #include <linux/i2c.h>
+#include <net/dsa.h>
 #include <asm/mach-types.h>
 #include <asm/gpio.h>
 #include <asm/leds.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <asm/arch/orion5x.h>
+#include <mach/orion5x.h>
 #include "common.h"
 #include "mpp.h"
 
@@ -88,7 +90,18 @@ static struct orion5x_mpp_mode rd88f5181l_ge_mpp_modes[] __initdata = {
 };
 
 static struct mv643xx_eth_platform_data rd88f5181l_ge_eth_data = {
-	.phy_addr	= -1,
+	.phy_addr	= MV643XX_ETH_PHY_NONE,
+	.speed		= SPEED_1000,
+	.duplex		= DUPLEX_FULL,
+};
+
+static struct dsa_platform_data rd88f5181l_ge_switch_data = {
+	.port_names[0]	= "lan2",
+	.port_names[1]	= "lan1",
+	.port_names[2]	= "wan",
+	.port_names[3]	= "cpu",
+	.port_names[5]	= "lan4",
+	.port_names[7]	= "lan3",
 };
 
 static struct i2c_board_info __initdata rd88f5181l_ge_i2c_rtc = {
@@ -109,6 +122,7 @@ static void __init rd88f5181l_ge_init(void)
 	 */
 	orion5x_ehci0_init();
 	orion5x_eth_init(&rd88f5181l_ge_eth_data);
+	orion5x_eth_switch_init(&rd88f5181l_ge_switch_data, gpio_to_irq(8));
 	orion5x_i2c_init();
 	orion5x_uart0_init();
 

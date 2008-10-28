@@ -19,12 +19,12 @@
 
 #include <pcmcia/ss.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/sizes.h>
 
-#include <asm/arch/mux.h>
-#include <asm/arch/tc.h>
+#include <mach/mux.h>
+#include <mach/tc.h>
 
 
 /* NOTE:  don't expect this to support many I/O cards.  The 16xx chips have

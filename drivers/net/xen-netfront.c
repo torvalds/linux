@@ -92,7 +92,7 @@ struct netfront_info {
 	 */
 	union skb_entry {
 		struct sk_buff *skb;
-		unsigned link;
+		unsigned long link;
 	} tx_skbs[NET_TX_RING_SIZE];
 	grant_ref_t gref_tx_head;
 	grant_ref_t grant_tx_ref[NET_TX_RING_SIZE];
@@ -125,6 +125,17 @@ struct netfront_rx_info {
 	struct xen_netif_extra_info extras[XEN_NETIF_EXTRA_TYPE_MAX - 1];
 };
 
+static void skb_entry_set_link(union skb_entry *list, unsigned short id)
+{
+	list->link = id;
+}
+
+static int skb_entry_is_link(const union skb_entry *list)
+{
+	BUILD_BUG_ON(sizeof(list->skb) != sizeof(list->link));
+	return ((unsigned long)list->skb < PAGE_OFFSET);
+}
+
 /*
  * Access macros for acquiring freeing slots in tx_skbs[].
  */
@@ -132,7 +143,7 @@ struct netfront_rx_info {
 static void add_id_to_freelist(unsigned *head, union skb_entry *list,
 			       unsigned short id)
 {
-	list[id].link = *head;
+	skb_entry_set_link(&list[id], *head);
 	*head = id;
 }
 
@@ -228,10 +239,13 @@ static void xennet_alloc_rx_buffers(struct net_device *dev)
 	 */
 	batch_target = np->rx_target - (req_prod - np->rx.rsp_cons);
 	for (i = skb_queue_len(&np->rx_batch); i < batch_target; i++) {
-		skb = __netdev_alloc_skb(dev, RX_COPY_THRESHOLD,
+		skb = __netdev_alloc_skb(dev, RX_COPY_THRESHOLD + NET_IP_ALIGN,
 					 GFP_ATOMIC | __GFP_NOWARN);
 		if (unlikely(!skb))
 			goto no_skb;
+
+		/* Align ip header to a 16 bytes boundary */
+		skb_reserve(skb, NET_IP_ALIGN);
 
 		page = alloc_page(GFP_ATOMIC | __GFP_NOWARN);
 		if (!page) {
@@ -318,7 +332,7 @@ static int xennet_open(struct net_device *dev)
 	}
 	spin_unlock_bh(&np->rx_lock);
 
-	xennet_maybe_wake_tx(dev);
+	netif_start_queue(dev);
 
 	return 0;
 }
@@ -460,7 +474,7 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int offset = offset_in_page(data);
 	unsigned int len = skb_headlen(skb);
 
-	frags += (offset + len + PAGE_SIZE - 1) / PAGE_SIZE;
+	frags += DIV_ROUND_UP(offset + len, PAGE_SIZE);
 	if (unlikely(frags > MAX_SKB_FRAGS + 1)) {
 		printk(KERN_ALERT "xennet: skb rides the rocket: %d frags\n",
 		       frags);
@@ -993,7 +1007,7 @@ static void xennet_release_tx_bufs(struct netfront_info *np)
 
 	for (i = 0; i < NET_TX_RING_SIZE; i++) {
 		/* Skip over entries which are actually freelist references */
-		if ((unsigned long)np->tx_skbs[i].skb < PAGE_OFFSET)
+		if (skb_entry_is_link(&np->tx_skbs[i]))
 			continue;
 
 		skb = np->tx_skbs[i].skb;
@@ -1123,7 +1137,7 @@ static struct net_device * __devinit xennet_create_dev(struct xenbus_device *dev
 	/* Initialise tx_skbs as a free chain containing every entry. */
 	np->tx_skb_freelist = 0;
 	for (i = 0; i < NET_TX_RING_SIZE; i++) {
-		np->tx_skbs[i].link = i+1;
+		skb_entry_set_link(&np->tx_skbs[i], i+1);
 		np->grant_tx_ref[i] = GRANT_INVALID_REF;
 	}
 
@@ -1783,10 +1797,10 @@ static struct xenbus_driver netfront = {
 
 static int __init netif_init(void)
 {
-	if (!is_running_on_xen())
+	if (!xen_domain())
 		return -ENODEV;
 
-	if (is_initial_xendomain())
+	if (xen_initial_domain())
 		return 0;
 
 	printk(KERN_INFO "Initialising Xen virtual ethernet driver.\n");
@@ -1798,7 +1812,7 @@ module_init(netif_init);
 
 static void __exit netif_exit(void)
 {
-	if (is_initial_xendomain())
+	if (xen_initial_domain())
 		return;
 
 	xenbus_unregister_driver(&netfront);

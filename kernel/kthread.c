@@ -13,6 +13,7 @@
 #include <linux/file.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <trace/sched.h>
 
 #define KTHREAD_NICE_LEVEL (-5)
 
@@ -106,7 +107,7 @@ static void create_kthread(struct kthread_create_info *create)
 		 */
 		sched_setscheduler(create->result, SCHED_NORMAL, &param);
 		set_user_nice(create->result, KTHREAD_NICE_LEVEL);
-		set_cpus_allowed(create->result, CPU_MASK_ALL);
+		set_cpus_allowed_ptr(create->result, CPU_MASK_ALL_PTR);
 	}
 	complete(&create->done);
 }
@@ -171,12 +172,11 @@ EXPORT_SYMBOL(kthread_create);
  */
 void kthread_bind(struct task_struct *k, unsigned int cpu)
 {
-	if (k->state != TASK_UNINTERRUPTIBLE) {
+	/* Must have done schedule() in kthread() before we set_task_cpu */
+	if (!wait_task_inactive(k, TASK_UNINTERRUPTIBLE)) {
 		WARN_ON(1);
 		return;
 	}
-	/* Must have done schedule() in kthread() before we set_task_cpu */
-	wait_task_inactive(k);
 	set_task_cpu(k, cpu);
 	k->cpus_allowed = cpumask_of_cpu(cpu);
 	k->rt.nr_cpus_allowed = 1;
@@ -206,6 +206,8 @@ int kthread_stop(struct task_struct *k)
 	/* It could exit after stop_info.k set, but before wake_up_process. */
 	get_task_struct(k);
 
+	trace_sched_kthread_stop(k);
+
 	/* Must init completion *before* thread sees kthread_stop_info.k */
 	init_completion(&kthread_stop_info.done);
 	smp_wmb();
@@ -221,6 +223,8 @@ int kthread_stop(struct task_struct *k)
 	ret = kthread_stop_info.err;
 	mutex_unlock(&kthread_stop_lock);
 
+	trace_sched_kthread_stop_ret(ret);
+
 	return ret;
 }
 EXPORT_SYMBOL(kthread_stop);
@@ -233,7 +237,7 @@ int kthreadd(void *unused)
 	set_task_comm(tsk, "kthreadd");
 	ignore_signals(tsk);
 	set_user_nice(tsk, KTHREAD_NICE_LEVEL);
-	set_cpus_allowed(tsk, CPU_MASK_ALL);
+	set_cpus_allowed_ptr(tsk, CPU_MASK_ALL_PTR);
 
 	current->flags |= PF_NOFREEZE | PF_FREEZER_NOSIG;
 

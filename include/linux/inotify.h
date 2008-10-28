@@ -7,6 +7,8 @@
 #ifndef _LINUX_INOTIFY_H
 #define _LINUX_INOTIFY_H
 
+/* For O_CLOEXEC and O_NONBLOCK */
+#include <linux/fcntl.h>
 #include <linux/types.h>
 
 /*
@@ -62,6 +64,10 @@ struct inotify_event {
 			 IN_CLOSE_NOWRITE | IN_OPEN | IN_MOVED_FROM | \
 			 IN_MOVED_TO | IN_DELETE | IN_CREATE | IN_DELETE_SELF | \
 			 IN_MOVE_SELF)
+
+/* Flags for sys_inotify_init1.  */
+#define IN_CLOEXEC O_CLOEXEC
+#define IN_NONBLOCK O_NONBLOCK
 
 #ifdef __KERNEL__
 

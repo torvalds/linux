@@ -97,7 +97,7 @@ enum {
 	Opt_err,
 };
 
-static match_table_t tokens = {
+static const match_table_t tokens = {
 	{Opt_devuid, "devuid=%u"},
 	{Opt_devgid, "devgid=%u"},
 	{Opt_devmode, "devmode=%o"},
@@ -180,8 +180,8 @@ static int parse_options(struct super_block *s, char *data)
 			listmode = option & S_IRWXUGO;
 			break;
 		default:
-			err("usbfs: unrecognised mount option \"%s\" "
-			    "or missing value\n", p);
+			printk(KERN_ERR "usbfs: unrecognised mount option "
+			       "\"%s\" or missing value\n", p);
 			return -EINVAL;
 		}
 	}
@@ -240,7 +240,9 @@ static void update_sb(struct super_block *sb)
 				update_special(bus);
 				break;
 			default:
-				warn("Unknown node %s mode %x found on remount!\n",bus->d_name.name,bus->d_inode->i_mode);
+				printk(KERN_WARNING "usbfs: Unknown node %s "
+				       "mode %x found on remount!\n",
+				       bus->d_name.name, bus->d_inode->i_mode);
 				break;
 			}
 		}
@@ -259,7 +261,7 @@ static int remount(struct super_block *sb, int *flags, char *data)
 		return 0;
 
 	if (parse_options(sb, data)) {
-		warn("usbfs: mount parameter error:");
+		printk(KERN_WARNING "usbfs: mount parameter error.\n");
 		return -EINVAL;
 	}
 
@@ -599,7 +601,7 @@ static int create_special_files (void)
 	/* create the devices special file */
 	retval = simple_pin_fs(&usb_fs_type, &usbfs_mount, &usbfs_mount_count);
 	if (retval) {
-		err ("Unable to get usbfs mount");
+		printk(KERN_ERR "Unable to get usbfs mount\n");
 		goto exit;
 	}
 
@@ -611,7 +613,7 @@ static int create_special_files (void)
 					       NULL, &usbfs_devices_fops,
 					       listuid, listgid);
 	if (devices_usbfs_dentry == NULL) {
-		err ("Unable to create devices usbfs file");
+		printk(KERN_ERR "Unable to create devices usbfs file\n");
 		retval = -ENODEV;
 		goto error_clean_mounts;
 	}
@@ -663,7 +665,7 @@ static void usbfs_add_bus(struct usb_bus *bus)
 	bus->usbfs_dentry = fs_create_file (name, busmode | S_IFDIR, parent,
 					    bus, NULL, busuid, busgid);
 	if (bus->usbfs_dentry == NULL) {
-		err ("error creating usbfs bus entry");
+		printk(KERN_ERR "Error creating usbfs bus entry\n");
 		return;
 	}
 }
@@ -694,7 +696,7 @@ static void usbfs_add_device(struct usb_device *dev)
 					    &usbdev_file_operations,
 					    devuid, devgid);
 	if (dev->usbfs_dentry == NULL) {
-		err ("error creating usbfs device entry");
+		printk(KERN_ERR "Error creating usbfs device entry\n");
 		return;
 	}
 
@@ -712,25 +714,11 @@ static void usbfs_add_device(struct usb_device *dev)
 
 static void usbfs_remove_device(struct usb_device *dev)
 {
-	struct dev_state *ds;
-	struct siginfo sinfo;
-
 	if (dev->usbfs_dentry) {
 		fs_remove_file (dev->usbfs_dentry);
 		dev->usbfs_dentry = NULL;
 	}
-	while (!list_empty(&dev->filelist)) {
-		ds = list_entry(dev->filelist.next, struct dev_state, list);
-		wake_up_all(&ds->wait);
-		list_del_init(&ds->list);
-		if (ds->discsignr) {
-			sinfo.si_signo = ds->discsignr;
-			sinfo.si_errno = EPIPE;
-			sinfo.si_code = SI_ASYNCIO;
-			sinfo.si_addr = ds->disccontext;
-			kill_pid_info_as_uid(ds->discsignr, &sinfo, ds->disc_pid, ds->disc_uid, ds->disc_euid, ds->secid);
-		}
-	}
+	usb_fs_classdev_common_remove(dev);
 }
 
 static int usbfs_notify(struct notifier_block *self, unsigned long action, void *dev)

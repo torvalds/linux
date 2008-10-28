@@ -27,7 +27,7 @@ unsigned int __machine_arch_type;
 static void putstr(const char *ptr);
 
 #include <linux/compiler.h>
-#include <asm/arch/uncompress.h>
+#include <mach/uncompress.h>
 
 #ifdef CONFIG_DEBUG_ICEDCC
 
@@ -217,8 +217,6 @@ static unsigned outcnt;		/* bytes in output buffer */
 static int  fill_inbuf(void);
 static void flush_window(void);
 static void error(char *m);
-static void gzip_mark(void **);
-static void gzip_release(void **);
 
 extern char input_data[];
 extern char input_data_end[];
@@ -227,64 +225,21 @@ static uch *output_data;
 static ulg output_ptr;
 static ulg bytes_out;
 
-static void *malloc(int size);
-static void free(void *where);
 static void error(char *m);
-static void gzip_mark(void **);
-static void gzip_release(void **);
 
 static void putstr(const char *);
 
 extern int end;
 static ulg free_mem_ptr;
-static ulg free_mem_ptr_end;
+static ulg free_mem_end_ptr;
 
-#define HEAP_SIZE 0x3000
+#ifdef STANDALONE_DEBUG
+#define NO_INFLATE_MALLOC
+#endif
+
+#define ARCH_HAS_DECOMP_WDOG
 
 #include "../../../../lib/inflate.c"
-
-#ifndef STANDALONE_DEBUG
-static void *malloc(int size)
-{
-	void *p;
-
-	if (size <0) error("Malloc error");
-	if (free_mem_ptr <= 0) error("Memory error");
-
-	free_mem_ptr = (free_mem_ptr + 3) & ~3;	/* Align */
-
-	p = (void *)free_mem_ptr;
-	free_mem_ptr += size;
-
-	if (free_mem_ptr >= free_mem_ptr_end)
-		error("Out of memory");
-	return p;
-}
-
-static void free(void *where)
-{ /* gzip_mark & gzip_release do the free */
-}
-
-static void gzip_mark(void **ptr)
-{
-	arch_decomp_wdog();
-	*ptr = (void *) free_mem_ptr;
-}
-
-static void gzip_release(void **ptr)
-{
-	arch_decomp_wdog();
-	free_mem_ptr = (long) *ptr;
-}
-#else
-static void gzip_mark(void **ptr)
-{
-}
-
-static void gzip_release(void **ptr)
-{
-}
-#endif
 
 /* ===========================================================================
  * Fill the input buffer. This is called only when the buffer is empty
@@ -348,7 +303,7 @@ decompress_kernel(ulg output_start, ulg free_mem_ptr_p, ulg free_mem_ptr_end_p,
 {
 	output_data		= (uch *)output_start;	/* Points to kernel start */
 	free_mem_ptr		= free_mem_ptr_p;
-	free_mem_ptr_end	= free_mem_ptr_end_p;
+	free_mem_end_ptr	= free_mem_ptr_end_p;
 	__machine_arch_type	= arch_id;
 
 	arch_decomp_setup();

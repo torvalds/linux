@@ -274,6 +274,10 @@ _GLOBAL(real_writeb)
 /*
  * Flush MMU TLB
  */
+#ifndef CONFIG_FSL_BOOKE
+_GLOBAL(_tlbil_all)
+_GLOBAL(_tlbil_pid)
+#endif
 _GLOBAL(_tlbia)
 #if defined(CONFIG_40x)
 	sync			/* Flush to memory before changing mapping */
@@ -344,6 +348,9 @@ _GLOBAL(_tlbia)
 /*
  * Flush MMU TLB for a particular address
  */
+#ifndef CONFIG_FSL_BOOKE
+_GLOBAL(_tlbil_va)
+#endif
 _GLOBAL(_tlbie)
 #if defined(CONFIG_40x)
 	/* We run the search with interrupts disabled because we have to change
@@ -435,6 +442,53 @@ _GLOBAL(_tlbie)
 #endif /* CONFIG_SMP */
 #endif /* ! CONFIG_40x */
 	blr
+
+#if defined(CONFIG_FSL_BOOKE)
+/*
+ * Flush MMU TLB, but only on the local processor (no broadcast)
+ */
+_GLOBAL(_tlbil_all)
+#define MMUCSR0_TLBFI	(MMUCSR0_TLB0FI | MMUCSR0_TLB1FI | \
+			 MMUCSR0_TLB2FI | MMUCSR0_TLB3FI)
+	li	r3,(MMUCSR0_TLBFI)@l
+	mtspr	SPRN_MMUCSR0, r3
+1:
+	mfspr	r3,SPRN_MMUCSR0
+	andi.	r3,r3,MMUCSR0_TLBFI@l
+	bne	1b
+	blr
+
+/*
+ * Flush MMU TLB for a particular process id, but only on the local processor
+ * (no broadcast)
+ */
+_GLOBAL(_tlbil_pid)
+/* we currently do an invalidate all since we don't have per pid invalidate */
+	li	r3,(MMUCSR0_TLBFI)@l
+	mtspr	SPRN_MMUCSR0, r3
+1:
+	mfspr	r3,SPRN_MMUCSR0
+	andi.	r3,r3,MMUCSR0_TLBFI@l
+	bne	1b
+	blr
+
+/*
+ * Flush MMU TLB for a particular address, but only on the local processor
+ * (no broadcast)
+ */
+_GLOBAL(_tlbil_va)
+	slwi	r4,r4,16
+	mtspr	SPRN_MAS6,r4		/* assume AS=0 for now */
+	tlbsx	0,r3
+	mfspr	r4,SPRN_MAS1		/* check valid */
+	andis.	r3,r4,MAS1_VALID@h
+	beqlr
+	rlwinm	r4,r4,0,1,31
+	mtspr	SPRN_MAS1,r4
+	tlbwe
+	blr
+#endif /* CONFIG_FSL_BOOKE */
+
 
 /*
  * Flush instruction cache.
@@ -846,8 +900,10 @@ _GLOBAL(kernel_thread)
 	li	r4,0		/* new sp (unused) */
 	li	r0,__NR_clone
 	sc
-	cmpwi	0,r3,0		/* parent or child? */
-	bne	1f		/* return if parent */
+	bns+	1f		/* did system call indicate error? */
+	neg	r3,r3		/* if so, make return code negative */
+1:	cmpwi	0,r3,0		/* parent or child? */
+	bne	2f		/* return if parent */
 	li	r0,0		/* make top-level stack frame */
 	stwu	r0,-16(r1)
 	mtlr	r30		/* fn addr in lr */
@@ -857,7 +913,7 @@ _GLOBAL(kernel_thread)
 	li	r0,__NR_exit	/* exit if function returns */
 	li	r3,0
 	sc
-1:	lwz	r30,8(r1)
+2:	lwz	r30,8(r1)
 	lwz	r31,12(r1)
 	addi	r1,r1,16
 	blr
@@ -899,7 +955,7 @@ relocate_new_kernel:
 
 	/* set a new stack at the bottom of our page... */
 	/* (not really needed now) */
-	addi	r1, r4, KEXEC_CONTROL_CODE_SIZE - 8 /* for LR Save+Back Chain */
+	addi	r1, r4, KEXEC_CONTROL_PAGE_SIZE - 8 /* for LR Save+Back Chain */
 	stw	r0, 0(r1)
 
 	/* Do the copies */

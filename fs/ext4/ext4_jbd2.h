@@ -51,6 +51,14 @@
 					 EXT4_XATTR_TRANS_BLOCKS - 2 + \
 					 2*EXT4_QUOTA_TRANS_BLOCKS(sb))
 
+/*
+ * Define the number of metadata blocks we need to account to modify data.
+ *
+ * This include super block, inode block, quota blocks and xattr blocks
+ */
+#define EXT4_META_TRANS_BLOCKS(sb)	(EXT4_XATTR_TRANS_BLOCKS + \
+					2*EXT4_QUOTA_TRANS_BLOCKS(sb))
+
 /* Delete operations potentially hit one directory's namespace plus an
  * entire inode, plus arbitrary amounts of bitmap/indirection data.  Be
  * generous.  We can grow the delete transaction later if necessary. */

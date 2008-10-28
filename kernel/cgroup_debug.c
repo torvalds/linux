@@ -57,7 +57,7 @@ static u64 current_css_set_refcount_read(struct cgroup *cont,
 	u64 count;
 
 	rcu_read_lock();
-	count = atomic_read(&current->cgroups->ref.refcount);
+	count = atomic_read(&current->cgroups->refcount);
 	rcu_read_unlock();
 	return count;
 }
@@ -90,7 +90,7 @@ static struct cftype files[] =  {
 	{
 		.name = "releasable",
 		.read_u64 = releasable_read,
-	}
+	},
 };
 
 static int debug_populate(struct cgroup_subsys *ss, struct cgroup *cont)

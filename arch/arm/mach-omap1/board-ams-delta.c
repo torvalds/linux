@@ -17,18 +17,18 @@
 #include <linux/input.h>
 #include <linux/platform_device.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/board-ams-delta.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/keypad.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/usb.h>
-#include <asm/arch/board.h>
-#include <asm/arch/common.h>
+#include <mach/board-ams-delta.h>
+#include <mach/gpio.h>
+#include <mach/keypad.h>
+#include <mach/mux.h>
+#include <mach/usb.h>
+#include <mach/board.h>
+#include <mach/common.h>
 
 static u8 ams_delta_latch1_reg;
 static u16 ams_delta_latch2_reg;

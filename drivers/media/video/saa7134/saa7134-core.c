@@ -150,7 +150,6 @@ void saa7134_set_gpio(struct saa7134_dev *dev, int bit_no, int value)
 
 #if defined(CONFIG_MODULES) && defined(MODULE)
 
-
 static void request_module_async(struct work_struct *work){
 	struct saa7134_dev* dev = container_of(work, struct saa7134_dev, request_module_wk);
 	if (card_is_empress(dev))
@@ -216,7 +215,7 @@ unsigned long saa7134_buffer_base(struct saa7134_buf *buf)
 int saa7134_pgtable_alloc(struct pci_dev *pci, struct saa7134_pgtable *pt)
 {
 	__le32       *cpu;
-	dma_addr_t   dma_addr;
+	dma_addr_t   dma_addr = 0;
 
 	cpu = pci_alloc_consistent(pci, SAA7134_PGTABLE_SIZE, &dma_addr);
 	if (NULL == cpu)
@@ -360,32 +359,6 @@ void saa7134_buffer_timeout(unsigned long data)
 	spin_unlock_irqrestore(&dev->slock,flags);
 }
 
-/* resends a current buffer in queue after resume */
-
-static int saa7134_buffer_requeue(struct saa7134_dev *dev,
-				  struct saa7134_dmaqueue *q)
-{
-	struct saa7134_buf *buf, *next;
-
-	assert_spin_locked(&dev->slock);
-
-	buf  = q->curr;
-	next = buf;
-	dprintk("buffer_requeue\n");
-
-	if (!buf)
-		return 0;
-
-	dprintk("buffer_requeue : resending active buffers \n");
-
-	if (!list_empty(&q->queue))
-		next = list_entry(q->queue.next, struct saa7134_buf,
-					  vb.queue);
-	buf->activate(dev, buf, next);
-
-	return 0;
-}
-
 /* ------------------------------------------------------------------ */
 
 int saa7134_set_dmabits(struct saa7134_dev *dev)
@@ -443,9 +416,7 @@ int saa7134_set_dmabits(struct saa7134_dev *dev)
 	/* TS capture -- dma 5 */
 	if (dev->ts_q.curr) {
 		ctrl |= SAA7134_MAIN_CTRL_TE5;
-		irq  |= SAA7134_IRQ1_INTE_RA2_3 |
-			SAA7134_IRQ1_INTE_RA2_2 |
-			SAA7134_IRQ1_INTE_RA2_1 |
+		irq  |= SAA7134_IRQ1_INTE_RA2_1 |
 			SAA7134_IRQ1_INTE_RA2_0;
 	}
 
@@ -728,6 +699,10 @@ static int saa7134_hw_enable2(struct saa7134_dev *dev)
 			irq2_mask |= SAA7134_IRQ2_INTE_GPIO18A;
 	}
 
+	if (dev->has_remote == SAA7134_REMOTE_I2C) {
+		request_module("ir-kbd-i2c");
+	}
+
 	saa_writel(SAA7134_IRQ1, 0);
 	saa_writel(SAA7134_IRQ2, irq2_mask);
 
@@ -799,7 +774,7 @@ static struct video_device *vdev_init(struct saa7134_dev *dev,
 		return NULL;
 	*vfd = *template;
 	vfd->minor   = -1;
-	vfd->dev     = &dev->pci->dev;
+	vfd->parent  = &dev->pci->dev;
 	vfd->release = video_device_release;
 	vfd->debug   = video_debug;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",
@@ -946,11 +921,12 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 		dev->board = SAA7134_BOARD_UNKNOWN;
 	}
 	dev->autodetected = card[dev->nr] != dev->board;
-	dev->tuner_type   = saa7134_boards[dev->board].tuner_type;
+	dev->tuner_type = saa7134_boards[dev->board].tuner_type;
+	dev->tuner_addr = saa7134_boards[dev->board].tuner_addr;
 	dev->tda9887_conf = saa7134_boards[dev->board].tda9887_conf;
 	if (UNSET != tuner[dev->nr])
 		dev->tuner_type = tuner[dev->nr];
-		printk(KERN_INFO "%s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
+	printk(KERN_INFO "%s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
 		dev->name,pci_dev->subsystem_vendor,
 		pci_dev->subsystem_device,saa7134_boards[dev->board].name,
 		dev->board, dev->autodetected ?
@@ -1008,11 +984,9 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	v4l2_prio_init(&dev->prio);
 
 	/* register v4l devices */
-	if (saa7134_no_overlay <= 0) {
-		saa7134_video_template.type |= VID_TYPE_OVERLAY;
-	} else {
-		printk("%s: Overlay support disabled.\n",dev->name);
-	}
+	if (saa7134_no_overlay > 0)
+		printk(KERN_INFO "%s: Overlay support disabled.\n", dev->name);
+
 	dev->video_dev = vdev_init(dev,&saa7134_video_template,"video");
 	err = video_register_device(dev->video_dev,VFL_TYPE_GRABBER,
 				    video_nr[dev->nr]);
@@ -1022,17 +996,16 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 		goto fail4;
 	}
 	printk(KERN_INFO "%s: registered device video%d [v4l2]\n",
-	       dev->name,dev->video_dev->minor & 0x1f);
+	       dev->name, dev->video_dev->num);
 
 	dev->vbi_dev = vdev_init(dev, &saa7134_video_template, "vbi");
-	dev->vbi_dev->type = VID_TYPE_TUNER | VID_TYPE_TELETEXT;
 
 	err = video_register_device(dev->vbi_dev,VFL_TYPE_VBI,
 				    vbi_nr[dev->nr]);
 	if (err < 0)
 		goto fail4;
 	printk(KERN_INFO "%s: registered device vbi%d\n",
-	       dev->name,dev->vbi_dev->minor & 0x1f);
+	       dev->name, dev->vbi_dev->num);
 
 	if (card_has_radio(dev)) {
 		dev->radio_dev = vdev_init(dev,&saa7134_radio_template,"radio");
@@ -1041,7 +1014,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 		if (err < 0)
 			goto fail4;
 		printk(KERN_INFO "%s: registered device radio%d\n",
-		       dev->name,dev->radio_dev->minor & 0x1f);
+		       dev->name, dev->radio_dev->num);
 	}
 
 	/* everything worked */
@@ -1142,6 +1115,32 @@ static void __devexit saa7134_finidev(struct pci_dev *pci_dev)
 }
 
 #ifdef CONFIG_PM
+
+/* resends a current buffer in queue after resume */
+static int saa7134_buffer_requeue(struct saa7134_dev *dev,
+				  struct saa7134_dmaqueue *q)
+{
+	struct saa7134_buf *buf, *next;
+
+	assert_spin_locked(&dev->slock);
+
+	buf  = q->curr;
+	next = buf;
+	dprintk("buffer_requeue\n");
+
+	if (!buf)
+		return 0;
+
+	dprintk("buffer_requeue : resending active buffers \n");
+
+	if (!list_empty(&q->queue))
+		next = list_entry(q->queue.next, struct saa7134_buf,
+					  vb.queue);
+	buf->activate(dev, buf, next);
+
+	return 0;
+}
+
 static int saa7134_suspend(struct pci_dev *pci_dev , pm_message_t state)
 {
 

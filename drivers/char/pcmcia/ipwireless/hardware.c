@@ -30,11 +30,11 @@
 static void ipw_send_setup_packet(struct ipw_hardware *hw);
 static void handle_received_SETUP_packet(struct ipw_hardware *ipw,
 					 unsigned int address,
-					 unsigned char *data, int len,
+					 const unsigned char *data, int len,
 					 int is_last);
 static void ipwireless_setup_timer(unsigned long data);
 static void handle_received_CTRL_packet(struct ipw_hardware *hw,
-		unsigned int channel_idx, unsigned char *data, int len);
+		unsigned int channel_idx, const unsigned char *data, int len);
 
 /*#define TIMING_DIAGNOSTICS*/
 
@@ -79,8 +79,7 @@ static void report_timing(void)
 		timing_stats.last_report_time = jiffies;
 		if (!first)
 			printk(KERN_INFO IPWIRELESS_PCCARD_NAME
-			       ": %u us elapsed - read %lu bytes in %u us, "
-			       "wrote %lu bytes in %u us\n",
+			       ": %u us elapsed - read %lu bytes in %u us, wrote %lu bytes in %u us\n",
 			       jiffies_to_usecs(since),
 			       timing_stats.read_bytes,
 			       jiffies_to_usecs(timing_stats.read_time),
@@ -133,29 +132,17 @@ enum {
 #define NL_FOLLOWING_PACKET_HEADER_SIZE    1
 
 struct nl_first_packet_header {
-#if defined(__BIG_ENDIAN_BITFIELD)
-	unsigned char packet_rank:2;
-	unsigned char address:3;
-	unsigned char protocol:3;
-#else
 	unsigned char protocol:3;
 	unsigned char address:3;
 	unsigned char packet_rank:2;
-#endif
 	unsigned char length_lsb;
 	unsigned char length_msb;
 };
 
 struct nl_packet_header {
-#if defined(__BIG_ENDIAN_BITFIELD)
-	unsigned char packet_rank:2;
-	unsigned char address:3;
-	unsigned char protocol:3;
-#else
 	unsigned char protocol:3;
 	unsigned char address:3;
 	unsigned char packet_rank:2;
-#endif
 };
 
 /* Value of 'packet_rank' above */
@@ -227,15 +214,12 @@ struct MEMINFREG {
 	unsigned short memreg_tx_new;	/* TX2 (new) Register (R/W) */
 };
 
-#define IODMADPR 0x00		/* DMA Data Port Register (R/W) */
-
 #define CARD_PRESENT_VALUE (0xBEEFCAFEUL)
 
 #define MEMTX_TX                       0x0001
 #define MEMRX_RX                       0x0001
 #define MEMRX_RX_DONE                  0x0001
 #define MEMRX_PCINTACKK                0x0001
-#define MEMRX_MEMSPURIOUSINT           0x0001
 
 #define NL_NUM_OF_PRIORITIES       3
 #define NL_NUM_OF_PROTOCOLS        3
@@ -245,7 +229,7 @@ struct ipw_hardware {
 	unsigned int base_port;
 	short hw_version;
 	unsigned short ll_mtu;
-	spinlock_t spinlock;
+	spinlock_t lock;
 
 	int initializing;
 	int init_loops;
@@ -386,26 +370,52 @@ static void dump_data_bytes(const char *type, const unsigned char *data,
 			length < DUMP_MAX_BYTES ? length : DUMP_MAX_BYTES);
 }
 
-static int do_send_fragment(struct ipw_hardware *hw, const unsigned char *data,
+static void swap_packet_bitfield_to_le(unsigned char *data)
+{
+#ifdef __BIG_ENDIAN_BITFIELD
+	unsigned char tmp = *data, ret = 0;
+
+	/*
+	 * transform bits from aa.bbb.ccc to ccc.bbb.aa
+	 */
+	ret |= tmp & 0xc0 >> 6;
+	ret |= tmp & 0x38 >> 1;
+	ret |= tmp & 0x07 << 5;
+	*data = ret & 0xff;
+#endif
+}
+
+static void swap_packet_bitfield_from_le(unsigned char *data)
+{
+#ifdef __BIG_ENDIAN_BITFIELD
+	unsigned char tmp = *data, ret = 0;
+
+	/*
+	 * transform bits from ccc.bbb.aa to aa.bbb.ccc
+	 */
+	ret |= tmp & 0xe0 >> 5;
+	ret |= tmp & 0x1c << 1;
+	ret |= tmp & 0x03 << 6;
+	*data = ret & 0xff;
+#endif
+}
+
+static void do_send_fragment(struct ipw_hardware *hw, unsigned char *data,
 			    unsigned length)
 {
-	int i;
+	unsigned i;
 	unsigned long flags;
 
 	start_timing();
-
-	if (length == 0)
-		return 0;
-
-	if (length > hw->ll_mtu)
-		return -1;
+	BUG_ON(length > hw->ll_mtu);
 
 	if (ipwireless_debug)
 		dump_data_bytes("send", data, length);
 
-	spin_lock_irqsave(&hw->spinlock, flags);
+	spin_lock_irqsave(&hw->lock, flags);
 
 	hw->tx_ready = 0;
+	swap_packet_bitfield_to_le(data);
 
 	if (hw->hw_version == HW_VERSION_1) {
 		outw((unsigned short) length, hw->base_port + IODWR);
@@ -414,7 +424,7 @@ static int do_send_fragment(struct ipw_hardware *hw, const unsigned char *data,
 			unsigned short d = data[i];
 			__le16 raw_data;
 
-			if (likely(i + 1 < length))
+			if (i + 1 < length)
 				d |= data[i + 1] << 8;
 			raw_data = cpu_to_le16(d);
 			outw(raw_data, hw->base_port + IODWR);
@@ -422,32 +432,30 @@ static int do_send_fragment(struct ipw_hardware *hw, const unsigned char *data,
 
 		outw(DCR_TXDONE, hw->base_port + IODCR);
 	} else if (hw->hw_version == HW_VERSION_2) {
-		outw((unsigned short) length, hw->base_port + IODMADPR);
+		outw((unsigned short) length, hw->base_port);
 
 		for (i = 0; i < length; i += 2) {
 			unsigned short d = data[i];
 			__le16 raw_data;
 
-			if ((i + 1 < length))
+			if (i + 1 < length)
 				d |= data[i + 1] << 8;
 			raw_data = cpu_to_le16(d);
-			outw(raw_data, hw->base_port + IODMADPR);
+			outw(raw_data, hw->base_port);
 		}
 		while ((i & 3) != 2) {
-			outw((unsigned short) 0xDEAD, hw->base_port + IODMADPR);
+			outw((unsigned short) 0xDEAD, hw->base_port);
 			i += 2;
 		}
 		writew(MEMRX_RX, &hw->memory_info_regs->memreg_rx);
 	}
 
-	spin_unlock_irqrestore(&hw->spinlock, flags);
+	spin_unlock_irqrestore(&hw->lock, flags);
 
 	end_write_timing(length);
-
-	return 0;
 }
 
-static int do_send_packet(struct ipw_hardware *hw, struct ipw_tx_packet *packet)
+static void do_send_packet(struct ipw_hardware *hw, struct ipw_tx_packet *packet)
 {
 	unsigned short fragment_data_len;
 	unsigned short data_left = packet->length - packet->offset;
@@ -462,6 +470,10 @@ static int do_send_packet(struct ipw_hardware *hw, struct ipw_tx_packet *packet)
 	if (data_left < fragment_data_len)
 		fragment_data_len = data_left;
 
+	/*
+	 * hdr_first is now in machine bitfield order, which will be swapped
+	 * to le just before it goes to hw
+	 */
 	pkt.hdr_first.protocol = packet->protocol;
 	pkt.hdr_first.address = packet->dest_addr;
 	pkt.hdr_first.packet_rank = 0;
@@ -493,25 +505,23 @@ static int do_send_packet(struct ipw_hardware *hw, struct ipw_tx_packet *packet)
 		 */
 		unsigned long flags;
 
-		spin_lock_irqsave(&hw->spinlock, flags);
+		spin_lock_irqsave(&hw->lock, flags);
 		list_add(&packet->queue, &hw->tx_queue[0]);
 		hw->tx_queued++;
-		spin_unlock_irqrestore(&hw->spinlock, flags);
+		spin_unlock_irqrestore(&hw->lock, flags);
 	} else {
 		if (packet->packet_callback)
 			packet->packet_callback(packet->callback_data,
 					packet->length);
 		kfree(packet);
 	}
-
-	return 0;
 }
 
 static void ipw_setup_hardware(struct ipw_hardware *hw)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&hw->spinlock, flags);
+	spin_lock_irqsave(&hw->lock, flags);
 	if (hw->hw_version == HW_VERSION_1) {
 		/* Reset RX FIFO */
 		outw(DCR_RXRESET, hw->base_port + IODCR);
@@ -530,7 +540,7 @@ static void ipw_setup_hardware(struct ipw_hardware *hw)
 		csr |= 1;
 		writew(csr, &hw->memregs_CCR->reg_config_and_status);
 	}
-	spin_unlock_irqrestore(&hw->spinlock, flags);
+	spin_unlock_irqrestore(&hw->lock, flags);
 }
 
 /*
@@ -549,28 +559,23 @@ static struct ipw_rx_packet *pool_allocate(struct ipw_hardware *hw,
 	if (!packet) {
 		unsigned long flags;
 
-		/*
-		 * If this is the first fragment, then we will need to fetch a
-		 * packet to put it in.
-		 */
-		spin_lock_irqsave(&hw->spinlock, flags);
-		/* If we have one in our pool, then pull it out. */
+		spin_lock_irqsave(&hw->lock, flags);
 		if (!list_empty(&hw->rx_pool)) {
 			packet = list_first_entry(&hw->rx_pool,
 					struct ipw_rx_packet, queue);
-			list_del(&packet->queue);
 			hw->rx_pool_size--;
-			spin_unlock_irqrestore(&hw->spinlock, flags);
+			spin_unlock_irqrestore(&hw->lock, flags);
+			list_del(&packet->queue);
 		} else {
-			/* Otherwise allocate a new one. */
-			static int min_capacity = 256;
+			const int min_capacity =
+				ipwireless_ppp_mru(hw->network) + 2;
 			int new_capacity;
 
-			spin_unlock_irqrestore(&hw->spinlock, flags);
+			spin_unlock_irqrestore(&hw->lock, flags);
 			new_capacity =
-			    minimum_free_space > min_capacity
-			    ? minimum_free_space
-			    : min_capacity;
+				(minimum_free_space > min_capacity
+				 ? minimum_free_space
+				 : min_capacity);
 			packet = kmalloc(sizeof(struct ipw_rx_packet)
 					+ new_capacity, GFP_ATOMIC);
 			if (!packet)
@@ -580,10 +585,6 @@ static struct ipw_rx_packet *pool_allocate(struct ipw_hardware *hw,
 		packet->length = 0;
 	}
 
-	/*
-	 * If this packet does not have sufficient capacity for the data we
-	 * want to add, then make it bigger.
-	 */
 	if (packet->length + minimum_free_space > packet->capacity) {
 		struct ipw_rx_packet *old_packet = packet;
 
@@ -610,13 +611,15 @@ static void pool_free(struct ipw_hardware *hw, struct ipw_rx_packet *packet)
 		kfree(packet);
 	else {
 		hw->rx_pool_size++;
-		list_add_tail(&packet->queue, &hw->rx_pool);
+		list_add(&packet->queue, &hw->rx_pool);
 	}
 }
 
 static void queue_received_packet(struct ipw_hardware *hw,
-				  unsigned int protocol, unsigned int address,
-				  unsigned char *data, int length, int is_last)
+				  unsigned int protocol,
+				  unsigned int address,
+				  const unsigned char *data, int length,
+				  int is_last)
 {
 	unsigned int channel_idx = address - 1;
 	struct ipw_rx_packet *packet = NULL;
@@ -658,9 +661,9 @@ static void queue_received_packet(struct ipw_hardware *hw,
 			packet = *assem;
 			*assem = NULL;
 			/* Count queued DATA bytes only */
-			spin_lock_irqsave(&hw->spinlock, flags);
+			spin_lock_irqsave(&hw->lock, flags);
 			hw->rx_bytes_queued += packet->length;
-			spin_unlock_irqrestore(&hw->spinlock, flags);
+			spin_unlock_irqrestore(&hw->lock, flags);
 		}
 	} else {
 		/* If it's a CTRL packet, don't assemble, just queue it. */
@@ -682,13 +685,13 @@ static void queue_received_packet(struct ipw_hardware *hw,
 	 * network layer.
 	 */
 	if (packet) {
-		spin_lock_irqsave(&hw->spinlock, flags);
+		spin_lock_irqsave(&hw->lock, flags);
 		list_add_tail(&packet->queue, &hw->rx_queue);
 		/* Block reception of incoming packets if queue is full. */
 		hw->blocking_rx =
-			hw->rx_bytes_queued >= IPWIRELESS_RX_QUEUE_SIZE;
+			(hw->rx_bytes_queued >= IPWIRELESS_RX_QUEUE_SIZE);
 
-		spin_unlock_irqrestore(&hw->spinlock, flags);
+		spin_unlock_irqrestore(&hw->lock, flags);
 		schedule_work(&hw->work_rx);
 	}
 }
@@ -702,7 +705,7 @@ static void ipw_receive_data_work(struct work_struct *work_rx)
 	    container_of(work_rx, struct ipw_hardware, work_rx);
 	unsigned long flags;
 
-	spin_lock_irqsave(&hw->spinlock, flags);
+	spin_lock_irqsave(&hw->lock, flags);
 	while (!list_empty(&hw->rx_queue)) {
 		struct ipw_rx_packet *packet =
 			list_first_entry(&hw->rx_queue,
@@ -720,7 +723,7 @@ static void ipw_receive_data_work(struct work_struct *work_rx)
 		if (packet->protocol == TL_PROTOCOLID_COM_DATA) {
 			if (hw->network != NULL) {
 				/* If the network hasn't been disconnected. */
-				spin_unlock_irqrestore(&hw->spinlock, flags);
+				spin_unlock_irqrestore(&hw->lock, flags);
 				/*
 				 * This must run unlocked due to tty processing
 				 * and mutex locking
@@ -731,7 +734,7 @@ static void ipw_receive_data_work(struct work_struct *work_rx)
 						(unsigned char *)packet
 						+ sizeof(struct ipw_rx_packet),
 						packet->length);
-				spin_lock_irqsave(&hw->spinlock, flags);
+				spin_lock_irqsave(&hw->lock, flags);
 			}
 			/* Count queued DATA bytes only */
 			hw->rx_bytes_queued -= packet->length;
@@ -755,15 +758,15 @@ static void ipw_receive_data_work(struct work_struct *work_rx)
 		if (hw->shutting_down)
 			break;
 	}
-	spin_unlock_irqrestore(&hw->spinlock, flags);
+	spin_unlock_irqrestore(&hw->lock, flags);
 }
 
 static void handle_received_CTRL_packet(struct ipw_hardware *hw,
 					unsigned int channel_idx,
-					unsigned char *data, int len)
+					const unsigned char *data, int len)
 {
-	struct ipw_control_packet_body *body =
-		(struct ipw_control_packet_body *) data;
+	const struct ipw_control_packet_body *body =
+		(const struct ipw_control_packet_body *) data;
 	unsigned int changed_mask;
 
 	if (len != sizeof(struct ipw_control_packet_body)) {
@@ -805,13 +808,13 @@ static void handle_received_CTRL_packet(struct ipw_hardware *hw,
 }
 
 static void handle_received_packet(struct ipw_hardware *hw,
-				   union nl_packet *packet,
+				   const union nl_packet *packet,
 				   unsigned short len)
 {
 	unsigned int protocol = packet->hdr.protocol;
 	unsigned int address = packet->hdr.address;
 	unsigned int header_length;
-	unsigned char *data;
+	const unsigned char *data;
 	unsigned int data_len;
 	int is_last = packet->hdr.packet_rank & NL_LAST_PACKET;
 
@@ -850,7 +853,7 @@ static void acknowledge_data_read(struct ipw_hardware *hw)
 static void do_receive_packet(struct ipw_hardware *hw)
 {
 	unsigned len;
-	unsigned int i;
+	unsigned i;
 	unsigned char pkt[LL_MTU_MAX];
 
 	start_timing();
@@ -859,8 +862,7 @@ static void do_receive_packet(struct ipw_hardware *hw)
 		len = inw(hw->base_port + IODRR);
 		if (len > hw->ll_mtu) {
 			printk(KERN_INFO IPWIRELESS_PCCARD_NAME
-			       ": received a packet of %u bytes - "
-			       "longer than the MTU!\n", len);
+			       ": received a packet of %u bytes - longer than the MTU!\n", len);
 			outw(DCR_RXDONE | DCR_RXRESET, hw->base_port + IODCR);
 			return;
 		}
@@ -873,18 +875,17 @@ static void do_receive_packet(struct ipw_hardware *hw)
 			pkt[i + 1] = (unsigned char) (data >> 8);
 		}
 	} else {
-		len = inw(hw->base_port + IODMADPR);
+		len = inw(hw->base_port);
 		if (len > hw->ll_mtu) {
 			printk(KERN_INFO IPWIRELESS_PCCARD_NAME
-			       ": received a packet of %u bytes - "
-			       "longer than the MTU!\n", len);
+			       ": received a packet of %u bytes - longer than the MTU!\n", len);
 			writew(MEMRX_PCINTACKK,
 				&hw->memory_info_regs->memreg_pc_interrupt_ack);
 			return;
 		}
 
 		for (i = 0; i < len; i += 2) {
-			__le16 raw_data = inw(hw->base_port + IODMADPR);
+			__le16 raw_data = inw(hw->base_port);
 			unsigned short data = le16_to_cpu(raw_data);
 
 			pkt[i] = (unsigned char) data;
@@ -892,12 +893,14 @@ static void do_receive_packet(struct ipw_hardware *hw)
 		}
 
 		while ((i & 3) != 2) {
-			inw(hw->base_port + IODMADPR);
+			inw(hw->base_port);
 			i += 2;
 		}
 	}
 
 	acknowledge_data_read(hw);
+
+	swap_packet_bitfield_from_le(pkt);
 
 	if (ipwireless_debug)
 		dump_data_bytes("recv", pkt, len);
@@ -916,8 +919,7 @@ static int get_current_packet_priority(struct ipw_hardware *hw)
 	 * until setup is complete.
 	 */
 	return (hw->to_setup || hw->initializing
-			? PRIO_SETUP + 1 :
-			NL_NUM_OF_PRIORITIES);
+			? PRIO_SETUP + 1 : NL_NUM_OF_PRIORITIES);
 }
 
 /*
@@ -928,17 +930,17 @@ static int get_packets_from_hw(struct ipw_hardware *hw)
 	int received = 0;
 	unsigned long flags;
 
-	spin_lock_irqsave(&hw->spinlock, flags);
+	spin_lock_irqsave(&hw->lock, flags);
 	while (hw->rx_ready && !hw->blocking_rx) {
 		received = 1;
 		hw->rx_ready--;
-		spin_unlock_irqrestore(&hw->spinlock, flags);
+		spin_unlock_irqrestore(&hw->lock, flags);
 
 		do_receive_packet(hw);
 
-		spin_lock_irqsave(&hw->spinlock, flags);
+		spin_lock_irqsave(&hw->lock, flags);
 	}
-	spin_unlock_irqrestore(&hw->spinlock, flags);
+	spin_unlock_irqrestore(&hw->lock, flags);
 
 	return received;
 }
@@ -954,7 +956,7 @@ static int send_pending_packet(struct ipw_hardware *hw, int priority_limit)
 	int more_to_send = 0;
 	unsigned long flags;
 
-	spin_lock_irqsave(&hw->spinlock, flags);
+	spin_lock_irqsave(&hw->lock, flags);
 	if (hw->tx_queued && hw->tx_ready) {
 		int priority;
 		struct ipw_tx_packet *packet = NULL;
@@ -975,17 +977,17 @@ static int send_pending_packet(struct ipw_hardware *hw, int priority_limit)
 		}
 		if (!packet) {
 			hw->tx_queued = 0;
-			spin_unlock_irqrestore(&hw->spinlock, flags);
+			spin_unlock_irqrestore(&hw->lock, flags);
 			return 0;
 		}
 
-		spin_unlock_irqrestore(&hw->spinlock, flags);
+		spin_unlock_irqrestore(&hw->lock, flags);
 
 		/* Send */
 		do_send_packet(hw, packet);
 
 		/* Check if more to send */
-		spin_lock_irqsave(&hw->spinlock, flags);
+		spin_lock_irqsave(&hw->lock, flags);
 		for (priority = 0; priority < priority_limit; priority++)
 			if (!list_empty(&hw->tx_queue[priority])) {
 				more_to_send = 1;
@@ -995,7 +997,7 @@ static int send_pending_packet(struct ipw_hardware *hw, int priority_limit)
 		if (!more_to_send)
 			hw->tx_queued = 0;
 	}
-	spin_unlock_irqrestore(&hw->spinlock, flags);
+	spin_unlock_irqrestore(&hw->lock, flags);
 
 	return more_to_send;
 }
@@ -1008,9 +1010,9 @@ static void ipwireless_do_tasklet(unsigned long hw_)
 	struct ipw_hardware *hw = (struct ipw_hardware *) hw_;
 	unsigned long flags;
 
-	spin_lock_irqsave(&hw->spinlock, flags);
+	spin_lock_irqsave(&hw->lock, flags);
 	if (hw->shutting_down) {
-		spin_unlock_irqrestore(&hw->spinlock, flags);
+		spin_unlock_irqrestore(&hw->lock, flags);
 		return;
 	}
 
@@ -1019,7 +1021,7 @@ static void ipwireless_do_tasklet(unsigned long hw_)
 		 * Initial setup data sent to hardware
 		 */
 		hw->to_setup = 2;
-		spin_unlock_irqrestore(&hw->spinlock, flags);
+		spin_unlock_irqrestore(&hw->lock, flags);
 
 		ipw_setup_hardware(hw);
 		ipw_send_setup_packet(hw);
@@ -1030,7 +1032,7 @@ static void ipwireless_do_tasklet(unsigned long hw_)
 		int priority_limit = get_current_packet_priority(hw);
 		int again;
 
-		spin_unlock_irqrestore(&hw->spinlock, flags);
+		spin_unlock_irqrestore(&hw->lock, flags);
 
 		do {
 			again = send_pending_packet(hw, priority_limit);
@@ -1068,16 +1070,16 @@ static irqreturn_t ipwireless_handle_v1_interrupt(int irq,
 		/* Transmit complete. */
 		if (irqn & IR_TXINTR) {
 			ack |= IR_TXINTR;
-			spin_lock_irqsave(&hw->spinlock, flags);
+			spin_lock_irqsave(&hw->lock, flags);
 			hw->tx_ready = 1;
-			spin_unlock_irqrestore(&hw->spinlock, flags);
+			spin_unlock_irqrestore(&hw->lock, flags);
 		}
 		/* Received data */
 		if (irqn & IR_RXINTR) {
 			ack |= IR_RXINTR;
-			spin_lock_irqsave(&hw->spinlock, flags);
+			spin_lock_irqsave(&hw->lock, flags);
 			hw->rx_ready++;
-			spin_unlock_irqrestore(&hw->spinlock, flags);
+			spin_unlock_irqrestore(&hw->lock, flags);
 		}
 		if (ack != 0) {
 			outw(ack, hw->base_port + IOIR);
@@ -1128,9 +1130,8 @@ static irqreturn_t ipwireless_handle_v2_v3_interrupt(int irq,
 			} else {
 				return IRQ_NONE;
 			}
-		} else {
+		} else
 			return IRQ_NONE;
-		}
 	}
 
 	/*
@@ -1149,9 +1150,9 @@ static irqreturn_t ipwireless_handle_v2_v3_interrupt(int irq,
 		if (hw->serial_number_detected) {
 			if (memtx_serial != hw->last_memtx_serial) {
 				hw->last_memtx_serial = memtx_serial;
-				spin_lock_irqsave(&hw->spinlock, flags);
+				spin_lock_irqsave(&hw->lock, flags);
 				hw->rx_ready++;
-				spin_unlock_irqrestore(&hw->spinlock, flags);
+				spin_unlock_irqrestore(&hw->lock, flags);
 				rx = 1;
 			} else
 				/* Ignore 'Timer Recovery' duplicates. */
@@ -1166,18 +1167,18 @@ static irqreturn_t ipwireless_handle_v2_v3_interrupt(int irq,
 				printk(KERN_DEBUG IPWIRELESS_PCCARD_NAME
 					": memreg_tx serial num detected\n");
 
-				spin_lock_irqsave(&hw->spinlock, flags);
+				spin_lock_irqsave(&hw->lock, flags);
 				hw->rx_ready++;
-				spin_unlock_irqrestore(&hw->spinlock, flags);
+				spin_unlock_irqrestore(&hw->lock, flags);
 			}
 			rx = 1;
 		}
 	}
 	if (memrxdone & MEMRX_RX_DONE) {
 		writew(0, &hw->memory_info_regs->memreg_rx_done);
-		spin_lock_irqsave(&hw->spinlock, flags);
+		spin_lock_irqsave(&hw->lock, flags);
 		hw->tx_ready = 1;
-		spin_unlock_irqrestore(&hw->spinlock, flags);
+		spin_unlock_irqrestore(&hw->lock, flags);
 		tx = 1;
 	}
 	if (tx)
@@ -1195,8 +1196,7 @@ static irqreturn_t ipwireless_handle_v2_v3_interrupt(int irq,
 					": spurious interrupt - new_tx mode\n");
 			else {
 				printk(KERN_WARNING IPWIRELESS_PCCARD_NAME
-					": no valid memreg_tx value - "
-					"switching to the old memreg_tx\n");
+					": no valid memreg_tx value - switching to the old memreg_tx\n");
 				hw->memreg_tx =
 					&hw->memory_info_regs->memreg_tx_old;
 				try_mem_tx_old = 1;
@@ -1211,7 +1211,7 @@ static irqreturn_t ipwireless_handle_v2_v3_interrupt(int irq,
 	return IRQ_HANDLED;
 }
 
-irqreturn_t ipwireless_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t ipwireless_interrupt(int irq, void *dev_id)
 {
 	struct ipw_hardware *hw = dev_id;
 
@@ -1226,9 +1226,9 @@ static void flush_packets_to_hw(struct ipw_hardware *hw)
 	int priority_limit;
 	unsigned long flags;
 
-	spin_lock_irqsave(&hw->spinlock, flags);
+	spin_lock_irqsave(&hw->lock, flags);
 	priority_limit = get_current_packet_priority(hw);
-	spin_unlock_irqrestore(&hw->spinlock, flags);
+	spin_unlock_irqrestore(&hw->lock, flags);
 
 	while (send_pending_packet(hw, priority_limit));
 }
@@ -1238,10 +1238,10 @@ static void send_packet(struct ipw_hardware *hw, int priority,
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&hw->spinlock, flags);
+	spin_lock_irqsave(&hw->lock, flags);
 	list_add_tail(&packet->queue, &hw->tx_queue[priority]);
 	hw->tx_queued++;
-	spin_unlock_irqrestore(&hw->spinlock, flags);
+	spin_unlock_irqrestore(&hw->lock, flags);
 
 	flush_packets_to_hw(hw);
 }
@@ -1291,21 +1291,20 @@ static void *alloc_ctrl_packet(int header_size,
 }
 
 int ipwireless_send_packet(struct ipw_hardware *hw, unsigned int channel_idx,
-			    unsigned char *data, unsigned int length,
+			    const unsigned char *data, unsigned int length,
 			    void (*callback) (void *cb, unsigned int length),
 			    void *callback_data)
 {
 	struct ipw_tx_packet *packet;
 
-	packet = alloc_data_packet(length,
-			       (unsigned char) (channel_idx + 1),
-			       TL_PROTOCOLID_COM_DATA);
+	packet = alloc_data_packet(length, (channel_idx + 1),
+			TL_PROTOCOLID_COM_DATA);
 	if (!packet)
 		return -ENOMEM;
 	packet->packet_callback = callback;
 	packet->callback_data = callback_data;
-	memcpy((unsigned char *) packet +
-			sizeof(struct ipw_tx_packet), data, length);
+	memcpy((unsigned char *) packet + sizeof(struct ipw_tx_packet), data,
+			length);
 
 	send_packet(hw, PRIO_DATA, packet);
 	return 0;
@@ -1321,12 +1320,11 @@ static int set_control_line(struct ipw_hardware *hw, int prio,
 		protocolid = TL_PROTOCOLID_SETUP;
 
 	packet = alloc_ctrl_packet(sizeof(struct ipw_control_packet),
-			(unsigned char) (channel_idx + 1),
-			protocolid, line);
+			(channel_idx + 1), protocolid, line);
 	if (!packet)
 		return -ENOMEM;
 	packet->header.length = sizeof(struct ipw_control_packet_body);
-	packet->body.value = (unsigned char) (state == 0 ? 0 : 1);
+	packet->body.value = (state == 0 ? 0 : 1);
 	send_packet(hw, prio, &packet->header);
 	return 0;
 }
@@ -1504,8 +1502,7 @@ static void handle_setup_get_version_rsp(struct ipw_hardware *hw,
 	if (vers_no == TL_SETUP_VERSION)
 		__handle_setup_get_version_rsp(hw);
 	else
-		printk(KERN_ERR
-				IPWIRELESS_PCCARD_NAME
+		printk(KERN_ERR IPWIRELESS_PCCARD_NAME
 				": invalid hardware version no %u\n",
 				(unsigned int) vers_no);
 }
@@ -1528,10 +1525,10 @@ static void ipw_send_setup_packet(struct ipw_hardware *hw)
 
 static void handle_received_SETUP_packet(struct ipw_hardware *hw,
 					 unsigned int address,
-					 unsigned char *data, int len,
+					 const unsigned char *data, int len,
 					 int is_last)
 {
-	union ipw_setup_rx_msg *rx_msg = (union ipw_setup_rx_msg *) data;
+	const union ipw_setup_rx_msg *rx_msg = (const union ipw_setup_rx_msg *) data;
 
 	if (address != ADDR_SETUP_PROT) {
 		printk(KERN_INFO IPWIRELESS_PCCARD_NAME
@@ -1629,7 +1626,7 @@ struct ipw_hardware *ipwireless_hardware_create(void)
 
 	INIT_LIST_HEAD(&hw->rx_queue);
 	INIT_LIST_HEAD(&hw->rx_pool);
-	spin_lock_init(&hw->spinlock);
+	spin_lock_init(&hw->lock);
 	tasklet_init(&hw->tasklet, ipwireless_do_tasklet, (unsigned long) hw);
 	INIT_WORK(&hw->work_rx, ipw_receive_data_work);
 	setup_timer(&hw->setup_timer, ipwireless_setup_timer,
@@ -1651,8 +1648,8 @@ void ipwireless_init_hardware_v1(struct ipw_hardware *hw,
 		enable_irq(hw->irq);
 	}
 	hw->base_port = base_port;
-	hw->hw_version = is_v2_card ? HW_VERSION_2 : HW_VERSION_1;
-	hw->ll_mtu = hw->hw_version == HW_VERSION_1 ? LL_MTU_V1 : LL_MTU_V2;
+	hw->hw_version = (is_v2_card ? HW_VERSION_2 : HW_VERSION_1);
+	hw->ll_mtu = (hw->hw_version == HW_VERSION_1 ? LL_MTU_V1 : LL_MTU_V2);
 	hw->memregs_CCR = (struct MEMCCR __iomem *)
 			((unsigned short __iomem *) attr_memory + 0x200);
 	hw->memory_info_regs = (struct MEMINFREG __iomem *) common_memory;
@@ -1695,10 +1692,10 @@ static void ipwireless_setup_timer(unsigned long data)
 		if (is_card_present(hw)) {
 			unsigned long flags;
 
-			spin_lock_irqsave(&hw->spinlock, flags);
+			spin_lock_irqsave(&hw->lock, flags);
 			hw->to_setup = 1;
 			hw->tx_ready = 1;
-			spin_unlock_irqrestore(&hw->spinlock, flags);
+			spin_unlock_irqrestore(&hw->lock, flags);
 			tasklet_schedule(&hw->tasklet);
 		}
 

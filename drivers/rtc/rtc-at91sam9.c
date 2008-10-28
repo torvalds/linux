@@ -19,8 +19,8 @@
 #include <linux/interrupt.h>
 #include <linux/ioctl.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/at91_rtt.h>
+#include <mach/board.h>
+#include <mach/at91_rtt.h>
 
 
 /*

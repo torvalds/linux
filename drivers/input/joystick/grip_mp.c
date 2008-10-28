@@ -1,6 +1,4 @@
 /*
- * $Id: grip_mp.c,v 1.9 2002/07/20 19:28:45 bonnland Exp $
- *
  *  Driver for the Gravis Grip Multiport, a gamepad "hub" that
  *  connects up to four 9-pin digital gamepads/joysticks.
  *  Driver tested on SMP and UP kernel versions 2.4.18-4 and 2.4.18-5.
@@ -691,8 +689,7 @@ static struct gameport_driver grip_drv = {
 
 static int __init grip_init(void)
 {
-	gameport_register_driver(&grip_drv);
-	return 0;
+	return gameport_register_driver(&grip_drv);
 }
 
 static void __exit grip_exit(void)

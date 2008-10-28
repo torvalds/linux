@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/10GbE Linux driver
-  Copyright(c) 1999 - 2006 Intel Corporation.
+  Copyright(c) 1999 - 2008 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -34,11 +34,11 @@
 #define IXGB_ETH_LENGTH_OF_ADDRESS   6
 
 /* EEPROM Commands */
-#define EEPROM_READ_OPCODE  0x6	/* EERPOM read opcode */
-#define EEPROM_WRITE_OPCODE 0x5	/* EERPOM write opcode */
-#define EEPROM_ERASE_OPCODE 0x7	/* EERPOM erase opcode */
-#define EEPROM_EWEN_OPCODE  0x13	/* EERPOM erase/write enable */
-#define EEPROM_EWDS_OPCODE  0x10	/* EERPOM erast/write disable */
+#define EEPROM_READ_OPCODE  0x6	/* EEPROM read opcode */
+#define EEPROM_WRITE_OPCODE 0x5	/* EEPROM write opcode */
+#define EEPROM_ERASE_OPCODE 0x7	/* EEPROM erase opcode */
+#define EEPROM_EWEN_OPCODE  0x13	/* EEPROM erase/write enable */
+#define EEPROM_EWDS_OPCODE  0x10	/* EEPROM erase/write disable */
 
 /* EEPROM MAP (Word Offsets) */
 #define EEPROM_IA_1_2_REG        0x0000

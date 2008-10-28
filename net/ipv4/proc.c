@@ -7,8 +7,6 @@
  *		PROC file system.  It is mainly used for debugging and
  *		statistics.
  *
- * Version:	$Id: proc.c,v 1.45 2001/05/16 16:45:35 davem Exp $
- *
  * Authors:	Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Gerald J. Heim, <heim@peanuts.informatik.uni-tuebingen.de>
  *		Fred Baumgarten, <dc6iq@insu1.etec.uni-karlsruhe.de>
@@ -73,32 +71,7 @@ static int sockstat_seq_show(struct seq_file *seq, void *v)
 
 static int sockstat_seq_open(struct inode *inode, struct file *file)
 {
-	int err;
-	struct net *net;
-
-	err = -ENXIO;
-	net = get_proc_net(inode);
-	if (net == NULL)
-		goto err_net;
-
-	err = single_open(file, sockstat_seq_show, net);
-	if (err < 0)
-		goto err_open;
-
-	return 0;
-
-err_open:
-	put_net(net);
-err_net:
-	return err;
-}
-
-static int sockstat_seq_release(struct inode *inode, struct file *file)
-{
-	struct net *net = ((struct seq_file *)file->private_data)->private;
-
-	put_net(net);
-	return single_release(inode, file);
+	return single_open_net(inode, file, sockstat_seq_show);
 }
 
 static const struct file_operations sockstat_seq_fops = {
@@ -106,7 +79,7 @@ static const struct file_operations sockstat_seq_fops = {
 	.open	 = sockstat_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = sockstat_seq_release,
+	.release = single_release_net,
 };
 
 /* snmp items */
@@ -259,6 +232,8 @@ static const struct snmp_mib snmp4_net_list[] = {
 	SNMP_MIB_ITEM("TCPDSACKIgnoredOld", LINUX_MIB_TCPDSACKIGNOREDOLD),
 	SNMP_MIB_ITEM("TCPDSACKIgnoredNoUndo", LINUX_MIB_TCPDSACKIGNOREDNOUNDO),
 	SNMP_MIB_ITEM("TCPSpuriousRTOs", LINUX_MIB_TCPSPURIOUSRTOS),
+	SNMP_MIB_ITEM("TCPMD5NotFound", LINUX_MIB_TCPMD5NOTFOUND),
+	SNMP_MIB_ITEM("TCPMD5Unexpected", LINUX_MIB_TCPMD5UNEXPECTED),
 	SNMP_MIB_SENTINEL
 };
 
@@ -268,11 +243,12 @@ static void icmpmsg_put(struct seq_file *seq)
 
 	int j, i, count;
 	static int out[PERLINE];
+	struct net *net = seq->private;
 
 	count = 0;
 	for (i = 0; i < ICMPMSG_MIB_MAX; i++) {
 
-		if (snmp_fold_field((void **) icmpmsg_statistics, i))
+		if (snmp_fold_field((void **) net->mib.icmpmsg_statistics, i))
 			out[count++] = i;
 		if (count < PERLINE)
 			continue;
@@ -284,7 +260,7 @@ static void icmpmsg_put(struct seq_file *seq)
 		seq_printf(seq, "\nIcmpMsg: ");
 		for (j = 0; j < PERLINE; ++j)
 			seq_printf(seq, " %lu",
-				snmp_fold_field((void **) icmpmsg_statistics,
+				snmp_fold_field((void **) net->mib.icmpmsg_statistics,
 				out[j]));
 		seq_putc(seq, '\n');
 	}
@@ -296,7 +272,7 @@ static void icmpmsg_put(struct seq_file *seq)
 		seq_printf(seq, "\nIcmpMsg:");
 		for (j = 0; j < count; ++j)
 			seq_printf(seq, " %lu", snmp_fold_field((void **)
-				icmpmsg_statistics, out[j]));
+				net->mib.icmpmsg_statistics, out[j]));
 	}
 
 #undef PERLINE
@@ -305,6 +281,7 @@ static void icmpmsg_put(struct seq_file *seq)
 static void icmp_put(struct seq_file *seq)
 {
 	int i;
+	struct net *net = seq->private;
 
 	seq_puts(seq, "\nIcmp: InMsgs InErrors");
 	for (i=0; icmpmibmap[i].name != NULL; i++)
@@ -313,18 +290,18 @@ static void icmp_put(struct seq_file *seq)
 	for (i=0; icmpmibmap[i].name != NULL; i++)
 		seq_printf(seq, " Out%s", icmpmibmap[i].name);
 	seq_printf(seq, "\nIcmp: %lu %lu",
-		snmp_fold_field((void **) icmp_statistics, ICMP_MIB_INMSGS),
-		snmp_fold_field((void **) icmp_statistics, ICMP_MIB_INERRORS));
+		snmp_fold_field((void **) net->mib.icmp_statistics, ICMP_MIB_INMSGS),
+		snmp_fold_field((void **) net->mib.icmp_statistics, ICMP_MIB_INERRORS));
 	for (i=0; icmpmibmap[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			snmp_fold_field((void **) icmpmsg_statistics,
+			snmp_fold_field((void **) net->mib.icmpmsg_statistics,
 				icmpmibmap[i].index));
 	seq_printf(seq, " %lu %lu",
-		snmp_fold_field((void **) icmp_statistics, ICMP_MIB_OUTMSGS),
-		snmp_fold_field((void **) icmp_statistics, ICMP_MIB_OUTERRORS));
+		snmp_fold_field((void **) net->mib.icmp_statistics, ICMP_MIB_OUTMSGS),
+		snmp_fold_field((void **) net->mib.icmp_statistics, ICMP_MIB_OUTERRORS));
 	for (i=0; icmpmibmap[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			snmp_fold_field((void **) icmpmsg_statistics,
+			snmp_fold_field((void **) net->mib.icmpmsg_statistics,
 				icmpmibmap[i].index | 0x100));
 }
 
@@ -334,6 +311,7 @@ static void icmp_put(struct seq_file *seq)
 static int snmp_seq_show(struct seq_file *seq, void *v)
 {
 	int i;
+	struct net *net = seq->private;
 
 	seq_puts(seq, "Ip: Forwarding DefaultTTL");
 
@@ -341,12 +319,12 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq, " %s", snmp4_ipstats_list[i].name);
 
 	seq_printf(seq, "\nIp: %d %d",
-		   IPV4_DEVCONF_ALL(&init_net, FORWARDING) ? 1 : 2,
+		   IPV4_DEVCONF_ALL(net, FORWARDING) ? 1 : 2,
 		   sysctl_ip_default_ttl);
 
 	for (i = 0; snmp4_ipstats_list[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			   snmp_fold_field((void **)ip_statistics,
+			   snmp_fold_field((void **)net->mib.ip_statistics,
 					   snmp4_ipstats_list[i].entry));
 
 	icmp_put(seq);	/* RFC 2011 compatibility */
@@ -361,11 +339,11 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 		/* MaxConn field is signed, RFC 2012 */
 		if (snmp4_tcp_list[i].entry == TCP_MIB_MAXCONN)
 			seq_printf(seq, " %ld",
-				   snmp_fold_field((void **)tcp_statistics,
+				   snmp_fold_field((void **)net->mib.tcp_statistics,
 						   snmp4_tcp_list[i].entry));
 		else
 			seq_printf(seq, " %lu",
-				   snmp_fold_field((void **)tcp_statistics,
+				   snmp_fold_field((void **)net->mib.tcp_statistics,
 						   snmp4_tcp_list[i].entry));
 	}
 
@@ -376,7 +354,7 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 	seq_puts(seq, "\nUdp:");
 	for (i = 0; snmp4_udp_list[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			   snmp_fold_field((void **)udp_statistics,
+			   snmp_fold_field((void **)net->mib.udp_statistics,
 					   snmp4_udp_list[i].entry));
 
 	/* the UDP and UDP-Lite MIBs are the same */
@@ -387,7 +365,7 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 	seq_puts(seq, "\nUdpLite:");
 	for (i = 0; snmp4_udp_list[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			   snmp_fold_field((void **)udplite_statistics,
+			   snmp_fold_field((void **)net->mib.udplite_statistics,
 					   snmp4_udp_list[i].entry));
 
 	seq_putc(seq, '\n');
@@ -396,7 +374,7 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 
 static int snmp_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, snmp_seq_show, NULL);
+	return single_open_net(inode, file, snmp_seq_show);
 }
 
 static const struct file_operations snmp_seq_fops = {
@@ -404,7 +382,7 @@ static const struct file_operations snmp_seq_fops = {
 	.open	 = snmp_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = single_release,
+	.release = single_release_net,
 };
 
 
@@ -415,6 +393,7 @@ static const struct file_operations snmp_seq_fops = {
 static int netstat_seq_show(struct seq_file *seq, void *v)
 {
 	int i;
+	struct net *net = seq->private;
 
 	seq_puts(seq, "TcpExt:");
 	for (i = 0; snmp4_net_list[i].name != NULL; i++)
@@ -423,7 +402,7 @@ static int netstat_seq_show(struct seq_file *seq, void *v)
 	seq_puts(seq, "\nTcpExt:");
 	for (i = 0; snmp4_net_list[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			   snmp_fold_field((void **)net_statistics,
+			   snmp_fold_field((void **)net->mib.net_statistics,
 					   snmp4_net_list[i].entry));
 
 	seq_puts(seq, "\nIpExt:");
@@ -433,7 +412,7 @@ static int netstat_seq_show(struct seq_file *seq, void *v)
 	seq_puts(seq, "\nIpExt:");
 	for (i = 0; snmp4_ipextstats_list[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
-			   snmp_fold_field((void **)ip_statistics,
+			   snmp_fold_field((void **)net->mib.ip_statistics,
 					   snmp4_ipextstats_list[i].entry));
 
 	seq_putc(seq, '\n');
@@ -442,7 +421,7 @@ static int netstat_seq_show(struct seq_file *seq, void *v)
 
 static int netstat_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, netstat_seq_show, NULL);
+	return single_open_net(inode, file, netstat_seq_show);
 }
 
 static const struct file_operations netstat_seq_fops = {
@@ -450,18 +429,32 @@ static const struct file_operations netstat_seq_fops = {
 	.open	 = netstat_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = single_release,
+	.release = single_release_net,
 };
 
 static __net_init int ip_proc_init_net(struct net *net)
 {
 	if (!proc_net_fops_create(net, "sockstat", S_IRUGO, &sockstat_seq_fops))
-		return -ENOMEM;
+		goto out_sockstat;
+	if (!proc_net_fops_create(net, "netstat", S_IRUGO, &netstat_seq_fops))
+		goto out_netstat;
+	if (!proc_net_fops_create(net, "snmp", S_IRUGO, &snmp_seq_fops))
+		goto out_snmp;
+
 	return 0;
+
+out_snmp:
+	proc_net_remove(net, "netstat");
+out_netstat:
+	proc_net_remove(net, "sockstat");
+out_sockstat:
+	return -ENOMEM;
 }
 
 static __net_exit void ip_proc_exit_net(struct net *net)
 {
+	proc_net_remove(net, "snmp");
+	proc_net_remove(net, "netstat");
 	proc_net_remove(net, "sockstat");
 }
 
@@ -472,24 +465,6 @@ static __net_initdata struct pernet_operations ip_proc_ops = {
 
 int __init ip_misc_proc_init(void)
 {
-	int rc = 0;
-
-	if (register_pernet_subsys(&ip_proc_ops))
-		goto out_pernet;
-
-	if (!proc_net_fops_create(&init_net, "netstat", S_IRUGO, &netstat_seq_fops))
-		goto out_netstat;
-
-	if (!proc_net_fops_create(&init_net, "snmp", S_IRUGO, &snmp_seq_fops))
-		goto out_snmp;
-out:
-	return rc;
-out_snmp:
-	proc_net_remove(&init_net, "netstat");
-out_netstat:
-	unregister_pernet_subsys(&ip_proc_ops);
-out_pernet:
-	rc = -ENOMEM;
-	goto out;
+	return register_pernet_subsys(&ip_proc_ops);
 }
 

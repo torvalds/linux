@@ -101,6 +101,24 @@ static inline int crypto_ahash_digest(struct ahash_request *req)
 	return crt->digest(req);
 }
 
+static inline int crypto_ahash_init(struct ahash_request *req)
+{
+	struct ahash_tfm *crt = crypto_ahash_crt(crypto_ahash_reqtfm(req));
+	return crt->init(req);
+}
+
+static inline int crypto_ahash_update(struct ahash_request *req)
+{
+	struct ahash_tfm *crt = crypto_ahash_crt(crypto_ahash_reqtfm(req));
+	return crt->update(req);
+}
+
+static inline int crypto_ahash_final(struct ahash_request *req)
+{
+	struct ahash_tfm *crt = crypto_ahash_crt(crypto_ahash_reqtfm(req));
+	return crt->final(req);
+}
+
 static inline void ahash_request_set_tfm(struct ahash_request *req,
 					 struct crypto_ahash *tfm)
 {

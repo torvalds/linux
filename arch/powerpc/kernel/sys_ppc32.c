@@ -52,63 +52,6 @@
 #include <asm/ppc-pci.h>
 #include <asm/syscalls.h>
 
-struct old_linux_dirent32 {
-	u32		d_ino;
-	u32		d_offset;
-	unsigned short	d_namlen;
-	char		d_name[1];
-};
-
-struct readdir_callback32 {
-	struct old_linux_dirent32 __user * dirent;
-	int count;
-};
-
-static int fillonedir(void * __buf, const char * name, int namlen,
-		                  off_t offset, u64 ino, unsigned int d_type)
-{
-	struct readdir_callback32 * buf = (struct readdir_callback32 *) __buf;
-	struct old_linux_dirent32 __user * dirent;
-	ino_t d_ino;
-
-	if (buf->count)
-		return -EINVAL;
-	d_ino = ino;
-	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino)
-		return -EOVERFLOW;
-	buf->count++;
-	dirent = buf->dirent;
-	put_user(d_ino, &dirent->d_ino);
-	put_user(offset, &dirent->d_offset);
-	put_user(namlen, &dirent->d_namlen);
-	copy_to_user(dirent->d_name, name, namlen);
-	put_user(0, dirent->d_name + namlen);
-	return 0;
-}
-
-asmlinkage int old32_readdir(unsigned int fd, struct old_linux_dirent32 __user *dirent, unsigned int count)
-{
-	int error = -EBADF;
-	struct file * file;
-	struct readdir_callback32 buf;
-
-	file = fget(fd);
-	if (!file)
-		goto out;
-
-	buf.count = 0;
-	buf.dirent = dirent;
-
-	error = vfs_readdir(file, (filldir_t)fillonedir, &buf);
-	if (error < 0)
-		goto out_putf;
-	error = buf.count;
-
-out_putf:
-	fput(file);
-out:
-	return error;
-}
 
 asmlinkage long ppc32_select(u32 n, compat_ulong_t __user *inp,
 		compat_ulong_t __user *outp, compat_ulong_t __user *exp,
@@ -116,42 +59,6 @@ asmlinkage long ppc32_select(u32 n, compat_ulong_t __user *inp,
 {
 	/* sign extend n */
 	return compat_sys_select((int)n, inp, outp, exp, compat_ptr(tvp_x));
-}
-
-int cp_compat_stat(struct kstat *stat, struct compat_stat __user *statbuf)
-{
-	compat_ino_t ino;
-	long err;
-
-	if (stat->size > MAX_NON_LFS || !new_valid_dev(stat->dev) ||
-	    !new_valid_dev(stat->rdev))
-		return -EOVERFLOW;
-
-	ino = stat->ino;
-	if (sizeof(ino) < sizeof(stat->ino) && ino != stat->ino)
-		return -EOVERFLOW;
-
-	err  = access_ok(VERIFY_WRITE, statbuf, sizeof(*statbuf)) ? 0 : -EFAULT;
-	err |= __put_user(new_encode_dev(stat->dev), &statbuf->st_dev);
-	err |= __put_user(ino, &statbuf->st_ino);
-	err |= __put_user(stat->mode, &statbuf->st_mode);
-	err |= __put_user(stat->nlink, &statbuf->st_nlink);
-	err |= __put_user(stat->uid, &statbuf->st_uid);
-	err |= __put_user(stat->gid, &statbuf->st_gid);
-	err |= __put_user(new_encode_dev(stat->rdev), &statbuf->st_rdev);
-	err |= __put_user(stat->size, &statbuf->st_size);
-	err |= __put_user(stat->atime.tv_sec, &statbuf->st_atime);
-	err |= __put_user(stat->atime.tv_nsec, &statbuf->st_atime_nsec);
-	err |= __put_user(stat->mtime.tv_sec, &statbuf->st_mtime);
-	err |= __put_user(stat->mtime.tv_nsec, &statbuf->st_mtime_nsec);
-	err |= __put_user(stat->ctime.tv_sec, &statbuf->st_ctime);
-	err |= __put_user(stat->ctime.tv_nsec, &statbuf->st_ctime_nsec);
-	err |= __put_user(stat->blksize, &statbuf->st_blksize);
-	err |= __put_user(stat->blocks, &statbuf->st_blocks);
-	err |= __put_user(0, &statbuf->__unused4[0]);
-	err |= __put_user(0, &statbuf->__unused4[1]);
-
-	return err;
 }
 
 /* Note: it is necessary to treat option as an unsigned int,
@@ -162,77 +69,6 @@ int cp_compat_stat(struct kstat *stat, struct compat_stat __user *statbuf)
 asmlinkage long compat_sys_sysfs(u32 option, u32 arg1, u32 arg2)
 {
 	return sys_sysfs((int)option, arg1, arg2);
-}
-
-asmlinkage long compat_sys_pause(void)
-{
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
-	
-	return -ERESTARTNOHAND;
-}
-
-static inline long get_ts32(struct timespec *o, struct compat_timeval __user *i)
-{
-	long usec;
-
-	if (!access_ok(VERIFY_READ, i, sizeof(*i)))
-		return -EFAULT;
-	if (__get_user(o->tv_sec, &i->tv_sec))
-		return -EFAULT;
-	if (__get_user(usec, &i->tv_usec))
-		return -EFAULT;
-	o->tv_nsec = usec * 1000;
-	return 0;
-}
-
-static inline long put_tv32(struct compat_timeval __user *o, struct timeval *i)
-{
-	return (!access_ok(VERIFY_WRITE, o, sizeof(*o)) ||
-		(__put_user(i->tv_sec, &o->tv_sec) |
-		 __put_user(i->tv_usec, &o->tv_usec)));
-}
-
-
-
-
-/* Translations due to time_t size differences.  Which affects all
-   sorts of things, like timeval and itimerval.  */
-extern struct timezone sys_tz;
-
-asmlinkage long compat_sys_gettimeofday(struct compat_timeval __user *tv, struct timezone __user *tz)
-{
-	if (tv) {
-		struct timeval ktv;
-		do_gettimeofday(&ktv);
-		if (put_tv32(tv, &ktv))
-			return -EFAULT;
-	}
-	if (tz) {
-		if (copy_to_user(tz, &sys_tz, sizeof(sys_tz)))
-			return -EFAULT;
-	}
-	
-	return 0;
-}
-
-
-
-asmlinkage long compat_sys_settimeofday(struct compat_timeval __user *tv, struct timezone __user *tz)
-{
-	struct timespec kts;
-	struct timezone ktz;
-	
- 	if (tv) {
-		if (get_ts32(&kts, tv))
-			return -EFAULT;
-	}
-	if (tz) {
-		if (copy_from_user(&ktz, tz, sizeof(ktz)))
-			return -EFAULT;
-	}
-
-	return do_sys_settimeofday(tv ? &kts : NULL, tz ? &ktz : NULL);
 }
 
 #ifdef CONFIG_SYSVIPC

@@ -4,6 +4,7 @@
 #include <asm/uaccess.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/usb.h>
 #include <linux/mutex.h>
 
@@ -11,7 +12,8 @@
 
 #ifdef OV511_DEBUG
 	#define PDEBUG(level, fmt, args...) \
-		if (debug >= (level)) info("[%s:%d] " fmt, \
+		if (debug >= (level))	\
+			printk(KERN_INFO KBUILD_MODNAME "[%s:%d] \n" fmt, \
 		__func__, __LINE__ , ## args)
 #else
 	#define PDEBUG(level, fmt, args...) do {} while(0)

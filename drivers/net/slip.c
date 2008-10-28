@@ -1301,7 +1301,7 @@ static int sl_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 #endif
 /* VSV changes end */
 
-static struct tty_ldisc	sl_ldisc = {
+static struct tty_ldisc_ops sl_ldisc = {
 	.owner 		= THIS_MODULE,
 	.magic 		= TTY_LDISC_MAGIC,
 	.name 		= "slip",

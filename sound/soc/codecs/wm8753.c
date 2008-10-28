@@ -2,8 +2,7 @@
  * wm8753.c  --  WM8753 ALSA Soc Audio driver
  *
  * Copyright 2003 Wolfson Microelectronics PLC.
- * Author: Liam Girdwood
- *         liam.girdwood@wolfsonmicro.com or linux@wolfsonmicro.com
+ * Author: Liam Girdwood <lrg@slimlogic.co.uk>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -34,13 +33,13 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
+#include <linux/spi/spi.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -52,7 +51,6 @@
 
 #include "wm8753.h"
 
-#define AUDIO_NAME "wm8753"
 #define WM8753_VERSION "0.16"
 
 static int caps_charge = 2000;
@@ -584,7 +582,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 	/* out 4 */
 	{"Out4 Mux", "VREF", "VREF"},
-	{"Out4 Mux", "Capture ST", "Capture ST Mixer"},
+	{"Out4 Mux", "Capture ST", "Playback Mixer"},
 	{"Out4 Mux", "LOUT2", "LOUT2"},
 	{"Out 4", NULL, "Out4 Mux"},
 	{"OUT4", NULL, "Out 4"},
@@ -608,7 +606,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	/* Capture Right Mux */
 	{"Capture Right Mux", "PGA", "Right Capture Volume"},
 	{"Capture Right Mux", "Line or RXP-RXN", "Line Right Mux"},
-	{"Capture Right Mux", "Sidetone", "Capture ST Mixer"},
+	{"Capture Right Mux", "Sidetone", "Playback Mixer"},
 
 	/* Mono Capture mixer-mux */
 	{"Capture Right Mixer", "Stereo", "Capture Right Mux"},
@@ -1638,87 +1636,144 @@ static struct snd_soc_device *wm8753_socdev;
  *    low  = 0x1a
  *    high = 0x1b
  */
-static unsigned short normal_i2c[] = { 0, I2C_CLIENT_END };
 
-/* Magic definition of all other variables and things */
-I2C_CLIENT_INSMOD;
-
-static struct i2c_driver wm8753_i2c_driver;
-static struct i2c_client client_template;
-
-static int wm8753_codec_probe(struct i2c_adapter *adap, int addr, int kind)
+static int wm8753_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct snd_soc_device *socdev = wm8753_socdev;
-	struct wm8753_setup_data *setup = socdev->codec_data;
 	struct snd_soc_codec *codec = socdev->codec;
-	struct i2c_client *i2c;
 	int ret;
 
-	if (addr != setup->i2c_address)
-		return -ENODEV;
-
-	client_template.adapter = adap;
-	client_template.addr = addr;
-
-	i2c =  kmemdup(&client_template, sizeof(client_template), GFP_KERNEL);
-	if (!i2c) {
-		kfree(codec);
-		return -ENOMEM;
-	}
 	i2c_set_clientdata(i2c, codec);
 	codec->control_data = i2c;
 
-	ret = i2c_attach_client(i2c);
-	if (ret < 0) {
-		pr_err("failed to attach codec at addr %x\n", addr);
-		goto err;
-	}
-
 	ret = wm8753_init(socdev);
-	if (ret < 0) {
+	if (ret < 0)
 		pr_err("failed to initialise WM8753\n");
-		goto err;
-	}
 
-	return ret;
-
-err:
-	kfree(codec);
-	kfree(i2c);
 	return ret;
 }
 
-static int wm8753_i2c_detach(struct i2c_client *client)
+static int wm8753_i2c_remove(struct i2c_client *client)
 {
 	struct snd_soc_codec *codec = i2c_get_clientdata(client);
-	i2c_detach_client(client);
 	kfree(codec->reg_cache);
-	kfree(client);
 	return 0;
 }
 
-static int wm8753_i2c_attach(struct i2c_adapter *adap)
-{
-	return i2c_probe(adap, &addr_data, wm8753_codec_probe);
-}
+static const struct i2c_device_id wm8753_i2c_id[] = {
+	{ "wm8753", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, wm8753_i2c_id);
 
-/* corgi i2c codec control layer */
 static struct i2c_driver wm8753_i2c_driver = {
 	.driver = {
 		.name = "WM8753 I2C Codec",
 		.owner = THIS_MODULE,
 	},
-	.id =             I2C_DRIVERID_WM8753,
-	.attach_adapter = wm8753_i2c_attach,
-	.detach_client =  wm8753_i2c_detach,
-	.command =        NULL,
+	.probe =    wm8753_i2c_probe,
+	.remove =   wm8753_i2c_remove,
+	.id_table = wm8753_i2c_id,
 };
 
-static struct i2c_client client_template = {
-	.name =   "WM8753",
-	.driver = &wm8753_i2c_driver,
-};
+static int wm8753_add_i2c_device(struct platform_device *pdev,
+				 const struct wm8753_setup_data *setup)
+{
+	struct i2c_board_info info;
+	struct i2c_adapter *adapter;
+	struct i2c_client *client;
+	int ret;
+
+	ret = i2c_add_driver(&wm8753_i2c_driver);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "can't add i2c driver\n");
+		return ret;
+	}
+
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	info.addr = setup->i2c_address;
+	strlcpy(info.type, "wm8753", I2C_NAME_SIZE);
+
+	adapter = i2c_get_adapter(setup->i2c_bus);
+	if (!adapter) {
+		dev_err(&pdev->dev, "can't get i2c adapter %d\n",
+			setup->i2c_bus);
+		goto err_driver;
+	}
+
+	client = i2c_new_device(adapter, &info);
+	i2c_put_adapter(adapter);
+	if (!client) {
+		dev_err(&pdev->dev, "can't add i2c device at 0x%x\n",
+			(unsigned int)info.addr);
+		goto err_driver;
+	}
+
+	return 0;
+
+err_driver:
+	i2c_del_driver(&wm8753_i2c_driver);
+	return -ENODEV;
+}
 #endif
+
+#if defined(CONFIG_SPI_MASTER)
+static int __devinit wm8753_spi_probe(struct spi_device *spi)
+{
+	struct snd_soc_device *socdev = wm8753_socdev;
+	struct snd_soc_codec *codec = socdev->codec;
+	int ret;
+
+	codec->control_data = spi;
+
+	ret = wm8753_init(socdev);
+	if (ret < 0)
+		dev_err(&spi->dev, "failed to initialise WM8753\n");
+
+	return ret;
+}
+
+static int __devexit wm8753_spi_remove(struct spi_device *spi)
+{
+	return 0;
+}
+
+static struct spi_driver wm8753_spi_driver = {
+	.driver = {
+		.name	= "wm8753",
+		.bus	= &spi_bus_type,
+		.owner	= THIS_MODULE,
+	},
+	.probe		= wm8753_spi_probe,
+	.remove		= __devexit_p(wm8753_spi_remove),
+};
+
+static int wm8753_spi_write(struct spi_device *spi, const char *data, int len)
+{
+	struct spi_transfer t;
+	struct spi_message m;
+	u8 msg[2];
+
+	if (len <= 0)
+		return 0;
+
+	msg[0] = data[0];
+	msg[1] = data[1];
+
+	spi_message_init(&m);
+	memset(&t, 0, (sizeof t));
+
+	t.tx_buf = &msg[0];
+	t.len = len;
+
+	spi_message_add_tail(&t, &m);
+	spi_sync(spi, &m);
+
+	return len;
+}
+#endif
+
 
 static int wm8753_probe(struct platform_device *pdev)
 {
@@ -1751,15 +1806,23 @@ static int wm8753_probe(struct platform_device *pdev)
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	if (setup->i2c_address) {
-		normal_i2c[0] = setup->i2c_address;
 		codec->hw_write = (hw_write_t)i2c_master_send;
-		ret = i2c_add_driver(&wm8753_i2c_driver);
-		if (ret != 0)
-			printk(KERN_ERR "can't add i2c driver");
+		ret = wm8753_add_i2c_device(pdev, setup);
 	}
-#else
-		/* Add other interfaces here */
 #endif
+#if defined(CONFIG_SPI_MASTER)
+	if (setup->spi) {
+		codec->hw_write = (hw_write_t)wm8753_spi_write;
+		ret = spi_register_driver(&wm8753_spi_driver);
+		if (ret != 0)
+			printk(KERN_ERR "can't add spi driver");
+	}
+#endif
+
+	if (ret != 0) {
+		kfree(codec->private_data);
+		kfree(codec);
+	}
 	return ret;
 }
 
@@ -1794,7 +1857,11 @@ static int wm8753_remove(struct platform_device *pdev)
 	snd_soc_free_pcms(socdev);
 	snd_soc_dapm_free(socdev);
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+	i2c_unregister_device(codec->control_data);
 	i2c_del_driver(&wm8753_i2c_driver);
+#endif
+#if defined(CONFIG_SPI_MASTER)
+	spi_unregister_driver(&wm8753_spi_driver);
 #endif
 	kfree(codec->private_data);
 	kfree(codec);

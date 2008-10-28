@@ -1,5 +1,3 @@
-/* $Id: parport.h,v 1.1 1998/05/17 10:57:52 andrea Exp andrea $ */
-
 /*
  * Any part of this program may be used in documents licensed under
  * the GNU Free Documentation License, Version 1.1 or any later version
@@ -559,6 +557,9 @@ extern int parport_device_proc_unregister(struct pardevice *device);
 #define parport_data_reverse(p)            (p)->ops->data_reverse(p)
 
 #endif /*  !CONFIG_PARPORT_NOT_PC  */
+
+extern unsigned long parport_default_timeslice;
+extern int parport_default_spintime;
 
 #endif /* __KERNEL__ */
 #endif /* _PARPORT_H_ */

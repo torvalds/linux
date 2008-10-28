@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+#include <linux/bug.h>
 
 #include <net/sock.h>
 
@@ -32,7 +33,7 @@ struct request_sock_ops {
 	struct kmem_cache	*slab;
 	int		(*rtx_syn_ack)(struct sock *sk,
 				       struct request_sock *req);
-	void		(*send_ack)(struct sk_buff *skb,
+	void		(*send_ack)(struct sock *sk, struct sk_buff *skb,
 				    struct request_sock *req);
 	void		(*send_reset)(struct sock *sk,
 				      struct sk_buff *skb);
@@ -170,7 +171,7 @@ static inline struct request_sock *reqsk_queue_remove(struct request_sock_queue 
 {
 	struct request_sock *req = queue->rskq_accept_head;
 
-	BUG_TRAP(req != NULL);
+	WARN_ON(req == NULL);
 
 	queue->rskq_accept_head = req->dl_next;
 	if (queue->rskq_accept_head == NULL)
@@ -185,7 +186,7 @@ static inline struct sock *reqsk_queue_get_child(struct request_sock_queue *queu
 	struct request_sock *req = reqsk_queue_remove(queue);
 	struct sock *child = req->sk;
 
-	BUG_TRAP(child != NULL);
+	WARN_ON(child == NULL);
 
 	sk_acceptq_removed(parent);
 	__reqsk_free(req);

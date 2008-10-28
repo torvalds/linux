@@ -17,6 +17,7 @@
 #include <linux/swap.h>
 #include <linux/profile.h>
 #include <linux/delay.h>
+#include <linux/cpu.h>
 
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
@@ -70,6 +71,8 @@ void __cpuinit smp4m_callin(void)
 
 	local_flush_cache_all();
 	local_flush_tlb_all();
+
+	notify_cpu_starting(cpuid);
 
 	/* Get our local ticker going. */
 	smp_setup_percpu_timer();
@@ -244,8 +247,9 @@ static struct smp_funcall {
 static DEFINE_SPINLOCK(cross_call_lock);
 
 /* Cross calls must be serialized, at least currently. */
-void smp4m_cross_call(smpfunc_t func, unsigned long arg1, unsigned long arg2,
-		    unsigned long arg3, unsigned long arg4, unsigned long arg5)
+static void smp4m_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
+			     unsigned long arg2, unsigned long arg3,
+			     unsigned long arg4)
 {
 		register int ncpus = SUN4M_NCPUS;
 		unsigned long flags;
@@ -258,14 +262,14 @@ void smp4m_cross_call(smpfunc_t func, unsigned long arg1, unsigned long arg2,
 		ccall_info.arg2 = arg2;
 		ccall_info.arg3 = arg3;
 		ccall_info.arg4 = arg4;
-		ccall_info.arg5 = arg5;
+		ccall_info.arg5 = 0;
 
 		/* Init receive/complete mapping, plus fire the IPI's off. */
 		{
-			cpumask_t mask = cpu_online_map;
 			register int i;
 
 			cpu_clear(smp_processor_id(), mask);
+			cpus_and(mask, cpu_online_map, mask);
 			for(i = 0; i < ncpus; i++) {
 				if (cpu_isset(i, mask)) {
 					ccall_info.processors_in[i] = 0;
@@ -283,12 +287,16 @@ void smp4m_cross_call(smpfunc_t func, unsigned long arg1, unsigned long arg2,
 
 			i = 0;
 			do {
+				if (!cpu_isset(i, mask))
+					continue;
 				while(!ccall_info.processors_in[i])
 					barrier();
 			} while(++i < ncpus);
 
 			i = 0;
 			do {
+				if (!cpu_isset(i, mask))
+					continue;
 				while(!ccall_info.processors_out[i])
 					barrier();
 			} while(++i < ncpus);
@@ -308,6 +316,8 @@ void smp4m_cross_call_irq(void)
 	ccall_info.processors_out[i] = 1;
 }
 
+extern void sun4m_clear_profile_irq(int cpu);
+
 void smp4m_percpu_timer_interrupt(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs;
@@ -315,7 +325,7 @@ void smp4m_percpu_timer_interrupt(struct pt_regs *regs)
 
 	old_regs = set_irq_regs(regs);
 
-	clear_profile_irq(cpu);
+	sun4m_clear_profile_irq(cpu);
 
 	profile_tick(CPU_PROFILING);
 
@@ -344,7 +354,7 @@ static void __init smp_setup_percpu_timer(void)
 		enable_pil_irq(14);
 }
 
-void __init smp4m_blackbox_id(unsigned *addr)
+static void __init smp4m_blackbox_id(unsigned *addr)
 {
 	int rd = *addr & 0x3e000000;
 	int rs1 = rd >> 11;
@@ -354,7 +364,7 @@ void __init smp4m_blackbox_id(unsigned *addr)
 	addr[2] = 0x80082003 | rd | rs1;	/* and reg, 3, reg */
 }
 
-void __init smp4m_blackbox_current(unsigned *addr)
+static void __init smp4m_blackbox_current(unsigned *addr)
 {
 	int rd = *addr & 0x3e000000;
 	int rs1 = rd >> 11;

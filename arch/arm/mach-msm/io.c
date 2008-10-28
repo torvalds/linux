@@ -18,17 +18,17 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/io.h>
 
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <mach/hardware.h>
 #include <asm/page.h>
-#include <asm/arch/msm_iomap.h>
+#include <mach/msm_iomap.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/board.h>
+#include <mach/board.h>
 
 #define MSM_DEVICE(name) { \
-		.virtual = MSM_##name##_BASE, \
+		.virtual = (unsigned long) MSM_##name##_BASE, \
 		.pfn = __phys_to_pfn(MSM_##name##_PHYS), \
 		.length = MSM_##name##_SIZE, \
 		.type = MT_DEVICE_NONSHARED, \
@@ -39,19 +39,11 @@ static struct map_desc msm_io_desc[] __initdata = {
 	MSM_DEVICE(CSR),
 	MSM_DEVICE(GPT),
 	MSM_DEVICE(DMOV),
-	MSM_DEVICE(UART1),
-	MSM_DEVICE(UART2),
-	MSM_DEVICE(UART3),
-	MSM_DEVICE(I2C),
 	MSM_DEVICE(GPIO1),
 	MSM_DEVICE(GPIO2),
-	MSM_DEVICE(HSUSB),
 	MSM_DEVICE(CLK_CTL),
-	MSM_DEVICE(PMDH),
-	MSM_DEVICE(EMDH),
-	MSM_DEVICE(MDP),
 	{
-		.virtual =  MSM_SHARED_RAM_BASE,
+		.virtual =  (unsigned long) MSM_SHARED_RAM_BASE,
 		.pfn =      __phys_to_pfn(MSM_SHARED_RAM_PHYS),
 		.length =   MSM_SHARED_RAM_SIZE,
 		.type =     MT_DEVICE,

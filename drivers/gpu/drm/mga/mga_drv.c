@@ -45,15 +45,16 @@ static struct pci_device_id pciidlist[] = {
 static struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_PCI_DMA |
-	    DRIVER_HAVE_DMA | DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED |
-	    DRIVER_IRQ_VBL,
+	    DRIVER_HAVE_DMA | DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
 	.dev_priv_size = sizeof(drm_mga_buf_priv_t),
 	.load = mga_driver_load,
 	.unload = mga_driver_unload,
 	.lastclose = mga_driver_lastclose,
 	.dma_quiescent = mga_driver_dma_quiescent,
 	.device_is_agp = mga_driver_device_is_agp,
-	.vblank_wait = mga_driver_vblank_wait,
+	.get_vblank_counter = mga_get_vblank_counter,
+	.enable_vblank = mga_enable_vblank,
+	.disable_vblank = mga_disable_vblank,
 	.irq_preinstall = mga_driver_irq_preinstall,
 	.irq_postinstall = mga_driver_irq_postinstall,
 	.irq_uninstall = mga_driver_irq_uninstall,
@@ -64,20 +65,20 @@ static struct drm_driver driver = {
 	.ioctls = mga_ioctls,
 	.dma_ioctl = mga_dma_buffers,
 	.fops = {
-		 .owner = THIS_MODULE,
-		 .open = drm_open,
-		 .release = drm_release,
-		 .ioctl = drm_ioctl,
-		 .mmap = drm_mmap,
-		 .poll = drm_poll,
-		 .fasync = drm_fasync,
+		.owner = THIS_MODULE,
+		.open = drm_open,
+		.release = drm_release,
+		.ioctl = drm_ioctl,
+		.mmap = drm_mmap,
+		.poll = drm_poll,
+		.fasync = drm_fasync,
 #ifdef CONFIG_COMPAT
-		 .compat_ioctl = mga_compat_ioctl,
+		.compat_ioctl = mga_compat_ioctl,
 #endif
-		 },
+	},
 	.pci_driver = {
-		 .name = DRIVER_NAME,
-		 .id_table = pciidlist,
+		.name = DRIVER_NAME,
+		.id_table = pciidlist,
 	},
 
 	.name = DRIVER_NAME,

@@ -136,54 +136,6 @@ static const struct file_operations proc_tty_drivers_operations = {
 	.release	= seq_release,
 };
 
-static void * tty_ldiscs_seq_start(struct seq_file *m, loff_t *pos)
-{
-	return (*pos < NR_LDISCS) ? pos : NULL;
-}
-
-static void * tty_ldiscs_seq_next(struct seq_file *m, void *v, loff_t *pos)
-{
-	(*pos)++;
-	return (*pos < NR_LDISCS) ? pos : NULL;
-}
-
-static void tty_ldiscs_seq_stop(struct seq_file *m, void *v)
-{
-}
-
-static int tty_ldiscs_seq_show(struct seq_file *m, void *v)
-{
-	int i = *(loff_t *)v;
-	struct tty_ldisc *ld;
-	
-	ld = tty_ldisc_get(i);
-	if (ld == NULL)
-		return 0;
-	seq_printf(m, "%-10s %2d\n", ld->name ? ld->name : "???", i);
-	tty_ldisc_put(i);
-	return 0;
-}
-
-static const struct seq_operations tty_ldiscs_seq_ops = {
-	.start	= tty_ldiscs_seq_start,
-	.next	= tty_ldiscs_seq_next,
-	.stop	= tty_ldiscs_seq_stop,
-	.show	= tty_ldiscs_seq_show,
-};
-
-static int proc_tty_ldiscs_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &tty_ldiscs_seq_ops);
-}
-
-static const struct file_operations tty_ldiscs_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= proc_tty_ldiscs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 /*
  * This function is called by tty_register_driver() to handle
  * registering the driver's /proc handler into /proc/tty/driver/<foo>

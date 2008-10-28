@@ -46,7 +46,6 @@
 /* Mac bootinfo struct */
 
 struct mac_booter_data mac_bi_data;
-int mac_bisize = sizeof mac_bi_data;
 
 /* New m68k bootinfo stuff and videobase */
 
@@ -55,10 +54,8 @@ extern struct mem_info m68k_memory[NUM_MEMINFO];
 
 extern struct mem_info m68k_ramdisk;
 
-void *mac_env;					/* Loaded by the boot asm */
-
 /* The phys. video addr. - might be bogus on some machines */
-unsigned long mac_orig_videoaddr;
+static unsigned long mac_orig_videoaddr;
 
 /* Mac specific timer functions */
 extern unsigned long mac_gettimeoffset(void);
@@ -79,6 +76,8 @@ extern void mac_mksound(unsigned int, unsigned int);
 extern void nubus_sweep_video(void);
 
 static void mac_get_model(char *str);
+static void mac_identify(void);
+static void mac_report_hardware(void);
 
 static void __init mac_sched_init(irq_handler_t vector)
 {
@@ -765,7 +764,7 @@ static struct mac_model mac_data_table[] = {
 	}
 };
 
-void __init mac_identify(void)
+static void __init mac_identify(void)
 {
 	struct mac_model *m;
 
@@ -821,7 +820,7 @@ void __init mac_identify(void)
 	baboon_init();
 }
 
-void __init mac_report_hardware(void)
+static void __init mac_report_hardware(void)
 {
 	printk(KERN_INFO "Apple Macintosh %s\n", macintosh_config->name);
 }

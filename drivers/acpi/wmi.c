@@ -217,6 +217,35 @@ static bool find_guid(const char *guid_string, struct wmi_block **out)
 	return 0;
 }
 
+static acpi_status wmi_method_enable(struct wmi_block *wblock, int enable)
+{
+	struct guid_block *block = NULL;
+	char method[5];
+	struct acpi_object_list input;
+	union acpi_object params[1];
+	acpi_status status;
+	acpi_handle handle;
+
+	block = &wblock->gblock;
+	handle = wblock->handle;
+
+	if (!block)
+		return AE_NOT_EXIST;
+
+	input.count = 1;
+	input.pointer = params;
+	params[0].type = ACPI_TYPE_INTEGER;
+	params[0].integer.value = enable;
+
+	snprintf(method, 5, "WE%02X", block->notify_id);
+	status = acpi_evaluate_object(handle, method, &input, NULL);
+
+	if (status != AE_OK && status != AE_NOT_FOUND)
+		return status;
+	else
+		return AE_OK;
+}
+
 /*
  * Exported WMI functions
  */
@@ -242,7 +271,7 @@ u32 method_id, const struct acpi_buffer *in, struct acpi_buffer *out)
 	char method[4] = "WM";
 
 	if (!find_guid(guid_string, &wblock))
-		return AE_BAD_ADDRESS;
+		return AE_ERROR;
 
 	block = &wblock->gblock;
 	handle = wblock->handle;
@@ -304,7 +333,7 @@ struct acpi_buffer *out)
 		return AE_BAD_PARAMETER;
 
 	if (!find_guid(guid_string, &wblock))
-		return AE_BAD_ADDRESS;
+		return AE_ERROR;
 
 	block = &wblock->gblock;
 	handle = wblock->handle;
@@ -314,7 +343,7 @@ struct acpi_buffer *out)
 
 	/* Check GUID is a data block */
 	if (block->flags & (ACPI_WMI_EVENT | ACPI_WMI_METHOD))
-		return AE_BAD_ADDRESS;
+		return AE_ERROR;
 
 	input.count = 1;
 	input.pointer = wq_params;
@@ -347,7 +376,7 @@ struct acpi_buffer *out)
 	strcpy(method, "WQ");
 	strncat(method, block->object_id, 2);
 
-	status = acpi_evaluate_object(handle, method, NULL, out);
+	status = acpi_evaluate_object(handle, method, &input, out);
 
 	/*
 	 * If ACPI_WMI_EXPENSIVE, call the relevant WCxx method, even if
@@ -385,7 +414,7 @@ const struct acpi_buffer *in)
 		return AE_BAD_DATA;
 
 	if (!find_guid(guid_string, &wblock))
-		return AE_BAD_ADDRESS;
+		return AE_ERROR;
 
 	block = &wblock->gblock;
 	handle = wblock->handle;
@@ -395,7 +424,7 @@ const struct acpi_buffer *in)
 
 	/* Check GUID is a data block */
 	if (block->flags & (ACPI_WMI_EVENT | ACPI_WMI_METHOD))
-		return AE_BAD_ADDRESS;
+		return AE_ERROR;
 
 	input.count = 2;
 	input.pointer = params;
@@ -427,6 +456,7 @@ acpi_status wmi_install_notify_handler(const char *guid,
 wmi_notify_handler handler, void *data)
 {
 	struct wmi_block *block;
+	acpi_status status;
 
 	if (!guid || !handler)
 		return AE_BAD_PARAMETER;
@@ -441,7 +471,9 @@ wmi_notify_handler handler, void *data)
 	block->handler = handler;
 	block->handler_data = data;
 
-	return AE_OK;
+	status = wmi_method_enable(block, 1);
+
+	return status;
 }
 EXPORT_SYMBOL_GPL(wmi_install_notify_handler);
 
@@ -453,6 +485,7 @@ EXPORT_SYMBOL_GPL(wmi_install_notify_handler);
 acpi_status wmi_remove_notify_handler(const char *guid)
 {
 	struct wmi_block *block;
+	acpi_status status;
 
 	if (!guid)
 		return AE_BAD_PARAMETER;
@@ -464,10 +497,12 @@ acpi_status wmi_remove_notify_handler(const char *guid)
 	if (!block->handler)
 		return AE_NULL_ENTRY;
 
+	status = wmi_method_enable(block, 0);
+
 	block->handler = NULL;
 	block->handler_data = NULL;
 
-	return AE_OK;
+	return status;
 }
 EXPORT_SYMBOL_GPL(wmi_remove_notify_handler);
 

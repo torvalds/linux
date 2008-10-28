@@ -21,7 +21,16 @@ struct pnp_dev;
 /*
  * Resource Management
  */
-struct resource *pnp_get_resource(struct pnp_dev *, unsigned int, unsigned int);
+#ifdef CONFIG_PNP
+struct resource *pnp_get_resource(struct pnp_dev *dev, unsigned long type,
+				unsigned int num);
+#else
+static inline struct resource *pnp_get_resource(struct pnp_dev *dev,
+			unsigned long type, unsigned int num)
+{
+	return NULL;
+}
+#endif
 
 static inline int pnp_resource_valid(struct resource *res)
 {
@@ -475,15 +484,5 @@ static inline int pnp_register_driver(struct pnp_driver *drv) { return -ENODEV; 
 static inline void pnp_unregister_driver(struct pnp_driver *drv) { }
 
 #endif /* CONFIG_PNP */
-
-#define pnp_err(format, arg...) printk(KERN_ERR "pnp: " format "\n" , ## arg)
-#define pnp_info(format, arg...) printk(KERN_INFO "pnp: " format "\n" , ## arg)
-#define pnp_warn(format, arg...) printk(KERN_WARNING "pnp: " format "\n" , ## arg)
-
-#ifdef CONFIG_PNP_DEBUG
-#define pnp_dbg(format, arg...) printk(KERN_DEBUG "pnp: " format "\n" , ## arg)
-#else
-#define pnp_dbg(format, arg...) do {} while (0)
-#endif
 
 #endif /* _LINUX_PNP_H */

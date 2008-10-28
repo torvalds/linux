@@ -1,7 +1,7 @@
 /*
  *  Driver for Xceive XC5000 "QAM/8VSB single chip tuner"
  *
- *  Copyright (c) 2007 Steven Toth <stoth@hauppauge.com>
+ *  Copyright (c) 2007 Steven Toth <stoth@linuxtv.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,8 +30,6 @@ struct i2c_adapter;
 struct xc5000_config {
 	u8   i2c_address;
 	u32  if_khz;
-
-	int  (*tuner_callback) (void *priv, int command, int arg);
 };
 
 /* xc5000 callback command */
@@ -47,19 +45,17 @@ struct xc5000_config {
 
 #if defined(CONFIG_MEDIA_TUNER_XC5000) || \
     (defined(CONFIG_MEDIA_TUNER_XC5000_MODULE) && defined(MODULE))
-extern struct dvb_frontend* xc5000_attach(struct dvb_frontend *fe,
+extern struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 					  struct i2c_adapter *i2c,
-					  struct xc5000_config *cfg,
-					  void *devptr);
+					  struct xc5000_config *cfg);
 #else
-static inline struct dvb_frontend* xc5000_attach(struct dvb_frontend *fe,
+static inline struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 						 struct i2c_adapter *i2c,
-						 struct xc5000_config *cfg,
-						 void *devptr)
+						 struct xc5000_config *cfg)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
-#endif // CONFIG_MEDIA_TUNER_XC5000
+#endif
 
-#endif // __XC5000_H__
+#endif

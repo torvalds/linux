@@ -7,6 +7,28 @@
  * defined; unless noted otherwise, they are optional, and can be
  * filled in with a null pointer.
  *
+ * struct tty_struct * (*lookup)(struct tty_driver *self, int idx)
+ *
+ *	Return the tty device corresponding to idx, NULL if there is not
+ *	one currently in use and an ERR_PTR value on error. Called under
+ *	tty_mutex (for now!)
+ *
+ *	Optional method. Default behaviour is to use the ttys array
+ *
+ * int (*install)(struct tty_driver *self, struct tty_struct *tty)
+ *
+ *	Install a new tty into the tty driver internal tables. Used in
+ *	conjunction with lookup and remove methods.
+ *
+ *	Optional method. Default behaviour is to use the ttys array
+ *
+ * void (*remove)(struct tty_driver *self, struct tty_struct *tty)
+ *
+ *	Remove a closed tty from the tty driver internal tables. Used in
+ *	conjunction with lookup and remove methods.
+ *
+ *	Optional method. Default behaviour is to use the ttys array
+ *
  * int  (*open)(struct tty_struct * tty, struct file * filp);
  *
  * 	This routine is called when a particular tty device is opened.
@@ -20,6 +42,11 @@
  * 	This routine is called when a particular tty device is closed.
  *
  *	Required method.
+ *
+ * void (*shutdown)(struct tty_struct * tty);
+ *
+ * 	This routine is called when a particular tty device is closed for
+ *	the last time freeing up the resources.
  *
  * int (*write)(struct tty_struct * tty,
  * 		 const unsigned char *buf, int count);
@@ -135,7 +162,7 @@
  *
  *	Optional:
  *
- * void (*break_ctl)(struct tty_stuct *tty, int state);
+ * int (*break_ctl)(struct tty_stuct *tty, int state);
  *
  * 	This optional routine requests the tty driver to turn on or
  * 	off BREAK status on the RS-232 port.  If state is -1,
@@ -145,6 +172,10 @@
  * 	If this routine is implemented, the high-level tty driver will
  * 	handle the following ioctls: TCSBRK, TCSBRKP, TIOCSBRK,
  * 	TIOCCBRK.
+ *
+ *	If the driver sets TTY_DRIVER_HARDWARE_BREAK then the interface
+ *	will also be called with actual times and the hardware is expected
+ *	to do the delay work itself. 0 and -1 are still used for on/off.
  *
  *	Optional: Required for TCSBRK/BRKP/etc handling.
  *
@@ -164,6 +195,26 @@
  *
  *	Optional: If not provided then the write method is called under
  *	the atomic write lock to keep it serialized with the ldisc.
+ *
+ * int (*resize)(struct tty_struct *tty, struct tty_struct *real_tty,
+ *				unsigned int rows, unsigned int cols);
+ *
+ *	Called when a termios request is issued which changes the
+ *	requested terminal geometry.
+ *
+ *	Optional: the default action is to update the termios structure
+ *	without error. This is usually the correct behaviour. Drivers should
+ *	not force errors here if they are not resizable objects (eg a serial
+ *	line). See tty_do_resize() if you need to wrap the standard method
+ *	in your own logic - the usual case.
+ *
+ * void (*set_termiox)(struct tty_struct *tty, struct termiox *new);
+ *
+ *	Called when the device receives a termiox based ioctl. Passes down
+ *	the requested data from user space. This method will not be invoked
+ *	unless the tty also has a valid tty->termiox pointer.
+ *
+ *	Optional: Called under the termios lock
  */
 
 #include <linux/fs.h>
@@ -174,8 +225,13 @@ struct tty_struct;
 struct tty_driver;
 
 struct tty_operations {
+	struct tty_struct * (*lookup)(struct tty_driver *driver,
+			struct inode *inode, int idx);
+	int  (*install)(struct tty_driver *driver, struct tty_struct *tty);
+	void (*remove)(struct tty_driver *driver, struct tty_struct *tty);
 	int  (*open)(struct tty_struct * tty, struct file * filp);
 	void (*close)(struct tty_struct * tty, struct file * filp);
+	void (*shutdown)(struct tty_struct *tty);
 	int  (*write)(struct tty_struct * tty,
 		      const unsigned char *buf, int count);
 	int  (*put_char)(struct tty_struct *tty, unsigned char ch);
@@ -192,7 +248,7 @@ struct tty_operations {
 	void (*stop)(struct tty_struct *tty);
 	void (*start)(struct tty_struct *tty);
 	void (*hangup)(struct tty_struct *tty);
-	void (*break_ctl)(struct tty_struct *tty, int state);
+	int (*break_ctl)(struct tty_struct *tty, int state);
 	void (*flush_buffer)(struct tty_struct *tty);
 	void (*set_ldisc)(struct tty_struct *tty);
 	void (*wait_until_sent)(struct tty_struct *tty, int timeout);
@@ -202,6 +258,9 @@ struct tty_operations {
 	int (*tiocmget)(struct tty_struct *tty, struct file *file);
 	int (*tiocmset)(struct tty_struct *tty, struct file *file,
 			unsigned int set, unsigned int clear);
+	int (*resize)(struct tty_struct *tty, struct tty_struct *real_tty,
+				struct winsize *ws);
+	int (*set_termiox)(struct tty_struct *tty, struct termiox *tnew);
 #ifdef CONFIG_CONSOLE_POLL
 	int (*poll_init)(struct tty_driver *driver, int line, char *options);
 	int (*poll_get_char)(struct tty_driver *driver, int line);
@@ -211,6 +270,7 @@ struct tty_operations {
 
 struct tty_driver {
 	int	magic;		/* magic number for this structure */
+	struct kref kref;	/* Reference management */
 	struct cdev cdev;
 	struct module	*owner;
 	const char	*driver_name;
@@ -224,7 +284,6 @@ struct tty_driver {
 	short	subtype;	/* subtype of tty driver */
 	struct ktermios init_termios; /* Initial termios */
 	int	flags;		/* tty driver flags */
-	int	refcount;	/* for loadable tty drivers */
 	struct proc_dir_entry *proc_entry; /* /proc fs entry */
 	struct tty_driver *other; /* only used for the PTY driver */
 
@@ -246,11 +305,18 @@ struct tty_driver {
 
 extern struct list_head tty_drivers;
 
-struct tty_driver *alloc_tty_driver(int lines);
-void put_tty_driver(struct tty_driver *driver);
-void tty_set_operations(struct tty_driver *driver,
+extern struct tty_driver *alloc_tty_driver(int lines);
+extern void put_tty_driver(struct tty_driver *driver);
+extern void tty_set_operations(struct tty_driver *driver,
 			const struct tty_operations *op);
 extern struct tty_driver *tty_find_polling_driver(char *name, int *line);
+
+extern void tty_driver_kref_put(struct tty_driver *driver);
+extern inline struct tty_driver *tty_driver_kref_get(struct tty_driver *d)
+{
+	kref_get(&d->kref);
+	return d;
+}
 
 /* tty driver magic number */
 #define TTY_DRIVER_MAGIC		0x5402
@@ -285,12 +351,18 @@ extern struct tty_driver *tty_find_polling_driver(char *name, int *line);
  * TTY_DRIVER_DEVPTS_MEM -- don't use the standard arrays, instead
  *	use dynamic memory keyed through the devpts filesystem.  This
  *	is only applicable to the pty driver.
+ *
+ * TTY_DRIVER_HARDWARE_BREAK -- hardware handles break signals. Pass
+ *	the requested timeout to the caller instead of using a simple
+ *	on/off interface.
+ *
  */
 #define TTY_DRIVER_INSTALLED		0x0001
 #define TTY_DRIVER_RESET_TERMIOS	0x0002
 #define TTY_DRIVER_REAL_RAW		0x0004
 #define TTY_DRIVER_DYNAMIC_DEV		0x0008
 #define TTY_DRIVER_DEVPTS_MEM		0x0010
+#define TTY_DRIVER_HARDWARE_BREAK	0x0020
 
 /* tty driver types */
 #define TTY_DRIVER_TYPE_SYSTEM		0x0001

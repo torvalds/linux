@@ -23,7 +23,7 @@
     Supports following chips:
 
     Chip	#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
-    w83791d	10	5	3	3	0x71	0x5ca3	yes	no
+    w83791d	10	5	5	3	0x71	0x5ca3	yes	no
 
     The w83791d chip appears to be part way between the 83781d and the
     83792d. Thus, this file is derived from both the w83792d.c and
@@ -45,6 +45,7 @@
 #define NUMBER_OF_VIN		10
 #define NUMBER_OF_FANIN		5
 #define NUMBER_OF_TEMPIN	3
+#define NUMBER_OF_PWM		5
 
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
@@ -116,6 +117,25 @@ static const u8 W83791D_REG_FAN_MIN[NUMBER_OF_FANIN] = {
 	0xBD,			/* FAN 5 Count Low Limit in DataSheet */
 };
 
+static const u8 W83791D_REG_PWM[NUMBER_OF_PWM] = {
+	0x81,			/* PWM 1 duty cycle register in DataSheet */
+	0x83,			/* PWM 2 duty cycle register in DataSheet */
+	0x94,			/* PWM 3 duty cycle register in DataSheet */
+	0xA0,			/* PWM 4 duty cycle register in DataSheet */
+	0xA1,			/* PWM 5 duty cycle register in DataSheet */
+};
+
+static const u8 W83791D_REG_TEMP_TARGET[3] = {
+	0x85,			/* PWM 1 target temperature for temp 1 */
+	0x86,			/* PWM 2 target temperature for temp 2 */
+	0x96,			/* PWM 3 target temperature for temp 3 */
+};
+
+static const u8 W83791D_REG_TEMP_TOL[2] = {
+	0x87,			/* PWM 1/2 temperature tolerance */
+	0x97,			/* PWM 3 temperature tolerance */
+};
+
 static const u8 W83791D_REG_FAN_CFG[2] = {
 	0x84,			/* FAN 1/2 configuration */
 	0x95,			/* FAN 3 configuration */
@@ -160,6 +180,7 @@ static const u8 W83791D_REG_BEEP_CTRL[3] = {
 	0xA3,			/* BEEP Control Register 3 */
 };
 
+#define W83791D_REG_GPIO		0x15
 #define W83791D_REG_CONFIG		0x40
 #define W83791D_REG_VID_FANDIV		0x47
 #define W83791D_REG_DID_VID4		0x49
@@ -224,6 +245,15 @@ static u8 fan_to_reg(long rpm, int div)
 				 (val) < 0 ? ((val) - 250) / 500 * 128 : \
 				 ((val) + 250) / 500 * 128)
 
+/* for thermal cruise target temp, 7-bits, LSB = 1 degree Celsius */
+#define TARGET_TEMP_TO_REG(val)		((val) < 0 ? 0 : \
+					(val) >= 127000 ? 127 : \
+					((val) + 500) / 1000)
+
+/* for thermal cruise temp tolerance, 4-bits, LSB = 1 degree Celsius */
+#define TOL_TEMP_TO_REG(val)		((val) < 0 ? 0 : \
+					(val) >= 15000 ? 15 : \
+					((val) + 500) / 1000)
 
 #define BEEP_MASK_TO_REG(val)		((val) & 0xffffff)
 #define BEEP_MASK_FROM_REG(val)		((val) & 0xffffff)
@@ -233,11 +263,9 @@ static u8 fan_to_reg(long rpm, int div)
 static u8 div_to_reg(int nr, long val)
 {
 	int i;
-	int max;
 
-	/* first three fan's divisor max out at 8, rest max out at 128 */
-	max = (nr < 3) ? 8 : 128;
-	val = SENSORS_LIMIT(val, 1, max) >> 1;
+	/* fan divisors max out at 128 */
+	val = SENSORS_LIMIT(val, 1, 128) >> 1;
 	for (i = 0; i < 7; i++) {
 		if (val == 0)
 			break;
@@ -276,6 +304,14 @@ struct w83791d_data {
 				   to the 0.5 degree C...
 				   two sensors with three values
 				   (cur, over, hyst)  */
+
+	/* PWMs */
+	u8 pwm[5];		/* pwm duty cycle */
+	u8 pwm_enable[3];	/* pwm enable status for fan 1-3
+					(fan 4-5 only support manual mode) */
+
+	u8 temp_target[3];	/* pwm 1-3 target temperature */
+	u8 temp_tolerance[3];	/* pwm 1-3 temperature tolerance */
 
 	/* Misc */
 	u32 alarms;		/* realtime status register encoding,combined */
@@ -530,6 +566,7 @@ static ssize_t store_fan_div(struct device *dev, struct device_attribute *attr,
 	unsigned long min;
 	u8 tmp_fan_div;
 	u8 fan_div_reg;
+	u8 vbat_reg;
 	int indx = 0;
 	u8 keep_mask = 0;
 	u8 new_shift = 0;
@@ -580,6 +617,16 @@ static ssize_t store_fan_div(struct device *dev, struct device_attribute *attr,
 
 	w83791d_write(client, W83791D_REG_FAN_DIV[indx],
 				fan_div_reg | tmp_fan_div);
+
+	/* Bit 2 of fans 0-2 is stored in the vbat register (bits 5-7) */
+	if (nr < 3) {
+		keep_mask = ~(1 << (nr + 5));
+		vbat_reg = w83791d_read(client, W83791D_REG_VBAT)
+				& keep_mask;
+		tmp_fan_div = (data->fan_div[nr] << (3 + nr)) & ~keep_mask;
+		w83791d_write(client, W83791D_REG_VBAT,
+				vbat_reg | tmp_fan_div);
+	}
 
 	/* Restore fan_min */
 	data->fan_min[nr] = fan_to_reg(min, DIV_FROM_REG(data->fan_div[nr]));
@@ -641,6 +688,217 @@ static struct sensor_device_attribute sda_fan_alarm[] = {
 	SENSOR_ATTR(fan3_alarm, S_IRUGO, show_alarm, NULL, 11),
 	SENSOR_ATTR(fan4_alarm, S_IRUGO, show_alarm, NULL, 21),
 	SENSOR_ATTR(fan5_alarm, S_IRUGO, show_alarm, NULL, 22),
+};
+
+/* read/write PWMs */
+static ssize_t show_pwm(struct device *dev, struct device_attribute *attr,
+				char *buf)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
+	struct w83791d_data *data = w83791d_update_device(dev);
+	return sprintf(buf, "%u\n", data->pwm[nr]);
+}
+
+static ssize_t store_pwm(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct w83791d_data *data = i2c_get_clientdata(client);
+	int nr = sensor_attr->index;
+	unsigned long val;
+
+	if (strict_strtoul(buf, 10, &val))
+		return -EINVAL;
+
+	mutex_lock(&data->update_lock);
+	data->pwm[nr] = SENSORS_LIMIT(val, 0, 255);
+	w83791d_write(client, W83791D_REG_PWM[nr], data->pwm[nr]);
+	mutex_unlock(&data->update_lock);
+	return count;
+}
+
+static struct sensor_device_attribute sda_pwm[] = {
+	SENSOR_ATTR(pwm1, S_IWUSR | S_IRUGO,
+			show_pwm, store_pwm, 0),
+	SENSOR_ATTR(pwm2, S_IWUSR | S_IRUGO,
+			show_pwm, store_pwm, 1),
+	SENSOR_ATTR(pwm3, S_IWUSR | S_IRUGO,
+			show_pwm, store_pwm, 2),
+	SENSOR_ATTR(pwm4, S_IWUSR | S_IRUGO,
+			show_pwm, store_pwm, 3),
+	SENSOR_ATTR(pwm5, S_IWUSR | S_IRUGO,
+			show_pwm, store_pwm, 4),
+};
+
+static ssize_t show_pwmenable(struct device *dev, struct device_attribute *attr,
+				char *buf)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
+	struct w83791d_data *data = w83791d_update_device(dev);
+	return sprintf(buf, "%u\n", data->pwm_enable[nr] + 1);
+}
+
+static ssize_t store_pwmenable(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct w83791d_data *data = i2c_get_clientdata(client);
+	int nr = sensor_attr->index;
+	unsigned long val;
+	u8 reg_cfg_tmp;
+	u8 reg_idx = 0;
+	u8 val_shift = 0;
+	u8 keep_mask = 0;
+
+	int ret = strict_strtoul(buf, 10, &val);
+
+	if (ret || val < 1 || val > 3)
+		return -EINVAL;
+
+	mutex_lock(&data->update_lock);
+	data->pwm_enable[nr] = val - 1;
+	switch (nr) {
+	case 0:
+		reg_idx = 0;
+		val_shift = 2;
+		keep_mask = 0xf3;
+		break;
+	case 1:
+		reg_idx = 0;
+		val_shift = 4;
+		keep_mask = 0xcf;
+		break;
+	case 2:
+		reg_idx = 1;
+		val_shift = 2;
+		keep_mask = 0xf3;
+		break;
+	}
+
+	reg_cfg_tmp = w83791d_read(client, W83791D_REG_FAN_CFG[reg_idx]);
+	reg_cfg_tmp = (reg_cfg_tmp & keep_mask) |
+					data->pwm_enable[nr] << val_shift;
+
+	w83791d_write(client, W83791D_REG_FAN_CFG[reg_idx], reg_cfg_tmp);
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+static struct sensor_device_attribute sda_pwmenable[] = {
+	SENSOR_ATTR(pwm1_enable, S_IWUSR | S_IRUGO,
+			show_pwmenable, store_pwmenable, 0),
+	SENSOR_ATTR(pwm2_enable, S_IWUSR | S_IRUGO,
+			show_pwmenable, store_pwmenable, 1),
+	SENSOR_ATTR(pwm3_enable, S_IWUSR | S_IRUGO,
+			show_pwmenable, store_pwmenable, 2),
+};
+
+/* For Smart Fan I / Thermal Cruise */
+static ssize_t show_temp_target(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	struct w83791d_data *data = w83791d_update_device(dev);
+	int nr = sensor_attr->index;
+	return sprintf(buf, "%d\n", TEMP1_FROM_REG(data->temp_target[nr]));
+}
+
+static ssize_t store_temp_target(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct w83791d_data *data = i2c_get_clientdata(client);
+	int nr = sensor_attr->index;
+	unsigned long val;
+	u8 target_mask;
+
+	if (strict_strtoul(buf, 10, &val))
+		return -EINVAL;
+
+	mutex_lock(&data->update_lock);
+	data->temp_target[nr] = TARGET_TEMP_TO_REG(val);
+	target_mask = w83791d_read(client,
+				W83791D_REG_TEMP_TARGET[nr]) & 0x80;
+	w83791d_write(client, W83791D_REG_TEMP_TARGET[nr],
+				data->temp_target[nr] | target_mask);
+	mutex_unlock(&data->update_lock);
+	return count;
+}
+
+static struct sensor_device_attribute sda_temp_target[] = {
+	SENSOR_ATTR(temp1_target, S_IWUSR | S_IRUGO,
+			show_temp_target, store_temp_target, 0),
+	SENSOR_ATTR(temp2_target, S_IWUSR | S_IRUGO,
+			show_temp_target, store_temp_target, 1),
+	SENSOR_ATTR(temp3_target, S_IWUSR | S_IRUGO,
+			show_temp_target, store_temp_target, 2),
+};
+
+static ssize_t show_temp_tolerance(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	struct w83791d_data *data = w83791d_update_device(dev);
+	int nr = sensor_attr->index;
+	return sprintf(buf, "%d\n", TEMP1_FROM_REG(data->temp_tolerance[nr]));
+}
+
+static ssize_t store_temp_tolerance(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct w83791d_data *data = i2c_get_clientdata(client);
+	int nr = sensor_attr->index;
+	unsigned long val;
+	u8 target_mask;
+	u8 reg_idx = 0;
+	u8 val_shift = 0;
+	u8 keep_mask = 0;
+
+	if (strict_strtoul(buf, 10, &val))
+		return -EINVAL;
+
+	switch (nr) {
+	case 0:
+		reg_idx = 0;
+		val_shift = 0;
+		keep_mask = 0xf0;
+		break;
+	case 1:
+		reg_idx = 0;
+		val_shift = 4;
+		keep_mask = 0x0f;
+		break;
+	case 2:
+		reg_idx = 1;
+		val_shift = 0;
+		keep_mask = 0xf0;
+		break;
+	}
+
+	mutex_lock(&data->update_lock);
+	data->temp_tolerance[nr] = TOL_TEMP_TO_REG(val);
+	target_mask = w83791d_read(client,
+			W83791D_REG_TEMP_TOL[reg_idx]) & keep_mask;
+	w83791d_write(client, W83791D_REG_TEMP_TOL[reg_idx],
+			(data->temp_tolerance[nr] << val_shift) | target_mask);
+	mutex_unlock(&data->update_lock);
+	return count;
+}
+
+static struct sensor_device_attribute sda_temp_tolerance[] = {
+	SENSOR_ATTR(temp1_tolerance, S_IWUSR | S_IRUGO,
+			show_temp_tolerance, store_temp_tolerance, 0),
+	SENSOR_ATTR(temp2_tolerance, S_IWUSR | S_IRUGO,
+			show_temp_tolerance, store_temp_tolerance, 1),
+	SENSOR_ATTR(temp3_tolerance, S_IWUSR | S_IRUGO,
+			show_temp_tolerance, store_temp_tolerance, 2),
 };
 
 /* read/write the temperature1, includes measured value and limits */
@@ -899,8 +1157,6 @@ static struct attribute *w83791d_attributes[] = {
 	FAN_UNIT_ATTRS(0),
 	FAN_UNIT_ATTRS(1),
 	FAN_UNIT_ATTRS(2),
-	FAN_UNIT_ATTRS(3),
-	FAN_UNIT_ATTRS(4),
 	TEMP_UNIT_ATTRS(0),
 	TEMP_UNIT_ATTRS(1),
 	TEMP_UNIT_ATTRS(2),
@@ -909,6 +1165,18 @@ static struct attribute *w83791d_attributes[] = {
 	&sda_beep_ctrl[1].dev_attr.attr,
 	&dev_attr_cpu0_vid.attr,
 	&dev_attr_vrm.attr,
+	&sda_pwm[0].dev_attr.attr,
+	&sda_pwm[1].dev_attr.attr,
+	&sda_pwm[2].dev_attr.attr,
+	&sda_pwmenable[0].dev_attr.attr,
+	&sda_pwmenable[1].dev_attr.attr,
+	&sda_pwmenable[2].dev_attr.attr,
+	&sda_temp_target[0].dev_attr.attr,
+	&sda_temp_target[1].dev_attr.attr,
+	&sda_temp_target[2].dev_attr.attr,
+	&sda_temp_tolerance[0].dev_attr.attr,
+	&sda_temp_tolerance[1].dev_attr.attr,
+	&sda_temp_tolerance[2].dev_attr.attr,
 	NULL
 };
 
@@ -916,6 +1184,20 @@ static const struct attribute_group w83791d_group = {
 	.attrs = w83791d_attributes,
 };
 
+/* Separate group of attributes for fan/pwm 4-5. Their pins can also be
+   in use for GPIO in which case their sysfs-interface should not be made
+   available */
+static struct attribute *w83791d_attributes_fanpwm45[] = {
+	FAN_UNIT_ATTRS(3),
+	FAN_UNIT_ATTRS(4),
+	&sda_pwm[3].dev_attr.attr,
+	&sda_pwm[4].dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group w83791d_group_fanpwm45 = {
+	.attrs = w83791d_attributes_fanpwm45,
+};
 
 static int w83791d_detect_subclients(struct i2c_client *client)
 {
@@ -1046,9 +1328,11 @@ static int w83791d_probe(struct i2c_client *client,
 {
 	struct w83791d_data *data;
 	struct device *dev = &client->dev;
-	int i, val1, err;
+	int i, err;
+	u8 has_fanpwm45;
 
 #ifdef DEBUG
+	int val1;
 	val1 = w83791d_read(client, W83791D_REG_DID_VID4);
 	dev_dbg(dev, "Device ID version: %d.%d (0x%02x)\n",
 			(val1 >> 5) & 0x07, (val1 >> 1) & 0x0f, val1);
@@ -1080,15 +1364,27 @@ static int w83791d_probe(struct i2c_client *client,
 	if ((err = sysfs_create_group(&client->dev.kobj, &w83791d_group)))
 		goto error3;
 
+	/* Check if pins of fan/pwm 4-5 are in use as GPIO */
+	has_fanpwm45 = w83791d_read(client, W83791D_REG_GPIO) & 0x10;
+	if (has_fanpwm45) {
+		err = sysfs_create_group(&client->dev.kobj,
+					 &w83791d_group_fanpwm45);
+		if (err)
+			goto error4;
+	}
+
 	/* Everything is ready, now register the working device */
 	data->hwmon_dev = hwmon_device_register(dev);
 	if (IS_ERR(data->hwmon_dev)) {
 		err = PTR_ERR(data->hwmon_dev);
-		goto error4;
+		goto error5;
 	}
 
 	return 0;
 
+error5:
+	if (has_fanpwm45)
+		sysfs_remove_group(&client->dev.kobj, &w83791d_group_fanpwm45);
 error4:
 	sysfs_remove_group(&client->dev.kobj, &w83791d_group);
 error3:
@@ -1182,6 +1478,7 @@ static struct w83791d_data *w83791d_update_device(struct device *dev)
 	struct w83791d_data *data = i2c_get_clientdata(client);
 	int i, j;
 	u8 reg_array_tmp[3];
+	u8 vbat_reg;
 
 	mutex_lock(&data->update_lock);
 
@@ -1218,6 +1515,42 @@ static struct w83791d_data *w83791d_update_device(struct device *dev)
 		data->fan_div[2] = (reg_array_tmp[1] >> 6) & 0x03;
 		data->fan_div[3] = reg_array_tmp[2] & 0x07;
 		data->fan_div[4] = (reg_array_tmp[2] >> 4) & 0x07;
+
+		/* The fan divisor for fans 0-2 get bit 2 from
+		   bits 5-7 respectively of vbat register */
+		vbat_reg = w83791d_read(client, W83791D_REG_VBAT);
+		for (i = 0; i < 3; i++)
+			data->fan_div[i] |= (vbat_reg >> (3 + i)) & 0x04;
+
+		/* Update PWM duty cycle */
+		for (i = 0; i < NUMBER_OF_PWM; i++) {
+			data->pwm[i] =  w83791d_read(client,
+						W83791D_REG_PWM[i]);
+		}
+
+		/* Update PWM enable status */
+		for (i = 0; i < 2; i++) {
+			reg_array_tmp[i] = w83791d_read(client,
+						W83791D_REG_FAN_CFG[i]);
+		}
+		data->pwm_enable[0] = (reg_array_tmp[0] >> 2) & 0x03;
+		data->pwm_enable[1] = (reg_array_tmp[0] >> 4) & 0x03;
+		data->pwm_enable[2] = (reg_array_tmp[1] >> 2) & 0x03;
+
+		/* Update PWM target temperature */
+		for (i = 0; i < 3; i++) {
+			data->temp_target[i] = w83791d_read(client,
+				W83791D_REG_TEMP_TARGET[i]) & 0x7f;
+		}
+
+		/* Update PWM temperature tolerance */
+		for (i = 0; i < 2; i++) {
+			reg_array_tmp[i] = w83791d_read(client,
+					W83791D_REG_TEMP_TOL[i]);
+		}
+		data->temp_tolerance[0] = reg_array_tmp[0] & 0x0f;
+		data->temp_tolerance[1] = (reg_array_tmp[0] >> 4) & 0x0f;
+		data->temp_tolerance[2] = reg_array_tmp[1] & 0x0f;
 
 		/* Update the first temperature sensor */
 		for (i = 0; i < 3; i++) {

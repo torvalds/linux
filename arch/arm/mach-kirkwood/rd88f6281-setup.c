@@ -18,11 +18,13 @@
 #include <linux/timer.h>
 #include <linux/ata_platform.h>
 #include <linux/mv643xx_eth.h>
+#include <linux/ethtool.h>
+#include <net/dsa.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <asm/arch/kirkwood.h>
-#include <asm/plat-orion/orion_nand.h>
+#include <mach/kirkwood.h>
+#include <plat/orion_nand.h>
 #include "common.h"
 
 static struct mtd_partition rd88f6281_nand_parts[] = {
@@ -68,7 +70,18 @@ static struct platform_device rd88f6281_nand_flash = {
 };
 
 static struct mv643xx_eth_platform_data rd88f6281_ge00_data = {
-	.phy_addr	= -1,
+	.phy_addr	= MV643XX_ETH_PHY_NONE,
+	.speed		= SPEED_1000,
+	.duplex		= DUPLEX_FULL,
+};
+
+static struct dsa_platform_data rd88f6281_switch_data = {
+	.port_names[0]	= "lan1",
+	.port_names[1]	= "lan2",
+	.port_names[2]	= "lan3",
+	.port_names[3]	= "lan4",
+	.port_names[4]	= "wan",
+	.port_names[5]	= "cpu",
 };
 
 static struct mv_sata_platform_data rd88f6281_sata_data = {
@@ -84,10 +97,10 @@ static void __init rd88f6281_init(void)
 
 	kirkwood_ehci_init();
 	kirkwood_ge00_init(&rd88f6281_ge00_data);
+	kirkwood_ge00_switch_init(&rd88f6281_switch_data, NO_IRQ);
 	kirkwood_rtc_init();
 	kirkwood_sata_init(&rd88f6281_sata_data);
 	kirkwood_uart0_init();
-	kirkwood_uart1_init();
 
 	platform_device_register(&rd88f6281_nand_flash);
 }

@@ -1705,7 +1705,10 @@ void __init setup_ipl(void)
 
 void __init ipl_update_parameters(void)
 {
-	if (diag308(DIAG308_STORE, &ipl_block) == DIAG308_RC_OK)
+	int rc;
+
+	rc = diag308(DIAG308_STORE, &ipl_block);
+	if ((rc == DIAG308_RC_OK) || (rc == DIAG308_RC_NOCONFIG))
 		diag308_set_works = 1;
 }
 

@@ -317,6 +317,14 @@ S: 2322 37th Ave SW
 S: Seattle, Washington 98126-2010
 S: USA
 
+N: Muli Ben-Yehuda
+E: mulix@mulix.org
+E: muli@il.ibm.com
+W: http://www.mulix.org
+D: trident OSS sound driver, x86-64 dma-ops and Calgary IOMMU,
+D: KVM and Xen bits and other misc. hackery.
+S: Haifa, Israel
+
 N: Johannes Berg
 E: johannes@sipsolutions.net
 W: http://johannes.sipsolutions.net/
@@ -589,6 +597,11 @@ S: 3F, 65 Tajen street
 S: Tamsui town, Taipei county,
 S: Taiwan 251
 S: Republic of China
+
+N: Reinette Chatre
+E: reinette.chatre@intel.com
+D: WiMedia Link Protocol implementation
+D: UWB stack bits and pieces
 
 N: Michael Elizabeth Chastain
 E: mec@shout.net
@@ -1645,14 +1658,14 @@ S: Chapel Hill, North Carolina 27514-4818
 S: USA
 
 N: Dave Jones
-E: davej@codemonkey.org.uk
+E: davej@redhat.com
 W: http://www.codemonkey.org.uk
-D: x86 errata/setup maintenance.
-D: AGPGART driver.
+D: Assorted VIA x86 support.
+D: 2.5 AGPGART overhaul.
 D: CPUFREQ maintenance.
-D: Backport/Forwardport merge monkey.
-D: Various Janitor work.
-S: United Kingdom
+D: Fedora kernel maintainence.
+D: Misc/Other.
+S: 314 Littleton Rd, Westford, MA 01886, USA
 
 N: Martin Josfsson
 E: gandalf@wlug.westbo.se
@@ -2687,6 +2700,12 @@ S: Demonstratsii 8-382
 S: Tula 300000
 S: Russia
 
+N: Inaky Perez-Gonzalez
+E: inaky.perez-gonzalez@intel.com
+D: UWB stack, HWA-RC driver and HWA-HC drivers
+D: Wireless USB additions to the USB stack
+D: WiMedia Link Protocol bits and pieces
+
 N: Gordon Peters
 E: GordPeters@smarttech.com
 D: Isochronous receive for IEEE 1394 driver (OHCI module).
@@ -3344,8 +3363,7 @@ S: Spain
 N: Linus Torvalds
 E: torvalds@linux-foundation.org
 D: Original kernel hacker
-S: 12725 SW Millikan Way, Suite 400
-S: Beaverton, Oregon 97005
+S: Portland, Oregon 97005
 S: USA
 
 N: Marcelo Tosatti

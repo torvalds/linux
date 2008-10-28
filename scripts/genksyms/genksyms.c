@@ -520,8 +520,7 @@ int main(int argc, char **argv)
 			genksyms_usage();
 			return 1;
 		}
-	if ((strcmp(arch, "v850") == 0) || (strcmp(arch, "h8300") == 0)
-	    || (strcmp(arch, "blackfin") == 0))
+	if ((strcmp(arch, "h8300") == 0) || (strcmp(arch, "blackfin") == 0))
 		mod_prefix = "_";
 	{
 		extern int yydebug;
@@ -546,6 +545,8 @@ int main(int argc, char **argv)
 			}
 			fputs(sym->name, dumpfile);
 			putc(' ', dumpfile);
+			if (sym->is_extern)
+				fputs("extern ", dumpfile);
 			print_list(dumpfile, sym->defn);
 			putc('\n', dumpfile);
 

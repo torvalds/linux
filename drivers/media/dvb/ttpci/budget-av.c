@@ -57,6 +57,8 @@
 #define SLOTSTATUS_READY        8
 #define SLOTSTATUS_OCCUPIED     (SLOTSTATUS_PRESENT|SLOTSTATUS_RESET|SLOTSTATUS_READY)
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 struct budget_av {
 	struct budget budget;
 	struct video_device *vd;
@@ -667,6 +669,11 @@ static struct tda1002x_config philips_cu1216_config_altaddress = {
 	.invert = 0,
 };
 
+static struct tda10023_config philips_cu1216_tda10023_config = {
+	.demod_address = 0x0c,
+	.invert = 1,
+};
+
 static int philips_tu1216_tuner_init(struct dvb_frontend *fe)
 {
 	struct budget *budget = (struct budget *) fe->dvb->priv;
@@ -1019,9 +1026,10 @@ static void frontend_init(struct budget_av *budget_av)
 	case SUBID_DVBC_KNC1_PLUS_MK3:
 		budget_av->reinitialise_demod = 1;
 		budget_av->budget.dev->i2c_bitrate = SAA7146_I2C_BUS_BIT_RATE_240;
-		fe = dvb_attach(tda10023_attach, &philips_cu1216_config,
-				     &budget_av->budget.i2c_adap,
-				     read_pwm(budget_av));
+		fe = dvb_attach(tda10023_attach,
+			&philips_cu1216_tda10023_config,
+			&budget_av->budget.i2c_adap,
+			read_pwm(budget_av));
 		if (fe) {
 			fe->ops.tuner_ops.set_params = philips_cu1216_tuner_set_params;
 		}
@@ -1043,7 +1051,7 @@ static void frontend_init(struct budget_av *budget_av)
 
 	if (fe == NULL) {
 		printk(KERN_ERR "budget-av: A frontend driver was not found "
-				"for device %04x/%04x subsystem %04x/%04x\n",
+				"for device [%04x:%04x] subsystem [%04x:%04x]\n",
 		       saa->pci->vendor,
 		       saa->pci->device,
 		       saa->pci->subsystem_vendor,
@@ -1121,7 +1129,9 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 	dev->ext_priv = budget_av;
 
-	if ((err = ttpci_budget_init(&budget_av->budget, dev, info, THIS_MODULE))) {
+	err = ttpci_budget_init(&budget_av->budget, dev, info, THIS_MODULE,
+				adapter_nr);
+	if (err) {
 		kfree(budget_av);
 		return err;
 	}

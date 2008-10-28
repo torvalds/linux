@@ -398,7 +398,8 @@ static inline long snd_ctl_ioctl_compat(struct file *file, unsigned int cmd, uns
 	int err;
 
 	ctl = file->private_data;
-	snd_assert(ctl && ctl->card, return -ENXIO);
+	if (snd_BUG_ON(!ctl || !ctl->card))
+		return -ENXIO;
 
 	switch (cmd) {
 	case SNDRV_CTL_IOCTL_PVERSION:

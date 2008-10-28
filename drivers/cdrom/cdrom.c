@@ -408,7 +408,6 @@ int register_cdrom(struct cdrom_device_info *cdi)
 	ENSURE(get_last_session, CDC_MULTI_SESSION);
 	ENSURE(get_mcn, CDC_MCN);
 	ENSURE(reset, CDC_RESET);
-	ENSURE(audio_ioctl, CDC_PLAY_AUDIO);
 	ENSURE(generic_packet, CDC_GENERIC_PACKET);
 	cdi->mc_flags = 0;
 	cdo->n_minors = 0;
@@ -974,7 +973,7 @@ static int cdrom_close_write(struct cdrom_device_info *cdi)
  * is in their own interest: device control becomes a lot easier
  * this way.
  */
-int cdrom_open(struct cdrom_device_info *cdi, struct inode *ip, struct file *fp)
+int cdrom_open(struct cdrom_device_info *cdi, struct block_device *bdev, fmode_t mode)
 {
 	int ret;
 
@@ -983,14 +982,14 @@ int cdrom_open(struct cdrom_device_info *cdi, struct inode *ip, struct file *fp)
 	/* if this was a O_NONBLOCK open and we should honor the flags,
 	 * do a quick open without drive/disc integrity checks. */
 	cdi->use_count++;
-	if ((fp->f_flags & O_NONBLOCK) && (cdi->options & CDO_USE_FFLAGS)) {
+	if ((mode & FMODE_NDELAY) && (cdi->options & CDO_USE_FFLAGS)) {
 		ret = cdi->ops->open(cdi, 1);
 	} else {
 		ret = open_for_data(cdi);
 		if (ret)
 			goto err;
 		cdrom_mmc3_profile(cdi);
-		if (fp->f_mode & FMODE_WRITE) {
+		if (mode & FMODE_WRITE) {
 			ret = -EROFS;
 			if (cdrom_open_write(cdi))
 				goto err_release;
@@ -1008,7 +1007,7 @@ int cdrom_open(struct cdrom_device_info *cdi, struct inode *ip, struct file *fp)
 			cdi->name, cdi->use_count);
 	/* Do this on open.  Don't wait for mount, because they might
 	    not be mounting, but opening with O_NONBLOCK */
-	check_disk_change(ip->i_bdev);
+	check_disk_change(bdev);
 	return 0;
 err_release:
 	if (CDROM_CAN(CDC_LOCK) && cdi->options & CDO_LOCK) {
@@ -1185,7 +1184,7 @@ static int check_for_audio_disc(struct cdrom_device_info * cdi,
 	return 0;
 }
 
-int cdrom_release(struct cdrom_device_info *cdi, struct file *fp)
+void cdrom_release(struct cdrom_device_info *cdi, fmode_t mode)
 {
 	struct cdrom_device_ops *cdo = cdi->ops;
 	int opened_for_data;
@@ -1206,7 +1205,7 @@ int cdrom_release(struct cdrom_device_info *cdi, struct file *fp)
 	}
 
 	opened_for_data = !(cdi->options & CDO_USE_FFLAGS) ||
-		!(fp && fp->f_flags & O_NONBLOCK);
+		!(mode & FMODE_NDELAY);
 
 	/*
 	 * flush cache on last write release
@@ -1220,7 +1219,6 @@ int cdrom_release(struct cdrom_device_info *cdi, struct file *fp)
 		    cdi->options & CDO_AUTO_EJECT && CDROM_CAN(CDC_OPEN_TRAY))
 			cdo->tray_move(cdi, 1);
 	}
-	return 0;
 }
 
 static int cdrom_read_mech_status(struct cdrom_device_info *cdi, 
@@ -1436,10 +1434,6 @@ static void cdrom_count_tracks(struct cdrom_device_info *cdi, tracktype* tracks)
 	tracks->xa=0;
 	tracks->error=0;
 	cdinfo(CD_COUNT_TRACKS, "entering cdrom_count_tracks\n"); 
-        if (!CDROM_CAN(CDC_PLAY_AUDIO)) { 
-                tracks->error=CDS_NO_INFO;
-                return;
-        }        
 	/* Grab the TOC header so we can see how many tracks there are */
 	if ((ret = cdi->ops->audio_ioctl(cdi, CDROMREADTOCHDR, &header))) {
 		if (ret == -ENOMEDIUM)
@@ -2102,7 +2096,7 @@ static int cdrom_read_cdda_bpc(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 
 		len = nr * CD_FRAMESIZE_RAW;
 
-		ret = blk_rq_map_user(q, rq, ubuf, len);
+		ret = blk_rq_map_user(q, rq, NULL, ubuf, len, GFP_KERNEL);
 		if (ret)
 			break;
 
@@ -2510,8 +2504,6 @@ static int cdrom_ioctl_get_subchnl(struct cdrom_device_info *cdi,
 
 	/* cdinfo(CD_DO_IOCTL,"entering CDROMSUBCHNL\n");*/
 
-	if (!CDROM_CAN(CDC_PLAY_AUDIO))
-		return -ENOSYS;
 	if (copy_from_user(&q, argp, sizeof(q)))
 		return -EFAULT;
 
@@ -2542,8 +2534,6 @@ static int cdrom_ioctl_read_tochdr(struct cdrom_device_info *cdi,
 
 	/* cdinfo(CD_DO_IOCTL, "entering CDROMREADTOCHDR\n"); */
 
-	if (!CDROM_CAN(CDC_PLAY_AUDIO))
-		return -ENOSYS;
 	if (copy_from_user(&header, argp, sizeof(header)))
 		return -EFAULT;
 
@@ -2566,8 +2556,6 @@ static int cdrom_ioctl_read_tocentry(struct cdrom_device_info *cdi,
 
 	/* cdinfo(CD_DO_IOCTL, "entering CDROMREADTOCENTRY\n"); */
 
-	if (!CDROM_CAN(CDC_PLAY_AUDIO))
-		return -ENOSYS;
 	if (copy_from_user(&entry, argp, sizeof(entry)))
 		return -EFAULT;
 
@@ -2673,17 +2661,17 @@ static int cdrom_ioctl_audioctl(struct cdrom_device_info *cdi,
  * these days.
  * ATAPI / SCSI specific code now mainly resides in mmc_ioctl().
  */
-int cdrom_ioctl(struct file * file, struct cdrom_device_info *cdi,
-		struct inode *ip, unsigned int cmd, unsigned long arg)
+int cdrom_ioctl(struct cdrom_device_info *cdi, struct block_device *bdev,
+		fmode_t mode, unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	int ret;
-	struct gendisk *disk = ip->i_bdev->bd_disk;
+	struct gendisk *disk = bdev->bd_disk;
 
 	/*
 	 * Try the generic SCSI command ioctl's first.
 	 */
-	ret = scsi_cmd_ioctl(file, disk->queue, disk, cmd, argp);
+	ret = scsi_cmd_ioctl(disk->queue, disk, mode, cmd, argp);
 	if (ret != -ENOTTY)
 		return ret;
 
@@ -2707,7 +2695,7 @@ int cdrom_ioctl(struct file * file, struct cdrom_device_info *cdi,
 	case CDROM_SELECT_DISC:
 		return cdrom_ioctl_select_disc(cdi, arg);
 	case CDROMRESET:
-		return cdrom_ioctl_reset(cdi, ip->i_bdev);
+		return cdrom_ioctl_reset(cdi, bdev);
 	case CDROM_LOCKDOOR:
 		return cdrom_ioctl_lock_door(cdi, arg);
 	case CDROM_DEBUG:

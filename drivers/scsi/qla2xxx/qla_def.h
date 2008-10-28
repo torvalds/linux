@@ -25,7 +25,6 @@
 #include <linux/firmware.h>
 #include <linux/aer.h>
 #include <linux/mutex.h>
-#include <linux/semaphore.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
@@ -864,7 +863,8 @@ struct link_statistics {
 	uint32_t prim_seq_err_cnt;
 	uint32_t inval_xmit_word_cnt;
 	uint32_t inval_crc_cnt;
-	uint32_t unused1[0x1b];
+	uint32_t lip_cnt;
+	uint32_t unused1[0x1a];
 	uint32_t tx_frames;
 	uint32_t rx_frames;
 	uint32_t dumped_frames;
@@ -1544,7 +1544,6 @@ typedef struct fc_port {
 	int login_retry;
 	atomic_t port_down_timer;
 
-	spinlock_t rport_lock;
 	struct fc_rport *rport, *drport;
 	u32 supported_classes;
 
@@ -2109,7 +2108,7 @@ struct scsi_qla_host;
 
 struct qla_msix_entry {
 	int have_irq;
-	uint16_t msix_vector;
+	uint32_t msix_vector;
 	uint16_t msix_entry;
 };
 
@@ -2155,6 +2154,12 @@ struct qla_chip_state_84xx {
 	uint32_t gold_fw_version;
 };
 
+struct qla_statistics {
+	uint32_t total_isp_aborts;
+	uint64_t input_bytes;
+	uint64_t output_bytes;
+};
+
 /*
  * Linux Host Adapter structure
  */
@@ -2166,7 +2171,6 @@ typedef struct scsi_qla_host {
 	struct pci_dev	*pdev;
 
 	unsigned long	host_no;
-	unsigned long	instance;
 
 	volatile struct {
 		uint32_t	init_done		:1;
@@ -2234,6 +2238,8 @@ typedef struct scsi_qla_host {
 #define REGISTER_FDMI_NEEDED	26
 #define FCPORT_UPDATE_NEEDED	27
 #define VP_DPC_NEEDED		28	/* wake up for VP dpc handling */
+#define UNLOADING		29
+#define NPIV_CONFIG_NEEDED	30
 
 	uint32_t	device_flags;
 #define DFLG_LOCAL_DEVICES		BIT_0
@@ -2503,7 +2509,6 @@ typedef struct scsi_qla_host {
 	uint64_t	fce_wr, fce_rd;
 	struct mutex	fce_mutex;
 
-	uint32_t	hw_event_start;
 	uint32_t	hw_event_ptr;
 	uint32_t	hw_event_pause_errors;
 
@@ -2515,7 +2520,7 @@ typedef struct scsi_qla_host {
 
 	uint8_t		model_number[16+1];
 #define BINZERO		"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
-	char		*model_desc;
+	char		model_desc[80];
 	uint8_t		adapter_id[16+1];
 
 	uint8_t		*node_name;
@@ -2548,6 +2553,14 @@ typedef struct scsi_qla_host {
 	uint32_t	fdt_block_size;
 	uint32_t	fdt_unprotect_sec_cmd;
 	uint32_t	fdt_protect_sec_cmd;
+
+	uint32_t	flt_region_flt;
+	uint32_t	flt_region_fdt;
+	uint32_t	flt_region_boot;
+	uint32_t	flt_region_fw;
+	uint32_t	flt_region_vpd_nvram;
+	uint32_t	flt_region_hw_event;
+	uint32_t	flt_region_npiv_conf;
 
 	/* Needed for BEACON */
 	uint16_t	beacon_blink_led;
@@ -2596,6 +2609,7 @@ typedef struct scsi_qla_host {
 	int		cur_vport_count;
 
 	struct qla_chip_state_84xx *cs84xx;
+	struct qla_statistics qla_stats;
 } scsi_qla_host_t;
 
 

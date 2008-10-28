@@ -49,6 +49,12 @@ config PPC_ADDER875
 	  This enables support for the Analogue & Micro Adder 875
 	  board.
 
+config PPC_MGSUVD
+	bool "MGSUVD"
+	select CPM1
+	help
+	  This enables support for the Keymile MGSUVD board.
+
 endchoice
 
 menu "Freescale Ethernet driver platform-specific options"
@@ -102,6 +108,16 @@ config 8xx_COPYBACK
 	  Saying Y here will cause the cache on an MPC8xx processor to be used
 	  in Copy-Back mode.  If you say N here, it is used in Writethrough
 	  mode.
+
+	  If in doubt, say Y here.
+
+config 8xx_GPIO
+	bool "GPIO API Support"
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Saying Y here will cause the ports on an MPC8xx processor to be used
+	  with the GPIO API.  If you say N here, the kernel needs less memory.
 
 	  If in doubt, say Y here.
 

@@ -50,7 +50,7 @@ static const struct file_operations sta_ ##name## _ops = {		\
 		STA_READ_##format(name, field)				\
 		STA_OPS(name)
 
-STA_FILE(aid, aid, D);
+STA_FILE(aid, sta.aid, D);
 STA_FILE(dev, sdata->dev->name, S);
 STA_FILE(rx_packets, rx_packets, LU);
 STA_FILE(tx_packets, tx_packets, LU);
@@ -63,10 +63,9 @@ STA_FILE(tx_fragments, tx_fragments, LU);
 STA_FILE(tx_filtered, tx_filtered_count, LU);
 STA_FILE(tx_retry_failed, tx_retry_failed, LU);
 STA_FILE(tx_retry_count, tx_retry_count, LU);
-STA_FILE(last_rssi, last_rssi, D);
 STA_FILE(last_signal, last_signal, D);
+STA_FILE(last_qual, last_qual, D);
 STA_FILE(last_noise, last_noise, D);
-STA_FILE(channel_use, channel_use, D);
 STA_FILE(wep_weak_iv_count, wep_weak_iv_count, LU);
 
 static ssize_t sta_flags_read(struct file *file, char __user *userbuf,
@@ -74,14 +73,15 @@ static ssize_t sta_flags_read(struct file *file, char __user *userbuf,
 {
 	char buf[100];
 	struct sta_info *sta = file->private_data;
+	u32 staflags = get_sta_flags(sta);
 	int res = scnprintf(buf, sizeof(buf), "%s%s%s%s%s%s%s",
-		sta->flags & WLAN_STA_AUTH ? "AUTH\n" : "",
-		sta->flags & WLAN_STA_ASSOC ? "ASSOC\n" : "",
-		sta->flags & WLAN_STA_PS ? "PS\n" : "",
-		sta->flags & WLAN_STA_AUTHORIZED ? "AUTHORIZED\n" : "",
-		sta->flags & WLAN_STA_SHORT_PREAMBLE ? "SHORT PREAMBLE\n" : "",
-		sta->flags & WLAN_STA_WME ? "WME\n" : "",
-		sta->flags & WLAN_STA_WDS ? "WDS\n" : "");
+		staflags & WLAN_STA_AUTH ? "AUTH\n" : "",
+		staflags & WLAN_STA_ASSOC ? "ASSOC\n" : "",
+		staflags & WLAN_STA_PS ? "PS\n" : "",
+		staflags & WLAN_STA_AUTHORIZED ? "AUTHORIZED\n" : "",
+		staflags & WLAN_STA_SHORT_PREAMBLE ? "SHORT PREAMBLE\n" : "",
+		staflags & WLAN_STA_WME ? "WME\n" : "",
+		staflags & WLAN_STA_WDS ? "WDS\n" : "");
 	return simple_read_from_buffer(userbuf, count, ppos, buf, res);
 }
 STA_OPS(flags);
@@ -122,36 +122,6 @@ static ssize_t sta_last_seq_ctrl_read(struct file *file, char __user *userbuf,
 	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
 }
 STA_OPS(last_seq_ctrl);
-
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
-static ssize_t sta_wme_rx_queue_read(struct file *file, char __user *userbuf,
-				     size_t count, loff_t *ppos)
-{
-	char buf[15*NUM_RX_DATA_QUEUES], *p = buf;
-	int i;
-	struct sta_info *sta = file->private_data;
-	for (i = 0; i < NUM_RX_DATA_QUEUES; i++)
-		p += scnprintf(p, sizeof(buf)+buf-p, "%u ",
-			       sta->wme_rx_queue[i]);
-	p += scnprintf(p, sizeof(buf)+buf-p, "\n");
-	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
-}
-STA_OPS(wme_rx_queue);
-
-static ssize_t sta_wme_tx_queue_read(struct file *file, char __user *userbuf,
-				     size_t count, loff_t *ppos)
-{
-	char buf[15*NUM_TX_DATA_QUEUES], *p = buf;
-	int i;
-	struct sta_info *sta = file->private_data;
-	for (i = 0; i < NUM_TX_DATA_QUEUES; i++)
-		p += scnprintf(p, sizeof(buf)+buf-p, "%u ",
-			       sta->wme_tx_queue[i]);
-	p += scnprintf(p, sizeof(buf)+buf-p, "\n");
-	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
-}
-STA_OPS(wme_tx_queue);
-#endif
 
 static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 					size_t count, loff_t *ppos)
@@ -203,10 +173,9 @@ static ssize_t sta_agg_status_write(struct file *file,
 		const char __user *user_buf, size_t count, loff_t *ppos)
 {
 	struct sta_info *sta = file->private_data;
-	struct net_device *dev = sta->sdata->dev;
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_local *local = sta->sdata->local;
 	struct ieee80211_hw *hw = &local->hw;
-	u8 *da = sta->addr;
+	u8 *da = sta->sta.addr;
 	static int tid_static_tx[16] = {0, 0, 0, 0, 0, 0, 0, 0,
 					0, 0, 0, 0, 0, 0, 0, 0};
 	static int tid_static_rx[16] = {1, 1, 1, 1, 1, 1, 1, 1,
@@ -231,7 +200,7 @@ static ssize_t sta_agg_status_write(struct file *file,
 		tid_num = tid_num - 100;
 		if (tid_static_rx[tid_num] == 1) {
 			strcpy(state, "off ");
-			ieee80211_sta_stop_rx_ba_session(dev, da, tid_num, 0,
+			ieee80211_sta_stop_rx_ba_session(sta->sdata, da, tid_num, 0,
 					WLAN_REASON_QSTA_REQUIRE_SETUP);
 			sta->ampdu_mlme.tid_state_rx[tid_num] |=
 					HT_AGG_STATE_DEBUGFS_CTL;
@@ -280,11 +249,22 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	DECLARE_MAC_BUF(mbuf);
 	u8 *mac;
 
+	sta->debugfs.add_has_run = true;
+
 	if (!stations_dir)
 		return;
 
-	mac = print_mac(mbuf, sta->addr);
+	mac = print_mac(mbuf, sta->sta.addr);
 
+	/*
+	 * This might fail due to a race condition:
+	 * When mac80211 unlinks a station, the debugfs entries
+	 * remain, but it is already possible to link a new
+	 * station with the same address which triggers adding
+	 * it to debugfs; therefore, if the old station isn't
+	 * destroyed quickly enough the old station's debugfs
+	 * dir might still be around.
+	 */
 	sta->debugfs.dir = debugfs_create_dir(mac, stations_dir);
 	if (!sta->debugfs.dir)
 		return;
@@ -293,10 +273,6 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	DEBUGFS_ADD(num_ps_buf_frames);
 	DEBUGFS_ADD(inactive_ms);
 	DEBUGFS_ADD(last_seq_ctrl);
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
-	DEBUGFS_ADD(wme_rx_queue);
-	DEBUGFS_ADD(wme_tx_queue);
-#endif
 	DEBUGFS_ADD(agg_status);
 }
 
@@ -306,10 +282,6 @@ void ieee80211_sta_debugfs_remove(struct sta_info *sta)
 	DEBUGFS_DEL(num_ps_buf_frames);
 	DEBUGFS_DEL(inactive_ms);
 	DEBUGFS_DEL(last_seq_ctrl);
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
-	DEBUGFS_DEL(wme_rx_queue);
-	DEBUGFS_DEL(wme_tx_queue);
-#endif
 	DEBUGFS_DEL(agg_status);
 
 	debugfs_remove(sta->debugfs.dir);

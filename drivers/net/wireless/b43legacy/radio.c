@@ -357,7 +357,7 @@ void b43legacy_nrssi_hw_update(struct b43legacy_wldev *dev, u16 val)
 	for (i = 0; i < 64; i++) {
 		tmp = b43legacy_nrssi_hw_read(dev, i);
 		tmp -= val;
-		tmp = limit_value(tmp, -32, 31);
+		tmp = clamp_val(tmp, -32, 31);
 		b43legacy_nrssi_hw_write(dev, i, tmp);
 	}
 }
@@ -375,7 +375,7 @@ void b43legacy_nrssi_mem_update(struct b43legacy_wldev *dev)
 		tmp = (i - delta) * phy->nrssislope;
 		tmp /= 0x10000;
 		tmp += 0x3A;
-		tmp = limit_value(tmp, 0, 0x3F);
+		tmp = clamp_val(tmp, 0, 0x3F);
 		phy->nrssi_lt[i] = tmp;
 	}
 }
@@ -839,7 +839,7 @@ void b43legacy_calc_nrssi_threshold(struct b43legacy_wldev *dev)
 		} else
 			threshold = phy->nrssi[1] - 5;
 
-		threshold = limit_value(threshold, 0, 0x3E);
+		threshold = clamp_val(threshold, 0, 0x3E);
 		b43legacy_phy_read(dev, 0x0020); /* dummy read */
 		b43legacy_phy_write(dev, 0x0020, (((u16)threshold) << 8)
 				    | 0x001C);
@@ -892,7 +892,7 @@ void b43legacy_calc_nrssi_threshold(struct b43legacy_wldev *dev)
 			else
 				a += 32;
 			a = a >> 6;
-			a = limit_value(a, -31, 31);
+			a = clamp_val(a, -31, 31);
 
 			b = b * (phy->nrssi[1] - phy->nrssi[0]);
 			b += (phy->nrssi[0] << 6);
@@ -901,7 +901,7 @@ void b43legacy_calc_nrssi_threshold(struct b43legacy_wldev *dev)
 			else
 				b += 32;
 			b = b >> 6;
-			b = limit_value(b, -31, 31);
+			b = clamp_val(b, -31, 31);
 
 			tmp_u16 = b43legacy_phy_read(dev, 0x048A) & 0xF000;
 			tmp_u16 |= ((u32)b & 0x0000003F);
@@ -1905,7 +1905,7 @@ void b43legacy_radio_set_txpower_a(struct b43legacy_wldev *dev, u16 txpower)
 	u16 dac;
 	u16 ilt;
 
-	txpower = limit_value(txpower, 0, 63);
+	txpower = clamp_val(txpower, 0, 63);
 
 	pamp = b43legacy_get_txgain_freq_power_amp(txpower);
 	pamp <<= 5;

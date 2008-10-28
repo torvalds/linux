@@ -7,8 +7,6 @@
  * (c) 1999 Machine Vision Holdings, Inc.
  * Author: David Woodhouse <dwmw2@infradead.org>
  *
- * $Id: inftlcore.c,v 1.19 2005/11/07 11:14:20 gleixner Exp $
- *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -390,6 +388,10 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 		if (thisEUN == targetEUN)
 			break;
 
+		/* Unlink the last block from the chain. */
+		inftl->PUtable[prevEUN] = BLOCK_NIL;
+
+		/* Now try to erase it. */
 		if (INFTL_formatblock(inftl, thisEUN) < 0) {
 			/*
 			 * Could not erase : mark block as reserved.
@@ -398,7 +400,6 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 		} else {
 			/* Correctly erased : mark it as free */
 			inftl->PUtable[thisEUN] = BLOCK_FREE;
-			inftl->PUtable[prevEUN] = BLOCK_NIL;
 			inftl->numfreeEUNs++;
 		}
 	}
@@ -953,9 +954,6 @@ static struct mtd_blktrans_ops inftl_tr = {
 
 static int __init init_inftl(void)
 {
-	printk(KERN_INFO "INFTL: inftlcore.c $Revision: 1.19 $, "
-		"inftlmount.c %s\n", inftlmountrev);
-
 	return register_mtd_blktrans(&inftl_tr);
 }
 

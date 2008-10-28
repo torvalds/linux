@@ -114,6 +114,23 @@ static __init void nmi_cpu_busy(void *data)
 }
 #endif
 
+static void report_broken_nmi(int cpu, int *prev_nmi_count)
+{
+	printk(KERN_CONT "\n");
+
+	printk(KERN_WARNING
+		"WARNING: CPU#%d: NMI appears to be stuck (%d->%d)!\n",
+			cpu, prev_nmi_count[cpu], get_nmi_count(cpu));
+
+	printk(KERN_WARNING
+		"Please report this to bugzilla.kernel.org,\n");
+	printk(KERN_WARNING
+		"and attach the output of the 'dmesg' command.\n");
+
+	per_cpu(wd_enabled, cpu) = 0;
+	atomic_dec(&nmi_active);
+}
+
 int __init check_nmi_watchdog(void)
 {
 	unsigned int *prev_nmi_count;
@@ -141,15 +158,8 @@ int __init check_nmi_watchdog(void)
 	for_each_online_cpu(cpu) {
 		if (!per_cpu(wd_enabled, cpu))
 			continue;
-		if (get_nmi_count(cpu) - prev_nmi_count[cpu] <= 5) {
-			printk(KERN_WARNING "WARNING: CPU#%d: NMI "
-				"appears to be stuck (%d->%d)!\n",
-				cpu,
-				prev_nmi_count[cpu],
-				get_nmi_count(cpu));
-			per_cpu(wd_enabled, cpu) = 0;
-			atomic_dec(&nmi_active);
-		}
+		if (get_nmi_count(cpu) - prev_nmi_count[cpu] <= 5)
+			report_broken_nmi(cpu, prev_nmi_count);
 	}
 	endflag = 1;
 	if (!atomic_read(&nmi_active)) {
@@ -263,7 +273,7 @@ late_initcall(init_lapic_nmi_sysfs);
 
 static void __acpi_nmi_enable(void *__unused)
 {
-	apic_write_around(APIC_LVT0, APIC_DM_NMI);
+	apic_write(APIC_LVT0, APIC_DM_NMI);
 }
 
 /*
@@ -277,7 +287,7 @@ void acpi_nmi_enable(void)
 
 static void __acpi_nmi_disable(void *__unused)
 {
-	apic_write_around(APIC_LVT0, APIC_DM_NMI | APIC_LVT_MASKED);
+	apic_write(APIC_LVT0, APIC_DM_NMI | APIC_LVT_MASKED);
 }
 
 /*
@@ -287,6 +297,15 @@ void acpi_nmi_disable(void)
 {
 	if (atomic_read(&nmi_active) && nmi_watchdog == NMI_IO_APIC)
 		on_each_cpu(__acpi_nmi_disable, NULL, 1);
+}
+
+/*
+ * This function is called as soon the LAPIC NMI watchdog driver has everything
+ * in place and it's ready to check if the NMIs belong to the NMI watchdog
+ */
+void cpu_nmi_set_wd_enabled(void)
+{
+	__get_cpu_var(wd_enabled) = 1;
 }
 
 void setup_apic_nmi_watchdog(void *unused)
@@ -301,8 +320,6 @@ void setup_apic_nmi_watchdog(void *unused)
 
 	switch (nmi_watchdog) {
 	case NMI_LOCAL_APIC:
-		 /* enable it before to avoid race with handler */
-		__get_cpu_var(wd_enabled) = 1;
 		if (lapic_watchdog_init(nmi_hz) < 0) {
 			__get_cpu_var(wd_enabled) = 0;
 			return;
@@ -447,6 +464,13 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 }
 
 #ifdef CONFIG_SYSCTL
+
+static int __init setup_unknown_nmi_panic(char *str)
+{
+	unknown_nmi_panic = 1;
+	return 1;
+}
+__setup("unknown_nmi_panic", setup_unknown_nmi_panic);
 
 static int unknown_nmi_panic_callback(struct pt_regs *regs, int cpu)
 {

@@ -4,8 +4,6 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0001.c,v 1.186 2005/11/23 22:07:52 nico Exp $
- *
  *
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
  * 	- completely revamped method functions so they are aware and
@@ -50,6 +48,8 @@
 #define I82802AC	0x00ac
 #define MANUFACTURER_ST         0x0020
 #define M50LPW080       0x002F
+#define M50FLW080A	0x0080
+#define M50FLW080B	0x0081
 #define AT49BV640D	0x02de
 
 static int cfi_intelext_read (struct mtd_info *, loff_t, size_t, size_t *, u_char *);
@@ -204,7 +204,7 @@ static void fixup_intel_strataflash(struct mtd_info *mtd, void* param)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
-	struct cfi_pri_amdstd *extp = cfi->cmdset_priv;
+	struct cfi_pri_intelext *extp = cfi->cmdset_priv;
 
 	printk(KERN_WARNING "cfi_cmdset_0001: Suspend "
 	                    "erase on write disabled.\n");
@@ -301,6 +301,8 @@ static struct cfi_fixup jedec_fixup_table[] = {
 	{ MANUFACTURER_INTEL, I82802AB,   fixup_use_fwh_lock, NULL, },
 	{ MANUFACTURER_INTEL, I82802AC,   fixup_use_fwh_lock, NULL, },
 	{ MANUFACTURER_ST,    M50LPW080,  fixup_use_fwh_lock, NULL, },
+	{ MANUFACTURER_ST,    M50FLW080A, fixup_use_fwh_lock, NULL, },
+	{ MANUFACTURER_ST,    M50FLW080B, fixup_use_fwh_lock, NULL, },
 	{ 0, 0, NULL, NULL }
 };
 static struct cfi_fixup fixup_table[] = {
@@ -475,6 +477,28 @@ struct mtd_info *cfi_cmdset_0001(struct map_info *map, int primary)
 				1000<<cfi->cfiq->BlockEraseTimeoutTyp;
 		else
 			cfi->chips[i].erase_time = 2000000;
+
+		if (cfi->cfiq->WordWriteTimeoutTyp &&
+		    cfi->cfiq->WordWriteTimeoutMax)
+			cfi->chips[i].word_write_time_max =
+				1<<(cfi->cfiq->WordWriteTimeoutTyp +
+				    cfi->cfiq->WordWriteTimeoutMax);
+		else
+			cfi->chips[i].word_write_time_max = 50000 * 8;
+
+		if (cfi->cfiq->BufWriteTimeoutTyp &&
+		    cfi->cfiq->BufWriteTimeoutMax)
+			cfi->chips[i].buffer_write_time_max =
+				1<<(cfi->cfiq->BufWriteTimeoutTyp +
+				    cfi->cfiq->BufWriteTimeoutMax);
+
+		if (cfi->cfiq->BlockEraseTimeoutTyp &&
+		    cfi->cfiq->BlockEraseTimeoutMax)
+			cfi->chips[i].erase_time_max =
+				1000<<(cfi->cfiq->BlockEraseTimeoutTyp +
+				       cfi->cfiq->BlockEraseTimeoutMax);
+		else
+			cfi->chips[i].erase_time_max = 2000000 * 8;
 
 		cfi->chips[i].ref_point_counter = 0;
 		init_waitqueue_head(&(cfi->chips[i].wq));
@@ -701,6 +725,10 @@ static int chip_ready (struct map_info *map, struct flchip *chip, unsigned long 
 	struct cfi_pri_intelext *cfip = cfi->cmdset_priv;
 	unsigned long timeo = jiffies + HZ;
 
+	/* Prevent setting state FL_SYNCING for chip in suspended state. */
+	if (mode == FL_SYNCING && chip->oldstate != FL_READY)
+		goto sleep;
+
 	switch (chip->state) {
 
 	case FL_STATUS:
@@ -806,8 +834,9 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
 	DECLARE_WAITQUEUE(wait, current);
 
  retry:
-	if (chip->priv && (mode == FL_WRITING || mode == FL_ERASING
-			   || mode == FL_OTP_WRITE || mode == FL_SHUTDOWN)) {
+	if (chip->priv &&
+	    (mode == FL_WRITING || mode == FL_ERASING || mode == FL_OTP_WRITE
+	    || mode == FL_SHUTDOWN) && chip->state != FL_SYNCING) {
 		/*
 		 * OK. We have possibility for contention on the write/erase
 		 * operations which are global to the real chip and not per
@@ -857,6 +886,14 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
 				return ret;
 			}
 			spin_lock(&shared->lock);
+
+			/* We should not own chip if it is already
+			 * in FL_SYNCING state. Put contender and retry. */
+			if (chip->state == FL_SYNCING) {
+				put_chip(map, contender, contender->start);
+				spin_unlock(contender->mutex);
+				goto retry;
+			}
 			spin_unlock(contender->mutex);
 		}
 
@@ -1010,7 +1047,7 @@ static void __xipram xip_enable(struct map_info *map, struct flchip *chip,
 
 static int __xipram xip_wait_for_operation(
 		struct map_info *map, struct flchip *chip,
-		unsigned long adr, unsigned int chip_op_time )
+		unsigned long adr, unsigned int chip_op_time_max)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
 	struct cfi_pri_intelext *cfip = cfi->cmdset_priv;
@@ -1019,7 +1056,7 @@ static int __xipram xip_wait_for_operation(
 	flstate_t oldstate, newstate;
 
        	start = xip_currtime();
-	usec = chip_op_time * 8;
+	usec = chip_op_time_max;
 	if (usec == 0)
 		usec = 500000;
 	done = 0;
@@ -1129,8 +1166,8 @@ static int __xipram xip_wait_for_operation(
 #define XIP_INVAL_CACHED_RANGE(map, from, size)  \
 	INVALIDATE_CACHED_RANGE(map, from, size)
 
-#define INVAL_CACHE_AND_WAIT(map, chip, cmd_adr, inval_adr, inval_len, usec) \
-	xip_wait_for_operation(map, chip, cmd_adr, usec)
+#define INVAL_CACHE_AND_WAIT(map, chip, cmd_adr, inval_adr, inval_len, usec, usec_max) \
+	xip_wait_for_operation(map, chip, cmd_adr, usec_max)
 
 #else
 
@@ -1142,22 +1179,22 @@ static int __xipram xip_wait_for_operation(
 static int inval_cache_and_wait_for_operation(
 		struct map_info *map, struct flchip *chip,
 		unsigned long cmd_adr, unsigned long inval_adr, int inval_len,
-		unsigned int chip_op_time)
+		unsigned int chip_op_time, unsigned int chip_op_time_max)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
 	map_word status, status_OK = CMD(0x80);
 	int chip_state = chip->state;
-	unsigned int timeo, sleep_time;
+	unsigned int timeo, sleep_time, reset_timeo;
 
 	spin_unlock(chip->mutex);
 	if (inval_len)
 		INVALIDATE_CACHED_RANGE(map, inval_adr, inval_len);
 	spin_lock(chip->mutex);
 
-	/* set our timeout to 8 times the expected delay */
-	timeo = chip_op_time * 8;
+	timeo = chip_op_time_max;
 	if (!timeo)
 		timeo = 500000;
+	reset_timeo = timeo;
 	sleep_time = chip_op_time / 2;
 
 	for (;;) {
@@ -1199,6 +1236,12 @@ static int inval_cache_and_wait_for_operation(
 			remove_wait_queue(&chip->wq, &wait);
 			spin_lock(chip->mutex);
 		}
+		if (chip->erase_suspended || chip->write_suspended)  {
+			/* Suspend has occured while sleep: reset timeout */
+			timeo = reset_timeo;
+			chip->erase_suspended = 0;
+			chip->write_suspended = 0;
+		}
 	}
 
 	/* Done and happy. */
@@ -1208,8 +1251,8 @@ static int inval_cache_and_wait_for_operation(
 
 #endif
 
-#define WAIT_TIMEOUT(map, chip, adr, udelay) \
-	INVAL_CACHE_AND_WAIT(map, chip, adr, 0, 0, udelay);
+#define WAIT_TIMEOUT(map, chip, adr, udelay, udelay_max) \
+	INVAL_CACHE_AND_WAIT(map, chip, adr, 0, 0, udelay, udelay_max);
 
 
 static int do_point_onechip (struct map_info *map, struct flchip *chip, loff_t adr, size_t len)
@@ -1443,7 +1486,8 @@ static int __xipram do_write_oneword(struct map_info *map, struct flchip *chip,
 
 	ret = INVAL_CACHE_AND_WAIT(map, chip, adr,
 				   adr, map_bankwidth(map),
-				   chip->word_write_time);
+				   chip->word_write_time,
+				   chip->word_write_time_max);
 	if (ret) {
 		xip_enable(map, chip, adr);
 		printk(KERN_ERR "%s: word write error (status timeout)\n", map->name);
@@ -1614,7 +1658,7 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 
 	chip->state = FL_WRITING_TO_BUFFER;
 	map_write(map, write_cmd, cmd_adr);
-	ret = WAIT_TIMEOUT(map, chip, cmd_adr, 0);
+	ret = WAIT_TIMEOUT(map, chip, cmd_adr, 0, 0);
 	if (ret) {
 		/* Argh. Not ready for write to buffer */
 		map_word Xstatus = map_read(map, cmd_adr);
@@ -1631,7 +1675,7 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 
 	/* Figure out the number of words to write */
 	word_gap = (-adr & (map_bankwidth(map)-1));
-	words = (len - word_gap + map_bankwidth(map) - 1) / map_bankwidth(map);
+	words = DIV_ROUND_UP(len - word_gap, map_bankwidth(map));
 	if (!word_gap) {
 		words--;
 	} else {
@@ -1683,7 +1727,8 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 
 	ret = INVAL_CACHE_AND_WAIT(map, chip, cmd_adr,
 				   initial_adr, initial_len,
-				   chip->buffer_write_time);
+				   chip->buffer_write_time,
+				   chip->buffer_write_time_max);
 	if (ret) {
 		map_write(map, CMD(0x70), cmd_adr);
 		chip->state = FL_STATUS;
@@ -1818,7 +1863,8 @@ static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip,
 
 	ret = INVAL_CACHE_AND_WAIT(map, chip, adr,
 				   adr, len,
-				   chip->erase_time);
+				   chip->erase_time,
+				   chip->erase_time_max);
 	if (ret) {
 		map_write(map, CMD(0x70), adr);
 		chip->state = FL_STATUS;
@@ -1997,7 +2043,7 @@ static int __xipram do_xxlock_oneblock(struct map_info *map, struct flchip *chip
 	 */
 	udelay = (!extp || !(extp->FeatureSupport & (1 << 5))) ? 1000000/HZ : 0;
 
-	ret = WAIT_TIMEOUT(map, chip, adr, udelay);
+	ret = WAIT_TIMEOUT(map, chip, adr, udelay, udelay * 100);
 	if (ret) {
 		map_write(map, CMD(0x70), adr);
 		chip->state = FL_STATUS;

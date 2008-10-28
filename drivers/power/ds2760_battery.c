@@ -433,6 +433,8 @@ static int ds2760_battery_resume(struct platform_device *pdev)
 
 #endif /* CONFIG_PM */
 
+MODULE_ALIAS("platform:ds2760-battery");
+
 static struct platform_driver ds2760_battery_driver = {
 	.driver = {
 		.name = "ds2760-battery",

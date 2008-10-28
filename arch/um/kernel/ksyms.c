@@ -18,7 +18,6 @@ EXPORT_SYMBOL(get_signals);
 EXPORT_SYMBOL(kernel_thread);
 EXPORT_SYMBOL(sys_waitpid);
 EXPORT_SYMBOL(flush_tlb_range);
-EXPORT_SYMBOL(arch_validate);
 
 EXPORT_SYMBOL(high_physmem);
 EXPORT_SYMBOL(empty_zero_page);

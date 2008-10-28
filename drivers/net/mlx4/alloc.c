@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2006, 2007 Cisco Systems, Inc.  All rights reserved.
+ * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -32,6 +33,7 @@
 
 #include <linux/errno.h>
 #include <linux/slab.h>
+#include <linux/mm.h>
 #include <linux/bitmap.h>
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
@@ -46,13 +48,16 @@ u32 mlx4_bitmap_alloc(struct mlx4_bitmap *bitmap)
 
 	obj = find_next_zero_bit(bitmap->table, bitmap->max, bitmap->last);
 	if (obj >= bitmap->max) {
-		bitmap->top = (bitmap->top + bitmap->max) & bitmap->mask;
+		bitmap->top = (bitmap->top + bitmap->max + bitmap->reserved_top)
+				& bitmap->mask;
 		obj = find_first_zero_bit(bitmap->table, bitmap->max);
 	}
 
 	if (obj < bitmap->max) {
 		set_bit(obj, bitmap->table);
-		bitmap->last = (obj + 1) & (bitmap->max - 1);
+		bitmap->last = (obj + 1);
+		if (bitmap->last == bitmap->max)
+			bitmap->last = 0;
 		obj |= bitmap->top;
 	} else
 		obj = -1;
@@ -64,16 +69,90 @@ u32 mlx4_bitmap_alloc(struct mlx4_bitmap *bitmap)
 
 void mlx4_bitmap_free(struct mlx4_bitmap *bitmap, u32 obj)
 {
-	obj &= bitmap->max - 1;
+	mlx4_bitmap_free_range(bitmap, obj, 1);
+}
+
+static unsigned long find_aligned_range(unsigned long *bitmap,
+					u32 start, u32 nbits,
+					int len, int align)
+{
+	unsigned long end, i;
+
+again:
+	start = ALIGN(start, align);
+
+	while ((start < nbits) && test_bit(start, bitmap))
+		start += align;
+
+	if (start >= nbits)
+		return -1;
+
+	end = start+len;
+	if (end > nbits)
+		return -1;
+
+	for (i = start + 1; i < end; i++) {
+		if (test_bit(i, bitmap)) {
+			start = i + 1;
+			goto again;
+		}
+	}
+
+	return start;
+}
+
+u32 mlx4_bitmap_alloc_range(struct mlx4_bitmap *bitmap, int cnt, int align)
+{
+	u32 obj, i;
+
+	if (likely(cnt == 1 && align == 1))
+		return mlx4_bitmap_alloc(bitmap);
 
 	spin_lock(&bitmap->lock);
-	clear_bit(obj, bitmap->table);
+
+	obj = find_aligned_range(bitmap->table, bitmap->last,
+				 bitmap->max, cnt, align);
+	if (obj >= bitmap->max) {
+		bitmap->top = (bitmap->top + bitmap->max + bitmap->reserved_top)
+				& bitmap->mask;
+		obj = find_aligned_range(bitmap->table, 0, bitmap->max,
+					 cnt, align);
+	}
+
+	if (obj < bitmap->max) {
+		for (i = 0; i < cnt; i++)
+			set_bit(obj + i, bitmap->table);
+		if (obj == bitmap->last) {
+			bitmap->last = (obj + cnt);
+			if (bitmap->last >= bitmap->max)
+				bitmap->last = 0;
+		}
+		obj |= bitmap->top;
+	} else
+		obj = -1;
+
+	spin_unlock(&bitmap->lock);
+
+	return obj;
+}
+
+void mlx4_bitmap_free_range(struct mlx4_bitmap *bitmap, u32 obj, int cnt)
+{
+	u32 i;
+
+	obj &= bitmap->max + bitmap->reserved_top - 1;
+
+	spin_lock(&bitmap->lock);
+	for (i = 0; i < cnt; i++)
+		clear_bit(obj + i, bitmap->table);
 	bitmap->last = min(bitmap->last, obj);
-	bitmap->top = (bitmap->top + bitmap->max) & bitmap->mask;
+	bitmap->top = (bitmap->top + bitmap->max + bitmap->reserved_top)
+			& bitmap->mask;
 	spin_unlock(&bitmap->lock);
 }
 
-int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask, u32 reserved)
+int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask,
+		     u32 reserved_bot, u32 reserved_top)
 {
 	int i;
 
@@ -83,14 +162,16 @@ int mlx4_bitmap_init(struct mlx4_bitmap *bitmap, u32 num, u32 mask, u32 reserved
 
 	bitmap->last = 0;
 	bitmap->top  = 0;
-	bitmap->max  = num;
+	bitmap->max  = num - reserved_top;
 	bitmap->mask = mask;
+	bitmap->reserved_top = reserved_top;
 	spin_lock_init(&bitmap->lock);
-	bitmap->table = kzalloc(BITS_TO_LONGS(num) * sizeof (long), GFP_KERNEL);
+	bitmap->table = kzalloc(BITS_TO_LONGS(bitmap->max) *
+				sizeof (long), GFP_KERNEL);
 	if (!bitmap->table)
 		return -ENOMEM;
 
-	for (i = 0; i < reserved; ++i)
+	for (i = 0; i < reserved_bot; ++i)
 		set_bit(i, bitmap->table);
 
 	return 0;

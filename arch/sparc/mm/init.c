@@ -22,6 +22,8 @@
 #include <linux/init.h>
 #include <linux/highmem.h>
 #include <linux/bootmem.h>
+#include <linux/pagemap.h>
+#include <linux/poison.h>
 
 #include <asm/system.h>
 #include <asm/vac-ops.h>
@@ -128,7 +130,7 @@ unsigned long calc_highpages(void)
 	return nr;
 }
 
-unsigned long calc_max_low_pfn(void)
+static unsigned long calc_max_low_pfn(void)
 {
 	int i;
 	unsigned long tmp = pfn_base + (SRMMU_MAXMEM >> PAGE_SHIFT);
@@ -292,7 +294,7 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
  *
  * We simply copy the 2.4 implementation for now.
  */
-int pgt_cache_water[2] = { 25, 50 };
+static int pgt_cache_water[2] = { 25, 50 };
 
 void check_pgt_cache(void)
 {
@@ -356,8 +358,6 @@ void __init paging_init(void)
 	device_scan();
 }
 
-struct cache_palias *sparc_aliases;
-
 static void __init taint_real_pages(void)
 {
 	int i;
@@ -375,7 +375,7 @@ static void __init taint_real_pages(void)
 	}
 }
 
-void map_high_region(unsigned long start_pfn, unsigned long end_pfn)
+static void map_high_region(unsigned long start_pfn, unsigned long end_pfn)
 {
 	unsigned long tmp;
 
@@ -481,6 +481,7 @@ void free_initmem (void)
 	for (; addr < (unsigned long)(&__init_end); addr += PAGE_SIZE) {
 		struct page *p;
 
+		memset((void *)addr, POISON_FREE_INITMEM, PAGE_SIZE);
 		p = virt_to_page(addr);
 
 		ClearPageReserved(p);
@@ -489,20 +490,26 @@ void free_initmem (void)
 		totalram_pages++;
 		num_physpages++;
 	}
-	printk (KERN_INFO "Freeing unused kernel memory: %dk freed\n", (&__init_end - &__init_begin) >> 10);
+	printk(KERN_INFO "Freeing unused kernel memory: %dk freed\n",
+		(&__init_end - &__init_begin) >> 10);
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
 void free_initrd_mem(unsigned long start, unsigned long end)
 {
 	if (start < end)
-		printk (KERN_INFO "Freeing initrd memory: %ldk freed\n", (end - start) >> 10);
+		printk(KERN_INFO "Freeing initrd memory: %ldk freed\n",
+			(end - start) >> 10);
 	for (; start < end; start += PAGE_SIZE) {
-		struct page *p = virt_to_page(start);
+		struct page *p;
+
+		memset((void *)start, POISON_FREE_INITMEM, PAGE_SIZE);
+		p = virt_to_page(start);
 
 		ClearPageReserved(p);
 		init_page_count(p);
 		__free_page(p);
+		totalram_pages++;
 		num_physpages++;
 	}
 }

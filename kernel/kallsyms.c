@@ -176,7 +176,7 @@ static unsigned long get_symbol_pos(unsigned long addr,
 	high = kallsyms_num_syms;
 
 	while (high - low > 1) {
-		mid = (low + high) / 2;
+		mid = low + (high - low) / 2;
 		if (kallsyms_addresses[mid] <= addr)
 			low = mid;
 		else
@@ -260,7 +260,6 @@ const char *kallsyms_lookup(unsigned long addr,
 	/* see if it's in a module */
 	return module_address_lookup(addr, symbolsize, offset, modname,
 				     namebuf);
-	return NULL;
 }
 
 int lookup_symbol_name(unsigned long addr, char *symname)

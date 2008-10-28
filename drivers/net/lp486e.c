@@ -1272,8 +1272,6 @@ static void set_multicast_list(struct net_device *dev) {
 			return;
 		}
 		if (dev->mc_count == 0 && !(dev->flags & (IFF_PROMISC | IFF_ALLMULTI))) {
-			if (dev->flags & IFF_ALLMULTI)
-				dev->flags |= IFF_PROMISC;
 			lp->i596_config[8] &= ~0x01;
 		} else {
 			lp->i596_config[8] |= 0x01;

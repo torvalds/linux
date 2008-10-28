@@ -1,6 +1,5 @@
 /*
  *
- *  $Id$
  *
  *  Copyright (C) 2005 Mike Isely <isely@pobox.com>
  *  Copyright (C) 2004 Aurelien Alleaume <slts@free.fr>
@@ -31,6 +30,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 
 struct pvr2_v4l2_dev;
 struct pvr2_v4l2_fh;
@@ -168,7 +168,7 @@ static const char *get_v4l_name(int v4l_type)
  * This is part of Video 4 Linux API. The procedure handles ioctl() calls.
  *
  */
-static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
+static int __pvr2_v4l2_do_ioctl(struct file *file,
 			      unsigned int cmd, void *arg)
 {
 	struct pvr2_v4l2_fh *fh = file->private_data;
@@ -533,7 +533,7 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 
 			lmin = pvr2_ctrl_get_min(hcp);
 			lmax = pvr2_ctrl_get_max(hcp);
-			ldef = pvr2_ctrl_get_def(hcp);
+			pvr2_ctrl_get_def(hcp, &ldef);
 			if (w == -1) {
 				w = ldef;
 			} else if (w < lmin) {
@@ -543,7 +543,7 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			}
 			lmin = pvr2_ctrl_get_min(vcp);
 			lmax = pvr2_ctrl_get_max(vcp);
-			ldef = pvr2_ctrl_get_def(vcp);
+			pvr2_ctrl_get_def(vcp, &ldef);
 			if (h == -1) {
 				h = ldef;
 			} else if (h < lmin) {
@@ -604,6 +604,7 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_QUERYCTRL:
 	{
 		struct pvr2_ctrl *cptr;
+		int val;
 		struct v4l2_queryctrl *vc = (struct v4l2_queryctrl *)arg;
 		ret = 0;
 		if (vc->id & V4L2_CTRL_FLAG_NEXT_CTRL) {
@@ -627,7 +628,8 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			   pvr2_ctrl_get_desc(cptr));
 		strlcpy(vc->name,pvr2_ctrl_get_desc(cptr),sizeof(vc->name));
 		vc->flags = pvr2_ctrl_get_v4lflags(cptr);
-		vc->default_value = pvr2_ctrl_get_def(cptr);
+		pvr2_ctrl_get_def(cptr, &val);
+		vc->default_value = val;
 		switch (pvr2_ctrl_get_type(cptr)) {
 		case pvr2_ctl_enum:
 			vc->type = V4L2_CTRL_TYPE_MENU;
@@ -753,6 +755,92 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		break;
 	}
 
+	case VIDIOC_CROPCAP:
+	{
+		struct v4l2_cropcap *cap = (struct v4l2_cropcap *)arg;
+		if (cap->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = pvr2_hdw_get_cropcap(hdw, cap);
+		cap->type = V4L2_BUF_TYPE_VIDEO_CAPTURE; /* paranoia */
+		break;
+	}
+	case VIDIOC_G_CROP:
+	{
+		struct v4l2_crop *crop = (struct v4l2_crop *)arg;
+		int val = 0;
+		if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = pvr2_ctrl_get_value(
+			pvr2_hdw_get_ctrl_by_id(hdw, PVR2_CID_CROPL), &val);
+		if (ret != 0) {
+			ret = -EINVAL;
+			break;
+		}
+		crop->c.left = val;
+		ret = pvr2_ctrl_get_value(
+			pvr2_hdw_get_ctrl_by_id(hdw, PVR2_CID_CROPT), &val);
+		if (ret != 0) {
+			ret = -EINVAL;
+			break;
+		}
+		crop->c.top = val;
+		ret = pvr2_ctrl_get_value(
+			pvr2_hdw_get_ctrl_by_id(hdw, PVR2_CID_CROPW), &val);
+		if (ret != 0) {
+			ret = -EINVAL;
+			break;
+		}
+		crop->c.width = val;
+		ret = pvr2_ctrl_get_value(
+			pvr2_hdw_get_ctrl_by_id(hdw, PVR2_CID_CROPH), &val);
+		if (ret != 0) {
+			ret = -EINVAL;
+			break;
+		}
+		crop->c.height = val;
+	}
+	case VIDIOC_S_CROP:
+	{
+		struct v4l2_crop *crop = (struct v4l2_crop *)arg;
+		struct v4l2_cropcap cap;
+		if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+			ret = -EINVAL;
+			break;
+		}
+		cap.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		ret = pvr2_ctrl_set_value(
+			pvr2_hdw_get_ctrl_by_id(hdw, PVR2_CID_CROPL),
+			crop->c.left);
+		if (ret != 0) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = pvr2_ctrl_set_value(
+			pvr2_hdw_get_ctrl_by_id(hdw, PVR2_CID_CROPT),
+			crop->c.top);
+		if (ret != 0) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = pvr2_ctrl_set_value(
+			pvr2_hdw_get_ctrl_by_id(hdw, PVR2_CID_CROPW),
+			crop->c.width);
+		if (ret != 0) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = pvr2_ctrl_set_value(
+			pvr2_hdw_get_ctrl_by_id(hdw, PVR2_CID_CROPH),
+			crop->c.height);
+		if (ret != 0) {
+			ret = -EINVAL;
+			break;
+		}
+	}
 	case VIDIOC_LOG_STATUS:
 	{
 		pvr2_hdw_trigger_module_log(hdw);
@@ -775,8 +863,8 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 #endif
 
 	default :
-		ret = v4l_compat_translate_ioctl(inode,file,cmd,
-						 arg,pvr2_v4l2_do_ioctl);
+		ret = v4l_compat_translate_ioctl(file, cmd,
+						 arg, __pvr2_v4l2_do_ioctl);
 	}
 
 	pvr2_hdw_commit_ctl(hdw);
@@ -802,10 +890,15 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 	return ret;
 }
 
+static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
+			      unsigned int cmd, void *arg)
+{
+	return __pvr2_v4l2_do_ioctl(file, cmd, arg);
+}
 
 static void pvr2_v4l2_dev_destroy(struct pvr2_v4l2_dev *dip)
 {
-	int minor_id = dip->devbase.minor;
+	int num = dip->devbase.num;
 	struct pvr2_hdw *hdw = dip->v4lp->channel.mc_head->hdw;
 	enum pvr2_config cfg = dip->config;
 	int v4l_type = dip->v4l_type;
@@ -821,7 +914,7 @@ static void pvr2_v4l2_dev_destroy(struct pvr2_v4l2_dev *dip)
 	video_unregister_device(&dip->devbase);
 
 	printk(KERN_INFO "pvrusb2: unregistered device %s%u [%s]\n",
-	       get_v4l_name(v4l_type),minor_id & 0x1f,
+	       get_v4l_name(v4l_type), num,
 	       pvr2_config_get_name(cfg));
 
 }
@@ -1161,11 +1254,6 @@ static const struct file_operations vdev_fops = {
 
 
 static struct video_device vdev_template = {
-	.owner      = THIS_MODULE,
-	.type       = VID_TYPE_CAPTURE | VID_TYPE_TUNER,
-	.type2      = (V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VBI_CAPTURE
-		       | V4L2_CAP_TUNER | V4L2_CAP_AUDIO
-		       | V4L2_CAP_READWRITE),
 	.fops       = &vdev_fops,
 };
 
@@ -1227,7 +1315,7 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	}
 
 	printk(KERN_INFO "pvrusb2: registered device %s%u [%s]\n",
-	       get_v4l_name(dip->v4l_type),dip->devbase.minor & 0x1f,
+	       get_v4l_name(dip->v4l_type), dip->devbase.num,
 	       pvr2_config_get_name(dip->config));
 
 	pvr2_hdw_v4l_store_minor_number(vp->channel.mc_head->hdw,

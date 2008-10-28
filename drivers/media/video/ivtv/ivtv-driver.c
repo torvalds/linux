@@ -61,14 +61,14 @@
 #include "tuner-xc2028.h"
 
 /* var to keep track of the number of array elements in use */
-int ivtv_cards_active = 0;
+int ivtv_cards_active;
 
 /* If you have already X v4l cards, then set this to X. This way
    the device numbers stay matched. Example: you have a WinTV card
    without radio and a PVR-350 with. Normally this would give a
    video1 device together with a radio0 device for the PVR. By
    setting this to 1 you ensure that radio0 is now also radio1. */
-int ivtv_first_minor = 0;
+int ivtv_first_minor;
 
 /* Master variable for all ivtv info */
 struct ivtv *ivtv_cards[IVTV_MAX_CARDS];
@@ -191,6 +191,7 @@ MODULE_PARM_DESC(cardtype,
 		 "\t\t\t23 = AverMedia PVR-150 Plus\n"
 		 "\t\t\t24 = AverMedia EZMaker PCI Deluxe\n"
 		 "\t\t\t25 = AverMedia M104 (not yet working)\n"
+		 "\t\t\t26 = Buffalo PC-MV5L/PCI\n"
 		 "\t\t\t 0 = Autodetect (default)\n"
 		 "\t\t\t-1 = Ignore this card\n\t\t");
 MODULE_PARM_DESC(pal, "Set PAL standard: BGH, DK, I, M, N, Nc, 60");
@@ -250,7 +251,7 @@ MODULE_PARM_DESC(newi2c,
 		 "\t\t\t-1 is autodetect, 0 is off, 1 is on\n"
 		 "\t\t\tDefault is autodetect");
 
-MODULE_PARM_DESC(ivtv_first_minor, "Set minor assigned to first card");
+MODULE_PARM_DESC(ivtv_first_minor, "Set kernel number assigned to first card");
 
 MODULE_AUTHOR("Kevin Thayer, Chris Kennedy, Hans Verkuil");
 MODULE_DESCRIPTION("CX23415/CX23416 driver");
@@ -464,9 +465,8 @@ static void ivtv_process_eeprom(struct ivtv *itv)
 	if (itv->options.radio == -1)
 		itv->options.radio = (tv.has_radio != 0);
 	/* only enable newi2c if an IR blaster is present */
-	/* FIXME: for 2.6.20 the test against 2 should be removed */
-	if (itv->options.newi2c == -1 && tv.has_ir != -1 && tv.has_ir != 2) {
-		itv->options.newi2c = (tv.has_ir & 2) ? 1 : 0;
+	if (itv->options.newi2c == -1 && tv.has_ir) {
+		itv->options.newi2c = (tv.has_ir & 4) ? 1 : 0;
 		if (itv->options.newi2c) {
 		    IVTV_INFO("Reopen i2c bus for IR-blaster support\n");
 		    exit_ivtv_i2c(itv);
@@ -655,9 +655,9 @@ done:
 
 	if (itv->card == NULL) {
 		itv->card = ivtv_get_card(IVTV_CARD_PVR_150);
-		IVTV_ERR("Unknown card: vendor/device: %04x/%04x\n",
+		IVTV_ERR("Unknown card: vendor/device: [%04x:%04x]\n",
 		     itv->dev->vendor, itv->dev->device);
-		IVTV_ERR("              subsystem vendor/device: %04x/%04x\n",
+		IVTV_ERR("              subsystem vendor/device: [%04x:%04x]\n",
 		     itv->dev->subsystem_vendor, itv->dev->subsystem_device);
 		IVTV_ERR("              %s based\n", chipname);
 		IVTV_ERR("Defaulting to %s card\n", itv->card->name);
@@ -688,7 +688,7 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 	spin_lock_init(&itv->lock);
 	spin_lock_init(&itv->dma_reg_lock);
 
-	itv->irq_work_queues = create_workqueue(itv->name);
+	itv->irq_work_queues = create_singlethread_workqueue(itv->name);
 	if (itv->irq_work_queues == NULL) {
 		IVTV_ERR("Could not create ivtv workqueue\n");
 		return -1;
@@ -720,7 +720,7 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 	itv->speed = 1000;
 
 	/* VBI */
-	itv->vbi.in.type = V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
+	itv->vbi.in.type = V4L2_BUF_TYPE_VBI_CAPTURE;
 	itv->vbi.sliced_in = &itv->vbi.in.fmt.sliced;
 
 	/* Init the sg table for osd/yuv output */
@@ -1019,7 +1019,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	ivtv_cards[ivtv_cards_active] = itv;
 	itv->dev = dev;
 	itv->num = ivtv_cards_active++;
-	snprintf(itv->name, sizeof(itv->name) - 1, "ivtv%d", itv->num);
+	snprintf(itv->name, sizeof(itv->name), "ivtv%d", itv->num);
 	IVTV_INFO("Initializing card #%d\n", itv->num);
 
 	spin_unlock(&ivtv_cards_lock);
@@ -1127,6 +1127,12 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	/* if no tuner was found, then pick the first tuner in the card list */
 	if (itv->options.tuner == -1 && itv->card->tuners[0].std) {
 		itv->std = itv->card->tuners[0].std;
+		if (itv->std & V4L2_STD_PAL)
+			itv->std = V4L2_STD_PAL_BG | V4L2_STD_PAL_H;
+		else if (itv->std & V4L2_STD_NTSC)
+			itv->std = V4L2_STD_NTSC_M;
+		else if (itv->std & V4L2_STD_SECAM)
+			itv->std = V4L2_STD_SECAM_L;
 		itv->options.tuner = itv->card->tuners[0].tuner;
 	}
 	if (itv->options.radio == -1)
@@ -1205,6 +1211,10 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 
 	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) {
 		ivtv_call_i2c_clients(itv, VIDIOC_INT_S_STD_OUTPUT, &itv->std);
+		/* Turn off the output signal. The mpeg decoder is not yet
+		   active so without this you would get a green image until the
+		   mpeg decoder becomes active. */
+		ivtv_saa7127(itv, VIDIOC_STREAMOFF, NULL);
 	}
 
 	/* clear interrupt mask, effectively disabling interrupts */
@@ -1261,8 +1271,12 @@ err:
 int ivtv_init_on_first_open(struct ivtv *itv)
 {
 	struct v4l2_frequency vf;
+	/* Needed to call ioctls later */
+	struct ivtv_open_id fh;
 	int fw_retry_count = 3;
 	int video_input;
+
+	fh.itv = itv;
 
 	if (test_bit(IVTV_F_I_FAILED, &itv->i_flags))
 		return -ENXIO;
@@ -1311,18 +1325,22 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 
 	video_input = itv->active_input;
 	itv->active_input++;	/* Force update of input */
-	ivtv_v4l2_ioctls(itv, NULL, VIDIOC_S_INPUT, &video_input);
+	ivtv_s_input(NULL, &fh, video_input);
 
 	/* Let the VIDIOC_S_STD ioctl do all the work, keeps the code
 	   in one place. */
 	itv->std++;		/* Force full standard initialization */
 	itv->std_out = itv->std;
-	ivtv_v4l2_ioctls(itv, NULL, VIDIOC_S_FREQUENCY, &vf);
+	ivtv_s_frequency(NULL, &fh, &vf);
 
 	if (itv->card->v4l2_capabilities & V4L2_CAP_VIDEO_OUTPUT) {
+		/* Turn on the TV-out: ivtv_init_mpeg_decoder() initializes
+		   the mpeg decoder so now the saa7127 receives a proper
+		   signal. */
+		ivtv_saa7127(itv, VIDIOC_STREAMON, NULL);
 		ivtv_init_mpeg_decoder(itv);
 	}
-	ivtv_v4l2_ioctls(itv, NULL, VIDIOC_S_STD, &itv->tuner_std);
+	ivtv_s_std(NULL, &fh, &itv->tuner_std);
 
 	/* On a cx23416 this seems to be able to enable DMA to the chip? */
 	if (!itv->has_cx23415)
@@ -1356,6 +1374,10 @@ static void ivtv_remove(struct pci_dev *pci_dev)
 
 		/* Stop all decoding */
 		IVTV_DEBUG_INFO("Stopping decoding\n");
+
+		/* Turn off the TV-out */
+		if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT)
+			ivtv_saa7127(itv, VIDIOC_STREAMOFF, NULL);
 		if (atomic_read(&itv->decoding) > 0) {
 			int type;
 

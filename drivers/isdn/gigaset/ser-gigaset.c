@@ -571,6 +571,7 @@ gigaset_tty_close(struct tty_struct *tty)
 	}
 
 	/* prevent other callers from entering ldisc methods */
+	/* FIXME: should use the tty state flags */
 	tty->disc_data = NULL;
 
 	if (!cs->hw.ser)
@@ -642,10 +643,11 @@ gigaset_tty_ioctl(struct tty_struct *tty, struct file *file,
 		return -ENXIO;
 
 	switch (cmd) {
-	case TCGETS:
-	case TCGETA:
-		/* pass through to underlying serial device */
-		rc = n_tty_ioctl(tty, file, cmd, arg);
+
+	case FIONREAD:
+		/* unused, always return zero */
+		val = 0;
+		rc = put_user(val, p);
 		break;
 
 	case TCFLSH:
@@ -659,20 +661,13 @@ gigaset_tty_ioctl(struct tty_struct *tty, struct file *file,
 			flush_send_queue(cs);
 			break;
 		}
-		/* flush the serial port's buffer */
-		rc = n_tty_ioctl(tty, file, cmd, arg);
-		break;
-
-	case FIONREAD:
-		/* unused, always return zero */
-		val = 0;
-		rc = put_user(val, p);
-		break;
+		/* Pass through */
 
 	default:
-		rc = -ENOIOCTLCMD;
+		/* pass through to underlying serial device */
+		rc = n_tty_ioctl_helper(tty, file, cmd, arg);
+		break;
 	}
-
 	cs_put(cs);
 	return rc;
 }
@@ -680,6 +675,8 @@ gigaset_tty_ioctl(struct tty_struct *tty, struct file *file,
 /*
  * Poll on the tty.
  * Unused, always return zero.
+ *
+ * FIXME: should probably return an exception - especially on hangup
  */
 static unsigned int
 gigaset_tty_poll(struct tty_struct *tty, struct file *file, poll_table *wait)
@@ -766,7 +763,7 @@ gigaset_tty_wakeup(struct tty_struct *tty)
 	cs_put(cs);
 }
 
-static struct tty_ldisc gigaset_ldisc = {
+static struct tty_ldisc_ops gigaset_ldisc = {
 	.owner		= THIS_MODULE,
 	.magic		= TTY_LDISC_MAGIC,
 	.name		= "ser_gigaset",

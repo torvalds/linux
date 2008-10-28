@@ -1,7 +1,7 @@
 /*
  *  Driver for the Auvitek USB bridge
  *
- *  Copyright (c) 2008 Steven Toth <stoth@hauppauge.com>
+ *  Copyright (c) 2008 Steven Toth <stoth@linuxtv.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -91,7 +91,8 @@ static int send_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 		status = usb_control_msg(dev->usbdev,
 				usb_sndctrlpipe(dev->usbdev, 0),
 				request,
-				USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+				USB_DIR_OUT | USB_TYPE_VENDOR |
+					USB_RECIP_DEVICE,
 				value, index,
 				cp, size, 1000);
 
@@ -252,5 +253,5 @@ module_init(au0828_init);
 module_exit(au0828_exit);
 
 MODULE_DESCRIPTION("Driver for Auvitek AU0828 based products");
-MODULE_AUTHOR("Steven Toth <stoth@hauppauge.com>");
+MODULE_AUTHOR("Steven Toth <stoth@linuxtv.org>");
 MODULE_LICENSE("GPL");

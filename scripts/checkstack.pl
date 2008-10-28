@@ -14,6 +14,7 @@
 #	M68k port by Geert Uytterhoeven and Andreas Schwab
 #	AVR32 port by Haavard Skinnemoen <hskinnemoen@atmel.com>
 #	PARISC port by Kyle McMartin <kyle@parisc-linux.org>
+#	sparc port by Martin Habets <errandir_news@mph.eclipse.co.uk>
 #
 #	Usage:
 #	objdump -d vmlinux | scripts/checkstack.pl [arch]
@@ -26,12 +27,17 @@
 # $& (whole re) matches the complete objdump line with the stack growth
 # $1 (first bracket) matches the size of the stack growth
 #
+# $dre is similar, but for dynamic stack redutions:
+# $& (whole re) matches the complete objdump line with the stack growth
+# $1 (first bracket) matches the dynamic amount of the stack growth
+#
 # use anything else and feel the pain ;)
-my (@stack, $re, $x, $xs);
+my (@stack, $re, $dre, $x, $xs);
 {
 	my $arch = shift;
 	if ($arch eq "") {
 		$arch = `uname -m`;
+		chomp($arch);
 	}
 
 	$x	= "[0-9a-f]";	# hex character
@@ -46,9 +52,11 @@ my (@stack, $re, $x, $xs);
 	} elsif ($arch =~ /^i[3456]86$/) {
 		#c0105234:       81 ec ac 05 00 00       sub    $0x5ac,%esp
 		$re = qr/^.*[as][du][db]    \$(0x$x{1,8}),\%esp$/o;
+		$dre = qr/^.*[as][du][db]    (%.*),\%esp$/o;
 	} elsif ($arch eq 'x86_64') {
 		#    2f60:	48 81 ec e8 05 00 00 	sub    $0x5e8,%rsp
 		$re = qr/^.*[as][du][db]    \$(0x$x{1,8}),\%rsp$/o;
+		$dre = qr/^.*[as][du][db]    (\%.*),\%rsp$/o;
 	} elsif ($arch eq 'ia64') {
 		#e0000000044011fc:       01 0f fc 8c     adds r12=-384,r12
 		$re = qr/.*adds.*r12=-(([0-9]{2}|[3-9])[0-9]{2}),r12/o;
@@ -74,7 +82,10 @@ my (@stack, $re, $x, $xs);
 		$re = qr/.*st[dw]u.*r1,-($x{1,8})\(r1\)/o;
 	} elsif ($arch =~ /^s390x?$/) {
 		#   11160:       a7 fb ff 60             aghi   %r15,-160
-		$re = qr/.*ag?hi.*\%r15,-(([0-9]{2}|[3-9])[0-9]{2})/o;
+		# or
+		#  100092:	 e3 f0 ff c8 ff 71	 lay	 %r15,-56(%r15)
+		$re = qr/.*(?:lay|ag?hi).*\%r15,-(([0-9]{2}|[3-9])[0-9]{2})
+		      (?:\(\%r15\))?$/ox;
 	} elsif ($arch =~ /^sh64$/) {
 		#XXX: we only check for the immediate case presently,
 		#     though we will want to check for the movi/sub
@@ -84,8 +95,11 @@ my (@stack, $re, $x, $xs);
 	} elsif ($arch =~ /^blackfin$/) {
 		#   0:   00 e8 38 01     LINK 0x4e0;
 		$re = qr/.*[[:space:]]LINK[[:space:]]*(0x$x{1,8})/o;
+	} elsif ($arch eq 'sparc' || $arch eq 'sparc64') {
+		# f0019d10:       9d e3 bf 90     save  %sp, -112, %sp
+		$re = qr/.*save.*%sp, -(([0-9]{2}|[3-9])[0-9]{2}), %sp/o;
 	} else {
-		print("wrong or unknown architecture\n");
+		print("wrong or unknown architecture \"$arch\"\n");
 		exit
 	}
 }
@@ -139,6 +153,22 @@ while (my $line = <STDIN>) {
 			$padlen -= 8;
 		}
 		next if ($size < 100);
+		push @stack, "$intro$size\n";
+	}
+	elsif (defined $dre && $line =~ m/$dre/) {
+		my $size = "Dynamic ($1)";
+
+		next if $line !~ m/^($xs*)/;
+		my $addr = $1;
+		$addr =~ s/ /0/g;
+		$addr = "0x$addr";
+
+		my $intro = "$addr $func [$file]:";
+		my $padlen = 56 - length($intro);
+		while ($padlen > 0) {
+			$intro .= '	';
+			$padlen -= 8;
+		}
 		push @stack, "$intro$size\n";
 	}
 }

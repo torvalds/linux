@@ -21,21 +21,21 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/io.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/bast-map.h>
-#include <asm/arch/bast-irq.h>
-#include <asm/arch/usb-control.h>
-#include <asm/arch/regs-gpio.h>
+#include <mach/bast-map.h>
+#include <mach/bast-irq.h>
+#include <mach/usb-control.h>
+#include <mach/regs-gpio.h>
 
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 
-#include <asm/plat-s3c24xx/devs.h>
+#include <plat/devs.h>
 #include "usb-simtec.h"
 
 /* control power and monitor over-current events on various Simtec

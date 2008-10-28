@@ -55,19 +55,19 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/sysdev.h>
+#include <linux/io.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/io.h>
 
 #include <asm/mach/irq.h>
 
-#include <asm/arch/regs-irq.h>
-#include <asm/arch/regs-gpio.h>
+#include <mach/regs-irq.h>
+#include <mach/regs-gpio.h>
 
-#include <asm/plat-s3c24xx/cpu.h>
-#include <asm/plat-s3c24xx/pm.h>
-#include <asm/plat-s3c24xx/irq.h>
+#include <plat/cpu.h>
+#include <plat/pm.h>
+#include <plat/irq.h>
 
 /* wakeup irq control */
 
@@ -292,27 +292,27 @@ s3c_irqext_type(unsigned int irq, unsigned int type)
 	/* Set the external interrupt to pointed trigger type */
 	switch (type)
 	{
-		case IRQT_NOEDGE:
+		case IRQ_TYPE_NONE:
 			printk(KERN_WARNING "No edge setting!\n");
 			break;
 
-		case IRQT_RISING:
+		case IRQ_TYPE_EDGE_RISING:
 			newvalue = S3C2410_EXTINT_RISEEDGE;
 			break;
 
-		case IRQT_FALLING:
+		case IRQ_TYPE_EDGE_FALLING:
 			newvalue = S3C2410_EXTINT_FALLEDGE;
 			break;
 
-		case IRQT_BOTHEDGE:
+		case IRQ_TYPE_EDGE_BOTH:
 			newvalue = S3C2410_EXTINT_BOTHEDGE;
 			break;
 
-		case IRQT_LOW:
+		case IRQ_TYPE_LEVEL_LOW:
 			newvalue = S3C2410_EXTINT_LOWLEV;
 			break;
 
-		case IRQT_HIGH:
+		case IRQ_TYPE_LEVEL_HIGH:
 			newvalue = S3C2410_EXTINT_HILEV;
 			break;
 
@@ -468,7 +468,6 @@ static void s3c_irq_demux_adc(unsigned int irq,
 {
 	unsigned int subsrc, submsk;
 	unsigned int offset = 9;
-	struct irq_desc *mydesc;
 
 	/* read the current pending interrupts, and the mask
 	 * for what it is available */
@@ -482,12 +481,10 @@ static void s3c_irq_demux_adc(unsigned int irq,
 
 	if (subsrc != 0) {
 		if (subsrc & 1) {
-			mydesc = irq_desc + IRQ_TC;
-			desc_handle_irq(IRQ_TC, mydesc);
+			generic_handle_irq(IRQ_TC);
 		}
 		if (subsrc & 2) {
-			mydesc = irq_desc + IRQ_ADC;
-			desc_handle_irq(IRQ_ADC, mydesc);
+			generic_handle_irq(IRQ_ADC);
 		}
 	}
 }
@@ -496,7 +493,6 @@ static void s3c_irq_demux_uart(unsigned int start)
 {
 	unsigned int subsrc, submsk;
 	unsigned int offset = start - IRQ_S3CUART_RX0;
-	struct irq_desc *desc;
 
 	/* read the current pending interrupts, and the mask
 	 * for what it is available */
@@ -512,20 +508,14 @@ static void s3c_irq_demux_uart(unsigned int start)
 	subsrc &= 7;
 
 	if (subsrc != 0) {
-		desc = irq_desc + start;
-
 		if (subsrc & 1)
-			desc_handle_irq(start, desc);
-
-		desc++;
+			generic_handle_irq(start);
 
 		if (subsrc & 2)
-			desc_handle_irq(start+1, desc);
-
-		desc++;
+			generic_handle_irq(start+1);
 
 		if (subsrc & 4)
-			desc_handle_irq(start+2, desc);
+			generic_handle_irq(start+2);
 	}
 }
 
@@ -572,7 +562,7 @@ s3c_irq_demux_extint8(unsigned int irq,
 		eintpnd &= ~(1<<irq);
 
 		irq += (IRQ_EINT4 - 4);
-		desc_handle_irq(irq, irq_desc + irq);
+		generic_handle_irq(irq);
 	}
 
 }
@@ -595,7 +585,7 @@ s3c_irq_demux_extint4t7(unsigned int irq,
 
 		irq += (IRQ_EINT4 - 4);
 
-		desc_handle_irq(irq, irq_desc + irq);
+		generic_handle_irq(irq);
 	}
 }
 

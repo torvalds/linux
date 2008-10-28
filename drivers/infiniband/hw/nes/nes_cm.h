@@ -83,6 +83,8 @@ enum nes_timer_type {
 #define SET_FIN 4
 #define SET_RST 8
 
+#define TCP_OPTIONS_PADDING	3
+
 struct option_base {
 	u8 optionnum;
 	u8 length;
@@ -177,6 +179,7 @@ enum nes_cm_node_state {
 	NES_CM_STATE_ESTABLISHED,
 	NES_CM_STATE_ACCEPTING,
 	NES_CM_STATE_MPAREQ_SENT,
+	NES_CM_STATE_MPAREQ_RCVD,
 	NES_CM_STATE_TSA,
 	NES_CM_STATE_FIN_WAIT1,
 	NES_CM_STATE_FIN_WAIT2,
@@ -186,6 +189,16 @@ enum nes_cm_node_state {
 	NES_CM_STATE_CLOSING,
 	NES_CM_STATE_CLOSED
 };
+
+enum nes_tcpip_pkt_type {
+	NES_PKT_TYPE_UNKNOWN,
+	NES_PKT_TYPE_SYN,
+	NES_PKT_TYPE_SYNACK,
+	NES_PKT_TYPE_ACK,
+	NES_PKT_TYPE_FIN,
+	NES_PKT_TYPE_RST
+};
+
 
 /* type of nes connection */
 enum nes_cm_conn_type {
@@ -257,7 +270,9 @@ struct nes_cm_node {
 	struct net_device         *netdev;
 
 	struct nes_cm_node        *loopbackpartner;
-	struct list_head          retrans_list;
+
+	struct nes_timer_entry	*send_entry;
+
 	spinlock_t                retrans_list_lock;
 	struct list_head          recv_list;
 	spinlock_t                recv_list_lock;
@@ -276,6 +291,8 @@ struct nes_cm_node {
 	struct nes_vnic           *nesvnic;
 	int                       apbvt_set;
 	int                       accept_pend;
+	int			freed;
+	struct nes_qp		*nesqp;
 };
 
 /* structure for client or CM to fill when making CM api calls. */
@@ -366,14 +383,14 @@ struct nes_cm_ops {
 			struct nes_cm_info *);
 	int (*stop_listener)(struct nes_cm_core *, struct nes_cm_listener *);
 	struct nes_cm_node * (*connect)(struct nes_cm_core *,
-			struct nes_vnic *, struct ietf_mpa_frame *,
+			struct nes_vnic *, u16, void *,
 			struct nes_cm_info *);
 	int (*close)(struct nes_cm_core *, struct nes_cm_node *);
 	int (*accept)(struct nes_cm_core *, struct ietf_mpa_frame *,
 			struct nes_cm_node *);
 	int (*reject)(struct nes_cm_core *, struct ietf_mpa_frame *,
 			struct nes_cm_node *);
-	int (*recv_pkt)(struct nes_cm_core *, struct nes_vnic *,
+	void (*recv_pkt)(struct nes_cm_core *, struct nes_vnic *,
 			struct sk_buff *);
 	int (*destroy_cm_core)(struct nes_cm_core *);
 	int (*get)(struct nes_cm_core *);

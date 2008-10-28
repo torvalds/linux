@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007 Intel Corporation.
+  Copyright(c) 2007 - 2008 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -28,7 +28,12 @@
 #ifndef _E1000_82575_H_
 #define _E1000_82575_H_
 
+void igb_update_mc_addr_list_82575(struct e1000_hw*, u8*, u32, u32, u32);
+extern void igb_shutdown_fiber_serdes_link_82575(struct e1000_hw *hw);
+extern void igb_rx_fifo_flush_82575(struct e1000_hw *hw);
+
 #define E1000_RAR_ENTRIES_82575   16
+#define E1000_RAR_ENTRIES_82576   24
 
 /* SRRCTL bit definitions */
 #define E1000_SRRCTL_BSIZEPKT_SHIFT                     10 /* Shift _right_ */
@@ -56,7 +61,7 @@
 #define E1000_EIMS_RX_QUEUE E1000_EICR_RX_QUEUE
 #define E1000_EIMS_TX_QUEUE E1000_EICR_TX_QUEUE
 
-/* Immediate Interrupt RX (A.K.A. Low Latency Interrupt) */
+/* Immediate Interrupt Rx (A.K.A. Low Latency Interrupt) */
 
 /* Receive Descriptor - Advanced */
 union e1000_adv_rx_desc {
@@ -93,6 +98,8 @@ union e1000_adv_rx_desc {
 /* RSS Hash results */
 
 /* RSS Packet Types as indicated in the receive descriptor */
+#define E1000_RXDADV_PKTTYPE_IPV4        0x00000010 /* IPV4 hdr present */
+#define E1000_RXDADV_PKTTYPE_TCP         0x00000100 /* TCP hdr present */
 
 /* Transmit Descriptor - Advanced */
 union e1000_adv_tx_desc {
@@ -142,9 +149,25 @@ struct e1000_adv_tx_context_desc {
 #define E1000_RXDCTL_QUEUE_ENABLE  0x02000000 /* Enable specific Rx Queue */
 
 /* Direct Cache Access (DCA) definitions */
+#define E1000_DCA_CTRL_DCA_ENABLE  0x00000000 /* DCA Enable */
+#define E1000_DCA_CTRL_DCA_DISABLE 0x00000001 /* DCA Disable */
 
+#define E1000_DCA_CTRL_DCA_MODE_CB1 0x00 /* DCA Mode CB1 */
+#define E1000_DCA_CTRL_DCA_MODE_CB2 0x02 /* DCA Mode CB2 */
 
+#define E1000_DCA_RXCTRL_CPUID_MASK 0x0000001F /* Rx CPUID Mask */
+#define E1000_DCA_RXCTRL_DESC_DCA_EN (1 << 5) /* DCA Rx Desc enable */
+#define E1000_DCA_RXCTRL_HEAD_DCA_EN (1 << 6) /* DCA Rx Desc header enable */
+#define E1000_DCA_RXCTRL_DATA_DCA_EN (1 << 7) /* DCA Rx Desc payload enable */
 
-#define E1000_DCA_TXCTRL_TX_WB_RO_EN (1 << 11) /* TX Desc writeback RO bit */
+#define E1000_DCA_TXCTRL_CPUID_MASK 0x0000001F /* Tx CPUID Mask */
+#define E1000_DCA_TXCTRL_DESC_DCA_EN (1 << 5) /* DCA Tx Desc enable */
+#define E1000_DCA_TXCTRL_TX_WB_RO_EN (1 << 11) /* Tx Desc writeback RO bit */
+
+/* Additional DCA related definitions, note change in position of CPUID */
+#define E1000_DCA_TXCTRL_CPUID_MASK_82576 0xFF000000 /* Tx CPUID Mask */
+#define E1000_DCA_RXCTRL_CPUID_MASK_82576 0xFF000000 /* Rx CPUID Mask */
+#define E1000_DCA_TXCTRL_CPUID_SHIFT 24 /* Tx CPUID now in the last byte */
+#define E1000_DCA_RXCTRL_CPUID_SHIFT 24 /* Rx CPUID now in the last byte */
 
 #endif

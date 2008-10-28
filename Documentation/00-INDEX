@@ -21,6 +21,9 @@ Changes
 	- list of changes that break older software packages.
 CodingStyle
 	- how the boss likes the C code in the kernel to look.
+development-process/
+	- An extended tutorial on how to work with the kernel development
+	  process.
 DMA-API.txt
 	- DMA API, pci_ API & extensions for non-consistent memory machines.
 DMA-ISA-LPC.txt
@@ -89,8 +92,6 @@ cciss.txt
 	- info, major/minor #'s for Compaq's SMART Array Controllers.
 cdrom/
 	- directory with information on the CD-ROM drivers that Linux has.
-cli-sti-removal.txt
-	- cli()/sti() removal guide.
 computone.txt
 	- info on Computone Intelliport II/Plus Multiport Serial Driver.
 connector/
@@ -161,8 +162,6 @@ hayes-esp.txt
 	- info on using the Hayes ESP serial driver.
 highuid.txt
 	- notes on the change from 16 bit to 32 bit user/group IDs.
-hpet.txt
-	- High Precision Event Timer Driver for Linux.
 timers/
 	- info on the timer related topics
 hw_random.txt
@@ -253,8 +252,6 @@ mono.txt
 	- how to execute Mono-based .NET binaries with the help of BINFMT_MISC.
 moxa-smartio
 	- file with info on installing/using Moxa multiport serial driver.
-mtrr.txt
-	- how to use PPro Memory Type Range Registers to increase performance.
 mutex-design.txt
 	- info on the generic mutex subsystem.
 namespaces/
@@ -361,8 +358,6 @@ telephony/
 	- directory with info on telephony (e.g. voice over IP) support.
 time_interpolators.txt
 	- info on time interpolators.
-tipar.txt
-	- information about Parallel link cable for Texas Instruments handhelds.
 tty.txt
 	- guide to the locking policies of the tty layer.
 uml/

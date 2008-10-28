@@ -22,6 +22,7 @@ Credits:
 
 Additional contributors:
     Sven Anders <anders@anduras.de>
+    Marc Hulsman <m.hulsman@tudelft.nl>
 
 Module Parameters
 -----------------
@@ -57,30 +58,35 @@ internal state that allows no clean access (Bank with ID register is not
 currently selected). If you know the address of the chip, use a 'force'
 parameter; this will put it into a more well-behaved state first.
 
-The driver implements three temperature sensors, five fan rotation speed
-sensors, and ten voltage sensors.
+The driver implements three temperature sensors, ten voltage sensors,
+five fan rotation speed sensors and manual PWM control of each fan.
 
 Temperatures are measured in degrees Celsius and measurement resolution is 1
 degC for temp1 and 0.5 degC for temp2 and temp3. An alarm is triggered when
 the temperature gets higher than the Overtemperature Shutdown value; it stays
 on until the temperature falls below the Hysteresis value.
 
-Fan rotation speeds are reported in RPM (rotations per minute). An alarm is
-triggered if the rotation speed has dropped below a programmable limit. Fan
-readings can be divided by a programmable divider (1, 2, 4, 8 for fan 1/2/3
-and 1, 2, 4, 8, 16, 32, 64 or 128 for fan 4/5) to give the readings more
-range or accuracy.
-
 Voltage sensors (also known as IN sensors) report their values in millivolts.
 An alarm is triggered if the voltage has crossed a programmable minimum
 or maximum limit.
+
+Fan rotation speeds are reported in RPM (rotations per minute). An alarm is
+triggered if the rotation speed has dropped below a programmable limit. Fan
+readings can be divided by a programmable divider (1, 2, 4, 8, 16,
+32, 64 or 128 for all fans) to give the readings more range or accuracy.
+
+Each fan controlled is controlled by PWM. The PWM duty cycle can be read and
+set for each fan separately. Valid values range from 0 (stop) to 255 (full).
+PWM 1-3 support Thermal Cruise mode, in which the PWMs are automatically
+regulated to keep respectively temp 1-3 at a certain target temperature.
+See below for the description of the sysfs-interface.
 
 The w83791d has a global bit used to enable beeping from the speaker when an
 alarm is triggered as well as a bitmask to enable or disable the beep for
 specific alarms. You need both the global beep enable bit and the
 corresponding beep bit to be on for a triggered alarm to sound a beep.
 
-The sysfs interface to the gloabal enable is via the sysfs beep_enable file.
+The sysfs interface to the global enable is via the sysfs beep_enable file.
 This file is used for both legacy and new code.
 
 The sysfs interface to the beep bitmask has migrated from the original legacy
@@ -104,6 +110,27 @@ going forward.
 
 The driver reads the hardware chip values at most once every three seconds.
 User mode code requesting values more often will receive cached values.
+
+/sys files
+----------
+The sysfs-interface is documented in the 'sysfs-interface' file. Only
+chip-specific options are documented here.
+
+pwm[1-3]_enable -	this file controls mode of fan/temperature control for
+			fan 1-3. Fan/PWM 4-5 only support manual mode.
+		            * 1 Manual mode
+		            * 2 Thermal Cruise mode
+		            * 3 Fan Speed Cruise mode (no further support)
+
+temp[1-3]_target -	defines the target temperature for Thermal Cruise mode.
+			Unit: millidegree Celsius
+			RW
+
+temp[1-3]_tolerance -	temperature tolerance for Thermal Cruise mode.
+			Specifies an interval around the target temperature
+			in which the fan speed is not changed.
+			Unit: millidegree Celsius
+			RW
 
 Alarms bitmap vs. beep_mask bitmask
 ------------------------------------
@@ -132,7 +159,3 @@ tart2        :  alarms: 0x020000 beep_mask: 0x080000 <== mismatch
 tart3        :  alarms: 0x040000 beep_mask: 0x100000 <== mismatch
 case_open    :  alarms: 0x001000 beep_mask: 0x001000
 global_enable:  alarms: -------- beep_mask: 0x800000 (modified via beep_enable)
-
-W83791D TODO:
----------------
-Provide a patch for smart-fan control (still need appropriate motherboard/fans)

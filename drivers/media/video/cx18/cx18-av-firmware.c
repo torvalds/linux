@@ -20,8 +20,10 @@
  */
 
 #include "cx18-driver.h"
+#include "cx18-io.h"
 #include <linux/firmware.h>
 
+#define CX18_AUDIO_ENABLE 0xc72014
 #define FWFILE "v4l-cx23418-dig.fw"
 
 int cx18_av_loadfw(struct cx18 *cx)
@@ -31,40 +33,64 @@ int cx18_av_loadfw(struct cx18 *cx)
 	u32 v;
 	const u8 *ptr;
 	int i;
+	int retries1 = 0;
 
 	if (request_firmware(&fw, FWFILE, &cx->dev->dev) != 0) {
 		CX18_ERR("unable to open firmware %s\n", FWFILE);
 		return -EINVAL;
 	}
 
-	cx18_av_write4(cx, CXADEC_CHIP_CTRL, 0x00010000);
-	cx18_av_write(cx, CXADEC_STD_DET_CTL, 0xf6); /* Byte 0 */
+	/* The firmware load often has byte errors, so allow for several
+	   retries, both at byte level and at the firmware load level. */
+	while (retries1 < 5) {
+		cx18_av_write4(cx, CXADEC_CHIP_CTRL, 0x00010000);
+		cx18_av_write(cx, CXADEC_STD_DET_CTL, 0xf6);
 
-	/* Reset the Mako core (Register is undocumented.) */
-	cx18_av_write4(cx, 0x8100, 0x00010000);
+		/* Reset the Mako core (Register is undocumented.) */
+		cx18_av_write4(cx, 0x8100, 0x00010000);
 
-	/* Put the 8051 in reset and enable firmware upload */
-	cx18_av_write4(cx, CXADEC_DL_CTL, 0x0F000000);
+		/* Put the 8051 in reset and enable firmware upload */
+		cx18_av_write4_noretry(cx, CXADEC_DL_CTL, 0x0F000000);
 
-	ptr = fw->data;
-	size = fw->size;
+		ptr = fw->data;
+		size = fw->size;
 
-	for (i = 0; i < size; i++) {
-		u32 dl_control = 0x0F000000 | ((u32)ptr[i] << 16);
-		u32 value = 0;
-		int retries;
+		for (i = 0; i < size; i++) {
+			u32 dl_control = 0x0F000000 | i | ((u32)ptr[i] << 16);
+			u32 value = 0;
+			int retries2;
+			int unrec_err = 0;
 
-		for (retries = 0; retries < 5; retries++) {
-			cx18_av_write4(cx, CXADEC_DL_CTL, dl_control);
-			value = cx18_av_read4(cx, CXADEC_DL_CTL);
-			if ((value & 0x3F00) == (dl_control & 0x3F00))
+			for (retries2 = 0; retries2 < CX18_MAX_MMIO_RETRIES;
+			     retries2++) {
+				cx18_av_write4_noretry(cx, CXADEC_DL_CTL,
+						       dl_control);
+				udelay(10);
+				value = cx18_av_read4_noretry(cx,
+							      CXADEC_DL_CTL);
+				if (value == dl_control)
+					break;
+				/* Check if we can correct the byte by changing
+				   the address.  We can only write the lower
+				   address byte of the address. */
+				if ((value & 0x3F00) != (dl_control & 0x3F00)) {
+					unrec_err = 1;
+					break;
+				}
+			}
+			cx18_log_write_retries(cx, retries2,
+					cx->reg_mem + 0xc40000 + CXADEC_DL_CTL);
+			if (unrec_err || retries2 >= CX18_MAX_MMIO_RETRIES)
 				break;
 		}
-		if (retries >= 5) {
-			CX18_ERR("unable to load firmware %s\n", FWFILE);
-			release_firmware(fw);
-			return -EIO;
-		}
+		if (i == size)
+			break;
+		retries1++;
+	}
+	if (retries1 >= 5) {
+		CX18_ERR("unable to load firmware %s\n", FWFILE);
+		release_firmware(fw);
+		return -EIO;
 	}
 
 	cx18_av_write4(cx, CXADEC_DL_CTL, 0x13000000 | fw->size);
@@ -100,11 +126,10 @@ int cx18_av_loadfw(struct cx18 *cx)
 	   have a name in the spec. */
 	cx18_av_write4(cx, 0x09CC, 1);
 
-#define CX18_AUDIO_ENABLE            	0xc72014
-	v = read_reg(CX18_AUDIO_ENABLE);
-	/* If bit 11 is 1 */
+	v = cx18_read_reg(cx, CX18_AUDIO_ENABLE);
+	/* If bit 11 is 1, clear bit 10 */
 	if (v & 0x800)
-		write_reg(v & 0xFFFFFBFF, CX18_AUDIO_ENABLE); /* Clear bit 10 */
+		cx18_write_reg(cx, v & 0xFFFFFBFF, CX18_AUDIO_ENABLE);
 
 	/* Enable WW auto audio standard detection */
 	v = cx18_av_read4(cx, CXADEC_STD_DET_CTL);

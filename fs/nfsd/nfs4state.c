@@ -61,7 +61,6 @@
 static time_t lease_time = 90;     /* default lease time */
 static time_t user_lease_time = 90;
 static time_t boot_time;
-static int in_grace = 1;
 static u32 current_ownerid = 1;
 static u32 current_fileid = 1;
 static u32 current_delegid = 1;
@@ -1173,6 +1172,24 @@ static inline int deny_valid(u32 x)
 	return x <= NFS4_SHARE_DENY_BOTH;
 }
 
+/*
+ * We store the NONE, READ, WRITE, and BOTH bits separately in the
+ * st_{access,deny}_bmap field of the stateid, in order to track not
+ * only what share bits are currently in force, but also what
+ * combinations of share bits previous opens have used.  This allows us
+ * to enforce the recommendation of rfc 3530 14.2.19 that the server
+ * return an error if the client attempt to downgrade to a combination
+ * of share bits not explicable by closing some of its previous opens.
+ *
+ * XXX: This enforcement is actually incomplete, since we don't keep
+ * track of access/deny bit combinations; so, e.g., we allow:
+ *
+ *	OPEN allow read, deny write
+ *	OPEN allow both, deny none
+ *	DOWNGRADE allow read, deny none
+ *
+ * which we should reject.
+ */
 static void
 set_access(unsigned int *access, unsigned long bmap) {
 	int i;
@@ -1570,6 +1587,10 @@ nfs4_upgrade_open(struct svc_rqst *rqstp, struct svc_fh *cur_fh, struct nfs4_sta
 		int err = get_write_access(inode);
 		if (err)
 			return nfserrno(err);
+		err = mnt_want_write(cur_fh->fh_export->ex_path.mnt);
+		if (err)
+			return nfserrno(err);
+		file_take_write(filp);
 	}
 	status = nfsd4_truncate(rqstp, cur_fh, open);
 	if (status) {
@@ -1579,8 +1600,8 @@ nfs4_upgrade_open(struct svc_rqst *rqstp, struct svc_fh *cur_fh, struct nfs4_sta
 	}
 	/* remember the open */
 	filp->f_mode |= open->op_share_access;
-	set_bit(open->op_share_access, &stp->st_access_bmap);
-	set_bit(open->op_share_deny, &stp->st_deny_bmap);
+	__set_bit(open->op_share_access, &stp->st_access_bmap);
+	__set_bit(open->op_share_deny, &stp->st_deny_bmap);
 
 	return nfs_ok;
 }
@@ -1618,7 +1639,7 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_sta
 		case NFS4_OPEN_CLAIM_NULL:
 			/* Let's not give out any delegations till everyone's
 			 * had the chance to reclaim theirs.... */
-			if (nfs4_in_grace())
+			if (locks_in_grace())
 				goto out;
 			if (!atomic_read(&cb->cb_set) || !sop->so_confirmed)
 				goto out;
@@ -1722,9 +1743,9 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 		/* Stateid was not found, this is a new OPEN */
 		int flags = 0;
 		if (open->op_share_access & NFS4_SHARE_ACCESS_READ)
-			flags |= MAY_READ;
+			flags |= NFSD_MAY_READ;
 		if (open->op_share_access & NFS4_SHARE_ACCESS_WRITE)
-			flags |= MAY_WRITE;
+			flags |= NFSD_MAY_WRITE;
 		status = nfs4_new_open(rqstp, &stp, dp, current_fh, flags);
 		if (status)
 			goto out;
@@ -1794,12 +1815,15 @@ out:
 	return status;
 }
 
+struct lock_manager nfsd4_manager = {
+};
+
 static void
-end_grace(void)
+nfsd4_end_grace(void)
 {
 	dprintk("NFSD: end of grace period\n");
 	nfsd4_recdir_purge_old();
-	in_grace = 0;
+	locks_end_grace(&nfsd4_manager);
 }
 
 static time_t
@@ -1816,8 +1840,8 @@ nfs4_laundromat(void)
 	nfs4_lock_state();
 
 	dprintk("NFSD: laundromat service - starting\n");
-	if (in_grace)
-		end_grace();
+	if (locks_in_grace())
+		nfsd4_end_grace();
 	list_for_each_safe(pos, next, &client_lru) {
 		clp = list_entry(pos, struct nfs4_client, cl_lru);
 		if (time_after((unsigned long)clp->cl_time, (unsigned long)cutoff)) {
@@ -1952,7 +1976,7 @@ check_special_stateids(svc_fh *current_fh, stateid_t *stateid, int flags)
 		return nfserr_bad_stateid;
 	else if (ONE_STATEID(stateid) && (flags & RD_STATE))
 		return nfs_ok;
-	else if (nfs4_in_grace()) {
+	else if (locks_in_grace()) {
 		/* Answer in remaining cases depends on existance of
 		 * conflicting state; so we must wait out the grace period. */
 		return nfserr_grace;
@@ -1971,7 +1995,7 @@ check_special_stateids(svc_fh *current_fh, stateid_t *stateid, int flags)
 static inline int
 io_during_grace_disallowed(struct inode *inode, int flags)
 {
-	return nfs4_in_grace() && (flags & (RD_STATE | WR_STATE))
+	return locks_in_grace() && (flags & (RD_STATE | WR_STATE))
 		&& mandatory_lock(inode);
 }
 
@@ -2610,7 +2634,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		 return nfserr_inval;
 
 	if ((status = fh_verify(rqstp, &cstate->current_fh,
-				S_IFREG, MAY_LOCK))) {
+				S_IFREG, NFSD_MAY_LOCK))) {
 		dprintk("NFSD: nfsd4_lock: permission denied!\n");
 		return status;
 	}
@@ -2671,10 +2695,10 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	filp = lock_stp->st_vfs_file;
 
 	status = nfserr_grace;
-	if (nfs4_in_grace() && !lock->lk_reclaim)
+	if (locks_in_grace() && !lock->lk_reclaim)
 		goto out;
 	status = nfserr_no_grace;
-	if (!nfs4_in_grace() && lock->lk_reclaim)
+	if (!locks_in_grace() && lock->lk_reclaim)
 		goto out;
 
 	locks_init_lock(&file_lock);
@@ -2757,7 +2781,7 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	int error;
 	__be32 status;
 
-	if (nfs4_in_grace())
+	if (locks_in_grace())
 		return nfserr_grace;
 
 	if (check_lock_length(lockt->lt_offset, lockt->lt_length))
@@ -3170,9 +3194,9 @@ __nfs4_state_start(void)
 	unsigned long grace_time;
 
 	boot_time = get_seconds();
-	grace_time = get_nfs_grace_period();
+	grace_time = get_nfs4_grace_period();
 	lease_time = user_lease_time;
-	in_grace = 1;
+	locks_start_grace(&nfsd4_manager);
 	printk(KERN_INFO "NFSD: starting %ld-second grace period\n",
 	       grace_time/HZ);
 	laundry_wq = create_singlethread_workqueue("nfsd4");
@@ -3189,12 +3213,6 @@ nfs4_state_start(void)
 	__nfs4_state_start();
 	nfs4_init = 1;
 	return;
-}
-
-int
-nfs4_in_grace(void)
-{
-	return in_grace;
 }
 
 time_t
@@ -3249,12 +3267,14 @@ nfs4_state_shutdown(void)
 	nfs4_unlock_state();
 }
 
+/*
+ * user_recovery_dirname is protected by the nfsd_mutex since it's only
+ * accessed when nfsd is starting.
+ */
 static void
 nfs4_set_recdir(char *recdir)
 {
-	nfs4_lock_state();
 	strcpy(user_recovery_dirname, recdir);
-	nfs4_unlock_state();
 }
 
 /*
@@ -3264,18 +3284,24 @@ int
 nfs4_reset_recoverydir(char *recdir)
 {
 	int status;
-	struct nameidata nd;
+	struct path path;
 
-	status = path_lookup(recdir, LOOKUP_FOLLOW, &nd);
+	status = kern_path(recdir, LOOKUP_FOLLOW, &path);
 	if (status)
 		return status;
 	status = -ENOTDIR;
-	if (S_ISDIR(nd.path.dentry->d_inode->i_mode)) {
+	if (S_ISDIR(path.dentry->d_inode->i_mode)) {
 		nfs4_set_recdir(recdir);
 		status = 0;
 	}
-	path_put(&nd.path);
+	path_put(&path);
 	return status;
+}
+
+char *
+nfs4_recoverydir(void)
+{
+	return user_recovery_dirname;
 }
 
 /*
@@ -3286,11 +3312,12 @@ nfs4_reset_recoverydir(char *recdir)
  * we start to register any changes in lease time.  If the administrator
  * really wants to change the lease time *now*, they can go ahead and bring
  * nfsd down and then back up again after changing the lease time.
+ *
+ * user_lease_time is protected by nfsd_mutex since it's only really accessed
+ * when nfsd is starting
  */
 void
 nfs4_reset_lease(time_t leasetime)
 {
-	lock_kernel();
 	user_lease_time = leasetime;
-	unlock_kernel();
 }

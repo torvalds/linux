@@ -114,7 +114,7 @@ void scsi_proc_hostdir_add(struct scsi_host_template *sht)
 		sht->proc_dir = proc_mkdir(sht->proc_name, proc_scsi);
         	if (!sht->proc_dir)
 			printk(KERN_ERR "%s: proc_mkdir failed for %s\n",
-			       __FUNCTION__, sht->proc_name);
+			       __func__, sht->proc_name);
 		else
 			sht->proc_dir->owner = sht->module;
 	}
@@ -157,7 +157,7 @@ void scsi_proc_host_add(struct Scsi_Host *shost)
 			sht->proc_dir, proc_scsi_read, shost);
 	if (!p) {
 		printk(KERN_ERR "%s: Failed to register host %d in"
-		       "%s\n", __FUNCTION__, shost->host_no,
+		       "%s\n", __func__, shost->host_no,
 		       sht->proc_name);
 		return;
 	} 
@@ -259,8 +259,8 @@ static int scsi_add_single_device(uint host, uint channel, uint id, uint lun)
 	int error = -ENXIO;
 
 	shost = scsi_host_lookup(host);
-	if (IS_ERR(shost))
-		return PTR_ERR(shost);
+	if (!shost)
+		return error;
 
 	if (shost->transportt->user_scan)
 		error = shost->transportt->user_scan(shost, channel, id, lun);
@@ -287,8 +287,8 @@ static int scsi_remove_single_device(uint host, uint channel, uint id, uint lun)
 	int error = -ENXIO;
 
 	shost = scsi_host_lookup(host);
-	if (IS_ERR(shost))
-		return PTR_ERR(shost);
+	if (!shost)
+		return error;
 	sdev = scsi_device_lookup(shost, channel, id, lun);
 	if (sdev) {
 		scsi_remove_device(sdev);

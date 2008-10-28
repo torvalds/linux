@@ -462,7 +462,7 @@ static void as_antic_stop(struct as_data *ad)
 			del_timer(&ad->antic_timer);
 		ad->antic_status = ANTIC_FINISHED;
 		/* see as_work_handler */
-		kblockd_schedule_work(&ad->antic_work);
+		kblockd_schedule_work(ad->q, &ad->antic_work);
 	}
 }
 
@@ -483,7 +483,7 @@ static void as_antic_timeout(unsigned long data)
 		aic = ad->io_context->aic;
 
 		ad->antic_status = ANTIC_FINISHED;
-		kblockd_schedule_work(&ad->antic_work);
+		kblockd_schedule_work(q, &ad->antic_work);
 
 		if (aic->ttime_samples == 0) {
 			/* process anticipated on has exited or timed out*/
@@ -745,6 +745,14 @@ static int as_can_break_anticipation(struct as_data *ad, struct request *rq)
  */
 static int as_can_anticipate(struct as_data *ad, struct request *rq)
 {
+#if 0 /* disable for now, we need to check tag level as well */
+	/*
+	 * SSD device without seek penalty, disable idling
+	 */
+	if (blk_queue_nonrot(ad->q)) axman
+		return 0;
+#endif
+
 	if (!ad->io_context)
 		/*
 		 * Last request submitted was a write
@@ -837,15 +845,14 @@ static void as_completed_request(struct request_queue *q, struct request *rq)
 	WARN_ON(!list_empty(&rq->queuelist));
 
 	if (RQ_STATE(rq) != AS_RQ_REMOVED) {
-		printk("rq->state %d\n", RQ_STATE(rq));
-		WARN_ON(1);
+		WARN(1, "rq->state %d\n", RQ_STATE(rq));
 		goto out;
 	}
 
 	if (ad->changed_batch && ad->nr_dispatched == 1) {
 		ad->current_batch_expires = jiffies +
 					ad->batch_expire[ad->batch_data_dir];
-		kblockd_schedule_work(&ad->antic_work);
+		kblockd_schedule_work(q, &ad->antic_work);
 		ad->changed_batch = 0;
 
 		if (ad->batch_data_dir == REQ_SYNC)

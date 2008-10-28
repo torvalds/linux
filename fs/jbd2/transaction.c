@@ -52,6 +52,7 @@ jbd2_get_transaction(journal_t *journal, transaction_t *transaction)
 	transaction->t_expires = jiffies + journal->j_commit_interval;
 	spin_lock_init(&transaction->t_handle_lock);
 	INIT_LIST_HEAD(&transaction->t_inode_list);
+	INIT_LIST_HEAD(&transaction->t_private_list);
 
 	/* Set up the commit timer for the new transaction. */
 	journal->j_commit_timer.expires = round_jiffies(transaction->t_expires);
@@ -301,7 +302,7 @@ handle_t *jbd2_journal_start(journal_t *journal, int nblocks)
 		goto out;
 	}
 
-	lock_acquire(&handle->h_lockdep_map, 0, 0, 0, 2, _THIS_IP_);
+	lock_map_acquire(&handle->h_lockdep_map);
 out:
 	return handle;
 }
@@ -1279,7 +1280,7 @@ int jbd2_journal_stop(handle_t *handle)
 		spin_unlock(&journal->j_state_lock);
 	}
 
-	lock_release(&handle->h_lockdep_map, 1, _THIS_IP_);
+	lock_map_release(&handle->h_lockdep_map);
 
 	jbd2_free_handle(handle);
 	return err;

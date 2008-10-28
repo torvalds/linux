@@ -41,11 +41,10 @@
 #include <linux/rtc.h>
 #include <linux/bcd.h>
 
-#include <asm/mach-types.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/gpio.h>
-#include <asm/arch/menelaus.h>
+#include <mach/gpio.h>
+#include <mach/menelaus.h>
 
 #define DRIVER_NAME			"menelaus"
 
@@ -833,52 +832,52 @@ static irqreturn_t menelaus_irq(int irq, void *_menelaus)
 
 static void menelaus_to_time(char *regs, struct rtc_time *t)
 {
-	t->tm_sec = BCD2BIN(regs[0]);
-	t->tm_min = BCD2BIN(regs[1]);
+	t->tm_sec = bcd2bin(regs[0]);
+	t->tm_min = bcd2bin(regs[1]);
 	if (the_menelaus->rtc_control & RTC_CTRL_MODE12) {
-		t->tm_hour = BCD2BIN(regs[2] & 0x1f) - 1;
+		t->tm_hour = bcd2bin(regs[2] & 0x1f) - 1;
 		if (regs[2] & RTC_HR_PM)
 			t->tm_hour += 12;
 	} else
-		t->tm_hour = BCD2BIN(regs[2] & 0x3f);
-	t->tm_mday = BCD2BIN(regs[3]);
-	t->tm_mon = BCD2BIN(regs[4]) - 1;
-	t->tm_year = BCD2BIN(regs[5]) + 100;
+		t->tm_hour = bcd2bin(regs[2] & 0x3f);
+	t->tm_mday = bcd2bin(regs[3]);
+	t->tm_mon = bcd2bin(regs[4]) - 1;
+	t->tm_year = bcd2bin(regs[5]) + 100;
 }
 
 static int time_to_menelaus(struct rtc_time *t, int regnum)
 {
 	int	hour, status;
 
-	status = menelaus_write_reg(regnum++, BIN2BCD(t->tm_sec));
+	status = menelaus_write_reg(regnum++, bin2bcd(t->tm_sec));
 	if (status < 0)
 		goto fail;
 
-	status = menelaus_write_reg(regnum++, BIN2BCD(t->tm_min));
+	status = menelaus_write_reg(regnum++, bin2bcd(t->tm_min));
 	if (status < 0)
 		goto fail;
 
 	if (the_menelaus->rtc_control & RTC_CTRL_MODE12) {
 		hour = t->tm_hour + 1;
 		if (hour > 12)
-			hour = RTC_HR_PM | BIN2BCD(hour - 12);
+			hour = RTC_HR_PM | bin2bcd(hour - 12);
 		else
-			hour = BIN2BCD(hour);
+			hour = bin2bcd(hour);
 	} else
-		hour = BIN2BCD(t->tm_hour);
+		hour = bin2bcd(t->tm_hour);
 	status = menelaus_write_reg(regnum++, hour);
 	if (status < 0)
 		goto fail;
 
-	status = menelaus_write_reg(regnum++, BIN2BCD(t->tm_mday));
+	status = menelaus_write_reg(regnum++, bin2bcd(t->tm_mday));
 	if (status < 0)
 		goto fail;
 
-	status = menelaus_write_reg(regnum++, BIN2BCD(t->tm_mon + 1));
+	status = menelaus_write_reg(regnum++, bin2bcd(t->tm_mon + 1));
 	if (status < 0)
 		goto fail;
 
-	status = menelaus_write_reg(regnum++, BIN2BCD(t->tm_year - 100));
+	status = menelaus_write_reg(regnum++, bin2bcd(t->tm_year - 100));
 	if (status < 0)
 		goto fail;
 
@@ -915,7 +914,7 @@ static int menelaus_read_time(struct device *dev, struct rtc_time *t)
 	}
 
 	menelaus_to_time(regs, t);
-	t->tm_wday = BCD2BIN(regs[6]);
+	t->tm_wday = bcd2bin(regs[6]);
 
 	return 0;
 }
@@ -928,7 +927,7 @@ static int menelaus_set_time(struct device *dev, struct rtc_time *t)
 	status = time_to_menelaus(t, MENELAUS_RTC_SEC);
 	if (status < 0)
 		return status;
-	status = menelaus_write_reg(MENELAUS_RTC_WKDAY, BIN2BCD(t->tm_wday));
+	status = menelaus_write_reg(MENELAUS_RTC_WKDAY, bin2bcd(t->tm_wday));
 	if (status < 0) {
 		dev_err(&the_menelaus->client->dev, "rtc write reg %02x "
 				"err %d\n", MENELAUS_RTC_WKDAY, status);

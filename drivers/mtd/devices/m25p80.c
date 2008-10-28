@@ -33,11 +33,13 @@
 /* Flash opcodes. */
 #define	OPCODE_WREN		0x06	/* Write enable */
 #define	OPCODE_RDSR		0x05	/* Read status register */
+#define	OPCODE_WRSR		0x01	/* Write status register 1 byte */
 #define	OPCODE_NORM_READ	0x03	/* Read data bytes (low frequency) */
 #define	OPCODE_FAST_READ	0x0b	/* Read data bytes (high frequency) */
 #define	OPCODE_PP		0x02	/* Page program (up to 256 bytes) */
 #define	OPCODE_BE_4K 		0x20	/* Erase 4KiB block */
 #define	OPCODE_BE_32K		0x52	/* Erase 32KiB block */
+#define	OPCODE_BE		0xc7	/* Erase whole flash block */
 #define	OPCODE_SE		0xd8	/* Sector erase (usually 64KiB) */
 #define	OPCODE_RDID		0x9f	/* Read JEDEC ID */
 
@@ -112,6 +114,17 @@ static int read_sr(struct m25p *flash)
 	return val;
 }
 
+/*
+ * Write status register 1 byte
+ * Returns negative if error occurred.
+ */
+static int write_sr(struct m25p *flash, u8 val)
+{
+	flash->command[0] = OPCODE_WRSR;
+	flash->command[1] = val;
+
+	return spi_write(flash->spi, flash->command, 2);
+}
 
 /*
  * Set write enable latch with Write Enable command.
@@ -149,6 +162,31 @@ static int wait_till_ready(struct m25p *flash)
 	return 1;
 }
 
+/*
+ * Erase the whole flash memory
+ *
+ * Returns 0 if successful, non-zero otherwise.
+ */
+static int erase_block(struct m25p *flash)
+{
+	DEBUG(MTD_DEBUG_LEVEL3, "%s: %s %dKiB\n",
+			flash->spi->dev.bus_id, __func__,
+			flash->mtd.size / 1024);
+
+	/* Wait until finished previous write command. */
+	if (wait_till_ready(flash))
+		return 1;
+
+	/* Send write enable, then erase commands. */
+	write_enable(flash);
+
+	/* Set up command buffer. */
+	flash->command[0] = OPCODE_BE;
+
+	spi_write(flash->spi, flash->command, 1);
+
+	return 0;
+}
 
 /*
  * Erase one sector of flash memory at offset ``offset'' which is any
@@ -217,15 +255,21 @@ static int m25p80_erase(struct mtd_info *mtd, struct erase_info *instr)
 	 */
 
 	/* now erase those sectors */
-	while (len) {
-		if (erase_sector(flash, addr)) {
-			instr->state = MTD_ERASE_FAILED;
-			mutex_unlock(&flash->lock);
-			return -EIO;
-		}
+	if (len == flash->mtd.size && erase_block(flash)) {
+		instr->state = MTD_ERASE_FAILED;
+		mutex_unlock(&flash->lock);
+		return -EIO;
+	} else {
+		while (len) {
+			if (erase_sector(flash, addr)) {
+				instr->state = MTD_ERASE_FAILED;
+				mutex_unlock(&flash->lock);
+				return -EIO;
+			}
 
-		addr += mtd->erasesize;
-		len -= mtd->erasesize;
+			addr += mtd->erasesize;
+			len -= mtd->erasesize;
+		}
 	}
 
 	mutex_unlock(&flash->lock);
@@ -425,6 +469,7 @@ struct flash_info {
 	 * then a two byte device id.
 	 */
 	u32		jedec_id;
+	u16             ext_id;
 
 	/* The size listed here is what works with OPCODE_SE, which isn't
 	 * necessarily called a "sector" by the vendor.
@@ -444,72 +489,75 @@ struct flash_info {
 static struct flash_info __devinitdata m25p_data [] = {
 
 	/* Atmel -- some are (confusingly) marketed as "DataFlash" */
-	{ "at25fs010",  0x1f6601, 32 * 1024, 4, SECT_4K, },
-	{ "at25fs040",  0x1f6604, 64 * 1024, 8, SECT_4K, },
+	{ "at25fs010",  0x1f6601, 0, 32 * 1024, 4, SECT_4K, },
+	{ "at25fs040",  0x1f6604, 0, 64 * 1024, 8, SECT_4K, },
 
-	{ "at25df041a", 0x1f4401, 64 * 1024, 8, SECT_4K, },
-	{ "at25df641",  0x1f4800, 64 * 1024, 128, SECT_4K, },
+	{ "at25df041a", 0x1f4401, 0, 64 * 1024, 8, SECT_4K, },
+	{ "at25df641",  0x1f4800, 0, 64 * 1024, 128, SECT_4K, },
 
-	{ "at26f004",   0x1f0400, 64 * 1024, 8, SECT_4K, },
-	{ "at26df081a", 0x1f4501, 64 * 1024, 16, SECT_4K, },
-	{ "at26df161a", 0x1f4601, 64 * 1024, 32, SECT_4K, },
-	{ "at26df321",  0x1f4701, 64 * 1024, 64, SECT_4K, },
+	{ "at26f004",   0x1f0400, 0, 64 * 1024, 8, SECT_4K, },
+	{ "at26df081a", 0x1f4501, 0, 64 * 1024, 16, SECT_4K, },
+	{ "at26df161a", 0x1f4601, 0, 64 * 1024, 32, SECT_4K, },
+	{ "at26df321",  0x1f4701, 0, 64 * 1024, 64, SECT_4K, },
 
 	/* Spansion -- single (large) sector size only, at least
 	 * for the chips listed here (without boot sectors).
 	 */
-	{ "s25sl004a", 0x010212, 64 * 1024, 8, },
-	{ "s25sl008a", 0x010213, 64 * 1024, 16, },
-	{ "s25sl016a", 0x010214, 64 * 1024, 32, },
-	{ "s25sl032a", 0x010215, 64 * 1024, 64, },
-	{ "s25sl064a", 0x010216, 64 * 1024, 128, },
+	{ "s25sl004a", 0x010212, 0, 64 * 1024, 8, },
+	{ "s25sl008a", 0x010213, 0, 64 * 1024, 16, },
+	{ "s25sl016a", 0x010214, 0, 64 * 1024, 32, },
+	{ "s25sl032a", 0x010215, 0, 64 * 1024, 64, },
+	{ "s25sl064a", 0x010216, 0, 64 * 1024, 128, },
+        { "s25sl12800", 0x012018, 0x0300, 256 * 1024, 64, },
+	{ "s25sl12801", 0x012018, 0x0301, 64 * 1024, 256, },
 
 	/* SST -- large erase sizes are "overlays", "sectors" are 4K */
-	{ "sst25vf040b", 0xbf258d, 64 * 1024, 8, SECT_4K, },
-	{ "sst25vf080b", 0xbf258e, 64 * 1024, 16, SECT_4K, },
-	{ "sst25vf016b", 0xbf2541, 64 * 1024, 32, SECT_4K, },
-	{ "sst25vf032b", 0xbf254a, 64 * 1024, 64, SECT_4K, },
+	{ "sst25vf040b", 0xbf258d, 0, 64 * 1024, 8, SECT_4K, },
+	{ "sst25vf080b", 0xbf258e, 0, 64 * 1024, 16, SECT_4K, },
+	{ "sst25vf016b", 0xbf2541, 0, 64 * 1024, 32, SECT_4K, },
+	{ "sst25vf032b", 0xbf254a, 0, 64 * 1024, 64, SECT_4K, },
 
 	/* ST Microelectronics -- newer production may have feature updates */
-	{ "m25p05",  0x202010,  32 * 1024, 2, },
-	{ "m25p10",  0x202011,  32 * 1024, 4, },
-	{ "m25p20",  0x202012,  64 * 1024, 4, },
-	{ "m25p40",  0x202013,  64 * 1024, 8, },
-	{ "m25p80",         0,  64 * 1024, 16, },
-	{ "m25p16",  0x202015,  64 * 1024, 32, },
-	{ "m25p32",  0x202016,  64 * 1024, 64, },
-	{ "m25p64",  0x202017,  64 * 1024, 128, },
-	{ "m25p128", 0x202018, 256 * 1024, 64, },
+	{ "m25p05",  0x202010,  0, 32 * 1024, 2, },
+	{ "m25p10",  0x202011,  0, 32 * 1024, 4, },
+	{ "m25p20",  0x202012,  0, 64 * 1024, 4, },
+	{ "m25p40",  0x202013,  0, 64 * 1024, 8, },
+	{ "m25p80",         0,  0, 64 * 1024, 16, },
+	{ "m25p16",  0x202015,  0, 64 * 1024, 32, },
+	{ "m25p32",  0x202016,  0, 64 * 1024, 64, },
+	{ "m25p64",  0x202017,  0, 64 * 1024, 128, },
+	{ "m25p128", 0x202018, 0, 256 * 1024, 64, },
 
-	{ "m45pe80", 0x204014,  64 * 1024, 16, },
-	{ "m45pe16", 0x204015,  64 * 1024, 32, },
+	{ "m45pe80", 0x204014,  0, 64 * 1024, 16, },
+	{ "m45pe16", 0x204015,  0, 64 * 1024, 32, },
 
-	{ "m25pe80", 0x208014,  64 * 1024, 16, },
-	{ "m25pe16", 0x208015,  64 * 1024, 32, SECT_4K, },
+	{ "m25pe80", 0x208014,  0, 64 * 1024, 16, },
+	{ "m25pe16", 0x208015,  0, 64 * 1024, 32, SECT_4K, },
 
 	/* Winbond -- w25x "blocks" are 64K, "sectors" are 4KiB */
-	{ "w25x10", 0xef3011, 64 * 1024, 2, SECT_4K, },
-	{ "w25x20", 0xef3012, 64 * 1024, 4, SECT_4K, },
-	{ "w25x40", 0xef3013, 64 * 1024, 8, SECT_4K, },
-	{ "w25x80", 0xef3014, 64 * 1024, 16, SECT_4K, },
-	{ "w25x16", 0xef3015, 64 * 1024, 32, SECT_4K, },
-	{ "w25x32", 0xef3016, 64 * 1024, 64, SECT_4K, },
-	{ "w25x64", 0xef3017, 64 * 1024, 128, SECT_4K, },
+	{ "w25x10", 0xef3011, 0, 64 * 1024, 2, SECT_4K, },
+	{ "w25x20", 0xef3012, 0, 64 * 1024, 4, SECT_4K, },
+	{ "w25x40", 0xef3013, 0, 64 * 1024, 8, SECT_4K, },
+	{ "w25x80", 0xef3014, 0, 64 * 1024, 16, SECT_4K, },
+	{ "w25x16", 0xef3015, 0, 64 * 1024, 32, SECT_4K, },
+	{ "w25x32", 0xef3016, 0, 64 * 1024, 64, SECT_4K, },
+	{ "w25x64", 0xef3017, 0, 64 * 1024, 128, SECT_4K, },
 };
 
 static struct flash_info *__devinit jedec_probe(struct spi_device *spi)
 {
 	int			tmp;
 	u8			code = OPCODE_RDID;
-	u8			id[3];
+	u8			id[5];
 	u32			jedec;
+	u16                     ext_jedec;
 	struct flash_info	*info;
 
 	/* JEDEC also defines an optional "extended device information"
 	 * string for after vendor-specific data, after the three bytes
 	 * we use here.  Supporting some chips might require using it.
 	 */
-	tmp = spi_write_then_read(spi, &code, 1, id, 3);
+	tmp = spi_write_then_read(spi, &code, 1, id, 5);
 	if (tmp < 0) {
 		DEBUG(MTD_DEBUG_LEVEL0, "%s: error %d reading JEDEC ID\n",
 			spi->dev.bus_id, tmp);
@@ -521,10 +569,14 @@ static struct flash_info *__devinit jedec_probe(struct spi_device *spi)
 	jedec = jedec << 8;
 	jedec |= id[2];
 
+	ext_jedec = id[3] << 8 | id[4];
+
 	for (tmp = 0, info = m25p_data;
 			tmp < ARRAY_SIZE(m25p_data);
 			tmp++, info++) {
 		if (info->jedec_id == jedec)
+			if (ext_jedec != 0 && info->ext_id != ext_jedec)
+				continue;
 			return info;
 	}
 	dev_err(&spi->dev, "unrecognized JEDEC id %06x\n", jedec);
@@ -588,6 +640,16 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	flash->spi = spi;
 	mutex_init(&flash->lock);
 	dev_set_drvdata(&spi->dev, flash);
+
+	/*
+	 * Atmel serial flash tend to power up
+	 * with the software protection bits set
+	 */
+
+	if (info->jedec_id >> 16 == 0x1f) {
+		write_enable(flash);
+		write_sr(flash, 0);
+	}
 
 	if (data && data->name)
 		flash->mtd.name = data->name;

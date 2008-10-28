@@ -216,8 +216,8 @@ int get_sb_pseudo(struct file_system_type *fs_type, char *name,
 
 	s->s_flags = MS_NOUSER;
 	s->s_maxbytes = ~0ULL;
-	s->s_blocksize = 1024;
-	s->s_blocksize_bits = 10;
+	s->s_blocksize = PAGE_SIZE;
+	s->s_blocksize_bits = PAGE_SHIFT;
 	s->s_magic = magic;
 	s->s_op = ops ? ops : &simple_super_operations;
 	s->s_time_gran = 1;
@@ -732,28 +732,6 @@ out:
 	return ret;
 }
 
-/*
- * This is what d_alloc_anon should have been.  Once the exportfs
- * argument transition has been finished I will update d_alloc_anon
- * to this prototype and this wrapper will go away.   --hch
- */
-static struct dentry *exportfs_d_alloc(struct inode *inode)
-{
-	struct dentry *dentry;
-
-	if (!inode)
-		return NULL;
-	if (IS_ERR(inode))
-		return ERR_PTR(PTR_ERR(inode));
-
-	dentry = d_alloc_anon(inode);
-	if (!dentry) {
-		iput(inode);
-		dentry = ERR_PTR(-ENOMEM);
-	}
-	return dentry;
-}
-
 /**
  * generic_fh_to_dentry - generic helper for the fh_to_dentry export operation
  * @sb:		filesystem to do the file handle conversion on
@@ -782,7 +760,7 @@ struct dentry *generic_fh_to_dentry(struct super_block *sb, struct fid *fid,
 		break;
 	}
 
-	return exportfs_d_alloc(inode);
+	return d_obtain_alias(inode);
 }
 EXPORT_SYMBOL_GPL(generic_fh_to_dentry);
 
@@ -815,7 +793,7 @@ struct dentry *generic_fh_to_parent(struct super_block *sb, struct fid *fid,
 		break;
 	}
 
-	return exportfs_d_alloc(inode);
+	return d_obtain_alias(inode);
 }
 EXPORT_SYMBOL_GPL(generic_fh_to_parent);
 

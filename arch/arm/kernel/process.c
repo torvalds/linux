@@ -28,12 +28,12 @@
 #include <linux/pm.h>
 #include <linux/tick.h>
 #include <linux/utsname.h>
+#include <linux/uaccess.h>
 
 #include <asm/leds.h>
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/thread_notify.h>
-#include <asm/uaccess.h>
 #include <asm/mach/time.h>
 
 static const char *processor_modes[] = {
@@ -51,7 +51,7 @@ extern void setup_mm_for_reboot(char mode);
 
 static volatile int hlt_counter;
 
-#include <asm/arch/system.h>
+#include <mach/system.h>
 
 void disable_hlt(void)
 {
@@ -162,7 +162,7 @@ void cpu_idle(void)
 		if (!idle)
 			idle = default_idle;
 		leds_event(led_idle_start);
-		tick_nohz_stop_sched_tick();
+		tick_nohz_stop_sched_tick(1);
 		while (!need_resched())
 			idle();
 		leds_event(led_idle_end);
@@ -265,35 +265,6 @@ void show_regs(struct pt_regs * regs)
 	printk("Pid: %d, comm: %20s\n", task_pid_nr(current), current->comm);
 	__show_regs(regs);
 	__backtrace();
-}
-
-void show_fpregs(struct user_fp *regs)
-{
-	int i;
-
-	for (i = 0; i < 8; i++) {
-		unsigned long *p;
-		char type;
-
-		p = (unsigned long *)(regs->fpregs + i);
-
-		switch (regs->ftype[i]) {
-			case 1: type = 'f'; break;
-			case 2: type = 'd'; break;
-			case 3: type = 'e'; break;
-			default: type = '?'; break;
-		}
-		if (regs->init_flag)
-			type = '?';
-
-		printk("  f%d(%c): %08lx %08lx %08lx%c",
-			i, type, p[0], p[1], p[2], i & 1 ? '\n' : ' ');
-	}
-			
-
-	printk("FPSR: %08lx FPCR: %08lx\n",
-		(unsigned long)regs->fpsr,
-		(unsigned long)regs->fpcr);
 }
 
 /*
@@ -414,7 +385,7 @@ unsigned long get_wchan(struct task_struct *p)
 	do {
 		if (fp < stack_start || fp > stack_end)
 			return 0;
-		lr = pc_pointer (((unsigned long *)fp)[-1]);
+		lr = ((unsigned long *)fp)[-1];
 		if (!in_sched_functions(lr))
 			return lr;
 		fp = *(unsigned long *) (fp - 12);

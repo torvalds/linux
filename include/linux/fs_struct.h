@@ -7,7 +7,7 @@ struct fs_struct {
 	atomic_t count;
 	rwlock_t lock;
 	int umask;
-	struct path root, pwd, altroot;
+	struct path root, pwd;
 };
 
 #define INIT_FS {				\
@@ -19,7 +19,6 @@ struct fs_struct {
 extern struct kmem_cache *fs_cachep;
 
 extern void exit_fs(struct task_struct *);
-extern void set_fs_altroot(void);
 extern void set_fs_root(struct fs_struct *, struct path *);
 extern void set_fs_pwd(struct fs_struct *, struct path *);
 extern struct fs_struct *copy_fs_struct(struct fs_struct *);

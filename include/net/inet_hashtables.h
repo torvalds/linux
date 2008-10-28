@@ -16,6 +16,7 @@
 
 
 #include <linux/interrupt.h>
+#include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/list.h>
 #include <linux/slab.h>
@@ -28,7 +29,9 @@
 #include <net/inet_connection_sock.h>
 #include <net/inet_sock.h>
 #include <net/sock.h>
+#include <net/route.h>
 #include <net/tcp_states.h>
+#include <net/netns/hash.h>
 
 #include <asm/atomic.h>
 #include <asm/byteorder.h>
@@ -201,23 +204,24 @@ extern struct inet_bind_bucket *
 extern void inet_bind_bucket_destroy(struct kmem_cache *cachep,
 				     struct inet_bind_bucket *tb);
 
-static inline int inet_bhashfn(const __u16 lport, const int bhash_size)
+static inline int inet_bhashfn(struct net *net,
+		const __u16 lport, const int bhash_size)
 {
-	return lport & (bhash_size - 1);
+	return (lport + net_hash_mix(net)) & (bhash_size - 1);
 }
 
 extern void inet_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
 			   const unsigned short snum);
 
 /* These can have wildcards, don't try too hard. */
-static inline int inet_lhashfn(const unsigned short num)
+static inline int inet_lhashfn(struct net *net, const unsigned short num)
 {
-	return num & (INET_LHTABLE_SIZE - 1);
+	return (num + net_hash_mix(net)) & (INET_LHTABLE_SIZE - 1);
 }
 
 static inline int inet_sk_listen_hashfn(const struct sock *sk)
 {
-	return inet_lhashfn(inet_sk(sk)->num);
+	return inet_lhashfn(sock_net(sk), inet_sk(sk)->num);
 }
 
 /* Caller must disable local BH processing. */
@@ -367,6 +371,22 @@ static inline struct sock *inet_lookup(struct net *net,
 	local_bh_enable();
 
 	return sk;
+}
+
+static inline struct sock *__inet_lookup_skb(struct inet_hashinfo *hashinfo,
+					     struct sk_buff *skb,
+					     const __be16 sport,
+					     const __be16 dport)
+{
+	struct sock *sk;
+	const struct iphdr *iph = ip_hdr(skb);
+
+	if (unlikely(sk = skb_steal_sock(skb)))
+		return sk;
+	else
+		return __inet_lookup(dev_net(skb->dst->dev), hashinfo,
+				     iph->saddr, sport,
+				     iph->daddr, dport, inet_iif(skb));
 }
 
 extern int __inet_hash_connect(struct inet_timewait_death_row *death_row,

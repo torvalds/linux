@@ -16,20 +16,20 @@
 #include <linux/init.h>
 #include <linux/sysdev.h>
 #include <linux/serial_core.h>
+#include <linux/io.h>
 
 #include <asm/dma.h>
-#include <asm/arch/dma.h>
-#include <asm/io.h>
+#include <mach/dma.h>
 
-#include <asm/plat-s3c24xx/dma.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/dma.h>
+#include <plat/cpu.h>
 
-#include <asm/plat-s3c/regs-serial.h>
-#include <asm/arch/regs-gpio.h>
+#include <plat/regs-serial.h>
+#include <mach/regs-gpio.h>
 #include <asm/plat-s3c/regs-ac97.h>
-#include <asm/arch/regs-mem.h>
-#include <asm/arch/regs-lcd.h>
-#include <asm/arch/regs-sdi.h>
+#include <mach/regs-mem.h>
+#include <mach/regs-lcd.h>
+#include <mach/regs-sdi.h>
 #include <asm/plat-s3c24xx/regs-s3c2412-iis.h>
 #include <asm/plat-s3c24xx/regs-iis.h>
 #include <asm/plat-s3c24xx/regs-spi.h>

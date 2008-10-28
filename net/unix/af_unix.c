@@ -1,14 +1,12 @@
 /*
  * NET4:	Implementation of BSD Unix domain sockets.
  *
- * Authors:	Alan Cox, <alan.cox@linux.org>
+ * Authors:	Alan Cox, <alan@lxorguk.ukuu.org.uk>
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
  *		as published by the Free Software Foundation; either version
  *		2 of the License, or (at your option) any later version.
- *
- * Version:	$Id: af_unix.c,v 1.133 2002/02/08 03:57:19 davem Exp $
  *
  * Fixes:
  *		Linus Torvalds	:	Assorted bug cures.
@@ -229,7 +227,7 @@ static void __unix_remove_socket(struct sock *sk)
 
 static void __unix_insert_socket(struct hlist_head *list, struct sock *sk)
 {
-	BUG_TRAP(sk_unhashed(sk));
+	WARN_ON(!sk_unhashed(sk));
 	sk_add_node(sk, list);
 }
 
@@ -352,9 +350,9 @@ static void unix_sock_destructor(struct sock *sk)
 
 	skb_queue_purge(&sk->sk_receive_queue);
 
-	BUG_TRAP(!atomic_read(&sk->sk_wmem_alloc));
-	BUG_TRAP(sk_unhashed(sk));
-	BUG_TRAP(!sk->sk_socket);
+	WARN_ON(atomic_read(&sk->sk_wmem_alloc));
+	WARN_ON(!sk_unhashed(sk));
+	WARN_ON(sk->sk_socket);
 	if (!sock_flag(sk, SOCK_DEAD)) {
 		printk("Attempt to release alive unix socket: %p\n", sk);
 		return;
@@ -605,7 +603,7 @@ static struct sock * unix_create1(struct net *net, struct socket *sock)
 	u->dentry = NULL;
 	u->mnt	  = NULL;
 	spin_lock_init(&u->lock);
-	atomic_set(&u->inflight, 0);
+	atomic_long_set(&u->inflight, 0);
 	INIT_LIST_HEAD(&u->link);
 	mutex_init(&u->readlock); /* single task reading lock */
 	init_waitqueue_head(&u->peer_wait);
@@ -713,28 +711,30 @@ static struct sock *unix_find_other(struct net *net,
 				    int type, unsigned hash, int *error)
 {
 	struct sock *u;
-	struct nameidata nd;
+	struct path path;
 	int err = 0;
 
 	if (sunname->sun_path[0]) {
-		err = path_lookup(sunname->sun_path, LOOKUP_FOLLOW, &nd);
+		struct inode *inode;
+		err = kern_path(sunname->sun_path, LOOKUP_FOLLOW, &path);
 		if (err)
 			goto fail;
-		err = vfs_permission(&nd, MAY_WRITE);
+		inode = path.dentry->d_inode;
+		err = inode_permission(inode, MAY_WRITE);
 		if (err)
 			goto put_fail;
 
 		err = -ECONNREFUSED;
-		if (!S_ISSOCK(nd.path.dentry->d_inode->i_mode))
+		if (!S_ISSOCK(inode->i_mode))
 			goto put_fail;
-		u = unix_find_socket_byinode(net, nd.path.dentry->d_inode);
+		u = unix_find_socket_byinode(net, inode);
 		if (!u)
 			goto put_fail;
 
 		if (u->sk_type == type)
-			touch_atime(nd.path.mnt, nd.path.dentry);
+			touch_atime(path.mnt, path.dentry);
 
-		path_put(&nd.path);
+		path_put(&path);
 
 		err=-EPROTOTYPE;
 		if (u->sk_type != type) {
@@ -755,7 +755,7 @@ static struct sock *unix_find_other(struct net *net,
 	return u;
 
 put_fail:
-	path_put(&nd.path);
+	path_put(&path);
 fail:
 	*error=err;
 	return NULL;

@@ -95,13 +95,13 @@ static int __init excite_init_console(void)
 	/* Take the DUART out of reset */
 	titan_writel(0x00ff1cff, CPRR);
 
-#if defined(CONFIG_KGDB) || (CONFIG_SERIAL_8250_NR_UARTS > 1)
+#if (CONFIG_SERIAL_8250_NR_UARTS > 1)
 	/* Enable both ports */
 	titan_writel(MASK_SER0 | MASK_SER1, UACFG);
 #else
 	/* Enable port #0 only */
 	titan_writel(MASK_SER0, UACFG);
-#endif	/* defined(CONFIG_KGDB) */
+#endif
 
  	/*
 	 * Set up serial port #0. Do not use autodetection; the result is

@@ -171,7 +171,7 @@ config BSD_PROCESS_ACCT_V3
 	  process and it's parent. Note that this file format is incompatible
 	  with previous v0/v1/v2 file formats, so you will need updated tools
 	  for processing it. A preliminary version of these tools is available
-	  at <http://www.physik3.uni-rostock.de/tim/kernel/utils/acct/>.
+	  at <http://www.gnu.org/software/acct/>.
 
 config TASKSTATS
 	bool "Export task/process statistics through netlink (EXPERIMENTAL)"
@@ -298,6 +298,13 @@ config CGROUP_NS
           provide hierarchical naming of sets of namespaces,
           for instance virtual servers and checkpoint/restart
           jobs.
+
+config CGROUP_FREEZER
+        bool "control group freezer subsystem"
+        depends on CGROUPS
+        help
+          Provides a way to freeze and unfreeze all tasks in a
+	  cgroup.
 
 config CGROUP_DEVICE
 	bool "Device controller for cgroups"
@@ -486,7 +493,7 @@ config PID_NS
 	default n
 	depends on NAMESPACES && EXPERIMENTAL
 	help
-	  Suport process id namespaces.  This allows having multiple
+	  Support process id namespaces.  This allows having multiple
 	  process with the same pid as long as they are in different
 	  pid namespaces.  This is a building block of containers.
 
@@ -522,7 +529,7 @@ config CC_OPTIMIZE_FOR_SIZE
 	  Enabling this option will pass "-Os" instead of "-O2" to gcc
 	  resulting in a smaller kernel.
 
-	  If unsure, say N.
+	  If unsure, say Y.
 
 config SYSCTL
 	bool
@@ -555,17 +562,6 @@ config SYSCTL_SYSCALL
 	  Almost nothing using the binary sysctl interface so if you are
 	  trying to save some space it is probably safe to disable this,
 	  making your kernel marginally smaller.
-
-	  If unsure say Y here.
-
-config SYSCTL_SYSCALL_CHECK
-	bool "Sysctl checks" if EMBEDDED
-	depends on SYSCTL_SYSCALL
-	default y
-	---help---
-	  sys_sysctl uses binary paths that have been found challenging
-	  to properly maintain and use. This enables checks that help
-	  you to keep things correct.
 
 	  If unsure say Y here.
 
@@ -724,6 +720,14 @@ config SHMEM
 	  option replaces shmem and tmpfs with the much simpler ramfs code,
 	  which may be appropriate on small systems without swap.
 
+config AIO
+	bool "Enable AIO support" if EMBEDDED
+	default y
+	help
+	  This option enables POSIX asynchronous I/O which may by used
+          by some high performance threaded applications. Disabling
+          this option saves about 7k.
+
 config VM_EVENT_COUNTERS
 	default y
 	bool "Enable VM event counters for /proc/vmstat" if EMBEDDED
@@ -732,6 +736,15 @@ config VM_EVENT_COUNTERS
 	  This option allows the disabling of the VM event counters
 	  on EMBEDDED systems.  /proc/vmstat will only show page counts
 	  if VM event counters are disabled.
+
+config PCI_QUIRKS
+	default y
+	bool "Enable PCI quirk workarounds" if EMBEDDED
+	depends on PCI
+	help
+	  This enables workarounds for various PCI chipset
+          bugs/quirks. Disable this only if your target machine is
+          unaffected by PCI quirks.
 
 config SLUB_DEBUG
 	default y
@@ -782,6 +795,13 @@ config PROFILING
 	  Say Y here to enable the extended profiling support mechanisms used
 	  by profilers such as OProfile.
 
+#
+# Place an empty function call at each tracepoint site. Can be
+# dynamically changed for a probe function.
+#
+config TRACEPOINTS
+	bool
+
 config MARKERS
 	bool "Activate markers"
 	help
@@ -790,17 +810,11 @@ config MARKERS
 
 source "arch/Kconfig"
 
-config PROC_PAGE_MONITOR
- 	default y
-	depends on PROC_FS && MMU
-	bool "Enable /proc page monitoring" if EMBEDDED
- 	help
-	  Various /proc files exist to monitor process memory utilization:
-	  /proc/pid/smaps, /proc/pid/clear_refs, /proc/pid/pagemap,
-	  /proc/kpagecount, and /proc/kpageflags. Disabling these
-          interfaces will reduce the size of the kernel by approximately 4kb.
-
 endmenu		# General setup
+
+config HAVE_GENERIC_DMA_COHERENT
+	bool
+	default n
 
 config SLABINFO
 	bool
@@ -841,9 +855,10 @@ menuconfig MODULES
 
 	  If unsure, say Y.
 
+if MODULES
+
 config MODULE_FORCE_LOAD
 	bool "Forced module loading"
-	depends on MODULES
 	default n
 	help
 	  Allow loading of modules without version information (ie. modprobe
@@ -852,12 +867,11 @@ config MODULE_FORCE_LOAD
 
 config MODULE_UNLOAD
 	bool "Module unloading"
-	depends on MODULES
 	help
 	  Without this option you will not be able to unload any
 	  modules (note that some modules may not be unloadable
-	  anyway), which makes your kernel slightly smaller and
-	  simpler.  If unsure, say Y.
+	  anyway), which makes your kernel smaller, faster
+	  and simpler.  If unsure, say Y.
 
 config MODULE_FORCE_UNLOAD
 	bool "Forced module unloading"
@@ -871,7 +885,6 @@ config MODULE_FORCE_UNLOAD
 
 config MODVERSIONS
 	bool "Module versioning support"
-	depends on MODULES
 	help
 	  Usually, you have to use modules compiled with your kernel.
 	  Saying Y here makes it sometimes possible to use modules
@@ -882,7 +895,6 @@ config MODVERSIONS
 
 config MODULE_SRCVERSION_ALL
 	bool "Source checksum for all modules"
-	depends on MODULES
 	help
 	  Modules which contain a MODULE_VERSION get an extra "srcversion"
 	  field inserted into their modinfo section, which contains a
@@ -893,16 +905,12 @@ config MODULE_SRCVERSION_ALL
 	  will be created for all modules.  If unsure, say N.
 
 config KMOD
-	bool "Automatic kernel module loading"
-	depends on MODULES
+	def_bool y
 	help
-	  Normally when you have selected some parts of the kernel to
-	  be created as kernel modules, you must load them (using the
-	  "modprobe" command) before you can use them. If you say Y
-	  here, some parts of the kernel will be able to load modules
-	  automatically: when a part of the kernel needs a module, it
-	  runs modprobe with the appropriate arguments, thereby
-	  loading the module if it is available.  If unsure, say Y.
+	  This is being removed soon.  These days, CONFIG_MODULES
+	  implies CONFIG_KMOD, so use that instead.
+
+endif # MODULES
 
 config STOP_MACHINE
 	bool

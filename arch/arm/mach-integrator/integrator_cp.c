@@ -19,16 +19,16 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/kmi.h>
 #include <linux/amba/clcd.h>
+#include <linux/io.h>
 
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/hardware/icst525.h>
 
-#include <asm/arch/cm.h>
-#include <asm/arch/lm.h>
+#include <mach/cm.h>
+#include <mach/lm.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
@@ -217,8 +217,7 @@ sic_handle_irq(unsigned int irq, struct irq_desc *desc)
 
 		irq += IRQ_SIC_START;
 
-		desc = irq_desc + irq;
-		desc_handle_irq(irq, desc);
+		generic_handle_irq(irq);
 	} while (status);
 }
 

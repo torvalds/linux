@@ -33,7 +33,7 @@ static void cell_edac_count_ce(struct mem_ctl_info *mci, int chan, u64 ar)
 {
 	struct cell_edac_priv		*priv = mci->pvt_info;
 	struct csrow_info		*csrow = &mci->csrows[0];
-	unsigned long			address, pfn, offset;
+	unsigned long			address, pfn, offset, syndrome;
 
 	dev_dbg(mci->dev, "ECC CE err on node %d, channel %d, ar = 0x%016lx\n",
 		priv->node, chan, ar);
@@ -44,10 +44,11 @@ static void cell_edac_count_ce(struct mem_ctl_info *mci, int chan, u64 ar)
 		address = (address << 1) | chan;
 	pfn = address >> PAGE_SHIFT;
 	offset = address & ~PAGE_MASK;
+	syndrome = (ar & 0x000000001fe00000ul) >> 21;
 
 	/* TODO: Decoding of the error addresss */
 	edac_mc_handle_ce(mci, csrow->first_page + pfn, offset,
-			  0, 0, chan, "");
+			  syndrome, 0, chan, "");
 }
 
 static void cell_edac_count_ue(struct mem_ctl_info *mci, int chan, u64 ar)
@@ -141,7 +142,7 @@ static void __devinit cell_edac_init_csrows(struct mem_ctl_info *mci)
 		csrow->nr_pages = (r.end - r.start + 1) >> PAGE_SHIFT;
 		csrow->last_page = csrow->first_page + csrow->nr_pages - 1;
 		csrow->mtype = MEM_XDR;
-		csrow->edac_mode = EDAC_FLAG_EC | EDAC_FLAG_SECDED;
+		csrow->edac_mode = EDAC_SECDED;
 		dev_dbg(mci->dev,
 			"Initialized on node %d, chanmask=0x%x,"
 			" first_page=0x%lx, nr_pages=0x%x\n",

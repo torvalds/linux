@@ -303,6 +303,8 @@ struct uvc_xu_control {
 #define UVC_MAX_FRAME_SIZE	(16*1024*1024)
 /* Maximum number of video buffers. */
 #define UVC_MAX_VIDEO_BUFFERS	32
+/* Maximum status buffer size in bytes of interrupt URB. */
+#define UVC_MAX_STATUS_SIZE	16
 
 #define UVC_CTRL_CONTROL_TIMEOUT	300
 #define UVC_CTRL_STREAMING_TIMEOUT	1000
@@ -602,6 +604,8 @@ struct uvc_video_device {
 
 	struct urb *urb[UVC_URBS];
 	char *urb_buffer[UVC_URBS];
+	dma_addr_t urb_dma[UVC_URBS];
+	unsigned int urb_size;
 
 	__u8 last_fid;
 };
@@ -632,7 +636,7 @@ struct uvc_device {
 	/* Status Interrupt Endpoint */
 	struct usb_host_endpoint *int_ep;
 	struct urb *int_urb;
-	__u8 status[16];
+	__u8 *status;
 	struct input_dev *input;
 
 	/* Video Streaming interfaces */
@@ -794,3 +798,4 @@ void uvc_video_decode_isight(struct urb *urb, struct uvc_video_device *video,
 #endif /* __KERNEL__ */
 
 #endif
+

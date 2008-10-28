@@ -37,7 +37,7 @@ SYSCALL(sys_stime,sys_ni_syscall,sys32_stime_wrapper)		/* 25 old stime syscall *
 SYSCALL(sys_ptrace,sys_ptrace,sys32_ptrace_wrapper)
 SYSCALL(sys_alarm,sys_alarm,sys32_alarm_wrapper)
 NI_SYSCALL							/* old fstat syscall */
-SYSCALL(sys_pause,sys_pause,sys32_pause)
+SYSCALL(sys_pause,sys_pause,sys_pause)
 SYSCALL(sys_utime,sys_utime,compat_sys_utime_wrapper)		/* 30 */
 NI_SYSCALL							/* old stty syscall */
 NI_SYSCALL							/* old gtty syscall */
@@ -86,8 +86,8 @@ SYSCALL(sys_sethostname,sys_sethostname,sys32_sethostname_wrapper)
 SYSCALL(sys_setrlimit,sys_setrlimit,compat_sys_setrlimit_wrapper)	/* 75 */
 SYSCALL(sys_old_getrlimit,sys_getrlimit,compat_sys_old_getrlimit_wrapper)
 SYSCALL(sys_getrusage,sys_getrusage,compat_sys_getrusage_wrapper)
-SYSCALL(sys_gettimeofday,sys_gettimeofday,sys32_gettimeofday_wrapper)
-SYSCALL(sys_settimeofday,sys_settimeofday,sys32_settimeofday_wrapper)
+SYSCALL(sys_gettimeofday,sys_gettimeofday,compat_sys_gettimeofday_wrapper)
+SYSCALL(sys_settimeofday,sys_settimeofday,compat_sys_settimeofday_wrapper)
 SYSCALL(sys_getgroups16,sys_ni_syscall,sys32_getgroups16_wrapper)	/* 80 old getgroups16 syscall */
 SYSCALL(sys_setgroups16,sys_ni_syscall,sys32_setgroups16_wrapper)	/* old setgroups16 syscall */
 NI_SYSCALL							/* old select syscall */
@@ -330,3 +330,9 @@ SYSCALL(sys_eventfd,sys_eventfd,sys_eventfd_wrapper)
 SYSCALL(sys_timerfd_create,sys_timerfd_create,sys_timerfd_create_wrapper)
 SYSCALL(sys_timerfd_settime,sys_timerfd_settime,compat_sys_timerfd_settime_wrapper) /* 320 */
 SYSCALL(sys_timerfd_gettime,sys_timerfd_gettime,compat_sys_timerfd_gettime_wrapper)
+SYSCALL(sys_signalfd4,sys_signalfd4,compat_sys_signalfd4_wrapper)
+SYSCALL(sys_eventfd2,sys_eventfd2,sys_eventfd2_wrapper)
+SYSCALL(sys_inotify_init1,sys_inotify_init1,sys_inotify_init1_wrapper)
+SYSCALL(sys_pipe2,sys_pipe2,sys_pipe2_wrapper) /* 325 */
+SYSCALL(sys_dup3,sys_dup3,sys_dup3_wrapper)
+SYSCALL(sys_epoll_create1,sys_epoll_create1,sys_epoll_create1_wrapper)

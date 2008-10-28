@@ -496,7 +496,7 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 			arg = arg->common.next;
 		}
 
-		ACPI_ERROR((AE_INFO,
+		ACPI_WARNING((AE_INFO,
 			    "Package List length (%X) larger than NumElements count (%X), truncated\n",
 			    i, element_count));
 	} else if (i < element_count) {
@@ -731,54 +731,70 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 		switch (op_info->type) {
 		case AML_TYPE_LOCAL_VARIABLE:
 
-			/* Split the opcode into a base opcode + offset */
+			/* Local ID (0-7) is (AML opcode - base AML_LOCAL_OP) */
 
-			obj_desc->reference.opcode = AML_LOCAL_OP;
-			obj_desc->reference.offset = opcode - AML_LOCAL_OP;
+			obj_desc->reference.value = opcode - AML_LOCAL_OP;
+			obj_desc->reference.class = ACPI_REFCLASS_LOCAL;
 
 #ifndef ACPI_NO_METHOD_EXECUTION
-			status = acpi_ds_method_data_get_node(AML_LOCAL_OP,
-							      obj_desc->
-							      reference.offset,
-							      walk_state,
-							      (struct
-							       acpi_namespace_node
-							       **)&obj_desc->
-							      reference.object);
+			status =
+			    acpi_ds_method_data_get_node(ACPI_REFCLASS_LOCAL,
+							 obj_desc->reference.
+							 value, walk_state,
+							 ACPI_CAST_INDIRECT_PTR
+							 (struct
+							  acpi_namespace_node,
+							  &obj_desc->reference.
+							  object));
 #endif
 			break;
 
 		case AML_TYPE_METHOD_ARGUMENT:
 
-			/* Split the opcode into a base opcode + offset */
+			/* Arg ID (0-6) is (AML opcode - base AML_ARG_OP) */
 
-			obj_desc->reference.opcode = AML_ARG_OP;
-			obj_desc->reference.offset = opcode - AML_ARG_OP;
+			obj_desc->reference.value = opcode - AML_ARG_OP;
+			obj_desc->reference.class = ACPI_REFCLASS_ARG;
 
 #ifndef ACPI_NO_METHOD_EXECUTION
-			status = acpi_ds_method_data_get_node(AML_ARG_OP,
+			status = acpi_ds_method_data_get_node(ACPI_REFCLASS_ARG,
 							      obj_desc->
-							      reference.offset,
+							      reference.value,
 							      walk_state,
+							      ACPI_CAST_INDIRECT_PTR
 							      (struct
-							       acpi_namespace_node
-							       **)&obj_desc->
-							      reference.object);
+							       acpi_namespace_node,
+							       &obj_desc->
+							       reference.
+							       object));
 #endif
 			break;
 
-		default:	/* Other literals, etc.. */
+		default:	/* Object name or Debug object */
 
-			if (op->common.aml_opcode == AML_INT_NAMEPATH_OP) {
+			switch (op->common.aml_opcode) {
+			case AML_INT_NAMEPATH_OP:
 
 				/* Node was saved in Op */
 
 				obj_desc->reference.node = op->common.node;
 				obj_desc->reference.object =
 				    op->common.node->object;
-			}
+				obj_desc->reference.class = ACPI_REFCLASS_NAME;
+				break;
 
-			obj_desc->reference.opcode = opcode;
+			case AML_DEBUG_OP:
+
+				obj_desc->reference.class = ACPI_REFCLASS_DEBUG;
+				break;
+
+			default:
+
+				ACPI_ERROR((AE_INFO,
+					    "Unimplemented reference type for AML opcode: %4.4X",
+					    opcode));
+				return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
+			}
 			break;
 		}
 		break;

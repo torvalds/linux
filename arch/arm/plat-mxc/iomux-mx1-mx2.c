@@ -30,9 +30,9 @@
 #include <linux/string.h>
 #include <linux/gpio.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach/map.h>
-#include <asm/arch/iomux-mx1-mx2.h>
+#include <mach/iomux-mx1-mx2.h>
 
 void mxc_gpio_mode(int gpio_mode)
 {

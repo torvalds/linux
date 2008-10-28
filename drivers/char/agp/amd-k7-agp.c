@@ -223,12 +223,14 @@ static int amd_irongate_configure(void)
 
 	current_size = A_SIZE_LVL2(agp_bridge->current_size);
 
-	/* Get the memory mapped registers */
-	pci_read_config_dword(agp_bridge->dev, AMD_MMBASE, &temp);
-	temp = (temp & PCI_BASE_ADDRESS_MEM_MASK);
-	amd_irongate_private.registers = (volatile u8 __iomem *) ioremap(temp, 4096);
-	if (!amd_irongate_private.registers)
-		return -ENOMEM;
+	if (!amd_irongate_private.registers) {
+		/* Get the memory mapped registers */
+		pci_read_config_dword(agp_bridge->dev, AMD_MMBASE, &temp);
+		temp = (temp & PCI_BASE_ADDRESS_MEM_MASK);
+		amd_irongate_private.registers = (volatile u8 __iomem *) ioremap(temp, 4096);
+		if (!amd_irongate_private.registers)
+			return -ENOMEM;
+	}
 
 	/* Write out the address of the gatt table */
 	writel(agp_bridge->gatt_bus_addr, amd_irongate_private.registers+AMD_ATTBASE);
@@ -386,7 +388,9 @@ static const struct agp_bridge_driver amd_irongate_driver = {
 	.alloc_by_type		= agp_generic_alloc_by_type,
 	.free_by_type		= agp_generic_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,
+	.agp_alloc_pages	= agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages	= agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
@@ -419,8 +423,8 @@ static int __devinit agp_amdk7_probe(struct pci_dev *pdev,
 		return -ENODEV;
 
 	j = ent - agp_amdk7_pci_table;
-	printk(KERN_INFO PFX "Detected AMD %s chipset\n",
-	       amd_agp_device_ids[j].chipset_name);
+	dev_info(&pdev->dev, "AMD %s chipset\n",
+		 amd_agp_device_ids[j].chipset_name);
 
 	bridge = agp_alloc_bridge();
 	if (!bridge)
@@ -442,7 +446,7 @@ static int __devinit agp_amdk7_probe(struct pci_dev *pdev,
 		while (!cap_ptr) {
 			gfxcard = pci_get_class(PCI_CLASS_DISPLAY_VGA<<8, gfxcard);
 			if (!gfxcard) {
-				printk (KERN_INFO PFX "Couldn't find an AGP VGA controller.\n");
+				dev_info(&pdev->dev, "no AGP VGA controller\n");
 				return -ENODEV;
 			}
 			cap_ptr = pci_find_capability(gfxcard, PCI_CAP_ID_AGP);
@@ -453,7 +457,7 @@ static int __devinit agp_amdk7_probe(struct pci_dev *pdev,
 		   (if necessary at all). */
 		if (gfxcard->vendor == PCI_VENDOR_ID_NVIDIA) {
 			agp_bridge->flags |= AGP_ERRATA_1X;
-			printk (KERN_INFO PFX "AMD 751 chipset with NVidia GeForce detected. Forcing to 1X due to errata.\n");
+			dev_info(&pdev->dev, "AMD 751 chipset with NVidia GeForce; forcing 1X due to errata\n");
 		}
 		pci_dev_put(gfxcard);
 	}
@@ -469,7 +473,7 @@ static int __devinit agp_amdk7_probe(struct pci_dev *pdev,
 			agp_bridge->flags = AGP_ERRATA_FASTWRITES;
 			agp_bridge->flags |= AGP_ERRATA_SBA;
 			agp_bridge->flags |= AGP_ERRATA_1X;
-			printk (KERN_INFO PFX "AMD 761 chipset with errata detected - disabling AGP fast writes & SBA and forcing to 1X.\n");
+			dev_info(&pdev->dev, "AMD 761 chipset with errata; disabling AGP fast writes & SBA and forcing to 1X\n");
 		}
 	}
 
@@ -489,6 +493,26 @@ static void __devexit agp_amdk7_remove(struct pci_dev *pdev)
 	agp_remove_bridge(bridge);
 	agp_put_bridge(bridge);
 }
+
+#ifdef CONFIG_PM
+
+static int agp_amdk7_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	pci_save_state(pdev);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+
+	return 0;
+}
+
+static int agp_amdk7_resume(struct pci_dev *pdev)
+{
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+
+	return amd_irongate_driver.configure();
+}
+
+#endif /* CONFIG_PM */
 
 /* must be the same order as name table above */
 static struct pci_device_id agp_amdk7_pci_table[] = {
@@ -526,6 +550,10 @@ static struct pci_driver agp_amdk7_pci_driver = {
 	.id_table	= agp_amdk7_pci_table,
 	.probe		= agp_amdk7_probe,
 	.remove		= agp_amdk7_remove,
+#ifdef CONFIG_PM
+	.suspend	= agp_amdk7_suspend,
+	.resume		= agp_amdk7_resume,
+#endif
 };
 
 static int __init agp_amdk7_init(void)

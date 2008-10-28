@@ -24,9 +24,9 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/io.h>
 
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 
@@ -169,7 +169,6 @@ static struct locomo_dev_info locomo_devices[] = {
 static void locomo_handler(unsigned int irq, struct irq_desc *desc)
 {
 	int req, i;
-	struct irq_desc *d;
 	void __iomem *mapbase = get_irq_chip_data(irq);
 
 	/* Acknowledge the parent IRQ */
@@ -181,10 +180,9 @@ static void locomo_handler(unsigned int irq, struct irq_desc *desc)
 	if (req) {
 		/* generate the next interrupt(s) */
 		irq = LOCOMO_IRQ_START;
-		d = irq_desc + irq;
-		for (i = 0; i <= 3; i++, d++, irq++) {
+		for (i = 0; i <= 3; i++, irq++) {
 			if (req & (0x0100 << i)) {
-				desc_handle_irq(irq, d);
+				generic_handle_irq(irq);
 			}
 
 		}
@@ -222,12 +220,10 @@ static struct irq_chip locomo_chip = {
 
 static void locomo_key_handler(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_desc *d;
 	void __iomem *mapbase = get_irq_chip_data(irq);
 
 	if (locomo_readl(mapbase + LOCOMO_KEYBOARD + LOCOMO_KIC) & 0x0001) {
-		d = irq_desc + LOCOMO_IRQ_KEY_START;
-		desc_handle_irq(LOCOMO_IRQ_KEY_START, d);
+		generic_handle_irq(LOCOMO_IRQ_KEY_START);
 	}
 }
 
@@ -268,7 +264,6 @@ static struct irq_chip locomo_key_chip = {
 static void locomo_gpio_handler(unsigned int irq, struct irq_desc *desc)
 {
 	int req, i;
-	struct irq_desc *d;
 	void __iomem *mapbase = get_irq_chip_data(irq);
 
 	req = 	locomo_readl(mapbase + LOCOMO_GIR) &
@@ -277,10 +272,9 @@ static void locomo_gpio_handler(unsigned int irq, struct irq_desc *desc)
 
 	if (req) {
 		irq = LOCOMO_IRQ_GPIO_START;
-		d = irq_desc + LOCOMO_IRQ_GPIO_START;
-		for (i = 0; i <= 15; i++, irq++, d++) {
+		for (i = 0; i <= 15; i++, irq++) {
 			if (req & (0x0001 << i)) {
-				desc_handle_irq(irq, d);
+				generic_handle_irq(irq);
 			}
 		}
 	}
@@ -331,17 +325,17 @@ static int locomo_gpio_type(unsigned int irq, unsigned int type)
 
 	mask = 1 << (irq - LOCOMO_IRQ_GPIO_START);
 
-	if (type == IRQT_PROBE) {
+	if (type == IRQ_TYPE_PROBE) {
 		if ((GPIO_IRQ_rising_edge | GPIO_IRQ_falling_edge) & mask)
 			return 0;
-		type = __IRQT_RISEDGE | __IRQT_FALEDGE;
+		type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
 	}
 
-	if (type & __IRQT_RISEDGE)
+	if (type & IRQ_TYPE_EDGE_RISING)
 		GPIO_IRQ_rising_edge |= mask;
 	else
 		GPIO_IRQ_rising_edge &= ~mask;
-	if (type & __IRQT_FALEDGE)
+	if (type & IRQ_TYPE_EDGE_FALLING)
 		GPIO_IRQ_falling_edge |= mask;
 	else
 		GPIO_IRQ_falling_edge &= ~mask;
@@ -361,12 +355,10 @@ static struct irq_chip locomo_gpio_chip = {
 
 static void locomo_lt_handler(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_desc *d;
 	void __iomem *mapbase = get_irq_chip_data(irq);
 
 	if (locomo_readl(mapbase + LOCOMO_LTINT) & 0x0001) {
-		d = irq_desc + LOCOMO_IRQ_LT_START;
-		desc_handle_irq(LOCOMO_IRQ_LT_START, d);
+		generic_handle_irq(LOCOMO_IRQ_LT_START);
 	}
 }
 
@@ -407,17 +399,15 @@ static struct irq_chip locomo_lt_chip = {
 static void locomo_spi_handler(unsigned int irq, struct irq_desc *desc)
 {
 	int req, i;
-	struct irq_desc *d;
 	void __iomem *mapbase = get_irq_chip_data(irq);
 
 	req = locomo_readl(mapbase + LOCOMO_SPI + LOCOMO_SPIIR) & 0x000F;
 	if (req) {
 		irq = LOCOMO_IRQ_SPI_START;
-		d = irq_desc + irq;
 
-		for (i = 0; i <= 3; i++, irq++, d++) {
+		for (i = 0; i <= 3; i++, irq++) {
 			if (req & (0x0001 << i)) {
-				desc_handle_irq(irq, d);
+				generic_handle_irq(irq);
 			}
 		}
 	}
@@ -473,7 +463,7 @@ static void locomo_setup_irq(struct locomo *lchip)
 	/*
 	 * Install handler for IRQ_LOCOMO_HW.
 	 */
-	set_irq_type(lchip->irq, IRQT_FALLING);
+	set_irq_type(lchip->irq, IRQ_TYPE_EDGE_FALLING);
 	set_irq_chip_data(lchip->irq, irqbase);
 	set_irq_chained_handler(lchip->irq, locomo_handler);
 
@@ -543,7 +533,6 @@ locomo_init_one_child(struct locomo *lchip, struct locomo_dev_info *info)
 		goto out;
 	}
 
-	strncpy(dev->dev.bus_id, info->name, sizeof(dev->dev.bus_id));
 	/*
 	 * If the parent device has a DMA mask associated with it,
 	 * propagate it down to the children.
@@ -553,6 +542,7 @@ locomo_init_one_child(struct locomo *lchip, struct locomo_dev_info *info)
 		dev->dev.dma_mask = &dev->dma_mask;
 	}
 
+	dev_set_name(&dev->dev, "%s", info->name);
 	dev->devid	 = info->devid;
 	dev->dev.parent  = lchip->dev;
 	dev->dev.bus     = &locomo_bus_type;

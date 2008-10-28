@@ -55,6 +55,7 @@ config HZ
 	default 100
 
 source "init/Kconfig"
+source "kernel/Kconfig.freezer"
 
 menu "Processor type and features"
 
@@ -63,7 +64,12 @@ choice
 	default XTENSA_VARIANT_FSF
 
 config XTENSA_VARIANT_FSF
-	bool "fsf"
+	bool "fsf - default (not generic) configuration"
+
+config XTENSA_VARIANT_DC232B
+	bool "dc232b - Diamond 232L Standard Core Rev.B (LE)"
+	help
+	This variant refers to Tensilica's Diamond 232L Standard core Rev.B (LE).
 endchoice
 
 config MMU
@@ -194,8 +200,8 @@ config HOTPLUG
 	plugged into slots found on all modern laptop computers.  Another
 	example, used on modern desktops as well as laptops, is USB.
 
-	Enable HOTPLUG and KMOD, and build a modular kernel.  Get agent
-	software (at <http://linux-hotplug.sourceforge.net/>) and install it.
+	Enable HOTPLUG and build a modular kernel.  Get agent software
+	(from <http://linux-hotplug.sourceforge.net/>) and install it.
 	Then your kernel will automatically call out to a user mode "policy
 	agent" (/sbin/hotplug) to load modules and set up software needed
 	to use devices as you hotplug them.

@@ -47,3 +47,5 @@ ENTRY(__aeabi_llsr)
 	mov	ah, ah, lsr r2
 	mov	pc, lr
 
+ENDPROC(__lshrdi3)
+ENDPROC(__aeabi_llsr)

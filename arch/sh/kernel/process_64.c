@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/proc_fs.h>
 #include <linux/io.h>
+#include <asm/syscalls.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
@@ -35,16 +36,6 @@ struct task_struct *last_task_used_math = NULL;
 static int hlt_counter = 1;
 
 #define HARD_IDLE_TIMEOUT (HZ / 3)
-
-void disable_hlt(void)
-{
-	hlt_counter++;
-}
-
-void enable_hlt(void)
-{
-	hlt_counter--;
-}
 
 static int __init nohlt_setup(char *__unused)
 {
@@ -405,6 +396,7 @@ ATTRIB_NORET void kernel_thread_helper(void *arg, int (*fn)(void *))
 int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 {
 	struct pt_regs regs;
+	int pid;
 
 	memset(&regs, 0, sizeof(regs));
 	regs.regs[2] = (unsigned long)arg;
@@ -413,8 +405,13 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 	regs.pc = (unsigned long)kernel_thread_helper;
 	regs.sr = (1 << 30);
 
-	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0,
-		       &regs, 0, NULL, NULL);
+	/* Ok, create the new process.. */
+	pid = do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0,
+		      &regs, 0, NULL, NULL);
+
+	trace_mark(kernel_arch_kthread_create, "pid %d fn %p", pid, fn);
+
+	return pid;
 }
 
 /*

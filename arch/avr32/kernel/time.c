@@ -15,7 +15,7 @@
 
 #include <asm/sysreg.h>
 
-#include <asm/arch/pm.h>
+#include <mach/pm.h>
 
 
 static cycle_t read_cycle_count(void)
@@ -43,6 +43,9 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *evdev = dev_id;
 
+	if (unlikely(!(intc_get_pending(0) & 1)))
+		return IRQ_NONE;
+
 	/*
 	 * Disable the interrupt until the clockevent subsystem
 	 * reprograms it.
@@ -55,7 +58,8 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction timer_irqaction = {
 	.handler	= timer_interrupt,
-	.flags		= IRQF_TIMER | IRQF_DISABLED,
+	/* Oprofile uses the same irq as the timer, so allow it to be shared */
+	.flags		= IRQF_TIMER | IRQF_DISABLED | IRQF_SHARED,
 	.name		= "avr32_comparator",
 };
 

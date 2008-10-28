@@ -13,12 +13,11 @@
  * XIP support hooks by Vitaly Wool (based on code for Intel flash
  * by Nicolas Pitre)
  *
+ * 25/09/2008 Christopher Moore: TopBottom fixup for many Macronix with CFI V1.0
+ *
  * Occasionally maintained by Thayne Harbaugh tharbaugh at lnxi dot com
  *
  * This code is GPL
- *
- * $Id: cfi_cmdset_0002.c,v 1.122 2005/11/07 11:14:22 gleixner Exp $
- *
  */
 
 #include <linux/module.h>
@@ -46,6 +45,7 @@
 
 #define MANUFACTURER_AMD	0x0001
 #define MANUFACTURER_ATMEL	0x001F
+#define MANUFACTURER_MACRONIX	0x00C2
 #define MANUFACTURER_SST	0x00BF
 #define SST49LF004B	        0x0060
 #define SST49LF040B	        0x0050
@@ -147,12 +147,44 @@ static void fixup_amd_bootblock(struct mtd_info *mtd, void* param)
 
 	if (((major << 8) | minor) < 0x3131) {
 		/* CFI version 1.0 => don't trust bootloc */
+
+		DEBUG(MTD_DEBUG_LEVEL1,
+			"%s: JEDEC Vendor ID is 0x%02X Device ID is 0x%02X\n",
+			map->name, cfi->mfr, cfi->id);
+
+		/* AFAICS all 29LV400 with a bottom boot block have a device ID
+		 * of 0x22BA in 16-bit mode and 0xBA in 8-bit mode.
+		 * These were badly detected as they have the 0x80 bit set
+		 * so treat them as a special case.
+		 */
+		if (((cfi->id == 0xBA) || (cfi->id == 0x22BA)) &&
+
+			/* Macronix added CFI to their 2nd generation
+			 * MX29LV400C B/T but AFAICS no other 29LV400 (AMD,
+			 * Fujitsu, Spansion, EON, ESI and older Macronix)
+			 * has CFI.
+			 *
+			 * Therefore also check the manufacturer.
+			 * This reduces the risk of false detection due to
+			 * the 8-bit device ID.
+			 */
+			(cfi->mfr == MANUFACTURER_MACRONIX)) {
+			DEBUG(MTD_DEBUG_LEVEL1,
+				"%s: Macronix MX29LV400C with bottom boot block"
+				" detected\n", map->name);
+			extp->TopBottom = 2;	/* bottom boot */
+		} else
 		if (cfi->id & 0x80) {
 			printk(KERN_WARNING "%s: JEDEC Device ID is 0x%02X. Assuming broken CFI table.\n", map->name, cfi->id);
 			extp->TopBottom = 3;	/* top boot */
 		} else {
 			extp->TopBottom = 2;	/* bottom boot */
 		}
+
+		DEBUG(MTD_DEBUG_LEVEL1,
+			"%s: AMD CFI PRI V%c.%c has no boot block field;"
+			" deduced %s from Device ID\n", map->name, major, minor,
+			extp->TopBottom == 2 ? "bottom" : "top");
 	}
 }
 #endif
@@ -181,10 +213,18 @@ static void fixup_convert_atmel_pri(struct mtd_info *mtd, void *param)
 	if (atmel_pri.Features & 0x02)
 		extp->EraseSuspend = 2;
 
-	if (atmel_pri.BottomBoot)
-		extp->TopBottom = 2;
-	else
-		extp->TopBottom = 3;
+	/* Some chips got it backwards... */
+	if (cfi->id == AT49BV6416) {
+		if (atmel_pri.BottomBoot)
+			extp->TopBottom = 3;
+		else
+			extp->TopBottom = 2;
+	} else {
+		if (atmel_pri.BottomBoot)
+			extp->TopBottom = 2;
+		else
+			extp->TopBottom = 3;
+	}
 
 	/* burst write mode not supported */
 	cfi->cfiq->BufWriteTimeoutTyp = 0;
@@ -246,6 +286,7 @@ static struct cfi_fixup cfi_fixup_table[] = {
 	{ CFI_MFR_ATMEL, CFI_ID_ANY, fixup_convert_atmel_pri, NULL },
 #ifdef AMD_BOOTLOC_BUG
 	{ CFI_MFR_AMD, CFI_ID_ANY, fixup_amd_bootblock, NULL },
+	{ MANUFACTURER_MACRONIX, CFI_ID_ANY, fixup_amd_bootblock, NULL },
 #endif
 	{ CFI_MFR_AMD, 0x0050, fixup_use_secsi, NULL, },
 	{ CFI_MFR_AMD, 0x0053, fixup_use_secsi, NULL, },

@@ -1,7 +1,7 @@
 /*
  * This is the linux wireless configuration interface.
  *
- * Copyright 2006, 2007		Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2006-2008		Johannes Berg <johannes@sipsolutions.net>
  */
 
 #include <linux/if.h>
@@ -19,6 +19,7 @@
 #include "nl80211.h"
 #include "core.h"
 #include "sysfs.h"
+#include "reg.h"
 
 /* name for sysfs, %d is appended */
 #define PHY_NAME "phy"
@@ -32,7 +33,6 @@ MODULE_DESCRIPTION("wireless configuration support");
  * often because we need to do it for each command */
 LIST_HEAD(cfg80211_drv_list);
 DEFINE_MUTEX(cfg80211_drv_mutex);
-static int wiphy_counter;
 
 /* for debugfs */
 static struct dentry *ieee80211_debugfs_dir;
@@ -143,7 +143,10 @@ void cfg80211_put_dev(struct cfg80211_registered_device *drv)
 int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 			char *newname)
 {
+	struct cfg80211_registered_device *drv;
 	int idx, taken = -1, result, digits;
+
+	mutex_lock(&cfg80211_drv_mutex);
 
 	/* prohibit calling the thing phy%d when %d is not its number */
 	sscanf(newname, PHY_NAME "%d%n", &idx, &taken);
@@ -156,31 +159,54 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 		 * deny the name if it is phy<idx> where <idx> is printed
 		 * without leading zeroes. taken == strlen(newname) here
 		 */
+		result = -EINVAL;
 		if (taken == strlen(PHY_NAME) + digits)
-			return -EINVAL;
+			goto out_unlock;
 	}
 
-	/* this will check for collisions */
+
+	/* Ignore nop renames */
+	result = 0;
+	if (strcmp(newname, dev_name(&rdev->wiphy.dev)) == 0)
+		goto out_unlock;
+
+	/* Ensure another device does not already have this name. */
+	list_for_each_entry(drv, &cfg80211_drv_list, list) {
+		result = -EINVAL;
+		if (strcmp(newname, dev_name(&drv->wiphy.dev)) == 0)
+			goto out_unlock;
+	}
+
+	/* this will only check for collisions in sysfs
+	 * which is not even always compiled in.
+	 */
 	result = device_rename(&rdev->wiphy.dev, newname);
 	if (result)
-		return result;
+		goto out_unlock;
 
-	if (!debugfs_rename(rdev->wiphy.debugfsdir->d_parent,
+	if (rdev->wiphy.debugfsdir &&
+	    !debugfs_rename(rdev->wiphy.debugfsdir->d_parent,
 			    rdev->wiphy.debugfsdir,
 			    rdev->wiphy.debugfsdir->d_parent,
 			    newname))
 		printk(KERN_ERR "cfg80211: failed to rename debugfs dir to %s!\n",
 		       newname);
 
-	nl80211_notify_dev_rename(rdev);
+	result = 0;
+out_unlock:
+	mutex_unlock(&cfg80211_drv_mutex);
+	if (result == 0)
+		nl80211_notify_dev_rename(rdev);
 
-	return 0;
+	return result;
 }
 
 /* exported functions */
 
 struct wiphy *wiphy_new(struct cfg80211_ops *ops, int sizeof_priv)
 {
+	static int wiphy_counter;
+
 	struct cfg80211_registered_device *drv;
 	int alloc_size;
 
@@ -197,20 +223,17 @@ struct wiphy *wiphy_new(struct cfg80211_ops *ops, int sizeof_priv)
 
 	mutex_lock(&cfg80211_drv_mutex);
 
-	drv->idx = wiphy_counter;
-
-	/* now increase counter for the next device unless
-	 * it has wrapped previously */
-	if (wiphy_counter >= 0)
-		wiphy_counter++;
-
-	mutex_unlock(&cfg80211_drv_mutex);
+	drv->idx = wiphy_counter++;
 
 	if (unlikely(drv->idx < 0)) {
+		wiphy_counter--;
+		mutex_unlock(&cfg80211_drv_mutex);
 		/* ugh, wrapped! */
 		kfree(drv);
 		return NULL;
 	}
+
+	mutex_unlock(&cfg80211_drv_mutex);
 
 	/* give it a proper name */
 	snprintf(drv->wiphy.dev.bus_id, BUS_ID_SIZE,
@@ -236,6 +259,13 @@ int wiphy_register(struct wiphy *wiphy)
 	struct ieee80211_supported_band *sband;
 	bool have_band = false;
 	int i;
+	u16 ifmodes = wiphy->interface_modes;
+
+	/* sanity check ifmodes */
+	WARN_ON(!ifmodes);
+	ifmodes &= ((1 << __NL80211_IFTYPE_AFTER_LAST) - 1) & ~1;
+	if (WARN_ON(ifmodes != wiphy->interface_modes))
+		wiphy->interface_modes = ifmodes;
 
 	/* sanity check supported bands/channels */
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
@@ -272,7 +302,9 @@ int wiphy_register(struct wiphy *wiphy)
 	ieee80211_set_bitrate_flags(wiphy);
 
 	/* set up regulatory info */
-	wiphy_update_regulatory(wiphy);
+	mutex_lock(&cfg80211_reg_mutex);
+	wiphy_update_regulatory(wiphy, REGDOM_SET_BY_CORE);
+	mutex_unlock(&cfg80211_reg_mutex);
 
 	mutex_lock(&cfg80211_drv_mutex);
 
@@ -286,6 +318,8 @@ int wiphy_register(struct wiphy *wiphy)
 	drv->wiphy.debugfsdir =
 		debugfs_create_dir(wiphy_name(&drv->wiphy),
 				   ieee80211_debugfs_dir);
+	if (IS_ERR(drv->wiphy.debugfsdir))
+		drv->wiphy.debugfsdir = NULL;
 
 	res = 0;
 out_unlock:
@@ -350,6 +384,8 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 
 	rdev = wiphy_to_dev(dev->ieee80211_ptr->wiphy);
 
+	WARN_ON(dev->ieee80211_ptr->iftype == NL80211_IFTYPE_UNSPECIFIED);
+
 	switch (state) {
 	case NETDEV_REGISTER:
 		mutex_lock(&rdev->devlist_mtx);
@@ -381,7 +417,9 @@ static struct notifier_block cfg80211_netdev_notifier = {
 
 static int cfg80211_init(void)
 {
-	int err = wiphy_sysfs_init();
+	int err;
+
+	err = wiphy_sysfs_init();
 	if (err)
 		goto out_fail_sysfs;
 
@@ -395,8 +433,14 @@ static int cfg80211_init(void)
 
 	ieee80211_debugfs_dir = debugfs_create_dir("ieee80211", NULL);
 
+	err = regulatory_init();
+	if (err)
+		goto out_fail_reg;
+
 	return 0;
 
+out_fail_reg:
+	debugfs_remove(ieee80211_debugfs_dir);
 out_fail_nl80211:
 	unregister_netdevice_notifier(&cfg80211_netdev_notifier);
 out_fail_notifier:
@@ -404,6 +448,7 @@ out_fail_notifier:
 out_fail_sysfs:
 	return err;
 }
+
 subsys_initcall(cfg80211_init);
 
 static void cfg80211_exit(void)
@@ -412,5 +457,6 @@ static void cfg80211_exit(void)
 	nl80211_exit();
 	unregister_netdevice_notifier(&cfg80211_netdev_notifier);
 	wiphy_sysfs_exit();
+	regulatory_exit();
 }
 module_exit(cfg80211_exit);

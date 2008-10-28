@@ -35,6 +35,7 @@
 #define IOAT_PCI_SID            0x8086
 #define IOAT_VER_1_2            0x12    /* Version 1.2 */
 #define IOAT_VER_2_0            0x20    /* Version 2.0 */
+#define IOAT_VER_3_0            0x30    /* Version 3.0 */
 
 struct ioat_dma_descriptor {
 	uint32_t	size;

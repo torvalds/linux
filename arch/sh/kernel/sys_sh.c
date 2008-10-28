@@ -23,6 +23,7 @@
 #include <linux/fs.h>
 #include <linux/ipc.h>
 #include <asm/cacheflush.h>
+#include <asm/syscalls.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 
@@ -170,7 +171,9 @@ asmlinkage int sys_ipc(uint call, int first, int second,
 	version = call >> 16; /* hack for backward compatibility */
 	call &= 0xffff;
 
-	if (call <= SEMCTL)
+	trace_mark(kernel_arch_ipc_call, "call %u first %d", call, first);
+
+	if (call <= SEMTIMEDOP)
 		switch (call) {
 		case SEMOP:
 			return sys_semtimedop(first,
@@ -186,7 +189,7 @@ asmlinkage int sys_ipc(uint call, int first, int second,
 			union semun fourth;
 			if (!ptr)
 				return -EINVAL;
-			if (get_user(fourth.__pad, (void * __user *) ptr))
+			if (get_user(fourth.__pad, (void __user * __user *) ptr))
 				return -EFAULT;
 			return sys_semctl (first, second, third, fourth);
 			}
@@ -261,13 +264,13 @@ asmlinkage int sys_ipc(uint call, int first, int second,
 	return -EINVAL;
 }
 
-asmlinkage int sys_uname(struct old_utsname * name)
+asmlinkage int sys_uname(struct old_utsname __user *name)
 {
 	int err;
 	if (!name)
 		return -EFAULT;
 	down_read(&uts_sem);
-	err = copy_to_user(name, utsname(), sizeof (*name));
+	err = copy_to_user(name, utsname(), sizeof(*name));
 	up_read(&uts_sem);
 	return err?-EFAULT:0;
 }

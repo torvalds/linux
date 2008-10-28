@@ -31,7 +31,7 @@
 #include <asm/uaccess.h>
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/v4l2-i2c-drv-legacy.h>
@@ -41,7 +41,6 @@ MODULE_AUTHOR("Ulf Eklund, Hans Verkuil");
 MODULE_LICENSE("GPL");
 
 static unsigned short normal_i2c[] = { 0x36 >> 1, I2C_CLIENT_END };
-
 
 I2C_CLIENT_INSMOD;
 
@@ -230,4 +229,3 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.remove = wm8775_remove,
 	.id_table = wm8775_id,
 };
-

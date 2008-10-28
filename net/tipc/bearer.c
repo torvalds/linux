@@ -370,7 +370,7 @@ void tipc_bearer_remove_dest(struct bearer *b_ptr, u32 dest)
  */
 static int bearer_push(struct bearer *b_ptr)
 {
-	u32 res = TIPC_OK;
+	u32 res = 0;
 	struct link *ln, *tln;
 
 	if (b_ptr->publ.blocked)
@@ -599,7 +599,7 @@ int tipc_block_bearer(const char *name)
 	spin_lock_bh(&b_ptr->publ.lock);
 	b_ptr->publ.blocked = 1;
 	list_for_each_entry_safe(l_ptr, temp_l_ptr, &b_ptr->links, link_list) {
-		struct node *n_ptr = l_ptr->owner;
+		struct tipc_node *n_ptr = l_ptr->owner;
 
 		spin_lock_bh(&n_ptr->lock);
 		tipc_link_reset(l_ptr);
@@ -607,7 +607,7 @@ int tipc_block_bearer(const char *name)
 	}
 	spin_unlock_bh(&b_ptr->publ.lock);
 	read_unlock_bh(&tipc_net_lock);
-	return TIPC_OK;
+	return 0;
 }
 
 /**
@@ -645,7 +645,7 @@ static int bearer_disable(const char *name)
 	}
 	spin_unlock_bh(&b_ptr->publ.lock);
 	memset(b_ptr, 0, sizeof(struct bearer));
-	return TIPC_OK;
+	return 0;
 }
 
 int tipc_disable_bearer(const char *name)
@@ -668,7 +668,7 @@ int tipc_bearer_init(void)
 	tipc_bearers = kcalloc(MAX_BEARERS, sizeof(struct bearer), GFP_ATOMIC);
 	media_list = kcalloc(MAX_MEDIA, sizeof(struct media), GFP_ATOMIC);
 	if (tipc_bearers && media_list) {
-		res = TIPC_OK;
+		res = 0;
 	} else {
 		kfree(tipc_bearers);
 		kfree(media_list);

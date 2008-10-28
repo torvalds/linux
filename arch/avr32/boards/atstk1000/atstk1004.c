@@ -21,11 +21,12 @@
 #include <video/atmel_lcdc.h>
 
 #include <asm/setup.h>
+#include <asm/atmel-mci.h>
 
-#include <asm/arch/at32ap700x.h>
-#include <asm/arch/board.h>
-#include <asm/arch/init.h>
-#include <asm/arch/portmux.h>
+#include <mach/at32ap700x.h>
+#include <mach/board.h>
+#include <mach/init.h>
+#include <mach/portmux.h>
 
 #include "atstk1000.h"
 
@@ -71,6 +72,16 @@ static struct spi_board_info spi1_board_info[] __initdata = { {
 } };
 #endif
 
+#ifndef CONFIG_BOARD_ATSTK100X_SW2_CUSTOM
+static struct mci_platform_data __initdata mci0_data = {
+	.slot[0] = {
+		.bus_width	= 4,
+		.detect_pin	= -ENODEV,
+		.wp_pin		= -ENODEV,
+	},
+};
+#endif
+
 #ifdef CONFIG_BOARD_ATSTK1000_EXTDAC
 static void __init atstk1004_setup_extdac(void)
 {
@@ -89,7 +100,7 @@ static void __init atstk1004_setup_extdac(void)
 		goto err_set_clk;
 	}
 
-	at32_select_periph(GPIO_PIN_PA(30), GPIO_PERIPH_A, 0);
+	at32_select_periph(GPIO_PIOA_BASE, (1 << 30), GPIO_PERIPH_A, 0);
 	at73c213_data.dac_clk = gclk;
 
 err_set_clk:
@@ -121,8 +132,6 @@ void __init setup_board(void)
 
 static int __init atstk1004_init(void)
 {
-	at32_add_system_devices();
-
 #ifdef	CONFIG_BOARD_ATSTK100X_SW2_CUSTOM
 	at32_add_device_usart(1);
 #else
@@ -137,10 +146,11 @@ static int __init atstk1004_init(void)
 	at32_add_device_spi(1, spi1_board_info, ARRAY_SIZE(spi1_board_info));
 #endif
 #ifndef CONFIG_BOARD_ATSTK100X_SW2_CUSTOM
-	at32_add_device_mci(0);
+	at32_add_device_mci(0, &mci0_data);
 #endif
 	at32_add_device_lcdc(0, &atstk1000_lcdc_data,
-			     fbmem_start, fbmem_size, 0);
+			     fbmem_start, fbmem_size,
+			     ATMEL_LCDC_PRI_24BIT | ATMEL_LCDC_PRI_CONTROL);
 	at32_add_device_usba(0, NULL);
 #ifndef CONFIG_BOARD_ATSTK100X_SW3_CUSTOM
 	at32_add_device_ssc(0, ATMEL_SSC_TX);

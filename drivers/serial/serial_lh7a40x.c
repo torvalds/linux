@@ -137,7 +137,7 @@ static void lh7a40xuart_enable_ms (struct uart_port* port)
 
 static void lh7a40xuart_rx_chars (struct uart_port* port)
 {
-	struct tty_struct* tty = port->info->tty;
+	struct tty_struct* tty = port->info->port.tty;
 	int cbRxMax = 256;	/* (Gross) limit on receive */
 	unsigned int data;	/* Received data and status */
 	unsigned int flag;
@@ -460,7 +460,7 @@ static int lh7a40xuart_verify_port (struct uart_port* port,
 
 	if (ser->type != PORT_UNKNOWN && ser->type != PORT_LH7A40X)
 		ret = -EINVAL;
-	if (ser->irq < 0 || ser->irq >= NR_IRQS)
+	if (ser->irq < 0 || ser->irq >= nr_irqs)
 		ret = -EINVAL;
 	if (ser->baud_base < 9600) /* *** FIXME: is this true? */
 		ret = -EINVAL;

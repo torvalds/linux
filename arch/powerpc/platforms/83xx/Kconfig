@@ -2,7 +2,8 @@ menuconfig PPC_83xx
 	bool "83xx-based boards"
 	depends on 6xx && PPC_MULTIPLATFORM
 	select PPC_UDBG_16550
-	select PPC_INDIRECT_PCI
+	select PPC_PCI_CHOICE
+	select FSL_PCI if PCI
 	select FSL_SOC
 	select IPIC
 
@@ -18,7 +19,6 @@ config MPC831x_RDB
 config MPC832x_MDS
 	bool "Freescale MPC832x MDS"
 	select DEFAULT_UIMAGE
-	select QUICC_ENGINE
 	select PPC_MPC832x
 	help
 	  This option enables support for the MPC832x MDS evaluation board.
@@ -26,7 +26,6 @@ config MPC832x_MDS
 config MPC832x_RDB
 	bool "Freescale MPC832x RDB"
 	select DEFAULT_UIMAGE
-	select QUICC_ENGINE
 	select PPC_MPC832x
 	help
 	  This option enables support for the MPC8323 RDB board.
@@ -56,15 +55,12 @@ config MPC834x_ITX
 config MPC836x_MDS
 	bool "Freescale MPC836x MDS"
 	select DEFAULT_UIMAGE
-	select QUICC_ENGINE
 	help
 	  This option enables support for the MPC836x MDS Processor Board.
 
 config MPC836x_RDK
 	bool "Freescale/Logic MPC836x RDK"
 	select DEFAULT_UIMAGE
-	select QUICC_ENGINE
-	select QE_GPIO
 	select FSL_GTM
 	select FSL_LBC
 	help

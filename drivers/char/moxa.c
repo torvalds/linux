@@ -130,17 +130,13 @@ struct moxaq_str {
 };
 
 struct moxa_port {
+	struct tty_port port;
 	struct moxa_board_conf *board;
-	struct tty_struct *tty;
 	void __iomem *tableAddr;
 
 	int type;
-	int close_delay;
-	unsigned int count;
-	int asyncflags;
 	int cflag;
 	unsigned long statusflags;
-	wait_queue_head_t open_wait;
 
 	u8 DCDState;
 	u8 lineCtrl;
@@ -209,7 +205,7 @@ static int moxa_tiocmset(struct tty_struct *tty, struct file *file,
 static void moxa_poll(unsigned long);
 static void moxa_set_tty_param(struct tty_struct *, struct ktermios *);
 static void moxa_setup_empty_event(struct tty_struct *);
-static void moxa_shut_down(struct moxa_port *);
+static void moxa_shut_down(struct tty_struct *);
 /*
  * moxa board interface functions:
  */
@@ -221,7 +217,7 @@ static void MoxaPortLineCtrl(struct moxa_port *, int, int);
 static void MoxaPortFlowCtrl(struct moxa_port *, int, int, int, int, int);
 static int MoxaPortLineStatus(struct moxa_port *);
 static void MoxaPortFlushData(struct moxa_port *, int);
-static int MoxaPortWriteData(struct moxa_port *, const unsigned char *, int);
+static int MoxaPortWriteData(struct tty_struct *, const unsigned char *, int);
 static int MoxaPortReadData(struct moxa_port *);
 static int MoxaPortTxQueue(struct moxa_port *);
 static int MoxaPortRxQueue(struct moxa_port *);
@@ -336,6 +332,7 @@ static int moxa_ioctl(struct tty_struct *tty, struct file *file,
 		for (i = 0; i < MAX_BOARDS; i++) {
 			p = moxa_boards[i].ports;
 			for (j = 0; j < MAX_PORTS_PER_BOARD; j++, p++, argm++) {
+				struct tty_struct *ttyp;
 				memset(&tmp, 0, sizeof(tmp));
 				if (!moxa_boards[i].ready)
 					goto copy;
@@ -348,10 +345,12 @@ static int moxa_ioctl(struct tty_struct *tty, struct file *file,
 				if (status & 4)
 					tmp.dcd = 1;
 
-				if (!p->tty || !p->tty->termios)
+				ttyp = tty_port_tty_get(&p->port);
+				if (!ttyp || !ttyp->termios)
 					tmp.cflag = p->cflag;
 				else
-					tmp.cflag = p->tty->termios->c_cflag;
+					tmp.cflag = ttyp->termios->c_cflag;
+				tty_kref_put(tty);
 copy:
 				if (copy_to_user(argm, &tmp, sizeof(tmp))) {
 					mutex_unlock(&moxa_openlock);
@@ -378,12 +377,13 @@ copy:
 	return ret;
 }
 
-static void moxa_break_ctl(struct tty_struct *tty, int state)
+static int moxa_break_ctl(struct tty_struct *tty, int state)
 {
 	struct moxa_port *port = tty->driver_data;
 
 	moxafunc(port->tableAddr, state ? FC_SendBreak : FC_StopBreak,
 			Magic_code);
+	return 0;
 }
 
 static const struct tty_operations moxa_ops = {
@@ -513,7 +513,7 @@ static int moxa_real_load_code(struct moxa_board_conf *brd, const void *ptr,
 		size_t len)
 {
 	void __iomem *baseAddr = brd->basemem;
-	const u16 *uptr = ptr;
+	const __le16 *uptr = ptr;
 	size_t wlen, len2, j;
 	unsigned long key, loadbuf, loadlen, checksum, checksum_ok;
 	unsigned int i, retry;
@@ -825,10 +825,9 @@ static int moxa_init_board(struct moxa_board_conf *brd, struct device *dev)
 	}
 
 	for (i = 0, p = brd->ports; i < MAX_PORTS_PER_BOARD; i++, p++) {
+		tty_port_init(&p->port);
 		p->type = PORT_16550A;
-		p->close_delay = 5 * HZ / 10;
 		p->cflag = B9600 | CS8 | CREAD | CLOCAL | HUPCL;
-		init_waitqueue_head(&p->open_wait);
 	}
 
 	switch (brd->boardType) {
@@ -884,12 +883,18 @@ static void moxa_board_deinit(struct moxa_board_conf *brd)
 
 	/* pci hot-un-plug support */
 	for (a = 0; a < brd->numPorts; a++)
-		if (brd->ports[a].asyncflags & ASYNC_INITIALIZED)
-			tty_hangup(brd->ports[a].tty);
+		if (brd->ports[a].port.flags & ASYNC_INITIALIZED) {
+			struct tty_struct *tty = tty_port_tty_get(
+						&brd->ports[a].port);
+			if (tty) {
+				tty_hangup(tty);
+				tty_kref_put(tty);
+			}
+		}
 	while (1) {
 		opened = 0;
 		for (a = 0; a < brd->numPorts; a++)
-			if (brd->ports[a].asyncflags & ASYNC_INITIALIZED)
+			if (brd->ports[a].port.flags & ASYNC_INITIALIZED)
 				opened++;
 		mutex_unlock(&moxa_openlock);
 		if (!opened)
@@ -1100,13 +1105,14 @@ static void __exit moxa_exit(void)
 module_init(moxa_init);
 module_exit(moxa_exit);
 
-static void moxa_close_port(struct moxa_port *ch)
+static void moxa_close_port(struct tty_struct *tty)
 {
-	moxa_shut_down(ch);
+	struct moxa_port *ch = tty->driver_data;
+	moxa_shut_down(tty);
 	MoxaPortFlushData(ch, 2);
-	ch->asyncflags &= ~ASYNC_NORMAL_ACTIVE;
-	ch->tty->driver_data = NULL;
-	ch->tty = NULL;
+	ch->port.flags &= ~ASYNC_NORMAL_ACTIVE;
+	tty->driver_data = NULL;
+	tty_port_tty_set(&ch->port, NULL);
 }
 
 static int moxa_block_till_ready(struct tty_struct *tty, struct file *filp,
@@ -1117,7 +1123,7 @@ static int moxa_block_till_ready(struct tty_struct *tty, struct file *filp,
 	u8 dcd;
 
 	while (1) {
-		prepare_to_wait(&ch->open_wait, &wait, TASK_INTERRUPTIBLE);
+		prepare_to_wait(&ch->port.open_wait, &wait, TASK_INTERRUPTIBLE);
 		if (tty_hung_up_p(filp)) {
 #ifdef SERIAL_DO_RESTART
 			retval = -ERESTARTSYS;
@@ -1138,7 +1144,7 @@ static int moxa_block_till_ready(struct tty_struct *tty, struct file *filp,
 		}
 		schedule();
 	}
-	finish_wait(&ch->open_wait, &wait);
+	finish_wait(&ch->port.open_wait, &wait);
 
 	return retval;
 }
@@ -1163,16 +1169,16 @@ static int moxa_open(struct tty_struct *tty, struct file *filp)
 	}
 
 	ch = &brd->ports[port % MAX_PORTS_PER_BOARD];
-	ch->count++;
+	ch->port.count++;
 	tty->driver_data = ch;
-	ch->tty = tty;
-	if (!(ch->asyncflags & ASYNC_INITIALIZED)) {
+	tty_port_tty_set(&ch->port, tty);
+	if (!(ch->port.flags & ASYNC_INITIALIZED)) {
 		ch->statusflags = 0;
 		moxa_set_tty_param(tty, tty->termios);
 		MoxaPortLineCtrl(ch, 1, 1);
 		MoxaPortEnable(ch);
 		MoxaSetFifo(ch, ch->type == PORT_16550A);
-		ch->asyncflags |= ASYNC_INITIALIZED;
+		ch->port.flags |= ASYNC_INITIALIZED;
 	}
 	mutex_unlock(&moxa_openlock);
 
@@ -1181,11 +1187,11 @@ static int moxa_open(struct tty_struct *tty, struct file *filp)
 		retval = moxa_block_till_ready(tty, filp, ch);
 	mutex_lock(&moxa_openlock);
 	if (retval) {
-		if (ch->count) /* 0 means already hung up... */
-			if (--ch->count == 0)
-				moxa_close_port(ch);
+		if (ch->port.count) /* 0 means already hung up... */
+			if (--ch->port.count == 0)
+				moxa_close_port(tty);
 	} else
-		ch->asyncflags |= ASYNC_NORMAL_ACTIVE;
+		ch->port.flags |= ASYNC_NORMAL_ACTIVE;
 	mutex_unlock(&moxa_openlock);
 
 	return retval;
@@ -1204,26 +1210,26 @@ static void moxa_close(struct tty_struct *tty, struct file *filp)
 	ch = tty->driver_data;
 	if (ch == NULL)
 		goto unlock;
-	if (tty->count == 1 && ch->count != 1) {
+	if (tty->count == 1 && ch->port.count != 1) {
 		printk(KERN_WARNING "moxa_close: bad serial port count; "
-			"tty->count is 1, ch->count is %d\n", ch->count);
-		ch->count = 1;
+			"tty->count is 1, ch->port.count is %d\n", ch->port.count);
+		ch->port.count = 1;
 	}
-	if (--ch->count < 0) {
+	if (--ch->port.count < 0) {
 		printk(KERN_WARNING "moxa_close: bad serial port count, "
 			"device=%s\n", tty->name);
-		ch->count = 0;
+		ch->port.count = 0;
 	}
-	if (ch->count)
+	if (ch->port.count)
 		goto unlock;
 
 	ch->cflag = tty->termios->c_cflag;
-	if (ch->asyncflags & ASYNC_INITIALIZED) {
+	if (ch->port.flags & ASYNC_INITIALIZED) {
 		moxa_setup_empty_event(tty);
 		tty_wait_until_sent(tty, 30 * HZ);	/* 30 seconds timeout */
 	}
 
-	moxa_close_port(ch);
+	moxa_close_port(tty);
 unlock:
 	mutex_unlock(&moxa_openlock);
 }
@@ -1238,7 +1244,7 @@ static int moxa_write(struct tty_struct *tty,
 		return 0;
 
 	spin_lock_bh(&moxa_lock);
-	len = MoxaPortWriteData(ch, buf, count);
+	len = MoxaPortWriteData(tty, buf, count);
 	spin_unlock_bh(&moxa_lock);
 
 	ch->statusflags |= LOWWAIT;
@@ -1374,7 +1380,7 @@ static void moxa_set_termios(struct tty_struct *tty,
 		return;
 	moxa_set_tty_param(tty, old_termios);
 	if (!(old_termios->c_cflag & CLOCAL) && C_CLOCAL(tty))
-		wake_up_interruptible(&ch->open_wait);
+		wake_up_interruptible(&ch->port.open_wait);
 }
 
 static void moxa_stop(struct tty_struct *tty)
@@ -1412,20 +1418,23 @@ static void moxa_hangup(struct tty_struct *tty)
 		mutex_unlock(&moxa_openlock);
 		return;
 	}
-	ch->count = 0;
-	moxa_close_port(ch);
+	ch->port.count = 0;
+	moxa_close_port(tty);
 	mutex_unlock(&moxa_openlock);
 
-	wake_up_interruptible(&ch->open_wait);
+	wake_up_interruptible(&ch->port.open_wait);
 }
 
 static void moxa_new_dcdstate(struct moxa_port *p, u8 dcd)
 {
+	struct tty_struct *tty;
 	dcd = !!dcd;
 
-	if (dcd != p->DCDState && p->tty && C_CLOCAL(p->tty)) {
-		if (!dcd)
-			tty_hangup(p->tty);
+	if (dcd != p->DCDState) {
+		tty = tty_port_tty_get(&p->port);
+		if (tty && C_CLOCAL(tty) && !dcd)
+			tty_hangup(tty);
+		tty_kref_put(tty);
 	}
 	p->DCDState = dcd;
 }
@@ -1433,9 +1442,9 @@ static void moxa_new_dcdstate(struct moxa_port *p, u8 dcd)
 static int moxa_poll_port(struct moxa_port *p, unsigned int handle,
 		u16 __iomem *ip)
 {
-	struct tty_struct *tty = p->tty;
+	struct tty_struct *tty = tty_port_tty_get(&p->port);
 	void __iomem *ofsAddr;
-	unsigned int inited = p->asyncflags & ASYNC_INITIALIZED;
+	unsigned int inited = p->port.flags & ASYNC_INITIALIZED;
 	u16 intr;
 
 	if (tty) {
@@ -1480,6 +1489,7 @@ static int moxa_poll_port(struct moxa_port *p, unsigned int handle,
 		tty_insert_flip_char(tty, 0, TTY_BREAK);
 		tty_schedule_flip(tty);
 	}
+	tty_kref_put(tty);
 
 	if (intr & IntrLine)
 		moxa_new_dcdstate(p, readb(ofsAddr + FlagStat) & DCD_state);
@@ -1564,11 +1574,11 @@ static void moxa_setup_empty_event(struct tty_struct *tty)
 	spin_unlock_bh(&moxa_lock);
 }
 
-static void moxa_shut_down(struct moxa_port *ch)
+static void moxa_shut_down(struct tty_struct *tty)
 {
-	struct tty_struct *tp = ch->tty;
+	struct moxa_port *ch = tty->driver_data;
 
-	if (!(ch->asyncflags & ASYNC_INITIALIZED))
+	if (!(ch->port.flags & ASYNC_INITIALIZED))
 		return;
 
 	MoxaPortDisable(ch);
@@ -1576,11 +1586,11 @@ static void moxa_shut_down(struct moxa_port *ch)
 	/*
 	 * If we're a modem control device and HUPCL is on, drop RTS & DTR.
 	 */
-	if (C_HUPCL(tp))
+	if (C_HUPCL(tty))
 		MoxaPortLineCtrl(ch, 0, 0);
 
 	spin_lock_bh(&moxa_lock);
-	ch->asyncflags &= ~ASYNC_INITIALIZED;
+	ch->port.flags &= ~ASYNC_INITIALIZED;
 	spin_unlock_bh(&moxa_lock);
 }
 
@@ -1957,9 +1967,10 @@ static int MoxaPortLineStatus(struct moxa_port *port)
 	return val;
 }
 
-static int MoxaPortWriteData(struct moxa_port *port,
+static int MoxaPortWriteData(struct tty_struct *tty,
 		const unsigned char *buffer, int len)
 {
+	struct moxa_port *port = tty->driver_data;
 	void __iomem *baseAddr, *ofsAddr, *ofs;
 	unsigned int c, total;
 	u16 head, tail, tx_mask, spage, epage;
@@ -1975,7 +1986,7 @@ static int MoxaPortWriteData(struct moxa_port *port,
 	c = (head > tail) ? (head - tail - 1) : (head - tail + tx_mask);
 	if (c > len)
 		c = len;
-	moxaLog.txcnt[port->tty->index] += c;
+	moxaLog.txcnt[port->port.tty->index] += c;
 	total = c;
 	if (spage == epage) {
 		bufhead = readw(ofsAddr + Ofs_txb);
@@ -2017,7 +2028,7 @@ static int MoxaPortWriteData(struct moxa_port *port,
 
 static int MoxaPortReadData(struct moxa_port *port)
 {
-	struct tty_struct *tty = port->tty;
+	struct tty_struct *tty = port->port.tty;
 	unsigned char *dst;
 	void __iomem *baseAddr, *ofsAddr, *ofs;
 	unsigned int count, len, total;
@@ -2124,10 +2135,10 @@ static int moxa_get_serial_info(struct moxa_port *info,
 {
 	struct serial_struct tmp = {
 		.type = info->type,
-		.line = info->tty->index,
-		.flags = info->asyncflags,
+		.line = info->port.tty->index,
+		.flags = info->port.flags,
 		.baud_base = 921600,
-		.close_delay = info->close_delay
+		.close_delay = info->port.close_delay
 	};
 	return copy_to_user(retinfo, &tmp, sizeof(*retinfo)) ? -EFAULT : 0;
 }
@@ -2148,13 +2159,13 @@ static int moxa_set_serial_info(struct moxa_port *info,
 
 	if (!capable(CAP_SYS_ADMIN)) {
 		if (((new_serial.flags & ~ASYNC_USR_MASK) !=
-		     (info->asyncflags & ~ASYNC_USR_MASK)))
+		     (info->port.flags & ~ASYNC_USR_MASK)))
 			return -EPERM;
 	} else
-		info->close_delay = new_serial.close_delay * HZ / 100;
+		info->port.close_delay = new_serial.close_delay * HZ / 100;
 
 	new_serial.flags = (new_serial.flags & ~ASYNC_FLAGS);
-	new_serial.flags |= (info->asyncflags & ASYNC_FLAGS);
+	new_serial.flags |= (info->port.flags & ASYNC_FLAGS);
 
 	MoxaSetFifo(info, new_serial.type == PORT_16550A);
 

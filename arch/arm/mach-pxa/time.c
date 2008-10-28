@@ -17,12 +17,12 @@
 #include <linux/interrupt.h>
 #include <linux/clockchips.h>
 #include <linux/sched.h>
+#include <linux/cnt32_to_63.h>
 
 #include <asm/div64.h>
-#include <asm/cnt32_to_63.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 #include <asm/mach-types.h>
 
 /*
@@ -155,7 +155,7 @@ static void __init pxa_timer_init(void)
 	OIER = 0;
 	OSSR = OSSR_M0 | OSSR_M1 | OSSR_M2 | OSSR_M3;
 
-	if (cpu_is_pxa21x() || cpu_is_pxa25x())
+	if (cpu_is_pxa25x())
 		clock_tick_rate = 3686400;
 	else if (machine_is_mainstone())
 		clock_tick_rate = 3249600;

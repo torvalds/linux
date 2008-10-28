@@ -13,6 +13,7 @@
 #include <linux/nodemask.h>
 #include <linux/cpu.h>
 #include <linux/device.h>
+#include <linux/swap.h>
 
 static struct sysdev_class node_class = {
 	.name = "node",
@@ -36,11 +37,13 @@ static ssize_t node_read_cpumap(struct sys_device *dev, int type, char *buf)
 	return len;
 }
 
-static inline ssize_t node_read_cpumask(struct sys_device *dev, char *buf)
+static inline ssize_t node_read_cpumask(struct sys_device *dev,
+				struct sysdev_attribute *attr, char *buf)
 {
 	return node_read_cpumap(dev, 0, buf);
 }
-static inline ssize_t node_read_cpulist(struct sys_device *dev, char *buf)
+static inline ssize_t node_read_cpulist(struct sys_device *dev,
+				struct sysdev_attribute *attr, char *buf)
 {
 	return node_read_cpumap(dev, 1, buf);
 }
@@ -49,7 +52,8 @@ static SYSDEV_ATTR(cpumap,  S_IRUGO, node_read_cpumask, NULL);
 static SYSDEV_ATTR(cpulist, S_IRUGO, node_read_cpulist, NULL);
 
 #define K(x) ((x) << (PAGE_SHIFT - 10))
-static ssize_t node_read_meminfo(struct sys_device * dev, char * buf)
+static ssize_t node_read_meminfo(struct sys_device * dev,
+			struct sysdev_attribute *attr, char * buf)
 {
 	int n;
 	int nid = dev->id;
@@ -58,34 +62,52 @@ static ssize_t node_read_meminfo(struct sys_device * dev, char * buf)
 	si_meminfo_node(&i, nid);
 
 	n = sprintf(buf, "\n"
-		       "Node %d MemTotal:     %8lu kB\n"
-		       "Node %d MemFree:      %8lu kB\n"
-		       "Node %d MemUsed:      %8lu kB\n"
-		       "Node %d Active:       %8lu kB\n"
-		       "Node %d Inactive:     %8lu kB\n"
-#ifdef CONFIG_HIGHMEM
-		       "Node %d HighTotal:    %8lu kB\n"
-		       "Node %d HighFree:     %8lu kB\n"
-		       "Node %d LowTotal:     %8lu kB\n"
-		       "Node %d LowFree:      %8lu kB\n"
+		       "Node %d MemTotal:       %8lu kB\n"
+		       "Node %d MemFree:        %8lu kB\n"
+		       "Node %d MemUsed:        %8lu kB\n"
+		       "Node %d Active:         %8lu kB\n"
+		       "Node %d Inactive:       %8lu kB\n"
+		       "Node %d Active(anon):   %8lu kB\n"
+		       "Node %d Inactive(anon): %8lu kB\n"
+		       "Node %d Active(file):   %8lu kB\n"
+		       "Node %d Inactive(file): %8lu kB\n"
+#ifdef CONFIG_UNEVICTABLE_LRU
+		       "Node %d Unevictable:    %8lu kB\n"
+		       "Node %d Mlocked:        %8lu kB\n"
 #endif
-		       "Node %d Dirty:        %8lu kB\n"
-		       "Node %d Writeback:    %8lu kB\n"
-		       "Node %d FilePages:    %8lu kB\n"
-		       "Node %d Mapped:       %8lu kB\n"
-		       "Node %d AnonPages:    %8lu kB\n"
-		       "Node %d PageTables:   %8lu kB\n"
-		       "Node %d NFS_Unstable: %8lu kB\n"
-		       "Node %d Bounce:       %8lu kB\n"
-		       "Node %d WritebackTmp: %8lu kB\n"
-		       "Node %d Slab:         %8lu kB\n"
-		       "Node %d SReclaimable: %8lu kB\n"
-		       "Node %d SUnreclaim:   %8lu kB\n",
+#ifdef CONFIG_HIGHMEM
+		       "Node %d HighTotal:      %8lu kB\n"
+		       "Node %d HighFree:       %8lu kB\n"
+		       "Node %d LowTotal:       %8lu kB\n"
+		       "Node %d LowFree:        %8lu kB\n"
+#endif
+		       "Node %d Dirty:          %8lu kB\n"
+		       "Node %d Writeback:      %8lu kB\n"
+		       "Node %d FilePages:      %8lu kB\n"
+		       "Node %d Mapped:         %8lu kB\n"
+		       "Node %d AnonPages:      %8lu kB\n"
+		       "Node %d PageTables:     %8lu kB\n"
+		       "Node %d NFS_Unstable:   %8lu kB\n"
+		       "Node %d Bounce:         %8lu kB\n"
+		       "Node %d WritebackTmp:   %8lu kB\n"
+		       "Node %d Slab:           %8lu kB\n"
+		       "Node %d SReclaimable:   %8lu kB\n"
+		       "Node %d SUnreclaim:     %8lu kB\n",
 		       nid, K(i.totalram),
 		       nid, K(i.freeram),
 		       nid, K(i.totalram - i.freeram),
-		       nid, K(node_page_state(nid, NR_ACTIVE)),
-		       nid, K(node_page_state(nid, NR_INACTIVE)),
+		       nid, K(node_page_state(nid, NR_ACTIVE_ANON) +
+				node_page_state(nid, NR_ACTIVE_FILE)),
+		       nid, K(node_page_state(nid, NR_INACTIVE_ANON) +
+				node_page_state(nid, NR_INACTIVE_FILE)),
+		       nid, K(node_page_state(nid, NR_ACTIVE_ANON)),
+		       nid, K(node_page_state(nid, NR_INACTIVE_ANON)),
+		       nid, K(node_page_state(nid, NR_ACTIVE_FILE)),
+		       nid, K(node_page_state(nid, NR_INACTIVE_FILE)),
+#ifdef CONFIG_UNEVICTABLE_LRU
+		       nid, K(node_page_state(nid, NR_UNEVICTABLE)),
+		       nid, K(node_page_state(nid, NR_MLOCK)),
+#endif
 #ifdef CONFIG_HIGHMEM
 		       nid, K(i.totalhigh),
 		       nid, K(i.freehigh),
@@ -112,7 +134,8 @@ static ssize_t node_read_meminfo(struct sys_device * dev, char * buf)
 #undef K
 static SYSDEV_ATTR(meminfo, S_IRUGO, node_read_meminfo, NULL);
 
-static ssize_t node_read_numastat(struct sys_device * dev, char * buf)
+static ssize_t node_read_numastat(struct sys_device * dev,
+				struct sysdev_attribute *attr, char * buf)
 {
 	return sprintf(buf,
 		       "numa_hit %lu\n"
@@ -130,7 +153,8 @@ static ssize_t node_read_numastat(struct sys_device * dev, char * buf)
 }
 static SYSDEV_ATTR(numastat, S_IRUGO, node_read_numastat, NULL);
 
-static ssize_t node_read_distance(struct sys_device * dev, char * buf)
+static ssize_t node_read_distance(struct sys_device * dev,
+			struct sysdev_attribute *attr, char * buf)
 {
 	int nid = dev->id;
 	int len = 0;
@@ -168,6 +192,8 @@ int register_node(struct node *node, int num, struct node *parent)
 		sysdev_create_file(&node->sysdev, &attr_meminfo);
 		sysdev_create_file(&node->sysdev, &attr_numastat);
 		sysdev_create_file(&node->sysdev, &attr_distance);
+
+		scan_unevictable_register_node(node);
 	}
 	return error;
 }
@@ -186,6 +212,8 @@ void unregister_node(struct node *node)
 	sysdev_remove_file(&node->sysdev, &attr_meminfo);
 	sysdev_remove_file(&node->sysdev, &attr_numastat);
 	sysdev_remove_file(&node->sysdev, &attr_distance);
+
+	scan_unevictable_unregister_node(node);
 
 	sysdev_unregister(&node->sysdev);
 }

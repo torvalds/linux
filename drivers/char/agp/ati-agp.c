@@ -418,7 +418,9 @@ static const struct agp_bridge_driver ati_generic_bridge = {
 	.alloc_by_type		= agp_generic_alloc_by_type,
 	.free_by_type		= agp_generic_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,
+	.agp_alloc_pages	= agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages	= agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
@@ -486,8 +488,8 @@ static int __devinit agp_ati_probe(struct pci_dev *pdev,
 			goto found;
 	}
 
-	printk(KERN_ERR PFX
-	     "Unsupported Ati chipset (device id: %04x)\n", pdev->device);
+	dev_err(&pdev->dev, "unsupported Ati chipset [%04x/%04x])\n",
+		pdev->vendor, pdev->device);
 	return -ENODEV;
 
 found:
@@ -500,8 +502,7 @@ found:
 
 	bridge->driver = &ati_generic_bridge;
 
-	printk(KERN_INFO PFX "Detected Ati %s chipset\n",
-			devs[j].chipset_name);
+	dev_info(&pdev->dev, "Ati %s chipset\n", devs[j].chipset_name);
 
 	/* Fill in the mode register */
 	pci_read_config_dword(pdev,
@@ -560,6 +561,6 @@ static void __exit agp_ati_cleanup(void)
 module_init(agp_ati_init);
 module_exit(agp_ati_cleanup);
 
-MODULE_AUTHOR("Dave Jones <davej@codemonkey.org.uk>");
+MODULE_AUTHOR("Dave Jones <davej@redhat.com>");
 MODULE_LICENSE("GPL and additional rights");
 

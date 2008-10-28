@@ -243,7 +243,6 @@ fwin_user_finish_up:
 	 */
 
 	.align	4
-	.globl	sun4c_fwin_stackchk
 sun4c_fwin_stackchk:
 	/* LOCATION: Window 'W' */
 

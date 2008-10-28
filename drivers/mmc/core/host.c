@@ -127,6 +127,10 @@ int mmc_add_host(struct mmc_host *host)
 	if (err)
 		return err;
 
+#ifdef CONFIG_DEBUG_FS
+	mmc_add_host_debugfs(host);
+#endif
+
 	mmc_start_host(host);
 
 	return 0;
@@ -145,6 +149,10 @@ EXPORT_SYMBOL(mmc_add_host);
 void mmc_remove_host(struct mmc_host *host)
 {
 	mmc_stop_host(host);
+
+#ifdef CONFIG_DEBUG_FS
+	mmc_remove_host_debugfs(host);
+#endif
 
 	device_del(&host->class_dev);
 

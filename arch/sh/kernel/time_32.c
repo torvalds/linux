@@ -1,9 +1,9 @@
 /*
- *  arch/sh/kernel/time.c
+ *  arch/sh/kernel/time_32.c
  *
  *  Copyright (C) 1999  Tetsuya Okada & Niibe Yutaka
  *  Copyright (C) 2000  Philipp Rumpf <prumpf@tux.org>
- *  Copyright (C) 2002 - 2007  Paul Mundt
+ *  Copyright (C) 2002 - 2008  Paul Mundt
  *  Copyright (C) 2002  M. R. Brown  <mrbrown@linux-sh.org>
  *
  *  Some code taken from i386 version.
@@ -16,6 +16,8 @@
 #include <linux/timex.h>
 #include <linux/sched.h>
 #include <linux/clockchips.h>
+#include <linux/mc146818rtc.h>	/* for rtc_lock */
+#include <linux/smp.h>
 #include <asm/clock.h>
 #include <asm/rtc.h>
 #include <asm/timer.h>
@@ -211,7 +213,7 @@ unsigned long sh_hpt_frequency = 0;
 
 #define NSEC_PER_CYC_SHIFT	10
 
-struct clocksource clocksource_sh = {
+static struct clocksource clocksource_sh = {
 	.name		= "SuperH",
 	.rating		= 200,
 	.mask		= CLOCKSOURCE_MASK(32),
@@ -253,12 +255,17 @@ void __init time_init(void)
 	set_normalized_timespec(&wall_to_monotonic,
 				-xtime.tv_sec, -xtime.tv_nsec);
 
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
+	local_timer_setup(smp_processor_id());
+#endif
+
 	/*
 	 * Find the timer to use as the system timer, it will be
 	 * initialized for us.
 	 */
 	sys_timer = get_sys_timer();
 	printk(KERN_INFO "Using %s for system timer\n", sys_timer->name);
+
 
 	if (sys_timer->ops->read)
 		clocksource_sh.read = sys_timer->ops->read;

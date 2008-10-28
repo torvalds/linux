@@ -22,7 +22,6 @@
 #include <linux/personality.h>
 #include <linux/sys.h>
 #include <linux/user.h>
-#include <linux/a.out.h>
 #include <linux/init.h>
 #include <linux/completion.h>
 #include <linux/kallsyms.h>
@@ -53,9 +52,9 @@ void __noreturn cpu_idle(void)
 {
 	/* endless idle loop with no priority at all */
 	while (1) {
-		tick_nohz_stop_sched_tick();
+		tick_nohz_stop_sched_tick(1);
 		while (!need_resched()) {
-#ifdef CONFIG_SMTC_IDLE_HOOK_DEBUG
+#ifdef CONFIG_MIPS_MT_SMTC
 			extern void smtc_idle_loop_hook(void);
 
 			smtc_idle_loop_hook();
@@ -145,17 +144,18 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	 */
 	p->thread.cp0_status = read_c0_status() & ~(ST0_CU2|ST0_CU1);
 	childregs->cp0_status &= ~(ST0_CU2|ST0_CU1);
+
+#ifdef CONFIG_MIPS_MT_SMTC
+	/*
+	 * SMTC restores TCStatus after Status, and the CU bits
+	 * are aliased there.
+	 */
+	childregs->cp0_tcstatus &= ~(ST0_CU2|ST0_CU1);
+#endif
 	clear_tsk_thread_flag(p, TIF_USEDFPU);
 
 #ifdef CONFIG_MIPS_MT_FPAFF
-	/*
-	 * FPU affinity support is cleaner if we track the
-	 * user-visible CPU affinity from the very beginning.
-	 * The generic cpus_allowed mask will already have
-	 * been copied from the parent before copy_thread
-	 * is invoked.
-	 */
-	p->thread.user_cpus_allowed = p->cpus_allowed;
+	clear_tsk_thread_flag(p, TIF_FPUBOUND);
 #endif /* CONFIG_MIPS_MT_FPAFF */
 
 	if (clone_flags & CLONE_SETTLS)

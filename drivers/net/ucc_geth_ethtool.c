@@ -5,7 +5,7 @@
  *
  * Author: Li Yang <leoli@freescale.com>
  *
- * Limitation: 
+ * Limitation:
  * Can only get/set setttings of the first queue.
  * Need to re-open the interface manually after changing some paramters.
  *
@@ -160,7 +160,7 @@ uec_set_pauseparam(struct net_device *netdev,
 
 	ugeth->ug_info->receiveFlowControl = pause->rx_pause;
 	ugeth->ug_info->transmitFlowControl = pause->tx_pause;
-	
+
 	if (ugeth->phydev->autoneg) {
 		if (netif_running(netdev)) {
 			/* FIXME: automatically restart */

@@ -69,7 +69,8 @@ static int radeon_setup_i2c_bus(struct radeon_i2c_chan *chan, const char *name)
 {
 	int rc;
 
-	strcpy(chan->adapter.name, name);
+	snprintf(chan->adapter.name, sizeof(chan->adapter.name),
+		 "radeonfb %s", name);
 	chan->adapter.owner		= THIS_MODULE;
 	chan->adapter.id		= I2C_HW_B_RADEON;
 	chan->adapter.algo_data		= &chan->algo;
@@ -138,11 +139,7 @@ void radeon_delete_i2c_busses(struct radeonfb_info *rinfo)
 int radeon_probe_i2c_connector(struct radeonfb_info *rinfo, int conn,
 			       u8 **out_edid)
 {
-	u32 reg = rinfo->i2c[conn-1].ddc_reg;
 	u8 *edid;
-
-	OUTREG(reg, INREG(reg) &
-			~(VGA_DDC_DATA_OUTPUT | VGA_DDC_CLK_OUTPUT));
 
 	edid = fb_ddc_read(&rinfo->i2c[conn-1].adapter);
 

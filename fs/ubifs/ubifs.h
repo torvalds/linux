@@ -20,8 +20,6 @@
  *          Adrian Hunter
  */
 
-/* Implementation version 0.7 */
-
 #ifndef __UBIFS_H__
 #define __UBIFS_H__
 
@@ -143,6 +141,9 @@
 
 /* Maximum expected tree height for use by bottom_up_buf */
 #define BOTTOM_UP_HEIGHT 64
+
+/* Maximum number of data nodes to bulk-read */
+#define UBIFS_MAX_BULK_READ 32
 
 /*
  * Lockdep classes for UBIFS inode @ui_mutex.
@@ -322,15 +323,18 @@ struct ubifs_gced_idx_leb {
  * struct ubifs_inode - UBIFS in-memory inode description.
  * @vfs_inode: VFS inode description object
  * @creat_sqnum: sequence number at time of creation
+ * @del_cmtno: commit number corresponding to the time the inode was deleted,
+ *             protected by @c->commit_sem;
  * @xattr_size: summarized size of all extended attributes in bytes
  * @xattr_cnt: count of extended attributes this inode has
  * @xattr_names: sum of lengths of all extended attribute names belonging to
  *               this inode
  * @dirty: non-zero if the inode is dirty
  * @xattr: non-zero if this is an extended attribute inode
+ * @bulk_read: non-zero if bulk-read should be used
  * @ui_mutex: serializes inode write-back with the rest of VFS operations,
- *            serializes "clean <-> dirty" state changes, protects @dirty,
- *            @ui_size, and @xattr_size
+ *            serializes "clean <-> dirty" state changes, serializes bulk-read,
+ *            protects @dirty, @bulk_read, @ui_size, and @xattr_size
  * @ui_lock: protects @synced_i_size
  * @synced_i_size: synchronized size of inode, i.e. the value of inode size
  *                 currently stored on the flash; used only for regular file
@@ -338,6 +342,8 @@ struct ubifs_gced_idx_leb {
  * @ui_size: inode size used by UBIFS when writing to flash
  * @flags: inode flags (@UBIFS_COMPR_FL, etc)
  * @compr_type: default compression type used for this inode
+ * @last_page_read: page number of last page read (for bulk read)
+ * @read_in_a_row: number of consecutive pages read in a row (for bulk read)
  * @data_len: length of the data attached to the inode
  * @data: inode's data
  *
@@ -373,17 +379,21 @@ struct ubifs_gced_idx_leb {
 struct ubifs_inode {
 	struct inode vfs_inode;
 	unsigned long long creat_sqnum;
+	unsigned long long del_cmtno;
 	unsigned int xattr_size;
 	unsigned int xattr_cnt;
 	unsigned int xattr_names;
 	unsigned int dirty:1;
 	unsigned int xattr:1;
+	unsigned int bulk_read:1;
 	struct mutex ui_mutex;
 	spinlock_t ui_lock;
 	loff_t synced_i_size;
 	loff_t ui_size;
 	int flags;
 	int compr_type;
+	pgoff_t last_page_read;
+	pgoff_t read_in_a_row;
 	int data_len;
 	void *data;
 };
@@ -697,8 +707,8 @@ struct ubifs_jhead {
  * struct ubifs_zbranch - key/coordinate/length branch stored in znodes.
  * @key: key
  * @znode: znode address in memory
- * @lnum: LEB number of the indexing node
- * @offs: offset of the indexing node within @lnum
+ * @lnum: LEB number of the target node (indexing node or data node)
+ * @offs: target node offset within @lnum
  * @len: target node length
  */
 struct ubifs_zbranch {
@@ -743,6 +753,28 @@ struct ubifs_znode {
 };
 
 /**
+ * struct bu_info - bulk-read information
+ * @key: first data node key
+ * @zbranch: zbranches of data nodes to bulk read
+ * @buf: buffer to read into
+ * @buf_len: buffer length
+ * @gc_seq: GC sequence number to detect races with GC
+ * @cnt: number of data nodes for bulk read
+ * @blk_cnt: number of data blocks including holes
+ * @oef: end of file reached
+ */
+struct bu_info {
+	union ubifs_key key;
+	struct ubifs_zbranch zbranch[UBIFS_MAX_BULK_READ];
+	void *buf;
+	int buf_len;
+	int gc_seq;
+	int cnt;
+	int blk_cnt;
+	int eof;
+};
+
+/**
  * struct ubifs_node_range - node length range description data structure.
  * @len: fixed node length
  * @min_len: minimum possible node length
@@ -779,7 +811,7 @@ struct ubifs_compressor {
 /**
  * struct ubifs_budget_req - budget requirements of an operation.
  *
- * @fast: non-zero if the budgeting should try to aquire budget quickly and
+ * @fast: non-zero if the budgeting should try to acquire budget quickly and
  *        should not try to call write-back
  * @recalculate: non-zero if @idx_growth, @data_growth, and @dd_growth fields
  *               have to be re-calculated
@@ -805,21 +837,31 @@ struct ubifs_compressor {
  * An inode may contain 4KiB of data at max., thus the widths of @new_ino_d
  * is 13 bits, and @dirtied_ino_d - 15, because up to 4 inodes may be made
  * dirty by the re-name operation.
+ *
+ * Note, UBIFS aligns node lengths to 8-bytes boundary, so the requester has to
+ * make sure the amount of inode data which contribute to @new_ino_d and
+ * @dirtied_ino_d fields are aligned.
  */
 struct ubifs_budget_req {
 	unsigned int fast:1;
 	unsigned int recalculate:1;
+#ifndef UBIFS_DEBUG
 	unsigned int new_page:1;
 	unsigned int dirtied_page:1;
 	unsigned int new_dent:1;
 	unsigned int mod_dent:1;
 	unsigned int new_ino:1;
 	unsigned int new_ino_d:13;
-#ifndef UBIFS_DEBUG
 	unsigned int dirtied_ino:4;
 	unsigned int dirtied_ino_d:15;
 #else
 	/* Not bit-fields to check for overflows */
+	unsigned int new_page;
+	unsigned int dirtied_page;
+	unsigned int new_dent;
+	unsigned int mod_dent;
+	unsigned int new_ino;
+	unsigned int new_ino_d;
 	unsigned int dirtied_ino;
 	unsigned int dirtied_ino_d;
 #endif
@@ -851,22 +893,26 @@ struct ubifs_orphan {
 /**
  * struct ubifs_mount_opts - UBIFS-specific mount options information.
  * @unmount_mode: selected unmount mode (%0 default, %1 normal, %2 fast)
+ * @bulk_read: enable bulk-reads
+ * @chk_data_crc: check CRCs when reading data nodes
  */
 struct ubifs_mount_opts {
 	unsigned int unmount_mode:2;
+	unsigned int bulk_read:2;
+	unsigned int chk_data_crc:2;
 };
 
 /**
  * struct ubifs_info - UBIFS file-system description data structure
  * (per-superblock).
  * @vfs_sb: VFS @struct super_block object
- * @bdi: backing device info object to make VFS happy and disable readahead
+ * @bdi: backing device info object to make VFS happy and disable read-ahead
  *
  * @highest_inum: highest used inode number
- * @vfs_gen: VFS inode generation counter
  * @max_sqnum: current global sequence number
- * @cmt_no: commit number (last successfully completed commit)
- * @cnt_lock: protects @highest_inum, @vfs_gen, and @max_sqnum counters
+ * @cmt_no: commit number of the last successfully completed commit, protected
+ *          by @commit_sem
+ * @cnt_lock: protects @highest_inum and @max_sqnum counters
  * @fmt_version: UBIFS on-flash format version
  * @uuid: UUID from super block
  *
@@ -894,13 +940,12 @@ struct ubifs_mount_opts {
  * @cmt_state: commit state
  * @cs_lock: commit state lock
  * @cmt_wq: wait queue to sleep on if the log is full and a commit is running
+ *
  * @fast_unmount: do not run journal commit before un-mounting
  * @big_lpt: flag that LPT is too big to write whole during commit
- * @check_lpt_free: flag that indicates LPT GC may be needed
- * @nospace: non-zero if the file-system does not have flash space (used as
- *           optimization)
- * @nospace_rp: the same as @nospace, but additionally means that even reserved
- *              pool is full
+ * @no_chk_data_crc: do not check CRCs when reading data nodes (except during
+ *                   recovery)
+ * @bulk_read: enable bulk-reads
  *
  * @tnc_mutex: protects the Tree Node Cache (TNC), @zroot, @cnext, @enext, and
  *             @calc_idx_sz
@@ -924,6 +969,7 @@ struct ubifs_mount_opts {
  * @mst_node: master node
  * @mst_offs: offset of valid master node
  * @mst_mutex: protects the master node area, @mst_node, and @mst_offs
+ * @bulk_read_buf_size: buffer size for bulk-reads
  *
  * @log_lebs: number of logical eraseblocks in the log
  * @log_bytes: log size in bytes
@@ -966,12 +1012,17 @@ struct ubifs_mount_opts {
  *                        but which still have to be taken into account because
  *                        the index has not been committed so far
  * @space_lock: protects @budg_idx_growth, @budg_data_growth, @budg_dd_growth,
- *              @budg_uncommited_idx, @min_idx_lebs, @old_idx_sz, and @lst;
+ *              @budg_uncommited_idx, @min_idx_lebs, @old_idx_sz, @lst,
+ *              @nospace, and @nospace_rp;
  * @min_idx_lebs: minimum number of LEBs required for the index
  * @old_idx_sz: size of index on flash
  * @calc_idx_sz: temporary variable which is used to calculate new index size
  *               (contains accurate new index size at end of TNC commit start)
  * @lst: lprops statistics
+ * @nospace: non-zero if the file-system does not have flash space (used as
+ *           optimization)
+ * @nospace_rp: the same as @nospace, but additionally means that even reserved
+ *              pool is full
  *
  * @page_budget: budget for a page
  * @inode_budget: budget for an inode
@@ -984,6 +1035,9 @@ struct ubifs_mount_opts {
  * @max_idx_node_sz: maximum indexing node aligned on 8-bytes boundary
  * @max_inode_sz: maximum possible inode size in bytes
  * @max_znode_sz: size of znode in bytes
+ *
+ * @leb_overhead: how many bytes are wasted in an LEB when it is filled with
+ *                data nodes of maximum size - used in free space reporting
  * @dead_wm: LEB dead space watermark
  * @dark_wm: LEB dark space watermark
  * @block_cnt: count of 4KiB blocks on the FS
@@ -1017,6 +1071,8 @@ struct ubifs_mount_opts {
  * @sbuf: a buffer of LEB size used by GC and replay for scanning
  * @idx_gc: list of index LEBs that have been garbage collected
  * @idx_gc_cnt: number of elements on the idx_gc list
+ * @gc_seq: incremented for every non-index LEB garbage collected
+ * @gced_lnum: last non-index LEB that was garbage collected
  *
  * @infos_list: links all 'ubifs_info' objects
  * @umount_mutex: serializes shrinker and un-mount
@@ -1045,6 +1101,7 @@ struct ubifs_mount_opts {
  * @lpt_drty_flgs: dirty flags for LPT special nodes e.g. ltab
  * @dirty_nn_cnt: number of dirty nnodes
  * @dirty_pn_cnt: number of dirty pnodes
+ * @check_lpt_free: flag that indicates LPT GC may be needed
  * @lpt_sz: LPT size
  * @lpt_nod_buf: buffer for an on-flash nnode or pnode
  * @lpt_buf: buffer of LEB size used by LPT
@@ -1086,6 +1143,7 @@ struct ubifs_mount_opts {
  * @rcvrd_mst_node: recovered master node to write when mounting ro to rw
  * @size_tree: inode size information for recovery
  * @remounting_rw: set while remounting from ro to rw (sb flags have MS_RDONLY)
+ * @always_chk_crc: always check CRCs (while mounting and remounting rw)
  * @mount_opts: UBIFS-specific mount options
  *
  * @dbg_buf: a buffer of LEB size used for debugging purposes
@@ -1103,7 +1161,6 @@ struct ubifs_info {
 	struct backing_dev_info bdi;
 
 	ino_t highest_inum;
-	unsigned int vfs_gen;
 	unsigned long long max_sqnum;
 	unsigned long long cmt_no;
 	spinlock_t cnt_lock;
@@ -1131,11 +1188,11 @@ struct ubifs_info {
 	int cmt_state;
 	spinlock_t cs_lock;
 	wait_queue_head_t cmt_wq;
+
 	unsigned int fast_unmount:1;
 	unsigned int big_lpt:1;
-	unsigned int check_lpt_free:1;
-	unsigned int nospace:1;
-	unsigned int nospace_rp:1;
+	unsigned int no_chk_data_crc:1;
+	unsigned int bulk_read:1;
 
 	struct mutex tnc_mutex;
 	struct ubifs_zbranch zroot;
@@ -1160,6 +1217,7 @@ struct ubifs_info {
 	struct ubifs_mst_node *mst_node;
 	int mst_offs;
 	struct mutex mst_mutex;
+	int bulk_read_buf_size;
 
 	int log_lebs;
 	long long log_bytes;
@@ -1203,6 +1261,8 @@ struct ubifs_info {
 	unsigned long long old_idx_sz;
 	unsigned long long calc_idx_sz;
 	struct ubifs_lp_stats lst;
+	unsigned int nospace:1;
+	unsigned int nospace_rp:1;
 
 	int page_budget;
 	int inode_budget;
@@ -1214,6 +1274,8 @@ struct ubifs_info {
 	int max_idx_node_sz;
 	long long max_inode_sz;
 	int max_znode_sz;
+
+	int leb_overhead;
 	int dead_wm;
 	int dark_wm;
 	int block_cnt;
@@ -1247,6 +1309,8 @@ struct ubifs_info {
 	void *sbuf;
 	struct list_head idx_gc;
 	int idx_gc_cnt;
+	volatile int gc_seq;
+	volatile int gced_lnum;
 
 	struct list_head infos_list;
 	struct mutex umount_mutex;
@@ -1275,6 +1339,7 @@ struct ubifs_info {
 	int lpt_drty_flgs;
 	int dirty_nn_cnt;
 	int dirty_pn_cnt;
+	int check_lpt_free;
 	long long lpt_sz;
 	void *lpt_nod_buf;
 	void *lpt_buf;
@@ -1316,6 +1381,7 @@ struct ubifs_info {
 	struct ubifs_mst_node *rcvrd_mst_node;
 	struct rb_root size_tree;
 	int remounting_rw;
+	int always_chk_crc;
 	struct ubifs_mount_opts mount_opts;
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
@@ -1328,6 +1394,12 @@ struct ubifs_info {
 	unsigned long fail_timeout;
 	unsigned int fail_cnt;
 	unsigned int fail_cnt_max;
+	long long chk_lpt_sz;
+	long long chk_lpt_sz2;
+	long long chk_lpt_wastage;
+	int chk_lpt_lebs;
+	int new_nhead_lnum;
+	int new_nhead_offs;
 #endif
 };
 
@@ -1346,6 +1418,7 @@ extern struct backing_dev_info ubifs_backing_dev_info;
 extern struct ubifs_compressor *ubifs_compressors[UBIFS_COMPR_TYPES_CNT];
 
 /* io.c */
+void ubifs_ro_mode(struct ubifs_info *c, int err);
 int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len);
 int ubifs_wbuf_seek_nolock(struct ubifs_wbuf *wbuf, int lnum, int offs,
 			   int dtype);
@@ -1357,7 +1430,7 @@ int ubifs_read_node_wbuf(struct ubifs_wbuf *wbuf, void *buf, int type, int len,
 int ubifs_write_node(struct ubifs_info *c, void *node, int len, int lnum,
 		     int offs, int dtype);
 int ubifs_check_node(const struct ubifs_info *c, const void *buf, int lnum,
-		     int offs, int quiet);
+		     int offs, int quiet, int chk_crc);
 void ubifs_prepare_node(struct ubifs_info *c, void *buf, int len, int pad);
 void ubifs_prep_grp_node(struct ubifs_info *c, void *node, int len, int last);
 int ubifs_io_init(struct ubifs_info *c);
@@ -1399,8 +1472,8 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 		     int deletion, int xent);
 int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 			 const union ubifs_key *key, const void *buf, int len);
-int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode,
-			  int last_reference);
+int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode);
+int ubifs_jnl_delete_inode(struct ubifs_info *c, const struct inode *inode);
 int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		     const struct dentry *old_dentry,
 		     const struct inode *new_dir,
@@ -1423,9 +1496,10 @@ void ubifs_release_ino_dirty(struct ubifs_info *c, struct inode *inode,
 				struct ubifs_budget_req *req);
 void ubifs_cancel_ino_op(struct ubifs_info *c, struct inode *inode,
 			 struct ubifs_budget_req *req);
-long long ubifs_budg_get_free_space(struct ubifs_info *c);
+long long ubifs_get_free_space(struct ubifs_info *c);
 int ubifs_calc_min_idx_lebs(struct ubifs_info *c);
 void ubifs_convert_page_budget(struct ubifs_info *c);
+long long ubifs_reported_space(const struct ubifs_info *c, uint64_t free);
 long long ubifs_calc_available(const struct ubifs_info *c, int min_idx_lebs);
 
 /* find.c */
@@ -1440,8 +1514,6 @@ int ubifs_save_dirty_idx_lnums(struct ubifs_info *c);
 /* tnc.c */
 int ubifs_lookup_level0(struct ubifs_info *c, const union ubifs_key *key,
 			struct ubifs_znode **zn, int *n);
-int ubifs_tnc_lookup(struct ubifs_info *c, const union ubifs_key *key,
-		     void *node);
 int ubifs_tnc_lookup_nm(struct ubifs_info *c, const union ubifs_key *key,
 			void *node, const struct qstr *nm);
 int ubifs_tnc_locate(struct ubifs_info *c, const union ubifs_key *key,
@@ -1471,6 +1543,8 @@ void destroy_old_idx(struct ubifs_info *c);
 int is_idx_node_in_tnc(struct ubifs_info *c, union ubifs_key *key, int level,
 		       int lnum, int offs);
 int insert_old_idx_znode(struct ubifs_info *c, struct ubifs_znode *znode);
+int ubifs_tnc_get_bu_keys(struct ubifs_info *c, struct bu_info *bu);
+int ubifs_tnc_bulk_read(struct ubifs_info *c, struct bu_info *bu);
 
 /* tnc_misc.c */
 struct ubifs_znode *ubifs_tnc_levelorder_next(struct ubifs_znode *zr,
@@ -1567,12 +1641,10 @@ int ubifs_lpt_post_commit(struct ubifs_info *c);
 void ubifs_lpt_free(struct ubifs_info *c, int wr_only);
 
 /* lprops.c */
-void ubifs_get_lprops(struct ubifs_info *c);
 const struct ubifs_lprops *ubifs_change_lp(struct ubifs_info *c,
 					   const struct ubifs_lprops *lp,
 					   int free, int dirty, int flags,
 					   int idx_gc_cnt);
-void ubifs_release_lprops(struct ubifs_info *c);
 void ubifs_get_lp_stats(struct ubifs_info *c, struct ubifs_lp_stats *stats);
 void ubifs_add_to_cat(struct ubifs_info *c, struct ubifs_lprops *lprops,
 		      int cat);

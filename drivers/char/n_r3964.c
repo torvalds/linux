@@ -143,7 +143,7 @@ static unsigned int r3964_poll(struct tty_struct *tty, struct file *file,
 static void r3964_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 		char *fp, int count);
 
-static struct tty_ldisc tty_ldisc_N_R3964 = {
+static struct tty_ldisc_ops tty_ldisc_N_R3964 = {
 	.owner = THIS_MODULE,
 	.magic = TTY_LDISC_MAGIC,
 	.name = "R3964",
@@ -372,14 +372,8 @@ static void remove_from_rx_queue(struct r3964_info *pInfo,
 static void put_char(struct r3964_info *pInfo, unsigned char ch)
 {
 	struct tty_struct *tty = pInfo->tty;
-
-	if (tty == NULL)
-		return;
-
 	/* FIXME: put_char should not be called from an IRQ */
-	if (tty->ops->put_char) {
-		tty->ops->put_char(tty, ch);
-	}
+	tty_put_char(tty, ch);
 	pInfo->bcc ^= ch;
 }
 

@@ -39,7 +39,7 @@
    associated VBI streams are also automatically claimed.
    Possible error returns: -EBUSY if someone else has claimed
    the stream or 0 on success. */
-int ivtv_claim_stream(struct ivtv_open_id *id, int type)
+static int ivtv_claim_stream(struct ivtv_open_id *id, int type)
 {
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[type];
@@ -78,7 +78,7 @@ int ivtv_claim_stream(struct ivtv_open_id *id, int type)
 	if (type == IVTV_DEC_STREAM_TYPE_MPG) {
 		vbi_type = IVTV_DEC_STREAM_TYPE_VBI;
 	} else if (type == IVTV_ENC_STREAM_TYPE_MPG &&
-		   itv->vbi.insert_mpeg && itv->vbi.sliced_in->service_set) {
+		   itv->vbi.insert_mpeg && !ivtv_raw_vbi(itv)) {
 		vbi_type = IVTV_ENC_STREAM_TYPE_VBI;
 	} else {
 		return 0;
@@ -305,7 +305,7 @@ static size_t ivtv_copy_buf_to_user(struct ivtv_stream *s, struct ivtv_buffer *b
 
 	if (len > ucount) len = ucount;
 	if (itv->vbi.insert_mpeg && s->type == IVTV_ENC_STREAM_TYPE_MPG &&
-	    itv->vbi.sliced_in->service_set && buf != &itv->vbi.sliced_mpeg_buf) {
+	    !ivtv_raw_vbi(itv) && buf != &itv->vbi.sliced_mpeg_buf) {
 		const char *start = buf->buf + buf->readpos;
 		const char *p = start + 1;
 		const u8 *q;
@@ -372,7 +372,7 @@ static ssize_t ivtv_read(struct ivtv_stream *s, char __user *ubuf, size_t tot_co
 	/* Each VBI buffer is one frame, the v4l2 API says that for VBI the frames should
 	   arrive one-by-one, so make sure we never output more than one VBI frame at a time */
 	if (s->type == IVTV_DEC_STREAM_TYPE_VBI ||
-			(s->type == IVTV_ENC_STREAM_TYPE_VBI && itv->vbi.sliced_in->service_set))
+	    (s->type == IVTV_ENC_STREAM_TYPE_VBI && !ivtv_raw_vbi(itv)))
 		single_frame = 1;
 
 	for (;;) {
@@ -582,18 +582,32 @@ ssize_t ivtv_v4l2_write(struct file *filp, const char __user *user_buf, size_t c
 	ivtv_queue_init(&q);
 	set_bit(IVTV_F_S_APPL_IO, &s->s_flags);
 
+	/* Start decoder (returns 0 if already started) */
+	mutex_lock(&itv->serialize_lock);
+	rc = ivtv_start_decoding(id, itv->speed);
+	mutex_unlock(&itv->serialize_lock);
+	if (rc) {
+		IVTV_DEBUG_WARN("Failed start decode stream %s\n", s->name);
+
+		/* failure, clean up */
+		clear_bit(IVTV_F_S_STREAMING, &s->s_flags);
+		clear_bit(IVTV_F_S_APPL_IO, &s->s_flags);
+		return rc;
+	}
+
 retry:
 	/* If possible, just DMA the entire frame - Check the data transfer size
 	since we may get here before the stream has been fully set-up */
 	if (mode == OUT_YUV && s->q_full.length == 0 && itv->dma_data_req_size) {
 		while (count >= itv->dma_data_req_size) {
-			if (!ivtv_yuv_udma_stream_frame (itv, (void __user *)user_buf)) {
-				bytes_written += itv->dma_data_req_size;
-				user_buf += itv->dma_data_req_size;
-				count -= itv->dma_data_req_size;
-			} else {
-				break;
-			}
+			rc = ivtv_yuv_udma_stream_frame(itv, (void __user *)user_buf);
+
+			if (rc < 0)
+				return rc;
+
+			bytes_written += itv->dma_data_req_size;
+			user_buf += itv->dma_data_req_size;
+			count -= itv->dma_data_req_size;
 		}
 		if (count == 0) {
 			IVTV_DEBUG_HI_FILE("Wrote %d bytes to %s (%d)\n", bytes_written, s->name, s->q_full.bytesused);
@@ -664,18 +678,6 @@ retry:
 		ivtv_enqueue(s, buf, &s->q_full);
 	}
 
-	/* Start decoder (returns 0 if already started) */
-	mutex_lock(&itv->serialize_lock);
-	rc = ivtv_start_decoding(id, itv->speed);
-	mutex_unlock(&itv->serialize_lock);
-	if (rc) {
-		IVTV_DEBUG_WARN("Failed start decode stream %s\n", s->name);
-
-		/* failure, clean up */
-		clear_bit(IVTV_F_S_STREAMING, &s->s_flags);
-		clear_bit(IVTV_F_S_APPL_IO, &s->s_flags);
-		return rc;
-	}
 	if (test_bit(IVTV_F_S_NEEDS_DATA, &s->s_flags)) {
 		if (s->q_full.length >= itv->dma_data_req_size) {
 			int got_sig;

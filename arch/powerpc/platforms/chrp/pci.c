@@ -260,13 +260,13 @@ chrp_find_bridges(void)
 				dev->full_name);
 			continue;
 		}
-		hose->first_busno = bus_range[0];
+		hose->first_busno = hose->self_busno = bus_range[0];
 		hose->last_busno = bus_range[1];
 
 		model = of_get_property(dev, "model", NULL);
 		if (model == NULL)
 			model = "<none>";
-		if (of_device_is_compatible(dev, "IBM,python")) {
+		if (strncmp(model, "IBM, Python", 11) == 0) {
 			setup_python(hose, dev);
 		} else if (is_mot
 			   || strncmp(model, "Motorola, Grackle", 17) == 0) {
@@ -367,7 +367,7 @@ static void chrp_pci_fixup_vt8231_ata(struct pci_dev *viaide)
 	viaisa = pci_get_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8231, NULL);
 	if (!viaisa)
 		return;
-	printk("Fixing VIA IDE, force legacy mode on '%s'\n", viaide->dev.bus_id);
+	dev_info(&viaide->dev, "Fixing VIA IDE, force legacy mode on\n");
 
 	pci_read_config_byte(viaide, PCI_CLASS_PROG, &progif);
 	pci_write_config_byte(viaide, PCI_CLASS_PROG, progif & ~0x5);

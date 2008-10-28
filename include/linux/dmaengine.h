@@ -89,10 +89,23 @@ enum dma_transaction_type {
 	DMA_MEMSET,
 	DMA_MEMCPY_CRC32C,
 	DMA_INTERRUPT,
+	DMA_SLAVE,
 };
 
 /* last transaction type for creation of the capabilities mask */
-#define DMA_TX_TYPE_END (DMA_INTERRUPT + 1)
+#define DMA_TX_TYPE_END (DMA_SLAVE + 1)
+
+/**
+ * enum dma_slave_width - DMA slave register access width.
+ * @DMA_SLAVE_WIDTH_8BIT: Do 8-bit slave register accesses
+ * @DMA_SLAVE_WIDTH_16BIT: Do 16-bit slave register accesses
+ * @DMA_SLAVE_WIDTH_32BIT: Do 32-bit slave register accesses
+ */
+enum dma_slave_width {
+	DMA_SLAVE_WIDTH_8BIT,
+	DMA_SLAVE_WIDTH_16BIT,
+	DMA_SLAVE_WIDTH_32BIT,
+};
 
 /**
  * enum dma_ctrl_flags - DMA flags to augment operation preparation,
@@ -102,10 +115,14 @@ enum dma_transaction_type {
  * @DMA_CTRL_ACK - the descriptor cannot be reused until the client
  * 	acknowledges receipt, i.e. has has a chance to establish any
  * 	dependency chains
+ * @DMA_COMPL_SKIP_SRC_UNMAP - set to disable dma-unmapping the source buffer(s)
+ * @DMA_COMPL_SKIP_DEST_UNMAP - set to disable dma-unmapping the destination(s)
  */
 enum dma_ctrl_flags {
 	DMA_PREP_INTERRUPT = (1 << 0),
 	DMA_CTRL_ACK = (1 << 1),
+	DMA_COMPL_SKIP_SRC_UNMAP = (1 << 2),
+	DMA_COMPL_SKIP_DEST_UNMAP = (1 << 3),
 };
 
 /**
@@ -113,6 +130,32 @@ enum dma_ctrl_flags {
  * See linux/cpumask.h
  */
 typedef struct { DECLARE_BITMAP(bits, DMA_TX_TYPE_END); } dma_cap_mask_t;
+
+/**
+ * struct dma_slave - Information about a DMA slave
+ * @dev: device acting as DMA slave
+ * @dma_dev: required DMA master device. If non-NULL, the client can not be
+ *	bound to other masters than this.
+ * @tx_reg: physical address of data register used for
+ *	memory-to-peripheral transfers
+ * @rx_reg: physical address of data register used for
+ *	peripheral-to-memory transfers
+ * @reg_width: peripheral register width
+ *
+ * If dma_dev is non-NULL, the client can not be bound to other DMA
+ * masters than the one corresponding to this device. The DMA master
+ * driver may use this to determine if there is controller-specific
+ * data wrapped around this struct. Drivers of platform code that sets
+ * the dma_dev field must therefore make sure to use an appropriate
+ * controller-specific dma slave structure wrapping this struct.
+ */
+struct dma_slave {
+	struct device		*dev;
+	struct device		*dma_dev;
+	dma_addr_t		tx_reg;
+	dma_addr_t		rx_reg;
+	enum dma_slave_width	reg_width;
+};
 
 /**
  * struct dma_chan_percpu - the per-CPU part of struct dma_chan
@@ -139,6 +182,7 @@ struct dma_chan_percpu {
  * @rcu: the DMA channel's RCU head
  * @device_node: used to add this to the device chan list
  * @local: per-cpu pointer to a struct dma_chan_percpu
+ * @client-count: how many clients are using this channel
  */
 struct dma_chan {
 	struct dma_device *device;
@@ -154,6 +198,7 @@ struct dma_chan {
 
 	struct list_head device_node;
 	struct dma_chan_percpu *local;
+	int client_count;
 };
 
 #define to_dma_chan(p) container_of(p, struct dma_chan, dev)
@@ -202,11 +247,14 @@ typedef enum dma_state_client (*dma_event_callback) (struct dma_client *client,
  * @event_callback: func ptr to call when something happens
  * @cap_mask: only return channels that satisfy the requested capabilities
  *  a value of zero corresponds to any capability
+ * @slave: data for preparing slave transfer. Must be non-NULL iff the
+ *  DMA_SLAVE capability is requested.
  * @global_node: list_head for global dma_client_list
  */
 struct dma_client {
 	dma_event_callback	event_callback;
 	dma_cap_mask_t		cap_mask;
+	struct dma_slave	*slave;
 	struct list_head	global_node;
 };
 
@@ -263,6 +311,8 @@ struct dma_async_tx_descriptor {
  * @device_prep_dma_zero_sum: prepares a zero_sum operation
  * @device_prep_dma_memset: prepares a memset operation
  * @device_prep_dma_interrupt: prepares an end of chain interrupt operation
+ * @device_prep_slave_sg: prepares a slave dma operation
+ * @device_terminate_all: terminate all pending operations
  * @device_issue_pending: push pending transactions to hardware
  */
 struct dma_device {
@@ -279,7 +329,8 @@ struct dma_device {
 	int dev_id;
 	struct device *dev;
 
-	int (*device_alloc_chan_resources)(struct dma_chan *chan);
+	int (*device_alloc_chan_resources)(struct dma_chan *chan,
+			struct dma_client *client);
 	void (*device_free_chan_resources)(struct dma_chan *chan);
 
 	struct dma_async_tx_descriptor *(*device_prep_dma_memcpy)(
@@ -296,6 +347,12 @@ struct dma_device {
 		unsigned long flags);
 	struct dma_async_tx_descriptor *(*device_prep_dma_interrupt)(
 		struct dma_chan *chan, unsigned long flags);
+
+	struct dma_async_tx_descriptor *(*device_prep_slave_sg)(
+		struct dma_chan *chan, struct scatterlist *sgl,
+		unsigned int sg_len, enum dma_data_direction direction,
+		unsigned long flags);
+	void (*device_terminate_all)(struct dma_chan *chan);
 
 	enum dma_status (*device_is_tx_complete)(struct dma_chan *chan,
 			dma_cookie_t cookie, dma_cookie_t *last,
@@ -318,16 +375,14 @@ dma_cookie_t dma_async_memcpy_pg_to_pg(struct dma_chan *chan,
 void dma_async_tx_descriptor_init(struct dma_async_tx_descriptor *tx,
 	struct dma_chan *chan);
 
-static inline void
-async_tx_ack(struct dma_async_tx_descriptor *tx)
+static inline void async_tx_ack(struct dma_async_tx_descriptor *tx)
 {
 	tx->flags |= DMA_CTRL_ACK;
 }
 
-static inline int
-async_tx_test_ack(struct dma_async_tx_descriptor *tx)
+static inline bool async_tx_test_ack(struct dma_async_tx_descriptor *tx)
 {
-	return tx->flags & DMA_CTRL_ACK;
+	return (tx->flags & DMA_CTRL_ACK) == DMA_CTRL_ACK;
 }
 
 #define first_dma_cap(mask) __first_dma_cap(&(mask))

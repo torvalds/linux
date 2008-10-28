@@ -46,6 +46,8 @@
 
 extern void ctrl_alt_del(void);
 
+#define to_handle_h(n) container_of(n, struct input_handle, h_node)
+
 /*
  * Exported functions/variables
  */
@@ -1247,7 +1249,7 @@ static void kbd_keycode(unsigned int keycode, int down, int hw_raw)
 		return;
 	}
 
-	if (keycode > NR_KEYS)
+	if (keycode >= NR_KEYS)
 		if (keycode >= KEY_BRL_DOT1 && keycode <= KEY_BRL_DOT8)
 			keysym = K(KT_BRL, keycode - KEY_BRL_DOT1 + 1);
 		else

@@ -22,12 +22,12 @@
 #include <linux/platform_device.h>
 #include <linux/apm-emulation.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
-#include <asm/arch/pm.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
-#include <asm/arch/sharpsl.h>
+#include <mach/pm.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-gpio.h>
+#include <mach/sharpsl.h>
 #include "sharpsl.h"
 
 struct battery_thresh spitz_battery_levels_acin[] = {
@@ -132,8 +132,17 @@ int sharpsl_pm_pxa_read_max1111(int channel)
 	if (machine_is_tosa()) // Ugly, better move this function into another module
 	    return 0;
 
+#ifdef CONFIG_CORGI_SSP_DEPRECATED
 	return corgi_ssp_max1111_get((channel << MAXCTRL_SEL_SH) | MAXCTRL_PD0 | MAXCTRL_PD1
 			| MAXCTRL_SGL | MAXCTRL_UNI | MAXCTRL_STR);
+#else
+	extern int max1111_read_channel(int);
+
+	/* max1111 accepts channels from 0-3, however,
+	 * it is encoded from 0-7 here in the code.
+	 */
+	return max1111_read_channel(channel >> 1);
+#endif
 }
 
 void sharpsl_pm_pxa_init(void)
@@ -146,18 +155,18 @@ void sharpsl_pm_pxa_init(void)
 	if (request_irq(IRQ_GPIO(sharpsl_pm.machinfo->gpio_acin), sharpsl_ac_isr, IRQF_DISABLED, "AC Input Detect", sharpsl_ac_isr)) {
 		dev_err(sharpsl_pm.dev, "Could not get irq %d.\n", IRQ_GPIO(sharpsl_pm.machinfo->gpio_acin));
 	}
-	else set_irq_type(IRQ_GPIO(sharpsl_pm.machinfo->gpio_acin),IRQT_BOTHEDGE);
+	else set_irq_type(IRQ_GPIO(sharpsl_pm.machinfo->gpio_acin),IRQ_TYPE_EDGE_BOTH);
 
 	if (request_irq(IRQ_GPIO(sharpsl_pm.machinfo->gpio_batlock), sharpsl_fatal_isr, IRQF_DISABLED, "Battery Cover", sharpsl_fatal_isr)) {
 		dev_err(sharpsl_pm.dev, "Could not get irq %d.\n", IRQ_GPIO(sharpsl_pm.machinfo->gpio_batlock));
 	}
-	else set_irq_type(IRQ_GPIO(sharpsl_pm.machinfo->gpio_batlock),IRQT_FALLING);
+	else set_irq_type(IRQ_GPIO(sharpsl_pm.machinfo->gpio_batlock),IRQ_TYPE_EDGE_FALLING);
 
 	if (sharpsl_pm.machinfo->gpio_fatal) {
 		if (request_irq(IRQ_GPIO(sharpsl_pm.machinfo->gpio_fatal), sharpsl_fatal_isr, IRQF_DISABLED, "Fatal Battery", sharpsl_fatal_isr)) {
 			dev_err(sharpsl_pm.dev, "Could not get irq %d.\n", IRQ_GPIO(sharpsl_pm.machinfo->gpio_fatal));
 		}
-		else set_irq_type(IRQ_GPIO(sharpsl_pm.machinfo->gpio_fatal),IRQT_FALLING);
+		else set_irq_type(IRQ_GPIO(sharpsl_pm.machinfo->gpio_fatal),IRQ_TYPE_EDGE_FALLING);
 	}
 
 	if (sharpsl_pm.machinfo->batfull_irq)
@@ -166,7 +175,7 @@ void sharpsl_pm_pxa_init(void)
 		if (request_irq(IRQ_GPIO(sharpsl_pm.machinfo->gpio_batfull), sharpsl_chrg_full_isr, IRQF_DISABLED, "CO", sharpsl_chrg_full_isr)) {
 			dev_err(sharpsl_pm.dev, "Could not get irq %d.\n", IRQ_GPIO(sharpsl_pm.machinfo->gpio_batfull));
 		}
-		else set_irq_type(IRQ_GPIO(sharpsl_pm.machinfo->gpio_batfull),IRQT_RISING);
+		else set_irq_type(IRQ_GPIO(sharpsl_pm.machinfo->gpio_batfull),IRQ_TYPE_EDGE_RISING);
 	}
 }
 

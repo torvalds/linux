@@ -13,12 +13,10 @@
 #include <linux/irq.h>
 #include <linux/msi.h>
 #include <linux/log2.h>
+#include <linux/of_device.h>
 
 #include <asm/iommu.h>
 #include <asm/irq.h>
-#include <asm/upa.h>
-#include <asm/pstate.h>
-#include <asm/oplib.h>
 #include <asm/hypervisor.h>
 #include <asm/prom.h>
 
@@ -26,6 +24,9 @@
 #include "iommu_common.h"
 
 #include "pci_sun4v.h"
+
+#define DRIVER_NAME	"pci_sun4v"
+#define PFX		DRIVER_NAME ": "
 
 static unsigned long vpci_major = 1;
 static unsigned long vpci_minor = 1;
@@ -41,6 +42,7 @@ struct iommu_batch {
 };
 
 static DEFINE_PER_CPU(struct iommu_batch, iommu_batch);
+static int iommu_batch_initialized;
 
 /* Interrupts must be disabled.  */
 static inline void iommu_batch_start(struct device *dev, unsigned long prot, unsigned long entry)
@@ -382,7 +384,7 @@ static int dma_4v_map_sg(struct device *dev, struct scatterlist *sglist,
 		}
 		/* Allocate iommu entries for that segment */
 		paddr = (unsigned long) SG_ENT_PHYS_ADDRESS(s);
-		npages = iommu_num_pages(paddr, slen);
+		npages = iommu_num_pages(paddr, slen, IO_PAGE_SIZE);
 		entry = iommu_range_alloc(dev, iommu, npages, &handle);
 
 		/* Handle failure */
@@ -459,7 +461,8 @@ iommu_map_failed:
 			unsigned long vaddr, npages;
 
 			vaddr = s->dma_address & IO_PAGE_MASK;
-			npages = iommu_num_pages(s->dma_address, s->dma_length);
+			npages = iommu_num_pages(s->dma_address, s->dma_length,
+						 IO_PAGE_SIZE);
 			iommu_range_free(iommu, vaddr, npages);
 			/* XXX demap? XXX */
 			s->dma_address = DMA_ERROR_CODE;
@@ -498,7 +501,7 @@ static void dma_4v_unmap_sg(struct device *dev, struct scatterlist *sglist,
 
 		if (!len)
 			break;
-		npages = iommu_num_pages(dma_handle, len);
+		npages = iommu_num_pages(dma_handle, len, IO_PAGE_SIZE);
 		iommu_range_free(iommu, dma_handle, npages);
 
 		entry = ((dma_handle - iommu->page_table_map_base) >> IO_PAGE_SHIFT);
@@ -531,7 +534,7 @@ static void dma_4v_sync_sg_for_cpu(struct device *dev,
 	/* Nothing to do... */
 }
 
-const struct dma_ops sun4v_dma_ops = {
+static const struct dma_ops sun4v_dma_ops = {
 	.alloc_coherent			= dma_4v_alloc_coherent,
 	.free_coherent			= dma_4v_free_coherent,
 	.map_single			= dma_4v_map_single,
@@ -542,15 +545,16 @@ const struct dma_ops sun4v_dma_ops = {
 	.sync_sg_for_cpu		= dma_4v_sync_sg_for_cpu,
 };
 
-static void __init pci_sun4v_scan_bus(struct pci_pbm_info *pbm)
+static void __init pci_sun4v_scan_bus(struct pci_pbm_info *pbm,
+				      struct device *parent)
 {
 	struct property *prop;
 	struct device_node *dp;
 
-	dp = pbm->prom_node;
+	dp = pbm->op->node;
 	prop = of_find_property(dp, "66mhz-capable", NULL);
 	pbm->is_66mhz_capable = (prop != NULL);
-	pbm->pci_bus = pci_scan_one_pbm(pbm);
+	pbm->pci_bus = pci_scan_one_pbm(pbm, parent);
 
 	/* XXX register error interrupt handlers XXX */
 }
@@ -583,29 +587,22 @@ static unsigned long __init probe_existing_entries(struct pci_pbm_info *pbm,
 	return cnt;
 }
 
-static void __init pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
+static int __init pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 {
+	static const u32 vdma_default[] = { 0x80000000, 0x80000000 };
 	struct iommu *iommu = pbm->iommu;
-	struct property *prop;
 	unsigned long num_tsb_entries, sz, tsbsize;
-	u32 vdma[2], dma_mask, dma_offset;
+	u32 dma_mask, dma_offset;
+	const u32 *vdma;
 
-	prop = of_find_property(pbm->prom_node, "virtual-dma", NULL);
-	if (prop) {
-		u32 *val = prop->value;
-
-		vdma[0] = val[0];
-		vdma[1] = val[1];
-	} else {
-		/* No property, use default values. */
-		vdma[0] = 0x80000000;
-		vdma[1] = 0x80000000;
-	}
+	vdma = of_get_property(pbm->op->node, "virtual-dma", NULL);
+	if (!vdma)
+		vdma = vdma_default;
 
 	if ((vdma[0] | vdma[1]) & ~IO_PAGE_MASK) {
-		prom_printf("PCI-SUN4V: strange virtual-dma[%08x:%08x].\n",
-			    vdma[0], vdma[1]);
-		prom_halt();
+		printk(KERN_ERR PFX "Strange virtual-dma[%08x:%08x].\n",
+		       vdma[0], vdma[1]);
+		return -EINVAL;
 	};
 
 	dma_mask = (roundup_pow_of_two(vdma[1]) - 1UL);
@@ -625,8 +622,8 @@ static void __init pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 	sz = (sz + 7UL) & ~7UL;
 	iommu->arena.map = kzalloc(sz, GFP_KERNEL);
 	if (!iommu->arena.map) {
-		prom_printf("PCI_IOMMU: Error, kmalloc(arena.map) failed.\n");
-		prom_halt();
+		printk(KERN_ERR PFX "Error, kmalloc(arena.map) failed.\n");
+		return -ENOMEM;
 	}
 	iommu->arena.limit = num_tsb_entries;
 
@@ -634,6 +631,8 @@ static void __init pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 	if (sz)
 		printk("%s: Imported %lu TSB entries from OBP\n",
 		       pbm->name, sz);
+
+	return 0;
 }
 
 #ifdef CONFIG_PCI_MSI
@@ -890,29 +889,20 @@ static void pci_sun4v_msi_init(struct pci_pbm_info *pbm)
 }
 #endif /* !(CONFIG_PCI_MSI) */
 
-static void __init pci_sun4v_pbm_init(struct pci_controller_info *p,
-				      struct device_node *dp, u32 devhandle)
+static int __init pci_sun4v_pbm_init(struct pci_pbm_info *pbm,
+				     struct of_device *op, u32 devhandle)
 {
-	struct pci_pbm_info *pbm;
-
-	if (devhandle & 0x40)
-		pbm = &p->pbm_B;
-	else
-		pbm = &p->pbm_A;
-
-	pbm->next = pci_pbm_root;
-	pci_pbm_root = pbm;
+	struct device_node *dp = op->node;
+	int err;
 
 	pbm->numa_node = of_node_to_nid(dp);
 
-	pbm->scan_bus = pci_sun4v_scan_bus;
 	pbm->pci_ops = &sun4v_pci_ops;
 	pbm->config_space_reg_bits = 12;
 
 	pbm->index = pci_num_pbms++;
 
-	pbm->parent = p;
-	pbm->prom_node = dp;
+	pbm->op = op;
 
 	pbm->devhandle = devhandle;
 
@@ -924,82 +914,120 @@ static void __init pci_sun4v_pbm_init(struct pci_controller_info *p,
 	pci_determine_mem_io_space(pbm);
 
 	pci_get_pbm_props(pbm);
-	pci_sun4v_iommu_init(pbm);
+
+	err = pci_sun4v_iommu_init(pbm);
+	if (err)
+		return err;
+
 	pci_sun4v_msi_init(pbm);
+
+	pci_sun4v_scan_bus(pbm, &op->dev);
+
+	pbm->next = pci_pbm_root;
+	pci_pbm_root = pbm;
+
+	return 0;
 }
 
-void __init sun4v_pci_init(struct device_node *dp, char *model_name)
+static int __devinit pci_sun4v_probe(struct of_device *op,
+				     const struct of_device_id *match)
 {
+	const struct linux_prom64_registers *regs;
 	static int hvapi_negotiated = 0;
-	struct pci_controller_info *p;
 	struct pci_pbm_info *pbm;
+	struct device_node *dp;
 	struct iommu *iommu;
-	struct property *prop;
-	struct linux_prom64_registers *regs;
 	u32 devhandle;
-	int i;
+	int i, err;
+
+	dp = op->node;
 
 	if (!hvapi_negotiated++) {
-		int err = sun4v_hvapi_register(HV_GRP_PCI,
-					       vpci_major,
-					       &vpci_minor);
+		err = sun4v_hvapi_register(HV_GRP_PCI,
+					   vpci_major,
+					   &vpci_minor);
 
 		if (err) {
-			prom_printf("SUN4V_PCI: Could not register hvapi, "
-				    "err=%d\n", err);
-			prom_halt();
+			printk(KERN_ERR PFX "Could not register hvapi, "
+			       "err=%d\n", err);
+			return err;
 		}
-		printk("SUN4V_PCI: Registered hvapi major[%lu] minor[%lu]\n",
+		printk(KERN_INFO PFX "Registered hvapi major[%lu] minor[%lu]\n",
 		       vpci_major, vpci_minor);
 
 		dma_ops = &sun4v_dma_ops;
 	}
 
-	prop = of_find_property(dp, "reg", NULL);
-	if (!prop) {
-		prom_printf("SUN4V_PCI: Could not find config registers\n");
-		prom_halt();
+	regs = of_get_property(dp, "reg", NULL);
+	err = -ENODEV;
+	if (!regs) {
+		printk(KERN_ERR PFX "Could not find config registers\n");
+		goto out_err;
 	}
-	regs = prop->value;
-
 	devhandle = (regs->phys_addr >> 32UL) & 0x0fffffff;
 
-	for (pbm = pci_pbm_root; pbm; pbm = pbm->next) {
-		if (pbm->devhandle == (devhandle ^ 0x40)) {
-			pci_sun4v_pbm_init(pbm->parent, dp, devhandle);
-			return;
+	err = -ENOMEM;
+	if (!iommu_batch_initialized) {
+		for_each_possible_cpu(i) {
+			unsigned long page = get_zeroed_page(GFP_KERNEL);
+
+			if (!page)
+				goto out_err;
+
+			per_cpu(iommu_batch, i).pglist = (u64 *) page;
 		}
+		iommu_batch_initialized = 1;
 	}
 
-	for_each_possible_cpu(i) {
-		unsigned long page = get_zeroed_page(GFP_ATOMIC);
-
-		if (!page)
-			goto fatal_memory_error;
-
-		per_cpu(iommu_batch, i).pglist = (u64 *) page;
+	pbm = kzalloc(sizeof(*pbm), GFP_KERNEL);
+	if (!pbm) {
+		printk(KERN_ERR PFX "Could not allocate pci_pbm_info\n");
+		goto out_err;
 	}
 
-	p = kzalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
-	if (!p)
-		goto fatal_memory_error;
+	iommu = kzalloc(sizeof(struct iommu), GFP_KERNEL);
+	if (!iommu) {
+		printk(KERN_ERR PFX "Could not allocate pbm iommu\n");
+		goto out_free_controller;
+	}
 
-	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
-	if (!iommu)
-		goto fatal_memory_error;
+	pbm->iommu = iommu;
 
-	p->pbm_A.iommu = iommu;
+	err = pci_sun4v_pbm_init(pbm, op, devhandle);
+	if (err)
+		goto out_free_iommu;
 
-	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
-	if (!iommu)
-		goto fatal_memory_error;
+	dev_set_drvdata(&op->dev, pbm);
 
-	p->pbm_B.iommu = iommu;
+	return 0;
 
-	pci_sun4v_pbm_init(p, dp, devhandle);
-	return;
+out_free_iommu:
+	kfree(pbm->iommu);
 
-fatal_memory_error:
-	prom_printf("SUN4V_PCI: Fatal memory allocation error.\n");
-	prom_halt();
+out_free_controller:
+	kfree(pbm);
+
+out_err:
+	return err;
 }
+
+static struct of_device_id __initdata pci_sun4v_match[] = {
+	{
+		.name = "pci",
+		.compatible = "SUNW,sun4v-pci",
+	},
+	{},
+};
+
+static struct of_platform_driver pci_sun4v_driver = {
+	.name		= DRIVER_NAME,
+	.match_table	= pci_sun4v_match,
+	.probe		= pci_sun4v_probe,
+};
+
+static int __init pci_sun4v_init(void)
+{
+	return of_register_driver(&pci_sun4v_driver, &of_bus_type);
+}
+
+subsys_initcall(pci_sun4v_init);

@@ -269,7 +269,7 @@ int av7110_pes_play(void *dest, struct dvb_ringbuffer *buf, int dlen)
 		return -1;
 	}
 
-	dvb_ringbuffer_read(buf, dest, (size_t) blen, 0);
+	dvb_ringbuffer_read(buf, dest, (size_t) blen);
 
 	dprintk(2, "pread=0x%08lx, pwrite=0x%08lx\n",
 	       (unsigned long) buf->pread, (unsigned long) buf->pwrite);
@@ -787,6 +787,9 @@ int av7110_write_to_decoder(struct dvb_demux_feed *feed, const u8 *buf, size_t l
 	struct ipack *ipack = &av7110->ipack[feed->pes_type];
 
 	dprintk(2, "av7110:%p, \n", av7110);
+
+	if (av7110->full_ts && demux->dmx.frontend->source != DMX_MEMORY_FE)
+		return 0;
 
 	switch (feed->pes_type) {
 	case 0:

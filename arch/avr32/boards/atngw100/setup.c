@@ -9,6 +9,7 @@
  */
 #include <linux/clk.h>
 #include <linux/etherdevice.h>
+#include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
@@ -23,10 +24,10 @@
 #include <asm/io.h>
 #include <asm/setup.h>
 
-#include <asm/arch/at32ap700x.h>
-#include <asm/arch/board.h>
-#include <asm/arch/init.h>
-#include <asm/arch/portmux.h>
+#include <mach/at32ap700x.h>
+#include <mach/board.h>
+#include <mach/init.h>
+#include <mach/portmux.h>
 
 /* Oscillator frequencies. These are board-specific */
 unsigned long at32_board_osc_rates[3] = {
@@ -47,14 +48,22 @@ static struct eth_platform_data __initdata eth_data[2];
 static struct spi_board_info spi0_board_info[] __initdata = {
 	{
 		.modalias	= "mtd_dataflash",
-		.max_speed_hz	= 10000000,
+		.max_speed_hz	= 8000000,
 		.chip_select	= 0,
 	},
 };
 
 static struct mci_platform_data __initdata mci0_data = {
-	.detect_pin	= GPIO_PIN_PC(25),
-	.wp_pin		= GPIO_PIN_PE(0),
+	.slot[0] = {
+		.bus_width	= 4,
+#ifndef CONFIG_BOARD_ATNGW100_EVKLCD10X
+		.detect_pin	= GPIO_PIN_PC(25),
+		.wp_pin		= GPIO_PIN_PE(0),
+#else
+		.detect_pin	= GPIO_PIN_NONE,
+		.wp_pin		= GPIO_PIN_NONE,
+#endif
+	},
 };
 
 /*
@@ -168,8 +177,6 @@ static int __init atngw100_init(void)
 	 * reserve any pins for it.
 	 */
 
-	at32_add_system_devices();
-
 	at32_add_device_usart(0);
 
 	set_hw_addr(at32_add_device_eth(0, &eth_data[0]));
@@ -190,7 +197,7 @@ static int __init atngw100_init(void)
 	 * PB28/EXTINT3 doesn't; it should be SMBALERT# (for PMBus),
 	 * but it's not available off-board.
 	 */
-	at32_select_periph(GPIO_PIN_PB(28), 0, AT32_GPIOF_PULLUP);
+	at32_select_periph(GPIO_PIOB_BASE, 1 << 28, 0, AT32_GPIOF_PULLUP);
 	at32_select_gpio(i2c_gpio_data.sda_pin,
 		AT32_GPIOF_MULTIDRV | AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
 	at32_select_gpio(i2c_gpio_data.scl_pin,
@@ -204,6 +211,15 @@ postcore_initcall(atngw100_init);
 
 static int __init atngw100_arch_init(void)
 {
+	/* PB30 is the otherwise unused jumper on the mainboard, with an
+	 * external pullup; the jumper grounds it.  Use it however you
+	 * like, including letting U-Boot or Linux tweak boot sequences.
+	 */
+	at32_select_gpio(GPIO_PIN_PB(30), 0);
+	gpio_request(GPIO_PIN_PB(30), "j15");
+	gpio_direction_input(GPIO_PIN_PB(30));
+	gpio_export(GPIO_PIN_PB(30), false);
+
 	/* set_irq_type() after the arch_initcall for EIC has run, and
 	 * before the I2C subsystem could try using this IRQ.
 	 */

@@ -20,20 +20,20 @@
 #include <linux/init.h>
 #include <linux/sysdev.h>
 #include <linux/device.h>
+#include <linux/io.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <mach/hardware.h>
 
-#include <asm/arch/map.h>
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/regs-mem.h>
+#include <mach/map.h>
+#include <mach/regs-gpio.h>
+#include <mach/regs-mem.h>
 
 #include <asm/mach-types.h>
 
-#include <asm/plat-s3c24xx/pm.h>
+#include <plat/pm.h>
 
 #define COPYRIGHT ", (c) 2005 Simtec Electronics"
 

@@ -22,12 +22,12 @@
 #include <linux/init.h>
 #include <linux/smp_lock.h>
 #include <linux/initrd.h>
-#include <linux/hdreg.h>
 #include <linux/bootmem.h>
 #include <linux/tty.h>
 #include <linux/gfp.h>
 #include <linux/percpu.h>
 #include <linux/kmod.h>
+#include <linux/vmalloc.h>
 #include <linux/kernel_stat.h>
 #include <linux/start_kernel.h>
 #include <linux/security.h>
@@ -52,6 +52,7 @@
 #include <linux/key.h>
 #include <linux/unwind.h>
 #include <linux/buffer_head.h>
+#include <linux/page_cgroup.h>
 #include <linux/debug_locks.h>
 #include <linux/debugobjects.h>
 #include <linux/lockdep.h>
@@ -61,6 +62,7 @@
 #include <linux/sched.h>
 #include <linux/signal.h>
 #include <linux/idr.h>
+#include <linux/ftrace.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -87,8 +89,6 @@ extern void init_IRQ(void);
 extern void fork_init(unsigned long);
 extern void mca_init(void);
 extern void sbus_init(void);
-extern void pidhash_init(void);
-extern void pidmap_init(void);
 extern void prio_tree_init(void);
 extern void radix_tree_init(void);
 extern void free_initmem(void);
@@ -415,6 +415,13 @@ static void __init smp_init(void)
 {
 	unsigned int cpu;
 
+	/*
+	 * Set up the current CPU as possible to migrate to.
+	 * The other ones will be done by cpu_up/cpu_down()
+	 */
+	cpu = smp_processor_id();
+	cpu_set(cpu, cpu_active_map);
+
 	/* FIXME: This should be done in userspace --RR */
 	for_each_present_cpu(cpu) {
 		if (num_online_cpus() >= setup_max_cpus)
@@ -630,14 +637,18 @@ asmlinkage void __init start_kernel(void)
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start && !initrd_below_start_ok &&
-			initrd_start < min_low_pfn << PAGE_SHIFT) {
+	    page_to_pfn(virt_to_page((void *)initrd_start)) < min_low_pfn) {
 		printk(KERN_CRIT "initrd overwritten (0x%08lx < 0x%08lx) - "
-		    "disabling it.\n",initrd_start,min_low_pfn << PAGE_SHIFT);
+		    "disabling it.\n",
+		    page_to_pfn(virt_to_page((void *)initrd_start)),
+		    min_low_pfn);
 		initrd_start = 0;
 	}
 #endif
+	vmalloc_init();
 	vfs_caches_init_early();
 	cpuset_init_early();
+	page_cgroup_init();
 	mem_init();
 	enable_debug_pagealloc();
 	cpu_hotplug_init();
@@ -661,7 +672,6 @@ asmlinkage void __init start_kernel(void)
 	fork_init(num_physpages);
 	proc_caches_init();
 	buffer_init();
-	unnamed_dev_init();
 	key_init();
 	security_init();
 	vfs_caches_init(num_physpages);
@@ -681,46 +691,43 @@ asmlinkage void __init start_kernel(void)
 
 	acpi_early_init(); /* before LAPIC and SMP init */
 
+	ftrace_init();
+
 	/* Do the rest non-__init'ed, we're now alive */
 	rest_init();
 }
 
-static int __initdata initcall_debug;
+static int initcall_debug;
+core_param(initcall_debug, initcall_debug, bool, 0644);
 
-static int __init initcall_debug_setup(char *str)
-{
-	initcall_debug = 1;
-	return 1;
-}
-__setup("initcall_debug", initcall_debug_setup);
-
-static void __init do_one_initcall(initcall_t fn)
+int do_one_initcall(initcall_t fn)
 {
 	int count = preempt_count();
-	ktime_t t0, t1, delta;
+	ktime_t delta;
 	char msgbuf[64];
-	int result;
+	struct boot_trace it;
 
 	if (initcall_debug) {
-		print_fn_descriptor_symbol("calling  %s\n", fn);
-		t0 = ktime_get();
+		it.caller = task_pid_nr(current);
+		printk("calling  %pF @ %i\n", fn, it.caller);
+		it.calltime = ktime_get();
 	}
 
-	result = fn();
+	it.result = fn();
 
 	if (initcall_debug) {
-		t1 = ktime_get();
-		delta = ktime_sub(t1, t0);
-
-		print_fn_descriptor_symbol("initcall %s", fn);
-		printk(" returned %d after %Ld msecs\n", result,
-			(unsigned long long) delta.tv64 >> 20);
+		it.rettime = ktime_get();
+		delta = ktime_sub(it.rettime, it.calltime);
+		it.duration = (unsigned long long) delta.tv64 >> 10;
+		printk("initcall %pF returned %d after %Ld usecs\n", fn,
+			it.result, it.duration);
+		trace_boot(&it, fn);
 	}
 
 	msgbuf[0] = 0;
 
-	if (result && result != -ENODEV && initcall_debug)
-		sprintf(msgbuf, "error code %d ", result);
+	if (it.result && it.result != -ENODEV && initcall_debug)
+		sprintf(msgbuf, "error code %d ", it.result);
 
 	if (preempt_count() != count) {
 		strlcat(msgbuf, "preemption imbalance ", sizeof(msgbuf));
@@ -731,19 +738,20 @@ static void __init do_one_initcall(initcall_t fn)
 		local_irq_enable();
 	}
 	if (msgbuf[0]) {
-		print_fn_descriptor_symbol(KERN_WARNING "initcall %s", fn);
-		printk(" returned with %s\n", msgbuf);
+		printk("initcall %pF returned with %s\n", fn, msgbuf);
 	}
+
+	return it.result;
 }
 
 
-extern initcall_t __initcall_start[], __initcall_end[];
+extern initcall_t __initcall_start[], __initcall_end[], __early_initcall_end[];
 
 static void __init do_initcalls(void)
 {
 	initcall_t *call;
 
-	for (call = __initcall_start; call < __initcall_end; call++)
+	for (call = __early_initcall_end; call < __initcall_end; call++)
 		do_one_initcall(*call);
 
 	/* Make sure there is no pending stuff from the initcall sequence */
@@ -760,7 +768,6 @@ static void __init do_initcalls(void)
 static void __init do_basic_setup(void)
 {
 	rcu_init_sched(); /* needed by module_init stage. */
-	/* drivers will send hotplug events */
 	init_workqueues();
 	usermodehelper_init();
 	driver_init();
@@ -768,24 +775,12 @@ static void __init do_basic_setup(void)
 	do_initcalls();
 }
 
-static int __initdata nosoftlockup;
-
-static int __init nosoftlockup_setup(char *str)
-{
-	nosoftlockup = 1;
-	return 1;
-}
-__setup("nosoftlockup", nosoftlockup_setup);
-
 static void __init do_pre_smp_initcalls(void)
 {
-	extern int spawn_ksoftirqd(void);
+	initcall_t *call;
 
-	init_call_single_data();
-	migration_init();
-	spawn_ksoftirqd();
-	if (!nosoftlockup)
-		spawn_softlockup_task();
+	for (call = __initcall_start; call < __early_initcall_end; call++)
+		do_one_initcall(*call);
 }
 
 static void run_init_process(char *init_filename)
@@ -860,6 +855,7 @@ static int __init kernel_init(void * unused)
 	smp_prepare_cpus(setup_max_cpus);
 
 	do_pre_smp_initcalls();
+	start_boot_trace();
 
 	smp_init();
 	sched_init_smp();
@@ -886,6 +882,7 @@ static int __init kernel_init(void * unused)
 	 * we're essentially up and running. Get rid of the
 	 * initmem segments and start the user-mode stuff..
 	 */
+	stop_boot_trace();
 	init_post();
 	return 0;
 }

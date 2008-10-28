@@ -27,6 +27,11 @@
 #include "internal.h"
 
 
+static struct net *get_proc_net(const struct inode *inode)
+{
+	return maybe_get_net(PDE_NET(PDE(inode)));
+}
+
 int seq_open_net(struct inode *ino, struct file *f,
 		 const struct seq_operations *ops, int size)
 {
@@ -51,6 +56,30 @@ int seq_open_net(struct inode *ino, struct file *f,
 }
 EXPORT_SYMBOL_GPL(seq_open_net);
 
+int single_open_net(struct inode *inode, struct file *file,
+		int (*show)(struct seq_file *, void *))
+{
+	int err;
+	struct net *net;
+
+	err = -ENXIO;
+	net = get_proc_net(inode);
+	if (net == NULL)
+		goto err_net;
+
+	err = single_open(file, show, net);
+	if (err < 0)
+		goto err_open;
+
+	return 0;
+
+err_open:
+	put_net(net);
+err_net:
+	return err;
+}
+EXPORT_SYMBOL_GPL(single_open_net);
+
 int seq_release_net(struct inode *ino, struct file *f)
 {
 	struct seq_file *seq;
@@ -62,6 +91,14 @@ int seq_release_net(struct inode *ino, struct file *f)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(seq_release_net);
+
+int single_release_net(struct inode *ino, struct file *f)
+{
+	struct seq_file *seq = f->private_data;
+	put_net(seq->private);
+	return single_release(ino, f);
+}
+EXPORT_SYMBOL_GPL(single_release_net);
 
 static struct net *get_proc_task_net(struct inode *dir)
 {
@@ -152,12 +189,6 @@ void proc_net_remove(struct net *net, const char *name)
 	remove_proc_entry(name, net->proc_net);
 }
 EXPORT_SYMBOL_GPL(proc_net_remove);
-
-struct net *get_proc_net(const struct inode *inode)
-{
-	return maybe_get_net(PDE_NET(PDE(inode)));
-}
-EXPORT_SYMBOL_GPL(get_proc_net);
 
 static __net_init int proc_net_ns_init(struct net *net)
 {

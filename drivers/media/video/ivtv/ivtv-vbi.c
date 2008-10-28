@@ -293,6 +293,7 @@ static u32 compress_sliced_buf(struct ivtv *itv, u32 line, u8 *buf, u32 size, u8
 	u32 line_size = itv->vbi.sliced_decoder_line_size;
 	struct v4l2_decode_vbi_line vbi;
 	int i;
+	unsigned lines = 0;
 
 	/* find the first valid line */
 	for (i = 0; i < size; i++, buf++) {
@@ -313,7 +314,8 @@ static u32 compress_sliced_buf(struct ivtv *itv, u32 line, u8 *buf, u32 size, u8
 		}
 		vbi.p = p + 4;
 		itv->video_dec_func(itv, VIDIOC_INT_DECODE_VBI_LINE, &vbi);
-		if (vbi.type) {
+		if (vbi.type && !(lines & (1 << vbi.line))) {
+			lines |= 1 << vbi.line;
 			itv->vbi.sliced_data[line].id = vbi.type;
 			itv->vbi.sliced_data[line].field = vbi.is_second_field;
 			itv->vbi.sliced_data[line].line = vbi.line;
@@ -332,7 +334,7 @@ void ivtv_process_vbi_data(struct ivtv *itv, struct ivtv_buffer *buf,
 	int y;
 
 	/* Raw VBI data */
-	if (streamtype == IVTV_ENC_STREAM_TYPE_VBI && itv->vbi.sliced_in->service_set == 0) {
+	if (streamtype == IVTV_ENC_STREAM_TYPE_VBI && ivtv_raw_vbi(itv)) {
 		u8 type;
 
 		ivtv_buf_swap(buf);

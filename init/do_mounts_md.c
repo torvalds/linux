@@ -1,5 +1,6 @@
 
 #include <linux/raid/md.h>
+#include <linux/delay.h>
 
 #include "do_mounts.h"
 
@@ -12,7 +13,12 @@
  * The code for that is here.
  */
 
-static int __initdata raid_noautodetect, raid_autopart;
+#ifdef CONFIG_MD_AUTODETECT
+static int __initdata raid_noautodetect;
+#else
+static int __initdata raid_noautodetect=1;
+#endif
+static int __initdata raid_autopart;
 
 static struct {
 	int minor;
@@ -252,6 +258,8 @@ static int __init raid_setup(char *str)
 
 		if (!strncmp(str, "noautodetect", wlen))
 			raid_noautodetect = 1;
+		if (!strncmp(str, "autodetect", wlen))
+			raid_noautodetect = 0;
 		if (strncmp(str, "partitionable", wlen)==0)
 			raid_autopart = 1;
 		if (strncmp(str, "part", wlen)==0)
@@ -264,17 +272,32 @@ static int __init raid_setup(char *str)
 __setup("raid=", raid_setup);
 __setup("md=", md_setup);
 
+static void autodetect_raid(void)
+{
+	int fd;
+
+	/*
+	 * Since we don't want to detect and use half a raid array, we need to
+	 * wait for the known devices to complete their probing
+	 */
+	printk(KERN_INFO "md: Waiting for all devices to be available before autodetect\n");
+	printk(KERN_INFO "md: If you don't use raid, use raid=noautodetect\n");
+	while (driver_probe_done() < 0)
+		msleep(100);
+	fd = sys_open("/dev/md0", 0, 0);
+	if (fd >= 0) {
+		sys_ioctl(fd, RAID_AUTORUN, raid_autopart);
+		sys_close(fd);
+	}
+}
+
 void __init md_run_setup(void)
 {
 	create_dev("/dev/md0", MKDEV(MD_MAJOR, 0));
+
 	if (raid_noautodetect)
-		printk(KERN_INFO "md: Skipping autodetection of RAID arrays. (raid=noautodetect)\n");
-	else {
-		int fd = sys_open("/dev/md0", 0, 0);
-		if (fd >= 0) {
-			sys_ioctl(fd, RAID_AUTORUN, raid_autopart);
-			sys_close(fd);
-		}
-	}
+		printk(KERN_INFO "md: Skipping autodetection of RAID arrays. (raid=autodetect will force)\n");
+	else
+		autodetect_raid();
 	md_setup_drive();
 }

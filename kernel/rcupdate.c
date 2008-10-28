@@ -77,6 +77,7 @@ void wakeme_after_rcu(struct rcu_head  *head)
  * sections are delimited by rcu_read_lock() and rcu_read_unlock(),
  * and may be nested.
  */
+void synchronize_rcu(void);	/* Makes kernel-doc tools happy */
 synchronize_rcu_xxx(synchronize_rcu, call_rcu)
 EXPORT_SYMBOL_GPL(synchronize_rcu);
 
@@ -118,18 +119,19 @@ static void _rcu_barrier(enum rcu_barrier type)
 	/* Take cpucontrol mutex to protect against CPU hotplug */
 	mutex_lock(&rcu_barrier_mutex);
 	init_completion(&rcu_barrier_completion);
-	atomic_set(&rcu_barrier_cpu_count, 0);
 	/*
-	 * The queueing of callbacks in all CPUs must be atomic with
-	 * respect to RCU, otherwise one CPU may queue a callback,
-	 * wait for a grace period, decrement barrier count and call
-	 * complete(), while other CPUs have not yet queued anything.
-	 * So, we need to make sure that grace periods cannot complete
-	 * until all the callbacks are queued.
+	 * Initialize rcu_barrier_cpu_count to 1, then invoke
+	 * rcu_barrier_func() on each CPU, so that each CPU also has
+	 * incremented rcu_barrier_cpu_count.  Only then is it safe to
+	 * decrement rcu_barrier_cpu_count -- otherwise the first CPU
+	 * might complete its grace period before all of the other CPUs
+	 * did their increment, causing this function to return too
+	 * early.
 	 */
-	rcu_read_lock();
+	atomic_set(&rcu_barrier_cpu_count, 1);
 	on_each_cpu(rcu_barrier_func, (void *)type, 1);
-	rcu_read_unlock();
+	if (atomic_dec_and_test(&rcu_barrier_cpu_count))
+		complete(&rcu_barrier_completion);
 	wait_for_completion(&rcu_barrier_completion);
 	mutex_unlock(&rcu_barrier_mutex);
 }

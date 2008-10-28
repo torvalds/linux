@@ -16,11 +16,12 @@
 #ifndef __ARCH_ARM_MACH_OMAP2_CLOCK_H
 #define __ARCH_ARM_MACH_OMAP2_CLOCK_H
 
-#include <asm/arch/clock.h>
+#include <mach/clock.h>
 
 /* The maximum error between a target DPLL rate and the rounded rate in Hz */
 #define DEFAULT_DPLL_RATE_TOLERANCE	50000
 
+int omap2_clk_init(void);
 int omap2_clk_enable(struct clk *clk);
 void omap2_clk_disable(struct clk *clk);
 long omap2_clk_round_rate(struct clk *clk, unsigned long rate);
@@ -36,6 +37,7 @@ void omap2_clk_disable_unused(struct clk *clk);
 #endif
 
 void omap2_clksel_recalc(struct clk *clk);
+void omap2_init_clk_clkdm(struct clk *clk);
 void omap2_init_clksel_parent(struct clk *clk);
 u32 omap2_clksel_get_divisor(struct clk *clk);
 u32 omap2_clksel_round_rate_div(struct clk *clk, unsigned long target_rate,

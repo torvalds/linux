@@ -49,7 +49,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
-#include <linux/smp_lock.h>
 #include <linux/errno.h>
 #include <linux/spinlock.h>
 #include <linux/file.h>
@@ -303,7 +302,8 @@ static struct kobj_type kobj_pkt_type_wqueue = {
 static void pkt_sysfs_dev_new(struct pktcdvd_device *pd)
 {
 	if (class_pktcdvd) {
-		pd->dev = device_create(class_pktcdvd, NULL, pd->pkt_dev, "%s", pd->name);
+		pd->dev = device_create(class_pktcdvd, NULL, pd->pkt_dev, NULL,
+					"%s", pd->name);
 		if (IS_ERR(pd->dev))
 			pd->dev = NULL;
 	}
@@ -2320,7 +2320,7 @@ static int pkt_open_write(struct pktcdvd_device *pd)
 /*
  * called at open time.
  */
-static int pkt_open_dev(struct pktcdvd_device *pd, int write)
+static int pkt_open_dev(struct pktcdvd_device *pd, fmode_t write)
 {
 	int ret;
 	long lba;
@@ -2332,7 +2332,7 @@ static int pkt_open_dev(struct pktcdvd_device *pd, int write)
 	 * so bdget() can't fail.
 	 */
 	bdget(pd->bdev->bd_dev);
-	if ((ret = blkdev_get(pd->bdev, FMODE_READ, O_RDONLY)))
+	if ((ret = blkdev_get(pd->bdev, FMODE_READ)))
 		goto out;
 
 	if ((ret = bd_claim(pd->bdev, pd)))
@@ -2381,7 +2381,7 @@ static int pkt_open_dev(struct pktcdvd_device *pd, int write)
 out_unclaim:
 	bd_release(pd->bdev);
 out_putdev:
-	blkdev_put(pd->bdev);
+	blkdev_put(pd->bdev, FMODE_READ);
 out:
 	return ret;
 }
@@ -2399,7 +2399,7 @@ static void pkt_release_dev(struct pktcdvd_device *pd, int flush)
 
 	pkt_set_speed(pd, MAX_SPEED, MAX_SPEED);
 	bd_release(pd->bdev);
-	blkdev_put(pd->bdev);
+	blkdev_put(pd->bdev, FMODE_READ);
 
 	pkt_shrink_pktlist(pd);
 }
@@ -2411,7 +2411,7 @@ static struct pktcdvd_device *pkt_find_dev_from_minor(int dev_minor)
 	return pkt_devs[dev_minor];
 }
 
-static int pkt_open(struct inode *inode, struct file *file)
+static int pkt_open(struct block_device *bdev, fmode_t mode)
 {
 	struct pktcdvd_device *pd = NULL;
 	int ret;
@@ -2419,7 +2419,7 @@ static int pkt_open(struct inode *inode, struct file *file)
 	VPRINTK(DRIVER_NAME": entering open\n");
 
 	mutex_lock(&ctl_mutex);
-	pd = pkt_find_dev_from_minor(iminor(inode));
+	pd = pkt_find_dev_from_minor(MINOR(bdev->bd_dev));
 	if (!pd) {
 		ret = -ENODEV;
 		goto out;
@@ -2428,20 +2428,20 @@ static int pkt_open(struct inode *inode, struct file *file)
 
 	pd->refcnt++;
 	if (pd->refcnt > 1) {
-		if ((file->f_mode & FMODE_WRITE) &&
+		if ((mode & FMODE_WRITE) &&
 		    !test_bit(PACKET_WRITABLE, &pd->flags)) {
 			ret = -EBUSY;
 			goto out_dec;
 		}
 	} else {
-		ret = pkt_open_dev(pd, file->f_mode & FMODE_WRITE);
+		ret = pkt_open_dev(pd, mode & FMODE_WRITE);
 		if (ret)
 			goto out_dec;
 		/*
 		 * needed here as well, since ext2 (among others) may change
 		 * the blocksize at mount time
 		 */
-		set_blocksize(inode->i_bdev, CD_FRAMESIZE);
+		set_blocksize(bdev, CD_FRAMESIZE);
 	}
 
 	mutex_unlock(&ctl_mutex);
@@ -2455,9 +2455,9 @@ out:
 	return ret;
 }
 
-static int pkt_close(struct inode *inode, struct file *file)
+static int pkt_close(struct gendisk *disk, fmode_t mode)
 {
-	struct pktcdvd_device *pd = inode->i_bdev->bd_disk->private_data;
+	struct pktcdvd_device *pd = disk->private_data;
 	int ret = 0;
 
 	mutex_lock(&ctl_mutex);
@@ -2543,7 +2543,7 @@ static int pkt_make_request(struct request_queue *q, struct bio *bio)
 		if (last_zone != zone) {
 			BUG_ON(last_zone != zone + pd->settings.size);
 			first_sectors = last_zone - bio->bi_sector;
-			bp = bio_split(bio, bio_split_pool, first_sectors);
+			bp = bio_split(bio, first_sectors);
 			BUG_ON(!bp);
 			pkt_make_request(q, &bp->bio1);
 			pkt_make_request(q, &bp->bio2);
@@ -2765,7 +2765,7 @@ static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 	bdev = bdget(dev);
 	if (!bdev)
 		return -ENOMEM;
-	ret = blkdev_get(bdev, FMODE_READ, O_RDONLY | O_NONBLOCK);
+	ret = blkdev_get(bdev, FMODE_READ | FMODE_NDELAY);
 	if (ret)
 		return ret;
 
@@ -2790,24 +2790,28 @@ static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 	return 0;
 
 out_mem:
-	blkdev_put(bdev);
+	blkdev_put(bdev, FMODE_READ|FMODE_WRITE);
 	/* This is safe: open() is still holding a reference. */
 	module_put(THIS_MODULE);
 	return ret;
 }
 
-static long pkt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static int pkt_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
-	struct pktcdvd_device *pd;
-	long ret;
+	struct pktcdvd_device *pd = bdev->bd_disk->private_data;
 
-	lock_kernel();
-	pd = inode->i_bdev->bd_disk->private_data;
-
-	VPRINTK("pkt_ioctl: cmd %x, dev %d:%d\n", cmd, imajor(inode), iminor(inode));
+	VPRINTK("pkt_ioctl: cmd %x, dev %d:%d\n", cmd,
+		MAJOR(bdev->bd_dev), MINOR(bdev->bd_dev));
 
 	switch (cmd) {
+	case CDROMEJECT:
+		/*
+		 * The door gets locked when the device is opened, so we
+		 * have to unlock it or else the eject command fails.
+		 */
+		if (pd->refcnt == 1)
+			pkt_lock_door(pd, 0);
+		/* fallthru */
 	/*
 	 * forward selected CDROM ioctls to CD-ROM, for UDF
 	 */
@@ -2816,25 +2820,14 @@ static long pkt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case CDROM_LAST_WRITTEN:
 	case CDROM_SEND_PACKET:
 	case SCSI_IOCTL_SEND_COMMAND:
-		ret = blkdev_ioctl(pd->bdev->bd_inode, file, cmd, arg);
-		break;
-
-	case CDROMEJECT:
-		/*
-		 * The door gets locked when the device is opened, so we
-		 * have to unlock it or else the eject command fails.
-		 */
-		if (pd->refcnt == 1)
-			pkt_lock_door(pd, 0);
-		ret = blkdev_ioctl(pd->bdev->bd_inode, file, cmd, arg);
-		break;
+		return __blkdev_driver_ioctl(pd->bdev, mode, cmd, arg);
 
 	default:
 		VPRINTK(DRIVER_NAME": Unknown ioctl for %s (%x)\n", pd->name, cmd);
-		ret = -ENOTTY;
+		return -ENOTTY;
 	}
-	unlock_kernel();
-	return ret;
+
+	return 0;
 }
 
 static int pkt_media_changed(struct gendisk *disk)
@@ -2856,7 +2849,7 @@ static struct block_device_operations pktcdvd_ops = {
 	.owner =		THIS_MODULE,
 	.open =			pkt_open,
 	.release =		pkt_close,
-	.unlocked_ioctl =	pkt_ioctl,
+	.locked_ioctl =		pkt_ioctl,
 	.media_changed =	pkt_media_changed,
 };
 
@@ -2917,7 +2910,7 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 	if (!disk->queue)
 		goto out_mem2;
 
-	pd->pkt_dev = MKDEV(disk->major, disk->first_minor);
+	pd->pkt_dev = MKDEV(pktdev_major, idx);
 	ret = pkt_new_dev(pd, dev);
 	if (ret)
 		goto out_new_dev;
@@ -2982,7 +2975,7 @@ static int pkt_remove_dev(dev_t pkt_dev)
 	pkt_debugfs_dev_remove(pd);
 	pkt_sysfs_dev_remove(pd);
 
-	blkdev_put(pd->bdev);
+	blkdev_put(pd->bdev, FMODE_READ|FMODE_WRITE);
 
 	remove_proc_entry(pd->name, pkt_proc);
 	DPRINTK(DRIVER_NAME": writer %s unmapped\n", pd->name);
@@ -3021,8 +3014,7 @@ static void pkt_get_status(struct pkt_ctrl_command *ctrl_cmd)
 	mutex_unlock(&ctl_mutex);
 }
 
-static long pkt_ctl_ioctl(struct file *file, unsigned int cmd,
-						unsigned long arg)
+static int pkt_ctl_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	struct pkt_ctrl_command ctrl_cmd;
@@ -3039,22 +3031,16 @@ static long pkt_ctl_ioctl(struct file *file, unsigned int cmd,
 	case PKT_CTRL_CMD_SETUP:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		lock_kernel();
 		ret = pkt_setup_dev(new_decode_dev(ctrl_cmd.dev), &pkt_dev);
 		ctrl_cmd.pkt_dev = new_encode_dev(pkt_dev);
-		unlock_kernel();
 		break;
 	case PKT_CTRL_CMD_TEARDOWN:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		lock_kernel();
 		ret = pkt_remove_dev(new_decode_dev(ctrl_cmd.pkt_dev));
-		unlock_kernel();
 		break;
 	case PKT_CTRL_CMD_STATUS:
-		lock_kernel();
 		pkt_get_status(&ctrl_cmd);
-		unlock_kernel();
 		break;
 	default:
 		return -ENOTTY;
@@ -3067,7 +3053,7 @@ static long pkt_ctl_ioctl(struct file *file, unsigned int cmd,
 
 
 static const struct file_operations pkt_ctl_fops = {
-	.unlocked_ioctl	 = pkt_ctl_ioctl,
+	.ioctl	 = pkt_ctl_ioctl,
 	.owner	 = THIS_MODULE,
 };
 

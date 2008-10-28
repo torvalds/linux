@@ -89,23 +89,26 @@ static u32 mthca_buddy_alloc(struct mthca_buddy *buddy, int order)
 
 	spin_lock(&buddy->lock);
 
-	for (o = order; o <= buddy->max_order; ++o) {
-		m = 1 << (buddy->max_order - o);
-		seg = find_first_bit(buddy->bits[o], m);
-		if (seg < m)
-			goto found;
-	}
+	for (o = order; o <= buddy->max_order; ++o)
+		if (buddy->num_free[o]) {
+			m = 1 << (buddy->max_order - o);
+			seg = find_first_bit(buddy->bits[o], m);
+			if (seg < m)
+				goto found;
+		}
 
 	spin_unlock(&buddy->lock);
 	return -1;
 
  found:
 	clear_bit(seg, buddy->bits[o]);
+	--buddy->num_free[o];
 
 	while (o > order) {
 		--o;
 		seg <<= 1;
 		set_bit(seg ^ 1, buddy->bits[o]);
+		++buddy->num_free[o];
 	}
 
 	spin_unlock(&buddy->lock);
@@ -123,11 +126,13 @@ static void mthca_buddy_free(struct mthca_buddy *buddy, u32 seg, int order)
 
 	while (test_bit(seg ^ 1, buddy->bits[order])) {
 		clear_bit(seg ^ 1, buddy->bits[order]);
+		--buddy->num_free[order];
 		seg >>= 1;
 		++order;
 	}
 
 	set_bit(seg, buddy->bits[order]);
+	++buddy->num_free[order];
 
 	spin_unlock(&buddy->lock);
 }
@@ -141,7 +146,9 @@ static int mthca_buddy_init(struct mthca_buddy *buddy, int max_order)
 
 	buddy->bits = kzalloc((buddy->max_order + 1) * sizeof (long *),
 			      GFP_KERNEL);
-	if (!buddy->bits)
+	buddy->num_free = kzalloc((buddy->max_order + 1) * sizeof (int *),
+				  GFP_KERNEL);
+	if (!buddy->bits || !buddy->num_free)
 		goto err_out;
 
 	for (i = 0; i <= buddy->max_order; ++i) {
@@ -154,6 +161,7 @@ static int mthca_buddy_init(struct mthca_buddy *buddy, int max_order)
 	}
 
 	set_bit(0, buddy->bits[buddy->max_order]);
+	buddy->num_free[buddy->max_order] = 1;
 
 	return 0;
 
@@ -161,9 +169,10 @@ err_out_free:
 	for (i = 0; i <= buddy->max_order; ++i)
 		kfree(buddy->bits[i]);
 
-	kfree(buddy->bits);
-
 err_out:
+	kfree(buddy->bits);
+	kfree(buddy->num_free);
+
 	return -ENOMEM;
 }
 
@@ -175,6 +184,7 @@ static void mthca_buddy_cleanup(struct mthca_buddy *buddy)
 		kfree(buddy->bits[i]);
 
 	kfree(buddy->bits);
+	kfree(buddy->num_free);
 }
 
 static u32 mthca_alloc_mtt_range(struct mthca_dev *dev, int order,

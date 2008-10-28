@@ -56,10 +56,10 @@ static void wacom_sys_irq(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __FUNCTION__, urb->status);
+		dbg("%s - urb shutting down with status: %d", __func__, urb->status);
 		return;
 	default:
-		dbg("%s - nonzero urb status received: %d", __FUNCTION__, urb->status);
+		dbg("%s - nonzero urb status received: %d", __func__, urb->status);
 		goto exit;
 	}
 
@@ -74,7 +74,7 @@ static void wacom_sys_irq(struct urb *urb)
 	retval = usb_submit_urb (urb, GFP_ATOMIC);
 	if (retval)
 		err ("%s - usb_submit_urb failed with result %d",
-		     __FUNCTION__, retval);
+		     __func__, retval);
 }
 
 void wacom_report_key(void *wcombo, unsigned int key_type, int key_data)
@@ -385,7 +385,8 @@ static int __init wacom_init(void)
 	wacom_driver.id_table = get_device_table();
 	result = usb_register(&wacom_driver);
 	if (result == 0)
-		info(DRIVER_VERSION ":" DRIVER_DESC);
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+		       DRIVER_DESC "\n");
 	return result;
 }
 

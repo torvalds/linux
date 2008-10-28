@@ -34,7 +34,12 @@
 #include <linux/workqueue.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
-#include <linux/jbd.h>
+#ifndef CONFIG_OCFS2_COMPAT_JBD
+# include <linux/jbd2.h>
+#else
+# include <linux/jbd.h>
+# include "ocfs2_jbd_compat.h"
+#endif
 
 /* For union ocfs2_dlm_lksb */
 #include "stackglue.h"
@@ -171,9 +176,13 @@ struct ocfs2_alloc_stats
 
 enum ocfs2_local_alloc_state
 {
-	OCFS2_LA_UNUSED = 0,
-	OCFS2_LA_ENABLED,
-	OCFS2_LA_DISABLED
+	OCFS2_LA_UNUSED = 0,	/* Local alloc will never be used for
+				 * this mountpoint. */
+	OCFS2_LA_ENABLED,	/* Local alloc is in use. */
+	OCFS2_LA_THROTTLED,	/* Local alloc is in use, but number
+				 * of bits has been reduced. */
+	OCFS2_LA_DISABLED	/* Local alloc has temporarily been
+				 * disabled. */
 };
 
 enum ocfs2_mount_options
@@ -184,6 +193,8 @@ enum ocfs2_mount_options
 	OCFS2_MOUNT_ERRORS_PANIC = 1 << 3, /* Panic on errors */
 	OCFS2_MOUNT_DATA_WRITEBACK = 1 << 4, /* No data ordering */
 	OCFS2_MOUNT_LOCALFLOCKS = 1 << 5, /* No cluster aware user file locks */
+	OCFS2_MOUNT_NOUSERXATTR = 1 << 6, /* No user xattr */
+	OCFS2_MOUNT_INODE64 = 1 << 7,	/* Allow inode numbers > 2^32 */
 };
 
 #define OCFS2_OSB_SOFT_RO	0x0001
@@ -204,6 +215,8 @@ struct ocfs2_super
 
 	struct ocfs2_slot_info *slot_info;
 
+	u32 *slot_recovery_generations;
+
 	spinlock_t node_map_lock;
 
 	u64 root_blkno;
@@ -212,6 +225,7 @@ struct ocfs2_super
 	u32 bitmap_cpg;
 	u8 *uuid;
 	char *uuid_str;
+	u32 uuid_hash;
 	u8 *vol_label;
 	u64 first_cluster_group_blkno;
 	u32 fs_generation;
@@ -239,6 +253,7 @@ struct ocfs2_super
 	int s_sectsize_bits;
 	int s_clustersize;
 	int s_clustersize_bits;
+	unsigned int s_xattr_inline_size;
 
 	atomic_t vol_state;
 	struct mutex recovery_lock;
@@ -250,10 +265,26 @@ struct ocfs2_super
 	struct ocfs2_journal *journal;
 	unsigned long osb_commit_interval;
 
-	int local_alloc_size;
-	enum ocfs2_local_alloc_state local_alloc_state;
+	struct delayed_work		la_enable_wq;
+
+	/*
+	 * Must hold local alloc i_mutex and osb->osb_lock to change
+	 * local_alloc_bits. Reads can be done under either lock.
+	 */
+	unsigned int local_alloc_bits;
+	unsigned int local_alloc_default_bits;
+
+	enum ocfs2_local_alloc_state local_alloc_state; /* protected
+							 * by osb_lock */
+
 	struct buffer_head *local_alloc_bh;
+
 	u64 la_last_gd;
+
+#ifdef CONFIG_OCFS2_FS_STATS
+	struct dentry *local_alloc_debug;
+	char *local_alloc_debug_buf;
+#endif
 
 	/* Next two fields are for local node slot recovery during
 	 * mount. */
@@ -334,6 +365,13 @@ static inline int ocfs2_writes_unwritten_extents(struct ocfs2_super *osb)
 static inline int ocfs2_supports_inline_data(struct ocfs2_super *osb)
 {
 	if (osb->s_feature_incompat & OCFS2_FEATURE_INCOMPAT_INLINE_DATA)
+		return 1;
+	return 0;
+}
+
+static inline int ocfs2_supports_xattr(struct ocfs2_super *osb)
+{
+	if (osb->s_feature_incompat & OCFS2_FEATURE_INCOMPAT_XATTR)
 		return 1;
 	return 0;
 }
@@ -550,6 +588,14 @@ static inline unsigned int ocfs2_pages_per_cluster(struct super_block *sb)
 		pages_per_cluster = 1 << (cbits - PAGE_CACHE_SHIFT);
 
 	return pages_per_cluster;
+}
+
+static inline unsigned int ocfs2_megabytes_to_clusters(struct super_block *sb,
+						       unsigned int megs)
+{
+	BUILD_BUG_ON(OCFS2_MAX_CLUSTERSIZE > 1048576);
+
+	return megs << (20 - OCFS2_SB(sb)->s_clustersize_bits);
 }
 
 static inline void ocfs2_init_inode_steal_slot(struct ocfs2_super *osb)

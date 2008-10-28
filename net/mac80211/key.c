@@ -118,12 +118,12 @@ static const u8 *get_mac_for_key(struct ieee80211_key *key)
 	 * address to indicate a transmit-only key.
 	 */
 	if (key->conf.alg != ALG_WEP &&
-	    (key->sdata->vif.type == IEEE80211_IF_TYPE_AP ||
-	     key->sdata->vif.type == IEEE80211_IF_TYPE_VLAN))
+	    (key->sdata->vif.type == NL80211_IFTYPE_AP ||
+	     key->sdata->vif.type == NL80211_IFTYPE_AP_VLAN))
 		addr = zero_addr;
 
 	if (key->sta)
-		addr = key->sta->addr;
+		addr = key->sta->sta.addr;
 
 	return addr;
 }
@@ -281,6 +281,20 @@ struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
 	key->conf.alg = alg;
 	key->conf.keyidx = idx;
 	key->conf.keylen = key_len;
+	switch (alg) {
+	case ALG_WEP:
+		key->conf.iv_len = WEP_IV_LEN;
+		key->conf.icv_len = WEP_ICV_LEN;
+		break;
+	case ALG_TKIP:
+		key->conf.iv_len = TKIP_IV_LEN;
+		key->conf.icv_len = TKIP_ICV_LEN;
+		break;
+	case ALG_CCMP:
+		key->conf.iv_len = CCMP_HDR_LEN;
+		key->conf.icv_len = CCMP_MIC_LEN;
+		break;
+	}
 	memcpy(key->conf.key, key_data, key_len);
 	INIT_LIST_HEAD(&key->list);
 	INIT_LIST_HEAD(&key->todo);
@@ -321,10 +335,17 @@ void ieee80211_key_link(struct ieee80211_key *key,
 		 * some hardware cannot handle TKIP with QoS, so
 		 * we indicate whether QoS could be in use.
 		 */
-		if (sta->flags & WLAN_STA_WME)
+		if (test_sta_flags(sta, WLAN_STA_WME))
 			key->conf.flags |= IEEE80211_KEY_FLAG_WMM_STA;
+
+		/*
+		 * This key is for a specific sta interface,
+		 * inform the driver that it should try to store
+		 * this key as pairwise key.
+		 */
+		key->conf.flags |= IEEE80211_KEY_FLAG_PAIRWISE;
 	} else {
-		if (sdata->vif.type == IEEE80211_IF_TYPE_STA) {
+		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 			struct sta_info *ap;
 
 			/*
@@ -335,7 +356,7 @@ void ieee80211_key_link(struct ieee80211_key *key,
 			/* same here, the AP could be using QoS */
 			ap = sta_info_get(key->local, key->sdata->u.sta.bssid);
 			if (ap) {
-				if (ap->flags & WLAN_STA_WME)
+				if (test_sta_flags(ap, WLAN_STA_WME))
 					key->conf.flags |=
 						IEEE80211_KEY_FLAG_WMM_STA;
 			}

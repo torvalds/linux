@@ -54,10 +54,13 @@
  * USAGE
  *
  *   Before a search can be performed, a configuration must be created
- *   by calling textsearch_prepare() specyfing the searching algorithm and
- *   the pattern to look for. The returned configuration may then be used
- *   for an arbitary amount of times and even in parallel as long as a
- *   separate struct ts_state variable is provided to every instance.
+ *   by calling textsearch_prepare() specifying the searching algorithm,
+ *   the pattern to look for and flags. As a flag, you can set TS_IGNORECASE
+ *   to perform case insensitive matching. But it might slow down
+ *   performance of algorithm, so you should use it at own your risk.
+ *   The returned configuration may then be used for an arbitary
+ *   amount of times and even in parallel as long as a separate struct
+ *   ts_state variable is provided to every instance.
  *
  *   The actual search is performed by either calling textsearch_find_-
  *   continuous() for linear data or by providing an own get_next_block()
@@ -89,7 +92,6 @@
  *       panic("Oh my god, dancing chickens at %d\n", pos);
  *
  *   textsearch_destroy(conf);
- *
  * ==========================================================================
  */
 
@@ -265,7 +267,7 @@ struct ts_config *textsearch_prepare(const char *algo, const void *pattern,
 		return ERR_PTR(-EINVAL);
 
 	ops = lookup_ts_algo(algo);
-#ifdef CONFIG_KMOD
+#ifdef CONFIG_MODULES
 	/*
 	 * Why not always autoload you may ask. Some users are
 	 * in a situation where requesting a module may deadlock,
@@ -280,7 +282,7 @@ struct ts_config *textsearch_prepare(const char *algo, const void *pattern,
 	if (ops == NULL)
 		goto errout;
 
-	conf = ops->init(pattern, len, gfp_mask);
+	conf = ops->init(pattern, len, gfp_mask, flags);
 	if (IS_ERR(conf)) {
 		err = PTR_ERR(conf);
 		goto errout;

@@ -469,8 +469,6 @@ extern bool afs_cm_incoming_call(struct afs_call *);
 extern const struct inode_operations afs_dir_inode_operations;
 extern const struct file_operations afs_dir_file_operations;
 
-extern int afs_permission(struct inode *, int, struct nameidata *);
-
 /*
  * file.c
  */
@@ -605,7 +603,7 @@ extern void afs_clear_permits(struct afs_vnode *);
 extern void afs_cache_permit(struct afs_vnode *, struct key *, long);
 extern void afs_zap_permits(struct rcu_head *);
 extern struct key *afs_request_key(struct afs_cell *);
-extern int afs_permission(struct inode *, int, struct nameidata *);
+extern int afs_permission(struct inode *, int);
 
 /*
  * server.c
@@ -730,8 +728,12 @@ extern int afs_volume_release_fileserver(struct afs_vnode *,
  */
 extern int afs_set_page_dirty(struct page *);
 extern void afs_put_writeback(struct afs_writeback *);
-extern int afs_prepare_write(struct file *, struct page *, unsigned, unsigned);
-extern int afs_commit_write(struct file *, struct page *, unsigned, unsigned);
+extern int afs_write_begin(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned flags,
+			struct page **pagep, void **fsdata);
+extern int afs_write_end(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned copied,
+			struct page *page, void *fsdata);
 extern int afs_writepage(struct page *, struct writeback_control *);
 extern int afs_writepages(struct address_space *, struct writeback_control *);
 extern int afs_write_inode(struct inode *, int);

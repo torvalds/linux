@@ -20,7 +20,7 @@
 #include <linux/pwm.h>
 
 #include <asm/div64.h>
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 
 /* PWM registers and bits definitions */
 #define PWMCR		(0x00)
@@ -60,7 +60,7 @@ int pwm_config(struct pwm_device *pwm, int duty_ns, int period_ns)
 	do_div(c, 1000000000);
 	period_cycles = c;
 
-	if (period_cycles < 0)
+	if (period_cycles < 1)
 		period_cycles = 1;
 	prescale = (period_cycles - 1) / 1024;
 	pv = period_cycles / (prescale + 1) - 1;

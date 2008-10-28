@@ -88,7 +88,9 @@
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 
-#include <asm/hardware.h>
+#include <asm/cputype.h>
+
+#include <mach/hardware.h>
 
 #include "generic.h"
 
@@ -222,7 +224,6 @@ static int __init sa1100_cpu_init(struct cpufreq_policy *policy)
 	if (policy->cpu != 0)
 		return -EINVAL;
 	policy->cur = policy->min = policy->max = sa11x0_getspeed(0);
-	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	policy->cpuinfo.min_freq = 59000;
 	policy->cpuinfo.max_freq = 287000;
 	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
@@ -240,7 +241,7 @@ static struct cpufreq_driver sa1100_driver = {
 
 static int __init sa1100_dram_init(void)
 {
- 	if ((processor_id & CPU_SA1100_MASK) == CPU_SA1100_ID)
+	if (cpu_is_sa1100())
 		return cpufreq_register_driver(&sa1100_driver);
 	else
 		return -ENODEV;

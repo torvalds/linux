@@ -219,11 +219,13 @@ struct adbhid {
 	int flags;
 };
 
-#define FLAG_FN_KEY_PRESSED	0x00000001
-#define FLAG_POWER_FROM_FN	0x00000002
-#define FLAG_EMU_FWDEL_DOWN	0x00000004
-#define FLAG_CAPSLOCK_TRANSLATE	0x00000008
-#define FLAG_CAPSLOCK_DOWN	0x00000010
+#define FLAG_FN_KEY_PRESSED		0x00000001
+#define FLAG_POWER_FROM_FN		0x00000002
+#define FLAG_EMU_FWDEL_DOWN		0x00000004
+#define FLAG_CAPSLOCK_TRANSLATE		0x00000008
+#define FLAG_CAPSLOCK_DOWN		0x00000010
+#define FLAG_CAPSLOCK_IGNORE_NEXT	0x00000020
+#define FLAG_POWER_KEY_PRESSED		0x00000040
 
 static struct adbhid *adbhid[16];
 
@@ -291,11 +293,20 @@ adbhid_input_keycode(int id, int scancode, int repeat)
 		if (keycode == ADB_KEY_CAPSLOCK && !up_flag) {
 			/* Key pressed, turning on the CapsLock LED.
 			 * The next 0xff will be interpreted as a release. */
-			ahid->flags |= FLAG_CAPSLOCK_TRANSLATE
+			if (ahid->flags & FLAG_CAPSLOCK_IGNORE_NEXT) {
+				/* Throw away this key event if it happens
+				 * just after resume. */
+				ahid->flags &= ~FLAG_CAPSLOCK_IGNORE_NEXT;
+				return;
+			} else {
+				ahid->flags |= FLAG_CAPSLOCK_TRANSLATE
 					| FLAG_CAPSLOCK_DOWN;
-		} else if (scancode == 0xff) {
+			}
+		} else if (scancode == 0xff &&
+			   !(ahid->flags & FLAG_POWER_KEY_PRESSED)) {
 			/* Scancode 0xff usually signifies that the capslock
-			 * key was either pressed or released. */
+			 * key was either pressed or released, or that the
+			 * power button was released. */
 			if (ahid->flags & FLAG_CAPSLOCK_TRANSLATE) {
 				keycode = ADB_KEY_CAPSLOCK;
 				if (ahid->flags & FLAG_CAPSLOCK_DOWN) {
@@ -309,7 +320,7 @@ adbhid_input_keycode(int id, int scancode, int repeat)
 				}
 			} else {
 				printk(KERN_INFO "Spurious caps lock event "
-						"(scancode 0xff).");
+						 "(scancode 0xff).\n");
 			}
 		}
 	}
@@ -336,6 +347,12 @@ adbhid_input_keycode(int id, int scancode, int repeat)
 		}
 		break;
 	case ADB_KEY_POWER:
+		/* Keep track of the power key state */
+		if (up_flag)
+			ahid->flags &= ~FLAG_POWER_KEY_PRESSED;
+		else
+			ahid->flags |= FLAG_POWER_KEY_PRESSED;
+
 		/* Fn + Command will produce a bogus "power" keycode */
 		if (ahid->flags & FLAG_FN_KEY_PRESSED) {
 			keycode = ADB_KEY_CMD;
@@ -681,6 +698,21 @@ static int adbhid_kbd_event(struct input_dev *dev, unsigned int type, unsigned i
 	return -1;
 }
 
+static void
+adbhid_kbd_capslock_remember(void)
+{
+	struct adbhid *ahid;
+	int i;
+
+	for (i = 1; i < 16; i++) {
+		ahid = adbhid[i];
+
+		if (ahid && ahid->id == ADB_KEYBOARD)
+			if (ahid->flags & FLAG_CAPSLOCK_TRANSLATE)
+				ahid->flags |= FLAG_CAPSLOCK_IGNORE_NEXT;
+	}
+}
+
 static int
 adb_message_handler(struct notifier_block *this, unsigned long code, void *x)
 {
@@ -697,8 +729,17 @@ adb_message_handler(struct notifier_block *this, unsigned long code, void *x)
 		}
 
 		/* Stop pending led requests */
-		while(leds_req_pending)
+		while (leds_req_pending)
 			adb_poll();
+
+		/* After resume, and if the capslock LED is on, the PMU will
+		 * send a "capslock down" key event. This confuses the
+		 * restore_capslock_events logic. Remember if the capslock
+		 * LED was on before suspend so the unwanted key event can
+		 * be ignored after resume. */
+		if (restore_capslock_events)
+			adbhid_kbd_capslock_remember();
+
 		break;
 
 	case ADB_MSG_POST_RESET:

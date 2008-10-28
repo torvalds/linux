@@ -36,24 +36,24 @@
 #include <linux/platform_device.h>
 #include <linux/proc_fs.h>
 #include <linux/serial_core.h>
+#include <linux/io.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/flash.h>
 
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
-#include <asm/arch/fb.h>
+#include <mach/fb.h>
 
-#include <asm/plat-s3c/regs-serial.h>
-#include <asm/arch/regs-lcd.h>
-#include <asm/arch/regs-gpio.h>
+#include <plat/regs-serial.h>
+#include <mach/regs-lcd.h>
+#include <mach/regs-gpio.h>
 
-#include <asm/plat-s3c24xx/devs.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/devs.h>
+#include <plat/cpu.h>
 
 #ifdef CONFIG_MTD_PARTITIONS
 

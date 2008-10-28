@@ -631,8 +631,8 @@ dev_irnet_poll(struct file *	file,
  * This is the way pppd configure us and control us while the PPP
  * instance is active.
  */
-static int
-dev_irnet_ioctl(struct inode *	inode,
+static long
+dev_irnet_ioctl(
 		struct file *	file,
 		unsigned int	cmd,
 		unsigned long	arg)
@@ -663,6 +663,7 @@ dev_irnet_ioctl(struct inode *	inode,
 	{
 	  DEBUG(FS_INFO, "Entering PPP discipline.\n");
 	  /* PPP channel setup (ap->chan in configued in dev_irnet_open())*/
+	  lock_kernel();
 	  err = ppp_register_channel(&ap->chan);
 	  if(err == 0)
 	    {
@@ -675,12 +676,14 @@ dev_irnet_ioctl(struct inode *	inode,
 	    }
 	  else
 	    DERROR(FS_ERROR, "Can't setup PPP channel...\n");
+          unlock_kernel();
 	}
       else
 	{
 	  /* In theory, should be N_TTY */
 	  DEBUG(FS_INFO, "Exiting PPP discipline.\n");
 	  /* Disconnect from the generic PPP layer */
+	  lock_kernel();
 	  if(ap->ppp_open)
 	    {
 	      ap->ppp_open = 0;
@@ -689,24 +692,20 @@ dev_irnet_ioctl(struct inode *	inode,
 	  else
 	    DERROR(FS_ERROR, "Channel not registered !\n");
 	  err = 0;
+	  unlock_kernel();
 	}
       break;
 
       /* Query PPP channel and unit number */
     case PPPIOCGCHAN:
-      if(!ap->ppp_open)
-	break;
-      if(put_user(ppp_channel_index(&ap->chan), (int __user *)argp))
-	break;
-      DEBUG(FS_INFO, "Query channel.\n");
-      err = 0;
+      if(ap->ppp_open && !put_user(ppp_channel_index(&ap->chan),
+						(int __user *)argp))
+	err = 0;
       break;
     case PPPIOCGUNIT:
-      if(!ap->ppp_open)
-	break;
-      if(put_user(ppp_unit_number(&ap->chan), (int __user *)argp))
-	break;
-      DEBUG(FS_INFO, "Query unit number.\n");
+      lock_kernel();
+      if(ap->ppp_open && !put_user(ppp_unit_number(&ap->chan),
+						(int __user *)argp))
       err = 0;
       break;
 
@@ -726,34 +725,39 @@ dev_irnet_ioctl(struct inode *	inode,
       DEBUG(FS_INFO, "Standard PPP ioctl.\n");
       if(!capable(CAP_NET_ADMIN))
 	err = -EPERM;
-      else
+      else {
+	lock_kernel();
 	err = ppp_irnet_ioctl(&ap->chan, cmd, arg);
+	unlock_kernel();
+      }
       break;
 
       /* TTY IOCTLs : Pretend that we are a tty, to keep pppd happy */
       /* Get termios */
     case TCGETS:
       DEBUG(FS_INFO, "Get termios.\n");
+      lock_kernel();
 #ifndef TCGETS2
-      if(kernel_termios_to_user_termios((struct termios __user *)argp, &ap->termios))
-	break;
+      if(!kernel_termios_to_user_termios((struct termios __user *)argp, &ap->termios))
+	err = 0;
 #else
       if(kernel_termios_to_user_termios_1((struct termios __user *)argp, &ap->termios))
-	break;
+	err = 0;
 #endif
-      err = 0;
+      unlock_kernel();
       break;
       /* Set termios */
     case TCSETSF:
       DEBUG(FS_INFO, "Set termios.\n");
+      lock_kernel();
 #ifndef TCGETS2
-      if(user_termios_to_kernel_termios(&ap->termios, (struct termios __user *)argp))
-	break;
+      if(!user_termios_to_kernel_termios(&ap->termios, (struct termios __user *)argp))
+	err = 0;
 #else
-      if(user_termios_to_kernel_termios_1(&ap->termios, (struct termios __user *)argp))
-	break;
+      if(!user_termios_to_kernel_termios_1(&ap->termios, (struct termios __user *)argp))
+	err = 0;
 #endif
-      err = 0;
+      unlock_kernel();
       break;
 
       /* Set DTR/RTS */
@@ -776,7 +780,9 @@ dev_irnet_ioctl(struct inode *	inode,
        * We should also worry that we don't accept junk here and that
        * we get rid of our own buffers */
 #ifdef FLUSH_TO_PPP
+      lock_kernel();
       ppp_output_wakeup(&ap->chan);
+      unlock_kernel();
 #endif /* FLUSH_TO_PPP */
       err = 0;
       break;
@@ -791,7 +797,7 @@ dev_irnet_ioctl(struct inode *	inode,
 
     default:
       DERROR(FS_ERROR, "Unsupported ioctl (0x%X)\n", cmd);
-      err = -ENOIOCTLCMD;
+      err = -ENOTTY;
     }
 
   DEXIT(FS_TRACE, " - err = 0x%X\n", err);

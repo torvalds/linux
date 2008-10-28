@@ -73,10 +73,10 @@ static void usb_acecad_irq(struct urb *urb)
 		case -ENOENT:
 		case -ESHUTDOWN:
 			/* this urb is terminated, clean up */
-			dbg("%s - urb shutting down with status: %d", __FUNCTION__, urb->status);
+			dbg("%s - urb shutting down with status: %d", __func__, urb->status);
 			return;
 		default:
-			dbg("%s - nonzero urb status received: %d", __FUNCTION__, urb->status);
+			dbg("%s - nonzero urb status received: %d", __func__, urb->status);
 			goto resubmit;
 	}
 
@@ -280,7 +280,8 @@ static int __init usb_acecad_init(void)
 {
 	int result = usb_register(&usb_acecad_driver);
 	if (result == 0)
-		info(DRIVER_VERSION ":" DRIVER_DESC);
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+		       DRIVER_DESC "\n");
 	return result;
 }
 

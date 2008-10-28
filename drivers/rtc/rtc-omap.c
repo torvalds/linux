@@ -92,18 +92,6 @@
 #define rtc_write(val, addr)	omap_writeb(val, OMAP_RTC_BASE + (addr))
 
 
-/* platform_bus isn't hotpluggable, so for static linkage it'd be safe
- * to get rid of probe() and remove() code ... too bad the driver struct
- * remembers probe(), that's about 25% of the runtime footprint!!
- */
-#ifndef	MODULE
-#undef	__devexit
-#undef	__devexit_p
-#define	__devexit	__exit
-#define	__devexit_p	__exit_p
-#endif
-
-
 /* we rely on the rtc framework to handle locking (rtc->ops_lock),
  * so the only other requirement is that register accesses which
  * require BUSY to be clear are made with IRQs locally disabled
@@ -198,30 +186,30 @@ static int tm2bcd(struct rtc_time *tm)
 	if (rtc_valid_tm(tm) != 0)
 		return -EINVAL;
 
-	tm->tm_sec = BIN2BCD(tm->tm_sec);
-	tm->tm_min = BIN2BCD(tm->tm_min);
-	tm->tm_hour = BIN2BCD(tm->tm_hour);
-	tm->tm_mday = BIN2BCD(tm->tm_mday);
+	tm->tm_sec = bin2bcd(tm->tm_sec);
+	tm->tm_min = bin2bcd(tm->tm_min);
+	tm->tm_hour = bin2bcd(tm->tm_hour);
+	tm->tm_mday = bin2bcd(tm->tm_mday);
 
-	tm->tm_mon = BIN2BCD(tm->tm_mon + 1);
+	tm->tm_mon = bin2bcd(tm->tm_mon + 1);
 
 	/* epoch == 1900 */
 	if (tm->tm_year < 100 || tm->tm_year > 199)
 		return -EINVAL;
-	tm->tm_year = BIN2BCD(tm->tm_year - 100);
+	tm->tm_year = bin2bcd(tm->tm_year - 100);
 
 	return 0;
 }
 
 static void bcd2tm(struct rtc_time *tm)
 {
-	tm->tm_sec = BCD2BIN(tm->tm_sec);
-	tm->tm_min = BCD2BIN(tm->tm_min);
-	tm->tm_hour = BCD2BIN(tm->tm_hour);
-	tm->tm_mday = BCD2BIN(tm->tm_mday);
-	tm->tm_mon = BCD2BIN(tm->tm_mon) - 1;
+	tm->tm_sec = bcd2bin(tm->tm_sec);
+	tm->tm_min = bcd2bin(tm->tm_min);
+	tm->tm_hour = bcd2bin(tm->tm_hour);
+	tm->tm_mday = bcd2bin(tm->tm_mday);
+	tm->tm_mon = bcd2bin(tm->tm_mon) - 1;
 	/* epoch == 1900 */
-	tm->tm_year = BCD2BIN(tm->tm_year) + 100;
+	tm->tm_year = bcd2bin(tm->tm_year) + 100;
 }
 
 
@@ -324,7 +312,7 @@ static struct rtc_class_ops omap_rtc_ops = {
 static int omap_rtc_alarm;
 static int omap_rtc_timer;
 
-static int __devinit omap_rtc_probe(struct platform_device *pdev)
+static int __init omap_rtc_probe(struct platform_device *pdev)
 {
 	struct resource		*res, *mem;
 	struct rtc_device	*rtc;
@@ -440,7 +428,7 @@ fail:
 	return -EIO;
 }
 
-static int __devexit omap_rtc_remove(struct platform_device *pdev)
+static int __exit omap_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_device	*rtc = platform_get_drvdata(pdev);;
 
@@ -498,8 +486,7 @@ static void omap_rtc_shutdown(struct platform_device *pdev)
 
 MODULE_ALIAS("platform:omap_rtc");
 static struct platform_driver omap_rtc_driver = {
-	.probe		= omap_rtc_probe,
-	.remove		= __devexit_p(omap_rtc_remove),
+	.remove		= __exit_p(omap_rtc_remove),
 	.suspend	= omap_rtc_suspend,
 	.resume		= omap_rtc_resume,
 	.shutdown	= omap_rtc_shutdown,
@@ -511,7 +498,7 @@ static struct platform_driver omap_rtc_driver = {
 
 static int __init rtc_init(void)
 {
-	return platform_driver_register(&omap_rtc_driver);
+	return platform_driver_probe(&omap_rtc_driver, omap_rtc_probe);
 }
 module_init(rtc_init);
 

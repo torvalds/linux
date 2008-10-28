@@ -22,23 +22,17 @@
 #include <linux/gfp.h>
 #include <linux/list.h>
 #include <linux/sysdev.h>
+#include <linux/interrupt.h>
+#include <linux/msi.h>
 #include <asm/pci-direct.h>
 #include <asm/amd_iommu_types.h>
 #include <asm/amd_iommu.h>
-#include <asm/gart.h>
+#include <asm/iommu.h>
 
 /*
  * definitions for the ACPI scanning code
  */
-#define UPDATE_LAST_BDF(x) do {\
-	if ((x) > amd_iommu_last_bdf) \
-		amd_iommu_last_bdf = (x); \
-	} while (0);
-
-#define DEVID(bus, devfn) (((bus) << 8) | (devfn))
-#define PCI_BUS(x) (((x) >> 8) & 0xff)
 #define IVRS_HEADER_LENGTH 48
-#define TBL_SIZE(x) (1 << (PAGE_SHIFT + get_order(amd_iommu_last_bdf * (x))))
 
 #define ACPI_IVHD_TYPE                  0x10
 #define ACPI_IVMD_TYPE_ALL              0x20
@@ -71,6 +65,17 @@
 #define ACPI_DEVFLAG_LINT1              0x80
 #define ACPI_DEVFLAG_ATSDIS             0x10000000
 
+/*
+ * ACPI table definitions
+ *
+ * These data structures are laid over the table to parse the important values
+ * out of it.
+ */
+
+/*
+ * structure describing one IOMMU in the ACPI table. Typically followed by one
+ * or more ivhd_entrys.
+ */
 struct ivhd_header {
 	u8 type;
 	u8 flags;
@@ -83,6 +88,10 @@ struct ivhd_header {
 	u32 reserved;
 } __attribute__((packed));
 
+/*
+ * A device entry describing which devices a specific IOMMU translates and
+ * which requestor ids they use.
+ */
 struct ivhd_entry {
 	u8 type;
 	u16 devid;
@@ -90,6 +99,10 @@ struct ivhd_entry {
 	u32 ext;
 } __attribute__((packed));
 
+/*
+ * An AMD IOMMU memory definition structure. It defines things like exclusion
+ * ranges for devices and regions that should be unity mapped.
+ */
 struct ivmd_header {
 	u8 type;
 	u8 flags;
@@ -103,22 +116,81 @@ struct ivmd_header {
 
 static int __initdata amd_iommu_detected;
 
-u16 amd_iommu_last_bdf;
-struct list_head amd_iommu_unity_map;
-unsigned amd_iommu_aperture_order = 26;
-int amd_iommu_isolate;
+u16 amd_iommu_last_bdf;			/* largest PCI device id we have
+					   to handle */
+LIST_HEAD(amd_iommu_unity_map);		/* a list of required unity mappings
+					   we find in ACPI */
+unsigned amd_iommu_aperture_order = 26; /* size of aperture in power of 2 */
+int amd_iommu_isolate;			/* if 1, device isolation is enabled */
+bool amd_iommu_unmap_flush;		/* if true, flush on every unmap */
 
-struct list_head amd_iommu_list;
+LIST_HEAD(amd_iommu_list);		/* list of all AMD IOMMUs in the
+					   system */
+
+/*
+ * Pointer to the device table which is shared by all AMD IOMMUs
+ * it is indexed by the PCI device id or the HT unit id and contains
+ * information about the domain the device belongs to as well as the
+ * page table root pointer.
+ */
 struct dev_table_entry *amd_iommu_dev_table;
+
+/*
+ * The alias table is a driver specific data structure which contains the
+ * mappings of the PCI device ids to the actual requestor ids on the IOMMU.
+ * More than one device can share the same requestor id.
+ */
 u16 *amd_iommu_alias_table;
+
+/*
+ * The rlookup table is used to find the IOMMU which is responsible
+ * for a specific device. It is also indexed by the PCI device id.
+ */
 struct amd_iommu **amd_iommu_rlookup_table;
+
+/*
+ * The pd table (protection domain table) is used to find the protection domain
+ * data structure a device belongs to. Indexed with the PCI device id too.
+ */
 struct protection_domain **amd_iommu_pd_table;
+
+/*
+ * AMD IOMMU allows up to 2^16 differend protection domains. This is a bitmap
+ * to know which ones are already in use.
+ */
 unsigned long *amd_iommu_pd_alloc_bitmap;
 
-static u32 dev_table_size;
-static u32 alias_table_size;
-static u32 rlookup_table_size;
+static u32 dev_table_size;	/* size of the device table */
+static u32 alias_table_size;	/* size of the alias table */
+static u32 rlookup_table_size;	/* size if the rlookup table */
 
+static inline void update_last_devid(u16 devid)
+{
+	if (devid > amd_iommu_last_bdf)
+		amd_iommu_last_bdf = devid;
+}
+
+static inline unsigned long tbl_size(int entry_size)
+{
+	unsigned shift = PAGE_SHIFT +
+			 get_order(amd_iommu_last_bdf * entry_size);
+
+	return 1UL << shift;
+}
+
+/****************************************************************************
+ *
+ * AMD IOMMU MMIO register space handling functions
+ *
+ * These functions are used to program the IOMMU device registers in
+ * MMIO space required for that driver.
+ *
+ ****************************************************************************/
+
+/*
+ * This function set the exclusion range in the IOMMU. DMA accesses to the
+ * exclusion range are passed through untranslated
+ */
 static void __init iommu_set_exclusion_range(struct amd_iommu *iommu)
 {
 	u64 start = iommu->exclusion_start & PAGE_MASK;
@@ -137,9 +209,10 @@ static void __init iommu_set_exclusion_range(struct amd_iommu *iommu)
 			&entry, sizeof(entry));
 }
 
+/* Programs the physical address of the device table into the IOMMU hardware */
 static void __init iommu_set_device_table(struct amd_iommu *iommu)
 {
-	u32 entry;
+	u64 entry;
 
 	BUG_ON(iommu->mmio_base == NULL);
 
@@ -149,6 +222,7 @@ static void __init iommu_set_device_table(struct amd_iommu *iommu)
 			&entry, sizeof(entry));
 }
 
+/* Generic functions to enable/disable certain features of the IOMMU. */
 static void __init iommu_feature_enable(struct amd_iommu *iommu, u8 bit)
 {
 	u32 ctrl;
@@ -162,20 +236,35 @@ static void __init iommu_feature_disable(struct amd_iommu *iommu, u8 bit)
 {
 	u32 ctrl;
 
-	ctrl = (u64)readl(iommu->mmio_base + MMIO_CONTROL_OFFSET);
+	ctrl = readl(iommu->mmio_base + MMIO_CONTROL_OFFSET);
 	ctrl &= ~(1 << bit);
 	writel(ctrl, iommu->mmio_base + MMIO_CONTROL_OFFSET);
 }
 
+/* Function to enable the hardware */
 void __init iommu_enable(struct amd_iommu *iommu)
 {
-	printk(KERN_INFO "AMD IOMMU: Enabling IOMMU at ");
-	print_devid(iommu->devid, 0);
-	printk(" cap 0x%hx\n", iommu->cap_ptr);
+	printk(KERN_INFO "AMD IOMMU: Enabling IOMMU "
+	       "at %02x:%02x.%x cap 0x%hx\n",
+	       iommu->dev->bus->number,
+	       PCI_SLOT(iommu->dev->devfn),
+	       PCI_FUNC(iommu->dev->devfn),
+	       iommu->cap_ptr);
 
 	iommu_feature_enable(iommu, CONTROL_IOMMU_EN);
 }
 
+/* Function to enable IOMMU event logging and event interrupts */
+void __init iommu_enable_event_logging(struct amd_iommu *iommu)
+{
+	iommu_feature_enable(iommu, CONTROL_EVT_LOG_EN);
+	iommu_feature_enable(iommu, CONTROL_EVT_INT_EN);
+}
+
+/*
+ * mapping and unmapping functions for the IOMMU MMIO space. Each AMD IOMMU in
+ * the system has one.
+ */
 static u8 * __init iommu_map_mmio_space(u64 address)
 {
 	u8 *ret;
@@ -199,16 +288,41 @@ static void __init iommu_unmap_mmio_space(struct amd_iommu *iommu)
 	release_mem_region(iommu->mmio_phys, MMIO_REGION_LENGTH);
 }
 
+/****************************************************************************
+ *
+ * The functions below belong to the first pass of AMD IOMMU ACPI table
+ * parsing. In this pass we try to find out the highest device id this
+ * code has to handle. Upon this information the size of the shared data
+ * structures is determined later.
+ *
+ ****************************************************************************/
+
+/*
+ * This function calculates the length of a given IVHD entry
+ */
+static inline int ivhd_entry_length(u8 *ivhd)
+{
+	return 0x04 << (*ivhd >> 6);
+}
+
+/*
+ * This function reads the last device id the IOMMU has to handle from the PCI
+ * capability header for this IOMMU
+ */
 static int __init find_last_devid_on_pci(int bus, int dev, int fn, int cap_ptr)
 {
 	u32 cap;
 
 	cap = read_pci_config(bus, dev, fn, cap_ptr+MMIO_RANGE_OFFSET);
-	UPDATE_LAST_BDF(DEVID(MMIO_GET_BUS(cap), MMIO_GET_LD(cap)));
+	update_last_devid(calc_devid(MMIO_GET_BUS(cap), MMIO_GET_LD(cap)));
 
 	return 0;
 }
 
+/*
+ * After reading the highest device id from the IOMMU PCI capability header
+ * this function looks if there is a higher device id defined in the ACPI table
+ */
 static int __init find_last_devid_from_ivhd(struct ivhd_header *h)
 {
 	u8 *p = (void *)h, *end = (void *)h;
@@ -229,12 +343,13 @@ static int __init find_last_devid_from_ivhd(struct ivhd_header *h)
 		case IVHD_DEV_RANGE_END:
 		case IVHD_DEV_ALIAS:
 		case IVHD_DEV_EXT_SELECT:
-			UPDATE_LAST_BDF(dev->devid);
+			/* all the above subfield types refer to device ids */
+			update_last_devid(dev->devid);
 			break;
 		default:
 			break;
 		}
-		p += 0x04 << (*p >> 6);
+		p += ivhd_entry_length(p);
 	}
 
 	WARN_ON(p != end);
@@ -242,6 +357,11 @@ static int __init find_last_devid_from_ivhd(struct ivhd_header *h)
 	return 0;
 }
 
+/*
+ * Iterate over all IVHD entries in the ACPI table and find the highest device
+ * id which we need to handle. This is the first of three functions which parse
+ * the ACPI table. So we check the checksum here.
+ */
 static int __init find_last_devid_acpi(struct acpi_table_header *table)
 {
 	int i;
@@ -277,18 +397,30 @@ static int __init find_last_devid_acpi(struct acpi_table_header *table)
 	return 0;
 }
 
+/****************************************************************************
+ *
+ * The following functions belong the the code path which parses the ACPI table
+ * the second time. In this ACPI parsing iteration we allocate IOMMU specific
+ * data structures, initialize the device/alias/rlookup table and also
+ * basically initialize the hardware.
+ *
+ ****************************************************************************/
+
+/*
+ * Allocates the command buffer. This buffer is per AMD IOMMU. We can
+ * write commands to that buffer later and the IOMMU will execute them
+ * asynchronously
+ */
 static u8 * __init alloc_command_buffer(struct amd_iommu *iommu)
 {
-	u8 *cmd_buf = (u8 *)__get_free_pages(GFP_KERNEL,
+	u8 *cmd_buf = (u8 *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 			get_order(CMD_BUFFER_SIZE));
-	u64 entry = 0;
+	u64 entry;
 
 	if (cmd_buf == NULL)
 		return NULL;
 
 	iommu->cmd_buf_size = CMD_BUFFER_SIZE;
-
-	memset(cmd_buf, 0, CMD_BUFFER_SIZE);
 
 	entry = (u64)virt_to_phys(cmd_buf);
 	entry |= MMIO_CMD_SIZE_512;
@@ -302,11 +434,35 @@ static u8 * __init alloc_command_buffer(struct amd_iommu *iommu)
 
 static void __init free_command_buffer(struct amd_iommu *iommu)
 {
-	if (iommu->cmd_buf)
-		free_pages((unsigned long)iommu->cmd_buf,
-				get_order(CMD_BUFFER_SIZE));
+	free_pages((unsigned long)iommu->cmd_buf,
+		   get_order(iommu->cmd_buf_size));
 }
 
+/* allocates the memory where the IOMMU will log its events to */
+static u8 * __init alloc_event_buffer(struct amd_iommu *iommu)
+{
+	u64 entry;
+	iommu->evt_buf = (u8 *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+						get_order(EVT_BUFFER_SIZE));
+
+	if (iommu->evt_buf == NULL)
+		return NULL;
+
+	entry = (u64)virt_to_phys(iommu->evt_buf) | EVT_LEN_MASK;
+	memcpy_toio(iommu->mmio_base + MMIO_EVT_BUF_OFFSET,
+		    &entry, sizeof(entry));
+
+	iommu->evt_buf_size = EVT_BUFFER_SIZE;
+
+	return iommu->evt_buf;
+}
+
+static void __init free_event_buffer(struct amd_iommu *iommu)
+{
+	free_pages((unsigned long)iommu->evt_buf, get_order(EVT_BUFFER_SIZE));
+}
+
+/* sets a specific bit in the device table entry. */
 static void set_dev_entry_bit(u16 devid, u8 bit)
 {
 	int i = (bit >> 5) & 0x07;
@@ -315,7 +471,18 @@ static void set_dev_entry_bit(u16 devid, u8 bit)
 	amd_iommu_dev_table[devid].data[i] |= (1 << _bit);
 }
 
-static void __init set_dev_entry_from_acpi(u16 devid, u32 flags, u32 ext_flags)
+/* Writes the specific IOMMU for a device into the rlookup table */
+static void __init set_iommu_for_device(struct amd_iommu *iommu, u16 devid)
+{
+	amd_iommu_rlookup_table[devid] = iommu;
+}
+
+/*
+ * This function takes the device specific flags read from the ACPI
+ * table and sets up the device table entry with that information
+ */
+static void __init set_dev_entry_from_acpi(struct amd_iommu *iommu,
+					   u16 devid, u32 flags, u32 ext_flags)
 {
 	if (flags & ACPI_DEVFLAG_INITPASS)
 		set_dev_entry_bit(devid, DEV_ENTRY_INIT_PASS);
@@ -331,13 +498,14 @@ static void __init set_dev_entry_from_acpi(u16 devid, u32 flags, u32 ext_flags)
 		set_dev_entry_bit(devid, DEV_ENTRY_LINT0_PASS);
 	if (flags & ACPI_DEVFLAG_LINT1)
 		set_dev_entry_bit(devid, DEV_ENTRY_LINT1_PASS);
+
+	set_iommu_for_device(iommu, devid);
 }
 
-static void __init set_iommu_for_device(struct amd_iommu *iommu, u16 devid)
-{
-	amd_iommu_rlookup_table[devid] = iommu;
-}
-
+/*
+ * Reads the device exclusion range from ACPI and initialize IOMMU with
+ * it
+ */
 static void __init set_device_exclusion_range(u16 devid, struct ivmd_header *m)
 {
 	struct amd_iommu *iommu = amd_iommu_rlookup_table[devid];
@@ -346,27 +514,45 @@ static void __init set_device_exclusion_range(u16 devid, struct ivmd_header *m)
 		return;
 
 	if (iommu) {
+		/*
+		 * We only can configure exclusion ranges per IOMMU, not
+		 * per device. But we can enable the exclusion range per
+		 * device. This is done here
+		 */
 		set_dev_entry_bit(m->devid, DEV_ENTRY_EX);
 		iommu->exclusion_start = m->range_start;
 		iommu->exclusion_length = m->range_length;
 	}
 }
 
+/*
+ * This function reads some important data from the IOMMU PCI space and
+ * initializes the driver data structure with it. It reads the hardware
+ * capabilities and the first/last device entries
+ */
 static void __init init_iommu_from_pci(struct amd_iommu *iommu)
 {
-	int bus = PCI_BUS(iommu->devid);
-	int dev = PCI_SLOT(iommu->devid);
-	int fn  = PCI_FUNC(iommu->devid);
 	int cap_ptr = iommu->cap_ptr;
-	u32 range;
+	u32 range, misc;
 
-	iommu->cap = read_pci_config(bus, dev, fn, cap_ptr+MMIO_CAP_HDR_OFFSET);
+	pci_read_config_dword(iommu->dev, cap_ptr + MMIO_CAP_HDR_OFFSET,
+			      &iommu->cap);
+	pci_read_config_dword(iommu->dev, cap_ptr + MMIO_RANGE_OFFSET,
+			      &range);
+	pci_read_config_dword(iommu->dev, cap_ptr + MMIO_MISC_OFFSET,
+			      &misc);
 
-	range = read_pci_config(bus, dev, fn, cap_ptr+MMIO_RANGE_OFFSET);
-	iommu->first_device = DEVID(MMIO_GET_BUS(range), MMIO_GET_FD(range));
-	iommu->last_device = DEVID(MMIO_GET_BUS(range), MMIO_GET_LD(range));
+	iommu->first_device = calc_devid(MMIO_GET_BUS(range),
+					 MMIO_GET_FD(range));
+	iommu->last_device = calc_devid(MMIO_GET_BUS(range),
+					MMIO_GET_LD(range));
+	iommu->evt_msi_num = MMIO_MSI_NUM(misc);
 }
 
+/*
+ * Takes a pointer to an AMD IOMMU entry in the ACPI table and
+ * initializes the hardware and our data structures with it.
+ */
 static void __init init_iommu_from_acpi(struct amd_iommu *iommu,
 					struct ivhd_header *h)
 {
@@ -374,7 +560,7 @@ static void __init init_iommu_from_acpi(struct amd_iommu *iommu,
 	u8 *end = p, flags = 0;
 	u16 dev_i, devid = 0, devid_start = 0, devid_to = 0;
 	u32 ext_flags = 0;
-	bool alias = 0;
+	bool alias = false;
 	struct ivhd_entry *e;
 
 	/*
@@ -414,22 +600,23 @@ static void __init init_iommu_from_acpi(struct amd_iommu *iommu,
 		case IVHD_DEV_ALL:
 			for (dev_i = iommu->first_device;
 					dev_i <= iommu->last_device; ++dev_i)
-				set_dev_entry_from_acpi(dev_i, e->flags, 0);
+				set_dev_entry_from_acpi(iommu, dev_i,
+							e->flags, 0);
 			break;
 		case IVHD_DEV_SELECT:
 			devid = e->devid;
-			set_dev_entry_from_acpi(devid, e->flags, 0);
+			set_dev_entry_from_acpi(iommu, devid, e->flags, 0);
 			break;
 		case IVHD_DEV_SELECT_RANGE_START:
 			devid_start = e->devid;
 			flags = e->flags;
 			ext_flags = 0;
-			alias = 0;
+			alias = false;
 			break;
 		case IVHD_DEV_ALIAS:
 			devid = e->devid;
 			devid_to = e->ext >> 8;
-			set_dev_entry_from_acpi(devid, e->flags, 0);
+			set_dev_entry_from_acpi(iommu, devid, e->flags, 0);
 			amd_iommu_alias_table[devid] = devid_to;
 			break;
 		case IVHD_DEV_ALIAS_RANGE:
@@ -437,24 +624,25 @@ static void __init init_iommu_from_acpi(struct amd_iommu *iommu,
 			flags = e->flags;
 			devid_to = e->ext >> 8;
 			ext_flags = 0;
-			alias = 1;
+			alias = true;
 			break;
 		case IVHD_DEV_EXT_SELECT:
 			devid = e->devid;
-			set_dev_entry_from_acpi(devid, e->flags, e->ext);
+			set_dev_entry_from_acpi(iommu, devid, e->flags,
+						e->ext);
 			break;
 		case IVHD_DEV_EXT_SELECT_RANGE:
 			devid_start = e->devid;
 			flags = e->flags;
 			ext_flags = e->ext;
-			alias = 0;
+			alias = false;
 			break;
 		case IVHD_DEV_RANGE_END:
 			devid = e->devid;
 			for (dev_i = devid_start; dev_i <= devid; ++dev_i) {
 				if (alias)
 					amd_iommu_alias_table[dev_i] = devid_to;
-				set_dev_entry_from_acpi(
+				set_dev_entry_from_acpi(iommu,
 						amd_iommu_alias_table[dev_i],
 						flags, ext_flags);
 			}
@@ -463,10 +651,11 @@ static void __init init_iommu_from_acpi(struct amd_iommu *iommu,
 			break;
 		}
 
-		p += 0x04 << (e->type >> 6);
+		p += ivhd_entry_length(p);
 	}
 }
 
+/* Initializes the device->iommu mapping for the driver */
 static int __init init_iommu_devices(struct amd_iommu *iommu)
 {
 	u16 i;
@@ -480,6 +669,7 @@ static int __init init_iommu_devices(struct amd_iommu *iommu)
 static void __init free_iommu_one(struct amd_iommu *iommu)
 {
 	free_command_buffer(iommu);
+	free_event_buffer(iommu);
 	iommu_unmap_mmio_space(iommu);
 }
 
@@ -494,6 +684,11 @@ static void __init free_iommu_all(void)
 	}
 }
 
+/*
+ * This function clues the initialization function for one IOMMU
+ * together and also allocates the command buffer and programs the
+ * hardware. It does NOT enable the IOMMU. This is done afterwards.
+ */
 static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 {
 	spin_lock_init(&iommu->lock);
@@ -502,8 +697,12 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 	/*
 	 * Copy data from ACPI table entry to the iommu struct
 	 */
-	iommu->devid = h->devid;
+	iommu->dev = pci_get_bus_and_slot(PCI_BUS(h->devid), h->devid & 0xff);
+	if (!iommu->dev)
+		return 1;
+
 	iommu->cap_ptr = h->cap_ptr;
+	iommu->pci_seg = h->pci_seg;
 	iommu->mmio_phys = h->mmio_phys;
 	iommu->mmio_base = iommu_map_mmio_space(h->mmio_phys);
 	if (!iommu->mmio_base)
@@ -514,21 +713,29 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 	if (!iommu->cmd_buf)
 		return -ENOMEM;
 
+	iommu->evt_buf = alloc_event_buffer(iommu);
+	if (!iommu->evt_buf)
+		return -ENOMEM;
+
+	iommu->int_enabled = false;
+
 	init_iommu_from_pci(iommu);
 	init_iommu_from_acpi(iommu, h);
 	init_iommu_devices(iommu);
 
-	return 0;
+	return pci_enable_device(iommu->dev);
 }
 
+/*
+ * Iterates over all IOMMU entries in the ACPI table, allocates the
+ * IOMMU structure and initializes it with init_iommu_one()
+ */
 static int __init init_iommu_all(struct acpi_table_header *table)
 {
 	u8 *p = (u8 *)table, *end = (u8 *)table;
 	struct ivhd_header *h;
 	struct amd_iommu *iommu;
 	int ret;
-
-	INIT_LIST_HEAD(&amd_iommu_list);
 
 	end += table->length;
 	p += IVRS_HEADER_LENGTH;
@@ -555,6 +762,103 @@ static int __init init_iommu_all(struct acpi_table_header *table)
 	return 0;
 }
 
+/****************************************************************************
+ *
+ * The following functions initialize the MSI interrupts for all IOMMUs
+ * in the system. Its a bit challenging because there could be multiple
+ * IOMMUs per PCI BDF but we can call pci_enable_msi(x) only once per
+ * pci_dev.
+ *
+ ****************************************************************************/
+
+static int __init iommu_setup_msix(struct amd_iommu *iommu)
+{
+	struct amd_iommu *curr;
+	struct msix_entry entries[32]; /* only 32 supported by AMD IOMMU */
+	int nvec = 0, i;
+
+	list_for_each_entry(curr, &amd_iommu_list, list) {
+		if (curr->dev == iommu->dev) {
+			entries[nvec].entry = curr->evt_msi_num;
+			entries[nvec].vector = 0;
+			curr->int_enabled = true;
+			nvec++;
+		}
+	}
+
+	if (pci_enable_msix(iommu->dev, entries, nvec)) {
+		pci_disable_msix(iommu->dev);
+		return 1;
+	}
+
+	for (i = 0; i < nvec; ++i) {
+		int r = request_irq(entries->vector, amd_iommu_int_handler,
+				    IRQF_SAMPLE_RANDOM,
+				    "AMD IOMMU",
+				    NULL);
+		if (r)
+			goto out_free;
+	}
+
+	return 0;
+
+out_free:
+	for (i -= 1; i >= 0; --i)
+		free_irq(entries->vector, NULL);
+
+	pci_disable_msix(iommu->dev);
+
+	return 1;
+}
+
+static int __init iommu_setup_msi(struct amd_iommu *iommu)
+{
+	int r;
+	struct amd_iommu *curr;
+
+	list_for_each_entry(curr, &amd_iommu_list, list) {
+		if (curr->dev == iommu->dev)
+			curr->int_enabled = true;
+	}
+
+
+	if (pci_enable_msi(iommu->dev))
+		return 1;
+
+	r = request_irq(iommu->dev->irq, amd_iommu_int_handler,
+			IRQF_SAMPLE_RANDOM,
+			"AMD IOMMU",
+			NULL);
+
+	if (r) {
+		pci_disable_msi(iommu->dev);
+		return 1;
+	}
+
+	return 0;
+}
+
+static int __init iommu_init_msi(struct amd_iommu *iommu)
+{
+	if (iommu->int_enabled)
+		return 0;
+
+	if (pci_find_capability(iommu->dev, PCI_CAP_ID_MSIX))
+		return iommu_setup_msix(iommu);
+	else if (pci_find_capability(iommu->dev, PCI_CAP_ID_MSI))
+		return iommu_setup_msi(iommu);
+
+	return 1;
+}
+
+/****************************************************************************
+ *
+ * The next functions belong to the third pass of parsing the ACPI
+ * table. In this last pass the memory mapping requirements are
+ * gathered (like exclusion and unity mapping reanges).
+ *
+ ****************************************************************************/
+
 static void __init free_unity_maps(void)
 {
 	struct unity_map_entry *entry, *next;
@@ -565,6 +869,7 @@ static void __init free_unity_maps(void)
 	}
 }
 
+/* called when we find an exclusion range definition in ACPI */
 static int __init init_exclusion_range(struct ivmd_header *m)
 {
 	int i;
@@ -574,7 +879,7 @@ static int __init init_exclusion_range(struct ivmd_header *m)
 		set_device_exclusion_range(m->devid, m);
 		break;
 	case ACPI_IVMD_TYPE_ALL:
-		for (i = 0; i < amd_iommu_last_bdf; ++i)
+		for (i = 0; i <= amd_iommu_last_bdf; ++i)
 			set_device_exclusion_range(i, m);
 		break;
 	case ACPI_IVMD_TYPE_RANGE:
@@ -588,6 +893,7 @@ static int __init init_exclusion_range(struct ivmd_header *m)
 	return 0;
 }
 
+/* called for unity map ACPI definition */
 static int __init init_unity_map_range(struct ivmd_header *m)
 {
 	struct unity_map_entry *e = 0;
@@ -619,12 +925,11 @@ static int __init init_unity_map_range(struct ivmd_header *m)
 	return 0;
 }
 
+/* iterates over all memory definitions we find in the ACPI table */
 static int __init init_memory_definitions(struct acpi_table_header *table)
 {
 	u8 *p = (u8 *)table, *end = (u8 *)table;
 	struct ivmd_header *m;
-
-	INIT_LIST_HEAD(&amd_iommu_unity_map);
 
 	end += table->length;
 	p += IVRS_HEADER_LENGTH;
@@ -642,12 +947,32 @@ static int __init init_memory_definitions(struct acpi_table_header *table)
 	return 0;
 }
 
+/*
+ * Init the device table to not allow DMA access for devices and
+ * suppress all page faults
+ */
+static void init_device_table(void)
+{
+	u16 devid;
+
+	for (devid = 0; devid <= amd_iommu_last_bdf; ++devid) {
+		set_dev_entry_bit(devid, DEV_ENTRY_VALID);
+		set_dev_entry_bit(devid, DEV_ENTRY_TRANSLATION);
+	}
+}
+
+/*
+ * This function finally enables all IOMMUs found in the system after
+ * they have been initialized
+ */
 static void __init enable_iommus(void)
 {
 	struct amd_iommu *iommu;
 
 	list_for_each_entry(iommu, &amd_iommu_list, list) {
 		iommu_set_exclusion_range(iommu);
+		iommu_init_msi(iommu);
+		iommu_enable_event_logging(iommu);
 		iommu_enable(iommu);
 	}
 }
@@ -678,6 +1003,34 @@ static struct sys_device device_amd_iommu = {
 	.cls = &amd_iommu_sysdev_class,
 };
 
+/*
+ * This is the core init function for AMD IOMMU hardware in the system.
+ * This function is called from the generic x86 DMA layer initialization
+ * code.
+ *
+ * This function basically parses the ACPI table for AMD IOMMU (IVRS)
+ * three times:
+ *
+ *	1 pass) Find the highest PCI device id the driver has to handle.
+ *		Upon this information the size of the data structures is
+ *		determined that needs to be allocated.
+ *
+ *	2 pass) Initialize the data structures just allocated with the
+ *		information in the ACPI table about available AMD IOMMUs
+ *		in the system. It also maps the PCI devices in the
+ *		system to specific IOMMUs
+ *
+ *	3 pass) After the basic data structures are allocated and
+ *		initialized we update them with information about memory
+ *		remapping requirements parsed out of the ACPI table in
+ *		this last pass.
+ *
+ * After that the hardware is initialized and ready to go. In the last
+ * step we do some Linux specific things like registering the driver in
+ * the dma_ops interface and initializing the suspend/resume support
+ * functions. Finally it prints some information about AMD IOMMUs and
+ * the driver state and enables the hardware.
+ */
 int __init amd_iommu_init(void)
 {
 	int i, ret = 0;
@@ -699,14 +1052,14 @@ int __init amd_iommu_init(void)
 	if (acpi_table_parse("IVRS", find_last_devid_acpi) != 0)
 		return -ENODEV;
 
-	dev_table_size     = TBL_SIZE(DEV_TABLE_ENTRY_SIZE);
-	alias_table_size   = TBL_SIZE(ALIAS_TABLE_ENTRY_SIZE);
-	rlookup_table_size = TBL_SIZE(RLOOKUP_TABLE_ENTRY_SIZE);
+	dev_table_size     = tbl_size(DEV_TABLE_ENTRY_SIZE);
+	alias_table_size   = tbl_size(ALIAS_TABLE_ENTRY_SIZE);
+	rlookup_table_size = tbl_size(RLOOKUP_TABLE_ENTRY_SIZE);
 
 	ret = -ENOMEM;
 
 	/* Device table - directly used by all IOMMUs */
-	amd_iommu_dev_table = (void *)__get_free_pages(GFP_KERNEL,
+	amd_iommu_dev_table = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 				      get_order(dev_table_size));
 	if (amd_iommu_dev_table == NULL)
 		goto out;
@@ -730,26 +1083,25 @@ int __init amd_iommu_init(void)
 	 * Protection Domain table - maps devices to protection domains
 	 * This table has the same size as the rlookup_table
 	 */
-	amd_iommu_pd_table = (void *)__get_free_pages(GFP_KERNEL,
+	amd_iommu_pd_table = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 				     get_order(rlookup_table_size));
 	if (amd_iommu_pd_table == NULL)
 		goto free;
 
-	amd_iommu_pd_alloc_bitmap = (void *)__get_free_pages(GFP_KERNEL,
+	amd_iommu_pd_alloc_bitmap = (void *)__get_free_pages(
+					    GFP_KERNEL | __GFP_ZERO,
 					    get_order(MAX_DOMAIN_ID/8));
 	if (amd_iommu_pd_alloc_bitmap == NULL)
 		goto free;
 
-	/*
-	 * memory is allocated now; initialize the device table with all zeroes
-	 * and let all alias entries point to itself
-	 */
-	memset(amd_iommu_dev_table, 0, dev_table_size);
-	for (i = 0; i < amd_iommu_last_bdf; ++i)
-		amd_iommu_alias_table[i] = i;
+	/* init the device table */
+	init_device_table();
 
-	memset(amd_iommu_pd_table, 0, rlookup_table_size);
-	memset(amd_iommu_pd_alloc_bitmap, 0, MAX_DOMAIN_ID / 8);
+	/*
+	 * let all alias entries point to itself
+	 */
+	for (i = 0; i <= amd_iommu_last_bdf; ++i)
+		amd_iommu_alias_table[i] = i;
 
 	/*
 	 * never allocate domain 0 because its used as the non-allocated and
@@ -768,15 +1120,15 @@ int __init amd_iommu_init(void)
 	if (acpi_table_parse("IVRS", init_memory_definitions) != 0)
 		goto free;
 
-	ret = amd_iommu_init_dma_ops();
-	if (ret)
-		goto free;
-
 	ret = sysdev_class_register(&amd_iommu_sysdev_class);
 	if (ret)
 		goto free;
 
 	ret = sysdev_register(&device_amd_iommu);
+	if (ret)
+		goto free;
+
+	ret = amd_iommu_init_dma_ops();
 	if (ret)
 		goto free;
 
@@ -791,28 +1143,29 @@ int __init amd_iommu_init(void)
 	else
 		printk("disabled\n");
 
+	if (amd_iommu_unmap_flush)
+		printk(KERN_INFO "AMD IOMMU: IO/TLB flush on unmap enabled\n");
+	else
+		printk(KERN_INFO "AMD IOMMU: Lazy IO/TLB flushing enabled\n");
+
 out:
 	return ret;
 
 free:
-	if (amd_iommu_pd_alloc_bitmap)
-		free_pages((unsigned long)amd_iommu_pd_alloc_bitmap, 1);
+	free_pages((unsigned long)amd_iommu_pd_alloc_bitmap,
+		   get_order(MAX_DOMAIN_ID/8));
 
-	if (amd_iommu_pd_table)
-		free_pages((unsigned long)amd_iommu_pd_table,
-				get_order(rlookup_table_size));
+	free_pages((unsigned long)amd_iommu_pd_table,
+		   get_order(rlookup_table_size));
 
-	if (amd_iommu_rlookup_table)
-		free_pages((unsigned long)amd_iommu_rlookup_table,
-				get_order(rlookup_table_size));
+	free_pages((unsigned long)amd_iommu_rlookup_table,
+		   get_order(rlookup_table_size));
 
-	if (amd_iommu_alias_table)
-		free_pages((unsigned long)amd_iommu_alias_table,
-				get_order(alias_table_size));
+	free_pages((unsigned long)amd_iommu_alias_table,
+		   get_order(alias_table_size));
 
-	if (amd_iommu_dev_table)
-		free_pages((unsigned long)amd_iommu_dev_table,
-				get_order(dev_table_size));
+	free_pages((unsigned long)amd_iommu_dev_table,
+		   get_order(dev_table_size));
 
 	free_iommu_all();
 
@@ -821,6 +1174,13 @@ free:
 	goto out;
 }
 
+/****************************************************************************
+ *
+ * Early detect code. This code runs at IOMMU detection time in the DMA
+ * layer. It just looks if there is an IVRS ACPI table to detect AMD
+ * IOMMUs
+ *
+ ****************************************************************************/
 static int __init early_amd_iommu_detect(struct acpi_table_header *table)
 {
 	return 0;
@@ -828,7 +1188,7 @@ static int __init early_amd_iommu_detect(struct acpi_table_header *table)
 
 void __init amd_iommu_detect(void)
 {
-	if (swiotlb || no_iommu || iommu_detected)
+	if (swiotlb || no_iommu || (iommu_detected && !gart_iommu_aperture))
 		return;
 
 	if (acpi_table_parse("IVRS", early_amd_iommu_detect) == 0) {
@@ -841,11 +1201,20 @@ void __init amd_iommu_detect(void)
 	}
 }
 
+/****************************************************************************
+ *
+ * Parsing functions for the AMD IOMMU specific kernel command line
+ * options.
+ *
+ ****************************************************************************/
+
 static int __init parse_amd_iommu_options(char *str)
 {
 	for (; *str; ++str) {
-		if (strcmp(str, "isolate") == 0)
+		if (strncmp(str, "isolate", 7) == 0)
 			amd_iommu_isolate = 1;
+		if (strncmp(str, "fullflush", 11) == 0)
+			amd_iommu_unmap_flush = true;
 	}
 
 	return 1;
@@ -853,20 +1222,10 @@ static int __init parse_amd_iommu_options(char *str)
 
 static int __init parse_amd_iommu_size_options(char *str)
 {
-	for (; *str; ++str) {
-		if (strcmp(str, "32M") == 0)
-			amd_iommu_aperture_order = 25;
-		if (strcmp(str, "64M") == 0)
-			amd_iommu_aperture_order = 26;
-		if (strcmp(str, "128M") == 0)
-			amd_iommu_aperture_order = 27;
-		if (strcmp(str, "256M") == 0)
-			amd_iommu_aperture_order = 28;
-		if (strcmp(str, "512M") == 0)
-			amd_iommu_aperture_order = 29;
-		if (strcmp(str, "1G") == 0)
-			amd_iommu_aperture_order = 30;
-	}
+	unsigned order = PAGE_SHIFT + get_order(memparse(str, &str));
+
+	if ((order > 24) && (order < 31))
+		amd_iommu_aperture_order = order;
 
 	return 1;
 }

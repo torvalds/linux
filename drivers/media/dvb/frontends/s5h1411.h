@@ -1,7 +1,7 @@
 /*
     Samsung S5H1411 VSB/QAM demodulator driver
 
-    Copyright (C) 2008 Steven Toth <stoth@hauppauge.com>
+    Copyright (C) 2008 Steven Toth <stoth@linuxtv.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ struct s5h1411_config {
 	u16 mpeg_timing;
 
 	/* IF Freq for QAM and VSB in KHz */
-#define S5H1411_IF_2500  2500
+#define S5H1411_IF_3250  3250
 #define S5H1411_IF_3500  3500
 #define S5H1411_IF_4000  4000
 #define S5H1411_IF_5380  5380

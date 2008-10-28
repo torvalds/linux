@@ -49,41 +49,6 @@
 
 #define AA(__x)		((unsigned long)(__x))
 
-int cp_compat_stat(struct kstat *kbuf, struct compat_stat __user *ubuf)
-{
-	compat_ino_t ino;
-
-	typeof(ubuf->st_uid) uid = 0;
-	typeof(ubuf->st_gid) gid = 0;
-	SET_UID(uid, kbuf->uid);
-	SET_GID(gid, kbuf->gid);
-	if (!old_valid_dev(kbuf->dev) || !old_valid_dev(kbuf->rdev))
-		return -EOVERFLOW;
-	if (kbuf->size >= 0x7fffffff)
-		return -EOVERFLOW;
-	ino = kbuf->ino;
-	if (sizeof(ino) < sizeof(kbuf->ino) && ino != kbuf->ino)
-		return -EOVERFLOW;
-	if (!access_ok(VERIFY_WRITE, ubuf, sizeof(struct compat_stat)) ||
-	    __put_user(old_encode_dev(kbuf->dev), &ubuf->st_dev) ||
-	    __put_user(ino, &ubuf->st_ino) ||
-	    __put_user(kbuf->mode, &ubuf->st_mode) ||
-	    __put_user(kbuf->nlink, &ubuf->st_nlink) ||
-	    __put_user(uid, &ubuf->st_uid) ||
-	    __put_user(gid, &ubuf->st_gid) ||
-	    __put_user(old_encode_dev(kbuf->rdev), &ubuf->st_rdev) ||
-	    __put_user(kbuf->size, &ubuf->st_size) ||
-	    __put_user(kbuf->atime.tv_sec, &ubuf->st_atime) ||
-	    __put_user(kbuf->atime.tv_nsec, &ubuf->st_atime_nsec) ||
-	    __put_user(kbuf->mtime.tv_sec, &ubuf->st_mtime) ||
-	    __put_user(kbuf->mtime.tv_nsec, &ubuf->st_mtime_nsec) ||
-	    __put_user(kbuf->ctime.tv_sec, &ubuf->st_ctime) ||
-	    __put_user(kbuf->ctime.tv_nsec, &ubuf->st_ctime_nsec) ||
-	    __put_user(kbuf->blksize, &ubuf->st_blksize) ||
-	    __put_user(kbuf->blocks, &ubuf->st_blocks))
-		return -EFAULT;
-	return 0;
-}
 
 asmlinkage long sys32_truncate64(char __user *filename,
 				 unsigned long offset_low,
@@ -238,7 +203,7 @@ asmlinkage long sys32_pipe(int __user *fd)
 	int retval;
 	int fds[2];
 
-	retval = do_pipe(fds);
+	retval = do_pipe_flags(fds, 0);
 	if (retval)
 		goto out;
 	if (copy_to_user(fd, fds, sizeof(fds)))
@@ -402,73 +367,9 @@ asmlinkage long sys32_rt_sigprocmask(int how, compat_sigset_t __user *set,
 	return 0;
 }
 
-static inline long get_tv32(struct timeval *o, struct compat_timeval __user *i)
-{
-	int err = -EFAULT;
-
-	if (access_ok(VERIFY_READ, i, sizeof(*i))) {
-		err = __get_user(o->tv_sec, &i->tv_sec);
-		err |= __get_user(o->tv_usec, &i->tv_usec);
-	}
-	return err;
-}
-
-static inline long put_tv32(struct compat_timeval __user *o, struct timeval *i)
-{
-	int err = -EFAULT;
-
-	if (access_ok(VERIFY_WRITE, o, sizeof(*o))) {
-		err = __put_user(i->tv_sec, &o->tv_sec);
-		err |= __put_user(i->tv_usec, &o->tv_usec);
-	}
-	return err;
-}
-
 asmlinkage long sys32_alarm(unsigned int seconds)
 {
 	return alarm_setitimer(seconds);
-}
-
-/*
- * Translations due to time_t size differences. Which affects all
- * sorts of things, like timeval and itimerval.
- */
-asmlinkage long sys32_gettimeofday(struct compat_timeval __user *tv,
-				   struct timezone __user *tz)
-{
-	if (tv) {
-		struct timeval ktv;
-
-		do_gettimeofday(&ktv);
-		if (put_tv32(tv, &ktv))
-			return -EFAULT;
-	}
-	if (tz) {
-		if (copy_to_user(tz, &sys_tz, sizeof(sys_tz)))
-			return -EFAULT;
-	}
-	return 0;
-}
-
-asmlinkage long sys32_settimeofday(struct compat_timeval __user *tv,
-				   struct timezone __user *tz)
-{
-	struct timeval ktv;
-	struct timespec kts;
-	struct timezone ktz;
-
-	if (tv) {
-		if (get_tv32(&ktv, tv))
-			return -EFAULT;
-		kts.tv_sec = ktv.tv_sec;
-		kts.tv_nsec = ktv.tv_usec * NSEC_PER_USEC;
-	}
-	if (tz) {
-		if (copy_from_user(&ktz, tz, sizeof(ktz)))
-			return -EFAULT;
-	}
-
-	return do_sys_settimeofday(tv ? &kts : NULL, tz ? &ktz : NULL);
 }
 
 struct sel_arg_struct {
@@ -555,15 +456,6 @@ asmlinkage long sys32_rt_sigqueueinfo(int pid, int sig,
 	set_fs(old_fs);
 	return ret;
 }
-
-/* These are here just in case some old ia32 binary calls it. */
-asmlinkage long sys32_pause(void)
-{
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
-	return -ERESTARTNOHAND;
-}
-
 
 #ifdef CONFIG_SYSCTL_SYSCALL
 struct sysctl_ia32 {

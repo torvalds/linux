@@ -271,9 +271,9 @@ static inline void sca_msci_intr(port_t *port)
 	sca_out(stat & (ST1_UDRN | ST1_CDCD), msci + ST1, card);
 
 	if (stat & ST1_UDRN) {
-		struct net_device_stats *stats = hdlc_stats(port_to_dev(port));
-		stats->tx_errors++; /* TX Underrun error detected */
-		stats->tx_fifo_errors++;
+		/* TX Underrun error detected */
+		port_to_dev(port)->stats.tx_errors++;
+		port_to_dev(port)->stats.tx_fifo_errors++;
 	}
 
 	if (stat & ST1_CDCD)
@@ -286,7 +286,6 @@ static inline void sca_msci_intr(port_t *port)
 static inline void sca_rx(card_t *card, port_t *port, pkt_desc __iomem *desc, u16 rxin)
 {
 	struct net_device *dev = port_to_dev(port);
-	struct net_device_stats *stats = hdlc_stats(dev);
 	struct sk_buff *skb;
 	u16 len;
 	u32 buff;
@@ -298,7 +297,7 @@ static inline void sca_rx(card_t *card, port_t *port, pkt_desc __iomem *desc, u1
 	len = readw(&desc->len);
 	skb = dev_alloc_skb(len);
 	if (!skb) {
-		stats->rx_dropped++;
+		dev->stats.rx_dropped++;
 		return;
 	}
 
@@ -327,8 +326,8 @@ static inline void sca_rx(card_t *card, port_t *port, pkt_desc __iomem *desc, u1
 	printk(KERN_DEBUG "%s RX(%i):", dev->name, skb->len);
 	debug_frame(skb);
 #endif
-	stats->rx_packets++;
-	stats->rx_bytes += skb->len;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += skb->len;
 	dev->last_rx = jiffies;
 	skb->protocol = hdlc_type_trans(skb, dev);
 	netif_rx(skb);
@@ -339,17 +338,18 @@ static inline void sca_rx(card_t *card, port_t *port, pkt_desc __iomem *desc, u1
 /* Receive DMA interrupt service */
 static inline void sca_rx_intr(port_t *port)
 {
+	struct net_device *dev = port_to_dev(port);
 	u16 dmac = get_dmac_rx(port);
 	card_t *card = port_to_card(port);
 	u8 stat = sca_in(DSR_RX(phy_node(port)), card); /* read DMA Status */
-	struct net_device_stats *stats = hdlc_stats(port_to_dev(port));
 
 	/* Reset DSR status bits */
 	sca_out((stat & (DSR_EOT | DSR_EOM | DSR_BOF | DSR_COF)) | DSR_DWE,
 		DSR_RX(phy_node(port)), card);
 
 	if (stat & DSR_BOF)
-		stats->rx_over_errors++; /* Dropped one or more frames */
+		/* Dropped one or more frames */
+		dev->stats.rx_over_errors++;
 
 	while (1) {
 		u32 desc_off = desc_offset(port, port->rxin, 0);
@@ -364,12 +364,14 @@ static inline void sca_rx_intr(port_t *port)
 		if (!(stat & ST_RX_EOM))
 			port->rxpart = 1; /* partial frame received */
 		else if ((stat & ST_ERROR_MASK) || port->rxpart) {
-			stats->rx_errors++;
-			if (stat & ST_RX_OVERRUN) stats->rx_fifo_errors++;
+			dev->stats.rx_errors++;
+			if (stat & ST_RX_OVERRUN)
+				dev->stats.rx_fifo_errors++;
 			else if ((stat & (ST_RX_SHORT | ST_RX_ABORT |
 					  ST_RX_RESBIT)) || port->rxpart)
-				stats->rx_frame_errors++;
-			else if (stat & ST_RX_CRC) stats->rx_crc_errors++;
+				dev->stats.rx_frame_errors++;
+			else if (stat & ST_RX_CRC)
+				dev->stats.rx_crc_errors++;
 			if (stat & ST_RX_EOM)
 				port->rxpart = 0; /* received last fragment */
 		} else
@@ -390,7 +392,6 @@ static inline void sca_rx_intr(port_t *port)
 static inline void sca_tx_intr(port_t *port)
 {
 	struct net_device *dev = port_to_dev(port);
-	struct net_device_stats *stats = hdlc_stats(dev);
 	u16 dmac = get_dmac_tx(port);
 	card_t* card = port_to_card(port);
 	u8 stat;
@@ -412,8 +413,8 @@ static inline void sca_tx_intr(port_t *port)
 			break;	/* Transmitter is/will_be sending this frame */
 
 		desc = desc_address(port, port->txlast, 1);
-		stats->tx_packets++;
-		stats->tx_bytes += readw(&desc->len);
+		dev->stats.tx_packets++;
+		dev->stats.tx_bytes += readw(&desc->len);
 		writeb(0, &desc->stat);	/* Free descriptor */
 		port->txlast = next_desc(port, port->txlast, 1);
 	}

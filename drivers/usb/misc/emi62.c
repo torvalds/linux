@@ -6,8 +6,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, as published by
  * the Free Software Foundation, version 2.
- * 
- * $Id: emi62.c,v 1.15 2002/04/23 06:13:59 tapio Exp $
  */
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -75,7 +73,7 @@ static int emi62_writememory(struct usb_device *dev, int address,
 static int emi62_set_reset (struct usb_device *dev, unsigned char reset_bit)
 {
 	int response;
-	info("%s - %d", __func__, reset_bit);
+	dev_info(&dev->dev, "%s - %d\n", __func__, reset_bit);
 	
 	response = emi62_writememory (dev, CPUCS_REG, &reset_bit, 1, 0xa0);
 	if (response < 0) {
@@ -273,7 +271,7 @@ static int emi62_probe(struct usb_interface *intf, const struct usb_device_id *i
 	struct usb_device *dev = interface_to_usbdev(intf);
 	dev_dbg(&intf->dev, "emi62_probe\n");
 
-	info("%s start", __func__);
+	dev_info(&intf->dev, "%s start\n", __func__);
 
 	emi62_load_firmware(dev);
 

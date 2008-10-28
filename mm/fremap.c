@@ -15,10 +15,13 @@
 #include <linux/rmap.h>
 #include <linux/module.h>
 #include <linux/syscalls.h>
+#include <linux/mmu_notifier.h>
 
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
+
+#include "internal.h"
 
 static void zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long addr, pte_t *ptep)
@@ -214,13 +217,31 @@ asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
 		spin_unlock(&mapping->i_mmap_lock);
 	}
 
+	if (vma->vm_flags & VM_LOCKED) {
+		/*
+		 * drop PG_Mlocked flag for over-mapped range
+		 */
+		unsigned int saved_flags = vma->vm_flags;
+		munlock_vma_pages_range(vma, start, start + size);
+		vma->vm_flags = saved_flags;
+	}
+
+	mmu_notifier_invalidate_range_start(mm, start, start + size);
 	err = populate_range(mm, vma, start, size, pgoff);
+	mmu_notifier_invalidate_range_end(mm, start, start + size);
 	if (!err && !(flags & MAP_NONBLOCK)) {
-		if (unlikely(has_write_lock)) {
-			downgrade_write(&mm->mmap_sem);
-			has_write_lock = 0;
+		if (vma->vm_flags & VM_LOCKED) {
+			/*
+			 * might be mapping previously unmapped range of file
+			 */
+			mlock_vma_pages_range(vma, start, start + size);
+		} else {
+			if (unlikely(has_write_lock)) {
+				downgrade_write(&mm->mmap_sem);
+				has_write_lock = 0;
+			}
+			make_pages_present(start, start+size);
 		}
-		make_pages_present(start, start+size);
 	}
 
 	/*
@@ -237,4 +258,3 @@ out:
 
 	return err;
 }
-

@@ -152,20 +152,11 @@ static ssize_t smi_data_read(struct kobject *kobj,
 			     struct bin_attribute *bin_attr,
 			     char *buf, loff_t pos, size_t count)
 {
-	size_t max_read;
 	ssize_t ret;
 
 	mutex_lock(&smi_data_lock);
-
-	if (pos >= smi_data_buf_size) {
-		ret = 0;
-		goto out;
-	}
-
-	max_read = smi_data_buf_size - pos;
-	ret = min(max_read, count);
-	memcpy(buf, smi_data_buf + pos, ret);
-out:
+	ret = memory_read_from_buffer(buf, count, &pos, smi_data_buf,
+					smi_data_buf_size);
 	mutex_unlock(&smi_data_lock);
 	return ret;
 }

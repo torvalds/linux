@@ -33,6 +33,7 @@
 #include <linux/device.h>
 #include <linux/firmware.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <media/cx2341x.h>
 
 #include "cx88.h"
@@ -715,7 +716,8 @@ static int vidioc_querymenu (struct file *file, void *priv,
 
 	qctrl.id = qmenu->id;
 	blackbird_queryctrl(dev, &qctrl);
-	return v4l2_ctrl_query_menu(qmenu, &qctrl, cx2341x_ctrl_get_menu(qmenu->id));
+	return v4l2_ctrl_query_menu(qmenu, &qctrl,
+			cx2341x_ctrl_get_menu(&dev->params, qmenu->id));
 }
 
 static int vidioc_querycap (struct file *file, void  *priv,
@@ -737,7 +739,7 @@ static int vidioc_querycap (struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_enum_fmt_cap (struct file *file, void  *priv,
+static int vidioc_enum_fmt_vid_cap (struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
 	if (f->index != 0)
@@ -749,7 +751,7 @@ static int vidioc_enum_fmt_cap (struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_g_fmt_cap (struct file *file, void *priv,
+static int vidioc_g_fmt_vid_cap (struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct cx8802_fh  *fh   = priv;
@@ -768,7 +770,7 @@ static int vidioc_g_fmt_cap (struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_try_fmt_cap (struct file *file, void *priv,
+static int vidioc_try_fmt_vid_cap (struct file *file, void *priv,
 			struct v4l2_format *f)
 {
 	struct cx8802_fh  *fh   = priv;
@@ -784,7 +786,7 @@ static int vidioc_try_fmt_cap (struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_s_fmt_cap (struct file *file, void *priv,
+static int vidioc_s_fmt_vid_cap (struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct cx8802_fh  *fh   = priv;
@@ -1055,12 +1057,15 @@ static int mpeg_open(struct inode *inode, struct file *file)
 	struct cx8802_driver *drv = NULL;
 	int err;
 
+	lock_kernel();
 	dev = cx8802_get_device(inode);
 
 	dprintk( 1, "%s\n", __func__);
 
-	if (dev == NULL)
+	if (dev == NULL) {
+		unlock_kernel();
 		return -ENODEV;
+	}
 
 	/* Make sure we can acquire the hardware */
 	drv = cx8802_get_driver(dev, CX88_MPEG_BLACKBIRD);
@@ -1068,6 +1073,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 		err = drv->request_acquire(drv);
 		if(err != 0) {
 			dprintk(1,"%s: Unable to acquire hardware, %d\n", __func__, err);
+			unlock_kernel();
 			return err;
 		}
 	}
@@ -1075,6 +1081,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 	if (blackbird_initialize_codec(dev) < 0) {
 		if (drv)
 			drv->request_release(drv);
+		unlock_kernel();
 		return -EINVAL;
 	}
 	dprintk(1,"open minor=%d\n",minor);
@@ -1084,6 +1091,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 	if (NULL == fh) {
 		if (drv)
 			drv->request_release(drv);
+		unlock_kernel();
 		return -ENOMEM;
 	}
 	file->private_data = fh;
@@ -1099,6 +1107,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 	/* FIXME: locking against other video device */
 	cx88_set_scale(dev->core, dev->width, dev->height,
 			fh->mpegq.field);
+	unlock_kernel();
 
 	return 0;
 }
@@ -1173,18 +1182,13 @@ static const struct file_operations mpeg_fops =
 	.llseek        = no_llseek,
 };
 
-static struct video_device cx8802_mpeg_template =
-{
-	.name                 = "cx8802",
-	.type                 = VID_TYPE_CAPTURE|VID_TYPE_TUNER|VID_TYPE_SCALES|VID_TYPE_MPEG_ENCODER,
-	.fops                 = &mpeg_fops,
-	.minor                = -1,
+static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_querymenu     = vidioc_querymenu,
 	.vidioc_querycap      = vidioc_querycap,
-	.vidioc_enum_fmt_cap  = vidioc_enum_fmt_cap,
-	.vidioc_g_fmt_cap     = vidioc_g_fmt_cap,
-	.vidioc_try_fmt_cap   = vidioc_try_fmt_cap,
-	.vidioc_s_fmt_cap     = vidioc_s_fmt_cap,
+	.vidioc_enum_fmt_vid_cap  = vidioc_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap     = vidioc_g_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap   = vidioc_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap     = vidioc_s_fmt_vid_cap,
 	.vidioc_reqbufs       = vidioc_reqbufs,
 	.vidioc_querybuf      = vidioc_querybuf,
 	.vidioc_qbuf          = vidioc_qbuf,
@@ -1206,6 +1210,13 @@ static struct video_device cx8802_mpeg_template =
 	.vidioc_g_tuner       = vidioc_g_tuner,
 	.vidioc_s_tuner       = vidioc_s_tuner,
 	.vidioc_s_std         = vidioc_s_std,
+};
+
+static struct video_device cx8802_mpeg_template = {
+	.name                 = "cx8802",
+	.fops                 = &mpeg_fops,
+	.ioctl_ops 	      = &mpeg_ioctl_ops,
+	.minor                = -1,
 	.tvnorms              = CX88_NORMS,
 	.current_norm         = V4L2_STD_NTSC_M,
 };
@@ -1274,7 +1285,7 @@ static int blackbird_register_video(struct cx8802_dev *dev)
 		return err;
 	}
 	printk(KERN_INFO "%s/2: registered device video%d [mpeg]\n",
-	       dev->core->name,dev->mpeg_dev->minor & 0x1f);
+	       dev->core->name, dev->mpeg_dev->num);
 	return 0;
 }
 

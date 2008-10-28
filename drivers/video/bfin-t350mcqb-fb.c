@@ -396,7 +396,7 @@ static int bfin_lcd_set_contrast(struct lcd_device *dev, int contrast)
 	return 0;
 }
 
-static int bfin_lcd_check_fb(struct fb_info *fi)
+static int bfin_lcd_check_fb(struct lcd_device *dev, struct fb_info *fi)
 {
 	if (!fi || (fi == &bfin_t350mcqb_fb))
 		return 1;

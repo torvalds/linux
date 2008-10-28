@@ -6,61 +6,9 @@ menu "File systems"
 
 if BLOCK
 
-config EXT2_FS
-	tristate "Second extended fs support"
-	help
-	  Ext2 is a standard Linux file system for hard disks.
-
-	  To compile this file system support as a module, choose M here: the
-	  module will be called ext2.
-
-	  If unsure, say Y.
-
-config EXT2_FS_XATTR
-	bool "Ext2 extended attributes"
-	depends on EXT2_FS
-	help
-	  Extended attributes are name:value pairs associated with inodes by
-	  the kernel or by users (see the attr(5) manual page, or visit
-	  <http://acl.bestbits.at/> for details).
-
-	  If unsure, say N.
-
-config EXT2_FS_POSIX_ACL
-	bool "Ext2 POSIX Access Control Lists"
-	depends on EXT2_FS_XATTR
-	select FS_POSIX_ACL
-	help
-	  Posix Access Control Lists (ACLs) support permissions for users and
-	  groups beyond the owner/group/world scheme.
-
-	  To learn more about Access Control Lists, visit the Posix ACLs for
-	  Linux website <http://acl.bestbits.at/>.
-
-	  If you don't know what Access Control Lists are, say N
-
-config EXT2_FS_SECURITY
-	bool "Ext2 Security Labels"
-	depends on EXT2_FS_XATTR
-	help
-	  Security labels support alternative access control models
-	  implemented by security modules like SELinux.  This option
-	  enables an extended attribute handler for file security
-	  labels in the ext2 filesystem.
-
-	  If you are not using a security module that requires using
-	  extended attributes for file security labels, say N.
-
-config EXT2_FS_XIP
-	bool "Ext2 execute in place support"
-	depends on EXT2_FS && MMU
-	help
-	  Execute in place can be used on memory-backed block devices. If you
-	  enable this option, you can select to mount block devices which are
-	  capable of this feature without using the page cache.
-
-	  If you do not use a block device that is capable of using this,
-	  or if unsure, say N.
+source "fs/ext2/Kconfig"
+source "fs/ext3/Kconfig"
+source "fs/ext4/Kconfig"
 
 config FS_XIP
 # execute in place
@@ -68,211 +16,16 @@ config FS_XIP
 	depends on EXT2_FS_XIP
 	default y
 
-config EXT3_FS
-	tristate "Ext3 journalling file system support"
-	select JBD
-	help
-	  This is the journalling version of the Second extended file system
-	  (often called ext3), the de facto standard Linux file system
-	  (method to organize files on a storage device) for hard disks.
-
-	  The journalling code included in this driver means you do not have
-	  to run e2fsck (file system checker) on your file systems after a
-	  crash.  The journal keeps track of any changes that were being made
-	  at the time the system crashed, and can ensure that your file system
-	  is consistent without the need for a lengthy check.
-
-	  Other than adding the journal to the file system, the on-disk format
-	  of ext3 is identical to ext2.  It is possible to freely switch
-	  between using the ext3 driver and the ext2 driver, as long as the
-	  file system has been cleanly unmounted, or e2fsck is run on the file
-	  system.
-
-	  To add a journal on an existing ext2 file system or change the
-	  behavior of ext3 file systems, you can use the tune2fs utility ("man
-	  tune2fs").  To modify attributes of files and directories on ext3
-	  file systems, use chattr ("man chattr").  You need to be using
-	  e2fsprogs version 1.20 or later in order to create ext3 journals
-	  (available at <http://sourceforge.net/projects/e2fsprogs/>).
-
-	  To compile this file system support as a module, choose M here: the
-	  module will be called ext3.
-
-config EXT3_FS_XATTR
-	bool "Ext3 extended attributes"
-	depends on EXT3_FS
-	default y
-	help
-	  Extended attributes are name:value pairs associated with inodes by
-	  the kernel or by users (see the attr(5) manual page, or visit
-	  <http://acl.bestbits.at/> for details).
-
-	  If unsure, say N.
-
-	  You need this for POSIX ACL support on ext3.
-
-config EXT3_FS_POSIX_ACL
-	bool "Ext3 POSIX Access Control Lists"
-	depends on EXT3_FS_XATTR
-	select FS_POSIX_ACL
-	help
-	  Posix Access Control Lists (ACLs) support permissions for users and
-	  groups beyond the owner/group/world scheme.
-
-	  To learn more about Access Control Lists, visit the Posix ACLs for
-	  Linux website <http://acl.bestbits.at/>.
-
-	  If you don't know what Access Control Lists are, say N
-
-config EXT3_FS_SECURITY
-	bool "Ext3 Security Labels"
-	depends on EXT3_FS_XATTR
-	help
-	  Security labels support alternative access control models
-	  implemented by security modules like SELinux.  This option
-	  enables an extended attribute handler for file security
-	  labels in the ext3 filesystem.
-
-	  If you are not using a security module that requires using
-	  extended attributes for file security labels, say N.
-
-config EXT4DEV_FS
-	tristate "Ext4dev/ext4 extended fs support development (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	select JBD2
-	select CRC16
-	help
-	  Ext4dev is a predecessor filesystem of the next generation
-	  extended fs ext4, based on ext3 filesystem code. It will be
-	  renamed ext4 fs later, once ext4dev is mature and stabilized.
-
-	  Unlike the change from ext2 filesystem to ext3 filesystem,
-	  the on-disk format of ext4dev is not the same as ext3 any more:
-	  it is based on extent maps and it supports 48-bit physical block
-	  numbers. These combined on-disk format changes will allow
-	  ext4dev/ext4 to handle more than 16 TB filesystem volumes --
-	  a hard limit that ext3 cannot overcome without changing the
-	  on-disk format.
-
-	  Other than extent maps and 48-bit block numbers, ext4dev also is
-	  likely to have other new features such as persistent preallocation,
-	  high resolution time stamps, and larger file support etc.  These
-	  features will be added to ext4dev gradually.
-
-	  To compile this file system support as a module, choose M here. The
-	  module will be called ext4dev.
-
-	  If unsure, say N.
-
-config EXT4DEV_FS_XATTR
-	bool "Ext4dev extended attributes"
-	depends on EXT4DEV_FS
-	default y
-	help
-	  Extended attributes are name:value pairs associated with inodes by
-	  the kernel or by users (see the attr(5) manual page, or visit
-	  <http://acl.bestbits.at/> for details).
-
-	  If unsure, say N.
-
-	  You need this for POSIX ACL support on ext4dev/ext4.
-
-config EXT4DEV_FS_POSIX_ACL
-	bool "Ext4dev POSIX Access Control Lists"
-	depends on EXT4DEV_FS_XATTR
-	select FS_POSIX_ACL
-	help
-	  POSIX Access Control Lists (ACLs) support permissions for users and
-	  groups beyond the owner/group/world scheme.
-
-	  To learn more about Access Control Lists, visit the POSIX ACLs for
-	  Linux website <http://acl.bestbits.at/>.
-
-	  If you don't know what Access Control Lists are, say N
-
-config EXT4DEV_FS_SECURITY
-	bool "Ext4dev Security Labels"
-	depends on EXT4DEV_FS_XATTR
-	help
-	  Security labels support alternative access control models
-	  implemented by security modules like SELinux.  This option
-	  enables an extended attribute handler for file security
-	  labels in the ext4dev/ext4 filesystem.
-
-	  If you are not using a security module that requires using
-	  extended attributes for file security labels, say N.
-
-config JBD
-	tristate
-	help
-	  This is a generic journalling layer for block devices.  It is
-	  currently used by the ext3 and OCFS2 file systems, but it could
-	  also be used to add journal support to other file systems or block
-	  devices such as RAID or LVM.
-
-	  If you are using the ext3 or OCFS2 file systems, you need to
-	  say Y here. If you are not using ext3 OCFS2 then you will probably
-	  want to say N.
-
-	  To compile this device as a module, choose M here: the module will be
-	  called jbd.  If you are compiling ext3 or OCFS2 into the kernel,
-	  you cannot compile this code as a module.
-
-config JBD_DEBUG
-	bool "JBD (ext3) debugging support"
-	depends on JBD && DEBUG_FS
-	help
-	  If you are using the ext3 journaled file system (or potentially any
-	  other file system/device using JBD), this option allows you to
-	  enable debugging output while the system is running, in order to
-	  help track down any problems you are having.  By default the
-	  debugging output will be turned off.
-
-	  If you select Y here, then you will be able to turn on debugging
-	  with "echo N > /sys/kernel/debug/jbd/jbd-debug", where N is a
-	  number between 1 and 5, the higher the number, the more debugging
-	  output is generated.  To turn debugging off again, do
-	  "echo 0 > /sys/kernel/debug/jbd/jbd-debug".
-
-config JBD2
-	tristate
-	select CRC32
-	help
-	  This is a generic journaling layer for block devices that support
-	  both 32-bit and 64-bit block numbers.  It is currently used by
-	  the ext4dev/ext4 filesystem, but it could also be used to add
-	  journal support to other file systems or block devices such
-	  as RAID or LVM.
-
-	  If you are using ext4dev/ext4, you need to say Y here. If you are not
-	  using ext4dev/ext4 then you will probably want to say N.
-
-	  To compile this device as a module, choose M here. The module will be
-	  called jbd2.  If you are compiling ext4dev/ext4 into the kernel,
-	  you cannot compile this code as a module.
-
-config JBD2_DEBUG
-	bool "JBD2 (ext4dev/ext4) debugging support"
-	depends on JBD2 && DEBUG_FS
-	help
-	  If you are using the ext4dev/ext4 journaled file system (or
-	  potentially any other filesystem/device using JBD2), this option
-	  allows you to enable debugging output while the system is running,
-	  in order to help track down any problems you are having.
-	  By default, the debugging output will be turned off.
-
-	  If you select Y here, then you will be able to turn on debugging
-	  with "echo N > /sys/kernel/debug/jbd2/jbd2-debug", where N is a
-	  number between 1 and 5. The higher the number, the more debugging
-	  output is generated.  To turn debugging off again, do
-	  "echo 0 > /sys/kernel/debug/jbd2/jbd2-debug".
+source "fs/jbd/Kconfig"
+source "fs/jbd2/Kconfig"
 
 config FS_MBCACHE
 # Meta block cache for Extended Attributes (ext2/ext3/ext4)
 	tristate
-	depends on EXT2_FS_XATTR || EXT3_FS_XATTR || EXT4DEV_FS_XATTR
-	default y if EXT2_FS=y || EXT3_FS=y || EXT4DEV_FS=y
-	default m if EXT2_FS=m || EXT3_FS=m || EXT4DEV_FS=m
+	default y if EXT2_FS=y && EXT2_FS_XATTR
+	default y if EXT3_FS=y && EXT3_FS_XATTR
+	default y if EXT4_FS=y && EXT4_FS_XATTR
+	default m if EXT2_FS_XATTR || EXT3_FS_XATTR || EXT4_FS_XATTR
 
 config REISERFS_FS
 	tristate "Reiserfs support"
@@ -419,6 +172,14 @@ config FS_POSIX_ACL
 	bool
 	default n
 
+config FILE_LOCKING
+	bool "Enable POSIX file locking API" if EMBEDDED
+	default y
+	help
+	  This option enables standard file locking support, required
+          for filesystems like NFS and for the flock() system
+          call. Disabling this option saves about 11k.
+
 source "fs/xfs/Kconfig"
 source "fs/gfs2/Kconfig"
 
@@ -426,7 +187,7 @@ config OCFS2_FS
 	tristate "OCFS2 file system support"
 	depends on NET && SYSFS
 	select CONFIGFS_FS
-	select JBD
+	select JBD2
 	select CRC32
 	help
 	  OCFS2 is a general purpose extent based shared disk cluster file
@@ -496,6 +257,16 @@ config OCFS2_DEBUG_FS
 	  This option will enable expensive consistency checks. Enable
 	  this option for debugging only as it is likely to decrease
 	  performance of the filesystem.
+
+config OCFS2_COMPAT_JBD
+	bool "Use JBD for compatibility"
+	depends on OCFS2_FS
+	default n
+	select JBD
+	help
+	  The ocfs2 filesystem now uses JBD2 for its journalling.  JBD2
+	  is backwards compatible with JBD.  It is safe to say N here.
+	  However, if you really want to use the original JBD, say Y here.
 
 endif # BLOCK
 
@@ -633,7 +404,7 @@ config AUTOFS4_FS
 	  N here.
 
 config FUSE_FS
-	tristate "Filesystem in Userspace support"
+	tristate "FUSE (Filesystem in Userspace) support"
 	help
 	  With FUSE it is possible to implement a fully functional filesystem
 	  in a userspace program.
@@ -902,65 +673,7 @@ endif # BLOCK
 
 menu "Pseudo filesystems"
 
-config PROC_FS
-	bool "/proc file system support" if EMBEDDED
-	default y
-	help
-	  This is a virtual file system providing information about the status
-	  of the system. "Virtual" means that it doesn't take up any space on
-	  your hard disk: the files are created on the fly by the kernel when
-	  you try to access them. Also, you cannot read the files with older
-	  version of the program less: you need to use more or cat.
-
-	  It's totally cool; for example, "cat /proc/interrupts" gives
-	  information about what the different IRQs are used for at the moment
-	  (there is a small number of Interrupt ReQuest lines in your computer
-	  that are used by the attached devices to gain the CPU's attention --
-	  often a source of trouble if two devices are mistakenly configured
-	  to use the same IRQ). The program procinfo to display some
-	  information about your system gathered from the /proc file system.
-
-	  Before you can use the /proc file system, it has to be mounted,
-	  meaning it has to be given a location in the directory hierarchy.
-	  That location should be /proc. A command such as "mount -t proc proc
-	  /proc" or the equivalent line in /etc/fstab does the job.
-
-	  The /proc file system is explained in the file
-	  <file:Documentation/filesystems/proc.txt> and on the proc(5) manpage
-	  ("man 5 proc").
-
-	  This option will enlarge your kernel by about 67 KB. Several
-	  programs depend on this, so everyone should say Y here.
-
-config PROC_KCORE
-	bool "/proc/kcore support" if !ARM
-	depends on PROC_FS && MMU
-
-config PROC_VMCORE
-        bool "/proc/vmcore support (EXPERIMENTAL)"
-        depends on PROC_FS && CRASH_DUMP
-	default y
-        help
-        Exports the dump image of crashed kernel in ELF format.
-
-config PROC_SYSCTL
-	bool "Sysctl support (/proc/sys)" if EMBEDDED
-	depends on PROC_FS
-	select SYSCTL
-	default y
-	---help---
-	  The sysctl interface provides a means of dynamically changing
-	  certain kernel parameters and variables on the fly without requiring
-	  a recompile of the kernel or reboot of the system.  The primary
-	  interface is through /proc/sys.  If you say Y here a tree of
-	  modifiable sysctl entries will be generated beneath the
-          /proc/sys directory. They are explained in the files
-	  in <file:Documentation/sysctl/>.  Note that enabling this
-	  option will enlarge the kernel by at least 8 KB.
-
-	  As it is generally a good thing, you should say Y here unless
-	  building a kernel for install/rescue disks or your system is very
-	  limited in memory.
+source "fs/proc/Kconfig"
 
 config SYSFS
 	bool "sysfs file system support" if EMBEDDED
@@ -1194,195 +907,7 @@ config EFS_FS
 	  To compile the EFS file system support as a module, choose M here: the
 	  module will be called efs.
 
-config JFFS2_FS
-	tristate "Journalling Flash File System v2 (JFFS2) support"
-	select CRC32
-	depends on MTD
-	help
-	  JFFS2 is the second generation of the Journalling Flash File System
-	  for use on diskless embedded devices. It provides improved wear
-	  levelling, compression and support for hard links. You cannot use
-	  this on normal block devices, only on 'MTD' devices.
-
-	  Further information on the design and implementation of JFFS2 is
-	  available at <http://sources.redhat.com/jffs2/>.
-
-config JFFS2_FS_DEBUG
-	int "JFFS2 debugging verbosity (0 = quiet, 2 = noisy)"
-	depends on JFFS2_FS
-	default "0"
-	help
-	  This controls the amount of debugging messages produced by the JFFS2
-	  code. Set it to zero for use in production systems. For evaluation,
-	  testing and debugging, it's advisable to set it to one. This will
-	  enable a few assertions and will print debugging messages at the
-	  KERN_DEBUG loglevel, where they won't normally be visible. Level 2
-	  is unlikely to be useful - it enables extra debugging in certain
-	  areas which at one point needed debugging, but when the bugs were
-	  located and fixed, the detailed messages were relegated to level 2.
-
-	  If reporting bugs, please try to have available a full dump of the
-	  messages at debug level 1 while the misbehaviour was occurring.
-
-config JFFS2_FS_WRITEBUFFER
-	bool "JFFS2 write-buffering support"
-	depends on JFFS2_FS
-	default y
-	help
-	  This enables the write-buffering support in JFFS2.
-
-	  This functionality is required to support JFFS2 on the following
-	  types of flash devices:
-	    - NAND flash
-	    - NOR flash with transparent ECC
-	    - DataFlash
-
-config JFFS2_FS_WBUF_VERIFY
-	bool "Verify JFFS2 write-buffer reads"
-	depends on JFFS2_FS_WRITEBUFFER
-	default n
-	help
-	  This causes JFFS2 to read back every page written through the
-	  write-buffer, and check for errors.
-
-config JFFS2_SUMMARY
-	bool "JFFS2 summary support (EXPERIMENTAL)"
-	depends on JFFS2_FS && EXPERIMENTAL
-	default n
-	help
-	  This feature makes it possible to use summary information
-	  for faster filesystem mount.
-
-	  The summary information can be inserted into a filesystem image
-	  by the utility 'sumtool'.
-
-	  If unsure, say 'N'.
-
-config JFFS2_FS_XATTR
-	bool "JFFS2 XATTR support (EXPERIMENTAL)"
-	depends on JFFS2_FS && EXPERIMENTAL
-	default n
-	help
-	  Extended attributes are name:value pairs associated with inodes by
-	  the kernel or by users (see the attr(5) manual page, or visit
-	  <http://acl.bestbits.at/> for details).
-
-	  If unsure, say N.
-
-config JFFS2_FS_POSIX_ACL
-	bool "JFFS2 POSIX Access Control Lists"
-	depends on JFFS2_FS_XATTR
-	default y
-	select FS_POSIX_ACL
-	help
-	  Posix Access Control Lists (ACLs) support permissions for users and
-	  groups beyond the owner/group/world scheme.
-
-	  To learn more about Access Control Lists, visit the Posix ACLs for
-	  Linux website <http://acl.bestbits.at/>.
-
-	  If you don't know what Access Control Lists are, say N
-
-config JFFS2_FS_SECURITY
-	bool "JFFS2 Security Labels"
-	depends on JFFS2_FS_XATTR
-	default y
-	help
-	  Security labels support alternative access control models
-	  implemented by security modules like SELinux.  This option
-	  enables an extended attribute handler for file security
-	  labels in the jffs2 filesystem.
-
-	  If you are not using a security module that requires using
-	  extended attributes for file security labels, say N.
-
-config JFFS2_COMPRESSION_OPTIONS
-	bool "Advanced compression options for JFFS2"
-	depends on JFFS2_FS
-	default n
-	help
-	  Enabling this option allows you to explicitly choose which
-	  compression modules, if any, are enabled in JFFS2. Removing
-	  compressors can mean you cannot read existing file systems,
-	  and enabling experimental compressors can mean that you
-	  write a file system which cannot be read by a standard kernel.
-
-	  If unsure, you should _definitely_ say 'N'.
-
-config JFFS2_ZLIB
-	bool "JFFS2 ZLIB compression support" if JFFS2_COMPRESSION_OPTIONS
-	select ZLIB_INFLATE
-	select ZLIB_DEFLATE
-	depends on JFFS2_FS
-	default y
-	help
-	  Zlib is designed to be a free, general-purpose, legally unencumbered,
-	  lossless data-compression library for use on virtually any computer
-	  hardware and operating system. See <http://www.gzip.org/zlib/> for
-	  further information.
-
-	  Say 'Y' if unsure.
-
-config JFFS2_LZO
-	bool "JFFS2 LZO compression support" if JFFS2_COMPRESSION_OPTIONS
-	select LZO_COMPRESS
-	select LZO_DECOMPRESS
-	depends on JFFS2_FS
-	default n
-	help
-	  minilzo-based compression. Generally works better than Zlib.
-
-	  This feature was added in July, 2007. Say 'N' if you need
-	  compatibility with older bootloaders or kernels.
-
-config JFFS2_RTIME
-	bool "JFFS2 RTIME compression support" if JFFS2_COMPRESSION_OPTIONS
-	depends on JFFS2_FS
-	default y
-	help
-	  Rtime does manage to recompress already-compressed data. Say 'Y' if unsure.
-
-config JFFS2_RUBIN
-	bool "JFFS2 RUBIN compression support" if JFFS2_COMPRESSION_OPTIONS
-	depends on JFFS2_FS
-	default n
-	help
-	  RUBINMIPS and DYNRUBIN compressors. Say 'N' if unsure.
-
-choice
-	prompt "JFFS2 default compression mode" if JFFS2_COMPRESSION_OPTIONS
-	default JFFS2_CMODE_PRIORITY
-	depends on JFFS2_FS
-	help
-	  You can set here the default compression mode of JFFS2 from
-	  the available compression modes. Don't touch if unsure.
-
-config JFFS2_CMODE_NONE
-	bool "no compression"
-	help
-	  Uses no compression.
-
-config JFFS2_CMODE_PRIORITY
-	bool "priority"
-	help
-	  Tries the compressors in a predefined order and chooses the first
-	  successful one.
-
-config JFFS2_CMODE_SIZE
-	bool "size (EXPERIMENTAL)"
-	help
-	  Tries all compressors and chooses the one which has the smallest
-	  result.
-
-config JFFS2_CMODE_FAVOURLZO
-	bool "Favour LZO"
-	help
-	  Tries all compressors and chooses the one which has the smallest
-	  result but gives some preference to LZO (which has faster
-	  decompression) at the expense of size.
-
-endchoice
-
+source "fs/jffs2/Kconfig"
 # UBIFS File system configuration
 source "fs/ubifs/Kconfig"
 
@@ -1441,6 +966,19 @@ config MINIX_FS
 	  partition (the one containing the directory /) cannot be compiled as
 	  a module.
 
+config OMFS_FS
+	tristate "SonicBlue Optimized MPEG File System support"
+	depends on BLOCK
+	select CRC_ITU_T
+	help
+	  This is the proprietary file system used by the Rio Karma music
+	  player and ReplayTV DVR.  Despite the name, this filesystem is not
+	  more efficient than a standard FS for MPEG files, in fact likely
+	  the opposite is true.  Say Y if you have either of these devices
+	  and wish to mount its disk.
+
+	  To compile this file system support as a module, choose M here: the
+	  module will be called omfs.  If unsure, say N.
 
 config HPFS_FS
 	tristate "OS/2 HPFS file system support"
@@ -1810,6 +1348,28 @@ config SUNRPC_XPRT_RDMA
 
 	  If unsure, say N.
 
+config SUNRPC_REGISTER_V4
+	bool "Register local RPC services via rpcbind v4 (EXPERIMENTAL)"
+	depends on SUNRPC && EXPERIMENTAL
+	default n
+	help
+	  Sun added support for registering RPC services at an IPv6
+	  address by creating two new versions of the rpcbind protocol
+	  (RFC 1833).
+
+	  This option enables support in the kernel RPC server for
+	  registering kernel RPC services via version 4 of the rpcbind
+	  protocol.  If you enable this option, you must run a portmapper
+	  daemon that supports rpcbind protocol version 4.
+
+	  Serving NFS over IPv6 from knfsd (the kernel's NFS server)
+	  requires that you enable this option and use a portmapper that
+	  supports rpcbind version 4.
+
+	  If unsure, say N to get traditional behavior (register kernel
+	  RPC services using only rpcbind version 2).  Distributions
+	  using the legacy Linux portmapper daemon must say N here.
+
 config RPCSEC_GSS_KRB5
 	tristate "Secure RPC: Kerberos V mechanism (EXPERIMENTAL)"
 	depends on SUNRPC && EXPERIMENTAL
@@ -1904,149 +1464,7 @@ config SMB_NLS_REMOTE
 
 	  smbmount from samba 2.2.0 or later supports this.
 
-config CIFS
-	tristate "CIFS support (advanced network filesystem, SMBFS successor)"
-	depends on INET
-	select NLS
-	help
-	  This is the client VFS module for the Common Internet File System
-	  (CIFS) protocol which is the successor to the Server Message Block 
-	  (SMB) protocol, the native file sharing mechanism for most early
-	  PC operating systems.  The CIFS protocol is fully supported by 
-	  file servers such as Windows 2000 (including Windows 2003, NT 4  
-	  and Windows XP) as well by Samba (which provides excellent CIFS
-	  server support for Linux and many other operating systems). Limited
-	  support for OS/2 and Windows ME and similar servers is provided as
-	  well.
-
-	  The cifs module provides an advanced network file system
-	  client for mounting to CIFS compliant servers.  It includes
-	  support for DFS (hierarchical name space), secure per-user
-	  session establishment via Kerberos or NTLM or NTLMv2,
-	  safe distributed caching (oplock), optional packet
-	  signing, Unicode and other internationalization improvements.
-	  If you need to mount to Samba or Windows from this machine, say Y.
-
-config CIFS_STATS
-        bool "CIFS statistics"
-        depends on CIFS
-        help
-          Enabling this option will cause statistics for each server share
-	  mounted by the cifs client to be displayed in /proc/fs/cifs/Stats
-
-config CIFS_STATS2
-	bool "Extended statistics"
-	depends on CIFS_STATS
-	help
-	  Enabling this option will allow more detailed statistics on SMB
-	  request timing to be displayed in /proc/fs/cifs/DebugData and also
-	  allow optional logging of slow responses to dmesg (depending on the
-	  value of /proc/fs/cifs/cifsFYI, see fs/cifs/README for more details).
-	  These additional statistics may have a minor effect on performance
-	  and memory utilization.
-
-	  Unless you are a developer or are doing network performance analysis
-	  or tuning, say N.
-
-config CIFS_WEAK_PW_HASH
-	bool "Support legacy servers which use weaker LANMAN security"
-	depends on CIFS
-	help
-	  Modern CIFS servers including Samba and most Windows versions
-	  (since 1997) support stronger NTLM (and even NTLMv2 and Kerberos)
-	  security mechanisms. These hash the password more securely
-	  than the mechanisms used in the older LANMAN version of the
-	  SMB protocol but LANMAN based authentication is needed to
-	  establish sessions with some old SMB servers.
-
-	  Enabling this option allows the cifs module to mount to older
-	  LANMAN based servers such as OS/2 and Windows 95, but such
-	  mounts may be less secure than mounts using NTLM or more recent
-	  security mechanisms if you are on a public network.  Unless you
-	  have a need to access old SMB servers (and are on a private
-	  network) you probably want to say N.  Even if this support
-	  is enabled in the kernel build, LANMAN authentication will not be
-	  used automatically. At runtime LANMAN mounts are disabled but
-	  can be set to required (or optional) either in
-	  /proc/fs/cifs (see fs/cifs/README for more detail) or via an
-	  option on the mount command. This support is disabled by
-	  default in order to reduce the possibility of a downgrade
-	  attack.
-
-	  If unsure, say N.
-
-config CIFS_XATTR
-        bool "CIFS extended attributes"
-        depends on CIFS
-        help
-          Extended attributes are name:value pairs associated with inodes by
-          the kernel or by users (see the attr(5) manual page, or visit
-          <http://acl.bestbits.at/> for details).  CIFS maps the name of
-          extended attributes beginning with the user namespace prefix
-          to SMB/CIFS EAs. EAs are stored on Windows servers without the
-          user namespace prefix, but their names are seen by Linux cifs clients
-          prefaced by the user namespace prefix. The system namespace
-          (used by some filesystems to store ACLs) is not supported at
-          this time.
-
-          If unsure, say N.
-
-config CIFS_POSIX
-        bool "CIFS POSIX Extensions"
-        depends on CIFS_XATTR
-        help
-          Enabling this option will cause the cifs client to attempt to
-	  negotiate a newer dialect with servers, such as Samba 3.0.5
-	  or later, that optionally can handle more POSIX like (rather
-	  than Windows like) file behavior.  It also enables
-	  support for POSIX ACLs (getfacl and setfacl) to servers
-	  (such as Samba 3.10 and later) which can negotiate
-	  CIFS POSIX ACL support.  If unsure, say N.
-
-config CIFS_DEBUG2
-	bool "Enable additional CIFS debugging routines"
-	depends on CIFS
-	help
-	   Enabling this option adds a few more debugging routines
-	   to the cifs code which slightly increases the size of
-	   the cifs module and can cause additional logging of debug
-	   messages in some error paths, slowing performance. This
-	   option can be turned off unless you are debugging
-	   cifs problems.  If unsure, say N.
-
-config CIFS_EXPERIMENTAL
-	  bool "CIFS Experimental Features (EXPERIMENTAL)"
-	  depends on CIFS && EXPERIMENTAL
-	  help
-	    Enables cifs features under testing. These features are
-	    experimental and currently include DFS support and directory 
-	    change notification ie fcntl(F_DNOTIFY), as well as the upcall
-	    mechanism which will be used for Kerberos session negotiation
-	    and uid remapping.  Some of these features also may depend on 
-	    setting a value of 1 to the pseudo-file /proc/fs/cifs/Experimental
-	    (which is disabled by default). See the file fs/cifs/README 
-	    for more details.  If unsure, say N.
-
-config CIFS_UPCALL
-	  bool "Kerberos/SPNEGO advanced session setup (EXPERIMENTAL)"
-	  depends on CIFS_EXPERIMENTAL
-	  depends on KEYS
-	  help
-	    Enables an upcall mechanism for CIFS which accesses
-	    userspace helper utilities to provide SPNEGO packaged (RFC 4178)
-	    Kerberos tickets which are needed to mount to certain secure servers
-	    (for which more secure Kerberos authentication is required). If
-	    unsure, say N.
-
-config CIFS_DFS_UPCALL
-	  bool "DFS feature support (EXPERIMENTAL)"
-	  depends on CIFS_EXPERIMENTAL
-	  depends on KEYS
-	  help
-	    Enables an upcall mechanism for CIFS which contacts userspace
-	    helper utilities to provide server name resolution (host names to
-	    IP addresses) which is needed for implicit mounts of DFS junction
-	    points. If unsure, say N.
+source "fs/cifs/Kconfig"
 
 config NCP_FS
 	tristate "NCP file system support (to mount NetWare volumes)"
@@ -2092,20 +1510,6 @@ config CODA_FS
 
 	  To compile the coda client support as a module, choose M here: the
 	  module will be called coda.
-
-config CODA_FS_OLD_API
-	bool "Use 96-bit Coda file identifiers"
-	depends on CODA_FS
-	help
-	  A new kernel-userspace API had to be introduced for Coda v6.0
-	  to support larger 128-bit file identifiers as needed by the
-	  new realms implementation.
-
-	  However this new API is not backward compatible with older
-	  clients. If you really need to run the old Coda userspace
-	  cache manager then say Y.
-
-	  For most cases you probably want to say N.
 
 config AFS_FS
 	tristate "Andrew File System support (AFS) (EXPERIMENTAL)"

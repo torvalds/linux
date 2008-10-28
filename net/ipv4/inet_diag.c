@@ -1,8 +1,6 @@
 /*
  * inet_diag.c	Module for monitoring INET transport protocols sockets.
  *
- * Version:	$Id: inet_diag.c,v 1.3 2002/02/01 22:01:04 davem Exp $
- *
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
  *
  *	This program is free software; you can redistribute it and/or
@@ -55,11 +53,9 @@ static DEFINE_MUTEX(inet_diag_table_mutex);
 
 static const struct inet_diag_handler *inet_diag_lock_handler(int type)
 {
-#ifdef CONFIG_KMOD
 	if (!inet_diag_table[type])
 		request_module("net-pf-%d-proto-%d-type-%d", PF_NETLINK,
 			       NETLINK_INET_DIAG, type);
-#endif
 
 	mutex_lock(&inet_diag_table_mutex);
 	if (!inet_diag_table[type])
@@ -784,11 +780,15 @@ skip_listen_ht:
 		struct sock *sk;
 		struct hlist_node *node;
 
+		num = 0;
+
+		if (hlist_empty(&head->chain) && hlist_empty(&head->twchain))
+			continue;
+
 		if (i > s_i)
 			s_num = 0;
 
 		read_lock_bh(lock);
-		num = 0;
 		sk_for_each(sk, node, &head->chain) {
 			struct inet_sock *inet = inet_sk(sk);
 

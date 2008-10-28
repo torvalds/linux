@@ -5,15 +5,13 @@
  * add_gd_partition adds a partitions details to the devices partition
  * description.
  */
-enum { MAX_PART = 256 };
-
 struct parsed_partitions {
 	char name[BDEVNAME_SIZE];
 	struct {
 		sector_t from;
 		sector_t size;
 		int flags;
-	} parts[MAX_PART];
+	} parts[DISK_MAX_PARTS];
 	int next;
 	int limit;
 };

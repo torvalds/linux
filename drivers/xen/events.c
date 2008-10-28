@@ -84,17 +84,6 @@ static int irq_bindcount[NR_IRQS];
 /* Xen will never allocate port zero for any purpose. */
 #define VALID_EVTCHN(chn)	((chn) != 0)
 
-/*
- * Force a proper event-channel callback from Xen after clearing the
- * callback mask. We do this in a very simple manner, by making a call
- * down into Xen. The pending flag will be checked by Xen on return.
- */
-void force_evtchn_callback(void)
-{
-	(void)HYPERVISOR_xen_version(0, NULL);
-}
-EXPORT_SYMBOL_GPL(force_evtchn_callback);
-
 static struct irq_chip xen_dynamic_chip;
 
 /* Constructor for packed IRQ information. */
@@ -136,7 +125,7 @@ static void bind_evtchn_to_cpu(unsigned int chn, unsigned int cpu)
 
 	BUG_ON(irq == -1);
 #ifdef CONFIG_SMP
-	irq_desc[irq].affinity = cpumask_of_cpu(cpu);
+	irq_to_desc(irq)->affinity = cpumask_of_cpu(cpu);
 #endif
 
 	__clear_bit(chn, cpu_evtchn_mask[cpu_evtchn[chn]]);
@@ -148,10 +137,12 @@ static void bind_evtchn_to_cpu(unsigned int chn, unsigned int cpu)
 static void init_evtchn_cpu_bindings(void)
 {
 #ifdef CONFIG_SMP
+	struct irq_desc *desc;
 	int i;
+
 	/* By default all event channels notify CPU#0. */
-	for (i = 0; i < NR_IRQS; i++)
-		irq_desc[i].affinity = cpumask_of_cpu(0);
+	for_each_irq_desc(i, desc)
+		desc->affinity = cpumask_of_cpu(0);
 #endif
 
 	memset(cpu_evtchn, 0, sizeof(cpu_evtchn));
@@ -173,6 +164,12 @@ static inline void set_evtchn(int port)
 {
 	struct shared_info *s = HYPERVISOR_shared_info;
 	sync_set_bit(port, &s->evtchn_pending[0]);
+}
+
+static inline int test_evtchn(int port)
+{
+	struct shared_info *s = HYPERVISOR_shared_info;
+	return sync_test_bit(port, &s->evtchn_pending[0]);
 }
 
 
@@ -234,12 +231,12 @@ static int find_unbound_irq(void)
 	int irq;
 
 	/* Only allocate from dynirq range */
-	for (irq = 0; irq < NR_IRQS; irq++)
+	for_each_irq_nr(irq)
 		if (irq_bindcount[irq] == 0)
 			break;
 
-	if (irq == NR_IRQS)
-		panic("No available IRQ to bind to: increase NR_IRQS!\n");
+	if (irq == nr_irqs)
+		panic("No available IRQ to bind to: increase nr_irqs!\n");
 
 	return irq;
 }
@@ -363,6 +360,10 @@ static void unbind_from_irq(unsigned int irq)
 		switch (type_from_irq(irq)) {
 		case IRQT_VIRQ:
 			per_cpu(virq_to_irq, cpu_from_evtchn(evtchn))
+				[index_from_irq(irq)] = -1;
+			break;
+		case IRQT_IPI:
+			per_cpu(ipi_to_irq, cpu_from_evtchn(evtchn))
 				[index_from_irq(irq)] = -1;
 			break;
 		default:
@@ -734,6 +735,52 @@ static void restore_cpu_ipis(unsigned int cpu)
 	}
 }
 
+/* Clear an irq's pending state, in preparation for polling on it */
+void xen_clear_irq_pending(int irq)
+{
+	int evtchn = evtchn_from_irq(irq);
+
+	if (VALID_EVTCHN(evtchn))
+		clear_evtchn(evtchn);
+}
+
+void xen_set_irq_pending(int irq)
+{
+	int evtchn = evtchn_from_irq(irq);
+
+	if (VALID_EVTCHN(evtchn))
+		set_evtchn(evtchn);
+}
+
+bool xen_test_irq_pending(int irq)
+{
+	int evtchn = evtchn_from_irq(irq);
+	bool ret = false;
+
+	if (VALID_EVTCHN(evtchn))
+		ret = test_evtchn(evtchn);
+
+	return ret;
+}
+
+/* Poll waiting for an irq to become pending.  In the usual case, the
+   irq will be disabled so it won't deliver an interrupt. */
+void xen_poll_irq(int irq)
+{
+	evtchn_port_t evtchn = evtchn_from_irq(irq);
+
+	if (VALID_EVTCHN(evtchn)) {
+		struct sched_poll poll;
+
+		poll.nr_ports = 1;
+		poll.timeout = 0;
+		poll.ports = &evtchn;
+
+		if (HYPERVISOR_sched_op(SCHEDOP_poll, &poll) != 0)
+			BUG();
+	}
+}
+
 void xen_irq_resume(void)
 {
 	unsigned int cpu, irq, evtchn;
@@ -745,7 +792,7 @@ void xen_irq_resume(void)
 		mask_evtchn(evtchn);
 
 	/* No IRQ <-> event-channel mappings. */
-	for (irq = 0; irq < NR_IRQS; irq++)
+	for_each_irq_nr(irq)
 		irq_info[irq].evtchn = 0; /* zap event-channel binding */
 
 	for (evtchn = 0; evtchn < NR_EVENT_CHANNELS; evtchn++)
@@ -777,7 +824,7 @@ void __init xen_init_IRQ(void)
 		mask_evtchn(i);
 
 	/* Dynamic IRQ space is currently unbound. Zero the refcnts. */
-	for (i = 0; i < NR_IRQS; i++)
+	for_each_irq_nr(i)
 		irq_bindcount[i] = 0;
 
 	irq_ctx_init(smp_processor_id());

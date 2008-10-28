@@ -40,6 +40,7 @@ static DECLARE_WAIT_QUEUE_HEAD(sputrace_wait);
 static ktime_t sputrace_start;
 static unsigned long sputrace_head, sputrace_tail;
 static struct sputrace *sputrace_log;
+static int sputrace_logging;
 
 static int sputrace_used(void)
 {
@@ -79,6 +80,11 @@ static ssize_t sputrace_read(struct file *file, char __user *buf,
 		char tbuf[128];
 		int width;
 
+		/* If we have data ready to return, don't block waiting
+		 * for more */
+		if (cnt > 0 && sputrace_used() == 0)
+			break;
+
 		error = wait_event_interruptible(sputrace_wait,
 						 sputrace_used() > 0);
 		if (error)
@@ -109,24 +115,49 @@ static ssize_t sputrace_read(struct file *file, char __user *buf,
 
 static int sputrace_open(struct inode *inode, struct file *file)
 {
+	int rc;
+
 	spin_lock(&sputrace_lock);
+	if (sputrace_logging) {
+		rc = -EBUSY;
+		goto out;
+	}
+
+	sputrace_logging = 1;
 	sputrace_head = sputrace_tail = 0;
 	sputrace_start = ktime_get();
-	spin_unlock(&sputrace_lock);
+	rc = 0;
 
+out:
+	spin_unlock(&sputrace_lock);
+	return rc;
+}
+
+static int sputrace_release(struct inode *inode, struct file *file)
+{
+	spin_lock(&sputrace_lock);
+	sputrace_logging = 0;
+	spin_unlock(&sputrace_lock);
 	return 0;
 }
 
 static const struct file_operations sputrace_fops = {
-	.owner	= THIS_MODULE,
-	.open	= sputrace_open,
-	.read	= sputrace_read,
+	.owner   = THIS_MODULE,
+	.open    = sputrace_open,
+	.read    = sputrace_read,
+	.release = sputrace_release,
 };
 
 static void sputrace_log_item(const char *name, struct spu_context *ctx,
 		struct spu *spu)
 {
 	spin_lock(&sputrace_lock);
+
+	if (!sputrace_logging) {
+		spin_unlock(&sputrace_lock);
+		return;
+	}
+
 	if (sputrace_avail() > 1) {
 		struct sputrace *t = sputrace_log + sputrace_head;
 
@@ -196,8 +227,7 @@ static int __init sputrace_init(void)
 	struct proc_dir_entry *entry;
 	int i, error = -ENOMEM;
 
-	sputrace_log = kcalloc(sizeof(struct sputrace),
-				bufsize, GFP_KERNEL);
+	sputrace_log = kcalloc(bufsize, sizeof(struct sputrace), GFP_KERNEL);
 	if (!sputrace_log)
 		goto out;
 
@@ -233,6 +263,7 @@ static void __exit sputrace_exit(void)
 
 	remove_proc_entry("sputrace", NULL);
 	kfree(sputrace_log);
+	marker_synchronize_unregister();
 }
 
 module_init(sputrace_init);

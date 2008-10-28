@@ -18,6 +18,7 @@ struct netns_ipv4 {
 	struct ctl_table_header	*forw_hdr;
 	struct ctl_table_header	*frags_hdr;
 	struct ctl_table_header	*ipv4_hdr;
+	struct ctl_table_header *route_hdr;
 #endif
 	struct ipv4_devconf	*devconf_all;
 	struct ipv4_devconf	*devconf_dflt;
@@ -36,6 +37,10 @@ struct netns_ipv4 {
 	struct xt_table		*iptable_mangle;
 	struct xt_table		*iptable_raw;
 	struct xt_table		*arptable_filter;
+	struct xt_table		*iptable_security;
+	struct xt_table		*nat_table;
+	struct hlist_head	*nat_bysource;
+	int			nat_vmalloced;
 #endif
 
 	int sysctl_icmp_echo_ignore_all;
@@ -44,5 +49,8 @@ struct netns_ipv4 {
 	int sysctl_icmp_ratelimit;
 	int sysctl_icmp_ratemask;
 	int sysctl_icmp_errors_use_inbound_ifaddr;
+
+	struct timer_list rt_secret_timer;
+	atomic_t rt_genid;
 };
 #endif

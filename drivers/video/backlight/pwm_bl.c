@@ -68,8 +68,10 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 	struct pwm_bl_data *pb;
 	int ret;
 
-	if (!data)
+	if (!data) {
+		dev_err(&pdev->dev, "failed to find platform data\n");
 		return -EINVAL;
+	}
 
 	if (data->init) {
 		ret = data->init(&pdev->dev);
@@ -79,6 +81,7 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 
 	pb = kzalloc(sizeof(*pb), GFP_KERNEL);
 	if (!pb) {
+		dev_err(&pdev->dev, "no memory for state\n");
 		ret = -ENOMEM;
 		goto err_alloc;
 	}
@@ -91,7 +94,8 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "unable to request PWM for backlight\n");
 		ret = PTR_ERR(pb->pwm);
 		goto err_pwm;
-	}
+	} else
+		dev_dbg(&pdev->dev, "got pwm for backlight\n");
 
 	bl = backlight_device_register(pdev->name, &pdev->dev,
 			pb, &pwm_backlight_ops);
@@ -183,3 +187,5 @@ module_exit(pwm_backlight_exit);
 
 MODULE_DESCRIPTION("PWM based Backlight Driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:pwm-backlight");
+

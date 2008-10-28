@@ -13,13 +13,7 @@
 #include <asm/ppc_asm.h>
 
 	.section __ex_table,"a"
-#ifdef CONFIG_PPC64
-	.align	3
-#define EXTBL	.llong
-#else
-	.align	2
-#define EXTBL	.long
-#endif
+	PPC_LONG_ALIGN
 	.text
 	
 _GLOBAL(strcpy)
@@ -160,9 +154,9 @@ _GLOBAL(__clear_user)
 	blr
 
 	.section __ex_table,"a"
-	EXTBL	11b,90b
-	EXTBL	1b,91b
-	EXTBL	8b,92b
+	PPC_LONG	11b,90b
+	PPC_LONG	1b,91b
+	PPC_LONG	8b,92b
 	.text
 
 _GLOBAL(__strncpy_from_user)
@@ -183,7 +177,7 @@ _GLOBAL(__strncpy_from_user)
 	blr
 
 	.section __ex_table,"a"
-	EXTBL	1b,99b
+	PPC_LONG	1b,99b
 	.text
 
 /* r3 = str, r4 = len (> 0), r5 = top (highest addr) */
@@ -208,4 +202,4 @@ _GLOBAL(__strnlen_user)
 	blr
 
 	.section __ex_table,"a"
-	EXTBL	1b,99b
+	PPC_LONG	1b,99b

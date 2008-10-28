@@ -7,9 +7,11 @@
 # Copyright (C) 1998 Jakub Jelinek (jj@ultra.linux.cz)
 #
 
-CHECKFLAGS	+= -D__sparc__ -D__sparc_v9__ -m64
+CHECKFLAGS	+= -D__sparc__ -D__sparc_v9__ -D__arch64__ -m64
 
-CPPFLAGS_vmlinux.lds += -Usparc
+# Undefine sparc when processing vmlinux.lds - it is used
+# And teach CPP we are doing 64 bit builds (for this case)
+CPPFLAGS_vmlinux.lds += -m64 -Usparc
 
 LDFLAGS		:= -m elf64_sparc
 

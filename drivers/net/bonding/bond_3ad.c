@@ -2107,6 +2107,7 @@ void bond_3ad_state_machine_handler(struct work_struct *work)
 			aggregator = __get_first_agg(port);
 			ad_agg_selection_logic(aggregator);
 		}
+		bond_3ad_set_carrier(bond);
 	}
 
 	// for each port run the state machines

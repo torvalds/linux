@@ -20,11 +20,10 @@
 #include <linux/clk.h>
 #include <linux/clockchips.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 
 #include <asm/mach/time.h>
-#include <asm/arch/msm_iomap.h>
-
-#include <asm/io.h>
+#include <mach/msm_iomap.h>
 
 #define MSM_DGT_BASE (MSM_GPT_BASE + 0x10)
 #define MSM_DGT_SHIFT (5)
@@ -46,7 +45,7 @@ struct msm_clock {
 	struct clock_event_device   clockevent;
 	struct clocksource          clocksource;
 	struct irqaction            irq;
-	uint32_t                    regbase;
+	void __iomem                *regbase;
 	uint32_t                    freq;
 	uint32_t                    shift;
 };

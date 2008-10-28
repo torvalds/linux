@@ -156,9 +156,9 @@ static int sendcmd(
 	unsigned int blkcnt,
 	unsigned int log_unit );
 
-static int ida_open(struct inode *inode, struct file *filep);
-static int ida_release(struct inode *inode, struct file *filep);
-static int ida_ioctl(struct inode *inode, struct file *filep, unsigned int cmd, unsigned long arg);
+static int ida_open(struct block_device *bdev, fmode_t mode);
+static int ida_release(struct gendisk *disk, fmode_t mode);
+static int ida_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, unsigned long arg);
 static int ida_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 static int ida_ctlr_ioctl(ctlr_info_t *h, int dsk, ida_ioctl_t *io);
 
@@ -197,7 +197,7 @@ static struct block_device_operations ida_fops  = {
 	.owner		= THIS_MODULE,
 	.open		= ida_open,
 	.release	= ida_release,
-	.ioctl		= ida_ioctl,
+	.locked_ioctl	= ida_ioctl,
 	.getgeo		= ida_getgeo,
 	.revalidate_disk= ida_revalidate,
 };
@@ -424,7 +424,7 @@ static int __init cpqarray_register_ctlr( int i, struct pci_dev *pdev)
 		hba[i]->pci_dev, NR_CMDS * sizeof(cmdlist_t),
 		&(hba[i]->cmd_pool_dhandle));
 	hba[i]->cmd_pool_bits = kcalloc(
-		(NR_CMDS+BITS_PER_LONG-1)/BITS_PER_LONG, sizeof(unsigned long),
+		DIV_ROUND_UP(NR_CMDS, BITS_PER_LONG), sizeof(unsigned long),
 		GFP_KERNEL);
 
 	if (!hba[i]->cmd_pool_bits || !hba[i]->cmd_pool)
@@ -818,12 +818,12 @@ DBGINFO(
 /*
  * Open.  Make sure the device is really there.
  */
-static int ida_open(struct inode *inode, struct file *filep)
+static int ida_open(struct block_device *bdev, fmode_t mode)
 {
-	drv_info_t *drv = get_drv(inode->i_bdev->bd_disk);
-	ctlr_info_t *host = get_host(inode->i_bdev->bd_disk);
+	drv_info_t *drv = get_drv(bdev->bd_disk);
+	ctlr_info_t *host = get_host(bdev->bd_disk);
 
-	DBGINFO(printk("ida_open %s\n", inode->i_bdev->bd_disk->disk_name));
+	DBGINFO(printk("ida_open %s\n", bdev->bd_disk->disk_name));
 	/*
 	 * Root is allowed to open raw volume zero even if it's not configured
 	 * so array config can still work.  I don't think I really like this,
@@ -843,9 +843,9 @@ static int ida_open(struct inode *inode, struct file *filep)
 /*
  * Close.  Sync first.
  */
-static int ida_release(struct inode *inode, struct file *filep)
+static int ida_release(struct gendisk *disk, fmode_t mode)
 {
-	ctlr_info_t *host = get_host(inode->i_bdev->bd_disk);
+	ctlr_info_t *host = get_host(disk);
 	host->usage_count--;
 	return 0;
 }
@@ -1128,10 +1128,10 @@ static int ida_getgeo(struct block_device *bdev, struct hd_geometry *geo)
  *  ida_ioctl does some miscellaneous stuff like reporting drive geometry,
  *  setting readahead and submitting commands from userspace to the controller.
  */
-static int ida_ioctl(struct inode *inode, struct file *filep, unsigned int cmd, unsigned long arg)
+static int ida_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, unsigned long arg)
 {
-	drv_info_t *drv = get_drv(inode->i_bdev->bd_disk);
-	ctlr_info_t *host = get_host(inode->i_bdev->bd_disk);
+	drv_info_t *drv = get_drv(bdev->bd_disk);
+	ctlr_info_t *host = get_host(bdev->bd_disk);
 	int error;
 	ida_ioctl_t __user *io = (ida_ioctl_t __user *)arg;
 	ida_ioctl_t *my_io;
@@ -1165,7 +1165,7 @@ out_passthru:
 		put_user(host->ctlr_sig, (int __user *)arg);
 		return 0;
 	case IDAREVALIDATEVOLS:
-		if (iminor(inode) != 0)
+		if (MINOR(bdev->bd_dev) != 0)
 			return -ENXIO;
 		return revalidate_allvol(host);
 	case IDADRIVERVERSION:

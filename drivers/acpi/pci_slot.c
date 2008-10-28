@@ -6,8 +6,8 @@
  *  Thanks to Kenji Kaneshige <kaneshige.kenji@jp.fujitsu.com> for code
  *  review and fixes.
  *
- *  Copyright (C) 2007 Alex Chiang <achiang@hp.com>
- *  Copyright (C) 2007 Hewlett-Packard Development Company, L.P.
+ *  Copyright (C) 2007-2008 Hewlett-Packard Development Company, L.P.
+ *  	Alex Chiang <achiang@hp.com>
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms and conditions of the GNU General Public License,
@@ -76,10 +76,10 @@ static struct acpi_pci_driver acpi_pci_slot_driver = {
 };
 
 static int
-check_slot(acpi_handle handle, int *device, unsigned long *sun)
+check_slot(acpi_handle handle, unsigned long long *sun)
 {
-	int retval = 0;
-	unsigned long adr, sta;
+	int device = -1;
+	unsigned long long adr, sta;
 	acpi_status status;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 
@@ -89,32 +89,27 @@ check_slot(acpi_handle handle, int *device, unsigned long *sun)
 	if (check_sta_before_sun) {
 		/* If SxFy doesn't have _STA, we just assume it's there */
 		status = acpi_evaluate_integer(handle, "_STA", NULL, &sta);
-		if (ACPI_SUCCESS(status) && !(sta & ACPI_STA_DEVICE_PRESENT)) {
-			retval = -1;
+		if (ACPI_SUCCESS(status) && !(sta & ACPI_STA_DEVICE_PRESENT))
 			goto out;
-		}
 	}
 
 	status = acpi_evaluate_integer(handle, "_ADR", NULL, &adr);
 	if (ACPI_FAILURE(status)) {
 		dbg("_ADR returned %d on %s\n", status, (char *)buffer.pointer);
-		retval = -1;
 		goto out;
 	}
-
-	*device = (adr >> 16) & 0xffff;
 
 	/* No _SUN == not a slot == bail */
 	status = acpi_evaluate_integer(handle, "_SUN", NULL, sun);
 	if (ACPI_FAILURE(status)) {
 		dbg("_SUN returned %d on %s\n", status, (char *)buffer.pointer);
-		retval = -1;
 		goto out;
 	}
 
+	device = (adr >> 16) & 0xffff;
 out:
 	kfree(buffer.pointer);
-	return retval;
+	return device;
 }
 
 struct callback_args {
@@ -137,14 +132,15 @@ static acpi_status
 register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	int device;
-	unsigned long sun;
+	unsigned long long sun;
 	char name[SLOT_NAME_SIZE];
 	struct acpi_pci_slot *slot;
 	struct pci_slot *pci_slot;
 	struct callback_args *parent_context = context;
 	struct pci_bus *pci_bus = parent_context->pci_bus;
 
-	if (check_slot(handle, &device, &sun))
+	device = check_slot(handle, &sun);
+	if (device < 0)
 		return AE_OK;
 
 	slot = kmalloc(sizeof(*slot), GFP_KERNEL);
@@ -154,10 +150,11 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	}
 
 	snprintf(name, sizeof(name), "%u", (u32)sun);
-	pci_slot = pci_create_slot(pci_bus, device, name);
+	pci_slot = pci_create_slot(pci_bus, device, name, NULL);
 	if (IS_ERR(pci_slot)) {
 		err("pci_create_slot returned %ld\n", PTR_ERR(pci_slot));
 		kfree(slot);
+		return AE_OK;
 	}
 
 	slot->root_handle = parent_context->root_handle;
@@ -185,7 +182,7 @@ static acpi_status
 walk_p2p_bridge(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	int device, function;
-	unsigned long adr;
+	unsigned long long adr;
 	acpi_status status;
 	acpi_handle dummy_handle;
 	acpi_walk_callback user_function;
@@ -242,7 +239,7 @@ static int
 walk_root_bridge(acpi_handle handle, acpi_walk_callback user_function)
 {
 	int seg, bus;
-	unsigned long tmp;
+	unsigned long long tmp;
 	acpi_status status;
 	acpi_handle dummy_handle;
 	struct pci_bus *pci_bus;

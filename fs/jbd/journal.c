@@ -68,7 +68,6 @@ EXPORT_SYMBOL(journal_set_features);
 EXPORT_SYMBOL(journal_create);
 EXPORT_SYMBOL(journal_load);
 EXPORT_SYMBOL(journal_destroy);
-EXPORT_SYMBOL(journal_update_superblock);
 EXPORT_SYMBOL(journal_abort);
 EXPORT_SYMBOL(journal_errno);
 EXPORT_SYMBOL(journal_ack_err);
@@ -1122,9 +1121,12 @@ recovery_error:
  *
  * Release a journal_t structure once it is no longer in use by the
  * journaled object.
+ * Return <0 if we couldn't clean up the journal.
  */
-void journal_destroy(journal_t *journal)
+int journal_destroy(journal_t *journal)
 {
+	int err = 0;
+
 	/* Wait for the commit thread to wake up and die. */
 	journal_kill_thread(journal);
 
@@ -1147,11 +1149,16 @@ void journal_destroy(journal_t *journal)
 	J_ASSERT(journal->j_checkpoint_transactions == NULL);
 	spin_unlock(&journal->j_list_lock);
 
-	/* We can now mark the journal as empty. */
-	journal->j_tail = 0;
-	journal->j_tail_sequence = ++journal->j_transaction_sequence;
 	if (journal->j_sb_buffer) {
-		journal_update_superblock(journal, 1);
+		if (!is_journal_aborted(journal)) {
+			/* We can now mark the journal as empty. */
+			journal->j_tail = 0;
+			journal->j_tail_sequence =
+				++journal->j_transaction_sequence;
+			journal_update_superblock(journal, 1);
+		} else {
+			err = -EIO;
+		}
 		brelse(journal->j_sb_buffer);
 	}
 
@@ -1161,6 +1168,8 @@ void journal_destroy(journal_t *journal)
 		journal_destroy_revoke(journal);
 	kfree(journal->j_wbuf);
 	kfree(journal);
+
+	return err;
 }
 
 
@@ -1360,10 +1369,16 @@ int journal_flush(journal_t *journal)
 	spin_lock(&journal->j_list_lock);
 	while (!err && journal->j_checkpoint_transactions != NULL) {
 		spin_unlock(&journal->j_list_lock);
+		mutex_lock(&journal->j_checkpoint_mutex);
 		err = log_do_checkpoint(journal);
+		mutex_unlock(&journal->j_checkpoint_mutex);
 		spin_lock(&journal->j_list_lock);
 	}
 	spin_unlock(&journal->j_list_lock);
+
+	if (is_journal_aborted(journal))
+		return -EIO;
+
 	cleanup_journal_tail(journal);
 
 	/* Finally, mark the journal as really needing no recovery.
@@ -1385,7 +1400,7 @@ int journal_flush(journal_t *journal)
 	J_ASSERT(journal->j_head == journal->j_tail);
 	J_ASSERT(journal->j_tail_sequence == journal->j_transaction_sequence);
 	spin_unlock(&journal->j_state_lock);
-	return err;
+	return 0;
 }
 
 /**
@@ -1636,9 +1651,10 @@ static int journal_init_journal_head_cache(void)
 
 static void journal_destroy_journal_head_cache(void)
 {
-	J_ASSERT(journal_head_cache != NULL);
-	kmem_cache_destroy(journal_head_cache);
-	journal_head_cache = NULL;
+	if (journal_head_cache) {
+		kmem_cache_destroy(journal_head_cache);
+		journal_head_cache = NULL;
+	}
 }
 
 /*

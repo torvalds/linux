@@ -6,9 +6,6 @@
  * Copyright (C) 2003 STMicroelectronics Limited
  *
  * This code is covered by the GPL.
- *
- * $Id: cfi_util.c,v 1.10 2005/11/07 11:14:23 gleixner Exp $
- *
  */
 
 #include <linux/module.h>
@@ -26,6 +23,66 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/cfi.h>
 #include <linux/mtd/compatmac.h>
+
+int __xipram cfi_qry_present(struct map_info *map, __u32 base,
+			     struct cfi_private *cfi)
+{
+	int osf = cfi->interleave * cfi->device_type;	/* scale factor */
+	map_word val[3];
+	map_word qry[3];
+
+	qry[0] = cfi_build_cmd('Q', map, cfi);
+	qry[1] = cfi_build_cmd('R', map, cfi);
+	qry[2] = cfi_build_cmd('Y', map, cfi);
+
+	val[0] = map_read(map, base + osf*0x10);
+	val[1] = map_read(map, base + osf*0x11);
+	val[2] = map_read(map, base + osf*0x12);
+
+	if (!map_word_equal(map, qry[0], val[0]))
+		return 0;
+
+	if (!map_word_equal(map, qry[1], val[1]))
+		return 0;
+
+	if (!map_word_equal(map, qry[2], val[2]))
+		return 0;
+
+	return 1; 	/* "QRY" found */
+}
+EXPORT_SYMBOL_GPL(cfi_qry_present);
+
+int __xipram cfi_qry_mode_on(uint32_t base, struct map_info *map,
+			     struct cfi_private *cfi)
+{
+	cfi_send_gen_cmd(0xF0, 0, base, map, cfi, cfi->device_type, NULL);
+	cfi_send_gen_cmd(0x98, 0x55, base, map, cfi, cfi->device_type, NULL);
+	if (cfi_qry_present(map, base, cfi))
+		return 1;
+	/* QRY not found probably we deal with some odd CFI chips */
+	/* Some revisions of some old Intel chips? */
+	cfi_send_gen_cmd(0xF0, 0, base, map, cfi, cfi->device_type, NULL);
+	cfi_send_gen_cmd(0xFF, 0, base, map, cfi, cfi->device_type, NULL);
+	cfi_send_gen_cmd(0x98, 0x55, base, map, cfi, cfi->device_type, NULL);
+	if (cfi_qry_present(map, base, cfi))
+		return 1;
+	/* ST M29DW chips */
+	cfi_send_gen_cmd(0xF0, 0, base, map, cfi, cfi->device_type, NULL);
+	cfi_send_gen_cmd(0x98, 0x555, base, map, cfi, cfi->device_type, NULL);
+	if (cfi_qry_present(map, base, cfi))
+		return 1;
+	/* QRY not found */
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cfi_qry_mode_on);
+
+void __xipram cfi_qry_mode_off(uint32_t base, struct map_info *map,
+			       struct cfi_private *cfi)
+{
+	cfi_send_gen_cmd(0xF0, 0, base, map, cfi, cfi->device_type, NULL);
+	cfi_send_gen_cmd(0xFF, 0, base, map, cfi, cfi->device_type, NULL);
+}
+EXPORT_SYMBOL_GPL(cfi_qry_mode_off);
 
 struct cfi_extquery *
 __xipram cfi_read_pri(struct map_info *map, __u16 adr, __u16 size, const char* name)
@@ -51,8 +108,7 @@ __xipram cfi_read_pri(struct map_info *map, __u16 adr, __u16 size, const char* n
 #endif
 
 	/* Switch it into Query Mode */
-	cfi_send_gen_cmd(0x98, 0x55, base, map, cfi, cfi->device_type, NULL);
-
+	cfi_qry_mode_on(base, map, cfi);
 	/* Read in the Extended Query Table */
 	for (i=0; i<size; i++) {
 		((unsigned char *)extp)[i] =
@@ -60,8 +116,7 @@ __xipram cfi_read_pri(struct map_info *map, __u16 adr, __u16 size, const char* n
 	}
 
 	/* Make sure it returns to read mode */
-	cfi_send_gen_cmd(0xf0, 0, base, map, cfi, cfi->device_type, NULL);
-	cfi_send_gen_cmd(0xff, 0, base, map, cfi, cfi->device_type, NULL);
+	cfi_qry_mode_off(base, map, cfi);
 
 #ifdef CONFIG_MTD_XIP
 	(void) map_read(map, base);

@@ -77,6 +77,9 @@ static int r300_emit_cliprects(drm_radeon_private_t *dev_priv,
 				return -EFAULT;
 			}
 
+			box.x2--; /* Hardware expects inclusive bottom-right corner */
+			box.y2--;
+
 			if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RV515) {
 				box.x1 = (box.x1) &
 					R300_CLIPRECT_MASK;
@@ -95,8 +98,8 @@ static int r300_emit_cliprects(drm_radeon_private_t *dev_priv,
 					R300_CLIPRECT_MASK;
 				box.y2 = (box.y2 + R300_CLIPRECT_OFFSET) &
 					R300_CLIPRECT_MASK;
-
 			}
+
 			OUT_RING((box.x1 << R300_CLIPRECT_X_SHIFT) |
 				 (box.y1 << R300_CLIPRECT_Y_SHIFT));
 			OUT_RING((box.x2 << R300_CLIPRECT_X_SHIFT) |
@@ -136,6 +139,18 @@ static int r300_emit_cliprects(drm_radeon_private_t *dev_priv,
 		ADVANCE_RING();
 	}
 
+	/* flus cache and wait idle clean after cliprect change */
+	BEGIN_RING(2);
+	OUT_RING(CP_PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));
+	OUT_RING(R300_RB3D_DC_FLUSH);
+	ADVANCE_RING();
+	BEGIN_RING(2);
+	OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));
+	OUT_RING(RADEON_WAIT_3D_IDLECLEAN);
+	ADVANCE_RING();
+	/* set flush flag */
+	dev_priv->track_flush |= RADEON_FLUSH_EMITED;
+
 	return 0;
 }
 
@@ -166,13 +181,13 @@ void r300_init_reg_flags(struct drm_device *dev)
 	ADD_RANGE(0x21DC, 1);
 	ADD_RANGE(R300_VAP_UNKNOWN_221C, 1);
 	ADD_RANGE(R300_VAP_CLIP_X_0, 4);
-	ADD_RANGE(R300_VAP_PVS_WAITIDLE, 1);
+	ADD_RANGE(R300_VAP_PVS_STATE_FLUSH_REG, 1);
 	ADD_RANGE(R300_VAP_UNKNOWN_2288, 1);
 	ADD_RANGE(R300_VAP_OUTPUT_VTX_FMT_0, 2);
 	ADD_RANGE(R300_VAP_PVS_CNTL_1, 3);
 	ADD_RANGE(R300_GB_ENABLE, 1);
 	ADD_RANGE(R300_GB_MSPOS0, 5);
-	ADD_RANGE(R300_TX_CNTL, 1);
+	ADD_RANGE(R300_TX_INVALTAGS, 1);
 	ADD_RANGE(R300_TX_ENABLE, 1);
 	ADD_RANGE(0x4200, 4);
 	ADD_RANGE(0x4214, 1);
@@ -388,15 +403,28 @@ static __inline__ int r300_emit_vpu(drm_radeon_private_t *dev_priv,
 	if (sz * 16 > cmdbuf->bufsz)
 		return -EINVAL;
 
-	BEGIN_RING(5 + sz * 4);
-	/* Wait for VAP to come to senses.. */
-	/* there is no need to emit it multiple times, (only once before VAP is programmed,
-	   but this optimization is for later */
-	OUT_RING_REG(R300_VAP_PVS_WAITIDLE, 0);
+	/* VAP is very sensitive so we purge cache before we program it
+	 * and we also flush its state before & after */
+	BEGIN_RING(6);
+	OUT_RING(CP_PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));
+	OUT_RING(R300_RB3D_DC_FLUSH);
+	OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));
+	OUT_RING(RADEON_WAIT_3D_IDLECLEAN);
+	OUT_RING(CP_PACKET0(R300_VAP_PVS_STATE_FLUSH_REG, 0));
+	OUT_RING(0);
+	ADVANCE_RING();
+	/* set flush flag */
+	dev_priv->track_flush |= RADEON_FLUSH_EMITED;
+
+	BEGIN_RING(3 + sz * 4);
 	OUT_RING_REG(R300_VAP_PVS_UPLOAD_ADDRESS, addr);
 	OUT_RING(CP_PACKET0_TABLE(R300_VAP_PVS_UPLOAD_DATA, sz * 4 - 1));
 	OUT_RING_TABLE((int *)cmdbuf->buf, sz * 4);
+	ADVANCE_RING();
 
+	BEGIN_RING(2);
+	OUT_RING(CP_PACKET0(R300_VAP_PVS_STATE_FLUSH_REG, 0));
+	OUT_RING(0);
 	ADVANCE_RING();
 
 	cmdbuf->buf += sz * 16;
@@ -423,6 +451,15 @@ static __inline__ int r300_emit_clear(drm_radeon_private_t *dev_priv,
 		 (1 << R300_PRIM_NUM_VERTICES_SHIFT));
 	OUT_RING_TABLE((int *)cmdbuf->buf, 8);
 	ADVANCE_RING();
+
+	BEGIN_RING(4);
+	OUT_RING(CP_PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));
+	OUT_RING(R300_RB3D_DC_FLUSH);
+	OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));
+	OUT_RING(RADEON_WAIT_3D_IDLECLEAN);
+	ADVANCE_RING();
+	/* set flush flag */
+	dev_priv->track_flush |= RADEON_FLUSH_EMITED;
 
 	cmdbuf->buf += 8 * 4;
 	cmdbuf->bufsz -= 8 * 4;
@@ -543,22 +580,23 @@ static __inline__ int r300_emit_bitblt_multi(drm_radeon_private_t *dev_priv,
 	return 0;
 }
 
-static __inline__ int r300_emit_indx_buffer(drm_radeon_private_t *dev_priv,
-					     drm_radeon_kcmd_buffer_t *cmdbuf)
+static __inline__ int r300_emit_draw_indx_2(drm_radeon_private_t *dev_priv,
+					    drm_radeon_kcmd_buffer_t *cmdbuf)
 {
-	u32 *cmd = (u32 *) cmdbuf->buf;
-	int count, ret;
+	u32 *cmd;
+	int count;
+	int expected_count;
 	RING_LOCALS;
 
-	count=(cmd[0]>>16) & 0x3fff;
+	cmd = (u32 *) cmdbuf->buf;
+	count = (cmd[0]>>16) & 0x3fff;
+	expected_count = cmd[1] >> 16;
+	if (!(cmd[1] & R300_VAP_VF_CNTL__INDEX_SIZE_32bit))
+		expected_count = (expected_count+1)/2;
 
-	if ((cmd[1] & 0x8000ffff) != 0x80000810) {
-		DRM_ERROR("Invalid indx_buffer reg address %08X\n", cmd[1]);
-		return -EINVAL;
-	}
-	ret = !radeon_check_offset(dev_priv, cmd[2]);
-	if (ret) {
-		DRM_ERROR("Invalid indx_buffer offset is %08X\n", cmd[2]);
+	if (count && count != expected_count) {
+		DRM_ERROR("3D_DRAW_INDX_2: packet size %i, expected %i\n",
+			count, expected_count);
 		return -EINVAL;
 	}
 
@@ -569,6 +607,50 @@ static __inline__ int r300_emit_indx_buffer(drm_radeon_private_t *dev_priv,
 
 	cmdbuf->buf += (count+2)*4;
 	cmdbuf->bufsz -= (count+2)*4;
+
+	if (!count) {
+		drm_r300_cmd_header_t header;
+
+		if (cmdbuf->bufsz < 4*4 + sizeof(header)) {
+			DRM_ERROR("3D_DRAW_INDX_2: expect subsequent INDX_BUFFER, but stream is too short.\n");
+			return -EINVAL;
+		}
+
+		header.u = *(unsigned int *)cmdbuf->buf;
+
+		cmdbuf->buf += sizeof(header);
+		cmdbuf->bufsz -= sizeof(header);
+		cmd = (u32 *) cmdbuf->buf;
+
+		if (header.header.cmd_type != R300_CMD_PACKET3 ||
+		    header.packet3.packet != R300_CMD_PACKET3_RAW ||
+		    cmd[0] != CP_PACKET3(RADEON_CP_INDX_BUFFER, 2)) {
+			DRM_ERROR("3D_DRAW_INDX_2: expect subsequent INDX_BUFFER.\n");
+			return -EINVAL;
+		}
+
+		if ((cmd[1] & 0x8000ffff) != 0x80000810) {
+			DRM_ERROR("Invalid indx_buffer reg address %08X\n", cmd[1]);
+			return -EINVAL;
+		}
+		if (!radeon_check_offset(dev_priv, cmd[2])) {
+			DRM_ERROR("Invalid indx_buffer offset is %08X\n", cmd[2]);
+			return -EINVAL;
+		}
+		if (cmd[3] != expected_count) {
+			DRM_ERROR("INDX_BUFFER: buffer size %i, expected %i\n",
+				cmd[3], expected_count);
+			return -EINVAL;
+		}
+
+		BEGIN_RING(4);
+		OUT_RING(cmd[0]);
+		OUT_RING_TABLE((int *)(cmdbuf->buf + 4), 3);
+		ADVANCE_RING();
+
+		cmdbuf->buf += 4*4;
+		cmdbuf->bufsz -= 4*4;
+	}
 
 	return 0;
 }
@@ -613,11 +695,22 @@ static __inline__ int r300_emit_raw_packet3(drm_radeon_private_t *dev_priv,
 	case RADEON_CNTL_BITBLT_MULTI:
 		return r300_emit_bitblt_multi(dev_priv, cmdbuf);
 
-	case RADEON_CP_INDX_BUFFER:	/* DRAW_INDX_2 without INDX_BUFFER seems to lock up the gpu */
-		return r300_emit_indx_buffer(dev_priv, cmdbuf);
-	case RADEON_CP_3D_DRAW_IMMD_2:	/* triggers drawing using in-packet vertex data */
-	case RADEON_CP_3D_DRAW_VBUF_2:	/* triggers drawing of vertex buffers setup elsewhere */
-	case RADEON_CP_3D_DRAW_INDX_2:	/* triggers drawing using indices to vertex buffer */
+	case RADEON_CP_INDX_BUFFER:
+		DRM_ERROR("packet3 INDX_BUFFER without preceding 3D_DRAW_INDX_2 is illegal.\n");
+		return -EINVAL;
+	case RADEON_CP_3D_DRAW_IMMD_2:
+		/* triggers drawing using in-packet vertex data */
+	case RADEON_CP_3D_DRAW_VBUF_2:
+		/* triggers drawing of vertex buffers setup elsewhere */
+		dev_priv->track_flush &= ~(RADEON_FLUSH_EMITED |
+					   RADEON_PURGE_EMITED);
+		break;
+	case RADEON_CP_3D_DRAW_INDX_2:
+		/* triggers drawing using indices to vertex buffer */
+		/* whenever we send vertex we clear flush & purge */
+		dev_priv->track_flush &= ~(RADEON_FLUSH_EMITED |
+					   RADEON_PURGE_EMITED);
+		return r300_emit_draw_indx_2(dev_priv, cmdbuf);
 	case RADEON_WAIT_FOR_IDLE:
 	case RADEON_CP_NOP:
 		/* these packets are safe */
@@ -713,17 +806,53 @@ static __inline__ int r300_emit_packet3(drm_radeon_private_t *dev_priv,
  */
 static __inline__ void r300_pacify(drm_radeon_private_t *dev_priv)
 {
+	uint32_t cache_z, cache_3d, cache_2d;
 	RING_LOCALS;
 
-	BEGIN_RING(6);
-	OUT_RING(CP_PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));
-	OUT_RING(R300_RB3D_DSTCACHE_UNKNOWN_0A);
+	cache_z = R300_ZC_FLUSH;
+	cache_2d = R300_RB2D_DC_FLUSH;
+	cache_3d = R300_RB3D_DC_FLUSH;
+	if (!(dev_priv->track_flush & RADEON_PURGE_EMITED)) {
+		/* we can purge, primitive where draw since last purge */
+		cache_z |= R300_ZC_FREE;
+		cache_2d |= R300_RB2D_DC_FREE;
+		cache_3d |= R300_RB3D_DC_FREE;
+	}
+
+	/* flush & purge zbuffer */
+	BEGIN_RING(2);
 	OUT_RING(CP_PACKET0(R300_ZB_ZCACHE_CTLSTAT, 0));
-	OUT_RING(R300_ZB_ZCACHE_CTLSTAT_ZC_FLUSH_FLUSH_AND_FREE|
-		 R300_ZB_ZCACHE_CTLSTAT_ZC_FREE_FREE);
-	OUT_RING(CP_PACKET3(RADEON_CP_NOP, 0));
-	OUT_RING(0x0);
+	OUT_RING(cache_z);
 	ADVANCE_RING();
+	/* flush & purge 3d */
+	BEGIN_RING(2);
+	OUT_RING(CP_PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));
+	OUT_RING(cache_3d);
+	ADVANCE_RING();
+	/* flush & purge texture */
+	BEGIN_RING(2);
+	OUT_RING(CP_PACKET0(R300_TX_INVALTAGS, 0));
+	OUT_RING(0);
+	ADVANCE_RING();
+	/* FIXME: is this one really needed ? */
+	BEGIN_RING(2);
+	OUT_RING(CP_PACKET0(R300_RB3D_AARESOLVE_CTL, 0));
+	OUT_RING(0);
+	ADVANCE_RING();
+	BEGIN_RING(2);
+	OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));
+	OUT_RING(RADEON_WAIT_3D_IDLECLEAN);
+	ADVANCE_RING();
+	/* flush & purge 2d through E2 as RB2D will trigger lockup */
+	BEGIN_RING(4);
+	OUT_RING(CP_PACKET0(R300_DSTCACHE_CTLSTAT, 0));
+	OUT_RING(cache_2d);
+	OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));
+	OUT_RING(RADEON_WAIT_2D_IDLECLEAN |
+		 RADEON_WAIT_HOST_IDLECLEAN);
+	ADVANCE_RING();
+	/* set flush & purge flags */
+	dev_priv->track_flush |= RADEON_FLUSH_EMITED | RADEON_PURGE_EMITED;
 }
 
 /**
@@ -905,8 +1034,7 @@ int r300_do_cp_cmdbuf(struct drm_device *dev,
 
 	DRM_DEBUG("\n");
 
-	/* See the comment above r300_emit_begin3d for why this call must be here,
-	 * and what the cleanup gotos are for. */
+	/* pacify */
 	r300_pacify(dev_priv);
 
 	if (cmdbuf->nbox <= R300_SIMULTANEOUS_CLIPRECTS) {

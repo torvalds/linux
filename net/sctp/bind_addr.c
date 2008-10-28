@@ -348,6 +348,43 @@ int sctp_bind_addr_match(struct sctp_bind_addr *bp,
 	return match;
 }
 
+/* Does the address 'addr' conflict with any addresses in
+ * the bp.
+ */
+int sctp_bind_addr_conflict(struct sctp_bind_addr *bp,
+			    const union sctp_addr *addr,
+			    struct sctp_sock *bp_sp,
+			    struct sctp_sock *addr_sp)
+{
+	struct sctp_sockaddr_entry *laddr;
+	int conflict = 0;
+	struct sctp_sock *sp;
+
+	/* Pick the IPv6 socket as the basis of comparison
+	 * since it's usually a superset of the IPv4.
+	 * If there is no IPv6 socket, then default to bind_addr.
+	 */
+	if (sctp_opt2sk(bp_sp)->sk_family == AF_INET6)
+		sp = bp_sp;
+	else if (sctp_opt2sk(addr_sp)->sk_family == AF_INET6)
+		sp = addr_sp;
+	else
+		sp = bp_sp;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(laddr, &bp->address_list, list) {
+		if (!laddr->valid)
+			continue;
+
+		conflict = sp->pf->cmp_addr(&laddr->a, addr, sp);
+		if (conflict)
+			break;
+	}
+	rcu_read_unlock();
+
+	return conflict;
+}
+
 /* Get the state of the entry in the bind_addr_list */
 int sctp_bind_addr_state(const struct sctp_bind_addr *bp,
 			 const union sctp_addr *addr)
@@ -420,7 +457,7 @@ static int sctp_copy_one_addr(struct sctp_bind_addr *dest,
 {
 	int error = 0;
 
-	if (sctp_is_any(addr)) {
+	if (sctp_is_any(NULL, addr)) {
 		error = sctp_copy_local_addr_list(dest, scope, gfp, flags);
 	} else if (sctp_in_scope(addr, scope)) {
 		/* Now that the address is in scope, check to see if
@@ -440,11 +477,21 @@ static int sctp_copy_one_addr(struct sctp_bind_addr *dest,
 }
 
 /* Is this a wildcard address?  */
-int sctp_is_any(const union sctp_addr *addr)
+int sctp_is_any(struct sock *sk, const union sctp_addr *addr)
 {
-	struct sctp_af *af = sctp_get_af_specific(addr->sa.sa_family);
+	unsigned short fam = 0;
+	struct sctp_af *af;
+
+	/* Try to get the right address family */
+	if (addr->sa.sa_family != AF_UNSPEC)
+		fam = addr->sa.sa_family;
+	else if (sk)
+		fam = sk->sk_family;
+
+	af = sctp_get_af_specific(fam);
 	if (!af)
 		return 0;
+
 	return af->is_any(addr);
 }
 

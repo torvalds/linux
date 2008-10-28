@@ -59,6 +59,7 @@
 #include <asm/mmu.h>
 #include <asm/xmon.h>
 #include <asm/cputhreads.h>
+#include <mm/mmu_decl.h>
 
 #include "setup.h"
 
@@ -190,6 +191,12 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		if (ppc_md.show_cpuinfo != NULL)
 			ppc_md.show_cpuinfo(m);
 
+#ifdef CONFIG_PPC32
+		/* Display the amount of memory */
+		seq_printf(m, "Memory\t\t: %d MB\n",
+			   (unsigned int)(total_memory / (1024 * 1024)));
+#endif
+
 		return 0;
 	}
 
@@ -254,8 +261,21 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	/* If we are a Freescale core do a simple check so
 	 * we dont have to keep adding cases in the future */
 	if (PVR_VER(pvr) & 0x8000) {
-		maj = PVR_MAJ(pvr);
-		min = PVR_MIN(pvr);
+		switch (PVR_VER(pvr)) {
+		case 0x8000:	/* 7441/7450/7451, Voyager */
+		case 0x8001:	/* 7445/7455, Apollo 6 */
+		case 0x8002:	/* 7447/7457, Apollo 7 */
+		case 0x8003:	/* 7447A, Apollo 7 PM */
+		case 0x8004:	/* 7448, Apollo 8 */
+		case 0x800c:	/* 7410, Nitro */
+			maj = ((pvr >> 8) & 0xF);
+			min = PVR_MIN(pvr);
+			break;
+		default:	/* e500/book-e */
+			maj = PVR_MAJ(pvr);
+			min = PVR_MIN(pvr);
+			break;
+		}
 	} else {
 		switch (PVR_VER(pvr)) {
 			case 0x0020:	/* 403 family */
@@ -367,7 +387,6 @@ static void __init cpu_init_thread_core_maps(int tpc)
  * setup_cpu_maps - initialize the following cpu maps:
  *                  cpu_possible_map
  *                  cpu_present_map
- *                  cpu_sibling_map
  *
  * Having the possible map set up early allows us to restrict allocations
  * of things like irqstacks to num_possible_cpus() rather than NR_CPUS.
@@ -474,29 +493,6 @@ void __init smp_setup_cpu_maps(void)
 	 * here will have to be reworked
 	 */
 	cpu_init_thread_core_maps(nthreads);
-}
-
-/*
- * Being that cpu_sibling_map is now a per_cpu array, then it cannot
- * be initialized until the per_cpu areas have been created.  This
- * function is now called from setup_per_cpu_areas().
- */
-void __init smp_setup_cpu_sibling_map(void)
-{
-#ifdef CONFIG_PPC64
-	int i, cpu, base;
-
-	for_each_possible_cpu(cpu) {
-		DBG("Sibling map for CPU %d:", cpu);
-		base = cpu_first_thread_in_core(cpu);
-		for (i = 0; i < threads_per_core; i++) {
-			cpu_set(base + i, per_cpu(cpu_sibling_map, cpu));
-			DBG(" %d", base + i);
-		}
-		DBG("\n");
-	}
-
-#endif /* CONFIG_PPC64 */
 }
 #endif /* CONFIG_SMP */
 

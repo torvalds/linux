@@ -2,7 +2,7 @@
 
 GTCO digitizer USB driver
 
-Use the err(), dbg() and info() macros from usb.h for system logging
+Use the err() and dbg() macros from usb.h for system logging
 
 TO CHECK:  Is pressure done right on report 5?
 
@@ -64,7 +64,6 @@ Scott Hill shill@gtcocalcomp.com
 #include <asm/byteorder.h>
 
 
-#include <linux/version.h>
 #include <linux/usb/input.h>
 
 /* Version with a Major number of 2 is for kernel inclusion only. */
@@ -863,7 +862,7 @@ static int gtco_probe(struct usb_interface *usbinterface,
 	gtco->urbinfo = usb_alloc_urb(0, GFP_KERNEL);
 	if (!gtco->urbinfo) {
 		err("Failed to allocate URB");
-		return -ENOMEM;
+		error = -ENOMEM;
 		goto err_free_buf;
 	}
 
@@ -1011,7 +1010,7 @@ static void gtco_disconnect(struct usb_interface *interface)
 		kfree(gtco);
 	}
 
-	info("gtco driver disconnected");
+	dev_info(&interface->dev, "gtco driver disconnected\n");
 }
 
 /*   STANDARD MODULE LOAD ROUTINES  */

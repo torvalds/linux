@@ -2,7 +2,7 @@
 # Makefile for the linux arm-specific parts of the memory manager.
 #
 
-obj-y				:= consistent.o extable.o fault.o init.o \
+obj-y				:= dma-mapping.o extable.o fault.o init.o \
 				   iomap.o
 
 obj-$(CONFIG_MMU)		+= fault-armv.o flush.o ioremap.o mmap.o \
@@ -76,3 +76,5 @@ obj-$(CONFIG_CPU_V7)		+= proc-v7.o
 
 obj-$(CONFIG_CACHE_FEROCEON_L2)	+= cache-feroceon-l2.o
 obj-$(CONFIG_CACHE_L2X0)	+= cache-l2x0.o
+obj-$(CONFIG_CACHE_XSC3L2)	+= cache-xsc3l2.o
+

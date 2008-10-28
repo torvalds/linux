@@ -45,8 +45,6 @@ do {						\
 extern int nommu_vma_show(struct seq_file *, struct vm_area_struct *);
 #endif
 
-extern int maps_protect;
-
 extern int proc_tid_stat(struct seq_file *m, struct pid_namespace *ns,
 				struct pid *pid, struct task_struct *task);
 extern int proc_tgid_stat(struct seq_file *m, struct pid_namespace *ns,
@@ -67,7 +65,7 @@ extern const struct inode_operations proc_net_inode_operations;
 
 void free_proc_entry(struct proc_dir_entry *de);
 
-int proc_init_inodecache(void);
+void proc_init_inodecache(void);
 
 static inline struct pid *proc_pid(struct inode *inode)
 {
@@ -88,3 +86,10 @@ struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *ino,
 		struct dentry *dentry);
 int proc_readdir_de(struct proc_dir_entry *de, struct file *filp, void *dirent,
 		filldir_t filldir);
+
+struct pde_opener {
+	struct inode *inode;
+	struct file *file;
+	int (*release)(struct inode *, struct file *);
+	struct list_head lh;
+};

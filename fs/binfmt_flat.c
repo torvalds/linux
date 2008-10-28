@@ -229,13 +229,13 @@ static int decompress_exec(
 	ret = 10;
 	if (buf[3] & EXTRA_FIELD) {
 		ret += 2 + buf[10] + (buf[11] << 8);
-		if (unlikely(LBUFSIZE == ret)) {
+		if (unlikely(LBUFSIZE <= ret)) {
 			DBG_FLT("binfmt_flat: buffer overflow (EXTRA)?\n");
 			goto out_free_buf;
 		}
 	}
 	if (buf[3] & ORIG_NAME) {
-		for (; ret < LBUFSIZE && (buf[ret] != 0); ret++)
+		while (ret < LBUFSIZE && buf[ret++] != 0)
 			;
 		if (unlikely(LBUFSIZE == ret)) {
 			DBG_FLT("binfmt_flat: buffer overflow (ORIG_NAME)?\n");
@@ -243,7 +243,7 @@ static int decompress_exec(
 		}
 	}
 	if (buf[3] & COMMENT) {
-		for (;  ret < LBUFSIZE && (buf[ret] != 0); ret++)
+		while (ret < LBUFSIZE && buf[ret++] != 0)
 			;
 		if (unlikely(LBUFSIZE == ret)) {
 			DBG_FLT("binfmt_flat: buffer overflow (COMMENT)?\n");
@@ -914,14 +914,13 @@ static int load_flat_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 	/* Stash our initial stack pointer into the mm structure */
 	current->mm->start_stack = (unsigned long )sp;
 
-	
+#ifdef FLAT_PLAT_INIT
+	FLAT_PLAT_INIT(regs);
+#endif
 	DBG_FLT("start_thread(regs=0x%x, entry=0x%x, start_stack=0x%x)\n",
 		(int)regs, (int)start_addr, (int)current->mm->start_stack);
 	
 	start_thread(regs, start_addr, current->mm->start_stack);
-
-	if (current->ptrace & PT_PTRACED)
-		send_sig(SIGTRAP, current, 0);
 
 	return 0;
 }

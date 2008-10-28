@@ -70,7 +70,7 @@ static void efs_destroy_inode(struct inode *inode)
 	kmem_cache_free(efs_inode_cachep, INODE_INFO(inode));
 }
 
-static void init_once(struct kmem_cache *cachep, void *foo)
+static void init_once(void *foo)
 {
 	struct efs_inode_info *ei = (struct efs_inode_info *) foo;
 
@@ -341,8 +341,6 @@ static int efs_statfs(struct dentry *dentry, struct kstatfs *buf) {
 			sb->inode_blocks *
 			(EFS_BLOCKSIZE / sizeof(struct efs_dinode));
 	buf->f_ffree   = sb->inode_free;	/* free inodes */
-	buf->f_fsid.val[0] = (sb->fs_magic >> 16) & 0xffff; /* fs ID */
-	buf->f_fsid.val[1] =  sb->fs_magic        & 0xffff; /* fs ID */
 	buf->f_namelen = EFS_MAXNAMELEN;	/* max filename length */
 
 	return 0;

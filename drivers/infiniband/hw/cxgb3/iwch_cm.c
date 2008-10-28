@@ -1942,6 +1942,7 @@ fail4:
 fail3:
 	cxgb3_free_atid(ep->com.tdev, ep->atid);
 fail2:
+	cm_id->rem_ref(cm_id);
 	put_ep(&ep->com);
 out:
 	return err;

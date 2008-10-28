@@ -197,7 +197,7 @@ void __kprobes arch_arm_kprobe(struct kprobe *p)
 	args.new = BREAKPOINT_INSTRUCTION;
 
 	kcb->kprobe_status = KPROBE_SWAP_INST;
-	stop_machine_run(swap_instruction, &args, NR_CPUS);
+	stop_machine(swap_instruction, &args, NULL);
 	kcb->kprobe_status = status;
 }
 
@@ -212,7 +212,7 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 	args.new = p->opcode;
 
 	kcb->kprobe_status = KPROBE_SWAP_INST;
-	stop_machine_run(swap_instruction, &args, NR_CPUS);
+	stop_machine(swap_instruction, &args, NULL);
 	kcb->kprobe_status = status;
 }
 
@@ -270,7 +270,6 @@ static void __kprobes set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 	__ctl_store(kcb->kprobe_saved_ctl, 9, 11);
 }
 
-/* Called with kretprobe_lock held */
 void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 					struct pt_regs *regs)
 {
@@ -332,7 +331,7 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 		 * No kprobe at this address. The fault has not been
 		 * caused by a kprobe breakpoint. The race of breakpoint
 		 * vs. kprobe remove does not exist because on s390 we
-		 * use stop_machine_run to arm/disarm the breakpoints.
+		 * use stop_machine to arm/disarm the breakpoints.
 		 */
 		goto no_kprobe;
 
@@ -377,8 +376,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 	unsigned long trampoline_address = (unsigned long)&kretprobe_trampoline;
 
 	INIT_HLIST_HEAD(&empty_rp);
-	spin_lock_irqsave(&kretprobe_lock, flags);
-	head = kretprobe_inst_table_head(current);
+	kretprobe_hash_lock(current, &head, &flags);
 
 	/*
 	 * It is possible to have multiple instances associated with a given
@@ -417,7 +415,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 	regs->psw.addr = orig_ret_address | PSW_ADDR_AMODE;
 
 	reset_current_kprobe();
-	spin_unlock_irqrestore(&kretprobe_lock, flags);
+	kretprobe_hash_unlock(current, &flags);
 	preempt_enable_no_resched();
 
 	hlist_for_each_entry_safe(ri, node, tmp, &empty_rp, hlist) {

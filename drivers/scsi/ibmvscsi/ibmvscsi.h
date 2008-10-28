@@ -45,6 +45,8 @@ struct Scsi_Host;
 #define MAX_INDIRECT_BUFS 10
 
 #define IBMVSCSI_MAX_REQUESTS_DEFAULT 100
+#define IBMVSCSI_CMDS_PER_LUN_DEFAULT 16
+#define IBMVSCSI_MAX_SECTORS_DEFAULT 256 /* 32 * 8 = default max I/O 32 pages */
 #define IBMVSCSI_MAX_CMDS_PER_LUN 64
 
 /* ------------------------------------------------------------

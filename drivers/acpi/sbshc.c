@@ -107,6 +107,13 @@ static int wait_transaction_complete(struct acpi_smb_hc *hc, int timeout)
 	if (wait_event_timeout(hc->wait, smb_check_done(hc),
 			       msecs_to_jiffies(timeout)))
 		return 0;
+	/*
+	 * After the timeout happens, OS will try to check the status of SMbus.
+	 * If the status is what OS expected, it will be regarded as the bogus
+	 * timeout.
+	 */
+	if (smb_check_done(hc))
+		return 0;
 	else
 		return -ETIME;
 }
@@ -251,7 +258,7 @@ extern int acpi_ec_add_query_handler(struct acpi_ec *ec, u8 query_bit,
 static int acpi_smbus_hc_add(struct acpi_device *device)
 {
 	int status;
-	unsigned long val;
+	unsigned long long val;
 	struct acpi_smb_hc *hc;
 
 	if (!device)
@@ -275,7 +282,7 @@ static int acpi_smbus_hc_add(struct acpi_device *device)
 	hc->ec = acpi_driver_data(device->parent);
 	hc->offset = (val >> 8) & 0xff;
 	hc->query_bit = val & 0xff;
-	acpi_driver_data(device) = hc;
+	device->driver_data = hc;
 
 	acpi_ec_add_query_handler(hc->ec, hc->query_bit, NULL, smbus_alarm, hc);
 	printk(KERN_INFO PREFIX "SBS HC: EC = 0x%p, offset = 0x%0x, query_bit = 0x%0x\n",
@@ -296,7 +303,7 @@ static int acpi_smbus_hc_remove(struct acpi_device *device, int type)
 	hc = acpi_driver_data(device);
 	acpi_ec_remove_query_handler(hc->ec, hc->query_bit);
 	kfree(hc);
-	acpi_driver_data(device) = NULL;
+	device->driver_data = NULL;
 	return 0;
 }
 

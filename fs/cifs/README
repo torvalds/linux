@@ -463,6 +463,9 @@ A partial list of the supported mount options follows:
 		with cifs style mandatory byte range locks (and most
 		cifs servers do not yet support requesting advisory
 		byte range locks).
+ nodfs          Disable DFS (global name space support) even if the
+		server claims to support it.  This can help work around
+		a problem with parsing of DFS paths with Samba 3.0.24 server.
  remount        remount the share (often used to change from ro to rw mounts
 	        or vice versa)
  cifsacl        Report mode bits (e.g. on stat) based on the Windows ACL for
@@ -488,6 +491,19 @@ A partial list of the supported mount options follows:
 		Note that this differs from the sign mount option in that it
 		causes encryption of data sent over this mounted share but other
 		shares mounted to the same server are unaffected.
+ locallease     This option is rarely needed. Fcntl F_SETLEASE is
+		used by some applications such as Samba and NFSv4 server to
+		check to see whether a file is cacheable.  CIFS has no way
+		to explicitly request a lease, but can check whether a file
+		is cacheable (oplocked).  Unfortunately, even if a file
+		is not oplocked, it could still be cacheable (ie cifs client
+		could grant fcntl leases if no other local processes are using
+		the file) for cases for example such as when the server does not
+		support oplocks and the user is sure that the only updates to
+		the file will be from this client. Specifying this mount option
+		will allow the cifs client to check for leases (only) locally
+		for files which are not oplocked instead of denying leases
+		in that case. (EXPERIMENTAL)
  sec            Security mode.  Allowed values are:
 			none	attempt to connection as a null user (no name)
 			krb5    Use Kerberos version 5 authentication
@@ -542,10 +558,20 @@ SecurityFlags		Flags which control security negotiation and
 			hashing mechanisms (as "must use") on the other hand 
 			does not make much sense. Default flags are 
 				0x07007 
-			(NTLM, NTLMv2 and packet signing allowed).  Maximum 
+			(NTLM, NTLMv2 and packet signing allowed).  The maximum 
 			allowable flags if you want to allow mounts to servers
 			using weaker password hashes is 0x37037 (lanman,
-			plaintext, ntlm, ntlmv2, signing allowed):
+			plaintext, ntlm, ntlmv2, signing allowed).  Some
+			SecurityFlags require the corresponding menuconfig
+			options to be enabled (lanman and plaintext require
+			CONFIG_CIFS_WEAK_PW_HASH for example).  Enabling
+			plaintext authentication currently requires also
+			enabling lanman authentication in the security flags
+			because the cifs module only supports sending
+			laintext passwords using the older lanman dialect
+			form of the session setup SMB.  (e.g. for authentication
+			using plain text passwords, set the SecurityFlags
+			to 0x30030):
  
 			may use packet signing 				0x00001
 			must use packet signing				0x01001
@@ -628,6 +654,9 @@ requires enabling CONFIG_CIFS_EXPERIMENTAL
 	cifsacl support needed to retrieve approximated mode bits based on
 		the contents on the CIFS ACL.
 
+	lease support: cifs will check the oplock state before calling into
+	the vfs to see if we can grant a lease on a file.
+
 	DNOTIFY fcntl: needed for support of directory change 
 			    notification and perhaps later for file leases)
 
@@ -642,8 +671,30 @@ The statistics for the number of total SMBs and oplock breaks are different in
 that they represent all for that share, not just those for which the server
 returned success.
 	
-Also note that "cat /proc/fs/cifs/DebugData" will display information about 
+Also note that "cat /proc/fs/cifs/DebugData" will display information about
 the active sessions and the shares that are mounted.
-Enabling Kerberos (extended security) works when CONFIG_CIFS_EXPERIMENTAL is
-on but requires a user space helper (from the Samba project). NTLM and NTLMv2 and
-LANMAN support do not require this helper.
+
+Enabling Kerberos (extended security) works but requires version 1.2 or later
+of the helper program cifs.upcall to be present and to be configured in the
+/etc/request-key.conf file.  The cifs.upcall helper program is from the Samba
+project(http://www.samba.org). NTLM and NTLMv2 and LANMAN support do not
+require this helper. Note that NTLMv2 security (which does not require the
+cifs.upcall helper program), instead of using Kerberos, is sufficient for
+some use cases.
+
+Enabling DFS support (used to access shares transparently in an MS-DFS
+global name space) requires that CONFIG_CIFS_EXPERIMENTAL be enabled.  In
+addition, DFS support for target shares which are specified as UNC
+names which begin with host names (rather than IP addresses) requires
+a user space helper (such as cifs.upcall) to be present in order to
+translate host names to ip address, and the user space helper must also
+be configured in the file /etc/request-key.conf
+
+To use cifs Kerberos and DFS support, the Linux keyutils package should be
+installed and something like the following lines should be added to the
+/etc/request-key.conf file:
+
+create cifs.spnego * * /usr/local/sbin/cifs.upcall %k
+create dns_resolver * * /usr/local/sbin/cifs.upcall %k
+
+

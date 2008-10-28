@@ -155,8 +155,9 @@ static const struct file_operations name##_ops = {			\
 		__IEEE80211_IF_WFILE(name)
 
 /* common attributes */
-IEEE80211_IF_FILE(channel_use, channel_use, DEC);
 IEEE80211_IF_FILE(drop_unencrypted, drop_unencrypted, DEC);
+IEEE80211_IF_FILE(force_unicast_rateidx, force_unicast_rateidx, DEC);
+IEEE80211_IF_FILE(max_ratectrl_rateidx, max_ratectrl_rateidx, DEC);
 
 /* STA/IBSS attributes */
 IEEE80211_IF_FILE(state, u.sta.state, DEC);
@@ -172,7 +173,6 @@ IEEE80211_IF_FILE(assoc_tries, u.sta.assoc_tries, DEC);
 IEEE80211_IF_FILE(auth_algs, u.sta.auth_algs, HEX);
 IEEE80211_IF_FILE(auth_alg, u.sta.auth_alg, DEC);
 IEEE80211_IF_FILE(auth_transaction, u.sta.auth_transaction, DEC);
-IEEE80211_IF_FILE(num_beacons_sta, u.sta.num_beacons, DEC);
 
 static ssize_t ieee80211_if_fmt_flags(
 	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
@@ -191,9 +191,6 @@ __IEEE80211_IF_FILE(flags);
 /* AP attributes */
 IEEE80211_IF_FILE(num_sta_ps, u.ap.num_sta_ps, ATOMIC);
 IEEE80211_IF_FILE(dtim_count, u.ap.dtim_count, DEC);
-IEEE80211_IF_FILE(num_beacons, u.ap.num_beacons, DEC);
-IEEE80211_IF_FILE(force_unicast_rateidx, u.ap.force_unicast_rateidx, DEC);
-IEEE80211_IF_FILE(max_ratectrl_rateidx, u.ap.max_ratectrl_rateidx, DEC);
 
 static ssize_t ieee80211_if_fmt_num_buffered_multicast(
 	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
@@ -208,37 +205,37 @@ IEEE80211_IF_FILE(peer, u.wds.remote_addr, MAC);
 
 #ifdef CONFIG_MAC80211_MESH
 /* Mesh stats attributes */
-IEEE80211_IF_FILE(fwded_frames, u.sta.mshstats.fwded_frames, DEC);
-IEEE80211_IF_FILE(dropped_frames_ttl, u.sta.mshstats.dropped_frames_ttl, DEC);
+IEEE80211_IF_FILE(fwded_frames, u.mesh.mshstats.fwded_frames, DEC);
+IEEE80211_IF_FILE(dropped_frames_ttl, u.mesh.mshstats.dropped_frames_ttl, DEC);
 IEEE80211_IF_FILE(dropped_frames_no_route,
-		u.sta.mshstats.dropped_frames_no_route, DEC);
-IEEE80211_IF_FILE(estab_plinks, u.sta.mshstats.estab_plinks, ATOMIC);
+		u.mesh.mshstats.dropped_frames_no_route, DEC);
+IEEE80211_IF_FILE(estab_plinks, u.mesh.mshstats.estab_plinks, ATOMIC);
 
 /* Mesh parameters */
 IEEE80211_IF_WFILE(dot11MeshMaxRetries,
-		u.sta.mshcfg.dot11MeshMaxRetries, DEC, u8);
+		u.mesh.mshcfg.dot11MeshMaxRetries, DEC, u8);
 IEEE80211_IF_WFILE(dot11MeshRetryTimeout,
-		u.sta.mshcfg.dot11MeshRetryTimeout, DEC, u16);
+		u.mesh.mshcfg.dot11MeshRetryTimeout, DEC, u16);
 IEEE80211_IF_WFILE(dot11MeshConfirmTimeout,
-		u.sta.mshcfg.dot11MeshConfirmTimeout, DEC, u16);
+		u.mesh.mshcfg.dot11MeshConfirmTimeout, DEC, u16);
 IEEE80211_IF_WFILE(dot11MeshHoldingTimeout,
-		u.sta.mshcfg.dot11MeshHoldingTimeout, DEC, u16);
-IEEE80211_IF_WFILE(dot11MeshTTL, u.sta.mshcfg.dot11MeshTTL, DEC, u8);
-IEEE80211_IF_WFILE(auto_open_plinks, u.sta.mshcfg.auto_open_plinks, DEC, u8);
+		u.mesh.mshcfg.dot11MeshHoldingTimeout, DEC, u16);
+IEEE80211_IF_WFILE(dot11MeshTTL, u.mesh.mshcfg.dot11MeshTTL, DEC, u8);
+IEEE80211_IF_WFILE(auto_open_plinks, u.mesh.mshcfg.auto_open_plinks, DEC, u8);
 IEEE80211_IF_WFILE(dot11MeshMaxPeerLinks,
-		u.sta.mshcfg.dot11MeshMaxPeerLinks, DEC, u16);
+		u.mesh.mshcfg.dot11MeshMaxPeerLinks, DEC, u16);
 IEEE80211_IF_WFILE(dot11MeshHWMPactivePathTimeout,
-		u.sta.mshcfg.dot11MeshHWMPactivePathTimeout, DEC, u32);
+		u.mesh.mshcfg.dot11MeshHWMPactivePathTimeout, DEC, u32);
 IEEE80211_IF_WFILE(dot11MeshHWMPpreqMinInterval,
-		u.sta.mshcfg.dot11MeshHWMPpreqMinInterval, DEC, u16);
+		u.mesh.mshcfg.dot11MeshHWMPpreqMinInterval, DEC, u16);
 IEEE80211_IF_WFILE(dot11MeshHWMPnetDiameterTraversalTime,
-		u.sta.mshcfg.dot11MeshHWMPnetDiameterTraversalTime, DEC, u16);
+		u.mesh.mshcfg.dot11MeshHWMPnetDiameterTraversalTime, DEC, u16);
 IEEE80211_IF_WFILE(dot11MeshHWMPmaxPREQretries,
-		u.sta.mshcfg.dot11MeshHWMPmaxPREQretries, DEC, u8);
+		u.mesh.mshcfg.dot11MeshHWMPmaxPREQretries, DEC, u8);
 IEEE80211_IF_WFILE(path_refresh_time,
-		u.sta.mshcfg.path_refresh_time, DEC, u32);
+		u.mesh.mshcfg.path_refresh_time, DEC, u32);
 IEEE80211_IF_WFILE(min_discovery_timeout,
-		u.sta.mshcfg.min_discovery_timeout, DEC, u16);
+		u.mesh.mshcfg.min_discovery_timeout, DEC, u16);
 #endif
 
 
@@ -248,8 +245,10 @@ IEEE80211_IF_WFILE(min_discovery_timeout,
 
 static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(channel_use, sta);
 	DEBUGFS_ADD(drop_unencrypted, sta);
+	DEBUGFS_ADD(force_unicast_rateidx, sta);
+	DEBUGFS_ADD(max_ratectrl_rateidx, sta);
+
 	DEBUGFS_ADD(state, sta);
 	DEBUGFS_ADD(bssid, sta);
 	DEBUGFS_ADD(prev_bssid, sta);
@@ -264,32 +263,33 @@ static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(auth_alg, sta);
 	DEBUGFS_ADD(auth_transaction, sta);
 	DEBUGFS_ADD(flags, sta);
-	DEBUGFS_ADD(num_beacons_sta, sta);
 }
 
 static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(channel_use, ap);
 	DEBUGFS_ADD(drop_unencrypted, ap);
-	DEBUGFS_ADD(num_sta_ps, ap);
-	DEBUGFS_ADD(dtim_count, ap);
-	DEBUGFS_ADD(num_beacons, ap);
 	DEBUGFS_ADD(force_unicast_rateidx, ap);
 	DEBUGFS_ADD(max_ratectrl_rateidx, ap);
+
+	DEBUGFS_ADD(num_sta_ps, ap);
+	DEBUGFS_ADD(dtim_count, ap);
 	DEBUGFS_ADD(num_buffered_multicast, ap);
 }
 
 static void add_wds_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(channel_use, wds);
 	DEBUGFS_ADD(drop_unencrypted, wds);
+	DEBUGFS_ADD(force_unicast_rateidx, wds);
+	DEBUGFS_ADD(max_ratectrl_rateidx, wds);
+
 	DEBUGFS_ADD(peer, wds);
 }
 
 static void add_vlan_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(channel_use, vlan);
 	DEBUGFS_ADD(drop_unencrypted, vlan);
+	DEBUGFS_ADD(force_unicast_rateidx, vlan);
+	DEBUGFS_ADD(max_ratectrl_rateidx, vlan);
 }
 
 static void add_monitor_files(struct ieee80211_sub_if_data *sdata)
@@ -341,26 +341,26 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 		return;
 
 	switch (sdata->vif.type) {
-	case IEEE80211_IF_TYPE_MESH_POINT:
+	case NL80211_IFTYPE_MESH_POINT:
 #ifdef CONFIG_MAC80211_MESH
 		add_mesh_stats(sdata);
 		add_mesh_config(sdata);
 #endif
-		/* fall through */
-	case IEEE80211_IF_TYPE_STA:
-	case IEEE80211_IF_TYPE_IBSS:
+		break;
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_ADHOC:
 		add_sta_files(sdata);
 		break;
-	case IEEE80211_IF_TYPE_AP:
+	case NL80211_IFTYPE_AP:
 		add_ap_files(sdata);
 		break;
-	case IEEE80211_IF_TYPE_WDS:
+	case NL80211_IFTYPE_WDS:
 		add_wds_files(sdata);
 		break;
-	case IEEE80211_IF_TYPE_MNTR:
+	case NL80211_IFTYPE_MONITOR:
 		add_monitor_files(sdata);
 		break;
-	case IEEE80211_IF_TYPE_VLAN:
+	case NL80211_IFTYPE_AP_VLAN:
 		add_vlan_files(sdata);
 		break;
 	default:
@@ -376,8 +376,10 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 
 static void del_sta_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_DEL(channel_use, sta);
 	DEBUGFS_DEL(drop_unencrypted, sta);
+	DEBUGFS_DEL(force_unicast_rateidx, sta);
+	DEBUGFS_DEL(max_ratectrl_rateidx, sta);
+
 	DEBUGFS_DEL(state, sta);
 	DEBUGFS_DEL(bssid, sta);
 	DEBUGFS_DEL(prev_bssid, sta);
@@ -392,32 +394,33 @@ static void del_sta_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_DEL(auth_alg, sta);
 	DEBUGFS_DEL(auth_transaction, sta);
 	DEBUGFS_DEL(flags, sta);
-	DEBUGFS_DEL(num_beacons_sta, sta);
 }
 
 static void del_ap_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_DEL(channel_use, ap);
 	DEBUGFS_DEL(drop_unencrypted, ap);
-	DEBUGFS_DEL(num_sta_ps, ap);
-	DEBUGFS_DEL(dtim_count, ap);
-	DEBUGFS_DEL(num_beacons, ap);
 	DEBUGFS_DEL(force_unicast_rateidx, ap);
 	DEBUGFS_DEL(max_ratectrl_rateidx, ap);
+
+	DEBUGFS_DEL(num_sta_ps, ap);
+	DEBUGFS_DEL(dtim_count, ap);
 	DEBUGFS_DEL(num_buffered_multicast, ap);
 }
 
 static void del_wds_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_DEL(channel_use, wds);
 	DEBUGFS_DEL(drop_unencrypted, wds);
+	DEBUGFS_DEL(force_unicast_rateidx, wds);
+	DEBUGFS_DEL(max_ratectrl_rateidx, wds);
+
 	DEBUGFS_DEL(peer, wds);
 }
 
 static void del_vlan_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_DEL(channel_use, vlan);
 	DEBUGFS_DEL(drop_unencrypted, vlan);
+	DEBUGFS_DEL(force_unicast_rateidx, vlan);
+	DEBUGFS_DEL(max_ratectrl_rateidx, vlan);
 }
 
 static void del_monitor_files(struct ieee80211_sub_if_data *sdata)
@@ -467,32 +470,32 @@ static void del_mesh_config(struct ieee80211_sub_if_data *sdata)
 }
 #endif
 
-static void del_files(struct ieee80211_sub_if_data *sdata, int type)
+static void del_files(struct ieee80211_sub_if_data *sdata)
 {
 	if (!sdata->debugfsdir)
 		return;
 
-	switch (type) {
-	case IEEE80211_IF_TYPE_MESH_POINT:
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_MESH_POINT:
 #ifdef CONFIG_MAC80211_MESH
 		del_mesh_stats(sdata);
 		del_mesh_config(sdata);
 #endif
-		/* fall through */
-	case IEEE80211_IF_TYPE_STA:
-	case IEEE80211_IF_TYPE_IBSS:
+		break;
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_ADHOC:
 		del_sta_files(sdata);
 		break;
-	case IEEE80211_IF_TYPE_AP:
+	case NL80211_IFTYPE_AP:
 		del_ap_files(sdata);
 		break;
-	case IEEE80211_IF_TYPE_WDS:
+	case NL80211_IFTYPE_WDS:
 		del_wds_files(sdata);
 		break;
-	case IEEE80211_IF_TYPE_MNTR:
+	case NL80211_IFTYPE_MONITOR:
 		del_monitor_files(sdata);
 		break;
-	case IEEE80211_IF_TYPE_VLAN:
+	case NL80211_IFTYPE_AP_VLAN:
 		del_vlan_files(sdata);
 		break;
 	default:
@@ -512,29 +515,23 @@ void ieee80211_debugfs_add_netdev(struct ieee80211_sub_if_data *sdata)
 	sprintf(buf, "netdev:%s", sdata->dev->name);
 	sdata->debugfsdir = debugfs_create_dir(buf,
 		sdata->local->hw.wiphy->debugfsdir);
+	add_files(sdata);
 }
 
 void ieee80211_debugfs_remove_netdev(struct ieee80211_sub_if_data *sdata)
 {
-	del_files(sdata, sdata->vif.type);
+	del_files(sdata);
 	debugfs_remove(sdata->debugfsdir);
 	sdata->debugfsdir = NULL;
 }
 
-void ieee80211_debugfs_change_if_type(struct ieee80211_sub_if_data *sdata,
-				      int oldtype)
-{
-	del_files(sdata, oldtype);
-	add_files(sdata);
-}
-
-static int netdev_notify(struct notifier_block * nb,
+static int netdev_notify(struct notifier_block *nb,
 			 unsigned long state,
 			 void *ndev)
 {
 	struct net_device *dev = ndev;
 	struct dentry *dir;
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_sub_if_data *sdata;
 	char buf[10+IFNAMSIZ];
 
 	if (state != NETDEV_CHANGENAME)
@@ -546,8 +543,14 @@ static int netdev_notify(struct notifier_block * nb,
 	if (dev->ieee80211_ptr->wiphy->privid != mac80211_wiphy_privid)
 		return 0;
 
-	sprintf(buf, "netdev:%s", dev->name);
+	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
 	dir = sdata->debugfsdir;
+
+	if (!dir)
+		return 0;
+
+	sprintf(buf, "netdev:%s", dev->name);
 	if (!debugfs_rename(dir->d_parent, dir, dir->d_parent, buf))
 		printk(KERN_ERR "mac80211: debugfs: failed to rename debugfs "
 		       "dir to %s\n", buf);

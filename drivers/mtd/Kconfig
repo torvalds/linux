@@ -1,5 +1,3 @@
-# $Id: Kconfig,v 1.11 2005/11/07 11:14:19 gleixner Exp $
-
 menuconfig MTD
 	tristate "Memory Technology Device (MTD) support"
 	depends on HAS_IOMEM
@@ -173,6 +171,11 @@ config MTD_CHAR
 	  the system, allowing the user to read and write directly to the
 	  memory chips, and also use ioctl() to obtain information about
 	  the device, or to erase parts of it.
+
+config HAVE_MTD_OTP
+	bool
+	help
+	  Enable access to OTP regions using MTD_CHAR.
 
 config MTD_BLKDEVS
 	tristate "Common interface to block layer for MTD 'translation layers'"

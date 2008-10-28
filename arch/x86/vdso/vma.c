@@ -21,7 +21,8 @@ unsigned int __read_mostly vdso_enabled = 1;
 extern char vdso_start[], vdso_end[];
 extern unsigned short vdso_sync_cpuid;
 
-struct page **vdso_pages;
+static struct page **vdso_pages;
+static unsigned vdso_size;
 
 static inline void *var_ref(void *p, char *name)
 {
@@ -38,6 +39,7 @@ static int __init init_vdso_vars(void)
 	int i;
 	char *vbase;
 
+	vdso_size = npages << PAGE_SHIFT;
 	vdso_pages = kmalloc(sizeof(struct page *) * npages, GFP_KERNEL);
 	if (!vdso_pages)
 		goto oom;
@@ -101,20 +103,19 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int exstack)
 	struct mm_struct *mm = current->mm;
 	unsigned long addr;
 	int ret;
-	unsigned len = round_up(vdso_end - vdso_start, PAGE_SIZE);
 
 	if (!vdso_enabled)
 		return 0;
 
 	down_write(&mm->mmap_sem);
-	addr = vdso_addr(mm->start_stack, len);
-	addr = get_unmapped_area(NULL, addr, len, 0, 0);
+	addr = vdso_addr(mm->start_stack, vdso_size);
+	addr = get_unmapped_area(NULL, addr, vdso_size, 0, 0);
 	if (IS_ERR_VALUE(addr)) {
 		ret = addr;
 		goto up_fail;
 	}
 
-	ret = install_special_mapping(mm, addr, len,
+	ret = install_special_mapping(mm, addr, vdso_size,
 				      VM_READ|VM_EXEC|
 				      VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC|
 				      VM_ALWAYSDUMP,

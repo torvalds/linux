@@ -1409,9 +1409,6 @@ static void wavelan_set_multicast_list(struct net_device * dev)
 			lp->mc_count = 0;
 
 			wv_82586_reconfig(dev);
-
-			/* Tell the kernel that we are doing a really bad job. */
-			dev->flags |= IFF_PROMISC;
 		}
 	} else
 		/* Are there multicast addresses to send? */
@@ -4390,7 +4387,7 @@ MODULE_LICENSE("GPL");
  *
  * Thanks go also to:
  *	James Ashton (jaa101@syseng.anu.edu.au),
- *	Alan Cox (alan@redhat.com),
+ *	Alan Cox (alan@lxorguk.ukuu.org.uk),
  *	Allan Creighton (allanc@cs.usyd.edu.au),
  *	Matthew Geier (matthew@cs.usyd.edu.au),
  *	Remo di Giovanni (remo@cs.usyd.edu.au),

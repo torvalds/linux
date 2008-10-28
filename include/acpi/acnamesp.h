@@ -178,11 +178,27 @@ acpi_ns_dump_objects(acpi_object_type type,
 acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info);
 
 /*
+ * nspredef - Support for predefined/reserved names
+ */
+acpi_status
+acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
+			       union acpi_operand_object *return_object);
+
+const union acpi_predefined_info *acpi_ns_check_for_predefined_name(struct
+								    acpi_namespace_node
+								    *node);
+
+void
+acpi_ns_check_parameter_count(char *pathname,
+			      struct acpi_namespace_node *node,
+			      const union acpi_predefined_info *info);
+
+/*
  * nsnames - Name and Scope manipulation
  */
 u32 acpi_ns_opens_scope(acpi_object_type type);
 
-void
+acpi_status
 acpi_ns_build_external_path(struct acpi_namespace_node *node,
 			    acpi_size size, char *name_buffer);
 

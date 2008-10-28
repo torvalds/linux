@@ -31,6 +31,7 @@
 #include <linux/bitops.h>
 #include <linux/hrtimer.h>
 #include <linux/uaccess.h>
+#include <linux/intel-iommu.h>
 
 #include <asm/pgtable.h>
 #include <asm/gcc_intrin.h>
@@ -38,12 +39,14 @@
 #include <asm/cacheflush.h>
 #include <asm/div64.h>
 #include <asm/tlb.h>
+#include <asm/elf.h>
 
 #include "misc.h"
 #include "vti.h"
 #include "iodev.h"
 #include "ioapic.h"
 #include "lapic.h"
+#include "irq.h"
 
 static unsigned long kvm_vmm_base;
 static unsigned long kvm_vsa_base;
@@ -59,12 +62,6 @@ static DEFINE_PER_CPU(struct kvm_vcpu *, last_vcpu);
 
 struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ NULL }
-};
-
-
-struct fdesc{
-    unsigned long ip;
-    unsigned long gp;
 };
 
 static void kvm_flush_icache(unsigned long start, unsigned long len)
@@ -125,9 +122,9 @@ void kvm_arch_hardware_enable(void *garbage)
 				PAGE_KERNEL));
 	local_irq_save(saved_psr);
 	slot = ia64_itr_entry(0x3, KVM_VMM_BASE, pte, KVM_VMM_SHIFT);
+	local_irq_restore(saved_psr);
 	if (slot < 0)
 		return;
-	local_irq_restore(saved_psr);
 
 	spin_lock(&vp_lock);
 	status = ia64_pal_vp_init_env(kvm_vsa_base ?
@@ -160,9 +157,9 @@ void kvm_arch_hardware_disable(void *garbage)
 
 	local_irq_save(saved_psr);
 	slot = ia64_itr_entry(0x3, KVM_VMM_BASE, pte, KVM_VMM_SHIFT);
+	local_irq_restore(saved_psr);
 	if (slot < 0)
 		return;
-	local_irq_restore(saved_psr);
 
 	status = ia64_pal_vp_exit_env(host_iva);
 	if (status)
@@ -184,8 +181,15 @@ int kvm_dev_ioctl_check_extension(long ext)
 	switch (ext) {
 	case KVM_CAP_IRQCHIP:
 	case KVM_CAP_USER_MEMORY:
+	case KVM_CAP_MP_STATE:
 
 		r = 1;
+		break;
+	case KVM_CAP_COALESCED_MMIO:
+		r = KVM_COALESCED_MMIO_PAGE_OFFSET;
+		break;
+	case KVM_CAP_IOMMU:
+		r = intel_iommu_found();
 		break;
 	default:
 		r = 0;
@@ -195,11 +199,11 @@ int kvm_dev_ioctl_check_extension(long ext)
 }
 
 static struct kvm_io_device *vcpu_find_mmio_dev(struct kvm_vcpu *vcpu,
-					gpa_t addr)
+					gpa_t addr, int len, int is_write)
 {
 	struct kvm_io_device *dev;
 
-	dev = kvm_io_bus_find_dev(&vcpu->kvm->mmio_bus, addr);
+	dev = kvm_io_bus_find_dev(&vcpu->kvm->mmio_bus, addr, len, is_write);
 
 	return dev;
 }
@@ -231,7 +235,7 @@ static int handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	kvm_run->exit_reason = KVM_EXIT_MMIO;
 	return 0;
 mmio:
-	mmio_dev = vcpu_find_mmio_dev(vcpu, p->addr);
+	mmio_dev = vcpu_find_mmio_dev(vcpu, p->addr, p->size, !p->dir);
 	if (mmio_dev) {
 		if (!p->dir)
 			kvm_iodevice_write(mmio_dev, p->addr, p->size,
@@ -773,6 +777,7 @@ static void kvm_init_vm(struct kvm *kvm)
 	 */
 	kvm_build_io_pmt(kvm);
 
+	INIT_LIST_HEAD(&kvm->arch.assigned_dev_head);
 }
 
 struct  kvm *kvm_arch_create_vm(void)
@@ -1035,14 +1040,6 @@ static void kvm_free_vmm_area(void)
 	}
 }
 
-/*
- * Make sure that a cpu that is being hot-unplugged does not have any vcpus
- * cached on it. Leave it as blank for IA64.
- */
-void decache_vcpus_on_cpu(int cpu)
-{
-}
-
 static void vti_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 }
@@ -1117,7 +1114,7 @@ static void kvm_migrate_hlt_timer(struct kvm_vcpu *vcpu)
 	struct hrtimer *p_ht = &vcpu->arch.hlt_timer;
 
 	if (hrtimer_cancel(p_ht))
-		hrtimer_start(p_ht, p_ht->expires, HRTIMER_MODE_ABS);
+		hrtimer_start_expires(p_ht, HRTIMER_MODE_ABS);
 }
 
 static enum hrtimer_restart hlt_timer_fn(struct hrtimer *data)
@@ -1258,6 +1255,7 @@ static int vti_vcpu_setup(struct kvm_vcpu *vcpu, int id)
 uninit:
 	kvm_vcpu_uninit(vcpu);
 fail:
+	local_irq_restore(psr);
 	return r;
 }
 
@@ -1343,6 +1341,10 @@ static void kvm_release_vm_pages(struct kvm *kvm)
 
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
+	kvm_iommu_unmap_guest(kvm);
+#ifdef  KVM_CAP_DEVICE_ASSIGNMENT
+	kvm_free_all_assigned_devices(kvm);
+#endif
 	kfree(kvm->arch.vioapic);
 	kvm_release_vm_pages(kvm);
 	kvm_free_physmem(kvm);
@@ -1444,22 +1446,32 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 		int user_alloc)
 {
 	unsigned long i;
-	struct page *page;
+	unsigned long pfn;
 	int npages = mem->memory_size >> PAGE_SHIFT;
 	struct kvm_memory_slot *memslot = &kvm->memslots[mem->slot];
 	unsigned long base_gfn = memslot->base_gfn;
 
 	for (i = 0; i < npages; i++) {
-		page = gfn_to_page(kvm, base_gfn + i);
-		kvm_set_pmt_entry(kvm, base_gfn + i,
-				page_to_pfn(page) << PAGE_SHIFT,
-				_PAGE_AR_RWX|_PAGE_MA_WB);
-		memslot->rmap[i] = (unsigned long)page;
+		pfn = gfn_to_pfn(kvm, base_gfn + i);
+		if (!kvm_is_mmio_pfn(pfn)) {
+			kvm_set_pmt_entry(kvm, base_gfn + i,
+					pfn << PAGE_SHIFT,
+				_PAGE_AR_RWX | _PAGE_MA_WB);
+			memslot->rmap[i] = (unsigned long)pfn_to_page(pfn);
+		} else {
+			kvm_set_pmt_entry(kvm, base_gfn + i,
+					GPFN_PHYS_MMIO | (pfn << PAGE_SHIFT),
+					_PAGE_MA_UC);
+			memslot->rmap[i] = 0;
+			}
 	}
 
 	return 0;
 }
 
+void kvm_arch_flush_shadow(struct kvm *kvm)
+{
+}
 
 long kvm_arch_dev_ioctl(struct file *filp,
 		unsigned int ioctl, unsigned long arg)
@@ -1795,11 +1807,43 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
 				    struct kvm_mp_state *mp_state)
 {
-	return -EINVAL;
+	vcpu_load(vcpu);
+	mp_state->mp_state = vcpu->arch.mp_state;
+	vcpu_put(vcpu);
+	return 0;
+}
+
+static int vcpu_reset(struct kvm_vcpu *vcpu)
+{
+	int r;
+	long psr;
+	local_irq_save(psr);
+	r = kvm_insert_vmm_mapping(vcpu);
+	if (r)
+		goto fail;
+
+	vcpu->arch.launched = 0;
+	kvm_arch_vcpu_uninit(vcpu);
+	r = kvm_arch_vcpu_init(vcpu);
+	if (r)
+		goto fail;
+
+	kvm_purge_vmm_mapping(vcpu);
+	r = 0;
+fail:
+	local_irq_restore(psr);
+	return r;
 }
 
 int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 				    struct kvm_mp_state *mp_state)
 {
-	return -EINVAL;
+	int r = 0;
+
+	vcpu_load(vcpu);
+	vcpu->arch.mp_state = mp_state->mp_state;
+	if (vcpu->arch.mp_state == KVM_MP_STATE_UNINITIALIZED)
+		r = vcpu_reset(vcpu);
+	vcpu_put(vcpu);
+	return r;
 }

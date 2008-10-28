@@ -15,6 +15,7 @@
 #include <linux/mc146818rtc.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
+#include <linux/delay.h>
 
 #define RTC_PIE 0x40		/* periodic interrupt enable */
 #define RTC_AIE 0x20		/* alarm interrupt enable */
@@ -43,7 +44,6 @@ static inline unsigned char rtc_is_updating(void)
 
 static inline unsigned int get_rtc_time(struct rtc_time *time)
 {
-	unsigned long uip_watchdog = jiffies;
 	unsigned char ctrl;
 	unsigned long flags;
 
@@ -53,19 +53,15 @@ static inline unsigned int get_rtc_time(struct rtc_time *time)
 
 	/*
 	 * read RTC once any update in progress is done. The update
-	 * can take just over 2ms. We wait 10 to 20ms. There is no need to
+	 * can take just over 2ms. We wait 20ms. There is no need to
 	 * to poll-wait (up to 1s - eeccch) for the falling edge of RTC_UIP.
 	 * If you need to know *exactly* when a second has started, enable
 	 * periodic update complete interrupts, (via ioctl) and then 
 	 * immediately read /dev/rtc which will block until you get the IRQ.
 	 * Once the read clears, read the RTC time (again via ioctl). Easy.
 	 */
-
-	if (rtc_is_updating() != 0)
-		while (jiffies - uip_watchdog < 2*HZ/100) {
-			barrier();
-			cpu_relax();
-		}
+	if (rtc_is_updating())
+		mdelay(20);
 
 	/*
 	 * Only the values that we read from the RTC are set. We leave
@@ -88,12 +84,12 @@ static inline unsigned int get_rtc_time(struct rtc_time *time)
 
 	if (!(ctrl & RTC_DM_BINARY) || RTC_ALWAYS_BCD)
 	{
-		BCD_TO_BIN(time->tm_sec);
-		BCD_TO_BIN(time->tm_min);
-		BCD_TO_BIN(time->tm_hour);
-		BCD_TO_BIN(time->tm_mday);
-		BCD_TO_BIN(time->tm_mon);
-		BCD_TO_BIN(time->tm_year);
+		time->tm_sec = bcd2bin(time->tm_sec);
+		time->tm_min = bcd2bin(time->tm_min);
+		time->tm_hour = bcd2bin(time->tm_hour);
+		time->tm_mday = bcd2bin(time->tm_mday);
+		time->tm_mon = bcd2bin(time->tm_mon);
+		time->tm_year = bcd2bin(time->tm_year);
 	}
 
 #ifdef CONFIG_MACH_DECSTATION
@@ -163,12 +159,12 @@ static inline int set_rtc_time(struct rtc_time *time)
 
 	if (!(CMOS_READ(RTC_CONTROL) & RTC_DM_BINARY)
 	    || RTC_ALWAYS_BCD) {
-		BIN_TO_BCD(sec);
-		BIN_TO_BCD(min);
-		BIN_TO_BCD(hrs);
-		BIN_TO_BCD(day);
-		BIN_TO_BCD(mon);
-		BIN_TO_BCD(yrs);
+		sec = bin2bcd(sec);
+		min = bin2bcd(min);
+		hrs = bin2bcd(hrs);
+		day = bin2bcd(day);
+		mon = bin2bcd(mon);
+		yrs = bin2bcd(yrs);
 	}
 
 	save_control = CMOS_READ(RTC_CONTROL);

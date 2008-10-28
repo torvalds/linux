@@ -31,17 +31,17 @@
 #include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/serial_core.h>
+#include <linux/io.h>
 
 #include <asm/mach/map.h>
 
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <mach/hardware.h>
 
-#include <asm/arch/regs-s3c2443-clock.h>
+#include <mach/regs-s3c2443-clock.h>
 
-#include <asm/plat-s3c24xx/s3c2443.h>
-#include <asm/plat-s3c24xx/clock.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/s3c2443.h>
+#include <plat/clock.h>
+#include <plat/cpu.h>
 
 /* We currently have to assume that the system is running
  * from the XTPll input, and that all ***REFCLKs are being
@@ -1033,8 +1033,7 @@ void __init s3c2443_init_clocks(int xtal)
 
 	fclk = pll / s3c2443_fclk_div(clkdiv0);
 	hclk = s3c2443_prediv_getrate(&clk_prediv);
-	hclk = hclk / s3c2443_get_hdiv(clkdiv0);
-	hclk = hclk / ((clkdiv0 & S3C2443_CLKDIV0_HALF_HCLK) ? 2 : 1);
+	hclk /= s3c2443_get_hdiv(clkdiv0);
  	pclk = hclk / ((clkdiv0 & S3C2443_CLKDIV0_HALF_PCLK) ? 2 : 1);
 
 	s3c24xx_setup_clocks(xtal, fclk, hclk, pclk);

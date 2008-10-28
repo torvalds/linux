@@ -20,30 +20,30 @@
 #include <linux/sysdev.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <asm/plat-s3c/regs-serial.h>
-#include <asm/arch/regs-lcd.h>
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/regs-clock.h>
+#include <plat/regs-serial.h>
+#include <mach/regs-lcd.h>
+#include <mach/regs-gpio.h>
+#include <mach/regs-clock.h>
 
-#include <asm/arch/h1940.h>
-#include <asm/arch/h1940-latch.h>
-#include <asm/arch/fb.h>
+#include <mach/h1940.h>
+#include <mach/h1940-latch.h>
+#include <mach/fb.h>
 #include <asm/plat-s3c24xx/udc.h>
 
-#include <asm/plat-s3c24xx/clock.h>
-#include <asm/plat-s3c24xx/devs.h>
-#include <asm/plat-s3c24xx/cpu.h>
-#include <asm/plat-s3c24xx/pm.h>
+#include <plat/clock.h>
+#include <plat/devs.h>
+#include <plat/cpu.h>
+#include <plat/pm.h>
 
 static struct map_desc h1940_iodesc[] __initdata = {
 	[0] = {

@@ -210,8 +210,8 @@ static int ds1286_ioctl(struct inode *inode, struct file *file,
 		if (sec != 0)
 			return -EINVAL;
 
-		min = BIN2BCD(min);
-		min = BIN2BCD(hrs);
+		min = bin2bcd(min);
+		min = bin2bcd(hrs);
 
 		spin_lock(&ds1286_lock);
 		rtc_write(hrs, RTC_HOURS_ALARM);
@@ -353,7 +353,7 @@ static int ds1286_proc_output(char *buf)
 
 	ds1286_get_time(&tm);
 	hundredth = rtc_read(RTC_HUNDREDTH_SECOND);
-	BCD_TO_BIN(hundredth);
+	hundredth = bcd2bin(hundredth);
 
 	p += sprintf(p,
 	             "rtc_time\t: %02d:%02d:%02d.%02d\n"
@@ -443,7 +443,6 @@ static void ds1286_get_time(struct rtc_time *rtc_tm)
 {
 	unsigned char save_control;
 	unsigned long flags;
-	unsigned long uip_watchdog = jiffies;
 
 	/*
 	 * read RTC once any update in progress is done. The update
@@ -456,8 +455,7 @@ static void ds1286_get_time(struct rtc_time *rtc_tm)
 	 */
 
 	if (ds1286_is_updating() != 0)
-		while (time_before(jiffies, uip_watchdog + 2*HZ/100))
-			barrier();
+		msleep(20);
 
 	/*
 	 * Only the values that we read from the RTC are set. We leave
@@ -479,12 +477,12 @@ static void ds1286_get_time(struct rtc_time *rtc_tm)
 	rtc_write(save_control, RTC_CMD);
 	spin_unlock_irqrestore(&ds1286_lock, flags);
 
-	BCD_TO_BIN(rtc_tm->tm_sec);
-	BCD_TO_BIN(rtc_tm->tm_min);
-	BCD_TO_BIN(rtc_tm->tm_hour);
-	BCD_TO_BIN(rtc_tm->tm_mday);
-	BCD_TO_BIN(rtc_tm->tm_mon);
-	BCD_TO_BIN(rtc_tm->tm_year);
+	rtc_tm->tm_sec = bcd2bin(rtc_tm->tm_sec);
+	rtc_tm->tm_min = bcd2bin(rtc_tm->tm_min);
+	rtc_tm->tm_hour = bcd2bin(rtc_tm->tm_hour);
+	rtc_tm->tm_mday = bcd2bin(rtc_tm->tm_mday);
+	rtc_tm->tm_mon = bcd2bin(rtc_tm->tm_mon);
+	rtc_tm->tm_year = bcd2bin(rtc_tm->tm_year);
 
 	/*
 	 * Account for differences between how the RTC uses the values
@@ -533,12 +531,12 @@ static int ds1286_set_time(struct rtc_time *rtc_tm)
 	if (yrs >= 100)
 		yrs -= 100;
 
-	BIN_TO_BCD(sec);
-	BIN_TO_BCD(min);
-	BIN_TO_BCD(hrs);
-	BIN_TO_BCD(day);
-	BIN_TO_BCD(mon);
-	BIN_TO_BCD(yrs);
+	sec = bin2bcd(sec);
+	min = bin2bcd(min);
+	hrs = bin2bcd(hrs);
+	day = bin2bcd(day);
+	mon = bin2bcd(mon);
+	yrs = bin2bcd(yrs);
 
 	spin_lock_irqsave(&ds1286_lock, flags);
 	save_control = rtc_read(RTC_CMD);
@@ -574,8 +572,8 @@ static void ds1286_get_alm_time(struct rtc_time *alm_tm)
 	cmd = rtc_read(RTC_CMD);
 	spin_unlock_irqrestore(&ds1286_lock, flags);
 
-	BCD_TO_BIN(alm_tm->tm_min);
-	BCD_TO_BIN(alm_tm->tm_hour);
+	alm_tm->tm_min = bcd2bin(alm_tm->tm_min);
+	alm_tm->tm_hour = bcd2bin(alm_tm->tm_hour);
 	alm_tm->tm_sec = 0;
 }
 

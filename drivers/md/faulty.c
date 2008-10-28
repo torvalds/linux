@@ -287,6 +287,8 @@ static int run(mddev_t *mddev)
 	int i;
 
 	conf_t *conf = kmalloc(sizeof(*conf), GFP_KERNEL);
+	if (!conf)
+		return -ENOMEM;
 
 	for (i=0; i<Modes; i++) {
 		atomic_set(&conf->counters[i], 0);
@@ -297,7 +299,7 @@ static int run(mddev_t *mddev)
 	rdev_for_each(rdev, tmp, mddev)
 		conf->rdev = rdev;
 
-	mddev->array_size = mddev->size;
+	mddev->array_sectors = mddev->size * 2;
 	mddev->private = conf;
 
 	reconfig(mddev, mddev->layout, -1);

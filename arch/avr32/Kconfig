@@ -10,6 +10,7 @@ config AVR32
 	# With EMBEDDED=n, we get lots of stuff automatically selected
 	# that we usually don't need on AVR32.
 	select EMBEDDED
+	select HAVE_CLK
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
 	help
@@ -71,6 +72,8 @@ config GENERIC_BUG
 
 source "init/Kconfig"
 
+source "kernel/Kconfig.freezer"
+
 menu "System Type and features"
 
 source "kernel/time/Kconfig"
@@ -87,7 +90,7 @@ config PLATFORM_AT32AP
 	select SUBARCH_AVR32B
 	select MMU
 	select PERFORMANCE_COUNTERS
-	select HAVE_GPIO_LIB
+	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_ALLOCATOR
 
 #
@@ -118,11 +121,19 @@ config BOARD_ATSTK1000
 config BOARD_ATNGW100
 	bool "ATNGW100 Network Gateway"
 	select CPU_AT32AP7000
+
+config BOARD_FAVR_32
+	bool "Favr-32 LCD-board"
+	select CPU_AT32AP7000
+
+config BOARD_MIMC200
+	bool "MIMC200 CPU board"
+	select CPU_AT32AP7000
 endchoice
 
-if BOARD_ATSTK1000
 source "arch/avr32/boards/atstk1000/Kconfig"
-endif
+source "arch/avr32/boards/atngw100/Kconfig"
+source "arch/avr32/boards/favr-32/Kconfig"
 
 choice
 	prompt "Boot loader type"

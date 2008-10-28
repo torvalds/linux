@@ -7,9 +7,11 @@
 
 #include <linux/errno.h>
 #include <linux/crash_dump.h>
+#include <linux/uaccess.h>
+#include <linux/io.h>
 
-#include <asm/uaccess.h>
-#include <asm/io.h>
+/* Stores the physical address of elf header of crash image. */
+unsigned long long elfcorehdr_addr = ELFCORE_ADDR_MAX;
 
 /**
  * copy_oldmem_page - copy one page from "oldmem"
@@ -25,7 +27,7 @@
  * in the current kernel. We stitch up a pte, similar to kmap_atomic.
  */
 ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
-                               size_t csize, unsigned long offset, int userbuf)
+		size_t csize, unsigned long offset, int userbuf)
 {
 	void  *vaddr;
 
@@ -33,14 +35,16 @@ ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
 		return 0;
 
 	vaddr = ioremap(pfn << PAGE_SHIFT, PAGE_SIZE);
+	if (!vaddr)
+		return -ENOMEM;
 
 	if (userbuf) {
-		if (copy_to_user(buf, (vaddr + offset), csize)) {
+		if (copy_to_user(buf, vaddr + offset, csize)) {
 			iounmap(vaddr);
 			return -EFAULT;
 		}
 	} else
-	memcpy(buf, (vaddr + offset), csize);
+		memcpy(buf, vaddr + offset, csize);
 
 	iounmap(vaddr);
 	return csize;

@@ -152,7 +152,7 @@ struct reiserfs_journal_list {
 	atomic_t j_nonzerolen;
 	atomic_t j_commit_left;
 	atomic_t j_older_commits_done;	/* all commits older than this on disk */
-	struct semaphore j_commit_lock;
+	struct mutex j_commit_mutex;
 	unsigned long j_trans_id;
 	time_t j_timestamp;
 	struct reiserfs_list_bitmap *j_list_bitmap;
@@ -178,6 +178,7 @@ struct reiserfs_journal {
 	struct reiserfs_journal_cnode *j_first;	/*  oldest journal block.  start here for traverse */
 
 	struct block_device *j_dev_bd;
+	fmode_t j_dev_mode;
 	int j_1st_reserved_block;	/* first block on s_dev of reserved area journal */
 
 	unsigned long j_state;
@@ -193,8 +194,8 @@ struct reiserfs_journal {
 	struct buffer_head *j_header_bh;
 
 	time_t j_trans_start_time;	/* time this transaction started */
-	struct semaphore j_lock;
-	struct semaphore j_flush_sem;
+	struct mutex j_mutex;
+	struct mutex j_flush_mutex;
 	wait_queue_head_t j_join_wait;	/* wait for current transaction to finish before starting new one */
 	atomic_t j_jlock;	/* lock for j_join_wait */
 	int j_list_bitmap_index;	/* number of next list bitmap to use */

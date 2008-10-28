@@ -38,8 +38,9 @@
 #define CN_W1_VAL			0x1
 #define CN_IDX_V86D			0x4
 #define CN_VAL_V86D_UVESAFB		0x1
+#define CN_IDX_BB			0x5	/* BlackBoard, from the TSP GPL sampling framework */
 
-#define CN_NETLINK_USERS		5
+#define CN_NETLINK_USERS		6
 
 /*
  * Maximum connector's message size.

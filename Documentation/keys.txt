@@ -864,7 +864,7 @@ payload contents" for more information.
     request_key_with_auxdata() respectively.
 
     These two functions return with the key potentially still under
-    construction.  To wait for contruction completion, the following should be
+    construction.  To wait for construction completion, the following should be
     called:
 
 	int wait_for_key_construction(struct key *key, bool intr);

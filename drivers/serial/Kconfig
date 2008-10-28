@@ -1,8 +1,6 @@
 #
 # Serial device configuration
 #
-# $Id: Kconfig,v 1.11 2004/03/11 18:08:04 lethal Exp $
-#
 
 menu "Serial drivers"
 	depends on HAS_IOMEM
@@ -11,7 +9,6 @@ menu "Serial drivers"
 # The new 8250/16550 serial drivers
 config SERIAL_8250
 	tristate "8250/16550 and compatible serial support"
-	depends on (BROKEN || !SPARC)
 	select SERIAL_CORE
 	---help---
 	  This selects whether you want to include the driver for the standard
@@ -451,6 +448,7 @@ config SERIAL_CLPS711X_CONSOLE
 config SERIAL_SAMSUNG
 	tristate "Samsung SoC serial support"
 	depends on ARM && PLAT_S3C24XX
+	select SERIAL_CORE
 	help
 	  Support for the on-chip UARTs on the Samsung S3C24XX series CPUs,
 	  providing /dev/ttySAC0, 1 and 2 (note, some machines may not
@@ -459,7 +457,7 @@ config SERIAL_SAMSUNG
 
 config SERIAL_SAMSUNG_DEBUG
 	bool "Samsung SoC serial debug"
-	depends on SERIAL_SAMSUNG
+	depends on SERIAL_SAMSUNG && DEBUG_LL
 	help
 	  Add support for debugging the serial driver. Since this is
 	  generally being used as a console, we use our own output
@@ -944,22 +942,6 @@ config SERIAL_IP22_ZILOG_CONSOLE
 	depends on SERIAL_IP22_ZILOG=y
 	select SERIAL_CORE_CONSOLE
 
-config V850E_UART
-	bool "NEC V850E on-chip UART support"
-	depends on V850E_MA1 || V850E_ME2 || V850E_TEG || V850E2_ANNA || V850E_AS85EP1
-	select SERIAL_CORE
-	default y
-
-config V850E_UARTB
-        bool
-	depends on V850E_UART && V850E_ME2
-	default y
-
-config V850E_UART_CONSOLE
-	bool "Use NEC V850E on-chip UART for console"
-	depends on V850E_UART
-	select SERIAL_CORE_CONSOLE
-
 config SERIAL_SH_SCI
 	tristate "SuperH SCI(F) serial port support"
 	depends on SUPERH || H8300
@@ -1011,24 +993,12 @@ config SERIAL_68328_RTS_CTS
 	bool "Support RTS/CTS on 68328 serial port"
 	depends on SERIAL_68328
 
-config SERIAL_COLDFIRE
-	bool "ColdFire serial support (DEPRECATED)"
-	depends on COLDFIRE
-	help
-	  This driver supports the built-in serial ports of the Motorola ColdFire
-	  family of CPUs.
-	  This driver is deprecated because it supports only the old interface
-	  for serial drivers and features like magic keys are not working.
-	  Please switch to the new style driver because this driver will be
-	  removed soon.
-
 config SERIAL_MCF
-	bool "Coldfire serial support (new style driver)"
+	bool "Coldfire serial support"
 	depends on COLDFIRE
 	select SERIAL_CORE
 	help
-	  This new serial driver supports the Freescale Coldfire serial ports
-	  using the new serial driver subsystem.
+	  This serial driver supports the Freescale Coldfire serial ports.
 
 config SERIAL_MCF_BAUDRATE
 	int "Default baudrate for Coldfire serial ports"
@@ -1152,42 +1122,6 @@ config SERIAL_CPM_CONSOLE
 	  "console=ttyCPM0". (Try "man bootparam" or see the documentation of
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
-
-config SERIAL_CPM_SCC1
-	bool "Support for SCC1 serial port"
-	depends on SERIAL_CPM=y
-	help
-	  Select this option to use SCC1 as a serial port
-
-config SERIAL_CPM_SCC2
-	bool "Support for SCC2 serial port"
-	depends on SERIAL_CPM=y
-	help
-	  Select this option to use SCC2 as a serial port
-
-config SERIAL_CPM_SCC3
-	bool "Support for SCC3 serial port"
-	depends on SERIAL_CPM=y
-	help
-	  Select this option to use SCC3 as a serial port
-
-config SERIAL_CPM_SCC4
-	bool "Support for SCC4 serial port"
-	depends on SERIAL_CPM=y
-	help
-	  Select this option to use SCC4 as a serial port
-
-config SERIAL_CPM_SMC1
-	bool "Support for SMC1 serial port"
-	depends on SERIAL_CPM=y
-	help
-	  Select this option to use SMC1 as a serial port
-
-config SERIAL_CPM_SMC2
-	bool "Support for SMC2 serial port"
-	depends on SERIAL_CPM=y
-	help
-	  Select this option to use SMC2 as a serial port
 
 config SERIAL_SGI_L1_CONSOLE
 	bool "SGI Altix L1 serial console support"

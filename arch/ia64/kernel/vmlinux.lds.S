@@ -4,7 +4,6 @@
 #include <asm/system.h>
 #include <asm/pgtable.h>
 
-#define LOAD_OFFSET	(KERNEL_START - KERNEL_TR_PAGE_SIZE)
 #include <asm-generic/vmlinux.lds.h>
 
 #define IVT_TEXT							\
@@ -231,6 +230,11 @@ SECTIONS
   data : { } :data
   .data : AT(ADDR(.data) - LOAD_OFFSET)
 	{
+#ifdef	CONFIG_SMP
+  . = ALIGN(PERCPU_PAGE_SIZE);
+		__cpu0_per_cpu = .;
+  . = . + PERCPU_PAGE_SIZE;	/* cpu0 per-cpu space */
+#endif
 		DATA_DATA
 		*(.data1)
 		*(.gnu.linkonce.d*)

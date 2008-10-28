@@ -1,28 +1,16 @@
 /*
  * procfs_example.c: an example proc interface
  *
- * Copyright (C) 2001, Erik Mouw (J.A.K.Mouw@its.tudelft.nl)
+ * Copyright (C) 2001, Erik Mouw (mouw@nl.linux.org)
  *
  * This file accompanies the procfs-guide in the Linux kernel
  * source. Its main use is to demonstrate the concepts and
  * functions described in the guide.
  *
  * This software has been developed while working on the LART
- * computing board (http://www.lart.tudelft.nl/), which is
- * sponsored by the Mobile Multi-media Communications
- * (http://www.mmc.tudelft.nl/) and Ubiquitous Communications 
- * (http://www.ubicom.tudelft.nl/) projects.
- *
- * The author can be reached at:
- *
- *  Erik Mouw
- *  Information and Communication Theory Group
- *  Faculty of Information Technology and Systems
- *  Delft University of Technology
- *  P.O. Box 5031
- *  2600 GA Delft
- *  The Netherlands
- *
+ * computing board (http://www.lartmaker.nl), which was sponsored
+ * by the Delt University of Technology projects Mobile Multi-media
+ * Communications and Ubiquitous Communications.
  *
  * This program is free software; you can redistribute
  * it and/or modify it under the terms of the GNU General
@@ -189,8 +177,6 @@ static int __init init_procfs_example(void)
 	return 0;
 
 no_symlink:
-	remove_proc_entry("tty", example_dir);
-no_tty:
 	remove_proc_entry("bar", example_dir);
 no_bar:
 	remove_proc_entry("foo", example_dir);
@@ -206,7 +192,6 @@ out:
 static void __exit cleanup_procfs_example(void)
 {
 	remove_proc_entry("jiffies_too", example_dir);
-	remove_proc_entry("tty", example_dir);
 	remove_proc_entry("bar", example_dir);
 	remove_proc_entry("foo", example_dir);
 	remove_proc_entry("jiffies", example_dir);
@@ -222,3 +207,4 @@ module_exit(cleanup_procfs_example);
 
 MODULE_AUTHOR("Erik Mouw");
 MODULE_DESCRIPTION("procfs examples");
+MODULE_LICENSE("GPL");

@@ -75,7 +75,6 @@
  */
 #define UBIFS_BLOCK_SIZE  4096
 #define UBIFS_BLOCK_SHIFT 12
-#define UBIFS_BLOCK_MASK  0x00000FFF
 
 /* UBIFS padding byte pattern (must not be first or last byte of node magic) */
 #define UBIFS_PADDING_BYTE 0xCE
@@ -87,7 +86,7 @@
 #define UBIFS_SK_LEN 8
 
 /* Minimum index tree fanout */
-#define UBIFS_MIN_FANOUT 2
+#define UBIFS_MIN_FANOUT 3
 
 /* Maximum number of levels in UBIFS indexing B-tree */
 #define UBIFS_MAX_LEVELS 512
@@ -228,10 +227,10 @@ enum {
 /* Minimum number of orphan area logical eraseblocks */
 #define UBIFS_MIN_ORPH_LEBS 1
 /*
- * Minimum number of main area logical eraseblocks (buds, 2 for the index, 1
+ * Minimum number of main area logical eraseblocks (buds, 3 for the index, 1
  * for GC, 1 for deletions, and at least 1 for committed data).
  */
-#define UBIFS_MIN_MAIN_LEBS (UBIFS_MIN_BUD_LEBS + 5)
+#define UBIFS_MIN_MAIN_LEBS (UBIFS_MIN_BUD_LEBS + 6)
 
 /* Minimum number of logical eraseblocks */
 #define UBIFS_MIN_LEB_CNT (UBIFS_SB_LEBS + UBIFS_MST_LEBS + \

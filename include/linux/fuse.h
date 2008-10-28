@@ -17,7 +17,13 @@
  *  - add lock_owner field to fuse_setattr_in, fuse_read_in and fuse_write_in
  *  - add blksize field to fuse_attr
  *  - add file flags field to fuse_read_in and fuse_write_in
+ *
+ * 7.10
+ *  - add nonseekable open flag
  */
+
+#ifndef _LINUX_FUSE_H
+#define _LINUX_FUSE_H
 
 #include <asm/types.h>
 #include <linux/major.h>
@@ -26,7 +32,7 @@
 #define FUSE_KERNEL_VERSION 7
 
 /** Minor version number of this interface */
-#define FUSE_KERNEL_MINOR_VERSION 9
+#define FUSE_KERNEL_MINOR_VERSION 10
 
 /** The node ID of the root inode */
 #define FUSE_ROOT_ID 1
@@ -98,17 +104,22 @@ struct fuse_file_lock {
  *
  * FOPEN_DIRECT_IO: bypass page cache for this open file
  * FOPEN_KEEP_CACHE: don't invalidate the data cache on open
+ * FOPEN_NONSEEKABLE: the file is not seekable
  */
 #define FOPEN_DIRECT_IO		(1 << 0)
 #define FOPEN_KEEP_CACHE	(1 << 1)
+#define FOPEN_NONSEEKABLE	(1 << 2)
 
 /**
  * INIT request/reply flags
+ *
+ * FUSE_EXPORT_SUPPORT: filesystem handles lookups of "." and ".."
  */
 #define FUSE_ASYNC_READ		(1 << 0)
 #define FUSE_POSIX_LOCKS	(1 << 1)
 #define FUSE_FILE_OPS		(1 << 2)
 #define FUSE_ATOMIC_O_TRUNC	(1 << 3)
+#define FUSE_EXPORT_SUPPORT	(1 << 4)
 #define FUSE_BIG_WRITES		(1 << 5)
 
 /**
@@ -406,3 +417,5 @@ struct fuse_dirent {
 #define FUSE_DIRENT_ALIGN(x) (((x) + sizeof(__u64) - 1) & ~(sizeof(__u64) - 1))
 #define FUSE_DIRENT_SIZE(d) \
 	FUSE_DIRENT_ALIGN(FUSE_NAME_OFFSET + (d)->namelen)
+
+#endif /* _LINUX_FUSE_H */

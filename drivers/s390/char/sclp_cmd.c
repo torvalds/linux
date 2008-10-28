@@ -427,11 +427,16 @@ static int sclp_mem_notifier(struct notifier_block *nb,
 			sclp_attach_storage(id);
 	switch (action) {
 	case MEM_ONLINE:
+	case MEM_GOING_OFFLINE:
+	case MEM_CANCEL_OFFLINE:
 		break;
 	case MEM_GOING_ONLINE:
 		rc = sclp_mem_change_state(start, size, 1);
 		break;
 	case MEM_CANCEL_ONLINE:
+		sclp_mem_change_state(start, size, 0);
+		break;
+	case MEM_OFFLINE:
 		sclp_mem_change_state(start, size, 0);
 		break;
 	default:

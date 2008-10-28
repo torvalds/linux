@@ -13,6 +13,8 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
+#include <linux/i2c.h>
+#include <linux/i2c-algo-bit.h>
 #include "net_driver.h"
 #include "bitfield.h"
 #include "efx.h"
@@ -36,10 +38,12 @@
  * struct falcon_nic_data - Falcon NIC state
  * @next_buffer_table: First available buffer table id
  * @pci_dev2: The secondary PCI device if present
+ * @i2c_data: Operations and state for I2C bit-bashing algorithm
  */
 struct falcon_nic_data {
 	unsigned next_buffer_table;
 	struct pci_dev *pci_dev2;
+	struct i2c_algo_bit_data i2c_data;
 };
 
 /**************************************************************************
@@ -104,10 +108,10 @@ MODULE_PARM_DESC(rx_xon_thresh_bytes, "RX fifo XON threshold");
 /* Max number of internal errors. After this resets will not be performed */
 #define FALCON_MAX_INT_ERRORS 4
 
-/* Maximum period that we wait for flush events. If the flush event
- * doesn't arrive in this period of time then we check if the queue
- * was disabled anyway. */
-#define FALCON_FLUSH_TIMEOUT 10 /* 10ms */
+/* We poll for events every FLUSH_INTERVAL ms, and check FLUSH_POLL_COUNT times
+ */
+#define FALCON_FLUSH_INTERVAL 10
+#define FALCON_FLUSH_POLL_COUNT 100
 
 /**************************************************************************
  *
@@ -175,39 +179,52 @@ static inline int falcon_event_present(efx_qword_t *event)
  *
  **************************************************************************
  */
-static void falcon_setsdascl(struct efx_i2c_interface *i2c)
+static void falcon_setsda(void *data, int state)
 {
+	struct efx_nic *efx = (struct efx_nic *)data;
 	efx_oword_t reg;
 
-	falcon_read(i2c->efx, &reg, GPIO_CTL_REG_KER);
-	EFX_SET_OWORD_FIELD(reg, GPIO0_OEN, (i2c->scl ? 0 : 1));
-	EFX_SET_OWORD_FIELD(reg, GPIO3_OEN, (i2c->sda ? 0 : 1));
-	falcon_write(i2c->efx, &reg, GPIO_CTL_REG_KER);
+	falcon_read(efx, &reg, GPIO_CTL_REG_KER);
+	EFX_SET_OWORD_FIELD(reg, GPIO3_OEN, !state);
+	falcon_write(efx, &reg, GPIO_CTL_REG_KER);
 }
 
-static int falcon_getsda(struct efx_i2c_interface *i2c)
+static void falcon_setscl(void *data, int state)
 {
+	struct efx_nic *efx = (struct efx_nic *)data;
 	efx_oword_t reg;
 
-	falcon_read(i2c->efx, &reg, GPIO_CTL_REG_KER);
+	falcon_read(efx, &reg, GPIO_CTL_REG_KER);
+	EFX_SET_OWORD_FIELD(reg, GPIO0_OEN, !state);
+	falcon_write(efx, &reg, GPIO_CTL_REG_KER);
+}
+
+static int falcon_getsda(void *data)
+{
+	struct efx_nic *efx = (struct efx_nic *)data;
+	efx_oword_t reg;
+
+	falcon_read(efx, &reg, GPIO_CTL_REG_KER);
 	return EFX_OWORD_FIELD(reg, GPIO3_IN);
 }
 
-static int falcon_getscl(struct efx_i2c_interface *i2c)
+static int falcon_getscl(void *data)
 {
+	struct efx_nic *efx = (struct efx_nic *)data;
 	efx_oword_t reg;
 
-	falcon_read(i2c->efx, &reg, GPIO_CTL_REG_KER);
-	return EFX_DWORD_FIELD(reg, GPIO0_IN);
+	falcon_read(efx, &reg, GPIO_CTL_REG_KER);
+	return EFX_OWORD_FIELD(reg, GPIO0_IN);
 }
 
-static struct efx_i2c_bit_operations falcon_i2c_bit_operations = {
-	.setsda		= falcon_setsdascl,
-	.setscl		= falcon_setsdascl,
+static struct i2c_algo_bit_data falcon_i2c_bit_operations = {
+	.setsda		= falcon_setsda,
+	.setscl		= falcon_setscl,
 	.getsda		= falcon_getsda,
 	.getscl		= falcon_getscl,
-	.udelay		= 100,
-	.mdelay		= 10,
+	.udelay		= 5,
+	/* Wait up to 50 ms for slave to let us pull SCL high */
+	.timeout	= DIV_ROUND_UP(HZ, 20),
 };
 
 /**************************************************************************
@@ -225,7 +242,7 @@ static struct efx_i2c_bit_operations falcon_i2c_bit_operations = {
  * falcon_alloc_special_buffer()) in Falcon's buffer table, allowing
  * it to be used for event queues, descriptor rings etc.
  */
-static int
+static void
 falcon_init_special_buffer(struct efx_nic *efx,
 			   struct efx_special_buffer *buffer)
 {
@@ -249,8 +266,6 @@ falcon_init_special_buffer(struct efx_nic *efx,
 				     BUF_OWNER_ID_FBUF, 0);
 		falcon_write_sram(efx, &buf_desc, index);
 	}
-
-	return 0;
 }
 
 /* Unmaps a buffer from Falcon and clears the buffer table entries */
@@ -432,16 +447,15 @@ int falcon_probe_tx(struct efx_tx_queue *tx_queue)
 					   sizeof(efx_qword_t));
 }
 
-int falcon_init_tx(struct efx_tx_queue *tx_queue)
+void falcon_init_tx(struct efx_tx_queue *tx_queue)
 {
 	efx_oword_t tx_desc_ptr;
 	struct efx_nic *efx = tx_queue->efx;
-	int rc;
+
+	tx_queue->flushed = false;
 
 	/* Pin TX descriptor ring */
-	rc = falcon_init_special_buffer(efx, &tx_queue->txd);
-	if (rc)
-		return rc;
+	falcon_init_special_buffer(efx, &tx_queue->txd);
 
 	/* Push TX descriptor ring to card */
 	EFX_POPULATE_OWORD_10(tx_desc_ptr,
@@ -449,7 +463,7 @@ int falcon_init_tx(struct efx_tx_queue *tx_queue)
 			      TX_ISCSI_DDIG_EN, 0,
 			      TX_ISCSI_HDIG_EN, 0,
 			      TX_DESCQ_BUF_BASE_ID, tx_queue->txd.index,
-			      TX_DESCQ_EVQ_ID, tx_queue->channel->evqnum,
+			      TX_DESCQ_EVQ_ID, tx_queue->channel->channel,
 			      TX_DESCQ_OWNER_ID, 0,
 			      TX_DESCQ_LABEL, tx_queue->queue,
 			      TX_DESCQ_SIZE, FALCON_TXD_RING_ORDER,
@@ -457,9 +471,9 @@ int falcon_init_tx(struct efx_tx_queue *tx_queue)
 			      TX_NON_IP_DROP_DIS_B0, 1);
 
 	if (falcon_rev(efx) >= FALCON_REV_B0) {
-		int csum = !(efx->net_dev->features & NETIF_F_IP_CSUM);
-		EFX_SET_OWORD_FIELD(tx_desc_ptr, TX_IP_CHKSM_DIS_B0, csum);
-		EFX_SET_OWORD_FIELD(tx_desc_ptr, TX_TCP_CHKSM_DIS_B0, csum);
+		int csum = tx_queue->queue == EFX_TX_QUEUE_OFFLOAD_CSUM;
+		EFX_SET_OWORD_FIELD(tx_desc_ptr, TX_IP_CHKSM_DIS_B0, !csum);
+		EFX_SET_OWORD_FIELD(tx_desc_ptr, TX_TCP_CHKSM_DIS_B0, !csum);
 	}
 
 	falcon_write_table(efx, &tx_desc_ptr, efx->type->txd_ptr_tbl_base,
@@ -468,73 +482,28 @@ int falcon_init_tx(struct efx_tx_queue *tx_queue)
 	if (falcon_rev(efx) < FALCON_REV_B0) {
 		efx_oword_t reg;
 
-		BUG_ON(tx_queue->queue >= 128); /* HW limit */
+		/* Only 128 bits in this register */
+		BUILD_BUG_ON(EFX_TX_QUEUE_COUNT >= 128);
 
 		falcon_read(efx, &reg, TX_CHKSM_CFG_REG_KER_A1);
-		if (efx->net_dev->features & NETIF_F_IP_CSUM)
+		if (tx_queue->queue == EFX_TX_QUEUE_OFFLOAD_CSUM)
 			clear_bit_le(tx_queue->queue, (void *)&reg);
 		else
 			set_bit_le(tx_queue->queue, (void *)&reg);
 		falcon_write(efx, &reg, TX_CHKSM_CFG_REG_KER_A1);
 	}
-
-	return 0;
 }
 
-static int falcon_flush_tx_queue(struct efx_tx_queue *tx_queue)
+static void falcon_flush_tx_queue(struct efx_tx_queue *tx_queue)
 {
 	struct efx_nic *efx = tx_queue->efx;
-	struct efx_channel *channel = &efx->channel[0];
 	efx_oword_t tx_flush_descq;
-	unsigned int read_ptr, i;
 
 	/* Post a flush command */
 	EFX_POPULATE_OWORD_2(tx_flush_descq,
 			     TX_FLUSH_DESCQ_CMD, 1,
 			     TX_FLUSH_DESCQ, tx_queue->queue);
 	falcon_write(efx, &tx_flush_descq, TX_FLUSH_DESCQ_REG_KER);
-	msleep(FALCON_FLUSH_TIMEOUT);
-
-	if (EFX_WORKAROUND_7803(efx))
-		return 0;
-
-	/* Look for a flush completed event */
-	read_ptr = channel->eventq_read_ptr;
-	for (i = 0; i < FALCON_EVQ_SIZE; ++i) {
-		efx_qword_t *event = falcon_event(channel, read_ptr);
-		int ev_code, ev_sub_code, ev_queue;
-		if (!falcon_event_present(event))
-			break;
-
-		ev_code = EFX_QWORD_FIELD(*event, EV_CODE);
-		ev_sub_code = EFX_QWORD_FIELD(*event, DRIVER_EV_SUB_CODE);
-		ev_queue = EFX_QWORD_FIELD(*event, DRIVER_EV_TX_DESCQ_ID);
-		if ((ev_sub_code == TX_DESCQ_FLS_DONE_EV_DECODE) &&
-		    (ev_queue == tx_queue->queue)) {
-			EFX_LOG(efx, "tx queue %d flush command succesful\n",
-				tx_queue->queue);
-			return 0;
-		}
-
-		read_ptr = (read_ptr + 1) & FALCON_EVQ_MASK;
-	}
-
-	if (EFX_WORKAROUND_11557(efx)) {
-		efx_oword_t reg;
-		int enabled;
-
-		falcon_read_table(efx, &reg, efx->type->txd_ptr_tbl_base,
-				  tx_queue->queue);
-		enabled = EFX_OWORD_FIELD(reg, TX_DESCQ_EN);
-		if (!enabled) {
-			EFX_LOG(efx, "tx queue %d disabled without a "
-				"flush event seen\n", tx_queue->queue);
-			return 0;
-		}
-	}
-
-	EFX_ERR(efx, "tx queue %d flush command timed out\n", tx_queue->queue);
-	return -ETIMEDOUT;
 }
 
 void falcon_fini_tx(struct efx_tx_queue *tx_queue)
@@ -542,9 +511,8 @@ void falcon_fini_tx(struct efx_tx_queue *tx_queue)
 	struct efx_nic *efx = tx_queue->efx;
 	efx_oword_t tx_desc_ptr;
 
-	/* Stop the hardware using the queue */
-	if (falcon_flush_tx_queue(tx_queue))
-		EFX_ERR(efx, "failed to flush tx queue %d\n", tx_queue->queue);
+	/* The queue should have been flushed */
+	WARN_ON(!tx_queue->flushed);
 
 	/* Remove TX descriptor ring from card */
 	EFX_ZERO_OWORD(tx_desc_ptr);
@@ -621,29 +589,28 @@ int falcon_probe_rx(struct efx_rx_queue *rx_queue)
 					   sizeof(efx_qword_t));
 }
 
-int falcon_init_rx(struct efx_rx_queue *rx_queue)
+void falcon_init_rx(struct efx_rx_queue *rx_queue)
 {
 	efx_oword_t rx_desc_ptr;
 	struct efx_nic *efx = rx_queue->efx;
-	int rc;
-	int is_b0 = falcon_rev(efx) >= FALCON_REV_B0;
-	int iscsi_digest_en = is_b0;
+	bool is_b0 = falcon_rev(efx) >= FALCON_REV_B0;
+	bool iscsi_digest_en = is_b0;
 
 	EFX_LOG(efx, "RX queue %d ring in special buffers %d-%d\n",
 		rx_queue->queue, rx_queue->rxd.index,
 		rx_queue->rxd.index + rx_queue->rxd.entries - 1);
 
+	rx_queue->flushed = false;
+
 	/* Pin RX descriptor ring */
-	rc = falcon_init_special_buffer(efx, &rx_queue->rxd);
-	if (rc)
-		return rc;
+	falcon_init_special_buffer(efx, &rx_queue->rxd);
 
 	/* Push RX descriptor ring to card */
 	EFX_POPULATE_OWORD_10(rx_desc_ptr,
 			      RX_ISCSI_DDIG_EN, iscsi_digest_en,
 			      RX_ISCSI_HDIG_EN, iscsi_digest_en,
 			      RX_DESCQ_BUF_BASE_ID, rx_queue->rxd.index,
-			      RX_DESCQ_EVQ_ID, rx_queue->channel->evqnum,
+			      RX_DESCQ_EVQ_ID, rx_queue->channel->channel,
 			      RX_DESCQ_OWNER_ID, 0,
 			      RX_DESCQ_LABEL, rx_queue->queue,
 			      RX_DESCQ_SIZE, FALCON_RXD_RING_ORDER,
@@ -653,14 +620,11 @@ int falcon_init_rx(struct efx_rx_queue *rx_queue)
 			      RX_DESCQ_EN, 1);
 	falcon_write_table(efx, &rx_desc_ptr, efx->type->rxd_ptr_tbl_base,
 			   rx_queue->queue);
-	return 0;
 }
 
-static int falcon_flush_rx_queue(struct efx_rx_queue *rx_queue)
+static void falcon_flush_rx_queue(struct efx_rx_queue *rx_queue)
 {
 	struct efx_nic *efx = rx_queue->efx;
-	struct efx_channel *channel = &efx->channel[0];
-	unsigned int read_ptr, i;
 	efx_oword_t rx_flush_descq;
 
 	/* Post a flush command */
@@ -668,75 +632,15 @@ static int falcon_flush_rx_queue(struct efx_rx_queue *rx_queue)
 			     RX_FLUSH_DESCQ_CMD, 1,
 			     RX_FLUSH_DESCQ, rx_queue->queue);
 	falcon_write(efx, &rx_flush_descq, RX_FLUSH_DESCQ_REG_KER);
-	msleep(FALCON_FLUSH_TIMEOUT);
-
-	if (EFX_WORKAROUND_7803(efx))
-		return 0;
-
-	/* Look for a flush completed event */
-	read_ptr = channel->eventq_read_ptr;
-	for (i = 0; i < FALCON_EVQ_SIZE; ++i) {
-		efx_qword_t *event = falcon_event(channel, read_ptr);
-		int ev_code, ev_sub_code, ev_queue, ev_failed;
-		if (!falcon_event_present(event))
-			break;
-
-		ev_code = EFX_QWORD_FIELD(*event, EV_CODE);
-		ev_sub_code = EFX_QWORD_FIELD(*event, DRIVER_EV_SUB_CODE);
-		ev_queue = EFX_QWORD_FIELD(*event, DRIVER_EV_RX_DESCQ_ID);
-		ev_failed = EFX_QWORD_FIELD(*event, DRIVER_EV_RX_FLUSH_FAIL);
-
-		if ((ev_sub_code == RX_DESCQ_FLS_DONE_EV_DECODE) &&
-		    (ev_queue == rx_queue->queue)) {
-			if (ev_failed) {
-				EFX_INFO(efx, "rx queue %d flush command "
-					 "failed\n", rx_queue->queue);
-				return -EAGAIN;
-			} else {
-				EFX_LOG(efx, "rx queue %d flush command "
-					"succesful\n", rx_queue->queue);
-				return 0;
-			}
-		}
-
-		read_ptr = (read_ptr + 1) & FALCON_EVQ_MASK;
-	}
-
-	if (EFX_WORKAROUND_11557(efx)) {
-		efx_oword_t reg;
-		int enabled;
-
-		falcon_read_table(efx, &reg, efx->type->rxd_ptr_tbl_base,
-				  rx_queue->queue);
-		enabled = EFX_OWORD_FIELD(reg, RX_DESCQ_EN);
-		if (!enabled) {
-			EFX_LOG(efx, "rx queue %d disabled without a "
-				"flush event seen\n", rx_queue->queue);
-			return 0;
-		}
-	}
-
-	EFX_ERR(efx, "rx queue %d flush command timed out\n", rx_queue->queue);
-	return -ETIMEDOUT;
 }
 
 void falcon_fini_rx(struct efx_rx_queue *rx_queue)
 {
 	efx_oword_t rx_desc_ptr;
 	struct efx_nic *efx = rx_queue->efx;
-	int i, rc;
 
-	/* Try and flush the rx queue. This may need to be repeated */
-	for (i = 0; i < 5; i++) {
-		rc = falcon_flush_rx_queue(rx_queue);
-		if (rc == -EAGAIN)
-			continue;
-		break;
-	}
-	if (rc) {
-		EFX_ERR(efx, "failed to flush rx queue %d\n", rx_queue->queue);
-		efx_schedule_reset(efx, RESET_TYPE_INVISIBLE);
-	}
+	/* The queue should already have been flushed */
+	WARN_ON(!rx_queue->flushed);
 
 	/* Remove RX descriptor ring from card */
 	EFX_ZERO_OWORD(rx_desc_ptr);
@@ -776,7 +680,7 @@ void falcon_eventq_read_ack(struct efx_channel *channel)
 
 	EFX_POPULATE_DWORD_1(reg, EVQ_RPTR_DWORD, channel->eventq_read_ptr);
 	falcon_writel_table(efx, &reg, efx->type->evq_rptr_tbl_base,
-			    channel->evqnum);
+			    channel->channel);
 }
 
 /* Use HW to insert a SW defined event */
@@ -785,7 +689,7 @@ void falcon_generate_event(struct efx_channel *channel, efx_qword_t *event)
 	efx_oword_t drv_ev_reg;
 
 	EFX_POPULATE_OWORD_2(drv_ev_reg,
-			     DRV_EV_QID, channel->evqnum,
+			     DRV_EV_QID, channel->channel,
 			     DRV_EV_DATA,
 			     EFX_QWORD_FIELD64(*event, WHOLE_EVENT));
 	falcon_write(channel->efx, &drv_ev_reg, DRV_EV_REG_KER);
@@ -796,8 +700,8 @@ void falcon_generate_event(struct efx_channel *channel, efx_qword_t *event)
  * Falcon batches TX completion events; the message we receive is of
  * the form "complete all TX events up to this index".
  */
-static inline void falcon_handle_tx_event(struct efx_channel *channel,
-					  efx_qword_t *event)
+static void falcon_handle_tx_event(struct efx_channel *channel,
+				   efx_qword_t *event)
 {
 	unsigned int tx_ev_desc_ptr;
 	unsigned int tx_ev_q_label;
@@ -830,39 +734,19 @@ static inline void falcon_handle_tx_event(struct efx_channel *channel,
 	}
 }
 
-/* Check received packet's destination MAC address. */
-static int check_dest_mac(struct efx_rx_queue *rx_queue,
-			  const efx_qword_t *event)
-{
-	struct efx_rx_buffer *rx_buf;
-	struct efx_nic *efx = rx_queue->efx;
-	int rx_ev_desc_ptr;
-	struct ethhdr *eh;
-
-	if (efx->promiscuous)
-		return 1;
-
-	rx_ev_desc_ptr = EFX_QWORD_FIELD(*event, RX_EV_DESC_PTR);
-	rx_buf = efx_rx_buffer(rx_queue, rx_ev_desc_ptr);
-	eh = (struct ethhdr *)rx_buf->data;
-	if (memcmp(eh->h_dest, efx->net_dev->dev_addr, ETH_ALEN))
-		return 0;
-	return 1;
-}
-
 /* Detect errors included in the rx_evt_pkt_ok bit. */
 static void falcon_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 				    const efx_qword_t *event,
-				    unsigned *rx_ev_pkt_ok,
-				    int *discard, int byte_count)
+				    bool *rx_ev_pkt_ok,
+				    bool *discard)
 {
 	struct efx_nic *efx = rx_queue->efx;
-	unsigned rx_ev_buf_owner_id_err, rx_ev_ip_hdr_chksum_err;
-	unsigned rx_ev_tcp_udp_chksum_err, rx_ev_eth_crc_err;
-	unsigned rx_ev_frm_trunc, rx_ev_drib_nib, rx_ev_tobe_disc;
-	unsigned rx_ev_pkt_type, rx_ev_other_err, rx_ev_pause_frm;
-	unsigned rx_ev_ip_frag_err, rx_ev_hdr_type, rx_ev_mcast_pkt;
-	int snap, non_ip;
+	bool rx_ev_buf_owner_id_err, rx_ev_ip_hdr_chksum_err;
+	bool rx_ev_tcp_udp_chksum_err, rx_ev_eth_crc_err;
+	bool rx_ev_frm_trunc, rx_ev_drib_nib, rx_ev_tobe_disc;
+	bool rx_ev_other_err, rx_ev_pause_frm;
+	bool rx_ev_ip_frag_err, rx_ev_hdr_type, rx_ev_mcast_pkt;
+	unsigned rx_ev_pkt_type;
 
 	rx_ev_hdr_type = EFX_QWORD_FIELD(*event, RX_EV_HDR_TYPE);
 	rx_ev_mcast_pkt = EFX_QWORD_FIELD(*event, RX_EV_MCAST_PKT);
@@ -885,41 +769,6 @@ static void falcon_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 	rx_ev_other_err = (rx_ev_drib_nib | rx_ev_tcp_udp_chksum_err |
 			   rx_ev_buf_owner_id_err | rx_ev_eth_crc_err |
 			   rx_ev_frm_trunc | rx_ev_ip_hdr_chksum_err);
-
-	snap = (rx_ev_pkt_type == RX_EV_PKT_TYPE_LLC_DECODE) ||
-		(rx_ev_pkt_type == RX_EV_PKT_TYPE_VLAN_LLC_DECODE);
-	non_ip = (rx_ev_hdr_type == RX_EV_HDR_TYPE_NON_IP_DECODE);
-
-	/* SFC bug 5475/8970: The Falcon XMAC incorrectly calculates the
-	 * length field of an LLC frame, which sets TOBE_DISC. We could set
-	 * PASS_LEN_ERR, but we want the MAC to filter out short frames (to
-	 * protect the RX block).
-	 *
-	 * bug5475 - LLC/SNAP: Falcon identifies SNAP packets.
-	 * bug8970 - LLC/noSNAP: Falcon does not provide an LLC flag.
-	 *                       LLC can't encapsulate IP, so by definition
-	 *                       these packets are NON_IP.
-	 *
-	 * Unicast mismatch will also cause TOBE_DISC, so the driver needs
-	 * to check this.
-	 */
-	if (EFX_WORKAROUND_5475(efx) && rx_ev_tobe_disc && (snap || non_ip)) {
-		/* If all the other flags are zero then we can state the
-		 * entire packet is ok, which will flag to the kernel not
-		 * to recalculate checksums.
-		 */
-		if (!(non_ip | rx_ev_other_err | rx_ev_pause_frm))
-			*rx_ev_pkt_ok = 1;
-
-		rx_ev_tobe_disc = 0;
-
-		/* TOBE_DISC is set for unicast mismatch.  But given that
-		 * we can't trust TOBE_DISC here, we must validate the dest
-		 * MAC address ourselves.
-		 */
-		if (!rx_ev_mcast_pkt && !check_dest_mac(rx_queue, event))
-			rx_ev_tobe_disc = 1;
-	}
 
 	/* Count errors that are not in MAC stats. */
 	if (rx_ev_frm_trunc)
@@ -944,7 +793,7 @@ static void falcon_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 #ifdef EFX_ENABLE_DEBUG
 	if (rx_ev_other_err) {
 		EFX_INFO_RL(efx, " RX queue %d unexpected RX event "
-			    EFX_QWORD_FMT "%s%s%s%s%s%s%s%s%s\n",
+			    EFX_QWORD_FMT "%s%s%s%s%s%s%s%s\n",
 			    rx_queue->queue, EFX_QWORD_VAL(*event),
 			    rx_ev_buf_owner_id_err ? " [OWNER_ID_ERR]" : "",
 			    rx_ev_ip_hdr_chksum_err ?
@@ -955,8 +804,7 @@ static void falcon_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 			    rx_ev_frm_trunc ? " [FRM_TRUNC]" : "",
 			    rx_ev_drib_nib ? " [DRIB_NIB]" : "",
 			    rx_ev_tobe_disc ? " [TOBE_DISC]" : "",
-			    rx_ev_pause_frm ? " [PAUSE]" : "",
-			    snap ? " [SNAP/LLC]" : "");
+			    rx_ev_pause_frm ? " [PAUSE]" : "");
 	}
 #endif
 
@@ -989,13 +837,13 @@ static void falcon_handle_rx_bad_index(struct efx_rx_queue *rx_queue,
  * Also "is multicast" and "matches multicast filter" flags can be used to
  * discard non-matching multicast packets.
  */
-static inline int falcon_handle_rx_event(struct efx_channel *channel,
-					 const efx_qword_t *event)
+static void falcon_handle_rx_event(struct efx_channel *channel,
+				   const efx_qword_t *event)
 {
-	unsigned int rx_ev_q_label, rx_ev_desc_ptr, rx_ev_byte_cnt;
-	unsigned int rx_ev_pkt_ok, rx_ev_hdr_type, rx_ev_mcast_pkt;
+	unsigned int rx_ev_desc_ptr, rx_ev_byte_cnt;
+	unsigned int rx_ev_hdr_type, rx_ev_mcast_pkt;
 	unsigned expected_ptr;
-	int discard = 0, checksummed;
+	bool rx_ev_pkt_ok, discard = false, checksummed;
 	struct efx_rx_queue *rx_queue;
 	struct efx_nic *efx = channel->efx;
 
@@ -1005,16 +853,14 @@ static inline int falcon_handle_rx_event(struct efx_channel *channel,
 	rx_ev_hdr_type = EFX_QWORD_FIELD(*event, RX_EV_HDR_TYPE);
 	WARN_ON(EFX_QWORD_FIELD(*event, RX_EV_JUMBO_CONT));
 	WARN_ON(EFX_QWORD_FIELD(*event, RX_EV_SOP) != 1);
+	WARN_ON(EFX_QWORD_FIELD(*event, RX_EV_Q_LABEL) != channel->channel);
 
-	rx_ev_q_label = EFX_QWORD_FIELD(*event, RX_EV_Q_LABEL);
-	rx_queue = &efx->rx_queue[rx_ev_q_label];
+	rx_queue = &efx->rx_queue[channel->channel];
 
 	rx_ev_desc_ptr = EFX_QWORD_FIELD(*event, RX_EV_DESC_PTR);
 	expected_ptr = rx_queue->removed_count & FALCON_RXD_RING_MASK;
-	if (unlikely(rx_ev_desc_ptr != expected_ptr)) {
+	if (unlikely(rx_ev_desc_ptr != expected_ptr))
 		falcon_handle_rx_bad_index(rx_queue, rx_ev_desc_ptr);
-		return rx_ev_q_label;
-	}
 
 	if (likely(rx_ev_pkt_ok)) {
 		/* If packet is marked as OK and packet type is TCP/IPv4 or
@@ -1023,8 +869,8 @@ static inline int falcon_handle_rx_event(struct efx_channel *channel,
 		checksummed = RX_EV_HDR_TYPE_HAS_CHECKSUMS(rx_ev_hdr_type);
 	} else {
 		falcon_handle_rx_not_ok(rx_queue, event, &rx_ev_pkt_ok,
-					&discard, rx_ev_byte_cnt);
-		checksummed = 0;
+					&discard);
+		checksummed = false;
 	}
 
 	/* Detect multicast packets that didn't match the filter */
@@ -1034,14 +880,12 @@ static inline int falcon_handle_rx_event(struct efx_channel *channel,
 			EFX_QWORD_FIELD(*event, RX_EV_MCAST_HASH_MATCH);
 
 		if (unlikely(!rx_ev_mcast_hash_match))
-			discard = 1;
+			discard = true;
 	}
 
 	/* Handle received packet */
 	efx_rx_packet(rx_queue, rx_ev_desc_ptr, rx_ev_byte_cnt,
 		      checksummed, discard);
-
-	return rx_ev_q_label;
 }
 
 /* Global events are basically PHY events */
@@ -1049,23 +893,23 @@ static void falcon_handle_global_event(struct efx_channel *channel,
 				       efx_qword_t *event)
 {
 	struct efx_nic *efx = channel->efx;
-	int is_phy_event = 0, handled = 0;
+	bool is_phy_event = false, handled = false;
 
 	/* Check for interrupt on either port.  Some boards have a
 	 * single PHY wired to the interrupt line for port 1. */
 	if (EFX_QWORD_FIELD(*event, G_PHY0_INTR) ||
 	    EFX_QWORD_FIELD(*event, G_PHY1_INTR) ||
 	    EFX_QWORD_FIELD(*event, XG_PHY_INTR))
-		is_phy_event = 1;
+		is_phy_event = true;
 
 	if ((falcon_rev(efx) >= FALCON_REV_B0) &&
-	    EFX_OWORD_FIELD(*event, XG_MNT_INTR_B0))
-		is_phy_event = 1;
+	    EFX_QWORD_FIELD(*event, XG_MNT_INTR_B0))
+		is_phy_event = true;
 
 	if (is_phy_event) {
 		efx->phy_op->clear_interrupt(efx);
 		queue_work(efx->workqueue, &efx->reconfigure_work);
-		handled = 1;
+		handled = true;
 	}
 
 	if (EFX_QWORD_FIELD_VER(efx, *event, RX_RECOVERY)) {
@@ -1075,7 +919,7 @@ static void falcon_handle_global_event(struct efx_channel *channel,
 		atomic_inc(&efx->rx_reset);
 		efx_schedule_reset(efx, EFX_WORKAROUND_6555(efx) ?
 				   RESET_TYPE_RX_RECOVERY : RESET_TYPE_DISABLE);
-		handled = 1;
+		handled = true;
 	}
 
 	if (!handled)
@@ -1146,13 +990,12 @@ static void falcon_handle_driver_event(struct efx_channel *channel,
 	}
 }
 
-int falcon_process_eventq(struct efx_channel *channel, int *rx_quota)
+int falcon_process_eventq(struct efx_channel *channel, int rx_quota)
 {
 	unsigned int read_ptr;
 	efx_qword_t event, *p_event;
 	int ev_code;
-	int rxq;
-	int rxdmaqs = 0;
+	int rx_packets = 0;
 
 	read_ptr = channel->eventq_read_ptr;
 
@@ -1174,9 +1017,8 @@ int falcon_process_eventq(struct efx_channel *channel, int *rx_quota)
 
 		switch (ev_code) {
 		case RX_IP_EV_DECODE:
-			rxq = falcon_handle_rx_event(channel, &event);
-			rxdmaqs |= (1 << rxq);
-			(*rx_quota)--;
+			falcon_handle_rx_event(channel, &event);
+			++rx_packets;
 			break;
 		case TX_IP_EV_DECODE:
 			falcon_handle_tx_event(channel, &event);
@@ -1203,10 +1045,10 @@ int falcon_process_eventq(struct efx_channel *channel, int *rx_quota)
 		/* Increment read pointer */
 		read_ptr = (read_ptr + 1) & FALCON_EVQ_MASK;
 
-	} while (*rx_quota);
+	} while (rx_packets < rx_quota);
 
 	channel->eventq_read_ptr = read_ptr;
-	return rxdmaqs;
+	return rx_packets;
 }
 
 void falcon_set_int_moderation(struct efx_channel *channel)
@@ -1234,7 +1076,7 @@ void falcon_set_int_moderation(struct efx_channel *channel)
 				     TIMER_VAL, 0);
 	}
 	falcon_writel_page_locked(efx, &timer_cmd, TIMER_CMD_REG_KER,
-				  channel->evqnum);
+				  channel->channel);
 
 }
 
@@ -1248,20 +1090,17 @@ int falcon_probe_eventq(struct efx_channel *channel)
 	return falcon_alloc_special_buffer(efx, &channel->eventq, evq_size);
 }
 
-int falcon_init_eventq(struct efx_channel *channel)
+void falcon_init_eventq(struct efx_channel *channel)
 {
 	efx_oword_t evq_ptr;
 	struct efx_nic *efx = channel->efx;
-	int rc;
 
 	EFX_LOG(efx, "channel %d event queue in special buffers %d-%d\n",
 		channel->channel, channel->eventq.index,
 		channel->eventq.index + channel->eventq.entries - 1);
 
 	/* Pin event queue buffer */
-	rc = falcon_init_special_buffer(efx, &channel->eventq);
-	if (rc)
-		return rc;
+	falcon_init_special_buffer(efx, &channel->eventq);
 
 	/* Fill event queue with all ones (i.e. empty events) */
 	memset(channel->eventq.addr, 0xff, channel->eventq.len);
@@ -1272,11 +1111,9 @@ int falcon_init_eventq(struct efx_channel *channel)
 			     EVQ_SIZE, FALCON_EVQ_ORDER,
 			     EVQ_BUF_BASE_ID, channel->eventq.index);
 	falcon_write_table(efx, &evq_ptr, efx->type->evq_ptr_tbl_base,
-			   channel->evqnum);
+			   channel->channel);
 
 	falcon_set_int_moderation(channel);
-
-	return 0;
 }
 
 void falcon_fini_eventq(struct efx_channel *channel)
@@ -1287,7 +1124,7 @@ void falcon_fini_eventq(struct efx_channel *channel)
 	/* Remove event queue from card */
 	EFX_ZERO_OWORD(eventq_ptr);
 	falcon_write_table(efx, &eventq_ptr, efx->type->evq_ptr_tbl_base,
-			   channel->evqnum);
+			   channel->channel);
 
 	/* Unpin event queue */
 	falcon_fini_special_buffer(efx, &channel->eventq);
@@ -1314,6 +1151,121 @@ void falcon_generate_test_event(struct efx_channel *channel, unsigned int magic)
 	falcon_generate_event(channel, &test_event);
 }
 
+/**************************************************************************
+ *
+ * Flush handling
+ *
+ **************************************************************************/
+
+
+static void falcon_poll_flush_events(struct efx_nic *efx)
+{
+	struct efx_channel *channel = &efx->channel[0];
+	struct efx_tx_queue *tx_queue;
+	struct efx_rx_queue *rx_queue;
+	unsigned int read_ptr, i;
+
+	read_ptr = channel->eventq_read_ptr;
+	for (i = 0; i < FALCON_EVQ_SIZE; ++i) {
+		efx_qword_t *event = falcon_event(channel, read_ptr);
+		int ev_code, ev_sub_code, ev_queue;
+		bool ev_failed;
+		if (!falcon_event_present(event))
+			break;
+
+		ev_code = EFX_QWORD_FIELD(*event, EV_CODE);
+		if (ev_code != DRIVER_EV_DECODE)
+			continue;
+
+		ev_sub_code = EFX_QWORD_FIELD(*event, DRIVER_EV_SUB_CODE);
+		switch (ev_sub_code) {
+		case TX_DESCQ_FLS_DONE_EV_DECODE:
+			ev_queue = EFX_QWORD_FIELD(*event,
+						   DRIVER_EV_TX_DESCQ_ID);
+			if (ev_queue < EFX_TX_QUEUE_COUNT) {
+				tx_queue = efx->tx_queue + ev_queue;
+				tx_queue->flushed = true;
+			}
+			break;
+		case RX_DESCQ_FLS_DONE_EV_DECODE:
+			ev_queue = EFX_QWORD_FIELD(*event,
+						   DRIVER_EV_RX_DESCQ_ID);
+			ev_failed = EFX_QWORD_FIELD(*event,
+						    DRIVER_EV_RX_FLUSH_FAIL);
+			if (ev_queue < efx->n_rx_queues) {
+				rx_queue = efx->rx_queue + ev_queue;
+
+				/* retry the rx flush */
+				if (ev_failed)
+					falcon_flush_rx_queue(rx_queue);
+				else
+					rx_queue->flushed = true;
+			}
+			break;
+		}
+
+		read_ptr = (read_ptr + 1) & FALCON_EVQ_MASK;
+	}
+}
+
+/* Handle tx and rx flushes at the same time, since they run in
+ * parallel in the hardware and there's no reason for us to
+ * serialise them */
+int falcon_flush_queues(struct efx_nic *efx)
+{
+	struct efx_rx_queue *rx_queue;
+	struct efx_tx_queue *tx_queue;
+	int i;
+	bool outstanding;
+
+	/* Issue flush requests */
+	efx_for_each_tx_queue(tx_queue, efx) {
+		tx_queue->flushed = false;
+		falcon_flush_tx_queue(tx_queue);
+	}
+	efx_for_each_rx_queue(rx_queue, efx) {
+		rx_queue->flushed = false;
+		falcon_flush_rx_queue(rx_queue);
+	}
+
+	/* Poll the evq looking for flush completions. Since we're not pushing
+	 * any more rx or tx descriptors at this point, we're in no danger of
+	 * overflowing the evq whilst we wait */
+	for (i = 0; i < FALCON_FLUSH_POLL_COUNT; ++i) {
+		msleep(FALCON_FLUSH_INTERVAL);
+		falcon_poll_flush_events(efx);
+
+		/* Check if every queue has been succesfully flushed */
+		outstanding = false;
+		efx_for_each_tx_queue(tx_queue, efx)
+			outstanding |= !tx_queue->flushed;
+		efx_for_each_rx_queue(rx_queue, efx)
+			outstanding |= !rx_queue->flushed;
+		if (!outstanding)
+			return 0;
+	}
+
+	/* Mark the queues as all flushed. We're going to return failure
+	 * leading to a reset, or fake up success anyway. "flushed" now
+	 * indicates that we tried to flush. */
+	efx_for_each_tx_queue(tx_queue, efx) {
+		if (!tx_queue->flushed)
+			EFX_ERR(efx, "tx queue %d flush command timed out\n",
+				tx_queue->queue);
+		tx_queue->flushed = true;
+	}
+	efx_for_each_rx_queue(rx_queue, efx) {
+		if (!rx_queue->flushed)
+			EFX_ERR(efx, "rx queue %d flush command timed out\n",
+				rx_queue->queue);
+		rx_queue->flushed = true;
+	}
+
+	if (EFX_WORKAROUND_7803(efx))
+		return 0;
+
+	return -ETIMEDOUT;
+}
 
 /**************************************************************************
  *
@@ -1354,7 +1306,7 @@ void falcon_enable_interrupts(struct efx_nic *efx)
 
 	/* Force processing of all the channels to get the EVQ RPTRs up to
 	   date */
-	efx_for_each_channel_with_interrupt(channel, efx)
+	efx_for_each_channel(channel, efx)
 		efx_schedule_channel(channel);
 }
 
@@ -1422,10 +1374,11 @@ static irqreturn_t falcon_fatal_interrupt(struct efx_nic *efx)
 			EFX_OWORD_FMT "\n", EFX_OWORD_VAL(reg));
 	}
 
-	/* Disable DMA bus mastering on both devices */
+	/* Disable both devices */
 	pci_disable_device(efx->pci_dev);
 	if (FALCON_IS_DUAL_FUNC(efx))
 		pci_disable_device(nic_data->pci_dev2);
+	falcon_disable_interrupts(efx);
 
 	if (++n_int_errors < FALCON_MAX_INT_ERRORS) {
 		EFX_ERR(efx, "SYSTEM ERROR - reset scheduled\n");
@@ -1572,7 +1525,7 @@ static void falcon_setup_rss_indir_table(struct efx_nic *efx)
 	     offset < RX_RSS_INDIR_TBL_B0 + 0x800;
 	     offset += 0x10) {
 		EFX_POPULATE_DWORD_1(dword, RX_RSS_INDIR_ENT_B0,
-				     i % efx->rss_queues);
+				     i % efx->n_rx_queues);
 		falcon_writel(efx, &dword, offset);
 		i++;
 	}
@@ -1604,7 +1557,7 @@ int falcon_init_interrupt(struct efx_nic *efx)
 	}
 
 	/* Hook MSI or MSI-X interrupt */
-	efx_for_each_channel_with_interrupt(channel, efx) {
+	efx_for_each_channel(channel, efx) {
 		rc = request_irq(channel->irq, falcon_msi_interrupt,
 				 IRQF_PROBE_SHARED, /* Not shared */
 				 efx->name, channel);
@@ -1617,7 +1570,7 @@ int falcon_init_interrupt(struct efx_nic *efx)
 	return 0;
 
  fail2:
-	efx_for_each_channel_with_interrupt(channel, efx)
+	efx_for_each_channel(channel, efx)
 		free_irq(channel->irq, channel);
  fail1:
 	return rc;
@@ -1629,7 +1582,7 @@ void falcon_fini_interrupt(struct efx_nic *efx)
 	efx_oword_t reg;
 
 	/* Disable MSI/MSI-X interrupts */
-	efx_for_each_channel_with_interrupt(channel, efx) {
+	efx_for_each_channel(channel, efx) {
 		if (channel->irq)
 			free_irq(channel->irq, channel);
 	}
@@ -1652,67 +1605,198 @@ void falcon_fini_interrupt(struct efx_nic *efx)
  **************************************************************************
  */
 
-#define FALCON_SPI_MAX_LEN sizeof(efx_oword_t)
+#define FALCON_SPI_MAX_LEN ((unsigned) sizeof(efx_oword_t))
 
 /* Wait for SPI command completion */
 static int falcon_spi_wait(struct efx_nic *efx)
 {
+	unsigned long timeout = jiffies + DIV_ROUND_UP(HZ, 10);
 	efx_oword_t reg;
-	int cmd_en, timer_active;
-	int count;
+	bool cmd_en, timer_active;
 
-	count = 0;
-	do {
+	for (;;) {
 		falcon_read(efx, &reg, EE_SPI_HCMD_REG_KER);
 		cmd_en = EFX_OWORD_FIELD(reg, EE_SPI_HCMD_CMD_EN);
 		timer_active = EFX_OWORD_FIELD(reg, EE_WR_TIMER_ACTIVE);
 		if (!cmd_en && !timer_active)
 			return 0;
-		udelay(10);
-	} while (++count < 10000); /* wait upto 100msec */
-	EFX_ERR(efx, "timed out waiting for SPI\n");
-	return -ETIMEDOUT;
+		if (time_after_eq(jiffies, timeout)) {
+			EFX_ERR(efx, "timed out waiting for SPI\n");
+			return -ETIMEDOUT;
+		}
+		cpu_relax();
+	}
 }
 
-static int
-falcon_spi_read(struct efx_nic *efx, int device_id, unsigned int command,
-		unsigned int address, unsigned int addr_len,
-		void *data, unsigned int len)
+static int falcon_spi_cmd(const struct efx_spi_device *spi,
+			  unsigned int command, int address,
+			  const void *in, void *out, unsigned int len)
 {
+	struct efx_nic *efx = spi->efx;
+	bool addressed = (address >= 0);
+	bool reading = (out != NULL);
 	efx_oword_t reg;
 	int rc;
 
-	BUG_ON(len > FALCON_SPI_MAX_LEN);
+	/* Input validation */
+	if (len > FALCON_SPI_MAX_LEN)
+		return -EINVAL;
 
 	/* Check SPI not currently being accessed */
 	rc = falcon_spi_wait(efx);
 	if (rc)
 		return rc;
 
-	/* Program address register */
-	EFX_POPULATE_OWORD_1(reg, EE_SPI_HADR_ADR, address);
-	falcon_write(efx, &reg, EE_SPI_HADR_REG_KER);
+	/* Program address register, if we have an address */
+	if (addressed) {
+		EFX_POPULATE_OWORD_1(reg, EE_SPI_HADR_ADR, address);
+		falcon_write(efx, &reg, EE_SPI_HADR_REG_KER);
+	}
 
-	/* Issue read command */
+	/* Program data register, if we have data */
+	if (in != NULL) {
+		memcpy(&reg, in, len);
+		falcon_write(efx, &reg, EE_SPI_HDATA_REG_KER);
+	}
+
+	/* Issue read/write command */
 	EFX_POPULATE_OWORD_7(reg,
 			     EE_SPI_HCMD_CMD_EN, 1,
-			     EE_SPI_HCMD_SF_SEL, device_id,
+			     EE_SPI_HCMD_SF_SEL, spi->device_id,
 			     EE_SPI_HCMD_DABCNT, len,
-			     EE_SPI_HCMD_READ, EE_SPI_READ,
+			     EE_SPI_HCMD_READ, reading,
 			     EE_SPI_HCMD_DUBCNT, 0,
-			     EE_SPI_HCMD_ADBCNT, addr_len,
+			     EE_SPI_HCMD_ADBCNT,
+			     (addressed ? spi->addr_len : 0),
 			     EE_SPI_HCMD_ENC, command);
 	falcon_write(efx, &reg, EE_SPI_HCMD_REG_KER);
 
-	/* Wait for read to complete */
+	/* Wait for read/write to complete */
 	rc = falcon_spi_wait(efx);
 	if (rc)
 		return rc;
 
 	/* Read data */
-	falcon_read(efx, &reg, EE_SPI_HDATA_REG_KER);
-	memcpy(data, &reg, len);
+	if (out != NULL) {
+		falcon_read(efx, &reg, EE_SPI_HDATA_REG_KER);
+		memcpy(out, &reg, len);
+	}
+
 	return 0;
+}
+
+static unsigned int
+falcon_spi_write_limit(const struct efx_spi_device *spi, unsigned int start)
+{
+	return min(FALCON_SPI_MAX_LEN,
+		   (spi->block_size - (start & (spi->block_size - 1))));
+}
+
+static inline u8
+efx_spi_munge_command(const struct efx_spi_device *spi,
+		      const u8 command, const unsigned int address)
+{
+	return command | (((address >> 8) & spi->munge_address) << 3);
+}
+
+
+static int falcon_spi_fast_wait(const struct efx_spi_device *spi)
+{
+	u8 status;
+	int i, rc;
+
+	/* Wait up to 1000us for flash/EEPROM to finish a fast operation. */
+	for (i = 0; i < 50; i++) {
+		udelay(20);
+
+		rc = falcon_spi_cmd(spi, SPI_RDSR, -1, NULL,
+				    &status, sizeof(status));
+		if (rc)
+			return rc;
+		if (!(status & SPI_STATUS_NRDY))
+			return 0;
+	}
+	EFX_ERR(spi->efx,
+		"timed out waiting for device %d last status=0x%02x\n",
+		spi->device_id, status);
+	return -ETIMEDOUT;
+}
+
+int falcon_spi_read(const struct efx_spi_device *spi, loff_t start,
+		    size_t len, size_t *retlen, u8 *buffer)
+{
+	unsigned int command, block_len, pos = 0;
+	int rc = 0;
+
+	while (pos < len) {
+		block_len = min((unsigned int)len - pos,
+				FALCON_SPI_MAX_LEN);
+
+		command = efx_spi_munge_command(spi, SPI_READ, start + pos);
+		rc = falcon_spi_cmd(spi, command, start + pos, NULL,
+				    buffer + pos, block_len);
+		if (rc)
+			break;
+		pos += block_len;
+
+		/* Avoid locking up the system */
+		cond_resched();
+		if (signal_pending(current)) {
+			rc = -EINTR;
+			break;
+		}
+	}
+
+	if (retlen)
+		*retlen = pos;
+	return rc;
+}
+
+int falcon_spi_write(const struct efx_spi_device *spi, loff_t start,
+		     size_t len, size_t *retlen, const u8 *buffer)
+{
+	u8 verify_buffer[FALCON_SPI_MAX_LEN];
+	unsigned int command, block_len, pos = 0;
+	int rc = 0;
+
+	while (pos < len) {
+		rc = falcon_spi_cmd(spi, SPI_WREN, -1, NULL, NULL, 0);
+		if (rc)
+			break;
+
+		block_len = min((unsigned int)len - pos,
+				falcon_spi_write_limit(spi, start + pos));
+		command = efx_spi_munge_command(spi, SPI_WRITE, start + pos);
+		rc = falcon_spi_cmd(spi, command, start + pos,
+				    buffer + pos, NULL, block_len);
+		if (rc)
+			break;
+
+		rc = falcon_spi_fast_wait(spi);
+		if (rc)
+			break;
+
+		command = efx_spi_munge_command(spi, SPI_READ, start + pos);
+		rc = falcon_spi_cmd(spi, command, start + pos,
+				    NULL, verify_buffer, block_len);
+		if (memcmp(verify_buffer, buffer + pos, block_len)) {
+			rc = -EIO;
+			break;
+		}
+
+		pos += block_len;
+
+		/* Avoid locking up the system */
+		cond_resched();
+		if (signal_pending(current)) {
+			rc = -EINTR;
+			break;
+		}
+	}
+
+	if (retlen)
+		*retlen = pos;
+	return rc;
 }
 
 /**************************************************************************
@@ -1795,7 +1879,7 @@ void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 {
 	efx_oword_t reg;
 	int link_speed;
-	unsigned int tx_fc;
+	bool tx_fc;
 
 	if (efx->link_options & GM_LPA_10000)
 		link_speed = 0x3;
@@ -1830,7 +1914,7 @@ void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 	/* Transmission of pause frames when RX crosses the threshold is
 	 * covered by RX_XOFF_MAC_EN and XM_TX_CFG_REG:XM_FCNTL.
 	 * Action on receipt of pause frames is controller by XM_DIS_FCNTL */
-	tx_fc = (efx->flow_control & EFX_FC_TX) ? 1 : 0;
+	tx_fc = !!(efx->flow_control & EFX_FC_TX);
 	falcon_read(efx, &reg, RX_CFG_REG_KER);
 	EFX_SET_OWORD_FIELD_VER(efx, reg, RX_XOFF_MAC_EN, tx_fc);
 
@@ -1870,8 +1954,10 @@ int falcon_dma_stats(struct efx_nic *efx, unsigned int done_offset)
 
 	/* Wait for transfer to complete */
 	for (i = 0; i < 400; i++) {
-		if (*(volatile u32 *)dma_done == FALCON_STATS_DONE)
+		if (*(volatile u32 *)dma_done == FALCON_STATS_DONE) {
+			rmb(); /* Ensure the stats are valid. */
 			return 0;
+		}
 		udelay(10);
 	}
 
@@ -1934,7 +2020,7 @@ static int falcon_gmii_wait(struct efx_nic *efx)
 static void falcon_mdio_write(struct net_device *net_dev, int phy_id,
 			      int addr, int value)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 	unsigned int phy_id2 = phy_id & FALCON_PHY_ID_ID_MASK;
 	efx_oword_t reg;
 
@@ -2002,7 +2088,7 @@ static void falcon_mdio_write(struct net_device *net_dev, int phy_id,
  * could be read, -1 will be returned. */
 static int falcon_mdio_read(struct net_device *net_dev, int phy_id, int addr)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 	unsigned int phy_addr = phy_id & FALCON_PHY_ID_ID_MASK;
 	efx_oword_t reg;
 	int value = -1;
@@ -2103,7 +2189,7 @@ int falcon_probe_port(struct efx_nic *efx)
 		return rc;
 
 	/* Set up GMII structure for PHY */
-	efx->mii.supports_gmii = 1;
+	efx->mii.supports_gmii = true;
 	falcon_init_mdio(&efx->mii);
 
 	/* Hardware flow ctrl. FalconA RX FIFO too small for pause generation */
@@ -2149,6 +2235,170 @@ void falcon_set_multicast_hash(struct efx_nic *efx)
 
 	falcon_write(efx, &mc_hash->oword[0], MAC_MCAST_HASH_REG0_KER);
 	falcon_write(efx, &mc_hash->oword[1], MAC_MCAST_HASH_REG1_KER);
+}
+
+
+/**************************************************************************
+ *
+ * Falcon test code
+ *
+ **************************************************************************/
+
+int falcon_read_nvram(struct efx_nic *efx, struct falcon_nvconfig *nvconfig_out)
+{
+	struct falcon_nvconfig *nvconfig;
+	struct efx_spi_device *spi;
+	void *region;
+	int rc, magic_num, struct_ver;
+	__le16 *word, *limit;
+	u32 csum;
+
+	region = kmalloc(NVCONFIG_END, GFP_KERNEL);
+	if (!region)
+		return -ENOMEM;
+	nvconfig = region + NVCONFIG_OFFSET;
+
+	spi = efx->spi_flash ? efx->spi_flash : efx->spi_eeprom;
+	rc = falcon_spi_read(spi, 0, NVCONFIG_END, NULL, region);
+	if (rc) {
+		EFX_ERR(efx, "Failed to read %s\n",
+			efx->spi_flash ? "flash" : "EEPROM");
+		rc = -EIO;
+		goto out;
+	}
+
+	magic_num = le16_to_cpu(nvconfig->board_magic_num);
+	struct_ver = le16_to_cpu(nvconfig->board_struct_ver);
+
+	rc = -EINVAL;
+	if (magic_num != NVCONFIG_BOARD_MAGIC_NUM) {
+		EFX_ERR(efx, "NVRAM bad magic 0x%x\n", magic_num);
+		goto out;
+	}
+	if (struct_ver < 2) {
+		EFX_ERR(efx, "NVRAM has ancient version 0x%x\n", struct_ver);
+		goto out;
+	} else if (struct_ver < 4) {
+		word = &nvconfig->board_magic_num;
+		limit = (__le16 *) (nvconfig + 1);
+	} else {
+		word = region;
+		limit = region + NVCONFIG_END;
+	}
+	for (csum = 0; word < limit; ++word)
+		csum += le16_to_cpu(*word);
+
+	if (~csum & 0xffff) {
+		EFX_ERR(efx, "NVRAM has incorrect checksum\n");
+		goto out;
+	}
+
+	rc = 0;
+	if (nvconfig_out)
+		memcpy(nvconfig_out, nvconfig, sizeof(*nvconfig));
+
+ out:
+	kfree(region);
+	return rc;
+}
+
+/* Registers tested in the falcon register test */
+static struct {
+	unsigned address;
+	efx_oword_t mask;
+} efx_test_registers[] = {
+	{ ADR_REGION_REG_KER,
+	  EFX_OWORD32(0x0001FFFF, 0x0001FFFF, 0x0001FFFF, 0x0001FFFF) },
+	{ RX_CFG_REG_KER,
+	  EFX_OWORD32(0xFFFFFFFE, 0x00017FFF, 0x00000000, 0x00000000) },
+	{ TX_CFG_REG_KER,
+	  EFX_OWORD32(0x7FFF0037, 0x00000000, 0x00000000, 0x00000000) },
+	{ TX_CFG2_REG_KER,
+	  EFX_OWORD32(0xFFFEFE80, 0x1FFFFFFF, 0x020000FE, 0x007FFFFF) },
+	{ MAC0_CTRL_REG_KER,
+	  EFX_OWORD32(0xFFFF0000, 0x00000000, 0x00000000, 0x00000000) },
+	{ SRM_TX_DC_CFG_REG_KER,
+	  EFX_OWORD32(0x001FFFFF, 0x00000000, 0x00000000, 0x00000000) },
+	{ RX_DC_CFG_REG_KER,
+	  EFX_OWORD32(0x0000000F, 0x00000000, 0x00000000, 0x00000000) },
+	{ RX_DC_PF_WM_REG_KER,
+	  EFX_OWORD32(0x000003FF, 0x00000000, 0x00000000, 0x00000000) },
+	{ DP_CTRL_REG,
+	  EFX_OWORD32(0x00000FFF, 0x00000000, 0x00000000, 0x00000000) },
+	{ XM_GLB_CFG_REG,
+	  EFX_OWORD32(0x00000C68, 0x00000000, 0x00000000, 0x00000000) },
+	{ XM_TX_CFG_REG,
+	  EFX_OWORD32(0x00080164, 0x00000000, 0x00000000, 0x00000000) },
+	{ XM_RX_CFG_REG,
+	  EFX_OWORD32(0x07100A0C, 0x00000000, 0x00000000, 0x00000000) },
+	{ XM_RX_PARAM_REG,
+	  EFX_OWORD32(0x00001FF8, 0x00000000, 0x00000000, 0x00000000) },
+	{ XM_FC_REG,
+	  EFX_OWORD32(0xFFFF0001, 0x00000000, 0x00000000, 0x00000000) },
+	{ XM_ADR_LO_REG,
+	  EFX_OWORD32(0xFFFFFFFF, 0x00000000, 0x00000000, 0x00000000) },
+	{ XX_SD_CTL_REG,
+	  EFX_OWORD32(0x0003FF0F, 0x00000000, 0x00000000, 0x00000000) },
+};
+
+static bool efx_masked_compare_oword(const efx_oword_t *a, const efx_oword_t *b,
+				     const efx_oword_t *mask)
+{
+	return ((a->u64[0] ^ b->u64[0]) & mask->u64[0]) ||
+		((a->u64[1] ^ b->u64[1]) & mask->u64[1]);
+}
+
+int falcon_test_registers(struct efx_nic *efx)
+{
+	unsigned address = 0, i, j;
+	efx_oword_t mask, imask, original, reg, buf;
+
+	/* Falcon should be in loopback to isolate the XMAC from the PHY */
+	WARN_ON(!LOOPBACK_INTERNAL(efx));
+
+	for (i = 0; i < ARRAY_SIZE(efx_test_registers); ++i) {
+		address = efx_test_registers[i].address;
+		mask = imask = efx_test_registers[i].mask;
+		EFX_INVERT_OWORD(imask);
+
+		falcon_read(efx, &original, address);
+
+		/* bit sweep on and off */
+		for (j = 0; j < 128; j++) {
+			if (!EFX_EXTRACT_OWORD32(mask, j, j))
+				continue;
+
+			/* Test this testable bit can be set in isolation */
+			EFX_AND_OWORD(reg, original, mask);
+			EFX_SET_OWORD32(reg, j, j, 1);
+
+			falcon_write(efx, &reg, address);
+			falcon_read(efx, &buf, address);
+
+			if (efx_masked_compare_oword(&reg, &buf, &mask))
+				goto fail;
+
+			/* Test this testable bit can be cleared in isolation */
+			EFX_OR_OWORD(reg, original, mask);
+			EFX_SET_OWORD32(reg, j, j, 0);
+
+			falcon_write(efx, &reg, address);
+			falcon_read(efx, &buf, address);
+
+			if (efx_masked_compare_oword(&reg, &buf, &mask))
+				goto fail;
+		}
+
+		falcon_write(efx, &original, address);
+	}
+
+	return 0;
+
+fail:
+	EFX_ERR(efx, "wrote "EFX_OWORD_FMT" read "EFX_OWORD_FMT
+		" at address 0x%x mask "EFX_OWORD_FMT"\n", EFX_OWORD_VAL(reg),
+		EFX_OWORD_VAL(buf), address, EFX_OWORD_VAL(mask));
+	return -EIO;
 }
 
 /**************************************************************************
@@ -2288,68 +2538,103 @@ static int falcon_reset_sram(struct efx_nic *efx)
 	return -ETIMEDOUT;
 }
 
+static int falcon_spi_device_init(struct efx_nic *efx,
+				  struct efx_spi_device **spi_device_ret,
+				  unsigned int device_id, u32 device_type)
+{
+	struct efx_spi_device *spi_device;
+
+	if (device_type != 0) {
+		spi_device = kmalloc(sizeof(*spi_device), GFP_KERNEL);
+		if (!spi_device)
+			return -ENOMEM;
+		spi_device->device_id = device_id;
+		spi_device->size =
+			1 << SPI_DEV_TYPE_FIELD(device_type, SPI_DEV_TYPE_SIZE);
+		spi_device->addr_len =
+			SPI_DEV_TYPE_FIELD(device_type, SPI_DEV_TYPE_ADDR_LEN);
+		spi_device->munge_address = (spi_device->size == 1 << 9 &&
+					     spi_device->addr_len == 1);
+		spi_device->block_size =
+			1 << SPI_DEV_TYPE_FIELD(device_type,
+						SPI_DEV_TYPE_BLOCK_SIZE);
+
+		spi_device->efx = efx;
+	} else {
+		spi_device = NULL;
+	}
+
+	kfree(*spi_device_ret);
+	*spi_device_ret = spi_device;
+	return 0;
+}
+
+
+static void falcon_remove_spi_devices(struct efx_nic *efx)
+{
+	kfree(efx->spi_eeprom);
+	efx->spi_eeprom = NULL;
+	kfree(efx->spi_flash);
+	efx->spi_flash = NULL;
+}
+
 /* Extract non-volatile configuration */
 static int falcon_probe_nvconfig(struct efx_nic *efx)
 {
 	struct falcon_nvconfig *nvconfig;
-	efx_oword_t nic_stat;
-	int device_id;
-	unsigned addr_len;
-	size_t offset, len;
-	int magic_num, struct_ver, board_rev;
+	int board_rev;
 	int rc;
 
-	/* Find the boot device. */
-	falcon_read(efx, &nic_stat, NIC_STAT_REG);
-	if (EFX_OWORD_FIELD(nic_stat, SF_PRST)) {
-		device_id = EE_SPI_FLASH;
-		addr_len = 3;
-	} else if (EFX_OWORD_FIELD(nic_stat, EE_PRST)) {
-		device_id = EE_SPI_EEPROM;
-		addr_len = 2;
-	} else {
-		return -ENODEV;
-	}
-
 	nvconfig = kmalloc(sizeof(*nvconfig), GFP_KERNEL);
+	if (!nvconfig)
+		return -ENOMEM;
 
-	/* Read the whole configuration structure into memory. */
-	for (offset = 0; offset < sizeof(*nvconfig); offset += len) {
-		len = min(sizeof(*nvconfig) - offset,
-			  (size_t) FALCON_SPI_MAX_LEN);
-		rc = falcon_spi_read(efx, device_id, SPI_READ,
-				     NVCONFIG_BASE + offset, addr_len,
-				     (char *)nvconfig + offset, len);
-		if (rc)
-			goto out;
+	rc = falcon_read_nvram(efx, nvconfig);
+	if (rc == -EINVAL) {
+		EFX_ERR(efx, "NVRAM is invalid therefore using defaults\n");
+		efx->phy_type = PHY_TYPE_NONE;
+		efx->mii.phy_id = PHY_ADDR_INVALID;
+		board_rev = 0;
+		rc = 0;
+	} else if (rc) {
+		goto fail1;
+	} else {
+		struct falcon_nvconfig_board_v2 *v2 = &nvconfig->board_v2;
+		struct falcon_nvconfig_board_v3 *v3 = &nvconfig->board_v3;
+
+		efx->phy_type = v2->port0_phy_type;
+		efx->mii.phy_id = v2->port0_phy_addr;
+		board_rev = le16_to_cpu(v2->board_revision);
+
+		if (le16_to_cpu(nvconfig->board_struct_ver) >= 3) {
+			__le32 fl = v3->spi_device_type[EE_SPI_FLASH];
+			__le32 ee = v3->spi_device_type[EE_SPI_EEPROM];
+			rc = falcon_spi_device_init(efx, &efx->spi_flash,
+						    EE_SPI_FLASH,
+						    le32_to_cpu(fl));
+			if (rc)
+				goto fail2;
+			rc = falcon_spi_device_init(efx, &efx->spi_eeprom,
+						    EE_SPI_EEPROM,
+						    le32_to_cpu(ee));
+			if (rc)
+				goto fail2;
+		}
 	}
 
 	/* Read the MAC addresses */
 	memcpy(efx->mac_address, nvconfig->mac_address[0], ETH_ALEN);
 
-	/* Read the board configuration. */
-	magic_num = le16_to_cpu(nvconfig->board_magic_num);
-	struct_ver = le16_to_cpu(nvconfig->board_struct_ver);
-
-	if (magic_num != NVCONFIG_BOARD_MAGIC_NUM || struct_ver < 2) {
-		EFX_ERR(efx, "Non volatile memory bad magic=%x ver=%x "
-			"therefore using defaults\n", magic_num, struct_ver);
-		efx->phy_type = PHY_TYPE_NONE;
-		efx->mii.phy_id = PHY_ADDR_INVALID;
-		board_rev = 0;
-	} else {
-		struct falcon_nvconfig_board_v2 *v2 = &nvconfig->board_v2;
-
-		efx->phy_type = v2->port0_phy_type;
-		efx->mii.phy_id = v2->port0_phy_addr;
-		board_rev = le16_to_cpu(v2->board_revision);
-	}
-
 	EFX_LOG(efx, "PHY is %d phy_id %d\n", efx->phy_type, efx->mii.phy_id);
 
 	efx_set_board_info(efx, board_rev);
 
- out:
+	kfree(nvconfig);
+	return 0;
+
+ fail2:
+	falcon_remove_spi_devices(efx);
+ fail1:
 	kfree(nvconfig);
 	return rc;
 }
@@ -2400,19 +2685,95 @@ static int falcon_probe_nic_variant(struct efx_nic *efx)
 	return 0;
 }
 
+/* Probe all SPI devices on the NIC */
+static void falcon_probe_spi_devices(struct efx_nic *efx)
+{
+	efx_oword_t nic_stat, gpio_ctl, ee_vpd_cfg;
+	bool has_flash, has_eeprom, boot_is_external;
+
+	falcon_read(efx, &gpio_ctl, GPIO_CTL_REG_KER);
+	falcon_read(efx, &nic_stat, NIC_STAT_REG);
+	falcon_read(efx, &ee_vpd_cfg, EE_VPD_CFG_REG_KER);
+
+	has_flash = EFX_OWORD_FIELD(nic_stat, SF_PRST);
+	has_eeprom = EFX_OWORD_FIELD(nic_stat, EE_PRST);
+	boot_is_external = EFX_OWORD_FIELD(gpio_ctl, BOOTED_USING_NVDEVICE);
+
+	if (has_flash) {
+		/* Default flash SPI device: Atmel AT25F1024
+		 * 128 KB, 24-bit address, 32 KB erase block,
+		 * 256 B write block
+		 */
+		u32 flash_device_type =
+			(17 << SPI_DEV_TYPE_SIZE_LBN)
+			| (3 << SPI_DEV_TYPE_ADDR_LEN_LBN)
+			| (0x52 << SPI_DEV_TYPE_ERASE_CMD_LBN)
+			| (15 << SPI_DEV_TYPE_ERASE_SIZE_LBN)
+			| (8 << SPI_DEV_TYPE_BLOCK_SIZE_LBN);
+
+		falcon_spi_device_init(efx, &efx->spi_flash,
+				       EE_SPI_FLASH, flash_device_type);
+
+		if (!boot_is_external) {
+			/* Disable VPD and set clock dividers to safe
+			 * values for initial programming.
+			 */
+			EFX_LOG(efx, "Booted from internal ASIC settings;"
+				" setting SPI config\n");
+			EFX_POPULATE_OWORD_3(ee_vpd_cfg, EE_VPD_EN, 0,
+					     /* 125 MHz / 7 ~= 20 MHz */
+					     EE_SF_CLOCK_DIV, 7,
+					     /* 125 MHz / 63 ~= 2 MHz */
+					     EE_EE_CLOCK_DIV, 63);
+			falcon_write(efx, &ee_vpd_cfg, EE_VPD_CFG_REG_KER);
+		}
+	}
+
+	if (has_eeprom) {
+		u32 eeprom_device_type;
+
+		/* If it has no flash, it must have a large EEPROM
+		 * for chip config; otherwise check whether 9-bit
+		 * addressing is used for VPD configuration
+		 */
+		if (has_flash &&
+		    (!boot_is_external ||
+		     EFX_OWORD_FIELD(ee_vpd_cfg, EE_VPD_EN_AD9_MODE))) {
+			/* Default SPI device: Atmel AT25040 or similar
+			 * 512 B, 9-bit address, 8 B write block
+			 */
+			eeprom_device_type =
+				(9 << SPI_DEV_TYPE_SIZE_LBN)
+				| (1 << SPI_DEV_TYPE_ADDR_LEN_LBN)
+				| (3 << SPI_DEV_TYPE_BLOCK_SIZE_LBN);
+		} else {
+			/* "Large" SPI device: Atmel AT25640 or similar
+			 * 8 KB, 16-bit address, 32 B write block
+			 */
+			eeprom_device_type =
+				(13 << SPI_DEV_TYPE_SIZE_LBN)
+				| (2 << SPI_DEV_TYPE_ADDR_LEN_LBN)
+				| (5 << SPI_DEV_TYPE_BLOCK_SIZE_LBN);
+		}
+
+		falcon_spi_device_init(efx, &efx->spi_eeprom,
+				       EE_SPI_EEPROM, eeprom_device_type);
+	}
+
+	EFX_LOG(efx, "flash is %s, EEPROM is %s\n",
+		(has_flash ? "present" : "absent"),
+		(has_eeprom ? "present" : "absent"));
+}
+
 int falcon_probe_nic(struct efx_nic *efx)
 {
 	struct falcon_nic_data *nic_data;
 	int rc;
 
-	/* Initialise I2C interface state */
-	efx->i2c.efx = efx;
-	efx->i2c.op = &falcon_i2c_bit_operations;
-	efx->i2c.sda = 1;
-	efx->i2c.scl = 1;
-
 	/* Allocate storage for hardware specific data */
 	nic_data = kzalloc(sizeof(*nic_data), GFP_KERNEL);
+	if (!nic_data)
+		return -ENOMEM;
 	efx->nic_data = nic_data;
 
 	/* Determine number of ports etc. */
@@ -2456,14 +2817,28 @@ int falcon_probe_nic(struct efx_nic *efx)
 		(unsigned long long)efx->irq_status.dma_addr,
 		efx->irq_status.addr, virt_to_phys(efx->irq_status.addr));
 
+	falcon_probe_spi_devices(efx);
+
 	/* Read in the non-volatile configuration */
 	rc = falcon_probe_nvconfig(efx);
+	if (rc)
+		goto fail5;
+
+	/* Initialise I2C adapter */
+ 	efx->i2c_adap.owner = THIS_MODULE;
+	nic_data->i2c_data = falcon_i2c_bit_operations;
+	nic_data->i2c_data.data = efx;
+ 	efx->i2c_adap.algo_data = &nic_data->i2c_data;
+	efx->i2c_adap.dev.parent = &efx->pci_dev->dev;
+	strlcpy(efx->i2c_adap.name, "SFC4000 GPIO", sizeof(efx->i2c_adap.name));
+	rc = i2c_bit_add_bus(&efx->i2c_adap);
 	if (rc)
 		goto fail5;
 
 	return 0;
 
  fail5:
+	falcon_remove_spi_devices(efx);
 	falcon_free_buffer(efx, &efx->irq_status);
  fail4:
  fail3:
@@ -2551,19 +2926,14 @@ int falcon_init_nic(struct efx_nic *efx)
 	EFX_INVERT_OWORD(temp);
 	falcon_write(efx, &temp, FATAL_INTR_REG_KER);
 
-	/* Set number of RSS queues for receive path. */
-	falcon_read(efx, &temp, RX_FILTER_CTL_REG);
-	if (falcon_rev(efx) >= FALCON_REV_B0)
-		EFX_SET_OWORD_FIELD(temp, NUM_KER, 0);
-	else
-		EFX_SET_OWORD_FIELD(temp, NUM_KER, efx->rss_queues - 1);
 	if (EFX_WORKAROUND_7244(efx)) {
+		falcon_read(efx, &temp, RX_FILTER_CTL_REG);
 		EFX_SET_OWORD_FIELD(temp, UDP_FULL_SRCH_LIMIT, 8);
 		EFX_SET_OWORD_FIELD(temp, UDP_WILD_SRCH_LIMIT, 8);
 		EFX_SET_OWORD_FIELD(temp, TCP_FULL_SRCH_LIMIT, 8);
 		EFX_SET_OWORD_FIELD(temp, TCP_WILD_SRCH_LIMIT, 8);
+		falcon_write(efx, &temp, RX_FILTER_CTL_REG);
 	}
-	falcon_write(efx, &temp, RX_FILTER_CTL_REG);
 
 	falcon_setup_rss_indir_table(efx);
 
@@ -2619,8 +2989,8 @@ int falcon_init_nic(struct efx_nic *efx)
 		  rx_xoff_thresh_bytes : efx->type->rx_xoff_thresh);
 	EFX_SET_OWORD_FIELD_VER(efx, temp, RX_XOFF_MAC_TH, thresh / 256);
 	/* RX control FIFO thresholds [32 entries] */
-	EFX_SET_OWORD_FIELD_VER(efx, temp, RX_XON_TX_TH, 25);
-	EFX_SET_OWORD_FIELD_VER(efx, temp, RX_XOFF_TX_TH, 20);
+	EFX_SET_OWORD_FIELD_VER(efx, temp, RX_XON_TX_TH, 20);
+	EFX_SET_OWORD_FIELD_VER(efx, temp, RX_XOFF_TX_TH, 25);
 	falcon_write(efx, &temp, RX_CFG_REG_KER);
 
 	/* Set destination of both TX and RX Flush events */
@@ -2635,7 +3005,12 @@ int falcon_init_nic(struct efx_nic *efx)
 void falcon_remove_nic(struct efx_nic *efx)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
+	int rc;
 
+	rc = i2c_del_adapter(&efx->i2c_adap);
+	BUG_ON(rc);
+
+	falcon_remove_spi_devices(efx);
 	falcon_free_buffer(efx, &efx->irq_status);
 
 	falcon_reset_hw(efx, RESET_TYPE_ALL);

@@ -73,7 +73,7 @@ extern unsigned long p_mapped_by_tlbcam(unsigned long pa);
 #endif /* HAVE_TLBCAM */
 
 #ifdef CONFIG_PTE_64BIT
-/* 44x uses an 8kB pgdir because it has 8-byte Linux PTEs. */
+/* Some processors use an 8kB pgdir because they have 8-byte Linux PTEs. */
 #define PGDIR_ORDER	1
 #else
 #define PGDIR_ORDER	0
@@ -145,13 +145,20 @@ void pte_free(struct mm_struct *mm, pgtable_t ptepage)
 void __iomem *
 ioremap(phys_addr_t addr, unsigned long size)
 {
-	return __ioremap(addr, size, _PAGE_NO_CACHE);
+	return __ioremap(addr, size, _PAGE_NO_CACHE | _PAGE_GUARDED);
 }
 EXPORT_SYMBOL(ioremap);
 
 void __iomem *
 ioremap_flags(phys_addr_t addr, unsigned long size, unsigned long flags)
 {
+	/* writeable implies dirty for kernel addresses */
+	if (flags & _PAGE_RW)
+		flags |= _PAGE_DIRTY | _PAGE_HWWRITE;
+
+	/* we don't want to let _PAGE_USER and _PAGE_EXEC leak out */
+	flags &= ~(_PAGE_USER | _PAGE_EXEC | _PAGE_HWEXEC);
+
 	return __ioremap(addr, size, flags);
 }
 EXPORT_SYMBOL(ioremap_flags);
@@ -162,6 +169,14 @@ __ioremap(phys_addr_t addr, unsigned long size, unsigned long flags)
 	unsigned long v, i;
 	phys_addr_t p;
 	int err;
+
+	/* Make sure we have the base flags */
+	if ((flags & _PAGE_PRESENT) == 0)
+		flags |= _PAGE_KERNEL;
+
+	/* Non-cacheable page cannot be coherent */
+	if (flags & _PAGE_NO_CACHE)
+		flags &= ~_PAGE_COHERENT;
 
 	/*
 	 * Choose an address to map it to.
@@ -219,11 +234,6 @@ __ioremap(phys_addr_t addr, unsigned long size, unsigned long flags)
 		v = (ioremap_bot -= size);
 	}
 
-	if ((flags & _PAGE_PRESENT) == 0)
-		flags |= _PAGE_KERNEL;
-	if (flags & _PAGE_NO_CACHE)
-		flags |= _PAGE_GUARDED;
-
 	/*
 	 * Should check if it is a candidate for a BAT mapping
 	 */
@@ -278,7 +288,7 @@ int map_page(unsigned long va, phys_addr_t pa, int flags)
 }
 
 /*
- * Map in all of physical memory starting at KERNELBASE.
+ * Map in a big chunk of physical memory starting at KERNELBASE.
  */
 void __init mapin_ram(void)
 {

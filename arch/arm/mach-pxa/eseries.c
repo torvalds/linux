@@ -10,18 +10,23 @@
  *
  */
 
+#include <linux/kernel.h>
 #include <linux/init.h>
 
 #include <asm/setup.h>
 #include <asm/mach/arch.h>
-#include <asm/arch/hardware.h>
 #include <asm/mach-types.h>
 
-#include <generic.h>
+#include <mach/mfp-pxa25x.h>
+#include <mach/hardware.h>
+#include <mach/eseries-gpio.h>
+#include <mach/udc.h>
+
+#include "generic.h"
 
 /* Only e800 has 128MB RAM */
-static void __init eseries_fixup(struct machine_desc *desc,
-                      struct tag *tags, char **cmdline, struct meminfo *mi)
+void __init eseries_fixup(struct machine_desc *desc,
+	struct tag *tags, char **cmdline, struct meminfo *mi)
 {
 	mi->nr_banks=1;
 	mi->bank[0].start = 0xa0000000;
@@ -32,70 +37,9 @@ static void __init eseries_fixup(struct machine_desc *desc,
 		mi->bank[0].size = (64*1024*1024);
 }
 
-/* e-series machine definitions */
-
-#ifdef CONFIG_MACH_E330
-MACHINE_START(E330, "Toshiba e330")
-        /* Maintainer: Ian Molton (spyro@f2s.com) */
-        .phys_io        = 0x40000000,
-        .io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
-        .boot_params    = 0xa0000100,
-        .map_io         = pxa_map_io,
-        .init_irq       = pxa25x_init_irq,
-        .fixup          = eseries_fixup,
-        .timer = &pxa_timer,
-MACHINE_END
-#endif
-
-#ifdef CONFIG_MACH_E740
-MACHINE_START(E740, "Toshiba e740")
-        /* Maintainer: Ian Molton (spyro@f2s.com) */
-        .phys_io        = 0x40000000,
-        .io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
-        .boot_params    = 0xa0000100,
-        .map_io         = pxa_map_io,
-        .init_irq       = pxa25x_init_irq,
-        .fixup          = eseries_fixup,
-        .timer = &pxa_timer,
-MACHINE_END
-#endif
-
-#ifdef CONFIG_MACH_E750
-MACHINE_START(E750, "Toshiba e750")
-        /* Maintainer: Ian Molton (spyro@f2s.com) */
-        .phys_io        = 0x40000000,
-        .io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
-        .boot_params    = 0xa0000100,
-        .map_io         = pxa_map_io,
-        .init_irq       = pxa25x_init_irq,
-        .fixup          = eseries_fixup,
-        .timer = &pxa_timer,
-MACHINE_END
-#endif
-
-#ifdef CONFIG_MACH_E400
-MACHINE_START(E400, "Toshiba e400")
-        /* Maintainer: Ian Molton (spyro@f2s.com) */
-        .phys_io        = 0x40000000,
-        .io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
-        .boot_params    = 0xa0000100,
-        .map_io         = pxa_map_io,
-        .init_irq       = pxa25x_init_irq,
-        .fixup          = eseries_fixup,
-        .timer = &pxa_timer,
-MACHINE_END
-#endif
-
-#ifdef CONFIG_MACH_E800
-MACHINE_START(E800, "Toshiba e800")
-        /* Maintainer: Ian Molton (spyro@f2s.com) */
-        .phys_io        = 0x40000000,
-        .io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
-        .boot_params    = 0xa0000100,
-        .map_io         = pxa_map_io,
-        .init_irq       = pxa25x_init_irq,
-        .fixup          = eseries_fixup,
-        .timer = &pxa_timer,
-MACHINE_END
-#endif
+struct pxa2xx_udc_mach_info e7xx_udc_mach_info = {
+	.gpio_vbus   = GPIO_E7XX_USB_DISC,
+	.gpio_pullup = GPIO_E7XX_USB_PULLUP,
+	.gpio_pullup_inverted = 1
+};
 

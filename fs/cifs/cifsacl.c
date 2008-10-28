@@ -56,7 +56,7 @@ int match_sid(struct cifs_sid *ctsid)
 	struct cifs_sid *cwsid;
 
 	if (!ctsid)
-		return (-1);
+		return -1;
 
 	for (i = 0; i < NUM_WK_SIDS; ++i) {
 		cwsid = &(wksidarr[i].cifssid);
@@ -87,11 +87,11 @@ int match_sid(struct cifs_sid *ctsid)
 		}
 
 		cFYI(1, ("matching sid: %s\n", wksidarr[i].sidname));
-		return (0); /* sids compare/match */
+		return 0; /* sids compare/match */
 	}
 
 	cFYI(1, ("No matching sid"));
-	return (-1);
+	return -1;
 }
 
 /* if the two SIDs (roughly equivalent to a UUID for a user or group) are
@@ -102,16 +102,16 @@ int compare_sids(const struct cifs_sid *ctsid, const struct cifs_sid *cwsid)
 	int num_subauth, num_sat, num_saw;
 
 	if ((!ctsid) || (!cwsid))
-		return (0);
+		return 0;
 
 	/* compare the revision */
 	if (ctsid->revision != cwsid->revision)
-		return (0);
+		return 0;
 
 	/* compare all of the six auth values */
 	for (i = 0; i < 6; ++i) {
 		if (ctsid->authority[i] != cwsid->authority[i])
-			return (0);
+			return 0;
 	}
 
 	/* compare all of the subauth values if any */
@@ -121,11 +121,11 @@ int compare_sids(const struct cifs_sid *ctsid, const struct cifs_sid *cwsid)
 	if (num_subauth) {
 		for (i = 0; i < num_subauth; ++i) {
 			if (ctsid->sub_auth[i] != cwsid->sub_auth[i])
-				return (0);
+				return 0;
 		}
 	}
 
-	return (1); /* sids compare/match */
+	return 1; /* sids compare/match */
 }
 
 
@@ -169,8 +169,7 @@ static void copy_sec_desc(const struct cifs_ntsd *pntsd,
 	for (i = 0; i < 6; i++)
 		ngroup_sid_ptr->authority[i] = group_sid_ptr->authority[i];
 	for (i = 0; i < 5; i++)
-		ngroup_sid_ptr->sub_auth[i] =
-				cpu_to_le32(group_sid_ptr->sub_auth[i]);
+		ngroup_sid_ptr->sub_auth[i] = group_sid_ptr->sub_auth[i];
 
 	return;
 }
@@ -285,7 +284,7 @@ static __u16 fill_ace_for_sid(struct cifs_ace *pntace,
 	size = 1 + 1 + 2 + 4 + 1 + 1 + 6 + (psid->num_subauth * 4);
 	pntace->size = cpu_to_le16(size);
 
-	return (size);
+	return size;
 }
 
 
@@ -426,7 +425,7 @@ static int set_chmod_dacl(struct cifs_acl *pndacl, struct cifs_sid *pownersid,
 	pndacl->size = cpu_to_le16(size + sizeof(struct cifs_acl));
 	pndacl->num_aces = cpu_to_le32(3);
 
-	return (0);
+	return 0;
 }
 
 
@@ -510,7 +509,7 @@ static int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len,
 			sizeof(struct cifs_sid)); */
 
 
-	return (0);
+	return 0;
 }
 
 
@@ -527,7 +526,7 @@ static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
 	struct cifs_acl *ndacl_ptr = NULL; /* no need for SACL ptr */
 
 	if ((inode == NULL) || (pntsd == NULL) || (pnntsd == NULL))
-		return (-EIO);
+		return -EIO;
 
 	owner_sid_ptr = (struct cifs_sid *)((char *)pntsd +
 				le32_to_cpu(pntsd->osidoffset));
@@ -550,7 +549,7 @@ static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
 	/* copy security descriptor control portion and owner and group sid */
 	copy_sec_desc(pntsd, pnntsd, sidsoffset);
 
-	return (rc);
+	return rc;
 }
 
 
@@ -629,11 +628,11 @@ static int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 	cFYI(DBG2, ("set ACL for %s from mode 0x%x", path, inode->i_mode));
 
 	if (!inode)
-		return (rc);
+		return rc;
 
 	sb = inode->i_sb;
 	if (sb == NULL)
-		return (rc);
+		return rc;
 
 	cifs_sb = CIFS_SB(sb);
 	xid = GetXid();
@@ -652,7 +651,7 @@ static int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 		if (rc != 0) {
 			cERROR(1, ("Unable to open file to set ACL"));
 			FreeXid(xid);
-			return (rc);
+			return rc;
 		}
 	}
 
@@ -665,7 +664,7 @@ static int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 
 	FreeXid(xid);
 
-	return (rc);
+	return rc;
 }
 
 /* Translate the CIFS ACL (simlar to NTFS ACL) for a file into mode bits */
@@ -715,7 +714,7 @@ int mode_to_acl(struct inode *inode, const char *path, __u64 nmode)
 		if (!pnntsd) {
 			cERROR(1, ("Unable to allocate security descriptor"));
 			kfree(pntsd);
-			return (-ENOMEM);
+			return -ENOMEM;
 		}
 
 		rc = build_sec_desc(pntsd, pnntsd, inode, nmode);
@@ -732,6 +731,6 @@ int mode_to_acl(struct inode *inode, const char *path, __u64 nmode)
 		kfree(pntsd);
 	}
 
-	return (rc);
+	return rc;
 }
 #endif /* CONFIG_CIFS_EXPERIMENTAL */

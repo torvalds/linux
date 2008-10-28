@@ -4,7 +4,7 @@
  * Copyright 2005 Wolfson Microelectronics PLC.
  * Copyright 2005 Openedhand Ltd.
  *
- * Authors: Liam Girdwood <liam.girdwood@wolfsonmicro.com>
+ * Authors: Liam Girdwood <lrg@slimlogic.co.uk>
  *          Richard Purdie <richard@openedhand.com>
  *
  *  This program is free software; you can redistribute  it and/or modify it
@@ -26,10 +26,10 @@
 
 #include <asm/mach-types.h>
 #include <asm/hardware/locomo.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/poodle.h>
-#include <asm/arch/audio.h>
+#include <mach/pxa-regs.h>
+#include <mach/hardware.h>
+#include <mach/poodle.h>
+#include <mach/audio.h>
 
 #include "../codecs/wm8731.h"
 #include "pxa2xx-pcm.h"
@@ -85,17 +85,13 @@ static int poodle_startup(struct snd_pcm_substream *substream)
 }
 
 /* we need to unmute the HP at shutdown as the mute burns power on poodle */
-static int poodle_shutdown(struct snd_pcm_substream *substream)
+static void poodle_shutdown(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->socdev->codec;
-
 	/* set = unmute headphone */
 	locomo_gpio_write(&poodle_locomo_device.dev,
 		POODLE_LOCOMO_GPIO_MUTE_L, 1);
 	locomo_gpio_write(&poodle_locomo_device.dev,
 		POODLE_LOCOMO_GPIO_MUTE_R, 1);
-	return 0;
 }
 
 static int poodle_hw_params(struct snd_pcm_substream *substream,
@@ -232,7 +228,7 @@ static const struct soc_enum poodle_enum[] = {
 	SOC_ENUM_SINGLE_EXT(2, spk_function),
 };
 
-static const snd_kcontrol_new_t wm8731_poodle_controls[] = {
+static const struct snd_kcontrol_new wm8731_poodle_controls[] = {
 	SOC_ENUM_EXT("Jack Function", poodle_enum[0], poodle_get_jack,
 		poodle_set_jack),
 	SOC_ENUM_EXT("Speaker Function", poodle_enum[1], poodle_get_spk,
@@ -246,8 +242,8 @@ static int poodle_wm8731_init(struct snd_soc_codec *codec)
 {
 	int i, err;
 
-	snd_soc_dapm_disable_pin(codec, "LLINEIN");
-	snd_soc_dapm_disable_pin(codec, "RLINEIN");
+	snd_soc_dapm_nc_pin(codec, "LLINEIN");
+	snd_soc_dapm_nc_pin(codec, "RLINEIN");
 	snd_soc_dapm_enable_pin(codec, "MICIN");
 
 	/* Add poodle specific controls */
@@ -288,6 +284,7 @@ static struct snd_soc_machine snd_soc_machine_poodle = {
 
 /* poodle audio private data */
 static struct wm8731_setup_data poodle_wm8731_setup = {
+	.i2c_bus = 0,
 	.i2c_address = 0x1b,
 };
 

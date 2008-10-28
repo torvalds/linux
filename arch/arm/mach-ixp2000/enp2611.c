@@ -32,13 +32,13 @@
 #include <linux/tty.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/system.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 
 #include <asm/mach/pci.h>
@@ -70,17 +70,17 @@ static struct map_desc enp2611_io_desc[] __initdata = {
 		.virtual	= ENP2611_CALEB_VIRT_BASE,
 		.pfn		= __phys_to_pfn(ENP2611_CALEB_PHYS_BASE),
 		.length		= ENP2611_CALEB_SIZE,
-		.type		= MT_DEVICE_IXP2000,
+		.type		= MT_DEVICE,
 	}, {
 		.virtual	= ENP2611_PM3386_0_VIRT_BASE,
 		.pfn		= __phys_to_pfn(ENP2611_PM3386_0_PHYS_BASE),
 		.length		= ENP2611_PM3386_0_SIZE,
-		.type		= MT_DEVICE_IXP2000,
+		.type		= MT_DEVICE,
 	}, {
 		.virtual	= ENP2611_PM3386_1_VIRT_BASE,
 		.pfn		= __phys_to_pfn(ENP2611_PM3386_1_PHYS_BASE),
 		.length		= ENP2611_PM3386_1_SIZE,
-		.type		= MT_DEVICE_IXP2000,
+		.type		= MT_DEVICE,
 	}
 };
 

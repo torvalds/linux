@@ -42,15 +42,14 @@ config USB_ADUTUX
 	  To compile this driver as a module, choose M here.  The module
 	  will be called adutux.
 
-config USB_AUERSWALD
-	tristate "USB Auerswald ISDN support"
+config USB_SEVSEG
+	tristate "USB 7-Segment LED Display"
 	depends on USB
 	help
-	  Say Y here if you want to connect an Auerswald USB ISDN Device
-	  to your computer's USB port.
+	  Say Y here if you have a USB 7-Segment Display by Delcom
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called auerswald.
+	  module will be called usbsevseg.
 
 config USB_RIO500
 	tristate "USB Diamond Rio500 support"
@@ -281,3 +280,18 @@ config USB_ISIGHTFW
 	  The firmware for this driver must be extracted from the MacOS
 	  driver beforehand. Tools for doing so are available at
 	  http://bersace03.free.fr
+
+config USB_VST
+	tristate "USB VST driver"
+	depends on USB
+	help
+	  This driver is intended for Vernier Software Technologies
+	  bulk usb devices such as their Ocean-Optics spectrometers or
+	  Labquest.
+	  It is a bulk channel driver with configurable read and write
+	  timeouts.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called vstusb.
+
+

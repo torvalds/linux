@@ -19,7 +19,7 @@
 #include <linux/platform_device.h>
 #include <asm/hardware/iop3xx.h>
 #include <linux/dma-mapping.h>
-#include <asm/arch/adma.h>
+#include <mach/adma.h>
 #include <asm/hardware/iop_adma.h>
 
 #ifdef CONFIG_ARCH_IOP32X

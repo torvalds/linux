@@ -1973,7 +1973,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
       err_free_ring:
 	pcnet32_free_ring(dev);
       err_free_consistent:
-	pci_free_consistent(lp->pci_dev, sizeof(*lp->init_block), 
+	pci_free_consistent(lp->pci_dev, sizeof(*lp->init_block),
 			    lp->init_block, lp->init_dma_addr);
       err_free_netdev:
 	free_netdev(dev);
@@ -2953,7 +2953,7 @@ static void __devexit pcnet32_remove_one(struct pci_dev *pdev)
 		unregister_netdev(dev);
 		pcnet32_free_ring(dev);
 		release_region(dev->base_addr, PCNET32_TOTAL_SIZE);
-		pci_free_consistent(lp->pci_dev, sizeof(*lp->init_block), 
+		pci_free_consistent(lp->pci_dev, sizeof(*lp->init_block),
 				    lp->init_block, lp->init_dma_addr);
 		free_netdev(dev);
 		pci_disable_device(pdev);
@@ -3036,7 +3036,7 @@ static void __exit pcnet32_cleanup_module(void)
 		unregister_netdev(pcnet32_dev);
 		pcnet32_free_ring(pcnet32_dev);
 		release_region(pcnet32_dev->base_addr, PCNET32_TOTAL_SIZE);
-		pci_free_consistent(lp->pci_dev, sizeof(*lp->init_block), 
+		pci_free_consistent(lp->pci_dev, sizeof(*lp->init_block),
 				    lp->init_block, lp->init_dma_addr);
 		free_netdev(pcnet32_dev);
 		pcnet32_dev = next_dev;

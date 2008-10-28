@@ -852,7 +852,6 @@ static int radeonfb_pan_display (struct fb_var_screeninfo *var,
         if (rinfo->asleep)
         	return 0;
 
-	radeon_fifo_wait(2);
         OUTREG(CRTC_OFFSET, ((var->yoffset * var->xres_virtual + var->xoffset)
 			     * var->bits_per_pixel / 8) & ~7);
         return 0;
@@ -882,7 +881,6 @@ static int radeonfb_ioctl (struct fb_info *info, unsigned int cmd,
 			if (rc)
 				return rc;
 
-			radeon_fifo_wait(2);
 			if (value & 0x01) {
 				tmp = INREG(LVDS_GEN_CNTL);
 
@@ -940,7 +938,7 @@ int radeon_screen_blank(struct radeonfb_info *rinfo, int blank, int mode_switch)
 	if (rinfo->lock_blank)
 		return 0;
 
-	radeon_engine_idle();
+	radeon_engine_idle(rinfo);
 
 	val = INREG(CRTC_EXT_CNTL);
         val &= ~(CRTC_DISPLAY_DIS | CRTC_HSYNC_DIS |
@@ -1048,7 +1046,7 @@ static int radeonfb_blank (int blank, struct fb_info *info)
 
 	if (rinfo->asleep)
 		return 0;
-		
+
 	return radeon_screen_blank(rinfo, blank, 0);
 }
 
@@ -1074,8 +1072,6 @@ static int radeon_setcolreg (unsigned regno, unsigned red, unsigned green,
         pindex = regno;
 
         if (!rinfo->asleep) {
-		radeon_fifo_wait(9);
-
 		if (rinfo->bpp == 16) {
 			pindex = regno * 8;
 
@@ -1244,8 +1240,6 @@ static void radeon_write_pll_regs(struct radeonfb_info *rinfo, struct radeon_reg
 {
 	int i;
 
-	radeon_fifo_wait(20);
-
 	/* Workaround from XFree */
 	if (rinfo->is_mobility) {
 	        /* A temporal workaround for the occational blanking on certain laptop
@@ -1286,11 +1280,10 @@ static void radeon_write_pll_regs(struct radeonfb_info *rinfo, struct radeon_reg
 	radeon_pll_errata_after_data(rinfo);
 
 	/* Set PPLL ref. div */
-	if (rinfo->family == CHIP_FAMILY_R300 ||
+	if (IS_R300_VARIANT(rinfo) ||
 	    rinfo->family == CHIP_FAMILY_RS300 ||
-	    rinfo->family == CHIP_FAMILY_R350 ||
-	    rinfo->family == CHIP_FAMILY_RV350 ||
-	    rinfo->family == CHIP_FAMILY_RV380 ) {
+	    rinfo->family == CHIP_FAMILY_RS400 ||
+	    rinfo->family == CHIP_FAMILY_RS480) {
 		if (mode->ppll_ref_div & R300_PPLL_REF_DIV_ACC_MASK) {
 			/* When restoring console mode, use saved PPLL_REF_DIV
 			 * setting.
@@ -1342,7 +1335,7 @@ static void radeon_lvds_timer_func(unsigned long data)
 {
 	struct radeonfb_info *rinfo = (struct radeonfb_info *)data;
 
-	radeon_engine_idle();
+	radeon_engine_idle(rinfo);
 
 	OUTREG(LVDS_GEN_CNTL, rinfo->pending_lvds_gen_cntl);
 }
@@ -1360,10 +1353,11 @@ void radeon_write_mode (struct radeonfb_info *rinfo, struct radeon_regs *mode,
 	if (nomodeset)
 		return;
 
+	radeon_engine_idle(rinfo);
+
 	if (!regs_only)
 		radeon_screen_blank(rinfo, FB_BLANK_NORMAL, 0);
 
-	radeon_fifo_wait(31);
 	for (i=0; i<10; i++)
 		OUTREG(common_regs[i].reg, common_regs[i].val);
 
@@ -1391,7 +1385,6 @@ void radeon_write_mode (struct radeonfb_info *rinfo, struct radeon_regs *mode,
 	radeon_write_pll_regs(rinfo, mode);
 
 	if ((primary_mon == MT_DFP) || (primary_mon == MT_LCD)) {
-		radeon_fifo_wait(10);
 		OUTREG(FP_CRTC_H_TOTAL_DISP, mode->fp_crtc_h_total_disp);
 		OUTREG(FP_CRTC_V_TOTAL_DISP, mode->fp_crtc_v_total_disp);
 		OUTREG(FP_H_SYNC_STRT_WID, mode->fp_h_sync_strt_wid);
@@ -1406,7 +1399,6 @@ void radeon_write_mode (struct radeonfb_info *rinfo, struct radeon_regs *mode,
 	if (!regs_only)
 		radeon_screen_blank(rinfo, FB_BLANK_UNBLANK, 0);
 
-	radeon_fifo_wait(2);
 	OUTPLL(VCLK_ECP_CNTL, mode->vclk_ecp_cntl);
 	
 	return;
@@ -1461,10 +1453,7 @@ static void radeon_calc_pll_regs(struct radeonfb_info *rinfo, struct radeon_regs
 		/* Not all chip revs have the same format for this register,
 		 * extract the source selection
 		 */
-		if (rinfo->family == CHIP_FAMILY_R200 ||
-		    rinfo->family == CHIP_FAMILY_R300 ||
-		    rinfo->family == CHIP_FAMILY_R350 ||
-		    rinfo->family == CHIP_FAMILY_RV350) {
+		if (rinfo->family == CHIP_FAMILY_R200 || IS_R300_VARIANT(rinfo)) {
 			source = (fp2_gen_cntl >> 10) & 0x3;
 			/* sourced from transform unit, check for transform unit
 			 * own source
@@ -1560,7 +1549,7 @@ static int radeonfb_set_par(struct fb_info *info)
 	/* We always want engine to be idle on a mode switch, even
 	 * if we won't actually change the mode
 	 */
-	radeon_engine_idle();
+	radeon_engine_idle(rinfo);
 
 	hSyncStart = mode->xres + mode->right_margin;
 	hSyncEnd = hSyncStart + mode->hsync_len;
@@ -1855,7 +1844,6 @@ static int radeonfb_set_par(struct fb_info *info)
 	return 0;
 }
 
-
 static struct fb_ops radeonfb_ops = {
 	.owner			= THIS_MODULE,
 	.fb_check_var		= radeonfb_check_var,
@@ -1879,6 +1867,7 @@ static int __devinit radeon_set_fbinfo (struct radeonfb_info *rinfo)
 	info->par = rinfo;
 	info->pseudo_palette = rinfo->pseudo_palette;
 	info->flags = FBINFO_DEFAULT
+		    | FBINFO_HWACCEL_IMAGEBLIT
 		    | FBINFO_HWACCEL_COPYAREA
 		    | FBINFO_HWACCEL_FILLRECT
 		    | FBINFO_HWACCEL_XPAN
@@ -2005,11 +1994,11 @@ static void radeon_identify_vram(struct radeonfb_info *rinfo)
             (rinfo->family == CHIP_FAMILY_RS200) ||
             (rinfo->family == CHIP_FAMILY_RS300) ||
             (rinfo->family == CHIP_FAMILY_RC410) ||
+            (rinfo->family == CHIP_FAMILY_RS400) ||
 	    (rinfo->family == CHIP_FAMILY_RS480) ) {
           u32 tom = INREG(NB_TOM);
           tmp = ((((tom >> 16) - (tom & 0xffff) + 1) << 6) * 1024);
 
- 		radeon_fifo_wait(6);
           OUTREG(MC_FB_LOCATION, tom);
           OUTREG(DISPLAY_BASE_ADDR, (tom & 0xffff) << 16);
           OUTREG(CRTC2_DISPLAY_BASE_ADDR, (tom & 0xffff) << 16);
@@ -2098,15 +2087,7 @@ static void radeon_identify_vram(struct radeonfb_info *rinfo)
 
 static ssize_t radeon_show_one_edid(char *buf, loff_t off, size_t count, const u8 *edid)
 {
-	if (off > EDID_LENGTH)
-		return 0;
-
-	if (off + count > EDID_LENGTH)
-		count = EDID_LENGTH - off;
-
-	memcpy(buf, edid + off, count);
-
-	return count;
+	return memory_read_from_buffer(buf, count, &off, edid, EDID_LENGTH);
 }
 
 
@@ -2161,6 +2142,7 @@ static int __devinit radeonfb_pci_register (struct pci_dev *pdev,
 	struct radeonfb_info *rinfo;
 	int ret;
 	unsigned char c1, c2;
+	int err = 0;
 
 	pr_debug("radeonfb_pci_register BEGIN\n");
 	
@@ -2340,9 +2322,14 @@ static int __devinit radeonfb_pci_register (struct pci_dev *pdev,
 
 	/* Register some sysfs stuff (should be done better) */
 	if (rinfo->mon1_EDID)
-		sysfs_create_bin_file(&rinfo->pdev->dev.kobj, &edid1_attr);
+		err |= sysfs_create_bin_file(&rinfo->pdev->dev.kobj,
+						&edid1_attr);
 	if (rinfo->mon2_EDID)
-		sysfs_create_bin_file(&rinfo->pdev->dev.kobj, &edid2_attr);
+		err |= sysfs_create_bin_file(&rinfo->pdev->dev.kobj,
+						&edid2_attr);
+	if (err)
+		pr_warning("%s() Creating sysfs files failed, continuing\n",
+			   __func__);
 
 	/* save current mode regs before we switch into the new one
 	 * so we can restore this upon __exit

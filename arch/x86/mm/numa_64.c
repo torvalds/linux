@@ -20,14 +20,8 @@
 #include <asm/acpi.h>
 #include <asm/k8.h>
 
-#ifndef Dprintk
-#define Dprintk(x...)
-#endif
-
 struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL(node_data);
-
-static bootmem_data_t plat_node_bdata[MAX_NUMNODES];
 
 struct memnode memnode;
 
@@ -85,7 +79,7 @@ static int __init allocate_cachealigned_memnodemap(void)
 		return 0;
 
 	addr = 0x8000;
-	nodemap_size = round_up(sizeof(s16) * memnodemapsize, L1_CACHE_BYTES);
+	nodemap_size = roundup(sizeof(s16) * memnodemapsize, L1_CACHE_BYTES);
 	nodemap_addr = find_e820_area(addr, max_pfn<<PAGE_SHIFT,
 				      nodemap_size, L1_CACHE_BYTES);
 	if (nodemap_addr == -1UL) {
@@ -182,10 +176,10 @@ void __init setup_node_bootmem(int nodeid, unsigned long start,
 	unsigned long start_pfn, last_pfn, bootmap_pages, bootmap_size;
 	unsigned long bootmap_start, nodedata_phys;
 	void *bootmap;
-	const int pgdat_size = round_up(sizeof(pg_data_t), PAGE_SIZE);
+	const int pgdat_size = roundup(sizeof(pg_data_t), PAGE_SIZE);
 	int nid;
 
-	start = round_up(start, ZONE_ALIGN);
+	start = roundup(start, ZONE_ALIGN);
 
 	printk(KERN_INFO "Bootmem setup node %d %016lx-%016lx\n", nodeid,
 	       start, end);
@@ -202,7 +196,7 @@ void __init setup_node_bootmem(int nodeid, unsigned long start,
 		nodedata_phys + pgdat_size - 1);
 
 	memset(NODE_DATA(nodeid), 0, sizeof(pg_data_t));
-	NODE_DATA(nodeid)->bdata = &plat_node_bdata[nodeid];
+	NODE_DATA(nodeid)->bdata = &bootmem_node_data[nodeid];
 	NODE_DATA(nodeid)->node_start_pfn = start_pfn;
 	NODE_DATA(nodeid)->node_spanned_pages = last_pfn - start_pfn;
 
@@ -216,9 +210,9 @@ void __init setup_node_bootmem(int nodeid, unsigned long start,
 	bootmap_pages = bootmem_bootmap_pages(last_pfn - start_pfn);
 	nid = phys_to_nid(nodedata_phys);
 	if (nid == nodeid)
-		bootmap_start = round_up(nodedata_phys + pgdat_size, PAGE_SIZE);
+		bootmap_start = roundup(nodedata_phys + pgdat_size, PAGE_SIZE);
 	else
-		bootmap_start = round_up(start, PAGE_SIZE);
+		bootmap_start = roundup(start, PAGE_SIZE);
 	/*
 	 * SMP_CACHE_BYTES could be enough, but init_bootmem_node like
 	 * to use that to align to PAGE_SIZE

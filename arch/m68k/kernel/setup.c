@@ -20,12 +20,14 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
+#include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/module.h>
 #include <linux/initrd.h>
 
 #include <asm/bootinfo.h>
 #include <asm/setup.h>
+#include <asm/fpu.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
@@ -38,6 +40,11 @@
 #endif
 #ifdef CONFIG_SUN3X
 #include <asm/dvma.h>
+#endif
+
+#if !FPSTATESIZE || !NR_IRQS
+#warning No CPU/platform type selected, your kernel will not work!
+#warning Are you building an allnoconfig kernel?
 #endif
 
 unsigned long m68k_machtype;
@@ -74,7 +81,7 @@ void (*mach_sched_init) (irq_handler_t handler) __initdata = NULL;
 /* machine dependent irq functions */
 void (*mach_init_IRQ) (void) __initdata = NULL;
 void (*mach_get_model) (char *model);
-int (*mach_get_hardware_list) (char *buffer);
+void (*mach_get_hardware_list) (struct seq_file *m);
 /* machine dependent timer functions */
 unsigned long (*mach_gettimeoffset) (void);
 int (*mach_hwclk) (int, struct rtc_time*);
@@ -116,6 +123,7 @@ extern int bvme6000_parse_bootinfo(const struct bi_record *);
 extern int mvme16x_parse_bootinfo(const struct bi_record *);
 extern int mvme147_parse_bootinfo(const struct bi_record *);
 extern int hp300_parse_bootinfo(const struct bi_record *);
+extern int apollo_parse_bootinfo(const struct bi_record *);
 
 extern void config_amiga(void);
 extern void config_atari(void);
@@ -183,6 +191,8 @@ static void __init m68k_parse_bootinfo(const struct bi_record *record)
 				unknown = mvme147_parse_bootinfo(record);
 			else if (MACH_IS_HP300)
 				unknown = hp300_parse_bootinfo(record);
+			else if (MACH_IS_APOLLO)
+				unknown = apollo_parse_bootinfo(record);
 			else
 				unknown = 1;
 		}
@@ -458,9 +468,9 @@ const struct seq_operations cpuinfo_op = {
 	.show	= show_cpuinfo,
 };
 
-int get_hardware_list(char *buffer)
+#ifdef CONFIG_PROC_HARDWARE
+static int hardware_proc_show(struct seq_file *m, void *v)
 {
-	int len = 0;
 	char model[80];
 	unsigned long mem;
 	int i;
@@ -470,16 +480,36 @@ int get_hardware_list(char *buffer)
 	else
 		strcpy(model, "Unknown m68k");
 
-	len += sprintf(buffer + len, "Model:\t\t%s\n", model);
+	seq_printf(m, "Model:\t\t%s\n", model);
 	for (mem = 0, i = 0; i < m68k_num_memory; i++)
 		mem += m68k_memory[i].size;
-	len += sprintf(buffer + len, "System Memory:\t%ldK\n", mem >> 10);
+	seq_printf(m, "System Memory:\t%ldK\n", mem >> 10);
 
 	if (mach_get_hardware_list)
-		len += mach_get_hardware_list(buffer + len);
+		mach_get_hardware_list(m);
 
-	return len;
+	return 0;
 }
+
+static int hardware_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hardware_proc_show, NULL);
+}
+
+static const struct file_operations hardware_proc_fops = {
+	.open		= hardware_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int __init proc_hardware_init(void)
+{
+	proc_create("hardware", 0, NULL, &hardware_proc_fops);
+	return 0;
+}
+module_init(proc_hardware_init);
+#endif
 
 void check_bugs(void)
 {

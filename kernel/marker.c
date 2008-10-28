@@ -62,7 +62,7 @@ struct marker_entry {
 	int refcount;	/* Number of times armed. 0 if disarmed. */
 	struct rcu_head rcu;
 	void *oldptr;
-	unsigned char rcu_pending:1;
+	int rcu_pending;
 	unsigned char ptype:1;
 	char name[0];	/* Contains name'\0'format'\0' */
 };
@@ -103,11 +103,11 @@ void marker_probe_cb(const struct marker *mdata, void *call_private, ...)
 	char ptype;
 
 	/*
-	 * preempt_disable does two things : disabling preemption to make sure
-	 * the teardown of the callbacks can be done correctly when they are in
-	 * modules and they insure RCU read coherency.
+	 * rcu_read_lock_sched does two things : disabling preemption to make
+	 * sure the teardown of the callbacks can be done correctly when they
+	 * are in modules and they insure RCU read coherency.
 	 */
-	preempt_disable();
+	rcu_read_lock_sched();
 	ptype = mdata->ptype;
 	if (likely(!ptype)) {
 		marker_probe_func *func;
@@ -126,6 +126,11 @@ void marker_probe_cb(const struct marker *mdata, void *call_private, ...)
 		struct marker_probe_closure *multi;
 		int i;
 		/*
+		 * Read mdata->ptype before mdata->multi.
+		 */
+		smp_rmb();
+		multi = mdata->multi;
+		/*
 		 * multi points to an array, therefore accessing the array
 		 * depends on reading multi. However, even in this case,
 		 * we must insure that the pointer is read _before_ the array
@@ -133,7 +138,6 @@ void marker_probe_cb(const struct marker *mdata, void *call_private, ...)
 		 * in the fast path, so put the explicit barrier here.
 		 */
 		smp_read_barrier_depends();
-		multi = mdata->multi;
 		for (i = 0; multi[i].func; i++) {
 			va_start(args, call_private);
 			multi[i].func(multi[i].probe_private, call_private,
@@ -141,7 +145,7 @@ void marker_probe_cb(const struct marker *mdata, void *call_private, ...)
 			va_end(args);
 		}
 	}
-	preempt_enable();
+	rcu_read_unlock_sched();
 }
 EXPORT_SYMBOL_GPL(marker_probe_cb);
 
@@ -158,7 +162,7 @@ void marker_probe_cb_noarg(const struct marker *mdata, void *call_private, ...)
 	va_list args;	/* not initialized */
 	char ptype;
 
-	preempt_disable();
+	rcu_read_lock_sched();
 	ptype = mdata->ptype;
 	if (likely(!ptype)) {
 		marker_probe_func *func;
@@ -175,6 +179,11 @@ void marker_probe_cb_noarg(const struct marker *mdata, void *call_private, ...)
 		struct marker_probe_closure *multi;
 		int i;
 		/*
+		 * Read mdata->ptype before mdata->multi.
+		 */
+		smp_rmb();
+		multi = mdata->multi;
+		/*
 		 * multi points to an array, therefore accessing the array
 		 * depends on reading multi. However, even in this case,
 		 * we must insure that the pointer is read _before_ the array
@@ -182,12 +191,11 @@ void marker_probe_cb_noarg(const struct marker *mdata, void *call_private, ...)
 		 * in the fast path, so put the explicit barrier here.
 		 */
 		smp_read_barrier_depends();
-		multi = mdata->multi;
 		for (i = 0; multi[i].func; i++)
 			multi[i].func(multi[i].probe_private, call_private,
 				mdata->format, &args);
 	}
-	preempt_enable();
+	rcu_read_unlock_sched();
 }
 EXPORT_SYMBOL_GPL(marker_probe_cb_noarg);
 
@@ -441,7 +449,7 @@ static int remove_marker(const char *name)
 	hlist_del(&e->hlist);
 	/* Make sure the call_rcu has been executed */
 	if (e->rcu_pending)
-		rcu_barrier();
+		rcu_barrier_sched();
 	kfree(e);
 	return 0;
 }
@@ -476,7 +484,7 @@ static int marker_set_format(struct marker_entry **entry, const char *format)
 	hlist_del(&(*entry)->hlist);
 	/* Make sure the call_rcu has been executed */
 	if ((*entry)->rcu_pending)
-		rcu_barrier();
+		rcu_barrier_sched();
 	kfree(*entry);
 	*entry = e;
 	trace_mark(core_marker_format, "name %s format %s",
@@ -552,7 +560,7 @@ static int set_marker(struct marker_entry **entry, struct marker *elem,
  * Disable a marker and its probe callback.
  * Note: only waiting an RCU period after setting elem->call to the empty
  * function insures that the original callback is not used anymore. This insured
- * by preempt_disable around the call site.
+ * by rcu_read_lock_sched around the call site.
  */
 static void disable_marker(struct marker *elem)
 {
@@ -645,17 +653,23 @@ int marker_probe_register(const char *name, const char *format,
 	entry = get_marker(name);
 	if (!entry) {
 		entry = add_marker(name, format);
-		if (IS_ERR(entry)) {
+		if (IS_ERR(entry))
 			ret = PTR_ERR(entry);
-			goto end;
-		}
+	} else if (format) {
+		if (!entry->format)
+			ret = marker_set_format(&entry, format);
+		else if (strcmp(entry->format, format))
+			ret = -EPERM;
 	}
+	if (ret)
+		goto end;
+
 	/*
 	 * If we detect that a call_rcu is pending for this marker,
 	 * make sure it's executed now.
 	 */
 	if (entry->rcu_pending)
-		rcu_barrier();
+		rcu_barrier_sched();
 	old = marker_entry_add_probe(entry, probe, probe_private);
 	if (IS_ERR(old)) {
 		ret = PTR_ERR(old);
@@ -666,14 +680,13 @@ int marker_probe_register(const char *name, const char *format,
 	mutex_lock(&markers_mutex);
 	entry = get_marker(name);
 	WARN_ON(!entry);
+	if (entry->rcu_pending)
+		rcu_barrier_sched();
 	entry->oldptr = old;
 	entry->rcu_pending = 1;
 	/* write rcu_pending before calling the RCU callback */
 	smp_wmb();
-#ifdef CONFIG_PREEMPT_RCU
-	synchronize_sched();	/* Until we have the call_rcu_sched() */
-#endif
-	call_rcu(&entry->rcu, free_old_closure);
+	call_rcu_sched(&entry->rcu, free_old_closure);
 end:
 	mutex_unlock(&markers_mutex);
 	return ret;
@@ -704,7 +717,7 @@ int marker_probe_unregister(const char *name,
 	if (!entry)
 		goto end;
 	if (entry->rcu_pending)
-		rcu_barrier();
+		rcu_barrier_sched();
 	old = marker_entry_remove_probe(entry, probe, probe_private);
 	mutex_unlock(&markers_mutex);
 	marker_update_probes();		/* may update entry */
@@ -712,14 +725,13 @@ int marker_probe_unregister(const char *name,
 	entry = get_marker(name);
 	if (!entry)
 		goto end;
+	if (entry->rcu_pending)
+		rcu_barrier_sched();
 	entry->oldptr = old;
 	entry->rcu_pending = 1;
 	/* write rcu_pending before calling the RCU callback */
 	smp_wmb();
-#ifdef CONFIG_PREEMPT_RCU
-	synchronize_sched();	/* Until we have the call_rcu_sched() */
-#endif
-	call_rcu(&entry->rcu, free_old_closure);
+	call_rcu_sched(&entry->rcu, free_old_closure);
 	remove_marker(name);	/* Ignore busy error message */
 	ret = 0;
 end:
@@ -786,21 +798,20 @@ int marker_probe_unregister_private_data(marker_probe_func *probe,
 		goto end;
 	}
 	if (entry->rcu_pending)
-		rcu_barrier();
+		rcu_barrier_sched();
 	old = marker_entry_remove_probe(entry, NULL, probe_private);
 	mutex_unlock(&markers_mutex);
 	marker_update_probes();		/* may update entry */
 	mutex_lock(&markers_mutex);
 	entry = get_marker_from_private_data(probe, probe_private);
 	WARN_ON(!entry);
+	if (entry->rcu_pending)
+		rcu_barrier_sched();
 	entry->oldptr = old;
 	entry->rcu_pending = 1;
 	/* write rcu_pending before calling the RCU callback */
 	smp_wmb();
-#ifdef CONFIG_PREEMPT_RCU
-	synchronize_sched();	/* Until we have the call_rcu_sched() */
-#endif
-	call_rcu(&entry->rcu, free_old_closure);
+	call_rcu_sched(&entry->rcu, free_old_closure);
 	remove_marker(entry->name);	/* Ignore busy error message */
 end:
 	mutex_unlock(&markers_mutex);

@@ -1,6 +1,4 @@
 /*
- * $Id: ixp4xx.c,v 1.13 2005/11/16 16:23:21 dvrabel Exp $
- *
  * drivers/mtd/maps/ixp4xx.c
  *
  * MTD Map file for IXP4XX based systems. Please do not make per-board

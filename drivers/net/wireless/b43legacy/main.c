@@ -34,7 +34,6 @@
 #include <linux/moduleparam.h>
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
-#include <linux/version.h>
 #include <linux/firmware.h>
 #include <linux/wireless.h>
 #include <linux/workqueue.h>
@@ -846,10 +845,10 @@ static void handle_irq_noise(struct b43legacy_wldev *dev)
 	/* Get the noise samples. */
 	B43legacy_WARN_ON(dev->noisecalc.nr_samples >= 8);
 	i = dev->noisecalc.nr_samples;
-	noise[0] = limit_value(noise[0], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
-	noise[1] = limit_value(noise[1], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
-	noise[2] = limit_value(noise[2], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
-	noise[3] = limit_value(noise[3], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
+	noise[0] = clamp_val(noise[0], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
+	noise[1] = clamp_val(noise[1], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
+	noise[2] = clamp_val(noise[2], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
+	noise[3] = clamp_val(noise[3], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
 	dev->noisecalc.samples[i][0] = phy->nrssi_lt[noise[0]];
 	dev->noisecalc.samples[i][1] = phy->nrssi_lt[noise[1]];
 	dev->noisecalc.samples[i][2] = phy->nrssi_lt[noise[2]];
@@ -889,13 +888,13 @@ generate_new:
 
 static void handle_irq_tbtt_indication(struct b43legacy_wldev *dev)
 {
-	if (b43legacy_is_mode(dev->wl, IEEE80211_IF_TYPE_AP)) {
+	if (b43legacy_is_mode(dev->wl, NL80211_IFTYPE_AP)) {
 		/* TODO: PS TBTT */
 	} else {
 		if (1/*FIXME: the last PSpoll frame was sent successfully */)
 			b43legacy_power_saving_ctl_bits(dev, -1, -1);
 	}
-	if (b43legacy_is_mode(dev->wl, IEEE80211_IF_TYPE_IBSS))
+	if (b43legacy_is_mode(dev->wl, NL80211_IFTYPE_ADHOC))
 		dev->dfq_valid = 1;
 }
 
@@ -1138,13 +1137,21 @@ static void b43legacy_write_probe_resp_template(struct b43legacy_wldev *dev,
 
 /* Asynchronously update the packet templates in template RAM.
  * Locking: Requires wl->irq_lock to be locked. */
-static void b43legacy_update_templates(struct b43legacy_wl *wl,
-				       struct sk_buff *beacon)
+static void b43legacy_update_templates(struct b43legacy_wl *wl)
 {
+	struct sk_buff *beacon;
 	/* This is the top half of the ansynchronous beacon update. The bottom
 	 * half is the beacon IRQ. Beacon update must be asynchronous to avoid
 	 * sending an invalid beacon. This can happen for example, if the
 	 * firmware transmits a beacon while we are updating it. */
+
+	/* We could modify the existing beacon and set the aid bit in the TIM
+	 * field, but that would probably require resizing and moving of data
+	 * within the beacon template. Simply request a new beacon and let
+	 * mac80211 do the hard work. */
+	beacon = ieee80211_beacon_get(wl->hw, wl->vif);
+	if (unlikely(!beacon))
+		return;
 
 	if (wl->current_beacon)
 		dev_kfree_skb_any(wl->current_beacon);
@@ -1194,7 +1201,7 @@ static void handle_irq_beacon(struct b43legacy_wldev *dev)
 	struct b43legacy_wl *wl = dev->wl;
 	u32 cmd;
 
-	if (!b43legacy_is_mode(wl, IEEE80211_IF_TYPE_AP))
+	if (!b43legacy_is_mode(wl, NL80211_IFTYPE_AP))
 		return;
 
 	/* This is the bottom half of the asynchronous beacon update. */
@@ -1929,9 +1936,9 @@ static void b43legacy_adjust_opmode(struct b43legacy_wldev *dev)
 	ctl &= ~B43legacy_MACCTL_BEACPROMISC;
 	ctl |= B43legacy_MACCTL_INFRA;
 
-	if (b43legacy_is_mode(wl, IEEE80211_IF_TYPE_AP))
+	if (b43legacy_is_mode(wl, NL80211_IFTYPE_AP))
 		ctl |= B43legacy_MACCTL_AP;
-	else if (b43legacy_is_mode(wl, IEEE80211_IF_TYPE_IBSS))
+	else if (b43legacy_is_mode(wl, NL80211_IFTYPE_ADHOC))
 		ctl &= ~B43legacy_MACCTL_INFRA;
 
 	if (wl->filter_flags & FIF_CONTROL)
@@ -2358,8 +2365,7 @@ static int b43legacy_rng_init(struct b43legacy_wl *wl)
 }
 
 static int b43legacy_op_tx(struct ieee80211_hw *hw,
-			   struct sk_buff *skb,
-			   struct ieee80211_tx_control *ctl)
+			   struct sk_buff *skb)
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
 	struct b43legacy_wldev *dev = wl->current_dev;
@@ -2373,10 +2379,10 @@ static int b43legacy_op_tx(struct ieee80211_hw *hw,
 	/* DMA-TX is done without a global lock. */
 	if (b43legacy_using_pio(dev)) {
 		spin_lock_irqsave(&wl->irq_lock, flags);
-		err = b43legacy_pio_tx(dev, skb, ctl);
+		err = b43legacy_pio_tx(dev, skb);
 		spin_unlock_irqrestore(&wl->irq_lock, flags);
 	} else
-		err = b43legacy_dma_tx(dev, skb, ctl);
+		err = b43legacy_dma_tx(dev, skb);
 out:
 	if (unlikely(err)) {
 		/* Drop the packet. */
@@ -2385,8 +2391,7 @@ out:
 	return NETDEV_TX_OK;
 }
 
-static int b43legacy_op_conf_tx(struct ieee80211_hw *hw,
-				int queue,
+static int b43legacy_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
 				const struct ieee80211_tx_queue_params *params)
 {
 	return 0;
@@ -2641,7 +2646,7 @@ static int b43legacy_op_dev_config(struct ieee80211_hw *hw,
 	b43legacy_mgmtframe_txantenna(dev, antenna_tx);
 
 	/* Update templates for AP mode. */
-	if (b43legacy_is_mode(wl, IEEE80211_IF_TYPE_AP))
+	if (b43legacy_is_mode(wl, NL80211_IFTYPE_AP))
 		b43legacy_set_beacon_int(dev, conf->beacon_int);
 
 
@@ -2728,11 +2733,14 @@ static int b43legacy_op_config_interface(struct ieee80211_hw *hw,
 	else
 		memset(wl->bssid, 0, ETH_ALEN);
 	if (b43legacy_status(dev) >= B43legacy_STAT_INITIALIZED) {
-		if (b43legacy_is_mode(wl, IEEE80211_IF_TYPE_AP)) {
-			B43legacy_WARN_ON(conf->type != IEEE80211_IF_TYPE_AP);
+		if (b43legacy_is_mode(wl, NL80211_IFTYPE_AP)) {
+			B43legacy_WARN_ON(vif->type != NL80211_IFTYPE_AP);
 			b43legacy_set_ssid(dev, conf->ssid, conf->ssid_len);
-			if (conf->beacon)
-				b43legacy_update_templates(wl, conf->beacon);
+			if (conf->changed & IEEE80211_IFCC_BEACON)
+				b43legacy_update_templates(wl);
+		} else if (b43legacy_is_mode(wl, NL80211_IFTYPE_ADHOC)) {
+			if (conf->changed & IEEE80211_IFCC_BEACON)
+				b43legacy_update_templates(wl);
 		}
 		b43legacy_write_mac_bssid_templates(dev);
 	}
@@ -2797,7 +2805,6 @@ static int b43legacy_wireless_core_start(struct b43legacy_wldev *dev)
 	/* Start data flow (TX/RX) */
 	b43legacy_mac_enable(dev);
 	b43legacy_interrupt_enable(dev, dev->irq_savedstate);
-	ieee80211_start_queues(dev->wl->hw);
 
 	/* Start maintenance work */
 	b43legacy_periodic_tasks_setup(dev);
@@ -3013,7 +3020,7 @@ static void b43legacy_set_synth_pu_delay(struct b43legacy_wldev *dev,
 					  bool idle) {
 	u16 pu_delay = 1050;
 
-	if (b43legacy_is_mode(dev->wl, IEEE80211_IF_TYPE_IBSS) || idle)
+	if (b43legacy_is_mode(dev->wl, NL80211_IFTYPE_ADHOC) || idle)
 		pu_delay = 500;
 	if ((dev->phy.radio_ver == 0x2050) && (dev->phy.radio_rev == 8))
 		pu_delay = max(pu_delay, (u16)2400);
@@ -3028,7 +3035,7 @@ static void b43legacy_set_pretbtt(struct b43legacy_wldev *dev)
 	u16 pretbtt;
 
 	/* The time value is in microseconds. */
-	if (b43legacy_is_mode(dev->wl, IEEE80211_IF_TYPE_IBSS))
+	if (b43legacy_is_mode(dev->wl, NL80211_IFTYPE_ADHOC))
 		pretbtt = 2;
 	else
 		pretbtt = 250;
@@ -3252,10 +3259,10 @@ static int b43legacy_op_add_interface(struct ieee80211_hw *hw,
 
 	/* TODO: allow WDS/AP devices to coexist */
 
-	if (conf->type != IEEE80211_IF_TYPE_AP &&
-	    conf->type != IEEE80211_IF_TYPE_STA &&
-	    conf->type != IEEE80211_IF_TYPE_WDS &&
-	    conf->type != IEEE80211_IF_TYPE_IBSS)
+	if (conf->type != NL80211_IFTYPE_AP &&
+	    conf->type != NL80211_IFTYPE_STATION &&
+	    conf->type != NL80211_IFTYPE_WDS &&
+	    conf->type != NL80211_IFTYPE_ADHOC)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&wl->mutex);
@@ -3396,35 +3403,13 @@ out_unlock:
 }
 
 static int b43legacy_op_beacon_set_tim(struct ieee80211_hw *hw,
-				       int aid, int set)
-{
-	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
-	struct sk_buff *beacon;
-	unsigned long flags;
-
-	/* We could modify the existing beacon and set the aid bit in the TIM
-	 * field, but that would probably require resizing and moving of data
-	 * within the beacon template. Simply request a new beacon and let
-	 * mac80211 do the hard work. */
-	beacon = ieee80211_beacon_get(hw, wl->vif, NULL);
-	if (unlikely(!beacon))
-		return -ENOMEM;
-	spin_lock_irqsave(&wl->irq_lock, flags);
-	b43legacy_update_templates(wl, beacon);
-	spin_unlock_irqrestore(&wl->irq_lock, flags);
-
-	return 0;
-}
-
-static int b43legacy_op_ibss_beacon_update(struct ieee80211_hw *hw,
-					   struct sk_buff *beacon,
-					   struct ieee80211_tx_control *ctl)
+				       struct ieee80211_sta *sta, bool set)
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
 	unsigned long flags;
 
 	spin_lock_irqsave(&wl->irq_lock, flags);
-	b43legacy_update_templates(wl, beacon);
+	b43legacy_update_templates(wl);
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
 
 	return 0;
@@ -3444,7 +3429,6 @@ static const struct ieee80211_ops b43legacy_hw_ops = {
 	.stop			= b43legacy_op_stop,
 	.set_retry_limit	= b43legacy_op_set_retry_limit,
 	.set_tim		= b43legacy_op_beacon_set_tim,
-	.beacon_update		= b43legacy_op_ibss_beacon_update,
 };
 
 /* Hard-reset the chip. Do not call this directly.
@@ -3717,12 +3701,16 @@ static int b43legacy_wireless_init(struct ssb_device *dev)
 	}
 
 	/* fill hw info */
-	hw->flags = IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE |
-		    IEEE80211_HW_RX_INCLUDES_FCS;
-	hw->max_signal = 100;
-	hw->max_rssi = -110;
-	hw->max_noise = -110;
+	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
+		    IEEE80211_HW_SIGNAL_DBM |
+		    IEEE80211_HW_NOISE_DBM;
+	hw->wiphy->interface_modes =
+		BIT(NL80211_IFTYPE_AP) |
+		BIT(NL80211_IFTYPE_STATION) |
+		BIT(NL80211_IFTYPE_WDS) |
+		BIT(NL80211_IFTYPE_ADHOC);
 	hw->queues = 1; /* FIXME: hardware has more queues */
+	hw->max_altrates = 1;
 	SET_IEEE80211_DEV(hw, dev->dev);
 	if (is_valid_ether_addr(sprom->et1mac))
 		SET_IEEE80211_PERM_ADDR(hw, sprom->et1mac);
@@ -3862,10 +3850,10 @@ static int b43legacy_resume(struct ssb_device *dev)
 			goto out;
 		}
 	}
-	mutex_unlock(&wl->mutex);
 
 	b43legacydbg(wl, "Device resumed.\n");
 out:
+	mutex_unlock(&wl->mutex);
 	return err;
 }
 

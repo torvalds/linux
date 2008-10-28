@@ -8,25 +8,55 @@ config IWLCORE
 	select MAC80211_LEDS if IWLWIFI_LEDS
 	select LEDS_CLASS if IWLWIFI_LEDS
 	select RFKILL if IWLWIFI_RFKILL
-	select RFKILL_INPUT if IWLWIFI_RFKILL
 
 config IWLWIFI_LEDS
 	bool
 	default n
 
 config IWLWIFI_RFKILL
-	boolean "IWLWIFI RF kill support"
+	boolean "Iwlwifi RF kill support"
 	depends on IWLCORE
 
-config IWL4965
-	tristate "Intel Wireless WiFi 4965AGN"
+config IWLWIFI_DEBUG
+	bool "Enable full debugging output in iwlagn driver"
+	depends on IWLCORE
+	---help---
+	  This option will enable debug tracing output for the iwlwifi drivers
+
+	  This will result in the kernel module being ~100k larger.  You can
+	  control which debug output is sent to the kernel log by setting the
+	  value in
+
+		/sys/class/net/wlan0/device/debug_level
+
+	  This entry will only exist if this option is enabled.
+
+	  To set a value, simply echo an 8-byte hex value to the same file:
+
+		  % echo 0x43fff > /sys/class/net/wlan0/device/debug_level
+
+	  You can find the list of debug mask values in:
+		  drivers/net/wireless/iwlwifi/iwl-debug.h
+
+	  If this is your first time using this driver, you should say Y here
+	  as the debug information can assist others in helping you resolve
+	  any problems you may encounter.
+
+config IWLWIFI_DEBUGFS
+        bool "Iwlwifi debugfs support"
+        depends on IWLCORE && IWLWIFI_DEBUG && MAC80211_DEBUGFS
+        ---help---
+	  Enable creation of debugfs files for the iwlwifi drivers.
+
+config IWLAGN
+	tristate "Intel Wireless WiFi Next Gen AGN"
 	depends on PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
 	select FW_LOADER
 	select IWLCORE
 	---help---
 	  Select to build the driver supporting the:
 
-	  Intel Wireless WiFi Link 4965AGN
+	  Intel Wireless WiFi Link Next-Gen AGN
 
 	  This driver uses the kernel's mac80211 subsystem.
 
@@ -43,68 +73,33 @@ config IWL4965
 	  If you want to compile the driver as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
 	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
-	  module will be called iwl4965.ko.
+	  module will be called iwlagn.ko.
 
-config IWL4965_HT
-	bool "Enable 802.11n HT features in iwl4965 driver"
-	depends on EXPERIMENTAL
-	depends on IWL4965
+config IWLAGN_SPECTRUM_MEASUREMENT
+	bool "Enable Spectrum Measurement in iwlagn driver"
+	depends on IWLAGN
 	---help---
-	  This option enables IEEE 802.11n High Throughput features
-	  for the iwl4965 driver.
+	  This option will enable spectrum measurement for the iwlagn driver.
 
-config IWL4965_LEDS
-	bool "Enable LEDS features in iwl4965 driver"
-	depends on IWL4965
+config IWLAGN_LEDS
+	bool "Enable LEDS features in iwlagn driver"
+	depends on IWLAGN
 	select IWLWIFI_LEDS
 	---help---
-	  This option enables LEDS for the iwlwifi drivers
+	  This option enables LEDS for the iwlagn drivers
 
 
-config IWL4965_SPECTRUM_MEASUREMENT
-	bool "Enable Spectrum Measurement in iwl4965 driver"
-	depends on IWL4965
+config IWL4965
+	bool "Intel Wireless WiFi 4965AGN"
+	depends on IWLAGN
 	---help---
-	  This option will enable spectrum measurement for the iwl4965 driver.
+	  This option enables support for Intel Wireless WiFi Link 4965AGN
 
-config IWL4965_SENSITIVITY
-	bool "Enable Sensitivity Calibration in iwl4965 driver"
-	depends on IWL4965
+config IWL5000
+	bool "Intel Wireless WiFi 5000AGN"
+	depends on IWLAGN
 	---help---
-	  This option will enable sensitivity calibration for the iwl4965
-	  driver.
-
-config IWLWIFI_DEBUG
-	bool "Enable full debugging output in iwl4965 driver"
-	depends on IWL4965
-	---help---
-	  This option will enable debug tracing output for the iwl4965
-	  driver.
-
-	  This will result in the kernel module being ~100k larger.  You can
-	  control which debug output is sent to the kernel log by setting the
-	  value in
-
-	          /sys/bus/pci/drivers/${DRIVER}/debug_level
-
-	  This entry will only exist if this option is enabled.
-
-	  To set a value, simply echo an 8-byte hex value to the same file:
-
-		  % echo 0x43fff > /sys/bus/pci/drivers/${DRIVER}/debug_level
-
-	  You can find the list of debug mask values in:
-		  drivers/net/wireless/iwlwifi/iwl-4965-debug.h
-
-	  If this is your first time using this driver, you should say Y here
-	  as the debug information can assist others in helping you resolve
-	  any problems you may encounter.
-
-config IWLWIFI_DEBUGFS
-        bool "Iwlwifi debugfs support"
-        depends on IWLCORE && IWLWIFI_DEBUG && MAC80211_DEBUGFS
-        ---help---
-	  Enable creation of debugfs files for the iwlwifi drivers.
+	  This option enables support for Intel Wireless WiFi Link 5000AGN Family
 
 config IWL3945
 	tristate "Intel PRO/Wireless 3945ABG/BG Network Connection"
@@ -113,6 +108,7 @@ config IWL3945
 	select IWLWIFI
 	select MAC80211_LEDS if IWL3945_LEDS
 	select LEDS_CLASS if IWL3945_LEDS
+	select RFKILL if IWL3945_RFKILL
 	---help---
 	  Select to build the driver supporting the:
 
@@ -134,6 +130,10 @@ config IWL3945
 	  inserted in and removed from the running kernel whenever you want),
 	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
 	  module will be called iwl3945.ko.
+
+config IWL3945_RFKILL
+	bool "Enable RF kill support in iwl3945 drivers"
+	depends on IWL3945
 
 config IWL3945_SPECTRUM_MEASUREMENT
 	bool "Enable Spectrum Measurement in iwl3945 drivers"

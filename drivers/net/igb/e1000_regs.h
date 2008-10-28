@@ -56,6 +56,9 @@
 #define E1000_EIMC     0x01528  /* Ext. Interrupt Mask Clear - WO */
 #define E1000_EIAC     0x0152C  /* Ext. Interrupt Auto Clear - RW */
 #define E1000_EIAM     0x01530  /* Ext. Interrupt Ack Auto Clear Mask - RW */
+#define E1000_GPIE     0x01514  /* General Purpose Interrupt Enable - RW */
+#define E1000_IVAR0    0x01700  /* Interrupt Vector Allocation (array) - RW */
+#define E1000_IVAR_MISC 0x01740 /* IVAR for "other" causes - RW */
 #define E1000_TCTL     0x00400  /* TX Control - RW */
 #define E1000_TCTL_EXT 0x00404  /* Extended TX Control - RW */
 #define E1000_TIPG     0x00410  /* TX Inter-packet gap -RW */
@@ -217,6 +220,7 @@
 #define E1000_RFCTL    0x05008  /* Receive Filter Control*/
 #define E1000_MTA      0x05200  /* Multicast Table Array - RW Array */
 #define E1000_RA       0x05400  /* Receive Address - RW Array */
+#define E1000_RA2      0x054E0  /* 2nd half of receive address array - RW Array */
 #define E1000_VFTA     0x05600  /* VLAN Filter Table Array - RW Array */
 #define E1000_VMD_CTL  0x0581C  /* VMDq Control - RW */
 #define E1000_WUC      0x05800  /* Wakeup Control - RW */
@@ -235,6 +239,8 @@
 #define E1000_FACTPS    0x05B30 /* Function Active and Power State to MNG */
 #define E1000_SWSM      0x05B50 /* SW Semaphore */
 #define E1000_FWSM      0x05B54 /* FW Semaphore */
+#define E1000_DCA_ID    0x05B70 /* DCA Requester ID Information - RO */
+#define E1000_DCA_CTRL  0x05B74 /* DCA Control - RW */
 #define E1000_HICR      0x08F00 /* Host Inteface Control */
 
 /* RSS registers */
@@ -255,8 +261,6 @@
 /* Redirection Table - RW Array */
 #define E1000_RETA(_i)  (0x05C00 + ((_i) * 4))
 #define E1000_RSSRK(_i) (0x05C80 + ((_i) * 4)) /* RSS Random Key - RW Array */
-
-#define E1000_REGISTER(a, reg) reg
 
 #define wr32(reg, value) (writel(value, hw->hw_addr + reg))
 #define rd32(reg) (readl(hw->hw_addr + reg))

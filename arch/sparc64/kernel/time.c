@@ -30,17 +30,18 @@
 #include <linux/percpu.h>
 #include <linux/miscdevice.h>
 #include <linux/rtc.h>
+#include <linux/rtc/m48t59.h>
 #include <linux/kernel_stat.h>
 #include <linux/clockchips.h>
 #include <linux/clocksource.h>
+#include <linux/of_device.h>
+#include <linux/platform_device.h>
 
 #include <asm/oplib.h>
-#include <asm/mostek.h>
 #include <asm/timer.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/prom.h>
-#include <asm/of_device.h>
 #include <asm/starfire.h>
 #include <asm/smp.h>
 #include <asm/sections.h>
@@ -50,18 +51,7 @@
 
 #include "entry.h"
 
-DEFINE_SPINLOCK(mostek_lock);
 DEFINE_SPINLOCK(rtc_lock);
-void __iomem *mstk48t02_regs = NULL;
-#ifdef CONFIG_PCI
-unsigned long ds1287_regs = 0UL;
-static void __iomem *bq4802_regs;
-#endif
-
-static void __iomem *mstk48t08_regs;
-static void __iomem *mstk48t59_regs;
-
-static int set_rtc_mmss(unsigned long);
 
 #define TICK_PRIV_BIT	(1UL << 63)
 #define TICKCMP_IRQ_BIT	(1UL << 63)
@@ -405,313 +395,167 @@ static unsigned long timer_ticks_per_nsec_quotient __read_mostly;
 
 int update_persistent_clock(struct timespec now)
 {
-	return set_rtc_mmss(now.tv_sec);
-}
+	struct rtc_device *rtc = rtc_class_open("rtc0");
+	int err = -1;
 
-/* Kick start a stopped clock (procedure from the Sun NVRAM/hostid FAQ). */
-static void __init kick_start_clock(void)
-{
-	void __iomem *regs = mstk48t02_regs;
-	u8 sec, tmp;
-	int i, count;
-
-	prom_printf("CLOCK: Clock was stopped. Kick start ");
-
-	spin_lock_irq(&mostek_lock);
-
-	/* Turn on the kick start bit to start the oscillator. */
-	tmp = mostek_read(regs + MOSTEK_CREG);
-	tmp |= MSTK_CREG_WRITE;
-	mostek_write(regs + MOSTEK_CREG, tmp);
-	tmp = mostek_read(regs + MOSTEK_SEC);
-	tmp &= ~MSTK_STOP;
-	mostek_write(regs + MOSTEK_SEC, tmp);
-	tmp = mostek_read(regs + MOSTEK_HOUR);
-	tmp |= MSTK_KICK_START;
-	mostek_write(regs + MOSTEK_HOUR, tmp);
-	tmp = mostek_read(regs + MOSTEK_CREG);
-	tmp &= ~MSTK_CREG_WRITE;
-	mostek_write(regs + MOSTEK_CREG, tmp);
-
-	spin_unlock_irq(&mostek_lock);
-
-	/* Delay to allow the clock oscillator to start. */
-	sec = MSTK_REG_SEC(regs);
-	for (i = 0; i < 3; i++) {
-		while (sec == MSTK_REG_SEC(regs))
-			for (count = 0; count < 100000; count++)
-				/* nothing */ ;
-		prom_printf(".");
-		sec = MSTK_REG_SEC(regs);
-	}
-	prom_printf("\n");
-
-	spin_lock_irq(&mostek_lock);
-
-	/* Turn off kick start and set a "valid" time and date. */
-	tmp = mostek_read(regs + MOSTEK_CREG);
-	tmp |= MSTK_CREG_WRITE;
-	mostek_write(regs + MOSTEK_CREG, tmp);
-	tmp = mostek_read(regs + MOSTEK_HOUR);
-	tmp &= ~MSTK_KICK_START;
-	mostek_write(regs + MOSTEK_HOUR, tmp);
-	MSTK_SET_REG_SEC(regs,0);
-	MSTK_SET_REG_MIN(regs,0);
-	MSTK_SET_REG_HOUR(regs,0);
-	MSTK_SET_REG_DOW(regs,5);
-	MSTK_SET_REG_DOM(regs,1);
-	MSTK_SET_REG_MONTH(regs,8);
-	MSTK_SET_REG_YEAR(regs,1996 - MSTK_YEAR_ZERO);
-	tmp = mostek_read(regs + MOSTEK_CREG);
-	tmp &= ~MSTK_CREG_WRITE;
-	mostek_write(regs + MOSTEK_CREG, tmp);
-
-	spin_unlock_irq(&mostek_lock);
-
-	/* Ensure the kick start bit is off. If it isn't, turn it off. */
-	while (mostek_read(regs + MOSTEK_HOUR) & MSTK_KICK_START) {
-		prom_printf("CLOCK: Kick start still on!\n");
-
-		spin_lock_irq(&mostek_lock);
-
-		tmp = mostek_read(regs + MOSTEK_CREG);
-		tmp |= MSTK_CREG_WRITE;
-		mostek_write(regs + MOSTEK_CREG, tmp);
-
-		tmp = mostek_read(regs + MOSTEK_HOUR);
-		tmp &= ~MSTK_KICK_START;
-		mostek_write(regs + MOSTEK_HOUR, tmp);
-
-		tmp = mostek_read(regs + MOSTEK_CREG);
-		tmp &= ~MSTK_CREG_WRITE;
-		mostek_write(regs + MOSTEK_CREG, tmp);
-
-		spin_unlock_irq(&mostek_lock);
+	if (rtc) {
+		err = rtc_set_mmss(rtc, now.tv_sec);
+		rtc_class_close(rtc);
 	}
 
-	prom_printf("CLOCK: Kick start procedure successful.\n");
+	return err;
 }
 
-/* Return nonzero if the clock chip battery is low. */
-static int __init has_low_battery(void)
+unsigned long cmos_regs;
+EXPORT_SYMBOL(cmos_regs);
+
+static struct resource rtc_cmos_resource;
+
+static struct platform_device rtc_cmos_device = {
+	.name		= "rtc_cmos",
+	.id		= -1,
+	.resource	= &rtc_cmos_resource,
+	.num_resources	= 1,
+};
+
+static int __devinit rtc_probe(struct of_device *op, const struct of_device_id *match)
 {
-	void __iomem *regs = mstk48t02_regs;
-	u8 data1, data2;
+	struct resource *r;
 
-	spin_lock_irq(&mostek_lock);
+	printk(KERN_INFO "%s: RTC regs at 0x%lx\n",
+	       op->node->full_name, op->resource[0].start);
 
-	data1 = mostek_read(regs + MOSTEK_EEPROM);	/* Read some data. */
-	mostek_write(regs + MOSTEK_EEPROM, ~data1);	/* Write back the complement. */
-	data2 = mostek_read(regs + MOSTEK_EEPROM);	/* Read back the complement. */
-	mostek_write(regs + MOSTEK_EEPROM, data1);	/* Restore original value. */
-
-	spin_unlock_irq(&mostek_lock);
-
-	return (data1 == data2);	/* Was the write blocked? */
-}
-
-static void __init mostek_set_system_time(void __iomem *mregs)
-{
-	unsigned int year, mon, day, hour, min, sec;
-	u8 tmp;
-
-	spin_lock_irq(&mostek_lock);
-
-	/* Traditional Mostek chip. */
-	tmp = mostek_read(mregs + MOSTEK_CREG);
-	tmp |= MSTK_CREG_READ;
-	mostek_write(mregs + MOSTEK_CREG, tmp);
-
-	sec = MSTK_REG_SEC(mregs);
-	min = MSTK_REG_MIN(mregs);
-	hour = MSTK_REG_HOUR(mregs);
-	day = MSTK_REG_DOM(mregs);
-	mon = MSTK_REG_MONTH(mregs);
-	year = MSTK_CVT_YEAR( MSTK_REG_YEAR(mregs) );
-
-	xtime.tv_sec = mktime(year, mon, day, hour, min, sec);
-	xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
-	set_normalized_timespec(&wall_to_monotonic,
- 	                        -xtime.tv_sec, -xtime.tv_nsec);
-
-	tmp = mostek_read(mregs + MOSTEK_CREG);
-	tmp &= ~MSTK_CREG_READ;
-	mostek_write(mregs + MOSTEK_CREG, tmp);
-
-	spin_unlock_irq(&mostek_lock);
-}
-
-/* Probe for the real time clock chip. */
-static void __init set_system_time(void)
-{
-	unsigned int year, mon, day, hour, min, sec;
-	void __iomem *mregs = mstk48t02_regs;
-#ifdef CONFIG_PCI
-	unsigned long dregs = ds1287_regs;
-	void __iomem *bregs = bq4802_regs;
-#else
-	unsigned long dregs = 0UL;
-	void __iomem *bregs = 0UL;
-#endif
-
-	if (!mregs && !dregs && !bregs) {
-		prom_printf("Something wrong, clock regs not mapped yet.\n");
-		prom_halt();
-	}		
-
-	if (mregs) {
-		mostek_set_system_time(mregs);
-		return;
-	}
-
-	if (bregs) {
-		unsigned char val = readb(bregs + 0x0e);
-		unsigned int century;
-
-		/* BQ4802 RTC chip. */
-
-		writeb(val | 0x08, bregs + 0x0e);
-
-		sec  = readb(bregs + 0x00);
-		min  = readb(bregs + 0x02);
-		hour = readb(bregs + 0x04);
-		day  = readb(bregs + 0x06);
-		mon  = readb(bregs + 0x09);
-		year = readb(bregs + 0x0a);
-		century = readb(bregs + 0x0f);
-
-		writeb(val, bregs + 0x0e);
-
-		BCD_TO_BIN(sec);
-		BCD_TO_BIN(min);
-		BCD_TO_BIN(hour);
-		BCD_TO_BIN(day);
-		BCD_TO_BIN(mon);
-		BCD_TO_BIN(year);
-		BCD_TO_BIN(century);
-
-		year += (century * 100);
-	} else {
-		/* Dallas 12887 RTC chip. */
-
-		do {
-			sec  = CMOS_READ(RTC_SECONDS);
-			min  = CMOS_READ(RTC_MINUTES);
-			hour = CMOS_READ(RTC_HOURS);
-			day  = CMOS_READ(RTC_DAY_OF_MONTH);
-			mon  = CMOS_READ(RTC_MONTH);
-			year = CMOS_READ(RTC_YEAR);
-		} while (sec != CMOS_READ(RTC_SECONDS));
-
-		if (!(CMOS_READ(RTC_CONTROL) & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
-			BCD_TO_BIN(sec);
-			BCD_TO_BIN(min);
-			BCD_TO_BIN(hour);
-			BCD_TO_BIN(day);
-			BCD_TO_BIN(mon);
-			BCD_TO_BIN(year);
-		}
-		if ((year += 1900) < 1970)
-			year += 100;
-	}
-
-	xtime.tv_sec = mktime(year, mon, day, hour, min, sec);
-	xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
-	set_normalized_timespec(&wall_to_monotonic,
- 	                        -xtime.tv_sec, -xtime.tv_nsec);
-}
-
-/* davem suggests we keep this within the 4M locked kernel image */
-static u32 starfire_get_time(void)
-{
-	static char obp_gettod[32];
-	static u32 unix_tod;
-
-	sprintf(obp_gettod, "h# %08x unix-gettod",
-		(unsigned int) (long) &unix_tod);
-	prom_feval(obp_gettod);
-
-	return unix_tod;
-}
-
-static int starfire_set_time(u32 val)
-{
-	/* Do nothing, time is set using the service processor
-	 * console on this platform.
+	/* The CMOS RTC driver only accepts IORESOURCE_IO, so cons
+	 * up a fake resource so that the probe works for all cases.
+	 * When the RTC is behind an ISA bus it will have IORESOURCE_IO
+	 * already, whereas when it's behind EBUS is will be IORESOURCE_MEM.
 	 */
-	return 0;
+
+	r = &rtc_cmos_resource;
+	r->flags = IORESOURCE_IO;
+	r->name = op->resource[0].name;
+	r->start = op->resource[0].start;
+	r->end = op->resource[0].end;
+
+	cmos_regs = op->resource[0].start;
+	return platform_device_register(&rtc_cmos_device);
 }
 
-static u32 hypervisor_get_time(void)
-{
-	unsigned long ret, time;
-	int retries = 10000;
+static struct of_device_id __initdata rtc_match[] = {
+	{
+		.name = "rtc",
+		.compatible = "m5819",
+	},
+	{
+		.name = "rtc",
+		.compatible = "isa-m5819p",
+	},
+	{
+		.name = "rtc",
+		.compatible = "isa-m5823p",
+	},
+	{
+		.name = "rtc",
+		.compatible = "ds1287",
+	},
+	{},
+};
 
-retry:
-	ret = sun4v_tod_get(&time);
-	if (ret == HV_EOK)
-		return time;
-	if (ret == HV_EWOULDBLOCK) {
-		if (--retries > 0) {
-			udelay(100);
-			goto retry;
-		}
-		printk(KERN_WARNING "SUN4V: tod_get() timed out.\n");
-		return 0;
+static struct of_platform_driver rtc_driver = {
+	.match_table	= rtc_match,
+	.probe		= rtc_probe,
+	.driver		= {
+		.name	= "rtc",
+	},
+};
+
+static struct platform_device rtc_bq4802_device = {
+	.name		= "rtc-bq4802",
+	.id		= -1,
+	.num_resources	= 1,
+};
+
+static int __devinit bq4802_probe(struct of_device *op, const struct of_device_id *match)
+{
+
+	printk(KERN_INFO "%s: BQ4802 regs at 0x%lx\n",
+	       op->node->full_name, op->resource[0].start);
+
+	rtc_bq4802_device.resource = &op->resource[0];
+	return platform_device_register(&rtc_bq4802_device);
+}
+
+static struct of_device_id __initdata bq4802_match[] = {
+	{
+		.name = "rtc",
+		.compatible = "bq4802",
+	},
+};
+
+static struct of_platform_driver bq4802_driver = {
+	.match_table	= bq4802_match,
+	.probe		= bq4802_probe,
+	.driver		= {
+		.name	= "bq4802",
+	},
+};
+
+static unsigned char mostek_read_byte(struct device *dev, u32 ofs)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct m48t59_plat_data *pdata = pdev->dev.platform_data;
+	void __iomem *regs;
+	unsigned char val;
+
+	regs = (void __iomem *) pdev->resource[0].start;
+	val = readb(regs + ofs);
+
+	/* the year 0 is 1968 */
+	if (ofs == pdata->offset + M48T59_YEAR) {
+		val += 0x68;
+		if ((val & 0xf) > 9)
+			val += 6;
 	}
-	printk(KERN_WARNING "SUN4V: tod_get() not supported.\n");
-	return 0;
+	return val;
 }
 
-static int hypervisor_set_time(u32 secs)
+static void mostek_write_byte(struct device *dev, u32 ofs, u8 val)
 {
-	unsigned long ret;
-	int retries = 10000;
-
-retry:
-	ret = sun4v_tod_set(secs);
-	if (ret == HV_EOK)
-		return 0;
-	if (ret == HV_EWOULDBLOCK) {
-		if (--retries > 0) {
-			udelay(100);
-			goto retry;
-		}
-		printk(KERN_WARNING "SUN4V: tod_set() timed out.\n");
-		return -EAGAIN;
-	}
-	printk(KERN_WARNING "SUN4V: tod_set() not supported.\n");
-	return -EOPNOTSUPP;
-}
-
-static int __init clock_model_matches(const char *model)
-{
-	if (strcmp(model, "mk48t02") &&
-	    strcmp(model, "mk48t08") &&
-	    strcmp(model, "mk48t59") &&
-	    strcmp(model, "m5819") &&
-	    strcmp(model, "m5819p") &&
-	    strcmp(model, "m5823") &&
-	    strcmp(model, "ds1287") &&
-	    strcmp(model, "bq4802"))
-		return 0;
-
-	return 1;
-}
-
-static int __devinit clock_probe(struct of_device *op, const struct of_device_id *match)
-{
-	struct device_node *dp = op->node;
-	const char *model = of_get_property(dp, "model", NULL);
-	const char *compat = of_get_property(dp, "compatible", NULL);
-	unsigned long size, flags;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct m48t59_plat_data *pdata = pdev->dev.platform_data;
 	void __iomem *regs;
 
-	if (!model)
-		model = compat;
+	regs = (void __iomem *) pdev->resource[0].start;
+	if (ofs == pdata->offset + M48T59_YEAR) {
+		if (val < 0x68)
+			val += 0x32;
+		else
+			val -= 0x68;
+		if ((val & 0xf) > 9)
+			val += 6;
+		if ((val & 0xf0) > 0x9A)
+			val += 0x60;
+	}
+	writeb(val, regs + ofs);
+}
 
-	if (!model || !clock_model_matches(model))
-		return -ENODEV;
+static struct m48t59_plat_data m48t59_data = {
+	.read_byte	= mostek_read_byte,
+	.write_byte	= mostek_write_byte,
+};
+
+static struct platform_device m48t59_rtc = {
+	.name		= "rtc-m48t59",
+	.id		= 0,
+	.num_resources	= 1,
+	.dev	= {
+		.platform_data = &m48t59_data,
+	},
+};
+
+static int __devinit mostek_probe(struct of_device *op, const struct of_device_id *match)
+{
+	struct device_node *dp = op->node;
 
 	/* On an Enterprise system there can be multiple mostek clocks.
 	 * We should only match the one that is on the central FHC bus.
@@ -720,88 +564,51 @@ static int __devinit clock_probe(struct of_device *op, const struct of_device_id
 	    strcmp(dp->parent->parent->name, "central") != 0)
 		return -ENODEV;
 
-	size = (op->resource[0].end - op->resource[0].start) + 1;
-	regs = of_ioremap(&op->resource[0], 0, size, "clock");
-	if (!regs)
-		return -ENOMEM;
+	printk(KERN_INFO "%s: Mostek regs at 0x%lx\n",
+	       dp->full_name, op->resource[0].start);
 
-#ifdef CONFIG_PCI
-	if (!strcmp(model, "ds1287") ||
-	    !strcmp(model, "m5819") ||
-	    !strcmp(model, "m5819p") ||
-	    !strcmp(model, "m5823")) {
-		ds1287_regs = (unsigned long) regs;
-	} else if (!strcmp(model, "bq4802")) {
-		bq4802_regs = regs;
-	} else
-#endif
-	if (model[5] == '0' && model[6] == '2') {
-		mstk48t02_regs = regs;
-	} else if(model[5] == '0' && model[6] == '8') {
-		mstk48t08_regs = regs;
-		mstk48t02_regs = mstk48t08_regs + MOSTEK_48T08_48T02;
-	} else {
-		mstk48t59_regs = regs;
-		mstk48t02_regs = mstk48t59_regs + MOSTEK_48T59_48T02;
-	}
-
-	printk(KERN_INFO "%s: Clock regs at %p\n", dp->full_name, regs);
-
-	local_irq_save(flags);
-
-	if (mstk48t02_regs != NULL) {
-		/* Report a low battery voltage condition. */
-		if (has_low_battery())
-			prom_printf("NVRAM: Low battery voltage!\n");
-
-		/* Kick start the clock if it is completely stopped. */
-		if (mostek_read(mstk48t02_regs + MOSTEK_SEC) & MSTK_STOP)
-			kick_start_clock();
-	}
-
-	set_system_time();
-	
-	local_irq_restore(flags);
-
-	return 0;
+	m48t59_rtc.resource = &op->resource[0];
+	return platform_device_register(&m48t59_rtc);
 }
 
-static struct of_device_id clock_match[] = {
+static struct of_device_id __initdata mostek_match[] = {
 	{
 		.name = "eeprom",
-	},
-	{
-		.name = "rtc",
 	},
 	{},
 };
 
-static struct of_platform_driver clock_driver = {
-	.match_table	= clock_match,
-	.probe		= clock_probe,
+static struct of_platform_driver mostek_driver = {
+	.match_table	= mostek_match,
+	.probe		= mostek_probe,
 	.driver		= {
-		.name	= "clock",
+		.name	= "mostek",
 	},
+};
+
+static struct platform_device rtc_sun4v_device = {
+	.name		= "rtc-sun4v",
+	.id		= -1,
+};
+
+static struct platform_device rtc_starfire_device = {
+	.name		= "rtc-starfire",
+	.id		= -1,
 };
 
 static int __init clock_init(void)
 {
-	if (this_is_starfire) {
-		xtime.tv_sec = starfire_get_time();
-		xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
-		set_normalized_timespec(&wall_to_monotonic,
-		                        -xtime.tv_sec, -xtime.tv_nsec);
-		return 0;
-	}
-	if (tlb_type == hypervisor) {
-		xtime.tv_sec = hypervisor_get_time();
-		xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
-		set_normalized_timespec(&wall_to_monotonic,
-		                        -xtime.tv_sec, -xtime.tv_nsec);
-		return 0;
-	}
+	if (this_is_starfire)
+		return platform_device_register(&rtc_starfire_device);
 
-	return of_register_driver(&clock_driver, &of_platform_bus_type);
+	if (tlb_type == hypervisor)
+		return platform_device_register(&rtc_sun4v_device);
+
+	(void) of_register_driver(&rtc_driver, &of_platform_bus_type);
+	(void) of_register_driver(&mostek_driver, &of_platform_bus_type);
+	(void) of_register_driver(&bq4802_driver, &of_platform_bus_type);
+
+	return 0;
 }
 
 /* Must be after subsys_initcall() so that busses are probed.  Must
@@ -814,7 +621,7 @@ fs_initcall(clock_init);
 static unsigned long sparc64_init_timers(void)
 {
 	struct device_node *dp;
-	unsigned long clock;
+	unsigned long freq;
 
 	dp = of_find_node_by_path("/");
 	if (tlb_type == spitfire) {
@@ -827,17 +634,17 @@ static unsigned long sparc64_init_timers(void)
 		if (manuf == 0x17 && impl == 0x13) {
 			/* Hummingbird, aka Ultra-IIe */
 			tick_ops = &hbtick_operations;
-			clock = of_getintprop_default(dp, "stick-frequency", 0);
+			freq = of_getintprop_default(dp, "stick-frequency", 0);
 		} else {
 			tick_ops = &tick_operations;
-			clock = local_cpu_data().clock_tick;
+			freq = local_cpu_data().clock_tick;
 		}
 	} else {
 		tick_ops = &stick_operations;
-		clock = of_getintprop_default(dp, "stick-frequency", 0);
+		freq = of_getintprop_default(dp, "stick-frequency", 0);
 	}
 
-	return clock;
+	return freq;
 }
 
 struct freq_table {
@@ -883,6 +690,16 @@ static int sparc64_cpufreq_notifier(struct notifier_block *nb, unsigned long val
 static struct notifier_block sparc64_cpufreq_notifier_block = {
 	.notifier_call	= sparc64_cpufreq_notifier
 };
+
+static int __init register_sparc64_cpufreq_notifier(void)
+{
+
+	cpufreq_register_notifier(&sparc64_cpufreq_notifier_block,
+				  CPUFREQ_TRANSITION_NOTIFIER);
+	return 0;
+}
+
+core_initcall(register_sparc64_cpufreq_notifier);
 
 #endif /* CONFIG_CPU_FREQ */
 
@@ -1019,16 +836,16 @@ EXPORT_SYMBOL(udelay);
 
 void __init time_init(void)
 {
-	unsigned long clock = sparc64_init_timers();
+	unsigned long freq = sparc64_init_timers();
 
-	tb_ticks_per_usec = clock / USEC_PER_SEC;
+	tb_ticks_per_usec = freq / USEC_PER_SEC;
 
 	timer_ticks_per_nsec_quotient =
-		clocksource_hz2mult(clock, SPARC64_NSEC_PER_CYC_SHIFT);
+		clocksource_hz2mult(freq, SPARC64_NSEC_PER_CYC_SHIFT);
 
 	clocksource_tick.name = tick_ops->name;
 	clocksource_tick.mult =
-		clocksource_hz2mult(clock,
+		clocksource_hz2mult(freq,
 				    clocksource_tick.shift);
 	clocksource_tick.read = tick_ops->get_tick;
 
@@ -1039,7 +856,7 @@ void __init time_init(void)
 
 	sparc64_clockevent.name = tick_ops->name;
 
-	setup_clockevent_multiplier(clock);
+	setup_clockevent_multiplier(freq);
 
 	sparc64_clockevent.max_delta_ns =
 		clockevent_delta2ns(0x7fffffffffffffffUL, &sparc64_clockevent);
@@ -1050,11 +867,6 @@ void __init time_init(void)
 	       sparc64_clockevent.mult, sparc64_clockevent.shift);
 
 	setup_sparc64_timer();
-
-#ifdef CONFIG_CPU_FREQ
-	cpufreq_register_notifier(&sparc64_cpufreq_notifier_block,
-				  CPUFREQ_TRANSITION_NOTIFIER);
-#endif
 }
 
 unsigned long long sched_clock(void)
@@ -1065,672 +877,8 @@ unsigned long long sched_clock(void)
 		>> SPARC64_NSEC_PER_CYC_SHIFT;
 }
 
-static int set_rtc_mmss(unsigned long nowtime)
-{
-	int real_seconds, real_minutes, chip_minutes;
-	void __iomem *mregs = mstk48t02_regs;
-#ifdef CONFIG_PCI
-	unsigned long dregs = ds1287_regs;
-	void __iomem *bregs = bq4802_regs;
-#else
-	unsigned long dregs = 0UL;
-	void __iomem *bregs = 0UL;
-#endif
-	unsigned long flags;
-	u8 tmp;
-
-	/* 
-	 * Not having a register set can lead to trouble.
-	 * Also starfire doesn't have a tod clock.
-	 */
-	if (!mregs && !dregs && !bregs)
-		return -1;
-
-	if (mregs) {
-		spin_lock_irqsave(&mostek_lock, flags);
-
-		/* Read the current RTC minutes. */
-		tmp = mostek_read(mregs + MOSTEK_CREG);
-		tmp |= MSTK_CREG_READ;
-		mostek_write(mregs + MOSTEK_CREG, tmp);
-
-		chip_minutes = MSTK_REG_MIN(mregs);
-
-		tmp = mostek_read(mregs + MOSTEK_CREG);
-		tmp &= ~MSTK_CREG_READ;
-		mostek_write(mregs + MOSTEK_CREG, tmp);
-
-		/*
-		 * since we're only adjusting minutes and seconds,
-		 * don't interfere with hour overflow. This avoids
-		 * messing with unknown time zones but requires your
-		 * RTC not to be off by more than 15 minutes
-		 */
-		real_seconds = nowtime % 60;
-		real_minutes = nowtime / 60;
-		if (((abs(real_minutes - chip_minutes) + 15)/30) & 1)
-			real_minutes += 30;	/* correct for half hour time zone */
-		real_minutes %= 60;
-
-		if (abs(real_minutes - chip_minutes) < 30) {
-			tmp = mostek_read(mregs + MOSTEK_CREG);
-			tmp |= MSTK_CREG_WRITE;
-			mostek_write(mregs + MOSTEK_CREG, tmp);
-
-			MSTK_SET_REG_SEC(mregs,real_seconds);
-			MSTK_SET_REG_MIN(mregs,real_minutes);
-
-			tmp = mostek_read(mregs + MOSTEK_CREG);
-			tmp &= ~MSTK_CREG_WRITE;
-			mostek_write(mregs + MOSTEK_CREG, tmp);
-
-			spin_unlock_irqrestore(&mostek_lock, flags);
-
-			return 0;
-		} else {
-			spin_unlock_irqrestore(&mostek_lock, flags);
-
-			return -1;
-		}
-	} else if (bregs) {
-		int retval = 0;
-		unsigned char val = readb(bregs + 0x0e);
-
-		/* BQ4802 RTC chip. */
-
-		writeb(val | 0x08, bregs + 0x0e);
-
-		chip_minutes = readb(bregs + 0x02);
-		BCD_TO_BIN(chip_minutes);
-		real_seconds = nowtime % 60;
-		real_minutes = nowtime / 60;
-		if (((abs(real_minutes - chip_minutes) + 15)/30) & 1)
-			real_minutes += 30;
-		real_minutes %= 60;
-
-		if (abs(real_minutes - chip_minutes) < 30) {
-			BIN_TO_BCD(real_seconds);
-			BIN_TO_BCD(real_minutes);
-			writeb(real_seconds, bregs + 0x00);
-			writeb(real_minutes, bregs + 0x02);
-		} else {
-			printk(KERN_WARNING
-			       "set_rtc_mmss: can't update from %d to %d\n",
-			       chip_minutes, real_minutes);
-			retval = -1;
-		}
-
-		writeb(val, bregs + 0x0e);
-
-		return retval;
-	} else {
-		int retval = 0;
-		unsigned char save_control, save_freq_select;
-
-		/* Stolen from arch/i386/kernel/time.c, see there for
-		 * credits and descriptive comments.
-		 */
-		spin_lock_irqsave(&rtc_lock, flags);
-		save_control = CMOS_READ(RTC_CONTROL); /* tell the clock it's being set */
-		CMOS_WRITE((save_control|RTC_SET), RTC_CONTROL);
-
-		save_freq_select = CMOS_READ(RTC_FREQ_SELECT); /* stop and reset prescaler */
-		CMOS_WRITE((save_freq_select|RTC_DIV_RESET2), RTC_FREQ_SELECT);
-
-		chip_minutes = CMOS_READ(RTC_MINUTES);
-		if (!(save_control & RTC_DM_BINARY) || RTC_ALWAYS_BCD)
-			BCD_TO_BIN(chip_minutes);
-		real_seconds = nowtime % 60;
-		real_minutes = nowtime / 60;
-		if (((abs(real_minutes - chip_minutes) + 15)/30) & 1)
-			real_minutes += 30;
-		real_minutes %= 60;
-
-		if (abs(real_minutes - chip_minutes) < 30) {
-			if (!(save_control & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
-				BIN_TO_BCD(real_seconds);
-				BIN_TO_BCD(real_minutes);
-			}
-			CMOS_WRITE(real_seconds,RTC_SECONDS);
-			CMOS_WRITE(real_minutes,RTC_MINUTES);
-		} else {
-			printk(KERN_WARNING
-			       "set_rtc_mmss: can't update from %d to %d\n",
-			       chip_minutes, real_minutes);
-			retval = -1;
-		}
-
-		CMOS_WRITE(save_control, RTC_CONTROL);
-		CMOS_WRITE(save_freq_select, RTC_FREQ_SELECT);
-		spin_unlock_irqrestore(&rtc_lock, flags);
-
-		return retval;
-	}
-}
-
-#define RTC_IS_OPEN		0x01	/* means /dev/rtc is in use	*/
-static unsigned char mini_rtc_status;	/* bitmapped status byte.	*/
-
-#define FEBRUARY	2
-#define	STARTOFTIME	1970
-#define SECDAY		86400L
-#define SECYR		(SECDAY * 365)
-#define	leapyear(year)		((year) % 4 == 0 && \
-				 ((year) % 100 != 0 || (year) % 400 == 0))
-#define	days_in_year(a) 	(leapyear(a) ? 366 : 365)
-#define	days_in_month(a) 	(month_days[(a) - 1])
-
-static int month_days[12] = {
-	31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
-};
-
-/*
- * This only works for the Gregorian calendar - i.e. after 1752 (in the UK)
- */
-static void GregorianDay(struct rtc_time * tm)
-{
-	int leapsToDate;
-	int lastYear;
-	int day;
-	int MonthOffset[] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
-
-	lastYear = tm->tm_year - 1;
-
-	/*
-	 * Number of leap corrections to apply up to end of last year
-	 */
-	leapsToDate = lastYear / 4 - lastYear / 100 + lastYear / 400;
-
-	/*
-	 * This year is a leap year if it is divisible by 4 except when it is
-	 * divisible by 100 unless it is divisible by 400
-	 *
-	 * e.g. 1904 was a leap year, 1900 was not, 1996 is, and 2000 was
-	 */
-	day = tm->tm_mon > 2 && leapyear(tm->tm_year);
-
-	day += lastYear*365 + leapsToDate + MonthOffset[tm->tm_mon-1] +
-		   tm->tm_mday;
-
-	tm->tm_wday = day % 7;
-}
-
-static void to_tm(int tim, struct rtc_time *tm)
-{
-	register int    i;
-	register long   hms, day;
-
-	day = tim / SECDAY;
-	hms = tim % SECDAY;
-
-	/* Hours, minutes, seconds are easy */
-	tm->tm_hour = hms / 3600;
-	tm->tm_min = (hms % 3600) / 60;
-	tm->tm_sec = (hms % 3600) % 60;
-
-	/* Number of years in days */
-	for (i = STARTOFTIME; day >= days_in_year(i); i++)
-		day -= days_in_year(i);
-	tm->tm_year = i;
-
-	/* Number of months in days left */
-	if (leapyear(tm->tm_year))
-		days_in_month(FEBRUARY) = 29;
-	for (i = 1; day >= days_in_month(i); i++)
-		day -= days_in_month(i);
-	days_in_month(FEBRUARY) = 28;
-	tm->tm_mon = i;
-
-	/* Days are what is left over (+1) from all that. */
-	tm->tm_mday = day + 1;
-
-	/*
-	 * Determine the day of week
-	 */
-	GregorianDay(tm);
-}
-
-/* Both Starfire and SUN4V give us seconds since Jan 1st, 1970,
- * aka Unix time.  So we have to convert to/from rtc_time.
- */
-static void starfire_get_rtc_time(struct rtc_time *time)
-{
-	u32 seconds = starfire_get_time();
-
-	to_tm(seconds, time);
-	time->tm_year -= 1900;
-	time->tm_mon -= 1;
-}
-
-static int starfire_set_rtc_time(struct rtc_time *time)
-{
-	u32 seconds = mktime(time->tm_year + 1900, time->tm_mon + 1,
-			     time->tm_mday, time->tm_hour,
-			     time->tm_min, time->tm_sec);
-
-	return starfire_set_time(seconds);
-}
-
-static void hypervisor_get_rtc_time(struct rtc_time *time)
-{
-	u32 seconds = hypervisor_get_time();
-
-	to_tm(seconds, time);
-	time->tm_year -= 1900;
-	time->tm_mon -= 1;
-}
-
-static int hypervisor_set_rtc_time(struct rtc_time *time)
-{
-	u32 seconds = mktime(time->tm_year + 1900, time->tm_mon + 1,
-			     time->tm_mday, time->tm_hour,
-			     time->tm_min, time->tm_sec);
-
-	return hypervisor_set_time(seconds);
-}
-
-#ifdef CONFIG_PCI
-static void bq4802_get_rtc_time(struct rtc_time *time)
-{
-	unsigned char val = readb(bq4802_regs + 0x0e);
-	unsigned int century;
-
-	writeb(val | 0x08, bq4802_regs + 0x0e);
-
-	time->tm_sec = readb(bq4802_regs + 0x00);
-	time->tm_min = readb(bq4802_regs + 0x02);
-	time->tm_hour = readb(bq4802_regs + 0x04);
-	time->tm_mday = readb(bq4802_regs + 0x06);
-	time->tm_mon = readb(bq4802_regs + 0x09);
-	time->tm_year = readb(bq4802_regs + 0x0a);
-	time->tm_wday = readb(bq4802_regs + 0x08);
-	century = readb(bq4802_regs + 0x0f);
-
-	writeb(val, bq4802_regs + 0x0e);
-
-	BCD_TO_BIN(time->tm_sec);
-	BCD_TO_BIN(time->tm_min);
-	BCD_TO_BIN(time->tm_hour);
-	BCD_TO_BIN(time->tm_mday);
-	BCD_TO_BIN(time->tm_mon);
-	BCD_TO_BIN(time->tm_year);
-	BCD_TO_BIN(time->tm_wday);
-	BCD_TO_BIN(century);
-
-	time->tm_year += (century * 100);
-	time->tm_year -= 1900;
-
-	time->tm_mon--;
-}
-
-static int bq4802_set_rtc_time(struct rtc_time *time)
-{
-	unsigned char val = readb(bq4802_regs + 0x0e);
-	unsigned char sec, min, hrs, day, mon, yrs, century;
-	unsigned int year;
-
-	year = time->tm_year + 1900;
-	century = year / 100;
-	yrs = year % 100;
-
-	mon = time->tm_mon + 1;   /* tm_mon starts at zero */
-	day = time->tm_mday;
-	hrs = time->tm_hour;
-	min = time->tm_min;
-	sec = time->tm_sec;
-
-	BIN_TO_BCD(sec);
-	BIN_TO_BCD(min);
-	BIN_TO_BCD(hrs);
-	BIN_TO_BCD(day);
-	BIN_TO_BCD(mon);
-	BIN_TO_BCD(yrs);
-	BIN_TO_BCD(century);
-
-	writeb(val | 0x08, bq4802_regs + 0x0e);
-
-	writeb(sec, bq4802_regs + 0x00);
-	writeb(min, bq4802_regs + 0x02);
-	writeb(hrs, bq4802_regs + 0x04);
-	writeb(day, bq4802_regs + 0x06);
-	writeb(mon, bq4802_regs + 0x09);
-	writeb(yrs, bq4802_regs + 0x0a);
-	writeb(century, bq4802_regs + 0x0f);
-
-	writeb(val, bq4802_regs + 0x0e);
-
-	return 0;
-}
-
-static void cmos_get_rtc_time(struct rtc_time *rtc_tm)
-{
-	unsigned char ctrl;
-
-	rtc_tm->tm_sec = CMOS_READ(RTC_SECONDS);
-	rtc_tm->tm_min = CMOS_READ(RTC_MINUTES);
-	rtc_tm->tm_hour = CMOS_READ(RTC_HOURS);
-	rtc_tm->tm_mday = CMOS_READ(RTC_DAY_OF_MONTH);
-	rtc_tm->tm_mon = CMOS_READ(RTC_MONTH);
-	rtc_tm->tm_year = CMOS_READ(RTC_YEAR);
-	rtc_tm->tm_wday = CMOS_READ(RTC_DAY_OF_WEEK);
-
-	ctrl = CMOS_READ(RTC_CONTROL);
-	if (!(ctrl & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
-		BCD_TO_BIN(rtc_tm->tm_sec);
-		BCD_TO_BIN(rtc_tm->tm_min);
-		BCD_TO_BIN(rtc_tm->tm_hour);
-		BCD_TO_BIN(rtc_tm->tm_mday);
-		BCD_TO_BIN(rtc_tm->tm_mon);
-		BCD_TO_BIN(rtc_tm->tm_year);
-		BCD_TO_BIN(rtc_tm->tm_wday);
-	}
-
-	if (rtc_tm->tm_year <= 69)
-		rtc_tm->tm_year += 100;
-
-	rtc_tm->tm_mon--;
-}
-
-static int cmos_set_rtc_time(struct rtc_time *rtc_tm)
-{
-	unsigned char mon, day, hrs, min, sec;
-	unsigned char save_control, save_freq_select;
-	unsigned int yrs;
-
-	yrs = rtc_tm->tm_year;
-	mon = rtc_tm->tm_mon + 1;
-	day = rtc_tm->tm_mday;
-	hrs = rtc_tm->tm_hour;
-	min = rtc_tm->tm_min;
-	sec = rtc_tm->tm_sec;
-
-	if (yrs >= 100)
-		yrs -= 100;
-
-	if (!(CMOS_READ(RTC_CONTROL) & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
-		BIN_TO_BCD(sec);
-		BIN_TO_BCD(min);
-		BIN_TO_BCD(hrs);
-		BIN_TO_BCD(day);
-		BIN_TO_BCD(mon);
-		BIN_TO_BCD(yrs);
-	}
-
-	save_control = CMOS_READ(RTC_CONTROL);
-	CMOS_WRITE((save_control|RTC_SET), RTC_CONTROL);
-	save_freq_select = CMOS_READ(RTC_FREQ_SELECT);
-	CMOS_WRITE((save_freq_select|RTC_DIV_RESET2), RTC_FREQ_SELECT);
-
-	CMOS_WRITE(yrs, RTC_YEAR);
-	CMOS_WRITE(mon, RTC_MONTH);
-	CMOS_WRITE(day, RTC_DAY_OF_MONTH);
-	CMOS_WRITE(hrs, RTC_HOURS);
-	CMOS_WRITE(min, RTC_MINUTES);
-	CMOS_WRITE(sec, RTC_SECONDS);
-
-	CMOS_WRITE(save_control, RTC_CONTROL);
-	CMOS_WRITE(save_freq_select, RTC_FREQ_SELECT);
-
-	return 0;
-}
-#endif /* CONFIG_PCI */
-
-static void mostek_get_rtc_time(struct rtc_time *rtc_tm)
-{
-	void __iomem *regs = mstk48t02_regs;
-	u8 tmp;
-
-	spin_lock_irq(&mostek_lock);
-
-	tmp = mostek_read(regs + MOSTEK_CREG);
-	tmp |= MSTK_CREG_READ;
-	mostek_write(regs + MOSTEK_CREG, tmp);
-
-	rtc_tm->tm_sec = MSTK_REG_SEC(regs);
-	rtc_tm->tm_min = MSTK_REG_MIN(regs);
-	rtc_tm->tm_hour = MSTK_REG_HOUR(regs);
-	rtc_tm->tm_mday = MSTK_REG_DOM(regs);
-	rtc_tm->tm_mon = MSTK_REG_MONTH(regs);
-	rtc_tm->tm_year = MSTK_CVT_YEAR( MSTK_REG_YEAR(regs) );
-	rtc_tm->tm_wday = MSTK_REG_DOW(regs);
-
-	tmp = mostek_read(regs + MOSTEK_CREG);
-	tmp &= ~MSTK_CREG_READ;
-	mostek_write(regs + MOSTEK_CREG, tmp);
-
-	spin_unlock_irq(&mostek_lock);
-
-	rtc_tm->tm_mon--;
-	rtc_tm->tm_wday--;
-	rtc_tm->tm_year -= 1900;
-}
-
-static int mostek_set_rtc_time(struct rtc_time *rtc_tm)
-{
-	unsigned char mon, day, hrs, min, sec, wday;
-	void __iomem *regs = mstk48t02_regs;
-	unsigned int yrs;
-	u8 tmp;
-
-	yrs = rtc_tm->tm_year + 1900;
-	mon = rtc_tm->tm_mon + 1;
-	day = rtc_tm->tm_mday;
-	wday = rtc_tm->tm_wday + 1;
-	hrs = rtc_tm->tm_hour;
-	min = rtc_tm->tm_min;
-	sec = rtc_tm->tm_sec;
-
-	spin_lock_irq(&mostek_lock);
-
-	tmp = mostek_read(regs + MOSTEK_CREG);
-	tmp |= MSTK_CREG_WRITE;
-	mostek_write(regs + MOSTEK_CREG, tmp);
-
-	MSTK_SET_REG_SEC(regs, sec);
-	MSTK_SET_REG_MIN(regs, min);
-	MSTK_SET_REG_HOUR(regs, hrs);
-	MSTK_SET_REG_DOW(regs, wday);
-	MSTK_SET_REG_DOM(regs, day);
-	MSTK_SET_REG_MONTH(regs, mon);
-	MSTK_SET_REG_YEAR(regs, yrs - MSTK_YEAR_ZERO);
-
-	tmp = mostek_read(regs + MOSTEK_CREG);
-	tmp &= ~MSTK_CREG_WRITE;
-	mostek_write(regs + MOSTEK_CREG, tmp);
-
-	spin_unlock_irq(&mostek_lock);
-
-	return 0;
-}
-
-struct mini_rtc_ops {
-	void (*get_rtc_time)(struct rtc_time *);
-	int (*set_rtc_time)(struct rtc_time *);
-};
-
-static struct mini_rtc_ops starfire_rtc_ops = {
-	.get_rtc_time = starfire_get_rtc_time,
-	.set_rtc_time = starfire_set_rtc_time,
-};
-
-static struct mini_rtc_ops hypervisor_rtc_ops = {
-	.get_rtc_time = hypervisor_get_rtc_time,
-	.set_rtc_time = hypervisor_set_rtc_time,
-};
-
-#ifdef CONFIG_PCI
-static struct mini_rtc_ops bq4802_rtc_ops = {
-	.get_rtc_time = bq4802_get_rtc_time,
-	.set_rtc_time = bq4802_set_rtc_time,
-};
-
-static struct mini_rtc_ops cmos_rtc_ops = {
-	.get_rtc_time = cmos_get_rtc_time,
-	.set_rtc_time = cmos_set_rtc_time,
-};
-#endif /* CONFIG_PCI */
-
-static struct mini_rtc_ops mostek_rtc_ops = {
-	.get_rtc_time = mostek_get_rtc_time,
-	.set_rtc_time = mostek_set_rtc_time,
-};
-
-static struct mini_rtc_ops *mini_rtc_ops;
-
-static inline void mini_get_rtc_time(struct rtc_time *time)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&rtc_lock, flags);
-	mini_rtc_ops->get_rtc_time(time);
-	spin_unlock_irqrestore(&rtc_lock, flags);
-}
-
-static inline int mini_set_rtc_time(struct rtc_time *time)
-{
-	unsigned long flags;
-	int err;
-
-	spin_lock_irqsave(&rtc_lock, flags);
-	err = mini_rtc_ops->set_rtc_time(time);
-	spin_unlock_irqrestore(&rtc_lock, flags);
-
-	return err;
-}
-
-static int mini_rtc_ioctl(struct inode *inode, struct file *file,
-			  unsigned int cmd, unsigned long arg)
-{
-	struct rtc_time wtime;
-	void __user *argp = (void __user *)arg;
-
-	switch (cmd) {
-
-	case RTC_PLL_GET:
-		return -EINVAL;
-
-	case RTC_PLL_SET:
-		return -EINVAL;
-
-	case RTC_UIE_OFF:	/* disable ints from RTC updates.	*/
-		return 0;
-
-	case RTC_UIE_ON:	/* enable ints for RTC updates.	*/
-	        return -EINVAL;
-
-	case RTC_RD_TIME:	/* Read the time/date from RTC	*/
-		/* this doesn't get week-day, who cares */
-		memset(&wtime, 0, sizeof(wtime));
-		mini_get_rtc_time(&wtime);
-
-		return copy_to_user(argp, &wtime, sizeof(wtime)) ? -EFAULT : 0;
-
-	case RTC_SET_TIME:	/* Set the RTC */
-	    {
-		int year, days;
-
-		if (!capable(CAP_SYS_TIME))
-			return -EACCES;
-
-		if (copy_from_user(&wtime, argp, sizeof(wtime)))
-			return -EFAULT;
-
-		year = wtime.tm_year + 1900;
-		days = month_days[wtime.tm_mon] +
-		       ((wtime.tm_mon == 1) && leapyear(year));
-
-		if ((wtime.tm_mon < 0 || wtime.tm_mon > 11) ||
-		    (wtime.tm_mday < 1))
-			return -EINVAL;
-
-		if (wtime.tm_mday < 0 || wtime.tm_mday > days)
-			return -EINVAL;
-
-		if (wtime.tm_hour < 0 || wtime.tm_hour >= 24 ||
-		    wtime.tm_min < 0 || wtime.tm_min >= 60 ||
-		    wtime.tm_sec < 0 || wtime.tm_sec >= 60)
-			return -EINVAL;
-
-		return mini_set_rtc_time(&wtime);
-	    }
-	}
-
-	return -EINVAL;
-}
-
-static int mini_rtc_open(struct inode *inode, struct file *file)
-{
-	lock_kernel();
-	if (mini_rtc_status & RTC_IS_OPEN) {
-		unlock_kernel();
-		return -EBUSY;
-	}
-
-	mini_rtc_status |= RTC_IS_OPEN;
-	unlock_kernel();
-
-	return 0;
-}
-
-static int mini_rtc_release(struct inode *inode, struct file *file)
-{
-	mini_rtc_status &= ~RTC_IS_OPEN;
-	return 0;
-}
-
-
-static const struct file_operations mini_rtc_fops = {
-	.owner		= THIS_MODULE,
-	.ioctl		= mini_rtc_ioctl,
-	.open		= mini_rtc_open,
-	.release	= mini_rtc_release,
-};
-
-static struct miscdevice rtc_mini_dev =
-{
-	.minor		= RTC_MINOR,
-	.name		= "rtc",
-	.fops		= &mini_rtc_fops,
-};
-
-static int __init rtc_mini_init(void)
-{
-	int retval;
-
-	if (tlb_type == hypervisor)
-		mini_rtc_ops = &hypervisor_rtc_ops;
-	else if (this_is_starfire)
-		mini_rtc_ops = &starfire_rtc_ops;
-#ifdef CONFIG_PCI
-	else if (bq4802_regs)
-		mini_rtc_ops = &bq4802_rtc_ops;
-	else if (ds1287_regs)
-		mini_rtc_ops = &cmos_rtc_ops;
-#endif /* CONFIG_PCI */
-	else if (mstk48t02_regs)
-		mini_rtc_ops = &mostek_rtc_ops;
-	else
-		return -ENODEV;
-
-	printk(KERN_INFO "Mini RTC Driver\n");
-
-	retval = misc_register(&rtc_mini_dev);
-	if (retval < 0)
-		return retval;
-
-	return 0;
-}
-
-static void __exit rtc_mini_exit(void)
-{
-	misc_deregister(&rtc_mini_dev);
-}
-
 int __devinit read_current_timer(unsigned long *timer_val)
 {
 	*timer_val = tick_ops->get_tick();
 	return 0;
 }
-
-module_init(rtc_mini_init);
-module_exit(rtc_mini_exit);

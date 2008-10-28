@@ -21,6 +21,7 @@
 #include <linux/suspend.h>
 #include <asm/e820.h>
 #include <asm/io.h>
+#include <asm/iommu.h>
 #include <asm/gart.h>
 #include <asm/pci-direct.h>
 #include <asm/dma.h>
@@ -454,11 +455,11 @@ out:
 		   force_iommu ||
 		   valid_agp ||
 		   fallback_aper_force) {
-		printk(KERN_ERR
+		printk(KERN_INFO
 			"Your BIOS doesn't leave a aperture memory hole\n");
-		printk(KERN_ERR
+		printk(KERN_INFO
 			"Please enable the IOMMU option in the BIOS setup\n");
-		printk(KERN_ERR
+		printk(KERN_INFO
 			"This costs you %d MB of RAM\n",
 				32 << fallback_aper_order);
 

@@ -15,20 +15,20 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/io.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/regs-dsc.h>
+#include <mach/regs-gpio.h>
+#include <mach/regs-dsc.h>
 
-#include <asm/plat-s3c24xx/cpu.h>
-#include <asm/plat-s3c24xx/s3c2440.h>
+#include <plat/cpu.h>
+#include <plat/s3c2440.h>
 
 int s3c2440_set_dsc(unsigned int pin, unsigned int value)
 {

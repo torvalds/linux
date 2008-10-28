@@ -139,6 +139,11 @@
 					interrupt-parent = <&UIC0>;
 				};
 
+				fpga@2,2000 {
+					compatible = "pika,fpga-sgl";
+			   		reg = <0x00000002 0x00002000 0x00000200>;
+				};
+
 				fpga@2,4000 {
 					compatible = "pika,fpga-sd";
 					reg = <0x00000002 0x00004000 0x00000A00>;
@@ -152,7 +157,7 @@
 					#size-cells = <1>;
 					partition@300000 {
 						label = "fpga";
-						reg = <0x0030000 0x00040000>;
+						reg = <0x0300000 0x00040000>;
 					};
 					partition@340000 {
 						label = "env";
@@ -181,7 +186,6 @@
 				reg = <0xef600700 0x00000014>;
 				interrupt-parent = <&UIC0>;
 				interrupts = <0x2 0x4>;
-				index = <0x0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -190,6 +194,12 @@
 					reg = <0x4a>;
 					interrupts = <0x19 0x8>;
 					interrupt-parent = <&UIC0>;
+				};
+
+				/* This will create 52 and 53 */
+				at24@52 {
+					compatible = "at,24c04";
+					reg = <0x52>;
 				};
 			};
 
@@ -209,7 +219,13 @@
 				led@31 {
 					compatible = "linux,gpio-led";
 					linux,name = ":green:";
-					gpios = <&GPIO1 0x30 0>;
+					gpios = <&GPIO1 31 0>;
+				};		
+	
+				led@30 {	
+					compatible = "linux,gpio-led";
+					linux,name = ":red:";
+					gpios = <&GPIO1 30 0>;
 				};
 			};
 

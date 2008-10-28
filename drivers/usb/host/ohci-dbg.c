@@ -649,9 +649,9 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 	ohci_dbg_sw (ohci, &next, &size,
 		"bus %s, device %s\n"
 		"%s\n"
-		"%s version " DRIVER_VERSION "\n",
+		"%s\n",
 		hcd->self.controller->bus->name,
-		hcd->self.controller->bus_id,
+		dev_name(hcd->self.controller),
 		hcd->product_desc,
 		hcd_name);
 

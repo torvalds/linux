@@ -131,17 +131,17 @@ static int fm3130_get_time(struct device *dev, struct rtc_time *t)
 			fm3130->regs[0xc], fm3130->regs[0xd],
 			fm3130->regs[0xe]);
 
-	t->tm_sec = BCD2BIN(fm3130->regs[FM3130_RTC_SECONDS] & 0x7f);
-	t->tm_min = BCD2BIN(fm3130->regs[FM3130_RTC_MINUTES] & 0x7f);
+	t->tm_sec = bcd2bin(fm3130->regs[FM3130_RTC_SECONDS] & 0x7f);
+	t->tm_min = bcd2bin(fm3130->regs[FM3130_RTC_MINUTES] & 0x7f);
 	tmp = fm3130->regs[FM3130_RTC_HOURS] & 0x3f;
-	t->tm_hour = BCD2BIN(tmp);
-	t->tm_wday = BCD2BIN(fm3130->regs[FM3130_RTC_DAY] & 0x07) - 1;
-	t->tm_mday = BCD2BIN(fm3130->regs[FM3130_RTC_DATE] & 0x3f);
+	t->tm_hour = bcd2bin(tmp);
+	t->tm_wday = bcd2bin(fm3130->regs[FM3130_RTC_DAY] & 0x07) - 1;
+	t->tm_mday = bcd2bin(fm3130->regs[FM3130_RTC_DATE] & 0x3f);
 	tmp = fm3130->regs[FM3130_RTC_MONTHS] & 0x1f;
-	t->tm_mon = BCD2BIN(tmp) - 1;
+	t->tm_mon = bcd2bin(tmp) - 1;
 
 	/* assume 20YY not 19YY, and ignore CF bit */
-	t->tm_year = BCD2BIN(fm3130->regs[FM3130_RTC_YEARS]) + 100;
+	t->tm_year = bcd2bin(fm3130->regs[FM3130_RTC_YEARS]) + 100;
 
 	dev_dbg(dev, "%s secs=%d, mins=%d, "
 		"hours=%d, mday=%d, mon=%d, year=%d, wday=%d\n",
@@ -167,16 +167,16 @@ static int fm3130_set_time(struct device *dev, struct rtc_time *t)
 		t->tm_mon, t->tm_year, t->tm_wday);
 
 	/* first register addr */
-	buf[FM3130_RTC_SECONDS] = BIN2BCD(t->tm_sec);
-	buf[FM3130_RTC_MINUTES] = BIN2BCD(t->tm_min);
-	buf[FM3130_RTC_HOURS] = BIN2BCD(t->tm_hour);
-	buf[FM3130_RTC_DAY] = BIN2BCD(t->tm_wday + 1);
-	buf[FM3130_RTC_DATE] = BIN2BCD(t->tm_mday);
-	buf[FM3130_RTC_MONTHS] = BIN2BCD(t->tm_mon + 1);
+	buf[FM3130_RTC_SECONDS] = bin2bcd(t->tm_sec);
+	buf[FM3130_RTC_MINUTES] = bin2bcd(t->tm_min);
+	buf[FM3130_RTC_HOURS] = bin2bcd(t->tm_hour);
+	buf[FM3130_RTC_DAY] = bin2bcd(t->tm_wday + 1);
+	buf[FM3130_RTC_DATE] = bin2bcd(t->tm_mday);
+	buf[FM3130_RTC_MONTHS] = bin2bcd(t->tm_mon + 1);
 
 	/* assume 20YY not 19YY */
 	tmp = t->tm_year - 100;
-	buf[FM3130_RTC_YEARS] = BIN2BCD(tmp);
+	buf[FM3130_RTC_YEARS] = bin2bcd(tmp);
 
 	dev_dbg(dev, "%s: %02x %02x %02x %02x %02x %02x %02x"
 		"%02x %02x %02x %02x %02x %02x %02x %02x\n",
@@ -222,11 +222,11 @@ static int fm3130_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 			fm3130->regs[FM3130_ALARM_MONTHS]);
 
 
-	tm->tm_sec	= BCD2BIN(fm3130->regs[FM3130_ALARM_SECONDS] & 0x7F);
-	tm->tm_min	= BCD2BIN(fm3130->regs[FM3130_ALARM_MINUTES] & 0x7F);
-	tm->tm_hour	= BCD2BIN(fm3130->regs[FM3130_ALARM_HOURS] & 0x3F);
-	tm->tm_mday	= BCD2BIN(fm3130->regs[FM3130_ALARM_DATE] & 0x3F);
-	tm->tm_mon	= BCD2BIN(fm3130->regs[FM3130_ALARM_MONTHS] & 0x1F);
+	tm->tm_sec	= bcd2bin(fm3130->regs[FM3130_ALARM_SECONDS] & 0x7F);
+	tm->tm_min	= bcd2bin(fm3130->regs[FM3130_ALARM_MINUTES] & 0x7F);
+	tm->tm_hour	= bcd2bin(fm3130->regs[FM3130_ALARM_HOURS] & 0x3F);
+	tm->tm_mday	= bcd2bin(fm3130->regs[FM3130_ALARM_DATE] & 0x3F);
+	tm->tm_mon	= bcd2bin(fm3130->regs[FM3130_ALARM_MONTHS] & 0x1F);
 	if (tm->tm_mon > 0)
 		tm->tm_mon -= 1; /* RTC is 1-12, tm_mon is 0-11 */
 	dev_dbg(dev, "%s secs=%d, mins=%d, "
@@ -252,23 +252,23 @@ static int fm3130_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	if (tm->tm_sec != -1)
 		fm3130->regs[FM3130_ALARM_SECONDS] =
-			BIN2BCD(tm->tm_sec) | 0x80;
+			bin2bcd(tm->tm_sec) | 0x80;
 
 	if (tm->tm_min != -1)
 		fm3130->regs[FM3130_ALARM_MINUTES] =
-			BIN2BCD(tm->tm_min) | 0x80;
+			bin2bcd(tm->tm_min) | 0x80;
 
 	if (tm->tm_hour != -1)
 		fm3130->regs[FM3130_ALARM_HOURS] =
-			BIN2BCD(tm->tm_hour) | 0x80;
+			bin2bcd(tm->tm_hour) | 0x80;
 
 	if (tm->tm_mday != -1)
 		fm3130->regs[FM3130_ALARM_DATE] =
-			BIN2BCD(tm->tm_mday) | 0x80;
+			bin2bcd(tm->tm_mday) | 0x80;
 
 	if (tm->tm_mon != -1)
 		fm3130->regs[FM3130_ALARM_MONTHS] =
-			BIN2BCD(tm->tm_mon + 1) | 0x80;
+			bin2bcd(tm->tm_mon + 1) | 0x80;
 
 	dev_dbg(dev, "alarm write %02x %02x %02x %02x %02x\n",
 			fm3130->regs[FM3130_ALARM_SECONDS],
@@ -414,18 +414,18 @@ static int __devinit fm3130_probe(struct i2c_client *client,
 	/* TODO */
 	/* TODO need to sanity check alarm */
 	tmp = fm3130->regs[FM3130_RTC_SECONDS];
-	tmp = BCD2BIN(tmp & 0x7f);
+	tmp = bcd2bin(tmp & 0x7f);
 	if (tmp > 60)
 		goto exit_bad;
-	tmp = BCD2BIN(fm3130->regs[FM3130_RTC_MINUTES] & 0x7f);
+	tmp = bcd2bin(fm3130->regs[FM3130_RTC_MINUTES] & 0x7f);
 	if (tmp > 60)
 		goto exit_bad;
 
-	tmp = BCD2BIN(fm3130->regs[FM3130_RTC_DATE] & 0x3f);
+	tmp = bcd2bin(fm3130->regs[FM3130_RTC_DATE] & 0x3f);
 	if (tmp == 0 || tmp > 31)
 		goto exit_bad;
 
-	tmp = BCD2BIN(fm3130->regs[FM3130_RTC_MONTHS] & 0x1f);
+	tmp = bcd2bin(fm3130->regs[FM3130_RTC_MONTHS] & 0x1f);
 	if (tmp == 0 || tmp > 12)
 		goto exit_bad;
 

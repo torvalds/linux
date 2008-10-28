@@ -16,6 +16,15 @@ config SPARC64
 	select HAVE_IDE
 	select HAVE_LMB
 	select HAVE_ARCH_KGDB
+	select USE_GENERIC_SMP_HELPERS if SMP
+	select HAVE_ARCH_TRACEHOOK
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select RTC_CLASS
+	select RTC_DRV_M48T59
+	select RTC_DRV_CMOS
+	select RTC_DRV_BQ4802
+	select RTC_DRV_SUN4V
+	select RTC_DRV_STARFIRE
 
 config GENERIC_TIME
 	bool
@@ -28,6 +37,11 @@ config GENERIC_CMOS_UPDATE
 config GENERIC_CLOCKEVENTS
 	bool
 	default y
+
+config GENERIC_GPIO
+	bool
+	help
+	  Generic GPIO API support
 
 config 64BIT
 	def_bool y
@@ -81,6 +95,11 @@ config GENERIC_HARDIRQS_NO__DO_IRQ
 	bool
 	def_bool y
 
+source "init/Kconfig"
+source "kernel/Kconfig.freezer"
+
+menu "Processor type and features"
+
 choice
 	prompt "Kernel page size"
 	default SPARC64_PAGE_SIZE_8KB
@@ -93,18 +112,10 @@ config SPARC64_PAGE_SIZE_8KB
 	  8KB and 64KB work quite well, since SPARC ELF sections
 	  provide for up to 64KB alignment.
 
-	  Therefore, 512KB and 4MB are for expert hackers only.
-
 	  If you don't know what to do, choose 8KB.
 
 config SPARC64_PAGE_SIZE_64KB
 	bool "64KB"
-
-config SPARC64_PAGE_SIZE_512KB
-	bool "512KB"
-
-config SPARC64_PAGE_SIZE_4MB
-	bool "4MB"
 
 endchoice
 
@@ -136,13 +147,9 @@ config HOTPLUG_CPU
 	  can be controlled through /sys/devices/system/cpu/cpu#.
 	  Say N if you want to disable CPU hotplug.
 
-source "init/Kconfig"
-
 config GENERIC_HARDIRQS
 	bool
 	default y
-
-menu "General machine setup"
 
 source "kernel/time/Kconfig"
 
@@ -191,6 +198,17 @@ config US2E_FREQ
 
 	  If in doubt, say N.
 
+config US3_MC
+	tristate "UltraSPARC-III Memory Controller driver"
+	default y
+	help
+	  This adds a driver for the UltraSPARC-III memory controller.
+	  Loading this driver allows exact mnemonic strings to be
+	  printed in the event of a memory error, so that the faulty DIMM
+	  on the motherboard can be matched to the error.
+
+	  If in doubt, say Y, as this information can be very useful.
+
 # Global things across all Sun machines.
 config GENERIC_LOCKBREAK
 	bool
@@ -225,11 +243,10 @@ config HUGETLB_PAGE_SIZE_4MB
 	bool "4MB"
 
 config HUGETLB_PAGE_SIZE_512K
-	depends on !SPARC64_PAGE_SIZE_4MB && !SPARC64_PAGE_SIZE_512KB
 	bool "512K"
 
 config HUGETLB_PAGE_SIZE_64K
-	depends on !SPARC64_PAGE_SIZE_4MB && !SPARC64_PAGE_SIZE_512KB && !SPARC64_PAGE_SIZE_64KB
+	depends on !SPARC64_PAGE_SIZE_64KB
 	bool "64K"
 
 endchoice
@@ -238,6 +255,7 @@ endmenu
 
 config NUMA
 	bool "NUMA support"
+	depends on SMP
 
 config NODES_SHIFT
 	int

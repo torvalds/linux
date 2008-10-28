@@ -399,7 +399,9 @@ static void dvb_dmx_swfilter_packet(struct dvb_demux *demux, const u8 *buf)
 void dvb_dmx_swfilter_packets(struct dvb_demux *demux, const u8 *buf,
 			      size_t count)
 {
-	spin_lock(&demux->lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&demux->lock, flags);
 
 	while (count--) {
 		if (buf[0] == 0x47)
@@ -407,16 +409,17 @@ void dvb_dmx_swfilter_packets(struct dvb_demux *demux, const u8 *buf,
 		buf += 188;
 	}
 
-	spin_unlock(&demux->lock);
+	spin_unlock_irqrestore(&demux->lock, flags);
 }
 
 EXPORT_SYMBOL(dvb_dmx_swfilter_packets);
 
 void dvb_dmx_swfilter(struct dvb_demux *demux, const u8 *buf, size_t count)
 {
+	unsigned long flags;
 	int p = 0, i, j;
 
-	spin_lock(&demux->lock);
+	spin_lock_irqsave(&demux->lock, flags);
 
 	if (demux->tsbufp) {
 		i = demux->tsbufp;
@@ -449,17 +452,18 @@ void dvb_dmx_swfilter(struct dvb_demux *demux, const u8 *buf, size_t count)
 	}
 
 bailout:
-	spin_unlock(&demux->lock);
+	spin_unlock_irqrestore(&demux->lock, flags);
 }
 
 EXPORT_SYMBOL(dvb_dmx_swfilter);
 
 void dvb_dmx_swfilter_204(struct dvb_demux *demux, const u8 *buf, size_t count)
 {
+	unsigned long flags;
 	int p = 0, i, j;
 	u8 tmppack[188];
 
-	spin_lock(&demux->lock);
+	spin_lock_irqsave(&demux->lock, flags);
 
 	if (demux->tsbufp) {
 		i = demux->tsbufp;
@@ -500,7 +504,7 @@ void dvb_dmx_swfilter_204(struct dvb_demux *demux, const u8 *buf, size_t count)
 	}
 
 bailout:
-	spin_unlock(&demux->lock);
+	spin_unlock_irqrestore(&demux->lock, flags);
 }
 
 EXPORT_SYMBOL(dvb_dmx_swfilter_204);
@@ -1056,16 +1060,27 @@ static int dvbdmx_close(struct dmx_demux *demux)
 	return 0;
 }
 
-static int dvbdmx_write(struct dmx_demux *demux, const char *buf, size_t count)
+static int dvbdmx_write(struct dmx_demux *demux, const char __user *buf, size_t count)
 {
 	struct dvb_demux *dvbdemux = (struct dvb_demux *)demux;
+	void *p;
 
 	if ((!demux->frontend) || (demux->frontend->source != DMX_MEMORY_FE))
 		return -EINVAL;
 
-	if (mutex_lock_interruptible(&dvbdemux->mutex))
+	p = kmalloc(count, GFP_USER);
+	if (!p)
+		return -ENOMEM;
+	if (copy_from_user(p, buf, count)) {
+		kfree(p);
+		return -EFAULT;
+	}
+	if (mutex_lock_interruptible(&dvbdemux->mutex)) {
+		kfree(p);
 		return -ERESTARTSYS;
-	dvb_dmx_swfilter(dvbdemux, (u8 *)buf, count);
+	}
+	dvb_dmx_swfilter(dvbdemux, p, count);
+	kfree(p);
 	mutex_unlock(&dvbdemux->mutex);
 
 	if (signal_pending(current))

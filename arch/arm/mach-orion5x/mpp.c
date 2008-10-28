@@ -11,8 +11,8 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/mbus.h>
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <linux/io.h>
+#include <mach/hardware.h>
 #include "common.h"
 #include "mpp.h"
 

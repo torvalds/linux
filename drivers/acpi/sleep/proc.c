@@ -120,13 +120,13 @@ static int acpi_system_alarm_seq_show(struct seq_file *seq, void *offset)
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	if (!(rtc_control & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
-		BCD_TO_BIN(sec);
-		BCD_TO_BIN(min);
-		BCD_TO_BIN(hr);
-		BCD_TO_BIN(day);
-		BCD_TO_BIN(mo);
-		BCD_TO_BIN(yr);
-		BCD_TO_BIN(cent);
+		sec = bcd2bin(sec);
+		min = bcd2bin(min);
+		hr = bcd2bin(hr);
+		day = bcd2bin(day);
+		mo = bcd2bin(mo);
+		yr = bcd2bin(yr);
+		cent = bcd2bin(cent);
 	}
 
 	/* we're trusting the FADT (see above) */
@@ -204,7 +204,7 @@ static u32 cmos_bcd_read(int offset, int rtc_control)
 {
 	u32 val = CMOS_READ(offset);
 	if (!(rtc_control & RTC_DM_BINARY) || RTC_ALWAYS_BCD)
-		BCD_TO_BIN(val);
+		val = bcd2bin(val);
 	return val;
 }
 
@@ -212,7 +212,7 @@ static u32 cmos_bcd_read(int offset, int rtc_control)
 static void cmos_bcd_write(u32 val, int offset, int rtc_control)
 {
 	if (!(rtc_control & RTC_DM_BINARY) || RTC_ALWAYS_BCD)
-		BIN_TO_BCD(val);
+		val = bin2bcd(val);
 	CMOS_WRITE(val, offset);
 }
 
@@ -377,6 +377,14 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 	return 0;
 }
 
+static void physical_device_enable_wakeup(struct acpi_device *adev)
+{
+	struct device *dev = acpi_get_physical_device(adev->handle);
+
+	if (dev && device_can_wakeup(dev))
+		device_set_wakeup_enable(dev, adev->wakeup.state.enabled);
+}
+
 static ssize_t
 acpi_system_write_wakeup_device(struct file *file,
 				const char __user * buffer,
@@ -411,6 +419,7 @@ acpi_system_write_wakeup_device(struct file *file,
 		}
 	}
 	if (found_dev) {
+		physical_device_enable_wakeup(found_dev);
 		list_for_each_safe(node, next, &acpi_wakeup_device_list) {
 			struct acpi_device *dev = container_of(node,
 							       struct
@@ -428,6 +437,7 @@ acpi_system_write_wakeup_device(struct file *file,
 				       dev->pnp.bus_id, found_dev->pnp.bus_id);
 				dev->wakeup.state.enabled =
 				    found_dev->wakeup.state.enabled;
+				physical_device_enable_wakeup(dev);
 			}
 		}
 	}

@@ -23,15 +23,15 @@
 #include <linux/kernel.h>
 #include <linux/memory.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <asm/arch/common.h>
+#include <mach/common.h>
 #include <asm/page.h>
 #include <asm/setup.h>
-#include <asm/arch/board-mx31lite.h>
+#include <mach/board-mx31lite.h>
 
 /*
  * This file contains the board-specific initialization routines.
@@ -45,17 +45,17 @@ static struct map_desc mx31lite_io_desc[] __initdata = {
 		.virtual = AIPS1_BASE_ADDR_VIRT,
 		.pfn = __phys_to_pfn(AIPS1_BASE_ADDR),
 		.length = AIPS1_SIZE,
-		.type = MT_NONSHARED_DEVICE
+		.type = MT_DEVICE_NONSHARED
 	}, {
 		.virtual = SPBA0_BASE_ADDR_VIRT,
 		.pfn = __phys_to_pfn(SPBA0_BASE_ADDR),
 		.length = SPBA0_SIZE,
-		.type = MT_NONSHARED_DEVICE
+		.type = MT_DEVICE_NONSHARED
 	}, {
 		.virtual = AIPS2_BASE_ADDR_VIRT,
 		.pfn = __phys_to_pfn(AIPS2_BASE_ADDR),
 		.length = AIPS2_SIZE,
-		.type = MT_NONSHARED_DEVICE
+		.type = MT_DEVICE_NONSHARED
 	}, {
 		.virtual = CS4_BASE_ADDR_VIRT,
 		.pfn = __phys_to_pfn(CS4_BASE_ADDR),

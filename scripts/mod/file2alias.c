@@ -206,6 +206,20 @@ static void do_usb_table(void *symval, unsigned long size,
 		do_usb_entry_multi(symval + i, mod);
 }
 
+/* Looks like: hid:bNvNpN */
+static int do_hid_entry(const char *filename,
+			     struct hid_device_id *id, char *alias)
+{
+	id->vendor = TO_NATIVE(id->vendor);
+	id->product = TO_NATIVE(id->product);
+
+	sprintf(alias, "hid:b%04X", id->bus);
+	ADD(alias, "v", id->vendor != HID_ANY_ID, id->vendor);
+	ADD(alias, "p", id->product != HID_ANY_ID, id->product);
+
+	return 1;
+}
+
 /* Looks like: ieee1394:venNmoNspNverN */
 static int do_ieee1394_entry(const char *filename,
 			     struct ieee1394_device_id *id, char *alias)
@@ -340,11 +354,24 @@ static int do_acpi_entry(const char *filename,
 }
 
 /* looks like: "pnp:dD" */
-static int do_pnp_entry(const char *filename,
-			struct pnp_device_id *id, char *alias)
+static void do_pnp_device_entry(void *symval, unsigned long size,
+				struct module *mod)
 {
-	sprintf(alias, "pnp:d%s*", id->id);
-	return 1;
+	const unsigned long id_size = sizeof(struct pnp_device_id);
+	const unsigned int count = (size / id_size)-1;
+	const struct pnp_device_id *devs = symval;
+	unsigned int i;
+
+	device_id_check(mod->name, "pnp", size, id_size, symval);
+
+	for (i = 0; i < count; i++) {
+		const char *id = (char *)devs[i].id;
+
+		buf_printf(&mod->dev_table_buf,
+			   "MODULE_ALIAS(\"pnp:d%s*\");\n", id);
+		buf_printf(&mod->dev_table_buf,
+			   "MODULE_ALIAS(\"acpi*:%s:*\");\n", id);
+	}
 }
 
 /* looks like: "pnp:dD" for every device of the card */
@@ -388,9 +415,12 @@ static void do_pnp_card_entries(void *symval, unsigned long size,
 			}
 
 			/* add an individual alias for every device entry */
-			if (!dup)
+			if (!dup) {
 				buf_printf(&mod->dev_table_buf,
 					   "MODULE_ALIAS(\"pnp:d%s*\");\n", id);
+				buf_printf(&mod->dev_table_buf,
+					   "MODULE_ALIAS(\"acpi*:%s:*\");\n", id);
+			}
 		}
 	}
 }
@@ -613,7 +643,60 @@ static int do_i2c_entry(const char *filename, struct i2c_device_id *id,
 	return 1;
 }
 
-/* Ignore any prefix, eg. v850 prepends _ */
+static const struct dmifield {
+	const char *prefix;
+	int field;
+} dmi_fields[] = {
+	{ "bvn", DMI_BIOS_VENDOR },
+	{ "bvr", DMI_BIOS_VERSION },
+	{ "bd",  DMI_BIOS_DATE },
+	{ "svn", DMI_SYS_VENDOR },
+	{ "pn",  DMI_PRODUCT_NAME },
+	{ "pvr", DMI_PRODUCT_VERSION },
+	{ "rvn", DMI_BOARD_VENDOR },
+	{ "rn",  DMI_BOARD_NAME },
+	{ "rvr", DMI_BOARD_VERSION },
+	{ "cvn", DMI_CHASSIS_VENDOR },
+	{ "ct",  DMI_CHASSIS_TYPE },
+	{ "cvr", DMI_CHASSIS_VERSION },
+	{ NULL,  DMI_NONE }
+};
+
+static void dmi_ascii_filter(char *d, const char *s)
+{
+	/* Filter out characters we don't want to see in the modalias string */
+	for (; *s; s++)
+		if (*s > ' ' && *s < 127 && *s != ':')
+			*(d++) = *s;
+
+	*d = 0;
+}
+
+
+static int do_dmi_entry(const char *filename, struct dmi_system_id *id,
+			char *alias)
+{
+	int i, j;
+
+	sprintf(alias, "dmi*");
+
+	for (i = 0; i < ARRAY_SIZE(dmi_fields); i++) {
+		for (j = 0; j < 4; j++) {
+			if (id->matches[j].slot &&
+			    id->matches[j].slot == dmi_fields[i].field) {
+				sprintf(alias + strlen(alias), ":%s*",
+					dmi_fields[i].prefix);
+				dmi_ascii_filter(alias + strlen(alias),
+						 id->matches[j].substr);
+				strcat(alias, "*");
+			}
+		}
+	}
+
+	strcat(alias, ":");
+	return 1;
+}
+/* Ignore any prefix, eg. some architectures prepend _ */
 static inline int sym_is(const char *symbol, const char *name)
 {
 	const char *match;
@@ -676,6 +759,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 	else if (sym_is(symname, "__mod_usb_device_table"))
 		/* special case to handle bcdDevice ranges */
 		do_usb_table(symval, sym->st_size, mod);
+	else if (sym_is(symname, "__mod_hid_device_table"))
+		do_table(symval, sym->st_size,
+			 sizeof(struct hid_device_id), "hid",
+			 do_hid_entry, mod);
 	else if (sym_is(symname, "__mod_ieee1394_device_table"))
 		do_table(symval, sym->st_size,
 			 sizeof(struct ieee1394_device_id), "ieee1394",
@@ -701,9 +788,7 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 			 sizeof(struct acpi_device_id), "acpi",
 			 do_acpi_entry, mod);
 	else if (sym_is(symname, "__mod_pnp_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct pnp_device_id), "pnp",
-			 do_pnp_entry, mod);
+		do_pnp_device_entry(symval, sym->st_size, mod);
 	else if (sym_is(symname, "__mod_pnp_card_device_table"))
 		do_pnp_card_entries(symval, sym->st_size, mod);
 	else if (sym_is(symname, "__mod_pcmcia_device_table"))
@@ -746,6 +831,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_table(symval, sym->st_size,
 			 sizeof(struct i2c_device_id), "i2c",
 			 do_i2c_entry, mod);
+	else if (sym_is(symname, "__mod_dmi_device_table"))
+		do_table(symval, sym->st_size,
+			 sizeof(struct dmi_system_id), "dmi",
+			 do_dmi_entry, mod);
 	free(zeros);
 }
 

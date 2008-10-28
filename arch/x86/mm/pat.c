@@ -7,22 +7,24 @@
  * Loosely based on earlier PAT patchset from Eric Biederman and Andi Kleen.
  */
 
-#include <linux/mm.h>
+#include <linux/seq_file.h>
+#include <linux/bootmem.h>
+#include <linux/debugfs.h>
 #include <linux/kernel.h>
 #include <linux/gfp.h>
+#include <linux/mm.h>
 #include <linux/fs.h>
-#include <linux/bootmem.h>
 
-#include <asm/msr.h>
-#include <asm/tlbflush.h>
-#include <asm/processor.h>
-#include <asm/page.h>
-#include <asm/pgtable.h>
-#include <asm/pat.h>
-#include <asm/e820.h>
 #include <asm/cacheflush.h>
+#include <asm/processor.h>
+#include <asm/tlbflush.h>
+#include <asm/pgtable.h>
 #include <asm/fcntl.h>
+#include <asm/e820.h>
 #include <asm/mtrr.h>
+#include <asm/page.h>
+#include <asm/msr.h>
+#include <asm/pat.h>
 #include <asm/io.h>
 
 #ifdef CONFIG_X86_PAT
@@ -44,6 +46,7 @@ early_param("nopat", nopat);
 
 
 static int debug_enable;
+
 static int __init pat_debug_setup(char *str)
 {
 	debug_enable = 1;
@@ -143,14 +146,14 @@ static char *cattr_name(unsigned long flags)
  */
 
 struct memtype {
-	u64 start;
-	u64 end;
-	unsigned long type;
-	struct list_head nd;
+	u64			start;
+	u64			end;
+	unsigned long		type;
+	struct list_head	nd;
 };
 
 static LIST_HEAD(memtype_list);
-static DEFINE_SPINLOCK(memtype_lock); 	/* protects memtype list */
+static DEFINE_SPINLOCK(memtype_lock);	/* protects memtype list */
 
 /*
  * Does intersection of PAT memory type and MTRR memory type and returns
@@ -178,8 +181,8 @@ static unsigned long pat_x_mtrr_type(u64 start, u64 end, unsigned long req_type)
 	return req_type;
 }
 
-static int chk_conflict(struct memtype *new, struct memtype *entry,
-			unsigned long *type)
+static int
+chk_conflict(struct memtype *new, struct memtype *entry, unsigned long *type)
 {
 	if (new->type != entry->type) {
 		if (type) {
@@ -205,6 +208,69 @@ static int chk_conflict(struct memtype *new, struct memtype *entry,
 	return -EBUSY;
 }
 
+static struct memtype *cached_entry;
+static u64 cached_start;
+
+/*
+ * For RAM pages, mark the pages as non WB memory type using
+ * PageNonWB (PG_arch_1). We allow only one set_memory_uc() or
+ * set_memory_wc() on a RAM page at a time before marking it as WB again.
+ * This is ok, because only one driver will be owning the page and
+ * doing set_memory_*() calls.
+ *
+ * For now, we use PageNonWB to track that the RAM page is being mapped
+ * as non WB. In future, we will have to use one more flag
+ * (or some other mechanism in page_struct) to distinguish between
+ * UC and WC mapping.
+ */
+static int reserve_ram_pages_type(u64 start, u64 end, unsigned long req_type,
+				  unsigned long *new_type)
+{
+	struct page *page;
+	u64 pfn, end_pfn;
+
+	for (pfn = (start >> PAGE_SHIFT); pfn < (end >> PAGE_SHIFT); ++pfn) {
+		page = pfn_to_page(pfn);
+		if (page_mapped(page) || PageNonWB(page))
+			goto out;
+
+		SetPageNonWB(page);
+	}
+	return 0;
+
+out:
+	end_pfn = pfn;
+	for (pfn = (start >> PAGE_SHIFT); pfn < end_pfn; ++pfn) {
+		page = pfn_to_page(pfn);
+		ClearPageNonWB(page);
+	}
+
+	return -EINVAL;
+}
+
+static int free_ram_pages_type(u64 start, u64 end)
+{
+	struct page *page;
+	u64 pfn, end_pfn;
+
+	for (pfn = (start >> PAGE_SHIFT); pfn < (end >> PAGE_SHIFT); ++pfn) {
+		page = pfn_to_page(pfn);
+		if (page_mapped(page) || !PageNonWB(page))
+			goto out;
+
+		ClearPageNonWB(page);
+	}
+	return 0;
+
+out:
+	end_pfn = pfn;
+	for (pfn = (start >> PAGE_SHIFT); pfn < end_pfn; ++pfn) {
+		page = pfn_to_page(pfn);
+		SetPageNonWB(page);
+	}
+	return -EINVAL;
+}
+
 /*
  * req_type typically has one of the:
  * - _PAGE_CACHE_WB
@@ -221,14 +287,15 @@ static int chk_conflict(struct memtype *new, struct memtype *entry,
  * it will return a negative return value.
  */
 int reserve_memtype(u64 start, u64 end, unsigned long req_type,
-			unsigned long *new_type)
+		    unsigned long *new_type)
 {
 	struct memtype *new, *entry;
 	unsigned long actual_type;
 	struct list_head *where;
+	int is_range_ram;
 	int err = 0;
 
- 	BUG_ON(start >= end); /* end is exclusive */
+	BUG_ON(start >= end); /* end is exclusive */
 
 	if (!pat_enabled) {
 		/* This is identical to page table setting without PAT */
@@ -261,28 +328,41 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 			actual_type = _PAGE_CACHE_WB;
 		else
 			actual_type = _PAGE_CACHE_UC_MINUS;
-	} else
+	} else {
 		actual_type = pat_x_mtrr_type(start, end,
 					      req_type & _PAGE_CACHE_MASK);
+	}
+
+	is_range_ram = pagerange_is_ram(start, end);
+	if (is_range_ram == 1)
+		return reserve_ram_pages_type(start, end, req_type, new_type);
+	else if (is_range_ram < 0)
+		return -EINVAL;
 
 	new  = kmalloc(sizeof(struct memtype), GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
 
-	new->start = start;
-	new->end = end;
-	new->type = actual_type;
+	new->start	= start;
+	new->end	= end;
+	new->type	= actual_type;
 
 	if (new_type)
 		*new_type = actual_type;
 
 	spin_lock(&memtype_lock);
 
+	if (cached_entry && start >= cached_start)
+		entry = cached_entry;
+	else
+		entry = list_entry(&memtype_list, struct memtype, nd);
+
 	/* Search for existing mapping that overlaps the current range */
 	where = NULL;
-	list_for_each_entry(entry, &memtype_list, nd) {
+	list_for_each_entry_continue(entry, &memtype_list, nd) {
 		if (end <= entry->start) {
 			where = entry->nd.prev;
+			cached_entry = list_entry(where, struct memtype, nd);
 			break;
 		} else if (start <= entry->start) { /* end > entry->start */
 			err = chk_conflict(new, entry, new_type);
@@ -290,6 +370,8 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 				dprintk("Overlap at 0x%Lx-0x%Lx\n",
 					entry->start, entry->end);
 				where = entry->nd.prev;
+				cached_entry = list_entry(where,
+							struct memtype, nd);
 			}
 			break;
 		} else if (start < entry->end) { /* start > entry->start */
@@ -297,7 +379,20 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 			if (!err) {
 				dprintk("Overlap at 0x%Lx-0x%Lx\n",
 					entry->start, entry->end);
-				where = &entry->nd;
+				cached_entry = list_entry(entry->nd.prev,
+							struct memtype, nd);
+
+				/*
+				 * Move to right position in the linked
+				 * list to add this new entry
+				 */
+				list_for_each_entry_continue(entry,
+							&memtype_list, nd) {
+					if (start <= entry->start) {
+						where = entry->nd.prev;
+						break;
+					}
+				}
 			}
 			break;
 		}
@@ -309,8 +404,11 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 		       start, end, cattr_name(new->type), cattr_name(req_type));
 		kfree(new);
 		spin_unlock(&memtype_lock);
+
 		return err;
 	}
+
+	cached_start = start;
 
 	if (where)
 		list_add(&new->nd, where);
@@ -330,6 +428,7 @@ int free_memtype(u64 start, u64 end)
 {
 	struct memtype *entry;
 	int err = -EINVAL;
+	int is_range_ram;
 
 	if (!pat_enabled)
 		return 0;
@@ -338,9 +437,18 @@ int free_memtype(u64 start, u64 end)
 	if (is_ISA_range(start, end - 1))
 		return 0;
 
+	is_range_ram = pagerange_is_ram(start, end);
+	if (is_range_ram == 1)
+		return free_ram_pages_type(start, end);
+	else if (is_range_ram < 0)
+		return -EINVAL;
+
 	spin_lock(&memtype_lock);
 	list_for_each_entry(entry, &memtype_list, nd) {
 		if (entry->start == start && entry->end == end) {
+			if (cached_entry == entry || cached_start == start)
+				cached_entry = NULL;
+
 			list_del(&entry->nd);
 			kfree(entry);
 			err = 0;
@@ -355,26 +463,19 @@ int free_memtype(u64 start, u64 end)
 	}
 
 	dprintk("free_memtype request 0x%Lx-0x%Lx\n", start, end);
+
 	return err;
 }
 
 
-/*
- * /dev/mem mmap interface. The memtype used for mapping varies:
- * - Use UC for mappings with O_SYNC flag
- * - Without O_SYNC flag, if there is any conflict in reserve_memtype,
- *   inherit the memtype from existing mapping.
- * - Else use UC_MINUS memtype (for backward compatibility with existing
- *   X drivers.
- */
 pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 				unsigned long size, pgprot_t vma_prot)
 {
 	return vma_prot;
 }
 
-#ifdef CONFIG_NONPROMISC_DEVMEM
-/* This check is done in drivers/char/mem.c in case of NONPROMISC_DEVMEM*/
+#ifdef CONFIG_STRICT_DEVMEM
+/* This check is done in drivers/char/mem.c in case of STRICT_DEVMEM*/
 static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 {
 	return 1;
@@ -398,20 +499,20 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 	}
 	return 1;
 }
-#endif /* CONFIG_NONPROMISC_DEVMEM */
+#endif /* CONFIG_STRICT_DEVMEM */
 
 int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 				unsigned long size, pgprot_t *vma_prot)
 {
 	u64 offset = ((u64) pfn) << PAGE_SHIFT;
-	unsigned long flags = _PAGE_CACHE_UC_MINUS;
+	unsigned long flags = -1;
 	int retval;
 
 	if (!range_is_allowed(pfn, size))
 		return 0;
 
 	if (file->f_flags & O_SYNC) {
-		flags = _PAGE_CACHE_UC;
+		flags = _PAGE_CACHE_UC_MINUS;
 	}
 
 #ifdef CONFIG_X86_32
@@ -434,13 +535,14 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 #endif
 
 	/*
-	 * With O_SYNC, we can only take UC mapping. Fail if we cannot.
+	 * With O_SYNC, we can only take UC_MINUS mapping. Fail if we cannot.
+	 *
 	 * Without O_SYNC, we want to get
 	 * - WB for WB-able memory and no other conflicting mappings
 	 * - UC_MINUS for non-WB-able memory with no other conflicting mappings
 	 * - Inherit from confliting mappings otherwise
 	 */
-	if (flags != _PAGE_CACHE_UC_MINUS) {
+	if (flags != -1) {
 		retval = reserve_memtype(offset, offset + size, flags, NULL);
 	} else {
 		retval = reserve_memtype(offset, offset + size, -1, &flags);
@@ -468,9 +570,9 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 
 void map_devmem(unsigned long pfn, unsigned long size, pgprot_t vma_prot)
 {
+	unsigned long want_flags = (pgprot_val(vma_prot) & _PAGE_CACHE_MASK);
 	u64 addr = (u64)pfn << PAGE_SHIFT;
 	unsigned long flags;
-	unsigned long want_flags = (pgprot_val(vma_prot) & _PAGE_CACHE_MASK);
 
 	reserve_memtype(addr, addr + size, want_flags, &flags);
 	if (flags != want_flags) {
@@ -489,3 +591,91 @@ void unmap_devmem(unsigned long pfn, unsigned long size, pgprot_t vma_prot)
 
 	free_memtype(addr, addr + size);
 }
+
+#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_X86_PAT)
+
+/* get Nth element of the linked list */
+static struct memtype *memtype_get_idx(loff_t pos)
+{
+	struct memtype *list_node, *print_entry;
+	int i = 1;
+
+	print_entry  = kmalloc(sizeof(struct memtype), GFP_KERNEL);
+	if (!print_entry)
+		return NULL;
+
+	spin_lock(&memtype_lock);
+	list_for_each_entry(list_node, &memtype_list, nd) {
+		if (pos == i) {
+			*print_entry = *list_node;
+			spin_unlock(&memtype_lock);
+			return print_entry;
+		}
+		++i;
+	}
+	spin_unlock(&memtype_lock);
+	kfree(print_entry);
+
+	return NULL;
+}
+
+static void *memtype_seq_start(struct seq_file *seq, loff_t *pos)
+{
+	if (*pos == 0) {
+		++*pos;
+		seq_printf(seq, "PAT memtype list:\n");
+	}
+
+	return memtype_get_idx(*pos);
+}
+
+static void *memtype_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	++*pos;
+	return memtype_get_idx(*pos);
+}
+
+static void memtype_seq_stop(struct seq_file *seq, void *v)
+{
+}
+
+static int memtype_seq_show(struct seq_file *seq, void *v)
+{
+	struct memtype *print_entry = (struct memtype *)v;
+
+	seq_printf(seq, "%s @ 0x%Lx-0x%Lx\n", cattr_name(print_entry->type),
+			print_entry->start, print_entry->end);
+	kfree(print_entry);
+
+	return 0;
+}
+
+static struct seq_operations memtype_seq_ops = {
+	.start = memtype_seq_start,
+	.next  = memtype_seq_next,
+	.stop  = memtype_seq_stop,
+	.show  = memtype_seq_show,
+};
+
+static int memtype_seq_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &memtype_seq_ops);
+}
+
+static const struct file_operations memtype_fops = {
+	.open    = memtype_seq_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release,
+};
+
+static int __init pat_memtype_list_init(void)
+{
+	debugfs_create_file("pat_memtype_list", S_IRUSR, arch_debugfs_dir,
+				NULL, &memtype_fops);
+	return 0;
+}
+
+late_initcall(pat_memtype_list_init);
+
+#endif /* CONFIG_DEBUG_FS && CONFIG_X86_PAT */

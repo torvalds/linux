@@ -18,12 +18,11 @@
 #include <linux/suspend.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
-#include <asm/mach-types.h>
 #include <asm/cacheflush.h>
-#include <asm/arch/pm.h>
-#include <asm/arch/clock.h>
+#include <mach/pm.h>
+#include <mach/clock.h>
 
 #define SRAM_VA IO_ADDRESS(PNX4008_IRAM_BASE)
 

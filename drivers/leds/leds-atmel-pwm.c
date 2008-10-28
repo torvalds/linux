@@ -37,7 +37,7 @@ static int __init pwmled_probe(struct platform_device *pdev)
 {
 	const struct gpio_led_platform_data	*pdata;
 	struct pwmled				*leds;
-	unsigned				i;
+	int					i;
 	int					status;
 
 	pdata = pdev->dev.platform_data;

@@ -3,7 +3,7 @@
  *
  * SMP support for the SuperH processors.
  *
- * Copyright (C) 2002 - 2007 Paul Mundt
+ * Copyright (C) 2002 - 2008 Paul Mundt
  * Copyright (C) 2006 - 2007 Akio Idehara
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -18,6 +18,7 @@
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/cpu.h>
 #include <linux/interrupt.h>
 #include <asm/atomic.h>
 #include <asm/processor.h>
@@ -82,11 +83,16 @@ asmlinkage void __cpuinit start_secondary(void)
 
 	preempt_disable();
 
+	notify_cpu_starting(smp_processor_id());
+
 	local_irq_enable();
 
+	cpu = smp_processor_id();
+
+	/* Enable local timers */
+	local_timer_setup(cpu);
 	calibrate_delay();
 
-	cpu = smp_processor_id();
 	smp_store_cpu_info(cpu);
 
 	cpu_set(cpu, cpu_online_map);
@@ -182,6 +188,42 @@ void arch_send_call_function_ipi(cpumask_t mask)
 void arch_send_call_function_single_ipi(int cpu)
 {
 	plat_send_ipi(cpu, SMP_MSG_FUNCTION_SINGLE);
+}
+
+void smp_timer_broadcast(cpumask_t mask)
+{
+	int cpu;
+
+	for_each_cpu_mask(cpu, mask)
+		plat_send_ipi(cpu, SMP_MSG_TIMER);
+}
+
+static void ipi_timer(void)
+{
+	irq_enter();
+	local_timer_interrupt();
+	irq_exit();
+}
+
+void smp_message_recv(unsigned int msg)
+{
+	switch (msg) {
+	case SMP_MSG_FUNCTION:
+		generic_smp_call_function_interrupt();
+		break;
+	case SMP_MSG_RESCHEDULE:
+		break;
+	case SMP_MSG_FUNCTION_SINGLE:
+		generic_smp_call_function_single_interrupt();
+		break;
+	case SMP_MSG_TIMER:
+		ipi_timer();
+		break;
+	default:
+		printk(KERN_WARNING "SMP %d: %s(): unknown IPI %d\n",
+		       smp_processor_id(), __func__, msg);
+		break;
+	}
 }
 
 /* Not really SMP stuff ... */

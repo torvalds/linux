@@ -48,6 +48,7 @@
 #endif
 
 #include "ivtv-driver.h"
+#include "ivtv-i2c.h"
 #include "ivtv-udma.h"
 #include "ivtv-mailbox.h"
 
@@ -275,7 +276,6 @@ static int ivtvfb_prep_dec_dma_to_device(struct ivtv *itv,
 				  int size_in_bytes)
 {
 	DEFINE_WAIT(wait);
-	int ret = 0;
 	int got_sig = 0;
 
 	mutex_lock(&itv->udma.lock);
@@ -316,7 +316,7 @@ static int ivtvfb_prep_dec_dma_to_device(struct ivtv *itv,
 		return -EINTR;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int ivtvfb_prep_frame(struct ivtv *itv, int cmd, void __user *source,
@@ -367,6 +367,83 @@ static int ivtvfb_prep_frame(struct ivtv *itv, int cmd, void __user *source,
 	return ivtvfb_prep_dec_dma_to_device(itv, dest_offset, source, count);
 }
 
+static ssize_t ivtvfb_write(struct fb_info *info, const char __user *buf,
+						size_t count, loff_t *ppos)
+{
+	unsigned long p = *ppos;
+	void *dst;
+	int err = 0;
+	int dma_err;
+	unsigned long total_size;
+	struct ivtv *itv = (struct ivtv *) info->par;
+	unsigned long dma_offset =
+			IVTV_DECODER_OFFSET + itv->osd_info->video_rbase;
+	unsigned long dma_size;
+	u16 lead = 0, tail = 0;
+
+	if (info->state != FBINFO_STATE_RUNNING)
+		return -EPERM;
+
+	total_size = info->screen_size;
+
+	if (total_size == 0)
+		total_size = info->fix.smem_len;
+
+	if (p > total_size)
+		return -EFBIG;
+
+	if (count > total_size) {
+		err = -EFBIG;
+		count = total_size;
+	}
+
+	if (count + p > total_size) {
+		if (!err)
+			err = -ENOSPC;
+		count = total_size - p;
+	}
+
+	dst = (void __force *) (info->screen_base + p);
+
+	if (info->fbops->fb_sync)
+		info->fbops->fb_sync(info);
+
+	/* If transfer size > threshold and both src/dst
+	addresses are aligned, use DMA */
+	if (count >= 4096 &&
+	    ((unsigned long)buf & 3) == ((unsigned long)dst & 3)) {
+		/* Odd address = can't DMA. Align */
+		if ((unsigned long)dst & 3) {
+			lead = 4 - ((unsigned long)dst & 3);
+			if (copy_from_user(dst, buf, lead))
+				return -EFAULT;
+			buf += lead;
+			dst += lead;
+		}
+		/* DMA resolution is 32 bits */
+		if ((count - lead) & 3)
+			tail = (count - lead) & 3;
+		/* DMA the data */
+		dma_size = count - lead - tail;
+		dma_err = ivtvfb_prep_dec_dma_to_device(itv,
+		       p + lead + dma_offset, (void __user *)buf, dma_size);
+		if (dma_err)
+			return dma_err;
+		dst += dma_size;
+		buf += dma_size;
+		/* Copy any leftover data */
+		if (tail && copy_from_user(dst, buf, tail))
+			return -EFAULT;
+	} else if (copy_from_user(dst, buf, count)) {
+		return -EFAULT;
+	}
+
+	if  (!err)
+		*ppos += count;
+
+	return (err) ? err : count;
+}
+
 static int ivtvfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	DEFINE_WAIT(wait);
@@ -381,9 +458,12 @@ static int ivtvfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
 			vblank.flags = FB_VBLANK_HAVE_COUNT |FB_VBLANK_HAVE_VCOUNT |
 					FB_VBLANK_HAVE_VSYNC;
 			trace = read_reg(0x028c0) >> 16;
-			if (itv->is_50hz && trace > 312) trace -= 312;
-			else if (itv->is_60hz && trace > 262) trace -= 262;
-			if (trace == 1) vblank.flags |= FB_VBLANK_VSYNCING;
+			if (itv->is_50hz && trace > 312)
+				trace -= 312;
+			else if (itv->is_60hz && trace > 262)
+				trace -= 262;
+			if (trace == 1)
+				vblank.flags |= FB_VBLANK_VSYNCING;
 			vblank.count = itv->last_vsync_field;
 			vblank.vcount = trace;
 			vblank.hcount = 0;
@@ -394,7 +474,8 @@ static int ivtvfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
 
 		case FBIO_WAITFORVSYNC:
 			prepare_to_wait(&itv->vsync_waitq, &wait, TASK_INTERRUPTIBLE);
-			if (!schedule_timeout(msecs_to_jiffies(50))) rc = -ETIMEDOUT;
+			if (!schedule_timeout(msecs_to_jiffies(50)))
+				rc = -ETIMEDOUT;
 			finish_wait(&itv->vsync_waitq, &wait);
 			return rc;
 
@@ -708,6 +789,9 @@ static int _ivtvfb_check_var(struct fb_var_screeninfo *var, struct ivtv *itv)
 	else
 		var->pixclock = pixclock;
 
+	itv->osd_rect.width = var->xres;
+	itv->osd_rect.height = var->yres;
+
 	IVTVFB_DEBUG_INFO("Display size: %dx%d (virtual %dx%d) @ %dbpp\n",
 		      var->xres, var->yres,
 		      var->xres_virtual, var->yres_virtual,
@@ -811,11 +895,16 @@ static int ivtvfb_blank(int blank_mode, struct fb_info *info)
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 		ivtv_vapi(itv, CX2341X_OSD_SET_STATE, 1, 1);
+		ivtv_saa7127(itv, VIDIOC_STREAMON, NULL);
 		break;
 	case FB_BLANK_NORMAL:
 	case FB_BLANK_HSYNC_SUSPEND:
 	case FB_BLANK_VSYNC_SUSPEND:
+		ivtv_vapi(itv, CX2341X_OSD_SET_STATE, 1, 0);
+		ivtv_saa7127(itv, VIDIOC_STREAMON, NULL);
+		break;
 	case FB_BLANK_POWERDOWN:
+		ivtv_saa7127(itv, VIDIOC_STREAMOFF, NULL);
 		ivtv_vapi(itv, CX2341X_OSD_SET_STATE, 1, 0);
 		break;
 	}
@@ -824,6 +913,7 @@ static int ivtvfb_blank(int blank_mode, struct fb_info *info)
 
 static struct fb_ops ivtvfb_ops = {
 	.owner = THIS_MODULE,
+	.fb_write       = ivtvfb_write,
 	.fb_check_var   = ivtvfb_check_var,
 	.fb_set_par     = ivtvfb_set_par,
 	.fb_setcolreg   = ivtvfb_setcolreg,

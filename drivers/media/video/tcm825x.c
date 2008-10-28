@@ -523,6 +523,9 @@ static int ioctl_g_ctrl(struct v4l2_int_device *s,
 	if (val < 0)
 		return val;
 
+	if (vc->id == V4L2_CID_HFLIP || vc->id == V4L2_CID_VFLIP)
+		val ^= sensor->platform_data->is_upside_down();
+
 	vc->value = val;
 	return 0;
 }
@@ -555,6 +558,9 @@ static int ioctl_s_ctrl(struct v4l2_int_device *s,
 	lvc = find_vctrl(vc->id);
 	if (lvc == NULL)
 		return -EINVAL;
+
+	if (vc->id == V4L2_CID_HFLIP || vc->id == V4L2_CID_VFLIP)
+		val ^= sensor->platform_data->is_upside_down();
 
 	val = val << lvc->start_bit;
 	if (tcm825x_write_reg_mask(client, lvc->reg, val))

@@ -81,7 +81,6 @@ static const struct hc_driver ssb_ohci_hc_driver = {
 
 	.hub_status_data	= ohci_hub_status_data,
 	.hub_control		= ohci_hub_control,
-	.hub_irq_enable		= ohci_rhsc_enable,
 #ifdef	CONFIG_PM
 	.bus_suspend		= ohci_bus_suspend,
 	.bus_resume		= ohci_bus_resume,
@@ -113,7 +112,7 @@ static int ssb_ohci_attach(struct ssb_device *dev)
 	ssb_device_enable(dev, flags);
 
 	hcd = usb_create_hcd(&ssb_ohci_hc_driver, dev->dev,
-			dev->dev->bus_id);
+			dev_name(dev->dev));
 	if (!hcd)
 		goto err_dev_disable;
 	ohcidev = hcd_to_ssb_ohci(hcd);

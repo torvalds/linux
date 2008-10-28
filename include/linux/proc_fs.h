@@ -79,6 +79,7 @@ struct proc_dir_entry {
 	int pde_users;	/* number of callers into module in progress */
 	spinlock_t pde_unload_lock; /* proc_fops checks and pde_users bumps */
 	struct completion *pde_unload_completion;
+	struct list_head pde_openers;	/* who did ->open, but not ->release */
 };
 
 struct kcore_list {
@@ -96,12 +97,9 @@ struct vmcore {
 
 #ifdef CONFIG_PROC_FS
 
-extern struct proc_dir_entry *proc_root_kcore;
-
 extern spinlock_t proc_subdir_lock;
 
 extern void proc_root_init(void);
-extern void proc_misc_init(void);
 
 void proc_flush_task(struct task_struct *task);
 struct dentry *proc_pid_lookup(struct inode *dir, struct dentry * dentry, struct nameidata *);
@@ -136,10 +134,6 @@ extern struct inode *proc_get_inode(struct super_block *, unsigned int, struct p
  */
 extern int proc_readdir(struct file *, void *, filldir_t);
 extern struct dentry *proc_lookup(struct inode *, struct dentry *, struct nameidata *);
-
-extern const struct file_operations proc_kcore_operations;
-extern const struct file_operations proc_kmsg_operations;
-extern const struct file_operations ppc_htab_operations;
 
 extern int pid_ns_prepare_proc(struct pid_namespace *ns);
 extern void pid_ns_release_proc(struct pid_namespace *ns);
@@ -282,11 +276,16 @@ union proc_op {
 		struct task_struct *task);
 };
 
+struct ctl_table_header;
+struct ctl_table;
+
 struct proc_inode {
 	struct pid *pid;
 	int fd;
 	union proc_op op;
 	struct proc_dir_entry *pde;
+	struct ctl_table_header *sysctl;
+	struct ctl_table *sysctl_entry;
 	struct inode vfs_inode;
 };
 
@@ -304,8 +303,6 @@ static inline struct net *PDE_NET(struct proc_dir_entry *pde)
 {
 	return pde->parent->data;
 }
-
-struct net *get_proc_net(const struct inode *inode);
 
 struct proc_maps_private {
 	struct pid *pid;

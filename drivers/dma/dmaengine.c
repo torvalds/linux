@@ -169,12 +169,18 @@ static void dma_client_chan_alloc(struct dma_client *client)
 	enum dma_state_client ack;
 
 	/* Find a channel */
-	list_for_each_entry(device, &dma_device_list, global_node)
+	list_for_each_entry(device, &dma_device_list, global_node) {
+		/* Does the client require a specific DMA controller? */
+		if (client->slave && client->slave->dma_dev
+				&& client->slave->dma_dev != device->dev)
+			continue;
+
 		list_for_each_entry(chan, &device->channels, device_node) {
 			if (!dma_chan_satisfies_mask(chan, client->cap_mask))
 				continue;
 
-			desc = chan->device->device_alloc_chan_resources(chan);
+			desc = chan->device->device_alloc_chan_resources(
+					chan, client);
 			if (desc >= 0) {
 				ack = client->event_callback(client,
 						chan,
@@ -183,12 +189,14 @@ static void dma_client_chan_alloc(struct dma_client *client)
 				/* we are done once this client rejects
 				 * an available resource
 				 */
-				if (ack == DMA_ACK)
+				if (ack == DMA_ACK) {
 					dma_chan_get(chan);
-				else if (ack == DMA_NAK)
+					chan->client_count++;
+				} else if (ack == DMA_NAK)
 					return;
 			}
 		}
+	}
 }
 
 enum dma_status dma_sync_wait(struct dma_chan *chan, dma_cookie_t cookie)
@@ -272,8 +280,10 @@ static void dma_clients_notify_removed(struct dma_chan *chan)
 		/* client was holding resources for this channel so
 		 * free it
 		 */
-		if (ack == DMA_ACK)
+		if (ack == DMA_ACK) {
 			dma_chan_put(chan);
+			chan->client_count--;
+		}
 	}
 
 	mutex_unlock(&dma_list_mutex);
@@ -285,6 +295,10 @@ static void dma_clients_notify_removed(struct dma_chan *chan)
  */
 void dma_async_client_register(struct dma_client *client)
 {
+	/* validate client data */
+	BUG_ON(dma_has_cap(DMA_SLAVE, client->cap_mask) &&
+		!client->slave);
+
 	mutex_lock(&dma_list_mutex);
 	list_add_tail(&client->global_node, &dma_client_list);
 	mutex_unlock(&dma_list_mutex);
@@ -313,8 +327,10 @@ void dma_async_client_unregister(struct dma_client *client)
 			ack = client->event_callback(client, chan,
 				DMA_RESOURCE_REMOVED);
 
-			if (ack == DMA_ACK)
+			if (ack == DMA_ACK) {
 				dma_chan_put(chan);
+				chan->client_count--;
+			}
 		}
 
 	list_del(&client->global_node);
@@ -359,6 +375,10 @@ int dma_async_device_register(struct dma_device *device)
 		!device->device_prep_dma_memset);
 	BUG_ON(dma_has_cap(DMA_INTERRUPT, device->cap_mask) &&
 		!device->device_prep_dma_interrupt);
+	BUG_ON(dma_has_cap(DMA_SLAVE, device->cap_mask) &&
+		!device->device_prep_slave_sg);
+	BUG_ON(dma_has_cap(DMA_SLAVE, device->cap_mask) &&
+		!device->device_terminate_all);
 
 	BUG_ON(!device->device_alloc_chan_resources);
 	BUG_ON(!device->device_free_chan_resources);
@@ -378,7 +398,7 @@ int dma_async_device_register(struct dma_device *device)
 
 		chan->chan_id = chancnt++;
 		chan->dev.class = &dma_devclass;
-		chan->dev.parent = NULL;
+		chan->dev.parent = device->dev;
 		snprintf(chan->dev.bus_id, BUS_ID_SIZE, "dma%dchan%d",
 		         device->dev_id, chan->chan_id);
 
@@ -394,6 +414,7 @@ int dma_async_device_register(struct dma_device *device)
 		kref_get(&device->refcount);
 		kref_get(&device->refcount);
 		kref_init(&chan->refcount);
+		chan->client_count = 0;
 		chan->slow_ref = 0;
 		INIT_RCU_HEAD(&chan->rcu);
 	}

@@ -34,6 +34,7 @@
 /***
  * mutex_init - initialize the mutex
  * @lock: the mutex to be initialized
+ * @key: the lock_class_key for the class; used by mutex lock debugging
  *
  * Initialize the mutex to unlocked state.
  *

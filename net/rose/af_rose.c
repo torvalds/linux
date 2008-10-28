@@ -74,6 +74,20 @@ ax25_address rose_callsign;
  * separate class since they always nest.
  */
 static struct lock_class_key rose_netdev_xmit_lock_key;
+static struct lock_class_key rose_netdev_addr_lock_key;
+
+static void rose_set_lockdep_one(struct net_device *dev,
+				 struct netdev_queue *txq,
+				 void *_unused)
+{
+	lockdep_set_class(&txq->_xmit_lock, &rose_netdev_xmit_lock_key);
+}
+
+static void rose_set_lockdep_key(struct net_device *dev)
+{
+	lockdep_set_class(&dev->addr_list_lock, &rose_netdev_addr_lock_key);
+	netdev_for_each_tx_queue(dev, rose_set_lockdep_one, NULL);
+}
 
 /*
  *	Convert a ROSE address into text.
@@ -197,7 +211,7 @@ static int rose_device_event(struct notifier_block *this, unsigned long event,
 {
 	struct net_device *dev = (struct net_device *)ptr;
 
-	if (dev_net(dev) != &init_net)
+	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
 	if (event != NETDEV_DOWN)
@@ -566,13 +580,11 @@ static struct sock *rose_make_new(struct sock *osk)
 #endif
 
 	sk->sk_type     = osk->sk_type;
-	sk->sk_socket   = osk->sk_socket;
 	sk->sk_priority = osk->sk_priority;
 	sk->sk_protocol = osk->sk_protocol;
 	sk->sk_rcvbuf   = osk->sk_rcvbuf;
 	sk->sk_sndbuf   = osk->sk_sndbuf;
 	sk->sk_state    = TCP_ESTABLISHED;
-	sk->sk_sleep    = osk->sk_sleep;
 	sock_copy_flags(sk, osk);
 
 	init_timer(&rose->timer);
@@ -759,7 +771,7 @@ static int rose_connect(struct socket *sock, struct sockaddr *uaddr, int addr_le
 	sock->state = SS_UNCONNECTED;
 
 	rose->neighbour = rose_get_neigh(&addr->srose_addr, &cause,
-					 &diagnostic);
+					 &diagnostic, 0);
 	if (!rose->neighbour) {
 		err = -ENETUNREACH;
 		goto out_release;
@@ -855,7 +867,7 @@ rose_try_next_neigh:
 
 	if (sk->sk_state != TCP_ESTABLISHED) {
 	/* Try next neighbour */
-		rose->neighbour = rose_get_neigh(&addr->srose_addr, &cause, &diagnostic);
+		rose->neighbour = rose_get_neigh(&addr->srose_addr, &cause, &diagnostic, 0);
 		if (rose->neighbour)
 			goto rose_try_next_neigh;
 
@@ -924,14 +936,12 @@ static int rose_accept(struct socket *sock, struct socket *newsock, int flags)
 		goto out_release;
 
 	newsk = skb->sk;
-	newsk->sk_socket = newsock;
-	newsk->sk_sleep = &newsock->wait;
+	sock_graft(newsk, newsock);
 
 	/* Now attach up the new socket */
 	skb->sk = NULL;
 	kfree_skb(skb);
 	sk->sk_ack_backlog--;
-	newsock->sk = newsk;
 
 out_release:
 	release_sock(sk);
@@ -1580,7 +1590,7 @@ static int __init rose_proto_init(void)
 			free_netdev(dev);
 			goto fail;
 		}
-		lockdep_set_class(&dev->_xmit_lock, &rose_netdev_xmit_lock_key);
+		rose_set_lockdep_key(dev);
 		dev_rose[i] = dev;
 	}
 

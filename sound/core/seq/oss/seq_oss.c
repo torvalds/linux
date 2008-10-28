@@ -164,7 +164,8 @@ odev_read(struct file *file, char __user *buf, size_t count, loff_t *offset)
 {
 	struct seq_oss_devinfo *dp;
 	dp = file->private_data;
-	snd_assert(dp != NULL, return -EIO);
+	if (snd_BUG_ON(!dp))
+		return -ENXIO;
 	return snd_seq_oss_read(dp, buf, count);
 }
 
@@ -174,7 +175,8 @@ odev_write(struct file *file, const char __user *buf, size_t count, loff_t *offs
 {
 	struct seq_oss_devinfo *dp;
 	dp = file->private_data;
-	snd_assert(dp != NULL, return -EIO);
+	if (snd_BUG_ON(!dp))
+		return -ENXIO;
 	return snd_seq_oss_write(dp, buf, count, file);
 }
 
@@ -183,7 +185,8 @@ odev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct seq_oss_devinfo *dp;
 	dp = file->private_data;
-	snd_assert(dp != NULL, return -EIO);
+	if (snd_BUG_ON(!dp))
+		return -ENXIO;
 	return snd_seq_oss_ioctl(dp, cmd, arg);
 }
 
@@ -198,7 +201,8 @@ odev_poll(struct file *file, poll_table * wait)
 {
 	struct seq_oss_devinfo *dp;
 	dp = file->private_data;
-	snd_assert(dp != NULL, return 0);
+	if (snd_BUG_ON(!dp))
+		return -ENXIO;
 	return snd_seq_oss_poll(dp, file, wait);
 }
 

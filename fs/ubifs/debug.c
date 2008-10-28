@@ -222,30 +222,38 @@ void dbg_dump_inode(const struct ubifs_info *c, const struct inode *inode)
 {
 	const struct ubifs_inode *ui = ubifs_inode(inode);
 
-	printk(KERN_DEBUG "inode      %lu\n", inode->i_ino);
-	printk(KERN_DEBUG "size       %llu\n",
+	printk(KERN_DEBUG "Dump in-memory inode:");
+	printk(KERN_DEBUG "\tinode          %lu\n", inode->i_ino);
+	printk(KERN_DEBUG "\tsize           %llu\n",
 	       (unsigned long long)i_size_read(inode));
-	printk(KERN_DEBUG "nlink      %u\n", inode->i_nlink);
-	printk(KERN_DEBUG "uid        %u\n", (unsigned int)inode->i_uid);
-	printk(KERN_DEBUG "gid        %u\n", (unsigned int)inode->i_gid);
-	printk(KERN_DEBUG "atime      %u.%u\n",
+	printk(KERN_DEBUG "\tnlink          %u\n", inode->i_nlink);
+	printk(KERN_DEBUG "\tuid            %u\n", (unsigned int)inode->i_uid);
+	printk(KERN_DEBUG "\tgid            %u\n", (unsigned int)inode->i_gid);
+	printk(KERN_DEBUG "\tatime          %u.%u\n",
 	       (unsigned int)inode->i_atime.tv_sec,
 	       (unsigned int)inode->i_atime.tv_nsec);
-	printk(KERN_DEBUG "mtime      %u.%u\n",
+	printk(KERN_DEBUG "\tmtime          %u.%u\n",
 	       (unsigned int)inode->i_mtime.tv_sec,
 	       (unsigned int)inode->i_mtime.tv_nsec);
-	printk(KERN_DEBUG "ctime       %u.%u\n",
+	printk(KERN_DEBUG "\tctime          %u.%u\n",
 	       (unsigned int)inode->i_ctime.tv_sec,
 	       (unsigned int)inode->i_ctime.tv_nsec);
-	printk(KERN_DEBUG "creat_sqnum %llu\n", ui->creat_sqnum);
-	printk(KERN_DEBUG "xattr_size  %u\n", ui->xattr_size);
-	printk(KERN_DEBUG "xattr_cnt   %u\n", ui->xattr_cnt);
-	printk(KERN_DEBUG "xattr_names %u\n", ui->xattr_names);
-	printk(KERN_DEBUG "dirty       %u\n", ui->dirty);
-	printk(KERN_DEBUG "xattr       %u\n", ui->xattr);
-	printk(KERN_DEBUG "flags       %d\n", ui->flags);
-	printk(KERN_DEBUG "compr_type  %d\n", ui->compr_type);
-	printk(KERN_DEBUG "data_len    %d\n", ui->data_len);
+	printk(KERN_DEBUG "\tcreat_sqnum    %llu\n", ui->creat_sqnum);
+	printk(KERN_DEBUG "\txattr_size     %u\n", ui->xattr_size);
+	printk(KERN_DEBUG "\txattr_cnt      %u\n", ui->xattr_cnt);
+	printk(KERN_DEBUG "\txattr_names    %u\n", ui->xattr_names);
+	printk(KERN_DEBUG "\tdirty          %u\n", ui->dirty);
+	printk(KERN_DEBUG "\txattr          %u\n", ui->xattr);
+	printk(KERN_DEBUG "\tbulk_read      %u\n", ui->xattr);
+	printk(KERN_DEBUG "\tsynced_i_size  %llu\n",
+	       (unsigned long long)ui->synced_i_size);
+	printk(KERN_DEBUG "\tui_size        %llu\n",
+	       (unsigned long long)ui->ui_size);
+	printk(KERN_DEBUG "\tflags          %d\n", ui->flags);
+	printk(KERN_DEBUG "\tcompr_type     %d\n", ui->compr_type);
+	printk(KERN_DEBUG "\tlast_page_read %lu\n", ui->last_page_read);
+	printk(KERN_DEBUG "\tread_in_a_row  %lu\n", ui->read_in_a_row);
+	printk(KERN_DEBUG "\tdata_len       %d\n", ui->data_len);
 }
 
 void dbg_dump_node(const struct ubifs_info *c, const void *node)
@@ -538,7 +546,7 @@ void dbg_dump_node(const struct ubifs_info *c, const void *node)
 		printk(KERN_DEBUG "\t%d orphan inode numbers:\n", n);
 		for (i = 0; i < n; i++)
 			printk(KERN_DEBUG "\t  ino %llu\n",
-			       le64_to_cpu(orph->inos[i]));
+			       (unsigned long long)le64_to_cpu(orph->inos[i]));
 		break;
 	}
 	default:
@@ -568,8 +576,8 @@ void dbg_dump_budget_req(const struct ubifs_budget_req *req)
 void dbg_dump_lstats(const struct ubifs_lp_stats *lst)
 {
 	spin_lock(&dbg_lock);
-	printk(KERN_DEBUG "Lprops statistics: empty_lebs %d, idx_lebs  %d\n",
-	       lst->empty_lebs, lst->idx_lebs);
+	printk(KERN_DEBUG "(pid %d) Lprops statistics: empty_lebs %d, "
+	       "idx_lebs  %d\n", current->pid, lst->empty_lebs, lst->idx_lebs);
 	printk(KERN_DEBUG "\ttaken_empty_lebs %d, total_free %lld, "
 	       "total_dirty %lld\n", lst->taken_empty_lebs, lst->total_free,
 	       lst->total_dirty);
@@ -587,8 +595,8 @@ void dbg_dump_budg(struct ubifs_info *c)
 	struct ubifs_gced_idx_leb *idx_gc;
 
 	spin_lock(&dbg_lock);
-	printk(KERN_DEBUG "Budgeting info: budg_data_growth %lld, "
-	       "budg_dd_growth %lld, budg_idx_growth %lld\n",
+	printk(KERN_DEBUG "(pid %d) Budgeting info: budg_data_growth %lld, "
+	       "budg_dd_growth %lld, budg_idx_growth %lld\n", current->pid,
 	       c->budg_data_growth, c->budg_dd_growth, c->budg_idx_growth);
 	printk(KERN_DEBUG "\tdata budget sum %lld, total budget sum %lld, "
 	       "freeable_cnt %d\n", c->budg_data_growth + c->budg_dd_growth,
@@ -634,7 +642,7 @@ void dbg_dump_lprops(struct ubifs_info *c)
 	struct ubifs_lprops lp;
 	struct ubifs_lp_stats lst;
 
-	printk(KERN_DEBUG "Dumping LEB properties\n");
+	printk(KERN_DEBUG "(pid %d) Dumping LEB properties\n", current->pid);
 	ubifs_get_lp_stats(c, &lst);
 	dbg_dump_lstats(&lst);
 
@@ -647,6 +655,43 @@ void dbg_dump_lprops(struct ubifs_info *c)
 	}
 }
 
+void dbg_dump_lpt_info(struct ubifs_info *c)
+{
+	int i;
+
+	spin_lock(&dbg_lock);
+	printk(KERN_DEBUG "\tlpt_sz:        %lld\n", c->lpt_sz);
+	printk(KERN_DEBUG "\tpnode_sz:      %d\n", c->pnode_sz);
+	printk(KERN_DEBUG "\tnnode_sz:      %d\n", c->nnode_sz);
+	printk(KERN_DEBUG "\tltab_sz:       %d\n", c->ltab_sz);
+	printk(KERN_DEBUG "\tlsave_sz:      %d\n", c->lsave_sz);
+	printk(KERN_DEBUG "\tbig_lpt:       %d\n", c->big_lpt);
+	printk(KERN_DEBUG "\tlpt_hght:      %d\n", c->lpt_hght);
+	printk(KERN_DEBUG "\tpnode_cnt:     %d\n", c->pnode_cnt);
+	printk(KERN_DEBUG "\tnnode_cnt:     %d\n", c->nnode_cnt);
+	printk(KERN_DEBUG "\tdirty_pn_cnt:  %d\n", c->dirty_pn_cnt);
+	printk(KERN_DEBUG "\tdirty_nn_cnt:  %d\n", c->dirty_nn_cnt);
+	printk(KERN_DEBUG "\tlsave_cnt:     %d\n", c->lsave_cnt);
+	printk(KERN_DEBUG "\tspace_bits:    %d\n", c->space_bits);
+	printk(KERN_DEBUG "\tlpt_lnum_bits: %d\n", c->lpt_lnum_bits);
+	printk(KERN_DEBUG "\tlpt_offs_bits: %d\n", c->lpt_offs_bits);
+	printk(KERN_DEBUG "\tlpt_spc_bits:  %d\n", c->lpt_spc_bits);
+	printk(KERN_DEBUG "\tpcnt_bits:     %d\n", c->pcnt_bits);
+	printk(KERN_DEBUG "\tlnum_bits:     %d\n", c->lnum_bits);
+	printk(KERN_DEBUG "\tLPT root is at %d:%d\n", c->lpt_lnum, c->lpt_offs);
+	printk(KERN_DEBUG "\tLPT head is at %d:%d\n",
+	       c->nhead_lnum, c->nhead_offs);
+	printk(KERN_DEBUG "\tLPT ltab is at %d:%d\n", c->ltab_lnum, c->ltab_offs);
+	if (c->big_lpt)
+		printk(KERN_DEBUG "\tLPT lsave is at %d:%d\n",
+		       c->lsave_lnum, c->lsave_offs);
+	for (i = 0; i < c->lpt_lebs; i++)
+		printk(KERN_DEBUG "\tLPT LEB %d free %d dirty %d tgc %d "
+		       "cmt %d\n", i + c->lpt_first, c->ltab[i].free,
+		       c->ltab[i].dirty, c->ltab[i].tgc, c->ltab[i].cmt);
+	spin_unlock(&dbg_lock);
+}
+
 void dbg_dump_leb(const struct ubifs_info *c, int lnum)
 {
 	struct ubifs_scan_leb *sleb;
@@ -655,7 +700,7 @@ void dbg_dump_leb(const struct ubifs_info *c, int lnum)
 	if (dbg_failure_mode)
 		return;
 
-	printk(KERN_DEBUG "Dumping LEB %d\n", lnum);
+	printk(KERN_DEBUG "(pid %d) Dumping LEB %d\n", current->pid, lnum);
 
 	sleb = ubifs_scan(c, lnum, 0, c->dbg_buf);
 	if (IS_ERR(sleb)) {
@@ -720,8 +765,8 @@ void dbg_dump_heap(struct ubifs_info *c, struct ubifs_lpt_heap *heap, int cat)
 {
 	int i;
 
-	printk(KERN_DEBUG "Dumping heap cat %d (%d elements)\n",
-	       cat, heap->cnt);
+	printk(KERN_DEBUG "(pid %d) Dumping heap cat %d (%d elements)\n",
+	       current->pid, cat, heap->cnt);
 	for (i = 0; i < heap->cnt; i++) {
 		struct ubifs_lprops *lprops = heap->arr[i];
 
@@ -736,7 +781,7 @@ void dbg_dump_pnode(struct ubifs_info *c, struct ubifs_pnode *pnode,
 {
 	int i;
 
-	printk(KERN_DEBUG "Dumping pnode:\n");
+	printk(KERN_DEBUG "(pid %d) Dumping pnode:\n", current->pid);
 	printk(KERN_DEBUG "\taddress %zx parent %zx cnext %zx\n",
 	       (size_t)pnode, (size_t)parent, (size_t)pnode->cnext);
 	printk(KERN_DEBUG "\tflags %lu iip %d level %d num %d\n",
@@ -755,7 +800,7 @@ void dbg_dump_tnc(struct ubifs_info *c)
 	int level;
 
 	printk(KERN_DEBUG "\n");
-	printk(KERN_DEBUG "Dumping the TNC tree\n");
+	printk(KERN_DEBUG "(pid %d) Dumping the TNC tree\n", current->pid);
 	znode = ubifs_tnc_levelorder_next(c->zroot.znode, NULL);
 	level = znode->level;
 	printk(KERN_DEBUG "== Level %d ==\n", level);
@@ -2208,16 +2253,17 @@ int dbg_leb_read(struct ubi_volume_desc *desc, int lnum, char *buf, int offset,
 int dbg_leb_write(struct ubi_volume_desc *desc, int lnum, const void *buf,
 		  int offset, int len, int dtype)
 {
-	int err;
+	int err, failing;
 
 	if (in_failure_mode(desc))
 		return -EIO;
-	if (do_fail(desc, lnum, 1))
+	failing = do_fail(desc, lnum, 1);
+	if (failing)
 		cut_data(buf, len);
 	err = ubi_leb_write(desc, lnum, buf, offset, len, dtype);
 	if (err)
 		return err;
-	if (in_failure_mode(desc))
+	if (failing)
 		return -EIO;
 	return 0;
 }

@@ -143,8 +143,8 @@ static void o2net_sc_postpone_idle(struct o2net_sock_container *sc);
 static void o2net_sc_reset_idle_timer(struct o2net_sock_container *sc);
 
 #ifdef CONFIG_DEBUG_FS
-void o2net_init_nst(struct o2net_send_tracking *nst, u32 msgtype,
-		    u32 msgkey, struct task_struct *task, u8 node)
+static void o2net_init_nst(struct o2net_send_tracking *nst, u32 msgtype,
+			   u32 msgkey, struct task_struct *task, u8 node)
 {
 	INIT_LIST_HEAD(&nst->st_net_debug_item);
 	nst->st_task = task;
@@ -153,31 +153,61 @@ void o2net_init_nst(struct o2net_send_tracking *nst, u32 msgtype,
 	nst->st_node = node;
 }
 
-void o2net_set_nst_sock_time(struct o2net_send_tracking *nst)
+static void o2net_set_nst_sock_time(struct o2net_send_tracking *nst)
 {
 	do_gettimeofday(&nst->st_sock_time);
 }
 
-void o2net_set_nst_send_time(struct o2net_send_tracking *nst)
+static void o2net_set_nst_send_time(struct o2net_send_tracking *nst)
 {
 	do_gettimeofday(&nst->st_send_time);
 }
 
-void o2net_set_nst_status_time(struct o2net_send_tracking *nst)
+static void o2net_set_nst_status_time(struct o2net_send_tracking *nst)
 {
 	do_gettimeofday(&nst->st_status_time);
 }
 
-void o2net_set_nst_sock_container(struct o2net_send_tracking *nst,
+static void o2net_set_nst_sock_container(struct o2net_send_tracking *nst,
 					 struct o2net_sock_container *sc)
 {
 	nst->st_sc = sc;
 }
 
-void o2net_set_nst_msg_id(struct o2net_send_tracking *nst, u32 msg_id)
+static void o2net_set_nst_msg_id(struct o2net_send_tracking *nst, u32 msg_id)
 {
 	nst->st_id = msg_id;
 }
+
+#else  /* CONFIG_DEBUG_FS */
+
+static inline void o2net_init_nst(struct o2net_send_tracking *nst, u32 msgtype,
+				  u32 msgkey, struct task_struct *task, u8 node)
+{
+}
+
+static inline void o2net_set_nst_sock_time(struct o2net_send_tracking *nst)
+{
+}
+
+static inline void o2net_set_nst_send_time(struct o2net_send_tracking *nst)
+{
+}
+
+static inline void o2net_set_nst_status_time(struct o2net_send_tracking *nst)
+{
+}
+
+static inline void o2net_set_nst_sock_container(struct o2net_send_tracking *nst,
+						struct o2net_sock_container *sc)
+{
+}
+
+static inline void o2net_set_nst_msg_id(struct o2net_send_tracking *nst,
+					u32 msg_id)
+{
+}
+
 #endif /* CONFIG_DEBUG_FS */
 
 static inline int o2net_reconnect_delay(void)

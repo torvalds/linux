@@ -6,8 +6,9 @@
 # for more details.
 #
 
-
-CROSS_COMPILE    ?= bfin-uclinux-
+ifeq ($(CROSS_COMPILE),)
+CROSS_COMPILE    := bfin-uclinux-
+endif
 LDFLAGS_vmlinux  := -X
 OBJCOPYFLAGS     := -O binary -R .note -R .comment -S
 GZFLAGS          := -9
@@ -66,6 +67,7 @@ rev-$(CONFIG_BF_REV_0_2)  := 0.2
 rev-$(CONFIG_BF_REV_0_3)  := 0.3
 rev-$(CONFIG_BF_REV_0_4)  := 0.4
 rev-$(CONFIG_BF_REV_0_5)  := 0.5
+rev-$(CONFIG_BF_REV_0_6)  := 0.6
 rev-$(CONFIG_BF_REV_NONE) := none
 rev-$(CONFIG_BF_REV_ANY)  := any
 
@@ -97,35 +99,19 @@ libs-y   += arch/$(ARCH)/lib/
 
 drivers-$(CONFIG_OPROFILE) += arch/$(ARCH)/oprofile/
 
+machdirs	:= $(patsubst %,arch/blackfin/mach-%/, $(machine-y))
 
+KBUILD_CFLAGS += -Iarch/$(ARCH)/include/
+KBUILD_CFLAGS += -Iarch/$(ARCH)/mach-$(MACHINE)/include
 
-#	Update machine arch symlinks if something which affects
-#	them changed.  We use .mach to indicate when they were updated
-#	last, otherwise make uses the target directory mtime.
-
-       show_mach_symlink = :
- quiet_show_mach_symlink = echo '  SYMLINK include/asm-$(ARCH)/mach-$(MACHINE) -> include/asm-$(ARCH)/mach'
-silent_show_mach_symlink = :
-include/asm-blackfin/.mach: $(wildcard include/config/arch/*.h) include/config/auto.conf
-	@$($(quiet)show_mach_symlink)
-ifneq ($(KBUILD_SRC),)
-	$(Q)mkdir -p include/asm-$(ARCH)
-	$(Q)ln -fsn $(srctree)/include/asm-$(ARCH)/mach-$(MACHINE) include/asm-$(ARCH)/mach
-else
-	$(Q)ln -fsn mach-$(MACHINE) include/asm-$(ARCH)/mach
-endif
-	@touch $@
+KBUILD_CPPFLAGS	+= $(patsubst %,-I$(srctree)/%include,$(machdirs))
 
 CLEAN_FILES += \
-	include/asm-$(ARCH)/asm-offsets.h \
+	arch/$(ARCH)/include/asm/asm-offsets.h \
 	arch/$(ARCH)/kernel/asm-offsets.s \
-	include/asm-$(ARCH)/mach \
-	include/asm-$(ARCH)/.mach
 
-archprepare: include/asm-blackfin/.mach
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
-
 
 INSTALL_PATH ?= /tftpboot
 boot := arch/$(ARCH)/boot

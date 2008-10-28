@@ -51,7 +51,7 @@ processor_set_pstate (
 	retval = ia64_pal_set_pstate((u64)value);
 
 	if (retval) {
-		dprintk("Failed to set freq to 0x%x, with error 0x%x\n",
+		dprintk("Failed to set freq to 0x%x, with error 0x%lx\n",
 		        value, retval);
 		return -ENODEV;
 	}
@@ -74,7 +74,7 @@ processor_get_pstate (
 
 	if (retval)
 		dprintk("Failed to get current freq with "
-		        "error 0x%x, idx 0x%x\n", retval, *value);
+			"error 0x%lx, idx 0x%x\n", retval, *value);
 
 	return (int)retval;
 }

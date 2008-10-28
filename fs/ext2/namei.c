@@ -60,7 +60,7 @@ static struct dentry *ext2_lookup(struct inode * dir, struct dentry *dentry, str
 	if (dentry->d_name.len > EXT2_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	ino = ext2_inode_by_name(dir, dentry);
+	ino = ext2_inode_by_name(dir, &dentry->d_name);
 	inode = NULL;
 	if (ino) {
 		inode = ext2_iget(dir->i_sb, ino);
@@ -72,27 +72,11 @@ static struct dentry *ext2_lookup(struct inode * dir, struct dentry *dentry, str
 
 struct dentry *ext2_get_parent(struct dentry *child)
 {
-	unsigned long ino;
-	struct dentry *parent;
-	struct inode *inode;
-	struct dentry dotdot;
-
-	dotdot.d_name.name = "..";
-	dotdot.d_name.len = 2;
-
-	ino = ext2_inode_by_name(child->d_inode, &dotdot);
+	struct qstr dotdot = {.name = "..", .len = 2};
+	unsigned long ino = ext2_inode_by_name(child->d_inode, &dotdot);
 	if (!ino)
 		return ERR_PTR(-ENOENT);
-	inode = ext2_iget(child->d_inode->i_sb, ino);
-
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-	parent = d_alloc_anon(inode);
-	if (!parent) {
-		iput(inode);
-		parent = ERR_PTR(-ENOMEM);
-	}
-	return parent;
+	return d_obtain_alias(ext2_iget(child->d_inode->i_sb, ino));
 } 
 
 /*
@@ -257,7 +241,7 @@ static int ext2_unlink(struct inode * dir, struct dentry *dentry)
 	struct page * page;
 	int err = -ENOENT;
 
-	de = ext2_find_entry (dir, dentry, &page);
+	de = ext2_find_entry (dir, &dentry->d_name, &page);
 	if (!de)
 		goto out;
 
@@ -299,7 +283,7 @@ static int ext2_rename (struct inode * old_dir, struct dentry * old_dentry,
 	struct ext2_dir_entry_2 * old_de;
 	int err = -ENOENT;
 
-	old_de = ext2_find_entry (old_dir, old_dentry, &old_page);
+	old_de = ext2_find_entry (old_dir, &old_dentry->d_name, &old_page);
 	if (!old_de)
 		goto out;
 
@@ -319,7 +303,7 @@ static int ext2_rename (struct inode * old_dir, struct dentry * old_dentry,
 			goto out_dir;
 
 		err = -ENOENT;
-		new_de = ext2_find_entry (new_dir, new_dentry, &new_page);
+		new_de = ext2_find_entry (new_dir, &new_dentry->d_name, &new_page);
 		if (!new_de)
 			goto out_dir;
 		inode_inc_link_count(old_inode);

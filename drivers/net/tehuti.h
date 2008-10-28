@@ -27,7 +27,6 @@
 #include <linux/sched.h>
 #include <linux/tty.h>
 #include <linux/if_vlan.h>
-#include <linux/version.h>
 #include <linux/interrupt.h>
 #include <linux/vmalloc.h>
 #include <asm/byteorder.h>
@@ -309,6 +308,7 @@ struct rxf_desc {
 #define GET_RXD_PKT_ID(x)		GET_BITS_SHIFT((x), 3, 28)
 #define GET_RXD_VTAG(x)			GET_BITS_SHIFT((x), 1, 31)
 #define GET_RXD_VLAN_ID(x)		GET_BITS_SHIFT((x), 12, 0)
+#define GET_RXD_VLAN_TCI(x)		GET_BITS_SHIFT((x), 16, 0)
 #define GET_RXD_CFI(x)			GET_BITS_SHIFT((x), 1, 12)
 #define GET_RXD_PRIO(x)			GET_BITS_SHIFT((x), 3, 13)
 
@@ -539,22 +539,22 @@ struct txd_desc {
 
 #define ERR(fmt, args...) printk(KERN_ERR fmt, ## args)
 #define DBG2(fmt, args...)	\
-	printk(KERN_ERR  "%s:%-5d: " fmt, __FUNCTION__, __LINE__, ## args)
+	printk(KERN_ERR  "%s:%-5d: " fmt, __func__, __LINE__, ## args)
 
 #define BDX_ASSERT(x) BUG_ON(x)
 
 #ifdef DEBUG
 
 #define ENTER          do { \
-	printk(KERN_ERR  "%s:%-5d: ENTER\n", __FUNCTION__, __LINE__); \
+	printk(KERN_ERR  "%s:%-5d: ENTER\n", __func__, __LINE__); \
 } while (0)
 
 #define RET(args...)   do { \
-	printk(KERN_ERR  "%s:%-5d: RETURN\n", __FUNCTION__, __LINE__); \
+	printk(KERN_ERR  "%s:%-5d: RETURN\n", __func__, __LINE__); \
 return args; } while (0)
 
 #define DBG(fmt, args...)	\
-	printk(KERN_ERR  "%s:%-5d: " fmt, __FUNCTION__, __LINE__, ## args)
+	printk(KERN_ERR  "%s:%-5d: " fmt, __func__, __LINE__, ## args)
 #else
 #define ENTER         do {  } while (0)
 #define RET(args...)   return args

@@ -155,7 +155,7 @@ static struct dentry *get_xa_file_dentry(const struct inode *inode,
 	xadir = open_xa_dir(inode, flags);
 	if (IS_ERR(xadir)) {
 		return ERR_CAST(xadir);
-	} else if (xadir && !xadir->d_inode) {
+	} else if (!xadir->d_inode) {
 		dput(xadir);
 		return ERR_PTR(-ENODATA);
 	}
@@ -1250,7 +1250,7 @@ static int reiserfs_check_acl(struct inode *inode, int mask)
 	return error;
 }
 
-int reiserfs_permission(struct inode *inode, int mask, struct nameidata *nd)
+int reiserfs_permission(struct inode *inode, int mask)
 {
 	/*
 	 * We don't do permission checks on the internal objects.

@@ -138,7 +138,7 @@ static ssize_t
 show_ep_handle(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct iscsi_endpoint *ep = iscsi_dev_to_endpoint(dev);
-	return sprintf(buf, "%u\n", ep->id);
+	return sprintf(buf, "%llu\n", (unsigned long long) ep->id);
 }
 static ISCSI_ATTR(ep, handle, S_IRUGO, show_ep_handle, NULL);
 
@@ -156,7 +156,7 @@ static struct attribute_group iscsi_endpoint_group = {
 static int iscsi_match_epid(struct device *dev, void *data)
 {
 	struct iscsi_endpoint *ep = iscsi_dev_to_endpoint(dev);
-	unsigned int *epid = (unsigned int *) data;
+	uint64_t *epid = (uint64_t *) data;
 
 	return *epid == ep->id;
 }
@@ -166,11 +166,11 @@ iscsi_create_endpoint(int dd_size)
 {
 	struct device *dev;
 	struct iscsi_endpoint *ep;
-	unsigned int id;
+	uint64_t id;
 	int err;
 
 	for (id = 1; id < ISCSI_MAX_EPID; id++) {
-		dev = class_find_device(&iscsi_endpoint_class, &id,
+		dev = class_find_device(&iscsi_endpoint_class, NULL, &id,
 					iscsi_match_epid);
 		if (!dev)
 			break;
@@ -187,7 +187,8 @@ iscsi_create_endpoint(int dd_size)
 
 	ep->id = id;
 	ep->dev.class = &iscsi_endpoint_class;
-	snprintf(ep->dev.bus_id, BUS_ID_SIZE, "ep-%u", id);
+	snprintf(ep->dev.bus_id, BUS_ID_SIZE, "ep-%llu",
+		 (unsigned long long) id);
 	err = device_register(&ep->dev);
         if (err)
                 goto free_ep;
@@ -222,7 +223,7 @@ struct iscsi_endpoint *iscsi_lookup_endpoint(u64 handle)
 	struct iscsi_endpoint *ep;
 	struct device *dev;
 
-	dev = class_find_device(&iscsi_endpoint_class, &handle,
+	dev = class_find_device(&iscsi_endpoint_class, NULL, &handle,
 				iscsi_match_epid);
 	if (!dev)
 		return NULL;
@@ -247,8 +248,8 @@ static int iscsi_setup_host(struct transport_container *tc, struct device *dev,
 	atomic_set(&ihost->nr_scans, 0);
 	mutex_init(&ihost->mutex);
 
-	snprintf(ihost->scan_workq_name, KOBJ_NAME_LEN, "iscsi_scan_%d",
-		shost->host_no);
+	snprintf(ihost->scan_workq_name, sizeof(ihost->scan_workq_name),
+		 "iscsi_scan_%d", shost->host_no);
 	ihost->scan_workq = create_singlethread_workqueue(
 						ihost->scan_workq_name);
 	if (!ihost->scan_workq)
@@ -374,10 +375,10 @@ int iscsi_session_chkready(struct iscsi_cls_session *session)
 		err = 0;
 		break;
 	case ISCSI_SESSION_FAILED:
-		err = DID_IMM_RETRY << 16;
+		err = DID_TRANSPORT_DISRUPTED << 16;
 		break;
 	case ISCSI_SESSION_FREE:
-		err = DID_NO_CONNECT << 16;
+		err = DID_TRANSPORT_FAILFAST << 16;
 		break;
 	default:
 		err = DID_NO_CONNECT << 16;
@@ -1010,7 +1011,7 @@ int iscsi_recv_pdu(struct iscsi_cls_conn *conn, struct iscsi_hdr *hdr,
 
 	skb = alloc_skb(len, GFP_ATOMIC);
 	if (!skb) {
-		iscsi_conn_error(conn, ISCSI_ERR_CONN_FAILED);
+		iscsi_conn_error_event(conn, ISCSI_ERR_CONN_FAILED);
 		iscsi_cls_conn_printk(KERN_ERR, conn, "can not deliver "
 				      "control PDU: OOM\n");
 		return -ENOMEM;
@@ -1031,7 +1032,7 @@ int iscsi_recv_pdu(struct iscsi_cls_conn *conn, struct iscsi_hdr *hdr,
 }
 EXPORT_SYMBOL_GPL(iscsi_recv_pdu);
 
-void iscsi_conn_error(struct iscsi_cls_conn *conn, enum iscsi_err error)
+void iscsi_conn_error_event(struct iscsi_cls_conn *conn, enum iscsi_err error)
 {
 	struct nlmsghdr	*nlh;
 	struct sk_buff	*skb;
@@ -1063,7 +1064,7 @@ void iscsi_conn_error(struct iscsi_cls_conn *conn, enum iscsi_err error)
 	iscsi_cls_conn_printk(KERN_INFO, conn, "detected conn error (%d)\n",
 			      error);
 }
-EXPORT_SYMBOL_GPL(iscsi_conn_error);
+EXPORT_SYMBOL_GPL(iscsi_conn_error_event);
 
 static int
 iscsi_if_send_reply(int pid, int seq, int type, int done, int multi,
@@ -1361,7 +1362,7 @@ iscsi_tgt_dscvr(struct iscsi_transport *transport,
 		return -EINVAL;
 
 	shost = scsi_host_lookup(ev->u.tgt_dscvr.host_no);
-	if (IS_ERR(shost)) {
+	if (!shost) {
 		printk(KERN_ERR "target discovery could not find host no %u\n",
 		       ev->u.tgt_dscvr.host_no);
 		return -ENODEV;
@@ -1387,7 +1388,7 @@ iscsi_set_host_param(struct iscsi_transport *transport,
 		return -ENOSYS;
 
 	shost = scsi_host_lookup(ev->u.set_host_param.host_no);
-	if (IS_ERR(shost)) {
+	if (!shost) {
 		printk(KERN_ERR "set_host_param could not find host no %u\n",
 		       ev->u.set_host_param.host_no);
 		return -ENODEV;

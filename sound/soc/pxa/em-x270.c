@@ -9,7 +9,7 @@
  * Copyright 2005 Wolfson Microelectronics PLC.
  * Copyright 2005 Openedhand Ltd.
  *
- * Authors: Liam Girdwood <liam.girdwood@wolfsonmicro.com>
+ * Authors: Liam Girdwood <lrg@slimlogic.co.uk>
  *          Richard Purdie <richard@openedhand.com>
  *
  *  This program is free software; you can redistribute  it and/or modify it
@@ -30,9 +30,9 @@
 #include <sound/soc-dapm.h>
 
 #include <asm/mach-types.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/audio.h>
+#include <mach/pxa-regs.h>
+#include <mach/hardware.h>
+#include <mach/audio.h>
 
 #include "../codecs/wm9712.h"
 #include "pxa2xx-pcm.h"

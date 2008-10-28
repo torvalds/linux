@@ -85,21 +85,26 @@ device_initcall(sgio2audio_devinit);
 
 static __init int sgio2btns_devinit(void)
 {
-	struct platform_device *pd;
-	int ret;
-
-	pd = platform_device_alloc("sgio2btns", -1);
-	if (!pd)
-		return -ENOMEM;
-
-	ret = platform_device_add(pd);
-	if (ret)
-		platform_device_put(pd);
-
-	return ret;
+	return IS_ERR(platform_device_register_simple("sgibtns", -1, NULL, 0));
 }
 
 device_initcall(sgio2btns_devinit);
+
+static struct resource sgio2_cmos_rsrc[] = {
+	{
+		.start = 0x70,
+		.end   = 0x71,
+		.flags = IORESOURCE_IO
+	}
+};
+
+static __init int sgio2_cmos_devinit(void)
+{
+	return IS_ERR(platform_device_register_simple("rtc_cmos", -1,
+						      sgio2_cmos_rsrc, 1));
+}
+
+device_initcall(sgio2_cmos_devinit);
 
 MODULE_AUTHOR("Ralf Baechle <ralf@linux-mips.org>");
 MODULE_LICENSE("GPL");

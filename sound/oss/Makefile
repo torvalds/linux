@@ -10,7 +10,6 @@ obj-$(CONFIG_SOUND_OSS)		+= sound.o
 # Please leave it as is, cause the link order is significant !
 
 obj-$(CONFIG_SOUND_SH_DAC_AUDIO)	+= sh_dac_audio.o
-obj-$(CONFIG_SOUND_HAL2)	+= hal2.o
 obj-$(CONFIG_SOUND_AEDSP16)	+= aedsp16.o
 obj-$(CONFIG_SOUND_PSS)		+= pss.o ad1848.o mpu401.o
 obj-$(CONFIG_SOUND_TRIX)	+= trix.o ad1848.o sb_lib.o uart401.o
@@ -29,10 +28,7 @@ obj-$(CONFIG_SOUND_MSNDCLAS)	+= msnd.o msnd_classic.o
 obj-$(CONFIG_SOUND_MSNDPIN)	+= msnd.o msnd_pinnacle.o
 obj-$(CONFIG_SOUND_VWSND)	+= vwsnd.o
 obj-$(CONFIG_SOUND_AU1550_AC97)	+= au1550_ac97.o ac97_codec.o
-obj-$(CONFIG_SOUND_TRIDENT)	+= trident.o ac97_codec.o
 obj-$(CONFIG_SOUND_BCM_CS4297A)	+= swarm_cs4297a.o
-
-obj-$(CONFIG_SOUND_WM97XX)	+= ac97_plugin_wm97xx.o
 
 obj-$(CONFIG_DMASOUND)		+= dmasound/
 

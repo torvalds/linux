@@ -3,6 +3,7 @@ config MIPS
 	default y
 	select HAVE_IDE
 	select HAVE_OPROFILE
+	select HAVE_ARCH_KGDB
 	# Horrible source of confusion.  Die, die, die ...
 	select EMBEDDED
 	select RTC_LIB
@@ -34,7 +35,6 @@ config BASLER_EXCITE
 	select SYS_HAS_CPU_RM9000
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_KGDB
 	help
 	  The eXcite is a smart camera platform manufactured by
 	  Basler Vision Technologies AG.
@@ -52,6 +52,7 @@ config BCM47XX
 	select SSB
 	select SSB_DRIVER_MIPS
 	select SSB_DRIVER_EXTIF
+	select SSB_EMBEDDED
 	select SSB_PCICORE_HOSTMODE if PCI
 	select GENERIC_GPIO
 	select SYS_HAS_EARLY_PRINTK
@@ -211,6 +212,7 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_MIPS_CMP if BROKEN	# because SYNC_R4K is broken
 	select SYS_SUPPORTS_MULTITHREADING
 	select SYS_SUPPORTS_SMARTMIPS
 	help
@@ -280,7 +282,6 @@ config PMC_MSP
 	select SYS_HAS_CPU_MIPS32_R2
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_KGDB
 	select IRQ_CPU
 	select SERIAL_8250
 	select SERIAL_8250_CONSOLE
@@ -306,7 +307,6 @@ config PMC_YOSEMITE
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
-	select SYS_SUPPORTS_KGDB
 	select SYS_SUPPORTS_SMP
 	help
 	  Yosemite is an evaluation board for the RM9000x2 processor
@@ -330,6 +330,7 @@ config SGI_IP22
 	select SGI_HAS_DS1286
 	select SGI_HAS_I8042
 	select SGI_HAS_INDYDOG
+	select SGI_HAS_HAL2
 	select SGI_HAS_SEEQ
 	select SGI_HAS_WD93
 	select SGI_HAS_ZILOG
@@ -358,7 +359,6 @@ config SGI_IP27
 	select SYS_HAS_CPU_R10000
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_KGDB
 	select SYS_SUPPORTS_NUMA
 	select SYS_SUPPORTS_SMP
 	select GENERIC_HARDIRQS_NO__DO_IRQ
@@ -385,7 +385,6 @@ config SGI_IP28
 	select SGI_HAS_DS1286
 	select SGI_HAS_I8042
 	select SGI_HAS_INDYDOG
-	select SGI_HAS_HAL2
 	select SGI_HAS_HAL2
 	select SGI_HAS_SEEQ
 	select SGI_HAS_WD93
@@ -475,7 +474,6 @@ config SIBYTE_SWARM
 	select SYS_HAS_CPU_SB1
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
-	select SYS_SUPPORTS_KGDB
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select ZONE_DMA32 if 64BIT
 
@@ -558,6 +556,24 @@ config MACH_TX39XX
 config MACH_TX49XX
 	bool "Toshiba TX49 series based machines"
 
+config MIKROTIK_RB532
+	bool "Mikrotik RB532 boards"
+	select CEVT_R4K
+	select CSRC_R4K
+	select DMA_NONCOHERENT
+	select GENERIC_HARDIRQS_NO__DO_IRQ
+	select HW_HAS_PCI
+	select IRQ_CPU
+	select SYS_HAS_CPU_MIPS32_R1
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SWAP_IO_SPACE
+	select BOOT_RAW
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Support the Mikrotik(tm) RouterBoard 532 series,
+	  based on the IDT RC32434 SoC.
+
 config WR_PPMC
 	bool "Wind River PPMC board"
 	select CEVT_R4K
@@ -583,7 +599,7 @@ config WR_PPMC
 
 endchoice
 
-source "arch/mips/au1000/Kconfig"
+source "arch/mips/alchemy/Kconfig"
 source "arch/mips/basler/excite/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/lasat/Kconfig"
@@ -594,11 +610,6 @@ source "arch/mips/txx9/Kconfig"
 source "arch/mips/vr41xx/Kconfig"
 
 endmenu
-
-config GENERIC_LOCKBREAK
-	bool
-	default y
-	depends on SMP && PREEMPT
 
 config RWSEM_GENERIC_SPINLOCK
 	bool
@@ -695,7 +706,7 @@ config CSRC_SB1250
 
 config GPIO_TXX9
 	select GENERIC_GPIO
-	select HAVE_GPIO_LIB
+	select ARCH_REQUIRE_GPIOLIB
 	bool
 
 config CFE
@@ -850,7 +861,6 @@ config SOC_PNX8550
 	select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select GENERIC_HARDIRQS_NO__DO_IRQ
-	select SYS_SUPPORTS_KGDB
 	select GENERIC_GPIO
 
 config SWAP_IO_SPACE
@@ -899,7 +909,7 @@ config BOOT_ELF32
 
 config MIPS_L1_CACHE_SHIFT
 	int
-	default "4" if MACH_DECSTATION
+	default "4" if MACH_DECSTATION || MIKROTIK_RB532
 	default "7" if SGI_IP22 || SGI_IP27 || SGI_IP28 || SNI_RM
 	default "4" if PMC_MSP4200_EVAL
 	default "5"
@@ -1259,6 +1269,13 @@ config CPU_SUPPORTS_32BIT_KERNEL
 config CPU_SUPPORTS_64BIT_KERNEL
 	bool
 
+#
+# Set to y for ptrace access to watch registers.
+#
+config HARDWARE_WATCHPOINTS
+       bool
+       default y if CPU_MIPS32 || CPU_MIPS64
+
 menu "Kernel type"
 
 choice
@@ -1390,7 +1407,6 @@ config MIPS_MT_SMTC
 	depends on CPU_MIPS32_R2
 	#depends on CPU_MIPS64_R2		# once there is hardware ...
 	depends on SYS_SUPPORTS_MULTITHREADING
-	select GENERIC_CLOCKEVENTS_BROADCAST
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
 	select MIPS_MT
@@ -1438,32 +1454,17 @@ config MIPS_VPE_LOADER
 	  Includes a loader for loading an elf relocatable object
 	  onto another VPE and running it.
 
-config MIPS_MT_SMTC_INSTANT_REPLAY
-	bool "Low-latency Dispatch of Deferred SMTC IPIs"
-	depends on MIPS_MT_SMTC && !PREEMPT
-	default y
-	help
-	  SMTC pseudo-interrupts between TCs are deferred and queued
-	  if the target TC is interrupt-inhibited (IXMT). In the first
-	  SMTC prototypes, these queued IPIs were serviced on return
-	  to user mode, or on entry into the kernel idle loop. The
-	  INSTANT_REPLAY option dispatches them as part of local_irq_restore()
-	  processing, which adds runtime overhead (hence the option to turn
-	  it off), but ensures that IPIs are handled promptly even under
-	  heavy I/O interrupt load.
-
 config MIPS_MT_SMTC_IM_BACKSTOP
 	bool "Use per-TC register bits as backstop for inhibited IM bits"
 	depends on MIPS_MT_SMTC
-	default y
+	default n
 	help
 	  To support multiple TC microthreads acting as "CPUs" within
 	  a VPE, VPE-wide interrupt mask bits must be specially manipulated
 	  during interrupt handling. To support legacy drivers and interrupt
 	  controller management code, SMTC has a "backstop" to track and
 	  if necessary restore the interrupt mask. This has some performance
-	  impact on interrupt service overhead. Disable it only if you know
-	  what you are doing.
+	  impact on interrupt service overhead.
 
 config MIPS_MT_SMTC_IRQAFF
 	bool "Support IRQ affinity API"
@@ -1473,10 +1474,8 @@ config MIPS_MT_SMTC_IRQAFF
 	  Enables SMP IRQ affinity API (/proc/irq/*/smp_affinity, etc.)
 	  for SMTC Linux kernel. Requires platform support, of which
 	  an example can be found in the MIPS kernel i8259 and Malta
-	  platform code.  It is recommended that MIPS_MT_SMTC_INSTANT_REPLAY
-	  be enabled if MIPS_MT_SMTC_IRQAFF is used. Adds overhead to
-	  interrupt dispatch, and should be used only if you know what
-	  you are doing.
+	  platform code.  Adds some overhead to interrupt dispatch, and
+	  should be used only if you know what you are doing.
 
 config MIPS_VPE_LOADER_TOM
 	bool "Load VPE program into memory hidden from linux"
@@ -1503,6 +1502,18 @@ config MIPS_APSP_KSPD
 	  side, actions them and returns the results. It also handles the
 	  "exit" syscall notifying other kernel modules the SP program is
 	  exiting.  You probably want to say yes here.
+
+config MIPS_CMP
+	bool "MIPS CMP framework support"
+	depends on SYS_SUPPORTS_MIPS_CMP
+	select SYNC_R4K if BROKEN
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_SCHED_SMT if SMP
+	select WEAK_ORDERING
+	default n
+	help
+	  This is a placeholder option for the GCMP work. It will need to
+	  be handled differently...
 
 config SB1_PASS_1_WORKAROUNDS
 	bool
@@ -1680,6 +1691,9 @@ config SMP
 config SMP_UP
 	bool
 
+config SYS_SUPPORTS_MIPS_CMP
+	bool
+
 config SYS_SUPPORTS_SMP
 	bool
 
@@ -1726,17 +1740,6 @@ config NR_CPUS
 	  approximately eight kilobytes to the kernel image.  For best
 	  performance should round up your number of processors to the next
 	  power of two.
-
-config MIPS_CMP
-	bool "MIPS CMP framework support"
-	depends on SMP
-	select SYNC_R4K
-	select SYS_SUPPORTS_SCHED_SMT
-	select WEAK_ORDERING
-	default n
-	help
-	  This is a placeholder option for the GCMP work. It will need to
-	  be handled differently...
 
 source "kernel/time/Kconfig"
 
@@ -1872,6 +1875,17 @@ config STACKTRACE_SUPPORT
 	default y
 
 source "init/Kconfig"
+
+config PROBE_INITRD_HEADER
+	bool "Probe initrd header created by addinitrd"
+	depends on BLK_DEV_INITRD
+	help
+	  Probe initrd header at the last page of kernel image.
+	  Say Y here if you are using arch/mips/boot/addinitrd.c to
+	  add initrd or initramfs image to the kernel image.
+	  Otherwise, say N.
+
+source "kernel/Kconfig.freezer"
 
 menu "Bus options (PCI, PCMCIA, EISA, ISA, TC)"
 

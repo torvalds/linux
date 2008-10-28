@@ -1,7 +1,7 @@
 /*
  * Nvidia AGPGART routines.
  * Based upon a 2.4 agpgart diff by the folks from NVIDIA, and hacked up
- * to work in 2.5 by Dave Jones <davej@codemonkey.org.uk>
+ * to work in 2.5 by Dave Jones <davej@redhat.com>
  */
 
 #include <linux/module.h>
@@ -201,9 +201,14 @@ extern int agp_memory_reserved;
 static int nvidia_insert_memory(struct agp_memory *mem, off_t pg_start, int type)
 {
 	int i, j;
+	int mask_type;
 
-	if ((type != 0) || (mem->type != 0))
+	mask_type = agp_generic_type_to_mask_type(mem->bridge, type);
+	if (mask_type != 0 || type != mem->type)
 		return -EINVAL;
+
+	if (mem->page_count == 0)
+		return 0;
 
 	if ((pg_start + mem->page_count) >
 		(nvidia_private.num_active_entries - agp_memory_reserved/PAGE_SIZE))
@@ -220,10 +225,13 @@ static int nvidia_insert_memory(struct agp_memory *mem, off_t pg_start, int type
 	}
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
 		writel(agp_bridge->driver->mask_memory(agp_bridge,
-			mem->memory[i], mem->type),
+			mem->memory[i], mask_type),
 			agp_bridge->gatt_table+nvidia_private.pg_offset+j);
-		readl(agp_bridge->gatt_table+nvidia_private.pg_offset+j);	/* PCI Posting. */
 	}
+
+	/* PCI Posting. */
+	readl(agp_bridge->gatt_table+nvidia_private.pg_offset+j - 1);
+
 	agp_bridge->driver->tlb_flush(mem);
 	return 0;
 }
@@ -233,8 +241,14 @@ static int nvidia_remove_memory(struct agp_memory *mem, off_t pg_start, int type
 {
 	int i;
 
-	if ((type != 0) || (mem->type != 0))
+	int mask_type;
+
+	mask_type = agp_generic_type_to_mask_type(mem->bridge, type);
+	if (mask_type != 0 || type != mem->type)
 		return -EINVAL;
+
+	if (mem->page_count == 0)
+		return 0;
 
 	for (i = pg_start; i < (mem->page_count + pg_start); i++)
 		writel(agp_bridge->scratch_page, agp_bridge->gatt_table+nvidia_private.pg_offset+i);
@@ -312,7 +326,9 @@ static const struct agp_bridge_driver nvidia_driver = {
 	.alloc_by_type		= agp_generic_alloc_by_type,
 	.free_by_type		= agp_generic_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,
+	.agp_alloc_pages	= agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages	= agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 

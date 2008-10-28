@@ -19,15 +19,13 @@
 #include <linux/kallsyms.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/kprobes.h>
+#include <linux/uaccess.h>
 
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
 #include <asm/system.h>
-#include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/traps.h>
-#include <asm/io.h>
 
 #include "ptrace.h"
 #include "signal.h"
@@ -69,7 +67,8 @@ void dump_backtrace_entry(unsigned long where, unsigned long from, unsigned long
  */
 static int verify_stack(unsigned long sp)
 {
-	if (sp < PAGE_OFFSET || (sp > (unsigned long)high_memory && high_memory != 0))
+	if (sp < PAGE_OFFSET ||
+	    (sp > (unsigned long)high_memory && high_memory != NULL))
 		return -EFAULT;
 
 	return 0;
@@ -288,14 +287,28 @@ void unregister_undef_hook(struct undef_hook *hook)
 	spin_unlock_irqrestore(&undef_lock, flags);
 }
 
+static int call_undef_hook(struct pt_regs *regs, unsigned int instr)
+{
+	struct undef_hook *hook;
+	unsigned long flags;
+	int (*fn)(struct pt_regs *regs, unsigned int instr) = NULL;
+
+	spin_lock_irqsave(&undef_lock, flags);
+	list_for_each_entry(hook, &undef_hook, node)
+		if ((instr & hook->instr_mask) == hook->instr_val &&
+		    (regs->ARM_cpsr & hook->cpsr_mask) == hook->cpsr_val)
+			fn = hook->fn;
+	spin_unlock_irqrestore(&undef_lock, flags);
+
+	return fn ? fn(regs, instr) : 1;
+}
+
 asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 {
 	unsigned int correction = thumb_mode(regs) ? 2 : 4;
 	unsigned int instr;
-	struct undef_hook *hook;
 	siginfo_t info;
 	void __user *pc;
-	unsigned long flags;
 
 	/*
 	 * According to the ARM ARM, PC is 2 or 4 bytes ahead,
@@ -314,28 +327,8 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 		get_user(instr, (u32 __user *)pc);
 	}
 
-#ifdef CONFIG_KPROBES
-	/*
-	 * It is possible to have recursive kprobes, so we can't call
-	 * the kprobe trap handler with the undef_lock held.
-	 */
-	if (instr == KPROBE_BREAKPOINT_INSTRUCTION && !user_mode(regs)) {
-		kprobe_trap_handler(regs, instr);
+	if (call_undef_hook(regs, instr) == 0)
 		return;
-	}
-#endif
-
-	spin_lock_irqsave(&undef_lock, flags);
-	list_for_each_entry(hook, &undef_hook, node) {
-		if ((instr & hook->instr_mask) == hook->instr_val &&
-		    (regs->ARM_cpsr & hook->cpsr_mask) == hook->cpsr_val) {
-			if (hook->fn(regs, instr) == 0) {
-				spin_unlock_irqrestore(&undef_lock, flags);
-				return;
-			}
-		}
-	}
-	spin_unlock_irqrestore(&undef_lock, flags);
 
 #ifdef CONFIG_DEBUG_USER
 	if (user_debug & UDBG_UNDEFINED) {
@@ -707,6 +700,11 @@ void abort(void)
 EXPORT_SYMBOL(abort);
 
 void __init trap_init(void)
+{
+	return;
+}
+
+void __init early_trap_init(void)
 {
 	unsigned long vectors = CONFIG_VECTORS_BASE;
 	extern char __stubs_start[], __stubs_end[];

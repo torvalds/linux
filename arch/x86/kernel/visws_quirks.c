@@ -25,45 +25,31 @@
 #include <asm/visws/cobalt.h>
 #include <asm/visws/piix4.h>
 #include <asm/arch_hooks.h>
+#include <asm/io_apic.h>
 #include <asm/fixmap.h>
 #include <asm/reboot.h>
 #include <asm/setup.h>
 #include <asm/e820.h>
-#include <asm/smp.h>
 #include <asm/io.h>
 
 #include <mach_ipi.h>
 
 #include "mach_apic.h"
 
-#include <linux/init.h>
-#include <linux/smp.h>
-
 #include <linux/kernel_stat.h>
-#include <linux/interrupt.h>
-#include <linux/init.h>
 
-#include <asm/io.h>
-#include <asm/apic.h>
 #include <asm/i8259.h>
 #include <asm/irq_vectors.h>
-#include <asm/visws/cobalt.h>
 #include <asm/visws/lithium.h>
-#include <asm/visws/piix4.h>
 
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 
 extern int no_broadcast;
 
-#include <asm/io.h>
 #include <asm/apic.h>
-#include <asm/arch_hooks.h>
-#include <asm/visws/cobalt.h>
-#include <asm/visws/lithium.h>
 
 char visws_board_type	= -1;
 char visws_board_rev	= -1;
@@ -73,7 +59,7 @@ int is_visws_box(void)
 	return visws_board_type >= 0;
 }
 
-static int __init visws_time_init_quirk(void)
+static int __init visws_time_init(void)
 {
 	printk(KERN_INFO "Starting Cobalt Timer system clock\n");
 
@@ -93,7 +79,7 @@ static int __init visws_time_init_quirk(void)
 	return 0;
 }
 
-static int __init visws_pre_intr_init_quirk(void)
+static int __init visws_pre_intr_init(void)
 {
 	init_VISWS_APIC_irqs();
 
@@ -114,7 +100,7 @@ EXPORT_SYMBOL(sgivwfb_mem_size);
 
 long long mem_size __initdata = 0;
 
-static char * __init visws_memory_setup_quirk(void)
+static char * __init visws_memory_setup(void)
 {
 	long long gfx_mem_size = 8 * MB;
 
@@ -176,7 +162,7 @@ static void visws_machine_power_off(void)
 	outl(PIIX_SPECIAL_STOP, 0xCFC);
 }
 
-static int __init visws_get_smp_config_quirk(unsigned int early)
+static int __init visws_get_smp_config(unsigned int early)
 {
 	/*
 	 * Prevent MP-table parsing by the generic code:
@@ -184,15 +170,13 @@ static int __init visws_get_smp_config_quirk(unsigned int early)
 	return 1;
 }
 
-extern unsigned int __cpuinitdata maxcpus;
-
 /*
  * The Visual Workstation is Intel MP compliant in the hardware
  * sense, but it doesn't have a BIOS(-configuration table).
  * No problem for Linux.
  */
 
-static void __init MP_processor_info (struct mpc_config_processor *m)
+static void __init MP_processor_info(struct mpc_config_processor *m)
 {
 	int ver, logical_apicid;
 	physid_mask_t apic_cpus;
@@ -232,7 +216,7 @@ static void __init MP_processor_info (struct mpc_config_processor *m)
 	apic_version[m->mpc_apicid] = ver;
 }
 
-int __init visws_find_smp_config_quirk(unsigned int reserve)
+static int __init visws_find_smp_config(unsigned int reserve)
 {
 	struct mpc_config_processor *mp = phys_to_virt(CO_CPU_TAB_PHYS);
 	unsigned short ncpus = readw(phys_to_virt(CO_CPU_NUM_PHYS));
@@ -244,8 +228,8 @@ int __init visws_find_smp_config_quirk(unsigned int reserve)
 		ncpus = CO_CPU_MAX;
 	}
 
-	if (ncpus > maxcpus)
-		ncpus = maxcpus;
+	if (ncpus > setup_max_cpus)
+		ncpus = setup_max_cpus;
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	smp_found_config = 1;
@@ -258,7 +242,17 @@ int __init visws_find_smp_config_quirk(unsigned int reserve)
 	return 1;
 }
 
-extern int visws_trap_init_quirk(void);
+static int visws_trap_init(void);
+
+static struct x86_quirks visws_x86_quirks __initdata = {
+	.arch_time_init		= visws_time_init,
+	.arch_pre_intr_init	= visws_pre_intr_init,
+	.arch_memory_setup	= visws_memory_setup,
+	.arch_intr_init		= NULL,
+	.arch_trap_init		= visws_trap_init,
+	.mach_get_smp_config	= visws_get_smp_config,
+	.mach_find_smp_config	= visws_find_smp_config,
+};
 
 void __init visws_early_detect(void)
 {
@@ -272,16 +266,10 @@ void __init visws_early_detect(void)
 
 	/*
 	 * Install special quirks for timer, interrupt and memory setup:
-	 */
-	arch_time_init_quirk		= visws_time_init_quirk;
-	arch_pre_intr_init_quirk	= visws_pre_intr_init_quirk;
-	arch_memory_setup_quirk		= visws_memory_setup_quirk;
-
-	/*
 	 * Fall back to generic behavior for traps:
+	 * Override generic MP-table parsing:
 	 */
-	arch_intr_init_quirk		= NULL;
-	arch_trap_init_quirk		= visws_trap_init_quirk;
+	x86_quirks = &visws_x86_quirks;
 
 	/*
 	 * Install reboot quirks:
@@ -293,12 +281,6 @@ void __init visws_early_detect(void)
 	 * Do not use broadcast IPIs:
 	 */
 	no_broadcast = 0;
-
-	/*
-	 * Override generic MP-table parsing:
-	 */
-	mach_get_smp_config_quirk	= visws_get_smp_config_quirk;
-	mach_find_smp_config_quirk	= visws_find_smp_config_quirk;
 
 #ifdef CONFIG_X86_IO_APIC
 	/*
@@ -426,7 +408,7 @@ static __init void cobalt_init(void)
 		co_apic_read(CO_APIC_ID));
 }
 
-int __init visws_trap_init_quirk(void)
+static int __init visws_trap_init(void)
 {
 	lithium_init();
 	cobalt_init();
@@ -502,10 +484,11 @@ static void disable_cobalt_irq(unsigned int irq)
 static unsigned int startup_cobalt_irq(unsigned int irq)
 {
 	unsigned long flags;
+	struct irq_desc *desc = irq_to_desc(irq);
 
 	spin_lock_irqsave(&cobalt_lock, flags);
-	if ((irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS | IRQ_WAITING)))
-		irq_desc[irq].status &= ~(IRQ_DISABLED | IRQ_INPROGRESS | IRQ_WAITING);
+	if ((desc->status & (IRQ_DISABLED | IRQ_INPROGRESS | IRQ_WAITING)))
+		desc->status &= ~(IRQ_DISABLED | IRQ_INPROGRESS | IRQ_WAITING);
 	enable_cobalt_irq(irq);
 	spin_unlock_irqrestore(&cobalt_lock, flags);
 	return 0;
@@ -524,9 +507,10 @@ static void ack_cobalt_irq(unsigned int irq)
 static void end_cobalt_irq(unsigned int irq)
 {
 	unsigned long flags;
+	struct irq_desc *desc = irq_to_desc(irq);
 
 	spin_lock_irqsave(&cobalt_lock, flags);
-	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
+	if (!(desc->status & (IRQ_DISABLED | IRQ_INPROGRESS)))
 		enable_cobalt_irq(irq);
 	spin_unlock_irqrestore(&cobalt_lock, flags);
 }
@@ -644,12 +628,12 @@ static irqreturn_t piix4_master_intr(int irq, void *dev_id)
 
 	spin_unlock_irqrestore(&i8259A_lock, flags);
 
-	desc = irq_desc + realirq;
+	desc = irq_to_desc(realirq);
 
 	/*
 	 * handle this 'virtual interrupt' as a Cobalt one now.
 	 */
-	kstat_cpu(smp_processor_id()).irqs[realirq]++;
+	kstat_incr_irqs_this_cpu(realirq, desc);
 
 	if (likely(desc->action != NULL))
 		handle_IRQ_event(realirq, desc->action);
@@ -680,27 +664,29 @@ void init_VISWS_APIC_irqs(void)
 	int i;
 
 	for (i = 0; i < CO_IRQ_APIC0 + CO_APIC_LAST + 1; i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].action = 0;
-		irq_desc[i].depth = 1;
+		struct irq_desc *desc = irq_to_desc(i);
+
+		desc->status = IRQ_DISABLED;
+		desc->action = 0;
+		desc->depth = 1;
 
 		if (i == 0) {
-			irq_desc[i].chip = &cobalt_irq_type;
+			desc->chip = &cobalt_irq_type;
 		}
 		else if (i == CO_IRQ_IDE0) {
-			irq_desc[i].chip = &cobalt_irq_type;
+			desc->chip = &cobalt_irq_type;
 		}
 		else if (i == CO_IRQ_IDE1) {
-			irq_desc[i].chip = &cobalt_irq_type;
+			desc->chip = &cobalt_irq_type;
 		}
 		else if (i == CO_IRQ_8259) {
-			irq_desc[i].chip = &piix4_master_irq_type;
+			desc->chip = &piix4_master_irq_type;
 		}
 		else if (i < CO_IRQ_APIC0) {
-			irq_desc[i].chip = &piix4_virtual_irq_type;
+			desc->chip = &piix4_virtual_irq_type;
 		}
 		else if (IS_CO_APIC(i)) {
-			irq_desc[i].chip = &cobalt_irq_type;
+			desc->chip = &cobalt_irq_type;
 		}
 	}
 

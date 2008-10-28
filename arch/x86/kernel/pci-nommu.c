@@ -7,14 +7,14 @@
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
 
-#include <asm/gart.h>
+#include <asm/iommu.h>
 #include <asm/processor.h>
 #include <asm/dma.h>
 
 static int
 check_addr(char *name, struct device *hwdev, dma_addr_t bus, size_t size)
 {
-	if (hwdev && bus + size > *hwdev->dma_mask) {
+	if (hwdev && !is_buffer_dma_capable(*hwdev->dma_mask, bus, size)) {
 		if (*hwdev->dma_mask >= DMA_32BIT_MASK)
 			printk(KERN_ERR
 			    "nommu_%s: overflow %Lx+%zu of device mask %Lx\n",
@@ -72,21 +72,17 @@ static int nommu_map_sg(struct device *hwdev, struct scatterlist *sg,
 	return nents;
 }
 
-/* Make sure we keep the same behaviour */
-static int nommu_mapping_error(dma_addr_t dma_addr)
+static void nommu_free_coherent(struct device *dev, size_t size, void *vaddr,
+				dma_addr_t dma_addr)
 {
-#ifdef CONFIG_X86_32
-	return 0;
-#else
-	return (dma_addr == bad_dma_address);
-#endif
+	free_pages((unsigned long)vaddr, get_order(size));
 }
 
-
-const struct dma_mapping_ops nommu_dma_ops = {
+struct dma_mapping_ops nommu_dma_ops = {
+	.alloc_coherent = dma_generic_alloc_coherent,
+	.free_coherent = nommu_free_coherent,
 	.map_single = nommu_map_single,
 	.map_sg = nommu_map_sg,
-	.mapping_error = nommu_mapping_error,
 	.is_phys = 1,
 };
 

@@ -18,6 +18,8 @@
 #include <linux/pagemap.h>
 #include <linux/seq_file.h>
 #include <linux/version.h>
+#include <linux/blkdev.h>
+#include <linux/marker.h>
 #include "ext4_jbd2.h"
 #include "ext4.h"
 #include "group.h"
@@ -98,23 +100,29 @@
 
 static struct kmem_cache *ext4_pspace_cachep;
 static struct kmem_cache *ext4_ac_cachep;
+static struct kmem_cache *ext4_free_ext_cachep;
 
-#ifdef EXT4_BB_MAX_BLOCKS
-#undef EXT4_BB_MAX_BLOCKS
-#endif
-#define EXT4_BB_MAX_BLOCKS	30
+struct ext4_free_data {
+	/* this links the free block information from group_info */
+	struct rb_node node;
 
-struct ext4_free_metadata {
-	ext4_group_t group;
-	unsigned short num;
-	ext4_grpblk_t  blocks[EXT4_BB_MAX_BLOCKS];
+	/* this links the free block information from ext4_sb_info */
 	struct list_head list;
+
+	/* group which free block extent belongs */
+	ext4_group_t group;
+
+	/* free block extent */
+	ext4_grpblk_t start_blk;
+	ext4_grpblk_t count;
+
+	/* transaction which freed this extent */
+	tid_t	t_tid;
 };
 
 struct ext4_group_info {
 	unsigned long	bb_state;
-	unsigned long	bb_tid;
-	struct ext4_free_metadata *bb_md_cur;
+	struct rb_root  bb_free_root;
 	unsigned short	bb_first_free;
 	unsigned short	bb_free;
 	unsigned short	bb_fragments;
@@ -164,11 +172,17 @@ struct ext4_free_extent {
  * Locality group:
  *   we try to group all related changes together
  *   so that writeback can flush/allocate them together as well
+ *   Size of lg_prealloc_list hash is determined by MB_DEFAULT_GROUP_PREALLOC
+ *   (512). We store prealloc space into the hash based on the pa_free blocks
+ *   order value.ie, fls(pa_free)-1;
  */
+#define PREALLOC_TB_SIZE 10
 struct ext4_locality_group {
 	/* for allocator */
-	struct mutex		lg_mutex;	/* to serialize allocates */
-	struct list_head	lg_prealloc_list;/* list of preallocations */
+	/* to serialize allocates */
+	struct mutex		lg_mutex;
+	/* list of preallocations */
+	struct list_head	lg_prealloc_list[PREALLOC_TB_SIZE];
 	spinlock_t		lg_prealloc_lock;
 };
 
@@ -251,13 +265,10 @@ static void ext4_mb_store_history(struct ext4_allocation_context *ac);
 
 #define in_range(b, first, len)	((b) >= (first) && (b) <= (first) + (len) - 1)
 
-static struct proc_dir_entry *proc_root_ext4;
 struct buffer_head *read_block_bitmap(struct super_block *, ext4_group_t);
 
 static void ext4_mb_generate_from_pa(struct super_block *sb, void *bitmap,
 					ext4_group_t group);
-static void ext4_mb_poll_new_transaction(struct super_block *, handle_t *);
-static void ext4_mb_free_committed_blocks(struct super_block *);
 static void ext4_mb_return_to_preallocation(struct inode *inode,
 					struct ext4_buddy *e4b, sector_t block,
 					int count);
@@ -265,6 +276,7 @@ static void ext4_mb_put_pa(struct ext4_allocation_context *,
 			struct super_block *, struct ext4_prealloc_space *pa);
 static int ext4_mb_init_per_dev_proc(struct super_block *sb);
 static int ext4_mb_destroy_per_dev_proc(struct super_block *sb);
+static void release_blocks_on_commit(journal_t *journal, transaction_t *txn);
 
 
 static inline void ext4_lock_group(struct super_block *sb, ext4_group_t group)

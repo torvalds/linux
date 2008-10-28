@@ -516,10 +516,12 @@ static int __devinit uvesafb_vbe_getmodes(struct uvesafb_ktask *task,
 
 		err = uvesafb_exec(task);
 		if (err || (task->t.regs.eax & 0xffff) != 0x004f) {
-			printk(KERN_ERR "uvesafb: Getting mode info block "
+			printk(KERN_WARNING "uvesafb: Getting mode info block "
 				"for mode 0x%x failed (eax=0x%x, err=%d)\n",
 				*mode, (u32)task->t.regs.eax, err);
-			return -EINVAL;
+			mode++;
+			par->vbe_modes_cnt--;
+			continue;
 		}
 
 		mib = task->buf;
@@ -548,7 +550,10 @@ static int __devinit uvesafb_vbe_getmodes(struct uvesafb_ktask *task,
 			mib->depth = mib->bits_per_pixel;
 	}
 
-	return 0;
+	if (par->vbe_modes_cnt > 0)
+		return 0;
+	else
+		return -EINVAL;
 }
 
 /*
@@ -2054,8 +2059,8 @@ MODULE_PARM_DESC(maxhf,
 module_param(maxvf, ushort, 0);
 MODULE_PARM_DESC(maxvf,
 	"Maximum vertical frequency [Hz], overrides EDID data");
-module_param_named(mode, mode_option, charp, 0);
-MODULE_PARM_DESC(mode,
+module_param(mode_option, charp, 0);
+MODULE_PARM_DESC(mode_option,
 	"Specify initial video mode as \"<xres>x<yres>[-<bpp>][@<refresh>]\"");
 module_param(vbemode, ushort, 0);
 MODULE_PARM_DESC(vbemode,

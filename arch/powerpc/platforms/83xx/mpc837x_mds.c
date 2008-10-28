@@ -19,6 +19,7 @@
 #include <asm/ipic.h>
 #include <asm/udbg.h>
 #include <asm/prom.h>
+#include <sysdev/fsl_pci.h>
 
 #include "mpc83xx.h"
 
@@ -84,8 +85,14 @@ static void __init mpc837x_mds_setup_arch(void)
 		ppc_md.progress("mpc837x_mds_setup_arch()", 0);
 
 #ifdef CONFIG_PCI
-	for_each_compatible_node(np, "pci", "fsl,mpc8349-pci")
+	for_each_compatible_node(np, "pci", "fsl,mpc8349-pci") {
+		if (!of_device_is_available(np)) {
+			pr_warning("%s: disabled by the firmware.\n",
+				   np->full_name);
+			continue;
+		}
 		mpc83xx_add_bridge(np);
+	}
 #endif
 	mpc837xmds_usb_cfg();
 }

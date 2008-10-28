@@ -18,31 +18,16 @@
 #include <linux/msi.h>
 #include <linux/irq.h>
 #include <linux/init.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/irq.h>
-#include <asm/ebus.h>
 #include <asm/prom.h>
 #include <asm/apb.h>
 
 #include "pci_impl.h"
-
-#ifndef CONFIG_PCI
-/* A "nop" PCI implementation. */
-asmlinkage int sys_pciconfig_read(unsigned long bus, unsigned long dfn,
-				  unsigned long off, unsigned long len,
-				  unsigned char *buf)
-{
-	return 0;
-}
-asmlinkage int sys_pciconfig_write(unsigned long bus, unsigned long dfn,
-				   unsigned long off, unsigned long len,
-				   unsigned char *buf)
-{
-	return 0;
-}
-#else
 
 /* List of all PCI controllers found in the system. */
 struct pci_pbm_info *pci_pbm_root = NULL;
@@ -179,97 +164,6 @@ void pci_config_write32(u32 *addr, u32 val)
 	spin_unlock_irqrestore(&pci_poke_lock, flags);
 }
 
-/* Probe for all PCI controllers in the system. */
-extern void sabre_init(struct device_node *, const char *);
-extern void psycho_init(struct device_node *, const char *);
-extern void schizo_init(struct device_node *, const char *);
-extern void schizo_plus_init(struct device_node *, const char *);
-extern void tomatillo_init(struct device_node *, const char *);
-extern void sun4v_pci_init(struct device_node *, const char *);
-extern void fire_pci_init(struct device_node *, const char *);
-
-static struct {
-	char *model_name;
-	void (*init)(struct device_node *, const char *);
-} pci_controller_table[] __initdata = {
-	{ "SUNW,sabre", sabre_init },
-	{ "pci108e,a000", sabre_init },
-	{ "pci108e,a001", sabre_init },
-	{ "SUNW,psycho", psycho_init },
-	{ "pci108e,8000", psycho_init },
-	{ "SUNW,schizo", schizo_init },
-	{ "pci108e,8001", schizo_init },
-	{ "SUNW,schizo+", schizo_plus_init },
-	{ "pci108e,8002", schizo_plus_init },
-	{ "SUNW,tomatillo", tomatillo_init },
-	{ "pci108e,a801", tomatillo_init },
-	{ "SUNW,sun4v-pci", sun4v_pci_init },
-	{ "pciex108e,80f0", fire_pci_init },
-};
-#define PCI_NUM_CONTROLLER_TYPES	ARRAY_SIZE(pci_controller_table)
-
-static int __init pci_controller_init(const char *model_name, int namelen, struct device_node *dp)
-{
-	int i;
-
-	for (i = 0; i < PCI_NUM_CONTROLLER_TYPES; i++) {
-		if (!strncmp(model_name,
-			     pci_controller_table[i].model_name,
-			     namelen)) {
-			pci_controller_table[i].init(dp, model_name);
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
-static int __init pci_controller_scan(int (*handler)(const char *, int, struct device_node *))
-{
-	struct device_node *dp;
-	int count = 0;
-
-	for_each_node_by_name(dp, "pci") {
-		struct property *prop;
-		int len;
-
-		prop = of_find_property(dp, "model", &len);
-		if (!prop)
-			prop = of_find_property(dp, "compatible", &len);
-
-		if (prop) {
-			const char *model = prop->value;
-			int item_len = 0;
-
-			/* Our value may be a multi-valued string in the
-			 * case of some compatible properties. For sanity,
-			 * only try the first one.
-			 */
-			while (model[item_len] && len) {
-				len--;
-				item_len++;
-			}
-
-			if (handler(model, item_len, dp))
-				count++;
-		}
-	}
-
-	return count;
-}
-
-/* Find each controller in the system, attach and initialize
- * software state structure for each and link into the
- * pci_pbm_root.  Setup the controller enough such
- * that bus scanning can be done.
- */
-static void __init pci_controller_probe(void)
-{
-	printk("PCI: Probing for controllers.\n");
-
-	pci_controller_scan(pci_controller_init);
-}
-
 static int ofpci_verbose;
 
 static int __init ofpci_debug(char *str)
@@ -348,11 +242,12 @@ static void pci_parse_of_addrs(struct of_device *op,
 	}
 }
 
-struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
-				  struct device_node *node,
-				  struct pci_bus *bus, int devfn)
+static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
+					 struct device_node *node,
+					 struct pci_bus *bus, int devfn)
 {
 	struct dev_archdata *sd;
+	struct of_device *op;
 	struct pci_dev *dev;
 	const char *type;
 	u32 class;
@@ -366,13 +261,16 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	sd->stc = &pbm->stc;
 	sd->host_controller = pbm;
 	sd->prom_node = node;
-	sd->op = of_find_device_by_node(node);
+	sd->op = op = of_find_device_by_node(node);
 	sd->numa_node = pbm->numa_node;
 
-	sd = &sd->op->dev.archdata;
+	sd = &op->dev.archdata;
 	sd->iommu = pbm->iommu;
 	sd->stc = &pbm->stc;
 	sd->numa_node = pbm->numa_node;
+
+	if (!strcmp(node->name, "ebus"))
+		of_propagate_archdata(op);
 
 	type = of_get_property(node, "device_type", NULL);
 	if (type == NULL)
@@ -408,7 +306,7 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	dev->class = class >> 8;
 	dev->revision = class & 0xff;
 
-	sprintf(dev->dev.bus_id, "%04x:%02x:%02x.%d", pci_domain_nr(bus),
+	dev_set_name(&dev->dev, "%04x:%02x:%02x.%d", pci_domain_nr(bus),
 		dev->bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn));
 
 	if (ofpci_verbose)
@@ -425,7 +323,7 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	dev->current_state = 4;		/* unknown power state */
 	dev->error_state = pci_channel_io_normal;
 
-	if (!strcmp(type, "pci") || !strcmp(type, "pciex")) {
+	if (!strcmp(node->name, "pci")) {
 		/* a PCI-PCI bridge */
 		dev->hdr_type = PCI_HEADER_TYPE_BRIDGE;
 		dev->rom_base_reg = PCI_ROM_ADDRESS1;
@@ -775,15 +673,15 @@ static void __devinit pci_bus_register_of_sysfs(struct pci_bus *bus)
 		pci_bus_register_of_sysfs(child_bus);
 }
 
-struct pci_bus * __devinit pci_scan_one_pbm(struct pci_pbm_info *pbm)
+struct pci_bus * __devinit pci_scan_one_pbm(struct pci_pbm_info *pbm,
+					    struct device *parent)
 {
-	struct device_node *node = pbm->prom_node;
+	struct device_node *node = pbm->op->node;
 	struct pci_bus *bus;
 
 	printk("PCI: Scanning PBM %s\n", node->full_name);
 
-	/* XXX parent device? XXX */
-	bus = pci_create_bus(NULL, pbm->pci_first_busno, pbm->pci_ops, pbm);
+	bus = pci_create_bus(parent, pbm->pci_first_busno, pbm->pci_ops, pbm);
 	if (!bus) {
 		printk(KERN_ERR "Failed to create bus for %s\n",
 		       node->full_name);
@@ -801,32 +699,6 @@ struct pci_bus * __devinit pci_scan_one_pbm(struct pci_pbm_info *pbm)
 
 	return bus;
 }
-
-static void __init pci_scan_each_controller_bus(void)
-{
-	struct pci_pbm_info *pbm;
-
-	for (pbm = pci_pbm_root; pbm; pbm = pbm->next)
-		pbm->scan_bus(pbm);
-}
-
-extern void power_init(void);
-
-static int __init pcibios_init(void)
-{
-	pci_controller_probe();
-	if (pci_pbm_root == NULL)
-		return 0;
-
-	pci_scan_each_controller_bus();
-
-	ebus_init();
-	power_init();
-
-	return 0;
-}
-
-subsys_initcall(pcibios_init);
 
 void __devinit pcibios_fixup_bus(struct pci_bus *pbus)
 {
@@ -1105,14 +977,14 @@ int pcibus_to_node(struct pci_bus *pbus)
 EXPORT_SYMBOL(pcibus_to_node);
 #endif
 
-/* Return the domain nuber for this pci bus */
+/* Return the domain number for this pci bus */
 
 int pci_domain_nr(struct pci_bus *pbus)
 {
 	struct pci_pbm_info *pbm = pbus->sysdata;
 	int ret;
 
-	if (pbm == NULL || pbm->parent == NULL) {
+	if (!pbm) {
 		ret = -ENXIO;
 	} else {
 		ret = pbm->index;
@@ -1126,7 +998,7 @@ EXPORT_SYMBOL(pci_domain_nr);
 int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 {
 	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
-	int virt_irq;
+	unsigned int virt_irq;
 
 	if (!pbm->setup_msi_irq)
 		return -EINVAL;
@@ -1140,10 +1012,8 @@ void arch_teardown_msi_irq(unsigned int virt_irq)
 	struct pci_dev *pdev = entry->dev;
 	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
 
-	if (!pbm->teardown_msi_irq)
-		return;
-
-	return pbm->teardown_msi_irq(virt_irq, pdev);
+	if (pbm->teardown_msi_irq)
+		pbm->teardown_msi_irq(virt_irq, pdev);
 }
 #endif /* !(CONFIG_PCI_MSI) */
 
@@ -1215,5 +1085,3 @@ void pci_resource_to_user(const struct pci_dev *pdev, int bar,
 	*start = rp->start - offset;
 	*end = rp->end - offset;
 }
-
-#endif /* !(CONFIG_PCI) */

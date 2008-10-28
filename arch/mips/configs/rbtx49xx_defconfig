@@ -742,7 +742,6 @@ CONFIG_DEBUG_FS=y
 # CONFIG_DEBUG_KERNEL is not set
 # CONFIG_SAMPLES is not set
 CONFIG_CMDLINE=""
-CONFIG_SYS_SUPPORTS_KGDB=y
 
 #
 # Security options

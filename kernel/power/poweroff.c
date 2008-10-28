@@ -10,6 +10,7 @@
 #include <linux/pm.h>
 #include <linux/workqueue.h>
 #include <linux/reboot.h>
+#include <linux/cpumask.h>
 
 /*
  * When the user hits Sys-Rq o to power down the machine this is the
@@ -25,7 +26,8 @@ static DECLARE_WORK(poweroff_work, do_poweroff);
 
 static void handle_poweroff(int key, struct tty_struct *tty)
 {
-	schedule_work(&poweroff_work);
+	/* run sysrq poweroff on boot cpu */
+	schedule_work_on(first_cpu(cpu_online_map), &poweroff_work);
 }
 
 static struct sysrq_key_op	sysrq_poweroff_op = {

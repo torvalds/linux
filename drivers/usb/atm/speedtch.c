@@ -722,6 +722,16 @@ static void speedtch_atm_stop(struct usbatm_data *usbatm, struct atm_dev *atm_de
 	flush_scheduled_work();
 }
 
+static int speedtch_pre_reset(struct usb_interface *intf)
+{
+	return 0;
+}
+
+static int speedtch_post_reset(struct usb_interface *intf)
+{
+	return 0;
+}
+
 
 /**********
 **  USB  **
@@ -740,6 +750,8 @@ static struct usb_driver speedtch_usb_driver = {
 	.name		= speedtch_driver_name,
 	.probe		= speedtch_usb_probe,
 	.disconnect	= usbatm_usb_disconnect,
+	.pre_reset	= speedtch_pre_reset,
+	.post_reset	= speedtch_post_reset,
 	.id_table	= speedtch_usb_ids
 };
 
@@ -829,7 +841,6 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 	if (use_isoc) {
 		const struct usb_host_interface *desc = data_intf->cur_altsetting;
 		const __u8 target_address = USB_DIR_IN | usbatm->driver->isoc_in;
-		int i;
 
 		use_isoc = 0; /* fall back to bulk if endpoint not found */
 

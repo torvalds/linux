@@ -211,8 +211,7 @@ int pwm_clk_alloc(unsigned prescale, unsigned div)
 	if ((mr & 0xffff) == 0) {
 		mr |= val;
 		ret = PWM_CPR_CLKA;
-	}
-	if ((mr & (0xffff << 16)) == 0) {
+	} else if ((mr & (0xffff << 16)) == 0) {
 		mr |= val << 16;
 		ret = PWM_CPR_CLKB;
 	}

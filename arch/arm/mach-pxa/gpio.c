@@ -16,12 +16,12 @@
 #include <linux/module.h>
 #include <linux/irq.h>
 #include <linux/sysdev.h>
+#include <linux/io.h>
 
 #include <asm/gpio.h>
-#include <asm/hardware.h>
-#include <asm/io.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
+#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-gpio.h>
 
 #include "generic.h"
 
@@ -275,7 +275,7 @@ static void pxa_gpio_demux_handler(unsigned int irq, struct irq_desc *desc)
 			loop = 1;
 
 			n = PXA_GPIO_IRQ_BASE + bit;
-			desc_handle_irq(n, irq_desc + n);
+			generic_handle_irq(n);
 
 			bit = find_next_bit(gedr, GEDR_BITS, bit + 1);
 		}

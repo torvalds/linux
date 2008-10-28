@@ -13,25 +13,30 @@
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
 #include <linux/mv643xx_eth.h>
-#include <asm/arch/mv78xx0.h>
+#include <linux/ethtool.h>
+#include <mach/mv78xx0.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include "common.h"
 
 static struct mv643xx_eth_platform_data db78x00_ge00_data = {
-	.phy_addr	= 8,
+	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
 };
 
 static struct mv643xx_eth_platform_data db78x00_ge01_data = {
-	.phy_addr	= 9,
+	.phy_addr	= MV643XX_ETH_PHY_ADDR(9),
 };
 
 static struct mv643xx_eth_platform_data db78x00_ge10_data = {
-	.phy_addr	= -1,
+	.phy_addr	= MV643XX_ETH_PHY_NONE,
+	.speed		= SPEED_1000,
+	.duplex		= DUPLEX_FULL,
 };
 
 static struct mv643xx_eth_platform_data db78x00_ge11_data = {
-	.phy_addr	= -1,
+	.phy_addr	= MV643XX_ETH_PHY_NONE,
+	.speed		= SPEED_1000,
+	.duplex		= DUPLEX_FULL,
 };
 
 static struct mv_sata_platform_data db78x00_sata_data = {

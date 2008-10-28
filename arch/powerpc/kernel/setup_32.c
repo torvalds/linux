@@ -43,10 +43,6 @@
 
 #define DBG(fmt...)
 
-#if defined CONFIG_KGDB
-#include <asm/kgdb.h>
-#endif
-
 extern void bootx_init(unsigned long r4, unsigned long phys);
 
 int boot_cpuid;
@@ -115,7 +111,7 @@ notrace unsigned long __init early_init(unsigned long dt_ptr)
  * This is called very early on the boot process, after a minimal
  * MMU environment has been set up but before MMU_init is called.
  */
-notrace void __init machine_init(unsigned long dt_ptr, unsigned long phys)
+notrace void __init machine_init(unsigned long dt_ptr)
 {
 	/* Enable early debugging if any specified (see udbg.h) */
 	udbg_early_init();
@@ -213,22 +209,11 @@ EXPORT_SYMBOL(nvram_sync);
 
 #endif /* CONFIG_NVRAM */
 
-static DEFINE_PER_CPU(struct cpu, cpu_devices);
-
 int __init ppc_init(void)
 {
-	int cpu;
-
 	/* clear the progress line */
 	if (ppc_md.progress)
 		ppc_md.progress("             ", 0xffff);
-
-	/* register CPU devices */
-	for_each_possible_cpu(cpu) {
-		struct cpu *c = &per_cpu(cpu_devices, cpu);
-		c->hotpluggable = 1;
-		register_cpu(c, cpu);
-	}
 
 	/* call platform init */
 	if (ppc_md.init != NULL) {
@@ -301,18 +286,6 @@ void __init setup_arch(char **cmdline_p)
 	register_early_udbg_console();
 
 	xmon_setup();
-
-#if defined(CONFIG_KGDB)
-	if (ppc_md.kgdb_map_scc)
-		ppc_md.kgdb_map_scc();
-	set_debug_traps();
-	if (strstr(cmd_line, "gdb")) {
-		if (ppc_md.progress)
-			ppc_md.progress("setup_arch: kgdb breakpoint", 0x4000);
-		printk("kgdb breakpoint activated\n");
-		breakpoint();
-	}
-#endif
 
 	/*
 	 * Set cache line size based on type of cpu as a default.

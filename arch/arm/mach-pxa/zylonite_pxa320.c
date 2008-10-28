@@ -17,9 +17,9 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
-#include <asm/arch/gpio.h>
-#include <asm/arch/mfp-pxa320.h>
-#include <asm/arch/zylonite.h>
+#include <mach/gpio.h>
+#include <mach/mfp-pxa320.h>
+#include <mach/zylonite.h>
 
 #include "generic.h"
 
@@ -69,6 +69,12 @@ static mfp_cfg_t mfp_cfg[] __initdata = {
 	GPIO39_AC97_BITCLK,
 	GPIO40_AC97_nACRESET,
 
+	/* SSP3 */
+	GPIO89_SSP3_SCLK,
+	GPIO90_SSP3_FRM,
+	GPIO91_SSP3_TXD,
+	GPIO92_SSP3_RXD,
+
 	/* WM9713 IRQ */
 	GPIO15_GPIO,
 
@@ -116,6 +122,14 @@ static mfp_cfg_t mfp_cfg[] __initdata = {
 	GPIO27_MMC2_DAT3,
 	GPIO28_MMC2_CLK,
 	GPIO29_MMC2_CMD,
+
+	/* USB Host */
+	GPIO2_2_USBH_PEN,
+	GPIO3_2_USBH_PWR,
+
+	/* Debug LEDs */
+	GPIO1_2_GPIO | MFP_LPM_DRIVE_HIGH,
+	GPIO4_2_GPIO | MFP_LPM_DRIVE_HIGH,
 };
 
 #define NUM_LCD_DETECT_PINS	7
@@ -189,6 +203,8 @@ void __init zylonite_pxa320_init(void)
 
 		/* GPIO pin assignment */
 		gpio_eth_irq	= mfp_to_gpio(MFP_PIN_GPIO9);
+		gpio_debug_led1	= mfp_to_gpio(MFP_PIN_GPIO1_2);
+		gpio_debug_led2	= mfp_to_gpio(MFP_PIN_GPIO4_2);
 
 		/* MMC card detect & write protect for controller 0 */
 		zylonite_mmc_slot[0].gpio_cd  = mfp_to_gpio(MFP_PIN_GPIO1);

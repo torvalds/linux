@@ -5,7 +5,6 @@
 
 obj-$(CONFIG_USB_ADUTUX)	+= adutux.o
 obj-$(CONFIG_USB_APPLEDISPLAY)	+= appledisplay.o
-obj-$(CONFIG_USB_AUERSWALD)	+= auerswald.o
 obj-$(CONFIG_USB_BERRY_CHARGE)	+= berry_charge.o
 obj-$(CONFIG_USB_CYPRESS_CY7C63)+= cypress_cy7c63.o
 obj-$(CONFIG_USB_CYTHERM)	+= cytherm.o
@@ -27,6 +26,8 @@ obj-$(CONFIG_USB_RIO500)	+= rio500.o
 obj-$(CONFIG_USB_TEST)		+= usbtest.o
 obj-$(CONFIG_USB_TRANCEVIBRATOR)	+= trancevibrator.o
 obj-$(CONFIG_USB_USS720)	+= uss720.o
+obj-$(CONFIG_USB_SEVSEG)	+= usbsevseg.o
+obj-$(CONFIG_USB_VST)		+= vstusb.o
 
 obj-$(CONFIG_USB_SISUSBVGA)	+= sisusbvga/
 

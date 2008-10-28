@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/moduleloader.h>
 #include <linux/kernel.h>
+#include <linux/mm.h>
 #include <linux/elf.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
@@ -46,7 +47,7 @@ void *module_alloc(unsigned long size)
 	if (!area)
 		return NULL;
 
-	return __vmalloc_area(area, GFP_KERNEL, PAGE_KERNEL);
+	return __vmalloc_area(area, GFP_KERNEL, PAGE_KERNEL_EXEC);
 }
 #else /* CONFIG_MMU */
 void *module_alloc(unsigned long size)

@@ -26,22 +26,18 @@
  */
 struct anon_vma {
 	spinlock_t lock;	/* Serialize access to vma list */
+	/*
+	 * NOTE: the LSB of the head.next is set by
+	 * mm_take_all_locks() _after_ taking the above lock. So the
+	 * head must only be read/written after taking the above lock
+	 * to be sure to see a valid next pointer. The LSB bit itself
+	 * is serialized by a system wide lock only visible to
+	 * mm_take_all_locks() (mm_all_locks_mutex).
+	 */
 	struct list_head head;	/* List of private "related" vmas */
 };
 
 #ifdef CONFIG_MMU
-
-extern struct kmem_cache *anon_vma_cachep;
-
-static inline struct anon_vma *anon_vma_alloc(void)
-{
-	return kmem_cache_alloc(anon_vma_cachep, GFP_KERNEL);
-}
-
-static inline void anon_vma_free(struct anon_vma *anon_vma)
-{
-	kmem_cache_free(anon_vma_cachep, anon_vma);
-}
 
 static inline void anon_vma_lock(struct vm_area_struct *vma)
 {
@@ -66,6 +62,9 @@ void __anon_vma_merge(struct vm_area_struct *, struct vm_area_struct *);
 void anon_vma_unlink(struct vm_area_struct *);
 void anon_vma_link(struct vm_area_struct *);
 void __anon_vma_link(struct vm_area_struct *);
+
+extern struct anon_vma *page_lock_anon_vma(struct page *page);
+extern void page_unlock_anon_vma(struct anon_vma *anon_vma);
 
 /*
  * rmap interfaces called when adding or removing pte of page
@@ -94,7 +93,7 @@ int try_to_unmap(struct page *, int ignore_refs);
  * Called from mm/filemap_xip.c to unmap empty zero page
  */
 pte_t *page_check_address(struct page *, struct mm_struct *,
-				unsigned long, spinlock_t **);
+				unsigned long, spinlock_t **, int);
 
 /*
  * Used by swapoff to help locate where page is expected in vma.
@@ -108,6 +107,19 @@ unsigned long page_address_in_vma(struct page *, struct vm_area_struct *);
  * returns the number of cleaned PTEs.
  */
 int page_mkclean(struct page *);
+
+#ifdef CONFIG_UNEVICTABLE_LRU
+/*
+ * called in munlock()/munmap() path to check for other vmas holding
+ * the page mlocked.
+ */
+int try_to_munlock(struct page *);
+#else
+static inline int try_to_munlock(struct page *page)
+{
+	return 0;	/* a.k.a. SWAP_SUCCESS */
+}
+#endif
 
 #else	/* !CONFIG_MMU */
 
@@ -132,5 +144,6 @@ static inline int page_mkclean(struct page *page)
 #define SWAP_SUCCESS	0
 #define SWAP_AGAIN	1
 #define SWAP_FAIL	2
+#define SWAP_MLOCK	3
 
 #endif	/* _LINUX_RMAP_H */

@@ -38,7 +38,6 @@
 
 #include "v9fs.h"
 #include "v9fs_vfs.h"
-#include "fid.h"
 
 /**
  * v9fs_vfs_readpage - read an entire page in from 9P
@@ -53,14 +52,12 @@ static int v9fs_vfs_readpage(struct file *filp, struct page *page)
 	int retval;
 	loff_t offset;
 	char *buffer;
-	struct p9_fid *fid;
 
 	P9_DPRINTK(P9_DEBUG_VFS, "\n");
-	fid = filp->private_data;
 	buffer = kmap(page);
 	offset = page_offset(page);
 
-	retval = p9_client_readn(fid, buffer, offset, PAGE_CACHE_SIZE);
+	retval = v9fs_file_readn(filp, buffer, NULL, offset, PAGE_CACHE_SIZE);
 	if (retval < 0)
 		goto done;
 

@@ -16,7 +16,7 @@
  */
 #undef CONFIG_PARAVIRT
 #ifdef CONFIG_X86_32
-#define _ASM_DESC_H_ 1
+#define _ASM_X86_DESC_H 1
 #endif
 
 #ifdef CONFIG_X86_64
@@ -27,7 +27,7 @@
 #include <linux/linkage.h>
 #include <linux/screen_info.h>
 #include <linux/elf.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/page.h>
 #include <asm/boot.h>
 #include <asm/bootparam.h>
@@ -182,8 +182,6 @@ static unsigned		outcnt;
 static int  fill_inbuf(void);
 static void flush_window(void);
 static void error(char *m);
-static void gzip_mark(void **);
-static void gzip_release(void **);
 
 /*
  * This is set up by the setup-routine at boot-time
@@ -195,9 +193,6 @@ extern unsigned char input_data[];
 extern int input_len;
 
 static long bytes_out;
-
-static void *malloc(int size);
-static void free(void *where);
 
 static void *memset(void *s, int c, unsigned n);
 static void *memcpy(void *dest, const void *src, unsigned n);
@@ -219,40 +214,6 @@ static int vidport;
 static int lines, cols;
 
 #include "../../../../lib/inflate.c"
-
-static void *malloc(int size)
-{
-	void *p;
-
-	if (size < 0)
-		error("Malloc error");
-	if (free_mem_ptr <= 0)
-		error("Memory error");
-
-	free_mem_ptr = (free_mem_ptr + 3) & ~3;	/* Align */
-
-	p = (void *)free_mem_ptr;
-	free_mem_ptr += size;
-
-	if (free_mem_ptr >= free_mem_end_ptr)
-		error("Out of memory");
-
-	return p;
-}
-
-static void free(void *where)
-{	/* Don't care */
-}
-
-static void gzip_mark(void **ptr)
-{
-	*ptr = (void *) free_mem_ptr;
-}
-
-static void gzip_release(void **ptr)
-{
-	free_mem_ptr = (memptr) *ptr;
-}
 
 static void scroll(void)
 {
@@ -290,7 +251,7 @@ static void __putstr(int error, const char *s)
 				y--;
 			}
 		} else {
-			vidmem [(x + cols * y) * 2] = c;
+			vidmem[(x + cols * y) * 2] = c;
 			if (++x >= cols) {
 				x = 0;
 				if (++y >= lines) {
@@ -316,7 +277,8 @@ static void *memset(void *s, int c, unsigned n)
 	int i;
 	char *ss = s;
 
-	for (i = 0; i < n; i++) ss[i] = c;
+	for (i = 0; i < n; i++)
+		ss[i] = c;
 	return s;
 }
 
@@ -326,7 +288,8 @@ static void *memcpy(void *dest, const void *src, unsigned n)
 	const char *s = src;
 	char *d = dest;
 
-	for (i = 0; i < n; i++) d[i] = s[i];
+	for (i = 0; i < n; i++)
+		d[i] = s[i];
 	return dest;
 }
 

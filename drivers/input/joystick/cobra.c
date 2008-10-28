@@ -1,6 +1,4 @@
 /*
- * $Id: cobra.c,v 1.19 2002/01/22 20:26:52 vojtech Exp $
- *
  *  Copyright (c) 1999-2001 Vojtech Pavlik
  */
 
@@ -265,8 +263,7 @@ static struct gameport_driver cobra_drv = {
 
 static int __init cobra_init(void)
 {
-	gameport_register_driver(&cobra_drv);
-	return 0;
+	return gameport_register_driver(&cobra_drv);
 }
 
 static void __exit cobra_exit(void)

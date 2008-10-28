@@ -106,6 +106,7 @@
 #define VARIABLE_LENGTH_CMD   0x7f
 #define REPORT_LUNS           0xa0
 #define MAINTENANCE_IN        0xa3
+#define MAINTENANCE_OUT       0xa4
 #define MOVE_MEDIUM           0xa5
 #define EXCHANGE_MEDIUM       0xa6
 #define READ_12               0xa8
@@ -125,6 +126,8 @@
 #define	SAI_READ_CAPACITY_16  0x10
 /* values for maintenance in */
 #define MI_REPORT_TARGET_PGS  0x0a
+/* values for maintenance out */
+#define MO_SET_TARGET_PGS     0x0a
 
 /* Values for T10/04-262r7 */
 #define	ATA_16		      0x85	/* 16-byte pass-thru */
@@ -306,6 +309,20 @@ struct scsi_lun {
 };
 
 /*
+ * The Well Known LUNS (SAM-3) in our int representation of a LUN
+ */
+#define SCSI_W_LUN_BASE 0xc100
+#define SCSI_W_LUN_REPORT_LUNS (SCSI_W_LUN_BASE + 1)
+#define SCSI_W_LUN_ACCESS_CONTROL (SCSI_W_LUN_BASE + 2)
+#define SCSI_W_LUN_TARGET_LOG_PAGE (SCSI_W_LUN_BASE + 3)
+
+static inline int scsi_is_wlun(unsigned int lun)
+{
+	return (lun & 0xff00) == SCSI_W_LUN_BASE;
+}
+
+
+/*
  *  MESSAGE CODES
  */
 
@@ -364,6 +381,11 @@ struct scsi_lun {
 #define DID_IMM_RETRY   0x0c	/* Retry without decrementing retry count  */
 #define DID_REQUEUE	0x0d	/* Requeue command (no immediate retry) also
 				 * without decrementing the retry count	   */
+#define DID_TRANSPORT_DISRUPTED 0x0e /* Transport error disrupted execution
+				      * and the driver blocked the port to
+				      * recover the link. Transport class will
+				      * retry or fail IO */
+#define DID_TRANSPORT_FAILFAST	0x0f /* Transport class fastfailed the io */
 #define DRIVER_OK       0x00	/* Driver status                           */
 
 /*
@@ -409,6 +431,7 @@ struct scsi_lun {
 #define SCSI_MLQUEUE_HOST_BUSY   0x1055
 #define SCSI_MLQUEUE_DEVICE_BUSY 0x1056
 #define SCSI_MLQUEUE_EH_RETRY    0x1057
+#define SCSI_MLQUEUE_TARGET_BUSY 0x1058
 
 /*
  *  Use these to separate status msg and our bytes

@@ -373,6 +373,8 @@ struct input_absinfo {
 
 #define KEY_WIMAX		246
 
+/* Range 248 - 255 is reserved for special needs of AT keyboard driver */
+
 #define BTN_MISC		0x100
 #define BTN_0			0x100
 #define BTN_1			0x101
@@ -575,9 +577,22 @@ struct input_absinfo {
 #define KEY_BRL_DOT9		0x1f9
 #define KEY_BRL_DOT10		0x1fa
 
+#define KEY_NUMERIC_0		0x200	/* used by phones, remote controls, */
+#define KEY_NUMERIC_1		0x201	/* and other keypads */
+#define KEY_NUMERIC_2		0x202
+#define KEY_NUMERIC_3		0x203
+#define KEY_NUMERIC_4		0x204
+#define KEY_NUMERIC_5		0x205
+#define KEY_NUMERIC_6		0x206
+#define KEY_NUMERIC_7		0x207
+#define KEY_NUMERIC_8		0x208
+#define KEY_NUMERIC_9		0x209
+#define KEY_NUMERIC_STAR	0x20a
+#define KEY_NUMERIC_POUND	0x20b
+
 /* We avoid low common keys in module aliases so they don't get huge. */
 #define KEY_MIN_INTERESTING	KEY_MUTE
-#define KEY_MAX			0x1ff
+#define KEY_MAX			0x2ff
 #define KEY_CNT			(KEY_MAX+1)
 
 /*
@@ -640,6 +655,8 @@ struct input_absinfo {
 #define SW_RFKILL_ALL		0x03  /* rfkill master switch, type "any"
 					 set = radio enabled */
 #define SW_RADIO		SW_RFKILL_ALL	/* deprecated */
+#define SW_MICROPHONE_INSERT	0x04  /* set = inserted */
+#define SW_DOCK			0x05  /* set = plugged into dock */
 #define SW_MAX			0x0f
 #define SW_CNT			(SW_MAX+1)
 
@@ -1214,11 +1231,6 @@ struct input_handle {
 	struct list_head	d_node;
 	struct list_head	h_node;
 };
-
-#define to_dev(n) container_of(n, struct input_dev, node)
-#define to_handler(n) container_of(n, struct input_handler, node)
-#define to_handle(n) container_of(n, struct input_handle, d_node)
-#define to_handle_h(n) container_of(n, struct input_handle, h_node)
 
 struct input_dev *input_allocate_device(void);
 void input_free_device(struct input_dev *dev);

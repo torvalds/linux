@@ -22,10 +22,10 @@
 
 #include <linux/mm.h>
 #include <linux/init.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
-#include <asm/arch/common.h>
+#include <mach/common.h>
 
 /*!
  * @file mm.c
@@ -49,7 +49,7 @@ static struct map_desc mxc_io_desc[] __initdata = {
 		.virtual	= AVIC_BASE_ADDR_VIRT,
 		.pfn		= __phys_to_pfn(AVIC_BASE_ADDR),
 		.length		= AVIC_SIZE,
-		.type		= MT_NONSHARED_DEVICE
+		.type		= MT_DEVICE_NONSHARED
 	},
 };
 

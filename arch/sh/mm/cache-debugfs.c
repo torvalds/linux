@@ -120,7 +120,7 @@ static const struct file_operations cache_debugfs_fops = {
 	.open		= cache_debugfs_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 
 static int __init cache_debugfs_init(void)
@@ -130,12 +130,18 @@ static int __init cache_debugfs_init(void)
 	dcache_dentry = debugfs_create_file("dcache", S_IRUSR, sh_debugfs_root,
 					    (unsigned int *)CACHE_TYPE_DCACHE,
 					    &cache_debugfs_fops);
+	if (!dcache_dentry)
+		return -ENOMEM;
 	if (IS_ERR(dcache_dentry))
 		return PTR_ERR(dcache_dentry);
 
 	icache_dentry = debugfs_create_file("icache", S_IRUSR, sh_debugfs_root,
 					    (unsigned int *)CACHE_TYPE_ICACHE,
 					    &cache_debugfs_fops);
+	if (!icache_dentry) {
+		debugfs_remove(dcache_dentry);
+		return -ENOMEM;
+	}
 	if (IS_ERR(icache_dentry)) {
 		debugfs_remove(dcache_dentry);
 		return PTR_ERR(icache_dentry);

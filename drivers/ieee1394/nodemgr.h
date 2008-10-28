@@ -97,7 +97,7 @@ struct node_entry {
 	struct hpsb_host *host;		/* Host this node is attached to */
 	nodeid_t nodeid;		/* NodeID */
 	struct bus_options busopt;	/* Bus Options */
-	int needs_probe;
+	bool needs_probe;
 	unsigned int generation;	/* Synced with hpsb generation */
 
 	/* The following is read from the config rom */
@@ -110,7 +110,7 @@ struct node_entry {
 	struct device node_dev;
 
 	/* Means this node is not attached anymore */
-	int in_limbo;
+	bool in_limbo;
 
 	struct csr1212_csr *csr;
 };

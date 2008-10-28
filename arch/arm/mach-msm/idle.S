@@ -1,4 +1,4 @@
-/* linux/include/asm-arm/arch-msm/idle.S
+/* arch/arm/mach-msm/include/mach/idle.S
  *
  * Idle processing for MSM7K - work around bugs with SWFI.
  *

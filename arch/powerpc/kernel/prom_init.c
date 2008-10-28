@@ -205,8 +205,6 @@ static int __initdata mem_reserve_cnt;
 static cell_t __initdata regbuf[1024];
 
 
-#define MAX_CPU_THREADS 2
-
 /*
  * Error results ... some OF calls will return "-1" on error, some
  * will return 0, some will return either. To simplify, here are
@@ -489,67 +487,6 @@ static int __init prom_setprop(phandle node, const char *nodename,
 	return call_prom("interpret", 1, 1, (u32)(unsigned long) cmd);
 }
 
-/* We can't use the standard versions because of RELOC headaches. */
-#define isxdigit(c)	(('0' <= (c) && (c) <= '9') \
-			 || ('a' <= (c) && (c) <= 'f') \
-			 || ('A' <= (c) && (c) <= 'F'))
-
-#define isdigit(c)	('0' <= (c) && (c) <= '9')
-#define islower(c)	('a' <= (c) && (c) <= 'z')
-#define toupper(c)	(islower(c) ? ((c) - 'a' + 'A') : (c))
-
-unsigned long prom_strtoul(const char *cp, const char **endp)
-{
-	unsigned long result = 0, base = 10, value;
-
-	if (*cp == '0') {
-		base = 8;
-		cp++;
-		if (toupper(*cp) == 'X') {
-			cp++;
-			base = 16;
-		}
-	}
-
-	while (isxdigit(*cp) &&
-	       (value = isdigit(*cp) ? *cp - '0' : toupper(*cp) - 'A' + 10) < base) {
-		result = result * base + value;
-		cp++;
-	}
-
-	if (endp)
-		*endp = cp;
-
-	return result;
-}
-
-unsigned long prom_memparse(const char *ptr, const char **retptr)
-{
-	unsigned long ret = prom_strtoul(ptr, retptr);
-	int shift = 0;
-
-	/*
-	 * We can't use a switch here because GCC *may* generate a
-	 * jump table which won't work, because we're not running at
-	 * the address we're linked at.
-	 */
-	if ('G' == **retptr || 'g' == **retptr)
-		shift = 30;
-
-	if ('M' == **retptr || 'm' == **retptr)
-		shift = 20;
-
-	if ('K' == **retptr || 'k' == **retptr)
-		shift = 10;
-
-	if (shift) {
-		ret <<= shift;
-		(*retptr)++;
-	}
-
-	return ret;
-}
-
 /*
  * Early parsing of the command line passed to the kernel, used for
  * "mem=x" and the options that affect the iommu
@@ -643,6 +580,11 @@ static void __init early_cmdline_parse(void)
 #else
 #define OV5_MSI			0x00
 #endif /* CONFIG_PCI_MSI */
+#ifdef CONFIG_PPC_SMLPAR
+#define OV5_CMO			0x80	/* Cooperative Memory Overcommitment */
+#else
+#define OV5_CMO			0x00
+#endif
 
 /*
  * The architecture vector has an array of PVR mask/value pairs,
@@ -687,10 +629,12 @@ static unsigned char ibm_architecture_vec[] = {
 	0,				/* don't halt */
 
 	/* option vector 5: PAPR/OF options */
-	3 - 2,				/* length */
+	5 - 2,				/* length */
 	0,				/* don't ignore, don't halt */
 	OV5_LPAR | OV5_SPLPAR | OV5_LARGE_PAGES | OV5_DRCONF_MEMORY |
 	OV5_DONATE_DEDICATE_CPU | OV5_MSI,
+	0,
+	OV5_CMO,
 };
 
 /* Old method - ELF header with PT_NOTE sections */
@@ -727,7 +671,7 @@ static struct fake_elf {
 			u32	ignore_me;
 		} rpadesc;
 	} rpanote;
-} fake_elf = {
+} fake_elf __section(.fakeelf) = {
 	.elfhdr = {
 		.e_ident = { 0x7f, 'E', 'L', 'F',
 			     ELFCLASS32, ELFDATA2MSB, EV_CURRENT },
@@ -769,13 +713,13 @@ static struct fake_elf {
 		.type = 0x12759999,
 		.name = "IBM,RPA-Client-Config",
 		.rpadesc = {
-			.lpar_affinity = 0,
-			.min_rmo_size = 64,	/* in megabytes */
+			.lpar_affinity = 1,
+			.min_rmo_size = 128,	/* in megabytes */
 			.min_rmo_percent = 0,
-			.max_pft_size = 48,	/* 2^48 bytes max PFT size */
+			.max_pft_size = 46,	/* 2^46 bytes max PFT size */
 			.splpar = 1,
 			.min_load = ~0U,
-			.new_mem_def = 0
+			.new_mem_def = 1
 		}
 	}
 };
@@ -1316,7 +1260,7 @@ static void __init prom_initialize_tce_table(void)
  *
  * -- Cort
  */
-extern void __secondary_hold(void);
+extern char __secondary_hold;
 extern unsigned long __secondary_hold_spinloop;
 extern unsigned long __secondary_hold_acknowledge;
 
@@ -1332,22 +1276,12 @@ static void __init prom_hold_cpus(void)
 	unsigned int reg;
 	phandle node;
 	char type[64];
-	int cpuid = 0;
-	unsigned int interrupt_server[MAX_CPU_THREADS];
-	unsigned int cpu_threads, hw_cpu_num;
-	int propsize;
 	struct prom_t *_prom = &RELOC(prom);
 	unsigned long *spinloop
 		= (void *) LOW_ADDR(__secondary_hold_spinloop);
 	unsigned long *acknowledge
 		= (void *) LOW_ADDR(__secondary_hold_acknowledge);
-#ifdef CONFIG_PPC64
-	/* __secondary_hold is actually a descriptor, not the text address */
-	unsigned long secondary_hold
-		= __pa(*PTRRELOC((unsigned long *)__secondary_hold));
-#else
 	unsigned long secondary_hold = LOW_ADDR(__secondary_hold);
-#endif
 
 	prom_debug("prom_hold_cpus: start...\n");
 	prom_debug("    1) spinloop       = 0x%x\n", (unsigned long)spinloop);
@@ -1379,7 +1313,6 @@ static void __init prom_hold_cpus(void)
 		reg = -1;
 		prom_getprop(node, "reg", &reg, sizeof(reg));
 
-		prom_debug("\ncpuid        = 0x%x\n", cpuid);
 		prom_debug("cpu hw idx   = 0x%x\n", reg);
 
 		/* Init the acknowledge var which will be reset by
@@ -1388,28 +1321,9 @@ static void __init prom_hold_cpus(void)
 		 */
 		*acknowledge = (unsigned long)-1;
 
-		propsize = prom_getprop(node, "ibm,ppc-interrupt-server#s",
-					&interrupt_server,
-					sizeof(interrupt_server));
-		if (propsize < 0) {
-			/* no property.  old hardware has no SMT */
-			cpu_threads = 1;
-			interrupt_server[0] = reg; /* fake it with phys id */
-		} else {
-			/* We have a threaded processor */
-			cpu_threads = propsize / sizeof(u32);
-			if (cpu_threads > MAX_CPU_THREADS) {
-				prom_printf("SMT: too many threads!\n"
-					    "SMT: found %x, max is %x\n",
-					    cpu_threads, MAX_CPU_THREADS);
-				cpu_threads = 1; /* ToDo: panic? */
-			}
-		}
-
-		hw_cpu_num = interrupt_server[0];
-		if (hw_cpu_num != _prom->cpu) {
+		if (reg != _prom->cpu) {
 			/* Primary Thread of non-boot cpu */
-			prom_printf("%x : starting cpu hw idx %x... ", cpuid, reg);
+			prom_printf("starting cpu hw idx %x... ", reg);
 			call_prom("start-cpu", 3, 0, node,
 				  secondary_hold, reg);
 
@@ -1424,16 +1338,9 @@ static void __init prom_hold_cpus(void)
 		}
 #ifdef CONFIG_SMP
 		else
-			prom_printf("%x : boot cpu     %x\n", cpuid, reg);
+			prom_printf("boot cpu hw idx %x\n", reg);
 #endif /* CONFIG_SMP */
-
-		/* Reserve cpu #s for secondary threads.   They start later. */
-		cpuid += cpu_threads;
 	}
-
-	if (cpuid > NR_CPUS)
-		prom_printf("WARNING: maximum CPUs (" __stringify(NR_CPUS)
-			    ") exceeded: ignoring extras\n");
 
 	prom_debug("prom_hold_cpus: end...\n");
 }
@@ -2341,13 +2248,14 @@ static void __init prom_check_initrd(unsigned long r3, unsigned long r4)
 
 unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 			       unsigned long pp,
-			       unsigned long r6, unsigned long r7)
+			       unsigned long r6, unsigned long r7,
+			       unsigned long kbase)
 {	
 	struct prom_t *_prom;
 	unsigned long hdr;
-	unsigned long offset = reloc_offset();
 
 #ifdef CONFIG_PPC32
+	unsigned long offset = reloc_offset();
 	reloc_got2(offset);
 #endif
 
@@ -2381,9 +2289,11 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 */
 	RELOC(of_platform) = prom_find_machine_type();
 
+#ifndef CONFIG_RELOCATABLE
 	/* Bail if this is a kdump kernel. */
 	if (PHYSICAL_START > 0)
 		prom_panic("Error: You can't boot a kdump kernel from OF!\n");
+#endif
 
 	/*
 	 * Check for an initrd
@@ -2403,7 +2313,7 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 * Copy the CPU hold code
 	 */
 	if (RELOC(of_platform) != PLATFORM_POWERMAC)
-		copy_and_flush(0, KERNELBASE + offset, 0x100, 0);
+		copy_and_flush(0, kbase, 0x100, 0);
 
 	/*
 	 * Do early parsing of command line
@@ -2506,7 +2416,7 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	reloc_got2(-offset);
 #endif
 
-	__start(hdr, KERNELBASE + offset, 0);
+	__start(hdr, kbase, 0);
 
 	return 0;
 }

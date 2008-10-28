@@ -42,12 +42,15 @@ config 40x
 	select PPC_DCR_NATIVE
 	select PPC_UDBG_16550
 	select 4xx_SOC
+	select PPC_PCI_CHOICE
 
 config 44x
 	bool "AMCC 44x"
 	select PPC_DCR_NATIVE
 	select PPC_UDBG_16550
 	select 4xx_SOC
+	select PPC_PCI_CHOICE
+	select PHYS_64BIT
 
 config E200
 	bool "Freescale e200"
@@ -83,9 +86,6 @@ config TUNE_CELL
 	  itself, so the resulting kernel will keep running on all other
 	  machines. When building a kernel that is supposed to run only
 	  on Cell, you should also select the POWER4_ONLY option.
-
-config 6xx
-	bool
 
 # this is temp to handle compat with arch=ppc
 config 8xx
@@ -129,18 +129,19 @@ config FSL_EMB_PERFMON
 
 config PTE_64BIT
 	bool
-	depends on 44x || E500
-	default y if 44x
-	default y if E500 && PHYS_64BIT
+	depends on 44x || E500 || PPC_86xx
+	default y if PHYS_64BIT
 
 config PHYS_64BIT
-	bool 'Large physical address support' if E500
-	depends on 44x || E500
-	select RESOURCES_64BIT
-	default y if 44x
+	bool 'Large physical address support' if E500 || PPC_86xx
+	depends on (44x || E500 || PPC_86xx) && !PPC_83xx && !PPC_82xx
 	---help---
 	  This option enables kernel support for larger than 32-bit physical
-	  addresses.  This features is not be available on all e500 cores.
+	  addresses.  This feature may not be available on all cores.
+
+	  If you have more than 3.5GB of RAM or so, you also need to enable
+	  SWIOTLB under Kernel Options for this to work.  The actual number
+	  is platform-dependent.
 
 	  If in doubt, say N here.
 

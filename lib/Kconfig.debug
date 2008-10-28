@@ -74,6 +74,9 @@ config DEBUG_FS
 	  debugging files into.  Enable this option to be able to read and
 	  write to these files.
 
+	  For detailed documentation on the debugfs API, see
+	  Documentation/DocBook/filesystems.
+
 	  If unsure, say N.
 
 config HEADERS_CHECK
@@ -147,7 +150,7 @@ config DETECT_SOFTLOCKUP
 	help
 	  Say Y here to enable the kernel to detect "soft lockups",
 	  which are bugs that cause the kernel to loop in kernel
-	  mode for more than 10 seconds, without giving other tasks a
+	  mode for more than 60 seconds, without giving other tasks a
 	  chance to run.
 
 	  When a soft-lockup is detected, the kernel will print the
@@ -158,6 +161,30 @@ config DETECT_SOFTLOCKUP
 	  (Note that "hard lockups" are separate type of bugs that
 	   can be detected via the NMI-watchdog, on platforms that
 	   support it.)
+
+config BOOTPARAM_SOFTLOCKUP_PANIC
+	bool "Panic (Reboot) On Soft Lockups"
+	depends on DETECT_SOFTLOCKUP
+	help
+	  Say Y here to enable the kernel to panic on "soft lockups",
+	  which are bugs that cause the kernel to loop in kernel
+	  mode for more than 60 seconds, without giving other tasks a
+	  chance to run.
+
+	  The panic can be used in combination with panic_timeout,
+	  to cause the system to reboot automatically after a
+	  lockup has been detected. This feature is useful for
+	  high-availability systems that have uptime guarantees and
+	  where a lockup must be resolved ASAP.
+
+	  Say N if unsure.
+
+config BOOTPARAM_SOFTLOCKUP_PANIC_VALUE
+	int
+	depends on DETECT_SOFTLOCKUP
+	range 0 1
+	default 0 if !BOOTPARAM_SOFTLOCKUP_PANIC
+	default 1 if BOOTPARAM_SOFTLOCKUP_PANIC
 
 config SCHED_DEBUG
 	bool "Collect scheduler debugging info"
@@ -367,7 +394,7 @@ config LOCKDEP
 	bool
 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
 	select STACKTRACE
-	select FRAME_POINTER if !X86 && !MIPS
+	select FRAME_POINTER if !X86 && !MIPS && !PPC
 	select KALLSYMS
 	select KALLSYMS_ALL
 
@@ -468,6 +495,15 @@ config DEBUG_VM
 
 	  If unsure, say N.
 
+config DEBUG_VIRTUAL
+	bool "Debug VM translations"
+	depends on DEBUG_KERNEL && X86
+	help
+	  Enable some costly sanity checks in virtual to page code. This can
+	  catch mistakes with virt_to_page() and friends.
+
+	  If unsure, say N.
+
 config DEBUG_WRITECOUNT
 	bool "Debug filesystem writers count"
 	depends on DEBUG_KERNEL
@@ -477,6 +513,18 @@ config DEBUG_WRITECOUNT
 	  32 bits.
 
 	  If unsure, say N.
+
+config DEBUG_MEMORY_INIT
+	bool "Debug memory initialisation" if EMBEDDED
+	default !EMBEDDED
+	help
+	  Enable this for additional checks during memory initialisation.
+	  The sanity checks verify aspects of the VM such as the memory model
+	  and other information provided by the architecture. Verbose
+	  information will be printed at KERN_DEBUG loglevel depending
+	  on the mminit_loglevel= command-line option.
+
+	  If unsure, say Y
 
 config DEBUG_LIST
 	bool "Debug linked list manipulation"
@@ -558,6 +606,19 @@ config RCU_TORTURE_TEST_RUNNABLE
 	  Say N here if you want the RCU torture tests to start only
 	  after being manually enabled via /proc.
 
+config RCU_CPU_STALL_DETECTOR
+	bool "Check for stalled CPUs delaying RCU grace periods"
+	depends on CLASSIC_RCU
+	default n
+	help
+	  This option causes RCU to printk information on which
+	  CPUs are delaying the current grace period, but only when
+	  the grace period extends for excessive time periods.
+
+	  Say Y if you want RCU to perform such checks.
+
+	  Say N if you are unsure.
+
 config KPROBES_SANITY_TEST
 	bool "Kprobes sanity tests"
 	depends on DEBUG_KERNEL
@@ -582,6 +643,33 @@ config BACKTRACE_SELF_TEST
 
 	  Note that if you want to also test saved backtraces, you will
 	  have to enable STACKTRACE as well.
+
+	  Say N if you are unsure.
+
+config DEBUG_BLOCK_EXT_DEVT
+        bool "Force extended block device numbers and spread them"
+	depends on DEBUG_KERNEL
+	depends on BLOCK
+	default n
+	help
+	  BIG FAT WARNING: ENABLING THIS OPTION MIGHT BREAK BOOTING ON
+	  SOME DISTRIBUTIONS.  DO NOT ENABLE THIS UNLESS YOU KNOW WHAT
+	  YOU ARE DOING.  Distros, please enable this and fix whatever
+	  is broken.
+
+	  Conventionally, block device numbers are allocated from
+	  predetermined contiguous area.  However, extended block area
+	  may introduce non-contiguous block device numbers.  This
+	  option forces most block device numbers to be allocated from
+	  the extended space and spreads them to discover kernel or
+	  userland code paths which assume predetermined contiguous
+	  device number allocation.
+
+	  Note that turning on this debug option shuffles all the
+	  device numbers for all IDE and SCSI devices including libata
+	  ones, so root partition specified using device number
+	  directly (via rdev or root=MAJ:MIN) won't work anymore.
+	  Textual device names (root=/dev/sdXn) will continue to work.
 
 	  Say N if you are unsure.
 
@@ -622,9 +710,20 @@ config FAIL_PAGE_ALLOC
 
 config FAIL_MAKE_REQUEST
 	bool "Fault-injection capability for disk IO"
-	depends on FAULT_INJECTION
+	depends on FAULT_INJECTION && BLOCK
 	help
 	  Provide fault-injection capability for disk IO.
+
+config FAIL_IO_TIMEOUT
+	bool "Faul-injection capability for faking disk interrupts"
+	depends on FAULT_INJECTION && BLOCK
+	help
+	  Provide fault-injection capability on end IO handling. This
+	  will make the block layer "forget" an interrupt as configured,
+	  thus exercising the error handling.
+
+	  Only works with drivers that use the generic timeout handling,
+	  for others it wont do anything.
 
 config FAULT_INJECTION_DEBUG_FS
 	bool "Debugfs entries for fault-injection capabilities"
@@ -637,13 +736,13 @@ config FAULT_INJECTION_STACKTRACE_FILTER
 	depends on FAULT_INJECTION_DEBUG_FS && STACKTRACE_SUPPORT
 	depends on !X86_64
 	select STACKTRACE
-	select FRAME_POINTER
+	select FRAME_POINTER if !PPC
 	help
 	  Provide stacktrace filter for fault-injection capabilities
 
 config LATENCYTOP
 	bool "Latency measuring infrastructure"
-	select FRAME_POINTER if !MIPS
+	select FRAME_POINTER if !MIPS && !PPC
 	select KALLSYMS
 	select KALLSYMS_ALL
 	select STACKTRACE
@@ -653,6 +752,14 @@ config LATENCYTOP
 	help
 	  Enable this option if you want to use the LatencyTOP tool
 	  to find out which userspace is blocking on what kernel operations.
+
+config SYSCTL_SYSCALL_CHECK
+	bool "Sysctl checks"
+	depends on SYSCTL_SYSCALL
+	---help---
+	  sys_sysctl uses binary paths that have been found challenging
+	  to properly maintain and use. This enables checks that help
+	  you to keep things correct.
 
 source kernel/trace/Kconfig
 
@@ -695,6 +802,70 @@ config FIREWIRE_OHCI_REMOTE_DMA
 	  See Documentation/debugging-via-ohci1394.txt for more information.
 
 	  If unsure, say N.
+
+menuconfig BUILD_DOCSRC
+	bool "Build targets in Documentation/ tree"
+	depends on HEADERS_CHECK
+	help
+	  This option attempts to build objects from the source files in the
+	  kernel Documentation/ tree.
+
+	  Say N if you are unsure.
+
+config DYNAMIC_PRINTK_DEBUG
+	bool "Enable dynamic printk() call support"
+	default n
+	depends on PRINTK
+	select PRINTK_DEBUG
+	help
+
+	  Compiles debug level messages into the kernel, which would not
+	  otherwise be available at runtime. These messages can then be
+	  enabled/disabled on a per module basis. This mechanism implicitly
+	  enables all pr_debug() and dev_dbg() calls. The impact of this
+	  compile option is a larger kernel text size of about 2%.
+
+	  Usage:
+
+	  Dynamic debugging is controlled by the debugfs file,
+	  dynamic_printk/modules. This file contains a list of the modules that
+	  can be enabled. The format of the file is the module name, followed
+	  by a set of flags that can be enabled. The first flag is always the
+	  'enabled' flag. For example:
+
+		<module_name> <enabled=0/1>
+				.
+				.
+				.
+
+	  <module_name> : Name of the module in which the debug call resides
+	  <enabled=0/1> : whether the messages are enabled or not
+
+	  From a live system:
+
+		snd_hda_intel enabled=0
+		fixup enabled=0
+		driver enabled=0
+
+	  Enable a module:
+
+	  	$echo "set enabled=1 <module_name>" > dynamic_printk/modules
+
+	  Disable a module:
+
+	  	$echo "set enabled=0 <module_name>" > dynamic_printk/modules
+
+	  Enable all modules:
+
+		$echo "set enabled=1 all" > dynamic_printk/modules
+
+	  Disable all modules:
+
+		$echo "set enabled=0 all" > dynamic_printk/modules
+
+	  Finally, passing "dynamic_printk" at the command line enables
+	  debugging for all modules. This mode can be turned off via the above
+	  disable command.
 
 source "samples/Kconfig"
 

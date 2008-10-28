@@ -6,6 +6,7 @@
 
 obj-$(CONFIG_MOUSE_AMIGA)	+= amimouse.o
 obj-$(CONFIG_MOUSE_APPLETOUCH)	+= appletouch.o
+obj-$(CONFIG_MOUSE_BCM5974)	+= bcm5974.o
 obj-$(CONFIG_MOUSE_ATARI)	+= atarimouse.o
 obj-$(CONFIG_MOUSE_RISCPC)	+= rpcmouse.o
 obj-$(CONFIG_MOUSE_INPORT)	+= inport.o
@@ -20,6 +21,7 @@ obj-$(CONFIG_MOUSE_GPIO)	+= gpio_mouse.o
 psmouse-objs := psmouse-base.o synaptics.o
 
 psmouse-$(CONFIG_MOUSE_PS2_ALPS)	+= alps.o
+psmouse-$(CONFIG_MOUSE_PS2_OLPC)	+= hgpk.o
 psmouse-$(CONFIG_MOUSE_PS2_LOGIPS2PP)	+= logips2pp.o
 psmouse-$(CONFIG_MOUSE_PS2_LIFEBOOK)	+= lifebook.o
 psmouse-$(CONFIG_MOUSE_PS2_TRACKPOINT)	+= trackpoint.o

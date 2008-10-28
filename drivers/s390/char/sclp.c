@@ -399,6 +399,7 @@ sclp_tod_from_jiffies(unsigned long jiffies)
 void
 sclp_sync_wait(void)
 {
+	unsigned long long old_tick;
 	unsigned long flags;
 	unsigned long cr0, cr0_sync;
 	u64 timeout;
@@ -419,11 +420,12 @@ sclp_sync_wait(void)
 	if (!irq_context)
 		local_bh_disable();
 	/* Enable service-signal interruption, disable timer interrupts */
+	old_tick = local_tick_disable();
 	trace_hardirqs_on();
 	__ctl_store(cr0, 0, 0);
 	cr0_sync = cr0;
+	cr0_sync &= 0xffff00a0;
 	cr0_sync |= 0x00000200;
-	cr0_sync &= 0xFFFFF3AC;
 	__ctl_load(cr0_sync, 0, 0);
 	__raw_local_irq_stosm(0x01);
 	/* Loop until driver state indicates finished request */
@@ -439,9 +441,9 @@ sclp_sync_wait(void)
 	__ctl_load(cr0, 0, 0);
 	if (!irq_context)
 		_local_bh_enable();
+	local_tick_enable(old_tick);
 	local_irq_restore(flags);
 }
-
 EXPORT_SYMBOL(sclp_sync_wait);
 
 /* Dispatch changes in send and receive mask to registered listeners. */

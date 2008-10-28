@@ -78,9 +78,9 @@
 #include <linux/wait.h>
 #include <linux/bcd.h>
 #include <linux/delay.h>
+#include <linux/uaccess.h>
 
 #include <asm/current.h>
-#include <asm/uaccess.h>
 #include <asm/system.h>
 
 #ifdef CONFIG_X86
@@ -88,15 +88,15 @@
 #endif
 
 #ifdef CONFIG_SPARC32
-#include <linux/pci.h>
-#include <linux/jiffies.h>
-#include <asm/ebus.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <asm/io.h>
 
 static unsigned long rtc_port;
-static int rtc_irq = PCI_IRQ_NONE;
+static int rtc_irq;
 #endif
 
-#ifdef	CONFIG_HPET_RTC_IRQ
+#ifdef	CONFIG_HPET_EMULATE_RTC
 #undef	RTC_IRQ
 #endif
 
@@ -120,8 +120,6 @@ static irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id)
 	return 0;
 }
 #endif
-#else
-extern irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id);
 #endif
 
 /*
@@ -144,8 +142,8 @@ static DEFINE_TIMER(rtc_irq_timer, rtc_dropped_irq, 0, 0);
 static ssize_t rtc_read(struct file *file, char __user *buf,
 			size_t count, loff_t *ppos);
 
-static int rtc_ioctl(struct inode *inode, struct file *file,
-		     unsigned int cmd, unsigned long arg);
+static long rtc_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+static void rtc_get_rtc_time(struct rtc_time *rtc_tm);
 
 #ifdef RTC_IRQ
 static unsigned int rtc_poll(struct file *file, poll_table *wait);
@@ -237,7 +235,7 @@ static inline unsigned char rtc_is_updating(void)
  *	(See ./arch/XXXX/kernel/time.c for the set_rtc_mmss() function.)
  */
 
-irqreturn_t rtc_interrupt(int irq, void *dev_id)
+static irqreturn_t rtc_interrupt(int irq, void *dev_id)
 {
 	/*
 	 *	Can be an alarm interrupt, update complete interrupt,
@@ -520,17 +518,17 @@ static int rtc_do_ioctl(unsigned int cmd, unsigned long arg, int kernel)
 		if (!(CMOS_READ(RTC_CONTROL) & RTC_DM_BINARY) ||
 							RTC_ALWAYS_BCD) {
 			if (sec < 60)
-				BIN_TO_BCD(sec);
+				sec = bin2bcd(sec);
 			else
 				sec = 0xff;
 
 			if (min < 60)
-				BIN_TO_BCD(min);
+				min = bin2bcd(min);
 			else
 				min = 0xff;
 
 			if (hrs < 24)
-				BIN_TO_BCD(hrs);
+				hrs = bin2bcd(hrs);
 			else
 				hrs = 0xff;
 		}
@@ -616,12 +614,12 @@ static int rtc_do_ioctl(unsigned int cmd, unsigned long arg, int kernel)
 
 		if (!(CMOS_READ(RTC_CONTROL) & RTC_DM_BINARY)
 		    || RTC_ALWAYS_BCD) {
-			BIN_TO_BCD(sec);
-			BIN_TO_BCD(min);
-			BIN_TO_BCD(hrs);
-			BIN_TO_BCD(day);
-			BIN_TO_BCD(mon);
-			BIN_TO_BCD(yrs);
+			sec = bin2bcd(sec);
+			min = bin2bcd(min);
+			hrs = bin2bcd(hrs);
+			day = bin2bcd(day);
+			mon = bin2bcd(mon);
+			yrs = bin2bcd(yrs);
 		}
 
 		save_control = CMOS_READ(RTC_CONTROL);
@@ -719,10 +717,13 @@ static int rtc_do_ioctl(unsigned int cmd, unsigned long arg, int kernel)
 			    &wtime, sizeof wtime) ? -EFAULT : 0;
 }
 
-static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		     unsigned long arg)
+static long rtc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	return rtc_do_ioctl(cmd, arg, 0);
+	long ret;
+	lock_kernel();
+	ret = rtc_do_ioctl(cmd, arg, 0);
+	unlock_kernel();
+	return ret;
 }
 
 /*
@@ -915,7 +916,7 @@ static const struct file_operations rtc_fops = {
 #ifdef RTC_IRQ
 	.poll		= rtc_poll,
 #endif
-	.ioctl		= rtc_ioctl,
+	.unlocked_ioctl	= rtc_ioctl,
 	.open		= rtc_open,
 	.release	= rtc_release,
 	.fasync		= rtc_fasync,
@@ -972,8 +973,8 @@ static int __init rtc_init(void)
 	char *guess = NULL;
 #endif
 #ifdef CONFIG_SPARC32
-	struct linux_ebus *ebus;
-	struct linux_ebus_device *edev;
+	struct device_node *ebus_dp;
+	struct of_device *op;
 #else
 	void *r;
 #ifdef RTC_IRQ
@@ -982,12 +983,16 @@ static int __init rtc_init(void)
 #endif
 
 #ifdef CONFIG_SPARC32
-	for_each_ebus(ebus) {
-		for_each_ebusdev(edev, ebus) {
-			if (strcmp(edev->prom_node->name, "rtc") == 0) {
-				rtc_port = edev->resource[0].start;
-				rtc_irq = edev->irqs[0];
-				goto found;
+	for_each_node_by_name(ebus_dp, "ebus") {
+		struct device_node *dp;
+		for (dp = ebus_dp; dp; dp = dp->sibling) {
+			if (!strcmp(dp->name, "rtc")) {
+				op = of_find_device_by_node(dp);
+				if (op) {
+					rtc_port = op->resource[0].start;
+					rtc_irq = op->irqs[0];
+					goto found;
+				}
 			}
 		}
 	}
@@ -996,7 +1001,7 @@ static int __init rtc_init(void)
 	return -EIO;
 
 found:
-	if (rtc_irq == PCI_IRQ_NONE) {
+	if (!rtc_irq) {
 		rtc_has_irq = 0;
 		goto no_irq;
 	}
@@ -1094,7 +1099,7 @@ no_irq:
 	spin_unlock_irq(&rtc_lock);
 
 	if (!(ctrl & RTC_DM_BINARY) || RTC_ALWAYS_BCD)
-		BCD_TO_BIN(year);       /* This should never happen... */
+		year = bcd2bin(year);       /* This should never happen... */
 
 	if (year < 20) {
 		epoch = 2000;
@@ -1302,7 +1307,7 @@ static int rtc_proc_open(struct inode *inode, struct file *file)
 }
 #endif
 
-void rtc_get_rtc_time(struct rtc_time *rtc_tm)
+static void rtc_get_rtc_time(struct rtc_time *rtc_tm)
 {
 	unsigned long uip_watchdog = jiffies, flags;
 	unsigned char ctrl;
@@ -1347,13 +1352,13 @@ void rtc_get_rtc_time(struct rtc_time *rtc_tm)
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	if (!(ctrl & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
-		BCD_TO_BIN(rtc_tm->tm_sec);
-		BCD_TO_BIN(rtc_tm->tm_min);
-		BCD_TO_BIN(rtc_tm->tm_hour);
-		BCD_TO_BIN(rtc_tm->tm_mday);
-		BCD_TO_BIN(rtc_tm->tm_mon);
-		BCD_TO_BIN(rtc_tm->tm_year);
-		BCD_TO_BIN(rtc_tm->tm_wday);
+		rtc_tm->tm_sec = bcd2bin(rtc_tm->tm_sec);
+		rtc_tm->tm_min = bcd2bin(rtc_tm->tm_min);
+		rtc_tm->tm_hour = bcd2bin(rtc_tm->tm_hour);
+		rtc_tm->tm_mday = bcd2bin(rtc_tm->tm_mday);
+		rtc_tm->tm_mon = bcd2bin(rtc_tm->tm_mon);
+		rtc_tm->tm_year = bcd2bin(rtc_tm->tm_year);
+		rtc_tm->tm_wday = bcd2bin(rtc_tm->tm_wday);
 	}
 
 #ifdef CONFIG_MACH_DECSTATION
@@ -1387,9 +1392,9 @@ static void get_rtc_alm_time(struct rtc_time *alm_tm)
 	spin_unlock_irq(&rtc_lock);
 
 	if (!(ctrl & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
-		BCD_TO_BIN(alm_tm->tm_sec);
-		BCD_TO_BIN(alm_tm->tm_min);
-		BCD_TO_BIN(alm_tm->tm_hour);
+		alm_tm->tm_sec = bcd2bin(alm_tm->tm_sec);
+		alm_tm->tm_min = bcd2bin(alm_tm->tm_min);
+		alm_tm->tm_hour = bcd2bin(alm_tm->tm_hour);
 	}
 }
 

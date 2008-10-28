@@ -105,7 +105,7 @@ struct port {
 	u32 probing_interval;
 	u32 last_in_seqno;
 	struct timer_list timer;
-	struct node_subscr subscription;
+	struct tipc_node_subscr subscription;
 };
 
 extern spinlock_t tipc_port_list_lock;

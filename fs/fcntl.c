@@ -49,145 +49,94 @@ static int get_close_on_exec(unsigned int fd)
 	return res;
 }
 
-/*
- * locate_fd finds a free file descriptor in the open_fds fdset,
- * expanding the fd arrays if necessary.  Must be called with the
- * file_lock held for write.
- */
-
-static int locate_fd(unsigned int orig_start, int cloexec)
-{
-	struct files_struct *files = current->files;
-	unsigned int newfd;
-	unsigned int start;
-	int error;
-	struct fdtable *fdt;
-
-	spin_lock(&files->file_lock);
-
-	error = -EINVAL;
-	if (orig_start >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
-		goto out;
-
-repeat:
-	fdt = files_fdtable(files);
-	/*
-	 * Someone might have closed fd's in the range
-	 * orig_start..fdt->next_fd
-	 */
-	start = orig_start;
-	if (start < files->next_fd)
-		start = files->next_fd;
-
-	newfd = start;
-	if (start < fdt->max_fds)
-		newfd = find_next_zero_bit(fdt->open_fds->fds_bits,
-					   fdt->max_fds, start);
-	
-	error = -EMFILE;
-	if (newfd >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
-		goto out;
-
-	error = expand_files(files, newfd);
-	if (error < 0)
-		goto out;
-
-	/*
-	 * If we needed to expand the fs array we
-	 * might have blocked - try again.
-	 */
-	if (error)
-		goto repeat;
-
-	if (start <= files->next_fd)
-		files->next_fd = newfd + 1;
-
-	FD_SET(newfd, fdt->open_fds);
-	if (cloexec)
-		FD_SET(newfd, fdt->close_on_exec);
-	else
-		FD_CLR(newfd, fdt->close_on_exec);
-	error = newfd;
-
-out:
-	spin_unlock(&files->file_lock);
-	return error;
-}
-
-static int dupfd(struct file *file, unsigned int start, int cloexec)
-{
-	int fd = locate_fd(start, cloexec);
-	if (fd >= 0)
-		fd_install(fd, file);
-	else
-		fput(file);
-
-	return fd;
-}
-
-asmlinkage long sys_dup2(unsigned int oldfd, unsigned int newfd)
+asmlinkage long sys_dup3(unsigned int oldfd, unsigned int newfd, int flags)
 {
 	int err = -EBADF;
 	struct file * file, *tofree;
 	struct files_struct * files = current->files;
 	struct fdtable *fdt;
 
+	if ((flags & ~O_CLOEXEC) != 0)
+		return -EINVAL;
+
+	if (unlikely(oldfd == newfd))
+		return -EINVAL;
+
 	spin_lock(&files->file_lock);
-	if (!(file = fcheck(oldfd)))
-		goto out_unlock;
-	err = newfd;
-	if (newfd == oldfd)
-		goto out_unlock;
-	err = -EBADF;
-	if (newfd >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
-		goto out_unlock;
-	get_file(file);			/* We are now finished with oldfd */
-
 	err = expand_files(files, newfd);
-	if (err < 0)
-		goto out_fput;
-
-	/* To avoid races with open() and dup(), we will mark the fd as
-	 * in-use in the open-file bitmap throughout the entire dup2()
-	 * process.  This is quite safe: do_close() uses the fd array
-	 * entry, not the bitmap, to decide what work needs to be
-	 * done.  --sct */
-	/* Doesn't work. open() might be there first. --AV */
-
-	/* Yes. It's a race. In user space. Nothing sane to do */
+	file = fcheck(oldfd);
+	if (unlikely(!file))
+		goto Ebadf;
+	if (unlikely(err < 0)) {
+		if (err == -EMFILE)
+			goto Ebadf;
+		goto out_unlock;
+	}
+	/*
+	 * We need to detect attempts to do dup2() over allocated but still
+	 * not finished descriptor.  NB: OpenBSD avoids that at the price of
+	 * extra work in their equivalent of fget() - they insert struct
+	 * file immediately after grabbing descriptor, mark it larval if
+	 * more work (e.g. actual opening) is needed and make sure that
+	 * fget() treats larval files as absent.  Potentially interesting,
+	 * but while extra work in fget() is trivial, locking implications
+	 * and amount of surgery on open()-related paths in VFS are not.
+	 * FreeBSD fails with -EBADF in the same situation, NetBSD "solution"
+	 * deadlocks in rather amusing ways, AFAICS.  All of that is out of
+	 * scope of POSIX or SUS, since neither considers shared descriptor
+	 * tables and this condition does not arise without those.
+	 */
 	err = -EBUSY;
 	fdt = files_fdtable(files);
 	tofree = fdt->fd[newfd];
 	if (!tofree && FD_ISSET(newfd, fdt->open_fds))
-		goto out_fput;
-
+		goto out_unlock;
+	get_file(file);
 	rcu_assign_pointer(fdt->fd[newfd], file);
 	FD_SET(newfd, fdt->open_fds);
-	FD_CLR(newfd, fdt->close_on_exec);
+	if (flags & O_CLOEXEC)
+		FD_SET(newfd, fdt->close_on_exec);
+	else
+		FD_CLR(newfd, fdt->close_on_exec);
 	spin_unlock(&files->file_lock);
 
 	if (tofree)
 		filp_close(tofree, files);
-	err = newfd;
-out:
-	return err;
+
+	return newfd;
+
+Ebadf:
+	err = -EBADF;
 out_unlock:
 	spin_unlock(&files->file_lock);
-	goto out;
+	return err;
+}
 
-out_fput:
-	spin_unlock(&files->file_lock);
-	fput(file);
-	goto out;
+asmlinkage long sys_dup2(unsigned int oldfd, unsigned int newfd)
+{
+	if (unlikely(newfd == oldfd)) { /* corner case */
+		struct files_struct *files = current->files;
+		rcu_read_lock();
+		if (!fcheck_files(files, oldfd))
+			oldfd = -EBADF;
+		rcu_read_unlock();
+		return oldfd;
+	}
+	return sys_dup3(oldfd, newfd, 0);
 }
 
 asmlinkage long sys_dup(unsigned int fildes)
 {
 	int ret = -EBADF;
-	struct file * file = fget(fildes);
+	struct file *file = fget(fildes);
 
-	if (file)
-		ret = dupfd(file, 0, 0);
+	if (file) {
+		ret = get_unused_fd();
+		if (ret >= 0)
+			fd_install(ret, file);
+		else
+			fput(file);
+	}
 	return ret;
 }
 
@@ -310,8 +259,13 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 	switch (cmd) {
 	case F_DUPFD:
 	case F_DUPFD_CLOEXEC:
-		get_file(filp);
-		err = dupfd(filp, arg, cmd == F_DUPFD_CLOEXEC);
+		if (arg >= current->signal->rlim[RLIMIT_NOFILE].rlim_cur)
+			break;
+		err = alloc_fd(arg, cmd == F_DUPFD_CLOEXEC ? O_CLOEXEC : 0);
+		if (err >= 0) {
+			get_file(filp);
+			fd_install(err, filp);
+		}
 		break;
 	case F_GETFD:
 		err = get_close_on_exec(fd) ? FD_CLOEXEC : 0;

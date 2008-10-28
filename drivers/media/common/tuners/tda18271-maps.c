@@ -1,5 +1,5 @@
 /*
-    tda18271-tables.c - driver for the Philips / NXP TDA18271 silicon tuner
+    tda18271-maps.c - driver for the Philips / NXP TDA18271 silicon tuner
 
     Copyright (C) 2007, 2008 Michael Krufky <mkrufky@linuxtv.org>
 

@@ -61,7 +61,7 @@
 #define SN_SAL_BUFFER_SIZE (64 * (1 << 10))
 
 #define SN_SAL_UART_FIFO_DEPTH 16
-#define SN_SAL_UART_FIFO_SPEED_CPS 9600/10
+#define SN_SAL_UART_FIFO_SPEED_CPS (9600/10)
 
 /* sn_transmit_chars() calling args */
 #define TRANSMIT_BUFFERED	0
@@ -471,7 +471,7 @@ sn_receive_chars(struct sn_cons_port *port, unsigned long flags)
 
 	if (port->sc_port.info) {
 		/* The serial_core stuffs are initilized, use them */
-		tty = port->sc_port.info->tty;
+		tty = port->sc_port.info->port.tty;
 	}
 	else {
 		/* Not registered yet - can't pass to tty layer.  */

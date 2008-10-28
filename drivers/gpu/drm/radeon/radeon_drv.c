@@ -38,7 +38,7 @@
 
 int radeon_no_wb;
 
-MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers\n");
+MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
 
 static int dri_library_name(struct drm_device *dev, char *buf)
@@ -52,6 +52,28 @@ static int dri_library_name(struct drm_device *dev, char *buf)
 		        "r300"));
 }
 
+static int radeon_suspend(struct drm_device *dev, pm_message_t state)
+{
+	drm_radeon_private_t *dev_priv = dev->dev_private;
+
+	/* Disable *all* interrupts */
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS690)
+		RADEON_WRITE(R500_DxMODE_INT_MASK, 0);
+	RADEON_WRITE(RADEON_GEN_INT_CNTL, 0);
+	return 0;
+}
+
+static int radeon_resume(struct drm_device *dev)
+{
+	drm_radeon_private_t *dev_priv = dev->dev_private;
+
+	/* Restore interrupt registers */
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_RS690)
+		RADEON_WRITE(R500_DxMODE_INT_MASK, dev_priv->r500_disp_irq_reg);
+	RADEON_WRITE(RADEON_GEN_INT_CNTL, dev_priv->irq_enable_reg);
+	return 0;
+}
+
 static struct pci_device_id pciidlist[] = {
 	radeon_PCI_IDS
 };
@@ -59,8 +81,7 @@ static struct pci_device_id pciidlist[] = {
 static struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_PCI_DMA | DRIVER_SG |
-	    DRIVER_HAVE_IRQ | DRIVER_HAVE_DMA | DRIVER_IRQ_SHARED |
-	    DRIVER_IRQ_VBL | DRIVER_IRQ_VBL2,
+	    DRIVER_HAVE_IRQ | DRIVER_HAVE_DMA | DRIVER_IRQ_SHARED,
 	.dev_priv_size = sizeof(drm_radeon_buf_priv_t),
 	.load = radeon_driver_load,
 	.firstopen = radeon_driver_firstopen,
@@ -69,8 +90,11 @@ static struct drm_driver driver = {
 	.postclose = radeon_driver_postclose,
 	.lastclose = radeon_driver_lastclose,
 	.unload = radeon_driver_unload,
-	.vblank_wait = radeon_driver_vblank_wait,
-	.vblank_wait2 = radeon_driver_vblank_wait2,
+	.suspend = radeon_suspend,
+	.resume = radeon_resume,
+	.get_vblank_counter = radeon_get_vblank_counter,
+	.enable_vblank = radeon_enable_vblank,
+	.disable_vblank = radeon_disable_vblank,
 	.dri_library_name = dri_library_name,
 	.irq_preinstall = radeon_driver_irq_preinstall,
 	.irq_postinstall = radeon_driver_irq_postinstall,

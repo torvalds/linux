@@ -87,7 +87,8 @@ parameter is applicable:
 	SH	SuperH architecture is enabled.
 	SMP	The kernel is an SMP kernel.
 	SPARC	Sparc architecture is enabled.
-	SWSUSP	Software suspend is enabled.
+	SWSUSP	Software suspend (hibernation) is enabled.
+	SUSPEND	System suspend states are enabled.
 	TS	Appropriate touchscreen support is enabled.
 	USB	USB support is enabled.
 	USBHID	USB Human Interface Device support is enabled.
@@ -100,6 +101,7 @@ parameter is applicable:
 	X86-64	X86-64 architecture is enabled.
 			More X86-64 boot options can be found in
 			Documentation/x86_64/boot-options.txt .
+	X86	Either 32bit or 64bit x86 (same as X86-32+X86-64)
 
 In addition, the following text indicates that the option:
 
@@ -147,10 +149,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			default: 0
 
 	acpi_sleep=	[HW,ACPI] Sleep options
-			Format: { s3_bios, s3_mode, s3_beep, old_ordering }
+			Format: { s3_bios, s3_mode, s3_beep, s4_nohwsig, old_ordering }
 			See Documentation/power/video.txt for s3_bios and s3_mode.
 			s3_beep is for debugging; it makes the PC's speaker beep
 			as soon as the kernel's real-mode entry point is called.
+			s4_nohwsig prevents ACPI hardware signature from being
+			used during resume from hibernation.
 			old_ordering causes the ACPI 1.0 ordering of the _PTS
 			control method, wrt putting devices into low power
 			states, to be enforced (the ACPI 2.0 ordering of _PTS is
@@ -214,20 +218,47 @@ and is between 256 and 4096 characters. It is defined in the file
 	acpi.debug_level=	[HW,ACPI]
 			Format: <int>
 			Each bit of the <int> indicates an ACPI debug level,
-			1: enable, 0: disable. It is useful for boot time
-			debugging. After system has booted up, it can be set
-			via /sys/module/acpi/parameters/debug_level.
-			CONFIG_ACPI_DEBUG must be enabled for this to produce any output.
-			Available bits (add the numbers together) to enable different
-			debug output levels of the ACPI subsystem:
-			0x01 error 0x02 warn 0x04 init 0x08 debug object
-			0x10 info 0x20 init names 0x40 parse 0x80 load
-			0x100 dispatch 0x200 execute 0x400 names 0x800 operation region
-			0x1000 bfield 0x2000 tables 0x4000 values 0x8000 objects
-			0x10000 resources 0x20000 user requests 0x40000 package.
-			The number can be in decimal or prefixed with 0x in hex.
-			Warning: Many of these options can produce a lot of
-			output and make your system unusable. Be very careful.
+			which corresponds to the level in an ACPI_DEBUG_PRINT
+			statement.  After system has booted up, this mask
+			can be set via /sys/module/acpi/parameters/debug_level.
+
+			CONFIG_ACPI_DEBUG must be enabled for this to produce
+			any output.  The number can be in decimal or prefixed
+			with 0x in hex.  Some of these options produce so much
+			output that the system is unusable.
+
+			The following global components are defined by the
+			ACPI CA:
+			       0x01 error
+			       0x02 warn
+			       0x04 init
+			       0x08 debug object
+			       0x10 info
+			       0x20 init names
+			       0x40 parse
+			       0x80 load
+			      0x100 dispatch
+			      0x200 execute
+			      0x400 names
+			      0x800 operation region
+			     0x1000 bfield
+			     0x2000 tables
+			     0x4000 values
+			     0x8000 objects
+			    0x10000 resources
+			    0x20000 user requests
+			    0x40000 package
+ 			The number can be in decimal or prefixed with 0x in hex.
+ 			Warning: Many of these options can produce a lot of
+ 			output and make your system unusable. Be very careful.
+
+ 	acpi.power_nocheck=	[HW,ACPI]
+ 			Format: 1/0 enable/disable the check of power state.
+ 			On some bogus BIOS the _PSC object/_STA object of
+ 			power resource can't return the correct device power
+ 			state. In such case it is unneccessary to check its
+ 			power state again in power transition.
+ 			1 : disable the power state check
 
 	acpi_pm_good	[X86-32,X86-64]
 			Override the pmtimer bug detection: force the kernel
@@ -281,6 +312,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			isolate - enable device isolation (each device, as far
 			          as possible, will get its own protection
 			          domain)
+			fullflush - enable flushing of IO/TLB entries when
+				    they are unmapped. Otherwise they are
+				    flushed before they will be reused, which
+				    is a lot of faster
+
 	amd_iommu_size= [HW,X86-64]
 			Define the size of the aperture for the AMD IOMMU
 			driver. Possible values are:
@@ -361,6 +397,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			Values larger than 10 seconds (10000) are changed to
 			no delay (0).
 			Format: integer
+
+	bootmem_debug	[KNL] Enable bootmem allocator debug messages.
 
 	bttv.card=	[HW,V4L] bttv (bt848 + bt878 based grabber cards)
 	bttv.radio=	Most important insmod options are available as
@@ -457,12 +495,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			in an oops report.
 			Range: 0 - 8192
 			Default: 64
-
-	disable_8254_timer
-	enable_8254_timer
-			[IA32/X86_64] Disable/Enable interrupt 0 timer routing
-			over the 8254 in addition to over the IO-APIC. The
-			kernel tries to set a sensible default.
 
 	hpet=		[X86-32,HPET] option to control HPET usage
 			Format: { enable (default) | disable | force }
@@ -654,11 +686,12 @@ and is between 256 and 4096 characters. It is defined in the file
 	earlyprintk=	[X86-32,X86-64,SH,BLACKFIN]
 			earlyprintk=vga
 			earlyprintk=serial[,ttySn[,baudrate]]
+			earlyprintk=dbgp
 
 			Append ",keep" to not disable it when the real console
 			takes over.
 
-			Only vga or serial at a time, not both.
+			Only vga or serial or usb debug port at a time.
 
 			Currently only ttyS0 and ttyS1 are supported.
 
@@ -685,7 +718,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			See Documentation/block/as-iosched.txt and
 			Documentation/block/deadline-iosched.txt for details.
 
-	elfcorehdr=	[X86-32, X86_64]
+	elfcorehdr=	[IA64,PPC,SH,X86-32,X86_64]
 			Specifies physical address of start of kernel core
 			image elf header. Generally kexec loader will
 			pass this option to capture kernel.
@@ -774,9 +807,26 @@ and is between 256 and 4096 characters. It is defined in the file
 	hisax=		[HW,ISDN]
 			See Documentation/isdn/README.HiSax.
 
-	hugepages=	[HW,X86-32,IA-64] Maximal number of HugeTLB pages.
-	hugepagesz=	[HW,IA-64,PPC] The size of the HugeTLB pages.
+	hugepages=	[HW,X86-32,IA-64] HugeTLB pages to allocate at boot.
+	hugepagesz=	[HW,IA-64,PPC,X86-64] The size of the HugeTLB pages.
+			On x86-64 and powerpc, this option can be specified
+			multiple times interleaved with hugepages= to reserve
+			huge pages of different sizes. Valid pages sizes on
+			x86-64 are 2M (when the CPU supports "pse") and 1G
+			(when the CPU supports the "pdpe1gb" cpuinfo flag)
+			Note that 1GB pages can only be allocated at boot time
+			using hugepages= and not freed afterwards.
+	default_hugepagesz=
+			[same as hugepagesz=] The size of the default
+			HugeTLB page size. This is the size represented by
+			the legacy /proc/ hugepages APIs, used for SHM, and
+			default size when mounting hugetlbfs filesystems.
+			Defaults to the default architecture's huge page size
+			if not specified.
 
+	hlt		[BUGS=ARM,SH]
+
+	i8042.debug	[HW] Toggle i8042 debug mode
 	i8042.direct	[HW] Put keyboard port into non-translated mode
 	i8042.dumbkbd	[HW] Pretend that controller can only read data from
 			     keyboard and cannot control its state
@@ -1001,6 +1051,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			(only serial suported for now)
 			Format: <serial_device>[,baud]
 
+	kmac=		[MIPS] korina ethernet MAC address.
+			Configure the RouterBoard 532 series on-chip
+			Ethernet adapter MAC address.
+
 	l2cr=		[PPC]
 
 	l3cr=		[PPC]
@@ -1054,6 +1108,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			  allowed.
 
 			* [no]ncq: Turn on or off NCQ.
+
+			* nohrst, nosrst, norst: suppress hard, soft
+                          and both resets.
 
 			If there are multiple matching configurations changing
 			the same attribute, the last one is used.
@@ -1184,6 +1241,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	mem=nopentium	[BUGS=X86-32] Disable usage of 4MB pages for kernel
 			memory.
 
+	memchunk=nn[KMG]
+			[KNL,SH] Allow user to override the default size for
+			per-device physically contiguous DMA buffers.
+
 	memmap=exactmap	[KNL,X86-32,X86_64] Enable setting of an exact
 			E820 memory map, as specified by the user.
 			Such memmap=exactmap lines can be constructed based on
@@ -1206,7 +1267,30 @@ and is between 256 and 4096 characters. It is defined in the file
 			         or
 			         memmap=0x10000$0x18690000
 
-	memtest=	[KNL,X86_64] Enable memtest
+	memory_corruption_check=0/1 [X86]
+			Some BIOSes seem to corrupt the first 64k of
+			memory when doing things like suspend/resume.
+			Setting this option will scan the memory
+			looking for corruption.  Enabling this will
+			both detect corruption and prevent the kernel
+			from using the memory being corrupted.
+			However, its intended as a diagnostic tool; if
+			repeatable BIOS-originated corruption always
+			affects the same memory, you can use memmap=
+			to prevent the kernel from using that memory.
+
+	memory_corruption_check_size=size [X86]
+			By default it checks for corruption in the low
+			64k, making this memory unavailable for normal
+			use.  Use this parameter to scan for
+			corruption in more or less memory.
+
+	memory_corruption_check_period=seconds [X86]
+			By default it checks for corruption every 60
+			seconds.  Use this parameter to check at some
+			other rate.  0 disables periodic checking.
+
+	memtest=	[KNL,X86] Enable memtest
 			Format: <integer>
 			range: 0,4 : pattern number
 			default : 0 <disable>
@@ -1224,6 +1308,14 @@ and is between 256 and 4096 characters. It is defined in the file
 			problem by letting the user disable the workaround.
 
 	mga=		[HW,DRM]
+
+	mminit_loglevel=
+			[KNL] When CONFIG_DEBUG_MEMORY_INIT is set, this
+			parameter allows control of the logging verbosity for
+			the additional memory initialisation checks. A value
+			of 0 disables mminit logging and a level of 4 will
+			log everything. Information is printed at KERN_DEBUG
+			so loglevel=8 may also need to be specified.
 
 	mousedev.tap_time=
 			[MOUSE] Maximum time between finger touching and
@@ -1279,6 +1371,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			This usage is only documented in each driver source
 			file if at all.
 
+	nf_conntrack.acct=
+			[NETFILTER] Enable connection tracking flow accounting
+			0 to disable accounting
+			1 to enable accounting
+			Default value depends on CONFIG_NF_CT_ACCT that is
+			going to be removed in 2.6.29.
+
 	nfsaddrs=	[NFS]
 			See Documentation/filesystems/nfsroot.txt.
 
@@ -1328,6 +1427,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nodisconnect	[HW,SCSI,M68K] Disables SCSI disconnects.
 
+	nodsp		[SH] Disable hardware DSP at boot time.
+
 	noefi		[X86-32,X86-64] Disable EFI runtime services support.
 
 	noexec		[IA-64]
@@ -1344,13 +1445,15 @@ and is between 256 and 4096 characters. It is defined in the file
 			noexec32=off: disable non-executable mappings
 				read implies executable mappings
 
+	nofpu		[SH] Disable hardware FPU at boot time.
+
 	nofxsr		[BUGS=X86-32] Disables x86 floating point extended
 			register save and restore. The kernel will only save
 			legacy floating-point registers on task switch.
 
 	noclflush	[BUGS=X86] Don't use the CLFLUSH instruction
 
-	nohlt		[BUGS=ARM]
+	nohlt		[BUGS=ARM,SH]
 
 	no-hlt		[BUGS=X86-32] Tells the kernel that the hlt
 			instruction doesn't work correctly and not to
@@ -1387,6 +1490,12 @@ and is between 256 and 4096 characters. It is defined in the file
 	nolapic		[X86-32,APIC] Do not enable or use the local APIC.
 
 	nolapic_timer	[X86-32,APIC] Do not use the local APIC timer.
+
+	nox2apic	[X86-64,APIC] Do not enable x2APIC mode.
+
+	x2apic_phys	[X86-64,APIC] Use x2apic physical mode instead of
+			default x2apic cluster mode on platforms
+			supporting x2apic.
 
 	noltlbs		[PPC] Do not use large page/tlb entries for kernel
 			lowmem mapping on PPC40x.
@@ -1507,7 +1616,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			See also Documentation/paride.txt.
 
 	pci=option[,option...]	[PCI] various PCI subsystem options:
-		off		[X86-32] don't probe for the PCI bus
+		off		[X86] don't probe for the PCI bus
 		bios		[X86-32] force use of PCI BIOS, don't access
 				the hardware directly. Use this if your machine
 				has a non-standard PCI host bridge.
@@ -1515,9 +1624,9 @@ and is between 256 and 4096 characters. It is defined in the file
 				hardware access methods are allowed. Use this
 				if you experience crashes upon bootup and you
 				suspect they are caused by the BIOS.
-		conf1		[X86-32] Force use of PCI Configuration
+		conf1		[X86] Force use of PCI Configuration
 				Mechanism 1.
-		conf2		[X86-32] Force use of PCI Configuration
+		conf2		[X86] Force use of PCI Configuration
 				Mechanism 2.
 		noaer		[PCIE] If the PCIEAER kernel config parameter is
 				enabled, this kernel boot option can be used to
@@ -1548,37 +1657,37 @@ and is between 256 and 4096 characters. It is defined in the file
 				this option if the kernel is unable to allocate
 				IRQs or discover secondary PCI buses on your
 				motherboard.
-		rom		[X86-32] Assign address space to expansion ROMs.
+		rom		[X86] Assign address space to expansion ROMs.
 				Use with caution as certain devices share
 				address decoders between ROMs and other
 				resources.
-		norom		[X86-32,X86_64] Do not assign address space to
+		norom		[X86] Do not assign address space to
 				expansion ROMs that do not already have
 				BIOS assigned address ranges.
-		irqmask=0xMMMM	[X86-32] Set a bit mask of IRQs allowed to be
+		irqmask=0xMMMM	[X86] Set a bit mask of IRQs allowed to be
 				assigned automatically to PCI devices. You can
 				make the kernel exclude IRQs of your ISA cards
 				this way.
-		pirqaddr=0xAAAAA	[X86-32] Specify the physical address
+		pirqaddr=0xAAAAA	[X86] Specify the physical address
 				of the PIRQ table (normally generated
 				by the BIOS) if it is outside the
 				F0000h-100000h range.
-		lastbus=N	[X86-32] Scan all buses thru bus #N. Can be
+		lastbus=N	[X86] Scan all buses thru bus #N. Can be
 				useful if the kernel is unable to find your
 				secondary buses and you want to tell it
 				explicitly which ones they are.
-		assign-busses	[X86-32] Always assign all PCI bus
+		assign-busses	[X86] Always assign all PCI bus
 				numbers ourselves, overriding
 				whatever the firmware may have done.
-		usepirqmask	[X86-32] Honor the possible IRQ mask stored
+		usepirqmask	[X86] Honor the possible IRQ mask stored
 				in the BIOS $PIR table. This is needed on
 				some systems with broken BIOSes, notably
 				some HP Pavilion N5400 and Omnibook XE3
 				notebooks. This will have no effect if ACPI
 				IRQ routing is enabled.
-		noacpi		[X86-32] Do not use ACPI for IRQ routing
+		noacpi		[X86] Do not use ACPI for IRQ routing
 				or for PCI scanning.
-		use_crs		[X86-32] Use _CRS for PCI resource
+		use_crs		[X86] Use _CRS for PCI resource
 				allocation.
 		routeirq	Do IRQ routing for all PCI devices.
 				This is normally done in pci_enable_device(),
@@ -1607,6 +1716,12 @@ and is between 256 and 4096 characters. It is defined in the file
 				reserved for the CardBus bridge's memory
 				window. The default value is 64 megabytes.
 
+	pcie_aspm=	[PCIE] Forcibly enable or disable PCIe Active State Power
+			Management.
+		off	Disable ASPM.
+		force	Enable ASPM even on devices that claim not to support it.
+			WARNING: Forcing ASPM on may cause system lockups.
+
 	pcmv=		[HW,PCMCIA] BadgePAD 4
 
 	pd.		[PARIDE]
@@ -1634,6 +1749,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			Override pmtimer IOPort with a hex value.
 			e.g. pmtmr=0x508
 
+	pnp.debug	[PNP]
+			Enable PNP debug messages.  This depends on the
+			CONFIG_PNP_DEBUG_MESSAGES option.
+
 	pnpacpi=	[ACPI]
 			{ off }
 
@@ -1653,6 +1772,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			[ISAPNP] Exclude memory regions for the
 			autoconfiguration.
 			Ranges are in pairs (memory base and size).
+
+	dynamic_printk
+			Enables pr_debug()/dev_dbg() calls if
+			CONFIG_DYNAMIC_PRINTK_DEBUG has been enabled. These can also
+			be switched on/off via <debugfs>/dynamic_printk/modules
 
 	print-fatal-signals=
 			[KNL] debug: print fatal signals
@@ -1856,6 +1980,12 @@ and is between 256 and 4096 characters. It is defined in the file
 	shapers=	[NET]
 			Maximal number of shapers.
 
+	show_msr=	[x86] show boot-time MSR settings
+			Format: { <integer> }
+			Show boot-time (BIOS-initialized) MSR settings.
+			The parameter means the number of CPUs to show,
+			for example 1 means boot CPU only.
+
 	sim710=		[SCSI,HW]
 			See header of drivers/scsi/sim710.c.
 
@@ -2038,6 +2168,9 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	snd-ymfpci=	[HW,ALSA]
 
+	softlockup_panic=
+			[KNL] Should the soft-lockup detector generate panics.
+
 	sonypi.*=	[HW] Sony Programmable I/O Control Device driver
 			See Documentation/sonypi.txt
 
@@ -2102,6 +2235,12 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	tdfx=		[HW,DRM]
 
+	test_suspend=	[SUSPEND]
+			Specify "mem" (for Suspend-to-RAM) or "standby" (for
+			standby suspend) as the system sleep state to briefly
+			enter during system startup.  The system is woken from
+			this state using a wakeup-capable RTC alarm.
+
 	thash_entries=	[KNL,NET]
 			Set number of hash buckets for TCP connection
 
@@ -2111,7 +2250,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	thermal.crt=	[HW,ACPI]
 			-1: disable all critical trip points in all thermal zones
-			<degrees C>: lower all critical trip points
+			<degrees C>: override all critical trip points
 
 	thermal.nocrt=	[HW,ACPI]
 			Set to disable actions on ACPI thermal zone
@@ -2128,13 +2267,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			Specify global default ACPI thermal zone polling rate
 			<deci-seconds>: poll all this frequency
 			0: no polling (default)
-
-	tipar.timeout=	[HW,PPT]
-			Set communications timeout in tenths of a second
-			(default 15).
-
-	tipar.delay=	[HW,PPT]
-			Set inter-bit delay in microseconds (default 10).
 
 	tmscsim=	[HW,SCSI]
 			See comment before function dc390_setup() in
@@ -2169,12 +2301,35 @@ and is between 256 and 4096 characters. It is defined in the file
 			Note that genuine overcurrent events won't be
 			reported either.
 
+	unknown_nmi_panic
+			[X86-32,X86-64]
+			Set unknown_nmi_panic=1 early on boot.
+
 	usbcore.autosuspend=
 			[USB] The autosuspend time delay (in seconds) used
 			for newly-detected USB devices (default 2).  This
 			is the time required before an idle device will be
 			autosuspended.  Devices for which the delay is set
 			to a negative value won't be autosuspended at all.
+
+	usbcore.usbfs_snoop=
+			[USB] Set to log all usbfs traffic (default 0 = off).
+
+	usbcore.blinkenlights=
+			[USB] Set to cycle leds on hubs (default 0 = off).
+
+	usbcore.old_scheme_first=
+			[USB] Start with the old device initialization
+			scheme (default 0 = off).
+
+	usbcore.use_both_schemes=
+			[USB] Try the other device initialization scheme
+			if the first one fails (default 1 = enabled).
+
+	usbcore.initial_descriptor_timeout=
+			[USB] Specifies timeout for the initial 64-byte
+                        USB_REQ_GET_DESCRIPTOR request in milliseconds
+			(default 5000 = 5.0 seconds).
 
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.

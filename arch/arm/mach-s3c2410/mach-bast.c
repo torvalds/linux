@@ -22,6 +22,7 @@
 #include <linux/dm9000.h>
 #include <linux/ata_platform.h>
 #include <linux/i2c.h>
+#include <linux/io.h>
 
 #include <net/ax88796.h>
 
@@ -29,24 +30,23 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/bast-map.h>
-#include <asm/arch/bast-irq.h>
-#include <asm/arch/bast-cpld.h>
+#include <mach/bast-map.h>
+#include <mach/bast-irq.h>
+#include <mach/bast-cpld.h>
 
-#include <asm/hardware.h>
-#include <asm/io.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
 //#include <asm/debug-ll.h>
-#include <asm/plat-s3c/regs-serial.h>
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/regs-mem.h>
-#include <asm/arch/regs-lcd.h>
+#include <plat/regs-serial.h>
+#include <mach/regs-gpio.h>
+#include <mach/regs-mem.h>
+#include <mach/regs-lcd.h>
 
 #include <asm/plat-s3c/nand.h>
 #include <asm/plat-s3c/iic.h>
-#include <asm/arch/fb.h>
+#include <mach/fb.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -55,9 +55,9 @@
 
 #include <linux/serial_8250.h>
 
-#include <asm/plat-s3c24xx/clock.h>
-#include <asm/plat-s3c24xx/devs.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/clock.h>
+#include <plat/devs.h>
+#include <plat/cpu.h>
 
 #include "usb-simtec.h"
 #include "nor-simtec.h"
@@ -562,7 +562,7 @@ static struct platform_device *bast_devices[] __initdata = {
 	&bast_sio,
 };
 
-static struct clk *bast_clocks[] = {
+static struct clk *bast_clocks[] __initdata = {
 	&s3c24xx_dclk0,
 	&s3c24xx_dclk1,
 	&s3c24xx_clkout0,

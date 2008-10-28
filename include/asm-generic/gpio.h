@@ -2,8 +2,9 @@
 #define _ASM_GENERIC_GPIO_H
 
 #include <linux/types.h>
+#include <linux/errno.h>
 
-#ifdef CONFIG_HAVE_GPIO_LIB
+#ifdef CONFIG_GPIOLIB
 
 #include <linux/compiler.h>
 
@@ -13,7 +14,7 @@
  *
  * While the GPIO programming interface defines valid GPIO numbers
  * to be in the range 0..MAX_INT, this library restricts them to the
- * smaller range 0..ARCH_NR_GPIOS.
+ * smaller range 0..ARCH_NR_GPIOS-1.
  */
 
 #ifndef ARCH_NR_GPIOS
@@ -32,11 +33,19 @@ struct module;
 /**
  * struct gpio_chip - abstract a GPIO controller
  * @label: for diagnostics
+ * @dev: optional device providing the GPIOs
+ * @owner: helps prevent removal of modules exporting active GPIOs
+ * @request: optional hook for chip-specific activation, such as
+ *	enabling module power and clock; may sleep
+ * @free: optional hook for chip-specific deactivation, such as
+ *	disabling module power and clock; may sleep
  * @direction_input: configures signal "offset" as input, or returns error
  * @get: returns value for signal "offset"; for output signals this
  *	returns either the value actually sensed, or zero
  * @direction_output: configures signal "offset" as output, or returns error
  * @set: assigns output value for signal "offset"
+ * @to_irq: optional hook supporting non-static gpio_to_irq() mappings;
+ *	implementation may not sleep
  * @dbg_show: optional routine to show contents in debugfs; default code
  *	will be used when this is omitted, but custom code can show extra
  *	state (such as pullup/pulldown configuration).
@@ -58,8 +67,14 @@ struct module;
  * is calculated by subtracting @base from the gpio number.
  */
 struct gpio_chip {
-	char			*label;
+	const char		*label;
+	struct device		*dev;
 	struct module		*owner;
+
+	int			(*request)(struct gpio_chip *chip,
+						unsigned offset);
+	void			(*free)(struct gpio_chip *chip,
+						unsigned offset);
 
 	int			(*direction_input)(struct gpio_chip *chip,
 						unsigned offset);
@@ -69,11 +84,16 @@ struct gpio_chip {
 						unsigned offset, int value);
 	void			(*set)(struct gpio_chip *chip,
 						unsigned offset, int value);
+
+	int			(*to_irq)(struct gpio_chip *chip,
+						unsigned offset);
+
 	void			(*dbg_show)(struct seq_file *s,
 						struct gpio_chip *chip);
 	int			base;
 	u16			ngpio;
 	unsigned		can_sleep:1;
+	unsigned		exported:1;
 };
 
 extern const char *gpiochip_is_requested(struct gpio_chip *chip,
@@ -107,8 +127,20 @@ extern void __gpio_set_value(unsigned gpio, int value);
 
 extern int __gpio_cansleep(unsigned gpio);
 
+extern int __gpio_to_irq(unsigned gpio);
 
-#else
+#ifdef CONFIG_GPIO_SYSFS
+
+/*
+ * A sysfs interface can be exported by individual drivers if they want,
+ * but more typically is configured entirely from userspace.
+ */
+extern int gpio_export(unsigned gpio, bool direction_may_change);
+extern void gpio_unexport(unsigned gpio);
+
+#endif	/* CONFIG_GPIO_SYSFS */
+
+#else	/* !CONFIG_HAVE_GPIO_LIB */
 
 static inline int gpio_is_valid(int number)
 {
@@ -137,6 +169,20 @@ static inline void gpio_set_value_cansleep(unsigned gpio, int value)
 	gpio_set_value(gpio, value);
 }
 
-#endif
+#endif /* !CONFIG_HAVE_GPIO_LIB */
+
+#ifndef CONFIG_GPIO_SYSFS
+
+/* sysfs support is only available with gpiolib, where it's optional */
+
+static inline int gpio_export(unsigned gpio, bool direction_may_change)
+{
+	return -ENOSYS;
+}
+
+static inline void gpio_unexport(unsigned gpio)
+{
+}
+#endif	/* CONFIG_GPIO_SYSFS */
 
 #endif /* _ASM_GENERIC_GPIO_H */

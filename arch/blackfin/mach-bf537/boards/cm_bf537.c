@@ -33,6 +33,7 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
@@ -56,16 +57,16 @@ const char bfin_board_name[] = "Bluetechnix CM BF537";
 #if defined(CONFIG_MTD_M25P80) || defined(CONFIG_MTD_M25P80_MODULE)
 static struct mtd_partition bfin_spi_flash_partitions[] = {
 	{
-		.name = "bootloader",
+		.name = "bootloader(spi)",
 		.size = 0x00020000,
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
 	}, {
-		.name = "kernel",
+		.name = "linux kernel(spi)",
 		.size = 0xe0000,
 		.offset = 0x20000
 	}, {
-		.name = "file system",
+		.name = "file system(spi)",
 		.size = 0x700000,
 		.offset = 0x00100000,
 	}
@@ -307,6 +308,55 @@ static struct platform_device net2272_bfin_device = {
 };
 #endif
 
+#if defined(CONFIG_MTD_GPIO_ADDR) || defined(CONFIG_MTD_GPIO_ADDR_MODULE)
+static struct mtd_partition cm_partitions[] = {
+	{
+		.name   = "bootloader(nor)",
+		.size   = 0x40000,
+		.offset = 0,
+	}, {
+		.name   = "linux kernel(nor)",
+		.size   = 0xE0000,
+		.offset = MTDPART_OFS_APPEND,
+	}, {
+		.name   = "file system(nor)",
+		.size   = MTDPART_SIZ_FULL,
+		.offset = MTDPART_OFS_APPEND,
+	}
+};
+
+static struct physmap_flash_data cm_flash_data = {
+	.width    = 2,
+	.parts    = cm_partitions,
+	.nr_parts = ARRAY_SIZE(cm_partitions),
+};
+
+static unsigned cm_flash_gpios[] = { GPIO_PF4 };
+
+static struct resource cm_flash_resource[] = {
+	{
+		.name  = "cfi_probe",
+		.start = 0x20000000,
+		.end   = 0x201fffff,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = (unsigned long)cm_flash_gpios,
+		.end   = ARRAY_SIZE(cm_flash_gpios),
+		.flags = IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device cm_flash_device = {
+	.name          = "gpio-addr-flash",
+	.id            = 0,
+	.dev = {
+		.platform_data = &cm_flash_data,
+	},
+	.num_resources = ARRAY_SIZE(cm_flash_resource),
+	.resource      = cm_flash_resource,
+};
+#endif
+
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
 static struct resource bfin_uart_resources[] = {
 	{
@@ -395,7 +445,7 @@ static struct platform_device bfin_mac_device = {
 #endif
 
 #if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)
-#define PATA_INT	64
+#define PATA_INT	IRQ_PF14
 
 static struct pata_platform_info bfin_pata_platform_data = {
 	.ioport_shift = 2,
@@ -509,6 +559,10 @@ static struct platform_device *cm_bf537_devices[] __initdata = {
 
 #if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)
 	&bfin_pata_device,
+#endif
+
+#if defined(CONFIG_MTD_GPIO_ADDR) || defined(CONFIG_MTD_GPIO_ADDR_MODULE)
+	&cm_flash_device,
 #endif
 };
 

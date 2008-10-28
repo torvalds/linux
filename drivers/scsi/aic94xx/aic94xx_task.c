@@ -320,7 +320,7 @@ Again:
 	case TC_RESUME:
 	case TC_PARTIAL_SG_LIST:
 	default:
-		ASD_DPRINTK("%s: dl opcode: 0x%x?\n", __FUNCTION__, opcode);
+		ASD_DPRINTK("%s: dl opcode: 0x%x?\n", __func__, opcode);
 		break;
 	}
 

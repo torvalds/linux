@@ -4,9 +4,11 @@
 
 EXTRA_CFLAGS += -Ivirt/kvm -Iarch/powerpc/kvm
 
-common-objs = $(addprefix ../../../virt/kvm/, kvm_main.o)
+common-objs-y = $(addprefix ../../../virt/kvm/, kvm_main.o coalesced_mmio.o)
 
-kvm-objs := $(common-objs) powerpc.o emulate.o booke_guest.o
+common-objs-$(CONFIG_KVM_TRACE)  += $(addprefix ../../../virt/kvm/, kvm_trace.o)
+
+kvm-objs := $(common-objs-y) powerpc.o emulate.o booke_guest.o
 obj-$(CONFIG_KVM) += kvm.o
 
 AFLAGS_booke_interrupts.o := -I$(obj)

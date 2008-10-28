@@ -53,8 +53,6 @@ extern int hibernation_platform_enter(void);
 
 extern int pfn_is_nosave(unsigned long);
 
-extern struct mutex pm_mutex;
-
 #define power_attr(_name) \
 static struct kobj_attribute _name##_attr = {	\
 	.attr	= {				\
@@ -155,7 +153,7 @@ extern int swsusp_shrink_memory(void);
 extern void swsusp_free(void);
 extern int swsusp_read(unsigned int *flags_p);
 extern int swsusp_write(unsigned int flags);
-extern void swsusp_close(void);
+extern void swsusp_close(fmode_t);
 
 struct timeval;
 /* kernel/power/swsusp.c */

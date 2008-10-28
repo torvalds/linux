@@ -28,7 +28,7 @@ static int edac_pci_poll_msec = 1000;	/* one second workq period */
 static atomic_t pci_parity_count = ATOMIC_INIT(0);
 static atomic_t pci_nonparity_count = ATOMIC_INIT(0);
 
-static struct kobject edac_pci_top_main_kobj;
+static struct kobject *edac_pci_top_main_kobj;
 static atomic_t edac_pci_sysfs_refcount = ATOMIC_INIT(0);
 
 /* getter functions for the data variables */
@@ -83,7 +83,7 @@ static void edac_pci_instance_release(struct kobject *kobj)
 	pci = to_instance(kobj);
 
 	/* decrement reference count on top main kobj */
-	kobject_put(&edac_pci_top_main_kobj);
+	kobject_put(edac_pci_top_main_kobj);
 
 	kfree(pci);	/* Free the control struct */
 }
@@ -166,7 +166,7 @@ static int edac_pci_create_instance_kobj(struct edac_pci_ctl_info *pci, int idx)
 	 * track the number of PCI instances we have, and thus nest
 	 * properly on keeping the module loaded
 	 */
-	main_kobj = kobject_get(&edac_pci_top_main_kobj);
+	main_kobj = kobject_get(edac_pci_top_main_kobj);
 	if (!main_kobj) {
 		err = -ENODEV;
 		goto error_out;
@@ -174,11 +174,11 @@ static int edac_pci_create_instance_kobj(struct edac_pci_ctl_info *pci, int idx)
 
 	/* And now register this new kobject under the main kobj */
 	err = kobject_init_and_add(&pci->kobj, &ktype_pci_instance,
-				   &edac_pci_top_main_kobj, "pci%d", idx);
+				   edac_pci_top_main_kobj, "pci%d", idx);
 	if (err != 0) {
 		debugf2("%s() failed to register instance pci%d\n",
 			__func__, idx);
-		kobject_put(&edac_pci_top_main_kobj);
+		kobject_put(edac_pci_top_main_kobj);
 		goto error_out;
 	}
 
@@ -316,8 +316,9 @@ static struct edac_pci_dev_attribute *edac_pci_attr[] = {
  */
 static void edac_pci_release_main_kobj(struct kobject *kobj)
 {
-
 	debugf0("%s() here to module_put(THIS_MODULE)\n", __func__);
+
+	kfree(kobj);
 
 	/* last reference to top EDAC PCI kobject has been removed,
 	 * NOW release our ref count on the core module
@@ -369,8 +370,16 @@ static int edac_pci_main_kobj_setup(void)
 		goto decrement_count_fail;
 	}
 
+	edac_pci_top_main_kobj = kzalloc(sizeof(struct kobject), GFP_KERNEL);
+	if (!edac_pci_top_main_kobj) {
+		debugf1("Failed to allocate\n");
+		err = -ENOMEM;
+		goto kzalloc_fail;
+	}
+
 	/* Instanstiate the pci object */
-	err = kobject_init_and_add(&edac_pci_top_main_kobj, &ktype_edac_pci_main_kobj,
+	err = kobject_init_and_add(edac_pci_top_main_kobj,
+				   &ktype_edac_pci_main_kobj,
 				   &edac_class->kset.kobj, "pci");
 	if (err) {
 		debugf1("Failed to register '.../edac/pci'\n");
@@ -381,13 +390,16 @@ static int edac_pci_main_kobj_setup(void)
 	 * for EDAC PCI, then edac_pci_main_kobj_teardown()
 	 * must be used, for resources to be cleaned up properly
 	 */
-	kobject_uevent(&edac_pci_top_main_kobj, KOBJ_ADD);
+	kobject_uevent(edac_pci_top_main_kobj, KOBJ_ADD);
 	debugf1("Registered '.../edac/pci' kobject\n");
 
 	return 0;
 
 	/* Error unwind statck */
 kobject_init_and_add_fail:
+	kfree(edac_pci_top_main_kobj);
+
+kzalloc_fail:
 	module_put(THIS_MODULE);
 
 decrement_count_fail:
@@ -414,7 +426,7 @@ static void edac_pci_main_kobj_teardown(void)
 	if (atomic_dec_return(&edac_pci_sysfs_refcount) == 0) {
 		debugf0("%s() called kobject_put on main kobj\n",
 			__func__);
-		kobject_put(&edac_pci_top_main_kobj);
+		kobject_put(edac_pci_top_main_kobj);
 	}
 }
 

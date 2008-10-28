@@ -13,10 +13,10 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
-#include <asm/arch/irqs.h>
+#include <mach/irqs.h>
 
 #include "common.h"
 
@@ -63,10 +63,10 @@ static void lh7a40x_cpld_handler (unsigned int irq, struct irq_desc *desc)
 	desc->chip->ack (irq);
 
 	if ((mask & 0x1) == 0)	/* WLAN */
-		IRQ_DISPATCH (IRQ_LPD7A40X_ETH_INT);
+		generic_handle_irq(IRQ_LPD7A40X_ETH_INT);
 
 	if ((mask & 0x2) == 0)	/* Touch */
-		IRQ_DISPATCH (IRQ_LPD7A400_TS);
+		generic_handle_irq(IRQ_LPD7A400_TS);
 
 	desc->chip->unmask (irq); /* Level-triggered need this */
 }

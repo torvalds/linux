@@ -82,8 +82,8 @@ __setup("security=", choose_lsm);
  *
  * Return true if:
  *	-The passed LSM is the one chosen by user at boot time,
- *	-or user didsn't specify a specific LSM and we're the first to ask
- *	 for registeration permissoin,
+ *	-or user didn't specify a specific LSM and we're the first to ask
+ *	 for registration permission,
  *	-or the passed LSM is currently loaded.
  * Otherwise, return false.
  */
@@ -101,13 +101,13 @@ int __init security_module_enable(struct security_operations *ops)
  * register_security - registers a security framework with the kernel
  * @ops: a pointer to the struct security_options that is to be registered
  *
- * This function is to allow a security module to register itself with the
+ * This function allows a security module to register itself with the
  * kernel security subsystem.  Some rudimentary checking is done on the @ops
  * value passed to this function. You'll need to check first if your LSM
  * is allowed to register its @ops by calling security_module_enable(@ops).
  *
  * If there is already a security module registered with the kernel,
- * an error will be returned.  Otherwise 0 is returned on success.
+ * an error will be returned.  Otherwise %0 is returned on success.
  */
 int register_security(struct security_operations *ops)
 {
@@ -127,10 +127,14 @@ int register_security(struct security_operations *ops)
 
 /* Security operations */
 
-int security_ptrace(struct task_struct *parent, struct task_struct *child,
-		    unsigned int mode)
+int security_ptrace_may_access(struct task_struct *child, unsigned int mode)
 {
-	return security_ops->ptrace(parent, child, mode);
+	return security_ops->ptrace_may_access(child, mode);
+}
+
+int security_ptrace_traceme(struct task_struct *parent)
+{
+	return security_ops->ptrace_traceme(parent);
 }
 
 int security_capget(struct task_struct *target,
@@ -429,11 +433,11 @@ int security_inode_follow_link(struct dentry *dentry, struct nameidata *nd)
 	return security_ops->inode_follow_link(dentry, nd);
 }
 
-int security_inode_permission(struct inode *inode, int mask, struct nameidata *nd)
+int security_inode_permission(struct inode *inode, int mask)
 {
 	if (unlikely(IS_PRIVATE(inode)))
 		return 0;
-	return security_ops->inode_permission(inode, mask, nd);
+	return security_ops->inode_permission(inode, mask);
 }
 
 int security_inode_setattr(struct dentry *dentry, struct iattr *attr)
@@ -442,6 +446,7 @@ int security_inode_setattr(struct dentry *dentry, struct iattr *attr)
 		return 0;
 	return security_ops->inode_setattr(dentry, attr);
 }
+EXPORT_SYMBOL_GPL(security_inode_setattr);
 
 int security_inode_getattr(struct vfsmount *mnt, struct dentry *dentry)
 {

@@ -24,15 +24,17 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/max7301.h>
 #include <linux/leds.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/pxa2xx_spi.h>
-#include <asm/arch/pcm027.h>
+#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
+#include <mach/mfp-pxa27x.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/pxa2xx_spi.h>
+#include <mach/pcm027.h>
 #include "generic.h"
 
 /*
@@ -84,6 +86,28 @@
  * *) CPU internal use only
  */
 
+static unsigned long pcm027_pin_config[] __initdata = {
+	/* Chip Selects */
+	GPIO20_nSDCS_2,
+	GPIO21_nSDCS_3,
+	GPIO15_nCS_1,
+	GPIO78_nCS_2,
+	GPIO80_nCS_4,
+	GPIO33_nCS_5,	/* Ethernet */
+
+	/* I2C */
+	GPIO117_I2C_SCL,
+	GPIO118_I2C_SDA,
+
+	/* GPIO */
+	GPIO52_GPIO,	/* IRQ from network controller */
+#ifdef CONFIG_LEDS_GPIO
+	GPIO90_GPIO,	/* PCM027_LED_CPU */
+	GPIO91_GPIO,	/* PCM027_LED_HEART_BEAT */
+#endif
+	GPIO114_GPIO,	/* IRQ from CAN controller */
+};
+
 /*
  * SMC91x network controller specific stuff
  */
@@ -108,6 +132,32 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
+/*
+ * SPI host and devices
+ */
+static struct pxa2xx_spi_master pxa_ssp_master_info = {
+	.num_chipselect	= 1,
+};
+
+static struct max7301_platform_data max7301_info = {
+	.base = -1,
+};
+
+/* bus_num must match id in pxa2xx_set_spi_info() call */
+static struct spi_board_info spi_board_info[] __initdata = {
+	{
+		.modalias	= "max7301",
+		.platform_data	= &max7301_info,
+		.max_speed_hz	= 13000000,
+		.bus_num	= 1,
+		.chip_select	= 0,
+		.mode		= SPI_MODE_0,
+	},
+};
+
+/*
+ * NOR flash
+ */
 static struct physmap_flash_data pcm027_flash_data = {
 	.width  = 4,
 };
@@ -178,18 +228,17 @@ static void __init pcm027_init(void)
 	 */
 	ARB_CNTRL = ARB_CORE_PARK | 0x234;
 
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+	pxa2xx_mfp_config(pcm027_pin_config, ARRAY_SIZE(pcm027_pin_config));
 
-	/* LEDs (on demand only) */
-#ifdef CONFIG_LEDS_GPIO
-	pxa_gpio_mode(PCM027_LED_CPU | GPIO_OUT);
-	pxa_gpio_mode(PCM027_LED_HEARD_BEAT | GPIO_OUT);
-#endif /* CONFIG_LEDS_GPIO */
+	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	/* at last call the baseboard to initialize itself */
 #ifdef CONFIG_MACH_PCM990_BASEBOARD
 	pcm990_baseboard_init();
 #endif
+
+	pxa2xx_set_spi_info(1, &pxa_ssp_master_info);
+	spi_register_board_info(spi_board_info, ARRAY_SIZE(spi_board_info));
 }
 
 static void __init pcm027_map_io(void)

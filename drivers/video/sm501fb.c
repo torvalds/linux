@@ -48,10 +48,15 @@ enum sm501_controller {
 	HEAD_PANEL	= 1,
 };
 
-/* SM501 memory address */
+/* SM501 memory address.
+ *
+ * This structure is used to track memory usage within the SM501 framebuffer
+ * allocation. The sm_addr field is stored as an offset as it is often used
+ * against both the physical and mapped addresses.
+ */
 struct sm501_mem {
 	unsigned long	 size;
-	unsigned long	 sm_addr;
+	unsigned long	 sm_addr;	/* offset from base of sm501 fb. */
 	void __iomem	*k_addr;
 };
 
@@ -142,31 +147,68 @@ static inline void sm501fb_sync_regs(struct sm501fb_info *info)
 static int sm501_alloc_mem(struct sm501fb_info *inf, struct sm501_mem *mem,
 			   unsigned int why, size_t size)
 {
-	unsigned int ptr = 0;
+	struct sm501fb_par *par;
+	struct fb_info *fbi;
+	unsigned int ptr;
+	unsigned int end;
 
 	switch (why) {
 	case SM501_MEMF_CURSOR:
 		ptr = inf->fbmem_len - size;
-		inf->fbmem_len = ptr;
+		inf->fbmem_len = ptr;	/* adjust available memory. */
 		break;
 
 	case SM501_MEMF_PANEL:
 		ptr = inf->fbmem_len - size;
-		if (ptr < inf->fb[0]->fix.smem_len)
+		fbi = inf->fb[HEAD_CRT];
+
+		/* round down, some programs such as directfb do not draw
+		 * 0,0 correctly unless the start is aligned to a page start.
+		 */
+
+		if (ptr > 0)
+			ptr &= ~(PAGE_SIZE - 1);
+
+		if (fbi && ptr < fbi->fix.smem_len)
+			return -ENOMEM;
+
+		if (ptr < 0)
 			return -ENOMEM;
 
 		break;
 
 	case SM501_MEMF_CRT:
 		ptr = 0;
+
+		/* check to see if we have panel memory allocated
+		 * which would put an limit on available memory. */
+
+		fbi = inf->fb[HEAD_PANEL];
+		if (fbi) {
+			par = fbi->par;
+			end = par->screen.k_addr ? par->screen.sm_addr : inf->fbmem_len;
+		} else
+			end = inf->fbmem_len;
+
+		if ((ptr + size) > end)
+			return -ENOMEM;
+
 		break;
 
 	case SM501_MEMF_ACCEL:
-		ptr = inf->fb[0]->fix.smem_len;
+		fbi = inf->fb[HEAD_CRT];
+		ptr = fbi ? fbi->fix.smem_len : 0;
 
-		if ((ptr + size) >
-		    (inf->fb[1]->fix.smem_start - inf->fbmem_res->start))
+		fbi = inf->fb[HEAD_PANEL];
+		if (fbi) {
+			par = fbi->par;
+			end = par->screen.sm_addr;
+		} else
+			end = inf->fbmem_len;
+
+		if ((ptr + size) > end)
 			return -ENOMEM;
+
 		break;
 
 	default:
@@ -663,15 +705,25 @@ static void sm501fb_panel_power(struct sm501fb_info *fbi, int to)
 		sm501fb_sync_regs(fbi);
 		mdelay(10);
 
+		/* VBIASEN */
+
 		if (!(pd->flags & SM501FB_FLAG_PANEL_NO_VBIASEN)) {
-			control |= SM501_DC_PANEL_CONTROL_BIAS;	/* VBIASEN */
+			if (pd->flags & SM501FB_FLAG_PANEL_INV_VBIASEN)
+				control &= ~SM501_DC_PANEL_CONTROL_BIAS;
+			else
+				control |= SM501_DC_PANEL_CONTROL_BIAS;
+
 			writel(control, ctrl_reg);
 			sm501fb_sync_regs(fbi);
 			mdelay(10);
 		}
 
 		if (!(pd->flags & SM501FB_FLAG_PANEL_NO_FPEN)) {
-			control |= SM501_DC_PANEL_CONTROL_FPEN;
+			if (pd->flags & SM501FB_FLAG_PANEL_INV_FPEN)
+				control &= ~SM501_DC_PANEL_CONTROL_FPEN;
+			else
+				control |= SM501_DC_PANEL_CONTROL_FPEN;
+
 			writel(control, ctrl_reg);
 			sm501fb_sync_regs(fbi);
 			mdelay(10);
@@ -679,14 +731,22 @@ static void sm501fb_panel_power(struct sm501fb_info *fbi, int to)
 	} else if (!to && (control & SM501_DC_PANEL_CONTROL_VDD) != 0) {
 		/* disable panel power */
 		if (!(pd->flags & SM501FB_FLAG_PANEL_NO_FPEN)) {
-			control &= ~SM501_DC_PANEL_CONTROL_FPEN;
+			if (pd->flags & SM501FB_FLAG_PANEL_INV_FPEN)
+				control |= SM501_DC_PANEL_CONTROL_FPEN;
+			else
+				control &= ~SM501_DC_PANEL_CONTROL_FPEN;
+
 			writel(control, ctrl_reg);
 			sm501fb_sync_regs(fbi);
 			mdelay(10);
 		}
 
 		if (!(pd->flags & SM501FB_FLAG_PANEL_NO_VBIASEN)) {
-			control &= ~SM501_DC_PANEL_CONTROL_BIAS;
+			if (pd->flags & SM501FB_FLAG_PANEL_INV_VBIASEN)
+				control |= SM501_DC_PANEL_CONTROL_BIAS;
+			else
+				control &= ~SM501_DC_PANEL_CONTROL_BIAS;
+
 			writel(control, ctrl_reg);
 			sm501fb_sync_regs(fbi);
 			mdelay(10);
@@ -1210,39 +1270,6 @@ static struct fb_ops sm501fb_ops_pnl = {
 	.fb_imageblit	= cfb_imageblit,
 };
 
-/* sm501fb_info_alloc
- *
- * creates and initialises an sm501fb_info structure
-*/
-
-static struct sm501fb_info *sm501fb_info_alloc(struct fb_info *fbinfo_crt,
-					       struct fb_info *fbinfo_pnl)
-{
-	struct sm501fb_info *info;
-	struct sm501fb_par  *par;
-
-	info = kzalloc(sizeof(struct sm501fb_info), GFP_KERNEL);
-	if (info) {
-		/* set the references back */
-
-		par = fbinfo_crt->par;
-		par->info = info;
-		par->head = HEAD_CRT;
-		fbinfo_crt->pseudo_palette = &par->pseudo_palette;
-
-		par = fbinfo_pnl->par;
-		par->info = info;
-		par->head = HEAD_PANEL;
-		fbinfo_pnl->pseudo_palette = &par->pseudo_palette;
-
-		/* store the two fbs into our info */
-		info->fb[HEAD_CRT] = fbinfo_crt;
-		info->fb[HEAD_PANEL] = fbinfo_pnl;
-	}
-
-	return info;
-}
-
 /* sm501_init_cursor
  *
  * initialise hw cursor parameters
@@ -1250,9 +1277,15 @@ static struct sm501fb_info *sm501fb_info_alloc(struct fb_info *fbinfo_crt,
 
 static int sm501_init_cursor(struct fb_info *fbi, unsigned int reg_base)
 {
-	struct sm501fb_par *par = fbi->par;
-	struct sm501fb_info *info = par->info;
+	struct sm501fb_par *par;
+	struct sm501fb_info *info;
 	int ret;
+
+	if (fbi == NULL)
+		return 0;
+
+	par = fbi->par;
+	info = par->info;
 
 	par->cursor_regs = info->regs + reg_base;
 
@@ -1281,12 +1314,9 @@ static int sm501fb_start(struct sm501fb_info *info,
 			 struct platform_device *pdev)
 {
 	struct resource	*res;
-	struct device *dev;
+	struct device *dev = &pdev->dev;
 	int k;
 	int ret;
-
-	info->dev = dev = &pdev->dev;
-	platform_set_drvdata(pdev, info);
 
 	info->irq = ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
@@ -1388,11 +1418,6 @@ static void sm501fb_stop(struct sm501fb_info *info)
 	iounmap(info->regs);
 	release_resource(info->regs_res);
 	kfree(info->regs_res);
-}
-
-static void sm501fb_info_release(struct sm501fb_info *info)
-{
-	kfree(info);
 }
 
 static int sm501fb_init_fb(struct fb_info *fb,
@@ -1539,35 +1564,92 @@ static struct sm501_platdata_fb sm501fb_def_pdata = {
 static char driver_name_crt[] = "sm501fb-crt";
 static char driver_name_pnl[] = "sm501fb-panel";
 
-static int __init sm501fb_probe(struct platform_device *pdev)
+static int __devinit sm501fb_probe_one(struct sm501fb_info *info,
+				       enum sm501_controller head)
 {
-	struct sm501fb_info *info;
-	struct device	    *dev = &pdev->dev;
-	struct fb_info	    *fbinfo_crt;
-	struct fb_info	    *fbinfo_pnl;
-	int		     ret;
+	unsigned char *name = (head == HEAD_CRT) ? "crt" : "panel";
+	struct sm501_platdata_fbsub *pd;
+	struct sm501fb_par *par;
+	struct fb_info *fbi;
 
-	/* allocate our framebuffers */
+	pd = (head == HEAD_CRT) ? info->pdata->fb_crt : info->pdata->fb_pnl;
 
-	fbinfo_crt = framebuffer_alloc(sizeof(struct sm501fb_par), dev);
-	if (fbinfo_crt == NULL) {
-		dev_err(dev, "cannot allocate crt framebuffer\n");
+	/* Do not initialise if we've not been given any platform data */
+	if (pd == NULL) {
+		dev_info(info->dev, "no data for fb %s (disabled)\n", name);
+		return 0;
+	}
+
+	fbi = framebuffer_alloc(sizeof(struct sm501fb_par), info->dev);
+	if (fbi == NULL) {
+		dev_err(info->dev, "cannot allocate %s framebuffer\n", name);
 		return -ENOMEM;
 	}
 
-	fbinfo_pnl = framebuffer_alloc(sizeof(struct sm501fb_par), dev);
-	if (fbinfo_pnl == NULL) {
-		dev_err(dev, "cannot allocate panel framebuffer\n");
-		ret = -ENOMEM;
-		goto fbinfo_crt_alloc_fail;
+	par = fbi->par;
+	par->info = info;
+	par->head = head;
+	fbi->pseudo_palette = &par->pseudo_palette;
+
+	info->fb[head] = fbi;
+
+	return 0;
+}
+
+/* Free up anything allocated by sm501fb_init_fb */
+
+static void sm501_free_init_fb(struct sm501fb_info *info,
+				enum sm501_controller head)
+{
+	struct fb_info *fbi = info->fb[head];
+
+	fb_dealloc_cmap(&fbi->cmap);
+}
+
+static int __devinit sm501fb_start_one(struct sm501fb_info *info,
+				       enum sm501_controller head,
+				       const char *drvname)
+{
+	struct fb_info *fbi = info->fb[head];
+	int ret;
+
+	if (!fbi)
+		return 0;
+
+	ret = sm501fb_init_fb(info->fb[head], head, drvname);
+	if (ret) {
+		dev_err(info->dev, "cannot initialise fb %s\n", drvname);
+		return ret;
 	}
 
-	info = sm501fb_info_alloc(fbinfo_crt, fbinfo_pnl);
-	if (info == NULL) {
-		dev_err(dev, "cannot allocate par\n");
-		ret = -ENOMEM;
-		goto sm501fb_alloc_fail;
+	ret = register_framebuffer(info->fb[head]);
+	if (ret) {
+		dev_err(info->dev, "failed to register fb %s\n", drvname);
+		sm501_free_init_fb(info, head);
+		return ret;
 	}
+
+	dev_info(info->dev, "fb%d: %s frame buffer\n", fbi->node, fbi->fix.id);
+
+	return 0;
+}
+
+static int __devinit sm501fb_probe(struct platform_device *pdev)
+{
+	struct sm501fb_info *info;
+	struct device *dev = &pdev->dev;
+	int ret;
+
+	/* allocate our framebuffers */
+
+	info = kzalloc(sizeof(struct sm501fb_info), GFP_KERNEL);
+	if (!info) {
+		dev_err(dev, "failed to allocate state\n");
+		return -ENOMEM;
+	}
+
+	info->dev = dev = &pdev->dev;
+	platform_set_drvdata(pdev, info);
 
 	if (dev->parent->platform_data) {
 		struct sm501_platdata *pd = dev->parent->platform_data;
@@ -1579,90 +1661,88 @@ static int __init sm501fb_probe(struct platform_device *pdev)
 		info->pdata = &sm501fb_def_pdata;
 	}
 
-	/* start the framebuffers */
+	/* probe for the presence of each panel */
+
+	ret = sm501fb_probe_one(info, HEAD_CRT);
+	if (ret < 0) {
+		dev_err(dev, "failed to probe CRT\n");
+		goto err_alloc;
+	}
+
+	ret = sm501fb_probe_one(info, HEAD_PANEL);
+	if (ret < 0) {
+		dev_err(dev, "failed to probe PANEL\n");
+		goto err_probed_crt;
+	}
+
+	if (info->fb[HEAD_PANEL] == NULL &&
+	    info->fb[HEAD_CRT] == NULL) {
+		dev_err(dev, "no framebuffers found\n");
+		goto err_alloc;
+	}
+
+	/* get the resources for both of the framebuffers */
 
 	ret = sm501fb_start(info, pdev);
 	if (ret) {
 		dev_err(dev, "cannot initialise SM501\n");
-		goto sm501fb_start_fail;
+		goto err_probed_panel;
 	}
 
-	/* CRT framebuffer setup */
-
-	ret = sm501fb_init_fb(fbinfo_crt, HEAD_CRT, driver_name_crt);
+	ret = sm501fb_start_one(info, HEAD_CRT, driver_name_crt);
 	if (ret) {
-		dev_err(dev, "cannot initialise CRT fb\n");
-		goto sm501fb_start_fail;
+		dev_err(dev, "failed to start CRT\n");
+		goto err_started;
 	}
 
-	/* Panel framebuffer setup */
-
-	ret = sm501fb_init_fb(fbinfo_pnl, HEAD_PANEL, driver_name_pnl);
+	ret = sm501fb_start_one(info, HEAD_PANEL, driver_name_pnl);
 	if (ret) {
-		dev_err(dev, "cannot initialise Panel fb\n");
-		goto sm501fb_start_fail;
+		dev_err(dev, "failed to start Panel\n");
+		goto err_started_crt;
 	}
-
-	/* register framebuffers */
-
-	ret = register_framebuffer(fbinfo_crt);
-	if (ret < 0) {
-		dev_err(dev, "failed to register CRT fb (%d)\n", ret);
-		goto register_crt_fail;
-	}
-
-	ret = register_framebuffer(fbinfo_pnl);
-	if (ret < 0) {
-		dev_err(dev, "failed to register panel fb (%d)\n", ret);
-		goto register_pnl_fail;
-	}
-
-	dev_info(dev, "fb%d: %s frame buffer device\n",
-		 fbinfo_crt->node, fbinfo_crt->fix.id);
-
-	dev_info(dev, "fb%d: %s frame buffer device\n",
-	       fbinfo_pnl->node, fbinfo_pnl->fix.id);
 
 	/* create device files */
 
 	ret = device_create_file(dev, &dev_attr_crt_src);
 	if (ret)
-		goto crtsrc_fail;
+		goto err_started_panel;
 
 	ret = device_create_file(dev, &dev_attr_fbregs_pnl);
 	if (ret)
-		goto fbregs_pnl_fail;
+		goto err_attached_crtsrc_file;
 
 	ret = device_create_file(dev, &dev_attr_fbregs_crt);
 	if (ret)
-		goto fbregs_crt_fail;
+		goto err_attached_pnlregs_file;
 
 	/* we registered, return ok */
 	return 0;
 
- fbregs_crt_fail:
+err_attached_pnlregs_file:
 	device_remove_file(dev, &dev_attr_fbregs_pnl);
 
- fbregs_pnl_fail:
+err_attached_crtsrc_file:
 	device_remove_file(dev, &dev_attr_crt_src);
 
- crtsrc_fail:
-	unregister_framebuffer(fbinfo_pnl);
+err_started_panel:
+	unregister_framebuffer(info->fb[HEAD_PANEL]);
+	sm501_free_init_fb(info, HEAD_PANEL);
 
- register_pnl_fail:
-	unregister_framebuffer(fbinfo_crt);
+err_started_crt:
+	unregister_framebuffer(info->fb[HEAD_CRT]);
+	sm501_free_init_fb(info, HEAD_CRT);
 
- register_crt_fail:
+err_started:
 	sm501fb_stop(info);
 
- sm501fb_start_fail:
-	sm501fb_info_release(info);
+err_probed_panel:
+	framebuffer_release(info->fb[HEAD_PANEL]);
 
- sm501fb_alloc_fail:
-	framebuffer_release(fbinfo_pnl);
+err_probed_crt:
+	framebuffer_release(info->fb[HEAD_CRT]);
 
- fbinfo_crt_alloc_fail:
-	framebuffer_release(fbinfo_crt);
+err_alloc:
+	kfree(info);
 
 	return ret;
 }
@@ -1681,11 +1761,14 @@ static int sm501fb_remove(struct platform_device *pdev)
 	device_remove_file(&pdev->dev, &dev_attr_fbregs_pnl);
 	device_remove_file(&pdev->dev, &dev_attr_crt_src);
 
+	sm501_free_init_fb(info, HEAD_CRT);
+	sm501_free_init_fb(info, HEAD_PANEL);
+
 	unregister_framebuffer(fbinfo_crt);
 	unregister_framebuffer(fbinfo_pnl);
 
 	sm501fb_stop(info);
-	sm501fb_info_release(info);
+	kfree(info);
 
 	framebuffer_release(fbinfo_pnl);
 	framebuffer_release(fbinfo_crt);

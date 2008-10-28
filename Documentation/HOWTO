@@ -77,7 +77,8 @@ documentation files are also added which explain how to use the feature.
 When a kernel change causes the interface that the kernel exposes to
 userspace to change, it is recommended that you send the information or
 a patch to the manual pages explaining the change to the manual pages
-maintainer at mtk.manpages@gmail.com.
+maintainer at mtk.manpages@gmail.com, and CC the list
+linux-api@vger.kernel.org.
 
 Here is a list of files that are in the kernel source tree that are
 required reading:
@@ -111,7 +112,7 @@ required reading:
 
     Other excellent descriptions of how to create patches properly are:
 	"The Perfect Patch"
-		http://www.zip.com.au/~akpm/linux/patches/stuff/tpp.txt
+		http://userweb.kernel.org/~akpm/stuff/tpp.txt
 	"Linux kernel patch submission format"
 		http://linux.yyz.us/patch-format.html
 
@@ -358,7 +359,7 @@ Here is a list of some of the different kernel trees available:
     - pcmcia, Dominik Brodowski <linux@dominikbrodowski.net>
 	git.kernel.org:/pub/scm/linux/kernel/git/brodo/pcmcia-2.6.git
 
-    - SCSI, James Bottomley <James.Bottomley@SteelEye.com>
+    - SCSI, James Bottomley <James.Bottomley@hansenpartnership.com>
 	git.kernel.org:/pub/scm/linux/kernel/git/jejb/scsi-misc-2.6.git
 
     - x86, Ingo Molnar <mingo@elte.hu>
@@ -619,7 +620,7 @@ all time.  It should describe the patch completely, containing:
 For more details on what this should all look like, please see the
 ChangeLog section of the document:
   "The Perfect Patch"
-      http://www.zip.com.au/~akpm/linux/patches/stuff/tpp.txt
+      http://userweb.kernel.org/~akpm/stuff/tpp.txt
 
 
 

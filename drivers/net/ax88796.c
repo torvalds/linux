@@ -153,7 +153,7 @@ static void ax_reset_8390(struct net_device *dev)
 	while ((ei_inb(addr + EN0_ISR) & ENISR_RESET) == 0) {
 		if (jiffies - reset_start_time > 2*HZ/100) {
 			dev_warn(&ax->dev->dev, "%s: %s did not complete.\n",
-			       __FUNCTION__, dev->name);
+			       __func__, dev->name);
 			break;
 		}
 	}
@@ -173,7 +173,7 @@ static void ax_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr,
 	if (ei_status.dmaing) {
 		dev_err(&ax->dev->dev, "%s: DMAing conflict in %s "
 			"[DMAstat:%d][irqlock:%d].\n",
-			dev->name, __FUNCTION__,
+			dev->name, __func__,
 			ei_status.dmaing, ei_status.irqlock);
 		return;
 	}
@@ -215,7 +215,7 @@ static void ax_block_input(struct net_device *dev, int count,
 		dev_err(&ax->dev->dev,
 			"%s: DMAing conflict in %s "
 			"[DMAstat:%d][irqlock:%d].\n",
-			dev->name, __FUNCTION__,
+			dev->name, __func__,
 			ei_status.dmaing, ei_status.irqlock);
 		return;
 	}
@@ -260,7 +260,7 @@ static void ax_block_output(struct net_device *dev, int count,
 	if (ei_status.dmaing) {
 		dev_err(&ax->dev->dev, "%s: DMAing conflict in %s."
 			"[DMAstat:%d][irqlock:%d]\n",
-			dev->name, __FUNCTION__,
+			dev->name, __func__,
 		       ei_status.dmaing, ei_status.irqlock);
 		return;
 	}
@@ -396,7 +396,7 @@ ax_phy_issueaddr(struct net_device *dev, int phy_addr, int reg, int opc)
 {
 	if (phy_debug)
 		pr_debug("%s: dev %p, %04x, %04x, %d\n",
-			__FUNCTION__, dev, phy_addr, reg, opc);
+			__func__, dev, phy_addr, reg, opc);
 
 	ax_mii_ei_outbits(dev, 0x3f, 6);	/* pre-amble */
 	ax_mii_ei_outbits(dev, 1, 2);		/* frame-start */
@@ -422,7 +422,7 @@ ax_phy_read(struct net_device *dev, int phy_addr, int reg)
       	spin_unlock_irqrestore(&ei_local->page_lock, flags);
 
 	if (phy_debug)
-		pr_debug("%s: %04x.%04x => read %04x\n", __FUNCTION__,
+		pr_debug("%s: %04x.%04x => read %04x\n", __func__,
 			 phy_addr, reg, result);
 
 	return result;
@@ -436,7 +436,7 @@ ax_phy_write(struct net_device *dev, int phy_addr, int reg, int value)
 	unsigned long flags;
 
 	dev_dbg(&ax->dev->dev, "%s: %p, %04x, %04x %04x\n",
-		__FUNCTION__, dev, phy_addr, reg, value);
+		__func__, dev, phy_addr, reg, value);
 
       	spin_lock_irqsave(&ei->page_lock, flags);
 
@@ -554,7 +554,7 @@ static int ax_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	spin_lock_irqsave(&ax->mii_lock, flags);
 	mii_ethtool_gset(&ax->mii, cmd);
-	spin_lock_irqsave(&ax->mii_lock, flags);
+	spin_unlock_irqrestore(&ax->mii_lock, flags);
 
 	return 0;
 }
@@ -567,7 +567,7 @@ static int ax_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	spin_lock_irqsave(&ax->mii_lock, flags);
 	rc = mii_ethtool_sset(&ax->mii, cmd);
-	spin_lock_irqsave(&ax->mii_lock, flags);
+	spin_unlock_irqrestore(&ax->mii_lock, flags);
 
 	return rc;
 }
@@ -838,12 +838,12 @@ static int ax_probe(struct platform_device *pdev)
 
 	/* find the platform resources */
 
-	dev->irq  = platform_get_irq(pdev, 0);
-	if (dev->irq < 0) {
+	ret  = platform_get_irq(pdev, 0);
+	if (ret < 0) {
 		dev_err(&pdev->dev, "no IRQ specified\n");
-		ret = -ENXIO;
 		goto exit_mem;
 	}
+	dev->irq = ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {

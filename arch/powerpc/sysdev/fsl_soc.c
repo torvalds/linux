@@ -207,66 +207,58 @@ static int __init of_add_fixed_phys(void)
 arch_initcall(of_add_fixed_phys);
 #endif /* CONFIG_FIXED_PHY */
 
-static int __init gfar_mdio_of_init(void)
+static int gfar_mdio_of_init_one(struct device_node *np)
 {
-	struct device_node *np = NULL;
+	int k;
+	struct device_node *child = NULL;
+	struct gianfar_mdio_data mdio_data;
 	struct platform_device *mdio_dev;
 	struct resource res;
 	int ret;
 
-	np = of_find_compatible_node(np, NULL, "fsl,gianfar-mdio");
+	memset(&res, 0, sizeof(res));
+	memset(&mdio_data, 0, sizeof(mdio_data));
 
-	/* try the deprecated version */
-	if (!np)
-		np = of_find_compatible_node(np, "mdio", "gianfar");
+	ret = of_address_to_resource(np, 0, &res);
+	if (ret)
+		return ret;
 
-	if (np) {
-		int k;
-		struct device_node *child = NULL;
-		struct gianfar_mdio_data mdio_data;
+	mdio_dev = platform_device_register_simple("fsl-gianfar_mdio",
+			res.start&0xfffff, &res, 1);
+	if (IS_ERR(mdio_dev))
+		return PTR_ERR(mdio_dev);
 
-		memset(&res, 0, sizeof(res));
-		memset(&mdio_data, 0, sizeof(mdio_data));
+	for (k = 0; k < 32; k++)
+		mdio_data.irq[k] = PHY_POLL;
 
-		ret = of_address_to_resource(np, 0, &res);
-		if (ret)
-			goto err;
-
-		mdio_dev =
-		    platform_device_register_simple("fsl-gianfar_mdio",
-						    res.start, &res, 1);
-		if (IS_ERR(mdio_dev)) {
-			ret = PTR_ERR(mdio_dev);
-			goto err;
+	while ((child = of_get_next_child(np, child)) != NULL) {
+		int irq = irq_of_parse_and_map(child, 0);
+		if (irq != NO_IRQ) {
+			const u32 *id = of_get_property(child, "reg", NULL);
+			mdio_data.irq[*id] = irq;
 		}
-
-		for (k = 0; k < 32; k++)
-			mdio_data.irq[k] = PHY_POLL;
-
-		while ((child = of_get_next_child(np, child)) != NULL) {
-			int irq = irq_of_parse_and_map(child, 0);
-			if (irq != NO_IRQ) {
-				const u32 *id = of_get_property(child,
-							"reg", NULL);
-				mdio_data.irq[*id] = irq;
-			}
-		}
-
-		ret =
-		    platform_device_add_data(mdio_dev, &mdio_data,
-					     sizeof(struct gianfar_mdio_data));
-		if (ret)
-			goto unreg;
 	}
 
-	of_node_put(np);
-	return 0;
+	ret = platform_device_add_data(mdio_dev, &mdio_data,
+				sizeof(struct gianfar_mdio_data));
+	if (ret)
+		platform_device_unregister(mdio_dev);
 
-unreg:
-	platform_device_unregister(mdio_dev);
-err:
-	of_node_put(np);
 	return ret;
+}
+
+static int __init gfar_mdio_of_init(void)
+{
+	struct device_node *np = NULL;
+
+	for_each_compatible_node(np, NULL, "fsl,gianfar-mdio")
+		gfar_mdio_of_init_one(np);
+
+	/* try the deprecated version */
+	for_each_compatible_node(np, "mdio", "gianfar");
+		gfar_mdio_of_init_one(np);
+
+	return 0;
 }
 
 arch_initcall(gfar_mdio_of_init);
@@ -295,6 +287,9 @@ static int __init gfar_of_init(void)
 		const void *mac_addr;
 		const phandle *ph;
 		int n_res = 2;
+
+		if (!of_device_is_available(np))
+			continue;
 
 		memset(r, 0, sizeof(r));
 		memset(&gfar_data, 0, sizeof(gfar_data));
@@ -357,6 +352,9 @@ static int __init gfar_of_init(void)
 		else
 			gfar_data.interface = PHY_INTERFACE_MODE_MII;
 
+		if (of_get_property(np, "fsl,magic-packet", NULL))
+			gfar_data.device_flags |= FSL_GIANFAR_DEV_HAS_MAGIC_PACKET;
+
 		ph = of_get_property(np, "phy-handle", NULL);
 		if (ph == NULL) {
 			u32 *fixed_link;
@@ -390,7 +388,7 @@ static int __init gfar_of_init(void)
 
 			gfar_data.phy_id = *id;
 			snprintf(gfar_data.bus_id, MII_BUS_ID_SIZE, "%llx",
-				 (unsigned long long)res.start);
+				 (unsigned long long)res.start&0xfffff);
 
 			of_node_put(phy);
 			of_node_put(mdio);
@@ -413,53 +411,6 @@ err:
 }
 
 arch_initcall(gfar_of_init);
-
-
-#ifdef CONFIG_PPC_83xx
-static int __init mpc83xx_wdt_init(void)
-{
-	struct resource r;
-	struct device_node *np;
-	struct platform_device *dev;
-	u32 freq = fsl_get_sys_freq();
-	int ret;
-
-	np = of_find_compatible_node(NULL, "watchdog", "mpc83xx_wdt");
-
-	if (!np) {
-		ret = -ENODEV;
-		goto nodev;
-	}
-
-	memset(&r, 0, sizeof(r));
-
-	ret = of_address_to_resource(np, 0, &r);
-	if (ret)
-		goto err;
-
-	dev = platform_device_register_simple("mpc83xx_wdt", 0, &r, 1);
-	if (IS_ERR(dev)) {
-		ret = PTR_ERR(dev);
-		goto err;
-	}
-
-	ret = platform_device_add_data(dev, &freq, sizeof(freq));
-	if (ret)
-		goto unreg;
-
-	of_node_put(np);
-	return 0;
-
-unreg:
-	platform_device_unregister(dev);
-err:
-	of_node_put(np);
-nodev:
-	return ret;
-}
-
-arch_initcall(mpc83xx_wdt_init);
-#endif
 
 static enum fsl_usb2_phy_modes determine_usb_phy(const char *phy_type)
 {
@@ -769,42 +720,6 @@ void fsl_rstcr_restart(char *cmd)
 #endif
 
 #if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
-struct platform_diu_data_ops diu_ops = {
-	.diu_size = 1280 * 1024 * 4,	/* default one 1280x1024 buffer */
-};
+struct platform_diu_data_ops diu_ops;
 EXPORT_SYMBOL(diu_ops);
-
-int __init preallocate_diu_videomemory(void)
-{
-	pr_debug("diu_size=%lu\n", diu_ops.diu_size);
-
-	diu_ops.diu_mem = __alloc_bootmem(diu_ops.diu_size, 8, 0);
-	if (!diu_ops.diu_mem) {
-		printk(KERN_ERR "fsl-diu: cannot allocate %lu bytes\n",
-			diu_ops.diu_size);
-		return -ENOMEM;
-	}
-
-	pr_debug("diu_mem=%p\n", diu_ops.diu_mem);
-
-	rh_init(&diu_ops.diu_rh_info, 4096, ARRAY_SIZE(diu_ops.diu_rh_block),
-		diu_ops.diu_rh_block);
-	return rh_attach_region(&diu_ops.diu_rh_info,
-				(unsigned long) diu_ops.diu_mem,
-				diu_ops.diu_size);
-}
-
-static int __init early_parse_diufb(char *p)
-{
-	if (!p)
-		return 1;
-
-	diu_ops.diu_size = _ALIGN_UP(memparse(p, &p), 8);
-
-	pr_debug("diu_size=%lu\n", diu_ops.diu_size);
-
-	return 0;
-}
-early_param("diufb", early_parse_diufb);
-
 #endif

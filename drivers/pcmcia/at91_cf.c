@@ -18,13 +18,13 @@
 
 #include <pcmcia/ss.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/sizes.h>
 #include <asm/gpio.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/at91rm9200_mc.h>
+#include <mach/board.h>
+#include <mach/at91rm9200_mc.h>
 
 
 /*
@@ -273,7 +273,7 @@ static int __init at91_cf_probe(struct platform_device *pdev)
 			goto fail0d;
 		cf->socket.pci_irq = board->irq_pin;
 	} else
-		cf->socket.pci_irq = NR_IRQS + 1;
+		cf->socket.pci_irq = nr_irqs + 1;
 
 	/* pcmcia layer only remaps "real" memory not iospace */
 	cf->socket.io_offset = (unsigned long)

@@ -36,8 +36,8 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 
-#include <asm/arch/at32ap700x.h>
-#include <asm/arch/portmux.h>
+#include <mach/at32ap700x.h>
+#include <mach/portmux.h>
 
 #include "../codecs/wm8510.h"
 #include "at32-pcm.h"
@@ -304,7 +304,7 @@ static const struct snd_soc_dapm_widget playpaq_dapm_widgets[] = {
 
 
 
-static const char *intercon[][3] = {
+static const struct snd_soc_dapm_route intercon[] = {
 	/* speaker connected to SPKOUT */
 	{"Ext Spk", NULL, "SPKOUTP"},
 	{"Ext Spk", NULL, "SPKOUTN"},
@@ -312,9 +312,6 @@ static const char *intercon[][3] = {
 	{"Mic Bias", NULL, "Int Mic"},
 	{"MICN", NULL, "Mic Bias"},
 	{"MICP", NULL, "Mic Bias"},
-
-	/* Terminator */
-	{NULL, NULL, NULL},
 };
 
 
@@ -334,11 +331,8 @@ static int playpaq_wm8510_init(struct snd_soc_codec *codec)
 	/*
 	 * Setup audio path interconnects
 	 */
-	for (i = 0; intercon[i][0] != NULL; i++) {
-		snd_soc_dapm_connect_input(codec,
-					   intercon[i][0],
-					   intercon[i][1], intercon[i][2]);
-	}
+	snd_soc_dapm_add_routes(codec, intercon, ARRAY_SIZE(intercon));
+
 
 
 	/* always connected pins */
@@ -377,6 +371,7 @@ static struct snd_soc_machine snd_soc_machine_playpaq = {
 
 
 static struct wm8510_setup_data playpaq_wm8510_setup = {
+	.i2c_bus = 0,
 	.i2c_address = 0x1a,
 };
 
@@ -405,7 +400,6 @@ static int __init playpaq_asoc_init(void)
 	ssc = ssc_request(0);
 	if (IS_ERR(ssc)) {
 		ret = PTR_ERR(ssc);
-		ssc = NULL;
 		goto err_ssc;
 	}
 	ssc_p->ssc = ssc;
@@ -476,10 +470,7 @@ err_pll0:
 		_gclk0 = NULL;
 	}
 err_gclk0:
-	if (ssc != NULL) {
-		ssc_free(ssc);
-		ssc = NULL;
-	}
+	ssc_free(ssc);
 err_ssc:
 	return ret;
 }

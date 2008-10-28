@@ -100,31 +100,14 @@
 #define	_PC300_H
 
 #include <linux/hdlc.h>
-#include <net/syncppp.h>
 #include "hd64572.h"
 #include "pc300-falc-lh.h"
 
-#ifndef CY_TYPES
-#define CY_TYPES
-typedef	__u64	ucdouble;	/* 64 bits, unsigned */
-typedef	__u32	uclong;		/* 32 bits, unsigned */
-typedef	__u16	ucshort;	/* 16 bits, unsigned */
-typedef	__u8	ucchar;		/* 8 bits, unsigned */
-#endif /* CY_TYPES */
+#define PC300_PROTO_MLPPP 1
 
-#define PC300_PROTO_MLPPP 1		
-
-#define PC300_KERNEL	"2.4.x"	/* Kernel supported by this driver */
-
-#define	PC300_DEVNAME	"hdlc"	/* Dev. name base (for hdlc0, hdlc1, etc.) */
-#define PC300_MAXINDEX	100	/* Max dev. name index (the '0' in hdlc0) */
-
-#define	PC300_MAXCARDS	4	/* Max number of cards per system */
 #define	PC300_MAXCHAN	2	/* Number of channels per card */
 
-#define	PC300_PLX_WIN	0x80    /* PLX control window size (128b) */
 #define	PC300_RAMSIZE	0x40000 /* RAM window size (256Kb) */
-#define	PC300_SCASIZE	0x400   /* SCA window size (1Kb) */
 #define	PC300_FALCSIZE	0x400	/* FALC window size (1Kb) */
 
 #define PC300_OSC_CLOCK	24576000
@@ -160,25 +143,13 @@ typedef	__u8	ucchar;		/* 8 bits, unsigned */
  * Memory access functions/macros      *
  * (required to support Alpha systems) *
  ***************************************/
-#ifdef __KERNEL__
-#define cpc_writeb(port,val)	{writeb((ucchar)(val),(port)); mb();}
+#define cpc_writeb(port,val)	{writeb((u8)(val),(port)); mb();}
 #define cpc_writew(port,val)	{writew((ushort)(val),(port)); mb();}
-#define cpc_writel(port,val)	{writel((uclong)(val),(port)); mb();}
+#define cpc_writel(port,val)	{writel((u32)(val),(port)); mb();}
 
 #define cpc_readb(port)		readb(port)
 #define cpc_readw(port)		readw(port)
 #define cpc_readl(port)		readl(port)
-
-#else /* __KERNEL__ */
-#define cpc_writeb(port,val)	(*(volatile ucchar *)(port) = (ucchar)(val))
-#define cpc_writew(port,val)	(*(volatile ucshort *)(port) = (ucshort)(val))
-#define cpc_writel(port,val)	(*(volatile uclong *)(port) = (uclong)(val))
-
-#define cpc_readb(port)		(*(volatile ucchar *)(port))
-#define cpc_readw(port)		(*(volatile ucshort *)(port))
-#define cpc_readl(port)		(*(volatile uclong *)(port))
-
-#endif /* __KERNEL__ */
 
 /****** Data Structures *****************************************************/
 
@@ -188,15 +159,15 @@ typedef	__u8	ucchar;		/* 8 bits, unsigned */
  *      (memory mapped).
  */
 struct RUNTIME_9050 {
-	uclong	loc_addr_range[4];	/* 00-0Ch : Local Address Ranges */
-	uclong	loc_rom_range;		/* 10h : Local ROM Range */
-	uclong	loc_addr_base[4];	/* 14-20h : Local Address Base Addrs */
-	uclong	loc_rom_base;		/* 24h : Local ROM Base */
-	uclong	loc_bus_descr[4];	/* 28-34h : Local Bus Descriptors */
-	uclong	rom_bus_descr;		/* 38h : ROM Bus Descriptor */
-	uclong	cs_base[4];		/* 3C-48h : Chip Select Base Addrs */
-	uclong	intr_ctrl_stat;		/* 4Ch : Interrupt Control/Status */
-	uclong	init_ctrl;		/* 50h : EEPROM ctrl, Init Ctrl, etc */
+	u32 loc_addr_range[4];	/* 00-0Ch : Local Address Ranges */
+	u32 loc_rom_range;	/* 10h : Local ROM Range */
+	u32 loc_addr_base[4];	/* 14-20h : Local Address Base Addrs */
+	u32 loc_rom_base;	/* 24h : Local ROM Base */
+	u32 loc_bus_descr[4];	/* 28-34h : Local Bus Descriptors */
+	u32 rom_bus_descr;	/* 38h : ROM Bus Descriptor */
+	u32 cs_base[4];		/* 3C-48h : Chip Select Base Addrs */
+	u32 intr_ctrl_stat;	/* 4Ch : Interrupt Control/Status */
+	u32 init_ctrl;		/* 50h : EEPROM ctrl, Init Ctrl, etc */
 };
 
 #define PLX_9050_LINT1_ENABLE	0x01
@@ -240,66 +211,66 @@ struct RUNTIME_9050 {
 #define PC300_FALC_MAXLOOP	0x0000ffff	/* for falc_issue_cmd() */
 
 typedef struct falc {
-	ucchar sync;		/* If true FALC is synchronized */
-	ucchar active;		/* if TRUE then already active */
-	ucchar loop_active;	/* if TRUE a line loopback UP was received */
-	ucchar loop_gen;	/* if TRUE a line loopback UP was issued */
+	u8 sync;	/* If true FALC is synchronized */
+	u8 active;	/* if TRUE then already active */
+	u8 loop_active;	/* if TRUE a line loopback UP was received */
+	u8 loop_gen;	/* if TRUE a line loopback UP was issued */
 
-	ucchar num_channels;
-	ucchar offset;		/* 1 for T1, 0 for E1 */
-	ucchar full_bandwidth;
+	u8 num_channels;
+	u8 offset;	/* 1 for T1, 0 for E1 */
+	u8 full_bandwidth;
 
-	ucchar xmb_cause;
-	ucchar multiframe_mode;
+	u8 xmb_cause;
+	u8 multiframe_mode;
 
 	/* Statistics */
-	ucshort pden;	/* Pulse Density violation count */
-	ucshort los;	/* Loss of Signal count */
-	ucshort losr;	/* Loss of Signal recovery count */
-	ucshort lfa;	/* Loss of frame alignment count */
-	ucshort farec;	/* Frame Alignment Recovery count */
-	ucshort lmfa;	/* Loss of multiframe alignment count */
-	ucshort ais;	/* Remote Alarm indication Signal count */
-	ucshort sec;	/* One-second timer */
-	ucshort es;	/* Errored second */
-	ucshort rai;	/* remote alarm received */
-	ucshort bec;
-	ucshort fec;
-	ucshort cvc;
-	ucshort cec;
-	ucshort ebc;
+	u16 pden;	/* Pulse Density violation count */
+	u16 los;	/* Loss of Signal count */
+	u16 losr;	/* Loss of Signal recovery count */
+	u16 lfa;	/* Loss of frame alignment count */
+	u16 farec;	/* Frame Alignment Recovery count */
+	u16 lmfa;	/* Loss of multiframe alignment count */
+	u16 ais;	/* Remote Alarm indication Signal count */
+	u16 sec;	/* One-second timer */
+	u16 es;		/* Errored second */
+	u16 rai;	/* remote alarm received */
+	u16 bec;
+	u16 fec;
+	u16 cvc;
+	u16 cec;
+	u16 ebc;
 
 	/* Status */
-	ucchar red_alarm;
-	ucchar blue_alarm;
-	ucchar loss_fa;
-	ucchar yellow_alarm;
-	ucchar loss_mfa;
-	ucchar prbs;
+	u8 red_alarm;
+	u8 blue_alarm;
+	u8 loss_fa;
+	u8 yellow_alarm;
+	u8 loss_mfa;
+	u8 prbs;
 } falc_t;
 
 typedef struct falc_status {
-	ucchar sync;  /* If true FALC is synchronized */
-	ucchar red_alarm;
-	ucchar blue_alarm;
-	ucchar loss_fa;
-	ucchar yellow_alarm;
-	ucchar loss_mfa;
-	ucchar prbs;
+	u8 sync;	/* If true FALC is synchronized */
+	u8 red_alarm;
+	u8 blue_alarm;
+	u8 loss_fa;
+	u8 yellow_alarm;
+	u8 loss_mfa;
+	u8 prbs;
 } falc_status_t;
 
 typedef struct rsv_x21_status {
-	ucchar dcd;
-	ucchar dsr;
-	ucchar cts;
-	ucchar rts;
-	ucchar dtr;
+	u8 dcd;
+	u8 dsr;
+	u8 cts;
+	u8 rts;
+	u8 dtr;
 } rsv_x21_status_t;
 
 typedef struct pc300stats {
 	int hw_type;
-	uclong line_on;
-	uclong line_off;
+	u32 line_on;
+	u32 line_off;
 	struct net_device_stats gen_stats;
 	falc_t te_stats;
 } pc300stats_t;
@@ -317,28 +288,19 @@ typedef struct pc300loopback {
 
 typedef struct pc300patterntst {
 	char patrntst_on;       /* 0 - off; 1 - on; 2 - read num_errors */
-	ucshort num_errors;
+	u16 num_errors;
 } pc300patterntst_t;
 
 typedef struct pc300dev {
-	void *if_ptr;		/* General purpose pointer */
 	struct pc300ch *chan;
-	ucchar trace_on;
-	uclong line_on;		/* DCD(X.21, RSV) / sync(TE) change counters */
-	uclong line_off;
-#ifdef __KERNEL__
+	u8 trace_on;
+	u32 line_on;		/* DCD(X.21, RSV) / sync(TE) change counters */
+	u32 line_off;
 	char name[16];
 	struct net_device *dev;
-
-	void *private;
-	struct sk_buff *tx_skb;
-	union {	/* This union has all the protocol-specific structures */
-		struct ppp_device pppdev;
-	}ifu;
 #ifdef CONFIG_PC300_MLPPP
 	void *cpc_tty;	/* information to PC300 TTY driver */
 #endif
-#endif /* __KERNEL__ */
 }pc300dev_t;
 
 typedef struct pc300hw {
@@ -346,43 +308,42 @@ typedef struct pc300hw {
 	int bus;		/* Bus (PCI, PMC, etc.) */
 	int nchan;		/* number of channels */
 	int irq;		/* interrupt request level */
-	uclong clock;		/* Board clock */
-	ucchar cpld_id;		/* CPLD ID (TE only) */
-	ucshort cpld_reg1;	/* CPLD reg 1 (TE only) */
-	ucshort cpld_reg2;	/* CPLD reg 2 (TE only) */
-	ucshort gpioc_reg;	/* PLX GPIOC reg */
-	ucshort intctl_reg;	/* PLX Int Ctrl/Status reg */
-	uclong iophys;		/* PLX registers I/O base */
-	uclong iosize;		/* PLX registers I/O size */
-	uclong plxphys;		/* PLX registers MMIO base (physical) */
+	u32 clock;		/* Board clock */
+	u8 cpld_id;		/* CPLD ID (TE only) */
+	u16 cpld_reg1;		/* CPLD reg 1 (TE only) */
+	u16 cpld_reg2;		/* CPLD reg 2 (TE only) */
+	u16 gpioc_reg;		/* PLX GPIOC reg */
+	u16 intctl_reg;		/* PLX Int Ctrl/Status reg */
+	u32 iophys;		/* PLX registers I/O base */
+	u32 iosize;		/* PLX registers I/O size */
+	u32 plxphys;		/* PLX registers MMIO base (physical) */
 	void __iomem * plxbase;	/* PLX registers MMIO base (virtual) */
-	uclong plxsize;		/* PLX registers MMIO size */
-	uclong scaphys;		/* SCA registers MMIO base (physical) */
+	u32 plxsize;		/* PLX registers MMIO size */
+	u32 scaphys;		/* SCA registers MMIO base (physical) */
 	void __iomem * scabase;	/* SCA registers MMIO base (virtual) */
-	uclong scasize;		/* SCA registers MMIO size */
-	uclong ramphys;		/* On-board RAM MMIO base (physical) */
+	u32 scasize;		/* SCA registers MMIO size */
+	u32 ramphys;		/* On-board RAM MMIO base (physical) */
 	void __iomem * rambase;	/* On-board RAM MMIO base (virtual) */
-	uclong alloc_ramsize;	/* RAM MMIO size allocated by the PCI bridge */
-	uclong ramsize;		/* On-board RAM MMIO size */
-	uclong falcphys;	/* FALC registers MMIO base (physical) */
+	u32 alloc_ramsize;	/* RAM MMIO size allocated by the PCI bridge */
+	u32 ramsize;		/* On-board RAM MMIO size */
+	u32 falcphys;		/* FALC registers MMIO base (physical) */
 	void __iomem * falcbase;/* FALC registers MMIO base (virtual) */
-	uclong falcsize;	/* FALC registers MMIO size */
+	u32 falcsize;		/* FALC registers MMIO size */
 } pc300hw_t;
 
 typedef struct pc300chconf {
-	sync_serial_settings	phys_settings;	/* Clock type/rate (in bps), 
+	sync_serial_settings	phys_settings;	/* Clock type/rate (in bps),
 						   loopback mode */
 	raw_hdlc_proto		proto_settings;	/* Encoding, parity (CRC) */
-	uclong media;		/* HW media (RS232, V.35, etc.) */
-	uclong proto;		/* Protocol (PPP, X.25, etc.) */
-	ucchar monitor;		/* Monitor mode (0 = off, !0 = on) */
+	u32 media;		/* HW media (RS232, V.35, etc.) */
+	u32 proto;		/* Protocol (PPP, X.25, etc.) */
 
 	/* TE-specific parameters */
-	ucchar lcode;		/* Line Code (AMI, B8ZS, etc.) */
-	ucchar fr_mode;		/* Frame Mode (ESF, D4, etc.) */
-	ucchar lbo;		/* Line Build Out */
-	ucchar rx_sens;		/* Rx Sensitivity (long- or short-haul) */
-	uclong tslot_bitmap;	/* bit[i]=1  =>  timeslot _i_ is active */
+	u8 lcode;		/* Line Code (AMI, B8ZS, etc.) */
+	u8 fr_mode;		/* Frame Mode (ESF, D4, etc.) */
+	u8 lbo;			/* Line Build Out */
+	u8 rx_sens;		/* Rx Sensitivity (long- or short-haul) */
+	u32 tslot_bitmap;	/* bit[i]=1  =>  timeslot _i_ is active */
 } pc300chconf_t;
 
 typedef struct pc300ch {
@@ -390,20 +351,18 @@ typedef struct pc300ch {
 	int channel;
 	pc300dev_t d;
 	pc300chconf_t conf;
-	ucchar tx_first_bd;	/* First TX DMA block descr. w/ data */
-	ucchar tx_next_bd;	/* Next free TX DMA block descriptor */
-	ucchar rx_first_bd;	/* First free RX DMA block descriptor */
-	ucchar rx_last_bd;	/* Last free RX DMA block descriptor */
-	ucchar nfree_tx_bd;	/* Number of free TX DMA block descriptors */
-	falc_t falc;		/* FALC structure (TE only) */
+	u8 tx_first_bd;	/* First TX DMA block descr. w/ data */
+	u8 tx_next_bd;	/* Next free TX DMA block descriptor */
+	u8 rx_first_bd;	/* First free RX DMA block descriptor */
+	u8 rx_last_bd;	/* Last free RX DMA block descriptor */
+	u8 nfree_tx_bd;	/* Number of free TX DMA block descriptors */
+	falc_t falc;	/* FALC structure (TE only) */
 } pc300ch_t;
 
 typedef struct pc300 {
 	pc300hw_t hw;			/* hardware config. */
 	pc300ch_t chan[PC300_MAXCHAN];
-#ifdef __KERNEL__
 	spinlock_t card_lock;
-#endif /* __KERNEL__ */
 } pc300_t;
 
 typedef struct pc300conf {
@@ -471,12 +430,7 @@ enum pc300_loopback_cmds {
 #define PC300_TX_QUEUE_LEN	100
 #define	PC300_DEF_MTU		1600
 
-#ifdef __KERNEL__
 /* Function Prototypes */
-void tx_dma_start(pc300_t *, int);
 int cpc_open(struct net_device *dev);
-int cpc_set_media(hdlc_device *, int);
-#endif /* __KERNEL__ */
 
 #endif	/* _PC300_H */
-

@@ -210,7 +210,7 @@ lo_do_transfer(struct loop_device *lo, int cmd,
  * space operations write_begin and write_end.
  */
 static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
-		int bsize, loff_t pos, struct page *unused)
+		loff_t pos, struct page *unused)
 {
 	struct file *file = lo->lo_backing_file; /* kudos to NFsckingS */
 	struct address_space *mapping = file->f_mapping;
@@ -302,7 +302,7 @@ static int __do_lo_send_write(struct file *file,
  * filesystems.
  */
 static int do_lo_send_direct_write(struct loop_device *lo,
-		struct bio_vec *bvec, int bsize, loff_t pos, struct page *page)
+		struct bio_vec *bvec, loff_t pos, struct page *page)
 {
 	ssize_t bw = __do_lo_send_write(lo->lo_backing_file,
 			kmap(bvec->bv_page) + bvec->bv_offset,
@@ -326,7 +326,7 @@ static int do_lo_send_direct_write(struct loop_device *lo,
  * destination pages of the backing file.
  */
 static int do_lo_send_write(struct loop_device *lo, struct bio_vec *bvec,
-		int bsize, loff_t pos, struct page *page)
+		loff_t pos, struct page *page)
 {
 	int ret = lo_do_transfer(lo, WRITE, page, 0, bvec->bv_page,
 			bvec->bv_offset, bvec->bv_len, pos >> 9);
@@ -341,10 +341,9 @@ static int do_lo_send_write(struct loop_device *lo, struct bio_vec *bvec,
 	return ret;
 }
 
-static int lo_send(struct loop_device *lo, struct bio *bio, int bsize,
-		loff_t pos)
+static int lo_send(struct loop_device *lo, struct bio *bio, loff_t pos)
 {
-	int (*do_lo_send)(struct loop_device *, struct bio_vec *, int, loff_t,
+	int (*do_lo_send)(struct loop_device *, struct bio_vec *, loff_t,
 			struct page *page);
 	struct bio_vec *bvec;
 	struct page *page = NULL;
@@ -362,7 +361,7 @@ static int lo_send(struct loop_device *lo, struct bio *bio, int bsize,
 		}
 	}
 	bio_for_each_segment(bvec, bio, i) {
-		ret = do_lo_send(lo, bvec, bsize, pos, page);
+		ret = do_lo_send(lo, bvec, pos, page);
 		if (ret < 0)
 			break;
 		pos += bvec->bv_len;
@@ -478,7 +477,7 @@ static int do_bio_filebacked(struct loop_device *lo, struct bio *bio)
 
 	pos = ((loff_t) bio->bi_sector << 9) + lo->lo_offset;
 	if (bio_rw(bio) == WRITE)
-		ret = lo_send(lo, bio, lo->lo_blocksize, pos);
+		ret = lo_send(lo, bio, pos);
 	else
 		ret = lo_receive(lo, bio, lo->lo_blocksize, pos);
 	return ret;
@@ -652,8 +651,8 @@ static void do_loop_switch(struct loop_device *lo, struct switch_request *p)
  * This can only work if the loop device is used read-only, and if the
  * new backing store is the same size and type as the old backing store.
  */
-static int loop_change_fd(struct loop_device *lo, struct file *lo_file,
-		       struct block_device *bdev, unsigned int arg)
+static int loop_change_fd(struct loop_device *lo, struct block_device *bdev,
+			  unsigned int arg)
 {
 	struct file	*file, *old_file;
 	struct inode	*inode;
@@ -712,7 +711,7 @@ static inline int is_loop_device(struct file *file)
 	return i && S_ISBLK(i->i_mode) && MAJOR(i->i_rdev) == LOOP_MAJOR;
 }
 
-static int loop_set_fd(struct loop_device *lo, struct file *lo_file,
+static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 		       struct block_device *bdev, unsigned int arg)
 {
 	struct file	*file, *f;
@@ -740,7 +739,7 @@ static int loop_set_fd(struct loop_device *lo, struct file *lo_file,
 	while (is_loop_device(f)) {
 		struct loop_device *l;
 
-		if (f->f_mapping->host->i_rdev == lo_file->f_mapping->host->i_rdev)
+		if (f->f_mapping->host->i_bdev == bdev)
 			goto out_putf;
 
 		l = f->f_mapping->host->i_bdev->bd_disk->private_data;
@@ -786,7 +785,7 @@ static int loop_set_fd(struct loop_device *lo, struct file *lo_file,
 		goto out_putf;
 	}
 
-	if (!(lo_file->f_mode & FMODE_WRITE))
+	if (!(mode & FMODE_WRITE))
 		lo_flags |= LO_FLAGS_READ_ONLY;
 
 	set_device_ro(bdev, (lo_flags & LO_FLAGS_READ_ONLY) != 0);
@@ -918,9 +917,11 @@ static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 	memset(lo->lo_encrypt_key, 0, LO_KEY_SIZE);
 	memset(lo->lo_crypt_name, 0, LO_NAME_SIZE);
 	memset(lo->lo_file_name, 0, LO_NAME_SIZE);
-	invalidate_bdev(bdev);
+	if (bdev)
+		invalidate_bdev(bdev);
 	set_capacity(lo->lo_disk, 0);
-	bd_set_size(bdev, 0);
+	if (bdev)
+		bd_set_size(bdev, 0);
 	mapping_set_gfp_mask(filp->f_mapping, gfp);
 	lo->lo_state = Lo_unbound;
 	fput(filp);
@@ -1137,22 +1138,22 @@ loop_get_status64(struct loop_device *lo, struct loop_info64 __user *arg) {
 	return err;
 }
 
-static int lo_ioctl(struct inode * inode, struct file * file,
+static int lo_ioctl(struct block_device *bdev, fmode_t mode,
 	unsigned int cmd, unsigned long arg)
 {
-	struct loop_device *lo = inode->i_bdev->bd_disk->private_data;
+	struct loop_device *lo = bdev->bd_disk->private_data;
 	int err;
 
 	mutex_lock(&lo->lo_ctl_mutex);
 	switch (cmd) {
 	case LOOP_SET_FD:
-		err = loop_set_fd(lo, file, inode->i_bdev, arg);
+		err = loop_set_fd(lo, mode, bdev, arg);
 		break;
 	case LOOP_CHANGE_FD:
-		err = loop_change_fd(lo, file, inode->i_bdev, arg);
+		err = loop_change_fd(lo, bdev, arg);
 		break;
 	case LOOP_CLR_FD:
-		err = loop_clr_fd(lo, inode->i_bdev);
+		err = loop_clr_fd(lo, bdev);
 		break;
 	case LOOP_SET_STATUS:
 		err = loop_set_status_old(lo, (struct loop_info __user *) arg);
@@ -1292,10 +1293,10 @@ loop_get_status_compat(struct loop_device *lo,
 	return err;
 }
 
-static long lo_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static int lo_compat_ioctl(struct block_device *bdev, fmode_t mode,
+			   unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
-	struct loop_device *lo = inode->i_bdev->bd_disk->private_data;
+	struct loop_device *lo = bdev->bd_disk->private_data;
 	int err;
 
 	switch(cmd) {
@@ -1317,7 +1318,7 @@ static long lo_compat_ioctl(struct file *file, unsigned int cmd, unsigned long a
 		arg = (unsigned long) compat_ptr(arg);
 	case LOOP_SET_FD:
 	case LOOP_CHANGE_FD:
-		err = lo_ioctl(inode, file, cmd, arg);
+		err = lo_ioctl(bdev, mode, cmd, arg);
 		break;
 	default:
 		err = -ENOIOCTLCMD;
@@ -1327,9 +1328,9 @@ static long lo_compat_ioctl(struct file *file, unsigned int cmd, unsigned long a
 }
 #endif
 
-static int lo_open(struct inode *inode, struct file *file)
+static int lo_open(struct block_device *bdev, fmode_t mode)
 {
-	struct loop_device *lo = inode->i_bdev->bd_disk->private_data;
+	struct loop_device *lo = bdev->bd_disk->private_data;
 
 	mutex_lock(&lo->lo_ctl_mutex);
 	lo->lo_refcnt++;
@@ -1338,15 +1339,15 @@ static int lo_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int lo_release(struct inode *inode, struct file *file)
+static int lo_release(struct gendisk *disk, fmode_t mode)
 {
-	struct loop_device *lo = inode->i_bdev->bd_disk->private_data;
+	struct loop_device *lo = disk->private_data;
 
 	mutex_lock(&lo->lo_ctl_mutex);
 	--lo->lo_refcnt;
 
 	if ((lo->lo_flags & LO_FLAGS_AUTOCLEAR) && !lo->lo_refcnt)
-		loop_clr_fd(lo, inode->i_bdev);
+		loop_clr_fd(lo, NULL);
 
 	mutex_unlock(&lo->lo_ctl_mutex);
 

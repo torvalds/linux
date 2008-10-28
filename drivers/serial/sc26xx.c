@@ -141,7 +141,7 @@ static struct tty_struct *receive_chars(struct uart_port *port)
 	u8 status;
 
 	if (port->info != NULL)		/* Unopened serial console */
-		tty = port->info->tty;
+		tty = port->info->port.tty;
 
 	while (limit-- > 0) {
 		status = READ_SC_PORT(port, SR);

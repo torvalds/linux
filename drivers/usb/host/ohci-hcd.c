@@ -46,7 +46,6 @@
 
 #include "../core/hcd.h"
 
-#define DRIVER_VERSION "2006 August 04"
 #define DRIVER_AUTHOR "Roman Weissgaerber, David Brownell"
 #define DRIVER_DESC "USB 1.1 'Open' Host Controller (OHCI) Driver"
 
@@ -85,6 +84,21 @@ static void ohci_stop (struct usb_hcd *hcd);
 #if defined(CONFIG_PM) || defined(CONFIG_PCI)
 static int ohci_restart (struct ohci_hcd *ohci);
 #endif
+
+#ifdef CONFIG_PCI
+static void quirk_amd_pll(int state);
+static void amd_iso_dev_put(void);
+#else
+static inline void quirk_amd_pll(int state)
+{
+	return;
+}
+static inline void amd_iso_dev_put(void)
+{
+	return;
+}
+#endif
+
 
 #include "ohci-hub.c"
 #include "ohci-dbg.c"
@@ -483,6 +497,9 @@ static int ohci_init (struct ohci_hcd *ohci)
 	int ret;
 	struct usb_hcd *hcd = ohci_to_hcd(ohci);
 
+	if (distrust_firmware)
+		ohci->flags |= OHCI_QUIRK_HUB_POWER;
+
 	disable (ohci);
 	ohci->regs = hcd->regs;
 
@@ -689,7 +706,8 @@ retry:
 		temp |= RH_A_NOCP;
 		temp &= ~(RH_A_POTPGT | RH_A_NPS);
 		ohci_writel (ohci, temp, &ohci->regs->roothub.a);
-	} else if ((ohci->flags & OHCI_QUIRK_AMD756) || distrust_firmware) {
+	} else if ((ohci->flags & OHCI_QUIRK_AMD756) ||
+			(ohci->flags & OHCI_QUIRK_HUB_POWER)) {
 		/* hub power always on; required for AMD-756 and some
 		 * Mac platforms.  ganged overcurrent reporting, if any.
 		 */
@@ -882,6 +900,8 @@ static void ohci_stop (struct usb_hcd *hcd)
 
 	if (quirk_zfmicro(ohci))
 		del_timer(&ohci->unlink_watchdog);
+	if (quirk_amdiso(ohci))
+		amd_iso_dev_put();
 
 	remove_debug_files (ohci);
 	ohci_mem_cleanup (ohci);
@@ -963,10 +983,8 @@ static int ohci_restart (struct ohci_hcd *ohci)
 
 /*-------------------------------------------------------------------------*/
 
-#define DRIVER_INFO DRIVER_VERSION " " DRIVER_DESC
-
 MODULE_AUTHOR (DRIVER_AUTHOR);
-MODULE_DESCRIPTION (DRIVER_INFO);
+MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE ("GPL");
 
 #ifdef CONFIG_PCI
@@ -974,7 +992,7 @@ MODULE_LICENSE ("GPL");
 #define PCI_DRIVER		ohci_pci_driver
 #endif
 
-#ifdef CONFIG_SA1111
+#if defined(CONFIG_ARCH_SA1100) && defined(CONFIG_SA1111)
 #include "ohci-sa1111.c"
 #define SA1111_DRIVER		ohci_hcd_sa1111_driver
 #endif
@@ -1057,12 +1075,18 @@ MODULE_LICENSE ("GPL");
 #define SM501_OHCI_DRIVER	ohci_hcd_sm501_driver
 #endif
 
+#ifdef CONFIG_MFD_TC6393XB
+#include "ohci-tmio.c"
+#define TMIO_OHCI_DRIVER	ohci_hcd_tmio_driver
+#endif
+
 #if	!defined(PCI_DRIVER) &&		\
 	!defined(PLATFORM_DRIVER) &&	\
 	!defined(OF_PLATFORM_DRIVER) &&	\
 	!defined(SA1111_DRIVER) &&	\
 	!defined(PS3_SYSTEM_BUS_DRIVER) && \
 	!defined(SM501_OHCI_DRIVER) && \
+	!defined(TMIO_OHCI_DRIVER) && \
 	!defined(SSB_OHCI_DRIVER)
 #error "missing bus glue for ohci-hcd"
 #endif
@@ -1074,9 +1098,10 @@ static int __init ohci_hcd_mod_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	printk (KERN_DEBUG "%s: " DRIVER_INFO "\n", hcd_name);
+	printk(KERN_INFO "%s: " DRIVER_DESC "\n", hcd_name);
 	pr_debug ("%s: block sizes: ed %Zd td %Zd\n", hcd_name,
 		sizeof (struct ed), sizeof (struct td));
+	set_bit(USB_OHCI_LOADED, &usb_hcds_loaded);
 
 #ifdef DEBUG
 	ohci_debug_root = debugfs_create_dir("ohci", NULL);
@@ -1128,13 +1153,25 @@ static int __init ohci_hcd_mod_init(void)
 		goto error_sm501;
 #endif
 
+#ifdef TMIO_OHCI_DRIVER
+	retval = platform_driver_register(&TMIO_OHCI_DRIVER);
+	if (retval < 0)
+		goto error_tmio;
+#endif
+
 	return retval;
 
 	/* Error path */
+#ifdef TMIO_OHCI_DRIVER
+	platform_driver_unregister(&TMIO_OHCI_DRIVER);
+ error_tmio:
+#endif
 #ifdef SM501_OHCI_DRIVER
+	platform_driver_unregister(&SM501_OHCI_DRIVER);
  error_sm501:
 #endif
 #ifdef SSB_OHCI_DRIVER
+	ssb_driver_unregister(&SSB_OHCI_DRIVER);
  error_ssb:
 #endif
 #ifdef PCI_DRIVER
@@ -1163,12 +1200,16 @@ static int __init ohci_hcd_mod_init(void)
  error_debug:
 #endif
 
+	clear_bit(USB_OHCI_LOADED, &usb_hcds_loaded);
 	return retval;
 }
 module_init(ohci_hcd_mod_init);
 
 static void __exit ohci_hcd_mod_exit(void)
 {
+#ifdef TMIO_OHCI_DRIVER
+	platform_driver_unregister(&TMIO_OHCI_DRIVER);
+#endif
 #ifdef SM501_OHCI_DRIVER
 	platform_driver_unregister(&SM501_OHCI_DRIVER);
 #endif
@@ -1193,6 +1234,7 @@ static void __exit ohci_hcd_mod_exit(void)
 #ifdef DEBUG
 	debugfs_remove(ohci_debug_root);
 #endif
+	clear_bit(USB_OHCI_LOADED, &usb_hcds_loaded);
 }
 module_exit(ohci_hcd_mod_exit);
 

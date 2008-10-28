@@ -199,10 +199,6 @@ void __init plat_mem_setup(void)
 	 */
 	enable_dma(4);
 
-#ifdef CONFIG_KGDB
-	kgdb_config();
-#endif
-
 #ifdef CONFIG_DMA_COHERENT
 	if (mips_revision_sconid != MIPS_REVISION_SCON_BONITO)
 		panic("Hardware DMA cache coherency not supported");

@@ -2982,9 +2982,8 @@ sisusb_handle_command(struct sisusb_usb_data *sisusb, struct sisusb_command *y,
 	return retval;
 }
 
-static int
-sisusb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-							unsigned long arg)
+static long
+sisusb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct sisusb_usb_data *sisusb;
 	struct sisusb_info x;
@@ -2995,6 +2994,7 @@ sisusb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	if (!(sisusb = (struct sisusb_usb_data *)file->private_data))
 		return -ENODEV;
 
+	lock_kernel();
 	mutex_lock(&sisusb->lock);
 
 	/* Sanity check */
@@ -3053,6 +3053,7 @@ sisusb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 err_out:
 	mutex_unlock(&sisusb->lock);
+	unlock_kernel();
 	return retval;
 }
 
@@ -3066,9 +3067,7 @@ sisusb_compat_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 		case SISUSB_GET_CONFIG_SIZE:
 		case SISUSB_GET_CONFIG:
 		case SISUSB_COMMAND:
-			lock_kernel();
-			retval = sisusb_ioctl(f->f_path.dentry->d_inode, f, cmd, arg);
-			unlock_kernel();
+			retval = sisusb_ioctl(f, cmd, arg);
 			return retval;
 
 		default:
@@ -3087,7 +3086,7 @@ static const struct file_operations usb_sisusb_fops = {
 #ifdef SISUSB_NEW_CONFIG_COMPAT
 	.compat_ioctl = sisusb_compat_ioctl,
 #endif
-	.ioctl =	sisusb_ioctl
+	.unlocked_ioctl = sisusb_ioctl
 };
 
 static struct usb_class_driver usb_sisusb_class = {
@@ -3271,6 +3270,7 @@ static struct usb_device_id sisusb_table [] = {
 	{ USB_DEVICE(0x0711, 0x0900) },
 	{ USB_DEVICE(0x0711, 0x0901) },
 	{ USB_DEVICE(0x0711, 0x0902) },
+	{ USB_DEVICE(0x0711, 0x0918) },
 	{ USB_DEVICE(0x182d, 0x021c) },
 	{ USB_DEVICE(0x182d, 0x0269) },
 	{ }

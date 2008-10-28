@@ -32,10 +32,10 @@
 #include <linux/list.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <asm/hardware.h>
-#include <asm/arch/dmtimer.h>
-#include <asm/io.h>
-#include <asm/arch/irqs.h>
+#include <linux/io.h>
+#include <mach/hardware.h>
+#include <mach/dmtimer.h>
+#include <mach/irqs.h>
 
 /* register offsets */
 #define _OMAP_TIMER_ID_OFFSET		0x00
@@ -693,7 +693,7 @@ int __init omap_dm_timer_init(void)
 
 	for (i = 0; i < dm_timer_count; i++) {
 		timer = &dm_timers[i];
-		timer->io_base = (void __iomem *)io_p2v(timer->phys_base);
+		timer->io_base = IO_ADDRESS(timer->phys_base);
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 		if (cpu_class_is_omap2()) {
 			char clk_name[16];

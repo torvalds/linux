@@ -243,7 +243,11 @@ static inline int open_arg(int flags, int mask)
 
 static int audit_match_perm(struct audit_context *ctx, int mask)
 {
-	unsigned n = ctx->major;
+	unsigned n;
+	if (unlikely(!ctx))
+		return 0;
+	n = ctx->major;
+
 	switch (audit_classify_syscall(ctx->arch, n)) {
 	case 0:	/* native */
 		if ((mask & AUDIT_PERM_WRITE) &&
@@ -284,6 +288,10 @@ static int audit_match_filetype(struct audit_context *ctx, int which)
 {
 	unsigned index = which & ~S_IFMT;
 	mode_t mode = which & S_IFMT;
+
+	if (unlikely(!ctx))
+		return 0;
+
 	if (index >= ctx->name_count)
 		return 0;
 	if (ctx->names[index].ino == -1)
@@ -610,7 +618,7 @@ static int audit_filter_rules(struct task_struct *tsk,
 		if (!result)
 			return 0;
 	}
-	if (rule->filterkey)
+	if (rule->filterkey && ctx)
 		ctx->filterkey = kstrdup(rule->filterkey, GFP_ATOMIC);
 	switch (rule->action) {
 	case AUDIT_NEVER:    *state = AUDIT_DISABLED;	    break;
@@ -1196,13 +1204,13 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 				 (context->return_valid==AUDITSC_SUCCESS)?"yes":"no",
 				 context->return_code);
 
-	mutex_lock(&tty_mutex);
-	read_lock(&tasklist_lock);
+	spin_lock_irq(&tsk->sighand->siglock);
 	if (tsk->signal && tsk->signal->tty && tsk->signal->tty->name)
 		tty = tsk->signal->tty->name;
 	else
 		tty = "(none)";
-	read_unlock(&tasklist_lock);
+	spin_unlock_irq(&tsk->sighand->siglock);
+
 	audit_log_format(ab,
 		  " a0=%lx a1=%lx a2=%lx a3=%lx items=%d"
 		  " ppid=%d pid=%d auid=%u uid=%u gid=%u"
@@ -1222,7 +1230,6 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		  context->egid, context->sgid, context->fsgid, tty,
 		  tsk->sessionid);
 
-	mutex_unlock(&tty_mutex);
 
 	audit_log_task_info(ab, tsk);
 	if (context->filterkey) {
@@ -1476,7 +1483,8 @@ void audit_syscall_entry(int arch, int major,
 	struct audit_context *context = tsk->audit_context;
 	enum audit_state     state;
 
-	BUG_ON(!context);
+	if (unlikely(!context))
+		return;
 
 	/*
 	 * This happens only on certain architectures that make system
@@ -2374,7 +2382,7 @@ int __audit_signal_info(int sig, struct task_struct *t)
 	struct audit_context *ctx = tsk->audit_context;
 
 	if (audit_pid && t->tgid == audit_pid) {
-		if (sig == SIGTERM || sig == SIGHUP || sig == SIGUSR1) {
+		if (sig == SIGTERM || sig == SIGHUP || sig == SIGUSR1 || sig == SIGUSR2) {
 			audit_sig_pid = tsk->pid;
 			if (tsk->loginuid != -1)
 				audit_sig_uid = tsk->loginuid;

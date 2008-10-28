@@ -6,7 +6,7 @@
  */
 #include <linux/delay.h>
 #include <linux/i2c.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <media/tuner.h>
 #include <media/v4l2-common.h>
 #include <media/tuner-types.h>
@@ -142,6 +142,7 @@ static inline int tuner_stereo(const int type, const int status)
 	case TUNER_PHILIPS_FM1236_MK3:
 	case TUNER_PHILIPS_FM1256_IH3:
 	case TUNER_LG_NTSC_TAPE:
+	case TUNER_TCL_MF02GIP_5N:
 		return ((status & TUNER_SIGNAL) == TUNER_STEREO_MK3);
 	default:
 		return status & TUNER_STEREO;
@@ -253,7 +254,7 @@ static struct tuner_params *simple_tuner_params(struct dvb_frontend *fe,
 
 static int simple_config_lookup(struct dvb_frontend *fe,
 				struct tuner_params *t_params,
-				int *frequency, u8 *config, u8 *cb)
+				unsigned *frequency, u8 *config, u8 *cb)
 {
 	struct tuner_simple_priv *priv = fe->tuner_priv;
 	int i;
@@ -492,8 +493,10 @@ static int simple_radio_bandswitch(struct dvb_frontend *fe, u8 *buffer)
 	case TUNER_PHILIPS_FM1216ME_MK3:
 	case TUNER_PHILIPS_FM1236_MK3:
 	case TUNER_PHILIPS_FMD1216ME_MK3:
+	case TUNER_PHILIPS_FMD1216MEX_MK3:
 	case TUNER_LG_NTSC_TAPE:
 	case TUNER_PHILIPS_FM1256_IH3:
+	case TUNER_TCL_MF02GIP_5N:
 		buffer[3] = 0x19;
 		break;
 	case TUNER_TNF_5335MF:
@@ -587,45 +590,45 @@ static int simple_set_tv_freq(struct dvb_frontend *fe,
 	priv->last_div = div;
 	if (t_params->has_tda9887) {
 		struct v4l2_priv_tun_config tda9887_cfg;
-		int config = 0;
+		int tda_config = 0;
 		int is_secam_l = (params->std & (V4L2_STD_SECAM_L |
 						 V4L2_STD_SECAM_LC)) &&
 			!(params->std & ~(V4L2_STD_SECAM_L |
 					  V4L2_STD_SECAM_LC));
 
 		tda9887_cfg.tuner = TUNER_TDA9887;
-		tda9887_cfg.priv  = &config;
+		tda9887_cfg.priv  = &tda_config;
 
 		if (params->std == V4L2_STD_SECAM_LC) {
 			if (t_params->port1_active ^ t_params->port1_invert_for_secam_lc)
-				config |= TDA9887_PORT1_ACTIVE;
+				tda_config |= TDA9887_PORT1_ACTIVE;
 			if (t_params->port2_active ^ t_params->port2_invert_for_secam_lc)
-				config |= TDA9887_PORT2_ACTIVE;
+				tda_config |= TDA9887_PORT2_ACTIVE;
 		} else {
 			if (t_params->port1_active)
-				config |= TDA9887_PORT1_ACTIVE;
+				tda_config |= TDA9887_PORT1_ACTIVE;
 			if (t_params->port2_active)
-				config |= TDA9887_PORT2_ACTIVE;
+				tda_config |= TDA9887_PORT2_ACTIVE;
 		}
 		if (t_params->intercarrier_mode)
-			config |= TDA9887_INTERCARRIER;
+			tda_config |= TDA9887_INTERCARRIER;
 		if (is_secam_l) {
 			if (i == 0 && t_params->default_top_secam_low)
-				config |= TDA9887_TOP(t_params->default_top_secam_low);
+				tda_config |= TDA9887_TOP(t_params->default_top_secam_low);
 			else if (i == 1 && t_params->default_top_secam_mid)
-				config |= TDA9887_TOP(t_params->default_top_secam_mid);
+				tda_config |= TDA9887_TOP(t_params->default_top_secam_mid);
 			else if (t_params->default_top_secam_high)
-				config |= TDA9887_TOP(t_params->default_top_secam_high);
+				tda_config |= TDA9887_TOP(t_params->default_top_secam_high);
 		} else {
 			if (i == 0 && t_params->default_top_low)
-				config |= TDA9887_TOP(t_params->default_top_low);
+				tda_config |= TDA9887_TOP(t_params->default_top_low);
 			else if (i == 1 && t_params->default_top_mid)
-				config |= TDA9887_TOP(t_params->default_top_mid);
+				tda_config |= TDA9887_TOP(t_params->default_top_mid);
 			else if (t_params->default_top_high)
-				config |= TDA9887_TOP(t_params->default_top_high);
+				tda_config |= TDA9887_TOP(t_params->default_top_high);
 		}
 		if (t_params->default_pll_gating_18)
-			config |= TDA9887_GATING_18;
+			tda_config |= TDA9887_GATING_18;
 		i2c_clients_command(priv->i2c_props.adap, TUNER_SET_CONFIG,
 				    &tda9887_cfg);
 	}
@@ -765,6 +768,7 @@ static void simple_set_dvb(struct dvb_frontend *fe, u8 *buf,
 
 	switch (priv->type) {
 	case TUNER_PHILIPS_FMD1216ME_MK3:
+	case TUNER_PHILIPS_FMD1216MEX_MK3:
 		if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ &&
 		    params->frequency >= 158870000)
 			buf[3] |= 0x08;
@@ -813,7 +817,8 @@ static u32 simple_dvb_configure(struct dvb_frontend *fe, u8 *buf,
 	static struct tuner_params *t_params;
 	u8 config, cb;
 	u32 div;
-	int ret, frequency = params->frequency / 62500;
+	int ret;
+	unsigned frequency = params->frequency / 62500;
 
 	t_params = simple_tuner_params(fe, TUNER_PARAM_TYPE_DIGITAL);
 	ret = simple_config_lookup(fe, t_params, &frequency, &config, &cb);
@@ -1037,7 +1042,6 @@ struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,
 	case 0:
 		mutex_unlock(&tuner_simple_list_mutex);
 		return NULL;
-		break;
 	case 1:
 		fe->tuner_priv = priv;
 

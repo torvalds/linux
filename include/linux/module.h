@@ -16,6 +16,7 @@
 #include <linux/kobject.h>
 #include <linux/moduleparam.h>
 #include <linux/marker.h>
+#include <linux/tracepoint.h>
 #include <asm/local.h>
 
 #include <asm/module.h>
@@ -23,12 +24,12 @@
 /* Not Yet Implemented */
 #define MODULE_SUPPORTED_DEVICE(name)
 
-/* v850 toolchain uses a `_' prefix for all user symbols */
+/* some toolchains uses a `_' prefix for all user symbols */
 #ifndef MODULE_SYMBOL_PREFIX
 #define MODULE_SYMBOL_PREFIX ""
 #endif
 
-#define MODULE_NAME_LEN (64 - sizeof(unsigned long))
+#define MODULE_NAME_LEN MAX_PARAM_PREFIX_LEN
 
 struct kernel_symbol
 {
@@ -59,6 +60,7 @@ struct module_kobject
 	struct kobject kobj;
 	struct module *mod;
 	struct kobject *drivers_dir;
+	struct module_param_attrs *mp;
 };
 
 /* These are either module local, or the kernel's dummy ones. */
@@ -241,7 +243,6 @@ struct module
 
 	/* Sysfs stuff. */
 	struct module_kobject mkobj;
-	struct module_param_attrs *param_attrs;
 	struct module_attribute *modinfo_attrs;
 	const char *version;
 	const char *srcversion;
@@ -249,31 +250,34 @@ struct module
 
 	/* Exported symbols */
 	const struct kernel_symbol *syms;
-	unsigned int num_syms;
 	const unsigned long *crcs;
+	unsigned int num_syms;
 
 	/* GPL-only exported symbols. */
-	const struct kernel_symbol *gpl_syms;
 	unsigned int num_gpl_syms;
+	const struct kernel_symbol *gpl_syms;
 	const unsigned long *gpl_crcs;
 
+#ifdef CONFIG_UNUSED_SYMBOLS
 	/* unused exported symbols. */
 	const struct kernel_symbol *unused_syms;
-	unsigned int num_unused_syms;
 	const unsigned long *unused_crcs;
+	unsigned int num_unused_syms;
+
 	/* GPL-only, unused exported symbols. */
-	const struct kernel_symbol *unused_gpl_syms;
 	unsigned int num_unused_gpl_syms;
+	const struct kernel_symbol *unused_gpl_syms;
 	const unsigned long *unused_gpl_crcs;
+#endif
 
 	/* symbols that will be GPL-only in the near future. */
 	const struct kernel_symbol *gpl_future_syms;
-	unsigned int num_gpl_future_syms;
 	const unsigned long *gpl_future_crcs;
+	unsigned int num_gpl_future_syms;
 
 	/* Exception table */
 	unsigned int num_exentries;
-	const struct exception_table_entry *extable;
+	struct exception_table_entry *extable;
 
 	/* Startup function. */
 	int (*init)(void);
@@ -285,10 +289,10 @@ struct module
 	void *module_core;
 
 	/* Here are the sizes of the init and core sections */
-	unsigned long init_size, core_size;
+	unsigned int init_size, core_size;
 
 	/* The size of the executable code in each section.  */
-	unsigned long init_text_size, core_text_size;
+	unsigned int init_text_size, core_text_size;
 
 	/* The handle returned from unwind_add_table. */
 	void *unwind_info;
@@ -300,29 +304,15 @@ struct module
 
 #ifdef CONFIG_GENERIC_BUG
 	/* Support for BUG */
+	unsigned num_bugs;
 	struct list_head bug_list;
 	struct bug_entry *bug_table;
-	unsigned num_bugs;
-#endif
-
-#ifdef CONFIG_MODULE_UNLOAD
-	/* Reference counts */
-	struct module_ref ref[NR_CPUS];
-
-	/* What modules depend on me? */
-	struct list_head modules_which_use_me;
-
-	/* Who is waiting for us to be unloaded */
-	struct task_struct *waiter;
-
-	/* Destruction function. */
-	void (*exit)(void);
 #endif
 
 #ifdef CONFIG_KALLSYMS
 	/* We keep the symbol and string tables for kallsyms. */
 	Elf_Sym *symtab;
-	unsigned long num_symtab;
+	unsigned int num_symtab;
 	char *strtab;
 
 	/* Section attributes */
@@ -341,6 +331,24 @@ struct module
 #ifdef CONFIG_MARKERS
 	struct marker *markers;
 	unsigned int num_markers;
+#endif
+#ifdef CONFIG_TRACEPOINTS
+	struct tracepoint *tracepoints;
+	unsigned int num_tracepoints;
+#endif
+
+#ifdef CONFIG_MODULE_UNLOAD
+	/* What modules depend on me? */
+	struct list_head modules_which_use_me;
+
+	/* Who is waiting for us to be unloaded */
+	struct task_struct *waiter;
+
+	/* Destruction function. */
+	void (*exit)(void);
+
+	/* Reference counts */
+	struct module_ref ref[NR_CPUS];
 #endif
 };
 #ifndef MODULE_ARCH_INIT
@@ -450,6 +458,9 @@ extern void print_modules(void);
 
 extern void module_update_markers(void);
 
+extern void module_update_tracepoints(void);
+extern int module_get_iter_tracepoints(struct tracepoint_iter *iter);
+
 #else /* !CONFIG_MODULES... */
 #define EXPORT_SYMBOL(sym)
 #define EXPORT_SYMBOL_GPL(sym)
@@ -552,6 +563,15 @@ static inline void print_modules(void)
 
 static inline void module_update_markers(void)
 {
+}
+
+static inline void module_update_tracepoints(void)
+{
+}
+
+static inline int module_get_iter_tracepoints(struct tracepoint_iter *iter)
+{
+	return 0;
 }
 
 #endif /* CONFIG_MODULES */

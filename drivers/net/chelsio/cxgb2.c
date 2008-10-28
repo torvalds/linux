@@ -1153,9 +1153,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 		netdev->poll_controller = t1_netpoll;
 #endif
-#ifdef CONFIG_CHELSIO_T1_NAPI
 		netif_napi_add(netdev, &adapter->napi, t1_poll, 64);
-#endif
 
 		SET_ETHTOOL_OPS(netdev, &t1_ethtool_ops);
 	}

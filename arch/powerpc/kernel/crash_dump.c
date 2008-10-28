@@ -27,6 +27,10 @@
 #define DBG(fmt...)
 #endif
 
+/* Stores the physical address of elf header of crash image. */
+unsigned long long elfcorehdr_addr = ELFCORE_ADDR_MAX;
+
+#ifndef CONFIG_RELOCATABLE
 void __init reserve_kdump_trampoline(void)
 {
 	lmb_reserve(0, KDUMP_RESERVE_LIMIT);
@@ -65,8 +69,13 @@ void __init setup_kdump_trampoline(void)
 
 	DBG(" <- setup_kdump_trampoline()\n");
 }
+#endif /* CONFIG_RELOCATABLE */
 
-#ifdef CONFIG_PROC_VMCORE
+/*
+ * Note: elfcorehdr_addr is not just limited to vmcore. It is also used by
+ * is_kdump_kernel() to determine if we are booting after a panic. Hence
+ * ifdef it under CONFIG_CRASH_DUMP and not CONFIG_PROC_VMCORE.
+ */
 static int __init parse_elfcorehdr(char *p)
 {
 	if (p)
@@ -75,7 +84,6 @@ static int __init parse_elfcorehdr(char *p)
 	return 1;
 }
 __setup("elfcorehdr=", parse_elfcorehdr);
-#endif
 
 static int __init parse_savemaxmem(char *p)
 {
@@ -85,6 +93,19 @@ static int __init parse_savemaxmem(char *p)
 	return 1;
 }
 __setup("savemaxmem=", parse_savemaxmem);
+
+
+static size_t copy_oldmem_vaddr(void *vaddr, char *buf, size_t csize,
+                               unsigned long offset, int userbuf)
+{
+	if (userbuf) {
+		if (copy_to_user((char __user *)buf, (vaddr + offset), csize))
+			return -EFAULT;
+	} else
+		memcpy(buf, (vaddr + offset), csize);
+
+	return csize;
+}
 
 /**
  * copy_oldmem_page - copy one page from "oldmem"
@@ -107,16 +128,16 @@ ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
 	if (!csize)
 		return 0;
 
-	vaddr = __ioremap(pfn << PAGE_SHIFT, PAGE_SIZE, 0);
+	csize = min(csize, PAGE_SIZE);
 
-	if (userbuf) {
-		if (copy_to_user((char __user *)buf, (vaddr + offset), csize)) {
-			iounmap(vaddr);
-			return -EFAULT;
-		}
-	} else
-		memcpy(buf, (vaddr + offset), csize);
+	if (pfn < max_pfn) {
+		vaddr = __va(pfn << PAGE_SHIFT);
+		csize = copy_oldmem_vaddr(vaddr, buf, csize, offset, userbuf);
+	} else {
+		vaddr = __ioremap(pfn << PAGE_SHIFT, PAGE_SIZE, 0);
+		csize = copy_oldmem_vaddr(vaddr, buf, csize, offset, userbuf);
+		iounmap(vaddr);
+	}
 
-	iounmap(vaddr);
 	return csize;
 }

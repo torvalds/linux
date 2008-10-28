@@ -28,6 +28,10 @@ menuconfig SOUND
 
 if SOUND
 
+config SOUND_OSS_CORE
+	bool
+	default n
+
 source "sound/oss/dmasound/Kconfig"
 
 if !M68K
@@ -80,6 +84,7 @@ endif # SND
 
 menuconfig SOUND_PRIME
 	tristate "Open Sound System (DEPRECATED)"
+	select SOUND_OSS_CORE
 	help
 	  Say 'Y' or 'M' to enable Open Sound System drivers.
 
@@ -91,6 +96,9 @@ endif # SOUND_PRIME
 
 endif # !M68K
 
+endif # SOUND
+
+# AC97_BUS is used from both sound and ucb1400
 config AC97_BUS
 	tristate
 	help
@@ -99,4 +107,3 @@ config AC97_BUS
 	  sound although they're sharing the AC97 bus. Concerned drivers
 	  should "select" this.
 
-endif # SOUND

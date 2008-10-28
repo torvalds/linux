@@ -15,6 +15,7 @@
 #include <linux/mman.h>
 #include <linux/nodemask.h>
 
+#include <asm/cputype.h>
 #include <asm/mach-types.h>
 #include <asm/setup.h>
 #include <asm/sizes.h>
@@ -26,9 +27,6 @@
 #include "mm.h"
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
-
-extern void _stext, _etext, __data_start, _end;
-extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
 /*
  * empty_zero_page is a special page that is used for
@@ -68,27 +66,27 @@ static struct cachepolicy cache_policies[] __initdata = {
 		.policy		= "uncached",
 		.cr_mask	= CR_W|CR_C,
 		.pmd		= PMD_SECT_UNCACHED,
-		.pte		= 0,
+		.pte		= L_PTE_MT_UNCACHED,
 	}, {
 		.policy		= "buffered",
 		.cr_mask	= CR_C,
 		.pmd		= PMD_SECT_BUFFERED,
-		.pte		= PTE_BUFFERABLE,
+		.pte		= L_PTE_MT_BUFFERABLE,
 	}, {
 		.policy		= "writethrough",
 		.cr_mask	= 0,
 		.pmd		= PMD_SECT_WT,
-		.pte		= PTE_CACHEABLE,
+		.pte		= L_PTE_MT_WRITETHROUGH,
 	}, {
 		.policy		= "writeback",
 		.cr_mask	= 0,
 		.pmd		= PMD_SECT_WB,
-		.pte		= PTE_BUFFERABLE|PTE_CACHEABLE,
+		.pte		= L_PTE_MT_WRITEBACK,
 	}, {
 		.policy		= "writealloc",
 		.cr_mask	= 0,
 		.pmd		= PMD_SECT_WBWA,
-		.pte		= PTE_BUFFERABLE|PTE_CACHEABLE,
+		.pte		= L_PTE_MT_WRITEALLOC,
 	}
 };
 
@@ -186,29 +184,28 @@ void adjust_cr(unsigned long mask, unsigned long set)
 
 static struct mem_type mem_types[] = {
 	[MT_DEVICE] = {		  /* Strongly ordered / ARMv6 shared device */
-		.prot_pte	= PROT_PTE_DEVICE,
+		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_SHARED |
+				  L_PTE_SHARED,
 		.prot_l1	= PMD_TYPE_TABLE,
 		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_UNCACHED,
 		.domain		= DOMAIN_IO,
 	},
 	[MT_DEVICE_NONSHARED] = { /* ARMv6 non-shared device */
-		.prot_pte	= PROT_PTE_DEVICE,
-		.prot_pte_ext	= PTE_EXT_TEX(2),
+		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_NONSHARED,
 		.prot_l1	= PMD_TYPE_TABLE,
 		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_TEX(2),
 		.domain		= DOMAIN_IO,
 	},
 	[MT_DEVICE_CACHED] = {	  /* ioremap_cached */
-		.prot_pte	= PROT_PTE_DEVICE | L_PTE_CACHEABLE | L_PTE_BUFFERABLE,
+		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_CACHED,
 		.prot_l1	= PMD_TYPE_TABLE,
 		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_WB,
 		.domain		= DOMAIN_IO,
 	},	
-	[MT_DEVICE_IXP2000] = {	  /* IXP2400 requires XCB=101 for on-chip I/O */
-		.prot_pte	= PROT_PTE_DEVICE,
+	[MT_DEVICE_WC] = {	/* ioremap_wc */
+		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_WC,
 		.prot_l1	= PMD_TYPE_TABLE,
-		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_BUFFERABLE |
-				  PMD_SECT_TEX(1),
+		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_BUFFERABLE,
 		.domain		= DOMAIN_IO,
 	},
 	[MT_CACHECLEAN] = {
@@ -253,7 +250,7 @@ static void __init build_mem_type_table(void)
 {
 	struct cachepolicy *cp;
 	unsigned int cr = get_cr();
-	unsigned int user_pgprot, kern_pgprot;
+	unsigned int user_pgprot, kern_pgprot, vecs_pgprot;
 	int cpu_arch = cpu_architecture();
 	int i;
 
@@ -270,6 +267,20 @@ static void __init build_mem_type_table(void)
 		if (cachepolicy >= CPOLICY_WRITEALLOC)
 			cachepolicy = CPOLICY_WRITEBACK;
 		ecc_mask = 0;
+	}
+#ifdef CONFIG_SMP
+	cachepolicy = CPOLICY_WRITEALLOC;
+#endif
+
+	/*
+	 * On non-Xscale3 ARMv5-and-older systems, use CB=01
+	 * (Uncached/Buffered) for ioremap_wc() mappings.  On XScale3
+	 * and ARMv6+, use TEXCB=00100 mappings (Inner/Outer Uncacheable
+	 * in xsc3 parlance, Uncached Normal in ARMv6 parlance).
+	 */
+	if (cpu_is_xsc3() || cpu_arch >= CPU_ARCH_ARMv6) {
+		mem_types[MT_DEVICE_WC].prot_sect |= PMD_SECT_TEX(1);
+		mem_types[MT_DEVICE_WC].prot_sect &= ~PMD_SECT_BUFFERABLE;
 	}
 
 	/*
@@ -292,7 +303,15 @@ static void __init build_mem_type_table(void)
 	}
 
 	cp = &cache_policies[cachepolicy];
-	kern_pgprot = user_pgprot = cp->pte;
+	vecs_pgprot = kern_pgprot = user_pgprot = cp->pte;
+
+#ifndef CONFIG_SMP
+	/*
+	 * Only use write-through for non-SMP systems
+	 */
+	if (cpu_arch >= CPU_ARCH_ARMv5 && cachepolicy > CPOLICY_WRITETHROUGH)
+		vecs_pgprot = cache_policies[CPOLICY_WRITETHROUGH].pte;
+#endif
 
 	/*
 	 * Enable CPU-specific coherency if supported.
@@ -320,7 +339,6 @@ static void __init build_mem_type_table(void)
 		/*
 		 * Mark the device area as "shared device"
 		 */
-		mem_types[MT_DEVICE].prot_pte |= L_PTE_BUFFERABLE;
 		mem_types[MT_DEVICE].prot_sect |= PMD_SECT_BUFFERED;
 
 #ifdef CONFIG_SMP
@@ -329,30 +347,21 @@ static void __init build_mem_type_table(void)
 		 */
 		user_pgprot |= L_PTE_SHARED;
 		kern_pgprot |= L_PTE_SHARED;
+		vecs_pgprot |= L_PTE_SHARED;
 		mem_types[MT_MEMORY].prot_sect |= PMD_SECT_S;
 #endif
 	}
 
 	for (i = 0; i < 16; i++) {
 		unsigned long v = pgprot_val(protection_map[i]);
-		v = (v & ~(L_PTE_BUFFERABLE|L_PTE_CACHEABLE)) | user_pgprot;
-		protection_map[i] = __pgprot(v);
+		protection_map[i] = __pgprot(v | user_pgprot);
 	}
 
-	mem_types[MT_LOW_VECTORS].prot_pte |= kern_pgprot;
-	mem_types[MT_HIGH_VECTORS].prot_pte |= kern_pgprot;
+	mem_types[MT_LOW_VECTORS].prot_pte |= vecs_pgprot;
+	mem_types[MT_HIGH_VECTORS].prot_pte |= vecs_pgprot;
 
-	if (cpu_arch >= CPU_ARCH_ARMv5) {
-#ifndef CONFIG_SMP
-		/*
-		 * Only use write-through for non-SMP systems
-		 */
-		mem_types[MT_LOW_VECTORS].prot_pte &= ~L_PTE_BUFFERABLE;
-		mem_types[MT_HIGH_VECTORS].prot_pte &= ~L_PTE_BUFFERABLE;
-#endif
-	} else {
+	if (cpu_arch < CPU_ARCH_ARMv5)
 		mem_types[MT_MINICLEAN].prot_sect &= ~PMD_SECT_TEX(1);
-	}
 
 	pgprot_user   = __pgprot(L_PTE_PRESENT | L_PTE_YOUNG | user_pgprot);
 	pgprot_kernel = __pgprot(L_PTE_PRESENT | L_PTE_YOUNG |
@@ -400,8 +409,7 @@ static void __init alloc_init_pte(pmd_t *pmd, unsigned long addr,
 
 	pte = pte_offset_kernel(pmd, addr);
 	do {
-		set_pte_ext(pte, pfn_pte(pfn, __pgprot(type->prot_pte)),
-			    type->prot_pte_ext);
+		set_pte_ext(pte, pfn_pte(pfn, __pgprot(type->prot_pte)), 0);
 		pfn++;
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 }
@@ -566,6 +574,77 @@ void __init iotable_init(struct map_desc *io_desc, int nr)
 
 	for (i = 0; i < nr; i++)
 		create_mapping(io_desc + i);
+}
+
+static unsigned long __initdata vmalloc_reserve = SZ_128M;
+
+/*
+ * vmalloc=size forces the vmalloc area to be exactly 'size'
+ * bytes. This can be used to increase (or decrease) the vmalloc
+ * area - the default is 128m.
+ */
+static void __init early_vmalloc(char **arg)
+{
+	vmalloc_reserve = memparse(*arg, arg);
+
+	if (vmalloc_reserve < SZ_16M) {
+		vmalloc_reserve = SZ_16M;
+		printk(KERN_WARNING
+			"vmalloc area too small, limiting to %luMB\n",
+			vmalloc_reserve >> 20);
+	}
+}
+__early_param("vmalloc=", early_vmalloc);
+
+#define VMALLOC_MIN	(void *)(VMALLOC_END - vmalloc_reserve)
+
+static int __init check_membank_valid(struct membank *mb)
+{
+	/*
+	 * Check whether this memory region has non-zero size or
+	 * invalid node number.
+	 */
+	if (mb->size == 0 || mb->node >= MAX_NUMNODES)
+		return 0;
+
+	/*
+	 * Check whether this memory region would entirely overlap
+	 * the vmalloc area.
+	 */
+	if (phys_to_virt(mb->start) >= VMALLOC_MIN) {
+		printk(KERN_NOTICE "Ignoring RAM at %.8lx-%.8lx "
+			"(vmalloc region overlap).\n",
+			mb->start, mb->start + mb->size - 1);
+		return 0;
+	}
+
+	/*
+	 * Check whether this memory region would partially overlap
+	 * the vmalloc area.
+	 */
+	if (phys_to_virt(mb->start + mb->size) < phys_to_virt(mb->start) ||
+	    phys_to_virt(mb->start + mb->size) > VMALLOC_MIN) {
+		unsigned long newsize = VMALLOC_MIN - phys_to_virt(mb->start);
+
+		printk(KERN_NOTICE "Truncating RAM at %.8lx-%.8lx "
+			"to -%.8lx (vmalloc region overlap).\n",
+			mb->start, mb->start + mb->size - 1,
+			mb->start + newsize - 1);
+		mb->size = newsize;
+	}
+
+	return 1;
+}
+
+static void __init sanity_check_meminfo(struct meminfo *mi)
+{
+	int i, j;
+
+	for (i = 0, j = 0; i < mi->nr_banks; i++) {
+		if (check_membank_valid(&mi->bank[i]))
+			mi->bank[j++] = mi->bank[i];
+	}
+	mi->nr_banks = j;
 }
 
 static inline void prepare_page_table(struct meminfo *mi)
@@ -753,6 +832,7 @@ void __init paging_init(struct meminfo *mi, struct machine_desc *mdesc)
 	void *zero_page;
 
 	build_mem_type_table();
+	sanity_check_meminfo(mi);
 	prepare_page_table(mi);
 	bootmem_init(mi);
 	devicemaps_init(mdesc);

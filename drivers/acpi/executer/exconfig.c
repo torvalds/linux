@@ -43,7 +43,6 @@
 
 #include <acpi/acpi.h>
 #include <acpi/acinterp.h>
-#include <acpi/amlcode.h>
 #include <acpi/acnamesp.h>
 #include <acpi/actables.h>
 #include <acpi/acdispat.h>
@@ -91,13 +90,12 @@ acpi_ex_add_table(u32 table_index,
 
 	/* Init the table handle */
 
-	obj_desc->reference.opcode = AML_LOAD_OP;
+	obj_desc->reference.class = ACPI_REFCLASS_TABLE;
 	*ddb_handle = obj_desc;
 
 	/* Install the new table into the local data structures */
 
-	obj_desc->reference.object = ACPI_CAST_PTR(void,
-			(unsigned long)table_index);
+	obj_desc->reference.value = table_index;
 
 	/* Add the table to the namespace */
 
@@ -280,6 +278,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 		struct acpi_walk_state *walk_state)
 {
 	union acpi_operand_object *ddb_handle;
+	struct acpi_table_header *table;
 	struct acpi_table_desc table_desc;
 	u32 table_index;
 	acpi_status status;
@@ -294,9 +293,8 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 	switch (ACPI_GET_OBJECT_TYPE(obj_desc)) {
 	case ACPI_TYPE_REGION:
 
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Load from Region %p %s\n",
-				  obj_desc,
-				  acpi_ut_get_object_type_name(obj_desc)));
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+				  "Load table from Region %p\n", obj_desc));
 
 		/* Region must be system_memory (from ACPI spec) */
 
@@ -316,22 +314,17 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 		}
 
 		/*
-		 * We will simply map the memory region for the table. However, the
-		 * memory region is technically not guaranteed to remain stable and
-		 * we may eventually have to copy the table to a local buffer.
+		 * Map the table header and get the actual table length. The region
+		 * length is not guaranteed to be the same as the table length.
 		 */
-		table_desc.address = obj_desc->region.address;
-		table_desc.length = obj_desc->region.length;
-		table_desc.flags = ACPI_TABLE_ORIGIN_MAPPED;
-		break;
+		table = acpi_os_map_memory(obj_desc->region.address,
+					   sizeof(struct acpi_table_header));
+		if (!table) {
+			return_ACPI_STATUS(AE_NO_MEMORY);
+		}
 
-	case ACPI_TYPE_BUFFER:	/* Buffer or resolved region_field */
-
-		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "Load from Buffer or Field %p %s\n", obj_desc,
-				  acpi_ut_get_object_type_name(obj_desc)));
-
-		length = obj_desc->buffer.length;
+		length = table->length;
+		acpi_os_unmap_memory(table, sizeof(struct acpi_table_header));
 
 		/* Must have at least an ACPI table header */
 
@@ -339,38 +332,94 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 			return_ACPI_STATUS(AE_INVALID_TABLE_LENGTH);
 		}
 
-		/* Validate checksum here. It won't get validated in tb_add_table */
+		/*
+		 * The memory region is not guaranteed to remain stable and we must
+		 * copy the table to a local buffer. For example, the memory region
+		 * is corrupted after suspend on some machines. Dynamically loaded
+		 * tables are usually small, so this overhead is minimal.
+		 */
 
-		status =
-		    acpi_tb_verify_checksum(ACPI_CAST_PTR
-					    (struct acpi_table_header,
-					     obj_desc->buffer.pointer), length);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
+		/* Allocate a buffer for the table */
+
+		table_desc.pointer = ACPI_ALLOCATE(length);
+		if (!table_desc.pointer) {
+			return_ACPI_STATUS(AE_NO_MEMORY);
+		}
+
+		/* Map the entire table and copy it */
+
+		table = acpi_os_map_memory(obj_desc->region.address, length);
+		if (!table) {
+			ACPI_FREE(table_desc.pointer);
+			return_ACPI_STATUS(AE_NO_MEMORY);
+		}
+
+		ACPI_MEMCPY(table_desc.pointer, table, length);
+		acpi_os_unmap_memory(table, length);
+
+		table_desc.address = obj_desc->region.address;
+		break;
+
+	case ACPI_TYPE_BUFFER:	/* Buffer or resolved region_field */
+
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+				  "Load table from Buffer or Field %p\n",
+				  obj_desc));
+
+		/* Must have at least an ACPI table header */
+
+		if (obj_desc->buffer.length < sizeof(struct acpi_table_header)) {
+			return_ACPI_STATUS(AE_INVALID_TABLE_LENGTH);
+		}
+
+		/* Get the actual table length from the table header */
+
+		table =
+		    ACPI_CAST_PTR(struct acpi_table_header,
+				  obj_desc->buffer.pointer);
+		length = table->length;
+
+		/* Table cannot extend beyond the buffer */
+
+		if (length > obj_desc->buffer.length) {
+			return_ACPI_STATUS(AE_AML_BUFFER_LIMIT);
+		}
+		if (length < sizeof(struct acpi_table_header)) {
+			return_ACPI_STATUS(AE_INVALID_TABLE_LENGTH);
 		}
 
 		/*
-		 * We need to copy the buffer since the original buffer could be
-		 * changed or deleted in the future
+		 * Copy the table from the buffer because the buffer could be modified
+		 * or even deleted in the future
 		 */
 		table_desc.pointer = ACPI_ALLOCATE(length);
 		if (!table_desc.pointer) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
 
-		ACPI_MEMCPY(table_desc.pointer, obj_desc->buffer.pointer,
-			    length);
-		table_desc.length = length;
-		table_desc.flags = ACPI_TABLE_ORIGIN_ALLOCATED;
+		ACPI_MEMCPY(table_desc.pointer, table, length);
+		table_desc.address = ACPI_TO_INTEGER(table_desc.pointer);
 		break;
 
 	default:
 		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 	}
 
-	/*
-	 * Install the new table into the local data structures
-	 */
+	/* Validate table checksum (will not get validated in tb_add_table) */
+
+	status = acpi_tb_verify_checksum(table_desc.pointer, length);
+	if (ACPI_FAILURE(status)) {
+		ACPI_FREE(table_desc.pointer);
+		return_ACPI_STATUS(status);
+	}
+
+	/* Complete the table descriptor */
+
+	table_desc.length = length;
+	table_desc.flags = ACPI_TABLE_ORIGIN_ALLOCATED;
+
+	/* Install the new table into the local data structures */
+
 	status = acpi_tb_add_table(&table_desc, &table_index);
 	if (ACPI_FAILURE(status)) {
 		goto cleanup;
@@ -379,7 +428,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 	/*
 	 * Add the table to the namespace.
 	 *
-	 * Note: We load the table objects relative to the root of the namespace.
+	 * Note: Load the table objects relative to the root of the namespace.
 	 * This appears to go against the ACPI specification, but we do it for
 	 * compatibility with other ACPI implementations.
 	 */
@@ -415,7 +464,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
       cleanup:
 	if (ACPI_FAILURE(status)) {
 
-		/* Delete allocated buffer or mapping */
+		/* Delete allocated table buffer */
 
 		acpi_tb_delete_table(&table_desc);
 	}
@@ -455,9 +504,9 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	/* Get the table index from the ddb_handle (acpi_size for 64-bit case) */
+	/* Get the table index from the ddb_handle */
 
-	table_index = (u32) (acpi_size) table_desc->reference.object;
+	table_index = table_desc->reference.value;
 
 	/* Invoke table handler if present */
 
@@ -479,5 +528,8 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 
 	acpi_tb_set_table_loaded_flag(table_index, FALSE);
 
+	/* Table unloaded, remove a reference to the ddb_handle object */
+
+	acpi_ut_remove_reference(ddb_handle);
 	return_ACPI_STATUS(AE_OK);
 }

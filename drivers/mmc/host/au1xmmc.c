@@ -61,7 +61,13 @@
 
 /* Hardware definitions */
 #define AU1XMMC_DESCRIPTOR_COUNT 1
-#define AU1XMMC_DESCRIPTOR_SIZE  2048
+
+/* max DMA seg size: 64KB on Au1100, 4MB on Au1200 */
+#ifdef CONFIG_SOC_AU1100
+#define AU1XMMC_DESCRIPTOR_SIZE 0x0000ffff
+#else	/* Au1200 */
+#define AU1XMMC_DESCRIPTOR_SIZE 0x003fffff
+#endif
 
 #define AU1XMMC_OCR (MMC_VDD_27_28 | MMC_VDD_28_29 | MMC_VDD_29_30 | \
 		     MMC_VDD_30_31 | MMC_VDD_31_32 | MMC_VDD_32_33 | \
@@ -1043,7 +1049,7 @@ static int __devinit au1xmmc_probe(struct platform_device *pdev)
 		goto out6;
 	}
 
-	platform_set_drvdata(pdev, mmc);
+	platform_set_drvdata(pdev, host);
 
 	printk(KERN_INFO DRIVER_NAME ": MMC Controller %d set up at %8.8X"
 		" (mode=%s)\n", pdev->id, host->iobase,
@@ -1087,13 +1093,10 @@ out0:
 
 static int __devexit au1xmmc_remove(struct platform_device *pdev)
 {
-	struct mmc_host *mmc = platform_get_drvdata(pdev);
-	struct au1xmmc_host *host;
+	struct au1xmmc_host *host = platform_get_drvdata(pdev);
 
-	if (mmc) {
-		host  = mmc_priv(mmc);
-
-		mmc_remove_host(mmc);
+	if (host) {
+		mmc_remove_host(host->mmc);
 
 #ifdef CONFIG_LEDS_CLASS
 		if (host->platdata && host->platdata->led)
@@ -1101,8 +1104,8 @@ static int __devexit au1xmmc_remove(struct platform_device *pdev)
 #endif
 
 		if (host->platdata && host->platdata->cd_setup &&
-		    !(mmc->caps & MMC_CAP_NEEDS_POLL))
-			host->platdata->cd_setup(mmc, 0);
+		    !(host->mmc->caps & MMC_CAP_NEEDS_POLL))
+			host->platdata->cd_setup(host->mmc, 0);
 
 		au_writel(0, HOST_ENABLE(host));
 		au_writel(0, HOST_CONFIG(host));
@@ -1122,16 +1125,49 @@ static int __devexit au1xmmc_remove(struct platform_device *pdev)
 		release_resource(host->ioarea);
 		kfree(host->ioarea);
 
-		mmc_free_host(mmc);
+		mmc_free_host(host->mmc);
+		platform_set_drvdata(pdev, NULL);
 	}
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int au1xmmc_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct au1xmmc_host *host = platform_get_drvdata(pdev);
+	int ret;
+
+	ret = mmc_suspend_host(host->mmc, state);
+	if (ret)
+		return ret;
+
+	au_writel(0, HOST_CONFIG2(host));
+	au_writel(0, HOST_CONFIG(host));
+	au_writel(0xffffffff, HOST_STATUS(host));
+	au_writel(0, HOST_ENABLE(host));
+	au_sync();
+
+	return 0;
+}
+
+static int au1xmmc_resume(struct platform_device *pdev)
+{
+	struct au1xmmc_host *host = platform_get_drvdata(pdev);
+
+	au1xmmc_reset_controller(host);
+
+	return mmc_resume_host(host->mmc);
+}
+#else
+#define au1xmmc_suspend NULL
+#define au1xmmc_resume NULL
+#endif
+
 static struct platform_driver au1xmmc_driver = {
 	.probe         = au1xmmc_probe,
 	.remove        = au1xmmc_remove,
-	.suspend       = NULL,
-	.resume        = NULL,
+	.suspend       = au1xmmc_suspend,
+	.resume        = au1xmmc_resume,
 	.driver        = {
 		.name  = DRIVER_NAME,
 		.owner = THIS_MODULE,

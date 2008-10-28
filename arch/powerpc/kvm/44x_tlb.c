@@ -19,6 +19,7 @@
 
 #include <linux/types.h>
 #include <linux/string.h>
+#include <linux/kvm.h>
 #include <linux/kvm_host.h>
 #include <linux/highmem.h>
 #include <asm/mmu-44x.h>
@@ -109,7 +110,6 @@ static int kvmppc_44x_tlbe_is_writable(struct tlbe *tlbe)
 	return tlbe->word2 & (PPC44x_TLB_SW|PPC44x_TLB_UW);
 }
 
-/* Must be called with mmap_sem locked for writing. */
 static void kvmppc_44x_shadow_release(struct kvm_vcpu *vcpu,
                                       unsigned int index)
 {
@@ -122,6 +122,11 @@ static void kvmppc_44x_shadow_release(struct kvm_vcpu *vcpu,
 		else
 			kvm_release_page_clean(page);
 	}
+}
+
+void kvmppc_tlbe_set_modified(struct kvm_vcpu *vcpu, unsigned int i)
+{
+    vcpu->arch.shadow_tlb_mod[i] = 1;
 }
 
 /* Caller must ensure that the specified guest TLB entry is safe to insert into
@@ -142,19 +147,16 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn, u64 asid,
 	stlbe = &vcpu->arch.shadow_tlb[victim];
 
 	/* Get reference to new page. */
-	down_read(&current->mm->mmap_sem);
 	new_page = gfn_to_page(vcpu->kvm, gfn);
 	if (is_error_page(new_page)) {
 		printk(KERN_ERR "Couldn't get guest page for gfn %lx!\n", gfn);
 		kvm_release_page_clean(new_page);
-		up_read(&current->mm->mmap_sem);
 		return;
 	}
 	hpaddr = page_to_phys(new_page);
 
 	/* Drop reference to old page. */
 	kvmppc_44x_shadow_release(vcpu, victim);
-	up_read(&current->mm->mmap_sem);
 
 	vcpu->arch.shadow_pages[victim] = new_page;
 
@@ -164,26 +166,30 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn, u64 asid,
 
 	/* XXX what about AS? */
 
-	stlbe->tid = asid & 0xff;
+	stlbe->tid = !(asid & 0xff);
 
 	/* Force TS=1 for all guest mappings. */
 	/* For now we hardcode 4KB mappings, but it will be important to
 	 * use host large pages in the future. */
 	stlbe->word0 = (gvaddr & PAGE_MASK) | PPC44x_TLB_VALID | PPC44x_TLB_TS
 	               | PPC44x_TLB_4K;
-
 	stlbe->word1 = (hpaddr & 0xfffffc00) | ((hpaddr >> 32) & 0xf);
 	stlbe->word2 = kvmppc_44x_tlb_shadow_attrib(flags,
 	                                            vcpu->arch.msr & MSR_PR);
+	kvmppc_tlbe_set_modified(vcpu, victim);
+
+	KVMTRACE_5D(STLB_WRITE, vcpu, victim,
+			stlbe->tid, stlbe->word0, stlbe->word1, stlbe->word2,
+			handler);
 }
 
-void kvmppc_mmu_invalidate(struct kvm_vcpu *vcpu, u64 eaddr, u64 asid)
+void kvmppc_mmu_invalidate(struct kvm_vcpu *vcpu, gva_t eaddr,
+                           gva_t eend, u32 asid)
 {
-	unsigned int pid = asid & 0xff;
+	unsigned int pid = !(asid & 0xff);
 	int i;
 
 	/* XXX Replace loop with fancy data structures. */
-	down_write(&current->mm->mmap_sem);
 	for (i = 0; i <= tlb_44x_hwater; i++) {
 		struct tlbe *stlbe = &vcpu->arch.shadow_tlb[i];
 		unsigned int tid;
@@ -191,7 +197,7 @@ void kvmppc_mmu_invalidate(struct kvm_vcpu *vcpu, u64 eaddr, u64 asid)
 		if (!get_tlb_v(stlbe))
 			continue;
 
-		if (eaddr < get_tlb_eaddr(stlbe))
+		if (eend < get_tlb_eaddr(stlbe))
 			continue;
 
 		if (eaddr > get_tlb_end(stlbe))
@@ -203,21 +209,35 @@ void kvmppc_mmu_invalidate(struct kvm_vcpu *vcpu, u64 eaddr, u64 asid)
 
 		kvmppc_44x_shadow_release(vcpu, i);
 		stlbe->word0 = 0;
+		kvmppc_tlbe_set_modified(vcpu, i);
+		KVMTRACE_5D(STLB_INVAL, vcpu, i,
+				stlbe->tid, stlbe->word0, stlbe->word1,
+				stlbe->word2, handler);
 	}
-	up_write(&current->mm->mmap_sem);
 }
 
-/* Invalidate all mappings, so that when they fault back in they will get the
- * proper permission bits. */
+/* Invalidate all mappings on the privilege switch after PID has been changed.
+ * The guest always runs with PID=1, so we must clear the entire TLB when
+ * switching address spaces. */
 void kvmppc_mmu_priv_switch(struct kvm_vcpu *vcpu, int usermode)
 {
 	int i;
 
-	/* XXX Replace loop with fancy data structures. */
-	down_write(&current->mm->mmap_sem);
-	for (i = 0; i <= tlb_44x_hwater; i++) {
-		kvmppc_44x_shadow_release(vcpu, i);
-		vcpu->arch.shadow_tlb[i].word0 = 0;
+	if (vcpu->arch.swap_pid) {
+		/* XXX Replace loop with fancy data structures. */
+		for (i = 0; i <= tlb_44x_hwater; i++) {
+			struct tlbe *stlbe = &vcpu->arch.shadow_tlb[i];
+
+			/* Future optimization: clear only userspace mappings. */
+			kvmppc_44x_shadow_release(vcpu, i);
+			stlbe->word0 = 0;
+			kvmppc_tlbe_set_modified(vcpu, i);
+			KVMTRACE_5D(STLB_INVAL, vcpu, i,
+			            stlbe->tid, stlbe->word0, stlbe->word1,
+			            stlbe->word2, handler);
+		}
+		vcpu->arch.swap_pid = 0;
 	}
-	up_write(&current->mm->mmap_sem);
+
+	vcpu->arch.shadow_pid = !usermode;
 }

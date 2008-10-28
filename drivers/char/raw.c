@@ -65,7 +65,7 @@ static int raw_open(struct inode *inode, struct file *filp)
 	if (!bdev)
 		goto out;
 	igrab(bdev->bd_inode);
-	err = blkdev_get(bdev, filp->f_mode, 0);
+	err = blkdev_get(bdev, filp->f_mode);
 	if (err)
 		goto out;
 	err = bd_claim(bdev, raw_open);
@@ -87,7 +87,7 @@ static int raw_open(struct inode *inode, struct file *filp)
 out2:
 	bd_release(bdev);
 out1:
-	blkdev_put(bdev);
+	blkdev_put(bdev, filp->f_mode);
 out:
 	mutex_unlock(&raw_mutex);
 	return err;
@@ -112,7 +112,7 @@ static int raw_release(struct inode *inode, struct file *filp)
 	mutex_unlock(&raw_mutex);
 
 	bd_release(bdev);
-	blkdev_put(bdev);
+	blkdev_put(bdev, filp->f_mode);
 	return 0;
 }
 
@@ -125,13 +125,13 @@ raw_ioctl(struct inode *inode, struct file *filp,
 {
 	struct block_device *bdev = filp->private_data;
 
-	return blkdev_ioctl(bdev->bd_inode, NULL, command, arg);
+	return blkdev_ioctl(bdev, 0, command, arg);
 }
 
 static void bind_device(struct raw_config_request *rq)
 {
 	device_destroy(raw_class, MKDEV(RAW_MAJOR, rq->raw_minor));
-	device_create(raw_class, NULL, MKDEV(RAW_MAJOR, rq->raw_minor),
+	device_create(raw_class, NULL, MKDEV(RAW_MAJOR, rq->raw_minor), NULL,
 		      "raw%d", rq->raw_minor);
 }
 
@@ -283,7 +283,7 @@ static int __init raw_init(void)
 		ret = PTR_ERR(raw_class);
 		goto error_region;
 	}
-	device_create(raw_class, NULL, MKDEV(RAW_MAJOR, 0), "rawctl");
+	device_create(raw_class, NULL, MKDEV(RAW_MAJOR, 0), NULL, "rawctl");
 
 	return 0;
 

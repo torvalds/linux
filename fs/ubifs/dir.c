@@ -165,7 +165,6 @@ struct inode *ubifs_new_inode(struct ubifs_info *c, const struct inode *dir,
 	}
 
 	inode->i_ino = ++c->highest_inum;
-	inode->i_generation = ++c->vfs_gen;
 	/*
 	 * The creation sequence number remains with this inode for its
 	 * lifetime. All nodes for this inode have a greater sequence number,
@@ -220,15 +219,7 @@ static struct dentry *ubifs_lookup(struct inode *dir, struct dentry *dentry,
 
 	err = ubifs_tnc_lookup_nm(c, &key, dent, &dentry->d_name);
 	if (err) {
-		/*
-		 * Do not hash the direntry if parent 'i_nlink' is zero, because
-		 * this has side-effects - '->delete_inode()' call will not be
-		 * called for the parent orphan inode, because 'd_count' of its
-		 * direntry will stay 1 (it'll be negative direntry I guess)
-		 * and prevent 'iput_final()' until the dentry is destroyed due
-		 * to unmount or memory pressure.
-		 */
-		if (err == -ENOENT && dir->i_nlink != 0) {
+		if (err == -ENOENT) {
 			dbg_gen("not found");
 			goto done;
 		}
@@ -435,7 +426,7 @@ static int ubifs_readdir(struct file *file, void *dirent, filldir_t filldir)
 
 	while (1) {
 		dbg_gen("feed '%s', ino %llu, new f_pos %#x",
-			dent->name, le64_to_cpu(dent->inum),
+			dent->name, (unsigned long long)le64_to_cpu(dent->inum),
 			key_hash_flash(c, &dent->key));
 		ubifs_assert(dent->ch.sqnum > ubifs_inode(dir)->creat_sqnum);
 
@@ -525,7 +516,7 @@ static int ubifs_link(struct dentry *old_dentry, struct inode *dir,
 	struct ubifs_inode *dir_ui = ubifs_inode(dir);
 	int err, sz_change = CALC_DENT_SIZE(dentry->d_name.len);
 	struct ubifs_budget_req req = { .new_dent = 1, .dirtied_ino = 2,
-					.dirtied_ino_d = ui->data_len };
+				.dirtied_ino_d = ALIGN(ui->data_len, 8) };
 
 	/*
 	 * Budget request settings: new direntry, changing the target inode,
@@ -596,7 +587,6 @@ static int ubifs_unlink(struct inode *dir, struct dentry *dentry)
 	if (err) {
 		if (err != -ENOSPC)
 			return err;
-		err = 0;
 		budgeted = 0;
 	}
 
@@ -727,8 +717,7 @@ static int ubifs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	struct ubifs_inode *dir_ui = ubifs_inode(dir);
 	struct ubifs_info *c = dir->i_sb->s_fs_info;
 	int err, sz_change = CALC_DENT_SIZE(dentry->d_name.len);
-	struct ubifs_budget_req req = { .new_ino = 1, .new_dent = 1,
-					.dirtied_ino_d = 1 };
+	struct ubifs_budget_req req = { .new_ino = 1, .new_dent = 1 };
 
 	/*
 	 * Budget request settings: new inode, new direntry and changing parent
@@ -789,7 +778,8 @@ static int ubifs_mknod(struct inode *dir, struct dentry *dentry,
 	int sz_change = CALC_DENT_SIZE(dentry->d_name.len);
 	int err, devlen = 0;
 	struct ubifs_budget_req req = { .new_ino = 1, .new_dent = 1,
-					.new_ino_d = devlen, .dirtied_ino = 1 };
+					.new_ino_d = ALIGN(devlen, 8),
+					.dirtied_ino = 1 };
 
 	/*
 	 * Budget request settings: new inode, new direntry and changing parent
@@ -863,7 +853,8 @@ static int ubifs_symlink(struct inode *dir, struct dentry *dentry,
 	int err, len = strlen(symname);
 	int sz_change = CALC_DENT_SIZE(dentry->d_name.len);
 	struct ubifs_budget_req req = { .new_ino = 1, .new_dent = 1,
-					.new_ino_d = len, .dirtied_ino = 1 };
+					.new_ino_d = ALIGN(len, 8),
+					.dirtied_ino = 1 };
 
 	/*
 	 * Budget request settings: new inode, new direntry and changing parent
@@ -1012,7 +1003,7 @@ static int ubifs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct ubifs_budget_req req = { .new_dent = 1, .mod_dent = 1,
 					.dirtied_ino = 3 };
 	struct ubifs_budget_req ino_req = { .dirtied_ino = 1,
-				.dirtied_ino_d = old_inode_ui->data_len };
+			.dirtied_ino_d = ALIGN(old_inode_ui->data_len, 8) };
 	struct timespec time;
 
 	/*

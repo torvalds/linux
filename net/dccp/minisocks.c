@@ -296,7 +296,8 @@ int dccp_child_process(struct sock *parent, struct sock *child,
 
 EXPORT_SYMBOL_GPL(dccp_child_process);
 
-void dccp_reqsk_send_ack(struct sk_buff *skb, struct request_sock *rsk)
+void dccp_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
+			 struct request_sock *rsk)
 {
 	DCCP_BUG("DCCP-ACK packets are never sent in LISTEN/RESPOND state");
 }
@@ -308,6 +309,7 @@ void dccp_reqsk_init(struct request_sock *req, struct sk_buff *skb)
 	struct dccp_request_sock *dreq = dccp_rsk(req);
 
 	inet_rsk(req)->rmt_port	  = dccp_hdr(skb)->dccph_sport;
+	inet_rsk(req)->loc_port	  = dccp_hdr(skb)->dccph_dport;
 	inet_rsk(req)->acked	  = 0;
 	req->rcv_wnd		  = sysctl_dccp_feat_sequence_window;
 	dreq->dreq_timestamp_echo = 0;

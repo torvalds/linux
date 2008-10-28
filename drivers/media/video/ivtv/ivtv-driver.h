@@ -49,17 +49,18 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/list.h>
 #include <linux/unistd.h>
-#include <linux/byteorder/swab.h>
 #include <linux/pagemap.h>
 #include <linux/scatterlist.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
+#include <asm/byteorder.h>
 
 #include <linux/dvb/video.h>
 #include <linux/dvb/audio.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <media/tuner.h>
 #include <media/cx2341x.h>
 
@@ -250,6 +251,7 @@ struct ivtv_mailbox_data {
 #define IVTV_F_I_DEC_PAUSED	   20 	/* the decoder is paused */
 #define IVTV_F_I_INITED		   21 	/* set after first open */
 #define IVTV_F_I_FAILED		   22 	/* set if first open failed */
+#define IVTV_F_I_WORK_INITED       23	/* worker thread was initialized */
 
 /* Event notifications */
 #define IVTV_F_I_EV_DEC_STOPPED	   28	/* decoder stopped event */
@@ -505,6 +507,8 @@ struct yuv_playback_info
 	struct v4l2_rect main_rect;
 	u32 v4l2_src_w;
 	u32 v4l2_src_h;
+
+	u8 running; /* Have any frames been displayed */
 };
 
 #define IVTV_VBI_FRAMES 32
@@ -635,7 +639,6 @@ struct ivtv {
 	spinlock_t lock;                /* lock access to this struct */
 	struct mutex serialize_lock;    /* mutex used to serialize open/close/start/stop/ioctl operations */
 
-
 	/* Streams */
 	int stream_buf_size[IVTV_MAX_STREAMS];          /* stream buffer size */
 	struct ivtv_stream streams[IVTV_MAX_STREAMS]; 	/* stream data */
@@ -749,6 +752,12 @@ void ivtv_read_eeprom(struct ivtv *itv, struct tveeprom *tv);
 
 /* First-open initialization: load firmware, init cx25840, etc. */
 int ivtv_init_on_first_open(struct ivtv *itv);
+
+/* Test if the current VBI mode is raw (1) or sliced (0) */
+static inline int ivtv_raw_vbi(const struct ivtv *itv)
+{
+	return itv->vbi.in.type == V4L2_BUF_TYPE_VBI_CAPTURE;
+}
 
 /* This is a PCI post thing, where if the pci register is not read, then
    the write doesn't always take effect right away. By reading back the

@@ -18,11 +18,11 @@
 #include <asm/uaccess.h>
 
 static inline void __user *__guestaddr_to_user(struct kvm_vcpu *vcpu,
-					       u64 guestaddr)
+					       unsigned long guestaddr)
 {
-	u64 prefix  = vcpu->arch.sie_block->prefix;
-	u64 origin  = vcpu->kvm->arch.guest_origin;
-	u64 memsize = vcpu->kvm->arch.guest_memsize;
+	unsigned long prefix  = vcpu->arch.sie_block->prefix;
+	unsigned long origin  = vcpu->kvm->arch.guest_origin;
+	unsigned long memsize = vcpu->kvm->arch.guest_memsize;
 
 	if (guestaddr < 2 * PAGE_SIZE)
 		guestaddr += prefix;
@@ -37,7 +37,7 @@ static inline void __user *__guestaddr_to_user(struct kvm_vcpu *vcpu,
 	return (void __user *) guestaddr;
 }
 
-static inline int get_guest_u64(struct kvm_vcpu *vcpu, u64 guestaddr,
+static inline int get_guest_u64(struct kvm_vcpu *vcpu, unsigned long guestaddr,
 				u64 *result)
 {
 	void __user *uptr = __guestaddr_to_user(vcpu, guestaddr);
@@ -47,10 +47,10 @@ static inline int get_guest_u64(struct kvm_vcpu *vcpu, u64 guestaddr,
 	if (IS_ERR((void __force *) uptr))
 		return PTR_ERR((void __force *) uptr);
 
-	return get_user(*result, (u64 __user *) uptr);
+	return get_user(*result, (unsigned long __user *) uptr);
 }
 
-static inline int get_guest_u32(struct kvm_vcpu *vcpu, u64 guestaddr,
+static inline int get_guest_u32(struct kvm_vcpu *vcpu, unsigned long guestaddr,
 				u32 *result)
 {
 	void __user *uptr = __guestaddr_to_user(vcpu, guestaddr);
@@ -63,7 +63,7 @@ static inline int get_guest_u32(struct kvm_vcpu *vcpu, u64 guestaddr,
 	return get_user(*result, (u32 __user *) uptr);
 }
 
-static inline int get_guest_u16(struct kvm_vcpu *vcpu, u64 guestaddr,
+static inline int get_guest_u16(struct kvm_vcpu *vcpu, unsigned long guestaddr,
 				u16 *result)
 {
 	void __user *uptr = __guestaddr_to_user(vcpu, guestaddr);
@@ -76,7 +76,7 @@ static inline int get_guest_u16(struct kvm_vcpu *vcpu, u64 guestaddr,
 	return get_user(*result, (u16 __user *) uptr);
 }
 
-static inline int get_guest_u8(struct kvm_vcpu *vcpu, u64 guestaddr,
+static inline int get_guest_u8(struct kvm_vcpu *vcpu, unsigned long guestaddr,
 			       u8 *result)
 {
 	void __user *uptr = __guestaddr_to_user(vcpu, guestaddr);
@@ -87,7 +87,7 @@ static inline int get_guest_u8(struct kvm_vcpu *vcpu, u64 guestaddr,
 	return get_user(*result, (u8 __user *) uptr);
 }
 
-static inline int put_guest_u64(struct kvm_vcpu *vcpu, u64 guestaddr,
+static inline int put_guest_u64(struct kvm_vcpu *vcpu, unsigned long guestaddr,
 				u64 value)
 {
 	void __user *uptr = __guestaddr_to_user(vcpu, guestaddr);
@@ -100,7 +100,7 @@ static inline int put_guest_u64(struct kvm_vcpu *vcpu, u64 guestaddr,
 	return put_user(value, (u64 __user *) uptr);
 }
 
-static inline int put_guest_u32(struct kvm_vcpu *vcpu, u64 guestaddr,
+static inline int put_guest_u32(struct kvm_vcpu *vcpu, unsigned long guestaddr,
 				u32 value)
 {
 	void __user *uptr = __guestaddr_to_user(vcpu, guestaddr);
@@ -113,7 +113,7 @@ static inline int put_guest_u32(struct kvm_vcpu *vcpu, u64 guestaddr,
 	return put_user(value, (u32 __user *) uptr);
 }
 
-static inline int put_guest_u16(struct kvm_vcpu *vcpu, u64 guestaddr,
+static inline int put_guest_u16(struct kvm_vcpu *vcpu, unsigned long guestaddr,
 				u16 value)
 {
 	void __user *uptr = __guestaddr_to_user(vcpu, guestaddr);
@@ -126,7 +126,7 @@ static inline int put_guest_u16(struct kvm_vcpu *vcpu, u64 guestaddr,
 	return put_user(value, (u16 __user *) uptr);
 }
 
-static inline int put_guest_u8(struct kvm_vcpu *vcpu, u64 guestaddr,
+static inline int put_guest_u8(struct kvm_vcpu *vcpu, unsigned long guestaddr,
 			       u8 value)
 {
 	void __user *uptr = __guestaddr_to_user(vcpu, guestaddr);
@@ -138,7 +138,8 @@ static inline int put_guest_u8(struct kvm_vcpu *vcpu, u64 guestaddr,
 }
 
 
-static inline int __copy_to_guest_slow(struct kvm_vcpu *vcpu, u64 guestdest,
+static inline int __copy_to_guest_slow(struct kvm_vcpu *vcpu,
+				       unsigned long guestdest,
 				       const void *from, unsigned long n)
 {
 	int rc;
@@ -153,12 +154,12 @@ static inline int __copy_to_guest_slow(struct kvm_vcpu *vcpu, u64 guestdest,
 	return 0;
 }
 
-static inline int copy_to_guest(struct kvm_vcpu *vcpu, u64 guestdest,
+static inline int copy_to_guest(struct kvm_vcpu *vcpu, unsigned long guestdest,
 				const void *from, unsigned long n)
 {
-	u64 prefix  = vcpu->arch.sie_block->prefix;
-	u64 origin  = vcpu->kvm->arch.guest_origin;
-	u64 memsize = vcpu->kvm->arch.guest_memsize;
+	unsigned long prefix  = vcpu->arch.sie_block->prefix;
+	unsigned long origin  = vcpu->kvm->arch.guest_origin;
+	unsigned long memsize = vcpu->kvm->arch.guest_memsize;
 
 	if ((guestdest < 2 * PAGE_SIZE) && (guestdest + n > 2 * PAGE_SIZE))
 		goto slowpath;
@@ -189,7 +190,8 @@ slowpath:
 }
 
 static inline int __copy_from_guest_slow(struct kvm_vcpu *vcpu, void *to,
-					 u64 guestsrc, unsigned long n)
+					 unsigned long guestsrc,
+					 unsigned long n)
 {
 	int rc;
 	unsigned long i;
@@ -204,11 +206,11 @@ static inline int __copy_from_guest_slow(struct kvm_vcpu *vcpu, void *to,
 }
 
 static inline int copy_from_guest(struct kvm_vcpu *vcpu, void *to,
-				  u64 guestsrc, unsigned long n)
+				  unsigned long guestsrc, unsigned long n)
 {
-	u64 prefix  = vcpu->arch.sie_block->prefix;
-	u64 origin  = vcpu->kvm->arch.guest_origin;
-	u64 memsize = vcpu->kvm->arch.guest_memsize;
+	unsigned long prefix  = vcpu->arch.sie_block->prefix;
+	unsigned long origin  = vcpu->kvm->arch.guest_origin;
+	unsigned long memsize = vcpu->kvm->arch.guest_memsize;
 
 	if ((guestsrc < 2 * PAGE_SIZE) && (guestsrc + n > 2 * PAGE_SIZE))
 		goto slowpath;
@@ -238,11 +240,12 @@ slowpath:
 	return __copy_from_guest_slow(vcpu, to, guestsrc, n);
 }
 
-static inline int copy_to_guest_absolute(struct kvm_vcpu *vcpu, u64 guestdest,
+static inline int copy_to_guest_absolute(struct kvm_vcpu *vcpu,
+					 unsigned long guestdest,
 					 const void *from, unsigned long n)
 {
-	u64 origin  = vcpu->kvm->arch.guest_origin;
-	u64 memsize = vcpu->kvm->arch.guest_memsize;
+	unsigned long origin  = vcpu->kvm->arch.guest_origin;
+	unsigned long memsize = vcpu->kvm->arch.guest_memsize;
 
 	if (guestdest + n > memsize)
 		return -EFAULT;
@@ -256,10 +259,11 @@ static inline int copy_to_guest_absolute(struct kvm_vcpu *vcpu, u64 guestdest,
 }
 
 static inline int copy_from_guest_absolute(struct kvm_vcpu *vcpu, void *to,
-					   u64 guestsrc, unsigned long n)
+					   unsigned long guestsrc,
+					   unsigned long n)
 {
-	u64 origin  = vcpu->kvm->arch.guest_origin;
-	u64 memsize = vcpu->kvm->arch.guest_memsize;
+	unsigned long origin  = vcpu->kvm->arch.guest_origin;
+	unsigned long memsize = vcpu->kvm->arch.guest_memsize;
 
 	if (guestsrc + n > memsize)
 		return -EFAULT;

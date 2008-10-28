@@ -165,7 +165,7 @@ cuboot*)
     binary=y
     gzip=
     case "$platform" in
-    *-mpc885ads|*-adder875*|*-ep88xc)
+    *-mpc866ads|*-mpc885ads|*-adder875*|*-ep88xc)
         platformo=$object/cuboot-8xx.o
         ;;
     *5200*|*-motionpro)
@@ -306,8 +306,13 @@ fi
 
 # post-processing needed for some platforms
 case "$platform" in
-pseries|chrp)
-    $objbin/addnote "$ofile"
+pseries)
+    ${CROSS}objcopy -O binary -j .fakeelf "$kernel" "$ofile".rpanote
+    $objbin/addnote "$ofile" "$ofile".rpanote
+    rm -r "$ofile".rpanote
+    ;;
+chrp)
+    $objbin/addnote -r c00000 "$ofile"
     ;;
 coff)
     ${CROSS}objcopy -O aixcoff-rs6000 --set-start "$entry" "$ofile"

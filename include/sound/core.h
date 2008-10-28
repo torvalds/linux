@@ -28,6 +28,7 @@
 #include <linux/rwsem.h>		/* struct rw_semaphore */
 #include <linux/pm.h>			/* pm_message_t */
 #include <linux/device.h>
+#include <linux/stringify.h>
 
 /* number of supported soundcards */
 #ifdef CONFIG_SND_DYNAMIC_MINORS
@@ -41,9 +42,6 @@
 /* forward declarations */
 #ifdef CONFIG_PCI
 struct pci_dev;
-#endif
-#ifdef CONFIG_SBUS
-struct sbus_dev;
 #endif
 
 /* device allocation stuff */
@@ -63,6 +61,7 @@ typedef int __bitwise snd_device_type_t;
 #define	SNDRV_DEV_INFO		((__force snd_device_type_t) 0x1006)
 #define	SNDRV_DEV_BUS		((__force snd_device_type_t) 0x1007)
 #define	SNDRV_DEV_CODEC		((__force snd_device_type_t) 0x1008)
+#define	SNDRV_DEV_JACK          ((__force snd_device_type_t) 0x1009)
 #define	SNDRV_DEV_LOWLEVEL	((__force snd_device_type_t) 0x2000)
 
 typedef int __bitwise snd_device_state_t;
@@ -114,7 +113,7 @@ struct snd_card {
 	char shortname[32];		/* short name of this soundcard */
 	char longname[80];		/* name of this soundcard */
 	char mixername[80];		/* mixer name */
-	char components[80];		/* card components delimited with
+	char components[128];		/* card components delimited with
 								space */
 	struct module *module;		/* top-level module */
 
@@ -366,8 +365,6 @@ void snd_verbose_printd(const char *file, int line, const char *format, ...)
 
 #ifdef CONFIG_SND_DEBUG
 
-#define __ASTRING__(x) #x
-
 #ifdef CONFIG_SND_VERBOSE_PRINTK
 /**
  * snd_printd - debug printk
@@ -382,33 +379,15 @@ void snd_verbose_printd(const char *file, int line, const char *format, ...)
 #define snd_printd(fmt, args...) \
 	printk(fmt ,##args)
 #endif
-/**
- * snd_assert - run-time assertion macro
- * @expr: expression
- *
- * This macro checks the expression in run-time and invokes the commands
- * given in the rest arguments if the assertion is failed.
- * When CONFIG_SND_DEBUG is not set, the expression is executed but
- * not checked.
- */
-#define snd_assert(expr, args...) do {					\
-	if (unlikely(!(expr))) {					\
-		snd_printk(KERN_ERR "BUG? (%s)\n", __ASTRING__(expr));	\
-		dump_stack();						\
-		args;							\
-	}								\
-} while (0)
 
-#define snd_BUG() do {				\
-	snd_printk(KERN_ERR "BUG?\n");		\
-	dump_stack();				\
-} while (0)
+#define snd_BUG()		WARN(1, "BUG?\n")
+#define snd_BUG_ON(cond)	WARN((cond), "BUG? (%s)\n", __stringify(cond))
 
 #else /* !CONFIG_SND_DEBUG */
 
 #define snd_printd(fmt, args...)	/* nothing */
-#define snd_assert(expr, args...)	(void)(expr)
 #define snd_BUG()			/* nothing */
+#define snd_BUG_ON(cond)	({/*(void)(cond);*/ 0;})  /* always false */
 
 #endif /* CONFIG_SND_DEBUG */
 

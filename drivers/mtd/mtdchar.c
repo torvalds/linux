@@ -1,6 +1,4 @@
 /*
- * $Id: mtdchar.c,v 1.76 2005/11/07 11:14:20 gleixner Exp $
- *
  * Character-device access to raw MTD devices.
  *
  */
@@ -28,10 +26,11 @@ static void mtd_notify_add(struct mtd_info* mtd)
 	if (!mtd)
 		return;
 
-	device_create(mtd_class, NULL, MKDEV(MTD_CHAR_MAJOR, mtd->index*2), "mtd%d", mtd->index);
+	device_create(mtd_class, NULL, MKDEV(MTD_CHAR_MAJOR, mtd->index*2),
+		      NULL, "mtd%d", mtd->index);
 
-	device_create(mtd_class, NULL,
-		      MKDEV(MTD_CHAR_MAJOR, mtd->index*2+1), "mtd%dro", mtd->index);
+	device_create(mtd_class, NULL, MKDEV(MTD_CHAR_MAJOR, mtd->index*2+1),
+		      NULL, "mtd%dro", mtd->index);
 }
 
 static void mtd_notify_remove(struct mtd_info* mtd)
@@ -97,7 +96,7 @@ static int mtd_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 
 	/* You can't open the RO devices RW */
-	if ((file->f_mode & 2) && (minor & 1))
+	if ((file->f_mode & FMODE_WRITE) && (minor & 1))
 		return -EACCES;
 
 	lock_kernel();
@@ -115,7 +114,7 @@ static int mtd_open(struct inode *inode, struct file *file)
 	}
 
 	/* You can't open it RW if it's not a writeable device */
-	if ((file->f_mode & 2) && !(mtd->flags & MTD_WRITEABLE)) {
+	if ((file->f_mode & FMODE_WRITE) && !(mtd->flags & MTD_WRITEABLE)) {
 		put_mtd_device(mtd);
 		ret = -EACCES;
 		goto out;
@@ -145,7 +144,7 @@ static int mtd_close(struct inode *inode, struct file *file)
 	DEBUG(MTD_DEBUG_LEVEL0, "MTD_close\n");
 
 	/* Only sync if opened RW */
-	if ((file->f_mode & 2) && mtd->sync)
+	if ((file->f_mode & FMODE_WRITE) && mtd->sync)
 		mtd->sync(mtd);
 
 	put_mtd_device(mtd);
@@ -349,7 +348,7 @@ static void mtdchar_erase_callback (struct erase_info *instr)
 	wake_up((wait_queue_head_t *)instr->priv);
 }
 
-#if defined(CONFIG_MTD_OTP) || defined(CONFIG_MTD_ONENAND_OTP)
+#ifdef CONFIG_HAVE_MTD_OTP
 static int otp_select_filemode(struct mtd_file_info *mfi, int mode)
 {
 	struct mtd_info *mtd = mfi->mtd;
@@ -409,16 +408,20 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 
 	case MEMGETREGIONINFO:
 	{
-		struct region_info_user ur;
+		uint32_t ur_idx;
+		struct mtd_erase_region_info *kr;
+		struct region_info_user *ur = (struct region_info_user *) argp;
 
-		if (copy_from_user(&ur, argp, sizeof(struct region_info_user)))
+		if (get_user(ur_idx, &(ur->regionindex)))
 			return -EFAULT;
 
-		if (ur.regionindex >= mtd->numeraseregions)
-			return -EINVAL;
-		if (copy_to_user(argp, &(mtd->eraseregions[ur.regionindex]),
-				sizeof(struct mtd_erase_region_info)))
+		kr = &(mtd->eraseregions[ur_idx]);
+
+		if (put_user(kr->offset, &(ur->offset))
+		    || put_user(kr->erasesize, &(ur->erasesize))
+		    || put_user(kr->numblocks, &(ur->numblocks)))
 			return -EFAULT;
+
 		break;
 	}
 
@@ -440,7 +443,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 	{
 		struct erase_info *erase;
 
-		if(!(file->f_mode & 2))
+		if(!(file->f_mode & FMODE_WRITE))
 			return -EPERM;
 
 		erase=kzalloc(sizeof(struct erase_info),GFP_KERNEL);
@@ -491,9 +494,10 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 	{
 		struct mtd_oob_buf buf;
 		struct mtd_oob_ops ops;
+		struct mtd_oob_buf __user *user_buf = argp;
 	        uint32_t retlen;
 
-		if(!(file->f_mode & 2))
+		if(!(file->f_mode & FMODE_WRITE))
 			return -EPERM;
 
 		if (copy_from_user(&buf, argp, sizeof(struct mtd_oob_buf)))
@@ -534,8 +538,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		if (ops.oobretlen > 0xFFFFFFFFU)
 			ret = -EOVERFLOW;
 		retlen = ops.oobretlen;
-		if (copy_to_user(&((struct mtd_oob_buf *)argp)->length,
-				 &retlen, sizeof(buf.length)))
+		if (copy_to_user(&user_buf->length, &retlen, sizeof(buf.length)))
 			ret = -EFAULT;
 
 		kfree(ops.oobbuf);
@@ -589,29 +592,29 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 
 	case MEMLOCK:
 	{
-		struct erase_info_user info;
+		struct erase_info_user einfo;
 
-		if (copy_from_user(&info, argp, sizeof(info)))
+		if (copy_from_user(&einfo, argp, sizeof(einfo)))
 			return -EFAULT;
 
 		if (!mtd->lock)
 			ret = -EOPNOTSUPP;
 		else
-			ret = mtd->lock(mtd, info.start, info.length);
+			ret = mtd->lock(mtd, einfo.start, einfo.length);
 		break;
 	}
 
 	case MEMUNLOCK:
 	{
-		struct erase_info_user info;
+		struct erase_info_user einfo;
 
-		if (copy_from_user(&info, argp, sizeof(info)))
+		if (copy_from_user(&einfo, argp, sizeof(einfo)))
 			return -EFAULT;
 
 		if (!mtd->unlock)
 			ret = -EOPNOTSUPP;
 		else
-			ret = mtd->unlock(mtd, info.start, info.length);
+			ret = mtd->unlock(mtd, einfo.start, einfo.length);
 		break;
 	}
 
@@ -662,7 +665,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		break;
 	}
 
-#if defined(CONFIG_MTD_OTP) || defined(CONFIG_MTD_ONENAND_OTP)
+#ifdef CONFIG_HAVE_MTD_OTP
 	case OTPSELECT:
 	{
 		int mode;
@@ -711,15 +714,15 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 
 	case OTPLOCK:
 	{
-		struct otp_info info;
+		struct otp_info oinfo;
 
 		if (mfi->mode != MTD_MODE_OTP_USER)
 			return -EINVAL;
-		if (copy_from_user(&info, argp, sizeof(info)))
+		if (copy_from_user(&oinfo, argp, sizeof(oinfo)))
 			return -EFAULT;
 		if (!mtd->lock_user_prot_reg)
 			return -EOPNOTSUPP;
-		ret = mtd->lock_user_prot_reg(mtd, info.start, info.length);
+		ret = mtd->lock_user_prot_reg(mtd, oinfo.start, oinfo.length);
 		break;
 	}
 #endif

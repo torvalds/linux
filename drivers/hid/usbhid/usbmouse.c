@@ -31,6 +31,11 @@
 #include <linux/usb/input.h>
 #include <linux/hid.h>
 
+/* for apple IDs */
+#ifdef CONFIG_USB_HID_MODULE
+#include "../hid-ids.h"
+#endif
+
 /*
  * Version Information
  */
@@ -128,14 +133,6 @@ static int usb_mouse_probe(struct usb_interface *intf, const struct usb_device_i
 	endpoint = &interface->endpoint[0].desc;
 	if (!usb_endpoint_is_int_in(endpoint))
 		return -ENODEV;
-
-#ifdef CONFIG_USB_HID
-	if (usbhid_lookup_quirk(le16_to_cpu(dev->descriptor.idVendor),
-				le16_to_cpu(dev->descriptor.idProduct))
-			& (HID_QUIRK_IGNORE|HID_QUIRK_IGNORE_MOUSE)) {
-		return -ENODEV;
-	}
-#endif
 
 	pipe = usb_rcvintpipe(dev, endpoint->bEndpointAddress);
 	maxp = usb_maxpacket(dev, pipe, usb_pipeout(pipe));
@@ -248,7 +245,8 @@ static int __init usb_mouse_init(void)
 {
 	int retval = usb_register(&usb_mouse_driver);
 	if (retval == 0)
-		info(DRIVER_VERSION ":" DRIVER_DESC);
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+				DRIVER_DESC "\n");
 	return retval;
 }
 

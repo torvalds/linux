@@ -10,6 +10,7 @@
 #include <linux/time.h>
 #include <linux/kernel.h>
 #include <linux/poll.h>
+#include <linux/proc_fs.h>
 #include <linux/fs.h>
 
 #include <asm/uaccess.h>
@@ -47,9 +48,16 @@ static unsigned int kmsg_poll(struct file *file, poll_table *wait)
 }
 
 
-const struct file_operations proc_kmsg_operations = {
+static const struct file_operations proc_kmsg_operations = {
 	.read		= kmsg_read,
 	.poll		= kmsg_poll,
 	.open		= kmsg_open,
 	.release	= kmsg_release,
 };
+
+static int __init proc_kmsg_init(void)
+{
+	proc_create("kmsg", S_IRUSR, NULL, &proc_kmsg_operations);
+	return 0;
+}
+module_init(proc_kmsg_init);

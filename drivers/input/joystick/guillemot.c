@@ -1,6 +1,4 @@
 /*
- * $Id: guillemot.c,v 1.10 2002/01/22 20:28:12 vojtech Exp $
- *
  *  Copyright (c) 2001 Vojtech Pavlik
  */
 
@@ -285,8 +283,7 @@ static struct gameport_driver guillemot_drv = {
 
 static int __init guillemot_init(void)
 {
-	gameport_register_driver(&guillemot_drv);
-	return 0;
+	return gameport_register_driver(&guillemot_drv);
 }
 
 static void __exit guillemot_exit(void)

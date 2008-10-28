@@ -21,8 +21,8 @@
 #include <linux/platform_device.h>
 #include <linux/phy.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/cpu.h>
+#include <mach/board.h>
+#include <mach/cpu.h>
 
 #include "macb.h"
 
@@ -80,8 +80,12 @@ static void __init macb_get_hwaddr(struct macb *bp)
 	addr[4] = top & 0xff;
 	addr[5] = (top >> 8) & 0xff;
 
-	if (is_valid_ether_addr(addr))
+	if (is_valid_ether_addr(addr)) {
 		memcpy(bp->dev->dev_addr, addr, sizeof(addr));
+	} else {
+		dev_info(&bp->pdev->dev, "invalid hw address, using random\n");
+		random_ether_addr(bp->dev->dev_addr);
+	}
 }
 
 static int macb_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
@@ -160,9 +164,7 @@ static void macb_handle_link_change(struct net_device *dev)
 	}
 
 	if (phydev->link != bp->link) {
-		if (phydev->link)
-			netif_schedule(dev);
-		else {
+		if (!phydev->link) {
 			bp->speed = 0;
 			bp->duplex = -1;
 		}
@@ -193,8 +195,8 @@ static int macb_mii_probe(struct net_device *dev)
 
 	/* find the first phy */
 	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
-		if (bp->mii_bus.phy_map[phy_addr]) {
-			phydev = bp->mii_bus.phy_map[phy_addr];
+		if (bp->mii_bus->phy_map[phy_addr]) {
+			phydev = bp->mii_bus->phy_map[phy_addr];
 			break;
 		}
 	}
@@ -242,30 +244,36 @@ static int macb_mii_init(struct macb *bp)
 	/* Enable managment port */
 	macb_writel(bp, NCR, MACB_BIT(MPE));
 
-	bp->mii_bus.name = "MACB_mii_bus";
-	bp->mii_bus.read = &macb_mdio_read;
-	bp->mii_bus.write = &macb_mdio_write;
-	bp->mii_bus.reset = &macb_mdio_reset;
-	snprintf(bp->mii_bus.id, MII_BUS_ID_SIZE, "%x", bp->pdev->id);
-	bp->mii_bus.priv = bp;
-	bp->mii_bus.dev = &bp->dev->dev;
-	pdata = bp->pdev->dev.platform_data;
-
-	if (pdata)
-		bp->mii_bus.phy_mask = pdata->phy_mask;
-
-	bp->mii_bus.irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
-	if (!bp->mii_bus.irq) {
+	bp->mii_bus = mdiobus_alloc();
+	if (bp->mii_bus == NULL) {
 		err = -ENOMEM;
 		goto err_out;
 	}
 
+	bp->mii_bus->name = "MACB_mii_bus";
+	bp->mii_bus->read = &macb_mdio_read;
+	bp->mii_bus->write = &macb_mdio_write;
+	bp->mii_bus->reset = &macb_mdio_reset;
+	snprintf(bp->mii_bus->id, MII_BUS_ID_SIZE, "%x", bp->pdev->id);
+	bp->mii_bus->priv = bp;
+	bp->mii_bus->parent = &bp->dev->dev;
+	pdata = bp->pdev->dev.platform_data;
+
+	if (pdata)
+		bp->mii_bus->phy_mask = pdata->phy_mask;
+
+	bp->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
+	if (!bp->mii_bus->irq) {
+		err = -ENOMEM;
+		goto err_out_free_mdiobus;
+	}
+
 	for (i = 0; i < PHY_MAX_ADDR; i++)
-		bp->mii_bus.irq[i] = PHY_POLL;
+		bp->mii_bus->irq[i] = PHY_POLL;
 
-	platform_set_drvdata(bp->dev, &bp->mii_bus);
+	platform_set_drvdata(bp->dev, bp->mii_bus);
 
-	if (mdiobus_register(&bp->mii_bus))
+	if (mdiobus_register(bp->mii_bus))
 		goto err_out_free_mdio_irq;
 
 	if (macb_mii_probe(bp->dev) != 0) {
@@ -275,9 +283,11 @@ static int macb_mii_init(struct macb *bp)
 	return 0;
 
 err_out_unregister_bus:
-	mdiobus_unregister(&bp->mii_bus);
+	mdiobus_unregister(bp->mii_bus);
 err_out_free_mdio_irq:
-	kfree(bp->mii_bus.irq);
+	kfree(bp->mii_bus->irq);
+err_out_free_mdiobus:
+	mdiobus_free(bp->mii_bus);
 err_out:
 	return err;
 }
@@ -1259,8 +1269,9 @@ static int __exit macb_remove(struct platform_device *pdev)
 		bp = netdev_priv(dev);
 		if (bp->phy_dev)
 			phy_disconnect(bp->phy_dev);
-		mdiobus_unregister(&bp->mii_bus);
-		kfree(bp->mii_bus.irq);
+		mdiobus_unregister(bp->mii_bus);
+		kfree(bp->mii_bus->irq);
+		mdiobus_free(bp->mii_bus);
 		unregister_netdev(dev);
 		free_irq(dev->irq, dev);
 		iounmap(bp->regs);

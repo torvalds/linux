@@ -16,6 +16,7 @@
 #include <asm/delay.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
+#include <asm/ftrace.h>
 
 extern int dump_fpu(struct pt_regs *, elf_fpregset_t *);
 extern struct hw_interrupt_type no_irq_type;
@@ -107,9 +108,11 @@ DECLARE_EXPORT(__movmemSI12_i4);
  * GCC >= 4.2 emits these for division, as do GCC 4.1.x versions of the ST
  * compiler which include backported patches.
  */
-DECLARE_EXPORT(__sdivsi3_i4i);
 DECLARE_EXPORT(__udiv_qrnnd_16);
+#if !defined(CONFIG_CPU_SH2)
+DECLARE_EXPORT(__sdivsi3_i4i);
 DECLARE_EXPORT(__udivsi3_i4i);
+#endif
 #endif
 #else /* GCC 3.x */
 DECLARE_EXPORT(__movstr_i4_even);
@@ -123,7 +126,6 @@ DECLARE_EXPORT(__movstrSI12_i4);
 EXPORT_SYMBOL(flush_cache_all);
 EXPORT_SYMBOL(flush_cache_range);
 EXPORT_SYMBOL(flush_dcache_page);
-EXPORT_SYMBOL(__flush_purge_region);
 #endif
 
 #if !defined(CONFIG_CACHE_OFF) && defined(CONFIG_MMU) && \
@@ -131,6 +133,9 @@ EXPORT_SYMBOL(__flush_purge_region);
 EXPORT_SYMBOL(clear_user_page);
 #endif
 
+#ifdef CONFIG_FTRACE
+EXPORT_SYMBOL(mcount);
+#endif
 EXPORT_SYMBOL(csum_partial);
 EXPORT_SYMBOL(csum_partial_copy_generic);
 #ifdef CONFIG_IPV6
@@ -141,3 +146,9 @@ EXPORT_SYMBOL(copy_page);
 EXPORT_SYMBOL(__clear_user);
 EXPORT_SYMBOL(_ebss);
 EXPORT_SYMBOL(empty_zero_page);
+
+#ifndef CONFIG_CACHE_OFF
+EXPORT_SYMBOL(__flush_purge_region);
+EXPORT_SYMBOL(__flush_wback_region);
+EXPORT_SYMBOL(__flush_invalidate_region);
+#endif
