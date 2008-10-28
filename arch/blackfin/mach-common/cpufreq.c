@@ -72,13 +72,13 @@ unsigned int __bfin_cycles_mod;
 
 /**************************************************************************/
 
-static unsigned int bfin_getfreq(unsigned int cpu)
+static unsigned int bfin_getfreq_khz(unsigned int cpu)
 {
 	/* The driver only support single cpu */
 	if (cpu != 0)
 		return -1;
 
-	return get_cclk();
+	return get_cclk() / 1000;
 }
 
 
@@ -96,7 +96,7 @@ static int bfin_target(struct cpufreq_policy *policy,
 
 	cclk_hz = bfin_freq_table[index].frequency;
 
-	freqs.old = bfin_getfreq(0);
+	freqs.old = bfin_getfreq_khz(0);
 	freqs.new = cclk_hz;
 	freqs.cpu = 0;
 
@@ -137,8 +137,8 @@ static int __init __bfin_cpu_init(struct cpufreq_policy *policy)
 	if (policy->cpu != 0)
 		return -EINVAL;
 
-	cclk = get_cclk();
-	sclk = get_sclk();
+	cclk = get_cclk() / 1000;
+	sclk = get_sclk() / 1000;
 
 #if ANOMALY_05000273 || (!defined(CONFIG_BF54x) && defined(CONFIG_BFIN_DCACHE))
 	min_cclk = sclk * 2;
@@ -152,7 +152,7 @@ static int __init __bfin_cpu_init(struct cpufreq_policy *policy)
 		dpm_state_table[index].csel = csel << 4; /* Shift now into PLL_DIV bitpos */
 		dpm_state_table[index].tscale =  (TIME_SCALE / (1 << csel)) - 1;
 
-		pr_debug("cpufreq: freq:%d csel:%d tscale:%d\n",
+		pr_debug("cpufreq: freq:%d csel:0x%x tscale:%d\n",
 						 bfin_freq_table[index].frequency,
 						 dpm_state_table[index].csel,
 						 dpm_state_table[index].tscale);
@@ -173,7 +173,7 @@ static struct freq_attr *bfin_freq_attr[] = {
 static struct cpufreq_driver bfin_driver = {
 	.verify = bfin_verify_speed,
 	.target = bfin_target,
-	.get = bfin_getfreq,
+	.get = bfin_getfreq_khz,
 	.init = __bfin_cpu_init,
 	.name = "bfin cpufreq",
 	.owner = THIS_MODULE,
