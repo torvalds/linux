@@ -1340,7 +1340,6 @@ struct neigh_parms *neigh_parms_alloc(struct net_device *dev,
 	if (p) {
 		p->tbl		  = tbl;
 		atomic_set(&p->refcnt, 1);
-		INIT_RCU_HEAD(&p->rcu_head);
 		p->reachable_time =
 				neigh_rand_reach_time(p->base_reachable_time);
 
@@ -1412,7 +1411,6 @@ void neigh_table_init_no_netlink(struct neigh_table *tbl)
 	tbl->parms.net = &init_net;
 #endif
 	atomic_set(&tbl->parms.refcnt, 1);
-	INIT_RCU_HEAD(&tbl->parms.rcu_head);
 	tbl->parms.reachable_time =
 			  neigh_rand_reach_time(tbl->parms.base_reachable_time);
 

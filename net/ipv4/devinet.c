@@ -112,13 +112,7 @@ static inline void devinet_sysctl_unregister(struct in_device *idev)
 
 static struct in_ifaddr *inet_alloc_ifa(void)
 {
-	struct in_ifaddr *ifa = kzalloc(sizeof(*ifa), GFP_KERNEL);
-
-	if (ifa) {
-		INIT_RCU_HEAD(&ifa->rcu_head);
-	}
-
-	return ifa;
+	return kzalloc(sizeof(struct in_ifaddr), GFP_KERNEL);
 }
 
 static void inet_rcu_free_ifa(struct rcu_head *head)
@@ -161,7 +155,6 @@ static struct in_device *inetdev_init(struct net_device *dev)
 	in_dev = kzalloc(sizeof(*in_dev), GFP_KERNEL);
 	if (!in_dev)
 		goto out;
-	INIT_RCU_HEAD(&in_dev->rcu_head);
 	memcpy(&in_dev->cnf, dev_net(dev)->ipv4.devconf_dflt,
 			sizeof(in_dev->cnf));
 	in_dev->cnf.sysctl = NULL;
