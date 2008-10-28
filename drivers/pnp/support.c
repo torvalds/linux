@@ -75,18 +75,17 @@ char *pnp_resource_type_name(struct resource *res)
 
 void dbg_pnp_show_resources(struct pnp_dev *dev, char *desc)
 {
-#ifdef DEBUG
 	char buf[128];
 	int len;
 	struct pnp_resource *pnp_res;
 	struct resource *res;
 
 	if (list_empty(&dev->resources)) {
-		dev_dbg(&dev->dev, "%s: no current resources\n", desc);
+		pnp_dbg(&dev->dev, "%s: no current resources\n", desc);
 		return;
 	}
 
-	dev_dbg(&dev->dev, "%s: current resources:\n", desc);
+	pnp_dbg(&dev->dev, "%s: current resources:\n", desc);
 	list_for_each_entry(pnp_res, &dev->resources, list) {
 		res = &pnp_res->res;
 		len = 0;
@@ -95,7 +94,7 @@ void dbg_pnp_show_resources(struct pnp_dev *dev, char *desc)
 				 pnp_resource_type_name(res));
 
 		if (res->flags & IORESOURCE_DISABLED) {
-			dev_dbg(&dev->dev, "%sdisabled\n", buf);
+			pnp_dbg(&dev->dev, "%sdisabled\n", buf);
 			continue;
 		}
 
@@ -116,9 +115,8 @@ void dbg_pnp_show_resources(struct pnp_dev *dev, char *desc)
 					 res->flags);
 			break;
 		}
-		dev_dbg(&dev->dev, "%s\n", buf);
+		pnp_dbg(&dev->dev, "%s\n", buf);
 	}
-#endif
 }
 
 char *pnp_option_priority_name(struct pnp_option *option)
@@ -136,7 +134,6 @@ char *pnp_option_priority_name(struct pnp_option *option)
 
 void dbg_pnp_show_option(struct pnp_dev *dev, struct pnp_option *option)
 {
-#ifdef DEBUG
 	char buf[128];
 	int len = 0, i;
 	struct pnp_port *port;
@@ -208,6 +205,5 @@ void dbg_pnp_show_option(struct pnp_dev *dev, struct pnp_option *option)
 				 "flags %#x", dma->map, dma->flags);
 		break;
 	}
-	dev_dbg(&dev->dev, "%s\n", buf);
-#endif
+	pnp_dbg(&dev->dev, "%s\n", buf);
 }

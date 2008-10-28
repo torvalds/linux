@@ -86,10 +86,10 @@ acpi_ex_get_object_reference(union acpi_operand_object *obj_desc,
 		/*
 		 * Must be a reference to a Local or Arg
 		 */
-		switch (obj_desc->reference.opcode) {
-		case AML_LOCAL_OP:
-		case AML_ARG_OP:
-		case AML_DEBUG_OP:
+		switch (obj_desc->reference.class) {
+		case ACPI_REFCLASS_LOCAL:
+		case ACPI_REFCLASS_ARG:
+		case ACPI_REFCLASS_DEBUG:
 
 			/* The referenced object is the pseudo-node for the local/arg */
 
@@ -98,8 +98,8 @@ acpi_ex_get_object_reference(union acpi_operand_object *obj_desc,
 
 		default:
 
-			ACPI_ERROR((AE_INFO, "Unknown Reference opcode %X",
-				    obj_desc->reference.opcode));
+			ACPI_ERROR((AE_INFO, "Unknown Reference Class %2.2X",
+				    obj_desc->reference.class));
 			return_ACPI_STATUS(AE_AML_INTERNAL);
 		}
 		break;
@@ -127,7 +127,7 @@ acpi_ex_get_object_reference(union acpi_operand_object *obj_desc,
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
-	reference_obj->reference.opcode = AML_REF_OF_OP;
+	reference_obj->reference.class = ACPI_REFCLASS_REFOF;
 	reference_obj->reference.object = referenced_obj;
 	*return_desc = reference_obj;
 

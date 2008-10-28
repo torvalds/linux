@@ -44,6 +44,7 @@
 #include <asm/tce.h>
 #include <asm/ppc-pci.h>
 #include <asm/udbg.h>
+#include <asm/kdump.h>
 
 #include "plpar_wrappers.h"
 
@@ -291,9 +292,8 @@ static void iommu_table_setparms(struct pci_controller *phb,
 
 	tbl->it_base = (unsigned long)__va(*basep);
 
-#ifndef CONFIG_CRASH_DUMP
-	memset((void *)tbl->it_base, 0, *sizep);
-#endif
+	if (!__kdump_flag)
+		memset((void *)tbl->it_base, 0, *sizep);
 
 	tbl->it_busno = phb->bus->number;
 

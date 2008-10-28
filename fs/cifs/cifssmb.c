@@ -1309,6 +1309,7 @@ OldOpenRetry:
 				cpu_to_le64(le32_to_cpu(pSMBr->EndOfFile));
 			pfile_info->EndOfFile = pfile_info->AllocationSize;
 			pfile_info->NumberOfLinks = cpu_to_le32(1);
+			pfile_info->DeletePending = 0;
 		}
 	}
 
@@ -1410,6 +1411,7 @@ openRetry:
 		    pfile_info->AllocationSize = pSMBr->AllocationSize;
 		    pfile_info->EndOfFile = pSMBr->EndOfFile;
 		    pfile_info->NumberOfLinks = cpu_to_le32(1);
+		    pfile_info->DeletePending = 0;
 		}
 	}
 

@@ -378,8 +378,9 @@ T:	git://git.kernel.org/pub/scm/linux/kernel/git/joro/linux-2.6-iommu.git
 S:	Supported
 
 AMD MICROCODE UPDATE SUPPORT
-P:      Peter Oruba
-M:      peter.oruba@amd.com
+P:      Andreas Herrmann
+M:      andeas.herrmann3@amd.com
+L:      amd64-microcode@amd64.org
 S:      Supported
 
 AMS (Apple Motion Sensor) DRIVER
@@ -1053,6 +1054,12 @@ L:	cbe-oss-dev@ozlabs.org
 W:	http://www.ibm.com/developerworks/power/cell/
 S:	Supported
 
+CERTIFIED WIRELESS USB (WUSB) SUBSYSTEM:
+P:	David Vrabel
+M:	david.vrabel@csr.com
+L:	linux-usb@vger.kernel.org
+S:	Supported
+
 CFAG12864B LCD DRIVER
 P:	Miguel Ojeda Sandonis
 M:	miguel.ojeda.sandonis@gmail.com
@@ -1427,8 +1434,8 @@ M:	rdunlap@xenotime.net
 S:	Maintained
 
 DOCKING STATION DRIVER
-P:	Kristen Carlson Accardi
-M:	kristen.c.accardi@intel.com
+P:	Shaohua Li
+M:	shaohua.li@intel.com
 L:	linux-acpi@vger.kernel.org
 S:	Supported
 
@@ -2103,6 +2110,12 @@ L:	linux-ide@vger.kernel.org
 L:	linux-scsi@vger.kernel.org
 S:	Orphan
 
+IDLE-I7300
+P:	Andy Henroid
+M:	andrew.d.henroid@intel.com
+L:	linux-pm@lists.linux-foundation.org
+S:	Supported
+
 IEEE 1394 SUBSYSTEM (drivers/ieee1394)
 P:	Ben Collins
 M:	ben.collins@ubuntu.com
@@ -2174,6 +2187,13 @@ INTEL I/OAT DMA DRIVER
 P:	Maciej Sosnowski
 M:	maciej.sosnowski@intel.com
 L:	linux-kernel@vger.kernel.org
+S:	Supported
+
+INTEL IOMMU (VT-d)
+P:	David Woodhouse
+M:	dwmw2@infradead.org
+L:	iommu@lists.linux-foundation.org
+T:	git://git.infradead.org/iommu-2.6.git
 S:	Supported
 
 INTEL IOP-ADMA DMA DRIVER
@@ -2928,9 +2948,9 @@ S:	Maintained
 
 NETEFFECT IWARP RNIC DRIVER (IW_NES)
 P:	Faisal Latif
-M:	flatif@neteffect.com
+M:	faisal.latif@intel.com
 P:	Chien Tung
-M:	ctung@neteffect.com
+M:	chien.tin.tung@intel.com
 L:	general@lists.openfabrics.org
 W:	http://www.neteffect.com
 S:	Supported
@@ -3173,6 +3193,11 @@ M:	olof@lixom.net
 L:	i2c@lm-sensors.org
 S:	Maintained
 
+PANASONIC LAPTOP ACPI EXTRAS DRIVER
+P:	Harald Welte
+M:	laforge@gnumonks.org
+S:	Maintained
+
 PANASONIC MN10300/AM33 PORT
 P:	David Howells
 M:	dhowells@redhat.com
@@ -3242,11 +3267,6 @@ M:	jbarnes@virtuousgeek.org
 L:	linux-kernel@vger.kernel.org
 L:	linux-pci@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/jbarnes/pci-2.6.git
-S:	Supported
-
-PCI HOTPLUG CORE
-P:	Kristen Carlson Accardi
-M:	kristen.c.accardi@intel.com
 S:	Supported
 
 PCIE HOTPLUG DRIVER
@@ -4191,6 +4211,12 @@ L:	sparclinux@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/davem/sparc-2.6.git
 S:	Maintained
 
+ULTRA-WIDEBAND (UWB) SUBSYSTEM:
+P:	David Vrabel
+M:	david.vrabel@csr.com
+L:	linux-usb@vger.kernel.org
+S:	Supported
+
 UNIFORM CDROM DRIVER
 P:	Jens Axboe
 M:	axboe@kernel.dk
@@ -4614,6 +4640,11 @@ WD7000 SCSI DRIVER
 P:	Miroslav Zagorac
 M:	zaga@fly.cc.fer.hr
 L:	linux-scsi@vger.kernel.org
+S:	Maintained
+
+WIMEDIA LLC PROTOCOL (WLP) SUBSYSTEM
+P:	David Vrabel
+M:	david.vrabel@csr.com
 S:	Maintained
 
 WISTRON LAPTOP BUTTON DRIVER

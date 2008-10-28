@@ -228,6 +228,12 @@ struct twl4030_gpio_platform_data {
 	int		gpio_base;
 	unsigned	irq_base, irq_end;
 
+	/* package the two LED signals as output-only GPIOs? */
+	bool		use_leds;
+
+	/* gpio-n should control VMMC(n+1) if BIT(n) in mmc_cd is set */
+	u8		mmc_cd;
+
 	/* For gpio-N, bit (1 << N) in "pullups" is set if that pullup
 	 * should be enabled.  Else, if that bit is set in "pulldowns",
 	 * that pulldown is enabled.  Don't waste power by letting any
@@ -277,6 +283,8 @@ struct twl4030_platform_data {
 
 /*----------------------------------------------------------------------*/
 
+int twl4030_sih_setup(int module);
+
 /*
  * FIXME completely stop using TWL4030_IRQ_BASE ... instead, pass the
  * IRQ data to subsidiary devices using platform device resources.
@@ -291,16 +299,16 @@ struct twl4030_platform_data {
 #define TWL4030_MODIRQ_BCI		(TWL4030_IRQ_BASE + 2)
 #define TWL4030_MODIRQ_MADC		(TWL4030_IRQ_BASE + 3)
 /* #define TWL4030_MODIRQ_USB		(TWL4030_IRQ_BASE + 4) */
-#define TWL4030_MODIRQ_PWR		(TWL4030_IRQ_BASE + 5)
+/* #define TWL4030_MODIRQ_PWR		(TWL4030_IRQ_BASE + 5) */
 
 #define TWL4030_PWRIRQ_PWRBTN		(TWL4030_PWR_IRQ_BASE + 0)
-#define TWL4030_PWRIRQ_CHG_PRES		(TWL4030_PWR_IRQ_BASE + 1)
-#define TWL4030_PWRIRQ_USB_PRES		(TWL4030_PWR_IRQ_BASE + 2)
-#define TWL4030_PWRIRQ_RTC		(TWL4030_PWR_IRQ_BASE + 3)
-#define TWL4030_PWRIRQ_HOT_DIE		(TWL4030_PWR_IRQ_BASE + 4)
-#define TWL4030_PWRIRQ_PWROK_TIMEOUT	(TWL4030_PWR_IRQ_BASE + 5)
-#define TWL4030_PWRIRQ_MBCHG		(TWL4030_PWR_IRQ_BASE + 6)
-#define TWL4030_PWRIRQ_SC_DETECT	(TWL4030_PWR_IRQ_BASE + 7)
+/* #define TWL4030_PWRIRQ_CHG_PRES		(TWL4030_PWR_IRQ_BASE + 1) */
+/* #define TWL4030_PWRIRQ_USB_PRES		(TWL4030_PWR_IRQ_BASE + 2) */
+/* #define TWL4030_PWRIRQ_RTC		(TWL4030_PWR_IRQ_BASE + 3) */
+/* #define TWL4030_PWRIRQ_HOT_DIE		(TWL4030_PWR_IRQ_BASE + 4) */
+/* #define TWL4030_PWRIRQ_PWROK_TIMEOUT	(TWL4030_PWR_IRQ_BASE + 5) */
+/* #define TWL4030_PWRIRQ_MBCHG		(TWL4030_PWR_IRQ_BASE + 6) */
+/* #define TWL4030_PWRIRQ_SC_DETECT	(TWL4030_PWR_IRQ_BASE + 7) */
 
 /* Rest are unsued currently*/
 
@@ -317,17 +325,13 @@ struct twl4030_platform_data {
 /* TWL4030 GPIO interrupt definitions */
 
 #define TWL4030_GPIO_IRQ_NO(n)		(TWL4030_GPIO_IRQ_BASE + (n))
-#define TWL4030_GPIO_IS_ENABLE		1
 
 /*
  * Exported TWL4030 GPIO APIs
  *
  * WARNING -- use standard GPIO and IRQ calls instead; these will vanish.
  */
-int twl4030_get_gpio_datain(int gpio);
-int twl4030_request_gpio(int gpio);
 int twl4030_set_gpio_debounce(int gpio, int enable);
-int twl4030_free_gpio(int gpio);
 
 #if defined(CONFIG_TWL4030_BCI_BATTERY) || \
 	defined(CONFIG_TWL4030_BCI_BATTERY_MODULE)

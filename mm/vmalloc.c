@@ -15,9 +15,9 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
+#include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/debugobjects.h>
-#include <linux/vmalloc.h>
 #include <linux/kallsyms.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
@@ -1719,11 +1719,41 @@ static int s_show(struct seq_file *m, void *p)
 	return 0;
 }
 
-const struct seq_operations vmalloc_op = {
+static const struct seq_operations vmalloc_op = {
 	.start = s_start,
 	.next = s_next,
 	.stop = s_stop,
 	.show = s_show,
 };
+
+static int vmalloc_open(struct inode *inode, struct file *file)
+{
+	unsigned int *ptr = NULL;
+	int ret;
+
+	if (NUMA_BUILD)
+		ptr = kmalloc(nr_node_ids * sizeof(unsigned int), GFP_KERNEL);
+	ret = seq_open(file, &vmalloc_op);
+	if (!ret) {
+		struct seq_file *m = file->private_data;
+		m->private = ptr;
+	} else
+		kfree(ptr);
+	return ret;
+}
+
+static const struct file_operations proc_vmalloc_operations = {
+	.open		= vmalloc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release_private,
+};
+
+static int __init proc_vmalloc_init(void)
+{
+	proc_create("vmallocinfo", S_IRUSR, NULL, &proc_vmalloc_operations);
+	return 0;
+}
+module_init(proc_vmalloc_init);
 #endif
 

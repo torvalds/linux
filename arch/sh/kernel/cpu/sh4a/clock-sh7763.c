@@ -18,7 +18,6 @@
 
 static int bfc_divisors[] = { 1, 1, 1, 8, 1, 1, 1, 1 };
 static int p0fc_divisors[] = { 1, 1, 1, 8, 1, 1, 1, 1 };
-static int p1fc_divisors[] = { 1, 1, 1, 16, 1, 1, 1, 1 };
 static int cfc_divisors[] = { 1, 1, 4, 1, 1, 1, 1, 1 };
 
 static void master_clk_init(struct clk *clk)

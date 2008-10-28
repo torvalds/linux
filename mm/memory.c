@@ -64,8 +64,6 @@
 
 #include "internal.h"
 
-#include "internal.h"
-
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 /* use the per-pgdat data instead for discontigmem - mbligh */
 unsigned long max_mapnr;

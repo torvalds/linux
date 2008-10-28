@@ -90,6 +90,8 @@ struct smb_vol {
 	bool nocase:1;     /* request case insensitive filenames */
 	bool nobrl:1;      /* disable sending byte range locks to srv */
 	bool seal:1;       /* request transport encryption on share */
+	bool nodfs:1;      /* Do not request DFS, even if available */
+	bool local_lease:1; /* check leases only on local system, not remote */
 	unsigned int rsize;
 	unsigned int wsize;
 	unsigned int sockopt;
@@ -124,7 +126,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	struct mid_q_entry *mid_entry;
 
 	spin_lock(&GlobalMid_Lock);
-	if (kthread_should_stop()) {
+	if (server->tcpStatus == CifsExiting) {
 		/* the demux thread will exit normally
 		next time through the loop */
 		spin_unlock(&GlobalMid_Lock);
@@ -184,7 +186,8 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	spin_unlock(&GlobalMid_Lock);
 	up(&server->tcpSem);
 
-	while ((!kthread_should_stop()) && (server->tcpStatus != CifsGood)) {
+	while ((server->tcpStatus != CifsExiting) &&
+	       (server->tcpStatus != CifsGood)) {
 		try_to_freeze();
 		if (server->protocolType == IPV6) {
 			rc = ipv6_connect(&server->addr.sockAddr6,
@@ -201,7 +204,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		} else {
 			atomic_inc(&tcpSesReconnectCount);
 			spin_lock(&GlobalMid_Lock);
-			if (!kthread_should_stop())
+			if (server->tcpStatus != CifsExiting)
 				server->tcpStatus = CifsGood;
 			server->sequence_number = 0;
 			spin_unlock(&GlobalMid_Lock);
@@ -356,7 +359,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 				GFP_KERNEL);
 
 	set_freezable();
-	while (!kthread_should_stop()) {
+	while (server->tcpStatus != CifsExiting) {
 		if (try_to_freeze())
 			continue;
 		if (bigbuf == NULL) {
@@ -397,7 +400,7 @@ incomplete_rcv:
 		    kernel_recvmsg(csocket, &smb_msg,
 				&iov, 1, pdu_length, 0 /* BB other flags? */);
 
-		if (kthread_should_stop()) {
+		if (server->tcpStatus == CifsExiting) {
 			break;
 		} else if (server->tcpStatus == CifsNeedReconnect) {
 			cFYI(1, ("Reconnect after server stopped responding"));
@@ -522,7 +525,7 @@ incomplete_rcv:
 		     total_read += length) {
 			length = kernel_recvmsg(csocket, &smb_msg, &iov, 1,
 						pdu_length - total_read, 0);
-			if (kthread_should_stop() ||
+			if ((server->tcpStatus == CifsExiting) ||
 			    (length == -EINTR)) {
 				/* then will exit */
 				reconnect = 2;
@@ -651,14 +654,6 @@ multi_t2_fnd:
 	spin_unlock(&GlobalMid_Lock);
 	wake_up_all(&server->response_q);
 
-	/* don't exit until kthread_stop is called */
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	while (!kthread_should_stop()) {
-		schedule();
-		set_current_state(TASK_UNINTERRUPTIBLE);
-	}
-	set_current_state(TASK_RUNNING);
-
 	/* check if we have blocked requests that need to free */
 	/* Note that cifs_max_pending is normally 50, but
 	can be set at module install time to as little as two */
@@ -755,12 +750,23 @@ multi_t2_fnd:
 	write_unlock(&GlobalSMBSeslock);
 
 	kfree(server->hostname);
+	task_to_wake = xchg(&server->tsk, NULL);
 	kfree(server);
 
 	length = atomic_dec_return(&tcpSesAllocCount);
 	if (length  > 0)
 		mempool_resize(cifs_req_poolp, length + cifs_min_rcv,
 				GFP_KERNEL);
+
+	/* if server->tsk was NULL then wait for a signal before exiting */
+	if (!task_to_wake) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		while (!signal_pending(current)) {
+			schedule();
+			set_current_state(TASK_INTERRUPTIBLE);
+		}
+		set_current_state(TASK_RUNNING);
+	}
 
 	return 0;
 }
@@ -1218,6 +1224,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 			vol->sfu_emul = 1;
 		} else if (strnicmp(data, "nosfu", 5) == 0) {
 			vol->sfu_emul = 0;
+		} else if (strnicmp(data, "nodfs", 5) == 0) {
+			vol->nodfs = 1;
 		} else if (strnicmp(data, "posixpaths", 10) == 0) {
 			vol->posix_paths = 1;
 		} else if (strnicmp(data, "noposixpaths", 12) == 0) {
@@ -1268,6 +1276,10 @@ cifs_parse_mount_options(char *options, const char *devname,
 			vol->no_psx_acl = 0;
 		} else if (strnicmp(data, "noacl", 5) == 0) {
 			vol->no_psx_acl = 1;
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+		} else if (strnicmp(data, "locallease", 6) == 0) {
+			vol->local_lease = 1;
+#endif
 		} else if (strnicmp(data, "sign", 4) == 0) {
 			vol->secFlg |= CIFSSEC_MUST_SIGN;
 		} else if (strnicmp(data, "seal", 4) == 0) {
@@ -1845,6 +1857,16 @@ convert_delimiter(char *path, char delim)
 	}
 }
 
+static void
+kill_cifsd(struct TCP_Server_Info *server)
+{
+	struct task_struct *task;
+
+	task = xchg(&server->tsk, NULL);
+	if (task)
+		force_sig(SIGKILL, task);
+}
+
 int
 cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	   char *mount_data, const char *devname)
@@ -2166,6 +2188,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			   for the retry flag is used */
 			tcon->retry = volume_info.retry;
 			tcon->nocase = volume_info.nocase;
+			tcon->local_lease = volume_info.local_lease;
 			if (tcon->seal != volume_info.seal)
 				cERROR(1, ("transport encryption setting "
 					   "conflicts with existing tid"));
@@ -2197,6 +2220,12 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 						volume_info.UNC,
 						tcon, cifs_sb->local_nls);
 					cFYI(1, ("CIFS Tcon rc = %d", rc));
+					if (volume_info.nodfs) {
+						tcon->Flags &=
+							~SMB_SHARE_IS_IN_DFS;
+						cFYI(1, ("DFS disabled (%d)",
+							tcon->Flags));
+					}
 				}
 				if (!rc) {
 					atomic_inc(&pSesInfo->inUse);
@@ -2225,14 +2254,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			spin_lock(&GlobalMid_Lock);
 			srvTcp->tcpStatus = CifsExiting;
 			spin_unlock(&GlobalMid_Lock);
-			if (srvTcp->tsk) {
-				/* If we could verify that kthread_stop would
-				   always wake up processes blocked in
-				   tcp in recv_mesg then we could remove the
-				   send_sig call */
-				force_sig(SIGKILL, srvTcp->tsk);
-				kthread_stop(srvTcp->tsk);
-			}
+			kill_cifsd(srvTcp);
 		}
 		 /* If find_unc succeeded then rc == 0 so we can not end */
 		if (tcon)  /* up accidently freeing someone elses tcon struct */
@@ -2245,19 +2267,15 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 					temp_rc = CIFSSMBLogoff(xid, pSesInfo);
 					/* if the socketUseCount is now zero */
 					if ((temp_rc == -ESHUTDOWN) &&
-					    (pSesInfo->server) &&
-					    (pSesInfo->server->tsk)) {
-						force_sig(SIGKILL,
-							pSesInfo->server->tsk);
-						kthread_stop(pSesInfo->server->tsk);
-					}
+					    (pSesInfo->server))
+						kill_cifsd(pSesInfo->server);
 				} else {
 					cFYI(1, ("No session or bad tcon"));
-					if ((pSesInfo->server) &&
-					    (pSesInfo->server->tsk)) {
-						force_sig(SIGKILL,
-							pSesInfo->server->tsk);
-						kthread_stop(pSesInfo->server->tsk);
+					if (pSesInfo->server) {
+						spin_lock(&GlobalMid_Lock);
+						srvTcp->tcpStatus = CifsExiting;
+						spin_unlock(&GlobalMid_Lock);
+						kill_cifsd(pSesInfo->server);
 					}
 				}
 				sesInfoFree(pSesInfo);
@@ -3544,7 +3562,6 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 	int rc = 0;
 	int xid;
 	struct cifsSesInfo *ses = NULL;
-	struct task_struct *cifsd_task;
 	char *tmp;
 
 	xid = GetXid();
@@ -3560,7 +3577,6 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 		tconInfoFree(cifs_sb->tcon);
 		if ((ses) && (ses->server)) {
 			/* save off task so we do not refer to ses later */
-			cifsd_task = ses->server->tsk;
 			cFYI(1, ("About to do SMBLogoff "));
 			rc = CIFSSMBLogoff(xid, ses);
 			if (rc == -EBUSY) {
@@ -3568,10 +3584,8 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 				return 0;
 			} else if (rc == -ESHUTDOWN) {
 				cFYI(1, ("Waking up socket by sending signal"));
-				if (cifsd_task) {
-					force_sig(SIGKILL, cifsd_task);
-					kthread_stop(cifsd_task);
-				}
+				if (ses->server)
+					kill_cifsd(ses->server);
 				rc = 0;
 			} /* else - we have an smb session
 				left on this socket do not kill cifsd */
@@ -3701,7 +3715,9 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 		cERROR(1, ("Send error in SessSetup = %d", rc));
 	} else {
 		cFYI(1, ("CIFS Session Established successfully"));
+			spin_lock(&GlobalMid_Lock);
 			pSesInfo->status = CifsGood;
+			spin_unlock(&GlobalMid_Lock);
 	}
 
 ss_err_exit:

@@ -1,0 +1,16 @@
+
+menu "Memory power savings"
+
+config I7300_IDLE_IOAT_CHANNEL
+	bool
+
+config I7300_IDLE
+	tristate "Intel chipset idle power saving driver"
+	select I7300_IDLE_IOAT_CHANNEL
+	depends on X86_64
+	help
+	  Enable idle power savings with certain Intel server chipsets.
+	  The chipset must have I/O AT support, such as the Intel 7300.
+	  The power savings depends on the type and quantity of DRAM devices.
+
+endmenu

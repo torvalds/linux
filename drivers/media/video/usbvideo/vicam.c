@@ -877,7 +877,8 @@ vicam_probe( struct usb_interface *intf, const struct usb_device_id *id)
 		return -EIO;
 	}
 
-	printk(KERN_INFO "ViCam webcam driver now controlling video device %d\n",cam->vdev.minor);
+	printk(KERN_INFO "ViCam webcam driver now controlling video device %d\n",
+			cam->vdev.num);
 
 	usb_set_intfdata (intf, cam);
 

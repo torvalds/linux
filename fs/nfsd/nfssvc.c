@@ -249,6 +249,10 @@ static int nfsd_init_socks(int port)
 	if (error < 0)
 		return error;
 
+	error = lockd_up();
+	if (error < 0)
+		return error;
+
 	error = svc_create_xprt(nfsd_serv, "tcp", port,
 					SVC_SOCK_DEFAULTS);
 	if (error < 0)

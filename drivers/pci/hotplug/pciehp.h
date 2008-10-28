@@ -74,15 +74,13 @@ extern struct workqueue_struct *pciehp_wq;
 struct slot {
 	u8 bus;
 	u8 device;
-	u32 number;
 	u8 state;
-	struct timer_list task_event;
 	u8 hp_slot;
+	u32 number;
 	struct controller *ctrl;
 	struct hpc_ops *hpc_ops;
 	struct hotplug_slot *hotplug_slot;
 	struct list_head	slot_list;
-	char name[SLOT_NAME_SIZE];
 	unsigned long last_emi_toggle;
 	struct delayed_work work;	/* work for button event */
 	struct mutex lock;
@@ -112,6 +110,7 @@ struct controller {
 	struct timer_list poll_timer;
 	int cmd_busy;
 	unsigned int no_cmd_complete:1;
+	unsigned int link_active_reporting:1;
 };
 
 #define INT_BUTTON_IGNORE		0
@@ -175,6 +174,11 @@ int pciehp_enable_slot(struct slot *p_slot);
 int pciehp_disable_slot(struct slot *p_slot);
 int pcie_enable_notification(struct controller *ctrl);
 
+static inline const char *slot_name(struct slot *slot)
+{
+	return hotplug_slot_name(slot->hotplug_slot);
+}
+
 static inline struct slot *pciehp_find_slot(struct controller *ctrl, u8 device)
 {
 	struct slot *slot;
@@ -184,7 +188,7 @@ static inline struct slot *pciehp_find_slot(struct controller *ctrl, u8 device)
 			return slot;
 	}
 
-	ctrl_err(ctrl, "%s: slot (device=0x%x) not found\n", __func__, device);
+	ctrl_err(ctrl, "Slot (device=0x%02x) not found\n", device);
 	return NULL;
 }
 

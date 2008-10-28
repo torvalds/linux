@@ -75,6 +75,15 @@ config LCD_PLATFORM
 	  This driver provides a platform-device registered LCD power
 	  control interface.
 
+config LCD_TOSA
+	tristate "Sharp SL-6000 LCD Driver"
+	depends on LCD_CLASS_DEVICE && SPI
+	depends on MACH_TOSA
+	default n
+	help
+	  If you have an Sharp SL-6000 Zaurus say Y to enable a driver
+	  for its LCD.
+
 #
 # Backlight
 #
@@ -115,13 +124,16 @@ config BACKLIGHT_ATMEL_PWM
 	  called atmel-pwm-bl.
 
 config BACKLIGHT_CORGI
-	tristate "Generic (aka Sharp Corgi) Backlight Driver"
+	tristate "Generic (aka Sharp Corgi) Backlight Driver (DEPRECATED)"
 	depends on BACKLIGHT_CLASS_DEVICE
 	default n
 	help
 	  Say y to enable the generic platform backlight driver previously
 	  known as the Corgi backlight driver. If you have a Sharp Zaurus
 	  SL-C7xx, SL-Cxx00 or SL-6000x say y. Most users can say n.
+
+	  Note: this driver is marked as deprecated, try enable SPI and
+	  use the new corgi_lcd driver with integrated backlight control
 
 config BACKLIGHT_LOCOMO
 	tristate "Sharp LOCOMO LCD/Backlight Driver"
@@ -171,6 +183,13 @@ config BACKLIGHT_PWM
 	  If you have a LCD backlight adjustable by PWM, say Y to enable
 	  this driver.
 
+config BACKLIGHT_DA903X
+	tristate "Backlight Driver for DA9030/DA9034 using WLED"
+	depends on BACKLIGHT_CLASS_DEVICE && PMIC_DA903X
+	help
+	  If you have a LCD backlight connected to the WLED output of DA9030
+	  or DA9034 WLED output, say Y here to enable this driver.
+
 config BACKLIGHT_MBP_NVIDIA
        tristate "MacBook Pro Nvidia Backlight Driver"
        depends on BACKLIGHT_CLASS_DEVICE && X86
@@ -179,3 +198,19 @@ config BACKLIGHT_MBP_NVIDIA
          If you have an Apple Macbook Pro with Nvidia graphics hardware say Y
 	 to enable a driver for its backlight
 
+config BACKLIGHT_TOSA
+	tristate "Sharp SL-6000 Backlight Driver"
+	depends on BACKLIGHT_CLASS_DEVICE && I2C
+	depends on MACH_TOSA && LCD_TOSA
+	default n
+	help
+	  If you have an Sharp SL-6000 Zaurus say Y to enable a driver
+	  for its backlight
+
+config BACKLIGHT_SAHARA
+	tristate "Tabletkiosk Sahara Touch-iT Backlight Driver"
+	depends on BACKLIGHT_CLASS_DEVICE && X86
+	default n
+	help
+	  If you have a Tabletkiosk Sahara Touch-iT, say y to enable the
+	  backlight driver.

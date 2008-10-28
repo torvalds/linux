@@ -99,5 +99,10 @@ static inline struct page_cgroup *lookup_page_cgroup(struct page *page)
 {
 	return NULL;
 }
+
+static inline void page_cgroup_init(void)
+{
+}
+
 #endif
 #endif

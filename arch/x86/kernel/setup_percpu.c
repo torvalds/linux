@@ -218,7 +218,7 @@ static void __init setup_node_to_cpumask_map(void)
 	/* allocate the map */
 	map = alloc_bootmem_low(nr_node_ids * sizeof(cpumask_t));
 
-	pr_debug(KERN_DEBUG "Node to cpumask map at %p for %d nodes\n",
+	pr_debug("Node to cpumask map at %p for %d nodes\n",
 		 map, nr_node_ids);
 
 	/* node_to_cpumask() will now work */

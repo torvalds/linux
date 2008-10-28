@@ -93,7 +93,7 @@ static struct au1550_state {
 	spinlock_t      lock;
 	struct mutex open_mutex;
 	struct mutex sem;
-	mode_t          open_mode;
+	fmode_t          open_mode;
 	wait_queue_head_t open_wait;
 
 	struct dmabuf {

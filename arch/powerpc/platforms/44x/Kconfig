@@ -167,6 +167,14 @@ config PPC44x_SIMPLE
 	help
 	  This option enables the simple PowerPC 44x platform support.
 
+config PPC4xx_GPIO
+	bool "PPC4xx GPIO support"
+	depends on 44x
+	select ARCH_REQUIRE_GPIOLIB
+	select GENERIC_GPIO
+	help
+	  Enable gpiolib support for ppc440 based boards
+
 # 44x specific CPU modules, selected based on the board above.
 config 440EP
 	bool

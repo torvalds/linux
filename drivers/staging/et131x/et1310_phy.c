@@ -84,7 +84,6 @@
 #include <linux/if_arp.h>
 #include <linux/ioport.h>
 #include <linux/random.h>
-#include <linux/delay.h>
 
 #include "et1310_phy.h"
 #include "et1310_pm.h"
@@ -95,7 +94,6 @@
 #include "et131x_initpci.h"
 
 #include "et1310_address_map.h"
-#include "et1310_jagcore.h"
 #include "et1310_tx.h"
 #include "et1310_rx.h"
 #include "et1310_mac.h"

@@ -34,7 +34,7 @@ enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 		chip->thalf = 0;
 		if (!atomic_read(&chip->timer_active))
 			return HRTIMER_NORESTART;
-		hrtimer_forward(&chip->timer, chip->timer.expires,
+		hrtimer_forward(&chip->timer, hrtimer_get_expires(&chip->timer),
 				ktime_set(0, chip->ns_rem));
 		return HRTIMER_RESTART;
 	}
@@ -118,7 +118,8 @@ enum hrtimer_restart pcsp_do_timer(struct hrtimer *handle)
 	chip->ns_rem = PCSP_PERIOD_NS();
 	ns = (chip->thalf ? PCSP_CALC_NS(timer_cnt) : chip->ns_rem);
 	chip->ns_rem -= ns;
-	hrtimer_forward(&chip->timer, chip->timer.expires, ktime_set(0, ns));
+	hrtimer_forward(&chip->timer, hrtimer_get_expires(&chip->timer),
+							ktime_set(0, ns));
 	return HRTIMER_RESTART;
 
 exit_nr_unlock2:

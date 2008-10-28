@@ -16,7 +16,7 @@ config NL80211
 
 config WIRELESS_OLD_REGULATORY
 	bool "Old wireless static regulatory definitions"
-	default n
+	default y
 	---help---
 	  This option enables the old static regulatory information
 	  and uses it within the new framework. This is available
@@ -40,11 +40,10 @@ config WIRELESS_OLD_REGULATORY
 	  ieee80211_regdom module parameter. This is being phased out and you
 	  should stop using them ASAP.
 
-	  Say N unless you cannot install a new userspace application
-	  or have one currently depending on the ieee80211_regdom module
-	  parameter and cannot port it to use the new userspace interfaces.
-
-	  This is scheduled for removal for 2.6.29.
+	  Say Y unless you have installed a new userspace application.
+	  Also say Y if have one currently depending on the ieee80211_regdom
+	  module parameter and cannot port it to use the new userspace
+	  interfaces.
 
 config WIRELESS_EXT
 	bool "Wireless extensions"

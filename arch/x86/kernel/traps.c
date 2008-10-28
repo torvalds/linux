@@ -931,14 +931,6 @@ do_device_not_available(struct pt_regs *regs, long error)
 }
 
 #ifdef CONFIG_X86_32
-#ifdef CONFIG_X86_MCE
-dotraplinkage void __kprobes do_machine_check(struct pt_regs *regs, long error)
-{
-	conditional_sti(regs);
-	machine_check_vector(regs, error);
-}
-#endif
-
 dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 {
 	siginfo_t info;

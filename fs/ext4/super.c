@@ -399,7 +399,7 @@ fail:
 static int ext4_blkdev_put(struct block_device *bdev)
 {
 	bd_release(bdev);
-	return blkdev_put(bdev);
+	return blkdev_put(bdev, FMODE_READ|FMODE_WRITE);
 }
 
 static int ext4_blkdev_remove(struct ext4_sb_info *sbi)
@@ -2553,7 +2553,7 @@ static journal_t *ext4_get_dev_journal(struct super_block *sb,
 	if (bd_claim(bdev, sb)) {
 		printk(KERN_ERR
 			"EXT4: failed to claim external journal device.\n");
-		blkdev_put(bdev);
+		blkdev_put(bdev, FMODE_READ|FMODE_WRITE);
 		return NULL;
 	}
 
@@ -3328,30 +3328,30 @@ static int ext4_quota_on_mount(struct super_block *sb, int type)
  * Standard function to be called on quota_on
  */
 static int ext4_quota_on(struct super_block *sb, int type, int format_id,
-			 char *path, int remount)
+			 char *name, int remount)
 {
 	int err;
-	struct nameidata nd;
+	struct path path;
 
 	if (!test_opt(sb, QUOTA))
 		return -EINVAL;
-	/* When remounting, no checks are needed and in fact, path is NULL */
+	/* When remounting, no checks are needed and in fact, name is NULL */
 	if (remount)
-		return vfs_quota_on(sb, type, format_id, path, remount);
+		return vfs_quota_on(sb, type, format_id, name, remount);
 
-	err = path_lookup(path, LOOKUP_FOLLOW, &nd);
+	err = kern_path(name, LOOKUP_FOLLOW, &path);
 	if (err)
 		return err;
 
 	/* Quotafile not on the same filesystem? */
-	if (nd.path.mnt->mnt_sb != sb) {
-		path_put(&nd.path);
+	if (path.mnt->mnt_sb != sb) {
+		path_put(&path);
 		return -EXDEV;
 	}
 	/* Journaling quota? */
 	if (EXT4_SB(sb)->s_qf_names[type]) {
 		/* Quotafile not in fs root? */
-		if (nd.path.dentry->d_parent->d_inode != sb->s_root->d_inode)
+		if (path.dentry->d_parent != sb->s_root)
 			printk(KERN_WARNING
 				"EXT4-fs: Quota file not on filesystem root. "
 				"Journaled quota will not work.\n");
@@ -3361,7 +3361,7 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 	 * When we journal data on quota file, we have to flush journal to see
 	 * all updates to the file when we bypass pagecache...
 	 */
-	if (ext4_should_journal_data(nd.path.dentry->d_inode)) {
+	if (ext4_should_journal_data(path.dentry->d_inode)) {
 		/*
 		 * We don't need to lock updates but journal_flush() could
 		 * otherwise be livelocked...
@@ -3370,13 +3370,13 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 		err = jbd2_journal_flush(EXT4_SB(sb)->s_journal);
 		jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
 		if (err) {
-			path_put(&nd.path);
+			path_put(&path);
 			return err;
 		}
 	}
 
-	err = vfs_quota_on_path(sb, type, format_id, &nd.path);
-	path_put(&nd.path);
+	err = vfs_quota_on_path(sb, type, format_id, &path);
+	path_put(&path);
 	return err;
 }
 
