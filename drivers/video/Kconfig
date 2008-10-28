@@ -362,7 +362,7 @@ endchoice
 
 config FB_ACORN
 	bool "Acorn VIDC support"
-	depends on (FB = y) && ARM && (ARCH_ACORN || ARCH_CLPS7500)
+	depends on (FB = y) && ARM && ARCH_ACORN
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT

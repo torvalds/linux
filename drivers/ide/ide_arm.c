@@ -15,15 +15,8 @@
 
 #define DRV_NAME "ide_arm"
 
-#ifdef CONFIG_ARCH_CLPS7500
-# include <mach/hardware.h>
-#
-# define IDE_ARM_IO	(ISASLOT_IO + 0x1f0)
-# define IDE_ARM_IRQ	IRQ_ISA_14
-#else
-# define IDE_ARM_IO	0x1f0
-# define IDE_ARM_IRQ	IRQ_HARDDISK
-#endif
+#define IDE_ARM_IO	0x1f0
+#define IDE_ARM_IRQ	IRQ_HARDDISK
 
 static int __init ide_arm_init(void)
 {

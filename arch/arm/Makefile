@@ -96,7 +96,6 @@ textofs-y	:= 0x00008000
 
  machine-$(CONFIG_ARCH_RPC)	   := rpc
  machine-$(CONFIG_ARCH_EBSA110)	   := ebsa110
- machine-$(CONFIG_ARCH_CLPS7500)   := clps7500
  machine-$(CONFIG_FOOTBRIDGE)	   := footbridge
  machine-$(CONFIG_ARCH_SHARK)	   := shark
  machine-$(CONFIG_ARCH_SA1100)	   := sa1100

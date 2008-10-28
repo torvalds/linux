@@ -732,7 +732,7 @@ config BLK_DEV_IDE_TX4939
 
 config IDE_ARM
 	tristate "ARM IDE support"
-	depends on ARM && (ARCH_CLPS7500 || ARCH_RPC || ARCH_SHARK)
+	depends on ARM && (ARCH_RPC || ARCH_SHARK)
 	default y
 
 config BLK_DEV_IDE_ICSIDE

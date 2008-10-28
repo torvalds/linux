@@ -243,15 +243,6 @@ config ARCH_AT91
 	  This enables support for systems based on the Atmel AT91RM9200,
 	  AT91SAM9 and AT91CAP9 processors.
 
-config ARCH_CLPS7500
-	bool "Cirrus CL-PS7500FE"
-	select TIMER_ACORN
-	select ISA
-	select NO_IOPORT
-	select ARCH_SPARSEMEM_ENABLE
-	help
-	  Support for the Cirrus Logic PS7500FE system-on-a-chip.
-
 config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x-based"
 	help
