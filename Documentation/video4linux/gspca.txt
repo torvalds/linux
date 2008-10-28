@@ -263,6 +263,7 @@ etoms		102c:6251	Qcam xxxxxx VGA
 zc3xx		10fd:0128	Typhoon Webshot II USB 300k 0x0128
 spca561		10fd:7e50	FlyCam Usb 100
 zc3xx		10fd:8050	Typhoon Webshot II USB 300k
+pac207		145f:013a	Trust WB-1300N
 spca501		1776:501c	Arowana 300K CMOS Camera
 t613		17a1:0128	TASCORP JPEG Webcam, NGS Cyclops
 vc032x		17ef:4802	Lenovo Vc0323+MI1310_SOC
