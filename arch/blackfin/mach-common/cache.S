@@ -49,13 +49,17 @@
 .ifnb \optflushins
 	\optflushins [P0];
 .endif
+#if ANOMALY_05000443
 .ifb \optnopins
 2:
 .endif
 	\flushins [P0++];
 .ifnb \optnopins
-2: \optnopins;
+2:	\optnopins;
 .endif
+#else
+2:	\flushins [P0++];
+#endif
 
 	RTS;
 .endm
