@@ -589,8 +589,15 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 	return;
 }
 
-int ext4_claim_free_blocks(struct ext4_sb_info *sbi,
-						s64 nblocks)
+/**
+ * ext4_has_free_blocks()
+ * @sbi:	in-core super block structure.
+ * @nblocks:	number of needed blocks
+ *
+ * Check if filesystem has nblocks free & available for allocation.
+ * On success return 1, return 0 on failure.
+ */
+int ext4_has_free_blocks(struct ext4_sb_info *sbi, s64 nblocks)
 {
 	s64 free_blocks, dirty_blocks;
 	s64 root_blocks = 0;
@@ -620,52 +627,20 @@ int ext4_claim_free_blocks(struct ext4_sb_info *sbi,
 	 */
 	if (free_blocks < ((root_blocks + nblocks) + dirty_blocks))
 		/* we don't have free space */
-		return -ENOSPC;
-
-	/* Add the blocks to nblocks */
-	percpu_counter_add(dbc, nblocks);
-	return 0;
-}
-
-/**
- * ext4_has_free_blocks()
- * @sbi:	in-core super block structure.
- * @nblocks:	number of neeed blocks
- *
- * Check if filesystem has free blocks available for allocation.
- * Return the number of blocks avaible for allocation for this request
- * On success, return nblocks
- */
-ext4_fsblk_t ext4_has_free_blocks(struct ext4_sb_info *sbi,
-						s64 nblocks)
-{
-	s64 free_blocks, dirty_blocks;
-	s64 root_blocks = 0;
-	struct percpu_counter *fbc = &sbi->s_freeblocks_counter;
-	struct percpu_counter *dbc = &sbi->s_dirtyblocks_counter;
-
-	free_blocks  = percpu_counter_read_positive(fbc);
-	dirty_blocks = percpu_counter_read_positive(dbc);
-
-	if (!capable(CAP_SYS_RESOURCE) &&
-		sbi->s_resuid != current->fsuid &&
-		(sbi->s_resgid == 0 || !in_group_p(sbi->s_resgid)))
-		root_blocks = ext4_r_blocks_count(sbi->s_es);
-
-	if (free_blocks - (nblocks + root_blocks + dirty_blocks) <
-						EXT4_FREEBLOCKS_WATERMARK) {
-		free_blocks  = percpu_counter_sum(fbc);
-		dirty_blocks = percpu_counter_sum(dbc);
-	}
-	if (free_blocks <= (root_blocks + dirty_blocks))
-		/* we don't have free space */
 		return 0;
 
-	if (free_blocks - (root_blocks + dirty_blocks) < nblocks)
-		return free_blocks - (root_blocks + dirty_blocks);
-	return nblocks;
+	return 1;
 }
 
+int ext4_claim_free_blocks(struct ext4_sb_info *sbi,
+						s64 nblocks)
+{
+	if (ext4_has_free_blocks(sbi, nblocks)) {
+		percpu_counter_add(&sbi->s_dirtyblocks_counter, nblocks);
+		return 0;
+	} else
+		return -ENOSPC;
+}
 
 /**
  * ext4_should_retry_alloc()
