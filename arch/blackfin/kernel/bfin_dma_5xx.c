@@ -38,9 +38,6 @@
 #include <asm/dma.h>
 #include <asm/cacheflush.h>
 
-/* Remove unused code not exported by symbol or internally called */
-#define REMOVE_DEAD_CODE
-
 /**************************************************************************
  * Global Variables
 ***************************************************************************/
