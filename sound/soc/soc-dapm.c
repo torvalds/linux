@@ -289,7 +289,7 @@ static int dapm_new_mixer(struct snd_soc_codec *codec,
 	struct snd_soc_dapm_widget *w)
 {
 	int i, ret = 0;
-	char name[32];
+	size_t name_len;
 	struct snd_soc_dapm_path *path;
 
 	/* add kcontrol */
@@ -303,10 +303,15 @@ static int dapm_new_mixer(struct snd_soc_codec *codec,
 				continue;
 
 			/* add dapm control with long name */
-			snprintf(name, 32, "%s %s", w->name, w->kcontrols[i].name);
-			path->long_name = kstrdup (name, GFP_KERNEL);
+			name_len = 2 + strlen(w->name)
+				+ strlen(w->kcontrols[i].name);
+			path->long_name = kmalloc(name_len, GFP_KERNEL);
 			if (path->long_name == NULL)
 				return -ENOMEM;
+
+			snprintf(path->long_name, name_len, "%s %s",
+				 w->name, w->kcontrols[i].name);
+			path->long_name[name_len - 1] = '\0';
 
 			path->kcontrol = snd_soc_cnew(&w->kcontrols[i], w,
 				path->long_name);
