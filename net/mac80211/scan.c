@@ -159,7 +159,7 @@ ieee80211_rx_mesh_bss_add(struct ieee80211_local *local, u8 *mesh_id, int mesh_i
 {
 	struct ieee80211_bss *bss;
 
-	if (mesh_config_len != MESH_CFG_LEN)
+	if (mesh_config_len != IEEE80211_MESH_CONFIG_LEN)
 		return NULL;
 
 	bss = kzalloc(sizeof(*bss), GFP_ATOMIC);

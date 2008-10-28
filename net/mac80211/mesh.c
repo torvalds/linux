@@ -238,7 +238,7 @@ void mesh_mgmt_ies_add(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 
 	pos = skb_put(skb, 21);
 	*pos++ = WLAN_EID_MESH_CONFIG;
-	*pos++ = MESH_CFG_LEN;
+	*pos++ = IEEE80211_MESH_CONFIG_LEN;
 	/* Version */
 	*pos++ = 1;
 
