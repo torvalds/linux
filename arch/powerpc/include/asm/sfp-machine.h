@@ -111,16 +111,24 @@
 #define FP_EX_DIVZERO         (1 << (31 - 5))
 #define FP_EX_INEXACT         (1 << (31 - 6))
 
-/* This macro appears to be called when both X and Y are NaNs, and
- * has to choose one and copy it to R. i386 goes for the larger of the
- * two, sparc64 just picks Y. I don't understand this at all so I'll
- * go with sparc64 because it's shorter :->   -- PMM
+/*
+ * If one NaN is signaling and the other is not,
+ * we choose that one, otherwise we choose X.
  */
-#define _FP_CHOOSENAN(fs, wc, R, X, Y, OP)		\
-  do {							\
-    R##_s = Y##_s;					\
-    _FP_FRAC_COPY_##wc(R,Y);				\
-    R##_c = FP_CLS_NAN;					\
+#define _FP_CHOOSENAN(fs, wc, R, X, Y, OP)			\
+  do {								\
+    if ((_FP_FRAC_HIGH_RAW_##fs(Y) & _FP_QNANBIT_##fs)		\
+	&& !(_FP_FRAC_HIGH_RAW_##fs(X) & _FP_QNANBIT_##fs))	\
+      {								\
+	R##_s = X##_s;						\
+	_FP_FRAC_COPY_##wc(R,X);				\
+      }								\
+    else							\
+      {								\
+	R##_s = Y##_s;						\
+	_FP_FRAC_COPY_##wc(R,Y);				\
+      }								\
+    R##_c = FP_CLS_NAN;						\
   } while (0)
 
 
