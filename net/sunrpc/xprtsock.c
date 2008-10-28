@@ -365,10 +365,9 @@ static void xs_format_ipv6_peer_addresses(struct rpc_xprt *xprt,
 	xprt->address_strings[RPC_DISPLAY_ALL] = buf;
 
 	buf = kzalloc(36, GFP_KERNEL);
-	if (buf) {
-		snprintf(buf, 36, NIP6_SEQFMT,
-				NIP6(addr->sin6_addr));
-	}
+	if (buf)
+		snprintf(buf, 36, "%#p6", &addr->sin6_addr);
+
 	xprt->address_strings[RPC_DISPLAY_HEX_ADDR] = buf;
 
 	buf = kzalloc(8, GFP_KERNEL);
