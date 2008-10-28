@@ -870,7 +870,6 @@ EXPORT_SYMBOL(get_gpio_dir);
 * MODIFICATION HISTORY :
 **************************************************************/
 
-#ifdef BF548_FAMILY
 int peripheral_request(unsigned short per, const char *label)
 {
 	unsigned long flags;
@@ -886,15 +885,16 @@ int peripheral_request(unsigned short per, const char *label)
 	if (!(per & P_DEFINED))
 		return -ENODEV;
 
-	if (check_gpio(ident) < 0)
+	if (check_gpio(ident))
 		return -EINVAL;
 
 	local_irq_save(flags);
 
+	/* Can't do GPIO and peripheral at the same time */
 	if (unlikely(reserved_gpio_map[gpio_bank(ident)] & gpio_bit(ident))) {
 		dump_stack();
 		printk(KERN_ERR
-		    "%s: Peripheral %d is already reserved as GPIO by %s !\n",
+		       "%s: Peripheral %d is already reserved as GPIO by %s !\n",
 		       __func__, ident, get_label(ident));
 		local_irq_restore(flags);
 		return -EBUSY;
@@ -902,15 +902,18 @@ int peripheral_request(unsigned short per, const char *label)
 
 	if (unlikely(reserved_peri_map[gpio_bank(ident)] & gpio_bit(ident))) {
 
-		u16 funct = get_portmux(ident);
-
 		/*
 		 * Pin functions like AMC address strobes my
 		 * be requested and used by several drivers
 		 */
 
-		if (!((per & P_MAYSHARE) && (funct == P_FUNCT2MUX(per)))) {
+#ifdef BF548_FAMILY
+		u16 funct = get_portmux(ident);
 
+		if (!((per & P_MAYSHARE) && (funct == P_FUNCT2MUX(per)))) {
+#else
+		if (!(per & P_MAYSHARE)) {
+#endif
 			/*
 			 * Allow that the identical pin function can
 			 * be requested from the same driver twice
@@ -931,89 +934,19 @@ int peripheral_request(unsigned short per, const char *label)
  anyway:
 	reserved_peri_map[gpio_bank(ident)] |= gpio_bit(ident);
 
+#ifdef BF548_FAMILY
 	portmux_setup(ident, P_FUNCT2MUX(per));
-	port_setup(ident, PERIPHERAL_USAGE);
-
-	local_irq_restore(flags);
-	set_label(ident, label);
-
-	return 0;
-}
-EXPORT_SYMBOL(peripheral_request);
 #else
-
-int peripheral_request(unsigned short per, const char *label)
-{
-	unsigned long flags;
-	unsigned short ident = P_IDENT(per);
-
-	/*
-	 * Don't cares are pins with only one dedicated function
-	 */
-
-	if (per & P_DONTCARE)
-		return 0;
-
-	if (!(per & P_DEFINED))
-		return -ENODEV;
-
-	local_irq_save(flags);
-
-	if (!check_gpio(ident)) {
-
-		if (unlikely(reserved_gpio_map[gpio_bank(ident)] & gpio_bit(ident))) {
-			dump_stack();
-			printk(KERN_ERR
-			       "%s: Peripheral %d is already reserved as GPIO by %s !\n",
-			       __func__, ident, get_label(ident));
-			local_irq_restore(flags);
-			return -EBUSY;
-		}
-
-	}
-
-	if (unlikely(reserved_peri_map[gpio_bank(ident)] & gpio_bit(ident))) {
-
-		/*
-		 * Pin functions like AMC address strobes my
-		 * be requested and used by several drivers
-		 */
-
-		if (!(per & P_MAYSHARE)) {
-
-			/*
-			 * Allow that the identical pin function can
-			 * be requested from the same driver twice
-			 */
-
-			if (cmp_label(ident, label) == 0)
-				goto anyway;
-
-			dump_stack();
-			printk(KERN_ERR
-			       "%s: Peripheral %d function %d is already"
-			       " reserved by %s !\n",
-			       __func__, ident, P_FUNCT2MUX(per),
-				get_label(ident));
-			local_irq_restore(flags);
-			return -EBUSY;
-		}
-
-	}
-
- anyway:
 	portmux_setup(per, P_FUNCT2MUX(per));
-
+#endif
 	port_setup(ident, PERIPHERAL_USAGE);
 
-	reserved_peri_map[gpio_bank(ident)] |= gpio_bit(ident);
 	local_irq_restore(flags);
 	set_label(ident, label);
 
 	return 0;
 }
 EXPORT_SYMBOL(peripheral_request);
-#endif
 
 int peripheral_request_list(const unsigned short per[], const char *label)
 {
