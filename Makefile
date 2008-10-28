@@ -1436,7 +1436,8 @@ ALLSOURCE_ARCHS := $(SRCARCH)
 define find-sources
         ( for arch in $(ALLSOURCE_ARCHS) ; do \
 	       find $(__srctree)arch/$${arch} $(RCS_FIND_IGNORE) \
-	            -name $1 -print; \
+		    -wholename $(__srctree)arch/$${arch}/include/asm -type d -prune \
+	            -o -name $1 -print; \
 	  done ; \
 	  find $(__srctree)security/selinux/include $(RCS_FIND_IGNORE) \
 	       -name $1 -print; \
