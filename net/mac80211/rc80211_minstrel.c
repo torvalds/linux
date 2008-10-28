@@ -225,7 +225,7 @@ minstrel_get_next_sample(struct minstrel_sta_info *mi)
 	return sample_ndx;
 }
 
-void
+static void
 minstrel_get_rate(void *priv, struct ieee80211_sta *sta,
 		  void *priv_sta, struct ieee80211_tx_rate_control *txrc)
 {
