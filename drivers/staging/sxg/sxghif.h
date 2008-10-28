@@ -854,5 +854,5 @@ struct SXG_SCATTER_GATHER {
 #define SXG_SGL_BUFFER(_SxgSgl)		NULL
 #define SXG_SGL_BUF_SIZE			0
 #else
-Stop Compilation;
+#error staging: sxg: driver is for X86 only!
 #endif
