@@ -608,7 +608,7 @@ reterr:
 
 static struct p9_fid *p9_fid_create(struct p9_client *clnt)
 {
-	int err;
+	int ret;
 	struct p9_fid *fid;
 	unsigned long flags;
 
@@ -617,11 +617,12 @@ static struct p9_fid *p9_fid_create(struct p9_client *clnt)
 	if (!fid)
 		return ERR_PTR(-ENOMEM);
 
-	fid->fid = p9_idpool_get(clnt->fidpool);
+	ret = p9_idpool_get(clnt->fidpool);
 	if (fid->fid < 0) {
-		err = -ENOSPC;
+		ret = -ENOSPC;
 		goto error;
 	}
+	fid->fid = ret;
 
 	memset(&fid->qid, 0, sizeof(struct p9_qid));
 	fid->mode = -1;
@@ -638,7 +639,7 @@ static struct p9_fid *p9_fid_create(struct p9_client *clnt)
 
 error:
 	kfree(fid);
-	return ERR_PTR(err);
+	return ERR_PTR(ret);
 }
 
 static void p9_fid_destroy(struct p9_fid *fid)
