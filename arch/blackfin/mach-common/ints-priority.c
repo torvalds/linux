@@ -65,6 +65,7 @@
  * cannot actually mask out in hardware.
  */
 unsigned long irq_flags = 0x1f;
+EXPORT_SYMBOL(irq_flags);
 
 /* The number of spurious interrupts */
 atomic_t num_spurious;

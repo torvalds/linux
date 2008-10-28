@@ -38,15 +38,8 @@
 
 EXPORT_SYMBOL(__ioremap);
 
-EXPORT_SYMBOL(ip_fast_csum);
-
-EXPORT_SYMBOL(kernel_thread);
-
 EXPORT_SYMBOL(is_in_rom);
 EXPORT_SYMBOL(bfin_return_from_exception);
-
-/* Networking helper routines. */
-EXPORT_SYMBOL(csum_partial_copy);
 
 /* The following are special because they're not called
  * explicitly (the C compiler generates them).  Fortunately,
@@ -96,7 +89,6 @@ EXPORT_SYMBOL(insw_8);
 EXPORT_SYMBOL(outsl);
 EXPORT_SYMBOL(insl);
 EXPORT_SYMBOL(insl_16);
-EXPORT_SYMBOL(irq_flags);
 EXPORT_SYMBOL(iounmap);
 EXPORT_SYMBOL(blackfin_dcache_invalidate_range);
 EXPORT_SYMBOL(blackfin_icache_dcache_flush_range);
@@ -104,7 +96,6 @@ EXPORT_SYMBOL(blackfin_icache_flush_range);
 EXPORT_SYMBOL(blackfin_dcache_flush_range);
 EXPORT_SYMBOL(blackfin_dflush_page);
 
-EXPORT_SYMBOL(csum_partial);
 EXPORT_SYMBOL(__init_begin);
 EXPORT_SYMBOL(__init_end);
 EXPORT_SYMBOL(_ebss_l1);
