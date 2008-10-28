@@ -97,6 +97,20 @@
 
 #define _FP_KEEPNANFRACP 1
 
+#ifdef FP_EX_BOOKE_E500_SPE
+#define FP_EX_INEXACT		(1 << 21)
+#define FP_EX_INVALID		(1 << 20)
+#define FP_EX_DIVZERO		(1 << 19)
+#define FP_EX_UNDERFLOW		(1 << 18)
+#define FP_EX_OVERFLOW		(1 << 17)
+#define FP_INHIBIT_RESULTS	0
+
+#define __FPU_FPSCR	(current->thread.spefscr)
+#define __FPU_ENABLED_EXC		\
+({					\
+	(__FPU_FPSCR >> 2) & 0x1f;	\
+})
+#else
 /* Exception flags.  We use the bit positions of the appropriate bits
    in the FPSCR, which also correspond to the FE_* bits.  This makes
    everything easier ;-).  */
@@ -110,6 +124,18 @@
 #define FP_EX_UNDERFLOW       (1 << (31 - 4))
 #define FP_EX_DIVZERO         (1 << (31 - 5))
 #define FP_EX_INEXACT         (1 << (31 - 6))
+
+#define __FPU_FPSCR	(current->thread.fpscr.val)
+
+/* We only actually write to the destination register
+ * if exceptions signalled (if any) will not trap.
+ */
+#define __FPU_ENABLED_EXC \
+({						\
+	(__FPU_FPSCR >> 3) & 0x1f;	\
+})
+
+#endif
 
 /*
  * If one NaN is signaling and the other is not,
@@ -134,16 +160,6 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
-
-#define __FPU_FPSCR	(current->thread.fpscr.val)
-
-/* We only actually write to the destination register
- * if exceptions signalled (if any) will not trap.
- */
-#define __FPU_ENABLED_EXC \
-({						\
-	(__FPU_FPSCR >> 3) & 0x1f;	\
-})
 
 #define __FPU_TRAP_P(bits) \
 	((__FPU_ENABLED_EXC & (bits)) != 0)
