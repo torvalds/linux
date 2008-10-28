@@ -140,6 +140,7 @@ struct dma_channel {
 	struct dma_register *regs;
 	struct dmasg *sg;		/* large mode descriptor */
 	unsigned int ctrl_num;	/* controller number */
+	unsigned int irq;
 	dma_interrupt_t irq_callback;
 	void *data;
 	unsigned int dma_enable_flag;

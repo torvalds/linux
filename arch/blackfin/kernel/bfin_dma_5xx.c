@@ -139,19 +139,16 @@ EXPORT_SYMBOL(request_dma);
 
 int set_dma_callback(unsigned int channel, dma_interrupt_t callback, void *data)
 {
-	int ret_irq = 0;
-
 	BUG_ON(!(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL));
 
 	if (callback != NULL) {
 		int ret_val;
-		ret_irq = channel2irq(channel);
-
+		dma_ch[channel].irq = channel2irq(channel);
 		dma_ch[channel].data = data;
 
 		ret_val =
-		    request_irq(ret_irq, (void *)callback, IRQF_DISABLED,
+		    request_irq(dma_ch[channel].irq, callback, IRQF_DISABLED,
 				dma_ch[channel].device_id, data);
 		if (ret_val) {
 			printk(KERN_NOTICE
@@ -166,7 +163,6 @@ EXPORT_SYMBOL(set_dma_callback);
 
 void free_dma(unsigned int channel)
 {
-	int ret_irq;
 
 	pr_debug("freedma() : BEGIN \n");
 	BUG_ON(!(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
@@ -176,10 +172,8 @@ void free_dma(unsigned int channel)
 	disable_dma(channel);
 	clear_dma_buffer(channel);
 
-	if (dma_ch[channel].irq_callback != NULL) {
-		ret_irq = channel2irq(channel);
-		free_irq(ret_irq, dma_ch[channel].data);
-	}
+	if (dma_ch[channel].irq_callback != NULL)
+		free_irq(dma_ch[channel].irq, dma_ch[channel].data);
 
 	/* Clear the DMA Variable in the Channel */
 	mutex_lock(&(dma_ch[channel].dmalock));
@@ -192,27 +186,21 @@ EXPORT_SYMBOL(free_dma);
 
 void dma_enable_irq(unsigned int channel)
 {
-	int ret_irq;
-
 	pr_debug("dma_enable_irq() : BEGIN \n");
 	BUG_ON(!(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL));
 
-	ret_irq = channel2irq(channel);
-	enable_irq(ret_irq);
+	enable_irq(dma_ch[channel].irq);
 }
 EXPORT_SYMBOL(dma_enable_irq);
 
 void dma_disable_irq(unsigned int channel)
 {
-	int ret_irq;
-
 	pr_debug("dma_disable_irq() : BEGIN \n");
 	BUG_ON(!(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL));
 
-	ret_irq = channel2irq(channel);
-	disable_irq(ret_irq);
+	disable_irq(dma_ch[channel].irq);
 }
 EXPORT_SYMBOL(dma_disable_irq);
 
