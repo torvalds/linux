@@ -25,19 +25,6 @@
 
 
 /*
- * User Notes:
- * - USB Audio is provided by the alsa snd_usb_audio module.
- *   For listing you have to redirect the sound, for example using:
- *   arecord -D hw:1,0 -r96000 -c2 -f S16_LE | artsdsp aplay -B -
- * - regarding module parameters in /sys/module/radio_si470x/parameters:
- *   the contents of read-only files (0444) are not updated, even if
- *   space, band and de are changed using private video controls
- * - increase tune_timeout, if you often get -EIO errors
- * - hw_freq_seek returns -EAGAIN, when timed out or band limit is reached
- */
-
-
-/*
  * History:
  * 2008-01-12	Tobias Lorenz <tobias.lorenz@gmx.net>
  *		Version 1.0.0
