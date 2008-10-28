@@ -499,20 +499,8 @@ sigill:
 
 asmlinkage void do_ade(struct pt_regs *regs)
 {
-	extern int do_dsemulret(struct pt_regs *);
 	unsigned int __user *pc;
 	mm_segment_t seg;
-
-	/*
-	 * Address errors may be deliberately induced by the FPU emulator to
-	 * retake control of the CPU after executing the instruction in the
-	 * delay slot of an emulated branch.
-	 */
-	/* Terminate if exception was recognized as a delay slot return */
-	if (do_dsemulret(regs))
-		return;
-
-	/* Otherwise handle as normal */
 
 	/*
 	 * Did we catch a fault trying to load an instruction?

@@ -18,7 +18,6 @@
 #include <asm/fpu_emulator.h>
 
 #include "ieee754.h"
-#include "dsemul.h"
 
 /* Strap kernel emulator for full MIPS IV emulation */
 
@@ -94,7 +93,7 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 		return SIGBUS;
 
 	err = __put_user(ir, &fr->emul);
-	err |= __put_user((mips_instruction)BADINST, &fr->badinst);
+	err |= __put_user((mips_instruction)BREAK_MATH, &fr->badinst);
 	err |= __put_user((mips_instruction)BD_COOKIE, &fr->cookie);
 	err |= __put_user(cpc, &fr->epc);
 
@@ -130,13 +129,13 @@ int do_dsemulret(struct pt_regs *xcp)
 	/*
 	 * Do some sanity checking on the stackframe:
 	 *
-	 *  - Is the instruction pointed to by the EPC an BADINST?
+	 *  - Is the instruction pointed to by the EPC an BREAK_MATH?
 	 *  - Is the following memory word the BD_COOKIE?
 	 */
 	err = __get_user(insn, &fr->badinst);
 	err |= __get_user(cookie, &fr->cookie);
 
-	if (unlikely(err || (insn != BADINST) || (cookie != BD_COOKIE))) {
+	if (unlikely(err || (insn != BREAK_MATH) || (cookie != BD_COOKIE))) {
 		fpuemustats.errors++;
 		return 0;
 	}
