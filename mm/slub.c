@@ -1739,7 +1739,7 @@ void kmem_cache_free(struct kmem_cache *s, void *x)
 }
 EXPORT_SYMBOL(kmem_cache_free);
 
-/* Figure out on which slab object the object resides */
+/* Figure out on which slab page the object resides */
 static struct page *get_object_page(const void *x)
 {
 	struct page *page = virt_to_head_page(x);
