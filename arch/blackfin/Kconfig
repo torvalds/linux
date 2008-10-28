@@ -739,13 +739,12 @@ config BFIN_GPTIMERS
 
 config BFIN_DMA_5XX
 	bool "Enable DMA Support"
-	depends on (BF52x || BF53x || BF561 || BF54x || BF538 || BF539)
 	default y
 	help
-	  DMA driver for BF5xx.
+	  DMA driver for Blackfin parts.
 
 choice
-	prompt "Uncached SDRAM region"
+	prompt "Uncached DMA region"
 	default DMA_UNCACHED_1M
 	depends on BFIN_DMA_5XX
 config DMA_UNCACHED_4M
