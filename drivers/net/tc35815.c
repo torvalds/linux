@@ -236,7 +236,7 @@ struct tc35815_regs {
 #define Rx_Halted	       0x00008000 /* Rx Halted			     */
 #define Rx_Good		       0x00004000 /* Rx Good			     */
 #define Rx_RxPar	       0x00002000 /* Rx Parity Error		     */
-			    /* 0x00001000    not use			     */
+#define Rx_TypePkt	       0x00001000 /* Rx Type Packet		     */
 #define Rx_LongErr	       0x00000800 /* Rx Long Error		     */
 #define Rx_Over		       0x00000400 /* Rx Overflow		     */
 #define Rx_CRCErr	       0x00000200 /* Rx CRC Error		     */
@@ -244,8 +244,9 @@ struct tc35815_regs {
 #define Rx_10Stat	       0x00000080 /* Rx 10Mbps Status		     */
 #define Rx_IntRx	       0x00000040 /* Rx Interrupt		     */
 #define Rx_CtlRecd	       0x00000020 /* Rx Control Receive		     */
+#define Rx_InLenErr	       0x00000010 /* Rx In Range Frame Length Error  */
 
-#define Rx_Stat_Mask	       0x0000EFC0 /* Rx All Status Mask		     */
+#define Rx_Stat_Mask	       0x0000FFF0 /* Rx All Status Mask		     */
 
 /* Int_En bit asign -------------------------------------------------------- */
 #define Int_NRAbtEn	       0x00000800 /* 1:Non-recoverable Abort Enable  */
