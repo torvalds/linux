@@ -56,6 +56,7 @@ static struct resource collie_scoop_resources[] = {
 static struct scoop_config collie_scoop_setup = {
 	.io_dir 	= COLLIE_SCOOP_IO_DIR,
 	.io_out		= COLLIE_SCOOP_IO_OUT,
+	.gpio_base	= COLLIE_SCOOP_GPIO_BASE,
 };
 
 struct platform_device colliescoop_device = {
