@@ -337,7 +337,6 @@ struct ibmvfc_tmf {
 #define IBMVFC_TMF_LUA_VALID		0x40
 	u32 cancel_key;
 	u32 my_cancel_key;
-#define IBMVFC_TMF_CANCEL_KEY		0x80000000
 	u32 pad;
 	u64 reserved[2];
 }__attribute__((packed, aligned (8)));
@@ -606,6 +605,7 @@ struct ibmvfc_event {
 	struct srp_direct_buf *ext_list;
 	dma_addr_t ext_list_token;
 	struct completion comp;
+	struct completion *eh_comp;
 	struct timer_list timer;
 };
 
