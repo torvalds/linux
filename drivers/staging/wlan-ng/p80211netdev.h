@@ -148,14 +148,12 @@ typedef struct p80211_frmrx_t
 	u32  decrypt_err;
 } p80211_frmrx_t;
 
-#ifdef WIRELESS_EXT
 /* called by /proc/net/wireless */
 struct iw_statistics* p80211wext_get_wireless_stats(netdevice_t *dev);
 /* wireless extensions' ioctls */
 int p80211wext_support_ioctl(netdevice_t *dev, struct ifreq *ifr, int cmd);
 extern struct iw_handler_def p80211wext_handler_def;
 int p80211wext_event_associated(struct wlandevice *wlandev, int assoc);
-#endif /* wireless extensions */
 
 /* WEP stuff */
 #define NUM_WEPKEYS 4
@@ -232,17 +230,12 @@ typedef struct wlandevice
 	/* 802.11 device statistics */
 	struct p80211_frmrx_t	rx;
 
-/* compatibility to wireless extensions */
-#ifdef WIRELESS_EXT
 	struct iw_statistics	wstats;
 
 	/* jkriegl: iwspy fields */
         u8			spy_number;
         char			spy_address[IW_MAX_SPY][ETH_ALEN];
         struct iw_quality       spy_stat[IW_MAX_SPY];
-
-#endif
-
 } wlandevice_t;
 
 /* WEP stuff */

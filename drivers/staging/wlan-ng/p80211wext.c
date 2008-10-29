@@ -75,8 +75,6 @@ static int p80211wext_giwrate(netdevice_t *dev,
 static int p80211wext_giwessid(netdevice_t *dev,
 			       struct iw_request_info *info,
 			       struct iw_point *data, char *essid);
-/* compatibility to wireless extensions */
-#ifdef WIRELESS_EXT
 
 static u8 p80211_mhz_to_channel(u16 mhz)
 {
@@ -1828,9 +1826,6 @@ int p80211wext_event_associated(wlandevice_t *wlandev, int assoc)
         DBFEXIT;
         return 0;
 }
-
-
-#endif /* compatibility to wireless extensions */
 
 
 

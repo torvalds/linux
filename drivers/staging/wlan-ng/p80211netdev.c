@@ -866,12 +866,10 @@ int wlan_setup(wlandevice_t *wlandev)
 		dev->open =		p80211knetdev_open;
 		dev->stop =		p80211knetdev_stop;
 
-#ifdef CONFIG_NET_WIRELESS
 #if (WIRELESS_EXT < 21)
 		dev->get_wireless_stats = p80211wext_get_wireless_stats;
 #endif
 		dev->wireless_handlers = &p80211wext_handler_def;
-#endif
 
 		netif_stop_queue(dev);
 #ifdef HAVE_CHANGE_MTU
