@@ -299,6 +299,14 @@ static ssize_t show_direction(struct device *dev,
 }
 static DEVICE_ATTR(dir, S_IRUSR|S_IRGRP, show_direction, NULL);
 
+static unsigned long npages(unsigned long bytes)
+{
+	if (bytes % PAGE_SIZE == 0)
+		return bytes / PAGE_SIZE;
+	else
+		return (bytes / PAGE_SIZE) + 1;
+}
+
 static ssize_t show_mmap_size(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
@@ -309,10 +317,8 @@ static ssize_t show_mmap_size(struct device *dev,
 	unsigned long header_pages;
 	unsigned long total_group_pages;
 
-	/* FIXME: We do not have to add 1, if group_size a multiple of
-	   PAGE_SIZE. */
-	group_pages = (channel->group_size / PAGE_SIZE) + 1;
-	header_pages = (channel->header_size / PAGE_SIZE) + 1;
+	group_pages = npages(channel->group_size);
+	header_pages = npages(channel->header_size);
 	total_group_pages = group_pages * channel->group_count;
 
 	mmap_size = (header_pages + total_group_pages) * PAGE_SIZE;
@@ -350,8 +356,8 @@ static int poch_channel_alloc_groups(struct channel_info *channel)
 	unsigned long group_pages;
 	unsigned long header_pages;
 
-	group_pages = (channel->group_size / PAGE_SIZE) + 1;
-	header_pages = (channel->header_size / PAGE_SIZE) + 1;
+	group_pages = npages(channel->group_size);
+	header_pages = npages(channel->header_size);
 
 	for (i = 0; i < channel->group_count; i++) {
 		struct poch_group_info *group;
@@ -850,8 +856,8 @@ static int poch_mmap(struct file *filp, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-	group_pages = (channel->group_size / PAGE_SIZE) + 1;
-	header_pages = (channel->header_size / PAGE_SIZE) + 1;
+	group_pages = npages(channel->group_size);
+	header_pages = npages(channel->header_size);
 	total_group_pages = group_pages * channel->group_count;
 
 	size = vma->vm_end - vma->vm_start;
