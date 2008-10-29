@@ -544,6 +544,7 @@ struct btrfs_space_info {
 	/* for block groups in our same type */
 	struct list_head block_groups;
 	spinlock_t lock;
+	struct rw_semaphore groups_sem;
 };
 
 struct btrfs_free_space {
