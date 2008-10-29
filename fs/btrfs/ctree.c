@@ -287,7 +287,7 @@ int noinline __btrfs_cow_block(struct btrfs_trans_handle *trans,
 		/*
 		 * There are only two places that can drop reference to
 		 * tree blocks owned by living reloc trees, one is here,
-		 * the other place is btrfs_merge_path. In both places,
+		 * the other place is btrfs_drop_subtree. In both places,
 		 * we check reference count while tree block is locked.
 		 * Furthermore, if reference count is one, it won't get
 		 * increased by someone else.
@@ -312,9 +312,6 @@ int noinline __btrfs_cow_block(struct btrfs_trans_handle *trans,
 	}
 
 	if (root->root_key.objectid == BTRFS_TREE_RELOC_OBJECTID) {
-		ret = btrfs_add_reloc_mapping(root, buf->start,
-					      buf->len, cow->start);
-		BUG_ON(ret);
 		ret = btrfs_reloc_tree_cache_ref(trans, root, cow, buf->start);
 		WARN_ON(ret);
 	}
@@ -1627,59 +1624,55 @@ int btrfs_merge_path(struct btrfs_trans_handle *trans,
 		btrfs_node_key_to_cpu(eb, &key, slot);
 		key_match = !memcmp(&key, &node_keys[level - 1], sizeof(key));
 
-		/*
-		 * if node keys match and node pointer hasn't been modified
-		 * in the running transaction, we can merge the path. for
-		 * reloc trees, the node pointer check is skipped, this is
-		 * because the reloc trees are fully controlled by the space
-		 * balance code, no one else can modify them.
-		 */
-		if (!nodes[level - 1] || !key_match ||
-		    (generation == trans->transid &&
-		     root->root_key.objectid != BTRFS_TREE_RELOC_OBJECTID)) {
-next_level:
-			if (level == 1 || level == lowest_level + 1)
-				break;
-
+		if (generation == trans->transid) {
 			eb = read_tree_block(root, bytenr, blocksize,
 					     generation);
 			btrfs_tree_lock(eb);
+		}
+
+		/*
+		 * if node keys match and node pointer hasn't been modified
+		 * in the running transaction, we can merge the path. for
+		 * blocks owened by reloc trees, the node pointer check is
+		 * skipped, this is because these blocks are fully controlled
+		 * by the space balance code, no one else can modify them.
+		 */
+		if (!nodes[level - 1] || !key_match ||
+		    (generation == trans->transid &&
+		     btrfs_header_owner(eb) != BTRFS_TREE_RELOC_OBJECTID)) {
+			if (level == 1 || level == lowest_level + 1) {
+				if (generation == trans->transid) {
+					btrfs_tree_unlock(eb);
+					free_extent_buffer(eb);
+				}
+				break;
+			}
+
+			if (generation != trans->transid) {
+				eb = read_tree_block(root, bytenr, blocksize,
+						generation);
+				btrfs_tree_lock(eb);
+			}
 
 			ret = btrfs_cow_block(trans, root, eb, parent, slot,
 					      &eb, 0);
 			BUG_ON(ret);
 
+			if (root->root_key.objectid ==
+			    BTRFS_TREE_RELOC_OBJECTID) {
+				if (!nodes[level - 1]) {
+					nodes[level - 1] = eb->start;
+					memcpy(&node_keys[level - 1], &key,
+					       sizeof(node_keys[0]));
+				} else {
+					WARN_ON(1);
+				}
+			}
+
 			btrfs_tree_unlock(parent);
 			free_extent_buffer(parent);
 			parent = eb;
 			continue;
-		}
-
-		if (generation == trans->transid) {
-			u32 refs;
-			BUG_ON(btrfs_header_owner(eb) !=
-			       BTRFS_TREE_RELOC_OBJECTID);
-			/*
-			 * lock the block to keep __btrfs_cow_block from
-			 * changing the reference count.
-			 */
-			eb = read_tree_block(root, bytenr, blocksize,
-					     generation);
-			btrfs_tree_lock(eb);
-
-			ret = btrfs_lookup_extent_ref(trans, root, bytenr,
-						      blocksize, &refs);
-			BUG_ON(ret);
-			/*
-			 * if replace block whose reference count is one,
-			 * we have to "drop the subtree". so skip it for
-			 * simplicity
-			 */
-			if (refs == 1) {
-				btrfs_tree_unlock(eb);
-				free_extent_buffer(eb);
-				goto next_level;
-			}
 		}
 
 		btrfs_set_node_blockptr(parent, slot, nodes[level - 1]);
@@ -1693,16 +1686,24 @@ next_level:
 					btrfs_header_generation(parent),
 					level - 1);
 		BUG_ON(ret);
-		ret = btrfs_free_extent(trans, root, bytenr,
+
+		/*
+		 * If the block was created in the running transaction,
+		 * it's possible this is the last reference to it, so we
+		 * should drop the subtree.
+		 */
+		if (generation == trans->transid) {
+			ret = btrfs_drop_subtree(trans, root, eb, parent);
+			BUG_ON(ret);
+			btrfs_tree_unlock(eb);
+			free_extent_buffer(eb);
+		} else {
+			ret = btrfs_free_extent(trans, root, bytenr,
 					blocksize, parent->start,
 					btrfs_header_owner(parent),
 					btrfs_header_generation(parent),
 					level - 1, 1);
-		BUG_ON(ret);
-
-		if (generation == trans->transid) {
-			btrfs_tree_unlock(eb);
-			free_extent_buffer(eb);
+			BUG_ON(ret);
 		}
 		break;
 	}

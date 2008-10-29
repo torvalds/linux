@@ -1448,8 +1448,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
 	fs_info->do_barriers = 1;
 
-	extent_io_tree_init(&fs_info->reloc_mapping_tree,
-			    fs_info->btree_inode->i_mapping, GFP_NOFS);
 	INIT_LIST_HEAD(&fs_info->dead_reloc_roots);
 	btrfs_leaf_ref_tree_init(&fs_info->reloc_ref_tree);
 	btrfs_leaf_ref_tree_init(&fs_info->shared_ref_tree);

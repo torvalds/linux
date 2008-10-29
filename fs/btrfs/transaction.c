@@ -521,7 +521,7 @@ static noinline int add_dirty_roots(struct btrfs_trans_handle *trans,
 			dirty = root->dirty_root;
 
 			btrfs_free_log(trans, root);
-			btrfs_free_reloc_root(root);
+			btrfs_free_reloc_root(trans, root);
 
 			if (root->commit_root == root->node) {
 				WARN_ON(root->node->start !=
@@ -929,8 +929,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	 * safe to free the root of tree log roots
 	 */
 	btrfs_free_log_root_tree(trans, root->fs_info);
-
-	btrfs_free_reloc_mappings(root);
 
 	ret = btrfs_commit_tree_roots(trans, root);
 	BUG_ON(ret);
