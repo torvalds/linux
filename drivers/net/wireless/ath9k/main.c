@@ -978,6 +978,8 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	DPRINTF(sc, ATH_DBG_CONFIG, "%s: Starting driver with "
 		"initial channel: %d MHz\n", __func__, curchan->center_freq);
 
+	memset(&sc->sc_ht_info, 0, sizeof(struct ath_ht_info));
+
 	/* setup initial channel */
 
 	pos = ath_get_channel(sc, curchan);
