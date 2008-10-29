@@ -726,13 +726,13 @@ static void iwl_set_flags_for_band(struct iwl_priv *priv,
 /*
  * initialize rxon structure with default values from eeprom
  */
-static void iwl4965_connection_init_rx_config(struct iwl_priv *priv)
+static void iwl4965_connection_init_rx_config(struct iwl_priv *priv, int mode)
 {
 	const struct iwl_channel_info *ch_info;
 
 	memset(&priv->staging_rxon, 0, sizeof(priv->staging_rxon));
 
-	switch (priv->iw_mode) {
+	switch (mode) {
 	case NL80211_IFTYPE_AP:
 		priv->staging_rxon.dev_type = RXON_DEV_TYPE_AP;
 		break;
@@ -755,7 +755,7 @@ static void iwl4965_connection_init_rx_config(struct iwl_priv *priv)
 		    RXON_FILTER_CTL2HOST_MSK | RXON_FILTER_ACCEPT_GRP_MSK;
 		break;
 	default:
-		IWL_ERROR("Unsupported interface type %d\n", priv->iw_mode);
+		IWL_ERROR("Unsupported interface type %d\n", mode);
 		break;
 	}
 
@@ -803,9 +803,7 @@ static void iwl4965_connection_init_rx_config(struct iwl_priv *priv)
 
 static int iwl4965_set_mode(struct iwl_priv *priv, int mode)
 {
-	priv->iw_mode = mode;
-
-	iwl4965_connection_init_rx_config(priv);
+	iwl4965_connection_init_rx_config(priv, mode);
 	memcpy(priv->staging_rxon.node_addr, priv->mac_addr, ETH_ALEN);
 
 	iwl_clear_stations_table(priv);
@@ -2056,7 +2054,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	} else {
 		/* Initialize our rx_config data */
-		iwl4965_connection_init_rx_config(priv);
+		iwl4965_connection_init_rx_config(priv, priv->iw_mode);
 		memcpy(priv->staging_rxon.node_addr, priv->mac_addr, ETH_ALEN);
 	}
 
@@ -2380,7 +2378,6 @@ static void iwl4965_bg_set_monitor(struct work_struct *work)
 	mutex_lock(&priv->mutex);
 
 	ret = iwl4965_set_mode(priv, NL80211_IFTYPE_MONITOR);
-
 	if (ret) {
 		if (ret == -EAGAIN)
 			IWL_DEBUG(IWL_DL_STATE, "leave - not ready\n");
@@ -2389,6 +2386,7 @@ static void iwl4965_bg_set_monitor(struct work_struct *work)
 	}
 
 	mutex_unlock(&priv->mutex);
+	ieee80211_notify_mac(priv->hw, IEEE80211_NOTIFY_RE_ASSOC);
 }
 
 static void iwl_bg_run_time_calib_work(struct work_struct *work)
@@ -2720,6 +2718,7 @@ static int iwl4965_mac_add_interface(struct ieee80211_hw *hw,
 
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->vif = conf->vif;
+	priv->iw_mode = conf->type;
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
