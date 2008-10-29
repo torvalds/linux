@@ -12,13 +12,7 @@ extern void DataDmp(u8 *pdata, u32 len, u32 offset);
 
 void vRxTimerInit(struct wb35_adapter *adapter);
 void vRxTimerStart(struct wb35_adapter *adapter, int timeout_value);
-void RxTimerHandler_1a( struct wb35_adapter *adapter);
 void vRxTimerStop(struct wb35_adapter *adapter);
-void RxTimerHandler( void*			SystemSpecific1,
-					   struct wb35_adapter * 	adapter,
-					   void*			SystemSpecific2,
-					   void*			SystemSpecific3);
-
 
 // For Asynchronous indicating. The routine collocates with USB.
 void Mds_MsduProcess(  struct wb35_adapter *adapter,  PRXLAYER1 pRxLayer1,  u8 SlotIndex);

@@ -106,8 +106,7 @@ typedef struct _SME_PARAMETERS
 	u8				bDesiredPowerSave;
 
 	// SME timer and timeout value
-	//NDIS_MINIPORT_TIMER	nTimer;
-	OS_TIMER			nTimer;
+	struct timer_list timer;
 
 	u8				boInTimerHandler;
 	u8 				boAuthRetryActive;

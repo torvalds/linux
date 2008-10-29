@@ -84,24 +84,5 @@
 #define OS_MEMORY_CLEAR( _A, _S )	memset( (u8 *)_A,0,_S)
 #define OS_MEMORY_COMPARE( _A, _B, _S )	(memcmp(_A,_B,_S)? 0 : 1) // Definition is reverse with Ndis 1: the same 0: different
 
-#define OS_TIMER	struct timer_list
-#define OS_TIMER_INITIAL( _T, _F, _P )			\
-{							\
-	init_timer( _T );				\
-	(_T)->function = (void *)_F##_1a;		\
-	(_T)->data = (unsigned long)_P;			\
-}
-
-// _S : Millisecond
-// 20060420 At least 1 large than jiffies
-#define OS_TIMER_SET( _T, _S )					\
-{								\
-	(_T)->expires = jiffies + ((_S*HZ+999)/1000);\
-	add_timer( _T );					\
-}
-#define OS_TIMER_CANCEL( _T, _B )		del_timer_sync( _T )
-#define OS_TIMER_GET_SYS_TIME( _T )		(*_T=jiffies)
-
-
 #endif // COMMON_DEF
 

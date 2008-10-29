@@ -133,8 +133,7 @@ typedef struct _MDS
 	u8		boCounterMeasureBlock;
 	u8		reserved_4[2];
 
-	//NDIS_MINIPORT_TIMER	nTimer;
-	OS_TIMER	nTimer;
+	struct timer_list timer;
 
 	u32	TxTsc; // 20060214
 	u32	TxTsc_2; // 20060214

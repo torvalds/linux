@@ -79,7 +79,7 @@ typedef struct BSSDescriptionElement
 	u16		wIndex;			// THIS BSS element entry index
 
 	void*	psadapter;		// pointer to THIS adapter
-	OS_TIMER	nTimer;  // MLME timer
+	struct timer_list timer;  // MLME timer
 
     // Authentication
     u16		wAuthAlgo;      // peer MAC MLME use Auth algorithm, default OPEN_AUTH

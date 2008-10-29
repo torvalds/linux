@@ -510,7 +510,7 @@ typedef struct _HW_DATA_T
 	WB35TX		Wb35Tx; // Need Wb35Tx.h
 	WB35RX		Wb35Rx; // Need Wb35Rx.h
 
-	OS_TIMER	LEDTimer;// For LED
+	struct timer_list	LEDTimer;// For LED
 
 	u32		LEDpoint;// For LED
 

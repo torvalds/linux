@@ -68,8 +68,6 @@ s32 hal_get_rssi(  phw_data_t pHwData,  u32 *HalRssiArry,  u8 Count );
 s32 hal_get_rssi_bss(  phw_data_t pHwData,  u16 idx,  u8 Count );
 void hal_set_connect_info(  phw_data_t pHwData,  unsigned char boConnect );
 u8 hal_get_est_sq3(  phw_data_t pHwData,  u8 Count );
-void hal_led_control_1a(  phw_data_t pHwData );
-void hal_led_control(  void* S1,  phw_data_t pHwData,  void* S3,  void* S4 );
 void hal_set_rf_power(  phw_data_t pHwData,  u8 PowerIndex ); // 20060621 Modify
 void hal_reset_counter(  phw_data_t pHwData );
 void hal_set_radio_mode(  phw_data_t pHwData,  unsigned char boValue);
