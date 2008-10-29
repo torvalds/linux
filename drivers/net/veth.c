@@ -8,7 +8,6 @@
  *
  */
 
-#include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
@@ -30,12 +29,9 @@ struct veth_net_stats {
 
 struct veth_priv {
 	struct net_device *peer;
-	struct list_head list;
 	struct veth_net_stats *stats;
 	unsigned ip_summed;
 };
-
-static LIST_HEAD(veth_list);
 
 /*
  * ethtool interface
@@ -420,11 +416,9 @@ static int veth_newlink(struct net_device *dev,
 
 	priv = netdev_priv(dev);
 	priv->peer = peer;
-	list_add(&priv->list, &veth_list);
 
 	priv = netdev_priv(peer);
 	priv->peer = dev;
-	INIT_LIST_HEAD(&priv->list);
 	return 0;
 
 err_register_dev:
@@ -445,13 +439,6 @@ static void veth_dellink(struct net_device *dev)
 
 	priv = netdev_priv(dev);
 	peer = priv->peer;
-
-	if (!list_empty(&priv->list))
-		list_del(&priv->list);
-
-	priv = netdev_priv(peer);
-	if (!list_empty(&priv->list))
-		list_del(&priv->list);
 
 	unregister_netdevice(dev);
 	unregister_netdevice(peer);
