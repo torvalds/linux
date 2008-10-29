@@ -9,7 +9,7 @@
  * - the islsm (softmac prism54) driver, which is:
  *   Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
  * - stlc45xx driver
- * C  Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
+ *   Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1241,8 +1241,10 @@ static int p54_setup_mac(struct ieee80211_hw *dev, u16 mode, const u8 *bssid)
 	else
 		memcpy(setup->bssid, bssid, ETH_ALEN);
 	setup->rx_antenna = priv->rx_antenna;
+	setup->rx_align = 0;
 	if (priv->fw_var < 0x500) {
 		setup->v1.basic_rate_mask = cpu_to_le32(0x15f);
+		memset(setup->v1.rts_rates, 0, 8);
 		setup->v1.rx_addr = cpu_to_le32(priv->rx_end);
 		setup->v1.max_rx = cpu_to_le16(priv->rx_mtu);
 		setup->v1.rxhw = cpu_to_le16(priv->rxhw);
@@ -1326,11 +1328,11 @@ static int p54_set_freq(struct ieee80211_hw *dev, u16 frequency)
 		}
 
 		entry += sizeof(__le16);
-		chan->pa_points_per_curve =
-			min(priv->curve_data->points_per_channel, (u8) 8);
-
-		memcpy(chan->curve_data, entry, sizeof(*chan->curve_data) *
-		       chan->pa_points_per_curve);
+		chan->pa_points_per_curve = 8;
+		memset(chan->curve_data, 0, sizeof(*chan->curve_data));
+		memcpy(chan->curve_data, entry,
+		       sizeof(struct p54_pa_curve_data_sample) *
+		       min((u8)8, priv->curve_data->points_per_channel));
 		break;
 	}
 
@@ -1406,6 +1408,7 @@ static int p54_set_edcf(struct ieee80211_hw *dev)
 	/* (see prism54/isl_oid.h for further details) */
 	edcf->frameburst = cpu_to_le16(0);
 	edcf->round_trip_delay = cpu_to_le16(0);
+	edcf->flags = 0;
 	memset(edcf->mapping, 0, sizeof(edcf->mapping));
 	memcpy(edcf->queue, priv->qos_params, sizeof(edcf->queue));
 	priv->tx(dev, skb, 1);
