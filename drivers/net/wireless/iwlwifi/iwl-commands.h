@@ -66,8 +66,8 @@
  * Please use iwl-dev.h for driver implementation definitions.
  */
 
-#ifndef __iwl4965_commands_h__
-#define __iwl4965_commands_h__
+#ifndef __iwl_commands_h__
+#define __iwl_commands_h__
 
 enum {
 	REPLY_ALIVE = 0x1,
@@ -3064,4 +3064,4 @@ struct iwl_rx_packet {
 
 #define IWL_RX_FRAME_SIZE        (4 + sizeof(struct iwl4965_rx_frame))
 
-#endif				/* __iwl4965_commands_h__ */
+#endif				/* __iwl_commands_h__ */
