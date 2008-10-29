@@ -576,8 +576,8 @@ extern int iwl_send_add_sta(struct iwl_priv *priv,
 			    struct iwl_addsta_cmd *sta, u8 flags);
 extern u8 iwl_add_station_flags(struct iwl_priv *priv, const u8 *addr,
 			int is_ap, u8 flags, struct ieee80211_sta_ht_cap *ht_info);
-extern void iwl4965_update_chain_flags(struct iwl_priv *priv);
-extern int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src);
+extern void iwl_update_chain_flags(struct iwl_priv *priv);
+extern int iwl_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src);
 extern const u8 iwl_bcast_addr[ETH_ALEN];
 extern int iwl_rxq_stop(struct iwl_priv *priv);
 extern void iwl_txq_ctx_stop(struct iwl_priv *priv);
