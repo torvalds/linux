@@ -948,14 +948,7 @@ static int poch_channel_available(struct channel_info *channel)
 	spin_lock_irq(&channel->group_offsets_lock);
 
 	for (i = 0; i < channel->group_count; i++) {
-		if (channel->dir == CHANNEL_DIR_RX
-		    && channel->header->group_offsets[i] == -1) {
-			spin_unlock_irq(&channel->group_offsets_lock);
-			return 1;
-		}
-
-		if (channel->dir == CHANNEL_DIR_TX
-		    && channel->header->group_offsets[i] != -1) {
+		if (channel->header->group_offsets[i] != -1) {
 			spin_unlock_irq(&channel->group_offsets_lock);
 			return 1;
 		}
@@ -1103,10 +1096,7 @@ static void poch_irq_dma(struct channel_info *channel)
 
 	for (i = 0; i < groups_done; i++) {
 		j = (prev_transfer + i) % channel->group_count;
-		if (channel->dir == CHANNEL_DIR_RX)
-			group_offsets[j] = -1;
-		else
-			group_offsets[j] = groups[j].user_offset;
+		group_offsets[j] = groups[j].user_offset;
 	}
 
 	spin_unlock(&channel->group_offsets_lock);
