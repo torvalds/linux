@@ -1,7 +1,8 @@
 /*
- * Host AP crypt: host-based WEP encryption implementation for Host AP driver
+ * lib80211 crypt: host-based WEP encryption implementation for lib80211
  *
  * Copyright (c) 2002-2004, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2008, John W. Linville <linville@tuxdriver.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -19,16 +20,16 @@
 #include <linux/mm.h>
 #include <asm/string.h>
 
-#include <net/ieee80211.h>
+#include <net/lib80211.h>
 
 #include <linux/crypto.h>
 #include <linux/crc32.h>
 
 MODULE_AUTHOR("Jouni Malinen");
-MODULE_DESCRIPTION("Host AP crypt: WEP");
+MODULE_DESCRIPTION("lib80211 crypt: WEP");
 MODULE_LICENSE("GPL");
 
-struct prism2_wep_data {
+struct lib80211_wep_data {
 	u32 iv;
 #define WEP_KEY_LEN 13
 	u8 key[WEP_KEY_LEN + 1];
@@ -38,9 +39,9 @@ struct prism2_wep_data {
 	struct crypto_blkcipher *rx_tfm;
 };
 
-static void *prism2_wep_init(int keyidx)
+static void *lib80211_wep_init(int keyidx)
 {
-	struct prism2_wep_data *priv;
+	struct lib80211_wep_data *priv;
 
 	priv = kzalloc(sizeof(*priv), GFP_ATOMIC);
 	if (priv == NULL)
@@ -49,7 +50,7 @@ static void *prism2_wep_init(int keyidx)
 
 	priv->tx_tfm = crypto_alloc_blkcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->tx_tfm)) {
-		printk(KERN_DEBUG "ieee80211_crypt_wep: could not allocate "
+		printk(KERN_DEBUG "lib80211_crypt_wep: could not allocate "
 		       "crypto API arc4\n");
 		priv->tx_tfm = NULL;
 		goto fail;
@@ -57,7 +58,7 @@ static void *prism2_wep_init(int keyidx)
 
 	priv->rx_tfm = crypto_alloc_blkcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->rx_tfm)) {
-		printk(KERN_DEBUG "ieee80211_crypt_wep: could not allocate "
+		printk(KERN_DEBUG "lib80211_crypt_wep: could not allocate "
 		       "crypto API arc4\n");
 		priv->rx_tfm = NULL;
 		goto fail;
@@ -78,9 +79,9 @@ static void *prism2_wep_init(int keyidx)
 	return NULL;
 }
 
-static void prism2_wep_deinit(void *priv)
+static void lib80211_wep_deinit(void *priv)
 {
-	struct prism2_wep_data *_priv = priv;
+	struct lib80211_wep_data *_priv = priv;
 	if (_priv) {
 		if (_priv->tx_tfm)
 			crypto_free_blkcipher(_priv->tx_tfm);
@@ -91,10 +92,10 @@ static void prism2_wep_deinit(void *priv)
 }
 
 /* Add WEP IV/key info to a frame that has at least 4 bytes of headroom */
-static int prism2_wep_build_iv(struct sk_buff *skb, int hdr_len,
+static int lib80211_wep_build_iv(struct sk_buff *skb, int hdr_len,
 			       u8 *key, int keylen, void *priv)
 {
-	struct prism2_wep_data *wep = priv;
+	struct lib80211_wep_data *wep = priv;
 	u32 klen, len;
 	u8 *pos;
 
@@ -134,21 +135,21 @@ static int prism2_wep_build_iv(struct sk_buff *skb, int hdr_len,
  *
  * WEP frame payload: IV + TX key idx, RC4(data), ICV = RC4(CRC32(data))
  */
-static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
+static int lib80211_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
-	struct prism2_wep_data *wep = priv;
+	struct lib80211_wep_data *wep = priv;
 	struct blkcipher_desc desc = { .tfm = wep->tx_tfm };
 	u32 crc, klen, len;
 	u8 *pos, *icv;
 	struct scatterlist sg;
 	u8 key[WEP_KEY_LEN + 3];
 
-	/* other checks are in prism2_wep_build_iv */
+	/* other checks are in lib80211_wep_build_iv */
 	if (skb_tailroom(skb) < 4)
 		return -1;
 
 	/* add the IV to the frame */
-	if (prism2_wep_build_iv(skb, hdr_len, NULL, 0, priv))
+	if (lib80211_wep_build_iv(skb, hdr_len, NULL, 0, priv))
 		return -1;
 
 	/* Copy the IV into the first 3 bytes of the key */
@@ -181,9 +182,9 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
  * Returns 0 if frame was decrypted successfully and ICV was correct and -1 on
  * failure. If frame is OK, IV and ICV will be removed.
  */
-static int prism2_wep_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
+static int lib80211_wep_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
-	struct prism2_wep_data *wep = priv;
+	struct lib80211_wep_data *wep = priv;
 	struct blkcipher_desc desc = { .tfm = wep->rx_tfm };
 	u32 crc, klen, plen;
 	u8 key[WEP_KEY_LEN + 3];
@@ -232,9 +233,9 @@ static int prism2_wep_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	return 0;
 }
 
-static int prism2_wep_set_key(void *key, int len, u8 * seq, void *priv)
+static int lib80211_wep_set_key(void *key, int len, u8 * seq, void *priv)
 {
-	struct prism2_wep_data *wep = priv;
+	struct lib80211_wep_data *wep = priv;
 
 	if (len < 0 || len > WEP_KEY_LEN)
 		return -1;
@@ -245,9 +246,9 @@ static int prism2_wep_set_key(void *key, int len, u8 * seq, void *priv)
 	return 0;
 }
 
-static int prism2_wep_get_key(void *key, int len, u8 * seq, void *priv)
+static int lib80211_wep_get_key(void *key, int len, u8 * seq, void *priv)
 {
-	struct prism2_wep_data *wep = priv;
+	struct lib80211_wep_data *wep = priv;
 
 	if (len < wep->key_len)
 		return -1;
@@ -257,39 +258,39 @@ static int prism2_wep_get_key(void *key, int len, u8 * seq, void *priv)
 	return wep->key_len;
 }
 
-static char *prism2_wep_print_stats(char *p, void *priv)
+static char *lib80211_wep_print_stats(char *p, void *priv)
 {
-	struct prism2_wep_data *wep = priv;
+	struct lib80211_wep_data *wep = priv;
 	p += sprintf(p, "key[%d] alg=WEP len=%d\n", wep->key_idx, wep->key_len);
 	return p;
 }
 
-static struct ieee80211_crypto_ops ieee80211_crypt_wep = {
+static struct lib80211_crypto_ops lib80211_crypt_wep = {
 	.name = "WEP",
-	.init = prism2_wep_init,
-	.deinit = prism2_wep_deinit,
-	.build_iv = prism2_wep_build_iv,
-	.encrypt_mpdu = prism2_wep_encrypt,
-	.decrypt_mpdu = prism2_wep_decrypt,
+	.init = lib80211_wep_init,
+	.deinit = lib80211_wep_deinit,
+	.build_iv = lib80211_wep_build_iv,
+	.encrypt_mpdu = lib80211_wep_encrypt,
+	.decrypt_mpdu = lib80211_wep_decrypt,
 	.encrypt_msdu = NULL,
 	.decrypt_msdu = NULL,
-	.set_key = prism2_wep_set_key,
-	.get_key = prism2_wep_get_key,
-	.print_stats = prism2_wep_print_stats,
+	.set_key = lib80211_wep_set_key,
+	.get_key = lib80211_wep_get_key,
+	.print_stats = lib80211_wep_print_stats,
 	.extra_mpdu_prefix_len = 4,	/* IV */
 	.extra_mpdu_postfix_len = 4,	/* ICV */
 	.owner = THIS_MODULE,
 };
 
-static int __init ieee80211_crypto_wep_init(void)
+static int __init lib80211_crypto_wep_init(void)
 {
-	return ieee80211_register_crypto_ops(&ieee80211_crypt_wep);
+	return lib80211_register_crypto_ops(&lib80211_crypt_wep);
 }
 
-static void __exit ieee80211_crypto_wep_exit(void)
+static void __exit lib80211_crypto_wep_exit(void)
 {
-	ieee80211_unregister_crypto_ops(&ieee80211_crypt_wep);
+	lib80211_unregister_crypto_ops(&lib80211_crypt_wep);
 }
 
-module_init(ieee80211_crypto_wep_init);
-module_exit(ieee80211_crypto_wep_exit);
+module_init(lib80211_crypto_wep_init);
+module_exit(lib80211_crypto_wep_exit);

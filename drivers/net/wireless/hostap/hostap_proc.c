@@ -2,7 +2,7 @@
 
 #include <linux/types.h>
 #include <linux/proc_fs.h>
-#include <net/ieee80211_crypt.h>
+#include <net/lib80211.h>
 
 #include "hostap_wlan.h"
 #include "hostap.h"
@@ -36,9 +36,10 @@ static int prism2_debug_proc_read(char *page, char **start, off_t off,
 	p += sprintf(p, "dev_enabled=%d\n", local->dev_enabled);
 	p += sprintf(p, "sw_tick_stuck=%d\n", local->sw_tick_stuck);
 	for (i = 0; i < WEP_KEYS; i++) {
-		if (local->crypt[i] && local->crypt[i]->ops) {
-			p += sprintf(p, "crypt[%d]=%s\n",
-				     i, local->crypt[i]->ops->name);
+		if (local->crypt_info.crypt[i] &&
+		    local->crypt_info.crypt[i]->ops) {
+			p += sprintf(p, "crypt[%d]=%s\n", i,
+				     local->crypt_info.crypt[i]->ops->name);
 		}
 	}
 	p += sprintf(p, "pri_only=%d\n", local->pri_only);
@@ -206,12 +207,13 @@ static int prism2_crypt_proc_read(char *page, char **start, off_t off,
 		return 0;
 	}
 
-	p += sprintf(p, "tx_keyidx=%d\n", local->tx_keyidx);
+	p += sprintf(p, "tx_keyidx=%d\n", local->crypt_info.tx_keyidx);
 	for (i = 0; i < WEP_KEYS; i++) {
-		if (local->crypt[i] && local->crypt[i]->ops &&
-		    local->crypt[i]->ops->print_stats) {
-			p = local->crypt[i]->ops->print_stats(
-				p, local->crypt[i]->priv);
+		if (local->crypt_info.crypt[i] &&
+		    local->crypt_info.crypt[i]->ops &&
+		    local->crypt_info.crypt[i]->ops->print_stats) {
+			p = local->crypt_info.crypt[i]->ops->print_stats(
+				p, local->crypt_info.crypt[i]->priv);
 		}
 	}
 

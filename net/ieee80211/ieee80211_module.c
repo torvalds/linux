@@ -180,12 +180,15 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 	ieee->host_open_frag = 1;
 	ieee->ieee802_1x = 1;	/* Default to supporting 802.1x */
 
-	INIT_LIST_HEAD(&ieee->crypt_deinit_list);
-	setup_timer(&ieee->crypt_deinit_timer, ieee80211_crypt_deinit_handler,
-			(unsigned long)ieee);
-	ieee->crypt_quiesced = 0;
-
 	spin_lock_init(&ieee->lock);
+
+	ieee->crypt_info.name = dev->name;
+	ieee->crypt_info.lock = &ieee->lock;
+	INIT_LIST_HEAD(&ieee->crypt_info.crypt_deinit_list);
+	setup_timer(&ieee->crypt_info.crypt_deinit_timer,
+			lib80211_crypt_deinit_handler,
+			(unsigned long)&ieee->crypt_info);
+	ieee->crypt_info.crypt_quiesced = 0;
 
 	ieee->wpa_enabled = 0;
 	ieee->drop_unencrypted = 0;
@@ -205,19 +208,19 @@ void free_ieee80211(struct net_device *dev)
 
 	int i;
 
-	ieee80211_crypt_quiescing(ieee);
-	del_timer_sync(&ieee->crypt_deinit_timer);
-	ieee80211_crypt_deinit_entries(ieee, 1);
+	lib80211_crypt_quiescing(&ieee->crypt_info);
+	del_timer_sync(&ieee->crypt_info.crypt_deinit_timer);
+	lib80211_crypt_deinit_entries(&ieee->crypt_info, 1);
 
 	for (i = 0; i < WEP_KEYS; i++) {
-		struct ieee80211_crypt_data *crypt = ieee->crypt[i];
+		struct lib80211_crypt_data *crypt = ieee->crypt_info.crypt[i];
 		if (crypt) {
 			if (crypt->ops) {
 				crypt->ops->deinit(crypt->priv);
 				module_put(crypt->ops->owner);
 			}
 			kfree(crypt);
-			ieee->crypt[i] = NULL;
+			ieee->crypt_info.crypt[i] = NULL;
 		}
 	}
 

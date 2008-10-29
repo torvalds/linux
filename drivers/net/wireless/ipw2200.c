@@ -6600,7 +6600,7 @@ static int ipw_wx_set_auth(struct net_device *dev,
 	struct ipw_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device *ieee = priv->ieee;
 	struct iw_param *param = &wrqu->param;
-	struct ieee80211_crypt_data *crypt;
+	struct lib80211_crypt_data *crypt;
 	unsigned long flags;
 	int ret = 0;
 
@@ -6622,7 +6622,7 @@ static int ipw_wx_set_auth(struct net_device *dev,
 		break;
 
 	case IW_AUTH_TKIP_COUNTERMEASURES:
-		crypt = priv->ieee->crypt[priv->ieee->tx_keyidx];
+		crypt = priv->ieee->crypt_info.crypt[priv->ieee->crypt_info.tx_keyidx];
 		if (!crypt || !crypt->ops->set_flags || !crypt->ops->get_flags)
 			break;
 
@@ -6699,7 +6699,7 @@ static int ipw_wx_get_auth(struct net_device *dev,
 {
 	struct ipw_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device *ieee = priv->ieee;
-	struct ieee80211_crypt_data *crypt;
+	struct lib80211_crypt_data *crypt;
 	struct iw_param *param = &wrqu->param;
 	int ret = 0;
 
@@ -6715,7 +6715,7 @@ static int ipw_wx_get_auth(struct net_device *dev,
 		break;
 
 	case IW_AUTH_TKIP_COUNTERMEASURES:
-		crypt = priv->ieee->crypt[priv->ieee->tx_keyidx];
+		crypt = priv->ieee->crypt_info.crypt[priv->ieee->crypt_info.tx_keyidx];
 		if (!crypt || !crypt->ops->get_flags)
 			break;
 
@@ -10251,8 +10251,8 @@ static int ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb,
 		case SEC_LEVEL_1:
 			tfd->u.data.tfd.tfd_24.mchdr.frame_ctl |=
 			    cpu_to_le16(IEEE80211_FCTL_PROTECTED);
-			tfd->u.data.key_index = priv->ieee->tx_keyidx;
-			if (priv->ieee->sec.key_sizes[priv->ieee->tx_keyidx] <=
+			tfd->u.data.key_index = priv->ieee->crypt_info.tx_keyidx;
+			if (priv->ieee->sec.key_sizes[priv->ieee->crypt_info.tx_keyidx] <=
 			    40)
 				tfd->u.data.key_index |= DCT_WEP_KEY_64Bit;
 			else

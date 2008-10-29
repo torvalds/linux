@@ -4010,7 +4010,7 @@ static ssize_t show_internals(struct device *d, struct device_attribute *attr,
 	else
 		len += sprintf(buf + len, "not connected\n");
 
-	DUMP_VAR(ieee->crypt[priv->ieee->tx_keyidx], "p");
+	DUMP_VAR(ieee->crypt_info.crypt[priv->ieee->crypt_info.tx_keyidx], "p");
 	DUMP_VAR(status, "08lx");
 	DUMP_VAR(config, "08lx");
 	DUMP_VAR(capability, "08lx");
@@ -5514,7 +5514,7 @@ static int ipw2100_configure_security(struct ipw2100_priv *priv, int batch_mode)
 			}
 		}
 
-		ipw2100_set_key_index(priv, priv->ieee->tx_keyidx, 1);
+		ipw2100_set_key_index(priv, priv->ieee->crypt_info.tx_keyidx, 1);
 	}
 
 	/* Always enable privacy so the Host can filter WEP packets if
@@ -7620,7 +7620,7 @@ static int ipw2100_wx_set_auth(struct net_device *dev,
 	struct ipw2100_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device *ieee = priv->ieee;
 	struct iw_param *param = &wrqu->param;
-	struct ieee80211_crypt_data *crypt;
+	struct lib80211_crypt_data *crypt;
 	unsigned long flags;
 	int ret = 0;
 
@@ -7635,7 +7635,7 @@ static int ipw2100_wx_set_auth(struct net_device *dev,
 		break;
 
 	case IW_AUTH_TKIP_COUNTERMEASURES:
-		crypt = priv->ieee->crypt[priv->ieee->tx_keyidx];
+		crypt = priv->ieee->crypt_info.crypt[priv->ieee->crypt_info.tx_keyidx];
 		if (!crypt || !crypt->ops->set_flags || !crypt->ops->get_flags)
 			break;
 
@@ -7712,7 +7712,7 @@ static int ipw2100_wx_get_auth(struct net_device *dev,
 {
 	struct ipw2100_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device *ieee = priv->ieee;
-	struct ieee80211_crypt_data *crypt;
+	struct lib80211_crypt_data *crypt;
 	struct iw_param *param = &wrqu->param;
 	int ret = 0;
 
@@ -7728,7 +7728,7 @@ static int ipw2100_wx_get_auth(struct net_device *dev,
 		break;
 
 	case IW_AUTH_TKIP_COUNTERMEASURES:
-		crypt = priv->ieee->crypt[priv->ieee->tx_keyidx];
+		crypt = priv->ieee->crypt_info.crypt[priv->ieee->crypt_info.tx_keyidx];
 		if (!crypt || !crypt->ops->get_flags) {
 			IPW_DEBUG_WARNING("Can't get TKIP countermeasures: "
 					  "crypt not set!\n");

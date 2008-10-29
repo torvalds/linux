@@ -47,7 +47,7 @@
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
 #include <net/ieee80211.h>
-#include <net/ieee80211_crypt.h>
+#include <net/lib80211.h>
 #include <asm/irq.h>
 
 #include "hostap_80211.h"
@@ -2791,11 +2791,12 @@ static void prism2_check_sta_fw_version(local_info_t *local)
 static void prism2_crypt_deinit_entries(local_info_t *local, int force)
 {
 	struct list_head *ptr, *n;
-	struct ieee80211_crypt_data *entry;
+	struct lib80211_crypt_data *entry;
 
-	for (ptr = local->crypt_deinit_list.next, n = ptr->next;
-	     ptr != &local->crypt_deinit_list; ptr = n, n = ptr->next) {
-		entry = list_entry(ptr, struct ieee80211_crypt_data, list);
+	for (ptr = local->crypt_info.crypt_deinit_list.next, n = ptr->next;
+	     ptr != &local->crypt_info.crypt_deinit_list;
+	     ptr = n, n = ptr->next) {
+		entry = list_entry(ptr, struct lib80211_crypt_data, list);
 
 		if (atomic_read(&entry->refcnt) != 0 && !force)
 			continue;
@@ -2816,11 +2817,11 @@ static void prism2_crypt_deinit_handler(unsigned long data)
 
 	spin_lock_irqsave(&local->lock, flags);
 	prism2_crypt_deinit_entries(local, 0);
-	if (!list_empty(&local->crypt_deinit_list)) {
+	if (!list_empty(&local->crypt_info.crypt_deinit_list)) {
 		printk(KERN_DEBUG "%s: entries remaining in delayed crypt "
 		       "deletion list\n", local->dev->name);
-		local->crypt_deinit_timer.expires = jiffies + HZ;
-		add_timer(&local->crypt_deinit_timer);
+		local->crypt_info.crypt_deinit_timer.expires = jiffies + HZ;
+		add_timer(&local->crypt_info.crypt_deinit_timer);
 	}
 	spin_unlock_irqrestore(&local->lock, flags);
 
@@ -3250,10 +3251,13 @@ while (0)
 
 	INIT_LIST_HEAD(&local->cmd_queue);
 	init_waitqueue_head(&local->hostscan_wq);
-	INIT_LIST_HEAD(&local->crypt_deinit_list);
-	init_timer(&local->crypt_deinit_timer);
-	local->crypt_deinit_timer.data = (unsigned long) local;
-	local->crypt_deinit_timer.function = prism2_crypt_deinit_handler;
+
+	local->crypt_info.name = dev->name;
+	local->crypt_info.lock = &local->lock;
+	INIT_LIST_HEAD(&local->crypt_info.crypt_deinit_list);
+	init_timer(&local->crypt_info.crypt_deinit_timer);
+	local->crypt_info.crypt_deinit_timer.data = (unsigned long) local;
+	local->crypt_info.crypt_deinit_timer.function = prism2_crypt_deinit_handler;
 
 	init_timer(&local->passive_scan_timer);
 	local->passive_scan_timer.data = (unsigned long) local;
@@ -3354,8 +3358,8 @@ static void prism2_free_local_data(struct net_device *dev)
 
 	flush_scheduled_work();
 
-	if (timer_pending(&local->crypt_deinit_timer))
-		del_timer(&local->crypt_deinit_timer);
+	if (timer_pending(&local->crypt_info.crypt_deinit_timer))
+		del_timer(&local->crypt_info.crypt_deinit_timer);
 	prism2_crypt_deinit_entries(local, 1);
 
 	if (timer_pending(&local->passive_scan_timer))
@@ -3374,12 +3378,12 @@ static void prism2_free_local_data(struct net_device *dev)
 		prism2_callback(local, PRISM2_CALLBACK_DISABLE);
 
 	for (i = 0; i < WEP_KEYS; i++) {
-		struct ieee80211_crypt_data *crypt = local->crypt[i];
+		struct lib80211_crypt_data *crypt = local->crypt_info.crypt[i];
 		if (crypt) {
 			if (crypt->ops)
 				crypt->ops->deinit(crypt->priv);
 			kfree(crypt);
-			local->crypt[i] = NULL;
+			local->crypt_info.crypt[i] = NULL;
 		}
 	}
 

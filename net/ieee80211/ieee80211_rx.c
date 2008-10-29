@@ -268,7 +268,7 @@ static int ieee80211_is_eapol_frame(struct ieee80211_device *ieee,
 /* Called only as a tasklet (software IRQ), by ieee80211_rx */
 static int
 ieee80211_rx_frame_decrypt(struct ieee80211_device *ieee, struct sk_buff *skb,
-			   struct ieee80211_crypt_data *crypt)
+			   struct lib80211_crypt_data *crypt)
 {
 	struct ieee80211_hdr_3addr *hdr;
 	int res, hdrlen;
@@ -300,7 +300,7 @@ ieee80211_rx_frame_decrypt(struct ieee80211_device *ieee, struct sk_buff *skb,
 static int
 ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device *ieee,
 				struct sk_buff *skb, int keyidx,
-				struct ieee80211_crypt_data *crypt)
+				struct lib80211_crypt_data *crypt)
 {
 	struct ieee80211_hdr_3addr *hdr;
 	int res, hdrlen;
@@ -348,7 +348,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 #endif
 	u8 dst[ETH_ALEN];
 	u8 src[ETH_ALEN];
-	struct ieee80211_crypt_data *crypt = NULL;
+	struct lib80211_crypt_data *crypt = NULL;
 	int keyidx = 0;
 	int can_be_decrypted = 0;
 
@@ -431,7 +431,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		 * is only allowed 2-bits of storage, no value of keyidx can
 		 * be provided via above code that would result in keyidx
 		 * being out of range */
-		crypt = ieee->crypt[keyidx];
+		crypt = ieee->crypt_info.crypt[keyidx];
 
 #ifdef NOT_YET
 		sta = NULL;

@@ -1,7 +1,8 @@
 /*
- * Host AP crypt: host-based TKIP encryption implementation for Host AP driver
+ * lib80211 crypt: host-based TKIP encryption implementation for lib80211
  *
  * Copyright (c) 2003-2004, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2008, John W. Linville <linville@tuxdriver.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -22,16 +23,20 @@
 #include <linux/if_arp.h>
 #include <asm/string.h>
 
-#include <net/ieee80211.h>
+#include <linux/wireless.h>
+#include <linux/ieee80211.h>
+#include <net/iw_handler.h>
 
 #include <linux/crypto.h>
 #include <linux/crc32.h>
 
+#include <net/lib80211.h>
+
 MODULE_AUTHOR("Jouni Malinen");
-MODULE_DESCRIPTION("Host AP crypt: TKIP");
+MODULE_DESCRIPTION("lib80211 crypt: TKIP");
 MODULE_LICENSE("GPL");
 
-struct ieee80211_tkip_data {
+struct lib80211_tkip_data {
 #define TKIP_KEY_LEN 32
 	u8 key[TKIP_KEY_LEN];
 	int key_set;
@@ -65,23 +70,23 @@ struct ieee80211_tkip_data {
 	unsigned long flags;
 };
 
-static unsigned long ieee80211_tkip_set_flags(unsigned long flags, void *priv)
+static unsigned long lib80211_tkip_set_flags(unsigned long flags, void *priv)
 {
-	struct ieee80211_tkip_data *_priv = priv;
+	struct lib80211_tkip_data *_priv = priv;
 	unsigned long old_flags = _priv->flags;
 	_priv->flags = flags;
 	return old_flags;
 }
 
-static unsigned long ieee80211_tkip_get_flags(void *priv)
+static unsigned long lib80211_tkip_get_flags(void *priv)
 {
-	struct ieee80211_tkip_data *_priv = priv;
+	struct lib80211_tkip_data *_priv = priv;
 	return _priv->flags;
 }
 
-static void *ieee80211_tkip_init(int key_idx)
+static void *lib80211_tkip_init(int key_idx)
 {
-	struct ieee80211_tkip_data *priv;
+	struct lib80211_tkip_data *priv;
 
 	priv = kzalloc(sizeof(*priv), GFP_ATOMIC);
 	if (priv == NULL)
@@ -92,7 +97,7 @@ static void *ieee80211_tkip_init(int key_idx)
 	priv->tx_tfm_arc4 = crypto_alloc_blkcipher("ecb(arc4)", 0,
 						CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->tx_tfm_arc4)) {
-		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
+		printk(KERN_DEBUG "lib80211_crypt_tkip: could not allocate "
 		       "crypto API arc4\n");
 		priv->tx_tfm_arc4 = NULL;
 		goto fail;
@@ -101,7 +106,7 @@ static void *ieee80211_tkip_init(int key_idx)
 	priv->tx_tfm_michael = crypto_alloc_hash("michael_mic", 0,
 						 CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->tx_tfm_michael)) {
-		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
+		printk(KERN_DEBUG "lib80211_crypt_tkip: could not allocate "
 		       "crypto API michael_mic\n");
 		priv->tx_tfm_michael = NULL;
 		goto fail;
@@ -110,7 +115,7 @@ static void *ieee80211_tkip_init(int key_idx)
 	priv->rx_tfm_arc4 = crypto_alloc_blkcipher("ecb(arc4)", 0,
 						CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->rx_tfm_arc4)) {
-		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
+		printk(KERN_DEBUG "lib80211_crypt_tkip: could not allocate "
 		       "crypto API arc4\n");
 		priv->rx_tfm_arc4 = NULL;
 		goto fail;
@@ -119,7 +124,7 @@ static void *ieee80211_tkip_init(int key_idx)
 	priv->rx_tfm_michael = crypto_alloc_hash("michael_mic", 0,
 						 CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->rx_tfm_michael)) {
-		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
+		printk(KERN_DEBUG "lib80211_crypt_tkip: could not allocate "
 		       "crypto API michael_mic\n");
 		priv->rx_tfm_michael = NULL;
 		goto fail;
@@ -143,9 +148,9 @@ static void *ieee80211_tkip_init(int key_idx)
 	return NULL;
 }
 
-static void ieee80211_tkip_deinit(void *priv)
+static void lib80211_tkip_deinit(void *priv)
 {
-	struct ieee80211_tkip_data *_priv = priv;
+	struct lib80211_tkip_data *_priv = priv;
 	if (_priv) {
 		if (_priv->tx_tfm_michael)
 			crypto_free_hash(_priv->tx_tfm_michael);
@@ -305,15 +310,15 @@ static void tkip_mixing_phase2(u8 * WEPSeed, const u8 * TK, const u16 * TTAK,
 #endif
 }
 
-static int ieee80211_tkip_hdr(struct sk_buff *skb, int hdr_len,
+static int lib80211_tkip_hdr(struct sk_buff *skb, int hdr_len,
 			      u8 * rc4key, int keylen, void *priv)
 {
-	struct ieee80211_tkip_data *tkey = priv;
+	struct lib80211_tkip_data *tkey = priv;
 	int len;
 	u8 *pos;
-	struct ieee80211_hdr_4addr *hdr;
+	struct ieee80211_hdr *hdr;
 
-	hdr = (struct ieee80211_hdr_4addr *)skb->data;
+	hdr = (struct ieee80211_hdr *)skb->data;
 
 	if (skb_headroom(skb) < 8 || skb->len < hdr_len)
 		return -1;
@@ -351,9 +356,9 @@ static int ieee80211_tkip_hdr(struct sk_buff *skb, int hdr_len,
 	return 8;
 }
 
-static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
+static int lib80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
-	struct ieee80211_tkip_data *tkey = priv;
+	struct lib80211_tkip_data *tkey = priv;
 	struct blkcipher_desc desc = { .tfm = tkey->tx_tfm_arc4 };
 	int len;
 	u8 rc4key[16], *pos, *icv;
@@ -362,8 +367,8 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	if (tkey->flags & IEEE80211_CRYPTO_TKIP_COUNTERMEASURES) {
 		if (net_ratelimit()) {
-			struct ieee80211_hdr_4addr *hdr =
-			    (struct ieee80211_hdr_4addr *)skb->data;
+			struct ieee80211_hdr *hdr =
+			    (struct ieee80211_hdr *)skb->data;
 			printk(KERN_DEBUG ": TKIP countermeasures: dropped "
 			       "TX packet to %pM\n", hdr->addr1);
 		}
@@ -376,7 +381,7 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	len = skb->len - hdr_len;
 	pos = skb->data + hdr_len;
 
-	if ((ieee80211_tkip_hdr(skb, hdr_len, rc4key, 16, priv)) < 0)
+	if ((lib80211_tkip_hdr(skb, hdr_len, rc4key, 16, priv)) < 0)
 		return -1;
 
 	icv = skb_put(skb, 4);
@@ -405,21 +410,21 @@ static inline int tkip_replay_check(u32 iv32_n, u16 iv16_n,
 	return 0;
 }
 
-static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
+static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
-	struct ieee80211_tkip_data *tkey = priv;
+	struct lib80211_tkip_data *tkey = priv;
 	struct blkcipher_desc desc = { .tfm = tkey->rx_tfm_arc4 };
 	u8 rc4key[16];
 	u8 keyidx, *pos;
 	u32 iv32;
 	u16 iv16;
-	struct ieee80211_hdr_4addr *hdr;
+	struct ieee80211_hdr *hdr;
 	u8 icv[4];
 	u32 crc;
 	struct scatterlist sg;
 	int plen;
 
-	hdr = (struct ieee80211_hdr_4addr *)skb->data;
+	hdr = (struct ieee80211_hdr *)skb->data;
 
 	if (tkey->flags & IEEE80211_CRYPTO_TKIP_COUNTERMEASURES) {
 		if (net_ratelimit()) {
@@ -460,8 +465,8 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	pos += 8;
 
 	if (tkip_replay_check(iv32, iv16, tkey->rx_iv32, tkey->rx_iv16)) {
-		if (ieee80211_ratelimit_debug(IEEE80211_DL_DROP)) {
-			IEEE80211_DEBUG_DROP("TKIP: replay detected: STA=%pM"
+		if (net_ratelimit()) {
+			printk(KERN_DEBUG "TKIP: replay detected: STA=%pM"
 			       " previous TSC %08x%04x received TSC "
 			       "%08x%04x\n", hdr->addr2,
 			       tkey->rx_iv32, tkey->rx_iv16, iv32, iv16);
@@ -500,8 +505,8 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 			 * it needs to be recalculated for the next packet. */
 			tkey->rx_phase1_done = 0;
 		}
-		if (ieee80211_ratelimit_debug(IEEE80211_DL_DROP)) {
-			IEEE80211_DEBUG_DROP("TKIP: ICV error detected: STA="
+		if (net_ratelimit()) {
+			printk(KERN_DEBUG "TKIP: ICV error detected: STA="
 			       "%pM\n", hdr->addr2);
 		}
 		tkey->dot11RSNAStatsTKIPICVErrors++;
@@ -545,13 +550,11 @@ static int michael_mic(struct crypto_hash *tfm_michael, u8 * key, u8 * hdr,
 
 static void michael_mic_hdr(struct sk_buff *skb, u8 * hdr)
 {
-	struct ieee80211_hdr_4addr *hdr11;
-	u16 stype;
+	struct ieee80211_hdr *hdr11;
 
-	hdr11 = (struct ieee80211_hdr_4addr *)skb->data;
-	stype  = WLAN_FC_GET_STYPE(le16_to_cpu(hdr11->frame_ctl));
+	hdr11 = (struct ieee80211_hdr *)skb->data;
 
-	switch (le16_to_cpu(hdr11->frame_ctl) &
+	switch (le16_to_cpu(hdr11->frame_control) &
 		(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS)) {
 	case IEEE80211_FCTL_TODS:
 		memcpy(hdr, hdr11->addr3, ETH_ALEN);	/* DA */
@@ -571,20 +574,19 @@ static void michael_mic_hdr(struct sk_buff *skb, u8 * hdr)
 		break;
 	}
 
-	if (stype & IEEE80211_STYPE_QOS_DATA) {
-		const struct ieee80211_hdr_3addrqos *qoshdr =
-			(struct ieee80211_hdr_3addrqos *)skb->data;
-		hdr[12] = le16_to_cpu(qoshdr->qos_ctl) & IEEE80211_QCTL_TID;
+	if (ieee80211_is_data_qos(hdr11->frame_control)) {
+		hdr[12] = le16_to_cpu(*ieee80211_get_qos_ctl(hdr11))
+			& IEEE80211_QOS_CTL_TID_MASK;
 	} else
 		hdr[12] = 0;		/* priority */
 
 	hdr[13] = hdr[14] = hdr[15] = 0;	/* reserved */
 }
 
-static int ieee80211_michael_mic_add(struct sk_buff *skb, int hdr_len,
+static int lib80211_michael_mic_add(struct sk_buff *skb, int hdr_len,
 				     void *priv)
 {
-	struct ieee80211_tkip_data *tkey = priv;
+	struct lib80211_tkip_data *tkey = priv;
 	u8 *pos;
 
 	if (skb_tailroom(skb) < 8 || skb->len < hdr_len) {
@@ -603,8 +605,8 @@ static int ieee80211_michael_mic_add(struct sk_buff *skb, int hdr_len,
 	return 0;
 }
 
-static void ieee80211_michael_mic_failure(struct net_device *dev,
-					  struct ieee80211_hdr_4addr *hdr,
+static void lib80211_michael_mic_failure(struct net_device *dev,
+					  struct ieee80211_hdr *hdr,
 					  int keyidx)
 {
 	union iwreq_data wrqu;
@@ -624,10 +626,10 @@ static void ieee80211_michael_mic_failure(struct net_device *dev,
 	wireless_send_event(dev, IWEVMICHAELMICFAILURE, &wrqu, (char *)&ev);
 }
 
-static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
+static int lib80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 					int hdr_len, void *priv)
 {
-	struct ieee80211_tkip_data *tkey = priv;
+	struct lib80211_tkip_data *tkey = priv;
 	u8 mic[8];
 
 	if (!tkey->key_set)
@@ -638,14 +640,14 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 			skb->data + hdr_len, skb->len - 8 - hdr_len, mic))
 		return -1;
 	if (memcmp(mic, skb->data + skb->len - 8, 8) != 0) {
-		struct ieee80211_hdr_4addr *hdr;
-		hdr = (struct ieee80211_hdr_4addr *)skb->data;
+		struct ieee80211_hdr *hdr;
+		hdr = (struct ieee80211_hdr *)skb->data;
 		printk(KERN_DEBUG "%s: Michael MIC verification failed for "
 		       "MSDU from %pM keyidx=%d\n",
 		       skb->dev ? skb->dev->name : "N/A", hdr->addr2,
 		       keyidx);
 		if (skb->dev)
-			ieee80211_michael_mic_failure(skb->dev, hdr, keyidx);
+			lib80211_michael_mic_failure(skb->dev, hdr, keyidx);
 		tkey->dot11RSNAStatsTKIPLocalMICFailures++;
 		return -1;
 	}
@@ -660,9 +662,9 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 	return 0;
 }
 
-static int ieee80211_tkip_set_key(void *key, int len, u8 * seq, void *priv)
+static int lib80211_tkip_set_key(void *key, int len, u8 * seq, void *priv)
 {
-	struct ieee80211_tkip_data *tkey = priv;
+	struct lib80211_tkip_data *tkey = priv;
 	int keyidx;
 	struct crypto_hash *tfm = tkey->tx_tfm_michael;
 	struct crypto_blkcipher *tfm2 = tkey->tx_tfm_arc4;
@@ -693,9 +695,9 @@ static int ieee80211_tkip_set_key(void *key, int len, u8 * seq, void *priv)
 	return 0;
 }
 
-static int ieee80211_tkip_get_key(void *key, int len, u8 * seq, void *priv)
+static int lib80211_tkip_get_key(void *key, int len, u8 * seq, void *priv)
 {
-	struct ieee80211_tkip_data *tkey = priv;
+	struct lib80211_tkip_data *tkey = priv;
 
 	if (len < TKIP_KEY_LEN)
 		return -1;
@@ -722,9 +724,9 @@ static int ieee80211_tkip_get_key(void *key, int len, u8 * seq, void *priv)
 	return TKIP_KEY_LEN;
 }
 
-static char *ieee80211_tkip_print_stats(char *p, void *priv)
+static char *lib80211_tkip_print_stats(char *p, void *priv)
 {
-	struct ieee80211_tkip_data *tkip = priv;
+	struct lib80211_tkip_data *tkip = priv;
 	p += sprintf(p, "key[%d] alg=TKIP key_set=%d "
 		     "tx_pn=%02x%02x%02x%02x%02x%02x "
 		     "rx_pn=%02x%02x%02x%02x%02x%02x "
@@ -748,35 +750,35 @@ static char *ieee80211_tkip_print_stats(char *p, void *priv)
 	return p;
 }
 
-static struct ieee80211_crypto_ops ieee80211_crypt_tkip = {
+static struct lib80211_crypto_ops lib80211_crypt_tkip = {
 	.name = "TKIP",
-	.init = ieee80211_tkip_init,
-	.deinit = ieee80211_tkip_deinit,
-	.build_iv = ieee80211_tkip_hdr,
-	.encrypt_mpdu = ieee80211_tkip_encrypt,
-	.decrypt_mpdu = ieee80211_tkip_decrypt,
-	.encrypt_msdu = ieee80211_michael_mic_add,
-	.decrypt_msdu = ieee80211_michael_mic_verify,
-	.set_key = ieee80211_tkip_set_key,
-	.get_key = ieee80211_tkip_get_key,
-	.print_stats = ieee80211_tkip_print_stats,
+	.init = lib80211_tkip_init,
+	.deinit = lib80211_tkip_deinit,
+	.build_iv = lib80211_tkip_hdr,
+	.encrypt_mpdu = lib80211_tkip_encrypt,
+	.decrypt_mpdu = lib80211_tkip_decrypt,
+	.encrypt_msdu = lib80211_michael_mic_add,
+	.decrypt_msdu = lib80211_michael_mic_verify,
+	.set_key = lib80211_tkip_set_key,
+	.get_key = lib80211_tkip_get_key,
+	.print_stats = lib80211_tkip_print_stats,
 	.extra_mpdu_prefix_len = 4 + 4,	/* IV + ExtIV */
 	.extra_mpdu_postfix_len = 4,	/* ICV */
 	.extra_msdu_postfix_len = 8,	/* MIC */
-	.get_flags = ieee80211_tkip_get_flags,
-	.set_flags = ieee80211_tkip_set_flags,
+	.get_flags = lib80211_tkip_get_flags,
+	.set_flags = lib80211_tkip_set_flags,
 	.owner = THIS_MODULE,
 };
 
-static int __init ieee80211_crypto_tkip_init(void)
+static int __init lib80211_crypto_tkip_init(void)
 {
-	return ieee80211_register_crypto_ops(&ieee80211_crypt_tkip);
+	return lib80211_register_crypto_ops(&lib80211_crypt_tkip);
 }
 
-static void __exit ieee80211_crypto_tkip_exit(void)
+static void __exit lib80211_crypto_tkip_exit(void)
 {
-	ieee80211_unregister_crypto_ops(&ieee80211_crypt_tkip);
+	lib80211_unregister_crypto_ops(&lib80211_crypt_tkip);
 }
 
-module_init(ieee80211_crypto_tkip_init);
-module_exit(ieee80211_crypto_tkip_exit);
+module_init(lib80211_crypto_tkip_init);
+module_exit(lib80211_crypto_tkip_exit);

@@ -30,6 +30,8 @@
 #include <linux/wireless.h>
 #include <linux/ieee80211.h>
 
+#include <net/lib80211.h>
+
 #define IEEE80211_VERSION "git-1.1.13"
 
 #define IEEE80211_DATA_LEN		2304
@@ -354,8 +356,6 @@ struct ieee80211_stats {
 };
 
 struct ieee80211_device;
-
-#include "ieee80211_crypt.h"
 
 #define SEC_KEY_1		(1<<0)
 #define SEC_KEY_2		(1<<1)
@@ -937,11 +937,7 @@ struct ieee80211_device {
 	size_t wpa_ie_len;
 	u8 *wpa_ie;
 
-	struct list_head crypt_deinit_list;
-	struct ieee80211_crypt_data *crypt[WEP_KEYS];
-	int tx_keyidx;		/* default TX key index (crypt[tx_keyidx]) */
-	struct timer_list crypt_deinit_timer;
-	int crypt_quiesced;
+	struct lib80211_crypt_info crypt_info;
 
 	int bcrx_sta_key;	/* use individual keys to override default keys even
 				 * with RX of broad/multicast frames */
