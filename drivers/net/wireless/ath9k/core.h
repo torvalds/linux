@@ -415,12 +415,6 @@ int ath_rx_subframe(struct ath_node *an, struct sk_buff *skb,
 #define WME_AC_VO               3 /* voice */
 #define WME_NUM_AC              4
 
-enum ATH_SM_PWRSAV{
-	ATH_SM_ENABLE,
-	ATH_SM_PWRSAV_STATIC,
-	ATH_SM_PWRSAV_DYNAMIC,
-};
-
 /*
  * Data transmit queue state.  One of these exists for each
  * hardware transmit queue.  Packets sent to us from above
@@ -619,7 +613,6 @@ struct ath_node {
 	struct ath_softc *an_sc;
 	struct ath_chainmask_sel an_chainmask_sel;
 	struct ath_node_aggr an_aggr;
-	u8 an_smmode; /* SM Power save mode */
 	u16 maxampdu;
 	u8 mpdudensity;
 };

@@ -575,7 +575,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 	struct ath_desc *ds = bf->bf_desc;
 	struct ath_desc *lastds = bf->bf_lastbf->bf_desc;
 	struct ath9k_11n_rate_series series[4];
-	int i, flags, rtsctsena = 0, dynamic_mimops = 0;
+	int i, flags, rtsctsena = 0;
 	u32 ctsduration = 0;
 	u8 rix = 0, cix, ctsrate = 0;
 	u32 aggr_limit_with_rts = ah->ah_caps.rts_aggr_limit;
@@ -631,18 +631,6 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 		 */
 		if (!rtsctsena)
 			flags = ATH9K_TXDESC_RTSENA;
-		/*
-		 * For dynamic MIMO PS, RTS needs to precede the first aggregate
-		 * and the second aggregate should have any protection at all.
-		 */
-		if (an && an->an_smmode == ATH_SM_PWRSAV_DYNAMIC) {
-			if (!bf_isaggrburst(bf)) {
-				flags = ATH9K_TXDESC_RTSENA;
-				dynamic_mimops = 1;
-			} else {
-				flags = 0;
-			}
-		}
 	}
 
 	/*
@@ -707,32 +695,13 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 			(bf->bf_rcs[i].flags & ATH_RC_SGI_FLAG),
 			bf_isshpreamble(bf));
 
-		if (an && (an->an_smmode == ATH_SM_PWRSAV_STATIC) &&
-		    (bf->bf_rcs[i].flags & ATH_RC_DS_FLAG) == 0) {
-			/*
-			 * When sending to an HT node that has enabled static
-			 * SM/MIMO power save, send at single stream rates but
-			 * use maximum allowed transmit chains per user,
-			 * hardware, regulatory, or country limits for
-			 * better range.
-			 */
+		if (bf_isht(bf))
+			series[i].ChSel =
+				ath_chainmask_sel_logic(sc, an);
+		else
 			series[i].ChSel = sc->sc_tx_chainmask;
-		} else {
-			if (bf_isht(bf))
-				series[i].ChSel =
-					ath_chainmask_sel_logic(sc, an);
-			else
-				series[i].ChSel = sc->sc_tx_chainmask;
-		}
 
 		if (rtsctsena)
-			series[i].RateFlags |= ATH9K_RATESERIES_RTS_CTS;
-
-		/*
-		 * Set RTS for all rates if node is in dynamic powersave
-		 * mode and we are using dual stream rates.
-		 */
-		if (dynamic_mimops && (bf->bf_rcs[i].flags & ATH_RC_DS_FLAG))
 			series[i].RateFlags |= ATH9K_RATESERIES_RTS_CTS;
 	}
 
@@ -2520,10 +2489,8 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 		if (tid->paused)    /* check next tid to keep h/w busy */
 			continue;
 
-		if (!(tid->an->an_smmode == ATH_SM_PWRSAV_DYNAMIC) ||
-		    ((txq->axq_depth % 2) == 0)) {
+		if ((txq->axq_depth % 2) == 0)
 			ath_tx_sched_aggr(sc, txq, tid);
-		}
 
 		/*
 		 * add tid to round-robin queue if more frames
