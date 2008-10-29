@@ -297,6 +297,7 @@ struct btrfs_super_block {
 	__le32 leafsize;
 	__le32 stripesize;
 	__le32 sys_chunk_array_size;
+	__le64 chunk_root_generation;
 	u8 root_level;
 	u8 chunk_root_level;
 	u8 log_root_level;
@@ -448,6 +449,7 @@ struct btrfs_dir_item {
 
 struct btrfs_root_item {
 	struct btrfs_inode_item inode;
+	__le64 generation;
 	__le64 root_dirid;
 	__le64 bytenr;
 	__le64 byte_limit;
@@ -1396,10 +1398,14 @@ static inline int btrfs_is_leaf(struct extent_buffer *eb)
 }
 
 /* struct btrfs_root_item */
+BTRFS_SETGET_FUNCS(disk_root_generation, struct btrfs_root_item,
+		   generation, 64);
 BTRFS_SETGET_FUNCS(disk_root_refs, struct btrfs_root_item, refs, 32);
 BTRFS_SETGET_FUNCS(disk_root_bytenr, struct btrfs_root_item, bytenr, 64);
 BTRFS_SETGET_FUNCS(disk_root_level, struct btrfs_root_item, level, 8);
 
+BTRFS_SETGET_STACK_FUNCS(root_generation, struct btrfs_root_item,
+			 generation, 64);
 BTRFS_SETGET_STACK_FUNCS(root_bytenr, struct btrfs_root_item, bytenr, 64);
 BTRFS_SETGET_STACK_FUNCS(root_level, struct btrfs_root_item, level, 8);
 BTRFS_SETGET_STACK_FUNCS(root_dirid, struct btrfs_root_item, root_dirid, 64);
@@ -1416,6 +1422,8 @@ BTRFS_SETGET_STACK_FUNCS(super_generation, struct btrfs_super_block,
 BTRFS_SETGET_STACK_FUNCS(super_root, struct btrfs_super_block, root, 64);
 BTRFS_SETGET_STACK_FUNCS(super_sys_array_size,
 			 struct btrfs_super_block, sys_chunk_array_size, 32);
+BTRFS_SETGET_STACK_FUNCS(super_chunk_root_generation,
+			 struct btrfs_super_block, chunk_root_generation, 64);
 BTRFS_SETGET_STACK_FUNCS(super_root_level, struct btrfs_super_block,
 			 root_level, 8);
 BTRFS_SETGET_STACK_FUNCS(super_chunk_root, struct btrfs_super_block,

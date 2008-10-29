@@ -117,6 +117,7 @@ int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
 	inode_item->mode = cpu_to_le32(S_IFDIR | 0755);
 
 	btrfs_set_root_bytenr(&root_item, leaf->start);
+	btrfs_set_root_generation(&root_item, trans->transid);
 	btrfs_set_root_level(&root_item, 0);
 	btrfs_set_root_refs(&root_item, 0);
 	btrfs_set_root_used(&root_item, 0);
@@ -2065,6 +2066,7 @@ static int update_log_root(struct btrfs_trans_handle *trans,
 		return 0;
 
 	btrfs_set_root_bytenr(&log->root_item, log->node->start);
+	btrfs_set_root_generation(&log->root_item, trans->transid);
 	btrfs_set_root_level(&log->root_item, btrfs_header_level(log->node));
 	ret = btrfs_update_root(trans, log->fs_info->log_root_tree,
 				&log->root_key, &log->root_item);

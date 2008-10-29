@@ -832,6 +832,7 @@ static int find_and_setup_root(struct btrfs_root *tree_root,
 {
 	int ret;
 	u32 blocksize;
+	u64 generation;
 
 	__setup_root(tree_root->nodesize, tree_root->leafsize,
 		     tree_root->sectorsize, tree_root->stripesize,
@@ -840,9 +841,10 @@ static int find_and_setup_root(struct btrfs_root *tree_root,
 				   &root->root_item, &root->root_key);
 	BUG_ON(ret);
 
+	generation = btrfs_root_generation(&root->root_item);
 	blocksize = btrfs_level_size(root, btrfs_root_level(&root->root_item));
 	root->node = read_tree_block(root, btrfs_root_bytenr(&root->root_item),
-				     blocksize, 0);
+				     blocksize, generation);
 	BUG_ON(!root->node);
 	return 0;
 }
@@ -929,6 +931,7 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
 	struct btrfs_path *path;
 	struct extent_buffer *l;
 	u64 highest_inode;
+	u64 generation;
 	u32 blocksize;
 	int ret = 0;
 
@@ -970,9 +973,10 @@ out:
 		kfree(root);
 		return ERR_PTR(ret);
 	}
+	generation = btrfs_root_generation(&root->root_item);
 	blocksize = btrfs_level_size(root, btrfs_root_level(&root->root_item));
 	root->node = read_tree_block(root, btrfs_root_bytenr(&root->root_item),
-				     blocksize, 0);
+				     blocksize, generation);
 	BUG_ON(!root->node);
 insert:
 	if (location->objectid != BTRFS_TREE_LOG_OBJECTID) {
@@ -1357,6 +1361,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	u32 leafsize;
 	u32 blocksize;
 	u32 stripesize;
+	u64 generation;
 	struct buffer_head *bh;
 	struct btrfs_root *extent_root = kzalloc(sizeof(struct btrfs_root),
 						 GFP_NOFS);
@@ -1596,13 +1601,14 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	blocksize = btrfs_level_size(tree_root,
 				     btrfs_super_chunk_root_level(disk_super));
+	generation = btrfs_super_chunk_root_generation(disk_super);
 
 	__setup_root(nodesize, leafsize, sectorsize, stripesize,
 		     chunk_root, fs_info, BTRFS_CHUNK_TREE_OBJECTID);
 
 	chunk_root->node = read_tree_block(chunk_root,
 					   btrfs_super_chunk_root(disk_super),
-					   blocksize, 0);
+					   blocksize, generation);
 	BUG_ON(!chunk_root->node);
 
 	read_extent_buffer(chunk_root->node, fs_info->chunk_tree_uuid,
@@ -1618,11 +1624,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	blocksize = btrfs_level_size(tree_root,
 				     btrfs_super_root_level(disk_super));
-
+	generation = btrfs_super_generation(disk_super);
 
 	tree_root->node = read_tree_block(tree_root,
 					  btrfs_super_root(disk_super),
-					  blocksize, 0);
+					  blocksize, generation);
 	if (!tree_root->node)
 		goto fail_sb_buffer;
 
@@ -1672,15 +1678,16 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 			     log_tree_root, fs_info, BTRFS_TREE_LOG_OBJECTID);
 
 		log_tree_root->node = read_tree_block(tree_root, bytenr,
-						      blocksize, 0);
+						      blocksize,
+						      generation + 1);
 		ret = btrfs_recover_log_trees(log_tree_root);
 		BUG_ON(ret);
 	}
+	fs_info->last_trans_committed = btrfs_super_generation(disk_super);
 
 	ret = btrfs_cleanup_reloc_trees(tree_root);
 	BUG_ON(ret);
 
-	fs_info->last_trans_committed = btrfs_super_generation(disk_super);
 	return tree_root;
 
 fail_cleaner:

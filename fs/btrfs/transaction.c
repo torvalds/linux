@@ -439,6 +439,7 @@ static int update_cowonly_root(struct btrfs_trans_handle *trans,
 				       root->node->start);
 		btrfs_set_root_level(&root->root_item,
 				     btrfs_header_level(root->node));
+		btrfs_set_root_generation(&root->root_item, trans->transid);
 		ret = btrfs_update_root(trans, tree_root,
 					&root->root_key,
 					&root->root_item);
@@ -456,6 +457,12 @@ int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct list_head *next;
+	struct extent_buffer *eb;
+
+	eb = btrfs_lock_root_node(fs_info->tree_root);
+	btrfs_cow_block(trans, fs_info->tree_root, eb, NULL, 0, &eb, 0);
+	btrfs_tree_unlock(eb);
+	free_extent_buffer(eb);
 
 	while(!list_empty(&fs_info->dirty_cowonly_roots)) {
 		next = fs_info->dirty_cowonly_roots.next;
@@ -559,6 +566,9 @@ static noinline int add_dirty_roots(struct btrfs_trans_handle *trans,
 					      root->node->start);
 			btrfs_set_root_level(&root->root_item,
 					     btrfs_header_level(root->node));
+			btrfs_set_root_generation(&root->root_item,
+						  root->root_key.offset);
+
 			err = btrfs_insert_root(trans, root->fs_info->tree_root,
 						&root->root_key,
 						&root->root_item);
@@ -756,6 +766,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 
 	btrfs_set_root_bytenr(new_root_item, tmp->start);
 	btrfs_set_root_level(new_root_item, btrfs_header_level(tmp));
+	btrfs_set_root_generation(new_root_item, trans->transid);
 	ret = btrfs_insert_root(trans, root->fs_info->tree_root, &key,
 				new_root_item);
 	btrfs_tree_unlock(tmp);
@@ -946,6 +957,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 				   chunk_root->node->start);
 	btrfs_set_super_chunk_root_level(&root->fs_info->super_copy,
 					 btrfs_header_level(chunk_root->node));
+	btrfs_set_super_chunk_root_generation(&root->fs_info->super_copy,
+				btrfs_header_generation(chunk_root->node));
 
 	if (!root->fs_info->log_root_recovering) {
 		btrfs_set_super_log_root(&root->fs_info->super_copy, 0);

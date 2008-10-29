@@ -4428,6 +4428,7 @@ static int noinline init_reloc_tree(struct btrfs_trans_handle *trans,
 	btrfs_set_root_refs(root_item, 0);
 	btrfs_set_root_bytenr(root_item, eb->start);
 	btrfs_set_root_level(root_item, btrfs_header_level(eb));
+	btrfs_set_root_generation(root_item, trans->transid);
 
 	btrfs_tree_unlock(eb);
 	free_extent_buffer(eb);

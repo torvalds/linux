@@ -108,6 +108,7 @@ static noinline int create_subvol(struct btrfs_root *root,
 	inode_item->mode = cpu_to_le32(S_IFDIR | 0755);
 
 	btrfs_set_root_bytenr(&root_item, leaf->start);
+	btrfs_set_root_generation(&root_item, trans->transid);
 	btrfs_set_root_level(&root_item, 0);
 	btrfs_set_root_refs(&root_item, 1);
 	btrfs_set_root_used(&root_item, 0);
