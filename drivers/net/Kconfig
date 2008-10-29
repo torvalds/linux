@@ -1414,19 +1414,6 @@ config TC35815
 	depends on NET_PCI && PCI && MIPS
 	select PHYLIB
 
-config EEPRO100
-	tristate "EtherExpressPro/100 support (eepro100, original Becker driver)"
-	depends on NET_PCI && PCI
-	select MII
-	help
-	  If you have an Intel EtherExpress PRO/100 PCI network (Ethernet)
-	  card, say Y and read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called eepro100.
-
-
 config E100
 	tristate "Intel(R) PRO/100+ support"
 	depends on NET_PCI && PCI
