@@ -125,9 +125,6 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	if (is_extent)
 		btrfs_extent_post_op(trans, root);
 out:
-	if (is_extent)
-		mutex_unlock(&root->fs_info->alloc_mutex);
-
 	if (path)
 		btrfs_free_path(path);
 	if (ret == -EAGAIN) {

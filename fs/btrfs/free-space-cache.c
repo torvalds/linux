@@ -184,8 +184,8 @@ static int link_free_space(struct btrfs_block_group_cache *block_group,
 	return ret;
 }
 
-int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
-			 u64 offset, u64 bytes)
+static int __btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
+				  u64 offset, u64 bytes)
 {
 	struct btrfs_free_space *right_info;
 	struct btrfs_free_space *left_info;
@@ -202,8 +202,6 @@ int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
 	 * are adding, if there is remove that struct and add a new one to
 	 * cover the entire range
 	 */
-	spin_lock(&block_group->lock);
-
 	right_info = tree_search_offset(&block_group->free_space_offset,
 					offset+bytes, 0, 1);
 	left_info = tree_search_offset(&block_group->free_space_offset,
@@ -261,7 +259,6 @@ int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
 	if (ret)
 		kfree(info);
 out:
-	spin_unlock(&block_group->lock);
 	if (ret) {
 		printk(KERN_ERR "btrfs: unable to add free space :%d\n", ret);
 		if (ret == -EEXIST)
@@ -274,13 +271,13 @@ out:
 	return ret;
 }
 
-int btrfs_remove_free_space(struct btrfs_block_group_cache *block_group,
-			    u64 offset, u64 bytes)
+static int
+__btrfs_remove_free_space(struct btrfs_block_group_cache *block_group,
+			  u64 offset, u64 bytes)
 {
 	struct btrfs_free_space *info;
 	int ret = 0;
 
-	spin_lock(&block_group->lock);
 	info = tree_search_offset(&block_group->free_space_offset, offset, 0,
 				  1);
 
@@ -334,17 +331,63 @@ int btrfs_remove_free_space(struct btrfs_block_group_cache *block_group,
 		/* step two, insert a new info struct to cover anything
 		 * before the hole
 		 */
-		spin_unlock(&block_group->lock);
-		ret = btrfs_add_free_space(block_group, old_start,
-					   offset - old_start);
+		ret = __btrfs_add_free_space(block_group, old_start,
+					     offset - old_start);
 		BUG_ON(ret);
-		goto out_nolock;
 	} else {
 		WARN_ON(1);
 	}
 out:
-	spin_unlock(&block_group->lock);
-out_nolock:
+	return ret;
+}
+
+int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
+			 u64 offset, u64 bytes)
+{
+	int ret;
+	struct btrfs_free_space *sp;
+
+	mutex_lock(&block_group->alloc_mutex);
+	ret = __btrfs_add_free_space(block_group, offset, bytes);
+	sp = tree_search_offset(&block_group->free_space_offset, offset, 0, 1);
+	BUG_ON(!sp);
+	mutex_unlock(&block_group->alloc_mutex);
+
+	return ret;
+}
+
+int btrfs_add_free_space_lock(struct btrfs_block_group_cache *block_group,
+			      u64 offset, u64 bytes)
+{
+	int ret;
+	struct btrfs_free_space *sp;
+
+	ret = __btrfs_add_free_space(block_group, offset, bytes);
+	sp = tree_search_offset(&block_group->free_space_offset, offset, 0, 1);
+	BUG_ON(!sp);
+
+	return ret;
+}
+
+int btrfs_remove_free_space(struct btrfs_block_group_cache *block_group,
+			    u64 offset, u64 bytes)
+{
+	int ret = 0;
+
+	mutex_lock(&block_group->alloc_mutex);
+	ret = __btrfs_remove_free_space(block_group, offset, bytes);
+	mutex_unlock(&block_group->alloc_mutex);
+
+	return ret;
+}
+
+int btrfs_remove_free_space_lock(struct btrfs_block_group_cache *block_group,
+				 u64 offset, u64 bytes)
+{
+	int ret;
+
+	ret = __btrfs_remove_free_space(block_group, offset, bytes);
+
 	return ret;
 }
 
@@ -386,18 +429,18 @@ void btrfs_remove_free_space_cache(struct btrfs_block_group_cache *block_group)
 	struct btrfs_free_space *info;
 	struct rb_node *node;
 
-	spin_lock(&block_group->lock);
+	mutex_lock(&block_group->alloc_mutex);
 	while ((node = rb_last(&block_group->free_space_bytes)) != NULL) {
 		info = rb_entry(node, struct btrfs_free_space, bytes_index);
 		unlink_free_space(block_group, info);
 		kfree(info);
 		if (need_resched()) {
-			spin_unlock(&block_group->lock);
+			mutex_unlock(&block_group->alloc_mutex);
 			cond_resched();
-			spin_lock(&block_group->lock);
+			mutex_lock(&block_group->alloc_mutex);
 		}
 	}
-	spin_unlock(&block_group->lock);
+	mutex_unlock(&block_group->alloc_mutex);
 }
 
 struct btrfs_free_space *btrfs_find_free_space_offset(struct
@@ -407,10 +450,10 @@ struct btrfs_free_space *btrfs_find_free_space_offset(struct
 {
 	struct btrfs_free_space *ret;
 
-	spin_lock(&block_group->lock);
+	mutex_lock(&block_group->alloc_mutex);
 	ret = tree_search_offset(&block_group->free_space_offset, offset,
 				 bytes, 0);
-	spin_unlock(&block_group->lock);
+	mutex_unlock(&block_group->alloc_mutex);
 
 	return ret;
 }
@@ -422,10 +465,10 @@ struct btrfs_free_space *btrfs_find_free_space_bytes(struct
 {
 	struct btrfs_free_space *ret;
 
-	spin_lock(&block_group->lock);
+	mutex_lock(&block_group->alloc_mutex);
 
 	ret = tree_search_bytes(&block_group->free_space_bytes, offset, bytes);
-	spin_unlock(&block_group->lock);
+	mutex_unlock(&block_group->alloc_mutex);
 
 	return ret;
 }
@@ -434,16 +477,13 @@ struct btrfs_free_space *btrfs_find_free_space(struct btrfs_block_group_cache
 					       *block_group, u64 offset,
 					       u64 bytes)
 {
-	struct btrfs_free_space *ret;
+	struct btrfs_free_space *ret = NULL;
 
-	spin_lock(&block_group->lock);
 	ret = tree_search_offset(&block_group->free_space_offset, offset,
 				 bytes, 0);
 	if (!ret)
 		ret = tree_search_bytes(&block_group->free_space_bytes,
 					offset, bytes);
-
-	spin_unlock(&block_group->lock);
 
 	return ret;
 }

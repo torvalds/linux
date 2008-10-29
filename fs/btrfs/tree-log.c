@@ -271,10 +271,10 @@ static int process_one_buffer(struct btrfs_root *log,
 			      struct walk_control *wc, u64 gen)
 {
 	if (wc->pin) {
-		mutex_lock(&log->fs_info->alloc_mutex);
+		mutex_lock(&log->fs_info->pinned_mutex);
 		btrfs_update_pinned_extents(log->fs_info->extent_root,
 					    eb->start, eb->len, 1);
-		mutex_unlock(&log->fs_info->alloc_mutex);
+		mutex_unlock(&log->fs_info->pinned_mutex);
 	}
 
 	if (btrfs_buffer_uptodate(eb, gen)) {

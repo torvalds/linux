@@ -1387,8 +1387,7 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 	lowest_level = p->lowest_level;
 	WARN_ON(lowest_level && ins_len > 0);
 	WARN_ON(p->nodes[0] != NULL);
-	WARN_ON(cow && root == root->fs_info->extent_root &&
-		!mutex_is_locked(&root->fs_info->alloc_mutex));
+
 	if (ins_len < 0)
 		lowest_unlock = 2;
 

@@ -670,7 +670,6 @@ static noinline int drop_dirty_roots(struct btrfs_root *tree_root,
 		atomic_dec(&root->fs_info->throttles);
 		wake_up(&root->fs_info->transaction_throttle);
 
-		mutex_lock(&root->fs_info->alloc_mutex);
 		num_bytes -= btrfs_root_used(&dirty->root->root_item);
 		bytes_used = btrfs_root_used(&root->root_item);
 		if (num_bytes) {
@@ -678,7 +677,6 @@ static noinline int drop_dirty_roots(struct btrfs_root *tree_root,
 			btrfs_set_root_used(&root->root_item,
 					    bytes_used - num_bytes);
 		}
-		mutex_unlock(&root->fs_info->alloc_mutex);
 
 		ret = btrfs_del_root(trans, tree_root, &dirty->root->root_key);
 		if (ret) {

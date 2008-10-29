@@ -558,6 +558,7 @@ struct btrfs_block_group_cache {
 	struct btrfs_key key;
 	struct btrfs_block_group_item item;
 	spinlock_t lock;
+	struct mutex alloc_mutex;
 	u64 pinned;
 	u64 reserved;
 	u64 flags;
@@ -635,7 +636,8 @@ struct btrfs_fs_info {
 	struct mutex tree_log_mutex;
 	struct mutex transaction_kthread_mutex;
 	struct mutex cleaner_mutex;
-	struct mutex alloc_mutex;
+	struct mutex extent_ins_mutex;
+	struct mutex pinned_mutex;
 	struct mutex chunk_mutex;
 	struct mutex drop_mutex;
 	struct mutex volume_mutex;
@@ -1941,8 +1943,12 @@ int btrfs_acl_chmod(struct inode *inode);
 /* free-space-cache.c */
 int btrfs_add_free_space(struct btrfs_block_group_cache *block_group,
 			 u64 bytenr, u64 size);
+int btrfs_add_free_space_lock(struct btrfs_block_group_cache *block_group,
+			      u64 offset, u64 bytes);
 int btrfs_remove_free_space(struct btrfs_block_group_cache *block_group,
 			    u64 bytenr, u64 size);
+int btrfs_remove_free_space_lock(struct btrfs_block_group_cache *block_group,
+				 u64 offset, u64 bytes);
 void btrfs_remove_free_space_cache(struct btrfs_block_group_cache
 				   *block_group);
 struct btrfs_free_space *btrfs_find_free_space(struct btrfs_block_group_cache

@@ -58,14 +58,12 @@ void btrfs_unlock_volumes(void)
 
 static void lock_chunks(struct btrfs_root *root)
 {
-	mutex_lock(&root->fs_info->alloc_mutex);
 	mutex_lock(&root->fs_info->chunk_mutex);
 }
 
 static void unlock_chunks(struct btrfs_root *root)
 {
 	mutex_unlock(&root->fs_info->chunk_mutex);
-	mutex_unlock(&root->fs_info->alloc_mutex);
 }
 
 int btrfs_cleanup_fs_uuids(void)

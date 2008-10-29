@@ -938,6 +938,20 @@ int lock_extent(struct extent_io_tree *tree, u64 start, u64 end, gfp_t mask)
 }
 EXPORT_SYMBOL(lock_extent);
 
+int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end,
+		    gfp_t mask)
+{
+	int err;
+	u64 failed_start;
+
+	err = set_extent_bit(tree, start, end, EXTENT_LOCKED, 1,
+			     &failed_start, mask);
+	if (err == -EEXIST)
+		return 0;
+	return 1;
+}
+EXPORT_SYMBOL(try_lock_extent);
+
 int unlock_extent(struct extent_io_tree *tree, u64 start, u64 end,
 		  gfp_t mask)
 {

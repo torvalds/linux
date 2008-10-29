@@ -128,6 +128,8 @@ int try_release_extent_state(struct extent_map_tree *map,
 			     gfp_t mask);
 int lock_extent(struct extent_io_tree *tree, u64 start, u64 end, gfp_t mask);
 int unlock_extent(struct extent_io_tree *tree, u64 start, u64 end, gfp_t mask);
+int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end,
+		    gfp_t mask);
 int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
 			  get_extent_t *get_extent);
 int __init extent_io_init(void);
