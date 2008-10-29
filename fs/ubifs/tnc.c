@@ -2677,7 +2677,7 @@ int ubifs_tnc_remove_ino(struct ubifs_info *c, ino_t inum)
 	struct ubifs_dent_node *xent, *pxent = NULL;
 	struct qstr nm = { .name = NULL };
 
-	dbg_tnc("ino %lu", inum);
+	dbg_tnc("ino %lu", (unsigned long)inum);
 
 	/*
 	 * Walk all extended attribute entries and remove them together with
@@ -2697,7 +2697,8 @@ int ubifs_tnc_remove_ino(struct ubifs_info *c, ino_t inum)
 		}
 
 		xattr_inum = le64_to_cpu(xent->inum);
-		dbg_tnc("xent '%s', ino %lu", xent->name, xattr_inum);
+		dbg_tnc("xent '%s', ino %lu", xent->name,
+			(unsigned long)xattr_inum);
 
 		nm.name = xent->name;
 		nm.len = le16_to_cpu(xent->nlen);

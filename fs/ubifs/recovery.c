@@ -1435,13 +1435,13 @@ static int fix_size_in_place(struct ubifs_info *c, struct size_entry *e)
 	err = ubi_leb_change(c->ubi, lnum, c->sbuf, len, UBI_UNKNOWN);
 	if (err)
 		goto out;
-	dbg_rcvry("inode %lu at %d:%d size %lld -> %lld ", e->inum, lnum, offs,
-		  i_size, e->d_size);
+	dbg_rcvry("inode %lu at %d:%d size %lld -> %lld ",
+		  (unsigned long)e->inum, lnum, offs, i_size, e->d_size);
 	return 0;
 
 out:
 	ubifs_warn("inode %lu failed to fix size %lld -> %lld error %d",
-		   e->inum, e->i_size, e->d_size, err);
+		   (unsigned long)e->inum, e->i_size, e->d_size, err);
 	return err;
 }
 
@@ -1472,7 +1472,8 @@ int ubifs_recover_size(struct ubifs_info *c)
 				return err;
 			if (err == -ENOENT) {
 				/* Remove data nodes that have no inode */
-				dbg_rcvry("removing ino %lu", e->inum);
+				dbg_rcvry("removing ino %lu",
+					  (unsigned long)e->inum);
 				err = ubifs_tnc_remove_ino(c, e->inum);
 				if (err)
 					return err;
@@ -1493,8 +1494,8 @@ int ubifs_recover_size(struct ubifs_info *c)
 					return PTR_ERR(inode);
 				if (inode->i_size < e->d_size) {
 					dbg_rcvry("ino %lu size %lld -> %lld",
-						  e->inum, e->d_size,
-						  inode->i_size);
+						  (unsigned long)e->inum,
+						  e->d_size, inode->i_size);
 					inode->i_size = e->d_size;
 					ubifs_inode(inode)->ui_size = e->d_size;
 					e->inode = inode;
