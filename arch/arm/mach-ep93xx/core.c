@@ -26,6 +26,7 @@
 #include <linux/serial_core.h>
 #include <linux/device.h>
 #include <linux/mm.h>
+#include <linux/dma-mapping.h>
 #include <linux/time.h>
 #include <linux/timex.h>
 #include <linux/delay.h>
@@ -449,12 +450,13 @@ static struct resource ep93xx_ohci_resources[] = {
 	},
 };
 
+
 static struct platform_device ep93xx_ohci_device = {
 	.name		= "ep93xx-ohci",
 	.id		= -1,
 	.dev		= {
-		.dma_mask		= (void *)0xffffffff,
-		.coherent_dma_mask	= 0xffffffff,
+		.dma_mask		= &ep93xx_ohci_device.dev.coherent_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 	.num_resources	= ARRAY_SIZE(ep93xx_ohci_resources),
 	.resource	= ep93xx_ohci_resources,
