@@ -599,7 +599,7 @@ static inline int sci_rxd_in(struct uart_port *port)
 #elif defined(CONFIG_CPU_SUBTYPE_SH5_101) || defined(CONFIG_CPU_SUBTYPE_SH5_103)
 static inline int sci_rxd_in(struct uart_port *port)
 {
-         return sci_in(port, SCSPTR)&0x0001 ? 1 : 0; /* SCIF */
+         return sci_in(port, SCSPTR2)&0x0001 ? 1 : 0; /* SCIF */
 }
 #elif defined(__H8300H__) || defined(__H8300S__)
 static inline int sci_rxd_in(struct uart_port *port)
