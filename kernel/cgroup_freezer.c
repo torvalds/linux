@@ -275,25 +275,18 @@ static int try_to_freeze_cgroup(struct cgroup *cgroup, struct freezer *freezer)
 	return num_cant_freeze_now ? -EBUSY : 0;
 }
 
-static int unfreeze_cgroup(struct cgroup *cgroup, struct freezer *freezer)
+static void unfreeze_cgroup(struct cgroup *cgroup, struct freezer *freezer)
 {
 	struct cgroup_iter it;
 	struct task_struct *task;
 
 	cgroup_iter_start(cgroup, &it);
 	while ((task = cgroup_iter_next(cgroup, &it))) {
-		int do_wake;
-
-		task_lock(task);
-		do_wake = __thaw_process(task);
-		task_unlock(task);
-		if (do_wake)
-			wake_up_process(task);
+		thaw_process(task);
 	}
 	cgroup_iter_end(cgroup, &it);
-	freezer->state = CGROUP_THAWED;
 
-	return 0;
+	freezer->state = CGROUP_THAWED;
 }
 
 static int freezer_change_state(struct cgroup *cgroup,
@@ -320,7 +313,7 @@ static int freezer_change_state(struct cgroup *cgroup,
 		}
 		/* state == FREEZING and goal_state == THAWED, so unfreeze */
 	case CGROUP_FROZEN:
-		retval = unfreeze_cgroup(cgroup, freezer);
+		unfreeze_cgroup(cgroup, freezer);
 		break;
 	default:
 		break;
