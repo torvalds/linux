@@ -378,6 +378,19 @@ musb_giveback(struct musb_qh *qh, struct urb *urb, int status)
 
 		switch (qh->type) {
 
+		case USB_ENDPOINT_XFER_CONTROL:
+		case USB_ENDPOINT_XFER_BULK:
+			/* fifo policy for these lists, except that NAKing
+			 * should rotate a qh to the end (for fairness).
+			 */
+			if (qh->mux == 1) {
+				head = qh->ring.prev;
+				list_del(&qh->ring);
+				kfree(qh);
+				qh = first_qh(head);
+				break;
+			}
+
 		case USB_ENDPOINT_XFER_ISOC:
 		case USB_ENDPOINT_XFER_INT:
 			/* this is where periodic bandwidth should be
@@ -387,17 +400,6 @@ musb_giveback(struct musb_qh *qh, struct urb *urb, int status)
 			musb->periodic[ep->epnum] = NULL;
 			kfree(qh);
 			qh = NULL;
-			break;
-
-		case USB_ENDPOINT_XFER_CONTROL:
-		case USB_ENDPOINT_XFER_BULK:
-			/* fifo policy for these lists, except that NAKing
-			 * should rotate a qh to the end (for fairness).
-			 */
-			head = qh->ring.prev;
-			list_del(&qh->ring);
-			kfree(qh);
-			qh = first_qh(head);
 			break;
 		}
 	}
@@ -1708,22 +1710,9 @@ static int musb_schedule(
 	struct list_head	*head = NULL;
 
 	/* use fixed hardware for control and bulk */
-	switch (qh->type) {
-	case USB_ENDPOINT_XFER_CONTROL:
+	if (qh->type == USB_ENDPOINT_XFER_CONTROL) {
 		head = &musb->control;
 		hw_ep = musb->control_ep;
-		break;
-	case USB_ENDPOINT_XFER_BULK:
-		hw_ep = musb->bulk_ep;
-		if (is_in)
-			head = &musb->in_bulk;
-		else
-			head = &musb->out_bulk;
-		break;
-	}
-	if (head) {
-		idle = list_empty(head);
-		list_add_tail(&qh->ring, head);
 		goto success;
 	}
 
@@ -1762,19 +1751,34 @@ static int musb_schedule(
 		else
 			diff = hw_ep->max_packet_sz_tx - qh->maxpacket;
 
-		if (diff > 0 && best_diff > diff) {
+		if (diff >= 0 && best_diff > diff) {
 			best_diff = diff;
 			best_end = epnum;
 		}
 	}
-	if (best_end < 0)
+	/* use bulk reserved ep1 if no other ep is free */
+	if (best_end > 0 && qh->type == USB_ENDPOINT_XFER_BULK) {
+		hw_ep = musb->bulk_ep;
+		if (is_in)
+			head = &musb->in_bulk;
+		else
+			head = &musb->out_bulk;
+		goto success;
+	} else if (best_end < 0) {
 		return -ENOSPC;
+	}
 
 	idle = 1;
+	qh->mux = 0;
 	hw_ep = musb->endpoints + best_end;
 	musb->periodic[best_end] = qh;
 	DBG(4, "qh %p periodic slot %d\n", qh, best_end);
 success:
+	if (head) {
+		idle = list_empty(head);
+		list_add_tail(&qh->ring, head);
+		qh->mux = 1;
+	}
 	qh->hw_ep = hw_ep;
 	qh->hep->hcpriv = qh;
 	if (idle)
@@ -2052,11 +2056,13 @@ static int musb_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 			sched = &musb->control;
 			break;
 		case USB_ENDPOINT_XFER_BULK:
-			if (usb_pipein(urb->pipe))
-				sched = &musb->in_bulk;
-			else
-				sched = &musb->out_bulk;
-			break;
+			if (qh->mux == 1) {
+				if (usb_pipein(urb->pipe))
+					sched = &musb->in_bulk;
+				else
+					sched = &musb->out_bulk;
+				break;
+			}
 		default:
 			/* REVISIT when we get a schedule tree, periodic
 			 * transfers won't always be at the head of a
@@ -2104,11 +2110,13 @@ musb_h_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 		sched = &musb->control;
 		break;
 	case USB_ENDPOINT_XFER_BULK:
-		if (is_in)
-			sched = &musb->in_bulk;
-		else
-			sched = &musb->out_bulk;
-		break;
+		if (qh->mux == 1) {
+			if (is_in)
+				sched = &musb->in_bulk;
+			else
+				sched = &musb->out_bulk;
+			break;
+		}
 	default:
 		/* REVISIT when we get a schedule tree, periodic transfers
 		 * won't always be at the head of a singleton queue...
