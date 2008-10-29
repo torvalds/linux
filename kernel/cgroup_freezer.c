@@ -162,9 +162,13 @@ static int freezer_can_attach(struct cgroup_subsys *ss,
 			      struct task_struct *task)
 {
 	struct freezer *freezer;
-	int retval;
 
-	/* Anything frozen can't move or be moved to/from */
+	/*
+	 * Anything frozen can't move or be moved to/from.
+	 *
+	 * Since orig_freezer->state == FROZEN means that @task has been
+	 * frozen, so it's sufficient to check the latter condition.
+	 */
 
 	if (is_task_frozen_enough(task))
 		return -EBUSY;
@@ -173,13 +177,7 @@ static int freezer_can_attach(struct cgroup_subsys *ss,
 	if (freezer->state == CGROUP_FROZEN)
 		return -EBUSY;
 
-	retval = 0;
-	task_lock(task);
-	freezer = task_freezer(task);
-	if (freezer->state == CGROUP_FROZEN)
-		retval = -EBUSY;
-	task_unlock(task);
-	return retval;
+	return 0;
 }
 
 static void freezer_fork(struct cgroup_subsys *ss, struct task_struct *task)
