@@ -473,7 +473,7 @@ static int dmi_check_cb_p8010(const struct dmi_system_id *id)
 	return 0;
 }
 
-static struct dmi_system_id __initdata fujitsu_dmi_table[] = {
+static struct dmi_system_id fujitsu_dmi_table[] = {
 	{
 	 .ident = "Fujitsu Siemens S6410",
 	 .matches = {
