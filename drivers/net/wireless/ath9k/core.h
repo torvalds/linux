@@ -588,14 +588,6 @@ enum ATH_AGGR_STATUS {
 	ATH_AGGR_8K_LIMITED,
 };
 
-enum ATH_AGGR_CHECK {
-	AGGR_NOT_REQUIRED,
-	AGGR_REQUIRED,
-	AGGR_CLEANUP_PROGRESS,
-	AGGR_EXCHANGE_PROGRESS,
-	AGGR_EXCHANGE_DONE
-};
-
 struct aggr_rifs_param {
 	int param_max_frames;
 	int param_max_len;
@@ -621,8 +613,7 @@ struct ath_node {
 
 void ath_tx_resume_tid(struct ath_softc *sc,
 	struct ath_atx_tid *tid);
-enum ATH_AGGR_CHECK ath_tx_aggr_check(struct ath_softc *sc,
-	struct ath_node *an, u8 tidno);
+bool ath_tx_aggr_check(struct ath_softc *sc, struct ath_node *an, u8 tidno);
 void ath_tx_aggr_teardown(struct ath_softc *sc,
 	struct ath_node *an, u8 tidno);
 void ath_rx_aggr_teardown(struct ath_softc *sc,

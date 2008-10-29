@@ -2322,28 +2322,24 @@ u32 ath_txq_aggr_depth(struct ath_softc *sc, int qnum)
 	return sc->sc_txq[qnum].axq_aggr_depth;
 }
 
-/* Check if an ADDBA is required. A valid node must be passed. */
-enum ATH_AGGR_CHECK ath_tx_aggr_check(struct ath_softc *sc,
-				      struct ath_node *an,
-				      u8 tidno)
+bool ath_tx_aggr_check(struct ath_softc *sc, struct ath_node *an, u8 tidno)
 {
 	struct ath_atx_tid *txtid;
 
 	if (!(sc->sc_flags & SC_OP_TXAGGR))
-		return AGGR_NOT_REQUIRED;
+		return false;
 
-	/* ADDBA exchange must be completed before sending aggregates */
 	txtid = ATH_AN_2_TID(an, tidno);
 
 	if (!(txtid->state & AGGR_ADDBA_COMPLETE)) {
 		if (!(txtid->state & AGGR_ADDBA_PROGRESS) &&
 		    (txtid->addba_exchangeattempts < ADDBA_EXCHANGE_ATTEMPTS)) {
 			txtid->addba_exchangeattempts++;
-			return AGGR_REQUIRED;
+			return true;
 		}
 	}
 
-	return AGGR_NOT_REQUIRED;
+	return false;
 }
 
 /* Start TX aggregation */

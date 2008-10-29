@@ -1879,49 +1879,6 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	tx_info->control.vif = NULL;
 }
 
-static void ath_tx_aggr_resp(struct ath_softc *sc,
-			     struct ieee80211_supported_band *sband,
-			     struct ieee80211_sta *sta,
-			     struct ath_node *an,
-			     u8 tidno)
-{
-	struct ath_atx_tid *txtid;
-	u16 buffersize = 0;
-	int state;
-	struct sta_info *si;
-
-	if (!(sc->sc_flags & SC_OP_TXAGGR))
-		return;
-
-	txtid = ATH_AN_2_TID(an, tidno);
-	if (!txtid->paused)
-		return;
-
-	/*
-	 * XXX: This is entirely busted, we aren't supposed to
-	 *	access the sta from here because it's internal
-	 *	to mac80211, and looking at the state without
-	 *	locking is wrong too.
-	 */
-	si = container_of(sta, struct sta_info, sta);
-	buffersize = IEEE80211_MIN_AMPDU_BUF <<
-		sband->ht_cap.ampdu_factor; /* FIXME */
-	state = si->ampdu_mlme.tid_state_tx[tidno];
-
-	if (state & HT_ADDBA_RECEIVED_MSK) {
-		txtid->state |= AGGR_ADDBA_COMPLETE;
-		txtid->state &= ~AGGR_ADDBA_PROGRESS;
-		txtid->baw_size = buffersize;
-
-		DPRINTF(sc, ATH_DBG_AGGR,
-			"%s: Resuming tid, buffersize: %d\n",
-			__func__,
-			buffersize);
-
-		ath_tx_resume_tid(sc, txtid);
-	}
-}
-
 static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 			 struct ieee80211_tx_rate_control *txrc)
 {
@@ -1934,7 +1891,7 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	struct ath_rate_node *ath_rc_priv = priv_sta;
 	struct ath_node *an;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-	int is_probe = FALSE, chk, ret;
+	int is_probe = FALSE;
 	s8 lowest_idx;
 	__le16 fc = hdr->frame_control;
 	u8 *qc, tid;
@@ -1981,26 +1938,10 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 		if (ieee80211_is_data_qos(fc)) {
 			qc = ieee80211_get_qos_ctl(hdr);
 			tid = qc[0] & 0xf;
-
 			an = (struct ath_node *)sta->drv_priv;
 
-			chk = ath_tx_aggr_check(sc, an, tid);
-			if (chk == AGGR_REQUIRED) {
-				ret = ieee80211_start_tx_ba_session(hw,
-					hdr->addr1, tid);
-				if (ret)
-					DPRINTF(sc, ATH_DBG_AGGR,
-						"%s: Unable to start tx "
-						"aggr for: %pM\n",
-						__func__,
-						hdr->addr1);
-				else
-					DPRINTF(sc, ATH_DBG_AGGR,
-						"%s: Started tx aggr for: %pM\n",
-						__func__,
-						hdr->addr1);
-			} else if (chk == AGGR_EXCHANGE_PROGRESS)
-				ath_tx_aggr_resp(sc, sband, sta, an, tid);
+			if(ath_tx_aggr_check(sc, an, tid))
+				ieee80211_start_tx_ba_session(hw, hdr->addr1, tid);
 		}
 	}
 }
