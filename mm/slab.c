@@ -2997,7 +2997,7 @@ retry:
 		 * there must be at least one object available for
 		 * allocation.
 		 */
-		BUG_ON(slabp->inuse < 0 || slabp->inuse >= cachep->num);
+		BUG_ON(slabp->inuse >= cachep->num);
 
 		while (slabp->inuse < cachep->num && batchcount--) {
 			STATS_INC_ALLOCED(cachep);
