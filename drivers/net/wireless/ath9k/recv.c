@@ -1095,7 +1095,7 @@ rx_next:
 /* Process ADDBA request in per-TID data structure */
 
 int ath_rx_aggr_start(struct ath_softc *sc,
-		      const u8 *addr,
+		      struct ieee80211_sta *sta,
 		      u16 tid,
 		      u16 *ssn)
 {
@@ -1105,17 +1105,7 @@ int ath_rx_aggr_start(struct ath_softc *sc,
 	struct ieee80211_supported_band *sband;
 	u16 buffersize = 0;
 
-	spin_lock_bh(&sc->node_lock);
-	an = ath_node_find(sc, (u8 *) addr);
-	spin_unlock_bh(&sc->node_lock);
-
-	if (!an) {
-		DPRINTF(sc, ATH_DBG_AGGR,
-			"%s: Node not found to initialize RX aggregation\n",
-			__func__);
-		return -1;
-	}
-
+	an = (struct ath_node *)sta->drv_priv;
 	sband = hw->wiphy->bands[hw->conf.channel->band];
 	buffersize = IEEE80211_MIN_AMPDU_BUF <<
 		sband->ht_cap.ampdu_factor; /* FIXME */
@@ -1172,21 +1162,9 @@ int ath_rx_aggr_start(struct ath_softc *sc,
 
 /* Process DELBA */
 
-int ath_rx_aggr_stop(struct ath_softc *sc,
-		     const u8 *addr,
-		     u16 tid)
+int ath_rx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
 {
-	struct ath_node *an;
-
-	spin_lock_bh(&sc->node_lock);
-	an = ath_node_find(sc, (u8 *) addr);
-	spin_unlock_bh(&sc->node_lock);
-
-	if (!an) {
-		DPRINTF(sc, ATH_DBG_AGGR,
-			"%s: RX aggr stop for non-existent node\n", __func__);
-		return -1;
-	}
+	struct ath_node *an = (struct ath_node *)sta->drv_priv;
 
 	ath_rx_aggr_teardown(sc, an, tid);
 	return 0;
@@ -1194,8 +1172,7 @@ int ath_rx_aggr_stop(struct ath_softc *sc,
 
 /* Rx aggregation tear down */
 
-void ath_rx_aggr_teardown(struct ath_softc *sc,
-	struct ath_node *an, u8 tid)
+void ath_rx_aggr_teardown(struct ath_softc *sc, struct ath_node *an, u8 tid)
 {
 	struct ath_arx_tid *rxtid = &an->an_aggr.rx.tid[tid];
 
@@ -1253,7 +1230,7 @@ void ath_rx_node_init(struct ath_softc *sc, struct ath_node *an)
 	}
 }
 
-void ath_rx_node_cleanup(struct ath_softc *sc, struct ath_node *an)
+void ath_rx_node_free(struct ath_softc *sc, struct ath_node *an)
 {
 	if (sc->sc_flags & SC_OP_RXAGGR) {
 		struct ath_arx_tid *rxtid;
@@ -1280,11 +1257,4 @@ void ath_rx_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 		}
 	}
 
-}
-
-/* Cleanup per-node receive state */
-
-void ath_rx_node_free(struct ath_softc *sc, struct ath_node *an)
-{
-	ath_rx_node_cleanup(sc, an);
 }

@@ -47,6 +47,41 @@ static void bus_read_cachesize(struct ath_softc *sc, int *csz)
 		*csz = DEFAULT_CACHELINE >> 2;   /* Use the default size */
 }
 
+static u8 parse_mpdudensity(u8 mpdudensity)
+{
+	/*
+	 * 802.11n D2.0 defined values for "Minimum MPDU Start Spacing":
+	 *   0 for no restriction
+	 *   1 for 1/4 us
+	 *   2 for 1/2 us
+	 *   3 for 1 us
+	 *   4 for 2 us
+	 *   5 for 4 us
+	 *   6 for 8 us
+	 *   7 for 16 us
+	 */
+	switch (mpdudensity) {
+	case 0:
+		return 0;
+	case 1:
+	case 2:
+	case 3:
+		/* Our lower layer calculations limit our precision to
+		   1 microsecond */
+		return 1;
+	case 4:
+		return 2;
+	case 5:
+		return 4;
+	case 6:
+		return 8;
+	case 7:
+		return 16;
+	default:
+		return 0;
+	}
+}
+
 /*
  *  Set current operating mode
  *
@@ -1321,7 +1356,7 @@ void ath_deinit(struct ath_softc *sc)
 /* Node Management */
 /*******************/
 
-struct ath_node *ath_node_attach(struct ath_softc *sc, u8 *addr, int if_id)
+void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta, int if_id)
 {
 	struct ath_vap *avp;
 	struct ath_node *an;
@@ -1329,90 +1364,30 @@ struct ath_node *ath_node_attach(struct ath_softc *sc, u8 *addr, int if_id)
 	avp = sc->sc_vaps[if_id];
 	ASSERT(avp != NULL);
 
-	/* mac80211 sta_notify callback is from an IRQ context, so no sleep */
-	an = kmalloc(sizeof(struct ath_node), GFP_ATOMIC);
-	if (an == NULL)
-		return NULL;
-	memset(an, 0, sizeof(*an));
-
-	an->an_sc = sc;
-	memcpy(an->an_addr, addr, ETH_ALEN);
-	atomic_set(&an->an_refcnt, 1);
+	an = (struct ath_node *)sta->drv_priv;
 
 	/* set up per-node tx/rx state */
 	ath_tx_node_init(sc, an);
 	ath_rx_node_init(sc, an);
 
+	an->maxampdu = 1 << (IEEE80211_HTCAP_MAXRXAMPDU_FACTOR +
+			     sta->ht_cap.ampdu_factor);
+	an->mpdudensity = parse_mpdudensity(sta->ht_cap.ampdu_density);
+
 	ath_chainmask_sel_init(sc, an);
 	ath_chainmask_sel_timerstart(&an->an_chainmask_sel);
-	list_add(&an->list, &sc->node_list);
-
-	return an;
 }
 
-void ath_node_detach(struct ath_softc *sc, struct ath_node *an, bool bh_flag)
+void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta)
 {
-	unsigned long flags;
+	struct ath_node *an = (struct ath_node *)sta->drv_priv;
 
 	ath_chainmask_sel_timerstop(&an->an_chainmask_sel);
-	an->an_flags |= ATH_NODE_CLEAN;
-	ath_tx_node_cleanup(sc, an, bh_flag);
-	ath_rx_node_cleanup(sc, an);
+
+	ath_tx_node_cleanup(sc, an);
 
 	ath_tx_node_free(sc, an);
 	ath_rx_node_free(sc, an);
-
-	spin_lock_irqsave(&sc->node_lock, flags);
-
-	list_del(&an->list);
-
-	spin_unlock_irqrestore(&sc->node_lock, flags);
-
-	kfree(an);
-}
-
-/* Finds a node and increases the refcnt if found */
-
-struct ath_node *ath_node_get(struct ath_softc *sc, u8 *addr)
-{
-	struct ath_node *an = NULL, *an_found = NULL;
-
-	if (list_empty(&sc->node_list)) /* FIXME */
-		goto out;
-	list_for_each_entry(an, &sc->node_list, list) {
-		if (!compare_ether_addr(an->an_addr, addr)) {
-			atomic_inc(&an->an_refcnt);
-			an_found = an;
-			break;
-		}
-	}
-out:
-	return an_found;
-}
-
-/* Decrements the refcnt and if it drops to zero, detach the node */
-
-void ath_node_put(struct ath_softc *sc, struct ath_node *an, bool bh_flag)
-{
-	if (atomic_dec_and_test(&an->an_refcnt))
-		ath_node_detach(sc, an, bh_flag);
-}
-
-/* Finds a node, doesn't increment refcnt. Caller must hold sc->node_lock */
-struct ath_node *ath_node_find(struct ath_softc *sc, u8 *addr)
-{
-	struct ath_node *an = NULL, *an_found = NULL;
-
-	if (list_empty(&sc->node_list))
-		return NULL;
-
-	list_for_each_entry(an, &sc->node_list, list)
-		if (!compare_ether_addr(an->an_addr, addr)) {
-			an_found = an;
-			break;
-		}
-
-	return an_found;
 }
 
 /*
@@ -1437,7 +1412,6 @@ void ath_newassoc(struct ath_softc *sc,
 				ath_rx_aggr_teardown(sc, an, tidno);
 		}
 	}
-	an->an_flags = 0;
 }
 
 /**************/

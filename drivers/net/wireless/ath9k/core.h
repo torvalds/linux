@@ -373,7 +373,6 @@ void ath_flushrecv(struct ath_softc *sc);
 u32 ath_calcrxfilter(struct ath_softc *sc);
 void ath_rx_node_init(struct ath_softc *sc, struct ath_node *an);
 void ath_rx_node_free(struct ath_softc *sc, struct ath_node *an);
-void ath_rx_node_cleanup(struct ath_softc *sc, struct ath_node *an);
 void ath_handle_rx_intr(struct ath_softc *sc);
 int ath_rx_init(struct ath_softc *sc, int nbufs);
 void ath_rx_cleanup(struct ath_softc *sc);
@@ -546,8 +545,7 @@ void ath_draintxq(struct ath_softc *sc, bool retry_tx);
 void ath_tx_draintxq(struct ath_softc *sc,
 		     struct ath_txq *txq, bool retry_tx);
 void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an);
-void ath_tx_node_cleanup(struct ath_softc *sc,
-			 struct ath_node *an, bool bh_flag);
+void ath_tx_node_cleanup(struct ath_softc *sc, struct ath_node *an);
 void ath_tx_node_free(struct ath_softc *sc, struct ath_node *an);
 void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq);
 int ath_tx_init(struct ath_softc *sc, int nbufs);
@@ -568,11 +566,6 @@ void ath_tx_cabq(struct ath_softc *sc, struct sk_buff *skb);
 /* Node / Aggregation */
 /**********************/
 
-/* indicates the node is clened up */
-#define ATH_NODE_CLEAN          0x1
-/* indicates the node is 80211 power save */
-#define ATH_NODE_PWRSAVE        0x2
-
 #define ADDBA_EXCHANGE_ATTEMPTS    10
 #define ATH_AGGR_DELIM_SZ          4   /* delimiter size   */
 #define ATH_AGGR_MINPLEN           256 /* in bytes, minimum packet length */
@@ -584,6 +577,7 @@ void ath_tx_cabq(struct ath_softc *sc, struct sk_buff *skb);
 #define IEEE80211_SEQ_SEQ_SHIFT    4
 #define IEEE80211_SEQ_MAX          4096
 #define IEEE80211_MIN_AMPDU_BUF    0x8
+#define IEEE80211_HTCAP_MAXRXAMPDU_FACTOR 13
 
 /* return whether a bit at index _n in bitmap _bm is set
  * _sz is the size of the bitmap  */
@@ -638,15 +632,10 @@ struct ath_node_aggr {
 
 /* driver-specific node state */
 struct ath_node {
-	struct list_head list;
 	struct ath_softc *an_sc;
-	atomic_t an_refcnt;
 	struct ath_chainmask_sel an_chainmask_sel;
 	struct ath_node_aggr an_aggr;
 	u8 an_smmode; /* SM Power save mode */
-	u8 an_flags;
-	u8 an_addr[ETH_ALEN];
-
 	u16 maxampdu;
 	u8 mpdudensity;
 };
@@ -659,28 +648,17 @@ void ath_tx_aggr_teardown(struct ath_softc *sc,
 	struct ath_node *an, u8 tidno);
 void ath_rx_aggr_teardown(struct ath_softc *sc,
 	struct ath_node *an, u8 tidno);
-int ath_rx_aggr_start(struct ath_softc *sc,
-		      const u8 *addr,
-		      u16 tid,
-		      u16 *ssn);
-int ath_rx_aggr_stop(struct ath_softc *sc,
-		     const u8 *addr,
-		     u16 tid);
-int ath_tx_aggr_start(struct ath_softc *sc,
-		      const u8 *addr,
-		      u16 tid,
-		      u16 *ssn);
-int ath_tx_aggr_stop(struct ath_softc *sc,
-		     const u8 *addr,
-		     u16 tid);
+int ath_rx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
+		      u16 tid, u16 *ssn);
+int ath_rx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
+int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
+		      u16 tid, u16 *ssn);
+int ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
 void ath_newassoc(struct ath_softc *sc,
 	struct ath_node *node, int isnew, int isuapsd);
-struct ath_node *ath_node_attach(struct ath_softc *sc,
-	u8 addr[ETH_ALEN], int if_id);
-void ath_node_detach(struct ath_softc *sc, struct ath_node *an, bool bh_flag);
-struct ath_node *ath_node_get(struct ath_softc *sc, u8 addr[ETH_ALEN]);
-void ath_node_put(struct ath_softc *sc, struct ath_node *an, bool bh_flag);
-struct ath_node *ath_node_find(struct ath_softc *sc, u8 *addr);
+void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
+		     int if_id);
+void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta);
 
 /*******************/
 /* Beacon Handling */
@@ -975,7 +953,6 @@ struct ath_softc {
 	u8 sc_rxotherant;		/* rx's on non-default antenna */
 
 	struct ath9k_node_stats sc_halstats; /* station-mode rssi stats */
-	struct list_head node_list;
 	struct ath_ht_info sc_ht_info;
 	enum ath9k_ht_extprotspacing sc_ht_extprotspacing;
 
@@ -1036,7 +1013,6 @@ struct ath_softc {
 	spinlock_t sc_rxbuflock;
 	spinlock_t sc_txbuflock;
 	spinlock_t sc_resetlock;
-	spinlock_t node_lock;
 
 	/* LEDs */
 	struct ath_led radio_led;

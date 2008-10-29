@@ -21,8 +21,6 @@
 
 #define ATH_PCI_VERSION "0.1"
 
-#define IEEE80211_HTCAP_MAXRXAMPDU_FACTOR	13
-
 static char *dev_info = "ath9k";
 
 MODULE_AUTHOR("Atheros Communications");
@@ -297,41 +295,6 @@ static void ath9k_rx_prepare(struct ath_softc *sc,
 	rx_status->flag |= RX_FLAG_TSFT;
 }
 
-static u8 parse_mpdudensity(u8 mpdudensity)
-{
-	/*
-	 * 802.11n D2.0 defined values for "Minimum MPDU Start Spacing":
-	 *   0 for no restriction
-	 *   1 for 1/4 us
-	 *   2 for 1/2 us
-	 *   3 for 1 us
-	 *   4 for 2 us
-	 *   5 for 4 us
-	 *   6 for 8 us
-	 *   7 for 16 us
-	 */
-	switch (mpdudensity) {
-	case 0:
-		return 0;
-	case 1:
-	case 2:
-	case 3:
-		/* Our lower layer calculations limit our precision to
-		   1 microsecond */
-		return 1;
-	case 4:
-		return 2;
-	case 5:
-		return 4;
-	case 6:
-		return 8;
-	case 7:
-		return 16;
-	default:
-		return 0;
-	}
-}
-
 static void ath9k_ht_conf(struct ath_softc *sc,
 			  struct ieee80211_bss_conf *bss_conf)
 {
@@ -479,8 +442,6 @@ void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 	tx_info->status.rates[0].count = tx_status->retries + 1;
 
 	ieee80211_tx_status(hw, skb);
-	if (an)
-		ath_node_put(sc, an, ATH9K_BH_STATUS_CHANGE);
 }
 
 int _ath_rx_indicate(struct ath_softc *sc,
@@ -517,10 +478,6 @@ int _ath_rx_indicate(struct ath_softc *sc,
 		if (test_bit(keyix, sc->sc_keymap))
 			rx_status.flag |= RX_FLAG_DECRYPTED;
 	}
-
-	spin_lock_bh(&sc->node_lock);
-	an = ath_node_find(sc, hdr->addr2);
-	spin_unlock_bh(&sc->node_lock);
 
 	if (an) {
 		ath_rx_input(sc, an,
@@ -912,11 +869,6 @@ static int ath_attach(u16 devid,
 	error = ath_init(devid, sc);
 	if (error != 0)
 		return error;
-
-	/* Init nodes */
-
-	INIT_LIST_HEAD(&sc->node_list);
-	spin_lock_init(&sc->node_lock);
 
 	/* get mac address from hardware and set in mac80211 */
 
@@ -1404,50 +1356,22 @@ static void ath9k_configure_filter(struct ieee80211_hw *hw,
 		__func__, sc->rx_filter);
 }
 
+/* Only a single interface is currently supported,
+   so pass 0 as the interface id to ath_node_attach */
+
 static void ath9k_sta_notify(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     enum sta_notify_cmd cmd,
 			     struct ieee80211_sta *sta)
 {
 	struct ath_softc *sc = hw->priv;
-	struct ath_node *an;
-	unsigned long flags;
-
-	spin_lock_irqsave(&sc->node_lock, flags);
-	an = ath_node_find(sc, sta->addr);
-	spin_unlock_irqrestore(&sc->node_lock, flags);
 
 	switch (cmd) {
 	case STA_NOTIFY_ADD:
-		spin_lock_irqsave(&sc->node_lock, flags);
-		if (!an) {
-			ath_node_attach(sc, sta->addr, 0);
-			DPRINTF(sc, ATH_DBG_CONFIG, "%s: Attach a node: %pM\n",
-				__func__, sta->addr);
-		} else {
-			ath_node_get(sc, sta->addr);
-		}
-
-		/* XXX: Is this right? Can the capabilities change? */
-		an = ath_node_find(sc, sta->addr);
-		an->maxampdu = 1 << (IEEE80211_HTCAP_MAXRXAMPDU_FACTOR +
-					sta->ht_cap.ampdu_factor);
-		an->mpdudensity =
-			parse_mpdudensity(sta->ht_cap.ampdu_density);
-
-		spin_unlock_irqrestore(&sc->node_lock, flags);
+		ath_node_attach(sc, sta, 0);
 		break;
 	case STA_NOTIFY_REMOVE:
-		if (!an)
-			DPRINTF(sc, ATH_DBG_FATAL,
-				"%s: Removal of a non-existent node\n",
-				__func__);
-		else {
-			ath_node_put(sc, an, ATH9K_BH_STATUS_INTACT);
-			DPRINTF(sc, ATH_DBG_CONFIG, "%s: Put a node: %pM\n",
-				__func__,
-				sta->addr);
-		}
+		ath_node_detach(sc, sta);
 		break;
 	default:
 		break;
@@ -1595,21 +1519,21 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
-		ret = ath_rx_aggr_start(sc, sta->addr, tid, ssn);
+		ret = ath_rx_aggr_start(sc, sta, tid, ssn);
 		if (ret < 0)
 			DPRINTF(sc, ATH_DBG_FATAL,
 				"%s: Unable to start RX aggregation\n",
 				__func__);
 		break;
 	case IEEE80211_AMPDU_RX_STOP:
-		ret = ath_rx_aggr_stop(sc, sta->addr, tid);
+		ret = ath_rx_aggr_stop(sc, sta, tid);
 		if (ret < 0)
 			DPRINTF(sc, ATH_DBG_FATAL,
 				"%s: Unable to stop RX aggregation\n",
 				__func__);
 		break;
 	case IEEE80211_AMPDU_TX_START:
-		ret = ath_tx_aggr_start(sc, sta->addr, tid, ssn);
+		ret = ath_tx_aggr_start(sc, sta, tid, ssn);
 		if (ret < 0)
 			DPRINTF(sc, ATH_DBG_FATAL,
 				"%s: Unable to start TX aggregation\n",
@@ -1618,7 +1542,7 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 			ieee80211_start_tx_ba_cb_irqsafe(hw, sta->addr, tid);
 		break;
 	case IEEE80211_AMPDU_TX_STOP:
-		ret = ath_tx_aggr_stop(sc, sta->addr, tid);
+		ret = ath_tx_aggr_stop(sc, sta, tid);
 		if (ret < 0)
 			DPRINTF(sc, ATH_DBG_FATAL,
 				"%s: Unable to stop TX aggregation\n",

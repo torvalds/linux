@@ -214,15 +214,6 @@ static int ath_tx_prepare(struct ath_softc *sc,
 	rt = sc->sc_currates;
 	BUG_ON(!rt);
 
-	/* Fill misc fields */
-
-	spin_lock_bh(&sc->node_lock);
-	txctl->an = ath_node_get(sc, hdr->addr1);
-	/* create a temp node, if the node is not there already */
-	if (!txctl->an)
-		txctl->an = ath_node_attach(sc, hdr->addr1, 0);
-	spin_unlock_bh(&sc->node_lock);
-
 	if (ieee80211_is_data_qos(fc)) {
 		qc = ieee80211_get_qos_ctl(hdr);
 		txctl->tidno = qc[0] & 0xf;
@@ -496,11 +487,9 @@ unlock:
 
 /* Compute the number of bad frames */
 
-static int ath_tx_num_badfrms(struct ath_softc *sc,
-	struct ath_buf *bf, int txok)
+static int ath_tx_num_badfrms(struct ath_softc *sc, struct ath_buf *bf,
+			      int txok)
 {
-	struct ath_node *an = bf->bf_node;
-	int isnodegone = (an->an_flags & ATH_NODE_CLEAN);
 	struct ath_buf *bf_last = bf->bf_lastbf;
 	struct ath_desc *ds = bf_last->bf_desc;
 	u16 seq_st = 0;
@@ -509,7 +498,7 @@ static int ath_tx_num_badfrms(struct ath_softc *sc,
 	int nbad = 0;
 	int isaggr = 0;
 
-	if (isnodegone || ds->ds_txstat.ts_flags == ATH9K_TX_SW_ABORTED)
+	if (ds->ds_txstat.ts_flags == ATH9K_TX_SW_ABORTED)
 		return 0;
 
 	isaggr = bf_isaggr(bf);
@@ -908,7 +897,6 @@ static void ath_tx_complete_aggr_rifs(struct ath_softc *sc,
 	u16 seq_st = 0;
 	u32 ba[WME_BA_BMP_SIZE >> 5];
 	int isaggr, txfail, txpending, sendbar = 0, needreset = 0;
-	int isnodegone = (an->an_flags & ATH_NODE_CLEAN);
 
 	isaggr = bf_isaggr(bf);
 	if (isaggr) {
@@ -954,7 +942,7 @@ static void ath_tx_complete_aggr_rifs(struct ath_softc *sc,
 			/* transmit completion */
 		} else {
 
-			if (!tid->cleanup_inprogress && !isnodegone &&
+			if (!tid->cleanup_inprogress &&
 			    ds->ds_txstat.ts_flags != ATH9K_TX_SW_ABORTED) {
 				if (bf->bf_retries < ATH_MAX_SW_RETRIES) {
 					ath_tx_set_retry(sc, bf);
@@ -1082,15 +1070,6 @@ static void ath_tx_complete_aggr_rifs(struct ath_softc *sc,
 
 		bf = bf_next;
 	}
-
-	/*
-	 * node is already gone. no more assocication
-	 * with the node. the node might have been freed
-	 * any  node acces can result in panic.note tid
-	 * is part of the node.
-	 */
-	if (isnodegone)
-		return;
 
 	if (tid->cleanup_inprogress) {
 		/* check to see if we're done with cleaning the h/w queue */
@@ -1795,8 +1774,8 @@ static void ath_tx_sched_aggr(struct ath_softc *sc,
 
 static void ath_tid_drain(struct ath_softc *sc,
 			  struct ath_txq *txq,
-			  struct ath_atx_tid *tid,
-			  bool bh_flag)
+			  struct ath_atx_tid *tid)
+
 {
 	struct ath_buf *bf;
 	struct list_head bf_head;
@@ -1817,18 +1796,12 @@ static void ath_tid_drain(struct ath_softc *sc,
 		 * do not indicate packets while holding txq spinlock.
 		 * unlock is intentional here
 		 */
-		if (likely(bh_flag))
-			spin_unlock_bh(&txq->axq_lock);
-		else
-			spin_unlock(&txq->axq_lock);
+		spin_unlock(&txq->axq_lock);
 
 		/* complete this sub-frame */
 		ath_tx_complete_buf(sc, bf, &bf_head, 0, 0);
 
-		if (likely(bh_flag))
-			spin_lock_bh(&txq->axq_lock);
-		else
-			spin_lock(&txq->axq_lock);
+		spin_lock(&txq->axq_lock);
 	}
 
 	/*
@@ -1847,8 +1820,7 @@ static void ath_tid_drain(struct ath_softc *sc,
  */
 
 static void ath_txq_drain_pending_buffers(struct ath_softc *sc,
-					  struct ath_txq *txq,
-					  bool bh_flag)
+					  struct ath_txq *txq)
 {
 	struct ath_atx_ac *ac, *ac_tmp;
 	struct ath_atx_tid *tid, *tid_tmp;
@@ -1859,7 +1831,7 @@ static void ath_txq_drain_pending_buffers(struct ath_softc *sc,
 		list_for_each_entry_safe(tid, tid_tmp, &ac->tid_q, list) {
 			list_del(&tid->list);
 			tid->sched = false;
-			ath_tid_drain(sc, txq, tid, bh_flag);
+			ath_tid_drain(sc, txq, tid);
 		}
 	}
 }
@@ -2294,8 +2266,6 @@ int ath_tx_start(struct ath_softc *sc, struct sk_buff *skb)
 		 * or asynchrounsly once DMA is complete.
 		 */
 		xmit_map_sg(sc, skb, &txctl);
-	else
-		ath_node_put(sc, txctl.an, ATH9K_BH_STATUS_CHANGE);
 
 	/* failed packets will be dropped by the caller */
 	return error;
@@ -2374,8 +2344,7 @@ void ath_tx_draintxq(struct ath_softc *sc,
 	if (sc->sc_flags & SC_OP_TXAGGR) {
 		if (!retry_tx) {
 			spin_lock_bh(&txq->axq_lock);
-			ath_txq_drain_pending_buffers(sc, txq,
-				ATH9K_BH_STATUS_CHANGE);
+			ath_txq_drain_pending_buffers(sc, txq);
 			spin_unlock_bh(&txq->axq_lock);
 		}
 	}
@@ -2441,24 +2410,13 @@ enum ATH_AGGR_CHECK ath_tx_aggr_check(struct ath_softc *sc,
 
 /* Start TX aggregation */
 
-int ath_tx_aggr_start(struct ath_softc *sc,
-		      const u8 *addr,
-		      u16 tid,
-		      u16 *ssn)
+int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
+		      u16 tid, u16 *ssn)
 {
 	struct ath_atx_tid *txtid;
 	struct ath_node *an;
 
-	spin_lock_bh(&sc->node_lock);
-	an = ath_node_find(sc, (u8 *) addr);
-	spin_unlock_bh(&sc->node_lock);
-
-	if (!an) {
-		DPRINTF(sc, ATH_DBG_AGGR,
-			"%s: Node not found to initialize "
-			"TX aggregation\n", __func__);
-		return -1;
-	}
+	an = (struct ath_node *)sta->drv_priv;
 
 	if (sc->sc_flags & SC_OP_TXAGGR) {
 		txtid = ATH_AN_2_TID(an, tid);
@@ -2471,21 +2429,9 @@ int ath_tx_aggr_start(struct ath_softc *sc,
 
 /* Stop tx aggregation */
 
-int ath_tx_aggr_stop(struct ath_softc *sc,
-		     const u8 *addr,
-		     u16 tid)
+int ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
 {
-	struct ath_node *an;
-
-	spin_lock_bh(&sc->node_lock);
-	an = ath_node_find(sc, (u8 *) addr);
-	spin_unlock_bh(&sc->node_lock);
-
-	if (!an) {
-		DPRINTF(sc, ATH_DBG_AGGR,
-			"%s: TX aggr stop for non-existent node\n", __func__);
-		return -1;
-	}
+	struct ath_node *an = (struct ath_node *)sta->drv_priv;
 
 	ath_tx_aggr_teardown(sc, an, tid);
 	return 0;
@@ -2498,8 +2444,7 @@ int ath_tx_aggr_stop(struct ath_softc *sc,
  * - Discard all retry frames from the s/w queue.
  */
 
-void ath_tx_aggr_teardown(struct ath_softc *sc,
-	struct ath_node *an, u8 tid)
+void ath_tx_aggr_teardown(struct ath_softc *sc, struct ath_node *an, u8 tid)
 {
 	struct ath_atx_tid *txtid = ATH_AN_2_TID(an, tid);
 	struct ath_txq *txq = &sc->sc_txq[txtid->ac->qnum];
@@ -2625,8 +2570,6 @@ void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an)
 		struct ath_atx_ac *ac;
 		int tidno, acno;
 
-		an->maxampdu = ATH_AMPDU_LIMIT_DEFAULT;
-
 		/*
 		 * Init per tid tx state
 		 */
@@ -2684,8 +2627,7 @@ void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an)
 
 /* Cleanupthe pending buffers for the node. */
 
-void ath_tx_node_cleanup(struct ath_softc *sc,
-	struct ath_node *an, bool bh_flag)
+void ath_tx_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 {
 	int i;
 	struct ath_atx_ac *ac, *ac_tmp;
@@ -2695,10 +2637,7 @@ void ath_tx_node_cleanup(struct ath_softc *sc,
 		if (ATH_TXQ_SETUP(sc, i)) {
 			txq = &sc->sc_txq[i];
 
-			if (likely(bh_flag))
-				spin_lock_bh(&txq->axq_lock);
-			else
-				spin_lock(&txq->axq_lock);
+			spin_lock(&txq->axq_lock);
 
 			list_for_each_entry_safe(ac,
 					ac_tmp, &txq->axq_acq, list) {
@@ -2713,17 +2652,14 @@ void ath_tx_node_cleanup(struct ath_softc *sc,
 						tid_tmp, &ac->tid_q, list) {
 					list_del(&tid->list);
 					tid->sched = false;
-					ath_tid_drain(sc, txq, tid, bh_flag);
+					ath_tid_drain(sc, txq, tid);
 					tid->addba_exchangecomplete = 0;
 					tid->addba_exchangeattempts = 0;
 					tid->cleanup_inprogress = false;
 				}
 			}
 
-			if (likely(bh_flag))
-				spin_unlock_bh(&txq->axq_lock);
-			else
-				spin_unlock(&txq->axq_lock);
+			spin_unlock(&txq->axq_lock);
 		}
 	}
 }
@@ -2794,7 +2730,6 @@ void ath_tx_cabq(struct ath_softc *sc, struct sk_buff *skb)
 		 */
 		xmit_map_sg(sc, skb, &txctl);
 	} else {
-		ath_node_put(sc, txctl.an, ATH9K_BH_STATUS_CHANGE);
 		DPRINTF(sc, ATH_DBG_XMIT, "%s: TX CABQ failed\n", __func__);
 		dev_kfree_skb_any(skb);
 	}
