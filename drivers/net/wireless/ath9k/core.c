@@ -14,8 +14,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
- /* Implementation of the main "ATH" layer. */
-
 #include "core.h"
 #include "regd.h"
 
@@ -641,114 +639,6 @@ static void ath_ani_calibrate(unsigned long data)
 	mod_timer(&sc->sc_ani.timer, jiffies + msecs_to_jiffies(cal_interval));
 }
 
-/******************/
-/* VAP management */
-/******************/
-
-int ath_vap_attach(struct ath_softc *sc,
-		   int if_id,
-		   struct ieee80211_vif *if_data,
-		   enum ath9k_opmode opmode)
-{
-	struct ath_vap *avp;
-
-	if (if_id >= ATH_BCBUF || sc->sc_vaps[if_id] != NULL) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"%s: Invalid interface id = %u\n", __func__, if_id);
-		return -EINVAL;
-	}
-
-	switch (opmode) {
-	case ATH9K_M_STA:
-	case ATH9K_M_IBSS:
-	case ATH9K_M_MONITOR:
-		break;
-	case ATH9K_M_HOSTAP:
-		/* XXX not right, beacon buffer is allocated on RUN trans */
-		if (list_empty(&sc->sc_bbuf))
-			return -ENOMEM;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	/* create ath_vap */
-	avp = kmalloc(sizeof(struct ath_vap), GFP_KERNEL);
-	if (avp == NULL)
-		return -ENOMEM;
-
-	memset(avp, 0, sizeof(struct ath_vap));
-	avp->av_if_data = if_data;
-	/* Set the VAP opmode */
-	avp->av_opmode = opmode;
-	avp->av_bslot = -1;
-
-	if (opmode == ATH9K_M_HOSTAP)
-		ath9k_hw_set_tsfadjust(sc->sc_ah, 1);
-
-	sc->sc_vaps[if_id] = avp;
-	sc->sc_nvaps++;
-	/* Set the device opmode */
-	sc->sc_ah->ah_opmode = opmode;
-
-	/* default VAP configuration */
-	avp->av_config.av_fixed_rateset = IEEE80211_FIXED_RATE_NONE;
-	avp->av_config.av_fixed_retryset = 0x03030303;
-
-	return 0;
-}
-
-int ath_vap_detach(struct ath_softc *sc, int if_id)
-{
-	struct ath_hal *ah = sc->sc_ah;
-	struct ath_vap *avp;
-
-	avp = sc->sc_vaps[if_id];
-	if (avp == NULL) {
-		DPRINTF(sc, ATH_DBG_FATAL, "%s: invalid interface id %u\n",
-			__func__, if_id);
-		return -EINVAL;
-	}
-
-	/*
-	 * Quiesce the hardware while we remove the vap.  In
-	 * particular we need to reclaim all references to the
-	 * vap state by any frames pending on the tx queues.
-	 *
-	 * XXX can we do this w/o affecting other vap's?
-	 */
-	ath9k_hw_set_interrupts(ah, 0);	/* disable interrupts */
-	ath_draintxq(sc, false);	/* stop xmit side */
-	ath_stoprecv(sc);	/* stop recv side */
-	ath_flushrecv(sc);	/* flush recv queue */
-
-	kfree(avp);
-	sc->sc_vaps[if_id] = NULL;
-	sc->sc_nvaps--;
-
-	return 0;
-}
-
-int ath_vap_config(struct ath_softc *sc,
-	int if_id, struct ath_vap_config *if_config)
-{
-	struct ath_vap *avp;
-
-	if (if_id >= ATH_BCBUF) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"%s: Invalid interface id = %u\n", __func__, if_id);
-		return -EINVAL;
-	}
-
-	avp = sc->sc_vaps[if_id];
-	ASSERT(avp != NULL);
-
-	if (avp)
-		memcpy(&avp->av_config, if_config, sizeof(avp->av_config));
-
-	return 0;
-}
-
 /********/
 /* Core */
 /********/
@@ -1356,13 +1246,9 @@ void ath_deinit(struct ath_softc *sc)
 /* Node Management */
 /*******************/
 
-void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta, int if_id)
+void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta)
 {
-	struct ath_vap *avp;
 	struct ath_node *an;
-
-	avp = sc->sc_vaps[if_id];
-	ASSERT(avp != NULL);
 
 	an = (struct ath_node *)sta->drv_priv;
 

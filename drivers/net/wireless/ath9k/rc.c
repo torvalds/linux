@@ -2042,11 +2042,17 @@ static void ath_rate_free(void *priv)
 
 static void *ath_rate_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
 {
+	struct ieee80211_vif *vif;
 	struct ath_softc *sc = priv;
-	struct ath_vap *avp = sc->sc_vaps[0];
+	struct ath_vap *avp;
 	struct ath_rate_node *rate_priv;
 
 	DPRINTF(sc, ATH_DBG_RATE, "%s\n", __func__);
+
+	vif = sc->sc_vaps[0];
+	ASSERT(vif);
+
+	avp = (void *)vif->drv_priv;
 
 	rate_priv = ath_rate_node_alloc(avp, sc->sc_rc, gfp);
 	if (!rate_priv) {

@@ -635,8 +635,7 @@ int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 int ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
 void ath_newassoc(struct ath_softc *sc,
 	struct ath_node *node, int isnew, int isuapsd);
-void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
-		     int if_id);
+void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta);
 void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta);
 
 /*******************/
@@ -701,22 +700,13 @@ struct ath_vap_config {
 
 /* driver-specific vap state */
 struct ath_vap {
-	struct ieee80211_vif *av_if_data;
+	int av_bslot;			/* beacon slot index */
 	enum ath9k_opmode av_opmode;	/* VAP operational mode */
 	struct ath_buf *av_bcbuf;	/* beacon buffer */
 	struct ath_tx_control av_btxctl;  /* txctl information for beacon */
-	int av_bslot;			/* beacon slot index */
 	struct ath_vap_config av_config;/* vap configuration parameters*/
 	struct ath_rate_node *rc_node;
 };
-
-int ath_vap_attach(struct ath_softc *sc,
-		   int if_id,
-		   struct ieee80211_vif *if_data,
-		   enum ath9k_opmode opmode);
-int ath_vap_detach(struct ath_softc *sc, int if_id);
-int ath_vap_config(struct ath_softc *sc,
-		   int if_id, struct ath_vap_config *if_config);
 
 /*********************/
 /* Antenna diversity */
@@ -925,7 +915,7 @@ struct ath_softc {
 
 	u8 sc_nbcnvaps;			/* # of vaps sending beacons */
 	u16 sc_nvaps;			/* # of active virtual ap's */
-	struct ath_vap *sc_vaps[ATH_BCBUF];
+	struct ieee80211_vif *sc_vaps[ATH_BCBUF];
 
 	u8 sc_mcastantenna;
 	u8 sc_defant;			/* current default antenna */
