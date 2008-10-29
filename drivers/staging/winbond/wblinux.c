@@ -224,9 +224,3 @@ error:
 
 	return false;
 }
-
-void WBLINUX_ConnectStatus(struct wb35_adapter * adapter, u32 flag)
-{
-	adapter->LinkStatus = flag; // OS_DISCONNECTED	or  OS_CONNECTED
-}
-

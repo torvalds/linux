@@ -1,9 +1,5 @@
-#define OS_LINK_STATUS			(adapter->LinkStatus == OS_CONNECTED)
 #define OS_SET_SHUTDOWN( _A )		_A->shutdown=1
 #define OS_SET_RESUME( _A )		_A->shutdown=0
-#define OS_CONNECT_STATUS_INDICATE( _A, _F )		WBLINUX_ConnectStatus( _A, _F )
-#define OS_DISCONNECTED	0
-#define OS_CONNECTED	1
 #define OS_STOP( _A )	WBLINUX_stop( _A )
 
 #define OS_CURRENT_RX_BYTE( _A )		_A->RxByteCount
@@ -36,8 +32,6 @@ struct wb35_adapter {
 	u32 shutdown;
 
 	atomic_t ThreadCount;
-
-	u32 LinkStatus;		// OS_DISCONNECTED or OS_CONNECTED
 
 	u32 RxByteCount;
 	u32 TxByteCount;
