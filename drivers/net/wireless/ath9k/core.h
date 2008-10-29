@@ -372,7 +372,7 @@ bool ath_stoprecv(struct ath_softc *sc);
 void ath_flushrecv(struct ath_softc *sc);
 u32 ath_calcrxfilter(struct ath_softc *sc);
 void ath_rx_node_init(struct ath_softc *sc, struct ath_node *an);
-void ath_rx_node_free(struct ath_softc *sc, struct ath_node *an);
+void ath_rx_node_cleanup(struct ath_softc *sc, struct ath_node *an);
 void ath_handle_rx_intr(struct ath_softc *sc);
 int ath_rx_init(struct ath_softc *sc, int nbufs);
 void ath_rx_cleanup(struct ath_softc *sc);

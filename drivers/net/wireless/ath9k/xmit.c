@@ -2565,62 +2565,60 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 
 void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an)
 {
-	if (sc->sc_flags & SC_OP_TXAGGR) {
-		struct ath_atx_tid *tid;
-		struct ath_atx_ac *ac;
-		int tidno, acno;
+	struct ath_atx_tid *tid;
+	struct ath_atx_ac *ac;
+	int tidno, acno;
 
-		/*
-		 * Init per tid tx state
-		 */
-		for (tidno = 0, tid = &an->an_aggr.tx.tid[tidno];
-				tidno < WME_NUM_TID;
-				tidno++, tid++) {
-			tid->an        = an;
-			tid->tidno     = tidno;
-			tid->seq_start = tid->seq_next = 0;
-			tid->baw_size  = WME_MAX_BA;
-			tid->baw_head  = tid->baw_tail = 0;
-			tid->sched     = false;
-			tid->paused = false;
-			tid->cleanup_inprogress = false;
-			INIT_LIST_HEAD(&tid->buf_q);
+	/*
+	 * Init per tid tx state
+	 */
+	for (tidno = 0, tid = &an->an_aggr.tx.tid[tidno];
+	     tidno < WME_NUM_TID;
+	     tidno++, tid++) {
+		tid->an        = an;
+		tid->tidno     = tidno;
+		tid->seq_start = tid->seq_next = 0;
+		tid->baw_size  = WME_MAX_BA;
+		tid->baw_head  = tid->baw_tail = 0;
+		tid->sched     = false;
+		tid->paused = false;
+		tid->cleanup_inprogress = false;
+		INIT_LIST_HEAD(&tid->buf_q);
 
-			acno = TID_TO_WME_AC(tidno);
-			tid->ac = &an->an_aggr.tx.ac[acno];
+		acno = TID_TO_WME_AC(tidno);
+		tid->ac = &an->an_aggr.tx.ac[acno];
 
-			/* ADDBA state */
-			tid->addba_exchangecomplete     = 0;
-			tid->addba_exchangeinprogress   = 0;
-			tid->addba_exchangeattempts     = 0;
-		}
+		/* ADDBA state */
+		tid->addba_exchangecomplete     = 0;
+		tid->addba_exchangeinprogress   = 0;
+		tid->addba_exchangeattempts     = 0;
+	}
 
-		/*
-		 * Init per ac tx state
-		 */
-		for (acno = 0, ac = &an->an_aggr.tx.ac[acno];
-				acno < WME_NUM_AC; acno++, ac++) {
-			ac->sched    = false;
-			INIT_LIST_HEAD(&ac->tid_q);
+	/*
+	 * Init per ac tx state
+	 */
+	for (acno = 0, ac = &an->an_aggr.tx.ac[acno];
+	     acno < WME_NUM_AC; acno++, ac++) {
+		ac->sched    = false;
+		INIT_LIST_HEAD(&ac->tid_q);
 
-			switch (acno) {
-			case WME_AC_BE:
-				ac->qnum = ath_tx_get_qnum(sc,
-					ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_BE);
-				break;
-			case WME_AC_BK:
-				ac->qnum = ath_tx_get_qnum(sc,
-					ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_BK);
-				break;
-			case WME_AC_VI:
-				ac->qnum = ath_tx_get_qnum(sc,
-					ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_VI);
-				break;
-			case WME_AC_VO:
-				ac->qnum = ath_tx_get_qnum(sc,
-					ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_VO);
-				break;
-			}
+		switch (acno) {
+		case WME_AC_BE:
+			ac->qnum = ath_tx_get_qnum(sc,
+				   ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_BE);
+			break;
+		case WME_AC_BK:
+			ac->qnum = ath_tx_get_qnum(sc,
+				   ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_BK);
+			break;
+		case WME_AC_VI:
+			ac->qnum = ath_tx_get_qnum(sc,
+				   ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_VI);
+			break;
+		case WME_AC_VO:
+			ac->qnum = ath_tx_get_qnum(sc,
+				   ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_VO);
+			break;
 		}
 	}
 }
@@ -2660,25 +2658,6 @@ void ath_tx_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 			}
 
 			spin_unlock(&txq->axq_lock);
-		}
-	}
-}
-
-/* Cleanup per node transmit state */
-
-void ath_tx_node_free(struct ath_softc *sc, struct ath_node *an)
-{
-	if (sc->sc_flags & SC_OP_TXAGGR) {
-		struct ath_atx_tid *tid;
-		int tidno, i;
-
-		/* Init per tid rx state */
-		for (tidno = 0, tid = &an->an_aggr.tx.tid[tidno];
-			tidno < WME_NUM_TID;
-		     tidno++, tid++) {
-
-			for (i = 0; i < ATH_TID_MAX_BUFS; i++)
-				ASSERT(tid->tx_buf[i] == NULL);
 		}
 	}
 }

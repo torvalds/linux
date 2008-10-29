@@ -1200,61 +1200,56 @@ void ath_rx_aggr_teardown(struct ath_softc *sc, struct ath_node *an, u8 tid)
 
 void ath_rx_node_init(struct ath_softc *sc, struct ath_node *an)
 {
-	if (sc->sc_flags & SC_OP_RXAGGR) {
-		struct ath_arx_tid *rxtid;
-		int tidno;
+	struct ath_arx_tid *rxtid;
+	int tidno;
 
-		/* Init per tid rx state */
-		for (tidno = 0, rxtid = &an->an_aggr.rx.tid[tidno];
-				tidno < WME_NUM_TID;
-				tidno++, rxtid++) {
-			rxtid->an        = an;
-			rxtid->seq_reset = 1;
-			rxtid->seq_next  = 0;
-			rxtid->baw_size  = WME_MAX_BA;
-			rxtid->baw_head  = rxtid->baw_tail = 0;
+	/* Init per tid rx state */
+	for (tidno = 0, rxtid = &an->an_aggr.rx.tid[tidno];
+	     tidno < WME_NUM_TID;
+	     tidno++, rxtid++) {
+		rxtid->an        = an;
+		rxtid->seq_reset = 1;
+		rxtid->seq_next  = 0;
+		rxtid->baw_size  = WME_MAX_BA;
+		rxtid->baw_head  = rxtid->baw_tail = 0;
 
-			/*
-			 * Ensure the buffer pointer is null at this point
-			 * (needs to be allocated when addba is received)
-			*/
+		/*
+		 * Ensure the buffer pointer is null at this point
+		 * (needs to be allocated when addba is received)
+		 */
 
-			rxtid->rxbuf     = NULL;
-			setup_timer(&rxtid->timer, ath_rx_timer,
-				(unsigned long)rxtid);
-			spin_lock_init(&rxtid->tidlock);
+		rxtid->rxbuf     = NULL;
+		setup_timer(&rxtid->timer, ath_rx_timer,
+			    (unsigned long)rxtid);
+		spin_lock_init(&rxtid->tidlock);
 
-			/* ADDBA state */
-			rxtid->addba_exchangecomplete = 0;
-		}
+		/* ADDBA state */
+		rxtid->addba_exchangecomplete = 0;
 	}
 }
 
-void ath_rx_node_free(struct ath_softc *sc, struct ath_node *an)
+void ath_rx_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 {
-	if (sc->sc_flags & SC_OP_RXAGGR) {
-		struct ath_arx_tid *rxtid;
-		int tidno, i;
+	struct ath_arx_tid *rxtid;
+	int tidno, i;
 
-		/* Init per tid rx state */
-		for (tidno = 0, rxtid = &an->an_aggr.rx.tid[tidno];
-				tidno < WME_NUM_TID;
-				tidno++, rxtid++) {
+	/* Init per tid rx state */
+	for (tidno = 0, rxtid = &an->an_aggr.rx.tid[tidno];
+	     tidno < WME_NUM_TID;
+	     tidno++, rxtid++) {
 
-			if (!rxtid->addba_exchangecomplete)
-				continue;
+		if (!rxtid->addba_exchangecomplete)
+			continue;
 
-			/* must cancel timer first */
-			del_timer_sync(&rxtid->timer);
+		/* must cancel timer first */
+		del_timer_sync(&rxtid->timer);
 
-			/* drop any pending sub-frames */
-			ath_rx_flush_tid(sc, rxtid, 1);
+		/* drop any pending sub-frames */
+		ath_rx_flush_tid(sc, rxtid, 1);
 
-			for (i = 0; i < ATH_TID_MAX_BUFS; i++)
-				ASSERT(rxtid->rxbuf[i].rx_wbuf == NULL);
+		for (i = 0; i < ATH_TID_MAX_BUFS; i++)
+			ASSERT(rxtid->rxbuf[i].rx_wbuf == NULL);
 
-			rxtid->addba_exchangecomplete = 0;
-		}
+		rxtid->addba_exchangecomplete = 0;
 	}
-
 }
