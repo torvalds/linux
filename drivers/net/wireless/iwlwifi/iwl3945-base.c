@@ -6741,8 +6741,6 @@ static int iwl3945_mac_config_interface(struct ieee80211_hw *hw,
 			return rc;
 	}
 
-	/* XXX: this MUST use conf->mac_addr */
-
 	if (!iwl3945_is_alive(priv))
 		return -EAGAIN;
 
