@@ -30,7 +30,6 @@ struct veth_net_stats {
 
 struct veth_priv {
 	struct net_device *peer;
-	struct net_device *dev;
 	struct list_head list;
 	struct veth_net_stats *stats;
 	unsigned ip_summed;
@@ -420,12 +419,10 @@ static int veth_newlink(struct net_device *dev,
 	 */
 
 	priv = netdev_priv(dev);
-	priv->dev = dev;
 	priv->peer = peer;
 	list_add(&priv->list, &veth_list);
 
 	priv = netdev_priv(peer);
-	priv->dev = peer;
 	priv->peer = dev;
 	INIT_LIST_HEAD(&priv->list);
 	return 0;
