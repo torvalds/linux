@@ -1237,17 +1237,6 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 			/* Set aggregation protection mode parameters */
 			sc->sc_config.ath_aggr_prot = 0;
 
-			/*
-			 * Reset our TSF so that its value is lower than the
-			 * beacon that we are trying to catch.
-			 * Only then hw will update its TSF register with the
-			 * new beacon. Reset the TSF before setting the BSSID
-			 * to avoid allowing in any frames that would update
-			 * our TSF only to have us clear it
-			 * immediately thereafter.
-			 */
-			ath9k_hw_reset_tsf(sc->sc_ah);
-
 			/* Disable BMISS interrupt when we're not associated */
 			ath9k_hw_set_interrupts(sc->sc_ah,
 					sc->sc_imask &
