@@ -1507,10 +1507,29 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 		musb_writew(hw_ep->regs, MUSB_RXCSR, val);
 
 #ifdef CONFIG_USB_INVENTRA_DMA
+		if (usb_pipeisoc(pipe)) {
+			struct usb_iso_packet_descriptor *d;
+
+			d = urb->iso_frame_desc + qh->iso_idx;
+			d->actual_length = xfer_len;
+
+			/* even if there was an error, we did the dma
+			 * for iso_frame_desc->length
+			 */
+			if (d->status != EILSEQ && d->status != -EOVERFLOW)
+				d->status = 0;
+
+			if (++qh->iso_idx >= urb->number_of_packets)
+				done = true;
+			else
+				done = false;
+
+		} else  {
 		/* done if urb buffer is full or short packet is recd */
 		done = (urb->actual_length + xfer_len >=
 				urb->transfer_buffer_length
 			|| dma->actual_len < qh->maxpacket);
+		}
 
 		/* send IN token for next packet, without AUTOREQ */
 		if (!done) {
@@ -1547,7 +1566,8 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 		if (dma) {
 			struct dma_controller	*c;
 			u16			rx_count;
-			int			ret;
+			int			ret, length;
+			dma_addr_t		buf;
 
 			rx_count = musb_readw(epio, MUSB_RXCOUNT);
 
@@ -1560,6 +1580,35 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 
 			c = musb->dma_controller;
 
+			if (usb_pipeisoc(pipe)) {
+				int status = 0;
+				struct usb_iso_packet_descriptor *d;
+
+				d = urb->iso_frame_desc + qh->iso_idx;
+
+				if (iso_err) {
+					status = -EILSEQ;
+					urb->error_count++;
+				}
+				if (rx_count > d->length) {
+					if (status == 0) {
+						status = -EOVERFLOW;
+						urb->error_count++;
+					}
+					DBG(2, "** OVERFLOW %d into %d\n",\
+					    rx_count, d->length);
+
+					length = d->length;
+				} else
+					length = rx_count;
+				d->status = status;
+				buf = urb->transfer_dma + d->offset;
+			} else {
+				length = rx_count;
+				buf = urb->transfer_dma +
+						urb->actual_length;
+			}
+
 			dma->desired_mode = 0;
 #ifdef USE_MODE1
 			/* because of the issue below, mode 1 will
@@ -1571,6 +1620,12 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 						urb->actual_length)
 					> qh->maxpacket)
 				dma->desired_mode = 1;
+			if (rx_count < hw_ep->max_packet_sz_rx) {
+				length = rx_count;
+				dma->bDesiredMode = 0;
+			} else {
+				length = urb->transfer_buffer_length;
+			}
 #endif
 
 /* Disadvantage of using mode 1:
@@ -1608,12 +1663,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			 */
 			ret = c->channel_program(
 				dma, qh->maxpacket,
-				dma->desired_mode,
-				urb->transfer_dma
-					+ urb->actual_length,
-				(dma->desired_mode == 0)
-					? rx_count
-					: urb->transfer_buffer_length);
+				dma->desired_mode, buf, length);
 
 			if (!ret) {
 				c->channel_release(dma);
@@ -1629,19 +1679,6 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 					epnum, iso_err);
 			DBG(6, "read %spacket\n", done ? "last " : "");
 		}
-	}
-
-	if (dma && usb_pipeisoc(pipe)) {
-		struct usb_iso_packet_descriptor	*d;
-		int					iso_stat = status;
-
-		d = urb->iso_frame_desc + qh->iso_idx;
-		d->actual_length += xfer_len;
-		if (iso_err) {
-			iso_stat = -EILSEQ;
-			urb->error_count++;
-		}
-		d->status = iso_stat;
 	}
 
 finish:
