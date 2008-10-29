@@ -118,17 +118,7 @@ static int find_mgm(struct mlx4_dev *dev,
 		return err;
 
 	if (0)
-		mlx4_dbg(dev, "Hash for %04x:%04x:%04x:%04x:"
-			  "%04x:%04x:%04x:%04x is %04x\n",
-			  be16_to_cpu(((__be16 *) gid)[0]),
-			  be16_to_cpu(((__be16 *) gid)[1]),
-			  be16_to_cpu(((__be16 *) gid)[2]),
-			  be16_to_cpu(((__be16 *) gid)[3]),
-			  be16_to_cpu(((__be16 *) gid)[4]),
-			  be16_to_cpu(((__be16 *) gid)[5]),
-			  be16_to_cpu(((__be16 *) gid)[6]),
-			  be16_to_cpu(((__be16 *) gid)[7]),
-			  *hash);
+		mlx4_dbg(dev, "Hash for %p6 is %04x\n", gid, *hash);
 
 	*index = *hash;
 	*prev  = -1;
@@ -277,16 +267,7 @@ int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16])
 		goto out;
 
 	if (index == -1) {
-		mlx4_err(dev, "MGID %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x "
-			  "not found\n",
-			  be16_to_cpu(((__be16 *) gid)[0]),
-			  be16_to_cpu(((__be16 *) gid)[1]),
-			  be16_to_cpu(((__be16 *) gid)[2]),
-			  be16_to_cpu(((__be16 *) gid)[3]),
-			  be16_to_cpu(((__be16 *) gid)[4]),
-			  be16_to_cpu(((__be16 *) gid)[5]),
-			  be16_to_cpu(((__be16 *) gid)[6]),
-			  be16_to_cpu(((__be16 *) gid)[7]));
+		mlx4_err(dev, "MGID %p6 not found\n", gid);
 		err = -EINVAL;
 		goto out;
 	}
