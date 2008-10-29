@@ -2701,6 +2701,16 @@ M:	matthew@wil.cx
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
 
+LTP (Linux Test Project)
+P:	Subrata Modak
+M:	subrata@linux.vnet.ibm.com
+P:	Mike Frysinger
+M:	vapier@gentoo.org
+L:	ltp-list@lists.sourceforge.net (subscribers-only)
+W:	http://ltp.sourceforge.net/
+T:	git kernel.org/pub/scm/linux/kernel/git/galak/ltp.git
+S:	Maintained
+
 M32R ARCHITECTURE
 P:	Hirokazu Takata
 M:	takata@linux-m32r.org
