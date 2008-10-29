@@ -2071,15 +2071,13 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 	if ((i < 0) || (i >= IWL_RATE_COUNT))
 		i = 0;
 
-	/* FIXME:RS: This is also wrong in 4965 */
 	rate = iwl_rates[i].plcp;
-	rate |= RATE_MCS_ANT_B_MSK;
-	rate &= ~RATE_MCS_ANT_A_MSK;
+	tbl->ant_type = first_antenna(valid_tx_ant);
+	rate |= tbl->ant_type << RATE_MCS_ANT_POS;
 
 	if (i >= IWL_FIRST_CCK_RATE && i <= IWL_LAST_CCK_RATE)
 		rate |= RATE_MCS_CCK_MSK;
 
-	tbl->ant_type = ANT_B;
 	rs_get_tbl_info_from_mcs(rate, priv->band, tbl, &rate_idx);
 	if (!rs_is_valid_ant(valid_tx_ant, tbl->ant_type))
 	    rs_toggle_antenna(valid_tx_ant, &rate, tbl);
