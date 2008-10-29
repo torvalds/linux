@@ -444,12 +444,10 @@ int _ath_rx_indicate(struct ath_softc *sc,
 		     u16 keyix)
 {
 	struct ieee80211_hw *hw = sc->hw;
-	struct ath_node *an = NULL;
 	struct ieee80211_rx_status rx_status;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	int hdrlen = ieee80211_get_hdrlen_from_skb(skb);
 	int padsize;
-	enum ATH_RX_TYPE st;
 
 	/* see if any padding is done by the hw and remove it */
 	if (hdrlen & 3) {
@@ -472,28 +470,6 @@ int _ath_rx_indicate(struct ath_softc *sc,
 		if (test_bit(keyix, sc->sc_keymap))
 			rx_status.flag |= RX_FLAG_DECRYPTED;
 	}
-
-	if (an) {
-		ath_rx_input(sc, an,
-			     skb, status, &st);
-	}
-	if (!an || (st != ATH_RX_CONSUMED))
-		__ieee80211_rx(hw, skb, &rx_status);
-
-	return 0;
-}
-
-int ath_rx_subframe(struct ath_node *an, struct sk_buff *skb,
-		    struct ath_recv_status *status)
-{
-	struct ath_softc *sc = an->an_sc;
-	struct ieee80211_hw *hw = sc->hw;
-	struct ieee80211_rx_status rx_status;
-
-	/* Prepare rx status */
-	ath9k_rx_prepare(sc, skb, status, &rx_status);
-	if (!(status->flags & ATH_RX_DECRYPT_ERROR))
-		rx_status.flag |= RX_FLAG_DECRYPTED;
 
 	__ieee80211_rx(hw, skb, &rx_status);
 
@@ -1483,18 +1459,10 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
-		ret = ath_rx_aggr_start(sc, sta, tid, ssn);
-		if (ret < 0)
-			DPRINTF(sc, ATH_DBG_FATAL,
-				"%s: Unable to start RX aggregation\n",
-				__func__);
+		if (!(sc->sc_flags & SC_OP_RXAGGR))
+			ret = -ENOTSUPP;
 		break;
 	case IEEE80211_AMPDU_RX_STOP:
-		ret = ath_rx_aggr_stop(sc, sta, tid);
-		if (ret < 0)
-			DPRINTF(sc, ATH_DBG_FATAL,
-				"%s: Unable to stop RX aggregation\n",
-				__func__);
 		break;
 	case IEEE80211_AMPDU_TX_START:
 		ret = ath_tx_aggr_start(sc, sta, tid, ssn);

@@ -304,15 +304,7 @@ void ath_descdma_cleanup(struct ath_softc *sc,
 
 #define ATH_MAX_ANTENNA          3
 #define ATH_RXBUF                512
-#define ATH_RX_TIMEOUT           40      /* 40 milliseconds */
 #define WME_NUM_TID              16
-#define IEEE80211_BAR_CTL_TID_M  0xF000  /* tid mask */
-#define IEEE80211_BAR_CTL_TID_S  12      /* tid shift */
-
-enum ATH_RX_TYPE {
-	ATH_RX_NON_CONSUMED = 0,
-	ATH_RX_CONSUMED
-};
 
 /* per frame rx status block */
 struct ath_recv_status {
@@ -346,47 +338,18 @@ struct ath_rxbuf {
 	struct ath_recv_status rx_status;	/* cached rx status */
 };
 
-/* Per-TID aggregate receiver state for a node */
-struct ath_arx_tid {
-	struct ath_node *an;
-	struct ath_rxbuf *rxbuf;	/* re-ordering buffer */
-	struct timer_list timer;
-	spinlock_t tidlock;
-	int baw_head;			/* seq_next at head */
-	int baw_tail;			/* tail of block-ack window */
-	int seq_reset;			/* need to reset start sequence */
-	int addba_exchangecomplete;
-	u16 seq_next;			/* next expected sequence */
-	u16 baw_size;			/* block-ack window size */
-};
-
-/* Per-node receiver aggregate state */
-struct ath_arx {
-	struct ath_arx_tid tid[WME_NUM_TID];
-};
-
 int ath_startrecv(struct ath_softc *sc);
 bool ath_stoprecv(struct ath_softc *sc);
 void ath_flushrecv(struct ath_softc *sc);
 u32 ath_calcrxfilter(struct ath_softc *sc);
-void ath_rx_node_init(struct ath_softc *sc, struct ath_node *an);
-void ath_rx_node_cleanup(struct ath_softc *sc, struct ath_node *an);
 void ath_handle_rx_intr(struct ath_softc *sc);
 int ath_rx_init(struct ath_softc *sc, int nbufs);
 void ath_rx_cleanup(struct ath_softc *sc);
 int ath_rx_tasklet(struct ath_softc *sc, int flush);
-int ath_rx_input(struct ath_softc *sc,
-		 struct ath_node *node,
-		 struct sk_buff *skb,
-		 struct ath_recv_status *rx_status,
-		 enum ATH_RX_TYPE *status);
 int _ath_rx_indicate(struct ath_softc *sc,
 		     struct sk_buff *skb,
 		     struct ath_recv_status *status,
 		     u16 keyix);
-int ath_rx_subframe(struct ath_node *an, struct sk_buff *skb,
-		    struct ath_recv_status *status);
-
 /******/
 /* TX */
 /******/
@@ -599,7 +562,6 @@ struct aggr_rifs_param {
 /* Per-node aggregation state */
 struct ath_node_aggr {
 	struct ath_atx tx;	/* node transmit state */
-	struct ath_arx rx;	/* node receive state */
 };
 
 /* driver-specific node state */
@@ -616,11 +578,6 @@ void ath_tx_resume_tid(struct ath_softc *sc,
 bool ath_tx_aggr_check(struct ath_softc *sc, struct ath_node *an, u8 tidno);
 void ath_tx_aggr_teardown(struct ath_softc *sc,
 	struct ath_node *an, u8 tidno);
-void ath_rx_aggr_teardown(struct ath_softc *sc,
-	struct ath_node *an, u8 tidno);
-int ath_rx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
-		      u16 tid, u16 *ssn);
-int ath_rx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
 int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
 		      u16 tid, u16 *ssn);
 int ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);

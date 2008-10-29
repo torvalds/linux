@@ -1189,8 +1189,6 @@ void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta)
 
 	if (sc->sc_flags & SC_OP_TXAGGR)
 		ath_tx_node_init(sc, an);
-	if (sc->sc_flags & SC_OP_RXAGGR)
-		ath_rx_node_init(sc, an);
 
 	an->maxampdu = 1 << (IEEE80211_HTCAP_MAXRXAMPDU_FACTOR +
 			     sta->ht_cap.ampdu_factor);
@@ -1208,8 +1206,6 @@ void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta)
 
 	if (sc->sc_flags & SC_OP_TXAGGR)
 		ath_tx_node_cleanup(sc, an);
-	if (sc->sc_flags & SC_OP_RXAGGR)
-		ath_rx_node_cleanup(sc, an);
 }
 
 /*
@@ -1230,8 +1226,6 @@ void ath_newassoc(struct ath_softc *sc,
 		for (tidno = 0; tidno < WME_NUM_TID; tidno++) {
 			if (sc->sc_flags & SC_OP_TXAGGR)
 				ath_tx_aggr_teardown(sc, an, tidno);
-			if (sc->sc_flags & SC_OP_RXAGGR)
-				ath_rx_aggr_teardown(sc, an, tidno);
 		}
 	}
 }
