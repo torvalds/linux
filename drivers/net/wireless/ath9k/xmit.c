@@ -2371,6 +2371,25 @@ int ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
 	return 0;
 }
 
+/* Resume tx aggregation */
+
+void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
+{
+	struct ath_atx_tid *txtid;
+	struct ath_node *an;
+
+	an = (struct ath_node *)sta->drv_priv;
+
+	if (sc->sc_flags & SC_OP_TXAGGR) {
+		txtid = ATH_AN_2_TID(an, tid);
+		txtid->baw_size =
+			IEEE80211_MIN_AMPDU_BUF << sta->ht_cap.ampdu_factor;
+		txtid->state |= AGGR_ADDBA_COMPLETE;
+		txtid->state &= ~AGGR_ADDBA_PROGRESS;
+		ath_tx_resume_tid(sc, txtid);
+	}
+}
+
 /*
  * Performs transmit side cleanup when TID changes from aggregated to
  * unaggregated.

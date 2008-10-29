@@ -987,7 +987,7 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 {
 	struct ieee80211_hw *hw = &local->hw;
 	u16 capab;
-	u16 tid;
+	u16 tid, start_seq_num;
 	u8 *state;
 
 	capab = le16_to_cpu(mgmt->u.action.u.addba_resp.capab);
@@ -1024,6 +1024,14 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 		    local->hw.ampdu_queues)
 			ieee80211_wake_queue(hw, sta->tid_to_tx_q[tid]);
 
+		if (local->ops->ampdu_action) {
+			(void)local->ops->ampdu_action(hw,
+					       IEEE80211_AMPDU_TX_RESUME,
+					       &sta->sta, tid, &start_seq_num);
+		}
+#ifdef CONFIG_MAC80211_HT_DEBUG
+		printk(KERN_DEBUG "Resuming TX aggregation for tid %d\n", tid);
+#endif /* CONFIG_MAC80211_HT_DEBUG */
 		spin_unlock_bh(&sta->lock);
 	} else {
 		sta->ampdu_mlme.addba_req_num[tid]++;
