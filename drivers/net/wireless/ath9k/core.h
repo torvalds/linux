@@ -1018,8 +1018,6 @@ int ath_get_mac80211_qnum(u32 queue, struct ath_softc *sc);
 void ath_setslottime(struct ath_softc *sc);
 void ath_update_txpow(struct ath_softc *sc);
 int ath_cabq_update(struct ath_softc *);
-void ath_get_currentCountry(struct ath_softc *sc,
-	struct ath9k_country_entry *ctry);
 u64 ath_extend_tsf(struct ath_softc *sc, u32 rstamp);
 
 #endif /* CORE_H */

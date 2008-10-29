@@ -17,8 +17,6 @@
 #include "core.h"
 #include "regd.h"
 
-static int ath_outdoor;		/* enable outdoor use */
-
 static u32 ath_chainmask_sel_up_rssi_thres =
 	ATH_CHAINMASK_SEL_UP_RSSI_THRES;
 static u32 ath_chainmask_sel_down_rssi_thres =
@@ -1346,27 +1344,6 @@ void ath_update_txpow(struct ath_softc *sc)
 		/* read back in case value is clamped */
 		ath9k_hw_getcapability(ah, ATH9K_CAP_TXPOW, 1, &txpow);
 		sc->sc_curtxpow = txpow;
-	}
-}
-
-/* Return the current country and domain information */
-void ath_get_currentCountry(struct ath_softc *sc,
-	struct ath9k_country_entry *ctry)
-{
-	ath9k_regd_get_current_country(sc->sc_ah, ctry);
-
-	/* If HAL not specific yet, since it is band dependent,
-	 * use the one we passed in. */
-	if (ctry->countryCode == CTRY_DEFAULT) {
-		ctry->iso[0] = 0;
-		ctry->iso[1] = 0;
-	} else if (ctry->iso[0] && ctry->iso[1]) {
-		if (!ctry->iso[2]) {
-			if (ath_outdoor)
-				ctry->iso[2] = 'O';
-			else
-				ctry->iso[2] = 'I';
-		}
 	}
 }
 
