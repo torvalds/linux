@@ -526,12 +526,18 @@ static inline int sci_rxd_in(struct uart_port *port)
       defined(CONFIG_CPU_SUBTYPE_SH7751R) || \
       defined(CONFIG_CPU_SUBTYPE_SH7750R) || \
       defined(CONFIG_CPU_SUBTYPE_SH7750S) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7091)  || \
-      defined(CONFIG_CPU_SUBTYPE_SH4_202)
+      defined(CONFIG_CPU_SUBTYPE_SH7091)
 static inline int sci_rxd_in(struct uart_port *port)
 {
 	if (port->mapbase == 0xffe00000)
 		return ctrl_inb(SCSPTR1)&0x01 ? 1 : 0; /* SCI */
+	if (port->mapbase == 0xffe80000)
+		return ctrl_inw(SCSPTR2)&0x0001 ? 1 : 0; /* SCIF */
+	return 1;
+}
+#elif defined(CONFIG_CPU_SUBTYPE_SH4_202)
+static inline int sci_rxd_in(struct uart_port *port)
+{
 	if (port->mapbase == 0xffe80000)
 		return ctrl_inw(SCSPTR2)&0x0001 ? 1 : 0; /* SCIF */
 	return 1;
