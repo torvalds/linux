@@ -614,7 +614,7 @@ int ext4_has_free_blocks(struct ext4_sb_info *sbi, s64 nblocks)
 		if (dirty_blocks < 0) {
 			printk(KERN_CRIT "Dirty block accounting "
 					"went wrong %lld\n",
-					dirty_blocks);
+					(long long)dirty_blocks);
 		}
 	}
 	/* Check whether we have space after
