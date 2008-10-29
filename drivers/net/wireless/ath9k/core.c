@@ -675,12 +675,11 @@ int ath_open(struct ath_softc *sc, struct ath9k_channel *initial_chan)
 
 	ath_setcurmode(sc, ath_chan2mode(initial_chan));
 
-	/*
-	 *  Don't enable interrupts here as we've not yet built our
-	 *  vap and node data structures, which will be needed as soon
-	 *  as we start receiving.
-	 */
 	sc->sc_flags &= ~SC_OP_INVALID;
+
+	/* Disable BMISS interrupt when we're not associated */
+	sc->sc_imask &= ~(ATH9K_INT_SWBA | ATH9K_INT_BMISS);
+	ath9k_hw_set_interrupts(sc->sc_ah,sc->sc_imask);
 
 	ieee80211_wake_queues(sc->hw);
 done:

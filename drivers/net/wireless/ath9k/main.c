@@ -1237,12 +1237,6 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 			/* Set aggregation protection mode parameters */
 			sc->sc_config.ath_aggr_prot = 0;
 
-			/* Disable BMISS interrupt when we're not associated */
-			ath9k_hw_set_interrupts(sc->sc_ah,
-					sc->sc_imask &
-					~(ATH9K_INT_SWBA | ATH9K_INT_BMISS));
-			sc->sc_imask &= ~(ATH9K_INT_SWBA | ATH9K_INT_BMISS);
-
 			DPRINTF(sc, ATH_DBG_CONFIG,
 				"%s: RX filter 0x%x bssid %pM aid 0x%x\n",
 				__func__, rfilt,
