@@ -512,7 +512,7 @@ static int ac6_seq_show(struct seq_file *seq, void *v)
 	struct ifacaddr6 *im = (struct ifacaddr6 *)v;
 	struct ac6_iter_state *state = ac6_seq_private(seq);
 
-	seq_printf(seq, "%-4d %-15s %#p6 %5d\n",
+	seq_printf(seq, "%-4d %-15s %pi6 %5d\n",
 		   state->dev->ifindex, state->dev->name,
 		   &im->aca_addr, im->aca_users);
 	return 0;

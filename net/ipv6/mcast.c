@@ -2430,7 +2430,7 @@ static int igmp6_mc_seq_show(struct seq_file *seq, void *v)
 	struct igmp6_mc_iter_state *state = igmp6_mc_seq_private(seq);
 
 	seq_printf(seq,
-		   "%-4d %-15s %#p6 %5d %08X %ld\n",
+		   "%-4d %-15s %pi6 %5d %08X %ld\n",
 		   state->dev->ifindex, state->dev->name,
 		   &im->mca_addr,
 		   im->mca_users, im->mca_flags,
@@ -2591,7 +2591,7 @@ static int igmp6_mcf_seq_show(struct seq_file *seq, void *v)
 			   "Source Address", "INC", "EXC");
 	} else {
 		seq_printf(seq,
-			   "%3d %6.6s %#p6 %#p6 %6lu %6lu\n",
+			   "%3d %6.6s %pi6 %pi6 %6lu %6lu\n",
 			   state->dev->ifindex, state->dev->name,
 			   &state->im->mca_addr,
 			   &psf->sf_addr,

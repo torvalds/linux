@@ -365,7 +365,7 @@ static void xs_format_ipv6_peer_addresses(struct rpc_xprt *xprt,
 
 	buf = kzalloc(36, GFP_KERNEL);
 	if (buf)
-		snprintf(buf, 36, "%#p6", &addr->sin6_addr);
+		snprintf(buf, 36, "%pi6", &addr->sin6_addr);
 
 	xprt->address_strings[RPC_DISPLAY_HEX_ADDR] = buf;
 
