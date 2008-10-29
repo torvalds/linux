@@ -2322,13 +2322,16 @@ static int e100_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct nic *nic = netdev_priv(netdev);
 
-	if(wol->wolopts != WAKE_MAGIC && wol->wolopts != 0)
+	if ((wol->wolopts && wol->wolopts != WAKE_MAGIC) ||
+	    !device_can_wakeup(&nic->pdev->dev))
 		return -EOPNOTSUPP;
 
 	if(wol->wolopts)
 		nic->flags |= wol_magic;
 	else
 		nic->flags &= ~wol_magic;
+
+	device_set_wakeup_enable(&nic->pdev->dev, wol->wolopts);
 
 	e100_exec_cb(nic, NULL, e100_configure);
 
@@ -2733,8 +2736,10 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 
 	/* Wol magic packet can be enabled from eeprom */
 	if((nic->mac >= mac_82558_D101_A4) &&
-	   (nic->eeprom[eeprom_id] & eeprom_id_wol))
+	   (nic->eeprom[eeprom_id] & eeprom_id_wol)) {
 		nic->flags |= wol_magic;
+		device_set_wakeup_enable(&pdev->dev, true);
+	}
 
 	/* ack any pending wake events, disable PME */
 	pci_pme_active(pdev, false);
@@ -2793,11 +2798,10 @@ static int e100_suspend(struct pci_dev *pdev, pm_message_t state)
 	pci_save_state(pdev);
 
 	if ((nic->flags & wol_magic) | e100_asf(nic)) {
-		pci_enable_wake(pdev, PCI_D3hot, 1);
-		pci_enable_wake(pdev, PCI_D3cold, 1);
+		if (pci_enable_wake(pdev, PCI_D3cold, true))
+			pci_enable_wake(pdev, PCI_D3hot, true);
 	} else {
-		pci_enable_wake(pdev, PCI_D3hot, 0);
-		pci_enable_wake(pdev, PCI_D3cold, 0);
+		pci_enable_wake(pdev, PCI_D3hot, false);
 	}
 
 	pci_disable_device(pdev);
