@@ -10,6 +10,7 @@
 
 /* bits for the flags field */
 #define EXTENT_FLAG_PINNED 0 /* this entry not yet on disk, don't free it */
+#define EXTENT_FLAG_COMPRESSED 1
 
 struct extent_map {
 	struct rb_node rb_node;
@@ -18,6 +19,7 @@ struct extent_map {
 	u64 start;
 	u64 len;
 	u64 block_start;
+	u64 block_len;
 	unsigned long flags;
 	struct block_device *bdev;
 	atomic_t refs;
@@ -38,9 +40,9 @@ static inline u64 extent_map_end(struct extent_map *em)
 
 static inline u64 extent_map_block_end(struct extent_map *em)
 {
-	if (em->block_start + em->len < em->block_start)
+	if (em->block_start + em->block_len < em->block_start)
 		return (u64)-1;
-	return em->block_start + em->len;
+	return em->block_start + em->block_len;
 }
 
 void extent_map_tree_init(struct extent_map_tree *tree, gfp_t mask);

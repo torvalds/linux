@@ -31,7 +31,8 @@ int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     u64 objectid, u64 pos,
 			     u64 disk_offset, u64 disk_num_bytes,
-			     u64 num_bytes, u64 offset)
+			     u64 num_bytes, u64 offset, u64 ram_bytes,
+			     u8 compression, u8 encryption, u16 other_encoding)
 {
 	int ret = 0;
 	struct btrfs_file_extent_item *item;
@@ -57,8 +58,13 @@ int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 	btrfs_set_file_extent_disk_num_bytes(leaf, item, disk_num_bytes);
 	btrfs_set_file_extent_offset(leaf, item, offset);
 	btrfs_set_file_extent_num_bytes(leaf, item, num_bytes);
+	btrfs_set_file_extent_ram_bytes(leaf, item, ram_bytes);
 	btrfs_set_file_extent_generation(leaf, item, trans->transid);
 	btrfs_set_file_extent_type(leaf, item, BTRFS_FILE_EXTENT_REG);
+	btrfs_set_file_extent_compression(leaf, item, compression);
+	btrfs_set_file_extent_encryption(leaf, item, encryption);
+	btrfs_set_file_extent_other_encoding(leaf, item, other_encoding);
+
 	btrfs_mark_buffer_dirty(leaf);
 out:
 	btrfs_free_path(path);
@@ -210,6 +216,73 @@ found:
 		bvec++;
 	}
 	btrfs_free_path(path);
+	return 0;
+}
+
+int btrfs_csum_file_bytes(struct btrfs_root *root, struct inode *inode,
+			  u64 start, unsigned long len)
+{
+	struct btrfs_ordered_sum *sums;
+	struct btrfs_sector_sum *sector_sum;
+	struct btrfs_ordered_extent *ordered;
+	char *data;
+	struct page *page;
+	unsigned long total_bytes = 0;
+	unsigned long this_sum_bytes = 0;
+
+	sums = kzalloc(btrfs_ordered_sum_size(root, len), GFP_NOFS);
+	if (!sums)
+		return -ENOMEM;
+
+	sector_sum = sums->sums;
+	sums->file_offset = start;
+	sums->len = len;
+	INIT_LIST_HEAD(&sums->list);
+	ordered = btrfs_lookup_ordered_extent(inode, sums->file_offset);
+	BUG_ON(!ordered);
+
+	while(len > 0) {
+		if (start >= ordered->file_offset + ordered->len ||
+		    start < ordered->file_offset) {
+			sums->len = this_sum_bytes;
+			this_sum_bytes = 0;
+			btrfs_add_ordered_sum(inode, ordered, sums);
+			btrfs_put_ordered_extent(ordered);
+
+			sums = kzalloc(btrfs_ordered_sum_size(root, len),
+				       GFP_NOFS);
+			BUG_ON(!sums);
+			sector_sum = sums->sums;
+			sums->len = len;
+			sums->file_offset = start;
+			ordered = btrfs_lookup_ordered_extent(inode,
+						      sums->file_offset);
+			BUG_ON(!ordered);
+		}
+
+		page = find_get_page(inode->i_mapping,
+				     start >> PAGE_CACHE_SHIFT);
+
+		data = kmap_atomic(page, KM_USER0);
+		sector_sum->sum = ~(u32)0;
+		sector_sum->sum = btrfs_csum_data(root, data, sector_sum->sum,
+						  PAGE_CACHE_SIZE);
+		kunmap_atomic(data, KM_USER0);
+		btrfs_csum_final(sector_sum->sum,
+				 (char *)&sector_sum->sum);
+		sector_sum->offset = page_offset(page);
+		page_cache_release(page);
+
+		sector_sum++;
+		total_bytes += PAGE_CACHE_SIZE;
+		this_sum_bytes += PAGE_CACHE_SIZE;
+		start += PAGE_CACHE_SIZE;
+
+		WARN_ON(len < PAGE_CACHE_SIZE);
+		len -= PAGE_CACHE_SIZE;
+	}
+	btrfs_add_ordered_sum(inode, ordered, sums);
+	btrfs_put_ordered_extent(ordered);
 	return 0;
 }
 

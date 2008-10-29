@@ -501,6 +501,8 @@ config BTRFS_FS
 	tristate "Btrfs filesystem (EXPERIMENTAL) Unstable disk format"
 	depends on EXPERIMENTAL
 	select LIBCRC32C
+	select ZLIB_INFLATE
+	select ZLIB_DEFLATE
 	help
 	  Btrfs is a new filesystem with extents, writable snapshotting,
 	  support for multiple devices and many more features.

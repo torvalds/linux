@@ -83,6 +83,7 @@ struct async_submit_bio {
 	extent_submit_bio_hook_t *submit_bio_hook;
 	int rw;
 	int mirror_num;
+	unsigned long bio_flags;
 	struct btrfs_work work;
 };
 
@@ -115,6 +116,7 @@ struct extent_map *btree_get_extent(struct inode *inode, struct page *page,
 	}
 	em->start = 0;
 	em->len = (u64)-1;
+	em->block_len = (u64)-1;
 	em->block_start = 0;
 	em->bdev = BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev;
 
@@ -469,12 +471,13 @@ static void run_one_async_submit(struct btrfs_work *work)
 		wake_up(&fs_info->async_submit_wait);
 
 	async->submit_bio_hook(async->inode, async->rw, async->bio,
-			       async->mirror_num);
+			       async->mirror_num, async->bio_flags);
 	kfree(async);
 }
 
 int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 			int rw, struct bio *bio, int mirror_num,
+			unsigned long bio_flags,
 			extent_submit_bio_hook_t *submit_bio_hook)
 {
 	struct async_submit_bio *async;
@@ -491,6 +494,7 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 	async->submit_bio_hook = submit_bio_hook;
 	async->work.func = run_one_async_submit;
 	async->work.flags = 0;
+	async->bio_flags = bio_flags;
 
 	while(atomic_read(&fs_info->async_submit_draining) &&
 	      atomic_read(&fs_info->nr_async_submits)) {
@@ -530,7 +534,7 @@ static int btree_csum_one_bio(struct bio *bio)
 }
 
 static int __btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
-				 int mirror_num)
+				 int mirror_num, unsigned long bio_flags)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret;
@@ -556,17 +560,17 @@ static int __btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 }
 
 static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
-				 int mirror_num)
+				 int mirror_num, unsigned long bio_flags)
 {
 	/*
 	 * kthread helpers are used to submit writes so that checksumming
 	 * can happen in parallel across all CPUs
 	 */
 	if (!(rw & (1 << BIO_RW))) {
-		return __btree_submit_bio_hook(inode, rw, bio, mirror_num);
+		return __btree_submit_bio_hook(inode, rw, bio, mirror_num, 0);
 	}
 	return btrfs_wq_submit_bio(BTRFS_I(inode)->root->fs_info,
-				   inode, rw, bio, mirror_num,
+				   inode, rw, bio, mirror_num, 0,
 				   __btree_submit_bio_hook);
 }
 
@@ -1407,6 +1411,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->btree_inode = new_inode(sb);
 	fs_info->btree_inode->i_ino = 1;
 	fs_info->btree_inode->i_nlink = 1;
+
 	fs_info->thread_pool_size = min(num_online_cpus() + 2, 8);
 
 	INIT_LIST_HEAD(&fs_info->ordered_extents);
@@ -1508,6 +1513,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	 */
 	btrfs_init_workers(&fs_info->workers, "worker",
 			   fs_info->thread_pool_size);
+
 	btrfs_init_workers(&fs_info->submit_workers, "submit",
 			   min_t(u64, fs_devices->num_devices,
 			   fs_info->thread_pool_size));
@@ -1559,6 +1565,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	}
 
 	fs_info->bdi.ra_pages *= btrfs_super_num_devices(disk_super);
+	fs_info->bdi.ra_pages = max(fs_info->bdi.ra_pages,
+				    4 * 1024 * 1024 / PAGE_CACHE_SIZE);
 
 	nodesize = btrfs_super_nodesize(disk_super);
 	leafsize = btrfs_super_leafsize(disk_super);

@@ -49,6 +49,7 @@
 #include "compat.h"
 #include "tree-log.h"
 #include "ref-cache.h"
+#include "compression.h"
 
 struct btrfs_iget_args {
 	u64 ino;
@@ -83,6 +84,7 @@ static unsigned char btrfs_type_by_mode[S_IFMT >> S_SHIFT] = {
 };
 
 static void btrfs_truncate(struct inode *inode);
+static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end);
 
 /*
  * a very lame attempt at stopping writes when the FS is 85% full.  There
@@ -114,57 +116,374 @@ int btrfs_check_free_space(struct btrfs_root *root, u64 num_required,
 }
 
 /*
+ * this does all the hard work for inserting an inline extent into
+ * the btree.  The caller should have done a btrfs_drop_extents so that
+ * no overlapping inline items exist in the btree
+ */
+static int noinline insert_inline_extent(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root, struct inode *inode,
+				u64 start, size_t size, size_t compressed_size,
+				struct page **compressed_pages)
+{
+	struct btrfs_key key;
+	struct btrfs_path *path;
+	struct extent_buffer *leaf;
+	struct page *page = NULL;
+	char *kaddr;
+	unsigned long ptr;
+	struct btrfs_file_extent_item *ei;
+	int err = 0;
+	int ret;
+	size_t cur_size = size;
+	size_t datasize;
+	unsigned long offset;
+	int use_compress = 0;
+
+	if (compressed_size && compressed_pages) {
+		use_compress = 1;
+		cur_size = compressed_size;
+	}
+
+	path = btrfs_alloc_path(); if (!path)
+		return -ENOMEM;
+
+	btrfs_set_trans_block_group(trans, inode);
+
+	key.objectid = inode->i_ino;
+	key.offset = start;
+	btrfs_set_key_type(&key, BTRFS_EXTENT_DATA_KEY);
+	inode_add_bytes(inode, size);
+	datasize = btrfs_file_extent_calc_inline_size(cur_size);
+
+	inode_add_bytes(inode, size);
+	ret = btrfs_insert_empty_item(trans, root, path, &key,
+				      datasize);
+	BUG_ON(ret);
+	if (ret) {
+		err = ret;
+		printk("got bad ret %d\n", ret);
+		goto fail;
+	}
+	leaf = path->nodes[0];
+	ei = btrfs_item_ptr(leaf, path->slots[0],
+			    struct btrfs_file_extent_item);
+	btrfs_set_file_extent_generation(leaf, ei, trans->transid);
+	btrfs_set_file_extent_type(leaf, ei, BTRFS_FILE_EXTENT_INLINE);
+	btrfs_set_file_extent_encryption(leaf, ei, 0);
+	btrfs_set_file_extent_other_encoding(leaf, ei, 0);
+	btrfs_set_file_extent_ram_bytes(leaf, ei, size);
+	ptr = btrfs_file_extent_inline_start(ei);
+
+	if (use_compress) {
+		struct page *cpage;
+		int i = 0;
+		while(compressed_size > 0) {
+			cpage = compressed_pages[i];
+			cur_size = min(compressed_size,
+				       PAGE_CACHE_SIZE);
+
+			kaddr = kmap(cpage);
+			write_extent_buffer(leaf, kaddr, ptr, cur_size);
+			kunmap(cpage);
+
+			i++;
+			ptr += cur_size;
+			compressed_size -= cur_size;
+		}
+		btrfs_set_file_extent_compression(leaf, ei,
+						  BTRFS_COMPRESS_ZLIB);
+	} else {
+		page = find_get_page(inode->i_mapping,
+				     start >> PAGE_CACHE_SHIFT);
+		btrfs_set_file_extent_compression(leaf, ei, 0);
+		kaddr = kmap_atomic(page, KM_USER0);
+		offset = start & (PAGE_CACHE_SIZE - 1);
+		write_extent_buffer(leaf, kaddr + offset, ptr, size);
+		kunmap_atomic(kaddr, KM_USER0);
+		page_cache_release(page);
+	}
+	btrfs_mark_buffer_dirty(leaf);
+	btrfs_free_path(path);
+
+	BTRFS_I(inode)->disk_i_size = inode->i_size;
+	btrfs_update_inode(trans, root, inode);
+	return 0;
+fail:
+	btrfs_free_path(path);
+	return err;
+}
+
+
+/*
+ * conditionally insert an inline extent into the file.  This
+ * does the checks required to make sure the data is small enough
+ * to fit as an inline extent.
+ */
+static int cow_file_range_inline(struct btrfs_trans_handle *trans,
+				 struct btrfs_root *root,
+				 struct inode *inode, u64 start, u64 end,
+				 size_t compressed_size,
+				 struct page **compressed_pages)
+{
+	u64 isize = i_size_read(inode);
+	u64 actual_end = min(end + 1, isize);
+	u64 inline_len = actual_end - start;
+	u64 aligned_end = (end + root->sectorsize - 1) &
+			~((u64)root->sectorsize - 1);
+	u64 hint_byte;
+	u64 data_len = inline_len;
+	int ret;
+
+	if (compressed_size)
+		data_len = compressed_size;
+
+	if (start > 0 ||
+	    data_len >= BTRFS_MAX_INLINE_DATA_SIZE(root) ||
+	    (!compressed_size &&
+	    (actual_end & (root->sectorsize - 1)) == 0) ||
+	    end + 1 < isize ||
+	    data_len > root->fs_info->max_inline) {
+		return 1;
+	}
+
+	mutex_lock(&BTRFS_I(inode)->extent_mutex);
+	ret = btrfs_drop_extents(trans, root, inode, start,
+				 aligned_end, aligned_end, &hint_byte);
+	BUG_ON(ret);
+
+	if (isize > actual_end)
+		inline_len = min_t(u64, isize, actual_end);
+	ret = insert_inline_extent(trans, root, inode, start,
+				   inline_len, compressed_size,
+				   compressed_pages);
+	BUG_ON(ret);
+	btrfs_drop_extent_cache(inode, start, aligned_end, 0);
+	mutex_unlock(&BTRFS_I(inode)->extent_mutex);
+	return 0;
+}
+
+/*
  * when extent_io.c finds a delayed allocation range in the file,
  * the call backs end up in this code.  The basic idea is to
  * allocate extents on disk for the range, and create ordered data structs
  * in ram to track those extents.
+ *
+ * locked_page is the page that writepage had locked already.  We use
+ * it to make sure we don't do extra locks or unlocks.
+ *
+ * *page_started is set to one if we unlock locked_page and do everything
+ * required to start IO on it.  It may be clean and already done with
+ * IO when we return.
  */
-static int cow_file_range(struct inode *inode, u64 start, u64 end)
+static int cow_file_range(struct inode *inode, struct page *locked_page,
+			  u64 start, u64 end, int *page_started)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
 	u64 alloc_hint = 0;
 	u64 num_bytes;
+	unsigned long ram_size;
+	u64 orig_start;
+	u64 disk_num_bytes;
 	u64 cur_alloc_size;
 	u64 blocksize = root->sectorsize;
-	u64 orig_num_bytes;
+	u64 actual_end;
 	struct btrfs_key ins;
 	struct extent_map *em;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	int ret = 0;
+	struct page **pages = NULL;
+	unsigned long nr_pages;
+	unsigned long nr_pages_ret = 0;
+	unsigned long total_compressed = 0;
+	unsigned long total_in = 0;
+	unsigned long max_compressed = 128 * 1024;
+	unsigned long max_uncompressed = 256 * 1024;
+	int i;
+	int will_compress;
 
 	trans = btrfs_join_transaction(root, 1);
 	BUG_ON(!trans);
 	btrfs_set_trans_block_group(trans, inode);
+	orig_start = start;
 
+	/*
+	 * compression made this loop a bit ugly, but the basic idea is to
+	 * compress some pages but keep the total size of the compressed
+	 * extent relatively small.  If compression is off, this goto target
+	 * is never used.
+	 */
+again:
+	will_compress = 0;
+	nr_pages = (end >> PAGE_CACHE_SHIFT) - (start >> PAGE_CACHE_SHIFT) + 1;
+	nr_pages = min(nr_pages, (128 * 1024UL) / PAGE_CACHE_SIZE);
+
+	actual_end = min_t(u64, i_size_read(inode), end + 1);
+	total_compressed = actual_end - start;
+
+	/* we want to make sure that amount of ram required to uncompress
+	 * an extent is reasonable, so we limit the total size in ram
+	 * of a compressed extent to 256k
+	 */
+	total_compressed = min(total_compressed, max_uncompressed);
 	num_bytes = (end - start + blocksize) & ~(blocksize - 1);
 	num_bytes = max(blocksize,  num_bytes);
-	orig_num_bytes = num_bytes;
+	disk_num_bytes = num_bytes;
+	total_in = 0;
+	ret = 0;
 
-	if (alloc_hint == EXTENT_MAP_INLINE)
-		goto out;
+	/* we do compression for mount -o compress and when the
+	 * inode has not been flagged as nocompress
+	 */
+	if (!btrfs_test_flag(inode, NOCOMPRESS) &&
+	    btrfs_test_opt(root, COMPRESS)) {
+		WARN_ON(pages);
+		pages = kmalloc(sizeof(struct page *) * nr_pages, GFP_NOFS);
 
-	BUG_ON(num_bytes > btrfs_super_total_bytes(&root->fs_info->super_copy));
+		/* we want to make sure the amount of IO required to satisfy
+		 * a random read is reasonably small, so we limit the size
+		 * of a compressed extent to 128k
+		 */
+		ret = btrfs_zlib_compress_pages(inode->i_mapping, start,
+						total_compressed, pages,
+						nr_pages, &nr_pages_ret,
+						&total_in,
+						&total_compressed,
+						max_compressed);
+
+		if (!ret) {
+			unsigned long offset = total_compressed &
+				(PAGE_CACHE_SIZE - 1);
+			struct page *page = pages[nr_pages_ret - 1];
+			char *kaddr;
+
+			/* zero the tail end of the last page, we might be
+			 * sending it down to disk
+			 */
+			if (offset) {
+				kaddr = kmap_atomic(page, KM_USER0);
+				memset(kaddr + offset, 0,
+				       PAGE_CACHE_SIZE - offset);
+				kunmap_atomic(kaddr, KM_USER0);
+			}
+			will_compress = 1;
+		}
+	}
+	if (start == 0) {
+		/* lets try to make an inline extent */
+		if (ret || total_in < (end - start + 1)) {
+			/* we didn't compress the entire range, try
+			 * to make an uncompressed inline extent.  This
+			 * is almost sure to fail, but maybe inline sizes
+			 * will get bigger later
+			 */
+			ret = cow_file_range_inline(trans, root, inode,
+						    start, end, 0, NULL);
+		} else {
+			ret = cow_file_range_inline(trans, root, inode,
+						    start, end,
+						    total_compressed, pages);
+		}
+		if (ret == 0) {
+			extent_clear_unlock_delalloc(inode,
+						     &BTRFS_I(inode)->io_tree,
+						     start, end, NULL,
+						     1, 1, 1);
+			*page_started = 1;
+			ret = 0;
+			goto free_pages_out;
+		}
+	}
+
+	if (will_compress) {
+		/*
+		 * we aren't doing an inline extent round the compressed size
+		 * up to a block size boundary so the allocator does sane
+		 * things
+		 */
+		total_compressed = (total_compressed + blocksize - 1) &
+			~(blocksize - 1);
+
+		/*
+		 * one last check to make sure the compression is really a
+		 * win, compare the page count read with the blocks on disk
+		 */
+		total_in = (total_in + PAGE_CACHE_SIZE - 1) &
+			~(PAGE_CACHE_SIZE - 1);
+		if (total_compressed >= total_in) {
+			will_compress = 0;
+		} else {
+			disk_num_bytes = total_compressed;
+			num_bytes = total_in;
+		}
+	}
+	if (!will_compress && pages) {
+		/*
+		 * the compression code ran but failed to make things smaller,
+		 * free any pages it allocated and our page pointer array
+		 */
+		for (i = 0; i < nr_pages_ret; i++) {
+			page_cache_release(pages[i]);
+		}
+		kfree(pages);
+		pages = NULL;
+		total_compressed = 0;
+		nr_pages_ret = 0;
+
+		/* flag the file so we don't compress in the future */
+		btrfs_set_flag(inode, NOCOMPRESS);
+	}
+
+	BUG_ON(disk_num_bytes >
+	       btrfs_super_total_bytes(&root->fs_info->super_copy));
+
 	mutex_lock(&BTRFS_I(inode)->extent_mutex);
 	btrfs_drop_extent_cache(inode, start, start + num_bytes - 1, 0);
 	mutex_unlock(&BTRFS_I(inode)->extent_mutex);
 
-	while(num_bytes > 0) {
-		cur_alloc_size = min(num_bytes, root->fs_info->max_extent);
+	while(disk_num_bytes > 0) {
+		unsigned long min_bytes;
+
+		/*
+		 * the max size of a compressed extent is pretty small,
+		 * make the code a little less complex by forcing
+		 * the allocator to find a whole compressed extent at once
+		 */
+		if (will_compress)
+			min_bytes = disk_num_bytes;
+		else
+			min_bytes = root->sectorsize;
+
+		cur_alloc_size = min(disk_num_bytes, root->fs_info->max_extent);
 		ret = btrfs_reserve_extent(trans, root, cur_alloc_size,
-					   root->sectorsize, 0, alloc_hint,
+					   min_bytes, 0, alloc_hint,
 					   (u64)-1, &ins, 1);
 		if (ret) {
 			WARN_ON(1);
-			goto out;
+			goto free_pages_out_fail;
 		}
 		em = alloc_extent_map(GFP_NOFS);
 		em->start = start;
-		em->len = ins.offset;
+
+		if (will_compress) {
+			ram_size = num_bytes;
+			em->len = num_bytes;
+		} else {
+			/* ramsize == disk size */
+			ram_size = ins.offset;
+			em->len = ins.offset;
+		}
+
 		em->block_start = ins.objectid;
+		em->block_len = ins.offset;
 		em->bdev = root->fs_info->fs_devices->latest_bdev;
+
 		mutex_lock(&BTRFS_I(inode)->extent_mutex);
 		set_bit(EXTENT_FLAG_PINNED, &em->flags);
+
+		if (will_compress)
+			set_bit(EXTENT_FLAG_COMPRESSED, &em->flags);
+
 		while(1) {
 			spin_lock(&em_tree->lock);
 			ret = add_extent_mapping(em_tree, em);
@@ -174,26 +493,95 @@ static int cow_file_range(struct inode *inode, u64 start, u64 end)
 				break;
 			}
 			btrfs_drop_extent_cache(inode, start,
-						start + ins.offset - 1, 0);
+						start + ram_size - 1, 0);
 		}
 		mutex_unlock(&BTRFS_I(inode)->extent_mutex);
 
 		cur_alloc_size = ins.offset;
 		ret = btrfs_add_ordered_extent(inode, start, ins.objectid,
-					       ins.offset, 0);
+					       ram_size, cur_alloc_size, 0,
+					       will_compress);
 		BUG_ON(ret);
-		if (num_bytes < cur_alloc_size) {
-			printk("num_bytes %Lu cur_alloc %Lu\n", num_bytes,
+
+		if (disk_num_bytes < cur_alloc_size) {
+			printk("num_bytes %Lu cur_alloc %Lu\n", disk_num_bytes,
 			       cur_alloc_size);
 			break;
 		}
+
+		if (will_compress) {
+			/*
+			 * we're doing compression, we and we need to
+			 * submit the compressed extents down to the device.
+			 *
+			 * We lock down all the file pages, clearing their
+			 * dirty bits and setting them writeback.  Everyone
+			 * that wants to modify the page will wait on the
+			 * ordered extent above.
+			 *
+			 * The writeback bits on the file pages are
+			 * cleared when the compressed pages are on disk
+			 */
+			btrfs_end_transaction(trans, root);
+
+			if (start <= page_offset(locked_page) &&
+			    page_offset(locked_page) < start + ram_size) {
+				*page_started = 1;
+			}
+
+			extent_clear_unlock_delalloc(inode,
+						     &BTRFS_I(inode)->io_tree,
+						     start,
+						     start + ram_size - 1,
+						     NULL, 1, 1, 0);
+
+			ret = btrfs_submit_compressed_write(inode, start,
+						 ram_size, ins.objectid,
+						 cur_alloc_size, pages,
+						 nr_pages_ret);
+
+			BUG_ON(ret);
+			trans = btrfs_join_transaction(root, 1);
+			if (start + ram_size < end) {
+				start += ram_size;
+				alloc_hint = ins.objectid + ins.offset;
+				/* pages will be freed at end_bio time */
+				pages = NULL;
+				goto again;
+			} else {
+				/* we've written everything, time to go */
+				break;
+			}
+		}
+		/* we're not doing compressed IO, don't unlock the first
+		 * page (which the caller expects to stay locked), don't
+		 * clear any dirty bits and don't set any writeback bits
+		 */
+		extent_clear_unlock_delalloc(inode, &BTRFS_I(inode)->io_tree,
+					     start, start + ram_size - 1,
+					     locked_page, 0, 0, 0);
+		disk_num_bytes -= cur_alloc_size;
 		num_bytes -= cur_alloc_size;
 		alloc_hint = ins.objectid + ins.offset;
 		start += cur_alloc_size;
 	}
+
+	ret = 0;
 out:
 	btrfs_end_transaction(trans, root);
+
 	return ret;
+
+free_pages_out_fail:
+	extent_clear_unlock_delalloc(inode, &BTRFS_I(inode)->io_tree,
+				     start, end, locked_page, 0, 0, 0);
+free_pages_out:
+	for (i = 0; i < nr_pages_ret; i++)
+		page_cache_release(pages[i]);
+	if (pages)
+		kfree(pages);
+
+	goto out;
 }
 
 /*
@@ -203,7 +591,8 @@ out:
  * If no cow copies or snapshots exist, we write directly to the existing
  * blocks on disk
  */
-static int run_delalloc_nocow(struct inode *inode, u64 start, u64 end)
+static int run_delalloc_nocow(struct inode *inode, struct page *locked_page,
+			      u64 start, u64 end, int *page_started)
 {
 	u64 extent_start;
 	u64 extent_end;
@@ -260,6 +649,11 @@ again:
 		extent_end = extent_start + extent_num_bytes;
 		err = 0;
 
+		if (btrfs_file_extent_compression(leaf, item) ||
+		    btrfs_file_extent_encryption(leaf,item) ||
+		    btrfs_file_extent_other_encoding(leaf, item))
+			goto not_found;
+
 		if (loops && start != extent_start)
 			goto not_found;
 
@@ -284,7 +678,8 @@ again:
 		bytenr += btrfs_file_extent_offset(leaf, item);
 		extent_num_bytes = min(end + 1, extent_end) - start;
 		ret = btrfs_add_ordered_extent(inode, start, bytenr,
-						extent_num_bytes, 1);
+						extent_num_bytes,
+						extent_num_bytes, 1, 0);
 		if (ret) {
 			err = ret;
 			goto out;
@@ -300,7 +695,8 @@ again:
 not_found:
 		btrfs_end_transaction(trans, root);
 		btrfs_free_path(path);
-		return cow_file_range(inode, start, end);
+		return cow_file_range(inode, locked_page, start, end,
+				      page_started);
 	}
 out:
 	WARN_ON(err);
@@ -312,16 +708,19 @@ out:
 /*
  * extent_io.c call back to do delayed allocation processing
  */
-static int run_delalloc_range(struct inode *inode, u64 start, u64 end)
+static int run_delalloc_range(struct inode *inode, struct page *locked_page,
+			      u64 start, u64 end, int *page_started)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret;
 
 	if (btrfs_test_opt(root, NODATACOW) ||
 	    btrfs_test_flag(inode, NODATACOW))
-		ret = run_delalloc_nocow(inode, start, end);
+		ret = run_delalloc_nocow(inode, locked_page, start, end,
+					 page_started);
 	else
-		ret = cow_file_range(inode, start, end);
+		ret = cow_file_range(inode, locked_page, start, end,
+				     page_started);
 
 	return ret;
 }
@@ -383,7 +782,8 @@ int btrfs_clear_bit_hook(struct inode *inode, u64 start, u64 end,
  * we don't create bios that span stripes or chunks
  */
 int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
-			 size_t size, struct bio *bio)
+			 size_t size, struct bio *bio,
+			 unsigned long bio_flags)
 {
 	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
 	struct btrfs_mapping_tree *map_tree;
@@ -413,7 +813,7 @@ int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
  * are inserted into the btree
  */
 int __btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
-			  int mirror_num)
+			  int mirror_num, unsigned long bio_flags)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret = 0;
@@ -429,7 +829,7 @@ int __btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
  * or reading the csums from the tree before a read
  */
 int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
-			  int mirror_num)
+			  int mirror_num, unsigned long bio_flags)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret = 0;
@@ -444,11 +844,17 @@ int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 
 	if (!(rw & (1 << BIO_RW))) {
 		btrfs_lookup_bio_sums(root, inode, bio);
+
+		if (bio_flags & EXTENT_BIO_COMPRESSED) {
+			return btrfs_submit_compressed_read(inode, bio,
+						    mirror_num, bio_flags);
+		}
+
 		goto mapit;
 	}
 	return btrfs_wq_submit_bio(BTRFS_I(inode)->root->fs_info,
 				   inode, rw, bio, mirror_num,
-				   __btrfs_submit_bio_hook);
+				   bio_flags, __btrfs_submit_bio_hook);
 mapit:
 	return btrfs_map_bio(root, rw, bio, mirror_num, 0);
 }
@@ -539,7 +945,7 @@ out_page:
  * good idea.  This causes problems because we want to make sure COW
  * properly happens and the data=ordered rules are followed.
  *
- * In our case any range that doesn't have the EXTENT_ORDERED bit set
+ * In our case any range that doesn't have the ORDERED bit set
  * hasn't been properly setup for IO.  We kick off an async process
  * to fix it up.  The async helper will wait for ordered extents, set
  * the delalloc bit and make it safe to write the page.
@@ -632,9 +1038,20 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 	btrfs_set_file_extent_disk_bytenr(leaf, extent_item,
 					  ordered_extent->start);
 	btrfs_set_file_extent_disk_num_bytes(leaf, extent_item,
-					     ordered_extent->len);
+					     ordered_extent->disk_len);
 	btrfs_set_file_extent_offset(leaf, extent_item, 0);
+
+	if (test_bit(BTRFS_ORDERED_COMPRESSED, &ordered_extent->flags))
+		btrfs_set_file_extent_compression(leaf, extent_item, 1);
+	else
+		btrfs_set_file_extent_compression(leaf, extent_item, 0);
+	btrfs_set_file_extent_encryption(leaf, extent_item, 0);
+	btrfs_set_file_extent_other_encoding(leaf, extent_item, 0);
+
+	/* ram bytes = extent_num_bytes for now */
 	btrfs_set_file_extent_num_bytes(leaf, extent_item,
+					ordered_extent->len);
+	btrfs_set_file_extent_ram_bytes(leaf, extent_item,
 					ordered_extent->len);
 	btrfs_mark_buffer_dirty(leaf);
 
@@ -644,7 +1061,7 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 	mutex_unlock(&BTRFS_I(inode)->extent_mutex);
 
 	ins.objectid = ordered_extent->start;
-	ins.offset = ordered_extent->len;
+	ins.offset = ordered_extent->disk_len;
 	ins.type = BTRFS_EXTENT_ITEM_KEY;
 	ret = btrfs_alloc_reserved_extent(trans, root, leaf->start,
 					  root->root_key.objectid,
@@ -714,6 +1131,7 @@ int btrfs_io_failed_hook(struct bio *failed_bio,
 	int ret;
 	int rw;
 	u64 logical;
+	unsigned long bio_flags = 0;
 
 	ret = get_state_private(failure_tree, start, &private);
 	if (ret) {
@@ -738,6 +1156,8 @@ int btrfs_io_failed_hook(struct bio *failed_bio,
 		}
 		logical = start - em->start;
 		logical = em->block_start + logical;
+		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
+			bio_flags = EXTENT_BIO_COMPRESSED;
 		failrec->logical = logical;
 		free_extent_map(em);
 		set_extent_bits(failure_tree, start, end, EXTENT_LOCKED |
@@ -781,7 +1201,8 @@ int btrfs_io_failed_hook(struct bio *failed_bio,
 		rw = READ;
 
 	BTRFS_I(inode)->io_tree.ops->submit_bio_hook(inode, rw, bio,
-						      failrec->last_mirror);
+						      failrec->last_mirror,
+						      bio_flags);
 	return 0;
 }
 
@@ -1644,10 +2065,8 @@ search_again:
 				item_end +=
 				    btrfs_file_extent_num_bytes(leaf, fi);
 			} else if (extent_type == BTRFS_FILE_EXTENT_INLINE) {
-				struct btrfs_item *item = btrfs_item_nr(leaf,
-							        path->slots[0]);
 				item_end += btrfs_file_extent_inline_len(leaf,
-									 item);
+									 fi);
 			}
 			item_end--;
 		}
@@ -1715,7 +2134,14 @@ search_again:
 				root_owner = btrfs_header_owner(leaf);
 			}
 		} else if (extent_type == BTRFS_FILE_EXTENT_INLINE) {
-			if (!del_item) {
+			/*
+			 * we can't truncate inline items that have had
+			 * special encodings
+			 */
+			if (!del_item &&
+			    btrfs_file_extent_compression(leaf, fi) == 0 &&
+			    btrfs_file_extent_encryption(leaf, fi) == 0 &&
+			    btrfs_file_extent_other_encoding(leaf, fi) == 0) {
 				u32 size = new_size - found_key.offset;
 
 				if (root->ref_cows) {
@@ -1926,7 +2352,8 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 			err = btrfs_insert_file_extent(trans, root,
 						       inode->i_ino,
 						       hole_start, 0, 0,
-						       hole_size, 0);
+						       hole_size, 0, hole_size,
+						       0, 0, 0);
 			btrfs_drop_extent_cache(inode, hole_start,
 						(u64)-1, 0);
 			btrfs_check_file(root, inode);
@@ -2894,9 +3321,48 @@ static int merge_extent_mapping(struct extent_map_tree *em_tree,
 	start_diff = map_start - em->start;
 	em->start = map_start;
 	em->len = map_len;
-	if (em->block_start < EXTENT_MAP_LAST_BYTE)
+	if (em->block_start < EXTENT_MAP_LAST_BYTE &&
+	    !test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
 		em->block_start += start_diff;
+		em->block_len -= start_diff;
+	}
 	return add_extent_mapping(em_tree, em);
+}
+
+static noinline int uncompress_inline(struct btrfs_path *path,
+				      struct inode *inode, struct page *page,
+				      size_t pg_offset, u64 extent_offset,
+				      struct btrfs_file_extent_item *item)
+{
+	int ret;
+	struct extent_buffer *leaf = path->nodes[0];
+	char *tmp;
+	size_t max_size;
+	unsigned long inline_size;
+	unsigned long ptr;
+
+	WARN_ON(pg_offset != 0);
+	max_size = btrfs_file_extent_ram_bytes(leaf, item);
+	inline_size = btrfs_file_extent_inline_item_len(leaf,
+					btrfs_item_nr(leaf, path->slots[0]));
+	tmp = kmalloc(inline_size, GFP_NOFS);
+	ptr = btrfs_file_extent_inline_start(item);
+
+	read_extent_buffer(leaf, tmp, ptr, inline_size);
+
+	max_size = min(PAGE_CACHE_SIZE, max_size);
+	ret = btrfs_zlib_decompress(tmp, page, extent_offset,
+				    inline_size, max_size);
+	if (ret) {
+		char *kaddr = kmap_atomic(page, KM_USER0);
+		unsigned long copy_size = min_t(u64,
+				  PAGE_CACHE_SIZE - pg_offset,
+				  max_size - extent_offset);
+		memset(kaddr + pg_offset, 0, copy_size);
+		kunmap_atomic(kaddr, KM_USER0);
+	}
+	kfree(tmp);
+	return 0;
 }
 
 /*
@@ -2927,6 +3393,7 @@ struct extent_map *btrfs_get_extent(struct inode *inode, struct page *page,
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct btrfs_trans_handle *trans = NULL;
+	int compressed;
 
 again:
 	spin_lock(&em_tree->lock);
@@ -2951,6 +3418,7 @@ again:
 	em->bdev = root->fs_info->fs_devices->latest_bdev;
 	em->start = EXTENT_MAP_HOLE;
 	em->len = (u64)-1;
+	em->block_len = (u64)-1;
 
 	if (!path) {
 		path = btrfs_alloc_path();
@@ -2983,6 +3451,7 @@ again:
 
 	found_type = btrfs_file_extent_type(leaf, item);
 	extent_start = found_key.offset;
+	compressed = btrfs_file_extent_compression(leaf, item);
 	if (found_type == BTRFS_FILE_EXTENT_REG) {
 		extent_end = extent_start +
 		       btrfs_file_extent_num_bytes(leaf, item);
@@ -3005,10 +3474,18 @@ again:
 			em->block_start = EXTENT_MAP_HOLE;
 			goto insert;
 		}
-		bytenr += btrfs_file_extent_offset(leaf, item);
-		em->block_start = bytenr;
 		em->start = extent_start;
 		em->len = extent_end - extent_start;
+		if (compressed) {
+			set_bit(EXTENT_FLAG_COMPRESSED, &em->flags);
+			em->block_start = bytenr;
+			em->block_len = btrfs_file_extent_disk_num_bytes(leaf,
+									 item);
+		} else {
+			bytenr += btrfs_file_extent_offset(leaf, item);
+			em->block_start = bytenr;
+			em->block_len = em->len;
+		}
 		goto insert;
 	} else if (found_type == BTRFS_FILE_EXTENT_INLINE) {
 		u64 page_start;
@@ -3018,8 +3495,7 @@ again:
 		size_t extent_offset;
 		size_t copy_size;
 
-		size = btrfs_file_extent_inline_len(leaf, btrfs_item_nr(leaf,
-						    path->slots[0]));
+		size = btrfs_file_extent_inline_len(leaf, item);
 		extent_end = (extent_start + size + root->sectorsize - 1) &
 			~((u64)root->sectorsize - 1);
 		if (start < extent_start || start >= extent_end) {
@@ -3035,9 +3511,10 @@ again:
 		}
 		em->block_start = EXTENT_MAP_INLINE;
 
-		if (!page) {
+		if (!page || create) {
 			em->start = extent_start;
-			em->len = size;
+			em->len = (size + root->sectorsize - 1) &
+			~((u64)root->sectorsize - 1);
 			goto out;
 		}
 
@@ -3048,11 +3525,22 @@ again:
 		em->start = extent_start + extent_offset;
 		em->len = (copy_size + root->sectorsize - 1) &
 			~((u64)root->sectorsize - 1);
-		map = kmap(page);
+		if (compressed)
+			set_bit(EXTENT_FLAG_COMPRESSED, &em->flags);
 		ptr = btrfs_file_extent_inline_start(item) + extent_offset;
 		if (create == 0 && !PageUptodate(page)) {
-			read_extent_buffer(leaf, map + pg_offset, ptr,
-					   copy_size);
+			if (btrfs_file_extent_compression(leaf, item) ==
+			    BTRFS_COMPRESS_ZLIB) {
+				ret = uncompress_inline(path, inode, page,
+							pg_offset,
+							extent_offset, item);
+				BUG_ON(ret);
+			} else {
+				map = kmap(page);
+				read_extent_buffer(leaf, map + pg_offset, ptr,
+						   copy_size);
+				kunmap(page);
+			}
 			flush_dcache_page(page);
 		} else if (create && PageUptodate(page)) {
 			if (!trans) {
@@ -3063,11 +3551,12 @@ again:
 				trans = btrfs_join_transaction(root, 1);
 				goto again;
 			}
+			map = kmap(page);
 			write_extent_buffer(leaf, map + pg_offset, ptr,
 					    copy_size);
+			kunmap(page);
 			btrfs_mark_buffer_dirty(leaf);
 		}
-		kunmap(page);
 		set_extent_uptodate(io_tree, em->start,
 				    extent_map_end(em) - 1, GFP_NOFS);
 		goto insert;
@@ -3779,6 +4268,11 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 	btrfs_set_file_extent_generation(leaf, ei, trans->transid);
 	btrfs_set_file_extent_type(leaf, ei,
 				   BTRFS_FILE_EXTENT_INLINE);
+	btrfs_set_file_extent_encryption(leaf, ei, 0);
+	btrfs_set_file_extent_compression(leaf, ei, 0);
+	btrfs_set_file_extent_other_encoding(leaf, ei, 0);
+	btrfs_set_file_extent_ram_bytes(leaf, ei, name_len);
+
 	ptr = btrfs_file_extent_inline_start(ei);
 	write_extent_buffer(leaf, symname, ptr, name_len);
 	btrfs_mark_buffer_dirty(leaf);

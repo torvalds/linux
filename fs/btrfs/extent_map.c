@@ -184,6 +184,13 @@ static int mergable_maps(struct extent_map *prev, struct extent_map *next)
 	if (test_bit(EXTENT_FLAG_PINNED, &prev->flags))
 		return 0;
 
+	/*
+	 * don't merge compressed extents, we need to know their
+	 * actual size
+	 */
+	if (test_bit(EXTENT_FLAG_COMPRESSED, &prev->flags))
+		return 0;
+
 	if (extent_map_end(prev) == next->start &&
 	    prev->flags == next->flags &&
 	    prev->bdev == next->bdev &&
@@ -239,6 +246,7 @@ int add_extent_mapping(struct extent_map_tree *tree,
 		if (rb && mergable_maps(merge, em)) {
 			em->start = merge->start;
 			em->len += merge->len;
+			em->block_len += merge->block_len;
 			em->block_start = merge->block_start;
 			merge->in_tree = 0;
 			rb_erase(&merge->rb_node, &tree->map);
@@ -250,6 +258,7 @@ int add_extent_mapping(struct extent_map_tree *tree,
 		merge = rb_entry(rb, struct extent_map, rb_node);
 	if (rb && mergable_maps(em, merge)) {
 		em->len += merge->len;
+		em->block_len += merge->len;
 		rb_erase(&merge->rb_node, &tree->map);
 		merge->in_tree = 0;
 		free_extent_map(merge);

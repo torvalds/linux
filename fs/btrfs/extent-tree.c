@@ -3278,6 +3278,7 @@ static int noinline relocate_data_extent(struct inode *reloc_inode,
 
 	em->start = extent_key->objectid - offset;
 	em->len = extent_key->offset;
+	em->block_len = extent_key->offset;
 	em->block_start = extent_key->objectid;
 	em->bdev = root->fs_info->fs_devices->latest_bdev;
 	set_bit(EXTENT_FLAG_PINNED, &em->flags);
@@ -3314,10 +3315,14 @@ struct btrfs_ref_path {
 };
 
 struct disk_extent {
+	u64 ram_bytes;
 	u64 disk_bytenr;
 	u64 disk_num_bytes;
 	u64 offset;
 	u64 num_bytes;
+	u8 compression;
+	u8 encryption;
+	u16 other_encoding;
 };
 
 static int is_cowonly_root(u64 root_objectid)
@@ -3631,6 +3636,11 @@ static int noinline get_new_locations(struct inode *reloc_inode,
 			btrfs_file_extent_disk_num_bytes(leaf, fi);
 		exts[nr].offset = btrfs_file_extent_offset(leaf, fi);
 		exts[nr].num_bytes = btrfs_file_extent_num_bytes(leaf, fi);
+		exts[nr].ram_bytes = btrfs_file_extent_ram_bytes(leaf, fi);
+		exts[nr].compression = btrfs_file_extent_compression(leaf, fi);
+		exts[nr].encryption = btrfs_file_extent_encryption(leaf, fi);
+		exts[nr].other_encoding = btrfs_file_extent_other_encoding(leaf,
+									   fi);
 		WARN_ON(exts[nr].offset > 0);
 		WARN_ON(exts[nr].num_bytes != exts[nr].disk_num_bytes);
 
@@ -3846,6 +3856,8 @@ next:
 						new_extents[0].disk_bytenr);
 			btrfs_set_file_extent_disk_num_bytes(leaf, fi,
 						new_extents[0].disk_num_bytes);
+			btrfs_set_file_extent_ram_bytes(leaf, fi,
+						new_extents[0].ram_bytes);
 			ext_offset += new_extents[0].offset;
 			btrfs_set_file_extent_offset(leaf, fi, ext_offset);
 			btrfs_mark_buffer_dirty(leaf);
@@ -3911,6 +3923,16 @@ next:
 						new_extents[i].disk_bytenr);
 				btrfs_set_file_extent_disk_num_bytes(leaf, fi,
 						new_extents[i].disk_num_bytes);
+				btrfs_set_file_extent_ram_bytes(leaf, fi,
+						new_extents[i].ram_bytes);
+
+				btrfs_set_file_extent_compression(leaf, fi,
+						new_extents[i].compression);
+				btrfs_set_file_extent_encryption(leaf, fi,
+						new_extents[i].encryption);
+				btrfs_set_file_extent_other_encoding(leaf, fi,
+						new_extents[i].other_encoding);
+
 				btrfs_set_file_extent_num_bytes(leaf, fi,
 							extent_len);
 				ext_offset += new_extents[i].offset;
@@ -4169,6 +4191,8 @@ static int noinline replace_extents_in_leaf(struct btrfs_trans_handle *trans,
 		ref->extents[ext_index].num_bytes = new_extent->disk_num_bytes;
 
 		btrfs_set_file_extent_generation(leaf, fi, trans->transid);
+		btrfs_set_file_extent_ram_bytes(leaf, fi,
+						new_extent->ram_bytes);
 		btrfs_set_file_extent_disk_bytenr(leaf, fi,
 						new_extent->disk_bytenr);
 		btrfs_set_file_extent_disk_num_bytes(leaf, fi,
@@ -4847,7 +4871,8 @@ static struct inode noinline *create_reloc_inode(struct btrfs_fs_info *fs_info,
 	BUG_ON(err);
 
 	err = btrfs_insert_file_extent(trans, root, objectid, 0, 0, 0,
-				       group->key.offset, 0);
+				       group->key.offset, 0, group->key.offset,
+				       0, 0, 0);
 	BUG_ON(err);
 
 	inode = btrfs_iget_locked(root->fs_info->sb, objectid, root);

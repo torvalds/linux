@@ -47,6 +47,7 @@
 #include "volumes.h"
 #include "version.h"
 #include "export.h"
+#include "compression.h"
 
 #define BTRFS_SUPER_MAGIC 0x9123683E
 
@@ -69,7 +70,7 @@ static void btrfs_put_super (struct super_block * sb)
 enum {
 	Opt_degraded, Opt_subvol, Opt_device, Opt_nodatasum, Opt_nodatacow,
 	Opt_max_extent, Opt_max_inline, Opt_alloc_start, Opt_nobarrier,
-	Opt_ssd, Opt_thread_pool, Opt_noacl,  Opt_err,
+	Opt_ssd, Opt_thread_pool, Opt_noacl,  Opt_compress, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -83,6 +84,7 @@ static match_table_t tokens = {
 	{Opt_max_inline, "max_inline=%s"},
 	{Opt_alloc_start, "alloc_start=%s"},
 	{Opt_thread_pool, "thread_pool=%d"},
+	{Opt_compress, "compress"},
 	{Opt_ssd, "ssd"},
 	{Opt_noacl, "noacl"},
 	{Opt_err, NULL},
@@ -162,6 +164,10 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			printk(KERN_INFO "btrfs: setting nodatacow\n");
 			btrfs_set_opt(info->mount_opt, NODATACOW);
 			btrfs_set_opt(info->mount_opt, NODATASUM);
+			break;
+		case Opt_compress:
+			printk(KERN_INFO "btrfs: use compression\n");
+			btrfs_set_opt(info->mount_opt, COMPRESS);
 			break;
 		case Opt_ssd:
 			printk(KERN_INFO "btrfs: use ssd allocation scheme\n");
@@ -622,6 +628,7 @@ static int __init init_btrfs_fs(void)
 	err = btrfs_interface_init();
 	if (err)
 		goto free_extent_map;
+
 	err = register_filesystem(&btrfs_fs_type);
 	if (err)
 		goto unregister_ioctl;
@@ -651,6 +658,7 @@ static void __exit exit_btrfs_fs(void)
 	unregister_filesystem(&btrfs_fs_type);
 	btrfs_exit_sysfs();
 	btrfs_cleanup_fs_uuids();
+	btrfs_zlib_exit();
 }
 
 module_init(init_btrfs_fs)

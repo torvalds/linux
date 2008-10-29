@@ -165,7 +165,8 @@ static inline struct rb_node *tree_search(struct btrfs_ordered_inode_tree *tree,
  * inserted.
  */
 int btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
-			     u64 start, u64 len, int nocow)
+			     u64 start, u64 len, u64 disk_len, int nocow,
+			     int compressed)
 {
 	struct btrfs_ordered_inode_tree *tree;
 	struct rb_node *node;
@@ -180,9 +181,12 @@ int btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 	entry->file_offset = file_offset;
 	entry->start = start;
 	entry->len = len;
+	entry->disk_len = disk_len;
 	entry->inode = inode;
 	if (nocow)
 		set_bit(BTRFS_ORDERED_NOCOW, &entry->flags);
+	if (compressed)
+		set_bit(BTRFS_ORDERED_COMPRESSED, &entry->flags);
 
 	/* one ref for the tree */
 	atomic_set(&entry->refs, 1);
@@ -389,9 +393,10 @@ void btrfs_start_ordered_extent(struct inode *inode,
 	 * for pdflush to find them
 	 */
 	btrfs_fdatawrite_range(inode->i_mapping, start, end, WB_SYNC_NONE);
-	if (wait)
+	if (wait) {
 		wait_event(entry->wait, test_bit(BTRFS_ORDERED_COMPLETE,
 						 &entry->flags));
+	}
 }
 
 /*

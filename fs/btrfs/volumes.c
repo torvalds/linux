@@ -1816,6 +1816,7 @@ again:
 	em->start = key.offset;
 	em->len = *num_bytes;
 	em->block_start = 0;
+	em->block_len = em->len;
 
 	if (type & BTRFS_BLOCK_GROUP_SYSTEM) {
 		ret = btrfs_add_system_chunk(trans, chunk_root, &key,
@@ -2323,6 +2324,7 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 	em->start = logical;
 	em->len = length;
 	em->block_start = 0;
+	em->block_len = em->len;
 
 	map->num_stripes = num_stripes;
 	map->io_width = btrfs_chunk_io_width(leaf, chunk);

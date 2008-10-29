@@ -540,8 +540,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 	if (found_type == BTRFS_FILE_EXTENT_REG)
 		extent_end = start + btrfs_file_extent_num_bytes(eb, item);
 	else if (found_type == BTRFS_FILE_EXTENT_INLINE) {
-		size = btrfs_file_extent_inline_len(eb,
-						    btrfs_item_nr(eb, slot));
+		size = btrfs_file_extent_inline_len(eb, item);
 		extent_end = (start + size + mask) & ~mask;
 	} else {
 		ret = 0;

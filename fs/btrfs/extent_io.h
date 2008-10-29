@@ -18,6 +18,9 @@
 #define EXTENT_BOUNDARY (1 << 11)
 #define EXTENT_IOBITS (EXTENT_LOCKED | EXTENT_WRITEBACK)
 
+/* flags for bio submission */
+#define EXTENT_BIO_COMPRESSED 1
+
 /*
  * page->private values.  Every page that is controlled by the extent
  * map has page->private set to one.
@@ -28,14 +31,17 @@
 struct extent_state;
 
 typedef	int (extent_submit_bio_hook_t)(struct inode *inode, int rw,
-				       struct bio *bio, int mirror_num);
+				       struct bio *bio, int mirror_num,
+				       unsigned long bio_flags);
 struct extent_io_ops {
-	int (*fill_delalloc)(struct inode *inode, u64 start, u64 end);
+	int (*fill_delalloc)(struct inode *inode, struct page *locked_page,
+			     u64 start, u64 end, int *page_started);
 	int (*writepage_start_hook)(struct page *page, u64 start, u64 end);
 	int (*writepage_io_hook)(struct page *page, u64 start, u64 end);
 	extent_submit_bio_hook_t *submit_bio_hook;
 	int (*merge_bio_hook)(struct page *page, unsigned long offset,
-			      size_t size, struct bio *bio);
+			      size_t size, struct bio *bio,
+			      unsigned long bio_flags);
 	int (*readpage_io_hook)(struct page *page, u64 start, u64 end);
 	int (*readpage_io_failed_hook)(struct bio *bio, struct page *page,
 				       u64 start, u64 end,
@@ -245,4 +251,9 @@ void unmap_extent_buffer(struct extent_buffer *eb, char *token, int km);
 int release_extent_buffer_tail_pages(struct extent_buffer *eb);
 int extent_range_uptodate(struct extent_io_tree *tree,
 			  u64 start, u64 end);
+int extent_clear_unlock_delalloc(struct inode *inode,
+				struct extent_io_tree *tree,
+				u64 start, u64 end, struct page *locked_page,
+				int clear_dirty, int set_writeback,
+				int clear_writeback);
 #endif

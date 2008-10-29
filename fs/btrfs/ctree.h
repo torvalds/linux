@@ -400,10 +400,18 @@ struct btrfs_timespec {
 	__le32 nsec;
 } __attribute__ ((__packed__));
 
-/*
- * there is no padding here on purpose.  If you want to extent the inode,
- * make a new item type
- */
+typedef enum {
+	BTRFS_COMPRESS_NONE = 0,
+	BTRFS_COMPRESS_ZLIB = 1,
+	BTRFS_COMPRESS_LAST = 2,
+} btrfs_compression_type;
+
+/* we don't understand any encryption methods right now */
+typedef enum {
+	BTRFS_ENCRYPTION_NONE = 0,
+	BTRFS_ENCRYPTION_LAST = 1,
+} btrfs_encryption_type;
+
 struct btrfs_inode_item {
 	/* nfs style generation number */
 	__le64 generation;
@@ -419,6 +427,7 @@ struct btrfs_inode_item {
 	__le64 rdev;
 	__le16 flags;
 	__le16 compat_flags;
+
 	struct btrfs_timespec atime;
 	struct btrfs_timespec ctime;
 	struct btrfs_timespec mtime;
@@ -454,8 +463,33 @@ struct btrfs_root_item {
 #define BTRFS_FILE_EXTENT_INLINE 1
 
 struct btrfs_file_extent_item {
+	/*
+	 * transaction id that created this extent
+	 */
 	__le64 generation;
+	/*
+	 * max number of bytes to hold this extent in ram
+	 * when we split a compressed extent we can't know how big
+	 * each of the resulting pieces will be.  So, this is
+	 * an upper limit on the size of the extent in ram instead of
+	 * an exact limit.
+	 */
+	__le64 ram_bytes;
+
+	/*
+	 * 32 bits for the various ways we might encode the data,
+	 * including compression and encryption.  If any of these
+	 * are set to something a given disk format doesn't understand
+	 * it is treated like an incompat flag for reading and writing,
+	 * but not for stat.
+	 */
+	u8 compression;
+	u8 encryption;
+	__le16 other_encoding; /* spare for later use */
+
+	/* are we inline data or a real extent? */
 	u8 type;
+
 	/*
 	 * disk space consumed by the extent, checksum blocks are included
 	 * in these numbers
@@ -471,9 +505,11 @@ struct btrfs_file_extent_item {
 	 */
 	__le64 offset;
 	/*
-	 * the logical number of file blocks (no csums included)
+	 * the logical number of file blocks (no csums included).  This
+	 * always reflects the size uncompressed and without encoding.
 	 */
 	__le64 num_bytes;
+
 } __attribute__ ((__packed__));
 
 struct btrfs_csum_item {
@@ -814,6 +850,7 @@ struct btrfs_root {
 #define BTRFS_MOUNT_NOBARRIER		(1 << 2)
 #define BTRFS_MOUNT_SSD			(1 << 3)
 #define BTRFS_MOUNT_DEGRADED		(1 << 4)
+#define BTRFS_MOUNT_COMPRESS		(1 << 5)
 
 #define btrfs_clear_opt(o, opt)		((o) &= ~BTRFS_MOUNT_##opt)
 #define btrfs_set_opt(o, opt)		((o) |= BTRFS_MOUNT_##opt)
@@ -825,6 +862,7 @@ struct btrfs_root {
 #define BTRFS_INODE_NODATASUM		(1 << 0)
 #define BTRFS_INODE_NODATACOW		(1 << 1)
 #define BTRFS_INODE_READONLY		(1 << 2)
+#define BTRFS_INODE_NOCOMPRESS		(1 << 3)
 #define btrfs_clear_flag(inode, flag)	(BTRFS_I(inode)->flags &= \
 					 ~BTRFS_INODE_##flag)
 #define btrfs_set_flag(inode, flag)	(BTRFS_I(inode)->flags |= \
@@ -1424,14 +1462,6 @@ static inline u32 btrfs_file_extent_calc_inline_size(u32 datasize)
 	return offsetof(struct btrfs_file_extent_item, disk_bytenr) + datasize;
 }
 
-static inline u32 btrfs_file_extent_inline_len(struct extent_buffer *eb,
-					       struct btrfs_item *e)
-{
-	unsigned long offset;
-	offset = offsetof(struct btrfs_file_extent_item, disk_bytenr);
-	return btrfs_item_size(eb, e) - offset;
-}
-
 BTRFS_SETGET_FUNCS(file_extent_disk_bytenr, struct btrfs_file_extent_item,
 		   disk_bytenr, 64);
 BTRFS_SETGET_FUNCS(file_extent_generation, struct btrfs_file_extent_item,
@@ -1442,6 +1472,36 @@ BTRFS_SETGET_FUNCS(file_extent_offset, struct btrfs_file_extent_item,
 		  offset, 64);
 BTRFS_SETGET_FUNCS(file_extent_num_bytes, struct btrfs_file_extent_item,
 		   num_bytes, 64);
+BTRFS_SETGET_FUNCS(file_extent_ram_bytes, struct btrfs_file_extent_item,
+		   ram_bytes, 64);
+BTRFS_SETGET_FUNCS(file_extent_compression, struct btrfs_file_extent_item,
+		   compression, 8);
+BTRFS_SETGET_FUNCS(file_extent_encryption, struct btrfs_file_extent_item,
+		   encryption, 8);
+BTRFS_SETGET_FUNCS(file_extent_other_encoding, struct btrfs_file_extent_item,
+		   other_encoding, 16);
+
+/* this returns the number of file bytes represented by the inline item.
+ * If an item is compressed, this is the uncompressed size
+ */
+static inline u32 btrfs_file_extent_inline_len(struct extent_buffer *eb,
+					       struct btrfs_file_extent_item *e)
+{
+	return btrfs_file_extent_ram_bytes(eb, e);
+}
+
+/*
+ * this returns the number of bytes used by the item on disk, minus the
+ * size of any extent headers.  If a file is compressed on disk, this is
+ * the compressed size
+ */
+static inline u32 btrfs_file_extent_inline_item_len(struct extent_buffer *eb,
+						    struct btrfs_item *e)
+{
+	unsigned long offset;
+	offset = offsetof(struct btrfs_file_extent_item, disk_bytenr);
+	return btrfs_item_size(eb, e) - offset;
+}
 
 static inline struct btrfs_root *btrfs_sb(struct super_block *sb)
 {
@@ -1745,10 +1805,11 @@ int btrfs_lookup_inode(struct btrfs_trans_handle *trans, struct btrfs_root
 int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
 			  struct bio *bio);
 int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
-			       struct btrfs_root *root,
-			       u64 objectid, u64 pos, u64 disk_offset,
-			       u64 disk_num_bytes,
-			     u64 num_bytes, u64 offset);
+			     struct btrfs_root *root,
+			     u64 objectid, u64 pos,
+			     u64 disk_offset, u64 disk_num_bytes,
+			     u64 num_bytes, u64 offset, u64 ram_bytes,
+			     u8 compression, u8 encryption, u16 other_encoding);
 int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     struct btrfs_path *path, u64 objectid,
@@ -1758,6 +1819,8 @@ int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
 			   struct btrfs_ordered_sum *sums);
 int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 		       struct bio *bio);
+int btrfs_csum_file_bytes(struct btrfs_root *root, struct inode *inode,
+			  u64 start, unsigned long len);
 struct btrfs_csum_item *btrfs_lookup_csum(struct btrfs_trans_handle *trans,
 					  struct btrfs_root *root,
 					  struct btrfs_path *path,
@@ -1799,7 +1862,7 @@ void btrfs_invalidate_dcache_root(struct btrfs_root *root, char *name,
 				  int namelen);
 
 int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
-			 size_t size, struct bio *bio);
+			 size_t size, struct bio *bio, unsigned long bio_flags);
 
 unsigned long btrfs_force_ra(struct address_space *mapping,
 			      struct file_ra_state *ra, struct file *file,
