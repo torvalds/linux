@@ -134,7 +134,7 @@ config SND_RTCTIMER
 config SND_SEQ_RTCTIMER_DEFAULT
 	bool "Use RTC as default sequencer timer"
 	depends on SND_RTCTIMER && SND_SEQUENCER
-	dpeends on !SND_SEQ_HRTIMER_DEFAULT
+	depends on !SND_SEQ_HRTIMER_DEFAULT
 	default y
 	help
 	  Say Y here to use the RTC timer as the default sequencer
