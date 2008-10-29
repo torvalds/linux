@@ -278,13 +278,6 @@ static int ibmvfc_get_err_result(struct ibmvfc_cmd *vfc_cmd)
 	     rsp->data.info.rsp_code))
 		return DID_ERROR << 16;
 
-	if (!vfc_cmd->status) {
-		if (rsp->flags & FCP_RESID_OVER)
-			return rsp->scsi_status | (DID_ERROR << 16);
-		else
-			return rsp->scsi_status | (DID_OK << 16);
-	}
-
 	err = ibmvfc_get_err_index(vfc_cmd->status, vfc_cmd->error);
 	if (err >= 0)
 		return rsp->scsi_status | (cmd_status[err].result << 16);
@@ -1477,6 +1470,9 @@ static void ibmvfc_scsi_done(struct ibmvfc_event *evt)
 				sense_len = SCSI_SENSE_BUFFERSIZE - rsp_len;
 			if ((rsp->flags & FCP_SNS_LEN_VALID) && rsp->fcp_sense_len && rsp_len <= 8)
 				memcpy(cmnd->sense_buffer, rsp->data.sense + rsp_len, sense_len);
+
+			if (!cmnd->result && (!scsi_get_resid(cmnd) || (rsp->flags & FCP_RESID_OVER)))
+				cmnd->result = (DID_ERROR << 16);
 
 			ibmvfc_log_error(evt);
 		}
