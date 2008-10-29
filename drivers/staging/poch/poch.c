@@ -126,9 +126,11 @@
 #define FPGA_INT_TX_ACQ_DONE		(0x1 << 1)
 #define FPGA_INT_RX_ACQ_DONE		(0x1)
 
-#define FPGA_RX_ADC_CTL_REG		0x214
-#define FPGA_RX_ADC_CTL_CONT_CAP	(0x0)
-#define FPGA_RX_ADC_CTL_SNAP_CAP	(0x1)
+#define FPGA_RX_CTL_REG			0x214
+#define FPGA_RX_CTL_FIFO_FLUSH      	(0x1 << 9)
+#define FPGA_RX_CTL_SYNTH_DATA		(0x1 << 8)
+#define FPGA_RX_CTL_CONT_CAP		(0x0 << 1)
+#define FPGA_RX_CTL_SNAP_CAP		(0x1 << 1)
 
 #define FPGA_RX_ARM_REG			0x21C
 
@@ -819,6 +821,11 @@ static int poch_open(struct inode *inode, struct file *filp)
 		iowrite32(FPGA_TX_CTL_FIFO_FLUSH
 			  | FPGA_TX_CTL_OUTPUT_CARDBUS,
 			  fpga + FPGA_TX_CTL_REG);
+	} else {
+		/* Flush RX FIFO and output data to cardbus. */
+		iowrite32(FPGA_RX_CTL_CONT_CAP
+			  | FPGA_RX_CTL_FIFO_FLUSH,
+			  fpga + FPGA_RX_CTL_REG);
 	}
 
 	atomic_inc(&channel->inited);
