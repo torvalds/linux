@@ -341,7 +341,7 @@ static void xs_format_ipv6_peer_addresses(struct rpc_xprt *xprt,
 
 	buf = kzalloc(40, GFP_KERNEL);
 	if (buf) {
-		snprintf(buf, 40, "%p6",&addr->sin6_addr);
+		snprintf(buf, 40, "%pI6",&addr->sin6_addr);
 	}
 	xprt->address_strings[RPC_DISPLAY_ADDR] = buf;
 
@@ -356,7 +356,7 @@ static void xs_format_ipv6_peer_addresses(struct rpc_xprt *xprt,
 
 	buf = kzalloc(64, GFP_KERNEL);
 	if (buf) {
-		snprintf(buf, 64, "addr=%p6 port=%u proto=%s",
+		snprintf(buf, 64, "addr=%pI6 port=%u proto=%s",
 				&addr->sin6_addr,
 				ntohs(addr->sin6_port),
 				protocol);
@@ -378,7 +378,7 @@ static void xs_format_ipv6_peer_addresses(struct rpc_xprt *xprt,
 
 	buf = kzalloc(50, GFP_KERNEL);
 	if (buf) {
-		snprintf(buf, 50, "%p6.%u.%u",
+		snprintf(buf, 50, "%pI6.%u.%u",
 			 &addr->sin6_addr,
 			 ntohs(addr->sin6_port) >> 8,
 			 ntohs(addr->sin6_port) & 0xff);
@@ -1407,7 +1407,7 @@ static int xs_bind6(struct sock_xprt *transport, struct socket *sock)
 		if (port > last)
 			nloop++;
 	} while (err == -EADDRINUSE && nloop != 2);
-	dprintk("RPC:       xs_bind6 %p6:%u: %s (%d)\n",
+	dprintk("RPC:       xs_bind6 %pI6:%u: %s (%d)\n",
 		&myaddr.sin6_addr, port, err ? "failed" : "ok", err);
 	return err;
 }

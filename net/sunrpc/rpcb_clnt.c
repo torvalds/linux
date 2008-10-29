@@ -305,7 +305,7 @@ static int rpcb_register_netid6(struct sockaddr_in6 *address_to_register,
 		snprintf(buf, sizeof(buf), "::.%u.%u",
 				port >> 8, port & 0xff);
 	else
-		snprintf(buf, sizeof(buf), "%p6.%u.%u",
+		snprintf(buf, sizeof(buf), "%pI6.%u.%u",
 			 &address_to_register->sin6_addr,
 			 port >> 8, port & 0xff);
 	map->r_addr = buf;

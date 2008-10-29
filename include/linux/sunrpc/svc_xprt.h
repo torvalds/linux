@@ -145,7 +145,7 @@ static inline char *__svc_print_addr(struct sockaddr *addr,
 		break;
 
 	case AF_INET6:
-		snprintf(buf, len, "%p6, port=%u",
+		snprintf(buf, len, "%pI6, port=%u",
 			 &((struct sockaddr_in6 *)addr)->sin6_addr,
 			ntohs(((struct sockaddr_in6 *) addr)->sin6_port));
 		break;

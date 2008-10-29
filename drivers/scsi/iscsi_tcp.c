@@ -1608,7 +1608,7 @@ static int iscsi_tcp_get_addr(struct iscsi_conn *conn, struct socket *sock,
 	case AF_INET6:
 		sin6 = (struct sockaddr_in6 *)addr;
 		spin_lock_bh(&conn->session->lock);
-		sprintf(buf, "%p6", &sin6->sin6_addr);
+		sprintf(buf, "%pI6", &sin6->sin6_addr);
 		*port = be16_to_cpu(sin6->sin6_port);
 		spin_unlock_bh(&conn->session->lock);
 		break;

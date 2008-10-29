@@ -419,7 +419,7 @@ static void ah6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	if (!x)
 		return;
 
-	NETDEBUG(KERN_DEBUG "pmtu discovery on SA AH/%08x/%p6\n",
+	NETDEBUG(KERN_DEBUG "pmtu discovery on SA AH/%08x/%pI6\n",
 		 ntohl(ah->spi), &iph->daddr);
 
 	xfrm_state_put(x);

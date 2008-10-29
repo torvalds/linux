@@ -87,7 +87,7 @@ static int find_mgm(struct mthca_dev *dev,
 	}
 
 	if (0)
-		mthca_dbg(dev, "Hash for %p6 is %04x\n", gid, *hash);
+		mthca_dbg(dev, "Hash for %pI6 is %04x\n", gid, *hash);
 
 	*index = *hash;
 	*prev  = -1;
@@ -254,7 +254,7 @@ int mthca_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		goto out;
 
 	if (index == -1) {
-		mthca_err(dev, "MGID %p6 not found\n", gid->raw);
+		mthca_err(dev, "MGID %pI6 not found\n", gid->raw);
 		err = -EINVAL;
 		goto out;
 	}

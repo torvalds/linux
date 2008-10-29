@@ -56,7 +56,7 @@ static bool ipv6_invert_tuple(struct nf_conntrack_tuple *tuple,
 static int ipv6_print_tuple(struct seq_file *s,
 			    const struct nf_conntrack_tuple *tuple)
 {
-	return seq_printf(s, "src=%p6 dst=%p6 ",
+	return seq_printf(s, "src=%pI6 dst=%pI6 ",
 			  tuple->src.u3.ip6, tuple->dst.u3.ip6);
 }
 

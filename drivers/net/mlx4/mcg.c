@@ -118,7 +118,7 @@ static int find_mgm(struct mlx4_dev *dev,
 		return err;
 
 	if (0)
-		mlx4_dbg(dev, "Hash for %p6 is %04x\n", gid, *hash);
+		mlx4_dbg(dev, "Hash for %pI6 is %04x\n", gid, *hash);
 
 	*index = *hash;
 	*prev  = -1;
@@ -267,7 +267,7 @@ int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16])
 		goto out;
 
 	if (index == -1) {
-		mlx4_err(dev, "MGID %p6 not found\n", gid);
+		mlx4_err(dev, "MGID %pI6 not found\n", gid);
 		err = -EINVAL;
 		goto out;
 	}

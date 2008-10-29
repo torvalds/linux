@@ -285,7 +285,7 @@ extern int sctp_debug_flag;
 	if (sctp_debug_flag) { \
 		if (saddr->sa.sa_family == AF_INET6) { \
 			printk(KERN_DEBUG \
-			       lead "%p6" trail, \
+			       lead "%pI6" trail, \
 			       leadparm, \
 			       &saddr->v6.sin6_addr, \
 			       otherparms); \

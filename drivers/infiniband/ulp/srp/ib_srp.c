@@ -1514,7 +1514,7 @@ static ssize_t show_dgid(struct device *dev, struct device_attribute *attr,
 	    target->state == SRP_TARGET_REMOVED)
 		return -ENODEV;
 
-	return sprintf(buf, "%p6\n", target->path.dgid.raw);
+	return sprintf(buf, "%pI6\n", target->path.dgid.raw);
 }
 
 static ssize_t show_orig_dgid(struct device *dev,
@@ -1526,7 +1526,7 @@ static ssize_t show_orig_dgid(struct device *dev,
 	    target->state == SRP_TARGET_REMOVED)
 		return -ENODEV;
 
-	return sprintf(buf, "%p6\n", target->orig_dgid);
+	return sprintf(buf, "%pI6\n", target->orig_dgid);
 }
 
 static ssize_t show_zero_req_lim(struct device *dev,
@@ -1867,7 +1867,7 @@ static ssize_t srp_create_target(struct device *dev,
 
 	shost_printk(KERN_DEBUG, target->scsi_host, PFX
 		     "new target: id_ext %016llx ioc_guid %016llx pkey %04x "
-		     "service_id %016llx dgid %p6\n",
+		     "service_id %016llx dgid %pI6\n",
 	       (unsigned long long) be64_to_cpu(target->id_ext),
 	       (unsigned long long) be64_to_cpu(target->ioc_guid),
 	       be16_to_cpu(target->path.pkey),

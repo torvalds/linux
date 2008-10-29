@@ -223,7 +223,7 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport)
 		ipv6_addr_copy(&fl.fl6_dst, rt0->addr);
 	}
 
-	SCTP_DEBUG_PRINTK("%s: skb:%p, len:%d, src:%p6 dst:%p6\n",
+	SCTP_DEBUG_PRINTK("%s: skb:%p, len:%d, src:%pI6 dst:%pI6\n",
 			  __func__, skb, skb->len,
 			  &fl.fl6_src, &fl.fl6_dst);
 
@@ -251,18 +251,18 @@ static struct dst_entry *sctp_v6_get_dst(struct sctp_association *asoc,
 		fl.oif = daddr->v6.sin6_scope_id;
 
 
-	SCTP_DEBUG_PRINTK("%s: DST=%p6 ", __func__, &fl.fl6_dst);
+	SCTP_DEBUG_PRINTK("%s: DST=%pI6 ", __func__, &fl.fl6_dst);
 
 	if (saddr) {
 		ipv6_addr_copy(&fl.fl6_src, &saddr->v6.sin6_addr);
-		SCTP_DEBUG_PRINTK("SRC=%p6 - ", &fl.fl6_src);
+		SCTP_DEBUG_PRINTK("SRC=%pI6 - ", &fl.fl6_src);
 	}
 
 	dst = ip6_route_output(&init_net, NULL, &fl);
 	if (!dst->error) {
 		struct rt6_info *rt;
 		rt = (struct rt6_info *)dst;
-		SCTP_DEBUG_PRINTK("rt6_dst:%p6 rt6_src:%p6\n",
+		SCTP_DEBUG_PRINTK("rt6_dst:%pI6 rt6_src:%pI6\n",
 			&rt->rt6i_dst.addr, &rt->rt6i_src.addr);
 		return dst;
 	}
@@ -309,7 +309,7 @@ static void sctp_v6_get_saddr(struct sctp_sock *sk,
 	__u8 matchlen = 0;
 	__u8 bmatchlen;
 
-	SCTP_DEBUG_PRINTK("%s: asoc:%p dst:%p daddr:%p6 ",
+	SCTP_DEBUG_PRINTK("%s: asoc:%p dst:%p daddr:%pI6 ",
 			  __func__, asoc, dst, &daddr->v6.sin6_addr);
 
 	if (!asoc) {
@@ -318,7 +318,7 @@ static void sctp_v6_get_saddr(struct sctp_sock *sk,
 				   &daddr->v6.sin6_addr,
 				   inet6_sk(&sk->inet.sk)->srcprefs,
 				   &saddr->v6.sin6_addr);
-		SCTP_DEBUG_PRINTK("saddr from ipv6_get_saddr: %p6\n",
+		SCTP_DEBUG_PRINTK("saddr from ipv6_get_saddr: %pI6\n",
 				  &saddr->v6.sin6_addr);
 		return;
 	}
@@ -347,10 +347,10 @@ static void sctp_v6_get_saddr(struct sctp_sock *sk,
 
 	if (baddr) {
 		memcpy(saddr, baddr, sizeof(union sctp_addr));
-		SCTP_DEBUG_PRINTK("saddr: %p6\n", &saddr->v6.sin6_addr);
+		SCTP_DEBUG_PRINTK("saddr: %pI6\n", &saddr->v6.sin6_addr);
 	} else {
 		printk(KERN_ERR "%s: asoc:%p Could not find a valid source "
-		       "address for the dest:%p6\n",
+		       "address for the dest:%pI6\n",
 		       __func__, asoc, &daddr->v6.sin6_addr);
 	}
 
@@ -720,7 +720,7 @@ static int sctp_v6_is_ce(const struct sk_buff *skb)
 /* Dump the v6 addr to the seq file. */
 static void sctp_v6_seq_dump_addr(struct seq_file *seq, union sctp_addr *addr)
 {
-	seq_printf(seq, "%p6 ", &addr->v6.sin6_addr);
+	seq_printf(seq, "%pI6 ", &addr->v6.sin6_addr);
 }
 
 static void sctp_v6_ecn_capable(struct sock *sk)

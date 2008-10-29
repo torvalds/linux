@@ -141,12 +141,12 @@ __ip_vs_get_out_rt_v6(struct ip_vs_conn *cp)
 								 NULL, &fl);
 			if (!rt) {
 				spin_unlock(&dest->dst_lock);
-				IP_VS_DBG_RL("ip6_route_output error, dest: %p6\n",
+				IP_VS_DBG_RL("ip6_route_output error, dest: %pI6\n",
 					     &dest->addr.in6);
 				return NULL;
 			}
 			__ip_vs_dst_set(dest, 0, dst_clone(&rt->u.dst));
-			IP_VS_DBG(10, "new dst %p6, refcnt=%d\n",
+			IP_VS_DBG(10, "new dst %pI6, refcnt=%d\n",
 				  &dest->addr.in6,
 				  atomic_read(&rt->u.dst.__refcnt));
 		}
@@ -166,7 +166,7 @@ __ip_vs_get_out_rt_v6(struct ip_vs_conn *cp)
 
 		rt = (struct rt6_info *)ip6_route_output(&init_net, NULL, &fl);
 		if (!rt) {
-			IP_VS_DBG_RL("ip6_route_output error, dest: %p6\n",
+			IP_VS_DBG_RL("ip6_route_output error, dest: %pI6\n",
 				     &cp->daddr.in6);
 			return NULL;
 		}
@@ -300,7 +300,7 @@ ip_vs_bypass_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	rt = (struct rt6_info *)ip6_route_output(&init_net, NULL, &fl);
 	if (!rt) {
-		IP_VS_DBG_RL("ip_vs_bypass_xmit_v6(): ip6_route_output error, dest: %p6\n",
+		IP_VS_DBG_RL("ip_vs_bypass_xmit_v6(): ip6_route_output error, dest: %pI6\n",
 			     &iph->daddr);
 		goto tx_error_icmp;
 	}

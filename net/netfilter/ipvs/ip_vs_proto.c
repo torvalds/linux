@@ -203,7 +203,7 @@ ip_vs_tcpudp_debug_packet_v6(struct ip_vs_protocol *pp,
 	if (ih == NULL)
 		sprintf(buf, "%s TRUNCATED", pp->name);
 	else if (ih->nexthdr == IPPROTO_FRAGMENT)
-		sprintf(buf, "%s %p6->%p6 frag",
+		sprintf(buf, "%s %pI6->%pI6 frag",
 			pp->name, &ih->saddr, &ih->daddr);
 	else {
 		__be16 _ports[2], *pptr;
@@ -211,10 +211,10 @@ ip_vs_tcpudp_debug_packet_v6(struct ip_vs_protocol *pp,
 		pptr = skb_header_pointer(skb, offset + sizeof(struct ipv6hdr),
 					  sizeof(_ports), _ports);
 		if (pptr == NULL)
-			sprintf(buf, "%s TRUNCATED %p6->%p6",
+			sprintf(buf, "%s TRUNCATED %pI6->%pI6",
 				pp->name, &ih->saddr, &ih->daddr);
 		else
-			sprintf(buf, "%s %p6:%u->%p6:%u",
+			sprintf(buf, "%s %pI6:%u->%pI6:%u",
 				pp->name,
 				&ih->saddr, ntohs(pptr[0]),
 				&ih->daddr, ntohs(pptr[1]));
