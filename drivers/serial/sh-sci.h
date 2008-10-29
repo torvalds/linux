@@ -34,6 +34,7 @@
 # define SCSCR_INIT(port)  0x0030 /* TIE=0,RIE=0,TE=1,RE=1 */
 #define SCIF_ORER    0x0200   /* overrun error bit */
 #elif defined(CONFIG_SH_RTS7751R2D)
+# define SCSPTR1 0xFFE0001C /* 8 bit SCIF */
 # define SCSPTR2 0xFFE80020 /* 16 bit SCIF */
 # define SCIF_ORER 0x0001   /* overrun error bit */
 # define SCSCR_INIT(port) 0x3a /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
