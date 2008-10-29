@@ -507,7 +507,7 @@ static int s3c_rtc_resume(struct platform_device *pdev)
 #define s3c_rtc_resume  NULL
 #endif
 
-static struct platform_driver s3c2410_rtcdrv = {
+static struct platform_driver s3c2410_rtc_driver = {
 	.probe		= s3c_rtc_probe,
 	.remove		= __devexit_p(s3c_rtc_remove),
 	.suspend	= s3c_rtc_suspend,
@@ -523,12 +523,12 @@ static char __initdata banner[] = "S3C24XX RTC, (c) 2004,2006 Simtec Electronics
 static int __init s3c_rtc_init(void)
 {
 	printk(banner);
-	return platform_driver_register(&s3c2410_rtcdrv);
+	return platform_driver_register(&s3c2410_rtc_driver);
 }
 
 static void __exit s3c_rtc_exit(void)
 {
-	platform_driver_unregister(&s3c2410_rtcdrv);
+	platform_driver_unregister(&s3c2410_rtc_driver);
 }
 
 module_init(s3c_rtc_init);
