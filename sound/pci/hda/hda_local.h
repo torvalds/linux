@@ -366,17 +366,17 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 /* amp values */
 #define AMP_IN_MUTE(idx)	(0x7080 | ((idx)<<8))
 #define AMP_IN_UNMUTE(idx)	(0x7000 | ((idx)<<8))
-#define AMP_OUT_MUTE	0xb080
-#define AMP_OUT_UNMUTE	0xb000
-#define AMP_OUT_ZERO	0xb000
+#define AMP_OUT_MUTE		0xb080
+#define AMP_OUT_UNMUTE		0xb000
+#define AMP_OUT_ZERO		0xb000
 /* pinctl values */
 #define PIN_IN			(AC_PINCTL_IN_EN)
-#define PIN_VREFHIZ	(AC_PINCTL_IN_EN | AC_PINCTL_VREF_HIZ)
+#define PIN_VREFHIZ		(AC_PINCTL_IN_EN | AC_PINCTL_VREF_HIZ)
 #define PIN_VREF50		(AC_PINCTL_IN_EN | AC_PINCTL_VREF_50)
-#define PIN_VREFGRD	(AC_PINCTL_IN_EN | AC_PINCTL_VREF_GRD)
+#define PIN_VREFGRD		(AC_PINCTL_IN_EN | AC_PINCTL_VREF_GRD)
 #define PIN_VREF80		(AC_PINCTL_IN_EN | AC_PINCTL_VREF_80)
-#define PIN_VREF100	(AC_PINCTL_IN_EN | AC_PINCTL_VREF_100)
-#define PIN_OUT		(AC_PINCTL_OUT_EN)
+#define PIN_VREF100		(AC_PINCTL_IN_EN | AC_PINCTL_VREF_100)
+#define PIN_OUT			(AC_PINCTL_OUT_EN)
 #define PIN_HP			(AC_PINCTL_OUT_EN | AC_PINCTL_HP_EN)
 #define PIN_HP_AMP		(AC_PINCTL_HP_EN)
 
