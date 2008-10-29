@@ -48,16 +48,9 @@
 #define STATUS_MEDIA_CONNECT 1
 #define STATUS_MEDIA_DISCONNECT 0
 
-#ifndef BIT
-#define BIT(x)                  (1 << (x))
-#endif
-
 //==================================================================================================
 // Common function definition
 //==================================================================================================
-#ifndef abs
-#define abs(_T)							((_T) < 0 ? -_T : _T)
-#endif
 #define DEBUG_ENABLED
 #define ETH_LENGTH_OF_ADDRESS	6
 #ifdef DEBUG_ENABLED
