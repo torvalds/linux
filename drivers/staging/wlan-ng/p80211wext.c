@@ -1181,20 +1181,11 @@ static int p80211wext_siwtxpow(netdevice_t *dev,
         }
 
         msg.msgcode = DIDmsg_dot11req_mibset;
-
-        switch (rrq->value) {
-
-          case 1 : mibitem.did = DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel1; break;
-          case 2 : mibitem.did = DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel2; break;
-          case 3 : mibitem.did = DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel3; break;
-          case 4 : mibitem.did = DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel4; break;
-          case 5 : mibitem.did = DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel5; break;
-          case 6 : mibitem.did = DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel6; break;
-          case 7 : mibitem.did = DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel7; break;
-          case 8 : mibitem.did = DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel8; break;
-          default: mibitem.did = DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel8; break;
-	}
-
+	mibitem.did = DIDmib_dot11phy_dot11PhyTxPowerTable_dot11CurrentTxPowerLevel;
+	if (rrq->fixed == 0)
+	  mibitem.data = 30;
+	else
+	  mibitem.data = rrq->value;
         memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
         result = p80211req_dorequest(wlandev, (u8*)&msg);
 

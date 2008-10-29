@@ -798,25 +798,6 @@
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(4) | \
 			P80211DID_MKITEM(4) | 0x0c000000)
-#define DIDmib_dot11smt_dot11WEPKeyMappingsTable \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(5))
-#define DIDmib_dot11smt_dot11WEPKeyMappingsTable_dot11WEPKeyMappingIndex \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(5) | \
-			P80211DID_MKITEM(1) | 0x1c000000)
-#define DIDmib_dot11smt_dot11WEPKeyMappingsTable_dot11WEPKeyMappingAddress \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(5) | \
-			P80211DID_MKITEM(2) | 0x1c000000)
-#define DIDmib_dot11smt_dot11WEPKeyMappingsTable_dot11WEPKeyMappingWEPOn \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(5) | \
-			P80211DID_MKITEM(3) | 0x1c000000)
-#define DIDmib_dot11smt_dot11WEPKeyMappingsTable_dot11WEPKeyMappingValue \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(5) | \
-			P80211DID_MKITEM(4) | 0x1c000000)
 #define DIDmib_dot11smt_dot11PrivacyTable \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(6))
@@ -828,22 +809,10 @@
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(6) | \
 			P80211DID_MKITEM(2) | 0x18000000)
-#define DIDmib_dot11smt_dot11PrivacyTable_dot11WEPKeyMappingLength \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(3) | 0x18000000)
 #define DIDmib_dot11smt_dot11PrivacyTable_dot11ExcludeUnencrypted \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(6) | \
 			P80211DID_MKITEM(4) | 0x18000000)
-#define DIDmib_dot11smt_dot11PrivacyTable_dot11WEPICVErrorCount \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(5) | 0x10000000)
-#define DIDmib_dot11smt_dot11PrivacyTable_dot11WEPExcludedCount \
-			(P80211DID_MKSECTION(1) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(6) | 0x10000000)
 #define DIDmib_cat_dot11mac \
 			P80211DID_MKSECTION(2)
 #define DIDmib_dot11mac_dot11OperationTable \
@@ -877,73 +846,6 @@
 			(P80211DID_MKSECTION(2) | \
 			P80211DID_MKGROUP(1) | \
 			P80211DID_MKITEM(7) | 0x10000000)
-#define DIDmib_dot11mac_dot11OperationTable_dot11ManufacturerID \
-			(P80211DID_MKSECTION(2) | \
-			P80211DID_MKGROUP(1) | \
-			P80211DID_MKITEM(8) | 0x10000000)
-#define DIDmib_dot11mac_dot11OperationTable_dot11ProductID \
-			(P80211DID_MKSECTION(2) | \
-			P80211DID_MKGROUP(1) | \
-			P80211DID_MKITEM(9) | 0x10000000)
-#define DIDmib_dot11mac_dot11CountersTable \
-			(P80211DID_MKSECTION(2) | \
-			P80211DID_MKGROUP(2))
-#define DIDmib_dot11mac_dot11CountersTable_dot11TransmittedFragmentCount \
-			(P80211DID_MKSECTION(2) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(1) | 0x10000000)
-#define DIDmib_dot11mac_dot11CountersTable_dot11MulticastTransmittedFrameCount \
-			(P80211DID_MKSECTION(2) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(2) | 0x10000000)
-#define DIDmib_dot11mac_dot11CountersTable_dot11FailedCount \
-			(P80211DID_MKSECTION(2) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(3) | 0x10000000)
-#define DIDmib_dot11mac_dot11CountersTable_dot11RetryCount \
-			(P80211DID_MKSECTION(2) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(4) | 0x10000000)
-#define DIDmib_dot11mac_dot11CountersTable_dot11MultipleRetryCount \
-			(P80211DID_MKSECTION(2) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(5) | 0x10000000)
-#define DIDmib_dot11mac_dot11CountersTable_dot11FrameDuplicateCount \
-			(P80211DID_MKSECTION(2) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(6) | 0x10000000)
-#define DIDmib_dot11mac_dot11CountersTable_dot11RTSSuccessCount \
-			(P80211DID_MKSECTION(2) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(7) | 0x10000000)
-#define DIDmib_dot11mac_dot11CountersTable_dot11RTSFailureCount \
-			(P80211DID_MKSECTION(2) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(8) | 0x10000000)
-#define DIDmib_dot11mac_dot11CountersTable_dot11ACKFailureCount \
-			(P80211DID_MKSECTION(2) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(9) | 0x10000000)
-#define DIDmib_dot11mac_dot11CountersTable_dot11ReceivedFragmentCount \
-			(P80211DID_MKSECTION(2) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(10) | 0x10000000)
-#define DIDmib_dot11mac_dot11CountersTable_dot11MulticastReceivedFrameCount \
-			(P80211DID_MKSECTION(2) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(11) | 0x10000000)
-#define DIDmib_dot11mac_dot11CountersTable_dot11FCSErrorCount \
-			(P80211DID_MKSECTION(2) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(12) | 0x10000000)
-#define DIDmib_dot11mac_dot11CountersTable_dot11TransmittedFrameCount \
-			(P80211DID_MKSECTION(2) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(13) | 0x10000000)
-#define DIDmib_dot11mac_dot11CountersTable_dot11WEPUndecryptableCount \
-			(P80211DID_MKSECTION(2) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(14) | 0x10000000)
 #define DIDmib_cat_dot11phy \
 			P80211DID_MKSECTION(3)
 #define DIDmib_dot11phy_dot11PhyOperationTable \
@@ -961,107 +863,14 @@
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(1) | \
 			P80211DID_MKITEM(3) | 0x10000000)
-#define DIDmib_dot11phy_dot11PhyOperationTable_dot11ChannelAgilityPresent \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(1) | \
-			P80211DID_MKITEM(4) | 0x10000000)
-#define DIDmib_dot11phy_dot11PhyOperationTable_dot11ChannelAgilityEnabled \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(1) | \
-			P80211DID_MKITEM(5) | 0x10000000)
+#define DIDmib_dot11phy_dot11PhyTxPowerTable_dot11CurrentTxPowerLevel \
+                       (P80211DID_MKSECTION(3) | \
+                       P80211DID_MKGROUP(3) | \
+                       P80211DID_MKITEM(10) | 0x18000000)
 #define DIDmib_dot11phy_dot11PhyOperationTable_dot11ShortPreambleEnabled \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(1) | \
 			P80211DID_MKITEM(6) | 0x10000000)
-#define DIDmib_dot11phy_dot11PhyAntennaTable \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(2))
-#define DIDmib_dot11phy_dot11PhyAntennaTable_dot11CurrentTxAntenna \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(1) | 0x18000000)
-#define DIDmib_dot11phy_dot11PhyAntennaTable_dot11DiversitySupport \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(2) | 0x10000000)
-#define DIDmib_dot11phy_dot11PhyAntennaTable_dot11CurrentRxAntenna \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(2) | \
-			P80211DID_MKITEM(3) | 0x18000000)
-#define DIDmib_dot11phy_dot11PhyTxPowerTable \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(3))
-#define DIDmib_dot11phy_dot11PhyTxPowerTable_dot11NumberSupportedPowerLevels \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(3) | \
-			P80211DID_MKITEM(1) | 0x10000000)
-#define DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel1 \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(3) | \
-			P80211DID_MKITEM(2) | 0x10000000)
-#define DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel2 \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(3) | \
-			P80211DID_MKITEM(3) | 0x10000000)
-#define DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel3 \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(3) | \
-			P80211DID_MKITEM(4) | 0x10000000)
-#define DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel4 \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(3) | \
-			P80211DID_MKITEM(5) | 0x10000000)
-#define DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel5 \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(3) | \
-			P80211DID_MKITEM(6) | 0x10000000)
-#define DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel6 \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(3) | \
-			P80211DID_MKITEM(7) | 0x10000000)
-#define DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel7 \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(3) | \
-			P80211DID_MKITEM(8) | 0x10000000)
-#define DIDmib_dot11phy_dot11PhyTxPowerTable_dot11TxPowerLevel8 \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(3) | \
-			P80211DID_MKITEM(9) | 0x10000000)
-#define DIDmib_dot11phy_dot11PhyTxPowerTable_dot11CurrentTxPowerLevel \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(3) | \
-			P80211DID_MKITEM(10) | 0x18000000)
-#define DIDmib_dot11phy_dot11PhyFHSSTable \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(4))
-#define DIDmib_dot11phy_dot11PhyFHSSTable_dot11HopTime \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(4) | \
-			P80211DID_MKITEM(1) | 0x10000000)
-#define DIDmib_dot11phy_dot11PhyFHSSTable_dot11CurrentChannelNumber \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(4) | \
-			P80211DID_MKITEM(2) | 0x18000000)
-#define DIDmib_dot11phy_dot11PhyFHSSTable_dot11MaxDwellTime \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(4) | \
-			P80211DID_MKITEM(3) | 0x10000000)
-#define DIDmib_dot11phy_dot11PhyFHSSTable_dot11CurrentDwellTime \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(4) | \
-			P80211DID_MKITEM(4) | 0x18000000)
-#define DIDmib_dot11phy_dot11PhyFHSSTable_dot11CurrentSet \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(4) | \
-			P80211DID_MKITEM(5) | 0x18000000)
-#define DIDmib_dot11phy_dot11PhyFHSSTable_dot11CurrentPattern \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(4) | \
-			P80211DID_MKITEM(6) | 0x18000000)
-#define DIDmib_dot11phy_dot11PhyFHSSTable_dot11CurrentIndex \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(4) | \
-			P80211DID_MKITEM(7) | 0x18000000)
 #define DIDmib_dot11phy_dot11PhyDSSSTable \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(5))
@@ -1085,81 +894,6 @@
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(5) | \
 			P80211DID_MKITEM(5) | 0x10000000)
-#define DIDmib_dot11phy_dot11PhyDSSSTable_dot11PBCCOptionImplemented \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(5) | \
-			P80211DID_MKITEM(6) | 0x10000000)
-#define DIDmib_dot11phy_dot11PhyIRTable \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(6))
-#define DIDmib_dot11phy_dot11PhyIRTable_dot11CCAWatchdogTimerMax \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(1) | 0x18000000)
-#define DIDmib_dot11phy_dot11PhyIRTable_dot11CCAWatchdogCountMax \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(2) | 0x18000000)
-#define DIDmib_dot11phy_dot11PhyIRTable_dot11CCAWatchdogTimerMin \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(3) | 0x18000000)
-#define DIDmib_dot11phy_dot11PhyIRTable_dot11CCAWatchdogCountMin \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(6) | \
-			P80211DID_MKITEM(4) | 0x18000000)
-#define DIDmib_dot11phy_dot11RegDomainsSupportedTable \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(7))
-#define DIDmib_dot11phy_dot11RegDomainsSupportedTable_dot11RegDomainsSupportIndex \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(7) | \
-			P80211DID_MKITEM(1) | 0x1c000000)
-#define DIDmib_dot11phy_dot11RegDomainsSupportedTable_dot11RegDomainsSupportValue \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(7) | \
-			P80211DID_MKITEM(2) | 0x14000000)
-#define DIDmib_dot11phy_dot11AntennasListTable \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(8))
-#define DIDmib_dot11phy_dot11AntennasListTable_dot11AntennaListIndex \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(8) | \
-			P80211DID_MKITEM(1) | 0x1c000000)
-#define DIDmib_dot11phy_dot11AntennasListTable_dot11SupportedTxAntenna \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(8) | \
-			P80211DID_MKITEM(2) | 0x1c000000)
-#define DIDmib_dot11phy_dot11AntennasListTable_dot11SupportedRxAntenna \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(8) | \
-			P80211DID_MKITEM(3) | 0x1c000000)
-#define DIDmib_dot11phy_dot11AntennasListTable_dot11DiversitySelectionRx \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(8) | \
-			P80211DID_MKITEM(4) | 0x1c000000)
-#define DIDmib_dot11phy_dot11SupportedDataRatesTxTable \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(9))
-#define DIDmib_dot11phy_dot11SupportedDataRatesTxTable_dot11SupportedDataRatesTxIndex \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(9) | \
-			P80211DID_MKITEM(1) | 0x1c000000)
-#define DIDmib_dot11phy_dot11SupportedDataRatesTxTable_dot11SupportedDataRatesTxValue \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(9) | \
-			P80211DID_MKITEM(2) | 0x14000000)
-#define DIDmib_dot11phy_dot11SupportedDataRatesRxTable \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(10))
-#define DIDmib_dot11phy_dot11SupportedDataRatesRxTable_dot11SupportedDataRatesRxIndex \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(10) | \
-			P80211DID_MKITEM(1) | 0x1c000000)
-#define DIDmib_dot11phy_dot11SupportedDataRatesRxTable_dot11SupportedDataRatesRxValue \
-			(P80211DID_MKSECTION(3) | \
-			P80211DID_MKGROUP(10) | \
-			P80211DID_MKITEM(2) | 0x14000000)
 #define DIDmib_cat_lnx \
 			P80211DID_MKSECTION(4)
 #define DIDmib_lnx_lnxConfigTable \
@@ -1440,13 +1174,6 @@
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(3) | \
 			P80211DID_MKITEM(26) | 0x18000000)
-#define DIDmib_p2_p2Behavior \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(4))
-#define DIDmib_p2_p2Behavior_p2TickTime \
-			(P80211DID_MKSECTION(5) | \
-			P80211DID_MKGROUP(4) | \
-			P80211DID_MKITEM(1) | 0x18000000)
 #define DIDmib_p2_p2NIC \
 			(P80211DID_MKSECTION(5) | \
 			P80211DID_MKGROUP(5))
