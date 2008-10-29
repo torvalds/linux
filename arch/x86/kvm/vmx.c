@@ -3052,16 +3052,12 @@ static void handle_invalid_guest_state(struct kvm_vcpu *vcpu,
 	while (!guest_state_valid(vcpu)) {
 		err = emulate_instruction(vcpu, kvm_run, 0, 0, 0);
 
-		switch (err) {
-			case EMULATE_DONE:
-				break;
-			case EMULATE_DO_MMIO:
-				kvm_report_emulation_failure(vcpu, "mmio");
-				/* TODO: Handle MMIO */
-				return;
-			default:
-				kvm_report_emulation_failure(vcpu, "emulation failure");
-				return;
+		if (err == EMULATE_DO_MMIO)
+			break;
+
+		if (err != EMULATE_DONE) {
+			kvm_report_emulation_failure(vcpu, "emulation failure");
+			return;
 		}
 
 		if (signal_pending(current))
@@ -3073,8 +3069,10 @@ static void handle_invalid_guest_state(struct kvm_vcpu *vcpu,
 	local_irq_disable();
 	preempt_disable();
 
-	/* Guest state should be valid now, no more emulation should be needed */
-	vmx->emulation_required = 0;
+	/* Guest state should be valid now except if we need to
+	 * emulate an MMIO */
+	if (guest_state_valid(vcpu))
+		vmx->emulation_required = 0;
 }
 
 /*
@@ -3120,6 +3118,11 @@ static int kvm_handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	KVMTRACE_3D(VMEXIT, vcpu, exit_reason, (u32)kvm_rip_read(vcpu),
 		    (u32)((u64)kvm_rip_read(vcpu) >> 32), entryexit);
+
+	/* If we need to emulate an MMIO from handle_invalid_guest_state
+	 * we just return 0 */
+	if (vmx->emulation_required && emulate_invalid_guest_state)
+		return 0;
 
 	/* Access CR3 don't cause VMExit in paging mode, so we need
 	 * to sync with guest real CR3. */
