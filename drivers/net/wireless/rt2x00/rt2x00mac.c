@@ -349,15 +349,6 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
 		return 0;
 
-	if (changed & IEEE80211_CONF_CHANGE_RETRY_LIMITS) {
-		rt2x00dev->ops->lib->set_retry_limit(hw,
-			conf->short_frame_max_tx_count,
-			conf->long_frame_max_tx_count);
-	}
-	changed &= ~IEEE80211_CONF_CHANGE_RETRY_LIMITS;
-	if (!changed)
-		return 0;
-
 	/*
 	 * Only change device state when the radio is enabled. It does not
 	 * matter what parameters we have configured when the radio is disabled
@@ -379,7 +370,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 		 * When we've just turned on the radio, we want to reprogram
 		 * everything to ensure a consistent state
 		 */
-		rt2x00lib_config(rt2x00dev, conf, !radio_on);
+		rt2x00lib_config(rt2x00dev, conf, changed);
 
 		/* Turn RX back on */
 		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON);

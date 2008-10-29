@@ -433,18 +433,6 @@ struct rt2x00lib_conf {
 
 	struct rf_channel rf;
 	struct channel_info channel;
-
-	struct antenna_setup ant;
-
-	enum ieee80211_band band;
-
-	u32 basic_rates;
-	u32 slot_time;
-
-	short sifs;
-	short pifs;
-	short difs;
-	short eifs;
 };
 
 /*
@@ -456,6 +444,15 @@ struct rt2x00lib_erp {
 
 	int ack_timeout;
 	int ack_consume_time;
+
+	u64 basic_rates;
+
+	int slot_time;
+
+	short sifs;
+	short pifs;
+	short difs;
+	short eifs;
 };
 
 /*
@@ -589,19 +586,11 @@ struct rt2x00lib_ops {
 
 	void (*config_erp) (struct rt2x00_dev *rt2x00dev,
 			    struct rt2x00lib_erp *erp);
+	void (*config_ant) (struct rt2x00_dev *rt2x00dev,
+			    struct antenna_setup *ant);
 	void (*config) (struct rt2x00_dev *rt2x00dev,
 			struct rt2x00lib_conf *libconf,
-			const unsigned int flags);
-#define CONFIG_UPDATE_PHYMODE		( 1 << 1 )
-#define CONFIG_UPDATE_CHANNEL		( 1 << 2 )
-#define CONFIG_UPDATE_TXPOWER		( 1 << 3 )
-#define CONFIG_UPDATE_ANTENNA		( 1 << 4 )
-#define CONFIG_UPDATE_SLOT_TIME 	( 1 << 5 )
-#define CONFIG_UPDATE_BEACON_INT	( 1 << 6 )
-#define CONFIG_UPDATE_ALL		0xffff
-
-	int (*set_retry_limit) (struct ieee80211_hw *hw,
-				u32 short_limit, u32 long_limit);
+			const unsigned int changed_flags);
 };
 
 /*
