@@ -812,32 +812,11 @@ struct attribute_group *usb_interface_groups[] = {
 	NULL
 };
 
-static inline void usb_create_intf_ep_files(struct usb_interface *intf,
-		struct usb_device *udev)
-{
-	struct usb_host_interface *iface_desc;
-	int i;
-
-	iface_desc = intf->cur_altsetting;
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i)
-		usb_create_ep_files(&intf->dev, &iface_desc->endpoint[i],
-				udev);
-}
-
-static inline void usb_remove_intf_ep_files(struct usb_interface *intf)
-{
-	struct usb_host_interface *iface_desc;
-	int i;
-
-	iface_desc = intf->cur_altsetting;
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i)
-		usb_remove_ep_files(&iface_desc->endpoint[i]);
-}
-
 int usb_create_sysfs_intf_files(struct usb_interface *intf)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct usb_host_interface *alt = intf->cur_altsetting;
+	int i;
 	int retval;
 
 	if (intf->sysfs_files_created || intf->unregistering)
@@ -851,18 +830,22 @@ int usb_create_sysfs_intf_files(struct usb_interface *intf)
 		alt->string = usb_cache_string(udev, alt->desc.iInterface);
 	if (alt->string)
 		retval = device_create_file(&intf->dev, &dev_attr_interface);
-	usb_create_intf_ep_files(intf, udev);
+	for (i = 0; i < alt->desc.bNumEndpoints; ++i)
+		usb_create_ep_files(&intf->dev, &alt->endpoint[i], udev);
 	intf->sysfs_files_created = 1;
 	return 0;
 }
 
 void usb_remove_sysfs_intf_files(struct usb_interface *intf)
 {
-	struct device *dev = &intf->dev;
+	struct usb_host_interface *alt = intf->cur_altsetting;
+	int i;
 
 	if (!intf->sysfs_files_created)
 		return;
-	usb_remove_intf_ep_files(intf);
-	device_remove_file(dev, &dev_attr_interface);
+
+	for (i = 0; i < alt->desc.bNumEndpoints; ++i)
+		usb_remove_ep_files(&alt->endpoint[i]);
+	device_remove_file(&intf->dev, &dev_attr_interface);
 	intf->sysfs_files_created = 0;
 }
