@@ -10,35 +10,10 @@
 //============================================================================
 #include "os_common.h"
 
-s32
-EncapAtomicInc(struct wb35_adapter * adapter, void* pAtomic)
-{
-	u32	ltmp;
-	u32 *	pltmp = (u32 *)pAtomic;
-	spin_lock_irq( &adapter->AtomicSpinLock );
-	(*pltmp)++;
-	ltmp = (*pltmp);
-	spin_unlock_irq( &adapter->AtomicSpinLock );
-	return ltmp;
-}
-
-s32
-EncapAtomicDec(struct wb35_adapter * adapter, void* pAtomic)
-{
-	u32	ltmp;
-	u32 *	pltmp = (u32 *)pAtomic;
-	spin_lock_irq( &adapter->AtomicSpinLock );
-	(*pltmp)--;
-	ltmp = (*pltmp);
-	spin_unlock_irq( &adapter->AtomicSpinLock );
-	return ltmp;
-}
-
 unsigned char
 WBLINUX_Initial(struct wb35_adapter * adapter)
 {
 	spin_lock_init( &adapter->SpinLock );
-	spin_lock_init( &adapter->AtomicSpinLock );
 	return true;
 }
 
@@ -75,7 +50,7 @@ WBLINUX_stop(  struct wb35_adapter * adapter )
 {
 	struct sk_buff *pSkb;
 
-	if (OS_ATOMIC_INC( adapter, &adapter->ThreadCount ) == 1) {
+	if (atomic_inc_return(&adapter->ThreadCount) == 1) {
 		// Shutdown module immediately
 		adapter->shutdown = 1;
 
@@ -97,7 +72,7 @@ WBLINUX_stop(  struct wb35_adapter * adapter )
 #endif
 	}
 
-	OS_ATOMIC_DEC(adapter, &adapter->ThreadCount);
+	atomic_dec(&adapter->ThreadCount);
 }
 
 void

@@ -73,14 +73,6 @@
 #define OS_EVENT_INDICATE( _A, _B, _F )
 #define OS_PMKID_STATUS_EVENT( _A )
 
-
-/* Uff, no, longs are not atomic on all architectures Linux
- * supports. This should really use atomic_t */
-
-#define OS_ATOMIC			u32
-#define OS_ATOMIC_READ( _A, _V )	_V
-#define OS_ATOMIC_INC( _A, _V )		EncapAtomicInc( _A, (void*)_V )
-#define OS_ATOMIC_DEC( _A, _V )		EncapAtomicDec( _A, (void*)_V )
 #define OS_MEMORY_CLEAR( _A, _S )	memset( (u8 *)_A,0,_S)
 #define OS_MEMORY_COMPARE( _A, _B, _S )	(memcmp(_A,_B,_S)? 0 : 1) // Definition is reverse with Ndis 1: the same 0: different
 

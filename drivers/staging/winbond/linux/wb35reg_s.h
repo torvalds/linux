@@ -142,7 +142,7 @@ struct wb35_reg {
 	u32	        EP0VM_status;//$$
 	struct wb35_reg_queue *reg_first;
 	struct wb35_reg_queue *reg_last;
-	OS_ATOMIC       RegFireCount;
+	atomic_t       RegFireCount;
 
 	// Hardware status
 	u8	EP0vm_state;

@@ -6,7 +6,7 @@ Mds_reset_descriptor(struct wb35_adapter * adapter)
 	PMDS pMds = &adapter->Mds;
 
 	pMds->TxPause = 0;
-	pMds->TxThreadCount = 0;
+	atomic_set(&pMds->TxThreadCount, 0);
 	pMds->TxFillIndex = 0;
 	pMds->TxDesIndex = 0;
 	pMds->ScanTxPause = 0;
@@ -52,7 +52,7 @@ Mds_Tx(struct wb35_adapter * adapter)
 		return;
 
 	//Only one thread can be run here
-	if (!OS_ATOMIC_INC( adapter, &pMds->TxThreadCount) == 1)
+	if (!atomic_inc_return(&pMds->TxThreadCount) == 1)
 		goto cleanup;
 
 	// Start to fill the data
@@ -172,7 +172,7 @@ Mds_Tx(struct wb35_adapter * adapter)
 		Wb35Tx_start(pHwData);
 
  cleanup:
-	OS_ATOMIC_DEC( adapter, &pMds->TxThreadCount );
+	atomic_dec(&pMds->TxThreadCount);
 }
 
 void

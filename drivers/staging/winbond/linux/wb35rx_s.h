@@ -18,7 +18,7 @@
 typedef struct _WB35RX
 {
 	u32			ByteReceived;// For calculating throughput of BulkIn
-	OS_ATOMIC		RxFireCounter;// Does Wb35Rx module fire?
+	atomic_t		RxFireCounter;// Does Wb35Rx module fire?
 
 	u8	RxBuffer[ MAX_USB_RX_BUFFER_NUMBER ][ ((MAX_USB_RX_BUFFER+3) & ~0x03 ) ];
 	u16	RxBufferSize[ ((MAX_USB_RX_BUFFER_NUMBER+1) & ~0x01) ];

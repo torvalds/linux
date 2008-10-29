@@ -96,9 +96,9 @@ typedef struct _MDS
 	u8	ScanTxPause;	//data Tx pause because the scanning is progressing, but probe request Tx won't.
 	u8	TxPause;//For pause the Mds_Tx modult
 
-	OS_ATOMIC	TxThreadCount;//For thread counting 931130.4.v
+	atomic_t	TxThreadCount;//For thread counting 931130.4.v
 //950301 delete due to HW
-//	OS_ATOMIC	TxConcurrentCount;//931130.4.w
+//	atomic_t	TxConcurrentCount;//931130.4.w
 
 	u16	TxResult[ ((MAX_USB_TX_DESCRIPTOR + 1) & ~0x01) ];//Collect the sending result of Mpdu
 

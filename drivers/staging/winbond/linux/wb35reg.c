@@ -386,11 +386,11 @@ Wb35Reg_EP0VM_start(  phw_data_t pHwData )
 {
 	struct wb35_reg *reg = &pHwData->reg;
 
-	if (OS_ATOMIC_INC( pHwData->adapter, &reg->RegFireCount) == 1) {
+	if (atomic_inc_return(&reg->RegFireCount) == 1) {
 		reg->EP0vm_state = VM_RUNNING;
 		Wb35Reg_EP0VM(pHwData);
 	} else
-		OS_ATOMIC_DEC( pHwData->adapter, &reg->RegFireCount );
+		atomic_dec(&reg->RegFireCount);
 }
 
 void
@@ -447,7 +447,7 @@ Wb35Reg_EP0VM(phw_data_t pHwData )
 
  cleanup:
 	reg->EP0vm_state = VM_STOP;
-	OS_ATOMIC_DEC( pHwData->adapter, &reg->RegFireCount );
+	atomic_dec(&reg->RegFireCount);
 }
 
 
@@ -465,7 +465,7 @@ Wb35Reg_EP0VM_complete(struct urb *urb)
 
 	if (pHwData->SurpriseRemove) { // Let WbWlanHalt to handle surprise remove
 		reg->EP0vm_state = VM_STOP;
-		OS_ATOMIC_DEC( pHwData->adapter, &reg->RegFireCount );
+		atomic_dec(&reg->RegFireCount);
 	} else {
 		// Complete to send, remove the URB from the first
 		spin_lock_irq( &reg->EP0VM_spin_lock );

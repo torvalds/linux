@@ -25,11 +25,11 @@ void Wb35Tx_start(phw_data_t pHwData)
 	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
 
 	// Allow only one thread to run into function
-	if (OS_ATOMIC_INC(pHwData->adapter, &pWb35Tx->TxFireCounter) == 1) {
+	if (atomic_inc_return(&pWb35Tx->TxFireCounter) == 1) {
 		pWb35Tx->EP4vm_state = VM_RUNNING;
 		Wb35Tx(pHwData);
 	} else
-		OS_ATOMIC_DEC( pHwData->adapter, &pWb35Tx->TxFireCounter );
+		atomic_dec(&pWb35Tx->TxFireCounter);
 }
 
 
@@ -81,7 +81,7 @@ void Wb35Tx(phw_data_t pHwData)
 
  cleanup:
 	pWb35Tx->EP4vm_state = VM_STOP;
-	OS_ATOMIC_DEC( pHwData->adapter, &pWb35Tx->TxFireCounter );
+	atomic_dec(&pWb35Tx->TxFireCounter);
 }
 
 
@@ -118,7 +118,7 @@ void Wb35Tx_complete(struct urb * pUrb)
 	return;
 
 error:
-	OS_ATOMIC_DEC( pHwData->adapter, &pWb35Tx->TxFireCounter );
+	atomic_dec(&pWb35Tx->TxFireCounter);
 	pWb35Tx->EP4vm_state = VM_STOP;
 }
 
@@ -211,12 +211,12 @@ void Wb35Tx_EP2VM_start(phw_data_t pHwData)
 	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
 
 	// Allow only one thread to run into function
-	if (OS_ATOMIC_INC( pHwData->adapter, &pWb35Tx->TxResultCount ) == 1) {
+	if (atomic_inc_return(&pWb35Tx->TxResultCount) == 1) {
 		pWb35Tx->EP2vm_state = VM_RUNNING;
 		Wb35Tx_EP2VM( pHwData );
 	}
 	else
-		OS_ATOMIC_DEC( pHwData->adapter, &pWb35Tx->TxResultCount );
+		atomic_dec(&pWb35Tx->TxResultCount);
 }
 
 
@@ -252,7 +252,7 @@ void Wb35Tx_EP2VM(phw_data_t pHwData)
 	return;
 error:
 	pWb35Tx->EP2vm_state = VM_STOP;
-	OS_ATOMIC_DEC( pHwData->adapter, &pWb35Tx->TxResultCount );
+	atomic_dec(&pWb35Tx->TxResultCount);
 }
 
 
@@ -301,7 +301,7 @@ void Wb35Tx_EP2VM_complete(struct urb * pUrb)
 
 	return;
 error:
-	OS_ATOMIC_DEC( pHwData->adapter, &pWb35Tx->TxResultCount );
+	atomic_dec(&pWb35Tx->TxResultCount);
 	pWb35Tx->EP2vm_state = VM_STOP;
 }
 

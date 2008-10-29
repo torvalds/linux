@@ -21,8 +21,8 @@ typedef struct _WB35TX
 	// For Interrupt pipe
 	u8	EP2_buf[MAX_INTERRUPT_LENGTH];
 
-	OS_ATOMIC	TxResultCount;// For thread control of EP2 931130.4.m
-	OS_ATOMIC	TxFireCounter;// For thread control of EP4 931130.4.n
+	atomic_t	TxResultCount;// For thread control of EP2 931130.4.m
+	atomic_t	TxFireCounter;// For thread control of EP4 931130.4.n
 	u32			ByteTransfer;
 
 	u32	    TxSendIndex;// The next index of Mds array to be sent

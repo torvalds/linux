@@ -10,17 +10,16 @@
 //============================================================================
 #include "sysdef.h"
 
-
 void Wb35Rx_start(phw_data_t pHwData)
 {
 	PWB35RX pWb35Rx = &pHwData->Wb35Rx;
 
 	// Allow only one thread to run into the Wb35Rx() function
-	if (OS_ATOMIC_INC(pHwData->adapter, &pWb35Rx->RxFireCounter) == 1) {
+	if (atomic_inc_return(&pWb35Rx->RxFireCounter) == 1) {
 		pWb35Rx->EP3vm_state = VM_RUNNING;
 		Wb35Rx(pHwData);
 	} else
-		OS_ATOMIC_DEC(pHwData->adapter, &pWb35Rx->RxFireCounter);
+		atomic_dec(&pWb35Rx->RxFireCounter);
 }
 
 // This function cannot reentrain
@@ -82,7 +81,7 @@ void Wb35Rx(  phw_data_t pHwData )
 error:
 	// VM stop
 	pWb35Rx->EP3vm_state = VM_STOP;
-	OS_ATOMIC_DEC( pHwData->adapter, &pWb35Rx->RxFireCounter );
+	atomic_dec(&pWb35Rx->RxFireCounter);
 }
 
 void Wb35Rx_Complete(struct urb *urb)
@@ -157,7 +156,7 @@ void Wb35Rx_Complete(struct urb *urb)
 
 error:
 	pWb35Rx->RxOwner[ RxBufferId ] = 1; // Set the owner to hardware
-	OS_ATOMIC_DEC( pHwData->adapter, &pWb35Rx->RxFireCounter );
+	atomic_dec(&pWb35Rx->RxFireCounter);
 	pWb35Rx->EP3vm_state = VM_STOP;
 }
 

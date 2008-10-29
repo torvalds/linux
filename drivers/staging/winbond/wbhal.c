@@ -843,7 +843,7 @@ void hal_system_power_change(phw_data_t pHwData, u32 PowerState)
 void hal_surprise_remove(  phw_data_t pHwData )
 {
 	struct wb35_adapter * adapter = pHwData->adapter;
-	if (OS_ATOMIC_INC( adapter, &pHwData->SurpriseRemoveCount ) == 1) {
+	if (atomic_inc_return( &pHwData->SurpriseRemoveCount ) == 1) {
 		#ifdef _PE_STATE_DUMP_
 		WBDEBUG(("Calling hal_surprise_remove\n"));
 		#endif

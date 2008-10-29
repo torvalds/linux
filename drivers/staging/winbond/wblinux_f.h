@@ -3,8 +3,6 @@
 //
 // wblinux_f.h
 //
-s32 EncapAtomicInc(  struct wb35_adapter *adapter,  void* pAtomic );
-s32 EncapAtomicDec(  struct wb35_adapter *adapter,  void* pAtomic );
 void WBLinux_ReceivePacket(  struct wb35_adapter *adapter,  PRXLAYER1 pRxLayer1 );
 unsigned char WBLINUX_Initial(  struct wb35_adapter *adapter );
 int wb35_start_xmit(struct sk_buff *skb, struct net_device *netdev );

@@ -32,11 +32,10 @@ struct wb35_adapter {
 	hw_data_t sHwData;	//For HAL
 	MDS Mds;
 
-	spinlock_t AtomicSpinLock;
 	spinlock_t SpinLock;
 	u32 shutdown;
 
-	OS_ATOMIC ThreadCount;
+	atomic_t ThreadCount;
 
 	u32 LinkStatus;		// OS_DISCONNECTED or OS_CONNECTED
 

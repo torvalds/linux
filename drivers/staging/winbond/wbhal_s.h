@@ -570,7 +570,7 @@ typedef struct _HW_DATA_T
 	u32		RxByteCountLast;
 	u32		TxByteCountLast;
 
-	s32		SurpriseRemoveCount;
+	atomic_t	SurpriseRemoveCount;
 
 	// For global timer
 	u32		time_count;//TICK_TIME_100ms 1 = 100ms
