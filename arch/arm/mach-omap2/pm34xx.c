@@ -326,7 +326,6 @@ static int omap3_pm_suspend(void)
 restore:
 	/* Restore next_pwrsts */
 	list_for_each_entry(pwrst, &pwrst_list, node) {
-		set_pwrdm_state(pwrst->pwrdm, pwrst->saved_state);
 		state = pwrdm_read_prev_pwrst(pwrst->pwrdm);
 		if (state > pwrst->next_state) {
 			printk(KERN_INFO "Powerdomain (%s) didn't enter "
@@ -334,6 +333,7 @@ restore:
 			       pwrst->pwrdm->name, pwrst->next_state);
 			ret = -1;
 		}
+		set_pwrdm_state(pwrst->pwrdm, pwrst->saved_state);
 	}
 	if (ret)
 		printk(KERN_ERR "Could not enter target state in pm_suspend\n");
