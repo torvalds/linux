@@ -114,7 +114,7 @@ static void ath_beacon_setup(struct ath_softc *sc,
 	ath9k_hw_set11n_txdesc(ah, ds,
 			       skb->len + FCS_LEN,     /* frame length */
 			       ATH9K_PKT_TYPE_BEACON,  /* Atheros packet type */
-			       avp->av_btxctl.txpower, /* txpower XXX */
+			       MAX_RATE_POWER,         /* FIXME */
 			       ATH9K_TXKEYIX_INVALID,  /* no encryption */
 			       ATH9K_KEY_TYPE_CLEAR,   /* no encryption */
 			       flags                   /* no ack,

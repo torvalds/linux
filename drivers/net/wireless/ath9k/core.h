@@ -84,9 +84,6 @@ struct ath_node;
 #define TSF_TO_TU(_h,_l) \
 	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
 
-#define ATH9K_BH_STATUS_INTACT		0
-#define ATH9K_BH_STATUS_CHANGE		1
-
 #define	ATH_TXQ_SETUP(sc, i)        ((sc)->sc_txqsetup & (1<<i))
 
 static inline unsigned long get_timestamp(void)
@@ -209,6 +206,7 @@ struct ath_buf_state {
 	struct ath_rc_series bfs_rcs[4];	/* rate series */
 	u32 bf_type;				/* BUF_* (enum buffer_type) */
 	/* key type use to encrypt this frame */
+	u32 bfs_keyix;
 	enum ath9k_key_type bfs_keytype;
 };
 
@@ -219,6 +217,7 @@ struct ath_buf_state {
 #define bf_seqno        	bf_state.bfs_seqno
 #define bf_tidno        	bf_state.bfs_tidno
 #define bf_rcs          	bf_state.bfs_rcs
+#define bf_keyix                bf_state.bfs_keyix
 #define bf_keytype      	bf_state.bfs_keytype
 #define bf_isdata(bf)		(bf->bf_state.bf_type & BUF_DATA)
 #define bf_isaggr(bf)		(bf->bf_state.bf_type & BUF_AGGR)
@@ -244,7 +243,6 @@ struct ath_buf {
 	struct ath_buf *bf_next;	/* next subframe in the aggregate */
 	struct ath_buf *bf_rifslast;	/* last buf for RIFS burst */
 	void *bf_mpdu;			/* enclosing frame structure */
-	void *bf_node;			/* pointer to the node */
 	struct ath_desc *bf_desc;	/* virtual addr of desc */
 	dma_addr_t bf_daddr;		/* physical addr of desc */
 	dma_addr_t bf_buf_addr;		/* physical addr of data buffer */
@@ -493,24 +491,8 @@ struct ath_atx {
 
 /* per-frame tx control block */
 struct ath_tx_control {
-	struct ath_node *an;
+	struct ath_txq *txq;
 	int if_id;
-	int qnum;
-	u32 ht:1;
-	u32 ps:1;
-	u32 use_minrate:1;
-	enum ath9k_pkt_type atype;
-	enum ath9k_key_type keytype;
-	u32 flags;
-	u16 seqno;
-	u16 tidno;
-	u16 txpower;
-	u16 frmlen;
-	u32 keyix;
-	int min_rate;
-	int mcast_rate;
-	struct ath_softc *dev;
-	dma_addr_t dmacontext;
 };
 
 /* per frame tx status block */
@@ -551,15 +533,17 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq);
 int ath_tx_init(struct ath_softc *sc, int nbufs);
 int ath_tx_cleanup(struct ath_softc *sc);
 int ath_tx_get_qnum(struct ath_softc *sc, int qtype, int haltype);
+struct ath_txq *ath_test_get_txq(struct ath_softc *sc, struct sk_buff *skb);
 int ath_txq_update(struct ath_softc *sc, int qnum,
 		   struct ath9k_tx_queue_info *q);
-int ath_tx_start(struct ath_softc *sc, struct sk_buff *skb);
+int ath_tx_start(struct ath_softc *sc, struct sk_buff *skb,
+		 struct ath_tx_control *txctl);
 void ath_tx_tasklet(struct ath_softc *sc);
 u32 ath_txq_depth(struct ath_softc *sc, int qnum);
 u32 ath_txq_aggr_depth(struct ath_softc *sc, int qnum);
 void ath_notify_txq_status(struct ath_softc *sc, u16 queue_depth);
 void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
-		     struct ath_xmit_status *tx_status, struct ath_node *an);
+		     struct ath_xmit_status *tx_status);
 void ath_tx_cabq(struct ath_softc *sc, struct sk_buff *skb);
 
 /**********************/
