@@ -48,14 +48,6 @@
 #ifndef _WLAN_COMPAT_H
 #define _WLAN_COMPAT_H
 
-#if defined(__KERNEL__)
-
-#ifndef AUTOCONF_INCLUDED
-#include <linux/config.h>
-#endif
-
-#endif
-
 /*=============================================================*/
 /*------ Bit settings -----------------------------------------*/
 /*=============================================================*/
@@ -102,10 +94,6 @@
 /*------ OS Portability Macros --------------------------------*/
 /*=============================================================*/
 
-#ifndef KERNEL_VERSION
-#define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
-#endif
-
 #ifndef WLAN_DBVAR
 #define WLAN_DBVAR	wlan_debug
 #endif
@@ -144,96 +132,11 @@
 	#define WLAN_LOG_DEBUG(l, s, args...)
 #endif
 
-#ifdef CONFIG_SMP
-#define __SMP__			1
-#endif
-
-#if defined(__KERNEL__)
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19))
-#define URB_ONLY_CALLBACK
-#endif
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19))
-#define PT_REGS    , struct pt_regs *regs
-#else
-#define PT_REGS
-#endif
-
-#define CONFIG_NETLINK		1
-
-#ifndef wait_event_interruptible_timeout
-// retval == 0; signal met; we're good.
-// retval < 0; interrupted by signal.
-// retval > 0; timed out.
-
-#define __wait_event_interruptible_timeout(wq, condition, ret)            \
-do {                                                                      \
-          wait_queue_t __wait;                                            \
-          init_waitqueue_entry(&__wait, current);                         \
-	                                                                  \
-          add_wait_queue(&wq, &__wait);                                   \
-          for (;;) {                                                      \
-                  set_current_state(TASK_intERRUPTIBLE);                  \
-                  if (condition)                                          \
-                          break;                                          \
-                  if (!signal_pending(current)) {                         \
-                          ret = schedule_timeout(ret)    ;                \
-                          if (!ret)                                       \
-                                 break;                                   \
-                          continue;                                       \
-                  }                                                       \
-                  ret = -ERESTARTSYS;                                     \
-                  break;                                                  \
-          }                                                               \
-          set_current_state(TASK_RUNNING);                                \
-          remove_wait_queue(&wq, &__wait);                                \
-} while (0)
-
-#define wait_event_interruptible_timeout(wq, condition, timeout)	  \
-({									  \
-	long __ret = timeout;						  \
-	if (!(condition))						  \
-		__wait_event_interruptible_timeout(wq, condition, __ret); \
-	__ret;								  \
-})
-
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-#define INIT_WORK2(_wq, _routine)	INIT_WORK(_wq, (void (*)(void *))_routine, _wq)
-#else
-#define INIT_WORK2(_wq, _routine)	INIT_WORK(_wq, _routine)
-#endif
-
 #undef netdevice_t
 typedef struct net_device netdevice_t;
 
-/* TODO:  Do we care about this? */
-#ifndef MODULE_DEVICE_TABLE
-#define MODULE_DEVICE_TABLE(foo,bar)
-#endif
-
-#define wlan_minutes2ticks(a) ((a)*(wlan_ticks_per_sec *  60))
-#define wlan_seconds2ticks(a) ((a)*(wlan_ticks_per_sec))
-
-#ifndef in_atomic
-#define in_atomic()  0
-#endif
-
 #define URB_ASYNC_UNLINK 0
 #define USB_QUEUE_BULK 0
-
-#ifndef might_sleep
-#define might_sleep(a)   do { } while (0)
-#endif
-
-/* Apparently 2.4.2 ethtool is quite different, maybe newer too? */
-#if (defined(SIOETHTOOL) && !defined(ETHTOOL_GDRVINFO))
-#undef SIOETHTOOL
-#endif
-
-#endif /* __KERNEL__ */
 
 /*=============================================================*/
 /*------ Hardware Portability Macros --------------------------*/

@@ -198,21 +198,12 @@ submit_tx_urb(hfa384x_t *hw, struct urb *tx_urb, gfp_t flags);
 
 /*---------------------------------------------------*/
 /* Callbacks */
-#ifdef URB_ONLY_CALLBACK
 static void
 hfa384x_usbout_callback(struct urb *urb);
 static void
 hfa384x_ctlxout_callback(struct urb *urb);
 static void
 hfa384x_usbin_callback(struct urb *urb);
-#else
-static void
-hfa384x_usbout_callback(struct urb *urb, struct pt_regs *regs);
-static void
-hfa384x_ctlxout_callback(struct urb *urb, struct pt_regs *regs);
-static void
-hfa384x_usbin_callback(struct urb *urb, struct pt_regs *regs);
-#endif
 
 static void
 hfa384x_usbin_txcompl(wlandevice_t *wlandev, hfa384x_usbin_t *usbin);
@@ -652,8 +643,8 @@ hfa384x_create( hfa384x_t *hw, struct usb_device *usb)
 	tasklet_init(&hw->completion_bh,
 	             hfa384x_usbctlx_completion_task,
 	             (unsigned long)hw);
-	INIT_WORK2(&hw->link_bh, prism2sta_processing_defer);
-	INIT_WORK2(&hw->usb_work, hfa384x_usb_defer);
+	INIT_WORK(&hw->link_bh, prism2sta_processing_defer);
+	INIT_WORK(&hw->usb_work, hfa384x_usb_defer);
 
 	init_timer(&hw->throttle);
 	hw->throttle.function = hfa384x_usb_throttlefn;
@@ -674,7 +665,7 @@ hfa384x_create( hfa384x_t *hw, struct usb_device *usb)
 	hw->link_status = HFA384x_LINK_NOTCONNECTED;
 	hw->state = HFA384x_STATE_INIT;
 
-        INIT_WORK2(&hw->commsqual_bh, prism2sta_commsqual_defer);
+        INIT_WORK(&hw->commsqual_bh, prism2sta_commsqual_defer);
 	init_timer(&hw->commsqual_timer);
 	hw->commsqual_timer.data = (unsigned long) hw;
 	hw->commsqual_timer.function = prism2sta_commsqual_timer;
@@ -3722,11 +3713,7 @@ hfa384x_usbctlxq_run(hfa384x_t	*hw)
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-#ifdef URB_ONLY_CALLBACK
 static void hfa384x_usbin_callback(struct urb *urb)
-#else
-static void hfa384x_usbin_callback(struct urb *urb, struct pt_regs *regs)
-#endif
 {
 	wlandevice_t		*wlandev = urb->context;
 	hfa384x_t		*hw;
@@ -4381,11 +4368,7 @@ static void hfa384x_usbin_info(wlandevice_t *wlandev, hfa384x_usbin_t *usbin)
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-#ifdef URB_ONLY_CALLBACK
 static void hfa384x_usbout_callback(struct urb *urb)
-#else
-static void hfa384x_usbout_callback(struct urb *urb, struct pt_regs *regs)
-#endif
 {
 	wlandevice_t		*wlandev = urb->context;
 	hfa384x_usbout_t	*usbout = urb->transfer_buffer;
@@ -4462,11 +4445,7 @@ static void hfa384x_usbout_callback(struct urb *urb, struct pt_regs *regs)
 * Call context:
 * interrupt
 ----------------------------------------------------------------*/
-#ifdef URB_ONLY_CALLBACK
 static void hfa384x_ctlxout_callback(struct urb *urb)
-#else
-static void hfa384x_ctlxout_callback(struct urb *urb, struct pt_regs *regs)
-#endif
 {
 	hfa384x_t	*hw = urb->context;
 	int             delete_resptimer = 0;

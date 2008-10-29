@@ -2607,8 +2607,6 @@ hfa384x_create(
 
 void hfa384x_destroy(hfa384x_t *hw);
 
-irqreturn_t
-hfa384x_interrupt(int irq, void *dev_id PT_REGS);
 int
 hfa384x_corereset( hfa384x_t *hw, int holdtime, int settletime, int genesis);
 int
