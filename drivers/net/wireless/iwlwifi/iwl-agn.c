@@ -1153,6 +1153,10 @@ static void iwl_bg_statistics_periodic(unsigned long data)
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
+	/* dont send host command if rf-kill is on */
+	if (!iwl_is_ready_rf(priv))
+		return;
+
 	iwl_send_statistics_request(priv, CMD_ASYNC);
 }
 
