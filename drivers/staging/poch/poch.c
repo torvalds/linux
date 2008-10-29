@@ -432,7 +432,10 @@ static void channel_dma_init(struct channel_info *channel)
 	}
 
 	printk(KERN_WARNING "block_size, group_size, group_count\n");
-	iowrite32(channel->block_size, fpga + block_size_reg);
+	/*
+	 * Block size is represented in no. of 64 bit transfers.
+	 */
+	iowrite32(channel->block_size / 8, fpga + block_size_reg);
 	iowrite32(channel->group_size / channel->block_size,
 		  fpga + block_count_reg);
 	iowrite32(channel->group_count, fpga + group_count_reg);
