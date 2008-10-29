@@ -514,6 +514,11 @@ asmlinkage long sys_capset(cap_user_header_t header, const cap_user_data_t data)
  */
 int capable(int cap)
 {
+	if (unlikely(!cap_valid(cap))) {
+		printk(KERN_CRIT "capable() called with invalid cap=%u\n", cap);
+		BUG();
+	}
+
 	if (has_capability(current, cap)) {
 		current->flags |= PF_SUPERPRIV;
 		return 1;
