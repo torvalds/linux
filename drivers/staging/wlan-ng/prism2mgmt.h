@@ -98,30 +98,16 @@ prism2sta_ev_rx(wlandevice_t *wlandev, struct sk_buff *skb);
 void
 prism2sta_ev_alloc(wlandevice_t *wlandev);
 
-
 int prism2mgmt_mibset_mibget(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_scan_results(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_p2_join(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_associate(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_reset(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_start(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_readpda(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_readcis(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_auxport_state(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_auxport_read(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_auxport_write(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_low_level(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_test_command(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_mmi_read(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_mmi_write(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_ramdl_state(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_ramdl_write(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_flashdl_state(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_flashdl_write(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_mm_state(wlandevice_t *wlandev, void *msgp);
-int prism2mgmt_dump_state(wlandevice_t *wlandev, void *msgp);
 int prism2mgmt_autojoin(wlandevice_t *wlandev, void *msgp);
 
 /*---------------------------------------------------------------

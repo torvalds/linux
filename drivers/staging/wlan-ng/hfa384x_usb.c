@@ -584,7 +584,7 @@ hfa384x_usb_defer(struct work_struct *data)
 
 	/* Resume transmitting. */
 	if ( test_and_clear_bit(WORK_TX_RESUME, &hw->usb_flags) ) {
-		p80211netdev_wake_queue(hw->wlandev);
+		netif_wake_queue(hw->wlandev->netdev);
 	}
 
 	DBFEXIT;
@@ -1236,95 +1236,6 @@ int hfa384x_cmd_enable(hfa384x_t *hw, u16 macport)
 	DBFEXIT;
 	return result;
 }
-
-
-/*----------------------------------------------------------------
-* hfa384x_cmd_notify
-*
-* Sends an info frame to the firmware to alter the behavior
-* of the f/w asynch processes.  Can only be called when the MAC
-* is in the enabled state.
-*
-* Arguments:
-*	hw		device structure
-*	reclaim		[0|1] indicates whether the given FID will
-*			be handed back (via Alloc event) for reuse.
-*			(host order)
-*	fid		FID of buffer containing the frame that was
-*			previously copied to MAC memory via the bap.
-*			(host order)
-*
-* Returns:
-*	0		success
-*	>0		f/w reported failure - f/w status code
-*	<0		driver reported error (timeout|bad arg)
-*
-* Side effects:
-*	hw->resp0 will contain the FID being used by async notify
-*	process.  If reclaim==0, resp0 will be the same as the fid
-*	argument.  If reclaim==1, resp0 will be the different.
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
-int hfa384x_cmd_notify(hfa384x_t *hw, u16 reclaim, u16 fid,
-		       void *buf, u16 len)
-{
-#if 0
-	int	result = 0;
-	u16	cmd;
-	DBFENTER;
-	cmd =	HFA384x_CMD_CMDCODE_SET(HFA384x_CMDCODE_NOTIFY) |
-		HFA384x_CMD_RECL_SET(reclaim);
-	result = hfa384x_docmd_wait(hw, cmd);
-
-	DBFEXIT;
-	return result;
-#endif
-return 0;
-}
-
-
-#if 0
-/*----------------------------------------------------------------
-* hfa384x_cmd_inquiry
-*
-* Requests an info frame from the firmware.  The info frame will
-* be delivered asynchronously via the Info event.
-*
-* Arguments:
-*	hw		device structure
-*	fid		FID of the info frame requested. (host order)
-*
-* Returns:
-*	0		success
-*	>0		f/w reported failure - f/w status code
-*	<0		driver reported error (timeout|bad arg)
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
-int hfa384x_cmd_inquiry(hfa384x_t *hw, u16 fid)
-{
-	int	result = 0;
-	hfa384x_metacmd_t cmd;
-
-	DBFENTER;
-
-	cmd.cmd = HFA384x_CMD_CMDCODE_SET(HFA384x_CMDCODE_INQ);
-	cmd.parm0 = 0;
-	cmd.parm1 = 0;
-	cmd.parm2 = 0;
-
-	result = hfa384x_docmd_wait(hw, &cmd);
-
-	DBFEXIT;
-	return result;
-}
-#endif
-
 
 /*----------------------------------------------------------------
 * hfa384x_cmd_monitor
@@ -2686,88 +2597,6 @@ int hfa384x_drvr_low_level(hfa384x_t *hw, hfa384x_metacmd_t *cmd)
 	DBFEXIT;
 	return result;
 }
-
-/*----------------------------------------------------------------
-* hfa384x_drvr_mmi_read
-*
-* Read mmi registers.  mmi is intersil-speak for the baseband
-* processor registers.
-*
-* Arguments:
-*       hw              device structure
-*       register        The test register to be accessed (must be even #).
-*
-* Returns:
-*       0               success
-*       >0              f/w reported error - f/w status code
-*       <0              driver reported error
-*
-* Side effects:
-*
-* Call context:
-*       process
-----------------------------------------------------------------*/
-int hfa384x_drvr_mmi_read(hfa384x_t *hw, u32 addr, u32 *resp)
-{
-#if 0
-        int             result = 0;
-        u16  cmd_code = (u16) 0x30;
-        u16 param = (u16) addr;
-        DBFENTER;
-
-        /* Do i need a host2hfa... conversion ? */
-        result = hfa384x_docmd_wait(hw, cmd_code);
-
-        DBFEXIT;
-        return result;
-#endif
-return 0;
-}
-
-/*----------------------------------------------------------------
-* hfa384x_drvr_mmi_write
-*
-* Read mmi registers.  mmi is intersil-speak for the baseband
-* processor registers.
-*
-* Arguments:
-*       hw              device structure
-*       addr            The test register to be accessed (must be even #).
-*       data            The data value to write to the register.
-*
-* Returns:
-*       0               success
-*       >0              f/w reported error - f/w status code
-*       <0              driver reported error
-*
-* Side effects:
-*
-* Call context:
-*       process
-----------------------------------------------------------------*/
-
-int
-hfa384x_drvr_mmi_write(hfa384x_t *hw, u32 addr, u32 data)
-{
-#if 0
-        int             result = 0;
-        u16  cmd_code = (u16) 0x31;
-        u16 param0 = (u16) addr;
-        u16 param1 = (u16) data;
-        DBFENTER;
-
-        WLAN_LOG_DEBUG(1,"mmi write : addr = 0x%08lx\n", addr);
-        WLAN_LOG_DEBUG(1,"mmi write : data = 0x%08lx\n", data);
-
-        /* Do i need a host2hfa... conversion ? */
-        result = hfa384x_docmd_wait(hw, cmd_code);
-
-        DBFEXIT;
-        return result;
-#endif
-return 0;
-}
-
 
 /*----------------------------------------------------------------
 * hfa384x_drvr_ramdl_disable
@@ -4178,7 +4007,6 @@ static void hfa384x_int_rxmonitor( wlandevice_t *wlandev, hfa384x_usb_rxfrm_t *r
 	unsigned int				hdrlen = 0;
 	unsigned int				datalen = 0;
 	unsigned int				skblen = 0;
-	p80211msg_lnxind_wlansniffrm_t	*msg;
 	u8				*datap;
 	u16				fc;
 	struct sk_buff			*skb;
@@ -4193,15 +4021,15 @@ static void hfa384x_int_rxmonitor( wlandevice_t *wlandev, hfa384x_usb_rxfrm_t *r
 	datalen = hfa384x2host_16(rxdesc->data_len);
 
 	/* Allocate an ind message+framesize skb */
-	skblen = sizeof(p80211msg_lnxind_wlansniffrm_t) +
+	skblen = sizeof(p80211_caphdr_t) +
 		hdrlen + datalen + WLAN_CRC_LEN;
 
 	/* sanity check the length */
 	if ( skblen >
-		(sizeof(p80211msg_lnxind_wlansniffrm_t) +
-		WLAN_HDR_A4_LEN + WLAN_DATA_MAXLEN + WLAN_CRC_LEN) ) {
+	     (sizeof(p80211_caphdr_t) +
+	      WLAN_HDR_A4_LEN + WLAN_DATA_MAXLEN + WLAN_CRC_LEN) ) {
 		WLAN_LOG_DEBUG(1, "overlen frm: len=%zd\n",
-			skblen - sizeof(p80211msg_lnxind_wlansniffrm_t));
+			       skblen - sizeof(p80211_caphdr_t));
 	}
 
 	if ( (skb = dev_alloc_skb(skblen)) == NULL ) {
@@ -4211,66 +4039,7 @@ static void hfa384x_int_rxmonitor( wlandevice_t *wlandev, hfa384x_usb_rxfrm_t *r
 
 	/* only prepend the prism header if in the right mode */
 	if ((wlandev->netdev->type == ARPHRD_IEEE80211_PRISM) &&
-	    (hw->sniffhdr == 0)) {
-		datap = skb_put(skb, sizeof(p80211msg_lnxind_wlansniffrm_t));
-		msg = (p80211msg_lnxind_wlansniffrm_t*) datap;
-
-		/* Initialize the message members */
-		msg->msgcode = DIDmsg_lnxind_wlansniffrm;
-		msg->msglen = sizeof(p80211msg_lnxind_wlansniffrm_t);
-		strcpy(msg->devname, wlandev->name);
-
-		msg->hosttime.did = DIDmsg_lnxind_wlansniffrm_hosttime;
-		msg->hosttime.status = 0;
-		msg->hosttime.len = 4;
-		msg->hosttime.data = jiffies;
-
-		msg->mactime.did = DIDmsg_lnxind_wlansniffrm_mactime;
-		msg->mactime.status = 0;
-		msg->mactime.len = 4;
-		msg->mactime.data = rxdesc->time;
-
-		msg->channel.did = DIDmsg_lnxind_wlansniffrm_channel;
-		msg->channel.status = 0;
-		msg->channel.len = 4;
-		msg->channel.data = hw->sniff_channel;
-
-		msg->rssi.did = DIDmsg_lnxind_wlansniffrm_rssi;
-		msg->rssi.status = P80211ENUM_msgitem_status_no_value;
-		msg->rssi.len = 4;
-		msg->rssi.data = 0;
-
-		msg->sq.did = DIDmsg_lnxind_wlansniffrm_sq;
-		msg->sq.status = P80211ENUM_msgitem_status_no_value;
-		msg->sq.len = 4;
-		msg->sq.data = 0;
-
-		msg->signal.did = DIDmsg_lnxind_wlansniffrm_signal;
-		msg->signal.status = 0;
-		msg->signal.len = 4;
-		msg->signal.data = rxdesc->signal;
-
-		msg->noise.did = DIDmsg_lnxind_wlansniffrm_noise;
-		msg->noise.status = 0;
-		msg->noise.len = 4;
-		msg->noise.data = rxdesc->silence;
-
-		msg->rate.did = DIDmsg_lnxind_wlansniffrm_rate;
-		msg->rate.status = 0;
-		msg->rate.len = 4;
-		msg->rate.data = rxdesc->rate / 5; /* set to 802.11 units */
-
-		msg->istx.did = DIDmsg_lnxind_wlansniffrm_istx;
-		msg->istx.status = 0;
-		msg->istx.len = 4;
-		msg->istx.data = P80211ENUM_truth_false;
-
-		msg->frmlen.did = DIDmsg_lnxind_wlansniffrm_frmlen;
-		msg->frmlen.status = 0;
-		msg->frmlen.len = 4;
-		msg->frmlen.data = hdrlen + datalen + WLAN_CRC_LEN;
-	} else if ((wlandev->netdev->type == ARPHRD_IEEE80211_PRISM) &&
-		   (hw->sniffhdr != 0)) {
+	    (hw->sniffhdr != 0)) {
 		p80211_caphdr_t		*caphdr;
 		/* The NEW header format! */
 		datap = skb_put(skb, sizeof(p80211_caphdr_t));

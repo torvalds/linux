@@ -2742,10 +2742,6 @@ hfa384x_cmd_transmit(hfa384x_t *hw, u16 reclaim, u16 qos, u16 fid);
 int
 hfa384x_cmd_clearpersist(hfa384x_t *hw, u16 fid);
 int
-hfa384x_cmd_notify(hfa384x_t *hw, u16 reclaim, u16 fid, void *buf, u16 len);
-int
-hfa384x_cmd_inquire(hfa384x_t *hw, u16 fid);
-int
 hfa384x_cmd_access(hfa384x_t *hw, u16 write, u16 rid, void *buf, u16 len);
 int
 hfa384x_cmd_monitor(hfa384x_t *hw, u16 enable);

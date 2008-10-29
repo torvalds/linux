@@ -111,8 +111,6 @@
 #define WLAN_LOG_INFO(args... ) printk(KERN_INFO args)
 
 #if defined(WLAN_INCLUDE_DEBUG)
-	#define WLAN_ASSERT(c) if ((!(c)) && WLAN_DBVAR >= 1) { \
-		WLAN_LOG_DEBUG(1, "Assertion failure!\n"); }
 	#define WLAN_HEX_DUMP( l, x, p, n)	if( WLAN_DBVAR >= (l) ){ \
 		int __i__; \
 		printk(KERN_DEBUG x ":"); \
@@ -124,7 +122,6 @@
 
 	#define WLAN_LOG_DEBUG(l,x,args...) if ( WLAN_DBVAR >= (l)) printk(KERN_DEBUG "%s(%lu): " x ,  __func__, (preempt_count() & PREEMPT_MASK), ##args );
 #else
-	#define WLAN_ASSERT(c)
 	#define WLAN_HEX_DUMP( l, s, p, n)
 	#define DBFENTER
 	#define DBFEXIT

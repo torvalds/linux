@@ -136,33 +136,6 @@ typedef struct p80211msg_dot11req_scan_results
 	p80211item_uint32_t	supprate8	;
 } __WLAN_ATTRIB_PACK__ p80211msg_dot11req_scan_results_t;
 
-typedef struct p80211msg_dot11req_associate
-{
-	u32		msgcode	;
-	u32		msglen	;
-	u8		devname[WLAN_DEVNAMELEN_MAX]	;
-	p80211item_pstr6_t	peerstaaddress	;
-	u8	pad_8C[1]	;
-	p80211item_uint32_t	associatefailuretimeout	;
-	p80211item_uint32_t	cfpollable	;
-	p80211item_uint32_t	cfpollreq	;
-	p80211item_uint32_t	privacy	;
-	p80211item_uint32_t	listeninterval	;
-	p80211item_uint32_t	resultcode	;
-} __WLAN_ATTRIB_PACK__ p80211msg_dot11req_associate_t;
-
-
-typedef struct p80211msg_dot11req_reset
-{
-	u32		msgcode	;
-	u32		msglen	;
-	u8		devname[WLAN_DEVNAMELEN_MAX]	;
-	p80211item_uint32_t	setdefaultmib	;
-	p80211item_pstr6_t	macaddress	;
-	u8	pad_11C[1]	;
-	p80211item_uint32_t	resultcode	;
-} __WLAN_ATTRIB_PACK__ p80211msg_dot11req_reset_t;
-
 typedef struct p80211msg_dot11req_start
 {
 	u32		msgcode	;
@@ -201,58 +174,6 @@ typedef struct p80211msg_dot11req_start
 	p80211item_uint32_t	operationalrate8	;
 	p80211item_uint32_t	resultcode	;
 } __WLAN_ATTRIB_PACK__ p80211msg_dot11req_start_t;
-
-typedef struct p80211msg_dot11ind_authenticate
-{
-	u32		msgcode	;
-	u32		msglen	;
-	u8		devname[WLAN_DEVNAMELEN_MAX]	;
-	p80211item_pstr6_t	peerstaaddress	;
-	u8	pad_13C[1]	;
-	p80211item_uint32_t	authenticationtype	;
-} __WLAN_ATTRIB_PACK__ p80211msg_dot11ind_authenticate_t;
-
-typedef struct p80211msg_dot11ind_deauthenticate
-{
-	u32		msgcode	;
-	u32		msglen	;
-	u8		devname[WLAN_DEVNAMELEN_MAX]	;
-	p80211item_pstr6_t	peerstaaddress	;
-	u8	pad_14C[1]	;
-	p80211item_uint32_t	reasoncode	;
-} __WLAN_ATTRIB_PACK__ p80211msg_dot11ind_deauthenticate_t;
-
-typedef struct p80211msg_dot11ind_associate
-{
-	u32		msgcode	;
-	u32		msglen	;
-	u8		devname[WLAN_DEVNAMELEN_MAX]	;
-	p80211item_pstr6_t	peerstaaddress	;
-	u8	pad_15C[1]	;
-	p80211item_uint32_t	aid	;
-} __WLAN_ATTRIB_PACK__ p80211msg_dot11ind_associate_t;
-
-typedef struct p80211msg_dot11ind_reassociate
-{
-	u32		msgcode	;
-	u32		msglen	;
-	u8		devname[WLAN_DEVNAMELEN_MAX]	;
-	p80211item_pstr6_t	peerstaaddress	;
-	u8	pad_16C[1]	;
-	p80211item_uint32_t	aid	;
-	p80211item_pstr6_t	oldapaddress	;
-	u8	pad_17C[1]	;
-} __WLAN_ATTRIB_PACK__ p80211msg_dot11ind_reassociate_t;
-
-typedef struct p80211msg_dot11ind_disassociate
-{
-	u32		msgcode	;
-	u32		msglen	;
-	u8		devname[WLAN_DEVNAMELEN_MAX]	;
-	p80211item_pstr6_t	peerstaaddress	;
-	u8	pad_18C[1]	;
-	p80211item_uint32_t	reasoncode	;
-} __WLAN_ATTRIB_PACK__ p80211msg_dot11ind_disassociate_t;
 
 typedef struct p80211msg_lnxreq_ifstate
 {
@@ -311,61 +232,6 @@ typedef struct p80211msg_lnxreq_autojoin
 	p80211item_uint32_t	resultcode	;
 } __WLAN_ATTRIB_PACK__ p80211msg_lnxreq_autojoin_t;
 
-typedef struct p80211msg_lnxind_wlansniffrm
-{
-	u32		msgcode	;
-	u32		msglen	;
-	u8		devname[WLAN_DEVNAMELEN_MAX]	;
-	p80211item_uint32_t	hosttime	;
-	p80211item_uint32_t	mactime	;
-	p80211item_uint32_t	channel	;
-	p80211item_uint32_t	rssi	;
-	p80211item_uint32_t	sq	;
-	p80211item_uint32_t	signal	;
-	p80211item_uint32_t	noise	;
-	p80211item_uint32_t	rate	;
-	p80211item_uint32_t	istx	;
-	p80211item_uint32_t	frmlen	;
-} __WLAN_ATTRIB_PACK__ p80211msg_lnxind_wlansniffrm_t;
-
-typedef struct p80211msg_lnxind_roam
-{
-	u32		msgcode	;
-	u32		msglen	;
-	u8		devname[WLAN_DEVNAMELEN_MAX]	;
-	p80211item_uint32_t	reason	;
-} __WLAN_ATTRIB_PACK__ p80211msg_lnxind_roam_t;
-
-typedef struct p80211msg_p2req_join
-{
-	u32		msgcode	;
-	u32		msglen	;
-	u8		devname[WLAN_DEVNAMELEN_MAX]	;
-	p80211item_pstr6_t	bssid	;
-	u8	pad_20C[1]	;
-	p80211item_uint32_t	basicrate1	;
-	p80211item_uint32_t	basicrate2	;
-	p80211item_uint32_t	basicrate3	;
-	p80211item_uint32_t	basicrate4	;
-	p80211item_uint32_t	basicrate5	;
-	p80211item_uint32_t	basicrate6	;
-	p80211item_uint32_t	basicrate7	;
-	p80211item_uint32_t	basicrate8	;
-	p80211item_uint32_t	operationalrate1	;
-	p80211item_uint32_t	operationalrate2	;
-	p80211item_uint32_t	operationalrate3	;
-	p80211item_uint32_t	operationalrate4	;
-	p80211item_uint32_t	operationalrate5	;
-	p80211item_uint32_t	operationalrate6	;
-	p80211item_uint32_t	operationalrate7	;
-	p80211item_uint32_t	operationalrate8	;
-	p80211item_pstr32_t	ssid	;
-	u8	pad_21D[3]	;
-	p80211item_uint32_t	channel	;
-	p80211item_uint32_t	authtype	;
-	p80211item_uint32_t	resultcode	;
-} __WLAN_ATTRIB_PACK__ p80211msg_p2req_join_t;
-
 typedef struct p80211msg_p2req_readpda
 {
 	u32		msgcode	;
@@ -374,95 +240,6 @@ typedef struct p80211msg_p2req_readpda
 	p80211item_unk1024_t	pda	;
 	p80211item_uint32_t	resultcode	;
 } __WLAN_ATTRIB_PACK__ p80211msg_p2req_readpda_t;
-
-typedef struct p80211msg_p2req_readcis
-{
-	u32		msgcode	;
-	u32		msglen	;
-	u8		devname[WLAN_DEVNAMELEN_MAX]	;
-	p80211item_unk1024_t	cis	;
-	p80211item_uint32_t	resultcode	;
-} __WLAN_ATTRIB_PACK__ p80211msg_p2req_readcis_t;
-
-typedef struct p80211msg_p2req_auxport_state
-{
-	u32		msgcode	;
-	u32		msglen	;
-	u8		devname[WLAN_DEVNAMELEN_MAX]	;
-	p80211item_uint32_t	enable	;
-	p80211item_uint32_t	resultcode	;
-} __WLAN_ATTRIB_PACK__ p80211msg_p2req_auxport_state_t;
-
-typedef struct p80211msg_p2req_auxport_read
-{
-	u32		msgcode	;
-	u32		msglen	;
-	u8		devname[WLAN_DEVNAMELEN_MAX]	;
-	p80211item_uint32_t	addr	;
-	p80211item_uint32_t	len	;
-	p80211item_unk1024_t	data	;
-	p80211item_uint32_t	resultcode	;
-} __WLAN_ATTRIB_PACK__ p80211msg_p2req_auxport_read_t;
-
-typedef struct p80211msg_p2req_auxport_write
-{
-	u32		msgcode	;
-	u32		msglen	;
-	u8		devname[WLAN_DEVNAMELEN_MAX]	;
-	p80211item_uint32_t	addr	;
-	p80211item_uint32_t	len	;
-	p80211item_unk1024_t	data	;
-	p80211item_uint32_t	resultcode	;
-} __WLAN_ATTRIB_PACK__ p80211msg_p2req_auxport_write_t;
-
-typedef struct p80211msg_p2req_low_level
-{
-	u32		msgcode	;
-	u32		msglen	;
-	u8		devname[WLAN_DEVNAMELEN_MAX]	;
-	p80211item_uint32_t	command	;
-	p80211item_uint32_t	param0	;
-	p80211item_uint32_t	param1	;
-	p80211item_uint32_t	param2	;
-	p80211item_uint32_t	resp0	;
-	p80211item_uint32_t	resp1	;
-	p80211item_uint32_t	resp2	;
-	p80211item_uint32_t	resultcode	;
-} __WLAN_ATTRIB_PACK__ p80211msg_p2req_low_level_t;
-
-typedef struct p80211msg_p2req_test_command
-{
-	u32		msgcode	;
-	u32		msglen	;
-	u8		devname[WLAN_DEVNAMELEN_MAX]	;
-	p80211item_uint32_t	testcode	;
-	p80211item_uint32_t	testparam	;
-	p80211item_uint32_t	resultcode	;
-	p80211item_uint32_t	status	;
-	p80211item_uint32_t	resp0	;
-	p80211item_uint32_t	resp1	;
-	p80211item_uint32_t	resp2	;
-} __WLAN_ATTRIB_PACK__ p80211msg_p2req_test_command_t;
-
-typedef struct p80211msg_p2req_mmi_read
-{
-	u32		msgcode	;
-	u32		msglen	;
-	u8		devname[WLAN_DEVNAMELEN_MAX]	;
-	p80211item_uint32_t	addr	;
-	p80211item_uint32_t	value	;
-	p80211item_uint32_t	resultcode	;
-} __WLAN_ATTRIB_PACK__ p80211msg_p2req_mmi_read_t;
-
-typedef struct p80211msg_p2req_mmi_write
-{
-	u32		msgcode	;
-	u32		msglen	;
-	u8		devname[WLAN_DEVNAMELEN_MAX]	;
-	p80211item_uint32_t	addr	;
-	p80211item_uint32_t	data	;
-	p80211item_uint32_t	resultcode	;
-} __WLAN_ATTRIB_PACK__ p80211msg_p2req_mmi_write_t;
 
 typedef struct p80211msg_p2req_ramdl_state
 {
@@ -504,23 +281,5 @@ typedef struct p80211msg_p2req_flashdl_write
 	p80211item_unk4096_t	data	;
 	p80211item_uint32_t	resultcode	;
 } __WLAN_ATTRIB_PACK__ p80211msg_p2req_flashdl_write_t;
-
-typedef struct p80211msg_p2req_mm_state
-{
-	u32		msgcode	;
-	u32		msglen	;
-	u8		devname[WLAN_DEVNAMELEN_MAX]	;
-	p80211item_uint32_t	enable	;
-	p80211item_uint32_t	resultcode	;
-} __WLAN_ATTRIB_PACK__ p80211msg_p2req_mm_state_t;
-
-typedef struct p80211msg_p2req_dump_state
-{
-	u32		msgcode	;
-	u32		msglen	;
-	u8		devname[WLAN_DEVNAMELEN_MAX]	;
-	p80211item_uint32_t	level	;
-	p80211item_uint32_t	resultcode	;
-} __WLAN_ATTRIB_PACK__ p80211msg_p2req_dump_state_t;
 
 #endif

@@ -255,7 +255,7 @@ static int p80211knetdev_open( netdevice_t *netdev )
 	if ( wlandev->open != NULL) {
 		result = wlandev->open(wlandev);
 		if ( result == 0 ) {
-			p80211netdev_start_queue(wlandev);
+			netif_start_queue(wlandev->netdev);
 			wlandev->state = WLAN_DEVICE_OPEN;
 		}
 	} else {
@@ -290,7 +290,7 @@ static int p80211knetdev_stop( netdevice_t *netdev )
 		result = wlandev->close(wlandev);
 	}
 
-	p80211netdev_stop_queue(wlandev);
+	netif_stop_queue(wlandev->netdev);
 	wlandev->state = WLAN_DEVICE_CLOSED;
 
 	DBFEXIT;
@@ -465,7 +465,7 @@ static int p80211knetdev_hard_start_xmit( struct sk_buff *skb, netdevice_t *netd
 		 * TODO: we need a saner way to handle this
 		 */
 		if(skb->protocol != ETH_P_80211_RAW) {
-			p80211netdev_start_queue(wlandev);
+			netif_start_queue(wlandev->netdev);
 			WLAN_LOG_NOTICE(
 				"Tx attempt prior to association, frame dropped.\n");
 			wlandev->linux_stats.tx_dropped++;
@@ -509,7 +509,7 @@ static int p80211knetdev_hard_start_xmit( struct sk_buff *skb, netdevice_t *netd
 	if ( txresult == 0) {
 		/* success and more buf */
 		/* avail, re: hw_txdata */
-		p80211netdev_wake_queue(wlandev);
+		netif_wake_queue(wlandev->netdev);
 		result = 0;
 	} else if ( txresult == 1 ) {
 		/* success, no more avail */
@@ -1043,7 +1043,7 @@ void p80211netdev_hwremoved(wlandevice_t *wlandev)
 	DBFENTER;
 	wlandev->hwremoved = 1;
 	if ( wlandev->state == WLAN_DEVICE_OPEN) {
-		p80211netdev_stop_queue(wlandev);
+		netif_stop_queue(wlandev->netdev);
 	}
 
 	netif_device_detach(wlandev->netdev);
@@ -1232,21 +1232,6 @@ static int p80211_rx_typedrop( wlandevice_t *wlandev, u16 fc)
 	return drop;
 }
 
-
-void    p80211_suspend(wlandevice_t *wlandev)
-{
-	DBFENTER;
-
-	DBFEXIT;
-}
-
-void    p80211_resume(wlandevice_t *wlandev)
-{
-	DBFENTER;
-
-	DBFEXIT;
-}
-
 static void p80211knetdev_tx_timeout( netdevice_t *netdev)
 {
 	wlandevice_t	*wlandev = netdev->ml_priv;
@@ -1257,7 +1242,7 @@ static void p80211knetdev_tx_timeout( netdevice_t *netdev)
 	} else {
 		WLAN_LOG_WARNING("Implement tx_timeout for %s\n",
 				 wlandev->nsdname);
-		p80211netdev_wake_queue(wlandev);
+		netif_wake_queue(wlandev->netdev);
 	}
 
 	DBFEXIT;

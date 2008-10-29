@@ -188,8 +188,6 @@ EXPORT_SYMBOL(p80211netdev_rx);
 EXPORT_SYMBOL(unregister_wlandev);
 EXPORT_SYMBOL(wlan_setup);
 EXPORT_SYMBOL(wlan_unsetup);
-EXPORT_SYMBOL(p80211_suspend);
-EXPORT_SYMBOL(p80211_resume);
 
 EXPORT_SYMBOL(p80211skb_free);
 EXPORT_SYMBOL(p80211skb_rxmeta_attach);

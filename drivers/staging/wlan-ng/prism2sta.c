@@ -385,14 +385,6 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 		WLAN_LOG_DEBUG(2,"Received scan_results request\n");
 		result = prism2mgmt_scan_results(wlandev, msg);
 		break;
-	case DIDmsg_dot11req_associate :
-		WLAN_LOG_DEBUG(2,"Received mlme associate request\n");
-		result = prism2mgmt_associate(wlandev, msg);
-		break;
-	case DIDmsg_dot11req_reset :
-		WLAN_LOG_DEBUG(2,"Received mlme reset request\n");
-		result = prism2mgmt_reset(wlandev, msg);
-		break;
 	case DIDmsg_dot11req_start :
 		WLAN_LOG_DEBUG(2,"Received mlme start request\n");
 		result = prism2mgmt_start(wlandev, msg);
@@ -400,46 +392,10 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 	/*
 	 * Prism2 specific messages
 	 */
-	case DIDmsg_p2req_join :
-		WLAN_LOG_DEBUG(2,"Received p2 join request\n");
-		result = prism2mgmt_p2_join(wlandev, msg);
-		break;
        	case DIDmsg_p2req_readpda :
 		WLAN_LOG_DEBUG(2,"Received mlme readpda request\n");
 		result = prism2mgmt_readpda(wlandev, msg);
 		break;
-	case DIDmsg_p2req_readcis :
-		WLAN_LOG_DEBUG(2,"Received mlme readcis request\n");
-		result = prism2mgmt_readcis(wlandev, msg);
-		break;
-	case DIDmsg_p2req_auxport_state :
-		WLAN_LOG_DEBUG(2,"Received mlme auxport_state request\n");
-		result = prism2mgmt_auxport_state(wlandev, msg);
-		break;
-	case DIDmsg_p2req_auxport_read :
-		WLAN_LOG_DEBUG(2,"Received mlme auxport_read request\n");
-		result = prism2mgmt_auxport_read(wlandev, msg);
-		break;
-	case DIDmsg_p2req_auxport_write :
-		WLAN_LOG_DEBUG(2,"Received mlme auxport_write request\n");
-		result = prism2mgmt_auxport_write(wlandev, msg);
-		break;
-	case DIDmsg_p2req_low_level :
-		WLAN_LOG_DEBUG(2,"Received mlme low_level request\n");
-		result = prism2mgmt_low_level(wlandev, msg);
-		break;
-        case DIDmsg_p2req_test_command :
-                WLAN_LOG_DEBUG(2,"Received mlme test_command request\n");
-                result = prism2mgmt_test_command(wlandev, msg);
-                break;
-        case DIDmsg_p2req_mmi_read :
-                WLAN_LOG_DEBUG(2,"Received mlme mmi_read request\n");
-                result = prism2mgmt_mmi_read(wlandev, msg);
-                break;
-        case DIDmsg_p2req_mmi_write :
-                WLAN_LOG_DEBUG(2,"Received mlme mmi_write request\n");
-                result = prism2mgmt_mmi_write(wlandev, msg);
-                break;
 	case DIDmsg_p2req_ramdl_state :
 		WLAN_LOG_DEBUG(2,"Received mlme ramdl_state request\n");
 		result = prism2mgmt_ramdl_state(wlandev, msg);
@@ -455,10 +411,6 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 	case DIDmsg_p2req_flashdl_write :
 		WLAN_LOG_DEBUG(2,"Received mlme flashdl_write request\n");
 		result = prism2mgmt_flashdl_write(wlandev, msg);
-		break;
-	case DIDmsg_p2req_dump_state :
-		WLAN_LOG_DEBUG(2,"Received mlme dump_state request\n");
-		result = prism2mgmt_dump_state(wlandev, msg);
 		break;
 	/*
 	 * Linux specific messages
@@ -2114,7 +2066,7 @@ void prism2sta_ev_alloc(wlandevice_t *wlandev)
 {
 	DBFENTER;
 
-	p80211netdev_wake_queue(wlandev);
+	netif_wake_queue(wlandev->netdev);
 
 	DBFEXIT;
 	return;

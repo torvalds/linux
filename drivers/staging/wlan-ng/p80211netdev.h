@@ -243,12 +243,6 @@ int wep_change_key(wlandevice_t *wlandev, int keynum, u8* key, int keylen);
 int wep_decrypt(wlandevice_t *wlandev, u8 *buf, u32 len, int key_override, u8 *iv, u8 *icv);
 int wep_encrypt(wlandevice_t *wlandev, u8 *buf, u8 *dst, u32 len, int keynum, u8 *iv, u8 *icv);
 
-/*================================================================*/
-/* Externs */
-
-/*================================================================*/
-/* Function Declarations */
-
 void	p80211netdev_startup(void);
 void	p80211netdev_shutdown(void);
 int	wlan_setup(wlandevice_t *wlandev);
@@ -257,34 +251,5 @@ int	register_wlandev(wlandevice_t *wlandev);
 int	unregister_wlandev(wlandevice_t *wlandev);
 void	p80211netdev_rx(wlandevice_t *wlandev, struct sk_buff *skb);
 void	p80211netdev_hwremoved(wlandevice_t *wlandev);
-void    p80211_suspend(wlandevice_t *wlandev);
-void    p80211_resume(wlandevice_t *wlandev);
-
-/*================================================================*/
-/* Function Definitions */
-
-static inline void
-p80211netdev_stop_queue(wlandevice_t *wlandev)
-{
-	if ( !wlandev ) return;
-	if ( !wlandev->netdev ) return;
-	netif_stop_queue(wlandev->netdev);
-}
-
-static inline void
-p80211netdev_start_queue(wlandevice_t *wlandev)
-{
-	if ( !wlandev ) return;
-	if ( !wlandev->netdev ) return;
-	netif_start_queue(wlandev->netdev);
-}
-
-static inline void
-p80211netdev_wake_queue(wlandevice_t *wlandev)
-{
-	if ( !wlandev ) return;
-	if ( !wlandev->netdev ) return;
-	netif_wake_queue(wlandev->netdev);
-}
 
 #endif
