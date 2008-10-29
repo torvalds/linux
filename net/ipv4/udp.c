@@ -187,7 +187,7 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 	inet_sk(sk)->num = snum;
 	sk->sk_hash = snum;
 	if (sk_unhashed(sk)) {
-		sk_add_node(sk, &hslot->head);
+		sk_add_node_rcu(sk, &hslot->head);
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	}
 	error = 0;
@@ -253,15 +253,24 @@ static struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 		__be16 sport, __be32 daddr, __be16 dport,
 		int dif, struct udp_table *udptable)
 {
-	struct sock *sk, *result = NULL;
+	struct sock *sk, *result;
 	struct hlist_node *node;
 	unsigned short hnum = ntohs(dport);
 	unsigned int hash = udp_hashfn(net, hnum);
 	struct udp_hslot *hslot = &udptable->hash[hash];
-	int score, badness = -1;
+	int score, badness;
 
-	spin_lock(&hslot->lock);
-	sk_for_each(sk, node, &hslot->head) {
+	rcu_read_lock();
+begin:
+	result = NULL;
+	badness = -1;
+	sk_for_each_rcu(sk, node, &hslot->head) {
+		/*
+		 * lockless reader, and SLAB_DESTROY_BY_RCU items:
+		 * We must check this item was not moved to another chain
+		 */
+		if (udp_hashfn(net, sk->sk_hash) != hash)
+			goto begin;
 		score = compute_score(sk, net, saddr, hnum, sport,
 				      daddr, dport, dif);
 		if (score > badness) {
@@ -269,9 +278,16 @@ static struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 			badness = score;
 		}
 	}
-	if (result)
-		sock_hold(result);
-	spin_unlock(&hslot->lock);
+	if (result) {
+		if (unlikely(!atomic_inc_not_zero(&result->sk_refcnt)))
+			result = NULL;
+		else if (unlikely(compute_score(result, net, saddr, hnum, sport,
+				  daddr, dport, dif) < badness)) {
+			sock_put(result);
+			goto begin;
+		}
+	}
+	rcu_read_unlock();
 	return result;
 }
 
@@ -953,7 +969,7 @@ void udp_lib_unhash(struct sock *sk)
 	struct udp_hslot *hslot = &udptable->hash[hash];
 
 	spin_lock(&hslot->lock);
-	if (sk_del_node_init(sk)) {
+	if (sk_del_node_init_rcu(sk)) {
 		inet_sk(sk)->num = 0;
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 	}
@@ -1517,6 +1533,7 @@ struct proto udp_prot = {
 	.sysctl_wmem	   = &sysctl_udp_wmem_min,
 	.sysctl_rmem	   = &sysctl_udp_rmem_min,
 	.obj_size	   = sizeof(struct udp_sock),
+	.slab_flags	   = SLAB_DESTROY_BY_RCU,
 	.h.udp_table	   = &udp_table,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_udp_setsockopt,

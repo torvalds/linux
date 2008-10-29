@@ -363,6 +363,27 @@ static __inline__ int sk_del_node_init(struct sock *sk)
 	return rc;
 }
 
+static __inline__ int __sk_del_node_init_rcu(struct sock *sk)
+{
+	if (sk_hashed(sk)) {
+		hlist_del_init_rcu(&sk->sk_node);
+		return 1;
+	}
+	return 0;
+}
+
+static __inline__ int sk_del_node_init_rcu(struct sock *sk)
+{
+	int rc = __sk_del_node_init_rcu(sk);
+
+	if (rc) {
+		/* paranoid for a while -acme */
+		WARN_ON(atomic_read(&sk->sk_refcnt) == 1);
+		__sock_put(sk);
+	}
+	return rc;
+}
+
 static __inline__ void __sk_add_node(struct sock *sk, struct hlist_head *list)
 {
 	hlist_add_head(&sk->sk_node, list);
@@ -372,6 +393,17 @@ static __inline__ void sk_add_node(struct sock *sk, struct hlist_head *list)
 {
 	sock_hold(sk);
 	__sk_add_node(sk, list);
+}
+
+static __inline__ void __sk_add_node_rcu(struct sock *sk, struct hlist_head *list)
+{
+	hlist_add_head_rcu(&sk->sk_node, list);
+}
+
+static __inline__ void sk_add_node_rcu(struct sock *sk, struct hlist_head *list)
+{
+	sock_hold(sk);
+	__sk_add_node_rcu(sk, list);
 }
 
 static __inline__ void __sk_del_bind_node(struct sock *sk)
@@ -387,6 +419,8 @@ static __inline__ void sk_add_bind_node(struct sock *sk,
 
 #define sk_for_each(__sk, node, list) \
 	hlist_for_each_entry(__sk, node, list, sk_node)
+#define sk_for_each_rcu(__sk, node, list) \
+	hlist_for_each_entry_rcu(__sk, node, list, sk_node)
 #define sk_for_each_from(__sk, node) \
 	if (__sk && ({ node = &(__sk)->sk_node; 1; })) \
 		hlist_for_each_entry_from(__sk, node, sk_node)
@@ -589,8 +623,9 @@ struct proto {
 	int			*sysctl_rmem;
 	int			max_header;
 
-	struct kmem_cache		*slab;
+	struct kmem_cache	*slab;
 	unsigned int		obj_size;
+	int			slab_flags;
 
 	atomic_t		*orphan_count;
 

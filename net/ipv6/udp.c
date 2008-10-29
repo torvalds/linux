@@ -97,24 +97,40 @@ static struct sock *__udp6_lib_lookup(struct net *net,
 				      struct in6_addr *daddr, __be16 dport,
 				      int dif, struct udp_table *udptable)
 {
-	struct sock *sk, *result = NULL;
+	struct sock *sk, *result;
 	struct hlist_node *node;
 	unsigned short hnum = ntohs(dport);
 	unsigned int hash = udp_hashfn(net, hnum);
 	struct udp_hslot *hslot = &udptable->hash[hash];
-	int score, badness = -1;
+	int score, badness;
 
-	spin_lock(&hslot->lock);
-	sk_for_each(sk, node, &hslot->head) {
+	rcu_read_lock();
+begin:
+	result = NULL;
+	badness = -1;
+	sk_for_each_rcu(sk, node, &hslot->head) {
+		/*
+		 * lockless reader, and SLAB_DESTROY_BY_RCU items:
+		 * We must check this item was not moved to another chain
+		 */
+		if (udp_hashfn(net, sk->sk_hash) != hash)
+			goto begin;
 		score = compute_score(sk, net, hnum, saddr, sport, daddr, dport, dif);
 		if (score > badness) {
 			result = sk;
 			badness = score;
 		}
 	}
-	if (result)
-		sock_hold(result);
-	spin_unlock(&hslot->lock);
+	if (result) {
+		if (unlikely(!atomic_inc_not_zero(&result->sk_refcnt)))
+			result = NULL;
+		else if (unlikely(compute_score(result, net, hnum, saddr, sport,
+					daddr, dport, dif) < badness)) {
+			sock_put(result);
+			goto begin;
+		}
+	}
+	rcu_read_unlock();
 	return result;
 }
 
@@ -1062,6 +1078,7 @@ struct proto udpv6_prot = {
 	.sysctl_wmem	   = &sysctl_udp_wmem_min,
 	.sysctl_rmem	   = &sysctl_udp_rmem_min,
 	.obj_size	   = sizeof(struct udp6_sock),
+	.slab_flags	   = SLAB_DESTROY_BY_RCU,
 	.h.udp_table	   = &udp_table,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_udpv6_setsockopt,
