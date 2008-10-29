@@ -228,33 +228,6 @@ static int p80211req_mibset_mibget(wlandevice_t *wlandev,
 	DBFENTER;
 
 	switch (mibitem->did) {
-	case DIDmib_dot11smt_p80211Table_p80211_ifstate: {
-		u32 *data = (u32 *) mibitem->data;
-		if (isget)
-			switch (wlandev->msdstate) {
-			case WLAN_MSD_HWPRESENT:
-				*data = P80211ENUM_ifstate_disable;
-				break;
-			case WLAN_MSD_FWLOAD:
-				*data = P80211ENUM_ifstate_fwload;
-				break;
-			case WLAN_MSD_RUNNING:
-				*data = P80211ENUM_ifstate_enable;
-				break;
-			default:
-				*data = P80211ENUM_ifstate_enable;
-			}
-		break;
-	}
-	case DIDmib_dot11phy_dot11PhyOperationTable_dot11ShortPreambleEnabled: {
-		u32 *data = (u32 *) mibitem->data;
-
-		if (isget)
-			*data = wlandev->shortpreamble;
-		else
-			wlandev->shortpreamble = *data;
-		break;
-	}
 	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey0: {
 		if (!isget)
 			wep_change_key(wlandev, 0, key, pstr->len);

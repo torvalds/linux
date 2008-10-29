@@ -206,7 +206,6 @@ typedef struct wlandevice
 	p80211pstr32_t	ssid;
 	u32		macmode;
 	int             linkstatus;
-	int             shortpreamble;  /* C bool */
 
 	/* WEP State */
 	u8 wep_keys[NUM_WEPKEYS][MAX_KEYLEN];
