@@ -113,39 +113,39 @@
 /* Received frame statistics */
 typedef struct p80211_frmrx_t
 {
-	UINT32	mgmt;
-	UINT32	assocreq;
-	UINT32	assocresp;
-	UINT32	reassocreq;
-	UINT32	reassocresp;
-	UINT32	probereq;
-	UINT32	proberesp;
-	UINT32	beacon;
-	UINT32	atim;
-	UINT32	disassoc;
-	UINT32	authen;
-	UINT32	deauthen;
-	UINT32	mgmt_unknown;
-	UINT32	ctl;
-	UINT32	pspoll;
-	UINT32	rts;
-	UINT32	cts;
-	UINT32	ack;
-	UINT32	cfend;
-	UINT32	cfendcfack;
-	UINT32	ctl_unknown;
-	UINT32	data;
-	UINT32	dataonly;
-	UINT32	data_cfack;
-	UINT32	data_cfpoll;
-	UINT32	data__cfack_cfpoll;
-	UINT32	null;
-	UINT32	cfack;
-	UINT32	cfpoll;
-	UINT32	cfack_cfpoll;
-	UINT32	data_unknown;
-	UINT32  decrypt;
-	UINT32  decrypt_err;
+	u32	mgmt;
+	u32	assocreq;
+	u32	assocresp;
+	u32	reassocreq;
+	u32	reassocresp;
+	u32	probereq;
+	u32	proberesp;
+	u32	beacon;
+	u32	atim;
+	u32	disassoc;
+	u32	authen;
+	u32	deauthen;
+	u32	mgmt_unknown;
+	u32	ctl;
+	u32	pspoll;
+	u32	rts;
+	u32	cts;
+	u32	ack;
+	u32	cfend;
+	u32	cfendcfack;
+	u32	ctl_unknown;
+	u32	data;
+	u32	dataonly;
+	u32	data_cfack;
+	u32	data_cfpoll;
+	u32	data__cfack_cfpoll;
+	u32	null;
+	u32	cfack;
+	u32	cfpoll;
+	u32	cfack_cfpoll;
+	u32	data_unknown;
+	u32  decrypt;
+	u32  decrypt_err;
 } p80211_frmrx_t;
 
 #ifdef WIRELESS_EXT
@@ -180,18 +180,18 @@ typedef struct wlandevice
 	char		name[WLAN_DEVNAMELEN_MAX]; /* Dev name, from register_wlandev()*/
 	char		*nsdname;
 
-	UINT32          state;          /* Device I/F state (open/closed) */
-	UINT32		msdstate;	/* state of underlying driver */
-	UINT32		hwremoved;	/* Has the hw been yanked out? */
+	u32          state;          /* Device I/F state (open/closed) */
+	u32		msdstate;	/* state of underlying driver */
+	u32		hwremoved;	/* Has the hw been yanked out? */
 
 	/* Hardware config */
-	UINT		irq;
-	UINT		iobase;
-	UINT		membase;
-	UINT32          nsdcaps;  /* NSD Capabilities flags */
+	unsigned int		irq;
+	unsigned int		iobase;
+	unsigned int		membase;
+	u32          nsdcaps;  /* NSD Capabilities flags */
 
 	/* Config vars */
-	UINT		ethconv;
+	unsigned int		ethconv;
 
 	/* device methods (init by MSD, used by p80211 */
 	int		(*open)(struct wlandevice *wlandev);
@@ -204,15 +204,15 @@ typedef struct wlandevice
 	void		(*tx_timeout)(struct wlandevice *wlandev);
 
 	/* 802.11 State */
-	UINT8		bssid[WLAN_BSSID_LEN];
+	u8		bssid[WLAN_BSSID_LEN];
 	p80211pstr32_t	ssid;
-	UINT32		macmode;
+	u32		macmode;
 	int             linkstatus;
 	int             shortpreamble;  /* C bool */
 
 	/* WEP State */
-	UINT8 wep_keys[NUM_WEPKEYS][MAX_KEYLEN];
-	UINT8 wep_keylens[NUM_WEPKEYS];
+	u8 wep_keys[NUM_WEPKEYS][MAX_KEYLEN];
+	u8 wep_keylens[NUM_WEPKEYS];
 	int   hostwep;
 
 	/* Request/Confirm i/f state (used by p80211) */
@@ -237,7 +237,7 @@ typedef struct wlandevice
 	struct iw_statistics	wstats;
 
 	/* jkriegl: iwspy fields */
-        UINT8			spy_number;
+        u8			spy_number;
         char			spy_address[IW_MAX_SPY][ETH_ALEN];
         struct iw_quality       spy_stat[IW_MAX_SPY];
 
@@ -246,9 +246,9 @@ typedef struct wlandevice
 } wlandevice_t;
 
 /* WEP stuff */
-int wep_change_key(wlandevice_t *wlandev, int keynum, UINT8* key, int keylen);
-int wep_decrypt(wlandevice_t *wlandev, UINT8 *buf, UINT32 len, int key_override, UINT8 *iv, UINT8 *icv);
-int wep_encrypt(wlandevice_t *wlandev, UINT8 *buf, UINT8 *dst, UINT32 len, int keynum, UINT8 *iv, UINT8 *icv);
+int wep_change_key(wlandevice_t *wlandev, int keynum, u8* key, int keylen);
+int wep_decrypt(wlandevice_t *wlandev, u8 *buf, u32 len, int key_override, u8 *iv, u8 *icv);
+int wep_encrypt(wlandevice_t *wlandev, u8 *buf, u8 *dst, u32 len, int keynum, u8 *iv, u8 *icv);
 
 /*================================================================*/
 /* Externs */

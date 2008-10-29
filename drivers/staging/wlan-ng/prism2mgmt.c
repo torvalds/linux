@@ -129,7 +129,7 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
 	int 			result = 0;
 	hfa384x_t		*hw = wlandev->priv;
 	p80211msg_dot11req_scan_t	*msg = msgp;
-        UINT16                  roamingmode, word;
+        u16                  roamingmode, word;
 	int                     i, timeout;
 	int                     istmpenable = 0;
 
@@ -197,7 +197,7 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
         /* set up the channel list */
         word = 0;
         for (i = 0; i < msg->channellist.data.len; i++) {
-                UINT8 channel = msg->channellist.data.data[i];
+                u8 channel = msg->channellist.data.data[i];
                 if (channel > 14) continue;
                 /* channel 1 is BIT0 ... channel 14 is BIT13 */
                 word |= (1 << (channel-1));
@@ -218,7 +218,7 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
 		goto exit;
 	}
 	if (word == HFA384x_PORTSTATUS_DISABLED) {
-		UINT16 wordbuf[17];
+		u16 wordbuf[17];
 
 		result = hfa384x_drvr_setconfig16(hw,
 			HFA384x_RID_CNFROAMINGMODE,
@@ -531,9 +531,9 @@ int prism2mgmt_p2_join(wlandevice_t *wlandev, void *msgp)
 	int 			result = 0;
 	hfa384x_t		*hw = wlandev->priv;
 	p80211msg_p2req_join_t	*msg = msgp;
-	UINT16			reg;
+	u16			reg;
 	p80211pstrd_t		*pstr;
-	UINT8			bytebuf[256];
+	u8			bytebuf[256];
 	hfa384x_bytestr_t	*p2bytestr = (hfa384x_bytestr_t*)bytebuf;
         hfa384x_JoinRequest_data_t	joinreq;
 	DBFENTER;
@@ -828,9 +828,9 @@ int prism2mgmt_start(wlandevice_t *wlandev, void *msgp)
 	p80211msg_dot11req_start_t	*msg = msgp;
 
 	p80211pstrd_t		*pstr;
-	UINT8			bytebuf[80];
+	u8			bytebuf[80];
 	hfa384x_bytestr_t	*p2bytestr = (hfa384x_bytestr_t*)bytebuf;
-	UINT16			word;
+	u16			word;
 	DBFENTER;
 
 	wlandev->macmode = WLAN_MACMODE_NONE;
@@ -876,7 +876,7 @@ int prism2mgmt_start(wlandevice_t *wlandev, void *msgp)
 
 	/* beacon period */
 	word = msg->beaconperiod.data;
-	result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFAPBCNINT, word);
+	result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFAPBCNint, word);
 	if ( result ) {
 		WLAN_LOG_ERROR("Failed to set beacon period=%d.\n", word);
 		goto failed;
@@ -1214,16 +1214,16 @@ int prism2mgmt_low_level(wlandevice_t *wlandev, void *msgp)
         msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
 
         /* call some routine to execute the test command */
-	cmd.cmd = (UINT16) msg->command.data;
-	cmd.parm0 = (UINT16) msg->param0.data;
-	cmd.parm1 = (UINT16) msg->param1.data;
-	cmd.parm2 = (UINT16) msg->param2.data;
+	cmd.cmd = (u16) msg->command.data;
+	cmd.parm0 = (u16) msg->param0.data;
+	cmd.parm1 = (u16) msg->param1.data;
+	cmd.parm2 = (u16) msg->param2.data;
 
         hfa384x_drvr_low_level(hw,&cmd);
 
-        msg->resp0.data = (UINT32) cmd.result.resp0;
-        msg->resp1.data = (UINT32) cmd.result.resp1;
-        msg->resp2.data = (UINT32) cmd.result.resp2;
+        msg->resp0.data = (u32) cmd.result.resp0;
+        msg->resp1.data = (u32) cmd.result.resp1;
+        msg->resp2.data = (u32) cmd.result.resp2;
 
         msg->resultcode.data = P80211ENUM_resultcode_success;
 
@@ -1257,8 +1257,8 @@ int prism2mgmt_test_command(wlandevice_t *wlandev, void *msgp)
 
         DBFENTER;
 
-	cmd.cmd = ((UINT16) msg->testcode.data) << 8 | 0x38;
-	cmd.parm0 = (UINT16) msg->testparam.data;
+	cmd.cmd = ((u16) msg->testcode.data) << 8 | 0x38;
+	cmd.parm0 = (u16) msg->testparam.data;
 	cmd.parm1 = 0;
 	cmd.parm2 = 0;
 
@@ -1305,7 +1305,7 @@ int prism2mgmt_mmi_read(wlandevice_t *wlandev, void *msgp)
 {
 	hfa384x_t		*hw = wlandev->priv;
 	p80211msg_p2req_mmi_read_t	*msg = msgp;
-	UINT32 resp = 0;
+	u32 resp = 0;
 
 	DBFENTER;
 
@@ -1450,9 +1450,9 @@ int prism2mgmt_ramdl_write(wlandevice_t *wlandev, void *msgp)
 {
 	hfa384x_t		*hw = wlandev->priv;
 	p80211msg_p2req_ramdl_write_t	*msg = msgp;
-	UINT32			addr;
-	UINT32			len;
-	UINT8			*buf;
+	u32			addr;
+	u32			len;
+	u8			*buf;
 	DBFENTER;
 
 	if (wlandev->msdstate != WLAN_MSD_FWLOAD) {
@@ -1590,9 +1590,9 @@ int prism2mgmt_flashdl_write(wlandevice_t *wlandev, void *msgp)
 {
 	hfa384x_t		*hw = wlandev->priv;
 	p80211msg_p2req_flashdl_write_t	*msg = msgp;
-	UINT32			addr;
-	UINT32			len;
-	UINT8			*buf;
+	u32			addr;
+	u32			len;
+	u8			*buf;
 	DBFENTER;
 
 	if (wlandev->msdstate != WLAN_MSD_FWLOAD) {
@@ -1691,11 +1691,11 @@ int prism2mgmt_autojoin(wlandevice_t *wlandev, void *msgp)
 {
 	hfa384x_t			*hw = wlandev->priv;
 	int 			result = 0;
-	UINT16			reg;
-	UINT16			port_type;
+	u16			reg;
+	u16			port_type;
 	p80211msg_lnxreq_autojoin_t	*msg = msgp;
 	p80211pstrd_t		*pstr;
-	UINT8			bytebuf[256];
+	u8			bytebuf[256];
 	hfa384x_bytestr_t	*p2bytestr = (hfa384x_bytestr_t*)bytebuf;
 	DBFENTER;
 
@@ -1785,7 +1785,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 	p80211msg_lnxreq_wlansniff_t	*msg = msgp;
 
 	hfa384x_t			*hw = wlandev->priv;
-	UINT16			word;
+	u16			word;
 
 	DBFENTER;
 

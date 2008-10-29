@@ -99,8 +99,8 @@
 /*================================================================*/
 /* Local Static Definitions */
 
-static UINT8	oui_rfc1042[] = {0x00, 0x00, 0x00};
-static UINT8	oui_8021h[] = {0x00, 0x00, 0xf8};
+static u8	oui_rfc1042[] = {0x00, 0x00, 0x00};
+static u8	oui_8021h[] = {0x00, 0x00, 0xf8};
 
 /*================================================================*/
 /* Local Function Declarations */
@@ -134,11 +134,11 @@ static UINT8	oui_8021h[] = {0x00, 0x00, 0xf8};
 * Call context:
 *	May be called in interrupt or non-interrupt context
 ----------------------------------------------------------------*/
-int skb_ether_to_p80211( wlandevice_t *wlandev, UINT32 ethconv, struct sk_buff *skb, p80211_hdr_t *p80211_hdr, p80211_metawep_t *p80211_wep)
+int skb_ether_to_p80211( wlandevice_t *wlandev, u32 ethconv, struct sk_buff *skb, p80211_hdr_t *p80211_hdr, p80211_metawep_t *p80211_wep)
 {
 
-	UINT16          fc;
-	UINT16          proto;
+	u16          fc;
+	u16          proto;
 	wlan_ethhdr_t   e_hdr;
 	wlan_llc_t      *e_llc;
 	wlan_snap_t     *e_snap;
@@ -297,14 +297,14 @@ static void orinoco_spy_gather(wlandevice_t *wlandev, char *mac,
 * Call context:
 *	May be called in interrupt or non-interrupt context
 ----------------------------------------------------------------*/
-int skb_p80211_to_ether( wlandevice_t *wlandev, UINT32 ethconv, struct sk_buff *skb)
+int skb_p80211_to_ether( wlandevice_t *wlandev, u32 ethconv, struct sk_buff *skb)
 {
 	netdevice_t     *netdev = wlandev->netdev;
-	UINT16          fc;
-	UINT            payload_length;
-	UINT            payload_offset;
-	UINT8		daddr[WLAN_ETHADDR_LEN];
-	UINT8		saddr[WLAN_ETHADDR_LEN];
+	u16          fc;
+	unsigned int            payload_length;
+	unsigned int            payload_offset;
+	u8		daddr[WLAN_ETHADDR_LEN];
+	u8		saddr[WLAN_ETHADDR_LEN];
 	p80211_hdr_t    *w_hdr;
 	wlan_ethhdr_t   *e_hdr;
 	wlan_llc_t      *e_llc;
@@ -488,7 +488,7 @@ int skb_p80211_to_ether( wlandevice_t *wlandev, UINT32 ethconv, struct sk_buff *
 * Call context:
 *	May be called in interrupt or non-interrupt context
 ----------------------------------------------------------------*/
-int p80211_stt_findproto(UINT16 proto)
+int p80211_stt_findproto(u16 proto)
 {
 	/* Always return found for now.  This is the behavior used by the */
 	/*  Zoom Win95 driver when 802.1h mode is selected */

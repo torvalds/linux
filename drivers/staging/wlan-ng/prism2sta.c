@@ -189,7 +189,7 @@ inline void dmpmem(void *buf, int n)
 	int c;
 	for ( c= 0; c < n; c++) {
 		if ( (c % 16) == 0 ) printk(KERN_DEBUG"dmp[%d]: ", c);
-		printk("%02x ", ((UINT8*)buf)[c]);
+		printk("%02x ", ((u8*)buf)[c]);
 		if ( (c % 16) == 15 ) printk("\n");
 	}
 	if ( (c % 16) != 0 ) printk("\n");
@@ -534,10 +534,10 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 *	process thread  (usually)
 *	interrupt
 ----------------------------------------------------------------*/
-UINT32 prism2sta_ifstate(wlandevice_t *wlandev, UINT32 ifstate)
+u32 prism2sta_ifstate(wlandevice_t *wlandev, u32 ifstate)
 {
         hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
-	UINT32 			result;
+	u32 			result;
 	DBFENTER;
 
 	result = P80211ENUM_resultcode_implementation_failure;
@@ -712,8 +712,8 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 {
 	int 			result = 0;
         hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
-	UINT16                  temp;
-	UINT8			snum[HFA384x_RID_NICSERIALNUMBER_LEN];
+	u16                  temp;
+	u8			snum[HFA384x_RID_NICSERIALNUMBER_LEN];
 	char			pstr[(HFA384x_RID_NICSERIALNUMBER_LEN * 4) + 1];
 
 	DBFENTER;
@@ -778,7 +778,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 
 	/* strip out the 'special' variant bits */
 	hw->mm_mods = hw->ident_sta_fw.variant & (BIT14 | BIT15);
-	hw->ident_sta_fw.variant &= ~((UINT16)(BIT14 | BIT15));
+	hw->ident_sta_fw.variant &= ~((u16)(BIT14 | BIT15));
 
 	if  ( hw->ident_sta_fw.id == 0x1f ) {
 		WLAN_LOG_INFO(
@@ -1039,7 +1039,7 @@ static int prism2sta_setmulticast(wlandevice_t *wlandev, netdevice_t *dev)
 	int result = 0;
 	hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 
-	UINT16  promisc;
+	u16  promisc;
 
 	DBFENTER;
 
@@ -1114,9 +1114,9 @@ static void prism2sta_inf_handover(wlandevice_t *wlandev, hfa384x_InfFrame_t *in
 static void prism2sta_inf_tallies(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 {
         hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
-	UINT16			*src16;
-	UINT32			*dst;
-	UINT32			*src32;
+	u16			*src16;
+	u32			*dst;
+	u32			*src32;
 	int			i;
 	int			cnt;
 
@@ -1127,15 +1127,15 @@ static void prism2sta_inf_tallies(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf
 	** record length of the info record.
 	*/
 
-	cnt = sizeof(hfa384x_CommTallies32_t) / sizeof(UINT32);
+	cnt = sizeof(hfa384x_CommTallies32_t) / sizeof(u32);
 	if (inf->framelen > 22) {
-		dst   = (UINT32 *) &hw->tallies;
-		src32 = (UINT32 *) &inf->info.commtallies32;
+		dst   = (u32 *) &hw->tallies;
+		src32 = (u32 *) &inf->info.commtallies32;
 		for (i = 0; i < cnt; i++, dst++, src32++)
 			*dst += hfa384x2host_32(*src32);
 	} else {
-		dst   = (UINT32 *) &hw->tallies;
-		src16 = (UINT16 *) &inf->info.commtallies16;
+		dst   = (u32 *) &hw->tallies;
+		src16 = (u16 *) &inf->info.commtallies16;
 		for (i = 0; i < cnt; i++, dst++, src16++)
 			*dst += hfa384x2host_16(*src16);
 	}
@@ -1175,7 +1175,7 @@ static void prism2sta_inf_scanresults(wlandevice_t *wlandev,
 	DBFENTER;
 
 	/* Get the number of results, first in bytes, then in results */
-	nbss = (inf->framelen * sizeof(UINT16)) -
+	nbss = (inf->framelen * sizeof(u16)) -
 		sizeof(inf->infotype) -
 		sizeof(inf->info.scanresult.scanreason);
 	nbss /= sizeof(hfa384x_ScanResultSub_t);
@@ -1367,7 +1367,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 
 		/* Don't call this in monitor mode */
 		if ( wlandev->netdev->type == ARPHRD_ETHER ) {
-			UINT16			portstatus;
+			u16			portstatus;
 
 			WLAN_LOG_INFO("linkstatus=CONNECTED\n");
 
@@ -1703,7 +1703,7 @@ static void prism2sta_inf_authreq_defer(wlandevice_t *wlandev,
 	hfa384x_authenticateStation_data_t  rec;
 
 	int    i, added, result, cnt;
-	UINT8  *addr;
+	u8  *addr;
 
 	DBFENTER;
 
@@ -2030,7 +2030,7 @@ void prism2sta_ev_info(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-void prism2sta_ev_txexc(wlandevice_t *wlandev, UINT16 status)
+void prism2sta_ev_txexc(wlandevice_t *wlandev, u16 status)
 {
 	DBFENTER;
 
@@ -2057,7 +2057,7 @@ void prism2sta_ev_txexc(wlandevice_t *wlandev, UINT16 status)
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-void prism2sta_ev_tx(wlandevice_t *wlandev, UINT16 status)
+void prism2sta_ev_tx(wlandevice_t *wlandev, u16 status)
 {
 	DBFENTER;
 	WLAN_LOG_DEBUG(4, "Tx Complete, status=0x%04x\n", status);

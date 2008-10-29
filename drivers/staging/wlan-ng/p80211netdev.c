@@ -128,7 +128,7 @@ static void p80211knetdev_set_multicast_list(netdevice_t *dev);
 static int p80211knetdev_do_ioctl(netdevice_t *dev, struct ifreq *ifr, int cmd);
 static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr);
 static void p80211knetdev_tx_timeout(netdevice_t *netdev);
-static int p80211_rx_typedrop( wlandevice_t *wlandev, UINT16 fc);
+static int p80211_rx_typedrop( wlandevice_t *wlandev, u16 fc);
 
 
 /*================================================================*/
@@ -343,7 +343,7 @@ static void p80211netdev_rx_bh(unsigned long arg)
 	struct sk_buff *skb = NULL;
 	netdevice_t     *dev = wlandev->netdev;
 	p80211_hdr_a3_t *hdr;
-	UINT16 fc;
+	u16 fc;
 
         DBFENTER;
 
@@ -571,7 +571,7 @@ static void p80211knetdev_set_multicast_list(netdevice_t *dev)
 
 static int p80211netdev_ethtool(wlandevice_t *wlandev, void __user *useraddr)
 {
-	UINT32 ethcmd;
+	u32 ethcmd;
 	struct ethtool_drvinfo info;
 	struct ethtool_value edata;
 
@@ -638,7 +638,7 @@ static int p80211netdev_ethtool(wlandevice_t *wlandev, void __user *useraddr)
 *		-EFAULT memory fault copying msg from user buffer
 *		-ENOMEM unable to allocate kernel msg buffer
 *		-ENOSYS	bad magic, it the cmd really for us?
-*		-EINTR	sleeping on cmd, awakened by signal, cmd cancelled.
+*		-EintR	sleeping on cmd, awakened by signal, cmd cancelled.
 *
 * Call Context:
 *	Process thread (ioctl caller).  TODO: SMP support may require
@@ -649,7 +649,7 @@ static int p80211knetdev_do_ioctl(netdevice_t *dev, struct ifreq *ifr, int cmd)
 	int			result = 0;
 	p80211ioctl_req_t	*req = (p80211ioctl_req_t*)ifr;
 	wlandevice_t		*wlandev = dev->ml_priv;
-	UINT8			*msgbuf;
+	u8			*msgbuf;
 	DBFENTER;
 
 	WLAN_LOG_DEBUG(2, "rx'd ioctl, cmd=%d, len=%d\n", cmd, req->len);
@@ -769,7 +769,7 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 	resultcode->data = 0;
 
 	/* now fire the request */
-	result = p80211req_dorequest(dev->ml_priv, (UINT8 *)&dot11req);
+	result = p80211req_dorequest(dev->ml_priv, (u8 *)&dot11req);
 
 	/* If the request wasn't successful, report an error and don't
 	 * change the netdev address
@@ -1075,10 +1075,10 @@ void p80211netdev_hwremoved(wlandevice_t *wlandev)
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-static int p80211_rx_typedrop( wlandevice_t *wlandev, UINT16 fc)
+static int p80211_rx_typedrop( wlandevice_t *wlandev, u16 fc)
 {
-	UINT16	ftype;
-	UINT16	fstype;
+	u16	ftype;
+	u16	fstype;
 	int	drop = 0;
 	/* Classify frame, increment counter */
 	ftype = WLAN_GET_FC_FTYPE(fc);

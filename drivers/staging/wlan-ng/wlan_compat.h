@@ -93,30 +93,6 @@
 #define BIT30	0x40000000
 #define BIT31	0x80000000
 
-#include <linux/types.h>
-
-typedef u_int8_t	UINT8;
-typedef u_int16_t	UINT16;
-typedef u_int32_t	UINT32;
-
-typedef int8_t		INT8;
-typedef int16_t		INT16;
-typedef int32_t		INT32;
-
-typedef unsigned int    UINT;
-typedef signed int      INT;
-
-typedef u_int64_t	UINT64;
-typedef int64_t		INT64;
-
-#define UINT8_MAX	(0xffUL)
-#define UINT16_MAX	(0xffffUL)
-#define UINT32_MAX	(0xffffffffUL)
-
-#define INT8_MAX	(0x7fL)
-#define INT16_MAX	(0x7fffL)
-#define INT32_MAX	(0x7fffffffL)
-
 /*=============================================================*/
 /*------ Compiler Portability Macros --------------------------*/
 /*=============================================================*/
@@ -126,12 +102,12 @@ typedef int64_t		INT64;
 /*------ OS Portability Macros --------------------------------*/
 /*=============================================================*/
 
-#ifndef WLAN_DBVAR
-#define WLAN_DBVAR	wlan_debug
-#endif
-
 #ifndef KERNEL_VERSION
 #define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
+#endif
+
+#ifndef WLAN_DBVAR
+#define WLAN_DBVAR	wlan_debug
 #endif
 
 #define WLAN_RELEASE	"0.3.0-lkml"
@@ -153,7 +129,7 @@ typedef int64_t		INT64;
 		int __i__; \
 		printk(KERN_DEBUG x ":"); \
 		for( __i__=0; __i__ < (n); __i__++) \
-			printk( " %02x", ((UINT8*)(p))[__i__]); \
+			printk( " %02x", ((u8*)(p))[__i__]); \
 		printk("\n"); }
 	#define DBFENTER { if ( WLAN_DBVAR >= 5 ){ WLAN_LOG_DEBUG(3,"---->\n"); } }
 	#define DBFEXIT  { if ( WLAN_DBVAR >= 5 ){ WLAN_LOG_DEBUG(3,"<----\n"); } }
@@ -198,7 +174,7 @@ do {                                                                      \
 	                                                                  \
           add_wait_queue(&wq, &__wait);                                   \
           for (;;) {                                                      \
-                  set_current_state(TASK_INTERRUPTIBLE);                  \
+                  set_current_state(TASK_intERRUPTIBLE);                  \
                   if (condition)                                          \
                           break;                                          \
                   if (!signal_pending(current)) {                         \

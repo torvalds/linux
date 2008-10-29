@@ -96,11 +96,11 @@
 
 typedef struct mibrec
 {
-    UINT32   did;
-    UINT16   flag;
-    UINT16   parm1;
-    UINT16   parm2;
-    UINT16   parm3;
+    u32   did;
+    u16   flag;
+    u16   parm1;
+    u16   parm2;
+    u16   parm3;
     int      (*func)(struct mibrec                *mib,
                      int                          isget,
                      wlandevice_t                 *wlandev,
@@ -909,7 +909,7 @@ static mibrec_t mibtab[] = {
           prism2mib_uint32 },
     { DIDmib_p2_p2MAC_p2CurrentBeaconInterval,
           F_STA | F_READ,
-          HFA384x_RID_CURRENTBCNINT, 0, 0,
+          HFA384x_RID_CURRENTBCNint, 0, 0,
           prism2mib_uint32 },
     { DIDmib_p2_p2MAC_p2StaCurrentScaleThresholds,
           F_STA | F_READ,
@@ -1103,7 +1103,7 @@ int prism2mgmt_mibset_mibget(wlandevice_t *wlandev, void *msgp)
 	int			result, isget;
 	mibrec_t		*mib;
 
-	UINT16			which;
+	u16			which;
 
 	p80211msg_dot11req_mibset_t	*msg = msgp;
 	p80211itemd_t			*mibitem;
@@ -1227,7 +1227,7 @@ void                         *data)
 {
 	int                result;
 	p80211pstrd_t      *pstr = (p80211pstrd_t*) data;
-	UINT8              bytebuf[MIB_TMP_MAXLEN];
+	u8              bytebuf[MIB_TMP_MAXLEN];
 	hfa384x_bytestr_t  *p2bytestr = (hfa384x_bytestr_t*) bytebuf;
 
 	DBFENTER;
@@ -1280,7 +1280,7 @@ void                         *data)
 {
 	int            result;
 	p80211pstrd_t  *pstr = (p80211pstrd_t*) data;
-	UINT8          bytebuf[MIB_TMP_MAXLEN];
+	u8          bytebuf[MIB_TMP_MAXLEN];
 
 	DBFENTER;
 
@@ -1331,9 +1331,9 @@ p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
 {
 	int     result;
-	UINT32  *uint32 = (UINT32*) data;
-	UINT8   bytebuf[MIB_TMP_MAXLEN];
-	UINT16  *wordbuf = (UINT16*) bytebuf;
+	u32  *uint32 = (u32*) data;
+	u8   bytebuf[MIB_TMP_MAXLEN];
+	u16  *wordbuf = (u16*) bytebuf;
 
 	DBFENTER;
 
@@ -1389,14 +1389,14 @@ p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
 {
 	int     result;
-	UINT32  *uint32 = (UINT32 *) data;
-	UINT8   bytebuf[MIB_TMP_MAXLEN];
-	UINT16  *wordbuf = (UINT16*) bytebuf;
+	u32  *uint32 = (u32 *) data;
+	u8   bytebuf[MIB_TMP_MAXLEN];
+	u16  *wordbuf = (u16*) bytebuf;
 	int     i, cnt;
 
 	DBFENTER;
 
-	cnt = mib->parm2 / sizeof(UINT16);
+	cnt = mib->parm2 / sizeof(u16);
 
 	if (isget) {
 		result = hfa384x_drvr_getconfig(hw, mib->parm1, wordbuf, mib->parm2);
@@ -1446,14 +1446,14 @@ p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
 {
 	int     result;
-	UINT32  *uint32 = (UINT32*) data;
-	UINT8   bytebuf[MIB_TMP_MAXLEN];
-	UINT16  *wordbuf = (UINT16*) bytebuf;
-	UINT16  cnt;
+	u32  *uint32 = (u32*) data;
+	u8   bytebuf[MIB_TMP_MAXLEN];
+	u16  *wordbuf = (u16*) bytebuf;
+	u16  cnt;
 
 	DBFENTER;
 
-	cnt = mib->parm2 / sizeof(UINT16);
+	cnt = mib->parm2 / sizeof(u16);
 
 	result = hfa384x_drvr_getconfig(hw, mib->parm1, wordbuf, mib->parm2);
 	if (result == 0) {
@@ -1508,9 +1508,9 @@ p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
 {
 	int     result;
-	UINT32  *uint32 = (UINT32*) data;
-	UINT8   bytebuf[MIB_TMP_MAXLEN];
-	UINT16  *wordbuf = (UINT16*) bytebuf;
+	u32  *uint32 = (u32*) data;
+	u8   bytebuf[MIB_TMP_MAXLEN];
+	u16  *wordbuf = (u16*) bytebuf;
 
 	DBFENTER;
 
@@ -1561,10 +1561,10 @@ p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
 {
 	int     result;
-	UINT32  *uint32 = (UINT32*) data;
-	UINT8   bytebuf[MIB_TMP_MAXLEN];
-	UINT16  *wordbuf = (UINT16*) bytebuf;
-	UINT32  flags;
+	u32  *uint32 = (u32*) data;
+	u8   bytebuf[MIB_TMP_MAXLEN];
+	u16  *wordbuf = (u16*) bytebuf;
+	u32  flags;
 
 	DBFENTER;
 
@@ -1628,10 +1628,10 @@ p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
 {
 	int            result;
-	UINT32         cnt;
+	u32         cnt;
 	p80211pstrd_t  *pstr = (p80211pstrd_t*) data;
-	UINT8          bytebuf[MIB_TMP_MAXLEN];
-	UINT16         *wordbuf = (UINT16*) bytebuf;
+	u8          bytebuf[MIB_TMP_MAXLEN];
+	u16         *wordbuf = (u16*) bytebuf;
 
 	DBFENTER;
 
@@ -1640,7 +1640,7 @@ void                         *data)
 	if (isget) {
 		result = hfa384x_drvr_getconfig(hw, mib->parm1, wordbuf, mib->parm2);
 		prism2mgmt_prism2int2p80211int(wordbuf, &cnt);
-		pstr->len = (UINT8) cnt;
+		pstr->len = (u8) cnt;
 		memcpy(pstr->data, &wordbuf[1], pstr->len);
 	}
 
@@ -1683,8 +1683,8 @@ void                         *data)
 {
 	int            result;
 	p80211pstrd_t  *pstr = (p80211pstrd_t*) data;
-	UINT8          bytebuf[MIB_TMP_MAXLEN];
-	UINT16         len;
+	u8          bytebuf[MIB_TMP_MAXLEN];
+	u16         len;
 
 	DBFENTER;
 
@@ -1741,8 +1741,8 @@ p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
 {
 	int     result;
-	UINT32  *uint32 = (UINT32*) data;
-	UINT32  value;
+	u32  *uint32 = (u32*) data;
+	u32  value;
 
 	DBFENTER;
 
@@ -1792,9 +1792,9 @@ p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
 {
 	int     result;
-	UINT32  *uint32 = (UINT32*) data;
-	UINT8   bytebuf[MIB_TMP_MAXLEN];
-	UINT16  *wordbuf = (UINT16*) bytebuf;
+	u32  *uint32 = (u32*) data;
+	u8   bytebuf[MIB_TMP_MAXLEN];
+	u16  *wordbuf = (u16*) bytebuf;
 
 	DBFENTER;
 
@@ -1937,7 +1937,7 @@ p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
 {
 	int     result;
-	UINT32  *uint32 = (UINT32*) data;
+	u32  *uint32 = (u32*) data;
 
 	DBFENTER;
 
@@ -1990,8 +1990,8 @@ void                         *data)
 {
 	int            result;
 	p80211pstrd_t  *pstr = (p80211pstrd_t *) data;
-	UINT8          bytebuf[MIB_TMP_MAXLEN];
-	UINT16         *wordbuf = (UINT16*) bytebuf;
+	u8          bytebuf[MIB_TMP_MAXLEN];
+	u16         *wordbuf = (u16*) bytebuf;
 
 	DBFENTER;
 
@@ -2043,8 +2043,8 @@ void                         *data)
 {
 	int            result;
 	p80211pstrd_t  *pstr = (p80211pstrd_t *) data;
-	UINT8          bytebuf[MIB_TMP_MAXLEN];
-	UINT16         len;
+	u8          bytebuf[MIB_TMP_MAXLEN];
+	u16         len;
 
 	DBFENTER;
 
@@ -2188,7 +2188,7 @@ hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
 {
-	UINT32  *uint32 = (UINT32*) data;
+	u32  *uint32 = (u32*) data;
 
 	DBFENTER;
 
@@ -2252,11 +2252,11 @@ p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
 {
 	int     result;
-	UINT32  *uint32 = (UINT32*) data;
+	u32  *uint32 = (u32*) data;
 
 	int     index;
-	UINT16  cnf_auth;
-	UINT16	mask;
+	u16  cnf_auth;
+	u16	mask;
 
 	DBFENTER;
 
@@ -2331,7 +2331,7 @@ hfa384x_t                    *hw,
 p80211msg_dot11req_mibset_t  *msg,
 void                         *data)
 {
-	UINT32            *uint32 = (UINT32*) data;
+	u32            *uint32 = (u32*) data;
 	p80211pstrd_t     *pstr = (p80211pstrd_t*) data;
 
 	int  i, cnt, result;
@@ -2341,7 +2341,7 @@ void                         *data)
 	** it is long enough!
 	*/
 
-	UINT8  test[sizeof(wlandev->rx) + sizeof(hw->tallies)];
+	u8  test[sizeof(wlandev->rx) + sizeof(hw->tallies)];
 
 	DBFENTER;
 
@@ -2443,7 +2443,7 @@ void                         *data)
 		hfa384x_WPAData_t wpa;
 		if (isget) {
 			hfa384x_drvr_getconfig( hw, HFA384x_RID_CNFWPADATA,
-						(UINT8 *) &wpa, sizeof(wpa));
+						(u8 *) &wpa, sizeof(wpa));
 			pstr->len = hfa384x2host_16(wpa.datalen);
 			memcpy(pstr->data, wpa.data, pstr->len);
 		} else {
@@ -2451,7 +2451,7 @@ void                         *data)
 			memcpy(wpa.data, pstr->data, pstr->len);
 
 			result = hfa384x_drvr_setconfig(hw, HFA384x_RID_CNFWPADATA,
-				(UINT8 *) &wpa, sizeof(wpa));
+				(u8 *) &wpa, sizeof(wpa));
 		}
 		break;
 	}
@@ -2482,7 +2482,7 @@ void prism2mgmt_pstr2bytestr(hfa384x_bytestr_t *bytestr, p80211pstrd_t *pstr)
 {
 	DBFENTER;
 
-	bytestr->len = host2hfa384x_16((UINT16)(pstr->len));
+	bytestr->len = host2hfa384x_16((u16)(pstr->len));
 	memcpy(bytestr->data, pstr->data, pstr->len);
 	DBFEXIT;
 }
@@ -2503,7 +2503,7 @@ void prism2mgmt_pstr2bytestr(hfa384x_bytestr_t *bytestr, p80211pstrd_t *pstr)
 *
 ----------------------------------------------------------------*/
 
-void prism2mgmt_pstr2bytearea(UINT8 *bytearea, p80211pstrd_t *pstr)
+void prism2mgmt_pstr2bytearea(u8 *bytearea, p80211pstrd_t *pstr)
 {
 	DBFENTER;
 
@@ -2531,7 +2531,7 @@ void prism2mgmt_bytestr2pstr(hfa384x_bytestr_t *bytestr, p80211pstrd_t *pstr)
 {
 	DBFENTER;
 
-	pstr->len = (UINT8)(hfa384x2host_16((UINT16)(bytestr->len)));
+	pstr->len = (u8)(hfa384x2host_16((u16)(bytestr->len)));
 	memcpy(pstr->data, bytestr->data, pstr->len);
 	DBFEXIT;
 }
@@ -2552,11 +2552,11 @@ void prism2mgmt_bytestr2pstr(hfa384x_bytestr_t *bytestr, p80211pstrd_t *pstr)
 *
 ----------------------------------------------------------------*/
 
-void prism2mgmt_bytearea2pstr(UINT8 *bytearea, p80211pstrd_t *pstr, int len)
+void prism2mgmt_bytearea2pstr(u8 *bytearea, p80211pstrd_t *pstr, int len)
 {
 	DBFENTER;
 
-	pstr->len = (UINT8)len;
+	pstr->len = (u8)len;
 	memcpy(pstr->data, bytearea, len);
 	DBFEXIT;
 }
@@ -2576,11 +2576,11 @@ void prism2mgmt_bytearea2pstr(UINT8 *bytearea, p80211pstrd_t *pstr, int len)
 *
 ----------------------------------------------------------------*/
 
-void prism2mgmt_prism2int2p80211int(UINT16 *prism2int, UINT32 *wlanint)
+void prism2mgmt_prism2int2p80211int(u16 *prism2int, u32 *wlanint)
 {
 	DBFENTER;
 
-	*wlanint = (UINT32)hfa384x2host_16(*prism2int);
+	*wlanint = (u32)hfa384x2host_16(*prism2int);
 	DBFEXIT;
 }
 
@@ -2599,11 +2599,11 @@ void prism2mgmt_prism2int2p80211int(UINT16 *prism2int, UINT32 *wlanint)
 *
 ----------------------------------------------------------------*/
 
-void prism2mgmt_p80211int2prism2int(UINT16 *prism2int, UINT32 *wlanint)
+void prism2mgmt_p80211int2prism2int(u16 *prism2int, u32 *wlanint)
 {
 	DBFENTER;
 
-	*prism2int = host2hfa384x_16((UINT16)(*wlanint));
+	*prism2int = host2hfa384x_16((u16)(*wlanint));
 	DBFEXIT;
 }
 
@@ -2622,7 +2622,7 @@ void prism2mgmt_p80211int2prism2int(UINT16 *prism2int, UINT32 *wlanint)
 *	Nothing
 *
 ----------------------------------------------------------------*/
-void prism2mgmt_prism2enum2p80211enum(UINT16 *prism2enum, UINT32 *wlanenum, UINT16 rid)
+void prism2mgmt_prism2enum2p80211enum(u16 *prism2enum, u32 *wlanenum, u16 rid)
 {
 	DBFENTER;
 
@@ -2648,7 +2648,7 @@ void prism2mgmt_prism2enum2p80211enum(UINT16 *prism2enum, UINT32 *wlanenum, UINT
 *	Nothing
 *
 ----------------------------------------------------------------*/
-void prism2mgmt_p80211enum2prism2enum(UINT16 *prism2enum, UINT32 *wlanenum, UINT16 rid)
+void prism2mgmt_p80211enum2prism2enum(u16 *prism2enum, u32 *wlanenum, u16 rid)
 {
 	DBFENTER;
 
@@ -2674,10 +2674,10 @@ void prism2mgmt_p80211enum2prism2enum(UINT16 *prism2enum, UINT32 *wlanenum, UINT
 *	Nothing
 *
 ----------------------------------------------------------------*/
-void prism2mgmt_get_oprateset(UINT16 *rate, p80211pstrd_t *pstr)
+void prism2mgmt_get_oprateset(u16 *rate, p80211pstrd_t *pstr)
 {
-	UINT8	len;
-	UINT8	*datarate;
+	u8	len;
+	u8	*datarate;
 
 	DBFENTER;
 
@@ -2686,29 +2686,29 @@ void prism2mgmt_get_oprateset(UINT16 *rate, p80211pstrd_t *pstr)
 
  	/* 1 Mbps */
 	if ( BIT0 & (*rate) ) {
-		len += (UINT8)1;
-		*datarate = (UINT8)2;
+		len += (u8)1;
+		*datarate = (u8)2;
 		datarate++;
 	}
 
  	/* 2 Mbps */
 	if ( BIT1 & (*rate) ) {
-		len += (UINT8)1;
-		*datarate = (UINT8)4;
+		len += (u8)1;
+		*datarate = (u8)4;
 		datarate++;
 	}
 
  	/* 5.5 Mbps */
 	if ( BIT2 & (*rate) ) {
-		len += (UINT8)1;
-		*datarate = (UINT8)11;
+		len += (u8)1;
+		*datarate = (u8)11;
 		datarate++;
 	}
 
  	/* 11 Mbps */
 	if ( BIT3 & (*rate) ) {
-		len += (UINT8)1;
-		*datarate = (UINT8)22;
+		len += (u8)1;
+		*datarate = (u8)22;
 		datarate++;
 	}
 
@@ -2733,9 +2733,9 @@ void prism2mgmt_get_oprateset(UINT16 *rate, p80211pstrd_t *pstr)
 *	Nothing
 *
 ----------------------------------------------------------------*/
-void prism2mgmt_set_oprateset(UINT16 *rate, p80211pstrd_t *pstr)
+void prism2mgmt_set_oprateset(u16 *rate, p80211pstrd_t *pstr)
 {
-	UINT8	*datarate;
+	u8	*datarate;
 	int	i;
 
 	DBFENTER;
@@ -2786,7 +2786,7 @@ void prism2mgmt_set_oprateset(UINT16 *rate, p80211pstrd_t *pstr)
 *	Nothing
 *
 ----------------------------------------------------------------*/
-void prism2mgmt_get_grpaddr(UINT32 did, p80211pstrd_t *pstr,
+void prism2mgmt_get_grpaddr(u32 did, p80211pstrd_t *pstr,
 	hfa384x_t *hw )
 {
 	int	index;
@@ -2822,10 +2822,10 @@ void prism2mgmt_get_grpaddr(UINT32 did, p80211pstrd_t *pstr,
 *	!0	Error
 *
 ----------------------------------------------------------------*/
-int prism2mgmt_set_grpaddr(UINT32 did, UINT8 *prism2buf,
+int prism2mgmt_set_grpaddr(u32 did, u8 *prism2buf,
 	p80211pstrd_t *pstr, hfa384x_t *hw )
 {
-	UINT8	no_addr[WLAN_ADDR_LEN];
+	u8	no_addr[WLAN_ADDR_LEN];
 	int	index;
 
 	DBFENTER;
@@ -2888,7 +2888,7 @@ int prism2mgmt_set_grpaddr(UINT32 did, UINT8 *prism2buf,
 *	< 0	If not valid did
 *
 ----------------------------------------------------------------*/
-int prism2mgmt_get_grpaddr_index( UINT32 did )
+int prism2mgmt_get_grpaddr_index( u32 did )
 {
 	int	index;
 
