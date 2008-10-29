@@ -348,13 +348,6 @@ struct rt2x00_intf {
 	spinlock_t lock;
 
 	/*
-	 * BSS configuration. Copied from the structure
-	 * passed to us through the bss_info_changed()
-	 * callback funtion.
-	 */
-	struct ieee80211_bss_conf conf;
-
-	/*
 	 * MAC of the device.
 	 */
 	u8 mac[ETH_ALEN];

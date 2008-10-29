@@ -417,7 +417,7 @@ static void rt2x00lib_intf_scheduled_iter(void *data, u8 *mac,
 	 */
 	spin_lock(&intf->lock);
 
-	memcpy(&conf, &intf->conf, sizeof(conf));
+	memcpy(&conf, &vif->bss_conf, sizeof(conf));
 	delayed_flags = intf->delayed_flags;
 	intf->delayed_flags = 0;
 

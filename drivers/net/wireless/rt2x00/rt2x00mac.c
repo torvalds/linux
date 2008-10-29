@@ -634,7 +634,6 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	spin_lock(&intf->lock);
-	memcpy(&intf->conf, bss_conf, sizeof(*bss_conf));
 	if (delayed) {
 		intf->delayed_flags |= delayed;
 		schedule_work(&rt2x00dev->intf_work);
