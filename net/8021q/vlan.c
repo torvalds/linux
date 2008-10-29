@@ -46,10 +46,10 @@ int vlan_net_id;
 /* Our listing of VLAN group(s) */
 static struct hlist_head vlan_group_hash[VLAN_GRP_HASH_SIZE];
 
-static char vlan_fullname[] = "802.1Q VLAN Support";
-static char vlan_version[] = DRV_VERSION;
-static char vlan_copyright[] = "Ben Greear <greearb@candelatech.com>";
-static char vlan_buggyright[] = "David S. Miller <davem@redhat.com>";
+const char vlan_fullname[] = "802.1Q VLAN Support";
+const char vlan_version[] = DRV_VERSION;
+static const char vlan_copyright[] = "Ben Greear <greearb@candelatech.com>";
+static const char vlan_buggyright[] = "David S. Miller <davem@redhat.com>";
 
 static struct packet_type vlan_packet_type = {
 	.type = __constant_htons(ETH_P_8021Q),

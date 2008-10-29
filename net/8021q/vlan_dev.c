@@ -648,6 +648,26 @@ static void vlan_dev_uninit(struct net_device *dev)
 	}
 }
 
+static int vlan_ethtool_get_settings(struct net_device *dev,
+				     struct ethtool_cmd *cmd)
+{
+	const struct vlan_dev_info *vlan = vlan_dev_info(dev);
+	struct net_device *real_dev = vlan->real_dev;
+
+	if (!real_dev->ethtool_ops->get_settings)
+		return -EOPNOTSUPP;
+
+	return real_dev->ethtool_ops->get_settings(real_dev, cmd);
+}
+
+static void vlan_ethtool_get_drvinfo(struct net_device *dev,
+				     struct ethtool_drvinfo *info)
+{
+	strcpy(info->driver, vlan_fullname);
+	strcpy(info->version, vlan_version);
+	strcpy(info->fw_version, "N/A");
+}
+
 static u32 vlan_ethtool_get_rx_csum(struct net_device *dev)
 {
 	const struct vlan_dev_info *vlan = vlan_dev_info(dev);
@@ -672,6 +692,8 @@ static u32 vlan_ethtool_get_flags(struct net_device *dev)
 }
 
 static const struct ethtool_ops vlan_ethtool_ops = {
+	.get_settings	        = vlan_ethtool_get_settings,
+	.get_drvinfo	        = vlan_ethtool_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
 	.get_rx_csum		= vlan_ethtool_get_rx_csum,
 	.get_flags		= vlan_ethtool_get_flags,
