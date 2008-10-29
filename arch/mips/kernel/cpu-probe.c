@@ -652,21 +652,24 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 
 static void __cpuinit decode_configs(struct cpuinfo_mips *c)
 {
+	int ok;
+
 	/* MIPS32 or MIPS64 compliant CPU.  */
 	c->options = MIPS_CPU_4KEX | MIPS_CPU_4K_CACHE | MIPS_CPU_COUNTER |
 	             MIPS_CPU_DIVEC | MIPS_CPU_LLSC | MIPS_CPU_MCHECK;
 
 	c->scache.flags = MIPS_CACHE_NOT_PRESENT;
 
-	/* Read Config registers.  */
-	if (!decode_config0(c))
-		return;			/* actually worth a panic() */
-	if (!decode_config1(c))
-		return;
-	if (!decode_config2(c))
-		return;
-	if (!decode_config3(c))
-		return;
+	ok = decode_config0(c);			/* Read Config registers.  */
+	BUG_ON(!ok);				/* Arch spec violation!  */
+	if (ok)
+		ok = decode_config1(c);
+	if (ok)
+		ok = decode_config2(c);
+	if (ok)
+		ok = decode_config3(c);
+
+	mips_probe_watch_registers(c);
 }
 
 #ifdef CONFIG_CPU_MIPSR2
@@ -678,7 +681,6 @@ static inline void spram_config(void) {}
 static inline void cpu_probe_mips(struct cpuinfo_mips *c)
 {
 	decode_configs(c);
-	mips_probe_watch_registers(c);
 	switch (c->processor_id & 0xff00) {
 	case PRID_IMP_4KC:
 		c->cputype = CPU_4KC;
