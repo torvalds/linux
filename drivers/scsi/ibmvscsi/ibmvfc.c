@@ -496,6 +496,7 @@ static void ibmvfc_set_host_action(struct ibmvfc_host *vhost,
 	case IBMVFC_HOST_ACTION_INIT:
 	case IBMVFC_HOST_ACTION_TGT_DEL:
 	case IBMVFC_HOST_ACTION_QUERY_TGTS:
+	case IBMVFC_HOST_ACTION_TGT_DEL_FAILED:
 	case IBMVFC_HOST_ACTION_TGT_ADD:
 	case IBMVFC_HOST_ACTION_NONE:
 	default:
@@ -2791,6 +2792,8 @@ static void ibmvfc_tgt_prli_done(struct ibmvfc_event *evt)
 			rsp->status, rsp->error, status);
 		if (ibmvfc_retry_cmd(rsp->status, rsp->error))
 			ibmvfc_retry_tgt_init(tgt, ibmvfc_tgt_send_prli);
+		else
+			ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DEL_RPORT);
 		break;
 	};
 
@@ -2885,6 +2888,8 @@ static void ibmvfc_tgt_plogi_done(struct ibmvfc_event *evt)
 
 		if (ibmvfc_retry_cmd(rsp->status, rsp->error))
 			ibmvfc_retry_tgt_init(tgt, ibmvfc_tgt_send_plogi);
+		else
+			ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DEL_RPORT);
 		break;
 	};
 
@@ -3176,6 +3181,8 @@ static void ibmvfc_tgt_query_target_done(struct ibmvfc_event *evt)
 			ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DEL_RPORT);
 		else if (ibmvfc_retry_cmd(rsp->status, rsp->error))
 			ibmvfc_retry_tgt_init(tgt, ibmvfc_tgt_query_target);
+		else
+			ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DEL_RPORT);
 		break;
 	};
 
@@ -3506,6 +3513,7 @@ static int __ibmvfc_work_to_do(struct ibmvfc_host *vhost)
 	case IBMVFC_HOST_ACTION_ALLOC_TGTS:
 	case IBMVFC_HOST_ACTION_TGT_ADD:
 	case IBMVFC_HOST_ACTION_TGT_DEL:
+	case IBMVFC_HOST_ACTION_TGT_DEL_FAILED:
 	case IBMVFC_HOST_ACTION_QUERY:
 	default:
 		break;
@@ -3621,6 +3629,7 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 			ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_TGT_DEL);
 		break;
 	case IBMVFC_HOST_ACTION_TGT_DEL:
+	case IBMVFC_HOST_ACTION_TGT_DEL_FAILED:
 		list_for_each_entry(tgt, &vhost->targets, queue) {
 			if (tgt->action == IBMVFC_TGT_ACTION_DEL_RPORT) {
 				tgt_dbg(tgt, "Deleting rport\n");
@@ -3636,8 +3645,17 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 		}
 
 		if (vhost->state == IBMVFC_INITIALIZING) {
-			ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_INIT);
-			vhost->job_step = ibmvfc_discover_targets;
+			if (vhost->action == IBMVFC_HOST_ACTION_TGT_DEL_FAILED) {
+				ibmvfc_set_host_state(vhost, IBMVFC_ACTIVE);
+				ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_TGT_ADD);
+				vhost->init_retries = 0;
+				spin_unlock_irqrestore(vhost->host->host_lock, flags);
+				scsi_unblock_requests(vhost->host);
+				return;
+			} else {
+				ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_INIT);
+				vhost->job_step = ibmvfc_discover_targets;
+			}
 		} else {
 			ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_NONE);
 			spin_unlock_irqrestore(vhost->host->host_lock, flags);
@@ -3660,30 +3678,14 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 			}
 		}
 
-		if (!ibmvfc_dev_init_to_do(vhost)) {
-			ibmvfc_set_host_state(vhost, IBMVFC_ACTIVE);
-			ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_TGT_ADD);
-			vhost->init_retries = 0;
-			spin_unlock_irqrestore(vhost->host->host_lock, flags);
-			scsi_unblock_requests(vhost->host);
-			return;
-		}
+		if (!ibmvfc_dev_init_to_do(vhost))
+			ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_TGT_DEL_FAILED);
 		break;
 	case IBMVFC_HOST_ACTION_TGT_ADD:
 		list_for_each_entry(tgt, &vhost->targets, queue) {
 			if (tgt->action == IBMVFC_TGT_ACTION_ADD_RPORT) {
 				spin_unlock_irqrestore(vhost->host->host_lock, flags);
 				ibmvfc_tgt_add_rport(tgt);
-				return;
-			} else if (tgt->action == IBMVFC_TGT_ACTION_DEL_RPORT) {
-				tgt_dbg(tgt, "Deleting rport\n");
-				rport = tgt->rport;
-				tgt->rport = NULL;
-				list_del(&tgt->queue);
-				spin_unlock_irqrestore(vhost->host->host_lock, flags);
-				if (rport)
-					fc_remote_port_delete(rport);
-				kref_put(&tgt->kref, ibmvfc_release_tgt);
 				return;
 			}
 		}
