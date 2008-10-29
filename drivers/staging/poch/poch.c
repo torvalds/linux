@@ -397,11 +397,38 @@ static int poch_channel_alloc_groups(struct channel_info *channel)
 	return 0;
 }
 
-static void channel_latch_attr(struct channel_info *channel)
+static int channel_latch_attr(struct channel_info *channel)
 {
 	channel->group_count = atomic_read(&channel->sys_group_count);
 	channel->group_size = atomic_read(&channel->sys_group_size);
 	channel->block_size = atomic_read(&channel->sys_block_size);
+
+	if (channel->group_count == 0) {
+		printk(KERN_ERR PFX "invalid group count %lu",
+		       channel->group_count);
+		return -EINVAL;
+	}
+
+	if (channel->group_size == 0 ||
+	    channel->group_size < channel->block_size) {
+		printk(KERN_ERR PFX "invalid group size %lu",
+		       channel->group_size);
+		return -EINVAL;
+	}
+
+	if (channel->block_size == 0 || (channel->block_size % 8) != 0) {
+		printk(KERN_ERR PFX "invalid block size %lu",
+		       channel->block_size);
+		return -EINVAL;
+	}
+
+	if (channel->group_size % channel->block_size != 0) {
+		printk(KERN_ERR PFX
+		       "group size should be multiple of block size");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 /*
@@ -547,7 +574,9 @@ static int poch_channel_init(struct channel_info *channel,
 
 	printk(KERN_WARNING "channel_latch_attr\n");
 
-	channel_latch_attr(channel);
+	ret = channel_latch_attr(channel);
+	if (ret != 0)
+		goto out;
 
 	channel->transfer = 0;
 
@@ -1359,12 +1388,12 @@ static void poch_pci_remove(struct pci_dev *pdev)
 	unsigned int minor = MINOR(poch_dev->cdev.dev);
 	unsigned int id = minor / poch_dev->nchannels;
 
-	/* FIXME: unmap fpga_iomem and bridge_iomem */
-
 	poch_class_dev_unregister(poch_dev, id);
 	cdev_del(&poch_dev->cdev);
 	idr_remove(&poch_ids, id);
 	free_irq(pdev->irq, poch_dev);
+	iounmap(poch_dev->fpga_iomem);
+	iounmap(poch_dev->bridge_iomem);
 	uio_unregister_device(uio);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
