@@ -4,7 +4,11 @@ Various fixes to make delete of open files behavior more predictable
 (when delete of an open file fails we mark the file as "delete-on-close"
 in a way that more servers accept, but only if we can first rename the
 file to a temporary name).  Add experimental support for more safely
-handling fcntl(F_SETLEASE).
+handling fcntl(F_SETLEASE).  Convert cifs to using blocking tcp
+sends, and also let tcp autotune the socket send and receive buffers.
+This reduces the number of EAGAIN errors returned by TCP/IP in
+high stress workloads (and the number of retries on socket writes
+when sending large SMBWriteX requests).
 
 Version 1.54
 ------------
