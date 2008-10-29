@@ -2957,13 +2957,6 @@ static int iwl4965_mac_config_interface(struct ieee80211_hw *hw,
 			return rc;
 	}
 
-	if ((priv->iw_mode == NL80211_IFTYPE_AP) &&
-	    (!conf->ssid_len)) {
-		IWL_DEBUG_MAC80211
-		    ("Leaving in AP mode because HostAPD is not ready.\n");
-		return 0;
-	}
-
 	if (!iwl_is_alive(priv))
 		return -EAGAIN;
 

@@ -616,14 +616,12 @@ struct ieee80211_if_init_conf {
  * enum ieee80211_if_conf_change - interface config change flags
  *
  * @IEEE80211_IFCC_BSSID: The BSSID changed.
- * @IEEE80211_IFCC_SSID: The SSID changed.
  * @IEEE80211_IFCC_BEACON: The beacon for this interface changed
  *	(currently AP and MESH only), use ieee80211_beacon_get().
  */
 enum ieee80211_if_conf_change {
 	IEEE80211_IFCC_BSSID	= BIT(0),
-	IEEE80211_IFCC_SSID	= BIT(1),
-	IEEE80211_IFCC_BEACON	= BIT(2),
+	IEEE80211_IFCC_BEACON	= BIT(1),
 };
 
 /**
@@ -631,11 +629,6 @@ enum ieee80211_if_conf_change {
  *
  * @changed: parameters that have changed, see &enum ieee80211_if_conf_change.
  * @bssid: BSSID of the network we are associated to/creating.
- * @ssid: used (together with @ssid_len) by drivers for hardware that
- *	generate beacons independently. The pointer is valid only during the
- *	config_interface() call, so copy the value somewhere if you need
- *	it.
- * @ssid_len: length of the @ssid field.
  *
  * This structure is passed to the config_interface() callback of
  * &struct ieee80211_hw.
@@ -643,8 +636,6 @@ enum ieee80211_if_conf_change {
 struct ieee80211_if_conf {
 	u32 changed;
 	u8 *bssid;
-	u8 *ssid;
-	size_t ssid_len;
 };
 
 /**

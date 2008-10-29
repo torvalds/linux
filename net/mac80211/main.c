@@ -171,28 +171,19 @@ int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed)
 	conf.changed = changed;
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION ||
-	    sdata->vif.type == NL80211_IFTYPE_ADHOC) {
+	    sdata->vif.type == NL80211_IFTYPE_ADHOC)
 		conf.bssid = sdata->u.sta.bssid;
-		conf.ssid = sdata->u.sta.ssid;
-		conf.ssid_len = sdata->u.sta.ssid_len;
-	} else if (sdata->vif.type == NL80211_IFTYPE_AP) {
+	else if (sdata->vif.type == NL80211_IFTYPE_AP)
 		conf.bssid = sdata->dev->dev_addr;
-		conf.ssid = sdata->u.ap.ssid;
-		conf.ssid_len = sdata->u.ap.ssid_len;
-	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
+	else if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		u8 zero[ETH_ALEN] = { 0 };
 		conf.bssid = zero;
-		conf.ssid = zero;
-		conf.ssid_len = 0;
 	} else {
 		WARN_ON(1);
 		return -EINVAL;
 	}
 
 	if (WARN_ON(!conf.bssid && (changed & IEEE80211_IFCC_BSSID)))
-		return -EINVAL;
-
-	if (WARN_ON(!conf.ssid && (changed & IEEE80211_IFCC_SSID)))
 		return -EINVAL;
 
 	return local->ops->config_interface(local_to_hw(local),

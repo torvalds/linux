@@ -6743,13 +6743,6 @@ static int iwl3945_mac_config_interface(struct ieee80211_hw *hw,
 
 	/* XXX: this MUST use conf->mac_addr */
 
-	if ((priv->iw_mode == NL80211_IFTYPE_AP) &&
-	    (!conf->ssid_len)) {
-		IWL_DEBUG_MAC80211
-		    ("Leaving in AP mode because HostAPD is not ready.\n");
-		return 0;
-	}
-
 	if (!iwl3945_is_alive(priv))
 		return -EAGAIN;
 

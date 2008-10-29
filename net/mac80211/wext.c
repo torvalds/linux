@@ -407,13 +407,6 @@ static int ieee80211_ioctl_siwessid(struct net_device *dev,
 		return 0;
 	}
 
-	if (sdata->vif.type == NL80211_IFTYPE_AP) {
-		memcpy(sdata->u.ap.ssid, ssid, len);
-		memset(sdata->u.ap.ssid + len, 0,
-		       IEEE80211_MAX_SSID_LEN - len);
-		sdata->u.ap.ssid_len = len;
-		return ieee80211_if_config(sdata, IEEE80211_IFCC_SSID);
-	}
 	return -EOPNOTSUPP;
 }
 
@@ -437,15 +430,6 @@ static int ieee80211_ioctl_giwessid(struct net_device *dev,
 		return res;
 	}
 
-	if (sdata->vif.type == NL80211_IFTYPE_AP) {
-		len = sdata->u.ap.ssid_len;
-		if (len > IW_ESSID_MAX_SIZE)
-			len = IW_ESSID_MAX_SIZE;
-		memcpy(ssid, sdata->u.ap.ssid, len);
-		data->length = len;
-		data->flags = 1;
-		return 0;
-	}
 	return -EOPNOTSUPP;
 }
 

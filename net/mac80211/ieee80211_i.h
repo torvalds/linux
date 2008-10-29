@@ -212,9 +212,6 @@ struct ieee80211_if_ap {
 
 	struct list_head vlans;
 
-	u8 ssid[IEEE80211_MAX_SSID_LEN];
-	size_t ssid_len;
-
 	/* yes, this looks ugly, but guarantees that we can later use
 	 * bitmap_empty :)
 	 * NB: don't touch this bitmap, use sta_info_{set,clear}_tim_bit */
