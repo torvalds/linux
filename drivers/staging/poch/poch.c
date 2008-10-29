@@ -485,27 +485,30 @@ static void channel_dma_init(struct channel_info *channel)
 	/* The DMA address page register is shared between the RX and
 	 * TX channels, so acquire lock.
 	 */
-	spin_lock(channel->iomem_lock);
 	for (i = 0; i < channel->group_count; i++) {
 		page = i / 32;
 		group_in_page = i % 32;
 
 		group_reg = group_regs_base + (group_in_page * 4);
 
+		spin_lock(channel->iomem_lock);
 		iowrite32(page, fpga + FPGA_DMA_ADR_PAGE_REG);
 		iowrite32(channel->groups[i].dma_addr, fpga + group_reg);
+		spin_unlock(channel->iomem_lock);
 	}
+
 	for (i = 0; i < channel->group_count; i++) {
 		page = i / 32;
 		group_in_page = i % 32;
 
 		group_reg = group_regs_base + (group_in_page * 4);
 
+		spin_lock(channel->iomem_lock);
 		iowrite32(page, fpga + FPGA_DMA_ADR_PAGE_REG);
 		printk(KERN_INFO PFX "%ld: read dma_addr: 0x%x\n", i,
 		       ioread32(fpga + group_reg));
+		spin_unlock(channel->iomem_lock);
 	}
-	spin_unlock(channel->iomem_lock);
 
 }
 
