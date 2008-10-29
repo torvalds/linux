@@ -455,6 +455,8 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 
 	s3c_rtc_setfreq(&pdev->dev, 1);
 
+	device_init_wakeup(&pdev->dev, 1);
+
 	/* register RTC and exit */
 
 	rtc = rtc_device_register("s3c", &pdev->dev, &s3c_rtcops,
