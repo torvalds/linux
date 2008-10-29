@@ -60,6 +60,9 @@
 #include "debug.h"
 
 static int ath5k_calinterval = 10; /* Calibrate PHY every 10 secs (TODO: Fixme) */
+static int modparam_nohwcrypt;
+module_param_named(nohwcrypt, modparam_nohwcrypt, int, 0444);
+MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 
 
 /******************\
@@ -2975,11 +2978,12 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	struct ath5k_softc *sc = hw->priv;
 	int ret = 0;
 
+	if (modparam_nohwcrypt)
+		return -EOPNOTSUPP;
+
 	switch (key->alg) {
 	case ALG_WEP:
-	/* XXX: fix hardware encryption, its not working. For now
-	 * allow software encryption */
-		/* break; */
+		break;
 	case ALG_TKIP:
 	case ALG_CCMP:
 		return -EOPNOTSUPP;
@@ -2999,6 +3003,7 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		}
 		__set_bit(key->keyidx, sc->keymap);
 		key->hw_key_idx = key->keyidx;
+		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 		break;
 	case DISABLE_KEY:
 		ath5k_hw_reset_key(sc->ah, key->keyidx);
