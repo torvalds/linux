@@ -447,6 +447,10 @@ struct ath_txq {
 	struct list_head axq_acq;
 };
 
+#define AGGR_CLEANUP         BIT(1)
+#define AGGR_ADDBA_COMPLETE  BIT(2)
+#define AGGR_ADDBA_PROGRESS  BIT(3)
+
 /* per TID aggregate tx state for a destination */
 struct ath_atx_tid {
 	struct list_head list;		/* round-robin tid entry */
@@ -462,9 +466,7 @@ struct ath_atx_tid {
 	int baw_tail;			/* next unused tx buffer slot */
 	int sched;
 	int paused;
-	int cleanup_inprogress;
-	u32 addba_exchangecomplete:1;
-	int32_t addba_exchangeinprogress;
+	u8 state;
 	int addba_exchangeattempts;
 };
 

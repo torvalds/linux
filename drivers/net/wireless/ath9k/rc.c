@@ -1909,8 +1909,8 @@ static void ath_tx_aggr_resp(struct ath_softc *sc,
 	state = si->ampdu_mlme.tid_state_tx[tidno];
 
 	if (state & HT_ADDBA_RECEIVED_MSK) {
-		txtid->addba_exchangecomplete = 1;
-		txtid->addba_exchangeinprogress = 0;
+		txtid->state |= AGGR_ADDBA_COMPLETE;
+		txtid->state &= ~AGGR_ADDBA_PROGRESS;
 		txtid->baw_size = buffersize;
 
 		DPRINTF(sc, ATH_DBG_AGGR,
