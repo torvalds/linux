@@ -181,12 +181,11 @@ WbWLanInitialize(struct wb35_adapter *adapter)
 	pMacAddr = adapter->sLocalPara.ThisMacAddress;
 	pMacAddr2 = adapter->sLocalPara.PermanentAddress;
 	hal_get_permanent_address( pHwData, adapter->sLocalPara.PermanentAddress );// Reading ethernet address from EEPROM
-	if (OS_MEMORY_COMPARE(pMacAddr, "\x00\x00\x00\x00\x00\x00", MAC_ADDR_LENGTH )) // Is equal
-	{
-		memcpy( pMacAddr, pMacAddr2, MAC_ADDR_LENGTH );
-	} else {
+	if (memcmp(pMacAddr, "\x00\x00\x00\x00\x00\x00", MAC_ADDR_LENGTH) == 0)
+		memcpy(pMacAddr, pMacAddr2, MAC_ADDR_LENGTH);
+	else {
 		// Set the user define MAC address
-		hal_set_ethernet_address( pHwData, adapter->sLocalPara.ThisMacAddress );
+		hal_set_ethernet_address(pHwData, adapter->sLocalPara.ThisMacAddress);
 	}
 
 	//get current antenna

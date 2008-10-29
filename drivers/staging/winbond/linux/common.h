@@ -73,8 +73,5 @@
 #define OS_EVENT_INDICATE( _A, _B, _F )
 #define OS_PMKID_STATUS_EVENT( _A )
 
-#define OS_MEMORY_CLEAR( _A, _S )	memset( (u8 *)_A,0,_S)
-#define OS_MEMORY_COMPARE( _A, _B, _S )	(memcmp(_A,_B,_S)? 0 : 1) // Definition is reverse with Ndis 1: the same 0: different
-
 #endif // COMMON_DEF
 
