@@ -16,6 +16,8 @@
  * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#ifndef __USB_CORE_HCD_H
+#define __USB_CORE_HCD_H
 
 #ifdef __KERNEL__
 
@@ -490,3 +492,5 @@ extern struct rw_semaphore ehci_cf_port_reset_rwsem;
 extern unsigned long usb_hcds_loaded;
 
 #endif /* __KERNEL__ */
+
+#endif /* __USB_CORE_HCD_H */
