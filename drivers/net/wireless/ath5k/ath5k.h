@@ -1093,10 +1093,11 @@ struct ath5k_hw {
 
 	u8			ah_sta_id[ETH_ALEN];
 
-	/* Current BSSID we are trying to assoc to / creating.
+	/* Current BSSID we are trying to assoc to / create.
 	 * This is passed by mac80211 on config_interface() and cached here for
 	 * use in resets */
 	u8			ah_bssid[ETH_ALEN];
+	u8			ah_bssid_mask[ETH_ALEN];
 
 	u32			ah_gpio[AR5K_MAX_GPIO];
 	int			ah_gpio_npins;

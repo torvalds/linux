@@ -46,34 +46,45 @@ int ath5k_hw_set_opmode(struct ath5k_hw *ah)
 {
 	u32 pcu_reg, beacon_reg, low_id, high_id;
 
-	pcu_reg = 0;
+
+	/* Preserve rest settings */
+	pcu_reg = ath5k_hw_reg_read(ah, AR5K_STA_ID1) & 0xffff0000;
+	pcu_reg &= ~(AR5K_STA_ID1_ADHOC | AR5K_STA_ID1_AP
+			| AR5K_STA_ID1_KEYSRCH_MODE
+			| (ah->ah_version == AR5K_AR5210 ?
+			(AR5K_STA_ID1_PWR_SV | AR5K_STA_ID1_NO_PSPOLL) : 0));
+
 	beacon_reg = 0;
 
 	ATH5K_TRACE(ah->ah_sc);
 
 	switch (ah->ah_op_mode) {
 	case NL80211_IFTYPE_ADHOC:
-		pcu_reg |= AR5K_STA_ID1_ADHOC | AR5K_STA_ID1_DESC_ANTENNA |
-			(ah->ah_version == AR5K_AR5210 ?
-				AR5K_STA_ID1_NO_PSPOLL : 0);
+		pcu_reg |= AR5K_STA_ID1_ADHOC | AR5K_STA_ID1_KEYSRCH_MODE;
 		beacon_reg |= AR5K_BCR_ADHOC;
+		if (ah->ah_version == AR5K_AR5210)
+			pcu_reg |= AR5K_STA_ID1_NO_PSPOLL;
+		else
+			AR5K_REG_DISABLE_BITS(ah, AR5K_CFG, AR5K_CFG_ADHOC);
 		break;
 
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_MESH_POINT:
-		pcu_reg |= AR5K_STA_ID1_AP | AR5K_STA_ID1_RTS_DEF_ANTENNA |
-			(ah->ah_version == AR5K_AR5210 ?
-				AR5K_STA_ID1_NO_PSPOLL : 0);
+		pcu_reg |= AR5K_STA_ID1_AP | AR5K_STA_ID1_KEYSRCH_MODE;
 		beacon_reg |= AR5K_BCR_AP;
+		if (ah->ah_version == AR5K_AR5210)
+			pcu_reg |= AR5K_STA_ID1_NO_PSPOLL;
+		else
+			AR5K_REG_ENABLE_BITS(ah, AR5K_CFG, AR5K_CFG_ADHOC);
 		break;
 
 	case NL80211_IFTYPE_STATION:
-		pcu_reg |= AR5K_STA_ID1_DEFAULT_ANTENNA |
-			(ah->ah_version == AR5K_AR5210 ?
+		pcu_reg |= AR5K_STA_ID1_KEYSRCH_MODE
+			| (ah->ah_version == AR5K_AR5210 ?
 				AR5K_STA_ID1_PWR_SV : 0);
 	case NL80211_IFTYPE_MONITOR:
-		pcu_reg |= AR5K_STA_ID1_DEFAULT_ANTENNA |
-			(ah->ah_version == AR5K_AR5210 ?
+		pcu_reg |= AR5K_STA_ID1_KEYSRCH_MODE
+			| (ah->ah_version == AR5K_AR5210 ?
 				AR5K_STA_ID1_NO_PSPOLL : 0);
 		break;
 
@@ -130,6 +141,8 @@ void ath5k_hw_update_mib_counters(struct ath5k_hw *ah,
 		ath5k_hw_reg_write(ah, 0, AR5K_PROFCNT_RXCLR);
 		ath5k_hw_reg_write(ah, 0, AR5K_PROFCNT_CYCLE);
 	}
+
+	/* TODO: Handle ANI stats */
 }
 
 /**
@@ -254,6 +267,10 @@ void ath5k_hw_get_lladdr(struct ath5k_hw *ah, u8 *mac)
  * @mac: The card's mac address
  *
  * Set station id on hw using the provided mac address
+ *
+ * NOTE: This is only called during attach, don't call it
+ * on reset because it overwrites all AR5K_STA_ID1 settings.
+ * We have set_opmode (above) for reset.
  */
 int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac)
 {
@@ -290,8 +307,10 @@ void ath5k_hw_set_associd(struct ath5k_hw *ah, const u8 *bssid, u16 assoc_id)
 	 * Set simple BSSID mask on 5212
 	 */
 	if (ah->ah_version == AR5K_AR5212) {
-		ath5k_hw_reg_write(ah, 0xffffffff, AR5K_BSS_IDM0);
-		ath5k_hw_reg_write(ah, 0xffffffff, AR5K_BSS_IDM1);
+		ath5k_hw_reg_write(ah, AR5K_LOW_ID(ah->ah_bssid_mask),
+							AR5K_BSS_IDM0);
+		ath5k_hw_reg_write(ah, AR5K_HIGH_ID(ah->ah_bssid_mask),
+							AR5K_BSS_IDM1);
 	}
 
 	/*
@@ -415,6 +434,9 @@ int ath5k_hw_set_bssid_mask(struct ath5k_hw *ah, const u8 *mask)
 	u32 low_id, high_id;
 	ATH5K_TRACE(ah->ah_sc);
 
+	/* Cache bssid mask so that we can restore it
+	 * on reset */
+	memcpy(ah->ah_bssid_mask, mask, ETH_ALEN);
 	if (ah->ah_version == AR5K_AR5212) {
 		low_id = AR5K_LOW_ID(mask);
 		high_id = AR5K_HIGH_ID(mask);
@@ -576,7 +598,7 @@ void ath5k_hw_set_rx_filter(struct ath5k_hw *ah, u32 filter)
 		filter |= AR5K_RX_FILTER_PROM;
 	}
 
-	/*Zero length DMA*/
+	/*Zero length DMA (phy error reporting) */
 	if (data)
 		AR5K_REG_ENABLE_BITS(ah, AR5K_RXCFG, AR5K_RXCFG_ZLFDMA);
 	else
@@ -661,7 +683,12 @@ void ath5k_hw_init_beacon(struct ath5k_hw *ah, u32 next_beacon, u32 interval)
 	 * Set the additional timers by mode
 	 */
 	switch (ah->ah_op_mode) {
+	case NL80211_IFTYPE_MONITOR:
 	case NL80211_IFTYPE_STATION:
+		/* In STA mode timer1 is used as next wakeup
+		 * timer and timer2 as next CFP duration start
+		 * timer. Both in 1/8TUs. */
+		/* TODO: PCF handling */
 		if (ah->ah_version == AR5K_AR5210) {
 			timer1 = 0xffffffff;
 			timer2 = 0xffffffff;
@@ -669,27 +696,60 @@ void ath5k_hw_init_beacon(struct ath5k_hw *ah, u32 next_beacon, u32 interval)
 			timer1 = 0x0000ffff;
 			timer2 = 0x0007ffff;
 		}
+		/* Mark associated AP as PCF incapable for now */
+		AR5K_REG_DISABLE_BITS(ah, AR5K_STA_ID1, AR5K_STA_ID1_PCF);
 		break;
-
+	case NL80211_IFTYPE_ADHOC:
+		AR5K_REG_ENABLE_BITS(ah, AR5K_TXCFG, AR5K_TXCFG_ADHOC_BCN_ATIM);
 	default:
+		/* On non-STA modes timer1 is used as next DMA
+		 * beacon alert (DBA) timer and timer2 as next
+		 * software beacon alert. Both in 1/8TUs. */
 		timer1 = (next_beacon - AR5K_TUNE_DMA_BEACON_RESP) << 3;
 		timer2 = (next_beacon - AR5K_TUNE_SW_BEACON_RESP) << 3;
+		break;
 	}
 
+	/* Timer3 marks the end of our ATIM window
+	 * a zero length window is not allowed because
+	 * we 'll get no beacons */
 	timer3 = next_beacon + (ah->ah_atim_window ? ah->ah_atim_window : 1);
 
 	/*
 	 * Set the beacon register and enable all timers.
-	 * (next beacon, DMA beacon, software beacon, ATIM window time)
 	 */
-	ath5k_hw_reg_write(ah, next_beacon, AR5K_TIMER0);
+	/* When in AP mode zero timer0 to start TSF */
+	if (ah->ah_op_mode == NL80211_IFTYPE_AP)
+		ath5k_hw_reg_write(ah, 0, AR5K_TIMER0);
+	else
+		ath5k_hw_reg_write(ah, next_beacon, AR5K_TIMER0);
 	ath5k_hw_reg_write(ah, timer1, AR5K_TIMER1);
 	ath5k_hw_reg_write(ah, timer2, AR5K_TIMER2);
 	ath5k_hw_reg_write(ah, timer3, AR5K_TIMER3);
 
+	/* Force a TSF reset if requested and enable beacons */
+	if (interval & AR5K_BEACON_RESET_TSF)
+		ath5k_hw_reset_tsf(ah);
+
 	ath5k_hw_reg_write(ah, interval & (AR5K_BEACON_PERIOD |
-			AR5K_BEACON_RESET_TSF | AR5K_BEACON_ENABLE),
-		AR5K_BEACON);
+					AR5K_BEACON_ENABLE),
+						AR5K_BEACON);
+
+	/* Flush any pending BMISS interrupts on ISR by
+	 * performing a clear-on-write operation on PISR
+	 * register for the BMISS bit (writing a bit on
+	 * ISR togles a reset for that bit and leaves
+	 * the rest bits intact) */
+	if (ah->ah_version == AR5K_AR5210)
+		ath5k_hw_reg_write(ah, AR5K_ISR_BMISS, AR5K_ISR);
+	else
+		ath5k_hw_reg_write(ah, AR5K_ISR_BMISS, AR5K_PISR);
+
+	/* TODO: Set enchanced sleep registers on AR5212
+	 * based on vif->bss_conf params, until then
+	 * disable power save reporting.*/
+	AR5K_REG_DISABLE_BITS(ah, AR5K_STA_ID1, AR5K_STA_ID1_PWR_SV);
+
 }
 
 #if 0
@@ -899,13 +959,24 @@ int ath5k_hw_beaconq_finish(struct ath5k_hw *ah, unsigned long phys_addr)
  */
 int ath5k_hw_reset_key(struct ath5k_hw *ah, u16 entry)
 {
-	unsigned int i;
+	unsigned int i, type;
 
 	ATH5K_TRACE(ah->ah_sc);
 	AR5K_ASSERT_ENTRY(entry, AR5K_KEYTABLE_SIZE);
 
+	type = ath5k_hw_reg_read(ah, AR5K_KEYTABLE_TYPE(entry));
+
 	for (i = 0; i < AR5K_KEYCACHE_SIZE; i++)
 		ath5k_hw_reg_write(ah, 0, AR5K_KEYTABLE_OFF(entry, i));
+
+	/* Reset associated MIC entry if TKIP
+	 * is enabled located at offset (entry + 64) */
+	if (type == AR5K_KEYTABLE_TYPE_TKIP) {
+		entry = entry + AR5K_KEYTABLE_MIC_OFFSET;
+		AR5K_ASSERT_ENTRY(entry, AR5K_KEYTABLE_SIZE);
+		for (i = 0; i < AR5K_KEYCACHE_SIZE / 2 ; i++)
+			ath5k_hw_reg_write(ah, 0, AR5K_KEYTABLE_OFF(entry, i));
+	}
 
 	/*
 	 * Set NULL encryption on AR5212+
