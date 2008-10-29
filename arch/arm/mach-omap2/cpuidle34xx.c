@@ -29,6 +29,8 @@
 #include <plat/irqs.h>
 #include <plat/control.h>
 
+#include "pm.h"
+
 #ifdef CONFIG_CPU_IDLE
 
 #define OMAP3_MAX_STATES 7
@@ -74,6 +76,7 @@ static int omap3_enter_idle(struct cpuidle_device *dev,
 {
 	struct omap3_processor_cx *cx = cpuidle_get_statedata(state);
 	struct timespec ts_preidle, ts_postidle, ts_idle;
+	u32 mpu_state = cx->mpu_state, core_state = cx->core_state;
 
 	current_cx_state = *cx;
 
@@ -83,8 +86,15 @@ static int omap3_enter_idle(struct cpuidle_device *dev,
 	local_irq_disable();
 	local_fiq_disable();
 
-	set_pwrdm_state(mpu_pd, cx->mpu_state);
-	set_pwrdm_state(core_pd, cx->core_state);
+	if (!enable_off_mode) {
+		if (mpu_state < PWRDM_POWER_RET)
+			mpu_state = PWRDM_POWER_RET;
+		if (core_state < PWRDM_POWER_RET)
+			core_state = PWRDM_POWER_RET;
+	}
+
+	set_pwrdm_state(mpu_pd, mpu_state);
+	set_pwrdm_state(core_pd, core_state);
 
 	if (omap_irq_pending())
 		goto return_sleep_time;
