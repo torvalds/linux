@@ -383,5 +383,22 @@ static inline void hlist_add_after_rcu(struct hlist_node *prev,
 		({ tpos = hlist_entry(pos, typeof(*tpos), member); 1; }); \
 		pos = rcu_dereference(pos->next))
 
+/**
+ * hlist_for_each_entry_rcu_safenext - iterate over rcu list of given type
+ * @tpos:	the type * to use as a loop cursor.
+ * @pos:	the &struct hlist_node to use as a loop cursor.
+ * @head:	the head for your list.
+ * @member:	the name of the hlist_node within the struct.
+ * @next:       the &struct hlist_node to use as a next cursor
+ *
+ * Special version of hlist_for_each_entry_rcu that make sure
+ * each next pointer is fetched before each iteration.
+ */
+#define hlist_for_each_entry_rcu_safenext(tpos, pos, head, member, next) \
+	for (pos = rcu_dereference((head)->first);			 \
+		pos && ({ next = pos->next; smp_rmb(); prefetch(next); 1; }) &&	\
+		({ tpos = hlist_entry(pos, typeof(*tpos), member); 1; }); \
+		pos = rcu_dereference(next))
+
 #endif	/* __KERNEL__ */
 #endif

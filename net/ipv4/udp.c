@@ -256,7 +256,7 @@ static struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 		int dif, struct udp_table *udptable)
 {
 	struct sock *sk, *result;
-	struct hlist_node *node;
+	struct hlist_node *node, *next;
 	unsigned short hnum = ntohs(dport);
 	unsigned int hash = udp_hashfn(net, hnum);
 	struct udp_hslot *hslot = &udptable->hash[hash];
@@ -266,7 +266,7 @@ static struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 begin:
 	result = NULL;
 	badness = -1;
-	sk_for_each_rcu(sk, node, &hslot->head) {
+	sk_for_each_rcu_safenext(sk, node, &hslot->head, next) {
 		/*
 		 * lockless reader, and SLAB_DESTROY_BY_RCU items:
 		 * We must check this item was not moved to another chain
