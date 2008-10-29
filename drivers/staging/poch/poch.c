@@ -390,8 +390,8 @@ static int poch_channel_alloc_groups(struct channel_info *channel)
 		group->user_offset =
 			(header_pages + (i * group_pages)) * PAGE_SIZE;
 
-		printk(KERN_INFO PFX "%ld: user_offset: 0x%lx dma: 0x%x\n", i,
-		       group->user_offset, group->dma_addr);
+		printk(KERN_INFO PFX "%ld: user_offset: 0x%lx\n", i,
+		       group->user_offset);
 	}
 
 	return 0;
