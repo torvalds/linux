@@ -746,8 +746,6 @@ static sector_t udf_scan_anchors(struct super_block *sb, sector_t lastblock)
 	 *  however, if the disc isn't closed, it could be 512 */
 
 	for (i = 0; i < ARRAY_SIZE(last); i++) {
-		if (last[i] < 0)
-			continue;
 		if (last[i] >= sb->s_bdev->bd_inode->i_size >>
 				sb->s_blocksize_bits)
 			continue;
