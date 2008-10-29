@@ -700,7 +700,7 @@ struct ibmvfc_host {
 
 #define ibmvfc_log(vhost, level, ...) \
 	do { \
-		if (level >= (vhost)->log_level) \
+		if ((vhost)->log_level >= level) \
 			dev_err((vhost)->dev, ##__VA_ARGS__); \
 	} while (0)
 
