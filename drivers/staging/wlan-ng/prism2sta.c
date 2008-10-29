@@ -100,9 +100,7 @@
 /*================================================================*/
 /* Local Static Definitions */
 
-typedef char* dev_info_t;
-
-static dev_info_t	dev_info = "prism2_usb";
+static char *dev_info = "prism2_usb";
 
 static wlandevice_t *create_wlan(void);
 

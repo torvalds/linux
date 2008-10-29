@@ -52,9 +52,6 @@
 /*================================================================*/
 /* System Includes */
 
-#define __NO_VERSION__		/* prevent the static definition */
-
-
 #include <linux/version.h>
 
 #include <linux/module.h>

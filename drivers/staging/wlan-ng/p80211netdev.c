@@ -108,11 +108,6 @@
 /* Local Types */
 
 /*================================================================*/
-/* Local Static Definitions */
-
-#define __NO_VERSION__		/* prevent the static definition */
-
-/*================================================================*/
 /* Local Function Declarations */
 
 /* Support functions */
@@ -130,48 +125,22 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr);
 static void p80211knetdev_tx_timeout(netdevice_t *netdev);
 static int p80211_rx_typedrop( wlandevice_t *wlandev, u16 fc);
 
+int wlan_watchdog = 5000;
+module_param(wlan_watchdog, int, 0644);
+MODULE_PARM_DESC(wlan_watchdog, "transmit timeout in milliseconds");
+
+int wlan_wext_write = 1;
+module_param(wlan_wext_write, int, 0644);
+MODULE_PARM_DESC(wlan_wext_write, "enable write wireless extensions");
+
+#ifdef WLAN_INCLUDE_DEBUG
+int wlan_debug=0;
+module_param(wlan_debug, int, 0644);
+MODULE_PARM_DESC(wlan_debug, "p80211 debug level");
+#endif
 
 /*================================================================*/
 /* Function Definitions */
-
-/*----------------------------------------------------------------
-* p80211knetdev_startup
-*
-* Initialize the wlandevice/netdevice part of 802.11 services at
-* load time.
-*
-* Arguments:
-*	none
-*
-* Returns:
-*	nothing
-----------------------------------------------------------------*/
-void p80211netdev_startup(void)
-{
-	DBFENTER;
-
-	DBFEXIT;
-	return;
-}
-
-/*----------------------------------------------------------------
-* p80211knetdev_shutdown
-*
-* Shutdown the wlandevice/netdevice part of 802.11 services at
-* unload time.
-*
-* Arguments:
-*	none
-*
-* Returns:
-*	nothing
-----------------------------------------------------------------*/
-void
-p80211netdev_shutdown(void)
-{
-	DBFENTER;
-	DBFEXIT;
-}
 
 /*----------------------------------------------------------------
 * p80211knetdev_init
