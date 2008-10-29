@@ -649,9 +649,7 @@ static char *ip4_addr_string(char *buf, char *end, u8 *addr, int field_width,
  * - 'I' [46] for IPv4/IPv6 addresses printed in the usual way (dot-separated
  *       decimal for v4 and colon separated network-order 16 bit hex for v6)
  * - 'i' [46] for 'raw' IPv4/IPv6 addresses, IPv6 omits the colons, IPv4 is
-         currently the same
- * - '6' For a IPv6 address prints the address in network-ordered 16 bit hex
- *       with colon separators
+ *       currently the same
  *
  * Note: The difference between 'S' and 'F' is that on ia64 and ppc64
  * function pointers are really function descriptors, which contain a
@@ -669,8 +667,6 @@ static char *pointer(const char *fmt, char *buf, char *end, void *ptr, int field
 		return resource_string(buf, end, ptr, field_width, precision, flags);
 	case 'M':
 		return mac_address_string(buf, end, ptr, field_width, precision, flags);
-	case '6':
-		return ip6_addr_string(buf, end, ptr, field_width, precision, flags);
 	case 'i':
 		flags |= SPECIAL;
 		/* Fallthrough */
