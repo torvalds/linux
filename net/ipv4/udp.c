@@ -104,12 +104,8 @@
 #include <net/xfrm.h>
 #include "udp_impl.h"
 
-/*
- *	Snmp MIB for the UDP layer
- */
-
-struct hlist_head udp_hash[UDP_HTABLE_SIZE];
-DEFINE_RWLOCK(udp_hash_lock);
+struct udp_table udp_table;
+EXPORT_SYMBOL(udp_table);
 
 int sysctl_udp_mem[3] __read_mostly;
 int sysctl_udp_rmem_min __read_mostly;
@@ -123,7 +119,7 @@ atomic_t udp_memory_allocated;
 EXPORT_SYMBOL(udp_memory_allocated);
 
 static int udp_lib_lport_inuse(struct net *net, __u16 num,
-			       const struct hlist_head udptable[],
+			       const struct udp_hslot *hslot,
 			       struct sock *sk,
 			       int (*saddr_comp)(const struct sock *sk1,
 						 const struct sock *sk2))
@@ -131,7 +127,7 @@ static int udp_lib_lport_inuse(struct net *net, __u16 num,
 	struct sock *sk2;
 	struct hlist_node *node;
 
-	sk_for_each(sk2, node, &udptable[udp_hashfn(net, num)])
+	sk_for_each(sk2, node, &hslot->head)
 		if (net_eq(sock_net(sk2), net)			&&
 		    sk2 != sk					&&
 		    sk2->sk_hash == num				&&
@@ -154,11 +150,10 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 		       int (*saddr_comp)(const struct sock *sk1,
 					 const struct sock *sk2 )    )
 {
-	struct hlist_head *udptable = sk->sk_prot->h.udp_hash;
+	struct udp_hslot *hslot;
+	struct udp_table *udptable = sk->sk_prot->h.udp_table;
 	int    error = 1;
 	struct net *net = sock_net(sk);
-
-	write_lock_bh(&udp_hash_lock);
 
 	if (!snum) {
 		int low, high, remaining;
@@ -171,26 +166,34 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 		rand = net_random();
 		snum = first = rand % remaining + low;
 		rand |= 1;
-		while (udp_lib_lport_inuse(net, snum, udptable, sk,
-					   saddr_comp)) {
+		for (;;) {
+			hslot = &udptable->hash[udp_hashfn(net, snum)];
+			spin_lock_bh(&hslot->lock);
+			if (!udp_lib_lport_inuse(net, snum, hslot, sk, saddr_comp))
+				break;
+			spin_unlock_bh(&hslot->lock);
 			do {
 				snum = snum + rand;
 			} while (snum < low || snum > high);
 			if (snum == first)
 				goto fail;
 		}
-	} else if (udp_lib_lport_inuse(net, snum, udptable, sk, saddr_comp))
-		goto fail;
-
+	} else {
+		hslot = &udptable->hash[udp_hashfn(net, snum)];
+		spin_lock_bh(&hslot->lock);
+		if (udp_lib_lport_inuse(net, snum, hslot, sk, saddr_comp))
+			goto fail_unlock;
+	}
 	inet_sk(sk)->num = snum;
 	sk->sk_hash = snum;
 	if (sk_unhashed(sk)) {
-		sk_add_node(sk, &udptable[udp_hashfn(net, snum)]);
+		sk_add_node(sk, &hslot->head);
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	}
 	error = 0;
+fail_unlock:
+	spin_unlock_bh(&hslot->lock);
 fail:
-	write_unlock_bh(&udp_hash_lock);
 	return error;
 }
 
@@ -208,63 +211,73 @@ int udp_v4_get_port(struct sock *sk, unsigned short snum)
 	return udp_lib_get_port(sk, snum, ipv4_rcv_saddr_equal);
 }
 
+static inline int compute_score(struct sock *sk, struct net *net, __be32 saddr,
+			 unsigned short hnum,
+			 __be16 sport, __be32 daddr, __be16 dport, int dif)
+{
+	int score = -1;
+
+	if (net_eq(sock_net(sk), net) && sk->sk_hash == hnum &&
+			!ipv6_only_sock(sk)) {
+		struct inet_sock *inet = inet_sk(sk);
+
+		score = (sk->sk_family == PF_INET ? 1 : 0);
+		if (inet->rcv_saddr) {
+			if (inet->rcv_saddr != daddr)
+				return -1;
+			score += 2;
+		}
+		if (inet->daddr) {
+			if (inet->daddr != saddr)
+				return -1;
+			score += 2;
+		}
+		if (inet->dport) {
+			if (inet->dport != sport)
+				return -1;
+			score += 2;
+		}
+		if (sk->sk_bound_dev_if) {
+			if (sk->sk_bound_dev_if != dif)
+				return -1;
+			score += 2;
+		}
+	}
+	return score;
+}
+
 /* UDP is nearly always wildcards out the wazoo, it makes no sense to try
  * harder than this. -DaveM
  */
 static struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 		__be16 sport, __be32 daddr, __be16 dport,
-		int dif, struct hlist_head udptable[])
+		int dif, struct udp_table *udptable)
 {
 	struct sock *sk, *result = NULL;
 	struct hlist_node *node;
 	unsigned short hnum = ntohs(dport);
-	int badness = -1;
+	unsigned int hash = udp_hashfn(net, hnum);
+	struct udp_hslot *hslot = &udptable->hash[hash];
+	int score, badness = -1;
 
-	read_lock(&udp_hash_lock);
-	sk_for_each(sk, node, &udptable[udp_hashfn(net, hnum)]) {
-		struct inet_sock *inet = inet_sk(sk);
-
-		if (net_eq(sock_net(sk), net) && sk->sk_hash == hnum &&
-				!ipv6_only_sock(sk)) {
-			int score = (sk->sk_family == PF_INET ? 1 : 0);
-			if (inet->rcv_saddr) {
-				if (inet->rcv_saddr != daddr)
-					continue;
-				score+=2;
-			}
-			if (inet->daddr) {
-				if (inet->daddr != saddr)
-					continue;
-				score+=2;
-			}
-			if (inet->dport) {
-				if (inet->dport != sport)
-					continue;
-				score+=2;
-			}
-			if (sk->sk_bound_dev_if) {
-				if (sk->sk_bound_dev_if != dif)
-					continue;
-				score+=2;
-			}
-			if (score == 9) {
-				result = sk;
-				break;
-			} else if (score > badness) {
-				result = sk;
-				badness = score;
-			}
+	spin_lock(&hslot->lock);
+	sk_for_each(sk, node, &hslot->head) {
+		score = compute_score(sk, net, saddr, hnum, sport,
+				      daddr, dport, dif);
+		if (score > badness) {
+			result = sk;
+			badness = score;
 		}
 	}
 	if (result)
 		sock_hold(result);
-	read_unlock(&udp_hash_lock);
+	spin_unlock(&hslot->lock);
 	return result;
 }
 
 static inline struct sock *__udp4_lib_lookup_skb(struct sk_buff *skb,
 						 __be16 sport, __be16 dport,
-						 struct hlist_head udptable[])
+						 struct udp_table *udptable)
 {
 	struct sock *sk;
 	const struct iphdr *iph = ip_hdr(skb);
@@ -280,7 +293,7 @@ static inline struct sock *__udp4_lib_lookup_skb(struct sk_buff *skb,
 struct sock *udp4_lib_lookup(struct net *net, __be32 saddr, __be16 sport,
 			     __be32 daddr, __be16 dport, int dif)
 {
-	return __udp4_lib_lookup(net, saddr, sport, daddr, dport, dif, udp_hash);
+	return __udp4_lib_lookup(net, saddr, sport, daddr, dport, dif, &udp_table);
 }
 EXPORT_SYMBOL_GPL(udp4_lib_lookup);
 
@@ -323,7 +336,7 @@ found:
  * to find the appropriate port.
  */
 
-void __udp4_lib_err(struct sk_buff *skb, u32 info, struct hlist_head udptable[])
+void __udp4_lib_err(struct sk_buff *skb, u32 info, struct udp_table *udptable)
 {
 	struct inet_sock *inet;
 	struct iphdr *iph = (struct iphdr*)skb->data;
@@ -392,7 +405,7 @@ out:
 
 void udp_err(struct sk_buff *skb, u32 info)
 {
-	__udp4_lib_err(skb, info, udp_hash);
+	__udp4_lib_err(skb, info, &udp_table);
 }
 
 /*
@@ -933,6 +946,21 @@ int udp_disconnect(struct sock *sk, int flags)
 	return 0;
 }
 
+void udp_lib_unhash(struct sock *sk)
+{
+	struct udp_table *udptable = sk->sk_prot->h.udp_table;
+	unsigned int hash = udp_hashfn(sock_net(sk), sk->sk_hash);
+	struct udp_hslot *hslot = &udptable->hash[hash];
+
+	spin_lock(&hslot->lock);
+	if (sk_del_node_init(sk)) {
+		inet_sk(sk)->num = 0;
+		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
+	}
+	spin_unlock(&hslot->lock);
+}
+EXPORT_SYMBOL(udp_lib_unhash);
+
 static int __udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
 	int is_udplite = IS_UDPLITE(sk);
@@ -1071,13 +1099,14 @@ drop:
 static int __udp4_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 				    struct udphdr  *uh,
 				    __be32 saddr, __be32 daddr,
-				    struct hlist_head udptable[])
+				    struct udp_table *udptable)
 {
 	struct sock *sk;
+	struct udp_hslot *hslot = &udptable->hash[udp_hashfn(net, ntohs(uh->dest))];
 	int dif;
 
-	read_lock(&udp_hash_lock);
-	sk = sk_head(&udptable[udp_hashfn(net, ntohs(uh->dest))]);
+	spin_lock(&hslot->lock);
+	sk = sk_head(&hslot->head);
 	dif = skb->dev->ifindex;
 	sk = udp_v4_mcast_next(sk, uh->dest, daddr, uh->source, saddr, dif);
 	if (sk) {
@@ -1102,7 +1131,7 @@ static int __udp4_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 		} while (sknext);
 	} else
 		kfree_skb(skb);
-	read_unlock(&udp_hash_lock);
+	spin_unlock(&hslot->lock);
 	return 0;
 }
 
@@ -1148,7 +1177,7 @@ static inline int udp4_csum_init(struct sk_buff *skb, struct udphdr *uh,
  *	All we need to do is get the socket, and then do a checksum.
  */
 
-int __udp4_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
+int __udp4_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 		   int proto)
 {
 	struct sock *sk;
@@ -1246,7 +1275,7 @@ drop:
 
 int udp_rcv(struct sk_buff *skb)
 {
-	return __udp4_lib_rcv(skb, udp_hash, IPPROTO_UDP);
+	return __udp4_lib_rcv(skb, &udp_table, IPPROTO_UDP);
 }
 
 void udp_destroy_sock(struct sock *sk)
@@ -1488,7 +1517,7 @@ struct proto udp_prot = {
 	.sysctl_wmem	   = &sysctl_udp_wmem_min,
 	.sysctl_rmem	   = &sysctl_udp_rmem_min,
 	.obj_size	   = sizeof(struct udp_sock),
-	.h.udp_hash	   = udp_hash,
+	.h.udp_table	   = &udp_table,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_udp_setsockopt,
 	.compat_getsockopt = compat_udp_getsockopt,
@@ -1498,20 +1527,23 @@ struct proto udp_prot = {
 /* ------------------------------------------------------------------------ */
 #ifdef CONFIG_PROC_FS
 
-static struct sock *udp_get_first(struct seq_file *seq)
+static struct sock *udp_get_first(struct seq_file *seq, int start)
 {
 	struct sock *sk;
 	struct udp_iter_state *state = seq->private;
 	struct net *net = seq_file_net(seq);
 
-	for (state->bucket = 0; state->bucket < UDP_HTABLE_SIZE; ++state->bucket) {
+	for (state->bucket = start; state->bucket < UDP_HTABLE_SIZE; ++state->bucket) {
 		struct hlist_node *node;
-		sk_for_each(sk, node, state->hashtable + state->bucket) {
+		struct udp_hslot *hslot = &state->udp_table->hash[state->bucket];
+		spin_lock_bh(&hslot->lock);
+		sk_for_each(sk, node, &hslot->head) {
 			if (!net_eq(sock_net(sk), net))
 				continue;
 			if (sk->sk_family == state->family)
 				goto found;
 		}
+		spin_unlock_bh(&hslot->lock);
 	}
 	sk = NULL;
 found:
@@ -1525,20 +1557,18 @@ static struct sock *udp_get_next(struct seq_file *seq, struct sock *sk)
 
 	do {
 		sk = sk_next(sk);
-try_again:
-		;
 	} while (sk && (!net_eq(sock_net(sk), net) || sk->sk_family != state->family));
 
-	if (!sk && ++state->bucket < UDP_HTABLE_SIZE) {
-		sk = sk_head(state->hashtable + state->bucket);
-		goto try_again;
+	if (!sk) {
+		spin_unlock(&state->udp_table->hash[state->bucket].lock);
+		return udp_get_first(seq, state->bucket + 1);
 	}
 	return sk;
 }
 
 static struct sock *udp_get_idx(struct seq_file *seq, loff_t pos)
 {
-	struct sock *sk = udp_get_first(seq);
+	struct sock *sk = udp_get_first(seq, 0);
 
 	if (sk)
 		while (pos && (sk = udp_get_next(seq, sk)) != NULL)
@@ -1547,9 +1577,7 @@ static struct sock *udp_get_idx(struct seq_file *seq, loff_t pos)
 }
 
 static void *udp_seq_start(struct seq_file *seq, loff_t *pos)
-	__acquires(udp_hash_lock)
 {
-	read_lock(&udp_hash_lock);
 	return *pos ? udp_get_idx(seq, *pos-1) : SEQ_START_TOKEN;
 }
 
@@ -1567,9 +1595,11 @@ static void *udp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void udp_seq_stop(struct seq_file *seq, void *v)
-	__releases(udp_hash_lock)
 {
-	read_unlock(&udp_hash_lock);
+	struct udp_iter_state *state = seq->private;
+
+	if (state->bucket < UDP_HTABLE_SIZE)
+		spin_unlock_bh(&state->udp_table->hash[state->bucket].lock);
 }
 
 static int udp_seq_open(struct inode *inode, struct file *file)
@@ -1585,7 +1615,7 @@ static int udp_seq_open(struct inode *inode, struct file *file)
 
 	s = ((struct seq_file *)file->private_data)->private;
 	s->family		= afinfo->family;
-	s->hashtable		= afinfo->hashtable;
+	s->udp_table		= afinfo->udp_table;
 	return err;
 }
 
@@ -1657,7 +1687,7 @@ int udp4_seq_show(struct seq_file *seq, void *v)
 static struct udp_seq_afinfo udp4_seq_afinfo = {
 	.name		= "udp",
 	.family		= AF_INET,
-	.hashtable	= udp_hash,
+	.udp_table	= &udp_table,
 	.seq_fops	= {
 		.owner	=	THIS_MODULE,
 	},
@@ -1692,10 +1722,21 @@ void udp4_proc_exit(void)
 }
 #endif /* CONFIG_PROC_FS */
 
+void __init udp_table_init(struct udp_table *table)
+{
+	int i;
+
+	for (i = 0; i < UDP_HTABLE_SIZE; i++) {
+		INIT_HLIST_HEAD(&table->hash[i].head);
+		spin_lock_init(&table->hash[i].lock);
+	}
+}
+
 void __init udp_init(void)
 {
 	unsigned long limit;
 
+	udp_table_init(&udp_table);
 	/* Set the pressure threshold up by the same strategy of TCP. It is a
 	 * fraction of global memory that is up to 1/2 at 256 MB, decreasing
 	 * toward zero with the amount of memory, with a floor of 128 pages.
@@ -1712,8 +1753,6 @@ void __init udp_init(void)
 }
 
 EXPORT_SYMBOL(udp_disconnect);
-EXPORT_SYMBOL(udp_hash);
-EXPORT_SYMBOL(udp_hash_lock);
 EXPORT_SYMBOL(udp_ioctl);
 EXPORT_SYMBOL(udp_prot);
 EXPORT_SYMBOL(udp_sendmsg);

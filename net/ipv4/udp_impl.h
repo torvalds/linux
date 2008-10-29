@@ -5,8 +5,8 @@
 #include <net/protocol.h>
 #include <net/inet_common.h>
 
-extern int  	__udp4_lib_rcv(struct sk_buff *, struct hlist_head [], int );
-extern void 	__udp4_lib_err(struct sk_buff *, u32, struct hlist_head []);
+extern int  	__udp4_lib_rcv(struct sk_buff *, struct udp_table *, int );
+extern void 	__udp4_lib_err(struct sk_buff *, u32, struct udp_table *);
 
 extern int	udp_v4_get_port(struct sock *sk, unsigned short snum);
 

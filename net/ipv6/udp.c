@@ -54,62 +54,73 @@ int udp_v6_get_port(struct sock *sk, unsigned short snum)
 	return udp_lib_get_port(sk, snum, ipv6_rcv_saddr_equal);
 }
 
+static inline int compute_score(struct sock *sk, struct net *net,
+				unsigned short hnum,
+				struct in6_addr *saddr, __be16 sport,
+				struct in6_addr *daddr, __be16 dport,
+				int dif)
+{
+	int score = -1;
+
+	if (net_eq(sock_net(sk), net) && sk->sk_hash == hnum &&
+			sk->sk_family == PF_INET6) {
+		struct ipv6_pinfo *np = inet6_sk(sk);
+		struct inet_sock *inet = inet_sk(sk);
+
+		score = 0;
+		if (inet->dport) {
+			if (inet->dport != sport)
+				return -1;
+			score++;
+		}
+		if (!ipv6_addr_any(&np->rcv_saddr)) {
+			if (!ipv6_addr_equal(&np->rcv_saddr, daddr))
+				return -1;
+			score++;
+		}
+		if (!ipv6_addr_any(&np->daddr)) {
+			if (!ipv6_addr_equal(&np->daddr, saddr))
+				return -1;
+			score++;
+		}
+		if (sk->sk_bound_dev_if) {
+			if (sk->sk_bound_dev_if != dif)
+				return -1;
+			score++;
+		}
+	}
+	return score;
+}
+
 static struct sock *__udp6_lib_lookup(struct net *net,
 				      struct in6_addr *saddr, __be16 sport,
 				      struct in6_addr *daddr, __be16 dport,
-				      int dif, struct hlist_head udptable[])
+				      int dif, struct udp_table *udptable)
 {
 	struct sock *sk, *result = NULL;
 	struct hlist_node *node;
 	unsigned short hnum = ntohs(dport);
-	int badness = -1;
+	unsigned int hash = udp_hashfn(net, hnum);
+	struct udp_hslot *hslot = &udptable->hash[hash];
+	int score, badness = -1;
 
-	read_lock(&udp_hash_lock);
-	sk_for_each(sk, node, &udptable[udp_hashfn(net, hnum)]) {
-		struct inet_sock *inet = inet_sk(sk);
-
-		if (net_eq(sock_net(sk), net) && sk->sk_hash == hnum &&
-				sk->sk_family == PF_INET6) {
-			struct ipv6_pinfo *np = inet6_sk(sk);
-			int score = 0;
-			if (inet->dport) {
-				if (inet->dport != sport)
-					continue;
-				score++;
-			}
-			if (!ipv6_addr_any(&np->rcv_saddr)) {
-				if (!ipv6_addr_equal(&np->rcv_saddr, daddr))
-					continue;
-				score++;
-			}
-			if (!ipv6_addr_any(&np->daddr)) {
-				if (!ipv6_addr_equal(&np->daddr, saddr))
-					continue;
-				score++;
-			}
-			if (sk->sk_bound_dev_if) {
-				if (sk->sk_bound_dev_if != dif)
-					continue;
-				score++;
-			}
-			if (score == 4) {
-				result = sk;
-				break;
-			} else if (score > badness) {
-				result = sk;
-				badness = score;
-			}
+	spin_lock(&hslot->lock);
+	sk_for_each(sk, node, &hslot->head) {
+		score = compute_score(sk, net, hnum, saddr, sport, daddr, dport, dif);
+		if (score > badness) {
+			result = sk;
+			badness = score;
 		}
 	}
 	if (result)
 		sock_hold(result);
-	read_unlock(&udp_hash_lock);
+	spin_unlock(&hslot->lock);
 	return result;
 }
 
 static struct sock *__udp6_lib_lookup_skb(struct sk_buff *skb,
 					  __be16 sport, __be16 dport,
-					  struct hlist_head udptable[])
+					  struct udp_table *udptable)
 {
 	struct sock *sk;
 	struct ipv6hdr *iph = ipv6_hdr(skb);
@@ -239,7 +250,7 @@ csum_copy_err:
 
 void __udp6_lib_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		    int type, int code, int offset, __be32 info,
-		    struct hlist_head udptable[]                    )
+		    struct udp_table *udptable)
 {
 	struct ipv6_pinfo *np;
 	struct ipv6hdr *hdr = (struct ipv6hdr*)skb->data;
@@ -275,7 +286,7 @@ static __inline__ void udpv6_err(struct sk_buff *skb,
 				 struct inet6_skb_parm *opt, int type,
 				 int code, int offset, __be32 info     )
 {
-	__udp6_lib_err(skb, opt, type, code, offset, info, udp_hash);
+	__udp6_lib_err(skb, opt, type, code, offset, info, &udp_table);
 }
 
 int udpv6_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
@@ -374,14 +385,15 @@ static struct sock *udp_v6_mcast_next(struct sock *sk,
  */
 static int __udp6_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 		struct in6_addr *saddr, struct in6_addr *daddr,
-		struct hlist_head udptable[])
+		struct udp_table *udptable)
 {
 	struct sock *sk, *sk2;
 	const struct udphdr *uh = udp_hdr(skb);
+	struct udp_hslot *hslot = &udptable->hash[udp_hashfn(net, ntohs(uh->dest))];
 	int dif;
 
-	read_lock(&udp_hash_lock);
-	sk = sk_head(&udptable[udp_hashfn(net, ntohs(uh->dest))]);
+	spin_lock(&hslot->lock);
+	sk = sk_head(&hslot->head);
 	dif = inet6_iif(skb);
 	sk = udp_v6_mcast_next(sk, uh->dest, daddr, uh->source, saddr, dif);
 	if (!sk) {
@@ -409,7 +421,7 @@ static int __udp6_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 		sk_add_backlog(sk, skb);
 	bh_unlock_sock(sk);
 out:
-	read_unlock(&udp_hash_lock);
+	spin_unlock(&hslot->lock);
 	return 0;
 }
 
@@ -447,7 +459,7 @@ static inline int udp6_csum_init(struct sk_buff *skb, struct udphdr *uh,
 	return 0;
 }
 
-int __udp6_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
+int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 		   int proto)
 {
 	struct sock *sk;
@@ -544,7 +556,7 @@ discard:
 
 static __inline__ int udpv6_rcv(struct sk_buff *skb)
 {
-	return __udp6_lib_rcv(skb, udp_hash, IPPROTO_UDP);
+	return __udp6_lib_rcv(skb, &udp_table, IPPROTO_UDP);
 }
 
 /*
@@ -1008,7 +1020,7 @@ int udp6_seq_show(struct seq_file *seq, void *v)
 static struct udp_seq_afinfo udp6_seq_afinfo = {
 	.name		= "udp6",
 	.family		= AF_INET6,
-	.hashtable	= udp_hash,
+	.udp_table	= &udp_table,
 	.seq_fops	= {
 		.owner	=	THIS_MODULE,
 	},
@@ -1050,7 +1062,7 @@ struct proto udpv6_prot = {
 	.sysctl_wmem	   = &sysctl_udp_wmem_min,
 	.sysctl_rmem	   = &sysctl_udp_rmem_min,
 	.obj_size	   = sizeof(struct udp6_sock),
-	.h.udp_hash	   = udp_hash,
+	.h.udp_table	   = &udp_table,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_udpv6_setsockopt,
 	.compat_getsockopt = compat_udpv6_getsockopt,
