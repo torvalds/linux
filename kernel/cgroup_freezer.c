@@ -296,27 +296,22 @@ static int freezer_change_state(struct cgroup *cgroup,
 	int retval = 0;
 
 	freezer = cgroup_freezer(cgroup);
+
 	spin_lock_irq(&freezer->lock);
+
 	update_freezer_state(cgroup, freezer);
 	if (goal_state == freezer->state)
 		goto out;
-	switch (freezer->state) {
+
+	switch (goal_state) {
 	case CGROUP_THAWED:
-		retval = try_to_freeze_cgroup(cgroup, freezer);
-		break;
-	case CGROUP_FREEZING:
-		if (goal_state == CGROUP_FROZEN) {
-			/* Userspace is retrying after
-			 * "/bin/echo FROZEN > freezer.state" returned -EBUSY */
-			retval = try_to_freeze_cgroup(cgroup, freezer);
-			break;
-		}
-		/* state == FREEZING and goal_state == THAWED, so unfreeze */
-	case CGROUP_FROZEN:
 		unfreeze_cgroup(cgroup, freezer);
 		break;
-	default:
+	case CGROUP_FROZEN:
+		retval = try_to_freeze_cgroup(cgroup, freezer);
 		break;
+	default:
+		BUG();
 	}
 out:
 	spin_unlock_irq(&freezer->lock);
