@@ -1631,7 +1631,7 @@ static int ibmvfc_reset_device(struct scsi_device *sdev, int type, char *desc)
 	struct ibmvfc_host *vhost = shost_priv(sdev->host);
 	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
 	struct ibmvfc_cmd *tmf;
-	struct ibmvfc_event *evt;
+	struct ibmvfc_event *evt = NULL;
 	union ibmvfc_iu rsp_iu;
 	struct ibmvfc_fcp_rsp *fc_rsp = &rsp_iu.cmd.rsp;
 	int rsp_rc = -EBUSY;
