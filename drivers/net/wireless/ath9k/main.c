@@ -489,8 +489,7 @@ int _ath_rx_indicate(struct ath_softc *sc,
 	return 0;
 }
 
-int ath_rx_subframe(struct ath_node *an,
-		    struct sk_buff *skb,
+int ath_rx_subframe(struct ath_node *an, struct sk_buff *skb,
 		    struct ath_recv_status *status)
 {
 	struct ath_softc *sc = an->an_sc;

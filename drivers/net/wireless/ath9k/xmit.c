@@ -65,11 +65,12 @@ static u32 bits_per_symbol[][2] = {
  * NB: must be called with txq lock held
  */
 
-static void ath_tx_txqaddbuf(struct ath_softc *sc,
-		struct ath_txq *txq, struct list_head *head)
+static void ath_tx_txqaddbuf(struct ath_softc *sc, struct ath_txq *txq,
+			     struct list_head *head)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_buf *bf;
+
 	/*
 	 * Insert the frame on the outbound list and
 	 * pass it on to the hardware.
@@ -360,6 +361,7 @@ static void ath_tx_complete_buf(struct ath_softc *sc,
 		if (bf_isxretried(bf))
 			tx_status.flags |= ATH_TX_XRETRY;
 	}
+
 	/* Unmap this frame */
 	pci_unmap_single(sc->pdev,
 			 bf->bf_dmacontext,
@@ -497,8 +499,8 @@ static void ath_tx_set_retry(struct ath_softc *sc, struct ath_buf *bf)
 
 /* Update block ack window */
 
-static void ath_tx_update_baw(struct ath_softc *sc,
-	struct ath_atx_tid *tid, int seqno)
+static void ath_tx_update_baw(struct ath_softc *sc, struct ath_atx_tid *tid,
+			      int seqno)
 {
 	int index, cindex;
 
@@ -522,12 +524,8 @@ static void ath_tx_update_baw(struct ath_softc *sc,
  * half_gi - to use 4us v/s 3.6 us for symbol time
  */
 
-static u32 ath_pkt_duration(struct ath_softc *sc,
-				  u8 rix,
-				  struct ath_buf *bf,
-				  int width,
-				  int half_gi,
-				  bool shortPreamble)
+static u32 ath_pkt_duration(struct ath_softc *sc, u8 rix, struct ath_buf *bf,
+			    int width, int half_gi, bool shortPreamble)
 {
 	const struct ath9k_rate_table *rt = sc->sc_currates;
 	u32 nbits, nsymbits, duration, nsymbols;
@@ -541,11 +539,8 @@ static u32 ath_pkt_duration(struct ath_softc *sc,
 	 * for legacy rates, use old function to compute packet duration
 	 */
 	if (!IS_HT_RATE(rc))
-		return ath9k_hw_computetxtime(sc->sc_ah,
-					     rt,
-					     pktlen,
-					     rix,
-					     shortPreamble);
+		return ath9k_hw_computetxtime(sc->sc_ah, rt, pktlen, rix,
+					      shortPreamble);
 	/*
 	 * find number of symbols: PLCP + data
 	 */
@@ -563,6 +558,7 @@ static u32 ath_pkt_duration(struct ath_softc *sc,
 	 */
 	streams = HT_RC_2_STREAMS(rc);
 	duration += L_STF + L_LTF + L_SIG + HT_SIG + HT_STF + HT_LTF(streams);
+
 	return duration;
 }
 
@@ -578,7 +574,6 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 	int i, flags, rtsctsena = 0;
 	u32 ctsduration = 0;
 	u8 rix = 0, cix, ctsrate = 0;
-	u32 aggr_limit_with_rts = ah->ah_caps.rts_aggr_limit;
 	struct ath_node *an = NULL;
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *tx_info;
@@ -646,7 +641,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 	/*
 	 *  For AR5416 - RTS cannot be followed by a frame larger than 8K.
 	 */
-	if (bf_isaggr(bf) && (bf->bf_al > aggr_limit_with_rts)) {
+	if (bf_isaggr(bf) && (bf->bf_al > ah->ah_caps.rts_aggr_limit)) {
 		/*
 		 * Ensure that in the case of SM Dynamic power save
 		 * while we are bursting the second aggregate the
@@ -659,8 +654,8 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 	 * CTS transmit rate is derived from the transmit rate
 	 * by looking in the h/w rate table.  We must also factor
 	 * in whether or not a short preamble is to be used.
+	 * NB: cix is set above where RTS/CTS is enabled
 	 */
-	/* NB: cix is set above where RTS/CTS is enabled */
 	BUG_ON(cix == 0xff);
 	ctsrate = rt->info[cix].rateCode |
 		(bf_isshpreamble(bf) ? rt->info[cix].shortPreamble : 0);
@@ -689,15 +684,13 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 			((bf->bf_rcs[i].flags & ATH_RC_SGI_FLAG) ?
 				ATH9K_RATESERIES_HALFGI : 0);
 
-		series[i].PktDuration = ath_pkt_duration(
-			sc, rix, bf,
-			(bf->bf_rcs[i].flags & ATH_RC_CW40_FLAG) != 0,
-			(bf->bf_rcs[i].flags & ATH_RC_SGI_FLAG),
-			bf_isshpreamble(bf));
+		series[i].PktDuration = ath_pkt_duration(sc, rix, bf,
+			 (bf->bf_rcs[i].flags & ATH_RC_CW40_FLAG) != 0,
+			 (bf->bf_rcs[i].flags & ATH_RC_SGI_FLAG),
+			 bf_isshpreamble(bf));
 
-		if (bf_isht(bf))
-			series[i].ChSel =
-				ath_chainmask_sel_logic(sc, an);
+		if (bf_isht(bf) && an)
+			series[i].ChSel = ath_chainmask_sel_logic(sc, an);
 		else
 			series[i].ChSel = sc->sc_tx_chainmask;
 
@@ -748,6 +741,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 				     ctsrate,
 				     ctsduration,
 				     series, 4, flags);
+
 	if (sc->sc_config.ath_aggr_prot && flags)
 		ath9k_hw_set11n_burstduration(ah, ds, 8192);
 }
@@ -1238,26 +1232,21 @@ static void ath_tx_stopdma(struct ath_softc *sc, struct ath_txq *txq)
 static void ath_drain_txdataq(struct ath_softc *sc, bool retry_tx)
 {
 	struct ath_hal *ah = sc->sc_ah;
-	int i;
-	int npend = 0;
+	int i, status, npend = 0;
 
-	/* XXX return value */
 	if (!(sc->sc_flags & SC_OP_INVALID)) {
 		for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
 			if (ATH_TXQ_SETUP(sc, i)) {
 				ath_tx_stopdma(sc, &sc->sc_txq[i]);
-
 				/* The TxDMA may not really be stopped.
 				 * Double check the hal tx pending count */
 				npend += ath9k_hw_numtxpending(ah,
-					sc->sc_txq[i].axq_qnum);
+						       sc->sc_txq[i].axq_qnum);
 			}
 		}
 	}
 
 	if (npend) {
-		int status;
-
 		/* TxDMA not stopped, reset the hal */
 		DPRINTF(sc, ATH_DBG_XMIT,
 			"%s: Unable to stop TxDMA. Reset HAL!\n", __func__);
@@ -1360,6 +1349,7 @@ static int ath_tx_send_ampdu(struct ath_softc *sc,
 	bf->bf_lastbf = bf->bf_lastfrm; /* one single frame */
 	ath_buf_set_rate(sc, bf);
 	ath_tx_txqaddbuf(sc, txctl->txq, bf_head);
+
 	return 0;
 }
 
@@ -1379,7 +1369,6 @@ static u32 ath_lookup_rate(struct ath_softc *sc,
 	u32 max_4ms_framelen, frame_length;
 	u16 aggr_limit, legacy = 0, maxampdu;
 	int i;
-
 
 	skb = (struct sk_buff *)bf->bf_mpdu;
 	tx_info = IEEE80211_SKB_CB(skb);

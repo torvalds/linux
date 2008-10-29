@@ -816,7 +816,7 @@ void ath_rate_detach(struct ath_rate_softc *asc)
 }
 
 u8 ath_rate_findrateix(struct ath_softc *sc,
-			     u8 dot11rate)
+		       u8 dot11rate)
 {
 	const struct ath_rate_table *ratetable;
 	struct ath_rate_softc *rsc = sc->sc_rc;

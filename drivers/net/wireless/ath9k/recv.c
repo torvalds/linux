@@ -356,8 +356,8 @@ static void ath_rx_timer(unsigned long data)
 
 /* Free all pending sub-frames in the re-ordering buffer */
 
-static void ath_rx_flush_tid(struct ath_softc *sc,
-	struct ath_arx_tid *rxtid, int drop)
+static void ath_rx_flush_tid(struct ath_softc *sc, struct ath_arx_tid *rxtid,
+			     int drop)
 {
 	struct ath_rxbuf *rxbuf;
 	unsigned long flag;
@@ -1218,7 +1218,7 @@ void ath_rx_node_init(struct ath_softc *sc, struct ath_node *an)
 		 * (needs to be allocated when addba is received)
 		 */
 
-		rxtid->rxbuf     = NULL;
+		rxtid->rxbuf = NULL;
 		setup_timer(&rxtid->timer, ath_rx_timer,
 			    (unsigned long)rxtid);
 		spin_lock_init(&rxtid->tidlock);
