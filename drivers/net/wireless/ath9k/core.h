@@ -997,9 +997,8 @@ struct ath_softc {
 };
 
 int ath_init(u16 devid, struct ath_softc *sc);
-void ath_deinit(struct ath_softc *sc);
 int ath_open(struct ath_softc *sc, struct ath9k_channel *initial_chan);
-int ath_suspend(struct ath_softc *sc);
+void ath_stop(struct ath_softc *sc);
 irqreturn_t ath_isr(int irq, void *dev);
 int ath_reset(struct ath_softc *sc, bool retry_tx);
 int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan);

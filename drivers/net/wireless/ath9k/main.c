@@ -616,6 +616,7 @@ fail:
 }
 
 #ifdef CONFIG_RFKILL
+
 /*******************/
 /*	Rfkill	   */
 /*******************/
@@ -816,43 +817,72 @@ static void ath_deinit_rfkill(struct ath_softc *sc)
 		sc->rf_kill.rfkill = NULL;
 	}
 }
+
+static int ath_start_rfkill_poll(struct ath_softc *sc)
+{
+	if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
+		queue_delayed_work(sc->hw->workqueue,
+				   &sc->rf_kill.rfkill_poll, 0);
+
+	if (!(sc->sc_flags & SC_OP_RFKILL_REGISTERED)) {
+		if (rfkill_register(sc->rf_kill.rfkill)) {
+			DPRINTF(sc, ATH_DBG_FATAL,
+				"Unable to register rfkill\n");
+			rfkill_free(sc->rf_kill.rfkill);
+
+			/* Deinitialize the device */
+			if (sc->pdev->irq)
+				free_irq(sc->pdev->irq, sc);
+			ath_detach(sc);
+			pci_iounmap(sc->pdev, sc->mem);
+			pci_release_region(sc->pdev, 0);
+			pci_disable_device(sc->pdev);
+			ieee80211_free_hw(hw);
+			return -EIO;
+		} else {
+			sc->sc_flags |= SC_OP_RFKILL_REGISTERED;
+		}
+	}
+
+	return 0;
+}
 #endif /* CONFIG_RFKILL */
 
-static int ath_detach(struct ath_softc *sc)
+static void ath_detach(struct ath_softc *sc)
 {
 	struct ieee80211_hw *hw = sc->hw;
+	int i = 0;
 
 	DPRINTF(sc, ATH_DBG_CONFIG, "%s: Detach ATH hw\n", __func__);
 
-	/* Deinit LED control */
+	ieee80211_unregister_hw(hw);
+
 	ath_deinit_leds(sc);
 
 #ifdef CONFIG_RFKILL
-	/* deinit rfkill */
 	ath_deinit_rfkill(sc);
 #endif
-
-	/* Unregister hw */
-
-	ieee80211_unregister_hw(hw);
-
-	/* unregister Rate control */
 	ath_rate_control_unregister();
-
-	/* tx/rx cleanup */
+	ath_rate_detach(sc->sc_rc);
 
 	ath_rx_cleanup(sc);
 	ath_tx_cleanup(sc);
 
-	/* Deinit */
+	tasklet_kill(&sc->intr_tq);
+	tasklet_kill(&sc->bcon_tasklet);
 
-	ath_deinit(sc);
+	if (!(sc->sc_flags & SC_OP_INVALID))
+		ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
 
-	return 0;
+	/* cleanup tx queues */
+	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)
+		if (ATH_TXQ_SETUP(sc, i))
+			ath_tx_cleanupq(sc, &sc->sc_txq[i]);
+
+	ath9k_hw_detach(sc->sc_ah);
 }
 
-static int ath_attach(u16 devid,
-		      struct ath_softc *sc)
+static int ath_attach(u16 devid, struct ath_softc *sc)
 {
 	struct ieee80211_hw *hw = sc->hw;
 	int error = 0;
@@ -867,36 +897,15 @@ static int ath_attach(u16 devid,
 
 	SET_IEEE80211_PERM_ADDR(hw, sc->sc_myaddr);
 
-	/* setup channels and rates */
+	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
+		IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
+		IEEE80211_HW_SIGNAL_DBM |
+		IEEE80211_HW_AMPDU_AGGREGATION;
 
-	sc->sbands[IEEE80211_BAND_2GHZ].channels =
-		sc->channels[IEEE80211_BAND_2GHZ];
-	sc->sbands[IEEE80211_BAND_2GHZ].bitrates =
-		sc->rates[IEEE80211_BAND_2GHZ];
-	sc->sbands[IEEE80211_BAND_2GHZ].band = IEEE80211_BAND_2GHZ;
-
-	if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_HT)
-		/* Setup HT capabilities for 2.4Ghz*/
-		setup_ht_cap(&sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);
-
-	hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
-		&sc->sbands[IEEE80211_BAND_2GHZ];
-
-	if (test_bit(ATH9K_MODE_11A, sc->sc_ah->ah_caps.wireless_modes)) {
-		sc->sbands[IEEE80211_BAND_5GHZ].channels =
-			sc->channels[IEEE80211_BAND_5GHZ];
-		sc->sbands[IEEE80211_BAND_5GHZ].bitrates =
-			sc->rates[IEEE80211_BAND_5GHZ];
-		sc->sbands[IEEE80211_BAND_5GHZ].band =
-			IEEE80211_BAND_5GHZ;
-
-		if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_HT)
-			/* Setup HT capabilities for 5Ghz*/
-			setup_ht_cap(&sc->sbands[IEEE80211_BAND_5GHZ].ht_cap);
-
-		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
-			&sc->sbands[IEEE80211_BAND_5GHZ];
-	}
+	hw->wiphy->interface_modes =
+		BIT(NL80211_IFTYPE_AP) |
+		BIT(NL80211_IFTYPE_STATION) |
+		BIT(NL80211_IFTYPE_ADHOC);
 
 	hw->queues = 4;
 	hw->sta_data_size = sizeof(struct ath_node);
@@ -912,6 +921,17 @@ static int ath_attach(u16 devid,
 		ath_rate_control_unregister();
 		goto bad;
 	}
+
+	if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_HT) {
+		setup_ht_cap(&sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);
+		if (test_bit(ATH9K_MODE_11A, sc->sc_ah->ah_caps.wireless_modes))
+			setup_ht_cap(&sc->sbands[IEEE80211_BAND_5GHZ].ht_cap);
+	}
+
+	hw->wiphy->bands[IEEE80211_BAND_2GHZ] =	&sc->sbands[IEEE80211_BAND_2GHZ];
+	if (test_bit(ATH9K_MODE_11A, sc->sc_ah->ah_caps.wireless_modes))
+		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
+			&sc->sbands[IEEE80211_BAND_5GHZ];
 
 	error = ieee80211_register_hw(hw);
 	if (error != 0) {
@@ -963,49 +983,26 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	pos = ath_get_channel(sc, curchan);
 	if (pos == -1) {
 		DPRINTF(sc, ATH_DBG_FATAL, "%s: Invalid channel\n", __func__);
-		return -EINVAL;
+		error = -EINVAL;
+		goto exit;
 	}
 
 	sc->sc_ah->ah_channels[pos].chanmode =
 		(curchan->band == IEEE80211_BAND_2GHZ) ? CHANNEL_G : CHANNEL_A;
 
-	/* open ath_dev */
 	error = ath_open(sc, &sc->sc_ah->ah_channels[pos]);
 	if (error) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"%s: Unable to complete ath_open\n", __func__);
-		return error;
+		goto exit;
 	}
 
 #ifdef CONFIG_RFKILL
-	/* Start rfkill polling */
-	if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
-		queue_delayed_work(sc->hw->workqueue,
-				   &sc->rf_kill.rfkill_poll, 0);
-
-	if (!(sc->sc_flags & SC_OP_RFKILL_REGISTERED)) {
-		if (rfkill_register(sc->rf_kill.rfkill)) {
-			DPRINTF(sc, ATH_DBG_FATAL,
-					"Unable to register rfkill\n");
-			rfkill_free(sc->rf_kill.rfkill);
-
-			/* Deinitialize the device */
-			if (sc->pdev->irq)
-				free_irq(sc->pdev->irq, sc);
-			ath_detach(sc);
-			pci_iounmap(sc->pdev, sc->mem);
-			pci_release_region(sc->pdev, 0);
-			pci_disable_device(sc->pdev);
-			ieee80211_free_hw(hw);
-			return -EIO;
-		} else {
-			sc->sc_flags |= SC_OP_RFKILL_REGISTERED;
-		}
-	}
+	error = ath_start_rfkill_poll(sc);
 #endif
 
-	ieee80211_wake_queues(hw);
-	return 0;
+exit:
+	return error;
 }
 
 static int ath9k_tx(struct ieee80211_hw *hw,
@@ -1065,21 +1062,15 @@ exit:
 static void ath9k_stop(struct ieee80211_hw *hw)
 {
 	struct ath_softc *sc = hw->priv;
-	int error;
+
+	if (sc->sc_flags & SC_OP_INVALID) {
+		DPRINTF(sc, ATH_DBG_ANY, "%s: Device not present\n", __func__);
+		return;
+	}
+
+	ath_stop(sc);
 
 	DPRINTF(sc, ATH_DBG_CONFIG, "%s: Driver halt\n", __func__);
-
-	error = ath_suspend(sc);
-	if (error)
-		DPRINTF(sc, ATH_DBG_CONFIG,
-			"%s: Device is no longer present\n", __func__);
-
-	ieee80211_stop_queues(hw);
-
-#ifdef CONFIG_RFKILL
-	if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
-		cancel_delayed_work_sync(&sc->rf_kill.rfkill_poll);
-#endif
 }
 
 static int ath9k_add_interface(struct ieee80211_hw *hw,
@@ -1643,17 +1634,6 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto bad2;
 	}
 
-	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
-		IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-		IEEE80211_HW_SIGNAL_DBM |
-		IEEE80211_HW_NOISE_DBM |
-		IEEE80211_HW_AMPDU_AGGREGATION;
-
-	hw->wiphy->interface_modes =
-		BIT(NL80211_IFTYPE_AP) |
-		BIT(NL80211_IFTYPE_STATION) |
-		BIT(NL80211_IFTYPE_ADHOC);
-
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 	pci_set_drvdata(pdev, hw);
 
@@ -1701,17 +1681,10 @@ static void ath_pci_remove(struct pci_dev *pdev)
 {
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
 	struct ath_softc *sc = hw->priv;
-	enum ath9k_int status;
 
-	if (pdev->irq) {
-		ath9k_hw_set_interrupts(sc->sc_ah, 0);
-		/* clear the ISR */
-		ath9k_hw_getisr(sc->sc_ah, &status);
-		sc->sc_flags |= SC_OP_INVALID;
-		free_irq(pdev->irq, sc);
-	}
 	ath_detach(sc);
-
+	if (pdev->irq)
+		free_irq(pdev->irq, sc);
 	pci_iounmap(pdev, sc->mem);
 	pci_release_region(pdev, 0);
 	pci_disable_device(pdev);
