@@ -133,10 +133,8 @@ ebt_log_packet(u_int8_t pf, unsigned int hooknum,
 			printk(" INCOMPLETE IPv6 header");
 			goto out;
 		}
-		printk(" IPv6 SRC=%x:%x:%x:%x:%x:%x:%x:%x "
-		       "IPv6 DST=%x:%x:%x:%x:%x:%x:%x:%x, IPv6 "
-		       "priority=0x%01X, Next Header=%d", NIP6(ih->saddr),
-		       NIP6(ih->daddr), ih->priority, ih->nexthdr);
+		printk(" IPv6 SRC=%p6 IPv6 DST=%p6, IPv6 priority=0x%01X, Next Header=%d",
+		       &ih->saddr, &ih->daddr, ih->priority, ih->nexthdr);
 		nexthdr = ih->nexthdr;
 		offset_ph = ipv6_skip_exthdr(skb, sizeof(_iph), &nexthdr);
 		if (offset_ph == -1)

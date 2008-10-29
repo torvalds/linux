@@ -214,7 +214,7 @@ static int ip_map_parse(struct cache_detail *cd,
 		addr.s6_addr32[2] = htonl(0xffff);
 		addr.s6_addr32[3] =
 			htonl((((((b1<<8)|b2)<<8)|b3)<<8)|b4);
-       } else if (sscanf(buf, NIP6_FMT "%c",
+       } else if (sscanf(buf, "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x%c",
 			&b1, &b2, &b3, &b4, &b5, &b6, &b7, &b8, &c) == 8) {
 		addr.s6_addr16[0] = htons(b1);
 		addr.s6_addr16[1] = htons(b2);
