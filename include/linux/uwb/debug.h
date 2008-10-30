@@ -60,7 +60,7 @@ do {									\
 				snprintf(__head, sizeof(__head),	\
 					 "%s %s: ",			\
 					 dev_driver_string(__dev),	\
-					 __dev->bus_id);		\
+					 dev_name(__dev));		\
 		}							\
 		printk(KERN_ERR "%s%s" _tag ": " f, __head,		\
 			__func__, ## a);				\

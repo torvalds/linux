@@ -31,8 +31,7 @@ struct umc_dev *umc_device_create(struct device *parent, int n)
 
 	umc = kzalloc(sizeof(struct umc_dev), GFP_KERNEL);
 	if (umc) {
-		snprintf(umc->dev.bus_id, sizeof(umc->dev.bus_id), "%s-%d",
-			 parent->bus_id, n);
+		dev_set_name(&umc->dev, "%s-%d", dev_name(parent), n);
 		umc->dev.parent  = parent;
 		umc->dev.bus     = &umc_bus_type;
 		umc->dev.release = umc_device_release;

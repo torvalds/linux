@@ -111,7 +111,7 @@ static int whci_add_cap(struct whci_card *card, int n)
 		+ UWBCAPDATA_TO_OFFSET(capdata);
 	umc->resource.end    = umc->resource.start
 		+ (n == 0 ? 0x20 : UWBCAPDATA_TO_SIZE(capdata)) - 1;
-	umc->resource.name   = umc->dev.bus_id;
+	umc->resource.name   = dev_name(&umc->dev);
 	umc->resource.flags  = card->pci->resource[bar].flags;
 	umc->resource.parent = &card->pci->resource[bar];
 	umc->irq             = card->pci->irq;
