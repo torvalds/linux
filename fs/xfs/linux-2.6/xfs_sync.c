@@ -364,7 +364,7 @@ xfs_quiesce_fs(
 	int	count = 0, pincount;
 
 	xfs_flush_buftarg(mp->m_ddev_targp, 0);
-	xfs_finish_reclaim_all(mp, 0, XFS_IFLUSH_DELWRI_ELSE_ASYNC);
+	xfs_reclaim_inodes(mp, 0, XFS_IFLUSH_DELWRI_ELSE_ASYNC);
 
 	/*
 	 * This loop must run at least twice.  The first instance of the loop
@@ -505,7 +505,7 @@ xfs_sync_worker(
 
 	if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
 		xfs_log_force(mp, (xfs_lsn_t)0, XFS_LOG_FORCE);
-		xfs_finish_reclaim_all(mp, 1, XFS_IFLUSH_DELWRI_ELSE_ASYNC);
+		xfs_reclaim_inodes(mp, 0, XFS_IFLUSH_DELWRI_ELSE_ASYNC);
 		/* dgc: errors ignored here */
 		error = XFS_QM_DQSYNC(mp, SYNC_BDFLUSH);
 		error = xfs_sync_fsdata(mp, SYNC_BDFLUSH);
@@ -584,7 +584,7 @@ xfs_syncd_stop(
 }
 
 int
-xfs_finish_reclaim(
+xfs_reclaim_inode(
 	xfs_inode_t	*ip,
 	int		locked,
 	int		sync_mode)
@@ -645,7 +645,7 @@ xfs_finish_reclaim(
 }
 
 int
-xfs_finish_reclaim_all(
+xfs_reclaim_inodes(
 	xfs_mount_t	*mp,
 	int		 noblock,
 	int		mode)
@@ -665,7 +665,7 @@ restart:
 			}
 		}
 		XFS_MOUNT_IUNLOCK(mp);
-		if (xfs_finish_reclaim(ip, noblock, mode))
+		if (xfs_reclaim_inode(ip, noblock, mode))
 			delay(1);
 		goto restart;
 	}
