@@ -42,7 +42,7 @@
 #undef S3C_VA_WATCHDOG
 #define S3C_VA_WATCHDOG (0)
 
-#include <asm/plat-s3c/regs-watchdog.h>
+#include <plat/regs-watchdog.h>
 
 #define PFX "s3c2410-wdt: "
 
