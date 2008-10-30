@@ -54,10 +54,8 @@ STATIC void	xlog_recover_insert_item_backq(xlog_recover_item_t **q,
 					       xlog_recover_item_t *item);
 #if defined(DEBUG)
 STATIC void	xlog_recover_check_summary(xlog_t *);
-STATIC void	xlog_recover_check_ail(xfs_mount_t *, xfs_log_item_t *, int);
 #else
 #define	xlog_recover_check_summary(log)
-#define	xlog_recover_check_ail(mp, lip, gen)
 #endif
 
 
@@ -2710,8 +2708,8 @@ xlog_recover_do_efd_trans(
 	xfs_efd_log_format_t	*efd_formatp;
 	xfs_efi_log_item_t	*efip = NULL;
 	xfs_log_item_t		*lip;
-	int			gen;
 	__uint64_t		efi_id;
+	struct xfs_ail_cursor	cur;
 
 	if (pass == XLOG_RECOVER_PASS1) {
 		return;
@@ -2730,7 +2728,8 @@ xlog_recover_do_efd_trans(
 	 */
 	mp = log->l_mp;
 	spin_lock(&mp->m_ail_lock);
-	lip = xfs_trans_first_ail(mp, &gen);
+	xfs_trans_ail_cursor_init(mp->m_ail, &cur);
+	lip = xfs_trans_first_ail(mp, &cur);
 	while (lip != NULL) {
 		if (lip->li_type == XFS_LI_EFI) {
 			efip = (xfs_efi_log_item_t *)lip;
@@ -2741,11 +2740,13 @@ xlog_recover_do_efd_trans(
 				 */
 				xfs_trans_delete_ail(mp, lip);
 				xfs_efi_item_free(efip);
-				return;
+				spin_lock(&mp->m_ail_lock);
+				break;
 			}
 		}
-		lip = xfs_trans_next_ail(mp, lip, &gen, NULL);
+		lip = xfs_trans_next_ail(mp, &cur);
 	}
+	xfs_trans_ail_cursor_done(mp->m_ail, &cur);
 	spin_unlock(&mp->m_ail_lock);
 }
 
@@ -3030,33 +3031,6 @@ abort_error:
 }
 
 /*
- * Verify that once we've encountered something other than an EFI
- * in the AIL that there are no more EFIs in the AIL.
- */
-#if defined(DEBUG)
-STATIC void
-xlog_recover_check_ail(
-	xfs_mount_t		*mp,
-	xfs_log_item_t		*lip,
-	int			gen)
-{
-	int			orig_gen = gen;
-
-	do {
-		ASSERT(lip->li_type != XFS_LI_EFI);
-		lip = xfs_trans_next_ail(mp, lip, &gen, NULL);
-		/*
-		 * The check will be bogus if we restart from the
-		 * beginning of the AIL, so ASSERT that we don't.
-		 * We never should since we're holding the AIL lock
-		 * the entire time.
-		 */
-		ASSERT(gen == orig_gen);
-	} while (lip != NULL);
-}
-#endif	/* DEBUG */
-
-/*
  * When this is called, all of the EFIs which did not have
  * corresponding EFDs should be in the AIL.  What we do now
  * is free the extents associated with each one.
@@ -3080,20 +3054,25 @@ xlog_recover_process_efis(
 {
 	xfs_log_item_t		*lip;
 	xfs_efi_log_item_t	*efip;
-	int			gen;
 	xfs_mount_t		*mp;
 	int			error = 0;
+	struct xfs_ail_cursor	cur;
 
 	mp = log->l_mp;
 	spin_lock(&mp->m_ail_lock);
 
-	lip = xfs_trans_first_ail(mp, &gen);
+	xfs_trans_ail_cursor_init(mp->m_ail, &cur);
+	lip = xfs_trans_first_ail(mp, &cur);
 	while (lip != NULL) {
 		/*
 		 * We're done when we see something other than an EFI.
+		 * There should be no EFIs left in the AIL now.
 		 */
 		if (lip->li_type != XFS_LI_EFI) {
-			xlog_recover_check_ail(mp, lip, gen);
+#ifdef DEBUG
+			for (; lip; lip = xfs_trans_next_ail(mp, &cur))
+				ASSERT(lip->li_type != XFS_LI_EFI);
+#endif
 			break;
 		}
 
@@ -3102,17 +3081,19 @@ xlog_recover_process_efis(
 		 */
 		efip = (xfs_efi_log_item_t *)lip;
 		if (efip->efi_flags & XFS_EFI_RECOVERED) {
-			lip = xfs_trans_next_ail(mp, lip, &gen, NULL);
+			lip = xfs_trans_next_ail(mp, &cur);
 			continue;
 		}
 
 		spin_unlock(&mp->m_ail_lock);
 		error = xlog_recover_process_efi(mp, efip);
-		if (error)
-			return error;
 		spin_lock(&mp->m_ail_lock);
-		lip = xfs_trans_next_ail(mp, lip, &gen, NULL);
+		if (error)
+			goto out;
+		lip = xfs_trans_next_ail(mp, &cur);
 	}
+out:
+	xfs_trans_ail_cursor_done(mp->m_ail, &cur);
 	spin_unlock(&mp->m_ail_lock);
 	return error;
 }

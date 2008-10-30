@@ -99,26 +99,137 @@ xfs_trans_push_ail(
 }
 
 /*
+ * AIL traversal cursor initialisation.
+ *
+ * The cursor keeps track of where our current traversal is up
+ * to by tracking the next ƣtem in the list for us. However, for
+ * this to be safe, removing an object from the AIL needs to invalidate
+ * any cursor that points to it. hence the traversal cursor needs to
+ * be linked to the struct xfs_ail so that deletion can search all the
+ * active cursors for invalidation.
+ *
+ * We don't link the push cursor because it is embedded in the struct
+ * xfs_ail and hence easily findable.
+ */
+void
+xfs_trans_ail_cursor_init(
+	struct xfs_ail		*ailp,
+	struct xfs_ail_cursor	*cur)
+{
+	cur->item = NULL;
+	if (cur == &ailp->xa_cursors)
+		return;
+
+	cur->next = ailp->xa_cursors.next;
+	ailp->xa_cursors.next = cur;
+}
+
+/*
+ * Set the cursor to the next item, because when we look
+ * up the cursor the current item may have been freed.
+ */
+STATIC void
+xfs_trans_ail_cursor_set(
+	struct xfs_ail		*ailp,
+	struct xfs_ail_cursor	*cur,
+	struct xfs_log_item	*lip)
+{
+	if (lip)
+		cur->item = xfs_ail_next(ailp, lip);
+}
+
+/*
+ * Get the next item in the traversal and advance the cursor.
+ * If the cursor was invalidated (inidicated by a lip of 1),
+ * restart the traversal.
+ */
+STATIC struct xfs_log_item *
+xfs_trans_ail_cursor_next(
+	struct xfs_ail		*ailp,
+	struct xfs_ail_cursor	*cur)
+{
+	struct xfs_log_item	*lip = cur->item;
+
+	if ((__psint_t)lip & 1)
+		lip = xfs_ail_min(ailp);
+	xfs_trans_ail_cursor_set(ailp, cur, lip);
+	return lip;
+}
+
+/*
+ * Invalidate any cursor that is pointing to this item. This is
+ * called when an item is removed from the AIL. Any cursor pointing
+ * to this object is now invalid and the traversal needs to be
+ * terminated so it doesn't reference a freed object. We set the
+ * cursor item to a value of 1 so we can distinguish between an
+ * invalidation and the end of the list when getting the next item
+ * from the cursor.
+ */
+STATIC void
+xfs_trans_ail_cursor_clear(
+	struct xfs_ail		*ailp,
+	struct xfs_log_item	*lip)
+{
+	struct xfs_ail_cursor	*cur;
+
+	/* need to search all cursors */
+	for (cur = &ailp->xa_cursors; cur; cur = cur->next) {
+		if (cur->item == lip)
+			cur->item = (struct xfs_log_item *)
+					((__psint_t)cur->item | 1);
+	}
+}
+
+/*
+ * Now that the traversal is complete, we need to remove the cursor
+ * from the list of traversing cursors. Avoid removing the embedded
+ * push cursor, but use the fact it is alway present to make the
+ * list deletion simple.
+ */
+void
+xfs_trans_ail_cursor_done(
+	struct xfs_ail		*ailp,
+	struct xfs_ail_cursor	*done)
+{
+	struct xfs_ail_cursor	*prev = NULL;
+	struct xfs_ail_cursor	*cur;
+
+	done->item = NULL;
+	if (done == &ailp->xa_cursors)
+		return;
+	prev = &ailp->xa_cursors;
+	for (cur = prev->next; cur; prev = cur, cur = prev->next) {
+		if (cur == done) {
+			prev->next = cur->next;
+			break;
+		}
+	}
+	ASSERT(cur);
+}
+
+/*
  * Return the item in the AIL with the current lsn.
  * Return the current tree generation number for use
  * in calls to xfs_trans_next_ail().
  */
 STATIC xfs_log_item_t *
 xfs_trans_first_push_ail(
-	xfs_mount_t	*mp,
-	int		*gen,
-	xfs_lsn_t	lsn)
+	struct xfs_ail		*ailp,
+	struct xfs_ail_cursor	*cur,
+	xfs_lsn_t		lsn)
 {
-	xfs_log_item_t	*lip;
+	xfs_log_item_t		*lip;
 
-	lip = xfs_ail_min(mp->m_ail);
-	*gen = (int)mp->m_ail->xa_gen;
+	lip = xfs_ail_min(ailp);
+	xfs_trans_ail_cursor_set(ailp, cur, lip);
 	if (lsn == 0)
 		return lip;
 
-	list_for_each_entry(lip, &mp->m_ail->xa_ail, li_ail) {
-		if (XFS_LSN_CMP(lip->li_lsn, lsn) >= 0)
+	list_for_each_entry(lip, &ailp->xa_ail, li_ail) {
+		if (XFS_LSN_CMP(lip->li_lsn, lsn) >= 0) {
+			xfs_trans_ail_cursor_set(ailp, cur, lip);
 			return lip;
+		}
 	}
 
 	return NULL;
@@ -137,22 +248,21 @@ xfsaild_push(
 	xfs_lsn_t	target =  ailp->xa_target;
 	xfs_lsn_t	lsn;
 	xfs_log_item_t	*lip;
-	int		gen;
-	int		restarts;
 	int		flush_log, count, stuck;
 	xfs_mount_t	*mp = ailp->xa_mount;
-
-#define	XFS_TRANS_PUSH_AIL_RESTARTS	10
+	struct xfs_ail_cursor	*cur = &ailp->xa_cursors;
 
 	spin_lock(&mp->m_ail_lock);
-	lip = xfs_trans_first_push_ail(mp, &gen, *last_lsn);
+	xfs_trans_ail_cursor_init(ailp, cur);
+	lip = xfs_trans_first_push_ail(ailp, cur, *last_lsn);
 	if (!lip || XFS_FORCED_SHUTDOWN(mp)) {
 		/*
 		 * AIL is empty or our push has reached the end.
 		 */
+		xfs_trans_ail_cursor_done(ailp, cur);
 		spin_unlock(&mp->m_ail_lock);
 		last_pushed_lsn = 0;
-		goto out;
+		return tout;
 	}
 
 	XFS_STATS_INC(xs_push_ail);
@@ -170,7 +280,7 @@ xfsaild_push(
 	 */
 	tout = 10;
 	lsn = lip->li_lsn;
-	flush_log = stuck = count = restarts = 0;
+	flush_log = stuck = count = 0;
 	while ((XFS_LSN_CMP(lip->li_lsn, target) < 0)) {
 		int	lock_result;
 		/*
@@ -245,13 +355,12 @@ xfsaild_push(
 		if (stuck > 100)
 			break;
 
-		lip = xfs_trans_next_ail(mp, lip, &gen, &restarts);
+		lip = xfs_trans_ail_cursor_next(ailp, cur);
 		if (lip == NULL)
-			break;
-		if (restarts > XFS_TRANS_PUSH_AIL_RESTARTS)
 			break;
 		lsn = lip->li_lsn;
 	}
+	xfs_trans_ail_cursor_done(ailp, cur);
 	spin_unlock(&mp->m_ail_lock);
 
 	if (flush_log) {
@@ -275,8 +384,7 @@ xfsaild_push(
 		 */
 		tout += 20;
 		last_pushed_lsn = 0;
-	} else if ((restarts > XFS_TRANS_PUSH_AIL_RESTARTS) ||
-		   ((stuck * 100) / count > 90)) {
+	} else if ((stuck * 100) / count > 90) {
 		/*
 		 * Either there is a lot of contention on the AIL or we
 		 * are stuck due to operations in progress. "Stuck" in this
@@ -288,7 +396,6 @@ xfsaild_push(
 		 */
 		tout += 10;
 	}
-out:
 	*last_lsn = last_pushed_lsn;
 	return tout;
 }	/* xfsaild_push */
@@ -348,9 +455,6 @@ xfs_trans_unlocked_item(
  * we move in the AIL is the minimum one, update the tail lsn in the
  * log manager.
  *
- * Increment the AIL's generation count to indicate that the tree
- * has changed.
- *
  * This function must be called with the AIL lock held.  The lock
  * is dropped before returning.
  */
@@ -368,14 +472,13 @@ xfs_trans_update_ail(
 	if (lip->li_flags & XFS_LI_IN_AIL) {
 		dlip = xfs_ail_delete(mp->m_ail, lip);
 		ASSERT(dlip == lip);
+		xfs_trans_ail_cursor_clear(mp->m_ail, dlip);
 	} else {
 		lip->li_flags |= XFS_LI_IN_AIL;
 	}
 
 	lip->li_lsn = lsn;
-
 	xfs_ail_insert(mp->m_ail, lip);
-	mp->m_ail->xa_gen++;
 
 	if (mlip == dlip) {
 		mlip = xfs_ail_min(mp->m_ail);
@@ -415,11 +518,11 @@ xfs_trans_delete_ail(
 		mlip = xfs_ail_min(mp->m_ail);
 		dlip = xfs_ail_delete(mp->m_ail, lip);
 		ASSERT(dlip == lip);
+		xfs_trans_ail_cursor_clear(mp->m_ail, dlip);
 
 
 		lip->li_flags &= ~XFS_LI_IN_AIL;
 		lip->li_lsn = 0;
-		mp->m_ail->xa_gen++;
 
 		if (mlip == dlip) {
 			mlip = xfs_ail_min(mp->m_ail);
@@ -455,46 +558,29 @@ xfs_trans_delete_ail(
  */
 xfs_log_item_t *
 xfs_trans_first_ail(
-	xfs_mount_t	*mp,
-	int		*gen)
+	struct xfs_mount	*mp,
+	struct xfs_ail_cursor	*cur)
 {
-	xfs_log_item_t	*lip;
+	xfs_log_item_t		*lip;
+	struct xfs_ail		*ailp = mp->m_ail;
 
-	lip = xfs_ail_min(mp->m_ail);
-	*gen = (int)mp->m_ail->xa_gen;
+	lip = xfs_ail_min(ailp);
+	xfs_trans_ail_cursor_set(ailp, cur, lip);
 
 	return lip;
 }
 
 /*
- * If the generation count of the tree has not changed since the
- * caller last took something from the AIL, then return the elmt
- * in the tree which follows the one given.  If the count has changed,
- * then return the minimum elmt of the AIL and bump the restarts counter
- * if one is given.
+ * Grab the next item in the AIL from the cursor passed in.
  */
 xfs_log_item_t *
 xfs_trans_next_ail(
-	xfs_mount_t	*mp,
-	xfs_log_item_t	*lip,
-	int		*gen,
-	int		*restarts)
+	struct xfs_mount	*mp,
+	struct xfs_ail_cursor	*cur)
 {
-	xfs_log_item_t	*nlip;
+	struct xfs_ail		*ailp = mp->m_ail;
 
-	ASSERT(mp && lip && gen);
-	if (mp->m_ail->xa_gen == *gen) {
-		nlip = xfs_ail_next(mp->m_ail, lip);
-	} else {
-		nlip = xfs_ail_min(mp->m_ail);
-		*gen = (int)mp->m_ail->xa_gen;
-		if (restarts != NULL) {
-			XFS_STATS_INC(xs_push_ail_restarts);
-			(*restarts)++;
-		}
-	}
-
-	return (nlip);
+	return xfs_trans_ail_cursor_next(ailp, cur);
 }
 
 
@@ -517,6 +603,7 @@ xfs_trans_ail_init(
 	xfs_mount_t	*mp)
 {
 	struct xfs_ail	*ailp;
+	int		error;
 
 	ailp = kmem_zalloc(sizeof(struct xfs_ail), KM_MAYFAIL);
 	if (!ailp)
@@ -524,7 +611,15 @@ xfs_trans_ail_init(
 
 	ailp->xa_mount = mp;
 	INIT_LIST_HEAD(&ailp->xa_ail);
-	return xfsaild_start(ailp);
+	error = xfsaild_start(ailp);
+	if (error)
+		goto out_free_ailp;
+	mp->m_ail = ailp;
+	return 0;
+
+out_free_ailp:
+	kmem_free(ailp);
+	return error;
 }
 
 void
