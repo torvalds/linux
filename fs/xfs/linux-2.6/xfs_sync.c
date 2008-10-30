@@ -316,11 +316,21 @@ xfs_sync_fsdata(
 }
 
 /*
- * First stage of freeze - no more writers will make progress now we are here,
+ * When remounting a filesystem read-only or freezing the filesystem, we have
+ * two phases to execute. This first phase is syncing the data before we
+ * quiesce the filesystem, and the second is flushing all the inodes out after
+ * we've waited for all the transactions created by the first phase to
+ * complete. The second phase ensures that the inodes are written to their
+ * location on disk rather than just existing in transactions in the log. This
+ * means after a quiesce there is no log replay required to write the inodes to
+ * disk (this is the main difference between a sync and a quiesce).
+ */
+/*
+ * First stage of freeze - no writers will make progress now we are here,
  * so we flush delwri and delalloc buffers here, then wait for all I/O to
  * complete.  Data is frozen at that point. Metadata is not frozen,
- * transactions can still occur here so don't bother flushing the buftarg (i.e
- * SYNC_QUIESCE) because it'll just get dirty again.
+ * transactions can still occur here so don't bother flushing the buftarg
+ * because it'll just get dirty again.
  */
 int
 xfs_quiesce_data(
@@ -337,126 +347,14 @@ xfs_quiesce_data(
 	xfs_sync_inodes(mp, SYNC_DELWRI|SYNC_WAIT|SYNC_IOWAIT);
 	XFS_QM_DQSYNC(mp, SYNC_WAIT);
 
-	/* write superblock and hoover shutdown errors */
+	/* write superblock and hoover up shutdown errors */
 	error = xfs_sync_fsdata(mp, 0);
 
-	/* flush devices */
-	XFS_bflush(mp->m_ddev_targp);
+	/* flush data-only devices */
 	if (mp->m_rtdev_targp)
 		XFS_bflush(mp->m_rtdev_targp);
 
 	return error;
-}
-
-/*
- * xfs_sync flushes any pending I/O to file system vfsp.
- *
- * This routine is called by vfs_sync() to make sure that things make it
- * out to disk eventually, on sync() system calls to flush out everything,
- * and when the file system is unmounted.  For the vfs_sync() case, all
- * we really need to do is sync out the log to make all of our meta-data
- * updates permanent (except for timestamps).  For calls from pflushd(),
- * dirty pages are kept moving by calling pdflush() on the inodes
- * containing them.  We also flush the inodes that we can lock without
- * sleeping and the superblock if we can lock it without sleeping from
- * vfs_sync() so that items at the tail of the log are always moving out.
- *
- * Flags:
- *      SYNC_BDFLUSH - We're being called from vfs_sync() so we don't want
- *		       to sleep if we can help it.  All we really need
- *		       to do is ensure that the log is synced at least
- *		       periodically.  We also push the inodes and
- *		       superblock if we can lock them without sleeping
- *			and they are not pinned.
- *      SYNC_ATTR    - We need to flush the inodes. Now handled by direct calls
- *		       to xfs_sync_inodes().
- *      SYNC_WAIT    - All the flushes that take place in this call should
- *		       be synchronous.
- *      SYNC_DELWRI  - This tells us to push dirty pages associated with
- *		       inodes.  SYNC_WAIT and SYNC_BDFLUSH are used to
- *		       determine if they should be flushed sync, async, or
- *		       delwri.
- *      SYNC_FSDATA  - This indicates that the caller would like to make
- *		       sure the superblock is safe on disk.  We can ensure
- *		       this by simply making sure the log gets flushed
- *		       if SYNC_BDFLUSH is set, and by actually writing it
- *		       out otherwise.
- *	SYNC_IOWAIT  - The caller wants us to wait for all data I/O to complete
- *		       before we return (including direct I/O). Forms the drain
- *		       side of the write barrier needed to safely quiesce the
- *		       filesystem.
- *
- */
-int
-xfs_sync(
-	xfs_mount_t	*mp,
-	int		flags)
-{
-	int		error;
-	int		last_error = 0;
-	uint		log_flags = XFS_LOG_FORCE;
-
-	ASSERT(!(flags & SYNC_ATTR));
-
-	/*
-	 * Get the Quota Manager to flush the dquots.
-	 *
-	 * If XFS quota support is not enabled or this filesystem
-	 * instance does not use quotas XFS_QM_DQSYNC will always
-	 * return zero.
-	 */
-	error = XFS_QM_DQSYNC(mp, flags);
-	if (error) {
-		/*
-		 * If we got an IO error, we will be shutting down.
-		 * So, there's nothing more for us to do here.
-		 */
-		ASSERT(error != EIO || XFS_FORCED_SHUTDOWN(mp));
-		if (XFS_FORCED_SHUTDOWN(mp))
-			return XFS_ERROR(error);
-	}
-
-	if (flags & SYNC_IOWAIT)
-		xfs_filestream_flush(mp);
-
-	/*
-	 * Sync out the log.  This ensures that the log is periodically
-	 * flushed even if there is not enough activity to fill it up.
-	 */
-	if (flags & SYNC_WAIT)
-		log_flags |= XFS_LOG_SYNC;
-
-	xfs_log_force(mp, (xfs_lsn_t)0, log_flags);
-
-	if (flags & SYNC_DELWRI) {
-		if (flags & SYNC_BDFLUSH)
-			xfs_finish_reclaim_all(mp, 1, XFS_IFLUSH_DELWRI_ELSE_ASYNC);
-		else
-			error = xfs_sync_inodes(mp, flags);
-		/*
-		 * Flushing out dirty data above probably generated more
-		 * log activity, so if this isn't vfs_sync() then flush
-		 * the log again.
-		 */
-		xfs_log_force(mp, 0, log_flags);
-	}
-
-	if (flags & SYNC_FSDATA) {
-		error = xfs_sync_fsdata(mp, flags);
-		if (error)
-			last_error = error;
-	}
-
-	/*
-	 * Now check to see if the log needs a "dummy" transaction.
-	 */
-	if (!(flags & SYNC_REMOUNT) && xfs_log_need_covered(mp)) {
-		error = xfs_commit_dummy_trans(mp, log_flags);
-		if (error)
-			return error;
-	}
-
-	return XFS_ERROR(last_error);
 }
 
 /*

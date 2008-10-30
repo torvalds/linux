@@ -431,14 +431,13 @@ xfs_ireclaim(xfs_inode_t *ip)
 	xfs_iextract(ip);
 
 	/*
-	 * Here we do a spurious inode lock in order to coordinate with
-	 * xfs_sync().  This is because xfs_sync() references the inodes
-	 * in the mount list without taking references on the corresponding
-	 * vnodes.  We make that OK here by ensuring that we wait until
-	 * the inode is unlocked in xfs_sync() before we go ahead and
-	 * free it.  We get both the regular lock and the io lock because
-	 * the xfs_sync() code may need to drop the regular one but will
-	 * still hold the io lock.
+	 * Here we do a spurious inode lock in order to coordinate with inode
+	 * cache radix tree lookups.  This is because the lookup can reference
+	 * the inodes in the cache without taking references.  We make that OK
+	 * here by ensuring that we wait until the inode is unlocked after the
+	 * lookup before we go ahead and free it.  We get both the ilock and
+	 * the iolock because the code may need to drop the ilock one but will
+	 * still hold the iolock.
 	 */
 	xfs_ilock(ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
 

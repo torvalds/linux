@@ -987,14 +987,10 @@ xfs_qm_dqdetach(
 }
 
 /*
- * This is called by VFS_SYNC and flags arg determines the caller,
- * and its motives, as done in xfs_sync.
- *
- * vfs_sync: SYNC_FSDATA|SYNC_ATTR|SYNC_BDFLUSH 0x31
- * syscall sync: SYNC_FSDATA|SYNC_ATTR|SYNC_DELWRI 0x25
- * umountroot : SYNC_WAIT | SYNC_CLOSE | SYNC_ATTR | SYNC_FSDATA
+ * This is called to sync quotas. We can be told to use non-blocking
+ * semantics by either the SYNC_BDFLUSH flag or the absence of the
+ * SYNC_WAIT flag.
  */
-
 int
 xfs_qm_sync(
 	xfs_mount_t	*mp,
