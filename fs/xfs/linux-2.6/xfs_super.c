@@ -875,13 +875,18 @@ xfs_fs_alloc_inode(
 }
 
 /*
- * we need to provide an empty inode free function to prevent
- * the generic code from trying to free our combined inode.
+ * Now that the generic code is guaranteed not to be accessing
+ * the linux inode, we can reclaim the inode.
  */
 STATIC void
 xfs_fs_destroy_inode(
 	struct inode	*inode)
 {
+	xfs_inode_t		*ip = XFS_I(inode);
+
+	XFS_STATS_INC(vn_reclaim);
+	if (xfs_reclaim(ip))
+		panic("%s: cannot reclaim 0x%p\n", __func__, inode);
 }
 
 /*
@@ -958,22 +963,13 @@ xfs_fs_clear_inode(
 {
 	xfs_inode_t		*ip = XFS_I(inode);
 
-	/*
-	 * ip can be null when xfs_iget_core calls xfs_idestroy if we
-	 * find an inode with di_mode == 0 but without IGET_CREATE set.
-	 */
-	if (ip) {
-		xfs_itrace_entry(ip);
-		XFS_STATS_INC(vn_rele);
-		XFS_STATS_INC(vn_remove);
-		XFS_STATS_INC(vn_reclaim);
-		XFS_STATS_DEC(vn_active);
+	xfs_itrace_entry(ip);
+	XFS_STATS_INC(vn_rele);
+	XFS_STATS_INC(vn_remove);
+	XFS_STATS_DEC(vn_active);
 
-		xfs_inactive(ip);
-		xfs_iflags_clear(ip, XFS_IMODIFIED);
-		if (xfs_reclaim(ip))
-			panic("%s: cannot reclaim 0x%p\n", __func__, inode);
-	}
+	xfs_inactive(ip);
+	xfs_iflags_clear(ip, XFS_IMODIFIED);
 }
 
 STATIC void
