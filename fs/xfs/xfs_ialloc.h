@@ -56,7 +56,6 @@ static inline int xfs_ialloc_find_free(xfs_inofree_t *fp)
 }
 
 
-#ifdef __KERNEL__
 /*
  * Allocate an inode on disk.
  * Mode is used to tell whether the new inode will need space, and whether
@@ -173,7 +172,5 @@ int xfs_inobt_lookup_le(struct xfs_btree_cur *cur, xfs_agino_t ino,
  */
 extern int xfs_inobt_get_rec(struct xfs_btree_cur *cur, xfs_agino_t *ino,
 			     __int32_t *fcnt, xfs_inofree_t *free, int *stat);
-
-#endif	/* __KERNEL__ */
 
 #endif	/* __XFS_IALLOC_H__ */

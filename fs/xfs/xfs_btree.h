@@ -327,8 +327,6 @@ typedef struct xfs_btree_cur
 #define	XFS_BUF_TO_SBLOCK(bp)	((xfs_btree_sblock_t *)XFS_BUF_PTR(bp))
 
 
-#ifdef __KERNEL__
-
 /*
  * Check that long form block header is ok.
  */
@@ -514,8 +512,6 @@ static inline int xfs_btree_get_level(struct xfs_btree_block *block)
 {
 	return be16_to_cpu(block->bb_level);
 }
-
-#endif	/* __KERNEL__ */
 
 
 /*

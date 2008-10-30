@@ -44,14 +44,14 @@ typedef struct xfs_trans_reservations {
 } xfs_trans_reservations_t;
 
 #ifndef __KERNEL__
-/*
- * Moved here from xfs_ag.h to avoid reordering header files
- */
+
 #define XFS_DADDR_TO_AGNO(mp,d) \
 	((xfs_agnumber_t)(XFS_BB_TO_FSBT(mp, d) / (mp)->m_sb.sb_agblocks))
 #define XFS_DADDR_TO_AGBNO(mp,d) \
 	((xfs_agblock_t)(XFS_BB_TO_FSBT(mp, d) % (mp)->m_sb.sb_agblocks))
-#else
+
+#else /* __KERNEL__ */
+
 struct cred;
 struct log;
 struct xfs_mount_args;
@@ -507,7 +507,6 @@ typedef struct xfs_mod_sb {
 #define	XFS_MOUNT_ILOCK(mp)	mutex_lock(&((mp)->m_ilock))
 #define	XFS_MOUNT_IUNLOCK(mp)	mutex_unlock(&((mp)->m_ilock))
 
-extern void	xfs_mod_sb(xfs_trans_t *, __int64_t);
 extern int	xfs_log_sbcount(xfs_mount_t *, uint);
 extern int	xfs_mountfs(xfs_mount_t *mp);
 extern void	xfs_mountfs_check_barriers(xfs_mount_t *mp);
@@ -526,9 +525,6 @@ extern void	xfs_freesb(xfs_mount_t *);
 extern int	xfs_fs_writable(xfs_mount_t *);
 extern int	xfs_syncsub(xfs_mount_t *, int, int *);
 extern int	xfs_sync_inodes(xfs_mount_t *, int, int *);
-extern xfs_agnumber_t	xfs_initialize_perag(xfs_mount_t *, xfs_agnumber_t);
-extern void	xfs_sb_from_disk(struct xfs_sb *, struct xfs_dsb *);
-extern void	xfs_sb_to_disk(struct xfs_dsb *, struct xfs_sb *, __int64_t);
 extern int	xfs_sb_validate_fsb_count(struct xfs_sb *, __uint64_t);
 
 extern int	xfs_dmops_get(struct xfs_mount *, struct xfs_mount_args *);
@@ -539,5 +535,10 @@ extern void	xfs_qmops_put(struct xfs_mount *);
 extern struct xfs_dmops xfs_dmcore_xfs;
 
 #endif	/* __KERNEL__ */
+
+extern void	xfs_mod_sb(struct xfs_trans *, __int64_t);
+extern xfs_agnumber_t	xfs_initialize_perag(struct xfs_mount *, xfs_agnumber_t);
+extern void	xfs_sb_from_disk(struct xfs_sb *, struct xfs_dsb *);
+extern void	xfs_sb_to_disk(struct xfs_dsb *, struct xfs_sb *, __int64_t);
 
 #endif	/* __XFS_MOUNT_H__ */

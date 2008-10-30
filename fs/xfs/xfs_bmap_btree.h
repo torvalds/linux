@@ -231,8 +231,6 @@ typedef struct xfs_btree_lblock xfs_bmbt_block_t;
 	 be16_to_cpu((bb)->bb_numrecs) <= (mp)->m_bmap_dmxr[(level) != 0])
 
 
-#ifdef __KERNEL__
-
 /*
  * Prototypes for xfs_bmap.c to call.
  */
@@ -264,6 +262,5 @@ extern void xfs_bmbt_to_bmdr(xfs_bmbt_block_t *, int, xfs_bmdr_block_t *, int);
 extern struct xfs_btree_cur *xfs_bmbt_init_cursor(struct xfs_mount *,
 		struct xfs_trans *, struct xfs_inode *, int);
 
-#endif	/* __KERNEL__ */
 
 #endif	/* __XFS_BMAP_BTREE_H__ */

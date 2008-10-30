@@ -30,11 +30,9 @@ typedef struct xfs_imap {
 	ushort		im_boffset;	/* inode offset in block in bytes */
 } xfs_imap_t;
 
-#ifdef __KERNEL__
 struct xfs_mount;
 struct xfs_trans;
 int	xfs_imap(struct xfs_mount *, struct xfs_trans *, xfs_ino_t,
 		 xfs_imap_t *, uint);
-#endif
 
 #endif	/* __XFS_IMAP_H__ */
