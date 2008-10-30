@@ -15,15 +15,6 @@ MLMEProcThread(
      struct wbsoft_priv *    adapter
 	);
 
-void MLMEResetTxRx( struct wbsoft_priv * adapter);
-
-u8 *
-MLMEGetMMPDUBuffer(
-     struct wbsoft_priv *    adapter
-   );
-
-void MLMEfreeMMPDUBuffer( struct wbsoft_priv * adapter,  s8 * pData);
-
 void MLME_GetNextPacket(  struct wbsoft_priv * adapter,  PDESCRIPTOR pDes );
 u8 MLMESendFrame( struct wbsoft_priv * adapter,
 					u8	*pMMPDU,

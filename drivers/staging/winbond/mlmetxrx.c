@@ -19,59 +19,6 @@
 
 #include "mds_f.h"
 
-void MLMEResetTxRx(struct wbsoft_priv * adapter)
-{
-	s32     i;
-
-	// Reset the interface between MDS and MLME
-	for (i = 0; i < MAX_NUM_TX_MMPDU; i++)
-		adapter->sMlmeFrame.TxMMPDUInUse[i] = false;
-	for (i = 0; i < MAX_NUM_RX_MMPDU; i++)
-		adapter->sMlmeFrame.SaveRxBufSlotInUse[i] = false;
-
-	adapter->sMlmeFrame.wNumRxMMPDUInMLME   = 0;
-	adapter->sMlmeFrame.wNumRxMMPDUDiscarded = 0;
-	adapter->sMlmeFrame.wNumRxMMPDU          = 0;
-	adapter->sMlmeFrame.wNumTxMMPDUDiscarded = 0;
-	adapter->sMlmeFrame.wNumTxMMPDU          = 0;
-	adapter->sLocalPara.boCCAbusy    = false;
-	adapter->sLocalPara.iPowerSaveMode     = PWR_ACTIVE;     // Power active
-}
-
-//=============================================================================
-//	Function:
-//    MLMEGetMMPDUBuffer()
-//
-//	Description:
-//    Return the pointer to an available data buffer with
-//    the size MAX_MMPDU_SIZE for a MMPDU.
-//
-//  Arguments:
-//    adapter   - pointer to the miniport adapter context.
-//
-//	Return value:
-//    NULL     : No available data buffer available
-//    Otherwise: Pointer to the data buffer
-//=============================================================================
-
-/* FIXME: Should this just be replaced with kmalloc() and kfree()? */
-u8 *MLMEGetMMPDUBuffer(struct wbsoft_priv * adapter)
-{
-	s32 i;
-	u8 *returnVal;
-
-	for (i = 0; i< MAX_NUM_TX_MMPDU; i++) {
-		if (adapter->sMlmeFrame.TxMMPDUInUse[i] == false)
-			break;
-	}
-	if (i >= MAX_NUM_TX_MMPDU) return NULL;
-
-	returnVal = (u8 *)&(adapter->sMlmeFrame.TxMMPDU[i]);
-	adapter->sMlmeFrame.TxMMPDUInUse[i] = true;
-
-	return returnVal;
-}
-
 //=============================================================================
 u8 MLMESendFrame(struct wbsoft_priv * adapter, u8 *pMMPDU, u16 len, u8 DataType)
 /*	DataType : FRAME_TYPE_802_11_MANAGEMENT, FRAME_TYPE_802_11_MANAGEMENT_CHALLENGE,
@@ -109,7 +56,7 @@ void MLME_GetNextPacket(struct wbsoft_priv *adapter, PDESCRIPTOR desc)
 	desc->Type = adapter->sMlmeFrame.DataType;
 }
 
-void MLMEfreeMMPDUBuffer(struct wbsoft_priv * adapter, s8 *pData)
+static void MLMEfreeMMPDUBuffer(struct wbsoft_priv *adapter, s8 *pData)
 {
 	int i;
 
