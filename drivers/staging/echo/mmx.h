@@ -37,7 +37,7 @@ union mmx_t {
 	char b[8];		/* 8 Byte (8-bit) values */
 	unsigned char ub[8];	/* 8 Unsigned Byte */
 	float s[2];		/* Single-precision (32-bit) value */
-};			/* On an 8-byte (64-bit) boundary */
+};				/* On an 8-byte (64-bit) boundary */
 
 /* SSE registers */
 union xmm_t {
