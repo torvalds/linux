@@ -550,6 +550,49 @@ repeat:
 	return node ? inode : NULL;
 }
 
+static unsigned long hash(struct super_block *sb, unsigned long hashval)
+{
+	unsigned long tmp;
+
+	tmp = (hashval * (unsigned long)sb) ^ (GOLDEN_RATIO_PRIME + hashval) /
+			L1_CACHE_BYTES;
+	tmp = tmp ^ ((tmp ^ GOLDEN_RATIO_PRIME) >> I_HASHBITS);
+	return tmp & I_HASHMASK;
+}
+
+static inline void
+__inode_add_to_lists(struct super_block *sb, struct hlist_head *head,
+			struct inode *inode)
+{
+	inodes_stat.nr_inodes++;
+	list_add(&inode->i_list, &inode_in_use);
+	list_add(&inode->i_sb_list, &sb->s_inodes);
+	if (head)
+		hlist_add_head(&inode->i_hash, head);
+}
+
+/**
+ * inode_add_to_lists - add a new inode to relevant lists
+ * @sb		- superblock inode belongs to.
+ * @inode	- inode to mark in use
+ *
+ * When an inode is allocated it needs to be accounted for, added to the in use
+ * list, the owning superblock and the inode hash. This needs to be done under
+ * the inode_lock, so export a function to do this rather than the inode lock
+ * itself. We calculate the hash list to add to here so it is all internal
+ * which requires the caller to have already set up the inode number in the
+ * inode to add.
+ */
+void inode_add_to_lists(struct super_block *sb, struct inode *inode)
+{
+	struct hlist_head *head = inode_hashtable + hash(sb, inode->i_ino);
+
+	spin_lock(&inode_lock);
+	__inode_add_to_lists(sb, head, inode);
+	spin_unlock(&inode_lock);
+}
+EXPORT_SYMBOL_GPL(inode_add_to_lists);
+
 /**
  *	new_inode 	- obtain an inode
  *	@sb: superblock
@@ -577,9 +620,7 @@ struct inode *new_inode(struct super_block *sb)
 	inode = alloc_inode(sb);
 	if (inode) {
 		spin_lock(&inode_lock);
-		inodes_stat.nr_inodes++;
-		list_add(&inode->i_list, &inode_in_use);
-		list_add(&inode->i_sb_list, &sb->s_inodes);
+		__inode_add_to_lists(sb, NULL, inode);
 		inode->i_ino = ++last_ino;
 		inode->i_state = 0;
 		spin_unlock(&inode_lock);
@@ -638,10 +679,7 @@ static struct inode * get_new_inode(struct super_block *sb, struct hlist_head *h
 			if (set(inode, data))
 				goto set_failed;
 
-			inodes_stat.nr_inodes++;
-			list_add(&inode->i_list, &inode_in_use);
-			list_add(&inode->i_sb_list, &sb->s_inodes);
-			hlist_add_head(&inode->i_hash, head);
+			__inode_add_to_lists(sb, head, inode);
 			inode->i_state = I_LOCK|I_NEW;
 			spin_unlock(&inode_lock);
 
@@ -687,10 +725,7 @@ static struct inode * get_new_inode_fast(struct super_block *sb, struct hlist_he
 		old = find_inode_fast(sb, head, ino);
 		if (!old) {
 			inode->i_ino = ino;
-			inodes_stat.nr_inodes++;
-			list_add(&inode->i_list, &inode_in_use);
-			list_add(&inode->i_sb_list, &sb->s_inodes);
-			hlist_add_head(&inode->i_hash, head);
+			__inode_add_to_lists(sb, head, inode);
 			inode->i_state = I_LOCK|I_NEW;
 			spin_unlock(&inode_lock);
 
@@ -712,16 +747,6 @@ static struct inode * get_new_inode_fast(struct super_block *sb, struct hlist_he
 		wait_on_inode(inode);
 	}
 	return inode;
-}
-
-static unsigned long hash(struct super_block *sb, unsigned long hashval)
-{
-	unsigned long tmp;
-
-	tmp = (hashval * (unsigned long)sb) ^ (GOLDEN_RATIO_PRIME + hashval) /
-			L1_CACHE_BYTES;
-	tmp = tmp ^ ((tmp ^ GOLDEN_RATIO_PRIME) >> I_HASHBITS);
-	return tmp & I_HASHMASK;
 }
 
 /**

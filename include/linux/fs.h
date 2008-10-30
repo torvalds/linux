@@ -1883,6 +1883,7 @@ extern loff_t vfs_llseek(struct file *file, loff_t offset, int origin);
 
 extern struct inode * inode_init_always(struct super_block *, struct inode *);
 extern void inode_init_once(struct inode *);
+extern void inode_add_to_lists(struct super_block *, struct inode *);
 extern void iput(struct inode *);
 extern struct inode * igrab(struct inode *);
 extern ino_t iunique(struct super_block *, ino_t);
