@@ -45,7 +45,6 @@ STATIC void xfs_inobt_log_ptrs(xfs_btree_cur_t *, xfs_buf_t *, int, int);
 STATIC void xfs_inobt_log_recs(xfs_btree_cur_t *, xfs_buf_t *, int, int);
 STATIC int xfs_inobt_lshift(xfs_btree_cur_t *, int, int *);
 STATIC int xfs_inobt_newroot(xfs_btree_cur_t *, int *);
-STATIC int xfs_inobt_rshift(xfs_btree_cur_t *, int, int *);
 STATIC int xfs_inobt_split(xfs_btree_cur_t *, int, xfs_agblock_t *,
 		xfs_inobt_key_t *, xfs_btree_cur_t **, int *);
 
@@ -337,7 +336,7 @@ xfs_inobt_delrec(
 		 */
 		if (be16_to_cpu(left->bb_numrecs) - 1 >=
 		     XFS_INOBT_BLOCK_MINRECS(level, cur)) {
-			if ((error = xfs_inobt_rshift(tcur, level, &i)))
+			if ((error = xfs_btree_rshift(tcur, level, &i)))
 				goto error0;
 			if (i) {
 				ASSERT(be16_to_cpu(block->bb_numrecs) >=
@@ -608,7 +607,7 @@ xfs_inobt_insrec(
 		/*
 		 * First, try shifting an entry to the right neighbor.
 		 */
-		if ((error = xfs_inobt_rshift(cur, level, &i)))
+		if ((error = xfs_btree_rshift(cur, level, &i)))
 			return error;
 		if (i) {
 			/* nothing */
@@ -1112,136 +1111,6 @@ xfs_inobt_newroot(
 	xfs_btree_setbuf(cur, cur->bc_nlevels, nbp);
 	cur->bc_ptrs[cur->bc_nlevels] = nptr;
 	cur->bc_nlevels++;
-	*stat = 1;
-	return 0;
-}
-
-/*
- * Move 1 record right from cur/level if possible.
- * Update cur to reflect the new path.
- */
-STATIC int				/* error */
-xfs_inobt_rshift(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	int			level,	/* level to shift record on */
-	int			*stat)	/* success/failure */
-{
-	int			error;	/* error return value */
-	int			i;	/* loop index */
-	xfs_inobt_key_t		key;	/* key value for leaf level upward */
-	xfs_buf_t		*lbp;	/* buffer for left (current) block */
-	xfs_inobt_block_t	*left;	/* left (current) btree block */
-	xfs_inobt_key_t		*lkp;	/* key pointer for left block */
-	xfs_inobt_ptr_t		*lpp;	/* address pointer for left block */
-	xfs_inobt_rec_t		*lrp;	/* record pointer for left block */
-	xfs_buf_t		*rbp;	/* buffer for right neighbor block */
-	xfs_inobt_block_t	*right;	/* right neighbor btree block */
-	xfs_inobt_key_t		*rkp;	/* key pointer for right block */
-	xfs_inobt_ptr_t		*rpp;	/* address pointer for right block */
-	xfs_inobt_rec_t		*rrp=NULL;	/* record pointer for right block */
-	xfs_btree_cur_t		*tcur;	/* temporary cursor */
-
-	/*
-	 * Set up variables for this block as "left".
-	 */
-	lbp = cur->bc_bufs[level];
-	left = XFS_BUF_TO_INOBT_BLOCK(lbp);
-#ifdef DEBUG
-	if ((error = xfs_btree_check_sblock(cur, left, level, lbp)))
-		return error;
-#endif
-	/*
-	 * If we've got no right sibling then we can't shift an entry right.
-	 */
-	if (be32_to_cpu(left->bb_rightsib) == NULLAGBLOCK) {
-		*stat = 0;
-		return 0;
-	}
-	/*
-	 * If the cursor entry is the one that would be moved, don't
-	 * do it... it's too complicated.
-	 */
-	if (cur->bc_ptrs[level] >= be16_to_cpu(left->bb_numrecs)) {
-		*stat = 0;
-		return 0;
-	}
-	/*
-	 * Set up the right neighbor as "right".
-	 */
-	if ((error = xfs_btree_read_bufs(cur->bc_mp, cur->bc_tp,
-			cur->bc_private.a.agno, be32_to_cpu(left->bb_rightsib),
-			0, &rbp, XFS_INO_BTREE_REF)))
-		return error;
-	right = XFS_BUF_TO_INOBT_BLOCK(rbp);
-	if ((error = xfs_btree_check_sblock(cur, right, level, rbp)))
-		return error;
-	/*
-	 * If it's full, it can't take another entry.
-	 */
-	if (be16_to_cpu(right->bb_numrecs) == XFS_INOBT_BLOCK_MAXRECS(level, cur)) {
-		*stat = 0;
-		return 0;
-	}
-	/*
-	 * Make a hole at the start of the right neighbor block, then
-	 * copy the last left block entry to the hole.
-	 */
-	if (level > 0) {
-		lkp = XFS_INOBT_KEY_ADDR(left, be16_to_cpu(left->bb_numrecs), cur);
-		lpp = XFS_INOBT_PTR_ADDR(left, be16_to_cpu(left->bb_numrecs), cur);
-		rkp = XFS_INOBT_KEY_ADDR(right, 1, cur);
-		rpp = XFS_INOBT_PTR_ADDR(right, 1, cur);
-#ifdef DEBUG
-		for (i = be16_to_cpu(right->bb_numrecs) - 1; i >= 0; i--) {
-			if ((error = xfs_btree_check_sptr(cur, be32_to_cpu(rpp[i]), level)))
-				return error;
-		}
-#endif
-		memmove(rkp + 1, rkp, be16_to_cpu(right->bb_numrecs) * sizeof(*rkp));
-		memmove(rpp + 1, rpp, be16_to_cpu(right->bb_numrecs) * sizeof(*rpp));
-#ifdef DEBUG
-		if ((error = xfs_btree_check_sptr(cur, be32_to_cpu(*lpp), level)))
-			return error;
-#endif
-		*rkp = *lkp;
-		*rpp = *lpp;
-		xfs_inobt_log_keys(cur, rbp, 1, be16_to_cpu(right->bb_numrecs) + 1);
-		xfs_inobt_log_ptrs(cur, rbp, 1, be16_to_cpu(right->bb_numrecs) + 1);
-	} else {
-		lrp = XFS_INOBT_REC_ADDR(left, be16_to_cpu(left->bb_numrecs), cur);
-		rrp = XFS_INOBT_REC_ADDR(right, 1, cur);
-		memmove(rrp + 1, rrp, be16_to_cpu(right->bb_numrecs) * sizeof(*rrp));
-		*rrp = *lrp;
-		xfs_inobt_log_recs(cur, rbp, 1, be16_to_cpu(right->bb_numrecs) + 1);
-		key.ir_startino = rrp->ir_startino;
-		rkp = &key;
-	}
-	/*
-	 * Decrement and log left's numrecs, bump and log right's numrecs.
-	 */
-	be16_add_cpu(&left->bb_numrecs, -1);
-	xfs_inobt_log_block(cur->bc_tp, lbp, XFS_BB_NUMRECS);
-	be16_add_cpu(&right->bb_numrecs, 1);
-#ifdef DEBUG
-	if (level > 0)
-		xfs_btree_check_key(cur->bc_btnum, rkp, rkp + 1);
-	else
-		xfs_btree_check_rec(cur->bc_btnum, rrp, rrp + 1);
-#endif
-	xfs_inobt_log_block(cur->bc_tp, rbp, XFS_BB_NUMRECS);
-	/*
-	 * Using a temporary cursor, update the parent key values of the
-	 * block on the right.
-	 */
-	if ((error = xfs_btree_dup_cursor(cur, &tcur)))
-		return error;
-	xfs_btree_lastrec(tcur, level);
-	if ((error = xfs_btree_increment(tcur, level, &i)) ||
-	    (error = xfs_btree_updkey(tcur, (union xfs_btree_key *)rkp, level + 1))) {
-		xfs_btree_del_cursor(tcur, XFS_BTREE_ERROR);
-		return error;
-	}
-	xfs_btree_del_cursor(tcur, XFS_BTREE_NOERROR);
 	*stat = 1;
 	return 0;
 }

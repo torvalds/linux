@@ -533,6 +533,7 @@ int xfs_btree_decrement(struct xfs_btree_cur *, int, int *);
 int xfs_btree_lookup(struct xfs_btree_cur *, xfs_lookup_t, int *);
 int xfs_btree_updkey(struct xfs_btree_cur *, union xfs_btree_key *, int);
 int xfs_btree_update(struct xfs_btree_cur *, union xfs_btree_rec *);
+int xfs_btree_rshift(struct xfs_btree_cur *, int, int *);
 
 /*
  * Helpers.
@@ -540,6 +541,12 @@ int xfs_btree_update(struct xfs_btree_cur *, union xfs_btree_rec *);
 static inline int xfs_btree_get_numrecs(struct xfs_btree_block *block)
 {
 	return be16_to_cpu(block->bb_numrecs);
+}
+
+static inline void xfs_btree_set_numrecs(struct xfs_btree_block *block,
+		__uint16_t numrecs)
+{
+	block->bb_numrecs = cpu_to_be16(numrecs);
 }
 
 static inline int xfs_btree_get_level(struct xfs_btree_block *block)
