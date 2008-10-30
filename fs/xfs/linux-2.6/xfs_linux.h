@@ -77,6 +77,7 @@
 #include <linux/spinlock.h>
 #include <linux/random.h>
 #include <linux/ctype.h>
+#include <linux/writeback.h>
 
 #include <asm/page.h>
 #include <asm/div64.h>

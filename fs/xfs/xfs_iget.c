@@ -52,7 +52,7 @@ xfs_iget_cache_hit(
 	int			lock_flags) __releases(pag->pag_ici_lock)
 {
 	struct xfs_mount	*mp = ip->i_mount;
-	int			error = 0;
+	int			error = EAGAIN;
 
 	/*
 	 * If INEW is set this inode is being set up
@@ -60,7 +60,6 @@ xfs_iget_cache_hit(
 	 * Pause and try again.
 	 */
 	if (xfs_iflags_test(ip, (XFS_INEW|XFS_IRECLAIM))) {
-		error = EAGAIN;
 		XFS_STATS_INC(xs_ig_frecycle);
 		goto out_error;
 	}
@@ -73,7 +72,6 @@ xfs_iget_cache_hit(
 		 * error immediately so we don't remove it from the reclaim
 		 * list and potentially leak the inode.
 		 */
-
 		if ((ip->i_d.di_mode == 0) && !(flags & XFS_IGET_CREATE)) {
 			error = ENOENT;
 			goto out_error;
@@ -91,26 +89,41 @@ xfs_iget_cache_hit(
 			error = ENOMEM;
 			goto out_error;
 		}
+
+		/*
+		 * We must set the XFS_INEW flag before clearing the
+		 * XFS_IRECLAIMABLE flag so that if a racing lookup does
+		 * not find the XFS_IRECLAIMABLE above but has the igrab()
+		 * below succeed we can safely check XFS_INEW to detect
+		 * that this inode is still being initialised.
+		 */
 		xfs_iflags_set(ip, XFS_INEW);
 		xfs_iflags_clear(ip, XFS_IRECLAIMABLE);
 
 		/* clear the radix tree reclaim flag as well. */
 		__xfs_inode_clear_reclaim_tag(mp, pag, ip);
-		read_unlock(&pag->pag_ici_lock);
 	} else if (!igrab(VFS_I(ip))) {
 		/* If the VFS inode is being torn down, pause and try again. */
-		error = EAGAIN;
 		XFS_STATS_INC(xs_ig_frecycle);
 		goto out_error;
-	} else {
-		/* we've got a live one */
-		read_unlock(&pag->pag_ici_lock);
+	} else if (xfs_iflags_test(ip, XFS_INEW)) {
+		/*
+		 * We are racing with another cache hit that is
+		 * currently recycling this inode out of the XFS_IRECLAIMABLE
+		 * state. Wait for the initialisation to complete before
+		 * continuing.
+		 */
+		wait_on_inode(VFS_I(ip));
 	}
 
 	if (ip->i_d.di_mode == 0 && !(flags & XFS_IGET_CREATE)) {
 		error = ENOENT;
-		goto out;
+		iput(VFS_I(ip));
+		goto out_error;
 	}
+
+	/* We've got a live one. */
+	read_unlock(&pag->pag_ici_lock);
 
 	if (lock_flags != 0)
 		xfs_ilock(ip, lock_flags);
@@ -122,7 +135,6 @@ xfs_iget_cache_hit(
 
 out_error:
 	read_unlock(&pag->pag_ici_lock);
-out:
 	return error;
 }
 
