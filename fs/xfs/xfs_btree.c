@@ -403,6 +403,136 @@ xfs_btree_dup_cursor(
 }
 
 /*
+ * XFS btree block layout and addressing:
+ *
+ * There are two types of blocks in the btree: leaf and non-leaf blocks.
+ *
+ * The leaf record start with a header then followed by records containing
+ * the values.  A non-leaf block also starts with the same header, and
+ * then first contains lookup keys followed by an equal number of pointers
+ * to the btree blocks at the previous level.
+ *
+ *		+--------+-------+-------+-------+-------+-------+-------+
+ * Leaf:	| header | rec 1 | rec 2 | rec 3 | rec 4 | rec 5 | rec N |
+ *		+--------+-------+-------+-------+-------+-------+-------+
+ *
+ *		+--------+-------+-------+-------+-------+-------+-------+
+ * Non-Leaf:	| header | key 1 | key 2 | key N | ptr 1 | ptr 2 | ptr N |
+ *		+--------+-------+-------+-------+-------+-------+-------+
+ *
+ * The header is called struct xfs_btree_block for reasons better left unknown
+ * and comes in different versions for short (32bit) and long (64bit) block
+ * pointers.  The record and key structures are defined by the btree instances
+ * and opaque to the btree core.  The block pointers are simple disk endian
+ * integers, available in a short (32bit) and long (64bit) variant.
+ *
+ * The helpers below calculate the offset of a given record, key or pointer
+ * into a btree block (xfs_btree_*_offset) or return a pointer to the given
+ * record, key or pointer (xfs_btree_*_addr).  Note that all addressing
+ * inside the btree block is done using indices starting at one, not zero!
+ */
+
+/*
+ * Return size of the btree block header for this btree instance.
+ */
+static inline size_t xfs_btree_block_len(struct xfs_btree_cur *cur)
+{
+	return (cur->bc_flags & XFS_BTREE_LONG_PTRS) ?
+		sizeof(struct xfs_btree_lblock) :
+		sizeof(struct xfs_btree_sblock);
+}
+
+/*
+ * Return size of btree block pointers for this btree instance.
+ */
+static inline size_t xfs_btree_ptr_len(struct xfs_btree_cur *cur)
+{
+	return (cur->bc_flags & XFS_BTREE_LONG_PTRS) ?
+		sizeof(__be64) : sizeof(__be32);
+}
+
+/*
+ * Calculate offset of the n-th record in a btree block.
+ */
+STATIC size_t
+xfs_btree_rec_offset(
+	struct xfs_btree_cur	*cur,
+	int			n)
+{
+	return xfs_btree_block_len(cur) +
+		(n - 1) * cur->bc_ops->rec_len;
+}
+
+/*
+ * Calculate offset of the n-th key in a btree block.
+ */
+STATIC size_t
+xfs_btree_key_offset(
+	struct xfs_btree_cur	*cur,
+	int			n)
+{
+	return xfs_btree_block_len(cur) +
+		(n - 1) * cur->bc_ops->key_len;
+}
+
+/*
+ * Calculate offset of the n-th block pointer in a btree block.
+ */
+STATIC size_t
+xfs_btree_ptr_offset(
+	struct xfs_btree_cur	*cur,
+	int			n,
+	int			level)
+{
+	return xfs_btree_block_len(cur) +
+		cur->bc_ops->get_maxrecs(cur, level) * cur->bc_ops->key_len +
+		(n - 1) * xfs_btree_ptr_len(cur);
+}
+
+/*
+ * Return a pointer to the n-th record in the btree block.
+ */
+STATIC union xfs_btree_rec *
+xfs_btree_rec_addr(
+	struct xfs_btree_cur	*cur,
+	int			n,
+	struct xfs_btree_block	*block)
+{
+	return (union xfs_btree_rec *)
+		((char *)block + xfs_btree_rec_offset(cur, n));
+}
+
+/*
+ * Return a pointer to the n-th key in the btree block.
+ */
+STATIC union xfs_btree_key *
+xfs_btree_key_addr(
+	struct xfs_btree_cur	*cur,
+	int			n,
+	struct xfs_btree_block	*block)
+{
+	return (union xfs_btree_key *)
+		((char *)block + xfs_btree_key_offset(cur, n));
+}
+
+/*
+ * Return a pointer to the n-th block pointer in the btree block.
+ */
+STATIC union xfs_btree_ptr *
+xfs_btree_ptr_addr(
+	struct xfs_btree_cur	*cur,
+	int			n,
+	struct xfs_btree_block	*block)
+{
+	int			level = xfs_btree_get_level(block);
+
+	ASSERT(block->bb_level != 0);
+
+	return (union xfs_btree_ptr *)
+		((char *)block + xfs_btree_ptr_offset(cur, n, level));
+}
+
+/*
  * Get a the root block which is stored in the inode.
  *
  * For now this btree implementation assumes the btree root is always

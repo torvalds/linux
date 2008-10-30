@@ -2160,6 +2160,9 @@ xfs_inobt_trace_record(
 #endif /* XFS_BTREE_TRACE */
 
 static const struct xfs_btree_ops xfs_inobt_ops = {
+	.rec_len		= sizeof(xfs_inobt_rec_t),
+	.key_len		= sizeof(xfs_inobt_key_t),
+
 	.dup_cursor		= xfs_inobt_dup_cursor,
 	.get_maxrecs		= xfs_inobt_get_maxrecs,
 

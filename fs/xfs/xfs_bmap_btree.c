@@ -2509,6 +2509,9 @@ xfs_bmbt_trace_record(
 #endif /* XFS_BTREE_TRACE */
 
 static const struct xfs_btree_ops xfs_bmbt_ops = {
+	.rec_len		= sizeof(xfs_bmbt_rec_t),
+	.key_len		= sizeof(xfs_bmbt_key_t),
+
 	.dup_cursor		= xfs_bmbt_dup_cursor,
 	.get_maxrecs		= xfs_bmbt_get_maxrecs,
 

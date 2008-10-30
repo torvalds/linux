@@ -180,6 +180,10 @@ do {    \
 #define	XFS_BTREE_MAXLEVELS	8	/* max of all btrees */
 
 struct xfs_btree_ops {
+	/* size of the key and record structures */
+	size_t	key_len;
+	size_t	rec_len;
+
 	/* cursor operations */
 	struct xfs_btree_cur *(*dup_cursor)(struct xfs_btree_cur *);
 
@@ -496,6 +500,15 @@ xfs_btree_setbuf(
 	xfs_btree_cur_t		*cur,	/* btree cursor */
 	int			lev,	/* level in btree */
 	struct xfs_buf		*bp);	/* new buffer to set */
+
+
+/*
+ * Helpers.
+ */
+static inline int xfs_btree_get_level(struct xfs_btree_block *block)
+{
+	return be16_to_cpu(block->bb_level);
+}
 
 #endif	/* __KERNEL__ */
 

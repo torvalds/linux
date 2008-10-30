@@ -2294,6 +2294,9 @@ xfs_allocbt_trace_record(
 #endif /* XFS_BTREE_TRACE */
 
 static const struct xfs_btree_ops xfs_allocbt_ops = {
+	.rec_len		= sizeof(xfs_alloc_rec_t),
+	.key_len		= sizeof(xfs_alloc_key_t),
+
 	.dup_cursor		= xfs_allocbt_dup_cursor,
 	.get_maxrecs		= xfs_allocbt_get_maxrecs,
 
