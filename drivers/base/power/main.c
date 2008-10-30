@@ -76,7 +76,7 @@ void device_pm_add(struct device *dev)
 	if (dev->parent) {
 		if (dev->parent->power.status >= DPM_SUSPENDING)
 			dev_warn(dev, "parent %s should not be sleeping\n",
-				dev->parent->bus_id);
+				 dev_name(dev->parent));
 	} else if (transition_started) {
 		/*
 		 * We refuse to register parentless devices while a PM
