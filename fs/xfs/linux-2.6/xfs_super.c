@@ -18,7 +18,6 @@
 #include "xfs.h"
 #include "xfs_bit.h"
 #include "xfs_log.h"
-#include "xfs_clnt.h"
 #include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
@@ -74,32 +73,6 @@ static struct quotactl_ops xfs_quotactl_operations;
 static struct super_operations xfs_super_operations;
 static kmem_zone_t *xfs_ioend_zone;
 mempool_t *xfs_ioend_pool;
-
-STATIC struct xfs_mount_args *
-xfs_args_allocate(
-	struct super_block	*sb,
-	int			silent)
-{
-	struct xfs_mount_args	*args;
-
-	args = kzalloc(sizeof(struct xfs_mount_args), GFP_KERNEL);
-	if (!args)
-		return NULL;
-
-	args->logbufs = args->logbufsize = -1;
-	strncpy(args->fsname, sb->s_id, MAXNAMELEN);
-
-	/* Copy the already-parsed mount(2) flags we're interested in */
-	if (sb->s_flags & MS_DIRSYNC)
-		args->flags |= XFSMNT_DIRSYNC;
-	if (sb->s_flags & MS_SYNCHRONOUS)
-		args->flags |= XFSMNT_WSYNC;
-	if (silent)
-		args->flags |= XFSMNT_QUIET;
-	args->flags |= XFSMNT_32BITINODES;
-
-	return args;
-}
 
 #define MNTOPT_LOGBUFS	"logbufs"	/* number of XFS log buffers */
 #define MNTOPT_LOGBSIZE	"logbsize"	/* size of XFS log buffers */
@@ -189,25 +162,53 @@ suffix_strtoul(char *s, char **endp, unsigned int base)
 	return simple_strtoul((const char *)s, endp, base) << shift_left_factor;
 }
 
+/*
+ * This function fills in xfs_mount_t fields based on mount args.
+ * Note: the superblock has _not_ yet been read in.
+ *
+ * Note that this function leaks the various device name allocations on
+ * failure.  The caller takes care of them.
+ */
 STATIC int
 xfs_parseargs(
 	struct xfs_mount	*mp,
 	char			*options,
-	struct xfs_mount_args	*args,
-	int			update)
+	char			**mtpt)
 {
+	struct super_block	*sb = mp->m_super;
 	char			*this_char, *value, *eov;
-	int			dsunit, dswidth, vol_dsunit, vol_dswidth;
-	int			iosize;
+	int			dsunit = 0;
+	int			dswidth = 0;
+	int			iosize = 0;
 	int			dmapi_implies_ikeep = 1;
+	uchar_t			iosizelog = 0;
 
-	args->flags |= XFSMNT_BARRIER;
-	args->flags2 |= XFSMNT2_COMPAT_IOSIZE;
+	/*
+	 * Copy binary VFS mount flags we are interested in.
+	 */
+	if (sb->s_flags & MS_RDONLY)
+		mp->m_flags |= XFS_MOUNT_RDONLY;
+	if (sb->s_flags & MS_DIRSYNC)
+		mp->m_flags |= XFS_MOUNT_DIRSYNC;
+	if (sb->s_flags & MS_SYNCHRONOUS)
+		mp->m_flags |= XFS_MOUNT_WSYNC;
+
+	/*
+	 * Set some default flags that could be cleared by the mount option
+	 * parsing.
+	 */
+	mp->m_flags |= XFS_MOUNT_BARRIER;
+	mp->m_flags |= XFS_MOUNT_COMPAT_IOSIZE;
+	mp->m_flags |= XFS_MOUNT_SMALL_INUMS;
+
+	/*
+	 * These can be overridden by the mount option parsing.
+	 */
+	mp->m_logbufs = -1;
+	mp->m_logbsize = -1;
 
 	if (!options)
 		goto done;
-
-	iosize = dsunit = dswidth = vol_dsunit = vol_dswidth = 0;
 
 	while ((this_char = strsep(&options, ",")) != NULL) {
 		if (!*this_char)
@@ -222,7 +223,7 @@ xfs_parseargs(
 					this_char);
 				return EINVAL;
 			}
-			args->logbufs = simple_strtoul(value, &eov, 10);
+			mp->m_logbufs = simple_strtoul(value, &eov, 10);
 		} else if (!strcmp(this_char, MNTOPT_LOGBSIZE)) {
 			if (!value || !*value) {
 				cmn_err(CE_WARN,
@@ -230,7 +231,7 @@ xfs_parseargs(
 					this_char);
 				return EINVAL;
 			}
-			args->logbufsize = suffix_strtoul(value, &eov, 10);
+			mp->m_logbsize = suffix_strtoul(value, &eov, 10);
 		} else if (!strcmp(this_char, MNTOPT_LOGDEV)) {
 			if (!value || !*value) {
 				cmn_err(CE_WARN,
@@ -238,7 +239,9 @@ xfs_parseargs(
 					this_char);
 				return EINVAL;
 			}
-			strncpy(args->logname, value, MAXNAMELEN);
+			mp->m_logname = kstrndup(value, MAXNAMELEN, GFP_KERNEL);
+			if (!mp->m_logname)
+				return ENOMEM;
 		} else if (!strcmp(this_char, MNTOPT_MTPT)) {
 			if (!value || !*value) {
 				cmn_err(CE_WARN,
@@ -246,7 +249,9 @@ xfs_parseargs(
 					this_char);
 				return EINVAL;
 			}
-			strncpy(args->mtpt, value, MAXNAMELEN);
+			*mtpt = kstrndup(value, MAXNAMELEN, GFP_KERNEL);
+			if (!*mtpt)
+				return ENOMEM;
 		} else if (!strcmp(this_char, MNTOPT_RTDEV)) {
 			if (!value || !*value) {
 				cmn_err(CE_WARN,
@@ -254,7 +259,9 @@ xfs_parseargs(
 					this_char);
 				return EINVAL;
 			}
-			strncpy(args->rtname, value, MAXNAMELEN);
+			mp->m_rtname = kstrndup(value, MAXNAMELEN, GFP_KERNEL);
+			if (!mp->m_rtname)
+				return ENOMEM;
 		} else if (!strcmp(this_char, MNTOPT_BIOSIZE)) {
 			if (!value || !*value) {
 				cmn_err(CE_WARN,
@@ -263,8 +270,7 @@ xfs_parseargs(
 				return EINVAL;
 			}
 			iosize = simple_strtoul(value, &eov, 10);
-			args->flags |= XFSMNT_IOSIZE;
-			args->iosizelog = (uint8_t) iosize;
+			iosizelog = (uint8_t) iosize;
 		} else if (!strcmp(this_char, MNTOPT_ALLOCSIZE)) {
 			if (!value || !*value) {
 				cmn_err(CE_WARN,
@@ -273,8 +279,7 @@ xfs_parseargs(
 				return EINVAL;
 			}
 			iosize = suffix_strtoul(value, &eov, 10);
-			args->flags |= XFSMNT_IOSIZE;
-			args->iosizelog = ffs(iosize) - 1;
+			iosizelog = ffs(iosize) - 1;
 		} else if (!strcmp(this_char, MNTOPT_GRPID) ||
 			   !strcmp(this_char, MNTOPT_BSDGROUPS)) {
 			mp->m_flags |= XFS_MOUNT_GRPID;
@@ -282,23 +287,25 @@ xfs_parseargs(
 			   !strcmp(this_char, MNTOPT_SYSVGROUPS)) {
 			mp->m_flags &= ~XFS_MOUNT_GRPID;
 		} else if (!strcmp(this_char, MNTOPT_WSYNC)) {
-			args->flags |= XFSMNT_WSYNC;
+			mp->m_flags |= XFS_MOUNT_WSYNC;
 		} else if (!strcmp(this_char, MNTOPT_OSYNCISOSYNC)) {
-			args->flags |= XFSMNT_OSYNCISOSYNC;
+			mp->m_flags |= XFS_MOUNT_OSYNCISOSYNC;
 		} else if (!strcmp(this_char, MNTOPT_NORECOVERY)) {
-			args->flags |= XFSMNT_NORECOVERY;
+			mp->m_flags |= XFS_MOUNT_NORECOVERY;
 		} else if (!strcmp(this_char, MNTOPT_INO64)) {
-			args->flags |= XFSMNT_INO64;
-#if !XFS_BIG_INUMS
+#if XFS_BIG_INUMS
+			mp->m_flags |= XFS_MOUNT_INO64;
+			mp->m_inoadd = XFS_INO64_OFFSET;
+#else
 			cmn_err(CE_WARN,
 				"XFS: %s option not allowed on this system",
 				this_char);
 			return EINVAL;
 #endif
 		} else if (!strcmp(this_char, MNTOPT_NOALIGN)) {
-			args->flags |= XFSMNT_NOALIGN;
+			mp->m_flags |= XFS_MOUNT_NOALIGN;
 		} else if (!strcmp(this_char, MNTOPT_SWALLOC)) {
-			args->flags |= XFSMNT_SWALLOC;
+			mp->m_flags |= XFS_MOUNT_SWALLOC;
 		} else if (!strcmp(this_char, MNTOPT_SUNIT)) {
 			if (!value || !*value) {
 				cmn_err(CE_WARN,
@@ -316,7 +323,7 @@ xfs_parseargs(
 			}
 			dswidth = simple_strtoul(value, &eov, 10);
 		} else if (!strcmp(this_char, MNTOPT_64BITINODE)) {
-			args->flags &= ~XFSMNT_32BITINODES;
+			mp->m_flags &= ~XFS_MOUNT_SMALL_INUMS;
 #if !XFS_BIG_INUMS
 			cmn_err(CE_WARN,
 				"XFS: %s option not allowed on this system",
@@ -324,56 +331,60 @@ xfs_parseargs(
 			return EINVAL;
 #endif
 		} else if (!strcmp(this_char, MNTOPT_NOUUID)) {
-			args->flags |= XFSMNT_NOUUID;
+			mp->m_flags |= XFS_MOUNT_NOUUID;
 		} else if (!strcmp(this_char, MNTOPT_BARRIER)) {
-			args->flags |= XFSMNT_BARRIER;
+			mp->m_flags |= XFS_MOUNT_BARRIER;
 		} else if (!strcmp(this_char, MNTOPT_NOBARRIER)) {
-			args->flags &= ~XFSMNT_BARRIER;
+			mp->m_flags &= ~XFS_MOUNT_BARRIER;
 		} else if (!strcmp(this_char, MNTOPT_IKEEP)) {
-			args->flags |= XFSMNT_IKEEP;
+			mp->m_flags |= XFS_MOUNT_IKEEP;
 		} else if (!strcmp(this_char, MNTOPT_NOIKEEP)) {
 			dmapi_implies_ikeep = 0;
-			args->flags &= ~XFSMNT_IKEEP;
+			mp->m_flags &= ~XFS_MOUNT_IKEEP;
 		} else if (!strcmp(this_char, MNTOPT_LARGEIO)) {
-			args->flags2 &= ~XFSMNT2_COMPAT_IOSIZE;
+			mp->m_flags &= ~XFS_MOUNT_COMPAT_IOSIZE;
 		} else if (!strcmp(this_char, MNTOPT_NOLARGEIO)) {
-			args->flags2 |= XFSMNT2_COMPAT_IOSIZE;
+			mp->m_flags |= XFS_MOUNT_COMPAT_IOSIZE;
 		} else if (!strcmp(this_char, MNTOPT_ATTR2)) {
-			args->flags |= XFSMNT_ATTR2;
+			mp->m_flags |= XFS_MOUNT_ATTR2;
 		} else if (!strcmp(this_char, MNTOPT_NOATTR2)) {
-			args->flags &= ~XFSMNT_ATTR2;
-			args->flags |= XFSMNT_NOATTR2;
+			mp->m_flags &= ~XFS_MOUNT_ATTR2;
+			mp->m_flags |= XFS_MOUNT_NOATTR2;
 		} else if (!strcmp(this_char, MNTOPT_FILESTREAM)) {
-			args->flags2 |= XFSMNT2_FILESTREAMS;
+			mp->m_flags |= XFS_MOUNT_FILESTREAMS;
 		} else if (!strcmp(this_char, MNTOPT_NOQUOTA)) {
-			args->flags &= ~(XFSMNT_UQUOTAENF|XFSMNT_UQUOTA);
-			args->flags &= ~(XFSMNT_GQUOTAENF|XFSMNT_GQUOTA);
+			mp->m_qflags &= ~(XFS_UQUOTA_ACCT | XFS_UQUOTA_ACTIVE |
+					  XFS_GQUOTA_ACCT | XFS_GQUOTA_ACTIVE |
+					  XFS_UQUOTA_ENFD | XFS_OQUOTA_ENFD);
 		} else if (!strcmp(this_char, MNTOPT_QUOTA) ||
 			   !strcmp(this_char, MNTOPT_UQUOTA) ||
 			   !strcmp(this_char, MNTOPT_USRQUOTA)) {
-			args->flags |= XFSMNT_UQUOTA | XFSMNT_UQUOTAENF;
+			mp->m_qflags |= (XFS_UQUOTA_ACCT | XFS_UQUOTA_ACTIVE |
+					 XFS_UQUOTA_ENFD);
 		} else if (!strcmp(this_char, MNTOPT_QUOTANOENF) ||
 			   !strcmp(this_char, MNTOPT_UQUOTANOENF)) {
-			args->flags |= XFSMNT_UQUOTA;
-			args->flags &= ~XFSMNT_UQUOTAENF;
+			mp->m_qflags |= (XFS_UQUOTA_ACCT | XFS_UQUOTA_ACTIVE);
+			mp->m_qflags &= ~XFS_UQUOTA_ENFD;
 		} else if (!strcmp(this_char, MNTOPT_PQUOTA) ||
 			   !strcmp(this_char, MNTOPT_PRJQUOTA)) {
-			args->flags |= XFSMNT_PQUOTA | XFSMNT_PQUOTAENF;
+			mp->m_qflags |= (XFS_PQUOTA_ACCT | XFS_PQUOTA_ACTIVE |
+					 XFS_OQUOTA_ENFD);
 		} else if (!strcmp(this_char, MNTOPT_PQUOTANOENF)) {
-			args->flags |= XFSMNT_PQUOTA;
-			args->flags &= ~XFSMNT_PQUOTAENF;
+			mp->m_qflags |= (XFS_PQUOTA_ACCT | XFS_PQUOTA_ACTIVE);
+			mp->m_qflags &= ~XFS_OQUOTA_ENFD;
 		} else if (!strcmp(this_char, MNTOPT_GQUOTA) ||
 			   !strcmp(this_char, MNTOPT_GRPQUOTA)) {
-			args->flags |= XFSMNT_GQUOTA | XFSMNT_GQUOTAENF;
+			mp->m_qflags |= (XFS_GQUOTA_ACCT | XFS_GQUOTA_ACTIVE |
+					 XFS_OQUOTA_ENFD);
 		} else if (!strcmp(this_char, MNTOPT_GQUOTANOENF)) {
-			args->flags |= XFSMNT_GQUOTA;
-			args->flags &= ~XFSMNT_GQUOTAENF;
+			mp->m_qflags |= (XFS_GQUOTA_ACCT | XFS_GQUOTA_ACTIVE);
+			mp->m_qflags &= ~XFS_OQUOTA_ENFD;
 		} else if (!strcmp(this_char, MNTOPT_DMAPI)) {
-			args->flags |= XFSMNT_DMAPI;
+			mp->m_flags |= XFS_MOUNT_DMAPI;
 		} else if (!strcmp(this_char, MNTOPT_XDSM)) {
-			args->flags |= XFSMNT_DMAPI;
+			mp->m_flags |= XFS_MOUNT_DMAPI;
 		} else if (!strcmp(this_char, MNTOPT_DMI)) {
-			args->flags |= XFSMNT_DMAPI;
+			mp->m_flags |= XFS_MOUNT_DMAPI;
 		} else if (!strcmp(this_char, "ihashsize")) {
 			cmn_err(CE_WARN,
 	"XFS: ihashsize no longer used, option is deprecated.");
@@ -391,27 +402,29 @@ xfs_parseargs(
 		}
 	}
 
-	if (args->flags & XFSMNT_NORECOVERY) {
-		if ((mp->m_flags & XFS_MOUNT_RDONLY) == 0) {
-			cmn_err(CE_WARN,
-				"XFS: no-recovery mounts must be read-only.");
-			return EINVAL;
-		}
+	/*
+	 * no recovery flag requires a read-only mount
+	 */
+	if ((mp->m_flags & XFS_MOUNT_NORECOVERY) &&
+	    !(mp->m_flags & XFS_MOUNT_RDONLY)) {
+		cmn_err(CE_WARN, "XFS: no-recovery mounts must be read-only.");
+		return EINVAL;
 	}
 
-	if ((args->flags & XFSMNT_NOALIGN) && (dsunit || dswidth)) {
+	if ((mp->m_flags & XFS_MOUNT_NOALIGN) && (dsunit || dswidth)) {
 		cmn_err(CE_WARN,
 	"XFS: sunit and swidth options incompatible with the noalign option");
 		return EINVAL;
 	}
 
-	if ((args->flags & XFSMNT_GQUOTA) && (args->flags & XFSMNT_PQUOTA)) {
+	if ((mp->m_qflags & (XFS_GQUOTA_ACCT | XFS_GQUOTA_ACTIVE)) &&
+	    (mp->m_qflags & (XFS_PQUOTA_ACCT | XFS_PQUOTA_ACTIVE))) {
 		cmn_err(CE_WARN,
 			"XFS: cannot mount with both project and group quota");
 		return EINVAL;
 	}
 
-	if ((args->flags & XFSMNT_DMAPI) && *args->mtpt == '\0') {
+	if ((mp->m_flags & XFS_MOUNT_DMAPI) && (!*mtpt || *mtpt[0] == '\0')) {
 		printk("XFS: %s option needs the mount point option as well\n",
 			MNTOPT_DMAPI);
 		return EINVAL;
@@ -439,27 +452,66 @@ xfs_parseargs(
 	 * Note that if "ikeep" or "noikeep" mount options are
 	 * supplied, then they are honored.
 	 */
-	if ((args->flags & XFSMNT_DMAPI) && dmapi_implies_ikeep)
-		args->flags |= XFSMNT_IKEEP;
-
-	if ((args->flags & XFSMNT_NOALIGN) != XFSMNT_NOALIGN) {
-		if (dsunit) {
-			args->sunit = dsunit;
-			args->flags |= XFSMNT_RETERR;
-		} else {
-			args->sunit = vol_dsunit;
-		}
-		dswidth ? (args->swidth = dswidth) :
-			  (args->swidth = vol_dswidth);
-	} else {
-		args->sunit = args->swidth = 0;
-	}
+	if ((mp->m_flags & XFS_MOUNT_DMAPI) && dmapi_implies_ikeep)
+		mp->m_flags |= XFS_MOUNT_IKEEP;
 
 done:
-	if (args->flags & XFSMNT_32BITINODES)
-		mp->m_flags |= XFS_MOUNT_SMALL_INUMS;
-	if (args->flags2)
-		args->flags |= XFSMNT_FLAGS2;
+	if (!(mp->m_flags & XFS_MOUNT_NOALIGN)) {
+		/*
+		 * At this point the superblock has not been read
+		 * in, therefore we do not know the block size.
+		 * Before the mount call ends we will convert
+		 * these to FSBs.
+		 */
+		if (dsunit) {
+			mp->m_dalign = dsunit;
+			mp->m_flags |= XFS_MOUNT_RETERR;
+		}
+
+		if (dswidth)
+			mp->m_swidth = dswidth;
+	}
+
+	if (mp->m_logbufs != -1 &&
+	    mp->m_logbufs != 0 &&
+	    (mp->m_logbufs < XLOG_MIN_ICLOGS ||
+	     mp->m_logbufs > XLOG_MAX_ICLOGS)) {
+		cmn_err(CE_WARN,
+			"XFS: invalid logbufs value: %d [not %d-%d]",
+			mp->m_logbufs, XLOG_MIN_ICLOGS, XLOG_MAX_ICLOGS);
+		return XFS_ERROR(EINVAL);
+	}
+	if (mp->m_logbsize != -1 &&
+	    mp->m_logbsize !=  0 &&
+	    (mp->m_logbsize < XLOG_MIN_RECORD_BSIZE ||
+	     mp->m_logbsize > XLOG_MAX_RECORD_BSIZE ||
+	     !is_power_of_2(mp->m_logbsize))) {
+		cmn_err(CE_WARN,
+	"XFS: invalid logbufsize: %d [not 16k,32k,64k,128k or 256k]",
+			mp->m_logbsize);
+		return XFS_ERROR(EINVAL);
+	}
+
+	mp->m_fsname = kstrndup(sb->s_id, MAXNAMELEN, GFP_KERNEL);
+	if (!mp->m_fsname)
+		return ENOMEM;
+	mp->m_fsname_len = strlen(mp->m_fsname) + 1;
+
+	if (iosizelog) {
+		if (iosizelog > XFS_MAX_IO_LOG ||
+		    iosizelog < XFS_MIN_IO_LOG) {
+			cmn_err(CE_WARN,
+		"XFS: invalid log iosize: %d [not %d-%d]",
+				iosizelog, XFS_MIN_IO_LOG,
+				XFS_MAX_IO_LOG);
+			return XFS_ERROR(EINVAL);
+		}
+
+		mp->m_flags |= XFS_MOUNT_DFLT_IOSIZE;
+		mp->m_readio_log = iosizelog;
+		mp->m_writeio_log = iosizelog;
+	}
+
 	return 0;
 }
 
@@ -705,8 +757,7 @@ xfs_close_devices(
  */
 STATIC int
 xfs_open_devices(
-	struct xfs_mount	*mp,
-	struct xfs_mount_args	*args)
+	struct xfs_mount	*mp)
 {
 	struct block_device	*ddev = mp->m_super->s_bdev;
 	struct block_device	*logdev = NULL, *rtdev = NULL;
@@ -715,14 +766,14 @@ xfs_open_devices(
 	/*
 	 * Open real time and log devices - order is important.
 	 */
-	if (args->logname[0]) {
-		error = xfs_blkdev_get(mp, args->logname, &logdev);
+	if (mp->m_logname) {
+		error = xfs_blkdev_get(mp, mp->m_logname, &logdev);
 		if (error)
 			goto out;
 	}
 
-	if (args->rtname[0]) {
-		error = xfs_blkdev_get(mp, args->rtname, &rtdev);
+	if (mp->m_rtname) {
+		error = xfs_blkdev_get(mp, mp->m_rtname, &rtdev);
 		if (error)
 			goto out_close_logdev;
 
@@ -1288,175 +1339,28 @@ xfs_fs_setxquota(
 
 /*
  * This function fills in xfs_mount_t fields based on mount args.
- * Note: the superblock has _not_ yet been read in.
- */
-STATIC int
-xfs_start_flags(
-	struct xfs_mount_args	*ap,
-	struct xfs_mount	*mp)
-{
-	int			error;
-
-	/* Values are in BBs */
-	if ((ap->flags & XFSMNT_NOALIGN) != XFSMNT_NOALIGN) {
-		/*
-		 * At this point the superblock has not been read
-		 * in, therefore we do not know the block size.
-		 * Before the mount call ends we will convert
-		 * these to FSBs.
-		 */
-		mp->m_dalign = ap->sunit;
-		mp->m_swidth = ap->swidth;
-	}
-
-	if (ap->logbufs != -1 &&
-	    ap->logbufs != 0 &&
-	    (ap->logbufs < XLOG_MIN_ICLOGS ||
-	     ap->logbufs > XLOG_MAX_ICLOGS)) {
-		cmn_err(CE_WARN,
-			"XFS: invalid logbufs value: %d [not %d-%d]",
-			ap->logbufs, XLOG_MIN_ICLOGS, XLOG_MAX_ICLOGS);
-		return XFS_ERROR(EINVAL);
-	}
-	mp->m_logbufs = ap->logbufs;
-	if (ap->logbufsize != -1 &&
-	    ap->logbufsize !=  0 &&
-	    (ap->logbufsize < XLOG_MIN_RECORD_BSIZE ||
-	     ap->logbufsize > XLOG_MAX_RECORD_BSIZE ||
-	     !is_power_of_2(ap->logbufsize))) {
-		cmn_err(CE_WARN,
-	"XFS: invalid logbufsize: %d [not 16k,32k,64k,128k or 256k]",
-			ap->logbufsize);
-		return XFS_ERROR(EINVAL);
-	}
-
-	error = ENOMEM;
-
-	mp->m_logbsize = ap->logbufsize;
-	mp->m_fsname_len = strlen(ap->fsname) + 1;
-
-	mp->m_fsname = kstrdup(ap->fsname, GFP_KERNEL);
-	if (!mp->m_fsname)
-		goto out;
-
-	if (ap->rtname[0]) {
-		mp->m_rtname = kstrdup(ap->rtname, GFP_KERNEL);
-		if (!mp->m_rtname)
-			goto out_free_fsname;
-
-	}
-
-	if (ap->logname[0]) {
-		mp->m_logname = kstrdup(ap->logname, GFP_KERNEL);
-		if (!mp->m_logname)
-			goto out_free_rtname;
-	}
-
-	if (ap->flags & XFSMNT_WSYNC)
-		mp->m_flags |= XFS_MOUNT_WSYNC;
-#if XFS_BIG_INUMS
-	if (ap->flags & XFSMNT_INO64) {
-		mp->m_flags |= XFS_MOUNT_INO64;
-		mp->m_inoadd = XFS_INO64_OFFSET;
-	}
-#endif
-	if (ap->flags & XFSMNT_RETERR)
-		mp->m_flags |= XFS_MOUNT_RETERR;
-	if (ap->flags & XFSMNT_NOALIGN)
-		mp->m_flags |= XFS_MOUNT_NOALIGN;
-	if (ap->flags & XFSMNT_SWALLOC)
-		mp->m_flags |= XFS_MOUNT_SWALLOC;
-	if (ap->flags & XFSMNT_OSYNCISOSYNC)
-		mp->m_flags |= XFS_MOUNT_OSYNCISOSYNC;
-	if (ap->flags & XFSMNT_32BITINODES)
-		mp->m_flags |= XFS_MOUNT_32BITINODES;
-
-	if (ap->flags & XFSMNT_IOSIZE) {
-		if (ap->iosizelog > XFS_MAX_IO_LOG ||
-		    ap->iosizelog < XFS_MIN_IO_LOG) {
-			cmn_err(CE_WARN,
-		"XFS: invalid log iosize: %d [not %d-%d]",
-				ap->iosizelog, XFS_MIN_IO_LOG,
-				XFS_MAX_IO_LOG);
-			return XFS_ERROR(EINVAL);
-		}
-
-		mp->m_flags |= XFS_MOUNT_DFLT_IOSIZE;
-		mp->m_readio_log = mp->m_writeio_log = ap->iosizelog;
-	}
-
-	if (ap->flags & XFSMNT_IKEEP)
-		mp->m_flags |= XFS_MOUNT_IKEEP;
-	if (ap->flags & XFSMNT_DIRSYNC)
-		mp->m_flags |= XFS_MOUNT_DIRSYNC;
-	if (ap->flags & XFSMNT_ATTR2)
-		mp->m_flags |= XFS_MOUNT_ATTR2;
-	if (ap->flags & XFSMNT_NOATTR2)
-		mp->m_flags |= XFS_MOUNT_NOATTR2;
-
-	if (ap->flags2 & XFSMNT2_COMPAT_IOSIZE)
-		mp->m_flags |= XFS_MOUNT_COMPAT_IOSIZE;
-
-	/*
-	 * no recovery flag requires a read-only mount
-	 */
-	if (ap->flags & XFSMNT_NORECOVERY) {
-		if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
-			cmn_err(CE_WARN,
-	"XFS: tried to mount a FS read-write without recovery!");
-			return XFS_ERROR(EINVAL);
-		}
-		mp->m_flags |= XFS_MOUNT_NORECOVERY;
-	}
-
-	if (ap->flags & XFSMNT_NOUUID)
-		mp->m_flags |= XFS_MOUNT_NOUUID;
-	if (ap->flags & XFSMNT_BARRIER)
-		mp->m_flags |= XFS_MOUNT_BARRIER;
-	else
-		mp->m_flags &= ~XFS_MOUNT_BARRIER;
-
-	if (ap->flags2 & XFSMNT2_FILESTREAMS)
-		mp->m_flags |= XFS_MOUNT_FILESTREAMS;
-
-	if (ap->flags & XFSMNT_DMAPI)
-		mp->m_flags |= XFS_MOUNT_DMAPI;
-	return 0;
-
-
- out_free_rtname:
-	kfree(mp->m_rtname);
- out_free_fsname:
-	kfree(mp->m_fsname);
- out:
-	return error;
-}
-
-/*
- * This function fills in xfs_mount_t fields based on mount args.
  * Note: the superblock _has_ now been read in.
  */
 STATIC int
 xfs_finish_flags(
-	struct xfs_mount_args	*ap,
 	struct xfs_mount	*mp)
 {
 	int			ronly = (mp->m_flags & XFS_MOUNT_RDONLY);
 
 	/* Fail a mount where the logbuf is smaller then the log stripe */
 	if (xfs_sb_version_haslogv2(&mp->m_sb)) {
-		if ((ap->logbufsize <= 0) &&
-		    (mp->m_sb.sb_logsunit > XLOG_BIG_RECORD_BSIZE)) {
+		if (mp->m_logbsize <= 0 &&
+		    mp->m_sb.sb_logsunit > XLOG_BIG_RECORD_BSIZE) {
 			mp->m_logbsize = mp->m_sb.sb_logsunit;
-		} else if (ap->logbufsize > 0 &&
-			   ap->logbufsize < mp->m_sb.sb_logsunit) {
+		} else if (mp->m_logbsize > 0 &&
+			   mp->m_logbsize < mp->m_sb.sb_logsunit) {
 			cmn_err(CE_WARN,
 	"XFS: logbuf size must be greater than or equal to log stripe size");
 			return XFS_ERROR(EINVAL);
 		}
 	} else {
 		/* Fail a mount if the logbuf is larger than 32K */
-		if (ap->logbufsize > XLOG_BIG_RECORD_BSIZE) {
+		if (mp->m_logbsize > XLOG_BIG_RECORD_BSIZE) {
 			cmn_err(CE_WARN,
 	"XFS: logbuf size for version 1 logs must be 16K or 32K");
 			return XFS_ERROR(EINVAL);
@@ -1468,7 +1372,7 @@ xfs_finish_flags(
 	 * told by noattr2 to turn it off
 	 */
 	if (xfs_sb_version_hasattr2(&mp->m_sb) &&
-	    !(ap->flags & XFSMNT_NOATTR2))
+	    !(mp->m_flags & XFS_MOUNT_NOATTR2))
 		mp->m_flags |= XFS_MOUNT_ATTR2;
 
 	/*
@@ -1480,6 +1384,7 @@ xfs_finish_flags(
 		return XFS_ERROR(EROFS);
 	}
 
+#if 0 /* shared mounts were never supported on Linux */
 	/*
 	 * check for shared mount.
 	 */
@@ -1502,25 +1407,11 @@ xfs_finish_flags(
 		/*
 		 * Shared XFS V0 can't deal with DMI.  Return EINVAL.
 		 */
-		if (mp->m_sb.sb_shared_vn == 0 && (ap->flags & XFSMNT_DMAPI))
+		if (mp->m_sb.sb_shared_vn == 0 &&
+		    (mp->m_flags & XFS_MOUNT_DMAPI))
 			return XFS_ERROR(EINVAL);
 	}
-
-	if (ap->flags & XFSMNT_UQUOTA) {
-		mp->m_qflags |= (XFS_UQUOTA_ACCT | XFS_UQUOTA_ACTIVE);
-		if (ap->flags & XFSMNT_UQUOTAENF)
-			mp->m_qflags |= XFS_UQUOTA_ENFD;
-	}
-
-	if (ap->flags & XFSMNT_GQUOTA) {
-		mp->m_qflags |= (XFS_GQUOTA_ACCT | XFS_GQUOTA_ACTIVE);
-		if (ap->flags & XFSMNT_GQUOTAENF)
-			mp->m_qflags |= XFS_OQUOTA_ENFD;
-	} else if (ap->flags & XFSMNT_PQUOTA) {
-		mp->m_qflags |= (XFS_PQUOTA_ACCT | XFS_PQUOTA_ACTIVE);
-		if (ap->flags & XFSMNT_PQUOTAENF)
-			mp->m_qflags |= XFS_OQUOTA_ENFD;
-	}
+#endif
 
 	return 0;
 }
@@ -1533,16 +1424,12 @@ xfs_fs_fill_super(
 {
 	struct inode		*root;
 	struct xfs_mount	*mp = NULL;
-	struct xfs_mount_args	*args;
 	int			flags = 0, error = ENOMEM;
-
-	args = xfs_args_allocate(sb, silent);
-	if (!args)
-		return -ENOMEM;
+	char			*mtpt = NULL;
 
 	mp = kzalloc(sizeof(struct xfs_mount), GFP_KERNEL);
 	if (!mp)
-		goto out_free_args;
+		goto out;
 
 	spin_lock_init(&mp->m_sb_lock);
 	mutex_init(&mp->m_growlock);
@@ -1554,12 +1441,9 @@ xfs_fs_fill_super(
 	mp->m_super = sb;
 	sb->s_fs_info = mp;
 
-	if (sb->s_flags & MS_RDONLY)
-		mp->m_flags |= XFS_MOUNT_RDONLY;
-
-	error = xfs_parseargs(mp, (char *)data, args, 0);
+	error = xfs_parseargs(mp, (char *)data, &mtpt);
 	if (error)
-		goto out_free_mp;
+		goto out_free_fsname;
 
 	sb_min_blocksize(sb, BBSIZE);
 	sb->s_xattr = xfs_xattr_handlers;
@@ -1567,33 +1451,28 @@ xfs_fs_fill_super(
 	sb->s_qcop = &xfs_quotactl_operations;
 	sb->s_op = &xfs_super_operations;
 
-	error = xfs_dmops_get(mp, args);
+	error = xfs_dmops_get(mp);
 	if (error)
-		goto out_free_mp;
-	error = xfs_qmops_get(mp, args);
+		goto out_free_fsname;
+	error = xfs_qmops_get(mp);
 	if (error)
 		goto out_put_dmops;
 
-	if (args->flags & XFSMNT_QUIET)
+	if (silent)
 		flags |= XFS_MFSI_QUIET;
 
-	error = xfs_open_devices(mp, args);
+	error = xfs_open_devices(mp);
 	if (error)
 		goto out_put_qmops;
 
 	if (xfs_icsb_init_counters(mp))
 		mp->m_flags |= XFS_MOUNT_NO_PERCPU_SB;
 
-	/*
-	 * Setup flags based on mount(2) options and then the superblock
-	 */
-	error = xfs_start_flags(args, mp);
-	if (error)
-		goto out_free_fsname;
 	error = xfs_readsb(mp, flags);
 	if (error)
-		goto out_free_fsname;
-	error = xfs_finish_flags(args, mp);
+		goto out_destroy_counters;
+
+	error = xfs_finish_flags(mp);
 	if (error)
 		goto out_free_sb;
 
@@ -1612,7 +1491,7 @@ xfs_fs_fill_super(
 	if (error)
 		goto out_filestream_unmount;
 
-	XFS_SEND_MOUNT(mp, DM_RIGHT_NULL, args->mtpt, args->fsname);
+	XFS_SEND_MOUNT(mp, DM_RIGHT_NULL, mtpt, mp->m_fsname);
 
 	sb->s_dirt = 1;
 	sb->s_magic = XFS_SB_MAGIC;
@@ -1641,27 +1520,27 @@ xfs_fs_fill_super(
 	if (error)
 		goto fail_vnrele;
 
-	xfs_itrace_exit(XFS_I(sb->s_root->d_inode));
+	kfree(mtpt);
 
-	kfree(args);
+	xfs_itrace_exit(XFS_I(sb->s_root->d_inode));
 	return 0;
 
  out_filestream_unmount:
 	xfs_filestream_unmount(mp);
  out_free_sb:
 	xfs_freesb(mp);
- out_free_fsname:
-	xfs_free_fsname(mp);
+ out_destroy_counters:
 	xfs_icsb_destroy_counters(mp);
 	xfs_close_devices(mp);
  out_put_qmops:
 	xfs_qmops_put(mp);
  out_put_dmops:
 	xfs_dmops_put(mp);
- out_free_mp:
+ out_free_fsname:
+	xfs_free_fsname(mp);
+	kfree(mtpt);
 	kfree(mp);
- out_free_args:
-	kfree(args);
+ out:
 	return -error;
 
  fail_vnrele:

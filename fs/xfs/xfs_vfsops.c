@@ -49,7 +49,6 @@
 #include "xfs_extfree_item.h"
 #include "xfs_acl.h"
 #include "xfs_attr.h"
-#include "xfs_clnt.h"
 #include "xfs_mru_cache.h"
 #include "xfs_filestream.h"
 #include "xfs_fsops.h"

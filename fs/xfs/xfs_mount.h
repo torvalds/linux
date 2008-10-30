@@ -515,9 +515,9 @@ extern void	xfs_freesb(xfs_mount_t *);
 extern int	xfs_fs_writable(xfs_mount_t *);
 extern int	xfs_sb_validate_fsb_count(struct xfs_sb *, __uint64_t);
 
-extern int	xfs_dmops_get(struct xfs_mount *, struct xfs_mount_args *);
+extern int	xfs_dmops_get(struct xfs_mount *);
 extern void	xfs_dmops_put(struct xfs_mount *);
-extern int	xfs_qmops_get(struct xfs_mount *, struct xfs_mount_args *);
+extern int	xfs_qmops_get(struct xfs_mount *);
 extern void	xfs_qmops_put(struct xfs_mount *);
 
 extern struct xfs_dmops xfs_dmcore_xfs;
