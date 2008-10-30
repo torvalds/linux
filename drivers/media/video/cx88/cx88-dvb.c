@@ -1199,8 +1199,7 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 {
 	struct cx88_core *core = drv->core;
 	struct cx8802_dev *dev = drv->core->dvbdev;
-	int err, i;
-	struct videobuf_dvb_frontend *fe;
+	int err;
 
 	dprintk( 1, "%s\n", __func__);
 	dprintk( 1, " ->being probed by Card=%d Name=%s, PCI %02x:%02x\n",
@@ -1216,31 +1215,47 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 	/* If vp3054 isn't enabled, a stub will just return 0 */
 	err = vp3054_i2c_probe(dev);
 	if (0 != err)
-		goto fail_core;
+		goto fail_probe;
 
 	/* dvb stuff */
 	printk(KERN_INFO "%s/2: cx2388x based DVB/ATSC card\n", core->name);
 	dev->ts_gen_cntrl = 0x0c;
 
-	for (i = 1; i <= core->board.num_frontends; i++) {
-		fe = videobuf_dvb_get_frontend(&core->dvbdev->frontends, i);
-		if (!fe) {
-			printk(KERN_ERR "%s() failed to get frontend(%d)\n", __func__, i);
-			continue;
+	err = -ENODEV;
+	if (core->board.num_frontends) {
+		struct videobuf_dvb_frontend *fe;
+		int i;
+
+		for (i = 1; i <= core->board.num_frontends; i++) {
+			fe = videobuf_dvb_get_frontend(&core->dvbdev->frontends, i);
+			if (fe == NULL) {
+				printk(KERN_ERR "%s() failed to get frontend(%d)\n",
+					__func__, i);
+				goto fail_probe;
+			}
+			videobuf_queue_sg_init(&fe->dvb.dvbq, &dvb_qops,
+				    &dev->pci->dev, &dev->slock,
+				    V4L2_BUF_TYPE_VIDEO_CAPTURE,
+				    V4L2_FIELD_TOP,
+				    sizeof(struct cx88_buffer),
+				    dev);
+			/* init struct videobuf_dvb */
+			fe->dvb.name = dev->core->name;
 		}
-		videobuf_queue_sg_init(&fe->dvb.dvbq, &dvb_qops,
-			    &dev->pci->dev, &dev->slock,
-			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
-			    V4L2_FIELD_TOP,
-			    sizeof(struct cx88_buffer),
-			    dev);
-		/* init struct videobuf_dvb */
-		fe->dvb.name = dev->core->name;
+	} else {
+		/* no frontends allocated */
+		printk(KERN_ERR "%s/2 .num_frontends should be non-zero\n",
+			core->name);
+		goto fail_core;
 	}
 	err = dvb_register(dev);
-	if (err != 0)
+	if (err)
+		/* frontends/adapter de-allocated in dvb_register */
 		printk(KERN_ERR "%s/2: dvb_register failed (err = %d)\n",
 		       core->name, err);
+	return err;
+fail_probe:
+	videobuf_dvb_dealloc_frontends(&core->dvbdev->frontends);
 fail_core:
 	return err;
 }
