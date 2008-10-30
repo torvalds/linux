@@ -583,3 +583,94 @@ xfs_syncd_stop(
 	kthread_stop(mp->m_sync_task);
 }
 
+int
+xfs_finish_reclaim(
+	xfs_inode_t	*ip,
+	int		locked,
+	int		sync_mode)
+{
+	xfs_perag_t	*pag = xfs_get_perag(ip->i_mount, ip->i_ino);
+
+	/* The hash lock here protects a thread in xfs_iget_core from
+	 * racing with us on linking the inode back with a vnode.
+	 * Once we have the XFS_IRECLAIM flag set it will not touch
+	 * us.
+	 */
+	write_lock(&pag->pag_ici_lock);
+	spin_lock(&ip->i_flags_lock);
+	if (__xfs_iflags_test(ip, XFS_IRECLAIM) ||
+	    !__xfs_iflags_test(ip, XFS_IRECLAIMABLE)) {
+		spin_unlock(&ip->i_flags_lock);
+		write_unlock(&pag->pag_ici_lock);
+		if (locked) {
+			xfs_ifunlock(ip);
+			xfs_iunlock(ip, XFS_ILOCK_EXCL);
+		}
+		return 1;
+	}
+	__xfs_iflags_set(ip, XFS_IRECLAIM);
+	spin_unlock(&ip->i_flags_lock);
+	write_unlock(&pag->pag_ici_lock);
+	xfs_put_perag(ip->i_mount, pag);
+
+	/*
+	 * If the inode is still dirty, then flush it out.  If the inode
+	 * is not in the AIL, then it will be OK to flush it delwri as
+	 * long as xfs_iflush() does not keep any references to the inode.
+	 * We leave that decision up to xfs_iflush() since it has the
+	 * knowledge of whether it's OK to simply do a delwri flush of
+	 * the inode or whether we need to wait until the inode is
+	 * pulled from the AIL.
+	 * We get the flush lock regardless, though, just to make sure
+	 * we don't free it while it is being flushed.
+	 */
+	if (!locked) {
+		xfs_ilock(ip, XFS_ILOCK_EXCL);
+		xfs_iflock(ip);
+	}
+
+	/*
+	 * In the case of a forced shutdown we rely on xfs_iflush() to
+	 * wait for the inode to be unpinned before returning an error.
+	 */
+	if (!is_bad_inode(VFS_I(ip)) && xfs_iflush(ip, sync_mode) == 0) {
+		/* synchronize with xfs_iflush_done */
+		xfs_iflock(ip);
+		xfs_ifunlock(ip);
+	}
+
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	xfs_ireclaim(ip);
+	return 0;
+}
+
+int
+xfs_finish_reclaim_all(
+	xfs_mount_t	*mp,
+	int		 noblock,
+	int		mode)
+{
+	xfs_inode_t	*ip, *n;
+
+restart:
+	XFS_MOUNT_ILOCK(mp);
+	list_for_each_entry_safe(ip, n, &mp->m_del_inodes, i_reclaim) {
+		if (noblock) {
+			if (xfs_ilock_nowait(ip, XFS_ILOCK_EXCL) == 0)
+				continue;
+			if (xfs_ipincount(ip) ||
+			    !xfs_iflock_nowait(ip)) {
+				xfs_iunlock(ip, XFS_ILOCK_EXCL);
+				continue;
+			}
+		}
+		XFS_MOUNT_IUNLOCK(mp);
+		if (xfs_finish_reclaim(ip, noblock, mode))
+			delay(1);
+		goto restart;
+	}
+	XFS_MOUNT_IUNLOCK(mp);
+	return 0;
+}
+
+
