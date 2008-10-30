@@ -225,7 +225,7 @@ static struct go7007_usb_board board_px_tv402u = {
 		.inputs 	 = {
 			{
 				.video_input	= 1,
-		.audio_input	 = TVAUDIO_INPUT_EXTERN,
+				.audio_input	= TVAUDIO_INPUT_EXTERN,
 				.name		= "Composite",
 			},
 			{

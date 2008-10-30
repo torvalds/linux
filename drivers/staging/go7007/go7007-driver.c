@@ -227,7 +227,7 @@ static int init_i2c_module(struct i2c_adapter *adapter, int id, int addr)
 		return 0;
 	if (modname != NULL)
 		printk(KERN_INFO
-			"go7007: probing for module %s failed", modname);
+			"go7007: probing for module %s failed\n", modname);
 	else
 		printk(KERN_INFO
 			"go7007: sensor %u seems to be unsupported!\n", id);

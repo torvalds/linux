@@ -104,6 +104,7 @@ struct go7007_hpi_ops {
 	int (*stream_start)(struct go7007 *go);
 	int (*stream_stop)(struct go7007 *go);
 	int (*send_firmware)(struct go7007 *go, u8 *data, int len);
+	int (*send_command)(struct go7007 *go, unsigned int cmd, void *arg);
 };
 
 /* The video buffer size must be a multiple of PAGE_SIZE */

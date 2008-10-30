@@ -38,6 +38,14 @@
 #include "go7007-priv.h"
 #include "wis-i2c.h"
 
+/* Temporary defines until accepted in v4l-dvb */
+#ifndef V4L2_MPEG_STREAM_TYPE_MPEG_ELEM
+#define	V4L2_MPEG_STREAM_TYPE_MPEG_ELEM   6 /* MPEG elementary stream */
+#endif
+#ifndef V4L2_MPEG_VIDEO_ENCODING_MPEG_4
+#define	V4L2_MPEG_VIDEO_ENCODING_MPEG_4   3
+#endif
+
 static void deactivate_buffer(struct go7007_buffer *gobuf)
 {
 	int i;
@@ -375,6 +383,223 @@ static int clip_to_modet_map(struct go7007 *go, int region,
 	return 0;
 }
 
+static int mpeg_queryctrl(u32 id, struct v4l2_queryctrl *ctrl)
+{
+	static const u32 user_ctrls[] = {
+		V4L2_CID_USER_CLASS,
+		0
+	};
+	static const u32 mpeg_ctrls[] = {
+		V4L2_CID_MPEG_CLASS,
+		V4L2_CID_MPEG_STREAM_TYPE,
+		V4L2_CID_MPEG_VIDEO_ENCODING,
+		V4L2_CID_MPEG_VIDEO_ASPECT,
+		V4L2_CID_MPEG_VIDEO_GOP_SIZE,
+		V4L2_CID_MPEG_VIDEO_GOP_CLOSURE,
+		V4L2_CID_MPEG_VIDEO_BITRATE,
+		0
+	};
+	static const u32 *ctrl_classes[] = {
+		user_ctrls,
+		mpeg_ctrls,
+		NULL
+	};
+
+	/* The ctrl may already contain the queried i2c controls,
+	 * query the mpeg controls if the existing ctrl id is
+	 * greater than the next mpeg ctrl id.
+	 */
+	id = v4l2_ctrl_next(ctrl_classes, id);
+	if (id >= ctrl->id && ctrl->name[0])
+		return 0;
+
+	memset(ctrl, 0, sizeof(*ctrl));
+	ctrl->id = id;
+
+	switch (ctrl->id) {
+	case V4L2_CID_USER_CLASS:
+	case V4L2_CID_MPEG_CLASS:
+		return v4l2_ctrl_query_fill_std(ctrl);
+	case V4L2_CID_MPEG_STREAM_TYPE:
+		return v4l2_ctrl_query_fill(ctrl,
+				V4L2_MPEG_STREAM_TYPE_MPEG2_DVD,
+				V4L2_MPEG_STREAM_TYPE_MPEG_ELEM, 1,
+				V4L2_MPEG_STREAM_TYPE_MPEG_ELEM);
+	case V4L2_CID_MPEG_VIDEO_ENCODING:
+		return v4l2_ctrl_query_fill(ctrl,
+				V4L2_MPEG_VIDEO_ENCODING_MPEG_1,
+				V4L2_MPEG_VIDEO_ENCODING_MPEG_4, 1,
+				V4L2_MPEG_VIDEO_ENCODING_MPEG_2);
+	case V4L2_CID_MPEG_VIDEO_ASPECT:
+		return v4l2_ctrl_query_fill(ctrl,
+				V4L2_MPEG_VIDEO_ASPECT_1x1,
+				V4L2_MPEG_VIDEO_ASPECT_16x9, 1,
+				V4L2_MPEG_VIDEO_ASPECT_1x1);
+	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
+	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE:
+		return v4l2_ctrl_query_fill_std(ctrl);
+	case V4L2_CID_MPEG_VIDEO_BITRATE:
+		return v4l2_ctrl_query_fill(ctrl,
+				64000,
+				10000000, 1,
+				9800000);
+	default:
+		break;
+	}
+	return -EINVAL;
+}
+
+static int mpeg_s_control(struct v4l2_control *ctrl, struct go7007 *go)
+{
+	/* pretty sure we can't change any of these while streaming */
+	if (go->streaming)
+		return -EBUSY;
+
+	switch (ctrl->id) {
+	case V4L2_CID_MPEG_STREAM_TYPE:
+		switch (ctrl->value) {
+		case V4L2_MPEG_STREAM_TYPE_MPEG2_DVD:
+			go->format = GO7007_FORMAT_MPEG2;
+			go->bitrate = 9800000;
+			go->gop_size = 15;
+			go->pali = 0x48;
+			go->closed_gop = 1;
+			go->repeat_seqhead = 0;
+			go->seq_header_enable = 1;
+			go->gop_header_enable = 1;
+			go->dvd_mode = 1;
+			break;
+		case V4L2_MPEG_STREAM_TYPE_MPEG_ELEM:
+			/* todo: */
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+	case V4L2_CID_MPEG_VIDEO_ENCODING:
+		switch (ctrl->value) {
+		case V4L2_MPEG_VIDEO_ENCODING_MPEG_1:
+			go->format = GO7007_FORMAT_MPEG1;
+			go->pali = 0;
+			break;
+		case V4L2_MPEG_VIDEO_ENCODING_MPEG_2:
+			go->format = GO7007_FORMAT_MPEG2;
+			/*if (mpeg->pali >> 24 == 2)
+				go->pali = mpeg->pali & 0xff;
+			else*/
+				go->pali = 0x48;
+			break;
+		case V4L2_MPEG_VIDEO_ENCODING_MPEG_4:
+			go->format = GO7007_FORMAT_MPEG4;
+			/*if (mpeg->pali >> 24 == 4)
+				go->pali = mpeg->pali & 0xff;
+			else*/
+				go->pali = 0xf5;
+			break;
+		default:
+			return -EINVAL;
+		}
+		go->gop_header_enable =
+			/*mpeg->flags & GO7007_MPEG_OMIT_GOP_HEADER
+			? 0 :*/ 1;
+		/*if (mpeg->flags & GO7007_MPEG_REPEAT_SEQHEADER)
+			go->repeat_seqhead = 1;
+		else*/
+			go->repeat_seqhead = 0;
+		go->dvd_mode = 0;
+		break;
+	case V4L2_CID_MPEG_VIDEO_ASPECT:
+		if (go->format == GO7007_FORMAT_MJPEG)
+			return -EINVAL;
+		switch (ctrl->value) {
+		case V4L2_MPEG_VIDEO_ASPECT_1x1:
+			go->aspect_ratio = GO7007_RATIO_1_1;
+			break;
+		case V4L2_MPEG_VIDEO_ASPECT_4x3:
+			go->aspect_ratio = GO7007_RATIO_4_3;
+			break;
+		case V4L2_MPEG_VIDEO_ASPECT_16x9:
+			go->aspect_ratio = GO7007_RATIO_16_9;
+			break;
+		case V4L2_MPEG_VIDEO_ASPECT_221x100:
+		default:
+			return -EINVAL;
+		}
+		break;
+	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
+		go->gop_size = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE:
+		if (ctrl->value != 0 && ctrl->value != 1)
+			return -EINVAL;
+		go->closed_gop = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_BITRATE:
+		/* Upper bound is kind of arbitrary here */
+		if (ctrl->value < 64000 || ctrl->value > 10000000)
+			return -EINVAL;
+		go->bitrate = ctrl->value;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int mpeg_g_control(struct v4l2_control *ctrl, struct go7007 *go)
+{
+	switch (ctrl->id) {
+	case V4L2_CID_MPEG_STREAM_TYPE:
+		if (go->dvd_mode)
+			ctrl->value = V4L2_MPEG_STREAM_TYPE_MPEG2_DVD;
+		else
+			ctrl->value = V4L2_MPEG_STREAM_TYPE_MPEG_ELEM;
+		break;
+	case V4L2_CID_MPEG_VIDEO_ENCODING:
+		switch (go->format) {
+		case GO7007_FORMAT_MPEG1:
+			ctrl->value = V4L2_MPEG_VIDEO_ENCODING_MPEG_1;
+			break;
+		case GO7007_FORMAT_MPEG2:
+			ctrl->value = V4L2_MPEG_VIDEO_ENCODING_MPEG_2;
+			break;
+		case GO7007_FORMAT_MPEG4:
+			ctrl->value = V4L2_MPEG_VIDEO_ENCODING_MPEG_4;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+	case V4L2_CID_MPEG_VIDEO_ASPECT:
+		switch (go->aspect_ratio) {
+		case GO7007_RATIO_1_1:
+			ctrl->value = V4L2_MPEG_VIDEO_ASPECT_1x1;
+			break;
+		case GO7007_RATIO_4_3:
+			ctrl->value = V4L2_MPEG_VIDEO_ASPECT_4x3;
+			break;
+		case GO7007_RATIO_16_9:
+			ctrl->value = V4L2_MPEG_VIDEO_ASPECT_16x9;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
+		ctrl->value = go->gop_size;
+		break;
+	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE:
+		ctrl->value = go->closed_gop;
+		break;
+	case V4L2_CID_MPEG_VIDEO_BITRATE:
+		ctrl->value = go->bitrate;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static long go7007_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct go7007_file *gofh = file->private_data;
@@ -392,7 +617,7 @@ static long go7007_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		strncpy(cap->card, go->name, sizeof(cap->card));
 		cap->version = KERNEL_VERSION(0, 9, 8);
 		cap->capabilities = V4L2_CAP_VIDEO_CAPTURE |
-				V4L2_CAP_STREAMING; /* | V4L2_CAP_AUDIO; */
+				V4L2_CAP_STREAMING | V4L2_CAP_AUDIO;
 		if (go->board_info->flags & GO7007_BOARD_HAS_TUNER)
 			cap->capabilities |= V4L2_CAP_TUNER;
 		return 0;
@@ -463,6 +688,19 @@ static long go7007_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		if (go->streaming)
 			return -EBUSY;
 		return set_capture_size(go, fmt, 0);
+	}
+	case VIDIOC_ENUMAUDIO:
+	case VIDIOC_G_AUDIO:
+	case VIDIOC_S_AUDIO:
+	{
+		struct v4l2_audio *audio = arg;
+
+		if (!go->i2c_adapter_online)
+			return -EIO;
+		i2c_clients_command(&go->i2c_adapter, cmd, arg);
+		if (cmd == VIDIOC_ENUMAUDIO && !audio->name[0])
+			return -EINVAL;
+		return 0;
 	}
 	case VIDIOC_G_FBUF:
 	case VIDIOC_S_FBUF:
@@ -699,12 +937,16 @@ static long go7007_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		struct v4l2_queryctrl *ctrl = arg;
 		u32 id;
 
-		if (!go->i2c_adapter_online)
-			return -EIO;
 		id = ctrl->id;
 		memset(ctrl, 0, sizeof(*ctrl));
 		ctrl->id = id;
-		i2c_clients_command(&go->i2c_adapter, VIDIOC_QUERYCTRL, arg);
+		if (go->i2c_adapter_online)
+			i2c_clients_command(&go->i2c_adapter,
+						VIDIOC_QUERYCTRL, arg);
+		else if (go->hpi_ops && go->hpi_ops->send_command)
+			go->hpi_ops->send_command(go, cmd, arg);
+		if (id & V4L2_CTRL_FLAG_NEXT_CTRL || ctrl->name[0] == 0)
+			return mpeg_queryctrl(id, ctrl);
 		return ctrl->name[0] == 0 ? -EINVAL : 0;
 	}
 	case VIDIOC_G_CTRL:
@@ -712,13 +954,16 @@ static long go7007_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		struct v4l2_control *ctrl = arg;
 		struct v4l2_queryctrl query;
 
-		if (!go->i2c_adapter_online)
-			return -EIO;
 		memset(&query, 0, sizeof(query));
 		query.id = ctrl->id;
-		i2c_clients_command(&go->i2c_adapter, VIDIOC_QUERYCTRL, &query);
+		if (go->i2c_adapter_online)
+			i2c_clients_command(&go->i2c_adapter,
+						VIDIOC_QUERYCTRL, &query);
+		else if (go->hpi_ops && go->hpi_ops->send_command)
+			if (0 == go->hpi_ops->send_command(go, cmd, arg))
+				return 0;
 		if (query.name[0] == 0)
-			return -EINVAL;
+			return mpeg_g_control(ctrl, go);
 		i2c_clients_command(&go->i2c_adapter, VIDIOC_G_CTRL, arg);
 		return 0;
 	}
@@ -727,13 +972,16 @@ static long go7007_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		struct v4l2_control *ctrl = arg;
 		struct v4l2_queryctrl query;
 
-		if (!go->i2c_adapter_online)
-			return -EIO;
 		memset(&query, 0, sizeof(query));
 		query.id = ctrl->id;
-		i2c_clients_command(&go->i2c_adapter, VIDIOC_QUERYCTRL, &query);
+		if (go->i2c_adapter_online)
+			i2c_clients_command(&go->i2c_adapter,
+						VIDIOC_QUERYCTRL, &query);
+		else if (go->hpi_ops && go->hpi_ops->send_command)
+			if (0 == go->hpi_ops->send_command(go, cmd, arg))
+				return 0;
 		if (query.name[0] == 0)
-			return -EINVAL;
+			return mpeg_s_control(ctrl, go);
 		i2c_clients_command(&go->i2c_adapter, VIDIOC_S_CTRL, arg);
 		return 0;
 	}
@@ -826,6 +1074,8 @@ static long go7007_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 				*std = V4L2_STD_NTSC;
 			else
 				*std = V4L2_STD_PAL | V4L2_STD_SECAM;
+		} else if (go->hpi_ops && go->hpi_ops->send_command) {
+			go->hpi_ops->send_command(go, cmd, arg);
 		} else
 			*std = 0;
 		return 0;
@@ -864,6 +1114,9 @@ static long go7007_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		if (go->i2c_adapter_online)
 			i2c_clients_command(&go->i2c_adapter,
 					    VIDIOC_S_STD, std);
+		if (go->hpi_ops && go->hpi_ops->send_command)
+			go->hpi_ops->send_command(go, cmd, arg);
+
 		set_capture_size(go, NULL, 0);
 		return 0;
 	}
@@ -1316,7 +1569,7 @@ static long go7007_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		return clip_to_modet_map(go, region->region, region->clips);
 	}
 	default:
-		printk(KERN_DEBUG "go7007: unsupported ioctl %d\n", cmd);
+		printk(KERN_INFO "go7007-v4l2: unsupported ioctl %d\n", cmd);
 		return -ENOIOCTLCMD;
 	}
 	return 0;
@@ -1474,6 +1727,8 @@ int go7007_v4l2_init(struct go7007 *go)
 	}
 	video_set_drvdata(go->video_dev, go);
 	++go->ref_count;
+	printk(KERN_INFO "%s: registered device video%d [v4l2]\n",
+	       go->video_dev->name, go->video_dev->num);
 
 	return 0;
 }
