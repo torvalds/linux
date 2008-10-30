@@ -304,11 +304,21 @@ static int signr_convert(int sig)
 	return sig;
 }
 
+#ifdef CONFIG_X86_32
+
+#define is_ia32	1
+#define ia32_setup_frame	__setup_frame
+#define ia32_setup_rt_frame	__setup_rt_frame
+
+#else /* !CONFIG_X86_32 */
+
 #ifdef CONFIG_IA32_EMULATION
 #define is_ia32	test_thread_flag(TIF_IA32)
-#else
+#else /* !CONFIG_IA32_EMULATION */
 #define is_ia32	0
-#endif
+#endif /* CONFIG_IA32_EMULATION */
+
+#endif /* CONFIG_X86_32 */
 
 static int
 setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
