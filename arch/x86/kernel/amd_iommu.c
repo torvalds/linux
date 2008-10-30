@@ -50,7 +50,7 @@ static int dma_ops_unity_map(struct dma_ops_domain *dma_dom,
 /* returns !0 if the IOMMU is caching non-present entries in its TLB */
 static int iommu_has_npcache(struct amd_iommu *iommu)
 {
-	return iommu->cap & IOMMU_CAP_NPCACHE;
+	return iommu->cap & (1UL << IOMMU_CAP_NPCACHE);
 }
 
 /****************************************************************************
