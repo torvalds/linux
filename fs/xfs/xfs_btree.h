@@ -570,6 +570,12 @@ int xfs_btree_delete(struct xfs_btree_cur *, int *);
 int xfs_btree_get_rec(struct xfs_btree_cur *, union xfs_btree_rec **, int *);
 
 /*
+ * Internal btree helpers also used by xfs_bmap.c.
+ */
+void xfs_btree_log_block(struct xfs_btree_cur *, struct xfs_buf *, int);
+void xfs_btree_log_recs(struct xfs_btree_cur *, struct xfs_buf *, int, int);
+
+/*
  * Helpers.
  */
 static inline int xfs_btree_get_numrecs(struct xfs_btree_block *block)

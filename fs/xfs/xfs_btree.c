@@ -1309,7 +1309,7 @@ xfs_btree_log_keys(
 /*
  * Log record values from the btree block.
  */
-STATIC void
+void
 xfs_btree_log_recs(
 	struct xfs_btree_cur	*cur,
 	struct xfs_buf		*bp,
@@ -1357,7 +1357,7 @@ xfs_btree_log_ptrs(
 /*
  * Log fields from a btree block header.
  */
-STATIC void
+void
 xfs_btree_log_block(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
 	struct xfs_buf		*bp,	/* buffer containing btree block */

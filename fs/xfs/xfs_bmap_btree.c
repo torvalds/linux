@@ -44,33 +44,6 @@
 #include "xfs_error.h"
 #include "xfs_quota.h"
 
-#undef EXIT
-
-#define ENTRY	XBT_ENTRY
-#define ERROR	XBT_ERROR
-#define EXIT	XBT_EXIT
-
-/*
- * Keep the XFS_BMBT_TRACE_ names around for now until all code using them
- * is converted to be generic and thus switches to the XFS_BTREE_TRACE_ names.
- */
-#define	XFS_BMBT_TRACE_ARGBI(c,b,i) \
-	XFS_BTREE_TRACE_ARGBI(c,b,i)
-#define	XFS_BMBT_TRACE_ARGBII(c,b,i,j) \
-	XFS_BTREE_TRACE_ARGBII(c,b,i,j)
-#define	XFS_BMBT_TRACE_ARGFFFI(c,o,b,i,j) \
-	XFS_BTREE_TRACE_ARGFFFI(c,o,b,i,j)
-#define	XFS_BMBT_TRACE_ARGI(c,i) \
-	XFS_BTREE_TRACE_ARGI(c,i)
-#define	XFS_BMBT_TRACE_ARGIFK(c,i,f,s) \
-	XFS_BTREE_TRACE_ARGIPK(c,i,(union xfs_btree_ptr)f,s)
-#define	XFS_BMBT_TRACE_ARGIFR(c,i,f,r) \
-	XFS_BTREE_TRACE_ARGIPR(c,i, \
-		(union xfs_btree_ptr)f, (union xfs_btree_rec *)r)
-#define	XFS_BMBT_TRACE_ARGIK(c,i,k) \
-	XFS_BTREE_TRACE_ARGIK(c,i,(union xfs_btree_key *)k)
-#define	XFS_BMBT_TRACE_CURSOR(c,s) \
-	XFS_BTREE_TRACE_CURSOR(c,s)
 
 /*
  * Determine the extent state.
@@ -259,67 +232,6 @@ xfs_bmbt_disk_get_startoff(
 		 XFS_MASK64LO(64 - BMBT_EXNTFLAG_BITLEN)) >> 9;
 }
 
-/*
- * Log fields from the btree block header.
- */
-void
-xfs_bmbt_log_block(
-	xfs_btree_cur_t		*cur,
-	xfs_buf_t		*bp,
-	int			fields)
-{
-	int			first;
-	int			last;
-	xfs_trans_t		*tp;
-	static const short	offsets[] = {
-		offsetof(xfs_bmbt_block_t, bb_magic),
-		offsetof(xfs_bmbt_block_t, bb_level),
-		offsetof(xfs_bmbt_block_t, bb_numrecs),
-		offsetof(xfs_bmbt_block_t, bb_leftsib),
-		offsetof(xfs_bmbt_block_t, bb_rightsib),
-		sizeof(xfs_bmbt_block_t)
-	};
-
-	XFS_BMBT_TRACE_CURSOR(cur, ENTRY);
-	XFS_BMBT_TRACE_ARGBI(cur, bp, fields);
-	tp = cur->bc_tp;
-	if (bp) {
-		xfs_btree_offsets(fields, offsets, XFS_BB_NUM_BITS, &first,
-				  &last);
-		xfs_trans_log_buf(tp, bp, first, last);
-	} else
-		xfs_trans_log_inode(tp, cur->bc_private.b.ip,
-			XFS_ILOG_FBROOT(cur->bc_private.b.whichfork));
-	XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-}
-
-/*
- * Log record values from the btree block.
- */
-void
-xfs_bmbt_log_recs(
-	xfs_btree_cur_t		*cur,
-	xfs_buf_t		*bp,
-	int			rfirst,
-	int			rlast)
-{
-	xfs_bmbt_block_t	*block;
-	int			first;
-	int			last;
-	xfs_bmbt_rec_t		*rp;
-	xfs_trans_t		*tp;
-
-	XFS_BMBT_TRACE_CURSOR(cur, ENTRY);
-	XFS_BMBT_TRACE_ARGBII(cur, bp, rfirst, rlast);
-	ASSERT(bp);
-	tp = cur->bc_tp;
-	block = XFS_BUF_TO_BMBT_BLOCK(bp);
-	rp = XFS_BMAP_REC_DADDR(block, 1, cur);
-	first = (int)((xfs_caddr_t)&rp[rfirst - 1] - (xfs_caddr_t)block);
-	last = (int)(((xfs_caddr_t)&rp[rlast] - 1) - (xfs_caddr_t)block);
-	xfs_trans_log_buf(tp, bp, first, last);
-	XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-}
 
 /*
  * Set all the fields in a bmap extent record from the arguments.
