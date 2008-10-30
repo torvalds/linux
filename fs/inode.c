@@ -108,83 +108,99 @@ static void wake_up_inode(struct inode *inode)
 	wake_up_bit(&inode->i_state, __I_LOCK);
 }
 
-static struct inode *alloc_inode(struct super_block *sb)
+/**
+ * inode_init_always - perform inode structure intialisation
+ * @sb		- superblock inode belongs to.
+ * @inode	- inode to initialise
+ *
+ * These are initializations that need to be done on every inode
+ * allocation as the fields are not initialised by slab allocation.
+ */
+struct inode *inode_init_always(struct super_block *sb, struct inode *inode)
 {
 	static const struct address_space_operations empty_aops;
 	static struct inode_operations empty_iops;
 	static const struct file_operations empty_fops;
+
+	struct address_space * const mapping = &inode->i_data;
+
+	inode->i_sb = sb;
+	inode->i_blkbits = sb->s_blocksize_bits;
+	inode->i_flags = 0;
+	atomic_set(&inode->i_count, 1);
+	inode->i_op = &empty_iops;
+	inode->i_fop = &empty_fops;
+	inode->i_nlink = 1;
+	atomic_set(&inode->i_writecount, 0);
+	inode->i_size = 0;
+	inode->i_blocks = 0;
+	inode->i_bytes = 0;
+	inode->i_generation = 0;
+#ifdef CONFIG_QUOTA
+	memset(&inode->i_dquot, 0, sizeof(inode->i_dquot));
+#endif
+	inode->i_pipe = NULL;
+	inode->i_bdev = NULL;
+	inode->i_cdev = NULL;
+	inode->i_rdev = 0;
+	inode->dirtied_when = 0;
+	if (security_inode_alloc(inode)) {
+		if (inode->i_sb->s_op->destroy_inode)
+			inode->i_sb->s_op->destroy_inode(inode);
+		else
+			kmem_cache_free(inode_cachep, (inode));
+		return NULL;
+	}
+
+	spin_lock_init(&inode->i_lock);
+	lockdep_set_class(&inode->i_lock, &sb->s_type->i_lock_key);
+
+	mutex_init(&inode->i_mutex);
+	lockdep_set_class(&inode->i_mutex, &sb->s_type->i_mutex_key);
+
+	init_rwsem(&inode->i_alloc_sem);
+	lockdep_set_class(&inode->i_alloc_sem, &sb->s_type->i_alloc_sem_key);
+
+	mapping->a_ops = &empty_aops;
+	mapping->host = inode;
+	mapping->flags = 0;
+	mapping_set_gfp_mask(mapping, GFP_HIGHUSER_PAGECACHE);
+	mapping->assoc_mapping = NULL;
+	mapping->backing_dev_info = &default_backing_dev_info;
+	mapping->writeback_index = 0;
+
+	/*
+	 * If the block_device provides a backing_dev_info for client
+	 * inodes then use that.  Otherwise the inode share the bdev's
+	 * backing_dev_info.
+	 */
+	if (sb->s_bdev) {
+		struct backing_dev_info *bdi;
+
+		bdi = sb->s_bdev->bd_inode_backing_dev_info;
+		if (!bdi)
+			bdi = sb->s_bdev->bd_inode->i_mapping->backing_dev_info;
+		mapping->backing_dev_info = bdi;
+	}
+	inode->i_private = NULL;
+	inode->i_mapping = mapping;
+
+	return inode;
+}
+EXPORT_SYMBOL(inode_init_always);
+
+static struct inode *alloc_inode(struct super_block *sb)
+{
 	struct inode *inode;
 
 	if (sb->s_op->alloc_inode)
 		inode = sb->s_op->alloc_inode(sb);
 	else
-		inode = (struct inode *) kmem_cache_alloc(inode_cachep, GFP_KERNEL);
+		inode = kmem_cache_alloc(inode_cachep, GFP_KERNEL);
 
-	if (inode) {
-		struct address_space * const mapping = &inode->i_data;
-
-		inode->i_sb = sb;
-		inode->i_blkbits = sb->s_blocksize_bits;
-		inode->i_flags = 0;
-		atomic_set(&inode->i_count, 1);
-		inode->i_op = &empty_iops;
-		inode->i_fop = &empty_fops;
-		inode->i_nlink = 1;
-		atomic_set(&inode->i_writecount, 0);
-		inode->i_size = 0;
-		inode->i_blocks = 0;
-		inode->i_bytes = 0;
-		inode->i_generation = 0;
-#ifdef CONFIG_QUOTA
-		memset(&inode->i_dquot, 0, sizeof(inode->i_dquot));
-#endif
-		inode->i_pipe = NULL;
-		inode->i_bdev = NULL;
-		inode->i_cdev = NULL;
-		inode->i_rdev = 0;
-		inode->dirtied_when = 0;
-		if (security_inode_alloc(inode)) {
-			if (inode->i_sb->s_op->destroy_inode)
-				inode->i_sb->s_op->destroy_inode(inode);
-			else
-				kmem_cache_free(inode_cachep, (inode));
-			return NULL;
-		}
-
-		spin_lock_init(&inode->i_lock);
-		lockdep_set_class(&inode->i_lock, &sb->s_type->i_lock_key);
-
-		mutex_init(&inode->i_mutex);
-		lockdep_set_class(&inode->i_mutex, &sb->s_type->i_mutex_key);
-
-		init_rwsem(&inode->i_alloc_sem);
-		lockdep_set_class(&inode->i_alloc_sem, &sb->s_type->i_alloc_sem_key);
-
-		mapping->a_ops = &empty_aops;
- 		mapping->host = inode;
-		mapping->flags = 0;
-		mapping_set_gfp_mask(mapping, GFP_HIGHUSER_PAGECACHE);
-		mapping->assoc_mapping = NULL;
-		mapping->backing_dev_info = &default_backing_dev_info;
-		mapping->writeback_index = 0;
-
-		/*
-		 * If the block_device provides a backing_dev_info for client
-		 * inodes then use that.  Otherwise the inode share the bdev's
-		 * backing_dev_info.
-		 */
-		if (sb->s_bdev) {
-			struct backing_dev_info *bdi;
-
-			bdi = sb->s_bdev->bd_inode_backing_dev_info;
-			if (!bdi)
-				bdi = sb->s_bdev->bd_inode->i_mapping->backing_dev_info;
-			mapping->backing_dev_info = bdi;
-		}
-		inode->i_private = NULL;
-		inode->i_mapping = mapping;
-	}
-	return inode;
+	if (inode)
+		return inode_init_always(sb, inode);
+	return NULL;
 }
 
 void destroy_inode(struct inode *inode) 
