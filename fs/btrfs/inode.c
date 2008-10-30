@@ -246,7 +246,6 @@ static int cow_file_range_inline(struct btrfs_trans_handle *trans,
 		return 1;
 	}
 
-	mutex_lock(&BTRFS_I(inode)->extent_mutex);
 	ret = btrfs_drop_extents(trans, root, inode, start,
 				 aligned_end, aligned_end, &hint_byte);
 	BUG_ON(ret);
@@ -258,7 +257,6 @@ static int cow_file_range_inline(struct btrfs_trans_handle *trans,
 				   compressed_pages);
 	BUG_ON(ret);
 	btrfs_drop_extent_cache(inode, start, aligned_end, 0);
-	mutex_unlock(&BTRFS_I(inode)->extent_mutex);
 	return 0;
 }
 
@@ -437,9 +435,7 @@ again:
 	BUG_ON(disk_num_bytes >
 	       btrfs_super_total_bytes(&root->fs_info->super_copy));
 
-	mutex_lock(&BTRFS_I(inode)->extent_mutex);
 	btrfs_drop_extent_cache(inode, start, start + num_bytes - 1, 0);
-	mutex_unlock(&BTRFS_I(inode)->extent_mutex);
 
 	while(disk_num_bytes > 0) {
 		unsigned long min_bytes;
@@ -477,8 +473,6 @@ again:
 		em->block_start = ins.objectid;
 		em->block_len = ins.offset;
 		em->bdev = root->fs_info->fs_devices->latest_bdev;
-
-		mutex_lock(&BTRFS_I(inode)->extent_mutex);
 		set_bit(EXTENT_FLAG_PINNED, &em->flags);
 
 		if (will_compress)
@@ -495,7 +489,6 @@ again:
 			btrfs_drop_extent_cache(inode, start,
 						start + ram_size - 1, 0);
 		}
-		mutex_unlock(&BTRFS_I(inode)->extent_mutex);
 
 		cur_alloc_size = ins.offset;
 		ret = btrfs_add_ordered_extent(inode, start, ins.objectid,
@@ -1016,8 +1009,6 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 
 	INIT_LIST_HEAD(&list);
 
-	mutex_lock(&BTRFS_I(inode)->extent_mutex);
-
 	ret = btrfs_drop_extents(trans, root, inode,
 				 ordered_extent->file_offset,
 				 ordered_extent->file_offset +
@@ -1059,7 +1050,6 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 	btrfs_drop_extent_cache(inode, ordered_extent->file_offset,
 				ordered_extent->file_offset +
 				ordered_extent->len - 1, 0);
-	mutex_unlock(&BTRFS_I(inode)->extent_mutex);
 
 	ins.objectid = ordered_extent->start;
 	ins.offset = ordered_extent->disk_len;

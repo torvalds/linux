@@ -946,8 +946,12 @@ int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end,
 
 	err = set_extent_bit(tree, start, end, EXTENT_LOCKED, 1,
 			     &failed_start, mask);
-	if (err == -EEXIST)
+	if (err == -EEXIST) {
+		if (failed_start > start)
+			clear_extent_bit(tree, start, failed_start - 1,
+					 EXTENT_LOCKED, 1, 0, mask);
 		return 0;
+	}
 	return 1;
 }
 EXPORT_SYMBOL(try_lock_extent);

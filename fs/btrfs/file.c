@@ -364,6 +364,7 @@ int noinline btrfs_drop_extents(struct btrfs_trans_handle *trans,
 		       u64 start, u64 end, u64 inline_limit, u64 *hint_byte)
 {
 	u64 extent_end = 0;
+	u64 locked_end = end;
 	u64 search_start = start;
 	u64 leaf_start;
 	u64 ram_bytes = 0;
@@ -479,12 +480,6 @@ next_slot:
 			goto next_slot;
 		}
 
-		if (found_inline) {
-			u64 mask = root->sectorsize - 1;
-			search_start = (extent_end + mask) & ~mask;
-		} else
-			search_start = extent_end;
-
 		if (end <= extent_end && start >= key.offset && found_inline)
 			*hint_byte = EXTENT_MAP_INLINE;
 
@@ -501,6 +496,26 @@ next_slot:
 			if (found_inline && start <= key.offset)
 				keep = 1;
 		}
+
+		if (bookend && found_extent && locked_end < extent_end) {
+			ret = try_lock_extent(&BTRFS_I(inode)->io_tree,
+					locked_end, extent_end - 1, GFP_NOFS);
+			if (!ret) {
+				btrfs_release_path(root, path);
+				lock_extent(&BTRFS_I(inode)->io_tree,
+					locked_end, extent_end - 1, GFP_NOFS);
+				locked_end = extent_end;
+				continue;
+			}
+			locked_end = extent_end;
+		}
+
+		if (found_inline) {
+			u64 mask = root->sectorsize - 1;
+			search_start = (extent_end + mask) & ~mask;
+		} else
+			search_start = extent_end;
+
 		/* truncate existing extent */
 		if (start > key.offset) {
 			u64 new_num;
@@ -638,6 +653,10 @@ next_slot:
 	}
 out:
 	btrfs_free_path(path);
+	if (locked_end > end) {
+		unlock_extent(&BTRFS_I(inode)->io_tree, end, locked_end - 1,
+			      GFP_NOFS);
+	}
 	btrfs_check_file(root, inode);
 	return ret;
 }

@@ -3379,11 +3379,13 @@ static int noinline relocate_data_extent(struct inode *reloc_inode,
 	struct btrfs_root *root = BTRFS_I(reloc_inode)->root;
 	struct extent_map_tree *em_tree = &BTRFS_I(reloc_inode)->extent_tree;
 	struct extent_map *em;
+	u64 start = extent_key->objectid - offset;
+	u64 end = start + extent_key->offset - 1;
 
 	em = alloc_extent_map(GFP_NOFS);
 	BUG_ON(!em || IS_ERR(em));
 
-	em->start = extent_key->objectid - offset;
+	em->start = start;
 	em->len = extent_key->offset;
 	em->block_len = extent_key->offset;
 	em->block_start = extent_key->objectid;
@@ -3391,7 +3393,7 @@ static int noinline relocate_data_extent(struct inode *reloc_inode,
 	set_bit(EXTENT_FLAG_PINNED, &em->flags);
 
 	/* setup extent map to cheat btrfs_readpage */
-	mutex_lock(&BTRFS_I(reloc_inode)->extent_mutex);
+	lock_extent(&BTRFS_I(reloc_inode)->io_tree, start, end, GFP_NOFS);
 	while (1) {
 		int ret;
 		spin_lock(&em_tree->lock);
@@ -3401,13 +3403,11 @@ static int noinline relocate_data_extent(struct inode *reloc_inode,
 			free_extent_map(em);
 			break;
 		}
-		btrfs_drop_extent_cache(reloc_inode, em->start,
-					em->start + em->len - 1, 0);
+		btrfs_drop_extent_cache(reloc_inode, start, end, 0);
 	}
-	mutex_unlock(&BTRFS_I(reloc_inode)->extent_mutex);
+	unlock_extent(&BTRFS_I(reloc_inode)->io_tree, start, end, GFP_NOFS);
 
-	return relocate_inode_pages(reloc_inode, extent_key->objectid - offset,
-				    extent_key->offset);
+	return relocate_inode_pages(reloc_inode, start, extent_key->offset);
 }
 
 struct btrfs_ref_path {
@@ -3831,7 +3831,6 @@ next:
 			 * the file extent item was modified by someone
 			 * before the extent got locked.
 			 */
-			mutex_unlock(&BTRFS_I(inode)->extent_mutex);
 			unlock_extent(&BTRFS_I(inode)->io_tree, lock_start,
 				      lock_end, GFP_NOFS);
 			extent_locked = 0;
@@ -3896,8 +3895,12 @@ next:
 			lock_start = key.offset;
 			lock_end = lock_start + num_bytes - 1;
 		} else {
-			BUG_ON(lock_start != key.offset);
-			BUG_ON(lock_end - lock_start + 1 < num_bytes);
+			if (lock_start > key.offset ||
+			    lock_end + 1 < key.offset + num_bytes) {
+				unlock_extent(&BTRFS_I(inode)->io_tree,
+					      lock_start, lock_end, GFP_NOFS);
+				extent_locked = 0;
+			}
 		}
 
 		if (!inode) {
@@ -3951,7 +3954,6 @@ next:
 			if (ordered)
 				btrfs_put_ordered_extent(ordered);
 
-			mutex_lock(&BTRFS_I(inode)->extent_mutex);
 			extent_locked = 1;
 			continue;
 		}
@@ -4073,7 +4075,6 @@ next:
 		}
 
 		if (extent_locked) {
-			mutex_unlock(&BTRFS_I(inode)->extent_mutex);
 			unlock_extent(&BTRFS_I(inode)->io_tree, lock_start,
 				      lock_end, GFP_NOFS);
 			extent_locked = 0;
@@ -4091,7 +4092,6 @@ out:
 	if (inode) {
 		mutex_unlock(&inode->i_mutex);
 		if (extent_locked) {
-			mutex_unlock(&BTRFS_I(inode)->extent_mutex);
 			unlock_extent(&BTRFS_I(inode)->io_tree, lock_start,
 				      lock_end, GFP_NOFS);
 		}
@@ -4180,10 +4180,8 @@ static int noinline invalidate_extent_cache(struct btrfs_root *root,
 
 		lock_extent(&BTRFS_I(inode)->io_tree, key.offset,
 			    key.offset + num_bytes - 1, GFP_NOFS);
-		mutex_lock(&BTRFS_I(inode)->extent_mutex);
 		btrfs_drop_extent_cache(inode, key.offset,
 					key.offset + num_bytes - 1, 1);
-		mutex_unlock(&BTRFS_I(inode)->extent_mutex);
 		unlock_extent(&BTRFS_I(inode)->io_tree, key.offset,
 			      key.offset + num_bytes - 1, GFP_NOFS);
 		cond_resched();
