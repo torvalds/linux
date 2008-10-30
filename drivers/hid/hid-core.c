@@ -1616,9 +1616,10 @@ int hid_add_device(struct hid_device *hdev)
 	if (hid_ignore(hdev))
 		return -ENODEV;
 
-	/* XXX hack, any other cleaner solution < 20 bus_id bytes? */
-	sprintf(hdev->dev.bus_id, "%04X:%04X:%04X.%04X", hdev->bus,
-			hdev->vendor, hdev->product, atomic_inc_return(&id));
+	/* XXX hack, any other cleaner solution after the driver core
+	 * is converted to allow more than 20 bytes as the device name? */
+	dev_set_name(&hdev->dev, "%04X:%04X:%04X.%04X", hdev->bus,
+		     hdev->vendor, hdev->product, atomic_inc_return(&id));
 
 	ret = device_add(&hdev->dev);
 	if (!ret)
