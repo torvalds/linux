@@ -229,19 +229,21 @@ static void __insert_origin(struct origin *o)
  */
 static int register_snapshot(struct dm_snapshot *snap)
 {
-	struct origin *o;
+	struct origin *o, *new_o;
 	struct block_device *bdev = snap->origin->bdev;
+
+	new_o = kmalloc(sizeof(*new_o), GFP_KERNEL);
+	if (!new_o)
+		return -ENOMEM;
 
 	down_write(&_origins_lock);
 	o = __lookup_origin(bdev);
 
-	if (!o) {
+	if (o)
+		kfree(new_o);
+	else {
 		/* New origin */
-		o = kmalloc(sizeof(*o), GFP_KERNEL);
-		if (!o) {
-			up_write(&_origins_lock);
-			return -ENOMEM;
-		}
+		o = new_o;
 
 		/* Initialise the struct */
 		INIT_LIST_HEAD(&o->snapshots);
