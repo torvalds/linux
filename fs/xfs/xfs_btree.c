@@ -160,6 +160,7 @@ xfs_btree_check_lptr(
 	return 0;
 }
 
+#ifdef DEBUG
 /*
  * Check that (short) pointer is ok.
  */
@@ -197,6 +198,7 @@ xfs_btree_check_ptr(
 				be32_to_cpu((&ptr->s)[index]), level);
 	}
 }
+#endif
 
 /*
  * Delete the btree cursor.
