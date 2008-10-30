@@ -222,25 +222,26 @@ xfs_imap_to_bp(
  * Use xfs_imap() to determine the size and location of the
  * buffer to read from disk.
  */
-STATIC int
+int
 xfs_inotobp(
 	xfs_mount_t	*mp,
 	xfs_trans_t	*tp,
 	xfs_ino_t	ino,
 	xfs_dinode_t	**dipp,
 	xfs_buf_t	**bpp,
-	int		*offset)
+	int		*offset,
+	uint		imap_flags)
 {
 	xfs_imap_t	imap;
 	xfs_buf_t	*bp;
 	int		error;
 
 	imap.im_blkno = 0;
-	error = xfs_imap(mp, tp, ino, &imap, XFS_IMAP_LOOKUP);
+	error = xfs_imap(mp, tp, ino, &imap, imap_flags | XFS_IMAP_LOOKUP);
 	if (error)
 		return error;
 
-	error = xfs_imap_to_bp(mp, tp, &imap, &bp, XFS_BUF_LOCK, 0);
+	error = xfs_imap_to_bp(mp, tp, &imap, &bp, XFS_BUF_LOCK, imap_flags);
 	if (error)
 		return error;
 
@@ -792,7 +793,7 @@ xfs_dic2xflags(
 /*
  * Allocate and initialise an xfs_inode.
  */
-struct xfs_inode *
+STATIC struct xfs_inode *
 xfs_inode_alloc(
 	struct xfs_mount	*mp,
 	xfs_ino_t		ino)
@@ -2046,7 +2047,7 @@ xfs_iunlink_remove(
 			}
 			next_ino = XFS_AGINO_TO_INO(mp, agno, next_agino);
 			error = xfs_inotobp(mp, tp, next_ino, &last_dip,
-					    &last_ibp, &last_offset);
+					    &last_ibp, &last_offset, 0);
 			if (error) {
 				cmn_err(CE_WARN,
 			"xfs_iunlink_remove: xfs_inotobp()  returned an error %d on %s.  Returning error.",

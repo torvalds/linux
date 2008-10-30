@@ -359,7 +359,6 @@ xfs_bulkstat(
 	int			ubused;	/* bytes used by formatter */
 	xfs_buf_t		*bp;	/* ptr to on-disk inode cluster buf */
 	xfs_dinode_t		*dip;	/* ptr into bp for specific inode */
-	xfs_inode_t		*ip;	/* ptr to in-core inode struct */
 
 	/*
 	 * Get the last inode value, see if there's nothing to do.
@@ -585,6 +584,8 @@ xfs_bulkstat(
 
 					if (flags & (BULKSTAT_FG_QUICK |
 						     BULKSTAT_FG_INLINE)) {
+						int offset;
+
 						ino = XFS_AGINO_TO_INO(mp, agno,
 								       agino);
 						bno = XFS_AGB_TO_DADDR(mp, agno,
@@ -595,19 +596,13 @@ xfs_bulkstat(
 						 */
 						if (bp)
 							xfs_buf_relse(bp);
-						ip = xfs_inode_alloc(mp, ino);
-						if (!ip) {
-							bp = NULL;
-							rval = ENOMEM;
-							break;
-						}
-						error = xfs_itobp(mp, NULL, ip,
-								&dip, &bp, bno,
-								XFS_IMAP_BULKSTAT,
-								XFS_BUF_LOCK);
+
+						error = xfs_inotobp(mp, NULL, ino, &dip,
+								    &bp, &offset,
+								    XFS_IMAP_BULKSTAT);
+
 						if (!error)
-							clustidx = ip->i_boffset / mp->m_sb.sb_inodesize;
-						xfs_idestroy(ip);
+							clustidx = offset / mp->m_sb.sb_inodesize;
 						if (XFS_TEST_ERROR(error != 0,
 								   mp, XFS_ERRTAG_BULKSTAT_READ_CHUNK,
 								   XFS_RANDOM_BULKSTAT_READ_CHUNK)) {
