@@ -232,10 +232,6 @@ xfs_setattr(
 
 	/*
 	 * Change file ownership.  Must be the owner or privileged.
-	 * If the system was configured with the "restricted_chown"
-	 * option, the owner is not permitted to give away the file,
-	 * and can change the group id only to a group of which he
-	 * or she is a member.
 	 */
 	if (mask & (ATTR_UID|ATTR_GID)) {
 		/*
@@ -259,9 +255,8 @@ xfs_setattr(
 		 * shall be equal to either the group ID or one of the
 		 * supplementary group IDs of the calling process.
 		 */
-		if (restricted_chown &&
-		    (iuid != uid || (igid != gid &&
-				     !in_group_p((gid_t)gid))) &&
+		if ((iuid != uid ||
+		     (igid != gid && !in_group_p((gid_t)gid))) &&
 		    !capable(CAP_CHOWN)) {
 			code = XFS_ERROR(EPERM);
 			goto error_return;
@@ -455,10 +450,6 @@ xfs_setattr(
 
 	/*
 	 * Change file ownership.  Must be the owner or privileged.
-	 * If the system was configured with the "restricted_chown"
-	 * option, the owner is not permitted to give away the file,
-	 * and can change the group id only to a group of which he
-	 * or she is a member.
 	 */
 	if (mask & (ATTR_UID|ATTR_GID)) {
 		/*
