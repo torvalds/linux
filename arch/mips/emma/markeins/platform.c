@@ -36,7 +36,7 @@
 #include <asm/reboot.h>
 #include <asm/traps.h>
 
-#include <asm/emma2rh/emma2rh.h>
+#include <asm/emma/emma2rh.h>
 
 
 #define I2C_EMMA2RH "emma2rh-iic" /* must be in sync with IIC driver */

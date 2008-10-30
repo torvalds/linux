@@ -1,7 +1,6 @@
 /*
  * pata_optidma.c 	- Opti DMA PATA for new ATA layer
  *			  (C) 2006 Red Hat Inc
- *			  Alan Cox <alan@redhat.com>
  *
  *	The Opti DMA controllers are related to the older PIO PCI controllers
  *	and indeed the VLB ones. The main differences are that the timing

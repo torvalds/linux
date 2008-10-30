@@ -40,7 +40,7 @@
  *
  *
  * Alan Cox	     :  security fixes.
- *			<Alan.Cox@linux.org>
+ *			<alan@lxorguk.ukuu.org.uk>
  *
  * Al Viro           :  safe handling of mm_struct
  *

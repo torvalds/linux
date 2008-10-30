@@ -1314,8 +1314,7 @@ static int __devinit snd_mixart_probe(struct pci_dev *pci,
 	}
 	for (i = 0; i < 2; i++) {
 		mgr->mem[i].phys = pci_resource_start(pci, i);
-		mgr->mem[i].virt = ioremap_nocache(mgr->mem[i].phys,
-						   pci_resource_len(pci, i));
+		mgr->mem[i].virt = pci_ioremap_bar(pci, i);
 		if (!mgr->mem[i].virt) {
 		        printk(KERN_ERR "unable to remap resource 0x%lx\n",
 			       mgr->mem[i].phys);

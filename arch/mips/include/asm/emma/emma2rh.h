@@ -1,5 +1,5 @@
 /*
- *  include/asm-mips/emma2rh/emma2rh.h
+ *  arch/mips/include/asm/emma/emma2rh.h
  *      This file is EMMA2RH common header.
  *
  *  Copyright (C) NEC Electronics Corporation 2005-2006
@@ -21,8 +21,8 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#ifndef __ASM_EMMA2RH_EMMA2RH_H
-#define __ASM_EMMA2RH_EMMA2RH_H
+#ifndef __ASM_EMMA_EMMA2RH_H
+#define __ASM_EMMA_EMMA2RH_H
 
 #include <irq.h>
 
@@ -206,7 +206,6 @@ static inline void emma2rh_out32(u32 offset, u32 val)
 static inline u32 emma2rh_in32(u32 offset)
 {
 	u32 val = *(volatile u32 *)(EMMA2RH_BASE | offset);
-	emma2rh_sync();
 	return val;
 }
 
@@ -219,7 +218,6 @@ static inline void emma2rh_out16(u32 offset, u16 val)
 static inline u16 emma2rh_in16(u32 offset)
 {
 	u16 val = *(volatile u16 *)(EMMA2RH_BASE | offset);
-	emma2rh_sync();
 	return val;
 }
 
@@ -232,7 +230,6 @@ static inline void emma2rh_out8(u32 offset, u8 val)
 static inline u8 emma2rh_in8(u32 offset)
 {
 	u8 val = *(volatile u8 *)(EMMA2RH_BASE | offset);
-	emma2rh_sync();
 	return val;
 }
 
@@ -324,10 +321,10 @@ static inline u8 emma2rh_in8(u32 offset)
 /*
  * include the board dependent part
  */
-#if defined(CONFIG_MARKEINS)
-#include <asm/emma2rh/markeins.h>
+#ifdef CONFIG_NEC_MARKEINS
+#include <asm/emma/markeins.h>
 #else
 #error "Unknown EMMA2RH board!"
 #endif
 
-#endif /* __ASM_EMMA2RH_EMMA2RH_H */
+#endif /* __ASM_EMMA_EMMA2RH_H */

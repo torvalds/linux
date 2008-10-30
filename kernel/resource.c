@@ -571,7 +571,7 @@ static void __init __reserve_region_with_split(struct resource *root,
 
 }
 
-void reserve_region_with_split(struct resource *root,
+void __init reserve_region_with_split(struct resource *root,
 		resource_size_t start, resource_size_t end,
 		const char *name)
 {

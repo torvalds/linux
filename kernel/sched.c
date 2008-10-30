@@ -386,7 +386,6 @@ struct cfs_rq {
 
 	u64 exec_clock;
 	u64 min_vruntime;
-	u64 pair_start;
 
 	struct rb_root tasks_timeline;
 	struct rb_node *rb_leftmost;
@@ -3344,7 +3343,7 @@ small_imbalance:
 		} else
 			this_load_per_task = cpu_avg_load_per_task(this_cpu);
 
-		if (max_load - this_load + 2*busiest_load_per_task >=
+		if (max_load - this_load + busiest_load_per_task >=
 					busiest_load_per_task * imbn) {
 			*imbalance = busiest_load_per_task;
 			return busiest;

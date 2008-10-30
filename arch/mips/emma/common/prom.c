@@ -29,11 +29,11 @@
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
-#include <asm/emma2rh/emma2rh.h>
+#include <asm/emma/emma2rh.h>
 
 const char *get_system_type(void)
 {
-#if defined(CONFIG_MARKEINS)
+#ifdef CONFIG_NEC_MARKEINS
 	return "NEC EMMA2RH Mark-eins";
 #else
 #error  Unknown NEC board
@@ -60,7 +60,7 @@ void __init prom_init(void)
 		strcat(arcs_cmdline, " ");
 	}
 
-#if defined(CONFIG_MARKEINS)
+#ifdef CONFIG_NEC_MARKEINS
 	add_memory_region(0, EMMA2RH_RAM_SIZE, BOOT_MEM_RAM);
 #else
 #error  Unknown NEC board

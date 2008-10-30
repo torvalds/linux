@@ -14,6 +14,8 @@
 #include <linux/types.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
+#include <linux/interrupt.h>
+#include <linux/smc91x.h>
 #include <asm/reboot.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/pci.h>
@@ -32,6 +34,21 @@ static void __init rbtx4939_time_init(void)
 {
 	tx4939_time_init(0);
 }
+
+#if defined(__BIG_ENDIAN) && \
+	(defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE))
+#define HAVE_RBTX4939_IOSWAB
+#define IS_CE1_ADDR(addr) \
+	((((unsigned long)(addr) - IO_BASE) & 0xfff00000) == TXX9_CE(1))
+static u16 rbtx4939_ioswabw(volatile u16 *a, u16 x)
+{
+	return IS_CE1_ADDR(a) ? x : le16_to_cpu(x);
+}
+static u16 rbtx4939_mem_ioswabw(volatile u16 *a, u16 x)
+{
+	return !IS_CE1_ADDR(a) ? x : le16_to_cpu(x);
+}
+#endif /* __BIG_ENDIAN && CONFIG_SMC91X */
 
 static void __init rbtx4939_pci_setup(void)
 {
@@ -239,6 +256,32 @@ static inline void rbtx4939_led_setup(void)
 }
 #endif
 
+static void __rbtx4939_7segled_putc(unsigned int pos, unsigned char val)
+{
+#if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
+	unsigned long flags;
+	local_irq_save(flags);
+	/* bit7: reserved for LED class */
+	led_val[pos] = (led_val[pos] & 0x80) | (val & 0x7f);
+	val = led_val[pos];
+	local_irq_restore(flags);
+#endif
+	writeb(val, rbtx4939_7seg_addr(pos / 4, pos % 4));
+}
+
+static void rbtx4939_7segled_putc(unsigned int pos, unsigned char val)
+{
+	/* convert from map_to_seg7() notation */
+	val = (val & 0x88) |
+		((val & 0x40) >> 6) |
+		((val & 0x20) >> 4) |
+		((val & 0x10) >> 2) |
+		((val & 0x04) << 2) |
+		((val & 0x02) << 4) |
+		((val & 0x01) << 6);
+	__rbtx4939_7segled_putc(pos, val);
+}
+
 static void __init rbtx4939_arch_init(void)
 {
 	rbtx4939_pci_setup();
@@ -246,6 +289,22 @@ static void __init rbtx4939_arch_init(void)
 
 static void __init rbtx4939_device_init(void)
 {
+	unsigned long smc_addr = RBTX4939_ETHER_ADDR - IO_BASE;
+	struct resource smc_res[] = {
+		{
+			.start	= smc_addr,
+			.end	= smc_addr + 0x10 - 1,
+			.flags	= IORESOURCE_MEM,
+		}, {
+			.start	= RBTX4939_IRQ_ETHER,
+			/* override default irq flag defined in smc91x.h */
+			.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_LOW,
+		},
+	};
+	struct smc91x_platdata smc_pdata = {
+		.flags = SMC91X_USE_16BIT,
+	};
+	struct platform_device *pdev;
 #if defined(CONFIG_TC35815) || defined(CONFIG_TC35815_MODULE)
 	int i, j;
 	unsigned char ethaddr[2][6];
@@ -262,6 +321,12 @@ static void __init rbtx4939_device_init(void)
 	}
 	tx4939_ethaddr_init(ethaddr[0], ethaddr[1]);
 #endif
+	pdev = platform_device_alloc("smc91x", -1);
+	if (!pdev ||
+	    platform_device_add_resources(pdev, smc_res, ARRAY_SIZE(smc_res)) ||
+	    platform_device_add_data(pdev, &smc_pdata, sizeof(smc_pdata)) ||
+	    platform_device_add(pdev))
+		platform_device_put(pdev);
 	rbtx4939_led_setup();
 	tx4939_wdt_init();
 	tx4939_ata_init();
@@ -269,6 +334,8 @@ static void __init rbtx4939_device_init(void)
 
 static void __init rbtx4939_setup(void)
 {
+	int i;
+
 	rbtx4939_ebusc_setup();
 	/* always enable ATA0 */
 	txx9_set64(&tx4939_ccfgptr->pcfg, TX4939_PCFG_ATA0MODE);
@@ -276,9 +343,16 @@ static void __init rbtx4939_setup(void)
 	if (txx9_master_clock == 0)
 		txx9_master_clock = 20000000;
 	tx4939_setup();
+#ifdef HAVE_RBTX4939_IOSWAB
+	ioswabw = rbtx4939_ioswabw;
+	__mem_ioswabw = rbtx4939_mem_ioswabw;
+#endif
 
 	_machine_restart = rbtx4939_machine_restart;
 
+	txx9_7segled_init(RBTX4939_MAX_7SEGLEDS, rbtx4939_7segled_putc);
+	for (i = 0; i < RBTX4939_MAX_7SEGLEDS; i++)
+		txx9_7segled_putc(i, '-');
 	pr_info("RBTX4939 (Rev %02x) --- FPGA(Rev %02x) DIPSW:%02x,%02x\n",
 		readb(rbtx4939_board_rev_addr), readb(rbtx4939_ioc_rev_addr),
 		readb(rbtx4939_udipsw_addr), readb(rbtx4939_bdipsw_addr));

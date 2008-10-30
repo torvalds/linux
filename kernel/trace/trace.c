@@ -34,6 +34,7 @@
 
 #include <linux/stacktrace.h>
 #include <linux/ring_buffer.h>
+#include <linux/irqflags.h>
 
 #include "trace.h"
 
@@ -851,7 +852,7 @@ ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3)
 	preempt_enable_notrace();
 }
 
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 static void
 function_trace_call(unsigned long ip, unsigned long parent_ip)
 {
@@ -863,9 +864,6 @@ function_trace_call(unsigned long ip, unsigned long parent_ip)
 	int pc;
 
 	if (unlikely(!ftrace_function_enabled))
-		return;
-
-	if (skip_trace(ip))
 		return;
 
 	pc = preempt_count();
@@ -2379,9 +2377,10 @@ tracing_set_trace_write(struct file *filp, const char __user *ubuf,
 	int i;
 	size_t ret;
 
+	ret = cnt;
+
 	if (cnt > max_tracer_type_len)
 		cnt = max_tracer_type_len;
-	ret = cnt;
 
 	if (copy_from_user(&buf, ubuf, cnt))
 		return -EFAULT;
@@ -2414,8 +2413,8 @@ tracing_set_trace_write(struct file *filp, const char __user *ubuf,
  out:
 	mutex_unlock(&trace_types_lock);
 
-	if (ret == cnt)
-		filp->f_pos += cnt;
+	if (ret > 0)
+		filp->f_pos += ret;
 
 	return ret;
 }
@@ -3097,7 +3096,7 @@ void ftrace_dump(void)
 	dump_ran = 1;
 
 	/* No turning back! */
-	ftrace_kill_atomic();
+	ftrace_kill();
 
 	for_each_tracing_cpu(cpu) {
 		atomic_inc(&global_trace.data[cpu]->disabled);

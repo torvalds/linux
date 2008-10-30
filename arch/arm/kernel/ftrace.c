@@ -95,19 +95,6 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	return ret;
 }
 
-int ftrace_mcount_set(unsigned long *data)
-{
-	unsigned long pc, old;
-	unsigned long *addr = data;
-	unsigned char *new;
-
-	pc = (unsigned long)&mcount_call;
-	memcpy(&old, &mcount_call, MCOUNT_INSN_SIZE);
-	new = ftrace_call_replace(pc, *addr);
-	*addr = ftrace_modify_code(pc, (unsigned char *)&old, new);
-	return 0;
-}
-
 /* run from kstop_machine */
 int __init ftrace_dyn_arch_init(void *data)
 {

@@ -5,7 +5,7 @@
  *
  *  nfs superblock handling functions
  *
- *  Modularised by Alan Cox <Alan.Cox@linux.org>, while hacking some
+ *  Modularised by Alan Cox <alan@lxorguk.ukuu.org.uk>, while hacking some
  *  experimental NFS changes. Modularisation taken straight from SYS5 fs.
  *
  *  Change to nfs_read_super() to permit NFS mounts to multi-homed hosts.

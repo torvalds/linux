@@ -93,7 +93,7 @@ mcount:
 	 nop
 1:
 #endif
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 #ifdef CONFIG_DYNAMIC_FTRACE
 	mov		%o7, %o0
 	.globl		mcount_call
@@ -119,7 +119,7 @@ mcount_call:
 	.size		_mcount,.-_mcount
 	.size		mcount,.-mcount
 
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 	.globl		ftrace_stub
 	.type		ftrace_stub,#function
 ftrace_stub:
