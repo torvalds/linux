@@ -68,15 +68,15 @@ xfs_quiesce_fs(
 	xfs_flush_buftarg(mp->m_ddev_targp, 0);
 	xfs_finish_reclaim_all(mp, 0, XFS_IFLUSH_DELWRI_ELSE_ASYNC);
 
-	/* This loop must run at least twice.
-	 * The first instance of the loop will flush
-	 * most meta data but that will generate more
-	 * meta data (typically directory updates).
-	 * Which then must be flushed and logged before
-	 * we can write the unmount record.
+	/*
+	 * This loop must run at least twice.  The first instance of the loop
+	 * will flush most meta data but that will generate more meta data
+	 * (typically directory updates).  Which then must be flushed and
+	 * logged before we can write the unmount record.
 	 */
 	do {
-		xfs_syncsub(mp, SYNC_INODE_QUIESCE, NULL);
+		xfs_log_force(mp, 0, XFS_LOG_FORCE|XFS_LOG_SYNC);
+		xfs_sync_inodes(mp, SYNC_INODE_QUIESCE);
 		pincount = xfs_flush_buftarg(mp->m_ddev_targp, 1);
 		if (!pincount) {
 			delay(50);

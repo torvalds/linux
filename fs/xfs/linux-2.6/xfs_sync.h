@@ -55,7 +55,7 @@ int xfs_syncd_init(struct xfs_mount *mp);
 void xfs_syncd_stop(struct xfs_mount *mp);
 
 int xfs_sync(struct xfs_mount *mp, int flags);
-int xfs_syncsub(struct xfs_mount *mp, int flags, int *bypassed);
+int xfs_sync_inodes(struct xfs_mount *mp, int flags);
 
 void xfs_flush_inode(struct xfs_inode *ip);
 void xfs_flush_device(struct xfs_inode *ip);

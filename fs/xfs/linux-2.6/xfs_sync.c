@@ -117,7 +117,7 @@ xfs_sync(
 	if (flags & SYNC_IOWAIT)
 		xfs_filestream_flush(mp);
 
-	return xfs_syncsub(mp, flags, NULL);
+	return xfs_syncsub(mp, flags);
 }
 
 /*
@@ -128,8 +128,7 @@ STATIC int
 xfs_sync_inodes_ag(
 	xfs_mount_t	*mp,
 	int		ag,
-	int		flags,
-	int		*bypassed)
+	int		flags)
 {
 	xfs_perag_t	*pag = &mp->m_perag[ag];
 	int		nr_found;
@@ -260,8 +259,6 @@ xfs_sync_inodes_ag(
 					error = xfs_iflush(ip, XFS_IFLUSH_DELWRI);
 				else
 					xfs_ifunlock(ip);
-			} else if (bypassed) {
-				(*bypassed)++;
 			}
 		}
 
@@ -288,15 +285,12 @@ xfs_sync_inodes_ag(
 int
 xfs_sync_inodes(
 	xfs_mount_t	*mp,
-	int		flags,
-	int             *bypassed)
+	int		flags)
 {
 	int		error;
 	int		last_error;
 	int		i;
 
-	if (bypassed)
-		*bypassed = 0;
 	if (mp->m_flags & XFS_MOUNT_RDONLY)
 		return 0;
 	error = 0;
@@ -305,7 +299,7 @@ xfs_sync_inodes(
 	for (i = 0; i < mp->m_sb.sb_agcount; i++) {
 		if (!mp->m_perag[i].pag_ici_init)
 			continue;
-		error = xfs_sync_inodes_ag(mp, i, flags, bypassed);
+		error = xfs_sync_inodes_ag(mp, i, flags);
 		if (error)
 			last_error = error;
 		if (error == EFSCORRUPTED)
@@ -408,11 +402,10 @@ xfs_sync_fsdata(
  * interface as explained above under xfs_sync.
  *
  */
-int
+STATIC int
 xfs_syncsub(
 	xfs_mount_t	*mp,
-	int		flags,
-	int             *bypassed)
+	int		flags)
 {
 	int		error = 0;
 	int		last_error = 0;
@@ -431,7 +424,7 @@ xfs_syncsub(
 		if (flags & SYNC_BDFLUSH)
 			xfs_finish_reclaim_all(mp, 1, XFS_IFLUSH_DELWRI_ELSE_ASYNC);
 		else
-			error = xfs_sync_inodes(mp, flags, bypassed);
+			error = xfs_sync_inodes(mp, flags);
 	}
 
 	/*

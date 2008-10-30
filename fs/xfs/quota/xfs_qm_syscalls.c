@@ -127,7 +127,7 @@ xfs_qm_quotactl(
 		break;
 
 	case Q_XQUOTASYNC:
-		return (xfs_sync_inodes(mp, SYNC_DELWRI, NULL));
+		return xfs_sync_inodes(mp, SYNC_DELWRI);
 
 	default:
 		break;
