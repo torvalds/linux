@@ -1,6 +1,6 @@
 config SND_SOC_ALL_CODECS
 	tristate "Build all ASoC CODEC drivers"
-	select SND_SOC_AC97 if SND_SOC_AC97_BUS
+	select SND_SOC_AC97_CODEC if SND_SOC_AC97_BUS
 	select SND_SOC_AD1980 if SND_SOC_AC97_BUS
 	select SND_SOC_AD73311 if I2C
 	select SND_SOC_AK4535 if I2C
