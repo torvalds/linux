@@ -58,7 +58,7 @@ static void da903x_led_work(struct work_struct *work)
 		offset = DA9030_LED_OFFSET(led->id);
 		val = led->flags & ~0x87;
 		val |= (led->new_brightness) ? 0x80 : 0; /* EN bit */
-		val |= (led->new_brightness >> 5) & 0x7; /* PWM<2:0> */
+		val |= (0x7 - (led->new_brightness >> 5)) & 0x7; /* PWM<2:0> */
 		da903x_write(led->master, DA9030_LED1_CONTROL + offset, val);
 		break;
 	case DA9030_ID_VIBRA:
