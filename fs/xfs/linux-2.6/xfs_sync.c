@@ -342,9 +342,8 @@ xfs_sync_fsdata(
  *		       periodically.  We also push the inodes and
  *		       superblock if we can lock them without sleeping
  *			and they are not pinned.
- *      SYNC_ATTR    - We need to flush the inodes.  If SYNC_BDFLUSH is not
- *		       set, then we really want to lock each inode and flush
- *		       it.
+ *      SYNC_ATTR    - We need to flush the inodes. Now handled by direct calls
+ *		       to xfs_sync_inodes().
  *      SYNC_WAIT    - All the flushes that take place in this call should
  *		       be synchronous.
  *      SYNC_DELWRI  - This tells us to push dirty pages associated with
@@ -372,6 +371,8 @@ xfs_sync(
 	int		error;
 	int		last_error = 0;
 	uint		log_flags = XFS_LOG_FORCE;
+
+	ASSERT(!(flags & SYNC_ATTR));
 
 	/*
 	 * Get the Quota Manager to flush the dquots.
@@ -403,20 +404,18 @@ xfs_sync(
 
 	xfs_log_force(mp, (xfs_lsn_t)0, log_flags);
 
-	if (flags & (SYNC_ATTR|SYNC_DELWRI)) {
+	if (flags & SYNC_DELWRI) {
 		if (flags & SYNC_BDFLUSH)
 			xfs_finish_reclaim_all(mp, 1, XFS_IFLUSH_DELWRI_ELSE_ASYNC);
 		else
 			error = xfs_sync_inodes(mp, flags);
-	}
-
-	/*
-	 * Flushing out dirty data above probably generated more
-	 * log activity, so if this isn't vfs_sync() then flush
-	 * the log again.
-	 */
-	if (flags & SYNC_DELWRI)
+		/*
+		 * Flushing out dirty data above probably generated more
+		 * log activity, so if this isn't vfs_sync() then flush
+		 * the log again.
+		 */
 		xfs_log_force(mp, 0, log_flags);
+	}
 
 	if (flags & SYNC_FSDATA) {
 		error = xfs_sync_fsdata(mp, flags);

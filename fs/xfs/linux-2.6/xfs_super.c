@@ -998,7 +998,8 @@ xfs_fs_put_super(
 	int			error;
 
 	xfs_syncd_stop(mp);
-	xfs_sync(mp, SYNC_ATTR | SYNC_DELWRI);
+	xfs_log_force(mp, 0, XFS_LOG_FORCE|XFS_LOG_SYNC);
+	xfs_sync_inodes(mp, SYNC_ATTR|SYNC_DELWRI);
 
 #ifdef HAVE_DMAPI
 	if (mp->m_flags & XFS_MOUNT_DMAPI) {
