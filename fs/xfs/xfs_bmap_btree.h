@@ -213,13 +213,6 @@ typedef __be64 xfs_bmbt_ptr_t, xfs_bmdr_ptr_t;
  */
 #define XFS_BM_MAXLEVELS(mp,w)		((mp)->m_bm_maxlevels[(w)])
 
-#define XFS_BMAP_SANITY_CHECK(mp,bb,level) \
-	(be32_to_cpu((bb)->bb_magic) == XFS_BMAP_MAGIC && \
-	 be16_to_cpu((bb)->bb_level) == level && \
-	 be16_to_cpu((bb)->bb_numrecs) > 0 && \
-	 be16_to_cpu((bb)->bb_numrecs) <= (mp)->m_bmap_dmxr[(level) != 0])
-
-
 /*
  * Prototypes for xfs_bmap.c to call.
  */

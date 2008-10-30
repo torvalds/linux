@@ -4524,6 +4524,22 @@ xfs_bmap_one_block(
 	return rval;
 }
 
+STATIC int
+xfs_bmap_sanity_check(
+	struct xfs_mount	*mp,
+	struct xfs_buf		*bp,
+	int			level)
+{
+	struct xfs_btree_block  *block = XFS_BUF_TO_BLOCK(bp);
+
+	if (be32_to_cpu(block->bb_magic) != XFS_BMAP_MAGIC ||
+	    be16_to_cpu(block->bb_level) != level ||
+	    be16_to_cpu(block->bb_numrecs) == 0 ||
+	    be16_to_cpu(block->bb_numrecs) > mp->m_bmap_dmxr[level != 0])
+		return 0;
+	return 1;
+}
+
 /*
  * Read in the extents to if_extents.
  * All inode fields are set up by caller, we just traverse the btree
@@ -4575,7 +4591,7 @@ xfs_bmap_read_extents(
 			return error;
 		block = XFS_BUF_TO_BLOCK(bp);
 		XFS_WANT_CORRUPTED_GOTO(
-			XFS_BMAP_SANITY_CHECK(mp, block, level),
+			xfs_bmap_sanity_check(mp, bp, level),
 			error0);
 		if (level == 0)
 			break;
@@ -4611,7 +4627,7 @@ xfs_bmap_read_extents(
 			goto error0;
 		}
 		XFS_WANT_CORRUPTED_GOTO(
-			XFS_BMAP_SANITY_CHECK(mp, block, 0),
+			xfs_bmap_sanity_check(mp, bp, 0),
 			error0);
 		/*
 		 * Read-ahead the next leaf block, if any.
@@ -6287,7 +6303,7 @@ xfs_bmap_check_leaf_extents(
 			goto error_norelse;
 		block = XFS_BUF_TO_BLOCK(bp);
 		XFS_WANT_CORRUPTED_GOTO(
-			XFS_BMAP_SANITY_CHECK(mp, block, level),
+			xfs_bmap_sanity_check(mp, bp, level),
 			error0);
 		if (level == 0)
 			break;
