@@ -66,7 +66,7 @@ xfs_quiesce_fs(
 	int			count = 0, pincount;
 
 	xfs_flush_buftarg(mp->m_ddev_targp, 0);
-	xfs_finish_reclaim_all(mp, 0);
+	xfs_finish_reclaim_all(mp, 0, XFS_IFLUSH_DELWRI_ELSE_ASYNC);
 
 	/* This loop must run at least twice.
 	 * The first instance of the loop will flush

@@ -504,7 +504,7 @@ xfs_syncsub(
 
 	if (flags & (SYNC_ATTR|SYNC_DELWRI)) {
 		if (flags & SYNC_BDFLUSH)
-			xfs_finish_reclaim_all(mp, 1);
+			xfs_finish_reclaim_all(mp, 1, XFS_IFLUSH_DELWRI_ELSE_ASYNC);
 		else
 			error = xfs_sync_inodes(mp, flags, bypassed);
 	}
