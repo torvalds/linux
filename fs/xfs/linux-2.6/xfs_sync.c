@@ -63,25 +63,16 @@ xfs_sync_inodes_ag(
 	int		error = 0;
 	int		last_error = 0;
 	int		fflag = XFS_B_ASYNC;
-	int		lock_flags = XFS_ILOCK_SHARED;
 
 	if (flags & SYNC_DELWRI)
 		fflag = XFS_B_DELWRI;
 	if (flags & SYNC_WAIT)
 		fflag = 0;		/* synchronous overrides all */
 
-	if (flags & SYNC_DELWRI) {
-		/*
-		 * We need the I/O lock if we're going to call any of
-		 * the flush/inval routines.
-		 */
-		lock_flags |= XFS_IOLOCK_SHARED;
-	}
-
 	do {
 		struct inode	*inode;
-		boolean_t	inode_refed;
 		xfs_inode_t	*ip = NULL;
+		int		lock_flags = XFS_ILOCK_SHARED;
 
 		/*
 		 * use a gang lookup to find the next inode in the tree
@@ -109,22 +100,6 @@ xfs_sync_inodes_ag(
 			break;
 		}
 
-		/*
-		 * skip inodes in reclaim. Let xfs_syncsub do that for
-		 * us so we don't need to worry.
-		 */
-		if (xfs_iflags_test(ip, (XFS_IRECLAIM|XFS_IRECLAIMABLE))) {
-			read_unlock(&pag->pag_ici_lock);
-			continue;
-		}
-
-		/* bad inodes are dealt with elsewhere */
-		inode = VFS_I(ip);
-		if (is_bad_inode(inode)) {
-			read_unlock(&pag->pag_ici_lock);
-			continue;
-		}
-
 		/* nothing to sync during shutdown */
 		if (XFS_FORCED_SHUTDOWN(mp)) {
 			read_unlock(&pag->pag_ici_lock);
@@ -132,42 +107,34 @@ xfs_sync_inodes_ag(
 		}
 
 		/*
-		 * If we can't get a reference on the VFS_I, the inode must be
-		 * in reclaim. If we can get the inode lock without blocking,
-		 * it is safe to flush the inode because we hold the tree lock
-		 * and xfs_iextract will block right now. Hence if we lock the
-		 * inode while holding the tree lock, xfs_ireclaim() is
-		 * guaranteed to block on the inode lock we now hold and hence
-		 * it is safe to reference the inode until we drop the inode
-		 * locks completely.
+		 * If we can't get a reference on the inode, it must be
+		 * in reclaim. Leave it for the reclaim code to flush.
 		 */
-		inode_refed = B_FALSE;
-		if (igrab(inode)) {
+		inode = VFS_I(ip);
+		if (!igrab(inode)) {
 			read_unlock(&pag->pag_ici_lock);
-			xfs_ilock(ip, lock_flags);
-			inode_refed = B_TRUE;
-		} else {
-			if (!xfs_ilock_nowait(ip, lock_flags)) {
-				/* leave it to reclaim */
-				read_unlock(&pag->pag_ici_lock);
-				continue;
-			}
-			read_unlock(&pag->pag_ici_lock);
+			continue;
+		}
+		read_unlock(&pag->pag_ici_lock);
+
+		/* bad inodes are dealt with elsewhere */
+		if (is_bad_inode(inode)) {
+			IRELE(ip);
+			continue;
 		}
 
 		/*
 		 * If we have to flush data or wait for I/O completion
-		 * we need to drop the ilock that we currently hold.
-		 * If we need to drop the lock, insert a marker if we
-		 * have not already done so.
+		 * we need to hold the iolock.
 		 */
 		if ((flags & SYNC_DELWRI) && VN_DIRTY(inode)) {
-			xfs_iunlock(ip, XFS_ILOCK_SHARED);
+			xfs_ilock(ip, XFS_IOLOCK_SHARED);
+			lock_flags |= XFS_IOLOCK_SHARED;
 			error = xfs_flush_pages(ip, 0, -1, fflag, FI_NONE);
 			if (flags & SYNC_IOWAIT)
 				vn_iowait(ip);
-			xfs_ilock(ip, XFS_ILOCK_SHARED);
 		}
+		xfs_ilock(ip, XFS_ILOCK_SHARED);
 
 		if ((flags & SYNC_ATTR) && !xfs_inode_clean(ip)) {
 			if (flags & SYNC_WAIT) {
@@ -183,13 +150,7 @@ xfs_sync_inodes_ag(
 					xfs_ifunlock(ip);
 			}
 		}
-
-		if (lock_flags)
-			xfs_iunlock(ip, lock_flags);
-
-		if (inode_refed) {
-			IRELE(ip);
-		}
+		xfs_iput(ip, lock_flags);
 
 		if (error)
 			last_error = error;
