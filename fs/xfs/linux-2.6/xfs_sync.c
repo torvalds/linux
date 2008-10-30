@@ -685,32 +685,93 @@ xfs_inode_clear_reclaim_tag(
 	xfs_put_perag(mp, pag);
 }
 
+
+STATIC void
+xfs_reclaim_inodes_ag(
+	xfs_mount_t	*mp,
+	int		ag,
+	int		noblock,
+	int		mode)
+{
+	xfs_inode_t	*ip = NULL;
+	xfs_perag_t	*pag = &mp->m_perag[ag];
+	int		nr_found;
+	int		first_index;
+	int		skipped;
+
+restart:
+	first_index = 0;
+	skipped = 0;
+	do {
+		/*
+		 * use a gang lookup to find the next inode in the tree
+		 * as the tree is sparse and a gang lookup walks to find
+		 * the number of objects requested.
+		 */
+		read_lock(&pag->pag_ici_lock);
+		nr_found = radix_tree_gang_lookup_tag(&pag->pag_ici_root,
+					(void**)&ip, first_index, 1,
+					XFS_ICI_RECLAIM_TAG);
+
+		if (!nr_found) {
+			read_unlock(&pag->pag_ici_lock);
+			break;
+		}
+
+		/* update the index for the next lookup */
+		first_index = XFS_INO_TO_AGINO(mp, ip->i_ino + 1);
+
+		ASSERT(xfs_iflags_test(ip, (XFS_IRECLAIMABLE|XFS_IRECLAIM)));
+
+		/* ignore if already under reclaim */
+		if (xfs_iflags_test(ip, XFS_IRECLAIM)) {
+			read_unlock(&pag->pag_ici_lock);
+			continue;
+		}
+
+		if (noblock) {
+			if (!xfs_ilock_nowait(ip, XFS_ILOCK_EXCL)) {
+				read_unlock(&pag->pag_ici_lock);
+				continue;
+			}
+			if (xfs_ipincount(ip) ||
+			    !xfs_iflock_nowait(ip)) {
+				xfs_iunlock(ip, XFS_ILOCK_EXCL);
+				read_unlock(&pag->pag_ici_lock);
+				continue;
+			}
+		}
+		read_unlock(&pag->pag_ici_lock);
+
+		/*
+		 * hmmm - this is an inode already in reclaim. Do
+		 * we even bother catching it here?
+		 */
+		if (xfs_reclaim_inode(ip, noblock, mode))
+			skipped++;
+	} while (nr_found);
+
+	if (skipped) {
+		delay(1);
+		goto restart;
+	}
+	return;
+
+}
+
 int
 xfs_reclaim_inodes(
 	xfs_mount_t	*mp,
 	int		 noblock,
 	int		mode)
 {
-	xfs_inode_t	*ip, *n;
+	int		i;
 
-restart:
-	XFS_MOUNT_ILOCK(mp);
-	list_for_each_entry_safe(ip, n, &mp->m_del_inodes, i_reclaim) {
-		if (noblock) {
-			if (xfs_ilock_nowait(ip, XFS_ILOCK_EXCL) == 0)
-				continue;
-			if (xfs_ipincount(ip) ||
-			    !xfs_iflock_nowait(ip)) {
-				xfs_iunlock(ip, XFS_ILOCK_EXCL);
-				continue;
-			}
-		}
-		XFS_MOUNT_IUNLOCK(mp);
-		if (xfs_reclaim_inode(ip, noblock, mode))
-			delay(1);
-		goto restart;
+	for (i = 0; i < mp->m_sb.sb_agcount; i++) {
+		if (!mp->m_perag[i].pag_ici_init)
+			continue;
+		xfs_reclaim_inodes_ag(mp, i, noblock, mode);
 	}
-	XFS_MOUNT_IUNLOCK(mp);
 	return 0;
 }
 
