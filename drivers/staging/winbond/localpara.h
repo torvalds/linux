@@ -149,7 +149,6 @@ typedef struct LOCAL_PARA
 
     //// power-save variables
     u8  		  	iPowerSaveMode;     // 0 indicates it is on, 1 indicates it is off
-	u8			ShutDowned;
 	u8			ATIMmode;
 	u8			ExcludeUnencrypted;
 

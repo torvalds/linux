@@ -220,9 +220,6 @@ static unsigned char wb35_hw_init(struct ieee80211_hw *hw)
 	pHwData = &priv->sHwData;
 	hal_set_phy_type( pHwData, RF_DECIDE_BY_INF );
 
-	// Initial Software variable
-	priv->sLocalPara.ShutDowned = false;
-
 	//added by ws for wep key error detection
 	priv->sLocalPara.bWepKeyError= false;
 	priv->sLocalPara.bToSelfPacketReceived = false;
@@ -424,9 +421,6 @@ void packet_came(struct ieee80211_hw *hw, char *pRxBufferAddress, int PacketSize
 
 static void wb35_hw_halt(struct wbsoft_priv *adapter)
 {
-	//---------------------
-	adapter->sLocalPara.ShutDowned = true;
-
 	Mds_Destroy( adapter );
 
 	// Turn off Rx and Tx hardware ability
