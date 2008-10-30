@@ -183,6 +183,9 @@ struct xfs_btree_ops {
 	/* cursor operations */
 	struct xfs_btree_cur *(*dup_cursor)(struct xfs_btree_cur *);
 
+	/* records in block/level */
+	int	(*get_maxrecs)(struct xfs_btree_cur *cur, int level);
+
 	/* btree tracing */
 #ifdef XFS_BTREE_TRACE
 	void		(*trace_enter)(struct xfs_btree_cur *, const char *,

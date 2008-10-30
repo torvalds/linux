@@ -2219,6 +2219,14 @@ xfs_allocbt_dup_cursor(
 			cur->bc_btnum);
 }
 
+STATIC int
+xfs_allocbt_get_maxrecs(
+	struct xfs_btree_cur	*cur,
+	int			level)
+{
+	return cur->bc_mp->m_alloc_mxr[level != 0];
+}
+
 #ifdef XFS_BTREE_TRACE
 ktrace_t	*xfs_allocbt_trace_buf;
 
@@ -2287,6 +2295,7 @@ xfs_allocbt_trace_record(
 
 static const struct xfs_btree_ops xfs_allocbt_ops = {
 	.dup_cursor		= xfs_allocbt_dup_cursor,
+	.get_maxrecs		= xfs_allocbt_get_maxrecs,
 
 #ifdef XFS_BTREE_TRACE
 	.trace_enter		= xfs_allocbt_trace_enter,

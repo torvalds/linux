@@ -2415,6 +2415,14 @@ xfs_bmbt_dup_cursor(
 	return new;
 }
 
+STATIC int
+xfs_bmbt_get_maxrecs(
+	struct xfs_btree_cur	*cur,
+	int			level)
+{
+	return XFS_BMAP_BLOCK_IMAXRECS(level, cur);
+}
+
 #ifdef XFS_BTREE_TRACE
 ktrace_t	*xfs_bmbt_trace_buf;
 
@@ -2502,6 +2510,7 @@ xfs_bmbt_trace_record(
 
 static const struct xfs_btree_ops xfs_bmbt_ops = {
 	.dup_cursor		= xfs_bmbt_dup_cursor,
+	.get_maxrecs		= xfs_bmbt_get_maxrecs,
 
 #ifdef XFS_BTREE_TRACE
 	.trace_enter		= xfs_bmbt_trace_enter,

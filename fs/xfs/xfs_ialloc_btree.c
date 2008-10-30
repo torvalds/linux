@@ -2085,6 +2085,14 @@ xfs_inobt_dup_cursor(
 			cur->bc_private.a.agbp, cur->bc_private.a.agno);
 }
 
+STATIC int
+xfs_inobt_get_maxrecs(
+	struct xfs_btree_cur	*cur,
+	int			level)
+{
+	return cur->bc_mp->m_inobt_mxr[level != 0];
+}
+
 #ifdef XFS_BTREE_TRACE
 ktrace_t	*xfs_inobt_trace_buf;
 
@@ -2153,6 +2161,7 @@ xfs_inobt_trace_record(
 
 static const struct xfs_btree_ops xfs_inobt_ops = {
 	.dup_cursor		= xfs_inobt_dup_cursor,
+	.get_maxrecs		= xfs_inobt_get_maxrecs,
 
 #ifdef XFS_BTREE_TRACE
 	.trace_enter		= xfs_inobt_trace_enter,

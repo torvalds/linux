@@ -51,31 +51,6 @@ const __uint32_t xfs_magics[XFS_BTNUM_MAX] = {
 };
 
 /*
- * Checking routine: return maxrecs for the block.
- */
-STATIC int				/* number of records fitting in block */
-xfs_btree_maxrecs(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	xfs_btree_block_t	*block)	/* generic btree block pointer */
-{
-	switch (cur->bc_btnum) {
-	case XFS_BTNUM_BNO:
-	case XFS_BTNUM_CNT:
-		return (int)XFS_ALLOC_BLOCK_MAXRECS(
-				be16_to_cpu(block->bb_level), cur);
-	case XFS_BTNUM_BMAP:
-		return (int)XFS_BMAP_BLOCK_IMAXRECS(
-				be16_to_cpu(block->bb_level), cur);
-	case XFS_BTNUM_INO:
-		return (int)XFS_INOBT_BLOCK_MAXRECS(
-				be16_to_cpu(block->bb_level), cur);
-	default:
-		ASSERT(0);
-		return 0;
-	}
-}
-
-/*
  * External routines.
  */
 
@@ -207,7 +182,7 @@ xfs_btree_check_lblock(
 		be32_to_cpu(block->bb_magic) == xfs_magics[cur->bc_btnum] &&
 		be16_to_cpu(block->bb_level) == level &&
 		be16_to_cpu(block->bb_numrecs) <=
-			xfs_btree_maxrecs(cur, (xfs_btree_block_t *)block) &&
+			cur->bc_ops->get_maxrecs(cur, level) &&
 		block->bb_leftsib &&
 		(be64_to_cpu(block->bb_leftsib) == NULLDFSBNO ||
 		 XFS_FSB_SANITY_CHECK(mp, be64_to_cpu(block->bb_leftsib))) &&
@@ -245,7 +220,7 @@ xfs_btree_check_sblock(
 		be32_to_cpu(block->bb_magic) == xfs_magics[cur->bc_btnum] &&
 		be16_to_cpu(block->bb_level) == level &&
 		be16_to_cpu(block->bb_numrecs) <=
-			xfs_btree_maxrecs(cur, (xfs_btree_block_t *)block) &&
+			cur->bc_ops->get_maxrecs(cur, level) &&
 		(be32_to_cpu(block->bb_leftsib) == NULLAGBLOCK ||
 		 be32_to_cpu(block->bb_leftsib) < agflen) &&
 		block->bb_leftsib &&
