@@ -2728,8 +2728,7 @@ xlog_recover_do_efd_trans(
 	 */
 	mp = log->l_mp;
 	spin_lock(&mp->m_ail_lock);
-	xfs_trans_ail_cursor_init(mp->m_ail, &cur);
-	lip = xfs_trans_first_ail(mp, &cur);
+	lip = xfs_trans_ail_cursor_first(mp->m_ail, &cur, 0);
 	while (lip != NULL) {
 		if (lip->li_type == XFS_LI_EFI) {
 			efip = (xfs_efi_log_item_t *)lip;
@@ -2744,7 +2743,7 @@ xlog_recover_do_efd_trans(
 				break;
 			}
 		}
-		lip = xfs_trans_next_ail(mp, &cur);
+		lip = xfs_trans_ail_cursor_next(mp->m_ail, &cur);
 	}
 	xfs_trans_ail_cursor_done(mp->m_ail, &cur);
 	spin_unlock(&mp->m_ail_lock);
@@ -3061,8 +3060,7 @@ xlog_recover_process_efis(
 	mp = log->l_mp;
 	spin_lock(&mp->m_ail_lock);
 
-	xfs_trans_ail_cursor_init(mp->m_ail, &cur);
-	lip = xfs_trans_first_ail(mp, &cur);
+	lip = xfs_trans_ail_cursor_first(mp->m_ail, &cur, 0);
 	while (lip != NULL) {
 		/*
 		 * We're done when we see something other than an EFI.
@@ -3070,7 +3068,8 @@ xlog_recover_process_efis(
 		 */
 		if (lip->li_type != XFS_LI_EFI) {
 #ifdef DEBUG
-			for (; lip; lip = xfs_trans_next_ail(mp, &cur))
+			for (; lip;
+			       lip = xfs_trans_ail_cursor_next(mp->m_ail, &cur))
 				ASSERT(lip->li_type != XFS_LI_EFI);
 #endif
 			break;
@@ -3081,7 +3080,7 @@ xlog_recover_process_efis(
 		 */
 		efip = (xfs_efi_log_item_t *)lip;
 		if (efip->efi_flags & XFS_EFI_RECOVERED) {
-			lip = xfs_trans_next_ail(mp, &cur);
+			lip = xfs_trans_ail_cursor_next(mp->m_ail, &cur);
 			continue;
 		}
 
@@ -3090,7 +3089,7 @@ xlog_recover_process_efis(
 		spin_lock(&mp->m_ail_lock);
 		if (error)
 			goto out;
-		lip = xfs_trans_next_ail(mp, &cur);
+		lip = xfs_trans_ail_cursor_next(mp->m_ail, &cur);
 	}
 out:
 	xfs_trans_ail_cursor_done(mp->m_ail, &cur);

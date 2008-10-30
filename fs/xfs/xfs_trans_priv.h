@@ -90,14 +90,15 @@ void			xfs_trans_update_ail(struct xfs_mount *mp,
 void			xfs_trans_delete_ail(struct xfs_mount *mp,
 				     struct xfs_log_item *lip)
 				     __releases(mp->m_ail_lock);
-struct xfs_log_item	*xfs_trans_first_ail(struct xfs_mount *mp,
-					struct xfs_ail_cursor *cur);
-struct xfs_log_item	*xfs_trans_next_ail(struct xfs_mount *mp,
-					struct xfs_ail_cursor *cur);
 
-void xfs_trans_ail_cursor_init(struct xfs_ail *ailp,
+xfs_lsn_t		xfs_trans_ail_tail(struct xfs_ail *ailp);
+
+struct xfs_log_item	*xfs_trans_ail_cursor_first(struct xfs_ail *ailp,
+					struct xfs_ail_cursor *cur,
+					xfs_lsn_t lsn);
+struct xfs_log_item	*xfs_trans_ail_cursor_next(struct xfs_ail *ailp,
 					struct xfs_ail_cursor *cur);
-void xfs_trans_ail_cursor_done(struct xfs_ail *ailp,
+void			xfs_trans_ail_cursor_done(struct xfs_ail *ailp,
 					struct xfs_ail_cursor *cur);
 
 long	xfsaild_push(struct xfs_ail *, xfs_lsn_t *);

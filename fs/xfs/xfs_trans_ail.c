@@ -50,20 +50,20 @@ STATIC void xfs_ail_check(struct xfs_ail *, xfs_log_item_t *);
  * lsn of the last item in the AIL.
  */
 xfs_lsn_t
-xfs_trans_tail_ail(
-	xfs_mount_t	*mp)
+xfs_trans_ail_tail(
+	struct xfs_ail	*ailp)
 {
 	xfs_lsn_t	lsn;
 	xfs_log_item_t	*lip;
 
-	spin_lock(&mp->m_ail_lock);
-	lip = xfs_ail_min(mp->m_ail);
+	spin_lock(&ailp->xa_mount->m_ail_lock);
+	lip = xfs_ail_min(ailp);
 	if (lip == NULL) {
 		lsn = (xfs_lsn_t)0;
 	} else {
 		lsn = lip->li_lsn;
 	}
-	spin_unlock(&mp->m_ail_lock);
+	spin_unlock(&ailp->xa_mount->m_ail_lock);
 
 	return lsn;
 }
@@ -111,7 +111,7 @@ xfs_trans_push_ail(
  * We don't link the push cursor because it is embedded in the struct
  * xfs_ail and hence easily findable.
  */
-void
+STATIC void
 xfs_trans_ail_cursor_init(
 	struct xfs_ail		*ailp,
 	struct xfs_ail_cursor	*cur)
@@ -143,7 +143,7 @@ xfs_trans_ail_cursor_set(
  * If the cursor was invalidated (inidicated by a lip of 1),
  * restart the traversal.
  */
-STATIC struct xfs_log_item *
+struct xfs_log_item *
 xfs_trans_ail_cursor_next(
 	struct xfs_ail		*ailp,
 	struct xfs_ail_cursor	*cur)
@@ -154,30 +154,6 @@ xfs_trans_ail_cursor_next(
 		lip = xfs_ail_min(ailp);
 	xfs_trans_ail_cursor_set(ailp, cur, lip);
 	return lip;
-}
-
-/*
- * Invalidate any cursor that is pointing to this item. This is
- * called when an item is removed from the AIL. Any cursor pointing
- * to this object is now invalid and the traversal needs to be
- * terminated so it doesn't reference a freed object. We set the
- * cursor item to a value of 1 so we can distinguish between an
- * invalidation and the end of the list when getting the next item
- * from the cursor.
- */
-STATIC void
-xfs_trans_ail_cursor_clear(
-	struct xfs_ail		*ailp,
-	struct xfs_log_item	*lip)
-{
-	struct xfs_ail_cursor	*cur;
-
-	/* need to search all cursors */
-	for (cur = &ailp->xa_cursors; cur; cur = cur->next) {
-		if (cur->item == lip)
-			cur->item = (struct xfs_log_item *)
-					((__psint_t)cur->item | 1);
-	}
 }
 
 /*
@@ -208,31 +184,55 @@ xfs_trans_ail_cursor_done(
 }
 
 /*
+ * Invalidate any cursor that is pointing to this item. This is
+ * called when an item is removed from the AIL. Any cursor pointing
+ * to this object is now invalid and the traversal needs to be
+ * terminated so it doesn't reference a freed object. We set the
+ * cursor item to a value of 1 so we can distinguish between an
+ * invalidation and the end of the list when getting the next item
+ * from the cursor.
+ */
+STATIC void
+xfs_trans_ail_cursor_clear(
+	struct xfs_ail		*ailp,
+	struct xfs_log_item	*lip)
+{
+	struct xfs_ail_cursor	*cur;
+
+	/* need to search all cursors */
+	for (cur = &ailp->xa_cursors; cur; cur = cur->next) {
+		if (cur->item == lip)
+			cur->item = (struct xfs_log_item *)
+					((__psint_t)cur->item | 1);
+	}
+}
+
+/*
  * Return the item in the AIL with the current lsn.
  * Return the current tree generation number for use
  * in calls to xfs_trans_next_ail().
  */
-STATIC xfs_log_item_t *
-xfs_trans_first_push_ail(
+xfs_log_item_t *
+xfs_trans_ail_cursor_first(
 	struct xfs_ail		*ailp,
 	struct xfs_ail_cursor	*cur,
 	xfs_lsn_t		lsn)
 {
 	xfs_log_item_t		*lip;
 
+	xfs_trans_ail_cursor_init(ailp, cur);
 	lip = xfs_ail_min(ailp);
-	xfs_trans_ail_cursor_set(ailp, cur, lip);
 	if (lsn == 0)
-		return lip;
+		goto out;
 
 	list_for_each_entry(lip, &ailp->xa_ail, li_ail) {
-		if (XFS_LSN_CMP(lip->li_lsn, lsn) >= 0) {
-			xfs_trans_ail_cursor_set(ailp, cur, lip);
-			return lip;
-		}
+		if (XFS_LSN_CMP(lip->li_lsn, lsn) >= 0)
+			break;
 	}
-
-	return NULL;
+	lip = NULL;
+out:
+	xfs_trans_ail_cursor_set(ailp, cur, lip);
+	return lip;
 }
 
 /*
@@ -254,7 +254,7 @@ xfsaild_push(
 
 	spin_lock(&mp->m_ail_lock);
 	xfs_trans_ail_cursor_init(ailp, cur);
-	lip = xfs_trans_first_push_ail(ailp, cur, *last_lsn);
+	lip = xfs_trans_ail_cursor_first(ailp, cur, *last_lsn);
 	if (!lip || XFS_FORCED_SHUTDOWN(mp)) {
 		/*
 		 * AIL is empty or our push has reached the end.
@@ -549,39 +549,6 @@ xfs_trans_delete_ail(
 	}
 }
 
-
-
-/*
- * Return the item in the AIL with the smallest lsn.
- * Return the current tree generation number for use
- * in calls to xfs_trans_next_ail().
- */
-xfs_log_item_t *
-xfs_trans_first_ail(
-	struct xfs_mount	*mp,
-	struct xfs_ail_cursor	*cur)
-{
-	xfs_log_item_t		*lip;
-	struct xfs_ail		*ailp = mp->m_ail;
-
-	lip = xfs_ail_min(ailp);
-	xfs_trans_ail_cursor_set(ailp, cur, lip);
-
-	return lip;
-}
-
-/*
- * Grab the next item in the AIL from the cursor passed in.
- */
-xfs_log_item_t *
-xfs_trans_next_ail(
-	struct xfs_mount	*mp,
-	struct xfs_ail_cursor	*cur)
-{
-	struct xfs_ail		*ailp = mp->m_ail;
-
-	return xfs_trans_ail_cursor_next(ailp, cur);
-}
 
 
 /*
