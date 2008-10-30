@@ -1021,17 +1021,29 @@ int ath5k_hw_set_key(struct ath5k_hw *ah, u16 entry,
 		const struct ieee80211_key_conf *key, const u8 *mac)
 {
 	unsigned int i;
+	int keylen;
 	__le32 key_v[5] = {};
+	__le32 key0 = 0, key1 = 0;
+	__le32 *rxmic, *txmic;
 	u32 keytype;
+	u16 micentry = entry + AR5K_KEYTABLE_MIC_OFFSET;
+	bool is_tkip;
 
 	ATH5K_TRACE(ah->ah_sc);
 
-	/* key->keylen comes in from mac80211 in bytes */
+	is_tkip = (key->alg == ALG_TKIP);
 
-	if (key->keylen > AR5K_KEYTABLE_SIZE / 8)
+	/*
+	 * key->keylen comes in from mac80211 in bytes.
+	 * TKIP is 128 bit + 128 bit mic
+	 */
+	keylen = (is_tkip) ? (128 / 8) : key->keylen;
+
+	if (entry > AR5K_KEYTABLE_SIZE ||
+		(is_tkip && micentry > AR5K_KEYTABLE_SIZE))
 		return -EOPNOTSUPP;
 
-	switch (key->keylen) {
+	switch (keylen) {
 	/* WEP 40-bit   = 40-bit  entered key + 24 bit IV = 64-bit */
 	case 40 / 8:
 		memcpy(&key_v[0], key->key, 5);
@@ -1045,16 +1057,24 @@ int ath5k_hw_set_key(struct ath5k_hw *ah, u16 entry,
 		memcpy(&key_v[4], &key->key[12], 1);
 		keytype = AR5K_KEYTABLE_TYPE_104;
 		break;
-	/* WEP 128-bit  = 128-bit entered key + 24 bit IV = 152-bit */
+	/* WEP/TKIP 128-bit  = 128-bit entered key + 24 bit IV = 152-bit */
 	case 128 / 8:
 		memcpy(&key_v[0], &key->key[0], 6);
 		memcpy(&key_v[2], &key->key[6], 6);
 		memcpy(&key_v[4], &key->key[12], 4);
-		keytype = AR5K_KEYTABLE_TYPE_128;
+		keytype = is_tkip ?
+			AR5K_KEYTABLE_TYPE_TKIP :
+			AR5K_KEYTABLE_TYPE_128;
 		break;
 
 	default:
 		return -EINVAL; /* shouldn't happen */
+	}
+
+	/* intentionally corrupt key until mic is installed */
+	if (is_tkip) {
+		key0 = key_v[0] = ~key_v[0];
+		key1 = key_v[1] = ~key_v[1];
 	}
 
 	for (i = 0; i < ARRAY_SIZE(key_v); i++)
@@ -1062,6 +1082,40 @@ int ath5k_hw_set_key(struct ath5k_hw *ah, u16 entry,
 				AR5K_KEYTABLE_OFF(entry, i));
 
 	ath5k_hw_reg_write(ah, keytype, AR5K_KEYTABLE_TYPE(entry));
+
+	if (is_tkip) {
+		/* Install rx/tx MIC */
+		rxmic = (__le32 *) &key->key[16];
+		txmic = (__le32 *) &key->key[24];
+#if 0
+		/* MISC_MODE register & 0x04 - for mac srev >= griffin */
+		key_v[0] = rxmic[0];
+		key_v[1] = (txmic[0] >> 16) & 0xffff;
+		key_v[2] = rxmic[1];
+		key_v[3] = txmic[0] & 0xffff;
+		key_v[4] = txmic[1];
+#else
+		key_v[0] = rxmic[0];
+		key_v[1] = 0;
+		key_v[2] = rxmic[1];
+		key_v[3] = 0;
+		key_v[4] = 0;
+#endif
+		for (i = 0; i < ARRAY_SIZE(key_v); i++)
+			ath5k_hw_reg_write(ah, le32_to_cpu(key_v[i]),
+				AR5K_KEYTABLE_OFF(micentry, i));
+
+		ath5k_hw_reg_write(ah, AR5K_KEYTABLE_TYPE_NULL,
+			AR5K_KEYTABLE_TYPE(micentry));
+		ath5k_hw_reg_write(ah, 0, AR5K_KEYTABLE_MAC0(micentry));
+		ath5k_hw_reg_write(ah, 0, AR5K_KEYTABLE_MAC1(micentry));
+
+		/* restore first 2 words of key */
+		ath5k_hw_reg_write(ah, le32_to_cpu(~key0),
+			AR5K_KEYTABLE_OFF(entry, 0));
+		ath5k_hw_reg_write(ah, le32_to_cpu(~key1),
+			AR5K_KEYTABLE_OFF(entry, 1));
+	}
 
 	return ath5k_hw_set_key_lladdr(ah, entry, mac);
 }
