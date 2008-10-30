@@ -422,32 +422,39 @@ xfs_btree_dup_cursor(
 }
 
 /*
- * Retrieve the block pointer from the cursor at the given level.
- * This may be a bmap btree root or from a buffer.
+ * Get a the root block which is stored in the inode.
+ *
+ * For now this btree implementation assumes the btree root is always
+ * stored in the if_broot field of an inode fork.
  */
-STATIC xfs_btree_block_t *		/* generic btree block pointer */
-xfs_btree_get_block(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	int			level,	/* level in btree */
-	xfs_buf_t		**bpp)	/* buffer containing the block */
+STATIC struct xfs_btree_block *
+xfs_btree_get_iroot(
+       struct xfs_btree_cur    *cur)
 {
-	xfs_btree_block_t	*block;	/* return value */
-	xfs_buf_t		*bp;	/* return buffer */
-	xfs_ifork_t		*ifp;	/* inode fork pointer */
-	int			whichfork; /* data or attr fork */
+       struct xfs_ifork        *ifp;
 
-	if (cur->bc_btnum == XFS_BTNUM_BMAP && level == cur->bc_nlevels - 1) {
-		whichfork = cur->bc_private.b.whichfork;
-		ifp = XFS_IFORK_PTR(cur->bc_private.b.ip, whichfork);
-		block = (xfs_btree_block_t *)ifp->if_broot;
-		bp = NULL;
-	} else {
-		bp = cur->bc_bufs[level];
-		block = XFS_BUF_TO_BLOCK(bp);
+       ifp = XFS_IFORK_PTR(cur->bc_private.b.ip, cur->bc_private.b.whichfork);
+       return (struct xfs_btree_block *)ifp->if_broot;
+}
+
+/*
+ * Retrieve the block pointer from the cursor at the given level.
+ * This may be an inode btree root or from a buffer.
+ */
+STATIC struct xfs_btree_block *		/* generic btree block pointer */
+xfs_btree_get_block(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	int			level,	/* level in btree */
+	struct xfs_buf		**bpp)	/* buffer containing the block */
+{
+	if ((cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) &&
+	    (level == cur->bc_nlevels - 1)) {
+		*bpp = NULL;
+		return xfs_btree_get_iroot(cur);
 	}
-	ASSERT(block != NULL);
-	*bpp = bp;
-	return block;
+
+	*bpp = cur->bc_bufs[level];
+	return XFS_BUF_TO_BLOCK(*bpp);
 }
 
 /*

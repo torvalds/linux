@@ -170,6 +170,7 @@ typedef struct xfs_btree_cur
 	struct xfs_trans	*bc_tp;	/* transaction we're in, if any */
 	struct xfs_mount	*bc_mp;	/* file system mount struct */
 	const struct xfs_btree_ops *bc_ops;
+	uint			bc_flags; /* btree features - below */
 	union {
 		xfs_alloc_rec_incore_t	a;
 		xfs_bmbt_irec_t		b;
@@ -200,6 +201,10 @@ typedef struct xfs_btree_cur
 		} b;
 	}		bc_private;	/* per-btree type data */
 } xfs_btree_cur_t;
+
+/* cursor flags */
+#define XFS_BTREE_ROOT_IN_INODE		(1<<1)	/* root may be variable size */
+
 
 #define	XFS_BTREE_NOERROR	0
 #define	XFS_BTREE_ERROR		1
