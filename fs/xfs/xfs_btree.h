@@ -187,6 +187,12 @@ struct xfs_btree_ops {
 	/* cursor operations */
 	struct xfs_btree_cur *(*dup_cursor)(struct xfs_btree_cur *);
 
+	/* block allocation / freeing */
+	int	(*alloc_block)(struct xfs_btree_cur *cur,
+			       union xfs_btree_ptr *start_bno,
+			       union xfs_btree_ptr *new_bno,
+			       int length, int *stat);
+
 	/* update last record information */
 	void	(*update_lastrec)(struct xfs_btree_cur *cur,
 				  struct xfs_btree_block *block,
@@ -535,6 +541,8 @@ int xfs_btree_updkey(struct xfs_btree_cur *, union xfs_btree_key *, int);
 int xfs_btree_update(struct xfs_btree_cur *, union xfs_btree_rec *);
 int xfs_btree_lshift(struct xfs_btree_cur *, int, int *);
 int xfs_btree_rshift(struct xfs_btree_cur *, int, int *);
+int xfs_btree_split(struct xfs_btree_cur *, int, union xfs_btree_ptr *,
+		union xfs_btree_key *, struct xfs_btree_cur **, int *);
 
 /*
  * Helpers.

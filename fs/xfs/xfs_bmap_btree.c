@@ -52,8 +52,6 @@
 STATIC int xfs_bmbt_killroot(xfs_btree_cur_t *);
 STATIC void xfs_bmbt_log_keys(xfs_btree_cur_t *, xfs_buf_t *, int, int);
 STATIC void xfs_bmbt_log_ptrs(xfs_btree_cur_t *, xfs_buf_t *, int, int);
-STATIC int xfs_bmbt_split(xfs_btree_cur_t *, int, xfs_fsblock_t *,
-		__uint64_t *, xfs_btree_cur_t **, int *);
 
 #undef EXIT
 
@@ -550,13 +548,17 @@ xfs_bmbt_insrec(
 				if (i) {
 					optr = ptr = cur->bc_ptrs[level];
 				} else {
-					if ((error = xfs_bmbt_split(cur, level,
-							&nbno, &startoff, &ncur,
+					union xfs_btree_ptr bno = { .l = cpu_to_be64(nbno) };
+					union xfs_btree_key skey;
+					if ((error = xfs_btree_split(cur, level,
+							&bno, &skey, &ncur,
 							&i))) {
 						XFS_BMBT_TRACE_CURSOR(cur,
 							ERROR);
 						return error;
 					}
+					nbno = be64_to_cpu(bno.l);
+					startoff = be64_to_cpu(skey.bmbt.br_startoff);
 					if (i) {
 						block = xfs_bmbt_get_block(
 							    cur, level, &bp);
@@ -823,184 +825,6 @@ xfs_extent_state(
 		return XFS_EXT_UNWRITTEN;
 	}
 	return XFS_EXT_NORM;
-}
-
-
-/*
- * Split cur/level block in half.
- * Return new block number and its first record (to be inserted into parent).
- */
-STATIC int					/* error */
-xfs_bmbt_split(
-	xfs_btree_cur_t		*cur,
-	int			level,
-	xfs_fsblock_t		*bnop,
-	__uint64_t		*startoff,
-	xfs_btree_cur_t		**curp,
-	int			*stat)		/* success/failure */
-{
-	xfs_alloc_arg_t		args;		/* block allocation args */
-	int			error;		/* error return value */
-	int			i;		/* loop counter */
-	xfs_fsblock_t		lbno;		/* left sibling block number */
-	xfs_buf_t		*lbp;		/* left buffer pointer */
-	xfs_bmbt_block_t	*left;		/* left btree block */
-	xfs_bmbt_key_t		*lkp;		/* left btree key */
-	xfs_bmbt_ptr_t		*lpp;		/* left address pointer */
-	xfs_bmbt_rec_t		*lrp;		/* left record pointer */
-	xfs_buf_t		*rbp;		/* right buffer pointer */
-	xfs_bmbt_block_t	*right;		/* right btree block */
-	xfs_bmbt_key_t		*rkp;		/* right btree key */
-	xfs_bmbt_ptr_t		*rpp;		/* right address pointer */
-	xfs_bmbt_block_t	*rrblock;	/* right-right btree block */
-	xfs_buf_t		*rrbp;		/* right-right buffer pointer */
-	xfs_bmbt_rec_t		*rrp;		/* right record pointer */
-
-	XFS_BMBT_TRACE_CURSOR(cur, ENTRY);
-	// disable until merged into common code
-//	XFS_BMBT_TRACE_ARGIFK(cur, level, *bnop, *startoff);
-	args.tp = cur->bc_tp;
-	args.mp = cur->bc_mp;
-	lbp = cur->bc_bufs[level];
-	lbno = XFS_DADDR_TO_FSB(args.mp, XFS_BUF_ADDR(lbp));
-	left = XFS_BUF_TO_BMBT_BLOCK(lbp);
-	args.fsbno = cur->bc_private.b.firstblock;
-	args.firstblock = args.fsbno;
-	args.minleft = 0;
-	if (args.fsbno == NULLFSBLOCK) {
-		args.fsbno = lbno;
-		args.type = XFS_ALLOCTYPE_START_BNO;
-		/*
-		 * Make sure there is sufficient room left in the AG to
-		 * complete a full tree split for an extent insert.  If
-		 * we are converting the middle part of an extent then
-		 * we may need space for two tree splits.
-		 *
-		 * We are relying on the caller to make the correct block
-		 * reservation for this operation to succeed.  If the
-		 * reservation amount is insufficient then we may fail a
-		 * block allocation here and corrupt the filesystem.
-		 */
-		args.minleft = xfs_trans_get_block_res(args.tp);
-	} else if (cur->bc_private.b.flist->xbf_low)
-		args.type = XFS_ALLOCTYPE_START_BNO;
-	else
-		args.type = XFS_ALLOCTYPE_NEAR_BNO;
-	args.mod = args.alignment = args.total = args.isfl =
-		args.userdata = args.minalignslop = 0;
-	args.minlen = args.maxlen = args.prod = 1;
-	args.wasdel = cur->bc_private.b.flags & XFS_BTCUR_BPRV_WASDEL;
-	if (!args.wasdel && xfs_trans_get_block_res(args.tp) == 0) {
-		XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-		return XFS_ERROR(ENOSPC);
-	}
-	if ((error = xfs_alloc_vextent(&args))) {
-		XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-		return error;
-	}
-	if (args.fsbno == NULLFSBLOCK && args.minleft) {
-		/*
-		 * Could not find an AG with enough free space to satisfy
-		 * a full btree split.  Try again without minleft and if
-		 * successful activate the lowspace algorithm.
-		 */
-		args.fsbno = 0;
-		args.type = XFS_ALLOCTYPE_FIRST_AG;
-		args.minleft = 0;
-		if ((error = xfs_alloc_vextent(&args))) {
-			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-			return error;
-		}
-		cur->bc_private.b.flist->xbf_low = 1;
-	}
-	if (args.fsbno == NULLFSBLOCK) {
-		XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-		*stat = 0;
-		return 0;
-	}
-	ASSERT(args.len == 1);
-	cur->bc_private.b.firstblock = args.fsbno;
-	cur->bc_private.b.allocated++;
-	cur->bc_private.b.ip->i_d.di_nblocks++;
-	xfs_trans_log_inode(args.tp, cur->bc_private.b.ip, XFS_ILOG_CORE);
-	XFS_TRANS_MOD_DQUOT_BYINO(args.mp, args.tp, cur->bc_private.b.ip,
-			XFS_TRANS_DQ_BCOUNT, 1L);
-	rbp = xfs_btree_get_bufl(args.mp, args.tp, args.fsbno, 0);
-	right = XFS_BUF_TO_BMBT_BLOCK(rbp);
-#ifdef DEBUG
-	if ((error = xfs_btree_check_lblock(cur, left, level, rbp))) {
-		XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-		return error;
-	}
-#endif
-	right->bb_magic = cpu_to_be32(XFS_BMAP_MAGIC);
-	right->bb_level = left->bb_level;
-	right->bb_numrecs = cpu_to_be16(be16_to_cpu(left->bb_numrecs) / 2);
-	if ((be16_to_cpu(left->bb_numrecs) & 1) &&
-	    cur->bc_ptrs[level] <= be16_to_cpu(right->bb_numrecs) + 1)
-		be16_add_cpu(&right->bb_numrecs, 1);
-	i = be16_to_cpu(left->bb_numrecs) - be16_to_cpu(right->bb_numrecs) + 1;
-	if (level > 0) {
-		lkp = XFS_BMAP_KEY_IADDR(left, i, cur);
-		lpp = XFS_BMAP_PTR_IADDR(left, i, cur);
-		rkp = XFS_BMAP_KEY_IADDR(right, 1, cur);
-		rpp = XFS_BMAP_PTR_IADDR(right, 1, cur);
-#ifdef DEBUG
-		for (i = 0; i < be16_to_cpu(right->bb_numrecs); i++) {
-			if ((error = xfs_btree_check_lptr_disk(cur, lpp[i], level))) {
-				XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-				return error;
-			}
-		}
-#endif
-		memcpy(rkp, lkp, be16_to_cpu(right->bb_numrecs) * sizeof(*rkp));
-		memcpy(rpp, lpp, be16_to_cpu(right->bb_numrecs) * sizeof(*rpp));
-		xfs_bmbt_log_keys(cur, rbp, 1, be16_to_cpu(right->bb_numrecs));
-		xfs_bmbt_log_ptrs(cur, rbp, 1, be16_to_cpu(right->bb_numrecs));
-		*startoff = be64_to_cpu(rkp->br_startoff);
-	} else {
-		lrp = XFS_BMAP_REC_IADDR(left, i, cur);
-		rrp = XFS_BMAP_REC_IADDR(right, 1, cur);
-		memcpy(rrp, lrp, be16_to_cpu(right->bb_numrecs) * sizeof(*rrp));
-		xfs_bmbt_log_recs(cur, rbp, 1, be16_to_cpu(right->bb_numrecs));
-		*startoff = xfs_bmbt_disk_get_startoff(rrp);
-	}
-	be16_add_cpu(&left->bb_numrecs, -(be16_to_cpu(right->bb_numrecs)));
-	right->bb_rightsib = left->bb_rightsib;
-	left->bb_rightsib = cpu_to_be64(args.fsbno);
-	right->bb_leftsib = cpu_to_be64(lbno);
-	xfs_bmbt_log_block(cur, rbp, XFS_BB_ALL_BITS);
-	xfs_bmbt_log_block(cur, lbp, XFS_BB_NUMRECS | XFS_BB_RIGHTSIB);
-	if (be64_to_cpu(right->bb_rightsib) != NULLDFSBNO) {
-		if ((error = xfs_btree_read_bufl(args.mp, args.tp,
-				be64_to_cpu(right->bb_rightsib), 0, &rrbp,
-				XFS_BMAP_BTREE_REF))) {
-			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-			return error;
-		}
-		rrblock = XFS_BUF_TO_BMBT_BLOCK(rrbp);
-		if ((error = xfs_btree_check_lblock(cur, rrblock, level, rrbp))) {
-			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-			return error;
-		}
-		rrblock->bb_leftsib = cpu_to_be64(args.fsbno);
-		xfs_bmbt_log_block(cur, rrbp, XFS_BB_LEFTSIB);
-	}
-	if (cur->bc_ptrs[level] > be16_to_cpu(left->bb_numrecs) + 1) {
-		xfs_btree_setbuf(cur, level, rbp);
-		cur->bc_ptrs[level] -= be16_to_cpu(left->bb_numrecs);
-	}
-	if (level + 1 < cur->bc_nlevels) {
-		if ((error = xfs_btree_dup_cursor(cur, curp))) {
-			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-			return error;
-		}
-		(*curp)->bc_ptrs[level + 1]++;
-	}
-	*bnop = args.fsbno;
-	XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-	*stat = 1;
-	return 0;
 }
 
 /*
@@ -1738,6 +1562,92 @@ xfs_bmbt_dup_cursor(
 }
 
 STATIC int
+xfs_bmbt_alloc_block(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_ptr	*start,
+	union xfs_btree_ptr	*new,
+	int			length,
+	int			*stat)
+{
+	xfs_alloc_arg_t		args;		/* block allocation args */
+	int			error;		/* error return value */
+
+	memset(&args, 0, sizeof(args));
+	args.tp = cur->bc_tp;
+	args.mp = cur->bc_mp;
+	args.fsbno = cur->bc_private.b.firstblock;
+	args.firstblock = args.fsbno;
+
+	if (args.fsbno == NULLFSBLOCK) {
+		args.fsbno = be64_to_cpu(start->l);
+		args.type = XFS_ALLOCTYPE_START_BNO;
+		/*
+		 * Make sure there is sufficient room left in the AG to
+		 * complete a full tree split for an extent insert.  If
+		 * we are converting the middle part of an extent then
+		 * we may need space for two tree splits.
+		 *
+		 * We are relying on the caller to make the correct block
+		 * reservation for this operation to succeed.  If the
+		 * reservation amount is insufficient then we may fail a
+		 * block allocation here and corrupt the filesystem.
+		 */
+		args.minleft = xfs_trans_get_block_res(args.tp);
+	} else if (cur->bc_private.b.flist->xbf_low) {
+		args.type = XFS_ALLOCTYPE_START_BNO;
+	} else {
+		args.type = XFS_ALLOCTYPE_NEAR_BNO;
+	}
+
+	args.minlen = args.maxlen = args.prod = 1;
+	args.wasdel = cur->bc_private.b.flags & XFS_BTCUR_BPRV_WASDEL;
+	if (!args.wasdel && xfs_trans_get_block_res(args.tp) == 0) {
+		error = XFS_ERROR(ENOSPC);
+		goto error0;
+	}
+	error = xfs_alloc_vextent(&args);
+	if (error)
+		goto error0;
+
+	if (args.fsbno == NULLFSBLOCK && args.minleft) {
+		/*
+		 * Could not find an AG with enough free space to satisfy
+		 * a full btree split.  Try again without minleft and if
+		 * successful activate the lowspace algorithm.
+		 */
+		args.fsbno = 0;
+		args.type = XFS_ALLOCTYPE_FIRST_AG;
+		args.minleft = 0;
+		error = xfs_alloc_vextent(&args);
+		if (error)
+			goto error0;
+		cur->bc_private.b.flist->xbf_low = 1;
+	}
+	if (args.fsbno == NULLFSBLOCK) {
+		XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+		*stat = 0;
+		return 0;
+	}
+	ASSERT(args.len == 1);
+	cur->bc_private.b.firstblock = args.fsbno;
+	cur->bc_private.b.allocated++;
+	cur->bc_private.b.ip->i_d.di_nblocks++;
+	xfs_trans_log_inode(args.tp, cur->bc_private.b.ip, XFS_ILOG_CORE);
+	XFS_TRANS_MOD_DQUOT_BYINO(args.mp, args.tp, cur->bc_private.b.ip,
+			XFS_TRANS_DQ_BCOUNT, 1L);
+
+	new->l = cpu_to_be64(args.fsbno);
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+	*stat = 1;
+	return 0;
+
+ error0:
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+	return error;
+}
+
+STATIC int
 xfs_bmbt_get_maxrecs(
 	struct xfs_btree_cur	*cur,
 	int			level)
@@ -1861,6 +1771,7 @@ static const struct xfs_btree_ops xfs_bmbt_ops = {
 	.key_len		= sizeof(xfs_bmbt_key_t),
 
 	.dup_cursor		= xfs_bmbt_dup_cursor,
+	.alloc_block		= xfs_bmbt_alloc_block,
 	.get_maxrecs		= xfs_bmbt_get_maxrecs,
 	.init_key_from_rec	= xfs_bmbt_init_key_from_rec,
 	.init_ptr_from_cur	= xfs_bmbt_init_ptr_from_cur,

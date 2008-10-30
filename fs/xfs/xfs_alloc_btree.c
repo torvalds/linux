@@ -35,6 +35,7 @@
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
+#include "xfs_btree_trace.h"
 #include "xfs_ialloc.h"
 #include "xfs_alloc.h"
 #include "xfs_error.h"
@@ -48,8 +49,6 @@ STATIC void xfs_alloc_log_keys(xfs_btree_cur_t *, xfs_buf_t *, int, int);
 STATIC void xfs_alloc_log_ptrs(xfs_btree_cur_t *, xfs_buf_t *, int, int);
 STATIC void xfs_alloc_log_recs(xfs_btree_cur_t *, xfs_buf_t *, int, int);
 STATIC int xfs_alloc_newroot(xfs_btree_cur_t *, int *);
-STATIC int xfs_alloc_split(xfs_btree_cur_t *, int, xfs_agblock_t *,
-		xfs_alloc_key_t *, xfs_btree_cur_t **, int *);
 
 /*
  * Internal functions.
@@ -695,15 +694,18 @@ xfs_alloc_insrec(
 			if (i)
 				optr = ptr = cur->bc_ptrs[level];
 			else {
+				union xfs_btree_ptr bno = { .s = cpu_to_be32(nbno) };
 				/*
 				 * Next, try splitting the current block in
 				 * half. If this works we have to re-set our
 				 * variables because we could be in a
 				 * different block now.
 				 */
-				if ((error = xfs_alloc_split(cur, level, &nbno,
-						&nkey, &ncur, &i)))
+				if ((error = xfs_btree_split(cur, level, &bno,
+						(union xfs_btree_key *)&nkey,
+						&ncur, &i)))
 					return error;
+				nbno = be32_to_cpu(bno.s);
 				if (i) {
 					bp = cur->bc_bufs[level];
 					block = XFS_BUF_TO_ALLOC_BLOCK(bp);
@@ -1089,160 +1091,6 @@ xfs_alloc_newroot(
 	return 0;
 }
 
-/*
- * Split cur/level block in half.
- * Return new block number and its first record (to be inserted into parent).
- */
-STATIC int				/* error */
-xfs_alloc_split(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	int			level,	/* level to split */
-	xfs_agblock_t		*bnop,	/* output: block number allocated */
-	xfs_alloc_key_t		*keyp,	/* output: first key of new block */
-	xfs_btree_cur_t		**curp,	/* output: new cursor */
-	int			*stat)	/* success/failure */
-{
-	int			error;	/* error return value */
-	int			i;	/* loop index/record number */
-	xfs_agblock_t		lbno;	/* left (current) block number */
-	xfs_buf_t		*lbp;	/* buffer for left block */
-	xfs_alloc_block_t	*left;	/* left (current) btree block */
-	xfs_agblock_t		rbno;	/* right (new) block number */
-	xfs_buf_t		*rbp;	/* buffer for right block */
-	xfs_alloc_block_t	*right;	/* right (new) btree block */
-
-	/*
-	 * Allocate the new block from the freelist.
-	 * If we can't do it, we're toast.  Give up.
-	 */
-	error = xfs_alloc_get_freelist(cur->bc_tp,
-					 cur->bc_private.a.agbp, &rbno, 1);
-	if (error)
-		return error;
-	if (rbno == NULLAGBLOCK) {
-		*stat = 0;
-		return 0;
-	}
-	xfs_trans_agbtree_delta(cur->bc_tp, 1);
-	rbp = xfs_btree_get_bufs(cur->bc_mp, cur->bc_tp, cur->bc_private.a.agno,
-		rbno, 0);
-	/*
-	 * Set up the new block as "right".
-	 */
-	right = XFS_BUF_TO_ALLOC_BLOCK(rbp);
-	/*
-	 * "Left" is the current (according to the cursor) block.
-	 */
-	lbp = cur->bc_bufs[level];
-	left = XFS_BUF_TO_ALLOC_BLOCK(lbp);
-#ifdef DEBUG
-	if ((error = xfs_btree_check_sblock(cur, left, level, lbp)))
-		return error;
-#endif
-	/*
-	 * Fill in the btree header for the new block.
-	 */
-	right->bb_magic = cpu_to_be32(xfs_magics[cur->bc_btnum]);
-	right->bb_level = left->bb_level;
-	right->bb_numrecs = cpu_to_be16(be16_to_cpu(left->bb_numrecs) / 2);
-	/*
-	 * Make sure that if there's an odd number of entries now, that
-	 * each new block will have the same number of entries.
-	 */
-	if ((be16_to_cpu(left->bb_numrecs) & 1) &&
-	    cur->bc_ptrs[level] <= be16_to_cpu(right->bb_numrecs) + 1)
-		be16_add_cpu(&right->bb_numrecs, 1);
-	i = be16_to_cpu(left->bb_numrecs) - be16_to_cpu(right->bb_numrecs) + 1;
-	/*
-	 * For non-leaf blocks, copy keys and addresses over to the new block.
-	 */
-	if (level > 0) {
-		xfs_alloc_key_t	*lkp;	/* left btree key pointer */
-		xfs_alloc_ptr_t	*lpp;	/* left btree address pointer */
-		xfs_alloc_key_t	*rkp;	/* right btree key pointer */
-		xfs_alloc_ptr_t	*rpp;	/* right btree address pointer */
-
-		lkp = XFS_ALLOC_KEY_ADDR(left, i, cur);
-		lpp = XFS_ALLOC_PTR_ADDR(left, i, cur);
-		rkp = XFS_ALLOC_KEY_ADDR(right, 1, cur);
-		rpp = XFS_ALLOC_PTR_ADDR(right, 1, cur);
-#ifdef DEBUG
-		for (i = 0; i < be16_to_cpu(right->bb_numrecs); i++) {
-			if ((error = xfs_btree_check_sptr(cur, be32_to_cpu(lpp[i]), level)))
-				return error;
-		}
-#endif
-		memcpy(rkp, lkp, be16_to_cpu(right->bb_numrecs) * sizeof(*rkp));
-		memcpy(rpp, lpp, be16_to_cpu(right->bb_numrecs) * sizeof(*rpp));
-		xfs_alloc_log_keys(cur, rbp, 1, be16_to_cpu(right->bb_numrecs));
-		xfs_alloc_log_ptrs(cur, rbp, 1, be16_to_cpu(right->bb_numrecs));
-		*keyp = *rkp;
-	}
-	/*
-	 * For leaf blocks, copy records over to the new block.
-	 */
-	else {
-		xfs_alloc_rec_t	*lrp;	/* left btree record pointer */
-		xfs_alloc_rec_t	*rrp;	/* right btree record pointer */
-
-		lrp = XFS_ALLOC_REC_ADDR(left, i, cur);
-		rrp = XFS_ALLOC_REC_ADDR(right, 1, cur);
-		memcpy(rrp, lrp, be16_to_cpu(right->bb_numrecs) * sizeof(*rrp));
-		xfs_alloc_log_recs(cur, rbp, 1, be16_to_cpu(right->bb_numrecs));
-		keyp->ar_startblock = rrp->ar_startblock;
-		keyp->ar_blockcount = rrp->ar_blockcount;
-	}
-	/*
-	 * Find the left block number by looking in the buffer.
-	 * Adjust numrecs, sibling pointers.
-	 */
-	lbno = XFS_DADDR_TO_AGBNO(cur->bc_mp, XFS_BUF_ADDR(lbp));
-	be16_add_cpu(&left->bb_numrecs, -(be16_to_cpu(right->bb_numrecs)));
-	right->bb_rightsib = left->bb_rightsib;
-	left->bb_rightsib = cpu_to_be32(rbno);
-	right->bb_leftsib = cpu_to_be32(lbno);
-	xfs_alloc_log_block(cur->bc_tp, rbp, XFS_BB_ALL_BITS);
-	xfs_alloc_log_block(cur->bc_tp, lbp, XFS_BB_NUMRECS | XFS_BB_RIGHTSIB);
-	/*
-	 * If there's a block to the new block's right, make that block
-	 * point back to right instead of to left.
-	 */
-	if (be32_to_cpu(right->bb_rightsib) != NULLAGBLOCK) {
-		xfs_alloc_block_t	*rrblock;	/* rr btree block */
-		xfs_buf_t		*rrbp;		/* buffer for rrblock */
-
-		if ((error = xfs_btree_read_bufs(cur->bc_mp, cur->bc_tp,
-				cur->bc_private.a.agno, be32_to_cpu(right->bb_rightsib), 0,
-				&rrbp, XFS_ALLOC_BTREE_REF)))
-			return error;
-		rrblock = XFS_BUF_TO_ALLOC_BLOCK(rrbp);
-		if ((error = xfs_btree_check_sblock(cur, rrblock, level, rrbp)))
-			return error;
-		rrblock->bb_leftsib = cpu_to_be32(rbno);
-		xfs_alloc_log_block(cur->bc_tp, rrbp, XFS_BB_LEFTSIB);
-	}
-	/*
-	 * If the cursor is really in the right block, move it there.
-	 * If it's just pointing past the last entry in left, then we'll
-	 * insert there, so don't change anything in that case.
-	 */
-	if (cur->bc_ptrs[level] > be16_to_cpu(left->bb_numrecs) + 1) {
-		xfs_btree_setbuf(cur, level, rbp);
-		cur->bc_ptrs[level] -= be16_to_cpu(left->bb_numrecs);
-	}
-	/*
-	 * If there are more levels, we'll need another cursor which refers to
-	 * the right block, no matter where this cursor was.
-	 */
-	if (level + 1 < cur->bc_nlevels) {
-		if ((error = xfs_btree_dup_cursor(cur, curp)))
-			return error;
-		(*curp)->bc_ptrs[level + 1]++;
-	}
-	*bnop = rbno;
-	*stat = 1;
-	return 0;
-}
 
 /*
  * Externally visible routines.
@@ -1394,6 +1242,41 @@ xfs_allocbt_dup_cursor(
 	return xfs_allocbt_init_cursor(cur->bc_mp, cur->bc_tp,
 			cur->bc_private.a.agbp, cur->bc_private.a.agno,
 			cur->bc_btnum);
+}
+
+STATIC int
+xfs_allocbt_alloc_block(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_ptr	*start,
+	union xfs_btree_ptr	*new,
+	int			length,
+	int			*stat)
+{
+	int			error;
+	xfs_agblock_t		bno;
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
+
+	/* Allocate the new block from the freelist. If we can't, give up.  */
+	error = xfs_alloc_get_freelist(cur->bc_tp, cur->bc_private.a.agbp,
+				       &bno, 1);
+	if (error) {
+		XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+		return error;
+	}
+
+	if (bno == NULLAGBLOCK) {
+		XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+		*stat = 0;
+		return 0;
+	}
+
+	xfs_trans_agbtree_delta(cur->bc_tp, 1);
+	new->s = cpu_to_be32(bno);
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+	*stat = 1;
+	return 0;
 }
 
 /*
@@ -1557,6 +1440,7 @@ static const struct xfs_btree_ops xfs_allocbt_ops = {
 	.key_len		= sizeof(xfs_alloc_key_t),
 
 	.dup_cursor		= xfs_allocbt_dup_cursor,
+	.alloc_block		= xfs_allocbt_alloc_block,
 	.update_lastrec		= xfs_allocbt_update_lastrec,
 	.get_maxrecs		= xfs_allocbt_get_maxrecs,
 	.init_key_from_rec	= xfs_allocbt_init_key_from_rec,

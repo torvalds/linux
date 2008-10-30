@@ -35,6 +35,7 @@
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
+#include "xfs_btree_trace.h"
 #include "xfs_ialloc.h"
 #include "xfs_alloc.h"
 #include "xfs_error.h"
@@ -44,8 +45,6 @@ STATIC void xfs_inobt_log_keys(xfs_btree_cur_t *, xfs_buf_t *, int, int);
 STATIC void xfs_inobt_log_ptrs(xfs_btree_cur_t *, xfs_buf_t *, int, int);
 STATIC void xfs_inobt_log_recs(xfs_btree_cur_t *, xfs_buf_t *, int, int);
 STATIC int xfs_inobt_newroot(xfs_btree_cur_t *, int *);
-STATIC int xfs_inobt_split(xfs_btree_cur_t *, int, xfs_agblock_t *,
-		xfs_inobt_key_t *, xfs_btree_cur_t **, int *);
 
 /*
  * Single level of the xfs_inobt_delete record deletion routine.
@@ -620,15 +619,18 @@ xfs_inobt_insrec(
 			if (i) {
 				optr = ptr = cur->bc_ptrs[level];
 			} else {
+				union xfs_btree_ptr bno = { .s = cpu_to_be32(nbno) };
 				/*
 				 * Next, try splitting the current block
 				 * in half. If this works we have to
 				 * re-set our variables because
 				 * we could be in a different block now.
 				 */
-				if ((error = xfs_inobt_split(cur, level, &nbno,
-						&nkey, &ncur, &i)))
+				if ((error = xfs_btree_split(cur, level, &bno,
+						(union xfs_btree_key *)&nkey,
+						&ncur, &i)))
 					return error;
+				nbno = be32_to_cpu(bno.s);
 				if (i) {
 					bp = cur->bc_bufs[level];
 					block = XFS_BUF_TO_INOBT_BLOCK(bp);
@@ -973,165 +975,6 @@ xfs_inobt_newroot(
 }
 
 /*
- * Split cur/level block in half.
- * Return new block number and its first record (to be inserted into parent).
- */
-STATIC int				/* error */
-xfs_inobt_split(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	int			level,	/* level to split */
-	xfs_agblock_t		*bnop,	/* output: block number allocated */
-	xfs_inobt_key_t		*keyp,	/* output: first key of new block */
-	xfs_btree_cur_t		**curp,	/* output: new cursor */
-	int			*stat)	/* success/failure */
-{
-	xfs_alloc_arg_t		args;	/* allocation argument structure */
-	int			error;	/* error return value */
-	int			i;	/* loop index/record number */
-	xfs_agblock_t		lbno;	/* left (current) block number */
-	xfs_buf_t		*lbp;	/* buffer for left block */
-	xfs_inobt_block_t	*left;	/* left (current) btree block */
-	xfs_inobt_key_t		*lkp;	/* left btree key pointer */
-	xfs_inobt_ptr_t		*lpp;	/* left btree address pointer */
-	xfs_inobt_rec_t		*lrp;	/* left btree record pointer */
-	xfs_buf_t		*rbp;	/* buffer for right block */
-	xfs_inobt_block_t	*right;	/* right (new) btree block */
-	xfs_inobt_key_t		*rkp;	/* right btree key pointer */
-	xfs_inobt_ptr_t		*rpp;	/* right btree address pointer */
-	xfs_inobt_rec_t		*rrp;	/* right btree record pointer */
-
-	/*
-	 * Set up left block (current one).
-	 */
-	lbp = cur->bc_bufs[level];
-	args.tp = cur->bc_tp;
-	args.mp = cur->bc_mp;
-	lbno = XFS_DADDR_TO_AGBNO(args.mp, XFS_BUF_ADDR(lbp));
-	/*
-	 * Allocate the new block.
-	 * If we can't do it, we're toast.  Give up.
-	 */
-	args.fsbno = XFS_AGB_TO_FSB(args.mp, cur->bc_private.a.agno, lbno);
-	args.mod = args.minleft = args.alignment = args.total = args.wasdel =
-		args.isfl = args.userdata = args.minalignslop = 0;
-	args.minlen = args.maxlen = args.prod = 1;
-	args.type = XFS_ALLOCTYPE_NEAR_BNO;
-	if ((error = xfs_alloc_vextent(&args)))
-		return error;
-	if (args.fsbno == NULLFSBLOCK) {
-		*stat = 0;
-		return 0;
-	}
-	ASSERT(args.len == 1);
-	rbp = xfs_btree_get_bufs(args.mp, args.tp, args.agno, args.agbno, 0);
-	/*
-	 * Set up the new block as "right".
-	 */
-	right = XFS_BUF_TO_INOBT_BLOCK(rbp);
-	/*
-	 * "Left" is the current (according to the cursor) block.
-	 */
-	left = XFS_BUF_TO_INOBT_BLOCK(lbp);
-#ifdef DEBUG
-	if ((error = xfs_btree_check_sblock(cur, left, level, lbp)))
-		return error;
-#endif
-	/*
-	 * Fill in the btree header for the new block.
-	 */
-	right->bb_magic = cpu_to_be32(xfs_magics[cur->bc_btnum]);
-	right->bb_level = left->bb_level;
-	right->bb_numrecs = cpu_to_be16(be16_to_cpu(left->bb_numrecs) / 2);
-	/*
-	 * Make sure that if there's an odd number of entries now, that
-	 * each new block will have the same number of entries.
-	 */
-	if ((be16_to_cpu(left->bb_numrecs) & 1) &&
-	    cur->bc_ptrs[level] <= be16_to_cpu(right->bb_numrecs) + 1)
-		be16_add_cpu(&right->bb_numrecs, 1);
-	i = be16_to_cpu(left->bb_numrecs) - be16_to_cpu(right->bb_numrecs) + 1;
-	/*
-	 * For non-leaf blocks, copy keys and addresses over to the new block.
-	 */
-	if (level > 0) {
-		lkp = XFS_INOBT_KEY_ADDR(left, i, cur);
-		lpp = XFS_INOBT_PTR_ADDR(left, i, cur);
-		rkp = XFS_INOBT_KEY_ADDR(right, 1, cur);
-		rpp = XFS_INOBT_PTR_ADDR(right, 1, cur);
-#ifdef DEBUG
-		for (i = 0; i < be16_to_cpu(right->bb_numrecs); i++) {
-			if ((error = xfs_btree_check_sptr(cur, be32_to_cpu(lpp[i]), level)))
-				return error;
-		}
-#endif
-		memcpy(rkp, lkp, be16_to_cpu(right->bb_numrecs) * sizeof(*rkp));
-		memcpy(rpp, lpp, be16_to_cpu(right->bb_numrecs) * sizeof(*rpp));
-		xfs_inobt_log_keys(cur, rbp, 1, be16_to_cpu(right->bb_numrecs));
-		xfs_inobt_log_ptrs(cur, rbp, 1, be16_to_cpu(right->bb_numrecs));
-		*keyp = *rkp;
-	}
-	/*
-	 * For leaf blocks, copy records over to the new block.
-	 */
-	else {
-		lrp = XFS_INOBT_REC_ADDR(left, i, cur);
-		rrp = XFS_INOBT_REC_ADDR(right, 1, cur);
-		memcpy(rrp, lrp, be16_to_cpu(right->bb_numrecs) * sizeof(*rrp));
-		xfs_inobt_log_recs(cur, rbp, 1, be16_to_cpu(right->bb_numrecs));
-		keyp->ir_startino = rrp->ir_startino;
-	}
-	/*
-	 * Find the left block number by looking in the buffer.
-	 * Adjust numrecs, sibling pointers.
-	 */
-	be16_add_cpu(&left->bb_numrecs, -(be16_to_cpu(right->bb_numrecs)));
-	right->bb_rightsib = left->bb_rightsib;
-	left->bb_rightsib = cpu_to_be32(args.agbno);
-	right->bb_leftsib = cpu_to_be32(lbno);
-	xfs_inobt_log_block(args.tp, rbp, XFS_BB_ALL_BITS);
-	xfs_inobt_log_block(args.tp, lbp, XFS_BB_NUMRECS | XFS_BB_RIGHTSIB);
-	/*
-	 * If there's a block to the new block's right, make that block
-	 * point back to right instead of to left.
-	 */
-	if (be32_to_cpu(right->bb_rightsib) != NULLAGBLOCK) {
-		xfs_inobt_block_t	*rrblock;	/* rr btree block */
-		xfs_buf_t		*rrbp;		/* buffer for rrblock */
-
-		if ((error = xfs_btree_read_bufs(args.mp, args.tp, args.agno,
-				be32_to_cpu(right->bb_rightsib), 0, &rrbp,
-				XFS_INO_BTREE_REF)))
-			return error;
-		rrblock = XFS_BUF_TO_INOBT_BLOCK(rrbp);
-		if ((error = xfs_btree_check_sblock(cur, rrblock, level, rrbp)))
-			return error;
-		rrblock->bb_leftsib = cpu_to_be32(args.agbno);
-		xfs_inobt_log_block(args.tp, rrbp, XFS_BB_LEFTSIB);
-	}
-	/*
-	 * If the cursor is really in the right block, move it there.
-	 * If it's just pointing past the last entry in left, then we'll
-	 * insert there, so don't change anything in that case.
-	 */
-	if (cur->bc_ptrs[level] > be16_to_cpu(left->bb_numrecs) + 1) {
-		xfs_btree_setbuf(cur, level, rbp);
-		cur->bc_ptrs[level] -= be16_to_cpu(left->bb_numrecs);
-	}
-	/*
-	 * If there are more levels, we'll need another cursor which refers
-	 * the right block, no matter where this cursor was.
-	 */
-	if (level + 1 < cur->bc_nlevels) {
-		if ((error = xfs_btree_dup_cursor(cur, curp)))
-			return error;
-		(*curp)->bc_ptrs[level + 1]++;
-	}
-	*bnop = args.agbno;
-	*stat = 1;
-	return 0;
-}
-
-/*
  * Externally visible routines.
  */
 
@@ -1286,6 +1129,48 @@ xfs_inobt_dup_cursor(
 }
 
 STATIC int
+xfs_inobt_alloc_block(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_ptr	*start,
+	union xfs_btree_ptr	*new,
+	int			length,
+	int			*stat)
+{
+	xfs_alloc_arg_t		args;		/* block allocation args */
+	int			error;		/* error return value */
+	xfs_agblock_t		sbno = be32_to_cpu(start->s);
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
+
+	memset(&args, 0, sizeof(args));
+	args.tp = cur->bc_tp;
+	args.mp = cur->bc_mp;
+	args.fsbno = XFS_AGB_TO_FSB(args.mp, cur->bc_private.a.agno, sbno);
+	args.minlen = 1;
+	args.maxlen = 1;
+	args.prod = 1;
+	args.type = XFS_ALLOCTYPE_NEAR_BNO;
+
+	error = xfs_alloc_vextent(&args);
+	if (error) {
+		XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+		return error;
+	}
+	if (args.fsbno == NULLFSBLOCK) {
+		XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+		*stat = 0;
+		return 0;
+	}
+	ASSERT(args.len == 1);
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+
+	new->s = cpu_to_be32(XFS_FSB_TO_AGBNO(args.mp, args.fsbno));
+	*stat = 1;
+	return 0;
+}
+
+
+STATIC int
 xfs_inobt_get_maxrecs(
 	struct xfs_btree_cur	*cur,
 	int			level)
@@ -1396,6 +1281,7 @@ static const struct xfs_btree_ops xfs_inobt_ops = {
 	.key_len		= sizeof(xfs_inobt_key_t),
 
 	.dup_cursor		= xfs_inobt_dup_cursor,
+	.alloc_block		= xfs_inobt_alloc_block,
 	.get_maxrecs		= xfs_inobt_get_maxrecs,
 	.init_key_from_rec	= xfs_inobt_init_key_from_rec,
 	.init_ptr_from_cur	= xfs_inobt_init_ptr_from_cur,
