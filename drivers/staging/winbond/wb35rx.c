@@ -14,85 +14,150 @@
 #include "sysdef.h"
 #include "wb35rx_f.h"
 
-void Wb35Rx_start(struct ieee80211_hw *hw)
+static void packet_came(struct ieee80211_hw *hw, char *pRxBufferAddress, int PacketSize)
 {
 	struct wbsoft_priv *priv = hw->priv;
-	phw_data_t pHwData = &priv->sHwData;
-	PWB35RX pWb35Rx = &pHwData->Wb35Rx;
+	struct sk_buff *skb;
+	struct ieee80211_rx_status rx_status = {0};
 
-	// Allow only one thread to run into the Wb35Rx() function
-	if (atomic_inc_return(&pWb35Rx->RxFireCounter) == 1) {
-		pWb35Rx->EP3vm_state = VM_RUNNING;
-		Wb35Rx(hw);
-	} else
-		atomic_dec(&pWb35Rx->RxFireCounter);
+	if (!priv->enabled)
+		return;
+
+	skb = dev_alloc_skb(PacketSize);
+	if (!skb) {
+		printk("Not enough memory for packet, FIXME\n");
+		return;
+	}
+
+	memcpy(skb_put(skb, PacketSize),
+	       pRxBufferAddress,
+	       PacketSize);
+
+/*
+	rx_status.rate = 10;
+	rx_status.channel = 1;
+	rx_status.freq = 12345;
+	rx_status.phymode = MODE_IEEE80211B;
+*/
+
+	ieee80211_rx_irqsafe(hw, skb, &rx_status);
 }
 
-// This function cannot reentrain
-void Wb35Rx(struct ieee80211_hw *hw)
+static void Wb35Rx_adjust(PDESCRIPTOR pRxDes)
+{
+	u32 *	pRxBufferAddress;
+	u32	DecryptionMethod;
+	u32	i;
+	u16	BufferSize;
+
+	DecryptionMethod = pRxDes->R01.R01_decryption_method;
+	pRxBufferAddress = pRxDes->buffer_address[0];
+	BufferSize = pRxDes->buffer_size[0];
+
+	// Adjust the last part of data. Only data left
+	BufferSize -= 4; // For CRC-32
+	if (DecryptionMethod)
+		BufferSize -= 4;
+	if (DecryptionMethod == 3) // For CCMP
+		BufferSize -= 4;
+
+	// Adjust the IV field which after 802.11 header and ICV field.
+	if (DecryptionMethod == 1) // For WEP
+	{
+		for( i=6; i>0; i-- )
+			pRxBufferAddress[i] = pRxBufferAddress[i-1];
+		pRxDes->buffer_address[0] = pRxBufferAddress + 1;
+		BufferSize -= 4; // 4 byte for IV
+	}
+	else if( DecryptionMethod ) // For TKIP and CCMP
+	{
+		for (i=7; i>1; i--)
+			pRxBufferAddress[i] = pRxBufferAddress[i-2];
+		pRxDes->buffer_address[0] = pRxBufferAddress + 2;//Update the descriptor, shift 8 byte
+		BufferSize -= 8; // 8 byte for IV + ICV
+	}
+	pRxDes->buffer_size[0] = BufferSize;
+}
+
+static u16 Wb35Rx_indicate(struct ieee80211_hw *hw)
 {
 	struct wbsoft_priv *priv = hw->priv;
 	phw_data_t pHwData = &priv->sHwData;
+	DESCRIPTOR	RxDes;
 	PWB35RX	pWb35Rx = &pHwData->Wb35Rx;
-	u8 *	pRxBufferAddress;
-	struct urb *urb = pWb35Rx->RxUrb;
-	int	retv;
-	u32	RxBufferId;
+	u8 *		pRxBufferAddress;
+	u16		PacketSize;
+	u16		stmp, BufferSize, stmp2 = 0;
+	u32		RxBufferId;
 
-	//
-	// Issuing URB
-	//
-	if (pHwData->SurpriseRemove || pHwData->HwStop)
-		goto error;
+	// Only one thread be allowed to run into the following
+	do {
+		RxBufferId = pWb35Rx->RxProcessIndex;
+		if (pWb35Rx->RxOwner[ RxBufferId ]) //Owner by VM
+			break;
 
-	if (pWb35Rx->rx_halt)
-		goto error;
+		pWb35Rx->RxProcessIndex++;
+		pWb35Rx->RxProcessIndex %= MAX_USB_RX_BUFFER_NUMBER;
 
-	// Get RxBuffer's ID
-	RxBufferId = pWb35Rx->RxBufferId;
-	if (!pWb35Rx->RxOwner[RxBufferId]) {
-		// It's impossible to run here.
-		#ifdef _PE_RX_DUMP_
-		WBDEBUG(("Rx driver fifo unavailable\n"));
-		#endif
-		goto error;
-	}
+		pRxBufferAddress = pWb35Rx->pDRx;
+		BufferSize = pWb35Rx->RxBufferSize[ RxBufferId ];
 
-	// Update buffer point, then start to bulkin the data from USB
-	pWb35Rx->RxBufferId++;
-	pWb35Rx->RxBufferId %= MAX_USB_RX_BUFFER_NUMBER;
+		// Parse the bulkin buffer
+		while (BufferSize >= 4) {
+			if ((cpu_to_le32(*(u32 *)pRxBufferAddress) & 0x0fffffff) == RX_END_TAG) //Is ending? 921002.9.a
+				break;
 
-	pWb35Rx->CurrentRxBufferId = RxBufferId;
+			// Get the R00 R01 first
+			RxDes.R00.value = le32_to_cpu(*(u32 *)pRxBufferAddress);
+			PacketSize = (u16)RxDes.R00.R00_receive_byte_count;
+			RxDes.R01.value = le32_to_cpu(*((u32 *)(pRxBufferAddress+4)));
+			// For new DMA 4k
+			if ((PacketSize & 0x03) > 0)
+				PacketSize -= 4;
 
-	pWb35Rx->pDRx = kzalloc(MAX_USB_RX_BUFFER, GFP_ATOMIC);
-	if (!pWb35Rx->pDRx) {
-		printk("w35und: Rx memory alloc failed\n");
-		goto error;
-	}
-	pRxBufferAddress = pWb35Rx->pDRx;
+			// Basic check for Rx length. Is length valid?
+			if (PacketSize > MAX_PACKET_SIZE) {
+				#ifdef _PE_RX_DUMP_
+				WBDEBUG(("Serious ERROR : Rx data size too long, size =%d\n", PacketSize));
+				#endif
 
-	usb_fill_bulk_urb(urb, pHwData->WbUsb.udev,
-			  usb_rcvbulkpipe(pHwData->WbUsb.udev, 3),
-			  pRxBufferAddress, MAX_USB_RX_BUFFER,
-			  Wb35Rx_Complete, hw);
+				pWb35Rx->EP3vm_state = VM_STOP;
+				pWb35Rx->Ep3ErrorCount2++;
+				break;
+			}
 
-	pWb35Rx->EP3vm_state = VM_RUNNING;
+			// Start to process Rx buffer
+//			RxDes.Descriptor_ID = RxBufferId; // Due to synchronous indicate, the field doesn't necessary to use.
+			BufferSize -= 8; //subtract 8 byte for 35's USB header length
+			pRxBufferAddress += 8;
 
-	retv = usb_submit_urb(urb, GFP_ATOMIC);
+			RxDes.buffer_address[0] = pRxBufferAddress;
+			RxDes.buffer_size[0] = PacketSize;
+			RxDes.buffer_number = 1;
+			RxDes.buffer_start_index = 0;
+			RxDes.buffer_total_size = RxDes.buffer_size[0];
+			Wb35Rx_adjust(&RxDes);
 
-	if (retv != 0) {
-		printk("Rx URB sending error\n");
-		goto error;
-	}
-	return;
+			packet_came(hw, pRxBufferAddress, PacketSize);
 
-error:
-	// VM stop
-	pWb35Rx->EP3vm_state = VM_STOP;
-	atomic_dec(&pWb35Rx->RxFireCounter);
+			// Move RxBuffer point to the next
+			stmp = PacketSize + 3;
+			stmp &= ~0x03; // 4n alignment
+			pRxBufferAddress += stmp;
+			BufferSize -= stmp;
+			stmp2 += stmp;
+		}
+
+		// Reclaim resource
+		pWb35Rx->RxOwner[ RxBufferId ] = 1;
+	} while (true);
+
+	return stmp2;
 }
 
-void Wb35Rx_Complete(struct urb *urb)
+static void Wb35Rx(struct ieee80211_hw *hw);
+
+static void Wb35Rx_Complete(struct urb *urb)
 {
 	struct ieee80211_hw *hw = urb->context;
 	struct wbsoft_priv *priv = hw->priv;
@@ -170,7 +235,101 @@ error:
 	pWb35Rx->EP3vm_state = VM_STOP;
 }
 
+// This function cannot reentrain
+static void Wb35Rx(struct ieee80211_hw *hw)
+{
+	struct wbsoft_priv *priv = hw->priv;
+	phw_data_t pHwData = &priv->sHwData;
+	PWB35RX	pWb35Rx = &pHwData->Wb35Rx;
+	u8 *	pRxBufferAddress;
+	struct urb *urb = pWb35Rx->RxUrb;
+	int	retv;
+	u32	RxBufferId;
+
+	//
+	// Issuing URB
+	//
+	if (pHwData->SurpriseRemove || pHwData->HwStop)
+		goto error;
+
+	if (pWb35Rx->rx_halt)
+		goto error;
+
+	// Get RxBuffer's ID
+	RxBufferId = pWb35Rx->RxBufferId;
+	if (!pWb35Rx->RxOwner[RxBufferId]) {
+		// It's impossible to run here.
+		#ifdef _PE_RX_DUMP_
+		WBDEBUG(("Rx driver fifo unavailable\n"));
+		#endif
+		goto error;
+	}
+
+	// Update buffer point, then start to bulkin the data from USB
+	pWb35Rx->RxBufferId++;
+	pWb35Rx->RxBufferId %= MAX_USB_RX_BUFFER_NUMBER;
+
+	pWb35Rx->CurrentRxBufferId = RxBufferId;
+
+	pWb35Rx->pDRx = kzalloc(MAX_USB_RX_BUFFER, GFP_ATOMIC);
+	if (!pWb35Rx->pDRx) {
+		printk("w35und: Rx memory alloc failed\n");
+		goto error;
+	}
+	pRxBufferAddress = pWb35Rx->pDRx;
+
+	usb_fill_bulk_urb(urb, pHwData->WbUsb.udev,
+			  usb_rcvbulkpipe(pHwData->WbUsb.udev, 3),
+			  pRxBufferAddress, MAX_USB_RX_BUFFER,
+			  Wb35Rx_Complete, hw);
+
+	pWb35Rx->EP3vm_state = VM_RUNNING;
+
+	retv = usb_submit_urb(urb, GFP_ATOMIC);
+
+	if (retv != 0) {
+		printk("Rx URB sending error\n");
+		goto error;
+	}
+	return;
+
+error:
+	// VM stop
+	pWb35Rx->EP3vm_state = VM_STOP;
+	atomic_dec(&pWb35Rx->RxFireCounter);
+}
+
+void Wb35Rx_start(struct ieee80211_hw *hw)
+{
+	struct wbsoft_priv *priv = hw->priv;
+	phw_data_t pHwData = &priv->sHwData;
+	PWB35RX pWb35Rx = &pHwData->Wb35Rx;
+
+	// Allow only one thread to run into the Wb35Rx() function
+	if (atomic_inc_return(&pWb35Rx->RxFireCounter) == 1) {
+		pWb35Rx->EP3vm_state = VM_RUNNING;
+		Wb35Rx(hw);
+	} else
+		atomic_dec(&pWb35Rx->RxFireCounter);
+}
+
 //=====================================================================================
+static void Wb35Rx_reset_descriptor(  phw_data_t pHwData )
+{
+	PWB35RX pWb35Rx = &pHwData->Wb35Rx;
+	u32	i;
+
+	pWb35Rx->ByteReceived = 0;
+	pWb35Rx->RxProcessIndex = 0;
+	pWb35Rx->RxBufferId = 0;
+	pWb35Rx->EP3vm_state = VM_STOP;
+	pWb35Rx->rx_halt = 0;
+
+	// Initial the Queue. The last buffer is reserved for used if the Rx resource is unavailable.
+	for( i=0; i<MAX_USB_RX_BUFFER_NUMBER; i++ )
+		pWb35Rx->RxOwner[i] = 1;
+}
+
 unsigned char Wb35Rx_initial(phw_data_t pHwData)
 {
 	PWB35RX pWb35Rx = &pHwData->Wb35Rx;
@@ -211,162 +370,4 @@ void Wb35Rx_destroy(phw_data_t pHwData)
 	WBDEBUG(("Wb35Rx_destroy OK\n"));
 	#endif
 }
-
-void Wb35Rx_reset_descriptor(  phw_data_t pHwData )
-{
-	PWB35RX pWb35Rx = &pHwData->Wb35Rx;
-	u32	i;
-
-	pWb35Rx->ByteReceived = 0;
-	pWb35Rx->RxProcessIndex = 0;
-	pWb35Rx->RxBufferId = 0;
-	pWb35Rx->EP3vm_state = VM_STOP;
-	pWb35Rx->rx_halt = 0;
-
-	// Initial the Queue. The last buffer is reserved for used if the Rx resource is unavailable.
-	for( i=0; i<MAX_USB_RX_BUFFER_NUMBER; i++ )
-		pWb35Rx->RxOwner[i] = 1;
-}
-
-void Wb35Rx_adjust(PDESCRIPTOR pRxDes)
-{
-	u32 *	pRxBufferAddress;
-	u32	DecryptionMethod;
-	u32	i;
-	u16	BufferSize;
-
-	DecryptionMethod = pRxDes->R01.R01_decryption_method;
-	pRxBufferAddress = pRxDes->buffer_address[0];
-	BufferSize = pRxDes->buffer_size[0];
-
-	// Adjust the last part of data. Only data left
-	BufferSize -= 4; // For CRC-32
-	if (DecryptionMethod)
-		BufferSize -= 4;
-	if (DecryptionMethod == 3) // For CCMP
-		BufferSize -= 4;
-
-	// Adjust the IV field which after 802.11 header and ICV field.
-	if (DecryptionMethod == 1) // For WEP
-	{
-		for( i=6; i>0; i-- )
-			pRxBufferAddress[i] = pRxBufferAddress[i-1];
-		pRxDes->buffer_address[0] = pRxBufferAddress + 1;
-		BufferSize -= 4; // 4 byte for IV
-	}
-	else if( DecryptionMethod ) // For TKIP and CCMP
-	{
-		for (i=7; i>1; i--)
-			pRxBufferAddress[i] = pRxBufferAddress[i-2];
-		pRxDes->buffer_address[0] = pRxBufferAddress + 2;//Update the descriptor, shift 8 byte
-		BufferSize -= 8; // 8 byte for IV + ICV
-	}
-	pRxDes->buffer_size[0] = BufferSize;
-}
-
-static void packet_came(struct ieee80211_hw *hw, char *pRxBufferAddress, int PacketSize)
-{
-	struct wbsoft_priv *priv = hw->priv;
-	struct sk_buff *skb;
-	struct ieee80211_rx_status rx_status = {0};
-
-	if (!priv->enabled)
-		return;
-
-	skb = dev_alloc_skb(PacketSize);
-	if (!skb) {
-		printk("Not enough memory for packet, FIXME\n");
-		return;
-	}
-
-	memcpy(skb_put(skb, PacketSize),
-	       pRxBufferAddress,
-	       PacketSize);
-
-/*
-	rx_status.rate = 10;
-	rx_status.channel = 1;
-	rx_status.freq = 12345;
-	rx_status.phymode = MODE_IEEE80211B;
-*/
-
-	ieee80211_rx_irqsafe(hw, skb, &rx_status);
-}
-
-u16 Wb35Rx_indicate(struct ieee80211_hw *hw)
-{
-	struct wbsoft_priv *priv = hw->priv;
-	phw_data_t pHwData = &priv->sHwData;
-	DESCRIPTOR	RxDes;
-	PWB35RX	pWb35Rx = &pHwData->Wb35Rx;
-	u8 *		pRxBufferAddress;
-	u16		PacketSize;
-	u16		stmp, BufferSize, stmp2 = 0;
-	u32		RxBufferId;
-
-	// Only one thread be allowed to run into the following
-	do {
-		RxBufferId = pWb35Rx->RxProcessIndex;
-		if (pWb35Rx->RxOwner[ RxBufferId ]) //Owner by VM
-			break;
-
-		pWb35Rx->RxProcessIndex++;
-		pWb35Rx->RxProcessIndex %= MAX_USB_RX_BUFFER_NUMBER;
-
-		pRxBufferAddress = pWb35Rx->pDRx;
-		BufferSize = pWb35Rx->RxBufferSize[ RxBufferId ];
-
-		// Parse the bulkin buffer
-		while (BufferSize >= 4) {
-			if ((cpu_to_le32(*(u32 *)pRxBufferAddress) & 0x0fffffff) == RX_END_TAG) //Is ending? 921002.9.a
-				break;
-
-			// Get the R00 R01 first
-			RxDes.R00.value = le32_to_cpu(*(u32 *)pRxBufferAddress);
-			PacketSize = (u16)RxDes.R00.R00_receive_byte_count;
-			RxDes.R01.value = le32_to_cpu(*((u32 *)(pRxBufferAddress+4)));
-			// For new DMA 4k
-			if ((PacketSize & 0x03) > 0)
-				PacketSize -= 4;
-
-			// Basic check for Rx length. Is length valid?
-			if (PacketSize > MAX_PACKET_SIZE) {
-				#ifdef _PE_RX_DUMP_
-				WBDEBUG(("Serious ERROR : Rx data size too long, size =%d\n", PacketSize));
-				#endif
-
-				pWb35Rx->EP3vm_state = VM_STOP;
-				pWb35Rx->Ep3ErrorCount2++;
-				break;
-			}
-
-			// Start to process Rx buffer
-//			RxDes.Descriptor_ID = RxBufferId; // Due to synchronous indicate, the field doesn't necessary to use.
-			BufferSize -= 8; //subtract 8 byte for 35's USB header length
-			pRxBufferAddress += 8;
-
-			RxDes.buffer_address[0] = pRxBufferAddress;
-			RxDes.buffer_size[0] = PacketSize;
-			RxDes.buffer_number = 1;
-			RxDes.buffer_start_index = 0;
-			RxDes.buffer_total_size = RxDes.buffer_size[0];
-			Wb35Rx_adjust(&RxDes);
-
-			packet_came(hw, pRxBufferAddress, PacketSize);
-
-			// Move RxBuffer point to the next
-			stmp = PacketSize + 3;
-			stmp &= ~0x03; // 4n alignment
-			pRxBufferAddress += stmp;
-			BufferSize -= stmp;
-			stmp2 += stmp;
-		}
-
-		// Reclaim resource
-		pWb35Rx->RxOwner[ RxBufferId ] = 1;
-	} while (true);
-
-	return stmp2;
-}
-
 
