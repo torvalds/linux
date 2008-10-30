@@ -212,6 +212,7 @@ void destroy_inode(struct inode *inode)
 	else
 		kmem_cache_free(inode_cachep, (inode));
 }
+EXPORT_SYMBOL(destroy_inode);
 
 
 /*
