@@ -235,21 +235,13 @@ config X86_FIND_SMP_CONFIG
 	def_bool y
 	depends on X86_MPPARSE || X86_VOYAGER
 
-if ACPI
 config X86_MPPARSE
-	def_bool y
-	bool "Enable MPS table"
+	bool "Enable MPS table" if ACPI
+	default y
 	depends on X86_LOCAL_APIC
 	help
 	  For old smp systems that do not have proper acpi support. Newer systems
 	  (esp with 64bit cpus) with acpi support, MADT and DSDT will override it
-endif
-
-if !ACPI
-config X86_MPPARSE
-	def_bool y
-	depends on X86_LOCAL_APIC
-endif
 
 choice
 	prompt "Subarchitecture Type"
