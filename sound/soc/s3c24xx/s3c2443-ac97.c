@@ -28,7 +28,7 @@
 #include <sound/soc.h>
 
 #include <mach/hardware.h>
-#include <asm/plat-s3c/regs-ac97.h>
+#include <plat/regs-ac97.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
 #include <mach/audio.h>
