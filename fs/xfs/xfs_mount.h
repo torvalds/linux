@@ -18,6 +18,7 @@
 #ifndef __XFS_MOUNT_H__
 #define	__XFS_MOUNT_H__
 
+#include "xfs_sync.h"
 
 typedef struct xfs_trans_reservations {
 	uint	tr_write;	/* extent alloc trans */
