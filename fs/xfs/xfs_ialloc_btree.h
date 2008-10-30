@@ -85,14 +85,6 @@ typedef	struct xfs_btree_sblock xfs_inobt_block_t;
 #define	XFS_INOBT_CLR_FREE(rp,i)	((rp)->ir_free &= ~XFS_INOBT_MASK(i))
 
 /*
- * Real block structures have a size equal to the disk block size.
- */
-#define	XFS_INOBT_BLOCK_MAXRECS(lev,cur) ((cur)->bc_mp->m_inobt_mxr[lev != 0])
-#define	XFS_INOBT_BLOCK_MINRECS(lev,cur) ((cur)->bc_mp->m_inobt_mnr[lev != 0])
-#define	XFS_INOBT_IS_LAST_REC(cur)	\
-	((cur)->bc_ptrs[0] == be16_to_cpu(XFS_BUF_TO_INOBT_BLOCK((cur)->bc_bufs[0])->bb_numrecs))
-
-/*
  * Maximum number of inode btree levels.
  */
 #define	XFS_IN_MAXLEVELS(mp)		((mp)->m_in_maxlevels)
@@ -118,5 +110,6 @@ typedef	struct xfs_btree_sblock xfs_inobt_block_t;
 
 extern struct xfs_btree_cur *xfs_inobt_init_cursor(struct xfs_mount *,
 		struct xfs_trans *, struct xfs_buf *, xfs_agnumber_t);
+extern int xfs_inobt_maxrecs(struct xfs_mount *, int, int);
 
 #endif	/* __XFS_IALLOC_BTREE_H__ */

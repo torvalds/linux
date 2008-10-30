@@ -2452,7 +2452,7 @@ xlog_recover_do_inode_trans(
 		break;
 
 	case XFS_ILOG_DBROOT:
-		xfs_bmbt_to_bmdr((xfs_bmbt_block_t *)src, len,
+		xfs_bmbt_to_bmdr(mp, (xfs_bmbt_block_t *)src, len,
 				 &(dip->di_u.di_bmbt),
 				 XFS_DFORK_DSIZE(dip, mp));
 		break;
@@ -2490,7 +2490,7 @@ xlog_recover_do_inode_trans(
 
 		case XFS_ILOG_ABROOT:
 			dest = XFS_DFORK_APTR(dip);
-			xfs_bmbt_to_bmdr((xfs_bmbt_block_t *)src, len,
+			xfs_bmbt_to_bmdr(mp, (xfs_bmbt_block_t *)src, len,
 					 (xfs_bmdr_block_t*)dest,
 					 XFS_DFORK_ASIZE(dip, mp));
 			break;

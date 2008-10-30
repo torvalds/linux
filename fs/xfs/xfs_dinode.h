@@ -78,8 +78,7 @@ typedef struct xfs_dinode
 	xfs_dinode_core_t	di_core;
 	/*
 	 * In adding anything between the core and the union, be
-	 * sure to update the macros like XFS_LITINO below and
-	 * XFS_BMAP_RBLOCK_DSIZE in xfs_bmap_btree.h.
+	 * sure to update the macros like XFS_LITINO below.
 	 */
 	__be32			di_next_unlinked;/* agi unlinked list ptr */
 	union {

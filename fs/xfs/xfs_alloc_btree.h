@@ -56,12 +56,6 @@ typedef	struct xfs_btree_sblock xfs_alloc_block_t;
 #define	XFS_BUF_TO_ALLOC_BLOCK(bp)	((xfs_alloc_block_t *)XFS_BUF_PTR(bp))
 
 /*
- * Real block structures have a size equal to the disk block size.
- */
-#define	XFS_ALLOC_BLOCK_MAXRECS(lev,cur) ((cur)->bc_mp->m_alloc_mxr[lev != 0])
-#define	XFS_ALLOC_BLOCK_MINRECS(lev,cur) ((cur)->bc_mp->m_alloc_mnr[lev != 0])
-
-/*
  * Minimum and maximum blocksize and sectorsize.
  * The blocksize upper limit is pretty much arbitrary.
  * The sectorsize upper limit is due to sizeof(sb_sectsize).
@@ -98,5 +92,6 @@ typedef	struct xfs_btree_sblock xfs_alloc_block_t;
 extern struct xfs_btree_cur *xfs_allocbt_init_cursor(struct xfs_mount *,
 		struct xfs_trans *, struct xfs_buf *,
 		xfs_agnumber_t, xfs_btnum_t);
+extern int xfs_allocbt_maxrecs(struct xfs_mount *, int, int);
 
 #endif	/* __XFS_ALLOC_BTREE_H__ */

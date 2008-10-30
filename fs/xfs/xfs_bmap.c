@@ -3051,15 +3051,15 @@ xfs_bmap_btree_to_extents(
 	__be64			*pp;	/* ptr to block address */
 	xfs_bmbt_block_t	*rblock;/* root btree block */
 
+	mp = ip->i_mount;
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 	ASSERT(ifp->if_flags & XFS_IFEXTENTS);
 	ASSERT(XFS_IFORK_FORMAT(ip, whichfork) == XFS_DINODE_FMT_BTREE);
 	rblock = ifp->if_broot;
 	ASSERT(be16_to_cpu(rblock->bb_level) == 1);
 	ASSERT(be16_to_cpu(rblock->bb_numrecs) == 1);
-	ASSERT(XFS_BMAP_BROOT_MAXRECS(ifp->if_broot_bytes) == 1);
-	mp = ip->i_mount;
-	pp = XFS_BMAP_BROOT_PTR_ADDR(rblock, 1, ifp->if_broot_bytes);
+	ASSERT(xfs_bmbt_maxrecs(mp, ifp->if_broot_bytes, 0) == 1);
+	pp = XFS_BMAP_BROOT_PTR_ADDR(mp, rblock, 1, ifp->if_broot_bytes);
 	cbno = be64_to_cpu(*pp);
 	*logflagsp = 0;
 #ifdef DEBUG
@@ -4221,7 +4221,7 @@ xfs_bmap_compute_maxlevels(
 		maxleafents = MAXAEXTNUM;
 		sz = XFS_BMDR_SPACE_CALC(MINABTPTRS);
 	}
-	maxrootrecs = (int)XFS_BTREE_BLOCK_MAXRECS(sz, xfs_bmdr, 0);
+	maxrootrecs = xfs_bmdr_maxrecs(mp, sz, 0);
 	minleafrecs = mp->m_bmap_dmnr[0];
 	minnoderecs = mp->m_bmap_dmnr[1];
 	maxblocks = (maxleafents + minleafrecs - 1) / minleafrecs;
@@ -4555,7 +4555,7 @@ xfs_bmap_read_extents(
 	 */
 	level = be16_to_cpu(block->bb_level);
 	ASSERT(level > 0);
-	pp = XFS_BMAP_BROOT_PTR_ADDR(block, 1, ifp->if_broot_bytes);
+	pp = XFS_BMAP_BROOT_PTR_ADDR(mp, block, 1, ifp->if_broot_bytes);
 	bno = be64_to_cpu(*pp);
 	ASSERT(bno != NULLDFSBNO);
 	ASSERT(XFS_FSB_TO_AGNO(mp, bno) < mp->m_sb.sb_agcount);
@@ -6205,13 +6205,13 @@ xfs_check_block(
 		 */
 
 		if (root) {
-			pp = XFS_BMAP_BROOT_PTR_ADDR(block, i, sz);
+			pp = XFS_BMAP_BROOT_PTR_ADDR(mp, block, i, sz);
 		} else {
 			pp = XFS_BTREE_PTR_ADDR(xfs_bmbt, block, i, dmxr);
 		}
 		for (j = i+1; j <= be16_to_cpu(block->bb_numrecs); j++) {
 			if (root) {
-				thispa = XFS_BMAP_BROOT_PTR_ADDR(block, j, sz);
+				thispa = XFS_BMAP_BROOT_PTR_ADDR(mp, block, j, sz);
 			} else {
 				thispa = XFS_BTREE_PTR_ADDR(xfs_bmbt, block, j,
 							    dmxr);
@@ -6266,7 +6266,7 @@ xfs_bmap_check_leaf_extents(
 	level = be16_to_cpu(block->bb_level);
 	ASSERT(level > 0);
 	xfs_check_block(block, mp, 1, ifp->if_broot_bytes);
-	pp = XFS_BMAP_BROOT_PTR_ADDR(block, 1, ifp->if_broot_bytes);
+	pp = XFS_BMAP_BROOT_PTR_ADDR(mp, block, 1, ifp->if_broot_bytes);
 	bno = be64_to_cpu(*pp);
 
 	ASSERT(bno != NULLDFSBNO);
@@ -6426,7 +6426,7 @@ xfs_bmap_count_blocks(
 	block = ifp->if_broot;
 	level = be16_to_cpu(block->bb_level);
 	ASSERT(level > 0);
-	pp = XFS_BMAP_BROOT_PTR_ADDR(block, 1, ifp->if_broot_bytes);
+	pp = XFS_BMAP_BROOT_PTR_ADDR(mp, block, 1, ifp->if_broot_bytes);
 	bno = be64_to_cpu(*pp);
 	ASSERT(bno != NULLDFSBNO);
 	ASSERT(XFS_FSB_TO_AGNO(mp, bno) < mp->m_sb.sb_agcount);

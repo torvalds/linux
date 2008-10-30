@@ -276,12 +276,12 @@ typedef struct xfs_mount {
 	uint			m_blockmask;	/* sb_blocksize-1 */
 	uint			m_blockwsize;	/* sb_blocksize in words */
 	uint			m_blockwmask;	/* blockwsize-1 */
-	uint			m_alloc_mxr[2];	/* XFS_ALLOC_BLOCK_MAXRECS */
-	uint			m_alloc_mnr[2];	/* XFS_ALLOC_BLOCK_MINRECS */
-	uint			m_bmap_dmxr[2];	/* XFS_BMAP_BLOCK_DMAXRECS */
-	uint			m_bmap_dmnr[2];	/* XFS_BMAP_BLOCK_DMINRECS */
-	uint			m_inobt_mxr[2];	/* XFS_INOBT_BLOCK_MAXRECS */
-	uint			m_inobt_mnr[2];	/* XFS_INOBT_BLOCK_MINRECS */
+	uint			m_alloc_mxr[2];	/* max alloc btree records */
+	uint			m_alloc_mnr[2];	/* min alloc btree records */
+	uint			m_bmap_dmxr[2];	/* max bmap btree records */
+	uint			m_bmap_dmnr[2];	/* min bmap btree records */
+	uint			m_inobt_mxr[2];	/* max inobt btree records */
+	uint			m_inobt_mnr[2];	/* min inobt btree records */
 	uint			m_ag_maxlevels;	/* XFS_AG_MAXLEVELS */
 	uint			m_bm_maxlevels[2]; /* XFS_BM_MAXLEVELS */
 	uint			m_in_maxlevels;	/* XFS_IN_MAXLEVELS */

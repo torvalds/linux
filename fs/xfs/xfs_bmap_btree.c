@@ -66,6 +66,7 @@ xfs_extent_state(
  */
 void
 xfs_bmdr_to_bmbt(
+	struct xfs_mount	*mp,
 	xfs_bmdr_block_t	*dblock,
 	int			dblocklen,
 	xfs_bmbt_block_t	*rblock,
@@ -83,11 +84,11 @@ xfs_bmdr_to_bmbt(
 	rblock->bb_numrecs = dblock->bb_numrecs;
 	rblock->bb_leftsib = cpu_to_be64(NULLDFSBNO);
 	rblock->bb_rightsib = cpu_to_be64(NULLDFSBNO);
-	dmxr = (int)XFS_BTREE_BLOCK_MAXRECS(dblocklen, xfs_bmdr, 0);
+	dmxr = xfs_bmdr_maxrecs(mp, dblocklen, 0);
 	fkp = XFS_BTREE_KEY_ADDR(xfs_bmdr, dblock, 1);
 	tkp = XFS_BMAP_BROOT_KEY_ADDR(rblock, 1, rblocklen);
 	fpp = XFS_BTREE_PTR_ADDR(xfs_bmdr, dblock, 1, dmxr);
-	tpp = XFS_BMAP_BROOT_PTR_ADDR(rblock, 1, rblocklen);
+	tpp = XFS_BMAP_BROOT_PTR_ADDR(mp, rblock, 1, rblocklen);
 	dmxr = be16_to_cpu(dblock->bb_numrecs);
 	memcpy(tkp, fkp, sizeof(*fkp) * dmxr);
 	memcpy(tpp, fpp, sizeof(*fpp) * dmxr);
@@ -428,6 +429,7 @@ xfs_bmbt_set_state(
  */
 void
 xfs_bmbt_to_bmdr(
+	struct xfs_mount	*mp,
 	xfs_bmbt_block_t	*rblock,
 	int			rblocklen,
 	xfs_bmdr_block_t	*dblock,
@@ -445,10 +447,10 @@ xfs_bmbt_to_bmdr(
 	ASSERT(be16_to_cpu(rblock->bb_level) > 0);
 	dblock->bb_level = rblock->bb_level;
 	dblock->bb_numrecs = rblock->bb_numrecs;
-	dmxr = (int)XFS_BTREE_BLOCK_MAXRECS(dblocklen, xfs_bmdr, 0);
+	dmxr = xfs_bmdr_maxrecs(mp, dblocklen, 0);
 	fkp = XFS_BMAP_BROOT_KEY_ADDR(rblock, 1, rblocklen);
 	tkp = XFS_BTREE_KEY_ADDR(xfs_bmdr, dblock, 1);
-	fpp = XFS_BMAP_BROOT_PTR_ADDR(rblock, 1, rblocklen);
+	fpp = XFS_BMAP_BROOT_PTR_ADDR(mp, rblock, 1, rblocklen);
 	tpp = XFS_BTREE_PTR_ADDR(xfs_bmdr, dblock, 1, dmxr);
 	dmxr = be16_to_cpu(dblock->bb_numrecs);
 	memcpy(tkp, fkp, sizeof(*fkp) * dmxr);
@@ -626,15 +628,36 @@ xfs_bmbt_get_minrecs(
 	struct xfs_btree_cur	*cur,
 	int			level)
 {
-	return XFS_BMAP_BLOCK_IMINRECS(level, cur);
+	if (level == cur->bc_nlevels - 1) {
+		struct xfs_ifork	*ifp;
+
+		ifp = XFS_IFORK_PTR(cur->bc_private.b.ip,
+				    cur->bc_private.b.whichfork);
+
+		return xfs_bmbt_maxrecs(cur->bc_mp,
+					ifp->if_broot_bytes, level == 0) / 2;
+	}
+
+	return cur->bc_mp->m_bmap_dmnr[level != 0];
 }
 
-STATIC int
+int
 xfs_bmbt_get_maxrecs(
 	struct xfs_btree_cur	*cur,
 	int			level)
 {
-	return XFS_BMAP_BLOCK_IMAXRECS(level, cur);
+	if (level == cur->bc_nlevels - 1) {
+		struct xfs_ifork	*ifp;
+
+		ifp = XFS_IFORK_PTR(cur->bc_private.b.ip,
+				    cur->bc_private.b.whichfork);
+
+		return xfs_bmbt_maxrecs(cur->bc_mp,
+					ifp->if_broot_bytes, level == 0);
+	}
+
+	return cur->bc_mp->m_bmap_dmxr[level != 0];
+
 }
 
 /*
@@ -651,7 +674,10 @@ xfs_bmbt_get_dmaxrecs(
 	struct xfs_btree_cur	*cur,
 	int			level)
 {
-	return XFS_BMAP_BLOCK_DMAXRECS(level, cur);
+	if (level != cur->bc_nlevels - 1)
+		return cur->bc_mp->m_bmap_dmxr[level != 0];
+	return xfs_bmdr_maxrecs(cur->bc_mp, cur->bc_private.b.forksize,
+				level == 0);
 }
 
 STATIC void
@@ -870,4 +896,36 @@ xfs_bmbt_init_cursor(
 	cur->bc_private.b.whichfork = whichfork;
 
 	return cur;
+}
+
+/*
+ * Calculate number of records in a bmap btree block.
+ */
+int
+xfs_bmbt_maxrecs(
+	struct xfs_mount	*mp,
+	int			blocklen,
+	int			leaf)
+{
+	blocklen -= sizeof(struct xfs_btree_lblock);
+
+	if (leaf)
+		return blocklen / sizeof(xfs_bmbt_rec_t);
+	return blocklen / (sizeof(xfs_bmbt_key_t) + sizeof(xfs_bmbt_ptr_t));
+}
+
+/*
+ * Calculate number of records in a bmap btree inode root.
+ */
+int
+xfs_bmdr_maxrecs(
+	struct xfs_mount	*mp,
+	int			blocklen,
+	int			leaf)
+{
+	blocklen -= sizeof(xfs_bmdr_block_t);
+
+	if (leaf)
+		return blocklen / sizeof(xfs_bmdr_rec_t);
+	return blocklen / (sizeof(xfs_bmdr_key_t) + sizeof(xfs_bmdr_ptr_t));
 }

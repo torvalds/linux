@@ -148,19 +148,6 @@ do {    \
 	case XFS_BTNUM_MAX: ASSERT(0); /* fucking gcc */ ; break;	\
 	}       \
 } while (0)
-/*
- * Maximum and minimum records in a btree block.
- * Given block size, type prefix, and leaf flag (0 or 1).
- * The divisor below is equivalent to lf ? (e1) : (e2) but that produces
- * compiler warnings.
- */
-#define	XFS_BTREE_BLOCK_MAXRECS(bsz,t,lf)	\
-	((int)(((bsz) - (uint)sizeof(t ## _block_t)) / \
-	 (((lf) * (uint)sizeof(t ## _rec_t)) + \
-	  ((1 - (lf)) * \
-	   ((uint)sizeof(t ## _key_t) + (uint)sizeof(t ## _ptr_t))))))
-#define	XFS_BTREE_BLOCK_MINRECS(bsz,t,lf)	\
-	(XFS_BTREE_BLOCK_MAXRECS(bsz,t,lf) / 2)
 
 /*
  * Record, key, and pointer address calculation macros.
