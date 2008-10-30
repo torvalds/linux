@@ -1566,11 +1566,14 @@ xfs_da_grow_inode(xfs_da_args_t *args, xfs_dablk_t *new_blkno)
 	int nmap, error, w, count, c, got, i, mapi;
 	xfs_trans_t *tp;
 	xfs_mount_t *mp;
+	xfs_drfsbno_t	nblks;
 
 	dp = args->dp;
 	mp = dp->i_mount;
 	w = args->whichfork;
 	tp = args->trans;
+	nblks = dp->i_d.di_nblocks;
+
 	/*
 	 * For new directories adjust the file offset and block count.
 	 */
@@ -1647,6 +1650,8 @@ xfs_da_grow_inode(xfs_da_args_t *args, xfs_dablk_t *new_blkno)
 	}
 	if (mapp != &map)
 		kmem_free(mapp);
+	/* account for newly allocated blocks in reserved blocks total */
+	args->total -= dp->i_d.di_nblocks - nblks;
 	*new_blkno = (xfs_dablk_t)bno;
 	return 0;
 }
