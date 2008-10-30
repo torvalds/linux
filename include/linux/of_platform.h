@@ -26,8 +26,7 @@ extern struct bus_type of_platform_bus_type;
 
 /*
  * An of_platform_driver driver is attached to a basic of_device on
- * the "platform bus" (of_platform_bus_type) (or ISA, EBUS and SBUS
- * busses on sparc).
+ * the "platform bus" (of_platform_bus_type).
  */
 struct of_platform_driver
 {
