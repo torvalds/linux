@@ -375,7 +375,7 @@ xfs_inobt_maxrecs(
 	int			blocklen,
 	int			leaf)
 {
-	blocklen -= sizeof(struct xfs_btree_sblock);
+	blocklen -= XFS_INOBT_BLOCK_LEN(mp);
 
 	if (leaf)
 		return blocklen / sizeof(xfs_inobt_rec_t);

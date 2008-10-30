@@ -22,7 +22,6 @@
 
 struct xfs_btree_cur;
 struct xfs_btree_block;
-struct xfs_btree_lblock;
 struct xfs_mount;
 struct xfs_inode;
 struct xfs_trans;
@@ -147,27 +146,29 @@ typedef struct xfs_bmbt_key {
 /* btree pointer type */
 typedef __be64 xfs_bmbt_ptr_t, xfs_bmdr_ptr_t;
 
-/* btree block header type */
-typedef struct xfs_btree_lblock xfs_bmbt_block_t;
-
-#define XFS_BUF_TO_BMBT_BLOCK(bp)	((xfs_bmbt_block_t *)XFS_BUF_PTR(bp))
+/*
+ * Btree block header size depends on a superblock flag.
+ *
+ * (not quite yet, but soon)
+ */
+#define XFS_BMBT_BLOCK_LEN(mp)	XFS_BTREE_LBLOCK_LEN
 
 #define XFS_BMBT_REC_ADDR(mp, block, index) \
 	((xfs_bmbt_rec_t *) \
 		((char *)(block) + \
-		 sizeof(struct xfs_btree_lblock) + \
+		 XFS_BMBT_BLOCK_LEN(mp) + \
 		 ((index) - 1) * sizeof(xfs_bmbt_rec_t)))
 
 #define XFS_BMBT_KEY_ADDR(mp, block, index) \
 	((xfs_bmbt_key_t *) \
 		((char *)(block) + \
-		 sizeof(struct xfs_btree_lblock) + \
+		 XFS_BMBT_BLOCK_LEN(mp) + \
 		 ((index) - 1) * sizeof(xfs_bmbt_key_t)))
 
 #define XFS_BMBT_PTR_ADDR(mp, block, index, maxrecs) \
 	((xfs_bmbt_ptr_t *) \
 		((char *)(block) + \
-		 sizeof(struct xfs_btree_lblock) + \
+		 XFS_BMBT_BLOCK_LEN(mp) + \
 		 (maxrecs) * sizeof(xfs_bmbt_key_t) + \
 		 ((index) - 1) * sizeof(xfs_bmbt_ptr_t)))
 
@@ -198,7 +199,7 @@ typedef struct xfs_btree_lblock xfs_bmbt_block_t;
 	XFS_BMBT_PTR_ADDR(mp, bb, i, xfs_bmbt_maxrecs(mp, sz, 0))
 
 #define XFS_BMAP_BROOT_SPACE_CALC(nrecs) \
-	(int)(sizeof(xfs_bmbt_block_t) + \
+	(int)(XFS_BTREE_LBLOCK_LEN + \
 	       ((nrecs) * (sizeof(xfs_bmbt_key_t) + sizeof(xfs_bmbt_ptr_t))))
 
 #define XFS_BMAP_BROOT_SPACE(bb) \
@@ -223,7 +224,7 @@ typedef struct xfs_btree_lblock xfs_bmbt_block_t;
  * Prototypes for xfs_bmap.c to call.
  */
 extern void xfs_bmdr_to_bmbt(struct xfs_mount *, xfs_bmdr_block_t *, int,
-			xfs_bmbt_block_t *, int);
+			struct xfs_btree_block *, int);
 extern void xfs_bmbt_get_all(xfs_bmbt_rec_host_t *r, xfs_bmbt_irec_t *s);
 extern xfs_filblks_t xfs_bmbt_get_blockcount(xfs_bmbt_rec_host_t *r);
 extern xfs_fsblock_t xfs_bmbt_get_startblock(xfs_bmbt_rec_host_t *r);
@@ -246,7 +247,7 @@ extern void xfs_bmbt_disk_set_all(xfs_bmbt_rec_t *r, xfs_bmbt_irec_t *s);
 extern void xfs_bmbt_disk_set_allf(xfs_bmbt_rec_t *r, xfs_fileoff_t o,
 			xfs_fsblock_t b, xfs_filblks_t c, xfs_exntst_t v);
 
-extern void xfs_bmbt_to_bmdr(struct xfs_mount *, xfs_bmbt_block_t *, int,
+extern void xfs_bmbt_to_bmdr(struct xfs_mount *, struct xfs_btree_block *, int,
 			xfs_bmdr_block_t *, int);
 
 extern int xfs_bmbt_get_maxrecs(struct xfs_btree_cur *, int level);

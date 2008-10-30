@@ -53,10 +53,10 @@ const __uint32_t xfs_magics[XFS_BTNUM_MAX] = {
 };
 
 
-int					/* error (0 or EFSCORRUPTED) */
+STATIC int				/* error (0 or EFSCORRUPTED) */
 xfs_btree_check_lblock(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
-	struct xfs_btree_lblock	*block,	/* btree long form block pointer */
+	struct xfs_btree_block	*block,	/* btree long form block pointer */
 	int			level,	/* level of the btree block */
 	struct xfs_buf		*bp)	/* buffer for block, if any */
 {
@@ -69,12 +69,14 @@ xfs_btree_check_lblock(
 		be16_to_cpu(block->bb_level) == level &&
 		be16_to_cpu(block->bb_numrecs) <=
 			cur->bc_ops->get_maxrecs(cur, level) &&
-		block->bb_leftsib &&
-		(be64_to_cpu(block->bb_leftsib) == NULLDFSBNO ||
-		 XFS_FSB_SANITY_CHECK(mp, be64_to_cpu(block->bb_leftsib))) &&
-		block->bb_rightsib &&
-		(be64_to_cpu(block->bb_rightsib) == NULLDFSBNO ||
-		 XFS_FSB_SANITY_CHECK(mp, be64_to_cpu(block->bb_rightsib)));
+		block->bb_u.l.bb_leftsib &&
+		(be64_to_cpu(block->bb_u.l.bb_leftsib) == NULLDFSBNO ||
+		 XFS_FSB_SANITY_CHECK(mp,
+		 	be64_to_cpu(block->bb_u.l.bb_leftsib))) &&
+		block->bb_u.l.bb_rightsib &&
+		(be64_to_cpu(block->bb_u.l.bb_rightsib) == NULLDFSBNO ||
+		 XFS_FSB_SANITY_CHECK(mp,
+		 	be64_to_cpu(block->bb_u.l.bb_rightsib)));
 	if (unlikely(XFS_TEST_ERROR(!lblock_ok, mp,
 			XFS_ERRTAG_BTREE_CHECK_LBLOCK,
 			XFS_RANDOM_BTREE_CHECK_LBLOCK))) {
@@ -90,7 +92,7 @@ xfs_btree_check_lblock(
 STATIC int				/* error (0 or EFSCORRUPTED) */
 xfs_btree_check_sblock(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
-	struct xfs_btree_sblock	*block,	/* btree short form block pointer */
+	struct xfs_btree_block	*block,	/* btree short form block pointer */
 	int			level,	/* level of the btree block */
 	struct xfs_buf		*bp)	/* buffer containing block */
 {
@@ -107,12 +109,12 @@ xfs_btree_check_sblock(
 		be16_to_cpu(block->bb_level) == level &&
 		be16_to_cpu(block->bb_numrecs) <=
 			cur->bc_ops->get_maxrecs(cur, level) &&
-		(be32_to_cpu(block->bb_leftsib) == NULLAGBLOCK ||
-		 be32_to_cpu(block->bb_leftsib) < agflen) &&
-		block->bb_leftsib &&
-		(be32_to_cpu(block->bb_rightsib) == NULLAGBLOCK ||
-		 be32_to_cpu(block->bb_rightsib) < agflen) &&
-		block->bb_rightsib;
+		(be32_to_cpu(block->bb_u.s.bb_leftsib) == NULLAGBLOCK ||
+		 be32_to_cpu(block->bb_u.s.bb_leftsib) < agflen) &&
+		block->bb_u.s.bb_leftsib &&
+		(be32_to_cpu(block->bb_u.s.bb_rightsib) == NULLAGBLOCK ||
+		 be32_to_cpu(block->bb_u.s.bb_rightsib) < agflen) &&
+		block->bb_u.s.bb_rightsib;
 	if (unlikely(XFS_TEST_ERROR(!sblock_ok, cur->bc_mp,
 			XFS_ERRTAG_BTREE_CHECK_SBLOCK,
 			XFS_RANDOM_BTREE_CHECK_SBLOCK))) {
@@ -135,13 +137,10 @@ xfs_btree_check_block(
 	int			level,	/* level of the btree block */
 	struct xfs_buf		*bp)	/* buffer containing block, if any */
 {
-	if (cur->bc_flags & XFS_BTREE_LONG_PTRS) {
-		return xfs_btree_check_lblock(cur,
-				(struct xfs_btree_lblock *)block, level, bp);
-	} else {
-		return xfs_btree_check_sblock(cur,
-				(struct xfs_btree_sblock *)block, level, bp);
-	}
+	if (cur->bc_flags & XFS_BTREE_LONG_PTRS)
+		return xfs_btree_check_lblock(cur, block, level, bp);
+	else
+		return xfs_btree_check_sblock(cur, block, level, bp);
 }
 
 /*
@@ -326,8 +325,8 @@ xfs_btree_dup_cursor(
 static inline size_t xfs_btree_block_len(struct xfs_btree_cur *cur)
 {
 	return (cur->bc_flags & XFS_BTREE_LONG_PTRS) ?
-		sizeof(struct xfs_btree_lblock) :
-		sizeof(struct xfs_btree_sblock);
+		XFS_BTREE_LBLOCK_LEN :
+		XFS_BTREE_SBLOCK_LEN;
 }
 
 /*
@@ -510,7 +509,7 @@ xfs_btree_islastblock(
 	xfs_btree_cur_t		*cur,	/* btree cursor */
 	int			level)	/* level to check */
 {
-	xfs_btree_block_t	*block;	/* generic btree block pointer */
+	struct xfs_btree_block	*block;	/* generic btree block pointer */
 	xfs_buf_t		*bp;	/* buffer containing block */
 
 	block = xfs_btree_get_block(cur, level, &bp);
@@ -530,7 +529,7 @@ xfs_btree_firstrec(
 	xfs_btree_cur_t		*cur,	/* btree cursor */
 	int			level)	/* level to change */
 {
-	xfs_btree_block_t	*block;	/* generic btree block pointer */
+	struct xfs_btree_block	*block;	/* generic btree block pointer */
 	xfs_buf_t		*bp;	/* buffer containing block */
 
 	/*
@@ -559,7 +558,7 @@ xfs_btree_lastrec(
 	xfs_btree_cur_t		*cur,	/* btree cursor */
 	int			level)	/* level to change */
 {
-	xfs_btree_block_t	*block;	/* generic btree block pointer */
+	struct xfs_btree_block	*block;	/* generic btree block pointer */
 	xfs_buf_t		*bp;	/* buffer containing block */
 
 	/*
@@ -814,7 +813,7 @@ xfs_btree_setbuf(
 	int			lev,	/* level in btree */
 	xfs_buf_t		*bp)	/* new buffer to set */
 {
-	xfs_btree_block_t	*b;	/* btree block */
+	struct xfs_btree_block	*b;	/* btree block */
 	xfs_buf_t		*obp;	/* old buffer pointer */
 
 	obp = cur->bc_bufs[lev];
@@ -1252,20 +1251,20 @@ xfs_btree_log_block(
 	int			first;	/* first byte offset logged */
 	int			last;	/* last byte offset logged */
 	static const short	soffsets[] = {	/* table of offsets (short) */
-		offsetof(struct xfs_btree_sblock, bb_magic),
-		offsetof(struct xfs_btree_sblock, bb_level),
-		offsetof(struct xfs_btree_sblock, bb_numrecs),
-		offsetof(struct xfs_btree_sblock, bb_leftsib),
-		offsetof(struct xfs_btree_sblock, bb_rightsib),
-		sizeof(struct xfs_btree_sblock)
+		offsetof(struct xfs_btree_block, bb_magic),
+		offsetof(struct xfs_btree_block, bb_level),
+		offsetof(struct xfs_btree_block, bb_numrecs),
+		offsetof(struct xfs_btree_block, bb_u.s.bb_leftsib),
+		offsetof(struct xfs_btree_block, bb_u.s.bb_rightsib),
+		XFS_BTREE_SBLOCK_LEN
 	};
 	static const short	loffsets[] = {	/* table of offsets (long) */
-		offsetof(struct xfs_btree_lblock, bb_magic),
-		offsetof(struct xfs_btree_lblock, bb_level),
-		offsetof(struct xfs_btree_lblock, bb_numrecs),
-		offsetof(struct xfs_btree_lblock, bb_leftsib),
-		offsetof(struct xfs_btree_lblock, bb_rightsib),
-		sizeof(struct xfs_btree_lblock)
+		offsetof(struct xfs_btree_block, bb_magic),
+		offsetof(struct xfs_btree_block, bb_level),
+		offsetof(struct xfs_btree_block, bb_numrecs),
+		offsetof(struct xfs_btree_block, bb_u.l.bb_leftsib),
+		offsetof(struct xfs_btree_block, bb_u.l.bb_rightsib),
+		XFS_BTREE_LBLOCK_LEN
 	};
 
 	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
@@ -3018,7 +3017,7 @@ xfs_btree_kill_iroot(
 	if (index) {
 		xfs_iroot_realloc(cur->bc_private.b.ip, index,
 				  cur->bc_private.b.whichfork);
-		block = (struct xfs_btree_block *)ifp->if_broot;
+		block = ifp->if_broot;
 	}
 
 	be16_add_cpu(&block->bb_numrecs, index);

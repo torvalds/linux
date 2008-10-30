@@ -24,7 +24,6 @@
 
 struct xfs_buf;
 struct xfs_btree_cur;
-struct xfs_btree_sblock;
 struct xfs_mount;
 
 /*
@@ -50,10 +49,6 @@ typedef struct xfs_alloc_rec_incore {
 
 /* btree pointer type */
 typedef __be32 xfs_alloc_ptr_t;
-/* btree block header type */
-typedef	struct xfs_btree_sblock xfs_alloc_block_t;
-
-#define	XFS_BUF_TO_ALLOC_BLOCK(bp)	((xfs_alloc_block_t *)XFS_BUF_PTR(bp))
 
 /*
  * Minimum and maximum blocksize and sectorsize.
@@ -77,6 +72,13 @@ typedef	struct xfs_btree_sblock xfs_alloc_block_t;
 #define	XFS_CNT_BLOCK(mp)	((xfs_agblock_t)(XFS_BNO_BLOCK(mp) + 1))
 
 /*
+ * Btree block header size depends on a superblock flag.
+ *
+ * (not quite yet, but soon)
+ */
+#define XFS_ALLOC_BLOCK_LEN(mp)	XFS_BTREE_SBLOCK_LEN
+
+/*
  * Record, key, and pointer address macros for btree blocks.
  *
  * (note that some of these may appear unused, but they are used in userspace)
@@ -84,19 +86,19 @@ typedef	struct xfs_btree_sblock xfs_alloc_block_t;
 #define XFS_ALLOC_REC_ADDR(mp, block, index) \
 	((xfs_alloc_rec_t *) \
 		((char *)(block) + \
-		 sizeof(struct xfs_btree_sblock) + \
+		 XFS_ALLOC_BLOCK_LEN(mp) + \
 		 (((index) - 1) * sizeof(xfs_alloc_rec_t))))
 
 #define XFS_ALLOC_KEY_ADDR(mp, block, index) \
 	((xfs_alloc_key_t *) \
 		((char *)(block) + \
-		 sizeof(struct xfs_btree_sblock) + \
+		 XFS_ALLOC_BLOCK_LEN(mp) + \
 		 ((index) - 1) * sizeof(xfs_alloc_key_t)))
 
 #define XFS_ALLOC_PTR_ADDR(mp, block, index, maxrecs) \
 	((xfs_alloc_ptr_t *) \
 		((char *)(block) + \
-		 sizeof(struct xfs_btree_sblock) + \
+		 XFS_ALLOC_BLOCK_LEN(mp) + \
 		 (maxrecs) * sizeof(xfs_alloc_key_t) + \
 		 ((index) - 1) * sizeof(xfs_alloc_ptr_t)))
 

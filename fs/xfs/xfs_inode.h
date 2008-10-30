@@ -63,7 +63,7 @@ typedef struct xfs_ext_irec {
 typedef struct xfs_ifork {
 	int			if_bytes;	/* bytes in if_u1 */
 	int			if_real_bytes;	/* bytes allocated in if_u1 */
-	xfs_bmbt_block_t	*if_broot;	/* file's incore btree root */
+	struct xfs_btree_block	*if_broot;	/* file's incore btree root */
 	short			if_broot_bytes;	/* bytes allocated for root */
 	unsigned char		if_flags;	/* per-fork flags */
 	unsigned char		if_ext_max;	/* max # of extent records */
@@ -213,7 +213,6 @@ struct ktrace;
 struct xfs_buf;
 struct xfs_bmap_free;
 struct xfs_bmbt_irec;
-struct xfs_bmbt_block;
 struct xfs_inode_log_item;
 struct xfs_mount;
 struct xfs_trans;

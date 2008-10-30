@@ -165,7 +165,7 @@ typedef enum xfs_dinode_fmt
  */
 #define	XFS_LITINO(mp)	((mp)->m_litino)
 #define	XFS_BROOT_SIZE_ADJ	\
-	(sizeof(xfs_bmbt_block_t) - sizeof(xfs_bmdr_block_t))
+	(XFS_BTREE_LBLOCK_LEN - sizeof(xfs_bmdr_block_t))
 
 /*
  * Inode data & attribute fork sizes, per inode.

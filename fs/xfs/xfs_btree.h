@@ -39,31 +39,16 @@ extern kmem_zone_t	*xfs_btree_cur_zone;
 #define	XFS_BTNUM_INO	((xfs_btnum_t)XFS_BTNUM_INOi)
 
 /*
- * Short form header: space allocation btrees.
+ * Generic btree header.
+ *
+ * This is a comination of the actual format used on disk for short and long
+ * format btrees.  The first three fields are shared by both format, but
+ * the pointers are different and should be used with care.
+ *
+ * To get the size of the actual short or long form headers please use
+ * the size macros below.  Never use sizeof(xfs_btree_block).
  */
-typedef struct xfs_btree_sblock {
-	__be32		bb_magic;	/* magic number for block type */
-	__be16		bb_level;	/* 0 is a leaf */
-	__be16		bb_numrecs;	/* current # of data records */
-	__be32		bb_leftsib;	/* left sibling block or NULLAGBLOCK */
-	__be32		bb_rightsib;	/* right sibling block or NULLAGBLOCK */
-} xfs_btree_sblock_t;
-
-/*
- * Long form header: bmap btrees.
- */
-typedef struct xfs_btree_lblock {
-	__be32		bb_magic;	/* magic number for block type */
-	__be16		bb_level;	/* 0 is a leaf */
-	__be16		bb_numrecs;	/* current # of data records */
-	__be64		bb_leftsib;	/* left sibling block or NULLDFSBNO */
-	__be64		bb_rightsib;	/* right sibling block or NULLDFSBNO */
-} xfs_btree_lblock_t;
-
-/*
- * Combined header and structure, used by common code.
- */
-typedef struct xfs_btree_block {
+struct xfs_btree_block {
 	__be32		bb_magic;	/* magic number for block type */
 	__be16		bb_level;	/* 0 is a leaf */
 	__be16		bb_numrecs;	/* current # of data records */
@@ -77,7 +62,11 @@ typedef struct xfs_btree_block {
 			__be64		bb_rightsib;
 		} l;			/* long form pointers */
 	} bb_u;				/* rest */
-} xfs_btree_block_t;
+};
+
+#define XFS_BTREE_SBLOCK_LEN	16	/* size of a short form block */
+#define XFS_BTREE_LBLOCK_LEN	24	/* size of a long form block */
+
 
 /*
  * Generic key, ptr and record wrapper structures.
@@ -294,20 +283,8 @@ typedef struct xfs_btree_cur
 /*
  * Convert from buffer to btree block header.
  */
-#define	XFS_BUF_TO_BLOCK(bp)	((xfs_btree_block_t *)XFS_BUF_PTR(bp))
-#define	XFS_BUF_TO_LBLOCK(bp)	((xfs_btree_lblock_t *)XFS_BUF_PTR(bp))
-#define	XFS_BUF_TO_SBLOCK(bp)	((xfs_btree_sblock_t *)XFS_BUF_PTR(bp))
+#define	XFS_BUF_TO_BLOCK(bp)	((struct xfs_btree_block *)XFS_BUF_PTR(bp))
 
-
-/*
- * Check that long form block header is ok.
- */
-int					/* error (0 or EFSCORRUPTED) */
-xfs_btree_check_lblock(
-	struct xfs_btree_cur	*cur,	/* btree cursor */
-	struct xfs_btree_lblock	*block,	/* btree long form block pointer */
-	int			level,	/* level of the btree block */
-	struct xfs_buf		*bp);	/* buffer containing block, if any */
 
 /*
  * Check that block header is ok.

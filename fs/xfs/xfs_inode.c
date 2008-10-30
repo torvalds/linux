@@ -2352,7 +2352,7 @@ xfs_iroot_realloc(
 	struct xfs_mount	*mp = ip->i_mount;
 	int			cur_max;
 	xfs_ifork_t		*ifp;
-	xfs_bmbt_block_t	*new_broot;
+	struct xfs_btree_block	*new_broot;
 	int			new_max;
 	size_t			new_size;
 	char			*np;
@@ -2373,8 +2373,7 @@ xfs_iroot_realloc(
 		 */
 		if (ifp->if_broot_bytes == 0) {
 			new_size = (size_t)XFS_BMAP_BROOT_SPACE_CALC(rec_diff);
-			ifp->if_broot = (xfs_bmbt_block_t*)kmem_alloc(new_size,
-								     KM_SLEEP);
+			ifp->if_broot = kmem_alloc(new_size, KM_SLEEP);
 			ifp->if_broot_bytes = (int)new_size;
 			return;
 		}
@@ -2388,9 +2387,7 @@ xfs_iroot_realloc(
 		cur_max = xfs_bmbt_maxrecs(mp, ifp->if_broot_bytes, 0);
 		new_max = cur_max + rec_diff;
 		new_size = (size_t)XFS_BMAP_BROOT_SPACE_CALC(new_max);
-		ifp->if_broot = (xfs_bmbt_block_t *)
-		  kmem_realloc(ifp->if_broot,
-				new_size,
+		ifp->if_broot = kmem_realloc(ifp->if_broot, new_size,
 				(size_t)XFS_BMAP_BROOT_SPACE_CALC(cur_max), /* old size */
 				KM_SLEEP);
 		op = (char *)XFS_BMAP_BROOT_PTR_ADDR(mp, ifp->if_broot, 1,
@@ -2418,11 +2415,11 @@ xfs_iroot_realloc(
 	else
 		new_size = 0;
 	if (new_size > 0) {
-		new_broot = (xfs_bmbt_block_t *)kmem_alloc(new_size, KM_SLEEP);
+		new_broot = kmem_alloc(new_size, KM_SLEEP);
 		/*
 		 * First copy over the btree block header.
 		 */
-		memcpy(new_broot, ifp->if_broot, sizeof(xfs_bmbt_block_t));
+		memcpy(new_broot, ifp->if_broot, XFS_BTREE_LBLOCK_LEN);
 	} else {
 		new_broot = NULL;
 		ifp->if_flags &= ~XFS_IFBROOT;

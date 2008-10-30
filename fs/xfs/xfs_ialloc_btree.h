@@ -24,7 +24,6 @@
 
 struct xfs_buf;
 struct xfs_btree_cur;
-struct xfs_btree_sblock;
 struct xfs_mount;
 
 /*
@@ -70,11 +69,6 @@ typedef struct xfs_inobt_key {
 /* btree pointer type */
 typedef __be32 xfs_inobt_ptr_t;
 
-/* btree block header type */
-typedef	struct xfs_btree_sblock xfs_inobt_block_t;
-
-#define	XFS_BUF_TO_INOBT_BLOCK(bp)	((xfs_inobt_block_t *)XFS_BUF_PTR(bp))
-
 /*
  * Bit manipulations for ir_free.
  */
@@ -96,6 +90,13 @@ typedef	struct xfs_btree_sblock xfs_inobt_block_t;
 #define	XFS_PREALLOC_BLOCKS(mp)		((xfs_agblock_t)(XFS_IBT_BLOCK(mp) + 1))
 
 /*
+ * Btree block header size depends on a superblock flag.
+ *
+ * (not quite yet, but soon)
+ */
+#define XFS_INOBT_BLOCK_LEN(mp)	XFS_BTREE_SBLOCK_LEN
+
+/*
  * Record, key, and pointer address macros for btree blocks.
  *
  * (note that some of these may appear unused, but they are used in userspace)
@@ -103,19 +104,19 @@ typedef	struct xfs_btree_sblock xfs_inobt_block_t;
 #define XFS_INOBT_REC_ADDR(mp, block, index) \
 	((xfs_inobt_rec_t *) \
 		((char *)(block) + \
-		 sizeof(struct xfs_btree_sblock) + \
+		 XFS_INOBT_BLOCK_LEN(mp) + \
 		 (((index) - 1) * sizeof(xfs_inobt_rec_t))))
 
 #define XFS_INOBT_KEY_ADDR(mp, block, index) \
 	((xfs_inobt_key_t *) \
 		((char *)(block) + \
-		 sizeof(struct xfs_btree_sblock) + \
+		 XFS_INOBT_BLOCK_LEN(mp) + \
 		 ((index) - 1) * sizeof(xfs_inobt_key_t)))
 
 #define XFS_INOBT_PTR_ADDR(mp, block, index, maxrecs) \
 	((xfs_inobt_ptr_t *) \
 		((char *)(block) + \
-		 sizeof(struct xfs_btree_sblock) + \
+		 XFS_INOBT_BLOCK_LEN(mp) + \
 		 (maxrecs) * sizeof(xfs_inobt_key_t) + \
 		 ((index) - 1) * sizeof(xfs_inobt_ptr_t)))
 

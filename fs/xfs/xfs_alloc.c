@@ -380,21 +380,20 @@ xfs_alloc_fixup_trees(
 			return error;
 		XFS_WANT_CORRUPTED_RETURN(i == 1);
 	}
-#ifdef DEBUG
-	{
-		xfs_alloc_block_t	*bnoblock;
-		xfs_alloc_block_t	*cntblock;
 
-		if (bno_cur->bc_nlevels == 1 &&
-		    cnt_cur->bc_nlevels == 1) {
-			bnoblock = XFS_BUF_TO_ALLOC_BLOCK(bno_cur->bc_bufs[0]);
-			cntblock = XFS_BUF_TO_ALLOC_BLOCK(cnt_cur->bc_bufs[0]);
-			XFS_WANT_CORRUPTED_RETURN(
-				be16_to_cpu(bnoblock->bb_numrecs) ==
-				be16_to_cpu(cntblock->bb_numrecs));
-		}
+#ifdef DEBUG
+	if (bno_cur->bc_nlevels == 1 && cnt_cur->bc_nlevels == 1) {
+		struct xfs_btree_block	*bnoblock;
+		struct xfs_btree_block	*cntblock;
+
+		bnoblock = XFS_BUF_TO_BLOCK(bno_cur->bc_bufs[0]);
+		cntblock = XFS_BUF_TO_BLOCK(cnt_cur->bc_bufs[0]);
+
+		XFS_WANT_CORRUPTED_RETURN(
+			bnoblock->bb_numrecs == cntblock->bb_numrecs);
 	}
 #endif
+
 	/*
 	 * Deal with all four cases: the allocated record is contained
 	 * within the freespace record, so we can have new freespace

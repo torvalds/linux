@@ -490,7 +490,7 @@ xfs_allocbt_maxrecs(
 	int			blocklen,
 	int			leaf)
 {
-	blocklen -= sizeof(struct xfs_btree_sblock);
+	blocklen -= XFS_ALLOC_BLOCK_LEN(mp);
 
 	if (leaf)
 		return blocklen / sizeof(xfs_alloc_rec_t);

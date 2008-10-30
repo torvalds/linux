@@ -68,7 +68,7 @@ xfs_bmdr_to_bmbt(
 	struct xfs_mount	*mp,
 	xfs_bmdr_block_t	*dblock,
 	int			dblocklen,
-	xfs_bmbt_block_t	*rblock,
+	struct xfs_btree_block	*rblock,
 	int			rblocklen)
 {
 	int			dmxr;
@@ -81,8 +81,8 @@ xfs_bmdr_to_bmbt(
 	rblock->bb_level = dblock->bb_level;
 	ASSERT(be16_to_cpu(rblock->bb_level) > 0);
 	rblock->bb_numrecs = dblock->bb_numrecs;
-	rblock->bb_leftsib = cpu_to_be64(NULLDFSBNO);
-	rblock->bb_rightsib = cpu_to_be64(NULLDFSBNO);
+	rblock->bb_u.l.bb_leftsib = cpu_to_be64(NULLDFSBNO);
+	rblock->bb_u.l.bb_rightsib = cpu_to_be64(NULLDFSBNO);
 	dmxr = xfs_bmdr_maxrecs(mp, dblocklen, 0);
 	fkp = XFS_BMDR_KEY_ADDR(dblock, 1);
 	tkp = XFS_BMBT_KEY_ADDR(mp, rblock, 1);
@@ -429,7 +429,7 @@ xfs_bmbt_set_state(
 void
 xfs_bmbt_to_bmdr(
 	struct xfs_mount	*mp,
-	xfs_bmbt_block_t	*rblock,
+	struct xfs_btree_block	*rblock,
 	int			rblocklen,
 	xfs_bmdr_block_t	*dblock,
 	int			dblocklen)
@@ -441,8 +441,8 @@ xfs_bmbt_to_bmdr(
 	__be64			*tpp;
 
 	ASSERT(be32_to_cpu(rblock->bb_magic) == XFS_BMAP_MAGIC);
-	ASSERT(be64_to_cpu(rblock->bb_leftsib) == NULLDFSBNO);
-	ASSERT(be64_to_cpu(rblock->bb_rightsib) == NULLDFSBNO);
+	ASSERT(be64_to_cpu(rblock->bb_u.l.bb_leftsib) == NULLDFSBNO);
+	ASSERT(be64_to_cpu(rblock->bb_u.l.bb_rightsib) == NULLDFSBNO);
 	ASSERT(be16_to_cpu(rblock->bb_level) > 0);
 	dblock->bb_level = rblock->bb_level;
 	dblock->bb_numrecs = rblock->bb_numrecs;
@@ -906,7 +906,7 @@ xfs_bmbt_maxrecs(
 	int			blocklen,
 	int			leaf)
 {
-	blocklen -= sizeof(struct xfs_btree_lblock);
+	blocklen -= XFS_BMBT_BLOCK_LEN(mp);
 
 	if (leaf)
 		return blocklen / sizeof(xfs_bmbt_rec_t);
