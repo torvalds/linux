@@ -408,7 +408,7 @@ xfs_buf_item_unpin(
 			XFS_BUF_SET_FSPRIVATE(bp, NULL);
 			XFS_BUF_CLR_IODONE_FUNC(bp);
 		} else {
-			spin_lock(&mp->m_ail_lock);
+			spin_lock(&mp->m_ail->xa_lock);
 			xfs_trans_delete_ail(mp, (xfs_log_item_t *)bip);
 			xfs_buf_item_relse(bp);
 			ASSERT(XFS_BUF_FSPRIVATE(bp, void *) == NULL);
@@ -1138,7 +1138,7 @@ xfs_buf_iodone(
 	 *
 	 * Either way, AIL is useless if we're forcing a shutdown.
 	 */
-	spin_lock(&mp->m_ail_lock);
+	spin_lock(&mp->m_ail->xa_lock);
 	/*
 	 * xfs_trans_delete_ail() drops the AIL lock.
 	 */

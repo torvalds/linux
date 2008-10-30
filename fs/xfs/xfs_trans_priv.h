@@ -79,6 +79,7 @@ struct xfs_ail {
 	struct task_struct	*xa_task;
 	xfs_lsn_t		xa_target;
 	struct xfs_ail_cursor	xa_cursors;
+	spinlock_t		xa_lock;
 };
 
 /*
@@ -114,9 +115,9 @@ xfs_trans_ail_copy_lsn(
 	xfs_lsn_t	*src)
 {
 	ASSERT(sizeof(xfs_lsn_t) == 8);	/* don't lock if it shrinks */
-	spin_lock(&ailp->xa_mount->m_ail_lock);
+	spin_lock(&ailp->xa_lock);
 	*dst = *src;
-	spin_unlock(&ailp->xa_mount->m_ail_lock);
+	spin_unlock(&ailp->xa_lock);
 }
 #else
 static inline void

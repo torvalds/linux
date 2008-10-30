@@ -1425,7 +1425,7 @@ xfs_trans_chunk_committed(
 		 * the test below.
 		 */
 		mp = lip->li_mountp;
-		spin_lock(&mp->m_ail_lock);
+		spin_lock(&mp->m_ail->xa_lock);
 		if (XFS_LSN_CMP(item_lsn, lip->li_lsn) > 0) {
 			/*
 			 * This will set the item's lsn to item_lsn
@@ -1436,7 +1436,7 @@ xfs_trans_chunk_committed(
 			 */
 			xfs_trans_update_ail(mp, lip, item_lsn);
 		} else {
-			spin_unlock(&mp->m_ail_lock);
+			spin_unlock(&mp->m_ail->xa_lock);
 		}
 
 		/*

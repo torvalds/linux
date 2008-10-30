@@ -991,7 +991,7 @@ xfs_iflush_done(
 	 */
 	if (iip->ili_logged &&
 	    (iip->ili_item.li_lsn == iip->ili_flush_lsn)) {
-		spin_lock(&ip->i_mount->m_ail_lock);
+		spin_lock(&ip->i_mount->m_ail->xa_lock);
 		if (iip->ili_item.li_lsn == iip->ili_flush_lsn) {
 			/*
 			 * xfs_trans_delete_ail() drops the AIL lock.
@@ -999,7 +999,7 @@ xfs_iflush_done(
 			xfs_trans_delete_ail(ip->i_mount,
 					     (xfs_log_item_t*)iip);
 		} else {
-			spin_unlock(&ip->i_mount->m_ail_lock);
+			spin_unlock(&ip->i_mount->m_ail->xa_lock);
 		}
 	}
 
@@ -1038,14 +1038,14 @@ xfs_iflush_abort(
 	mp = ip->i_mount;
 	if (iip) {
 		if (iip->ili_item.li_flags & XFS_LI_IN_AIL) {
-			spin_lock(&mp->m_ail_lock);
+			spin_lock(&mp->m_ail->xa_lock);
 			if (iip->ili_item.li_flags & XFS_LI_IN_AIL) {
 				/*
 				 * xfs_trans_delete_ail() drops the AIL lock.
 				 */
 				xfs_trans_delete_ail(mp, (xfs_log_item_t *)iip);
 			} else
-				spin_unlock(&mp->m_ail_lock);
+				spin_unlock(&mp->m_ail->xa_lock);
 		}
 		iip->ili_logged = 0;
 		/*

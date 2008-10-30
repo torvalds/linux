@@ -1333,7 +1333,7 @@ xfs_qm_dqflush_done(
 	if ((qip->qli_item.li_flags & XFS_LI_IN_AIL) &&
 	    qip->qli_item.li_lsn == qip->qli_flush_lsn) {
 
-		spin_lock(&dqp->q_mount->m_ail_lock);
+		spin_lock(&dqp->q_mount->m_ail->xa_lock);
 		/*
 		 * xfs_trans_delete_ail() drops the AIL lock.
 		 */
@@ -1341,7 +1341,7 @@ xfs_qm_dqflush_done(
 			xfs_trans_delete_ail(dqp->q_mount,
 					     (xfs_log_item_t*)qip);
 		else
-			spin_unlock(&dqp->q_mount->m_ail_lock);
+			spin_unlock(&dqp->q_mount->m_ail->xa_lock);
 	}
 
 	/*

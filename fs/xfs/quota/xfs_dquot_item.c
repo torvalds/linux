@@ -555,7 +555,7 @@ xfs_qm_qoffend_logitem_committed(
 	xfs_qoff_logitem_t	*qfs;
 
 	qfs = qfe->qql_start_lip;
-	spin_lock(&qfs->qql_item.li_mountp->m_ail_lock);
+	spin_lock(&qfs->qql_item.li_mountp->m_ail->xa_lock);
 	/*
 	 * Delete the qoff-start logitem from the AIL.
 	 * xfs_trans_delete_ail() drops the AIL lock.

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2000-2002,2005 Silicon Graphics, Inc.
+ * Copyright (c) 2008 Dave Chinner
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -56,14 +57,14 @@ xfs_trans_ail_tail(
 	xfs_lsn_t	lsn;
 	xfs_log_item_t	*lip;
 
-	spin_lock(&ailp->xa_mount->m_ail_lock);
+	spin_lock(&ailp->xa_lock);
 	lip = xfs_ail_min(ailp);
 	if (lip == NULL) {
 		lsn = (xfs_lsn_t)0;
 	} else {
 		lsn = lip->li_lsn;
 	}
-	spin_unlock(&ailp->xa_mount->m_ail_lock);
+	spin_unlock(&ailp->xa_lock);
 
 	return lsn;
 }
@@ -252,7 +253,7 @@ xfsaild_push(
 	xfs_mount_t	*mp = ailp->xa_mount;
 	struct xfs_ail_cursor	*cur = &ailp->xa_cursors;
 
-	spin_lock(&mp->m_ail_lock);
+	spin_lock(&ailp->xa_lock);
 	xfs_trans_ail_cursor_init(ailp, cur);
 	lip = xfs_trans_ail_cursor_first(ailp, cur, *last_lsn);
 	if (!lip || XFS_FORCED_SHUTDOWN(mp)) {
@@ -260,7 +261,7 @@ xfsaild_push(
 		 * AIL is empty or our push has reached the end.
 		 */
 		xfs_trans_ail_cursor_done(ailp, cur);
-		spin_unlock(&mp->m_ail_lock);
+		spin_unlock(&ailp->xa_lock);
 		last_pushed_lsn = 0;
 		return tout;
 	}
@@ -295,7 +296,7 @@ xfsaild_push(
 		 * skip to the next item in the list.
 		 */
 		lock_result = IOP_TRYLOCK(lip);
-		spin_unlock(&mp->m_ail_lock);
+		spin_unlock(&ailp->xa_lock);
 		switch (lock_result) {
 		case XFS_ITEM_SUCCESS:
 			XFS_STATS_INC(xs_push_ail_success);
@@ -332,7 +333,7 @@ xfsaild_push(
 			break;
 		}
 
-		spin_lock(&mp->m_ail_lock);
+		spin_lock(&ailp->xa_lock);
 		/* should we bother continuing? */
 		if (XFS_FORCED_SHUTDOWN(mp))
 			break;
@@ -361,7 +362,7 @@ xfsaild_push(
 		lsn = lip->li_lsn;
 	}
 	xfs_trans_ail_cursor_done(ailp, cur);
-	spin_unlock(&mp->m_ail_lock);
+	spin_unlock(&ailp->xa_lock);
 
 	if (flush_log) {
 		/*
@@ -462,30 +463,31 @@ void
 xfs_trans_update_ail(
 	xfs_mount_t	*mp,
 	xfs_log_item_t	*lip,
-	xfs_lsn_t	lsn) __releases(mp->m_ail_lock)
+	xfs_lsn_t	lsn) __releases(ailp->xa_lock)
 {
-	xfs_log_item_t		*dlip=NULL;
+	struct xfs_ail		*ailp = mp->m_ail;
+	xfs_log_item_t		*dlip = NULL;
 	xfs_log_item_t		*mlip;	/* ptr to minimum lip */
 
-	mlip = xfs_ail_min(mp->m_ail);
+	mlip = xfs_ail_min(ailp);
 
 	if (lip->li_flags & XFS_LI_IN_AIL) {
-		dlip = xfs_ail_delete(mp->m_ail, lip);
+		dlip = xfs_ail_delete(ailp, lip);
 		ASSERT(dlip == lip);
-		xfs_trans_ail_cursor_clear(mp->m_ail, dlip);
+		xfs_trans_ail_cursor_clear(ailp, dlip);
 	} else {
 		lip->li_flags |= XFS_LI_IN_AIL;
 	}
 
 	lip->li_lsn = lsn;
-	xfs_ail_insert(mp->m_ail, lip);
+	xfs_ail_insert(ailp, lip);
 
 	if (mlip == dlip) {
-		mlip = xfs_ail_min(mp->m_ail);
-		spin_unlock(&mp->m_ail_lock);
+		mlip = xfs_ail_min(ailp);
+		spin_unlock(&ailp->xa_lock);
 		xfs_log_move_tail(mp, mlip->li_lsn);
 	} else {
-		spin_unlock(&mp->m_ail_lock);
+		spin_unlock(&ailp->xa_lock);
 	}
 
 
@@ -509,27 +511,28 @@ xfs_trans_update_ail(
 void
 xfs_trans_delete_ail(
 	xfs_mount_t	*mp,
-	xfs_log_item_t	*lip) __releases(mp->m_ail_lock)
+	xfs_log_item_t	*lip) __releases(ailp->xa_lock)
 {
+	struct xfs_ail		*ailp = mp->m_ail;
 	xfs_log_item_t		*dlip;
 	xfs_log_item_t		*mlip;
 
 	if (lip->li_flags & XFS_LI_IN_AIL) {
-		mlip = xfs_ail_min(mp->m_ail);
-		dlip = xfs_ail_delete(mp->m_ail, lip);
+		mlip = xfs_ail_min(ailp);
+		dlip = xfs_ail_delete(ailp, lip);
 		ASSERT(dlip == lip);
-		xfs_trans_ail_cursor_clear(mp->m_ail, dlip);
+		xfs_trans_ail_cursor_clear(ailp, dlip);
 
 
 		lip->li_flags &= ~XFS_LI_IN_AIL;
 		lip->li_lsn = 0;
 
 		if (mlip == dlip) {
-			mlip = xfs_ail_min(mp->m_ail);
-			spin_unlock(&mp->m_ail_lock);
+			mlip = xfs_ail_min(ailp);
+			spin_unlock(&ailp->xa_lock);
 			xfs_log_move_tail(mp, (mlip ? mlip->li_lsn : 0));
 		} else {
-			spin_unlock(&mp->m_ail_lock);
+			spin_unlock(&ailp->xa_lock);
 		}
 	}
 	else {
@@ -537,13 +540,11 @@ xfs_trans_delete_ail(
 		 * If the file system is not being shutdown, we are in
 		 * serious trouble if we get to this stage.
 		 */
-		if (XFS_FORCED_SHUTDOWN(mp))
-			spin_unlock(&mp->m_ail_lock);
-		else {
+		spin_unlock(&ailp->xa_lock);
+		if (!XFS_FORCED_SHUTDOWN(mp)) {
 			xfs_cmn_err(XFS_PTAG_AILDELETE, CE_ALERT, mp,
 		"%s: attempting to delete a log item that is not in the AIL",
 					__func__);
-			spin_unlock(&mp->m_ail_lock);
 			xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 		}
 	}
@@ -578,6 +579,7 @@ xfs_trans_ail_init(
 
 	ailp->xa_mount = mp;
 	INIT_LIST_HEAD(&ailp->xa_ail);
+	spin_lock_init(&ailp->xa_lock);
 	error = xfsaild_start(ailp);
 	if (error)
 		goto out_free_ailp;

@@ -2681,7 +2681,7 @@ xlog_recover_do_efi_trans(
 	efip->efi_next_extent = efi_formatp->efi_nextents;
 	efip->efi_flags |= XFS_EFI_COMMITTED;
 
-	spin_lock(&mp->m_ail_lock);
+	spin_lock(&mp->m_ail->xa_lock);
 	/*
 	 * xfs_trans_update_ail() drops the AIL lock.
 	 */
@@ -2727,7 +2727,7 @@ xlog_recover_do_efd_trans(
 	 * in the AIL.
 	 */
 	mp = log->l_mp;
-	spin_lock(&mp->m_ail_lock);
+	spin_lock(&mp->m_ail->xa_lock);
 	lip = xfs_trans_ail_cursor_first(mp->m_ail, &cur, 0);
 	while (lip != NULL) {
 		if (lip->li_type == XFS_LI_EFI) {
@@ -2739,14 +2739,14 @@ xlog_recover_do_efd_trans(
 				 */
 				xfs_trans_delete_ail(mp, lip);
 				xfs_efi_item_free(efip);
-				spin_lock(&mp->m_ail_lock);
+				spin_lock(&mp->m_ail->xa_lock);
 				break;
 			}
 		}
 		lip = xfs_trans_ail_cursor_next(mp->m_ail, &cur);
 	}
 	xfs_trans_ail_cursor_done(mp->m_ail, &cur);
-	spin_unlock(&mp->m_ail_lock);
+	spin_unlock(&mp->m_ail->xa_lock);
 }
 
 /*
@@ -3058,7 +3058,7 @@ xlog_recover_process_efis(
 	struct xfs_ail_cursor	cur;
 
 	mp = log->l_mp;
-	spin_lock(&mp->m_ail_lock);
+	spin_lock(&mp->m_ail->xa_lock);
 
 	lip = xfs_trans_ail_cursor_first(mp->m_ail, &cur, 0);
 	while (lip != NULL) {
@@ -3084,16 +3084,16 @@ xlog_recover_process_efis(
 			continue;
 		}
 
-		spin_unlock(&mp->m_ail_lock);
+		spin_unlock(&mp->m_ail->xa_lock);
 		error = xlog_recover_process_efi(mp, efip);
-		spin_lock(&mp->m_ail_lock);
+		spin_lock(&mp->m_ail->xa_lock);
 		if (error)
 			goto out;
 		lip = xfs_trans_ail_cursor_next(mp->m_ail, &cur);
 	}
 out:
 	xfs_trans_ail_cursor_done(mp->m_ail, &cur);
-	spin_unlock(&mp->m_ail_lock);
+	spin_unlock(&mp->m_ail->xa_lock);
 	return error;
 }
 

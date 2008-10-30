@@ -567,7 +567,6 @@ xfs_log_mount(
 	/*
 	 * Initialize the AIL now we have a log.
 	 */
-	spin_lock_init(&mp->m_ail_lock);
 	error = xfs_trans_ail_init(mp);
 	if (error) {
 		cmn_err(CE_WARN, "XFS: AIL initialisation failed: error %d", error);

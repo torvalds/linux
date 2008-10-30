@@ -2715,11 +2715,11 @@ xfs_idestroy(
 		ASSERT(((lip->li_flags & XFS_LI_IN_AIL) == 0) ||
 				       XFS_FORCED_SHUTDOWN(ip->i_mount));
 		if (lip->li_flags & XFS_LI_IN_AIL) {
-			spin_lock(&mp->m_ail_lock);
+			spin_lock(&mp->m_ail->xa_lock);
 			if (lip->li_flags & XFS_LI_IN_AIL)
 				xfs_trans_delete_ail(mp, lip);
 			else
-				spin_unlock(&mp->m_ail_lock);
+				spin_unlock(&mp->m_ail->xa_lock);
 		}
 		xfs_inode_item_destroy(ip);
 		ip->i_itemp = NULL;

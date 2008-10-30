@@ -111,7 +111,7 @@ xfs_efi_item_unpin(xfs_efi_log_item_t *efip, int stale)
 	xfs_mount_t	*mp;
 
 	mp = efip->efi_item.li_mountp;
-	spin_lock(&mp->m_ail_lock);
+	spin_lock(&mp->m_ail->xa_lock);
 	if (efip->efi_flags & XFS_EFI_CANCELED) {
 		/*
 		 * xfs_trans_delete_ail() drops the AIL lock.
@@ -120,7 +120,7 @@ xfs_efi_item_unpin(xfs_efi_log_item_t *efip, int stale)
 		xfs_efi_item_free(efip);
 	} else {
 		efip->efi_flags |= XFS_EFI_COMMITTED;
-		spin_unlock(&mp->m_ail_lock);
+		spin_unlock(&mp->m_ail->xa_lock);
 	}
 }
 
@@ -138,7 +138,7 @@ xfs_efi_item_unpin_remove(xfs_efi_log_item_t *efip, xfs_trans_t *tp)
 	xfs_log_item_desc_t	*lidp;
 
 	mp = efip->efi_item.li_mountp;
-	spin_lock(&mp->m_ail_lock);
+	spin_lock(&mp->m_ail->xa_lock);
 	if (efip->efi_flags & XFS_EFI_CANCELED) {
 		/*
 		 * free the xaction descriptor pointing to this item
@@ -153,7 +153,7 @@ xfs_efi_item_unpin_remove(xfs_efi_log_item_t *efip, xfs_trans_t *tp)
 		xfs_efi_item_free(efip);
 	} else {
 		efip->efi_flags |= XFS_EFI_COMMITTED;
-		spin_unlock(&mp->m_ail_lock);
+		spin_unlock(&mp->m_ail->xa_lock);
 	}
 }
 
@@ -352,7 +352,7 @@ xfs_efi_release(xfs_efi_log_item_t	*efip,
 	ASSERT(efip->efi_next_extent > 0);
 	ASSERT(efip->efi_flags & XFS_EFI_COMMITTED);
 
-	spin_lock(&mp->m_ail_lock);
+	spin_lock(&mp->m_ail->xa_lock);
 	ASSERT(efip->efi_next_extent >= nextents);
 	efip->efi_next_extent -= nextents;
 	extents_left = efip->efi_next_extent;
@@ -363,7 +363,7 @@ xfs_efi_release(xfs_efi_log_item_t	*efip,
 		xfs_trans_delete_ail(mp, (xfs_log_item_t *)efip);
 		xfs_efi_item_free(efip);
 	} else {
-		spin_unlock(&mp->m_ail_lock);
+		spin_unlock(&mp->m_ail->xa_lock);
 	}
 }
 
