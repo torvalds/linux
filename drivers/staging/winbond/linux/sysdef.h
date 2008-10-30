@@ -37,36 +37,7 @@
 #define _PE_USB_INI_DUMP_
 #endif
 
-
-
-#include "common.h"	// Individual file depends on OS
-
-#include "../wb35_ver.h"
-#include "../mac_structures.h"
-#include "../ds_tkip.h"
-#include "../localpara.h"
-#include "../sme_s.h"
-#include "../scan_s.h"
-#include "../mds_s.h"
-#include "../mlme_s.h"
-#include "../bssdscpt.h"
-#include "../sme_api.h"
-#include "../gl_80211.h"
-#include "../mto.h"
-#include "../wbhal_s.h"
-
-
-#include "../adapter.h"
-
-#include "../mlme_mib.h"
-#include "../mds_f.h"
-#include "../bss_f.h"
-#include "../mlmetxrx_f.h"
-#include "../mto_f.h"
-#include "../wbhal_f.h"
-#include "../wblinux_f.h"
 // Kernel Timer resolution, NDIS is 10ms, 10000us
 #define MIN_TIMEOUT_VAL	(10) //ms
-
 
 #endif

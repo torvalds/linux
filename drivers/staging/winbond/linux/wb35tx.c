@@ -8,8 +8,11 @@
 //    Processing the Tx message and put into down layer
 //
 //============================================================================
-#include "sysdef.h"
+#include <linux/usb.h>
 
+#include "wb35tx_f.h"
+#include "../mds_f.h"
+#include "sysdef.h"
 
 unsigned char
 Wb35Tx_get_tx_buffer(phw_data_t pHwData, u8 **pBuffer)

@@ -12,6 +12,7 @@
 /****************** INCLUDE FILES SECTION ***********************************/
 #include "os_common.h"
 #include "phy_calibration.h"
+#include "wbhal_f.h"
 
 
 /****************** DEBUG CONSTANT AND MACRO SECTION ************************/

@@ -1,3 +1,9 @@
+#ifndef __WINBOND_SCAN_S_H
+#define __WINBOND_SCAN_S_H
+
+#include <linux/types.h>
+#include "localpara.h"
+
 //
 // SCAN task global CONSTANTS, STRUCTURES, variables
 //
@@ -112,3 +118,4 @@ typedef struct _SCAN_PARAMETERS
 //static void vScanTimerStart(struct wb35_adapter *	adapter, int timeout_value);
 //static void vScanTimerStop(struct wb35_adapter * adapter);
 
+#endif

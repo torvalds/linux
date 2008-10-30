@@ -1,4 +1,6 @@
 #include "os_common.h"
+#include "wbhal_f.h"
+#include "wblinux_f.h"
 
 void hal_get_ethernet_address( phw_data_t pHwData, u8 *current_address )
 {

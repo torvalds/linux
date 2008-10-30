@@ -1,4 +1,5 @@
 #include "os_common.h"
+#include "adapter.h"
 
 static void RxTimerHandler(unsigned long data)
 {

@@ -1,3 +1,12 @@
+#ifndef __WINBOND_ADAPTER_H
+#define __WINBOND_ADAPTER_H
+
+#include <linux/wireless.h>
+
+#include "bssdscpt.h"
+#include "mto.h"
+#include "wbhal_s.h"
+
 #define OS_SET_SHUTDOWN( _A )		_A->shutdown=1
 #define OS_SET_RESUME( _A )		_A->shutdown=0
 #define OS_STOP( _A )	WBLINUX_stop( _A )
@@ -45,3 +54,5 @@ struct wb35_adapter {
 
 	u8 LinkName[MAX_ANSI_STRING];
 };
+
+#endif

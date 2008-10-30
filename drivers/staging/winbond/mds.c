@@ -1,4 +1,11 @@
+#include "ds_tkip.h"
+#include "gl_80211.h"
+#include "mds_f.h"
+#include "mlmetxrx_f.h"
+#include "mto_f.h"
 #include "os_common.h"
+#include "wbhal_f.h"
+#include "wblinux_f.h"
 
 void
 Mds_reset_descriptor(struct wb35_adapter * adapter)

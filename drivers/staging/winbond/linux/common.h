@@ -10,27 +10,6 @@
 #ifndef COMMON_DEF
 #define COMMON_DEF
 
-#include <linux/version.h>
-#include <linux/usb.h>
-#include <linux/kernel.h> //need for kernel alert
-#include <linux/autoconf.h>
-#include <linux/sched.h>
-#include <linux/signal.h>
-#include <linux/slab.h> //memory allocate
-#include <linux/module.h>
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/init.h>//need for init and exit modules marco
-#include <linux/ctype.h>
-#include <linux/wait.h>
-#include <linux/list.h>
-#include <linux/wireless.h>
-#include <linux/if_arp.h>
-#include <asm/uaccess.h>
-#include <net/iw_handler.h>
-#include <linux/skbuff.h>
-
-
 //#define DEBUG_ENABLED  1
 
 //==================================================================================================

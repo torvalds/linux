@@ -1,3 +1,8 @@
+#ifndef __WINBOND_WB35TX_F_H
+#define __WINBOND_WB35TX_F_H
+
+#include "../wbhal_f.h"
+
 //====================================
 // Interface function declare
 //====================================
@@ -17,4 +22,4 @@ void Wb35Tx_reset_descriptor(  phw_data_t pHwData );
 
 void Wb35Tx_CurrentTime(  phw_data_t pHwData,  u32 TimeCount );
 
-
+#endif

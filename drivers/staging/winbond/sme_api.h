@@ -13,6 +13,10 @@
 #ifndef __SME_API_H__
 #define __SME_API_H__
 
+#include <linux/types.h>
+
+#include "localpara.h"
+
 /****************** INCLUDE FILES SECTION ***********************************/
 //#include "GL\gl_core.h"
 

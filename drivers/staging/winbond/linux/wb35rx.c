@@ -8,7 +8,10 @@
 //    Processing the Rx message from down layer
 //
 //============================================================================
+#include <linux/usb.h>
+
 #include "sysdef.h"
+#include "wb35rx_f.h"
 
 void Wb35Rx_start(phw_data_t pHwData)
 {

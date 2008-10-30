@@ -6,6 +6,7 @@
 //
 //------------------------------------------------------------------------------------
 #include "os_common.h"
+#include <linux/kernel.h>
 
 s8 sme_get_rssi(void *pcore_data, s32 *prssi)
 {

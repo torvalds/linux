@@ -1,3 +1,10 @@
+#ifndef __WINBOND_WB35REG_S_H
+#define __WINBOND_WB35REG_S_H
+
+#include <linux/spinlock.h>
+#include <linux/types.h>
+#include <asm/atomic.h>
+
 //=======================================================================================
 /*
 				HAL setting function
@@ -162,4 +169,4 @@ struct wb35_reg {
 
 };
 
-
+#endif

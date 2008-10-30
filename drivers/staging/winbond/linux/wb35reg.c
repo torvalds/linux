@@ -1,4 +1,7 @@
 #include "sysdef.h"
+#include "wb35reg_f.h"
+
+#include <linux/usb.h>
 
 extern void phy_calibration_winbond(hw_data_t *phw_data, u32 frequency);
 

@@ -1,3 +1,11 @@
+#ifndef __WINBOND_SME_S_H
+#define __WINBOND_SME_S_H
+
+#include <linux/types.h>
+
+#include "mac_structures.h"
+#include "localpara.h"
+
 //
 // SME_S.H -
 // SME task global CONSTANTS, STRUCTURES, variables
@@ -225,3 +233,4 @@ typedef struct _SME_PARAMETERS
 
 // Static function
 
+#endif

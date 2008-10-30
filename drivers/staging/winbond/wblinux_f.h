@@ -1,3 +1,9 @@
+#ifndef __WBLINUX_F_H
+#define __WBLINUX_F_H
+
+#include "adapter.h"
+#include "mds_s.h"
+
 //=========================================================================
 // Copyright (c) 1996-2004 Winbond Electronic Corporation
 //
@@ -16,3 +22,4 @@ void WBLINUX_stop(  struct wb35_adapter *adapter );
 void WbWlanHalt(  struct wb35_adapter *adapter );
 unsigned char WbWLanInitialize(struct wb35_adapter *adapter);
 
+#endif

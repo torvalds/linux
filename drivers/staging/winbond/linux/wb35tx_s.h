@@ -1,3 +1,8 @@
+#ifndef __WINBOND_WB35_TX_S_H
+#define __WINBOND_WB35_TX_S_H
+
+#include "../mds_s.h"
+
 //====================================
 // IS89C35 Tx related definition
 //====================================
@@ -41,7 +46,4 @@ typedef struct _WB35TX
 
 } WB35TX, *PWB35TX;
 
-
-
-
-
+#endif

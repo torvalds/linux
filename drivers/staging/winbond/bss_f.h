@@ -1,3 +1,10 @@
+#ifndef __WINBOND_BSS_F_H
+#define __WINBOND_BSS_F_H
+
+#include "adapter.h"
+
+struct PMKID_Information_Element;
+
 //
 // BSS descriptor DataBase management global function
 //
@@ -53,7 +60,4 @@ u16 SearchPmkid(struct wb35_adapter * adapter, struct  Management_Frame* msgHead
 				   struct PMKID_Information_Element * AssoReq_PMKID );
 #endif
 
-
-
-
-
+#endif

@@ -1,3 +1,11 @@
+#ifndef __WINBOND_BSSDSCPT_H
+#define __WINBOND_BSSDSCPT_H
+
+#include <linux/types.h>
+
+#include "mds_s.h"
+#include "mlme_s.h"
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //	bssdscpt.c
 //		BSS descriptor data base
@@ -153,4 +161,4 @@ typedef struct BSSDescriptionElement
 
 #define psBSS(i)			(&(adapter->asBSSDescriptElement[(i)]))
 
-
+#endif

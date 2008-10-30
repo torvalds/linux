@@ -8,6 +8,8 @@
 #ifndef _MLMETXRX_H
 #define _MLMETXRX_H
 
+#include "adapter.h"
+
 void
 MLMEProcThread(
      struct wb35_adapter *    adapter

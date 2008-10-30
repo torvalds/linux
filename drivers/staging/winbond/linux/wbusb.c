@@ -3,8 +3,12 @@
  *
  * Distribute under GPLv2.
  */
-#include "sysdef.h"
 #include <net/mac80211.h>
+#include <linux/usb.h>
+
+#include "../mlmetxrx_f.h"
+#include "../wbhal_f.h"
+#include "../wblinux_f.h"
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

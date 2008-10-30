@@ -1,3 +1,9 @@
+#ifndef __WINBOND_MDS_F_H
+#define __WINBOND_MDS_F_H
+
+#include "wbhal_s.h"
+#include "adapter.h"
+
 unsigned char Mds_initial(  struct wb35_adapter *adapter );
 void Mds_Destroy(  struct wb35_adapter *adapter );
 void Mds_Tx(  struct wb35_adapter *adapter );
@@ -24,4 +30,4 @@ void MDS_GetNextPacketComplete(  struct wb35_adapter *adapter,  PDESCRIPTOR pDes
 void MDS_SendResult(  struct wb35_adapter *adapter,  u8 PacketId,  unsigned char SendOK );
 void MDS_EthernetPacketReceive(  struct wb35_adapter *adapter,  PRXLAYER1 pRxLayer1 );
 
-
+#endif

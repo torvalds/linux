@@ -1,15 +1,11 @@
 //=====================================================================
 // Device related include
 //=====================================================================
-#ifdef WB_LINUX
-	#include "linux/wb35reg_f.h"
-	#include "linux/wb35tx_f.h"
-	#include "linux/wb35rx_f.h"
-#else
-	#include "wb35reg_f.h"
-	#include "wb35tx_f.h"
-	#include "wb35rx_f.h"
-#endif
+#include "linux/wb35reg_f.h"
+#include "linux/wb35tx_f.h"
+#include "linux/wb35rx_f.h"
+
+#include "adapter.h"
 
 //====================================================================================
 // Function declaration

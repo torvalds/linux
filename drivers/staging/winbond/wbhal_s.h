@@ -1,3 +1,10 @@
+#ifndef __WINBOND_WBHAL_S_H
+#define __WINBOND_WBHAL_S_H
+
+#include <linux/types.h>
+
+#include "linux/common.h"
+
 //[20040722 WK]
 #define HAL_LED_SET_MASK		0x001c	//20060901 Extend
 #define HAL_LED_SET_SHIFT		2
@@ -612,4 +619,4 @@ typedef struct _HAL_RATE
 	u32   NumRate54M;
 } HAL_RATE, *PHAL_RATE;
 
-
+#endif

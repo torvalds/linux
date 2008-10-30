@@ -1,3 +1,14 @@
+#ifndef __WINBOND_MDS_H
+#define __WINBOND_MDS_H
+
+#include <linux/timer.h>
+#include <linux/types.h>
+#include <asm/atomic.h>
+
+#include "localpara.h"
+#include "mac_structures.h"
+#include "scan_s.h"
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 #define MAX_USB_TX_DESCRIPTOR		15		// IS89C35 ability
 #define MAX_USB_TX_BUFFER_NUMBER	4		// Virtual pre-buffer number of MAX_USB_TX_BUFFER
@@ -178,4 +189,4 @@ typedef struct _RXLAYER1
 
 }RXLAYER1, * PRXLAYER1;
 
-
+#endif

@@ -1,6 +1,12 @@
+#ifndef __WINBOND_LOCALPARA_H
+#define __WINBOND_LOCALPARA_H
+
 //=============================================================
 // LocalPara.h -
 //=============================================================
+
+#include "mac_structures.h"
+
 //Define the local ability
 
 #define LOCAL_DEFAULT_BEACON_PERIOD			100		//ms
@@ -272,4 +278,4 @@ typedef struct LOCAL_PARA
 
 } WB_LOCALDESCRIPT, *PWB_LOCALDESCRIPT;
 
-
+#endif

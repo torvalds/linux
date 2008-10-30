@@ -11,6 +11,8 @@
 #ifndef __MTO_H__
 #define __MTO_H__
 
+#include <linux/types.h>
+
 #define MTO_DEFAULT_TH_CNT              5
 #define MTO_DEFAULT_TH_SQ3              112  //OLD IS 13 reference JohnXu
 #define MTO_DEFAULT_TH_IDLE_SLOT        15

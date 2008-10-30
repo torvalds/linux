@@ -8,7 +8,13 @@
 //    Linux releated routines
 //
 //============================================================================
+#include <linux/netdevice.h>
+
+#include "mds_f.h"
+#include "mto_f.h"
 #include "os_common.h"
+#include "wbhal_f.h"
+#include "wblinux_f.h"
 
 unsigned char
 WBLINUX_Initial(struct wb35_adapter * adapter)

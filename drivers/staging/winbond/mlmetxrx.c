@@ -17,6 +17,8 @@
 //============================================================================
 #include "os_common.h"
 
+#include "mds_f.h"
+
 void MLMEResetTxRx(struct wb35_adapter * adapter)
 {
 	s32     i;

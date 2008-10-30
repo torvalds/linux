@@ -1,3 +1,8 @@
+#ifndef __WINBOND_WB35REG_F_H
+#define __WINBOND_WB35REG_F_H
+
+#include "../wbhal_s.h"
+
 //====================================
 // Interface function declare
 //====================================
@@ -53,4 +58,4 @@ void Wb35Reg_phy_calibration(  phw_data_t pHwData );
 void Wb35Reg_Update(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue );
 unsigned char adjust_TXVGA_for_iq_mag(  phw_data_t pHwData );
 
-
+#endif

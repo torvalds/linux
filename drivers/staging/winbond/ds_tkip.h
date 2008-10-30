@@ -1,3 +1,8 @@
+#ifndef __WINBOND_DS_TKIP_H
+#define __WINBOND_DS_TKIP_H
+
+#include <linux/types.h>
+
 // Rotation functions on 32 bit values
 #define ROL32( A, n ) \
     ( ((A) << (n)) | ( ((A)>>(32-(n)))  & ( (1UL << (n)) - 1 ) ) )
@@ -29,5 +34,4 @@ typedef struct tkip
 void Mds_MicGet(  void* adapter,  void* pRxLayer1,  u8 *pKey,  u8 *pMic );
 void Mds_MicFill(  void* adapter,  void* pDes,  u8 *XmitBufAddress );
 
-
-
+#endif
