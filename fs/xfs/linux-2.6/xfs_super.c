@@ -355,6 +355,7 @@ xfs_parseargs(
 		} else if (!strcmp(this_char, MNTOPT_NOQUOTA)) {
 			mp->m_qflags &= ~(XFS_UQUOTA_ACCT | XFS_UQUOTA_ACTIVE |
 					  XFS_GQUOTA_ACCT | XFS_GQUOTA_ACTIVE |
+					  XFS_PQUOTA_ACCT | XFS_PQUOTA_ACTIVE |
 					  XFS_UQUOTA_ENFD | XFS_OQUOTA_ENFD);
 		} else if (!strcmp(this_char, MNTOPT_QUOTA) ||
 			   !strcmp(this_char, MNTOPT_UQUOTA) ||
