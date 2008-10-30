@@ -1245,6 +1245,9 @@ xfs_unmountfs(
 
 	XFS_QM_DQPURGEALL(mp, XFS_QMOPT_QUOTALL | XFS_QMOPT_UMOUNTING);
 
+	if (mp->m_quotainfo)
+		XFS_QM_DONE(mp);
+
 	/*
 	 * Flush out the log synchronously so that we know for sure
 	 * that nothing is pinned.  This is important because bflush()
@@ -1297,8 +1300,6 @@ xfs_unmountfs(
 	xfs_errortag_clearall(mp, 0);
 #endif
 	xfs_free_perag(mp);
-	if (mp->m_quotainfo)
-		XFS_QM_DONE(mp);
 }
 
 STATIC void
