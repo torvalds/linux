@@ -2009,7 +2009,7 @@ xfs_remove(
 			goto out_bmap_cancel;
 
 		/*
-		 * Drop the link from dp to ip.
+		 * Drop the "." link from ip to self.
 		 */
 		error = xfs_droplink(tp, ip);
 		if (error)
@@ -2024,7 +2024,7 @@ xfs_remove(
 	}
 
 	/*
-	 * Drop the "." link from ip to self.
+	 * Drop the link from dp to ip.
 	 */
 	error = xfs_droplink(tp, ip);
 	if (error)
