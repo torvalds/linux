@@ -302,8 +302,7 @@ error:
 	case 4:
 	case 3: Mds_Destroy( priv );
 	case 2:
-	case 1: WBLINUX_stop(priv);
-		hal_halt( pHwData, NULL );
+	case 1: hal_halt( pHwData, NULL );
 	case 0: break;
 	}
 
@@ -401,9 +400,6 @@ static void wb35_hw_halt(struct wbsoft_priv *adapter)
 	WBDEBUG(("[w35und] Hal_stop O.K.\n"));
 #endif
 	msleep(100);// Waiting Irp completed
-
-	// Destroy the NDIS module
-	WBLINUX_stop(adapter);
 
 	// Halt the HAL
 	hal_halt(&adapter->sHwData, NULL);

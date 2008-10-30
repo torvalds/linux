@@ -24,7 +24,6 @@ struct wbsoft_priv {
 	MDS Mds;
 
 	spinlock_t SpinLock;
-	u32 shutdown;
 
 	atomic_t ThreadCount;
 

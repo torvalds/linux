@@ -10,9 +10,7 @@
 // wblinux_f.h
 //
 int wb35_start_xmit(struct sk_buff *skb, struct net_device *netdev );
-void WBLINUX_stop(  struct wbsoft_priv *adapter );
 void wb35_set_multicast( struct net_device *netdev );
 struct net_device_stats * wb35_netdev_stats( struct net_device *netdev );
-void WBLINUX_stop(  struct wbsoft_priv *adapter );
 
 #endif

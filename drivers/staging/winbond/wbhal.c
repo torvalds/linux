@@ -850,7 +850,6 @@ void hal_surprise_remove(struct wbsoft_priv *adapter)
 		#ifdef _PE_STATE_DUMP_
 		WBDEBUG(("Calling hal_surprise_remove\n"));
 		#endif
-		WBLINUX_stop( adapter );
 	}
 }
 
