@@ -6,6 +6,7 @@
 #include <net/mac80211.h>
 #include <linux/usb.h>
 
+#include "core.h"
 #include "mlmetxrx_f.h"
 #include "wbhal_f.h"
 #include "wblinux_f.h"
@@ -45,7 +46,6 @@ static struct ieee80211_supported_band wbsoft_band_2GHz = {
 
 int wbsoft_enabled;
 struct ieee80211_hw *my_dev;
-struct wb35_adapter * my_adapter;
 
 static int wbsoft_add_interface(struct ieee80211_hw *dev,
 				 struct ieee80211_if_init_conf *conf)
@@ -118,7 +118,9 @@ static void wbsoft_configure_filter(struct ieee80211_hw *dev,
 
 static int wbsoft_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
-	MLMESendFrame(my_adapter, skb->data, skb->len, FRAME_TYPE_802_11_MANAGEMENT);
+	struct wbsoft_priv *priv = dev->priv;
+
+	MLMESendFrame(priv->adapter, skb->data, skb->len, FRAME_TYPE_802_11_MANAGEMENT);
 
 	return NETDEV_TX_OK;
 }
@@ -133,6 +135,8 @@ static int wbsoft_start(struct ieee80211_hw *dev)
 
 static int wbsoft_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
 {
+	struct wbsoft_priv *priv = dev->priv;
+
 	ChanInfo ch;
 	printk("wbsoft_config called\n");
 
@@ -140,20 +144,20 @@ static int wbsoft_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
 	ch.ChanNo = 1;	/* Should use channel_num, or something, as that is already pre-translated */
 
 
-	hal_set_current_channel(&my_adapter->sHwData, ch);
-	hal_set_beacon_period(&my_adapter->sHwData, conf->beacon_int);
-//	hal_set_cap_info(&my_adapter->sHwData, ?? );
+	hal_set_current_channel(&priv->adapter->sHwData, ch);
+	hal_set_beacon_period(&priv->adapter->sHwData, conf->beacon_int);
+//	hal_set_cap_info(&priv->adapter->sHwData, ?? );
 // hal_set_ssid(phw_data_t pHwData,  u8 * pssid,  u8 ssid_len); ??
-	hal_set_accept_broadcast(&my_adapter->sHwData, 1);
-	hal_set_accept_promiscuous(&my_adapter->sHwData,  1);
-	hal_set_accept_multicast(&my_adapter->sHwData,  1);
-	hal_set_accept_beacon(&my_adapter->sHwData,  1);
-	hal_set_radio_mode(&my_adapter->sHwData,  0);
+	hal_set_accept_broadcast(&priv->adapter->sHwData, 1);
+	hal_set_accept_promiscuous(&priv->adapter->sHwData,  1);
+	hal_set_accept_multicast(&priv->adapter->sHwData,  1);
+	hal_set_accept_beacon(&priv->adapter->sHwData,  1);
+	hal_set_radio_mode(&priv->adapter->sHwData,  0);
 	//hal_set_antenna_number(  phw_data_t pHwData, u8 number )
 	//hal_set_rf_power(phw_data_t pHwData, u8 PowerIndex)
 
 
-//	hal_start_bss(&my_adapter->sHwData, WLAN_BSSTYPE_INFRASTRUCTURE);	??
+//	hal_start_bss(&priv->adapter->sHwData, WLAN_BSSTYPE_INFRASTRUCTURE);	??
 
 //void hal_set_rates(phw_data_t pHwData, u8 * pbss_rates,
 //		   u8 length, unsigned char basic_rate_set)
@@ -190,9 +194,6 @@ static const struct ieee80211_ops wbsoft_ops = {
 // conf_tx: hal_set_cwmin()/hal_set_cwmax;
 };
 
-struct wbsoft_priv {
-};
-
 static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id_table)
 {
 	struct wb35_adapter *adapter;
@@ -226,7 +227,6 @@ static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id
 		goto error;
 	}
 
-	my_adapter = adapter;
 	pWbUsb = &adapter->sHwData.WbUsb;
 	pWbUsb->udev = udev;
 
@@ -246,6 +246,9 @@ static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id
 	dev = ieee80211_alloc_hw(sizeof(*priv), &wbsoft_ops);
 	if (!dev)
 		goto error_free_adapter;
+
+	priv = dev->priv;
+	priv->adapter = adapter;
 
 	my_dev = dev;
 
