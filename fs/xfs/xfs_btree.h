@@ -116,11 +116,6 @@ union xfs_btree_rec {
 #define	XFS_BB_ALL_BITS		((1 << XFS_BB_NUM_BITS) - 1)
 
 /*
- * Boolean to select which form of xfs_btree_block_t.bb_u to use.
- */
-#define	XFS_BTREE_LONG_PTRS(btnum)	((btnum) == XFS_BTNUM_BMAP)
-
-/*
  * Magic numbers for btree blocks.
  */
 extern const __uint32_t	xfs_magics[];
@@ -203,6 +198,7 @@ typedef struct xfs_btree_cur
 } xfs_btree_cur_t;
 
 /* cursor flags */
+#define XFS_BTREE_LONG_PTRS		(1<<0)	/* pointers are 64bits long */
 #define XFS_BTREE_ROOT_IN_INODE		(1<<1)	/* root may be variable size */
 
 

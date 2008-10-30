@@ -90,7 +90,7 @@ xfs_btree_check_block(
 	int			level,	/* level of the btree block */
 	xfs_buf_t		*bp)	/* buffer containing block, if any */
 {
-	if (XFS_BTREE_LONG_PTRS(cur->bc_btnum))
+	if (cur->bc_flags & XFS_BTREE_LONG_PTRS)
 		xfs_btree_check_lblock(cur, (xfs_btree_lblock_t *)block, level,
 			bp);
 	else
@@ -516,7 +516,7 @@ xfs_btree_islastblock(
 
 	block = xfs_btree_get_block(cur, level, &bp);
 	xfs_btree_check_block(cur, block, level, bp);
-	if (XFS_BTREE_LONG_PTRS(cur->bc_btnum))
+	if (cur->bc_flags & XFS_BTREE_LONG_PTRS)
 		return be64_to_cpu(block->bb_u.l.bb_rightsib) == NULLDFSBNO;
 	else
 		return be32_to_cpu(block->bb_u.s.bb_rightsib) == NULLAGBLOCK;
@@ -808,7 +808,7 @@ xfs_btree_setbuf(
 	if (!bp)
 		return;
 	b = XFS_BUF_TO_BLOCK(bp);
-	if (XFS_BTREE_LONG_PTRS(cur->bc_btnum)) {
+	if (cur->bc_flags & XFS_BTREE_LONG_PTRS) {
 		if (be64_to_cpu(b->bb_u.l.bb_leftsib) == NULLDFSBNO)
 			cur->bc_ra[lev] |= XFS_BTCUR_LEFTRA;
 		if (be64_to_cpu(b->bb_u.l.bb_rightsib) == NULLDFSBNO)
