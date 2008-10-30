@@ -220,14 +220,14 @@ static int nes_bind_mw(struct ib_qp *ibqp, struct ib_mw *ibmw,
 	if (nesqp->ibqp_state > IB_QPS_RTS)
 		return -EINVAL;
 
-		spin_lock_irqsave(&nesqp->lock, flags);
+	spin_lock_irqsave(&nesqp->lock, flags);
 
 	head = nesqp->hwqp.sq_head;
 	qsize = nesqp->hwqp.sq_tail;
 
 	/* Check for SQ overflow */
 	if (((head + (2 * qsize) - nesqp->hwqp.sq_tail) % qsize) == (qsize - 1)) {
-			spin_unlock_irqrestore(&nesqp->lock, flags);
+		spin_unlock_irqrestore(&nesqp->lock, flags);
 		return -EINVAL;
 	}
 
@@ -269,7 +269,7 @@ static int nes_bind_mw(struct ib_qp *ibqp, struct ib_mw *ibmw,
 	nes_write32(nesdev->regs+NES_WQE_ALLOC,
 			(1 << 24) | 0x00800000 | nesqp->hwqp.qp_id);
 
-		spin_unlock_irqrestore(&nesqp->lock, flags);
+	spin_unlock_irqrestore(&nesqp->lock, flags);
 
 	return 0;
 }
@@ -3212,7 +3212,7 @@ static int nes_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 	if (nesqp->ibqp_state > IB_QPS_RTS)
 		return -EINVAL;
 
-		spin_lock_irqsave(&nesqp->lock, flags);
+	spin_lock_irqsave(&nesqp->lock, flags);
 
 	head = nesqp->hwqp.sq_head;
 
@@ -3337,7 +3337,7 @@ static int nes_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 				(counter << 24) | 0x00800000 | nesqp->hwqp.qp_id);
 	}
 
-		spin_unlock_irqrestore(&nesqp->lock, flags);
+	spin_unlock_irqrestore(&nesqp->lock, flags);
 
 	if (err)
 		*bad_wr = ib_wr;
@@ -3368,7 +3368,7 @@ static int nes_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *ib_wr,
 	if (nesqp->ibqp_state > IB_QPS_RTS)
 		return -EINVAL;
 
-		spin_lock_irqsave(&nesqp->lock, flags);
+	spin_lock_irqsave(&nesqp->lock, flags);
 
 	head = nesqp->hwqp.rq_head;
 
@@ -3421,7 +3421,7 @@ static int nes_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *ib_wr,
 		nes_write32(nesdev->regs+NES_WQE_ALLOC, (counter<<24) | nesqp->hwqp.qp_id);
 	}
 
-		spin_unlock_irqrestore(&nesqp->lock, flags);
+	spin_unlock_irqrestore(&nesqp->lock, flags);
 
 	if (err)
 		*bad_wr = ib_wr;
@@ -3453,7 +3453,7 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 
 	nes_debug(NES_DBG_CQ, "\n");
 
-		spin_lock_irqsave(&nescq->lock, flags);
+	spin_lock_irqsave(&nescq->lock, flags);
 
 	head = nescq->hw_cq.cq_head;
 	cq_size = nescq->hw_cq.cq_size;
@@ -3562,7 +3562,7 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 	nes_debug(NES_DBG_CQ, "Reporting %u completions for CQ%u.\n",
 			cqe_count, nescq->hw_cq.cq_number);
 
-		spin_unlock_irqrestore(&nescq->lock, flags);
+	spin_unlock_irqrestore(&nescq->lock, flags);
 
 	return cqe_count;
 }
