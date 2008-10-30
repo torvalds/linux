@@ -1654,9 +1654,10 @@ isdn_net_ciscohdlck_slarp_in(isdn_net_local *lp, struct sk_buff *skb)
 	unsigned char *p;
 	int period;
 	u32 code;
-	u32 my_seq, addr;
-	u32 your_seq, mask;
-	u32 local;
+	u32 my_seq;
+	u32 your_seq;
+	__be32 local;
+	__be32 *addr, *mask;
 	u16 unused;
 
 	if (skb->len < 14)
@@ -1671,27 +1672,20 @@ isdn_net_ciscohdlck_slarp_in(isdn_net_local *lp, struct sk_buff *skb)
 		isdn_net_ciscohdlck_slarp_send_reply(lp);
 		break;
 	case CISCO_SLARP_REPLY:
-		addr = ntohl(*(u32 *)p);
-		mask = ntohl(*(u32 *)(p+4));
-		if (mask != 0xfffffffc)
+		addr = (__be32 *)p;
+		mask = (__be32 *)(p + 4);
+		if (*mask != cpu_to_be32(0xfffffffc))
 			goto slarp_reply_out;
-		if ((addr & 3) == 0 || (addr & 3) == 3)
+		if ((*addr & cpu_to_be32(3)) == cpu_to_be32(0) ||
+		    (*addr & cpu_to_be32(3)) == cpu_to_be32(3))
 			goto slarp_reply_out;
-		local = addr ^ 3;
-		printk(KERN_INFO "%s: got slarp reply: "
-			"remote ip: %d.%d.%d.%d, "
-			"local ip: %d.%d.%d.%d "
-			"mask: %d.%d.%d.%d\n",
-		       lp->netdev->dev->name,
-		       HIPQUAD(addr),
-		       HIPQUAD(local),
-		       HIPQUAD(mask));
+		local = *addr ^ cpu_to_be32(3);
+		printk(KERN_INFO "%s: got slarp reply: remote ip: %pI4, local ip: %pI4 mask: %pI4\n",
+		       lp->netdev->dev->name, addr, &local, mask);
 		break;
   slarp_reply_out:
-		 printk(KERN_INFO "%s: got invalid slarp "
-				 "reply (%d.%d.%d.%d/%d.%d.%d.%d) "
-				 "- ignored\n", lp->netdev->dev->name,
-				 HIPQUAD(addr), HIPQUAD(mask));
+		printk(KERN_INFO "%s: got invalid slarp reply (%pI4/%pI4) - ignored\n",
+		       lp->netdev->dev->name, addr, mask);
 		break;
 	case CISCO_SLARP_KEEPALIVE:
 		period = (int)((jiffies - lp->cisco_last_slarp_in

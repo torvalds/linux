@@ -3221,7 +3221,6 @@ static void bond_info_show_master(struct seq_file *seq)
 	struct bonding *bond = seq->private;
 	struct slave *curr;
 	int i;
-	u32 target;
 
 	read_lock(&bond->curr_slave_lock);
 	curr = bond->curr_active_slave;
@@ -3275,8 +3274,7 @@ static void bond_info_show_master(struct seq_file *seq)
 				continue;
 			if (printed)
 				seq_printf(seq, ",");
-			target = ntohl(bond->params.arp_targets[i]);
-			seq_printf(seq, " %d.%d.%d.%d", HIPQUAD(target));
+			seq_printf(seq, " %pI4", &bond->params.arp_targets[i]);
 			printed = 1;
 		}
 		seq_printf(seq, "\n");
