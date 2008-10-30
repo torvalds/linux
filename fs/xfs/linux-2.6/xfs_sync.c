@@ -59,7 +59,7 @@ xfs_sync_inodes_ag(
 {
 	xfs_perag_t	*pag = &mp->m_perag[ag];
 	int		nr_found;
-	int		first_index = 0;
+	uint32_t	first_index = 0;
 	int		error = 0;
 	int		last_error = 0;
 	int		fflag = XFS_B_ASYNC;
@@ -97,8 +97,17 @@ xfs_sync_inodes_ag(
 			break;
 		}
 
-		/* update the index for the next lookup */
+		/*
+		 * Update the index for the next lookup. Catch overflows
+		 * into the next AG range which can occur if we have inodes
+		 * in the last block of the AG and we are currently
+		 * pointing to the last inode.
+		 */
 		first_index = XFS_INO_TO_AGINO(mp, ip->i_ino + 1);
+		if (first_index < XFS_INO_TO_AGINO(mp, ip->i_ino)) {
+			read_unlock(&pag->pag_ici_lock);
+			break;
+		}
 
 		/*
 		 * skip inodes in reclaim. Let xfs_syncsub do that for
@@ -702,7 +711,7 @@ xfs_reclaim_inodes_ag(
 	xfs_inode_t	*ip = NULL;
 	xfs_perag_t	*pag = &mp->m_perag[ag];
 	int		nr_found;
-	int		first_index;
+	uint32_t	first_index;
 	int		skipped;
 
 restart:
@@ -724,8 +733,17 @@ restart:
 			break;
 		}
 
-		/* update the index for the next lookup */
+		/*
+		 * Update the index for the next lookup. Catch overflows
+		 * into the next AG range which can occur if we have inodes
+		 * in the last block of the AG and we are currently
+		 * pointing to the last inode.
+		 */
 		first_index = XFS_INO_TO_AGINO(mp, ip->i_ino + 1);
+		if (first_index < XFS_INO_TO_AGINO(mp, ip->i_ino)) {
+			read_unlock(&pag->pag_ici_lock);
+			break;
+		}
 
 		ASSERT(xfs_iflags_test(ip, (XFS_IRECLAIMABLE|XFS_IRECLAIM)));
 
