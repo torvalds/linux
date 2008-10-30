@@ -7,12 +7,8 @@
 unsigned char Mds_initial(  struct wbsoft_priv *adapter );
 void Mds_Destroy(  struct wbsoft_priv *adapter );
 void Mds_Tx(  struct wbsoft_priv *adapter );
-void Mds_HeaderCopy(  struct wbsoft_priv *adapter,  PDESCRIPTOR pDes,  u8 *TargetBuffer );
-u16 Mds_BodyCopy(  struct wbsoft_priv *adapter,  PDESCRIPTOR pDes,  u8 *TargetBuffer );
-void Mds_DurationSet(  struct wbsoft_priv *adapter,  PDESCRIPTOR pDes,  u8 *TargetBuffer );
 void Mds_SendComplete(  struct wbsoft_priv *adapter,  PT02_DESCRIPTOR pT02 );
 void Mds_MpduProcess(  struct wbsoft_priv *adapter,  PDESCRIPTOR pRxDes );
-void Mds_reset_descriptor(  struct wbsoft_priv *adapter );
 extern void DataDmp(u8 *pdata, u32 len, u32 offset);
 
 
