@@ -63,15 +63,10 @@ typedef struct xfs_btree_lblock {
 /*
  * Combined header and structure, used by common code.
  */
-typedef struct xfs_btree_hdr
-{
+typedef struct xfs_btree_block {
 	__be32		bb_magic;	/* magic number for block type */
 	__be16		bb_level;	/* 0 is a leaf */
 	__be16		bb_numrecs;	/* current # of data records */
-} xfs_btree_hdr_t;
-
-typedef struct xfs_btree_block {
-	xfs_btree_hdr_t	bb_h;		/* header */
 	union {
 		struct {
 			__be32		bb_leftsib;

@@ -62,13 +62,13 @@ xfs_btree_maxrecs(
 	case XFS_BTNUM_BNO:
 	case XFS_BTNUM_CNT:
 		return (int)XFS_ALLOC_BLOCK_MAXRECS(
-				be16_to_cpu(block->bb_h.bb_level), cur);
+				be16_to_cpu(block->bb_level), cur);
 	case XFS_BTNUM_BMAP:
 		return (int)XFS_BMAP_BLOCK_IMAXRECS(
-				be16_to_cpu(block->bb_h.bb_level), cur);
+				be16_to_cpu(block->bb_level), cur);
 	case XFS_BTNUM_INO:
 		return (int)XFS_INOBT_BLOCK_MAXRECS(
-				be16_to_cpu(block->bb_h.bb_level), cur);
+				be16_to_cpu(block->bb_level), cur);
 	default:
 		ASSERT(0);
 		return 0;
@@ -634,7 +634,7 @@ xfs_btree_firstrec(
 	/*
 	 * It's empty, there is no such record.
 	 */
-	if (!block->bb_h.bb_numrecs)
+	if (!block->bb_numrecs)
 		return 0;
 	/*
 	 * Set the ptr value to 1, that's the first record/key.
@@ -663,12 +663,12 @@ xfs_btree_lastrec(
 	/*
 	 * It's empty, there is no such record.
 	 */
-	if (!block->bb_h.bb_numrecs)
+	if (!block->bb_numrecs)
 		return 0;
 	/*
 	 * Set the ptr value to numrecs, that's the last record/key.
 	 */
-	cur->bc_ptrs[level] = be16_to_cpu(block->bb_h.bb_numrecs);
+	cur->bc_ptrs[level] = be16_to_cpu(block->bb_numrecs);
 	return 1;
 }
 
