@@ -410,6 +410,7 @@ struct hid_output_fifo {
 #define HID_SUSPENDED		5
 #define HID_CLEAR_HALT		6
 #define HID_DISCONNECTED	7
+#define HID_STARTED		8
 
 struct hid_input {
 	struct list_head list;
