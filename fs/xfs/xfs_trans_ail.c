@@ -228,7 +228,7 @@ xfs_trans_ail_cursor_first(
 
 	list_for_each_entry(lip, &ailp->xa_ail, li_ail) {
 		if (XFS_LSN_CMP(lip->li_lsn, lsn) >= 0)
-			break;
+			goto out;
 	}
 	lip = NULL;
 out:
