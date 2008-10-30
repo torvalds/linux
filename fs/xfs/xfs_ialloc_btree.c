@@ -44,7 +44,6 @@ STATIC void xfs_inobt_log_block(xfs_trans_t *, xfs_buf_t *, int);
 STATIC void xfs_inobt_log_keys(xfs_btree_cur_t *, xfs_buf_t *, int, int);
 STATIC void xfs_inobt_log_ptrs(xfs_btree_cur_t *, xfs_buf_t *, int, int);
 STATIC void xfs_inobt_log_recs(xfs_btree_cur_t *, xfs_buf_t *, int, int);
-STATIC int xfs_inobt_newroot(xfs_btree_cur_t *, int *);
 
 /*
  * Single level of the xfs_inobt_delete record deletion routine.
@@ -556,7 +555,7 @@ xfs_inobt_insrec(
 	 * and we're done.
 	 */
 	if (level >= cur->bc_nlevels) {
-		error = xfs_inobt_newroot(cur, &i);
+		error = xfs_btree_new_root(cur, &i);
 		*bnop = NULLAGBLOCK;
 		*stat = i;
 		return error;
@@ -827,152 +826,6 @@ xfs_inobt_log_recs(
 	xfs_trans_log_buf(cur->bc_tp, bp, first, last);
 }
 
-/*
- * Allocate a new root block, fill it in.
- */
-STATIC int				/* error */
-xfs_inobt_newroot(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	int			*stat)	/* success/failure */
-{
-	xfs_agi_t		*agi;	/* a.g. inode header */
-	xfs_alloc_arg_t		args;	/* allocation argument structure */
-	xfs_inobt_block_t	*block;	/* one half of the old root block */
-	xfs_buf_t		*bp;	/* buffer containing block */
-	int			error;	/* error return value */
-	xfs_inobt_key_t		*kp;	/* btree key pointer */
-	xfs_agblock_t		lbno;	/* left block number */
-	xfs_buf_t		*lbp;	/* left buffer pointer */
-	xfs_inobt_block_t	*left;	/* left btree block */
-	xfs_buf_t		*nbp;	/* new (root) buffer */
-	xfs_inobt_block_t	*new;	/* new (root) btree block */
-	int			nptr;	/* new value for key index, 1 or 2 */
-	xfs_inobt_ptr_t		*pp;	/* btree address pointer */
-	xfs_agblock_t		rbno;	/* right block number */
-	xfs_buf_t		*rbp;	/* right buffer pointer */
-	xfs_inobt_block_t	*right;	/* right btree block */
-	xfs_inobt_rec_t		*rp;	/* btree record pointer */
-
-	ASSERT(cur->bc_nlevels < XFS_IN_MAXLEVELS(cur->bc_mp));
-
-	/*
-	 * Get a block & a buffer.
-	 */
-	agi = XFS_BUF_TO_AGI(cur->bc_private.a.agbp);
-	args.tp = cur->bc_tp;
-	args.mp = cur->bc_mp;
-	args.fsbno = XFS_AGB_TO_FSB(args.mp, cur->bc_private.a.agno,
-		be32_to_cpu(agi->agi_root));
-	args.mod = args.minleft = args.alignment = args.total = args.wasdel =
-		args.isfl = args.userdata = args.minalignslop = 0;
-	args.minlen = args.maxlen = args.prod = 1;
-	args.type = XFS_ALLOCTYPE_NEAR_BNO;
-	if ((error = xfs_alloc_vextent(&args)))
-		return error;
-	/*
-	 * None available, we fail.
-	 */
-	if (args.fsbno == NULLFSBLOCK) {
-		*stat = 0;
-		return 0;
-	}
-	ASSERT(args.len == 1);
-	nbp = xfs_btree_get_bufs(args.mp, args.tp, args.agno, args.agbno, 0);
-	new = XFS_BUF_TO_INOBT_BLOCK(nbp);
-	/*
-	 * Set the root data in the a.g. inode structure.
-	 */
-	agi->agi_root = cpu_to_be32(args.agbno);
-	be32_add_cpu(&agi->agi_level, 1);
-	xfs_ialloc_log_agi(args.tp, cur->bc_private.a.agbp,
-		XFS_AGI_ROOT | XFS_AGI_LEVEL);
-	/*
-	 * At the previous root level there are now two blocks: the old
-	 * root, and the new block generated when it was split.
-	 * We don't know which one the cursor is pointing at, so we
-	 * set up variables "left" and "right" for each case.
-	 */
-	bp = cur->bc_bufs[cur->bc_nlevels - 1];
-	block = XFS_BUF_TO_INOBT_BLOCK(bp);
-#ifdef DEBUG
-	if ((error = xfs_btree_check_sblock(cur, block, cur->bc_nlevels - 1, bp)))
-		return error;
-#endif
-	if (be32_to_cpu(block->bb_rightsib) != NULLAGBLOCK) {
-		/*
-		 * Our block is left, pick up the right block.
-		 */
-		lbp = bp;
-		lbno = XFS_DADDR_TO_AGBNO(args.mp, XFS_BUF_ADDR(lbp));
-		left = block;
-		rbno = be32_to_cpu(left->bb_rightsib);
-		if ((error = xfs_btree_read_bufs(args.mp, args.tp, args.agno,
-				rbno, 0, &rbp, XFS_INO_BTREE_REF)))
-			return error;
-		bp = rbp;
-		right = XFS_BUF_TO_INOBT_BLOCK(rbp);
-		if ((error = xfs_btree_check_sblock(cur, right,
-				cur->bc_nlevels - 1, rbp)))
-			return error;
-		nptr = 1;
-	} else {
-		/*
-		 * Our block is right, pick up the left block.
-		 */
-		rbp = bp;
-		rbno = XFS_DADDR_TO_AGBNO(args.mp, XFS_BUF_ADDR(rbp));
-		right = block;
-		lbno = be32_to_cpu(right->bb_leftsib);
-		if ((error = xfs_btree_read_bufs(args.mp, args.tp, args.agno,
-				lbno, 0, &lbp, XFS_INO_BTREE_REF)))
-			return error;
-		bp = lbp;
-		left = XFS_BUF_TO_INOBT_BLOCK(lbp);
-		if ((error = xfs_btree_check_sblock(cur, left,
-				cur->bc_nlevels - 1, lbp)))
-			return error;
-		nptr = 2;
-	}
-	/*
-	 * Fill in the new block's btree header and log it.
-	 */
-	new->bb_magic = cpu_to_be32(xfs_magics[cur->bc_btnum]);
-	new->bb_level = cpu_to_be16(cur->bc_nlevels);
-	new->bb_numrecs = cpu_to_be16(2);
-	new->bb_leftsib = cpu_to_be32(NULLAGBLOCK);
-	new->bb_rightsib = cpu_to_be32(NULLAGBLOCK);
-	xfs_inobt_log_block(args.tp, nbp, XFS_BB_ALL_BITS);
-	ASSERT(lbno != NULLAGBLOCK && rbno != NULLAGBLOCK);
-	/*
-	 * Fill in the key data in the new root.
-	 */
-	kp = XFS_INOBT_KEY_ADDR(new, 1, cur);
-	if (be16_to_cpu(left->bb_level) > 0) {
-		kp[0] = *XFS_INOBT_KEY_ADDR(left, 1, cur);
-		kp[1] = *XFS_INOBT_KEY_ADDR(right, 1, cur);
-	} else {
-		rp = XFS_INOBT_REC_ADDR(left, 1, cur);
-		kp[0].ir_startino = rp->ir_startino;
-		rp = XFS_INOBT_REC_ADDR(right, 1, cur);
-		kp[1].ir_startino = rp->ir_startino;
-	}
-	xfs_inobt_log_keys(cur, nbp, 1, 2);
-	/*
-	 * Fill in the pointer data in the new root.
-	 */
-	pp = XFS_INOBT_PTR_ADDR(new, 1, cur);
-	pp[0] = cpu_to_be32(lbno);
-	pp[1] = cpu_to_be32(rbno);
-	xfs_inobt_log_ptrs(cur, nbp, 1, 2);
-	/*
-	 * Fix up the cursor.
-	 */
-	xfs_btree_setbuf(cur, cur->bc_nlevels, nbp);
-	cur->bc_ptrs[cur->bc_nlevels] = nptr;
-	cur->bc_nlevels++;
-	*stat = 1;
-	return 0;
-}
 
 /*
  * Externally visible routines.
@@ -1128,6 +981,20 @@ xfs_inobt_dup_cursor(
 			cur->bc_private.a.agbp, cur->bc_private.a.agno);
 }
 
+STATIC void
+xfs_inobt_set_root(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_ptr	*nptr,
+	int			inc)	/* level change */
+{
+	struct xfs_buf		*agbp = cur->bc_private.a.agbp;
+	struct xfs_agi		*agi = XFS_BUF_TO_AGI(agbp);
+
+	agi->agi_root = nptr->s;
+	be32_add_cpu(&agi->agi_level, inc);
+	xfs_ialloc_log_agi(cur->bc_tp, agbp, XFS_AGI_ROOT | XFS_AGI_LEVEL);
+}
+
 STATIC int
 xfs_inobt_alloc_block(
 	struct xfs_btree_cur	*cur,
@@ -1281,6 +1148,7 @@ static const struct xfs_btree_ops xfs_inobt_ops = {
 	.key_len		= sizeof(xfs_inobt_key_t),
 
 	.dup_cursor		= xfs_inobt_dup_cursor,
+	.set_root		= xfs_inobt_set_root,
 	.alloc_block		= xfs_inobt_alloc_block,
 	.get_maxrecs		= xfs_inobt_get_maxrecs,
 	.init_key_from_rec	= xfs_inobt_init_key_from_rec,

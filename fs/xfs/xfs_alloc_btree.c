@@ -48,7 +48,6 @@ STATIC void xfs_alloc_log_block(xfs_trans_t *, xfs_buf_t *, int);
 STATIC void xfs_alloc_log_keys(xfs_btree_cur_t *, xfs_buf_t *, int, int);
 STATIC void xfs_alloc_log_ptrs(xfs_btree_cur_t *, xfs_buf_t *, int, int);
 STATIC void xfs_alloc_log_recs(xfs_btree_cur_t *, xfs_buf_t *, int, int);
-STATIC int xfs_alloc_newroot(xfs_btree_cur_t *, int *);
 
 /*
  * Internal functions.
@@ -628,7 +627,7 @@ xfs_alloc_insrec(
 	 */
 	if (level >= cur->bc_nlevels) {
 		XFS_STATS_INC(xs_abt_insrec);
-		if ((error = xfs_alloc_newroot(cur, &i)))
+		if ((error = xfs_btree_new_root(cur, &i)))
 			return error;
 		*bnop = NULLAGBLOCK;
 		*stat = i;
@@ -936,161 +935,6 @@ xfs_alloc_log_recs(
 	xfs_trans_log_buf(cur->bc_tp, bp, first, last);
 }
 
-/*
- * Allocate a new root block, fill it in.
- */
-STATIC int				/* error */
-xfs_alloc_newroot(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	int			*stat)	/* success/failure */
-{
-	int			error;	/* error return value */
-	xfs_agblock_t		lbno;	/* left block number */
-	xfs_buf_t		*lbp;	/* left btree buffer */
-	xfs_alloc_block_t	*left;	/* left btree block */
-	xfs_mount_t		*mp;	/* mount structure */
-	xfs_agblock_t		nbno;	/* new block number */
-	xfs_buf_t		*nbp;	/* new (root) buffer */
-	xfs_alloc_block_t	*new;	/* new (root) btree block */
-	int			nptr;	/* new value for key index, 1 or 2 */
-	xfs_agblock_t		rbno;	/* right block number */
-	xfs_buf_t		*rbp;	/* right btree buffer */
-	xfs_alloc_block_t	*right;	/* right btree block */
-
-	mp = cur->bc_mp;
-
-	ASSERT(cur->bc_nlevels < XFS_AG_MAXLEVELS(mp));
-	/*
-	 * Get a buffer from the freelist blocks, for the new root.
-	 */
-	error = xfs_alloc_get_freelist(cur->bc_tp,
-					cur->bc_private.a.agbp, &nbno, 1);
-	if (error)
-		return error;
-	/*
-	 * None available, we fail.
-	 */
-	if (nbno == NULLAGBLOCK) {
-		*stat = 0;
-		return 0;
-	}
-	xfs_trans_agbtree_delta(cur->bc_tp, 1);
-	nbp = xfs_btree_get_bufs(mp, cur->bc_tp, cur->bc_private.a.agno, nbno,
-		0);
-	new = XFS_BUF_TO_ALLOC_BLOCK(nbp);
-	/*
-	 * Set the root data in the a.g. freespace structure.
-	 */
-	{
-		xfs_agf_t	*agf;	/* a.g. freespace header */
-		xfs_agnumber_t	seqno;
-
-		agf = XFS_BUF_TO_AGF(cur->bc_private.a.agbp);
-		agf->agf_roots[cur->bc_btnum] = cpu_to_be32(nbno);
-		be32_add_cpu(&agf->agf_levels[cur->bc_btnum], 1);
-		seqno = be32_to_cpu(agf->agf_seqno);
-		mp->m_perag[seqno].pagf_levels[cur->bc_btnum]++;
-		xfs_alloc_log_agf(cur->bc_tp, cur->bc_private.a.agbp,
-			XFS_AGF_ROOTS | XFS_AGF_LEVELS);
-	}
-	/*
-	 * At the previous root level there are now two blocks: the old
-	 * root, and the new block generated when it was split.
-	 * We don't know which one the cursor is pointing at, so we
-	 * set up variables "left" and "right" for each case.
-	 */
-	lbp = cur->bc_bufs[cur->bc_nlevels - 1];
-	left = XFS_BUF_TO_ALLOC_BLOCK(lbp);
-#ifdef DEBUG
-	if ((error = xfs_btree_check_sblock(cur, left, cur->bc_nlevels - 1, lbp)))
-		return error;
-#endif
-	if (be32_to_cpu(left->bb_rightsib) != NULLAGBLOCK) {
-		/*
-		 * Our block is left, pick up the right block.
-		 */
-		lbno = XFS_DADDR_TO_AGBNO(mp, XFS_BUF_ADDR(lbp));
-		rbno = be32_to_cpu(left->bb_rightsib);
-		if ((error = xfs_btree_read_bufs(mp, cur->bc_tp,
-				cur->bc_private.a.agno, rbno, 0, &rbp,
-				XFS_ALLOC_BTREE_REF)))
-			return error;
-		right = XFS_BUF_TO_ALLOC_BLOCK(rbp);
-		if ((error = xfs_btree_check_sblock(cur, right,
-				cur->bc_nlevels - 1, rbp)))
-			return error;
-		nptr = 1;
-	} else {
-		/*
-		 * Our block is right, pick up the left block.
-		 */
-		rbp = lbp;
-		right = left;
-		rbno = XFS_DADDR_TO_AGBNO(mp, XFS_BUF_ADDR(rbp));
-		lbno = be32_to_cpu(right->bb_leftsib);
-		if ((error = xfs_btree_read_bufs(mp, cur->bc_tp,
-				cur->bc_private.a.agno, lbno, 0, &lbp,
-				XFS_ALLOC_BTREE_REF)))
-			return error;
-		left = XFS_BUF_TO_ALLOC_BLOCK(lbp);
-		if ((error = xfs_btree_check_sblock(cur, left,
-				cur->bc_nlevels - 1, lbp)))
-			return error;
-		nptr = 2;
-	}
-	/*
-	 * Fill in the new block's btree header and log it.
-	 */
-	new->bb_magic = cpu_to_be32(xfs_magics[cur->bc_btnum]);
-	new->bb_level = cpu_to_be16(cur->bc_nlevels);
-	new->bb_numrecs = cpu_to_be16(2);
-	new->bb_leftsib = cpu_to_be32(NULLAGBLOCK);
-	new->bb_rightsib = cpu_to_be32(NULLAGBLOCK);
-	xfs_alloc_log_block(cur->bc_tp, nbp, XFS_BB_ALL_BITS);
-	ASSERT(lbno != NULLAGBLOCK && rbno != NULLAGBLOCK);
-	/*
-	 * Fill in the key data in the new root.
-	 */
-	{
-		xfs_alloc_key_t		*kp;	/* btree key pointer */
-
-		kp = XFS_ALLOC_KEY_ADDR(new, 1, cur);
-		if (be16_to_cpu(left->bb_level) > 0) {
-			kp[0] = *XFS_ALLOC_KEY_ADDR(left, 1, cur);
-			kp[1] = *XFS_ALLOC_KEY_ADDR(right, 1, cur);
-		} else {
-			xfs_alloc_rec_t	*rp;	/* btree record pointer */
-
-			rp = XFS_ALLOC_REC_ADDR(left, 1, cur);
-			kp[0].ar_startblock = rp->ar_startblock;
-			kp[0].ar_blockcount = rp->ar_blockcount;
-			rp = XFS_ALLOC_REC_ADDR(right, 1, cur);
-			kp[1].ar_startblock = rp->ar_startblock;
-			kp[1].ar_blockcount = rp->ar_blockcount;
-		}
-	}
-	xfs_alloc_log_keys(cur, nbp, 1, 2);
-	/*
-	 * Fill in the pointer data in the new root.
-	 */
-	{
-		xfs_alloc_ptr_t		*pp;	/* btree address pointer */
-
-		pp = XFS_ALLOC_PTR_ADDR(new, 1, cur);
-		pp[0] = cpu_to_be32(lbno);
-		pp[1] = cpu_to_be32(rbno);
-	}
-	xfs_alloc_log_ptrs(cur, nbp, 1, 2);
-	/*
-	 * Fix up the cursor.
-	 */
-	xfs_btree_setbuf(cur, cur->bc_nlevels, nbp);
-	cur->bc_ptrs[cur->bc_nlevels] = nptr;
-	cur->bc_nlevels++;
-	*stat = 1;
-	return 0;
-}
-
 
 /*
  * Externally visible routines.
@@ -1242,6 +1086,26 @@ xfs_allocbt_dup_cursor(
 	return xfs_allocbt_init_cursor(cur->bc_mp, cur->bc_tp,
 			cur->bc_private.a.agbp, cur->bc_private.a.agno,
 			cur->bc_btnum);
+}
+
+STATIC void
+xfs_allocbt_set_root(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_ptr	*ptr,
+	int			inc)
+{
+	struct xfs_buf		*agbp = cur->bc_private.a.agbp;
+	struct xfs_agf		*agf = XFS_BUF_TO_AGF(agbp);
+	xfs_agnumber_t		seqno = be32_to_cpu(agf->agf_seqno);
+	int			btnum = cur->bc_btnum;
+
+	ASSERT(ptr->s != 0);
+
+	agf->agf_roots[btnum] = ptr->s;
+	be32_add_cpu(&agf->agf_levels[btnum], inc);
+	cur->bc_mp->m_perag[seqno].pagf_levels[btnum] += inc;
+
+	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_ROOTS | XFS_AGF_LEVELS);
 }
 
 STATIC int
@@ -1440,6 +1304,7 @@ static const struct xfs_btree_ops xfs_allocbt_ops = {
 	.key_len		= sizeof(xfs_alloc_key_t),
 
 	.dup_cursor		= xfs_allocbt_dup_cursor,
+	.set_root		= xfs_allocbt_set_root,
 	.alloc_block		= xfs_allocbt_alloc_block,
 	.update_lastrec		= xfs_allocbt_update_lastrec,
 	.get_maxrecs		= xfs_allocbt_get_maxrecs,

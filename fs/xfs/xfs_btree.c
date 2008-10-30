@@ -2467,3 +2467,132 @@ error0:
 	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 	return error;
 }
+
+/*
+ * Allocate a new root block, fill it in.
+ */
+int				/* error */
+xfs_btree_new_root(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	int			*stat)	/* success/failure */
+{
+	struct xfs_btree_block	*block;	/* one half of the old root block */
+	struct xfs_buf		*bp;	/* buffer containing block */
+	int			error;	/* error return value */
+	struct xfs_buf		*lbp;	/* left buffer pointer */
+	struct xfs_btree_block	*left;	/* left btree block */
+	struct xfs_buf		*nbp;	/* new (root) buffer */
+	struct xfs_btree_block	*new;	/* new (root) btree block */
+	int			nptr;	/* new value for key index, 1 or 2 */
+	struct xfs_buf		*rbp;	/* right buffer pointer */
+	struct xfs_btree_block	*right;	/* right btree block */
+	union xfs_btree_ptr	rptr;
+	union xfs_btree_ptr	lptr;
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
+	XFS_BTREE_STATS_INC(cur, newroot);
+
+	/* initialise our start point from the cursor */
+	cur->bc_ops->init_ptr_from_cur(cur, &rptr);
+
+	/* Allocate the new block. If we can't do it, we're toast. Give up. */
+	error = cur->bc_ops->alloc_block(cur, &rptr, &lptr, 1, stat);
+	if (error)
+		goto error0;
+	if (*stat == 0)
+		goto out0;
+	XFS_BTREE_STATS_INC(cur, alloc);
+
+	/* Set up the new block. */
+	error = xfs_btree_get_buf_block(cur, &lptr, 0, &new, &nbp);
+	if (error)
+		goto error0;
+
+	/* Set the root in the holding structure  increasing the level by 1. */
+	cur->bc_ops->set_root(cur, &lptr, 1);
+
+	/*
+	 * At the previous root level there are now two blocks: the old root,
+	 * and the new block generated when it was split.  We don't know which
+	 * one the cursor is pointing at, so we set up variables "left" and
+	 * "right" for each case.
+	 */
+	block = xfs_btree_get_block(cur, cur->bc_nlevels - 1, &bp);
+
+#ifdef DEBUG
+	error = xfs_btree_check_block(cur, block, cur->bc_nlevels - 1, bp);
+	if (error)
+		goto error0;
+#endif
+
+	xfs_btree_get_sibling(cur, block, &rptr, XFS_BB_RIGHTSIB);
+	if (!xfs_btree_ptr_is_null(cur, &rptr)) {
+		/* Our block is left, pick up the right block. */
+		lbp = bp;
+		xfs_btree_buf_to_ptr(cur, lbp, &lptr);
+		left = block;
+		error = xfs_btree_read_buf_block(cur, &rptr,
+					cur->bc_nlevels - 1, 0, &right, &rbp);
+		if (error)
+			goto error0;
+		bp = rbp;
+		nptr = 1;
+	} else {
+		/* Our block is right, pick up the left block. */
+		rbp = bp;
+		xfs_btree_buf_to_ptr(cur, rbp, &rptr);
+		right = block;
+		xfs_btree_get_sibling(cur, right, &lptr, XFS_BB_LEFTSIB);
+		error = xfs_btree_read_buf_block(cur, &lptr,
+					cur->bc_nlevels - 1, 0, &left, &lbp);
+		if (error)
+			goto error0;
+		bp = lbp;
+		nptr = 2;
+	}
+	/* Fill in the new block's btree header and log it. */
+	xfs_btree_init_block(cur, cur->bc_nlevels, 2, new);
+	xfs_btree_log_block(cur, nbp, XFS_BB_ALL_BITS);
+	ASSERT(!xfs_btree_ptr_is_null(cur, &lptr) &&
+			!xfs_btree_ptr_is_null(cur, &rptr));
+
+	/* Fill in the key data in the new root. */
+	if (xfs_btree_get_level(left) > 0) {
+		xfs_btree_copy_keys(cur,
+				xfs_btree_key_addr(cur, 1, new),
+				xfs_btree_key_addr(cur, 1, left), 1);
+		xfs_btree_copy_keys(cur,
+				xfs_btree_key_addr(cur, 2, new),
+				xfs_btree_key_addr(cur, 1, right), 1);
+	} else {
+		cur->bc_ops->init_key_from_rec(
+				xfs_btree_key_addr(cur, 1, new),
+				xfs_btree_rec_addr(cur, 1, left));
+		cur->bc_ops->init_key_from_rec(
+				xfs_btree_key_addr(cur, 2, new),
+				xfs_btree_rec_addr(cur, 1, right));
+	}
+	xfs_btree_log_keys(cur, nbp, 1, 2);
+
+	/* Fill in the pointer data in the new root. */
+	xfs_btree_copy_ptrs(cur,
+		xfs_btree_ptr_addr(cur, 1, new), &lptr, 1);
+	xfs_btree_copy_ptrs(cur,
+		xfs_btree_ptr_addr(cur, 2, new), &rptr, 1);
+	xfs_btree_log_ptrs(cur, nbp, 1, 2);
+
+	/* Fix up the cursor. */
+	xfs_btree_setbuf(cur, cur->bc_nlevels, nbp);
+	cur->bc_ptrs[cur->bc_nlevels] = nptr;
+	cur->bc_nlevels++;
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+	*stat = 1;
+	return 0;
+error0:
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+	return error;
+out0:
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+	*stat = 0;
+	return 0;
+}
