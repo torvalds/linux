@@ -2272,6 +2272,9 @@ xfs_alloc_read_agf(
 		be32_to_cpu(agf->agf_flfirst) < XFS_AGFL_SIZE(mp) &&
 		be32_to_cpu(agf->agf_fllast) < XFS_AGFL_SIZE(mp) &&
 		be32_to_cpu(agf->agf_flcount) <= XFS_AGFL_SIZE(mp);
+	if (xfs_sb_version_haslazysbcount(&mp->m_sb))
+		agf_ok = agf_ok && be32_to_cpu(agf->agf_btreeblks) <=
+						be32_to_cpu(agf->agf_length);
 	if (unlikely(XFS_TEST_ERROR(!agf_ok, mp, XFS_ERRTAG_ALLOC_READ_AGF,
 			XFS_RANDOM_ALLOC_READ_AGF))) {
 		XFS_CORRUPTION_ERROR("xfs_alloc_read_agf",
@@ -2297,6 +2300,7 @@ xfs_alloc_read_agf(
 #ifdef DEBUG
 	else if (!XFS_FORCED_SHUTDOWN(mp)) {
 		ASSERT(pag->pagf_freeblks == be32_to_cpu(agf->agf_freeblks));
+		ASSERT(pag->pagf_btreeblks == be32_to_cpu(agf->agf_btreeblks));
 		ASSERT(pag->pagf_flcount == be32_to_cpu(agf->agf_flcount));
 		ASSERT(pag->pagf_longest == be32_to_cpu(agf->agf_longest));
 		ASSERT(pag->pagf_levels[XFS_BTNUM_BNOi] ==
