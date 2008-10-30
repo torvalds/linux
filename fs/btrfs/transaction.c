@@ -430,7 +430,10 @@ static int update_cowonly_root(struct btrfs_trans_handle *trans,
 	u64 old_root_bytenr;
 	struct btrfs_root *tree_root = root->fs_info->tree_root;
 
+	btrfs_extent_post_op(trans, root);
 	btrfs_write_dirty_block_groups(trans, root);
+	btrfs_extent_post_op(trans, root);
+
 	while(1) {
 		old_root_bytenr = btrfs_root_bytenr(&root->root_item);
 		if (old_root_bytenr == root->node->start)
@@ -440,11 +443,15 @@ static int update_cowonly_root(struct btrfs_trans_handle *trans,
 		btrfs_set_root_level(&root->root_item,
 				     btrfs_header_level(root->node));
 		btrfs_set_root_generation(&root->root_item, trans->transid);
+
+		btrfs_extent_post_op(trans, root);
+
 		ret = btrfs_update_root(trans, tree_root,
 					&root->root_key,
 					&root->root_item);
 		BUG_ON(ret);
 		btrfs_write_dirty_block_groups(trans, root);
+		btrfs_extent_post_op(trans, root);
 	}
 	return 0;
 }
@@ -459,15 +466,20 @@ int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
 	struct list_head *next;
 	struct extent_buffer *eb;
 
+	btrfs_extent_post_op(trans, fs_info->tree_root);
+
 	eb = btrfs_lock_root_node(fs_info->tree_root);
 	btrfs_cow_block(trans, fs_info->tree_root, eb, NULL, 0, &eb, 0);
 	btrfs_tree_unlock(eb);
 	free_extent_buffer(eb);
 
+	btrfs_extent_post_op(trans, fs_info->tree_root);
+
 	while(!list_empty(&fs_info->dirty_cowonly_roots)) {
 		next = fs_info->dirty_cowonly_roots.next;
 		list_del_init(next);
 		root = list_entry(next, struct btrfs_root, dirty_list);
+
 		update_cowonly_root(trans, root);
 	}
 	return 0;

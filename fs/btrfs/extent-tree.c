@@ -45,9 +45,9 @@ struct pending_extent_op {
 };
 
 static int finish_current_insert(struct btrfs_trans_handle *trans, struct
-				 btrfs_root *extent_root);
+				 btrfs_root *extent_root, int all);
 static int del_pending_extents(struct btrfs_trans_handle *trans, struct
-			       btrfs_root *extent_root);
+			       btrfs_root *extent_root, int all);
 static struct btrfs_block_group_cache *
 __btrfs_find_block_group(struct btrfs_root *root,
 			 struct btrfs_block_group_cache *hint,
@@ -711,8 +711,8 @@ static int __btrfs_update_extent_ref(struct btrfs_trans_handle *trans,
 				    parent, ref_root, ref_generation,
 				    owner_objectid);
 	BUG_ON(ret);
-	finish_current_insert(trans, extent_root);
-	del_pending_extents(trans, extent_root);
+	finish_current_insert(trans, extent_root, 0);
+	del_pending_extents(trans, extent_root, 0);
 out:
 	btrfs_free_path(path);
 	return ret;
@@ -784,8 +784,8 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 				    ref_root, ref_generation,
 				    owner_objectid);
 	BUG_ON(ret);
-	finish_current_insert(trans, root->fs_info->extent_root);
-	del_pending_extents(trans, root->fs_info->extent_root);
+	finish_current_insert(trans, root->fs_info->extent_root, 0);
+	del_pending_extents(trans, root->fs_info->extent_root, 0);
 
 	btrfs_free_path(path);
 	return 0;
@@ -810,8 +810,8 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 int btrfs_extent_post_op(struct btrfs_trans_handle *trans,
 			 struct btrfs_root *root)
 {
-	finish_current_insert(trans, root->fs_info->extent_root);
-	del_pending_extents(trans, root->fs_info->extent_root);
+	finish_current_insert(trans, root->fs_info->extent_root, 1);
+	del_pending_extents(trans, root->fs_info->extent_root, 1);
 	return 0;
 }
 
@@ -1292,8 +1292,8 @@ static int write_one_cache_group(struct btrfs_trans_handle *trans,
 	btrfs_mark_buffer_dirty(leaf);
 	btrfs_release_path(extent_root, path);
 fail:
-	finish_current_insert(trans, extent_root);
-	pending_ret = del_pending_extents(trans, extent_root);
+	finish_current_insert(trans, extent_root, 0);
+	pending_ret = del_pending_extents(trans, extent_root, 0);
 	if (ret)
 		return ret;
 	if (pending_ret)
@@ -1690,7 +1690,7 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 }
 
 static int finish_current_insert(struct btrfs_trans_handle *trans,
-				 struct btrfs_root *extent_root)
+				 struct btrfs_root *extent_root, int all)
 {
 	u64 start;
 	u64 end;
@@ -1714,7 +1714,7 @@ static int finish_current_insert(struct btrfs_trans_handle *trans,
 					    &end, EXTENT_WRITEBACK);
 		if (ret) {
 			mutex_unlock(&info->extent_ins_mutex);
-			if (search) {
+			if (search && all) {
 				search = 0;
 				continue;
 			}
@@ -1723,7 +1723,7 @@ static int finish_current_insert(struct btrfs_trans_handle *trans,
 
 		ret = try_lock_extent(&info->extent_ins, start, end, GFP_NOFS);
 		if (!ret) {
-			search = end+1;
+			search = end + 1;
 			mutex_unlock(&info->extent_ins_mutex);
 			cond_resched();
 			continue;
@@ -1785,7 +1785,10 @@ static int finish_current_insert(struct btrfs_trans_handle *trans,
 		}
 		kfree(extent_op);
 		unlock_extent(&info->extent_ins, start, end, GFP_NOFS);
-		search = 0;
+		if (all)
+			search = 0;
+		else
+			search = end + 1;
 
 		cond_resched();
 	}
@@ -1992,7 +1995,7 @@ static int __free_extent(struct btrfs_trans_handle *trans,
 #endif
 	}
 	btrfs_free_path(path);
-	finish_current_insert(trans, extent_root);
+	finish_current_insert(trans, extent_root, 0);
 	return ret;
 }
 
@@ -2001,7 +2004,7 @@ static int __free_extent(struct btrfs_trans_handle *trans,
  * them from the extent map
  */
 static int del_pending_extents(struct btrfs_trans_handle *trans, struct
-			       btrfs_root *extent_root)
+			       btrfs_root *extent_root, int all)
 {
 	int ret;
 	int err = 0;
@@ -2023,7 +2026,7 @@ static int del_pending_extents(struct btrfs_trans_handle *trans, struct
 					    EXTENT_WRITEBACK);
 		if (ret) {
 			mutex_unlock(&info->extent_ins_mutex);
-			if (search) {
+			if (all && search) {
 				search = 0;
 				continue;
 			}
@@ -2088,7 +2091,10 @@ free_extent:
 			err = ret;
 		unlock_extent(extent_ins, start, end, GFP_NOFS);
 
-		search = 0;
+		if (all)
+			search = 0;
+		else
+			search = end + 1;
 		cond_resched();
 	}
 	return err;
@@ -2155,8 +2161,8 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			    root_objectid, ref_generation,
 			    owner_objectid, pin, pin == 0);
 
-	finish_current_insert(trans, root->fs_info->extent_root);
-	pending_ret = del_pending_extents(trans, root->fs_info->extent_root);
+	finish_current_insert(trans, root->fs_info->extent_root, 0);
+	pending_ret = del_pending_extents(trans, root->fs_info->extent_root, 0);
 	return ret ? ret : pending_ret;
 }
 
@@ -2580,8 +2586,8 @@ static int __btrfs_alloc_reserved_extent(struct btrfs_trans_handle *trans,
 	trans->alloc_exclude_start = 0;
 	trans->alloc_exclude_nr = 0;
 	btrfs_free_path(path);
-	finish_current_insert(trans, extent_root);
-	pending_ret = del_pending_extents(trans, extent_root);
+	finish_current_insert(trans, extent_root, 0);
+	pending_ret = del_pending_extents(trans, extent_root, 0);
 
 	if (ret)
 		goto out;
@@ -5229,8 +5235,8 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 				sizeof(cache->item));
 	BUG_ON(ret);
 
-	finish_current_insert(trans, extent_root);
-	ret = del_pending_extents(trans, extent_root);
+	finish_current_insert(trans, extent_root, 0);
+	ret = del_pending_extents(trans, extent_root, 0);
 	BUG_ON(ret);
 	set_avail_alloc_bits(extent_root->fs_info, type);
 
