@@ -53,13 +53,11 @@
 /* ----------------------------------------------------------- */
 /* defines and enums                                           */
 
-/* Currently unsupported by the driver: PAL/H, NTSC/Kr, SECAM B/G/H/LC */
-#define CX88_NORMS (\
-	V4L2_STD_NTSC_M|  V4L2_STD_NTSC_M_JP|  V4L2_STD_NTSC_443 | \
-	V4L2_STD_PAL_BG|  V4L2_STD_PAL_DK   |  V4L2_STD_PAL_I    | \
-	V4L2_STD_PAL_M |  V4L2_STD_PAL_N    |  V4L2_STD_PAL_Nc   | \
-	V4L2_STD_PAL_60|  V4L2_STD_SECAM_L  |  V4L2_STD_SECAM_DK | \
-	V4L2_STD_SECAM_B| V4L2_STD_SECAM_G  |  V4L2_STD_SECAM_H )
+/* Currently unsupported by the driver: PAL/H, NTSC/Kr, SECAM/LC */
+#define CX88_NORMS (V4L2_STD_ALL 		\
+		    & ~V4L2_STD_PAL_H		\
+		    & ~V4L2_STD_NTSC_M_KR	\
+		    & ~V4L2_STD_SECAM_LC)
 
 #define FORMAT_FLAGS_PACKED       0x01
 #define FORMAT_FLAGS_PLANAR       0x02
