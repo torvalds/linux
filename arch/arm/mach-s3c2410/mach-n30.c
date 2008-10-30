@@ -40,7 +40,7 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 
-#include <asm/plat-s3c/iic.h>
+#include <plat/iic.h>
 #include <plat/regs-serial.h>
 
 #include <plat/clock.h>

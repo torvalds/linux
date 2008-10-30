@@ -32,7 +32,7 @@
 
 #include <plat/regs-serial.h>
 #include <asm/plat-s3c/nand.h>
-#include <asm/plat-s3c/iic.h>
+#include <plat/iic.h>
 
 #include <mach/regs-power.h>
 #include <mach/regs-gpio.h>

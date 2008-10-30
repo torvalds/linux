@@ -40,8 +40,8 @@
 #include <asm/io.h>
 
 #include <mach/regs-gpio.h>
-#include <asm/plat-s3c/regs-iic.h>
-#include <asm/plat-s3c/iic.h>
+#include <plat/regs-iic.h>
+#include <plat/iic.h>
 
 /* i2c controller state */
 
