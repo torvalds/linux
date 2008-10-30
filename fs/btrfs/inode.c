@@ -338,7 +338,7 @@ again:
 	if (!btrfs_test_flag(inode, NOCOMPRESS) &&
 	    btrfs_test_opt(root, COMPRESS)) {
 		WARN_ON(pages);
-		pages = kmalloc(sizeof(struct page *) * nr_pages, GFP_NOFS);
+		pages = kzalloc(sizeof(struct page *) * nr_pages, GFP_NOFS);
 
 		/* we want to make sure the amount of IO required to satisfy
 		 * a random read is reasonably small, so we limit the size

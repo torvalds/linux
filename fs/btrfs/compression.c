@@ -296,7 +296,7 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 
 	/* create and submit bios for the compressed pages */
 	bytes_left = compressed_len;
-	while(bytes_left > 0) {
+	for (page_index = 0; page_index < cb->nr_pages; page_index++) {
 		page = compressed_pages[page_index];
 		page->mapping = inode->i_mapping;
 		if (bio->bi_size)
@@ -324,7 +324,10 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 			bio->bi_end_io = end_compressed_bio_write;
 			bio_add_page(bio, page, PAGE_CACHE_SIZE, 0);
 		}
-		page_index++;
+		if (bytes_left < PAGE_CACHE_SIZE) {
+			printk("bytes left %lu compress len %lu nr %lu\n",
+			       bytes_left, cb->compressed_len, cb->nr_pages);
+		}
 		bytes_left -= PAGE_CACHE_SIZE;
 		first_byte += PAGE_CACHE_SIZE;
 	}
