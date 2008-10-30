@@ -92,7 +92,7 @@ static inline int xfs_icount(struct xfs_inode *ip)
 {
 	struct inode *inode = VFS_I(ip);
 
-	if (!inode)
+	if (inode)
 		return atomic_read(&inode->i_count);
 	return -1;
 }
