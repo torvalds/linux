@@ -290,8 +290,11 @@ smb_send2(struct TCP_Server_Info *server, struct kvec *iov, int n_vec,
 		if (rc < 0)
 			break;
 
-		if (rc >= total_len) {
-			WARN_ON(rc > total_len);
+		if (rc == total_len) {
+			total_len = 0;
+			break;
+		} else if (rc > total_len) {
+			cERROR(1, ("sent %d requested %d", rc, total_len));
 			break;
 		}
 		if (rc == 0) {
