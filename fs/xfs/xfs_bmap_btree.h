@@ -233,24 +233,6 @@ typedef struct xfs_btree_lblock xfs_bmbt_block_t;
 
 #ifdef __KERNEL__
 
-#if defined(XFS_BMBT_TRACE)
-/*
- * Trace buffer entry types.
- */
-#define XFS_BMBT_KTRACE_ARGBI	1
-#define XFS_BMBT_KTRACE_ARGBII	2
-#define XFS_BMBT_KTRACE_ARGFFFI 3
-#define XFS_BMBT_KTRACE_ARGI	4
-#define XFS_BMBT_KTRACE_ARGIFK	5
-#define XFS_BMBT_KTRACE_ARGIFR	6
-#define XFS_BMBT_KTRACE_ARGIK	7
-#define XFS_BMBT_KTRACE_CUR	8
-
-#define XFS_BMBT_TRACE_SIZE	4096	/* size of global trace buffer */
-#define XFS_BMBT_KTRACE_SIZE	32	/* size of per-inode trace buffer */
-extern ktrace_t	*xfs_bmbt_trace_buf;
-#endif
-
 /*
  * Prototypes for xfs_bmap.c to call.
  */

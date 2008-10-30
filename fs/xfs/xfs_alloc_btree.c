@@ -2219,8 +2219,81 @@ xfs_allocbt_dup_cursor(
 			cur->bc_btnum);
 }
 
+#ifdef XFS_BTREE_TRACE
+ktrace_t	*xfs_allocbt_trace_buf;
+
+STATIC void
+xfs_allocbt_trace_enter(
+	struct xfs_btree_cur	*cur,
+	const char		*func,
+	char			*s,
+	int			type,
+	int			line,
+	__psunsigned_t		a0,
+	__psunsigned_t		a1,
+	__psunsigned_t		a2,
+	__psunsigned_t		a3,
+	__psunsigned_t		a4,
+	__psunsigned_t		a5,
+	__psunsigned_t		a6,
+	__psunsigned_t		a7,
+	__psunsigned_t		a8,
+	__psunsigned_t		a9,
+	__psunsigned_t		a10)
+{
+	ktrace_enter(xfs_allocbt_trace_buf, (void *)(__psint_t)type,
+		(void *)func, (void *)s, NULL, (void *)cur,
+		(void *)a0, (void *)a1, (void *)a2, (void *)a3,
+		(void *)a4, (void *)a5, (void *)a6, (void *)a7,
+		(void *)a8, (void *)a9, (void *)a10);
+}
+
+STATIC void
+xfs_allocbt_trace_cursor(
+	struct xfs_btree_cur	*cur,
+	__uint32_t		*s0,
+	__uint64_t		*l0,
+	__uint64_t		*l1)
+{
+	*s0 = cur->bc_private.a.agno;
+	*l0 = cur->bc_rec.a.ar_startblock;
+	*l1 = cur->bc_rec.a.ar_blockcount;
+}
+
+STATIC void
+xfs_allocbt_trace_key(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_key	*key,
+	__uint64_t		*l0,
+	__uint64_t		*l1)
+{
+	*l0 = be32_to_cpu(key->alloc.ar_startblock);
+	*l1 = be32_to_cpu(key->alloc.ar_blockcount);
+}
+
+STATIC void
+xfs_allocbt_trace_record(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_rec	*rec,
+	__uint64_t		*l0,
+	__uint64_t		*l1,
+	__uint64_t		*l2)
+{
+	*l0 = be32_to_cpu(rec->alloc.ar_startblock);
+	*l1 = be32_to_cpu(rec->alloc.ar_blockcount);
+	*l2 = 0;
+}
+#endif /* XFS_BTREE_TRACE */
+
 static const struct xfs_btree_ops xfs_allocbt_ops = {
 	.dup_cursor		= xfs_allocbt_dup_cursor,
+
+#ifdef XFS_BTREE_TRACE
+	.trace_enter		= xfs_allocbt_trace_enter,
+	.trace_cursor		= xfs_allocbt_trace_cursor,
+	.trace_key		= xfs_allocbt_trace_key,
+	.trace_record		= xfs_allocbt_trace_record,
+#endif
 };
 
 /*

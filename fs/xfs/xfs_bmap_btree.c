@@ -37,15 +37,12 @@
 #include "xfs_inode_item.h"
 #include "xfs_alloc.h"
 #include "xfs_btree.h"
+#include "xfs_btree_trace.h"
 #include "xfs_ialloc.h"
 #include "xfs_itable.h"
 #include "xfs_bmap.h"
 #include "xfs_error.h"
 #include "xfs_quota.h"
-
-#if defined(XFS_BMBT_TRACE)
-ktrace_t	*xfs_bmbt_trace_buf;
-#endif
 
 /*
  * Prototypes for internal btree functions.
@@ -61,245 +58,33 @@ STATIC int xfs_bmbt_split(xfs_btree_cur_t *, int, xfs_fsblock_t *,
 		__uint64_t *, xfs_btree_cur_t **, int *);
 STATIC int xfs_bmbt_updkey(xfs_btree_cur_t *, xfs_bmbt_key_t *, int);
 
-
-#if defined(XFS_BMBT_TRACE)
-
-static char	ARGS[] = "args";
-static char	ENTRY[] = "entry";
-static char	ERROR[] = "error";
 #undef EXIT
-static char	EXIT[] = "exit";
+
+#define ENTRY	XBT_ENTRY
+#define ERROR	XBT_ERROR
+#define EXIT	XBT_EXIT
 
 /*
- * Add a trace buffer entry for the arguments given to the routine,
- * generic form.
+ * Keep the XFS_BMBT_TRACE_ names around for now until all code using them
+ * is converted to be generic and thus switches to the XFS_BTREE_TRACE_ names.
  */
-STATIC void
-xfs_bmbt_trace_enter(
-	const char	*func,
-	xfs_btree_cur_t	*cur,
-	char		*s,
-	int		type,
-	int		line,
-	__psunsigned_t	a0,
-	__psunsigned_t	a1,
-	__psunsigned_t	a2,
-	__psunsigned_t	a3,
-	__psunsigned_t	a4,
-	__psunsigned_t	a5,
-	__psunsigned_t	a6,
-	__psunsigned_t	a7,
-	__psunsigned_t	a8,
-	__psunsigned_t	a9,
-	__psunsigned_t	a10)
-{
-	xfs_inode_t	*ip;
-	int		whichfork;
-
-	ip = cur->bc_private.b.ip;
-	whichfork = cur->bc_private.b.whichfork;
-	ktrace_enter(xfs_bmbt_trace_buf,
-		(void *)((__psint_t)type | (whichfork << 8) | (line << 16)),
-		(void *)func, (void *)s, (void *)ip, (void *)cur,
-		(void *)a0, (void *)a1, (void *)a2, (void *)a3,
-		(void *)a4, (void *)a5, (void *)a6, (void *)a7,
-		(void *)a8, (void *)a9, (void *)a10);
-	ASSERT(ip->i_btrace);
-	ktrace_enter(ip->i_btrace,
-		(void *)((__psint_t)type | (whichfork << 8) | (line << 16)),
-		(void *)func, (void *)s, (void *)ip, (void *)cur,
-		(void *)a0, (void *)a1, (void *)a2, (void *)a3,
-		(void *)a4, (void *)a5, (void *)a6, (void *)a7,
-		(void *)a8, (void *)a9, (void *)a10);
-}
-/*
- * Add a trace buffer entry for arguments, for a buffer & 1 integer arg.
- */
-STATIC void
-xfs_bmbt_trace_argbi(
-	const char	*func,
-	xfs_btree_cur_t	*cur,
-	xfs_buf_t	*b,
-	int		i,
-	int		line)
-{
-	xfs_bmbt_trace_enter(func, cur, ARGS, XFS_BMBT_KTRACE_ARGBI, line,
-		(__psunsigned_t)b, i, 0, 0,
-		0, 0, 0, 0,
-		0, 0, 0);
-}
-
-/*
- * Add a trace buffer entry for arguments, for a buffer & 2 integer args.
- */
-STATIC void
-xfs_bmbt_trace_argbii(
-	const char	*func,
-	xfs_btree_cur_t	*cur,
-	xfs_buf_t	*b,
-	int		i0,
-	int		i1,
-	int		line)
-{
-	xfs_bmbt_trace_enter(func, cur, ARGS, XFS_BMBT_KTRACE_ARGBII, line,
-		(__psunsigned_t)b, i0, i1, 0,
-		0, 0, 0, 0,
-		0, 0, 0);
-}
-
-/*
- * Add a trace buffer entry for arguments, for 3 block-length args
- * and an integer arg.
- */
-STATIC void
-xfs_bmbt_trace_argfffi(
-	const char		*func,
-	xfs_btree_cur_t		*cur,
-	xfs_dfiloff_t		o,
-	xfs_dfsbno_t		b,
-	xfs_dfilblks_t		i,
-	int			j,
-	int			line)
-{
-	xfs_bmbt_trace_enter(func, cur, ARGS, XFS_BMBT_KTRACE_ARGFFFI, line,
-		o >> 32, (int)o, b >> 32, (int)b,
-		i >> 32, (int)i, (int)j, 0,
-		0, 0, 0);
-}
-
-/*
- * Add a trace buffer entry for arguments, for one integer arg.
- */
-STATIC void
-xfs_bmbt_trace_argi(
-	const char	*func,
-	xfs_btree_cur_t	*cur,
-	int		i,
-	int		line)
-{
-	xfs_bmbt_trace_enter(func, cur, ARGS, XFS_BMBT_KTRACE_ARGI, line,
-		i, 0, 0, 0,
-		0, 0, 0, 0,
-		0, 0, 0);
-}
-
-/*
- * Add a trace buffer entry for arguments, for int, fsblock, key.
- */
-STATIC void
-xfs_bmbt_trace_argifk(
-	const char		*func,
-	xfs_btree_cur_t		*cur,
-	int			i,
-	xfs_fsblock_t		f,
-	xfs_dfiloff_t		o,
-	int			line)
-{
-	xfs_bmbt_trace_enter(func, cur, ARGS, XFS_BMBT_KTRACE_ARGIFK, line,
-		i, (xfs_dfsbno_t)f >> 32, (int)f, o >> 32,
-		(int)o, 0, 0, 0,
-		0, 0, 0);
-}
-
-/*
- * Add a trace buffer entry for arguments, for int, fsblock, rec.
- */
-STATIC void
-xfs_bmbt_trace_argifr(
-	const char		*func,
-	xfs_btree_cur_t		*cur,
-	int			i,
-	xfs_fsblock_t		f,
-	xfs_bmbt_rec_t		*r,
-	int			line)
-{
-	xfs_dfsbno_t		b;
-	xfs_dfilblks_t		c;
-	xfs_dfsbno_t		d;
-	xfs_dfiloff_t		o;
-	xfs_bmbt_irec_t		s;
-
-	d = (xfs_dfsbno_t)f;
-	xfs_bmbt_disk_get_all(r, &s);
-	o = (xfs_dfiloff_t)s.br_startoff;
-	b = (xfs_dfsbno_t)s.br_startblock;
-	c = s.br_blockcount;
-	xfs_bmbt_trace_enter(func, cur, ARGS, XFS_BMBT_KTRACE_ARGIFR, line,
-		i, d >> 32, (int)d, o >> 32,
-		(int)o, b >> 32, (int)b, c >> 32,
-		(int)c, 0, 0);
-}
-
-/*
- * Add a trace buffer entry for arguments, for int, key.
- */
-STATIC void
-xfs_bmbt_trace_argik(
-	const char		*func,
-	xfs_btree_cur_t		*cur,
-	int			i,
-	xfs_bmbt_key_t		*k,
-	int			line)
-{
-	xfs_dfiloff_t		o;
-
-	o = be64_to_cpu(k->br_startoff);
-	xfs_bmbt_trace_enter(func, cur, ARGS, XFS_BMBT_KTRACE_ARGIFK, line,
-		i, o >> 32, (int)o, 0,
-		0, 0, 0, 0,
-		0, 0, 0);
-}
-
-/*
- * Add a trace buffer entry for the cursor/operation.
- */
-STATIC void
-xfs_bmbt_trace_cursor(
-	const char	*func,
-	xfs_btree_cur_t	*cur,
-	char		*s,
-	int		line)
-{
-	xfs_bmbt_rec_host_t	r;
-
-	xfs_bmbt_set_all(&r, &cur->bc_rec.b);
-	xfs_bmbt_trace_enter(func, cur, s, XFS_BMBT_KTRACE_CUR, line,
-		(cur->bc_nlevels << 24) | (cur->bc_private.b.flags << 16) |
-		cur->bc_private.b.allocated,
-		r.l0 >> 32, (int)r.l0,
-		r.l1 >> 32, (int)r.l1,
-		(unsigned long)cur->bc_bufs[0], (unsigned long)cur->bc_bufs[1],
-		(unsigned long)cur->bc_bufs[2], (unsigned long)cur->bc_bufs[3],
-		(cur->bc_ptrs[0] << 16) | cur->bc_ptrs[1],
-		(cur->bc_ptrs[2] << 16) | cur->bc_ptrs[3]);
-}
-
-#define	XFS_BMBT_TRACE_ARGBI(c,b,i)	\
-	xfs_bmbt_trace_argbi(__func__, c, b, i, __LINE__)
-#define	XFS_BMBT_TRACE_ARGBII(c,b,i,j)	\
-	xfs_bmbt_trace_argbii(__func__, c, b, i, j, __LINE__)
-#define	XFS_BMBT_TRACE_ARGFFFI(c,o,b,i,j)	\
-	xfs_bmbt_trace_argfffi(__func__, c, o, b, i, j, __LINE__)
-#define	XFS_BMBT_TRACE_ARGI(c,i)	\
-	xfs_bmbt_trace_argi(__func__, c, i, __LINE__)
-#define	XFS_BMBT_TRACE_ARGIFK(c,i,f,s)	\
-	xfs_bmbt_trace_argifk(__func__, c, i, f, s, __LINE__)
-#define	XFS_BMBT_TRACE_ARGIFR(c,i,f,r)	\
-	xfs_bmbt_trace_argifr(__func__, c, i, f, r, __LINE__)
-#define	XFS_BMBT_TRACE_ARGIK(c,i,k)	\
-	xfs_bmbt_trace_argik(__func__, c, i, k, __LINE__)
-#define	XFS_BMBT_TRACE_CURSOR(c,s)	\
-	xfs_bmbt_trace_cursor(__func__, c, s, __LINE__)
-#else
-#define	XFS_BMBT_TRACE_ARGBI(c,b,i)
-#define	XFS_BMBT_TRACE_ARGBII(c,b,i,j)
-#define	XFS_BMBT_TRACE_ARGFFFI(c,o,b,i,j)
-#define	XFS_BMBT_TRACE_ARGI(c,i)
-#define	XFS_BMBT_TRACE_ARGIFK(c,i,f,s)
-#define	XFS_BMBT_TRACE_ARGIFR(c,i,f,r)
-#define	XFS_BMBT_TRACE_ARGIK(c,i,k)
-#define	XFS_BMBT_TRACE_CURSOR(c,s)
-#endif	/* XFS_BMBT_TRACE */
+#define	XFS_BMBT_TRACE_ARGBI(c,b,i) \
+	XFS_BTREE_TRACE_ARGBI(c,b,i)
+#define	XFS_BMBT_TRACE_ARGBII(c,b,i,j) \
+	XFS_BTREE_TRACE_ARGBII(c,b,i,j)
+#define	XFS_BMBT_TRACE_ARGFFFI(c,o,b,i,j) \
+	XFS_BTREE_TRACE_ARGFFFI(c,o,b,i,j)
+#define	XFS_BMBT_TRACE_ARGI(c,i) \
+	XFS_BTREE_TRACE_ARGI(c,i)
+#define	XFS_BMBT_TRACE_ARGIFK(c,i,f,s) \
+	XFS_BTREE_TRACE_ARGIPK(c,i,(union xfs_btree_ptr)f,s)
+#define	XFS_BMBT_TRACE_ARGIFR(c,i,f,r) \
+	XFS_BTREE_TRACE_ARGIPR(c,i, \
+		(union xfs_btree_ptr)f, (union xfs_btree_rec *)r)
+#define	XFS_BMBT_TRACE_ARGIK(c,i,k) \
+	XFS_BTREE_TRACE_ARGIK(c,i,(union xfs_btree_key *)k)
+#define	XFS_BMBT_TRACE_CURSOR(c,s) \
+	XFS_BTREE_TRACE_CURSOR(c,s)
 
 
 /*
@@ -1485,7 +1270,8 @@ xfs_bmbt_split(
 	xfs_bmbt_rec_t		*rrp;		/* right record pointer */
 
 	XFS_BMBT_TRACE_CURSOR(cur, ENTRY);
-	XFS_BMBT_TRACE_ARGIFK(cur, level, *bnop, *startoff);
+	// disable until merged into common code
+//	XFS_BMBT_TRACE_ARGIFK(cur, level, *bnop, *startoff);
 	args.tp = cur->bc_tp;
 	args.mp = cur->bc_mp;
 	lbp = cur->bc_bufs[level];
@@ -2629,8 +2415,100 @@ xfs_bmbt_dup_cursor(
 	return new;
 }
 
+#ifdef XFS_BTREE_TRACE
+ktrace_t	*xfs_bmbt_trace_buf;
+
+STATIC void
+xfs_bmbt_trace_enter(
+	struct xfs_btree_cur	*cur,
+	const char		*func,
+	char			*s,
+	int			type,
+	int			line,
+	__psunsigned_t		a0,
+	__psunsigned_t		a1,
+	__psunsigned_t		a2,
+	__psunsigned_t		a3,
+	__psunsigned_t		a4,
+	__psunsigned_t		a5,
+	__psunsigned_t		a6,
+	__psunsigned_t		a7,
+	__psunsigned_t		a8,
+	__psunsigned_t		a9,
+	__psunsigned_t		a10)
+{
+	struct xfs_inode	*ip = cur->bc_private.b.ip;
+	int			whichfork = cur->bc_private.b.whichfork;
+
+	ktrace_enter(xfs_bmbt_trace_buf,
+		(void *)((__psint_t)type | (whichfork << 8) | (line << 16)),
+		(void *)func, (void *)s, (void *)ip, (void *)cur,
+		(void *)a0, (void *)a1, (void *)a2, (void *)a3,
+		(void *)a4, (void *)a5, (void *)a6, (void *)a7,
+		(void *)a8, (void *)a9, (void *)a10);
+	ktrace_enter(ip->i_btrace,
+		(void *)((__psint_t)type | (whichfork << 8) | (line << 16)),
+		(void *)func, (void *)s, (void *)ip, (void *)cur,
+		(void *)a0, (void *)a1, (void *)a2, (void *)a3,
+		(void *)a4, (void *)a5, (void *)a6, (void *)a7,
+		(void *)a8, (void *)a9, (void *)a10);
+}
+
+STATIC void
+xfs_bmbt_trace_cursor(
+	struct xfs_btree_cur	*cur,
+	__uint32_t		*s0,
+	__uint64_t		*l0,
+	__uint64_t		*l1)
+{
+	struct xfs_bmbt_rec_host r;
+
+	xfs_bmbt_set_all(&r, &cur->bc_rec.b);
+
+	*s0 = (cur->bc_nlevels << 24) |
+	      (cur->bc_private.b.flags << 16) |
+	       cur->bc_private.b.allocated;
+	*l0 = r.l0;
+	*l1 = r.l1;
+}
+
+STATIC void
+xfs_bmbt_trace_key(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_key	*key,
+	__uint64_t		*l0,
+	__uint64_t		*l1)
+{
+	*l0 = be64_to_cpu(key->bmbt.br_startoff);
+	*l1 = 0;
+}
+
+STATIC void
+xfs_bmbt_trace_record(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_rec	*rec,
+	__uint64_t		*l0,
+	__uint64_t		*l1,
+	__uint64_t		*l2)
+{
+	struct xfs_bmbt_irec	irec;
+
+	xfs_bmbt_disk_get_all(&rec->bmbt, &irec);
+	*l0 = irec.br_startoff;
+	*l1 = irec.br_startblock;
+	*l2 = irec.br_blockcount;
+}
+#endif /* XFS_BTREE_TRACE */
+
 static const struct xfs_btree_ops xfs_bmbt_ops = {
 	.dup_cursor		= xfs_bmbt_dup_cursor,
+
+#ifdef XFS_BTREE_TRACE
+	.trace_enter		= xfs_bmbt_trace_enter,
+	.trace_cursor		= xfs_bmbt_trace_cursor,
+	.trace_key		= xfs_bmbt_trace_key,
+	.trace_record		= xfs_bmbt_trace_record,
+#endif
 };
 
 /*

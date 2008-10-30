@@ -245,7 +245,7 @@ typedef struct xfs_inode {
 #ifdef XFS_BMAP_TRACE
 	struct ktrace		*i_xtrace;	/* inode extent list trace */
 #endif
-#ifdef XFS_BMBT_TRACE
+#ifdef XFS_BTREE_TRACE
 	struct ktrace		*i_btrace;	/* inode bmap btree trace */
 #endif
 #ifdef XFS_RW_TRACE

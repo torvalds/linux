@@ -91,7 +91,8 @@ xfs-y				+= xfs_alloc.o \
 				   xfs_dmops.o \
 				   xfs_qmops.o
 
-xfs-$(CONFIG_XFS_TRACE)		+= xfs_dir2_trace.o
+xfs-$(CONFIG_XFS_TRACE)		+= xfs_btree_trace.o \
+				   xfs_dir2_trace.o
 
 # Objects in linux/
 xfs-y				+= $(addprefix $(XFS_LINUX)/, \
