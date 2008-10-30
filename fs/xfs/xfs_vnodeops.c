@@ -79,8 +79,7 @@ int
 xfs_setattr(
 	struct xfs_inode	*ip,
 	struct iattr		*iattr,
-	int			flags,
-	cred_t			*credp)
+	int			flags)
 {
 	xfs_mount_t		*mp = ip->i_mount;
 	struct inode		*inode = VFS_I(ip);
@@ -3362,7 +3361,6 @@ xfs_change_file_space(
 	int		cmd,
 	xfs_flock64_t	*bf,
 	xfs_off_t	offset,
-	cred_t		*credp,
 	int		attr_flags)
 {
 	xfs_mount_t	*mp = ip->i_mount;
@@ -3450,7 +3448,7 @@ xfs_change_file_space(
 		iattr.ia_valid = ATTR_SIZE;
 		iattr.ia_size = startoffset;
 
-		error = xfs_setattr(ip, &iattr, attr_flags, credp);
+		error = xfs_setattr(ip, &iattr, attr_flags);
 
 		if (error)
 			return error;

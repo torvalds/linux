@@ -691,8 +691,7 @@ xfs_ioc_space(
 	if (ioflags & IO_INVIS)
 		attr_flags |= XFS_ATTR_DMI;
 
-	error = xfs_change_file_space(ip, cmd, &bf, filp->f_pos,
-					      NULL, attr_flags);
+	error = xfs_change_file_space(ip, cmd, &bf, filp->f_pos, attr_flags);
 	return -error;
 }
 

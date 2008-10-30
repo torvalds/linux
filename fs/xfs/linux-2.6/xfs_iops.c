@@ -601,7 +601,7 @@ xfs_vn_setattr(
 	struct dentry	*dentry,
 	struct iattr	*iattr)
 {
-	return -xfs_setattr(XFS_I(dentry->d_inode), iattr, 0, NULL);
+	return -xfs_setattr(XFS_I(dentry->d_inode), iattr, 0);
 }
 
 /*
@@ -642,7 +642,7 @@ xfs_vn_fallocate(
 
 	xfs_ilock(ip, XFS_IOLOCK_EXCL);
 	error = xfs_change_file_space(ip, XFS_IOC_RESVSP, &bf,
-				      0, NULL, XFS_ATTR_NOLOCK);
+				      0, XFS_ATTR_NOLOCK);
 	if (!error && !(mode & FALLOC_FL_KEEP_SIZE) &&
 	    offset + len > i_size_read(inode))
 		new_size = offset + len;
@@ -653,7 +653,7 @@ xfs_vn_fallocate(
 
 		iattr.ia_valid = ATTR_SIZE;
 		iattr.ia_size = new_size;
-		error = xfs_setattr(ip, &iattr, XFS_ATTR_NOLOCK, NULL);
+		error = xfs_setattr(ip, &iattr, XFS_ATTR_NOLOCK);
 	}
 
 	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
