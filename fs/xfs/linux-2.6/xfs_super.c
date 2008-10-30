@@ -898,7 +898,6 @@ xfs_fs_inode_init_once(
  */
 void
 xfs_inode_init_once(
-	kmem_zone_t		*zone,
 	void			*inode)
 {
 	struct xfs_inode	*ip = inode;
