@@ -56,6 +56,111 @@ unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
 	return calc.code;
 }
 
+/*
+ * Modifying code must take extra care. On an SMP machine, if
+ * the code being modified is also being executed on another CPU
+ * that CPU will have undefined results and possibly take a GPF.
+ * We use kstop_machine to stop other CPUS from exectuing code.
+ * But this does not stop NMIs from happening. We still need
+ * to protect against that. We separate out the modification of
+ * the code to take care of this.
+ *
+ * Two buffers are added: An IP buffer and a "code" buffer.
+ *
+ * 1) Put in the instruction pointer into the IP buffer
+ *    and the new code into the "code" buffer.
+ * 2) Set a flag that says we are modifying code
+ * 3) Wait for any running NMIs to finish.
+ * 4) Write the code
+ * 5) clear the flag.
+ * 6) Wait for any running NMIs to finish.
+ *
+ * If an NMI is executed, the first thing it does is to call
+ * "ftrace_nmi_enter". This will check if the flag is set to write
+ * and if it is, it will write what is in the IP and "code" buffers.
+ *
+ * The trick is, it does not matter if everyone is writing the same
+ * content to the code location. Also, if a CPU is executing code
+ * it is OK to write to that code location if the contents being written
+ * are the same as what exists.
+ */
+
+static atomic_t in_nmi;
+static int mod_code_status;
+static int mod_code_write;
+static void *mod_code_ip;
+static void *mod_code_newcode;
+
+static void ftrace_mod_code(void)
+{
+	/*
+	 * Yes, more than one CPU process can be writing to mod_code_status.
+	 *    (and the code itself)
+	 * But if one were to fail, then they all should, and if one were
+	 * to succeed, then they all should.
+	 */
+	mod_code_status = probe_kernel_write(mod_code_ip, mod_code_newcode,
+					     MCOUNT_INSN_SIZE);
+
+}
+
+void ftrace_nmi_enter(void)
+{
+	atomic_inc(&in_nmi);
+	/* Must have in_nmi seen before reading write flag */
+	smp_mb();
+	if (mod_code_write)
+		ftrace_mod_code();
+}
+
+void ftrace_nmi_exit(void)
+{
+	/* Finish all executions before clearing in_nmi */
+	smp_wmb();
+	atomic_dec(&in_nmi);
+}
+
+static void wait_for_nmi(void)
+{
+	while (atomic_read(&in_nmi))
+		cpu_relax();
+}
+
+static int
+do_ftrace_mod_code(unsigned long ip, void *new_code)
+{
+	mod_code_ip = (void *)ip;
+	mod_code_newcode = new_code;
+
+	/* The buffers need to be visible before we let NMIs write them */
+	smp_wmb();
+
+	mod_code_write = 1;
+
+	/* Make sure write bit is visible before we wait on NMIs */
+	smp_mb();
+
+	wait_for_nmi();
+
+	/* Make sure all running NMIs have finished before we write the code */
+	smp_mb();
+
+	ftrace_mod_code();
+
+	/* Make sure the write happens before clearing the bit */
+	smp_wmb();
+
+	mod_code_write = 0;
+
+	/* make sure NMIs see the cleared bit */
+	smp_mb();
+
+	wait_for_nmi();
+
+	return mod_code_status;
+}
+
+
 int
 ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 		   unsigned char *new_code)
@@ -81,7 +186,7 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 		return -EINVAL;
 
 	/* replace the text with the new text */
-	if (probe_kernel_write((void *)ip, new_code, MCOUNT_INSN_SIZE))
+	if (do_ftrace_mod_code(ip, new_code))
 		return -EPERM;
 
 	sync_core();
