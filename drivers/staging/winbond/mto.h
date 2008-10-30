@@ -168,7 +168,6 @@ typedef struct _MTO_PARAMETERS
 #define MTO_PREAMBLE_CHANGE_ENABLE()         MTO_DATA().PreambleChangeEnable
 
 #define MTO_RATE_LEVEL()            MTO_DATA().DataRateLevel
-#define MTO_FALLBACK_RATE_LEVEL()	MTO_DATA().FallbackRateLevel
 #define MTO_OFDM_RATE_LEVEL()		MTO_DATA().OfdmRateLevel
 #define MTO_RATE_CHANGE_ENABLE()    MTO_DATA().DataRateChangeEnable
 #define MTO_FRAG_TH_LEVEL()         MTO_DATA().FragThresholdLevel
@@ -201,11 +200,9 @@ typedef struct _MTO_PARAMETERS
 //------------------------------------------------
 
 
-extern u8   MTO_Data_Rate_Tbl[];
 extern u16  MTO_Frag_Th_Tbl[];
 
 #define MTO_DATA_RATE()          MTO_Data_Rate_Tbl[MTO_RATE_LEVEL()]
-#define MTO_DATA_FALLBACK_RATE() MTO_Data_Rate_Tbl[MTO_FALLBACK_RATE_LEVEL()]	//next level
 #define MTO_FRAG_TH()            MTO_Frag_Th_Tbl[MTO_FRAG_TH_LEVEL()]
 
 typedef struct {
