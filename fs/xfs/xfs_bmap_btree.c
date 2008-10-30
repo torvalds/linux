@@ -56,7 +56,6 @@ STATIC int xfs_bmbt_lshift(xfs_btree_cur_t *, int, int *);
 STATIC int xfs_bmbt_rshift(xfs_btree_cur_t *, int, int *);
 STATIC int xfs_bmbt_split(xfs_btree_cur_t *, int, xfs_fsblock_t *,
 		__uint64_t *, xfs_btree_cur_t **, int *);
-STATIC int xfs_bmbt_updkey(xfs_btree_cur_t *, xfs_bmbt_key_t *, int);
 
 #undef EXIT
 
@@ -211,7 +210,7 @@ xfs_bmbt_delrec(
 		*stat = 1;
 		return 0;
 	}
-	if (ptr == 1 && (error = xfs_bmbt_updkey(cur, kp, level + 1))) {
+	if (ptr == 1 && (error = xfs_btree_updkey(cur, (union xfs_btree_key *)kp, level + 1))) {
 		XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 		goto error0;
 	}
@@ -635,7 +634,7 @@ xfs_bmbt_insrec(
 				kp + ptr);
 	}
 #endif
-	if (optr == 1 && (error = xfs_bmbt_updkey(cur, &key, level + 1))) {
+	if (optr == 1 && (error = xfs_btree_updkey(cur, (union xfs_btree_key *)&key, level + 1))) {
 		XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 		return error;
 	}
@@ -935,7 +934,7 @@ xfs_bmbt_lshift(
 		key.br_startoff = cpu_to_be64(xfs_bmbt_disk_get_startoff(rrp));
 		rkp = &key;
 	}
-	if ((error = xfs_bmbt_updkey(cur, rkp, level + 1))) {
+	if ((error = xfs_btree_updkey(cur, (union xfs_btree_key *)rkp, level + 1))) {
 		XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 		return error;
 	}
@@ -1067,7 +1066,7 @@ xfs_bmbt_rshift(
 		goto error1;
 	}
 	XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
-	if ((error = xfs_bmbt_updkey(tcur, rkp, level + 1))) {
+	if ((error = xfs_btree_updkey(tcur, (union xfs_btree_key *)rkp, level + 1))) {
 		XFS_BMBT_TRACE_CURSOR(tcur, ERROR);
 		goto error1;
 	}
@@ -1273,44 +1272,6 @@ xfs_bmbt_split(
 	*bnop = args.fsbno;
 	XFS_BMBT_TRACE_CURSOR(cur, EXIT);
 	*stat = 1;
-	return 0;
-}
-
-
-/*
- * Update keys for the record.
- */
-STATIC int
-xfs_bmbt_updkey(
-	xfs_btree_cur_t		*cur,
-	xfs_bmbt_key_t		*keyp,	/* on-disk format */
-	int			level)
-{
-	xfs_bmbt_block_t	*block;
-	xfs_buf_t		*bp;
-#ifdef DEBUG
-	int			error;
-#endif
-	xfs_bmbt_key_t		*kp;
-	int			ptr;
-
-	ASSERT(level >= 1);
-	XFS_BMBT_TRACE_CURSOR(cur, ENTRY);
-	XFS_BMBT_TRACE_ARGIK(cur, level, keyp);
-	for (ptr = 1; ptr == 1 && level < cur->bc_nlevels; level++) {
-		block = xfs_bmbt_get_block(cur, level, &bp);
-#ifdef DEBUG
-		if ((error = xfs_btree_check_lblock(cur, block, level, bp))) {
-			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-			return error;
-		}
-#endif
-		ptr = cur->bc_ptrs[level];
-		kp = XFS_BMAP_KEY_IADDR(block, ptr, cur);
-		*kp = *keyp;
-		xfs_bmbt_log_keys(cur, bp, ptr, ptr);
-	}
-	XFS_BMBT_TRACE_CURSOR(cur, EXIT);
 	return 0;
 }
 
@@ -2039,7 +2000,7 @@ xfs_bmbt_update(
 		return 0;
 	}
 	key.br_startoff = cpu_to_be64(off);
-	if ((error = xfs_bmbt_updkey(cur, &key, 1))) {
+	if ((error = xfs_btree_updkey(cur, (union xfs_btree_key *)&key, 1))) {
 		XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 		return error;
 	}

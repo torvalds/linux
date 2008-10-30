@@ -34,6 +34,7 @@
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
+#include "xfs_inode_item.h"
 #include "xfs_btree.h"
 #include "xfs_btree_trace.h"
 #include "xfs_ialloc.h"
@@ -1065,6 +1066,45 @@ xfs_btree_read_buf_block(
 }
 
 /*
+ * Copy keys from one btree block to another.
+ */
+STATIC void
+xfs_btree_copy_keys(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_key	*dst_key,
+	union xfs_btree_key	*src_key,
+	int			numkeys)
+{
+	ASSERT(numkeys >= 0);
+	memcpy(dst_key, src_key, numkeys * cur->bc_ops->key_len);
+}
+
+/*
+ * Log key values from the btree block.
+ */
+STATIC void
+xfs_btree_log_keys(
+	struct xfs_btree_cur	*cur,
+	struct xfs_buf		*bp,
+	int			first,
+	int			last)
+{
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
+	XFS_BTREE_TRACE_ARGBII(cur, bp, first, last);
+
+	if (bp) {
+		xfs_trans_log_buf(cur->bc_tp, bp,
+				  xfs_btree_key_offset(cur, first),
+				  xfs_btree_key_offset(cur, last + 1) - 1);
+	} else {
+		xfs_trans_log_inode(cur->bc_tp, cur->bc_private.b.ip,
+				xfs_ilog_fbroot(cur->bc_private.b.whichfork));
+	}
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+}
+
+/*
  * Increment cursor by one record at the level.
  * For nonzero levels the leaf-ward information is untouched.
  */
@@ -1488,4 +1528,51 @@ xfs_btree_lookup(
 error0:
 	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 	return error;
+}
+
+/*
+ * Update keys at all levels from here to the root along the cursor's path.
+ */
+int
+xfs_btree_updkey(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_key	*keyp,
+	int			level)
+{
+	struct xfs_btree_block	*block;
+	struct xfs_buf		*bp;
+	union xfs_btree_key	*kp;
+	int			ptr;
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
+	XFS_BTREE_TRACE_ARGIK(cur, level, keyp);
+
+	ASSERT(!(cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) || level >= 1);
+
+	/*
+	 * Go up the tree from this level toward the root.
+	 * At each level, update the key value to the value input.
+	 * Stop when we reach a level where the cursor isn't pointing
+	 * at the first entry in the block.
+	 */
+	for (ptr = 1; ptr == 1 && level < cur->bc_nlevels; level++) {
+#ifdef DEBUG
+		int		error;
+#endif
+		block = xfs_btree_get_block(cur, level, &bp);
+#ifdef DEBUG
+		error = xfs_btree_check_block(cur, block, level, bp);
+		if (error) {
+			XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+			return error;
+		}
+#endif
+		ptr = cur->bc_ptrs[level];
+		kp = xfs_btree_key_addr(cur, ptr, block);
+		xfs_btree_copy_keys(cur, kp, keyp, 1);
+		xfs_btree_log_keys(cur, bp, ptr, ptr);
+	}
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+	return 0;
 }

@@ -48,7 +48,6 @@ STATIC int xfs_inobt_newroot(xfs_btree_cur_t *, int *);
 STATIC int xfs_inobt_rshift(xfs_btree_cur_t *, int, int *);
 STATIC int xfs_inobt_split(xfs_btree_cur_t *, int, xfs_agblock_t *,
 		xfs_inobt_key_t *, xfs_btree_cur_t **, int *);
-STATIC int xfs_inobt_updkey(xfs_btree_cur_t *, xfs_inobt_key_t *, int);
 
 /*
  * Single level of the xfs_inobt_delete record deletion routine.
@@ -214,7 +213,7 @@ xfs_inobt_delrec(
 	 * If we deleted the leftmost entry in the block, update the
 	 * key values above us in the tree.
 	 */
-	if (ptr == 1 && (error = xfs_inobt_updkey(cur, kp, level + 1)))
+	if (ptr == 1 && (error = xfs_btree_updkey(cur, (union xfs_btree_key *)kp, level + 1)))
 		return error;
 	/*
 	 * If the number of records remaining in the block is at least
@@ -723,7 +722,7 @@ xfs_inobt_insrec(
 	/*
 	 * If we inserted at the start of a block, update the parents' keys.
 	 */
-	if (optr == 1 && (error = xfs_inobt_updkey(cur, &key, level + 1)))
+	if (optr == 1 && (error = xfs_btree_updkey(cur, (union xfs_btree_key *)&key, level + 1)))
 		return error;
 	/*
 	 * Return the new block number, if any.
@@ -960,7 +959,7 @@ xfs_inobt_lshift(
 	/*
 	 * Update the parent key values of right.
 	 */
-	if ((error = xfs_inobt_updkey(cur, rkp, level + 1)))
+	if ((error = xfs_btree_updkey(cur, (union xfs_btree_key *)rkp, level + 1)))
 		return error;
 	/*
 	 * Slide the cursor value left one.
@@ -1238,7 +1237,7 @@ xfs_inobt_rshift(
 		return error;
 	xfs_btree_lastrec(tcur, level);
 	if ((error = xfs_btree_increment(tcur, level, &i)) ||
-	    (error = xfs_inobt_updkey(tcur, rkp, level + 1))) {
+	    (error = xfs_btree_updkey(tcur, (union xfs_btree_key *)rkp, level + 1))) {
 		xfs_btree_del_cursor(tcur, XFS_BTREE_ERROR);
 		return error;
 	}
@@ -1403,45 +1402,6 @@ xfs_inobt_split(
 	}
 	*bnop = args.agbno;
 	*stat = 1;
-	return 0;
-}
-
-/*
- * Update keys at all levels from here to the root along the cursor's path.
- */
-STATIC int				/* error */
-xfs_inobt_updkey(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	xfs_inobt_key_t		*keyp,	/* new key value to update to */
-	int			level)	/* starting level for update */
-{
-	int			ptr;	/* index of key in block */
-
-	/*
-	 * Go up the tree from this level toward the root.
-	 * At each level, update the key value to the value input.
-	 * Stop when we reach a level where the cursor isn't pointing
-	 * at the first entry in the block.
-	 */
-	for (ptr = 1; ptr == 1 && level < cur->bc_nlevels; level++) {
-		xfs_buf_t		*bp;	/* buffer for block */
-		xfs_inobt_block_t	*block;	/* btree block */
-#ifdef DEBUG
-		int			error;	/* error return value */
-#endif
-		xfs_inobt_key_t		*kp;	/* ptr to btree block keys */
-
-		bp = cur->bc_bufs[level];
-		block = XFS_BUF_TO_INOBT_BLOCK(bp);
-#ifdef DEBUG
-		if ((error = xfs_btree_check_sblock(cur, block, level, bp)))
-			return error;
-#endif
-		ptr = cur->bc_ptrs[level];
-		kp = XFS_INOBT_KEY_ADDR(block, ptr, cur);
-		*kp = *keyp;
-		xfs_inobt_log_keys(cur, bp, ptr, ptr);
-	}
 	return 0;
 }
 
@@ -1637,7 +1597,7 @@ xfs_inobt_update(
 		xfs_inobt_key_t	key;	/* key containing [ino] */
 
 		key.ir_startino = cpu_to_be32(ino);
-		if ((error = xfs_inobt_updkey(cur, &key, 1)))
+		if ((error = xfs_btree_updkey(cur, (union xfs_btree_key *)&key, 1)))
 			return error;
 	}
 	return 0;

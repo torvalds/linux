@@ -52,7 +52,6 @@ STATIC int xfs_alloc_newroot(xfs_btree_cur_t *, int *);
 STATIC int xfs_alloc_rshift(xfs_btree_cur_t *, int, int *);
 STATIC int xfs_alloc_split(xfs_btree_cur_t *, int, xfs_agblock_t *,
 		xfs_alloc_key_t *, xfs_btree_cur_t **, int *);
-STATIC int xfs_alloc_updkey(xfs_btree_cur_t *, xfs_alloc_key_t *, int);
 
 /*
  * Internal functions.
@@ -265,7 +264,7 @@ xfs_alloc_delrec(
 	 * If we deleted the leftmost entry in the block, update the
 	 * key values above us in the tree.
 	 */
-	if (ptr == 1 && (error = xfs_alloc_updkey(cur, lkp, level + 1)))
+	if (ptr == 1 && (error = xfs_btree_updkey(cur, (union xfs_btree_key *)lkp, level + 1)))
 		return error;
 	/*
 	 * If the number of records remaining in the block is at least
@@ -798,7 +797,7 @@ xfs_alloc_insrec(
 	/*
 	 * If we inserted at the start of a block, update the parents' keys.
 	 */
-	if (optr == 1 && (error = xfs_alloc_updkey(cur, &key, level + 1)))
+	if (optr == 1 && (error = xfs_btree_updkey(cur, (union xfs_btree_key *)&key, level + 1)))
 		return error;
 	/*
 	 * Look to see if the longest extent in the allocation group
@@ -1068,7 +1067,7 @@ xfs_alloc_lshift(
 	/*
 	 * Update the parent key values of right.
 	 */
-	if ((error = xfs_alloc_updkey(cur, rkp, level + 1)))
+	if ((error = xfs_btree_updkey(cur, (union xfs_btree_key *)rkp, level + 1)))
 		return error;
 	/*
 	 * Slide the cursor value left one.
@@ -1354,7 +1353,7 @@ xfs_alloc_rshift(
 	i = xfs_btree_lastrec(tcur, level);
 	XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
 	if ((error = xfs_btree_increment(tcur, level, &i)) ||
-	    (error = xfs_alloc_updkey(tcur, rkp, level + 1)))
+	    (error = xfs_btree_updkey(tcur, (union xfs_btree_key *)rkp, level + 1)))
 		goto error0;
 	xfs_btree_del_cursor(tcur, XFS_BTREE_NOERROR);
 	*stat = 1;
@@ -1516,45 +1515,6 @@ xfs_alloc_split(
 	}
 	*bnop = rbno;
 	*stat = 1;
-	return 0;
-}
-
-/*
- * Update keys at all levels from here to the root along the cursor's path.
- */
-STATIC int				/* error */
-xfs_alloc_updkey(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	xfs_alloc_key_t		*keyp,	/* new key value to update to */
-	int			level)	/* starting level for update */
-{
-	int			ptr;	/* index of key in block */
-
-	/*
-	 * Go up the tree from this level toward the root.
-	 * At each level, update the key value to the value input.
-	 * Stop when we reach a level where the cursor isn't pointing
-	 * at the first entry in the block.
-	 */
-	for (ptr = 1; ptr == 1 && level < cur->bc_nlevels; level++) {
-		xfs_alloc_block_t	*block;	/* btree block */
-		xfs_buf_t		*bp;	/* buffer for block */
-#ifdef DEBUG
-		int			error;	/* error return value */
-#endif
-		xfs_alloc_key_t		*kp;	/* ptr to btree block keys */
-
-		bp = cur->bc_bufs[level];
-		block = XFS_BUF_TO_ALLOC_BLOCK(bp);
-#ifdef DEBUG
-		if ((error = xfs_btree_check_sblock(cur, block, level, bp)))
-			return error;
-#endif
-		ptr = cur->bc_ptrs[level];
-		kp = XFS_ALLOC_KEY_ADDR(block, ptr, cur);
-		*kp = *keyp;
-		xfs_alloc_log_keys(cur, bp, ptr, ptr);
-	}
 	return 0;
 }
 
@@ -1765,7 +1725,7 @@ xfs_alloc_update(
 
 		key.ar_startblock = cpu_to_be32(bno);
 		key.ar_blockcount = cpu_to_be32(len);
-		if ((error = xfs_alloc_updkey(cur, &key, 1)))
+		if ((error = xfs_btree_updkey(cur, (union xfs_btree_key *)&key, 1)))
 			return error;
 	}
 	return 0;

@@ -518,6 +518,7 @@ xfs_btree_setbuf(
 int xfs_btree_increment(struct xfs_btree_cur *, int, int *);
 int xfs_btree_decrement(struct xfs_btree_cur *, int, int *);
 int xfs_btree_lookup(struct xfs_btree_cur *, xfs_lookup_t, int *);
+int xfs_btree_updkey(struct xfs_btree_cur *, union xfs_btree_key *, int);
 
 /*
  * Helpers.
