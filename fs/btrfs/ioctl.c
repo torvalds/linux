@@ -724,7 +724,8 @@ long btrfs_ioctl_clone(struct file *file, unsigned long src_fd)
 			extent = btrfs_item_ptr(leaf, slot,
 						struct btrfs_file_extent_item);
 			found_type = btrfs_file_extent_type(leaf, extent);
-			if (found_type == BTRFS_FILE_EXTENT_REG) {
+			if (found_type == BTRFS_FILE_EXTENT_REG ||
+			    found_type == BTRFS_FILE_EXTENT_PREALLOC) {
 				u64 ds = btrfs_file_extent_disk_bytenr(leaf,
 								       extent);
 				u64 dl = btrfs_file_extent_disk_num_bytes(leaf,

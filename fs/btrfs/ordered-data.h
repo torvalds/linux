@@ -68,6 +68,8 @@ struct btrfs_ordered_sum {
 
 #define BTRFS_ORDERED_COMPRESSED 3 /* writing a compressed extent */
 
+#define BTRFS_ORDERED_PREALLOC 4 /* set when writing to prealloced extent */
+
 struct btrfs_ordered_extent {
 	/* logical offset in the file */
 	u64 file_offset;
@@ -132,7 +134,7 @@ int btrfs_remove_ordered_extent(struct inode *inode,
 int btrfs_dec_test_ordered_pending(struct inode *inode,
 				       u64 file_offset, u64 io_size);
 int btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
-			     u64 start, u64 len, u64 disk_len, int type);
+			     u64 start, u64 len, u64 disk_len, int tyep);
 int btrfs_add_ordered_sum(struct inode *inode,
 			  struct btrfs_ordered_extent *entry,
 			  struct btrfs_ordered_sum *sum);

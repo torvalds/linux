@@ -2015,6 +2015,8 @@ printk("2bad mapping end %Lu cur %Lu\n", end, cur);
 		}
 		bdev = em->bdev;
 		block_start = em->block_start;
+		if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
+			block_start = EXTENT_MAP_HOLE;
 		free_extent_map(em);
 		em = NULL;
 
@@ -2769,14 +2771,18 @@ sector_t extent_bmap(struct address_space *mapping, sector_t iblock,
 	struct inode *inode = mapping->host;
 	u64 start = iblock << inode->i_blkbits;
 	sector_t sector = 0;
+	size_t blksize = (1 << inode->i_blkbits);
 	struct extent_map *em;
 
-	em = get_extent(inode, NULL, 0, start, (1 << inode->i_blkbits), 0);
+	lock_extent(&BTRFS_I(inode)->io_tree, start, start + blksize - 1,
+		    GFP_NOFS);
+	em = get_extent(inode, NULL, 0, start, blksize, 0);
+	unlock_extent(&BTRFS_I(inode)->io_tree, start, start + blksize - 1,
+		      GFP_NOFS);
 	if (!em || IS_ERR(em))
 		return 0;
 
-	if (em->block_start == EXTENT_MAP_INLINE ||
-	    em->block_start == EXTENT_MAP_HOLE)
+	if (em->block_start > EXTENT_MAP_LAST_BYTE)
 		goto out;
 
 	sector = (em->block_start + start - em->start) >> inode->i_blkbits;

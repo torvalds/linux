@@ -462,8 +462,9 @@ struct btrfs_root_item {
 	u8 level;
 } __attribute__ ((__packed__));
 
-#define BTRFS_FILE_EXTENT_REG 0
-#define BTRFS_FILE_EXTENT_INLINE 1
+#define BTRFS_FILE_EXTENT_INLINE 0
+#define BTRFS_FILE_EXTENT_REG 1
+#define BTRFS_FILE_EXTENT_PREALLOC 2
 
 struct btrfs_file_extent_item {
 	/*
@@ -868,6 +869,7 @@ struct btrfs_root {
 #define BTRFS_INODE_NODATACOW		(1 << 1)
 #define BTRFS_INODE_READONLY		(1 << 2)
 #define BTRFS_INODE_NOCOMPRESS		(1 << 3)
+#define BTRFS_INODE_PREALLOC		(1 << 4)
 #define btrfs_clear_flag(inode, flag)	(BTRFS_I(inode)->flags &= \
 					 ~BTRFS_INODE_##flag)
 #define btrfs_set_flag(inode, flag)	(BTRFS_I(inode)->flags |= \
@@ -1924,6 +1926,9 @@ extern struct file_operations btrfs_file_operations;
 int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct inode *inode,
 		       u64 start, u64 end, u64 inline_limit, u64 *hint_block);
+int btrfs_mark_extent_written(struct btrfs_trans_handle *trans,
+			      struct btrfs_root *root,
+			      struct inode *inode, u64 start, u64 end);
 int btrfs_release_file(struct inode *inode, struct file *file);
 
 /* tree-defrag.c */

@@ -442,7 +442,8 @@ insert:
 
 		fi = (struct btrfs_file_extent_item *)dst_ptr;
 		extent_type = btrfs_file_extent_type(path->nodes[0], fi);
-		if (extent_type == BTRFS_FILE_EXTENT_REG) {
+		if (extent_type == BTRFS_FILE_EXTENT_REG ||
+		    extent_type == BTRFS_FILE_EXTENT_PREALLOC) {
 			struct btrfs_key ins;
 			ins.objectid = btrfs_file_extent_disk_bytenr(
 							path->nodes[0], fi);
@@ -538,7 +539,8 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 	item = btrfs_item_ptr(eb, slot, struct btrfs_file_extent_item);
 	found_type = btrfs_file_extent_type(eb, item);
 
-	if (found_type == BTRFS_FILE_EXTENT_REG)
+	if (found_type == BTRFS_FILE_EXTENT_REG ||
+	    found_type == BTRFS_FILE_EXTENT_PREALLOC)
 		extent_end = start + btrfs_file_extent_num_bytes(eb, item);
 	else if (found_type == BTRFS_FILE_EXTENT_INLINE) {
 		size = btrfs_file_extent_inline_len(eb, item);
@@ -562,7 +564,9 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 	ret = btrfs_lookup_file_extent(trans, root, path, inode->i_ino,
 				       start, 0);
 
-	if (ret == 0 && found_type == BTRFS_FILE_EXTENT_REG) {
+	if (ret == 0 &&
+	    (found_type == BTRFS_FILE_EXTENT_REG ||
+	     found_type == BTRFS_FILE_EXTENT_PREALLOC)) {
 		struct btrfs_file_extent_item cmp1;
 		struct btrfs_file_extent_item cmp2;
 		struct btrfs_file_extent_item *existing;
@@ -2522,7 +2526,8 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 						struct btrfs_file_extent_item);
 
 			found_type = btrfs_file_extent_type(src, extent);
-			if (found_type == BTRFS_FILE_EXTENT_REG) {
+			if (found_type == BTRFS_FILE_EXTENT_REG ||
+			    found_type == BTRFS_FILE_EXTENT_PREALLOC) {
 				u64 ds = btrfs_file_extent_disk_bytenr(src,
 								   extent);
 				u64 dl = btrfs_file_extent_disk_num_bytes(src,

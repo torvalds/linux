@@ -381,7 +381,7 @@ int noinline btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	int keep;
 	int slot;
 	int bookend;
-	int found_type;
+	int found_type = 0;
 	int found_extent;
 	int found_inline;
 	int recow;
@@ -442,7 +442,8 @@ next_slot:
 								  extent);
 			other_encoding = btrfs_file_extent_other_encoding(leaf,
 								  extent);
-			if (found_type == BTRFS_FILE_EXTENT_REG) {
+			if (found_type == BTRFS_FILE_EXTENT_REG ||
+			    found_type == BTRFS_FILE_EXTENT_PREALLOC) {
 				extent_end =
 				     btrfs_file_extent_disk_bytenr(leaf,
 								   extent);
@@ -609,8 +610,7 @@ next_slot:
 			 */
 			btrfs_set_file_extent_ram_bytes(leaf, extent,
 							ram_bytes);
-			btrfs_set_file_extent_type(leaf, extent,
-						   BTRFS_FILE_EXTENT_REG);
+			btrfs_set_file_extent_type(leaf, extent, found_type);
 
 			btrfs_mark_buffer_dirty(path->nodes[0]);
 
@@ -659,6 +659,243 @@ out:
 	}
 	btrfs_check_file(root, inode);
 	return ret;
+}
+
+static int extent_mergeable(struct extent_buffer *leaf, int slot,
+			    u64 objectid, u64 bytenr, u64 *start, u64 *end)
+{
+	struct btrfs_file_extent_item *fi;
+	struct btrfs_key key;
+	u64 extent_end;
+
+	if (slot < 0 || slot >= btrfs_header_nritems(leaf))
+		return 0;
+
+	btrfs_item_key_to_cpu(leaf, &key, slot);
+	if (key.objectid != objectid || key.type != BTRFS_EXTENT_DATA_KEY)
+		return 0;
+
+	fi = btrfs_item_ptr(leaf, slot, struct btrfs_file_extent_item);
+	if (btrfs_file_extent_type(leaf, fi) != BTRFS_FILE_EXTENT_REG ||
+	    btrfs_file_extent_disk_bytenr(leaf, fi) != bytenr ||
+	    btrfs_file_extent_compression(leaf, fi) ||
+	    btrfs_file_extent_encryption(leaf, fi) ||
+	    btrfs_file_extent_other_encoding(leaf, fi))
+		return 0;
+
+	extent_end = key.offset + btrfs_file_extent_num_bytes(leaf, fi);
+	if ((*start && *start != key.offset) || (*end && *end != extent_end))
+		return 0;
+
+	*start = key.offset;
+	*end = extent_end;
+	return 1;
+}
+
+/*
+ * Mark extent in the range start - end as written.
+ *
+ * This changes extent type from 'pre-allocated' to 'regular'. If only
+ * part of extent is marked as written, the extent will be split into
+ * two or three.
+ */
+int btrfs_mark_extent_written(struct btrfs_trans_handle *trans,
+			      struct btrfs_root *root,
+			      struct inode *inode, u64 start, u64 end)
+{
+	struct extent_buffer *leaf;
+	struct btrfs_path *path;
+	struct btrfs_file_extent_item *fi;
+	struct btrfs_key key;
+	u64 bytenr;
+	u64 num_bytes;
+	u64 extent_end;
+	u64 extent_offset;
+	u64 other_start;
+	u64 other_end;
+	u64 split = start;
+	u64 locked_end = end;
+	int extent_type;
+	int split_end = 1;
+	int ret;
+
+	btrfs_drop_extent_cache(inode, start, end - 1, 0);
+
+	path = btrfs_alloc_path();
+	BUG_ON(!path);
+again:
+	key.objectid = inode->i_ino;
+	key.type = BTRFS_EXTENT_DATA_KEY;
+	if (split == start)
+		key.offset = split;
+	else
+		key.offset = split - 1;
+
+	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
+	if (ret > 0 && path->slots[0] > 0)
+		path->slots[0]--;
+
+	leaf = path->nodes[0];
+	btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
+	BUG_ON(key.objectid != inode->i_ino ||
+	       key.type != BTRFS_EXTENT_DATA_KEY);
+	fi = btrfs_item_ptr(leaf, path->slots[0],
+			    struct btrfs_file_extent_item);
+	extent_type = btrfs_file_extent_type(leaf, fi);
+	BUG_ON(extent_type != BTRFS_FILE_EXTENT_PREALLOC);
+	extent_end = key.offset + btrfs_file_extent_num_bytes(leaf, fi);
+	BUG_ON(key.offset > start || extent_end < end);
+
+	bytenr = btrfs_file_extent_disk_bytenr(leaf, fi);
+	num_bytes = btrfs_file_extent_disk_num_bytes(leaf, fi);
+	extent_offset = btrfs_file_extent_offset(leaf, fi);
+
+	if (key.offset == start)
+		split = end;
+
+	if (key.offset == start && extent_end == end) {
+		int del_nr = 0;
+		int del_slot = 0;
+		u64 leaf_owner = btrfs_header_owner(leaf);
+		u64 leaf_gen = btrfs_header_generation(leaf);
+		other_start = end;
+		other_end = 0;
+		if (extent_mergeable(leaf, path->slots[0] + 1, inode->i_ino,
+				     bytenr, &other_start, &other_end)) {
+			extent_end = other_end;
+			del_slot = path->slots[0] + 1;
+			del_nr++;
+			ret = btrfs_free_extent(trans, root, bytenr, num_bytes,
+						leaf->start, leaf_owner,
+						leaf_gen, inode->i_ino, 0);
+			BUG_ON(ret);
+		}
+		other_start = 0;
+		other_end = start;
+		if (extent_mergeable(leaf, path->slots[0] - 1, inode->i_ino,
+				     bytenr, &other_start, &other_end)) {
+			key.offset = other_start;
+			del_slot = path->slots[0];
+			del_nr++;
+			ret = btrfs_free_extent(trans, root, bytenr, num_bytes,
+						leaf->start, leaf_owner,
+						leaf_gen, inode->i_ino, 0);
+			BUG_ON(ret);
+		}
+		split_end = 0;
+		if (del_nr == 0) {
+			btrfs_set_file_extent_type(leaf, fi,
+						   BTRFS_FILE_EXTENT_REG);
+			goto done;
+		}
+
+		fi = btrfs_item_ptr(leaf, del_slot - 1,
+				    struct btrfs_file_extent_item);
+		btrfs_set_file_extent_type(leaf, fi, BTRFS_FILE_EXTENT_REG);
+		btrfs_set_file_extent_num_bytes(leaf, fi,
+						extent_end - key.offset);
+		btrfs_mark_buffer_dirty(leaf);
+
+		ret = btrfs_del_items(trans, root, path, del_slot, del_nr);
+		BUG_ON(ret);
+		goto done;
+	} else if (split == start) {
+		if (locked_end < extent_end) {
+			ret = try_lock_extent(&BTRFS_I(inode)->io_tree,
+					locked_end, extent_end - 1, GFP_NOFS);
+			if (!ret) {
+				btrfs_release_path(root, path);
+				lock_extent(&BTRFS_I(inode)->io_tree,
+					locked_end, extent_end - 1, GFP_NOFS);
+				locked_end = extent_end;
+				goto again;
+			}
+			locked_end = extent_end;
+		}
+		btrfs_set_file_extent_num_bytes(leaf, fi, split - key.offset);
+		extent_offset += split - key.offset;
+	} else  {
+		BUG_ON(key.offset != start);
+		btrfs_set_file_extent_offset(leaf, fi, extent_offset +
+					     split - key.offset);
+		btrfs_set_file_extent_num_bytes(leaf, fi, extent_end - split);
+		key.offset = split;
+		btrfs_set_item_key_safe(trans, root, path, &key);
+		extent_end = split;
+	}
+
+	if (extent_end == end) {
+		split_end = 0;
+		extent_type = BTRFS_FILE_EXTENT_REG;
+	}
+	if (extent_end == end && split == start) {
+		other_start = end;
+		other_end = 0;
+		if (extent_mergeable(leaf, path->slots[0] + 1, inode->i_ino,
+				     bytenr, &other_start, &other_end)) {
+			path->slots[0]++;
+			fi = btrfs_item_ptr(leaf, path->slots[0],
+					    struct btrfs_file_extent_item);
+			key.offset = split;
+			btrfs_set_item_key_safe(trans, root, path, &key);
+			btrfs_set_file_extent_offset(leaf, fi, extent_offset);
+			btrfs_set_file_extent_num_bytes(leaf, fi,
+							other_end - split);
+			goto done;
+		}
+	}
+	if (extent_end == end && split == end) {
+		other_start = 0;
+		other_end = start;
+		if (extent_mergeable(leaf, path->slots[0] - 1 , inode->i_ino,
+				     bytenr, &other_start, &other_end)) {
+			path->slots[0]--;
+			fi = btrfs_item_ptr(leaf, path->slots[0],
+					    struct btrfs_file_extent_item);
+			btrfs_set_file_extent_num_bytes(leaf, fi, extent_end -
+							other_start);
+			goto done;
+		}
+	}
+
+	btrfs_mark_buffer_dirty(leaf);
+	btrfs_release_path(root, path);
+
+	key.offset = start;
+	ret = btrfs_insert_empty_item(trans, root, path, &key, sizeof(*fi));
+	BUG_ON(ret);
+
+	leaf = path->nodes[0];
+	fi = btrfs_item_ptr(leaf, path->slots[0],
+			    struct btrfs_file_extent_item);
+	btrfs_set_file_extent_generation(leaf, fi, trans->transid);
+	btrfs_set_file_extent_type(leaf, fi, extent_type);
+	btrfs_set_file_extent_disk_bytenr(leaf, fi, bytenr);
+	btrfs_set_file_extent_disk_num_bytes(leaf, fi, num_bytes);
+	btrfs_set_file_extent_offset(leaf, fi, extent_offset);
+	btrfs_set_file_extent_num_bytes(leaf, fi, extent_end - key.offset);
+	btrfs_set_file_extent_ram_bytes(leaf, fi, num_bytes);
+	btrfs_set_file_extent_compression(leaf, fi, 0);
+	btrfs_set_file_extent_encryption(leaf, fi, 0);
+	btrfs_set_file_extent_other_encoding(leaf, fi, 0);
+
+	ret = btrfs_inc_extent_ref(trans, root, bytenr, num_bytes,
+				   leaf->start, root->root_key.objectid,
+				   trans->transid, inode->i_ino);
+	BUG_ON(ret);
+done:
+	btrfs_mark_buffer_dirty(leaf);
+	btrfs_release_path(root, path);
+	if (split_end && split == start) {
+		split = end;
+		goto again;
+	}
+	if (locked_end > end) {
+		unlock_extent(&BTRFS_I(inode)->io_tree, end, locked_end - 1,
+			      GFP_NOFS);
+	}
+	btrfs_free_path(path);
+	return 0;
 }
 
 /*

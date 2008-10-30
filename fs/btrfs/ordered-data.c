@@ -182,7 +182,7 @@ int btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 	entry->len = len;
 	entry->disk_len = disk_len;
 	entry->inode = inode;
-	if (type == BTRFS_ORDERED_NOCOW || type == BTRFS_ORDERED_COMPRESSED)
+	if (type != BTRFS_ORDERED_IO_DONE && type != BTRFS_ORDERED_COMPLETE)
 		set_bit(type, &entry->flags);
 
 	/* one ref for the tree */
@@ -339,7 +339,8 @@ int btrfs_wait_ordered_extents(struct btrfs_root *root, int nocow_only)
 		ordered = list_entry(cur, struct btrfs_ordered_extent,
 				     root_extent_list);
 		if (nocow_only &&
-		    !test_bit(BTRFS_ORDERED_NOCOW, &ordered->flags)) {
+		    !test_bit(BTRFS_ORDERED_NOCOW, &ordered->flags) &&
+		    !test_bit(BTRFS_ORDERED_PREALLOC, &ordered->flags)) {
 			list_move(&ordered->root_extent_list,
 				  &root->fs_info->ordered_extents);
 			cond_resched_lock(&root->fs_info->ordered_extent_lock);

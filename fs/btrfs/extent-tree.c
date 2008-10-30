@@ -2147,6 +2147,9 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 	total_needed += empty_size;
 
 	block_group = btrfs_lookup_block_group(root->fs_info, search_start);
+	if (!block_group)
+		block_group = btrfs_lookup_first_block_group(root->fs_info,
+							     search_start);
 	space_info = __find_space_info(root->fs_info, data);
 
 	down_read(&space_info->groups_sem);
@@ -3426,9 +3429,7 @@ walk_down:
 next:
 		level--;
 		btrfs_release_path(extent_root, path);
-		if (need_resched()) {
-			cond_resched();
-		}
+		cond_resched();
 	}
 	/* reached lowest level */
 	ret = 1;
@@ -3539,9 +3540,7 @@ found:
 		}
 
 		btrfs_release_path(extent_root, path);
-		if (need_resched()) {
-			cond_resched();
-		}
+		cond_resched();
 	}
 	/* reached max tree level, but no tree root found. */
 	BUG();
@@ -3654,8 +3653,9 @@ static int noinline get_new_locations(struct inode *reloc_inode,
 		exts[nr].encryption = btrfs_file_extent_encryption(leaf, fi);
 		exts[nr].other_encoding = btrfs_file_extent_other_encoding(leaf,
 									   fi);
-		WARN_ON(exts[nr].offset > 0);
-		WARN_ON(exts[nr].num_bytes != exts[nr].disk_num_bytes);
+		BUG_ON(exts[nr].offset > 0);
+		BUG_ON(exts[nr].compression || exts[nr].encryption);
+		BUG_ON(exts[nr].num_bytes != exts[nr].disk_num_bytes);
 
 		cur_pos += exts[nr].num_bytes;
 		nr++;
@@ -3709,6 +3709,7 @@ static int noinline replace_one_extent(struct btrfs_trans_handle *trans,
 	u32 nritems;
 	int nr_scaned = 0;
 	int extent_locked = 0;
+	int extent_type;
 	int ret;
 
 	memcpy(&key, leaf_key, sizeof(key));
@@ -3781,8 +3782,9 @@ next:
 		}
 		fi = btrfs_item_ptr(leaf, path->slots[0],
 				    struct btrfs_file_extent_item);
-		if ((btrfs_file_extent_type(leaf, fi) !=
-		     BTRFS_FILE_EXTENT_REG) ||
+		extent_type = btrfs_file_extent_type(leaf, fi);
+		if ((extent_type != BTRFS_FILE_EXTENT_REG &&
+		     extent_type != BTRFS_FILE_EXTENT_PREALLOC) ||
 		    (btrfs_file_extent_disk_bytenr(leaf, fi) !=
 		     extent_key->objectid)) {
 			path->slots[0]++;
@@ -3865,16 +3867,10 @@ next:
 
 		if (nr_extents == 1) {
 			/* update extent pointer in place */
-			btrfs_set_file_extent_generation(leaf, fi,
-						trans->transid);
 			btrfs_set_file_extent_disk_bytenr(leaf, fi,
 						new_extents[0].disk_bytenr);
 			btrfs_set_file_extent_disk_num_bytes(leaf, fi,
 						new_extents[0].disk_num_bytes);
-			btrfs_set_file_extent_ram_bytes(leaf, fi,
-						new_extents[0].ram_bytes);
-			ext_offset += new_extents[0].offset;
-			btrfs_set_file_extent_offset(leaf, fi, ext_offset);
 			btrfs_mark_buffer_dirty(leaf);
 
 			btrfs_drop_extent_cache(inode, key.offset,
@@ -3901,6 +3897,8 @@ next:
 			btrfs_release_path(root, path);
 			key.offset += num_bytes;
 		} else {
+			BUG_ON(1);
+#if 0
 			u64 alloc_hint;
 			u64 extent_len;
 			int i;
@@ -3977,6 +3975,7 @@ next:
 					break;
 			}
 			BUG_ON(i >= nr_extents);
+#endif
 		}
 
 		if (extent_locked) {
@@ -4156,15 +4155,10 @@ static int noinline replace_extents_in_leaf(struct btrfs_trans_handle *trans,
 		ref->extents[ext_index].bytenr = new_extent->disk_bytenr;
 		ref->extents[ext_index].num_bytes = new_extent->disk_num_bytes;
 
-		btrfs_set_file_extent_generation(leaf, fi, trans->transid);
-		btrfs_set_file_extent_ram_bytes(leaf, fi,
-						new_extent->ram_bytes);
 		btrfs_set_file_extent_disk_bytenr(leaf, fi,
 						new_extent->disk_bytenr);
 		btrfs_set_file_extent_disk_num_bytes(leaf, fi,
 						new_extent->disk_num_bytes);
-		new_extent->offset += btrfs_file_extent_offset(leaf, fi);
-		btrfs_set_file_extent_offset(leaf, fi, new_extent->offset);
 		btrfs_mark_buffer_dirty(leaf);
 
 		ret = btrfs_inc_extent_ref(trans, root,
@@ -4625,12 +4619,15 @@ static int noinline relocate_one_extent(struct btrfs_root *extent_root,
 			 */
 			if (!new_extents) {
 				u64 group_start = group->key.objectid;
+				new_extents = kmalloc(sizeof(*new_extents),
+						      GFP_NOFS);
+				nr_extents = 1;
 				ret = get_new_locations(reloc_inode,
 							extent_key,
-							group_start, 0,
+							group_start, 1,
 							&new_extents,
 							&nr_extents);
-				if (ret < 0)
+				if (ret)
 					goto out;
 			}
 			btrfs_record_root_in_trans(found_root);
@@ -4762,7 +4759,8 @@ static int __insert_orphan_inode(struct btrfs_trans_handle *trans,
 	btrfs_set_inode_generation(leaf, item, 1);
 	btrfs_set_inode_size(leaf, item, size);
 	btrfs_set_inode_mode(leaf, item, S_IFREG | 0600);
-	btrfs_set_inode_flags(leaf, item, BTRFS_INODE_NODATASUM);
+	btrfs_set_inode_flags(leaf, item, BTRFS_INODE_NODATASUM |
+					  BTRFS_INODE_NOCOMPRESS);
 	btrfs_mark_buffer_dirty(leaf);
 	btrfs_release_path(root, path);
 out:
@@ -4835,6 +4833,7 @@ int btrfs_relocate_block_group(struct btrfs_root *root, u64 group_start)
 	struct inode *reloc_inode;
 	struct btrfs_block_group_cache *block_group;
 	struct btrfs_key key;
+	u64 skipped;
 	u64 cur_byte;
 	u64 total_found;
 	u32 nritems;
@@ -4864,6 +4863,7 @@ int btrfs_relocate_block_group(struct btrfs_root *root, u64 group_start)
 	btrfs_start_delalloc_inodes(info->tree_root);
 	btrfs_wait_ordered_extents(info->tree_root, 0);
 again:
+	skipped = 0;
 	total_found = 0;
 	progress = 0;
 	key.objectid = block_group->key.objectid;
@@ -4926,6 +4926,8 @@ next:
 		ret = relocate_one_extent(root, path, &key, block_group,
 					  reloc_inode, pass);
 		BUG_ON(ret < 0);
+		if (ret > 0)
+			skipped++;
 
 		key.objectid = cur_byte;
 		key.type = 0;
@@ -4944,6 +4946,11 @@ next:
 		printk("btrfs found %llu extents in pass %d\n",
 		       (unsigned long long)total_found, pass);
 		pass++;
+		if (total_found == skipped && pass > 2) {
+			iput(reloc_inode);
+			reloc_inode = create_reloc_inode(info, block_group);
+			pass = 0;
+		}
 		goto again;
 	}
 
@@ -5011,17 +5018,17 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 	while ((n = rb_last(&info->block_group_cache_tree)) != NULL) {
 		block_group = rb_entry(n, struct btrfs_block_group_cache,
 				       cache_node);
-
-		spin_unlock(&info->block_group_cache_lock);
-		btrfs_remove_free_space_cache(block_group);
-		spin_lock(&info->block_group_cache_lock);
-
 		rb_erase(&block_group->cache_node,
 			 &info->block_group_cache_tree);
+		spin_unlock(&info->block_group_cache_lock);
+
+		btrfs_remove_free_space_cache(block_group);
 		down_write(&block_group->space_info->groups_sem);
 		list_del(&block_group->list);
 		up_write(&block_group->space_info->groups_sem);
 		kfree(block_group);
+
+		spin_lock(&info->block_group_cache_lock);
 	}
 	spin_unlock(&info->block_group_cache_lock);
 	return 0;
