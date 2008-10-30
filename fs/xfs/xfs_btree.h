@@ -340,16 +340,6 @@ xfs_btree_check_lblock(
 	struct xfs_buf		*bp);	/* buffer containing block, if any */
 
 /*
- * Check that short form block header is ok.
- */
-int					/* error (0 or EFSCORRUPTED) */
-xfs_btree_check_sblock(
-	struct xfs_btree_cur	*cur,	/* btree cursor */
-	struct xfs_btree_sblock	*block,	/* btree short form block pointer */
-	int			level,	/* level of the btree block */
-	struct xfs_buf		*bp);	/* buffer containing block */
-
-/*
  * Check that block header is ok.
  */
 int
@@ -368,29 +358,6 @@ xfs_btree_check_lptr(
 	xfs_dfsbno_t		ptr,	/* btree block disk address */
 	int			level);	/* btree block level */
 
-#define xfs_btree_check_lptr_disk(cur, ptr, level) \
-	xfs_btree_check_lptr(cur, be64_to_cpu(ptr), level)
-
-
-/*
- * Check that (short) pointer is ok.
- */
-int					/* error (0 or EFSCORRUPTED) */
-xfs_btree_check_sptr(
-	struct xfs_btree_cur	*cur,	/* btree cursor */
-	xfs_agblock_t		ptr,	/* btree block disk address */
-	int			level);	/* btree block level */
-
-/*
- * Check that (short) pointer is ok.
- */
-int					/* error (0 or EFSCORRUPTED) */
-xfs_btree_check_ptr(
-	struct xfs_btree_cur	*cur,	/* btree cursor */
-	union xfs_btree_ptr	*ptr,	/* btree block disk address */
-	int			index,	/* offset from ptr to check */
-	int			level);	/* btree block level */
-
 /*
  * Delete the btree cursor.
  */
@@ -407,15 +374,6 @@ int					/* error */
 xfs_btree_dup_cursor(
 	xfs_btree_cur_t		*cur,	/* input cursor */
 	xfs_btree_cur_t		**ncur);/* output cursor */
-
-/*
- * Change the cursor to point to the first record in the current block
- * at the given level.  Other levels are unaffected.
- */
-int					/* success=1, failure=0 */
-xfs_btree_firstrec(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	int			level);	/* level to change */
 
 /*
  * Get a buffer for the block, return it with no data read.
@@ -447,15 +405,6 @@ int					/* 1=is last block, 0=not last block */
 xfs_btree_islastblock(
 	xfs_btree_cur_t		*cur,	/* btree cursor */
 	int			level);	/* level to check */
-
-/*
- * Change the cursor to point to the last record in the current block
- * at the given level.  Other levels are unaffected.
- */
-int					/* success=1, failure=0 */
-xfs_btree_lastrec(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	int			level);	/* level to change */
 
 /*
  * Compute first and last byte offsets for the fields given.
@@ -518,16 +467,6 @@ xfs_btree_reada_bufs(
 	xfs_extlen_t		count);	/* count of filesystem blocks */
 
 /*
- * Read-ahead btree blocks, at the given level.
- * Bits in lr are set from XFS_BTCUR_{LEFT,RIGHT}RA.
- */
-int					/* readahead block count */
-xfs_btree_readahead(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	int			lev,	/* level in btree */
-	int			lr);	/* left/right bits */
-
-/*
  * Set the buffer for level "lev" in the cursor to bp, releasing
  * any previous buffer.
  */
@@ -544,13 +483,7 @@ xfs_btree_setbuf(
 int xfs_btree_increment(struct xfs_btree_cur *, int, int *);
 int xfs_btree_decrement(struct xfs_btree_cur *, int, int *);
 int xfs_btree_lookup(struct xfs_btree_cur *, xfs_lookup_t, int *);
-int xfs_btree_updkey(struct xfs_btree_cur *, union xfs_btree_key *, int);
 int xfs_btree_update(struct xfs_btree_cur *, union xfs_btree_rec *);
-int xfs_btree_lshift(struct xfs_btree_cur *, int, int *);
-int xfs_btree_rshift(struct xfs_btree_cur *, int, int *);
-int xfs_btree_split(struct xfs_btree_cur *, int, union xfs_btree_ptr *,
-		union xfs_btree_key *, struct xfs_btree_cur **, int *);
-int xfs_btree_new_root(struct xfs_btree_cur *, int *);
 int xfs_btree_new_iroot(struct xfs_btree_cur *, int *, int *);
 int xfs_btree_kill_iroot(struct xfs_btree_cur *);
 int xfs_btree_insert(struct xfs_btree_cur *, int *);

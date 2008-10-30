@@ -87,7 +87,7 @@ xfs_btree_check_lblock(
 	return 0;
 }
 
-int					/* error (0 or EFSCORRUPTED) */
+STATIC int				/* error (0 or EFSCORRUPTED) */
 xfs_btree_check_sblock(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
 	struct xfs_btree_sblock	*block,	/* btree short form block pointer */
@@ -163,7 +163,7 @@ xfs_btree_check_lptr(
 /*
  * Check that (short) pointer is ok.
  */
-int					/* error (0 or EFSCORRUPTED) */
+STATIC int				/* error (0 or EFSCORRUPTED) */
 xfs_btree_check_sptr(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
 	xfs_agblock_t		bno,	/* btree block disk address */
@@ -182,7 +182,7 @@ xfs_btree_check_sptr(
 /*
  * Check that block ptr is ok.
  */
-int					/* error (0 or EFSCORRUPTED) */
+STATIC int				/* error (0 or EFSCORRUPTED) */
 xfs_btree_check_ptr(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
 	union xfs_btree_ptr	*ptr,	/* btree block disk address */
@@ -523,7 +523,7 @@ xfs_btree_islastblock(
  * Change the cursor to point to the first record at the given level.
  * Other levels are unaffected.
  */
-int					/* success=1, failure=0 */
+STATIC int				/* success=1, failure=0 */
 xfs_btree_firstrec(
 	xfs_btree_cur_t		*cur,	/* btree cursor */
 	int			level)	/* level to change */
@@ -552,7 +552,7 @@ xfs_btree_firstrec(
  * Change the cursor to point to the last record in the current block
  * at the given level.  Other levels are unaffected.
  */
-int					/* success=1, failure=0 */
+STATIC int				/* success=1, failure=0 */
 xfs_btree_lastrec(
 	xfs_btree_cur_t		*cur,	/* btree cursor */
 	int			level)	/* level to change */
@@ -775,7 +775,7 @@ xfs_btree_readahead_sblock(
  * Read-ahead btree blocks, at the given level.
  * Bits in lr are set from XFS_BTCUR_{LEFT,RIGHT}RA.
  */
-int
+STATIC int
 xfs_btree_readahead(
 	struct xfs_btree_cur	*cur,		/* btree cursor */
 	int			lev,		/* level in btree */
@@ -1711,7 +1711,7 @@ error0:
 /*
  * Update keys at all levels from here to the root along the cursor's path.
  */
-int
+STATIC int
 xfs_btree_updkey(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_key	*keyp,
@@ -1821,7 +1821,7 @@ error0:
  * Move 1 record left from cur/level if possible.
  * Update cur to reflect the new path.
  */
-int					/* error */
+STATIC int					/* error */
 xfs_btree_lshift(
 	struct xfs_btree_cur	*cur,
 	int			level,
@@ -2004,7 +2004,7 @@ error0:
  * Move 1 record right from cur/level if possible.
  * Update cur to reflect the new path.
  */
-int					/* error */
+STATIC int					/* error */
 xfs_btree_rshift(
 	struct xfs_btree_cur	*cur,
 	int			level,
@@ -2180,7 +2180,7 @@ error1:
  * Return new block number and the key to its first
  * record (to be inserted into parent).
  */
-int						/* error */
+STATIC int					/* error */
 xfs_btree_split(
 	struct xfs_btree_cur	*cur,
 	int			level,
@@ -2465,7 +2465,7 @@ error0:
 /*
  * Allocate a new root block, fill it in.
  */
-int				/* error */
+STATIC int				/* error */
 xfs_btree_new_root(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
 	int			*stat)	/* success/failure */
