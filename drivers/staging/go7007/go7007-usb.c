@@ -398,6 +398,41 @@ static struct go7007_usb_board board_adlink_mpg24 = {
 	},
 };
 
+static struct go7007_usb_board board_sensoray_2250 = {
+	.flags		= GO7007_USB_EZUSB | GO7007_USB_EZUSB_I2C,
+	.main_info	= {
+		.firmware	 = "go7007tv.bin",
+		.audio_flags	 = GO7007_AUDIO_I2S_MODE_1 |
+					GO7007_AUDIO_I2S_MASTER |
+					GO7007_AUDIO_WORD_16,
+		.flags		 = GO7007_BOARD_HAS_AUDIO,
+		.audio_rate	 = 48000,
+		.audio_bclk_div	 = 8,
+		.audio_main_div	 = 2,
+		.hpi_buffer_cap  = 7,
+		.sensor_flags	 = GO7007_SENSOR_656 |
+					GO7007_SENSOR_TV,
+		.num_i2c_devs	 = 1,
+		.i2c_devs	 = {
+			{
+				.id	= I2C_DRIVERID_S2250,
+				.addr	= 0x34,
+			},
+		},
+		.num_inputs	 = 2,
+		.inputs 	 = {
+			{
+				.video_input	= 0,
+				.name		= "Composite",
+			},
+			{
+				.video_input	= 1,
+				.name		= "S-Video",
+			},
+		},
+	},
+};
+
 static struct usb_device_id go7007_usb_id_table[] = {
 	{
 		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION |
@@ -490,6 +525,14 @@ static struct usb_device_id go7007_usb_id_table[] = {
 		.bcdDevice_lo	= 0x1,
 		.bcdDevice_hi	= 0x1,
 		.driver_info	= (kernel_ulong_t)GO7007_BOARDID_LIFEVIEW_LR192,
+	},
+	{
+		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION,
+		.idVendor	= 0x1943,  /* Vendor ID Sensoray */
+		.idProduct	= 0x2250,  /* Product ID of 2250/2251 */
+		.bcdDevice_lo	= 0x1,
+		.bcdDevice_hi	= 0x1,
+		.driver_info	= (kernel_ulong_t)GO7007_BOARDID_SENSORAY_2250,
 	},
 	{ }					/* Terminating entry */
 };
@@ -964,6 +1007,11 @@ static int go7007_usb_probe(struct usb_interface *intf,
 		return 0;
 		name = "Lifeview TV Walker Ultra";
 		board = &board_lifeview_lr192;
+		break;
+	case GO7007_BOARDID_SENSORAY_2250:
+		printk(KERN_INFO "Sensoray 2250 found\n");
+		name = "Sensoray 2250/2251\n";
+		board = &board_sensoray_2250;
 		break;
 	default:
 		printk(KERN_ERR "go7007-usb: unknown board ID %d!\n",

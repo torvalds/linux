@@ -217,6 +217,9 @@ static int init_i2c_module(struct i2c_adapter *adapter, int id, int addr)
 	case I2C_DRIVERID_WIS_OV7640:
 		modname = "wis-ov7640";
 		break;
+	case I2C_DRIVERID_S2250:
+		modname = "s2250-board";
+		break;
 	default:
 		modname = NULL;
 		break;
