@@ -1031,13 +1031,13 @@ xfs_qm_dqrele_inodes_ag(
 	uint		flags)
 {
 	xfs_inode_t	*ip = NULL;
-	struct inode	*vp = NULL;
 	xfs_perag_t	*pag = &mp->m_perag[ag];
 	int		first_index = 0;
 	int		nr_found;
 
 	do {
-		boolean_t	vnode_refd = B_FALSE;
+		boolean_t	inode_refed;
+		struct inode	*inode;
 
 		/*
 		 * use a gang lookup to find the next inode in the tree
@@ -1057,19 +1057,19 @@ xfs_qm_dqrele_inodes_ag(
 		first_index = XFS_INO_TO_AGINO(mp, ip->i_ino + 1);
 
 		/* skip quota inodes and those in reclaim */
-		vp = VFS_I(ip);
-		if (!vp || ip == XFS_QI_UQIP(mp) || ip == XFS_QI_GQIP(mp)) {
+		inode = VFS_I(ip);
+		if (!inode || ip == XFS_QI_UQIP(mp) || ip == XFS_QI_GQIP(mp)) {
 			ASSERT(ip->i_udquot == NULL);
 			ASSERT(ip->i_gdquot == NULL);
 			read_unlock(&pag->pag_ici_lock);
 			continue;
 		}
 		if (xfs_ilock_nowait(ip, XFS_ILOCK_EXCL) == 0) {
-			vp = vn_grab(vp);
+			inode = igrab(inode);
 			read_unlock(&pag->pag_ici_lock);
-			if (!vp)
+			if (!inode)
 				continue;
-			vnode_refd = B_TRUE;
+			inode_refed = B_TRUE;
 			xfs_ilock(ip, XFS_ILOCK_EXCL);
 		} else {
 			read_unlock(&pag->pag_ici_lock);
@@ -1084,7 +1084,7 @@ xfs_qm_dqrele_inodes_ag(
 			ip->i_gdquot = NULL;
 		}
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		if (vnode_refd)
+		if (inode_refed)
 			IRELE(ip);
 	} while (nr_found);
 }

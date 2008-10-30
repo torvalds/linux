@@ -90,10 +90,10 @@ vn_ioerror(
  */
 static inline int xfs_icount(struct xfs_inode *ip)
 {
-	struct inode *vp = VFS_I(ip);
+	struct inode *inode = VFS_I(ip);
 
-	if (vp)
-		return vn_count(vp);
+	if (!inode)
+		return atomic_read(&inode->i_count);
 	return -1;
 }
 
