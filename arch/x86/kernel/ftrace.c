@@ -91,6 +91,19 @@ static int mod_code_write;
 static void *mod_code_ip;
 static void *mod_code_newcode;
 
+static int nmi_wait_count;
+static atomic_t nmi_update_count;
+
+int ftrace_arch_read_dyn_info(char *buf, int size)
+{
+	int r;
+
+	r = snprintf(buf, size, "%u %u",
+		     nmi_wait_count,
+		     atomic_read(&nmi_update_count));
+	return r;
+}
+
 static void ftrace_mod_code(void)
 {
 	/*
@@ -109,8 +122,10 @@ void ftrace_nmi_enter(void)
 	atomic_inc(&in_nmi);
 	/* Must have in_nmi seen before reading write flag */
 	smp_mb();
-	if (mod_code_write)
+	if (mod_code_write) {
 		ftrace_mod_code();
+		atomic_inc(&nmi_update_count);
+	}
 }
 
 void ftrace_nmi_exit(void)
@@ -122,8 +137,15 @@ void ftrace_nmi_exit(void)
 
 static void wait_for_nmi(void)
 {
-	while (atomic_read(&in_nmi))
+	int waited = 0;
+
+	while (atomic_read(&in_nmi)) {
+		waited = 1;
 		cpu_relax();
+	}
+
+	if (waited)
+		nmi_wait_count++;
 }
 
 static int
