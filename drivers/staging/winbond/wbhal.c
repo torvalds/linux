@@ -223,8 +223,8 @@ static void hal_led_control(unsigned long data)
 				else
 				{
 					// Is transmitting/receiving ??
-					if( (OS_CURRENT_RX_BYTE( adapter ) != pHwData->RxByteCountLast ) ||
-						(OS_CURRENT_TX_BYTE( adapter ) != pHwData->TxByteCountLast ) )
+					if( (adapter->RxByteCount != pHwData->RxByteCountLast ) ||
+						(adapter->TxByteCount != pHwData->TxByteCountLast ) )
 					{
 						if( (reg->U1BC_LEDConfigure & 0x3000) != 0x3000 )
 						{
@@ -233,8 +233,8 @@ static void hal_led_control(unsigned long data)
 						}
 
 						// Update variable
-						pHwData->RxByteCountLast = OS_CURRENT_RX_BYTE( adapter );
-						pHwData->TxByteCountLast = OS_CURRENT_TX_BYTE( adapter );
+						pHwData->RxByteCountLast = adapter->RxByteCount;
+						pHwData->TxByteCountLast = adapter->TxByteCount;
 						TimeInterval = 200;
 					}
 					else
@@ -849,7 +849,7 @@ void hal_surprise_remove(struct wb35_adapter *adapter)
 		#ifdef _PE_STATE_DUMP_
 		WBDEBUG(("Calling hal_surprise_remove\n"));
 		#endif
-		OS_STOP( adapter );
+		WBLINUX_stop( adapter );
 	}
 }
 

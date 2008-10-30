@@ -23,8 +23,5 @@
 #define WBDEBUG( _M )	0
 #endif
 
-#define OS_EVENT_INDICATE( _A, _B, _F )
-#define OS_PMKID_STATUS_EVENT( _A )
-
 #endif // COMMON_DEF
 

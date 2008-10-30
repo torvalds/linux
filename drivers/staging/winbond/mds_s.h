@@ -14,7 +14,6 @@
 #define MAX_USB_TX_BUFFER_NUMBER	4		// Virtual pre-buffer number of MAX_USB_TX_BUFFER
 #define MAX_USB_TX_BUFFER			4096	// IS89C35 ability 4n alignment is required for hardware
 
-#define MDS_EVENT_INDICATE( _A, _B, _F )	OS_EVENT_INDICATE( _A, _B, _F )
 #define AUTH_REQUEST_PAIRWISE_ERROR			0		// _F flag setting
 #define AUTH_REQUEST_GROUP_ERROR			1		// _F flag setting
 
