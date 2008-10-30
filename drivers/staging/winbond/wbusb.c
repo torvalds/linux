@@ -391,35 +391,6 @@ error:
 	return err;
 }
 
-void packet_came(struct ieee80211_hw *hw, char *pRxBufferAddress, int PacketSize)
-{
-	struct wbsoft_priv *priv = hw->priv;
-	struct sk_buff *skb;
-	struct ieee80211_rx_status rx_status = {0};
-
-	if (!priv->enabled)
-		return;
-
-	skb = dev_alloc_skb(PacketSize);
-	if (!skb) {
-		printk("Not enough memory for packet, FIXME\n");
-		return;
-	}
-
-	memcpy(skb_put(skb, PacketSize),
-	       pRxBufferAddress,
-	       PacketSize);
-
-/*
-	rx_status.rate = 10;
-	rx_status.channel = 1;
-	rx_status.freq = 12345;
-	rx_status.phymode = MODE_IEEE80211B;
-*/
-
-	ieee80211_rx_irqsafe(hw, skb, &rx_status);
-}
-
 static void wb35_hw_halt(struct wbsoft_priv *adapter)
 {
 	Mds_Destroy( adapter );
