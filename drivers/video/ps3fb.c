@@ -460,12 +460,16 @@ static void ps3fb_sync_image(struct device *dev, u64 frame_offset,
 		line_length |= (u64)src_line_length << 32;
 
 	src_offset += GPU_FB_START;
+
+	mutex_lock(&ps3_gpu_mutex);
 	status = lv1_gpu_context_attribute(ps3fb.context_handle,
 					   L1GPU_CONTEXT_ATTRIBUTE_FB_BLIT,
 					   dst_offset, GPU_IOIF + src_offset,
 					   L1GPU_FB_BLIT_WAIT_FOR_COMPLETION |
 					   (width << 16) | height,
 					   line_length);
+	mutex_unlock(&ps3_gpu_mutex);
+
 	if (status)
 		dev_err(dev,
 			"%s: lv1_gpu_context_attribute FB_BLIT failed: %d\n",
@@ -782,15 +786,6 @@ static int ps3fb_wait_for_vsync(u32 crtc)
 		return -ETIMEDOUT;
 
 	return 0;
-}
-
-static void ps3fb_flip_ctl(int on, void *data)
-{
-	struct ps3fb_priv *priv = data;
-	if (on)
-		atomic_dec_if_positive(&priv->ext_flip);
-	else
-		atomic_inc(&priv->ext_flip);
 }
 
 
@@ -1228,7 +1223,6 @@ static int __devinit ps3fb_probe(struct ps3_system_bus_device *dev)
 	}
 
 	ps3fb.task = task;
-	ps3av_register_flip_ctl(ps3fb_flip_ctl, &ps3fb);
 
 	return 0;
 
@@ -1258,10 +1252,9 @@ static int ps3fb_shutdown(struct ps3_system_bus_device *dev)
 
 	dev_dbg(&dev->core, " -> %s:%d\n", __func__, __LINE__);
 
-	ps3fb_flip_ctl(0, &ps3fb);	/* flip off */
+	atomic_inc(&ps3fb.ext_flip);	/* flip off */
 	ps3fb.dinfo->irq.mask = 0;
 
-	ps3av_register_flip_ctl(NULL, NULL);
 	if (ps3fb.task) {
 		struct task_struct *task = ps3fb.task;
 		ps3fb.task = NULL;

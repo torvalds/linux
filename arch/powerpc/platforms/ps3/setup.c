@@ -42,6 +42,10 @@
 #define DBG pr_debug
 #endif
 
+/* mutex synchronizing GPU accesses and video mode changes */
+DEFINE_MUTEX(ps3_gpu_mutex);
+EXPORT_SYMBOL_GPL(ps3_gpu_mutex);
+
 #if !defined(CONFIG_SMP)
 static void smp_send_stop(void) {}
 #endif

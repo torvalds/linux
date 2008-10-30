@@ -740,8 +740,4 @@ extern int ps3av_audio_mute(int);
 extern int ps3av_audio_mute_analog(int);
 extern int ps3av_dev_open(void);
 extern int ps3av_dev_close(void);
-extern void ps3av_register_flip_ctl(void (*flip_ctl)(int on, void *data),
-				    void *flip_data);
-extern void ps3av_flip_ctl(int on);
-
 #endif	/* _ASM_POWERPC_PS3AV_H_ */
