@@ -454,6 +454,7 @@ struct btrfs_root_item {
 	__le64 bytenr;
 	__le64 byte_limit;
 	__le64 bytes_used;
+	__le64 last_snapshot;
 	__le32 flags;
 	__le32 refs;
 	struct btrfs_disk_key drop_progress;
@@ -1413,6 +1414,8 @@ BTRFS_SETGET_STACK_FUNCS(root_refs, struct btrfs_root_item, refs, 32);
 BTRFS_SETGET_STACK_FUNCS(root_flags, struct btrfs_root_item, flags, 32);
 BTRFS_SETGET_STACK_FUNCS(root_used, struct btrfs_root_item, bytes_used, 64);
 BTRFS_SETGET_STACK_FUNCS(root_limit, struct btrfs_root_item, byte_limit, 64);
+BTRFS_SETGET_STACK_FUNCS(root_last_snapshot, struct btrfs_root_item,
+			 last_snapshot, 64);
 
 /* struct btrfs_super_block */
 BTRFS_SETGET_STACK_FUNCS(super_bytenr, struct btrfs_super_block, bytenr, 64);
@@ -1564,9 +1567,8 @@ int btrfs_update_pinned_extents(struct btrfs_root *root,
 				u64 bytenr, u64 num, int pin);
 int btrfs_drop_leaf_ref(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, struct extent_buffer *leaf);
-int btrfs_cross_ref_exists(struct btrfs_trans_handle *trans,
-			   struct btrfs_root *root,
-			   struct btrfs_key *key, u64 bytenr);
+int btrfs_cross_ref_exist(struct btrfs_trans_handle *trans,
+			  struct btrfs_root *root, u64 bytenr);
 int btrfs_extent_post_op(struct btrfs_trans_handle *trans,
 			 struct btrfs_root *root);
 int btrfs_copy_pinned(struct btrfs_root *root, struct extent_io_tree *copy);

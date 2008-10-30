@@ -298,6 +298,7 @@ static int cow_file_range(struct inode *inode, struct page *locked_page,
 	unsigned long max_compressed = 128 * 1024;
 	unsigned long max_uncompressed = 256 * 1024;
 	int i;
+	int ordered_type;
 	int will_compress;
 
 	trans = btrfs_join_transaction(root, 1);
@@ -491,9 +492,10 @@ again:
 		}
 
 		cur_alloc_size = ins.offset;
+		ordered_type = will_compress ? BTRFS_ORDERED_COMPRESSED : 0;
 		ret = btrfs_add_ordered_extent(inode, start, ins.objectid,
-					       ram_size, cur_alloc_size, 0,
-					       will_compress);
+					       ram_size, cur_alloc_size,
+					       ordered_type);
 		BUG_ON(ret);
 
 		if (disk_num_bytes < cur_alloc_size) {
@@ -587,115 +589,148 @@ free_pages_out:
 static int run_delalloc_nocow(struct inode *inode, struct page *locked_page,
 			      u64 start, u64 end, int *page_started)
 {
-	u64 extent_start;
-	u64 extent_end;
-	u64 bytenr;
-	u64 loops = 0;
-	u64 total_fs_bytes;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct btrfs_block_group_cache *block_group;
 	struct btrfs_trans_handle *trans;
 	struct extent_buffer *leaf;
-	int found_type;
 	struct btrfs_path *path;
-	struct btrfs_file_extent_item *item;
-	int ret;
-	int err = 0;
+	struct btrfs_file_extent_item *fi;
 	struct btrfs_key found_key;
+	u64 cow_start;
+	u64 cur_offset;
+	u64 extent_end;
+	u64 disk_bytenr;
+	u64 num_bytes;
+	int extent_type;
+	int ret;
+	int nocow;
+	int check_prev = 1;
 
-	total_fs_bytes = btrfs_super_total_bytes(&root->fs_info->super_copy);
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 	trans = btrfs_join_transaction(root, 1);
 	BUG_ON(!trans);
-again:
-	ret = btrfs_lookup_file_extent(NULL, root, path,
-				       inode->i_ino, start, 0);
-	if (ret < 0) {
-		err = ret;
-		goto out;
-	}
 
-	if (ret != 0) {
-		if (path->slots[0] == 0)
-			goto not_found;
-		path->slots[0]--;
-	}
+	cow_start = (u64)-1;
+	cur_offset = start;
+	while (1) {
+		ret = btrfs_lookup_file_extent(trans, root, path, inode->i_ino,
+					       cur_offset, 0);
+		BUG_ON(ret < 0);
+		if (ret > 0 && path->slots[0] > 0 && check_prev) {
+			leaf = path->nodes[0];
+			btrfs_item_key_to_cpu(leaf, &found_key,
+					      path->slots[0] - 1);
+			if (found_key.objectid == inode->i_ino &&
+			    found_key.type == BTRFS_EXTENT_DATA_KEY)
+				path->slots[0]--;
+		}
+		check_prev = 0;
+next_slot:
+		leaf = path->nodes[0];
+		if (path->slots[0] >= btrfs_header_nritems(leaf)) {
+			ret = btrfs_next_leaf(root, path);
+			if (ret < 0)
+				BUG_ON(1);
+			if (ret > 0)
+				break;
+			leaf = path->nodes[0];
+		}
 
-	leaf = path->nodes[0];
-	item = btrfs_item_ptr(leaf, path->slots[0],
-			      struct btrfs_file_extent_item);
+		nocow = 0;
+		disk_bytenr = 0;
+		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
 
-	/* are we inside the extent that was found? */
-	btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
-	found_type = btrfs_key_type(&found_key);
-	if (found_key.objectid != inode->i_ino ||
-	    found_type != BTRFS_EXTENT_DATA_KEY)
-		goto not_found;
+		if (found_key.objectid > inode->i_ino ||
+		    found_key.type > BTRFS_EXTENT_DATA_KEY ||
+		    found_key.offset > end)
+			break;
 
-	found_type = btrfs_file_extent_type(leaf, item);
-	extent_start = found_key.offset;
-	if (found_type == BTRFS_FILE_EXTENT_REG) {
-		u64 extent_num_bytes;
+		if (found_key.offset > cur_offset) {
+			extent_end = found_key.offset;
+			goto out_check;
+		}
 
-		extent_num_bytes = btrfs_file_extent_num_bytes(leaf, item);
-		extent_end = extent_start + extent_num_bytes;
-		err = 0;
+		fi = btrfs_item_ptr(leaf, path->slots[0],
+				    struct btrfs_file_extent_item);
+		extent_type = btrfs_file_extent_type(leaf, fi);
 
-		if (btrfs_file_extent_compression(leaf, item) ||
-		    btrfs_file_extent_encryption(leaf,item) ||
-		    btrfs_file_extent_other_encoding(leaf, item))
-			goto not_found;
-
-		if (loops && start != extent_start)
-			goto not_found;
-
-		if (start < extent_start || start >= extent_end)
-			goto not_found;
-
-		bytenr = btrfs_file_extent_disk_bytenr(leaf, item);
-		if (bytenr == 0)
-			goto not_found;
-
-		if (btrfs_cross_ref_exists(trans, root, &found_key, bytenr))
-			goto not_found;
-		/*
-		 * we may be called by the resizer, make sure we're inside
-		 * the limits of the FS
-		 */
-		block_group = btrfs_lookup_block_group(root->fs_info,
-						       bytenr);
-		if (!block_group || block_group->ro)
-			goto not_found;
-
-		bytenr += btrfs_file_extent_offset(leaf, item);
-		extent_num_bytes = min(end + 1, extent_end) - start;
-		ret = btrfs_add_ordered_extent(inode, start, bytenr,
-						extent_num_bytes,
-						extent_num_bytes, 1, 0);
-		if (ret) {
-			err = ret;
-			goto out;
+		if (extent_type == BTRFS_FILE_EXTENT_REG) {
+			struct btrfs_block_group_cache *block_group;
+			disk_bytenr = btrfs_file_extent_disk_bytenr(leaf, fi);
+			extent_end = found_key.offset +
+				btrfs_file_extent_num_bytes(leaf, fi);
+			if (extent_end <= start) {
+				path->slots[0]++;
+				goto next_slot;
+			}
+			if (btrfs_file_extent_compression(leaf, fi) ||
+			    btrfs_file_extent_encryption(leaf, fi) ||
+			    btrfs_file_extent_other_encoding(leaf, fi))
+				goto out_check;
+			if (disk_bytenr == 0)
+				goto out_check;
+			if (btrfs_cross_ref_exist(trans, root, disk_bytenr))
+				goto out_check;
+			block_group = btrfs_lookup_block_group(root->fs_info,
+							       disk_bytenr);
+			if (!block_group || block_group->ro)
+				goto out_check;
+			disk_bytenr += btrfs_file_extent_offset(leaf, fi);
+			nocow = 1;
+		} else if (extent_type == BTRFS_FILE_EXTENT_INLINE) {
+			extent_end = found_key.offset +
+				btrfs_file_extent_inline_len(leaf, fi);
+			extent_end = ALIGN(extent_end, root->sectorsize);
+		} else {
+			BUG_ON(1);
+		}
+out_check:
+		if (extent_end <= start) {
+			path->slots[0]++;
+			goto next_slot;
+		}
+		if (!nocow) {
+			if (cow_start == (u64)-1)
+				cow_start = cur_offset;
+			cur_offset = extent_end;
+			if (cur_offset > end)
+				break;
+			path->slots[0]++;
+			goto next_slot;
 		}
 
 		btrfs_release_path(root, path);
-		start = extent_end;
-		if (start <= end) {
-			loops++;
-			goto again;
+		if (cow_start != (u64)-1) {
+			ret = cow_file_range(inode, locked_page, cow_start,
+					found_key.offset - 1, page_started);
+			BUG_ON(ret);
+			cow_start = (u64)-1;
 		}
-	} else {
-not_found:
-		btrfs_end_transaction(trans, root);
-		btrfs_free_path(path);
-		return cow_file_range(inode, locked_page, start, end,
-				      page_started);
+
+		disk_bytenr += cur_offset - found_key.offset;
+		num_bytes = min(end + 1, extent_end) - cur_offset;
+
+		ret = btrfs_add_ordered_extent(inode, cur_offset, disk_bytenr,
+					       num_bytes, num_bytes,
+					       BTRFS_ORDERED_NOCOW);
+		cur_offset = extent_end;
+		if (cur_offset > end)
+			break;
 	}
-out:
-	WARN_ON(err);
-	btrfs_end_transaction(trans, root);
+	btrfs_release_path(root, path);
+
+	if (cur_offset <= end && cow_start == (u64)-1)
+		cow_start = cur_offset;
+	if (cow_start != (u64)-1) {
+		ret = cow_file_range(inode, locked_page, cow_start, end,
+				     page_started);
+		BUG_ON(ret);
+	}
+
+	ret = btrfs_end_transaction(trans, root);
+	BUG_ON(ret);
 	btrfs_free_path(path);
-	return err;
+	return 0;
 }
 
 /*
