@@ -40,6 +40,7 @@ int xfs_sync_inodes(struct xfs_mount *mp, int flags);
 int xfs_sync_fsdata(struct xfs_mount *mp, int flags);
 
 int xfs_quiesce_data(struct xfs_mount *mp);
+void xfs_quiesce_attr(struct xfs_mount *mp);
 
 void xfs_flush_inode(struct xfs_inode *ip);
 void xfs_flush_device(struct xfs_inode *ip);

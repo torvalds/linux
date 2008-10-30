@@ -10,6 +10,5 @@ struct xfs_mount_args;
 
 void xfs_do_force_shutdown(struct xfs_mount *mp, int flags, char *fname,
 		int lnnum);
-void xfs_attr_quiesce(struct xfs_mount *mp);
 
 #endif /* _XFS_VFSOPS_H */

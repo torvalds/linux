@@ -357,6 +357,61 @@ xfs_quiesce_data(
 	return error;
 }
 
+STATIC void
+xfs_quiesce_fs(
+	struct xfs_mount	*mp)
+{
+	int	count = 0, pincount;
+
+	xfs_flush_buftarg(mp->m_ddev_targp, 0);
+	xfs_finish_reclaim_all(mp, 0, XFS_IFLUSH_DELWRI_ELSE_ASYNC);
+
+	/*
+	 * This loop must run at least twice.  The first instance of the loop
+	 * will flush most meta data but that will generate more meta data
+	 * (typically directory updates).  Which then must be flushed and
+	 * logged before we can write the unmount record.
+	 */
+	do {
+		xfs_sync_inodes(mp, SYNC_ATTR|SYNC_WAIT);
+		pincount = xfs_flush_buftarg(mp->m_ddev_targp, 1);
+		if (!pincount) {
+			delay(50);
+			count++;
+		}
+	} while (count < 2);
+}
+
+/*
+ * Second stage of a quiesce. The data is already synced, now we have to take
+ * care of the metadata. New transactions are already blocked, so we need to
+ * wait for any remaining transactions to drain out before proceding.
+ */
+void
+xfs_quiesce_attr(
+	struct xfs_mount	*mp)
+{
+	int	error = 0;
+
+	/* wait for all modifications to complete */
+	while (atomic_read(&mp->m_active_trans) > 0)
+		delay(100);
+
+	/* flush inodes and push all remaining buffers out to disk */
+	xfs_quiesce_fs(mp);
+
+	ASSERT_ALWAYS(atomic_read(&mp->m_active_trans) == 0);
+
+	/* Push the superblock and write an unmount record */
+	error = xfs_log_sbcount(mp, 1);
+	if (error)
+		xfs_fs_cmn_err(CE_WARN, mp,
+				"xfs_attr_quiesce: failed to log sb changes. "
+				"Frozen image may not be consistent.");
+	xfs_log_unmount_write(mp);
+	xfs_unmountfs_writesb(mp);
+}
+
 /*
  * Enqueue a work item to be picked up by the vfs xfssyncd thread.
  * Doing this has two advantages:

@@ -1212,7 +1212,7 @@ xfs_fs_remount(
 	/* rw -> ro */
 	if (!(mp->m_flags & XFS_MOUNT_RDONLY) && (*flags & MS_RDONLY)) {
 		xfs_quiesce_data(mp);
-		xfs_attr_quiesce(mp);
+		xfs_quiesce_attr(mp);
 		mp->m_flags |= XFS_MOUNT_RDONLY;
 	}
 
@@ -1221,7 +1221,7 @@ xfs_fs_remount(
 
 /*
  * Second stage of a freeze. The data is already frozen so we only
- * need to take care of themetadata. Once that's done write a dummy
+ * need to take care of the metadata. Once that's done write a dummy
  * record to dirty the log in case of a crash while frozen.
  */
 STATIC void
@@ -1230,7 +1230,7 @@ xfs_fs_lockfs(
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 
-	xfs_attr_quiesce(mp);
+	xfs_quiesce_attr(mp);
 	xfs_fs_log_dummy(mp);
 }
 
