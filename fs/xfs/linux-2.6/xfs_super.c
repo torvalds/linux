@@ -270,7 +270,7 @@ xfs_parseargs(
 				return EINVAL;
 			}
 			iosize = simple_strtoul(value, &eov, 10);
-			iosizelog = (uint8_t) iosize;
+			iosizelog = ffs(iosize) - 1;
 		} else if (!strcmp(this_char, MNTOPT_ALLOCSIZE)) {
 			if (!value || !*value) {
 				cmn_err(CE_WARN,
