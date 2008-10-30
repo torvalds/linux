@@ -2608,3 +2608,62 @@ xfs_check_nostate_extents(
 	}
 	return 0;
 }
+
+
+STATIC struct xfs_btree_cur *
+xfs_bmbt_dup_cursor(
+	struct xfs_btree_cur	*cur)
+{
+	struct xfs_btree_cur	*new;
+
+	new = xfs_bmbt_init_cursor(cur->bc_mp, cur->bc_tp,
+			cur->bc_private.b.ip, cur->bc_private.b.whichfork);
+
+	/*
+	 * Copy the firstblock, flist, and flags values,
+	 * since init cursor doesn't get them.
+	 */
+	new->bc_private.b.firstblock = cur->bc_private.b.firstblock;
+	new->bc_private.b.flist = cur->bc_private.b.flist;
+	new->bc_private.b.flags = cur->bc_private.b.flags;
+
+	return new;
+}
+
+static const struct xfs_btree_ops xfs_bmbt_ops = {
+	.dup_cursor		= xfs_bmbt_dup_cursor,
+};
+
+/*
+ * Allocate a new bmap btree cursor.
+ */
+struct xfs_btree_cur *				/* new bmap btree cursor */
+xfs_bmbt_init_cursor(
+	struct xfs_mount	*mp,		/* file system mount point */
+	struct xfs_trans	*tp,		/* transaction pointer */
+	struct xfs_inode	*ip,		/* inode owning the btree */
+	int			whichfork)	/* data or attr fork */
+{
+	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
+	struct xfs_btree_cur	*cur;
+
+	cur = kmem_zone_zalloc(xfs_btree_cur_zone, KM_SLEEP);
+
+	cur->bc_tp = tp;
+	cur->bc_mp = mp;
+	cur->bc_nlevels = be16_to_cpu(ifp->if_broot->bb_level) + 1;
+	cur->bc_btnum = XFS_BTNUM_BMAP;
+	cur->bc_blocklog = mp->m_sb.sb_blocklog;
+
+	cur->bc_ops = &xfs_bmbt_ops;
+
+	cur->bc_private.b.forksize = XFS_IFORK_SIZE(ip, whichfork);
+	cur->bc_private.b.ip = ip;
+	cur->bc_private.b.firstblock = NULLFSBLOCK;
+	cur->bc_private.b.flist = NULL;
+	cur->bc_private.b.allocated = 0;
+	cur->bc_private.b.flags = 0;
+	cur->bc_private.b.whichfork = whichfork;
+
+	return cur;
+}

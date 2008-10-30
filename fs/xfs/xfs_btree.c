@@ -387,16 +387,17 @@ xfs_btree_dup_cursor(
 
 	tp = cur->bc_tp;
 	mp = cur->bc_mp;
+
 	/*
 	 * Allocate a new cursor like the old one.
 	 */
-	new = xfs_btree_init_cursor(mp, tp, cur->bc_private.a.agbp,
-		cur->bc_private.a.agno, cur->bc_btnum, cur->bc_private.b.ip,
-		cur->bc_private.b.whichfork);
+	new = cur->bc_ops->dup_cursor(cur);
+
 	/*
 	 * Copy the record currently in the cursor.
 	 */
 	new->bc_rec = cur->bc_rec;
+
 	/*
 	 * For each level current, re-get the buffer and copy the ptr value.
 	 */
@@ -415,15 +416,6 @@ xfs_btree_dup_cursor(
 			ASSERT(!XFS_BUF_GETERROR(bp));
 		} else
 			new->bc_bufs[i] = NULL;
-	}
-	/*
-	 * For bmap btrees, copy the firstblock, flist, and flags values,
-	 * since init cursor doesn't get them.
-	 */
-	if (new->bc_btnum == XFS_BTNUM_BMAP) {
-		new->bc_private.b.firstblock = cur->bc_private.b.firstblock;
-		new->bc_private.b.flist = cur->bc_private.b.flist;
-		new->bc_private.b.flags = cur->bc_private.b.flags;
 	}
 	*ncur = new;
 	return 0;
@@ -502,97 +494,6 @@ xfs_btree_get_bufs(
 	ASSERT(bp);
 	ASSERT(!XFS_BUF_GETERROR(bp));
 	return bp;
-}
-
-/*
- * Allocate a new btree cursor.
- * The cursor is either for allocation (A) or bmap (B) or inodes (I).
- */
-xfs_btree_cur_t *			/* new btree cursor */
-xfs_btree_init_cursor(
-	xfs_mount_t	*mp,		/* file system mount point */
-	xfs_trans_t	*tp,		/* transaction pointer */
-	xfs_buf_t	*agbp,		/* (A only) buffer for agf structure */
-					/* (I only) buffer for agi structure */
-	xfs_agnumber_t	agno,		/* (AI only) allocation group number */
-	xfs_btnum_t	btnum,		/* btree identifier */
-	xfs_inode_t	*ip,		/* (B only) inode owning the btree */
-	int		whichfork)	/* (B only) data or attr fork */
-{
-	xfs_agf_t	*agf;		/* (A) allocation group freespace */
-	xfs_agi_t	*agi;		/* (I) allocation group inodespace */
-	xfs_btree_cur_t	*cur;		/* return value */
-	xfs_ifork_t	*ifp;		/* (I) inode fork pointer */
-	int		nlevels=0;	/* number of levels in the btree */
-
-	ASSERT(xfs_btree_cur_zone != NULL);
-	/*
-	 * Allocate a new cursor.
-	 */
-	cur = kmem_zone_zalloc(xfs_btree_cur_zone, KM_SLEEP);
-	/*
-	 * Deduce the number of btree levels from the arguments.
-	 */
-	switch (btnum) {
-	case XFS_BTNUM_BNO:
-	case XFS_BTNUM_CNT:
-		agf = XFS_BUF_TO_AGF(agbp);
-		nlevels = be32_to_cpu(agf->agf_levels[btnum]);
-		break;
-	case XFS_BTNUM_BMAP:
-		ifp = XFS_IFORK_PTR(ip, whichfork);
-		nlevels = be16_to_cpu(ifp->if_broot->bb_level) + 1;
-		break;
-	case XFS_BTNUM_INO:
-		agi = XFS_BUF_TO_AGI(agbp);
-		nlevels = be32_to_cpu(agi->agi_level);
-		break;
-	default:
-		ASSERT(0);
-	}
-	/*
-	 * Fill in the common fields.
-	 */
-	cur->bc_tp = tp;
-	cur->bc_mp = mp;
-	cur->bc_nlevels = nlevels;
-	cur->bc_btnum = btnum;
-	cur->bc_blocklog = mp->m_sb.sb_blocklog;
-	/*
-	 * Fill in private fields.
-	 */
-	switch (btnum) {
-	case XFS_BTNUM_BNO:
-	case XFS_BTNUM_CNT:
-		/*
-		 * Allocation btree fields.
-		 */
-		cur->bc_private.a.agbp = agbp;
-		cur->bc_private.a.agno = agno;
-		break;
-	case XFS_BTNUM_INO:
-		/*
-		 * Inode allocation btree fields.
-		 */
-		cur->bc_private.a.agbp = agbp;
-		cur->bc_private.a.agno = agno;
-		break;
-	case XFS_BTNUM_BMAP:
-		/*
-		 * Bmap btree fields.
-		 */
-		cur->bc_private.b.forksize = XFS_IFORK_SIZE(ip, whichfork);
-		cur->bc_private.b.ip = ip;
-		cur->bc_private.b.firstblock = NULLFSBLOCK;
-		cur->bc_private.b.flist = NULL;
-		cur->bc_private.b.allocated = 0;
-		cur->bc_private.b.flags = 0;
-		cur->bc_private.b.whichfork = whichfork;
-		break;
-	default:
-		ASSERT(0);
-	}
-	return cur;
 }
 
 /*

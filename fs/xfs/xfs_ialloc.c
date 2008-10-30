@@ -335,8 +335,7 @@ xfs_ialloc_ag_alloc(
 	/*
 	 * Insert records describing the new inode chunk into the btree.
 	 */
-	cur = xfs_btree_init_cursor(args.mp, tp, agbp, agno,
-			XFS_BTNUM_INO, (xfs_inode_t *)0, 0);
+	cur = xfs_inobt_init_cursor(args.mp, tp, agbp, agno);
 	for (thisino = newino;
 	     thisino < newino + newlen;
 	     thisino += XFS_INODES_PER_CHUNK) {
@@ -676,8 +675,7 @@ nextag:
 	 */
 	agno = tagno;
 	*IO_agbp = NULL;
-	cur = xfs_btree_init_cursor(mp, tp, agbp, be32_to_cpu(agi->agi_seqno),
-				    XFS_BTNUM_INO, (xfs_inode_t *)0, 0);
+	cur = xfs_inobt_init_cursor(mp, tp, agbp, be32_to_cpu(agi->agi_seqno));
 	/*
 	 * If pagino is 0 (this is the root inode allocation) use newino.
 	 * This must work because we've just allocated some.
@@ -1022,8 +1020,7 @@ xfs_difree(
 	/*
 	 * Initialize the cursor.
 	 */
-	cur = xfs_btree_init_cursor(mp, tp, agbp, agno, XFS_BTNUM_INO,
-		(xfs_inode_t *)0, 0);
+	cur = xfs_inobt_init_cursor(mp, tp, agbp, agno);
 #ifdef DEBUG
 	if (cur->bc_nlevels == 1) {
 		int freecount = 0;
@@ -1259,8 +1256,7 @@ xfs_dilocate(
 #endif /* DEBUG */
 			return error;
 		}
-		cur = xfs_btree_init_cursor(mp, tp, agbp, agno, XFS_BTNUM_INO,
-			(xfs_inode_t *)0, 0);
+		cur = xfs_inobt_init_cursor(mp, tp, agbp, agno);
 		if ((error = xfs_inobt_lookup_le(cur, agino, 0, 0, &i))) {
 #ifdef DEBUG
 			xfs_fs_cmn_err(CE_ALERT, mp, "xfs_dilocate: "

@@ -175,4 +175,8 @@ extern int xfs_inobt_lookup_le(struct xfs_btree_cur *cur, xfs_agino_t ino,
 extern int xfs_inobt_update(struct xfs_btree_cur *cur, xfs_agino_t ino,
 				__int32_t fcnt, xfs_inofree_t free);
 
+
+extern struct xfs_btree_cur *xfs_inobt_init_cursor(struct xfs_mount *,
+		struct xfs_trans *, struct xfs_buf *, xfs_agnumber_t);
+
 #endif	/* __XFS_IALLOC_BTREE_H__ */

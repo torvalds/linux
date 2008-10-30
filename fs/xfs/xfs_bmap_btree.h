@@ -24,6 +24,7 @@ struct xfs_btree_cur;
 struct xfs_btree_lblock;
 struct xfs_mount;
 struct xfs_inode;
+struct xfs_trans;
 
 /*
  * Bmap root header, on-disk form only.
@@ -299,6 +300,9 @@ extern void xfs_bmbt_disk_set_allf(xfs_bmbt_rec_t *r, xfs_fileoff_t o,
 extern void xfs_bmbt_to_bmdr(xfs_bmbt_block_t *, int, xfs_bmdr_block_t *, int);
 extern int xfs_bmbt_update(struct xfs_btree_cur *, xfs_fileoff_t,
 				xfs_fsblock_t, xfs_filblks_t, xfs_exntst_t);
+
+extern struct xfs_btree_cur *xfs_bmbt_init_cursor(struct xfs_mount *,
+		struct xfs_trans *, struct xfs_inode *, int);
 
 #endif	/* __KERNEL__ */
 

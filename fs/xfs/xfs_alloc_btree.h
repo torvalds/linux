@@ -152,4 +152,9 @@ extern int xfs_alloc_lookup_le(struct xfs_btree_cur *cur, xfs_agblock_t bno,
 extern int xfs_alloc_update(struct xfs_btree_cur *cur, xfs_agblock_t bno,
 				xfs_extlen_t len);
 
+
+extern struct xfs_btree_cur *xfs_allocbt_init_cursor(struct xfs_mount *,
+		struct xfs_trans *, struct xfs_buf *,
+		xfs_agnumber_t, xfs_btnum_t);
+
 #endif	/* __XFS_ALLOC_BTREE_H__ */

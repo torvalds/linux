@@ -131,6 +131,11 @@ extern const __uint32_t	xfs_magics[];
 
 #define	XFS_BTREE_MAXLEVELS	8	/* max of all btrees */
 
+struct xfs_btree_ops {
+	/* cursor operations */
+	struct xfs_btree_cur *(*dup_cursor)(struct xfs_btree_cur *);
+};
+
 /*
  * Btree cursor structure.
  * This collects all information needed by the btree code in one place.
@@ -139,6 +144,7 @@ typedef struct xfs_btree_cur
 {
 	struct xfs_trans	*bc_tp;	/* transaction we're in, if any */
 	struct xfs_mount	*bc_mp;	/* file system mount struct */
+	const struct xfs_btree_ops *bc_ops;
 	union {
 		xfs_alloc_rec_incore_t	a;
 		xfs_bmbt_irec_t		b;
@@ -306,20 +312,6 @@ xfs_btree_get_bufs(
 	xfs_agnumber_t		agno,	/* allocation group number */
 	xfs_agblock_t		agbno,	/* allocation group block number */
 	uint			lock);	/* lock flags for get_buf */
-
-/*
- * Allocate a new btree cursor.
- * The cursor is either for allocation (A) or bmap (B).
- */
-xfs_btree_cur_t *			/* new btree cursor */
-xfs_btree_init_cursor(
-	struct xfs_mount	*mp,	/* file system mount point */
-	struct xfs_trans	*tp,	/* transaction pointer */
-	struct xfs_buf		*agbp,	/* (A only) buffer for agf structure */
-	xfs_agnumber_t		agno,	/* (A only) allocation group number */
-	xfs_btnum_t		btnum,	/* btree identifier */
-	struct xfs_inode	*ip,	/* (B only) inode owning the btree */
-	int			whichfork); /* (B only) data/attr fork */
 
 /*
  * Check for the cursor referring to the last block at the given level.

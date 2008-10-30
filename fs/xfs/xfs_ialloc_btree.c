@@ -2076,3 +2076,44 @@ xfs_inobt_update(
 	}
 	return 0;
 }
+
+STATIC struct xfs_btree_cur *
+xfs_inobt_dup_cursor(
+	struct xfs_btree_cur	*cur)
+{
+	return xfs_inobt_init_cursor(cur->bc_mp, cur->bc_tp,
+			cur->bc_private.a.agbp, cur->bc_private.a.agno);
+}
+
+static const struct xfs_btree_ops xfs_inobt_ops = {
+	.dup_cursor		= xfs_inobt_dup_cursor,
+};
+
+/*
+ * Allocate a new inode btree cursor.
+ */
+struct xfs_btree_cur *				/* new inode btree cursor */
+xfs_inobt_init_cursor(
+	struct xfs_mount	*mp,		/* file system mount point */
+	struct xfs_trans	*tp,		/* transaction pointer */
+	struct xfs_buf		*agbp,		/* buffer for agi structure */
+	xfs_agnumber_t		agno)		/* allocation group number */
+{
+	struct xfs_agi		*agi = XFS_BUF_TO_AGI(agbp);
+	struct xfs_btree_cur	*cur;
+
+	cur = kmem_zone_zalloc(xfs_btree_cur_zone, KM_SLEEP);
+
+	cur->bc_tp = tp;
+	cur->bc_mp = mp;
+	cur->bc_nlevels = be32_to_cpu(agi->agi_level);
+	cur->bc_btnum = XFS_BTNUM_INO;
+	cur->bc_blocklog = mp->m_sb.sb_blocklog;
+
+	cur->bc_ops = &xfs_inobt_ops;
+
+	cur->bc_private.a.agbp = agbp;
+	cur->bc_private.a.agno = agno;
+
+	return cur;
+}
