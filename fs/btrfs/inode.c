@@ -833,28 +833,29 @@ int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret = 0;
+	int skip_sum;
 
 	ret = btrfs_bio_wq_end_io(root->fs_info, bio, 0);
 	BUG_ON(ret);
 
-	if (btrfs_test_opt(root, NODATASUM) ||
-	    btrfs_test_flag(inode, NODATASUM)) {
-		goto mapit;
-	}
+	skip_sum = btrfs_test_opt(root, NODATASUM) ||
+		btrfs_test_flag(inode, NODATASUM);
 
 	if (!(rw & (1 << BIO_RW))) {
-		btrfs_lookup_bio_sums(root, inode, bio);
+		if (!skip_sum)
+			btrfs_lookup_bio_sums(root, inode, bio);
 
-		if (bio_flags & EXTENT_BIO_COMPRESSED) {
+		if (bio_flags & EXTENT_BIO_COMPRESSED)
 			return btrfs_submit_compressed_read(inode, bio,
 						    mirror_num, bio_flags);
-		}
-
 		goto mapit;
-	}
-	return btrfs_wq_submit_bio(BTRFS_I(inode)->root->fs_info,
+	} else if (!skip_sum) {
+		/* we're doing a write, do the async checksumming */
+		return btrfs_wq_submit_bio(BTRFS_I(inode)->root->fs_info,
 				   inode, rw, bio, mirror_num,
 				   bio_flags, __btrfs_submit_bio_hook);
+	}
+
 mapit:
 	return btrfs_map_bio(root, rw, bio, mirror_num, 0);
 }
