@@ -16,15 +16,12 @@ Mds_initial(struct wbsoft_priv * adapter)
 	pMds->TxRTSThreshold = DEFAULT_RTSThreshold;
 	pMds->TxFragmentThreshold = DEFAULT_FRAGMENT_THRESHOLD;
 
-	vRxTimerInit(adapter);//for WPA countermeasure
-
 	return hal_get_tx_buffer( &adapter->sHwData, &pMds->pTxBuffer );
 }
 
 void
 Mds_Destroy(struct wbsoft_priv * adapter)
 {
-	vRxTimerStop(adapter);
 }
 
 static void Mds_DurationSet(struct wbsoft_priv *adapter,  PDESCRIPTOR pDes,  u8 *buffer)

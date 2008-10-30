@@ -11,11 +11,6 @@ void Mds_SendComplete(  struct wbsoft_priv *adapter,  PT02_DESCRIPTOR pT02 );
 void Mds_MpduProcess(  struct wbsoft_priv *adapter,  PDESCRIPTOR pRxDes );
 extern void DataDmp(u8 *pdata, u32 len, u32 offset);
 
-
-void vRxTimerInit(struct wbsoft_priv *adapter);
-void vRxTimerStart(struct wbsoft_priv *adapter, int timeout_value);
-void vRxTimerStop(struct wbsoft_priv *adapter);
-
 // For Asynchronous indicating. The routine collocates with USB.
 void Mds_MsduProcess(  struct wbsoft_priv *adapter,  PRXLAYER1 pRxLayer1,  u8 SlotIndex);
 

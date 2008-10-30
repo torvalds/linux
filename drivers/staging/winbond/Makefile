@@ -4,7 +4,6 @@ w35und-objs :=			\
 	mto.o			\
 	phy_calibration.o	\
 	reg.o			\
-	rxisr.o			\
 	wb35reg.o		\
 	wb35rx.o		\
 	wb35tx.o		\

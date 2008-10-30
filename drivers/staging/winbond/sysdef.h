@@ -37,7 +37,4 @@
 #define _PE_USB_INI_DUMP_
 #endif
 
-// Kernel Timer resolution, NDIS is 10ms, 10000us
-#define MIN_TIMEOUT_VAL	(10) //ms
-
 #endif
