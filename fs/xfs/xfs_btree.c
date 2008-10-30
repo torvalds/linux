@@ -725,66 +725,84 @@ xfs_btree_reada_bufs(
 	xfs_baread(mp->m_ddev_targp, d, mp->m_bsize * count);
 }
 
+STATIC int
+xfs_btree_readahead_lblock(
+	struct xfs_btree_cur	*cur,
+	int			lr,
+	struct xfs_btree_block	*block)
+{
+	int			rval = 0;
+	xfs_fsblock_t		left = be64_to_cpu(block->bb_u.l.bb_leftsib);
+	xfs_fsblock_t		right = be64_to_cpu(block->bb_u.l.bb_rightsib);
+
+	if ((lr & XFS_BTCUR_LEFTRA) && left != NULLDFSBNO) {
+		xfs_btree_reada_bufl(cur->bc_mp, left, 1);
+		rval++;
+	}
+
+	if ((lr & XFS_BTCUR_RIGHTRA) && right != NULLDFSBNO) {
+		xfs_btree_reada_bufl(cur->bc_mp, right, 1);
+		rval++;
+	}
+
+	return rval;
+}
+
+STATIC int
+xfs_btree_readahead_sblock(
+	struct xfs_btree_cur	*cur,
+	int			lr,
+	struct xfs_btree_block *block)
+{
+	int			rval = 0;
+	xfs_agblock_t		left = be32_to_cpu(block->bb_u.s.bb_leftsib);
+	xfs_agblock_t		right = be32_to_cpu(block->bb_u.s.bb_rightsib);
+
+
+	if ((lr & XFS_BTCUR_LEFTRA) && left != NULLAGBLOCK) {
+		xfs_btree_reada_bufs(cur->bc_mp, cur->bc_private.a.agno,
+				     left, 1);
+		rval++;
+	}
+
+	if ((lr & XFS_BTCUR_RIGHTRA) && right != NULLAGBLOCK) {
+		xfs_btree_reada_bufs(cur->bc_mp, cur->bc_private.a.agno,
+				     right, 1);
+		rval++;
+	}
+
+	return rval;
+}
+
 /*
  * Read-ahead btree blocks, at the given level.
  * Bits in lr are set from XFS_BTCUR_{LEFT,RIGHT}RA.
  */
 int
-xfs_btree_readahead_core(
-	xfs_btree_cur_t		*cur,		/* btree cursor */
+xfs_btree_readahead(
+	struct xfs_btree_cur	*cur,		/* btree cursor */
 	int			lev,		/* level in btree */
 	int			lr)		/* left/right bits */
 {
-	xfs_alloc_block_t	*a;
-	xfs_bmbt_block_t	*b;
-	xfs_inobt_block_t	*i;
-	int			rval = 0;
+	struct xfs_btree_block	*block;
 
-	ASSERT(cur->bc_bufs[lev] != NULL);
+	/*
+	 * No readahead needed if we are at the root level and the
+	 * btree root is stored in the inode.
+	 */
+	if ((cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) &&
+	    (lev == cur->bc_nlevels - 1))
+		return 0;
+
+	if ((cur->bc_ra[lev] | lr) == cur->bc_ra[lev])
+		return 0;
+
 	cur->bc_ra[lev] |= lr;
-	switch (cur->bc_btnum) {
-	case XFS_BTNUM_BNO:
-	case XFS_BTNUM_CNT:
-		a = XFS_BUF_TO_ALLOC_BLOCK(cur->bc_bufs[lev]);
-		if ((lr & XFS_BTCUR_LEFTRA) && be32_to_cpu(a->bb_leftsib) != NULLAGBLOCK) {
-			xfs_btree_reada_bufs(cur->bc_mp, cur->bc_private.a.agno,
-				be32_to_cpu(a->bb_leftsib), 1);
-			rval++;
-		}
-		if ((lr & XFS_BTCUR_RIGHTRA) && be32_to_cpu(a->bb_rightsib) != NULLAGBLOCK) {
-			xfs_btree_reada_bufs(cur->bc_mp, cur->bc_private.a.agno,
-				be32_to_cpu(a->bb_rightsib), 1);
-			rval++;
-		}
-		break;
-	case XFS_BTNUM_BMAP:
-		b = XFS_BUF_TO_BMBT_BLOCK(cur->bc_bufs[lev]);
-		if ((lr & XFS_BTCUR_LEFTRA) && be64_to_cpu(b->bb_leftsib) != NULLDFSBNO) {
-			xfs_btree_reada_bufl(cur->bc_mp, be64_to_cpu(b->bb_leftsib), 1);
-			rval++;
-		}
-		if ((lr & XFS_BTCUR_RIGHTRA) && be64_to_cpu(b->bb_rightsib) != NULLDFSBNO) {
-			xfs_btree_reada_bufl(cur->bc_mp, be64_to_cpu(b->bb_rightsib), 1);
-			rval++;
-		}
-		break;
-	case XFS_BTNUM_INO:
-		i = XFS_BUF_TO_INOBT_BLOCK(cur->bc_bufs[lev]);
-		if ((lr & XFS_BTCUR_LEFTRA) && be32_to_cpu(i->bb_leftsib) != NULLAGBLOCK) {
-			xfs_btree_reada_bufs(cur->bc_mp, cur->bc_private.a.agno,
-				be32_to_cpu(i->bb_leftsib), 1);
-			rval++;
-		}
-		if ((lr & XFS_BTCUR_RIGHTRA) && be32_to_cpu(i->bb_rightsib) != NULLAGBLOCK) {
-			xfs_btree_reada_bufs(cur->bc_mp, cur->bc_private.a.agno,
-				be32_to_cpu(i->bb_rightsib), 1);
-			rval++;
-		}
-		break;
-	default:
-		ASSERT(0);
-	}
-	return rval;
+	block = XFS_BUF_TO_BLOCK(cur->bc_bufs[lev]);
+
+	if (cur->bc_flags & XFS_BTREE_LONG_PTRS)
+		return xfs_btree_readahead_lblock(cur, lr, block);
+	return xfs_btree_readahead_sblock(cur, lr, block);
 }
 
 /*

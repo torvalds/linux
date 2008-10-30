@@ -421,23 +421,10 @@ xfs_btree_reada_bufs(
  * Bits in lr are set from XFS_BTCUR_{LEFT,RIGHT}RA.
  */
 int					/* readahead block count */
-xfs_btree_readahead_core(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	int			lev,	/* level in btree */
-	int			lr);	/* left/right bits */
-
-static inline int			/* readahead block count */
 xfs_btree_readahead(
 	xfs_btree_cur_t		*cur,	/* btree cursor */
 	int			lev,	/* level in btree */
-	int			lr)	/* left/right bits */
-{
-	if ((cur->bc_ra[lev] | lr) == cur->bc_ra[lev])
-		return 0;
-
-	return xfs_btree_readahead_core(cur, lev, lr);
-}
-
+	int			lr);	/* left/right bits */
 
 /*
  * Set the buffer for level "lev" in the cursor to bp, releasing

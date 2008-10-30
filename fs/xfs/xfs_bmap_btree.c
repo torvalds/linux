@@ -1721,8 +1721,9 @@ xfs_bmbt_decrement(
 	XFS_BMBT_TRACE_CURSOR(cur, ENTRY);
 	XFS_BMBT_TRACE_ARGI(cur, level);
 	ASSERT(level < cur->bc_nlevels);
-	if (level < cur->bc_nlevels - 1)
-		xfs_btree_readahead(cur, level, XFS_BTCUR_LEFTRA);
+
+	xfs_btree_readahead(cur, level, XFS_BTCUR_LEFTRA);
+
 	if (--cur->bc_ptrs[level] > 0) {
 		XFS_BMBT_TRACE_CURSOR(cur, EXIT);
 		*stat = 1;
@@ -1743,8 +1744,7 @@ xfs_bmbt_decrement(
 	for (lev = level + 1; lev < cur->bc_nlevels; lev++) {
 		if (--cur->bc_ptrs[lev] > 0)
 			break;
-		if (lev < cur->bc_nlevels - 1)
-			xfs_btree_readahead(cur, lev, XFS_BTCUR_LEFTRA);
+		xfs_btree_readahead(cur, lev, XFS_BTCUR_LEFTRA);
 	}
 	if (lev == cur->bc_nlevels) {
 		XFS_BMBT_TRACE_CURSOR(cur, EXIT);
@@ -1995,8 +1995,8 @@ xfs_bmbt_increment(
 	XFS_BMBT_TRACE_CURSOR(cur, ENTRY);
 	XFS_BMBT_TRACE_ARGI(cur, level);
 	ASSERT(level < cur->bc_nlevels);
-	if (level < cur->bc_nlevels - 1)
-		xfs_btree_readahead(cur, level, XFS_BTCUR_RIGHTRA);
+
+	xfs_btree_readahead(cur, level, XFS_BTCUR_RIGHTRA);
 	block = xfs_bmbt_get_block(cur, level, &bp);
 #ifdef DEBUG
 	if ((error = xfs_btree_check_lblock(cur, block, level, bp))) {
@@ -2024,8 +2024,7 @@ xfs_bmbt_increment(
 #endif
 		if (++cur->bc_ptrs[lev] <= be16_to_cpu(block->bb_numrecs))
 			break;
-		if (lev < cur->bc_nlevels - 1)
-			xfs_btree_readahead(cur, lev, XFS_BTCUR_RIGHTRA);
+		xfs_btree_readahead(cur, lev, XFS_BTCUR_RIGHTRA);
 	}
 	if (lev == cur->bc_nlevels) {
 		XFS_BMBT_TRACE_CURSOR(cur, EXIT);
