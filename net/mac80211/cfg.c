@@ -26,6 +26,8 @@ static bool nl80211_type_check(enum nl80211_iftype type)
 #ifdef CONFIG_MAC80211_MESH
 	case NL80211_IFTYPE_MESH_POINT:
 #endif
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_WDS:
 		return true;
 	default:
