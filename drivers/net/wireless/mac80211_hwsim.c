@@ -476,6 +476,17 @@ static int mac80211_hwsim_set_tim(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static int mac80211_hwsim_conf_tx(
+	struct ieee80211_hw *hw, u16 queue,
+	const struct ieee80211_tx_queue_params *params)
+{
+	printk(KERN_DEBUG "%s:%s (queue=%d txop=%d cw_min=%d cw_max=%d "
+	       "aifs=%d)\n",
+	       wiphy_name(hw->wiphy), __func__, queue,
+	       params->txop, params->cw_min, params->cw_max, params->aifs);
+	return 0;
+}
+
 static const struct ieee80211_ops mac80211_hwsim_ops =
 {
 	.tx = mac80211_hwsim_tx,
@@ -489,6 +500,7 @@ static const struct ieee80211_ops mac80211_hwsim_ops =
 	.bss_info_changed = mac80211_hwsim_bss_info_changed,
 	.sta_notify = mac80211_hwsim_sta_notify,
 	.set_tim = mac80211_hwsim_set_tim,
+	.conf_tx = mac80211_hwsim_conf_tx,
 };
 
 
