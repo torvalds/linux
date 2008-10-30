@@ -205,7 +205,7 @@ xfs_inobt_delrec(
 			cur->bc_bufs[level] = NULL;
 			cur->bc_nlevels--;
 		} else if (level > 0 &&
-			   (error = xfs_inobt_decrement(cur, level, &i)))
+			   (error = xfs_btree_decrement(cur, level, &i)))
 			return error;
 		*stat = 1;
 		return 0;
@@ -222,7 +222,7 @@ xfs_inobt_delrec(
 	 */
 	if (numrecs >= XFS_INOBT_BLOCK_MINRECS(level, cur)) {
 		if (level > 0 &&
-		    (error = xfs_inobt_decrement(cur, level, &i)))
+		    (error = xfs_btree_decrement(cur, level, &i)))
 			return error;
 		*stat = 1;
 		return 0;
@@ -286,7 +286,7 @@ xfs_inobt_delrec(
 				xfs_btree_del_cursor(tcur,
 						     XFS_BTREE_NOERROR);
 				if (level > 0 &&
-				    (error = xfs_inobt_decrement(cur, level,
+				    (error = xfs_btree_decrement(cur, level,
 						&i)))
 					return error;
 				*stat = 1;
@@ -301,7 +301,7 @@ xfs_inobt_delrec(
 		rrecs = be16_to_cpu(right->bb_numrecs);
 		if (lbno != NULLAGBLOCK) {
 			xfs_btree_firstrec(tcur, level);
-			if ((error = xfs_inobt_decrement(tcur, level, &i)))
+			if ((error = xfs_btree_decrement(tcur, level, &i)))
 				goto error0;
 		}
 	}
@@ -315,7 +315,7 @@ xfs_inobt_delrec(
 		 * previous block.
 		 */
 		xfs_btree_firstrec(tcur, level);
-		if ((error = xfs_inobt_decrement(tcur, level, &i)))
+		if ((error = xfs_btree_decrement(tcur, level, &i)))
 			goto error0;
 		xfs_btree_firstrec(tcur, level);
 		/*
@@ -414,7 +414,7 @@ xfs_inobt_delrec(
 	 * Just return.  This is probably a logic error, but it's not fatal.
 	 */
 	else {
-		if (level > 0 && (error = xfs_inobt_decrement(cur, level, &i)))
+		if (level > 0 && (error = xfs_btree_decrement(cur, level, &i)))
 			return error;
 		*stat = 1;
 		return 0;
@@ -1656,90 +1656,6 @@ xfs_inobt_updkey(
  */
 
 /*
- * Decrement cursor by one record at the level.
- * For nonzero levels the leaf-ward information is untouched.
- */
-int					/* error */
-xfs_inobt_decrement(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	int			level,	/* level in btree, 0 is leaf */
-	int			*stat)	/* success/failure */
-{
-	xfs_inobt_block_t	*block;	/* btree block */
-	int			error;
-	int			lev;	/* btree level */
-
-	ASSERT(level < cur->bc_nlevels);
-	/*
-	 * Read-ahead to the left at this level.
-	 */
-	xfs_btree_readahead(cur, level, XFS_BTCUR_LEFTRA);
-	/*
-	 * Decrement the ptr at this level.  If we're still in the block
-	 * then we're done.
-	 */
-	if (--cur->bc_ptrs[level] > 0) {
-		*stat = 1;
-		return 0;
-	}
-	/*
-	 * Get a pointer to the btree block.
-	 */
-	block = XFS_BUF_TO_INOBT_BLOCK(cur->bc_bufs[level]);
-#ifdef DEBUG
-	if ((error = xfs_btree_check_sblock(cur, block, level,
-			cur->bc_bufs[level])))
-		return error;
-#endif
-	/*
-	 * If we just went off the left edge of the tree, return failure.
-	 */
-	if (be32_to_cpu(block->bb_leftsib) == NULLAGBLOCK) {
-		*stat = 0;
-		return 0;
-	}
-	/*
-	 * March up the tree decrementing pointers.
-	 * Stop when we don't go off the left edge of a block.
-	 */
-	for (lev = level + 1; lev < cur->bc_nlevels; lev++) {
-		if (--cur->bc_ptrs[lev] > 0)
-			break;
-		/*
-		 * Read-ahead the left block, we're going to read it
-		 * in the next loop.
-		 */
-		xfs_btree_readahead(cur, lev, XFS_BTCUR_LEFTRA);
-	}
-	/*
-	 * If we went off the root then we are seriously confused.
-	 */
-	ASSERT(lev < cur->bc_nlevels);
-	/*
-	 * Now walk back down the tree, fixing up the cursor's buffer
-	 * pointers and key numbers.
-	 */
-	for (block = XFS_BUF_TO_INOBT_BLOCK(cur->bc_bufs[lev]); lev > level; ) {
-		xfs_agblock_t	agbno;	/* block number of btree block */
-		xfs_buf_t	*bp;	/* buffer containing btree block */
-
-		agbno = be32_to_cpu(*XFS_INOBT_PTR_ADDR(block, cur->bc_ptrs[lev], cur));
-		if ((error = xfs_btree_read_bufs(cur->bc_mp, cur->bc_tp,
-				cur->bc_private.a.agno, agbno, 0, &bp,
-				XFS_INO_BTREE_REF)))
-			return error;
-		lev--;
-		xfs_btree_setbuf(cur, lev, bp);
-		block = XFS_BUF_TO_INOBT_BLOCK(bp);
-		if ((error = xfs_btree_check_sblock(cur, block, lev, bp)))
-			return error;
-		cur->bc_ptrs[lev] = be16_to_cpu(block->bb_numrecs);
-	}
-	*stat = 1;
-	return 0;
-}
-
-/*
  * Delete the record pointed to by cur.
  * The cursor refers to the place where the record was (could be inserted)
  * when the operation returns.
@@ -1765,7 +1681,7 @@ xfs_inobt_delete(
 	if (i == 0) {
 		for (level = 1; level < cur->bc_nlevels; level++) {
 			if (cur->bc_ptrs[level] == 0) {
-				if ((error = xfs_inobt_decrement(cur, level, &i)))
+				if ((error = xfs_btree_decrement(cur, level, &i)))
 					return error;
 				break;
 			}

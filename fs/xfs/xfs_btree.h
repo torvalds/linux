@@ -506,6 +506,7 @@ xfs_btree_setbuf(
  * Common btree core entry points.
  */
 int xfs_btree_increment(struct xfs_btree_cur *, int, int *);
+int xfs_btree_decrement(struct xfs_btree_cur *, int, int *);
 
 /*
  * Helpers.

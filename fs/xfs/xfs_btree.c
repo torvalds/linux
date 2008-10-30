@@ -1171,3 +1171,102 @@ error0:
 	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 	return error;
 }
+
+/*
+ * Decrement cursor by one record at the level.
+ * For nonzero levels the leaf-ward information is untouched.
+ */
+int						/* error */
+xfs_btree_decrement(
+	struct xfs_btree_cur	*cur,
+	int			level,
+	int			*stat)		/* success/failure */
+{
+	struct xfs_btree_block	*block;
+	xfs_buf_t		*bp;
+	int			error;		/* error return value */
+	int			lev;
+	union xfs_btree_ptr	ptr;
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
+	XFS_BTREE_TRACE_ARGI(cur, level);
+
+	ASSERT(level < cur->bc_nlevels);
+
+	/* Read-ahead to the left at this level. */
+	xfs_btree_readahead(cur, level, XFS_BTCUR_LEFTRA);
+
+	/* We're done if we remain in the block after the decrement. */
+	if (--cur->bc_ptrs[level] > 0)
+		goto out1;
+
+	/* Get a pointer to the btree block. */
+	block = xfs_btree_get_block(cur, level, &bp);
+
+#ifdef DEBUG
+	error = xfs_btree_check_block(cur, block, level, bp);
+	if (error)
+		goto error0;
+#endif
+
+	/* Fail if we just went off the left edge of the tree. */
+	xfs_btree_get_sibling(cur, block, &ptr, XFS_BB_LEFTSIB);
+	if (xfs_btree_ptr_is_null(cur, &ptr))
+		goto out0;
+
+	XFS_BTREE_STATS_INC(cur, decrement);
+
+	/*
+	 * March up the tree decrementing pointers.
+	 * Stop when we don't go off the left edge of a block.
+	 */
+	for (lev = level + 1; lev < cur->bc_nlevels; lev++) {
+		if (--cur->bc_ptrs[lev] > 0)
+			break;
+		/* Read-ahead the left block for the next loop. */
+		xfs_btree_readahead(cur, lev, XFS_BTCUR_LEFTRA);
+	}
+
+	/*
+	 * If we went off the root then we are seriously confused.
+	 * or the root of the tree is in an inode.
+	 */
+	if (lev == cur->bc_nlevels) {
+		if (cur->bc_flags & XFS_BTREE_ROOT_IN_INODE)
+			goto out0;
+		ASSERT(0);
+		error = EFSCORRUPTED;
+		goto error0;
+	}
+	ASSERT(lev < cur->bc_nlevels);
+
+	/*
+	 * Now walk back down the tree, fixing up the cursor's buffer
+	 * pointers and key numbers.
+	 */
+	for (block = xfs_btree_get_block(cur, lev, &bp); lev > level; ) {
+		union xfs_btree_ptr	*ptrp;
+
+		ptrp = xfs_btree_ptr_addr(cur, cur->bc_ptrs[lev], block);
+		error = xfs_btree_read_buf_block(cur, ptrp, --lev,
+							0, &block, &bp);
+		if (error)
+			goto error0;
+		xfs_btree_setbuf(cur, lev, bp);
+		cur->bc_ptrs[lev] = xfs_btree_get_numrecs(block);
+	}
+out1:
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+	*stat = 1;
+	return 0;
+
+out0:
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+	*stat = 0;
+	return 0;
+
+error0:
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+	return error;
+}
+

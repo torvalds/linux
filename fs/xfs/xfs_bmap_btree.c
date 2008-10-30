@@ -203,7 +203,7 @@ xfs_bmbt_delrec(
 			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 			goto error0;
 		}
-		if (level > 0 && (error = xfs_bmbt_decrement(cur, level, &j))) {
+		if (level > 0 && (error = xfs_btree_decrement(cur, level, &j))) {
 			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 			goto error0;
 		}
@@ -216,7 +216,7 @@ xfs_bmbt_delrec(
 		goto error0;
 	}
 	if (numrecs >= XFS_BMAP_BLOCK_IMINRECS(level, cur)) {
-		if (level > 0 && (error = xfs_bmbt_decrement(cur, level, &j))) {
+		if (level > 0 && (error = xfs_btree_decrement(cur, level, &j))) {
 			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 			goto error0;
 		}
@@ -237,7 +237,7 @@ xfs_bmbt_delrec(
 			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 			goto error0;
 		}
-		if (level > 0 && (error = xfs_bmbt_decrement(cur, level, &i))) {
+		if (level > 0 && (error = xfs_btree_decrement(cur, level, &i))) {
 			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 			goto error0;
 		}
@@ -282,7 +282,7 @@ xfs_bmbt_delrec(
 				xfs_btree_del_cursor(tcur, XFS_BTREE_NOERROR);
 				tcur = NULL;
 				if (level > 0) {
-					if ((error = xfs_bmbt_decrement(cur,
+					if ((error = xfs_btree_decrement(cur,
 							level, &i))) {
 						XFS_BMBT_TRACE_CURSOR(cur,
 							ERROR);
@@ -298,7 +298,7 @@ xfs_bmbt_delrec(
 		if (lbno != NULLFSBLOCK) {
 			i = xfs_btree_firstrec(tcur, level);
 			XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
-			if ((error = xfs_bmbt_decrement(tcur, level, &i))) {
+			if ((error = xfs_btree_decrement(tcur, level, &i))) {
 				XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 				goto error0;
 			}
@@ -311,7 +311,7 @@ xfs_bmbt_delrec(
 		/*
 		 * decrement to last in block
 		 */
-		if ((error = xfs_bmbt_decrement(tcur, level, &i))) {
+		if ((error = xfs_btree_decrement(tcur, level, &i))) {
 			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 			goto error0;
 		}
@@ -383,7 +383,7 @@ xfs_bmbt_delrec(
 		}
 		lrecs = be16_to_cpu(left->bb_numrecs);
 	} else {
-		if (level > 0 && (error = xfs_bmbt_decrement(cur, level, &i))) {
+		if (level > 0 && (error = xfs_btree_decrement(cur, level, &i))) {
 			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 			goto error0;
 		}
@@ -1487,80 +1487,6 @@ xfs_bmdr_to_bmbt(
 }
 
 /*
- * Decrement cursor by one record at the level.
- * For nonzero levels the leaf-ward information is untouched.
- */
-int						/* error */
-xfs_bmbt_decrement(
-	xfs_btree_cur_t		*cur,
-	int			level,
-	int			*stat)		/* success/failure */
-{
-	xfs_bmbt_block_t	*block;
-	xfs_buf_t		*bp;
-	int			error;		/* error return value */
-	xfs_fsblock_t		fsbno;
-	int			lev;
-	xfs_mount_t		*mp;
-	xfs_trans_t		*tp;
-
-	XFS_BMBT_TRACE_CURSOR(cur, ENTRY);
-	XFS_BMBT_TRACE_ARGI(cur, level);
-	ASSERT(level < cur->bc_nlevels);
-
-	xfs_btree_readahead(cur, level, XFS_BTCUR_LEFTRA);
-
-	if (--cur->bc_ptrs[level] > 0) {
-		XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-		*stat = 1;
-		return 0;
-	}
-	block = xfs_bmbt_get_block(cur, level, &bp);
-#ifdef DEBUG
-	if ((error = xfs_btree_check_lblock(cur, block, level, bp))) {
-		XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-		return error;
-	}
-#endif
-	if (be64_to_cpu(block->bb_leftsib) == NULLDFSBNO) {
-		XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-		*stat = 0;
-		return 0;
-	}
-	for (lev = level + 1; lev < cur->bc_nlevels; lev++) {
-		if (--cur->bc_ptrs[lev] > 0)
-			break;
-		xfs_btree_readahead(cur, lev, XFS_BTCUR_LEFTRA);
-	}
-	if (lev == cur->bc_nlevels) {
-		XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-		*stat = 0;
-		return 0;
-	}
-	tp = cur->bc_tp;
-	mp = cur->bc_mp;
-	for (block = xfs_bmbt_get_block(cur, lev, &bp); lev > level; ) {
-		fsbno = be64_to_cpu(*XFS_BMAP_PTR_IADDR(block, cur->bc_ptrs[lev], cur));
-		if ((error = xfs_btree_read_bufl(mp, tp, fsbno, 0, &bp,
-				XFS_BMAP_BTREE_REF))) {
-			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-			return error;
-		}
-		lev--;
-		xfs_btree_setbuf(cur, lev, bp);
-		block = XFS_BUF_TO_BMBT_BLOCK(bp);
-		if ((error = xfs_btree_check_lblock(cur, block, lev, bp))) {
-			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-			return error;
-		}
-		cur->bc_ptrs[lev] = be16_to_cpu(block->bb_numrecs);
-	}
-	XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-	*stat = 1;
-	return 0;
-}
-
-/*
  * Delete the record pointed to by cur.
  */
 int					/* error */
@@ -1582,7 +1508,7 @@ xfs_bmbt_delete(
 	if (i == 0) {
 		for (level = 1; level < cur->bc_nlevels; level++) {
 			if (cur->bc_ptrs[level] == 0) {
-				if ((error = xfs_bmbt_decrement(cur, level,
+				if ((error = xfs_btree_decrement(cur, level,
 						&i))) {
 					XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 					return error;

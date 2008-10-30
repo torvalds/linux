@@ -95,12 +95,6 @@ typedef	struct xfs_btree_sblock xfs_alloc_block_t;
 	XFS_BTREE_PTR_ADDR(xfs_alloc, bb, i, XFS_ALLOC_BLOCK_MAXRECS(1, cur))
 
 /*
- * Decrement cursor by one record at the level.
- * For nonzero levels the leaf-ward information is untouched.
- */
-extern int xfs_alloc_decrement(struct xfs_btree_cur *cur, int level, int *stat);
-
-/*
  * Delete the record pointed to by cur.
  * The cursor refers to the place where the record was (could be inserted)
  * when the operation returns.
