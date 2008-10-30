@@ -28,7 +28,7 @@
 #include <mach/hardware.h>
 
 #include <mach/regs-gpio.h>
-#include <asm/plat-s3c24xx/regs-spi.h>
+#include <plat/regs-spi.h>
 #include <mach/spi.h>
 
 struct s3c24xx_spi {

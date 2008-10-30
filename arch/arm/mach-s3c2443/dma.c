@@ -31,7 +31,7 @@
 #include <mach/regs-lcd.h>
 #include <mach/regs-sdi.h>
 #include <asm/plat-s3c24xx/regs-iis.h>
-#include <asm/plat-s3c24xx/regs-spi.h>
+#include <plat/regs-spi.h>
 
 #define MAP(x) { \
 		[0]	= (x) | DMA_CH_VALID,	\

@@ -33,7 +33,7 @@
 
 #include <plat/devs.h>
 #include <plat/cpu.h>
-#include <asm/plat-s3c24xx/regs-spi.h>
+#include <plat/regs-spi.h>
 
 /* Serial port registrations */
 
