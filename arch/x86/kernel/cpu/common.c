@@ -1134,7 +1134,7 @@ void __cpuinit cpu_init(void)
 	/*
 	 * Boot processor to setup the FP and extended state context info.
 	 */
-	if (!smp_processor_id())
+	if (smp_processor_id() == boot_cpu_id)
 		init_thread_xstate();
 
 	xsave_init();
