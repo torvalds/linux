@@ -46,8 +46,6 @@ static struct ieee80211_supported_band wbsoft_band_2GHz = {
 	.n_bitrates	= ARRAY_SIZE(wbsoft_rates),
 };
 
-int wbsoft_enabled;
-
 static int wbsoft_add_interface(struct ieee80211_hw *dev,
 				 struct ieee80211_if_init_conf *conf)
 {
@@ -129,8 +127,10 @@ static int wbsoft_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 
 static int wbsoft_start(struct ieee80211_hw *dev)
 {
-	wbsoft_enabled = 1;
-	printk("wbsoft_start called\n");
+	struct wbsoft_priv *priv = dev->priv;
+
+	priv->enabled = true;
+
 	return 0;
 }
 
@@ -393,10 +393,11 @@ error:
 
 void packet_came(struct ieee80211_hw *hw, char *pRxBufferAddress, int PacketSize)
 {
+	struct wbsoft_priv *priv = hw->priv;
 	struct sk_buff *skb;
 	struct ieee80211_rx_status rx_status = {0};
 
-	if (!wbsoft_enabled)
+	if (!priv->enabled)
 		return;
 
 	skb = dev_alloc_skb(PacketSize);

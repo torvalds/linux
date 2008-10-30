@@ -39,6 +39,8 @@ struct wbsoft_priv {
 	struct iw_statistics iw_stats;
 
 	u8 LinkName[WB_MAX_LINK_NAME_LEN];
+
+	bool enabled;
 };
 
 #endif /* __WINBOND_CORE_H */
