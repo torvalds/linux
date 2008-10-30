@@ -814,7 +814,7 @@ EXPORT_SYMBOL(simple_getattr);
 EXPORT_SYMBOL(simple_link);
 EXPORT_SYMBOL(simple_lookup);
 EXPORT_SYMBOL(simple_pin_fs);
-EXPORT_SYMBOL(simple_prepare_write);
+EXPORT_UNUSED_SYMBOL(simple_prepare_write);
 EXPORT_SYMBOL(simple_readpage);
 EXPORT_SYMBOL(simple_release_fs);
 EXPORT_SYMBOL(simple_rename);

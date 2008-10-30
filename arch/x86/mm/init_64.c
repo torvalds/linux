@@ -350,8 +350,10 @@ phys_pte_init(pte_t *pte_page, unsigned long addr, unsigned long end,
 		 * pagetable pages as RO. So assume someone who pre-setup
 		 * these mappings are more intelligent.
 		 */
-		if (pte_val(*pte))
+		if (pte_val(*pte)) {
+			pages++;
 			continue;
+		}
 
 		if (0)
 			printk("   pte=%p addr=%lx pte=%016lx\n",
@@ -418,8 +420,10 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end,
 			 * not differ with respect to page frame and
 			 * attributes.
 			 */
-			if (page_size_mask & (1 << PG_LEVEL_2M))
+			if (page_size_mask & (1 << PG_LEVEL_2M)) {
+				pages++;
 				continue;
+			}
 			new_prot = pte_pgprot(pte_clrhuge(*(pte_t *)pmd));
 		}
 
@@ -499,8 +503,10 @@ phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end,
 			 * not differ with respect to page frame and
 			 * attributes.
 			 */
-			if (page_size_mask & (1 << PG_LEVEL_1G))
+			if (page_size_mask & (1 << PG_LEVEL_1G)) {
+				pages++;
 				continue;
+			}
 			prot = pte_pgprot(pte_clrhuge(*(pte_t *)pud));
 		}
 
@@ -831,7 +837,7 @@ int arch_add_memory(int nid, u64 start, u64 size)
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 	int ret;
 
-	last_mapped_pfn = init_memory_mapping(start, start + size-1);
+	last_mapped_pfn = init_memory_mapping(start, start + size);
 	if (last_mapped_pfn > max_pfn_mapped)
 		max_pfn_mapped = last_mapped_pfn;
 

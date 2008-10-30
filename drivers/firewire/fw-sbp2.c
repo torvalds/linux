@@ -173,6 +173,9 @@ struct sbp2_target {
 	int blocked;	/* ditto */
 };
 
+/* Impossible login_id, to detect logout attempt before successful login */
+#define INVALID_LOGIN_ID 0x10000
+
 /*
  * Per section 7.4.8 of the SBP-2 spec, a mgt_ORB_timeout value can be
  * provided in the config rom. Most devices do provide a value, which
@@ -788,9 +791,20 @@ static void sbp2_release_target(struct kref *kref)
 			scsi_remove_device(sdev);
 			scsi_device_put(sdev);
 		}
-		sbp2_send_management_orb(lu, tgt->node_id, lu->generation,
-				SBP2_LOGOUT_REQUEST, lu->login_id, NULL);
-
+		if (lu->login_id != INVALID_LOGIN_ID) {
+			int generation, node_id;
+			/*
+			 * tgt->node_id may be obsolete here if we failed
+			 * during initial login or after a bus reset where
+			 * the topology changed.
+			 */
+			generation = device->generation;
+			smp_rmb(); /* node_id vs. generation */
+			node_id    = device->node_id;
+			sbp2_send_management_orb(lu, node_id, generation,
+						 SBP2_LOGOUT_REQUEST,
+						 lu->login_id, NULL);
+		}
 		fw_core_remove_address_handler(&lu->address_handler);
 		list_del(&lu->link);
 		kfree(lu);
@@ -805,19 +819,20 @@ static void sbp2_release_target(struct kref *kref)
 
 static struct workqueue_struct *sbp2_wq;
 
+static void sbp2_target_put(struct sbp2_target *tgt)
+{
+	kref_put(&tgt->kref, sbp2_release_target);
+}
+
 /*
  * Always get the target's kref when scheduling work on one its units.
  * Each workqueue job is responsible to call sbp2_target_put() upon return.
  */
 static void sbp2_queue_work(struct sbp2_logical_unit *lu, unsigned long delay)
 {
-	if (queue_delayed_work(sbp2_wq, &lu->work, delay))
-		kref_get(&lu->tgt->kref);
-}
-
-static void sbp2_target_put(struct sbp2_target *tgt)
-{
-	kref_put(&tgt->kref, sbp2_release_target);
+	kref_get(&lu->tgt->kref);
+	if (!queue_delayed_work(sbp2_wq, &lu->work, delay))
+		sbp2_target_put(lu->tgt);
 }
 
 /*
@@ -978,6 +993,7 @@ static int sbp2_add_logical_unit(struct sbp2_target *tgt, int lun_entry)
 
 	lu->tgt      = tgt;
 	lu->lun      = lun_entry & 0xffff;
+	lu->login_id = INVALID_LOGIN_ID;
 	lu->retries  = 0;
 	lu->has_sdev = false;
 	lu->blocked  = false;
@@ -1147,7 +1163,7 @@ static int sbp2_probe(struct device *dev)
 
 	/* Do the login in a workqueue so we can easily reschedule retries. */
 	list_for_each_entry(lu, &tgt->lu_list, link)
-		sbp2_queue_work(lu, 0);
+		sbp2_queue_work(lu, DIV_ROUND_UP(HZ, 5));
 	return 0;
 
  fail_tgt_put:

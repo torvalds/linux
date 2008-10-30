@@ -2688,12 +2688,13 @@ static int __devinit snd_ice1712_probe(struct pci_dev *pci,
 		return err;
 	}
 
-	if (ice_has_con_ac97(ice))
+	if (ice_has_con_ac97(ice)) {
 		err = snd_ice1712_pcm(ice, pcm_dev++, NULL);
 		if (err < 0) {
 			snd_card_free(card);
 			return err;
 		}
+	}
 
 	err = snd_ice1712_ac97_mixer(ice);
 	if (err < 0) {
@@ -2715,12 +2716,13 @@ static int __devinit snd_ice1712_probe(struct pci_dev *pci,
 		}
 	}
 
-	if (ice_has_con_ac97(ice))
+	if (ice_has_con_ac97(ice)) {
 		err = snd_ice1712_pcm_ds(ice, pcm_dev++, NULL);
 		if (err < 0) {
 			snd_card_free(card);
 			return err;
 		}
+	}
 
 	if (!c->no_mpu401) {
 		err = snd_mpu401_uart_new(card, 0, MPU401_HW_ICE1712,

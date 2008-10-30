@@ -347,7 +347,7 @@ S:	Maintained
 ALI1563 I2C DRIVER
 P:	Rudolf Marek
 M:	r.marek@assembler.cz
-L:	i2c@lm-sensors.org
+L:	linux-i2c@vger.kernel.org
 S:	Maintained
 
 ALPHA PORT
@@ -1749,7 +1749,7 @@ FREESCALE I2C CPM DRIVER
 P:	Jochen Friedrich
 M:	jochen@scram.de
 L:	linuxppc-dev@ozlabs.org
-L:	i2c@lm-sensors.org
+L:	linux-i2c@vger.kernel.org
 S:	Maintained
 
 FREESCALE SOC FS_ENET DRIVER
@@ -2022,7 +2022,7 @@ S:	Maintained
 I2C/SMBUS STUB DRIVER
 P:	Mark M. Hoffman
 M:	mhoffman@lightlink.com
-L:	i2c@lm-sensors.org
+L:	linux-i2c@vger.kernel.org
 S:	Maintained
 
 I2C SUBSYSTEM
@@ -2030,14 +2030,14 @@ P:	Jean Delvare (PC drivers, core)
 M:	khali@linux-fr.org
 P:	Ben Dooks (embedded platforms)
 M:	ben-linux@fluff.org
-L:	i2c@lm-sensors.org
+L:	linux-i2c@vger.kernel.org
 T:	quilt http://khali.linux-fr.org/devel/linux-2.6/jdelvare-i2c/
 S:	Maintained
 
 I2C-TINY-USB DRIVER
 P:	Till Harbaum
 M:	till@harbaum.org
-L:	i2c@lm-sensors.org
+L:	linux-i2c@vger.kernel.org
 T:	http://www.harbaum.org/till/i2c_tiny_usb
 S:	Maintained
 
@@ -2701,6 +2701,16 @@ M:	matthew@wil.cx
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
 
+LTP (Linux Test Project)
+P:	Subrata Modak
+M:	subrata@linux.vnet.ibm.com
+P:	Mike Frysinger
+M:	vapier@gentoo.org
+L:	ltp-list@lists.sourceforge.net (subscribers-only)
+W:	http://ltp.sourceforge.net/
+T:	git kernel.org/pub/scm/linux/kernel/git/galak/ltp.git
+S:	Maintained
+
 M32R ARCHITECTURE
 P:	Hirokazu Takata
 M:	takata@linux-m32r.org
@@ -3143,7 +3153,7 @@ S:	Maintained
 OPENCORES I2C BUS DRIVER
 P:	Peter Korsgaard
 M:	jacmet@sunsite.dk
-L:	i2c@lm-sensors.org
+L:	linux-i2c@vger.kernel.org
 S:	Maintained
 
 OPROFILE
@@ -3190,7 +3200,7 @@ S:	Maintained
 PA SEMI SMBUS DRIVER
 P:	Olof Johansson
 M:	olof@lixom.net
-L:	i2c@lm-sensors.org
+L:	linux-i2c@vger.kernel.org
 S:	Maintained
 
 PANASONIC LAPTOP ACPI EXTRAS DRIVER
@@ -3335,7 +3345,7 @@ S:	Maintained
 PNXxxxx I2C DRIVER
 P:	Vitaly Wool
 M:	vitalywool@gmail.com
-L:	i2c@lm-sensors.org
+L:	linux-i2c@vger.kernel.org
 S:	Maintained
 
 PPP PROTOCOL DRIVERS AND COMPRESSORS
@@ -3799,7 +3809,7 @@ S:	Maintained
 SIS 96X I2C/SMBUS DRIVER
 P:	Mark M. Hoffman
 M:	mhoffman@lightlink.com
-L:	i2c@lm-sensors.org
+L:	linux-i2c@vger.kernel.org
 S:	Maintained
 
 SIS FRAMEBUFFER DRIVER
@@ -4546,7 +4556,7 @@ S:	Maintained
 VIAPRO SMBUS DRIVER
 P:	Jean Delvare
 M:	khali@linux-fr.org
-L:	i2c@lm-sensors.org
+L:	linux-i2c@vger.kernel.org
 S:	Maintained
 
 VIA UNICHROME(PRO)/CHROME9 FRAMEBUFFER DRIVER

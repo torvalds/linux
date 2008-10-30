@@ -1,7 +1,7 @@
 /*
  *    pata_sis.c - SiS ATA driver
  *
- *	(C) 2005 Red Hat <alan@redhat.com>
+ *	(C) 2005 Red Hat
  *	(C) 2007 Bartlomiej Zolnierkiewicz
  *
  *    Based upon linux/drivers/ide/pci/sis5513.c

@@ -175,7 +175,7 @@ static ssize_t fat_direct_IO(int rw, struct kiocb *iocb,
 
 	if (rw == WRITE) {
 		/*
-		 * FIXME: blockdev_direct_IO() doesn't use ->prepare_write(),
+		 * FIXME: blockdev_direct_IO() doesn't use ->write_begin(),
 		 * so we need to update the ->mmu_private to block boundary.
 		 *
 		 * But we must fill the remaining area or hole by nul for

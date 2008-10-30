@@ -335,7 +335,7 @@ void update_max_tr_single(struct trace_array *tr,
 
 extern cycle_t ftrace_now(int cpu);
 
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 void tracing_start_function_trace(void);
 void tracing_stop_function_trace(void);
 #else

@@ -25,15 +25,23 @@
 #include "ioapic.h"
 
 /* This should be called with the kvm->lock mutex held */
-void kvm_set_irq(struct kvm *kvm, int irq, int level)
+void kvm_set_irq(struct kvm *kvm, int irq_source_id, int irq, int level)
 {
+	unsigned long *irq_state = (unsigned long *)&kvm->arch.irq_states[irq];
+
+	/* Logical OR for level trig interrupt */
+	if (level)
+		set_bit(irq_source_id, irq_state);
+	else
+		clear_bit(irq_source_id, irq_state);
+
 	/* Not possible to detect if the guest uses the PIC or the
 	 * IOAPIC.  So set the bit in both. The guest will ignore
 	 * writes to the unused one.
 	 */
-	kvm_ioapic_set_irq(kvm->arch.vioapic, irq, level);
+	kvm_ioapic_set_irq(kvm->arch.vioapic, irq, !!(*irq_state));
 #ifdef CONFIG_X86
-	kvm_pic_set_irq(pic_irqchip(kvm), irq, level);
+	kvm_pic_set_irq(pic_irqchip(kvm), irq, !!(*irq_state));
 #endif
 }
 
@@ -57,4 +65,32 @@ void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
 				     struct kvm_irq_ack_notifier *kian)
 {
 	hlist_del(&kian->link);
+}
+
+/* The caller must hold kvm->lock mutex */
+int kvm_request_irq_source_id(struct kvm *kvm)
+{
+	unsigned long *bitmap = &kvm->arch.irq_sources_bitmap;
+	int irq_source_id = find_first_zero_bit(bitmap,
+				sizeof(kvm->arch.irq_sources_bitmap));
+	if (irq_source_id >= sizeof(kvm->arch.irq_sources_bitmap)) {
+		printk(KERN_WARNING "kvm: exhaust allocatable IRQ sources!\n");
+		irq_source_id = -EFAULT;
+	} else
+		set_bit(irq_source_id, bitmap);
+	return irq_source_id;
+}
+
+void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id)
+{
+	int i;
+
+	if (irq_source_id <= 0 ||
+	    irq_source_id >= sizeof(kvm->arch.irq_sources_bitmap)) {
+		printk(KERN_ERR "kvm: IRQ source ID out of range!\n");
+		return;
+	}
+	for (i = 0; i < KVM_IOAPIC_NUM_PINS; i++)
+		clear_bit(irq_source_id, &kvm->arch.irq_states[i]);
+	clear_bit(irq_source_id, &kvm->arch.irq_sources_bitmap);
 }

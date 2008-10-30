@@ -37,6 +37,8 @@
 #define KVM_REQ_UNHALT             6
 #define KVM_REQ_MMU_SYNC           7
 
+#define KVM_USERSPACE_IRQ_SOURCE_ID	0
+
 struct kvm_vcpu;
 extern struct kmem_cache *kvm_vcpu_cache;
 
@@ -306,15 +308,18 @@ struct kvm_assigned_dev_kernel {
 	int host_irq;
 	int guest_irq;
 	int irq_requested;
+	int irq_source_id;
 	struct pci_dev *dev;
 	struct kvm *kvm;
 };
-void kvm_set_irq(struct kvm *kvm, int irq, int level);
+void kvm_set_irq(struct kvm *kvm, int irq_source_id, int irq, int level);
 void kvm_notify_acked_irq(struct kvm *kvm, unsigned gsi);
 void kvm_register_irq_ack_notifier(struct kvm *kvm,
 				   struct kvm_irq_ack_notifier *kian);
 void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
 				     struct kvm_irq_ack_notifier *kian);
+int kvm_request_irq_source_id(struct kvm *kvm);
+void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id);
 
 #ifdef CONFIG_DMAR
 int kvm_iommu_map_pages(struct kvm *kvm, gfn_t base_gfn,

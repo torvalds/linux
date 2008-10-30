@@ -280,7 +280,7 @@ static int __init plat_setup_devices(void)
 {
 	/* Look for the CF card reader */
 	if (!readl(IDT434_REG_BASE + DEV1MASK))
-		rb532_devs[1] = NULL;
+		rb532_devs[2] = NULL;	/* disable cf_slot0 at index 2 */
 	else {
 		cf_slot0_res[0].start =
 		    readl(IDT434_REG_BASE + DEV1BASE);

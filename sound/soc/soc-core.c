@@ -1462,7 +1462,7 @@ int snd_soc_info_volsw(struct snd_kcontrol *kcontrol,
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	int max = mc->max;
-	unsigned int shift = mc->min;
+	unsigned int shift = mc->shift;
 	unsigned int rshift = mc->rshift;
 
 	if (max == 1)
