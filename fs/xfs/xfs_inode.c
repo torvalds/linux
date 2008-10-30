@@ -2214,9 +2214,9 @@ xfs_ifree_cluster(
 				iip = (xfs_inode_log_item_t *)lip;
 				ASSERT(iip->ili_logged == 1);
 				lip->li_cb = (void(*)(xfs_buf_t*,xfs_log_item_t*)) xfs_istale_done;
-				spin_lock(&mp->m_ail_lock);
-				iip->ili_flush_lsn = iip->ili_item.li_lsn;
-				spin_unlock(&mp->m_ail_lock);
+				xfs_trans_ail_copy_lsn(mp->m_ail,
+							&iip->ili_flush_lsn,
+							&iip->ili_item.li_lsn);
 				xfs_iflags_set(iip->ili_inode, XFS_ISTALE);
 				pre_flushed++;
 			}
@@ -2237,9 +2237,8 @@ xfs_ifree_cluster(
 			iip->ili_last_fields = iip->ili_format.ilf_fields;
 			iip->ili_format.ilf_fields = 0;
 			iip->ili_logged = 1;
-			spin_lock(&mp->m_ail_lock);
-			iip->ili_flush_lsn = iip->ili_item.li_lsn;
-			spin_unlock(&mp->m_ail_lock);
+			xfs_trans_ail_copy_lsn(mp->m_ail, &iip->ili_flush_lsn,
+						&iip->ili_item.li_lsn);
 
 			xfs_buf_attach_iodone(bp,
 				(void(*)(xfs_buf_t*,xfs_log_item_t*))
@@ -3476,10 +3475,8 @@ xfs_iflush_int(
 		iip->ili_format.ilf_fields = 0;
 		iip->ili_logged = 1;
 
-		ASSERT(sizeof(xfs_lsn_t) == 8);	/* don't lock if it shrinks */
-		spin_lock(&mp->m_ail_lock);
-		iip->ili_flush_lsn = iip->ili_item.li_lsn;
-		spin_unlock(&mp->m_ail_lock);
+		xfs_trans_ail_copy_lsn(mp->m_ail, &iip->ili_flush_lsn,
+					&iip->ili_item.li_lsn);
 
 		/*
 		 * Attach the function xfs_iflush_done to the inode's

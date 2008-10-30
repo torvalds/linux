@@ -1272,10 +1272,8 @@ xfs_qm_dqflush(
 	dqp->dq_flags &= ~(XFS_DQ_DIRTY);
 	mp = dqp->q_mount;
 
-	/* lsn is 64 bits */
-	spin_lock(&mp->m_ail_lock);
-	dqp->q_logitem.qli_flush_lsn = dqp->q_logitem.qli_item.li_lsn;
-	spin_unlock(&mp->m_ail_lock);
+	xfs_trans_ail_copy_lsn(mp->m_ail, &dqp->q_logitem.qli_flush_lsn,
+					&dqp->q_logitem.qli_item.li_lsn);
 
 	/*
 	 * Attach an iodone routine so that we can remove this dquot from the
