@@ -95,6 +95,8 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_BSS_CTS_PROT] = { .type = NLA_U8 },
 	[NL80211_ATTR_BSS_SHORT_PREAMBLE] = { .type = NLA_U8 },
 	[NL80211_ATTR_BSS_SHORT_SLOT_TIME] = { .type = NLA_U8 },
+	[NL80211_ATTR_BSS_BASIC_RATES] = { .type = NLA_BINARY,
+					   .len = NL80211_MAX_SUPP_RATES },
 
 	[NL80211_ATTR_MESH_PARAMS] = { .type = NLA_NESTED },
 
@@ -1613,6 +1615,12 @@ static int nl80211_set_bss(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_BSS_SHORT_SLOT_TIME])
 		params.use_short_slot_time =
 		    nla_get_u8(info->attrs[NL80211_ATTR_BSS_SHORT_SLOT_TIME]);
+	if (info->attrs[NL80211_ATTR_BSS_BASIC_RATES]) {
+		params.basic_rates =
+			nla_data(info->attrs[NL80211_ATTR_BSS_BASIC_RATES]);
+		params.basic_rates_len =
+			nla_len(info->attrs[NL80211_ATTR_BSS_BASIC_RATES]);
+	}
 
 	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
 	if (err)

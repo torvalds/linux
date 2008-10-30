@@ -1046,6 +1046,24 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 		changed |= BSS_CHANGED_ERP_SLOT;
 	}
 
+	if (params->basic_rates) {
+		int i, j;
+		u32 rates = 0;
+		struct ieee80211_local *local = wiphy_priv(wiphy);
+		struct ieee80211_supported_band *sband =
+			wiphy->bands[local->oper_channel->band];
+
+		for (i = 0; i < params->basic_rates_len; i++) {
+			int rate = (params->basic_rates[i] & 0x7f) * 5;
+			for (j = 0; j < sband->n_bitrates; j++) {
+				if (sband->bitrates[j].bitrate == rate)
+					rates |= BIT(j);
+			}
+		}
+		sdata->vif.bss_conf.basic_rates = rates;
+		changed |= BSS_CHANGED_BASIC_RATES;
+	}
+
 	ieee80211_bss_info_change_notify(sdata, changed);
 
 	return 0;

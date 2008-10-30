@@ -280,11 +280,16 @@ struct mpath_info {
  *	(0 = no, 1 = yes, -1 = do not change)
  * @use_short_slot_time: Whether the use of short slot time is allowed
  *	(0 = no, 1 = yes, -1 = do not change)
+ * @basic_rates: basic rates in IEEE 802.11 format
+ *	(or NULL for no change)
+ * @basic_rates_len: number of basic rates
  */
 struct bss_parameters {
 	int use_cts_prot;
 	int use_short_preamble;
 	int use_short_slot_time;
+	u8 *basic_rates;
+	u8 basic_rates_len;
 };
 
 /**
