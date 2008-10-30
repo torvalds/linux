@@ -669,6 +669,13 @@ struct ieee80211_cts {
 	u8 ra[6];
 } __attribute__ ((packed));
 
+struct ieee80211_pspoll {
+	__le16 frame_control;
+	__le16 aid;
+	u8 bssid[6];
+	u8 ta[6];
+} __attribute__ ((packed));
+
 /**
  * struct ieee80211_bar - HT Block Ack Request
  *

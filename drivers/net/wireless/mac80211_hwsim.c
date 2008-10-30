@@ -21,6 +21,7 @@
 #include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
 #include <linux/etherdevice.h>
+#include <linux/debugfs.h>
 
 MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("Software simulator of 802.11 radio(s) for mac80211");
@@ -32,6 +33,9 @@ MODULE_PARM_DESC(radios, "Number of simulated radios");
 
 struct hwsim_vif_priv {
 	u32 magic;
+	u8 bssid[ETH_ALEN];
+	bool assoc;
+	u16 aid;
 };
 
 #define HWSIM_VIF_MAGIC	0x69537748
@@ -132,6 +136,12 @@ struct mac80211_hwsim_data {
 	unsigned int rx_filter;
 	int started;
 	struct timer_list beacon_timer;
+	enum ps_mode {
+		PS_DISABLED, PS_ENABLED, PS_AUTO_POLL, PS_MANUAL_POLL
+	} ps;
+	bool ps_poll_pending;
+	struct dentry *debugfs;
+	struct dentry *debugfs_ps;
 };
 
 
@@ -196,6 +206,34 @@ static void mac80211_hwsim_monitor_rx(struct ieee80211_hw *hw,
 }
 
 
+static bool hwsim_ps_rx_ok(struct mac80211_hwsim_data *data,
+			   struct sk_buff *skb)
+{
+	switch (data->ps) {
+	case PS_DISABLED:
+		return true;
+	case PS_ENABLED:
+		return false;
+	case PS_AUTO_POLL:
+		/* TODO: accept (some) Beacons by default and other frames only
+		 * if pending PS-Poll has been sent */
+		return true;
+	case PS_MANUAL_POLL:
+		/* Allow unicast frames to own address if there is a pending
+		 * PS-Poll */
+		if (data->ps_poll_pending &&
+		    memcmp(data->hw->wiphy->perm_addr, skb->data + 4,
+			   ETH_ALEN) == 0) {
+			data->ps_poll_pending = false;
+			return true;
+		}
+		return false;
+	}
+
+	return true;
+}
+
+
 static bool mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 				    struct sk_buff *skb)
 {
@@ -212,6 +250,9 @@ static bool mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 	rx_status.rate_idx = info->control.rates[0].idx;
 	/* TODO: simulate signal strength (and optional packet drop) */
 
+	if (data->ps != PS_DISABLED)
+		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
+
 	/* Copy skb to all enabled radios that are on the current frequency */
 	spin_lock(&hwsim_radio_lock);
 	list_for_each_entry(data2, &hwsim_radios, list) {
@@ -221,6 +262,7 @@ static bool mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 			continue;
 
 		if (!data2->started || !data2->radio_enabled ||
+		    !hwsim_ps_rx_ok(data2, skb) ||
 		    data->channel->center_freq != data2->channel->center_freq)
 			continue;
 
@@ -404,7 +446,16 @@ static int mac80211_hwsim_config_interface(struct ieee80211_hw *hw,
 					   struct ieee80211_vif *vif,
 					   struct ieee80211_if_conf *conf)
 {
+	struct hwsim_vif_priv *vp = (void *)vif->drv_priv;
+
 	hwsim_check_magic(vif);
+	if (conf->changed & IEEE80211_IFCC_BSSID) {
+		DECLARE_MAC_BUF(mac);
+		printk(KERN_DEBUG "%s:%s: BSSID changed: %s\n",
+		       wiphy_name(hw->wiphy), __func__,
+		       print_mac(mac, conf->bssid));
+		memcpy(vp->bssid, conf->bssid, ETH_ALEN);
+	}
 	return 0;
 }
 
@@ -413,6 +464,8 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 					    struct ieee80211_bss_conf *info,
 					    u32 changed)
 {
+	struct hwsim_vif_priv *vp = (void *)vif->drv_priv;
+
 	hwsim_check_magic(vif);
 
 	printk(KERN_DEBUG "%s:%s(changed=0x%x)\n",
@@ -421,6 +474,8 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_ASSOC) {
 		printk(KERN_DEBUG "  %s: ASSOC: assoc=%d aid=%d\n",
 		       wiphy_name(hw->wiphy), info->assoc, info->aid);
+		vp->assoc = info->assoc;
+		vp->aid = info->aid;
 	}
 
 	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
@@ -518,6 +573,8 @@ static void mac80211_hwsim_free(void)
 	spin_unlock_bh(&hwsim_radio_lock);
 
 	list_for_each_entry(data, &tmplist, list) {
+		debugfs_remove(data->debugfs_ps);
+		debugfs_remove(data->debugfs);
 		ieee80211_unregister_hw(data->hw);
 		device_unregister(data->dev);
 		ieee80211_free_hw(data->hw);
@@ -541,6 +598,127 @@ static void hwsim_mon_setup(struct net_device *dev)
 	memset(dev->dev_addr, 0, ETH_ALEN);
 	dev->dev_addr[0] = 0x12;
 }
+
+
+static void hwsim_send_ps_poll(void *dat, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct mac80211_hwsim_data *data = dat;
+	struct hwsim_vif_priv *vp = (void *)vif->drv_priv;
+	DECLARE_MAC_BUF(buf);
+	struct sk_buff *skb;
+	struct ieee80211_pspoll *pspoll;
+
+	if (!vp->assoc)
+		return;
+
+	printk(KERN_DEBUG "%s:%s: send PS-Poll to %s for aid %d\n",
+	       wiphy_name(data->hw->wiphy), __func__,
+	       print_mac(buf, vp->bssid), vp->aid);
+
+	skb = dev_alloc_skb(sizeof(*pspoll));
+	if (!skb)
+		return;
+	pspoll = (void *) skb_put(skb, sizeof(*pspoll));
+	pspoll->frame_control = cpu_to_le16(IEEE80211_FTYPE_CTL |
+					    IEEE80211_STYPE_PSPOLL |
+					    IEEE80211_FCTL_PM);
+	pspoll->aid = cpu_to_le16(0xc000 | vp->aid);
+	memcpy(pspoll->bssid, vp->bssid, ETH_ALEN);
+	memcpy(pspoll->ta, mac, ETH_ALEN);
+	if (data->radio_enabled &&
+	    !mac80211_hwsim_tx_frame(data->hw, skb))
+		printk(KERN_DEBUG "%s: PS-Poll frame not ack'ed\n", __func__);
+	dev_kfree_skb(skb);
+}
+
+
+static void hwsim_send_nullfunc(struct mac80211_hwsim_data *data, u8 *mac,
+				struct ieee80211_vif *vif, int ps)
+{
+	struct hwsim_vif_priv *vp = (void *)vif->drv_priv;
+	DECLARE_MAC_BUF(buf);
+	struct sk_buff *skb;
+	struct ieee80211_hdr *hdr;
+
+	if (!vp->assoc)
+		return;
+
+	printk(KERN_DEBUG "%s:%s: send data::nullfunc to %s ps=%d\n",
+	       wiphy_name(data->hw->wiphy), __func__,
+	       print_mac(buf, vp->bssid), ps);
+
+	skb = dev_alloc_skb(sizeof(*hdr));
+	if (!skb)
+		return;
+	hdr = (void *) skb_put(skb, sizeof(*hdr) - ETH_ALEN);
+	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_DATA |
+					 IEEE80211_STYPE_NULLFUNC |
+					 (ps ? IEEE80211_FCTL_PM : 0));
+	hdr->duration_id = cpu_to_le16(0);
+	memcpy(hdr->addr1, vp->bssid, ETH_ALEN);
+	memcpy(hdr->addr2, mac, ETH_ALEN);
+	memcpy(hdr->addr3, vp->bssid, ETH_ALEN);
+	if (data->radio_enabled &&
+	    !mac80211_hwsim_tx_frame(data->hw, skb))
+		printk(KERN_DEBUG "%s: nullfunc frame not ack'ed\n", __func__);
+	dev_kfree_skb(skb);
+}
+
+
+static void hwsim_send_nullfunc_ps(void *dat, u8 *mac,
+				   struct ieee80211_vif *vif)
+{
+	struct mac80211_hwsim_data *data = dat;
+	hwsim_send_nullfunc(data, mac, vif, 1);
+}
+
+
+static void hwsim_send_nullfunc_no_ps(void *dat, u8 *mac,
+				      struct ieee80211_vif *vif)
+{
+	struct mac80211_hwsim_data *data = dat;
+	hwsim_send_nullfunc(data, mac, vif, 0);
+}
+
+
+static int hwsim_fops_ps_read(void *dat, u64 *val)
+{
+	struct mac80211_hwsim_data *data = dat;
+	*val = data->ps;
+	return 0;
+}
+
+static int hwsim_fops_ps_write(void *dat, u64 val)
+{
+	struct mac80211_hwsim_data *data = dat;
+	enum ps_mode old_ps;
+
+	if (val != PS_DISABLED && val != PS_ENABLED && val != PS_AUTO_POLL &&
+	    val != PS_MANUAL_POLL)
+		return -EINVAL;
+
+	old_ps = data->ps;
+	data->ps = val;
+
+	if (val == PS_MANUAL_POLL) {
+		ieee80211_iterate_active_interfaces(data->hw,
+						    hwsim_send_ps_poll, data);
+		data->ps_poll_pending = true;
+	} else if (old_ps == PS_DISABLED && val != PS_DISABLED) {
+		ieee80211_iterate_active_interfaces(data->hw,
+						    hwsim_send_nullfunc_ps,
+						    data);
+	} else if (old_ps != PS_DISABLED && val == PS_DISABLED) {
+		ieee80211_iterate_active_interfaces(data->hw,
+						    hwsim_send_nullfunc_no_ps,
+						    data);
+	}
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(hwsim_fops_ps, hwsim_fops_ps_read, hwsim_fops_ps_write,
+			"%llu\n");
 
 
 static int __init init_mac80211_hwsim(void)
@@ -633,6 +811,12 @@ static int __init init_mac80211_hwsim(void)
 		printk(KERN_DEBUG "%s: hwaddr %pM registered\n",
 		       wiphy_name(hw->wiphy),
 		       hw->wiphy->perm_addr);
+
+		data->debugfs = debugfs_create_dir("hwsim",
+						   hw->wiphy->debugfsdir);
+		data->debugfs_ps = debugfs_create_file("ps", 0666,
+						       data->debugfs, data,
+						       &hwsim_fops_ps);
 
 		setup_timer(&data->beacon_timer, mac80211_hwsim_beacon,
 			    (unsigned long) hw);
