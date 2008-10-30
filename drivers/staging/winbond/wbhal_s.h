@@ -3,7 +3,7 @@
 
 #include <linux/types.h>
 
-#include "linux/common.h"
+#include "common.h"
 
 //[20040722 WK]
 #define HAL_LED_SET_MASK		0x001c	//20060901 Extend
@@ -422,10 +422,10 @@ typedef struct _TXVGA_FOR_50 {
 // Device related include
 //=====================================================================
 
-#include "linux/wbusb_s.h"
-#include "linux/wb35reg_s.h"
-#include "linux/wb35tx_s.h"
-#include "linux/wb35rx_s.h"
+#include "wbusb_s.h"
+#include "wb35reg_s.h"
+#include "wb35tx_s.h"
+#include "wb35rx_s.h"
 
 
 // For Hal using ==================================================================

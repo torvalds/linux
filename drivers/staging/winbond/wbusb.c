@@ -6,9 +6,9 @@
 #include <net/mac80211.h>
 #include <linux/usb.h>
 
-#include "../mlmetxrx_f.h"
-#include "../wbhal_f.h"
-#include "../wblinux_f.h"
+#include "mlmetxrx_f.h"
+#include "wbhal_f.h"
+#include "wblinux_f.h"
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
@@ -252,7 +252,7 @@ static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id
 	SET_IEEE80211_DEV(dev, &udev->dev);
 	{
 		phw_data_t pHwData = &adapter->sHwData;
-		unsigned char dev_addr[MAX_ADDR_LEN];
+		unsigned char		dev_addr[MAX_ADDR_LEN];
 		hal_get_permanent_address(pHwData, dev_addr);
 		SET_IEEE80211_PERM_ADDR(dev, dev_addr);
 	}

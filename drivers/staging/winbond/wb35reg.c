@@ -511,12 +511,12 @@ Wb35Reg_destroy(phw_data_t pHwData)
 
 	// Wait for Reg operation completed
 	do {
-		msleep(10);	// Delay for waiting function enter 940623.1.a
+		msleep(10); // Delay for waiting function enter 940623.1.a
 	} while (reg->EP0vm_state != VM_STOP);
-	msleep(10);	// Delay for waiting function enter 940623.1.b
+	msleep(10);  // Delay for waiting function enter 940623.1.b
 
 	// Release all the data in RegQueue
-	spin_lock_irq(&reg->EP0VM_spin_lock);
+	spin_lock_irq( &reg->EP0VM_spin_lock );
 	reg_queue = reg->reg_first;
 	while (reg_queue) {
 		if (reg_queue == reg->reg_last)
@@ -524,7 +524,7 @@ Wb35Reg_destroy(phw_data_t pHwData)
 		reg->reg_first = reg->reg_first->Next;
 
 		urb = reg_queue->urb;
-		spin_unlock_irq(&reg->EP0VM_spin_lock);
+		spin_unlock_irq( &reg->EP0VM_spin_lock );
 		if (urb) {
 			usb_free_urb(urb);
 			kfree(reg_queue);

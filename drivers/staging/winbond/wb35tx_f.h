@@ -1,7 +1,7 @@
 #ifndef __WINBOND_WB35TX_F_H
 #define __WINBOND_WB35TX_F_H
 
-#include "../wbhal_f.h"
+#include "wbhal_f.h"
 
 //====================================
 // Interface function declare

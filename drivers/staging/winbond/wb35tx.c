@@ -11,7 +11,7 @@
 #include <linux/usb.h>
 
 #include "wb35tx_f.h"
-#include "../mds_f.h"
+#include "mds_f.h"
 #include "sysdef.h"
 
 unsigned char
