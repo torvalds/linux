@@ -83,8 +83,8 @@ typedef struct xfs_dquot {
 	xfs_qcnt_t	 q_res_rtbcount;/* total realtime blks used+reserved */
 	mutex_t		 q_qlock;	/* quota lock */
 	struct completion q_flush;	/* flush completion queue */
-	uint		 q_pincount;	/* pin count for this dquot */
-	sv_t		 q_pinwait;	/* sync var for pinning */
+	atomic_t          q_pincount;	/* dquot pin count */
+	wait_queue_head_t q_pinwait;	/* dquot pinning wait queue */
 #ifdef XFS_DQUOT_TRACE
 	struct ktrace	*q_trace;	/* trace header structure */
 #endif
