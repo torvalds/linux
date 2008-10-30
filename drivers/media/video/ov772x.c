@@ -874,9 +874,8 @@ static struct soc_camera_ops ov772x_ops = {
  * i2c_driver function
  */
 
-static int ov772x_probe(struct i2c_client          *client,
-			const struct i2c_device_id *did)
-
+static int ov772x_probe(struct i2c_client *client,
+			 const struct i2c_device_id *did)
 {
 	struct ov772x_priv        *priv;
 	struct ov772x_camera_info *info;
@@ -932,7 +931,6 @@ static const struct i2c_device_id ov772x_id[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ov772x_id);
-
 
 static struct i2c_driver ov772x_i2c_driver = {
 	.driver = {
