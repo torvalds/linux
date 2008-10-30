@@ -262,7 +262,7 @@ static int elo_setup_10(struct elo *elo)
 		input_set_abs_params(dev, ABS_PRESSURE, 0, 255, 0, 0);
 
 	printk(KERN_INFO "elo: %sTouch touchscreen, fw: %02x.%02x, "
-		"features: %x02x, controller: 0x%02x\n",
+		"features: 0x%02x, controller: 0x%02x\n",
 		elo_types[(packet[1] -'0') & 0x03],
 		packet[5], packet[4], packet[3], packet[7]);
 
