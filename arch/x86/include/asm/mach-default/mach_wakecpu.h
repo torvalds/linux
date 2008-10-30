@@ -33,10 +33,9 @@ static inline void restore_NMI_vector(unsigned short *high, unsigned short *low)
 {
 }
 
-#if APIC_DEBUG
- #define inquire_remote_apic(apicid) __inquire_remote_apic(apicid)
-#else
- #define inquire_remote_apic(apicid) {}
-#endif
+#define inquire_remote_apic(apicid) do {		\
+		if (apic_verbosity >= APIC_DEBUG)	\
+			__inquire_remote_apic(apicid);	\
+	} while (0)
 
 #endif /* _ASM_X86_MACH_DEFAULT_MACH_WAKECPU_H */
