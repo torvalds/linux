@@ -1221,16 +1221,14 @@ xfs_qm_dqflush(
 	xfs_dqtrace_entry(dqp, "DQFLUSH");
 
 	/*
-	 * If not dirty, nada.
+	 * If not dirty, or it's pinned and we are not supposed to
+	 * block, nada.
 	 */
-	if (!XFS_DQ_IS_DIRTY(dqp)) {
+	if (!XFS_DQ_IS_DIRTY(dqp) ||
+	    (!(flags & XFS_QMOPT_SYNC) && atomic_read(&dqp->q_pincount) > 0)) {
 		xfs_dqfunlock(dqp);
-		return (0);
+		return 0;
 	}
-
-	/*
-	 * Cant flush a pinned dquot. Wait for it.
-	 */
 	xfs_qm_dqunpin_wait(dqp);
 
 	/*
