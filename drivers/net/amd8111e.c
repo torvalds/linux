@@ -833,12 +833,14 @@ static int amd8111e_rx_poll(struct napi_struct *napi, int budget)
 
 	} while(intr0 & RINT0);
 
-	/* Receive descriptor is empty now */
-	spin_lock_irqsave(&lp->lock, flags);
-	__netif_rx_complete(dev, napi);
-	writel(VAL0|RINTEN0, mmio + INTEN0);
-	writel(VAL2 | RDMD0, mmio + CMD0);
-	spin_unlock_irqrestore(&lp->lock, flags);
+	if (rx_pkt_limit > 0) {
+		/* Receive descriptor is empty now */
+		spin_lock_irqsave(&lp->lock, flags);
+		__netif_rx_complete(dev, napi);
+		writel(VAL0|RINTEN0, mmio + INTEN0);
+		writel(VAL2 | RDMD0, mmio + CMD0);
+		spin_unlock_irqrestore(&lp->lock, flags);
+	}
 
 rx_not_empty:
 	return num_rx_pkt;
