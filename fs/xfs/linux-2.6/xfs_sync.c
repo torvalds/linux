@@ -48,79 +48,6 @@
 #include <linux/freezer.h>
 
 /*
- * xfs_sync flushes any pending I/O to file system vfsp.
- *
- * This routine is called by vfs_sync() to make sure that things make it
- * out to disk eventually, on sync() system calls to flush out everything,
- * and when the file system is unmounted.  For the vfs_sync() case, all
- * we really need to do is sync out the log to make all of our meta-data
- * updates permanent (except for timestamps).  For calls from pflushd(),
- * dirty pages are kept moving by calling pdflush() on the inodes
- * containing them.  We also flush the inodes that we can lock without
- * sleeping and the superblock if we can lock it without sleeping from
- * vfs_sync() so that items at the tail of the log are always moving out.
- *
- * Flags:
- *      SYNC_BDFLUSH - We're being called from vfs_sync() so we don't want
- *		       to sleep if we can help it.  All we really need
- *		       to do is ensure that the log is synced at least
- *		       periodically.  We also push the inodes and
- *		       superblock if we can lock them without sleeping
- *			and they are not pinned.
- *      SYNC_ATTR    - We need to flush the inodes.  If SYNC_BDFLUSH is not
- *		       set, then we really want to lock each inode and flush
- *		       it.
- *      SYNC_WAIT    - All the flushes that take place in this call should
- *		       be synchronous.
- *      SYNC_DELWRI  - This tells us to push dirty pages associated with
- *		       inodes.  SYNC_WAIT and SYNC_BDFLUSH are used to
- *		       determine if they should be flushed sync, async, or
- *		       delwri.
- *      SYNC_CLOSE   - This flag is passed when the system is being
- *		       unmounted.  We should sync and invalidate everything.
- *      SYNC_FSDATA  - This indicates that the caller would like to make
- *		       sure the superblock is safe on disk.  We can ensure
- *		       this by simply making sure the log gets flushed
- *		       if SYNC_BDFLUSH is set, and by actually writing it
- *		       out otherwise.
- *	SYNC_IOWAIT  - The caller wants us to wait for all data I/O to complete
- *		       before we return (including direct I/O). Forms the drain
- *		       side of the write barrier needed to safely quiesce the
- *		       filesystem.
- *
- */
-int
-xfs_sync(
-	xfs_mount_t	*mp,
-	int		flags)
-{
-	int		error;
-
-	/*
-	 * Get the Quota Manager to flush the dquots.
-	 *
-	 * If XFS quota support is not enabled or this filesystem
-	 * instance does not use quotas XFS_QM_DQSYNC will always
-	 * return zero.
-	 */
-	error = XFS_QM_DQSYNC(mp, flags);
-	if (error) {
-		/*
-		 * If we got an IO error, we will be shutting down.
-		 * So, there's nothing more for us to do here.
-		 */
-		ASSERT(error != EIO || XFS_FORCED_SHUTDOWN(mp));
-		if (XFS_FORCED_SHUTDOWN(mp))
-			return XFS_ERROR(error);
-	}
-
-	if (flags & SYNC_IOWAIT)
-		xfs_filestream_flush(mp);
-
-	return xfs_syncsub(mp, flags);
-}
-
-/*
  * Sync all the inodes in the given AG according to the
  * direction given by the flags.
  */
@@ -396,20 +323,76 @@ xfs_sync_fsdata(
 }
 
 /*
- * xfs sync routine for internal use
+ * xfs_sync flushes any pending I/O to file system vfsp.
  *
- * This routine supports all of the flags defined for the generic vfs_sync
- * interface as explained above under xfs_sync.
+ * This routine is called by vfs_sync() to make sure that things make it
+ * out to disk eventually, on sync() system calls to flush out everything,
+ * and when the file system is unmounted.  For the vfs_sync() case, all
+ * we really need to do is sync out the log to make all of our meta-data
+ * updates permanent (except for timestamps).  For calls from pflushd(),
+ * dirty pages are kept moving by calling pdflush() on the inodes
+ * containing them.  We also flush the inodes that we can lock without
+ * sleeping and the superblock if we can lock it without sleeping from
+ * vfs_sync() so that items at the tail of the log are always moving out.
+ *
+ * Flags:
+ *      SYNC_BDFLUSH - We're being called from vfs_sync() so we don't want
+ *		       to sleep if we can help it.  All we really need
+ *		       to do is ensure that the log is synced at least
+ *		       periodically.  We also push the inodes and
+ *		       superblock if we can lock them without sleeping
+ *			and they are not pinned.
+ *      SYNC_ATTR    - We need to flush the inodes.  If SYNC_BDFLUSH is not
+ *		       set, then we really want to lock each inode and flush
+ *		       it.
+ *      SYNC_WAIT    - All the flushes that take place in this call should
+ *		       be synchronous.
+ *      SYNC_DELWRI  - This tells us to push dirty pages associated with
+ *		       inodes.  SYNC_WAIT and SYNC_BDFLUSH are used to
+ *		       determine if they should be flushed sync, async, or
+ *		       delwri.
+ *      SYNC_CLOSE   - This flag is passed when the system is being
+ *		       unmounted.  We should sync and invalidate everything.
+ *      SYNC_FSDATA  - This indicates that the caller would like to make
+ *		       sure the superblock is safe on disk.  We can ensure
+ *		       this by simply making sure the log gets flushed
+ *		       if SYNC_BDFLUSH is set, and by actually writing it
+ *		       out otherwise.
+ *	SYNC_IOWAIT  - The caller wants us to wait for all data I/O to complete
+ *		       before we return (including direct I/O). Forms the drain
+ *		       side of the write barrier needed to safely quiesce the
+ *		       filesystem.
  *
  */
-STATIC int
-xfs_syncsub(
+int
+xfs_sync(
 	xfs_mount_t	*mp,
 	int		flags)
 {
-	int		error = 0;
+	int		error;
 	int		last_error = 0;
 	uint		log_flags = XFS_LOG_FORCE;
+
+	/*
+	 * Get the Quota Manager to flush the dquots.
+	 *
+	 * If XFS quota support is not enabled or this filesystem
+	 * instance does not use quotas XFS_QM_DQSYNC will always
+	 * return zero.
+	 */
+	error = XFS_QM_DQSYNC(mp, flags);
+	if (error) {
+		/*
+		 * If we got an IO error, we will be shutting down.
+		 * So, there's nothing more for us to do here.
+		 */
+		ASSERT(error != EIO || XFS_FORCED_SHUTDOWN(mp));
+		if (XFS_FORCED_SHUTDOWN(mp))
+			return XFS_ERROR(error);
+	}
+
+	if (flags & SYNC_IOWAIT)
+		xfs_filestream_flush(mp);
 
 	/*
 	 * Sync out the log.  This ensures that the log is periodically
