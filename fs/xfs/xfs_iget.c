@@ -44,77 +44,65 @@
  */
 static int
 xfs_iget_cache_hit(
-	struct inode		*inode,
 	struct xfs_perag	*pag,
 	struct xfs_inode	*ip,
 	int			flags,
 	int			lock_flags) __releases(pag->pag_ici_lock)
 {
 	struct xfs_mount	*mp = ip->i_mount;
-	struct inode		*old_inode;
 	int			error = 0;
 
 	/*
 	 * If INEW is set this inode is being set up
+	 * If IRECLAIM is set this inode is being torn down
 	 * Pause and try again.
 	 */
-	if (xfs_iflags_test(ip, XFS_INEW)) {
+	if (xfs_iflags_test(ip, (XFS_INEW|XFS_IRECLAIM))) {
 		error = EAGAIN;
 		XFS_STATS_INC(xs_ig_frecycle);
 		goto out_error;
 	}
 
-	old_inode = ip->i_vnode;
-	if (old_inode == NULL) {
-		/*
-		 * If IRECLAIM is set this inode is
-		 * on its way out of the system,
-		 * we need to pause and try again.
-		 */
-		if (xfs_iflags_test(ip, XFS_IRECLAIM)) {
-			error = EAGAIN;
-			XFS_STATS_INC(xs_ig_frecycle);
-			goto out_error;
-		}
-		ASSERT(xfs_iflags_test(ip, XFS_IRECLAIMABLE));
+	/* If IRECLAIMABLE is set, we've torn down the vfs inode part */
+	if (xfs_iflags_test(ip, XFS_IRECLAIMABLE)) {
 
 		/*
-		 * If lookup is racing with unlink, then we
-		 * should return an error immediately so we
-		 * don't remove it from the reclaim list and
-		 * potentially leak the inode.
+		 * If lookup is racing with unlink, then we should return an
+		 * error immediately so we don't remove it from the reclaim
+		 * list and potentially leak the inode.
 		 */
-		if ((ip->i_d.di_mode == 0) &&
-		    !(flags & XFS_IGET_CREATE)) {
+
+		if ((ip->i_d.di_mode == 0) && !(flags & XFS_IGET_CREATE)) {
 			error = ENOENT;
 			goto out_error;
 		}
+
 		xfs_itrace_exit_tag(ip, "xfs_iget.alloc");
 
+		/*
+		 * We need to re-initialise the VFS inode as it has been
+		 * 'freed' by the VFS. Do this here so we can deal with
+		 * errors cleanly, then tag it so it can be set up correctly
+		 * later.
+		 */
+		if (!inode_init_always(mp->m_super, VFS_I(ip))) {
+			error = ENOMEM;
+			goto out_error;
+		}
+		xfs_iflags_set(ip, XFS_INEW);
 		xfs_iflags_clear(ip, XFS_IRECLAIMABLE);
 		read_unlock(&pag->pag_ici_lock);
 
 		XFS_MOUNT_ILOCK(mp);
 		list_del_init(&ip->i_reclaim);
 		XFS_MOUNT_IUNLOCK(mp);
-
-	} else if (inode != old_inode) {
-		/* The inode is being torn down, pause and
-		 * try again.
-		 */
-		if (old_inode->i_state & (I_FREEING | I_CLEAR)) {
-			error = EAGAIN;
-			XFS_STATS_INC(xs_ig_frecycle);
-			goto out_error;
-		}
-/* Chances are the other vnode (the one in the inode) is being torn
-* down right now, and we landed on top of it. Question is, what do
-* we do? Unhook the old inode and hook up the new one?
-*/
-		cmn_err(CE_PANIC,
-	"xfs_iget_core: ambiguous vns: vp/0x%p, invp/0x%p",
-				old_inode, inode);
+	} else if (!igrab(VFS_I(ip))) {
+		/* If the VFS inode is being torn down, pause and try again. */
+		error = EAGAIN;
+		XFS_STATS_INC(xs_ig_frecycle);
+		goto out_error;
 	} else {
+		/* we've got a live one */
 		read_unlock(&pag->pag_ici_lock);
 	}
 
@@ -215,11 +203,11 @@ out_destroy:
 /*
  * Look up an inode by number in the given file system.
  * The inode is looked up in the cache held in each AG.
- * If the inode is found in the cache, attach it to the provided
- * vnode.
+ * If the inode is found in the cache, initialise the vfs inode
+ * if necessary.
  *
  * If it is not in core, read it in from the file system's device,
- * add it to the cache and attach the provided vnode.
+ * add it to the cache and initialise the vfs inode.
  *
  * The inode is locked according to the value of the lock_flags parameter.
  * This flag parameter indicates how and if the inode's IO lock and inode lock
@@ -236,9 +224,8 @@ out_destroy:
  * bno -- the block number starting the buffer containing the inode,
  *	  if known (as by bulkstat), else 0.
  */
-STATIC int
-xfs_iget_core(
-	struct inode	*inode,
+int
+xfs_iget(
 	xfs_mount_t	*mp,
 	xfs_trans_t	*tp,
 	xfs_ino_t	ino,
@@ -269,7 +256,7 @@ again:
 	ip = radix_tree_lookup(&pag->pag_ici_root, agino);
 
 	if (ip) {
-		error = xfs_iget_cache_hit(inode, pag, ip, flags, lock_flags);
+		error = xfs_iget_cache_hit(pag, ip, flags, lock_flags);
 		if (error)
 			goto out_error_or_again;
 	} else {
@@ -283,23 +270,16 @@ again:
 	}
 	xfs_put_perag(mp, pag);
 
-	ASSERT(ip->i_df.if_ext_max ==
-	       XFS_IFORK_DSIZE(ip) / sizeof(xfs_bmbt_rec_t));
-
 	xfs_iflags_set(ip, XFS_IMODIFIED);
 	*ipp = ip;
 
-	/*
-	 * Set up the Linux with the Linux inode.
-	 */
-	ip->i_vnode = inode;
-	inode->i_private = ip;
-
+	ASSERT(ip->i_df.if_ext_max ==
+	       XFS_IFORK_DSIZE(ip) / sizeof(xfs_bmbt_rec_t));
 	/*
 	 * If we have a real type for an on-disk inode, we can set ops(&unlock)
 	 * now.	 If it's a new inode being created, xfs_ialloc will handle it.
 	 */
-	if (ip->i_d.di_mode != 0)
+	if (xfs_iflags_test(ip, XFS_INEW) && ip->i_d.di_mode != 0)
 		xfs_setup_inode(ip);
 	return 0;
 
@@ -312,75 +292,6 @@ out_error_or_again:
 	return error;
 }
 
-
-/*
- * The 'normal' internal xfs_iget, if needed it will
- * 'allocate', or 'get', the vnode.
- */
-int
-xfs_iget(
-	xfs_mount_t	*mp,
-	xfs_trans_t	*tp,
-	xfs_ino_t	ino,
-	uint		flags,
-	uint		lock_flags,
-	xfs_inode_t	**ipp,
-	xfs_daddr_t	bno)
-{
-	struct inode	*inode;
-	xfs_inode_t	*ip;
-	int		error;
-
-	XFS_STATS_INC(xs_ig_attempts);
-
-retry:
-	inode = iget_locked(mp->m_super, ino);
-	if (!inode)
-		/* If we got no inode we are out of memory */
-		return ENOMEM;
-
-	if (inode->i_state & I_NEW) {
-		XFS_STATS_INC(vn_active);
-		XFS_STATS_INC(vn_alloc);
-
-		error = xfs_iget_core(inode, mp, tp, ino, flags,
-				lock_flags, ipp, bno);
-		if (error) {
-			make_bad_inode(inode);
-			if (inode->i_state & I_NEW)
-				unlock_new_inode(inode);
-			iput(inode);
-		}
-		return error;
-	}
-
-	/*
-	 * If the inode is not fully constructed due to
-	 * filehandle mismatches wait for the inode to go
-	 * away and try again.
-	 *
-	 * iget_locked will call __wait_on_freeing_inode
-	 * to wait for the inode to go away.
-	 */
-	if (is_bad_inode(inode)) {
-		iput(inode);
-		delay(1);
-		goto retry;
-	}
-
-	ip = XFS_I(inode);
-	if (!ip) {
-		iput(inode);
-		delay(1);
-		goto retry;
-	}
-
-	if (lock_flags != 0)
-		xfs_ilock(ip, lock_flags);
-	XFS_STATS_INC(xs_ig_found);
-	*ipp = ip;
-	return 0;
-}
 
 /*
  * Look for the inode corresponding to the given ino in the hash table.
@@ -480,14 +391,6 @@ xfs_ireclaim(xfs_inode_t *ip)
 	 * xfs_inactive and get here via vn_alloc->vn_reclaim path.
 	 */
 	XFS_QM_DQDETACH(ip->i_mount, ip);
-
-	/*
-	 * Pull our behavior descriptor from the vnode chain.
-	 */
-	if (ip->i_vnode) {
-		ip->i_vnode->i_private = NULL;
-		ip->i_vnode = NULL;
-	}
 
 	/*
 	 * Free all memory associated with the inode.

@@ -813,6 +813,16 @@ xfs_inode_alloc(
 	ASSERT(!spin_is_locked(&ip->i_flags_lock));
 	ASSERT(list_empty(&ip->i_reclaim));
 
+	/*
+	 * initialise the VFS inode here to get failures
+	 * out of the way early.
+	 */
+	if (!inode_init_always(mp->m_super, VFS_I(ip))) {
+		kmem_zone_free(xfs_inode_zone, ip);
+		return NULL;
+	}
+
+	/* initialise the xfs inode */
 	ip->i_ino = ino;
 	ip->i_mount = mp;
 	ip->i_blkno = 0;
@@ -1086,6 +1096,7 @@ xfs_ialloc(
 	uint		flags;
 	int		error;
 	timespec_t	tv;
+	int		filestreams = 0;
 
 	/*
 	 * Call the space management code to pick
@@ -1093,9 +1104,8 @@ xfs_ialloc(
 	 */
 	error = xfs_dialloc(tp, pip ? pip->i_ino : 0, mode, okalloc,
 			    ialloc_context, call_again, &ino);
-	if (error != 0) {
+	if (error)
 		return error;
-	}
 	if (*call_again || ino == NULLFSINO) {
 		*ipp = NULL;
 		return 0;
@@ -1109,9 +1119,8 @@ xfs_ialloc(
 	 */
 	error = xfs_trans_iget(tp->t_mountp, tp, ino,
 				XFS_IGET_CREATE, XFS_ILOCK_EXCL, &ip);
-	if (error != 0) {
+	if (error)
 		return error;
-	}
 	ASSERT(ip != NULL);
 
 	ip->i_d.di_mode = (__uint16_t)mode;
@@ -1192,13 +1201,12 @@ xfs_ialloc(
 		flags |= XFS_ILOG_DEV;
 		break;
 	case S_IFREG:
-		if (pip && xfs_inode_is_filestream(pip)) {
-			error = xfs_filestream_associate(pip, ip);
-			if (error < 0)
-				return -error;
-			if (!error)
-				xfs_iflags_set(ip, XFS_IFILESTREAM);
-		}
+		/*
+		 * we can't set up filestreams until after the VFS inode
+		 * is set up properly.
+		 */
+		if (pip && xfs_inode_is_filestream(pip))
+			filestreams = 1;
 		/* fall through */
 	case S_IFDIR:
 		if (pip && (pip->i_d.di_flags & XFS_DIFLAG_ANY)) {
@@ -1263,6 +1271,15 @@ xfs_ialloc(
 
 	/* now that we have an i_mode we can setup inode ops and unlock */
 	xfs_setup_inode(ip);
+
+	/* now we have set up the vfs inode we can associate the filestream */
+	if (filestreams) {
+		error = xfs_filestream_associate(pip, ip);
+		if (error < 0)
+			return -error;
+		if (!error)
+			xfs_iflags_set(ip, XFS_IFILESTREAM);
+	}
 
 	*ipp = ip;
 	return 0;
@@ -2650,6 +2667,10 @@ xfs_idestroy_fork(
  * It must free the inode itself and any buffers allocated for
  * if_extents/if_data and if_broot.  It must also free the lock
  * associated with the inode.
+ *
+ * Note: because we don't initialise everything on reallocation out
+ * of the zone, we must ensure we nullify everything correctly before
+ * freeing the structure.
  */
 void
 xfs_idestroy(

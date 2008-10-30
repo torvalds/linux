@@ -72,7 +72,6 @@
 
 static struct quotactl_ops xfs_quotactl_operations;
 static struct super_operations xfs_super_operations;
-static kmem_zone_t *xfs_vnode_zone;
 static kmem_zone_t *xfs_ioend_zone;
 mempool_t *xfs_ioend_pool;
 
@@ -867,28 +866,23 @@ xfsaild_stop(
 }
 
 
-
+/* Catch misguided souls that try to use this interface on XFS */
 STATIC struct inode *
 xfs_fs_alloc_inode(
 	struct super_block	*sb)
 {
-	return kmem_zone_alloc(xfs_vnode_zone, KM_SLEEP);
+	BUG();
 }
 
+/*
+ * we need to provide an empty inode free function to prevent
+ * the generic code from trying to free our combined inode.
+ */
 STATIC void
 xfs_fs_destroy_inode(
-	struct inode		*inode)
+	struct inode	*inode)
 {
-	kmem_zone_free(xfs_vnode_zone, inode);
 }
-
-STATIC void
-xfs_fs_inode_init_once(
-	void			*vnode)
-{
-	inode_init_once((struct inode *)vnode);
-}
-
 
 /*
  * Slab object creation initialisation for the XFS inode.
@@ -898,13 +892,18 @@ xfs_fs_inode_init_once(
  * fields in the xfs inode that left in the initialise state
  * when freeing the inode.
  */
-void
-xfs_inode_init_once(
+STATIC void
+xfs_fs_inode_init_once(
 	void			*inode)
 {
 	struct xfs_inode	*ip = inode;
 
 	memset(ip, 0, sizeof(struct xfs_inode));
+
+	/* vfs inode */
+	inode_init_once(VFS_I(ip));
+
+	/* xfs inode */
 	atomic_set(&ip->i_iocount, 0);
 	atomic_set(&ip->i_pincount, 0);
 	spin_lock_init(&ip->i_flags_lock);
@@ -975,8 +974,6 @@ xfs_fs_clear_inode(
 		if (xfs_reclaim(ip))
 			panic("%s: cannot reclaim 0x%p\n", __func__, inode);
 	}
-
-	ASSERT(XFS_I(inode) == NULL);
 }
 
 STATIC void
@@ -1829,16 +1826,10 @@ xfs_free_trace_bufs(void)
 STATIC int __init
 xfs_init_zones(void)
 {
-	xfs_vnode_zone = kmem_zone_init_flags(sizeof(struct inode), "xfs_vnode",
-					KM_ZONE_HWALIGN | KM_ZONE_RECLAIM |
-					KM_ZONE_SPREAD,
-					xfs_fs_inode_init_once);
-	if (!xfs_vnode_zone)
-		goto out;
 
 	xfs_ioend_zone = kmem_zone_init(sizeof(xfs_ioend_t), "xfs_ioend");
 	if (!xfs_ioend_zone)
-		goto out_destroy_vnode_zone;
+		goto out;
 
 	xfs_ioend_pool = mempool_create_slab_pool(4 * MAX_BUF_PER_PAGE,
 						  xfs_ioend_zone);
@@ -1854,6 +1845,7 @@ xfs_init_zones(void)
 						"xfs_bmap_free_item");
 	if (!xfs_bmap_free_item_zone)
 		goto out_destroy_log_ticket_zone;
+
 	xfs_btree_cur_zone = kmem_zone_init(sizeof(xfs_btree_cur_t),
 						"xfs_btree_cur");
 	if (!xfs_btree_cur_zone)
@@ -1901,8 +1893,8 @@ xfs_init_zones(void)
 
 	xfs_inode_zone =
 		kmem_zone_init_flags(sizeof(xfs_inode_t), "xfs_inode",
-					KM_ZONE_HWALIGN | KM_ZONE_RECLAIM |
-					KM_ZONE_SPREAD, xfs_inode_init_once);
+			KM_ZONE_HWALIGN | KM_ZONE_RECLAIM | KM_ZONE_SPREAD,
+			xfs_fs_inode_init_once);
 	if (!xfs_inode_zone)
 		goto out_destroy_efi_zone;
 
@@ -1950,8 +1942,6 @@ xfs_init_zones(void)
 	mempool_destroy(xfs_ioend_pool);
  out_destroy_ioend_zone:
 	kmem_zone_destroy(xfs_ioend_zone);
- out_destroy_vnode_zone:
-	kmem_zone_destroy(xfs_vnode_zone);
  out:
 	return -ENOMEM;
 }
@@ -1976,7 +1966,6 @@ xfs_destroy_zones(void)
 	kmem_zone_destroy(xfs_log_ticket_zone);
 	mempool_destroy(xfs_ioend_pool);
 	kmem_zone_destroy(xfs_ioend_zone);
-	kmem_zone_destroy(xfs_vnode_zone);
 
 }
 

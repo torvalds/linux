@@ -2833,6 +2833,7 @@ xfs_reclaim(
 	if (!ip->i_update_core && (ip->i_itemp == NULL)) {
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		xfs_iflock(ip);
+		xfs_iflags_set(ip, XFS_IRECLAIMABLE);
 		return xfs_finish_reclaim(ip, 1, XFS_IFLUSH_DELWRI_ELSE_SYNC);
 	} else {
 		xfs_mount_t	*mp = ip->i_mount;
@@ -2841,8 +2842,6 @@ xfs_reclaim(
 		XFS_MOUNT_ILOCK(mp);
 		spin_lock(&ip->i_flags_lock);
 		__xfs_iflags_set(ip, XFS_IRECLAIMABLE);
-		VFS_I(ip)->i_private = NULL;
-		ip->i_vnode = NULL;
 		spin_unlock(&ip->i_flags_lock);
 		list_add_tail(&ip->i_reclaim, &mp->m_del_inodes);
 		XFS_MOUNT_IUNLOCK(mp);
@@ -2857,10 +2856,6 @@ xfs_finish_reclaim(
 	int		sync_mode)
 {
 	xfs_perag_t	*pag = xfs_get_perag(ip->i_mount, ip->i_ino);
-	struct inode	*vp = VFS_I(ip);
-
-	if (vp && VN_BAD(vp))
-		goto reclaim;
 
 	/* The hash lock here protects a thread in xfs_iget_core from
 	 * racing with us on linking the inode back with a vnode.
@@ -2870,7 +2865,7 @@ xfs_finish_reclaim(
 	write_lock(&pag->pag_ici_lock);
 	spin_lock(&ip->i_flags_lock);
 	if (__xfs_iflags_test(ip, XFS_IRECLAIM) ||
-	    (!__xfs_iflags_test(ip, XFS_IRECLAIMABLE) && vp == NULL)) {
+	    !__xfs_iflags_test(ip, XFS_IRECLAIMABLE)) {
 		spin_unlock(&ip->i_flags_lock);
 		write_unlock(&pag->pag_ici_lock);
 		if (locked) {
@@ -2904,15 +2899,13 @@ xfs_finish_reclaim(
 	 * In the case of a forced shutdown we rely on xfs_iflush() to
 	 * wait for the inode to be unpinned before returning an error.
 	 */
-	if (xfs_iflush(ip, sync_mode) == 0) {
+	if (!is_bad_inode(VFS_I(ip)) && xfs_iflush(ip, sync_mode) == 0) {
 		/* synchronize with xfs_iflush_done */
 		xfs_iflock(ip);
 		xfs_ifunlock(ip);
 	}
 
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-
- reclaim:
 	xfs_ireclaim(ip);
 	return 0;
 }

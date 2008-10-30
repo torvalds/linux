@@ -84,25 +84,12 @@ vn_ioerror(
 
 #ifdef	XFS_INODE_TRACE
 
-/*
- * Reference count of Linux inode if present, -1 if the xfs_inode
- * has no associated Linux inode.
- */
-static inline int xfs_icount(struct xfs_inode *ip)
-{
-	struct inode *inode = VFS_I(ip);
-
-	if (inode)
-		return atomic_read(&inode->i_count);
-	return -1;
-}
-
 #define KTRACE_ENTER(ip, vk, s, line, ra)			\
 	ktrace_enter(	(ip)->i_trace,				\
 /*  0 */		(void *)(__psint_t)(vk),		\
 /*  1 */		(void *)(s),				\
 /*  2 */		(void *)(__psint_t) line,		\
-/*  3 */		(void *)(__psint_t)xfs_icount(ip),	\
+/*  3 */		(void *)(__psint_t)atomic_read(&VFS_I(ip)->i_count), \
 /*  4 */		(void *)(ra),				\
 /*  5 */		NULL,					\
 /*  6 */		(void *)(__psint_t)current_cpu(),	\

@@ -64,14 +64,14 @@ xfs_synchronize_atime(
 {
 	struct inode	*inode = VFS_I(ip);
 
-	if (inode) {
+	if (!(inode->i_state & I_CLEAR)) {
 		ip->i_d.di_atime.t_sec = (__int32_t)inode->i_atime.tv_sec;
 		ip->i_d.di_atime.t_nsec = (__int32_t)inode->i_atime.tv_nsec;
 	}
 }
 
 /*
- * If the linux inode exists, mark it dirty.
+ * If the linux inode is valid, mark it dirty.
  * Used when commiting a dirty inode into a transaction so that
  * the inode will get written back by the linux code
  */
@@ -81,7 +81,7 @@ xfs_mark_inode_dirty_sync(
 {
 	struct inode	*inode = VFS_I(ip);
 
-	if (inode)
+	if (!(inode->i_state & (I_WILL_FREE|I_FREEING|I_CLEAR)))
 		mark_inode_dirty_sync(inode);
 }
 
@@ -766,12 +766,21 @@ xfs_diflags_to_iflags(
  * When reading existing inodes from disk this is called directly
  * from xfs_iget, when creating a new inode it is called from
  * xfs_ialloc after setting up the inode.
+ *
+ * We are always called with an uninitialised linux inode here.
+ * We need to initialise the necessary fields and take a reference
+ * on it.
  */
 void
 xfs_setup_inode(
 	struct xfs_inode	*ip)
 {
-	struct inode		*inode = ip->i_vnode;
+	struct inode		*inode = &ip->i_vnode;
+
+	inode->i_ino = ip->i_ino;
+	inode->i_state = I_NEW|I_LOCK;
+	inode_add_to_lists(ip->i_mount->m_super, inode);
+	ASSERT(atomic_read(&inode->i_count) == 1);
 
 	inode->i_mode	= ip->i_d.di_mode;
 	inode->i_nlink	= ip->i_d.di_nlink;
