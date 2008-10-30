@@ -970,12 +970,12 @@ void udp_lib_unhash(struct sock *sk)
 	unsigned int hash = udp_hashfn(sock_net(sk), sk->sk_hash);
 	struct udp_hslot *hslot = &udptable->hash[hash];
 
-	spin_lock(&hslot->lock);
+	spin_lock_bh(&hslot->lock);
 	if (sk_del_node_init_rcu(sk)) {
 		inet_sk(sk)->num = 0;
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 	}
-	spin_unlock(&hslot->lock);
+	spin_unlock_bh(&hslot->lock);
 }
 EXPORT_SYMBOL(udp_lib_unhash);
 
