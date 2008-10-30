@@ -11,8 +11,8 @@
 #include "wbhal_f.h"
 #include "wblinux_f.h"
 
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Original by: Jeff Lee<YY_Lee@issc.com.tw> Adapted to 2.6.x by Costantino Leandro (Rxart Desktop) <le_costantino@pixartargentina.com.ar>");
+MODULE_DESCRIPTION("IS89C35 802.11bg WLAN USB Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.1");
 
