@@ -10,24 +10,29 @@
 //============================================================================
 #include <linux/usb.h>
 
+#include "core.h"
 #include "sysdef.h"
 #include "wb35rx_f.h"
 
-void Wb35Rx_start(phw_data_t pHwData)
+void Wb35Rx_start(struct ieee80211_hw *hw)
 {
+	struct wbsoft_priv *priv = hw->priv;
+	phw_data_t pHwData = &priv->sHwData;
 	PWB35RX pWb35Rx = &pHwData->Wb35Rx;
 
 	// Allow only one thread to run into the Wb35Rx() function
 	if (atomic_inc_return(&pWb35Rx->RxFireCounter) == 1) {
 		pWb35Rx->EP3vm_state = VM_RUNNING;
-		Wb35Rx(pHwData);
+		Wb35Rx(hw);
 	} else
 		atomic_dec(&pWb35Rx->RxFireCounter);
 }
 
 // This function cannot reentrain
-void Wb35Rx(  phw_data_t pHwData )
+void Wb35Rx(struct ieee80211_hw *hw)
 {
+	struct wbsoft_priv *priv = hw->priv;
+	phw_data_t pHwData = &priv->sHwData;
 	PWB35RX	pWb35Rx = &pHwData->Wb35Rx;
 	u8 *	pRxBufferAddress;
 	struct urb *urb = pWb35Rx->RxUrb;
@@ -69,7 +74,7 @@ void Wb35Rx(  phw_data_t pHwData )
 	usb_fill_bulk_urb(urb, pHwData->WbUsb.udev,
 			  usb_rcvbulkpipe(pHwData->WbUsb.udev, 3),
 			  pRxBufferAddress, MAX_USB_RX_BUFFER,
-			  Wb35Rx_Complete, pHwData);
+			  Wb35Rx_Complete, hw);
 
 	pWb35Rx->EP3vm_state = VM_RUNNING;
 
@@ -89,7 +94,9 @@ error:
 
 void Wb35Rx_Complete(struct urb *urb)
 {
-	phw_data_t	pHwData = urb->context;
+	struct ieee80211_hw *hw = urb->context;
+	struct wbsoft_priv *priv = hw->priv;
+	phw_data_t pHwData = &priv->sHwData;
 	PWB35RX		pWb35Rx = &pHwData->Wb35Rx;
 	u8 *		pRxBufferAddress;
 	u32		SizeCheck;
@@ -150,11 +157,11 @@ void Wb35Rx_Complete(struct urb *urb)
 	pWb35Rx->RxBufferSize[ RxBufferId ] = BulkLength;
 
 	if (!pWb35Rx->RxOwner[ RxBufferId ])
-		Wb35Rx_indicate(pHwData);
+		Wb35Rx_indicate(hw);
 
 	kfree(pWb35Rx->pDRx);
 	// Do the next receive
-	Wb35Rx(pHwData);
+	Wb35Rx(hw);
 	return;
 
 error:
@@ -257,11 +264,13 @@ void Wb35Rx_adjust(PDESCRIPTOR pRxDes)
 	pRxDes->buffer_size[0] = BufferSize;
 }
 
-extern void packet_came(char *pRxBufferAddress, int PacketSize);
+extern void packet_came(struct ieee80211_hw *hw, char *pRxBufferAddress, int PacketSize);
 
 
-u16 Wb35Rx_indicate(phw_data_t pHwData)
+u16 Wb35Rx_indicate(struct ieee80211_hw *hw)
 {
+	struct wbsoft_priv *priv = hw->priv;
+	phw_data_t pHwData = &priv->sHwData;
 	DESCRIPTOR	RxDes;
 	PWB35RX	pWb35Rx = &pHwData->Wb35Rx;
 	u8 *		pRxBufferAddress;
@@ -317,7 +326,7 @@ u16 Wb35Rx_indicate(phw_data_t pHwData)
 			RxDes.buffer_total_size = RxDes.buffer_size[0];
 			Wb35Rx_adjust(&RxDes);
 
-			packet_came(pRxBufferAddress, PacketSize);
+			packet_came(hw, pRxBufferAddress, PacketSize);
 
 			// Move RxBuffer point to the next
 			stmp = PacketSize + 3;

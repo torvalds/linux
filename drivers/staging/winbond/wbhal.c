@@ -315,9 +315,10 @@ static void hal_led_control(unsigned long data)
 	add_timer(&pHwData->LEDTimer);
 }
 
-
-u8 hal_init_hardware(phw_data_t pHwData, struct wbsoft_priv * adapter)
+u8 hal_init_hardware(struct ieee80211_hw *hw)
 {
+	struct wbsoft_priv *priv = hw->priv;
+	phw_data_t pHwData = &priv->sHwData;
 	u16 SoftwareSet;
 
 	// Initial the variable
@@ -333,7 +334,7 @@ u8 hal_init_hardware(phw_data_t pHwData, struct wbsoft_priv * adapter)
 				pHwData->InitialResource = 4;
 				init_timer(&pHwData->LEDTimer);
 				pHwData->LEDTimer.function = hal_led_control;
-				pHwData->LEDTimer.data = (unsigned long) adapter;
+				pHwData->LEDTimer.data = (unsigned long) priv;
 				pHwData->LEDTimer.expires = jiffies + msecs_to_jiffies(1000);
 				add_timer(&pHwData->LEDTimer);
 
@@ -349,8 +350,8 @@ u8 hal_init_hardware(phw_data_t pHwData, struct wbsoft_priv * adapter)
 					return false;
 				#endif
 
-				Wb35Rx_start( pHwData );
-				Wb35Tx_EP2VM_start(adapter);
+				Wb35Rx_start(hw);
+				Wb35Tx_EP2VM_start(priv);
 
 				return true;
 			}

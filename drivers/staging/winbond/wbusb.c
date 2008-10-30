@@ -45,7 +45,6 @@ static struct ieee80211_supported_band wbsoft_band_2GHz = {
 };
 
 int wbsoft_enabled;
-struct ieee80211_hw *my_dev;
 
 static int wbsoft_add_interface(struct ieee80211_hw *dev,
 				 struct ieee80211_if_init_conf *conf)
@@ -225,7 +224,6 @@ static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id
 		goto error;
 
 	priv = dev->priv;
-	my_dev = dev;
 
 	pWbUsb = &priv->sHwData.WbUsb;
 	pWbUsb->udev = udev;
@@ -238,7 +236,7 @@ static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id
 		pWbUsb->IsUsb20 = 1;
 	}
 
-	if (!WbWLanInitialize(priv)) {
+	if (!WbWLanInitialize(dev)) {
 		err = -EINVAL;
 		goto error_free_hw;
 	}
@@ -274,7 +272,7 @@ error:
 	return err;
 }
 
-void packet_came(char *pRxBufferAddress, int PacketSize)
+void packet_came(struct ieee80211_hw *hw, char *pRxBufferAddress, int PacketSize)
 {
 	struct sk_buff *skb;
 	struct ieee80211_rx_status rx_status = {0};
@@ -299,7 +297,7 @@ void packet_came(char *pRxBufferAddress, int PacketSize)
 	rx_status.phymode = MODE_IEEE80211B;
 */
 
-	ieee80211_rx_irqsafe(my_dev, skb, &rx_status);
+	ieee80211_rx_irqsafe(hw, skb, &rx_status);
 }
 
 static void wb35_disconnect(struct usb_interface *intf)

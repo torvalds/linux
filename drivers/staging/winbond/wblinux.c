@@ -85,8 +85,9 @@ WbWlanHalt(  struct wbsoft_priv * adapter )
 }
 
 unsigned char
-WbWLanInitialize(struct wbsoft_priv * adapter)
+WbWLanInitialize(struct ieee80211_hw *hw)
 {
+	struct wbsoft_priv *priv = hw->priv;
 	phw_data_t	pHwData;
 	u8		*pMacAddr;
 	u8		*pMacAddr2;
@@ -97,22 +98,22 @@ WbWLanInitialize(struct wbsoft_priv * adapter)
 	//
 	// Setting default value for Linux
 	//
-	adapter->sLocalPara.region_INF = REGION_AUTO;
-	adapter->sLocalPara.TxRateMode = RATE_AUTO;
-	psLOCAL->bMacOperationMode = MODE_802_11_BG;	// B/G mode
-	adapter->Mds.TxRTSThreshold = DEFAULT_RTSThreshold;
-	adapter->Mds.TxFragmentThreshold = DEFAULT_FRAGMENT_THRESHOLD;
-	hal_set_phy_type( &adapter->sHwData, RF_WB_242_1 );
-	adapter->sLocalPara.MTUsize = MAX_ETHERNET_PACKET_SIZE;
-	psLOCAL->bPreambleMode = AUTO_MODE;
-	adapter->sLocalPara.RadioOffStatus.boSwRadioOff = false;
-	pHwData = &adapter->sHwData;
+	priv->sLocalPara.region_INF = REGION_AUTO;
+	priv->sLocalPara.TxRateMode = RATE_AUTO;
+	priv->sLocalPara.bMacOperationMode = MODE_802_11_BG;	// B/G mode
+	priv->Mds.TxRTSThreshold = DEFAULT_RTSThreshold;
+	priv->Mds.TxFragmentThreshold = DEFAULT_FRAGMENT_THRESHOLD;
+	hal_set_phy_type( &priv->sHwData, RF_WB_242_1 );
+	priv->sLocalPara.MTUsize = MAX_ETHERNET_PACKET_SIZE;
+	priv->sLocalPara.bPreambleMode = AUTO_MODE;
+	priv->sLocalPara.RadioOffStatus.boSwRadioOff = false;
+	pHwData = &priv->sHwData;
 	hal_set_phy_type( pHwData, RF_DECIDE_BY_INF );
 
 	//
 	// Initial each module and variable
 	//
-	if (!WBLINUX_Initial(adapter)) {
+	if (!WBLINUX_Initial(priv)) {
 #ifdef _PE_USB_INI_DUMP_
 		WBDEBUG(("[w35und]WBNDIS initialization failed\n"));
 #endif
@@ -120,33 +121,33 @@ WbWLanInitialize(struct wbsoft_priv * adapter)
 	}
 
 	// Initial Software variable
-	adapter->sLocalPara.ShutDowned = false;
+	priv->sLocalPara.ShutDowned = false;
 
 	//added by ws for wep key error detection
-	adapter->sLocalPara.bWepKeyError= false;
-	adapter->sLocalPara.bToSelfPacketReceived = false;
-	adapter->sLocalPara.WepKeyDetectTimerCount= 2 * 100; /// 2 seconds
+	priv->sLocalPara.bWepKeyError= false;
+	priv->sLocalPara.bToSelfPacketReceived = false;
+	priv->sLocalPara.WepKeyDetectTimerCount= 2 * 100; /// 2 seconds
 
 	// Initial USB hal
 	InitStep = 1;
-	pHwData = &adapter->sHwData;
-	if (!hal_init_hardware(pHwData, adapter))
+	pHwData = &priv->sHwData;
+	if (!hal_init_hardware(hw))
 		goto error;
 
 	EEPROM_region = hal_get_region_from_EEPROM( pHwData );
 	if (EEPROM_region != REGION_AUTO)
-		psLOCAL->region = EEPROM_region;
+		priv->sLocalPara.region = EEPROM_region;
 	else {
-		if (psLOCAL->region_INF != REGION_AUTO)
-			psLOCAL->region = psLOCAL->region_INF;
+		if (priv->sLocalPara.region_INF != REGION_AUTO)
+			priv->sLocalPara.region = priv->sLocalPara.region_INF;
 		else
-			psLOCAL->region = REGION_USA;	//default setting
+			priv->sLocalPara.region = REGION_USA;	//default setting
 	}
 
 	// Get Software setting flag from hal
-	adapter->sLocalPara.boAntennaDiversity = false;
+	priv->sLocalPara.boAntennaDiversity = false;
 	if (hal_software_set(pHwData) & 0x00000001)
-		adapter->sLocalPara.boAntennaDiversity = true;
+		priv->sLocalPara.boAntennaDiversity = true;
 
 	//
 	// For TS module
@@ -155,7 +156,7 @@ WbWLanInitialize(struct wbsoft_priv * adapter)
 
 	// For MDS module
 	InitStep = 3;
-	Mds_initial(adapter);
+	Mds_initial(priv);
 
 	//=======================================
 	// Initialize the SME, SCAN, MLME, ROAM
@@ -165,18 +166,18 @@ WbWLanInitialize(struct wbsoft_priv * adapter)
 	InitStep = 6;
 
 	// If no user-defined address in the registry, use the addresss "burned" on the NIC instead.
-	pMacAddr = adapter->sLocalPara.ThisMacAddress;
-	pMacAddr2 = adapter->sLocalPara.PermanentAddress;
-	hal_get_permanent_address( pHwData, adapter->sLocalPara.PermanentAddress );// Reading ethernet address from EEPROM
+	pMacAddr = priv->sLocalPara.ThisMacAddress;
+	pMacAddr2 = priv->sLocalPara.PermanentAddress;
+	hal_get_permanent_address( pHwData, priv->sLocalPara.PermanentAddress );// Reading ethernet address from EEPROM
 	if (memcmp(pMacAddr, "\x00\x00\x00\x00\x00\x00", MAC_ADDR_LENGTH) == 0)
 		memcpy(pMacAddr, pMacAddr2, MAC_ADDR_LENGTH);
 	else {
 		// Set the user define MAC address
-		hal_set_ethernet_address(pHwData, adapter->sLocalPara.ThisMacAddress);
+		hal_set_ethernet_address(pHwData, priv->sLocalPara.ThisMacAddress);
 	}
 
 	//get current antenna
-	psLOCAL->bAntennaNo = hal_get_antenna_number(pHwData);
+	priv->sLocalPara.bAntennaNo = hal_get_antenna_number(pHwData);
 #ifdef _PE_STATE_DUMP_
 	WBDEBUG(("Driver init, antenna no = %d\n", psLOCAL->bAntennaNo));
 #endif
@@ -186,25 +187,25 @@ WbWLanInitialize(struct wbsoft_priv * adapter)
 	while (!hal_idle(pHwData))
 		msleep(10);
 
-	MTO_Init(adapter);
+	MTO_Init(priv);
 
 	HwRadioOff = hal_get_hw_radio_off( pHwData );
-	psLOCAL->RadioOffStatus.boHwRadioOff = !!HwRadioOff;
+	priv->sLocalPara.RadioOffStatus.boHwRadioOff = !!HwRadioOff;
 
-	hal_set_radio_mode( pHwData, (unsigned char)(psLOCAL->RadioOffStatus.boSwRadioOff || psLOCAL->RadioOffStatus.boHwRadioOff) );
+	hal_set_radio_mode( pHwData, (unsigned char)(priv->sLocalPara.RadioOffStatus.boSwRadioOff || priv->sLocalPara.RadioOffStatus.boHwRadioOff) );
 
 	hal_driver_init_OK(pHwData) = 1; // Notify hal that the driver is ready now.
 	//set a tx power for reference.....
-//	sme_set_tx_power_level(adapter, 12);	FIXME?
+//	sme_set_tx_power_level(priv, 12);	FIXME?
 	return true;
 
 error:
 	switch (InitStep) {
 	case 5:
 	case 4:
-	case 3: Mds_Destroy( adapter );
+	case 3: Mds_Destroy( priv );
 	case 2:
-	case 1: WBLINUX_Destroy( adapter );
+	case 1: WBLINUX_Destroy( priv );
 		hal_halt( pHwData, NULL );
 	case 0: break;
 	}

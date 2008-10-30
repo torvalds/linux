@@ -17,6 +17,7 @@ void wb35_set_multicast( struct net_device *netdev );
 struct net_device_stats * wb35_netdev_stats( struct net_device *netdev );
 void WBLINUX_stop(  struct wbsoft_priv *adapter );
 void WbWlanHalt(  struct wbsoft_priv *adapter );
-unsigned char WbWLanInitialize(struct wbsoft_priv *adapter);
+unsigned char WbWLanInitialize(struct ieee80211_hw *hw);
+
 
 #endif

@@ -21,7 +21,7 @@ void hal_clear_all_key(  phw_data_t pHwData );
 void hal_get_ethernet_address(  phw_data_t pHwData,  u8 *current_address );
 void hal_set_ethernet_address(  phw_data_t pHwData,  u8 *current_address );
 void hal_get_permanent_address(  phw_data_t pHwData,  u8 *pethernet_address );
-unsigned char hal_init_hardware(  phw_data_t pHwData,  struct wbsoft_priv * adapter );
+u8 hal_init_hardware(struct ieee80211_hw *hw);
 void hal_set_power_save_mode(  phw_data_t pHwData,  unsigned char power_save,  unsigned char wakeup,  unsigned char dtim );
 void hal_get_power_save_mode(  phw_data_t pHwData,   u8 *pin_pwr_save );
 void hal_set_slot_time(  phw_data_t pHwData,  u8 type );
