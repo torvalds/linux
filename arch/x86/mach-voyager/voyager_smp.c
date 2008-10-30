@@ -345,6 +345,12 @@ static void do_quad_bootstrap(void)
 	}
 }
 
+void prefill_possible_map(void)
+{
+	/* This is empty on voyager because we need a much
+	 * earlier detection which is done in find_smp_config */
+}
+
 /* Set up all the basic stuff: read the SMP config and make all the
  * SMP information reflect only the boot cpu.  All others will be
  * brought on-line later. */
