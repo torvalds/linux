@@ -783,7 +783,7 @@ int soc_camera_host_register(struct soc_camera_host *ici)
 		return -EINVAL;
 
 	/* Number might be equal to the platform device ID */
-	sprintf(ici->dev.bus_id, "camera_host%d", ici->nr);
+	dev_set_name(&ici->dev, "camera_host%d", ici->nr);
 
 	mutex_lock(&list_lock);
 	list_for_each_entry(ix, &hosts, list) {
@@ -867,8 +867,7 @@ int soc_camera_device_register(struct soc_camera_device *icd)
 
 	icd->devnum = num;
 	icd->dev.bus = &soc_camera_bus_type;
-	snprintf(icd->dev.bus_id, sizeof(icd->dev.bus_id),
-		 "%u-%u", icd->iface, icd->devnum);
+	dev_set_name(&icd->dev, "%u-%u", icd->iface, icd->devnum);
 
 	icd->dev.release = dummy_release;
 

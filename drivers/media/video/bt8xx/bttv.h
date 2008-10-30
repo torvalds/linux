@@ -308,7 +308,7 @@ struct bttv_sub_device {
 
 struct bttv_sub_driver {
 	struct device_driver   drv;
-	char                   wanted[BUS_ID_SIZE];
+	char                   wanted[20];
 	int                    (*probe)(struct bttv_sub_device *sub);
 	void                   (*remove)(struct bttv_sub_device *sub);
 };

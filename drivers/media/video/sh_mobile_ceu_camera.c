@@ -616,7 +616,7 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 
 	/* request irq */
 	err = request_irq(pcdev->irq, sh_mobile_ceu_irq, IRQF_DISABLED,
-			  pdev->dev.bus_id, pcdev);
+			  dev_name(&pdev->dev), pcdev);
 	if (err) {
 		dev_err(&pdev->dev, "Unable to register CEU interrupt.\n");
 		goto exit_release_mem;
@@ -633,8 +633,8 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 	pcdev->ici.priv = pcdev;
 	pcdev->ici.dev.parent = &pdev->dev;
 	pcdev->ici.nr = pdev->id;
-	pcdev->ici.drv_name = pdev->dev.bus_id,
-	pcdev->ici.ops = &sh_mobile_ceu_host_ops,
+	pcdev->ici.drv_name = dev_name(&pdev->dev);
+	pcdev->ici.ops = &sh_mobile_ceu_host_ops;
 
 	err = soc_camera_host_register(&pcdev->ici);
 	if (err)

@@ -56,7 +56,7 @@ struct soc_camera_host {
 	struct device dev;
 	unsigned char nr;				/* Host number */
 	void *priv;
-	char *drv_name;
+	const char *drv_name;
 	struct soc_camera_host_ops *ops;
 };
 
@@ -107,7 +107,7 @@ extern int soc_camera_video_start(struct soc_camera_device *icd);
 extern void soc_camera_video_stop(struct soc_camera_device *icd);
 
 struct soc_camera_data_format {
-	char *name;
+	const char *name;
 	unsigned int depth;
 	__u32 fourcc;
 	enum v4l2_colorspace colorspace;

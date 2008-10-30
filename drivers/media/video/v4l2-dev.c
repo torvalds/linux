@@ -339,7 +339,7 @@ int video_register_device_index(struct video_device *vfd, int type, int nr,
 	vfd->dev.devt = MKDEV(VIDEO_MAJOR, vfd->minor);
 	if (vfd->parent)
 		vfd->dev.parent = vfd->parent;
-	sprintf(vfd->dev.bus_id, "%s%d", name_base, nr);
+	dev_set_name(&vfd->dev, "%s%d", name_base, nr);
 	ret = device_register(&vfd->dev);
 	if (ret < 0) {
 		printk(KERN_ERR "%s: device_register failed\n", __func__);
