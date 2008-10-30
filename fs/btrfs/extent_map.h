@@ -11,6 +11,7 @@
 /* bits for the flags field */
 #define EXTENT_FLAG_PINNED 0 /* this entry not yet on disk, don't free it */
 #define EXTENT_FLAG_COMPRESSED 1
+#define EXTENT_FLAG_VACANCY 2 /* no file extent item found */
 
 struct extent_map {
 	struct rb_node rb_node;

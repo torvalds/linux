@@ -142,40 +142,6 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	}
 	set_extent_uptodate(io_tree, start_pos, end_of_last_block, GFP_NOFS);
 
-	/* FIXME...EIEIO, ENOSPC and more */
-	/* insert any holes we need to create */
-	if (isize < start_pos) {
-		u64 last_pos_in_file;
-		u64 hole_size;
-		u64 mask = root->sectorsize - 1;
-		last_pos_in_file = (isize + mask) & ~mask;
-		hole_size = (start_pos - last_pos_in_file + mask) & ~mask;
-		if (hole_size > 0) {
-			btrfs_wait_ordered_range(inode, last_pos_in_file,
-						 last_pos_in_file + hole_size);
-			mutex_lock(&BTRFS_I(inode)->extent_mutex);
-			err = btrfs_drop_extents(trans, root, inode,
-						 last_pos_in_file,
-						 last_pos_in_file + hole_size,
-						 last_pos_in_file,
-						 &hint_byte);
-			if (err)
-				goto failed;
-
-			err = btrfs_insert_file_extent(trans, root,
-						       inode->i_ino,
-						       last_pos_in_file,
-						       0, 0, hole_size, 0,
-						       hole_size, 0, 0, 0);
-			btrfs_drop_extent_cache(inode, last_pos_in_file,
-					last_pos_in_file + hole_size - 1, 0);
-			mutex_unlock(&BTRFS_I(inode)->extent_mutex);
-			btrfs_check_file(root, inode);
-		}
-		if (err)
-			goto failed;
-	}
-
 	/* check for reserved extents on each page, we don't want
 	 * to reset the delalloc bit on things that already have
 	 * extents reserved.
@@ -191,7 +157,6 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		i_size_write(inode, end_pos);
 		btrfs_update_inode(trans, root, inode);
 	}
-failed:
 	err = btrfs_end_transaction(trans, root);
 out_unlock:
 	unlock_extent(io_tree, start_pos, end_of_last_block, GFP_NOFS);
@@ -696,6 +661,12 @@ static int noinline prepare_pages(struct btrfs_root *root, struct file *file,
 
 	start_pos = pos & ~((u64)root->sectorsize - 1);
 	last_pos = ((u64)index + num_pages) << PAGE_CACHE_SHIFT;
+
+	if (start_pos > inode->i_size) {
+		err = btrfs_cont_expand(inode, start_pos);
+		if (err)
+			return err;
+	}
 
 	memset(pages, 0, num_pages * sizeof(struct page *));
 again:
