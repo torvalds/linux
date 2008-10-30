@@ -75,7 +75,6 @@ xfs_quiesce_fs(
 	 * logged before we can write the unmount record.
 	 */
 	do {
-		xfs_log_force(mp, 0, XFS_LOG_FORCE|XFS_LOG_SYNC);
 		xfs_sync_inodes(mp, SYNC_ATTR|SYNC_WAIT);
 		pincount = xfs_flush_buftarg(mp->m_ddev_targp, 1);
 		if (!pincount) {

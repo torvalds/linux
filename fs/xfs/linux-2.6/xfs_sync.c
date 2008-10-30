@@ -217,11 +217,15 @@ xfs_sync_inodes(
 	int		error;
 	int		last_error;
 	int		i;
+	int		lflags = XFS_LOG_FORCE;
 
 	if (mp->m_flags & XFS_MOUNT_RDONLY)
 		return 0;
 	error = 0;
 	last_error = 0;
+
+	if (flags & SYNC_WAIT)
+		lflags |= XFS_LOG_SYNC;
 
 	for (i = 0; i < mp->m_sb.sb_agcount; i++) {
 		if (!mp->m_perag[i].pag_ici_init)
@@ -232,6 +236,9 @@ xfs_sync_inodes(
 		if (error == EFSCORRUPTED)
 			break;
 	}
+	if (flags & SYNC_DELWRI)
+		xfs_log_force(mp, 0, lflags);
+
 	return XFS_ERROR(last_error);
 }
 
@@ -269,7 +276,7 @@ xfs_commit_dummy_trans(
 	return 0;
 }
 
-STATIC int
+int
 xfs_sync_fsdata(
 	struct xfs_mount	*mp,
 	int			flags)
@@ -319,6 +326,39 @@ xfs_sync_fsdata(
  out_brelse:
 	xfs_buf_relse(bp);
  out:
+	return error;
+}
+
+/*
+ * First stage of freeze - no more writers will make progress now we are here,
+ * so we flush delwri and delalloc buffers here, then wait for all I/O to
+ * complete.  Data is frozen at that point. Metadata is not frozen,
+ * transactions can still occur here so don't bother flushing the buftarg (i.e
+ * SYNC_QUIESCE) because it'll just get dirty again.
+ */
+int
+xfs_quiesce_data(
+	struct xfs_mount	*mp)
+{
+	int error;
+
+	/* push non-blocking */
+	xfs_sync_inodes(mp, SYNC_DELWRI|SYNC_BDFLUSH);
+	XFS_QM_DQSYNC(mp, SYNC_BDFLUSH);
+	xfs_filestream_flush(mp);
+
+	/* push and block */
+	xfs_sync_inodes(mp, SYNC_DELWRI|SYNC_WAIT|SYNC_IOWAIT);
+	XFS_QM_DQSYNC(mp, SYNC_WAIT);
+
+	/* write superblock and hoover shutdown errors */
+	error = xfs_sync_fsdata(mp, 0);
+
+	/* flush devices */
+	XFS_bflush(mp->m_ddev_targp);
+	if (mp->m_rtdev_targp)
+		XFS_bflush(mp->m_rtdev_targp);
+
 	return error;
 }
 

@@ -998,7 +998,6 @@ xfs_fs_put_super(
 	int			error;
 
 	xfs_syncd_stop(mp);
-	xfs_log_force(mp, 0, XFS_LOG_FORCE|XFS_LOG_SYNC);
 	xfs_sync_inodes(mp, SYNC_ATTR|SYNC_DELWRI);
 
 #ifdef HAVE_DMAPI
@@ -1057,7 +1056,7 @@ xfs_fs_write_super(
 	struct super_block	*sb)
 {
 	if (!(sb->s_flags & MS_RDONLY))
-		xfs_sync(XFS_M(sb), SYNC_FSDATA);
+		xfs_sync_fsdata(XFS_M(sb), 0);
 	sb->s_dirt = 0;
 }
 
@@ -1068,7 +1067,6 @@ xfs_fs_sync_super(
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 	int			error;
-	int			flags;
 
 	/*
 	 * Treat a sync operation like a freeze.  This is to work
@@ -1082,20 +1080,10 @@ xfs_fs_sync_super(
 	 * dirty the Linux inode until after the transaction I/O
 	 * completes.
 	 */
-	if (wait || unlikely(sb->s_frozen == SB_FREEZE_WRITE)) {
-		/*
-		 * First stage of freeze - no more writers will make progress
-		 * now we are here, so we flush delwri and delalloc buffers
-		 * here, then wait for all I/O to complete.  Data is frozen at
-		 * that point. Metadata is not frozen, transactions can still
-		 * occur here so don't bother flushing the buftarg (i.e
-		 * SYNC_QUIESCE) because it'll just get dirty again.
-		 */
-		flags = SYNC_DATA_QUIESCE;
-	} else
-		flags = SYNC_FSDATA;
-
-	error = xfs_sync(mp, flags);
+	if (wait || unlikely(sb->s_frozen == SB_FREEZE_WRITE))
+		error = xfs_quiesce_data(mp);
+	else
+		error = xfs_sync_fsdata(mp, 0);
 	sb->s_dirt = 0;
 
 	if (unlikely(laptop_mode)) {
@@ -1233,8 +1221,7 @@ xfs_fs_remount(
 
 	/* rw -> ro */
 	if (!(mp->m_flags & XFS_MOUNT_RDONLY) && (*flags & MS_RDONLY)) {
-		xfs_filestream_flush(mp);
-		xfs_sync(mp, SYNC_DATA_QUIESCE);
+		xfs_quiesce_data(mp);
 		xfs_attr_quiesce(mp);
 		mp->m_flags |= XFS_MOUNT_RDONLY;
 	}
