@@ -59,6 +59,7 @@
 #include "xfs_extfree_item.h"
 #include "xfs_mru_cache.h"
 #include "xfs_inode_item.h"
+#include "xfs_sync.h"
 
 #include <linux/namei.h>
 #include <linux/init.h>
