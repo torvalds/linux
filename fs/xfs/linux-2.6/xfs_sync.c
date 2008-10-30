@@ -70,7 +70,7 @@ xfs_sync_inodes_ag(
 	if (flags & SYNC_WAIT)
 		fflag = 0;		/* synchronous overrides all */
 
-	if (flags & (SYNC_DELWRI | SYNC_CLOSE)) {
+	if (flags & SYNC_DELWRI) {
 		/*
 		 * We need the I/O lock if we're going to call any of
 		 * the flush/inval routines.
@@ -117,7 +117,7 @@ xfs_sync_inodes_ag(
 		}
 
 		/* nothing to sync during shutdown */
-		if (XFS_FORCED_SHUTDOWN(mp) && !(flags & SYNC_CLOSE)) {
+		if (XFS_FORCED_SHUTDOWN(mp)) {
 			read_unlock(&pag->pag_ici_lock);
 			return 0;
 		}
@@ -152,20 +152,6 @@ xfs_sync_inodes_ag(
 		 * If we need to drop the lock, insert a marker if we
 		 * have not already done so.
 		 */
-		if (flags & SYNC_CLOSE) {
-			xfs_iunlock(ip, XFS_ILOCK_SHARED);
-			if (XFS_FORCED_SHUTDOWN(mp))
-				xfs_tosspages(ip, 0, -1, FI_REMAPF);
-			else
-				error = xfs_flushinval_pages(ip, 0, -1,
-							FI_REMAPF);
-			/* wait for I/O on freeze */
-			if (flags & SYNC_IOWAIT)
-				vn_iowait(ip);
-
-			xfs_ilock(ip, XFS_ILOCK_SHARED);
-		}
-
 		if ((flags & SYNC_DELWRI) && VN_DIRTY(inode)) {
 			xfs_iunlock(ip, XFS_ILOCK_SHARED);
 			error = xfs_flush_pages(ip, 0, -1, fflag, FI_NONE);
@@ -390,8 +376,6 @@ xfs_quiesce_data(
  *		       inodes.  SYNC_WAIT and SYNC_BDFLUSH are used to
  *		       determine if they should be flushed sync, async, or
  *		       delwri.
- *      SYNC_CLOSE   - This flag is passed when the system is being
- *		       unmounted.  We should sync and invalidate everything.
  *      SYNC_FSDATA  - This indicates that the caller would like to make
  *		       sure the superblock is safe on disk.  We can ensure
  *		       this by simply making sure the log gets flushed
@@ -470,17 +454,6 @@ xfs_sync(
 		error = xfs_commit_dummy_trans(mp, log_flags);
 		if (error)
 			return error;
-	}
-
-	/*
-	 * When shutting down, we need to insure that the AIL is pushed
-	 * to disk or the filesystem can appear corrupt from the PROM.
-	 */
-	if ((flags & (SYNC_CLOSE|SYNC_WAIT)) == (SYNC_CLOSE|SYNC_WAIT)) {
-		XFS_bflush(mp->m_ddev_targp);
-		if (mp->m_rtdev_targp) {
-			XFS_bflush(mp->m_rtdev_targp);
-		}
 	}
 
 	return XFS_ERROR(last_error);

@@ -28,7 +28,6 @@ typedef struct bhv_vfs_sync_work {
 } bhv_vfs_sync_work_t;
 
 #define SYNC_ATTR		0x0001	/* sync attributes */
-#define SYNC_CLOSE		0x0002	/* close file system down */
 #define SYNC_DELWRI		0x0004	/* look at delayed writes */
 #define SYNC_WAIT		0x0008	/* wait for i/o to complete */
 #define SYNC_BDFLUSH		0x0010	/* BDFLUSH is calling -- don't block */
