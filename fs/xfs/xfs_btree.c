@@ -81,24 +81,6 @@ xfs_btree_maxrecs(
 
 #ifdef DEBUG
 /*
- * Debug routine: check that block header is ok.
- */
-void
-xfs_btree_check_block(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	xfs_btree_block_t	*block,	/* generic btree block pointer */
-	int			level,	/* level of the btree block */
-	xfs_buf_t		*bp)	/* buffer containing block, if any */
-{
-	if (cur->bc_flags & XFS_BTREE_LONG_PTRS)
-		xfs_btree_check_lblock(cur, (xfs_btree_lblock_t *)block, level,
-			bp);
-	else
-		xfs_btree_check_sblock(cur, (xfs_btree_sblock_t *)block, level,
-			bp);
-}
-
-/*
  * Debug routine: check that keys are in the right order.
  */
 void
@@ -150,65 +132,7 @@ xfs_btree_check_key(
 		ASSERT(0);
 	}
 }
-#endif	/* DEBUG */
 
-/*
- * Checking routine: check that long form block header is ok.
- */
-/* ARGSUSED */
-int					/* error (0 or EFSCORRUPTED) */
-xfs_btree_check_lblock(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	xfs_btree_lblock_t	*block,	/* btree long form block pointer */
-	int			level,	/* level of the btree block */
-	xfs_buf_t		*bp)	/* buffer for block, if any */
-{
-	int			lblock_ok; /* block passes checks */
-	xfs_mount_t		*mp;	/* file system mount point */
-
-	mp = cur->bc_mp;
-	lblock_ok =
-		be32_to_cpu(block->bb_magic) == xfs_magics[cur->bc_btnum] &&
-		be16_to_cpu(block->bb_level) == level &&
-		be16_to_cpu(block->bb_numrecs) <=
-			xfs_btree_maxrecs(cur, (xfs_btree_block_t *)block) &&
-		block->bb_leftsib &&
-		(be64_to_cpu(block->bb_leftsib) == NULLDFSBNO ||
-		 XFS_FSB_SANITY_CHECK(mp, be64_to_cpu(block->bb_leftsib))) &&
-		block->bb_rightsib &&
-		(be64_to_cpu(block->bb_rightsib) == NULLDFSBNO ||
-		 XFS_FSB_SANITY_CHECK(mp, be64_to_cpu(block->bb_rightsib)));
-	if (unlikely(XFS_TEST_ERROR(!lblock_ok, mp, XFS_ERRTAG_BTREE_CHECK_LBLOCK,
-			XFS_RANDOM_BTREE_CHECK_LBLOCK))) {
-		if (bp)
-			xfs_buftrace("LBTREE ERROR", bp);
-		XFS_ERROR_REPORT("xfs_btree_check_lblock", XFS_ERRLEVEL_LOW,
-				 mp);
-		return XFS_ERROR(EFSCORRUPTED);
-	}
-	return 0;
-}
-
-/*
- * Checking routine: check that (long) pointer is ok.
- */
-int					/* error (0 or EFSCORRUPTED) */
-xfs_btree_check_lptr(
-	xfs_btree_cur_t	*cur,		/* btree cursor */
-	xfs_dfsbno_t	ptr,		/* btree block disk address */
-	int		level)		/* btree block level */
-{
-	xfs_mount_t	*mp;		/* file system mount point */
-
-	mp = cur->bc_mp;
-	XFS_WANT_CORRUPTED_RETURN(
-		level > 0 &&
-		ptr != NULLDFSBNO &&
-		XFS_FSB_SANITY_CHECK(mp, ptr));
-	return 0;
-}
-
-#ifdef DEBUG
 /*
  * Debug routine: check that records are in the right order.
  */
@@ -268,19 +192,49 @@ xfs_btree_check_rec(
 }
 #endif	/* DEBUG */
 
-/*
- * Checking routine: check that block header is ok.
- */
-/* ARGSUSED */
+int					/* error (0 or EFSCORRUPTED) */
+xfs_btree_check_lblock(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	struct xfs_btree_lblock	*block,	/* btree long form block pointer */
+	int			level,	/* level of the btree block */
+	struct xfs_buf		*bp)	/* buffer for block, if any */
+{
+	int			lblock_ok; /* block passes checks */
+	struct xfs_mount	*mp;	/* file system mount point */
+
+	mp = cur->bc_mp;
+	lblock_ok =
+		be32_to_cpu(block->bb_magic) == xfs_magics[cur->bc_btnum] &&
+		be16_to_cpu(block->bb_level) == level &&
+		be16_to_cpu(block->bb_numrecs) <=
+			xfs_btree_maxrecs(cur, (xfs_btree_block_t *)block) &&
+		block->bb_leftsib &&
+		(be64_to_cpu(block->bb_leftsib) == NULLDFSBNO ||
+		 XFS_FSB_SANITY_CHECK(mp, be64_to_cpu(block->bb_leftsib))) &&
+		block->bb_rightsib &&
+		(be64_to_cpu(block->bb_rightsib) == NULLDFSBNO ||
+		 XFS_FSB_SANITY_CHECK(mp, be64_to_cpu(block->bb_rightsib)));
+	if (unlikely(XFS_TEST_ERROR(!lblock_ok, mp,
+			XFS_ERRTAG_BTREE_CHECK_LBLOCK,
+			XFS_RANDOM_BTREE_CHECK_LBLOCK))) {
+		if (bp)
+			xfs_buftrace("LBTREE ERROR", bp);
+		XFS_ERROR_REPORT("xfs_btree_check_lblock", XFS_ERRLEVEL_LOW,
+				 mp);
+		return XFS_ERROR(EFSCORRUPTED);
+	}
+	return 0;
+}
+
 int					/* error (0 or EFSCORRUPTED) */
 xfs_btree_check_sblock(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	xfs_btree_sblock_t	*block,	/* btree short form block pointer */
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	struct xfs_btree_sblock	*block,	/* btree short form block pointer */
 	int			level,	/* level of the btree block */
-	xfs_buf_t		*bp)	/* buffer containing block */
+	struct xfs_buf		*bp)	/* buffer containing block */
 {
-	xfs_buf_t		*agbp;	/* buffer for ag. freespace struct */
-	xfs_agf_t		*agf;	/* ag. freespace structure */
+	struct xfs_buf		*agbp;	/* buffer for ag. freespace struct */
+	struct xfs_agf		*agf;	/* ag. freespace structure */
 	xfs_agblock_t		agflen;	/* native ag. freespace length */
 	int			sblock_ok; /* block passes checks */
 
@@ -311,24 +265,76 @@ xfs_btree_check_sblock(
 }
 
 /*
- * Checking routine: check that (short) pointer is ok.
+ * Debug routine: check that block header is ok.
+ */
+int
+xfs_btree_check_block(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	struct xfs_btree_block	*block,	/* generic btree block pointer */
+	int			level,	/* level of the btree block */
+	struct xfs_buf		*bp)	/* buffer containing block, if any */
+{
+	if (cur->bc_flags & XFS_BTREE_LONG_PTRS) {
+		return xfs_btree_check_lblock(cur,
+				(struct xfs_btree_lblock *)block, level, bp);
+	} else {
+		return xfs_btree_check_sblock(cur,
+				(struct xfs_btree_sblock *)block, level, bp);
+	}
+}
+
+/*
+ * Check that (long) pointer is ok.
+ */
+int					/* error (0 or EFSCORRUPTED) */
+xfs_btree_check_lptr(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	xfs_dfsbno_t		bno,	/* btree block disk address */
+	int			level)	/* btree block level */
+{
+	XFS_WANT_CORRUPTED_RETURN(
+		level > 0 &&
+		bno != NULLDFSBNO &&
+		XFS_FSB_SANITY_CHECK(cur->bc_mp, bno));
+	return 0;
+}
+
+/*
+ * Check that (short) pointer is ok.
  */
 int					/* error (0 or EFSCORRUPTED) */
 xfs_btree_check_sptr(
-	xfs_btree_cur_t	*cur,		/* btree cursor */
-	xfs_agblock_t	ptr,		/* btree block disk address */
-	int		level)		/* btree block level */
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	xfs_agblock_t		bno,	/* btree block disk address */
+	int			level)	/* btree block level */
 {
-	xfs_buf_t	*agbp;		/* buffer for ag. freespace struct */
-	xfs_agf_t	*agf;		/* ag. freespace structure */
+	xfs_agblock_t		agblocks = cur->bc_mp->m_sb.sb_agblocks;
 
-	agbp = cur->bc_private.a.agbp;
-	agf = XFS_BUF_TO_AGF(agbp);
 	XFS_WANT_CORRUPTED_RETURN(
 		level > 0 &&
-		ptr != NULLAGBLOCK && ptr != 0 &&
-		ptr < be32_to_cpu(agf->agf_length));
+		bno != NULLAGBLOCK &&
+		bno != 0 &&
+		bno < agblocks);
 	return 0;
+}
+
+/*
+ * Check that block ptr is ok.
+ */
+int					/* error (0 or EFSCORRUPTED) */
+xfs_btree_check_ptr(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	union xfs_btree_ptr	*ptr,	/* btree block disk address */
+	int			index,	/* offset from ptr to check */
+	int			level)	/* btree block level */
+{
+	if (cur->bc_flags & XFS_BTREE_LONG_PTRS) {
+		return xfs_btree_check_lptr(cur,
+				be64_to_cpu((&ptr->l)[index]), level);
+	} else {
+		return xfs_btree_check_sptr(cur,
+				be32_to_cpu((&ptr->s)[index]), level);
+	}
 }
 
 /*

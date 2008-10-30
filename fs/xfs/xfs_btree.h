@@ -215,16 +215,69 @@ typedef struct xfs_btree_cur
 
 #ifdef __KERNEL__
 
-#ifdef DEBUG
 /*
- * Debug routine: check that block header is ok.
+ * Check that long form block header is ok.
  */
-void
-xfs_btree_check_block(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	xfs_btree_block_t	*block,	/* generic btree block pointer */
+int					/* error (0 or EFSCORRUPTED) */
+xfs_btree_check_lblock(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	struct xfs_btree_lblock	*block,	/* btree long form block pointer */
 	int			level,	/* level of the btree block */
 	struct xfs_buf		*bp);	/* buffer containing block, if any */
+
+/*
+ * Check that short form block header is ok.
+ */
+int					/* error (0 or EFSCORRUPTED) */
+xfs_btree_check_sblock(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	struct xfs_btree_sblock	*block,	/* btree short form block pointer */
+	int			level,	/* level of the btree block */
+	struct xfs_buf		*bp);	/* buffer containing block */
+
+/*
+ * Check that block header is ok.
+ */
+int
+xfs_btree_check_block(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	struct xfs_btree_block	*block,	/* generic btree block pointer */
+	int			level,	/* level of the btree block */
+	struct xfs_buf		*bp);	/* buffer containing block, if any */
+
+/*
+ * Check that (long) pointer is ok.
+ */
+int					/* error (0 or EFSCORRUPTED) */
+xfs_btree_check_lptr(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	xfs_dfsbno_t		ptr,	/* btree block disk address */
+	int			level);	/* btree block level */
+
+#define xfs_btree_check_lptr_disk(cur, ptr, level) \
+	xfs_btree_check_lptr(cur, be64_to_cpu(ptr), level)
+
+
+/*
+ * Check that (short) pointer is ok.
+ */
+int					/* error (0 or EFSCORRUPTED) */
+xfs_btree_check_sptr(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	xfs_agblock_t		ptr,	/* btree block disk address */
+	int			level);	/* btree block level */
+
+/*
+ * Check that (short) pointer is ok.
+ */
+int					/* error (0 or EFSCORRUPTED) */
+xfs_btree_check_ptr(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	union xfs_btree_ptr	*ptr,	/* btree block disk address */
+	int			index,	/* offset from ptr to check */
+	int			level);	/* btree block level */
+
+#ifdef DEBUG
 
 /*
  * Debug routine: check that keys are in the right order.
@@ -244,51 +297,9 @@ xfs_btree_check_rec(
 	void			*ar1,	/* pointer to left (lower) record */
 	void			*ar2);	/* pointer to right (higher) record */
 #else
-#define	xfs_btree_check_block(a,b,c,d)
-#define	xfs_btree_check_key(a,b,c)
-#define	xfs_btree_check_rec(a,b,c)
+#define	xfs_btree_check_key(a, b, c)
+#define	xfs_btree_check_rec(a, b, c)
 #endif	/* DEBUG */
-
-/*
- * Checking routine: check that long form block header is ok.
- */
-int					/* error (0 or EFSCORRUPTED) */
-xfs_btree_check_lblock(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	xfs_btree_lblock_t	*block,	/* btree long form block pointer */
-	int			level,	/* level of the btree block */
-	struct xfs_buf		*bp);	/* buffer containing block, if any */
-
-/*
- * Checking routine: check that (long) pointer is ok.
- */
-int					/* error (0 or EFSCORRUPTED) */
-xfs_btree_check_lptr(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	xfs_dfsbno_t		ptr,	/* btree block disk address */
-	int			level);	/* btree block level */
-
-#define xfs_btree_check_lptr_disk(cur, ptr, level) \
-	xfs_btree_check_lptr(cur, be64_to_cpu(ptr), level)
-
-/*
- * Checking routine: check that short form block header is ok.
- */
-int					/* error (0 or EFSCORRUPTED) */
-xfs_btree_check_sblock(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	xfs_btree_sblock_t	*block,	/* btree short form block pointer */
-	int			level,	/* level of the btree block */
-	struct xfs_buf		*bp);	/* buffer containing block */
-
-/*
- * Checking routine: check that (short) pointer is ok.
- */
-int					/* error (0 or EFSCORRUPTED) */
-xfs_btree_check_sptr(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	xfs_agblock_t		ptr,	/* btree block disk address */
-	int			level);	/* btree block level */
 
 /*
  * Delete the btree cursor.
