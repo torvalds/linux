@@ -96,7 +96,7 @@ xfs_qm_dquot_logitem_pin(
 	xfs_dquot_t *dqp = logitem->qli_dquot;
 
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
-	atomic_inc(dqp->q_pincount);
+	atomic_inc(&dqp->q_pincount);
 }
 
 /*
