@@ -61,7 +61,7 @@ void hal_set_cwmax(  phw_data_t pHwData,  u16 cwin_max );
 void hal_set_rsn_wpa(  phw_data_t pHwData,  u32 * RSN_IE_Bitmap , u32 * RSN_OUI_type , unsigned char bDesiredAuthMode);
 //s32 hal_get_rssi(  phw_data_t pHwData,  u32 HalRssi );
 s32 hal_get_rssi(  phw_data_t pHwData,  u32 *HalRssiArry,  u8 Count );
-s32 hal_get_rssi_bss(  phw_data_t pHwData,  u16 idx,  u8 Count );
+s32 hal_get_rssi_bss(struct wb35_adapter *adapter,  u16 idx,  u8 Count);
 void hal_set_connect_info(  phw_data_t pHwData,  unsigned char boConnect );
 u8 hal_get_est_sq3(  phw_data_t pHwData,  u8 Count );
 void hal_set_rf_power(  phw_data_t pHwData,  u8 PowerIndex ); // 20060621 Modify
@@ -82,13 +82,13 @@ u8 hal_get_hw_radio_off			(  phw_data_t pHwData );
 #define hal_scan_interval( _A )		(_A->Scan_Interval)
 void hal_scan_status_indicate(  phw_data_t pHwData, u8 status);	// 0: complete, 1: in progress
 void hal_system_power_change(  phw_data_t pHwData, u32 PowerState ); // 20051230 -=D0 1=D1 ..
-void hal_surprise_remove(  phw_data_t pHwData );
+void hal_surprise_remove(struct wb35_adapter *adapter);
 
 #define PHY_DEBUG( msg, args... )
 
 
 
-void hal_rate_change(  phw_data_t pHwData ); // Notify the HAL rate is changing 20060613.1
+void hal_rate_change(struct wb35_adapter *adapter); // Notify the HAL rate is changing 20060613.1
 unsigned char hal_get_dxx_reg(  phw_data_t pHwData,  u16 number,  u32 * pValue );
 unsigned char hal_set_dxx_reg(  phw_data_t pHwData,  u16 number,  u32 value );
 #define hal_get_time_count( _P )	(_P->time_count/10)	// return 100ms count

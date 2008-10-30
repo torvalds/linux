@@ -23,23 +23,24 @@ Wb35Tx_get_tx_buffer(phw_data_t pHwData, u8 **pBuffer)
 	return true;
 }
 
-void Wb35Tx_start(phw_data_t pHwData)
+void Wb35Tx_start(struct wb35_adapter *adapter)
 {
+	phw_data_t pHwData = &adapter->sHwData;
 	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
 
 	// Allow only one thread to run into function
 	if (atomic_inc_return(&pWb35Tx->TxFireCounter) == 1) {
 		pWb35Tx->EP4vm_state = VM_RUNNING;
-		Wb35Tx(pHwData);
+		Wb35Tx(adapter);
 	} else
 		atomic_dec(&pWb35Tx->TxFireCounter);
 }
 
 
-void Wb35Tx(phw_data_t pHwData)
+void Wb35Tx(struct wb35_adapter *adapter)
 {
+	phw_data_t	pHwData = &adapter->sHwData;
 	PWB35TX		pWb35Tx = &pHwData->Wb35Tx;
-	struct wb35_adapter *adapter = pHwData->adapter;
 	u8		*pTxBufferAddress;
 	PMDS		pMds = &adapter->Mds;
 	struct urb *	pUrb = (struct urb *)pWb35Tx->Tx4Urb;
@@ -65,7 +66,7 @@ void Wb35Tx(phw_data_t pHwData)
 	usb_fill_bulk_urb(pUrb, pHwData->WbUsb.udev,
 			  usb_sndbulkpipe(pHwData->WbUsb.udev, 4),
 			  pTxBufferAddress, pMds->TxBufferSize[ SendIndex ],
-			  Wb35Tx_complete, pHwData);
+			  Wb35Tx_complete, adapter);
 
 	pWb35Tx->EP4vm_state = VM_RUNNING;
 	retv = usb_submit_urb(pUrb, GFP_ATOMIC);
@@ -77,7 +78,7 @@ void Wb35Tx(phw_data_t pHwData)
 	// Check if driver needs issue Irp for EP2
 	pWb35Tx->TxFillCount += pMds->TxCountInBuffer[SendIndex];
 	if (pWb35Tx->TxFillCount > 12)
-		Wb35Tx_EP2VM_start( pHwData );
+		Wb35Tx_EP2VM_start(adapter);
 
 	pWb35Tx->ByteTransfer += pMds->TxBufferSize[SendIndex];
 	return;
@@ -90,8 +91,8 @@ void Wb35Tx(phw_data_t pHwData)
 
 void Wb35Tx_complete(struct urb * pUrb)
 {
-	phw_data_t	pHwData = pUrb->context;
-	struct wb35_adapter *adapter = pHwData->adapter;
+	struct wb35_adapter *adapter = pUrb->context;
+	phw_data_t	pHwData = &adapter->sHwData;
 	PWB35TX		pWb35Tx = &pHwData->Wb35Tx;
 	PMDS		pMds = &adapter->Mds;
 
@@ -117,7 +118,7 @@ void Wb35Tx_complete(struct urb * pUrb)
 	}
 
 	Mds_Tx(adapter);
-	Wb35Tx(pHwData);
+	Wb35Tx(adapter);
 	return;
 
 error:
@@ -193,8 +194,9 @@ void Wb35Tx_destroy(phw_data_t pHwData)
 	#endif
 }
 
-void Wb35Tx_CurrentTime(phw_data_t pHwData, u32 TimeCount)
+void Wb35Tx_CurrentTime(struct wb35_adapter *adapter, u32 TimeCount)
 {
+	phw_data_t pHwData = &adapter->sHwData;
 	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
 	unsigned char Trigger = false;
 
@@ -205,26 +207,28 @@ void Wb35Tx_CurrentTime(phw_data_t pHwData, u32 TimeCount)
 
 	if (Trigger) {
 		pWb35Tx->TxTimer = TimeCount;
-		Wb35Tx_EP2VM_start( pHwData );
+		Wb35Tx_EP2VM_start(adapter);
 	}
 }
 
-void Wb35Tx_EP2VM_start(phw_data_t pHwData)
+void Wb35Tx_EP2VM_start(struct wb35_adapter *adapter)
 {
+	phw_data_t pHwData = &adapter->sHwData;
 	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
 
 	// Allow only one thread to run into function
 	if (atomic_inc_return(&pWb35Tx->TxResultCount) == 1) {
 		pWb35Tx->EP2vm_state = VM_RUNNING;
-		Wb35Tx_EP2VM( pHwData );
+		Wb35Tx_EP2VM(adapter);
 	}
 	else
 		atomic_dec(&pWb35Tx->TxResultCount);
 }
 
 
-void Wb35Tx_EP2VM(phw_data_t pHwData)
+void Wb35Tx_EP2VM(struct wb35_adapter *adapter)
 {
+	phw_data_t	pHwData = &adapter->sHwData;
 	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
 	struct urb *	pUrb = (struct urb *)pWb35Tx->Tx2Urb;
 	u32 *	pltmp = (u32 *)pWb35Tx->EP2_buf;
@@ -240,7 +244,7 @@ void Wb35Tx_EP2VM(phw_data_t pHwData)
 	// Issuing URB
 	//
 	usb_fill_int_urb( pUrb, pHwData->WbUsb.udev, usb_rcvintpipe(pHwData->WbUsb.udev,2),
-			  pltmp, MAX_INTERRUPT_LENGTH, Wb35Tx_EP2VM_complete, pHwData, 32);
+			  pltmp, MAX_INTERRUPT_LENGTH, Wb35Tx_EP2VM_complete, adapter, 32);
 
 	pWb35Tx->EP2vm_state = VM_RUNNING;
 	retv = usb_submit_urb(pUrb, GFP_ATOMIC);
@@ -261,9 +265,9 @@ error:
 
 void Wb35Tx_EP2VM_complete(struct urb * pUrb)
 {
-	phw_data_t	pHwData = pUrb->context;
+	struct wb35_adapter *adapter = pUrb->context;
+	phw_data_t	pHwData = &adapter->sHwData;
 	T02_DESCRIPTOR	T02, TSTATUS;
-	struct wb35_adapter *adapter = pHwData->adapter;
 	PWB35TX		pWb35Tx = &pHwData->Wb35Tx;
 	u32 *		pltmp = (u32 *)pWb35Tx->EP2_buf;
 	u32		i;

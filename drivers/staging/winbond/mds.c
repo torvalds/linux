@@ -176,7 +176,7 @@ Mds_Tx(struct wb35_adapter * adapter)
 	// Start to send by lower module
 	//
 	if (!pHwData->IsKeyPreSet)
-		Wb35Tx_start(pHwData);
+		Wb35Tx_start(adapter);
 
  cleanup:
 	atomic_dec(&pMds->TxThreadCount);

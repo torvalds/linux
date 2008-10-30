@@ -32,8 +32,8 @@ void hal_get_permanent_address( phw_data_t pHwData, u8 *pethernet_address )
 
 static void hal_led_control(unsigned long data)
 {
-	phw_data_t pHwData = (phw_data_t) data;
-	struct wb35_adapter *	adapter = pHwData->adapter;
+	struct wb35_adapter *adapter = (struct wb35_adapter *) data;
+	phw_data_t pHwData = &adapter->sHwData;
 	struct wb35_reg *reg = &pHwData->reg;
 	u32	LEDSet = (pHwData->SoftwareSet & HAL_LED_SET_MASK) >> HAL_LED_SET_SHIFT;
 	u8	LEDgray[20] = { 0,3,4,6,8,10,11,12,13,14,15,14,13,12,11,10,8,6,4,2 };
@@ -310,7 +310,7 @@ static void hal_led_control(unsigned long data)
 	}
 
 	pHwData->time_count += TimeInterval;
-	Wb35Tx_CurrentTime( pHwData, pHwData->time_count ); // 20060928 add
+	Wb35Tx_CurrentTime(adapter, pHwData->time_count); // 20060928 add
 	pHwData->LEDTimer.expires = jiffies + msecs_to_jiffies(TimeInterval);
 	add_timer(&pHwData->LEDTimer);
 }
@@ -319,7 +319,6 @@ static void hal_led_control(unsigned long data)
 u8 hal_init_hardware(phw_data_t pHwData, struct wb35_adapter * adapter)
 {
 	u16 SoftwareSet;
-	pHwData->adapter = adapter;
 
 	// Initial the variable
 	pHwData->MaxReceiveLifeTime = DEFAULT_MSDU_LIFE_TIME; // Setting Rx maximum MSDU life time
@@ -334,7 +333,7 @@ u8 hal_init_hardware(phw_data_t pHwData, struct wb35_adapter * adapter)
 				pHwData->InitialResource = 4;
 				init_timer(&pHwData->LEDTimer);
 				pHwData->LEDTimer.function = hal_led_control;
-				pHwData->LEDTimer.data = (unsigned long) pHwData;
+				pHwData->LEDTimer.data = (unsigned long) adapter;
 				pHwData->LEDTimer.expires = jiffies + msecs_to_jiffies(1000);
 				add_timer(&pHwData->LEDTimer);
 
@@ -351,7 +350,7 @@ u8 hal_init_hardware(phw_data_t pHwData, struct wb35_adapter * adapter)
 				#endif
 
 				Wb35Rx_start( pHwData );
-				Wb35Tx_EP2VM_start( pHwData );
+				Wb35Tx_EP2VM_start(adapter);
 
 				return true;
 			}
@@ -672,13 +671,13 @@ s32 hal_get_rssi(  phw_data_t pHwData,  u32 *HalRssiArry,  u8 Count )
 	return ltmp;
 }
 //----------------------------------------------------------------------------------------------------
-s32 hal_get_rssi_bss(  phw_data_t pHwData,  u16 idx,  u8 Count )
+s32 hal_get_rssi_bss(struct wb35_adapter *adapter,  u16 idx,  u8 Count)
 {
+	phw_data_t pHwData = &adapter->sHwData;
 	struct wb35_reg *reg = &pHwData->reg;
 	R01_DESCRIPTOR	r01;
 	s32 ltmp = 0, tmp;
 	u8	i, j;
-	struct wb35_adapter *	adapter = pHwData->adapter;
 //	u32 *HalRssiArry = psBSS(idx)->HalRssi;
 
 	if( pHwData->SurpriseRemove ) return -200;
@@ -842,9 +841,10 @@ void hal_system_power_change(phw_data_t pHwData, u32 PowerState)
 	}
 }
 
-void hal_surprise_remove(  phw_data_t pHwData )
+void hal_surprise_remove(struct wb35_adapter *adapter)
 {
-	struct wb35_adapter * adapter = pHwData->adapter;
+	phw_data_t pHwData = &adapter->sHwData;
+
 	if (atomic_inc_return( &pHwData->SurpriseRemoveCount ) == 1) {
 		#ifdef _PE_STATE_DUMP_
 		WBDEBUG(("Calling hal_surprise_remove\n"));
@@ -853,9 +853,9 @@ void hal_surprise_remove(  phw_data_t pHwData )
 	}
 }
 
-void hal_rate_change(  phw_data_t pHwData ) // Notify the HAL rate is changing 20060613.1
+void hal_rate_change(struct wb35_adapter *adapter) // Notify the HAL rate is changing 20060613.1
 {
-	struct wb35_adapter *	adapter = pHwData->adapter;
+	phw_data_t pHwData = &adapter->sHwData;
 	u8		rate = CURRENT_TX_RATE;
 
 	BBProcessor_RateChanging( pHwData, rate );

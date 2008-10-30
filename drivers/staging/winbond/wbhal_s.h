@@ -449,16 +449,6 @@ typedef struct _HW_DATA_T
 	u32	FragCount;
 	u32	DMAFix; //V1_DMA_FIX The variable can be removed if driver want to save mem space for V2.
 
-	//=======================================================================================
-	// For USB driver, hal need more variables. Due to
-	//	1. NDIS-WDM operation
-	//	2. The SME, MLME and OLD MDS need adapter structure, but the driver under HAL doesn't
-	//		have that parameter when receiving and indicating packet.
-	//		The MDS must input the adapter pointer as the second parameter of hal_init_hardware.
-	//		The function usage is different than PCI driver.
-	//=======================================================================================
-	void* adapter;
-
 	//===============================================
 	// Definition for MAC address
 	//===============================================
