@@ -26,6 +26,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
+#include <asm/setup.h>
 
 #include <mach/irqs.h>
 #include <mach/board.h>
@@ -77,6 +78,15 @@ static void __init halibut_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
+static void __init halibut_fixup(struct machine_desc *desc, struct tag *tags,
+				 char **cmdline, struct meminfo *mi)
+{
+	mi->nr_banks=1;
+	mi->bank[0].start = PHYS_OFFSET;
+	mi->bank[0].node = PHYS_TO_NID(PHYS_OFFSET);
+	mi->bank[0].size = (101*1024*1024);
+}
+
 static void __init halibut_map_io(void)
 {
 	msm_map_common_io();
@@ -85,6 +95,7 @@ static void __init halibut_map_io(void)
 
 MACHINE_START(HALIBUT, "Halibut Board (QCT SURF7200A)")
 	.boot_params	= 0x10000100,
+	.fixup		= halibut_fixup,
 	.map_io		= halibut_map_io,
 	.init_irq	= halibut_init_irq,
 	.init_machine	= halibut_init,
