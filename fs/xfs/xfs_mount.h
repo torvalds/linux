@@ -63,6 +63,7 @@ struct xfs_extdelta;
 struct xfs_swapext;
 struct xfs_mru_cache;
 struct xfs_nameops;
+struct xfs_ail;
 
 /*
  * Prototypes and functions for the Data Migration subsystem.
@@ -224,18 +225,11 @@ extern void	xfs_icsb_sync_counters_locked(struct xfs_mount *, int);
 #define xfs_icsb_sync_counters_locked(mp, flags) do { } while (0)
 #endif
 
-typedef struct xfs_ail {
-	struct list_head	xa_ail;
-	uint			xa_gen;
-	struct task_struct	*xa_task;
-	xfs_lsn_t		xa_target;
-} xfs_ail_t;
-
 typedef struct xfs_mount {
 	struct super_block	*m_super;
 	xfs_tid_t		m_tid;		/* next unused tid for fs */
 	spinlock_t		m_ail_lock;	/* fs AIL mutex */
-	xfs_ail_t		m_ail;		/* fs active log item list */
+	struct xfs_ail		*m_ail;		/* fs active log item list */
 	xfs_sb_t		m_sb;		/* copy of fs superblock */
 	spinlock_t		m_sb_lock;	/* sb counter lock */
 	struct xfs_buf		*m_sb_bp;	/* buffer for superblock */

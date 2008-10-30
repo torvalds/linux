@@ -56,13 +56,20 @@ struct xfs_log_item	*xfs_trans_first_ail(struct xfs_mount *, int *);
 struct xfs_log_item	*xfs_trans_next_ail(struct xfs_mount *,
 				     struct xfs_log_item *, int *, int *);
 
-
 /*
  * AIL push thread support
  */
-long	xfsaild_push(struct xfs_mount *, xfs_lsn_t *);
-void	xfsaild_wakeup(struct xfs_mount *, xfs_lsn_t);
-int	xfsaild_start(struct xfs_mount *);
-void	xfsaild_stop(struct xfs_mount *);
+struct xfs_ail {
+	struct xfs_mount	*xa_mount;
+	struct list_head	xa_ail;
+	uint			xa_gen;
+	struct task_struct	*xa_task;
+	xfs_lsn_t		xa_target;
+};
+
+long	xfsaild_push(struct xfs_ail *, xfs_lsn_t *);
+void	xfsaild_wakeup(struct xfs_ail *, xfs_lsn_t);
+int	xfsaild_start(struct xfs_ail *);
+void	xfsaild_stop(struct xfs_ail *);
 
 #endif	/* __XFS_TRANS_PRIV_H__ */

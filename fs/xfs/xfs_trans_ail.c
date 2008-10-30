@@ -28,13 +28,13 @@
 #include "xfs_trans_priv.h"
 #include "xfs_error.h"
 
-STATIC void xfs_ail_insert(xfs_ail_t *, xfs_log_item_t *);
-STATIC xfs_log_item_t * xfs_ail_delete(xfs_ail_t *, xfs_log_item_t *);
-STATIC xfs_log_item_t * xfs_ail_min(xfs_ail_t *);
-STATIC xfs_log_item_t * xfs_ail_next(xfs_ail_t *, xfs_log_item_t *);
+STATIC void xfs_ail_insert(struct xfs_ail *, xfs_log_item_t *);
+STATIC xfs_log_item_t * xfs_ail_delete(struct xfs_ail *, xfs_log_item_t *);
+STATIC xfs_log_item_t * xfs_ail_min(struct xfs_ail *);
+STATIC xfs_log_item_t * xfs_ail_next(struct xfs_ail *, xfs_log_item_t *);
 
 #ifdef DEBUG
-STATIC void xfs_ail_check(xfs_ail_t *, xfs_log_item_t *);
+STATIC void xfs_ail_check(struct xfs_ail *, xfs_log_item_t *);
 #else
 #define	xfs_ail_check(a,l)
 #endif /* DEBUG */
@@ -57,7 +57,7 @@ xfs_trans_tail_ail(
 	xfs_log_item_t	*lip;
 
 	spin_lock(&mp->m_ail_lock);
-	lip = xfs_ail_min(&mp->m_ail);
+	lip = xfs_ail_min(mp->m_ail);
 	if (lip == NULL) {
 		lsn = (xfs_lsn_t)0;
 	} else {
@@ -91,10 +91,10 @@ xfs_trans_push_ail(
 {
 	xfs_log_item_t		*lip;
 
-	lip = xfs_ail_min(&mp->m_ail);
+	lip = xfs_ail_min(mp->m_ail);
 	if (lip && !XFS_FORCED_SHUTDOWN(mp)) {
-		if (XFS_LSN_CMP(threshold_lsn, mp->m_ail.xa_target) > 0)
-			xfsaild_wakeup(mp, threshold_lsn);
+		if (XFS_LSN_CMP(threshold_lsn, mp->m_ail->xa_target) > 0)
+			xfsaild_wakeup(mp->m_ail, threshold_lsn);
 	}
 }
 
@@ -111,12 +111,12 @@ xfs_trans_first_push_ail(
 {
 	xfs_log_item_t	*lip;
 
-	lip = xfs_ail_min(&mp->m_ail);
-	*gen = (int)mp->m_ail.xa_gen;
+	lip = xfs_ail_min(mp->m_ail);
+	*gen = (int)mp->m_ail->xa_gen;
 	if (lsn == 0)
 		return lip;
 
-	list_for_each_entry(lip, &mp->m_ail.xa_ail, li_ail) {
+	list_for_each_entry(lip, &mp->m_ail->xa_ail, li_ail) {
 		if (XFS_LSN_CMP(lip->li_lsn, lsn) >= 0)
 			return lip;
 	}
@@ -129,17 +129,18 @@ xfs_trans_first_push_ail(
  */
 long
 xfsaild_push(
-	xfs_mount_t	*mp,
+	struct xfs_ail	*ailp,
 	xfs_lsn_t	*last_lsn)
 {
 	long		tout = 1000; /* milliseconds */
 	xfs_lsn_t	last_pushed_lsn = *last_lsn;
-	xfs_lsn_t	target =  mp->m_ail.xa_target;
+	xfs_lsn_t	target =  ailp->xa_target;
 	xfs_lsn_t	lsn;
 	xfs_log_item_t	*lip;
 	int		gen;
 	int		restarts;
 	int		flush_log, count, stuck;
+	xfs_mount_t	*mp = ailp->xa_mount;
 
 #define	XFS_TRANS_PUSH_AIL_RESTARTS	10
 
@@ -331,7 +332,7 @@ xfs_trans_unlocked_item(
 	 * the call to xfs_log_move_tail() doesn't do anything if there's
 	 * not enough free space to wake people up so we're safe calling it.
 	 */
-	min_lip = xfs_ail_min(&mp->m_ail);
+	min_lip = xfs_ail_min(mp->m_ail);
 
 	if (min_lip == lip)
 		xfs_log_move_tail(mp, 1);
@@ -362,10 +363,10 @@ xfs_trans_update_ail(
 	xfs_log_item_t		*dlip=NULL;
 	xfs_log_item_t		*mlip;	/* ptr to minimum lip */
 
-	mlip = xfs_ail_min(&mp->m_ail);
+	mlip = xfs_ail_min(mp->m_ail);
 
 	if (lip->li_flags & XFS_LI_IN_AIL) {
-		dlip = xfs_ail_delete(&mp->m_ail, lip);
+		dlip = xfs_ail_delete(mp->m_ail, lip);
 		ASSERT(dlip == lip);
 	} else {
 		lip->li_flags |= XFS_LI_IN_AIL;
@@ -373,11 +374,11 @@ xfs_trans_update_ail(
 
 	lip->li_lsn = lsn;
 
-	xfs_ail_insert(&mp->m_ail, lip);
-	mp->m_ail.xa_gen++;
+	xfs_ail_insert(mp->m_ail, lip);
+	mp->m_ail->xa_gen++;
 
 	if (mlip == dlip) {
-		mlip = xfs_ail_min(&mp->m_ail);
+		mlip = xfs_ail_min(mp->m_ail);
 		spin_unlock(&mp->m_ail_lock);
 		xfs_log_move_tail(mp, mlip->li_lsn);
 	} else {
@@ -411,17 +412,17 @@ xfs_trans_delete_ail(
 	xfs_log_item_t		*mlip;
 
 	if (lip->li_flags & XFS_LI_IN_AIL) {
-		mlip = xfs_ail_min(&mp->m_ail);
-		dlip = xfs_ail_delete(&mp->m_ail, lip);
+		mlip = xfs_ail_min(mp->m_ail);
+		dlip = xfs_ail_delete(mp->m_ail, lip);
 		ASSERT(dlip == lip);
 
 
 		lip->li_flags &= ~XFS_LI_IN_AIL;
 		lip->li_lsn = 0;
-		mp->m_ail.xa_gen++;
+		mp->m_ail->xa_gen++;
 
 		if (mlip == dlip) {
-			mlip = xfs_ail_min(&mp->m_ail);
+			mlip = xfs_ail_min(mp->m_ail);
 			spin_unlock(&mp->m_ail_lock);
 			xfs_log_move_tail(mp, (mlip ? mlip->li_lsn : 0));
 		} else {
@@ -459,8 +460,8 @@ xfs_trans_first_ail(
 {
 	xfs_log_item_t	*lip;
 
-	lip = xfs_ail_min(&mp->m_ail);
-	*gen = (int)mp->m_ail.xa_gen;
+	lip = xfs_ail_min(mp->m_ail);
+	*gen = (int)mp->m_ail->xa_gen;
 
 	return lip;
 }
@@ -482,11 +483,11 @@ xfs_trans_next_ail(
 	xfs_log_item_t	*nlip;
 
 	ASSERT(mp && lip && gen);
-	if (mp->m_ail.xa_gen == *gen) {
-		nlip = xfs_ail_next(&mp->m_ail, lip);
+	if (mp->m_ail->xa_gen == *gen) {
+		nlip = xfs_ail_next(mp->m_ail, lip);
 	} else {
-		nlip = xfs_ail_min(&mp->m_ail);
-		*gen = (int)mp->m_ail.xa_gen;
+		nlip = xfs_ail_min(mp->m_ail);
+		*gen = (int)mp->m_ail->xa_gen;
 		if (restarts != NULL) {
 			XFS_STATS_INC(xs_push_ail_restarts);
 			(*restarts)++;
@@ -515,15 +516,25 @@ int
 xfs_trans_ail_init(
 	xfs_mount_t	*mp)
 {
-	INIT_LIST_HEAD(&mp->m_ail.xa_ail);
-	return xfsaild_start(mp);
+	struct xfs_ail	*ailp;
+
+	ailp = kmem_zalloc(sizeof(struct xfs_ail), KM_MAYFAIL);
+	if (!ailp)
+		return ENOMEM;
+
+	ailp->xa_mount = mp;
+	INIT_LIST_HEAD(&ailp->xa_ail);
+	return xfsaild_start(ailp);
 }
 
 void
 xfs_trans_ail_destroy(
 	xfs_mount_t	*mp)
 {
-	xfsaild_stop(mp);
+	struct xfs_ail	*ailp = mp->m_ail;
+
+	xfsaild_stop(ailp);
+	kmem_free(ailp);
 }
 
 /*
@@ -534,7 +545,7 @@ xfs_trans_ail_destroy(
  */
 STATIC void
 xfs_ail_insert(
-	xfs_ail_t	*ailp,
+	struct xfs_ail	*ailp,
 	xfs_log_item_t	*lip)
 /* ARGSUSED */
 {
@@ -568,7 +579,7 @@ xfs_ail_insert(
 /*ARGSUSED*/
 STATIC xfs_log_item_t *
 xfs_ail_delete(
-	xfs_ail_t	*ailp,
+	struct xfs_ail	*ailp,
 	xfs_log_item_t	*lip)
 /* ARGSUSED */
 {
@@ -585,7 +596,7 @@ xfs_ail_delete(
  */
 STATIC xfs_log_item_t *
 xfs_ail_min(
-	xfs_ail_t	*ailp)
+	struct xfs_ail	*ailp)
 /* ARGSUSED */
 {
 	if (list_empty(&ailp->xa_ail))
@@ -601,7 +612,7 @@ xfs_ail_min(
  */
 STATIC xfs_log_item_t *
 xfs_ail_next(
-	xfs_ail_t	*ailp,
+	struct xfs_ail	*ailp,
 	xfs_log_item_t	*lip)
 /* ARGSUSED */
 {
@@ -617,7 +628,7 @@ xfs_ail_next(
  */
 STATIC void
 xfs_ail_check(
-	xfs_ail_t 	*ailp,
+	struct xfs_ail	*ailp,
 	xfs_log_item_t	*lip)
 {
 	xfs_log_item_t	*prev_lip;

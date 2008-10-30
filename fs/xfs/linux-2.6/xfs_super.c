@@ -814,18 +814,18 @@ xfs_setup_devices(
  */
 void
 xfsaild_wakeup(
-	xfs_mount_t		*mp,
+	struct xfs_ail		*ailp,
 	xfs_lsn_t		threshold_lsn)
 {
-	mp->m_ail.xa_target = threshold_lsn;
-	wake_up_process(mp->m_ail.xa_task);
+	ailp->xa_target = threshold_lsn;
+	wake_up_process(ailp->xa_task);
 }
 
 int
 xfsaild(
 	void	*data)
 {
-	xfs_mount_t	*mp = (xfs_mount_t *)data;
+	struct xfs_ail	*ailp = data;
 	xfs_lsn_t	last_pushed_lsn = 0;
 	long		tout = 0;
 
@@ -837,11 +837,11 @@ xfsaild(
 		/* swsusp */
 		try_to_freeze();
 
-		ASSERT(mp->m_log);
-		if (XFS_FORCED_SHUTDOWN(mp))
+		ASSERT(ailp->xa_mount->m_log);
+		if (XFS_FORCED_SHUTDOWN(ailp->xa_mount))
 			continue;
 
-		tout = xfsaild_push(mp, &last_pushed_lsn);
+		tout = xfsaild_push(ailp, &last_pushed_lsn);
 	}
 
 	return 0;
@@ -849,20 +849,20 @@ xfsaild(
 
 int
 xfsaild_start(
-	xfs_mount_t	*mp)
+	struct xfs_ail	*ailp)
 {
-	mp->m_ail.xa_target = 0;
-	mp->m_ail.xa_task = kthread_run(xfsaild, mp, "xfsaild");
-	if (IS_ERR(mp->m_ail.xa_task))
-		return -PTR_ERR(mp->m_ail.xa_task);
+	ailp->xa_target = 0;
+	ailp->xa_task = kthread_run(xfsaild, ailp, "xfsaild");
+	if (IS_ERR(ailp->xa_task))
+		return -PTR_ERR(ailp->xa_task);
 	return 0;
 }
 
 void
 xfsaild_stop(
-	xfs_mount_t	*mp)
+	struct xfs_ail	*ailp)
 {
-	kthread_stop(mp->m_ail.xa_task);
+	kthread_stop(ailp->xa_task);
 }
 
 
