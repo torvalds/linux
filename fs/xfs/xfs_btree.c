@@ -1841,6 +1841,191 @@ error0:
 }
 
 /*
+ * Move 1 record left from cur/level if possible.
+ * Update cur to reflect the new path.
+ */
+int					/* error */
+xfs_btree_lshift(
+	struct xfs_btree_cur	*cur,
+	int			level,
+	int			*stat)		/* success/failure */
+{
+	union xfs_btree_key	key;		/* btree key */
+	struct xfs_buf		*lbp;		/* left buffer pointer */
+	struct xfs_btree_block	*left;		/* left btree block */
+	int			lrecs;		/* left record count */
+	struct xfs_buf		*rbp;		/* right buffer pointer */
+	struct xfs_btree_block	*right;		/* right btree block */
+	int			rrecs;		/* right record count */
+	union xfs_btree_ptr	lptr;		/* left btree pointer */
+	union xfs_btree_key	*rkp = NULL;	/* right btree key */
+	union xfs_btree_ptr	*rpp = NULL;	/* right address pointer */
+	union xfs_btree_rec	*rrp = NULL;	/* right record pointer */
+	int			error;		/* error return value */
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
+	XFS_BTREE_TRACE_ARGI(cur, level);
+
+	if ((cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) &&
+	    level == cur->bc_nlevels - 1)
+		goto out0;
+
+	/* Set up variables for this block as "right". */
+	right = xfs_btree_get_block(cur, level, &rbp);
+
+#ifdef DEBUG
+	error = xfs_btree_check_block(cur, right, level, rbp);
+	if (error)
+		goto error0;
+#endif
+
+	/* If we've got no left sibling then we can't shift an entry left. */
+	xfs_btree_get_sibling(cur, right, &lptr, XFS_BB_LEFTSIB);
+	if (xfs_btree_ptr_is_null(cur, &lptr))
+		goto out0;
+
+	/*
+	 * If the cursor entry is the one that would be moved, don't
+	 * do it... it's too complicated.
+	 */
+	if (cur->bc_ptrs[level] <= 1)
+		goto out0;
+
+	/* Set up the left neighbor as "left". */
+	error = xfs_btree_read_buf_block(cur, &lptr, level, 0, &left, &lbp);
+	if (error)
+		goto error0;
+
+	/* If it's full, it can't take another entry. */
+	lrecs = xfs_btree_get_numrecs(left);
+	if (lrecs == cur->bc_ops->get_maxrecs(cur, level))
+		goto out0;
+
+	rrecs = xfs_btree_get_numrecs(right);
+
+	/*
+	 * We add one entry to the left side and remove one for the right side.
+	 * Accout for it here, the changes will be updated on disk and logged
+	 * later.
+	 */
+	lrecs++;
+	rrecs--;
+
+	XFS_BTREE_STATS_INC(cur, lshift);
+	XFS_BTREE_STATS_ADD(cur, moves, 1);
+
+	/*
+	 * If non-leaf, copy a key and a ptr to the left block.
+	 * Log the changes to the left block.
+	 */
+	if (level > 0) {
+		/* It's a non-leaf.  Move keys and pointers. */
+		union xfs_btree_key	*lkp;	/* left btree key */
+		union xfs_btree_ptr	*lpp;	/* left address pointer */
+
+		lkp = xfs_btree_key_addr(cur, lrecs, left);
+		rkp = xfs_btree_key_addr(cur, 1, right);
+
+		lpp = xfs_btree_ptr_addr(cur, lrecs, left);
+		rpp = xfs_btree_ptr_addr(cur, 1, right);
+#ifdef DEBUG
+		error = xfs_btree_check_ptr(cur, rpp, 0, level);
+		if (error)
+			goto error0;
+#endif
+		xfs_btree_copy_keys(cur, lkp, rkp, 1);
+		xfs_btree_copy_ptrs(cur, lpp, rpp, 1);
+
+		xfs_btree_log_keys(cur, lbp, lrecs, lrecs);
+		xfs_btree_log_ptrs(cur, lbp, lrecs, lrecs);
+
+		xfs_btree_check_key(cur->bc_btnum,
+				    xfs_btree_key_addr(cur, lrecs - 1, left),
+				    lkp);
+	} else {
+		/* It's a leaf.  Move records.  */
+		union xfs_btree_rec	*lrp;	/* left record pointer */
+
+		lrp = xfs_btree_rec_addr(cur, lrecs, left);
+		rrp = xfs_btree_rec_addr(cur, 1, right);
+
+		xfs_btree_copy_recs(cur, lrp, rrp, 1);
+		xfs_btree_log_recs(cur, lbp, lrecs, lrecs);
+
+		xfs_btree_check_rec(cur->bc_btnum,
+				    xfs_btree_rec_addr(cur, lrecs - 1, left),
+				    lrp);
+	}
+
+	xfs_btree_set_numrecs(left, lrecs);
+	xfs_btree_log_block(cur, lbp, XFS_BB_NUMRECS);
+
+	xfs_btree_set_numrecs(right, rrecs);
+	xfs_btree_log_block(cur, rbp, XFS_BB_NUMRECS);
+
+	/*
+	 * Slide the contents of right down one entry.
+	 */
+	XFS_BTREE_STATS_ADD(cur, moves, rrecs - 1);
+	if (level > 0) {
+		/* It's a nonleaf. operate on keys and ptrs */
+#ifdef DEBUG
+		int			i;		/* loop index */
+
+		for (i = 0; i < rrecs; i++) {
+			error = xfs_btree_check_ptr(cur, rpp, i + 1, level);
+			if (error)
+				goto error0;
+		}
+#endif
+		xfs_btree_shift_keys(cur,
+				xfs_btree_key_addr(cur, 2, right),
+				-1, rrecs);
+		xfs_btree_shift_ptrs(cur,
+				xfs_btree_ptr_addr(cur, 2, right),
+				-1, rrecs);
+
+		xfs_btree_log_keys(cur, rbp, 1, rrecs);
+		xfs_btree_log_ptrs(cur, rbp, 1, rrecs);
+	} else {
+		/* It's a leaf. operate on records */
+		xfs_btree_shift_recs(cur,
+			xfs_btree_rec_addr(cur, 2, right),
+			-1, rrecs);
+		xfs_btree_log_recs(cur, rbp, 1, rrecs);
+
+		/*
+		 * If it's the first record in the block, we'll need a key
+		 * structure to pass up to the next level (updkey).
+		 */
+		cur->bc_ops->init_key_from_rec(&key,
+			xfs_btree_rec_addr(cur, 1, right));
+		rkp = &key;
+	}
+
+	/* Update the parent key values of right. */
+	error = xfs_btree_updkey(cur, rkp, level + 1);
+	if (error)
+		goto error0;
+
+	/* Slide the cursor value left one. */
+	cur->bc_ptrs[level]--;
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+	*stat = 1;
+	return 0;
+
+out0:
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+	*stat = 0;
+	return 0;
+
+error0:
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+	return error;
+}
+
+/*
  * Move 1 record right from cur/level if possible.
  * Update cur to reflect the new path.
  */
