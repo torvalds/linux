@@ -1339,6 +1339,14 @@ void __init ftrace_init(void)
 }
 
 #else
+
+static int __init ftrace_nodyn_init(void)
+{
+	ftrace_enabled = 1;
+	return 0;
+}
+device_initcall(ftrace_nodyn_init);
+
 # define ftrace_startup()		do { } while (0)
 # define ftrace_shutdown()		do { } while (0)
 # define ftrace_startup_sysctl()	do { } while (0)
