@@ -113,13 +113,6 @@ extern int xfs_alloc_get_rec(struct xfs_btree_cur *cur,	xfs_agblock_t *bno,
  */
 extern int xfs_alloc_insert(struct xfs_btree_cur *cur, int *stat);
 
-/*
- * Update the record referred to by cur, to the value given by [bno, len].
- * This either works (return 0) or gets an EFSCORRUPTED error.
- */
-extern int xfs_alloc_update(struct xfs_btree_cur *cur, xfs_agblock_t bno,
-				xfs_extlen_t len);
-
 
 extern struct xfs_btree_cur *xfs_allocbt_init_cursor(struct xfs_mount *,
 		struct xfs_trans *, struct xfs_buf *,

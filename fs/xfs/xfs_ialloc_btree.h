@@ -135,14 +135,6 @@ extern int xfs_inobt_get_rec(struct xfs_btree_cur *cur, xfs_agino_t *ino,
  */
 extern int xfs_inobt_insert(struct xfs_btree_cur *cur, int *stat);
 
-/*
- * Update the record referred to by cur, to the value given
- * by [ino, fcnt, free].
- * This either works (return 0) or gets an EFSCORRUPTED error.
- */
-extern int xfs_inobt_update(struct xfs_btree_cur *cur, xfs_agino_t ino,
-				__int32_t fcnt, xfs_inofree_t free);
-
 
 extern struct xfs_btree_cur *xfs_inobt_init_cursor(struct xfs_mount *,
 		struct xfs_trans *, struct xfs_buf *, xfs_agnumber_t);

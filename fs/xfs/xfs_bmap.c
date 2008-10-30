@@ -430,6 +430,24 @@ xfs_bmbt_lookup_ge(
 	return xfs_btree_lookup(cur, XFS_LOOKUP_GE, stat);
 }
 
+/*
+* Update the record referred to by cur to the value given
+ * by [off, bno, len, state].
+ * This either works (return 0) or gets an EFSCORRUPTED error.
+ */
+STATIC int
+xfs_bmbt_update(
+	struct xfs_btree_cur	*cur,
+	xfs_fileoff_t		off,
+	xfs_fsblock_t		bno,
+	xfs_filblks_t		len,
+	xfs_exntst_t		state)
+{
+	union xfs_btree_rec	rec;
+
+	xfs_bmbt_disk_set_allf(&rec.bmbt, off, bno, len, state);
+	return xfs_btree_update(cur, &rec);
+}
 
 /*
  * Called from xfs_bmap_add_attrfork to handle btree format files.

@@ -1551,58 +1551,6 @@ xfs_inobt_insert(
 	return 0;
 }
 
-/*
- * Update the record referred to by cur, to the value given
- * by [ino, fcnt, free].
- * This either works (return 0) or gets an EFSCORRUPTED error.
- */
-int					/* error */
-xfs_inobt_update(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	xfs_agino_t		ino,	/* starting inode of chunk */
-	__int32_t		fcnt,	/* free inode count */
-	xfs_inofree_t		free)	/* free inode mask */
-{
-	xfs_inobt_block_t	*block;	/* btree block to update */
-	xfs_buf_t		*bp;	/* buffer containing btree block */
-	int			error;	/* error return value */
-	int			ptr;	/* current record number (updating) */
-	xfs_inobt_rec_t		*rp;	/* pointer to updated record */
-
-	/*
-	 * Pick up the current block.
-	 */
-	bp = cur->bc_bufs[0];
-	block = XFS_BUF_TO_INOBT_BLOCK(bp);
-#ifdef DEBUG
-	if ((error = xfs_btree_check_sblock(cur, block, 0, bp)))
-		return error;
-#endif
-	/*
-	 * Get the address of the rec to be updated.
-	 */
-	ptr = cur->bc_ptrs[0];
-	rp = XFS_INOBT_REC_ADDR(block, ptr, cur);
-	/*
-	 * Fill in the new contents and log them.
-	 */
-	rp->ir_startino = cpu_to_be32(ino);
-	rp->ir_freecount = cpu_to_be32(fcnt);
-	rp->ir_free = cpu_to_be64(free);
-	xfs_inobt_log_recs(cur, bp, ptr, ptr);
-	/*
-	 * Updating first record in leaf. Pass new key value up to our parent.
-	 */
-	if (ptr == 1) {
-		xfs_inobt_key_t	key;	/* key containing [ino] */
-
-		key.ir_startino = cpu_to_be32(ino);
-		if ((error = xfs_btree_updkey(cur, (union xfs_btree_key *)&key, 1)))
-			return error;
-	}
-	return 0;
-}
-
 STATIC struct xfs_btree_cur *
 xfs_inobt_dup_cursor(
 	struct xfs_btree_cur	*cur)

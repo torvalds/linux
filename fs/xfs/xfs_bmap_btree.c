@@ -1964,51 +1964,6 @@ xfs_bmbt_to_bmdr(
 }
 
 /*
- * Update the record to the passed values.
- */
-int
-xfs_bmbt_update(
-	xfs_btree_cur_t		*cur,
-	xfs_fileoff_t		off,
-	xfs_fsblock_t		bno,
-	xfs_filblks_t		len,
-	xfs_exntst_t		state)
-{
-	xfs_bmbt_block_t	*block;
-	xfs_buf_t		*bp;
-	int			error;
-	xfs_bmbt_key_t		key;
-	int			ptr;
-	xfs_bmbt_rec_t		*rp;
-
-	XFS_BMBT_TRACE_CURSOR(cur, ENTRY);
-	XFS_BMBT_TRACE_ARGFFFI(cur, (xfs_dfiloff_t)off, (xfs_dfsbno_t)bno,
-		(xfs_dfilblks_t)len, (int)state);
-	block = xfs_bmbt_get_block(cur, 0, &bp);
-#ifdef DEBUG
-	if ((error = xfs_btree_check_lblock(cur, block, 0, bp))) {
-		XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-		return error;
-	}
-#endif
-	ptr = cur->bc_ptrs[0];
-	rp = XFS_BMAP_REC_IADDR(block, ptr, cur);
-	xfs_bmbt_disk_set_allf(rp, off, bno, len, state);
-	xfs_bmbt_log_recs(cur, bp, ptr, ptr);
-	if (ptr > 1) {
-		XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-		return 0;
-	}
-	key.br_startoff = cpu_to_be64(off);
-	if ((error = xfs_btree_updkey(cur, (union xfs_btree_key *)&key, 1))) {
-		XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-		return error;
-	}
-	XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-	return 0;
-}
-
-/*
  * Check extent records, which have just been read, for
  * any bit in the extent flag field. ASSERT on debug
  * kernels, as this condition should not occur.

@@ -187,6 +187,12 @@ struct xfs_btree_ops {
 	/* cursor operations */
 	struct xfs_btree_cur *(*dup_cursor)(struct xfs_btree_cur *);
 
+	/* update last record information */
+	void	(*update_lastrec)(struct xfs_btree_cur *cur,
+				  struct xfs_btree_block *block,
+				  union xfs_btree_rec *rec,
+				  int ptr, int reason);
+
 	/* records in block/level */
 	int	(*get_maxrecs)(struct xfs_btree_cur *cur, int level);
 
@@ -219,6 +225,12 @@ struct xfs_btree_ops {
 					__uint64_t *, __uint64_t *);
 #endif
 };
+
+/*
+ * Reasons for the update_lastrec method to be called.
+ */
+#define LASTREC_UPDATE	0
+
 
 /*
  * Btree cursor structure.
@@ -264,6 +276,7 @@ typedef struct xfs_btree_cur
 /* cursor flags */
 #define XFS_BTREE_LONG_PTRS		(1<<0)	/* pointers are 64bits long */
 #define XFS_BTREE_ROOT_IN_INODE		(1<<1)	/* root may be variable size */
+#define XFS_BTREE_LASTREC_UPDATE	(1<<2)	/* track last rec externally */
 
 
 #define	XFS_BTREE_NOERROR	0
@@ -519,6 +532,7 @@ int xfs_btree_increment(struct xfs_btree_cur *, int, int *);
 int xfs_btree_decrement(struct xfs_btree_cur *, int, int *);
 int xfs_btree_lookup(struct xfs_btree_cur *, xfs_lookup_t, int *);
 int xfs_btree_updkey(struct xfs_btree_cur *, union xfs_btree_key *, int);
+int xfs_btree_update(struct xfs_btree_cur *, union xfs_btree_rec *);
 
 /*
  * Helpers.

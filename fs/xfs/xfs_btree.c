@@ -988,6 +988,30 @@ xfs_btree_get_sibling(
 	}
 }
 
+/*
+ * Return true if ptr is the last record in the btree and
+ * we need to track updateѕ to this record.  The decision
+ * will be further refined in the update_lastrec method.
+ */
+STATIC int
+xfs_btree_is_lastrec(
+	struct xfs_btree_cur	*cur,
+	struct xfs_btree_block	*block,
+	int			level)
+{
+	union xfs_btree_ptr	ptr;
+
+	if (level > 0)
+		return 0;
+	if (!(cur->bc_flags & XFS_BTREE_LASTREC_UPDATE))
+		return 0;
+
+	xfs_btree_get_sibling(cur, block, &ptr, XFS_BB_RIGHTSIB);
+	if (!xfs_btree_ptr_is_null(cur, &ptr))
+		return 0;
+	return 1;
+}
+
 STATIC xfs_daddr_t
 xfs_btree_ptr_to_daddr(
 	struct xfs_btree_cur	*cur,
@@ -1080,6 +1104,20 @@ xfs_btree_copy_keys(
 }
 
 /*
+ * Copy records from one btree block to another.
+ */
+STATIC void
+xfs_btree_copy_recs(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_rec	*dst_rec,
+	union xfs_btree_rec	*src_rec,
+	int			numrecs)
+{
+	ASSERT(numrecs >= 0);
+	memcpy(dst_rec, src_rec, numrecs * cur->bc_ops->rec_len);
+}
+
+/*
  * Log key values from the btree block.
  */
 STATIC void
@@ -1100,6 +1138,26 @@ xfs_btree_log_keys(
 		xfs_trans_log_inode(cur->bc_tp, cur->bc_private.b.ip,
 				xfs_ilog_fbroot(cur->bc_private.b.whichfork));
 	}
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+}
+
+/*
+ * Log record values from the btree block.
+ */
+STATIC void
+xfs_btree_log_recs(
+	struct xfs_btree_cur	*cur,
+	struct xfs_buf		*bp,
+	int			first,
+	int			last)
+{
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
+	XFS_BTREE_TRACE_ARGBII(cur, bp, first, last);
+
+	xfs_trans_log_buf(cur->bc_tp, bp,
+			  xfs_btree_rec_offset(cur, first),
+			  xfs_btree_rec_offset(cur, last + 1) - 1);
 
 	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 }
@@ -1576,3 +1634,66 @@ xfs_btree_updkey(
 	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	return 0;
 }
+
+/*
+ * Update the record referred to by cur to the value in the
+ * given record. This either works (return 0) or gets an
+ * EFSCORRUPTED error.
+ */
+int
+xfs_btree_update(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_rec	*rec)
+{
+	struct xfs_btree_block	*block;
+	struct xfs_buf		*bp;
+	int			error;
+	int			ptr;
+	union xfs_btree_rec	*rp;
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
+	XFS_BTREE_TRACE_ARGR(cur, rec);
+
+	/* Pick up the current block. */
+	block = xfs_btree_get_block(cur, 0, &bp);
+
+#ifdef DEBUG
+	error = xfs_btree_check_block(cur, block, 0, bp);
+	if (error)
+		goto error0;
+#endif
+	/* Get the address of the rec to be updated. */
+	ptr = cur->bc_ptrs[0];
+	rp = xfs_btree_rec_addr(cur, ptr, block);
+
+	/* Fill in the new contents and log them. */
+	xfs_btree_copy_recs(cur, rp, rec, 1);
+	xfs_btree_log_recs(cur, bp, ptr, ptr);
+
+	/*
+	 * If we are tracking the last record in the tree and
+	 * we are at the far right edge of the tree, update it.
+	 */
+	if (xfs_btree_is_lastrec(cur, block, 0)) {
+		cur->bc_ops->update_lastrec(cur, block, rec,
+					    ptr, LASTREC_UPDATE);
+	}
+
+	/* Updating first rec in leaf. Pass new key value up to our parent. */
+	if (ptr == 1) {
+		union xfs_btree_key	key;
+
+		cur->bc_ops->init_key_from_rec(&key, rec);
+		error = xfs_btree_updkey(cur, &key, 1);
+		if (error)
+			goto error0;
+	}
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+	return 0;
+
+error0:
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+	return error;
+}
+

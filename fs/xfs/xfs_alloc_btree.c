@@ -1661,76 +1661,6 @@ xfs_alloc_insert(
 	return 0;
 }
 
-/*
- * Update the record referred to by cur, to the value given by [bno, len].
- * This either works (return 0) or gets an EFSCORRUPTED error.
- */
-int					/* error */
-xfs_alloc_update(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	xfs_agblock_t		bno,	/* starting block of extent */
-	xfs_extlen_t		len)	/* length of extent */
-{
-	xfs_alloc_block_t	*block;	/* btree block to update */
-	int			error;	/* error return value */
-	int			ptr;	/* current record number (updating) */
-
-	ASSERT(len > 0);
-	/*
-	 * Pick up the a.g. freelist struct and the current block.
-	 */
-	block = XFS_BUF_TO_ALLOC_BLOCK(cur->bc_bufs[0]);
-#ifdef DEBUG
-	if ((error = xfs_btree_check_sblock(cur, block, 0, cur->bc_bufs[0])))
-		return error;
-#endif
-	/*
-	 * Get the address of the rec to be updated.
-	 */
-	ptr = cur->bc_ptrs[0];
-	{
-		xfs_alloc_rec_t		*rp;	/* pointer to updated record */
-
-		rp = XFS_ALLOC_REC_ADDR(block, ptr, cur);
-		/*
-		 * Fill in the new contents and log them.
-		 */
-		rp->ar_startblock = cpu_to_be32(bno);
-		rp->ar_blockcount = cpu_to_be32(len);
-		xfs_alloc_log_recs(cur, cur->bc_bufs[0], ptr, ptr);
-	}
-	/*
-	 * If it's the by-size btree and it's the last leaf block and
-	 * it's the last record... then update the size of the longest
-	 * extent in the a.g., which we cache in the a.g. freelist header.
-	 */
-	if (cur->bc_btnum == XFS_BTNUM_CNT &&
-	    be32_to_cpu(block->bb_rightsib) == NULLAGBLOCK &&
-	    ptr == be16_to_cpu(block->bb_numrecs)) {
-		xfs_agf_t	*agf;	/* a.g. freespace header */
-		xfs_agnumber_t	seqno;
-
-		agf = XFS_BUF_TO_AGF(cur->bc_private.a.agbp);
-		seqno = be32_to_cpu(agf->agf_seqno);
-		cur->bc_mp->m_perag[seqno].pagf_longest = len;
-		agf->agf_longest = cpu_to_be32(len);
-		xfs_alloc_log_agf(cur->bc_tp, cur->bc_private.a.agbp,
-			XFS_AGF_LONGEST);
-	}
-	/*
-	 * Updating first record in leaf. Pass new key value up to our parent.
-	 */
-	if (ptr == 1) {
-		xfs_alloc_key_t	key;	/* key containing [bno, len] */
-
-		key.ar_startblock = cpu_to_be32(bno);
-		key.ar_blockcount = cpu_to_be32(len);
-		if ((error = xfs_btree_updkey(cur, (union xfs_btree_key *)&key, 1)))
-			return error;
-	}
-	return 0;
-}
-
 STATIC struct xfs_btree_cur *
 xfs_allocbt_dup_cursor(
 	struct xfs_btree_cur	*cur)
@@ -1738,6 +1668,43 @@ xfs_allocbt_dup_cursor(
 	return xfs_allocbt_init_cursor(cur->bc_mp, cur->bc_tp,
 			cur->bc_private.a.agbp, cur->bc_private.a.agno,
 			cur->bc_btnum);
+}
+
+/*
+ * Update the longest extent in the AGF
+ */
+STATIC void
+xfs_allocbt_update_lastrec(
+	struct xfs_btree_cur	*cur,
+	struct xfs_btree_block	*block,
+	union xfs_btree_rec	*rec,
+	int			ptr,
+	int			reason)
+{
+	struct xfs_agf		*agf = XFS_BUF_TO_AGF(cur->bc_private.a.agbp);
+	xfs_agnumber_t		seqno = be32_to_cpu(agf->agf_seqno);
+	__be32			len;
+
+	ASSERT(cur->bc_btnum == XFS_BTNUM_CNT);
+
+	switch (reason) {
+	case LASTREC_UPDATE:
+		/*
+		 * If this is the last leaf block and it's the last record,
+		 * then update the size of the longest extent in the AG.
+		 */
+		if (ptr != xfs_btree_get_numrecs(block))
+			return;
+		len = rec->alloc.ar_blockcount;
+		break;
+	default:
+		ASSERT(0);
+		return;
+	}
+
+	agf->agf_longest = len;
+	cur->bc_mp->m_perag[seqno].pagf_longest = be32_to_cpu(len);
+	xfs_alloc_log_agf(cur->bc_tp, cur->bc_private.a.agbp, XFS_AGF_LONGEST);
 }
 
 STATIC int
@@ -1864,6 +1831,7 @@ static const struct xfs_btree_ops xfs_allocbt_ops = {
 	.key_len		= sizeof(xfs_alloc_key_t),
 
 	.dup_cursor		= xfs_allocbt_dup_cursor,
+	.update_lastrec		= xfs_allocbt_update_lastrec,
 	.get_maxrecs		= xfs_allocbt_get_maxrecs,
 	.init_key_from_rec	= xfs_allocbt_init_key_from_rec,
 	.init_ptr_from_cur	= xfs_allocbt_init_ptr_from_cur,
@@ -1902,6 +1870,8 @@ xfs_allocbt_init_cursor(
 	cur->bc_blocklog = mp->m_sb.sb_blocklog;
 
 	cur->bc_ops = &xfs_allocbt_ops;
+	if (btnum == XFS_BTNUM_CNT)
+		cur->bc_flags = XFS_BTREE_LASTREC_UPDATE;
 
 	cur->bc_private.a.agbp = agbp;
 	cur->bc_private.a.agno = agno;

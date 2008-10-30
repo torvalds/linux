@@ -172,6 +172,26 @@ xfs_inobt_lookup_le(
 }
 
 /*
+ * Update the record referred to by cur to the value given
+ * by [ino, fcnt, free].
+ * This either works (return 0) or gets an EFSCORRUPTED error.
+ */
+STATIC int				/* error */
+xfs_inobt_update(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	xfs_agino_t		ino,	/* starting inode of chunk */
+	__int32_t		fcnt,	/* free inode count */
+	xfs_inofree_t		free)	/* free inode mask */
+{
+	union xfs_btree_rec	rec;
+
+	rec.inobt.ir_startino = cpu_to_be32(ino);
+	rec.inobt.ir_freecount = cpu_to_be32(fcnt);
+	rec.inobt.ir_free = cpu_to_be64(free);
+	return xfs_btree_update(cur, &rec);
+}
+
+/*
  * Allocate new inodes in the allocation group specified by agbp.
  * Return 0 for success, else error code.
  */
