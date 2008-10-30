@@ -314,11 +314,17 @@ static int __init ps3_setup_vuart_device(enum ps3_match_id match_id,
 
 	result = ps3_system_bus_device_register(&p->dev);
 
-	if (result)
+	if (result) {
 		pr_debug("%s:%d ps3_system_bus_device_register failed\n",
 			__func__, __LINE__);
-
+		goto fail_device_register;
+	}
 	pr_debug(" <- %s:%d\n", __func__, __LINE__);
+	return 0;
+
+fail_device_register:
+	kfree(p);
+	pr_debug(" <- %s:%d fail\n", __func__, __LINE__);
 	return result;
 }
 
@@ -463,11 +469,17 @@ static int __init ps3_register_sound_devices(void)
 
 	result = ps3_system_bus_device_register(&p->dev);
 
-	if (result)
+	if (result) {
 		pr_debug("%s:%d ps3_system_bus_device_register failed\n",
 			__func__, __LINE__);
-
+		goto fail_device_register;
+	}
 	pr_debug(" <- %s:%d\n", __func__, __LINE__);
+	return 0;
+
+fail_device_register:
+	kfree(p);
+	pr_debug(" <- %s:%d failed\n", __func__, __LINE__);
 	return result;
 }
 
@@ -491,11 +503,18 @@ static int __init ps3_register_graphics_devices(void)
 
 	result = ps3_system_bus_device_register(&p->dev);
 
-	if (result)
+	if (result) {
 		pr_debug("%s:%d ps3_system_bus_device_register failed\n",
 			__func__, __LINE__);
+		goto fail_device_register;
+	}
 
 	pr_debug(" <- %s:%d\n", __func__, __LINE__);
+	return 0;
+
+fail_device_register:
+	kfree(p);
+	pr_debug(" <- %s:%d failed\n", __func__, __LINE__);
 	return result;
 }
 
