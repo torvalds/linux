@@ -948,7 +948,7 @@ xfs_fs_write_inode(
 	 * it dirty again so we'll try again later.
 	 */
 	if (error)
-		mark_inode_dirty_sync(inode);
+		xfs_mark_inode_dirty_sync(XFS_I(inode));
 
 	return -error;
 }

@@ -128,7 +128,7 @@ xfs_ichgtime(
 	if (sync_it) {
 		SYNCHRONIZE();
 		ip->i_update_core = 1;
-		mark_inode_dirty_sync(inode);
+		xfs_mark_inode_dirty_sync(ip);
 	}
 }
 
