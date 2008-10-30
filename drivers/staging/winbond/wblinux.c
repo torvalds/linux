@@ -19,25 +19,9 @@
 void
 WBLINUX_stop(  struct wbsoft_priv * adapter )
 {
-	struct sk_buff *pSkb;
-
 	if (atomic_inc_return(&adapter->ThreadCount) == 1) {
 		// Shutdown module immediately
 		adapter->shutdown = 1;
-
-		while (adapter->skb_array[ adapter->skb_GetIndex ]) {
-			// Trying to free the un-sending packet
-			pSkb = adapter->skb_array[ adapter->skb_GetIndex ];
-			adapter->skb_array[ adapter->skb_GetIndex ] = NULL;
-			if( in_irq() )
-				dev_kfree_skb_irq( pSkb );
-			else
-				dev_kfree_skb( pSkb );
-
-			adapter->skb_GetIndex++;
-			adapter->skb_GetIndex %= WBLINUX_PACKET_ARRAY_SIZE;
-		}
-
 #ifdef _PE_STATE_DUMP_
 		WBDEBUG(( "[w35und] SKB_RELEASE OK\n" ));
 #endif

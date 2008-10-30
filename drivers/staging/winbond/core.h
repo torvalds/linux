@@ -31,10 +31,7 @@ struct wbsoft_priv {
 	u32 RxByteCount;
 	u32 TxByteCount;
 
-	struct sk_buff *skb_array[WBLINUX_PACKET_ARRAY_SIZE];
 	struct sk_buff *packet_return;
-	s32 skb_SetIndex;
-	s32 skb_GetIndex;
 	s32 netif_state_stop;	// 1: stop  0: normal
 	struct iw_statistics iw_stats;
 
