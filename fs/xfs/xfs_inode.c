@@ -886,7 +886,7 @@ xfs_iread(
 	 */
 	error = xfs_itobp(mp, tp, ip, &dip, &bp, bno, imap_flags, XFS_BUF_LOCK);
 	if (error) {
-		kmem_zone_free(xfs_inode_zone, ip);
+		xfs_idestroy(ip);
 		return error;
 	}
 
