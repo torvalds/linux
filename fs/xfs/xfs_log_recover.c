@@ -2683,9 +2683,9 @@ xlog_recover_do_efi_trans(
 
 	spin_lock(&log->l_ailp->xa_lock);
 	/*
-	 * xfs_trans_update_ail() drops the AIL lock.
+	 * xfs_trans_ail_update() drops the AIL lock.
 	 */
-	xfs_trans_update_ail(mp, (xfs_log_item_t *)efip, lsn);
+	xfs_trans_ail_update(log->l_ailp, (xfs_log_item_t *)efip, lsn);
 	return 0;
 }
 
@@ -2704,13 +2704,12 @@ xlog_recover_do_efd_trans(
 	xlog_recover_item_t	*item,
 	int			pass)
 {
-	xfs_mount_t		*mp;
 	xfs_efd_log_format_t	*efd_formatp;
 	xfs_efi_log_item_t	*efip = NULL;
 	xfs_log_item_t		*lip;
 	__uint64_t		efi_id;
 	struct xfs_ail_cursor	cur;
-	struct xfs_ail		*ailp;
+	struct xfs_ail		*ailp = log->l_ailp;
 
 	if (pass == XLOG_RECOVER_PASS1) {
 		return;
@@ -2727,8 +2726,6 @@ xlog_recover_do_efd_trans(
 	 * Search for the efi with the id in the efd format structure
 	 * in the AIL.
 	 */
-	mp = log->l_mp;
-	ailp = log->l_ailp;
 	spin_lock(&ailp->xa_lock);
 	lip = xfs_trans_ail_cursor_first(ailp, &cur, 0);
 	while (lip != NULL) {
@@ -2736,10 +2733,10 @@ xlog_recover_do_efd_trans(
 			efip = (xfs_efi_log_item_t *)lip;
 			if (efip->efi_format.efi_id == efi_id) {
 				/*
-				 * xfs_trans_delete_ail() drops the
+				 * xfs_trans_ail_delete() drops the
 				 * AIL lock.
 				 */
-				xfs_trans_delete_ail(mp, lip);
+				xfs_trans_ail_delete(ailp, lip);
 				xfs_efi_item_free(efip);
 				spin_lock(&ailp->xa_lock);
 				break;

@@ -375,7 +375,7 @@ xfs_buf_item_unpin(
 	xfs_buf_log_item_t	*bip,
 	int			stale)
 {
-	xfs_mount_t	*mp;
+	struct xfs_ail	*ailp;
 	xfs_buf_t	*bp;
 	int		freed;
 
@@ -387,7 +387,7 @@ xfs_buf_item_unpin(
 	xfs_buftrace("XFS_UNPIN", bp);
 
 	freed = atomic_dec_and_test(&bip->bli_refcount);
-	mp = bip->bli_item.li_mountp;
+	ailp = bip->bli_item.li_ailp;
 	xfs_bunpin(bp);
 	if (freed && stale) {
 		ASSERT(bip->bli_flags & XFS_BLI_STALE);
@@ -399,17 +399,17 @@ xfs_buf_item_unpin(
 		xfs_buftrace("XFS_UNPIN STALE", bp);
 		/*
 		 * If we get called here because of an IO error, we may
-		 * or may not have the item on the AIL. xfs_trans_delete_ail()
+		 * or may not have the item on the AIL. xfs_trans_ail_delete()
 		 * will take care of that situation.
-		 * xfs_trans_delete_ail() drops the AIL lock.
+		 * xfs_trans_ail_delete() drops the AIL lock.
 		 */
 		if (bip->bli_flags & XFS_BLI_STALE_INODE) {
 			xfs_buf_do_callbacks(bp, (xfs_log_item_t *)bip);
 			XFS_BUF_SET_FSPRIVATE(bp, NULL);
 			XFS_BUF_CLR_IODONE_FUNC(bp);
 		} else {
-			spin_lock(&mp->m_ail->xa_lock);
-			xfs_trans_delete_ail(mp, (xfs_log_item_t *)bip);
+			spin_lock(&ailp->xa_lock);
+			xfs_trans_ail_delete(ailp, (xfs_log_item_t *)bip);
 			xfs_buf_item_relse(bp);
 			ASSERT(XFS_BUF_FSPRIVATE(bp, void *) == NULL);
 		}
@@ -1123,29 +1123,23 @@ xfs_buf_iodone(
 	xfs_buf_t		*bp,
 	xfs_buf_log_item_t	*bip)
 {
-	struct xfs_mount	*mp;
-	struct xfs_ail		*ailp;
+	struct xfs_ail		*ailp = bip->bli_item.li_ailp;
 
 	ASSERT(bip->bli_buf == bp);
 
 	xfs_buf_rele(bp);
-	mp = bip->bli_item.li_mountp;
-	ailp = bip->bli_item.li_ailp;
 
 	/*
 	 * If we are forcibly shutting down, this may well be
 	 * off the AIL already. That's because we simulate the
 	 * log-committed callbacks to unpin these buffers. Or we may never
 	 * have put this item on AIL because of the transaction was
-	 * aborted forcibly. xfs_trans_delete_ail() takes care of these.
+	 * aborted forcibly. xfs_trans_ail_delete() takes care of these.
 	 *
 	 * Either way, AIL is useless if we're forcing a shutdown.
 	 */
 	spin_lock(&ailp->xa_lock);
-	/*
-	 * xfs_trans_delete_ail() drops the AIL lock.
-	 */
-	xfs_trans_delete_ail(mp, (xfs_log_item_t *)bip);
+	xfs_trans_ail_delete(ailp, (xfs_log_item_t *)bip);
 	xfs_buf_item_free(bip);
 }
 

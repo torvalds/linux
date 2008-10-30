@@ -85,12 +85,15 @@ struct xfs_ail {
 /*
  * From xfs_trans_ail.c
  */
-void			xfs_trans_update_ail(struct xfs_mount *mp,
-				     struct xfs_log_item *lip, xfs_lsn_t lsn)
-				     __releases(mp->m_ail_lock);
-void			xfs_trans_delete_ail(struct xfs_mount *mp,
-				     struct xfs_log_item *lip)
-				     __releases(mp->m_ail_lock);
+void			xfs_trans_ail_update(struct xfs_ail *ailp,
+					struct xfs_log_item *lip, xfs_lsn_t lsn)
+					__releases(ailp->xa_lock);
+void			xfs_trans_ail_delete(struct xfs_ail *ailp,
+					struct xfs_log_item *lip)
+					__releases(ailp->xa_lock);
+void			xfs_trans_ail_push(struct xfs_ail *, xfs_lsn_t);
+void			xfs_trans_unlocked_item(struct xfs_ail *,
+					xfs_log_item_t *);
 
 xfs_lsn_t		xfs_trans_ail_tail(struct xfs_ail *ailp);
 

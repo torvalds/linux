@@ -2709,17 +2709,17 @@ xfs_idestroy(
 		 * inode still in the AIL. If it is there, we should remove
 		 * it to prevent a use-after-free from occurring.
 		 */
-		xfs_mount_t	*mp = ip->i_mount;
 		xfs_log_item_t	*lip = &ip->i_itemp->ili_item;
+		struct xfs_ail	*ailp = lip->li_ailp;
 
 		ASSERT(((lip->li_flags & XFS_LI_IN_AIL) == 0) ||
 				       XFS_FORCED_SHUTDOWN(ip->i_mount));
 		if (lip->li_flags & XFS_LI_IN_AIL) {
-			spin_lock(&mp->m_ail->xa_lock);
+			spin_lock(&ailp->xa_lock);
 			if (lip->li_flags & XFS_LI_IN_AIL)
-				xfs_trans_delete_ail(mp, lip);
+				xfs_trans_ail_delete(ailp, lip);
 			else
-				spin_unlock(&mp->m_ail->xa_lock);
+				spin_unlock(&ailp->xa_lock);
 		}
 		xfs_inode_item_destroy(ip);
 		ip->i_itemp = NULL;

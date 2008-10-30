@@ -553,14 +553,16 @@ xfs_qm_qoffend_logitem_committed(
 	xfs_lsn_t lsn)
 {
 	xfs_qoff_logitem_t	*qfs;
+	struct xfs_ail		*ailp;
 
 	qfs = qfe->qql_start_lip;
-	spin_lock(&qfs->qql_item.li_mountp->m_ail->xa_lock);
+	ailp = qfs->qql_item.li_ailp;
+	spin_lock(&ailp->xa_lock);
 	/*
 	 * Delete the qoff-start logitem from the AIL.
-	 * xfs_trans_delete_ail() drops the AIL lock.
+	 * xfs_trans_ail_delete() drops the AIL lock.
 	 */
-	xfs_trans_delete_ail(qfs->qql_item.li_mountp, (xfs_log_item_t *)qfs);
+	xfs_trans_ail_delete(ailp, (xfs_log_item_t *)qfs);
 	kmem_free(qfs);
 	kmem_free(qfe);
 	return (xfs_lsn_t)-1;

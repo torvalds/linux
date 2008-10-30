@@ -38,6 +38,8 @@
 #include "xfs_ialloc.h"
 #include "xfs_quota.h"
 #include "xfs_utils.h"
+#include "xfs_trans_priv.h"
+#include "xfs_inode_item.h"
 
 /*
  * Check the validity of the inode we just found it the cache
@@ -616,7 +618,7 @@ xfs_iunlock(
 		 * it is in the AIL and anyone is waiting on it.  Don't do
 		 * this if the caller has asked us not to.
 		 */
-		xfs_trans_unlocked_item(ip->i_mount,
+		xfs_trans_unlocked_item(ip->i_itemp->ili_item.li_ailp,
 					(xfs_log_item_t*)(ip->i_itemp));
 	}
 	xfs_ilock_trace(ip, 3, lock_flags, (inst_t *)__return_address);

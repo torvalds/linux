@@ -1387,7 +1387,6 @@ xfs_trans_chunk_committed(
 
 	lidp = licp->lic_descs;
 	for (i = 0; i < licp->lic_unused; i++, lidp++) {
-		struct xfs_mount	*mp;
 		struct xfs_ail		*ailp;
 
 		if (xfs_lic_isfree(licp, i)) {
@@ -1426,7 +1425,6 @@ xfs_trans_chunk_committed(
 		 * This would cause the earlier transaction to fail
 		 * the test below.
 		 */
-		mp = lip->li_mountp;
 		ailp = lip->li_ailp;
 		spin_lock(&ailp->xa_lock);
 		if (XFS_LSN_CMP(item_lsn, lip->li_lsn) > 0) {
@@ -1435,9 +1433,9 @@ xfs_trans_chunk_committed(
 			 * and update the position of the item in
 			 * the AIL.
 			 *
-			 * xfs_trans_update_ail() drops the AIL lock.
+			 * xfs_trans_ail_update() drops the AIL lock.
 			 */
-			xfs_trans_update_ail(mp, lip, item_lsn);
+			xfs_trans_ail_update(ailp, lip, item_lsn);
 		} else {
 			spin_unlock(&ailp->xa_lock);
 		}

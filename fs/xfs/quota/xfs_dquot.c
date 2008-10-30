@@ -1319,8 +1319,10 @@ xfs_qm_dqflush_done(
 	xfs_dq_logitem_t	*qip)
 {
 	xfs_dquot_t		*dqp;
+	struct xfs_ail		*ailp;
 
 	dqp = qip->qli_dquot;
+	ailp = qip->qli_item.li_ailp;
 
 	/*
 	 * We only want to pull the item from the AIL if its
@@ -1333,15 +1335,12 @@ xfs_qm_dqflush_done(
 	if ((qip->qli_item.li_flags & XFS_LI_IN_AIL) &&
 	    qip->qli_item.li_lsn == qip->qli_flush_lsn) {
 
-		spin_lock(&dqp->q_mount->m_ail->xa_lock);
-		/*
-		 * xfs_trans_delete_ail() drops the AIL lock.
-		 */
+		/* xfs_trans_ail_delete() drops the AIL lock. */
+		spin_lock(&ailp->xa_lock);
 		if (qip->qli_item.li_lsn == qip->qli_flush_lsn)
-			xfs_trans_delete_ail(dqp->q_mount,
-					     (xfs_log_item_t*)qip);
+			xfs_trans_ail_delete(ailp, (xfs_log_item_t*)qip);
 		else
-			spin_unlock(&dqp->q_mount->m_ail->xa_lock);
+			spin_unlock(&ailp->xa_lock);
 	}
 
 	/*
@@ -1371,7 +1370,7 @@ xfs_dqunlock(
 	mutex_unlock(&(dqp->q_qlock));
 	if (dqp->q_logitem.qli_dquot == dqp) {
 		/* Once was dqp->q_mount, but might just have been cleared */
-		xfs_trans_unlocked_item(dqp->q_logitem.qli_item.li_mountp,
+		xfs_trans_unlocked_item(dqp->q_logitem.qli_item.li_ailp,
 					(xfs_log_item_t*)&(dqp->q_logitem));
 	}
 }

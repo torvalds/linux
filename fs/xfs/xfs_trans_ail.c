@@ -86,16 +86,16 @@ xfs_trans_ail_tail(
  * any of the objects, so the lock is not needed.
  */
 void
-xfs_trans_push_ail(
-	xfs_mount_t		*mp,
-	xfs_lsn_t		threshold_lsn)
+xfs_trans_ail_push(
+	struct xfs_ail	*ailp,
+	xfs_lsn_t	threshold_lsn)
 {
-	xfs_log_item_t		*lip;
+	xfs_log_item_t	*lip;
 
-	lip = xfs_ail_min(mp->m_ail);
-	if (lip && !XFS_FORCED_SHUTDOWN(mp)) {
-		if (XFS_LSN_CMP(threshold_lsn, mp->m_ail->xa_target) > 0)
-			xfsaild_wakeup(mp->m_ail, threshold_lsn);
+	lip = xfs_ail_min(ailp);
+	if (lip && !XFS_FORCED_SHUTDOWN(ailp->xa_mount)) {
+		if (XFS_LSN_CMP(threshold_lsn, ailp->xa_target) > 0)
+			xfsaild_wakeup(ailp, threshold_lsn);
 	}
 }
 
@@ -412,7 +412,7 @@ xfsaild_push(
  */
 void
 xfs_trans_unlocked_item(
-	xfs_mount_t	*mp,
+	struct xfs_ail	*ailp,
 	xfs_log_item_t	*lip)
 {
 	xfs_log_item_t	*min_lip;
@@ -424,7 +424,7 @@ xfs_trans_unlocked_item(
 	 * over some potentially valid data.
 	 */
 	if (!(lip->li_flags & XFS_LI_IN_AIL) ||
-	    XFS_FORCED_SHUTDOWN(mp)) {
+	    XFS_FORCED_SHUTDOWN(ailp->xa_mount)) {
 		return;
 	}
 
@@ -440,10 +440,10 @@ xfs_trans_unlocked_item(
 	 * the call to xfs_log_move_tail() doesn't do anything if there's
 	 * not enough free space to wake people up so we're safe calling it.
 	 */
-	min_lip = xfs_ail_min(mp->m_ail);
+	min_lip = xfs_ail_min(ailp);
 
 	if (min_lip == lip)
-		xfs_log_move_tail(mp, 1);
+		xfs_log_move_tail(ailp->xa_mount, 1);
 }	/* xfs_trans_unlocked_item */
 
 
@@ -460,12 +460,11 @@ xfs_trans_unlocked_item(
  * is dropped before returning.
  */
 void
-xfs_trans_update_ail(
-	xfs_mount_t	*mp,
+xfs_trans_ail_update(
+	struct xfs_ail	*ailp,
 	xfs_log_item_t	*lip,
 	xfs_lsn_t	lsn) __releases(ailp->xa_lock)
 {
-	struct xfs_ail		*ailp = mp->m_ail;
 	xfs_log_item_t		*dlip = NULL;
 	xfs_log_item_t		*mlip;	/* ptr to minimum lip */
 
@@ -485,7 +484,7 @@ xfs_trans_update_ail(
 	if (mlip == dlip) {
 		mlip = xfs_ail_min(ailp);
 		spin_unlock(&ailp->xa_lock);
-		xfs_log_move_tail(mp, mlip->li_lsn);
+		xfs_log_move_tail(ailp->xa_mount, mlip->li_lsn);
 	} else {
 		spin_unlock(&ailp->xa_lock);
 	}
@@ -509,11 +508,10 @@ xfs_trans_update_ail(
  * is dropped before returning.
  */
 void
-xfs_trans_delete_ail(
-	xfs_mount_t	*mp,
+xfs_trans_ail_delete(
+	struct xfs_ail	*ailp,
 	xfs_log_item_t	*lip) __releases(ailp->xa_lock)
 {
-	struct xfs_ail		*ailp = mp->m_ail;
 	xfs_log_item_t		*dlip;
 	xfs_log_item_t		*mlip;
 
@@ -530,7 +528,8 @@ xfs_trans_delete_ail(
 		if (mlip == dlip) {
 			mlip = xfs_ail_min(ailp);
 			spin_unlock(&ailp->xa_lock);
-			xfs_log_move_tail(mp, (mlip ? mlip->li_lsn : 0));
+			xfs_log_move_tail(ailp->xa_mount,
+						(mlip ? mlip->li_lsn : 0));
 		} else {
 			spin_unlock(&ailp->xa_lock);
 		}
@@ -540,6 +539,8 @@ xfs_trans_delete_ail(
 		 * If the file system is not being shutdown, we are in
 		 * serious trouble if we get to this stage.
 		 */
+		struct xfs_mount	*mp = ailp->xa_mount;
+
 		spin_unlock(&ailp->xa_lock);
 		if (!XFS_FORCED_SHUTDOWN(mp)) {
 			xfs_cmn_err(XFS_PTAG_AILDELETE, CE_ALERT, mp,
