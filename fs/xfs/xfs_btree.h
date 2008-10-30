@@ -503,8 +503,18 @@ xfs_btree_setbuf(
 
 
 /*
+ * Common btree core entry points.
+ */
+int xfs_btree_increment(struct xfs_btree_cur *, int, int *);
+
+/*
  * Helpers.
  */
+static inline int xfs_btree_get_numrecs(struct xfs_btree_block *block)
+{
+	return be16_to_cpu(block->bb_numrecs);
+}
+
 static inline int xfs_btree_get_level(struct xfs_btree_block *block)
 {
 	return be16_to_cpu(block->bb_level);

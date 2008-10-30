@@ -253,7 +253,7 @@ xfs_inobt_delrec(
 		 */
 		i = xfs_btree_lastrec(tcur, level);
 		XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
-		if ((error = xfs_inobt_increment(tcur, level, &i)))
+		if ((error = xfs_btree_increment(tcur, level, &i)))
 			goto error0;
 		XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
 		i = xfs_btree_lastrec(tcur, level);
@@ -463,7 +463,7 @@ xfs_inobt_delrec(
 	 * us, increment the cursor at that level.
 	 */
 	else if (level + 1 < cur->bc_nlevels &&
-		 (error = xfs_alloc_increment(cur, level + 1, &i)))
+		 (error = xfs_btree_increment(cur, level + 1, &i)))
 		return error;
 	/*
 	 * Fix up the number of records in the surviving block.
@@ -1014,7 +1014,7 @@ xfs_inobt_lookup(
 			int	i;
 
 			cur->bc_ptrs[0] = keyno;
-			if ((error = xfs_inobt_increment(cur, 0, &i)))
+			if ((error = xfs_btree_increment(cur, 0, &i)))
 				return error;
 			ASSERT(i == 1);
 			*stat = 1;
@@ -1443,7 +1443,7 @@ xfs_inobt_rshift(
 	if ((error = xfs_btree_dup_cursor(cur, &tcur)))
 		return error;
 	xfs_btree_lastrec(tcur, level);
-	if ((error = xfs_inobt_increment(tcur, level, &i)) ||
+	if ((error = xfs_btree_increment(tcur, level, &i)) ||
 	    (error = xfs_inobt_updkey(tcur, rkp, level + 1))) {
 		xfs_btree_del_cursor(tcur, XFS_BTREE_ERROR);
 		return error;
@@ -1816,97 +1816,6 @@ xfs_inobt_get_rec(
 	*ino = be32_to_cpu(rec->ir_startino);
 	*fcnt = be32_to_cpu(rec->ir_freecount);
 	*free = be64_to_cpu(rec->ir_free);
-	*stat = 1;
-	return 0;
-}
-
-/*
- * Increment cursor by one record at the level.
- * For nonzero levels the leaf-ward information is untouched.
- */
-int					/* error */
-xfs_inobt_increment(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	int			level,	/* level in btree, 0 is leaf */
-	int			*stat)	/* success/failure */
-{
-	xfs_inobt_block_t	*block;	/* btree block */
-	xfs_buf_t		*bp;	/* buffer containing btree block */
-	int			error;	/* error return value */
-	int			lev;	/* btree level */
-
-	ASSERT(level < cur->bc_nlevels);
-	/*
-	 * Read-ahead to the right at this level.
-	 */
-	xfs_btree_readahead(cur, level, XFS_BTCUR_RIGHTRA);
-	/*
-	 * Get a pointer to the btree block.
-	 */
-	bp = cur->bc_bufs[level];
-	block = XFS_BUF_TO_INOBT_BLOCK(bp);
-#ifdef DEBUG
-	if ((error = xfs_btree_check_sblock(cur, block, level, bp)))
-		return error;
-#endif
-	/*
-	 * Increment the ptr at this level.  If we're still in the block
-	 * then we're done.
-	 */
-	if (++cur->bc_ptrs[level] <= be16_to_cpu(block->bb_numrecs)) {
-		*stat = 1;
-		return 0;
-	}
-	/*
-	 * If we just went off the right edge of the tree, return failure.
-	 */
-	if (be32_to_cpu(block->bb_rightsib) == NULLAGBLOCK) {
-		*stat = 0;
-		return 0;
-	}
-	/*
-	 * March up the tree incrementing pointers.
-	 * Stop when we don't go off the right edge of a block.
-	 */
-	for (lev = level + 1; lev < cur->bc_nlevels; lev++) {
-		bp = cur->bc_bufs[lev];
-		block = XFS_BUF_TO_INOBT_BLOCK(bp);
-#ifdef DEBUG
-		if ((error = xfs_btree_check_sblock(cur, block, lev, bp)))
-			return error;
-#endif
-		if (++cur->bc_ptrs[lev] <= be16_to_cpu(block->bb_numrecs))
-			break;
-		/*
-		 * Read-ahead the right block, we're going to read it
-		 * in the next loop.
-		 */
-		xfs_btree_readahead(cur, lev, XFS_BTCUR_RIGHTRA);
-	}
-	/*
-	 * If we went off the root then we are seriously confused.
-	 */
-	ASSERT(lev < cur->bc_nlevels);
-	/*
-	 * Now walk back down the tree, fixing up the cursor's buffer
-	 * pointers and key numbers.
-	 */
-	for (bp = cur->bc_bufs[lev], block = XFS_BUF_TO_INOBT_BLOCK(bp);
-	     lev > level; ) {
-		xfs_agblock_t	agbno;	/* block number of btree block */
-
-		agbno = be32_to_cpu(*XFS_INOBT_PTR_ADDR(block, cur->bc_ptrs[lev], cur));
-		if ((error = xfs_btree_read_bufs(cur->bc_mp, cur->bc_tp,
-				cur->bc_private.a.agno, agbno, 0, &bp,
-				XFS_INO_BTREE_REF)))
-			return error;
-		lev--;
-		xfs_btree_setbuf(cur, lev, bp);
-		block = XFS_BUF_TO_INOBT_BLOCK(bp);
-		if ((error = xfs_btree_check_sblock(cur, block, lev, bp)))
-			return error;
-		cur->bc_ptrs[lev] = 1;
-	}
 	*stat = 1;
 	return 0;
 }

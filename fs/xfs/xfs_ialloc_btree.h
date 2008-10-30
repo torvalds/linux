@@ -136,12 +136,6 @@ extern int xfs_inobt_get_rec(struct xfs_btree_cur *cur, xfs_agino_t *ino,
 			     __int32_t *fcnt, xfs_inofree_t *free, int *stat);
 
 /*
- * Increment cursor by one record at the level.
- * For nonzero levels the leaf-ward information is untouched.
- */
-extern int xfs_inobt_increment(struct xfs_btree_cur *cur, int level, int *stat);
-
-/*
  * Insert the current record at the point referenced by cur.
  * The cursor may be inconsistent on return if splits have been done.
  */

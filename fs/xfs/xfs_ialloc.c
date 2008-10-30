@@ -695,7 +695,7 @@ nextag:
 				goto error0;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
 			freecount += rec.ir_freecount;
-			if ((error = xfs_inobt_increment(cur, 0, &i)))
+			if ((error = xfs_btree_increment(cur, 0, &i)))
 				goto error0;
 		} while (i == 1);
 
@@ -753,7 +753,7 @@ nextag:
 			/*
 			 * Search right with cur, go forward 1 record.
 			 */
-			if ((error = xfs_inobt_increment(cur, 0, &i)))
+			if ((error = xfs_btree_increment(cur, 0, &i)))
 				goto error1;
 			doneright = !i;
 			if (!doneright) {
@@ -835,7 +835,7 @@ nextag:
 				 * further right.
 				 */
 				else {
-					if ((error = xfs_inobt_increment(cur, 0,
+					if ((error = xfs_btree_increment(cur, 0,
 							&i)))
 						goto error1;
 					doneright = !i;
@@ -890,7 +890,7 @@ nextag:
 				XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
 				if (rec.ir_freecount > 0)
 					break;
-				if ((error = xfs_inobt_increment(cur, 0, &i)))
+				if ((error = xfs_btree_increment(cur, 0, &i)))
 					goto error0;
 				XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
 			}
@@ -924,7 +924,7 @@ nextag:
 				goto error0;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
 			freecount += rec.ir_freecount;
-			if ((error = xfs_inobt_increment(cur, 0, &i)))
+			if ((error = xfs_btree_increment(cur, 0, &i)))
 				goto error0;
 		} while (i == 1);
 		ASSERT(freecount == be32_to_cpu(agi->agi_freecount) ||
@@ -1033,7 +1033,7 @@ xfs_difree(
 				goto error0;
 			if (i) {
 				freecount += rec.ir_freecount;
-				if ((error = xfs_inobt_increment(cur, 0, &i)))
+				if ((error = xfs_btree_increment(cur, 0, &i)))
 					goto error0;
 			}
 		} while (i == 1);
@@ -1138,7 +1138,7 @@ xfs_difree(
 				goto error0;
 			if (i) {
 				freecount += rec.ir_freecount;
-				if ((error = xfs_inobt_increment(cur, 0, &i)))
+				if ((error = xfs_btree_increment(cur, 0, &i)))
 					goto error0;
 			}
 		} while (i == 1);

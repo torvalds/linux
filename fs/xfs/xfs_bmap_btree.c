@@ -254,7 +254,7 @@ xfs_bmbt_delrec(
 	if (rbno != NULLFSBLOCK) {
 		i = xfs_btree_lastrec(tcur, level);
 		XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
-		if ((error = xfs_bmbt_increment(tcur, level, &i))) {
+		if ((error = xfs_btree_increment(tcur, level, &i))) {
 			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 			goto error0;
 		}
@@ -445,7 +445,7 @@ xfs_bmbt_delrec(
 		cur->bc_bufs[level] = lbp;
 		cur->bc_ptrs[level] += lrecs;
 		cur->bc_ra[level] = 0;
-	} else if ((error = xfs_bmbt_increment(cur, level + 1, &i))) {
+	} else if ((error = xfs_btree_increment(cur, level + 1, &i))) {
 		XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 		goto error0;
 	}
@@ -929,7 +929,7 @@ xfs_bmbt_lookup(
 		if (dir == XFS_LOOKUP_GE && keyno > be16_to_cpu(block->bb_numrecs) &&
 		    be64_to_cpu(block->bb_rightsib) != NULLDFSBNO) {
 			cur->bc_ptrs[0] = keyno;
-			if ((error = xfs_bmbt_increment(cur, 0, &i))) {
+			if ((error = xfs_btree_increment(cur, 0, &i))) {
 				XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 				return error;
 			}
@@ -1202,7 +1202,7 @@ xfs_bmbt_rshift(
 	}
 	i = xfs_btree_lastrec(tcur, level);
 	XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
-	if ((error = xfs_bmbt_increment(tcur, level, &i))) {
+	if ((error = xfs_btree_increment(tcur, level, &i))) {
 		XFS_BMBT_TRACE_CURSOR(tcur, ERROR);
 		goto error1;
 	}
@@ -1758,86 +1758,6 @@ xfs_bmbt_disk_get_startoff(
 {
 	return ((xfs_fileoff_t)be64_to_cpu(r->l0) &
 		 XFS_MASK64LO(64 - BMBT_EXNTFLAG_BITLEN)) >> 9;
-}
-
-/*
- * Increment cursor by one record at the level.
- * For nonzero levels the leaf-ward information is untouched.
- */
-int						/* error */
-xfs_bmbt_increment(
-	xfs_btree_cur_t		*cur,
-	int			level,
-	int			*stat)		/* success/failure */
-{
-	xfs_bmbt_block_t	*block;
-	xfs_buf_t		*bp;
-	int			error;		/* error return value */
-	xfs_fsblock_t		fsbno;
-	int			lev;
-	xfs_mount_t		*mp;
-	xfs_trans_t		*tp;
-
-	XFS_BMBT_TRACE_CURSOR(cur, ENTRY);
-	XFS_BMBT_TRACE_ARGI(cur, level);
-	ASSERT(level < cur->bc_nlevels);
-
-	xfs_btree_readahead(cur, level, XFS_BTCUR_RIGHTRA);
-	block = xfs_bmbt_get_block(cur, level, &bp);
-#ifdef DEBUG
-	if ((error = xfs_btree_check_lblock(cur, block, level, bp))) {
-		XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-		return error;
-	}
-#endif
-	if (++cur->bc_ptrs[level] <= be16_to_cpu(block->bb_numrecs)) {
-		XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-		*stat = 1;
-		return 0;
-	}
-	if (be64_to_cpu(block->bb_rightsib) == NULLDFSBNO) {
-		XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-		*stat = 0;
-		return 0;
-	}
-	for (lev = level + 1; lev < cur->bc_nlevels; lev++) {
-		block = xfs_bmbt_get_block(cur, lev, &bp);
-#ifdef DEBUG
-		if ((error = xfs_btree_check_lblock(cur, block, lev, bp))) {
-			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-			return error;
-		}
-#endif
-		if (++cur->bc_ptrs[lev] <= be16_to_cpu(block->bb_numrecs))
-			break;
-		xfs_btree_readahead(cur, lev, XFS_BTCUR_RIGHTRA);
-	}
-	if (lev == cur->bc_nlevels) {
-		XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-		*stat = 0;
-		return 0;
-	}
-	tp = cur->bc_tp;
-	mp = cur->bc_mp;
-	for (block = xfs_bmbt_get_block(cur, lev, &bp); lev > level; ) {
-		fsbno = be64_to_cpu(*XFS_BMAP_PTR_IADDR(block, cur->bc_ptrs[lev], cur));
-		if ((error = xfs_btree_read_bufl(mp, tp, fsbno, 0, &bp,
-				XFS_BMAP_BTREE_REF))) {
-			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-			return error;
-		}
-		lev--;
-		xfs_btree_setbuf(cur, lev, bp);
-		block = XFS_BUF_TO_BMBT_BLOCK(bp);
-		if ((error = xfs_btree_check_lblock(cur, block, lev, bp))) {
-			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-			return error;
-		}
-		cur->bc_ptrs[lev] = 1;
-	}
-	XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-	*stat = 1;
-	return 0;
 }
 
 /*

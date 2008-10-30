@@ -114,12 +114,6 @@ extern int xfs_alloc_get_rec(struct xfs_btree_cur *cur,	xfs_agblock_t *bno,
 				xfs_extlen_t *len, int *stat);
 
 /*
- * Increment cursor by one record at the level.
- * For nonzero levels the leaf-ward information is untouched.
- */
-extern int xfs_alloc_increment(struct xfs_btree_cur *cur, int level, int *stat);
-
-/*
  * Insert the current record at the point referenced by cur.
  * The cursor may be inconsistent on return if splits have been done.
  */
