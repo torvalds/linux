@@ -413,6 +413,43 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 					    u32 changed)
 {
 	hwsim_check_magic(vif);
+
+	printk(KERN_DEBUG "%s:%s(changed=0x%x)\n",
+	       wiphy_name(hw->wiphy), __func__, changed);
+
+	if (changed & BSS_CHANGED_ASSOC) {
+		printk(KERN_DEBUG "  %s: ASSOC: assoc=%d aid=%d\n",
+		       wiphy_name(hw->wiphy), info->assoc, info->aid);
+	}
+
+	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
+		printk(KERN_DEBUG "  %s: ERP_CTS_PROT: %d\n",
+		       wiphy_name(hw->wiphy), info->use_cts_prot);
+	}
+
+	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
+		printk(KERN_DEBUG "  %s: ERP_PREAMBLE: %d\n",
+		       wiphy_name(hw->wiphy), info->use_short_preamble);
+	}
+
+	if (changed & BSS_CHANGED_ERP_SLOT) {
+		printk(KERN_DEBUG "  %s: ERP_SLOT: %d\n",
+		       wiphy_name(hw->wiphy), info->use_short_slot);
+	}
+
+	if (changed & BSS_CHANGED_HT) {
+		printk(KERN_DEBUG "  %s: HT: sec_ch_offs=%d width_40_ok=%d "
+		       "op_mode=%d\n",
+		       wiphy_name(hw->wiphy),
+		       info->ht.secondary_channel_offset,
+		       info->ht.width_40_ok, info->ht.operation_mode);
+	}
+
+	if (changed & BSS_CHANGED_BASIC_RATES) {
+		printk(KERN_DEBUG "  %s: BASIC_RATES: 0x%llx\n",
+		       wiphy_name(hw->wiphy),
+		       (unsigned long long) info->basic_rates);
+	}
 }
 
 static void mac80211_hwsim_sta_notify(struct ieee80211_hw *hw,
