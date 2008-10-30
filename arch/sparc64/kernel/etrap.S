@@ -16,9 +16,9 @@
 #include <asm/mmu.h>
 
 #define		TASK_REGOFF		(THREAD_SIZE-TRACEREG_SZ-STACKFRAME_SZ)
-#define		ETRAP_PSTATE1		(PSTATE_RMO | PSTATE_PRIV)
+#define		ETRAP_PSTATE1		(PSTATE_TSO | PSTATE_PRIV)
 #define		ETRAP_PSTATE2		\
-		(PSTATE_RMO | PSTATE_PEF | PSTATE_PRIV | PSTATE_IE)
+		(PSTATE_TSO | PSTATE_PEF | PSTATE_PRIV | PSTATE_IE)
 
 /*
  * On entry, %g7 is return address - 0x4.
@@ -130,7 +130,7 @@ etrap_save:	save	%g2, -STACK_BIAS, %sp
 		stx	%g6, [%sp + PTREGS_OFF + PT_V9_G6]
 		stx	%g7, [%sp + PTREGS_OFF + PT_V9_G7]
 		or	%l7, %l0, %l7
-		sethi	%hi(TSTATE_RMO | TSTATE_PEF), %l0
+		sethi	%hi(TSTATE_TSO | TSTATE_PEF), %l0
 		or	%l7, %l0, %l7
 		wrpr	%l2, %tnpc
 		wrpr	%l7, (TSTATE_PRIV | TSTATE_IE), %tstate

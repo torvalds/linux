@@ -13,17 +13,12 @@
  * and rebuild your kernel.
  */
 
-/* All of these locking primitives are expected to work properly
- * even in an RMO memory model, which currently is what the kernel
- * runs in.
- *
- * There is another issue.  Because we play games to save cycles
- * in the non-contention case, we need to be extra careful about
- * branch targets into the "spinning" code.  They live in their
- * own section, but the newer V9 branches have a shorter range
- * than the traditional 32-bit sparc branch variants.  The rule
- * is that the branches that go into and out of the spinner sections
- * must be pre-V9 branches.
+/* Because we play games to save cycles in the non-contention case, we
+ * need to be extra careful about branch targets into the "spinning"
+ * code.  They live in their own section, but the newer V9 branches
+ * have a shorter range than the traditional 32-bit sparc branch
+ * variants.  The rule is that the branches that go into and out of
+ * the spinner sections must be pre-V9 branches.
  */
 
 #define __raw_spin_is_locked(lp)	((lp)->lock != 0)
