@@ -97,16 +97,27 @@ typedef	struct xfs_btree_sblock xfs_inobt_block_t;
 
 /*
  * Record, key, and pointer address macros for btree blocks.
+ *
+ * (note that some of these may appear unused, but they are used in userspace)
  */
-#define XFS_INOBT_REC_ADDR(bb,i,cur) \
-	(XFS_BTREE_REC_ADDR(xfs_inobt, bb, i))
+#define XFS_INOBT_REC_ADDR(mp, block, index) \
+	((xfs_inobt_rec_t *) \
+		((char *)(block) + \
+		 sizeof(struct xfs_btree_sblock) + \
+		 (((index) - 1) * sizeof(xfs_inobt_rec_t))))
 
-#define	XFS_INOBT_KEY_ADDR(bb,i,cur) \
-	(XFS_BTREE_KEY_ADDR(xfs_inobt, bb, i))
+#define XFS_INOBT_KEY_ADDR(mp, block, index) \
+	((xfs_inobt_key_t *) \
+		((char *)(block) + \
+		 sizeof(struct xfs_btree_sblock) + \
+		 ((index) - 1) * sizeof(xfs_inobt_key_t)))
 
-#define	XFS_INOBT_PTR_ADDR(bb,i,cur) \
-	(XFS_BTREE_PTR_ADDR(xfs_inobt, bb, \
-				i, XFS_INOBT_BLOCK_MAXRECS(1, cur)))
+#define XFS_INOBT_PTR_ADDR(mp, block, index, maxrecs) \
+	((xfs_inobt_ptr_t *) \
+		((char *)(block) + \
+		 sizeof(struct xfs_btree_sblock) + \
+		 (maxrecs) * sizeof(xfs_inobt_key_t) + \
+		 ((index) - 1) * sizeof(xfs_inobt_ptr_t)))
 
 extern struct xfs_btree_cur *xfs_inobt_init_cursor(struct xfs_mount *,
 		struct xfs_trans *, struct xfs_buf *, xfs_agnumber_t);

@@ -149,21 +149,6 @@ do {    \
 	}       \
 } while (0)
 
-/*
- * Record, key, and pointer address calculation macros.
- * Given block size, type prefix, block pointer, and index of requested entry
- * (first entry numbered 1).
- */
-#define	XFS_BTREE_REC_ADDR(t,bb,i)	\
-	((t ## _rec_t *)((char *)(bb) + sizeof(t ## _block_t) + \
-	 ((i) - 1) * sizeof(t ## _rec_t)))
-#define	XFS_BTREE_KEY_ADDR(t,bb,i)	\
-	((t ## _key_t *)((char *)(bb) + sizeof(t ## _block_t) + \
-	 ((i) - 1) * sizeof(t ## _key_t)))
-#define	XFS_BTREE_PTR_ADDR(t,bb,i,mxr)	\
-	((t ## _ptr_t *)((char *)(bb) + sizeof(t ## _block_t) + \
-	 (mxr) * sizeof(t ## _key_t) + ((i) - 1) * sizeof(t ## _ptr_t)))
-
 #define	XFS_BTREE_MAXLEVELS	8	/* max of all btrees */
 
 struct xfs_btree_ops {

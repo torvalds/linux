@@ -179,7 +179,7 @@ xfs_allocbt_update_lastrec(
 		if (numrecs) {
 			xfs_alloc_rec_t *rrp;
 
-			rrp = XFS_ALLOC_REC_ADDR(block, numrecs, cur);
+			rrp = XFS_ALLOC_REC_ADDR(cur->bc_mp, block, numrecs);
 			len = rrp->ar_blockcount;
 		} else {
 			len = 0;

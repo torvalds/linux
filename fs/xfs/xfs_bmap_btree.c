@@ -44,7 +44,6 @@
 #include "xfs_error.h"
 #include "xfs_quota.h"
 
-
 /*
  * Determine the extent state.
  */
@@ -85,9 +84,9 @@ xfs_bmdr_to_bmbt(
 	rblock->bb_leftsib = cpu_to_be64(NULLDFSBNO);
 	rblock->bb_rightsib = cpu_to_be64(NULLDFSBNO);
 	dmxr = xfs_bmdr_maxrecs(mp, dblocklen, 0);
-	fkp = XFS_BTREE_KEY_ADDR(xfs_bmdr, dblock, 1);
-	tkp = XFS_BMAP_BROOT_KEY_ADDR(rblock, 1, rblocklen);
-	fpp = XFS_BTREE_PTR_ADDR(xfs_bmdr, dblock, 1, dmxr);
+	fkp = XFS_BMDR_KEY_ADDR(dblock, 1);
+	tkp = XFS_BMBT_KEY_ADDR(mp, rblock, 1);
+	fpp = XFS_BMDR_PTR_ADDR(dblock, 1, dmxr);
 	tpp = XFS_BMAP_BROOT_PTR_ADDR(mp, rblock, 1, rblocklen);
 	dmxr = be16_to_cpu(dblock->bb_numrecs);
 	memcpy(tkp, fkp, sizeof(*fkp) * dmxr);
@@ -448,10 +447,10 @@ xfs_bmbt_to_bmdr(
 	dblock->bb_level = rblock->bb_level;
 	dblock->bb_numrecs = rblock->bb_numrecs;
 	dmxr = xfs_bmdr_maxrecs(mp, dblocklen, 0);
-	fkp = XFS_BMAP_BROOT_KEY_ADDR(rblock, 1, rblocklen);
-	tkp = XFS_BTREE_KEY_ADDR(xfs_bmdr, dblock, 1);
+	fkp = XFS_BMBT_KEY_ADDR(mp, rblock, 1);
+	tkp = XFS_BMDR_KEY_ADDR(dblock, 1);
 	fpp = XFS_BMAP_BROOT_PTR_ADDR(mp, rblock, 1, rblocklen);
-	tpp = XFS_BTREE_PTR_ADDR(xfs_bmdr, dblock, 1, dmxr);
+	tpp = XFS_BMDR_PTR_ADDR(dblock, 1, dmxr);
 	dmxr = be16_to_cpu(dblock->bb_numrecs);
 	memcpy(tkp, fkp, sizeof(*fkp) * dmxr);
 	memcpy(tpp, fpp, sizeof(*fpp) * dmxr);

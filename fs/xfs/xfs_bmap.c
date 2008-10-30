@@ -393,7 +393,7 @@ xfs_bmap_count_leaves(
 
 STATIC void
 xfs_bmap_disk_count_leaves(
-	xfs_extnum_t		idx,
+	struct xfs_mount	*mp,
 	xfs_bmbt_block_t	*block,
 	int			numrecs,
 	int			*count);
@@ -3539,7 +3539,7 @@ xfs_bmap_extents_to_btree(
 	ablock->bb_level = 0;
 	ablock->bb_leftsib = cpu_to_be64(NULLDFSBNO);
 	ablock->bb_rightsib = cpu_to_be64(NULLDFSBNO);
-	arp = XFS_BMAP_REC_IADDR(ablock, 1, cur);
+	arp = XFS_BMBT_REC_ADDR(mp, ablock, 1);
 	nextents = ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t);
 	for (cnt = i = 0; i < nextents; i++) {
 		ep = xfs_iext_get_ext(ifp, i);
@@ -3554,11 +3554,13 @@ xfs_bmap_extents_to_btree(
 	/*
 	 * Fill in the root key and pointer.
 	 */
-	kp = XFS_BMAP_KEY_IADDR(block, 1, cur);
-	arp = XFS_BMAP_REC_IADDR(ablock, 1, cur);
+	kp = XFS_BMBT_KEY_ADDR(mp, block, 1);
+	arp = XFS_BMBT_REC_ADDR(mp, ablock, 1);
 	kp->br_startoff = cpu_to_be64(xfs_bmbt_disk_get_startoff(arp));
-	pp = XFS_BMAP_PTR_IADDR(block, 1, cur);
+	pp = XFS_BMBT_PTR_ADDR(mp, block, 1, xfs_bmbt_get_maxrecs(cur,
+						be16_to_cpu(block->bb_level)));
 	*pp = cpu_to_be64(args.fsbno);
+
 	/*
 	 * Do all this logging at the end so that
 	 * the root is at the right level.
@@ -4574,7 +4576,7 @@ xfs_bmap_read_extents(
 			error0);
 		if (level == 0)
 			break;
-		pp = XFS_BTREE_PTR_ADDR(xfs_bmbt, block, 1, mp->m_bmap_dmxr[1]);
+		pp = XFS_BMBT_PTR_ADDR(mp, block, 1, mp->m_bmap_dmxr[1]);
 		bno = be64_to_cpu(*pp);
 		XFS_WANT_CORRUPTED_GOTO(XFS_FSB_SANITY_CHECK(mp, bno), error0);
 		xfs_trans_brelse(tp, bp);
@@ -4617,7 +4619,7 @@ xfs_bmap_read_extents(
 		/*
 		 * Copy records into the extent records.
 		 */
-		frp = XFS_BTREE_REC_ADDR(xfs_bmbt, block, 1);
+		frp = XFS_BMBT_REC_ADDR(mp, block, 1);
 		start = i;
 		for (j = 0; j < num_recs; j++, i++, frp++) {
 			xfs_bmbt_rec_host_t *trp = xfs_iext_get_ext(ifp, i);
@@ -6187,12 +6189,7 @@ xfs_check_block(
 	prevp = NULL;
 	for( i = 1; i <= be16_to_cpu(block->bb_numrecs); i++) {
 		dmxr = mp->m_bmap_dmxr[0];
-
-		if (root) {
-			keyp = XFS_BMAP_BROOT_KEY_ADDR(block, i, sz);
-		} else {
-			keyp = XFS_BTREE_KEY_ADDR(xfs_bmbt, block, i);
-		}
+		keyp = XFS_BMBT_KEY_ADDR(mp, block, i);
 
 		if (prevp) {
 			ASSERT(be64_to_cpu(prevp->br_startoff) <
@@ -6203,19 +6200,16 @@ xfs_check_block(
 		/*
 		 * Compare the block numbers to see if there are dups.
 		 */
-
-		if (root) {
+		if (root)
 			pp = XFS_BMAP_BROOT_PTR_ADDR(mp, block, i, sz);
-		} else {
-			pp = XFS_BTREE_PTR_ADDR(xfs_bmbt, block, i, dmxr);
-		}
+		else
+			pp = XFS_BMBT_PTR_ADDR(mp, block, i, dmxr);
+
 		for (j = i+1; j <= be16_to_cpu(block->bb_numrecs); j++) {
-			if (root) {
+			if (root)
 				thispa = XFS_BMAP_BROOT_PTR_ADDR(mp, block, j, sz);
-			} else {
-				thispa = XFS_BTREE_PTR_ADDR(xfs_bmbt, block, j,
-							    dmxr);
-			}
+			else
+				thispa = XFS_BMBT_PTR_ADDR(mp, block, j, dmxr);
 			if (*thispa == *pp) {
 				cmn_err(CE_WARN, "%s: thispa(%d) == pp(%d) %Ld",
 					__func__, j, i,
@@ -6301,7 +6295,7 @@ xfs_bmap_check_leaf_extents(
 		 */
 
 		xfs_check_block(block, mp, 0, 0);
-		pp = XFS_BTREE_PTR_ADDR(xfs_bmbt, block, 1, mp->m_bmap_dmxr[1]);
+		pp = XFS_BMBT_PTR_ADDR(mp, block, 1, mp->m_bmap_dmxr[1]);
 		bno = be64_to_cpu(*pp);
 		XFS_WANT_CORRUPTED_GOTO(XFS_FSB_SANITY_CHECK(mp, bno), error0);
 		if (bp_release) {
@@ -6337,14 +6331,14 @@ xfs_bmap_check_leaf_extents(
 		 * conform with the first entry in this one.
 		 */
 
-		ep = XFS_BTREE_REC_ADDR(xfs_bmbt, block, 1);
+		ep = XFS_BMBT_REC_ADDR(mp, block, 1);
 		if (i) {
 			ASSERT(xfs_bmbt_disk_get_startoff(&last) +
 			       xfs_bmbt_disk_get_blockcount(&last) <=
 			       xfs_bmbt_disk_get_startoff(ep));
 		}
 		for (j = 1; j < num_recs; j++) {
-			nextp = XFS_BTREE_REC_ADDR(xfs_bmbt, block, j + 1);
+			nextp = XFS_BMBT_REC_ADDR(mp, block, j + 1);
 			ASSERT(xfs_bmbt_disk_get_startoff(ep) +
 			       xfs_bmbt_disk_get_blockcount(ep) <=
 			       xfs_bmbt_disk_get_startoff(nextp));
@@ -6482,7 +6476,7 @@ xfs_bmap_count_tree(
 		}
 
 		/* Dive to the next level */
-		pp = XFS_BTREE_PTR_ADDR(xfs_bmbt, block, 1, mp->m_bmap_dmxr[1]);
+		pp = XFS_BMBT_PTR_ADDR(mp, block, 1, mp->m_bmap_dmxr[1]);
 		bno = be64_to_cpu(*pp);
 		if (unlikely((error =
 		     xfs_bmap_count_tree(mp, tp, ifp, bno, level, count)) < 0)) {
@@ -6497,7 +6491,7 @@ xfs_bmap_count_tree(
 		for (;;) {
 			nextbno = be64_to_cpu(block->bb_rightsib);
 			numrecs = be16_to_cpu(block->bb_numrecs);
-			xfs_bmap_disk_count_leaves(0, block, numrecs, count);
+			xfs_bmap_disk_count_leaves(mp, block, numrecs, count);
 			xfs_trans_brelse(tp, bp);
 			if (nextbno == NULLFSBLOCK)
 				break;
@@ -6536,7 +6530,7 @@ xfs_bmap_count_leaves(
  */
 STATIC void
 xfs_bmap_disk_count_leaves(
-	xfs_extnum_t		idx,
+	struct xfs_mount	*mp,
 	xfs_bmbt_block_t	*block,
 	int			numrecs,
 	int			*count)
@@ -6545,7 +6539,7 @@ xfs_bmap_disk_count_leaves(
 	xfs_bmbt_rec_t	*frp;
 
 	for (b = 1; b <= numrecs; b++) {
-		frp = XFS_BTREE_REC_ADDR(xfs_bmbt, block, idx + b);
+		frp = XFS_BMBT_REC_ADDR(mp, block, b);
 		*count += xfs_bmbt_disk_get_blockcount(frp);
 	}
 }

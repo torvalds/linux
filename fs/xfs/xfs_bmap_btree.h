@@ -21,6 +21,7 @@
 #define XFS_BMAP_MAGIC	0x424d4150	/* 'BMAP' */
 
 struct xfs_btree_cur;
+struct xfs_btree_block;
 struct xfs_btree_lblock;
 struct xfs_mount;
 struct xfs_inode;
@@ -151,33 +152,50 @@ typedef struct xfs_btree_lblock xfs_bmbt_block_t;
 
 #define XFS_BUF_TO_BMBT_BLOCK(bp)	((xfs_bmbt_block_t *)XFS_BUF_PTR(bp))
 
-#define XFS_BMAP_REC_DADDR(bb,i,cur)	(XFS_BTREE_REC_ADDR(xfs_bmbt, bb, i))
+#define XFS_BMBT_REC_ADDR(mp, block, index) \
+	((xfs_bmbt_rec_t *) \
+		((char *)(block) + \
+		 sizeof(struct xfs_btree_lblock) + \
+		 ((index) - 1) * sizeof(xfs_bmbt_rec_t)))
 
-#define XFS_BMAP_REC_IADDR(bb,i,cur)	(XFS_BTREE_REC_ADDR(xfs_bmbt, bb, i))
+#define XFS_BMBT_KEY_ADDR(mp, block, index) \
+	((xfs_bmbt_key_t *) \
+		((char *)(block) + \
+		 sizeof(struct xfs_btree_lblock) + \
+		 ((index) - 1) * sizeof(xfs_bmbt_key_t)))
 
-#define XFS_BMAP_KEY_DADDR(bb,i,cur)	\
-	(XFS_BTREE_KEY_ADDR(xfs_bmbt, bb, i))
+#define XFS_BMBT_PTR_ADDR(mp, block, index, maxrecs) \
+	((xfs_bmbt_ptr_t *) \
+		((char *)(block) + \
+		 sizeof(struct xfs_btree_lblock) + \
+		 (maxrecs) * sizeof(xfs_bmbt_key_t) + \
+		 ((index) - 1) * sizeof(xfs_bmbt_ptr_t)))
 
-#define XFS_BMAP_KEY_IADDR(bb,i,cur)	\
-	(XFS_BTREE_KEY_ADDR(xfs_bmbt, bb, i))
+#define XFS_BMDR_REC_ADDR(block, index) \
+	((xfs_bmdr_rec_t *) \
+		((char *)(block) + \
+		 sizeof(struct xfs_bmdr_block) + \
+	         ((index) - 1) * sizeof(xfs_bmdr_rec_t)))
 
-#define XFS_BMAP_PTR_DADDR(bb,i,cur)	\
-	(XFS_BTREE_PTR_ADDR(xfs_bmbt, bb, i, XFS_BMAP_BLOCK_DMAXRECS(	\
-				be16_to_cpu((bb)->bb_level), cur)))
-#define XFS_BMAP_PTR_IADDR(bb,i,cur)	\
-	(XFS_BTREE_PTR_ADDR(xfs_bmbt, bb, i, xfs_bmbt_get_maxrecs(cur,	\
-				be16_to_cpu((bb)->bb_level))))
+#define XFS_BMDR_KEY_ADDR(block, index) \
+	((xfs_bmdr_key_t *) \
+		((char *)(block) + \
+		 sizeof(struct xfs_bmdr_block) + \
+		 ((index) - 1) * sizeof(xfs_bmdr_key_t)))
+
+#define XFS_BMDR_PTR_ADDR(block, index, maxrecs) \
+	((xfs_bmdr_ptr_t *) \
+		((char *)(block) + \
+		 sizeof(struct xfs_bmdr_block) + \
+		 (maxrecs) * sizeof(xfs_bmdr_key_t) + \
+		 ((index) - 1) * sizeof(xfs_bmdr_ptr_t)))
 
 /*
  * These are to be used when we know the size of the block and
  * we don't have a cursor.
  */
-#define XFS_BMAP_BROOT_REC_ADDR(bb,i,sz) \
-	(XFS_BTREE_REC_ADDR(xfs_bmbt,bb,i))
-#define XFS_BMAP_BROOT_KEY_ADDR(bb,i,sz) \
-	(XFS_BTREE_KEY_ADDR(xfs_bmbt,bb,i))
-#define XFS_BMAP_BROOT_PTR_ADDR(mp, bb,i,sz) \
-	(XFS_BTREE_PTR_ADDR(xfs_bmbt,bb,i,xfs_bmbt_maxrecs(mp, sz, 0)))
+#define XFS_BMAP_BROOT_PTR_ADDR(mp, bb, i, sz) \
+	XFS_BMBT_PTR_ADDR(mp, bb, i, xfs_bmbt_maxrecs(mp, sz, 0))
 
 #define XFS_BMAP_BROOT_SPACE_CALC(nrecs) \
 	(int)(sizeof(xfs_bmbt_block_t) + \

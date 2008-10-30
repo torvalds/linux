@@ -258,7 +258,7 @@ xfs_growfs_data_private(
 		block->bb_numrecs = cpu_to_be16(1);
 		block->bb_leftsib = cpu_to_be32(NULLAGBLOCK);
 		block->bb_rightsib = cpu_to_be32(NULLAGBLOCK);
-		arec = XFS_BTREE_REC_ADDR(xfs_alloc, block, 1);
+		arec = XFS_ALLOC_REC_ADDR(mp, block, 1);
 		arec->ar_startblock = cpu_to_be32(XFS_PREALLOC_BLOCKS(mp));
 		arec->ar_blockcount = cpu_to_be32(
 			agsize - be32_to_cpu(arec->ar_startblock));
@@ -279,7 +279,7 @@ xfs_growfs_data_private(
 		block->bb_numrecs = cpu_to_be16(1);
 		block->bb_leftsib = cpu_to_be32(NULLAGBLOCK);
 		block->bb_rightsib = cpu_to_be32(NULLAGBLOCK);
-		arec = XFS_BTREE_REC_ADDR(xfs_alloc, block, 1);
+		arec = XFS_ALLOC_REC_ADDR(mp, block, 1);
 		arec->ar_startblock = cpu_to_be32(XFS_PREALLOC_BLOCKS(mp));
 		arec->ar_blockcount = cpu_to_be32(
 			agsize - be32_to_cpu(arec->ar_startblock));

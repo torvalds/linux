@@ -78,16 +78,27 @@ typedef	struct xfs_btree_sblock xfs_alloc_block_t;
 
 /*
  * Record, key, and pointer address macros for btree blocks.
+ *
+ * (note that some of these may appear unused, but they are used in userspace)
  */
-#define	XFS_ALLOC_REC_ADDR(bb,i,cur)	\
-	XFS_BTREE_REC_ADDR(xfs_alloc, bb, i)
+#define XFS_ALLOC_REC_ADDR(mp, block, index) \
+	((xfs_alloc_rec_t *) \
+		((char *)(block) + \
+		 sizeof(struct xfs_btree_sblock) + \
+		 (((index) - 1) * sizeof(xfs_alloc_rec_t))))
 
-#define	XFS_ALLOC_KEY_ADDR(bb,i,cur)	\
-	XFS_BTREE_KEY_ADDR(xfs_alloc, bb, i)
+#define XFS_ALLOC_KEY_ADDR(mp, block, index) \
+	((xfs_alloc_key_t *) \
+		((char *)(block) + \
+		 sizeof(struct xfs_btree_sblock) + \
+		 ((index) - 1) * sizeof(xfs_alloc_key_t)))
 
-#define	XFS_ALLOC_PTR_ADDR(bb,i,cur)	\
-	XFS_BTREE_PTR_ADDR(xfs_alloc, bb, i, XFS_ALLOC_BLOCK_MAXRECS(1, cur))
-
+#define XFS_ALLOC_PTR_ADDR(mp, block, index, maxrecs) \
+	((xfs_alloc_ptr_t *) \
+		((char *)(block) + \
+		 sizeof(struct xfs_btree_sblock) + \
+		 (maxrecs) * sizeof(xfs_alloc_key_t) + \
+		 ((index) - 1) * sizeof(xfs_alloc_ptr_t)))
 
 extern struct xfs_btree_cur *xfs_allocbt_init_cursor(struct xfs_mount *,
 		struct xfs_trans *, struct xfs_buf *,
