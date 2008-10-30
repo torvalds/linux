@@ -302,9 +302,10 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 	/* We only allow changing Vpp1 and Vpp2 to the same value */
 	if ((mod->Attributes & CONF_VPP1_CHANGE_VALID) &&
 	    (mod->Attributes & CONF_VPP2_CHANGE_VALID)) {
-		if (mod->Vpp1 != mod->Vpp2)
+		if (mod->Vpp1 != mod->Vpp2) {
 			ds_dbg(s, 0, "Vpp1 and Vpp2 must be the same\n");
 			return -EINVAL;
+		}
 		s->socket.Vpp = mod->Vpp1;
 		if (s->ops->set_socket(s, &s->socket)) {
 			dev_printk(KERN_WARNING, &s->dev,
