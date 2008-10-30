@@ -2469,6 +2469,107 @@ error0:
 }
 
 /*
+ * Copy the old inode root contents into a real block and make the
+ * broot point to it.
+ */
+int						/* error */
+xfs_btree_new_iroot(
+	struct xfs_btree_cur	*cur,		/* btree cursor */
+	int			*logflags,	/* logging flags for inode */
+	int			*stat)		/* return status - 0 fail */
+{
+	struct xfs_buf		*cbp;		/* buffer for cblock */
+	struct xfs_btree_block	*block;		/* btree block */
+	struct xfs_btree_block	*cblock;	/* child btree block */
+	union xfs_btree_key	*ckp;		/* child key pointer */
+	union xfs_btree_ptr	*cpp;		/* child ptr pointer */
+	union xfs_btree_key	*kp;		/* pointer to btree key */
+	union xfs_btree_ptr	*pp;		/* pointer to block addr */
+	union xfs_btree_ptr	nptr;		/* new block addr */
+	int			level;		/* btree level */
+	int			error;		/* error return code */
+#ifdef DEBUG
+	int			i;		/* loop counter */
+#endif
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
+	XFS_BTREE_STATS_INC(cur, newroot);
+
+	ASSERT(cur->bc_flags & XFS_BTREE_ROOT_IN_INODE);
+
+	level = cur->bc_nlevels - 1;
+
+	block = xfs_btree_get_iroot(cur);
+	pp = xfs_btree_ptr_addr(cur, 1, block);
+
+	/* Allocate the new block. If we can't do it, we're toast. Give up. */
+	error = cur->bc_ops->alloc_block(cur, pp, &nptr, 1, stat);
+	if (error)
+		goto error0;
+	if (*stat == 0) {
+		XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+		return 0;
+	}
+	XFS_BTREE_STATS_INC(cur, alloc);
+
+	/* Copy the root into a real block. */
+	error = xfs_btree_get_buf_block(cur, &nptr, 0, &cblock, &cbp);
+	if (error)
+		goto error0;
+
+	memcpy(cblock, block, xfs_btree_block_len(cur));
+
+	be16_add_cpu(&block->bb_level, 1);
+	xfs_btree_set_numrecs(block, 1);
+	cur->bc_nlevels++;
+	cur->bc_ptrs[level + 1] = 1;
+
+	kp = xfs_btree_key_addr(cur, 1, block);
+	ckp = xfs_btree_key_addr(cur, 1, cblock);
+	xfs_btree_copy_keys(cur, ckp, kp, xfs_btree_get_numrecs(cblock));
+
+	cpp = xfs_btree_ptr_addr(cur, 1, cblock);
+#ifdef DEBUG
+	for (i = 0; i < be16_to_cpu(cblock->bb_numrecs); i++) {
+		error = xfs_btree_check_ptr(cur, pp, i, level);
+		if (error)
+			goto error0;
+	}
+#endif
+	xfs_btree_copy_ptrs(cur, cpp, pp, xfs_btree_get_numrecs(cblock));
+
+#ifdef DEBUG
+	error = xfs_btree_check_ptr(cur, &nptr, 0, level);
+	if (error)
+		goto error0;
+#endif
+	xfs_btree_copy_ptrs(cur, pp, &nptr, 1);
+
+	xfs_iroot_realloc(cur->bc_private.b.ip,
+			  1 - xfs_btree_get_numrecs(cblock),
+			  cur->bc_private.b.whichfork);
+
+	xfs_btree_setbuf(cur, level, cbp);
+
+	/*
+	 * Do all this logging at the end so that
+	 * the root is at the right level.
+	 */
+	xfs_btree_log_block(cur, cbp, XFS_BB_ALL_BITS);
+	xfs_btree_log_keys(cur, cbp, 1, be16_to_cpu(cblock->bb_numrecs));
+	xfs_btree_log_ptrs(cur, cbp, 1, be16_to_cpu(cblock->bb_numrecs));
+
+	*logflags |=
+		XFS_ILOG_CORE | XFS_ILOG_FBROOT(cur->bc_private.b.whichfork);
+	*stat = 1;
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+	return 0;
+error0:
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+	return error;
+}
+
+/*
  * Allocate a new root block, fill it in.
  */
 int				/* error */

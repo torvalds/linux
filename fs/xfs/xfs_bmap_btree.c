@@ -525,7 +525,7 @@ xfs_bmbt_insrec(
 				cur->bc_private.b.whichfork);
 			block = xfs_bmbt_get_block(cur, level, &bp);
 		} else if (level == cur->bc_nlevels - 1) {
-			if ((error = xfs_bmbt_newroot(cur, &logflags, stat)) ||
+			if ((error = xfs_btree_new_iroot(cur, &logflags, stat)) ||
 			    *stat == 0) {
 				XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 				return error;
@@ -1180,117 +1180,6 @@ xfs_bmbt_log_recs(
 	last = (int)(((xfs_caddr_t)&rp[rlast] - 1) - (xfs_caddr_t)block);
 	xfs_trans_log_buf(tp, bp, first, last);
 	XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-}
-
-/*
- * Give the bmap btree a new root block.  Copy the old broot contents
- * down into a real block and make the broot point to it.
- */
-int						/* error */
-xfs_bmbt_newroot(
-	xfs_btree_cur_t		*cur,		/* btree cursor */
-	int			*logflags,	/* logging flags for inode */
-	int			*stat)		/* return status - 0 fail */
-{
-	xfs_alloc_arg_t		args;		/* allocation arguments */
-	xfs_bmbt_block_t	*block;		/* bmap btree block */
-	xfs_buf_t		*bp;		/* buffer for block */
-	xfs_bmbt_block_t	*cblock;	/* child btree block */
-	xfs_bmbt_key_t		*ckp;		/* child key pointer */
-	xfs_bmbt_ptr_t		*cpp;		/* child ptr pointer */
-	int			error;		/* error return code */
-#ifdef DEBUG
-	int			i;		/* loop counter */
-#endif
-	xfs_bmbt_key_t		*kp;		/* pointer to bmap btree key */
-	int			level;		/* btree level */
-	xfs_bmbt_ptr_t		*pp;		/* pointer to bmap block addr */
-
-	XFS_BMBT_TRACE_CURSOR(cur, ENTRY);
-	level = cur->bc_nlevels - 1;
-	block = xfs_bmbt_get_block(cur, level, &bp);
-	/*
-	 * Copy the root into a real block.
-	 */
-	args.mp = cur->bc_mp;
-	pp = XFS_BMAP_PTR_IADDR(block, 1, cur);
-	args.tp = cur->bc_tp;
-	args.fsbno = cur->bc_private.b.firstblock;
-	args.mod = args.minleft = args.alignment = args.total = args.isfl =
-		args.userdata = args.minalignslop = 0;
-	args.minlen = args.maxlen = args.prod = 1;
-	args.wasdel = cur->bc_private.b.flags & XFS_BTCUR_BPRV_WASDEL;
-	args.firstblock = args.fsbno;
-	if (args.fsbno == NULLFSBLOCK) {
-#ifdef DEBUG
-		if ((error = xfs_btree_check_lptr_disk(cur, *pp, level))) {
-			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-			return error;
-		}
-#endif
-		args.fsbno = be64_to_cpu(*pp);
-		args.type = XFS_ALLOCTYPE_START_BNO;
-	} else if (cur->bc_private.b.flist->xbf_low)
-		args.type = XFS_ALLOCTYPE_START_BNO;
-	else
-		args.type = XFS_ALLOCTYPE_NEAR_BNO;
-	if ((error = xfs_alloc_vextent(&args))) {
-		XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-		return error;
-	}
-	if (args.fsbno == NULLFSBLOCK) {
-		XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-		*stat = 0;
-		return 0;
-	}
-	ASSERT(args.len == 1);
-	cur->bc_private.b.firstblock = args.fsbno;
-	cur->bc_private.b.allocated++;
-	cur->bc_private.b.ip->i_d.di_nblocks++;
-	XFS_TRANS_MOD_DQUOT_BYINO(args.mp, args.tp, cur->bc_private.b.ip,
-			  XFS_TRANS_DQ_BCOUNT, 1L);
-	bp = xfs_btree_get_bufl(args.mp, cur->bc_tp, args.fsbno, 0);
-	cblock = XFS_BUF_TO_BMBT_BLOCK(bp);
-	*cblock = *block;
-	be16_add_cpu(&block->bb_level, 1);
-	block->bb_numrecs = cpu_to_be16(1);
-	cur->bc_nlevels++;
-	cur->bc_ptrs[level + 1] = 1;
-	kp = XFS_BMAP_KEY_IADDR(block, 1, cur);
-	ckp = XFS_BMAP_KEY_IADDR(cblock, 1, cur);
-	memcpy(ckp, kp, be16_to_cpu(cblock->bb_numrecs) * sizeof(*kp));
-	cpp = XFS_BMAP_PTR_IADDR(cblock, 1, cur);
-#ifdef DEBUG
-	for (i = 0; i < be16_to_cpu(cblock->bb_numrecs); i++) {
-		if ((error = xfs_btree_check_lptr_disk(cur, pp[i], level))) {
-			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-			return error;
-		}
-	}
-#endif
-	memcpy(cpp, pp, be16_to_cpu(cblock->bb_numrecs) * sizeof(*pp));
-#ifdef DEBUG
-	if ((error = xfs_btree_check_lptr(cur, args.fsbno, level))) {
-		XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-		return error;
-	}
-#endif
-	*pp = cpu_to_be64(args.fsbno);
-	xfs_iroot_realloc(cur->bc_private.b.ip, 1 - be16_to_cpu(cblock->bb_numrecs),
-		cur->bc_private.b.whichfork);
-	xfs_btree_setbuf(cur, level, bp);
-	/*
-	 * Do all this logging at the end so that
-	 * the root is at the right level.
-	 */
-	xfs_bmbt_log_block(cur, bp, XFS_BB_ALL_BITS);
-	xfs_bmbt_log_keys(cur, bp, 1, be16_to_cpu(cblock->bb_numrecs));
-	xfs_bmbt_log_ptrs(cur, bp, 1, be16_to_cpu(cblock->bb_numrecs));
-	XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-	*logflags |=
-		XFS_ILOG_CORE | XFS_ILOG_FBROOT(cur->bc_private.b.whichfork);
-	*stat = 1;
-	return 0;
 }
 
 /*

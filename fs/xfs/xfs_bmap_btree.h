@@ -255,12 +255,6 @@ extern void xfs_bmbt_log_block(struct xfs_btree_cur *, struct xfs_buf *, int);
 extern void xfs_bmbt_log_recs(struct xfs_btree_cur *, struct xfs_buf *, int,
 				int);
 
-/*
- * Give the bmap btree a new root block.  Copy the old broot contents
- * down into a real block and make the broot point to it.
- */
-extern int xfs_bmbt_newroot(struct xfs_btree_cur *cur, int *lflags, int *stat);
-
 extern void xfs_bmbt_set_all(xfs_bmbt_rec_host_t *r, xfs_bmbt_irec_t *s);
 extern void xfs_bmbt_set_allf(xfs_bmbt_rec_host_t *r, xfs_fileoff_t o,
 			xfs_fsblock_t b, xfs_filblks_t c, xfs_exntst_t v);

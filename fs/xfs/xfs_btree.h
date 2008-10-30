@@ -548,6 +548,7 @@ int xfs_btree_rshift(struct xfs_btree_cur *, int, int *);
 int xfs_btree_split(struct xfs_btree_cur *, int, union xfs_btree_ptr *,
 		union xfs_btree_key *, struct xfs_btree_cur **, int *);
 int xfs_btree_new_root(struct xfs_btree_cur *, int *);
+int xfs_btree_new_iroot(struct xfs_btree_cur *, int *, int *);
 
 /*
  * Helpers.
