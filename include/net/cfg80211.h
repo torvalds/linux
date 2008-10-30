@@ -336,19 +336,19 @@ struct ieee80211_regdomain {
 	struct ieee80211_reg_rule reg_rules[];
 };
 
-#define MHZ_TO_KHZ(freq) (freq * 1000)
-#define KHZ_TO_MHZ(freq) (freq / 1000)
-#define DBI_TO_MBI(gain) (gain * 100)
-#define MBI_TO_DBI(gain) (gain / 100)
-#define DBM_TO_MBM(gain) (gain * 100)
-#define MBM_TO_DBM(gain) (gain / 100)
+#define MHZ_TO_KHZ(freq) ((freq) * 1000)
+#define KHZ_TO_MHZ(freq) ((freq) / 1000)
+#define DBI_TO_MBI(gain) ((gain) * 100)
+#define MBI_TO_DBI(gain) ((gain) / 100)
+#define DBM_TO_MBM(gain) ((gain) * 100)
+#define MBM_TO_DBM(gain) ((gain) / 100)
 
 #define REG_RULE(start, end, bw, gain, eirp, reg_flags) { \
-	.freq_range.start_freq_khz = (start) * 1000, \
-	.freq_range.end_freq_khz = (end) * 1000, \
-	.freq_range.max_bandwidth_khz = (bw) * 1000, \
-	.power_rule.max_antenna_gain = (gain) * 100, \
-	.power_rule.max_eirp = (eirp) * 100, \
+	.freq_range.start_freq_khz = MHZ_TO_KHZ(start), \
+	.freq_range.end_freq_khz = MHZ_TO_KHZ(end), \
+	.freq_range.max_bandwidth_khz = MHZ_TO_KHZ(bw), \
+	.power_rule.max_antenna_gain = DBI_TO_MBI(gain), \
+	.power_rule.max_eirp = DBM_TO_MBM(eirp), \
 	.flags = reg_flags, \
 	}
 
