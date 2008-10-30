@@ -119,6 +119,59 @@ xfs_ialloc_cluster_alignment(
 }
 
 /*
+ * Lookup the record equal to ino in the btree given by cur.
+ */
+STATIC int				/* error */
+xfs_inobt_lookup_eq(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	xfs_agino_t		ino,	/* starting inode of chunk */
+	__int32_t		fcnt,	/* free inode count */
+	xfs_inofree_t		free,	/* free inode mask */
+	int			*stat)	/* success/failure */
+{
+	cur->bc_rec.i.ir_startino = ino;
+	cur->bc_rec.i.ir_freecount = fcnt;
+	cur->bc_rec.i.ir_free = free;
+	return xfs_btree_lookup(cur, XFS_LOOKUP_EQ, stat);
+}
+
+/*
+ * Lookup the first record greater than or equal to ino
+ * in the btree given by cur.
+ */
+int					/* error */
+xfs_inobt_lookup_ge(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	xfs_agino_t		ino,	/* starting inode of chunk */
+	__int32_t		fcnt,	/* free inode count */
+	xfs_inofree_t		free,	/* free inode mask */
+	int			*stat)	/* success/failure */
+{
+	cur->bc_rec.i.ir_startino = ino;
+	cur->bc_rec.i.ir_freecount = fcnt;
+	cur->bc_rec.i.ir_free = free;
+	return xfs_btree_lookup(cur, XFS_LOOKUP_GE, stat);
+}
+
+/*
+ * Lookup the first record less than or equal to ino
+ * in the btree given by cur.
+ */
+int					/* error */
+xfs_inobt_lookup_le(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	xfs_agino_t		ino,	/* starting inode of chunk */
+	__int32_t		fcnt,	/* free inode count */
+	xfs_inofree_t		free,	/* free inode mask */
+	int			*stat)	/* success/failure */
+{
+	cur->bc_rec.i.ir_startino = ino;
+	cur->bc_rec.i.ir_freecount = fcnt;
+	cur->bc_rec.i.ir_free = free;
+	return xfs_btree_lookup(cur, XFS_LOOKUP_LE, stat);
+}
+
+/*
  * Allocate new inodes in the allocation group specified by agbp.
  * Return 0 for success, else error code.
  */

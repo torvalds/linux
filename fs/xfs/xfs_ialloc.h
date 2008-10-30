@@ -154,6 +154,21 @@ xfs_ialloc_pagi_init(
 	struct xfs_trans *tp,		/* transaction pointer */
         xfs_agnumber_t  agno);		/* allocation group number */
 
+/*
+ * Lookup the first record greater than or equal to ino
+ * in the btree given by cur.
+ */
+int xfs_inobt_lookup_ge(struct xfs_btree_cur *cur, xfs_agino_t ino,
+		__int32_t fcnt,	xfs_inofree_t free, int *stat);
+
+/*
+ * Lookup the first record less than or equal to ino
+ * in the btree given by cur.
+ */
+int xfs_inobt_lookup_le(struct xfs_btree_cur *cur, xfs_agino_t ino,
+		__int32_t fcnt,	xfs_inofree_t free, int *stat);
+
+
 #endif	/* __KERNEL__ */
 
 #endif	/* __XFS_IALLOC_H__ */

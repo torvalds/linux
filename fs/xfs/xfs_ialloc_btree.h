@@ -136,26 +136,6 @@ extern int xfs_inobt_get_rec(struct xfs_btree_cur *cur, xfs_agino_t *ino,
 extern int xfs_inobt_insert(struct xfs_btree_cur *cur, int *stat);
 
 /*
- * Lookup the record equal to ino in the btree given by cur.
- */
-extern int xfs_inobt_lookup_eq(struct xfs_btree_cur *cur, xfs_agino_t ino,
-				__int32_t fcnt, xfs_inofree_t free, int *stat);
-
-/*
- * Lookup the first record greater than or equal to ino
- * in the btree given by cur.
- */
-extern int xfs_inobt_lookup_ge(struct xfs_btree_cur *cur, xfs_agino_t ino,
-				__int32_t fcnt,	xfs_inofree_t free, int *stat);
-
-/*
- * Lookup the first record less than or equal to ino
- * in the btree given by cur.
- */
-extern int xfs_inobt_lookup_le(struct xfs_btree_cur *cur, xfs_agino_t ino,
-				__int32_t fcnt,	xfs_inofree_t free, int *stat);
-
-/*
  * Update the record referred to by cur, to the value given
  * by [ino, fcnt, free].
  * This either works (return 0) or gets an EFSCORRUPTED error.

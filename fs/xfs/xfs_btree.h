@@ -190,6 +190,16 @@ struct xfs_btree_ops {
 	/* records in block/level */
 	int	(*get_maxrecs)(struct xfs_btree_cur *cur, int level);
 
+	/* init values of btree structures */
+	void	(*init_key_from_rec)(union xfs_btree_key *key,
+				     union xfs_btree_rec *rec);
+	void	(*init_ptr_from_cur)(struct xfs_btree_cur *cur,
+				     union xfs_btree_ptr *ptr);
+
+	/* difference between key value and cursor value */
+	__int64_t (*key_diff)(struct xfs_btree_cur *cur,
+			      union xfs_btree_key *key);
+
 	/* btree tracing */
 #ifdef XFS_BTREE_TRACE
 	void		(*trace_enter)(struct xfs_btree_cur *, const char *,
@@ -507,6 +517,7 @@ xfs_btree_setbuf(
  */
 int xfs_btree_increment(struct xfs_btree_cur *, int, int *);
 int xfs_btree_decrement(struct xfs_btree_cur *, int, int *);
+int xfs_btree_lookup(struct xfs_btree_cur *, xfs_lookup_t, int *);
 
 /*
  * Helpers.

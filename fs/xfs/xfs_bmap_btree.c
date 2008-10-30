@@ -813,146 +813,6 @@ xfs_bmbt_log_ptrs(
 }
 
 /*
- * Lookup the record.  The cursor is made to point to it, based on dir.
- */
-STATIC int				/* error */
-xfs_bmbt_lookup(
-	xfs_btree_cur_t		*cur,
-	xfs_lookup_t		dir,
-	int			*stat)		/* success/failure */
-{
-	xfs_bmbt_block_t	*block=NULL;
-	xfs_buf_t		*bp;
-	xfs_daddr_t		d;
-	xfs_sfiloff_t		diff;
-	int			error;		/* error return value */
-	xfs_fsblock_t		fsbno=0;
-	int			high;
-	int			i;
-	int			keyno=0;
-	xfs_bmbt_key_t		*kkbase=NULL;
-	xfs_bmbt_key_t		*kkp;
-	xfs_bmbt_rec_t		*krbase=NULL;
-	xfs_bmbt_rec_t		*krp;
-	int			level;
-	int			low;
-	xfs_mount_t		*mp;
-	xfs_bmbt_ptr_t		*pp;
-	xfs_bmbt_irec_t		*rp;
-	xfs_fileoff_t		startoff;
-	xfs_trans_t		*tp;
-
-	XFS_STATS_INC(xs_bmbt_lookup);
-	XFS_BMBT_TRACE_CURSOR(cur, ENTRY);
-	XFS_BMBT_TRACE_ARGI(cur, (int)dir);
-	tp = cur->bc_tp;
-	mp = cur->bc_mp;
-	rp = &cur->bc_rec.b;
-	for (level = cur->bc_nlevels - 1, diff = 1; level >= 0; level--) {
-		if (level < cur->bc_nlevels - 1) {
-			d = XFS_FSB_TO_DADDR(mp, fsbno);
-			bp = cur->bc_bufs[level];
-			if (bp && XFS_BUF_ADDR(bp) != d)
-				bp = NULL;
-			if (!bp) {
-				if ((error = xfs_btree_read_bufl(mp, tp, fsbno,
-						0, &bp, XFS_BMAP_BTREE_REF))) {
-					XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-					return error;
-				}
-				xfs_btree_setbuf(cur, level, bp);
-				block = XFS_BUF_TO_BMBT_BLOCK(bp);
-				if ((error = xfs_btree_check_lblock(cur, block,
-						level, bp))) {
-					XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-					return error;
-				}
-			} else
-				block = XFS_BUF_TO_BMBT_BLOCK(bp);
-		} else
-			block = xfs_bmbt_get_block(cur, level, &bp);
-		if (diff == 0)
-			keyno = 1;
-		else {
-			if (level > 0)
-				kkbase = XFS_BMAP_KEY_IADDR(block, 1, cur);
-			else
-				krbase = XFS_BMAP_REC_IADDR(block, 1, cur);
-			low = 1;
-			if (!(high = be16_to_cpu(block->bb_numrecs))) {
-				ASSERT(level == 0);
-				cur->bc_ptrs[0] = dir != XFS_LOOKUP_LE;
-				XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-				*stat = 0;
-				return 0;
-			}
-			while (low <= high) {
-				XFS_STATS_INC(xs_bmbt_compare);
-				keyno = (low + high) >> 1;
-				if (level > 0) {
-					kkp = kkbase + keyno - 1;
-					startoff = be64_to_cpu(kkp->br_startoff);
-				} else {
-					krp = krbase + keyno - 1;
-					startoff = xfs_bmbt_disk_get_startoff(krp);
-				}
-				diff = (xfs_sfiloff_t)
-						(startoff - rp->br_startoff);
-				if (diff < 0)
-					low = keyno + 1;
-				else if (diff > 0)
-					high = keyno - 1;
-				else
-					break;
-			}
-		}
-		if (level > 0) {
-			if (diff > 0 && --keyno < 1)
-				keyno = 1;
-			pp = XFS_BMAP_PTR_IADDR(block, keyno, cur);
-			fsbno = be64_to_cpu(*pp);
-#ifdef DEBUG
-			if ((error = xfs_btree_check_lptr(cur, fsbno, level))) {
-				XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-				return error;
-			}
-#endif
-			cur->bc_ptrs[level] = keyno;
-		}
-	}
-	if (dir != XFS_LOOKUP_LE && diff < 0) {
-		keyno++;
-		/*
-		 * If ge search and we went off the end of the block, but it's
-		 * not the last block, we're in the wrong block.
-		 */
-		if (dir == XFS_LOOKUP_GE && keyno > be16_to_cpu(block->bb_numrecs) &&
-		    be64_to_cpu(block->bb_rightsib) != NULLDFSBNO) {
-			cur->bc_ptrs[0] = keyno;
-			if ((error = xfs_btree_increment(cur, 0, &i))) {
-				XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-				return error;
-			}
-			XFS_WANT_CORRUPTED_RETURN(i == 1);
-			XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-			*stat = 1;
-			return 0;
-		}
-	}
-	else if (dir == XFS_LOOKUP_LE && diff > 0)
-		keyno--;
-	cur->bc_ptrs[0] = keyno;
-	if (keyno == 0 || keyno > be16_to_cpu(block->bb_numrecs)) {
-		XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-		*stat = 0;
-	} else {
-		XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-		*stat = ((dir != XFS_LOOKUP_EQ) || (diff == 0));
-	}
-	return 0;
-}
-
-/*
  * Move 1 record left from cur/level if possible.
  * Update cur to reflect the new path.
  */
@@ -1809,34 +1669,6 @@ xfs_bmbt_log_recs(
 	XFS_BMBT_TRACE_CURSOR(cur, EXIT);
 }
 
-int					/* error */
-xfs_bmbt_lookup_eq(
-	xfs_btree_cur_t	*cur,
-	xfs_fileoff_t	off,
-	xfs_fsblock_t	bno,
-	xfs_filblks_t	len,
-	int		*stat)		/* success/failure */
-{
-	cur->bc_rec.b.br_startoff = off;
-	cur->bc_rec.b.br_startblock = bno;
-	cur->bc_rec.b.br_blockcount = len;
-	return xfs_bmbt_lookup(cur, XFS_LOOKUP_EQ, stat);
-}
-
-int					/* error */
-xfs_bmbt_lookup_ge(
-	xfs_btree_cur_t	*cur,
-	xfs_fileoff_t	off,
-	xfs_fsblock_t	bno,
-	xfs_filblks_t	len,
-	int		*stat)		/* success/failure */
-{
-	cur->bc_rec.b.br_startoff = off;
-	cur->bc_rec.b.br_startblock = bno;
-	cur->bc_rec.b.br_blockcount = len;
-	return xfs_bmbt_lookup(cur, XFS_LOOKUP_GE, stat);
-}
-
 /*
  * Give the bmap btree a new root block.  Copy the old broot contents
  * down into a real block and make the broot point to it.
@@ -2269,6 +2101,32 @@ xfs_bmbt_get_maxrecs(
 	return XFS_BMAP_BLOCK_IMAXRECS(level, cur);
 }
 
+STATIC void
+xfs_bmbt_init_key_from_rec(
+	union xfs_btree_key	*key,
+	union xfs_btree_rec	*rec)
+{
+	key->bmbt.br_startoff =
+		cpu_to_be64(xfs_bmbt_disk_get_startoff(&rec->bmbt));
+}
+
+STATIC void
+xfs_bmbt_init_ptr_from_cur(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_ptr	*ptr)
+{
+	ptr->l = 0;
+}
+
+STATIC __int64_t
+xfs_bmbt_key_diff(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_key	*key)
+{
+	return (__int64_t)be64_to_cpu(key->bmbt.br_startoff) -
+				      cur->bc_rec.b.br_startoff;
+}
+
 #ifdef XFS_BTREE_TRACE
 ktrace_t	*xfs_bmbt_trace_buf;
 
@@ -2360,6 +2218,9 @@ static const struct xfs_btree_ops xfs_bmbt_ops = {
 
 	.dup_cursor		= xfs_bmbt_dup_cursor,
 	.get_maxrecs		= xfs_bmbt_get_maxrecs,
+	.init_key_from_rec	= xfs_bmbt_init_key_from_rec,
+	.init_ptr_from_cur	= xfs_bmbt_init_ptr_from_cur,
+	.key_diff		= xfs_bmbt_key_diff,
 
 #ifdef XFS_BTREE_TRACE
 	.trace_enter		= xfs_bmbt_trace_enter,

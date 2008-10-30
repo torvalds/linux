@@ -114,26 +114,6 @@ extern int xfs_alloc_get_rec(struct xfs_btree_cur *cur,	xfs_agblock_t *bno,
 extern int xfs_alloc_insert(struct xfs_btree_cur *cur, int *stat);
 
 /*
- * Lookup the record equal to [bno, len] in the btree given by cur.
- */
-extern int xfs_alloc_lookup_eq(struct xfs_btree_cur *cur, xfs_agblock_t bno,
-				xfs_extlen_t len, int *stat);
-
-/*
- * Lookup the first record greater than or equal to [bno, len]
- * in the btree given by cur.
- */
-extern int xfs_alloc_lookup_ge(struct xfs_btree_cur *cur, xfs_agblock_t bno,
-				xfs_extlen_t len, int *stat);
-
-/*
- * Lookup the first record less than or equal to [bno, len]
- * in the btree given by cur.
- */
-extern int xfs_alloc_lookup_le(struct xfs_btree_cur *cur, xfs_agblock_t bno,
-				xfs_extlen_t len, int *stat);
-
-/*
  * Update the record referred to by cur, to the value given by [bno, len].
  * This either works (return 0) or gets an EFSCORRUPTED error.
  */

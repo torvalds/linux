@@ -1270,3 +1270,222 @@ error0:
 	return error;
 }
 
+
+STATIC int
+xfs_btree_lookup_get_block(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	int			level,	/* level in the btree */
+	union xfs_btree_ptr	*pp,	/* ptr to btree block */
+	struct xfs_btree_block	**blkp) /* return btree block */
+{
+	struct xfs_buf		*bp;	/* buffer pointer for btree block */
+	int			error = 0;
+
+	/* special case the root block if in an inode */
+	if ((cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) &&
+	    (level == cur->bc_nlevels - 1)) {
+		*blkp = xfs_btree_get_iroot(cur);
+		return 0;
+	}
+
+	/*
+	 * If the old buffer at this level for the disk address we are
+	 * looking for re-use it.
+	 *
+	 * Otherwise throw it away and get a new one.
+	 */
+	bp = cur->bc_bufs[level];
+	if (bp && XFS_BUF_ADDR(bp) == xfs_btree_ptr_to_daddr(cur, pp)) {
+		*blkp = XFS_BUF_TO_BLOCK(bp);
+		return 0;
+	}
+
+	error = xfs_btree_read_buf_block(cur, pp, level, 0, blkp, &bp);
+	if (error)
+		return error;
+
+	xfs_btree_setbuf(cur, level, bp);
+	return 0;
+}
+
+/*
+ * Get current search key.  For level 0 we don't actually have a key
+ * structure so we make one up from the record.  For all other levels
+ * we just return the right key.
+ */
+STATIC union xfs_btree_key *
+xfs_lookup_get_search_key(
+	struct xfs_btree_cur	*cur,
+	int			level,
+	int			keyno,
+	struct xfs_btree_block	*block,
+	union xfs_btree_key	*kp)
+{
+	if (level == 0) {
+		cur->bc_ops->init_key_from_rec(kp,
+				xfs_btree_rec_addr(cur, keyno, block));
+		return kp;
+	}
+
+	return xfs_btree_key_addr(cur, keyno, block);
+}
+
+/*
+ * Lookup the record.  The cursor is made to point to it, based on dir.
+ * Return 0 if can't find any such record, 1 for success.
+ */
+int					/* error */
+xfs_btree_lookup(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	xfs_lookup_t		dir,	/* <=, ==, or >= */
+	int			*stat)	/* success/failure */
+{
+	struct xfs_btree_block	*block;	/* current btree block */
+	__int64_t		diff;	/* difference for the current key */
+	int			error;	/* error return value */
+	int			keyno;	/* current key number */
+	int			level;	/* level in the btree */
+	union xfs_btree_ptr	*pp;	/* ptr to btree block */
+	union xfs_btree_ptr	ptr;	/* ptr to btree block */
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
+	XFS_BTREE_TRACE_ARGI(cur, dir);
+
+	XFS_BTREE_STATS_INC(cur, lookup);
+
+	block = NULL;
+	keyno = 0;
+
+	/* initialise start pointer from cursor */
+	cur->bc_ops->init_ptr_from_cur(cur, &ptr);
+	pp = &ptr;
+
+	/*
+	 * Iterate over each level in the btree, starting at the root.
+	 * For each level above the leaves, find the key we need, based
+	 * on the lookup record, then follow the corresponding block
+	 * pointer down to the next level.
+	 */
+	for (level = cur->bc_nlevels - 1, diff = 1; level >= 0; level--) {
+		/* Get the block we need to do the lookup on. */
+		error = xfs_btree_lookup_get_block(cur, level, pp, &block);
+		if (error)
+			goto error0;
+
+		if (diff == 0) {
+			/*
+			 * If we already had a key match at a higher level, we
+			 * know we need to use the first entry in this block.
+			 */
+			keyno = 1;
+		} else {
+			/* Otherwise search this block. Do a binary search. */
+
+			int	high;	/* high entry number */
+			int	low;	/* low entry number */
+
+			/* Set low and high entry numbers, 1-based. */
+			low = 1;
+			high = xfs_btree_get_numrecs(block);
+			if (!high) {
+				/* Block is empty, must be an empty leaf. */
+				ASSERT(level == 0 && cur->bc_nlevels == 1);
+
+				cur->bc_ptrs[0] = dir != XFS_LOOKUP_LE;
+				XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+				*stat = 0;
+				return 0;
+			}
+
+			/* Binary search the block. */
+			while (low <= high) {
+				union xfs_btree_key	key;
+				union xfs_btree_key	*kp;
+
+				XFS_BTREE_STATS_INC(cur, compare);
+
+				/* keyno is average of low and high. */
+				keyno = (low + high) >> 1;
+
+				/* Get current search key */
+				kp = xfs_lookup_get_search_key(cur, level,
+						keyno, block, &key);
+
+				/*
+				 * Compute difference to get next direction:
+				 *  - less than, move right
+				 *  - greater than, move left
+				 *  - equal, we're done
+				 */
+				diff = cur->bc_ops->key_diff(cur, kp);
+				if (diff < 0)
+					low = keyno + 1;
+				else if (diff > 0)
+					high = keyno - 1;
+				else
+					break;
+			}
+		}
+
+		/*
+		 * If there are more levels, set up for the next level
+		 * by getting the block number and filling in the cursor.
+		 */
+		if (level > 0) {
+			/*
+			 * If we moved left, need the previous key number,
+			 * unless there isn't one.
+			 */
+			if (diff > 0 && --keyno < 1)
+				keyno = 1;
+			pp = xfs_btree_ptr_addr(cur, keyno, block);
+
+#ifdef DEBUG
+			error = xfs_btree_check_ptr(cur, pp, 0, level);
+			if (error)
+				goto error0;
+#endif
+			cur->bc_ptrs[level] = keyno;
+		}
+	}
+
+	/* Done with the search. See if we need to adjust the results. */
+	if (dir != XFS_LOOKUP_LE && diff < 0) {
+		keyno++;
+		/*
+		 * If ge search and we went off the end of the block, but it's
+		 * not the last block, we're in the wrong block.
+		 */
+		xfs_btree_get_sibling(cur, block, &ptr, XFS_BB_RIGHTSIB);
+		if (dir == XFS_LOOKUP_GE &&
+		    keyno > xfs_btree_get_numrecs(block) &&
+		    !xfs_btree_ptr_is_null(cur, &ptr)) {
+			int	i;
+
+			cur->bc_ptrs[0] = keyno;
+			error = xfs_btree_increment(cur, 0, &i);
+			if (error)
+				goto error0;
+			XFS_WANT_CORRUPTED_RETURN(i == 1);
+			XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+			*stat = 1;
+			return 0;
+		}
+	} else if (dir == XFS_LOOKUP_LE && diff > 0)
+		keyno--;
+	cur->bc_ptrs[0] = keyno;
+
+	/* Return if we succeeded or not. */
+	if (keyno == 0 || keyno > xfs_btree_get_numrecs(block))
+		*stat = 0;
+	else if (dir != XFS_LOOKUP_EQ || diff == 0)
+		*stat = 1;
+	else
+		*stat = 0;
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+	return 0;
+
+error0:
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+	return error;
+}

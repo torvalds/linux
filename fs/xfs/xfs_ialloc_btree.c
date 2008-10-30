@@ -829,212 +829,6 @@ xfs_inobt_log_recs(
 }
 
 /*
- * Lookup the record.  The cursor is made to point to it, based on dir.
- * Return 0 if can't find any such record, 1 for success.
- */
-STATIC int				/* error */
-xfs_inobt_lookup(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	xfs_lookup_t		dir,	/* <=, ==, or >= */
-	int			*stat)	/* success/failure */
-{
-	xfs_agblock_t		agbno;	/* a.g. relative btree block number */
-	xfs_agnumber_t		agno;	/* allocation group number */
-	xfs_inobt_block_t	*block=NULL;	/* current btree block */
-	__int64_t		diff;	/* difference for the current key */
-	int			error;	/* error return value */
-	int			keyno=0;	/* current key number */
-	int			level;	/* level in the btree */
-	xfs_mount_t		*mp;	/* file system mount point */
-
-	/*
-	 * Get the allocation group header, and the root block number.
-	 */
-	mp = cur->bc_mp;
-	{
-		xfs_agi_t	*agi;	/* a.g. inode header */
-
-		agi = XFS_BUF_TO_AGI(cur->bc_private.a.agbp);
-		agno = be32_to_cpu(agi->agi_seqno);
-		agbno = be32_to_cpu(agi->agi_root);
-	}
-	/*
-	 * Iterate over each level in the btree, starting at the root.
-	 * For each level above the leaves, find the key we need, based
-	 * on the lookup record, then follow the corresponding block
-	 * pointer down to the next level.
-	 */
-	for (level = cur->bc_nlevels - 1, diff = 1; level >= 0; level--) {
-		xfs_buf_t	*bp;	/* buffer pointer for btree block */
-		xfs_daddr_t	d;	/* disk address of btree block */
-
-		/*
-		 * Get the disk address we're looking for.
-		 */
-		d = XFS_AGB_TO_DADDR(mp, agno, agbno);
-		/*
-		 * If the old buffer at this level is for a different block,
-		 * throw it away, otherwise just use it.
-		 */
-		bp = cur->bc_bufs[level];
-		if (bp && XFS_BUF_ADDR(bp) != d)
-			bp = NULL;
-		if (!bp) {
-			/*
-			 * Need to get a new buffer.  Read it, then
-			 * set it in the cursor, releasing the old one.
-			 */
-			if ((error = xfs_btree_read_bufs(mp, cur->bc_tp,
-					agno, agbno, 0, &bp, XFS_INO_BTREE_REF)))
-				return error;
-			xfs_btree_setbuf(cur, level, bp);
-			/*
-			 * Point to the btree block, now that we have the buffer
-			 */
-			block = XFS_BUF_TO_INOBT_BLOCK(bp);
-			if ((error = xfs_btree_check_sblock(cur, block, level,
-					bp)))
-				return error;
-		} else
-			block = XFS_BUF_TO_INOBT_BLOCK(bp);
-		/*
-		 * If we already had a key match at a higher level, we know
-		 * we need to use the first entry in this block.
-		 */
-		if (diff == 0)
-			keyno = 1;
-		/*
-		 * Otherwise we need to search this block.  Do a binary search.
-		 */
-		else {
-			int		high;	/* high entry number */
-			xfs_inobt_key_t	*kkbase=NULL;/* base of keys in block */
-			xfs_inobt_rec_t	*krbase=NULL;/* base of records in block */
-			int		low;	/* low entry number */
-
-			/*
-			 * Get a pointer to keys or records.
-			 */
-			if (level > 0)
-				kkbase = XFS_INOBT_KEY_ADDR(block, 1, cur);
-			else
-				krbase = XFS_INOBT_REC_ADDR(block, 1, cur);
-			/*
-			 * Set low and high entry numbers, 1-based.
-			 */
-			low = 1;
-			if (!(high = be16_to_cpu(block->bb_numrecs))) {
-				/*
-				 * If the block is empty, the tree must
-				 * be an empty leaf.
-				 */
-				ASSERT(level == 0 && cur->bc_nlevels == 1);
-				cur->bc_ptrs[0] = dir != XFS_LOOKUP_LE;
-				*stat = 0;
-				return 0;
-			}
-			/*
-			 * Binary search the block.
-			 */
-			while (low <= high) {
-				xfs_agino_t	startino;	/* key value */
-
-				/*
-				 * keyno is average of low and high.
-				 */
-				keyno = (low + high) >> 1;
-				/*
-				 * Get startino.
-				 */
-				if (level > 0) {
-					xfs_inobt_key_t	*kkp;
-
-					kkp = kkbase + keyno - 1;
-					startino = be32_to_cpu(kkp->ir_startino);
-				} else {
-					xfs_inobt_rec_t	*krp;
-
-					krp = krbase + keyno - 1;
-					startino = be32_to_cpu(krp->ir_startino);
-				}
-				/*
-				 * Compute difference to get next direction.
-				 */
-				diff = (__int64_t)
-					startino - cur->bc_rec.i.ir_startino;
-				/*
-				 * Less than, move right.
-				 */
-				if (diff < 0)
-					low = keyno + 1;
-				/*
-				 * Greater than, move left.
-				 */
-				else if (diff > 0)
-					high = keyno - 1;
-				/*
-				 * Equal, we're done.
-				 */
-				else
-					break;
-			}
-		}
-		/*
-		 * If there are more levels, set up for the next level
-		 * by getting the block number and filling in the cursor.
-		 */
-		if (level > 0) {
-			/*
-			 * If we moved left, need the previous key number,
-			 * unless there isn't one.
-			 */
-			if (diff > 0 && --keyno < 1)
-				keyno = 1;
-			agbno = be32_to_cpu(*XFS_INOBT_PTR_ADDR(block, keyno, cur));
-#ifdef DEBUG
-			if ((error = xfs_btree_check_sptr(cur, agbno, level)))
-				return error;
-#endif
-			cur->bc_ptrs[level] = keyno;
-		}
-	}
-	/*
-	 * Done with the search.
-	 * See if we need to adjust the results.
-	 */
-	if (dir != XFS_LOOKUP_LE && diff < 0) {
-		keyno++;
-		/*
-		 * If ge search and we went off the end of the block, but it's
-		 * not the last block, we're in the wrong block.
-		 */
-		if (dir == XFS_LOOKUP_GE &&
-		    keyno > be16_to_cpu(block->bb_numrecs) &&
-		    be32_to_cpu(block->bb_rightsib) != NULLAGBLOCK) {
-			int	i;
-
-			cur->bc_ptrs[0] = keyno;
-			if ((error = xfs_btree_increment(cur, 0, &i)))
-				return error;
-			ASSERT(i == 1);
-			*stat = 1;
-			return 0;
-		}
-	}
-	else if (dir == XFS_LOOKUP_LE && diff > 0)
-		keyno--;
-	cur->bc_ptrs[0] = keyno;
-	/*
-	 * Return if we succeeded or not.
-	 */
-	if (keyno == 0 || keyno > be16_to_cpu(block->bb_numrecs))
-		*stat = 0;
-	else
-		*stat = ((dir != XFS_LOOKUP_EQ) || (diff == 0));
-	return 0;
-}
-
-/*
  * Move 1 record left from cur/level if possible.
  * Update cur to reflect the new path.
  */
@@ -1798,59 +1592,6 @@ xfs_inobt_insert(
 }
 
 /*
- * Lookup the record equal to ino in the btree given by cur.
- */
-int					/* error */
-xfs_inobt_lookup_eq(
-	xfs_btree_cur_t	*cur,		/* btree cursor */
-	xfs_agino_t	ino,		/* starting inode of chunk */
-	__int32_t	fcnt,		/* free inode count */
-	xfs_inofree_t	free,		/* free inode mask */
-	int		*stat)		/* success/failure */
-{
-	cur->bc_rec.i.ir_startino = ino;
-	cur->bc_rec.i.ir_freecount = fcnt;
-	cur->bc_rec.i.ir_free = free;
-	return xfs_inobt_lookup(cur, XFS_LOOKUP_EQ, stat);
-}
-
-/*
- * Lookup the first record greater than or equal to ino
- * in the btree given by cur.
- */
-int					/* error */
-xfs_inobt_lookup_ge(
-	xfs_btree_cur_t	*cur,		/* btree cursor */
-	xfs_agino_t	ino,		/* starting inode of chunk */
-	__int32_t	fcnt,		/* free inode count */
-	xfs_inofree_t	free,		/* free inode mask */
-	int		*stat)		/* success/failure */
-{
-	cur->bc_rec.i.ir_startino = ino;
-	cur->bc_rec.i.ir_freecount = fcnt;
-	cur->bc_rec.i.ir_free = free;
-	return xfs_inobt_lookup(cur, XFS_LOOKUP_GE, stat);
-}
-
-/*
- * Lookup the first record less than or equal to ino
- * in the btree given by cur.
- */
-int					/* error */
-xfs_inobt_lookup_le(
-	xfs_btree_cur_t	*cur,		/* btree cursor */
-	xfs_agino_t	ino,		/* starting inode of chunk */
-	__int32_t	fcnt,		/* free inode count */
-	xfs_inofree_t	free,		/* free inode mask */
-	int		*stat)		/* success/failure */
-{
-	cur->bc_rec.i.ir_startino = ino;
-	cur->bc_rec.i.ir_freecount = fcnt;
-	cur->bc_rec.i.ir_free = free;
-	return xfs_inobt_lookup(cur, XFS_LOOKUP_LE, stat);
-}
-
-/*
  * Update the record referred to by cur, to the value given
  * by [ino, fcnt, free].
  * This either works (return 0) or gets an EFSCORRUPTED error.
@@ -1916,6 +1657,38 @@ xfs_inobt_get_maxrecs(
 	int			level)
 {
 	return cur->bc_mp->m_inobt_mxr[level != 0];
+}
+
+STATIC void
+xfs_inobt_init_key_from_rec(
+	union xfs_btree_key	*key,
+	union xfs_btree_rec	*rec)
+{
+	key->inobt.ir_startino = rec->inobt.ir_startino;
+}
+
+/*
+ * intial value of ptr for lookup
+ */
+STATIC void
+xfs_inobt_init_ptr_from_cur(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_ptr	*ptr)
+{
+	struct xfs_agi		*agi = XFS_BUF_TO_AGI(cur->bc_private.a.agbp);
+
+	ASSERT(cur->bc_private.a.agno == be32_to_cpu(agi->agi_seqno));
+
+	ptr->s = agi->agi_root;
+}
+
+STATIC __int64_t
+xfs_inobt_key_diff(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_key	*key)
+{
+	return (__int64_t)be32_to_cpu(key->inobt.ir_startino) -
+			  cur->bc_rec.i.ir_startino;
 }
 
 #ifdef XFS_BTREE_TRACE
@@ -1990,6 +1763,9 @@ static const struct xfs_btree_ops xfs_inobt_ops = {
 
 	.dup_cursor		= xfs_inobt_dup_cursor,
 	.get_maxrecs		= xfs_inobt_get_maxrecs,
+	.init_key_from_rec	= xfs_inobt_init_key_from_rec,
+	.init_ptr_from_cur	= xfs_inobt_init_ptr_from_cur,
+	.key_diff		= xfs_inobt_key_diff,
 
 #ifdef XFS_BTREE_TRACE
 	.trace_enter		= xfs_inobt_trace_enter,

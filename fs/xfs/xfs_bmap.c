@@ -402,6 +402,35 @@ xfs_bmap_disk_count_leaves(
  * Bmap internal routines.
  */
 
+STATIC int				/* error */
+xfs_bmbt_lookup_eq(
+	struct xfs_btree_cur	*cur,
+	xfs_fileoff_t		off,
+	xfs_fsblock_t		bno,
+	xfs_filblks_t		len,
+	int			*stat)	/* success/failure */
+{
+	cur->bc_rec.b.br_startoff = off;
+	cur->bc_rec.b.br_startblock = bno;
+	cur->bc_rec.b.br_blockcount = len;
+	return xfs_btree_lookup(cur, XFS_LOOKUP_EQ, stat);
+}
+
+STATIC int				/* error */
+xfs_bmbt_lookup_ge(
+	struct xfs_btree_cur	*cur,
+	xfs_fileoff_t		off,
+	xfs_fsblock_t		bno,
+	xfs_filblks_t		len,
+	int			*stat)	/* success/failure */
+{
+	cur->bc_rec.b.br_startoff = off;
+	cur->bc_rec.b.br_startblock = bno;
+	cur->bc_rec.b.br_blockcount = len;
+	return xfs_btree_lookup(cur, XFS_LOOKUP_GE, stat);
+}
+
+
 /*
  * Called from xfs_bmap_add_attrfork to handle btree format files.
  */

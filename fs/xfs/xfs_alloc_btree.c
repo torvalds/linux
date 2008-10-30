@@ -938,223 +938,6 @@ xfs_alloc_log_recs(
 }
 
 /*
- * Lookup the record.  The cursor is made to point to it, based on dir.
- * Return 0 if can't find any such record, 1 for success.
- */
-STATIC int				/* error */
-xfs_alloc_lookup(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	xfs_lookup_t		dir,	/* <=, ==, or >= */
-	int			*stat)	/* success/failure */
-{
-	xfs_agblock_t		agbno;	/* a.g. relative btree block number */
-	xfs_agnumber_t		agno;	/* allocation group number */
-	xfs_alloc_block_t	*block=NULL;	/* current btree block */
-	int			diff;	/* difference for the current key */
-	int			error;	/* error return value */
-	int			keyno=0;	/* current key number */
-	int			level;	/* level in the btree */
-	xfs_mount_t		*mp;	/* file system mount point */
-
-	XFS_STATS_INC(xs_abt_lookup);
-	/*
-	 * Get the allocation group header, and the root block number.
-	 */
-	mp = cur->bc_mp;
-
-	{
-		xfs_agf_t	*agf;	/* a.g. freespace header */
-
-		agf = XFS_BUF_TO_AGF(cur->bc_private.a.agbp);
-		agno = be32_to_cpu(agf->agf_seqno);
-		agbno = be32_to_cpu(agf->agf_roots[cur->bc_btnum]);
-	}
-	/*
-	 * Iterate over each level in the btree, starting at the root.
-	 * For each level above the leaves, find the key we need, based
-	 * on the lookup record, then follow the corresponding block
-	 * pointer down to the next level.
-	 */
-	for (level = cur->bc_nlevels - 1, diff = 1; level >= 0; level--) {
-		xfs_buf_t	*bp;	/* buffer pointer for btree block */
-		xfs_daddr_t	d;	/* disk address of btree block */
-
-		/*
-		 * Get the disk address we're looking for.
-		 */
-		d = XFS_AGB_TO_DADDR(mp, agno, agbno);
-		/*
-		 * If the old buffer at this level is for a different block,
-		 * throw it away, otherwise just use it.
-		 */
-		bp = cur->bc_bufs[level];
-		if (bp && XFS_BUF_ADDR(bp) != d)
-			bp = NULL;
-		if (!bp) {
-			/*
-			 * Need to get a new buffer.  Read it, then
-			 * set it in the cursor, releasing the old one.
-			 */
-			if ((error = xfs_btree_read_bufs(mp, cur->bc_tp, agno,
-					agbno, 0, &bp, XFS_ALLOC_BTREE_REF)))
-				return error;
-			xfs_btree_setbuf(cur, level, bp);
-			/*
-			 * Point to the btree block, now that we have the buffer
-			 */
-			block = XFS_BUF_TO_ALLOC_BLOCK(bp);
-			if ((error = xfs_btree_check_sblock(cur, block, level,
-					bp)))
-				return error;
-		} else
-			block = XFS_BUF_TO_ALLOC_BLOCK(bp);
-		/*
-		 * If we already had a key match at a higher level, we know
-		 * we need to use the first entry in this block.
-		 */
-		if (diff == 0)
-			keyno = 1;
-		/*
-		 * Otherwise we need to search this block.  Do a binary search.
-		 */
-		else {
-			int		high;	/* high entry number */
-			xfs_alloc_key_t	*kkbase=NULL;/* base of keys in block */
-			xfs_alloc_rec_t	*krbase=NULL;/* base of records in block */
-			int		low;	/* low entry number */
-
-			/*
-			 * Get a pointer to keys or records.
-			 */
-			if (level > 0)
-				kkbase = XFS_ALLOC_KEY_ADDR(block, 1, cur);
-			else
-				krbase = XFS_ALLOC_REC_ADDR(block, 1, cur);
-			/*
-			 * Set low and high entry numbers, 1-based.
-			 */
-			low = 1;
-			if (!(high = be16_to_cpu(block->bb_numrecs))) {
-				/*
-				 * If the block is empty, the tree must
-				 * be an empty leaf.
-				 */
-				ASSERT(level == 0 && cur->bc_nlevels == 1);
-				cur->bc_ptrs[0] = dir != XFS_LOOKUP_LE;
-				*stat = 0;
-				return 0;
-			}
-			/*
-			 * Binary search the block.
-			 */
-			while (low <= high) {
-				xfs_extlen_t	blockcount;	/* key value */
-				xfs_agblock_t	startblock;	/* key value */
-
-				XFS_STATS_INC(xs_abt_compare);
-				/*
-				 * keyno is average of low and high.
-				 */
-				keyno = (low + high) >> 1;
-				/*
-				 * Get startblock & blockcount.
-				 */
-				if (level > 0) {
-					xfs_alloc_key_t	*kkp;
-
-					kkp = kkbase + keyno - 1;
-					startblock = be32_to_cpu(kkp->ar_startblock);
-					blockcount = be32_to_cpu(kkp->ar_blockcount);
-				} else {
-					xfs_alloc_rec_t	*krp;
-
-					krp = krbase + keyno - 1;
-					startblock = be32_to_cpu(krp->ar_startblock);
-					blockcount = be32_to_cpu(krp->ar_blockcount);
-				}
-				/*
-				 * Compute difference to get next direction.
-				 */
-				if (cur->bc_btnum == XFS_BTNUM_BNO)
-					diff = (int)startblock -
-					       (int)cur->bc_rec.a.ar_startblock;
-				else if (!(diff = (int)blockcount -
-					    (int)cur->bc_rec.a.ar_blockcount))
-					diff = (int)startblock -
-					    (int)cur->bc_rec.a.ar_startblock;
-				/*
-				 * Less than, move right.
-				 */
-				if (diff < 0)
-					low = keyno + 1;
-				/*
-				 * Greater than, move left.
-				 */
-				else if (diff > 0)
-					high = keyno - 1;
-				/*
-				 * Equal, we're done.
-				 */
-				else
-					break;
-			}
-		}
-		/*
-		 * If there are more levels, set up for the next level
-		 * by getting the block number and filling in the cursor.
-		 */
-		if (level > 0) {
-			/*
-			 * If we moved left, need the previous key number,
-			 * unless there isn't one.
-			 */
-			if (diff > 0 && --keyno < 1)
-				keyno = 1;
-			agbno = be32_to_cpu(*XFS_ALLOC_PTR_ADDR(block, keyno, cur));
-#ifdef DEBUG
-			if ((error = xfs_btree_check_sptr(cur, agbno, level)))
-				return error;
-#endif
-			cur->bc_ptrs[level] = keyno;
-		}
-	}
-	/*
-	 * Done with the search.
-	 * See if we need to adjust the results.
-	 */
-	if (dir != XFS_LOOKUP_LE && diff < 0) {
-		keyno++;
-		/*
-		 * If ge search and we went off the end of the block, but it's
-		 * not the last block, we're in the wrong block.
-		 */
-		if (dir == XFS_LOOKUP_GE &&
-		    keyno > be16_to_cpu(block->bb_numrecs) &&
-		    be32_to_cpu(block->bb_rightsib) != NULLAGBLOCK) {
-			int	i;
-
-			cur->bc_ptrs[0] = keyno;
-			if ((error = xfs_btree_increment(cur, 0, &i)))
-				return error;
-			XFS_WANT_CORRUPTED_RETURN(i == 1);
-			*stat = 1;
-			return 0;
-		}
-	}
-	else if (dir == XFS_LOOKUP_LE && diff > 0)
-		keyno--;
-	cur->bc_ptrs[0] = keyno;
-	/*
-	 * Return if we succeeded or not.
-	 */
-	if (keyno == 0 || keyno > be16_to_cpu(block->bb_numrecs))
-		*stat = 0;
-	else
-		*stat = ((dir != XFS_LOOKUP_EQ) || (diff == 0));
-	return 0;
-}
-
-/*
  * Move 1 record left from cur/level if possible.
  * Update cur to reflect the new path.
  */
@@ -1919,53 +1702,6 @@ xfs_alloc_insert(
 }
 
 /*
- * Lookup the record equal to [bno, len] in the btree given by cur.
- */
-int					/* error */
-xfs_alloc_lookup_eq(
-	xfs_btree_cur_t	*cur,		/* btree cursor */
-	xfs_agblock_t	bno,		/* starting block of extent */
-	xfs_extlen_t	len,		/* length of extent */
-	int		*stat)		/* success/failure */
-{
-	cur->bc_rec.a.ar_startblock = bno;
-	cur->bc_rec.a.ar_blockcount = len;
-	return xfs_alloc_lookup(cur, XFS_LOOKUP_EQ, stat);
-}
-
-/*
- * Lookup the first record greater than or equal to [bno, len]
- * in the btree given by cur.
- */
-int					/* error */
-xfs_alloc_lookup_ge(
-	xfs_btree_cur_t	*cur,		/* btree cursor */
-	xfs_agblock_t	bno,		/* starting block of extent */
-	xfs_extlen_t	len,		/* length of extent */
-	int		*stat)		/* success/failure */
-{
-	cur->bc_rec.a.ar_startblock = bno;
-	cur->bc_rec.a.ar_blockcount = len;
-	return xfs_alloc_lookup(cur, XFS_LOOKUP_GE, stat);
-}
-
-/*
- * Lookup the first record less than or equal to [bno, len]
- * in the btree given by cur.
- */
-int					/* error */
-xfs_alloc_lookup_le(
-	xfs_btree_cur_t	*cur,		/* btree cursor */
-	xfs_agblock_t	bno,		/* starting block of extent */
-	xfs_extlen_t	len,		/* length of extent */
-	int		*stat)		/* success/failure */
-{
-	cur->bc_rec.a.ar_startblock = bno;
-	cur->bc_rec.a.ar_blockcount = len;
-	return xfs_alloc_lookup(cur, XFS_LOOKUP_LE, stat);
-}
-
-/*
  * Update the record referred to by cur, to the value given by [bno, len].
  * This either works (return 0) or gets an EFSCORRUPTED error.
  */
@@ -2052,6 +1788,51 @@ xfs_allocbt_get_maxrecs(
 	return cur->bc_mp->m_alloc_mxr[level != 0];
 }
 
+STATIC void
+xfs_allocbt_init_key_from_rec(
+	union xfs_btree_key	*key,
+	union xfs_btree_rec	*rec)
+{
+	ASSERT(rec->alloc.ar_startblock != 0);
+
+	key->alloc.ar_startblock = rec->alloc.ar_startblock;
+	key->alloc.ar_blockcount = rec->alloc.ar_blockcount;
+}
+
+STATIC void
+xfs_allocbt_init_ptr_from_cur(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_ptr	*ptr)
+{
+	struct xfs_agf		*agf = XFS_BUF_TO_AGF(cur->bc_private.a.agbp);
+
+	ASSERT(cur->bc_private.a.agno == be32_to_cpu(agf->agf_seqno));
+	ASSERT(agf->agf_roots[cur->bc_btnum] != 0);
+
+	ptr->s = agf->agf_roots[cur->bc_btnum];
+}
+
+STATIC __int64_t
+xfs_allocbt_key_diff(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_key	*key)
+{
+	xfs_alloc_rec_incore_t	*rec = &cur->bc_rec.a;
+	xfs_alloc_key_t		*kp = &key->alloc;
+	__int64_t		diff;
+
+	if (cur->bc_btnum == XFS_BTNUM_BNO) {
+		return (__int64_t)be32_to_cpu(kp->ar_startblock) -
+				rec->ar_startblock;
+	}
+
+	diff = (__int64_t)be32_to_cpu(kp->ar_blockcount) - rec->ar_blockcount;
+	if (diff)
+		return diff;
+
+	return (__int64_t)be32_to_cpu(kp->ar_startblock) - rec->ar_startblock;
+}
+
 #ifdef XFS_BTREE_TRACE
 ktrace_t	*xfs_allocbt_trace_buf;
 
@@ -2124,6 +1905,9 @@ static const struct xfs_btree_ops xfs_allocbt_ops = {
 
 	.dup_cursor		= xfs_allocbt_dup_cursor,
 	.get_maxrecs		= xfs_allocbt_get_maxrecs,
+	.init_key_from_rec	= xfs_allocbt_init_key_from_rec,
+	.init_ptr_from_cur	= xfs_allocbt_init_ptr_from_cur,
+	.key_diff		= xfs_allocbt_key_diff,
 
 #ifdef XFS_BTREE_TRACE
 	.trace_enter		= xfs_allocbt_trace_enter,
