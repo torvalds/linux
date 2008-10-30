@@ -65,7 +65,7 @@ static int ssb_pcihost_probe(struct pci_dev *dev,
 	err = pci_enable_device(dev);
 	if (err)
 		goto err_kfree_ssb;
-	name = dev->dev.bus_id;
+	name = dev_name(&dev->dev);
 	if (dev->driver && dev->driver->name)
 		name = dev->driver->name;
 	err = pci_request_regions(dev, name);
