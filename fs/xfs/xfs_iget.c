@@ -201,7 +201,7 @@ out_unlock:
 	if (lock_flags)
 		xfs_iunlock(ip, lock_flags);
 out_destroy:
-	xfs_idestroy(ip);
+	xfs_destroy_inode(ip);
 	return error;
 }
 
