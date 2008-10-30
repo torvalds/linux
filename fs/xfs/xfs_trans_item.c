@@ -22,6 +22,14 @@
 #include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
+/* XXX: from here down needed until struct xfs_trans has it's own ailp */
+#include "xfs_bit.h"
+#include "xfs_buf_item.h"
+#include "xfs_sb.h"
+#include "xfs_ag.h"
+#include "xfs_dir2.h"
+#include "xfs_dmapi.h"
+#include "xfs_mount.h"
 
 STATIC int	xfs_trans_unlock_chunk(xfs_log_item_chunk_t *,
 					int, int, xfs_lsn_t);
@@ -79,6 +87,7 @@ xfs_trans_add_item(xfs_trans_t *tp, xfs_log_item_t *lip)
 		lidp->lid_size = 0;
 		lip->li_desc = lidp;
 		lip->li_mountp = tp->t_mountp;
+		lip->li_ailp = tp->t_mountp->m_ail;
 		return lidp;
 	}
 
@@ -120,6 +129,7 @@ xfs_trans_add_item(xfs_trans_t *tp, xfs_log_item_t *lip)
 	lidp->lid_size = 0;
 	lip->li_desc = lidp;
 	lip->li_mountp = tp->t_mountp;
+	lip->li_ailp = tp->t_mountp->m_ail;
 	return lidp;
 }
 

@@ -731,6 +731,7 @@ xfs_buf_item_init(
 	bip->bli_item.li_type = XFS_LI_BUF;
 	bip->bli_item.li_ops = &xfs_buf_item_ops;
 	bip->bli_item.li_mountp = mp;
+	bip->bli_item.li_ailp = mp->m_ail;
 	bip->bli_buf = bp;
 	xfs_buf_hold(bp);
 	bip->bli_format.blf_type = XFS_LI_BUF;
@@ -1123,11 +1124,13 @@ xfs_buf_iodone(
 	xfs_buf_log_item_t	*bip)
 {
 	struct xfs_mount	*mp;
+	struct xfs_ail		*ailp;
 
 	ASSERT(bip->bli_buf == bp);
 
 	xfs_buf_rele(bp);
 	mp = bip->bli_item.li_mountp;
+	ailp = bip->bli_item.li_ailp;
 
 	/*
 	 * If we are forcibly shutting down, this may well be
@@ -1138,7 +1141,7 @@ xfs_buf_iodone(
 	 *
 	 * Either way, AIL is useless if we're forcing a shutdown.
 	 */
-	spin_lock(&mp->m_ail->xa_lock);
+	spin_lock(&ailp->xa_lock);
 	/*
 	 * xfs_trans_delete_ail() drops the AIL lock.
 	 */

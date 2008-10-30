@@ -932,6 +932,7 @@ xfs_inode_item_init(
 	iip->ili_item.li_type = XFS_LI_INODE;
 	iip->ili_item.li_ops = &xfs_inode_item_ops;
 	iip->ili_item.li_mountp = mp;
+	iip->ili_item.li_ailp = mp->m_ail;
 	iip->ili_inode = ip;
 
 	/*
