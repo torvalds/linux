@@ -1168,8 +1168,8 @@ xfs_difree(
 		xfs_trans_mod_sb(tp, XFS_TRANS_SB_ICOUNT, -ilen);
 		xfs_trans_mod_sb(tp, XFS_TRANS_SB_IFREE, -(ilen - 1));
 
-		if ((error = xfs_inobt_delete(cur, &i))) {
-			cmn_err(CE_WARN, "xfs_difree: xfs_inobt_delete returned an error %d on %s.\n",
+		if ((error = xfs_btree_delete(cur, &i))) {
+			cmn_err(CE_WARN, "xfs_difree: xfs_btree_delete returned an error %d on %s.\n",
 				error, mp->m_fsname);
 			goto error0;
 		}

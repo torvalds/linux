@@ -3171,3 +3171,596 @@ out0:
 	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	return 0;
 }
+
+STATIC int
+xfs_btree_dec_cursor(
+	struct xfs_btree_cur	*cur,
+	int			level,
+	int			*stat)
+{
+	int			error;
+	int			i;
+
+	if (level > 0) {
+		error = xfs_btree_decrement(cur, level, &i);
+		if (error)
+			return error;
+	}
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+	*stat = 1;
+	return 0;
+}
+
+/*
+ * Single level of the btree record deletion routine.
+ * Delete record pointed to by cur/level.
+ * Remove the record from its block then rebalance the tree.
+ * Return 0 for error, 1 for done, 2 to go on to the next level.
+ */
+STATIC int					/* error */
+xfs_btree_delrec(
+	struct xfs_btree_cur	*cur,		/* btree cursor */
+	int			level,		/* level removing record from */
+	int			*stat)		/* fail/done/go-on */
+{
+	struct xfs_btree_block	*block;		/* btree block */
+	union xfs_btree_ptr	cptr;		/* current block ptr */
+	struct xfs_buf		*bp;		/* buffer for block */
+	int			error;		/* error return value */
+	int			i;		/* loop counter */
+	union xfs_btree_key	key;		/* storage for keyp */
+	union xfs_btree_key	*keyp = &key;	/* passed to the next level */
+	union xfs_btree_ptr	lptr;		/* left sibling block ptr */
+	struct xfs_buf		*lbp;		/* left buffer pointer */
+	struct xfs_btree_block	*left;		/* left btree block */
+	int			lrecs = 0;	/* left record count */
+	int			ptr;		/* key/record index */
+	union xfs_btree_ptr	rptr;		/* right sibling block ptr */
+	struct xfs_buf		*rbp;		/* right buffer pointer */
+	struct xfs_btree_block	*right;		/* right btree block */
+	struct xfs_btree_block	*rrblock;	/* right-right btree block */
+	struct xfs_buf		*rrbp;		/* right-right buffer pointer */
+	int			rrecs = 0;	/* right record count */
+	struct xfs_btree_cur	*tcur;		/* temporary btree cursor */
+	int			numrecs;	/* temporary numrec count */
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
+	XFS_BTREE_TRACE_ARGI(cur, level);
+
+	tcur = NULL;
+
+	/* Get the index of the entry being deleted, check for nothing there. */
+	ptr = cur->bc_ptrs[level];
+	if (ptr == 0) {
+		XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+		*stat = 0;
+		return 0;
+	}
+
+	/* Get the buffer & block containing the record or key/ptr. */
+	block = xfs_btree_get_block(cur, level, &bp);
+	numrecs = xfs_btree_get_numrecs(block);
+
+#ifdef DEBUG
+	error = xfs_btree_check_block(cur, block, level, bp);
+	if (error)
+		goto error0;
+#endif
+
+	/* Fail if we're off the end of the block. */
+	if (ptr > numrecs) {
+		XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+		*stat = 0;
+		return 0;
+	}
+
+	XFS_BTREE_STATS_INC(cur, delrec);
+	XFS_BTREE_STATS_ADD(cur, moves, numrecs - ptr);
+
+	/* Excise the entries being deleted. */
+	if (level > 0) {
+		/* It's a nonleaf. operate on keys and ptrs */
+		union xfs_btree_key	*lkp;
+		union xfs_btree_ptr	*lpp;
+
+		lkp = xfs_btree_key_addr(cur, ptr + 1, block);
+		lpp = xfs_btree_ptr_addr(cur, ptr + 1, block);
+
+#ifdef DEBUG
+		for (i = 0; i < numrecs - ptr; i++) {
+			error = xfs_btree_check_ptr(cur, lpp, i, level);
+			if (error)
+				goto error0;
+		}
+#endif
+
+		if (ptr < numrecs) {
+			xfs_btree_shift_keys(cur, lkp, -1, numrecs - ptr);
+			xfs_btree_shift_ptrs(cur, lpp, -1, numrecs - ptr);
+			xfs_btree_log_keys(cur, bp, ptr, numrecs - 1);
+			xfs_btree_log_ptrs(cur, bp, ptr, numrecs - 1);
+		}
+
+		/*
+		 * If it's the first record in the block, we'll need to pass a
+		 * key up to the next level (updkey).
+		 */
+		if (ptr == 1)
+			keyp = xfs_btree_key_addr(cur, 1, block);
+	} else {
+		/* It's a leaf. operate on records */
+		if (ptr < numrecs) {
+			xfs_btree_shift_recs(cur,
+				xfs_btree_rec_addr(cur, ptr + 1, block),
+				-1, numrecs - ptr);
+			xfs_btree_log_recs(cur, bp, ptr, numrecs - 1);
+		}
+
+		/*
+		 * If it's the first record in the block, we'll need a key
+		 * structure to pass up to the next level (updkey).
+		 */
+		if (ptr == 1) {
+			cur->bc_ops->init_key_from_rec(&key,
+					xfs_btree_rec_addr(cur, 1, block));
+			keyp = &key;
+		}
+	}
+
+	/*
+	 * Decrement and log the number of entries in the block.
+	 */
+	xfs_btree_set_numrecs(block, --numrecs);
+	xfs_btree_log_block(cur, bp, XFS_BB_NUMRECS);
+
+	/*
+	 * If we are tracking the last record in the tree and
+	 * we are at the far right edge of the tree, update it.
+	 */
+	if (xfs_btree_is_lastrec(cur, block, level)) {
+		cur->bc_ops->update_lastrec(cur, block, NULL,
+					    ptr, LASTREC_DELREC);
+	}
+
+	/*
+	 * We're at the root level.  First, shrink the root block in-memory.
+	 * Try to get rid of the next level down.  If we can't then there's
+	 * nothing left to do.
+	 */
+	if (level == cur->bc_nlevels - 1) {
+		if (cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) {
+			xfs_iroot_realloc(cur->bc_private.b.ip, -1,
+					  cur->bc_private.b.whichfork);
+
+			error = xfs_btree_kill_iroot(cur);
+			if (error)
+				goto error0;
+
+			error = xfs_btree_dec_cursor(cur, level, stat);
+			if (error)
+				goto error0;
+			*stat = 1;
+			return 0;
+		}
+
+		/*
+		 * If this is the root level, and there's only one entry left,
+		 * and it's NOT the leaf level, then we can get rid of this
+		 * level.
+		 */
+		if (numrecs == 1 && level > 0) {
+			union xfs_btree_ptr	*pp;
+			/*
+			 * pp is still set to the first pointer in the block.
+			 * Make it the new root of the btree.
+			 */
+			pp = xfs_btree_ptr_addr(cur, 1, block);
+			error = cur->bc_ops->kill_root(cur, bp, level, pp);
+			if (error)
+				goto error0;
+		} else if (level > 0) {
+			error = xfs_btree_dec_cursor(cur, level, stat);
+			if (error)
+				goto error0;
+		}
+		*stat = 1;
+		return 0;
+	}
+
+	/*
+	 * If we deleted the leftmost entry in the block, update the
+	 * key values above us in the tree.
+	 */
+	if (ptr == 1) {
+		error = xfs_btree_updkey(cur, keyp, level + 1);
+		if (error)
+			goto error0;
+	}
+
+	/*
+	 * If the number of records remaining in the block is at least
+	 * the minimum, we're done.
+	 */
+	if (numrecs >= cur->bc_ops->get_minrecs(cur, level)) {
+		error = xfs_btree_dec_cursor(cur, level, stat);
+		if (error)
+			goto error0;
+		return 0;
+	}
+
+	/*
+	 * Otherwise, we have to move some records around to keep the
+	 * tree balanced.  Look at the left and right sibling blocks to
+	 * see if we can re-balance by moving only one record.
+	 */
+	xfs_btree_get_sibling(cur, block, &rptr, XFS_BB_RIGHTSIB);
+	xfs_btree_get_sibling(cur, block, &lptr, XFS_BB_LEFTSIB);
+
+	if (cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) {
+		/*
+		 * One child of root, need to get a chance to copy its contents
+		 * into the root and delete it. Can't go up to next level,
+		 * there's nothing to delete there.
+		 */
+		if (xfs_btree_ptr_is_null(cur, &rptr) &&
+		    xfs_btree_ptr_is_null(cur, &lptr) &&
+		    level == cur->bc_nlevels - 2) {
+			error = xfs_btree_kill_iroot(cur);
+			if (!error)
+				error = xfs_btree_dec_cursor(cur, level, stat);
+			if (error)
+				goto error0;
+			return 0;
+		}
+	}
+
+	ASSERT(!xfs_btree_ptr_is_null(cur, &rptr) ||
+	       !xfs_btree_ptr_is_null(cur, &lptr));
+
+	/*
+	 * Duplicate the cursor so our btree manipulations here won't
+	 * disrupt the next level up.
+	 */
+	error = xfs_btree_dup_cursor(cur, &tcur);
+	if (error)
+		goto error0;
+
+	/*
+	 * If there's a right sibling, see if it's ok to shift an entry
+	 * out of it.
+	 */
+	if (!xfs_btree_ptr_is_null(cur, &rptr)) {
+		/*
+		 * Move the temp cursor to the last entry in the next block.
+		 * Actually any entry but the first would suffice.
+		 */
+		i = xfs_btree_lastrec(tcur, level);
+		XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
+
+		error = xfs_btree_increment(tcur, level, &i);
+		if (error)
+			goto error0;
+		XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
+
+		i = xfs_btree_lastrec(tcur, level);
+		XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
+
+		/* Grab a pointer to the block. */
+		right = xfs_btree_get_block(tcur, level, &rbp);
+#ifdef DEBUG
+		error = xfs_btree_check_block(tcur, right, level, rbp);
+		if (error)
+			goto error0;
+#endif
+		/* Grab the current block number, for future use. */
+		xfs_btree_get_sibling(tcur, right, &cptr, XFS_BB_LEFTSIB);
+
+		/*
+		 * If right block is full enough so that removing one entry
+		 * won't make it too empty, and left-shifting an entry out
+		 * of right to us works, we're done.
+		 */
+		if (xfs_btree_get_numrecs(right) - 1 >=
+		    cur->bc_ops->get_minrecs(tcur, level)) {
+			error = xfs_btree_lshift(tcur, level, &i);
+			if (error)
+				goto error0;
+			if (i) {
+				ASSERT(xfs_btree_get_numrecs(block) >=
+				       cur->bc_ops->get_minrecs(tcur, level));
+
+				xfs_btree_del_cursor(tcur, XFS_BTREE_NOERROR);
+				tcur = NULL;
+
+				error = xfs_btree_dec_cursor(cur, level, stat);
+				if (error)
+					goto error0;
+				return 0;
+			}
+		}
+
+		/*
+		 * Otherwise, grab the number of records in right for
+		 * future reference, and fix up the temp cursor to point
+		 * to our block again (last record).
+		 */
+		rrecs = xfs_btree_get_numrecs(right);
+		if (!xfs_btree_ptr_is_null(cur, &lptr)) {
+			i = xfs_btree_firstrec(tcur, level);
+			XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
+
+			error = xfs_btree_decrement(tcur, level, &i);
+			if (error)
+				goto error0;
+			XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
+		}
+	}
+
+	/*
+	 * If there's a left sibling, see if it's ok to shift an entry
+	 * out of it.
+	 */
+	if (!xfs_btree_ptr_is_null(cur, &lptr)) {
+		/*
+		 * Move the temp cursor to the first entry in the
+		 * previous block.
+		 */
+		i = xfs_btree_firstrec(tcur, level);
+		XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
+
+		error = xfs_btree_decrement(tcur, level, &i);
+		if (error)
+			goto error0;
+		i = xfs_btree_firstrec(tcur, level);
+		XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
+
+		/* Grab a pointer to the block. */
+		left = xfs_btree_get_block(tcur, level, &lbp);
+#ifdef DEBUG
+		error = xfs_btree_check_block(cur, left, level, lbp);
+		if (error)
+			goto error0;
+#endif
+		/* Grab the current block number, for future use. */
+		xfs_btree_get_sibling(tcur, left, &cptr, XFS_BB_RIGHTSIB);
+
+		/*
+		 * If left block is full enough so that removing one entry
+		 * won't make it too empty, and right-shifting an entry out
+		 * of left to us works, we're done.
+		 */
+		if (xfs_btree_get_numrecs(left) - 1 >=
+		    cur->bc_ops->get_minrecs(tcur, level)) {
+			error = xfs_btree_rshift(tcur, level, &i);
+			if (error)
+				goto error0;
+			if (i) {
+				ASSERT(xfs_btree_get_numrecs(block) >=
+				       cur->bc_ops->get_minrecs(tcur, level));
+				xfs_btree_del_cursor(tcur, XFS_BTREE_NOERROR);
+				tcur = NULL;
+				if (level == 0)
+					cur->bc_ptrs[0]++;
+				XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+				*stat = 1;
+				return 0;
+			}
+		}
+
+		/*
+		 * Otherwise, grab the number of records in right for
+		 * future reference.
+		 */
+		lrecs = xfs_btree_get_numrecs(left);
+	}
+
+	/* Delete the temp cursor, we're done with it. */
+	xfs_btree_del_cursor(tcur, XFS_BTREE_NOERROR);
+	tcur = NULL;
+
+	/* If here, we need to do a join to keep the tree balanced. */
+	ASSERT(!xfs_btree_ptr_is_null(cur, &cptr));
+
+	if (!xfs_btree_ptr_is_null(cur, &lptr) &&
+	    lrecs + xfs_btree_get_numrecs(block) <=
+			cur->bc_ops->get_maxrecs(cur, level)) {
+		/*
+		 * Set "right" to be the starting block,
+		 * "left" to be the left neighbor.
+		 */
+		rptr = cptr;
+		right = block;
+		rbp = bp;
+		error = xfs_btree_read_buf_block(cur, &lptr, level,
+							0, &left, &lbp);
+		if (error)
+			goto error0;
+
+	/*
+	 * If that won't work, see if we can join with the right neighbor block.
+	 */
+	} else if (!xfs_btree_ptr_is_null(cur, &rptr) &&
+		   rrecs + xfs_btree_get_numrecs(block) <=
+			cur->bc_ops->get_maxrecs(cur, level)) {
+		/*
+		 * Set "left" to be the starting block,
+		 * "right" to be the right neighbor.
+		 */
+		lptr = cptr;
+		left = block;
+		lbp = bp;
+		error = xfs_btree_read_buf_block(cur, &rptr, level,
+							0, &right, &rbp);
+		if (error)
+			goto error0;
+
+	/*
+	 * Otherwise, we can't fix the imbalance.
+	 * Just return.  This is probably a logic error, but it's not fatal.
+	 */
+	} else {
+		error = xfs_btree_dec_cursor(cur, level, stat);
+		if (error)
+			goto error0;
+		return 0;
+	}
+
+	rrecs = xfs_btree_get_numrecs(right);
+	lrecs = xfs_btree_get_numrecs(left);
+
+	/*
+	 * We're now going to join "left" and "right" by moving all the stuff
+	 * in "right" to "left" and deleting "right".
+	 */
+	XFS_BTREE_STATS_ADD(cur, moves, rrecs);
+	if (level > 0) {
+		/* It's a non-leaf.  Move keys and pointers. */
+		union xfs_btree_key	*lkp;	/* left btree key */
+		union xfs_btree_ptr	*lpp;	/* left address pointer */
+		union xfs_btree_key	*rkp;	/* right btree key */
+		union xfs_btree_ptr	*rpp;	/* right address pointer */
+
+		lkp = xfs_btree_key_addr(cur, lrecs + 1, left);
+		lpp = xfs_btree_ptr_addr(cur, lrecs + 1, left);
+		rkp = xfs_btree_key_addr(cur, 1, right);
+		rpp = xfs_btree_ptr_addr(cur, 1, right);
+#ifdef DEBUG
+		for (i = 1; i < rrecs; i++) {
+			error = xfs_btree_check_ptr(cur, rpp, i, level);
+			if (error)
+				goto error0;
+		}
+#endif
+		xfs_btree_copy_keys(cur, lkp, rkp, rrecs);
+		xfs_btree_copy_ptrs(cur, lpp, rpp, rrecs);
+
+		xfs_btree_log_keys(cur, lbp, lrecs + 1, lrecs + rrecs);
+		xfs_btree_log_ptrs(cur, lbp, lrecs + 1, lrecs + rrecs);
+	} else {
+		/* It's a leaf.  Move records.  */
+		union xfs_btree_rec	*lrp;	/* left record pointer */
+		union xfs_btree_rec	*rrp;	/* right record pointer */
+
+		lrp = xfs_btree_rec_addr(cur, lrecs + 1, left);
+		rrp = xfs_btree_rec_addr(cur, 1, right);
+
+		xfs_btree_copy_recs(cur, lrp, rrp, rrecs);
+		xfs_btree_log_recs(cur, lbp, lrecs + 1, lrecs + rrecs);
+	}
+
+	XFS_BTREE_STATS_INC(cur, join);
+
+	/*
+	 * Fix up the the number of records and right block pointer in the
+	 * surviving block, and log it.
+	 */
+	xfs_btree_set_numrecs(left, lrecs + rrecs);
+	xfs_btree_get_sibling(cur, right, &cptr, XFS_BB_RIGHTSIB),
+	xfs_btree_set_sibling(cur, left, &cptr, XFS_BB_RIGHTSIB);
+	xfs_btree_log_block(cur, lbp, XFS_BB_NUMRECS | XFS_BB_RIGHTSIB);
+
+	/* If there is a right sibling, point it to the remaining block. */
+	xfs_btree_get_sibling(cur, left, &cptr, XFS_BB_RIGHTSIB);
+	if (!xfs_btree_ptr_is_null(cur, &cptr)) {
+		error = xfs_btree_read_buf_block(cur, &cptr, level,
+							0, &rrblock, &rrbp);
+		if (error)
+			goto error0;
+		xfs_btree_set_sibling(cur, rrblock, &lptr, XFS_BB_LEFTSIB);
+		xfs_btree_log_block(cur, rrbp, XFS_BB_LEFTSIB);
+	}
+
+	/* Free the deleted block. */
+	error = cur->bc_ops->free_block(cur, rbp);
+	if (error)
+		goto error0;
+	XFS_BTREE_STATS_INC(cur, free);
+
+	/*
+	 * If we joined with the left neighbor, set the buffer in the
+	 * cursor to the left block, and fix up the index.
+	 */
+	if (bp != lbp) {
+		cur->bc_bufs[level] = lbp;
+		cur->bc_ptrs[level] += lrecs;
+		cur->bc_ra[level] = 0;
+	}
+	/*
+	 * If we joined with the right neighbor and there's a level above
+	 * us, increment the cursor at that level.
+	 */
+	else if ((cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) ||
+		   (level + 1 < cur->bc_nlevels)) {
+		error = xfs_btree_increment(cur, level + 1, &i);
+		if (error)
+			goto error0;
+	}
+
+	/*
+	 * Readjust the ptr at this level if it's not a leaf, since it's
+	 * still pointing at the deletion point, which makes the cursor
+	 * inconsistent.  If this makes the ptr 0, the caller fixes it up.
+	 * We can't use decrement because it would change the next level up.
+	 */
+	if (level > 0)
+		cur->bc_ptrs[level]--;
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+	/* Return value means the next level up has something to do. */
+	*stat = 2;
+	return 0;
+
+error0:
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+	if (tcur)
+		xfs_btree_del_cursor(tcur, XFS_BTREE_ERROR);
+	return error;
+}
+
+/*
+ * Delete the record pointed to by cur.
+ * The cursor refers to the place where the record was (could be inserted)
+ * when the operation returns.
+ */
+int					/* error */
+xfs_btree_delete(
+	struct xfs_btree_cur	*cur,
+	int			*stat)	/* success/failure */
+{
+	int			error;	/* error return value */
+	int			level;
+	int			i;
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
+
+	/*
+	 * Go up the tree, starting at leaf level.
+	 *
+	 * If 2 is returned then a join was done; go to the next level.
+	 * Otherwise we are done.
+	 */
+	for (level = 0, i = 2; i == 2; level++) {
+		error = xfs_btree_delrec(cur, level, &i);
+		if (error)
+			goto error0;
+	}
+
+	if (i == 0) {
+		for (level = 1; level < cur->bc_nlevels; level++) {
+			if (cur->bc_ptrs[level] == 0) {
+				error = xfs_btree_decrement(cur, level, &i);
+				if (error)
+					goto error0;
+				break;
+			}
+		}
+	}
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+	*stat = i;
+	return 0;
+error0:
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+	return error;
+}

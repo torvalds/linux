@@ -117,13 +117,6 @@ typedef	struct xfs_btree_sblock xfs_inobt_block_t;
 				i, XFS_INOBT_BLOCK_MAXRECS(1, cur)))
 
 /*
- * Delete the record pointed to by cur.
- * The cursor refers to the place where the record was (could be inserted)
- * when the operation returns.
- */
-extern int xfs_inobt_delete(struct xfs_btree_cur *cur, int *stat);
-
-/*
  * Get the data from the pointed-to record.
  */
 extern int xfs_inobt_get_rec(struct xfs_btree_cur *cur, xfs_agino_t *ino,

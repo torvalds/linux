@@ -95,13 +95,6 @@ typedef	struct xfs_btree_sblock xfs_alloc_block_t;
 	XFS_BTREE_PTR_ADDR(xfs_alloc, bb, i, XFS_ALLOC_BLOCK_MAXRECS(1, cur))
 
 /*
- * Delete the record pointed to by cur.
- * The cursor refers to the place where the record was (could be inserted)
- * when the operation returns.
- */
-extern int xfs_alloc_delete(struct xfs_btree_cur *cur, int *stat);
-
-/*
  * Get the data from the pointed-to record.
  */
 extern int xfs_alloc_get_rec(struct xfs_btree_cur *cur,	xfs_agblock_t *bno,

@@ -864,7 +864,7 @@ xfs_bmap_add_extent_delay_real(
 					RIGHT.br_blockcount, &i)))
 				goto done;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, done);
-			if ((error = xfs_bmbt_delete(cur, &i)))
+			if ((error = xfs_btree_delete(cur, &i)))
 				goto done;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, done);
 			if ((error = xfs_btree_decrement(cur, 0, &i)))
@@ -1425,13 +1425,13 @@ xfs_bmap_add_extent_unwritten_real(
 					RIGHT.br_blockcount, &i)))
 				goto done;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, done);
-			if ((error = xfs_bmbt_delete(cur, &i)))
+			if ((error = xfs_btree_delete(cur, &i)))
 				goto done;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, done);
 			if ((error = xfs_btree_decrement(cur, 0, &i)))
 				goto done;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, done);
-			if ((error = xfs_bmbt_delete(cur, &i)))
+			if ((error = xfs_btree_delete(cur, &i)))
 				goto done;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, done);
 			if ((error = xfs_btree_decrement(cur, 0, &i)))
@@ -1474,7 +1474,7 @@ xfs_bmap_add_extent_unwritten_real(
 					&i)))
 				goto done;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, done);
-			if ((error = xfs_bmbt_delete(cur, &i)))
+			if ((error = xfs_btree_delete(cur, &i)))
 				goto done;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, done);
 			if ((error = xfs_btree_decrement(cur, 0, &i)))
@@ -1517,7 +1517,7 @@ xfs_bmap_add_extent_unwritten_real(
 					RIGHT.br_blockcount, &i)))
 				goto done;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, done);
-			if ((error = xfs_bmbt_delete(cur, &i)))
+			if ((error = xfs_btree_delete(cur, &i)))
 				goto done;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, done);
 			if ((error = xfs_btree_decrement(cur, 0, &i)))
@@ -2152,7 +2152,7 @@ xfs_bmap_add_extent_hole_real(
 					right.br_blockcount, &i)))
 				goto done;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, done);
-			if ((error = xfs_bmbt_delete(cur, &i)))
+			if ((error = xfs_btree_delete(cur, &i)))
 				goto done;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, done);
 			if ((error = xfs_btree_decrement(cur, 0, &i)))
@@ -3216,7 +3216,7 @@ xfs_bmap_del_extent(
 			flags |= XFS_ILOG_FEXT(whichfork);
 			break;
 		}
-		if ((error = xfs_bmbt_delete(cur, &i)))
+		if ((error = xfs_btree_delete(cur, &i)))
 			goto done;
 		XFS_WANT_CORRUPTED_GOTO(i == 1, done);
 		break;

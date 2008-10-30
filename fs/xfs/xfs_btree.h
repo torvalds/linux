@@ -192,6 +192,8 @@ struct xfs_btree_ops {
 	/* update btree root pointer */
 	void	(*set_root)(struct xfs_btree_cur *cur,
 				union xfs_btree_ptr *nptr, int level_change);
+	int	(*kill_root)(struct xfs_btree_cur *cur, struct xfs_buf *bp,
+				int level, union xfs_btree_ptr *newroot);
 
 	/* block allocation / freeing */
 	int	(*alloc_block)(struct xfs_btree_cur *cur,
@@ -207,6 +209,7 @@ struct xfs_btree_ops {
 				  int ptr, int reason);
 
 	/* records in block/level */
+	int	(*get_minrecs)(struct xfs_btree_cur *cur, int level);
 	int	(*get_maxrecs)(struct xfs_btree_cur *cur, int level);
 
 	/* records on disk.  Matter for the root in inode case. */
@@ -251,6 +254,7 @@ struct xfs_btree_ops {
  */
 #define LASTREC_UPDATE	0
 #define LASTREC_INSREC	1
+#define LASTREC_DELREC	2
 
 
 /*
@@ -562,6 +566,7 @@ int xfs_btree_new_root(struct xfs_btree_cur *, int *);
 int xfs_btree_new_iroot(struct xfs_btree_cur *, int *, int *);
 int xfs_btree_kill_iroot(struct xfs_btree_cur *);
 int xfs_btree_insert(struct xfs_btree_cur *, int *);
+int xfs_btree_delete(struct xfs_btree_cur *, int *);
 
 /*
  * Helpers.
