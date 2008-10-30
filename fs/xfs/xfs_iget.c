@@ -159,17 +159,18 @@ xfs_iget_cache_miss(
 		goto out_destroy;
 	}
 
+	if (lock_flags)
+		xfs_ilock(ip, lock_flags);
+
 	/*
 	 * Preload the radix tree so we can insert safely under the
-	 * write spinlock.
+	 * write spinlock. Note that we cannot sleep inside the preload
+	 * region.
 	 */
 	if (radix_tree_preload(GFP_KERNEL)) {
 		error = EAGAIN;
-		goto out_destroy;
+		goto out_unlock;
 	}
-
-	if (lock_flags)
-		xfs_ilock(ip, lock_flags);
 
 	mask = ~(((XFS_INODE_CLUSTER_SIZE(mp) >> mp->m_sb.sb_inodelog)) - 1);
 	first_index = agino & mask;
@@ -181,7 +182,7 @@ xfs_iget_cache_miss(
 		WARN_ON(error != -EEXIST);
 		XFS_STATS_INC(xs_ig_dup);
 		error = EAGAIN;
-		goto out_unlock;
+		goto out_preload_end;
 	}
 
 	/* These values _must_ be set before releasing the radix tree lock! */
@@ -193,9 +194,12 @@ xfs_iget_cache_miss(
 	*ipp = ip;
 	return 0;
 
-out_unlock:
+out_preload_end:
 	write_unlock(&pag->pag_ici_lock);
 	radix_tree_preload_end();
+out_unlock:
+	if (lock_flags)
+		xfs_iunlock(ip, lock_flags);
 out_destroy:
 	xfs_idestroy(ip);
 	return error;
