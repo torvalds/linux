@@ -549,6 +549,8 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 		this_cpu->c_early_init(c);
 
 	validate_pat_support(c);
+
+	c->cpu_index = boot_cpu_id;
 }
 
 void __init early_cpu_init(void)
