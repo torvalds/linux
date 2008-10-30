@@ -1602,7 +1602,6 @@ unsigned long ata_id_xfermask(const u16 *id)
 /**
  *	ata_pio_queue_task - Queue port_task
  *	@ap: The ata_port to queue port_task for
- *	@fn: workqueue function to be scheduled
  *	@data: data for @fn to use
  *	@delay: delay time in msecs for workqueue function
  *
@@ -4648,7 +4647,6 @@ static void ata_verify_xfer(struct ata_queued_cmd *qc)
 /**
  *	ata_qc_complete - Complete an active ATA command
  *	@qc: Command to complete
- *	@err_mask: ATA Status register contents
  *
  *	Indicate to the mid and upper layers that an ATA
  *	command has completed, with either an ok or not-ok status.
