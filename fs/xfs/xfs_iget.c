@@ -76,7 +76,6 @@ xfs_iget_core(
 {
 	struct inode	*old_inode;
 	xfs_inode_t	*ip;
-	xfs_inode_t	*iq;
 	int		error;
 	unsigned long	first_index, mask;
 	xfs_perag_t	*pag;
@@ -255,24 +254,6 @@ finish_inode:
 
 	write_unlock(&pag->pag_ici_lock);
 	radix_tree_preload_end();
-
-	/*
-	 * Link ip to its mount and thread it on the mount's inode list.
-	 */
-	XFS_MOUNT_ILOCK(mp);
-	if ((iq = mp->m_inodes)) {
-		ASSERT(iq->i_mprev->i_mnext == iq);
-		ip->i_mprev = iq->i_mprev;
-		iq->i_mprev->i_mnext = ip;
-		iq->i_mprev = ip;
-		ip->i_mnext = iq;
-	} else {
-		ip->i_mnext = ip;
-		ip->i_mprev = ip;
-	}
-	mp->m_inodes = ip;
-
-	XFS_MOUNT_IUNLOCK(mp);
 	xfs_put_perag(mp, pag);
 
  return_ip:
@@ -493,36 +474,15 @@ xfs_iextract(
 {
 	xfs_mount_t	*mp = ip->i_mount;
 	xfs_perag_t	*pag = xfs_get_perag(mp, ip->i_ino);
-	xfs_inode_t	*iq;
 
 	write_lock(&pag->pag_ici_lock);
 	radix_tree_delete(&pag->pag_ici_root, XFS_INO_TO_AGINO(mp, ip->i_ino));
 	write_unlock(&pag->pag_ici_lock);
 	xfs_put_perag(mp, pag);
 
-	/*
-	 * Remove from mount's inode list.
-	 */
-	XFS_MOUNT_ILOCK(mp);
-	ASSERT((ip->i_mnext != NULL) && (ip->i_mprev != NULL));
-	iq = ip->i_mnext;
-	iq->i_mprev = ip->i_mprev;
-	ip->i_mprev->i_mnext = iq;
-
-	/*
-	 * Fix up the head pointer if it points to the inode being deleted.
-	 */
-	if (mp->m_inodes == ip) {
-		if (ip == iq) {
-			mp->m_inodes = NULL;
-		} else {
-			mp->m_inodes = iq;
-		}
-	}
-
 	/* Deal with the deleted inodes list */
+	XFS_MOUNT_ILOCK(mp);
 	list_del_init(&ip->i_reclaim);
-
 	mp->m_ireclaims++;
 	XFS_MOUNT_IUNLOCK(mp);
 }
