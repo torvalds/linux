@@ -48,4 +48,8 @@ void xfs_flush_device(struct xfs_inode *ip);
 int xfs_reclaim_inode(struct xfs_inode *ip, int locked, int sync_mode);
 int xfs_reclaim_inodes(struct xfs_mount *mp, int noblock, int mode);
 
+void xfs_inode_set_reclaim_tag(struct xfs_inode *ip);
+void xfs_inode_clear_reclaim_tag(struct xfs_inode *ip);
+void __xfs_inode_clear_reclaim_tag(struct xfs_mount *mp, struct xfs_perag *pag,
+				struct xfs_inode *ip);
 #endif

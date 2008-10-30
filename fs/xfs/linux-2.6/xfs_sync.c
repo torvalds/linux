@@ -644,6 +644,47 @@ xfs_reclaim_inode(
 	return 0;
 }
 
+void
+xfs_inode_set_reclaim_tag(
+	xfs_inode_t	*ip)
+{
+	xfs_mount_t	*mp = ip->i_mount;
+	xfs_perag_t	*pag = xfs_get_perag(mp, ip->i_ino);
+
+	read_lock(&pag->pag_ici_lock);
+	spin_lock(&ip->i_flags_lock);
+	radix_tree_tag_set(&pag->pag_ici_root,
+			XFS_INO_TO_AGINO(mp, ip->i_ino), XFS_ICI_RECLAIM_TAG);
+	spin_unlock(&ip->i_flags_lock);
+	read_unlock(&pag->pag_ici_lock);
+	xfs_put_perag(mp, pag);
+}
+
+void
+__xfs_inode_clear_reclaim_tag(
+	xfs_mount_t	*mp,
+	xfs_perag_t	*pag,
+	xfs_inode_t	*ip)
+{
+	radix_tree_tag_clear(&pag->pag_ici_root,
+			XFS_INO_TO_AGINO(mp, ip->i_ino), XFS_ICI_RECLAIM_TAG);
+}
+
+void
+xfs_inode_clear_reclaim_tag(
+	xfs_inode_t	*ip)
+{
+	xfs_mount_t	*mp = ip->i_mount;
+	xfs_perag_t	*pag = xfs_get_perag(mp, ip->i_ino);
+
+	read_lock(&pag->pag_ici_lock);
+	spin_lock(&ip->i_flags_lock);
+	__xfs_inode_clear_reclaim_tag(mp, pag, ip);
+	spin_unlock(&ip->i_flags_lock);
+	read_unlock(&pag->pag_ici_lock);
+	xfs_put_perag(mp, pag);
+}
+
 int
 xfs_reclaim_inodes(
 	xfs_mount_t	*mp,

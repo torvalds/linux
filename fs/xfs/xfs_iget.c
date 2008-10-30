@@ -91,6 +91,9 @@ xfs_iget_cache_hit(
 		}
 		xfs_iflags_set(ip, XFS_INEW);
 		xfs_iflags_clear(ip, XFS_IRECLAIMABLE);
+
+		/* clear the radix tree reclaim flag as well. */
+		__xfs_inode_clear_reclaim_tag(mp, pag, ip);
 		read_unlock(&pag->pag_ici_lock);
 
 		XFS_MOUNT_ILOCK(mp);

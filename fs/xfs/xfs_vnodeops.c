@@ -2845,6 +2845,7 @@ xfs_reclaim(
 		spin_unlock(&ip->i_flags_lock);
 		list_add_tail(&ip->i_reclaim, &mp->m_del_inodes);
 		XFS_MOUNT_IUNLOCK(mp);
+		xfs_inode_set_reclaim_tag(ip);
 	}
 	return 0;
 }
