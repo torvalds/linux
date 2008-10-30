@@ -1069,6 +1069,30 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 	return 0;
 }
 
+static int ieee80211_set_txq_params(struct wiphy *wiphy,
+				    struct ieee80211_txq_params *params)
+{
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+	struct ieee80211_tx_queue_params p;
+
+	if (!local->ops->conf_tx)
+		return -EOPNOTSUPP;
+
+	memset(&p, 0, sizeof(p));
+	p.aifs = params->aifs;
+	p.cw_max = params->cwmax;
+	p.cw_min = params->cwmin;
+	p.txop = params->txop;
+	if (local->ops->conf_tx(local_to_hw(local), params->queue, &p)) {
+		printk(KERN_DEBUG "%s: failed to set TX queue "
+		       "parameters for queue %d\n", local->mdev->name,
+		       params->queue);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -1095,4 +1119,5 @@ struct cfg80211_ops mac80211_config_ops = {
 	.get_mesh_params = ieee80211_get_mesh_params,
 #endif
 	.change_bss = ieee80211_change_bss,
+	.set_txq_params = ieee80211_set_txq_params,
 };

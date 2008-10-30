@@ -371,6 +371,24 @@ struct mesh_config {
 	u16 dot11MeshHWMPnetDiameterTraversalTime;
 };
 
+/**
+ * struct ieee80211_txq_params - TX queue parameters
+ * @queue: TX queue identifier (NL80211_TXQ_Q_*)
+ * @txop: Maximum burst time in units of 32 usecs, 0 meaning disabled
+ * @cwmin: Minimum contention window [a value of the form 2^n-1 in the range
+ *	1..32767]
+ * @cwmax: Maximum contention window [a value of the form 2^n-1 in the range
+ *	1..32767]
+ * @aifs: Arbitration interframe space [0..255]
+ */
+struct ieee80211_txq_params {
+	enum nl80211_txq_q queue;
+	u16 txop;
+	u16 cwmin;
+	u16 cwmax;
+	u8 aifs;
+};
+
 /* from net/wireless.h */
 struct wiphy;
 
@@ -430,6 +448,8 @@ struct wiphy;
  * @set_mesh_cfg: set mesh parameters (by now, just mesh id)
  *
  * @change_bss: Modify parameters for a given BSS.
+ *
+ * @set_txq_params: Set TX queue parameters
  */
 struct cfg80211_ops {
 	int	(*add_virtual_intf)(struct wiphy *wiphy, char *name,
@@ -490,6 +510,9 @@ struct cfg80211_ops {
 				const struct mesh_config *nconf, u32 mask);
 	int	(*change_bss)(struct wiphy *wiphy, struct net_device *dev,
 			      struct bss_parameters *params);
+
+	int	(*set_txq_params)(struct wiphy *wiphy,
+				  struct ieee80211_txq_params *params);
 };
 
 #endif /* __NET_CFG80211_H */

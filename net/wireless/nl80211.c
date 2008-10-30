@@ -58,6 +58,7 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_WIPHY] = { .type = NLA_U32 },
 	[NL80211_ATTR_WIPHY_NAME] = { .type = NLA_NUL_STRING,
 				      .len = BUS_ID_SIZE-1 },
+	[NL80211_ATTR_WIPHY_TXQ_PARAMS] = { .type = NLA_NESTED },
 
 	[NL80211_ATTR_IFTYPE] = { .type = NLA_U32 },
 	[NL80211_ATTR_IFINDEX] = { .type = NLA_U32 },
@@ -286,20 +287,76 @@ static int nl80211_get_wiphy(struct sk_buff *skb, struct genl_info *info)
 	return -ENOBUFS;
 }
 
+static const struct nla_policy txq_params_policy[NL80211_TXQ_ATTR_MAX + 1] = {
+	[NL80211_TXQ_ATTR_QUEUE]		= { .type = NLA_U8 },
+	[NL80211_TXQ_ATTR_TXOP]			= { .type = NLA_U16 },
+	[NL80211_TXQ_ATTR_CWMIN]		= { .type = NLA_U16 },
+	[NL80211_TXQ_ATTR_CWMAX]		= { .type = NLA_U16 },
+	[NL80211_TXQ_ATTR_AIFS]			= { .type = NLA_U8 },
+};
+
+static int parse_txq_params(struct nlattr *tb[],
+			    struct ieee80211_txq_params *txq_params)
+{
+	if (!tb[NL80211_TXQ_ATTR_QUEUE] || !tb[NL80211_TXQ_ATTR_TXOP] ||
+	    !tb[NL80211_TXQ_ATTR_CWMIN] || !tb[NL80211_TXQ_ATTR_CWMAX] ||
+	    !tb[NL80211_TXQ_ATTR_AIFS])
+		return -EINVAL;
+
+	txq_params->queue = nla_get_u8(tb[NL80211_TXQ_ATTR_QUEUE]);
+	txq_params->txop = nla_get_u16(tb[NL80211_TXQ_ATTR_TXOP]);
+	txq_params->cwmin = nla_get_u16(tb[NL80211_TXQ_ATTR_CWMIN]);
+	txq_params->cwmax = nla_get_u16(tb[NL80211_TXQ_ATTR_CWMAX]);
+	txq_params->aifs = nla_get_u8(tb[NL80211_TXQ_ATTR_AIFS]);
+
+	return 0;
+}
+
 static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev;
-	int result;
-
-	if (!info->attrs[NL80211_ATTR_WIPHY_NAME])
-		return -EINVAL;
+	int result = 0, rem_txq_params = 0;
+	struct nlattr *nl_txq_params;
 
 	rdev = cfg80211_get_dev_from_info(info);
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
 
-	result = cfg80211_dev_rename(rdev, nla_data(info->attrs[NL80211_ATTR_WIPHY_NAME]));
+	if (info->attrs[NL80211_ATTR_WIPHY_NAME]) {
+		result = cfg80211_dev_rename(
+			rdev, nla_data(info->attrs[NL80211_ATTR_WIPHY_NAME]));
+		if (result)
+			goto bad_res;
+	}
 
+	if (info->attrs[NL80211_ATTR_WIPHY_TXQ_PARAMS]) {
+		struct ieee80211_txq_params txq_params;
+		struct nlattr *tb[NL80211_TXQ_ATTR_MAX + 1];
+
+		if (!rdev->ops->set_txq_params) {
+			result = -EOPNOTSUPP;
+			goto bad_res;
+		}
+
+		nla_for_each_nested(nl_txq_params,
+				    info->attrs[NL80211_ATTR_WIPHY_TXQ_PARAMS],
+				    rem_txq_params) {
+			nla_parse(tb, NL80211_TXQ_ATTR_MAX,
+				  nla_data(nl_txq_params),
+				  nla_len(nl_txq_params),
+				  txq_params_policy);
+			result = parse_txq_params(tb, &txq_params);
+			if (result)
+				goto bad_res;
+
+			result = rdev->ops->set_txq_params(&rdev->wiphy,
+							   &txq_params);
+			if (result)
+				goto bad_res;
+		}
+	}
+
+bad_res:
 	cfg80211_put_dev(rdev);
 	return result;
 }

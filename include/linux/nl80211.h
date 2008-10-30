@@ -25,8 +25,9 @@
  *
  * @NL80211_CMD_GET_WIPHY: request information about a wiphy or dump request
  *	to get a list of all present wiphys.
- * @NL80211_CMD_SET_WIPHY: set wiphy name, needs %NL80211_ATTR_WIPHY and
- *	%NL80211_ATTR_WIPHY_NAME.
+ * @NL80211_CMD_SET_WIPHY: set wiphy parameters, needs %NL80211_ATTR_WIPHY or
+ *	%NL80211_ATTR_IFINDEX; can be used to set %NL80211_ATTR_WIPHY_NAME
+ *	and/or %NL80211_ATTR_WIPHY_TXQ_PARAMS.
  * @NL80211_CMD_NEW_WIPHY: Newly created wiphy, response to get request
  *	or rename notification. Has attributes %NL80211_ATTR_WIPHY and
  *	%NL80211_ATTR_WIPHY_NAME.
@@ -178,6 +179,7 @@ enum nl80211_commands {
  * @NL80211_ATTR_WIPHY: index of wiphy to operate on, cf.
  *	/sys/class/ieee80211/<phyname>/index
  * @NL80211_ATTR_WIPHY_NAME: wiphy name (used for renaming)
+ * @NL80211_ATTR_WIPHY_TXQ_PARAMS: a nested array of TX queue parameters
  *
  * @NL80211_ATTR_IFINDEX: network interface index of the device to operate on
  * @NL80211_ATTR_IFNAME: network interface name
@@ -312,6 +314,8 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_BSS_BASIC_RATES,
 
+	NL80211_ATTR_WIPHY_TXQ_PARAMS,
+
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
@@ -324,6 +328,7 @@ enum nl80211_attrs {
  */
 #define NL80211_ATTR_HT_CAPABILITY NL80211_ATTR_HT_CAPABILITY
 #define NL80211_ATTR_BSS_BASIC_RATES NL80211_ATTR_BSS_BASIC_RATES
+#define NL80211_ATTR_WIPHY_TXQ_PARAMS NL80211_ATTR_WIPHY_TXQ_PARAMS
 
 #define NL80211_MAX_SUPP_RATES			32
 #define NL80211_MAX_SUPP_REG_RULES		32
@@ -696,6 +701,40 @@ enum nl80211_meshconf_params {
 	/* keep last */
 	__NL80211_MESHCONF_ATTR_AFTER_LAST,
 	NL80211_MESHCONF_ATTR_MAX = __NL80211_MESHCONF_ATTR_AFTER_LAST - 1
+};
+
+/**
+ * enum nl80211_txq_attr - TX queue parameter attributes
+ * @__NL80211_TXQ_ATTR_INVALID: Attribute number 0 is reserved
+ * @NL80211_TXQ_ATTR_QUEUE: TX queue identifier (NL80211_TXQ_Q_*)
+ * @NL80211_TXQ_ATTR_TXOP: Maximum burst time in units of 32 usecs, 0 meaning
+ *	disabled
+ * @NL80211_TXQ_ATTR_CWMIN: Minimum contention window [a value of the form
+ *	2^n-1 in the range 1..32767]
+ * @NL80211_TXQ_ATTR_CWMAX: Maximum contention window [a value of the form
+ *	2^n-1 in the range 1..32767]
+ * @NL80211_TXQ_ATTR_AIFS: Arbitration interframe space [0..255]
+ * @__NL80211_TXQ_ATTR_AFTER_LAST: Internal
+ * @NL80211_TXQ_ATTR_MAX: Maximum TXQ attribute number
+ */
+enum nl80211_txq_attr {
+	__NL80211_TXQ_ATTR_INVALID,
+	NL80211_TXQ_ATTR_QUEUE,
+	NL80211_TXQ_ATTR_TXOP,
+	NL80211_TXQ_ATTR_CWMIN,
+	NL80211_TXQ_ATTR_CWMAX,
+	NL80211_TXQ_ATTR_AIFS,
+
+	/* keep last */
+	__NL80211_TXQ_ATTR_AFTER_LAST,
+	NL80211_TXQ_ATTR_MAX = __NL80211_TXQ_ATTR_AFTER_LAST - 1
+};
+
+enum nl80211_txq_q {
+	NL80211_TXQ_Q_VO,
+	NL80211_TXQ_Q_VI,
+	NL80211_TXQ_Q_BE,
+	NL80211_TXQ_Q_BK
 };
 
 #endif /* __LINUX_NL80211_H */
