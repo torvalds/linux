@@ -164,8 +164,8 @@ struct gelic_eurus_scan_info {
 	__be16 security;
 	u8  bssid[8]; /* last ETH_ALEN are valid. bssid[0],[1] are unused */
 	u8  essid[32]; /* IW_ESSID_MAX_SIZE */
-	u8  rate[16]; /* first MAX_RATES_LENGTH(12) are valid */
-	u8  ext_rate[16]; /* first MAX_RATES_EX_LENGTH(16) are valid */
+	u8  rate[16]; /* first 12 are valid */
+	u8  ext_rate[16]; /* first 16 are valid */
 	__be32 reserved1;
 	__be32 reserved2;
 	__be32 reserved3;

@@ -9,7 +9,6 @@
 #include <linux/bitops.h>
 
 #include <net/lib80211.h>
-#include <net/ieee80211.h>
 #include <net/iw_handler.h>
 
 #include "host.h"

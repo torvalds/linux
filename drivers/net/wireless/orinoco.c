@@ -86,8 +86,8 @@
 #include <linux/firmware.h>
 #include <linux/if_arp.h>
 #include <linux/wireless.h>
+#include <linux/ieee80211.h>
 #include <net/iw_handler.h>
-#include <net/ieee80211.h>
 
 #include <linux/scatterlist.h>
 #include <linux/crypto.h>
@@ -143,7 +143,7 @@ static const u8 encaps_hdr[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
 #define ENCAPS_OVERHEAD		(sizeof(encaps_hdr) + 2)
 
 #define ORINOCO_MIN_MTU		256
-#define ORINOCO_MAX_MTU		(IEEE80211_DATA_LEN - ENCAPS_OVERHEAD)
+#define ORINOCO_MAX_MTU		(IEEE80211_MAX_DATA_LEN - ENCAPS_OVERHEAD)
 
 #define SYMBOL_MAX_VER_LEN	(14)
 #define USER_BAP		0
@@ -392,7 +392,7 @@ static void orinoco_bss_data_init(struct orinoco_private *priv)
 }
 
 static inline u8 *orinoco_get_ie(u8 *data, size_t len,
-				 enum ieee80211_mfie eid)
+				 enum ieee80211_eid eid)
 {
 	u8 *p = data;
 	while ((p + 2) < (data + len)) {
@@ -409,7 +409,7 @@ static inline u8 *orinoco_get_wpa_ie(u8 *data, size_t len)
 {
 	u8 *p = data;
 	while ((p + 2 + WPA_SELECTOR_LEN) < (data + len)) {
-		if ((p[0] == MFIE_TYPE_GENERIC) &&
+		if ((p[0] == WLAN_EID_GENERIC) &&
 		    (memcmp(&p[2], WPA_OUI_TYPE, WPA_SELECTOR_LEN) == 0))
 			return p;
 		p += p[1] + 2;
@@ -839,7 +839,8 @@ static int orinoco_change_mtu(struct net_device *dev, int new_mtu)
 	if ( (new_mtu < ORINOCO_MIN_MTU) || (new_mtu > ORINOCO_MAX_MTU) )
 		return -EINVAL;
 
-	if ( (new_mtu + ENCAPS_OVERHEAD + IEEE80211_HLEN) >
+	/* MTU + encapsulation + header length */
+	if ( (new_mtu + ENCAPS_OVERHEAD + sizeof(struct ieee80211_hdr)) >
 	     (priv->nicbuf_size - ETH_HLEN) )
 		return -EINVAL;
 
@@ -1254,7 +1255,7 @@ static void orinoco_rx_monitor(struct net_device *dev, u16 rxfid,
 	}
 
 	/* sanity check the length */
-	if (datalen > IEEE80211_DATA_LEN + 12) {
+	if (datalen > IEEE80211_MAX_DATA_LEN + 12) {
 		printk(KERN_DEBUG "%s: oversized monitor frame, "
 		       "data length = %d\n", dev->name, datalen);
 		stats->rx_length_errors++;
@@ -1382,7 +1383,7 @@ static void __orinoco_ev_rx(struct net_device *dev, hermes_t *hw)
                    data. */
 		goto out;
 	}
-	if (length > IEEE80211_DATA_LEN) {
+	if (length > IEEE80211_MAX_DATA_LEN) {
 		printk(KERN_WARNING "%s: Oversized frame received (%d bytes)\n",
 		       dev->name, length);
 		stats->rx_length_errors++;
@@ -3285,7 +3286,7 @@ static int orinoco_init(struct net_device *dev)
 
 	/* No need to lock, the hw_unavailable flag is already set in
 	 * alloc_orinocodev() */
-	priv->nicbuf_size = IEEE80211_FRAME_LEN + ETH_HLEN;
+	priv->nicbuf_size = IEEE80211_MAX_FRAME_LEN + ETH_HLEN;
 
 	/* Initialize the firmware */
 	err = hermes_init(hw);
@@ -4681,7 +4682,7 @@ static int orinoco_ioctl_set_encodeext(struct net_device *dev,
 	/* Determine and validate the key index */
 	idx = encoding->flags & IW_ENCODE_INDEX;
 	if (idx) {
-		if ((idx < 1) || (idx > WEP_KEYS))
+		if ((idx < 1) || (idx > 4))
 			goto out;
 		idx--;
 	} else
@@ -4786,7 +4787,7 @@ static int orinoco_ioctl_get_encodeext(struct net_device *dev,
 
 	idx = encoding->flags & IW_ENCODE_INDEX;
 	if (idx) {
-		if ((idx < 1) || (idx > WEP_KEYS))
+		if ((idx < 1) || (idx > 4))
 			goto out;
 		idx--;
 	} else
@@ -4949,7 +4950,8 @@ static int orinoco_ioctl_set_genie(struct net_device *dev,
 	unsigned long flags;
 	int err = 0;
 
-	if ((wrqu->data.length > MAX_WPA_IE_LEN) ||
+	/* cut off at IEEE80211_MAX_DATA_LEN */
+	if ((wrqu->data.length > IEEE80211_MAX_DATA_LEN) ||
 	    (wrqu->data.length && (extra == NULL)))
 		return -EINVAL;
 
@@ -5632,7 +5634,7 @@ static inline char *orinoco_translate_ext_scan(struct net_device *dev,
 						  &iwe, IW_EV_UINT_LEN);
 	}
 
-	ie = orinoco_get_ie(bss->data, sizeof(bss->data), MFIE_TYPE_DS_SET);
+	ie = orinoco_get_ie(bss->data, sizeof(bss->data), WLAN_EID_DS_PARAMS);
 	channel = ie ? ie[2] : 0;
 	if ((channel >= 1) && (channel <= NUM_CHANNELS)) {
 		/* Add channel and frequency */
@@ -5682,7 +5684,7 @@ static inline char *orinoco_translate_ext_scan(struct net_device *dev,
 	}
 
 	/* RSN IE */
-	ie = orinoco_get_ie(bss->data, sizeof(bss->data), MFIE_TYPE_RSN);
+	ie = orinoco_get_ie(bss->data, sizeof(bss->data), WLAN_EID_RSN);
 	if (ie) {
 		iwe.cmd = IWEVGENIE;
 		iwe.u.data.length = ie[1] + 2;
@@ -5690,7 +5692,7 @@ static inline char *orinoco_translate_ext_scan(struct net_device *dev,
 						  &iwe, ie);
 	}
 
-	ie = orinoco_get_ie(bss->data, sizeof(bss->data), MFIE_TYPE_RATES);
+	ie = orinoco_get_ie(bss->data, sizeof(bss->data), WLAN_EID_SUPP_RATES);
 	if (ie) {
 		char *p = current_ev + iwe_stream_lcp_len(info);
 		int i;

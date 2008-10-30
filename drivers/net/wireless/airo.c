@@ -47,9 +47,10 @@
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <asm/uaccess.h>
-#include <net/ieee80211.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+
+#include <linux/ieee80211.h>
 
 #include "airo.h"
 
@@ -7265,56 +7266,53 @@ static inline char *airo_translate_scan(struct net_device *dev,
 	if (test_bit(FLAG_WPA_CAPABLE, &ai->flags)) {
 		unsigned int num_null_ies = 0;
 		u16 length = sizeof (bss->extra.iep);
-		struct ieee80211_info_element *info_element =
-			(struct ieee80211_info_element *) &bss->extra.iep;
+		u8 *ie = (void *)&bss->extra.iep;
 
-		while ((length >= sizeof(*info_element)) && (num_null_ies < 2)) {
-			if (sizeof(*info_element) + info_element->len > length) {
+		while ((length >= 2) && (num_null_ies < 2)) {
+			if (2 + ie[1] > length) {
 				/* Invalid element, don't continue parsing IE */
 				break;
 			}
 
-			switch (info_element->id) {
-			case MFIE_TYPE_SSID:
+			switch (ie[0]) {
+			case WLAN_EID_SSID:
 				/* Two zero-length SSID elements
 				 * mean we're done parsing elements */
-				if (!info_element->len)
+				if (!ie[1])
 					num_null_ies++;
 				break;
 
-			case MFIE_TYPE_GENERIC:
-				if (info_element->len >= 4 &&
-				    info_element->data[0] == 0x00 &&
-				    info_element->data[1] == 0x50 &&
-				    info_element->data[2] == 0xf2 &&
-				    info_element->data[3] == 0x01) {
+			case WLAN_EID_GENERIC:
+				if (ie[1] >= 4 &&
+				    ie[2] == 0x00 &&
+				    ie[3] == 0x50 &&
+				    ie[4] == 0xf2 &&
+				    ie[5] == 0x01) {
 					iwe.cmd = IWEVGENIE;
-					iwe.u.data.length = min(info_element->len + 2,
-								  MAX_WPA_IE_LEN);
+					/* 64 is an arbitrary cut-off */
+					iwe.u.data.length = min(ie[1] + 2,
+								64);
 					current_ev = iwe_stream_add_point(
 							info, current_ev,
-							end_buf, &iwe,
-							(char *) info_element);
+							end_buf, &iwe, ie);
 				}
 				break;
 
-			case MFIE_TYPE_RSN:
+			case WLAN_EID_RSN:
 				iwe.cmd = IWEVGENIE;
-				iwe.u.data.length = min(info_element->len + 2,
-							  MAX_WPA_IE_LEN);
+				/* 64 is an arbitrary cut-off */
+				iwe.u.data.length = min(ie[1] + 2, 64);
 				current_ev = iwe_stream_add_point(
 					info, current_ev, end_buf,
-					&iwe, (char *) info_element);
+					&iwe, ie);
 				break;
 
 			default:
 				break;
 			}
 
-			length -= sizeof(*info_element) + info_element->len;
-			info_element =
-			    (struct ieee80211_info_element *)&info_element->
-			    data[info_element->len];
+			length -= 2 + ie[1];
+			ie += 2 + ie[1];
 		}
 	}
 	return current_ev;

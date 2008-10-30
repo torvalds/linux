@@ -17,11 +17,11 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/wireless.h>
+#include <linux/ieee80211.h>
 #include <net/iw_handler.h>
 #include <linux/string.h>
 #include <linux/if_arp.h>
 #include <linux/firmware.h>
-#include <net/ieee80211.h>
 #include "zd1201.h"
 
 static struct usb_device_id zd1201_table[] = {
@@ -345,7 +345,7 @@ static void zd1201_usbrx(struct urb *urb)
 				frag = kmalloc(sizeof(*frag), GFP_ATOMIC);
 				if (!frag)
 					goto resubmit;
-				skb = dev_alloc_skb(IEEE80211_DATA_LEN +14+2);
+				skb = dev_alloc_skb(IEEE80211_MAX_DATA_LEN +14+2);
 				if (!skb) {
 					kfree(frag);
 					goto resubmit;

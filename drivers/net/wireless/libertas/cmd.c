@@ -5,7 +5,6 @@
 
 #include <net/iw_handler.h>
 #include <net/lib80211.h>
-#include <net/ieee80211.h>
 #include <linux/kfifo.h>
 #include "host.h"
 #include "hostcmd.h"
@@ -1071,7 +1070,7 @@ int lbs_mesh_config(struct lbs_private *priv, uint16_t action, uint16_t chan)
 
 	switch (action) {
 	case CMD_ACT_MESH_CONFIG_START:
-		ie->hdr.id = MFIE_TYPE_GENERIC;
+		ie->id = WLAN_EID_GENERIC;
 		ie->val.oui[0] = 0x00;
 		ie->val.oui[1] = 0x50;
 		ie->val.oui[2] = 0x43;
@@ -1083,7 +1082,7 @@ int lbs_mesh_config(struct lbs_private *priv, uint16_t action, uint16_t chan)
 		ie->val.mesh_capability = MARVELL_MESH_CAPABILITY;
 		ie->val.mesh_id_len = priv->mesh_ssid_len;
 		memcpy(ie->val.mesh_id, priv->mesh_ssid, priv->mesh_ssid_len);
-		ie->hdr.len = sizeof(struct mrvl_meshie_val) -
+		ie->len = sizeof(struct mrvl_meshie_val) -
 			IW_ESSID_MAX_SIZE + priv->mesh_ssid_len;
 		cmd.length = cpu_to_le16(sizeof(struct mrvl_meshie_val));
 		break;

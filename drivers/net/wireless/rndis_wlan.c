@@ -37,11 +37,11 @@
 #include <linux/usb.h>
 #include <linux/usb/cdc.h>
 #include <linux/wireless.h>
+#include <linux/ieee80211.h>
 #include <linux/if_arp.h>
 #include <linux/ctype.h>
 #include <linux/spinlock.h>
 #include <net/iw_handler.h>
-#include <net/ieee80211.h>
 #include <linux/usb/usbnet.h>
 #include <linux/usb/rndis_host.h>
 
@@ -1652,7 +1652,7 @@ static char *rndis_translate_scan(struct net_device *dev,
 #ifdef DEBUG
 	struct usbnet *usbdev = dev->priv;
 #endif
-	struct ieee80211_info_element *ie;
+	u8 *ie;
 	char *current_val;
 	int bssid_len, ie_len, i;
 	u32 beacon, atim;
@@ -1750,20 +1750,20 @@ static char *rndis_translate_scan(struct net_device *dev,
 	ie_len = min(bssid_len - (int)sizeof(*bssid),
 					(int)le32_to_cpu(bssid->ie_length));
 	ie_len -= sizeof(struct ndis_80211_fixed_ies);
-	while (ie_len >= sizeof(*ie) && sizeof(*ie) + ie->len <= ie_len) {
-		if ((ie->id == MFIE_TYPE_GENERIC && ie->len >= 4 &&
-				memcmp(ie->data, "\x00\x50\xf2\x01", 4) == 0) ||
-				ie->id == MFIE_TYPE_RSN) {
+	while (ie_len >= 2 && 2 + ie[1] <= ie_len) {
+		if ((ie[0] == WLAN_EID_GENERIC && ie[1] >= 4 &&
+		     memcmp(ie + 2, "\x00\x50\xf2\x01", 4) == 0) ||
+		    ie[0] == WLAN_EID_RSN) {
 			devdbg(usbdev, "IE: WPA%d",
-					(ie->id == MFIE_TYPE_RSN) ? 2 : 1);
+					(ie[0] == WLAN_EID_RSN) ? 2 : 1);
 			iwe.cmd = IWEVGENIE;
-			iwe.u.data.length = min(ie->len + 2, MAX_WPA_IE_LEN);
-			cev = iwe_stream_add_point(info, cev, end_buf, &iwe,
-								(u8 *)ie);
+			/* arbitrary cut-off at 64 */
+			iwe.u.data.length = min(ie[1] + 2, 64);
+			cev = iwe_stream_add_point(info, cev, end_buf, &iwe, ie);
 		}
 
-		ie_len -= sizeof(*ie) + ie->len;
-		ie = (struct ieee80211_info_element *)&ie->data[ie->len];
+		ie_len -= 2 + ie[1];
+		ie += 2 + ie[1];
 	}
 
 	return cev;

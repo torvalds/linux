@@ -12,9 +12,8 @@
 #include <linux/kthread.h>
 #include <linux/kfifo.h>
 #include <linux/stddef.h>
-
+#include <linux/ieee80211.h>
 #include <net/iw_handler.h>
-#include <net/ieee80211.h>
 
 #include "host.h"
 #include "decl.h"
