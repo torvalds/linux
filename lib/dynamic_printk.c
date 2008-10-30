@@ -135,7 +135,7 @@ int unregister_dynamic_debug_module(char *mod_name)
 	nr_entries--;
 out:
 	up(&debug_list_mutex);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(unregister_dynamic_debug_module);
 
