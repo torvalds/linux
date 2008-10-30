@@ -29,7 +29,7 @@
 #include <asm/irq.h>
 
 #include <plat/regs-serial.h>
-#include <asm/plat-s3c24xx/udc.h>
+#include <plat/udc.h>
 
 #include <plat/devs.h>
 #include <plat/cpu.h>

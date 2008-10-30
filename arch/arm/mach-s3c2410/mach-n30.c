@@ -47,7 +47,7 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/s3c2410.h>
-#include <asm/plat-s3c24xx/udc.h>
+#include <plat/udc.h>
 
 static struct map_desc n30_iodesc[] __initdata = {
 	/* nothing here yet */

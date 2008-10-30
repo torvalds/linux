@@ -51,7 +51,7 @@
 #include <plat/regs-serial.h>
 #include <mach/fb.h>
 #include <plat/nand.h>
-#include <asm/plat-s3c24xx/udc.h>
+#include <plat/udc.h>
 #include <mach/spi.h>
 #include <mach/spi-gpio.h>
 

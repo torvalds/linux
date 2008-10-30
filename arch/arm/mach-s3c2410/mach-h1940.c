@@ -38,7 +38,7 @@
 #include <mach/h1940.h>
 #include <mach/h1940-latch.h>
 #include <mach/fb.h>
-#include <asm/plat-s3c24xx/udc.h>
+#include <plat/udc.h>
 
 #include <plat/clock.h>
 #include <plat/devs.h>
