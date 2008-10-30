@@ -15,10 +15,7 @@
 #define OS_CURRENT_TX_BYTE( _A )		_A->TxByteCount
 #define OS_EVENT_INDICATE( _A, _B, _F )
 #define OS_PMKID_STATUS_EVENT( _A )
-#define OS_RECEIVE_PACKET_INDICATE( _A, _D )		WBLinux_ReceivePacket( _A, _D )
 #define OS_RECEIVE_802_1X_PACKET_INDICATE( _A, _D )	EAP_ReceivePacket( _A, _D )
-#define OS_GET_PACKET( _A, _D )				WBLINUX_GetNextPacket( _A, _D )
-#define OS_GET_PACKET_COMPLETE( _A, _D )	WBLINUX_GetNextPacketCompleted( _A, _D )
 #define OS_SEND_RESULT( _A, _ID, _R )
 
 #define WBLINUX_PACKET_ARRAY_SIZE	(ETHERNET_TX_DESCRIPTORS*4)

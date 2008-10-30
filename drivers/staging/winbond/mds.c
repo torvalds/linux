@@ -629,10 +629,3 @@ Mds_DurationSet(  struct wb35_adapter * adapter,  PDESCRIPTOR pDes,  u8 *buffer 
 	//--end 20061009 add
 
 }
-
-void MDS_EthernetPacketReceive(  struct wb35_adapter * adapter,  PRXLAYER1 pRxLayer1 )
-{
-		OS_RECEIVE_PACKET_INDICATE( adapter, pRxLayer1 );
-}
-
-

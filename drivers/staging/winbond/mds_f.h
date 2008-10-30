@@ -28,6 +28,5 @@ u16 MDS_GetPacketSize(  struct wb35_adapter *adapter );
 void MDS_GetNextPacket(  struct wb35_adapter *adapter,  PDESCRIPTOR pDes );
 void MDS_GetNextPacketComplete(  struct wb35_adapter *adapter,  PDESCRIPTOR pDes );
 void MDS_SendResult(  struct wb35_adapter *adapter,  u8 PacketId,  unsigned char SendOK );
-void MDS_EthernetPacketReceive(  struct wb35_adapter *adapter,  PRXLAYER1 pRxLayer1 );
 
 #endif

@@ -24,25 +24,6 @@ WBLINUX_Initial(struct wb35_adapter * adapter)
 }
 
 void
-WBLinux_ReceivePacket(struct wb35_adapter * adapter, PRXLAYER1 pRxLayer1)
-{
-	BUG();
-}
-
-
-void
-WBLINUX_GetNextPacket(struct wb35_adapter * adapter,  PDESCRIPTOR pDes)
-{
-	BUG();
-}
-
-void
-WBLINUX_GetNextPacketCompleted(struct wb35_adapter * adapter, PDESCRIPTOR pDes)
-{
-	BUG();
-}
-
-void
 WBLINUX_Destroy(struct wb35_adapter * adapter)
 {
 	WBLINUX_stop( adapter );

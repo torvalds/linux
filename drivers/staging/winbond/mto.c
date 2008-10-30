@@ -209,7 +209,6 @@ static int rate_tbl[13] = {0,1,2,5,11,6,9,12,18,24,36,48,54};
 static int TotalTxPkt = 0;
 static int TotalTxPktRetry = 0;
 static int TxPktPerAnt[3] = {0,0,0};
-static int RXRSSIANT[3] ={-70,-70,-70};
 static int TxPktRetryPerAnt[3] = {0,0,0};
 //static int TxDominateFlag=false;
 static u8 old_antenna[4]={1 ,0 ,1 ,0};
@@ -236,15 +235,11 @@ static RSSI2RATE RSSI2RateTbl[RSSI2RATE_SIZE] =
 	{-920, 11}, // 5.5M
 	{-950, 4}, // 2M
 };
-static u8 untogglecount;
 static u8 last_rate_ant; //this is used for antenna backoff-hh
 
 u8	boSparseTxTraffic = false;
 
 void MTO_Init(MTO_FUNC_INPUT);
-void AntennaToggleInitiator(MTO_FUNC_INPUT);
-void AntennaToggleState(MTO_FUNC_INPUT);
-void TxPwrControl(MTO_FUNC_INPUT);
 void GetFreshAntennaData(MTO_FUNC_INPUT);
 void TxRateReductionCtrl(MTO_FUNC_INPUT);
 /** 1.1.31.1000 Turbo modify */
@@ -258,7 +253,6 @@ u8 CalcNewRate(MTO_FUNC_INPUT, u8 old_rate, u32 retry_cnt, u32 tx_frag_cnt);
 u8 GetMaxRateLevelFromRSSI(void);
 u8 MTO_GetTxFallbackRate(MTO_FUNC_INPUT);
 int Divide(int a, int b);
-void multiagc(MTO_FUNC_INPUT, u8 high_gain_mode);
 
 //===========================================================================
 //  MTO_Init --
@@ -544,27 +538,6 @@ void GetDTO_RxInfo(int index, MTO_FUNC_INPUT)
 	TotalTxPktRetry = 0;
 }
 
-void OutputDebugInfo(int index1, int index2)
-{
-	#ifdef _PE_DTO_DUMP_
-	WBDEBUG(("[HHDTO]:Total Rx (%d)\t\t(%d) \n ", DTO_Rx_Info[0][index1], DTO_Rx_Info[0][index2]));
-    WBDEBUG(("[HHDTO]:RECEIVE RSSI: (%d)\t\t(%d) \n ", RXRSSIANT[index1], RXRSSIANT[index2]));
-	WBDEBUG(("[HHDTO]:TX packet correct rate: (%d)%%\t\t(%d)%% \n ",Divide(TxPktPerAnt[index1]*100,TxPktRetryPerAnt[index1]), Divide(TxPktPerAnt[index2]*100,TxPktRetryPerAnt[index2])));
-	#endif
-	{
-		int tmp1, tmp2;
-		#ifdef _PE_DTO_DUMP_
-		WBDEBUG(("[HHDTO]:Total Tx (%d)\t\t(%d) \n ", TxPktPerAnt[index1], TxPktPerAnt[index2]));
-		WBDEBUG(("[HHDTO]:Total Tx retry (%d)\t\t(%d) \n ", TxPktRetryPerAnt[index1], TxPktRetryPerAnt[index2]));
-		#endif
-		tmp1 = TxPktPerAnt[index1] + DTO_Rx_Info[0][index1];
-		tmp2 = TxPktPerAnt[index2] + DTO_Rx_Info[0][index2];
-		#ifdef _PE_DTO_DUMP_
-		WBDEBUG(("[HHDTO]:Total Tx+RX (%d)\t\t(%d) \n ", tmp1, tmp2));
-		#endif
-	}
-}
-
 unsigned char TxDominate(int index)
 {
 	int tmp;
@@ -636,314 +609,6 @@ void GetFreshAntennaData(MTO_FUNC_INPUT)
 }
 
 int WB_PCR[2]; //packet correct rate
-
-void AntennaToggleState(MTO_FUNC_INPUT)
-{
-    int decideantflag = 0;
-	u8      x;
-	s32     rssi;
-
-	if(MTO_ANT_DIVERSITY_ENABLE() != 1)
-		return;
-	x = hal_get_antenna_number(MTO_HAL());
-	switch(MTO_TOGGLE_STATE())
-	{
-
-	   //Missing.....
-	   case TOGGLE_STATE_IDLE:
-	 case TOGGLE_STATE_BKOFF:
-	             break;;
-
-		case TOGGLE_STATE_WAIT0://========
-	               GetDTO_RxInfo(x, MTO_FUNC_INPUT_DATA);
-			sme_get_rssi(MTO_FUNC_INPUT_DATA, &rssi);
-			RXRSSIANT[x] = rssi;
-			#ifdef _PE_DTO_DUMP_
-			WBDEBUG(("[HHDTO] **wait0==== Collecting Ant%d--rssi=%d\n", x,RXRSSIANT[x]));
-			#endif
-
-			//change antenna and reset the data at changed antenna
-			x = (~x) & 0x01;
-			MTO_ANT_SEL() = x;
-			hal_set_antenna_number(MTO_HAL(), MTO_ANT_SEL());
-			LOCAL_ANTENNA_NO() = x;
-
-			MTO_TOGGLE_STATE() = TOGGLE_STATE_WAIT1;//go to wait1
-			ResetDTO_RxInfo(x, MTO_FUNC_INPUT_DATA);
-			break;
-		case TOGGLE_STATE_WAIT1://=====wait1
-			//MTO_CNT_ANT(x) = hal_get_bss_pk_cnt(MTO_HAL());
-			//RXRSSIANT[x] = hal_get_rssi(MTO_HAL());
-			sme_get_rssi(MTO_FUNC_INPUT_DATA, &rssi);
-			RXRSSIANT[x] = rssi;
-			GetDTO_RxInfo(x, MTO_FUNC_INPUT_DATA);
-			#ifdef _PE_DTO_DUMP_
-			WBDEBUG(("[HHDTO] **wait1==== Collecting Ant%d--rssi=%d\n", x,RXRSSIANT[x]));
-			#endif
-			MTO_TOGGLE_STATE() = TOGGLE_STATE_MAKEDESISION;
-			break;
-		case TOGGLE_STATE_MAKEDESISION:
-			#ifdef _PE_DTO_DUMP_
-			WBDEBUG(("[HHDTO]:Ant--0-----------------1---\n"));
-			OutputDebugInfo(ANT0,ANT1);
-			#endif
-			//PDEBUG(("[HHDTO] **decision====\n "));
-
-			//=====following is the decision produrce
-			//
-			//    first: compare the rssi if difference >10
-			//           select the larger one
-			//           ,others go to second
-			//    second: comapre the tx+rx packet count if difference >100
-			//            use larger total packets antenna
-			//    third::compare the tx PER if packets>20
-			//                           if difference >5% using the bigger one
-			//
-			//    fourth:compare the RX PER if packets>20
-			//                    if PER difference <5%
-			//                   using old antenna
-			//
-			//
-			if (abs(RXRSSIANT[ANT0]-RXRSSIANT[ANT1]) > MTOPARA_RSSI_TH_FOR_ANTDIV())//====rssi_th
-			{
-				if (RXRSSIANT[ANT0]>RXRSSIANT[ANT1])
-				{
-					decideantflag=1;
-					MTO_ANT_MAC() = ANT0;
-				}
-				else
-				{
-					decideantflag=1;
-					MTO_ANT_MAC() = ANT1;
-				}
-				#ifdef _PE_DTO_DUMP_
-				WBDEBUG(("Select antenna by RSSI\n"));
-				#endif
-			}
-			else if  (abs(TxPktPerAnt[ANT0] + DTO_Rx_Info[0][ANT0]-TxPktPerAnt[ANT1]-DTO_Rx_Info[0][ANT1])<50)//=====total packet_th
-			{
-				#ifdef _PE_DTO_DUMP_
-				WBDEBUG(("Total tx/rx is close\n"));
-				#endif
-				if (TxDominate(ANT0) && TxDominate(ANT1))
-				{
-					if ((TxPktPerAnt[ANT0]>10) && (TxPktPerAnt[ANT1]>10))//====tx packet_th
-					{
-						WB_PCR[ANT0]=Divide(TxPktPerAnt[ANT0]*100,TxPktRetryPerAnt[ANT0]);
-						WB_PCR[ANT1]=Divide(TxPktPerAnt[ANT1]*100,TxPktRetryPerAnt[ANT1]);
-						if (abs(WB_PCR[ANT0]-WB_PCR[ANT1])>5)// tx PER_th
-						{
-							#ifdef _PE_DTO_DUMP_
-							WBDEBUG(("Decide by Tx correct rate\n"));
-							#endif
-							if (WB_PCR[ANT0]>WB_PCR[ANT1])
-							{
-								decideantflag=1;
-								MTO_ANT_MAC() = ANT0;
-							}
-							else
-							{
-								decideantflag=1;
-								MTO_ANT_MAC() = ANT1;
-							}
-						}
-						else
-						{
-							decideantflag=0;
-							untogglecount++;
-							MTO_ANT_MAC() = old_antenna[0];
-						}
-					}
-					else
-					{
-						decideantflag=0;
-						MTO_ANT_MAC() = old_antenna[0];
-					}
-				}
-				else if ((DTO_Rx_Info[0][ANT0]>10)&&(DTO_Rx_Info[0][ANT1]>10))//rx packet th
-				{
-					#ifdef _PE_DTO_DUMP_
-					WBDEBUG(("Decide by Rx\n"));
-					#endif
-					if (abs(DTO_Rx_Info[0][ANT0] - DTO_Rx_Info[0][ANT1])>50)
-					{
-						if (DTO_Rx_Info[0][ANT0] > DTO_Rx_Info[0][ANT1])
-						{
-							decideantflag=1;
-							MTO_ANT_MAC() = ANT0;
-						}
-						else
-						{
-							decideantflag=1;
-							MTO_ANT_MAC() = ANT1;
-						}
-					}
-					else
-					{
-						decideantflag=0;
-						untogglecount++;
-						MTO_ANT_MAC() = old_antenna[0];
-					}
-				}
-				else
-				{
-					decideantflag=0;
-					MTO_ANT_MAC() = old_antenna[0];
-				}
-			}
-			else if ((TxPktPerAnt[ANT0]+DTO_Rx_Info[0][ANT0])>(TxPktPerAnt[ANT1]+DTO_Rx_Info[0][ANT1]))//use more packekts
-			{
-				#ifdef _PE_DTO_DUMP_
-				WBDEBUG(("decide by total tx/rx : ANT 0\n"));
-				#endif
-
-				decideantflag=1;
-				MTO_ANT_MAC() = ANT0;
-			}
-			else
-			{
-				#ifdef _PE_DTO_DUMP_
-				WBDEBUG(("decide by total tx/rx : ANT 1\n"));
-				#endif
-				decideantflag=1;
-				MTO_ANT_MAC() = ANT1;
-
-			}
-			//this is force ant toggle
-			if (decideantflag==1)
-				untogglecount=0;
-
-			untogglecount=untogglecount%4;
-			if (untogglecount==3) //change antenna
-				MTO_ANT_MAC() = ((~old_antenna[0]) & 0x1);
-			#ifdef _PE_DTO_DUMP_
-			WBDEBUG(("[HHDTO]:==================untoggle-count=%d",untogglecount));
-			#endif
-
-
-
-
-			//PDEBUG(("[HHDTO] **********************************DTO ENABLE=%d",MTO_ANT_DIVERSITY_ENABLE()));
-			if(MTO_ANT_DIVERSITY_ENABLE() == 1)
-			{
-					MTO_ANT_SEL() = MTO_ANT_MAC();
-					hal_set_antenna_number(MTO_HAL(), MTO_ANT_SEL());
-					LOCAL_ANTENNA_NO() = MTO_ANT_SEL();
-					#ifdef _PE_DTO_DUMP_
-					WBDEBUG(("[HHDTO] ==decision==*******antflag=%d******************selected antenna=%d\n",decideantflag,MTO_ANT_SEL()));
-					#endif
-			}
-			if (decideantflag)
-			{
-				old_antenna[3]=old_antenna[2];//store antenna info
-				old_antenna[2]=old_antenna[1];
-				old_antenna[1]=old_antenna[0];
-				old_antenna[0]= MTO_ANT_MAC();
-			}
-			#ifdef _PE_DTO_DUMP_
-			WBDEBUG(("[HHDTO]:**old antenna=[%d][%d][%d][%d]\n",old_antenna[0],old_antenna[1],old_antenna[2],old_antenna[3]));
-			#endif
-			if (old_antenna[0]!=old_antenna[1])
-				AntennaToggleBkoffTimer=0;
-			else if (old_antenna[1]!=old_antenna[2])
-				AntennaToggleBkoffTimer=1;
-			else if (old_antenna[2]!=old_antenna[3])
-				AntennaToggleBkoffTimer=2;
-			else
-				AntennaToggleBkoffTimer=4;
-
-			#ifdef _PE_DTO_DUMP_
-			WBDEBUG(("[HHDTO]:**back off timer=%d",AntennaToggleBkoffTimer));
-			#endif
-
-			ResetDTO_RxInfo(MTO_ANT_MAC(), MTO_FUNC_INPUT_DATA);
-			if (AntennaToggleBkoffTimer==0 && decideantflag)
-				MTO_TOGGLE_STATE() = TOGGLE_STATE_WAIT0;
-			else
-				MTO_TOGGLE_STATE() = TOGGLE_STATE_IDLE;
-			break;
-	}
-
-}
-
-void multiagc(MTO_FUNC_INPUT, u8 high_gain_mode )
-{
-	s32		rssi;
-	hw_data_t	*pHwData = MTO_HAL();
-
-	sme_get_rssi(MTO_FUNC_INPUT_DATA, &rssi);
-
-	if( (RF_WB_242 == pHwData->phy_type) ||
-		(RF_WB_242_1 == pHwData->phy_type) ) // 20060619.5 Add
-	{
-		if (high_gain_mode==1)
-		{
-			//hw_set_dxx_reg(phw_data, 0x0C, 0xf8f52230);
-			//hw_set_dxx_reg(phw_data, 0x20, 0x06C43440);
-			Wb35Reg_Write( pHwData, 0x100C, 0xF2F32232 ); // 940916 0xf8f52230 );
-			Wb35Reg_Write( pHwData, 0x1020, 0x04cb3440 ); // 940915 0x06C43440
-		}
-		else if (high_gain_mode==0)
-		{
-			//hw_set_dxx_reg(phw_data, 0x0C, 0xEEEE000D);
-			//hw_set_dxx_reg(phw_data, 0x20, 0x06c41440);
-			Wb35Reg_Write( pHwData, 0x100C, 0xEEEE000D );
-			Wb35Reg_Write( pHwData, 0x1020, 0x04cb1440 ); // 940915 0x06c41440
-		}
-		#ifdef _PE_DTO_DUMP_
-		WBDEBUG(("[HHDTOAGC] **rssi=%d, high gain mode=%d", rssi, high_gain_mode));
-		#endif
-	}
-}
-
-void TxPwrControl(MTO_FUNC_INPUT)
-{
-    s32     rssi;
-	hw_data_t	*pHwData = MTO_HAL();
-
-	sme_get_rssi(MTO_FUNC_INPUT_DATA, &rssi);
-	if( (RF_WB_242 == pHwData->phy_type) ||
-		(RF_WB_242_1 == pHwData->phy_type) ) // 20060619.5 Add
-	{
-		static u8 high_gain_mode; //this is for winbond RF switch LNA
-		                          //using different register setting
-
-		if (high_gain_mode==1)
-		{
-			if( rssi > MTO_DATA().RSSI_high )
-			{
-				//hw_set_dxx_reg(phw_data, 0x0C, 0xf8f52230);
-				//hw_set_dxx_reg(phw_data, 0x20, 0x05541640);
-				high_gain_mode=0;
-			}
-			else
-			{
-				//hw_set_dxx_reg(phw_data, 0x0C, 0xf8f51830);
-				//hw_set_dxx_reg(phw_data, 0x20, 0x05543E40);
-				high_gain_mode=1;
-			}
-		}
-		else //if (high_gain_mode==0)
-		{
-			if( rssi < MTO_DATA().RSSI_low )
-			{
-				//hw_set_dxx_reg(phw_data, 0x0C, 0xf8f51830);
-				//hw_set_dxx_reg(phw_data, 0x20, 0x05543E40);
-				high_gain_mode=1;
-			}
-			else
-			{
-				//hw_set_dxx_reg(phw_data, 0x0C, 0xf8f52230);
-				//hw_set_dxx_reg(phw_data, 0x20, 0x05541640);
-				high_gain_mode=0;
-			}
-		}
-
-		// Always high gain 20051014. Using the initial value only.
-		multiagc(MTO_FUNC_INPUT_DATA, high_gain_mode);
-	}
-}
-
 
 u8 CalcNewRate(MTO_FUNC_INPUT, u8 old_rate, u32 retry_cnt, u32 tx_frag_cnt)
 {

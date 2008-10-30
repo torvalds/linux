@@ -7,7 +7,6 @@ w35und-objs := $(DRIVER_DIR)/wbusb.o $(DRIVER_DIR)/wb35reg.o $(DRIVER_DIR)/wb35r
 	phy_calibration.o	\
 	reg.o			\
 	rxisr.o			\
-	sme_api.o		\
 	wbhal.o			\
 	wblinux.o		\
 
