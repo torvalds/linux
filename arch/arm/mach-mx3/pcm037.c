@@ -91,12 +91,12 @@ static struct map_desc pcm037_io_desc[] __initdata = {
 		.virtual	= AIPS1_BASE_ADDR_VIRT,
 		.pfn		= __phys_to_pfn(AIPS1_BASE_ADDR),
 		.length		= AIPS1_SIZE,
-		.type		= MT_DEVICE
+		.type		= MT_DEVICE_NONSHARED
 	}, {
 		.virtual	= AIPS2_BASE_ADDR_VIRT,
 		.pfn		= __phys_to_pfn(AIPS2_BASE_ADDR),
 		.length		= AIPS2_SIZE,
-		.type		= MT_DEVICE
+		.type		= MT_DEVICE_NONSHARED
 	},
 };
 
