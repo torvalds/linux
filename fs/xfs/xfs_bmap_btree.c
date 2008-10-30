@@ -699,6 +699,29 @@ xfs_bmbt_key_diff(
 				      cur->bc_rec.b.br_startoff;
 }
 
+#ifdef DEBUG
+STATIC int
+xfs_bmbt_keys_inorder(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_key	*k1,
+	union xfs_btree_key	*k2)
+{
+	return be64_to_cpu(k1->bmbt.br_startoff) <
+		be64_to_cpu(k2->bmbt.br_startoff);
+}
+
+STATIC int
+xfs_bmbt_recs_inorder(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_rec	*r1,
+	union xfs_btree_rec	*r2)
+{
+	return xfs_bmbt_disk_get_startoff(&r1->bmbt) +
+		xfs_bmbt_disk_get_blockcount(&r1->bmbt) <=
+		xfs_bmbt_disk_get_startoff(&r2->bmbt);
+}
+#endif	/* DEBUG */
+
 #ifdef XFS_BTREE_TRACE
 ktrace_t	*xfs_bmbt_trace_buf;
 
@@ -800,6 +823,11 @@ static const struct xfs_btree_ops xfs_bmbt_ops = {
 	.init_rec_from_cur	= xfs_bmbt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_bmbt_init_ptr_from_cur,
 	.key_diff		= xfs_bmbt_key_diff,
+
+#ifdef DEBUG
+	.keys_inorder		= xfs_bmbt_keys_inorder,
+	.recs_inorder		= xfs_bmbt_recs_inorder,
+#endif
 
 #ifdef XFS_BTREE_TRACE
 	.trace_enter		= xfs_bmbt_trace_enter,

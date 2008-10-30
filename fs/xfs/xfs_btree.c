@@ -52,122 +52,6 @@ const __uint32_t xfs_magics[XFS_BTNUM_MAX] = {
 	XFS_ABTB_MAGIC, XFS_ABTC_MAGIC, XFS_BMAP_MAGIC, XFS_IBT_MAGIC
 };
 
-/*
- * External routines.
- */
-
-#ifdef DEBUG
-/*
- * Debug routine: check that keys are in the right order.
- */
-void
-xfs_btree_check_key(
-	xfs_btnum_t	btnum,		/* btree identifier */
-	void		*ak1,		/* pointer to left (lower) key */
-	void		*ak2)		/* pointer to right (higher) key */
-{
-	switch (btnum) {
-	case XFS_BTNUM_BNO: {
-		xfs_alloc_key_t	*k1;
-		xfs_alloc_key_t	*k2;
-
-		k1 = ak1;
-		k2 = ak2;
-		ASSERT(be32_to_cpu(k1->ar_startblock) < be32_to_cpu(k2->ar_startblock));
-		break;
-	    }
-	case XFS_BTNUM_CNT: {
-		xfs_alloc_key_t	*k1;
-		xfs_alloc_key_t	*k2;
-
-		k1 = ak1;
-		k2 = ak2;
-		ASSERT(be32_to_cpu(k1->ar_blockcount) < be32_to_cpu(k2->ar_blockcount) ||
-		       (k1->ar_blockcount == k2->ar_blockcount &&
-			be32_to_cpu(k1->ar_startblock) < be32_to_cpu(k2->ar_startblock)));
-		break;
-	    }
-	case XFS_BTNUM_BMAP: {
-		xfs_bmbt_key_t	*k1;
-		xfs_bmbt_key_t	*k2;
-
-		k1 = ak1;
-		k2 = ak2;
-		ASSERT(be64_to_cpu(k1->br_startoff) < be64_to_cpu(k2->br_startoff));
-		break;
-	    }
-	case XFS_BTNUM_INO: {
-		xfs_inobt_key_t	*k1;
-		xfs_inobt_key_t	*k2;
-
-		k1 = ak1;
-		k2 = ak2;
-		ASSERT(be32_to_cpu(k1->ir_startino) < be32_to_cpu(k2->ir_startino));
-		break;
-	    }
-	default:
-		ASSERT(0);
-	}
-}
-
-/*
- * Debug routine: check that records are in the right order.
- */
-void
-xfs_btree_check_rec(
-	xfs_btnum_t	btnum,		/* btree identifier */
-	void		*ar1,		/* pointer to left (lower) record */
-	void		*ar2)		/* pointer to right (higher) record */
-{
-	switch (btnum) {
-	case XFS_BTNUM_BNO: {
-		xfs_alloc_rec_t	*r1;
-		xfs_alloc_rec_t	*r2;
-
-		r1 = ar1;
-		r2 = ar2;
-		ASSERT(be32_to_cpu(r1->ar_startblock) +
-		       be32_to_cpu(r1->ar_blockcount) <=
-		       be32_to_cpu(r2->ar_startblock));
-		break;
-	    }
-	case XFS_BTNUM_CNT: {
-		xfs_alloc_rec_t	*r1;
-		xfs_alloc_rec_t	*r2;
-
-		r1 = ar1;
-		r2 = ar2;
-		ASSERT(be32_to_cpu(r1->ar_blockcount) < be32_to_cpu(r2->ar_blockcount) ||
-		       (r1->ar_blockcount == r2->ar_blockcount &&
-			be32_to_cpu(r1->ar_startblock) < be32_to_cpu(r2->ar_startblock)));
-		break;
-	    }
-	case XFS_BTNUM_BMAP: {
-		xfs_bmbt_rec_t	*r1;
-		xfs_bmbt_rec_t	*r2;
-
-		r1 = ar1;
-		r2 = ar2;
-		ASSERT(xfs_bmbt_disk_get_startoff(r1) +
-		       xfs_bmbt_disk_get_blockcount(r1) <=
-		       xfs_bmbt_disk_get_startoff(r2));
-		break;
-	    }
-	case XFS_BTNUM_INO: {
-		xfs_inobt_rec_t	*r1;
-		xfs_inobt_rec_t	*r2;
-
-		r1 = ar1;
-		r2 = ar2;
-		ASSERT(be32_to_cpu(r1->ir_startino) + XFS_INODES_PER_CHUNK <=
-		       be32_to_cpu(r2->ir_startino));
-		break;
-	    }
-	default:
-		ASSERT(0);
-	}
-}
-#endif	/* DEBUG */
 
 int					/* error (0 or EFSCORRUPTED) */
 xfs_btree_check_lblock(
@@ -2032,9 +1916,8 @@ xfs_btree_lshift(
 		xfs_btree_log_keys(cur, lbp, lrecs, lrecs);
 		xfs_btree_log_ptrs(cur, lbp, lrecs, lrecs);
 
-		xfs_btree_check_key(cur->bc_btnum,
-				    xfs_btree_key_addr(cur, lrecs - 1, left),
-				    lkp);
+		ASSERT(cur->bc_ops->keys_inorder(cur,
+			xfs_btree_key_addr(cur, lrecs - 1, left), lkp));
 	} else {
 		/* It's a leaf.  Move records.  */
 		union xfs_btree_rec	*lrp;	/* left record pointer */
@@ -2045,9 +1928,8 @@ xfs_btree_lshift(
 		xfs_btree_copy_recs(cur, lrp, rrp, 1);
 		xfs_btree_log_recs(cur, lbp, lrecs, lrecs);
 
-		xfs_btree_check_rec(cur->bc_btnum,
-				    xfs_btree_rec_addr(cur, lrecs - 1, left),
-				    lrp);
+		ASSERT(cur->bc_ops->recs_inorder(cur,
+			xfs_btree_rec_addr(cur, lrecs - 1, left), lrp));
 	}
 
 	xfs_btree_set_numrecs(left, lrecs);
@@ -2222,8 +2104,8 @@ xfs_btree_rshift(
 		xfs_btree_log_keys(cur, rbp, 1, rrecs + 1);
 		xfs_btree_log_ptrs(cur, rbp, 1, rrecs + 1);
 
-		xfs_btree_check_key(cur->bc_btnum, rkp,
-				    xfs_btree_key_addr(cur, 2, right));
+		ASSERT(cur->bc_ops->keys_inorder(cur, rkp,
+			xfs_btree_key_addr(cur, 2, right)));
 	} else {
 		/* It's a leaf. make a hole in the records */
 		union xfs_btree_rec	*lrp;
@@ -2241,8 +2123,8 @@ xfs_btree_rshift(
 		cur->bc_ops->init_key_from_rec(&key, rrp);
 		rkp = &key;
 
-		xfs_btree_check_rec(cur->bc_btnum, rrp,
-				    xfs_btree_rec_addr(cur, 2, right));
+		ASSERT(cur->bc_ops->recs_inorder(cur, rrp,
+			xfs_btree_rec_addr(cur, 2, right)));
 	}
 
 	/*
@@ -2849,11 +2731,11 @@ xfs_btree_insrec(
 	/* Check that the new entry is being inserted in the right place. */
 	if (ptr <= numrecs) {
 		if (level == 0) {
-			xfs_btree_check_rec(cur->bc_btnum, recp,
-					xfs_btree_rec_addr(cur, ptr, block));
+			ASSERT(cur->bc_ops->recs_inorder(cur, recp,
+				xfs_btree_rec_addr(cur, ptr, block)));
 		} else {
-			xfs_btree_check_key(cur->bc_btnum, &key,
-					xfs_btree_key_addr(cur, ptr, block));
+			ASSERT(cur->bc_ops->keys_inorder(cur, &key,
+				xfs_btree_key_addr(cur, ptr, block)));
 		}
 	}
 #endif
@@ -2923,8 +2805,8 @@ xfs_btree_insrec(
 		xfs_btree_log_keys(cur, bp, ptr, numrecs);
 #ifdef DEBUG
 		if (ptr < numrecs) {
-			xfs_btree_check_key(cur->bc_btnum, kp,
-				xfs_btree_key_addr(cur, ptr + 1, block));
+			ASSERT(cur->bc_ops->keys_inorder(cur, kp,
+				xfs_btree_key_addr(cur, ptr + 1, block)));
 		}
 #endif
 	} else {
@@ -2941,8 +2823,8 @@ xfs_btree_insrec(
 		xfs_btree_log_recs(cur, bp, ptr, numrecs);
 #ifdef DEBUG
 		if (ptr < numrecs) {
-			xfs_btree_check_rec(cur->bc_btnum, rp,
-				xfs_btree_rec_addr(cur, ptr + 1, block));
+			ASSERT(cur->bc_ops->recs_inorder(cur, rp,
+				xfs_btree_rec_addr(cur, ptr + 1, block)));
 		}
 #endif
 	}

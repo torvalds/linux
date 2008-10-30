@@ -6195,7 +6195,8 @@ xfs_check_block(
 		}
 
 		if (prevp) {
-			xfs_btree_check_key(XFS_BTNUM_BMAP, prevp, keyp);
+			ASSERT(be64_to_cpu(prevp->br_startoff) <
+			       be64_to_cpu(keyp->br_startoff));
 		}
 		prevp = keyp;
 
@@ -6338,11 +6339,15 @@ xfs_bmap_check_leaf_extents(
 
 		ep = XFS_BTREE_REC_ADDR(xfs_bmbt, block, 1);
 		if (i) {
-			xfs_btree_check_rec(XFS_BTNUM_BMAP, &last, ep);
+			ASSERT(xfs_bmbt_disk_get_startoff(&last) +
+			       xfs_bmbt_disk_get_blockcount(&last) <=
+			       xfs_bmbt_disk_get_startoff(ep));
 		}
 		for (j = 1; j < num_recs; j++) {
 			nextp = XFS_BTREE_REC_ADDR(xfs_bmbt, block, j + 1);
-			xfs_btree_check_rec(XFS_BTNUM_BMAP, ep, nextp);
+			ASSERT(xfs_bmbt_disk_get_startoff(ep) +
+			       xfs_bmbt_disk_get_blockcount(ep) <=
+			       xfs_bmbt_disk_get_startoff(nextp));
 			ep = nextp;
 		}
 

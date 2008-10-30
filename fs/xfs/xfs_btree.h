@@ -229,6 +229,18 @@ struct xfs_btree_ops {
 	__int64_t (*key_diff)(struct xfs_btree_cur *cur,
 			      union xfs_btree_key *key);
 
+#ifdef DEBUG
+	/* check that k1 is lower than k2 */
+	int	(*keys_inorder)(struct xfs_btree_cur *cur,
+				union xfs_btree_key *k1,
+				union xfs_btree_key *k2);
+
+	/* check that r1 is lower than r2 */
+	int	(*recs_inorder)(struct xfs_btree_cur *cur,
+				union xfs_btree_rec *r1,
+				union xfs_btree_rec *r2);
+#endif
+
 	/* btree tracing */
 #ifdef XFS_BTREE_TRACE
 	void		(*trace_enter)(struct xfs_btree_cur *, const char *,
@@ -378,30 +390,6 @@ xfs_btree_check_ptr(
 	union xfs_btree_ptr	*ptr,	/* btree block disk address */
 	int			index,	/* offset from ptr to check */
 	int			level);	/* btree block level */
-
-#ifdef DEBUG
-
-/*
- * Debug routine: check that keys are in the right order.
- */
-void
-xfs_btree_check_key(
-	xfs_btnum_t		btnum,	/* btree identifier */
-	void			*ak1,	/* pointer to left (lower) key */
-	void			*ak2);	/* pointer to right (higher) key */
-
-/*
- * Debug routine: check that records are in the right order.
- */
-void
-xfs_btree_check_rec(
-	xfs_btnum_t		btnum,	/* btree identifier */
-	void			*ar1,	/* pointer to left (lower) record */
-	void			*ar2);	/* pointer to right (higher) record */
-#else
-#define	xfs_btree_check_key(a, b, c)
-#define	xfs_btree_check_rec(a, b, c)
-#endif	/* DEBUG */
 
 /*
  * Delete the btree cursor.

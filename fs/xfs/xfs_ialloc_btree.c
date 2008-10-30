@@ -219,6 +219,28 @@ xfs_inobt_kill_root(
 	return 0;
 }
 
+#ifdef DEBUG
+STATIC int
+xfs_inobt_keys_inorder(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_key	*k1,
+	union xfs_btree_key	*k2)
+{
+	return be32_to_cpu(k1->inobt.ir_startino) <
+		be32_to_cpu(k2->inobt.ir_startino);
+}
+
+STATIC int
+xfs_inobt_recs_inorder(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_rec	*r1,
+	union xfs_btree_rec	*r2)
+{
+	return be32_to_cpu(r1->inobt.ir_startino) + XFS_INODES_PER_CHUNK <=
+		be32_to_cpu(r2->inobt.ir_startino);
+}
+#endif	/* DEBUG */
+
 #ifdef XFS_BTREE_TRACE
 ktrace_t	*xfs_inobt_trace_buf;
 
@@ -301,6 +323,11 @@ static const struct xfs_btree_ops xfs_inobt_ops = {
 	.init_rec_from_cur	= xfs_inobt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_inobt_init_ptr_from_cur,
 	.key_diff		= xfs_inobt_key_diff,
+
+#ifdef DEBUG
+	.keys_inorder		= xfs_inobt_keys_inorder,
+	.recs_inorder		= xfs_inobt_recs_inorder,
+#endif
 
 #ifdef XFS_BTREE_TRACE
 	.trace_enter		= xfs_inobt_trace_enter,

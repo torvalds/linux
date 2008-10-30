@@ -311,6 +311,45 @@ xfs_allocbt_kill_root(
 	return 0;
 }
 
+#ifdef DEBUG
+STATIC int
+xfs_allocbt_keys_inorder(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_key	*k1,
+	union xfs_btree_key	*k2)
+{
+	if (cur->bc_btnum == XFS_BTNUM_BNO) {
+		return be32_to_cpu(k1->alloc.ar_startblock) <
+		       be32_to_cpu(k2->alloc.ar_startblock);
+	} else {
+		return be32_to_cpu(k1->alloc.ar_blockcount) <
+			be32_to_cpu(k2->alloc.ar_blockcount) ||
+			(k1->alloc.ar_blockcount == k2->alloc.ar_blockcount &&
+			 be32_to_cpu(k1->alloc.ar_startblock) <
+			 be32_to_cpu(k2->alloc.ar_startblock));
+	}
+}
+
+STATIC int
+xfs_allocbt_recs_inorder(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_rec	*r1,
+	union xfs_btree_rec	*r2)
+{
+	if (cur->bc_btnum == XFS_BTNUM_BNO) {
+		return be32_to_cpu(r1->alloc.ar_startblock) +
+			be32_to_cpu(r1->alloc.ar_blockcount) <=
+			be32_to_cpu(r2->alloc.ar_startblock);
+	} else {
+		return be32_to_cpu(r1->alloc.ar_blockcount) <
+			be32_to_cpu(r2->alloc.ar_blockcount) ||
+			(r1->alloc.ar_blockcount == r2->alloc.ar_blockcount &&
+			 be32_to_cpu(r1->alloc.ar_startblock) <
+			 be32_to_cpu(r2->alloc.ar_startblock));
+	}
+}
+#endif	/* DEBUG */
+
 #ifdef XFS_BTREE_TRACE
 ktrace_t	*xfs_allocbt_trace_buf;
 
@@ -394,6 +433,11 @@ static const struct xfs_btree_ops xfs_allocbt_ops = {
 	.init_rec_from_cur	= xfs_allocbt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_allocbt_init_ptr_from_cur,
 	.key_diff		= xfs_allocbt_key_diff,
+
+#ifdef DEBUG
+	.keys_inorder		= xfs_allocbt_keys_inorder,
+	.recs_inorder		= xfs_allocbt_recs_inorder,
+#endif
 
 #ifdef XFS_BTREE_TRACE
 	.trace_enter		= xfs_allocbt_trace_enter,
