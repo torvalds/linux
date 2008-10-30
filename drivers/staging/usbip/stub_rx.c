@@ -157,7 +157,7 @@ static int tweak_set_configuration_cmd(struct urb *urb)
 	 * A user may need to set a special configuration value before
 	 * exporting the device.
 	 */
-	uinfo("set_configuration (%d) to %s\n", config, urb->dev->dev.bus_id);
+	uinfo("set_configuration (%d) to %s\n", config, dev_name(&urb->dev->dev));
 	uinfo("but, skip!\n");
 
 	return 0;
@@ -175,7 +175,7 @@ static int tweak_reset_device_cmd(struct urb *urb)
 	value = le16_to_cpu(req->wValue);
 	index = le16_to_cpu(req->wIndex);
 
-	uinfo("reset_device (port %d) to %s\n", index, urb->dev->dev.bus_id);
+	uinfo("reset_device (port %d) to %s\n", index, dev_name(&urb->dev->dev));
 
 	/* all interfaces should be owned by usbip driver, so just reset it.  */
 	ret = usb_lock_device_for_reset(urb->dev, NULL);

@@ -1321,7 +1321,7 @@ static int __devinit poch_pci_probe(struct pci_dev *pdev,
 	}
 
 	ret = request_irq(pdev->irq, poch_irq_handler, IRQF_SHARED,
-			  dev->bus_id, poch_dev);
+			  dev_name(dev), poch_dev);
 	if (ret) {
 		dev_err(dev, "error requesting IRQ %u\n", pdev->irq);
 		ret = -ENOMEM;
