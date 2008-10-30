@@ -132,7 +132,12 @@ void blk_rq_timed_out_timer(unsigned long data)
 		}
 	}
 
-	if (next_set && !list_empty(&q->timeout_list))
+	/*
+	 * next can never be 0 here with the list non-empty, since we always
+	 * bump ->deadline to 1 so we can detect if the timer was ever added
+	 * or not. See comment in blk_add_timer()
+	 */
+	if (next)
 		mod_timer(&q->timeout, round_jiffies_up(next));
 
 	spin_unlock_irqrestore(q->queue_lock, flags);
