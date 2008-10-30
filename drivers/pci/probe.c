@@ -412,7 +412,7 @@ static struct pci_bus *pci_alloc_child_bus(struct pci_bus *parent,
 	 * registered later in pci_bus_add_devices()
 	 */
 	child->dev.class = &pcibus_class;
-	sprintf(child->dev.bus_id, "%04x:%02x", pci_domain_nr(child), busnr);
+	dev_set_name(&child->dev, "%04x:%02x", pci_domain_nr(child), busnr);
 
 	/*
 	 * Set up the primary, secondary and subordinate
@@ -1130,7 +1130,7 @@ struct pci_bus * pci_create_bus(struct device *parent,
 	memset(dev, 0, sizeof(*dev));
 	dev->parent = parent;
 	dev->release = pci_release_bus_bridge_dev;
-	sprintf(dev->bus_id, "pci%04x:%02x", pci_domain_nr(b), bus);
+	dev_set_name(dev, "pci%04x:%02x", pci_domain_nr(b), bus);
 	error = device_register(dev);
 	if (error)
 		goto dev_reg_err;
@@ -1141,7 +1141,7 @@ struct pci_bus * pci_create_bus(struct device *parent,
 
 	b->dev.class = &pcibus_class;
 	b->dev.parent = b->bridge;
-	sprintf(b->dev.bus_id, "%04x:%02x", pci_domain_nr(b), bus);
+	dev_set_name(&b->dev, "%04x:%02x", pci_domain_nr(b), bus);
 	error = device_register(&b->dev);
 	if (error)
 		goto class_dev_reg_err;
