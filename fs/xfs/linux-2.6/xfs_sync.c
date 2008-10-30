@@ -526,6 +526,11 @@ xfs_flush_device(
 	xfs_log_force(ip->i_mount, (xfs_lsn_t)0, XFS_LOG_FORCE|XFS_LOG_SYNC);
 }
 
+/*
+ * Every sync period we need to unpin all items, reclaim inodes, sync
+ * quota and write out the superblock. We might need to cover the log
+ * to indicate it is idle.
+ */
 STATIC void
 xfs_sync_worker(
 	struct xfs_mount *mp,
@@ -533,8 +538,15 @@ xfs_sync_worker(
 {
 	int		error;
 
-	if (!(mp->m_flags & XFS_MOUNT_RDONLY))
-		error = xfs_sync(mp, SYNC_FSDATA | SYNC_BDFLUSH | SYNC_ATTR);
+	if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
+		xfs_log_force(mp, (xfs_lsn_t)0, XFS_LOG_FORCE);
+		xfs_finish_reclaim_all(mp, 1, XFS_IFLUSH_DELWRI_ELSE_ASYNC);
+		/* dgc: errors ignored here */
+		error = XFS_QM_DQSYNC(mp, SYNC_BDFLUSH);
+		error = xfs_sync_fsdata(mp, SYNC_BDFLUSH);
+		if (xfs_log_need_covered(mp))
+			error = xfs_commit_dummy_trans(mp, XFS_LOG_FORCE);
+	}
 	mp->m_sync_seq++;
 	wake_up(&mp->m_wait_single_sync_task);
 }
