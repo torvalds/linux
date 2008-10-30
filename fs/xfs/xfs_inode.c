@@ -811,7 +811,7 @@ xfs_inode_alloc(
 	ASSERT(atomic_read(&ip->i_iocount) == 0);
 	ASSERT(atomic_read(&ip->i_pincount) == 0);
 	ASSERT(!spin_is_locked(&ip->i_flags_lock));
-	ASSERT(list_empty(&ip->i_reclaim));
+	ASSERT(completion_done(&ip->i_flush));
 
 	/*
 	 * initialise the VFS inode here to get failures
@@ -2729,7 +2729,7 @@ xfs_idestroy(
 	ASSERT(atomic_read(&ip->i_iocount) == 0);
 	ASSERT(atomic_read(&ip->i_pincount) == 0);
 	ASSERT(!spin_is_locked(&ip->i_flags_lock));
-	ASSERT(list_empty(&ip->i_reclaim));
+	ASSERT(completion_done(&ip->i_flush));
 	kmem_zone_free(xfs_inode_zone, ip);
 }
 

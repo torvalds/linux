@@ -644,6 +644,11 @@ xfs_reclaim_inode(
 	return 0;
 }
 
+/*
+ * We set the inode flag atomically with the radix tree tag.
+ * Once we get tag lookups on the radix tree, this inode flag
+ * can go away.
+ */
 void
 xfs_inode_set_reclaim_tag(
 	xfs_inode_t	*ip)
@@ -655,6 +660,7 @@ xfs_inode_set_reclaim_tag(
 	spin_lock(&ip->i_flags_lock);
 	radix_tree_tag_set(&pag->pag_ici_root,
 			XFS_INO_TO_AGINO(mp, ip->i_ino), XFS_ICI_RECLAIM_TAG);
+	__xfs_iflags_set(ip, XFS_IRECLAIMABLE);
 	spin_unlock(&ip->i_flags_lock);
 	read_unlock(&pag->pag_ici_lock);
 	xfs_put_perag(mp, pag);

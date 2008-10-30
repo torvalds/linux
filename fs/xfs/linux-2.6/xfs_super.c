@@ -913,7 +913,6 @@ xfs_fs_inode_init_once(
 	atomic_set(&ip->i_iocount, 0);
 	atomic_set(&ip->i_pincount, 0);
 	spin_lock_init(&ip->i_flags_lock);
-	INIT_LIST_HEAD(&ip->i_reclaim);
 	init_waitqueue_head(&ip->i_ipin_wait);
 	/*
 	 * Because we want to use a counting completion, complete
@@ -1546,7 +1545,6 @@ xfs_fs_fill_super(
 		goto out_free_args;
 
 	spin_lock_init(&mp->m_sb_lock);
-	mutex_init(&mp->m_ilock);
 	mutex_init(&mp->m_growlock);
 	atomic_set(&mp->m_active_trans, 0);
 	INIT_LIST_HEAD(&mp->m_sync_list);

@@ -2835,18 +2835,8 @@ xfs_reclaim(
 		xfs_iflock(ip);
 		xfs_iflags_set(ip, XFS_IRECLAIMABLE);
 		return xfs_reclaim_inode(ip, 1, XFS_IFLUSH_DELWRI_ELSE_SYNC);
-	} else {
-		xfs_mount_t	*mp = ip->i_mount;
-
-		/* Protect sync and unpin from us */
-		XFS_MOUNT_ILOCK(mp);
-		spin_lock(&ip->i_flags_lock);
-		__xfs_iflags_set(ip, XFS_IRECLAIMABLE);
-		spin_unlock(&ip->i_flags_lock);
-		list_add_tail(&ip->i_reclaim, &mp->m_del_inodes);
-		XFS_MOUNT_IUNLOCK(mp);
-		xfs_inode_set_reclaim_tag(ip);
 	}
+	xfs_inode_set_reclaim_tag(ip);
 	return 0;
 }
 

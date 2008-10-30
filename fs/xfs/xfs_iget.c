@@ -95,10 +95,6 @@ xfs_iget_cache_hit(
 		/* clear the radix tree reclaim flag as well. */
 		__xfs_inode_clear_reclaim_tag(mp, pag, ip);
 		read_unlock(&pag->pag_ici_lock);
-
-		XFS_MOUNT_ILOCK(mp);
-		list_del_init(&ip->i_reclaim);
-		XFS_MOUNT_IUNLOCK(mp);
 	} else if (!igrab(VFS_I(ip))) {
 		/* If the VFS inode is being torn down, pause and try again. */
 		error = EAGAIN;
@@ -419,11 +415,7 @@ xfs_iextract(
 	write_unlock(&pag->pag_ici_lock);
 	xfs_put_perag(mp, pag);
 
-	/* Deal with the deleted inodes list */
-	XFS_MOUNT_ILOCK(mp);
-	list_del_init(&ip->i_reclaim);
 	mp->m_ireclaims++;
-	XFS_MOUNT_IUNLOCK(mp);
 }
 
 /*
