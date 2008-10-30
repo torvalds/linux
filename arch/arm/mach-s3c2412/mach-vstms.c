@@ -39,7 +39,7 @@
 #include <mach/idle.h>
 #include <mach/fb.h>
 
-#include <asm/plat-s3c/nand.h>
+#include <plat/nand.h>
 
 #include <plat/s3c2410.h>
 #include <plat/s3c2412.h>

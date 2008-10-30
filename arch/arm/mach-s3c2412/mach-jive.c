@@ -31,7 +31,7 @@
 #include <asm/mach/irq.h>
 
 #include <plat/regs-serial.h>
-#include <asm/plat-s3c/nand.h>
+#include <plat/nand.h>
 #include <plat/iic.h>
 
 #include <mach/regs-power.h>

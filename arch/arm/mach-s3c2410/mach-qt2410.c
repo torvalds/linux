@@ -50,7 +50,7 @@
 #include <mach/leds-gpio.h>
 #include <plat/regs-serial.h>
 #include <mach/fb.h>
-#include <asm/plat-s3c/nand.h>
+#include <plat/nand.h>
 #include <asm/plat-s3c24xx/udc.h>
 #include <mach/spi.h>
 #include <mach/spi-gpio.h>
