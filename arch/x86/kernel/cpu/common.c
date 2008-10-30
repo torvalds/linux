@@ -550,7 +550,9 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 
 	validate_pat_support(c);
 
+#ifdef CONFIG_SMP
 	c->cpu_index = boot_cpu_id;
+#endif
 }
 
 void __init early_cpu_init(void)
