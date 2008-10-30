@@ -42,9 +42,24 @@
 #include "core.h"
 #include "reg.h"
 
-/*
- * wiphy is set if this request's initiator is
- * REGDOM_SET_BY_COUNTRY_IE or _DRIVER
+/**
+ * struct regulatory_request - receipt of last regulatory request
+ *
+ * @wiphy: this is set if this request's initiator is
+ * 	%REGDOM_SET_BY_COUNTRY_IE or %REGDOM_SET_BY_DRIVER. This
+ * 	can be used by the wireless core to deal with conflicts
+ * 	and potentially inform users of which devices specifically
+ * 	cased the conflicts.
+ * @initiator: indicates who sent this request, could be any of
+ * 	of those set in reg_set_by, %REGDOM_SET_BY_*
+ * @alpha2: the ISO / IEC 3166 alpha2 country code of the requested
+ * 	regulatory domain. We have a few special codes:
+ * 	00 - World regulatory domain
+ * 	99 - built by driver but a specific alpha2 cannot be determined
+ * 	98 - result of an intersection between two regulatory domains
+ * @intersect: indicates whether the wireless core should intersect
+ * 	the requested regulatory domain with the presently set regulatory
+ * 	domain.
  */
 struct regulatory_request {
 	struct wiphy *wiphy;
@@ -53,6 +68,7 @@ struct regulatory_request {
 	bool intersect;
 };
 
+/* Receipt of information from last regulatory request */
 static struct regulatory_request *last_request;
 
 /* To trigger userspace events */
