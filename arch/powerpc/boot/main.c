@@ -63,7 +63,7 @@ static struct addr_range prep_kernel(void)
 		 */
 		if ((unsigned long)_start < ei.loadsize)
 			fatal("Insufficient memory for kernel at address 0!"
-			       " (_start=%p, uncomressed size=%08x)\n\r",
+			       " (_start=%p, uncompressed size=%08lx)\n\r",
 			       _start, ei.loadsize);
 
 		if ((unsigned long)_end < ei.memsize)
