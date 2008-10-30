@@ -23,21 +23,46 @@ Wb35Tx_get_tx_buffer(phw_data_t pHwData, u8 **pBuffer)
 	return true;
 }
 
-void Wb35Tx_start(struct wbsoft_priv *adapter)
-{
-	phw_data_t pHwData = &adapter->sHwData;
-	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
+static void Wb35Tx(struct wbsoft_priv *adapter);
 
-	// Allow only one thread to run into function
-	if (atomic_inc_return(&pWb35Tx->TxFireCounter) == 1) {
-		pWb35Tx->EP4vm_state = VM_RUNNING;
-		Wb35Tx(adapter);
-	} else
-		atomic_dec(&pWb35Tx->TxFireCounter);
+static void Wb35Tx_complete(struct urb * pUrb)
+{
+	struct wbsoft_priv *adapter = pUrb->context;
+	phw_data_t	pHwData = &adapter->sHwData;
+	PWB35TX		pWb35Tx = &pHwData->Wb35Tx;
+	PMDS		pMds = &adapter->Mds;
+
+	printk("wb35: tx complete\n");
+	// Variable setting
+	pWb35Tx->EP4vm_state = VM_COMPLETED;
+	pWb35Tx->EP4VM_status = pUrb->status; //Store the last result of Irp
+	pMds->TxOwner[ pWb35Tx->TxSendIndex ] = 0;// Set the owner. Free the owner bit always.
+	pWb35Tx->TxSendIndex++;
+	pWb35Tx->TxSendIndex %= MAX_USB_TX_BUFFER_NUMBER;
+
+	if (pHwData->SurpriseRemove || pHwData->HwStop) // Let WbWlanHalt to handle surprise remove
+		goto error;
+
+	if (pWb35Tx->tx_halt)
+		goto error;
+
+	// The URB is completed, check the result
+	if (pWb35Tx->EP4VM_status != 0) {
+		printk("URB submission failed\n");
+		pWb35Tx->EP4vm_state = VM_STOP;
+		goto error;
+	}
+
+	Mds_Tx(adapter);
+	Wb35Tx(adapter);
+	return;
+
+error:
+	atomic_dec(&pWb35Tx->TxFireCounter);
+	pWb35Tx->EP4vm_state = VM_STOP;
 }
 
-
-void Wb35Tx(struct wbsoft_priv *adapter)
+static void Wb35Tx(struct wbsoft_priv *adapter)
 {
 	phw_data_t	pHwData = &adapter->sHwData;
 	PWB35TX		pWb35Tx = &pHwData->Wb35Tx;
@@ -88,50 +113,17 @@ void Wb35Tx(struct wbsoft_priv *adapter)
 	atomic_dec(&pWb35Tx->TxFireCounter);
 }
 
-
-void Wb35Tx_complete(struct urb * pUrb)
+void Wb35Tx_start(struct wbsoft_priv *adapter)
 {
-	struct wbsoft_priv *adapter = pUrb->context;
-	phw_data_t	pHwData = &adapter->sHwData;
-	PWB35TX		pWb35Tx = &pHwData->Wb35Tx;
-	PMDS		pMds = &adapter->Mds;
-
-	printk("wb35: tx complete\n");
-	// Variable setting
-	pWb35Tx->EP4vm_state = VM_COMPLETED;
-	pWb35Tx->EP4VM_status = pUrb->status; //Store the last result of Irp
-	pMds->TxOwner[ pWb35Tx->TxSendIndex ] = 0;// Set the owner. Free the owner bit always.
-	pWb35Tx->TxSendIndex++;
-	pWb35Tx->TxSendIndex %= MAX_USB_TX_BUFFER_NUMBER;
-
-	if (pHwData->SurpriseRemove || pHwData->HwStop) // Let WbWlanHalt to handle surprise remove
-		goto error;
-
-	if (pWb35Tx->tx_halt)
-		goto error;
-
-	// The URB is completed, check the result
-	if (pWb35Tx->EP4VM_status != 0) {
-		printk("URB submission failed\n");
-		pWb35Tx->EP4vm_state = VM_STOP;
-		goto error;
-	}
-
-	Mds_Tx(adapter);
-	Wb35Tx(adapter);
-	return;
-
-error:
-	atomic_dec(&pWb35Tx->TxFireCounter);
-	pWb35Tx->EP4vm_state = VM_STOP;
-}
-
-void Wb35Tx_reset_descriptor(  phw_data_t pHwData )
-{
+	phw_data_t pHwData = &adapter->sHwData;
 	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
 
-	pWb35Tx->TxSendIndex = 0;
-	pWb35Tx->tx_halt = 0;
+	// Allow only one thread to run into function
+	if (atomic_inc_return(&pWb35Tx->TxFireCounter) == 1) {
+		pWb35Tx->EP4vm_state = VM_RUNNING;
+		Wb35Tx(adapter);
+	} else
+		atomic_dec(&pWb35Tx->TxFireCounter);
 }
 
 unsigned char Wb35Tx_initial(phw_data_t pHwData)
@@ -211,59 +203,9 @@ void Wb35Tx_CurrentTime(struct wbsoft_priv *adapter, u32 TimeCount)
 	}
 }
 
-void Wb35Tx_EP2VM_start(struct wbsoft_priv *adapter)
-{
-	phw_data_t pHwData = &adapter->sHwData;
-	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
+static void Wb35Tx_EP2VM(struct wbsoft_priv *adapter);
 
-	// Allow only one thread to run into function
-	if (atomic_inc_return(&pWb35Tx->TxResultCount) == 1) {
-		pWb35Tx->EP2vm_state = VM_RUNNING;
-		Wb35Tx_EP2VM(adapter);
-	}
-	else
-		atomic_dec(&pWb35Tx->TxResultCount);
-}
-
-
-void Wb35Tx_EP2VM(struct wbsoft_priv *adapter)
-{
-	phw_data_t	pHwData = &adapter->sHwData;
-	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
-	struct urb *	pUrb = (struct urb *)pWb35Tx->Tx2Urb;
-	u32 *	pltmp = (u32 *)pWb35Tx->EP2_buf;
-	int		retv;
-
-	if (pHwData->SurpriseRemove || pHwData->HwStop)
-		goto error;
-
-	if (pWb35Tx->tx_halt)
-		goto error;
-
-	//
-	// Issuing URB
-	//
-	usb_fill_int_urb( pUrb, pHwData->WbUsb.udev, usb_rcvintpipe(pHwData->WbUsb.udev,2),
-			  pltmp, MAX_INTERRUPT_LENGTH, Wb35Tx_EP2VM_complete, adapter, 32);
-
-	pWb35Tx->EP2vm_state = VM_RUNNING;
-	retv = usb_submit_urb(pUrb, GFP_ATOMIC);
-
-	if (retv < 0) {
-		#ifdef _PE_TX_DUMP_
-		WBDEBUG(("EP2 Tx Irp sending error\n"));
-		#endif
-		goto error;
-	}
-
-	return;
-error:
-	pWb35Tx->EP2vm_state = VM_STOP;
-	atomic_dec(&pWb35Tx->TxResultCount);
-}
-
-
-void Wb35Tx_EP2VM_complete(struct urb * pUrb)
+static void Wb35Tx_EP2VM_complete(struct urb * pUrb)
 {
 	struct wbsoft_priv *adapter = pUrb->context;
 	phw_data_t	pHwData = &adapter->sHwData;
@@ -312,3 +254,52 @@ error:
 	pWb35Tx->EP2vm_state = VM_STOP;
 }
 
+static void Wb35Tx_EP2VM(struct wbsoft_priv *adapter)
+{
+	phw_data_t	pHwData = &adapter->sHwData;
+	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
+	struct urb *	pUrb = (struct urb *)pWb35Tx->Tx2Urb;
+	u32 *	pltmp = (u32 *)pWb35Tx->EP2_buf;
+	int		retv;
+
+	if (pHwData->SurpriseRemove || pHwData->HwStop)
+		goto error;
+
+	if (pWb35Tx->tx_halt)
+		goto error;
+
+	//
+	// Issuing URB
+	//
+	usb_fill_int_urb( pUrb, pHwData->WbUsb.udev, usb_rcvintpipe(pHwData->WbUsb.udev,2),
+			  pltmp, MAX_INTERRUPT_LENGTH, Wb35Tx_EP2VM_complete, adapter, 32);
+
+	pWb35Tx->EP2vm_state = VM_RUNNING;
+	retv = usb_submit_urb(pUrb, GFP_ATOMIC);
+
+	if (retv < 0) {
+		#ifdef _PE_TX_DUMP_
+		WBDEBUG(("EP2 Tx Irp sending error\n"));
+		#endif
+		goto error;
+	}
+
+	return;
+error:
+	pWb35Tx->EP2vm_state = VM_STOP;
+	atomic_dec(&pWb35Tx->TxResultCount);
+}
+
+void Wb35Tx_EP2VM_start(struct wbsoft_priv *adapter)
+{
+	phw_data_t pHwData = &adapter->sHwData;
+	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
+
+	// Allow only one thread to run into function
+	if (atomic_inc_return(&pWb35Tx->TxResultCount) == 1) {
+		pWb35Tx->EP2vm_state = VM_RUNNING;
+		Wb35Tx_EP2VM(adapter);
+	}
+	else
+		atomic_dec(&pWb35Tx->TxResultCount);
+}
