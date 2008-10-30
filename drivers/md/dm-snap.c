@@ -370,6 +370,7 @@ static struct dm_snap_pending_exception *alloc_pending_exception(struct dm_snaps
 	struct dm_snap_pending_exception *pe = mempool_alloc(s->pending_pool,
 							     GFP_NOIO);
 
+	atomic_inc(&s->pending_exceptions_count);
 	pe->snap = s;
 
 	return pe;
@@ -377,7 +378,11 @@ static struct dm_snap_pending_exception *alloc_pending_exception(struct dm_snaps
 
 static void free_pending_exception(struct dm_snap_pending_exception *pe)
 {
-	mempool_free(pe, pe->snap->pending_pool);
+	struct dm_snapshot *s = pe->snap;
+
+	mempool_free(pe, s->pending_pool);
+	smp_mb__before_atomic_dec();
+	atomic_dec(&s->pending_exceptions_count);
 }
 
 static void insert_completed_exception(struct dm_snapshot *s,
@@ -602,6 +607,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	s->valid = 1;
 	s->active = 0;
+	atomic_set(&s->pending_exceptions_count, 0);
 	init_rwsem(&s->lock);
 	spin_lock_init(&s->pe_lock);
 	s->ti = ti;
@@ -727,6 +733,14 @@ static void snapshot_dtr(struct dm_target *ti)
 	/* Prevent further origin writes from using this snapshot. */
 	/* After this returns there can be no new kcopyd jobs. */
 	unregister_snapshot(s);
+
+	while (atomic_read(&s->pending_exceptions_count))
+		yield();
+	/*
+	 * Ensure instructions in mempool_destroy aren't reordered
+	 * before atomic_read.
+	 */
+	smp_mb();
 
 #ifdef CONFIG_DM_DEBUG
 	for (i = 0; i < DM_TRACKED_CHUNK_HASH_SIZE; i++)
