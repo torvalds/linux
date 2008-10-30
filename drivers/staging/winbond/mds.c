@@ -8,7 +8,7 @@
 #include "wblinux_f.h"
 
 void
-Mds_reset_descriptor(struct wb35_adapter * adapter)
+Mds_reset_descriptor(struct wbsoft_priv * adapter)
 {
 	PMDS pMds = &adapter->Mds;
 
@@ -21,7 +21,7 @@ Mds_reset_descriptor(struct wb35_adapter * adapter)
 }
 
 unsigned char
-Mds_initial(struct wb35_adapter * adapter)
+Mds_initial(struct wbsoft_priv * adapter)
 {
 	PMDS pMds = &adapter->Mds;
 
@@ -35,13 +35,13 @@ Mds_initial(struct wb35_adapter * adapter)
 }
 
 void
-Mds_Destroy(struct wb35_adapter * adapter)
+Mds_Destroy(struct wbsoft_priv * adapter)
 {
 	vRxTimerStop(adapter);
 }
 
 void
-Mds_Tx(struct wb35_adapter * adapter)
+Mds_Tx(struct wbsoft_priv * adapter)
 {
 	phw_data_t	pHwData = &adapter->sHwData;
 	PMDS		pMds = &adapter->Mds;
@@ -183,7 +183,7 @@ Mds_Tx(struct wb35_adapter * adapter)
 }
 
 void
-Mds_SendComplete(struct wb35_adapter * adapter, PT02_DESCRIPTOR pT02)
+Mds_SendComplete(struct wbsoft_priv * adapter, PT02_DESCRIPTOR pT02)
 {
 	PMDS	pMds = &adapter->Mds;
 	phw_data_t	pHwData = &adapter->sHwData;
@@ -236,7 +236,7 @@ Mds_SendComplete(struct wb35_adapter * adapter, PT02_DESCRIPTOR pT02)
 }
 
 void
-Mds_HeaderCopy(struct wb35_adapter * adapter, PDESCRIPTOR pDes, u8 *TargetBuffer)
+Mds_HeaderCopy(struct wbsoft_priv * adapter, PDESCRIPTOR pDes, u8 *TargetBuffer)
 {
 	PMDS	pMds = &adapter->Mds;
 	u8	*src_buffer = pDes->buffer_address[0];//931130.5.g
@@ -333,7 +333,7 @@ Mds_HeaderCopy(struct wb35_adapter * adapter, PDESCRIPTOR pDes, u8 *TargetBuffer
 
 // The function return the 4n size of usb pk
 u16
-Mds_BodyCopy(struct wb35_adapter * adapter, PDESCRIPTOR pDes, u8 *TargetBuffer)
+Mds_BodyCopy(struct wbsoft_priv * adapter, PDESCRIPTOR pDes, u8 *TargetBuffer)
 {
 	PT00_DESCRIPTOR	pT00;
 	PMDS	pMds = &adapter->Mds;
@@ -436,7 +436,7 @@ Mds_BodyCopy(struct wb35_adapter * adapter, PDESCRIPTOR pDes, u8 *TargetBuffer)
 
 
 void
-Mds_DurationSet(  struct wb35_adapter * adapter,  PDESCRIPTOR pDes,  u8 *buffer )
+Mds_DurationSet(  struct wbsoft_priv * adapter,  PDESCRIPTOR pDes,  u8 *buffer )
 {
 	PT00_DESCRIPTOR	pT00;
 	PT01_DESCRIPTOR	pT01;

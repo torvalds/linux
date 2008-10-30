@@ -1,19 +1,19 @@
 #include "os_common.h"
-#include "adapter.h"
+#include "core.h"
 
 static void RxTimerHandler(unsigned long data)
 {
 	WARN_ON(1);
 }
 
-void vRxTimerInit(struct wb35_adapter *adapter)
+void vRxTimerInit(struct wbsoft_priv *adapter)
 {
 	init_timer(&adapter->Mds.timer);
 	adapter->Mds.timer.function = RxTimerHandler;
 	adapter->Mds.timer.data = (unsigned long) adapter;
 }
 
-void vRxTimerStart(struct wb35_adapter *adapter, int timeout_value)
+void vRxTimerStart(struct wbsoft_priv *adapter, int timeout_value)
 {
 	if (timeout_value < MIN_TIMEOUT_VAL)
 		timeout_value = MIN_TIMEOUT_VAL;
@@ -22,7 +22,7 @@ void vRxTimerStart(struct wb35_adapter *adapter, int timeout_value)
 	add_timer(&adapter->Mds.timer);
 }
 
-void vRxTimerStop(struct wb35_adapter *adapter)
+void vRxTimerStop(struct wbsoft_priv *adapter)
 {
 	del_timer_sync(&adapter->Mds.timer);
 }

@@ -120,7 +120,7 @@ static int wbsoft_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct wbsoft_priv *priv = dev->priv;
 
-	MLMESendFrame(priv->adapter, skb->data, skb->len, FRAME_TYPE_802_11_MANAGEMENT);
+	MLMESendFrame(priv, skb->data, skb->len, FRAME_TYPE_802_11_MANAGEMENT);
 
 	return NETDEV_TX_OK;
 }
@@ -144,20 +144,20 @@ static int wbsoft_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
 	ch.ChanNo = 1;	/* Should use channel_num, or something, as that is already pre-translated */
 
 
-	hal_set_current_channel(&priv->adapter->sHwData, ch);
-	hal_set_beacon_period(&priv->adapter->sHwData, conf->beacon_int);
-//	hal_set_cap_info(&priv->adapter->sHwData, ?? );
+	hal_set_current_channel(&priv->sHwData, ch);
+	hal_set_beacon_period(&priv->sHwData, conf->beacon_int);
+//	hal_set_cap_info(&priv->sHwData, ?? );
 // hal_set_ssid(phw_data_t pHwData,  u8 * pssid,  u8 ssid_len); ??
-	hal_set_accept_broadcast(&priv->adapter->sHwData, 1);
-	hal_set_accept_promiscuous(&priv->adapter->sHwData,  1);
-	hal_set_accept_multicast(&priv->adapter->sHwData,  1);
-	hal_set_accept_beacon(&priv->adapter->sHwData,  1);
-	hal_set_radio_mode(&priv->adapter->sHwData,  0);
+	hal_set_accept_broadcast(&priv->sHwData, 1);
+	hal_set_accept_promiscuous(&priv->sHwData,  1);
+	hal_set_accept_multicast(&priv->sHwData,  1);
+	hal_set_accept_beacon(&priv->sHwData,  1);
+	hal_set_radio_mode(&priv->sHwData,  0);
 	//hal_set_antenna_number(  phw_data_t pHwData, u8 number )
 	//hal_set_rf_power(phw_data_t pHwData, u8 PowerIndex)
 
 
-//	hal_start_bss(&priv->adapter->sHwData, WLAN_BSSTYPE_INFRASTRUCTURE);	??
+//	hal_start_bss(&priv->sHwData, WLAN_BSSTYPE_INFRASTRUCTURE);	??
 
 //void hal_set_rates(phw_data_t pHwData, u8 * pbss_rates,
 //		   u8 length, unsigned char basic_rate_set)
@@ -196,7 +196,6 @@ static const struct ieee80211_ops wbsoft_ops = {
 
 static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id_table)
 {
-	struct wb35_adapter *adapter;
 	PWBUSB		pWbUsb;
         struct usb_host_interface *interface;
 	struct usb_endpoint_descriptor *endpoint;
@@ -221,13 +220,14 @@ static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id
 		goto error;
 	}
 
-	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
-	if (!adapter) {
-		err = -ENOMEM;
+	dev = ieee80211_alloc_hw(sizeof(*priv), &wbsoft_ops);
+	if (!dev)
 		goto error;
-	}
 
-	pWbUsb = &adapter->sHwData.WbUsb;
+	priv = dev->priv;
+	my_dev = dev;
+
+	pWbUsb = &priv->sHwData.WbUsb;
 	pWbUsb->udev = udev;
 
         interface = intf->cur_altsetting;
@@ -238,23 +238,14 @@ static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id
 		pWbUsb->IsUsb20 = 1;
 	}
 
-	if (!WbWLanInitialize(adapter)) {
+	if (!WbWLanInitialize(priv)) {
 		err = -EINVAL;
-		goto error_free_adapter;
+		goto error_free_hw;
 	}
-
-	dev = ieee80211_alloc_hw(sizeof(*priv), &wbsoft_ops);
-	if (!dev)
-		goto error_free_adapter;
-
-	priv = dev->priv;
-	priv->adapter = adapter;
-
-	my_dev = dev;
 
 	SET_IEEE80211_DEV(dev, &udev->dev);
 	{
-		phw_data_t pHwData = &adapter->sHwData;
+		phw_data_t pHwData = &priv->sHwData;
 		unsigned char		dev_addr[MAX_ADDR_LEN];
 		hal_get_permanent_address(pHwData, dev_addr);
 		SET_IEEE80211_PERM_ADDR(dev, dev_addr);
@@ -272,14 +263,12 @@ static int wb35_probe(struct usb_interface *intf, const struct usb_device_id *id
 	if (err)
 		goto error_free_hw;
 
-	usb_set_intfdata(intf, adapter);
+	usb_set_intfdata(intf, priv);
 
 	return 0;
 
 error_free_hw:
 	ieee80211_free_hw(dev);
-error_free_adapter:
-	kfree(adapter);
 error:
 	usb_put_dev(udev);
 	return err;
@@ -315,9 +304,9 @@ void packet_came(char *pRxBufferAddress, int PacketSize)
 
 static void wb35_disconnect(struct usb_interface *intf)
 {
-	struct wb35_adapter *adapter = usb_get_intfdata(intf);
+	struct wbsoft_priv *priv = usb_get_intfdata(intf);
 
-	WbWlanHalt(adapter);
+	WbWlanHalt(priv);
 
 	usb_set_intfdata(intf, NULL);
 	usb_put_dev(interface_to_usbdev(intf));

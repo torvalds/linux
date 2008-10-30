@@ -131,7 +131,7 @@ typedef struct _MTO_PARAMETERS
 } MTO_PARAMETERS, *PMTO_PARAMETERS;
 
 
-#define MTO_FUNC_INPUT              struct wb35_adapter *	adapter
+#define MTO_FUNC_INPUT              struct wbsoft_priv *	adapter
 #define MTO_FUNC_INPUT_DATA         adapter
 #define MTO_DATA()                  (adapter->sMtoPara)
 #define MTO_HAL()                   (&adapter->sHwData)

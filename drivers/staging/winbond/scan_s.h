@@ -114,8 +114,8 @@ typedef struct _SCAN_PARAMETERS
 
 // static functions
 
-//static void ScanTimerHandler(struct wb35_adapter * adapter);
-//static void vScanTimerStart(struct wb35_adapter *	adapter, int timeout_value);
-//static void vScanTimerStop(struct wb35_adapter * adapter);
+//static void ScanTimerHandler(struct wbsoft_priv * adapter);
+//static void vScanTimerStart(struct wbsoft_priv *	adapter, int timeout_value);
+//static void vScanTimerStop(struct wbsoft_priv * adapter);
 
 #endif

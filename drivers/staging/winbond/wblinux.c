@@ -17,14 +17,14 @@
 #include "wblinux_f.h"
 
 unsigned char
-WBLINUX_Initial(struct wb35_adapter * adapter)
+WBLINUX_Initial(struct wbsoft_priv * adapter)
 {
 	spin_lock_init( &adapter->SpinLock );
 	return true;
 }
 
 void
-WBLINUX_Destroy(struct wb35_adapter * adapter)
+WBLINUX_Destroy(struct wbsoft_priv * adapter)
 {
 	WBLINUX_stop( adapter );
 #ifdef _PE_USB_INI_DUMP_
@@ -33,7 +33,7 @@ WBLINUX_Destroy(struct wb35_adapter * adapter)
 }
 
 void
-WBLINUX_stop(  struct wb35_adapter * adapter )
+WBLINUX_stop(  struct wbsoft_priv * adapter )
 {
 	struct sk_buff *pSkb;
 
@@ -63,7 +63,7 @@ WBLINUX_stop(  struct wb35_adapter * adapter )
 }
 
 void
-WbWlanHalt(struct wb35_adapter *adapter)
+WbWlanHalt(  struct wbsoft_priv * adapter )
 {
 	//---------------------
 	adapter->sLocalPara.ShutDowned = true;
@@ -85,7 +85,7 @@ WbWlanHalt(struct wb35_adapter *adapter)
 }
 
 unsigned char
-WbWLanInitialize(struct wb35_adapter *adapter)
+WbWLanInitialize(struct wbsoft_priv * adapter)
 {
 	phw_data_t	pHwData;
 	u8		*pMacAddr;

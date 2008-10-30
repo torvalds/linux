@@ -19,7 +19,7 @@
 
 #include "mds_f.h"
 
-void MLMEResetTxRx(struct wb35_adapter * adapter)
+void MLMEResetTxRx(struct wbsoft_priv * adapter)
 {
 	s32     i;
 
@@ -55,7 +55,7 @@ void MLMEResetTxRx(struct wb35_adapter * adapter)
 //=============================================================================
 
 /* FIXME: Should this just be replaced with kmalloc() and kfree()? */
-u8 *MLMEGetMMPDUBuffer(struct wb35_adapter * adapter)
+u8 *MLMEGetMMPDUBuffer(struct wbsoft_priv * adapter)
 {
 	s32 i;
 	u8 *returnVal;
@@ -73,7 +73,7 @@ u8 *MLMEGetMMPDUBuffer(struct wb35_adapter * adapter)
 }
 
 //=============================================================================
-u8 MLMESendFrame(struct wb35_adapter * adapter, u8 *pMMPDU, u16 len, u8 DataType)
+u8 MLMESendFrame(struct wbsoft_priv * adapter, u8 *pMMPDU, u16 len, u8 DataType)
 /*	DataType : FRAME_TYPE_802_11_MANAGEMENT, FRAME_TYPE_802_11_MANAGEMENT_CHALLENGE,
 				FRAME_TYPE_802_11_DATA */
 {
@@ -98,7 +98,7 @@ u8 MLMESendFrame(struct wb35_adapter * adapter, u8 *pMMPDU, u16 len, u8 DataType
 	return true;
 }
 
-void MLME_GetNextPacket(struct wb35_adapter *adapter, PDESCRIPTOR desc)
+void MLME_GetNextPacket(struct wbsoft_priv *adapter, PDESCRIPTOR desc)
 {
 	desc->InternalUsed = desc->buffer_start_index + desc->buffer_number;
 	desc->InternalUsed %= MAX_DESCRIPTOR_BUFFER_INDEX;
@@ -109,7 +109,7 @@ void MLME_GetNextPacket(struct wb35_adapter *adapter, PDESCRIPTOR desc)
 	desc->Type = adapter->sMlmeFrame.DataType;
 }
 
-void MLMEfreeMMPDUBuffer(struct wb35_adapter * adapter, s8 *pData)
+void MLMEfreeMMPDUBuffer(struct wbsoft_priv * adapter, s8 *pData)
 {
 	int i;
 
@@ -127,7 +127,7 @@ void MLMEfreeMMPDUBuffer(struct wb35_adapter * adapter, s8 *pData)
 }
 
 void
-MLME_SendComplete(struct wb35_adapter * adapter, u8 PacketID, unsigned char SendOK)
+MLME_SendComplete(struct wbsoft_priv * adapter, u8 PacketID, unsigned char SendOK)
 {
 	MLME_TXCALLBACK	TxCallback;
 

@@ -8,34 +8,34 @@
 #ifndef _MLMETXRX_H
 #define _MLMETXRX_H
 
-#include "adapter.h"
+#include "core.h"
 
 void
 MLMEProcThread(
-     struct wb35_adapter *    adapter
+     struct wbsoft_priv *    adapter
 	);
 
-void MLMEResetTxRx( struct wb35_adapter * adapter);
+void MLMEResetTxRx( struct wbsoft_priv * adapter);
 
 u8 *
 MLMEGetMMPDUBuffer(
-     struct wb35_adapter *    adapter
+     struct wbsoft_priv *    adapter
    );
 
-void MLMEfreeMMPDUBuffer( struct wb35_adapter * adapter,  s8 * pData);
+void MLMEfreeMMPDUBuffer( struct wbsoft_priv * adapter,  s8 * pData);
 
-void MLME_GetNextPacket(  struct wb35_adapter * adapter,  PDESCRIPTOR pDes );
-u8 MLMESendFrame( struct wb35_adapter * adapter,
+void MLME_GetNextPacket(  struct wbsoft_priv * adapter,  PDESCRIPTOR pDes );
+u8 MLMESendFrame( struct wbsoft_priv * adapter,
 					u8	*pMMPDU,
 					u16	len,
 					 u8	DataType);
 
 void
-MLME_SendComplete(  struct wb35_adapter * adapter,  u8 PacketID,  unsigned char SendOK );
+MLME_SendComplete(  struct wbsoft_priv * adapter,  u8 PacketID,  unsigned char SendOK );
 
 void
 MLMERcvFrame(
-     struct wb35_adapter *    adapter,
+     struct wbsoft_priv *    adapter,
      PRXBUFFER        pRxBufferArray,
      u8            NumOfBuffer,
      u8            ReturnSlotIndex
@@ -43,11 +43,11 @@ MLMERcvFrame(
 
 void
 MLMEReturnPacket(
-     struct wb35_adapter *    adapter,
+     struct wbsoft_priv *    adapter,
      u8 *          pRxBufer
    );
 #ifdef _IBSS_BEACON_SEQ_STICK_
-s8 SendBCNullData(struct wb35_adapter * adapter, u16 wIdx);
+s8 SendBCNullData(struct wbsoft_priv * adapter, u16 wIdx);
 #endif
 
 #endif

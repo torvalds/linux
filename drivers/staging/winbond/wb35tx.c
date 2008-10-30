@@ -23,7 +23,7 @@ Wb35Tx_get_tx_buffer(phw_data_t pHwData, u8 **pBuffer)
 	return true;
 }
 
-void Wb35Tx_start(struct wb35_adapter *adapter)
+void Wb35Tx_start(struct wbsoft_priv *adapter)
 {
 	phw_data_t pHwData = &adapter->sHwData;
 	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
@@ -37,7 +37,7 @@ void Wb35Tx_start(struct wb35_adapter *adapter)
 }
 
 
-void Wb35Tx(struct wb35_adapter *adapter)
+void Wb35Tx(struct wbsoft_priv *adapter)
 {
 	phw_data_t	pHwData = &adapter->sHwData;
 	PWB35TX		pWb35Tx = &pHwData->Wb35Tx;
@@ -91,7 +91,7 @@ void Wb35Tx(struct wb35_adapter *adapter)
 
 void Wb35Tx_complete(struct urb * pUrb)
 {
-	struct wb35_adapter *adapter = pUrb->context;
+	struct wbsoft_priv *adapter = pUrb->context;
 	phw_data_t	pHwData = &adapter->sHwData;
 	PWB35TX		pWb35Tx = &pHwData->Wb35Tx;
 	PMDS		pMds = &adapter->Mds;
@@ -194,7 +194,7 @@ void Wb35Tx_destroy(phw_data_t pHwData)
 	#endif
 }
 
-void Wb35Tx_CurrentTime(struct wb35_adapter *adapter, u32 TimeCount)
+void Wb35Tx_CurrentTime(struct wbsoft_priv *adapter, u32 TimeCount)
 {
 	phw_data_t pHwData = &adapter->sHwData;
 	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
@@ -211,7 +211,7 @@ void Wb35Tx_CurrentTime(struct wb35_adapter *adapter, u32 TimeCount)
 	}
 }
 
-void Wb35Tx_EP2VM_start(struct wb35_adapter *adapter)
+void Wb35Tx_EP2VM_start(struct wbsoft_priv *adapter)
 {
 	phw_data_t pHwData = &adapter->sHwData;
 	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
@@ -226,7 +226,7 @@ void Wb35Tx_EP2VM_start(struct wb35_adapter *adapter)
 }
 
 
-void Wb35Tx_EP2VM(struct wb35_adapter *adapter)
+void Wb35Tx_EP2VM(struct wbsoft_priv *adapter)
 {
 	phw_data_t	pHwData = &adapter->sHwData;
 	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
@@ -265,7 +265,7 @@ error:
 
 void Wb35Tx_EP2VM_complete(struct urb * pUrb)
 {
-	struct wb35_adapter *adapter = pUrb->context;
+	struct wbsoft_priv *adapter = pUrb->context;
 	phw_data_t	pHwData = &adapter->sHwData;
 	T02_DESCRIPTOR	T02, TSTATUS;
 	PWB35TX		pWb35Tx = &pHwData->Wb35Tx;

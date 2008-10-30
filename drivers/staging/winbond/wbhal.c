@@ -32,7 +32,7 @@ void hal_get_permanent_address( phw_data_t pHwData, u8 *pethernet_address )
 
 static void hal_led_control(unsigned long data)
 {
-	struct wb35_adapter *adapter = (struct wb35_adapter *) data;
+	struct wbsoft_priv *adapter = (struct wbsoft_priv *) data;
 	phw_data_t pHwData = &adapter->sHwData;
 	struct wb35_reg *reg = &pHwData->reg;
 	u32	LEDSet = (pHwData->SoftwareSet & HAL_LED_SET_MASK) >> HAL_LED_SET_SHIFT;
@@ -316,7 +316,7 @@ static void hal_led_control(unsigned long data)
 }
 
 
-u8 hal_init_hardware(phw_data_t pHwData, struct wb35_adapter * adapter)
+u8 hal_init_hardware(phw_data_t pHwData, struct wbsoft_priv * adapter)
 {
 	u16 SoftwareSet;
 
@@ -671,7 +671,7 @@ s32 hal_get_rssi(  phw_data_t pHwData,  u32 *HalRssiArry,  u8 Count )
 	return ltmp;
 }
 //----------------------------------------------------------------------------------------------------
-s32 hal_get_rssi_bss(struct wb35_adapter *adapter,  u16 idx,  u8 Count)
+s32 hal_get_rssi_bss(struct wbsoft_priv *adapter,  u16 idx,  u8 Count)
 {
 	phw_data_t pHwData = &adapter->sHwData;
 	struct wb35_reg *reg = &pHwData->reg;
@@ -841,7 +841,7 @@ void hal_system_power_change(phw_data_t pHwData, u32 PowerState)
 	}
 }
 
-void hal_surprise_remove(struct wb35_adapter *adapter)
+void hal_surprise_remove(struct wbsoft_priv *adapter)
 {
 	phw_data_t pHwData = &adapter->sHwData;
 
@@ -853,7 +853,7 @@ void hal_surprise_remove(struct wb35_adapter *adapter)
 	}
 }
 
-void hal_rate_change(struct wb35_adapter *adapter) // Notify the HAL rate is changing 20060613.1
+void hal_rate_change(struct wbsoft_priv *adapter) // Notify the HAL rate is changing 20060613.1
 {
 	phw_data_t pHwData = &adapter->sHwData;
 	u8		rate = CURRENT_TX_RATE;
