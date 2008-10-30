@@ -2468,7 +2468,7 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 		goto fail_self_id;
 
 	fw_notify("Added fw-ohci device %s, OHCI version %x.%x\n",
-		  dev->dev.bus_id, version >> 16, version & 0xff);
+		  dev_name(&dev->dev), version >> 16, version & 0xff);
 	return 0;
 
  fail_self_id:
