@@ -186,6 +186,8 @@ struct xfs_btree_ops {
 
 	/* cursor operations */
 	struct xfs_btree_cur *(*dup_cursor)(struct xfs_btree_cur *);
+	void	(*update_cursor)(struct xfs_btree_cur *src,
+				 struct xfs_btree_cur *dst);
 
 	/* update btree root pointer */
 	void	(*set_root)(struct xfs_btree_cur *cur,
@@ -206,8 +208,15 @@ struct xfs_btree_ops {
 	/* records in block/level */
 	int	(*get_maxrecs)(struct xfs_btree_cur *cur, int level);
 
+	/* records on disk.  Matter for the root in inode case. */
+	int	(*get_dmaxrecs)(struct xfs_btree_cur *cur, int level);
+
 	/* init values of btree structures */
 	void	(*init_key_from_rec)(union xfs_btree_key *key,
+				     union xfs_btree_rec *rec);
+	void	(*init_rec_from_key)(union xfs_btree_key *key,
+				     union xfs_btree_rec *rec);
+	void	(*init_rec_from_cur)(struct xfs_btree_cur *cur,
 				     union xfs_btree_rec *rec);
 	void	(*init_ptr_from_cur)(struct xfs_btree_cur *cur,
 				     union xfs_btree_ptr *ptr);
@@ -240,6 +249,7 @@ struct xfs_btree_ops {
  * Reasons for the update_lastrec method to be called.
  */
 #define LASTREC_UPDATE	0
+#define LASTREC_INSREC	1
 
 
 /*
@@ -549,6 +559,7 @@ int xfs_btree_split(struct xfs_btree_cur *, int, union xfs_btree_ptr *,
 		union xfs_btree_key *, struct xfs_btree_cur **, int *);
 int xfs_btree_new_root(struct xfs_btree_cur *, int *);
 int xfs_btree_new_iroot(struct xfs_btree_cur *, int *, int *);
+int xfs_btree_insert(struct xfs_btree_cur *, int *);
 
 /*
  * Helpers.

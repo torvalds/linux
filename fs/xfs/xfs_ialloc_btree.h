@@ -129,12 +129,6 @@ extern int xfs_inobt_delete(struct xfs_btree_cur *cur, int *stat);
 extern int xfs_inobt_get_rec(struct xfs_btree_cur *cur, xfs_agino_t *ino,
 			     __int32_t *fcnt, xfs_inofree_t *free, int *stat);
 
-/*
- * Insert the current record at the point referenced by cur.
- * The cursor may be inconsistent on return if splits have been done.
- */
-extern int xfs_inobt_insert(struct xfs_btree_cur *cur, int *stat);
-
 
 extern struct xfs_btree_cur *xfs_inobt_init_cursor(struct xfs_mount *,
 		struct xfs_trans *, struct xfs_buf *, xfs_agnumber_t);

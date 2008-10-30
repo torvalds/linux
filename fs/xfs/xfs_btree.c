@@ -963,6 +963,17 @@ xfs_btree_ptr_is_null(
 		return be32_to_cpu(ptr->s) == NULLAGBLOCK;
 }
 
+STATIC void
+xfs_btree_set_ptr_null(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_ptr	*ptr)
+{
+	if (cur->bc_flags & XFS_BTREE_LONG_PTRS)
+		ptr->l = cpu_to_be64(NULLFSBLOCK);
+	else
+		ptr->s = cpu_to_be32(NULLAGBLOCK);
+}
+
 /*
  * Get/set/init sibling pointers
  */
@@ -2696,4 +2707,355 @@ out0:
 	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = 0;
 	return 0;
+}
+
+STATIC int
+xfs_btree_make_block_unfull(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	int			level,	/* btree level */
+	int			numrecs,/* # of recs in block */
+	int			*oindex,/* old tree index */
+	int			*index,	/* new tree index */
+	union xfs_btree_ptr	*nptr,	/* new btree ptr */
+	struct xfs_btree_cur	**ncur,	/* new btree cursor */
+	union xfs_btree_rec	*nrec,	/* new record */
+	int			*stat)
+{
+	union xfs_btree_key	key;	/* new btree key value */
+	int			error = 0;
+
+	if ((cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) &&
+	    level == cur->bc_nlevels - 1) {
+	    	struct xfs_inode *ip = cur->bc_private.b.ip;
+
+		if (numrecs < cur->bc_ops->get_dmaxrecs(cur, level)) {
+			/* A root block that can be made bigger. */
+
+			xfs_iroot_realloc(ip, 1, cur->bc_private.b.whichfork);
+		} else {
+			/* A root block that needs replacing */
+			int	logflags = 0;
+
+			error = xfs_btree_new_iroot(cur, &logflags, stat);
+			if (error || *stat == 0)
+				return error;
+
+			xfs_trans_log_inode(cur->bc_tp, ip, logflags);
+		}
+
+		return 0;
+	}
+
+	/* First, try shifting an entry to the right neighbor. */
+	error = xfs_btree_rshift(cur, level, stat);
+	if (error || *stat)
+		return error;
+
+	/* Next, try shifting an entry to the left neighbor. */
+	error = xfs_btree_lshift(cur, level, stat);
+	if (error)
+		return error;
+
+	if (*stat) {
+		*oindex = *index = cur->bc_ptrs[level];
+		return 0;
+	}
+
+	/*
+	 * Next, try splitting the current block in half.
+	 *
+	 * If this works we have to re-set our variables because we
+	 * could be in a different block now.
+	 */
+	error = xfs_btree_split(cur, level, nptr, &key, ncur, stat);
+	if (error || *stat == 0)
+		return error;
+
+
+	*index = cur->bc_ptrs[level];
+	cur->bc_ops->init_rec_from_key(&key, nrec);
+	return 0;
+}
+
+/*
+ * Insert one record/level.  Return information to the caller
+ * allowing the next level up to proceed if necessary.
+ */
+STATIC int
+xfs_btree_insrec(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	int			level,	/* level to insert record at */
+	union xfs_btree_ptr	*ptrp,	/* i/o: block number inserted */
+	union xfs_btree_rec	*recp,	/* i/o: record data inserted */
+	struct xfs_btree_cur	**curp,	/* output: new cursor replacing cur */
+	int			*stat)	/* success/failure */
+{
+	struct xfs_btree_block	*block;	/* btree block */
+	struct xfs_buf		*bp;	/* buffer for block */
+	union xfs_btree_key	key;	/* btree key */
+	union xfs_btree_ptr	nptr;	/* new block ptr */
+	struct xfs_btree_cur	*ncur;	/* new btree cursor */
+	union xfs_btree_rec	nrec;	/* new record count */
+	int			optr;	/* old key/record index */
+	int			ptr;	/* key/record index */
+	int			numrecs;/* number of records */
+	int			error;	/* error return value */
+#ifdef DEBUG
+	int			i;
+#endif
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
+	XFS_BTREE_TRACE_ARGIPR(cur, level, *ptrp, recp);
+
+	ncur = NULL;
+
+	/*
+	 * If we have an external root pointer, and we've made it to the
+	 * root level, allocate a new root block and we're done.
+	 */
+	if (!(cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) &&
+	    (level >= cur->bc_nlevels)) {
+		error = xfs_btree_new_root(cur, stat);
+		xfs_btree_set_ptr_null(cur, ptrp);
+
+		XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+		return error;
+	}
+
+	/* If we're off the left edge, return failure. */
+	ptr = cur->bc_ptrs[level];
+	if (ptr == 0) {
+		XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+		*stat = 0;
+		return 0;
+	}
+
+	/* Make a key out of the record data to be inserted, and save it. */
+	cur->bc_ops->init_key_from_rec(&key, recp);
+
+	optr = ptr;
+
+	XFS_BTREE_STATS_INC(cur, insrec);
+
+	/* Get pointers to the btree buffer and block. */
+	block = xfs_btree_get_block(cur, level, &bp);
+	numrecs = xfs_btree_get_numrecs(block);
+
+#ifdef DEBUG
+	error = xfs_btree_check_block(cur, block, level, bp);
+	if (error)
+		goto error0;
+
+	/* Check that the new entry is being inserted in the right place. */
+	if (ptr <= numrecs) {
+		if (level == 0) {
+			xfs_btree_check_rec(cur->bc_btnum, recp,
+					xfs_btree_rec_addr(cur, ptr, block));
+		} else {
+			xfs_btree_check_key(cur->bc_btnum, &key,
+					xfs_btree_key_addr(cur, ptr, block));
+		}
+	}
+#endif
+
+	/*
+	 * If the block is full, we can't insert the new entry until we
+	 * make the block un-full.
+	 */
+	xfs_btree_set_ptr_null(cur, &nptr);
+	if (numrecs == cur->bc_ops->get_maxrecs(cur, level)) {
+		error = xfs_btree_make_block_unfull(cur, level, numrecs,
+					&optr, &ptr, &nptr, &ncur, &nrec, stat);
+		if (error || *stat == 0)
+			goto error0;
+	}
+
+	/*
+	 * The current block may have changed if the block was
+	 * previously full and we have just made space in it.
+	 */
+	block = xfs_btree_get_block(cur, level, &bp);
+	numrecs = xfs_btree_get_numrecs(block);
+
+#ifdef DEBUG
+	error = xfs_btree_check_block(cur, block, level, bp);
+	if (error)
+		return error;
+#endif
+
+	/*
+	 * At this point we know there's room for our new entry in the block
+	 * we're pointing at.
+	 */
+	XFS_BTREE_STATS_ADD(cur, moves, numrecs - ptr + 1);
+
+	if (level > 0) {
+		/* It's a nonleaf. make a hole in the keys and ptrs */
+		union xfs_btree_key	*kp;
+		union xfs_btree_ptr	*pp;
+
+		kp = xfs_btree_key_addr(cur, ptr, block);
+		pp = xfs_btree_ptr_addr(cur, ptr, block);
+
+#ifdef DEBUG
+		for (i = numrecs - ptr; i >= 0; i--) {
+			error = xfs_btree_check_ptr(cur, pp, i, level);
+			if (error)
+				return error;
+		}
+#endif
+
+		xfs_btree_shift_keys(cur, kp, 1, numrecs - ptr + 1);
+		xfs_btree_shift_ptrs(cur, pp, 1, numrecs - ptr + 1);
+
+#ifdef DEBUG
+		error = xfs_btree_check_ptr(cur, ptrp, 0, level);
+		if (error)
+			goto error0;
+#endif
+
+		/* Now put the new data in, bump numrecs and log it. */
+		xfs_btree_copy_keys(cur, kp, &key, 1);
+		xfs_btree_copy_ptrs(cur, pp, ptrp, 1);
+		numrecs++;
+		xfs_btree_set_numrecs(block, numrecs);
+		xfs_btree_log_ptrs(cur, bp, ptr, numrecs);
+		xfs_btree_log_keys(cur, bp, ptr, numrecs);
+#ifdef DEBUG
+		if (ptr < numrecs) {
+			xfs_btree_check_key(cur->bc_btnum, kp,
+				xfs_btree_key_addr(cur, ptr + 1, block));
+		}
+#endif
+	} else {
+		/* It's a leaf. make a hole in the records */
+		union xfs_btree_rec             *rp;
+
+		rp = xfs_btree_rec_addr(cur, ptr, block);
+
+		xfs_btree_shift_recs(cur, rp, 1, numrecs - ptr + 1);
+
+		/* Now put the new data in, bump numrecs and log it. */
+		xfs_btree_copy_recs(cur, rp, recp, 1);
+		xfs_btree_set_numrecs(block, ++numrecs);
+		xfs_btree_log_recs(cur, bp, ptr, numrecs);
+#ifdef DEBUG
+		if (ptr < numrecs) {
+			xfs_btree_check_rec(cur->bc_btnum, rp,
+				xfs_btree_rec_addr(cur, ptr + 1, block));
+		}
+#endif
+	}
+
+	/* Log the new number of records in the btree header. */
+	xfs_btree_log_block(cur, bp, XFS_BB_NUMRECS);
+
+	/* If we inserted at the start of a block, update the parents' keys. */
+	if (optr == 1) {
+		error = xfs_btree_updkey(cur, &key, level + 1);
+		if (error)
+			goto error0;
+	}
+
+	/*
+	 * If we are tracking the last record in the tree and
+	 * we are at the far right edge of the tree, update it.
+	 */
+	if (xfs_btree_is_lastrec(cur, block, level)) {
+		cur->bc_ops->update_lastrec(cur, block, recp,
+					    ptr, LASTREC_INSREC);
+	}
+
+	/*
+	 * Return the new block number, if any.
+	 * If there is one, give back a record value and a cursor too.
+	 */
+	*ptrp = nptr;
+	if (!xfs_btree_ptr_is_null(cur, &nptr)) {
+		*recp = nrec;
+		*curp = ncur;
+	}
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+	*stat = 1;
+	return 0;
+
+error0:
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+	return error;
+}
+
+/*
+ * Insert the record at the point referenced by cur.
+ *
+ * A multi-level split of the tree on insert will invalidate the original
+ * cursor.  All callers of this function should assume that the cursor is
+ * no longer valid and revalidate it.
+ */
+int
+xfs_btree_insert(
+	struct xfs_btree_cur	*cur,
+	int			*stat)
+{
+	int			error;	/* error return value */
+	int			i;	/* result value, 0 for failure */
+	int			level;	/* current level number in btree */
+	union xfs_btree_ptr	nptr;	/* new block number (split result) */
+	struct xfs_btree_cur	*ncur;	/* new cursor (split result) */
+	struct xfs_btree_cur	*pcur;	/* previous level's cursor */
+	union xfs_btree_rec	rec;	/* record to insert */
+
+	level = 0;
+	ncur = NULL;
+	pcur = cur;
+
+	xfs_btree_set_ptr_null(cur, &nptr);
+	cur->bc_ops->init_rec_from_cur(cur, &rec);
+
+	/*
+	 * Loop going up the tree, starting at the leaf level.
+	 * Stop when we don't get a split block, that must mean that
+	 * the insert is finished with this level.
+	 */
+	do {
+		/*
+		 * Insert nrec/nptr into this level of the tree.
+		 * Note if we fail, nptr will be null.
+		 */
+		error = xfs_btree_insrec(pcur, level, &nptr, &rec, &ncur, &i);
+		if (error) {
+			if (pcur != cur)
+				xfs_btree_del_cursor(pcur, XFS_BTREE_ERROR);
+			goto error0;
+		}
+
+		XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
+		level++;
+
+		/*
+		 * See if the cursor we just used is trash.
+		 * Can't trash the caller's cursor, but otherwise we should
+		 * if ncur is a new cursor or we're about to be done.
+		 */
+		if (pcur != cur &&
+		    (ncur || xfs_btree_ptr_is_null(cur, &nptr))) {
+			/* Save the state from the cursor before we trash it */
+			if (cur->bc_ops->update_cursor)
+				cur->bc_ops->update_cursor(pcur, cur);
+			cur->bc_nlevels = pcur->bc_nlevels;
+			xfs_btree_del_cursor(pcur, XFS_BTREE_NOERROR);
+		}
+		/* If we got a new cursor, switch to it. */
+		if (ncur) {
+			pcur = ncur;
+			ncur = NULL;
+		}
+	} while (!xfs_btree_ptr_is_null(cur, &nptr));
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+	*stat = i;
+	return 0;
+error0:
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+	return error;
 }

@@ -107,12 +107,6 @@ extern int xfs_alloc_delete(struct xfs_btree_cur *cur, int *stat);
 extern int xfs_alloc_get_rec(struct xfs_btree_cur *cur,	xfs_agblock_t *bno,
 				xfs_extlen_t *len, int *stat);
 
-/*
- * Insert the current record at the point referenced by cur.
- * The cursor may be inconsistent on return if splits have been done.
- */
-extern int xfs_alloc_insert(struct xfs_btree_cur *cur, int *stat);
-
 
 extern struct xfs_btree_cur *xfs_allocbt_init_cursor(struct xfs_mount *,
 		struct xfs_trans *, struct xfs_buf *,

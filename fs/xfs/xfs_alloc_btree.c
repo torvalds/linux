@@ -583,256 +583,6 @@ error0:
 }
 
 /*
- * Insert one record/level.  Return information to the caller
- * allowing the next level up to proceed if necessary.
- */
-STATIC int				/* error */
-xfs_alloc_insrec(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	int			level,	/* level to insert record at */
-	xfs_agblock_t		*bnop,	/* i/o: block number inserted */
-	xfs_alloc_rec_t		*recp,	/* i/o: record data inserted */
-	xfs_btree_cur_t		**curp,	/* output: new cursor replacing cur */
-	int			*stat)	/* output: success/failure */
-{
-	xfs_agf_t		*agf;	/* allocation group freelist header */
-	xfs_alloc_block_t	*block;	/* btree block record/key lives in */
-	xfs_buf_t		*bp;	/* buffer for block */
-	int			error;	/* error return value */
-	int			i;	/* loop index */
-	xfs_alloc_key_t		key;	/* key value being inserted */
-	xfs_alloc_key_t		*kp;	/* pointer to btree keys */
-	xfs_agblock_t		nbno;	/* block number of allocated block */
-	xfs_btree_cur_t		*ncur;	/* new cursor to be used at next lvl */
-	xfs_alloc_key_t		nkey;	/* new key value, from split */
-	xfs_alloc_rec_t		nrec;	/* new record value, for caller */
-	int			numrecs;
-	int			optr;	/* old ptr value */
-	xfs_alloc_ptr_t		*pp;	/* pointer to btree addresses */
-	int			ptr;	/* index in btree block for this rec */
-	xfs_alloc_rec_t		*rp;	/* pointer to btree records */
-
-	ASSERT(be32_to_cpu(recp->ar_blockcount) > 0);
-
-	/*
-	 * GCC doesn't understand the (arguably complex) control flow in
-	 * this function and complains about uninitialized structure fields
-	 * without this.
-	 */
-	memset(&nrec, 0, sizeof(nrec));
-
-	/*
-	 * If we made it to the root level, allocate a new root block
-	 * and we're done.
-	 */
-	if (level >= cur->bc_nlevels) {
-		XFS_STATS_INC(xs_abt_insrec);
-		if ((error = xfs_btree_new_root(cur, &i)))
-			return error;
-		*bnop = NULLAGBLOCK;
-		*stat = i;
-		return 0;
-	}
-	/*
-	 * Make a key out of the record data to be inserted, and save it.
-	 */
-	key.ar_startblock = recp->ar_startblock;
-	key.ar_blockcount = recp->ar_blockcount;
-	optr = ptr = cur->bc_ptrs[level];
-	/*
-	 * If we're off the left edge, return failure.
-	 */
-	if (ptr == 0) {
-		*stat = 0;
-		return 0;
-	}
-	XFS_STATS_INC(xs_abt_insrec);
-	/*
-	 * Get pointers to the btree buffer and block.
-	 */
-	bp = cur->bc_bufs[level];
-	block = XFS_BUF_TO_ALLOC_BLOCK(bp);
-	numrecs = be16_to_cpu(block->bb_numrecs);
-#ifdef DEBUG
-	if ((error = xfs_btree_check_sblock(cur, block, level, bp)))
-		return error;
-	/*
-	 * Check that the new entry is being inserted in the right place.
-	 */
-	if (ptr <= numrecs) {
-		if (level == 0) {
-			rp = XFS_ALLOC_REC_ADDR(block, ptr, cur);
-			xfs_btree_check_rec(cur->bc_btnum, recp, rp);
-		} else {
-			kp = XFS_ALLOC_KEY_ADDR(block, ptr, cur);
-			xfs_btree_check_key(cur->bc_btnum, &key, kp);
-		}
-	}
-#endif
-	nbno = NULLAGBLOCK;
-	ncur = NULL;
-	/*
-	 * If the block is full, we can't insert the new entry until we
-	 * make the block un-full.
-	 */
-	if (numrecs == XFS_ALLOC_BLOCK_MAXRECS(level, cur)) {
-		/*
-		 * First, try shifting an entry to the right neighbor.
-		 */
-		if ((error = xfs_btree_rshift(cur, level, &i)))
-			return error;
-		if (i) {
-			/* nothing */
-		}
-		/*
-		 * Next, try shifting an entry to the left neighbor.
-		 */
-		else {
-			if ((error = xfs_btree_lshift(cur, level, &i)))
-				return error;
-			if (i)
-				optr = ptr = cur->bc_ptrs[level];
-			else {
-				union xfs_btree_ptr bno = { .s = cpu_to_be32(nbno) };
-				/*
-				 * Next, try splitting the current block in
-				 * half. If this works we have to re-set our
-				 * variables because we could be in a
-				 * different block now.
-				 */
-				if ((error = xfs_btree_split(cur, level, &bno,
-						(union xfs_btree_key *)&nkey,
-						&ncur, &i)))
-					return error;
-				nbno = be32_to_cpu(bno.s);
-				if (i) {
-					bp = cur->bc_bufs[level];
-					block = XFS_BUF_TO_ALLOC_BLOCK(bp);
-#ifdef DEBUG
-					if ((error =
-						xfs_btree_check_sblock(cur,
-							block, level, bp)))
-						return error;
-#endif
-					ptr = cur->bc_ptrs[level];
-					nrec.ar_startblock = nkey.ar_startblock;
-					nrec.ar_blockcount = nkey.ar_blockcount;
-				}
-				/*
-				 * Otherwise the insert fails.
-				 */
-				else {
-					*stat = 0;
-					return 0;
-				}
-			}
-		}
-	}
-	/*
-	 * At this point we know there's room for our new entry in the block
-	 * we're pointing at.
-	 */
-	numrecs = be16_to_cpu(block->bb_numrecs);
-	if (level > 0) {
-		/*
-		 * It's a non-leaf entry.  Make a hole for the new data
-		 * in the key and ptr regions of the block.
-		 */
-		kp = XFS_ALLOC_KEY_ADDR(block, 1, cur);
-		pp = XFS_ALLOC_PTR_ADDR(block, 1, cur);
-#ifdef DEBUG
-		for (i = numrecs; i >= ptr; i--) {
-			if ((error = xfs_btree_check_sptr(cur, be32_to_cpu(pp[i - 1]), level)))
-				return error;
-		}
-#endif
-		memmove(&kp[ptr], &kp[ptr - 1],
-			(numrecs - ptr + 1) * sizeof(*kp));
-		memmove(&pp[ptr], &pp[ptr - 1],
-			(numrecs - ptr + 1) * sizeof(*pp));
-#ifdef DEBUG
-		if ((error = xfs_btree_check_sptr(cur, *bnop, level)))
-			return error;
-#endif
-		/*
-		 * Now stuff the new data in, bump numrecs and log the new data.
-		 */
-		kp[ptr - 1] = key;
-		pp[ptr - 1] = cpu_to_be32(*bnop);
-		numrecs++;
-		block->bb_numrecs = cpu_to_be16(numrecs);
-		xfs_alloc_log_keys(cur, bp, ptr, numrecs);
-		xfs_alloc_log_ptrs(cur, bp, ptr, numrecs);
-#ifdef DEBUG
-		if (ptr < numrecs)
-			xfs_btree_check_key(cur->bc_btnum, kp + ptr - 1,
-				kp + ptr);
-#endif
-	} else {
-		/*
-		 * It's a leaf entry.  Make a hole for the new record.
-		 */
-		rp = XFS_ALLOC_REC_ADDR(block, 1, cur);
-		memmove(&rp[ptr], &rp[ptr - 1],
-			(numrecs - ptr + 1) * sizeof(*rp));
-		/*
-		 * Now stuff the new record in, bump numrecs
-		 * and log the new data.
-		 */
-		rp[ptr - 1] = *recp;
-		numrecs++;
-		block->bb_numrecs = cpu_to_be16(numrecs);
-		xfs_alloc_log_recs(cur, bp, ptr, numrecs);
-#ifdef DEBUG
-		if (ptr < numrecs)
-			xfs_btree_check_rec(cur->bc_btnum, rp + ptr - 1,
-				rp + ptr);
-#endif
-	}
-	/*
-	 * Log the new number of records in the btree header.
-	 */
-	xfs_alloc_log_block(cur->bc_tp, bp, XFS_BB_NUMRECS);
-	/*
-	 * If we inserted at the start of a block, update the parents' keys.
-	 */
-	if (optr == 1 && (error = xfs_btree_updkey(cur, (union xfs_btree_key *)&key, level + 1)))
-		return error;
-	/*
-	 * Look to see if the longest extent in the allocation group
-	 * needs to be updated.
-	 */
-
-	agf = XFS_BUF_TO_AGF(cur->bc_private.a.agbp);
-	if (level == 0 &&
-	    cur->bc_btnum == XFS_BTNUM_CNT &&
-	    be32_to_cpu(block->bb_rightsib) == NULLAGBLOCK &&
-	    be32_to_cpu(recp->ar_blockcount) > be32_to_cpu(agf->agf_longest)) {
-		/*
-		 * If this is a leaf in the by-size btree and there
-		 * is no right sibling block and this block is bigger
-		 * than the previous longest block, update it.
-		 */
-		agf->agf_longest = recp->ar_blockcount;
-		cur->bc_mp->m_perag[be32_to_cpu(agf->agf_seqno)].pagf_longest
-			= be32_to_cpu(recp->ar_blockcount);
-		xfs_alloc_log_agf(cur->bc_tp, cur->bc_private.a.agbp,
-			XFS_AGF_LONGEST);
-	}
-	/*
-	 * Return the new block number, if any.
-	 * If there is one, give back a record value and a cursor too.
-	 */
-	*bnop = nbno;
-	if (nbno != NULLAGBLOCK) {
-		*recp = nrec;
-		*curp = ncur;
-	}
-	*stat = 1;
-	return 0;
-}
-
-/*
  * Log header fields from a btree block.
  */
 STATIC void
@@ -1019,65 +769,6 @@ xfs_alloc_get_rec(
 	return 0;
 }
 
-/*
- * Insert the current record at the point referenced by cur.
- * The cursor may be inconsistent on return if splits have been done.
- */
-int					/* error */
-xfs_alloc_insert(
-	xfs_btree_cur_t	*cur,		/* btree cursor */
-	int		*stat)		/* success/failure */
-{
-	int		error;		/* error return value */
-	int		i;		/* result value, 0 for failure */
-	int		level;		/* current level number in btree */
-	xfs_agblock_t	nbno;		/* new block number (split result) */
-	xfs_btree_cur_t	*ncur;		/* new cursor (split result) */
-	xfs_alloc_rec_t	nrec;		/* record being inserted this level */
-	xfs_btree_cur_t	*pcur;		/* previous level's cursor */
-
-	level = 0;
-	nbno = NULLAGBLOCK;
-	nrec.ar_startblock = cpu_to_be32(cur->bc_rec.a.ar_startblock);
-	nrec.ar_blockcount = cpu_to_be32(cur->bc_rec.a.ar_blockcount);
-	ncur = NULL;
-	pcur = cur;
-	/*
-	 * Loop going up the tree, starting at the leaf level.
-	 * Stop when we don't get a split block, that must mean that
-	 * the insert is finished with this level.
-	 */
-	do {
-		/*
-		 * Insert nrec/nbno into this level of the tree.
-		 * Note if we fail, nbno will be null.
-		 */
-		if ((error = xfs_alloc_insrec(pcur, level++, &nbno, &nrec, &ncur,
-				&i))) {
-			if (pcur != cur)
-				xfs_btree_del_cursor(pcur, XFS_BTREE_ERROR);
-			return error;
-		}
-		/*
-		 * See if the cursor we just used is trash.
-		 * Can't trash the caller's cursor, but otherwise we should
-		 * if ncur is a new cursor or we're about to be done.
-		 */
-		if (pcur != cur && (ncur || nbno == NULLAGBLOCK)) {
-			cur->bc_nlevels = pcur->bc_nlevels;
-			xfs_btree_del_cursor(pcur, XFS_BTREE_NOERROR);
-		}
-		/*
-		 * If we got a new cursor, switch to it.
-		 */
-		if (ncur) {
-			pcur = ncur;
-			ncur = NULL;
-		}
-	} while (nbno != NULLAGBLOCK);
-	*stat = i;
-	return 0;
-}
 
 STATIC struct xfs_btree_cur *
 xfs_allocbt_dup_cursor(
@@ -1170,6 +861,12 @@ xfs_allocbt_update_lastrec(
 			return;
 		len = rec->alloc.ar_blockcount;
 		break;
+	case LASTREC_INSREC:
+		if (be32_to_cpu(rec->alloc.ar_blockcount) <=
+		    be32_to_cpu(agf->agf_longest))
+			return;
+		len = rec->alloc.ar_blockcount;
+		break;
 	default:
 		ASSERT(0);
 		return;
@@ -1197,6 +894,28 @@ xfs_allocbt_init_key_from_rec(
 
 	key->alloc.ar_startblock = rec->alloc.ar_startblock;
 	key->alloc.ar_blockcount = rec->alloc.ar_blockcount;
+}
+
+STATIC void
+xfs_allocbt_init_rec_from_key(
+	union xfs_btree_key	*key,
+	union xfs_btree_rec	*rec)
+{
+	ASSERT(key->alloc.ar_startblock != 0);
+
+	rec->alloc.ar_startblock = key->alloc.ar_startblock;
+	rec->alloc.ar_blockcount = key->alloc.ar_blockcount;
+}
+
+STATIC void
+xfs_allocbt_init_rec_from_cur(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_rec	*rec)
+{
+	ASSERT(cur->bc_rec.a.ar_startblock != 0);
+
+	rec->alloc.ar_startblock = cpu_to_be32(cur->bc_rec.a.ar_startblock);
+	rec->alloc.ar_blockcount = cpu_to_be32(cur->bc_rec.a.ar_blockcount);
 }
 
 STATIC void
@@ -1309,6 +1028,8 @@ static const struct xfs_btree_ops xfs_allocbt_ops = {
 	.update_lastrec		= xfs_allocbt_update_lastrec,
 	.get_maxrecs		= xfs_allocbt_get_maxrecs,
 	.init_key_from_rec	= xfs_allocbt_init_key_from_rec,
+	.init_rec_from_key	= xfs_allocbt_init_rec_from_key,
+	.init_rec_from_cur	= xfs_allocbt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_allocbt_init_ptr_from_cur,
 	.key_diff		= xfs_allocbt_key_diff,
 

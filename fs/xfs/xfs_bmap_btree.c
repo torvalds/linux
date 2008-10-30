@@ -456,198 +456,6 @@ error0:
 	return error;
 }
 
-/*
- * Insert one record/level.  Return information to the caller
- * allowing the next level up to proceed if necessary.
- */
-STATIC int					/* error */
-xfs_bmbt_insrec(
-	xfs_btree_cur_t		*cur,
-	int			level,
-	xfs_fsblock_t		*bnop,
-	xfs_bmbt_rec_t		*recp,
-	xfs_btree_cur_t		**curp,
-	int			*stat)		/* no-go/done/continue */
-{
-	xfs_bmbt_block_t	*block;		/* bmap btree block */
-	xfs_buf_t		*bp;		/* buffer for block */
-	int			error;		/* error return value */
-	int			i;		/* loop index */
-	xfs_bmbt_key_t		key;		/* bmap btree key */
-	xfs_bmbt_key_t		*kp=NULL;	/* pointer to bmap btree key */
-	int			logflags;	/* inode logging flags */
-	xfs_fsblock_t		nbno;		/* new block number */
-	struct xfs_btree_cur	*ncur;		/* new btree cursor */
-	__uint64_t		startoff;	/* new btree key value */
-	xfs_bmbt_rec_t		nrec;		/* new record count */
-	int			optr;		/* old key/record index */
-	xfs_bmbt_ptr_t		*pp;		/* pointer to bmap block addr */
-	int			ptr;		/* key/record index */
-	xfs_bmbt_rec_t		*rp=NULL;	/* pointer to bmap btree rec */
-	int			numrecs;
-
-	ASSERT(level < cur->bc_nlevels);
-	XFS_BMBT_TRACE_CURSOR(cur, ENTRY);
-	XFS_BMBT_TRACE_ARGIFR(cur, level, *bnop, recp);
-	ncur = NULL;
-	key.br_startoff = cpu_to_be64(xfs_bmbt_disk_get_startoff(recp));
-	optr = ptr = cur->bc_ptrs[level];
-	if (ptr == 0) {
-		XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-		*stat = 0;
-		return 0;
-	}
-	XFS_STATS_INC(xs_bmbt_insrec);
-	block = xfs_bmbt_get_block(cur, level, &bp);
-	numrecs = be16_to_cpu(block->bb_numrecs);
-#ifdef DEBUG
-	if ((error = xfs_btree_check_lblock(cur, block, level, bp))) {
-		XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-		return error;
-	}
-	if (ptr <= numrecs) {
-		if (level == 0) {
-			rp = XFS_BMAP_REC_IADDR(block, ptr, cur);
-			xfs_btree_check_rec(XFS_BTNUM_BMAP, recp, rp);
-		} else {
-			kp = XFS_BMAP_KEY_IADDR(block, ptr, cur);
-			xfs_btree_check_key(XFS_BTNUM_BMAP, &key, kp);
-		}
-	}
-#endif
-	nbno = NULLFSBLOCK;
-	if (numrecs == XFS_BMAP_BLOCK_IMAXRECS(level, cur)) {
-		if (numrecs < XFS_BMAP_BLOCK_DMAXRECS(level, cur)) {
-			/*
-			 * A root block, that can be made bigger.
-			 */
-			xfs_iroot_realloc(cur->bc_private.b.ip, 1,
-				cur->bc_private.b.whichfork);
-			block = xfs_bmbt_get_block(cur, level, &bp);
-		} else if (level == cur->bc_nlevels - 1) {
-			if ((error = xfs_btree_new_iroot(cur, &logflags, stat)) ||
-			    *stat == 0) {
-				XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-				return error;
-			}
-			xfs_trans_log_inode(cur->bc_tp, cur->bc_private.b.ip,
-				logflags);
-			block = xfs_bmbt_get_block(cur, level, &bp);
-		} else {
-			if ((error = xfs_btree_rshift(cur, level, &i))) {
-				XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-				return error;
-			}
-			if (i) {
-				/* nothing */
-			} else {
-				if ((error = xfs_btree_lshift(cur, level, &i))) {
-					XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-					return error;
-				}
-				if (i) {
-					optr = ptr = cur->bc_ptrs[level];
-				} else {
-					union xfs_btree_ptr bno = { .l = cpu_to_be64(nbno) };
-					union xfs_btree_key skey;
-					if ((error = xfs_btree_split(cur, level,
-							&bno, &skey, &ncur,
-							&i))) {
-						XFS_BMBT_TRACE_CURSOR(cur,
-							ERROR);
-						return error;
-					}
-					nbno = be64_to_cpu(bno.l);
-					startoff = be64_to_cpu(skey.bmbt.br_startoff);
-					if (i) {
-						block = xfs_bmbt_get_block(
-							    cur, level, &bp);
-#ifdef DEBUG
-						if ((error =
-						    xfs_btree_check_lblock(cur,
-							    block, level, bp))) {
-							XFS_BMBT_TRACE_CURSOR(
-								cur, ERROR);
-							return error;
-						}
-#endif
-						ptr = cur->bc_ptrs[level];
-						xfs_bmbt_disk_set_allf(&nrec,
-							startoff, 0, 0,
-							XFS_EXT_NORM);
-					} else {
-						XFS_BMBT_TRACE_CURSOR(cur,
-							EXIT);
-						*stat = 0;
-						return 0;
-					}
-				}
-			}
-		}
-	}
-	numrecs = be16_to_cpu(block->bb_numrecs);
-	if (level > 0) {
-		kp = XFS_BMAP_KEY_IADDR(block, 1, cur);
-		pp = XFS_BMAP_PTR_IADDR(block, 1, cur);
-#ifdef DEBUG
-		for (i = numrecs; i >= ptr; i--) {
-			if ((error = xfs_btree_check_lptr_disk(cur, pp[i - 1],
-					level))) {
-				XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-				return error;
-			}
-		}
-#endif
-		memmove(&kp[ptr], &kp[ptr - 1],
-			(numrecs - ptr + 1) * sizeof(*kp));
-		memmove(&pp[ptr], &pp[ptr - 1],
-			(numrecs - ptr + 1) * sizeof(*pp));
-#ifdef DEBUG
-		if ((error = xfs_btree_check_lptr(cur, *bnop, level))) {
-			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-			return error;
-		}
-#endif
-		kp[ptr - 1] = key;
-		pp[ptr - 1] = cpu_to_be64(*bnop);
-		numrecs++;
-		block->bb_numrecs = cpu_to_be16(numrecs);
-		xfs_bmbt_log_keys(cur, bp, ptr, numrecs);
-		xfs_bmbt_log_ptrs(cur, bp, ptr, numrecs);
-	} else {
-		rp = XFS_BMAP_REC_IADDR(block, 1, cur);
-		memmove(&rp[ptr], &rp[ptr - 1],
-			(numrecs - ptr + 1) * sizeof(*rp));
-		rp[ptr - 1] = *recp;
-		numrecs++;
-		block->bb_numrecs = cpu_to_be16(numrecs);
-		xfs_bmbt_log_recs(cur, bp, ptr, numrecs);
-	}
-	xfs_bmbt_log_block(cur, bp, XFS_BB_NUMRECS);
-#ifdef DEBUG
-	if (ptr < numrecs) {
-		if (level == 0)
-			xfs_btree_check_rec(XFS_BTNUM_BMAP, rp + ptr - 1,
-				rp + ptr);
-		else
-			xfs_btree_check_key(XFS_BTNUM_BMAP, kp + ptr - 1,
-				kp + ptr);
-	}
-#endif
-	if (optr == 1 && (error = xfs_btree_updkey(cur, (union xfs_btree_key *)&key, level + 1))) {
-		XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-		return error;
-	}
-	*bnop = nbno;
-	if (nbno != NULLFSBLOCK) {
-		*recp = nrec;
-		*curp = ncur;
-	}
-	XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-	*stat = 1;
-	return 0;
-}
-
 STATIC int
 xfs_bmbt_killroot(
 	xfs_btree_cur_t		*cur)
@@ -1060,67 +868,6 @@ xfs_bmbt_disk_get_startoff(
 }
 
 /*
- * Insert the current record at the point referenced by cur.
- *
- * A multi-level split of the tree on insert will invalidate the original
- * cursor.  All callers of this function should assume that the cursor is
- * no longer valid and revalidate it.
- */
-int					/* error */
-xfs_bmbt_insert(
-	xfs_btree_cur_t	*cur,
-	int		*stat)		/* success/failure */
-{
-	int		error;		/* error return value */
-	int		i;
-	int		level;
-	xfs_fsblock_t	nbno;
-	xfs_btree_cur_t	*ncur;
-	xfs_bmbt_rec_t	nrec;
-	xfs_btree_cur_t	*pcur;
-
-	XFS_BMBT_TRACE_CURSOR(cur, ENTRY);
-	level = 0;
-	nbno = NULLFSBLOCK;
-	xfs_bmbt_disk_set_all(&nrec, &cur->bc_rec.b);
-	ncur = NULL;
-	pcur = cur;
-	do {
-		if ((error = xfs_bmbt_insrec(pcur, level++, &nbno, &nrec, &ncur,
-				&i))) {
-			if (pcur != cur)
-				xfs_btree_del_cursor(pcur, XFS_BTREE_ERROR);
-			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-			return error;
-		}
-		XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
-		if (pcur != cur && (ncur || nbno == NULLFSBLOCK)) {
-			cur->bc_nlevels = pcur->bc_nlevels;
-			cur->bc_private.b.allocated +=
-				pcur->bc_private.b.allocated;
-			pcur->bc_private.b.allocated = 0;
-			ASSERT((cur->bc_private.b.firstblock != NULLFSBLOCK) ||
-			       XFS_IS_REALTIME_INODE(cur->bc_private.b.ip));
-			cur->bc_private.b.firstblock =
-				pcur->bc_private.b.firstblock;
-			ASSERT(cur->bc_private.b.flist ==
-			       pcur->bc_private.b.flist);
-			xfs_btree_del_cursor(pcur, XFS_BTREE_NOERROR);
-		}
-		if (ncur) {
-			pcur = ncur;
-			ncur = NULL;
-		}
-	} while (nbno != NULLFSBLOCK);
-	XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-	*stat = i;
-	return 0;
-error0:
-	XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-	return error;
-}
-
-/*
  * Log fields from the btree block header.
  */
 void
@@ -1450,6 +1197,21 @@ xfs_bmbt_dup_cursor(
 	return new;
 }
 
+STATIC void
+xfs_bmbt_update_cursor(
+	struct xfs_btree_cur	*src,
+	struct xfs_btree_cur	*dst)
+{
+	ASSERT((dst->bc_private.b.firstblock != NULLFSBLOCK) ||
+	       (dst->bc_private.b.ip->i_d.di_flags & XFS_DIFLAG_REALTIME));
+	ASSERT(dst->bc_private.b.flist == src->bc_private.b.flist);
+
+	dst->bc_private.b.allocated += src->bc_private.b.allocated;
+	dst->bc_private.b.firstblock = src->bc_private.b.firstblock;
+
+	src->bc_private.b.allocated = 0;
+}
+
 STATIC int
 xfs_bmbt_alloc_block(
 	struct xfs_btree_cur	*cur,
@@ -1544,6 +1306,23 @@ xfs_bmbt_get_maxrecs(
 	return XFS_BMAP_BLOCK_IMAXRECS(level, cur);
 }
 
+/*
+ * Get the maximum records we could store in the on-disk format.
+ *
+ * For non-root nodes this is equivalent to xfs_bmbt_get_maxrecs, but
+ * for the root node this checks the available space in the dinode fork
+ * so that we can resize the in-memory buffer to match it.  After a
+ * resize to the maximum size this function returns the same value
+ * as xfs_bmbt_get_maxrecs for the root node, too.
+ */
+STATIC int
+xfs_bmbt_get_dmaxrecs(
+	struct xfs_btree_cur	*cur,
+	int			level)
+{
+	return XFS_BMAP_BLOCK_DMAXRECS(level, cur);
+}
+
 STATIC void
 xfs_bmbt_init_key_from_rec(
 	union xfs_btree_key	*key,
@@ -1551,6 +1330,25 @@ xfs_bmbt_init_key_from_rec(
 {
 	key->bmbt.br_startoff =
 		cpu_to_be64(xfs_bmbt_disk_get_startoff(&rec->bmbt));
+}
+
+STATIC void
+xfs_bmbt_init_rec_from_key(
+	union xfs_btree_key	*key,
+	union xfs_btree_rec	*rec)
+{
+	ASSERT(key->bmbt.br_startoff != 0);
+
+	xfs_bmbt_disk_set_allf(&rec->bmbt, be64_to_cpu(key->bmbt.br_startoff),
+			       0, 0, XFS_EXT_NORM);
+}
+
+STATIC void
+xfs_bmbt_init_rec_from_cur(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_rec	*rec)
+{
+	xfs_bmbt_disk_set_all(&rec->bmbt, &cur->bc_rec.b);
 }
 
 STATIC void
@@ -1660,9 +1458,13 @@ static const struct xfs_btree_ops xfs_bmbt_ops = {
 	.key_len		= sizeof(xfs_bmbt_key_t),
 
 	.dup_cursor		= xfs_bmbt_dup_cursor,
+	.update_cursor		= xfs_bmbt_update_cursor,
 	.alloc_block		= xfs_bmbt_alloc_block,
 	.get_maxrecs		= xfs_bmbt_get_maxrecs,
+	.get_dmaxrecs		= xfs_bmbt_get_dmaxrecs,
 	.init_key_from_rec	= xfs_bmbt_init_key_from_rec,
+	.init_rec_from_key	= xfs_bmbt_init_rec_from_key,
+	.init_rec_from_cur	= xfs_bmbt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_bmbt_init_ptr_from_cur,
 	.key_diff		= xfs_bmbt_key_diff,
 
