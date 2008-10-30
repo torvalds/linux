@@ -834,6 +834,37 @@ xfs_allocbt_alloc_block(
 	return 0;
 }
 
+STATIC int
+xfs_allocbt_free_block(
+	struct xfs_btree_cur	*cur,
+	struct xfs_buf		*bp)
+{
+	struct xfs_buf		*agbp = cur->bc_private.a.agbp;
+	struct xfs_agf		*agf = XFS_BUF_TO_AGF(agbp);
+	xfs_agblock_t		bno;
+	int			error;
+
+	bno = XFS_DADDR_TO_AGBNO(cur->bc_mp, XFS_BUF_ADDR(bp));
+	error = xfs_alloc_put_freelist(cur->bc_tp, agbp, NULL, bno, 1);
+	if (error)
+		return error;
+
+	/*
+	 * Since blocks move to the free list without the coordination used in
+	 * xfs_bmap_finish, we can't allow block to be available for
+	 * reallocation and non-transaction writing (user data) until we know
+	 * that the transaction that moved it to the free list is permanently
+	 * on disk. We track the blocks by declaring these blocks as "busy";
+	 * the busy list is maintained on a per-ag basis and each transaction
+	 * records which entries should be removed when the iclog commits to
+	 * disk. If a busy block is allocated, the iclog is pushed up to the
+	 * LSN that freed the block.
+	 */
+	xfs_alloc_mark_busy(cur->bc_tp, be32_to_cpu(agf->agf_seqno), bno, 1);
+	xfs_trans_agbtree_delta(cur->bc_tp, -1);
+	return 0;
+}
+
 /*
  * Update the longest extent in the AGF
  */
@@ -1025,6 +1056,7 @@ static const struct xfs_btree_ops xfs_allocbt_ops = {
 	.dup_cursor		= xfs_allocbt_dup_cursor,
 	.set_root		= xfs_allocbt_set_root,
 	.alloc_block		= xfs_allocbt_alloc_block,
+	.free_block		= xfs_allocbt_free_block,
 	.update_lastrec		= xfs_allocbt_update_lastrec,
 	.get_maxrecs		= xfs_allocbt_get_maxrecs,
 	.init_key_from_rec	= xfs_allocbt_init_key_from_rec,

@@ -754,6 +754,22 @@ xfs_inobt_alloc_block(
 	return 0;
 }
 
+STATIC int
+xfs_inobt_free_block(
+	struct xfs_btree_cur	*cur,
+	struct xfs_buf		*bp)
+{
+	xfs_fsblock_t		fsbno;
+	int			error;
+
+	fsbno = XFS_DADDR_TO_FSB(cur->bc_mp, XFS_BUF_ADDR(bp));
+	error = xfs_free_extent(cur->bc_tp, fsbno, 1);
+	if (error)
+		return error;
+
+	xfs_trans_binval(cur->bc_tp, bp);
+	return error;
+}
 
 STATIC int
 xfs_inobt_get_maxrecs(
@@ -886,6 +902,7 @@ static const struct xfs_btree_ops xfs_inobt_ops = {
 	.dup_cursor		= xfs_inobt_dup_cursor,
 	.set_root		= xfs_inobt_set_root,
 	.alloc_block		= xfs_inobt_alloc_block,
+	.free_block		= xfs_inobt_free_block,
 	.get_maxrecs		= xfs_inobt_get_maxrecs,
 	.init_key_from_rec	= xfs_inobt_init_key_from_rec,
 	.init_rec_from_key	= xfs_inobt_init_rec_from_key,

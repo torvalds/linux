@@ -49,7 +49,6 @@
  */
 
 
-STATIC int xfs_bmbt_killroot(xfs_btree_cur_t *);
 STATIC void xfs_bmbt_log_keys(xfs_btree_cur_t *, xfs_buf_t *, int, int);
 STATIC void xfs_bmbt_log_ptrs(xfs_btree_cur_t *, xfs_buf_t *, int, int);
 
@@ -194,7 +193,7 @@ xfs_bmbt_delrec(
 	if (level == cur->bc_nlevels - 1) {
 		xfs_iroot_realloc(cur->bc_private.b.ip, -1,
 			cur->bc_private.b.whichfork);
-		if ((error = xfs_bmbt_killroot(cur))) {
+		if ((error = xfs_btree_kill_iroot(cur))) {
 			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 			goto error0;
 		}
@@ -228,7 +227,7 @@ xfs_bmbt_delrec(
 	 */
 	if (lbno == NULLFSBLOCK && rbno == NULLFSBLOCK &&
 	    level == cur->bc_nlevels - 2) {
-		if ((error = xfs_bmbt_killroot(cur))) {
+		if ((error = xfs_btree_kill_iroot(cur))) {
 			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
 			goto error0;
 		}
@@ -454,97 +453,6 @@ error0:
 	if (tcur)
 		xfs_btree_del_cursor(tcur, XFS_BTREE_ERROR);
 	return error;
-}
-
-STATIC int
-xfs_bmbt_killroot(
-	xfs_btree_cur_t		*cur)
-{
-	xfs_bmbt_block_t	*block;
-	xfs_bmbt_block_t	*cblock;
-	xfs_buf_t		*cbp;
-	xfs_bmbt_key_t		*ckp;
-	xfs_bmbt_ptr_t		*cpp;
-#ifdef DEBUG
-	int			error;
-#endif
-	int			i;
-	xfs_bmbt_key_t		*kp;
-	xfs_inode_t		*ip;
-	xfs_ifork_t		*ifp;
-	int			level;
-	xfs_bmbt_ptr_t		*pp;
-
-	XFS_BMBT_TRACE_CURSOR(cur, ENTRY);
-	level = cur->bc_nlevels - 1;
-	ASSERT(level >= 1);
-	/*
-	 * Don't deal with the root block needs to be a leaf case.
-	 * We're just going to turn the thing back into extents anyway.
-	 */
-	if (level == 1) {
-		XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-		return 0;
-	}
-	block = xfs_bmbt_get_block(cur, level, &cbp);
-	/*
-	 * Give up if the root has multiple children.
-	 */
-	if (be16_to_cpu(block->bb_numrecs) != 1) {
-		XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-		return 0;
-	}
-	/*
-	 * Only do this if the next level will fit.
-	 * Then the data must be copied up to the inode,
-	 * instead of freeing the root you free the next level.
-	 */
-	cbp = cur->bc_bufs[level - 1];
-	cblock = XFS_BUF_TO_BMBT_BLOCK(cbp);
-	if (be16_to_cpu(cblock->bb_numrecs) > XFS_BMAP_BLOCK_DMAXRECS(level, cur)) {
-		XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-		return 0;
-	}
-	ASSERT(be64_to_cpu(cblock->bb_leftsib) == NULLDFSBNO);
-	ASSERT(be64_to_cpu(cblock->bb_rightsib) == NULLDFSBNO);
-	ip = cur->bc_private.b.ip;
-	ifp = XFS_IFORK_PTR(ip, cur->bc_private.b.whichfork);
-	ASSERT(XFS_BMAP_BLOCK_IMAXRECS(level, cur) ==
-	       XFS_BMAP_BROOT_MAXRECS(ifp->if_broot_bytes));
-	i = (int)(be16_to_cpu(cblock->bb_numrecs) - XFS_BMAP_BLOCK_IMAXRECS(level, cur));
-	if (i) {
-		xfs_iroot_realloc(ip, i, cur->bc_private.b.whichfork);
-		block = ifp->if_broot;
-	}
-	be16_add_cpu(&block->bb_numrecs, i);
-	ASSERT(block->bb_numrecs == cblock->bb_numrecs);
-	kp = XFS_BMAP_KEY_IADDR(block, 1, cur);
-	ckp = XFS_BMAP_KEY_IADDR(cblock, 1, cur);
-	memcpy(kp, ckp, be16_to_cpu(block->bb_numrecs) * sizeof(*kp));
-	pp = XFS_BMAP_PTR_IADDR(block, 1, cur);
-	cpp = XFS_BMAP_PTR_IADDR(cblock, 1, cur);
-#ifdef DEBUG
-	for (i = 0; i < be16_to_cpu(cblock->bb_numrecs); i++) {
-		if ((error = xfs_btree_check_lptr_disk(cur, cpp[i], level - 1))) {
-			XFS_BMBT_TRACE_CURSOR(cur, ERROR);
-			return error;
-		}
-	}
-#endif
-	memcpy(pp, cpp, be16_to_cpu(block->bb_numrecs) * sizeof(*pp));
-	xfs_bmap_add_free(XFS_DADDR_TO_FSB(cur->bc_mp, XFS_BUF_ADDR(cbp)), 1,
-			cur->bc_private.b.flist, cur->bc_mp);
-	ip->i_d.di_nblocks--;
-	XFS_TRANS_MOD_DQUOT_BYINO(cur->bc_mp, cur->bc_tp, ip,
-			XFS_TRANS_DQ_BCOUNT, -1L);
-	xfs_trans_binval(cur->bc_tp, cbp);
-	cur->bc_bufs[level - 1] = NULL;
-	be16_add_cpu(&block->bb_level, -1);
-	xfs_trans_log_inode(cur->bc_tp, ip,
-		XFS_ILOG_CORE | XFS_ILOG_FBROOT(cur->bc_private.b.whichfork));
-	cur->bc_nlevels--;
-	XFS_BMBT_TRACE_CURSOR(cur, EXIT);
-	return 0;
 }
 
 /*
@@ -1299,6 +1207,25 @@ xfs_bmbt_alloc_block(
 }
 
 STATIC int
+xfs_bmbt_free_block(
+	struct xfs_btree_cur	*cur,
+	struct xfs_buf		*bp)
+{
+	struct xfs_mount	*mp = cur->bc_mp;
+	struct xfs_inode	*ip = cur->bc_private.b.ip;
+	struct xfs_trans	*tp = cur->bc_tp;
+	xfs_fsblock_t		fsbno = XFS_DADDR_TO_FSB(mp, XFS_BUF_ADDR(bp));
+
+	xfs_bmap_add_free(fsbno, 1, cur->bc_private.b.flist, mp);
+	ip->i_d.di_nblocks--;
+
+	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	XFS_TRANS_MOD_DQUOT_BYINO(mp, tp, ip, XFS_TRANS_DQ_BCOUNT, -1L);
+	xfs_trans_binval(tp, bp);
+	return 0;
+}
+
+STATIC int
 xfs_bmbt_get_maxrecs(
 	struct xfs_btree_cur	*cur,
 	int			level)
@@ -1460,6 +1387,7 @@ static const struct xfs_btree_ops xfs_bmbt_ops = {
 	.dup_cursor		= xfs_bmbt_dup_cursor,
 	.update_cursor		= xfs_bmbt_update_cursor,
 	.alloc_block		= xfs_bmbt_alloc_block,
+	.free_block		= xfs_bmbt_free_block,
 	.get_maxrecs		= xfs_bmbt_get_maxrecs,
 	.get_dmaxrecs		= xfs_bmbt_get_dmaxrecs,
 	.init_key_from_rec	= xfs_bmbt_init_key_from_rec,

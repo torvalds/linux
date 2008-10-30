@@ -198,6 +198,7 @@ struct xfs_btree_ops {
 			       union xfs_btree_ptr *start_bno,
 			       union xfs_btree_ptr *new_bno,
 			       int length, int *stat);
+	int	(*free_block)(struct xfs_btree_cur *cur, struct xfs_buf *bp);
 
 	/* update last record information */
 	void	(*update_lastrec)(struct xfs_btree_cur *cur,
@@ -559,6 +560,7 @@ int xfs_btree_split(struct xfs_btree_cur *, int, union xfs_btree_ptr *,
 		union xfs_btree_key *, struct xfs_btree_cur **, int *);
 int xfs_btree_new_root(struct xfs_btree_cur *, int *);
 int xfs_btree_new_iroot(struct xfs_btree_cur *, int *, int *);
+int xfs_btree_kill_iroot(struct xfs_btree_cur *);
 int xfs_btree_insert(struct xfs_btree_cur *, int *);
 
 /*

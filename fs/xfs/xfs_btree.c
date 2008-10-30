@@ -3059,3 +3059,115 @@ error0:
 	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 	return error;
 }
+
+/*
+ * Try to merge a non-leaf block back into the inode root.
+ *
+ * Note: the killroot names comes from the fact that we're effectively
+ * killing the old root block.  But because we can't just delete the
+ * inode we have to copy the single block it was pointing to into the
+ * inode.
+ */
+int
+xfs_btree_kill_iroot(
+	struct xfs_btree_cur	*cur)
+{
+	int			whichfork = cur->bc_private.b.whichfork;
+	struct xfs_inode	*ip = cur->bc_private.b.ip;
+	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
+	struct xfs_btree_block	*block;
+	struct xfs_btree_block	*cblock;
+	union xfs_btree_key	*kp;
+	union xfs_btree_key	*ckp;
+	union xfs_btree_ptr	*pp;
+	union xfs_btree_ptr	*cpp;
+	struct xfs_buf		*cbp;
+	int			level;
+	int			index;
+	int			numrecs;
+#ifdef DEBUG
+	union xfs_btree_ptr	ptr;
+	int			i;
+#endif
+
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
+
+	ASSERT(cur->bc_flags & XFS_BTREE_ROOT_IN_INODE);
+	ASSERT(cur->bc_nlevels > 1);
+
+	/*
+	 * Don't deal with the root block needs to be a leaf case.
+	 * We're just going to turn the thing back into extents anyway.
+	 */
+	level = cur->bc_nlevels - 1;
+	if (level == 1)
+		goto out0;
+
+	/*
+	 * Give up if the root has multiple children.
+	 */
+	block = xfs_btree_get_iroot(cur);
+	if (xfs_btree_get_numrecs(block) != 1)
+		goto out0;
+
+	cblock = xfs_btree_get_block(cur, level - 1, &cbp);
+	numrecs = xfs_btree_get_numrecs(cblock);
+
+	/*
+	 * Only do this if the next level will fit.
+	 * Then the data must be copied up to the inode,
+	 * instead of freeing the root you free the next level.
+	 */
+	if (numrecs > cur->bc_ops->get_dmaxrecs(cur, level))
+		goto out0;
+
+	XFS_BTREE_STATS_INC(cur, killroot);
+
+#ifdef DEBUG
+	xfs_btree_get_sibling(cur, block, &ptr, XFS_BB_LEFTSIB);
+	ASSERT(xfs_btree_ptr_is_null(cur, &ptr));
+	xfs_btree_get_sibling(cur, block, &ptr, XFS_BB_RIGHTSIB);
+	ASSERT(xfs_btree_ptr_is_null(cur, &ptr));
+#endif
+
+	index = numrecs - cur->bc_ops->get_maxrecs(cur, level);
+	if (index) {
+		xfs_iroot_realloc(cur->bc_private.b.ip, index,
+				  cur->bc_private.b.whichfork);
+		block = (struct xfs_btree_block *)ifp->if_broot;
+	}
+
+	be16_add_cpu(&block->bb_numrecs, index);
+	ASSERT(block->bb_numrecs == cblock->bb_numrecs);
+
+	kp = xfs_btree_key_addr(cur, 1, block);
+	ckp = xfs_btree_key_addr(cur, 1, cblock);
+	xfs_btree_copy_keys(cur, kp, ckp, numrecs);
+
+	pp = xfs_btree_ptr_addr(cur, 1, block);
+	cpp = xfs_btree_ptr_addr(cur, 1, cblock);
+#ifdef DEBUG
+	for (i = 0; i < numrecs; i++) {
+		int		error;
+
+		error = xfs_btree_check_ptr(cur, cpp, i, level - 1);
+		if (error) {
+			XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+			return error;
+		}
+	}
+#endif
+	xfs_btree_copy_ptrs(cur, pp, cpp, numrecs);
+
+	cur->bc_ops->free_block(cur, cbp);
+	XFS_BTREE_STATS_INC(cur, free);
+
+	cur->bc_bufs[level - 1] = NULL;
+	be16_add_cpu(&block->bb_level, -1);
+	xfs_trans_log_inode(cur->bc_tp, ip,
+		XFS_ILOG_CORE | XFS_ILOG_FBROOT(cur->bc_private.b.whichfork));
+	cur->bc_nlevels--;
+out0:
+	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
+	return 0;
+}
