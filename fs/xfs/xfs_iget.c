@@ -210,9 +210,6 @@ finish_inode:
 
 	xfs_itrace_exit_tag(ip, "xfs_iget.alloc");
 
-	if (lock_flags)
-		xfs_ilock(ip, lock_flags);
-
 	if ((ip->i_d.di_mode == 0) && !(flags & XFS_IGET_CREATE)) {
 		xfs_idestroy(ip);
 		xfs_put_perag(mp, pag);
@@ -228,6 +225,10 @@ finish_inode:
 		delay(1);
 		goto again;
 	}
+
+	if (lock_flags)
+		xfs_ilock(ip, lock_flags);
+
 	mask = ~(((XFS_INODE_CLUSTER_SIZE(mp) >> mp->m_sb.sb_inodelog)) - 1);
 	first_index = agino & mask;
 	write_lock(&pag->pag_ici_lock);
@@ -239,6 +240,8 @@ finish_inode:
 		BUG_ON(error != -EEXIST);
 		write_unlock(&pag->pag_ici_lock);
 		radix_tree_preload_end();
+		if (lock_flags)
+			xfs_iunlock(ip, lock_flags);
 		xfs_idestroy(ip);
 		XFS_STATS_INC(xs_ig_dup);
 		goto again;
