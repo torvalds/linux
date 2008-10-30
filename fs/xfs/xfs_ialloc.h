@@ -168,6 +168,11 @@ int xfs_inobt_lookup_ge(struct xfs_btree_cur *cur, xfs_agino_t ino,
 int xfs_inobt_lookup_le(struct xfs_btree_cur *cur, xfs_agino_t ino,
 		__int32_t fcnt,	xfs_inofree_t free, int *stat);
 
+/*
+ * Get the data from the pointed-to record.
+ */
+extern int xfs_inobt_get_rec(struct xfs_btree_cur *cur, xfs_agino_t *ino,
+			     __int32_t *fcnt, xfs_inofree_t *free, int *stat);
 
 #endif	/* __KERNEL__ */
 

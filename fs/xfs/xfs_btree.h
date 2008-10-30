@@ -567,6 +567,7 @@ int xfs_btree_new_iroot(struct xfs_btree_cur *, int *, int *);
 int xfs_btree_kill_iroot(struct xfs_btree_cur *);
 int xfs_btree_insert(struct xfs_btree_cur *, int *);
 int xfs_btree_delete(struct xfs_btree_cur *, int *);
+int xfs_btree_get_rec(struct xfs_btree_cur *, union xfs_btree_rec **, int *);
 
 /*
  * Helpers.

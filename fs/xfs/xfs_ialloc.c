@@ -192,6 +192,29 @@ xfs_inobt_update(
 }
 
 /*
+ * Get the data from the pointed-to record.
+ */
+int					/* error */
+xfs_inobt_get_rec(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	xfs_agino_t		*ino,	/* output: starting inode of chunk */
+	__int32_t		*fcnt,	/* output: number of free inodes */
+	xfs_inofree_t		*free,	/* output: free inode mask */
+	int			*stat)	/* output: success/failure */
+{
+	union xfs_btree_rec	*rec;
+	int			error;
+
+	error = xfs_btree_get_rec(cur, &rec, stat);
+	if (!error && *stat == 1) {
+		*ino = be32_to_cpu(rec->inobt.ir_startino);
+		*fcnt = be32_to_cpu(rec->inobt.ir_freecount);
+		*free = be64_to_cpu(rec->inobt.ir_free);
+	}
+	return error;
+}
+
+/*
  * Allocate new inodes in the allocation group specified by agbp.
  * Return 0 for success, else error code.
  */

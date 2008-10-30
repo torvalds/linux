@@ -41,50 +41,6 @@
 #include "xfs_error.h"
 
 
-/*
- * Get the data from the pointed-to record.
- */
-int					/* error */
-xfs_alloc_get_rec(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	xfs_agblock_t		*bno,	/* output: starting block of extent */
-	xfs_extlen_t		*len,	/* output: length of extent */
-	int			*stat)	/* output: success/failure */
-{
-	xfs_alloc_block_t	*block;	/* btree block */
-#ifdef DEBUG
-	int			error;	/* error return value */
-#endif
-	int			ptr;	/* record number */
-
-	ptr = cur->bc_ptrs[0];
-	block = XFS_BUF_TO_ALLOC_BLOCK(cur->bc_bufs[0]);
-#ifdef DEBUG
-	if ((error = xfs_btree_check_sblock(cur, block, 0, cur->bc_bufs[0])))
-		return error;
-#endif
-	/*
-	 * Off the right end or left end, return failure.
-	 */
-	if (ptr > be16_to_cpu(block->bb_numrecs) || ptr <= 0) {
-		*stat = 0;
-		return 0;
-	}
-	/*
-	 * Point to the record and extract its data.
-	 */
-	{
-		xfs_alloc_rec_t		*rec;	/* record data */
-
-		rec = XFS_ALLOC_REC_ADDR(block, ptr, cur);
-		*bno = be32_to_cpu(rec->ar_startblock);
-		*len = be32_to_cpu(rec->ar_blockcount);
-	}
-	*stat = 1;
-	return 0;
-}
-
-
 STATIC struct xfs_btree_cur *
 xfs_allocbt_dup_cursor(
 	struct xfs_btree_cur	*cur)

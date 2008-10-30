@@ -41,50 +41,6 @@
 #include "xfs_error.h"
 
 
-/*
- * Get the data from the pointed-to record.
- */
-int					/* error */
-xfs_inobt_get_rec(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	xfs_agino_t		*ino,	/* output: starting inode of chunk */
-	__int32_t		*fcnt,	/* output: number of free inodes */
-	xfs_inofree_t		*free,	/* output: free inode mask */
-	int			*stat)	/* output: success/failure */
-{
-	xfs_inobt_block_t	*block;	/* btree block */
-	xfs_buf_t		*bp;	/* buffer containing btree block */
-#ifdef DEBUG
-	int			error;	/* error return value */
-#endif
-	int			ptr;	/* record number */
-	xfs_inobt_rec_t		*rec;	/* record data */
-
-	bp = cur->bc_bufs[0];
-	ptr = cur->bc_ptrs[0];
-	block = XFS_BUF_TO_INOBT_BLOCK(bp);
-#ifdef DEBUG
-	if ((error = xfs_btree_check_sblock(cur, block, 0, bp)))
-		return error;
-#endif
-	/*
-	 * Off the right end or left end, return failure.
-	 */
-	if (ptr > be16_to_cpu(block->bb_numrecs) || ptr <= 0) {
-		*stat = 0;
-		return 0;
-	}
-	/*
-	 * Point to the record and extract its data.
-	 */
-	rec = XFS_INOBT_REC_ADDR(block, ptr, cur);
-	*ino = be32_to_cpu(rec->ir_startino);
-	*fcnt = be32_to_cpu(rec->ir_freecount);
-	*free = be64_to_cpu(rec->ir_free);
-	*stat = 1;
-	return 0;
-}
-
 STATIC int
 xfs_inobt_get_minrecs(
 	struct xfs_btree_cur	*cur,

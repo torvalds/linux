@@ -3764,3 +3764,44 @@ error0:
 	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 	return error;
 }
+
+/*
+ * Get the data from the pointed-to record.
+ */
+int					/* error */
+xfs_btree_get_rec(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	union xfs_btree_rec	**recp,	/* output: btree record */
+	int			*stat)	/* output: success/failure */
+{
+	struct xfs_btree_block	*block;	/* btree block */
+	struct xfs_buf		*bp;	/* buffer pointer */
+	int			ptr;	/* record number */
+#ifdef DEBUG
+	int			error;	/* error return value */
+#endif
+
+	ptr = cur->bc_ptrs[0];
+	block = xfs_btree_get_block(cur, 0, &bp);
+
+#ifdef DEBUG
+	error = xfs_btree_check_block(cur, block, 0, bp);
+	if (error)
+		return error;
+#endif
+
+	/*
+	 * Off the right end or left end, return failure.
+	 */
+	if (ptr > xfs_btree_get_numrecs(block) || ptr <= 0) {
+		*stat = 0;
+		return 0;
+	}
+
+	/*
+	 * Point to the record and extract its data.
+	 */
+	*recp = xfs_btree_rec_addr(cur, ptr, block);
+	*stat = 1;
+	return 0;
+}
