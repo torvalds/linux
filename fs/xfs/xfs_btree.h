@@ -121,6 +121,34 @@ union xfs_btree_rec {
 extern const __uint32_t	xfs_magics[];
 
 /*
+ * Generic stats interface
+ */
+#define __XFS_BTREE_STATS_INC(type, stat) \
+	XFS_STATS_INC(xs_ ## type ## _2_ ## stat)
+#define XFS_BTREE_STATS_INC(cur, stat)  \
+do {    \
+	switch (cur->bc_btnum) {  \
+	case XFS_BTNUM_BNO: __XFS_BTREE_STATS_INC(abtb, stat); break;	\
+	case XFS_BTNUM_CNT: __XFS_BTREE_STATS_INC(abtc, stat); break;	\
+	case XFS_BTNUM_BMAP: __XFS_BTREE_STATS_INC(bmbt, stat); break;	\
+	case XFS_BTNUM_INO: __XFS_BTREE_STATS_INC(ibt, stat); break;	\
+	case XFS_BTNUM_MAX: ASSERT(0); /* fucking gcc */ ; break;	\
+	}       \
+} while (0)
+
+#define __XFS_BTREE_STATS_ADD(type, stat, val) \
+	XFS_STATS_ADD(xs_ ## type ## _2_ ## stat, val)
+#define XFS_BTREE_STATS_ADD(cur, stat, val)  \
+do {    \
+	switch (cur->bc_btnum) {  \
+	case XFS_BTNUM_BNO: __XFS_BTREE_STATS_ADD(abtb, stat, val); break; \
+	case XFS_BTNUM_CNT: __XFS_BTREE_STATS_ADD(abtc, stat, val); break; \
+	case XFS_BTNUM_BMAP: __XFS_BTREE_STATS_ADD(bmbt, stat, val); break; \
+	case XFS_BTNUM_INO: __XFS_BTREE_STATS_ADD(ibt, stat, val); break; \
+	case XFS_BTNUM_MAX: ASSERT(0); /* fucking gcc */ ; break;	\
+	}       \
+} while (0)
+/*
  * Maximum and minimum records in a btree block.
  * Given block size, type prefix, and leaf flag (0 or 1).
  * The divisor below is equivalent to lf ? (e1) : (e2) but that produces
