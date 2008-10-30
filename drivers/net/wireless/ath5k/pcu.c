@@ -960,6 +960,7 @@ int ath5k_hw_beaconq_finish(struct ath5k_hw *ah, unsigned long phys_addr)
 int ath5k_hw_reset_key(struct ath5k_hw *ah, u16 entry)
 {
 	unsigned int i, type;
+	u16 micentry = entry + AR5K_KEYTABLE_MIC_OFFSET;
 
 	ATH5K_TRACE(ah->ah_sc);
 	AR5K_ASSERT_ENTRY(entry, AR5K_KEYTABLE_SIZE);
@@ -972,10 +973,10 @@ int ath5k_hw_reset_key(struct ath5k_hw *ah, u16 entry)
 	/* Reset associated MIC entry if TKIP
 	 * is enabled located at offset (entry + 64) */
 	if (type == AR5K_KEYTABLE_TYPE_TKIP) {
-		entry = entry + AR5K_KEYTABLE_MIC_OFFSET;
-		AR5K_ASSERT_ENTRY(entry, AR5K_KEYTABLE_SIZE);
+		AR5K_ASSERT_ENTRY(micentry, AR5K_KEYTABLE_SIZE);
 		for (i = 0; i < AR5K_KEYCACHE_SIZE / 2 ; i++)
-			ath5k_hw_reg_write(ah, 0, AR5K_KEYTABLE_OFF(entry, i));
+			ath5k_hw_reg_write(ah, 0,
+				AR5K_KEYTABLE_OFF(micentry, i));
 	}
 
 	/*
@@ -987,9 +988,15 @@ int ath5k_hw_reset_key(struct ath5k_hw *ah, u16 entry)
 	 * Note2: Windows driver (ndiswrapper) sets this to
 	 *        0x00000714 instead of 0x00000007
 	 */
-	if (ah->ah_version > AR5K_AR5211)
+	if (ah->ah_version > AR5K_AR5211) {
 		ath5k_hw_reg_write(ah, AR5K_KEYTABLE_TYPE_NULL,
 				AR5K_KEYTABLE_TYPE(entry));
+
+		if (type == AR5K_KEYTABLE_TYPE_TKIP) {
+			ath5k_hw_reg_write(ah, AR5K_KEYTABLE_TYPE_NULL,
+				AR5K_KEYTABLE_TYPE(micentry));
+		}
+	}
 
 	return 0;
 }
