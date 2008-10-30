@@ -594,21 +594,21 @@ xfs_bulkstat(
 						/*
 						 * Get the inode cluster buffer
 						 */
-						ASSERT(xfs_inode_zone != NULL);
-						ip = kmem_zone_zalloc(xfs_inode_zone,
-								      KM_SLEEP);
-						ip->i_ino = ino;
-						ip->i_mount = mp;
-						spin_lock_init(&ip->i_flags_lock);
 						if (bp)
 							xfs_buf_relse(bp);
+						ip = xfs_inode_alloc(mp, ino);
+						if (!ip) {
+							bp = NULL;
+							rval = ENOMEM;
+							break;
+						}
 						error = xfs_itobp(mp, NULL, ip,
 								&dip, &bp, bno,
 								XFS_IMAP_BULKSTAT,
 								XFS_BUF_LOCK);
 						if (!error)
 							clustidx = ip->i_boffset / mp->m_sb.sb_inodesize;
-						kmem_zone_free(xfs_inode_zone, ip);
+						xfs_idestroy(ip);
 						if (XFS_TEST_ERROR(error != 0,
 								   mp, XFS_ERRTAG_BULKSTAT_READ_CHUNK,
 								   XFS_RANDOM_BULKSTAT_READ_CHUNK)) {

@@ -210,21 +210,6 @@ finish_inode:
 
 	xfs_itrace_exit_tag(ip, "xfs_iget.alloc");
 
-
-	mrlock_init(&ip->i_lock, MRLOCK_ALLOW_EQUAL_PRI|MRLOCK_BARRIER,
-		     "xfsino", ip->i_ino);
-	mrlock_init(&ip->i_iolock, MRLOCK_BARRIER, "xfsio", ip->i_ino);
-	init_waitqueue_head(&ip->i_ipin_wait);
-	atomic_set(&ip->i_pincount, 0);
-
-	/*
-	 * Because we want to use a counting completion, complete
-	 * the flush completion once to allow a single access to
-	 * the flush completion without blocking.
-	 */
-	init_completion(&ip->i_flush);
-	complete(&ip->i_flush);
-
 	if (lock_flags)
 		xfs_ilock(ip, lock_flags);
 

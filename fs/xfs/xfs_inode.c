@@ -788,6 +788,70 @@ xfs_dic2xflags(
 }
 
 /*
+ * Allocate and initialise an xfs_inode.
+ */
+struct xfs_inode *
+xfs_inode_alloc(
+	struct xfs_mount	*mp,
+	xfs_ino_t		ino)
+{
+	struct xfs_inode	*ip;
+
+	/*
+	 * if this didn't occur in transactions, we could use
+	 * KM_MAYFAIL and return NULL here on ENOMEM. Set the
+	 * code up to do this anyway.
+	 */
+	ip = kmem_zone_alloc(xfs_inode_zone, KM_SLEEP);
+	if (!ip)
+		return NULL;
+
+	ASSERT(atomic_read(&ip->i_iocount) == 0);
+	ASSERT(atomic_read(&ip->i_pincount) == 0);
+	ASSERT(!spin_is_locked(&ip->i_flags_lock));
+	ASSERT(list_empty(&ip->i_reclaim));
+
+	ip->i_ino = ino;
+	ip->i_mount = mp;
+	ip->i_blkno = 0;
+	ip->i_len = 0;
+	ip->i_boffset =0;
+	ip->i_afp = NULL;
+	memset(&ip->i_df, 0, sizeof(xfs_ifork_t));
+	ip->i_flags = 0;
+	ip->i_update_core = 0;
+	ip->i_update_size = 0;
+	ip->i_delayed_blks = 0;
+	memset(&ip->i_d, 0, sizeof(xfs_icdinode_t));
+	ip->i_size = 0;
+	ip->i_new_size = 0;
+
+	/*
+	 * Initialize inode's trace buffers.
+	 */
+#ifdef	XFS_INODE_TRACE
+	ip->i_trace = ktrace_alloc(INODE_TRACE_SIZE, KM_NOFS);
+#endif
+#ifdef XFS_BMAP_TRACE
+	ip->i_xtrace = ktrace_alloc(XFS_BMAP_KTRACE_SIZE, KM_NOFS);
+#endif
+#ifdef XFS_BMBT_TRACE
+	ip->i_btrace = ktrace_alloc(XFS_BMBT_KTRACE_SIZE, KM_NOFS);
+#endif
+#ifdef XFS_RW_TRACE
+	ip->i_rwtrace = ktrace_alloc(XFS_RW_KTRACE_SIZE, KM_NOFS);
+#endif
+#ifdef XFS_ILOCK_TRACE
+	ip->i_lock_trace = ktrace_alloc(XFS_ILOCK_KTRACE_SIZE, KM_NOFS);
+#endif
+#ifdef XFS_DIR2_TRACE
+	ip->i_dir_trace = ktrace_alloc(XFS_DIR2_KTRACE_SIZE, KM_NOFS);
+#endif
+
+	return ip;
+}
+
+/*
  * Given a mount structure and an inode number, return a pointer
  * to a newly allocated in-core inode corresponding to the given
  * inode number.
@@ -809,13 +873,9 @@ xfs_iread(
 	xfs_inode_t	*ip;
 	int		error;
 
-	ASSERT(xfs_inode_zone != NULL);
-
-	ip = kmem_zone_zalloc(xfs_inode_zone, KM_SLEEP);
-	ip->i_ino = ino;
-	ip->i_mount = mp;
-	atomic_set(&ip->i_iocount, 0);
-	spin_lock_init(&ip->i_flags_lock);
+	ip = xfs_inode_alloc(mp, ino);
+	if (!ip)
+		return ENOMEM;
 
 	/*
 	 * Get pointer's to the on-disk inode and the buffer containing it.
@@ -831,34 +891,11 @@ xfs_iread(
 	}
 
 	/*
-	 * Initialize inode's trace buffers.
-	 * Do this before xfs_iformat in case it adds entries.
-	 */
-#ifdef	XFS_INODE_TRACE
-	ip->i_trace = ktrace_alloc(INODE_TRACE_SIZE, KM_NOFS);
-#endif
-#ifdef XFS_BMAP_TRACE
-	ip->i_xtrace = ktrace_alloc(XFS_BMAP_KTRACE_SIZE, KM_NOFS);
-#endif
-#ifdef XFS_BMBT_TRACE
-	ip->i_btrace = ktrace_alloc(XFS_BMBT_KTRACE_SIZE, KM_NOFS);
-#endif
-#ifdef XFS_RW_TRACE
-	ip->i_rwtrace = ktrace_alloc(XFS_RW_KTRACE_SIZE, KM_NOFS);
-#endif
-#ifdef XFS_ILOCK_TRACE
-	ip->i_lock_trace = ktrace_alloc(XFS_ILOCK_KTRACE_SIZE, KM_NOFS);
-#endif
-#ifdef XFS_DIR2_TRACE
-	ip->i_dir_trace = ktrace_alloc(XFS_DIR2_KTRACE_SIZE, KM_NOFS);
-#endif
-
-	/*
 	 * If we got something that isn't an inode it means someone
 	 * (nfs or dmi) has a stale handle.
 	 */
 	if (be16_to_cpu(dip->di_core.di_magic) != XFS_DINODE_MAGIC) {
-		kmem_zone_free(xfs_inode_zone, ip);
+		xfs_idestroy(ip);
 		xfs_trans_brelse(tp, bp);
 #ifdef DEBUG
 		xfs_fs_cmn_err(CE_ALERT, mp, "xfs_iread: "
@@ -881,7 +918,7 @@ xfs_iread(
 		xfs_dinode_from_disk(&ip->i_d, &dip->di_core);
 		error = xfs_iformat(ip, dip);
 		if (error)  {
-			kmem_zone_free(xfs_inode_zone, ip);
+			xfs_idestroy(ip);
 			xfs_trans_brelse(tp, bp);
 #ifdef DEBUG
 			xfs_fs_cmn_err(CE_ALERT, mp, "xfs_iread: "
@@ -910,8 +947,6 @@ xfs_iread(
 		ip->i_df.if_ext_max =
 			XFS_IFORK_DSIZE(ip) / (uint)sizeof(xfs_bmbt_rec_t);
 	}
-
-	INIT_LIST_HEAD(&ip->i_reclaim);
 
 	/*
 	 * The inode format changed when we moved the link count and
@@ -2631,8 +2666,6 @@ xfs_idestroy(
 	}
 	if (ip->i_afp)
 		xfs_idestroy_fork(ip, XFS_ATTR_FORK);
-	mrfree(&ip->i_lock);
-	mrfree(&ip->i_iolock);
 
 #ifdef XFS_INODE_TRACE
 	ktrace_free(ip->i_trace);
@@ -2671,7 +2704,13 @@ xfs_idestroy(
 				spin_unlock(&mp->m_ail_lock);
 		}
 		xfs_inode_item_destroy(ip);
+		ip->i_itemp = NULL;
 	}
+	/* asserts to verify all state is correct here */
+	ASSERT(atomic_read(&ip->i_iocount) == 0);
+	ASSERT(atomic_read(&ip->i_pincount) == 0);
+	ASSERT(!spin_is_locked(&ip->i_flags_lock));
+	ASSERT(list_empty(&ip->i_reclaim));
 	kmem_zone_free(xfs_inode_zone, ip);
 }
 
