@@ -188,10 +188,6 @@ config PCMCIA_M8XX
 
 	  This driver is also available as a module called m8xx_pcmcia.
 
-config HD64465_PCMCIA
-	tristate "HD64465 host bridge support"
-	depends on HD64465 && PCMCIA
-
 config PCMCIA_AU1X00
 	tristate "Au1x00 pcmcia support"
 	depends on SOC_AU1X00 && PCMCIA

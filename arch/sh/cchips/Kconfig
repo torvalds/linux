@@ -22,20 +22,6 @@ config HD64461
 	  Say Y if you want support for the HD64461.
 	  Otherwise, say N.
 
-config HD64465
-	bool "Hitachi HD64465 companion chip support"
-	---help---
-	  The Hitachi HD64465 provides an interface for
-	  the SH7750 CPU, supporting a LCD controller,
-	  CRT color controller, IrDA, USB, PCMCIA,
-	  keyboard controller, and a printer interface.
-
-	  More information is available at
-	  <http://global.hitachi.com/New/cnews/E/1998/981019B.html>.
-
-	  Say Y if you want support for the HD64465.
-	  Otherwise, say N.
-
 endchoice
 
 # These will also be split into the Kconfig's below
@@ -61,23 +47,4 @@ config HD64461_ENABLER
 	  via the HD64461 companion chip.
 	  Otherwise, say N.
 
-config HD64465_IOBASE
-	hex "HD64465 start address"
-	depends on HD64465
-	default "0xb0000000"
-	help
-	  The default setting of the HD64465 IO base address is 0xb0000000.
-
-	  Do not change this unless you know what you are doing.
-
-config HD64465_IRQ
-	int "HD64465 IRQ"
-	depends on HD64465
-	default "5"
-	help
-	  The default setting of the HD64465 IRQ is 5.
-
-	  Do not change this unless you know what you are doing.
-
 endmenu
-
