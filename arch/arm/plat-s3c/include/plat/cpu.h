@@ -47,6 +47,7 @@ extern void s3c24xx_init_irq(void);
 extern void s3c64xx_init_irq(u32 vic0, u32 vic1);
 
 extern void s3c24xx_init_io(struct map_desc *mach_desc, int size);
+extern void s3c64xx_init_io(struct map_desc *mach_desc, int size);
 
 extern void s3c24xx_init_uarts(struct s3c2410_uartcfg *cfg, int no);
 
