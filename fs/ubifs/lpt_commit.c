@@ -320,6 +320,7 @@ no_space:
 	dbg_err("LPT out of space at LEB %d:%d needing %d, done_ltab %d, "
 		"done_lsave %d", lnum, offs, len, done_ltab, done_lsave);
 	dbg_dump_lpt_info(c);
+	dump_stack();
 	return err;
 }
 
@@ -548,6 +549,7 @@ no_space:
 	dbg_err("LPT out of space mismatch at LEB %d:%d needing %d, done_ltab "
 	        "%d, done_lsave %d", lnum, offs, len, done_ltab, done_lsave);
 	dbg_dump_lpt_info(c);
+	dump_stack();
 	return err;
 }
 
@@ -1722,6 +1724,7 @@ int dbg_chk_lpt_free_spc(struct ubifs_info *c)
 		dbg_err("LPT space error: free %lld lpt_sz %lld",
 			free, c->lpt_sz);
 		dbg_dump_lpt_info(c);
+		dump_stack();
 		return -EINVAL;
 	}
 	return 0;
@@ -1803,8 +1806,10 @@ int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len)
 				d->chk_lpt_sz, d->chk_lpt_wastage, lpt_sz);
 			err = -EINVAL;
 		}
-		if (err)
+		if (err) {
 			dbg_dump_lpt_info(c);
+			dump_stack();
+		}
 		d->chk_lpt_sz2 = d->chk_lpt_sz;
 		d->chk_lpt_sz = 0;
 		d->chk_lpt_wastage = 0;
