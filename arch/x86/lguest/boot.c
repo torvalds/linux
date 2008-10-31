@@ -367,10 +367,9 @@ static void lguest_cpuid(unsigned int *ax, unsigned int *bx,
  * lazily after a task switch, and Linux uses that gratefully, but wouldn't a
  * name like "FPUTRAP bit" be a little less cryptic?
  *
- * We store cr0 (and cr3) locally, because the Host never changes it.  The
- * Guest sometimes wants to read it and we'd prefer not to bother the Host
- * unnecessarily. */
-static unsigned long current_cr0, current_cr3;
+ * We store cr0 locally because the Host never changes it.  The Guest sometimes
+ * wants to read it and we'd prefer not to bother the Host unnecessarily. */
+static unsigned long current_cr0;
 static void lguest_write_cr0(unsigned long val)
 {
 	lazy_hcall(LHCALL_TS, val & X86_CR0_TS, 0, 0);
@@ -399,17 +398,23 @@ static unsigned long lguest_read_cr2(void)
 	return lguest_data.cr2;
 }
 
+/* See lguest_set_pte() below. */
+static bool cr3_changed = false;
+
 /* cr3 is the current toplevel pagetable page: the principle is the same as
- * cr0.  Keep a local copy, and tell the Host when it changes. */
+ * cr0.  Keep a local copy, and tell the Host when it changes.  The only
+ * difference is that our local copy is in lguest_data because the Host needs
+ * to set it upon our initial hypercall. */
 static void lguest_write_cr3(unsigned long cr3)
 {
+	lguest_data.pgdir = cr3;
 	lazy_hcall(LHCALL_NEW_PGTABLE, cr3, 0, 0);
-	current_cr3 = cr3;
+	cr3_changed = true;
 }
 
 static unsigned long lguest_read_cr3(void)
 {
-	return current_cr3;
+	return lguest_data.pgdir;
 }
 
 /* cr4 is used to enable and disable PGE, but we don't care. */
@@ -498,13 +503,13 @@ static void lguest_set_pmd(pmd_t *pmdp, pmd_t pmdval)
  * to forget all of them.  Fortunately, this is very rare.
  *
  * ... except in early boot when the kernel sets up the initial pagetables,
- * which makes booting astonishingly slow.  So we don't even tell the Host
- * anything changed until we've done the first page table switch. */
+ * which makes booting astonishingly slow: 1.83 seconds!  So we don't even tell
+ * the Host anything changed until we've done the first page table switch,
+ * which brings boot back to 0.25 seconds. */
 static void lguest_set_pte(pte_t *ptep, pte_t pteval)
 {
 	*ptep = pteval;
-	/* Don't bother with hypercall before initial setup. */
-	if (current_cr3)
+	if (cr3_changed)
 		lazy_hcall(LHCALL_FLUSH_TLB, 1, 0, 0);
 }
 
@@ -521,7 +526,7 @@ static void lguest_set_pte(pte_t *ptep, pte_t pteval)
 static void lguest_flush_tlb_single(unsigned long addr)
 {
 	/* Simply set it to zero: if it was not, it will fault back in. */
-	lazy_hcall(LHCALL_SET_PTE, current_cr3, addr, 0);
+	lazy_hcall(LHCALL_SET_PTE, lguest_data.pgdir, addr, 0);
 }
 
 /* This is what happens after the Guest has removed a large number of entries.
