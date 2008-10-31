@@ -646,7 +646,8 @@ void dbg_dump_lprops(struct ubifs_info *c)
 	struct ubifs_lprops lp;
 	struct ubifs_lp_stats lst;
 
-	printk(KERN_DEBUG "(pid %d) Dumping LEB properties\n", current->pid);
+	printk(KERN_DEBUG "(pid %d) start dumping LEB properties\n",
+	       current->pid);
 	ubifs_get_lp_stats(c, &lst);
 	dbg_dump_lstats(&lst);
 
@@ -657,6 +658,8 @@ void dbg_dump_lprops(struct ubifs_info *c)
 
 		dbg_dump_lprop(c, &lp);
 	}
+	printk(KERN_DEBUG "(pid %d) finish dumping LEB properties\n",
+	       current->pid);
 }
 
 void dbg_dump_lpt_info(struct ubifs_info *c)
@@ -664,6 +667,7 @@ void dbg_dump_lpt_info(struct ubifs_info *c)
 	int i;
 
 	spin_lock(&dbg_lock);
+	printk(KERN_DEBUG "(pid %d) dumping LPT information\n", current->pid);
 	printk(KERN_DEBUG "\tlpt_sz:        %lld\n", c->lpt_sz);
 	printk(KERN_DEBUG "\tpnode_sz:      %d\n", c->pnode_sz);
 	printk(KERN_DEBUG "\tnnode_sz:      %d\n", c->nnode_sz);
@@ -704,8 +708,8 @@ void dbg_dump_leb(const struct ubifs_info *c, int lnum)
 	if (dbg_failure_mode)
 		return;
 
-	printk(KERN_DEBUG "(pid %d) Dumping LEB %d\n", current->pid, lnum);
-
+	printk(KERN_DEBUG "(pid %d) start dumping LEB %d\n",
+	       current->pid, lnum);
 	sleb = ubifs_scan(c, lnum, 0, c->dbg->buf);
 	if (IS_ERR(sleb)) {
 		ubifs_err("scan error %d", (int)PTR_ERR(sleb));
@@ -722,6 +726,8 @@ void dbg_dump_leb(const struct ubifs_info *c, int lnum)
 		dbg_dump_node(c, snod->node);
 	}
 
+	printk(KERN_DEBUG "(pid %d) finish dumping LEB %d\n",
+	       current->pid, lnum);
 	ubifs_scan_destroy(sleb);
 	return;
 }
@@ -769,7 +775,7 @@ void dbg_dump_heap(struct ubifs_info *c, struct ubifs_lpt_heap *heap, int cat)
 {
 	int i;
 
-	printk(KERN_DEBUG "(pid %d) Dumping heap cat %d (%d elements)\n",
+	printk(KERN_DEBUG "(pid %d) start dumping heap cat %d (%d elements)\n",
 	       current->pid, cat, heap->cnt);
 	for (i = 0; i < heap->cnt; i++) {
 		struct ubifs_lprops *lprops = heap->arr[i];
@@ -778,6 +784,7 @@ void dbg_dump_heap(struct ubifs_info *c, struct ubifs_lpt_heap *heap, int cat)
 		       "flags %d\n", i, lprops->lnum, lprops->hpos,
 		       lprops->free, lprops->dirty, lprops->flags);
 	}
+	printk(KERN_DEBUG "(pid %d) finish dumping heap\n", current->pid);
 }
 
 void dbg_dump_pnode(struct ubifs_info *c, struct ubifs_pnode *pnode,
@@ -785,7 +792,7 @@ void dbg_dump_pnode(struct ubifs_info *c, struct ubifs_pnode *pnode,
 {
 	int i;
 
-	printk(KERN_DEBUG "(pid %d) Dumping pnode:\n", current->pid);
+	printk(KERN_DEBUG "(pid %d) dumping pnode:\n", current->pid);
 	printk(KERN_DEBUG "\taddress %zx parent %zx cnext %zx\n",
 	       (size_t)pnode, (size_t)parent, (size_t)pnode->cnext);
 	printk(KERN_DEBUG "\tflags %lu iip %d level %d num %d\n",
@@ -804,7 +811,7 @@ void dbg_dump_tnc(struct ubifs_info *c)
 	int level;
 
 	printk(KERN_DEBUG "\n");
-	printk(KERN_DEBUG "(pid %d) Dumping the TNC tree\n", current->pid);
+	printk(KERN_DEBUG "(pid %d) start dumping TNC tree\n", current->pid);
 	znode = ubifs_tnc_levelorder_next(c->zroot.znode, NULL);
 	level = znode->level;
 	printk(KERN_DEBUG "== Level %d ==\n", level);
@@ -816,8 +823,7 @@ void dbg_dump_tnc(struct ubifs_info *c)
 		dbg_dump_znode(c, znode);
 		znode = ubifs_tnc_levelorder_next(c->zroot.znode, znode);
 	}
-
-	printk(KERN_DEBUG "\n");
+	printk(KERN_DEBUG "(pid %d) finish dumping TNC tree\n", current->pid);
 }
 
 static int dump_znode(struct ubifs_info *c, struct ubifs_znode *znode,
@@ -992,7 +998,8 @@ static int dbg_check_key_order(struct ubifs_info *c, struct ubifs_zbranch *zbr1,
 		ubifs_err("1st entry at %d:%d has key %s", zbr1->lnum,
 			  zbr1->offs, DBGKEY(&key));
 		ubifs_err("but it should have key %s according to tnc",
-			  DBGKEY(&zbr1->key)); dbg_dump_node(c, dent1);
+			  DBGKEY(&zbr1->key));
+		dbg_dump_node(c, dent1);
 		goto out_free;
 	}
 
@@ -1001,7 +1008,8 @@ static int dbg_check_key_order(struct ubifs_info *c, struct ubifs_zbranch *zbr1,
 		ubifs_err("2nd entry at %d:%d has key %s", zbr1->lnum,
 			  zbr1->offs, DBGKEY(&key));
 		ubifs_err("but it should have key %s according to tnc",
-			  DBGKEY(&zbr2->key)); dbg_dump_node(c, dent2);
+			  DBGKEY(&zbr2->key));
+		dbg_dump_node(c, dent2);
 		goto out_free;
 	}
 

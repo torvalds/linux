@@ -1622,6 +1622,9 @@ void ubifs_add_lpt_dirt(struct ubifs_info *c, int lnum, int dirty);
 void ubifs_add_nnode_dirt(struct ubifs_info *c, struct ubifs_nnode *nnode);
 uint32_t ubifs_unpack_bits(uint8_t **addr, int *pos, int nrbits);
 struct ubifs_nnode *ubifs_first_nnode(struct ubifs_info *c, int *hght);
+/* Needed only in debugging code in lpt_commit.c */
+int ubifs_unpack_nnode(const struct ubifs_info *c, void *buf,
+		       struct ubifs_nnode *nnode);
 
 /* lpt_commit.c */
 int ubifs_lpt_start_commit(struct ubifs_info *c);

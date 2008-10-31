@@ -270,6 +270,8 @@ const char *dbg_get_key_dump(const struct ubifs_info *c,
 			     const union ubifs_key *key);
 void dbg_dump_inode(const struct ubifs_info *c, const struct inode *inode);
 void dbg_dump_node(const struct ubifs_info *c, const void *node);
+void dbg_dump_lpt_node(const struct ubifs_info *c, void *node, int lnum,
+		       int offs);
 void dbg_dump_budget_req(const struct ubifs_budget_req *req);
 void dbg_dump_lstats(const struct ubifs_lp_stats *lst);
 void dbg_dump_budg(struct ubifs_info *c);
@@ -284,6 +286,7 @@ void dbg_dump_pnode(struct ubifs_info *c, struct ubifs_pnode *pnode,
 		    struct ubifs_nnode *parent, int iip);
 void dbg_dump_tnc(struct ubifs_info *c);
 void dbg_dump_index(struct ubifs_info *c);
+void dbg_dump_lpt_lebs(const struct ubifs_info *c);
 
 /* Checking helper functions */
 typedef int (*dbg_leaf_callback)(struct ubifs_info *c,
@@ -411,26 +414,28 @@ void dbg_debugfs_exit_fs(struct ubifs_info *c);
 #define DBGKEY(key)  ((char *)(key))
 #define DBGKEY1(key) ((char *)(key))
 
-#define ubifs_debugging_init(c)               0
-#define ubifs_debugging_exit(c)               ({})
+#define ubifs_debugging_init(c)                0
+#define ubifs_debugging_exit(c)                ({})
 
-#define dbg_ntype(type)                       ""
-#define dbg_cstate(cmt_state)                 ""
-#define dbg_get_key_dump(c, key)              ({})
-#define dbg_dump_inode(c, inode)              ({})
-#define dbg_dump_node(c, node)                ({})
-#define dbg_dump_budget_req(req)              ({})
-#define dbg_dump_lstats(lst)                  ({})
-#define dbg_dump_budg(c)                      ({})
-#define dbg_dump_lprop(c, lp)                 ({})
-#define dbg_dump_lprops(c)                    ({})
-#define dbg_dump_lpt_info(c)                  ({})
-#define dbg_dump_leb(c, lnum)                 ({})
-#define dbg_dump_znode(c, znode)              ({})
-#define dbg_dump_heap(c, heap, cat)           ({})
-#define dbg_dump_pnode(c, pnode, parent, iip) ({})
-#define dbg_dump_tnc(c)                       ({})
-#define dbg_dump_index(c)                     ({})
+#define dbg_ntype(type)                        ""
+#define dbg_cstate(cmt_state)                  ""
+#define dbg_get_key_dump(c, key)               ({})
+#define dbg_dump_inode(c, inode)               ({})
+#define dbg_dump_node(c, node)                 ({})
+#define dbg_dump_lpt_node(c, node, lnum, offs) ({})
+#define dbg_dump_budget_req(req)               ({})
+#define dbg_dump_lstats(lst)                   ({})
+#define dbg_dump_budg(c)                       ({})
+#define dbg_dump_lprop(c, lp)                  ({})
+#define dbg_dump_lprops(c)                     ({})
+#define dbg_dump_lpt_info(c)                   ({})
+#define dbg_dump_leb(c, lnum)                  ({})
+#define dbg_dump_znode(c, znode)               ({})
+#define dbg_dump_heap(c, heap, cat)            ({})
+#define dbg_dump_pnode(c, pnode, parent, iip)  ({})
+#define dbg_dump_tnc(c)                        ({})
+#define dbg_dump_index(c)                      ({})
+#define dbg_dump_lpt_lebs(c)                   ({})
 
 #define dbg_walk_index(c, leaf_cb, znode_cb, priv) 0
 #define dbg_old_index_check_init(c, zroot)         0

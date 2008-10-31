@@ -557,7 +557,7 @@ static int calc_nnode_num(int row, int col)
  * This function calculates and returns the nnode number based on the parent's
  * nnode number and the index in parent.
  */
-static int calc_nnode_num_from_parent(struct ubifs_info *c,
+static int calc_nnode_num_from_parent(const struct ubifs_info *c,
 				      struct ubifs_nnode *parent, int iip)
 {
 	int num, shft;
@@ -582,7 +582,7 @@ static int calc_nnode_num_from_parent(struct ubifs_info *c,
  * This function calculates and returns the pnode number based on the parent's
  * nnode number and the index in parent.
  */
-static int calc_pnode_num_from_parent(struct ubifs_info *c,
+static int calc_pnode_num_from_parent(const struct ubifs_info *c,
 				      struct ubifs_nnode *parent, int iip)
 {
 	int i, n = c->lpt_hght - 1, pnum = parent->num, num = 0;
@@ -965,7 +965,7 @@ static int check_lpt_type(uint8_t **addr, int *pos, int type)
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int unpack_pnode(struct ubifs_info *c, void *buf,
+static int unpack_pnode(const struct ubifs_info *c, void *buf,
 			struct ubifs_pnode *pnode)
 {
 	uint8_t *addr = buf + UBIFS_LPT_CRC_BYTES;
@@ -995,15 +995,15 @@ static int unpack_pnode(struct ubifs_info *c, void *buf,
 }
 
 /**
- * unpack_nnode - unpack a nnode.
+ * ubifs_unpack_nnode - unpack a nnode.
  * @c: UBIFS file-system description object
  * @buf: buffer containing packed nnode to unpack
  * @nnode: nnode structure to fill
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int unpack_nnode(struct ubifs_info *c, void *buf,
-			struct ubifs_nnode *nnode)
+int ubifs_unpack_nnode(const struct ubifs_info *c, void *buf,
+		       struct ubifs_nnode *nnode)
 {
 	uint8_t *addr = buf + UBIFS_LPT_CRC_BYTES;
 	int i, pos = 0, err;
@@ -1035,7 +1035,7 @@ static int unpack_nnode(struct ubifs_info *c, void *buf,
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int unpack_ltab(struct ubifs_info *c, void *buf)
+static int unpack_ltab(const struct ubifs_info *c, void *buf)
 {
 	uint8_t *addr = buf + UBIFS_LPT_CRC_BYTES;
 	int i, pos = 0, err;
@@ -1067,7 +1067,7 @@ static int unpack_ltab(struct ubifs_info *c, void *buf)
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int unpack_lsave(struct ubifs_info *c, void *buf)
+static int unpack_lsave(const struct ubifs_info *c, void *buf)
 {
 	uint8_t *addr = buf + UBIFS_LPT_CRC_BYTES;
 	int i, pos = 0, err;
@@ -1095,7 +1095,7 @@ static int unpack_lsave(struct ubifs_info *c, void *buf)
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int validate_nnode(struct ubifs_info *c, struct ubifs_nnode *nnode,
+static int validate_nnode(const struct ubifs_info *c, struct ubifs_nnode *nnode,
 			  struct ubifs_nnode *parent, int iip)
 {
 	int i, lvl, max_offs;
@@ -1139,7 +1139,7 @@ static int validate_nnode(struct ubifs_info *c, struct ubifs_nnode *nnode,
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int validate_pnode(struct ubifs_info *c, struct ubifs_pnode *pnode,
+static int validate_pnode(const struct ubifs_info *c, struct ubifs_pnode *pnode,
 			  struct ubifs_nnode *parent, int iip)
 {
 	int i;
@@ -1173,7 +1173,8 @@ static int validate_pnode(struct ubifs_info *c, struct ubifs_pnode *pnode,
  * This function calculates the LEB numbers for the LEB properties it contains
  * based on the pnode number.
  */
-static void set_pnode_lnum(struct ubifs_info *c, struct ubifs_pnode *pnode)
+static void set_pnode_lnum(const struct ubifs_info *c,
+			   struct ubifs_pnode *pnode)
 {
 	int i, lnum;
 
@@ -1226,7 +1227,7 @@ int ubifs_read_nnode(struct ubifs_info *c, struct ubifs_nnode *parent, int iip)
 		err = ubi_read(c->ubi, lnum, buf, offs, c->nnode_sz);
 		if (err)
 			goto out;
-		err = unpack_nnode(c, buf, nnode);
+		err = ubifs_unpack_nnode(c, buf, nnode);
 		if (err)
 			goto out;
 	}
@@ -1815,7 +1816,7 @@ static struct ubifs_nnode *scan_get_nnode(struct ubifs_info *c,
 			       c->nnode_sz);
 		if (err)
 			return ERR_PTR(err);
-		err = unpack_nnode(c, buf, nnode);
+		err = ubifs_unpack_nnode(c, buf, nnode);
 		if (err)
 			return ERR_PTR(err);
 	}
