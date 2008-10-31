@@ -490,6 +490,7 @@ static struct of_device_id __initdata bq4802_match[] = {
 		.name = "rtc",
 		.compatible = "bq4802",
 	},
+	{},
 };
 
 static struct of_platform_driver bq4802_driver = {
