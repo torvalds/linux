@@ -203,14 +203,6 @@ static struct tracer sched_switch_trace __read_mostly =
 
 __init static int init_sched_switch_trace(void)
 {
-	int ret = 0;
-
-	if (atomic_read(&sched_ref))
-		ret = tracing_sched_register();
-	if (ret) {
-		pr_info("error registering scheduler trace\n");
-		return ret;
-	}
 	return register_tracer(&sched_switch_trace);
 }
 device_initcall(init_sched_switch_trace);
