@@ -99,6 +99,45 @@ static int machine_kexec_alloc_page_tables(struct kimage *image)
 	return 0;
 }
 
+static void machine_kexec_page_table_set_one(
+	pgd_t *pgd, pmd_t *pmd, pte_t *pte,
+	unsigned long vaddr, unsigned long paddr)
+{
+	pud_t *pud;
+
+	pgd += pgd_index(vaddr);
+#ifdef CONFIG_X86_PAE
+	if (!(pgd_val(*pgd) & _PAGE_PRESENT))
+		set_pgd(pgd, __pgd(__pa(pmd) | _PAGE_PRESENT));
+#endif
+	pud = pud_offset(pgd, vaddr);
+	pmd = pmd_offset(pud, vaddr);
+	if (!(pmd_val(*pmd) & _PAGE_PRESENT))
+		set_pmd(pmd, __pmd(__pa(pte) | _PAGE_TABLE));
+	pte = pte_offset_kernel(pmd, vaddr);
+	set_pte(pte, pfn_pte(paddr >> PAGE_SHIFT, PAGE_KERNEL_EXEC));
+}
+
+static void machine_kexec_prepare_page_tables(struct kimage *image)
+{
+	void *control_page;
+	pmd_t *pmd = 0;
+
+	control_page = page_address(image->control_code_page);
+#ifdef CONFIG_X86_PAE
+	pmd = image->arch.pmd0;
+#endif
+	machine_kexec_page_table_set_one(
+		image->arch.pgd, pmd, image->arch.pte0,
+		(unsigned long)control_page, __pa(control_page));
+#ifdef CONFIG_X86_PAE
+	pmd = image->arch.pmd1;
+#endif
+	machine_kexec_page_table_set_one(
+		image->arch.pgd, pmd, image->arch.pte1,
+		__pa(control_page), __pa(control_page));
+}
+
 /*
  * A architecture hook called to validate the
  * proposed image and prepare the control pages
@@ -112,12 +151,19 @@ static int machine_kexec_alloc_page_tables(struct kimage *image)
  *
  * - Make control page executable.
  * - Allocate page tables
+ * - Setup page tables
  */
 int machine_kexec_prepare(struct kimage *image)
 {
+	int error;
+
 	if (nx_enabled)
 		set_pages_x(image->control_code_page, 1);
-	return machine_kexec_alloc_page_tables(image);
+	error = machine_kexec_alloc_page_tables(image);
+	if (error)
+		return error;
+	machine_kexec_prepare_page_tables(image);
+	return 0;
 }
 
 /*
@@ -176,17 +222,6 @@ void machine_kexec(struct kimage *image)
 	page_list[PA_CONTROL_PAGE] = __pa(control_page);
 	page_list[VA_CONTROL_PAGE] = (unsigned long)control_page;
 	page_list[PA_PGD] = __pa(image->arch.pgd);
-	page_list[VA_PGD] = (unsigned long)image->arch.pgd;
-#ifdef CONFIG_X86_PAE
-	page_list[PA_PMD_0] = __pa(image->arch.pmd0);
-	page_list[VA_PMD_0] = (unsigned long)image->arch.pmd0;
-	page_list[PA_PMD_1] = __pa(image->arch.pmd1);
-	page_list[VA_PMD_1] = (unsigned long)image->arch.pmd1;
-#endif
-	page_list[PA_PTE_0] = __pa(image->arch.pte0);
-	page_list[VA_PTE_0] = (unsigned long)image->arch.pte0;
-	page_list[PA_PTE_1] = __pa(image->arch.pte1);
-	page_list[VA_PTE_1] = (unsigned long)image->arch.pte1;
 
 	if (image->type == KEXEC_TYPE_DEFAULT)
 		page_list[PA_SWAP_PAGE] = (page_to_pfn(image->swap_page)
