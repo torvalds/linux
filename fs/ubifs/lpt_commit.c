@@ -1604,6 +1604,9 @@ static int dbg_check_ltab_lnum(struct ubifs_info *c, int lnum)
 	int ret;
 	void *buf = c->dbg->buf;
 
+	if (!(ubifs_chk_flags & UBIFS_CHK_LPROPS))
+		return 0;
+
 	dbg_lp("LEB %d", lnum);
 	err = ubi_read(c->ubi, lnum, buf, 0, c->leb_size);
 	if (err) {
@@ -1704,6 +1707,9 @@ int dbg_chk_lpt_free_spc(struct ubifs_info *c)
 	long long free = 0;
 	int i;
 
+	if (!(ubifs_chk_flags & UBIFS_CHK_LPROPS))
+		return 0;
+
 	for (i = 0; i < c->lpt_lebs; i++) {
 		if (c->ltab[i].tgc || c->ltab[i].cmt)
 			continue;
@@ -1734,6 +1740,9 @@ int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len)
 	struct ubifs_debug_info *d = c->dbg;
 	long long chk_lpt_sz, lpt_sz;
 	int err = 0;
+
+	if (!(ubifs_chk_flags & UBIFS_CHK_LPROPS))
+		return 0;
 
 	switch (action) {
 	case 0:

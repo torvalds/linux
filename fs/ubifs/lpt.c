@@ -36,7 +36,7 @@
  * can be written into a single eraseblock. In that case, garbage collection
  * consists of just writing the whole table, which therefore makes all other
  * eraseblocks reusable. In the case of the big model, dirty eraseblocks are
- * selected for garbage collection, which consists are marking the nodes in
+ * selected for garbage collection, which consists of marking the clean nodes in
  * that LEB as dirty, and then only the dirty nodes are written out. Also, in
  * the case of the big model, a table of LEB numbers is saved so that the entire
  * LPT does not to be scanned looking for empty eraseblocks when UBIFS is first
@@ -156,7 +156,6 @@ int ubifs_calc_lpt_geom(struct ubifs_info *c)
 	}
 
 	c->check_lpt_free = c->big_lpt;
-
 	return 0;
 }
 
