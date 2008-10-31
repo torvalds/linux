@@ -822,6 +822,8 @@ static DEVICE_ATTR(dapm_widget, 0444, dapm_widget_show, NULL);
 
 int snd_soc_dapm_sys_add(struct device *dev)
 {
+	int ret;
+
 	if (!dapm_status)
 		return 0;
 
