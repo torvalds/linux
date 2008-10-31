@@ -1351,6 +1351,15 @@ static struct snd_kcontrol_new alc_capture_mixer ## num[] = { \
 		.put = alc_cap_vol_put, \
 		.tlv = { .c = alc_cap_vol_tlv }, \
 	}, \
+	{ \
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+		/* .name = "Capture Source", */ \
+		.name = "Input Source", \
+		.count = num, \
+		.info = alc_mux_enum_info, \
+		.get = alc_mux_enum_get, \
+		.put = alc_mux_enum_put, \
+	}, \
 	{ } /* end */ \
 }
 
