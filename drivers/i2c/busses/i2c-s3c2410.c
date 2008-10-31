@@ -61,6 +61,7 @@ struct s3c24xx_i2c {
 	unsigned int		msg_ptr;
 
 	unsigned int		tx_setup;
+	unsigned int		irq;
 
 	enum s3c24xx_i2c_state	state;
 	unsigned long		clkrate;
@@ -68,7 +69,6 @@ struct s3c24xx_i2c {
 	void __iomem		*regs;
 	struct clk		*clk;
 	struct device		*dev;
-	struct resource		*irq;
 	struct resource		*ioarea;
 	struct i2c_adapter	adap;
 
@@ -869,25 +869,19 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	 * ensure no current IRQs pending
 	 */
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (res == NULL) {
+	i2c->irq = ret = platform_get_irq(pdev, 0);
+	if (ret <= 0) {
 		dev_err(&pdev->dev, "cannot find IRQ\n");
-		ret = -ENOENT;
 		goto err_iomap;
 	}
 
-	ret = request_irq(res->start, s3c24xx_i2c_irq, IRQF_DISABLED,
-			  pdev->name, i2c);
+	ret = request_irq(i2c->irq, s3c24xx_i2c_irq, IRQF_DISABLED,
+			  dev_name(&pdev->dev), i2c);
 
 	if (ret != 0) {
-		dev_err(&pdev->dev, "cannot claim IRQ\n");
+		dev_err(&pdev->dev, "cannot claim IRQ %d\n", i2c->irq);
 		goto err_iomap;
 	}
-
-	i2c->irq = res;
-
-	dev_dbg(&pdev->dev, "irq resource %p (%lu)\n", res,
-		(unsigned long)res->start);
 
 	ret = s3c24xx_i2c_register_cpufreq(i2c);
 	if (ret < 0) {
@@ -918,7 +912,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	s3c24xx_i2c_deregister_cpufreq(i2c);
 
  err_irq:
-	free_irq(i2c->irq->start, i2c);
+	free_irq(i2c->irq, i2c);
 
  err_iomap:
 	iounmap(i2c->regs);
@@ -948,7 +942,7 @@ static int s3c24xx_i2c_remove(struct platform_device *pdev)
 	s3c24xx_i2c_deregister_cpufreq(i2c);
 
 	i2c_del_adapter(&i2c->adap);
-	free_irq(i2c->irq->start, i2c);
+	free_irq(i2c->irq, i2c);
 
 	clk_disable(i2c->clk);
 	clk_put(i2c->clk);
