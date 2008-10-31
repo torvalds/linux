@@ -17,6 +17,7 @@
 static struct trace_array	*ctx_trace;
 static int __read_mostly	tracer_enabled;
 static atomic_t			sched_ref;
+static DEFINE_MUTEX(tracepoint_mutex);
 
 static void
 probe_sched_switch(struct rq *__rq, struct task_struct *prev,
@@ -125,18 +126,22 @@ static void tracing_start_sched_switch(void)
 {
 	long ref;
 
+	mutex_lock(&tracepoint_mutex);
 	ref = atomic_inc_return(&sched_ref);
 	if (ref == 1)
 		tracing_sched_register();
+	mutex_unlock(&tracepoint_mutex);
 }
 
 static void tracing_stop_sched_switch(void)
 {
 	long ref;
 
+	mutex_lock(&tracepoint_mutex);
 	ref = atomic_dec_and_test(&sched_ref);
 	if (ref)
 		tracing_sched_unregister();
+	mutex_unlock(&tracepoint_mutex);
 }
 
 void tracing_start_cmdline_record(void)
