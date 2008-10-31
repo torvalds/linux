@@ -20,6 +20,7 @@
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/i2c.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -68,6 +69,16 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 	&s3c_device_i2c1,
 };
 
+
+static struct i2c_board_info i2c_devs0[] __initdata = {
+	{ I2C_BOARD_INFO("24c08", 0x50), },
+	{ I2C_BOARD_INFO("WM8580", 0X1b), },
+};
+
+static struct i2c_board_info i2c_devs1[] __initdata = {
+	{ I2C_BOARD_INFO("24c128", 0x57), },	/* Samsung S524AD0XD1 */
+};
+
 extern void s3c64xx_init_io(struct map_desc *, int);
 
 static void __init smdk6410_map_io(void)
@@ -81,6 +92,10 @@ static void __init smdk6410_machine_init(void)
 {
 	s3c_i2c0_set_platdata(NULL);
 	s3c_i2c1_set_platdata(NULL);
+
+	i2c_register_board_info(0, i2c_devs0, ARRAY_SIZE(i2c_devs0));
+	i2c_register_board_info(1, i2c_devs1, ARRAY_SIZE(i2c_devs1));
+
 	platform_add_devices(smdk6410_devices, ARRAY_SIZE(smdk6410_devices));
 }
 
