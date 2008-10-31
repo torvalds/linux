@@ -1920,7 +1920,6 @@ static int sonypi_misc_fasync(int fd, struct file *filp, int on)
 
 static int sonypi_misc_release(struct inode *inode, struct file *file)
 {
-	sonypi_misc_fasync(-1, file, 0);
 	atomic_dec(&sonypi_compat.open_count);
 	return 0;
 }

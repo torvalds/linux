@@ -264,8 +264,11 @@ static int snd_disconnect_release(struct inode *inode, struct file *file)
 	}
 	spin_unlock(&shutdown_lock);
 
-	if (likely(df))
+	if (likely(df)) {
+		if ((file->f_flags & FASYNC) && df->disconnected_f_op->fasync)
+			df->disconnected_f_op->fasync(-1, file, 0);
 		return df->disconnected_f_op->release(inode, file);
+	}
 
 	panic("%s(%p, %p) failed!", __func__, inode, file);
 }

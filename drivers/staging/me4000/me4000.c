@@ -1633,9 +1633,6 @@ static int me4000_release(struct inode *inode_p, struct file *file_p)
 
 		free_irq(ext_int_context->irq, ext_int_context);
 
-		/* Delete the fasync structure and free memory */
-		me4000_ext_int_fasync(0, file_p, 0);
-
 		/* Mark as unused */
 		ext_int_context->in_use = 0;
 	} else {
