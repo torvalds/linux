@@ -2381,9 +2381,7 @@ static int xfrm_dev_event(struct notifier_block *this, unsigned long event, void
 }
 
 static struct notifier_block xfrm_dev_notifier = {
-	xfrm_dev_event,
-	NULL,
-	0
+	.notifier_call	= xfrm_dev_event,
 };
 
 #ifdef CONFIG_XFRM_STATISTICS
