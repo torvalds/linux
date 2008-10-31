@@ -268,6 +268,7 @@ struct alc_spec {
 	hda_nid_t *adc_nids;
 	hda_nid_t *capsrc_nids;
 	hda_nid_t dig_in_nid;		/* digital-in NID; optional */
+	unsigned char is_mix_capture;	/* matrix-style capture (non-mux) */
 
 	/* capture source */
 	unsigned int num_mux_defs;
@@ -374,14 +375,38 @@ static int alc_mux_enum_put(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
+	const struct hda_input_mux *imux = spec->input_mux;
 	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
-	unsigned int mux_idx = adc_idx >= spec->num_mux_defs ? 0 : adc_idx;
 	hda_nid_t nid = spec->capsrc_nids ?
 		spec->capsrc_nids[adc_idx] : spec->adc_nids[adc_idx];
-	return snd_hda_input_mux_put(codec, &spec->input_mux[mux_idx], ucontrol,
-				     nid, &spec->cur_mux[adc_idx]);
-}
 
+	if (spec->is_mix_capture) {
+		/* Matrix-mixer style (e.g. ALC882) */
+		unsigned int *cur_val = &spec->cur_mux[adc_idx];
+		unsigned int i, idx;
+
+		idx = ucontrol->value.enumerated.item[0];
+		if (idx >= imux->num_items)
+			idx = imux->num_items - 1;
+		if (*cur_val == idx)
+			return 0;
+		for (i = 0; i < imux->num_items; i++) {
+			unsigned int v = (i == idx) ? 0 : HDA_AMP_MUTE;
+			snd_hda_codec_amp_stereo(codec, nid, HDA_INPUT,
+						 imux->items[i].index,
+						 HDA_AMP_MUTE, v);
+		}
+		*cur_val = idx;
+		return 1;
+	} else {
+		/* MUX style (e.g. ALC880) */
+		unsigned int mux_idx;
+		mux_idx = adc_idx >= spec->num_mux_defs ? 0 : adc_idx;
+		return snd_hda_input_mux_put(codec, &spec->input_mux[mux_idx],
+					     ucontrol, nid,
+					     &spec->cur_mux[adc_idx]);
+	}
+}
 
 /*
  * channel mode setting
@@ -5629,36 +5654,6 @@ static struct hda_input_mux alc882_capture_source = {
 		{ "CD", 0x4 },
 	},
 };
-#define alc882_mux_enum_info alc_mux_enum_info
-#define alc882_mux_enum_get alc_mux_enum_get
-
-static int alc882_mux_enum_put(struct snd_kcontrol *kcontrol,
-			       struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct alc_spec *spec = codec->spec;
-	const struct hda_input_mux *imux = spec->input_mux;
-	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
-	hda_nid_t nid = spec->capsrc_nids ?
-		spec->capsrc_nids[adc_idx] : spec->adc_nids[adc_idx];
-	unsigned int *cur_val = &spec->cur_mux[adc_idx];
-	unsigned int i, idx;
-
-	idx = ucontrol->value.enumerated.item[0];
-	if (idx >= imux->num_items)
-		idx = imux->num_items - 1;
-	if (*cur_val == idx)
-		return 0;
-	for (i = 0; i < imux->num_items; i++) {
-		unsigned int v = (i == idx) ? 0 : HDA_AMP_MUTE;
-		snd_hda_codec_amp_stereo(codec, nid, HDA_INPUT,
-					 imux->items[i].index,
-					 HDA_AMP_MUTE, v);
-	}
-	*cur_val = idx;
-	return 1;
-}
-
 /*
  * 2ch mode
  */
@@ -6341,48 +6336,8 @@ static struct hda_verb alc882_auto_init_verbs[] = {
 	{ }
 };
 
-/* capture mixer elements */
-static struct snd_kcontrol_new alc882_capture_alt_mixer[] = {
-	HDA_CODEC_VOLUME("Capture Volume", 0x08, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x08, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x09, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x09, 0x0, HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		/* The multiple "Capture Source" controls confuse alsamixer
-		 * So call somewhat different..
-		 */
-		/* .name = "Capture Source", */
-		.name = "Input Source",
-		.count = 2,
-		.info = alc882_mux_enum_info,
-		.get = alc882_mux_enum_get,
-		.put = alc882_mux_enum_put,
-	},
-	{ } /* end */
-};
-
-static struct snd_kcontrol_new alc882_capture_mixer[] = {
-	HDA_CODEC_VOLUME("Capture Volume", 0x07, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x07, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x08, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x08, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Capture Volume", 2, 0x09, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE_IDX("Capture Switch", 2, 0x09, 0x0, HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		/* The multiple "Capture Source" controls confuse alsamixer
-		 * So call somewhat different..
-		 */
-		/* .name = "Capture Source", */
-		.name = "Input Source",
-		.count = 3,
-		.info = alc882_mux_enum_info,
-		.get = alc882_mux_enum_get,
-		.put = alc882_mux_enum_put,
-	},
-	{ } /* end */
-};
+#define alc882_capture_alt_mixer	alc880_capture_alt_mixer
+#define alc882_capture_mixer		alc880_capture_mixer
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 #define alc882_loopbacks	alc880_loopbacks
@@ -6835,6 +6790,7 @@ static int patch_alc882(struct hda_codec *codec)
 	spec->stream_digital_playback = &alc882_pcm_digital_playback;
 	spec->stream_digital_capture = &alc882_pcm_digital_capture;
 
+	spec->is_mix_capture = 1; /* matrix-style capture */
 	if (!spec->adc_nids && spec->input_mux) {
 		/* check whether NID 0x07 is valid */
 		unsigned int wcap = get_wcaps(codec, 0x07);
@@ -6957,11 +6913,6 @@ static struct hda_input_mux alc883_asus_eee1601_capture_source = {
 		{ "Line", 0x2 },
 	},
 };
-
-#define alc883_mux_enum_info alc_mux_enum_info
-#define alc883_mux_enum_get alc_mux_enum_get
-/* ALC883 has the ALC882-type input selection */
-#define alc883_mux_enum_put alc882_mux_enum_put
 
 /*
  * 2ch mode
@@ -7125,9 +7076,9 @@ static struct snd_kcontrol_new alc883_base_mixer[] = {
 		/* .name = "Capture Source", */
 		.name = "Input Source",
 		.count = 2,
-		.info = alc883_mux_enum_info,
-		.get = alc883_mux_enum_get,
-		.put = alc883_mux_enum_put,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
 	},
 	{ } /* end */
 };
@@ -7155,9 +7106,9 @@ static struct snd_kcontrol_new alc883_mitac_mixer[] = {
 		/* .name = "Capture Source", */
 		.name = "Input Source",
 		.count = 2,
-		.info = alc883_mux_enum_info,
-		.get = alc883_mux_enum_get,
-		.put = alc883_mux_enum_put,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
 	},
 	{ } /* end */
 };
@@ -7182,9 +7133,9 @@ static struct snd_kcontrol_new alc883_clevo_m720_mixer[] = {
 		/* .name = "Capture Source", */
 		.name = "Input Source",
 		.count = 2,
-		.info = alc883_mux_enum_info,
-		.get = alc883_mux_enum_get,
-		.put = alc883_mux_enum_put,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
 	},
 	{ } /* end */
 };
@@ -7209,9 +7160,9 @@ static struct snd_kcontrol_new alc883_2ch_fujitsu_pi2515_mixer[] = {
 		/* .name = "Capture Source", */
 		.name = "Input Source",
 		.count = 2,
-		.info = alc883_mux_enum_info,
-		.get = alc883_mux_enum_get,
-		.put = alc883_mux_enum_put,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
 	},
 	{ } /* end */
 };
@@ -7241,9 +7192,9 @@ static struct snd_kcontrol_new alc883_3ST_2ch_mixer[] = {
 		/* .name = "Capture Source", */
 		.name = "Input Source",
 		.count = 2,
-		.info = alc883_mux_enum_info,
-		.get = alc883_mux_enum_get,
-		.put = alc883_mux_enum_put,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
 	},
 	{ } /* end */
 };
@@ -7277,9 +7228,9 @@ static struct snd_kcontrol_new alc883_3ST_6ch_mixer[] = {
 		/* .name = "Capture Source", */
 		.name = "Input Source",
 		.count = 1,
-		.info = alc883_mux_enum_info,
-		.get = alc883_mux_enum_get,
-		.put = alc883_mux_enum_put,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
 	},
 	{ } /* end */
 };
@@ -7316,9 +7267,9 @@ static struct snd_kcontrol_new alc883_3ST_6ch_intel_mixer[] = {
 		/* .name = "Capture Source", */
 		.name = "Input Source",
 		.count = 2,
-		.info = alc883_mux_enum_info,
-		.get = alc883_mux_enum_get,
-		.put = alc883_mux_enum_put,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
 	},
 	{ } /* end */
 };
@@ -7353,9 +7304,9 @@ static struct snd_kcontrol_new alc883_fivestack_mixer[] = {
 		/* .name = "Capture Source", */
 		.name = "Input Source",
 		.count = 1,
-		.info = alc883_mux_enum_info,
-		.get = alc883_mux_enum_get,
-		.put = alc883_mux_enum_put,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
 	},
 	{ } /* end */
 };
@@ -7386,9 +7337,9 @@ static struct snd_kcontrol_new alc883_tagra_mixer[] = {
 		/* .name = "Capture Source", */
 		.name = "Input Source",
 		.count = 2,
-		.info = alc883_mux_enum_info,
-		.get = alc883_mux_enum_get,
-		.put = alc883_mux_enum_put,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
 	},
 	{ } /* end */
 };
@@ -7414,9 +7365,9 @@ static struct snd_kcontrol_new alc883_tagra_2ch_mixer[] = {
 		/* .name = "Capture Source", */
 		.name = "Input Source",
 		.count = 2,
-		.info = alc883_mux_enum_info,
-		.get = alc883_mux_enum_get,
-		.put = alc883_mux_enum_put,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
 	},
 	{ } /* end */
 };
@@ -7437,9 +7388,9 @@ static struct snd_kcontrol_new alc883_lenovo_101e_2ch_mixer[] = {
 		/* .name = "Capture Source", */
 		.name = "Input Source",
 		.count = 1,
-		.info = alc883_mux_enum_info,
-		.get = alc883_mux_enum_get,
-		.put = alc883_mux_enum_put,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
 	},
 	{ } /* end */
 };
@@ -7463,9 +7414,9 @@ static struct snd_kcontrol_new alc883_lenovo_nb0763_mixer[] = {
 		/* .name = "Capture Source", */
 		.name = "Input Source",
 		.count = 2,
-		.info = alc883_mux_enum_info,
-		.get = alc883_mux_enum_get,
-		.put = alc883_mux_enum_put,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
 	},
 	{ } /* end */
 };
@@ -7489,9 +7440,9 @@ static struct snd_kcontrol_new alc883_medion_md2_mixer[] = {
 		/* .name = "Capture Source", */
 		.name = "Input Source",
 		.count = 2,
-		.info = alc883_mux_enum_info,
-		.get = alc883_mux_enum_get,
-		.put = alc883_mux_enum_put,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
 	},
 	{ } /* end */
 };
@@ -7514,9 +7465,9 @@ static struct snd_kcontrol_new alc883_acer_aspire_mixer[] = {
 		/* .name = "Capture Source", */
 		.name = "Input Source",
 		.count = 2,
-		.info = alc883_mux_enum_info,
-		.get = alc883_mux_enum_get,
-		.put = alc883_mux_enum_put,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
 	},
 	{ } /* end */
 };
@@ -7554,9 +7505,9 @@ static struct snd_kcontrol_new alc888_lenovo_sky_mixer[] = {
 		/* .name = "Capture Source", */
 		.name = "Input Source",
 		.count = 2,
-		.info = alc883_mux_enum_info,
-		.get = alc883_mux_enum_get,
-		.put = alc883_mux_enum_put,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
 	},
 	{ } /* end */
 };
@@ -7595,9 +7546,9 @@ static struct snd_kcontrol_new alc883_asus_eee1601_mixer[] = {
 		/* .name = "Capture Source", */
 		.name = "Input Source",
 		.count = 1,
-		.info = alc883_mux_enum_info,
-		.get = alc883_mux_enum_get,
-		.put = alc883_mux_enum_put,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
 	},
 	{ } /* end */
 };
@@ -8253,25 +8204,7 @@ static struct hda_verb alc883_auto_init_verbs[] = {
 };
 
 /* capture mixer elements */
-static struct snd_kcontrol_new alc883_capture_mixer[] = {
-	HDA_CODEC_VOLUME("Capture Volume", 0x08, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x08, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x09, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x09, 0x0, HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		/* The multiple "Capture Source" controls confuse alsamixer
-		 * So call somewhat different..
-		 */
-		/* .name = "Capture Source", */
-		.name = "Input Source",
-		.count = 2,
-		.info = alc882_mux_enum_info,
-		.get = alc882_mux_enum_get,
-		.put = alc882_mux_enum_put,
-	},
-	{ } /* end */
-};
+#define alc883_capture_mixer	alc880_capture_alt_mixer	/* 2 ADC ver */
 
 static struct hda_verb alc888_asus_m90v_verbs[] = {
 	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
@@ -8947,6 +8880,7 @@ static int patch_alc883(struct hda_codec *codec)
 	spec->num_adc_nids = ARRAY_SIZE(alc883_adc_nids);
 	spec->adc_nids = alc883_adc_nids;
 	spec->capsrc_nids = alc883_capsrc_nids;
+	spec->is_mix_capture = 1; /* matrix-style capture */
 
 	spec->vmaster_nid = 0x0c;
 
@@ -9967,7 +9901,7 @@ static int alc262_ultra_mux_enum_put(struct snd_kcontrol *kcontrol,
 	struct alc_spec *spec = codec->spec;
 	int ret;
 
-	ret = alc882_mux_enum_put(kcontrol, ucontrol);
+	ret = alc_mux_enum_put(kcontrol, ucontrol);
 	if (!ret)
 		return 0;
 	/* reprogram the HP pin as mic or HP according to the input source */
@@ -9984,8 +9918,8 @@ static struct snd_kcontrol_new alc262_ultra_capture_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Capture Source",
-		.info = alc882_mux_enum_info,
-		.get = alc882_mux_enum_get,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
 		.put = alc262_ultra_mux_enum_put,
 	},
 	{ } /* end */
@@ -10748,6 +10682,7 @@ static int patch_alc262(struct hda_codec *codec)
 	spec->stream_digital_playback = &alc262_pcm_digital_playback;
 	spec->stream_digital_capture = &alc262_pcm_digital_capture;
 
+	spec->is_mix_capture = 1;
 	if (!spec->adc_nids && spec->input_mux) {
 		/* check whether NID 0x07 is valid */
 		unsigned int wcap = get_wcaps(codec, 0x07);
@@ -11213,10 +11148,6 @@ static struct hda_verb alc268_volume_init_verbs[] = {
 	{ }
 };
 
-#define alc268_mux_enum_info alc_mux_enum_info
-#define alc268_mux_enum_get alc_mux_enum_get
-#define alc268_mux_enum_put alc_mux_enum_put
-
 static struct snd_kcontrol_new alc268_capture_alt_mixer[] = {
 	HDA_CODEC_VOLUME("Capture Volume", 0x23, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x23, 0x0, HDA_OUTPUT),
@@ -11228,9 +11159,9 @@ static struct snd_kcontrol_new alc268_capture_alt_mixer[] = {
 		/* .name = "Capture Source", */
 		.name = "Input Source",
 		.count = 1,
-		.info = alc268_mux_enum_info,
-		.get = alc268_mux_enum_get,
-		.put = alc268_mux_enum_put,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
 	},
 	{ } /* end */
 };
@@ -11248,9 +11179,9 @@ static struct snd_kcontrol_new alc268_capture_mixer[] = {
 		/* .name = "Capture Source", */
 		.name = "Input Source",
 		.count = 2,
-		.info = alc268_mux_enum_info,
-		.get = alc268_mux_enum_get,
-		.put = alc268_mux_enum_put,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
 	},
 	{ } /* end */
 };
@@ -13698,11 +13629,6 @@ static struct hda_input_mux alc861vd_hp_capture_source = {
 	},
 };
 
-#define alc861vd_mux_enum_info alc_mux_enum_info
-#define alc861vd_mux_enum_get alc_mux_enum_get
-/* ALC861VD has the ALC882-type input selection (but has only one ADC) */
-#define alc861vd_mux_enum_put alc882_mux_enum_put
-
 /*
  * 2ch mode
  */
@@ -13760,9 +13686,9 @@ static struct snd_kcontrol_new alc861vd_capture_mixer[] = {
 		/* .name = "Capture Source", */
 		.name = "Input Source",
 		.count = 1,
-		.info = alc861vd_mux_enum_info,
-		.get = alc861vd_mux_enum_get,
-		.put = alc861vd_mux_enum_put,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
 	},
 	{ } /* end */
 };
@@ -14588,6 +14514,7 @@ static int patch_alc861vd(struct hda_codec *codec)
 	spec->adc_nids = alc861vd_adc_nids;
 	spec->num_adc_nids = ARRAY_SIZE(alc861vd_adc_nids);
 	spec->capsrc_nids = alc861vd_capsrc_nids;
+	spec->is_mix_capture = 1;
 
 	add_mixer(spec, alc861vd_capture_mixer);
 
@@ -14675,10 +14602,6 @@ static struct hda_input_mux alc663_m51va_capture_source = {
 		{ "D-Mic", 0x9 },
 	},
 };
-
-#define alc662_mux_enum_info alc_mux_enum_info
-#define alc662_mux_enum_get alc_mux_enum_get
-#define alc662_mux_enum_put alc882_mux_enum_put
 
 /*
  * 2ch mode
@@ -15277,9 +15200,9 @@ static struct snd_kcontrol_new alc662_capture_mixer[] = {
 		/* .name = "Capture Source", */
 		.name = "Input Source",
 		.count = 1,
-		.info = alc662_mux_enum_info,
-		.get = alc662_mux_enum_get,
-		.put = alc662_mux_enum_put,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
 	},
 	{ } /* end */
 };
@@ -16420,6 +16343,7 @@ static int patch_alc662(struct hda_codec *codec)
 	spec->adc_nids = alc662_adc_nids;
 	spec->num_adc_nids = ARRAY_SIZE(alc662_adc_nids);
 	spec->capsrc_nids = alc662_capsrc_nids;
+	spec->is_mix_capture = 1;
 
 	spec->vmaster_nid = 0x02;
 
