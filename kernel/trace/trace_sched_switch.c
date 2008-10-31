@@ -16,8 +16,8 @@
 
 static struct trace_array	*ctx_trace;
 static int __read_mostly	tracer_enabled;
-static atomic_t			sched_ref;
-static DEFINE_MUTEX(tracepoint_mutex);
+static int			sched_ref;
+static DEFINE_MUTEX(sched_register_mutex);
 
 static void
 probe_sched_switch(struct rq *__rq, struct task_struct *prev,
@@ -28,7 +28,7 @@ probe_sched_switch(struct rq *__rq, struct task_struct *prev,
 	int cpu;
 	int pc;
 
-	if (!atomic_read(&sched_ref))
+	if (!sched_ref)
 		return;
 
 	tracing_record_cmdline(prev);
@@ -124,26 +124,22 @@ static void tracing_sched_unregister(void)
 
 static void tracing_start_sched_switch(void)
 {
-	long ref;
-
-	mutex_lock(&tracepoint_mutex);
-	tracer_enabled = 1;
-	ref = atomic_inc_return(&sched_ref);
-	if (ref == 1)
+	mutex_lock(&sched_register_mutex);
+	if (!(sched_ref++)) {
+		tracer_enabled = 1;
 		tracing_sched_register();
-	mutex_unlock(&tracepoint_mutex);
+	}
+	mutex_unlock(&sched_register_mutex);
 }
 
 static void tracing_stop_sched_switch(void)
 {
-	long ref;
-
-	mutex_lock(&tracepoint_mutex);
-	tracer_enabled = 0;
-	ref = atomic_dec_and_test(&sched_ref);
-	if (ref)
+	mutex_lock(&sched_register_mutex);
+	if (!(--sched_ref)) {
 		tracing_sched_unregister();
-	mutex_unlock(&tracepoint_mutex);
+		tracer_enabled = 0;
+	}
+	mutex_unlock(&sched_register_mutex);
 }
 
 void tracing_start_cmdline_record(void)
