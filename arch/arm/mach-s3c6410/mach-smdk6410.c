@@ -65,6 +65,7 @@ struct map_desc smdk6410_iodesc[] = {};
 static struct platform_device *smdk6410_devices[] __initdata = {
 	&s3c_device_hsmmc0,
 	&s3c_device_i2c0,
+	&s3c_device_i2c1,
 };
 
 extern void s3c64xx_init_io(struct map_desc *, int);
@@ -79,6 +80,7 @@ static void __init smdk6410_map_io(void)
 static void __init smdk6410_machine_init(void)
 {
 	s3c_i2c0_set_platdata(NULL);
+	s3c_i2c1_set_platdata(NULL);
 	platform_add_devices(smdk6410_devices, ARRAY_SIZE(smdk6410_devices));
 }
 
