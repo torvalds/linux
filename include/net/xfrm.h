@@ -467,7 +467,6 @@ struct xfrm_policy_walk {
 
 struct xfrm_policy
 {
-	struct xfrm_policy	*next;
 	struct hlist_node	bydst;
 	struct hlist_node	byidx;
 
