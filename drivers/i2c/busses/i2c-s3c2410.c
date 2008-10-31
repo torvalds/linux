@@ -77,16 +77,7 @@ struct s3c24xx_i2c {
 #endif
 };
 
-/* default platform data to use if not supplied in the platform_device
-*/
-
-static struct s3c2410_platform_i2c s3c24xx_i2c_default_platform = {
-	.flags		= 0,
-	.slave_addr	= 0x10,
-	.bus_freq	= 100*1000,
-	.max_freq	= 400*1000,
-	.sda_delay	= S3C2410_IICLC_SDA_DELAY5 | S3C2410_IICLC_FILTER_ON,
-};
+/* default platform data removed, dev should always carry data. */
 
 /* s3c24xx_i2c_is2440()
  *
@@ -98,22 +89,6 @@ static inline int s3c24xx_i2c_is2440(struct s3c24xx_i2c *i2c)
 	struct platform_device *pdev = to_platform_device(i2c->dev);
 
 	return !strcmp(pdev->name, "s3c2440-i2c");
-}
-
-
-/* s3c24xx_i2c_get_platformdata
- *
- * get the platform data associated with the given device, or return
- * the default if there is none
-*/
-
-static inline struct s3c2410_platform_i2c *
-s3c24xx_i2c_get_platformdata(struct device *dev)
-{
-	if (dev->platform_data != NULL)
-		return (struct s3c2410_platform_i2c *)dev->platform_data;
-
-	return &s3c24xx_i2c_default_platform;
 }
 
 /* s3c24xx_i2c_master_complete
@@ -648,7 +623,7 @@ static inline int freq_acceptable(unsigned int freq, unsigned int wanted)
 
 static int s3c24xx_i2c_clockrate(struct s3c24xx_i2c *i2c, unsigned int *got)
 {
-	struct s3c2410_platform_i2c *pdata;
+	struct s3c2410_platform_i2c *pdata = i2c->dev->platform_data;
 	unsigned long clkin = clk_get_rate(i2c->clk);
 	unsigned int divs, div1;
 	u32 iiccon;
@@ -656,8 +631,6 @@ static int s3c24xx_i2c_clockrate(struct s3c24xx_i2c *i2c, unsigned int *got)
 	int start, end;
 
 	i2c->clkrate = clkin;
-
-	pdata = s3c24xx_i2c_get_platformdata(i2c->adap.dev.parent);
 	clkin /= 1000;		/* clkin now in KHz */
 
 	dev_dbg(i2c->dev, "pdata %p, freq %lu %lu..%lu\n",
@@ -778,7 +751,7 @@ static int s3c24xx_i2c_init(struct s3c24xx_i2c *i2c)
 
 	/* get the plafrom data */
 
-	pdata = s3c24xx_i2c_get_platformdata(i2c->dev);
+	pdata = i2c->dev->platform_data;
 
 	/* inititalise the gpio */
 
@@ -829,7 +802,11 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	pdata = s3c24xx_i2c_get_platformdata(&pdev->dev);
+	pdata = pdev->dev.platform_data;
+	if (!pdata) {
+		dev_err(&pdev->dev, "no platform data\n");
+		return -EINVAL;
+	}
 
 	/* find the clock and enable it */
 
