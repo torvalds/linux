@@ -142,16 +142,19 @@ irqreturn_t cx18_irq_handler(int irq, void *dev_id)
 
 	spin_lock(&cx->dma_reg_lock);
 
-	hw2_mask = cx18_read_reg(cx, HW2_INT_MASK5_PCI);
-	hw2 = cx18_read_reg(cx, HW2_INT_CLR_STATUS) & hw2_mask;
-	sw2_mask = cx18_read_reg(cx, SW2_INT_ENABLE_PCI) | IRQ_EPU_TO_HPU_ACK;
-	sw2 = cx18_read_reg(cx, SW2_INT_STATUS) & sw2_mask;
 	sw1_mask = cx18_read_reg(cx, SW1_INT_ENABLE_PCI) | IRQ_EPU_TO_HPU;
 	sw1 = cx18_read_reg(cx, SW1_INT_STATUS) & sw1_mask;
+	sw2_mask = cx18_read_reg(cx, SW2_INT_ENABLE_PCI) | IRQ_EPU_TO_HPU_ACK;
+	sw2 = cx18_read_reg(cx, SW2_INT_STATUS) & sw2_mask;
+	hw2_mask = cx18_read_reg(cx, HW2_INT_MASK5_PCI);
+	hw2 = cx18_read_reg(cx, HW2_INT_CLR_STATUS) & hw2_mask;
 
-	cx18_write_reg_noretry(cx, sw2&sw2_mask, SW2_INT_STATUS);
-	cx18_write_reg_noretry(cx, sw1&sw1_mask, SW1_INT_STATUS);
-	cx18_write_reg_noretry(cx, hw2&hw2_mask, HW2_INT_CLR_STATUS);
+	if (sw1)
+		cx18_write_reg_expect(cx, sw1, SW1_INT_STATUS, ~sw1, sw1);
+	if (sw2)
+		cx18_write_reg_expect(cx, sw2, SW2_INT_STATUS, ~sw2, sw2);
+	if (hw2)
+		cx18_write_reg_expect(cx, hw2, HW2_INT_CLR_STATUS, ~hw2, hw2);
 
 	if (sw1 || sw2 || hw2)
 		CX18_DEBUG_HI_IRQ("SW1: %x  SW2: %x  HW2: %x\n", sw1, sw2, hw2);
@@ -178,5 +181,5 @@ irqreturn_t cx18_irq_handler(int irq, void *dev_id)
 		hpu_cmd(cx, sw1);
 	spin_unlock(&cx->dma_reg_lock);
 
-	return (hw2 | sw1 | sw2) ? IRQ_HANDLED : IRQ_NONE;
+	return (sw1 || sw2 || hw2) ? IRQ_HANDLED : IRQ_NONE;
 }

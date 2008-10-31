@@ -176,7 +176,7 @@ long cx18_mb_ack(struct cx18 *cx, const struct cx18_mailbox *mb)
 
 	cx18_setup_page(cx, SCB_OFFSET);
 	cx18_write_sync(cx, mb->request, &ack_mb->ack);
-	cx18_write_reg_noretry(cx, ack_irq, SW2_INT_SET);
+	cx18_write_reg_expect(cx, ack_irq, SW2_INT_SET, ack_irq, ack_irq);
 	return 0;
 }
 
@@ -225,7 +225,7 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	}
 	if (info->flags & API_FAST)
 		timeout /= 2;
-	cx18_write_reg_noretry(cx, irq, SW1_INT_SET);
+	cx18_write_reg_expect(cx, irq, SW1_INT_SET, irq, irq);
 
 	while (!sig && cx18_readl(cx, &mb->ack) != cx18_readl(cx, &mb->request)
 	       && cnt < 660) {
