@@ -18,8 +18,10 @@
 
 #include <mach/map.h>
 #include <mach/gpio.h>
+#include <mach/gpio-core.h>
 
-#include <plat/gpio-core.h>
+#include <plat/gpio-cfg.h>
+#include <plat/gpio-cfg-helpers.h>
 #include <plat/regs-gpio.h>
 
 /* GPIO bank summary:
@@ -52,6 +54,12 @@
 
 #define con_4bit_shift(__off) ((__off) * 4)
 
+#if 1
+#define gpio_dbg(x...) do { } while(0)
+#else
+#define gpio_dbg(x...) printk(KERN_DEBUG ## x)
+#endif
+
 /* The s3c64xx_gpiolib_4bit routines are to control the gpio banks where
  * the gpio configuration register (GPxCON) has 4 bits per GPIO, as the
  * following example:
@@ -77,6 +85,8 @@ static int s3c64xx_gpiolib_4bit_input(struct gpio_chip *chip, unsigned offset)
 	con &= ~(0xf << con_4bit_shift(offset));
 	__raw_writel(con, base + OFF_GPCON);
 
+	gpio_dbg("%s: %p: CON now %08lx\n", __func__, base, con);
+
 	return 0;
 }
 
@@ -101,6 +111,8 @@ static int s3c64xx_gpiolib_4bit_output(struct gpio_chip *chip,
 	__raw_writel(dat, base + OFF_GPDAT);
 	__raw_writel(con, base + OFF_GPCON);
 	__raw_writel(dat, base + OFF_GPDAT);
+
+	gpio_dbg("%s: %p: CON %08lx, DAT %08lx\n", __func__, base, con, dat);
 
 	return 0;
 }
@@ -142,6 +154,8 @@ static int s3c64xx_gpiolib_4bit2_input(struct gpio_chip *chip, unsigned offset)
 	con &= ~(0xf << con_4bit_shift(offset));
 	__raw_writel(con, regcon);
 
+	gpio_dbg("%s: %p: CON %08lx\n", __func__, base, con);
+
 	return 0;
 
 }
@@ -174,12 +188,35 @@ static int s3c64xx_gpiolib_4bit2_output(struct gpio_chip *chip,
 	__raw_writel(con, regcon);
 	__raw_writel(dat, base + OFF_GPDAT);
 
+	gpio_dbg("%s: %p: CON %08lx, DAT %08lx\n", __func__, base, con, dat);
+
 	return 0;
 }
+
+static struct s3c_gpio_cfg gpio_4bit_cfg_noint = {
+	.set_config	= s3c_gpio_setcfg_s3c64xx_4bit,
+	.set_pull	= s3c_gpio_setpull_updown,
+	.get_pull	= s3c_gpio_getpull_updown,
+};
+
+static struct s3c_gpio_cfg gpio_4bit_cfg_eint0111 = {
+	.cfg_eint	= 7,
+	.set_config	= s3c_gpio_setcfg_s3c64xx_4bit,
+	.set_pull	= s3c_gpio_setpull_updown,
+	.get_pull	= s3c_gpio_getpull_updown,
+};
+
+static struct s3c_gpio_cfg gpio_4bit_cfg_eint0011 = {
+	.cfg_eint	= 3,
+	.set_config	= s3c_gpio_setcfg_s3c64xx_4bit,
+	.set_pull	= s3c_gpio_setpull_updown,
+	.get_pull	= s3c_gpio_getpull_updown,
+};
 
 static struct s3c_gpio_chip gpio_4bit[] = {
 	{
 		.base	= S3C64XX_GPA_BASE,
+		.config	= &gpio_4bit_cfg_eint0111,
 		.chip	= {
 			.base	= S3C64XX_GPA(0),
 			.ngpio	= S3C64XX_GPIO_A_NR,
@@ -187,6 +224,7 @@ static struct s3c_gpio_chip gpio_4bit[] = {
 		},
 	}, {
 		.base	= S3C64XX_GPB_BASE,
+		.config	= &gpio_4bit_cfg_eint0111,
 		.chip	= {
 			.base	= S3C64XX_GPB(0),
 			.ngpio	= S3C64XX_GPIO_B_NR,
@@ -194,6 +232,7 @@ static struct s3c_gpio_chip gpio_4bit[] = {
 		},
 	}, {
 		.base	= S3C64XX_GPC_BASE,
+		.config	= &gpio_4bit_cfg_eint0111,
 		.chip	= {
 			.base	= S3C64XX_GPC(0),
 			.ngpio	= S3C64XX_GPIO_C_NR,
@@ -201,6 +240,7 @@ static struct s3c_gpio_chip gpio_4bit[] = {
 		},
 	}, {
 		.base	= S3C64XX_GPD_BASE,
+		.config	= &gpio_4bit_cfg_eint0111,
 		.chip	= {
 			.base	= S3C64XX_GPD(0),
 			.ngpio	= S3C64XX_GPIO_D_NR,
@@ -208,6 +248,7 @@ static struct s3c_gpio_chip gpio_4bit[] = {
 		},
 	}, {
 		.base	= S3C64XX_GPE_BASE,
+		.config	= &gpio_4bit_cfg_noint,
 		.chip	= {
 			.base	= S3C64XX_GPE(0),
 			.ngpio	= S3C64XX_GPIO_E_NR,
@@ -215,6 +256,7 @@ static struct s3c_gpio_chip gpio_4bit[] = {
 		},
 	}, {
 		.base	= S3C64XX_GPG_BASE,
+		.config	= &gpio_4bit_cfg_eint0111,
 		.chip	= {
 			.base	= S3C64XX_GPG(0),
 			.ngpio	= S3C64XX_GPIO_G_NR,
@@ -222,6 +264,7 @@ static struct s3c_gpio_chip gpio_4bit[] = {
 		},
 	}, {
 		.base	= S3C64XX_GPM_BASE,
+		.config	= &gpio_4bit_cfg_eint0011,
 		.chip	= {
 			.base	= S3C64XX_GPM(0),
 			.ngpio	= S3C64XX_GPIO_M_NR,
@@ -233,6 +276,7 @@ static struct s3c_gpio_chip gpio_4bit[] = {
 static struct s3c_gpio_chip gpio_4bit2[] = {
 	{
 		.base	= S3C64XX_GPH_BASE + 0x4,
+		.config	= &gpio_4bit_cfg_eint0111,
 		.chip	= {
 			.base	= S3C64XX_GPH(0),
 			.ngpio	= S3C64XX_GPIO_H_NR,
@@ -240,6 +284,7 @@ static struct s3c_gpio_chip gpio_4bit2[] = {
 		},
 	}, {
 		.base	= S3C64XX_GPK_BASE + 0x4,
+		.config	= &gpio_4bit_cfg_noint,
 		.chip	= {
 			.base	= S3C64XX_GPK(0),
 			.ngpio	= S3C64XX_GPIO_K_NR,
@@ -247,6 +292,7 @@ static struct s3c_gpio_chip gpio_4bit2[] = {
 		},
 	}, {
 		.base	= S3C64XX_GPL_BASE + 0x4,
+		.config	= &gpio_4bit_cfg_eint0011,
 		.chip	= {
 			.base	= S3C64XX_GPL(0),
 			.ngpio	= S3C64XX_GPIO_L_NR,
@@ -255,9 +301,30 @@ static struct s3c_gpio_chip gpio_4bit2[] = {
 	},
 };
 
+static struct s3c_gpio_cfg gpio_2bit_cfg_noint = {
+	.set_config	= s3c_gpio_setcfg_s3c24xx,
+	.set_pull	= s3c_gpio_setpull_updown,
+	.get_pull	= s3c_gpio_getpull_updown,
+};
+
+static struct s3c_gpio_cfg gpio_2bit_cfg_eint10 = {
+	.cfg_eint	= 2,
+	.set_config	= s3c_gpio_setcfg_s3c24xx,
+	.set_pull	= s3c_gpio_setpull_updown,
+	.get_pull	= s3c_gpio_getpull_updown,
+};
+
+static struct s3c_gpio_cfg gpio_2bit_cfg_eint11 = {
+	.cfg_eint	= 3,
+	.set_config	= s3c_gpio_setcfg_s3c24xx,
+	.set_pull	= s3c_gpio_setpull_updown,
+	.get_pull	= s3c_gpio_getpull_updown,
+};
+
 static struct s3c_gpio_chip gpio_2bit[] = {
 	{
 		.base	= S3C64XX_GPF_BASE,
+		.config	= &gpio_2bit_cfg_eint11,
 		.chip	= {
 			.base	= S3C64XX_GPF(0),
 			.ngpio	= S3C64XX_GPIO_F_NR,
@@ -265,6 +332,7 @@ static struct s3c_gpio_chip gpio_2bit[] = {
 		},
 	}, {
 		.base	= S3C64XX_GPI_BASE,
+		.config	= &gpio_2bit_cfg_noint,
 		.chip	= {
 			.base	= S3C64XX_GPI(0),
 			.ngpio	= S3C64XX_GPIO_I_NR,
@@ -272,6 +340,7 @@ static struct s3c_gpio_chip gpio_2bit[] = {
 		},
 	}, {
 		.base	= S3C64XX_GPJ_BASE,
+		.config	= &gpio_2bit_cfg_noint,
 		.chip	= {
 			.base	= S3C64XX_GPJ(0),
 			.ngpio	= S3C64XX_GPIO_J_NR,
@@ -279,6 +348,7 @@ static struct s3c_gpio_chip gpio_2bit[] = {
 		},
 	}, {
 		.base	= S3C64XX_GPN_BASE,
+		.config	= &gpio_2bit_cfg_eint10,
 		.chip	= {
 			.base	= S3C64XX_GPN(0),
 			.ngpio	= S3C64XX_GPIO_N_NR,
@@ -286,6 +356,7 @@ static struct s3c_gpio_chip gpio_2bit[] = {
 		},
 	}, {
 		.base	= S3C64XX_GPO_BASE,
+		.config	= &gpio_2bit_cfg_eint11,
 		.chip	= {
 			.base	= S3C64XX_GPO(0),
 			.ngpio	= S3C64XX_GPIO_O_NR,
@@ -293,6 +364,7 @@ static struct s3c_gpio_chip gpio_2bit[] = {
 		},
 	}, {
 		.base	= S3C64XX_GPP_BASE,
+		.config	= &gpio_2bit_cfg_eint11,
 		.chip	= {
 			.base	= S3C64XX_GPP(0),
 			.ngpio	= S3C64XX_GPIO_P_NR,
@@ -300,6 +372,7 @@ static struct s3c_gpio_chip gpio_2bit[] = {
 		},
 	}, {
 		.base	= S3C64XX_GPQ_BASE,
+		.config	= &gpio_2bit_cfg_eint11,
 		.chip	= {
 			.base	= S3C64XX_GPQ(0),
 			.ngpio	= S3C64XX_GPIO_Q_NR,

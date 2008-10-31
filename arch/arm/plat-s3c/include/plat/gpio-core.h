@@ -20,16 +20,20 @@
  * specific code.
 */
 
+struct s3c_gpio_cfg;
+
 /**
  * struct s3c_gpio_chip - wrapper for specific implementation of gpio
  * @chip: The chip structure to be exported via gpiolib.
  * @base: The base pointer to the gpio configuration registers.
+ * @config: special function and pull-resistor control information.
  *
  * This wrapper provides the necessary information for the Samsung
  * specific gpios being registered with gpiolib.
  */
 struct s3c_gpio_chip {
 	struct gpio_chip	chip;
+	struct s3c_gpio_cfg	*config;
 	void __iomem		*base;
 };
 
@@ -48,7 +52,6 @@ static inline struct s3c_gpio_chip *to_s3c_gpio(struct gpio_chip *gpc)
  */
 extern void s3c_gpiolib_add(struct s3c_gpio_chip *chip);
 
-
 /* CONFIG_S3C_GPIO_TRACK enables the tracking of the s3c specific gpios
  * for use with the configuration calls, and other parts of the s3c gpiolib
  * support code.
@@ -65,8 +68,10 @@ extern struct s3c_gpio_chip *s3c_gpios[S3C_GPIO_END];
 
 static inline struct s3c_gpio_chip *s3c_gpiolib_getchip(unsigned int chip)
 {
-	return s3c_gpios[chip];
+	return (chip < S3C_GPIO_END) ? s3c_gpios[chip] : NULL;
 }
 #else
+/* machine specific code should provide s3c_gpiolib_getchip */
+
 static inline void s3c_gpiolib_track(struct s3c_gpio_chip *chip) { }
 #endif

@@ -59,7 +59,7 @@ static int s3c24xx_gpiolib_banka_output(struct gpio_chip *chip,
 	return 0;
 }
 
-static struct s3c_gpio_chip gpios[] = {
+struct s3c_gpio_chip s3c24xx_gpios[] = {
 	[0] = {
 		.base	= S3C24XX_GPIO_BASE(S3C2410_GPA0),
 		.chip	= {
@@ -129,10 +129,10 @@ static struct s3c_gpio_chip gpios[] = {
 
 static __init int s3c24xx_gpiolib_init(void)
 {
-	struct s3c_gpio_chip *chip = gpios;
+	struct s3c_gpio_chip *chip = s3c24xx_gpios;
 	int gpn;
 
-	for (gpn = 0; gpn < ARRAY_SIZE(gpios); gpn++, chip++)
+	for (gpn = 0; gpn < ARRAY_SIZE(s3c24xx_gpios); gpn++, chip++)
 		s3c_gpiolib_add(chip);
 
 	return 0;

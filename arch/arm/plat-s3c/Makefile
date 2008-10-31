@@ -16,6 +16,7 @@ obj-y				+= time.o
 obj-y				+= clock.o
 obj-y				+= pwm-clock.o
 obj-y				+= gpio.o
+obj-y				+= gpio-config.o
 
 # devices
 
