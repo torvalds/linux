@@ -829,6 +829,7 @@ static void alc_sku_automute(struct hda_codec *codec)
 			    spec->jack_present ? 0 : PIN_OUT);
 }
 
+#if 0 /* it's broken in some acses -- temporarily disabled */
 static void alc_mic_automute(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -849,6 +850,9 @@ static void alc_mic_automute(struct hda_codec *codec)
 	snd_hda_codec_amp_stereo(codec, 0x0b, HDA_INPUT, capsrc_idx_fmic,
 			 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
 }
+#else
+#define alc_mic_automute(codec) /* NOP */
+#endif /* disabled */
 
 /* unsolicited event for HP jack sensing */
 static void alc_sku_unsol_event(struct hda_codec *codec, unsigned int res)
@@ -1058,12 +1062,14 @@ do_sku:
 			AC_VERB_SET_UNSOLICITED_ENABLE,
 			AC_USRSP_EN | ALC880_HP_EVENT);
 
+#if 0 /* it's broken in some acses -- temporarily disabled */
 	if (spec->autocfg.input_pins[AUTO_PIN_MIC] &&
 		spec->autocfg.input_pins[AUTO_PIN_FRONT_MIC])
 		snd_hda_codec_write(codec,
 			spec->autocfg.input_pins[AUTO_PIN_MIC], 0,
 			AC_VERB_SET_UNSOLICITED_ENABLE,
 			AC_USRSP_EN | ALC880_MIC_EVENT);
+#endif /* disabled */
 
 	spec->unsol_event = alc_sku_unsol_event;
 }
