@@ -520,6 +520,7 @@ extern void voyager_restart(void);
 extern void voyager_cat_power_off(void);
 extern void voyager_cat_do_common_interrupt(void);
 extern void voyager_handle_nmi(void);
+extern void voyager_smp_intr_init(void);
 /* Commands for the following are */
 #define	VOYAGER_PSI_READ	0
 #define VOYAGER_PSI_WRITE	1
