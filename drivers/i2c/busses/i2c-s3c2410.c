@@ -559,19 +559,6 @@ static const struct i2c_algorithm s3c24xx_i2c_algorithm = {
 	.functionality		= s3c24xx_i2c_func,
 };
 
-static struct s3c24xx_i2c s3c24xx_i2c = {
-	.lock		= __SPIN_LOCK_UNLOCKED(s3c24xx_i2c.lock),
-	.wait		= __WAIT_QUEUE_HEAD_INITIALIZER(s3c24xx_i2c.wait),
-	.tx_setup	= 50,
-	.adap		= {
-		.name			= "s3c2410-i2c",
-		.owner			= THIS_MODULE,
-		.algo			= &s3c24xx_i2c_algorithm,
-		.retries		= 2,
-		.class			= I2C_CLASS_HWMON | I2C_CLASS_SPD,
-	},
-};
-
 /* s3c24xx_i2c_calcdivisor
  *
  * return the divisor settings for a given frequency
@@ -797,7 +784,7 @@ static int s3c24xx_i2c_init(struct s3c24xx_i2c *i2c)
 
 static int s3c24xx_i2c_probe(struct platform_device *pdev)
 {
-	struct s3c24xx_i2c *i2c = &s3c24xx_i2c;
+	struct s3c24xx_i2c *i2c;
 	struct s3c2410_platform_i2c *pdata;
 	struct resource *res;
 	int ret;
@@ -807,6 +794,22 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "no platform data\n");
 		return -EINVAL;
 	}
+
+	i2c = kzalloc(sizeof(struct s3c24xx_i2c), GFP_KERNEL);
+	if (!i2c) {
+		dev_err(&pdev->dev, "no memory for state\n");
+		return -ENOMEM;
+	}
+
+	strlcpy(i2c->adap.name, "s3c2410-i2c", sizeof(i2c->adap.name));
+	i2c->adap.owner   = THIS_MODULE;
+	i2c->adap.algo    = &s3c24xx_i2c_algorithm;
+	i2c->adap.retries = 2;
+	i2c->adap.class   = I2C_CLASS_HWMON | I2C_CLASS_SPD;
+	i2c->tx_setup     = 50;
+
+	spin_lock_init(&i2c->lock);
+	init_waitqueue_head(&i2c->wait);
 
 	/* find the clock and enable it */
 
@@ -929,6 +932,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	clk_put(i2c->clk);
 
  err_noclk:
+	kfree(i2c);
 	return ret;
 }
 
@@ -953,6 +957,7 @@ static int s3c24xx_i2c_remove(struct platform_device *pdev)
 
 	release_resource(i2c->ioarea);
 	kfree(i2c->ioarea);
+	kfree(i2c);
 
 	return 0;
 }
