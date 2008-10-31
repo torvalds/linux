@@ -672,8 +672,8 @@ static ssize_t bonding_show_arp_targets(struct device *d,
 
 	for (i = 0; i < BOND_MAX_ARP_TARGETS; i++) {
 		if (bond->params.arp_targets[i])
-			res += sprintf(buf + res, "%u.%u.%u.%u ",
-			       NIPQUAD(bond->params.arp_targets[i]));
+			res += sprintf(buf + res, "%pI4 ",
+				       &bond->params.arp_targets[i]);
 	}
 	if (res)
 		buf[res-1] = '\n'; /* eat the leftover space */
@@ -695,8 +695,8 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 	if (buf[0] == '+') {
 		if ((newtarget == 0) || (newtarget == htonl(INADDR_BROADCAST))) {
 			printk(KERN_ERR DRV_NAME
-			       ": %s: invalid ARP target %u.%u.%u.%u specified for addition\n",
- 			       bond->dev->name, NIPQUAD(newtarget));
+			       ": %s: invalid ARP target %pI4 specified for addition\n",
+			       bond->dev->name, &newtarget);
 			ret = -EINVAL;
 			goto out;
 		}
@@ -704,8 +704,8 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 		for (i = 0; (i < BOND_MAX_ARP_TARGETS); i++) {
 			if (targets[i] == newtarget) { /* duplicate */
 				printk(KERN_ERR DRV_NAME
-				       ": %s: ARP target %u.%u.%u.%u is already present\n",
-				       bond->dev->name, NIPQUAD(newtarget));
+				       ": %s: ARP target %pI4 is already present\n",
+				       bond->dev->name, &newtarget);
 				if (done)
 					targets[i] = 0;
 				ret = -EINVAL;
@@ -713,8 +713,8 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 			}
 			if (targets[i] == 0 && !done) {
 				printk(KERN_INFO DRV_NAME
-				       ": %s: adding ARP target %d.%d.%d.%d.\n",
-				       bond->dev->name, NIPQUAD(newtarget));
+				       ": %s: adding ARP target %pI4.\n",
+				       bond->dev->name, &newtarget);
 				done = 1;
 				targets[i] = newtarget;
 			}
@@ -731,8 +731,8 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 	else if (buf[0] == '-')	{
 		if ((newtarget == 0) || (newtarget == htonl(INADDR_BROADCAST))) {
 			printk(KERN_ERR DRV_NAME
-			       ": %s: invalid ARP target %d.%d.%d.%d specified for removal\n",
-			       bond->dev->name, NIPQUAD(newtarget));
+			       ": %s: invalid ARP target %pI4 specified for removal\n",
+			       bond->dev->name, &newtarget);
 			ret = -EINVAL;
 			goto out;
 		}
@@ -740,16 +740,16 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 		for (i = 0; (i < BOND_MAX_ARP_TARGETS); i++) {
 			if (targets[i] == newtarget) {
 				printk(KERN_INFO DRV_NAME
-				       ": %s: removing ARP target %d.%d.%d.%d.\n",
-				       bond->dev->name, NIPQUAD(newtarget));
+				       ": %s: removing ARP target %pI4.\n",
+				       bond->dev->name, &newtarget);
 				targets[i] = 0;
 				done = 1;
 			}
 		}
 		if (!done) {
 			printk(KERN_INFO DRV_NAME
-			       ": %s: unable to remove nonexistent ARP target %d.%d.%d.%d.\n",
-			       bond->dev->name, NIPQUAD(newtarget));
+			       ": %s: unable to remove nonexistent ARP target %pI4.\n",
+			       bond->dev->name, &newtarget);
 			ret = -EINVAL;
 			goto out;
 		}

@@ -284,8 +284,7 @@ static ssize_t sprintf_ipaddr(char *buf, u8 *ip)
 		/*
 		 * IPV4
 		 */
-		str += sprintf(buf, NIPQUAD_FMT, ip[12],
-			       ip[13], ip[14], ip[15]);
+		str += sprintf(buf, "%pI4", ip + 12);
 	} else {
 		/*
 		 * IPv6

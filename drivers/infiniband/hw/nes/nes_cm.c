@@ -823,8 +823,8 @@ static struct nes_cm_node *find_node(struct nes_cm_core *cm_core,
 	/* get a handle on the hte */
 	hte = &cm_core->connected_nodes;
 
-	nes_debug(NES_DBG_CM, "Searching for an owner node: " NIPQUAD_FMT ":%x from core %p->%p\n",
-		  HIPQUAD(loc_addr), loc_port, cm_core, hte);
+	nes_debug(NES_DBG_CM, "Searching for an owner node: %pI4:%x from core %p->%p\n",
+		  &loc_addr, loc_port, cm_core, hte);
 
 	/* walk list and find cm_node associated with this session ID */
 	spin_lock_irqsave(&cm_core->ht_lock, flags);
@@ -873,8 +873,8 @@ static struct nes_cm_listener *find_listener(struct nes_cm_core *cm_core,
 	}
 	spin_unlock_irqrestore(&cm_core->listen_list_lock, flags);
 
-	nes_debug(NES_DBG_CM, "Unable to find listener for " NIPQUAD_FMT ":%x\n",
-		  HIPQUAD(dst_addr), dst_port);
+	nes_debug(NES_DBG_CM, "Unable to find listener for %pI4:%x\n",
+		  &dst_addr, dst_port);
 
 	/* no listener */
 	return NULL;
@@ -1082,10 +1082,9 @@ static struct nes_cm_node *make_cm_node(struct nes_cm_core *cm_core,
 	cm_node->loc_port = cm_info->loc_port;
 	cm_node->rem_port = cm_info->rem_port;
 	cm_node->send_write0 = send_first;
-	nes_debug(NES_DBG_CM, "Make node addresses : loc = " NIPQUAD_FMT
-			":%x, rem = " NIPQUAD_FMT ":%x\n",
-			HIPQUAD(cm_node->loc_addr), cm_node->loc_port,
-			HIPQUAD(cm_node->rem_addr), cm_node->rem_port);
+	nes_debug(NES_DBG_CM, "Make node addresses : loc = %pI4:%x, rem = %pI4:%x\n",
+		  &cm_node->loc_addr, cm_node->loc_port,
+		  &cm_node->rem_addr, cm_node->rem_port);
 	cm_node->listener = listener;
 	cm_node->netdev = nesvnic->netdev;
 	cm_node->cm_id = cm_info->cm_id;
@@ -2066,10 +2065,8 @@ static void mini_cm_recv_pkt(struct nes_cm_core *cm_core,
 	nfo.rem_addr = ntohl(iph->saddr);
 	nfo.rem_port = ntohs(tcph->source);
 
-	nes_debug(NES_DBG_CM, "Received packet: dest=" NIPQUAD_FMT
-		  ":0x%04X src=" NIPQUAD_FMT ":0x%04X\n",
-		  NIPQUAD(iph->daddr), tcph->dest,
-		  NIPQUAD(iph->saddr), tcph->source);
+	nes_debug(NES_DBG_CM, "Received packet: dest=%pI4:0x%04X src=%pI4:0x%04X\n",
+		  &iph->daddr, tcph->dest, &iph->saddr, tcph->source);
 
 	do {
 		cm_node = find_node(cm_core,

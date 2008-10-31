@@ -206,8 +206,7 @@ static int qla4xxx_conn_get_param(struct iscsi_cls_conn *conn,
 		break;
 	case ISCSI_PARAM_CONN_ADDRESS:
 		/* TODO: what are the ipv6 bits */
-		len = sprintf(buf, "%u.%u.%u.%u\n",
-			      NIPQUAD(ddb_entry->ip_addr));
+		len = sprintf(buf, "%pI4\n", &ddb_entry->ip_addr);
 		break;
 	default:
 		return -ENOSYS;

@@ -2585,8 +2585,8 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		if (rv) {
 			if (net_ratelimit()) {
 				printk(KERN_WARNING DRV_NAME
-			     ": %s: no route to arp_ip_target %u.%u.%u.%u\n",
-				       bond->dev->name, NIPQUAD(fl.fl4_dst));
+			     ": %s: no route to arp_ip_target %pI4\n",
+				       bond->dev->name, &fl.fl4_dst);
 			}
 			continue;
 		}
@@ -2622,8 +2622,8 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 
 		if (net_ratelimit()) {
 			printk(KERN_WARNING DRV_NAME
-	       ": %s: no path to arp_ip_target %u.%u.%u.%u via rt.dev %s\n",
-			       bond->dev->name, NIPQUAD(fl.fl4_dst),
+	       ": %s: no path to arp_ip_target %pI4 via rt.dev %s\n",
+			       bond->dev->name, &fl.fl4_dst,
 			       rt->u.dst.dev ? rt->u.dst.dev->name : "NULL");
 		}
 		ip_rt_put(rt);
@@ -2672,10 +2672,8 @@ static void bond_validate_arp(struct bonding *bond, struct slave *slave, __be32 
 
 	targets = bond->params.arp_targets;
 	for (i = 0; (i < BOND_MAX_ARP_TARGETS) && targets[i]; i++) {
-		dprintk("bva: sip %u.%u.%u.%u tip %u.%u.%u.%u t[%d] "
-			"%u.%u.%u.%u bhti(tip) %d\n",
-		       NIPQUAD(sip), NIPQUAD(tip), i, NIPQUAD(targets[i]),
-		       bond_has_this_ip(bond, tip));
+		dprintk("bva: sip %pI4 tip %pI4 t[%d] %pI4 bhti(tip) %d\n",
+			&sip, &tip, i, &targets[i], bond_has_this_ip(bond, tip));
 		if (sip == targets[i]) {
 			if (bond_has_this_ip(bond, tip))
 				slave->last_arp_rx = jiffies;
@@ -2727,10 +2725,10 @@ static int bond_arp_rcv(struct sk_buff *skb, struct net_device *dev, struct pack
 	arp_ptr += 4 + dev->addr_len;
 	memcpy(&tip, arp_ptr, 4);
 
-	dprintk("bond_arp_rcv: %s %s/%d av %d sv %d sip %u.%u.%u.%u"
-		" tip %u.%u.%u.%u\n", bond->dev->name, slave->dev->name,
-		slave->state, bond->params.arp_validate,
-		slave_do_arp_validate(bond, slave), NIPQUAD(sip), NIPQUAD(tip));
+	dprintk("bond_arp_rcv: %s %s/%d av %d sv %d sip %pI4 tip %pI4\n",
+		bond->dev->name, slave->dev->name, slave->state,
+		bond->params.arp_validate, slave_do_arp_validate(bond, slave),
+		&sip, &tip);
 
 	/*
 	 * Backup slaves won't see the ARP reply, but do come through
