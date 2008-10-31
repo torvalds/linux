@@ -30,6 +30,7 @@ static struct resource iic0_resources[] = {
 
 static struct platform_device iic0_device = {
 	.name           = "i2c-sh_mobile",
+	.id             = 0, /* "i2c0" clock */
 	.num_resources  = ARRAY_SIZE(iic0_resources),
 	.resource       = iic0_resources,
 };
@@ -50,6 +51,7 @@ static struct resource iic1_resources[] = {
 
 static struct platform_device iic1_device = {
 	.name           = "i2c-sh_mobile",
+	.id             = 1, /* "i2c1" clock */
 	.num_resources  = ARRAY_SIZE(iic1_resources),
 	.resource       = iic1_resources,
 };
@@ -147,8 +149,6 @@ static int __init sh7343_devices_setup(void)
 	clk_always_enable("mstp023"); /* INTC3 */
 	clk_always_enable("mstp022"); /* INTC */
 	clk_always_enable("mstp020"); /* SuperHyway */
-	clk_always_enable("mstp109"); /* I2C0 */
-	clk_always_enable("mstp108"); /* I2C1 */
 	clk_always_enable("mstp202"); /* VEU */
 	clk_always_enable("mstp201"); /* VPU */
 

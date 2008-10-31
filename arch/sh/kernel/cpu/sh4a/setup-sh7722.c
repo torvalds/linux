@@ -87,6 +87,7 @@ static struct resource iic_resources[] = {
 
 static struct platform_device iic_device = {
 	.name           = "i2c-sh_mobile",
+	.id             = 0, /* "i2c0" clock */
 	.num_resources  = ARRAY_SIZE(iic_resources),
 	.resource       = iic_resources,
 };
@@ -197,7 +198,6 @@ static int __init sh7722_devices_setup(void)
 	clk_always_enable("mstp026"); /* XYMEM */
 	clk_always_enable("mstp022"); /* INTC */
 	clk_always_enable("mstp020"); /* SuperHyway */
-	clk_always_enable("mstp109"); /* I2C */
 	clk_always_enable("mstp211"); /* USB */
 	clk_always_enable("mstp202"); /* VEU */
 	clk_always_enable("mstp201"); /* VPU */
