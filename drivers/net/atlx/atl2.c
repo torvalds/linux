@@ -724,7 +724,7 @@ static int atl2_open(struct net_device *netdev)
 
 	clear_bit(__ATL2_DOWN, &adapter->flags);
 
-	mod_timer(&adapter->watchdog_timer, jiffies + 4*HZ);
+	mod_timer(&adapter->watchdog_timer, round_jiffies(jiffies + 4*HZ));
 
 	val = ATL2_READ_REG(&adapter->hw, REG_MASTER_CTRL);
 	ATL2_WRITE_REG(&adapter->hw, REG_MASTER_CTRL,
@@ -1051,7 +1051,8 @@ static void atl2_watchdog(unsigned long data)
 		adapter->netdev->stats.rx_over_errors += drop_rxd + drop_rxs;
 
 		/* Reset the timer */
-		mod_timer(&adapter->watchdog_timer, jiffies + 4 * HZ);
+		mod_timer(&adapter->watchdog_timer,
+			  round_jiffies(jiffies + 4 * HZ));
 	}
 }
 
@@ -1255,7 +1256,8 @@ static int atl2_check_link(struct atl2_adapter *adapter)
 	 * (if interval smaller than 5 seconds, something strange) */
 	if (!test_bit(__ATL2_DOWN, &adapter->flags)) {
 		if (!test_and_set_bit(0, &adapter->cfg_phy))
-			mod_timer(&adapter->phy_config_timer, jiffies + 5 * HZ);
+			mod_timer(&adapter->phy_config_timer,
+				  round_jiffies(jiffies + 5 * HZ));
 	}
 
 	return 0;
