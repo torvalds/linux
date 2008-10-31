@@ -179,7 +179,7 @@ static __be32 *xdr_encode_mon_name(__be32 *p, struct nsm_args *argp)
 
 	if (!nsm_use_hostnames) {
 		snprintf(buffer, XDR_ADDRBUF_LEN,
-			 NIPQUAD_FMT, NIPQUAD(argp->addr));
+			 "%pI4", &argp->addr);
 		name = buffer;
 	}
 

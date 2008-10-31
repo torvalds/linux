@@ -330,7 +330,7 @@ static ssize_t failover_unlock_ip(struct file *file, char *buf, size_t size)
 		return -EINVAL;
 
 	/* get ipv4 address */
-	if (sscanf(fo_path, NIPQUAD_FMT "%c", &b1, &b2, &b3, &b4, &c) != 4)
+	if (sscanf(fo_path, "%u.%u.%u.%u%c", &b1, &b2, &b3, &b4, &c) != 4)
 		return -EINVAL;
 	if (b1 > 255 || b2 > 255 || b3 > 255 || b4 > 255)
 		return -EINVAL;

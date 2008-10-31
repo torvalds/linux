@@ -304,8 +304,8 @@ static int sc_seq_show(struct seq_file *seq, void *v)
 		 * use of it here generates a warning with -Wbitwise */
 		seq_printf(seq, "%p:\n"
 			   "  krefs:           %d\n"
-			   "  sock:            %u.%u.%u.%u:%u -> "
-					      "%u.%u.%u.%u:%u\n"
+			   "  sock:            %pI4:%u -> "
+					      "%pI4:%u\n"
 			   "  remote node:     %s\n"
 			   "  page off:        %zu\n"
 			   "  handshake ok:    %u\n"
@@ -319,8 +319,8 @@ static int sc_seq_show(struct seq_file *seq, void *v)
 			   "  func type:       %u\n",
 			   sc,
 			   atomic_read(&sc->sc_kref.refcount),
-			   NIPQUAD(saddr), inet ? ntohs(sport) : 0,
-			   NIPQUAD(daddr), inet ? ntohs(dport) : 0,
+			   &saddr, inet ? ntohs(sport) : 0,
+			   &daddr, inet ? ntohs(dport) : 0,
 			   sc->sc_node->nd_name,
 			   sc->sc_page_off,
 			   sc->sc_handshake_ok,

@@ -2058,8 +2058,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			rc = -ENOMEM;
 		else {
 			pSesInfo->server = srvTcp;
-			sprintf(pSesInfo->serverName, "%u.%u.%u.%u",
-				NIPQUAD(sin_server.sin_addr.s_addr));
+			sprintf(pSesInfo->serverName, "%pI4",
+				&sin_server.sin_addr.s_addr);
 		}
 
 		if (!rc) {

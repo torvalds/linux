@@ -329,7 +329,7 @@ static int __init root_nfs_addr(void)
 	}
 
 	snprintf(nfs_data.hostname, sizeof(nfs_data.hostname),
-		 "%u.%u.%u.%u", NIPQUAD(servaddr));
+		 "%pI4", &servaddr);
 	return 0;
 }
 
@@ -421,8 +421,8 @@ static int __init root_nfs_getport(int program, int version, int proto)
 {
 	struct sockaddr_in sin;
 
-	printk(KERN_NOTICE "Looking up port of RPC %d/%d on %u.%u.%u.%u\n",
-		program, version, NIPQUAD(servaddr));
+	printk(KERN_NOTICE "Looking up port of RPC %d/%d on %pI4\n",
+		program, version, &servaddr);
 	set_sockaddr(&sin, servaddr, 0);
 	return rpcb_getport_sync(&sin, program, version, proto);
 }

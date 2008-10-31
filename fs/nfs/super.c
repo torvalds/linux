@@ -462,8 +462,7 @@ static void nfs_show_mountd_options(struct seq_file *m, struct nfs_server *nfss,
 	switch (sap->sa_family) {
 	case AF_INET: {
 		struct sockaddr_in *sin = (struct sockaddr_in *)sap;
-		seq_printf(m, ",mountaddr=" NIPQUAD_FMT,
-				NIPQUAD(sin->sin_addr.s_addr));
+		seq_printf(m, ",mountaddr=%pI4", &sin->sin_addr.s_addr);
 		break;
 	}
 	case AF_INET6: {

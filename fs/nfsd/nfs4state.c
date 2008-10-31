@@ -719,8 +719,8 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		status = nfserr_clid_inuse;
 		if (!same_creds(&conf->cl_cred, &rqstp->rq_cred)
 				|| conf->cl_addr != sin->sin_addr.s_addr) {
-			dprintk("NFSD: setclientid: string in use by client"
-				"at %u.%u.%u.%u\n", NIPQUAD(conf->cl_addr));
+			dprintk("NFSD: setclientid: string in use by clientat %pI4\n",
+				&conf->cl_addr);
 			goto out;
 		}
 	}
