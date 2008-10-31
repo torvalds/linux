@@ -152,6 +152,8 @@ static void kvm_free_assigned_device(struct kvm *kvm,
 		 */
 		kvm_put_kvm(kvm);
 
+	pci_reset_function(assigned_dev->dev);
+
 	pci_release_regions(assigned_dev->dev);
 	pci_disable_device(assigned_dev->dev);
 	pci_dev_put(assigned_dev->dev);
@@ -283,6 +285,9 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 		       __func__);
 		goto out_disable;
 	}
+
+	pci_reset_function(dev);
+
 	match->assigned_dev_id = assigned_dev->assigned_dev_id;
 	match->host_busnr = assigned_dev->busnr;
 	match->host_devfn = assigned_dev->devfn;
