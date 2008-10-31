@@ -86,6 +86,10 @@ enum s3c_gpio_number {
 #define S3C64XX_GPP(_nr)	(S3C64XX_GPIO_P_START + (_nr))
 #define S3C64XX_GPQ(_nr)	(S3C64XX_GPIO_Q_START + (_nr))
 
+/* the end of the S3C64XX specific gpios */
+#define S3C64XX_GPIO_END	(S3C64XX_GPQ(S3C64XX_GPIO_Q_NR) + 1)
+#define S3C_GPIO_END		S3C64XX_GPIO_END
+
 /* define the number of gpios we need to the one after the GPQ() range */
 #define ARCH_NR_GPIOS	(S3C64XX_GPQ(S3C64XX_GPIO_Q_NR) + 1)
 
