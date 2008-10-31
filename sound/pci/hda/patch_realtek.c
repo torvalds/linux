@@ -12244,8 +12244,26 @@ static int alc269_auto_create_multi_out_ctls(struct alc_spec *spec,
 	return 0;
 }
 
-#define alc269_auto_create_analog_input_ctls \
-	alc880_auto_create_analog_input_ctls
+static int alc269_auto_create_analog_input_ctls(struct alc_spec *spec,
+						const struct auto_pin_cfg *cfg)
+{
+	int err;
+
+	err = alc880_auto_create_analog_input_ctls(spec, cfg);
+	if (err < 0)
+		return err;
+	/* digital-mic input pin is excluded in alc880_auto_create..()
+	 * because it's under 0x18
+	 */
+	if (cfg->input_pins[AUTO_PIN_MIC] == 0x12 ||
+	    cfg->input_pins[AUTO_PIN_FRONT_MIC] == 0x12) {
+		struct hda_input_mux *imux = &spec->private_imux;
+		imux->items[imux->num_items].label = "Int Mic";
+		imux->items[imux->num_items].index = 0x05;
+		imux->num_items++;
+	}
+	return 0;
+}
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 #define alc269_loopbacks	alc880_loopbacks
