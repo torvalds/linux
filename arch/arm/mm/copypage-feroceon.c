@@ -7,15 +7,14 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * This handles copy_user_page and clear_user_page on Feroceon
+ * This handles copy_user_highpage and clear_user_page on Feroceon
  * more optimally than the generic implementations.
  */
 #include <linux/init.h>
+#include <linux/highmem.h>
 
-#include <asm/page.h>
-
-void __attribute__((naked))
-feroceon_copy_user_page(void *kto, const void *kfrom, unsigned long vaddr)
+static void __attribute__((naked))
+feroceon_copy_user_page(void *kto, const void *kfrom)
 {
 	asm("\
 	stmfd	sp!, {r4-r9, lr}		\n\
@@ -68,6 +67,18 @@ feroceon_copy_user_page(void *kto, const void *kfrom, unsigned long vaddr)
 	: "I" (PAGE_SIZE));
 }
 
+void feroceon_copy_user_highpage(struct page *to, struct page *from,
+	unsigned long vaddr)
+{
+	void *kto, *kfrom;
+
+	kto = kmap_atomic(to, KM_USER0);
+	kfrom = kmap_atomic(from, KM_USER1);
+	feroceon_copy_user_page(kto, kfrom);
+	kunmap_atomic(kfrom, KM_USER1);
+	kunmap_atomic(kto, KM_USER0);
+}
+
 void __attribute__((naked))
 feroceon_clear_user_page(void *kaddr, unsigned long vaddr)
 {
@@ -95,6 +106,6 @@ feroceon_clear_user_page(void *kaddr, unsigned long vaddr)
 
 struct cpu_user_fns feroceon_user_fns __initdata = {
 	.cpu_clear_user_page	= feroceon_clear_user_page,
-	.cpu_copy_user_page	= feroceon_copy_user_page,
+	.cpu_copy_user_highpage	= feroceon_copy_user_highpage,
 };
 

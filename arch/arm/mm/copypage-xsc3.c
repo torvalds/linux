@@ -11,8 +11,7 @@
  * Author: Matt Gilbert (matthew.m.gilbert@intel.com)
  */
 #include <linux/init.h>
-
-#include <asm/page.h>
+#include <linux/highmem.h>
 
 /*
  * General note:
@@ -21,18 +20,17 @@
  */
 
 /*
- * XSC3 optimised copy_user_page
+ * XSC3 optimised copy_user_highpage
  *  r0 = destination
  *  r1 = source
- *  r2 = virtual user address of ultimate destination page
  *
  * The source page may have some clean entries in the cache already, but we
  * can safely ignore them - break_cow() will flush them out of the cache
  * if we eventually end up using our copied page.
  *
  */
-void __attribute__((naked))
-xsc3_mc_copy_user_page(void *kto, const void *kfrom, unsigned long vaddr)
+static void __attribute__((naked))
+xsc3_mc_copy_user_page(void *kto, const void *kfrom)
 {
 	asm("\
 	stmfd	sp!, {r4, r5, lr}		\n\
@@ -72,6 +70,18 @@ xsc3_mc_copy_user_page(void *kto, const void *kfrom, unsigned long vaddr)
 	: "I" (PAGE_SIZE / 64 - 1));
 }
 
+void xsc3_mc_copy_user_highpage(struct page *to, struct page *from,
+	unsigned long vaddr)
+{
+	void *kto, *kfrom;
+
+	kto = kmap_atomic(to, KM_USER0);
+	kfrom = kmap_atomic(from, KM_USER1);
+	xsc3_mc_copy_user_page(kto, kfrom);
+	kunmap_atomic(kfrom, KM_USER1);
+	kunmap_atomic(kto, KM_USER0);
+}
+
 /*
  * XScale optimised clear_user_page
  *  r0 = destination
@@ -98,5 +108,5 @@ xsc3_mc_clear_user_page(void *kaddr, unsigned long vaddr)
 
 struct cpu_user_fns xsc3_mc_user_fns __initdata = {
 	.cpu_clear_user_page	= xsc3_mc_clear_user_page,
-	.cpu_copy_user_page	= xsc3_mc_copy_user_page,
+	.cpu_copy_user_highpage	= xsc3_mc_copy_user_highpage,
 };

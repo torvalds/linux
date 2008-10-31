@@ -15,8 +15,8 @@
  */
 #include <linux/init.h>
 #include <linux/mm.h>
+#include <linux/highmem.h>
 
-#include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
@@ -35,7 +35,7 @@
 static DEFINE_SPINLOCK(minicache_lock);
 
 /*
- * XScale mini-dcache optimised copy_user_page
+ * XScale mini-dcache optimised copy_user_highpage
  *
  * We flush the destination cache lines just before we write the data into the
  * corresponding address.  Since the Dcache is read-allocate, this removes the
@@ -90,21 +90,24 @@ mc_copy_user_page(void *from, void *to)
 	: "r" (from), "r" (to), "I" (PAGE_SIZE / 64 - 1));
 }
 
-void xscale_mc_copy_user_page(void *kto, const void *kfrom, unsigned long vaddr)
+void xscale_mc_copy_user_highpage(struct page *to, struct page *from,
+	unsigned long vaddr)
 {
-	struct page *page = virt_to_page(kfrom);
+	void *kto = kmap_atomic(to, KM_USER1);
 
-	if (test_and_clear_bit(PG_dcache_dirty, &page->flags))
-		__flush_dcache_page(page_mapping(page), page);
+	if (test_and_clear_bit(PG_dcache_dirty, &from->flags))
+		__flush_dcache_page(page_mapping(from), from);
 
 	spin_lock(&minicache_lock);
 
-	set_pte_ext(TOP_PTE(COPYPAGE_MINICACHE), pfn_pte(__pa(kfrom) >> PAGE_SHIFT, minicache_pgprot), 0);
+	set_pte_ext(TOP_PTE(COPYPAGE_MINICACHE), pfn_pte(page_to_pfn(from), minicache_pgprot), 0);
 	flush_tlb_kernel_page(COPYPAGE_MINICACHE);
 
 	mc_copy_user_page((void *)COPYPAGE_MINICACHE, kto);
 
 	spin_unlock(&minicache_lock);
+
+	kunmap_atomic(kto, KM_USER1);
 }
 
 /*
@@ -133,5 +136,5 @@ xscale_mc_clear_user_page(void *kaddr, unsigned long vaddr)
 
 struct cpu_user_fns xscale_mc_user_fns __initdata = {
 	.cpu_clear_user_page	= xscale_mc_clear_user_page, 
-	.cpu_copy_user_page	= xscale_mc_copy_user_page,
+	.cpu_copy_user_highpage	= xscale_mc_copy_user_highpage,
 };

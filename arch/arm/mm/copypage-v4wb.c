@@ -8,11 +8,10 @@
  * published by the Free Software Foundation.
  */
 #include <linux/init.h>
-
-#include <asm/page.h>
+#include <linux/highmem.h>
 
 /*
- * ARMv4 optimised copy_user_page
+ * ARMv4 optimised copy_user_highpage
  *
  * We flush the destination cache lines just before we write the data into the
  * corresponding address.  Since the Dcache is read-allocate, this removes the
@@ -21,10 +20,10 @@
  *
  * Note: We rely on all ARMv4 processors implementing the "invalidate D line"
  * instruction.  If your processor does not supply this, you have to write your
- * own copy_user_page that does the right thing.
+ * own copy_user_highpage that does the right thing.
  */
-void __attribute__((naked))
-v4wb_copy_user_page(void *kto, const void *kfrom, unsigned long vaddr)
+static void __attribute__((naked))
+v4wb_copy_user_page(void *kto, const void *kfrom)
 {
 	asm("\
 	stmfd	sp!, {r4, lr}			@ 2\n\
@@ -46,6 +45,18 @@ v4wb_copy_user_page(void *kto, const void *kfrom, unsigned long vaddr)
 	ldmfd	 sp!, {r4, pc}			@ 3"
 	:
 	: "I" (PAGE_SIZE / 64));
+}
+
+void v4wb_copy_user_highpage(struct page *to, struct page *from,
+	unsigned long vaddr)
+{
+	void *kto, *kfrom;
+
+	kto = kmap_atomic(to, KM_USER0);
+	kfrom = kmap_atomic(from, KM_USER1);
+	v4wb_copy_user_page(kto, kfrom);
+	kunmap_atomic(kfrom, KM_USER1);
+	kunmap_atomic(kto, KM_USER0);
 }
 
 /*
@@ -79,5 +90,5 @@ v4wb_clear_user_page(void *kaddr, unsigned long vaddr)
 
 struct cpu_user_fns v4wb_user_fns __initdata = {
 	.cpu_clear_user_page	= v4wb_clear_user_page,
-	.cpu_copy_user_page	= v4wb_copy_user_page,
+	.cpu_copy_user_highpage	= v4wb_copy_user_highpage,
 };
