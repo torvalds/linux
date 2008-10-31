@@ -862,10 +862,8 @@ static void rtl8225z2_b_rf_init(struct ieee80211_hw *dev)
 	rtl8225_write(dev, 0x3, 0x080); msleep(1);
 	rtl8225_write(dev, 0x5, 0x004); msleep(1);
 	rtl8225_write(dev, 0x0, 0x0B7); msleep(1);
-	msleep(3000);
 
 	rtl8225_write(dev, 0x2, 0xC4D); msleep(1);
-	msleep(2000);
 
 	rtl8225_write(dev, 0x2, 0x44D); msleep(1);
 	rtl8225_write(dev, 0x0, 0x2BF); msleep(1);
