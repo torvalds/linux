@@ -170,6 +170,20 @@ relocate_kernel(unsigned long indirection_page,
 		unsigned long start_address) ATTRIB_NORET;
 #endif
 
+#ifdef CONFIG_X86_32
+#define ARCH_HAS_KIMAGE_ARCH
+
+struct kimage_arch {
+	pgd_t *pgd;
+#ifdef CONFIG_X86_PAE
+	pmd_t *pmd0;
+	pmd_t *pmd1;
+#endif
+	pte_t *pte0;
+	pte_t *pte1;
+};
+#endif
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_X86_KEXEC_H */
