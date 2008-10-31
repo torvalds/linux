@@ -98,8 +98,7 @@ static void warn_if_extra_mangle(struct net *net, __be32 dstip, __be32 srcip)
 
 	if (rt->rt_src != srcip && !warned) {
 		printk("NAT: no longer support implicit source local NAT\n");
-		printk("NAT: packet src %u.%u.%u.%u -> dst %u.%u.%u.%u\n",
-		       NIPQUAD(srcip), NIPQUAD(dstip));
+		printk("NAT: packet src %pI4 -> dst %pI4\n", &srcip, &dstip);
 		warned = 1;
 	}
 	ip_rt_put(rt);
@@ -166,8 +165,7 @@ alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 	struct nf_nat_range range
 		= { IP_NAT_RANGE_MAP_IPS, ip, ip, { 0 }, { 0 } };
 
-	pr_debug("Allocating NULL binding for %p (%u.%u.%u.%u)\n",
-		 ct, NIPQUAD(ip));
+	pr_debug("Allocating NULL binding for %p (%pI4)\n", ct, &ip);
 	return nf_nat_setup_info(ct, &range, HOOK2MANIP(hooknum));
 }
 

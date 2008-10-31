@@ -54,8 +54,8 @@ static void dump_packet(const struct nf_loginfo *info,
 	/* Important fields:
 	 * TOS, len, DF/MF, fragment offset, TTL, src, dst, options. */
 	/* Max length: 40 "SRC=255.255.255.255 DST=255.255.255.255 " */
-	printk("SRC=%u.%u.%u.%u DST=%u.%u.%u.%u ",
-	       NIPQUAD(ih->saddr), NIPQUAD(ih->daddr));
+	printk("SRC=%pI4 DST=%pI4 ",
+	       &ih->saddr, &ih->daddr);
 
 	/* Max length: 46 "LEN=65535 TOS=0xFF PREC=0xFF TTL=255 ID=65535 " */
 	printk("LEN=%u TOS=0x%02X PREC=0x%02X TTL=%u ID=%u ",
@@ -262,8 +262,7 @@ static void dump_packet(const struct nf_loginfo *info,
 			break;
 		case ICMP_REDIRECT:
 			/* Max length: 24 "GATEWAY=255.255.255.255 " */
-			printk("GATEWAY=%u.%u.%u.%u ",
-			       NIPQUAD(ich->un.gateway));
+			printk("GATEWAY=%pI4 ", &ich->un.gateway);
 			/* Fall through */
 		case ICMP_DEST_UNREACH:
 		case ICMP_SOURCE_QUENCH:
