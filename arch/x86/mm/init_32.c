@@ -102,6 +102,8 @@ static pmd_t * __init one_md_table_init(pgd_t *pgd)
 		set_pgd(pgd, __pgd(__pa(pmd_table) | _PAGE_PRESENT));
 		pud = pud_offset(pgd, 0);
 		BUG_ON(pmd_table != pmd_offset(pud, 0));
+
+		return pmd_table;
 	}
 #endif
 	pud = pud_offset(pgd, 0);
