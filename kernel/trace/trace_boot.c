@@ -27,10 +27,14 @@ void start_boot_trace(void)
 
 void enable_boot_trace(void)
 {
+	if (pre_initcalls_finished)
+		tracing_start_cmdline_record();
 }
 
 void disable_boot_trace(void)
 {
+	if (pre_initcalls_finished)
+		tracing_stop_cmdline_record();
 }
 
 void reset_boot_trace(struct trace_array *tr)
@@ -45,6 +49,8 @@ static void boot_trace_init(struct trace_array *tr)
 
 	for_each_cpu_mask(cpu, cpu_possible_map)
 		tracing_reset(tr, cpu);
+
+	sched_switch_trace.init(tr);
 }
 
 static void boot_trace_ctrl_update(struct trace_array *tr)

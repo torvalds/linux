@@ -127,6 +127,7 @@ static void tracing_start_sched_switch(void)
 	long ref;
 
 	mutex_lock(&tracepoint_mutex);
+	tracer_enabled = 1;
 	ref = atomic_inc_return(&sched_ref);
 	if (ref == 1)
 		tracing_sched_register();
@@ -138,6 +139,7 @@ static void tracing_stop_sched_switch(void)
 	long ref;
 
 	mutex_lock(&tracepoint_mutex);
+	tracer_enabled = 0;
 	ref = atomic_dec_and_test(&sched_ref);
 	if (ref)
 		tracing_sched_unregister();
@@ -158,12 +160,10 @@ static void start_sched_trace(struct trace_array *tr)
 {
 	sched_switch_reset(tr);
 	tracing_start_cmdline_record();
-	tracer_enabled = 1;
 }
 
 static void stop_sched_trace(struct trace_array *tr)
 {
-	tracer_enabled = 0;
 	tracing_stop_cmdline_record();
 }
 
@@ -190,7 +190,7 @@ static void sched_switch_trace_ctrl_update(struct trace_array *tr)
 		stop_sched_trace(tr);
 }
 
-static struct tracer sched_switch_trace __read_mostly =
+struct tracer sched_switch_trace __read_mostly =
 {
 	.name		= "sched_switch",
 	.init		= sched_switch_trace_init,

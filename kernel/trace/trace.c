@@ -3251,6 +3251,8 @@ __init static int tracer_alloc_buffers(void)
 
 	register_tracer(&nop_trace);
 #ifdef CONFIG_BOOT_TRACER
+	/* We don't want to launch sched_switch tracer yet */
+	global_trace.ctrl = 0;
 	register_tracer(&boot_tracer);
 	current_trace = &boot_tracer;
 	current_trace->init(&global_trace);
