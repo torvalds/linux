@@ -632,53 +632,6 @@ static struct clk_ops sh7722_mstpcr_clk_ops = {
 	.recalc = sh7722_mstpcr_recalc,
 };
 
-#define DECLARE_MSTPCRN(regnr, bitnr, bitstr)		\
-{							\
-	.name = "mstp" __stringify(regnr) bitstr,	\
-	.arch_flags = MSTPCR_ARCH_FLAGS(regnr, bitnr),	\
-	.ops = &sh7722_mstpcr_clk_ops,	\
-}
-
-#define DECLARE_MSTPCR(regnr) \
-	DECLARE_MSTPCRN(regnr, 31, "31"), \
-	DECLARE_MSTPCRN(regnr, 30, "30"), \
-	DECLARE_MSTPCRN(regnr, 29, "29"), \
-	DECLARE_MSTPCRN(regnr, 28, "28"), \
-	DECLARE_MSTPCRN(regnr, 27, "27"), \
-	DECLARE_MSTPCRN(regnr, 26, "26"), \
-	DECLARE_MSTPCRN(regnr, 25, "25"), \
-	DECLARE_MSTPCRN(regnr, 24, "24"), \
-	DECLARE_MSTPCRN(regnr, 23, "23"), \
-	DECLARE_MSTPCRN(regnr, 22, "22"), \
-	DECLARE_MSTPCRN(regnr, 21, "21"), \
-	DECLARE_MSTPCRN(regnr, 20, "20"), \
-	DECLARE_MSTPCRN(regnr, 19, "19"), \
-	DECLARE_MSTPCRN(regnr, 18, "18"), \
-	DECLARE_MSTPCRN(regnr, 17, "17"), \
-	DECLARE_MSTPCRN(regnr, 16, "16"), \
-	DECLARE_MSTPCRN(regnr, 15, "15"), \
-	DECLARE_MSTPCRN(regnr, 14, "14"), \
-	DECLARE_MSTPCRN(regnr, 13, "13"), \
-	DECLARE_MSTPCRN(regnr, 12, "12"), \
-	DECLARE_MSTPCRN(regnr, 11, "11"), \
-	DECLARE_MSTPCRN(regnr, 10, "10"), \
-	DECLARE_MSTPCRN(regnr, 9, "09"), \
-	DECLARE_MSTPCRN(regnr, 8, "08"), \
-	DECLARE_MSTPCRN(regnr, 7, "07"), \
-	DECLARE_MSTPCRN(regnr, 6, "06"), \
-	DECLARE_MSTPCRN(regnr, 5, "05"), \
-	DECLARE_MSTPCRN(regnr, 4, "04"), \
-	DECLARE_MSTPCRN(regnr, 3, "03"), \
-	DECLARE_MSTPCRN(regnr, 2, "02"), \
-	DECLARE_MSTPCRN(regnr, 1, "01"), \
-	DECLARE_MSTPCRN(regnr, 0, "00")
-
-static struct clk sh7722_mstpcr[] = {
-	DECLARE_MSTPCR(0),
-	DECLARE_MSTPCR(1),
-	DECLARE_MSTPCR(2),
-};
-
 #define MSTPCR(_name, _parent, regnr, bitnr) \
 {						\
 	.name = _name,				\
@@ -883,11 +836,6 @@ int __init arch_clk_init(void)
 		sh7722_mstpcr_clocks[i].ops = &sh7722_mstpcr_clk_ops;
 		clk_register(&sh7722_mstpcr_clocks[i]);
 		clk_put(clk);
-	}
-
-	for (i = 0; i < ARRAY_SIZE(sh7722_mstpcr); i++) {
-		pr_debug( "Registering mstpcr '%s'\n", sh7722_mstpcr[i].name);
-		clk_register(&sh7722_mstpcr[i]);
 	}
 
 	return 0;

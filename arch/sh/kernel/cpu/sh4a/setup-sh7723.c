@@ -232,17 +232,11 @@ static struct platform_device *sh7723_devices[] __initdata = {
 
 static int __init sh7723_devices_setup(void)
 {
-	clk_always_enable("mstp031"); /* TLB */
-	clk_always_enable("mstp030"); /* IC */
-	clk_always_enable("mstp029"); /* OC */
-	clk_always_enable("mstp024"); /* FPU */
-	clk_always_enable("mstp022"); /* INTC */
-	clk_always_enable("mstp020"); /* SuperHyway */
-	clk_always_enable("mstp000"); /* MERAM */
-	clk_always_enable("mstp108"); /* RTC */
-	clk_always_enable("mstp206"); /* VEU2H1 */
-	clk_always_enable("mstp202"); /* VEU2H0 */
-	clk_always_enable("mstp201"); /* VPU */
+	clk_always_enable("meram0"); /* MERAM */
+	clk_always_enable("rtc0"); /* RTC */
+	clk_always_enable("veu1"); /* VEU2H1 */
+	clk_always_enable("veu0"); /* VEU2H0 */
+	clk_always_enable("vpu0"); /* VPU */
 
 	platform_resource_setup_memory(&vpu_device, "vpu", 2 << 20);
 	platform_resource_setup_memory(&veu0_device, "veu0", 2 << 20);
