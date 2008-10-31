@@ -433,6 +433,11 @@ static inline struct sk_buff *qdisc_dequeue_tail(struct Qdisc *sch)
 	return __qdisc_dequeue_tail(sch, &sch->q);
 }
 
+static inline struct sk_buff *qdisc_peek_head(struct Qdisc *sch)
+{
+	return skb_peek(&sch->q);
+}
+
 static inline int __qdisc_requeue(struct sk_buff *skb, struct Qdisc *sch,
 				  struct sk_buff_head *list)
 {

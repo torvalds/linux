@@ -120,6 +120,19 @@ prio_requeue(struct sk_buff *skb, struct Qdisc* sch)
 	return ret;
 }
 
+static struct sk_buff *prio_peek(struct Qdisc *sch)
+{
+	struct prio_sched_data *q = qdisc_priv(sch);
+	int prio;
+
+	for (prio = 0; prio < q->bands; prio++) {
+		struct Qdisc *qdisc = q->queues[prio];
+		struct sk_buff *skb = qdisc->ops->peek(qdisc);
+		if (skb)
+			return skb;
+	}
+	return NULL;
+}
 
 static struct sk_buff *prio_dequeue(struct Qdisc* sch)
 {
@@ -421,6 +434,7 @@ static struct Qdisc_ops prio_qdisc_ops __read_mostly = {
 	.priv_size	=	sizeof(struct prio_sched_data),
 	.enqueue	=	prio_enqueue,
 	.dequeue	=	prio_dequeue,
+	.peek		=	prio_peek,
 	.requeue	=	prio_requeue,
 	.drop		=	prio_drop,
 	.init		=	prio_init,

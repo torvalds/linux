@@ -391,8 +391,19 @@ sfq_requeue(struct sk_buff *skb, struct Qdisc *sch)
 	return NET_XMIT_CN;
 }
 
+static struct sk_buff *
+sfq_peek(struct Qdisc *sch)
+{
+	struct sfq_sched_data *q = qdisc_priv(sch);
+	sfq_index a;
 
+	/* No active slots */
+	if (q->tail == SFQ_DEPTH)
+		return NULL;
 
+	a = q->next[q->tail];
+	return skb_peek(&q->qs[a]);
+}
 
 static struct sk_buff *
 sfq_dequeue(struct Qdisc *sch)
@@ -624,6 +635,7 @@ static struct Qdisc_ops sfq_qdisc_ops __read_mostly = {
 	.priv_size	=	sizeof(struct sfq_sched_data),
 	.enqueue	=	sfq_enqueue,
 	.dequeue	=	sfq_dequeue,
+	.peek		=	sfq_peek,
 	.requeue	=	sfq_requeue,
 	.drop		=	sfq_drop,
 	.init		=	sfq_init,
