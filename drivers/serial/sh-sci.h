@@ -166,6 +166,7 @@
 #if defined(CONFIG_CPU_SUBTYPE_SH7750)  || \
     defined(CONFIG_CPU_SUBTYPE_SH7091)  || \
     defined(CONFIG_CPU_SUBTYPE_SH7750R) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7722)  || \
     defined(CONFIG_CPU_SUBTYPE_SH7750S) || \
     defined(CONFIG_CPU_SUBTYPE_SH7751)  || \
     defined(CONFIG_CPU_SUBTYPE_SH7751R) || \

@@ -797,26 +797,27 @@ static irqreturn_t sci_br_interrupt(int irq, void *ptr)
 
 static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 {
-        unsigned short ssr_status, scr_status;
-        struct uart_port *port = ptr;
+	unsigned short ssr_status, scr_status;
+	struct uart_port *port = ptr;
+	irqreturn_t ret = IRQ_NONE;
 
         ssr_status = sci_in(port,SCxSR);
         scr_status = sci_in(port,SCSCR);
 
 	/* Tx Interrupt */
-        if ((ssr_status & 0x0020) && (scr_status & 0x0080))
-                sci_tx_interrupt(irq, ptr);
+	if ((ssr_status & 0x0020) && (scr_status & SCI_CTRL_FLAGS_TIE))
+		ret = sci_tx_interrupt(irq, ptr);
 	/* Rx Interrupt */
-        if ((ssr_status & 0x0002) && (scr_status & 0x0040))
-                sci_rx_interrupt(irq, ptr);
+	if ((ssr_status & 0x0002) && (scr_status & SCI_CTRL_FLAGS_RIE))
+		ret = sci_rx_interrupt(irq, ptr);
 	/* Error Interrupt */
-        if ((ssr_status & 0x0080) && (scr_status & 0x0400))
-                sci_er_interrupt(irq, ptr);
+	if ((ssr_status & 0x0080) && (scr_status & SCI_CTRL_FLAGS_REIE))
+		ret = sci_er_interrupt(irq, ptr);
 	/* Break Interrupt */
-        if ((ssr_status & 0x0010) && (scr_status & 0x0200))
-                sci_br_interrupt(irq, ptr);
+	if ((ssr_status & 0x0010) && (scr_status & SCI_CTRL_FLAGS_REIE))
+		ret = sci_br_interrupt(irq, ptr);
 
-	return IRQ_HANDLED;
+	return ret;
 }
 
 #if defined(CONFIG_CPU_FREQ) && defined(CONFIG_HAVE_CLK)
