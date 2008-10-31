@@ -319,7 +319,7 @@ static int __init init_sched_debug_procfs(void)
 {
 	struct proc_dir_entry *pe;
 
-	pe = proc_create("sched_debug", 0644, NULL, &sched_debug_fops);
+	pe = proc_create("sched_debug", 0444, NULL, &sched_debug_fops);
 	if (!pe)
 		return -ENOMEM;
 	return 0;

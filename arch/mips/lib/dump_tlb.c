@@ -25,6 +25,7 @@ static inline const char *msk2str(unsigned int mask)
 	case PM_16M:	return "16Mb";
 	case PM_64M:	return "64Mb";
 	case PM_256M:	return "256Mb";
+	case PM_1G:	return "1Gb";
 #endif
 	}
 	return "";

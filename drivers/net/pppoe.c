@@ -399,11 +399,11 @@ static int pppoe_rcv(struct sk_buff *skb,
 	if (skb->len < len)
 		goto drop;
 
-	po = get_item(ph->sid, eth_hdr(skb)->h_source, dev->ifindex);
-	if (!po)
+	if (pskb_trim_rcsum(skb, len))
 		goto drop;
 
-	if (pskb_trim_rcsum(skb, len))
+	po = get_item(ph->sid, eth_hdr(skb)->h_source, dev->ifindex);
+	if (!po)
 		goto drop;
 
 	return sk_receive_skb(sk_pppox(po), skb, 0);

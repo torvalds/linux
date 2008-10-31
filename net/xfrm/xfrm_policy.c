@@ -1251,6 +1251,8 @@ xfrm_tmpl_resolve_one(struct xfrm_policy *policy, struct flowi *fl,
 				 -EINVAL : -EAGAIN);
 			xfrm_state_put(x);
 		}
+		else if (error == -ESRCH)
+			error = -EAGAIN;
 
 		if (!tmpl->optional)
 			goto fail;

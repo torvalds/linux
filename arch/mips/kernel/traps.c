@@ -32,6 +32,7 @@
 #include <asm/cpu.h>
 #include <asm/dsp.h>
 #include <asm/fpu.h>
+#include <asm/fpu_emulator.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/module.h>
@@ -720,6 +721,21 @@ static void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
 		break;
 	case BRK_BUG:
 		die_if_kernel("Kernel bug detected", regs);
+		force_sig(SIGTRAP, current);
+		break;
+	case BRK_MEMU:
+		/*
+		 * Address errors may be deliberately induced by the FPU
+		 * emulator to retake control of the CPU after executing the
+		 * instruction in the delay slot of an emulated branch.
+		 *
+		 * Terminate if exception was recognized as a delay slot return
+		 * otherwise handle as normal.
+		 */
+		if (do_dsemulret(regs))
+			return;
+
+		die_if_kernel("Math emu break/trap", regs);
 		force_sig(SIGTRAP, current);
 		break;
 	default:
@@ -1555,6 +1571,8 @@ void __cpuinit set_uncached_handler(unsigned long offset, void *addr,
 #ifdef CONFIG_64BIT
 	unsigned long uncached_ebase = TO_UNCAC(ebase);
 #endif
+	if (cpu_has_mips_r2)
+		ebase += (read_c0_ebase() & 0x3ffff000);
 
 	if (!addr)
 		panic(panic_null_cerr);
@@ -1588,8 +1606,11 @@ void __init trap_init(void)
 
 	if (cpu_has_veic || cpu_has_vint)
 		ebase = (unsigned long) alloc_bootmem_low_pages(0x200 + VECTORSPACING*64);
-	else
+	else {
 		ebase = CAC_BASE;
+		if (cpu_has_mips_r2)
+			ebase += (read_c0_ebase() & 0x3ffff000);
+	}
 
 	per_cpu_trap_init();
 
@@ -1697,11 +1718,11 @@ void __init trap_init(void)
 
 	if (cpu_has_vce)
 		/* Special exception: R4[04]00 uses also the divec space. */
-		memcpy((void *)(CAC_BASE + 0x180), &except_vec3_r4000, 0x100);
+		memcpy((void *)(ebase + 0x180), &except_vec3_r4000, 0x100);
 	else if (cpu_has_4kex)
-		memcpy((void *)(CAC_BASE + 0x180), &except_vec3_generic, 0x80);
+		memcpy((void *)(ebase + 0x180), &except_vec3_generic, 0x80);
 	else
-		memcpy((void *)(CAC_BASE + 0x080), &except_vec3_generic, 0x80);
+		memcpy((void *)(ebase + 0x080), &except_vec3_generic, 0x80);
 
 	signal_init();
 #ifdef CONFIG_MIPS32_COMPAT

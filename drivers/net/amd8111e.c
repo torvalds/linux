@@ -644,10 +644,6 @@ This function frees the  transmiter and receiver descriptor rings.
 */
 static void amd8111e_free_ring(struct amd8111e_priv* lp)
 {
-
-	/* Free transmit and receive skbs */
-	amd8111e_free_skbs(lp->amd8111e_net_dev);
-
 	/* Free transmit and receive descriptor rings */
 	if(lp->rx_ring){
 		pci_free_consistent(lp->pci_dev,
@@ -833,12 +829,14 @@ static int amd8111e_rx_poll(struct napi_struct *napi, int budget)
 
 	} while(intr0 & RINT0);
 
-	/* Receive descriptor is empty now */
-	spin_lock_irqsave(&lp->lock, flags);
-	__netif_rx_complete(dev, napi);
-	writel(VAL0|RINTEN0, mmio + INTEN0);
-	writel(VAL2 | RDMD0, mmio + CMD0);
-	spin_unlock_irqrestore(&lp->lock, flags);
+	if (rx_pkt_limit > 0) {
+		/* Receive descriptor is empty now */
+		spin_lock_irqsave(&lp->lock, flags);
+		__netif_rx_complete(dev, napi);
+		writel(VAL0|RINTEN0, mmio + INTEN0);
+		writel(VAL2 | RDMD0, mmio + CMD0);
+		spin_unlock_irqrestore(&lp->lock, flags);
+	}
 
 rx_not_empty:
 	return num_rx_pkt;
@@ -1231,7 +1229,9 @@ static int amd8111e_close(struct net_device * dev)
 
 	amd8111e_disable_interrupt(lp);
 	amd8111e_stop_chip(lp);
-	amd8111e_free_ring(lp);
+
+	/* Free transmit and receive skbs */
+	amd8111e_free_skbs(lp->amd8111e_net_dev);
 
 	netif_carrier_off(lp->amd8111e_net_dev);
 
@@ -1241,6 +1241,7 @@ static int amd8111e_close(struct net_device * dev)
 
 	spin_unlock_irq(&lp->lock);
 	free_irq(dev->irq, dev);
+	amd8111e_free_ring(lp);
 
 	/* Update the statistics before closing */
 	amd8111e_get_stats(dev);

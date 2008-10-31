@@ -693,8 +693,9 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	type = 0;
 	if (s->functions > 1)		/* All of this ought to be handled higher up */
 		type = IRQF_SHARED;
-	if (req->Attributes & IRQ_TYPE_DYNAMIC_SHARING)
+	else if (req->Attributes & IRQ_TYPE_DYNAMIC_SHARING)
 		type = IRQF_SHARED;
+	else printk(KERN_WARNING "pcmcia: Driver needs updating to support IRQ sharing.\n");
 
 #ifdef CONFIG_PCMCIA_PROBE
 

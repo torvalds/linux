@@ -897,7 +897,8 @@ EXPORT_SYMBOL(vm_unmap_ram);
  * @count: number of pages
  * @node: prefer to allocate data structures on this node
  * @prot: memory protection to use. PAGE_KERNEL for regular RAM
- * @returns: a pointer to the address that has been mapped, or NULL on failure
+ *
+ * Returns: a pointer to the address that has been mapped, or %NULL on failure
  */
 void *vm_map_ram(struct page **pages, unsigned int count, int node, pgprot_t prot)
 {

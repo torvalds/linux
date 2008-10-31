@@ -1078,7 +1078,8 @@ static int __init at91ether_setup(unsigned long phy_type, unsigned short phy_add
 		init_timer(&lp->check_timer);
 		lp->check_timer.data = (unsigned long)dev;
 		lp->check_timer.function = at91ether_check_link;
-	}
+	} else if (lp->board_data.phy_irq_pin >= 32)
+		gpio_request(lp->board_data.phy_irq_pin, "ethernet_phy");
 
 	/* Display ethernet banner */
 	printk(KERN_INFO "%s: AT91 ethernet at 0x%08x int=%d %s%s (%pM)\n",
@@ -1164,6 +1165,9 @@ static int __devexit at91ether_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct at91_private *lp = netdev_priv(dev);
+
+	if (lp->board_data.phy_irq_pin >= 32)
+		gpio_free(lp->board_data.phy_irq_pin);
 
 	unregister_netdev(dev);
 	free_irq(dev->irq, dev);

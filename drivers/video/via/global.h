@@ -38,7 +38,6 @@
 #include "iface.h"
 #include "viafbdev.h"
 #include "chip.h"
-#include "debug.h"
 #include "accel.h"
 #include "share.h"
 #include "dvi.h"
@@ -48,12 +47,10 @@
 
 #include "lcd.h"
 #include "ioctl.h"
-#include "viamode.h"
 #include "via_utility.h"
 #include "vt1636.h"
 #include "tblDPASetting.h"
 #include "tbl1636.h"
-#include "viafbdev.h"
 
 /* External struct*/
 

@@ -128,7 +128,7 @@ Supported Cards/Chipsets
 
 People
 -------------------------
-Alan Cox <alan@redhat.com>
+Alan Cox <alan@lxorguk.ukuu.org.uk>
 Christoph Hellwig <hch@infradead.org>	(updates for new-style PCI probing and SCSI host registration,
 					 small cleanups/fixes)
 Matt Domsch <matt_domsch@dell.com>	(revision ioctl, adapter messages)

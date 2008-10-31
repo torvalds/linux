@@ -385,6 +385,16 @@ static void __init spitz_init_spi(void)
 	if (err)
 		goto err_free_2;
 
+	err = gpio_direction_output(SPITZ_GPIO_ADS7846_CS, 1);
+	if (err)
+		goto err_free_3;
+	err = gpio_direction_output(SPITZ_GPIO_LCDCON_CS, 1);
+	if (err)
+		goto err_free_3;
+	err = gpio_direction_output(SPITZ_GPIO_MAX1111_CS, 1);
+	if (err)
+		goto err_free_3;
+
 	if (machine_is_akita()) {
 		spitz_lcdcon_info.gpio_backlight_cont = AKITA_GPIO_BACKLIGHT_CONT;
 		spitz_lcdcon_info.gpio_backlight_on = AKITA_GPIO_BACKLIGHT_ON;
@@ -394,6 +404,8 @@ static void __init spitz_init_spi(void)
 	spi_register_board_info(ARRAY_AND_SIZE(spitz_spi_devices));
 	return;
 
+err_free_3:
+	gpio_free(SPITZ_GPIO_MAX1111_CS);
 err_free_2:
 	gpio_free(SPITZ_GPIO_LCDCON_CS);
 err_free_1:

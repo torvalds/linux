@@ -601,8 +601,8 @@ static int __init debugfs_mips(void)
 	struct dentry *d;
 
 	d = debugfs_create_dir("mips", NULL);
-	if (IS_ERR(d))
-		return PTR_ERR(d);
+	if (!d)
+		return -ENOMEM;
 	mips_debugfs_dir = d;
 	return 0;
 }

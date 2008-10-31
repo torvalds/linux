@@ -566,10 +566,8 @@ static int stac92xx_smux_enum_put(struct snd_kcontrol *kcontrol,
 			nid = codec->slave_dig_outs[smux_idx - 1];
 		if (spec->cur_smux[smux_idx] == smux->num_items - 1)
 			val = AMP_OUT_MUTE;
-		if (smux_idx == 0)
-			nid = spec->multiout.dig_out_nid;
 		else
-			nid = codec->slave_dig_outs[smux_idx - 1];
+			val = AMP_OUT_UNMUTE;
 		/* un/mute SPDIF out */
 		snd_hda_codec_write_cache(codec, nid, 0,
 			AC_VERB_SET_AMP_GAIN_MUTE, val);

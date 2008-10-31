@@ -183,6 +183,6 @@ EXPORT_SYMBOL(_find_next_bit_be);
 
 EXPORT_SYMBOL(copy_page);
 
-#ifdef CONFIG_FTRACE
+#ifdef CONFIG_FUNCTION_TRACER
 EXPORT_SYMBOL(mcount);
 #endif

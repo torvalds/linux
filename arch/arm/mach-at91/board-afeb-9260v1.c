@@ -165,6 +165,7 @@ static struct at91_mmc_data __initdata afeb9260_mmc_data = {
 static struct i2c_board_info __initdata afeb9260_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("fm3130", 0x68),
+	}, {
 		I2C_BOARD_INFO("24c64", 0x50),
 	},
 };

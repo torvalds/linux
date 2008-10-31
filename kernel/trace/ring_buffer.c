@@ -130,7 +130,7 @@ struct buffer_page {
 static inline void free_buffer_page(struct buffer_page *bpage)
 {
 	if (bpage->page)
-		__free_page(bpage->page);
+		free_page((unsigned long)bpage->page);
 	kfree(bpage);
 }
 
@@ -966,7 +966,9 @@ rb_add_time_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 	if (unlikely(*delta > (1ULL << 59) && !once++)) {
 		printk(KERN_WARNING "Delta way too big! %llu"
 		       " ts=%llu write stamp = %llu\n",
-		       *delta, *ts, cpu_buffer->write_stamp);
+		       (unsigned long long)*delta,
+		       (unsigned long long)*ts,
+		       (unsigned long long)cpu_buffer->write_stamp);
 		WARN_ON(1);
 	}
 

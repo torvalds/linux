@@ -214,6 +214,8 @@ struct pernet_operations {
 
 extern int register_pernet_subsys(struct pernet_operations *);
 extern void unregister_pernet_subsys(struct pernet_operations *);
+extern int register_pernet_gen_subsys(int *id, struct pernet_operations *);
+extern void unregister_pernet_gen_subsys(int id, struct pernet_operations *);
 extern int register_pernet_device(struct pernet_operations *);
 extern void unregister_pernet_device(struct pernet_operations *);
 extern int register_pernet_gen_device(int *id, struct pernet_operations *);

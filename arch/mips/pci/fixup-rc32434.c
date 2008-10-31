@@ -30,6 +30,7 @@
 #include <linux/init.h>
 
 #include <asm/mach-rc32434/rc32434.h>
+#include <asm/mach-rc32434/irq.h>
 
 static int __devinitdata irq_map[2][12] = {
 	{0, 0, 2, 3, 2, 3, 0, 0, 0, 0, 0, 1},

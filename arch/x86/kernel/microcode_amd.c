@@ -39,7 +39,7 @@
 #include <asm/microcode.h>
 
 MODULE_DESCRIPTION("AMD Microcode Update Driver");
-MODULE_AUTHOR("Peter Oruba <peter.oruba@amd.com>");
+MODULE_AUTHOR("Peter Oruba");
 MODULE_LICENSE("GPL v2");
 
 #define UCODE_MAGIC                0x00414d44

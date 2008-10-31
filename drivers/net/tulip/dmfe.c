@@ -419,9 +419,13 @@ static int __devinit dmfe_init_one (struct pci_dev *pdev,
 	/* Allocate Tx/Rx descriptor memory */
 	db->desc_pool_ptr = pci_alloc_consistent(pdev, sizeof(struct tx_desc) *
 			DESC_ALL_CNT + 0x20, &db->desc_pool_dma_ptr);
+	if (!db->desc_pool_ptr)
+		goto err_out_res;
 
 	db->buf_pool_ptr = pci_alloc_consistent(pdev, TX_BUF_ALLOC *
 			TX_DESC_CNT + 4, &db->buf_pool_dma_ptr);
+	if (!db->buf_pool_ptr)
+		goto err_out_free_desc;
 
 	db->first_tx_desc = (struct tx_desc *) db->desc_pool_ptr;
 	db->first_tx_desc_dma = db->desc_pool_dma_ptr;
@@ -468,7 +472,7 @@ static int __devinit dmfe_init_one (struct pci_dev *pdev,
 
 	err = register_netdev (dev);
 	if (err)
-		goto err_out_res;
+		goto err_out_free_buf;
 
 	printk(KERN_INFO "%s: Davicom DM%04lx at pci%s, %pM, irq %d.\n",
 	       dev->name,
@@ -481,6 +485,12 @@ static int __devinit dmfe_init_one (struct pci_dev *pdev,
 
 	return 0;
 
+err_out_free_buf:
+	pci_free_consistent(pdev, TX_BUF_ALLOC * TX_DESC_CNT + 4,
+			    db->buf_pool_ptr, db->buf_pool_dma_ptr);
+err_out_free_desc:
+	pci_free_consistent(pdev, sizeof(struct tx_desc) * DESC_ALL_CNT + 0x20,
+			    db->desc_pool_ptr, db->desc_pool_dma_ptr);
 err_out_res:
 	pci_release_regions(pdev);
 err_out_disable:

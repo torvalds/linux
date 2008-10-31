@@ -1537,7 +1537,6 @@ static inline void __netif_tx_unlock_bh(struct netdev_queue *txq)
 /**
  *	netif_tx_lock - grab network device transmit lock
  *	@dev: network device
- *	@cpu: cpu number of lock owner
  *
  * Get network device transmit lock
  */
