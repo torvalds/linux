@@ -31,6 +31,7 @@
 #define _I915_DRV_H_
 
 #include "i915_reg.h"
+#include <linux/io-mapping.h>
 
 /* General customization:
  */
@@ -245,6 +246,8 @@ typedef struct drm_i915_private {
 
 	struct {
 		struct drm_mm gtt_space;
+
+		struct io_mapping *gtt_mapping;
 
 		/**
 		 * List of objects currently involved in rendering from the
