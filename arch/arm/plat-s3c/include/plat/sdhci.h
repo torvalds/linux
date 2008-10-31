@@ -78,19 +78,28 @@ extern void s3c6410_setup_sdhci0_cfg_card(struct platform_device *dev,
 					   struct mmc_ios *ios,
 					   struct mmc_card *card);
 
+#ifdef CONFIG_S3C_DEV_HSMMC
 static inline void s3c6410_default_sdhci0(void)
 {
 	s3c_hsmmc0_def_platdata.clocks = s3c6410_hsmmc_clksrcs;
 	s3c_hsmmc0_def_platdata.cfg_gpio = s3c6410_setup_sdhci0_cfg_gpio;
 	s3c_hsmmc0_def_platdata.cfg_card = s3c6410_setup_sdhci0_cfg_card;
 }
+#else
+static inline void s3c6410_default_sdhci0(void) { }
+#endif /* CONFIG_S3C_DEV_HSMMC */
 
+#ifdef CONFIG_S3C_DEV_HSMMC1
 static inline void s3c6410_default_sdhci1(void)
 {
 	s3c_hsmmc1_def_platdata.clocks = s3c6410_hsmmc_clksrcs;
 	s3c_hsmmc1_def_platdata.cfg_gpio = s3c6410_setup_sdhci1_cfg_gpio;
 	s3c_hsmmc1_def_platdata.cfg_card = s3c6410_setup_sdhci0_cfg_card;
 }
+#else
+static inline void s3c6410_default_sdhci1(void) { }
+#endif /* CONFIG_S3C_DEV_HSMMC1 */
+
 #else
 static inline void s3c6410_default_sdhci0(void) { }
 static inline void s3c6410_default_sdhci1(void) { }
