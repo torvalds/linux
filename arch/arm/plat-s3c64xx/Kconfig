@@ -37,4 +37,15 @@ config CPU_S3C6400_CLOCK
 	  Common clock support code for the S3C6400 that is shared
 	  by other CPUs in the series, such as the S3C6410.
 
+# platform specific device setup
+
+config S3C64XX_SETUP_I2C0
+	bool
+	default y
+	help
+	  Common setup code for i2c bus 0.
+
+	  Note, currently since i2c0 is always compiled, this setup helper
+	  is always compiled with it.
+
 endif
