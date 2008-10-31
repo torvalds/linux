@@ -303,6 +303,7 @@ static struct resource ceu_resources[] = {
 
 static struct platform_device ceu_device = {
 	.name		= "sh_mobile_ceu",
+	.id             = 0, /* "ceu0" clock */
 	.num_resources	= ARRAY_SIZE(ceu_resources),
 	.resource	= ceu_resources,
 	.dev		= {
@@ -375,7 +376,6 @@ static int __init ap325rxa_devices_setup(void)
 	gpio_direction_output(GPIO_PTS3, 1);
 
 	/* CEU */
-	clk_always_enable("mstp203");
 	gpio_request(GPIO_FN_VIO_CLK2, NULL);
 	gpio_request(GPIO_FN_VIO_VD2, NULL);
 	gpio_request(GPIO_FN_VIO_HD2, NULL);

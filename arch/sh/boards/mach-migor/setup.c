@@ -433,6 +433,7 @@ static struct resource migor_ceu_resources[] = {
 
 static struct platform_device migor_ceu_device = {
 	.name		= "sh_mobile_ceu",
+	.id             = 0, /* "ceu0" clock */
 	.num_resources	= ARRAY_SIZE(migor_ceu_resources),
 	.resource	= migor_ceu_resources,
 	.dev	= {
@@ -554,7 +555,6 @@ static int __init migor_devices_setup(void)
 #endif
 
 	/* CEU */
-	clk_always_enable("mstp203"); /* CEU */
 	gpio_request(GPIO_FN_VIO_CLK2, NULL);
 	gpio_request(GPIO_FN_VIO_VD2, NULL);
 	gpio_request(GPIO_FN_VIO_HD2, NULL);
