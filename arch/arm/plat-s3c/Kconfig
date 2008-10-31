@@ -103,6 +103,17 @@ config S3C_LOWLEVEL_UART_PORT
 	  this configuration should be between zero and two. The port
 	  must have been initialised by the boot-loader before use.
 
+# options for gpiolib support
+
+config S3C_GPIO_SPACE
+	int "Space between gpio banks"
+	default 0
+	help
+	  Add a number of spare GPIO entries between each bank for debugging
+	  purposes. This allows any problems where an counter overflows from
+	  one bank to another to be caught, at the expense of using a little
+	  more memory.
+
 # device definitions to compile in
 
 config S3C_DEV_HSMMC
