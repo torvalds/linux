@@ -229,8 +229,14 @@ static int ieee80211_open(struct net_device *dev)
 		if (res)
 			goto err_stop;
 
-		if (ieee80211_vif_is_mesh(&sdata->vif))
+		if (ieee80211_vif_is_mesh(&sdata->vif)) {
+			local->fif_other_bss++;
+			netif_addr_lock_bh(local->mdev);
+			ieee80211_configure_filter(local);
+			netif_addr_unlock_bh(local->mdev);
+
 			ieee80211_start_mesh(sdata);
+		}
 		changed |= ieee80211_reset_erp_info(sdata);
 		ieee80211_bss_info_change_notify(sdata, changed);
 		ieee80211_enable_keys(sdata);
@@ -456,8 +462,15 @@ static int ieee80211_stop(struct net_device *dev)
 		/* fall through */
 	case NL80211_IFTYPE_MESH_POINT:
 		if (ieee80211_vif_is_mesh(&sdata->vif)) {
-			/* allmulti is always set on mesh ifaces */
+			/* other_bss and allmulti are always set on mesh
+			 * ifaces */
+			local->fif_other_bss--;
 			atomic_dec(&local->iff_allmultis);
+
+			netif_addr_lock_bh(local->mdev);
+			ieee80211_configure_filter(local);
+			netif_addr_unlock_bh(local->mdev);
+
 			ieee80211_stop_mesh(sdata);
 		}
 		/* fall through */
