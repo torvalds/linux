@@ -480,11 +480,14 @@ static void sch_atm_dequeue(unsigned long data)
 		 * If traffic is properly shaped, this won't generate nasty
 		 * little bursts. Otherwise, it may ... (but that's okay)
 		 */
-		while ((skb = flow->q->dequeue(flow->q))) {
-			if (!atm_may_send(flow->vcc, skb->truesize)) {
-				(void)flow->q->ops->requeue(skb, flow->q);
+		while ((skb = flow->q->ops->peek(flow->q))) {
+			if (!atm_may_send(flow->vcc, skb->truesize))
 				break;
-			}
+
+			skb = flow->q->dequeue(flow->q);
+			if (unlikely(!skb))
+				break;
+
 			pr_debug("atm_tc_dequeue: sending on class %p\n", flow);
 			/* remove any LL header somebody else has attached */
 			skb_pull(skb, skb_network_offset(skb));

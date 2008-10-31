@@ -169,7 +169,7 @@ static struct sk_buff *tbf_dequeue(struct Qdisc* sch)
 	struct tbf_sched_data *q = qdisc_priv(sch);
 	struct sk_buff *skb;
 
-	skb = q->qdisc->dequeue(q->qdisc);
+	skb = q->qdisc->ops->peek(q->qdisc);
 
 	if (skb) {
 		psched_time_t now;
@@ -192,6 +192,10 @@ static struct sk_buff *tbf_dequeue(struct Qdisc* sch)
 		toks -= L2T(q, len);
 
 		if ((toks|ptoks) >= 0) {
+			skb = q->qdisc->dequeue(q->qdisc);
+			if (unlikely(!skb))
+				return NULL;
+
 			q->t_c = now;
 			q->tokens = toks;
 			q->ptokens = ptoks;
@@ -213,12 +217,6 @@ static struct sk_buff *tbf_dequeue(struct Qdisc* sch)
 		   This is the main idea of all FQ algorithms
 		   (cf. CSZ, HPFQ, HFSC)
 		 */
-
-		if (q->qdisc->ops->requeue(skb, q->qdisc) != NET_XMIT_SUCCESS) {
-			/* When requeue fails skb is dropped */
-			qdisc_tree_decrease_qlen(q->qdisc, 1);
-			sch->qstats.drops++;
-		}
 
 		sch->qstats.overlimits++;
 	}
