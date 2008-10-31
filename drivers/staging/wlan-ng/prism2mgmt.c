@@ -61,7 +61,6 @@
 /* System Includes */
 #define WLAN_DBVAR	prism2_debug
 
-#include <linux/version.h>
 
 #include <linux/if_arp.h>
 #include <linux/module.h>
