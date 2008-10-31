@@ -14,9 +14,15 @@ config CPU_S3C6410
 	help
 	  Enable S3C6410 CPU support
 
+config S3C6410_SETUP_SDHCI
+	bool
+	help
+	  Internal helper functions for S3C6410 based SDHCI systems
+
 config MACH_SMDK6410
 	bool "SMDK6410"
 	select CPU_S3C6410
 	select S3C_DEV_HSMMC
+	select S3C6410_SETUP_SDHCI
 	help
 	  Machine support for the Samsung SMDK6410

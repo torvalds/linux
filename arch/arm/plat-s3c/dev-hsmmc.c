@@ -13,8 +13,10 @@
 
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/mmc/host.h>
 
 #include <mach/map.h>
+#include <plat/sdhci.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 
@@ -35,13 +37,32 @@ static struct resource s3c_hsmmc_resource[] = {
 
 static u64 s3c_device_hsmmc_dmamask = 0xffffffffUL;
 
-struct platform_device s3c_device_hsmmc0 = {
-	.name		  = "s3c-sdhci",
-	.id		  = 0,
-	.num_resources	  = ARRAY_SIZE(s3c_hsmmc_resource),
-	.resource	  = s3c_hsmmc_resource,
-	.dev              = {
-		.dma_mask = &s3c_device_hsmmc_dmamask,
-		.coherent_dma_mask = 0xffffffffUL
-	}
+struct s3c_sdhci_platdata s3c_hsmmc0_def_platdata = {
+	.max_width	= 4,
+	.host_caps	= (MMC_CAP_4_BIT_DATA |
+			   MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED),
 };
+
+struct platform_device s3c_device_hsmmc0 = {
+	.name		= "s3c-sdhci",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(s3c_hsmmc_resource),
+	.resource	= s3c_hsmmc_resource,
+	.dev		= {
+		.dma_mask		= &s3c_device_hsmmc_dmamask,
+		.coherent_dma_mask	= 0xffffffffUL,
+		.platform_data		= &s3c_hsmmc0_def_platdata,
+	},
+};
+
+void s3c_sdhci0_set_platdata(struct s3c_sdhci_platdata *pd)
+{
+	struct s3c_sdhci_platdata *set = &s3c_hsmmc0_def_platdata;
+
+	set->max_width = pd->max_width;
+
+	if (pd->cfg_gpio)
+		set->cfg_gpio = pd->cfg_gpio;
+	if (pd->cfg_card)
+		set->cfg_card = pd->cfg_card;
+}
