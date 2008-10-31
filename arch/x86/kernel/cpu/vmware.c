@@ -86,3 +86,21 @@ unsigned long vmware_get_tsc_khz(void)
 	BUG_ON(!vmware_platform());
 	return __vmware_get_tsc_khz();
 }
+
+/*
+ * VMware hypervisor takes care of exporting a reliable TSC to the guest.
+ * Still, due to timing difference when running on virtual cpus, the TSC can
+ * be marked as unstable in some cases. For example, the TSC sync check at
+ * bootup can fail due to a marginal offset between vcpus' TSCs (though the
+ * TSCs do not drift from each other).  Also, the ACPI PM timer clocksource
+ * is not suitable as a watchdog when running on a hypervisor because the
+ * kernel may miss a wrap of the counter if the vcpu is descheduled for a
+ * long time. To skip these checks at runtime we set these capability bits,
+ * so that the kernel could just trust the hypervisor with providing a
+ * reliable virtual TSC that is suitable for timekeeping.
+ */
+void __cpuinit vmware_set_feature_bits(struct cpuinfo_x86 *c)
+{
+	set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
+	set_cpu_cap(c, X86_FEATURE_TSC_RELIABLE);
+}
