@@ -152,8 +152,6 @@ void rtl8187_write_phy(struct ieee80211_hw *dev, u8 addr, u32 data)
 	rtl818x_iowrite8(priv, &priv->map->PHY[2], (data >> 16) & 0xFF);
 	rtl818x_iowrite8(priv, &priv->map->PHY[1], (data >> 8) & 0xFF);
 	rtl818x_iowrite8(priv, &priv->map->PHY[0], data & 0xFF);
-
-	msleep(1);
 }
 
 static void rtl8187_tx_cb(struct urb *urb)

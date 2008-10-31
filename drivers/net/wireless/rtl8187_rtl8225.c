@@ -64,7 +64,6 @@ static void rtl8225_write_bitbang(struct ieee80211_hw *dev, u8 addr, u16 data)
 
 	rtl818x_iowrite16(priv, &priv->map->RFPinsOutput, reg80 | (1 << 2));
 	rtl818x_iowrite16(priv, &priv->map->RFPinsSelect, reg84);
-	msleep(2);
 }
 
 static void rtl8225_write_8051(struct ieee80211_hw *dev, u8 addr, __le16 data)
@@ -98,7 +97,6 @@ static void rtl8225_write_8051(struct ieee80211_hw *dev, u8 addr, __le16 data)
 
 	rtl818x_iowrite16(priv, &priv->map->RFPinsOutput, reg80 | (1 << 2));
 	rtl818x_iowrite16(priv, &priv->map->RFPinsSelect, reg84);
-	msleep(2);
 }
 
 static void rtl8225_write(struct ieee80211_hw *dev, u8 addr, u16 data)
