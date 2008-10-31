@@ -625,7 +625,7 @@ static void rtl8225z2_b_rf_set_tx_power(struct ieee80211_hw *dev, int channel)
 		rtl8225_write_phy_cck(dev, 0x44 + i, *tmp++);
 
 	rtl818x_iowrite8(priv, &priv->map->TX_GAIN_CCK,
-			 rtl8225z2_tx_gain_cck_ofdm[cck_power]);
+			 rtl8225z2_tx_gain_cck_ofdm[cck_power] << 1);
 	msleep(1);
 
 	rtl818x_iowrite8(priv, &priv->map->TX_GAIN_OFDM,
