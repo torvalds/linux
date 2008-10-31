@@ -1054,7 +1054,7 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	struct p54_common *priv = dev->priv;
 	struct p54_hdr *hdr;
 	struct p54_tx_data *txhdr;
-	size_t padding, len, tim_len;
+	size_t padding, len, tim_len = 0;
 	int i, j, ridx;
 	u16 hdr_flags = 0, aid = 0;
 	u8 rate, queue;
