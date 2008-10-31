@@ -18,6 +18,22 @@
 
 #include <plat/gpio-core.h>
 
+#ifdef CONFIG_S3C_GPIO_TRACK
+struct s3c_gpio_chip *s3c_gpios[S3C_GPIO_END];
+
+static __init void s3c_gpiolib_track(struct s3c_gpio_chip *chip)
+{
+	unsigned int gpn;
+	int i;
+
+	gpn = chip->chip.base;
+	for (i = 0; i < chip->chip.ngpio; i++, gpn++) {
+		BUG_ON(gpn > ARRAY_SIZE(s3c_gpios));
+		s3c_gpios[gpn] = chip;
+	}
+}
+#endif /* CONFIG_S3C_GPIO_TRACK */
+
 /* Default routines for controlling GPIO, based on the original S3C24XX
  * GPIO functions which deal with the case where each gpio bank of the
  * chip is as following:
@@ -109,6 +125,7 @@ static int s3c_gpiolib_get(struct gpio_chip *chip, unsigned offset)
 __init void s3c_gpiolib_add(struct s3c_gpio_chip *chip)
 {
 	struct gpio_chip *gc = &chip->chip;
+	int ret;
 
 	BUG_ON(!chip->base);
 	BUG_ON(!gc->label);
@@ -124,5 +141,7 @@ __init void s3c_gpiolib_add(struct s3c_gpio_chip *chip)
 		gc->get = s3c_gpiolib_get;
 
 	/* gpiochip_add() prints own failure message on error. */
-	gpiochip_add(gc);
+	ret = gpiochip_add(gc);
+	if (ret >= 0)
+		s3c_gpiolib_track(chip);
 }

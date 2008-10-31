@@ -114,6 +114,12 @@ config S3C_GPIO_SPACE
 	  one bank to another to be caught, at the expense of using a little
 	  more memory.
 
+config S3C_GPIO_TRACK
+	bool
+	help
+	  Internal configuration option to enable the s3c specific gpio
+	  chip tracking if the platform requires it.
+
 # device definitions to compile in
 
 config S3C_DEV_HSMMC

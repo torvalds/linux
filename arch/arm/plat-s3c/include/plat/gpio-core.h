@@ -47,3 +47,26 @@ static inline struct s3c_gpio_chip *to_s3c_gpio(struct gpio_chip *gpc)
  * other parts of the system.
  */
 extern void s3c_gpiolib_add(struct s3c_gpio_chip *chip);
+
+
+/* CONFIG_S3C_GPIO_TRACK enables the tracking of the s3c specific gpios
+ * for use with the configuration calls, and other parts of the s3c gpiolib
+ * support code.
+ *
+ * Not all s3c support code will need this, as some configurations of cpu
+ * may only support one or two different configuration options and have an
+ * easy gpio to s3c_gpio_chip mapping function. If this is the case, then
+ * the machine support file should provide its own s3c_gpiolib_getchip()
+ * and any other necessary functions.
+ */
+
+#ifdef CONFIG_S3C_GPIO_TRACK
+extern struct s3c_gpio_chip *s3c_gpios[S3C_GPIO_END];
+
+static inline struct s3c_gpio_chip *s3c_gpiolib_getchip(unsigned int chip)
+{
+	return s3c_gpios[chip];
+}
+#else
+static inline void s3c_gpiolib_track(struct s3c_gpio_chip *chip) { }
+#endif
