@@ -2,8 +2,8 @@
 #define _ASM_POWERPC_FTRACE
 
 #ifndef __ASSEMBLY__
-#define ftrace_nmi_enter()	do { } while (0)
-#define ftrace_nmi_exit()	do { } while (0)
+static inline void ftrace_nmi_enter(void) { }
+static inline void ftrace_nmi_exit(void) { }
 #endif
 
 #ifdef CONFIG_FUNCTION_TRACER

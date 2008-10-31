@@ -22,16 +22,16 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 extern void ftrace_nmi_enter(void);
 extern void ftrace_nmi_exit(void);
 #else
-#define ftrace_nmi_enter()	do { } while (0)
-#define ftrace_nmi_exit()	do { } while (0)
+static inline void ftrace_nmi_enter(void) { }
+static inline void ftrace_nmi_exit(void) { }
 #endif
-#endif
+#endif /* __ASSEMBLY__ */
 
 #else /* CONFIG_FUNCTION_TRACER */
 
 #ifndef __ASSEMBLY__
-#define ftrace_nmi_enter()	do { } while (0)
-#define ftrace_nmi_exit()	do { } while (0)
+static inline void ftrace_nmi_enter(void) { }
+static inline void ftrace_nmi_exit(void) { }
 #endif
 
 #endif /* CONFIG_FUNCTION_TRACER */

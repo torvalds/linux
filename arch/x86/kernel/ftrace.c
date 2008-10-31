@@ -67,7 +67,7 @@ unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
  *
  * Two buffers are added: An IP buffer and a "code" buffer.
  *
- * 1) Put in the instruction pointer into the IP buffer
+ * 1) Put the instruction pointer into the IP buffer
  *    and the new code into the "code" buffer.
  * 2) Set a flag that says we are modifying code
  * 3) Wait for any running NMIs to finish.
@@ -85,14 +85,14 @@ unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
  * are the same as what exists.
  */
 
-static atomic_t in_nmi;
-static int mod_code_status;
-static int mod_code_write;
-static void *mod_code_ip;
-static void *mod_code_newcode;
+static atomic_t in_nmi = ATOMIC_INIT(0);
+static int mod_code_status;		/* holds return value of text write */
+static int mod_code_write;		/* set when NMI should do the write */
+static void *mod_code_ip;		/* holds the IP to write to */
+static void *mod_code_newcode;		/* holds the text to write to the IP */
 
-static int nmi_wait_count;
-static atomic_t nmi_update_count;
+static unsigned nmi_wait_count;
+static atomic_t nmi_update_count = ATOMIC_INIT(0);
 
 int ftrace_arch_read_dyn_info(char *buf, int size)
 {
