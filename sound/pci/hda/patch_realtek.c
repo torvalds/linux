@@ -716,6 +716,22 @@ static int alc_eapd_ctrl_put(struct snd_kcontrol *kcontrol,
 #endif   /* CONFIG_SND_DEBUG */
 
 /*
+ */
+static void add_mixer(struct alc_spec *spec, struct snd_kcontrol_new *mix)
+{
+	if (snd_BUG_ON(spec->num_mixers >= ARRAY_SIZE(spec->mixers)))
+		return;
+	spec->mixers[spec->num_mixers++] = mix;
+}
+
+static void add_verb(struct alc_spec *spec, const struct hda_verb *verb)
+{
+	if (snd_BUG_ON(spec->num_init_verbs >= ARRAY_SIZE(spec->init_verbs)))
+		return;
+	spec->init_verbs[spec->num_init_verbs++] = verb;
+}
+
+/*
  * set up from the preset table
  */
 static void setup_preset(struct alc_spec *spec,
@@ -724,11 +740,10 @@ static void setup_preset(struct alc_spec *spec,
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(preset->mixers) && preset->mixers[i]; i++)
-		spec->mixers[spec->num_mixers++] = preset->mixers[i];
+		add_mixer(spec, preset->mixers[i]);
 	for (i = 0; i < ARRAY_SIZE(preset->init_verbs) && preset->init_verbs[i];
 	     i++)
-		spec->init_verbs[spec->num_init_verbs++] =
-			preset->init_verbs[i];
+		add_verb(spec, preset->init_verbs[i]);
 
 	spec->channel_mode = preset->channel_mode;
 	spec->num_channel_mode = preset->num_channel_mode;
@@ -1244,7 +1259,6 @@ static struct snd_kcontrol_new alc880_capture_alt_mixer[] = {
 		.get = alc_mux_enum_get,
 		.put = alc_mux_enum_put,
 	},
-	{ } /* end */
 };
 
 
@@ -3893,9 +3907,9 @@ static int alc880_parse_auto_config(struct hda_codec *codec)
 		spec->dig_in_nid = ALC880_DIGIN_NID;
 
 	if (spec->kctls.list)
-		spec->mixers[spec->num_mixers++] = spec->kctls.list;
+		add_mixer(spec, spec->kctls.list);
 
-	spec->init_verbs[spec->num_init_verbs++] = alc880_volume_init_verbs;
+	add_verb(spec, alc880_volume_init_verbs);
 
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux;
@@ -3974,14 +3988,11 @@ static int patch_alc880(struct hda_codec *codec)
 		if (wcap != AC_WID_AUD_IN) {
 			spec->adc_nids = alc880_adc_nids_alt;
 			spec->num_adc_nids = ARRAY_SIZE(alc880_adc_nids_alt);
-			spec->mixers[spec->num_mixers] =
-				alc880_capture_alt_mixer;
-			spec->num_mixers++;
+			add_mixer(spec, alc880_capture_alt_mixer);
 		} else {
 			spec->adc_nids = alc880_adc_nids;
 			spec->num_adc_nids = ARRAY_SIZE(alc880_adc_nids);
-			spec->mixers[spec->num_mixers] = alc880_capture_mixer;
-			spec->num_mixers++;
+			add_mixer(spec, alc880_capture_mixer);
 		}
 	}
 
@@ -5298,9 +5309,9 @@ static int alc260_parse_auto_config(struct hda_codec *codec)
 	if (spec->autocfg.dig_out_pin)
 		spec->multiout.dig_out_nid = ALC260_DIGOUT_NID;
 	if (spec->kctls.list)
-		spec->mixers[spec->num_mixers++] = spec->kctls.list;
+		add_mixer(spec, spec->kctls.list);
 
-	spec->init_verbs[spec->num_init_verbs++] = alc260_volume_init_verbs;
+	add_verb(spec, alc260_volume_init_verbs);
 
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux;
@@ -5311,13 +5322,12 @@ static int alc260_parse_auto_config(struct hda_codec *codec)
 	if (wcap != AC_WID_AUD_IN || spec->input_mux->num_items == 1) {
 		spec->adc_nids = alc260_adc_nids_alt;
 		spec->num_adc_nids = ARRAY_SIZE(alc260_adc_nids_alt);
-		spec->mixers[spec->num_mixers] = alc260_capture_alt_mixer;
+		add_mixer(spec, alc260_capture_alt_mixer);
 	} else {
 		spec->adc_nids = alc260_adc_nids;
 		spec->num_adc_nids = ARRAY_SIZE(alc260_adc_nids);
-		spec->mixers[spec->num_mixers] = alc260_capture_mixer;
+		add_mixer(spec, alc260_capture_mixer);
 	}
-	spec->num_mixers++;
 
 	store_pin_configs(codec);
 	return 1;
@@ -6834,15 +6844,12 @@ static int patch_alc882(struct hda_codec *codec)
 			spec->adc_nids = alc882_adc_nids_alt;
 			spec->num_adc_nids = ARRAY_SIZE(alc882_adc_nids_alt);
 			spec->capsrc_nids = alc882_capsrc_nids_alt;
-			spec->mixers[spec->num_mixers] =
-				alc882_capture_alt_mixer;
-			spec->num_mixers++;
+			add_mixer(spec, alc882_capture_alt_mixer);
 		} else {
 			spec->adc_nids = alc882_adc_nids;
 			spec->num_adc_nids = ARRAY_SIZE(alc882_adc_nids);
 			spec->capsrc_nids = alc882_capsrc_nids;
-			spec->mixers[spec->num_mixers] = alc882_capture_mixer;
-			spec->num_mixers++;
+			add_mixer(spec, alc882_capture_mixer);
 		}
 	}
 
@@ -8854,8 +8861,7 @@ static int alc883_parse_auto_config(struct hda_codec *codec)
 
 	/* hack - override the init verbs */
 	spec->init_verbs[0] = alc883_auto_init_verbs;
-	spec->mixers[spec->num_mixers] = alc883_capture_mixer;
-	spec->num_mixers++;
+	add_mixer(spec, alc883_capture_mixer);
 
 	return 1; /* config found */
 }
@@ -10373,9 +10379,9 @@ static int alc262_parse_auto_config(struct hda_codec *codec)
 		spec->dig_in_nid = ALC262_DIGIN_NID;
 
 	if (spec->kctls.list)
-		spec->mixers[spec->num_mixers++] = spec->kctls.list;
+		add_mixer(spec, spec->kctls.list);
 
-	spec->init_verbs[spec->num_init_verbs++] = alc262_volume_init_verbs;
+	add_verb(spec, alc262_volume_init_verbs);
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux;
 
@@ -10752,15 +10758,12 @@ static int patch_alc262(struct hda_codec *codec)
 			spec->adc_nids = alc262_adc_nids_alt;
 			spec->num_adc_nids = ARRAY_SIZE(alc262_adc_nids_alt);
 			spec->capsrc_nids = alc262_capsrc_nids_alt;
-			spec->mixers[spec->num_mixers] =
-				alc262_capture_alt_mixer;
-			spec->num_mixers++;
+			add_mixer(spec, alc262_capture_alt_mixer);
 		} else {
 			spec->adc_nids = alc262_adc_nids;
 			spec->num_adc_nids = ARRAY_SIZE(alc262_adc_nids);
 			spec->capsrc_nids = alc262_capsrc_nids;
-			spec->mixers[spec->num_mixers] = alc262_capture_mixer;
-			spec->num_mixers++;
+			add_mixer(spec, alc262_capture_mixer);
 		}
 	}
 
@@ -11505,12 +11508,12 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 		spec->multiout.dig_out_nid = ALC268_DIGOUT_NID;
 
 	if (spec->kctls.list)
-		spec->mixers[spec->num_mixers++] = spec->kctls.list;
+		add_mixer(spec, spec->kctls.list);
 
 	if (spec->autocfg.speaker_pins[0] != 0x1d)
-		spec->mixers[spec->num_mixers++] = alc268_beep_mixer;
+		add_mixer(spec, alc268_beep_mixer);
 
-	spec->init_verbs[spec->num_init_verbs++] = alc268_volume_init_verbs;
+	add_verb(spec, alc268_volume_init_verbs);
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux;
 
@@ -11779,15 +11782,11 @@ static int patch_alc268(struct hda_codec *codec)
 		if (wcap != AC_WID_AUD_IN || spec->input_mux->num_items == 1) {
 			spec->adc_nids = alc268_adc_nids_alt;
 			spec->num_adc_nids = ARRAY_SIZE(alc268_adc_nids_alt);
-			spec->mixers[spec->num_mixers] =
-					alc268_capture_alt_mixer;
-			spec->num_mixers++;
+			add_mixer(spec, alc268_capture_alt_mixer);
 		} else {
 			spec->adc_nids = alc268_adc_nids;
 			spec->num_adc_nids = ARRAY_SIZE(alc268_adc_nids);
-			spec->mixers[spec->num_mixers] =
-				alc268_capture_mixer;
-			spec->num_mixers++;
+			add_mixer(spec, alc268_capture_mixer);
 		}
 		spec->capsrc_nids = alc268_capsrc_nids;
 		/* set default input source */
@@ -12296,16 +12295,16 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 		spec->multiout.dig_out_nid = ALC269_DIGOUT_NID;
 
 	if (spec->kctls.list)
-		spec->mixers[spec->num_mixers++] = spec->kctls.list;
+		add_mixer(spec, spec->kctls.list);
 
 	/* create a beep mixer control if the pin 0x1d isn't assigned */
 	for (i = 0; i < ARRAY_SIZE(spec->autocfg.input_pins); i++)
 		if (spec->autocfg.input_pins[i] == 0x1d)
 			break;
 	if (i >= ARRAY_SIZE(spec->autocfg.input_pins))
-		spec->mixers[spec->num_mixers++] = alc269_beep_mixer;
+		add_mixer(spec, alc269_beep_mixer);
 
-	spec->init_verbs[spec->num_init_verbs++] = alc269_init_verbs;
+	add_verb(spec, alc269_init_verbs);
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux;
 	/* set default input source */
@@ -12317,8 +12316,7 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
-	spec->mixers[spec->num_mixers] = alc269_capture_mixer;
-	spec->num_mixers++;
+	add_mixer(spec, alc269_capture_mixer);
 
 	store_pin_configs(codec);
 	return 1;
@@ -13395,17 +13393,16 @@ static int alc861_parse_auto_config(struct hda_codec *codec)
 		spec->multiout.dig_out_nid = ALC861_DIGOUT_NID;
 
 	if (spec->kctls.list)
-		spec->mixers[spec->num_mixers++] = spec->kctls.list;
+		add_mixer(spec, spec->kctls.list);
 
-	spec->init_verbs[spec->num_init_verbs++] = alc861_auto_init_verbs;
+	add_verb(spec, alc861_auto_init_verbs);
 
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux;
 
 	spec->adc_nids = alc861_adc_nids;
 	spec->num_adc_nids = ARRAY_SIZE(alc861_adc_nids);
-	spec->mixers[spec->num_mixers] = alc861_capture_mixer;
-	spec->num_mixers++;
+	add_mixer(spec, alc861_capture_mixer);
 
 	store_pin_configs(codec);
 	return 1;
@@ -14507,10 +14504,9 @@ static int alc861vd_parse_auto_config(struct hda_codec *codec)
 		spec->multiout.dig_out_nid = ALC861VD_DIGOUT_NID;
 
 	if (spec->kctls.list)
-		spec->mixers[spec->num_mixers++] = spec->kctls.list;
+		add_mixer(spec, spec->kctls.list);
 
-	spec->init_verbs[spec->num_init_verbs++]
-		= alc861vd_volume_init_verbs;
+	add_verb(spec, alc861vd_volume_init_verbs);
 
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux;
@@ -14577,7 +14573,7 @@ static int patch_alc861vd(struct hda_codec *codec)
 		spec->stream_name_analog = "ALC660-VD Analog";
 		spec->stream_name_digital = "ALC660-VD Digital";
 		/* always turn on EAPD */
-		spec->init_verbs[spec->num_init_verbs++] = alc660vd_eapd_verbs;
+		add_verb(spec, alc660vd_eapd_verbs);
 	} else {
 		spec->stream_name_analog = "ALC861VD Analog";
 		spec->stream_name_digital = "ALC861VD Digital";
@@ -14593,8 +14589,7 @@ static int patch_alc861vd(struct hda_codec *codec)
 	spec->num_adc_nids = ARRAY_SIZE(alc861vd_adc_nids);
 	spec->capsrc_nids = alc861vd_capsrc_nids;
 
-	spec->mixers[spec->num_mixers] = alc861vd_capture_mixer;
-	spec->num_mixers++;
+	add_mixer(spec, alc861vd_capture_mixer);
 
 	spec->vmaster_nid = 0x02;
 
@@ -16335,22 +16330,20 @@ static int alc662_parse_auto_config(struct hda_codec *codec)
 		spec->multiout.dig_out_nid = ALC880_DIGOUT_NID;
 
 	if (spec->kctls.list)
-		spec->mixers[spec->num_mixers++] = spec->kctls.list;
+		add_mixer(spec, spec->kctls.list);
 
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux;
 
-	spec->init_verbs[spec->num_init_verbs++] = alc662_auto_init_verbs;
+	add_verb(spec, alc662_auto_init_verbs);
 	if (codec->vendor_id == 0x10ec0663)
-		spec->init_verbs[spec->num_init_verbs++] =
-			alc663_auto_init_verbs;
+		add_verb(spec, alc663_auto_init_verbs);
 
 	err = alc_auto_add_mic_boost(codec);
 	if (err < 0)
 		return err;
 
-	spec->mixers[spec->num_mixers] = alc662_capture_mixer;
-	spec->num_mixers++;
+	add_mixer(spec, alc662_capture_mixer);
 
 	store_pin_configs(codec);
 	return 1;
