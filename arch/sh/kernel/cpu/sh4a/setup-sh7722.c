@@ -62,7 +62,7 @@ static struct resource usbf_resources[] = {
 
 static struct platform_device usbf_device = {
 	.name		= "m66592_udc",
-	.id		= -1,
+	.id             = 0, /* "usbf0" clock */
 	.dev = {
 		.dma_mask		= NULL,
 		.coherent_dma_mask	= 0xffffffff,
@@ -198,7 +198,6 @@ static int __init sh7722_devices_setup(void)
 	clk_always_enable("mstp026"); /* XYMEM */
 	clk_always_enable("mstp022"); /* INTC */
 	clk_always_enable("mstp020"); /* SuperHyway */
-	clk_always_enable("mstp211"); /* USB */
 	clk_always_enable("mstp202"); /* VEU */
 	clk_always_enable("mstp201"); /* VPU */
 
