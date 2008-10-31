@@ -1912,6 +1912,7 @@ static int nfsd_buffered_readdir(struct file *file, filldir_t func,
 			de = (struct buffered_dirent *)((char *)de + reclen);
 		}
 		offset = vfs_llseek(file, 0, SEEK_CUR);
+		cdp->err = nfserr_eof;
 		if (!buf.full)
 			break;
 	}
