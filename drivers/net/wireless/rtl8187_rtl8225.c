@@ -375,50 +375,48 @@ static void rtl8225_rf_init(struct ieee80211_hw *dev)
 
 	for (i = 0; i < ARRAY_SIZE(rtl8225_agc); i++) {
 		rtl8225_write_phy_ofdm(dev, 0xB, rtl8225_agc[i]);
-		msleep(1);
 		rtl8225_write_phy_ofdm(dev, 0xA, 0x80 + i);
-		msleep(1);
 	}
 
 	msleep(1);
 
-	rtl8225_write_phy_ofdm(dev, 0x00, 0x01); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x01, 0x02); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x02, 0x42); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x03, 0x00); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x04, 0x00); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x05, 0x00); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x06, 0x40); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x07, 0x00); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x08, 0x40); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x09, 0xfe); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x0a, 0x09); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x0b, 0x80); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x0c, 0x01); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x0e, 0xd3); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x0f, 0x38); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x10, 0x84); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x11, 0x06); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x12, 0x20); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x13, 0x20); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x14, 0x00); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x15, 0x40); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x16, 0x00); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x17, 0x40); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x18, 0xef); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x19, 0x19); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x1a, 0x20); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x1b, 0x76); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x1c, 0x04); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x1e, 0x95); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x1f, 0x75); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x20, 0x1f); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x21, 0x27); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x22, 0x16); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x24, 0x46); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x25, 0x20); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x26, 0x90); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x27, 0x88); msleep(1);
+	rtl8225_write_phy_ofdm(dev, 0x00, 0x01);
+	rtl8225_write_phy_ofdm(dev, 0x01, 0x02);
+	rtl8225_write_phy_ofdm(dev, 0x02, 0x42);
+	rtl8225_write_phy_ofdm(dev, 0x03, 0x00);
+	rtl8225_write_phy_ofdm(dev, 0x04, 0x00);
+	rtl8225_write_phy_ofdm(dev, 0x05, 0x00);
+	rtl8225_write_phy_ofdm(dev, 0x06, 0x40);
+	rtl8225_write_phy_ofdm(dev, 0x07, 0x00);
+	rtl8225_write_phy_ofdm(dev, 0x08, 0x40);
+	rtl8225_write_phy_ofdm(dev, 0x09, 0xfe);
+	rtl8225_write_phy_ofdm(dev, 0x0a, 0x09);
+	rtl8225_write_phy_ofdm(dev, 0x0b, 0x80);
+	rtl8225_write_phy_ofdm(dev, 0x0c, 0x01);
+	rtl8225_write_phy_ofdm(dev, 0x0e, 0xd3);
+	rtl8225_write_phy_ofdm(dev, 0x0f, 0x38);
+	rtl8225_write_phy_ofdm(dev, 0x10, 0x84);
+	rtl8225_write_phy_ofdm(dev, 0x11, 0x06);
+	rtl8225_write_phy_ofdm(dev, 0x12, 0x20);
+	rtl8225_write_phy_ofdm(dev, 0x13, 0x20);
+	rtl8225_write_phy_ofdm(dev, 0x14, 0x00);
+	rtl8225_write_phy_ofdm(dev, 0x15, 0x40);
+	rtl8225_write_phy_ofdm(dev, 0x16, 0x00);
+	rtl8225_write_phy_ofdm(dev, 0x17, 0x40);
+	rtl8225_write_phy_ofdm(dev, 0x18, 0xef);
+	rtl8225_write_phy_ofdm(dev, 0x19, 0x19);
+	rtl8225_write_phy_ofdm(dev, 0x1a, 0x20);
+	rtl8225_write_phy_ofdm(dev, 0x1b, 0x76);
+	rtl8225_write_phy_ofdm(dev, 0x1c, 0x04);
+	rtl8225_write_phy_ofdm(dev, 0x1e, 0x95);
+	rtl8225_write_phy_ofdm(dev, 0x1f, 0x75);
+	rtl8225_write_phy_ofdm(dev, 0x20, 0x1f);
+	rtl8225_write_phy_ofdm(dev, 0x21, 0x27);
+	rtl8225_write_phy_ofdm(dev, 0x22, 0x16);
+	rtl8225_write_phy_ofdm(dev, 0x24, 0x46);
+	rtl8225_write_phy_ofdm(dev, 0x25, 0x20);
+	rtl8225_write_phy_ofdm(dev, 0x26, 0x90);
+	rtl8225_write_phy_ofdm(dev, 0x27, 0x88);
 
 	rtl8225_write_phy_ofdm(dev, 0x0d, rtl8225_gain[2 * 4]);
 	rtl8225_write_phy_ofdm(dev, 0x1b, rtl8225_gain[2 * 4 + 2]);
@@ -459,7 +457,7 @@ static void rtl8225_rf_init(struct ieee80211_hw *dev)
 
 	/* RX antenna default to A */
 	rtl8225_write_phy_cck(dev, 0x10, 0x9b); msleep(1);	/* B: 0xDB */
-	rtl8225_write_phy_ofdm(dev, 0x26, 0x90); msleep(1);	/* B: 0x10 */
+	rtl8225_write_phy_ofdm(dev, 0x26, 0x90);		/* B: 0x10 */
 
 	rtl818x_iowrite8(priv, &priv->map->TX_ANTENNA, 0x03);	/* B: 0x00 */
 	msleep(1);
@@ -736,53 +734,51 @@ static void rtl8225z2_rf_init(struct ieee80211_hw *dev)
 
 	for (i = 0; i < ARRAY_SIZE(rtl8225_agc); i++) {
 		rtl8225_write_phy_ofdm(dev, 0xB, rtl8225_agc[i]);
-		msleep(1);
 		rtl8225_write_phy_ofdm(dev, 0xA, 0x80 + i);
-		msleep(1);
 	}
 
 	msleep(1);
 
-	rtl8225_write_phy_ofdm(dev, 0x00, 0x01); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x01, 0x02); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x02, 0x42); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x03, 0x00); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x04, 0x00); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x05, 0x00); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x06, 0x40); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x07, 0x00); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x08, 0x40); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x09, 0xfe); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x0a, 0x08); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x0b, 0x80); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x0c, 0x01); msleep(1);
+	rtl8225_write_phy_ofdm(dev, 0x00, 0x01);
+	rtl8225_write_phy_ofdm(dev, 0x01, 0x02);
+	rtl8225_write_phy_ofdm(dev, 0x02, 0x42);
+	rtl8225_write_phy_ofdm(dev, 0x03, 0x00);
+	rtl8225_write_phy_ofdm(dev, 0x04, 0x00);
+	rtl8225_write_phy_ofdm(dev, 0x05, 0x00);
+	rtl8225_write_phy_ofdm(dev, 0x06, 0x40);
+	rtl8225_write_phy_ofdm(dev, 0x07, 0x00);
+	rtl8225_write_phy_ofdm(dev, 0x08, 0x40);
+	rtl8225_write_phy_ofdm(dev, 0x09, 0xfe);
+	rtl8225_write_phy_ofdm(dev, 0x0a, 0x08);
+	rtl8225_write_phy_ofdm(dev, 0x0b, 0x80);
+	rtl8225_write_phy_ofdm(dev, 0x0c, 0x01);
 	rtl8225_write_phy_ofdm(dev, 0x0d, 0x43);
-	rtl8225_write_phy_ofdm(dev, 0x0e, 0xd3); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x0f, 0x38); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x10, 0x84); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x11, 0x07); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x12, 0x20); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x13, 0x20); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x14, 0x00); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x15, 0x40); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x16, 0x00); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x17, 0x40); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x18, 0xef); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x19, 0x19); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x1a, 0x20); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x1b, 0x15); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x1c, 0x04); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x1d, 0xc5); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x1e, 0x95); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x1f, 0x75); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x20, 0x1f); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x21, 0x17); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x22, 0x16); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x23, 0x80); msleep(1); //FIXME: not needed?
-	rtl8225_write_phy_ofdm(dev, 0x24, 0x46); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x25, 0x00); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x26, 0x90); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x27, 0x88); msleep(1);
+	rtl8225_write_phy_ofdm(dev, 0x0e, 0xd3);
+	rtl8225_write_phy_ofdm(dev, 0x0f, 0x38);
+	rtl8225_write_phy_ofdm(dev, 0x10, 0x84);
+	rtl8225_write_phy_ofdm(dev, 0x11, 0x07);
+	rtl8225_write_phy_ofdm(dev, 0x12, 0x20);
+	rtl8225_write_phy_ofdm(dev, 0x13, 0x20);
+	rtl8225_write_phy_ofdm(dev, 0x14, 0x00);
+	rtl8225_write_phy_ofdm(dev, 0x15, 0x40);
+	rtl8225_write_phy_ofdm(dev, 0x16, 0x00);
+	rtl8225_write_phy_ofdm(dev, 0x17, 0x40);
+	rtl8225_write_phy_ofdm(dev, 0x18, 0xef);
+	rtl8225_write_phy_ofdm(dev, 0x19, 0x19);
+	rtl8225_write_phy_ofdm(dev, 0x1a, 0x20);
+	rtl8225_write_phy_ofdm(dev, 0x1b, 0x15);
+	rtl8225_write_phy_ofdm(dev, 0x1c, 0x04);
+	rtl8225_write_phy_ofdm(dev, 0x1d, 0xc5);
+	rtl8225_write_phy_ofdm(dev, 0x1e, 0x95);
+	rtl8225_write_phy_ofdm(dev, 0x1f, 0x75);
+	rtl8225_write_phy_ofdm(dev, 0x20, 0x1f);
+	rtl8225_write_phy_ofdm(dev, 0x21, 0x17);
+	rtl8225_write_phy_ofdm(dev, 0x22, 0x16);
+	rtl8225_write_phy_ofdm(dev, 0x23, 0x80);
+	rtl8225_write_phy_ofdm(dev, 0x24, 0x46);
+	rtl8225_write_phy_ofdm(dev, 0x25, 0x00);
+	rtl8225_write_phy_ofdm(dev, 0x26, 0x90);
+	rtl8225_write_phy_ofdm(dev, 0x27, 0x88);
 
 	rtl8225_write_phy_ofdm(dev, 0x0b, rtl8225z2_gain_bg[4 * 3]);
 	rtl8225_write_phy_ofdm(dev, 0x1b, rtl8225z2_gain_bg[4 * 3 + 1]);
@@ -823,7 +819,7 @@ static void rtl8225z2_rf_init(struct ieee80211_hw *dev)
 
 	/* RX antenna default to A */
 	rtl8225_write_phy_cck(dev, 0x10, 0x9b); msleep(1);	/* B: 0xDB */
-	rtl8225_write_phy_ofdm(dev, 0x26, 0x90); msleep(1);	/* B: 0x10 */
+	rtl8225_write_phy_ofdm(dev, 0x26, 0x90);		/* B: 0x10 */
 
 	rtl818x_iowrite8(priv, &priv->map->TX_ANTENNA, 0x03);	/* B: 0x00 */
 	msleep(1);
@@ -889,10 +885,10 @@ static void rtl8225z2_b_rf_init(struct ieee80211_hw *dev)
 	rtl818x_iowrite32(priv, (__le32 *)0xFFFC, (7 << 12) | (3 << 8) | 28);
 	rtl818x_iowrite8(priv, &priv->map->ACM_CONTROL, 0);
 
-	rtl8225_write_phy_ofdm(dev, 0x97, 0x46); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0xa4, 0xb6); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x85, 0xfc); msleep(1);
-	rtl8225_write_phy_cck(dev, 0xc1, 0x88); msleep(1);
+	rtl8225_write_phy_ofdm(dev, 0x97, 0x46);
+	rtl8225_write_phy_ofdm(dev, 0xa4, 0xb6);
+	rtl8225_write_phy_ofdm(dev, 0x85, 0xfc);
+	rtl8225_write_phy_cck(dev, 0xc1, 0x88);
 }
 
 static void rtl8225_rf_stop(struct ieee80211_hw *dev)
