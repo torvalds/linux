@@ -522,6 +522,15 @@ static struct sk_buff *atm_tc_dequeue(struct Qdisc *sch)
 	return skb;
 }
 
+static struct sk_buff *atm_tc_peek(struct Qdisc *sch)
+{
+	struct atm_qdisc_data *p = qdisc_priv(sch);
+
+	pr_debug("atm_tc_peek(sch %p,[qdisc %p])\n", sch, p);
+
+	return p->link.q->ops->peek(p->link.q);
+}
+
 static int atm_tc_requeue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct atm_qdisc_data *p = qdisc_priv(sch);
@@ -694,6 +703,7 @@ static struct Qdisc_ops atm_qdisc_ops __read_mostly = {
 	.priv_size	= sizeof(struct atm_qdisc_data),
 	.enqueue	= atm_tc_enqueue,
 	.dequeue	= atm_tc_dequeue,
+	.peek		= atm_tc_peek,
 	.requeue	= atm_tc_requeue,
 	.drop		= atm_tc_drop,
 	.init		= atm_tc_init,

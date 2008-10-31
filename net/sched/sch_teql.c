@@ -123,6 +123,13 @@ teql_dequeue(struct Qdisc* sch)
 	return skb;
 }
 
+static struct sk_buff *
+teql_peek(struct Qdisc* sch)
+{
+	/* teql is meant to be used as root qdisc */
+	return NULL;
+}
+
 static __inline__ void
 teql_neigh_release(struct neighbour *n)
 {
@@ -433,6 +440,7 @@ static __init void teql_master_setup(struct net_device *dev)
 
 	ops->enqueue	=	teql_enqueue;
 	ops->dequeue	=	teql_dequeue;
+	ops->peek	=	teql_peek;
 	ops->requeue	=	teql_requeue;
 	ops->init	=	teql_qdisc_init;
 	ops->reset	=	teql_reset;

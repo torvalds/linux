@@ -602,6 +602,7 @@ static struct Qdisc_ops gred_qdisc_ops __read_mostly = {
 	.priv_size	=	sizeof(struct gred_sched),
 	.enqueue	=	gred_enqueue,
 	.dequeue	=	gred_dequeue,
+	.peek		=	qdisc_peek_head,
 	.requeue	=	gred_requeue,
 	.drop		=	gred_drop,
 	.init		=	gred_init,

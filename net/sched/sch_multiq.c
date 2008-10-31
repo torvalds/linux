@@ -155,6 +155,34 @@ static struct sk_buff *multiq_dequeue(struct Qdisc *sch)
 
 }
 
+static struct sk_buff *multiq_peek(struct Qdisc *sch)
+{
+	struct multiq_sched_data *q = qdisc_priv(sch);
+	unsigned int curband = q->curband;
+	struct Qdisc *qdisc;
+	struct sk_buff *skb;
+	int band;
+
+	for (band = 0; band < q->bands; band++) {
+		/* cycle through bands to ensure fairness */
+		curband++;
+		if (curband >= q->bands)
+			curband = 0;
+
+		/* Check that target subqueue is available before
+		 * pulling an skb to avoid excessive requeues
+		 */
+		if (!__netif_subqueue_stopped(qdisc_dev(sch), curband)) {
+			qdisc = q->queues[curband];
+			skb = qdisc->ops->peek(qdisc);
+			if (skb)
+				return skb;
+		}
+	}
+	return NULL;
+
+}
+
 static unsigned int multiq_drop(struct Qdisc *sch)
 {
 	struct multiq_sched_data *q = qdisc_priv(sch);
@@ -451,6 +479,7 @@ static struct Qdisc_ops multiq_qdisc_ops __read_mostly = {
 	.priv_size	=	sizeof(struct multiq_sched_data),
 	.enqueue	=	multiq_enqueue,
 	.dequeue	=	multiq_dequeue,
+	.peek		=	multiq_peek,
 	.requeue	=	multiq_requeue,
 	.drop		=	multiq_drop,
 	.init		=	multiq_init,

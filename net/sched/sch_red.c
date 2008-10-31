@@ -140,6 +140,14 @@ static struct sk_buff * red_dequeue(struct Qdisc* sch)
 	return skb;
 }
 
+static struct sk_buff * red_peek(struct Qdisc* sch)
+{
+	struct red_sched_data *q = qdisc_priv(sch);
+	struct Qdisc *child = q->qdisc;
+
+	return child->ops->peek(child);
+}
+
 static unsigned int red_drop(struct Qdisc* sch)
 {
 	struct red_sched_data *q = qdisc_priv(sch);
@@ -361,6 +369,7 @@ static struct Qdisc_ops red_qdisc_ops __read_mostly = {
 	.cl_ops		=	&red_class_ops,
 	.enqueue	=	red_enqueue,
 	.dequeue	=	red_dequeue,
+	.peek		=	red_peek,
 	.requeue	=	red_requeue,
 	.drop		=	red_drop,
 	.init		=	red_init,
