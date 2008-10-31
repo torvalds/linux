@@ -89,6 +89,7 @@ static struct resource sh_keysc_resources[] = {
 
 static struct platform_device sh_keysc_device = {
 	.name           = "sh_keysc",
+	.id             = 0, /* "keysc0" clock */
 	.num_resources  = ARRAY_SIZE(sh_keysc_resources),
 	.resource       = sh_keysc_resources,
 	.dev	= {
@@ -479,7 +480,6 @@ static int __init migor_devices_setup(void)
 	ctrl_outl(0x00110080, BSC_CS4WCR);
 
 	/* KEYSC */
-	clk_always_enable("mstp214"); /* KEYSC */
 	gpio_request(GPIO_FN_KEYOUT0, NULL);
 	gpio_request(GPIO_FN_KEYOUT1, NULL);
 	gpio_request(GPIO_FN_KEYOUT2, NULL);

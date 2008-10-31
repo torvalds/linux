@@ -130,6 +130,7 @@ static struct resource sh_keysc_resources[] = {
 
 static struct platform_device sh_keysc_device = {
 	.name           = "sh_keysc",
+	.id             = 0, /* "keysc0" clock */
 	.num_resources  = ARRAY_SIZE(sh_keysc_resources),
 	.resource       = sh_keysc_resources,
 	.dev	= {
@@ -146,8 +147,6 @@ static struct platform_device *se7722_devices[] __initdata = {
 
 static int __init se7722_devices_setup(void)
 {
-	clk_always_enable("mstp214"); /* KEYSC */
-
 	return platform_add_devices(se7722_devices,
 		ARRAY_SIZE(se7722_devices));
 }
