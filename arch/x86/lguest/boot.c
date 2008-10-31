@@ -586,6 +586,9 @@ static void __init lguest_init_IRQ(void)
 
 	for (i = 0; i < LGUEST_IRQS; i++) {
 		int vector = FIRST_EXTERNAL_VECTOR + i;
+		/* Some systems map "vectors" to interrupts weirdly.  Lguest has
+		 * a straightforward 1 to 1 mapping, so force that here. */
+		__get_cpu_var(vector_irq)[vector] = i;
 		if (vector != SYSCALL_VECTOR) {
 			set_intr_gate(vector, interrupt[vector]);
 			set_irq_chip_and_handler_name(i, &lguest_irq_controller,
