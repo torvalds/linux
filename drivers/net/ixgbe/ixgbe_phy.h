@@ -77,4 +77,11 @@ s32 ixgbe_setup_phy_link_speed_generic(struct ixgbe_hw *hw,
                                        bool autoneg,
                                        bool autoneg_wait_to_complete);
 
+/* PHY specific */
+s32 ixgbe_check_phy_link_tnx(struct ixgbe_hw *hw,
+                             ixgbe_link_speed *speed,
+                             bool *link_up);
+s32 ixgbe_get_phy_firmware_version_tnx(struct ixgbe_hw *hw,
+                                       u16 *firmware_version);
+
 #endif /* _IXGBE_PHY_H_ */

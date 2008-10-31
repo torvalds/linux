@@ -59,6 +59,11 @@ static s32 ixgbe_get_invariants_82598(struct ixgbe_hw *hw)
 
 	/* PHY Init */
 	switch (phy->type) {
+	case ixgbe_phy_tn:
+		phy->ops.check_link = &ixgbe_check_phy_link_tnx;
+		phy->ops.get_firmware_version =
+		             &ixgbe_get_phy_firmware_version_tnx;
+		break;
 	default:
 		break;
 	}
@@ -188,6 +193,9 @@ static enum ixgbe_media_type ixgbe_get_media_type_82598(struct ixgbe_hw *hw)
 	case IXGBE_DEV_ID_82598_CX4_DUAL_PORT:
 	case IXGBE_DEV_ID_82598EB_XF_LR:
 		media_type = ixgbe_media_type_fiber;
+		break;
+	case IXGBE_DEV_ID_82598AT:
+		media_type = ixgbe_media_type_copper;
 		break;
 	default:
 		media_type = ixgbe_media_type_unknown;
@@ -871,6 +879,10 @@ s32 ixgbe_get_supported_physical_layer_82598(struct ixgbe_hw *hw)
 		break;
 	case IXGBE_DEV_ID_82598EB_XF_LR:
 		physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_LR;
+		break;
+	case IXGBE_DEV_ID_82598AT:
+		physical_layer = (IXGBE_PHYSICAL_LAYER_10GBASE_T |
+		                  IXGBE_PHYSICAL_LAYER_1000BASE_T);
 		break;
 
 	default:
