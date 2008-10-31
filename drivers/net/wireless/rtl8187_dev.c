@@ -870,7 +870,6 @@ static int rtl8187_config(struct ieee80211_hw *dev, u32 changed)
 	 */
 	rtl818x_iowrite32(priv, &priv->map->TX_CONF,
 			  reg | RTL818X_TX_CONF_LOOPBACK_MAC);
-	msleep(10);
 	priv->rf->set_chan(dev, conf);
 	msleep(10);
 	rtl818x_iowrite32(priv, &priv->map->TX_CONF, reg);
