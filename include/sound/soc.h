@@ -28,7 +28,8 @@
  */
 #define SOC_SINGLE_VALUE(xreg, xshift, xmax, xinvert) \
 	((unsigned long)&(struct soc_mixer_control) \
-	{.reg = xreg, .shift = xshift, .max = xmax, .invert = xinvert})
+	{.reg = xreg, .shift = xshift, .rshift = xshift, .max = xmax, \
+	.invert = xinvert})
 #define SOC_SINGLE_VALUE_EXT(xreg, xmax, xinvert) \
 	((unsigned long)&(struct soc_mixer_control) \
 	{.reg = xreg, .max = xmax, .invert = xinvert})
