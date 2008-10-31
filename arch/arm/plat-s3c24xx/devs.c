@@ -271,31 +271,6 @@ struct platform_device s3c_device_wdt = {
 
 EXPORT_SYMBOL(s3c_device_wdt);
 
-/* I2C */
-
-static struct resource s3c_i2c_resource[] = {
-	[0] = {
-		.start = S3C24XX_PA_IIC,
-		.end   = S3C24XX_PA_IIC + S3C24XX_SZ_IIC - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_IIC,
-		.end   = IRQ_IIC,
-		.flags = IORESOURCE_IRQ,
-	}
-
-};
-
-struct platform_device s3c_device_i2c = {
-	.name		  = "s3c2410-i2c",
-	.id		  = -1,
-	.num_resources	  = ARRAY_SIZE(s3c_i2c_resource),
-	.resource	  = s3c_i2c_resource,
-};
-
-EXPORT_SYMBOL(s3c_device_i2c);
-
 /* IIS */
 
 static struct resource s3c_iis_resource[] = {

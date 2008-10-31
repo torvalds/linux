@@ -36,6 +36,7 @@
 #include <mach/regs-mem.h>
 #include <mach/regs-lcd.h>
 #include <plat/nand.h>
+#include <plat/iic.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -166,7 +167,7 @@ static struct platform_device *at2440evb_devices[] __initdata = {
 	&s3c_device_usb,
 	&s3c_device_wdt,
 	&s3c_device_adc,
-	&s3c_device_i2c,
+	&s3c_device_i2c0,
 	&s3c_device_rtc,
 	&s3c_device_nand,
 	&at2440evb_device_eth,
@@ -183,6 +184,7 @@ static void __init at2440evb_map_io(void)
 
 static void __init at2440evb_init(void)
 {
+	s3c_i2c0_set_platdata(NULL);
 	platform_add_devices(at2440evb_devices, ARRAY_SIZE(at2440evb_devices));
 }
 

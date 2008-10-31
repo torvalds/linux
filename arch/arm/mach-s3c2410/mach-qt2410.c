@@ -54,6 +54,7 @@
 #include <plat/udc.h>
 #include <mach/spi.h>
 #include <mach/spi-gpio.h>
+#include <plat/iic.h>
 
 #include <plat/common-smdk.h>
 #include <plat/devs.h>
@@ -247,7 +248,7 @@ static struct platform_device *qt2410_devices[] __initdata = {
 	&s3c_device_usb,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
-	&s3c_device_i2c,
+	&s3c_device_i2c0,
 	&s3c_device_iis,
 	&s3c_device_sdi,
 	&s3c_device_usbgadget,
@@ -349,6 +350,7 @@ static void __init qt2410_machine_init(void)
 	s3c2410_gpio_setpin(S3C2410_GPB0, 1);
 
 	s3c24xx_udc_set_platdata(&qt2410_udc_cfg);
+	s3c_i2c0_set_platdata(NULL);
 
 	s3c2410_gpio_cfgpin(S3C2410_GPB5, S3C2410_GPIO_OUTPUT);
 
