@@ -90,6 +90,7 @@ static void ack_vic_irq(unsigned int irq);
 static void vic_enable_cpi(void);
 static void do_boot_cpu(__u8 cpuid);
 static void do_quad_bootstrap(void);
+static void initialize_secondary(void);
 
 int hard_smp_processor_id(void);
 int safe_smp_processor_id(void);
@@ -344,6 +345,12 @@ static void do_quad_bootstrap(void)
 	}
 }
 
+void prefill_possible_map(void)
+{
+	/* This is empty on voyager because we need a much
+	 * earlier detection which is done in find_smp_config */
+}
+
 /* Set up all the basic stuff: read the SMP config and make all the
  * SMP information reflect only the boot cpu.  All others will be
  * brought on-line later. */
@@ -413,6 +420,7 @@ void __init smp_store_cpu_info(int id)
 	struct cpuinfo_x86 *c = &cpu_data(id);
 
 	*c = boot_cpu_data;
+	c->cpu_index = id;
 
 	identify_secondary_cpu(c);
 }
@@ -650,6 +658,8 @@ void __init smp_boot_cpus(void)
 	 smp_tune_scheduling();
 	 */
 	smp_store_cpu_info(boot_cpu_id);
+	/* setup the jump vector */
+	initial_code = (unsigned long)initialize_secondary;
 	printk("CPU%d: ", boot_cpu_id);
 	print_cpu_info(&cpu_data(boot_cpu_id));
 
@@ -702,7 +712,7 @@ void __init smp_boot_cpus(void)
 
 /* Reload the secondary CPUs task structure (this function does not
  * return ) */
-void __init initialize_secondary(void)
+static void __init initialize_secondary(void)
 {
 #if 0
 	// AC kernels only
