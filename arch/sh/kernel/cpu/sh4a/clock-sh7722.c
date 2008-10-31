@@ -567,11 +567,29 @@ static struct clk sh7722_video_clock = {
 	.ops = &sh7722_video_clk_ops,
 };
 
-static int sh7722_mstpcr_start_stop(struct clk *clk, unsigned long reg,
-				    int enable)
+#define MSTPCR_ARCH_FLAGS(reg, bit) (((reg) << 8) | (bit))
+#define MSTPCR_ARCH_FLAGS_REG(value) ((value) >> 8)
+#define MSTPCR_ARCH_FLAGS_BIT(value) ((value) & 0xff)
+
+static int sh7722_mstpcr_start_stop(struct clk *clk, int enable)
 {
-	unsigned long bit = clk->arch_flags;
+	unsigned long bit = MSTPCR_ARCH_FLAGS_BIT(clk->arch_flags);
+	unsigned long reg;
 	unsigned long r;
+
+	switch(MSTPCR_ARCH_FLAGS_REG(clk->arch_flags)) {
+	case 0:
+		reg = MSTPCR0;
+		break;
+	case 1:
+		reg = MSTPCR1;
+		break;
+	case 2:
+		reg = MSTPCR2;
+		break;
+	default:
+		return -EINVAL;
+	}  
 
 	r = ctrl_inl(reg);
 
@@ -584,56 +602,26 @@ static int sh7722_mstpcr_start_stop(struct clk *clk, unsigned long reg,
 	return 0;
 }
 
-static void sh7722_mstpcr0_enable(struct clk *clk)
+static void sh7722_mstpcr_enable(struct clk *clk)
 {
-	sh7722_mstpcr_start_stop(clk, MSTPCR0, 1);
+	sh7722_mstpcr_start_stop(clk, 1);
 }
 
-static void sh7722_mstpcr0_disable(struct clk *clk)
+static void sh7722_mstpcr_disable(struct clk *clk)
 {
-	sh7722_mstpcr_start_stop(clk, MSTPCR0, 0);
+	sh7722_mstpcr_start_stop(clk, 0);
 }
 
-static void sh7722_mstpcr1_enable(struct clk *clk)
-{
-	sh7722_mstpcr_start_stop(clk, MSTPCR1, 1);
-}
-
-static void sh7722_mstpcr1_disable(struct clk *clk)
-{
-	sh7722_mstpcr_start_stop(clk, MSTPCR1, 0);
-}
-
-static void sh7722_mstpcr2_enable(struct clk *clk)
-{
-	sh7722_mstpcr_start_stop(clk, MSTPCR2, 1);
-}
-
-static void sh7722_mstpcr2_disable(struct clk *clk)
-{
-	sh7722_mstpcr_start_stop(clk, MSTPCR2, 0);
-}
-
-static struct clk_ops sh7722_mstpcr0_clk_ops = {
-	.enable = sh7722_mstpcr0_enable,
-	.disable = sh7722_mstpcr0_disable,
-};
-
-static struct clk_ops sh7722_mstpcr1_clk_ops = {
-	.enable = sh7722_mstpcr1_enable,
-	.disable = sh7722_mstpcr1_disable,
-};
-
-static struct clk_ops sh7722_mstpcr2_clk_ops = {
-	.enable = sh7722_mstpcr2_enable,
-	.disable = sh7722_mstpcr2_disable,
+static struct clk_ops sh7722_mstpcr_clk_ops = {
+	.enable = sh7722_mstpcr_enable,
+	.disable = sh7722_mstpcr_disable,
 };
 
 #define DECLARE_MSTPCRN(regnr, bitnr, bitstr)		\
 {							\
 	.name = "mstp" __stringify(regnr) bitstr,	\
-	.arch_flags = bitnr,				\
-	.ops = &sh7722_mstpcr ## regnr ## _clk_ops,	\
+	.arch_flags = MSTPCR_ARCH_FLAGS(regnr, bitnr),	\
+	.ops = &sh7722_mstpcr_clk_ops,	\
 }
 
 #define DECLARE_MSTPCR(regnr) \
