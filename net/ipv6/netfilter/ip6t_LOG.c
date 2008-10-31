@@ -424,9 +424,8 @@ ip6t_log_packet(u_int8_t pf,
 			if (skb->dev->type == ARPHRD_SIT) {
 				const struct iphdr *iph =
 					(struct iphdr *)skb_mac_header(skb);
-				printk("TUNNEL=%u.%u.%u.%u->%u.%u.%u.%u ",
-				       NIPQUAD(iph->saddr),
-				       NIPQUAD(iph->daddr));
+				printk("TUNNEL=%pI4->%pI4 ",
+				       &iph->saddr, &iph->daddr);
 			}
 		} else
 			printk(" ");

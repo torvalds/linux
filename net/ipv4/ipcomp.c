@@ -39,8 +39,8 @@ static void ipcomp4_err(struct sk_buff *skb, u32 info)
 			      spi, IPPROTO_COMP, AF_INET);
 	if (!x)
 		return;
-	NETDEBUG(KERN_DEBUG "pmtu discovery on SA IPCOMP/%08x/" NIPQUAD_FMT "\n",
-		 spi, NIPQUAD(iph->daddr));
+	NETDEBUG(KERN_DEBUG "pmtu discovery on SA IPCOMP/%08x/%pI4\n",
+		 spi, &iph->daddr);
 	xfrm_state_put(x);
 }
 

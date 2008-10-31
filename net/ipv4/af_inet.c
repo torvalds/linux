@@ -1070,11 +1070,8 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 		return 0;
 
 	if (sysctl_ip_dynaddr > 1) {
-		printk(KERN_INFO "%s(): shifting inet->"
-				 "saddr from " NIPQUAD_FMT " to " NIPQUAD_FMT "\n",
-		       __func__,
-		       NIPQUAD(old_saddr),
-		       NIPQUAD(new_saddr));
+		printk(KERN_INFO "%s(): shifting inet->saddr from %pI4 to %pI4\n",
+		       __func__, &old_saddr, &new_saddr);
 	}
 
 	inet->saddr = inet->rcv_saddr = new_saddr;

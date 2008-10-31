@@ -1214,10 +1214,9 @@ restart:
 #if RT_CACHE_DEBUG >= 2
 	if (rt->u.dst.rt_next) {
 		struct rtable *trt;
-		printk(KERN_DEBUG "rt_cache @%02x: " NIPQUAD_FMT, hash,
-		       NIPQUAD(rt->rt_dst));
+		printk(KERN_DEBUG "rt_cache @%02x: %pI4", hash, &rt->rt_dst);
 		for (trt = rt->u.dst.rt_next; trt; trt = trt->u.dst.rt_next)
-			printk(" . " NIPQUAD_FMT, NIPQUAD(trt->rt_dst));
+			printk(" . %pI4", &trt->rt_dst);
 		printk("\n");
 	}
 #endif
@@ -1444,11 +1443,10 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 reject_redirect:
 #ifdef CONFIG_IP_ROUTE_VERBOSE
 	if (IN_DEV_LOG_MARTIANS(in_dev) && net_ratelimit())
-		printk(KERN_INFO "Redirect from " NIPQUAD_FMT " on %s about "
-			NIPQUAD_FMT " ignored.\n"
-			"  Advised path = " NIPQUAD_FMT " -> " NIPQUAD_FMT "\n",
-		       NIPQUAD(old_gw), dev->name, NIPQUAD(new_gw),
-		       NIPQUAD(saddr), NIPQUAD(daddr));
+		printk(KERN_INFO "Redirect from %pI4 on %s about %pI4 ignored.\n"
+			"  Advised path = %pI4 -> %pI4\n",
+		       &old_gw, dev->name, &new_gw,
+		       &saddr, &daddr);
 #endif
 	in_dev_put(in_dev);
 }
@@ -1468,9 +1466,8 @@ static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst)
 						rt->fl.oif,
 						rt_genid(dev_net(dst->dev)));
 #if RT_CACHE_DEBUG >= 1
-			printk(KERN_DEBUG "ipv4_negative_advice: redirect to "
-					  NIPQUAD_FMT "/%02x dropped\n",
-				NIPQUAD(rt->rt_dst), rt->fl.fl4_tos);
+			printk(KERN_DEBUG "ipv4_negative_advice: redirect to %pI4/%02x dropped\n",
+				&rt->rt_dst, rt->fl.fl4_tos);
 #endif
 			rt_del(hash, rt);
 			ret = NULL;
@@ -1534,10 +1531,9 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 		if (IN_DEV_LOG_MARTIANS(in_dev) &&
 		    rt->u.dst.rate_tokens == ip_rt_redirect_number &&
 		    net_ratelimit())
-			printk(KERN_WARNING "host " NIPQUAD_FMT "/if%d ignores "
-				"redirects for " NIPQUAD_FMT " to " NIPQUAD_FMT ".\n",
-				NIPQUAD(rt->rt_src), rt->rt_iif,
-				NIPQUAD(rt->rt_dst), NIPQUAD(rt->rt_gateway));
+			printk(KERN_WARNING "host %pI4/if%d ignores redirects for %pI4 to %pI4.\n",
+				&rt->rt_src, rt->rt_iif,
+				&rt->rt_dst, &rt->rt_gateway);
 #endif
 	}
 out:
@@ -1730,8 +1726,8 @@ static void ipv4_link_failure(struct sk_buff *skb)
 
 static int ip_rt_bug(struct sk_buff *skb)
 {
-	printk(KERN_DEBUG "ip_rt_bug: " NIPQUAD_FMT " -> " NIPQUAD_FMT ", %s\n",
-		NIPQUAD(ip_hdr(skb)->saddr), NIPQUAD(ip_hdr(skb)->daddr),
+	printk(KERN_DEBUG "ip_rt_bug: %pI4 -> %pI4, %s\n",
+		&ip_hdr(skb)->saddr, &ip_hdr(skb)->daddr,
 		skb->dev ? skb->dev->name : "?");
 	kfree_skb(skb);
 	return 0;
@@ -1908,9 +1904,8 @@ static void ip_handle_martian_source(struct net_device *dev,
 		 *	RFC1812 recommendation, if source is martian,
 		 *	the only hint is MAC header.
 		 */
-		printk(KERN_WARNING "martian source " NIPQUAD_FMT " from "
-			NIPQUAD_FMT", on dev %s\n",
-			NIPQUAD(daddr), NIPQUAD(saddr), dev->name);
+		printk(KERN_WARNING "martian source %pI4 from %pI4, on dev %s\n",
+			&daddr, &saddr, dev->name);
 		if (dev->hard_header_len && skb_mac_header_was_set(skb)) {
 			int i;
 			const unsigned char *p = skb_mac_header(skb);
@@ -2219,9 +2214,8 @@ martian_destination:
 	RT_CACHE_STAT_INC(in_martian_dst);
 #ifdef CONFIG_IP_ROUTE_VERBOSE
 	if (IN_DEV_LOG_MARTIANS(in_dev) && net_ratelimit())
-		printk(KERN_WARNING "martian destination " NIPQUAD_FMT " from "
-			NIPQUAD_FMT ", dev %s\n",
-			NIPQUAD(daddr), NIPQUAD(saddr), dev->name);
+		printk(KERN_WARNING "martian destination %pI4 from %pI4, dev %s\n",
+			&daddr, &saddr, dev->name);
 #endif
 
 e_hostunreach:
