@@ -44,7 +44,7 @@
 #include "linux/virtio_console.h"
 #include "linux/virtio_rng.h"
 #include "linux/virtio_ring.h"
-#include "asm-x86/bootparam.h"
+#include "asm/bootparam.h"
 /*L:110 We can ignore the 39 include files we need for this program, but I do
  * want to draw attention to the use of kernel-style types.
  *
