@@ -56,12 +56,14 @@ struct s3c_sdhci_platdata {
  * make the structure itself __initdata.
  */
 extern void s3c_sdhci0_set_platdata(struct s3c_sdhci_platdata *pd);
+extern void s3c_sdhci1_set_platdata(struct s3c_sdhci_platdata *pd);
 
 /* Default platform data, exported so that per-cpu initialisation can
  * set the correct one when there are more than one cpu type selected.
 */
 
-extern struct s3c_sdhci_platdata s3c_hsmmc0_def_platata;
+extern struct s3c_sdhci_platdata s3c_hsmmc0_def_platdata;
+extern struct s3c_sdhci_platdata s3c_hsmmc1_def_platdata;
 
 /* Helper function availablity */
 
@@ -69,6 +71,8 @@ extern struct s3c_sdhci_platdata s3c_hsmmc0_def_platata;
 extern char *s3c6410_hsmmc_clksrcs[4];
 
 extern void s3c6410_setup_sdhci0_cfg_gpio(struct platform_device *, int w);
+extern void s3c6410_setup_sdhci1_cfg_gpio(struct platform_device *, int w);
+
 extern void s3c6410_setup_sdhci0_cfg_card(struct platform_device *dev,
 					   void __iomem *r,
 					   struct mmc_ios *ios,
@@ -80,8 +84,16 @@ static inline void s3c6410_default_sdhci0(void)
 	s3c_hsmmc0_def_platdata.cfg_gpio = s3c6410_setup_sdhci0_cfg_gpio;
 	s3c_hsmmc0_def_platdata.cfg_card = s3c6410_setup_sdhci0_cfg_card;
 }
+
+static inline void s3c6410_default_sdhci1(void)
+{
+	s3c_hsmmc1_def_platdata.clocks = s3c6410_hsmmc_clksrcs;
+	s3c_hsmmc1_def_platdata.cfg_gpio = s3c6410_setup_sdhci0_cfg_gpio;
+	s3c_hsmmc1_def_platdata.cfg_card = s3c6410_setup_sdhci0_cfg_card;
+}
 #else
 static inline void s3c6410_default_sdhci0(void) { }
+static inline void s3c6410_default_sdhci1(void) { }
 #endif /* CONFIG_S3C6410_SETUP_SDHCI */
 
 #endif /* __PLAT_S3C_SDHCI_H */

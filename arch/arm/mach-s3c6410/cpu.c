@@ -55,6 +55,7 @@ void __init s3c6410_map_io(void)
 
 	/* initialise device information early */
 	s3c6410_default_sdhci0();
+	s3c6410_default_sdhci1();
 }
 
 void __init s3c6410_init_clocks(int xtal)

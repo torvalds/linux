@@ -21,3 +21,4 @@ obj-y				+= gpio-config.o
 # devices
 
 obj-$(CONFIG_S3C_DEV_HSMMC)	+= dev-hsmmc.o
+obj-$(CONFIG_S3C_DEV_HSMMC1)	+= dev-hsmmc1.o
