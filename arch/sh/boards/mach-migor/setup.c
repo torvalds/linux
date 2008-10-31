@@ -502,7 +502,6 @@ static int __init migor_devices_setup(void)
 	gpio_request(GPIO_FN_IRQ6, NULL);
 
 	/* LCD Panel */
-	clk_always_enable("mstp200"); /* LCDC */
 #ifdef CONFIG_SH_MIGOR_QVGA /* LCDC - QVGA - Enable SYS Interface signals */
 	gpio_request(GPIO_FN_LCDD17, NULL);
 	gpio_request(GPIO_FN_LCDD16, NULL);

@@ -345,7 +345,6 @@ static int __init ap325rxa_devices_setup(void)
 	gpio_export(GPIO_PTF7, 0);
 
 	/* LCDC */
-	clk_always_enable("mstp200");
 	gpio_request(GPIO_FN_LCDD15, NULL);
 	gpio_request(GPIO_FN_LCDD14, NULL);
 	gpio_request(GPIO_FN_LCDD13, NULL);
