@@ -223,6 +223,8 @@ static int gfar_mdio_of_init_one(struct device_node *np)
 	if (ret)
 		return ret;
 
+	/* The gianfar device will try to use the same ID created below to find
+	 * this bus, to coordinate register access (since they share).  */
 	mdio_dev = platform_device_register_simple("fsl-gianfar_mdio",
 			res.start&0xfffff, &res, 1);
 	if (IS_ERR(mdio_dev))
@@ -392,6 +394,30 @@ static int __init gfar_of_init(void)
 
 			of_node_put(phy);
 			of_node_put(mdio);
+		}
+
+		/* Get MDIO bus controlled by this eTSEC, if any.  Normally only
+		 * eTSEC 1 will control an MDIO bus, not necessarily the same
+		 * bus that its PHY is on ('mdio' above), so we can't just use
+		 * that.  What we do is look for a gianfar mdio device that has
+		 * overlapping registers with this device.  That's really the
+		 * whole point, to find the device sharing our registers to
+		 * coordinate access with it.
+		 */
+		for_each_compatible_node(mdio, NULL, "fsl,gianfar-mdio") {
+			if (of_address_to_resource(mdio, 0, &res))
+				continue;
+
+			if (res.start >= r[0].start && res.end <= r[0].end) {
+				/* Get the ID the mdio bus platform device was
+				 * registered with.  gfar_data.bus_id is
+				 * different because it's for finding a PHY,
+				 * while this is for finding a MII bus.
+				 */
+				gfar_data.mdio_bus = res.start&0xfffff;
+				of_node_put(mdio);
+				break;
+			}
 		}
 
 		ret =

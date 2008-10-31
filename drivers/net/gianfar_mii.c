@@ -269,6 +269,27 @@ static struct device_driver gianfar_mdio_driver = {
 	.remove = gfar_mdio_remove,
 };
 
+static int match_mdio_bus(struct device *dev, void *data)
+{
+	const struct gfar_private *priv = data;
+	const struct platform_device *pdev = to_platform_device(dev);
+
+	return !strcmp(pdev->name, gianfar_mdio_driver.name) &&
+		pdev->id == priv->einfo->mdio_bus;
+}
+
+/* Given a gfar_priv structure, find the mii_bus controlled by this device (not
+ * necessarily the same as the bus the gfar's PHY is on), if one exists.
+ * Normally only the first gianfar controls a mii_bus.  */
+struct mii_bus *gfar_get_miibus(const struct gfar_private *priv)
+{
+	/*const*/ struct device *d;
+
+	d = bus_find_device(gianfar_mdio_driver.bus, NULL, (void *)priv,
+			    match_mdio_bus);
+	return d ? dev_get_drvdata(d) : NULL;
+}
+
 int __init gfar_mdio_init(void)
 {
 	return driver_register(&gianfar_mdio_driver);
