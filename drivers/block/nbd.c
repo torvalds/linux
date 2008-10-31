@@ -722,7 +722,7 @@ static int __init nbd_init(void)
 
 	for (i = 0; i < nbds_max; i++) {
 		struct gendisk *disk = alloc_disk(1 << part_shift);
-		elevator_t *old_e;
+		struct elevator_queue *old_e;
 		if (!disk)
 			goto out;
 		nbd_dev[i].disk = disk;

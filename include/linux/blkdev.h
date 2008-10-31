@@ -26,7 +26,6 @@ struct scsi_ioctl_command;
 
 struct request_queue;
 struct elevator_queue;
-typedef struct elevator_queue elevator_t;
 struct request_pm_state;
 struct blk_trace;
 struct request;
@@ -313,7 +312,7 @@ struct request_queue
 	 */
 	struct list_head	queue_head;
 	struct request		*last_merge;
-	elevator_t		*elevator;
+	struct elevator_queue	*elevator;
 
 	/*
 	 * the queue request freelist, one for reads and one for writes
