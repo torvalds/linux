@@ -62,6 +62,7 @@ static struct s3c2410_uartcfg smdk6410_uartcfgs[] __initdata = {
 struct map_desc smdk6410_iodesc[] = {};
 
 static struct platform_device *smdk6410_devices[] __initdata = {
+	&s3c_device_hsmmc0,
 };
 
 extern void s3c64xx_init_io(struct map_desc *, int);
