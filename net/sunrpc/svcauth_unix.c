@@ -162,11 +162,7 @@ static void ip_map_request(struct cache_detail *cd,
 	struct ip_map *im = container_of(h, struct ip_map, h);
 
 	if (ipv6_addr_v4mapped(&(im->m_addr))) {
-		snprintf(text_addr, 20, NIPQUAD_FMT,
-				ntohl(im->m_addr.s6_addr32[3]) >> 24 & 0xff,
-				ntohl(im->m_addr.s6_addr32[3]) >> 16 & 0xff,
-				ntohl(im->m_addr.s6_addr32[3]) >>  8 & 0xff,
-				ntohl(im->m_addr.s6_addr32[3]) >>  0 & 0xff);
+		snprintf(text_addr, 20, "%pI4", &im->m_addr.s6_addr32[3]);
 	} else {
 		snprintf(text_addr, 40, "%pI6", &im->m_addr);
 	}
@@ -208,7 +204,7 @@ static int ip_map_parse(struct cache_detail *cd,
 	len = qword_get(&mesg, buf, mlen);
 	if (len <= 0) return -EINVAL;
 
-	if (sscanf(buf, NIPQUAD_FMT "%c", &b1, &b2, &b3, &b4, &c) == 4) {
+	if (sscanf(buf, "%u.%u.%u.%u%c", &b1, &b2, &b3, &b4, &c) == 4) {
 		addr.s6_addr32[0] = 0;
 		addr.s6_addr32[1] = 0;
 		addr.s6_addr32[2] = htonl(0xffff);
@@ -278,13 +274,8 @@ static int ip_map_show(struct seq_file *m,
 		dom = im->m_client->h.name;
 
 	if (ipv6_addr_v4mapped(&addr)) {
-		seq_printf(m, "%s " NIPQUAD_FMT " %s\n",
-			im->m_class,
-			ntohl(addr.s6_addr32[3]) >> 24 & 0xff,
-			ntohl(addr.s6_addr32[3]) >> 16 & 0xff,
-			ntohl(addr.s6_addr32[3]) >>  8 & 0xff,
-			ntohl(addr.s6_addr32[3]) >>  0 & 0xff,
-			dom);
+		seq_printf(m, "%s %pI4 %s\n",
+			im->m_class, &addr.s6_addr32[3], dom);
 	} else {
 		seq_printf(m, "%s %pI6 %s\n", im->m_class, &addr, dom);
 	}

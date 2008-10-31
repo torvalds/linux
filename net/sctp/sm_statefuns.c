@@ -1130,11 +1130,10 @@ sctp_disposition_t sctp_sf_backbeat_8_3(const struct sctp_endpoint *ep,
 		} else {
 			if (net_ratelimit())
 				printk(KERN_WARNING
-				    "%s association %p could not find address "
-				    NIPQUAD_FMT "\n",
+				    "%s association %p could not find address %pI4\n",
 				    __func__,
 				    asoc,
-				    NIPQUAD(from_addr.v4.sin_addr.s_addr));
+				    &from_addr.v4.sin_addr.s_addr);
 		}
 		return SCTP_DISPOSITION_DISCARD;
 	}

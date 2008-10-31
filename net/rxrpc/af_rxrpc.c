@@ -96,9 +96,9 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
 
 	switch (srx->transport.family) {
 	case AF_INET:
-		_debug("INET: %x @ %u.%u.%u.%u",
+		_debug("INET: %x @ %pI4",
 		       ntohs(srx->transport.sin.sin_port),
-		       NIPQUAD(srx->transport.sin.sin_addr));
+		       &srx->transport.sin.sin_addr);
 		if (srx->transport_len > 8)
 			memset((void *)&srx->transport + 8, 0,
 			       srx->transport_len - 8);

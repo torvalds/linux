@@ -482,9 +482,8 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 	if (saddr)
 		fl.fl4_src = saddr->v4.sin_addr.s_addr;
 
-	SCTP_DEBUG_PRINTK("%s: DST:%u.%u.%u.%u, SRC:%u.%u.%u.%u - ",
-			  __func__, NIPQUAD(fl.fl4_dst),
-			  NIPQUAD(fl.fl4_src));
+	SCTP_DEBUG_PRINTK("%s: DST:%pI4, SRC:%pI4 - ",
+			  __func__, &fl.fl4_dst, &fl.fl4_src);
 
 	if (!ip_route_output_key(&init_net, &rt, &fl)) {
 		dst = &rt->u.dst;
@@ -540,8 +539,8 @@ out_unlock:
 	rcu_read_unlock();
 out:
 	if (dst)
-		SCTP_DEBUG_PRINTK("rt_dst:%u.%u.%u.%u, rt_src:%u.%u.%u.%u\n",
-				  NIPQUAD(rt->rt_dst), NIPQUAD(rt->rt_src));
+		SCTP_DEBUG_PRINTK("rt_dst:%pI4, rt_src:%pI4\n",
+				  &rt->rt_dst, &rt->rt_src);
 	else
 		SCTP_DEBUG_PRINTK("NO ROUTE\n");
 
@@ -646,7 +645,7 @@ static void sctp_v4_addr_v4map(struct sctp_sock *sp, union sctp_addr *addr)
 /* Dump the v4 addr to the seq file. */
 static void sctp_v4_seq_dump_addr(struct seq_file *seq, union sctp_addr *addr)
 {
-	seq_printf(seq, "%d.%d.%d.%d ", NIPQUAD(addr->v4.sin_addr));
+	seq_printf(seq, "%pI4 ", &addr->v4.sin_addr);
 }
 
 static void sctp_v4_ecn_capable(struct sock *sk)
@@ -866,11 +865,10 @@ static inline int sctp_v4_xmit(struct sk_buff *skb,
 {
 	struct inet_sock *inet = inet_sk(skb->sk);
 
-	SCTP_DEBUG_PRINTK("%s: skb:%p, len:%d, "
-			  "src:%u.%u.%u.%u, dst:%u.%u.%u.%u\n",
+	SCTP_DEBUG_PRINTK("%s: skb:%p, len:%d, src:%pI4, dst:%pI4\n",
 			  __func__, skb, skb->len,
-			  NIPQUAD(skb->rtable->rt_src),
-			  NIPQUAD(skb->rtable->rt_dst));
+			  &skb->rtable->rt_src,
+			  &skb->rtable->rt_dst);
 
 	inet->pmtudisc = transport->param_flags & SPP_PMTUD_ENABLE ?
 			 IP_PMTUDISC_DO : IP_PMTUDISC_DONT;

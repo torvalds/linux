@@ -2455,13 +2455,11 @@ static void xfrm_audit_common_policyinfo(struct xfrm_policy *xp,
 
 	switch(sel->family) {
 	case AF_INET:
-		audit_log_format(audit_buf, " src=" NIPQUAD_FMT,
-				 NIPQUAD(sel->saddr.a4));
+		audit_log_format(audit_buf, " src=%pI4", &sel->saddr.a4);
 		if (sel->prefixlen_s != 32)
 			audit_log_format(audit_buf, " src_prefixlen=%d",
 					 sel->prefixlen_s);
-		audit_log_format(audit_buf, " dst=" NIPQUAD_FMT,
-				 NIPQUAD(sel->daddr.a4));
+		audit_log_format(audit_buf, " dst=%pI4", &sel->daddr.a4);
 		if (sel->prefixlen_d != 32)
 			audit_log_format(audit_buf, " dst_prefixlen=%d",
 					 sel->prefixlen_d);

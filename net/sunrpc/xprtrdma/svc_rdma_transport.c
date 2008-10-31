@@ -1048,21 +1048,21 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 
 	dprintk("svcrdma: new connection %p accepted with the following "
 		"attributes:\n"
-		"    local_ip        : %d.%d.%d.%d\n"
+		"    local_ip        : %pI4\n"
 		"    local_port	     : %d\n"
-		"    remote_ip       : %d.%d.%d.%d\n"
+		"    remote_ip       : %pI4\n"
 		"    remote_port     : %d\n"
 		"    max_sge         : %d\n"
 		"    sq_depth        : %d\n"
 		"    max_requests    : %d\n"
 		"    ord             : %d\n",
 		newxprt,
-		NIPQUAD(((struct sockaddr_in *)&newxprt->sc_cm_id->
-			 route.addr.src_addr)->sin_addr.s_addr),
+		&((struct sockaddr_in *)&newxprt->sc_cm_id->
+			 route.addr.src_addr)->sin_addr.s_addr,
 		ntohs(((struct sockaddr_in *)&newxprt->sc_cm_id->
 		       route.addr.src_addr)->sin_port),
-		NIPQUAD(((struct sockaddr_in *)&newxprt->sc_cm_id->
-			 route.addr.dst_addr)->sin_addr.s_addr),
+		&((struct sockaddr_in *)&newxprt->sc_cm_id->
+			 route.addr.dst_addr)->sin_addr.s_addr,
 		ntohs(((struct sockaddr_in *)&newxprt->sc_cm_id->
 		       route.addr.dst_addr)->sin_port),
 		newxprt->sc_max_sge,

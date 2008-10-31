@@ -284,8 +284,7 @@ static void xs_format_ipv4_peer_addresses(struct rpc_xprt *xprt,
 
 	buf = kzalloc(20, GFP_KERNEL);
 	if (buf) {
-		snprintf(buf, 20, NIPQUAD_FMT,
-				NIPQUAD(addr->sin_addr.s_addr));
+		snprintf(buf, 20, "pI4", &addr->sin_addr.s_addr);
 	}
 	xprt->address_strings[RPC_DISPLAY_ADDR] = buf;
 
@@ -300,8 +299,8 @@ static void xs_format_ipv4_peer_addresses(struct rpc_xprt *xprt,
 
 	buf = kzalloc(48, GFP_KERNEL);
 	if (buf) {
-		snprintf(buf, 48, "addr="NIPQUAD_FMT" port=%u proto=%s",
-			NIPQUAD(addr->sin_addr.s_addr),
+		snprintf(buf, 48, "addr=%pI4 port=%u proto=%s",
+			&addr->sin_addr.s_addr,
 			ntohs(addr->sin_port),
 			protocol);
 	}
@@ -323,8 +322,8 @@ static void xs_format_ipv4_peer_addresses(struct rpc_xprt *xprt,
 
 	buf = kzalloc(30, GFP_KERNEL);
 	if (buf) {
-		snprintf(buf, 30, NIPQUAD_FMT".%u.%u",
-				NIPQUAD(addr->sin_addr.s_addr),
+		snprintf(buf, 30, "%pI4.%u.%u",
+				&addr->sin_addr.s_addr,
 				ntohs(addr->sin_port) >> 8,
 				ntohs(addr->sin_port) & 0xff);
 	}
@@ -1413,8 +1412,8 @@ static int xs_bind4(struct sock_xprt *transport, struct socket *sock)
 		if (port > last)
 			nloop++;
 	} while (err == -EADDRINUSE && nloop != 2);
-	dprintk("RPC:       %s "NIPQUAD_FMT":%u: %s (%d)\n",
-			__func__, NIPQUAD(myaddr.sin_addr),
+	dprintk("RPC:       %s %pI4:%u: %s (%d)\n",
+			__func__, &myaddr.sin_addr,
 			port, err ? "failed" : "ok", err);
 	return err;
 }

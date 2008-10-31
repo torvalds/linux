@@ -232,8 +232,8 @@ void atm_mpoa_disp_qos(struct seq_file *m)
 	seq_printf(m, "IP address\n  TX:max_pcr pcr     min_pcr max_cdv max_sdu\n  RX:max_pcr pcr     min_pcr max_cdv max_sdu\n");
 
 	while (qos != NULL) {
-		seq_printf(m, "%u.%u.%u.%u\n     %-7d %-7d %-7d %-7d %-7d\n     %-7d %-7d %-7d %-7d %-7d\n",
-				NIPQUAD(qos->ipaddr),
+		seq_printf(m, "%pI4\n     %-7d %-7d %-7d %-7d %-7d\n     %-7d %-7d %-7d %-7d %-7d\n",
+				&qos->ipaddr,
 				qos->qos.txtp.max_pcr, qos->qos.txtp.pcr, qos->qos.txtp.min_pcr, qos->qos.txtp.max_cdv, qos->qos.txtp.max_sdu,
 				qos->qos.rxtp.max_pcr, qos->qos.rxtp.pcr, qos->qos.rxtp.min_pcr, qos->qos.rxtp.max_cdv, qos->qos.rxtp.max_sdu);
 		qos = qos->next;
@@ -595,8 +595,8 @@ static int atm_mpoa_vcc_attach(struct atm_vcc *vcc, void __user *arg)
 			if (in_entry != NULL) mpc->in_ops->put(in_entry);
 			return -EINVAL;
 		}
-		printk("mpoa: (%s) mpc_vcc_attach: attaching ingress SVC, entry = %u.%u.%u.%u\n",
-		       mpc->dev->name, NIPQUAD(in_entry->ctrl_info.in_dst_ip));
+		printk("mpoa: (%s) mpc_vcc_attach: attaching ingress SVC, entry = %pI4\n",
+		       mpc->dev->name, &in_entry->ctrl_info.in_dst_ip);
 		in_entry->shortcut = vcc;
 		mpc->in_ops->put(in_entry);
 	} else {
@@ -627,8 +627,8 @@ static void mpc_vcc_close(struct atm_vcc *vcc, struct net_device *dev)
 	dprintk("mpoa: (%s) mpc_vcc_close:\n", dev->name);
 	in_entry = mpc->in_ops->get_by_vcc(vcc, mpc);
 	if (in_entry) {
-		dprintk("mpoa: (%s) mpc_vcc_close: ingress SVC closed ip = %u.%u.%u.%u\n",
-		       mpc->dev->name, NIPQUAD(in_entry->ctrl_info.in_dst_ip));
+		dprintk("mpoa: (%s) mpc_vcc_close: ingress SVC closed ip = %pI4\n",
+		       mpc->dev->name, &in_entry->ctrl_info.in_dst_ip);
 		in_entry->shortcut = NULL;
 		mpc->in_ops->put(in_entry);
 	}
@@ -1098,7 +1098,8 @@ static void check_qos_and_open_shortcut(struct k_message *msg, struct mpoa_clien
 				    entry->shortcut = eg_entry->shortcut;
 		}
 		if(entry->shortcut){
-			dprintk("mpoa: (%s) using egress SVC to reach %u.%u.%u.%u\n",client->dev->name, NIPQUAD(dst_ip));
+			dprintk("mpoa: (%s) using egress SVC to reach %pI4\n",
+				client->dev->name, &dst_ip);
 			client->eg_ops->put(eg_entry);
 			return;
 		}
@@ -1123,7 +1124,8 @@ static void MPOA_res_reply_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 	__be32 dst_ip = msg->content.in_info.in_dst_ip;
 	in_cache_entry *entry = mpc->in_ops->get(dst_ip, mpc);
 
-	dprintk("mpoa: (%s) MPOA_res_reply_rcvd: ip %u.%u.%u.%u\n", mpc->dev->name, NIPQUAD(dst_ip));
+	dprintk("mpoa: (%s) MPOA_res_reply_rcvd: ip %pI4\n",
+		mpc->dev->name, &dst_ip);
 	ddprintk("mpoa: (%s) MPOA_res_reply_rcvd() entry = %p", mpc->dev->name, entry);
 	if(entry == NULL){
 		printk("\nmpoa: (%s) ARGH, received res. reply for an entry that doesn't exist.\n", mpc->dev->name);
@@ -1171,14 +1173,14 @@ static void ingress_purge_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 	in_cache_entry *entry = mpc->in_ops->get_with_mask(dst_ip, mpc, mask);
 
 	if(entry == NULL){
-		printk("mpoa: (%s) ingress_purge_rcvd: purge for a non-existing entry, ", mpc->dev->name);
-		printk("ip = %u.%u.%u.%u\n", NIPQUAD(dst_ip));
+		printk("mpoa: (%s) ingress_purge_rcvd: purge for a non-existing entry, ip = %pI4\n",
+		       mpc->dev->name, &dst_ip);
 		return;
 	}
 
 	do {
-		dprintk("mpoa: (%s) ingress_purge_rcvd: removing an ingress entry, ip = %u.%u.%u.%u\n" ,
-			mpc->dev->name, NIPQUAD(dst_ip));
+		dprintk("mpoa: (%s) ingress_purge_rcvd: removing an ingress entry, ip = %pI4\n",
+			mpc->dev->name, &dst_ip);
 		write_lock_bh(&mpc->ingress_lock);
 		mpc->in_ops->remove_entry(entry, mpc);
 		write_unlock_bh(&mpc->ingress_lock);
