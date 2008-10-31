@@ -705,6 +705,7 @@ static void ftrace_trace_stack(struct trace_array *tr,
 			       unsigned long flags,
 			       int skip, int pc)
 {
+#ifdef CONFIG_STACKTRACE
 	struct ring_buffer_event *event;
 	struct stack_entry *entry;
 	struct stack_trace trace;
@@ -730,6 +731,7 @@ static void ftrace_trace_stack(struct trace_array *tr,
 
 	save_stack_trace(&trace);
 	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
+#endif
 }
 
 void __trace_stack(struct trace_array *tr,
