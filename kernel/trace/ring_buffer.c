@@ -1022,8 +1022,23 @@ rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
 	struct ring_buffer_event *event;
 	u64 ts, delta;
 	int commit = 0;
+	int nr_loops = 0;
 
  again:
+	/*
+	 * We allow for interrupts to reenter here and do a trace.
+	 * If one does, it will cause this original code to loop
+	 * back here. Even with heavy interrupts happening, this
+	 * should only happen a few times in a row. If this happens
+	 * 1000 times in a row, there must be either an interrupt
+	 * storm or we have something buggy.
+	 * Bail!
+	 */
+	if (unlikely(++nr_loops > 1000)) {
+		RB_WARN_ON(cpu_buffer, 1);
+		return NULL;
+	}
+
 	ts = ring_buffer_time_stamp(cpu_buffer->cpu);
 
 	/*
@@ -1532,10 +1547,23 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 {
 	struct buffer_page *reader = NULL;
 	unsigned long flags;
+	int nr_loops = 0;
 
 	spin_lock_irqsave(&cpu_buffer->lock, flags);
 
  again:
+	/*
+	 * This should normally only loop twice. But because the
+	 * start of the reader inserts an empty page, it causes
+	 * a case where we will loop three times. There should be no
+	 * reason to loop four times (that I know of).
+	 */
+	if (unlikely(++nr_loops > 3)) {
+		RB_WARN_ON(cpu_buffer, 1);
+		reader = NULL;
+		goto out;
+	}
+
 	reader = cpu_buffer->reader_page;
 
 	/* If there's more to read, return this page */
@@ -1665,6 +1693,7 @@ ring_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts)
 	struct ring_buffer_per_cpu *cpu_buffer;
 	struct ring_buffer_event *event;
 	struct buffer_page *reader;
+	int nr_loops = 0;
 
 	if (!cpu_isset(cpu, buffer->cpumask))
 		return NULL;
@@ -1672,6 +1701,19 @@ ring_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts)
 	cpu_buffer = buffer->buffers[cpu];
 
  again:
+	/*
+	 * We repeat when a timestamp is encountered. It is possible
+	 * to get multiple timestamps from an interrupt entering just
+	 * as one timestamp is about to be written. The max times
+	 * that this can happen is the number of nested interrupts we
+	 * can have.  Nesting 10 deep of interrupts is clearly
+	 * an anomaly.
+	 */
+	if (unlikely(++nr_loops > 10)) {
+		RB_WARN_ON(cpu_buffer, 1);
+		return NULL;
+	}
+
 	reader = rb_get_reader_page(cpu_buffer);
 	if (!reader)
 		return NULL;
@@ -1722,6 +1764,7 @@ ring_buffer_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 	struct ring_buffer *buffer;
 	struct ring_buffer_per_cpu *cpu_buffer;
 	struct ring_buffer_event *event;
+	int nr_loops = 0;
 
 	if (ring_buffer_iter_empty(iter))
 		return NULL;
@@ -1730,6 +1773,19 @@ ring_buffer_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 	buffer = cpu_buffer->buffer;
 
  again:
+	/*
+	 * We repeat when a timestamp is encountered. It is possible
+	 * to get multiple timestamps from an interrupt entering just
+	 * as one timestamp is about to be written. The max times
+	 * that this can happen is the number of nested interrupts we
+	 * can have. Nesting 10 deep of interrupts is clearly
+	 * an anomaly.
+	 */
+	if (unlikely(++nr_loops > 10)) {
+		RB_WARN_ON(cpu_buffer, 1);
+		return NULL;
+	}
+
 	if (rb_per_cpu_empty(cpu_buffer))
 		return NULL;
 
