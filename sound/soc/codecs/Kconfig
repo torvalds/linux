@@ -9,6 +9,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TLV320AIC23 if I2C
 	select SND_SOC_TLV320AIC26 if SPI_MASTER
 	select SND_SOC_TLV320AIC3X if I2C
+	select SND_SOC_TWL4030 if TWL4030_CORE
 	select SND_SOC_UDA1380 if I2C
 	select SND_SOC_WM8510 if (I2C || SPI_MASTER)
 	select SND_SOC_WM8580 if I2C
@@ -78,6 +79,10 @@ config SND_SOC_TLV320AIC26
 config SND_SOC_TLV320AIC3X
 	tristate
 	depends on I2C
+
+config SND_SOC_TWL4030
+	tristate
+	depends on TWL4030_CORE
 
 config SND_SOC_UDA1380
         tristate
