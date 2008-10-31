@@ -2141,8 +2141,8 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 
 	/* Check for valid protocol: TCP or UDP, even for fwmark!=0 */
 	if (usvc.protocol != IPPROTO_TCP && usvc.protocol != IPPROTO_UDP) {
-		IP_VS_ERR("set_ctl: invalid protocol: %d %d.%d.%d.%d:%d %s\n",
-			  usvc.protocol, NIPQUAD(usvc.addr.ip),
+		IP_VS_ERR("set_ctl: invalid protocol: %d %pI4:%d %s\n",
+			  usvc.protocol, &usvc.addr.ip,
 			  ntohs(usvc.port), usvc.sched_name);
 		ret = -EFAULT;
 		goto out_unlock;

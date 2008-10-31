@@ -462,10 +462,9 @@ static int help(struct sk_buff *skb,
 		   different IP address.  Simply don't record it for
 		   NAT. */
 		if (cmd.l3num == PF_INET) {
-			pr_debug("conntrack_ftp: NOT RECORDING: " NIPQUAD_FMT
-				 " != " NIPQUAD_FMT "\n",
-				 NIPQUAD(cmd.u3.ip),
-				 NIPQUAD(ct->tuplehash[dir].tuple.src.u3.ip));
+			pr_debug("conntrack_ftp: NOT RECORDING: %pI4 != %pI4\n",
+				 &cmd.u3.ip,
+				 &ct->tuplehash[dir].tuple.src.u3.ip);
 		} else {
 			pr_debug("conntrack_ftp: NOT RECORDING: %pI6 != %pI6\n",
 				 cmd.u3.ip6,

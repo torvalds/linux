@@ -422,9 +422,8 @@ static int recent_seq_show(struct seq_file *seq, void *v)
 
 	i = (e->index - 1) % ip_pkt_list_tot;
 	if (e->family == NFPROTO_IPV4)
-		seq_printf(seq, "src=" NIPQUAD_FMT " ttl: %u last_seen: %lu "
-			   "oldest_pkt: %u", NIPQUAD(e->addr.ip), e->ttl,
-			   e->stamps[i], e->index);
+		seq_printf(seq, "src=%pI4 ttl: %u last_seen: %lu oldest_pkt: %u",
+			   &e->addr.ip, e->ttl, e->stamps[i], e->index);
 	else
 		seq_printf(seq, "src=%pI6 ttl: %u last_seen: %lu oldest_pkt: %u",
 			   &e->addr.in6, e->ttl, e->stamps[i], e->index);

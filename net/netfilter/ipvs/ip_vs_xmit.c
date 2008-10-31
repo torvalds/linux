@@ -82,14 +82,13 @@ __ip_vs_get_out_rt(struct ip_vs_conn *cp, u32 rtos)
 
 			if (ip_route_output_key(&init_net, &rt, &fl)) {
 				spin_unlock(&dest->dst_lock);
-				IP_VS_DBG_RL("ip_route_output error, "
-					     "dest: %u.%u.%u.%u\n",
-					     NIPQUAD(dest->addr.ip));
+				IP_VS_DBG_RL("ip_route_output error, dest: %pI4\n",
+					     &dest->addr.ip);
 				return NULL;
 			}
 			__ip_vs_dst_set(dest, rtos, dst_clone(&rt->u.dst));
-			IP_VS_DBG(10, "new dst %u.%u.%u.%u, refcnt=%d, rtos=%X\n",
-				  NIPQUAD(dest->addr.ip),
+			IP_VS_DBG(10, "new dst %pI4, refcnt=%d, rtos=%X\n",
+				  &dest->addr.ip,
 				  atomic_read(&rt->u.dst.__refcnt), rtos);
 		}
 		spin_unlock(&dest->dst_lock);
@@ -104,8 +103,8 @@ __ip_vs_get_out_rt(struct ip_vs_conn *cp, u32 rtos)
 		};
 
 		if (ip_route_output_key(&init_net, &rt, &fl)) {
-			IP_VS_DBG_RL("ip_route_output error, dest: "
-				     "%u.%u.%u.%u\n", NIPQUAD(cp->daddr.ip));
+			IP_VS_DBG_RL("ip_route_output error, dest: %pI4\n",
+				     &cp->daddr.ip);
 			return NULL;
 		}
 	}
@@ -236,8 +235,8 @@ ip_vs_bypass_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	EnterFunction(10);
 
 	if (ip_route_output_key(&init_net, &rt, &fl)) {
-		IP_VS_DBG_RL("ip_vs_bypass_xmit(): ip_route_output error, "
-			     "dest: %u.%u.%u.%u\n", NIPQUAD(iph->daddr));
+		IP_VS_DBG_RL("ip_vs_bypass_xmit(): ip_route_output error, dest: %pI4\n",
+			     &iph->daddr);
 		goto tx_error_icmp;
 	}
 

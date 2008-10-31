@@ -202,9 +202,9 @@ static inline struct ip_vs_dest *ip_vs_dest_set_min(struct ip_vs_dest_set *set)
 		}
 	}
 
-	IP_VS_DBG(6, "ip_vs_dest_set_min: server %d.%d.%d.%d:%d "
+	IP_VS_DBG(6, "ip_vs_dest_set_min: server %pI4:%d "
 		  "activeconns %d refcnt %d weight %d overhead %d\n",
-		  NIPQUAD(least->addr.ip), ntohs(least->port),
+		  &least->addr.ip, ntohs(least->port),
 		  atomic_read(&least->activeconns),
 		  atomic_read(&least->refcnt),
 		  atomic_read(&least->weight), loh);
@@ -248,9 +248,9 @@ static inline struct ip_vs_dest *ip_vs_dest_set_max(struct ip_vs_dest_set *set)
 		}
 	}
 
-	IP_VS_DBG(6, "ip_vs_dest_set_max: server %d.%d.%d.%d:%d "
+	IP_VS_DBG(6, "ip_vs_dest_set_max: server %pI4:%d "
 		  "activeconns %d refcnt %d weight %d overhead %d\n",
-		  NIPQUAD(most->addr.ip), ntohs(most->port),
+		  &most->addr.ip, ntohs(most->port),
 		  atomic_read(&most->activeconns),
 		  atomic_read(&most->refcnt),
 		  atomic_read(&most->weight), moh);
@@ -596,9 +596,9 @@ __ip_vs_lblcr_schedule(struct ip_vs_service *svc, struct iphdr *iph)
 		}
 	}
 
-	IP_VS_DBG(6, "LBLCR: server %d.%d.%d.%d:%d "
+	IP_VS_DBG(6, "LBLCR: server %pI4:%d "
 		  "activeconns %d refcnt %d weight %d overhead %d\n",
-		  NIPQUAD(least->addr.ip), ntohs(least->port),
+		  &least->addr.ip, ntohs(least->port),
 		  atomic_read(&least->activeconns),
 		  atomic_read(&least->refcnt),
 		  atomic_read(&least->weight), loh);
@@ -703,11 +703,8 @@ ip_vs_lblcr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	write_unlock(&svc->sched_lock);
 
 out:
-	IP_VS_DBG(6, "LBLCR: destination IP address %u.%u.%u.%u "
-		  "--> server %u.%u.%u.%u:%d\n",
-		  NIPQUAD(iph->daddr),
-		  NIPQUAD(dest->addr.ip),
-		  ntohs(dest->port));
+	IP_VS_DBG(6, "LBLCR: destination IP address %pI4 --> server %pI4:%d\n",
+		  &iph->daddr, &dest->addr.ip, ntohs(dest->port));
 
 	return dest;
 }

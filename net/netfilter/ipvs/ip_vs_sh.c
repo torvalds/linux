@@ -212,11 +212,8 @@ ip_vs_sh_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 		return NULL;
 	}
 
-	IP_VS_DBG(6, "SH: source IP address %u.%u.%u.%u "
-		  "--> server %u.%u.%u.%u:%d\n",
-		  NIPQUAD(iph->saddr),
-		  NIPQUAD(dest->addr.ip),
-		  ntohs(dest->port));
+	IP_VS_DBG(6, "SH: source IP address %pI4 --> server %pI4:%d\n",
+		  &iph->saddr, &dest->addr.ip, ntohs(dest->port));
 
 	return dest;
 }
