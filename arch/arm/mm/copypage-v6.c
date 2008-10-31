@@ -49,9 +49,11 @@ static void v6_copy_user_highpage_nonaliasing(struct page *to,
  * Clear the user page.  No aliasing to deal with so we can just
  * attack the kernel's existing mapping of this page.
  */
-static void v6_clear_user_page_nonaliasing(void *kaddr, unsigned long vaddr)
+static void v6_clear_user_highpage_nonaliasing(struct page *page, unsigned long vaddr)
 {
+	void *kaddr = kmap_atomic(page, KM_USER0);
 	clear_page(kaddr);
+	kunmap_atomic(kaddr, KM_USER0);
 }
 
 /*
@@ -107,20 +109,13 @@ static void v6_copy_user_highpage_aliasing(struct page *to,
  * so remap the kernel page into the same cache colour as the user
  * page.
  */
-static void v6_clear_user_page_aliasing(void *kaddr, unsigned long vaddr)
+static void v6_clear_user_highpage_aliasing(struct page *page, unsigned long vaddr)
 {
 	unsigned int offset = CACHE_COLOUR(vaddr);
 	unsigned long to = to_address + (offset << PAGE_SHIFT);
 
-	/*
-	 * Discard data in the kernel mapping for the new page
-	 * FIXME: needs this MCRR to be supported.
-	 */
-	__asm__("mcrr	p15, 0, %1, %0, c6	@ 0xec401f06"
-	   :
-	   : "r" (kaddr),
-	     "r" ((unsigned long)kaddr + PAGE_SIZE - L1_CACHE_BYTES)
-	   : "cc");
+	/* FIXME: not highmem safe */
+	discard_old_kernel_data(page_address(page));
 
 	/*
 	 * Now clear the page using the same cache colour as
@@ -128,7 +123,7 @@ static void v6_clear_user_page_aliasing(void *kaddr, unsigned long vaddr)
 	 */
 	spin_lock(&v6_lock);
 
-	set_pte_ext(TOP_PTE(to_address) + offset, pfn_pte(__pa(kaddr) >> PAGE_SHIFT, PAGE_KERNEL), 0);
+	set_pte_ext(TOP_PTE(to_address) + offset, pfn_pte(page_to_pfn(page), PAGE_KERNEL), 0);
 	flush_tlb_kernel_page(to);
 	clear_page((void *)to);
 
@@ -136,14 +131,14 @@ static void v6_clear_user_page_aliasing(void *kaddr, unsigned long vaddr)
 }
 
 struct cpu_user_fns v6_user_fns __initdata = {
-	.cpu_clear_user_page	= v6_clear_user_page_nonaliasing,
+	.cpu_clear_user_highpage = v6_clear_user_highpage_nonaliasing,
 	.cpu_copy_user_highpage	= v6_copy_user_highpage_nonaliasing,
 };
 
 static int __init v6_userpage_init(void)
 {
 	if (cache_is_vipt_aliasing()) {
-		cpu_user.cpu_clear_user_page = v6_clear_user_page_aliasing;
+		cpu_user.cpu_clear_user_highpage = v6_clear_user_highpage_aliasing;
 		cpu_user.cpu_copy_user_highpage = v6_copy_user_highpage_aliasing;
 	}
 

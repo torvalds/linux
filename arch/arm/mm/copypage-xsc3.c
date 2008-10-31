@@ -87,26 +87,27 @@ void xsc3_mc_copy_user_highpage(struct page *to, struct page *from,
  *  r0 = destination
  *  r1 = virtual user address of ultimate destination page
  */
-void __attribute__((naked))
-xsc3_mc_clear_user_page(void *kaddr, unsigned long vaddr)
+void xsc3_mc_clear_user_highpage(struct page *page, unsigned long vaddr)
 {
+	void *kaddr = kmap_atomic(page, KM_USER0);
 	asm("\
-	mov	r1, %0				\n\
+	mov	r1, %1				\n\
 	mov	r2, #0				\n\
 	mov	r3, #0				\n\
-1:	mcr	p15, 0, r0, c7, c6, 1		@ invalidate line\n\
-	strd	r2, [r0], #8			\n\
-	strd	r2, [r0], #8			\n\
-	strd	r2, [r0], #8			\n\
-	strd	r2, [r0], #8			\n\
+1:	mcr	p15, 0, %0, c7, c6, 1		@ invalidate line\n\
+	strd	r2, [%0], #8			\n\
+	strd	r2, [%0], #8			\n\
+	strd	r2, [%0], #8			\n\
+	strd	r2, [%0], #8			\n\
 	subs	r1, r1, #1			\n\
-	bne	1b				\n\
-	mov	pc, lr"
+	bne	1b"
 	:
-	: "I" (PAGE_SIZE / 32));
+	: "r" (kaddr), "I" (PAGE_SIZE / 32)
+	: "r1", "r2", "r3");
+	kunmap_atomic(kaddr, KM_USER0);
 }
 
 struct cpu_user_fns xsc3_mc_user_fns __initdata = {
-	.cpu_clear_user_page	= xsc3_mc_clear_user_page,
+	.cpu_clear_user_highpage = xsc3_mc_clear_user_highpage,
 	.cpu_copy_user_highpage	= xsc3_mc_copy_user_highpage,
 };

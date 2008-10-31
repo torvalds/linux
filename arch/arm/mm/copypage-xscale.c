@@ -113,28 +113,30 @@ void xscale_mc_copy_user_highpage(struct page *to, struct page *from,
 /*
  * XScale optimised clear_user_page
  */
-void __attribute__((naked))
-xscale_mc_clear_user_page(void *kaddr, unsigned long vaddr)
+void
+xscale_mc_clear_user_highpage(struct page *page, unsigned long vaddr)
 {
+	void *kaddr = kmap_atomic(page, KM_USER0);
 	asm volatile(
-	"mov	r1, %0				\n\
+	"mov	r1, %1				\n\
 	mov	r2, #0				\n\
 	mov	r3, #0				\n\
-1:	mov	ip, r0				\n\
-	strd	r2, [r0], #8			\n\
-	strd	r2, [r0], #8			\n\
-	strd	r2, [r0], #8			\n\
-	strd	r2, [r0], #8			\n\
+1:	mov	ip, %0				\n\
+	strd	r2, [%0], #8			\n\
+	strd	r2, [%0], #8			\n\
+	strd	r2, [%0], #8			\n\
+	strd	r2, [%0], #8			\n\
 	mcr	p15, 0, ip, c7, c10, 1		@ clean D line\n\
 	subs	r1, r1, #1			\n\
 	mcr	p15, 0, ip, c7, c6, 1		@ invalidate D line\n\
-	bne	1b				\n\
-	mov	pc, lr"
+	bne	1b"
 	:
-	: "I" (PAGE_SIZE / 32));
+	: "r" (kaddr), "I" (PAGE_SIZE / 32)
+	: "r1", "r2", "r3", "ip");
+	kunmap_atomic(kaddr, KM_USER0);
 }
 
 struct cpu_user_fns xscale_mc_user_fns __initdata = {
-	.cpu_clear_user_page	= xscale_mc_clear_user_page, 
+	.cpu_clear_user_highpage = xscale_mc_clear_user_highpage,
 	.cpu_copy_user_highpage	= xscale_mc_copy_user_highpage,
 };

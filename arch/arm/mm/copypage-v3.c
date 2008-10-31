@@ -54,10 +54,10 @@ void v3_copy_user_highpage(struct page *to, struct page *from,
  *
  * FIXME: do we need to handle cache stuff...
  */
-void __attribute__((naked)) v3_clear_user_page(void *kaddr, unsigned long vaddr)
+void v3_clear_user_highpage(struct page *page, unsigned long vaddr)
 {
+	void *kaddr = kmap_atomic(page, KM_USER0);
 	asm("\n\
-	str	lr, [sp, #-4]!\n\
 	mov	r1, %1				@ 1\n\
 	mov	r2, #0				@ 1\n\
 	mov	r3, #0				@ 1\n\
@@ -68,13 +68,14 @@ void __attribute__((naked)) v3_clear_user_page(void *kaddr, unsigned long vaddr)
 	stmia	%0!, {r2, r3, ip, lr}		@ 4\n\
 	stmia	%0!, {r2, r3, ip, lr}		@ 4\n\
 	subs	r1, r1, #1			@ 1\n\
-	bne	1b				@ 1\n\
-	ldr	pc, [sp], #4"
+	bne	1b				@ 1"
 	:
-	: "r" (kaddr), "I" (PAGE_SIZE / 64));
+	: "r" (kaddr), "I" (PAGE_SIZE / 64)
+	: "r1", "r2", "r3", "ip", "lr");
+	kunmap_atomic(kaddr, KM_USER0);
 }
 
 struct cpu_user_fns v3_user_fns __initdata = {
-	.cpu_clear_user_page	= v3_clear_user_page,
+	.cpu_clear_user_highpage = v3_clear_user_highpage,
 	.cpu_copy_user_highpage	= v3_copy_user_highpage,
 };
