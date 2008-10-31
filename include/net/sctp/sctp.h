@@ -291,9 +291,9 @@ extern int sctp_debug_flag;
 			       otherparms); \
 		} else { \
 			printk(KERN_DEBUG \
-			       lead NIPQUAD_FMT trail, \
+			       lead "%pI4" trail, \
 			       leadparm, \
-			       NIPQUAD(saddr->v4.sin_addr.s_addr), \
+			       &saddr->v4.sin_addr.s_addr, \
 			       otherparms); \
 		} \
 	}

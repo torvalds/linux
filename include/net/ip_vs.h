@@ -91,8 +91,8 @@ static inline const char *ip_vs_dbg_addr(int af, char *buf, size_t buf_len,
 			       &addr->in6) + 1;
 	else
 #endif
-		len = snprintf(&buf[*idx], buf_len - *idx, NIPQUAD_FMT,
-			       NIPQUAD(addr->ip)) + 1;
+		len = snprintf(&buf[*idx], buf_len - *idx, "%pI4",
+			       &addr->ip) + 1;
 
 	*idx += len;
 	BUG_ON(*idx > buf_len + 1);

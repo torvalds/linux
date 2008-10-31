@@ -139,8 +139,8 @@ static inline char *__svc_print_addr(struct sockaddr *addr,
 {
 	switch (addr->sa_family) {
 	case AF_INET:
-		snprintf(buf, len, "%u.%u.%u.%u, port=%u",
-			NIPQUAD(((struct sockaddr_in *) addr)->sin_addr),
+		snprintf(buf, len, "%pI4, port=%u",
+			&((struct sockaddr_in *)addr)->sin_addr,
 			ntohs(((struct sockaddr_in *) addr)->sin_port));
 		break;
 
