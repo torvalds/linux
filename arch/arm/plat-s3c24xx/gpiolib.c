@@ -161,8 +161,6 @@ static struct s3c24xx_gpio_chip gpios[] = {
 			.ngpio			= 24,
 			.direction_input	= s3c24xx_gpiolib_banka_input,
 			.direction_output	= s3c24xx_gpiolib_banka_output,
-			.set			= s3c24xx_gpiolib_set,
-			.get			= s3c24xx_gpiolib_get,
 		},
 	},
 	[1] = {
@@ -172,10 +170,6 @@ static struct s3c24xx_gpio_chip gpios[] = {
 			.owner			= THIS_MODULE,
 			.label			= "GPIOB",
 			.ngpio			= 16,
-			.direction_input	= s3c24xx_gpiolib_input,
-			.direction_output	= s3c24xx_gpiolib_output,
-			.set			= s3c24xx_gpiolib_set,
-			.get			= s3c24xx_gpiolib_get,
 		},
 	},
 	[2] = {
@@ -185,10 +179,6 @@ static struct s3c24xx_gpio_chip gpios[] = {
 			.owner			= THIS_MODULE,
 			.label			= "GPIOC",
 			.ngpio			= 16,
-			.direction_input	= s3c24xx_gpiolib_input,
-			.direction_output	= s3c24xx_gpiolib_output,
-			.set			= s3c24xx_gpiolib_set,
-			.get			= s3c24xx_gpiolib_get,
 		},
 	},
 	[3] = {
@@ -198,10 +188,6 @@ static struct s3c24xx_gpio_chip gpios[] = {
 			.owner			= THIS_MODULE,
 			.label			= "GPIOD",
 			.ngpio			= 16,
-			.direction_input	= s3c24xx_gpiolib_input,
-			.direction_output	= s3c24xx_gpiolib_output,
-			.set			= s3c24xx_gpiolib_set,
-			.get			= s3c24xx_gpiolib_get,
 		},
 	},
 	[4] = {
@@ -211,10 +197,6 @@ static struct s3c24xx_gpio_chip gpios[] = {
 			.label			= "GPIOE",
 			.owner			= THIS_MODULE,
 			.ngpio			= 16,
-			.direction_input	= s3c24xx_gpiolib_input,
-			.direction_output	= s3c24xx_gpiolib_output,
-			.set			= s3c24xx_gpiolib_set,
-			.get			= s3c24xx_gpiolib_get,
 		},
 	},
 	[5] = {
@@ -224,10 +206,6 @@ static struct s3c24xx_gpio_chip gpios[] = {
 			.owner			= THIS_MODULE,
 			.label			= "GPIOF",
 			.ngpio			= 8,
-			.direction_input	= s3c24xx_gpiolib_input,
-			.direction_output	= s3c24xx_gpiolib_output,
-			.set			= s3c24xx_gpiolib_set,
-			.get			= s3c24xx_gpiolib_get,
 		},
 	},
 	[6] = {
@@ -237,13 +215,30 @@ static struct s3c24xx_gpio_chip gpios[] = {
 			.owner			= THIS_MODULE,
 			.label			= "GPIOG",
 			.ngpio			= 10,
-			.direction_input	= s3c24xx_gpiolib_input,
-			.direction_output	= s3c24xx_gpiolib_output,
-			.set			= s3c24xx_gpiolib_set,
-			.get			= s3c24xx_gpiolib_get,
 		},
 	},
 };
+
+static __init void s3c24xx_gpiolib_add(struct s3c24xx_gpio_chip *chip)
+{
+	struct gpio_chip *gc = &chip->chip;
+
+	BUG_ON(!chip->base);
+	BUG_ON(!gc->label);
+	BUG_ON(!gc->ngpio);
+
+	if (!gc->direction_input)
+		gc->direction_input = s3c24xx_gpiolib_input;
+	if (!gc->direction_output)
+		gc->direction_output = s3c24xx_gpiolib_output;
+	if (!gc->set)
+		gc->set = s3c24xx_gpiolib_set;
+	if (!gc->get)
+		gc->get = s3c24xx_gpiolib_get;
+
+	/* gpiochip_add() prints own failure message on error. */
+	gpiochip_add(gc);
+}
 
 static __init int s3c24xx_gpiolib_init(void)
 {
@@ -251,7 +246,7 @@ static __init int s3c24xx_gpiolib_init(void)
 	int gpn;
 
 	for (gpn = 0; gpn < ARRAY_SIZE(gpios); gpn++, chip++)
-		gpiochip_add(&chip->chip);
+		s3c24xx_gpiolib_add(chip);
 
 	return 0;
 }
