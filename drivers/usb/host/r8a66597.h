@@ -26,6 +26,10 @@
 #ifndef __R8A66597_H__
 #define __R8A66597_H__
 
+#if defined(CONFIG_SUPERH_ON_CHIP_R8A66597) && defined(CONFIG_HAVE_CLK)
+#include <linux/clk.h>
+#endif
+
 #define SYSCFG0		0x00
 #define SYSCFG1		0x02
 #define SYSSTS0		0x04
@@ -481,7 +485,9 @@ struct r8a66597_root_hub {
 struct r8a66597 {
 	spinlock_t lock;
 	unsigned long reg;
-
+#if defined(CONFIG_SUPERH_ON_CHIP_R8A66597) && defined(CONFIG_HAVE_CLK)
+	struct clk *clk;
+#endif
 	struct r8a66597_device		device0;
 	struct r8a66597_root_hub	root_hub[R8A66597_MAX_ROOT_HUB];
 	struct list_head		pipe_queue[R8A66597_MAX_NUM_PIPE];
