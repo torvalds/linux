@@ -17,5 +17,6 @@ config CPU_S3C6410
 config MACH_SMDK6410
 	bool "SMDK6410"
 	select CPU_S3C6410
+	select S3C_DEV_HSMMC
 	help
 	  Machine support for the Samsung SMDK6410

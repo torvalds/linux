@@ -102,3 +102,11 @@ config S3C_LOWLEVEL_UART_PORT
 	  such as the `Uncompressing...` at start time. The value of
 	  this configuration should be between zero and two. The port
 	  must have been initialised by the boot-loader before use.
+
+# device definitions to compile in
+
+config S3C_DEV_HSMMC
+	bool
+	depends on PLAT_S3C
+	help
+	  Compile in platform device definitions for HSMMC code

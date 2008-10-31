@@ -17,6 +17,12 @@
 
 #include <plat/map-base.h>
 
+/* HSMMC units */
+#define S3C64XX_PA_HSMMC(x)	(0x7C200000 + ((x) * 0x100000))
+#define S3C64XX_PA_HSMMC0	S3C64XX_PA_HSMMC(0)
+#define S3C64XX_PA_HSMMC1	S3C64XX_PA_HSMMC(1)
+#define S3C64XX_PA_HSMMC2	S3C64XX_PA_HSMMC(2)
+
 #define S3C_PA_UART		(0x7F005000)
 #define S3C_PA_UART0		(S3C_PA_UART + 0x00)
 #define S3C_PA_UART1		(S3C_PA_UART + 0x400)
@@ -49,5 +55,8 @@
 
 /* compatibiltiy defines. */
 #define S3C_PA_TIMER		S3C64XX_PA_TIMER
+#define S3C_PA_HSMMC0		S3C64XX_PA_HSMMC0
+#define S3C_PA_HSMMC1		S3C64XX_PA_HSMMC1
+#define S3C_PA_HSMMC2		S3C64XX_PA_HSMMC2
 
 #endif /* __ASM_ARCH_6400_MAP_H */

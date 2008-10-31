@@ -15,3 +15,7 @@ obj-y				+=  init.o
 obj-y				+= time.o
 obj-y				+= clock.o
 obj-y				+= pwm-clock.o
+
+# devices
+
+obj-$(CONFIG_S3C_DEV_HSMMC)	+= dev-hsmmc.o
