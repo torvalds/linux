@@ -35,11 +35,9 @@
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 
-#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 
-#include <mach/regs-gpio.h>
 #include <asm/plat-s3c/regs-iic.h>
 #include <asm/plat-s3c/iic.h>
 
@@ -489,9 +487,6 @@ static int s3c24xx_i2c_set_master(struct s3c24xx_i2c *i2c)
 		msleep(1);
 	}
 
-	dev_dbg(i2c->dev, "timeout: GPEDAT is %08x\n",
-		__raw_readl(S3C2410_GPEDAT));
-
 	return -ETIMEDOUT;
 }
 
@@ -783,12 +778,12 @@ static int s3c24xx_i2c_init(struct s3c24xx_i2c *i2c)
 
 	/* get the plafrom data */
 
-	pdata = s3c24xx_i2c_get_platformdata(i2c->adap.dev.parent);
+	pdata = s3c24xx_i2c_get_platformdata(i2c->dev);
 
 	/* inititalise the gpio */
 
-	s3c2410_gpio_cfgpin(S3C2410_GPE15, S3C2410_GPE15_IICSDA);
-	s3c2410_gpio_cfgpin(S3C2410_GPE14, S3C2410_GPE14_IICSCL);
+	if (pdata->cfg_gpio)
+		pdata->cfg_gpio(to_platform_device(i2c->dev));
 
 	/* write slave address */
 
