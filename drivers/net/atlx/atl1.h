@@ -754,7 +754,7 @@ struct atl1_hw {
 struct atl1_adapter {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
-	struct net_device_stats net_stats;
+
 	struct atl1_sft_stats soft_stats;
 	struct vlan_group *vlgrp;
 	u32 rx_buffer_len;

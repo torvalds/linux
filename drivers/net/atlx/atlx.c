@@ -182,19 +182,6 @@ static void atlx_clear_phy_int(struct atlx_adapter *adapter)
 }
 
 /*
- * atlx_get_stats - Get System Network Statistics
- * @netdev: network interface device structure
- *
- * Returns the address of the device statistics structure.
- * The statistics are actually updated from the timer callback.
- */
-static struct net_device_stats *atlx_get_stats(struct net_device *netdev)
-{
-	struct atlx_adapter *adapter = netdev_priv(netdev);
-	return &adapter->net_stats;
-}
-
-/*
  * atlx_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
  */
