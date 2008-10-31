@@ -438,6 +438,29 @@ static inline struct sk_buff *qdisc_peek_head(struct Qdisc *sch)
 	return skb_peek(&sch->q);
 }
 
+/* generic pseudo peek method for non-work-conserving qdisc */
+static inline struct sk_buff *qdisc_peek_dequeued(struct Qdisc *sch)
+{
+	/* we can reuse ->gso_skb because peek isn't called for root qdiscs */
+	if (!sch->gso_skb)
+		sch->gso_skb = sch->dequeue(sch);
+
+	return sch->gso_skb;
+}
+
+/* use instead of qdisc->dequeue() for all qdiscs queried with ->peek() */
+static inline struct sk_buff *qdisc_dequeue_peeked(struct Qdisc *sch)
+{
+	struct sk_buff *skb = sch->gso_skb;
+
+	if (skb)
+		sch->gso_skb = NULL;
+	else
+		skb = sch->dequeue(sch);
+
+	return skb;
+}
+
 static inline int __qdisc_requeue(struct sk_buff *skb, struct Qdisc *sch,
 				  struct sk_buff_head *list)
 {

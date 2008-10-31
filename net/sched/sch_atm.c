@@ -484,7 +484,7 @@ static void sch_atm_dequeue(unsigned long data)
 			if (!atm_may_send(flow->vcc, skb->truesize))
 				break;
 
-			skb = flow->q->dequeue(flow->q);
+			skb = qdisc_dequeue_peeked(flow->q);
 			if (unlikely(!skb))
 				break;
 
@@ -519,7 +519,7 @@ static struct sk_buff *atm_tc_dequeue(struct Qdisc *sch)
 
 	pr_debug("atm_tc_dequeue(sch %p,[qdisc %p])\n", sch, p);
 	tasklet_schedule(&p->task);
-	skb = p->link.q->dequeue(p->link.q);
+	skb = qdisc_dequeue_peeked(p->link.q);
 	if (skb)
 		sch->q.qlen--;
 	return skb;

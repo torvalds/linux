@@ -290,8 +290,8 @@ static struct sk_buff *netem_dequeue(struct Qdisc *sch)
 
 		/* if more time remaining? */
 		if (cb->time_to_send <= now) {
-			skb = q->qdisc->dequeue(q->qdisc);
-			if (!skb)
+			skb = qdisc_dequeue_peeked(q->qdisc);
+			if (unlikely(!skb))
 				return NULL;
 
 			pr_debug("netem_dequeue: return skb=%p\n", skb);
@@ -714,6 +714,7 @@ static struct Qdisc_ops netem_qdisc_ops __read_mostly = {
 	.priv_size	=	sizeof(struct netem_sched_data),
 	.enqueue	=	netem_enqueue,
 	.dequeue	=	netem_dequeue,
+	.peek		=	qdisc_peek_dequeued,
 	.requeue	=	netem_requeue,
 	.drop		=	netem_drop,
 	.init		=	netem_init,

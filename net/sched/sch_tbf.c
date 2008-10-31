@@ -192,7 +192,7 @@ static struct sk_buff *tbf_dequeue(struct Qdisc* sch)
 		toks -= L2T(q, len);
 
 		if ((toks|ptoks) >= 0) {
-			skb = q->qdisc->dequeue(q->qdisc);
+			skb = qdisc_dequeue_peeked(q->qdisc);
 			if (unlikely(!skb))
 				return NULL;
 
@@ -467,6 +467,7 @@ static struct Qdisc_ops tbf_qdisc_ops __read_mostly = {
 	.priv_size	=	sizeof(struct tbf_sched_data),
 	.enqueue	=	tbf_enqueue,
 	.dequeue	=	tbf_dequeue,
+	.peek		=	qdisc_peek_dequeued,
 	.requeue	=	tbf_requeue,
 	.drop		=	tbf_drop,
 	.init		=	tbf_init,

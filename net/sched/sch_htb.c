@@ -1565,6 +1565,7 @@ static struct Qdisc_ops htb_qdisc_ops __read_mostly = {
 	.priv_size	=	sizeof(struct htb_sched),
 	.enqueue	=	htb_enqueue,
 	.dequeue	=	htb_dequeue,
+	.peek		=	qdisc_peek_dequeued,
 	.requeue	=	htb_requeue,
 	.drop		=	htb_drop,
 	.init		=	htb_init,
