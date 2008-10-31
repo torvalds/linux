@@ -60,6 +60,6 @@ Tobias Ringstrom <tori@unhappy.mine.nu> : Current Maintainer
 Contributors:
 
 Marcelo Tosatti <marcelo@conectiva.com.br>
-Alan Cox <alan@redhat.com>
+Alan Cox <alan@lxorguk.ukuu.org.uk>
 Jeff Garzik <jgarzik@pobox.com>
 Vojtech Pavlik <vojtech@suse.cz>

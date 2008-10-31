@@ -744,7 +744,7 @@ void __init gart_iommu_init(void)
 	long i;
 
 	if (cache_k8_northbridges() < 0 || num_k8_northbridges == 0) {
-		printk(KERN_INFO "PCI-GART: No AMD northbridge found.\n");
+		printk(KERN_INFO "PCI-GART: No AMD GART found.\n");
 		return;
 	}
 

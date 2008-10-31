@@ -11,6 +11,5 @@ extern int force_iommu, no_iommu;
 extern int iommu_detected;
 extern void iommu_dma_init(void);
 extern void machvec_init(const char *name);
-extern int forbid_dac;
 
 #endif

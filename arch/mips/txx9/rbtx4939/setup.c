@@ -308,16 +308,22 @@ static void __init rbtx4939_device_init(void)
 #if defined(CONFIG_TC35815) || defined(CONFIG_TC35815_MODULE)
 	int i, j;
 	unsigned char ethaddr[2][6];
+	u8 bdipsw = readb(rbtx4939_bdipsw_addr) & 0x0f;
+
 	for (i = 0; i < 2; i++) {
 		unsigned long area = CKSEG1 + 0x1fff0000 + (i * 0x10);
-		if (readb(rbtx4939_bdipsw_addr) & 8) {
+		if (bdipsw == 0)
+			memcpy(ethaddr[i], (void *)area, 6);
+		else {
 			u16 buf[3];
-			area -= 0x03000000;
+			if (bdipsw & 8)
+				area -= 0x03000000;
+			else
+				area -= 0x01000000;
 			for (j = 0; j < 3; j++)
 				buf[j] = le16_to_cpup((u16 *)(area + j * 2));
 			memcpy(ethaddr[i], buf, 6);
-		} else
-			memcpy(ethaddr[i], (void *)area, 6);
+		}
 	}
 	tx4939_ethaddr_init(ethaddr[0], ethaddr[1]);
 #endif

@@ -4156,29 +4156,33 @@ static int cable_is_40wire(struct ata_port *ap)
 	struct ata_link *link;
 	struct ata_device *dev;
 
-	/* If the controller thinks we are 40 wire, we are */
+	/* If the controller thinks we are 40 wire, we are. */
 	if (ap->cbl == ATA_CBL_PATA40)
 		return 1;
-	/* If the controller thinks we are 80 wire, we are */
+
+	/* If the controller thinks we are 80 wire, we are. */
 	if (ap->cbl == ATA_CBL_PATA80 || ap->cbl == ATA_CBL_SATA)
 		return 0;
-	/* If the system is known to be 40 wire short cable (eg laptop),
-	   then we allow 80 wire modes even if the drive isn't sure */
+
+	/* If the system is known to be 40 wire short cable (eg
+	 * laptop), then we allow 80 wire modes even if the drive
+	 * isn't sure.
+	 */
 	if (ap->cbl == ATA_CBL_PATA40_SHORT)
 		return 0;
-	/* If the controller doesn't know we scan
 
-	   - Note: We look for all 40 wire detects at this point.
-	     Any 80 wire detect is taken to be 80 wire cable
-	     because
-	     - In many setups only the one drive (slave if present)
-               will give a valid detect
-             - If you have a non detect capable drive you don't
-               want it to colour the choice
-        */
+	/* If the controller doesn't know, we scan.
+	 *
+	 * Note: We look for all 40 wire detects at this point.  Any
+	 *       80 wire detect is taken to be 80 wire cable because
+	 * - in many setups only the one drive (slave if present) will
+	 *   give a valid detect
+	 * - if you have a non detect capable drive you don't want it
+	 *   to colour the choice
+	 */
 	ata_port_for_each_link(link, ap) {
 		ata_link_for_each_dev(dev, link) {
-			if (!ata_is_40wire(dev))
+			if (ata_dev_enabled(dev) && !ata_is_40wire(dev))
 				return 0;
 		}
 	}
@@ -4553,6 +4557,7 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
 /**
  *	ata_qc_new_init - Request an available ATA command, and initialize it
  *	@dev: Device from whom we request an available command structure
+ *	@tag: command tag
  *
  *	LOCKING:
  *	None.

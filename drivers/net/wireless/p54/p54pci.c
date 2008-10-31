@@ -346,68 +346,6 @@ static void p54p_tx(struct ieee80211_hw *dev, struct p54_control_hdr *data,
 		printk(KERN_INFO "%s: tx overflow.\n", wiphy_name(dev->wiphy));
 }
 
-static int p54p_open(struct ieee80211_hw *dev)
-{
-	struct p54p_priv *priv = dev->priv;
-	int err;
-
-	init_completion(&priv->boot_comp);
-	err = request_irq(priv->pdev->irq, &p54p_interrupt,
-			  IRQF_SHARED, "p54pci", dev);
-	if (err) {
-		printk(KERN_ERR "%s: failed to register IRQ handler\n",
-		       wiphy_name(dev->wiphy));
-		return err;
-	}
-
-	memset(priv->ring_control, 0, sizeof(*priv->ring_control));
-	err = p54p_upload_firmware(dev);
-	if (err) {
-		free_irq(priv->pdev->irq, dev);
-		return err;
-	}
-	priv->rx_idx_data = priv->tx_idx_data = 0;
-	priv->rx_idx_mgmt = priv->tx_idx_mgmt = 0;
-
-	p54p_refill_rx_ring(dev, 0, priv->ring_control->rx_data,
-		ARRAY_SIZE(priv->ring_control->rx_data), priv->rx_buf_data);
-
-	p54p_refill_rx_ring(dev, 2, priv->ring_control->rx_mgmt,
-		ARRAY_SIZE(priv->ring_control->rx_mgmt), priv->rx_buf_mgmt);
-
-	P54P_WRITE(ring_control_base, cpu_to_le32(priv->ring_control_dma));
-	P54P_READ(ring_control_base);
-	wmb();
-	udelay(10);
-
-	P54P_WRITE(int_enable, cpu_to_le32(ISL38XX_INT_IDENT_INIT));
-	P54P_READ(int_enable);
-	wmb();
-	udelay(10);
-
-	P54P_WRITE(dev_int, cpu_to_le32(ISL38XX_DEV_INT_RESET));
-	P54P_READ(dev_int);
-
-	if (!wait_for_completion_interruptible_timeout(&priv->boot_comp, HZ)) {
-		printk(KERN_ERR "%s: Cannot boot firmware!\n",
-		       wiphy_name(dev->wiphy));
-		free_irq(priv->pdev->irq, dev);
-		return -ETIMEDOUT;
-	}
-
-	P54P_WRITE(int_enable, cpu_to_le32(ISL38XX_INT_IDENT_UPDATE));
-	P54P_READ(int_enable);
-	wmb();
-	udelay(10);
-
-	P54P_WRITE(dev_int, cpu_to_le32(ISL38XX_DEV_INT_UPDATE));
-	P54P_READ(dev_int);
-	wmb();
-	udelay(10);
-
-	return 0;
-}
-
 static void p54p_stop(struct ieee80211_hw *dev)
 {
 	struct p54p_priv *priv = dev->priv;
@@ -472,6 +410,68 @@ static void p54p_stop(struct ieee80211_hw *dev)
 	}
 
 	memset(ring_control, 0, sizeof(*ring_control));
+}
+
+static int p54p_open(struct ieee80211_hw *dev)
+{
+	struct p54p_priv *priv = dev->priv;
+	int err;
+
+	init_completion(&priv->boot_comp);
+	err = request_irq(priv->pdev->irq, &p54p_interrupt,
+			  IRQF_SHARED, "p54pci", dev);
+	if (err) {
+		printk(KERN_ERR "%s: failed to register IRQ handler\n",
+		       wiphy_name(dev->wiphy));
+		return err;
+	}
+
+	memset(priv->ring_control, 0, sizeof(*priv->ring_control));
+	err = p54p_upload_firmware(dev);
+	if (err) {
+		free_irq(priv->pdev->irq, dev);
+		return err;
+	}
+	priv->rx_idx_data = priv->tx_idx_data = 0;
+	priv->rx_idx_mgmt = priv->tx_idx_mgmt = 0;
+
+	p54p_refill_rx_ring(dev, 0, priv->ring_control->rx_data,
+		ARRAY_SIZE(priv->ring_control->rx_data), priv->rx_buf_data);
+
+	p54p_refill_rx_ring(dev, 2, priv->ring_control->rx_mgmt,
+		ARRAY_SIZE(priv->ring_control->rx_mgmt), priv->rx_buf_mgmt);
+
+	P54P_WRITE(ring_control_base, cpu_to_le32(priv->ring_control_dma));
+	P54P_READ(ring_control_base);
+	wmb();
+	udelay(10);
+
+	P54P_WRITE(int_enable, cpu_to_le32(ISL38XX_INT_IDENT_INIT));
+	P54P_READ(int_enable);
+	wmb();
+	udelay(10);
+
+	P54P_WRITE(dev_int, cpu_to_le32(ISL38XX_DEV_INT_RESET));
+	P54P_READ(dev_int);
+
+	if (!wait_for_completion_interruptible_timeout(&priv->boot_comp, HZ)) {
+		printk(KERN_ERR "%s: Cannot boot firmware!\n",
+		       wiphy_name(dev->wiphy));
+		p54p_stop(dev);
+		return -ETIMEDOUT;
+	}
+
+	P54P_WRITE(int_enable, cpu_to_le32(ISL38XX_INT_IDENT_UPDATE));
+	P54P_READ(int_enable);
+	wmb();
+	udelay(10);
+
+	P54P_WRITE(dev_int, cpu_to_le32(ISL38XX_DEV_INT_UPDATE));
+	P54P_READ(dev_int);
+	wmb();
+	udelay(10);
+
+	return 0;
 }
 
 static int __devinit p54p_probe(struct pci_dev *pdev,
@@ -556,11 +556,13 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 	spin_lock_init(&priv->lock);
 	tasklet_init(&priv->rx_tasklet, p54p_rx_tasklet, (unsigned long)dev);
 
-	p54p_open(dev);
+	err = p54p_open(dev);
+	if (err)
+		goto err_free_common;
 	err = p54_read_eeprom(dev);
 	p54p_stop(dev);
 	if (err)
-		goto err_free_desc;
+		goto err_free_common;
 
 	err = ieee80211_register_hw(dev);
 	if (err) {
@@ -573,8 +575,6 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 
  err_free_common:
 	p54_free_common(dev);
-
- err_free_desc:
 	pci_free_consistent(pdev, sizeof(*priv->ring_control),
 			    priv->ring_control, priv->ring_control_dma);
 

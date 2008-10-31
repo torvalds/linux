@@ -1,6 +1,6 @@
 /*
  *    pata_qdi.c - QDI VLB ATA controllers
- *	(C) 2006 Red Hat <alan@redhat.com>
+ *	(C) 2006 Red Hat
  *
  * This driver mostly exists as a proof of concept for non PCI devices under
  * libata. While the QDI6580 was 'neat' in 1993 it is no longer terribly

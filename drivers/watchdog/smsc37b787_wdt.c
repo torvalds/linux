@@ -1,7 +1,7 @@
 /*
  *	SMsC 37B787 Watchdog Timer driver for Linux 2.6.x.x
  *
- *      Based on acquirewdt.c by Alan Cox <alan@redhat.com>
+ *	Based on acquirewdt.c by Alan Cox <alan@lxorguk.ukuu.org.uk>
  *       and some other existing drivers
  *
  *	This program is free software; you can redistribute it and/or

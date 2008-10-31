@@ -20,6 +20,7 @@ static struct dentry *debugfs_root;
 #define MAX_DEBUGFS_QUEUES	32
 static struct dentry *debugfs_queues[MAX_DEBUGFS_QUEUES] = { NULL };
 static DEFINE_MUTEX(debugfs_mutex);
+#define QDIO_DEBUGFS_NAME_LEN	40
 
 void qdio_allocate_do_dbf(struct qdio_initialize *init_data)
 {
@@ -152,17 +153,6 @@ static int qstat_seq_open(struct inode *inode, struct file *filp)
 			   filp->f_path.dentry->d_inode->i_private);
 }
 
-static void get_queue_name(struct qdio_q *q, struct ccw_device *cdev, char *name)
-{
-	memset(name, 0, sizeof(name));
-	sprintf(name, "%s", dev_name(&cdev->dev));
-	if (q->is_input_q)
-		sprintf(name + strlen(name), "_input");
-	else
-		sprintf(name + strlen(name), "_output");
-	sprintf(name + strlen(name), "_%d", q->nr);
-}
-
 static void remove_debugfs_entry(struct qdio_q *q)
 {
 	int i;
@@ -189,14 +179,17 @@ static struct file_operations debugfs_fops = {
 static void setup_debugfs_entry(struct qdio_q *q, struct ccw_device *cdev)
 {
 	int i = 0;
-	char name[40];
+	char name[QDIO_DEBUGFS_NAME_LEN];
 
 	while (debugfs_queues[i] != NULL) {
 		i++;
 		if (i >= MAX_DEBUGFS_QUEUES)
 			return;
 	}
-	get_queue_name(q, cdev, name);
+	snprintf(name, QDIO_DEBUGFS_NAME_LEN, "%s_%s_%d",
+		 dev_name(&cdev->dev),
+		 q->is_input_q ? "input" : "output",
+		 q->nr);
 	debugfs_queues[i] = debugfs_create_file(name, S_IFREG | S_IRUGO | S_IWUSR,
 						debugfs_root, q, &debugfs_fops);
 }

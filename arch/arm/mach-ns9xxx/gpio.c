@@ -8,6 +8,7 @@
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
  */
+#include <linux/kernel.h>
 #include <linux/compiler.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
@@ -63,6 +64,7 @@ EXPORT_SYMBOL(gpio_request);
 
 void gpio_free(unsigned gpio)
 {
+	might_sleep();
 	clear_bit(gpio, gpiores);
 	return;
 }

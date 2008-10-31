@@ -1,7 +1,7 @@
 /*
  * pata_mpiix.c 	- Intel MPIIX PATA for new ATA layer
  *			  (C) 2005-2006 Red Hat Inc
- *			  Alan Cox <alan@redhat.com>
+ *			  Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  * The MPIIX is different enough to the PIIX4 and friends that we give it
  * a separate driver. The old ide/pci code handles this by just not tuning

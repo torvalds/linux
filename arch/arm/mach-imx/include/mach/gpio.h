@@ -1,5 +1,6 @@
 #ifndef _IMX_GPIO_H
 
+#include <linux/kernel.h>
 #include <mach/imx-regs.h>
 
 #define IMX_GPIO_ALLOC_MODE_NORMAL	0
@@ -63,6 +64,8 @@ static inline int gpio_request(unsigned gpio, const char *label)
 
 static inline void gpio_free(unsigned gpio)
 {
+	might_sleep();
+
 	imx_gpio_free(gpio);
 }
 

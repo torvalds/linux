@@ -659,6 +659,9 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 			PREPARE_DELAYED_WORK(&hub->init_work, hub_init_func2);
 			schedule_delayed_work(&hub->init_work,
 					msecs_to_jiffies(delay));
+
+			/* Suppress autosuspend until init is done */
+			to_usb_interface(hub->intfdev)->pm_usage_cnt = 1;
 			return;		/* Continues at init2: below */
 		} else {
 			hub_power_on(hub, true);
@@ -1429,6 +1432,7 @@ void usb_disconnect(struct usb_device **pdev)
 	 */
 	dev_dbg (&udev->dev, "unregistering device\n");
 	usb_disable_device(udev, 0);
+	usb_hcd_synchronize_unlinks(udev);
 
 	usb_unlock_device(udev);
 

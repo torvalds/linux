@@ -133,7 +133,7 @@ static int usbtmc_release(struct inode *inode, struct file *file)
 
 static int usbtmc_ioctl_abort_bulk_in(struct usbtmc_device_data *data)
 {
-	char *buffer;
+	u8 *buffer;
 	struct device *dev;
 	int rv;
 	int n;

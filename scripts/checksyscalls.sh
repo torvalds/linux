@@ -113,10 +113,10 @@ EOF
 }
 
 syscall_list() {
-sed -n -e '/^\#define/ { s/[^_]*__NR_\([^[:space:]]*\).*/\
+sed -n -e '/^\#define/ s/[^_]*__NR_\([^[:space:]]*\).*/\
 \#if !defined \(__NR_\1\) \&\& !defined \(__IGNORE_\1\)\
 \#warning syscall \1 not implemented\
-\#endif/p }' $1
+\#endif/p' $1
 }
 
 (ignore_list && syscall_list ${srctree}/arch/x86/include/asm/unistd_32.h) | \
