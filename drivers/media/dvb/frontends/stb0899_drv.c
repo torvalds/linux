@@ -272,9 +272,9 @@ int stb0899_read_reg(struct stb0899_state *state, unsigned int reg)
 }
 
 u32 _stb0899_read_s2reg(struct stb0899_state *state,
-		        u32 stb0899_i2cdev,
-		        u32 stb0899_base_addr,
-		        u16 stb0899_reg_offset)
+			u32 stb0899_i2cdev,
+			u32 stb0899_base_addr,
+			u16 stb0899_reg_offset)
 {
 	int status;
 	u32 data;
@@ -1637,7 +1637,6 @@ static struct dvb_frontend_ops stb0899_ops = {
 	.read_status			= stb0899_read_status,
 	.read_snr			= stb0899_read_snr,
 	.read_signal_strength		= stb0899_read_signal_strength,
-	.read_status			= stb0899_read_status,
 	.read_ber			= stb0899_read_ber,
 
 	.set_voltage			= stb0899_set_voltage,
