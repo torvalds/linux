@@ -35,7 +35,102 @@ static DEFINE_SPINLOCK(buffer_lock);
 static DEFINE_SPINLOCK(cache_lock);
 static int num_spu_nodes;
 int spu_prof_num_nodes;
-int last_guard_val[MAX_NUMNODES * 8];
+
+struct spu_buffer spu_buff[MAX_NUMNODES * SPUS_PER_NODE];
+struct delayed_work spu_work;
+static unsigned max_spu_buff;
+
+static void spu_buff_add(unsigned long int value, int spu)
+{
+	/* spu buff is a circular buffer.  Add entries to the
+	 * head.  Head is the index to store the next value.
+	 * The buffer is full when there is one available entry
+	 * in the queue, i.e. head and tail can't be equal.
+	 * That way we can tell the difference between the
+	 * buffer being full versus empty.
+	 *
+	 *  ASSUPTION: the buffer_lock is held when this function
+	 *             is called to lock the buffer, head and tail.
+	 */
+	int full = 1;
+
+	if (spu_buff[spu].head >= spu_buff[spu].tail) {
+		if ((spu_buff[spu].head - spu_buff[spu].tail)
+		    <  (max_spu_buff - 1))
+			full = 0;
+
+	} else if (spu_buff[spu].tail > spu_buff[spu].head) {
+		if ((spu_buff[spu].tail - spu_buff[spu].head)
+		    > 1)
+			full = 0;
+	}
+
+	if (!full) {
+		spu_buff[spu].buff[spu_buff[spu].head] = value;
+		spu_buff[spu].head++;
+
+		if (spu_buff[spu].head >= max_spu_buff)
+			spu_buff[spu].head = 0;
+	} else {
+		/* From the user's perspective make the SPU buffer
+		 * size management/overflow look like we are using
+		 * per cpu buffers.  The user uses the same
+		 * per cpu parameter to adjust the SPU buffer size.
+		 * Increment the sample_lost_overflow to inform
+		 * the user the buffer size needs to be increased.
+		 */
+		oprofile_cpu_buffer_inc_smpl_lost();
+	}
+}
+
+/* This function copies the per SPU buffers to the
+ * OProfile kernel buffer.
+ */
+void sync_spu_buff(void)
+{
+	int spu;
+	unsigned long flags;
+	int curr_head;
+
+	for (spu = 0; spu < num_spu_nodes; spu++) {
+		/* In case there was an issue and the buffer didn't
+		 * get created skip it.
+		 */
+		if (spu_buff[spu].buff == NULL)
+			continue;
+
+		/* Hold the lock to make sure the head/tail
+		 * doesn't change while spu_buff_add() is
+		 * deciding if the buffer is full or not.
+		 * Being a little paranoid.
+		 */
+		spin_lock_irqsave(&buffer_lock, flags);
+		curr_head = spu_buff[spu].head;
+		spin_unlock_irqrestore(&buffer_lock, flags);
+
+		/* Transfer the current contents to the kernel buffer.
+		 * data can still be added to the head of the buffer.
+		 */
+		oprofile_put_buff(spu_buff[spu].buff,
+				  spu_buff[spu].tail,
+				  curr_head, max_spu_buff);
+
+		spin_lock_irqsave(&buffer_lock, flags);
+		spu_buff[spu].tail = curr_head;
+		spin_unlock_irqrestore(&buffer_lock, flags);
+	}
+
+}
+
+static void wq_sync_spu_buff(struct work_struct *work)
+{
+	/* move data from spu buffers to kernel buffer */
+	sync_spu_buff();
+
+	/* only reschedule if profiling is not done */
+	if (spu_prof_running)
+		schedule_delayed_work(&spu_work, DEFAULT_TIMER_EXPIRE);
+}
 
 /* Container for caching information about an active SPU task. */
 struct cached_info {
@@ -305,14 +400,21 @@ static int process_context_switch(struct spu *spu, unsigned long objectId)
 
 	/* Record context info in event buffer */
 	spin_lock_irqsave(&buffer_lock, flags);
-	add_event_entry(ESCAPE_CODE);
-	add_event_entry(SPU_CTX_SWITCH_CODE);
-	add_event_entry(spu->number);
-	add_event_entry(spu->pid);
-	add_event_entry(spu->tgid);
-	add_event_entry(app_dcookie);
-	add_event_entry(spu_cookie);
-	add_event_entry(offset);
+	spu_buff_add(ESCAPE_CODE, spu->number);
+	spu_buff_add(SPU_CTX_SWITCH_CODE, spu->number);
+	spu_buff_add(spu->number, spu->number);
+	spu_buff_add(spu->pid, spu->number);
+	spu_buff_add(spu->tgid, spu->number);
+	spu_buff_add(app_dcookie, spu->number);
+	spu_buff_add(spu_cookie, spu->number);
+	spu_buff_add(offset, spu->number);
+
+	/* Set flag to indicate SPU PC data can now be written out.  If
+	 * the SPU program counter data is seen before an SPU context
+	 * record is seen, the postprocessing will fail.
+	 */
+	spu_buff[spu->number].ctx_sw_seen = 1;
+
 	spin_unlock_irqrestore(&buffer_lock, flags);
 	smp_wmb();	/* insure spu event buffer updates are written */
 			/* don't want entries intermingled... */
@@ -360,6 +462,47 @@ static int number_of_online_nodes(void)
         return nodes;
 }
 
+static int oprofile_spu_buff_create(void)
+{
+	int spu;
+
+	max_spu_buff = oprofile_get_cpu_buffer_size();
+
+	for (spu = 0; spu < num_spu_nodes; spu++) {
+		/* create circular buffers to store the data in.
+		 * use locks to manage accessing the buffers
+		 */
+		spu_buff[spu].head = 0;
+		spu_buff[spu].tail = 0;
+
+		/*
+		 * Create a buffer for each SPU.  Can't reliably
+		 * create a single buffer for all spus due to not
+		 * enough contiguous kernel memory.
+		 */
+
+		spu_buff[spu].buff = kzalloc((max_spu_buff
+					      * sizeof(unsigned long)),
+					     GFP_KERNEL);
+
+		if (!spu_buff[spu].buff) {
+			printk(KERN_ERR "SPU_PROF: "
+			       "%s, line %d:  oprofile_spu_buff_create "
+		       "failed to allocate spu buffer %d.\n",
+			       __func__, __LINE__, spu);
+
+			/* release the spu buffers that have been allocated */
+			while (spu >= 0) {
+				kfree(spu_buff[spu].buff);
+				spu_buff[spu].buff = 0;
+				spu--;
+			}
+			return -ENOMEM;
+		}
+	}
+	return 0;
+}
+
 /* The main purpose of this function is to synchronize
  * OProfile with SPUFS by registering to be notified of
  * SPU task switches.
@@ -372,19 +515,34 @@ static int number_of_online_nodes(void)
  */
 int spu_sync_start(void)
 {
-	int k;
+	int spu;
 	int ret = SKIP_GENERIC_SYNC;
 	int register_ret;
 	unsigned long flags = 0;
 
 	spu_prof_num_nodes = number_of_online_nodes();
 	num_spu_nodes = spu_prof_num_nodes * 8;
+	INIT_DELAYED_WORK(&spu_work, wq_sync_spu_buff);
+
+	/* create buffer for storing the SPU data to put in
+	 * the kernel buffer.
+	 */
+	ret = oprofile_spu_buff_create();
+	if (ret)
+		goto out;
 
 	spin_lock_irqsave(&buffer_lock, flags);
-	add_event_entry(ESCAPE_CODE);
-	add_event_entry(SPU_PROFILING_CODE);
-	add_event_entry(num_spu_nodes);
+	for (spu = 0; spu < num_spu_nodes; spu++) {
+		spu_buff_add(ESCAPE_CODE, spu);
+		spu_buff_add(SPU_PROFILING_CODE, spu);
+		spu_buff_add(num_spu_nodes, spu);
+	}
 	spin_unlock_irqrestore(&buffer_lock, flags);
+
+	for (spu = 0; spu < num_spu_nodes; spu++) {
+		spu_buff[spu].ctx_sw_seen = 0;
+		spu_buff[spu].last_guard_val = 0;
+	}
 
 	/* Register for SPU events  */
 	register_ret = spu_switch_event_register(&spu_active);
@@ -393,8 +551,6 @@ int spu_sync_start(void)
 		goto out;
 	}
 
-	for (k = 0; k < (MAX_NUMNODES * 8); k++)
-		last_guard_val[k] = 0;
 	pr_debug("spu_sync_start -- running.\n");
 out:
 	return ret;
@@ -446,13 +602,20 @@ void spu_sync_buffer(int spu_num, unsigned int *samples,
 		 * use.	 We need to discard samples taken during the time
 		 * period which an overlay occurs (i.e., guard value changes).
 		 */
-		if (grd_val && grd_val != last_guard_val[spu_num]) {
-			last_guard_val[spu_num] = grd_val;
+		if (grd_val && grd_val != spu_buff[spu_num].last_guard_val) {
+			spu_buff[spu_num].last_guard_val = grd_val;
 			/* Drop the rest of the samples. */
 			break;
 		}
 
-		add_event_entry(file_offset | spu_num_shifted);
+		/* We must ensure that the SPU context switch has been written
+		 * out before samples for the SPU.  Otherwise, the SPU context
+		 * information is not available and the postprocessing of the
+		 * SPU PC will fail with no available anonymous map information.
+		 */
+		if (spu_buff[spu_num].ctx_sw_seen)
+			spu_buff_add((file_offset | spu_num_shifted),
+					 spu_num);
 	}
 	spin_unlock(&buffer_lock);
 out:
@@ -463,20 +626,41 @@ out:
 int spu_sync_stop(void)
 {
 	unsigned long flags = 0;
-	int ret = spu_switch_event_unregister(&spu_active);
-	if (ret) {
+	int ret;
+	int k;
+
+	ret = spu_switch_event_unregister(&spu_active);
+
+	if (ret)
 		printk(KERN_ERR "SPU_PROF: "
-			"%s, line %d: spu_switch_event_unregister returned %d\n",
-			__func__, __LINE__, ret);
-		goto out;
-	}
+		       "%s, line %d: spu_switch_event_unregister "	\
+		       "returned %d\n",
+		       __func__, __LINE__, ret);
+
+	/* flush any remaining data in the per SPU buffers */
+	sync_spu_buff();
 
 	spin_lock_irqsave(&cache_lock, flags);
 	ret = release_cached_info(RELEASE_ALL);
 	spin_unlock_irqrestore(&cache_lock, flags);
-out:
+
+	/* remove scheduled work queue item rather then waiting
+	 * for every queued entry to execute.  Then flush pending
+	 * system wide buffer to event buffer.
+	 */
+	cancel_delayed_work(&spu_work);
+
+	for (k = 0; k < num_spu_nodes; k++) {
+		spu_buff[k].ctx_sw_seen = 0;
+
+		/*
+		 * spu_sys_buff will be null if there was a problem
+		 * allocating the buffer.  Only delete if it exists.
+		 */
+		kfree(spu_buff[k].buff);
+		spu_buff[k].buff = 0;
+	}
 	pr_debug("spu_sync_stop -- done.\n");
 	return ret;
 }
-
 

@@ -6,7 +6,7 @@
  *		Richard Underwood <richard@wuzz.demon.co.uk>
  *
  *	Stir fried together from the IP multicast and CAP patches above
- *		Alan Cox <Alan.Cox@linux.org>
+ *		Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  *	Fixes:
  *		Alan Cox	:	Update the device on a real delete

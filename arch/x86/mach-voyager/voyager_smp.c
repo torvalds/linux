@@ -448,6 +448,8 @@ static void __init start_secondary(void *unused)
 
 	VDEBUG(("VOYAGER SMP: CPU%d, stack at about %p\n", cpuid, &cpuid));
 
+	notify_cpu_starting(cpuid);
+
 	/* enable interrupts */
 	local_irq_enable();
 
@@ -1481,7 +1483,7 @@ static void disable_local_vic_irq(unsigned int irq)
  * the interrupt off to another CPU */
 static void before_handle_vic_irq(unsigned int irq)
 {
-	irq_desc_t *desc = irq_desc + irq;
+	irq_desc_t *desc = irq_to_desc(irq);
 	__u8 cpu = smp_processor_id();
 
 	_raw_spin_lock(&vic_irq_lock);
@@ -1516,7 +1518,7 @@ static void before_handle_vic_irq(unsigned int irq)
 /* Finish the VIC interrupt: basically mask */
 static void after_handle_vic_irq(unsigned int irq)
 {
-	irq_desc_t *desc = irq_desc + irq;
+	irq_desc_t *desc = irq_to_desc(irq);
 
 	_raw_spin_lock(&vic_irq_lock);
 	{

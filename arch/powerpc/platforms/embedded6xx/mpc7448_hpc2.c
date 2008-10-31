@@ -164,7 +164,6 @@ static void __init mpc7448_hpc2_init_IRQ(void)
 void mpc7448_hpc2_show_cpuinfo(struct seq_file *m)
 {
 	seq_printf(m, "vendor\t\t: Freescale Semiconductor\n");
-	seq_printf(m, "machine\t\t: MPC7448hpc2\n");
 }
 
 void mpc7448_hpc2_restart(char *cmd)

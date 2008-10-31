@@ -659,9 +659,9 @@ static ssize_t poll_timeout_store(struct bus_type *bus, const char *buf,
 	hr_time = ktime_set(0, poll_timeout);
 
 	if (!hrtimer_is_queued(&ap_poll_timer) ||
-	    !hrtimer_forward(&ap_poll_timer, ap_poll_timer.expires, hr_time)) {
-		ap_poll_timer.expires = hr_time;
-		hrtimer_start(&ap_poll_timer, hr_time, HRTIMER_MODE_ABS);
+	    !hrtimer_forward(&ap_poll_timer, hrtimer_get_expires(&ap_poll_timer), hr_time)) {
+		hrtimer_set_expires(&ap_poll_timer, hr_time);
+		hrtimer_start_expires(&ap_poll_timer, HRTIMER_MODE_ABS);
 	}
 	return count;
 }
@@ -892,8 +892,8 @@ static void ap_scan_bus(struct work_struct *unused)
 
 		ap_dev->device.bus = &ap_bus_type;
 		ap_dev->device.parent = ap_root_device;
-		snprintf(ap_dev->device.bus_id, BUS_ID_SIZE, "card%02x",
-			 AP_QID_DEVICE(ap_dev->qid));
+		dev_set_name(&ap_dev->device, "card%02x",
+			     AP_QID_DEVICE(ap_dev->qid));
 		ap_dev->device.release = ap_device_release;
 		rc = device_register(&ap_dev->device);
 		if (rc) {

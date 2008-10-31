@@ -59,8 +59,6 @@
  * TC6393XB GPIOs
  */
 #define TOSA_TC6393XB_GPIO_BASE		(NR_BUILTIN_GPIO + 2 * 12)
-#define TOSA_TC6393XB_GPIO(i)		(TOSA_TC6393XB_GPIO_BASE + (i))
-#define TOSA_TC6393XB_GPIO_BIT(gpio)	(1 << (gpio - TOSA_TC6393XB_GPIO_BASE))
 
 #define TOSA_GPIO_TG_ON			(TOSA_TC6393XB_GPIO_BASE + 0)
 #define TOSA_GPIO_L_MUTE		(TOSA_TC6393XB_GPIO_BASE + 1)
@@ -194,5 +192,8 @@
 #define TOSA_KEY_FN		KEY_FN
 #define TOSA_KEY_MAIL		KEY_MAIL
 #endif
+
+struct spi_device;
+extern int tosa_bl_enable(struct spi_device *spi, int enable);
 
 #endif /* _ASM_ARCH_TOSA_H_ */

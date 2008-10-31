@@ -1659,8 +1659,10 @@ nfs4_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 		struct nfs_open_context *ctx;
 
 		ctx = nfs_file_open_context(sattr->ia_file);
-		cred = ctx->cred;
-		state = ctx->state;
+		if (ctx) {
+			cred = ctx->cred;
+			state = ctx->state;
+		}
 	}
 
 	status = nfs4_do_setattr(inode, cred, fattr, sattr, state);

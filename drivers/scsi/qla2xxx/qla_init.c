@@ -83,6 +83,13 @@ qla2x00_initialize_adapter(scsi_qla_host_t *ha)
 
 	ha->isp_ops->reset_chip(ha);
 
+	rval = qla2xxx_get_flash_info(ha);
+	if (rval) {
+		DEBUG2(printk("scsi(%ld): Unable to validate FLASH data.\n",
+		    ha->host_no));
+		return (rval);
+	}
+
 	ha->isp_ops->get_flash_version(ha, ha->request_ring);
 
 	qla_printk(KERN_INFO, ha, "Configure NVRAM parameters...\n");
@@ -109,7 +116,6 @@ qla2x00_initialize_adapter(scsi_qla_host_t *ha)
 		rval = qla2x00_setup_chip(ha);
 		if (rval)
 			return (rval);
-		qla2xxx_get_flash_info(ha);
 	}
 	if (IS_QLA84XX(ha)) {
 		ha->cs84xx = qla84xx_get_chip(ha);
@@ -2016,7 +2022,7 @@ qla2x00_configure_loop(scsi_qla_host_t *ha)
 		DEBUG3(printk("%s: exiting normally\n", __func__));
 	}
 
-	/* Restore state if a resync event occured during processing */
+	/* Restore state if a resync event occurred during processing */
 	if (test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags)) {
 		if (test_bit(LOCAL_LOOP_UPDATE, &save_flags))
 			set_bit(LOCAL_LOOP_UPDATE, &ha->dpc_flags);
@@ -2561,7 +2567,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 	rval = QLA_SUCCESS;
 
 	/* Try GID_PT to get device list, else GAN. */
-	swl = kcalloc(MAX_FIBRE_DEVICES, sizeof(sw_info_t), GFP_ATOMIC);
+	swl = kcalloc(MAX_FIBRE_DEVICES, sizeof(sw_info_t), GFP_KERNEL);
 	if (!swl) {
 		/*EMPTY*/
 		DEBUG2(printk("scsi(%ld): GID_PT allocations failed, fallback "
@@ -3751,7 +3757,7 @@ qla24xx_load_risc_flash(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 	rval = QLA_SUCCESS;
 
 	segments = FA_RISC_CODE_SEGMENTS;
-	faddr = FA_RISC_CODE_ADDR;
+	faddr = ha->flt_region_fw;
 	dcode = (uint32_t *)ha->request_ring;
 	*srisc_addr = 0;
 

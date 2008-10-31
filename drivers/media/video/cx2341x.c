@@ -508,7 +508,10 @@ int cx2341x_ctrl_query(const struct cx2341x_mpeg_params *params,
 		/* this setting is read-only for the cx2341x since the
 		   V4L2_CID_MPEG_STREAM_TYPE really determines the
 		   MPEG-1/2 setting */
-		err = v4l2_ctrl_query_fill_std(qctrl);
+		err = v4l2_ctrl_query_fill(qctrl,
+					   V4L2_MPEG_VIDEO_ENCODING_MPEG_1,
+					   V4L2_MPEG_VIDEO_ENCODING_MPEG_2, 1,
+					   V4L2_MPEG_VIDEO_ENCODING_MPEG_2);
 		if (err == 0)
 			qctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 		return err;

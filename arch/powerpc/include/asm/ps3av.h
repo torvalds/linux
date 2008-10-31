@@ -678,6 +678,8 @@ struct ps3av_pkt_avb_param {
 	u8 buf[PS3AV_PKT_AVB_PARAM_MAX_BUF_SIZE];
 };
 
+/* channel status */
+extern u8 ps3av_mode_cs_info[];
 
 /** command status **/
 #define PS3AV_STATUS_SUCCESS			0x0000	/* success */
@@ -735,6 +737,7 @@ extern int ps3av_get_mode(void);
 extern int ps3av_video_mode2res(u32, u32 *, u32 *);
 extern int ps3av_video_mute(int);
 extern int ps3av_audio_mute(int);
+extern int ps3av_audio_mute_analog(int);
 extern int ps3av_dev_open(void);
 extern int ps3av_dev_close(void);
 extern void ps3av_register_flip_ctl(void (*flip_ctl)(int on, void *data),

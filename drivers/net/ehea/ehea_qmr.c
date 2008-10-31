@@ -567,7 +567,7 @@ static inline int ehea_calc_index(unsigned long i, unsigned long s)
 static inline int ehea_init_top_bmap(struct ehea_top_bmap *ehea_top_bmap,
 				     int dir)
 {
-	if(!ehea_top_bmap->dir[dir]) {
+	if (!ehea_top_bmap->dir[dir]) {
 		ehea_top_bmap->dir[dir] =
 			kzalloc(sizeof(struct ehea_dir_bmap), GFP_KERNEL);
 		if (!ehea_top_bmap->dir[dir])
@@ -578,7 +578,7 @@ static inline int ehea_init_top_bmap(struct ehea_top_bmap *ehea_top_bmap,
 
 static inline int ehea_init_bmap(struct ehea_bmap *ehea_bmap, int top, int dir)
 {
-	if(!ehea_bmap->top[top]) {
+	if (!ehea_bmap->top[top]) {
 		ehea_bmap->top[top] =
 			kzalloc(sizeof(struct ehea_top_bmap), GFP_KERNEL);
 		if (!ehea_bmap->top[top])
@@ -587,52 +587,124 @@ static inline int ehea_init_bmap(struct ehea_bmap *ehea_bmap, int top, int dir)
 	return ehea_init_top_bmap(ehea_bmap->top[top], dir);
 }
 
-static int ehea_create_busmap_callback(unsigned long pfn,
-				       unsigned long nr_pages, void *arg)
+static DEFINE_MUTEX(ehea_busmap_mutex);
+static unsigned long ehea_mr_len;
+
+#define EHEA_BUSMAP_ADD_SECT 1
+#define EHEA_BUSMAP_REM_SECT 0
+
+static void ehea_rebuild_busmap(void)
 {
-	unsigned long i, mr_len, start_section, end_section;
-	start_section = (pfn * PAGE_SIZE) / EHEA_SECTSIZE;
-	end_section = start_section + ((nr_pages * PAGE_SIZE) / EHEA_SECTSIZE);
-	mr_len = *(unsigned long *)arg;
+	u64 vaddr = EHEA_BUSMAP_START;
+	int top, dir, idx;
 
-	ehea_bmap = kzalloc(sizeof(struct ehea_bmap), GFP_KERNEL);
-	if (!ehea_bmap)
-		return -ENOMEM;
+	for (top = 0; top < EHEA_MAP_ENTRIES; top++) {
+		struct ehea_top_bmap *ehea_top;
+		int valid_dir_entries = 0;
 
-	for (i = start_section; i < end_section; i++) {
-		int ret;
-		int top, dir, idx;
-		u64 vaddr;
+		if (!ehea_bmap->top[top])
+			continue;
+		ehea_top = ehea_bmap->top[top];
+		for (dir = 0; dir < EHEA_MAP_ENTRIES; dir++) {
+			struct ehea_dir_bmap *ehea_dir;
+			int valid_entries = 0;
 
-		top = ehea_calc_index(i, EHEA_TOP_INDEX_SHIFT);
-		dir = ehea_calc_index(i, EHEA_DIR_INDEX_SHIFT);
+			if (!ehea_top->dir[dir])
+				continue;
+			valid_dir_entries++;
+			ehea_dir = ehea_top->dir[dir];
+			for (idx = 0; idx < EHEA_MAP_ENTRIES; idx++) {
+				if (!ehea_dir->ent[idx])
+					continue;
+				valid_entries++;
+				ehea_dir->ent[idx] = vaddr;
+				vaddr += EHEA_SECTSIZE;
+			}
+			if (!valid_entries) {
+				ehea_top->dir[dir] = NULL;
+				kfree(ehea_dir);
+			}
+		}
+		if (!valid_dir_entries) {
+			ehea_bmap->top[top] = NULL;
+			kfree(ehea_top);
+		}
+	}
+}
 
-		ret = ehea_init_bmap(ehea_bmap, top, dir);
-		if(ret)
-			return ret;
+static int ehea_update_busmap(unsigned long pfn, unsigned long pgnum, int add)
+{
+	unsigned long i, start_section, end_section;
 
-		idx = i & EHEA_INDEX_MASK;
-		vaddr = EHEA_BUSMAP_START + mr_len + i * EHEA_SECTSIZE;
-
-		ehea_bmap->top[top]->dir[dir]->ent[idx] = vaddr;
+	if (!ehea_bmap) {
+		ehea_bmap = kzalloc(sizeof(struct ehea_bmap), GFP_KERNEL);
+		if (!ehea_bmap)
+			return -ENOMEM;
 	}
 
-	mr_len += nr_pages * PAGE_SIZE;
-	*(unsigned long *)arg = mr_len;
+	start_section = (pfn * PAGE_SIZE) / EHEA_SECTSIZE;
+	end_section = start_section + ((pgnum * PAGE_SIZE) / EHEA_SECTSIZE);
+	/* Mark entries as valid or invalid only; address is assigned later */
+	for (i = start_section; i < end_section; i++) {
+		u64 flag;
+		int top = ehea_calc_index(i, EHEA_TOP_INDEX_SHIFT);
+		int dir = ehea_calc_index(i, EHEA_DIR_INDEX_SHIFT);
+		int idx = i & EHEA_INDEX_MASK;
+		
+		if (add) {
+			int ret = ehea_init_bmap(ehea_bmap, top, dir);
+			if (ret)
+				return ret;
+			flag = 1; /* valid */
+			ehea_mr_len += EHEA_SECTSIZE;
+		} else {
+			if (!ehea_bmap->top[top])
+				continue;
+			if (!ehea_bmap->top[top]->dir[dir])
+				continue;
+			flag = 0; /* invalid */
+			ehea_mr_len -= EHEA_SECTSIZE;
+		}
 
+		ehea_bmap->top[top]->dir[dir]->ent[idx] = flag;
+	}
+	ehea_rebuild_busmap(); /* Assign contiguous addresses for mr */
 	return 0;
 }
 
-static unsigned long ehea_mr_len;
+int ehea_add_sect_bmap(unsigned long pfn, unsigned long nr_pages)
+{
+	int ret;
 
-static DEFINE_MUTEX(ehea_busmap_mutex);
+	mutex_lock(&ehea_busmap_mutex);
+	ret = ehea_update_busmap(pfn, nr_pages, EHEA_BUSMAP_ADD_SECT);
+	mutex_unlock(&ehea_busmap_mutex);
+	return ret;
+}
+
+int ehea_rem_sect_bmap(unsigned long pfn, unsigned long nr_pages)
+{
+	int ret;
+
+	mutex_lock(&ehea_busmap_mutex);
+	ret = ehea_update_busmap(pfn, nr_pages, EHEA_BUSMAP_REM_SECT);
+	mutex_unlock(&ehea_busmap_mutex);
+	return ret;
+}
+
+static int ehea_create_busmap_callback(unsigned long pfn,
+				       unsigned long nr_pages, void *arg)
+{
+	return ehea_update_busmap(pfn, nr_pages, EHEA_BUSMAP_ADD_SECT);
+}
 
 int ehea_create_busmap(void)
 {
 	int ret;
+
 	mutex_lock(&ehea_busmap_mutex);
 	ehea_mr_len = 0;
-	ret = walk_memory_resource(0, 1ULL << MAX_PHYSMEM_BITS, &ehea_mr_len,
+	ret = walk_memory_resource(0, 1ULL << MAX_PHYSMEM_BITS, NULL,
 				   ehea_create_busmap_callback);
 	mutex_unlock(&ehea_busmap_mutex);
 	return ret;

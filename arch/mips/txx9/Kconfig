@@ -45,6 +45,14 @@ config TOSHIBA_RBTX4938
 	  This Toshiba board is based on the TX4938 processor. Say Y here to
 	  support this machine type
 
+config TOSHIBA_RBTX4939
+	bool "Toshiba RBTX4939 bobard"
+	depends on MACH_TX49XX
+	select SOC_TX4939
+	help
+	  This Toshiba board is based on the TX4939 processor. Say Y here to
+	  support this machine type
+
 config SOC_TX3927
 	bool
 	select CEVT_TXX9
@@ -71,6 +79,13 @@ config SOC_TX4938
 	select PCI_TX4927
 	select GPIO_TXX9
 
+config SOC_TX4939
+	bool
+	select CEVT_TXX9
+	select HAS_TXX9_SERIAL
+	select HW_HAS_PCI
+	select PCI_TX4927
+
 config TOSHIBA_FPCIB0
 	bool "FPCIB0 Backplane Support"
 	depends on PCI && MACH_TXX9
@@ -94,15 +109,10 @@ config TOSHIBA_RBTX4938_MPLEX_NAND
 	bool "NAND"
 config TOSHIBA_RBTX4938_MPLEX_ATA
 	bool "ATA"
+config TOSHIBA_RBTX4938_MPLEX_KEEP
+	bool "Keep firmware settings"
 
 endchoice
-
-config TX4938_NAND_BOOT
-	depends on EXPERIMENTAL && TOSHIBA_RBTX4938_MPLEX_NAND
-	bool "NAND Boot Support (EXPERIMENTAL)"
-	help
-	  This is only for Toshiba RBTX4938 reference board, which has NAND IPL.
-	  Select this option if you need to use NAND boot.
 
 endif
 

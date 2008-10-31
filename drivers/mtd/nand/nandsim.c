@@ -38,7 +38,6 @@
 #include <linux/delay.h>
 #include <linux/list.h>
 #include <linux/random.h>
-#include <asm/div64.h>
 
 /* Default simulator parameters values */
 #if !defined(CONFIG_NANDSIM_FIRST_ID_BYTE)  || \

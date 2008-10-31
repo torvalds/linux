@@ -1057,7 +1057,7 @@ static void saa711x_set_lcr(struct i2c_client *client, struct v4l2_sliced_vbi_fo
 	for (i = 0; i <= 23; i++)
 		lcr[i] = 0xff;
 
-	if (fmt->service_set == 0) {
+	if (fmt == NULL) {
 		/* raw VBI */
 		if (is_50hz)
 			for (i = 6; i <= 23; i++)
@@ -1113,7 +1113,7 @@ static void saa711x_set_lcr(struct i2c_client *client, struct v4l2_sliced_vbi_fo
 	}
 
 	/* enable/disable raw VBI capturing */
-	saa711x_writeregs(client, fmt->service_set == 0 ?
+	saa711x_writeregs(client, fmt == NULL ?
 				saa7115_cfg_vbi_on :
 				saa7115_cfg_vbi_off);
 }
@@ -1151,6 +1151,10 @@ static int saa711x_set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt
 {
 	if (fmt->type == V4L2_BUF_TYPE_SLICED_VBI_CAPTURE) {
 		saa711x_set_lcr(client, &fmt->fmt.sliced);
+		return 0;
+	}
+	if (fmt->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
+		saa711x_set_lcr(client, NULL);
 		return 0;
 	}
 	if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -1309,10 +1313,13 @@ static int saa7115_command(struct i2c_client *client, unsigned int cmd, void *ar
 	case VIDIOC_INT_S_VIDEO_ROUTING:
 	{
 		struct v4l2_routing *route = arg;
+		u32 input = route->input;
+		u8 mask = (state->ident == V4L2_IDENT_SAA7111) ? 0xf8 : 0xf0;
 
 		v4l_dbg(1, debug, client, "decoder set input %d output %d\n", route->input, route->output);
-		/* saa7113 does not have these inputs */
-		if (state->ident == V4L2_IDENT_SAA7113 &&
+		/* saa7111/3 does not have these inputs */
+		if ((state->ident == V4L2_IDENT_SAA7113 ||
+		     state->ident == V4L2_IDENT_SAA7111) &&
 		    (route->input == SAA7115_COMPOSITE4 ||
 		     route->input == SAA7115_COMPOSITE5)) {
 			return -EINVAL;
@@ -1327,10 +1334,23 @@ static int saa7115_command(struct i2c_client *client, unsigned int cmd, void *ar
 			(route->input >= SAA7115_SVIDEO0) ? "S-Video" : "Composite", (route->output == SAA7115_IPORT_ON) ? "iport on" : "iport off");
 		state->input = route->input;
 
+		/* saa7111 has slightly different input numbering */
+		if (state->ident == V4L2_IDENT_SAA7111) {
+			if (input >= SAA7115_COMPOSITE4)
+				input -= 2;
+			/* saa7111 specific */
+			saa711x_write(client, R_10_CHROMA_CNTL_2,
+					(saa711x_read(client, R_10_CHROMA_CNTL_2) & 0x3f) |
+					((route->output & 0xc0) ^ 0x40));
+			saa711x_write(client, R_13_RT_X_PORT_OUT_CNTL,
+					(saa711x_read(client, R_13_RT_X_PORT_OUT_CNTL) & 0xf0) |
+					((route->output & 2) ? 0x0a : 0));
+		}
+
 		/* select mode */
 		saa711x_write(client, R_02_INPUT_CNTL_1,
-			      (saa711x_read(client, R_02_INPUT_CNTL_1) & 0xf0) |
-			       state->input);
+			      (saa711x_read(client, R_02_INPUT_CNTL_1) & mask) |
+			       input);
 
 		/* bypass chrominance trap for S-Video modes */
 		saa711x_write(client, R_09_LUMA_CNTL,
@@ -1382,6 +1402,13 @@ static int saa7115_command(struct i2c_client *client, unsigned int cmd, void *ar
 	case VIDIOC_INT_RESET:
 		v4l_dbg(1, debug, client, "decoder RESET\n");
 		saa711x_writeregs(client, saa7115_cfg_reset_scaler);
+		break;
+
+	case VIDIOC_INT_S_GPIO:
+		if (state->ident != V4L2_IDENT_SAA7111)
+			return -EINVAL;
+		saa711x_write(client, 0x11, (saa711x_read(client, 0x11) & 0x7f) |
+			(*(u32 *)arg ? 0x80 : 0));
 		break;
 
 	case VIDIOC_INT_G_VBI_DATA:
@@ -1539,7 +1566,8 @@ static int saa7115_probe(struct i2c_client *client,
 		state->crystal_freq = SAA7115_FREQ_32_11_MHZ;
 		saa711x_writeregs(client, saa7115_init_auto_input);
 	}
-	saa711x_writeregs(client, saa7115_init_misc);
+	if (state->ident != V4L2_IDENT_SAA7111)
+		saa711x_writeregs(client, saa7115_init_misc);
 	saa711x_set_v4lstd(client, V4L2_STD_NTSC);
 
 	v4l_dbg(1, debug, client, "status: (1E) 0x%02x, (1F) 0x%02x\n",

@@ -30,7 +30,6 @@
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
 #include <asm/emma2rh/emma2rh.h>
-#include <asm/debug.h>
 
 const char *get_system_type(void)
 {

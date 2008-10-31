@@ -85,7 +85,6 @@
 #include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
-#include <linux/firmware.h>
 
 #include "ti_usb_3410_5052.h"
 
@@ -179,7 +178,7 @@ static int ti_set_mcr(struct ti_port *tport, unsigned int mcr);
 static int ti_get_lsr(struct ti_port *tport);
 static int ti_get_serial_info(struct ti_port *tport,
 	struct serial_struct __user *ret_arg);
-static int ti_set_serial_info(struct ti_port *tport,
+static int ti_set_serial_info(struct tty_struct *tty, struct ti_port *tport,
 	struct serial_struct __user *new_arg);
 static void ti_handle_new_msr(struct ti_port *tport, __u8 msr);
 
@@ -383,7 +382,8 @@ static int __init ti_init(void)
 	if (ret)
 		goto failed_usb;
 
-	info(TI_DRIVER_DESC " " TI_DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " TI_DRIVER_VERSION ":"
+	       TI_DRIVER_DESC "\n");
 
 	return 0;
 
@@ -857,8 +857,8 @@ static int ti_ioctl(struct tty_struct *tty, struct file *file,
 				(struct serial_struct __user *)arg);
 	case TIOCSSERIAL:
 		dbg("%s - (%d) TIOCSSERIAL", __func__, port->number);
-		return ti_set_serial_info(tport,
-					(struct serial_struct __user *)arg);
+		return ti_set_serial_info(tty, tport,
+				(struct serial_struct __user *)arg);
 	case TIOCMIWAIT:
 		dbg("%s - (%d) TIOCMIWAIT", __func__, port->number);
 		cprev = tport->tp_icount;
@@ -1211,6 +1211,7 @@ static void ti_bulk_in_callback(struct urb *urb)
 	struct device *dev = &urb->dev->dev;
 	int status = urb->status;
 	int retval = 0;
+	struct tty_struct *tty;
 
 	dbg("%s", __func__);
 
@@ -1239,20 +1240,22 @@ static void ti_bulk_in_callback(struct urb *urb)
 		return;
 	}
 
-	if (port->port.tty && urb->actual_length) {
+	tty = tty_port_tty_get(&port->port);
+	if (tty && urb->actual_length) {
 		usb_serial_debug_data(debug, dev, __func__,
 			urb->actual_length, urb->transfer_buffer);
 
 		if (!tport->tp_is_open)
 			dbg("%s - port closed, dropping data", __func__);
 		else
-			ti_recv(&urb->dev->dev, port->port.tty,
+			ti_recv(&urb->dev->dev, tty,
 						urb->transfer_buffer,
 						urb->actual_length);
 
 		spin_lock(&tport->tp_lock);
 		tport->tp_icount.rx += urb->actual_length;
 		spin_unlock(&tport->tp_lock);
+		tty_kref_put(tty);
 	}
 
 exit:
@@ -1330,7 +1333,7 @@ static void ti_send(struct ti_port *tport)
 {
 	int count, result;
 	struct usb_serial_port *port = tport->tp_port;
-	struct tty_struct *tty = port->port.tty;	/* FIXME */
+	struct tty_struct *tty = tty_port_tty_get(&port->port);	/* FIXME */
 	unsigned long flags;
 
 
@@ -1338,19 +1341,15 @@ static void ti_send(struct ti_port *tport)
 
 	spin_lock_irqsave(&tport->tp_lock, flags);
 
-	if (tport->tp_write_urb_in_use) {
-		spin_unlock_irqrestore(&tport->tp_lock, flags);
-		return;
-	}
+	if (tport->tp_write_urb_in_use)
+		goto unlock;
 
 	count = ti_buf_get(tport->tp_write_buf,
 				port->write_urb->transfer_buffer,
 				port->bulk_out_size);
 
-	if (count == 0) {
-		spin_unlock_irqrestore(&tport->tp_lock, flags);
-		return;
-	}
+	if (count == 0)
+		goto unlock;
 
 	tport->tp_write_urb_in_use = 1;
 
@@ -1380,7 +1379,13 @@ static void ti_send(struct ti_port *tport)
 	/* more room in the buffer for new writes, wakeup */
 	if (tty)
 		tty_wakeup(tty);
+	tty_kref_put(tty);
 	wake_up_interruptible(&tport->tp_write_wait);
+	return;
+unlock:
+	spin_unlock_irqrestore(&tport->tp_lock, flags);
+	tty_kref_put(tty);
+	return;
 }
 
 
@@ -1464,20 +1469,16 @@ static int ti_get_serial_info(struct ti_port *tport,
 }
 
 
-static int ti_set_serial_info(struct ti_port *tport,
+static int ti_set_serial_info(struct tty_struct *tty, struct ti_port *tport,
 	struct serial_struct __user *new_arg)
 {
-	struct usb_serial_port *port = tport->tp_port;
 	struct serial_struct new_serial;
 
 	if (copy_from_user(&new_serial, new_arg, sizeof(new_serial)))
 		return -EFAULT;
 
 	tport->tp_flags = new_serial.flags & TI_SET_SERIAL_FLAGS;
-	/* FIXME */
-	if (port->port.tty)
-		port->port.tty->low_latency =
-			(tport->tp_flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	tty->low_latency = (tport->tp_flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 	tport->tp_closing_wait = new_serial.closing_wait;
 
 	return 0;
@@ -1510,7 +1511,7 @@ static void ti_handle_new_msr(struct ti_port *tport, __u8 msr)
 	tport->tp_msr = msr & TI_MSR_MASK;
 
 	/* handle CTS flow control */
-	tty = tport->tp_port->port.tty;
+	tty = tty_port_tty_get(&tport->tp_port->port);
 	if (tty && C_CRTSCTS(tty)) {
 		if (msr & TI_MSR_CTS) {
 			tty->hw_stopped = 0;
@@ -1519,6 +1520,7 @@ static void ti_handle_new_msr(struct ti_port *tport, __u8 msr)
 			tty->hw_stopped = 1;
 		}
 	}
+	tty_kref_put(tty);
 }
 
 

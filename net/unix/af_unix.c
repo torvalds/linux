@@ -1,7 +1,7 @@
 /*
  * NET4:	Implementation of BSD Unix domain sockets.
  *
- * Authors:	Alan Cox, <alan.cox@linux.org>
+ * Authors:	Alan Cox, <alan@lxorguk.ukuu.org.uk>
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
@@ -711,28 +711,30 @@ static struct sock *unix_find_other(struct net *net,
 				    int type, unsigned hash, int *error)
 {
 	struct sock *u;
-	struct nameidata nd;
+	struct path path;
 	int err = 0;
 
 	if (sunname->sun_path[0]) {
-		err = path_lookup(sunname->sun_path, LOOKUP_FOLLOW, &nd);
+		struct inode *inode;
+		err = kern_path(sunname->sun_path, LOOKUP_FOLLOW, &path);
 		if (err)
 			goto fail;
-		err = vfs_permission(&nd, MAY_WRITE);
+		inode = path.dentry->d_inode;
+		err = inode_permission(inode, MAY_WRITE);
 		if (err)
 			goto put_fail;
 
 		err = -ECONNREFUSED;
-		if (!S_ISSOCK(nd.path.dentry->d_inode->i_mode))
+		if (!S_ISSOCK(inode->i_mode))
 			goto put_fail;
-		u = unix_find_socket_byinode(net, nd.path.dentry->d_inode);
+		u = unix_find_socket_byinode(net, inode);
 		if (!u)
 			goto put_fail;
 
 		if (u->sk_type == type)
-			touch_atime(nd.path.mnt, nd.path.dentry);
+			touch_atime(path.mnt, path.dentry);
 
-		path_put(&nd.path);
+		path_put(&path);
 
 		err=-EPROTOTYPE;
 		if (u->sk_type != type) {
@@ -753,7 +755,7 @@ static struct sock *unix_find_other(struct net *net,
 	return u;
 
 put_fail:
-	path_put(&nd.path);
+	path_put(&path);
 fail:
 	*error=err;
 	return NULL;

@@ -29,7 +29,6 @@
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 
-#include <mach/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
@@ -38,6 +37,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include <mach/hardware.h>
 #include <mach/board.h>
 #include <mach/gpio.h>
 #include <mach/at91_shdwc.h>
@@ -106,18 +106,18 @@ static struct at91_eth_data __initdata ek_macb_data = {
 static struct mtd_partition __initdata ek_nand_partition[] = {
 	{
 		.name	= "Linux Kernel",
-		.offset	= 0x00000000,
-		.size	= 16 * 1024 * 1024,
+		.offset	= 0,
+		.size	= SZ_16M,
 	},
 	{
 		.name	= "Root FS",
-		.offset	= 0x01000000,
-		.size	= 120 * 1024 * 1024,
+		.offset	= MTDPART_OFS_NXTBLK,
+		.size	= 120 * SZ_1M,
 	},
 	{
 		.name	= "FS",
-		.offset	= 0x08800000,
-		.size	= 120 * 1024 * 1024,
+		.offset	= MTDPART_OFS_NXTBLK,
+		.size	= 120 * SZ_1M,
 	}
 };
 

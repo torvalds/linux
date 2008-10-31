@@ -76,6 +76,14 @@ config FB_DDC
        select I2C
        default n
 
+config FB_BOOT_VESA_SUPPORT
+	bool
+	depends on FB
+	default n
+	---help---
+	  If true, at least one selected framebuffer driver can take advantage
+	  of VESA video modes set at an early boot stage via the vga= parameter.
+
 config FB_CFB_FILLRECT
 	tristate
 	depends on FB
@@ -172,11 +180,6 @@ config FB_DEFERRED_IO
 	bool
 	depends on FB
 
-config FB_METRONOME
-	tristate
-	depends on FB
-	depends on FB_DEFERRED_IO
-
 config FB_HECUBA
 	tristate
 	depends on FB
@@ -259,16 +262,24 @@ config FB_PM2
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	help
-	  This is the frame buffer device driver for the Permedia2 AGP frame
-	  buffer card from ASK, aka `Graphic Blaster Exxtreme'.  There is a
-	  product page at
-	  <http://www.ask.com.hk/product/Permedia%202/permedia2.htm>.
+	  This is the frame buffer device driver for cards based on
+	  the 3D Labs Permedia, Permedia 2 and Permedia 2V chips.
+	  The driver was tested on the following cards:
+		Diamond FireGL 1000 PRO AGP
+		ELSA Gloria Synergy PCI
+		Appian Jeronimo PRO (both heads) PCI
+		3DLabs Oxygen ACX aka EONtronics Picasso P2 PCI
+		Techsource Raptor GFX-8P (aka Sun PGX-32) on SPARC
+		ASK Graphic Blaster Exxtreme AGP
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pm2fb.
 
 config FB_PM2_FIFO_DISCONNECT
 	bool "enable FIFO disconnect feature"
 	depends on FB_PM2 && PCI
 	help
-	  Support the Permedia2 FIFO disconnect feature (see CONFIG_FB_PM2).
+	  Support the Permedia2 FIFO disconnect feature.
 
 config FB_ARMCLCD
 	tristate "ARM PrimeCell PL110 support"
@@ -678,7 +689,7 @@ config FB_VESA
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	select VIDEO_SELECT
+	select FB_BOOT_VESA_SUPPORT
 	help
 	  This is the frame buffer device driver for generic VESA 2.0
 	  compliant graphic cards. The older VESA 1.2 cards are not supported.
@@ -687,23 +698,14 @@ config FB_VESA
 
 config FB_EFI
 	bool "EFI-based Framebuffer Support"
-	depends on (FB = y) && X86
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	help
-	  This is the EFI frame buffer device driver. If the firmware on
-	  your platform is UEFI2.0, select Y to add support for
-	  Graphics Output Protocol for early console messages to appear.
-
-config FB_IMAC
-	bool "Intel-based Macintosh Framebuffer Support"
 	depends on (FB = y) && X86 && EFI
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	help
-	  This is the frame buffer device driver for the Intel-based Macintosh
+	  This is the EFI frame buffer device driver. If the firmware on
+	  your platform is EFI 1.10 or UEFI 2.0, select Y to add support for
+	  using the EFI framebuffer as your console.
 
 config FB_N411
        tristate "N411 Apollo/Hecuba devkit support"
@@ -1124,6 +1126,7 @@ config FB_INTEL
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select FB_BOOT_VESA_SUPPORT
 	help
 	  This driver supports the on-board graphics built in to the Intel
           830M/845G/852GM/855GM/865G/915G/915GM/945G/945GM/965G/965GM chipsets.
@@ -1476,6 +1479,7 @@ config FB_SIS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select FB_BOOT_VESA_SUPPORT
 	help
 	  This is the frame buffer device driver for the SiS 300, 315, 330
 	  and 340 series as well as XGI V3XT, V5, V8, Z7 graphics chipsets.
@@ -1498,6 +1502,24 @@ config FB_SIS_315
 	  (315/H/PRO, 55x, 650, 651, 740, 330, 661, 741, 760, 761) as well
 	  as XGI V3XT, V5, V8 and Z7.
 
+config FB_VIA
+       tristate "VIA UniChrome (Pro) and Chrome9 display support"
+       depends on FB && PCI
+       select FB_CFB_FILLRECT
+       select FB_CFB_COPYAREA
+       select FB_CFB_IMAGEBLIT
+       select FB_SOFT_CURSOR
+       select I2C_ALGOBIT
+       select I2C
+       help
+	  This is the frame buffer device driver for Graphics chips of VIA
+	  UniChrome (Pro) Family (CLE266,PM800/CN400,P4M800CE/P4M800Pro/
+	  CN700/VN800,CX700/VX700,P4M890) and Chrome9 Family (K8M890,CN896
+ 	  /P4M900,VX800)
+	  Say Y if you have a VIA UniChrome graphics board.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called viafb.
 config FB_NEOMAGIC
 	tristate "NeoMagic display support"
 	depends on FB && PCI
@@ -1527,25 +1549,25 @@ config FB_KYRO
 	  module will be called kyrofb.
 
 config FB_3DFX
-	tristate "3Dfx Banshee/Voodoo3 display support"
+	tristate "3Dfx Banshee/Voodoo3/Voodoo5 display support"
 	depends on FB && PCI
 	select FB_CFB_IMAGEBLIT
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	help
-	  This driver supports graphics boards with the 3Dfx Banshee/Voodoo3
-	  chips. Say Y if you have such a graphics board.
+	  This driver supports graphics boards with the 3Dfx Banshee,
+	  Voodoo3 or VSA-100 (aka Voodoo4/5) chips. Say Y if you have
+	  such a graphics board.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tdfxfb.
 
 config FB_3DFX_ACCEL
-	bool "3Dfx Banshee/Voodoo3 Acceleration functions (EXPERIMENTAL)"
+	bool "3Dfx Acceleration functions (EXPERIMENTAL)"
 	depends on FB_3DFX && EXPERIMENTAL
 	---help---
-	This will compile the 3Dfx Banshee/Voodoo3 frame buffer device
-	with acceleration functions.
-
+	This will compile the 3Dfx Banshee/Voodoo3/VSA-100 frame buffer
+	device driver with acceleration functions.
 
 config FB_VOODOO1
 	tristate "3Dfx Voodoo Graphics (sst1) support"
@@ -1583,7 +1605,6 @@ config FB_CYBLA
 	tristate "Cyberblade/i1 support"
 	depends on FB && PCI && X86_32 && !64BIT
 	select FB_CFB_IMAGEBLIT
-	select VIDEO_SELECT
 	---help---
 	  This driver is supposed to support the Trident Cyberblade/i1
 	  graphics core integrated in the VIA VT8601A North Bridge,
@@ -1611,16 +1632,15 @@ config FB_TRIDENT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	---help---
-	  This driver is supposed to support graphics boards with the
-	  Trident CyberXXXX/Image/CyberBlade chips mostly found in laptops
+	  This is the frame buffer device driver for Trident PCI/AGP chipsets.
+	  Supported chipset families are TGUI 9440/96XX, 3DImage, Blade3D
+	  and Blade XP.
+	  There are also integrated versions of these chips called CyberXXXX,
+	  CyberImage or CyberBlade. These chips are mostly found in laptops
 	  but also on some motherboards. For more information, read
 	  <file:Documentation/fb/tridentfb.txt>
 
-	  Cyberblade/i1 support will be removed soon, use the cyblafb driver
-	  instead.
-
 	  Say Y if you have such a graphics board.
-
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tridentfb.
@@ -1876,6 +1896,28 @@ config FB_SH_MOBILE_LCDC
 	---help---
 	  Frame buffer driver for the on-chip SH-Mobile LCD controller.
 
+config FB_TMIO
+	tristate "Toshiba Mobile IO FrameBuffer support"
+	depends on FB && MFD_CORE
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  Frame buffer driver for the Toshiba Mobile IO integrated as found
+	  on the Sharp SL-6000 series
+
+	  This driver is also available as a module ( = code which can be
+	  inserted and removed from the running kernel whenever you want). The
+	  module will be called tmiofb. If you want to compile it as a module,
+	  say M here and read <file:Documentation/kbuild/modules.txt>.
+
+	  If unsure, say N.
+
+config FB_TMIO_ACCELL
+	bool "tmiofb acceleration"
+	depends on FB_TMIO
+	default y
+
 config FB_S3C2410
 	tristate "S3C2410 LCD framebuffer support"
 	depends on FB && ARCH_S3C2410
@@ -1974,19 +2016,6 @@ config FB_XILINX
 	  framebuffer. ML300 carries a 640*480 LCD display on the board,
 	  ML403 uses a standard DB15 VGA connector.
 
-config FB_AM200EPD
-       tristate "AM-200 E-Ink EPD devkit support"
-       depends on FB && ARCH_PXA && MMU
-       select FB_SYS_FILLRECT
-       select FB_SYS_COPYAREA
-       select FB_SYS_IMAGEBLIT
-       select FB_SYS_FOPS
-       select FB_DEFERRED_IO
-       select FB_METRONOME
-       help
-         This enables support for the Metronome display controller used on
-         the E-Ink AM-200 EPD devkit.
-
 config FB_COBALT
 	tristate "Cobalt server LCD frame buffer support"
 	depends on FB && MIPS_COBALT
@@ -2040,6 +2069,19 @@ config XEN_FBDEV_FRONTEND
 	  This driver implements the front-end of the Xen virtual
 	  frame buffer driver.  It communicates with a back-end
 	  in another domain.
+
+config FB_METRONOME
+	tristate "E-Ink Metronome/8track controller support"
+	depends on FB
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select FB_SYS_FOPS
+	select FB_DEFERRED_IO
+	help
+	  This driver implements support for the E-Ink Metronome
+	  controller. The pre-release name for this device was 8track
+	  and could also have been called by some vendors as PVI-nnnn.
 
 source "drivers/video/omap/Kconfig"
 

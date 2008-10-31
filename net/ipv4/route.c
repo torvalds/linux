@@ -282,6 +282,8 @@ static struct rtable *rt_cache_get_first(struct seq_file *seq)
 	struct rtable *r = NULL;
 
 	for (st->bucket = rt_hash_mask; st->bucket >= 0; --st->bucket) {
+		if (!rt_hash_table[st->bucket].chain)
+			continue;
 		rcu_read_lock_bh();
 		r = rcu_dereference(rt_hash_table[st->bucket].chain);
 		while (r) {
@@ -299,11 +301,14 @@ static struct rtable *__rt_cache_get_next(struct seq_file *seq,
 					  struct rtable *r)
 {
 	struct rt_cache_iter_state *st = seq->private;
+
 	r = r->u.dst.rt_next;
 	while (!r) {
 		rcu_read_unlock_bh();
-		if (--st->bucket < 0)
-			break;
+		do {
+			if (--st->bucket < 0)
+				return NULL;
+		} while (!rt_hash_table[st->bucket].chain);
 		rcu_read_lock_bh();
 		r = rt_hash_table[st->bucket].chain;
 	}
@@ -1104,7 +1109,12 @@ restart:
 		printk("\n");
 	}
 #endif
-	rt_hash_table[hash].chain = rt;
+	/*
+	 * Since lookup is lockfree, we must make sure
+	 * previous writes to rt are comitted to memory
+	 * before making rt visible to other CPUS.
+	 */
+	rcu_assign_pointer(rt_hash_table[hash].chain, rt);
 	spin_unlock_bh(rt_hash_lock_addr(hash));
 	*rp = rt;
 	return 0;
@@ -2356,11 +2366,6 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 		    ipv4_is_zeronet(oldflp->fl4_src))
 			goto out;
 
-		/* It is equivalent to inet_addr_type(saddr) == RTN_LOCAL */
-		dev_out = ip_dev_find(net, oldflp->fl4_src);
-		if (dev_out == NULL)
-			goto out;
-
 		/* I removed check for oif == dev_out->oif here.
 		   It was wrong for two reasons:
 		   1. ip_dev_find(net, saddr) can return wrong iface, if saddr
@@ -2372,6 +2377,11 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 		if (oldflp->oif == 0
 		    && (ipv4_is_multicast(oldflp->fl4_dst) ||
 			oldflp->fl4_dst == htonl(0xFFFFFFFF))) {
+			/* It is equivalent to inet_addr_type(saddr) == RTN_LOCAL */
+			dev_out = ip_dev_find(net, oldflp->fl4_src);
+			if (dev_out == NULL)
+				goto out;
+
 			/* Special hack: user can direct multicasts
 			   and limited broadcast via necessary interface
 			   without fiddling with IP_MULTICAST_IF or IP_PKTINFO.
@@ -2390,9 +2400,15 @@ static int ip_route_output_slow(struct net *net, struct rtable **rp,
 			fl.oif = dev_out->ifindex;
 			goto make_route;
 		}
-		if (dev_out)
+
+		if (!(oldflp->flags & FLOWI_FLAG_ANYSRC)) {
+			/* It is equivalent to inet_addr_type(saddr) == RTN_LOCAL */
+			dev_out = ip_dev_find(net, oldflp->fl4_src);
+			if (dev_out == NULL)
+				goto out;
 			dev_put(dev_out);
-		dev_out = NULL;
+			dev_out = NULL;
+		}
 	}
 
 
@@ -2840,7 +2856,9 @@ int ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb)
 	if (s_h < 0)
 		s_h = 0;
 	s_idx = idx = cb->args[1];
-	for (h = s_h; h <= rt_hash_mask; h++) {
+	for (h = s_h; h <= rt_hash_mask; h++, s_idx = 0) {
+		if (!rt_hash_table[h].chain)
+			continue;
 		rcu_read_lock_bh();
 		for (rt = rcu_dereference(rt_hash_table[h].chain), idx = 0; rt;
 		     rt = rcu_dereference(rt->u.dst.rt_next), idx++) {
@@ -2859,7 +2877,6 @@ int ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb)
 			dst_release(xchg(&skb->dst, NULL));
 		}
 		rcu_read_unlock_bh();
-		s_idx = 0;
 	}
 
 done:
@@ -2896,8 +2913,6 @@ static int ipv4_sysctl_rtcache_flush(ctl_table *__ctl, int write,
 }
 
 static int ipv4_sysctl_rtcache_flush_strategy(ctl_table *table,
-						int __user *name,
-						int nlen,
 						void __user *oldval,
 						size_t __user *oldlenp,
 						void __user *newval,
@@ -2960,16 +2975,13 @@ static int ipv4_sysctl_rt_secret_interval(ctl_table *ctl, int write,
 }
 
 static int ipv4_sysctl_rt_secret_interval_strategy(ctl_table *table,
-						   int __user *name,
-						   int nlen,
 						   void __user *oldval,
 						   size_t __user *oldlenp,
 						   void __user *newval,
 						   size_t newlen)
 {
 	int old = ip_rt_secret_interval;
-	int ret = sysctl_jiffies(table, name, nlen, oldval, oldlenp, newval,
-				 newlen);
+	int ret = sysctl_jiffies(table, oldval, oldlenp, newval, newlen);
 
 	rt_secret_reschedule(old);
 

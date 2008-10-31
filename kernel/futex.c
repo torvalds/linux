@@ -1296,13 +1296,16 @@ static int futex_wait(u32 __user *uaddr, struct rw_semaphore *fshared,
 		if (!abs_time)
 			schedule();
 		else {
+			unsigned long slack;
+			slack = current->timer_slack_ns;
+			if (rt_task(current))
+				slack = 0;
 			hrtimer_init_on_stack(&t.timer, CLOCK_MONOTONIC,
 						HRTIMER_MODE_ABS);
 			hrtimer_init_sleeper(&t, current);
-			t.timer.expires = *abs_time;
+			hrtimer_set_expires_range_ns(&t.timer, *abs_time, slack);
 
-			hrtimer_start(&t.timer, t.timer.expires,
-						HRTIMER_MODE_ABS);
+			hrtimer_start_expires(&t.timer, HRTIMER_MODE_ABS);
 			if (!hrtimer_active(&t.timer))
 				t.task = NULL;
 
@@ -1404,7 +1407,7 @@ static int futex_lock_pi(u32 __user *uaddr, struct rw_semaphore *fshared,
 		hrtimer_init_on_stack(&to->timer, CLOCK_REALTIME,
 				      HRTIMER_MODE_ABS);
 		hrtimer_init_sleeper(to, current);
-		to->timer.expires = *time;
+		hrtimer_set_expires(&to->timer, *time);
 	}
 
 	q.pi_state = NULL;

@@ -1,8 +1,8 @@
 #ifndef ASMARM_VGA_H
 #define ASMARM_VGA_H
 
+#include <linux/io.h>
 #include <mach/hardware.h>
-#include <asm/io.h>
 
 #define VGA_MAP_MEM(x,s)	(PCIMEM_BASE + (x))
 

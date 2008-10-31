@@ -630,12 +630,23 @@ static struct pnp_device_id tpm_pnp_tbl[] __devinitdata = {
 	{"", 0}			/* Terminator */
 };
 
+static __devexit void tpm_tis_pnp_remove(struct pnp_dev *dev)
+{
+	struct tpm_chip *chip = pnp_get_drvdata(dev);
+
+	tpm_dev_vendor_release(chip);
+
+	kfree(chip);
+}
+
+
 static struct pnp_driver tis_pnp_driver = {
 	.name = "tpm_tis",
 	.id_table = tpm_pnp_tbl,
 	.probe = tpm_tis_pnp_init,
 	.suspend = tpm_tis_pnp_suspend,
 	.resume = tpm_tis_pnp_resume,
+	.remove = tpm_tis_pnp_remove,
 };
 
 #define TIS_HID_USR_IDX sizeof(tpm_pnp_tbl)/sizeof(struct pnp_device_id) -2
@@ -683,6 +694,7 @@ static void __exit cleanup_tis(void)
 	spin_lock(&tis_lock);
 	list_for_each_entry_safe(i, j, &tis_chips, list) {
 		chip = to_tpm_chip(i);
+		tpm_remove_hardware(chip->dev);
 		iowrite32(~TPM_GLOBAL_INT_ENABLE &
 			  ioread32(chip->vendor.iobase +
 				   TPM_INT_ENABLE(chip->vendor.
@@ -694,9 +706,9 @@ static void __exit cleanup_tis(void)
 			free_irq(chip->vendor.irq, chip);
 		iounmap(i->iobase);
 		list_del(&i->list);
-		tpm_remove_hardware(chip->dev);
 	}
 	spin_unlock(&tis_lock);
+
 	if (force) {
 		platform_device_unregister(pdev);
 		driver_unregister(&tis_drv);

@@ -1,7 +1,8 @@
 #
 # Makefile for miscellaneous I2C chip drivers.
 #
-# Think twice before you add a new driver to this directory.
+# Do not add new drivers to this directory! It is DEPRECATED.
+#
 # Device drivers are better grouped according to the functionality they
 # implement rather than to the bus they are connected to. In particular:
 # * Hardware monitoring chip drivers go to drivers/hwmon
@@ -21,6 +22,7 @@ obj-$(CONFIG_ISP1301_OMAP)	+= isp1301_omap.o
 obj-$(CONFIG_TPS65010)		+= tps65010.o
 obj-$(CONFIG_MENELAUS)		+= menelaus.o
 obj-$(CONFIG_SENSORS_TSL2550)	+= tsl2550.o
+obj-$(CONFIG_MCU_MPC8349EMITX)	+= mcu_mpc8349emitx.o
 
 ifeq ($(CONFIG_I2C_DEBUG_CHIP),y)
 EXTRA_CFLAGS += -DDEBUG

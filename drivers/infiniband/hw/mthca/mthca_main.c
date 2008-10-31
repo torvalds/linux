@@ -921,58 +921,6 @@ err_uar_table_free:
 	return err;
 }
 
-static int mthca_request_regions(struct pci_dev *pdev, int ddr_hidden)
-{
-	int err;
-
-	/*
-	 * We can't just use pci_request_regions() because the MSI-X
-	 * table is right in the middle of the first BAR.  If we did
-	 * pci_request_region and grab all of the first BAR, then
-	 * setting up MSI-X would fail, since the PCI core wants to do
-	 * request_mem_region on the MSI-X vector table.
-	 *
-	 * So just request what we need right now, and request any
-	 * other regions we need when setting up EQs.
-	 */
-	if (!request_mem_region(pci_resource_start(pdev, 0) + MTHCA_HCR_BASE,
-				MTHCA_HCR_SIZE, DRV_NAME))
-		return -EBUSY;
-
-	err = pci_request_region(pdev, 2, DRV_NAME);
-	if (err)
-		goto err_bar2_failed;
-
-	if (!ddr_hidden) {
-		err = pci_request_region(pdev, 4, DRV_NAME);
-		if (err)
-			goto err_bar4_failed;
-	}
-
-	return 0;
-
-err_bar4_failed:
-	pci_release_region(pdev, 2);
-
-err_bar2_failed:
-	release_mem_region(pci_resource_start(pdev, 0) + MTHCA_HCR_BASE,
-			   MTHCA_HCR_SIZE);
-
-	return err;
-}
-
-static void mthca_release_regions(struct pci_dev *pdev,
-				  int ddr_hidden)
-{
-	if (!ddr_hidden)
-		pci_release_region(pdev, 4);
-
-	pci_release_region(pdev, 2);
-
-	release_mem_region(pci_resource_start(pdev, 0) + MTHCA_HCR_BASE,
-			   MTHCA_HCR_SIZE);
-}
-
 static int mthca_enable_msi_x(struct mthca_dev *mdev)
 {
 	struct msix_entry entries[3];
@@ -1059,7 +1007,7 @@ static int __mthca_init_one(struct pci_dev *pdev, int hca_type)
 	if (!(pci_resource_flags(pdev, 4) & IORESOURCE_MEM))
 		ddr_hidden = 1;
 
-	err = mthca_request_regions(pdev, ddr_hidden);
+	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
 		dev_err(&pdev->dev, "Cannot obtain PCI resources, "
 			"aborting.\n");
@@ -1196,7 +1144,7 @@ err_free_dev:
 	ib_dealloc_device(&mdev->ib_dev);
 
 err_free_res:
-	mthca_release_regions(pdev, ddr_hidden);
+	pci_release_regions(pdev);
 
 err_disable_pdev:
 	pci_disable_device(pdev);
@@ -1240,8 +1188,7 @@ static void __mthca_remove_one(struct pci_dev *pdev)
 			pci_disable_msix(pdev);
 
 		ib_dealloc_device(&mdev->ib_dev);
-		mthca_release_regions(pdev, mdev->mthca_flags &
-				      MTHCA_FLAG_DDR_HIDDEN);
+		pci_release_regions(pdev);
 		pci_disable_device(pdev);
 		pci_set_drvdata(pdev, NULL);
 	}

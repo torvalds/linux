@@ -38,6 +38,7 @@
 #include <asm/timer.h>
 #include <asm/head.h>
 #include <asm/prom.h>
+#include <asm/memctrl.h>
 
 #include "entry.h"
 #include "kstack.h"
@@ -128,6 +129,56 @@ void do_BUG(const char *file, int line)
 	printk("kernel BUG at %s:%d!\n", file, line);
 }
 #endif
+
+static DEFINE_SPINLOCK(dimm_handler_lock);
+static dimm_printer_t dimm_handler;
+
+static int sprintf_dimm(int synd_code, unsigned long paddr, char *buf, int buflen)
+{
+	unsigned long flags;
+	int ret = -ENODEV;
+
+	spin_lock_irqsave(&dimm_handler_lock, flags);
+	if (dimm_handler) {
+		ret = dimm_handler(synd_code, paddr, buf, buflen);
+	} else if (tlb_type == spitfire) {
+		if (prom_getunumber(synd_code, paddr, buf, buflen) == -1)
+			ret = -EINVAL;
+		else
+			ret = 0;
+	} else
+		ret = -ENODEV;
+	spin_unlock_irqrestore(&dimm_handler_lock, flags);
+
+	return ret;
+}
+
+int register_dimm_printer(dimm_printer_t func)
+{
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&dimm_handler_lock, flags);
+	if (!dimm_handler)
+		dimm_handler = func;
+	else
+		ret = -EEXIST;
+	spin_unlock_irqrestore(&dimm_handler_lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(register_dimm_printer);
+
+void unregister_dimm_printer(dimm_printer_t func)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dimm_handler_lock, flags);
+	if (dimm_handler == func)
+		dimm_handler = NULL;
+	spin_unlock_irqrestore(&dimm_handler_lock, flags);
+}
+EXPORT_SYMBOL_GPL(unregister_dimm_printer);
 
 void spitfire_insn_access_exception(struct pt_regs *regs, unsigned long sfsr, unsigned long sfar)
 {
@@ -291,10 +342,7 @@ void sun4v_data_access_exception_tl1(struct pt_regs *regs, unsigned long addr, u
 }
 
 #ifdef CONFIG_PCI
-/* This is really pathetic... */
-extern volatile int pci_poke_in_progress;
-extern volatile int pci_poke_cpu;
-extern volatile int pci_poke_faulted;
+#include "pci_impl.h"
 #endif
 
 /* When access exceptions happen, we must do this. */
@@ -376,8 +424,7 @@ static void spitfire_log_udb_syndrome(unsigned long afar, unsigned long udbh, un
 
 	if (udbl & bit) {
 		scode = ecc_syndrome_table[udbl & 0xff];
-		if (prom_getunumber(scode, afar,
-				    memmod_str, sizeof(memmod_str)) == -1)
+		if (sprintf_dimm(scode, afar, memmod_str, sizeof(memmod_str)) < 0)
 			p = syndrome_unknown;
 		else
 			p = memmod_str;
@@ -388,8 +435,7 @@ static void spitfire_log_udb_syndrome(unsigned long afar, unsigned long udbh, un
 
 	if (udbh & bit) {
 		scode = ecc_syndrome_table[udbh & 0xff];
-		if (prom_getunumber(scode, afar,
-				    memmod_str, sizeof(memmod_str)) == -1)
+		if (sprintf_dimm(scode, afar, memmod_str, sizeof(memmod_str)) < 0)
 			p = syndrome_unknown;
 		else
 			p = memmod_str;
@@ -1062,8 +1108,6 @@ static const char *cheetah_get_string(unsigned long bit)
 	return "???";
 }
 
-extern int chmc_getunumber(int, unsigned long, char *, int);
-
 static void cheetah_log_errors(struct pt_regs *regs, struct cheetah_err_info *info,
 			       unsigned long afsr, unsigned long afar, int recoverable)
 {
@@ -1105,7 +1149,7 @@ static void cheetah_log_errors(struct pt_regs *regs, struct cheetah_err_info *in
 
 		syndrome = (afsr & CHAFSR_E_SYNDROME) >> CHAFSR_E_SYNDROME_SHIFT;
 		syndrome = cheetah_ecc_syntab[syndrome];
-		ret = chmc_getunumber(syndrome, afar, unum, sizeof(unum));
+		ret = sprintf_dimm(syndrome, afar, unum, sizeof(unum));
 		if (ret != -1)
 			printk("%s" "ERROR(%d): AFAR E-syndrome [%s]\n",
 			       (recoverable ? KERN_WARNING : KERN_CRIT),
@@ -1116,7 +1160,7 @@ static void cheetah_log_errors(struct pt_regs *regs, struct cheetah_err_info *in
 
 		syndrome = (afsr & CHAFSR_M_SYNDROME) >> CHAFSR_M_SYNDROME_SHIFT;
 		syndrome = cheetah_mtag_syntab[syndrome];
-		ret = chmc_getunumber(syndrome, afar, unum, sizeof(unum));
+		ret = sprintf_dimm(syndrome, afar, unum, sizeof(unum));
 		if (ret != -1)
 			printk("%s" "ERROR(%d): AFAR M-syndrome [%s]\n",
 			       (recoverable ? KERN_WARNING : KERN_CRIT),
@@ -2224,7 +2268,6 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 
 extern int handle_popc(u32 insn, struct pt_regs *regs);
 extern int handle_ldf_stq(u32 insn, struct pt_regs *regs);
-extern int vis_emul(struct pt_regs *, unsigned int);
 
 void do_illegal_instruction(struct pt_regs *regs)
 {

@@ -156,7 +156,7 @@ static int cmx270_init(void)
 	int mtd_parts_nb = 0;
 	int ret;
 
-	if (!machine_is_armcore())
+	if (!(machine_is_armcore() && cpu_is_pxa27x()))
 		return -ENODEV;
 
 	ret = gpio_request(GPIO_NAND_CS, "NAND CS");

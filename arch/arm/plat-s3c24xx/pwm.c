@@ -19,8 +19,8 @@
 #include <linux/io.h>
 #include <linux/pwm.h>
 
-#include <asm/plat-s3c24xx/devs.h>
-#include <asm/plat-s3c/regs-timer.h>
+#include <plat/devs.h>
+#include <plat/regs-timer.h>
 
 struct pwm_device {
 	struct list_head	 list;
@@ -56,7 +56,7 @@ static struct clk *clk_scaler[2];
 		}					\
 	}
 
-#define DEFINE_TIMER(_tmr_no, _irq)			\
+#define DEFINE_S3C_TIMER(_tmr_no, _irq)			\
 	.name		= "s3c24xx-pwm",		\
 	.id		= _tmr_no,			\
 	.num_resources	= TIMER_RESOURCE_SIZE,		\
@@ -67,11 +67,11 @@ static struct clk *clk_scaler[2];
  */
 
 struct platform_device s3c_device_timer[] = {
-	[0] = { DEFINE_TIMER(0, IRQ_TIMER0) },
-	[1] = { DEFINE_TIMER(1, IRQ_TIMER1) },
-	[2] = { DEFINE_TIMER(2, IRQ_TIMER2) },
-	[3] = { DEFINE_TIMER(3, IRQ_TIMER3) },
-	[4] = { DEFINE_TIMER(4, IRQ_TIMER4) },
+	[0] = { DEFINE_S3C_TIMER(0, IRQ_TIMER0) },
+	[1] = { DEFINE_S3C_TIMER(1, IRQ_TIMER1) },
+	[2] = { DEFINE_S3C_TIMER(2, IRQ_TIMER2) },
+	[3] = { DEFINE_S3C_TIMER(3, IRQ_TIMER3) },
+	[4] = { DEFINE_S3C_TIMER(4, IRQ_TIMER4) },
 };
 
 static inline int pwm_is_tdiv(struct pwm_device *pwm)

@@ -13,8 +13,9 @@ Supported adapters:
   * Intel 631xESB/632xESB (ESB2)
   * Intel 82801H (ICH8)
   * Intel 82801I (ICH9)
-  * Intel Tolapai
-  * Intel ICH10
+  * Intel EP80579 (Tolapai)
+  * Intel 82801JI (ICH10)
+  * Intel PCH
    Datasheets: Publicly available at the Intel website
 
 Authors: 
@@ -32,7 +33,7 @@ Description
 -----------
 
 The ICH (properly known as the 82801AA), ICH0 (82801AB), ICH2 (82801BA),
-ICH3 (82801CA/CAM) and later devices are Intel chips that are a part of
+ICH3 (82801CA/CAM) and later devices (PCH) are Intel chips that are a part of
 Intel's '810' chipset for Celeron-based PCs, '810E' chipset for
 Pentium-based PCs, '815E' chipset, and others.
 

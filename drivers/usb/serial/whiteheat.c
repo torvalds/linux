@@ -303,12 +303,15 @@ static int whiteheat_firmware_download(struct usb_serial *serial,
 
 	if (request_ihex_firmware(&firmware_fw, "whiteheat.fw",
 				  &serial->dev->dev)) {
-		err("%s - request \"whiteheat.fw\" failed", __func__);
+		dev_err(&serial->dev->dev,
+			"%s - request \"whiteheat.fw\" failed\n", __func__);
 		goto out;
 	}
 	if (request_ihex_firmware(&loader_fw, "whiteheat_loader.fw",
 			     &serial->dev->dev)) {
-		err("%s - request \"whiteheat_loader.fw\" failed", __func__);
+		dev_err(&serial->dev->dev,
+			"%s - request \"whiteheat_loader.fw\" failed\n",
+			__func__);
 		goto out;
 	}
 	ret = 0;
@@ -320,9 +323,10 @@ static int whiteheat_firmware_download(struct usb_serial *serial,
 					      (unsigned char *)record->data,
 					      be16_to_cpu(record->len), 0xa0);
 		if (response < 0) {
-			err("%s - ezusb_writememory failed for loader (%d %04X %p %d)",
-			    __func__, response, be32_to_cpu(record->addr),
-			    record->data, be16_to_cpu(record->len));
+			dev_err(&serial->dev->dev, "%s - ezusb_writememory "
+				"failed for loader (%d %04X %p %d)\n",
+				__func__, response, be32_to_cpu(record->addr),
+				record->data, be16_to_cpu(record->len));
 			break;
 		}
 		record = ihex_next_binrec(record);
@@ -338,9 +342,11 @@ static int whiteheat_firmware_download(struct usb_serial *serial,
 					      (unsigned char *)record->data,
 					      be16_to_cpu(record->len), 0xa3);
 		if (response < 0) {
-			err("%s - ezusb_writememory failed for first firmware step (%d %04X %p %d)", 
-			    __func__, response, be32_to_cpu(record->addr),
-			    record->data, be16_to_cpu(record->len));
+			dev_err(&serial->dev->dev, "%s - ezusb_writememory "
+				"failed for first firmware step "
+				"(%d %04X %p %d)\n", __func__, response,
+				be32_to_cpu(record->addr), record->data,
+				be16_to_cpu(record->len));
 			break;
 		}
 		++record;
@@ -354,9 +360,11 @@ static int whiteheat_firmware_download(struct usb_serial *serial,
 					      (unsigned char *)record->data,
 					      be16_to_cpu(record->len), 0xa0);
 		if (response < 0) {
-			err("%s - ezusb_writememory failed for second firmware step (%d %04X %p %d)", 
-			    __func__, response, be32_to_cpu(record->addr),
-			    record->data, be16_to_cpu(record->len));
+			dev_err(&serial->dev->dev, "%s - ezusb_writememory "
+				"failed for second firmware step "
+				"(%d %04X %p %d)\n", __func__, response,
+				be32_to_cpu(record->addr), record->data,
+				be16_to_cpu(record->len));
 			break;
 		}
 		++record;
@@ -421,12 +429,12 @@ static int whiteheat_attach(struct usb_serial *serial)
 	ret = usb_bulk_msg(serial->dev, pipe, command, 2,
 						&alen, COMMAND_TIMEOUT_MS);
 	if (ret) {
-		err("%s: Couldn't send command [%d]",
-				serial->type->description, ret);
+		dev_err(&serial->dev->dev, "%s: Couldn't send command [%d]\n",
+			serial->type->description, ret);
 		goto no_firmware;
 	} else if (alen != 2) {
-		err("%s: Send command incomplete [%d]",
-				serial->type->description, alen);
+		dev_err(&serial->dev->dev, "%s: Send command incomplete [%d]\n",
+			serial->type->description, alen);
 		goto no_firmware;
 	}
 
@@ -437,31 +445,33 @@ static int whiteheat_attach(struct usb_serial *serial)
 	ret = usb_bulk_msg(serial->dev, pipe, result,
 			sizeof(*hw_info) + 1, &alen, COMMAND_TIMEOUT_MS);
 	if (ret) {
-		err("%s: Couldn't get results [%d]",
-				serial->type->description, ret);
+		dev_err(&serial->dev->dev, "%s: Couldn't get results [%d]\n",
+			serial->type->description, ret);
 		goto no_firmware;
 	} else if (alen != sizeof(*hw_info) + 1) {
-		err("%s: Get results incomplete [%d]",
-				serial->type->description, alen);
+		dev_err(&serial->dev->dev, "%s: Get results incomplete [%d]\n",
+			serial->type->description, alen);
 		goto no_firmware;
 	} else if (result[0] != command[0]) {
-		err("%s: Command failed [%d]",
-				serial->type->description, result[0]);
+		dev_err(&serial->dev->dev, "%s: Command failed [%d]\n",
+			serial->type->description, result[0]);
 		goto no_firmware;
 	}
 
 	hw_info = (struct whiteheat_hw_info *)&result[1];
 
-	info("%s: Driver %s: Firmware v%d.%02d", serial->type->description,
-	     DRIVER_VERSION, hw_info->sw_major_rev, hw_info->sw_minor_rev);
+	dev_info(&serial->dev->dev, "%s: Driver %s: Firmware v%d.%02d\n",
+		 serial->type->description, DRIVER_VERSION,
+		 hw_info->sw_major_rev, hw_info->sw_minor_rev);
 
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];
 
 		info = kmalloc(sizeof(struct whiteheat_private), GFP_KERNEL);
 		if (info == NULL) {
-			err("%s: Out of memory for port structures\n",
-					serial->type->description);
+			dev_err(&port->dev,
+				"%s: Out of memory for port structures\n",
+				serial->type->description);
 			goto no_private;
 		}
 
@@ -481,18 +491,20 @@ static int whiteheat_attach(struct usb_serial *serial)
 		for (j = 0; j < urb_pool_size; j++) {
 			urb = usb_alloc_urb(0, GFP_KERNEL);
 			if (!urb) {
-				err("No free urbs available");
+				dev_err(&port->dev, "No free urbs available\n");
 				goto no_rx_urb;
 			}
 			buf_size = port->read_urb->transfer_buffer_length;
 			urb->transfer_buffer = kmalloc(buf_size, GFP_KERNEL);
 			if (!urb->transfer_buffer) {
-				err("Couldn't allocate urb buffer");
+				dev_err(&port->dev,
+					"Couldn't allocate urb buffer\n");
 				goto no_rx_buf;
 			}
 			wrap = kmalloc(sizeof(*wrap), GFP_KERNEL);
 			if (!wrap) {
-				err("Couldn't allocate urb wrapper");
+				dev_err(&port->dev,
+					"Couldn't allocate urb wrapper\n");
 				goto no_rx_wrap;
 			}
 			usb_fill_bulk_urb(urb, serial->dev,
@@ -505,18 +517,20 @@ static int whiteheat_attach(struct usb_serial *serial)
 
 			urb = usb_alloc_urb(0, GFP_KERNEL);
 			if (!urb) {
-				err("No free urbs available");
+				dev_err(&port->dev, "No free urbs available\n");
 				goto no_tx_urb;
 			}
 			buf_size = port->write_urb->transfer_buffer_length;
 			urb->transfer_buffer = kmalloc(buf_size, GFP_KERNEL);
 			if (!urb->transfer_buffer) {
-				err("Couldn't allocate urb buffer");
+				dev_err(&port->dev,
+					"Couldn't allocate urb buffer\n");
 				goto no_tx_buf;
 			}
 			wrap = kmalloc(sizeof(*wrap), GFP_KERNEL);
 			if (!wrap) {
-				err("Couldn't allocate urb wrapper");
+				dev_err(&port->dev,
+					"Couldn't allocate urb wrapper\n");
 				goto no_tx_wrap;
 			}
 			usb_fill_bulk_urb(urb, serial->dev,
@@ -534,8 +548,9 @@ static int whiteheat_attach(struct usb_serial *serial)
 	command_info = kmalloc(sizeof(struct whiteheat_command_private),
 								GFP_KERNEL);
 	if (command_info == NULL) {
-		err("%s: Out of memory for port structures\n",
-					serial->type->description);
+		dev_err(&serial->dev->dev,
+			"%s: Out of memory for port structures\n",
+			serial->type->description);
 		goto no_command_private;
 	}
 
@@ -552,12 +567,15 @@ static int whiteheat_attach(struct usb_serial *serial)
 
 no_firmware:
 	/* Firmware likely not running */
-	err("%s: Unable to retrieve firmware version, try replugging\n",
-					serial->type->description);
-	err("%s: If the firmware is not running (status led not blinking)\n",
-					serial->type->description);
-	err("%s: please contact support@connecttech.com\n",
-					serial->type->description);
+	dev_err(&serial->dev->dev,
+		"%s: Unable to retrieve firmware version, try replugging\n",
+		serial->type->description);
+	dev_err(&serial->dev->dev,
+		"%s: If the firmware is not running (status led not blinking)\n",
+		serial->type->description);
+	dev_err(&serial->dev->dev,
+		"%s: please contact support@connecttech.com\n",
+		serial->type->description);
 	kfree(result);
 	return -ENODEV;
 
@@ -680,8 +698,9 @@ static int whiteheat_open(struct tty_struct *tty,
 	/* Start reading from the device */
 	retval = start_port_read(port);
 	if (retval) {
-		err("%s - failed submitting read urb, error %d",
-				__func__, retval);
+		dev_err(&port->dev,
+			"%s - failed submitting read urb, error %d\n",
+			__func__, retval);
 		firm_close(port);
 		stop_command_port(port->serial);
 		goto exit;
@@ -806,8 +825,9 @@ static int whiteheat_write(struct tty_struct *tty,
 		urb->transfer_buffer_length = bytes;
 		result = usb_submit_urb(urb, GFP_ATOMIC);
 		if (result) {
-			err("%s - failed submitting write urb, error %d",
-							__func__, result);
+			dev_err(&port->dev,
+				"%s - failed submitting write urb, error %d\n",
+				__func__, result);
 			sent = result;
 			spin_lock_irqsave(&info->lock, flags);
 			list_add(tmp, &info->tx_urbs_free);
@@ -1075,7 +1095,7 @@ static void whiteheat_read_callback(struct urb *urb)
 	wrap = urb_to_wrap(urb, &info->rx_urbs_submitted);
 	if (!wrap) {
 		spin_unlock(&info->lock);
-		err("%s - Not my urb!", __func__);
+		dev_err(&port->dev, "%s - Not my urb!\n", __func__);
 		return;
 	}
 	list_del(&wrap->list);
@@ -1119,7 +1139,7 @@ static void whiteheat_write_callback(struct urb *urb)
 	wrap = urb_to_wrap(urb, &info->tx_urbs_submitted);
 	if (!wrap) {
 		spin_unlock(&info->lock);
-		err("%s - Not my urb!", __func__);
+		dev_err(&port->dev, "%s - Not my urb!\n", __func__);
 		return;
 	}
 	list_move(&wrap->list, &info->tx_urbs_free);
@@ -1383,8 +1403,9 @@ static int start_command_port(struct usb_serial *serial)
 		command_port->read_urb->dev = serial->dev;
 		retval = usb_submit_urb(command_port->read_urb, GFP_KERNEL);
 		if (retval) {
-			err("%s - failed submitting read urb, error %d",
-							__func__, retval);
+			dev_err(&serial->dev->dev,
+				"%s - failed submitting read urb, error %d\n",
+				__func__, retval);
 			goto exit;
 		}
 	}
@@ -1481,7 +1502,7 @@ static void rx_data_softint(struct work_struct *work)
 	struct whiteheat_private *info =
 		container_of(work, struct whiteheat_private, rx_work);
 	struct usb_serial_port *port = info->port;
-	struct tty_struct *tty = port->port.tty;
+	struct tty_struct *tty = tty_port_tty_get(&port->port);
 	struct whiteheat_urb_wrap *wrap;
 	struct urb *urb;
 	unsigned long flags;
@@ -1493,7 +1514,7 @@ static void rx_data_softint(struct work_struct *work)
 	spin_lock_irqsave(&info->lock, flags);
 	if (info->flags & THROTTLED) {
 		spin_unlock_irqrestore(&info->lock, flags);
-		return;
+		goto out;
 	}
 
 	list_for_each_safe(tmp, tmp2, &info->rx_urb_q) {
@@ -1513,7 +1534,7 @@ static void rx_data_softint(struct work_struct *work)
 				spin_unlock_irqrestore(&info->lock, flags);
 				tty_flip_buffer_push(tty);
 				schedule_work(&info->rx_work);
-				return;
+				goto out;
 			}
 			tty_insert_flip_string(tty, urb->transfer_buffer, len);
 			sent += len;
@@ -1522,7 +1543,8 @@ static void rx_data_softint(struct work_struct *work)
 		urb->dev = port->serial->dev;
 		result = usb_submit_urb(urb, GFP_ATOMIC);
 		if (result) {
-			err("%s - failed resubmitting read urb, error %d",
+			dev_err(&port->dev,
+				"%s - failed resubmitting read urb, error %d\n",
 				__func__, result);
 			spin_lock_irqsave(&info->lock, flags);
 			list_add(tmp, &info->rx_urbs_free);
@@ -1536,6 +1558,8 @@ static void rx_data_softint(struct work_struct *work)
 
 	if (sent)
 		tty_flip_buffer_push(tty);
+out:
+	tty_kref_put(tty);
 }
 
 
@@ -1554,7 +1578,8 @@ static int __init whiteheat_init(void)
 	retval = usb_register(&whiteheat_driver);
 	if (retval)
 		goto failed_usb_register;
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return 0;
 failed_usb_register:
 	usb_serial_deregister(&whiteheat_device);

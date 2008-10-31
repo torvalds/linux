@@ -186,30 +186,30 @@ static int tm2bcd(struct rtc_time *tm)
 	if (rtc_valid_tm(tm) != 0)
 		return -EINVAL;
 
-	tm->tm_sec = BIN2BCD(tm->tm_sec);
-	tm->tm_min = BIN2BCD(tm->tm_min);
-	tm->tm_hour = BIN2BCD(tm->tm_hour);
-	tm->tm_mday = BIN2BCD(tm->tm_mday);
+	tm->tm_sec = bin2bcd(tm->tm_sec);
+	tm->tm_min = bin2bcd(tm->tm_min);
+	tm->tm_hour = bin2bcd(tm->tm_hour);
+	tm->tm_mday = bin2bcd(tm->tm_mday);
 
-	tm->tm_mon = BIN2BCD(tm->tm_mon + 1);
+	tm->tm_mon = bin2bcd(tm->tm_mon + 1);
 
 	/* epoch == 1900 */
 	if (tm->tm_year < 100 || tm->tm_year > 199)
 		return -EINVAL;
-	tm->tm_year = BIN2BCD(tm->tm_year - 100);
+	tm->tm_year = bin2bcd(tm->tm_year - 100);
 
 	return 0;
 }
 
 static void bcd2tm(struct rtc_time *tm)
 {
-	tm->tm_sec = BCD2BIN(tm->tm_sec);
-	tm->tm_min = BCD2BIN(tm->tm_min);
-	tm->tm_hour = BCD2BIN(tm->tm_hour);
-	tm->tm_mday = BCD2BIN(tm->tm_mday);
-	tm->tm_mon = BCD2BIN(tm->tm_mon) - 1;
+	tm->tm_sec = bcd2bin(tm->tm_sec);
+	tm->tm_min = bcd2bin(tm->tm_min);
+	tm->tm_hour = bcd2bin(tm->tm_hour);
+	tm->tm_mday = bcd2bin(tm->tm_mday);
+	tm->tm_mon = bcd2bin(tm->tm_mon) - 1;
 	/* epoch == 1900 */
-	tm->tm_year = BCD2BIN(tm->tm_year) + 100;
+	tm->tm_year = bcd2bin(tm->tm_year) + 100;
 }
 
 

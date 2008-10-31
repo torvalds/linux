@@ -255,11 +255,14 @@ static union thread_union kexec_stack
 /* Our assembly helper, in kexec_stub.S */
 extern NORET_TYPE void kexec_sequence(void *newstack, unsigned long start,
 					void *image, void *control,
-					void (*clear_all)(void)) ATTRIB_NORET;
+					void (*clear_all)(void),
+					unsigned long kdump_flag) ATTRIB_NORET;
 
 /* too late to fail here */
 void default_machine_kexec(struct kimage *image)
 {
+	unsigned long kdump_flag = 0;
+
 	/* prepare control code if any */
 
 	/*
@@ -270,8 +273,10 @@ void default_machine_kexec(struct kimage *image)
         * using debugger IPI.
         */
 
-       if (crashing_cpu == -1)
-               kexec_prepare_cpus();
+	if (crashing_cpu == -1)
+		kexec_prepare_cpus();
+	else
+		kdump_flag = KDUMP_SIGNATURE;
 
 	/* switch to a staticly allocated stack.  Based on irq stack code.
 	 * XXX: the task struct will likely be invalid once we do the copy!
@@ -284,7 +289,7 @@ void default_machine_kexec(struct kimage *image)
 	 */
 	kexec_sequence(&kexec_stack, image->start, image,
 			page_address(image->control_code_page),
-			ppc_md.hpte_clear_all);
+			ppc_md.hpte_clear_all, kdump_flag);
 	/* NOTREACHED */
 }
 
@@ -312,11 +317,24 @@ static struct property kernel_end_prop = {
 static void __init export_htab_values(void)
 {
 	struct device_node *node;
+	struct property *prop;
 
 	node = of_find_node_by_path("/chosen");
 	if (!node)
 		return;
 
+	/* remove any stale propertys so ours can be found */
+	prop = of_find_property(node, kernel_end_prop.name, NULL);
+	if (prop)
+		prom_remove_property(node, prop);
+	prop = of_find_property(node, htab_base_prop.name, NULL);
+	if (prop)
+		prom_remove_property(node, prop);
+	prop = of_find_property(node, htab_size_prop.name, NULL);
+	if (prop)
+		prom_remove_property(node, prop);
+
+	/* information needed by userspace when using default_machine_kexec */
 	kernel_end = __pa(_end);
 	prom_add_property(node, &kernel_end_prop);
 

@@ -91,8 +91,6 @@ struct ubifs_compressor *ubifs_compressors[UBIFS_COMPR_TYPES_CNT];
  *
  * Note, if the input buffer was not compressed, it is copied to the output
  * buffer and %UBIFS_COMPR_NONE is returned in @compr_type.
- *
- * This functions returns %0 on success or a negative error code on failure.
  */
 void ubifs_compress(const void *in_buf, int in_len, void *out_buf, int *out_len,
 		    int *compr_type)

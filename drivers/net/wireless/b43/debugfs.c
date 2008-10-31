@@ -443,76 +443,6 @@ out_unlock:
 	return count;
 }
 
-static ssize_t txpower_g_read_file(struct b43_wldev *dev,
-				   char *buf, size_t bufsize)
-{
-	ssize_t count = 0;
-
-	if (dev->phy.type != B43_PHYTYPE_G) {
-		fappend("Device is not a G-PHY\n");
-		goto out;
-	}
-	fappend("Control:               %s\n", dev->phy.manual_txpower_control ?
-		"MANUAL" : "AUTOMATIC");
-	fappend("Baseband attenuation:  %u\n", dev->phy.bbatt.att);
-	fappend("Radio attenuation:     %u\n", dev->phy.rfatt.att);
-	fappend("TX Mixer Gain:         %s\n",
-		(dev->phy.tx_control & B43_TXCTL_TXMIX) ? "ON" : "OFF");
-	fappend("PA Gain 2dB:           %s\n",
-		(dev->phy.tx_control & B43_TXCTL_PA2DB) ? "ON" : "OFF");
-	fappend("PA Gain 3dB:           %s\n",
-		(dev->phy.tx_control & B43_TXCTL_PA3DB) ? "ON" : "OFF");
-	fappend("\n\n");
-	fappend("You can write to this file:\n");
-	fappend("Writing \"auto\" enables automatic txpower control.\n");
-	fappend
-	    ("Writing the attenuation values as \"bbatt rfatt txmix pa2db pa3db\" "
-	     "enables manual txpower control.\n");
-	fappend("Example: 5 4 0 0 1\n");
-	fappend("Enables manual control with Baseband attenuation 5, "
-		"Radio attenuation 4, No TX Mixer Gain, "
-		"No PA Gain 2dB, With PA Gain 3dB.\n");
-out:
-	return count;
-}
-
-static int txpower_g_write_file(struct b43_wldev *dev,
-				const char *buf, size_t count)
-{
-	if (dev->phy.type != B43_PHYTYPE_G)
-		return -ENODEV;
-	if ((count >= 4) && (memcmp(buf, "auto", 4) == 0)) {
-		/* Automatic control */
-		dev->phy.manual_txpower_control = 0;
-		b43_phy_xmitpower(dev);
-	} else {
-		int bbatt = 0, rfatt = 0, txmix = 0, pa2db = 0, pa3db = 0;
-		/* Manual control */
-		if (sscanf(buf, "%d %d %d %d %d", &bbatt, &rfatt,
-			   &txmix, &pa2db, &pa3db) != 5)
-			return -EINVAL;
-		b43_put_attenuation_into_ranges(dev, &bbatt, &rfatt);
-		dev->phy.manual_txpower_control = 1;
-		dev->phy.bbatt.att = bbatt;
-		dev->phy.rfatt.att = rfatt;
-		dev->phy.tx_control = 0;
-		if (txmix)
-			dev->phy.tx_control |= B43_TXCTL_TXMIX;
-		if (pa2db)
-			dev->phy.tx_control |= B43_TXCTL_PA2DB;
-		if (pa3db)
-			dev->phy.tx_control |= B43_TXCTL_PA3DB;
-		b43_phy_lock(dev);
-		b43_radio_lock(dev);
-		b43_set_txpower_g(dev, &dev->phy.bbatt,
-				  &dev->phy.rfatt, dev->phy.tx_control);
-		b43_radio_unlock(dev);
-		b43_phy_unlock(dev);
-	}
-
-	return 0;
-}
-
 /* wl->irq_lock is locked */
 static int restart_write_file(struct b43_wldev *dev,
 			      const char *buf, size_t count)
@@ -560,7 +490,7 @@ static ssize_t loctls_read_file(struct b43_wldev *dev,
 		err = -ENODEV;
 		goto out;
 	}
-	lo = phy->lo_control;
+	lo = phy->g->lo_control;
 	fappend("-- Local Oscillator calibration data --\n\n");
 	fappend("HW-power-control enabled: %d\n",
 		dev->phy.hardware_power_control);
@@ -578,8 +508,8 @@ static ssize_t loctls_read_file(struct b43_wldev *dev,
 	list_for_each_entry(cal, &lo->calib_list, list) {
 		bool active;
 
-		active = (b43_compare_bbatt(&cal->bbatt, &phy->bbatt) &&
-			  b43_compare_rfatt(&cal->rfatt, &phy->rfatt));
+		active = (b43_compare_bbatt(&cal->bbatt, &phy->g->bbatt) &&
+			  b43_compare_rfatt(&cal->rfatt, &phy->g->rfatt));
 		fappend("BB(%d), RF(%d,%d)  ->  I=%d, Q=%d  "
 			"(expires in %lu sec)%s\n",
 			cal->bbatt.att,
@@ -763,7 +693,6 @@ B43_DEBUGFS_FOPS(mmio32read, mmio32read__read_file, mmio32read__write_file, 1);
 B43_DEBUGFS_FOPS(mmio32write, NULL, mmio32write__write_file, 1);
 B43_DEBUGFS_FOPS(tsf, tsf_read_file, tsf_write_file, 1);
 B43_DEBUGFS_FOPS(txstat, txstat_read_file, NULL, 0);
-B43_DEBUGFS_FOPS(txpower_g, txpower_g_read_file, txpower_g_write_file, 0);
 B43_DEBUGFS_FOPS(restart, NULL, restart_write_file, 1);
 B43_DEBUGFS_FOPS(loctls, loctls_read_file, NULL, 0);
 
@@ -877,7 +806,6 @@ void b43_debugfs_add_device(struct b43_wldev *dev)
 	ADD_FILE(mmio32write, 0200);
 	ADD_FILE(tsf, 0600);
 	ADD_FILE(txstat, 0400);
-	ADD_FILE(txpower_g, 0600);
 	ADD_FILE(restart, 0200);
 	ADD_FILE(loctls, 0400);
 
@@ -907,7 +835,6 @@ void b43_debugfs_remove_device(struct b43_wldev *dev)
 	debugfs_remove(e->file_mmio32write.dentry);
 	debugfs_remove(e->file_tsf.dentry);
 	debugfs_remove(e->file_txstat.dentry);
-	debugfs_remove(e->file_txpower_g.dentry);
 	debugfs_remove(e->file_restart.dentry);
 	debugfs_remove(e->file_loctls.dentry);
 

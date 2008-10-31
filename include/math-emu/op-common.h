@@ -73,7 +73,7 @@ do {									\
 	X##_c = FP_CLS_NAN;						\
 	/* Check for signaling NaN */					\
 	if (!(_FP_FRAC_HIGH_RAW_##fs(X) & _FP_QNANBIT_##fs))		\
-	  FP_SET_EXCEPTION(FP_EX_INVALID);				\
+	  FP_SET_EXCEPTION(FP_EX_INVALID | FP_EX_INVALID_SNAN);		\
       }									\
     break;								\
   }									\
@@ -139,18 +139,27 @@ do {								\
 	if (X##_e <= _FP_WFRACBITS_##fs)			\
 	  {							\
 	    _FP_FRAC_SRS_##wc(X, X##_e, _FP_WFRACBITS_##fs);	\
-	    _FP_ROUND(wc, X);					\
 	    if (_FP_FRAC_HIGH_##fs(X)				\
 		& (_FP_OVERFLOW_##fs >> 1))			\
 	      {							\
 	        X##_e = 1;					\
 	        _FP_FRAC_SET_##wc(X, _FP_ZEROFRAC_##wc);	\
-	        FP_SET_EXCEPTION(FP_EX_INEXACT);		\
 	      }							\
 	    else						\
 	      {							\
-		X##_e = 0;					\
-		_FP_FRAC_SRL_##wc(X, _FP_WORKBITS);		\
+		_FP_ROUND(wc, X);				\
+		if (_FP_FRAC_HIGH_##fs(X)			\
+		   & (_FP_OVERFLOW_##fs >> 1))			\
+		  {						\
+		    X##_e = 1;					\
+		    _FP_FRAC_SET_##wc(X, _FP_ZEROFRAC_##wc);	\
+		    FP_SET_EXCEPTION(FP_EX_INEXACT);		\
+		  }						\
+		else						\
+		  {						\
+		    X##_e = 0;					\
+		    _FP_FRAC_SRL_##wc(X, _FP_WORKBITS);		\
+		  }						\
 	      }							\
 	    if ((FP_CUR_EXCEPTIONS & FP_EX_INEXACT) ||		\
 		(FP_TRAPPING_EXCEPTIONS & FP_EX_UNDERFLOW))	\
@@ -324,7 +333,7 @@ do {									     \
 	_FP_FRAC_SET_##wc(R, _FP_NANFRAC_##fs);				     \
 	R##_s = _FP_NANSIGN_##fs;					     \
 	R##_c = FP_CLS_NAN;						     \
-	FP_SET_EXCEPTION(FP_EX_INVALID);				     \
+	FP_SET_EXCEPTION(FP_EX_INVALID | FP_EX_INVALID_ISI);		     \
 	break;								     \
       }									     \
     /* FALLTHRU */							     \
@@ -431,7 +440,7 @@ do {							\
     R##_s = _FP_NANSIGN_##fs;				\
     R##_c = FP_CLS_NAN;					\
     _FP_FRAC_SET_##wc(R, _FP_NANFRAC_##fs);		\
-    FP_SET_EXCEPTION(FP_EX_INVALID);			\
+    FP_SET_EXCEPTION(FP_EX_INVALID | FP_EX_INVALID_IMZ);\
     break;						\
 							\
   default:						\
@@ -490,11 +499,17 @@ do {							\
     break;						\
 							\
   case _FP_CLS_COMBINE(FP_CLS_INF,FP_CLS_INF):		\
+    R##_s = _FP_NANSIGN_##fs;				\
+    R##_c = FP_CLS_NAN;					\
+    _FP_FRAC_SET_##wc(R, _FP_NANFRAC_##fs);		\
+    FP_SET_EXCEPTION(FP_EX_INVALID | FP_EX_INVALID_IDI);\
+    break;						\
+							\
   case _FP_CLS_COMBINE(FP_CLS_ZERO,FP_CLS_ZERO):	\
     R##_s = _FP_NANSIGN_##fs;				\
     R##_c = FP_CLS_NAN;					\
     _FP_FRAC_SET_##wc(R, _FP_NANFRAC_##fs);		\
-    FP_SET_EXCEPTION(FP_EX_INVALID);			\
+    FP_SET_EXCEPTION(FP_EX_INVALID | FP_EX_INVALID_ZDZ);\
     break;						\
 							\
   default:						\

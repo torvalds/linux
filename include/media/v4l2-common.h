@@ -76,11 +76,14 @@ int v4l2_prio_check(struct v4l2_prio_state *global, enum v4l2_priority *local);
 
 int v4l2_ctrl_check(struct v4l2_ext_control *ctrl, struct v4l2_queryctrl *qctrl,
 		const char **menu_items);
+const char *v4l2_ctrl_get_name(u32 id);
 const char **v4l2_ctrl_get_menu(u32 id);
 int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 step, s32 def);
 int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl);
 int v4l2_ctrl_query_menu(struct v4l2_querymenu *qmenu,
 		struct v4l2_queryctrl *qctrl, const char **menu_items);
+#define V4L2_CTRL_MENU_IDS_END (0xffffffff)
+int v4l2_ctrl_query_menu_valid_items(struct v4l2_querymenu *qmenu, const u32 *ids);
 u32 v4l2_ctrl_next(const u32 * const *ctrl_classes, u32 id);
 
 /* ------------------------------------------------------------------------- */
@@ -222,18 +225,22 @@ struct v4l2_crystal_freq {
    An extra flags field allows device specific configuration regarding
    clock frequency dividers, etc. If not used, then set flags to 0.
    If the frequency is not supported, then -EINVAL is returned. */
-#define VIDIOC_INT_S_CRYSTAL_FREQ 	_IOW ('d', 113, struct v4l2_crystal_freq)
+#define VIDIOC_INT_S_CRYSTAL_FREQ 	_IOW('d', 113, struct v4l2_crystal_freq)
 
 /* Initialize the sensor registors to some sort of reasonable
    default values. */
-#define VIDIOC_INT_INIT			_IOW ('d', 114, u32)
+#define VIDIOC_INT_INIT			_IOW('d', 114, u32)
 
 /* Set v4l2_std_id for video OUTPUT devices. This is ignored by
    video input devices. */
-#define VIDIOC_INT_S_STD_OUTPUT		_IOW  ('d', 115, v4l2_std_id)
+#define VIDIOC_INT_S_STD_OUTPUT		_IOW('d', 115, v4l2_std_id)
 
 /* Get v4l2_std_id for video OUTPUT devices. This is ignored by
    video input devices. */
-#define VIDIOC_INT_G_STD_OUTPUT		_IOW  ('d', 116, v4l2_std_id)
+#define VIDIOC_INT_G_STD_OUTPUT		_IOW('d', 116, v4l2_std_id)
+
+/* Set GPIO pins. Very simple right now, might need to be extended with
+   a v4l2_gpio struct if a direction is also needed. */
+#define VIDIOC_INT_S_GPIO		_IOW('d', 117, u32)
 
 #endif /* V4L2_COMMON_H_ */

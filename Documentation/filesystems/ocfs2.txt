@@ -76,3 +76,9 @@ localalloc=8(*)		Allows custom localalloc size in MB. If the value is too
 			large, the fs will silently revert it to the default.
 			Localalloc is not enabled for local mounts.
 localflocks		This disables cluster aware flock.
+inode64			Indicates that Ocfs2 is allowed to create inodes at
+			any location in the filesystem, including those which
+			will result in inode numbers occupying more than 32
+			bits of significance.
+user_xattr	(*)	Enables Extended User Attributes.
+nouser_xattr		Disables Extended User Attributes.

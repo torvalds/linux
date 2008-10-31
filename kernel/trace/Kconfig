@@ -1,23 +1,37 @@
 #
 # Architectures that offer an FTRACE implementation should select HAVE_FTRACE:
 #
-config HAVE_FTRACE
+
+config NOP_TRACER
 	bool
 
+config HAVE_FTRACE
+	bool
+	select NOP_TRACER
+
 config HAVE_DYNAMIC_FTRACE
+	bool
+
+config HAVE_FTRACE_MCOUNT_RECORD
 	bool
 
 config TRACER_MAX_TRACE
 	bool
 
+config RING_BUFFER
+	bool
+
 config TRACING
 	bool
 	select DEBUG_FS
+	select RING_BUFFER
 	select STACKTRACE
+	select TRACEPOINTS
 
 config FTRACE
 	bool "Kernel Function Tracer"
 	depends on HAVE_FTRACE
+	depends on DEBUG_KERNEL
 	select FRAME_POINTER
 	select TRACING
 	select CONTEXT_SWITCH_TRACER
@@ -36,6 +50,7 @@ config IRQSOFF_TRACER
 	depends on TRACE_IRQFLAGS_SUPPORT
 	depends on GENERIC_TIME
 	depends on HAVE_FTRACE
+	depends on DEBUG_KERNEL
 	select TRACE_IRQFLAGS
 	select TRACING
 	select TRACER_MAX_TRACE
@@ -59,6 +74,7 @@ config PREEMPT_TRACER
 	depends on GENERIC_TIME
 	depends on PREEMPT
 	depends on HAVE_FTRACE
+	depends on DEBUG_KERNEL
 	select TRACING
 	select TRACER_MAX_TRACE
 	help
@@ -86,6 +102,7 @@ config SYSPROF_TRACER
 config SCHED_TRACER
 	bool "Scheduling Latency Tracer"
 	depends on HAVE_FTRACE
+	depends on DEBUG_KERNEL
 	select TRACING
 	select CONTEXT_SWITCH_TRACER
 	select TRACER_MAX_TRACE
@@ -96,16 +113,56 @@ config SCHED_TRACER
 config CONTEXT_SWITCH_TRACER
 	bool "Trace process context switches"
 	depends on HAVE_FTRACE
+	depends on DEBUG_KERNEL
 	select TRACING
 	select MARKERS
 	help
 	  This tracer gets called from the context switch and records
 	  all switching of tasks.
 
+config BOOT_TRACER
+	bool "Trace boot initcalls"
+	depends on HAVE_FTRACE
+	depends on DEBUG_KERNEL
+	select TRACING
+	help
+	  This tracer helps developers to optimize boot times: it records
+	  the timings of the initcalls and traces key events and the identity
+	  of tasks that can cause boot delays, such as context-switches.
+
+	  Its aim is to be parsed by the /scripts/bootgraph.pl tool to
+	  produce pretty graphics about boot inefficiencies, giving a visual
+	  representation of the delays during initcalls - but the raw
+	  /debug/tracing/trace text output is readable too.
+
+	  ( Note that tracing self tests can't be enabled if this tracer is
+	    selected, because the self-tests are an initcall as well and that
+	    would invalidate the boot trace. )
+
+config STACK_TRACER
+	bool "Trace max stack"
+	depends on HAVE_FTRACE
+	depends on DEBUG_KERNEL
+	select FTRACE
+	select STACKTRACE
+	help
+	  This special tracer records the maximum stack footprint of the
+	  kernel and displays it in debugfs/tracing/stack_trace.
+
+	  This tracer works by hooking into every function call that the
+	  kernel executes, and keeping a maximum stack depth value and
+	  stack-trace saved. Because this logic has to execute in every
+	  kernel function, all the time, this option can slow down the
+	  kernel measurably and is generally intended for kernel
+	  developers only.
+
+	  Say N if unsure.
+
 config DYNAMIC_FTRACE
 	bool "enable/disable ftrace tracepoints dynamically"
 	depends on FTRACE
 	depends on HAVE_DYNAMIC_FTRACE
+	depends on DEBUG_KERNEL
 	default y
 	help
          This option will modify all the calls to ftrace dynamically
@@ -121,12 +178,17 @@ config DYNAMIC_FTRACE
 	 were made. If so, it runs stop_machine (stops all CPUS)
 	 and modifies the code to jump over the call to ftrace.
 
+config FTRACE_MCOUNT_RECORD
+	def_bool y
+	depends on DYNAMIC_FTRACE
+	depends on HAVE_FTRACE_MCOUNT_RECORD
+
 config FTRACE_SELFTEST
 	bool
 
 config FTRACE_STARTUP_TEST
 	bool "Perform a startup test on ftrace"
-	depends on TRACING
+	depends on TRACING && DEBUG_KERNEL && !BOOT_TRACER
 	select FTRACE_SELFTEST
 	help
 	  This option performs a series of startup tests on ftrace. On bootup

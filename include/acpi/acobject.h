@@ -308,17 +308,33 @@ struct acpi_object_addr_handler {
  *****************************************************************************/
 
 /*
- * The Reference object type is used for these opcodes:
- * Arg[0-6], Local[0-7], index_op, name_op, zero_op, one_op, ones_op, debug_op
+ * The Reference object is used for these opcodes:
+ * Arg[0-6], Local[0-7], index_op, name_op, ref_of_op, load_op, load_table_op, debug_op
+ * The Reference.Class differentiates these types.
  */
 struct acpi_object_reference {
-	ACPI_OBJECT_COMMON_HEADER u8 target_type;	/* Used for index_op */
-	u16 opcode;
+	ACPI_OBJECT_COMMON_HEADER u8 class;	/* Reference Class */
+	u8 target_type;		/* Used for Index Op */
+	u8 reserved;
 	void *object;		/* name_op=>HANDLE to obj, index_op=>union acpi_operand_object */
-	struct acpi_namespace_node *node;
-	union acpi_operand_object **where;
-	u32 offset;		/* Used for arg_op, local_op, and index_op */
+	struct acpi_namespace_node *node;	/* ref_of or Namepath */
+	union acpi_operand_object **where;	/* Target of Index */
+	u32 value;		/* Used for Local/Arg/Index/ddb_handle */
 };
+
+/* Values for Reference.Class above */
+
+typedef enum {
+	ACPI_REFCLASS_LOCAL = 0,	/* Method local */
+	ACPI_REFCLASS_ARG = 1,	/* Method argument */
+	ACPI_REFCLASS_REFOF = 2,	/* Result of ref_of() TBD: Split to Ref/Node and Ref/operand_obj? */
+	ACPI_REFCLASS_INDEX = 3,	/* Result of Index() */
+	ACPI_REFCLASS_TABLE = 4,	/* ddb_handle - Load(), load_table() */
+	ACPI_REFCLASS_NAME = 5,	/* Reference to a named object */
+	ACPI_REFCLASS_DEBUG = 6,	/* Debug object */
+
+	ACPI_REFCLASS_MAX = 6
+} ACPI_REFERENCE_CLASSES;
 
 /*
  * Extra object is used as additional storage for types that
@@ -379,6 +395,13 @@ union acpi_operand_object {
 	struct acpi_object_extra extra;
 	struct acpi_object_data data;
 	struct acpi_object_cache_list cache;
+
+	/*
+	 * Add namespace node to union in order to simplify code that accepts both
+	 * ACPI_OPERAND_OBJECTs and ACPI_NAMESPACE_NODEs. The structures share
+	 * a common descriptor_type field in order to differentiate them.
+	 */
+	struct acpi_namespace_node node;
 };
 
 /******************************************************************************

@@ -837,12 +837,13 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-static void sd_start(struct gspca_dev *gspca_dev)
+static int sd_start(struct gspca_dev *gspca_dev)
 {
 	cx11646_initsize(gspca_dev);
 	cx11646_fw(gspca_dev);
 	cx_sensor(gspca_dev);
 	cx11646_jpeg(gspca_dev);
+	return 0;
 }
 
 static void sd_stop0(struct gspca_dev *gspca_dev)

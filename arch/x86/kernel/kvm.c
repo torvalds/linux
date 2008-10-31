@@ -178,7 +178,7 @@ static void kvm_flush_tlb(void)
 	kvm_deferred_mmu_op(&ftlb, sizeof ftlb);
 }
 
-static void kvm_release_pt(u32 pfn)
+static void kvm_release_pt(unsigned long pfn)
 {
 	struct kvm_mmu_op_release_pt rpt = {
 		.header.op = KVM_MMU_OP_RELEASE_PT,

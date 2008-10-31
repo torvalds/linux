@@ -141,7 +141,8 @@ static int cyberjack_startup(struct usb_serial *serial)
 		result = usb_submit_urb(serial->port[i]->interrupt_in_urb,
 					GFP_KERNEL);
 		if (result)
-			err(" usb_submit_urb(read int) failed");
+			dev_err(&serial->dev->dev,
+				"usb_submit_urb(read int) failed\n");
 		dbg("%s - usb_submit_urb(int urb)", __func__);
 	}
 
@@ -274,8 +275,9 @@ static int cyberjack_write(struct tty_struct *tty,
 		/* send the data out the bulk port */
 		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 		if (result) {
-			err("%s - failed submitting write urb, error %d",
-							__func__, result);
+			dev_err(&port->dev,
+				"%s - failed submitting write urb, error %d",
+				__func__, result);
 			/* Throw away data. No better idea what to do with it. */
 			priv->wrfilled = 0;
 			priv->wrsent = 0;
@@ -351,7 +353,9 @@ static void cyberjack_read_int_callback(struct urb *urb)
 			port->read_urb->dev = port->serial->dev;
 			result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 			if (result)
-				err("%s - failed resubmitting read urb, error %d", __func__, result);
+				dev_err(&port->dev, "%s - failed resubmitting "
+					"read urb, error %d\n",
+					__func__, result);
 			dbg("%s - usb_submit_urb(read urb)", __func__);
 		}
 	}
@@ -360,7 +364,7 @@ resubmit:
 	port->interrupt_in_urb->dev = port->serial->dev;
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC);
 	if (result)
-		err(" usb_submit_urb(read int) failed");
+		dev_err(&port->dev, "usb_submit_urb(read int) failed\n");
 	dbg("%s - usb_submit_urb(int urb)", __func__);
 }
 
@@ -384,7 +388,7 @@ static void cyberjack_read_bulk_callback(struct urb *urb)
 		return;
 	}
 
-	tty = port->port.tty;
+	tty = tty_port_tty_get(&port->port);
 	if (!tty) {
 		dbg("%s - ignoring since device not open\n", __func__);
 		return;
@@ -394,6 +398,7 @@ static void cyberjack_read_bulk_callback(struct urb *urb)
 		tty_insert_flip_string(tty, data, urb->actual_length);
 		tty_flip_buffer_push(tty);
 	}
+	tty_kref_put(tty);
 
 	spin_lock(&priv->lock);
 
@@ -413,8 +418,8 @@ static void cyberjack_read_bulk_callback(struct urb *urb)
 		port->read_urb->dev = port->serial->dev;
 		result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 		if (result)
-			err("%s - failed resubmitting read urb, error %d",
-				__func__, result);
+			dev_err(&port->dev, "%s - failed resubmitting read "
+				"urb, error %d\n", __func__, result);
 		dbg("%s - usb_submit_urb(read urb)", __func__);
 	}
 }
@@ -461,8 +466,9 @@ static void cyberjack_write_bulk_callback(struct urb *urb)
 		/* send the data out the bulk port */
 		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 		if (result) {
-			err("%s - failed submitting write urb, error %d",
-								__func__, result);
+			dev_err(&port->dev,
+				"%s - failed submitting write urb, error %d\n",
+				__func__, result);
 			/* Throw away data. No better idea what to do with it. */
 			priv->wrfilled = 0;
 			priv->wrsent = 0;
@@ -498,8 +504,9 @@ static int __init cyberjack_init(void)
 	if (retval)
 		goto failed_usb_register;
 
-	info(DRIVER_VERSION " " DRIVER_AUTHOR);
-	info(DRIVER_DESC);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION " "
+	       DRIVER_AUTHOR "\n");
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC "\n");
 
 	return 0;
 failed_usb_register:

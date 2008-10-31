@@ -64,8 +64,6 @@
 #include "ivtv-gpio.h"
 #include "ivtv-i2c.h"
 
-#include <media/ir-kbd-i2c.h>
-
 /* i2c implementation for cx23415/6 chip, ivtv project.
  * Author: Kevin Thayer (nufan_wfk at yahoo.com)
  */
@@ -728,6 +726,7 @@ int ivtv_saa7127(struct ivtv *itv, unsigned int cmd, void *arg)
 {
 	return ivtv_call_i2c_client(itv, IVTV_SAA7127_I2C_ADDR, cmd, arg);
 }
+EXPORT_SYMBOL(ivtv_saa7127);
 
 int ivtv_saa717x(struct ivtv *itv, unsigned int cmd, void *arg)
 {

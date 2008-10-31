@@ -43,7 +43,6 @@
 
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
-#include <acpi/amlcode.h>
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utobject")
@@ -478,8 +477,8 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 
 	case ACPI_TYPE_LOCAL_REFERENCE:
 
-		switch (internal_object->reference.opcode) {
-		case AML_INT_NAMEPATH_OP:
+		switch (internal_object->reference.class) {
+		case ACPI_REFCLASS_NAME:
 
 			/*
 			 * Get the actual length of the full pathname to this object.
@@ -503,8 +502,10 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 			 * required eventually.
 			 */
 			ACPI_ERROR((AE_INFO,
-				    "Unsupported Reference opcode=%X in object %p",
-				    internal_object->reference.opcode,
+				    "Cannot convert to external object - "
+				    "unsupported Reference Class [%s] %X in object %p",
+				    acpi_ut_get_reference_name(internal_object),
+				    internal_object->reference.class,
 				    internal_object));
 			status = AE_TYPE;
 			break;
@@ -513,7 +514,9 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unsupported type=%X in object %p",
+		ACPI_ERROR((AE_INFO, "Cannot convert to external object - "
+			    "unsupported type [%s] %X in object %p",
+			    acpi_ut_get_object_type_name(internal_object),
 			    ACPI_GET_OBJECT_TYPE(internal_object),
 			    internal_object));
 		status = AE_TYPE;

@@ -4,7 +4,6 @@
 #define APIC_DEFINITION 1
 #include <linux/threads.h>
 #include <linux/cpumask.h>
-#include <linux/smp.h>
 #include <asm/mpspec.h>
 #include <asm/genapic.h>
 #include <asm/fixmap.h>
@@ -12,11 +11,12 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <asm/mach-numaq/mach_apic.h>
-#include <asm/mach-numaq/mach_apicdef.h>
-#include <asm/mach-numaq/mach_ipi.h>
-#include <asm/mach-numaq/mach_mpparse.h>
-#include <asm/mach-numaq/mach_wakecpu.h>
+#include <asm/numaq/apicdef.h>
+#include <linux/smp.h>
+#include <asm/numaq/apic.h>
+#include <asm/numaq/ipi.h>
+#include <asm/numaq/mpparse.h>
+#include <asm/numaq/wakecpu.h>
 #include <asm/numaq.h>
 
 static int mps_oem_check(struct mp_config_table *mpc, char *oem,
@@ -36,6 +36,20 @@ static int probe_numaq(void)
 static int acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	return 0;
+}
+
+static cpumask_t vector_allocation_domain(int cpu)
+{
+	/* Careful. Some cpus do not strictly honor the set of cpus
+	 * specified in the interrupt destination when using lowest
+	 * priority interrupt delivery mode.
+	 *
+	 * In particular there was a hyperthreading cpu observed to
+	 * deliver interrupts to the wrong hyperthread when only one
+	 * hyperthread was specified in the interrupt desitination.
+	 */
+	cpumask_t domain = { { [0] = APIC_ALL_CPUS, } };
+	return domain;
 }
 
 struct genapic apic_numaq = APIC_INIT("NUMAQ", probe_numaq);

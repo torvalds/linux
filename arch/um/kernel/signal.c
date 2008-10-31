@@ -11,7 +11,7 @@
 #include <asm/unistd.h>
 #include "frame_kern.h"
 #include "kern_util.h"
-#include "sigcontext.h"
+#include <sysdep/sigcontext.h>
 
 EXPORT_SYMBOL(block_signals);
 EXPORT_SYMBOL(unblock_signals);

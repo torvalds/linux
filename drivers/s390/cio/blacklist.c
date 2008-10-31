@@ -24,6 +24,7 @@
 #include "cio.h"
 #include "cio_debug.h"
 #include "css.h"
+#include "device.h"
 
 /*
  * "Blacklisting" of certain devices:
@@ -191,9 +192,9 @@ static int blacklist_parse_parameters(char *str, range_action action,
 			rc = blacklist_range(ra, from_ssid, to_ssid, from, to,
 					     msgtrigger);
 			if (rc)
-				totalrc = 1;
+				totalrc = -EINVAL;
 		} else
-			totalrc = 1;
+			totalrc = -EINVAL;
 	}
 
 	return totalrc;
@@ -240,8 +241,10 @@ static int blacklist_parse_proc_parameters(char *buf)
 		rc = blacklist_parse_parameters(buf, free, 0);
 	else if (strcmp("add", parm) == 0)
 		rc = blacklist_parse_parameters(buf, add, 0);
+	else if (strcmp("purge", parm) == 0)
+		return ccw_purge_blacklisted();
 	else
-		return 1;
+		return -EINVAL;
 
 	css_schedule_reprobe();
 
@@ -353,7 +356,7 @@ cio_ignore_write(struct file *file, const char __user *user_buf,
 	}
 	ret = blacklist_parse_proc_parameters(buf);
 	if (ret)
-		rc = -EINVAL;
+		rc = ret;
 	else
 		rc = user_len;
 

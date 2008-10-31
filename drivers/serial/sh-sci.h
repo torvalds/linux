@@ -320,18 +320,16 @@
 #define SCI_EVENT_WRITE_WAKEUP	0
 
 #define SCI_IN(size, offset)					\
-  unsigned int addr = port->mapbase + (offset);			\
   if ((size) == 8) {						\
-    return ctrl_inb(addr);					\
+    return ioread8(port->membase + (offset));			\
   } else {							\
-    return ctrl_inw(addr);					\
+    return ioread16(port->membase + (offset));			\
   }
 #define SCI_OUT(size, offset, value)				\
-  unsigned int addr = port->mapbase + (offset);			\
   if ((size) == 8) {						\
-    ctrl_outb(value, addr);					\
+    iowrite8(value, port->membase + (offset));			\
   } else if ((size) == 16) {					\
-    ctrl_outw(value, addr);					\
+    iowrite16(value, port->membase + (offset));			\
   }
 
 #define CPU_SCIx_FNS(name, sci_offset, sci_size, scif_offset, scif_size)\
@@ -791,11 +789,16 @@ static inline int sci_rxd_in(struct uart_port *port)
       defined(CONFIG_CPU_SUBTYPE_SH7721)
 #define SCBRR_VALUE(bps, clk) (((clk*2)+16*bps)/(32*bps)-1)
 #elif defined(CONFIG_CPU_SUBTYPE_SH7723)
-#define SCBRR_VALUE(bps, clk) (((clk*2)+16*bps)/(16*bps)-1)
+static inline int scbrr_calc(struct uart_port *port, int bps, int clk)
+{
+	if (port->type == PORT_SCIF)
+		return (clk+16*bps)/(32*bps)-1;
+	else
+		return ((clk*2)+16*bps)/(16*bps)-1;
+}
+#define SCBRR_VALUE(bps, clk) scbrr_calc(port, bps, clk)
 #elif defined(__H8300H__) || defined(__H8300S__)
-#define SCBRR_VALUE(bps) (((CONFIG_CPU_CLOCK*1000/32)/bps)-1)
-#elif defined(CONFIG_SUPERH64)
-#define SCBRR_VALUE(bps) ((current_cpu_data.module_clock+16*bps)/(32*bps)-1)
+#define SCBRR_VALUE(bps, clk) (((clk*1000/32)/bps)-1)
 #else /* Generic SH */
 #define SCBRR_VALUE(bps, clk) ((clk+16*bps)/(32*bps)-1)
 #endif

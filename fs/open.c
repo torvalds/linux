@@ -798,7 +798,7 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 	int error;
 
 	f->f_flags = flags;
-	f->f_mode = ((flags+1) & O_ACCMODE) | FMODE_LSEEK |
+	f->f_mode = (__force fmode_t)((flags+1) & O_ACCMODE) | FMODE_LSEEK |
 				FMODE_PREAD | FMODE_PWRITE;
 	inode = dentry->d_inode;
 	if (f->f_mode & FMODE_WRITE) {
@@ -1141,8 +1141,7 @@ EXPORT_SYMBOL(sys_close);
 asmlinkage long sys_vhangup(void)
 {
 	if (capable(CAP_SYS_TTY_CONFIG)) {
-		/* XXX: this needs locking */
-		tty_vhangup(current->signal->tty);
+		tty_vhangup_self();
 		return 0;
 	}
 	return -EPERM;
