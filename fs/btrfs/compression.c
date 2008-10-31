@@ -220,10 +220,12 @@ static void end_compressed_bio_write(struct bio *bio, int err)
 	 */
 	inode = cb->inode;
 	tree = &BTRFS_I(inode)->io_tree;
+	cb->compressed_pages[0]->mapping = cb->inode->i_mapping;
 	tree->ops->writepage_end_io_hook(cb->compressed_pages[0],
 					 cb->start,
 					 cb->start + cb->len - 1,
 					 NULL, 1);
+	cb->compressed_pages[0]->mapping = NULL;
 
 	end_compressed_writeback(inode, cb->start, cb->len);
 	/* note, our inode could be gone now */
@@ -306,6 +308,7 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 		else
 			ret = 0;
 
+		page->mapping = NULL;
 		if (ret || bio_add_page(bio, page, PAGE_CACHE_SIZE, 0) <
 		    PAGE_CACHE_SIZE) {
 			bio_get(bio);
@@ -423,6 +426,7 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 		else
 			ret = 0;
 
+		page->mapping = NULL;
 		if (ret || bio_add_page(comp_bio, page, PAGE_CACHE_SIZE, 0) <
 		    PAGE_CACHE_SIZE) {
 			bio_get(comp_bio);

@@ -368,8 +368,8 @@ int noinline btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	u64 search_start = start;
 	u64 leaf_start;
 	u64 ram_bytes = 0;
-	u8 compression = 0;
-	u8 encryption = 0;
+	u8 compression;
+	u8 encryption;
 	u16 other_encoding = 0;
 	u64 root_gen;
 	u64 root_owner;
@@ -415,6 +415,8 @@ next_slot:
 		leaf_start = 0;
 		root_gen = 0;
 		root_owner = 0;
+		compression = 0;
+		encryption = 0;
 		extent = NULL;
 		leaf = path->nodes[0];
 		slot = path->slots[0];
@@ -546,8 +548,12 @@ next_slot:
 						   inline_limit - key.offset);
 				inode_sub_bytes(inode, extent_end -
 						inline_limit);
-				btrfs_truncate_item(trans, root, path,
-						    new_size, 1);
+				btrfs_set_file_extent_ram_bytes(leaf, extent,
+							new_size);
+				if (!compression && !encryption) {
+					btrfs_truncate_item(trans, root, path,
+							    new_size, 1);
+				}
 			}
 		}
 		/* delete the entire extent */
@@ -567,8 +573,11 @@ next_slot:
 			new_size = btrfs_file_extent_calc_inline_size(
 						   extent_end - end);
 			inode_sub_bytes(inode, end - key.offset);
-			ret = btrfs_truncate_item(trans, root, path,
-						  new_size, 0);
+			btrfs_set_file_extent_ram_bytes(leaf, extent,
+							new_size);
+			if (!compression && !encryption)
+				ret = btrfs_truncate_item(trans, root, path,
+							  new_size, 0);
 			BUG_ON(ret);
 		}
 		/* create bookend, splitting the extent in two */

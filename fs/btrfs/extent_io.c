@@ -1242,10 +1242,19 @@ again:
 	delalloc_end = 0;
 	found = find_delalloc_range(tree, &delalloc_start, &delalloc_end,
 				    max_bytes);
-	if (!found) {
+	if (!found || delalloc_end <= *start) {
 		*start = delalloc_start;
 		*end = delalloc_end;
 		return found;
+	}
+
+	/*
+	 * start comes from the offset of locked_page.  We have to lock
+	 * pages in order, so we can't process delalloc bytes before
+	 * locked_page
+	 */
+	if (delalloc_start < *start) {
+		delalloc_start = *start;
 	}
 
 	/*

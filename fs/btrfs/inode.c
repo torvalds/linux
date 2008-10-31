@@ -239,6 +239,7 @@ static int cow_file_range_inline(struct btrfs_trans_handle *trans,
 		data_len = compressed_size;
 
 	if (start > 0 ||
+	    actual_end >= PAGE_CACHE_SIZE ||
 	    data_len >= BTRFS_MAX_INLINE_DATA_SIZE(root) ||
 	    (!compressed_size &&
 	    (actual_end & (root->sectorsize - 1)) == 0) ||
@@ -248,7 +249,7 @@ static int cow_file_range_inline(struct btrfs_trans_handle *trans,
 	}
 
 	ret = btrfs_drop_extents(trans, root, inode, start,
-				 aligned_end, aligned_end, &hint_byte);
+				 aligned_end, start, &hint_byte);
 	BUG_ON(ret);
 
 	if (isize > actual_end)
@@ -423,6 +424,7 @@ again:
 		 * free any pages it allocated and our page pointer array
 		 */
 		for (i = 0; i < nr_pages_ret; i++) {
+			WARN_ON(pages[i]->mapping);
 			page_cache_release(pages[i]);
 		}
 		kfree(pages);
@@ -572,8 +574,10 @@ free_pages_out_fail:
 	extent_clear_unlock_delalloc(inode, &BTRFS_I(inode)->io_tree,
 				     start, end, locked_page, 0, 0, 0);
 free_pages_out:
-	for (i = 0; i < nr_pages_ret; i++)
+	for (i = 0; i < nr_pages_ret; i++) {
+		WARN_ON(pages[i]->mapping);
 		page_cache_release(pages[i]);
+	}
 	if (pages)
 		kfree(pages);
 
