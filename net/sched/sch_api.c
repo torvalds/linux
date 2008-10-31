@@ -102,6 +102,10 @@ static int tclass_notify(struct sk_buff *oskb, struct nlmsghdr *n,
    requeues once dequeued packet. It is used for non-standard or
    just buggy devices, which can defer output even if netif_queue_stopped()=0.
 
+   ---peek
+
+   like dequeue but without removing a packet from the queue
+
    ---reset
 
    returns qdisc to initial state: purge all buffers, clear all
@@ -149,6 +153,14 @@ int register_qdisc(struct Qdisc_ops *qops)
 		qops->enqueue = noop_qdisc_ops.enqueue;
 	if (qops->requeue == NULL)
 		qops->requeue = noop_qdisc_ops.requeue;
+	if (qops->peek == NULL) {
+		if (qops->dequeue == NULL) {
+			qops->peek = noop_qdisc_ops.peek;
+		} else {
+			rc = -EINVAL;
+			goto out;
+		}
+	}
 	if (qops->dequeue == NULL)
 		qops->dequeue = noop_qdisc_ops.dequeue;
 
