@@ -173,7 +173,7 @@ static void sched_switch_trace_init(struct trace_array *tr)
 
 static void sched_switch_trace_reset(struct trace_array *tr)
 {
-	if (tr->ctrl)
+	if (tr->ctrl && sched_ref)
 		stop_sched_trace(tr);
 }
 

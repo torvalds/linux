@@ -37,9 +37,9 @@ void disable_boot_trace(void)
 		tracing_stop_cmdline_record();
 }
 
-void reset_boot_trace(struct trace_array *tr)
+static void reset_boot_trace(struct trace_array *tr)
 {
-	disable_boot_trace();
+	sched_switch_trace.reset(tr);
 }
 
 static void boot_trace_init(struct trace_array *tr)
