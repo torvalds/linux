@@ -13,31 +13,35 @@
 #include "trace.h"
 
 static struct trace_array *boot_trace;
-static int trace_boot_enabled;
+static bool pre_initcalls_finished;
 
-
-/* Should be started after do_pre_smp_initcalls() in init/main.c */
+/* Tells the boot tracer that the pre_smp_initcalls are finished.
+ * So we are ready .
+ * It doesn't enable sched events tracing however.
+ * You have to call enable_boot_trace to do so.
+ */
 void start_boot_trace(void)
 {
-	trace_boot_enabled = 1;
+	pre_initcalls_finished = true;
 }
 
-void stop_boot_trace(void)
+void enable_boot_trace(void)
 {
-	trace_boot_enabled = 0;
+}
+
+void disable_boot_trace(void)
+{
 }
 
 void reset_boot_trace(struct trace_array *tr)
 {
-	stop_boot_trace();
+	disable_boot_trace();
 }
 
 static void boot_trace_init(struct trace_array *tr)
 {
 	int cpu;
 	boot_trace = tr;
-
-	trace_boot_enabled = 0;
 
 	for_each_cpu_mask(cpu, cpu_possible_map)
 		tracing_reset(tr, cpu);
@@ -46,9 +50,9 @@ static void boot_trace_init(struct trace_array *tr)
 static void boot_trace_ctrl_update(struct trace_array *tr)
 {
 	if (tr->ctrl)
-		start_boot_trace();
+		enable_boot_trace();
 	else
-		stop_boot_trace();
+		disable_boot_trace();
 }
 
 static enum print_line_t initcall_print_line(struct trace_iterator *iter)
@@ -99,7 +103,7 @@ void trace_boot(struct boot_trace *it, initcall_t fn)
 	unsigned long irq_flags;
 	struct trace_array *tr = boot_trace;
 
-	if (!trace_boot_enabled)
+	if (!pre_initcalls_finished)
 		return;
 
 	/* Get its name now since this function could
