@@ -229,7 +229,7 @@ struct frqcr_context sh7722_get_clk_context(const char *name)
 }
 
 /**
- * sh7722_find_divisors - find divisor for setting rate
+ * sh7722_find_div_index - find divisor for setting rate
  *
  * All sh7722 clocks use the same set of multipliers/divisors. This function
  * chooses correct divisor to set the rate of clock with parent clock that
@@ -238,7 +238,7 @@ struct frqcr_context sh7722_get_clk_context(const char *name)
  * @parent_rate: rate of parent clock
  * @rate: requested rate to be set
  */
-static int sh7722_find_divisors(unsigned long parent_rate, unsigned rate)
+static int sh7722_find_div_index(unsigned long parent_rate, unsigned rate)
 {
 	unsigned div2 = parent_rate * 2 / rate;
 	int index;
@@ -247,12 +247,12 @@ static int sh7722_find_divisors(unsigned long parent_rate, unsigned rate)
 		return -EINVAL;
 
 	for (index = 1; index < ARRAY_SIZE(divisors2); index++) {
-		if (div2 > divisors2[index] && div2 <= divisors2[index])
+		if (div2 > divisors2[index - 1] && div2 <= divisors2[index])
 			break;
 	}
 	if (index >= ARRAY_SIZE(divisors2))
 		index = ARRAY_SIZE(divisors2) - 1;
-	return divisors2[index];
+	return index;
 }
 
 static void sh7722_frqcr_recalc(struct clk *clk)
@@ -279,12 +279,12 @@ static int sh7722_frqcr_set_rate(struct clk *clk, unsigned long rate,
 		return -EINVAL;
 
 	/* look for multiplier/divisor pair */
-	div = sh7722_find_divisors(parent_rate, rate);
+	div = sh7722_find_div_index(parent_rate, rate);
 	if (div<0)
 		return div;
 
 	/* calculate new value of clock rate */
-	clk->rate = parent_rate * 2 / div;
+	clk->rate = parent_rate * 2 / divisors2[div];
 	frqcr = ctrl_inl(FRQCR);
 
 	/* FIXME: adjust as algo_id specifies */
@@ -353,7 +353,7 @@ static int sh7722_frqcr_set_rate(struct clk *clk, unsigned long rate,
 			int part_div;
 
 			if (likely(!err)) {
-				part_div = sh7722_find_divisors(parent_rate,
+				part_div = sh7722_find_div_index(parent_rate,
 								rate);
 				if (part_div > 0) {
 					part_ctx = sh7722_get_clk_context(
@@ -394,12 +394,12 @@ static long sh7722_frqcr_round_rate(struct clk *clk, unsigned long rate)
 	int div;
 
 	/* look for multiplier/divisor pair */
-	div = sh7722_find_divisors(parent_rate, rate);
+	div = sh7722_find_div_index(parent_rate, rate);
 	if (div < 0)
 		return clk->rate;
 
 	/* calculate new value of clock rate */
-	return parent_rate * 2 / div;
+	return parent_rate * 2 / divisors2[div];
 }
 
 static struct clk_ops sh7722_frqcr_clk_ops = {
@@ -421,7 +421,7 @@ static int sh7722_siu_set_rate(struct clk *clk, unsigned long rate, int algo_id)
 	int div;
 
 	r = ctrl_inl(clk->arch_flags);
-	div = sh7722_find_divisors(clk->parent->rate, rate);
+	div = sh7722_find_div_index(clk->parent->rate, rate);
 	if (div < 0)
 		return div;
 	r = (r & ~0xF) | div;
