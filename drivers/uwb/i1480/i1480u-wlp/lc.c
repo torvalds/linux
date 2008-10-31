@@ -55,7 +55,6 @@
  *                          is being removed.
  *         i1480u_rm()
  */
-#include <linux/version.h>
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
 #include <linux/uwb/debug.h>

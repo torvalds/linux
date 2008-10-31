@@ -39,7 +39,6 @@
  * them to the hw and transfer the replies/notifications back to the
  * UWB stack through the UWB daemon (UWBD).
  */
-#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pci.h>
