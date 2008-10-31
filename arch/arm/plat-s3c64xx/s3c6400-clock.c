@@ -620,6 +620,7 @@ static struct clk *clks[] __initdata = {
 	&clk_iis_cd1,
 	&clk_pcm_cd,
 	&clk_mout_epll.clk,
+	&clk_fout_epll,
 	&clk_mout_mpll.clk,
 	&clk_dout_mpll,
 	&clk_mmc0.clk,
