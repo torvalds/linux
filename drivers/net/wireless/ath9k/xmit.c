@@ -1859,11 +1859,6 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 	struct ath_hal *ah = sc->sc_ah;
 	int frm_type;
 
-	if (tx_info->control.sta) {
-		an = (struct ath_node *)tx_info->control.sta->drv_priv;
-		tid = ATH_AN_2_TID(an, bf->bf_tidno);
-	}
-
 	frm_type = get_hw_packet_type(skb);
 
 	INIT_LIST_HEAD(&bf_head);
@@ -1890,7 +1885,11 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 
 	spin_lock_bh(&txctl->txq->axq_lock);
 
-	if (bf_isht(bf) && (sc->sc_flags & SC_OP_TXAGGR)) {
+	if (bf_isht(bf) && (sc->sc_flags & SC_OP_TXAGGR) &&
+	    tx_info->control.sta) {
+		an = (struct ath_node *)tx_info->control.sta->drv_priv;
+		tid = ATH_AN_2_TID(an, bf->bf_tidno);
+
 		if (ath_aggr_query(sc, an, bf->bf_tidno)) {
 			/*
 			 * Try aggregation if it's a unicast data frame
