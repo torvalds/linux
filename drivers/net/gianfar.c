@@ -586,6 +586,10 @@ static void gfar_configure_serdes(struct net_device *dev)
 	struct gfar_mii __iomem *regs =
 			(void __iomem *)&priv->regs->gfar_mii_regs;
 	int tbipa = gfar_read(&priv->regs->tbipa);
+	struct mii_bus *bus = gfar_get_miibus(priv);
+
+	if (bus)
+		mutex_lock(&bus->mdio_lock);
 
 	/* Single clk mode, mii mode off(for serdes communication) */
 	gfar_local_mdio_write(regs, tbipa, MII_TBICON, TBICON_CLK_SELECT);
@@ -596,6 +600,9 @@ static void gfar_configure_serdes(struct net_device *dev)
 
 	gfar_local_mdio_write(regs, tbipa, MII_BMCR, BMCR_ANENABLE |
 			BMCR_ANRESTART | BMCR_FULLDPLX | BMCR_SPEED1000);
+
+	if (bus)
+		mutex_unlock(&bus->mdio_lock);
 }
 
 static void init_registers(struct net_device *dev)
