@@ -28,6 +28,7 @@ extern struct platform_device s3c_device_usb;
 extern struct platform_device s3c_device_lcd;
 extern struct platform_device s3c_device_wdt;
 extern struct platform_device s3c_device_i2c0;
+extern struct platform_device s3c_device_i2c1;
 extern struct platform_device s3c_device_iis;
 extern struct platform_device s3c_device_rtc;
 extern struct platform_device s3c_device_adc;
