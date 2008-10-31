@@ -17,6 +17,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/device.h>
+#include <linux/pfn.h>
 #include <asm/io.h>
 
 
@@ -849,7 +850,8 @@ int iomem_map_sanity_check(resource_size_t addr, unsigned long size)
 			continue;
 		if (p->end < addr)
 			continue;
-		if (p->start <= addr && (p->end >= addr + size - 1))
+		if (PFN_DOWN(p->start) <= PFN_DOWN(addr) &&
+		    PFN_DOWN(p->end) >= PFN_DOWN(addr + size - 1))
 			continue;
 		printk(KERN_WARNING "resource map sanity check conflict: "
 		       "0x%llx 0x%llx 0x%llx 0x%llx %s\n",
