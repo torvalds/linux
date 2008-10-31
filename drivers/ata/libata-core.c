@@ -1268,7 +1268,7 @@ u64 ata_tf_to_lba48(const struct ata_taskfile *tf)
 
 	sectors |= ((u64)(tf->hob_lbah & 0xff)) << 40;
 	sectors |= ((u64)(tf->hob_lbam & 0xff)) << 32;
-	sectors |= (tf->hob_lbal & 0xff) << 24;
+	sectors |= ((u64)(tf->hob_lbal & 0xff)) << 24;
 	sectors |= (tf->lbah & 0xff) << 16;
 	sectors |= (tf->lbam & 0xff) << 8;
 	sectors |= (tf->lbal & 0xff);
@@ -1602,7 +1602,6 @@ unsigned long ata_id_xfermask(const u16 *id)
 /**
  *	ata_pio_queue_task - Queue port_task
  *	@ap: The ata_port to queue port_task for
- *	@fn: workqueue function to be scheduled
  *	@data: data for @fn to use
  *	@delay: delay time in msecs for workqueue function
  *
@@ -2159,6 +2158,10 @@ retry:
 static inline u8 ata_dev_knobble(struct ata_device *dev)
 {
 	struct ata_port *ap = dev->link->ap;
+
+	if (ata_dev_blacklisted(dev) & ATA_HORKAGE_BRIDGE_OK)
+		return 0;
+
 	return ((ap->cbl == ATA_CBL_SATA) && (!ata_id_is_sata(dev->id)));
 }
 
@@ -4063,6 +4066,9 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "TSSTcorp CDDVDW SH-S202N", "SB00",	  ATA_HORKAGE_IVB, },
 	{ "TSSTcorp CDDVDW SH-S202N", "SB01",	  ATA_HORKAGE_IVB, },
 
+	/* Devices that do not need bridging limits applied */
+	{ "MTRON MSP-SATA*",		NULL,	ATA_HORKAGE_BRIDGE_OK, },
+
 	/* End Marker */
 	{ }
 };
@@ -4648,7 +4654,6 @@ static void ata_verify_xfer(struct ata_queued_cmd *qc)
 /**
  *	ata_qc_complete - Complete an active ATA command
  *	@qc: Command to complete
- *	@err_mask: ATA Status register contents
  *
  *	Indicate to the mid and upper layers that an ATA
  *	command has completed, with either an ok or not-ok status.
