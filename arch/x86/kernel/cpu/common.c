@@ -20,6 +20,7 @@
 #include <asm/pat.h>
 #include <asm/asm.h>
 #include <asm/numa.h>
+#include <asm/smp.h>
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/mpspec.h>
 #include <asm/apic.h>
