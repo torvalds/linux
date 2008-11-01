@@ -386,12 +386,12 @@ struct ubifs_inode {
 	unsigned int dirty:1;
 	unsigned int xattr:1;
 	unsigned int bulk_read:1;
+	unsigned int compr_type:2;
 	struct mutex ui_mutex;
 	spinlock_t ui_lock;
 	loff_t synced_i_size;
 	loff_t ui_size;
 	int flags;
-	int compr_type;
 	pgoff_t last_page_read;
 	pgoff_t read_in_a_row;
 	int data_len;
@@ -946,6 +946,7 @@ struct ubifs_mount_opts {
  * @no_chk_data_crc: do not check CRCs when reading data nodes (except during
  *                   recovery)
  * @bulk_read: enable bulk-reads
+ * @default_compr: default compression algorithm (%UBIFS_COMPR_LZO, etc)
  *
  * @tnc_mutex: protects the Tree Node Cache (TNC), @zroot, @cnext, @enext, and
  *             @calc_idx_sz
@@ -986,7 +987,6 @@ struct ubifs_mount_opts {
  * @main_lebs: count of LEBs in the main area
  * @main_first: first LEB of the main area
  * @main_bytes: main area size in bytes
- * @default_compr: default compression algorithm (%UBIFS_COMPR_LZO, etc)
  *
  * @key_hash_type: type of the key hash
  * @key_hash: direntry key hash function
@@ -1196,6 +1196,7 @@ struct ubifs_info {
 	unsigned int big_lpt:1;
 	unsigned int no_chk_data_crc:1;
 	unsigned int bulk_read:1;
+	unsigned int default_compr:2;
 
 	struct mutex tnc_mutex;
 	struct ubifs_zbranch zroot;
@@ -1237,7 +1238,6 @@ struct ubifs_info {
 	int main_lebs;
 	int main_first;
 	long long main_bytes;
-	int default_compr;
 
 	uint8_t key_hash_type;
 	uint32_t (*key_hash)(const char *str, int len);

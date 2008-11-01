@@ -2021,6 +2021,14 @@ static int __init ubifs_init(void)
 	BUILD_BUG_ON(UBIFS_REF_NODE_SZ != 64);
 
 	/*
+	 * We use 2 bit wide bit-fields to store compression type, which should
+	 * be amended if more compressors are added. The bit-fields are:
+	 * @compr_type in 'struct ubifs_inode' and @default_compr in
+	 * 'struct ubifs_info'.
+	 */
+	BUILD_BUG_ON(UBIFS_COMPR_TYPES_CNT > 4);
+
+	/*
 	 * We require that PAGE_CACHE_SIZE is greater-than-or-equal-to
 	 * UBIFS_BLOCK_SIZE. It is assumed that both are powers of 2.
 	 */
