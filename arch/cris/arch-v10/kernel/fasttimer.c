@@ -24,7 +24,7 @@
 #include <asm/rtc.h>
 
 
-#include <asm/arch/svinto.h>
+#include <arch/svinto.h>
 #include <asm/fasttimer.h>
 #include <linux/proc_fs.h>
 

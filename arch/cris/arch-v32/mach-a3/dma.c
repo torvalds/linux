@@ -2,7 +2,7 @@
 
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
-#include <asm/arch/mach/dma.h>
+#include <mach/dma.h>
 #include <hwregs/reg_map.h>
 #include <hwregs/reg_rdwr.h>
 #include <hwregs/marb_defs.h>

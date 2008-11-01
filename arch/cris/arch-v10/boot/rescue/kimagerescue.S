@@ -6,7 +6,7 @@
  */
 
 #define ASSEMBLER_MACROS_ONLY
-#include <asm/arch/sv_addr_ag.h>
+#include <arch/sv_addr_ag.h>
 
 #define CODE_START 0x40004000
 #define CODE_LENGTH 784

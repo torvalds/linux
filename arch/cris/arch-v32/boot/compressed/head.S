@@ -7,7 +7,7 @@
 
 #define ASSEMBLER_MACROS_ONLY
 #include <hwregs/asm/reg_map_asm.h>
-#include <asm/arch/mach/startup.inc>
+#include <mach/startup.inc>
 
 #define RAM_INIT_MAGIC 0x56902387
 #define COMMAND_LINE_MAGIC 0x87109563
@@ -17,7 +17,7 @@
 	.globl	input_data
 
 	.text
-start:
+_start:
 	di
 
 	;; Start clocks for used blocks.

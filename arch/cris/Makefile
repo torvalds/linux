@@ -23,12 +23,16 @@ mach-$(CONFIG_ETRAXFS) := fs
 
 ifneq ($(arch-y),)
 SARCH := arch-$(arch-y)
+inc := -Iarch/cris/include/arch-$(arch-y) -Iarch/cris/include/arch-$(arch-y)/arch
 else
 SARCH :=
+inc :=
 endif
 
 ifneq ($(mach-y),)
 MACH := mach-$(mach-y)
+inc += -Iarch/cris/include/$(SARCH)/$(MACH)/
+inc += -Iarch/cris/include/$(SARCH)/$(MACH)/mach
 else
 MACH :=
 endif
@@ -39,9 +43,9 @@ OBJCOPYFLAGS := -O binary -R .note -R .comment -S
 
 CPPFLAGS_vmlinux.lds = -DDRAM_VIRTUAL_BASE=0x$(CONFIG_ETRAX_DRAM_VIRTUAL_BASE)
 
-KBUILD_AFLAGS += -mlinux -march=$(arch-y) -Iinclude/asm/arch/mach -Iinclude/asm/arch
-
-KBUILD_CFLAGS += -mlinux -march=$(arch-y) -pipe -Iinclude/asm/arch/mach -Iinclude/asm/arch
+KBUILD_AFLAGS += -mlinux -march=$(arch-y) $(inc)
+KBUILD_CFLAGS += -mlinux -march=$(arch-y) -pipe $(inc)
+KBUILD_CPPFLAGS += $(inc)
 
 ifdef CONFIG_FRAME_POINTER
 KBUILD_CFLAGS := $(subst -fomit-frame-pointer,,$(KBUILD_CFLAGS)) -g
@@ -73,7 +77,7 @@ all: zImage
 zImage Image: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $(boot)/$@
 
-archprepare: $(SRC_ARCH)/.links $(srctree)/include/asm-$(ARCH)/.arch FORCE
+archprepare: $(SRC_ARCH)/.links FORCE
 
 # Create some links to make all tools happy
 $(SRC_ARCH)/.links:
@@ -95,17 +99,6 @@ endif
 	@ln -sfn ../$(SARCH)/kernel/asm-offsets.c $(SRC_ARCH)/kernel/asm-offsets.c
 	@touch $@
 
-# Create link to sub arch includes
-$(srctree)/include/asm-$(ARCH)/.arch: $(wildcard include/config/arch/*.h)
-	@echo '  SYMLINK include/asm-$(ARCH)/arch -> include/asm-$(ARCH)/$(SARCH)'
-	@rm -f $(srctree)/include/asm-$(ARCH)/arch/mach
-	@rm -f $(srctree)/include/asm-$(ARCH)/arch
-	@ln -sf $(SARCH) $(srctree)/include/asm-$(ARCH)/arch
-ifdef CONFIG_ETRAX_ARCH_V32
-	@ln -sf $(MACH) $(srctree)/include/asm-$(ARCH)/arch/mach
-endif
-	@touch $@
-
 archclean:
 	$(Q)if [ -e arch/$(ARCH)/boot ]; then \
 		$(MAKE) $(clean)=arch/$(ARCH)/boot; \
@@ -116,8 +109,7 @@ CLEAN_FILES += \
 	$(MACHINE)/boot/compressed/decompress.bin \
 	$(MACHINE)/boot/compressed/piggy.gz \
 	$(MACHINE)/boot/rescue/rescue.bin \
-	$(SRC_ARCH)/.links \
-	$(srctree)/include/asm-$(ARCH)/.arch
+	$(SRC_ARCH)/.links
 
 MRPROPER_FILES += \
 	$(SRC_ARCH)/drivers \
