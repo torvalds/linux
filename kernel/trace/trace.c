@@ -79,6 +79,15 @@ static int tracing_disabled = 1;
  */
 int ftrace_dump_on_oops;
 
+static int tracing_set_tracer(char *buf);
+
+static int __init set_ftrace(char *str)
+{
+	tracing_set_tracer(str);
+	return 1;
+}
+__setup("ftrace", set_ftrace);
+
 static int __init set_ftrace_dump_on_oops(char *str)
 {
 	ftrace_dump_on_oops = 1;
@@ -2394,29 +2403,11 @@ tracing_set_trace_read(struct file *filp, char __user *ubuf,
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 
-static ssize_t
-tracing_set_trace_write(struct file *filp, const char __user *ubuf,
-			size_t cnt, loff_t *ppos)
+static int tracing_set_tracer(char *buf)
 {
 	struct trace_array *tr = &global_trace;
 	struct tracer *t;
-	char buf[max_tracer_type_len+1];
-	int i;
-	size_t ret;
-
-	ret = cnt;
-
-	if (cnt > max_tracer_type_len)
-		cnt = max_tracer_type_len;
-
-	if (copy_from_user(&buf, ubuf, cnt))
-		return -EFAULT;
-
-	buf[cnt] = 0;
-
-	/* strip ending whitespace. */
-	for (i = cnt - 1; i > 0 && isspace(buf[i]); i--)
-		buf[i] = 0;
+	int ret = 0;
 
 	mutex_lock(&trace_types_lock);
 	for (t = trace_types; t; t = t->next) {
@@ -2439,6 +2430,33 @@ tracing_set_trace_write(struct file *filp, const char __user *ubuf,
 
  out:
 	mutex_unlock(&trace_types_lock);
+
+	return ret;
+}
+
+static ssize_t
+tracing_set_trace_write(struct file *filp, const char __user *ubuf,
+			size_t cnt, loff_t *ppos)
+{
+	char buf[max_tracer_type_len+1];
+	int i;
+	size_t ret;
+
+	if (cnt > max_tracer_type_len)
+		cnt = max_tracer_type_len;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	buf[cnt] = 0;
+
+	/* strip ending whitespace. */
+	for (i = cnt - 1; i > 0 && isspace(buf[i]); i--)
+		buf[i] = 0;
+
+	ret = tracing_set_tracer(buf);
+	if (!ret)
+		ret = cnt;
 
 	if (ret > 0)
 		filp->f_pos += ret;
