@@ -717,31 +717,31 @@ EXPORT_SYMBOL_GPL(rt2x00lib_rxdone);
  */
 const struct rt2x00_rate rt2x00_supported_rates[12] = {
 	{
-		.flags = DEV_RATE_CCK | DEV_RATE_BASIC,
+		.flags = DEV_RATE_CCK,
 		.bitrate = 10,
 		.ratemask = BIT(0),
 		.plcp = 0x00,
 	},
 	{
-		.flags = DEV_RATE_CCK | DEV_RATE_SHORT_PREAMBLE | DEV_RATE_BASIC,
+		.flags = DEV_RATE_CCK | DEV_RATE_SHORT_PREAMBLE,
 		.bitrate = 20,
 		.ratemask = BIT(1),
 		.plcp = 0x01,
 	},
 	{
-		.flags = DEV_RATE_CCK | DEV_RATE_SHORT_PREAMBLE | DEV_RATE_BASIC,
+		.flags = DEV_RATE_CCK | DEV_RATE_SHORT_PREAMBLE,
 		.bitrate = 55,
 		.ratemask = BIT(2),
 		.plcp = 0x02,
 	},
 	{
-		.flags = DEV_RATE_CCK | DEV_RATE_SHORT_PREAMBLE | DEV_RATE_BASIC,
+		.flags = DEV_RATE_CCK | DEV_RATE_SHORT_PREAMBLE,
 		.bitrate = 110,
 		.ratemask = BIT(3),
 		.plcp = 0x03,
 	},
 	{
-		.flags = DEV_RATE_OFDM | DEV_RATE_BASIC,
+		.flags = DEV_RATE_OFDM,
 		.bitrate = 60,
 		.ratemask = BIT(4),
 		.plcp = 0x0b,
@@ -753,7 +753,7 @@ const struct rt2x00_rate rt2x00_supported_rates[12] = {
 		.plcp = 0x0f,
 	},
 	{
-		.flags = DEV_RATE_OFDM | DEV_RATE_BASIC,
+		.flags = DEV_RATE_OFDM,
 		.bitrate = 120,
 		.ratemask = BIT(6),
 		.plcp = 0x0a,
@@ -765,7 +765,7 @@ const struct rt2x00_rate rt2x00_supported_rates[12] = {
 		.plcp = 0x0e,
 	},
 	{
-		.flags = DEV_RATE_OFDM | DEV_RATE_BASIC,
+		.flags = DEV_RATE_OFDM,
 		.bitrate = 240,
 		.ratemask = BIT(8),
 		.plcp = 0x09,
