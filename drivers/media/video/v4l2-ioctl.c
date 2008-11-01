@@ -393,10 +393,8 @@ video_fix_command(unsigned int cmd)
  * Obsolete usercopy function - Should be removed soon
  */
 int
-video_usercopy(struct inode *inode, struct file *file,
-	       unsigned int cmd, unsigned long arg,
-	       int (*func)(struct inode *inode, struct file *file,
-			   unsigned int cmd, void *arg))
+video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
+		v4l2_kioctl func)
 {
 	char	sbuf[128];
 	void    *mbuf = NULL;
@@ -458,7 +456,7 @@ video_usercopy(struct inode *inode, struct file *file,
 	}
 
 	/* call driver */
-	err = func(inode, file, cmd, parg);
+	err = func(file, cmd, parg);
 	if (err == -ENOIOCTLCMD)
 		err = -EINVAL;
 	if (is_ext_ctrl) {

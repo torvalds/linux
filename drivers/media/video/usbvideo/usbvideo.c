@@ -1281,8 +1281,7 @@ static int usbvideo_v4l_close(struct inode *inode, struct file *file)
  * History:
  * 22-Jan-2000 Corrected VIDIOCSPICT to reject unsupported settings.
  */
-static int usbvideo_v4l_do_ioctl(struct inode *inode, struct file *file,
-				 unsigned int cmd, void *arg)
+static int usbvideo_v4l_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct uvd *uvd = file->private_data;
 
@@ -1505,7 +1504,7 @@ static int usbvideo_v4l_do_ioctl(struct inode *inode, struct file *file,
 static int usbvideo_v4l_ioctl(struct inode *inode, struct file *file,
 		       unsigned int cmd, unsigned long arg)
 {
-	return video_usercopy(inode, file, cmd, arg, usbvideo_v4l_do_ioctl);
+	return video_usercopy(file, cmd, arg, usbvideo_v4l_do_ioctl);
 }
 
 /*

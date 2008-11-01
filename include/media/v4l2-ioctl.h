@@ -285,10 +285,8 @@ extern long v4l_compat_ioctl32(struct file *file, unsigned int cmd,
 				unsigned long arg);
 
 /* Include support for obsoleted stuff */
-extern int video_usercopy(struct inode *inode, struct file *file,
-			  unsigned int cmd, unsigned long arg,
-			  int (*func)(struct inode *inode, struct file *file,
-				      unsigned int cmd, void *arg));
+extern int video_usercopy(struct file *file, unsigned int cmd,
+				unsigned long arg, v4l2_kioctl func);
 
 /* Standard handlers for V4L ioctl's */
 

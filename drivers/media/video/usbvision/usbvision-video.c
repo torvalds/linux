@@ -1278,7 +1278,7 @@ static int usbvision_vbi_close(struct inode *inode, struct file *file)
 	return -ENODEV;
 }
 
-static int usbvision_do_vbi_ioctl(struct inode *inode, struct file *file,
+static int usbvision_do_vbi_ioctl(struct file *file,
 				 unsigned int cmd, void *arg)
 {
 	/* TODO */
@@ -1288,7 +1288,7 @@ static int usbvision_do_vbi_ioctl(struct inode *inode, struct file *file,
 static int usbvision_vbi_ioctl(struct inode *inode, struct file *file,
 		       unsigned int cmd, unsigned long arg)
 {
-	return video_usercopy(inode, file, cmd, arg, usbvision_do_vbi_ioctl);
+	return video_usercopy(file, cmd, arg, usbvision_do_vbi_ioctl);
 }
 
 
