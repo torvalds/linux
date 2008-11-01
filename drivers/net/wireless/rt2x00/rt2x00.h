@@ -723,8 +723,7 @@ struct rt2x00_dev {
 
 	/*
 	 * This is the default TX/RX antenna setup as indicated
-	 * by the device's EEPROM. When mac80211 sets its
-	 * antenna value to 0 we should be using these values.
+	 * by the device's EEPROM.
 	 */
 	struct antenna_setup default_ant;
 

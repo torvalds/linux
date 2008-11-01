@@ -339,7 +339,6 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
-	int radio_on;
 	int status;
 
 	/*
@@ -356,7 +355,6 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	 * some configuration parameters (e.g. channel and antenna values) can
 	 * only be set when the radio is enabled.
 	 */
-	radio_on = test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags);
 	if (conf->radio_enabled) {
 		/* For programming the values, we have to turn RX off */
 		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF);
@@ -371,6 +369,17 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 		 * everything to ensure a consistent state
 		 */
 		rt2x00lib_config(rt2x00dev, conf, changed);
+
+		/*
+		 * The radio was enabled, configure the antenna to the
+		 * default settings, the link tuner will later start
+		 * continue configuring the antenna based on the software
+		 * diversity. But for non-diversity configurations, we need
+		 * to have configured the correct state now.
+		 */
+		if (changed & IEEE80211_CONF_CHANGE_RADIO_ENABLED)
+			rt2x00lib_config_antenna(rt2x00dev,
+						 &rt2x00dev->default_ant);
 
 		/* Turn RX back on */
 		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON);

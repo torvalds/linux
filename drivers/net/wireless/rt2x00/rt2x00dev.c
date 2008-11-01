@@ -176,12 +176,13 @@ void rt2x00lib_toggle_rx(struct rt2x00_dev *rt2x00dev, enum dev_state state)
 
 static void rt2x00lib_evaluate_antenna_sample(struct rt2x00_dev *rt2x00dev)
 {
-	enum antenna rx = rt2x00dev->link.ant.active.rx;
-	enum antenna tx = rt2x00dev->link.ant.active.tx;
+	struct antenna_setup ant;
 	int sample_a =
 	    rt2x00_get_link_ant_rssi_history(&rt2x00dev->link, ANTENNA_A);
 	int sample_b =
 	    rt2x00_get_link_ant_rssi_history(&rt2x00dev->link, ANTENNA_B);
+
+	memcpy(&ant, &rt2x00dev->link.ant.active, sizeof(ant));
 
 	/*
 	 * We are done sampling. Now we should evaluate the results.
@@ -200,20 +201,21 @@ static void rt2x00lib_evaluate_antenna_sample(struct rt2x00_dev *rt2x00dev)
 		return;
 
 	if (rt2x00dev->link.ant.flags & ANTENNA_RX_DIVERSITY)
-		rx = (sample_a > sample_b) ? ANTENNA_A : ANTENNA_B;
+		ant.rx = (sample_a > sample_b) ? ANTENNA_A : ANTENNA_B;
 
 	if (rt2x00dev->link.ant.flags & ANTENNA_TX_DIVERSITY)
-		tx = (sample_a > sample_b) ? ANTENNA_A : ANTENNA_B;
+		ant.tx = (sample_a > sample_b) ? ANTENNA_A : ANTENNA_B;
 
-	rt2x00lib_config_antenna(rt2x00dev, rx, tx);
+	rt2x00lib_config_antenna(rt2x00dev, &ant);
 }
 
 static void rt2x00lib_evaluate_antenna_eval(struct rt2x00_dev *rt2x00dev)
 {
-	enum antenna rx = rt2x00dev->link.ant.active.rx;
-	enum antenna tx = rt2x00dev->link.ant.active.tx;
+	struct antenna_setup ant;
 	int rssi_curr = rt2x00_get_link_ant_rssi(&rt2x00dev->link);
 	int rssi_old = rt2x00_update_ant_rssi(&rt2x00dev->link, rssi_curr);
+
+	memcpy(&ant, &rt2x00dev->link.ant.active, sizeof(ant));
 
 	/*
 	 * Legacy driver indicates that we should swap antenna's
@@ -230,12 +232,12 @@ static void rt2x00lib_evaluate_antenna_eval(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->link.ant.flags |= ANTENNA_MODE_SAMPLE;
 
 	if (rt2x00dev->link.ant.flags & ANTENNA_RX_DIVERSITY)
-		rx = (rx == ANTENNA_A) ? ANTENNA_B : ANTENNA_A;
+		ant.rx = (ant.rx == ANTENNA_A) ? ANTENNA_B : ANTENNA_A;
 
 	if (rt2x00dev->link.ant.flags & ANTENNA_TX_DIVERSITY)
-		tx = (tx == ANTENNA_A) ? ANTENNA_B : ANTENNA_A;
+		ant.tx = (ant.tx == ANTENNA_A) ? ANTENNA_B : ANTENNA_A;
 
-	rt2x00lib_config_antenna(rt2x00dev, rx, tx);
+	rt2x00lib_config_antenna(rt2x00dev, &ant);
 }
 
 static void rt2x00lib_evaluate_antenna(struct rt2x00_dev *rt2x00dev)
