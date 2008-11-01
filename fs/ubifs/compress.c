@@ -33,7 +33,7 @@
 /* Fake description object for the "none" compressor */
 static struct ubifs_compressor none_compr = {
 	.compr_type = UBIFS_COMPR_NONE,
-	.name = "no compression",
+	.name = "none",
 	.capi_name = "",
 };
 
@@ -43,13 +43,13 @@ static DEFINE_MUTEX(lzo_mutex);
 static struct ubifs_compressor lzo_compr = {
 	.compr_type = UBIFS_COMPR_LZO,
 	.comp_mutex = &lzo_mutex,
-	.name = "LZO",
+	.name = "lzo",
 	.capi_name = "lzo",
 };
 #else
 static struct ubifs_compressor lzo_compr = {
 	.compr_type = UBIFS_COMPR_LZO,
-	.name = "LZO",
+	.name = "lzo",
 };
 #endif
 

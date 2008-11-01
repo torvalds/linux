@@ -893,13 +893,21 @@ struct ubifs_orphan {
 /**
  * struct ubifs_mount_opts - UBIFS-specific mount options information.
  * @unmount_mode: selected unmount mode (%0 default, %1 normal, %2 fast)
- * @bulk_read: enable bulk-reads
- * @chk_data_crc: check CRCs when reading data nodes
+ * @bulk_read: enable/disable bulk-reads (%0 default, %1 disabe, %2 enable)
+ * @chk_data_crc: enable/disable CRC data checking when reading data nodes
+ *                (%0 default, %1 disabe, %2 enable)
+ * @override_compr: override default compressor (%0 - do not override and use
+ *                  superblock compressor, %1 - override and use compressor
+ *                  specified in @compr_type)
+ * @compr_type: compressor type to override the superblock compressor with
+ *              (%UBIFS_COMPR_NONE, etc)
  */
 struct ubifs_mount_opts {
 	unsigned int unmount_mode:2;
 	unsigned int bulk_read:2;
 	unsigned int chk_data_crc:2;
+	unsigned int override_compr:1;
+	unsigned int compr_type:2;
 };
 
 /**

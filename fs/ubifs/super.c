@@ -417,6 +417,11 @@ static int ubifs_show_options(struct seq_file *s, struct vfsmount *mnt)
 	else if (c->mount_opts.chk_data_crc == 1)
 		seq_printf(s, ",no_chk_data_crc");
 
+	if (c->mount_opts.override_compr) {
+		seq_printf(s, ",compr=");
+		seq_printf(s, ubifs_compr_name(c->mount_opts.compr_type));
+	}
+
 	return 0;
 }
 
@@ -878,6 +883,7 @@ static int check_volume_empty(struct ubifs_info *c)
  * Opt_no_bulk_read: disable bulk-reads
  * Opt_chk_data_crc: check CRCs when reading data nodes
  * Opt_no_chk_data_crc: do not check CRCs when reading data nodes
+ * Opt_override_compr: override default compressor
  * Opt_err: just end of array marker
  */
 enum {
@@ -887,6 +893,7 @@ enum {
 	Opt_no_bulk_read,
 	Opt_chk_data_crc,
 	Opt_no_chk_data_crc,
+	Opt_override_compr,
 	Opt_err,
 };
 
@@ -897,6 +904,7 @@ static const match_table_t tokens = {
 	{Opt_no_bulk_read, "no_bulk_read"},
 	{Opt_chk_data_crc, "chk_data_crc"},
 	{Opt_no_chk_data_crc, "no_chk_data_crc"},
+	{Opt_override_compr, "compr=%s"},
 	{Opt_err, NULL},
 };
 
@@ -950,6 +958,28 @@ static int ubifs_parse_options(struct ubifs_info *c, char *options,
 			c->mount_opts.chk_data_crc = 1;
 			c->no_chk_data_crc = 1;
 			break;
+		case Opt_override_compr:
+		{
+			char *name = match_strdup(&args[0]);
+
+			if (!name)
+				return -ENOMEM;
+			if (!strcmp(name, "none"))
+				c->mount_opts.compr_type = UBIFS_COMPR_NONE;
+			else if (!strcmp(name, "lzo"))
+				c->mount_opts.compr_type = UBIFS_COMPR_LZO;
+			else if (!strcmp(name, "zlib"))
+				c->mount_opts.compr_type = UBIFS_COMPR_ZLIB;
+			else {
+				ubifs_err("unknown compressor \"%s\"", name);
+				kfree(name);
+				return -EINVAL;
+			}
+			kfree(name);
+			c->mount_opts.override_compr = 1;
+			c->default_compr = c->mount_opts.compr_type;
+			break;
+		}
 		default:
 			ubifs_err("unrecognized mount option \"%s\" "
 				  "or missing value", p);
@@ -1100,13 +1130,13 @@ static int mount_ubifs(struct ubifs_info *c)
 		goto out_free;
 
 	/*
-	 * Make sure the compressor which is set as the default on in the
-	 * superblock was actually compiled in.
+	 * Make sure the compressor which is set as default in the superblock
+	 * or overriden by mount options is actually compiled in.
 	 */
 	if (!ubifs_compr_present(c->default_compr)) {
-		ubifs_warn("'%s' compressor is set by superblock, but not "
-			   "compiled in", ubifs_compr_name(c->default_compr));
-		c->default_compr = UBIFS_COMPR_NONE;
+		ubifs_err("'compressor \"%s\" is not compiled in",
+			  ubifs_compr_name(c->default_compr));
+		goto out_free;
 	}
 
 	dbg_failure_mode_registration(c);
@@ -2023,8 +2053,8 @@ static int __init ubifs_init(void)
 	/*
 	 * We use 2 bit wide bit-fields to store compression type, which should
 	 * be amended if more compressors are added. The bit-fields are:
-	 * @compr_type in 'struct ubifs_inode' and @default_compr in
-	 * 'struct ubifs_info'.
+	 * @compr_type in 'struct ubifs_inode', @default_compr in
+	 * 'struct ubifs_info' and @compr_type in 'struct ubifs_mount_opts'.
 	 */
 	BUILD_BUG_ON(UBIFS_COMPR_TYPES_CNT > 4);
 
