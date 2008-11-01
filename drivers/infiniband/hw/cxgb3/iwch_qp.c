@@ -745,7 +745,6 @@ int iwch_post_zb_read(struct iwch_qp *qhp)
 	wqe->read.rdmaop = T3_READ_REQ;
 	wqe->read.reserved[0] = 0;
 	wqe->read.reserved[1] = 0;
-	wqe->read.reserved[2] = 0;
 	wqe->read.rem_stag = cpu_to_be32(1);
 	wqe->read.rem_to = cpu_to_be64(1);
 	wqe->read.local_stag = cpu_to_be32(1);
