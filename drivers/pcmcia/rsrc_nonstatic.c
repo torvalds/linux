@@ -71,7 +71,7 @@ static DEFINE_MUTEX(rsrc_mutex);
 ======================================================================*/
 
 static struct resource *
-make_resource(resource_size_t b, resource_size_t n, int flags, char *name)
+make_resource(resource_size_t b, resource_size_t n, int flags, const char *name)
 {
 	struct resource *res = kzalloc(sizeof(*res), GFP_KERNEL);
 
@@ -624,7 +624,7 @@ static int nonstatic_adjust_io_region(struct resource *res, unsigned long r_star
 static struct resource *nonstatic_find_io_region(unsigned long base, int num,
 		   unsigned long align, struct pcmcia_socket *s)
 {
-	struct resource *res = make_resource(0, num, IORESOURCE_IO, s->dev.bus_id);
+	struct resource *res = make_resource(0, num, IORESOURCE_IO, dev_name(&s->dev));
 	struct socket_data *s_data = s->resource_data;
 	struct pcmcia_align_data data;
 	unsigned long min = base;
@@ -658,7 +658,7 @@ static struct resource *nonstatic_find_io_region(unsigned long base, int num,
 static struct resource * nonstatic_find_mem_region(u_long base, u_long num,
 		u_long align, int low, struct pcmcia_socket *s)
 {
-	struct resource *res = make_resource(0, num, IORESOURCE_MEM, s->dev.bus_id);
+	struct resource *res = make_resource(0, num, IORESOURCE_MEM, dev_name(&s->dev));
 	struct socket_data *s_data = s->resource_data;
 	struct pcmcia_align_data data;
 	unsigned long min, max;
