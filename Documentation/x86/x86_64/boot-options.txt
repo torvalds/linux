@@ -79,17 +79,6 @@ Timing
   Report when timer interrupts are lost because some code turned off
   interrupts for too long.
 
-  nmi_watchdog=NUMBER[,panic]
-  NUMBER can be:
-  0 don't use an NMI watchdog
-  1 use the IO-APIC timer for the NMI watchdog
-  2 use the local APIC for the NMI watchdog using a performance counter. Note
-  This will use one performance counter and the local APIC's performance
-  vector.
-  When panic is specified panic when an NMI watchdog timeout occurs.
-  This is useful when you use a panic=... timeout and need the box
-  quickly up again.
-
   nohpet
   Don't use the HPET timer.
 

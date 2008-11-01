@@ -1403,7 +1403,20 @@ and is between 256 and 4096 characters. It is defined in the file
 			when a NMI is triggered.
 			Format: [state][,regs][,debounce][,die]
 
-	nmi_watchdog=	[KNL,BUGS=X86-32] Debugging features for SMP kernels
+	nmi_watchdog=	[KNL,BUGS=X86-32,X86-64] Debugging features for SMP kernels
+			Format: [panic,][num]
+			Valid num: 0,1,2
+			0 - turn nmi_watchdog off
+			1 - use the IO-APIC timer for the NMI watchdog
+			2 - use the local APIC for the NMI watchdog using
+			a performance counter. Note: This will use one performance
+			counter and the local APIC's performance vector.
+			When panic is specified panic when an NMI watchdog timeout occurs.
+			This is useful when you use a panic=... timeout and need the box
+			quickly up again.
+			Instead of 1 and 2 it is possible to use the following
+			symbolic names: lapic and ioapic
+			Example: nmi_watchdog=2 or nmi_watchdog=panic,lapic
 
 	no387		[BUGS=X86-32] Tells the kernel to use the 387 maths
 			emulation library even if a 387 maths coprocessor
