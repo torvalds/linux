@@ -2353,7 +2353,6 @@ static int __devinit snd_vt1724_create(struct snd_card *card,
 {
 	struct snd_ice1712 *ice;
 	int err;
-	/* unsigned char mask; */
 	static struct snd_device_ops ops = {
 		.dev_free =	snd_vt1724_dev_free,
 	};
@@ -2414,11 +2413,9 @@ static int __devinit snd_vt1724_create(struct snd_card *card,
 		return -EIO;
 	}
 
-	/* unmask used interrupts */
-#if 0 /* these are enabled/disabled dynamically */
-	mask = VT1724_IRQ_MPU_RX | VT1724_IRQ_MPU_TX;
-	outb(mask, ICEREG1724(ice, IRQMASK));
-#endif
+	/* clear interrupts -- otherwise you'll get irq problems later */
+	outb(0, ICEREG1724(ice, IRQMASK));
+
 	/* don't handle FIFO overrun/underruns (just yet),
 	 * since they cause machine lockups
 	 */
