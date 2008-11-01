@@ -1066,9 +1066,12 @@ static int smi_wait_ready(struct mv643xx_eth_shared_private *msp)
 		return 0;
 	}
 
-	if (!wait_event_timeout(msp->smi_busy_wait, smi_is_done(msp),
-				msecs_to_jiffies(100)))
-		return -ETIMEDOUT;
+	if (!smi_is_done(msp)) {
+		wait_event_timeout(msp->smi_busy_wait, smi_is_done(msp),
+				   msecs_to_jiffies(100));
+		if (!smi_is_done(msp))
+			return -ETIMEDOUT;
+	}
 
 	return 0;
 }
