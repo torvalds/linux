@@ -23,7 +23,8 @@ mach-$(CONFIG_ETRAXFS) := fs
 
 ifneq ($(arch-y),)
 SARCH := arch-$(arch-y)
-inc := -Iarch/cris/include/arch-$(arch-y) -Iarch/cris/include/arch-$(arch-y)/arch
+inc := -Iarch/cris/include/$(SARCH)
+inc += -Iarch/cris/include/$(SARCH)/arch
 else
 SARCH :=
 inc :=
@@ -52,74 +53,48 @@ KBUILD_CFLAGS := $(subst -fomit-frame-pointer,,$(KBUILD_CFLAGS)) -g
 KBUILD_CFLAGS += -fno-omit-frame-pointer
 endif
 
-head-y := arch/$(ARCH)/$(SARCH)/kernel/head.o
+head-y := arch/cris/$(SARCH)/kernel/head.o
 
 LIBGCC = $(shell $(CC) $(KBUILD_CFLAGS) -print-file-name=libgcc.a)
 
-core-y		+= arch/$(ARCH)/kernel/ arch/$(ARCH)/mm/
-core-y		+= arch/$(ARCH)/$(SARCH)/kernel/ arch/$(ARCH)/$(SARCH)/mm/
+core-y		+= arch/cris/kernel/ arch/cris/mm/
+core-y		+= arch/cris/$(SARCH)/kernel/ arch/cris/$(SARCH)/mm/
 ifdef CONFIG_ETRAX_ARCH_V32
-core-y		+= arch/$(ARCH)/$(SARCH)/$(MACH)/
+core-y		+= arch/cris/$(SARCH)/$(MACH)/
 endif
-drivers-y	+= arch/$(ARCH)/$(SARCH)/drivers/
-libs-y		+= arch/$(ARCH)/$(SARCH)/lib/ $(LIBGCC)
+drivers-y	+= arch/cris/$(SARCH)/drivers/
+libs-y		+= arch/cris/$(SARCH)/lib/ $(LIBGCC)
 
 # cris source path
-SRC_ARCH              = $(srctree)/arch/$(ARCH)
+SRC_ARCH              = $(srctree)/arch/cris
 # cris object files path
-OBJ_ARCH              = $(objtree)/arch/$(ARCH)
+OBJ_ARCH              = $(objtree)/arch/cris
 
-boot := arch/$(ARCH)/boot
-MACHINE := arch/$(ARCH)/$(SARCH)
+boot := arch/cris/$(SARCH)/boot
+MACHINE := arch/cris/$(SARCH)
 
 all: zImage
 
 zImage Image: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $(boot)/$@
 
-archprepare: $(SRC_ARCH)/.links FORCE
-
-# Create some links to make all tools happy
-$(SRC_ARCH)/.links:
-	@rm -rf $(SRC_ARCH)/drivers
-	@ln -sfn $(SARCH)/drivers $(SRC_ARCH)/drivers
-	@rm -rf $(SRC_ARCH)/boot
-	@ln -sfn $(SARCH)/boot $(SRC_ARCH)/boot
-	@rm -rf $(SRC_ARCH)/lib
-	@ln -sfn $(SARCH)/lib $(SRC_ARCH)/lib
-	@rm -f $(SRC_ARCH)/arch/mach
-	@rm -rf $(SRC_ARCH)/arch
-	@ln -sfn $(SARCH) $(SRC_ARCH)/arch
-ifdef CONFIG_ETRAX_ARCH_V32
-	@ln -sfn ../$(SARCH)/$(MACH) $(SRC_ARCH)/arch/mach
-endif
-	@rm -rf $(SRC_ARCH)/kernel/vmlinux.lds.S
-	@ln -sfn ../$(SARCH)/vmlinux.lds.S $(SRC_ARCH)/kernel/vmlinux.lds.S
-	@rm -rf $(SRC_ARCH)/kernel/asm-offsets.c
-	@ln -sfn ../$(SARCH)/kernel/asm-offsets.c $(SRC_ARCH)/kernel/asm-offsets.c
-	@touch $@
+archprepare:
 
 archclean:
-	$(Q)if [ -e arch/$(ARCH)/boot ]; then \
-		$(MAKE) $(clean)=arch/$(ARCH)/boot; \
+	$(Q)if [ -e arch/cris/$(SARCH)/boot ]; then \
+		$(MAKE) $(clean)=arch/cris/$(SARCH)/boot; \
 	fi
 
 CLEAN_FILES += \
 	$(MACHINE)/boot/zImage \
 	$(MACHINE)/boot/compressed/decompress.bin \
 	$(MACHINE)/boot/compressed/piggy.gz \
-	$(MACHINE)/boot/rescue/rescue.bin \
-	$(SRC_ARCH)/.links
+	$(MACHINE)/boot/rescue/rescue.bin
 
-MRPROPER_FILES += \
-	$(SRC_ARCH)/drivers \
-	$(SRC_ARCH)/boot \
-	$(SRC_ARCH)/lib \
-	$(SRC_ARCH)/arch \
-	$(SRC_ARCH)/kernel/vmlinux.lds.S \
-	$(SRC_ARCH)/kernel/asm-offsets.c
+
+# MRPROPER_FILES +=
 
 define archhelp
-  echo  '* zImage        - Compressed kernel image (arch/$(ARCH)/boot/zImage)'
-  echo  '* Image         - Uncompressed kernel image (arch/$(ARCH)/boot/Image)'
+  echo  '* zImage        - Compressed kernel image (arch/cris/boot/zImage)'
+  echo  '* Image         - Uncompressed kernel image (arch/cris/boot/Image)'
 endef

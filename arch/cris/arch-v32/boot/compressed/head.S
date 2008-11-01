@@ -28,7 +28,13 @@ _start:
 	beq	dram_init_finished
 	nop
 
-#include "../../mach/dram_init.S"
+#if defined CONFIG_ETRAXFS
+#include "../../mach-fs/dram_init.S"
+#elif defined CONFIG_CRIS_MACH_ARTPEC3
+#include "../../mach-a3/dram_init.S"
+#else
+#error Only ETRAXFS and ARTPEC-3 supported!
+#endif
 
 dram_init_finished:
 
@@ -130,4 +136,10 @@ _cmd_line_addr:
 _boot_source:
 	.dword 0
 
-#include "../../mach/hw_settings.S"
+#if defined CONFIG_ETRAXFS
+#include "../../mach-fs/hw_settings.S"
+#elif defined CONFIG_CRIS_MACH_ARTPEC3
+#include "../../mach-a3/hw_settings.S"
+#else
+#error Only ETRAXFS and ARTPEC-3 supported!
+#endif
