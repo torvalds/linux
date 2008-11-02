@@ -26,12 +26,13 @@ static void tx4938ide_tune_ebusc(unsigned int ebus_ch,
 	unsigned int sp = (cr >> 4) & 3;
 	unsigned int clock = gbus_clock / (4 - sp);
 	unsigned int cycle = 1000000000 / clock;
-	unsigned int wt, shwt;
+	unsigned int shwt;
+	int wt;
 
 	/* Minimum DIOx- active time */
 	wt = DIV_ROUND_UP(t->act8b, cycle) - 2;
 	/* IORDY setup time: 35ns */
-	wt = max(wt, DIV_ROUND_UP(35, cycle));
+	wt = max_t(int, wt, DIV_ROUND_UP(35, cycle));
 	/* actual wait-cycle is max(wt & ~1, 1) */
 	if (wt > 2 && (wt & 1))
 		wt++;
