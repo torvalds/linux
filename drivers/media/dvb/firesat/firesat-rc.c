@@ -12,9 +12,11 @@
 #include <linux/bitops.h>
 #include <linux/input.h>
 #include <linux/kernel.h>
+#include <linux/string.h>
 #include <linux/types.h>
 
 #include "firesat-rc.h"
+#include "firesat.h"
 
 /* fixed table with older keycodes, geared towards MythTV */
 const static u16 oldtable[] = {
@@ -61,7 +63,7 @@ const static u16 oldtable[] = {
 };
 
 /* user-modifiable table for a remote as sold in 2008 */
-static u16 keytable[] = {
+const static u16 keytable[] = {
 
 	/* code from device: 0x0300...0x031f */
 
@@ -123,19 +125,24 @@ static u16 keytable[] = {
 	[0x34] = KEY_EXIT,
 };
 
-static struct input_dev *idev;
-
-int firesat_register_rc(void)
+int firesat_register_rc(struct firesat *firesat, struct device *dev)
 {
+	struct input_dev *idev;
 	int i, err;
 
 	idev = input_allocate_device();
 	if (!idev)
 		return -ENOMEM;
 
+	firesat->remote_ctrl_dev = idev;
 	idev->name = "FireDTV remote control";
+	idev->dev.parent = dev;
 	idev->evbit[0] = BIT_MASK(EV_KEY);
-	idev->keycode = keytable;
+	idev->keycode = kmemdup(keytable, sizeof(keytable), GFP_KERNEL);
+	if (!idev->keycode) {
+		err = -ENOMEM;
+		goto fail;
+	}
 	idev->keycodesize = sizeof(keytable[0]);
 	idev->keycodemax = ARRAY_SIZE(keytable);
 
@@ -144,22 +151,31 @@ int firesat_register_rc(void)
 
 	err = input_register_device(idev);
 	if (err)
-		input_free_device(idev);
+		goto fail_free_keymap;
 
+	return 0;
+
+fail_free_keymap:
+	kfree(idev->keycode);
+fail:
+	input_free_device(idev);
 	return err;
 }
 
-void firesat_unregister_rc(void)
+void firesat_unregister_rc(struct firesat *firesat)
 {
-	input_unregister_device(idev);
+	kfree(firesat->remote_ctrl_dev->keycode);
+	input_unregister_device(firesat->remote_ctrl_dev);
 }
 
-void firesat_handle_rc(unsigned int code)
+void firesat_handle_rc(struct firesat *firesat, unsigned int code)
 {
+	u16 *keycode = firesat->remote_ctrl_dev->keycode;
+
 	if (code >= 0x0300 && code <= 0x031f)
-		code = keytable[code - 0x0300];
+		code = keycode[code - 0x0300];
 	else if (code >= 0x0340 && code <= 0x0354)
-		code = keytable[code - 0x0320];
+		code = keycode[code - 0x0320];
 	else if (code >= 0x4501 && code <= 0x451f)
 		code = oldtable[code - 0x4501];
 	else if (code >= 0x4540 && code <= 0x4542)
@@ -170,6 +186,6 @@ void firesat_handle_rc(unsigned int code)
 		return;
 	}
 
-	input_report_key(idev, code, 1);
-	input_report_key(idev, code, 0);
+	input_report_key(firesat->remote_ctrl_dev, code, 1);
+	input_report_key(firesat->remote_ctrl_dev, code, 0);
 }

@@ -26,15 +26,6 @@
 **************************************************************/
 #define LIST_MANAGEMENT_ONLY 0x03
 
-/*************************************************************
-	FCP Address range
-**************************************************************/
-
-#define RESPONSE_REGISTER	0xFFFFF0000D00ULL
-#define COMMAND_REGISTER	0xFFFFF0000B00ULL
-#define PCR_BASE_ADDRESS	0xFFFFF0000900ULL
-
-
 /************************************************************
 	definition of structures
 *************************************************************/
@@ -413,34 +404,29 @@ struct dvb_diseqc_master_cmd;
 struct dvb_frontend_parameters;
 struct firesat;
 
-int AVCWrite(struct firesat *firesat, const AVCCmdFrm *CmdFrm,
-		AVCRspFrm *RspFrm);
-int AVCRecv(struct firesat *firesat, u8 *data, size_t length);
+int avc_recv(struct firesat *firesat, u8 *data, size_t length);
 
 int AVCTuner_DSIT(struct firesat *firesat, int Source_Plug,
 		struct dvb_frontend_parameters *params, __u8 *status);
 
-int AVCTunerStatus(struct firesat *firesat,
+int avc_tuner_status(struct firesat *firesat,
 		ANTENNA_INPUT_INFO *antenna_input_info);
-int AVCTuner_DSD(struct firesat *firesat,
-		struct dvb_frontend_parameters *params, __u8 *status);
-int AVCTuner_SetPIDs(struct firesat *firesat, unsigned char pidc, u16 pid[]);
-int AVCTuner_GetTS(struct firesat *firesat);
-
-int AVCIdentifySubunit(struct firesat *firesat);
-int AVCLNBControl(struct firesat *firesat, char voltage, char burst,
+int avc_tuner_dsd(struct firesat *firesat,
+		struct dvb_frontend_parameters *params);
+int avc_tuner_set_pids(struct firesat *firesat, unsigned char pidc, u16 pid[]);
+int avc_tuner_get_ts(struct firesat *firesat);
+int avc_identify_subunit(struct firesat *firesat);
+int avc_lnb_control(struct firesat *firesat, char voltage, char burst,
 		char conttone, char nrdiseq,
 		struct dvb_diseqc_master_cmd *diseqcmd);
-int AVCSubUnitInfo(struct firesat *firesat, char *subunitcount);
 void avc_remote_ctrl_work(struct work_struct *work);
-int AVCRegisterRemoteControl(struct firesat *firesat);
-int AVCTuner_Host2Ca(struct firesat *firesat);
-int avc_ca_app_info(struct firesat *firesat, char *app_info, int *length);
-int avc_ca_info(struct firesat *firesat, char *app_info, int *length);
+int avc_register_remote_control(struct firesat *firesat);
+int avc_ca_app_info(struct firesat *firesat, char *app_info, unsigned int *len);
+int avc_ca_info(struct firesat *firesat, char *app_info, unsigned int *len);
 int avc_ca_reset(struct firesat *firesat);
 int avc_ca_pmt(struct firesat *firesat, char *app_info, int length);
 int avc_ca_get_time_date(struct firesat *firesat, int *interval);
 int avc_ca_enter_menu(struct firesat *firesat);
-int avc_ca_get_mmi(struct firesat *firesat, char *mmi_object, int *length);
+int avc_ca_get_mmi(struct firesat *firesat, char *mmi_object, unsigned int *len);
 
 #endif /* _AVC_API_H */

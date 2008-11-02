@@ -21,11 +21,11 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
-#include <asm/atomic.h>
 
 #include <demux.h>
 #include <dmxdev.h>
 #include <dvb_demux.h>
+#include <dvb_frontend.h>
 #include <dvb_net.h>
 #include <dvbdev.h>
 
@@ -127,50 +127,35 @@ enum model_type {
 	FireSAT_DVB_S2  = 4,
 };
 
-struct hpsb_host;
+struct input_dev;
 struct hpsb_iso;
-struct node_entry;
+struct unit_directory;
 
 struct firesat {
-	struct dvb_demux dvb_demux;
+	struct dvb_adapter	adapter;
+	struct dmxdev		dmxdev;
+	struct dvb_demux	demux;
+	struct dmx_frontend	frontend;
+	struct dvb_net		dvbnet;
+	struct dvb_frontend	fe;
 
-	/* DVB bits */
-	struct dvb_adapter		*adapter;
-	struct dmxdev			dmxdev;
-	struct dvb_demux		demux;
-	struct dmx_frontend		frontend;
-	struct dvb_net			dvbnet;
-	struct dvb_frontend_info	*frontend_info;
-	struct dvb_frontend		*fe;
+	struct dvb_device	*cadev;
+	int			ca_last_command;
+	int			ca_time_interval;
 
-	struct dvb_device		*cadev;
-	int				ca_last_command;
-	int				ca_time_interval;
-
-	struct mutex			avc_mutex;
-	wait_queue_head_t		avc_wait;
-	atomic_t			avc_reply_received;
-	struct work_struct		remote_ctrl_work;
+	struct mutex		avc_mutex;
+	wait_queue_head_t	avc_wait;
+	bool			avc_reply_received;
+	struct work_struct	remote_ctrl_work;
+	struct input_dev	*remote_ctrl_dev;
 
 	struct firesat_channel {
-		struct firesat *firesat;
-		struct dvb_demux_feed *dvbdmxfeed;
-
-		int active;
-		int id;
+		bool active;
 		int pid;
-		int type;	/* 1 - TS, 2 - Filter */
 	} channel[16];
-	struct mutex			demux_mutex;
+	struct mutex demux_mutex;
 
-	/* needed by avc_api */
-	void *respfrm;
-	int resp_length;
-
-	struct hpsb_host *host;
-	u64 guid;			/* GUID of this node */
-	u32 guid_vendor_id;		/* Top 24bits of guid */
-	struct node_entry *nodeentry;
+	struct unit_directory *ud;
 
 	enum model_type type;
 	char subunit;
@@ -181,6 +166,10 @@ struct firesat {
 	struct hpsb_iso *iso_handle;
 
 	struct list_head list;
+
+	/* needed by avc_api */
+	int resp_length;
+	u8 respfrm[512];
 };
 
 struct firewireheader {
@@ -226,11 +215,10 @@ struct device;
 /* firesat_dvb.c */
 int firesat_start_feed(struct dvb_demux_feed *dvbdmxfeed);
 int firesat_stop_feed(struct dvb_demux_feed *dvbdmxfeed);
-int firesat_dvbdev_init(struct firesat *firesat, struct device *dev,
-		struct dvb_frontend *fe);
+int firesat_dvbdev_init(struct firesat *firesat, struct device *dev);
 
 /* firesat_fe.c */
-int firesat_frontend_attach(struct firesat *firesat, struct dvb_frontend *fe);
+void firesat_frontend_init(struct firesat *firesat);
 
 /* firesat_iso.c */
 int setup_iso_channel(struct firesat *firesat);

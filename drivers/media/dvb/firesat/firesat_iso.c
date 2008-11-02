@@ -18,6 +18,7 @@
 
 #include <dma.h>
 #include <iso.h>
+#include <nodemgr.h>
 
 #include "firesat.h"
 
@@ -36,7 +37,7 @@ int setup_iso_channel(struct firesat *firesat)
 {
 	int result;
 	firesat->iso_handle =
-		hpsb_iso_recv_init(firesat->host,
+		hpsb_iso_recv_init(firesat->ud->ne->host,
 				   256 * 200, //data_buf_size,
 				   256, //buf_packets,
 				   firesat->isochannel,
@@ -59,7 +60,6 @@ static void rawiso_activity_cb(struct hpsb_iso *iso)
 {
 	unsigned int num;
 	unsigned int i;
-/* 	unsigned int j; */
 	unsigned int packet;
 	unsigned long flags;
 	struct firesat *firesat = NULL;
@@ -88,12 +88,7 @@ static void rawiso_activity_cb(struct hpsb_iso *iso)
 				(188 + sizeof(struct firewireheader));
 			if (iso->infos[packet].len <= sizeof(struct CIPHeader))
 				continue; // ignore empty packet
-/* 			printk("%s: Handling packets (%d): ", __func__, */
-/* 			       iso->infos[packet].len); */
-/* 			for (j = 0; j < iso->infos[packet].len - */
-/* 				     sizeof(struct CIPHeader); j++) */
-/* 				printk("%02X,", buf[j]); */
-/* 			printk("\n"); */
+
 			while (count --) {
 				if (buf[sizeof(struct firewireheader)] == 0x47)
 					dvb_dmx_swfilter_packets(&firesat->demux,

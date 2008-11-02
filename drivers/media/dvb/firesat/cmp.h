@@ -3,9 +3,7 @@
 
 struct firesat;
 
-int try_CMPEstablishPPconnection(struct firesat *firesat, int output_plug,
-		int iso_channel);
-int try_CMPBreakPPconnection(struct firesat *firesat, int output_plug,
-		int iso_channel);
+int cmp_establish_pp_connection(struct firesat *firesat, int plug, int channel);
+void cmp_break_pp_connection(struct firesat *firesat, int plug, int channel);
 
 #endif /* _CMP_H */

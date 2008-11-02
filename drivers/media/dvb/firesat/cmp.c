@@ -10,37 +10,21 @@
  *	the License, or (at your option) any later version.
  */
 
+#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
 
-#include <hosts.h>
+#include <asm/byteorder.h>
+
 #include <ieee1394.h>
-#include <ieee1394_core.h>
-#include <ieee1394_transactions.h>
 #include <nodemgr.h>
 
 #include "avc_api.h"
 #include "cmp.h"
 #include "firesat.h"
 
-typedef struct _OPCR
-{
-	__u8 PTPConnCount    : 6 ; // Point to point connect. counter
-	__u8 BrConnCount     : 1 ; // Broadcast connection counter
-	__u8 OnLine          : 1 ; // On Line
-
-	__u8 ChNr            : 6 ; // Channel number
-	__u8 Res             : 2 ; // Reserved
-
-	__u8 PayloadHi       : 2 ; // Payoad high bits
-	__u8 OvhdID          : 4 ; // Overhead ID
-	__u8 DataRate        : 2 ; // Data Rate
-
-	__u8 PayloadLo           ; // Payoad low byte
-} OPCR ;
-
-#define FIRESAT_SPEED IEEE1394_SPEED_400
+#define CMP_OUTPUT_PLUG_CONTROL_REG_0	0xfffff0000904ULL
 
 static int cmp_read(struct firesat *firesat, void *buf, u64 addr, size_t len)
 {
@@ -49,151 +33,139 @@ static int cmp_read(struct firesat *firesat, void *buf, u64 addr, size_t len)
 	if (mutex_lock_interruptible(&firesat->avc_mutex))
 		return -EINTR;
 
-	ret = hpsb_read(firesat->host, firesat->nodeentry->nodeid,
-			firesat->nodeentry->generation, addr, buf, len);
+	ret = hpsb_node_read(firesat->ud->ne, addr, buf, len);
+	if (ret < 0)
+		dev_err(&firesat->ud->device, "CMP: read I/O error\n");
 
 	mutex_unlock(&firesat->avc_mutex);
 	return ret;
 }
 
-static int cmp_lock(struct firesat *firesat, quadlet_t *data, u64 addr,
-		quadlet_t arg, int ext_tcode)
+static int cmp_lock(struct firesat *firesat, void *data, u64 addr, __be32 arg,
+		    int ext_tcode)
 {
 	int ret;
 
 	if (mutex_lock_interruptible(&firesat->avc_mutex))
 		return -EINTR;
 
-	ret = hpsb_lock(firesat->host, firesat->nodeentry->nodeid,
-			firesat->nodeentry->generation,
-			addr, ext_tcode, data, arg);
+	ret = hpsb_node_lock(firesat->ud->ne, addr, ext_tcode, data,
+			     (__force quadlet_t)arg);
+	if (ret < 0)
+		dev_err(&firesat->ud->device, "CMP: lock I/O error\n");
 
 	mutex_unlock(&firesat->avc_mutex);
 	return ret;
 }
 
-//try establishing a point-to-point connection (may be interrupted by a busreset
-int try_CMPEstablishPPconnection(struct firesat *firesat, int output_plug, int iso_channel) {
-	unsigned int BWU; //bandwidth to allocate
+static inline u32 get_opcr(__be32 opcr, u32 mask, u32 shift)
+{
+	return (be32_to_cpu(opcr) >> shift) & mask;
+}
 
-	quadlet_t old_oPCR,test_oPCR = 0x0;
-	u64 oPCR_address=0xfffff0000904ull+(output_plug << 2);
-	int result=cmp_read(firesat, &test_oPCR, oPCR_address, 4);
+static inline void set_opcr(__be32 *opcr, u32 value, u32 mask, u32 shift)
+{
+	*opcr &= ~cpu_to_be32(mask << shift);
+	*opcr |= cpu_to_be32((value & mask) << shift);
+}
 
-/* 	printk(KERN_INFO "%s: nodeid = %d\n",__func__,firesat->nodeentry->nodeid); */
+#define get_opcr_online(v)		get_opcr((v), 0x1, 31)
+#define get_opcr_p2p_connections(v)	get_opcr((v), 0x3f, 24)
+#define get_opcr_channel(v)		get_opcr((v), 0x3f, 16)
 
-	if (result < 0) {
-		printk("%s: cannot read oPCR\n", __func__);
-		return result;
-	} else {
-/* 		printk(KERN_INFO "%s: oPCR = %08x\n",__func__,test_oPCR); */
-		do {
-			OPCR *hilf= (OPCR*) &test_oPCR;
+#define set_opcr_p2p_connections(p, v)	set_opcr((p), (v), 0x3f, 24)
+#define set_opcr_channel(p, v)		set_opcr((p), (v), 0x3f, 16)
+#define set_opcr_data_rate(p, v)	set_opcr((p), (v), 0x3, 14)
+#define set_opcr_overhead_id(p, v)	set_opcr((p), (v), 0xf, 10)
 
-			if (!hilf->OnLine) {
-				printk("%s: Output offline; oPCR: %08x\n", __func__, test_oPCR);
-				return -EBUSY;
-			} else {
-				quadlet_t new_oPCR;
+int cmp_establish_pp_connection(struct firesat *firesat, int plug, int channel)
+{
+	__be32 old_opcr, opcr;
+	u64 opcr_address = CMP_OUTPUT_PLUG_CONTROL_REG_0 + (plug << 2);
+	int attempts = 0;
+	int ret;
 
-				old_oPCR=test_oPCR;
-				if (hilf->PTPConnCount) {
-					if (hilf->ChNr != iso_channel) {
-						printk("%s: Output plug has already connection on channel %u; cannot change it to channel %u\n",__func__,hilf->ChNr,iso_channel);
-						return -EBUSY;
-					} else
-						printk(KERN_INFO "%s: Overlaying existing connection; connection counter was: %u\n",__func__, hilf->PTPConnCount);
-					BWU=0; //we allocate no bandwidth (is this necessary?)
-				} else {
-					hilf->ChNr=iso_channel;
-					hilf->DataRate=FIRESAT_SPEED;
+	ret = cmp_read(firesat, &opcr, opcr_address, 4);
+	if (ret < 0)
+		return ret;
 
-					hilf->OvhdID=0;      //FIXME: that is for worst case -> optimize
-					BWU=hilf->OvhdID?hilf->OvhdID*32:512;
-					BWU += (hilf->PayloadLo + (hilf->PayloadHi << 8) +3) * (2 << (3-hilf->DataRate));
-/*					if (allocate_1394_resources(iso_channel,BWU))
-					{
-						cout << "Allocation of resources failed\n";
-						return -2;
-					}*/
-				}
-
-				hilf->PTPConnCount++;
-				new_oPCR=test_oPCR;
-/* 				printk(KERN_INFO "%s: trying compare_swap...\n",__func__); */
-/* 				printk(KERN_INFO "%s: oPCR_old: %08x, oPCR_new: %08x\n",__func__, old_oPCR, new_oPCR); */
-				result=cmp_lock(firesat, &test_oPCR, oPCR_address, old_oPCR, 2);
-
-				if (result < 0) {
-					printk("%s: cannot compare_swap oPCR\n",__func__);
-					return result;
-				}
-				if ((old_oPCR != test_oPCR) && (!((OPCR*) &old_oPCR)->PTPConnCount))
-				{
-					printk("%s: change of oPCR failed -> freeing resources\n",__func__);
-//					hilf= (OPCR*) &new_oPCR;
-//					unsigned int BWU=hilf->OvhdID?hilf->OvhdID*32:512;
-//					BWU += (hilf->Payload+3) * (2 << (3-hilf->DataRate));
-/*					if (deallocate_1394_resources(iso_channel,BWU))
-					{
-
-						cout << "Deallocation of resources failed\n";
-						return -3;
-					}*/
-				}
-			}
-		}
-		while (old_oPCR != test_oPCR);
+repeat:
+	if (!get_opcr_online(opcr)) {
+		dev_err(&firesat->ud->device, "CMP: output offline\n");
+		return -EBUSY;
 	}
+
+	old_opcr = opcr;
+
+	if (get_opcr_p2p_connections(opcr)) {
+		if (get_opcr_channel(opcr) != channel) {
+			dev_err(&firesat->ud->device,
+				"CMP: cannot change channel\n");
+			return -EBUSY;
+		}
+		dev_info(&firesat->ud->device,
+			 "CMP: overlaying existing connection\n");
+
+		/* We don't allocate isochronous resources. */
+	} else {
+		set_opcr_channel(&opcr, channel);
+		set_opcr_data_rate(&opcr, IEEE1394_SPEED_400);
+
+		/* FIXME: this is for the worst case - optimize */
+		set_opcr_overhead_id(&opcr, 0);
+
+		/* FIXME: allocate isochronous channel and bandwidth at IRM */
+	}
+
+	set_opcr_p2p_connections(&opcr, get_opcr_p2p_connections(opcr) + 1);
+
+	ret = cmp_lock(firesat, &opcr, opcr_address, old_opcr, 2);
+	if (ret < 0)
+		return ret;
+
+	if (old_opcr != opcr) {
+		/*
+		 * FIXME: if old_opcr.P2P_Connections > 0,
+		 * deallocate isochronous channel and bandwidth at IRM
+		 */
+
+		if (++attempts < 6) /* arbitrary limit */
+			goto repeat;
+		return -EBUSY;
+	}
+
 	return 0;
 }
 
-//try breaking a point-to-point connection (may be interrupted by a busreset
-int try_CMPBreakPPconnection(struct firesat *firesat, int output_plug,int iso_channel) {
-	quadlet_t old_oPCR,test_oPCR;
+void cmp_break_pp_connection(struct firesat *firesat, int plug, int channel)
+{
+	__be32 old_opcr, opcr;
+	u64 opcr_address = CMP_OUTPUT_PLUG_CONTROL_REG_0 + (plug << 2);
+	int attempts = 0;
 
-	u64 oPCR_address=0xfffff0000904ull+(output_plug << 2);
-	int result=cmp_read(firesat, &test_oPCR, oPCR_address, 4);
+	if (cmp_read(firesat, &opcr, opcr_address, 4) < 0)
+		return;
 
-/* 	printk(KERN_INFO "%s\n",__func__); */
+repeat:
+	if (!get_opcr_online(opcr) || !get_opcr_p2p_connections(opcr) ||
+	    get_opcr_channel(opcr) != channel) {
+		dev_err(&firesat->ud->device, "CMP: no connection to break\n");
+		return;
+	}
 
-	if (result < 0) {
-		printk("%s: cannot read oPCR\n", __func__);
-		return result;
-	} else {
-		do {
-			OPCR *hilf= (OPCR*) &test_oPCR;
+	old_opcr = opcr;
+	set_opcr_p2p_connections(&opcr, get_opcr_p2p_connections(opcr) - 1);
 
-			if (!hilf->OnLine || !hilf->PTPConnCount || hilf->ChNr != iso_channel) {
-				printk("%s: Output plug does not have PtP-connection on that channel; oPCR: %08x\n", __func__, test_oPCR);
-				return -EINVAL;
-			} else {
-				quadlet_t new_oPCR;
-				old_oPCR=test_oPCR;
-				hilf->PTPConnCount--;
-				new_oPCR=test_oPCR;
+	if (cmp_lock(firesat, &opcr, opcr_address, old_opcr, 2) < 0)
+		return;
 
-//				printk(KERN_INFO "%s: trying compare_swap...\n", __func__);
-				result=cmp_lock(firesat, &test_oPCR, oPCR_address, old_oPCR, 2);
-				if (result < 0) {
-					printk("%s: cannot compare_swap oPCR\n",__func__);
-					return result;
-				}
-			}
+	if (old_opcr != opcr) {
+		/*
+		 * FIXME: if old_opcr.P2P_Connections == 1, i.e. we were last
+		 * owner, deallocate isochronous channel and bandwidth at IRM
+		 */
 
-		} while (old_oPCR != test_oPCR);
-
-/*		hilf = (OPCR*) &old_oPCR;
-		if (hilf->PTPConnCount == 1) { // if we were the last owner of this connection
-			cout << "deallocating 1394 resources\n";
-			unsigned int BWU=hilf->OvhdID?hilf->OvhdID*32:512;
-			BWU += (hilf->PayloadLo + (hilf->PayloadHi << 8) +3) * (2 << (3-hilf->DataRate));
-			if (deallocate_1394_resources(iso_channel,BWU))
-			{
-				cout << "Deallocation of resources failed\n";
-				return -3;
-			}
-		}*/
-    }
-	return 0;
+		if (++attempts < 6) /* arbitrary limit */
+			goto repeat;
+	}
 }
