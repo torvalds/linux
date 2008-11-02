@@ -1390,7 +1390,8 @@ static u32 atl1_check_link(struct atl1_adapter *adapter)
 	/* auto-neg, insert timer to re-config phy */
 	if (!adapter->phy_timer_pending) {
 		adapter->phy_timer_pending = true;
-		mod_timer(&adapter->phy_config_timer, jiffies + 3 * HZ);
+		mod_timer(&adapter->phy_config_timer,
+			  round_jiffies(jiffies + 3 * HZ));
 	}
 
 	return 0;
@@ -1662,6 +1663,7 @@ static void atl1_via_workaround(struct atl1_adapter *adapter)
 
 static void atl1_inc_smb(struct atl1_adapter *adapter)
 {
+	struct net_device *netdev = adapter->netdev;
 	struct stats_msg_block *smb = adapter->smb.smb;
 
 	/* Fill out the OS statistics structure */
@@ -1704,30 +1706,30 @@ static void atl1_inc_smb(struct atl1_adapter *adapter)
 	adapter->soft_stats.tx_trunc += smb->tx_trunc;
 	adapter->soft_stats.tx_pause += smb->tx_pause;
 
-	adapter->net_stats.rx_packets = adapter->soft_stats.rx_packets;
-	adapter->net_stats.tx_packets = adapter->soft_stats.tx_packets;
-	adapter->net_stats.rx_bytes = adapter->soft_stats.rx_bytes;
-	adapter->net_stats.tx_bytes = adapter->soft_stats.tx_bytes;
-	adapter->net_stats.multicast = adapter->soft_stats.multicast;
-	adapter->net_stats.collisions = adapter->soft_stats.collisions;
-	adapter->net_stats.rx_errors = adapter->soft_stats.rx_errors;
-	adapter->net_stats.rx_over_errors =
+	netdev->stats.rx_packets = adapter->soft_stats.rx_packets;
+	netdev->stats.tx_packets = adapter->soft_stats.tx_packets;
+	netdev->stats.rx_bytes = adapter->soft_stats.rx_bytes;
+	netdev->stats.tx_bytes = adapter->soft_stats.tx_bytes;
+	netdev->stats.multicast = adapter->soft_stats.multicast;
+	netdev->stats.collisions = adapter->soft_stats.collisions;
+	netdev->stats.rx_errors = adapter->soft_stats.rx_errors;
+	netdev->stats.rx_over_errors =
 		adapter->soft_stats.rx_missed_errors;
-	adapter->net_stats.rx_length_errors =
+	netdev->stats.rx_length_errors =
 		adapter->soft_stats.rx_length_errors;
-	adapter->net_stats.rx_crc_errors = adapter->soft_stats.rx_crc_errors;
-	adapter->net_stats.rx_frame_errors =
+	netdev->stats.rx_crc_errors = adapter->soft_stats.rx_crc_errors;
+	netdev->stats.rx_frame_errors =
 		adapter->soft_stats.rx_frame_errors;
-	adapter->net_stats.rx_fifo_errors = adapter->soft_stats.rx_fifo_errors;
-	adapter->net_stats.rx_missed_errors =
+	netdev->stats.rx_fifo_errors = adapter->soft_stats.rx_fifo_errors;
+	netdev->stats.rx_missed_errors =
 		adapter->soft_stats.rx_missed_errors;
-	adapter->net_stats.tx_errors = adapter->soft_stats.tx_errors;
-	adapter->net_stats.tx_fifo_errors = adapter->soft_stats.tx_fifo_errors;
-	adapter->net_stats.tx_aborted_errors =
+	netdev->stats.tx_errors = adapter->soft_stats.tx_errors;
+	netdev->stats.tx_fifo_errors = adapter->soft_stats.tx_fifo_errors;
+	netdev->stats.tx_aborted_errors =
 		adapter->soft_stats.tx_aborted_errors;
-	adapter->net_stats.tx_window_errors =
+	netdev->stats.tx_window_errors =
 		adapter->soft_stats.tx_window_errors;
-	adapter->net_stats.tx_carrier_errors =
+	netdev->stats.tx_carrier_errors =
 		adapter->soft_stats.tx_carrier_errors;
 }
 
@@ -1860,7 +1862,7 @@ static u16 atl1_alloc_rx_buffers(struct atl1_adapter *adapter)
 				       adapter->rx_buffer_len + NET_IP_ALIGN);
 		if (unlikely(!skb)) {
 			/* Better luck next round */
-			adapter->net_stats.rx_dropped++;
+			adapter->netdev->stats.rx_dropped++;
 			break;
 		}
 
@@ -2524,17 +2526,6 @@ static irqreturn_t atl1_intr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-/*
- * atl1_watchdog - Timer Call-back
- * @data: pointer to netdev cast into an unsigned long
- */
-static void atl1_watchdog(unsigned long data)
-{
-	struct atl1_adapter *adapter = (struct atl1_adapter *)data;
-
-	/* Reset the timer */
-	mod_timer(&adapter->watchdog_timer, jiffies + 2 * HZ);
-}
 
 /*
  * atl1_phy_config - Timer Call-back
@@ -2607,7 +2598,6 @@ static s32 atl1_up(struct atl1_adapter *adapter)
 	if (unlikely(err))
 		goto err_up;
 
-	mod_timer(&adapter->watchdog_timer, jiffies);
 	atlx_irq_enable(adapter);
 	atl1_check_link(adapter);
 	netif_start_queue(netdev);
@@ -2625,7 +2615,6 @@ static void atl1_down(struct atl1_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 
 	netif_stop_queue(netdev);
-	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_config_timer);
 	adapter->phy_timer_pending = false;
 
@@ -2983,7 +2972,7 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 	netdev->open = &atl1_open;
 	netdev->stop = &atl1_close;
 	netdev->hard_start_xmit = &atl1_xmit_frame;
-	netdev->get_stats = &atlx_get_stats;
+
 	netdev->set_multicast_list = &atlx_set_multi;
 	netdev->set_mac_address = &atl1_set_mac;
 	netdev->change_mtu = &atl1_change_mtu;
@@ -3049,13 +3038,8 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
 
-	init_timer(&adapter->watchdog_timer);
-	adapter->watchdog_timer.function = &atl1_watchdog;
-	adapter->watchdog_timer.data = (unsigned long)adapter;
-
-	init_timer(&adapter->phy_config_timer);
-	adapter->phy_config_timer.function = &atl1_phy_config;
-	adapter->phy_config_timer.data = (unsigned long)adapter;
+	setup_timer(&adapter->phy_config_timer, &atl1_phy_config,
+		    (unsigned long)adapter);
 	adapter->phy_timer_pending = false;
 
 	INIT_WORK(&adapter->tx_timeout_task, atl1_tx_timeout_task);
@@ -3173,8 +3157,6 @@ static struct atl1_stats atl1_gstrings_stats[] = {
 	{"tx_bytes", ATL1_STAT(soft_stats.tx_bytes)},
 	{"rx_errors", ATL1_STAT(soft_stats.rx_errors)},
 	{"tx_errors", ATL1_STAT(soft_stats.tx_errors)},
-	{"rx_dropped", ATL1_STAT(net_stats.rx_dropped)},
-	{"tx_dropped", ATL1_STAT(net_stats.tx_dropped)},
 	{"multicast", ATL1_STAT(soft_stats.multicast)},
 	{"collisions", ATL1_STAT(soft_stats.collisions)},
 	{"rx_length_errors", ATL1_STAT(soft_stats.rx_length_errors)},
