@@ -63,7 +63,7 @@ int cx18_av_loadfw(struct cx18 *cx)
 			int retries2;
 			int unrec_err = 0;
 
-			for (retries2 = 0; retries2 < CX18_MAX_MMIO_RETRIES;
+			for (retries2 = 0; retries2 < CX18_MAX_MMIO_WR_RETRIES;
 			     retries2++) {
 				cx18_av_write4_noretry(cx, CXADEC_DL_CTL,
 						       dl_control);
@@ -82,7 +82,7 @@ int cx18_av_loadfw(struct cx18 *cx)
 			}
 			cx18_log_write_retries(cx, retries2,
 					cx->reg_mem + 0xc40000 + CXADEC_DL_CTL);
-			if (unrec_err || retries2 >= CX18_MAX_MMIO_RETRIES)
+			if (unrec_err || retries2 >= CX18_MAX_MMIO_WR_RETRIES)
 				break;
 		}
 		if (i == size)

@@ -353,11 +353,12 @@ struct cx18_i2c_algo_callback_data {
 	int bus_index;   /* 0 or 1 for the cx23418's 1st or 2nd I2C bus */
 };
 
-#define CX18_MAX_MMIO_RETRIES 10
+#define CX18_MAX_MMIO_WR_RETRIES 10
+#define CX18_MAX_MMIO_RD_RETRIES  2
 
 struct cx18_mmio_stats {
-	atomic_t retried_write[CX18_MAX_MMIO_RETRIES+1];
-	atomic_t retried_read[CX18_MAX_MMIO_RETRIES+1];
+	atomic_t retried_write[CX18_MAX_MMIO_WR_RETRIES+1];
+	atomic_t retried_read[CX18_MAX_MMIO_RD_RETRIES+1];
 };
 
 /* Struct to hold info about cx18 cards */

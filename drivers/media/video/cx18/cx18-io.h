@@ -41,8 +41,8 @@ static inline void cx18_io_delay(struct cx18 *cx)
 static inline
 void cx18_log_write_retries(struct cx18 *cx, int i, const void __iomem *addr)
 {
-	if (i > CX18_MAX_MMIO_RETRIES)
-		i = CX18_MAX_MMIO_RETRIES;
+	if (i > CX18_MAX_MMIO_WR_RETRIES)
+		i = CX18_MAX_MMIO_WR_RETRIES;
 	atomic_inc(&cx->mmio_stats.retried_write[i]);
 	return;
 }
@@ -50,8 +50,8 @@ void cx18_log_write_retries(struct cx18 *cx, int i, const void __iomem *addr)
 static inline
 void cx18_log_read_retries(struct cx18 *cx, int i, const void __iomem *addr)
 {
-	if (i > CX18_MAX_MMIO_RETRIES)
-		i = CX18_MAX_MMIO_RETRIES;
+	if (i > CX18_MAX_MMIO_RD_RETRIES)
+		i = CX18_MAX_MMIO_RD_RETRIES;
 	atomic_inc(&cx->mmio_stats.retried_read[i]);
 	return;
 }
