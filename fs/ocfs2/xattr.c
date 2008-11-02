@@ -777,6 +777,11 @@ static int ocfs2_xattr_block_get(struct inode *inode,
 		goto cleanup;
 	}
 
+	if (xs->not_found) {
+		ret = -ENODATA;
+		goto cleanup;
+	}
+
 	xb = (struct ocfs2_xattr_block *)xs->xattr_bh->b_data;
 	size = le64_to_cpu(xs->here->xe_value_size);
 	if (buffer) {
@@ -860,7 +865,7 @@ static int ocfs2_xattr_get(struct inode *inode,
 	down_read(&oi->ip_xattr_sem);
 	ret = ocfs2_xattr_ibody_get(inode, name_index, name, buffer,
 				    buffer_size, &xis);
-	if (ret == -ENODATA)
+	if (ret == -ENODATA && di->i_xattr_loc)
 		ret = ocfs2_xattr_block_get(inode, name_index, name, buffer,
 					    buffer_size, &xbs);
 	up_read(&oi->ip_xattr_sem);
