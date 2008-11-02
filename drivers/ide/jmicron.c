@@ -1,6 +1,6 @@
 
 /*
- * Copyright (C) 2006		Red Hat <alan@redhat.com>
+ * Copyright (C) 2006		Red Hat
  *
  *  May be copied or modified under the terms of the GNU General Public License
  */
