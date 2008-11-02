@@ -1897,7 +1897,11 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = PCI_VENDOR_ID_ATI,
 		.subdevice = 0x00f8,
 		.card      = CX88_BOARD_ATI_WONDER_PRO,
-	},{
+	}, {
+		.subvendor = PCI_VENDOR_ID_ATI,
+		.subdevice = 0x00f9,
+		.card      = CX88_BOARD_ATI_WONDER_PRO,
+	}, {
 		.subvendor = 0x107d,
 		.subdevice = 0x6611,
 		.card      = CX88_BOARD_WINFAST2000XP_EXPERT,

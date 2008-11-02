@@ -2,7 +2,7 @@
   1 -> Hauppauge WinTV 34xxx models                        [0070:3400,0070:3401]
   2 -> GDI Black Gold                                      [14c7:0106,14c7:0107]
   3 -> PixelView                                           [1554:4811]
-  4 -> ATI TV Wonder Pro                                   [1002:00f8]
+  4 -> ATI TV Wonder Pro                                   [1002:00f8,1002:00f9]
   5 -> Leadtek Winfast 2000XP Expert                       [107d:6611,107d:6613]
   6 -> AverTV Studio 303 (M126)                            [1461:000b]
   7 -> MSI TV-@nywhere Master                              [1462:8606]
