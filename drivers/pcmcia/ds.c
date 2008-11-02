@@ -668,6 +668,8 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
         list_for_each_entry(tmp_dev, &s->devices_list, socket_device_list)
                 if (p_dev->func == tmp_dev->func) {
 			p_dev->function_config = tmp_dev->function_config;
+			p_dev->io = tmp_dev->io;
+			p_dev->irq = tmp_dev->irq;
 			kref_get(&p_dev->function_config->ref);
 		}
 
