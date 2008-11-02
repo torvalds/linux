@@ -189,6 +189,11 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 	inet_sk(sk)->num = snum;
 	sk->sk_hash = snum;
 	if (sk_unhashed(sk)) {
+		/*
+		 * We need that previous write to sk->sk_hash committed
+		 * before write to sk->next done in following add_node() variant
+		 */
+		smp_wmb();
 		sk_add_node_rcu(sk, &hslot->head);
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	}
