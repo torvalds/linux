@@ -1,0 +1,8 @@
+TODO:
+	- remove subdirectories
+	- fix minor checkpatch.pl issues
+	- remove wrappers around common iowrite functions
+	- full netdev audit of common problems/issues
+
+Please send all patches and questions to Subbu Seetharaman
+<subbus@serverengines.com> and Greg Kroah-Hartman <greg@kroah.com>
