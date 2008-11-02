@@ -2075,7 +2075,6 @@ static int pfkey_xfrm_policy2msg(struct sk_buff *skb, struct xfrm_policy *xp, in
 			req_size += socklen * 2;
 		} else {
 			size -= 2*socklen;
-			socklen = 0;
 		}
 		rq = (void*)skb_put(skb, req_size);
 		pol->sadb_x_policy_len += req_size/8;
