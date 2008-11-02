@@ -189,7 +189,6 @@ struct pci_controller * __devinit init_phb_dynamic(struct device_node *dn)
 {
 	struct pci_controller *phb;
 	int primary;
-	struct pci_bus *b;
 
 	primary = list_empty(&hose_list);
 	phb = pcibios_alloc_controller(dn);
