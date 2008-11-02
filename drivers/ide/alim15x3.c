@@ -5,7 +5,7 @@
  *
  *  Copyright (C) 1998-2000 Andre Hedrick (andre@linux-ide.org)
  *  May be copied or modified under the terms of the GNU General Public License
- *  Copyright (C) 2002 Alan Cox <alan@redhat.com>
+ *  Copyright (C) 2002 Alan Cox
  *  ALi (now ULi M5228) support by Clear Zhang <Clear.Zhang@ali.com.tw>
  *  Copyright (C) 2007 MontaVista Software, Inc. <source@mvista.com>
  *  Copyright (C) 2007 Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>

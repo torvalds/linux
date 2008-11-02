@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 1997-1998	Mark Lord
- *  Copyright (C) 2003		Red Hat <alan@redhat.com>
+ *  Copyright (C) 2003		Red Hat
  *
  *  Some code was moved here from ide.c, see it for original copyrights.
  */
