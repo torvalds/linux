@@ -1136,7 +1136,7 @@ static inline void pci_mmcfg_late_init(void) { }
 #endif
 
 #ifdef CONFIG_HAS_IOMEM
-static inline void * pci_ioremap_bar(struct pci_dev *pdev, int bar)
+static inline void __iomem *pci_ioremap_bar(struct pci_dev *pdev, int bar)
 {
 	/*
 	 * Make sure the BAR is actually a memory resource, not an IO resource
