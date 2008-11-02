@@ -1779,8 +1779,8 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	/* register with sysfs */
 	rdev->dev.class = &regulator_class;
 	rdev->dev.parent = dev;
-	snprintf(rdev->dev.bus_id, sizeof(rdev->dev.bus_id),
-		 "regulator.%d", atomic_inc_return(&regulator_no) - 1);
+	dev_set_name(&rdev->dev, "regulator.%d",
+		     atomic_inc_return(&regulator_no) - 1);
 	ret = device_register(&rdev->dev);
 	if (ret != 0) {
 		kfree(rdev);
