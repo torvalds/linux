@@ -233,7 +233,11 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		 */
 		cb->time_to_send = psched_get_time();
 		q->counter = 0;
-		ret = q->qdisc->ops->requeue(skb, q->qdisc);
+
+		__skb_queue_head(&q->qdisc->q, skb);
+		q->qdisc->qstats.backlog += qdisc_pkt_len(skb);
+		q->qdisc->qstats.requeues++;
+		ret = NET_XMIT_SUCCESS;
 	}
 
 	if (likely(ret == NET_XMIT_SUCCESS)) {
