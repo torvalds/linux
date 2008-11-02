@@ -146,6 +146,20 @@ static int ahash_setkey(struct crypto_ahash *tfm, const u8 *key,
 	return ahash->setkey(tfm, key, keylen);
 }
 
+int crypto_ahash_import(struct ahash_request *req, const u8 *in)
+{
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct ahash_alg *alg = crypto_ahash_alg(tfm);
+
+	memcpy(ahash_request_ctx(req), in, crypto_ahash_reqsize(tfm));
+
+	if (alg->reinit)
+		alg->reinit(req);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(crypto_ahash_import);
+
 static unsigned int crypto_ahash_ctxsize(struct crypto_alg *alg, u32 type,
 					u32 mask)
 {

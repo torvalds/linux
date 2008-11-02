@@ -24,6 +24,7 @@ struct shash_desc {
 
 struct shash_alg {
 	int (*init)(struct shash_desc *desc);
+	int (*reinit)(struct shash_desc *desc);
 	int (*update)(struct shash_desc *desc, const u8 *data,
 		      unsigned int len);
 	int (*final)(struct shash_desc *desc, u8 *out);
@@ -116,6 +117,11 @@ static inline unsigned int crypto_ahash_reqsize(struct crypto_ahash *tfm)
 	return crypto_ahash_crt(tfm)->reqsize;
 }
 
+static inline void *ahash_request_ctx(struct ahash_request *req)
+{
+	return req->__ctx;
+}
+
 static inline int crypto_ahash_setkey(struct crypto_ahash *tfm,
 				      const u8 *key, unsigned int keylen)
 {
@@ -129,6 +135,14 @@ static inline int crypto_ahash_digest(struct ahash_request *req)
 	struct ahash_tfm *crt = crypto_ahash_crt(crypto_ahash_reqtfm(req));
 	return crt->digest(req);
 }
+
+static inline void crypto_ahash_export(struct ahash_request *req, u8 *out)
+{
+	memcpy(out, ahash_request_ctx(req),
+	       crypto_ahash_reqsize(crypto_ahash_reqtfm(req)));
+}
+
+int crypto_ahash_import(struct ahash_request *req, const u8 *in);
 
 static inline int crypto_ahash_init(struct ahash_request *req)
 {
@@ -261,6 +275,13 @@ int crypto_shash_setkey(struct crypto_shash *tfm, const u8 *key,
 			unsigned int keylen);
 int crypto_shash_digest(struct shash_desc *desc, const u8 *data,
 			unsigned int len, u8 *out);
+
+static inline void crypto_shash_export(struct shash_desc *desc, u8 *out)
+{
+	memcpy(out, shash_desc_ctx(desc), crypto_shash_descsize(desc->tfm));
+}
+
+int crypto_shash_import(struct shash_desc *desc, const u8 *in);
 
 static inline int crypto_shash_init(struct shash_desc *desc)
 {

@@ -66,11 +66,6 @@ static inline struct ahash_request *ahash_dequeue_request(
 	return ahash_request_cast(crypto_dequeue_request(queue));
 }
 
-static inline void *ahash_request_ctx(struct ahash_request *req)
-{
-	return req->__ctx;
-}
-
 static inline int ahash_tfm_in_queue(struct crypto_queue *queue,
 					  struct crypto_ahash *tfm)
 {

@@ -172,6 +172,20 @@ int crypto_shash_digest(struct shash_desc *desc, const u8 *data,
 }
 EXPORT_SYMBOL_GPL(crypto_shash_digest);
 
+int crypto_shash_import(struct shash_desc *desc, const u8 *in)
+{
+	struct crypto_shash *tfm = desc->tfm;
+	struct shash_alg *alg = crypto_shash_alg(tfm);
+
+	memcpy(shash_desc_ctx(desc), in, crypto_shash_descsize(tfm));
+
+	if (alg->reinit)
+		alg->reinit(desc);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(crypto_shash_import);
+
 static int shash_async_setkey(struct crypto_ahash *tfm, const u8 *key,
 			      unsigned int keylen)
 {

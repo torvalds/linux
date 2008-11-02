@@ -221,6 +221,7 @@ struct ablkcipher_alg {
 
 struct ahash_alg {
 	int (*init)(struct ahash_request *req);
+	int (*reinit)(struct ahash_request *req);
 	int (*update)(struct ahash_request *req);
 	int (*final)(struct ahash_request *req);
 	int (*digest)(struct ahash_request *req);
