@@ -445,7 +445,7 @@ static int hpet_setup_irq(struct hpet_dev *dev)
 {
 
 	if (request_irq(dev->irq, hpet_interrupt_handler,
-			IRQF_SHARED|IRQF_NOBALANCING, dev->name, dev))
+			IRQF_DISABLED|IRQF_NOBALANCING, dev->name, dev))
 		return -1;
 
 	disable_irq(dev->irq);
