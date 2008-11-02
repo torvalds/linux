@@ -302,6 +302,9 @@ struct cx18_av_state {
 int cx18_av_write(struct cx18 *cx, u16 addr, u8 value);
 int cx18_av_write4(struct cx18 *cx, u16 addr, u32 value);
 int cx18_av_write4_noretry(struct cx18 *cx, u16 addr, u32 value);
+int cx18_av_write_expect(struct cx18 *cx, u16 addr, u8 value, u8 eval, u8 mask);
+int cx18_av_write4_expect(struct cx18 *cx, u16 addr, u32 value, u32 eval,
+			  u32 mask);
 u8 cx18_av_read(struct cx18 *cx, u16 addr);
 u32 cx18_av_read4(struct cx18 *cx, u16 addr);
 u32 cx18_av_read4_noretry(struct cx18 *cx, u16 addr);

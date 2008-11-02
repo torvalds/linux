@@ -27,6 +27,7 @@
 #include "cx18-gpio.h"
 #include "cx18-av-core.h"
 #include "cx18-i2c.h"
+#include "cx18-irq.h"
 
 #define CX18_REG_I2C_1_WR   0xf15000
 #define CX18_REG_I2C_1_RD   0xf15008
@@ -396,22 +397,31 @@ int init_cx18_i2c(struct cx18 *cx)
 	if (cx18_read_reg(cx, CX18_REG_I2C_2_WR) != 0x0003c02f) {
 		/* Reset/Unreset I2C hardware block */
 		/* Clock select 220MHz */
-		cx18_write_reg(cx, 0x10000000, 0xc71004);
+		cx18_write_reg_expect(cx, 0x10000000, 0xc71004,
+					  0x00000000, 0x10001000);
 		/* Clock Enable */
-		cx18_write_reg_sync(cx, 0x10001000, 0xc71024);
+		cx18_write_reg_expect(cx, 0x10001000, 0xc71024,
+					  0x00001000, 0x10001000);
 	}
 	/* courtesy of Steven Toth <stoth@hauppauge.com> */
-	cx18_write_reg_sync(cx, 0x00c00000, 0xc7001c);
+	cx18_write_reg_expect(cx, 0x00c00000, 0xc7001c, 0x00000000, 0x00c000c0);
+	if (!cx18_retry_mmio)
+		(void) cx18_read_reg(cx, 0xc7001c); /* sync */
 	mdelay(10);
-	cx18_write_reg_sync(cx, 0x00c000c0, 0xc7001c);
+	cx18_write_reg_expect(cx, 0x00c000c0, 0xc7001c, 0x000000c0, 0x00c000c0);
+	if (!cx18_retry_mmio)
+		(void) cx18_read_reg(cx, 0xc7001c); /* sync */
 	mdelay(10);
-	cx18_write_reg_sync(cx, 0x00c00000, 0xc7001c);
+	cx18_write_reg_expect(cx, 0x00c00000, 0xc7001c, 0x00000000, 0x00c000c0);
+	if (!cx18_retry_mmio)
+		(void) cx18_read_reg(cx, 0xc7001c); /* sync */
 	mdelay(10);
 
 	/* Set to edge-triggered intrs. */
-	cx18_write_reg_sync(cx, 0x00c00000, 0xc730c8);
+	cx18_write_reg(cx, 0x00c00000, 0xc730c8);
 	/* Clear any stale intrs */
-	cx18_write_reg_sync(cx, 0x00c00000, 0xc730c4);
+	cx18_write_reg_expect(cx, HW2_I2C1_INT|HW2_I2C2_INT, HW2_INT_CLR_STATUS,
+		       ~(HW2_I2C1_INT|HW2_I2C2_INT), HW2_I2C1_INT|HW2_I2C2_INT);
 
 	/* Hw I2C1 Clock Freq ~100kHz */
 	cx18_write_reg_sync(cx, 0x00021c0f & ~4, CX18_REG_I2C_1_WR);

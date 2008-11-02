@@ -200,8 +200,10 @@ static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx)
 void cx18_halt_firmware(struct cx18 *cx)
 {
 	CX18_DEBUG_INFO("Preparing for firmware halt.\n");
-	cx18_write_reg(cx, 0x000F000F, CX18_PROC_SOFT_RESET); /* stop the fw */
-	cx18_write_reg(cx, 0x00020002, CX18_ADEC_CONTROL);
+	cx18_write_reg_expect(cx, 0x000F000F, CX18_PROC_SOFT_RESET,
+				  0x0000000F, 0x000F000F);
+	cx18_write_reg_expect(cx, 0x00020002, CX18_ADEC_CONTROL,
+				  0x00000002, 0x00020002);
 }
 
 void cx18_init_power(struct cx18 *cx, int lowpwr)
@@ -211,7 +213,8 @@ void cx18_init_power(struct cx18 *cx, int lowpwr)
 	cx18_write_reg(cx, 0x00000008, CX18_PLL_POWER_DOWN);
 
 	/* ADEC out of sleep */
-	cx18_write_reg(cx, 0x00020000, CX18_ADEC_CONTROL);
+	cx18_write_reg_expect(cx, 0x00020000, CX18_ADEC_CONTROL,
+				  0x00000000, 0x00020002);
 
 	/* The fast clock is at 200/245 MHz */
 	cx18_write_reg(cx, lowpwr ? 0xD : 0x11, CX18_FAST_CLOCK_PLL_INT);
@@ -248,22 +251,34 @@ void cx18_init_power(struct cx18 *cx, int lowpwr)
 	/* VFC = disabled */
 	/* USB = disabled */
 
-	cx18_write_reg(cx, lowpwr ? 0xFFFF0020 : 0x00060004,
-							CX18_CLOCK_SELECT1);
-	cx18_write_reg(cx, lowpwr ? 0xFFFF0004 : 0x00060006,
-							CX18_CLOCK_SELECT2);
+	if (lowpwr) {
+		cx18_write_reg_expect(cx, 0xFFFF0020, CX18_CLOCK_SELECT1,
+					  0x00000020, 0xFFFFFFFF);
+		cx18_write_reg_expect(cx, 0xFFFF0004, CX18_CLOCK_SELECT2,
+					  0x00000004, 0xFFFFFFFF);
+	} else {
+		/* This doesn't explicitly set every clock select */
+		cx18_write_reg_expect(cx, 0x00060004, CX18_CLOCK_SELECT1,
+					  0x00000004, 0x00060006);
+		cx18_write_reg_expect(cx, 0x00060006, CX18_CLOCK_SELECT2,
+					  0x00000006, 0x00060006);
+	}
 
-	cx18_write_reg(cx, 0xFFFF0002, CX18_HALF_CLOCK_SELECT1);
-	cx18_write_reg(cx, 0xFFFF0104, CX18_HALF_CLOCK_SELECT2);
-
-	cx18_write_reg(cx, 0xFFFF9026, CX18_CLOCK_ENABLE1);
-	cx18_write_reg(cx, 0xFFFF3105, CX18_CLOCK_ENABLE2);
+	cx18_write_reg_expect(cx, 0xFFFF0002, CX18_HALF_CLOCK_SELECT1,
+				  0x00000002, 0xFFFFFFFF);
+	cx18_write_reg_expect(cx, 0xFFFF0104, CX18_HALF_CLOCK_SELECT2,
+				  0x00000104, 0xFFFFFFFF);
+	cx18_write_reg_expect(cx, 0xFFFF9026, CX18_CLOCK_ENABLE1,
+				  0x00009026, 0xFFFFFFFF);
+	cx18_write_reg_expect(cx, 0xFFFF3105, CX18_CLOCK_ENABLE2,
+				  0x00003105, 0xFFFFFFFF);
 }
 
 void cx18_init_memory(struct cx18 *cx)
 {
 	cx18_msleep_timeout(10, 0);
-	cx18_write_reg(cx, 0x10000, CX18_DDR_SOFT_RESET);
+	cx18_write_reg_expect(cx, 0x00010000, CX18_DDR_SOFT_RESET,
+				  0x00000000, 0x00010001);
 	cx18_msleep_timeout(10, 0);
 
 	cx18_write_reg(cx, cx->card->ddr.chip_config, CX18_DDR_CHIP_CONFIG);
@@ -282,13 +297,15 @@ void cx18_init_memory(struct cx18 *cx)
 
 	cx18_msleep_timeout(10, 0);
 
-	cx18_write_reg(cx, 0x20000, CX18_DDR_SOFT_RESET);
+	cx18_write_reg_expect(cx, 0x00020000, CX18_DDR_SOFT_RESET,
+				  0x00000000, 0x00020002);
 	cx18_msleep_timeout(10, 0);
 
 	/* use power-down mode when idle */
 	cx18_write_reg(cx, 0x00000010, CX18_DDR_POWER_REG);
 
-	cx18_write_reg(cx, 0x10001, CX18_REG_BUS_TIMEOUT_EN);
+	cx18_write_reg_expect(cx, 0x00010001, CX18_REG_BUS_TIMEOUT_EN,
+				  0x00000001, 0x00010001);
 
 	cx18_write_reg(cx, 0x48, CX18_DDR_MB_PER_ROW_7);
 	cx18_write_reg(cx, 0xE0000, CX18_DDR_BASE_63_ADDR);
@@ -310,7 +327,9 @@ int cx18_firmware_init(struct cx18 *cx)
 	/* Allow chip to control CLKRUN */
 	cx18_write_reg(cx, 0x5, CX18_DSP0_INTERRUPT_MASK);
 
-	cx18_write_reg(cx, 0x000F000F, CX18_PROC_SOFT_RESET); /* stop the fw */
+	/* Stop the firmware */
+	cx18_write_reg_expect(cx, 0x000F000F, CX18_PROC_SOFT_RESET,
+				  0x0000000F, 0x000F000F);
 
 	cx18_msleep_timeout(1, 0);
 
@@ -325,7 +344,8 @@ int cx18_firmware_init(struct cx18 *cx)
 		cx18_write_enc(cx, 0xE51FF004, 0);
 		cx18_write_enc(cx, 0xa00000, 4);  /* todo: not hardcoded */
 		/* Start APU */
-		cx18_write_reg(cx, 0x00010000, CX18_PROC_SOFT_RESET);
+		cx18_write_reg_expect(cx, 0x00010000, CX18_PROC_SOFT_RESET,
+					  0x00000000, 0x00010001);
 		cx18_msleep_timeout(500, 0);
 
 		sz = sz <= 0 ? sz : load_cpu_fw_direct("v4l-cx23418-cpu.fw",
@@ -335,7 +355,9 @@ int cx18_firmware_init(struct cx18 *cx)
 			int retries = 0;
 
 			/* start the CPU */
-			cx18_write_reg(cx, 0x00080000, CX18_PROC_SOFT_RESET);
+			cx18_write_reg_expect(cx,
+					      0x00080000, CX18_PROC_SOFT_RESET,
+					      0x00000000, 0x00080008);
 			while (retries++ < 50) { /* Loop for max 500mS */
 				if ((cx18_read_reg(cx, CX18_PROC_SOFT_RESET)
 				     & 1) == 0)
@@ -352,6 +374,6 @@ int cx18_firmware_init(struct cx18 *cx)
 			return -EIO;
 	}
 	/* initialize GPIO */
-	cx18_write_reg(cx, 0x14001400, 0xC78110);
+	cx18_write_reg_expect(cx, 0x14001400, 0xc78110, 0x00001400, 0x14001400);
 	return 0;
 }
