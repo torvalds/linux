@@ -110,11 +110,6 @@ static int prism2sta_probe_usb(
 	 * linux netdevice.
 	 */
 	SET_NETDEV_DEV(wlandev->netdev, &(interface->dev));
-        if ( register_wlandev(wlandev) != 0 ) {
-		WLAN_LOG_ERROR("%s: register_wlandev() failed.\n", dev_info);
-		result = -EIO;
-		goto failed;
-        }
 
 	/* Do a chip-level reset on the MAC */
 	if (prism2_doreset) {
@@ -135,6 +130,15 @@ static int prism2sta_probe_usb(
 	usb_get_dev(dev);
 
 	wlandev->msdstate = WLAN_MSD_HWPRESENT;
+
+        if ( register_wlandev(wlandev) != 0 ) {
+		WLAN_LOG_ERROR("%s: register_wlandev() failed.\n", dev_info);
+		result = -EIO;
+		goto failed;
+        }
+
+/* enable the card */
+	prism2sta_ifstate(wlandev, P80211ENUM_ifstate_enable);
 
 	goto done;
 
