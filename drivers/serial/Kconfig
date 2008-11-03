@@ -455,6 +455,16 @@ config SERIAL_SAMSUNG
 	  provide all of these ports, depending on how the serial port
 	  pins are configured.
 
+config SERIAL_SAMSUNG_UARTS
+	int
+	depends on SERIAL_SAMSUNG
+	default 2 if ARCH_S3C2400
+	default 4 if ARCH_S3C64XX || CPU_S3C2443
+	default 3
+	help
+	  Select the number of available UART ports for the Samsung S3C
+	  serial driver
+	
 config SERIAL_SAMSUNG_DEBUG
 	bool "Samsung SoC serial debug"
 	depends on SERIAL_SAMSUNG && DEBUG_LL
