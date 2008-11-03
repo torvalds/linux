@@ -1874,7 +1874,7 @@ static void *listening_get_next(struct seq_file *seq, void *cur)
 	struct inet_connection_sock *icsk;
 	struct hlist_node *node;
 	struct sock *sk = cur;
-	struct tcp_iter_state* st = seq->private;
+	struct tcp_iter_state *st = seq->private;
 	struct net *net = seq_file_net(seq);
 
 	if (!sk) {
@@ -1960,7 +1960,7 @@ static inline int empty_bucket(struct tcp_iter_state *st)
 
 static void *established_get_first(struct seq_file *seq)
 {
-	struct tcp_iter_state* st = seq->private;
+	struct tcp_iter_state *st = seq->private;
 	struct net *net = seq_file_net(seq);
 	void *rc = NULL;
 
@@ -2005,7 +2005,7 @@ static void *established_get_next(struct seq_file *seq, void *cur)
 	struct sock *sk = cur;
 	struct inet_timewait_sock *tw;
 	struct hlist_node *node;
-	struct tcp_iter_state* st = seq->private;
+	struct tcp_iter_state *st = seq->private;
 	struct net *net = seq_file_net(seq);
 
 	++st->num;
@@ -2064,7 +2064,7 @@ static void *established_get_idx(struct seq_file *seq, loff_t pos)
 static void *tcp_get_idx(struct seq_file *seq, loff_t pos)
 {
 	void *rc;
-	struct tcp_iter_state* st = seq->private;
+	struct tcp_iter_state *st = seq->private;
 
 	inet_listen_lock(&tcp_hashinfo);
 	st->state = TCP_SEQ_STATE_LISTENING;
@@ -2081,7 +2081,7 @@ static void *tcp_get_idx(struct seq_file *seq, loff_t pos)
 
 static void *tcp_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	struct tcp_iter_state* st = seq->private;
+	struct tcp_iter_state *st = seq->private;
 	st->state = TCP_SEQ_STATE_LISTENING;
 	st->num = 0;
 	return *pos ? tcp_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
@@ -2090,7 +2090,7 @@ static void *tcp_seq_start(struct seq_file *seq, loff_t *pos)
 static void *tcp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	void *rc = NULL;
-	struct tcp_iter_state* st;
+	struct tcp_iter_state *st;
 
 	if (v == SEQ_START_TOKEN) {
 		rc = tcp_get_idx(seq, 0);
@@ -2120,7 +2120,7 @@ out:
 
 static void tcp_seq_stop(struct seq_file *seq, void *v)
 {
-	struct tcp_iter_state* st = seq->private;
+	struct tcp_iter_state *st = seq->private;
 
 	switch (st->state) {
 	case TCP_SEQ_STATE_OPENREQ:
@@ -2281,7 +2281,7 @@ static void get_timewait4_sock(struct inet_timewait_sock *tw,
 
 static int tcp4_seq_show(struct seq_file *seq, void *v)
 {
-	struct tcp_iter_state* st;
+	struct tcp_iter_state *st;
 	int len;
 
 	if (v == SEQ_START_TOKEN) {
