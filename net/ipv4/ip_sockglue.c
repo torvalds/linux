@@ -94,7 +94,7 @@ static void ip_cmsg_recv_opts(struct msghdr *msg, struct sk_buff *skb)
 static void ip_cmsg_recv_retopts(struct msghdr *msg, struct sk_buff *skb)
 {
 	unsigned char optbuf[sizeof(struct ip_options) + 40];
-	struct ip_options * opt = (struct ip_options*)optbuf;
+	struct ip_options * opt = (struct ip_options *)optbuf;
 
 	if (IPCB(skb)->opt.optlen == 0)
 		return;
@@ -411,7 +411,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			    int optname, char __user *optval, int optlen)
 {
 	struct inet_sock *inet = inet_sk(sk);
-	int val=0,err;
+	int val = 0, err;
 
 	if (((1<<optname) & ((1<<IP_PKTINFO) | (1<<IP_RECVTTL) |
 			     (1<<IP_RECVOPTS) | (1<<IP_RECVTOS) |
@@ -437,7 +437,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 	/* If optlen==0, it is equivalent to val == 0 */
 
 	if (ip_mroute_opt(optname))
-		return ip_mroute_setsockopt(sk,optname,optval,optlen);
+		return ip_mroute_setsockopt(sk, optname, optval, optlen);
 
 	err = 0;
 	lock_sock(sk);
@@ -549,7 +549,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			goto e_inval;
 		if (optlen<1)
 			goto e_inval;
-		if (val==-1)
+		if (val == -1)
 			val = 1;
 		if (val < 0 || val > 255)
 			goto e_inval;
@@ -573,12 +573,12 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 
 		err = -EFAULT;
 		if (optlen >= sizeof(struct ip_mreqn)) {
-			if (copy_from_user(&mreq,optval,sizeof(mreq)))
+			if (copy_from_user(&mreq, optval, sizeof(mreq)))
 				break;
 		} else {
 			memset(&mreq, 0, sizeof(mreq));
 			if (optlen >= sizeof(struct in_addr) &&
-			    copy_from_user(&mreq.imr_address,optval,sizeof(struct in_addr)))
+			    copy_from_user(&mreq.imr_address, optval, sizeof(struct in_addr)))
 				break;
 		}
 
@@ -626,11 +626,11 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			goto e_inval;
 		err = -EFAULT;
 		if (optlen >= sizeof(struct ip_mreqn)) {
-			if (copy_from_user(&mreq,optval,sizeof(mreq)))
+			if (copy_from_user(&mreq, optval, sizeof(mreq)))
 				break;
 		} else {
 			memset(&mreq, 0, sizeof(mreq));
-			if (copy_from_user(&mreq,optval,sizeof(struct ip_mreq)))
+			if (copy_from_user(&mreq, optval, sizeof(struct ip_mreq)))
 				break;
 		}
 
@@ -808,7 +808,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			err = -ENOBUFS;
 			break;
 		}
-		gsf = kmalloc(optlen,GFP_KERNEL);
+		gsf = kmalloc(optlen, GFP_KERNEL);
 		if (!gsf) {
 			err = -ENOBUFS;
 			break;
@@ -828,7 +828,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			goto mc_msf_out;
 		}
 		msize = IP_MSFILTER_SIZE(gsf->gf_numsrc);
-		msf = kmalloc(msize,GFP_KERNEL);
+		msf = kmalloc(msize, GFP_KERNEL);
 		if (!msf) {
 			err = -ENOBUFS;
 			goto mc_msf_out;
@@ -971,9 +971,9 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		return -EOPNOTSUPP;
 
 	if (ip_mroute_opt(optname))
-		return ip_mroute_getsockopt(sk,optname,optval,optlen);
+		return ip_mroute_getsockopt(sk, optname, optval, optlen);
 
-	if (get_user(len,optlen))
+	if (get_user(len, optlen))
 		return -EFAULT;
 	if (len < 0)
 		return -EINVAL;
@@ -984,7 +984,7 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	case IP_OPTIONS:
 	{
 		unsigned char optbuf[sizeof(struct ip_options)+40];
-		struct ip_options * opt = (struct ip_options*)optbuf;
+		struct ip_options * opt = (struct ip_options *)optbuf;
 		opt->optlen = 0;
 		if (inet->opt)
 			memcpy(optbuf, inet->opt,
@@ -1154,13 +1154,13 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		len = 1;
 		if (put_user(len, optlen))
 			return -EFAULT;
-		if (copy_to_user(optval,&ucval,1))
+		if (copy_to_user(optval, &ucval, 1))
 			return -EFAULT;
 	} else {
 		len = min_t(unsigned int, sizeof(int), len);
 		if (put_user(len, optlen))
 			return -EFAULT;
-		if (copy_to_user(optval,&val,len))
+		if (copy_to_user(optval, &val, len))
 			return -EFAULT;
 	}
 	return 0;
@@ -1178,7 +1178,7 @@ int ip_getsockopt(struct sock *sk, int level,
 			!ip_mroute_opt(optname)) {
 		int len;
 
-		if (get_user(len,optlen))
+		if (get_user(len, optlen))
 			return -EFAULT;
 
 		lock_sock(sk);

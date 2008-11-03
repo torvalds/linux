@@ -42,7 +42,7 @@
 /* People can turn this off for buggy TCP's found in printers etc. */
 int sysctl_tcp_retrans_collapse __read_mostly = 1;
 
-/* People can turn this on to  work with those rare, broken TCPs that
+/* People can turn this on to work with those rare, broken TCPs that
  * interpret the window field as a signed quantity.
  */
 int sysctl_tcp_workaround_signed_windows __read_mostly = 0;
@@ -484,7 +484,7 @@ static unsigned tcp_syn_options(struct sock *sk, struct sk_buff *skb,
 	}
 	if (likely(sysctl_tcp_window_scaling)) {
 		opts->ws = tp->rx_opt.rcv_wscale;
-		if(likely(opts->ws))
+		if (likely(opts->ws))
 			size += TCPOLEN_WSCALE_ALIGNED;
 	}
 	if (likely(sysctl_tcp_sack)) {
@@ -526,7 +526,7 @@ static unsigned tcp_synack_options(struct sock *sk,
 
 	if (likely(ireq->wscale_ok)) {
 		opts->ws = ireq->rcv_wscale;
-		if(likely(opts->ws))
+		if (likely(opts->ws))
 			size += TCPOLEN_WSCALE_ALIGNED;
 	}
 	if (likely(doing_ts)) {
@@ -1172,7 +1172,7 @@ static int tcp_init_tso_segs(struct sock *sk, struct sk_buff *skb,
 
 static inline int tcp_minshall_check(const struct tcp_sock *tp)
 {
-	return after(tp->snd_sml,tp->snd_una) &&
+	return after(tp->snd_sml, tp->snd_una) &&
 		!after(tp->snd_sml, tp->snd_nxt);
 }
 
