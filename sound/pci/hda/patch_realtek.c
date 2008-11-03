@@ -5618,6 +5618,19 @@ static int patch_alc260(struct hda_codec *codec)
 	spec->stream_digital_playback = &alc260_pcm_digital_playback;
 	spec->stream_digital_capture = &alc260_pcm_digital_capture;
 
+	if (!spec->adc_nids && spec->input_mux) {
+		/* check whether NID 0x04 is valid */
+		unsigned int wcap = get_wcaps(codec, 0x04);
+		wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+		/* get type */
+		if (wcap != AC_WID_AUD_IN || spec->input_mux->num_items == 1) {
+			spec->adc_nids = alc260_adc_nids_alt;
+			spec->num_adc_nids = ARRAY_SIZE(alc260_adc_nids_alt);
+		} else {
+			spec->adc_nids = alc260_adc_nids;
+			spec->num_adc_nids = ARRAY_SIZE(alc260_adc_nids);
+		}
+	}
 	set_capture_mixer(spec);
 
 	spec->vmaster_nid = 0x08;
