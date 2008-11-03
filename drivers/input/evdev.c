@@ -235,7 +235,6 @@ static int evdev_release(struct inode *inode, struct file *file)
 		evdev_ungrab(evdev, client);
 	mutex_unlock(&evdev->mutex);
 
-	evdev_fasync(-1, file, 0);
 	evdev_detach_client(evdev, client);
 	kfree(client);
 

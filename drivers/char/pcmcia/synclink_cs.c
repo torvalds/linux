@@ -554,7 +554,7 @@ static int mgslpc_probe(struct pcmcia_device *link)
     /* Initialize the struct pcmcia_device structure */
 
     /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
+    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
     link->irq.IRQInfo1   = IRQ_LEVEL_ID;
     link->irq.Handler = NULL;
 

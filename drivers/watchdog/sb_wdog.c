@@ -35,8 +35,8 @@
  * Based on various other watchdog drivers, which are probably all
  * loosely based on something Alan Cox wrote years ago.
  *
- *	(c) Copyright 1996 Alan Cox <alan@redhat.com>, All Rights Reserved.
- *				http://www.redhat.com
+ *	(c) Copyright 1996 Alan Cox <alan@lxorguk.ukuu.org.uk>,
+ *						All Rights Reserved.
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License

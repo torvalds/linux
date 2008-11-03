@@ -870,7 +870,6 @@ static int ipmi_close(struct inode *ino, struct file *filep)
 		clear_bit(0, &ipmi_wdog_open);
 	}
 
-	ipmi_fasync(-1, filep, 0);
 	expect_close = 0;
 
 	return 0;

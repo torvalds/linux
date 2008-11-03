@@ -121,9 +121,6 @@ static ssize_t qeth_l3_dev_route6_show(struct device *dev,
 	if (!card)
 		return -EINVAL;
 
-	if (!qeth_is_supported(card, IPA_IPV6))
-		return sprintf(buf, "%s\n", "n/a");
-
 	return qeth_l3_dev_route_show(card, &card->options.route6, buf);
 }
 
@@ -134,10 +131,6 @@ static ssize_t qeth_l3_dev_route6_store(struct device *dev,
 
 	if (!card)
 		return -EINVAL;
-
-	if (!qeth_is_supported(card, IPA_IPV6)) {
-		return -EOPNOTSUPP;
-	}
 
 	return qeth_l3_dev_route_store(card, &card->options.route6,
 				QETH_PROT_IPV6, buf, count);

@@ -1828,9 +1828,6 @@ static int dv1394_release(struct inode *inode, struct file *file)
 	/* OK to free the DMA buffer, no more mappings can exist */
 	do_dv1394_shutdown(video, 1);
 
-	/* clean up async I/O users */
-	dv1394_fasync(-1, file, 0);
-
 	/* give someone else a turn */
 	clear_bit(0, &video->open);
 

@@ -605,9 +605,9 @@ int lbs_get_tx_power(struct lbs_private *priv, s16 *curlevel, s16 *minlevel,
 	if (ret == 0) {
 		*curlevel = le16_to_cpu(cmd.curlevel);
 		if (minlevel)
-			*minlevel = le16_to_cpu(cmd.minlevel);
+			*minlevel = cmd.minlevel;
 		if (maxlevel)
-			*maxlevel = le16_to_cpu(cmd.maxlevel);
+			*maxlevel = cmd.maxlevel;
 	}
 
 	lbs_deb_leave(LBS_DEB_CMD);

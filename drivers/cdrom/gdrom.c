@@ -495,9 +495,10 @@ static int gdrom_bdops_open(struct block_device *bdev, fmode_t mode)
 	return cdrom_open(gd.cd_info, bdev, mode);
 }
 
-static int gdrom_bdops_release(struct block_device *bdev, fmode_t mode)
+static int gdrom_bdops_release(struct gendisk *disk, fmode_t mode)
 {
-	return cdrom_release(gd.cd_info, mode);
+	cdrom_release(gd.cd_info, mode);
+	return 0;
 }
 
 static int gdrom_bdops_mediachanged(struct gendisk *disk)

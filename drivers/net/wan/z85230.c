@@ -695,7 +695,6 @@ EXPORT_SYMBOL(z8530_nop);
  *	z8530_interrupt - Handle an interrupt from a Z8530
  *	@irq: 	Interrupt number
  *	@dev_id: The Z8530 device that is interrupting.
- *	@regs: unused
  *
  *	A Z85[2]30 device has stuck its hand in the air for attention.
  *	We scan both the channels on the chip for events and then call

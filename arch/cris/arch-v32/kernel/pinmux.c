@@ -11,10 +11,10 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/spinlock.h>
-#include <asm/arch/hwregs/reg_map.h>
-#include <asm/arch/hwregs/reg_rdwr.h>
-#include <asm/arch/pinmux.h>
-#include <asm/arch/hwregs/pinmux_defs.h>
+#include <arch/hwregs/reg_map.h>
+#include <arch/hwregs/reg_rdwr.h>
+#include <arch/pinmux.h>
+#include <arch/hwregs/pinmux_defs.h>
 
 #undef DEBUG
 

@@ -372,6 +372,7 @@ enum {
 	ATA_HORKAGE_IPM		= (1 << 7),	/* Link PM problems */
 	ATA_HORKAGE_IVB		= (1 << 8),	/* cbl det validity bit bugs */
 	ATA_HORKAGE_STUCK_ERR	= (1 << 9),	/* stuck ERR on next PACKET */
+	ATA_HORKAGE_BRIDGE_OK	= (1 << 10),	/* no bridge limits */
 
 	 /* DMA mask for user DMA control: User visible values; DO NOT
 	    renumber */

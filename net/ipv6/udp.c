@@ -328,7 +328,7 @@ drop:
 	return -1;
 }
 
-static struct sock *udp_v6_mcast_next(struct sock *sk,
+static struct sock *udp_v6_mcast_next(struct net *net, struct sock *sk,
 				      __be16 loc_port, struct in6_addr *loc_addr,
 				      __be16 rmt_port, struct in6_addr *rmt_addr,
 				      int dif)
@@ -340,7 +340,7 @@ static struct sock *udp_v6_mcast_next(struct sock *sk,
 	sk_for_each_from(s, node) {
 		struct inet_sock *inet = inet_sk(s);
 
-		if (sock_net(s) != sock_net(sk))
+		if (!net_eq(sock_net(s), net))
 			continue;
 
 		if (s->sk_hash == num && s->sk_family == PF_INET6) {
@@ -383,14 +383,14 @@ static int __udp6_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 	read_lock(&udp_hash_lock);
 	sk = sk_head(&udptable[udp_hashfn(net, ntohs(uh->dest))]);
 	dif = inet6_iif(skb);
-	sk = udp_v6_mcast_next(sk, uh->dest, daddr, uh->source, saddr, dif);
+	sk = udp_v6_mcast_next(net, sk, uh->dest, daddr, uh->source, saddr, dif);
 	if (!sk) {
 		kfree_skb(skb);
 		goto out;
 	}
 
 	sk2 = sk;
-	while ((sk2 = udp_v6_mcast_next(sk_next(sk2), uh->dest, daddr,
+	while ((sk2 = udp_v6_mcast_next(net, sk_next(sk2), uh->dest, daddr,
 					uh->source, saddr, dif))) {
 		struct sk_buff *buff = skb_clone(skb, GFP_ATOMIC);
 		if (buff) {

@@ -33,7 +33,7 @@
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/irq.h>
-#include <asm/arch/mach/pinmux.h>
+#include <mach/pinmux.h>
 
 #ifdef CONFIG_ETRAX_VIRTUAL_GPIO
 #include "../i2c.h"

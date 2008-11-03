@@ -343,6 +343,7 @@ static irqreturn_t bt3c_interrupt(int irq, void *dev_inst)
 	bt3c_info_t *info = dev_inst;
 	unsigned int iobase;
 	int iir;
+	irqreturn_t r = IRQ_NONE;
 
 	BUG_ON(!info->hdev);
 
@@ -374,11 +375,12 @@ static irqreturn_t bt3c_interrupt(int irq, void *dev_inst)
 
 			outb(iir, iobase + CONTROL);
 		}
+		r = IRQ_HANDLED;
 	}
 
 	spin_unlock(&(info->lock));
 
-	return IRQ_HANDLED;
+	return r;
 }
 
 
@@ -657,7 +659,7 @@ static int bt3c_probe(struct pcmcia_device *link)
 
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
 	link->io.NumPorts1 = 8;
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
+	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 
 	link->irq.Handler = bt3c_interrupt;

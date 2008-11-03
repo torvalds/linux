@@ -81,7 +81,7 @@ config MFD_TMIO
 
 config MFD_T7L66XB
 	bool "Support Toshiba T7L66XB"
-	depends on ARM
+	depends on ARM && HAVE_CLK
 	select MFD_CORE
 	select MFD_TMIO
 	help
@@ -89,7 +89,7 @@ config MFD_T7L66XB
 
 config MFD_TC6387XB
 	bool "Support Toshiba TC6387XB"
-	depends on ARM
+	depends on ARM && HAVE_CLK
 	select MFD_CORE
 	select MFD_TMIO
 	help

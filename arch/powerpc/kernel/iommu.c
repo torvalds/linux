@@ -32,6 +32,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/bitops.h>
 #include <linux/iommu-helper.h>
+#include <linux/crash_dump.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/iommu.h>
@@ -460,7 +461,7 @@ void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 
 static void iommu_table_clear(struct iommu_table *tbl)
 {
-	if (!__kdump_flag) {
+	if (!is_kdump_kernel()) {
 		/* Clear the table in case firmware left allocations in it */
 		ppc_md.tce_free(tbl, tbl->it_offset, tbl->it_size);
 		return;
@@ -564,21 +565,23 @@ void iommu_free_table(struct iommu_table *tbl, const char *node_name)
 }
 
 /* Creates TCEs for a user provided buffer.  The user buffer must be
- * contiguous real kernel storage (not vmalloc).  The address of the buffer
- * passed here is the kernel (virtual) address of the buffer.  The buffer
- * need not be page aligned, the dma_addr_t returned will point to the same
- * byte within the page as vaddr.
+ * contiguous real kernel storage (not vmalloc).  The address passed here
+ * comprises a page address and offset into that page. The dma_addr_t
+ * returned will point to the same byte within the page as was passed in.
  */
-dma_addr_t iommu_map_single(struct device *dev, struct iommu_table *tbl,
-			    void *vaddr, size_t size, unsigned long mask,
-		enum dma_data_direction direction, struct dma_attrs *attrs)
+dma_addr_t iommu_map_page(struct device *dev, struct iommu_table *tbl,
+			  struct page *page, unsigned long offset, size_t size,
+			  unsigned long mask, enum dma_data_direction direction,
+			  struct dma_attrs *attrs)
 {
 	dma_addr_t dma_handle = DMA_ERROR_CODE;
+	void *vaddr;
 	unsigned long uaddr;
 	unsigned int npages, align;
 
 	BUG_ON(direction == DMA_NONE);
 
+	vaddr = page_address(page) + offset;
 	uaddr = (unsigned long)vaddr;
 	npages = iommu_num_pages(uaddr, size, IOMMU_PAGE_SIZE);
 
@@ -604,9 +607,9 @@ dma_addr_t iommu_map_single(struct device *dev, struct iommu_table *tbl,
 	return dma_handle;
 }
 
-void iommu_unmap_single(struct iommu_table *tbl, dma_addr_t dma_handle,
-		size_t size, enum dma_data_direction direction,
-		struct dma_attrs *attrs)
+void iommu_unmap_page(struct iommu_table *tbl, dma_addr_t dma_handle,
+		      size_t size, enum dma_data_direction direction,
+		      struct dma_attrs *attrs)
 {
 	unsigned int npages;
 

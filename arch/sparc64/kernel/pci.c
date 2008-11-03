@@ -889,6 +889,7 @@ static int __pci_mmap_make_offset(struct pci_dev *pdev,
 
 	for (i = 0; i <= PCI_ROM_RESOURCE; i++) {
 		struct resource *rp = &pdev->resource[i];
+		resource_size_t aligned_end;
 
 		/* Active? */
 		if (!rp->flags)
@@ -906,8 +907,15 @@ static int __pci_mmap_make_offset(struct pci_dev *pdev,
 				continue;
 		}
 
+		/* Align the resource end to the next page address.
+		 * PAGE_SIZE intentionally added instead of (PAGE_SIZE - 1),
+		 * because actually we need the address of the next byte
+		 * after rp->end.
+		 */
+		aligned_end = (rp->end + PAGE_SIZE) & PAGE_MASK;
+
 		if ((rp->start <= user_paddr) &&
-		    (user_paddr + user_size) <= (rp->end + 1UL))
+		    (user_paddr + user_size) <= aligned_end)
 			break;
 	}
 

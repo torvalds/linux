@@ -106,6 +106,9 @@ static DEFINE_SPINLOCK(hcd_root_hub_lock);
 /* used when updating an endpoint's URB list */
 static DEFINE_SPINLOCK(hcd_urb_list_lock);
 
+/* used to protect against unlinking URBs after the device is gone */
+static DEFINE_SPINLOCK(hcd_urb_unlink_lock);
+
 /* wait queue for synchronous unlinks */
 DECLARE_WAIT_QUEUE_HEAD(usb_kill_urb_queue);
 
@@ -1376,10 +1379,25 @@ static int unlink1(struct usb_hcd *hcd, struct urb *urb, int status)
 int usb_hcd_unlink_urb (struct urb *urb, int status)
 {
 	struct usb_hcd		*hcd;
-	int			retval;
+	int			retval = -EIDRM;
+	unsigned long		flags;
 
-	hcd = bus_to_hcd(urb->dev->bus);
-	retval = unlink1(hcd, urb, status);
+	/* Prevent the device and bus from going away while
+	 * the unlink is carried out.  If they are already gone
+	 * then urb->use_count must be 0, since disconnected
+	 * devices can't have any active URBs.
+	 */
+	spin_lock_irqsave(&hcd_urb_unlink_lock, flags);
+	if (atomic_read(&urb->use_count) > 0) {
+		retval = 0;
+		usb_get_dev(urb->dev);
+	}
+	spin_unlock_irqrestore(&hcd_urb_unlink_lock, flags);
+	if (retval == 0) {
+		hcd = bus_to_hcd(urb->dev->bus);
+		retval = unlink1(hcd, urb, status);
+		usb_put_dev(urb->dev);
+	}
 
 	if (retval == 0)
 		retval = -EINPROGRESS;
@@ -1526,6 +1544,17 @@ void usb_hcd_disable_endpoint(struct usb_device *udev,
 	hcd = bus_to_hcd(udev->bus);
 	if (hcd->driver->endpoint_disable)
 		hcd->driver->endpoint_disable(hcd, ep);
+}
+
+/* Protect against drivers that try to unlink URBs after the device
+ * is gone, by waiting until all unlinks for @udev are finished.
+ * Since we don't currently track URBs by device, simply wait until
+ * nothing is running in the locked region of usb_hcd_unlink_urb().
+ */
+void usb_hcd_synchronize_unlinks(struct usb_device *udev)
+{
+	spin_lock_irq(&hcd_urb_unlink_lock);
+	spin_unlock_irq(&hcd_urb_unlink_lock);
 }
 
 /*-------------------------------------------------------------------------*/

@@ -10,7 +10,7 @@
 #include <linux/circ_buf.h>
 #include <asm/termios.h>
 #include <asm/dma.h>
-#include <asm/arch/io_interface_mux.h>
+#include <arch/io_interface_mux.h>
 
 /* Software state per channel */
 

@@ -59,7 +59,7 @@ void __flush_purge_region(void *start, int size)
 
 	for (v = begin; v < end; v+=L1_CACHE_BYTES) {
 		ctrl_outl((v & CACHE_PHYSADDR_MASK),
-			  CACHE_OC_ADDRESS_ARRAY | (v & 0x000003f0) | 0x00000008);
+			  CACHE_OC_ADDRESS_ARRAY | (v & 0x000007f0) | 0x00000008);
 	}
 	back_to_cached();
 	local_irq_restore(flags);
@@ -82,14 +82,14 @@ void __flush_invalidate_region(void *start, int size)
 	/* I-cache invalidate */
 	for (v = begin; v < end; v+=L1_CACHE_BYTES) {
 		ctrl_outl((v & CACHE_PHYSADDR_MASK),
-			  CACHE_IC_ADDRESS_ARRAY | (v & 0x000003f0) | 0x00000008);
+			  CACHE_IC_ADDRESS_ARRAY | (v & 0x000007f0) | 0x00000008);
 	}
 #else
 	for (v = begin; v < end; v+=L1_CACHE_BYTES) {
 		ctrl_outl((v & CACHE_PHYSADDR_MASK),
-			  CACHE_IC_ADDRESS_ARRAY | (v & 0x000003f0) | 0x00000008);
+			  CACHE_IC_ADDRESS_ARRAY | (v & 0x000007f0) | 0x00000008);
 		ctrl_outl((v & CACHE_PHYSADDR_MASK),
-			  CACHE_OC_ADDRESS_ARRAY | (v & 0x000003f0) | 0x00000008);
+			  CACHE_OC_ADDRESS_ARRAY | (v & 0x000007f0) | 0x00000008);
 	}
 #endif
 	back_to_cached();

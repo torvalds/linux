@@ -5,7 +5,7 @@
  *
  *	Based on source code of the following authors:
  *	  Ken Hollis <kenji@bitgate.com>,
- *	  Alan Cox <alan@redhat.com>,
+ *	  Alan Cox <alan@lxorguk.ukuu.org.uk>,
  *	  Matt Domsch <Matt_Domsch@dell.com>,
  *	  Rob Radez <rob@osinvestor.com>,
  *	  Greg Kroah-Hartman <greg@kroah.com>

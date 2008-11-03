@@ -78,7 +78,7 @@ static unsigned __init_or_module vsmp_patch(u8 type, u16 clobbers, void *ibuf,
 
 static void __init set_vsmp_pv_ops(void)
 {
-	void *address;
+	void __iomem *address;
 	unsigned int cap, ctl, cfg;
 
 	/* set vSMP magic bits to indicate vSMP capable kernel */
