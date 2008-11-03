@@ -95,8 +95,8 @@ static int soc_ac97_dev_register(struct snd_soc_codec *codec)
 	codec->ac97->dev.parent = NULL;
 	codec->ac97->dev.release = soc_ac97_device_release;
 
-	snprintf(codec->ac97->dev.bus_id, BUS_ID_SIZE, "%d-%d:%s",
-		 codec->card->number, 0, codec->name);
+	dev_set_name(&codec->ac97->dev, "%d-%d:%s",
+		     codec->card->number, 0, codec->name);
 	err = device_register(&codec->ac97->dev);
 	if (err < 0) {
 		snd_printk(KERN_ERR "Can't register ac97 bus\n");
