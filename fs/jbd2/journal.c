@@ -1089,6 +1089,7 @@ journal_t * jbd2_journal_init_inode (struct inode *inode)
 	if (!journal->j_wbuf) {
 		printk(KERN_ERR "%s: Cant allocate bhs for commit thread\n",
 			__func__);
+		jbd2_stats_proc_exit(journal);
 		kfree(journal);
 		return NULL;
 	}
@@ -1098,6 +1099,7 @@ journal_t * jbd2_journal_init_inode (struct inode *inode)
 	if (err) {
 		printk(KERN_ERR "%s: Cannnot locate journal superblock\n",
 		       __func__);
+		jbd2_stats_proc_exit(journal);
 		kfree(journal);
 		return NULL;
 	}
