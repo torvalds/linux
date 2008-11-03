@@ -824,7 +824,7 @@ static struct uart_ops s3c24xx_serial_ops = {
 static struct uart_driver s3c24xx_uart_drv = {
 	.owner		= THIS_MODULE,
 	.dev_name	= "s3c2410_serial",
-	.nr		= 3,
+	.nr		= CONFIG_SERIAL_SAMSUNG_UARTS,
 	.cons		= S3C24XX_SERIAL_CONSOLE,
 	.driver_name	= S3C24XX_SERIAL_NAME,
 	.major		= S3C24XX_SERIAL_MAJOR,
@@ -1012,8 +1012,11 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	if (port->mapbase != 0)
 		return 0;
 
-	if (cfg->hwport > 3)
-		return -EINVAL;
+	if (cfg->hwport > CONFIG_SERIAL_SAMSUNG_UARTS) {
+		printk(KERN_ERR "%s: port %d bigger than %d\n", __func__,
+		       cfg->hwport, CONFIG_SERIAL_SAMSUNG_UARTS);
+		return -ERANGE;
+	}
 
 	/* setup info for port */
 	port->dev	= &platdev->dev;
