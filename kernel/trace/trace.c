@@ -705,6 +705,7 @@ static void ftrace_trace_stack(struct trace_array *tr,
 			       unsigned long flags,
 			       int skip, int pc)
 {
+#ifdef CONFIG_STACKTRACE
 	struct ring_buffer_event *event;
 	struct stack_entry *entry;
 	struct stack_trace trace;
@@ -730,6 +731,7 @@ static void ftrace_trace_stack(struct trace_array *tr,
 
 	save_stack_trace(&trace);
 	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
+#endif
 }
 
 void __trace_stack(struct trace_array *tr,
@@ -1086,17 +1088,20 @@ static void s_stop(struct seq_file *m, void *p)
 	mutex_unlock(&trace_types_lock);
 }
 
-#define KRETPROBE_MSG "[unknown/kretprobe'd]"
-
 #ifdef CONFIG_KRETPROBES
-static inline int kretprobed(unsigned long addr)
+static inline const char *kretprobed(const char *name)
 {
-	return addr == (unsigned long)kretprobe_trampoline;
+	static const char tramp_name[] = "kretprobe_trampoline";
+	int size = sizeof(tramp_name);
+
+	if (strncmp(tramp_name, name, size) == 0)
+		return "[unknown/kretprobe'd]";
+	return name;
 }
 #else
-static inline int kretprobed(unsigned long addr)
+static inline const char *kretprobed(const char *name)
 {
-	return 0;
+	return name;
 }
 #endif /* CONFIG_KRETPROBES */
 
@@ -1105,10 +1110,13 @@ seq_print_sym_short(struct trace_seq *s, const char *fmt, unsigned long address)
 {
 #ifdef CONFIG_KALLSYMS
 	char str[KSYM_SYMBOL_LEN];
+	const char *name;
 
 	kallsyms_lookup(address, NULL, NULL, NULL, str);
 
-	return trace_seq_printf(s, fmt, str);
+	name = kretprobed(str);
+
+	return trace_seq_printf(s, fmt, name);
 #endif
 	return 1;
 }
@@ -1119,9 +1127,12 @@ seq_print_sym_offset(struct trace_seq *s, const char *fmt,
 {
 #ifdef CONFIG_KALLSYMS
 	char str[KSYM_SYMBOL_LEN];
+	const char *name;
 
 	sprint_symbol(str, address);
-	return trace_seq_printf(s, fmt, str);
+	name = kretprobed(str);
+
+	return trace_seq_printf(s, fmt, name);
 #endif
 	return 1;
 }
@@ -1375,10 +1386,7 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 
 		seq_print_ip_sym(s, field->ip, sym_flags);
 		trace_seq_puts(s, " (");
-		if (kretprobed(field->parent_ip))
-			trace_seq_puts(s, KRETPROBE_MSG);
-		else
-			seq_print_ip_sym(s, field->parent_ip, sym_flags);
+		seq_print_ip_sym(s, field->parent_ip, sym_flags);
 		trace_seq_puts(s, ")\n");
 		break;
 	}
@@ -1494,12 +1502,9 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 			ret = trace_seq_printf(s, " <-");
 			if (!ret)
 				return TRACE_TYPE_PARTIAL_LINE;
-			if (kretprobed(field->parent_ip))
-				ret = trace_seq_puts(s, KRETPROBE_MSG);
-			else
-				ret = seq_print_ip_sym(s,
-						       field->parent_ip,
-						       sym_flags);
+			ret = seq_print_ip_sym(s,
+					       field->parent_ip,
+					       sym_flags);
 			if (!ret)
 				return TRACE_TYPE_PARTIAL_LINE;
 		}
