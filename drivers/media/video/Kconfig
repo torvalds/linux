@@ -184,7 +184,7 @@ config VIDEO_MSP3400
 
 config VIDEO_CS5345
 	tristate "Cirrus Logic CS5345 audio ADC"
-	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Cirrus Logic CS5345 24-bit, 192 kHz
 	  stereo A/D converter.
@@ -204,7 +204,7 @@ config VIDEO_CS53L32A
 
 config VIDEO_M52790
        tristate "Mitsubishi M52790 A/V switch"
-       depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
+       depends on VIDEO_V4L2 && I2C
        ---help---
 	 Support for the Mitsubishi M52790 A/V switch.
 
@@ -242,7 +242,7 @@ config VIDEO_WM8739
 
 config VIDEO_VP27SMPX
 	tristate "Panasonic VP27s internal MPX"
-	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for the internal MPX of the Panasonic VP27s tuner.
 
@@ -387,7 +387,7 @@ comment "MPEG video encoders"
 
 config VIDEO_CX2341X
 	tristate "Conexant CX2341x MPEG encoders"
-	depends on VIDEO_V4L2 && EXPERIMENTAL && VIDEO_V4L2_COMMON
+	depends on VIDEO_V4L2 && VIDEO_V4L2_COMMON
 	---help---
 	  Support for the Conexant CX23416 MPEG encoders
 	  and CX23415 MPEG encoder/decoders.
