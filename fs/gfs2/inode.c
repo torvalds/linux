@@ -301,7 +301,7 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	ip->i_depth = (u8)depth;
 	ip->i_entries = be32_to_cpu(str->di_entries);
 
-	di->di_eattr = be64_to_cpu(str->di_eattr);
+	ip->i_eattr = be64_to_cpu(str->di_eattr);
 	if (S_ISREG(ip->i_inode.i_mode))
 		gfs2_set_aops(&ip->i_inode);
 
@@ -1273,7 +1273,7 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_depth = cpu_to_be16(ip->i_depth);
 	str->di_entries = cpu_to_be32(ip->i_entries);
 
-	str->di_eattr = cpu_to_be64(di->di_eattr);
+	str->di_eattr = cpu_to_be64(ip->i_eattr);
 	str->di_atime_nsec = cpu_to_be32(ip->i_inode.i_atime.tv_nsec);
 	str->di_mtime_nsec = cpu_to_be32(ip->i_inode.i_mtime.tv_nsec);
 	str->di_ctime_nsec = cpu_to_be32(ip->i_inode.i_ctime.tv_nsec);
@@ -1296,7 +1296,7 @@ void gfs2_dinode_print(const struct gfs2_inode *ip)
 	printk(KERN_INFO "  i_height = %u\n", ip->i_height);
 	printk(KERN_INFO "  i_depth = %u\n", ip->i_depth);
 	printk(KERN_INFO "  i_entries = %u\n", ip->i_entries);
-	printk(KERN_INFO "  di_eattr = %llu\n",
-	       (unsigned long long)di->di_eattr);
+	printk(KERN_INFO "  i_eattr = %llu\n",
+	       (unsigned long long)ip->i_eattr);
 }
 
