@@ -857,6 +857,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  quanta	Quanta FL1
 	  eeepc-p703	ASUS Eeepc P703 P900A
 	  eeepc-p901	ASUS Eeepc P901 S101
+	  fujitsu	FSC Amilo
+	  auto		auto-config reading BIOS (default)
 
 	ALC662/663
 	  3stack-dig	3-stack (2-channel) with SPDIF
