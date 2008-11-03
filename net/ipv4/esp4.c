@@ -413,8 +413,8 @@ static u32 esp4_get_mtu(struct xfrm_state *x, int mtu)
 
 static void esp4_err(struct sk_buff *skb, u32 info)
 {
-	struct iphdr *iph = (struct iphdr*)skb->data;
-	struct ip_esp_hdr *esph = (struct ip_esp_hdr*)(skb->data+(iph->ihl<<2));
+	struct iphdr *iph = (struct iphdr *)skb->data;
+	struct ip_esp_hdr *esph = (struct ip_esp_hdr *)(skb->data+(iph->ihl<<2));
 	struct xfrm_state *x;
 
 	if (icmp_hdr(skb)->type != ICMP_DEST_UNREACH ||
