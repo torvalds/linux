@@ -33,48 +33,15 @@
 /* this struct isn't actually defined anywhere */
 struct io_mapping;
 
-#ifdef CONFIG_X86_64
+#ifdef CONFIG_HAVE_ATOMIC_IOMAP
 
-/* Create the io_mapping object*/
-static inline struct io_mapping *
-io_mapping_create_wc(unsigned long base, unsigned long size)
-{
-	return (struct io_mapping *) ioremap_wc(base, size);
-}
+/*
+ * For small address space machines, mapping large objects
+ * into the kernel virtual space isn't practical. Where
+ * available, use fixmap support to dynamically map pages
+ * of the object at run time.
+ */
 
-static inline void
-io_mapping_free(struct io_mapping *mapping)
-{
-	iounmap(mapping);
-}
-
-/* Atomic map/unmap */
-static inline void *
-io_mapping_map_atomic_wc(struct io_mapping *mapping, unsigned long offset)
-{
-	return ((char *) mapping) + offset;
-}
-
-static inline void
-io_mapping_unmap_atomic(void *vaddr)
-{
-}
-
-/* Non-atomic map/unmap */
-static inline void *
-io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset)
-{
-	return ((char *) mapping) + offset;
-}
-
-static inline void
-io_mapping_unmap(void *vaddr)
-{
-}
-
-#endif /* CONFIG_X86_64 */
-
-#ifdef CONFIG_X86_32
 static inline struct io_mapping *
 io_mapping_create_wc(unsigned long base, unsigned long size)
 {
@@ -113,6 +80,46 @@ io_mapping_unmap(void *vaddr)
 {
 	iounmap(vaddr);
 }
-#endif /* CONFIG_X86_32 */
+
+#else
+
+/* Create the io_mapping object*/
+static inline struct io_mapping *
+io_mapping_create_wc(unsigned long base, unsigned long size)
+{
+	return (struct io_mapping *) ioremap_wc(base, size);
+}
+
+static inline void
+io_mapping_free(struct io_mapping *mapping)
+{
+	iounmap(mapping);
+}
+
+/* Atomic map/unmap */
+static inline void *
+io_mapping_map_atomic_wc(struct io_mapping *mapping, unsigned long offset)
+{
+	return ((char *) mapping) + offset;
+}
+
+static inline void
+io_mapping_unmap_atomic(void *vaddr)
+{
+}
+
+/* Non-atomic map/unmap */
+static inline void *
+io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset)
+{
+	return ((char *) mapping) + offset;
+}
+
+static inline void
+io_mapping_unmap(void *vaddr)
+{
+}
+
+#endif /* HAVE_ATOMIC_IOMAP */
 
 #endif /* _LINUX_IO_MAPPING_H */
