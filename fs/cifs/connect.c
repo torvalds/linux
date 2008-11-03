@@ -417,9 +417,14 @@ incomplete_rcv:
 			msleep(1); /* minimum sleep to prevent looping
 				allowing socket to clear and app threads to set
 				tcpStatus CifsNeedReconnect if server hung */
-			if (pdu_length < 4)
+			if (pdu_length < 4) {
+				iov.iov_base = (4 - pdu_length) +
+							(char *)smb_buffer;
+				iov.iov_len = pdu_length;
+				smb_msg.msg_control = NULL;
+				smb_msg.msg_controllen = 0;
 				goto incomplete_rcv;
-			else
+			} else
 				continue;
 		} else if (length <= 0) {
 			if (server->tcpStatus == CifsNew) {
