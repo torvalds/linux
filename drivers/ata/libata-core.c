@@ -6123,7 +6123,7 @@ static void ata_port_detach(struct ata_port *ap)
 	/* EH is now guaranteed to see UNLOADING - EH context belongs
 	 * to us.  Restore SControl and disable all existing devices.
 	 */
-	ata_for_each_link(link, ap, HOST_FIRST) {
+	ata_for_each_link(link, ap, PMP_FIRST) {
 		sata_scr_write(link, SCR_CONTROL, link->saved_scontrol & 0xff0);
 		ata_for_each_dev(dev, link, ALL)
 			ata_dev_disable(dev);
