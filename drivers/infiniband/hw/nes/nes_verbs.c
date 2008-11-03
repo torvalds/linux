@@ -349,7 +349,7 @@ static struct ib_fmr *nes_alloc_fmr(struct ib_pd *ibpd,
 			if (nesfmr->nesmr.pbls_used > nesadapter->free_4kpbl) {
 				spin_unlock_irqrestore(&nesadapter->pbl_lock, flags);
 				ret = -ENOMEM;
-				goto failed_vpbl_alloc;
+				goto failed_vpbl_avail;
 			} else {
 				nesadapter->free_4kpbl -= nesfmr->nesmr.pbls_used;
 			}
@@ -357,7 +357,7 @@ static struct ib_fmr *nes_alloc_fmr(struct ib_pd *ibpd,
 			if (nesfmr->nesmr.pbls_used > nesadapter->free_256pbl) {
 				spin_unlock_irqrestore(&nesadapter->pbl_lock, flags);
 				ret = -ENOMEM;
-				goto failed_vpbl_alloc;
+				goto failed_vpbl_avail;
 			} else {
 				nesadapter->free_256pbl -= nesfmr->nesmr.pbls_used;
 			}
@@ -391,14 +391,14 @@ static struct ib_fmr *nes_alloc_fmr(struct ib_pd *ibpd,
 			goto failed_vpbl_alloc;
 		}
 
-		nesfmr->root_vpbl.leaf_vpbl = kzalloc(sizeof(*nesfmr->root_vpbl.leaf_vpbl)*1024, GFP_KERNEL);
+		nesfmr->leaf_pbl_cnt = nesfmr->nesmr.pbls_used-1;
+		nesfmr->root_vpbl.leaf_vpbl = kzalloc(sizeof(*nesfmr->root_vpbl.leaf_vpbl)*1024, GFP_ATOMIC);
 		if (!nesfmr->root_vpbl.leaf_vpbl) {
 			spin_unlock_irqrestore(&nesadapter->pbl_lock, flags);
 			ret = -ENOMEM;
 			goto failed_leaf_vpbl_alloc;
 		}
 
-		nesfmr->leaf_pbl_cnt = nesfmr->nesmr.pbls_used-1;
 		nes_debug(NES_DBG_MR, "two level pbl, root_vpbl.pbl_vbase=%p"
 				" leaf_pbl_cnt=%d root_vpbl.leaf_vpbl=%p\n",
 				nesfmr->root_vpbl.pbl_vbase, nesfmr->leaf_pbl_cnt, nesfmr->root_vpbl.leaf_vpbl);
@@ -519,6 +519,16 @@ static struct ib_fmr *nes_alloc_fmr(struct ib_pd *ibpd,
 				nesfmr->root_vpbl.pbl_pbase);
 
 	failed_vpbl_alloc:
+	if (nesfmr->nesmr.pbls_used != 0) {
+		spin_lock_irqsave(&nesadapter->pbl_lock, flags);
+		if (nesfmr->nesmr.pbl_4k)
+			nesadapter->free_4kpbl += nesfmr->nesmr.pbls_used;
+		else
+			nesadapter->free_256pbl += nesfmr->nesmr.pbls_used;
+		spin_unlock_irqrestore(&nesadapter->pbl_lock, flags);
+	}
+
+failed_vpbl_avail:
 	kfree(nesfmr);
 
 	failed_fmr_alloc:
@@ -534,17 +544,13 @@ static struct ib_fmr *nes_alloc_fmr(struct ib_pd *ibpd,
  */
 static int nes_dealloc_fmr(struct ib_fmr *ibfmr)
 {
+	unsigned long flags;
 	struct nes_mr *nesmr = to_nesmr_from_ibfmr(ibfmr);
 	struct nes_fmr *nesfmr = to_nesfmr(nesmr);
 	struct nes_vnic *nesvnic = to_nesvnic(ibfmr->device);
 	struct nes_device *nesdev = nesvnic->nesdev;
-	struct nes_mr temp_nesmr = *nesmr;
+	struct nes_adapter *nesadapter = nesdev->nesadapter;
 	int i = 0;
-
-	temp_nesmr.ibmw.device = ibfmr->device;
-	temp_nesmr.ibmw.pd = ibfmr->pd;
-	temp_nesmr.ibmw.rkey = ibfmr->rkey;
-	temp_nesmr.ibmw.uobject = NULL;
 
 	/* free the resources */
 	if (nesfmr->leaf_pbl_cnt == 0) {
@@ -561,8 +567,24 @@ static int nes_dealloc_fmr(struct ib_fmr *ibfmr)
 		pci_free_consistent(nesdev->pcidev, 8192, nesfmr->root_vpbl.pbl_vbase,
 				nesfmr->root_vpbl.pbl_pbase);
 	}
+	nesmr->ibmw.device = ibfmr->device;
+	nesmr->ibmw.pd = ibfmr->pd;
+	nesmr->ibmw.rkey = ibfmr->rkey;
+	nesmr->ibmw.uobject = NULL;
 
-	return nes_dealloc_mw(&temp_nesmr.ibmw);
+	if (nesfmr->nesmr.pbls_used != 0) {
+		spin_lock_irqsave(&nesadapter->pbl_lock, flags);
+		if (nesfmr->nesmr.pbl_4k) {
+			nesadapter->free_4kpbl += nesfmr->nesmr.pbls_used;
+			WARN_ON(nesadapter->free_4kpbl > nesadapter->max_4kpbl);
+		} else {
+			nesadapter->free_256pbl += nesfmr->nesmr.pbls_used;
+			WARN_ON(nesadapter->free_256pbl > nesadapter->max_256pbl);
+		}
+		spin_unlock_irqrestore(&nesadapter->pbl_lock, flags);
+	}
+
+	return nes_dealloc_mw(&nesmr->ibmw);
 }
 
 
