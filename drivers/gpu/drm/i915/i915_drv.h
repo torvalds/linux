@@ -502,6 +502,8 @@ int i915_gem_set_tiling(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int i915_gem_get_tiling(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
+int i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file_priv);
 void i915_gem_load(struct drm_device *dev);
 int i915_gem_proc_init(struct drm_minor *minor);
 void i915_gem_proc_cleanup(struct drm_minor *minor);
@@ -539,11 +541,18 @@ extern int i915_restore_state(struct drm_device *dev);
 extern int i915_save_state(struct drm_device *dev);
 extern int i915_restore_state(struct drm_device *dev);
 
+#ifdef CONFIG_ACPI
 /* i915_opregion.c */
 extern int intel_opregion_init(struct drm_device *dev);
 extern void intel_opregion_free(struct drm_device *dev);
 extern void opregion_asle_intr(struct drm_device *dev);
 extern void opregion_enable_asle(struct drm_device *dev);
+#else
+static inline int intel_opregion_init(struct drm_device *dev) { return 0; }
+static inline void intel_opregion_free(struct drm_device *dev) { return; }
+static inline void opregion_asle_intr(struct drm_device *dev) { return; }
+static inline void opregion_enable_asle(struct drm_device *dev) { return; }
+#endif
 
 /**
  * Lock test for when it's just for synchronization of ring access.
