@@ -185,7 +185,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 	if (!dip->i_inode.i_nlink)
 		goto out_gunlock;
 	error = -EFBIG;
-	if (dip->i_di.di_entries == (u32)-1)
+	if (dip->i_entries == (u32)-1)
 		goto out_gunlock;
 	error = -EPERM;
 	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
@@ -427,7 +427,7 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	ip->i_inode.i_nlink = 2;
 	ip->i_di.di_size = sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode);
 	ip->i_di.di_flags |= GFS2_DIF_JDATA;
-	ip->i_di.di_entries = 2;
+	ip->i_entries = 2;
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 
@@ -517,13 +517,13 @@ static int gfs2_rmdir(struct inode *dir, struct dentry *dentry)
 	if (error)
 		goto out_gunlock;
 
-	if (ip->i_di.di_entries < 2) {
+	if (ip->i_entries < 2) {
 		if (gfs2_consist_inode(ip))
 			gfs2_dinode_print(ip);
 		error = -EIO;
 		goto out_gunlock;
 	}
-	if (ip->i_di.di_entries > 2) {
+	if (ip->i_entries > 2) {
 		error = -ENOTEMPTY;
 		goto out_gunlock;
 	}
@@ -726,13 +726,13 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 			goto out_gunlock;
 
 		if (S_ISDIR(nip->i_inode.i_mode)) {
-			if (nip->i_di.di_entries < 2) {
+			if (nip->i_entries < 2) {
 				if (gfs2_consist_inode(nip))
 					gfs2_dinode_print(nip);
 				error = -EIO;
 				goto out_gunlock;
 			}
-			if (nip->i_di.di_entries > 2) {
+			if (nip->i_entries > 2) {
 				error = -ENOTEMPTY;
 				goto out_gunlock;
 			}
@@ -758,7 +758,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 				error = -EINVAL;
 				goto out_gunlock;
 			}
-			if (ndip->i_di.di_entries == (u32)-1) {
+			if (ndip->i_entries == (u32)-1) {
 				error = -EFBIG;
 				goto out_gunlock;
 			}

@@ -858,8 +858,8 @@ static int dir_make_exhash(struct inode *inode)
 		return -ENOSPC;
 	bn = bh->b_blocknr;
 
-	gfs2_assert(sdp, dip->i_di.di_entries < (1 << 16));
-	leaf->lf_entries = cpu_to_be16(dip->i_di.di_entries);
+	gfs2_assert(sdp, dip->i_entries < (1 << 16));
+	leaf->lf_entries = cpu_to_be16(dip->i_entries);
 
 	/*  Copy dirents  */
 
@@ -1426,7 +1426,7 @@ int gfs2_dir_read(struct inode *inode, u64 *offset, void *opaque,
 	int copied = 0;
 	int error;
 
-	if (!dip->i_di.di_entries)
+	if (!dip->i_entries)
 		return 0;
 
 	if (dip->i_di.di_flags & GFS2_DIF_EXHASH)
@@ -1453,17 +1453,17 @@ int gfs2_dir_read(struct inode *inode, u64 *offset, void *opaque,
 			error = PTR_ERR(dent);
 			goto out;
 		}
-		if (dip->i_di.di_entries != g.offset) {
+		if (dip->i_entries != g.offset) {
 			fs_warn(sdp, "Number of entries corrupt in dir %llu, "
-				"ip->i_di.di_entries (%u) != g.offset (%u)\n",
+				"ip->i_entries (%u) != g.offset (%u)\n",
 				(unsigned long long)dip->i_no_addr,
-				dip->i_di.di_entries,
+				dip->i_entries,
 				g.offset);
 			error = -EIO;
 			goto out;
 		}
 		error = do_filldir_main(dip, offset, opaque, filldir, darr,
-					dip->i_di.di_entries, &copied);
+					dip->i_entries, &copied);
 out:
 		kfree(darr);
 	}
@@ -1621,7 +1621,7 @@ int gfs2_dir_add(struct inode *inode, const struct qstr *name,
 			if (error)
 				break;
 			gfs2_trans_add_bh(ip->i_gl, bh, 1);
-			ip->i_di.di_entries++;
+			ip->i_entries++;
 			ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
 			gfs2_dinode_out(ip, bh->b_data);
 			brelse(bh);
@@ -1704,10 +1704,10 @@ int gfs2_dir_del(struct gfs2_inode *dip, const struct qstr *name)
 	if (error)
 		return error;
 
-	if (!dip->i_di.di_entries)
+	if (!dip->i_entries)
 		gfs2_consist_inode(dip);
 	gfs2_trans_add_bh(dip->i_gl, bh, 1);
-	dip->i_di.di_entries--;
+	dip->i_entries--;
 	dip->i_inode.i_mtime = dip->i_inode.i_ctime = CURRENT_TIME;
 	gfs2_dinode_out(dip, bh->b_data);
 	brelse(bh);

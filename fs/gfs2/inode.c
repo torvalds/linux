@@ -299,7 +299,7 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	if (unlikely(depth > GFS2_DIR_MAX_DEPTH))
 		goto corrupt;
 	ip->i_depth = (u8)depth;
-	di->di_entries = be32_to_cpu(str->di_entries);
+	ip->i_entries = be32_to_cpu(str->di_entries);
 
 	di->di_eattr = be64_to_cpu(str->di_eattr);
 	if (S_ISREG(ip->i_inode.i_mode))
@@ -689,7 +689,7 @@ static int create_ok(struct gfs2_inode *dip, const struct qstr *name,
 		return error;
 	}
 
-	if (dip->i_di.di_entries == (u32)-1)
+	if (dip->i_entries == (u32)-1)
 		return -EFBIG;
 	if (S_ISDIR(mode) && dip->i_inode.i_nlink == (u32)-1)
 		return -EMLINK;
@@ -1067,7 +1067,7 @@ int gfs2_rmdiri(struct gfs2_inode *dip, const struct qstr *name,
 	struct qstr dotname;
 	int error;
 
-	if (ip->i_di.di_entries != 2) {
+	if (ip->i_entries != 2) {
 		if (gfs2_consist_inode(ip))
 			gfs2_dinode_print(ip);
 		return -EIO;
@@ -1271,7 +1271,7 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 					     !(ip->i_di.di_flags & GFS2_DIF_EXHASH) ?
 					     GFS2_FORMAT_DE : 0);
 	str->di_depth = cpu_to_be16(ip->i_depth);
-	str->di_entries = cpu_to_be32(di->di_entries);
+	str->di_entries = cpu_to_be32(ip->i_entries);
 
 	str->di_eattr = cpu_to_be64(di->di_eattr);
 	str->di_atime_nsec = cpu_to_be32(ip->i_inode.i_atime.tv_nsec);
@@ -1295,7 +1295,7 @@ void gfs2_dinode_print(const struct gfs2_inode *ip)
 	printk(KERN_INFO "  di_flags = 0x%.8X\n", di->di_flags);
 	printk(KERN_INFO "  i_height = %u\n", ip->i_height);
 	printk(KERN_INFO "  i_depth = %u\n", ip->i_depth);
-	printk(KERN_INFO "  di_entries = %u\n", di->di_entries);
+	printk(KERN_INFO "  i_entries = %u\n", ip->i_entries);
 	printk(KERN_INFO "  di_eattr = %llu\n",
 	       (unsigned long long)di->di_eattr);
 }

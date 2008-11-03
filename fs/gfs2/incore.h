@@ -236,8 +236,6 @@ enum {
 struct gfs2_dinode_host {
 	u64 di_size;		/* number of bytes in file */
 	u32 di_flags;		/* GFS2_DIF_... */
-	/* These only apply to directories  */
-	u32 di_entries;		/* The number of entries in the directory */
 	u64 di_eattr;		/* extended attribute block number */
 };
 
@@ -256,6 +254,7 @@ struct gfs2_inode {
 	struct gfs2_alloc *i_alloc;
 	u64 i_goal;	/* goal block for allocations */
 	struct rw_semaphore i_rw_mutex;
+	u32 i_entries;
 	u8 i_height;
 	u8 i_depth;
 };
