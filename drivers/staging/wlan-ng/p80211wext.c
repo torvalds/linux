@@ -611,13 +611,6 @@ static int p80211wext_siwencode(netdevice_t *dev,
 		else
 			i--;
 
-		result = p80211wext_dorequest(wlandev, DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID, i);
-
-		if (result) {
-			err = -EFAULT;
-			goto exit;
-		}
-
 		/* Set current key number only if no keys are given */
 		if (erq->flags & IW_ENCODE_NOKEY) {
 			result = p80211wext_dorequest(wlandev, DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID, i);
