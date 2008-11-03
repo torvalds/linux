@@ -8,7 +8,7 @@ Copyright 2008 Red Hat Inc.
 Reviewers:   Elias Oltmanns, Randy Dunlap, Andrew Morton,
 	     John Kacur, and David Teigland.
 
-Written for: 2.6.27-rc1
+Written for: 2.6.28-rc2
 
 Introduction
 ------------
