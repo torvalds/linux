@@ -19,6 +19,12 @@ EXPORT_PER_CPU_SYMBOL_GPL(__uv_hub_info);
 
 #ifdef CONFIG_IA64_SGI_UV
 int sn_prom_type;
+long sn_partition_id;
+EXPORT_SYMBOL(sn_partition_id);
+long sn_coherency_id;
+EXPORT_SYMBOL_GPL(sn_coherency_id);
+long sn_region_size;
+EXPORT_SYMBOL(sn_region_size);
 #endif
 
 struct redir_addr {
