@@ -542,6 +542,9 @@ void qdisc_reset(struct Qdisc *qdisc)
 
 	if (ops->reset)
 		ops->reset(qdisc);
+
+	kfree_skb(qdisc->gso_skb);
+	qdisc->gso_skb = NULL;
 }
 EXPORT_SYMBOL(qdisc_reset);
 
