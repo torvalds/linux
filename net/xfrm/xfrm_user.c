@@ -1816,7 +1816,7 @@ static int copy_to_user_kmaddress(struct xfrm_kmaddress *k, struct sk_buff *skb)
 	uk.family = k->family;
 	uk.reserved = k->reserved;
 	memcpy(&uk.local, &k->local, sizeof(uk.local));
-	memcpy(&uk.remote, &k->local, sizeof(uk.remote));
+	memcpy(&uk.remote, &k->remote, sizeof(uk.remote));
 
 	return nla_put(skb, XFRMA_KMADDRESS, sizeof(uk), &uk);
 }
