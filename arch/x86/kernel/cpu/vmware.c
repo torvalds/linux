@@ -61,6 +61,11 @@ static unsigned long __vmware_get_tsc_khz(void)
         return tsc_hz;
 }
 
+/*
+ * While checking the dmi string infomation, just checking the product
+ * serial key should be enough, as this will always have a VMware
+ * specific string when running under VMware hypervisor.
+ */
 int vmware_platform(void)
 {
 	if (cpu_has_hypervisor) {
@@ -74,7 +79,7 @@ int vmware_platform(void)
 		hyper_vendor_id[12] = '\0';
 		if (!strcmp(hyper_vendor_id, "VMwareVMware"))
 			return 1;
-	} else if (dmi_available && dmi_name_in_vendors("VMware") &&
+	} else if (dmi_available && dmi_name_in_serial("VMware") &&
 		   __vmware_platform())
 		return 1;
 
