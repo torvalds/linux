@@ -1361,9 +1361,11 @@ int cifs_rename(struct inode *source_dir, struct dentry *source_dentry,
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
 
 		if (tmprc == 0 && (info_buf_source->UniqueId ==
-				   info_buf_target->UniqueId))
+				   info_buf_target->UniqueId)) {
 			/* same file, POSIX says that this is a noop */
+			rc = 0;
 			goto cifs_rename_exit;
+		}
 	} /* else ... BB we could add the same check for Windows by
 		     checking the UniqueId via FILE_INTERNAL_INFO */
 
