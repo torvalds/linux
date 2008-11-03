@@ -56,7 +56,7 @@ struct ipfrag_skb_cb
 	int			offset;
 };
 
-#define FRAG_CB(skb)	((struct ipfrag_skb_cb*)((skb)->cb))
+#define FRAG_CB(skb)	((struct ipfrag_skb_cb *)((skb)->cb))
 
 /* Describe an entry in the "incomplete datagrams" queue. */
 struct ipq {
