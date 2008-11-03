@@ -25,7 +25,7 @@ config TRACING
 	bool
 	select DEBUG_FS
 	select RING_BUFFER
-	select STACKTRACE
+	select STACKTRACE if STACKTRACE_SUPPORT
 	select TRACEPOINTS
 	select NOP_TRACER
 

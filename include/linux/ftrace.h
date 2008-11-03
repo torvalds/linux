@@ -74,6 +74,9 @@ extern void ftrace_caller(void);
 extern void ftrace_call(void);
 extern void mcount_call(void);
 
+/* May be defined in arch */
+extern int ftrace_arch_read_dyn_info(char *buf, int size);
+
 /**
  * ftrace_modify_code - modify code segment
  * @ip: the address of the code segment

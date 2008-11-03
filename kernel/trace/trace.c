@@ -736,6 +736,7 @@ static void ftrace_trace_stack(struct trace_array *tr,
 			       unsigned long flags,
 			       int skip, int pc)
 {
+#ifdef CONFIG_STACKTRACE
 	struct ring_buffer_event *event;
 	struct stack_entry *entry;
 	struct stack_trace trace;
@@ -761,6 +762,7 @@ static void ftrace_trace_stack(struct trace_array *tr,
 
 	save_stack_trace(&trace);
 	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
+#endif
 }
 
 void __trace_stack(struct trace_array *tr,
@@ -2860,22 +2862,38 @@ static struct file_operations tracing_mark_fops = {
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
-static ssize_t
-tracing_read_long(struct file *filp, char __user *ubuf,
-		  size_t cnt, loff_t *ppos)
+int __weak ftrace_arch_read_dyn_info(char *buf, int size)
 {
-	unsigned long *p = filp->private_data;
-	char buf[64];
-	int r;
-
-	r = sprintf(buf, "%ld\n", *p);
-
-	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
+	return 0;
 }
 
-static struct file_operations tracing_read_long_fops = {
+static ssize_t
+tracing_read_dyn_info(struct file *filp, char __user *ubuf,
+		  size_t cnt, loff_t *ppos)
+{
+	static char ftrace_dyn_info_buffer[1024];
+	static DEFINE_MUTEX(dyn_info_mutex);
+	unsigned long *p = filp->private_data;
+	char *buf = ftrace_dyn_info_buffer;
+	int size = ARRAY_SIZE(ftrace_dyn_info_buffer);
+	int r;
+
+	mutex_lock(&dyn_info_mutex);
+	r = sprintf(buf, "%ld ", *p);
+
+	r += ftrace_arch_read_dyn_info(buf+r, (size-1)-r);
+	buf[r++] = '\n';
+
+	r = simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
+
+	mutex_unlock(&dyn_info_mutex);
+
+	return r;
+}
+
+static struct file_operations tracing_dyn_info_fops = {
 	.open		= tracing_open_generic,
-	.read		= tracing_read_long,
+	.read		= tracing_read_dyn_info,
 };
 #endif
 
@@ -2984,7 +3002,7 @@ static __init int tracer_init_debugfs(void)
 #ifdef CONFIG_DYNAMIC_FTRACE
 	entry = debugfs_create_file("dyn_ftrace_total_info", 0444, d_tracer,
 				    &ftrace_update_tot_cnt,
-				    &tracing_read_long_fops);
+				    &tracing_dyn_info_fops);
 	if (!entry)
 		pr_warning("Could not create debugfs "
 			   "'dyn_ftrace_total_info' entry\n");

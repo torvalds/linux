@@ -17,6 +17,21 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 	 */
 	return addr - 1;
 }
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+extern void ftrace_nmi_enter(void);
+extern void ftrace_nmi_exit(void);
+#else
+static inline void ftrace_nmi_enter(void) { }
+static inline void ftrace_nmi_exit(void) { }
+#endif
+#endif /* __ASSEMBLY__ */
+
+#else /* CONFIG_FUNCTION_TRACER */
+
+#ifndef __ASSEMBLY__
+static inline void ftrace_nmi_enter(void) { }
+static inline void ftrace_nmi_exit(void) { }
 #endif
 
 #endif /* CONFIG_FUNCTION_TRACER */
