@@ -95,6 +95,10 @@ unsigned int wqm_quanta = 0x10000;
 module_param(wqm_quanta, int, 0644);
 MODULE_PARM_DESC(wqm_quanta, "WQM quanta");
 
+static unsigned int limit_maxrdreqsz;
+module_param(limit_maxrdreqsz, bool, 0644);
+MODULE_PARM_DESC(limit_maxrdreqsz, "Limit max read request size to 256 Bytes");
+
 LIST_HEAD(nes_adapter_list);
 static LIST_HEAD(nes_dev_list);
 
@@ -586,6 +590,18 @@ static int __devinit nes_probe(struct pci_dev *pcidev, const struct pci_device_i
 	} else {
 		nesdev->mac_index = PCI_FUNC(nesdev->pcidev->devfn) %
 						nesdev->nesadapter->port_count;
+	}
+
+	if ((limit_maxrdreqsz ||
+	     ((nesdev->nesadapter->phy_type[0] == NES_PHY_TYPE_GLADIUS) &&
+	      (hw_rev == NE020_REV1))) &&
+	    (pcie_get_readrq(pcidev) > 256)) {
+		if (pcie_set_readrq(pcidev, 256))
+			printk(KERN_ERR PFX "Unable to set max read request"
+				" to 256 bytes\n");
+		else
+			nes_debug(NES_DBG_INIT, "Max read request size set"
+				" to 256 bytes\n");
 	}
 
 	tasklet_init(&nesdev->dpc_tasklet, nes_dpc, (unsigned long)nesdev);
