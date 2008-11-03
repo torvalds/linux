@@ -1617,7 +1617,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 		nes_ucontext->mcrqf = req.mcrqf;
 		if (nes_ucontext->mcrqf) {
 			if (nes_ucontext->mcrqf & 0x80000000)
-				nescq->hw_cq.cq_number = nesvnic->nic.qp_id + 12 + (nes_ucontext->mcrqf & 0xf) - 1;
+				nescq->hw_cq.cq_number = nesvnic->nic.qp_id + 28 + 2 * ((nes_ucontext->mcrqf & 0xf) - 1);
 			else if (nes_ucontext->mcrqf & 0x40000000)
 				nescq->hw_cq.cq_number = nes_ucontext->mcrqf & 0xffff;
 			else
