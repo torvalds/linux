@@ -154,6 +154,9 @@ static int i915_dma_cleanup(struct drm_device * dev)
 	if (I915_NEED_GFX_HWS(dev))
 		i915_free_hws(dev);
 
+	dev_priv->sarea = NULL;
+	dev_priv->sarea_priv = NULL;
+
 	return 0;
 }
 
