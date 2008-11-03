@@ -2310,7 +2310,8 @@ static void atl1_tx_queue(struct atl1_adapter *adapter, u16 count,
 		if (tpd != ptpd)
 			memcpy(tpd, ptpd, sizeof(struct tx_packet_desc));
 		tpd->buffer_addr = cpu_to_le64(buffer_info->dma);
-		tpd->word2 = (cpu_to_le16(buffer_info->length) &
+		tpd->word2 &= ~(TPD_BUFLEN_MASK << TPD_BUFLEN_SHIFT);
+		tpd->word2 |= (cpu_to_le16(buffer_info->length) &
 			TPD_BUFLEN_MASK) << TPD_BUFLEN_SHIFT;
 
 		/*
@@ -2409,8 +2410,8 @@ static int atl1_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		vlan_tag = (vlan_tag << 4) | (vlan_tag >> 13) |
 			((vlan_tag >> 9) & 0x8);
 		ptpd->word3 |= 1 << TPD_INS_VL_TAG_SHIFT;
-		ptpd->word3 |= (vlan_tag & TPD_VL_TAGGED_MASK) <<
-			TPD_VL_TAGGED_SHIFT;
+		ptpd->word2 |= (vlan_tag & TPD_VLANTAG_MASK) <<
+			TPD_VLANTAG_SHIFT;
 	}
 
 	tso = atl1_tso(adapter, skb, ptpd);

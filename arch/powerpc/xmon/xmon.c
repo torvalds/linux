@@ -1353,6 +1353,7 @@ static void backtrace(struct pt_regs *excp)
 
 static void print_bug_trap(struct pt_regs *regs)
 {
+#ifdef CONFIG_BUG
 	const struct bug_entry *bug;
 	unsigned long addr;
 
@@ -1373,6 +1374,7 @@ static void print_bug_trap(struct pt_regs *regs)
 #else
 	printf("kernel BUG at %p!\n", (void *)bug->bug_addr);
 #endif
+#endif /* CONFIG_BUG */
 }
 
 static void excprint(struct pt_regs *fp)

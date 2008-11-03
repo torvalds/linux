@@ -104,8 +104,8 @@ int fdt_subnode_offset_namelen(const void *fdt, int offset,
 
 	FDT_CHECK_HEADER(fdt);
 
-	for (depth = 0;
-	     offset >= 0;
+	for (depth = 0, offset = fdt_next_node(fdt, offset, &depth);
+	     (offset >= 0) && (depth > 0);
 	     offset = fdt_next_node(fdt, offset, &depth)) {
 		if (depth < 0)
 			return -FDT_ERR_NOTFOUND;
@@ -114,7 +114,10 @@ int fdt_subnode_offset_namelen(const void *fdt, int offset,
 			return offset;
 	}
 
-	return offset; /* error */
+	if (offset < 0)
+		return offset; /* error */
+	else
+		return -FDT_ERR_NOTFOUND;
 }
 
 int fdt_subnode_offset(const void *fdt, int parentoffset,

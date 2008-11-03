@@ -898,7 +898,6 @@ static int sonypi_misc_fasync(int fd, struct file *filp, int on)
 
 static int sonypi_misc_release(struct inode *inode, struct file *file)
 {
-	sonypi_misc_fasync(-1, file, 0);
 	mutex_lock(&sonypi_device.lock);
 	sonypi_device.open_count--;
 	mutex_unlock(&sonypi_device.lock);

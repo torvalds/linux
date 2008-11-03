@@ -1263,7 +1263,6 @@ static int snd_timer_user_release(struct inode *inode, struct file *file)
 	if (file->private_data) {
 		tu = file->private_data;
 		file->private_data = NULL;
-		fasync_helper(-1, file, 0, &tu->fasync);
 		if (tu->timeri)
 			snd_timer_close(tu->timeri);
 		kfree(tu->queue);

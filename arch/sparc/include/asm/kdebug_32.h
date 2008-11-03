@@ -60,6 +60,7 @@ static inline void sp_enter_debugger(void)
 
 enum die_val {
 	DIE_UNUSED,
+	DIE_OOPS,
 };
 
 #endif /* !(__ASSEMBLY__) */

@@ -327,7 +327,6 @@ config SGI_IP22
 	select IP22_CPU_SCACHE
 	select IRQ_CPU
 	select GENERIC_ISA_DMA_SUPPORT_BROKEN
-	select SGI_HAS_DS1286
 	select SGI_HAS_I8042
 	select SGI_HAS_INDYDOG
 	select SGI_HAS_HAL2
@@ -382,7 +381,6 @@ config SGI_IP28
 	select HW_HAS_EISA
 	select I8253
 	select I8259
-	select SGI_HAS_DS1286
 	select SGI_HAS_I8042
 	select SGI_HAS_INDYDOG
 	select SGI_HAS_HAL2
@@ -891,9 +889,6 @@ config EMMA2RH
 	default y
 
 config SERIAL_RM9000
-	bool
-
-config SGI_HAS_DS1286
 	bool
 
 config SGI_HAS_INDYDOG

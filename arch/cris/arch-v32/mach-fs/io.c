@@ -12,8 +12,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <asm/io.h>
-#include <asm/arch/pinmux.h>
-#include <asm/arch/hwregs/gio_defs.h>
+#include <mach/pinmux.h>
+#include <hwregs/gio_defs.h>
 
 #ifndef DEBUG
 #define DEBUG(x)

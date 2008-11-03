@@ -5,7 +5,7 @@
  *
  * This code is based on drivers/ide/pci/siimage.c:
  * Copyright (C) 2001-2002	Andre Hedrick <andre@linux-ide.org>
- * Copyright (C) 2003		Red Hat <alan@redhat.com>
+ * Copyright (C) 2003		Red Hat
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

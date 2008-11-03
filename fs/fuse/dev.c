@@ -1056,7 +1056,6 @@ static int fuse_dev_release(struct inode *inode, struct file *file)
 		end_requests(fc, &fc->pending);
 		end_requests(fc, &fc->processing);
 		spin_unlock(&fc->lock);
-		fasync_helper(-1, file, 0, &fc->fasync);
 		fuse_conn_put(fc);
 	}
 

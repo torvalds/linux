@@ -71,7 +71,6 @@ static int hp_sdc_rtc_ioctl(struct inode *inode, struct file *file,
 static unsigned int hp_sdc_rtc_poll(struct file *file, poll_table *wait);
 
 static int hp_sdc_rtc_open(struct inode *inode, struct file *file);
-static int hp_sdc_rtc_release(struct inode *inode, struct file *file);
 static int hp_sdc_rtc_fasync (int fd, struct file *filp, int on);
 
 static int hp_sdc_rtc_read_proc(char *page, char **start, off_t off,
@@ -414,17 +413,6 @@ static int hp_sdc_rtc_open(struct inode *inode, struct file *file)
         return 0;
 }
 
-static int hp_sdc_rtc_release(struct inode *inode, struct file *file)
-{
-	/* Turn off interrupts? */
-
-        if (file->f_flags & FASYNC) {
-                hp_sdc_rtc_fasync (-1, file, 0);
-        }
-
-        return 0;
-}
-
 static int hp_sdc_rtc_fasync (int fd, struct file *filp, int on)
 {
         return fasync_helper (fd, filp, on, &hp_sdc_rtc_async_queue);
@@ -680,7 +668,6 @@ static const struct file_operations hp_sdc_rtc_fops = {
         .poll =		hp_sdc_rtc_poll,
         .ioctl =	hp_sdc_rtc_ioctl,
         .open =		hp_sdc_rtc_open,
-        .release =	hp_sdc_rtc_release,
         .fasync =	hp_sdc_rtc_fasync,
 };
 

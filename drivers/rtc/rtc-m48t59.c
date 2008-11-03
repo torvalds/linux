@@ -87,6 +87,10 @@ static int m48t59_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		dev_dbg(dev, "Century bit is enabled\n");
 		tm->tm_year += 100;	/* one century */
 	}
+#ifdef CONFIG_SPARC
+	/* Sun SPARC machines count years since 1968 */
+	tm->tm_year += 68;
+#endif
 
 	tm->tm_wday	= bcd2bin(val & 0x07);
 	tm->tm_hour	= bcd2bin(M48T59_READ(M48T59_HOUR) & 0x3F);
@@ -110,10 +114,19 @@ static int m48t59_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	struct m48t59_private *m48t59 = platform_get_drvdata(pdev);
 	unsigned long flags;
 	u8 val = 0;
+	int year = tm->tm_year;
+
+#ifdef CONFIG_SPARC
+	/* Sun SPARC machines count years since 1968 */
+	year -= 68;
+#endif
 
 	dev_dbg(dev, "RTC set time %04d-%02d-%02d %02d/%02d/%02d\n",
-		tm->tm_year + 1900, tm->tm_mon, tm->tm_mday,
+		year + 1900, tm->tm_mon, tm->tm_mday,
 		tm->tm_hour, tm->tm_min, tm->tm_sec);
+
+	if (year < 0)
+		return -EINVAL;
 
 	spin_lock_irqsave(&m48t59->lock, flags);
 	/* Issue the WRITE command */
@@ -125,9 +138,9 @@ static int m48t59_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	M48T59_WRITE((bin2bcd(tm->tm_mday) & 0x3F), M48T59_MDAY);
 	/* tm_mon is 0-11 */
 	M48T59_WRITE((bin2bcd(tm->tm_mon + 1) & 0x1F), M48T59_MONTH);
-	M48T59_WRITE(bin2bcd(tm->tm_year % 100), M48T59_YEAR);
+	M48T59_WRITE(bin2bcd(year % 100), M48T59_YEAR);
 
-	if (pdata->type == M48T59RTC_TYPE_M48T59 && (tm->tm_year / 100))
+	if (pdata->type == M48T59RTC_TYPE_M48T59 && (year / 100))
 		val = (M48T59_WDAY_CEB | M48T59_WDAY_CB);
 	val |= (bin2bcd(tm->tm_wday) & 0x07);
 	M48T59_WRITE(val, M48T59_WDAY);
@@ -159,6 +172,10 @@ static int m48t59_rtc_readalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	M48T59_SET_BITS(M48T59_CNTL_READ, M48T59_CNTL);
 
 	tm->tm_year = bcd2bin(M48T59_READ(M48T59_YEAR));
+#ifdef CONFIG_SPARC
+	/* Sun SPARC machines count years since 1968 */
+	tm->tm_year += 68;
+#endif
 	/* tm_mon is 0-11 */
 	tm->tm_mon = bcd2bin(M48T59_READ(M48T59_MONTH)) - 1;
 
@@ -192,10 +209,19 @@ static int m48t59_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	struct rtc_time *tm = &alrm->time;
 	u8 mday, hour, min, sec;
 	unsigned long flags;
+	int year = tm->tm_year;
+
+#ifdef CONFIG_SPARC
+	/* Sun SPARC machines count years since 1968 */
+	year -= 68;
+#endif
 
 	/* If no irq, we don't support ALARM */
 	if (m48t59->irq == NO_IRQ)
 		return -EIO;
+
+	if (year < 0)
+		return -EINVAL;
 
 	/*
 	 * 0xff means "always match"
@@ -228,7 +254,7 @@ static int m48t59_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	spin_unlock_irqrestore(&m48t59->lock, flags);
 
 	dev_dbg(dev, "RTC set alarm time %04d-%02d-%02d %02d/%02d/%02d\n",
-		tm->tm_year + 1900, tm->tm_mon, tm->tm_mday,
+		year + 1900, tm->tm_mon, tm->tm_mday,
 		tm->tm_hour, tm->tm_min, tm->tm_sec);
 	return 0;
 }

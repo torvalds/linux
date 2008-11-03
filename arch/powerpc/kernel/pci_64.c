@@ -426,7 +426,7 @@ int pcibios_unmap_io_space(struct pci_bus *bus)
 		    pci_name(bus->self));
 
 		__flush_hash_table_range(&init_mm, res->start + _IO_BASE,
-					 res->end - res->start + 1);
+					 res->end + _IO_BASE + 1);
 		return 0;
 	}
 

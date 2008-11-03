@@ -1239,69 +1239,66 @@ static int __init reparent_resources(struct resource *parent,
  *	    as well.
  */
 
-static void __init pcibios_allocate_bus_resources(struct list_head *bus_list)
+void pcibios_allocate_bus_resources(struct pci_bus *bus)
 {
-	struct pci_bus *bus;
+	struct pci_bus *b;
 	int i;
 	struct resource *res, *pr;
 
-	/* Depth-First Search on bus tree */
-	list_for_each_entry(bus, bus_list, node) {
-		for (i = 0; i < PCI_BUS_NUM_RESOURCES; ++i) {
-			if ((res = bus->resource[i]) == NULL || !res->flags
-			    || res->start > res->end)
+	for (i = 0; i < PCI_BUS_NUM_RESOURCES; ++i) {
+		if ((res = bus->resource[i]) == NULL || !res->flags
+		    || res->start > res->end)
+			continue;
+		if (bus->parent == NULL)
+			pr = (res->flags & IORESOURCE_IO) ?
+				&ioport_resource : &iomem_resource;
+		else {
+			/* Don't bother with non-root busses when
+			 * re-assigning all resources. We clear the
+			 * resource flags as if they were colliding
+			 * and as such ensure proper re-allocation
+			 * later.
+			 */
+			if (ppc_pci_flags & PPC_PCI_REASSIGN_ALL_RSRC)
+				goto clear_resource;
+			pr = pci_find_parent_resource(bus->self, res);
+			if (pr == res) {
+				/* this happens when the generic PCI
+				 * code (wrongly) decides that this
+				 * bridge is transparent  -- paulus
+				 */
 				continue;
-			if (bus->parent == NULL)
-				pr = (res->flags & IORESOURCE_IO) ?
-					&ioport_resource : &iomem_resource;
-			else {
-				/* Don't bother with non-root busses when
-				 * re-assigning all resources. We clear the
-				 * resource flags as if they were colliding
-				 * and as such ensure proper re-allocation
-				 * later.
-				 */
-				if (ppc_pci_flags & PPC_PCI_REASSIGN_ALL_RSRC)
-					goto clear_resource;
-				pr = pci_find_parent_resource(bus->self, res);
-				if (pr == res) {
-					/* this happens when the generic PCI
-					 * code (wrongly) decides that this
-					 * bridge is transparent  -- paulus
-					 */
-					continue;
-				}
 			}
-
-			DBG("PCI: %s (bus %d) bridge rsrc %d: %016llx-%016llx "
-			    "[0x%x], parent %p (%s)\n",
-			    bus->self ? pci_name(bus->self) : "PHB",
-			    bus->number, i,
-			    (unsigned long long)res->start,
-			    (unsigned long long)res->end,
-			    (unsigned int)res->flags,
-			    pr, (pr && pr->name) ? pr->name : "nil");
-
-			if (pr && !(pr->flags & IORESOURCE_UNSET)) {
-				if (request_resource(pr, res) == 0)
-					continue;
-				/*
-				 * Must be a conflict with an existing entry.
-				 * Move that entry (or entries) under the
-				 * bridge resource and try again.
-				 */
-				if (reparent_resources(pr, res) == 0)
-					continue;
-			}
-			printk(KERN_WARNING
-			       "PCI: Cannot allocate resource region "
-			       "%d of PCI bridge %d, will remap\n",
-			       i, bus->number);
-clear_resource:
-			res->flags = 0;
 		}
-		pcibios_allocate_bus_resources(&bus->children);
+
+		DBG("PCI: %s (bus %d) bridge rsrc %d: %016llx-%016llx "
+		    "[0x%x], parent %p (%s)\n",
+		    bus->self ? pci_name(bus->self) : "PHB",
+		    bus->number, i,
+		    (unsigned long long)res->start,
+		    (unsigned long long)res->end,
+		    (unsigned int)res->flags,
+		    pr, (pr && pr->name) ? pr->name : "nil");
+
+		if (pr && !(pr->flags & IORESOURCE_UNSET)) {
+			if (request_resource(pr, res) == 0)
+				continue;
+			/*
+			 * Must be a conflict with an existing entry.
+			 * Move that entry (or entries) under the
+			 * bridge resource and try again.
+			 */
+			if (reparent_resources(pr, res) == 0)
+				continue;
+		}
+		printk(KERN_WARNING "PCI: Cannot allocate resource region "
+		       "%d of PCI bridge %d, will remap\n", i, bus->number);
+clear_resource:
+		res->flags = 0;
 	}
+
+	list_for_each_entry(b, &bus->children, node)
+		pcibios_allocate_bus_resources(b);
 }
 
 static inline void __devinit alloc_resource(struct pci_dev *dev, int idx)
@@ -1372,10 +1369,13 @@ static void __init pcibios_allocate_resources(int pass)
 
 void __init pcibios_resource_survey(void)
 {
+	struct pci_bus *b;
+
 	/* Allocate and assign resources. If we re-assign everything, then
 	 * we skip the allocate phase
 	 */
-	pcibios_allocate_bus_resources(&pci_root_buses);
+	list_for_each_entry(b, &pci_root_buses, node)
+		pcibios_allocate_bus_resources(b);
 
 	if (!(ppc_pci_flags & PPC_PCI_REASSIGN_ALL_RSRC)) {
 		pcibios_allocate_resources(0);

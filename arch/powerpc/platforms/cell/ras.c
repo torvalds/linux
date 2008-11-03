@@ -13,15 +13,15 @@
 #include <linux/kernel.h>
 #include <linux/smp.h>
 #include <linux/reboot.h>
+#include <linux/kexec.h>
+#include <linux/crash_dump.h>
 
 #include <asm/reg.h>
 #include <asm/io.h>
 #include <asm/prom.h>
-#include <asm/kexec.h>
 #include <asm/machdep.h>
 #include <asm/rtas.h>
 #include <asm/cell-regs.h>
-#include <asm/kdump.h>
 
 #include "ras.h"
 
@@ -112,7 +112,7 @@ static int __init cbe_ptcal_enable_on_node(int nid, int order)
 	int ret = -ENOMEM;
 	unsigned long addr;
 
-	if (__kdump_flag)
+	if (is_kdump_kernel())
 		rtas_call(ptcal_stop_tok, 1, 1, NULL, nid);
 
 	area = kmalloc(sizeof(*area), GFP_KERNEL);

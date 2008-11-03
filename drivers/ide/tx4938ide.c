@@ -26,12 +26,13 @@ static void tx4938ide_tune_ebusc(unsigned int ebus_ch,
 	unsigned int sp = (cr >> 4) & 3;
 	unsigned int clock = gbus_clock / (4 - sp);
 	unsigned int cycle = 1000000000 / clock;
-	unsigned int wt, shwt;
+	unsigned int shwt;
+	int wt;
 
 	/* Minimum DIOx- active time */
 	wt = DIV_ROUND_UP(t->act8b, cycle) - 2;
 	/* IORDY setup time: 35ns */
-	wt = max(wt, DIV_ROUND_UP(35, cycle));
+	wt = max_t(int, wt, DIV_ROUND_UP(35, cycle));
 	/* actual wait-cycle is max(wt & ~1, 1) */
 	if (wt > 2 && (wt & 1))
 		wt++;
@@ -39,10 +40,17 @@ static void tx4938ide_tune_ebusc(unsigned int ebus_ch,
 	/* Address-valid to DIOR/DIOW setup */
 	shwt = DIV_ROUND_UP(t->setup, cycle);
 
+	/* -DIOx recovery time (SHWT * 4) and cycle time requirement */
+	while ((shwt * 4 + wt + (wt ? 2 : 3)) * cycle < t->cycle)
+		shwt++;
+	if (shwt > 7) {
+		pr_warning("tx4938ide: SHWT violation (%d)\n", shwt);
+		shwt = 7;
+	}
 	pr_debug("tx4938ide: ebus %d, bus cycle %dns, WT %d, SHWT %d\n",
 		 ebus_ch, cycle, wt, shwt);
 
-	__raw_writeq((cr & ~(0x3f007ull)) | (wt << 12) | shwt,
+	__raw_writeq((cr & ~0x3f007ull) | (wt << 12) | shwt,
 		     &tx4938_ebuscptr->cr[ebus_ch]);
 }
 
@@ -228,7 +236,7 @@ static int __init tx4938ide_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct tx4938ide_platform_info *pdata = pdev->dev.platform_data;
 	int irq, ret, i;
-	unsigned long mapbase;
+	unsigned long mapbase, mapctl;
 	struct ide_port_info d = tx4938ide_port_info;
 
 	irq = platform_get_irq(pdev, 0);
@@ -242,38 +250,43 @@ static int __init tx4938ide_probe(struct platform_device *pdev)
 				     res->end - res->start + 1, "tx4938ide"))
 		return -EBUSY;
 	mapbase = (unsigned long)devm_ioremap(&pdev->dev, res->start,
-					      res->end - res->start + 1);
-	if (!mapbase)
+					      8 << pdata->ioport_shift);
+	mapctl = (unsigned long)devm_ioremap(&pdev->dev,
+					     res->start + 0x10000 +
+					     (6 << pdata->ioport_shift),
+					     1 << pdata->ioport_shift);
+	if (!mapbase || !mapctl)
 		return -EBUSY;
 
 	memset(&hw, 0, sizeof(hw));
 	if (pdata->ioport_shift) {
 		unsigned long port = mapbase;
+		unsigned long ctl = mapctl;
 
 		hw.io_ports_array[0] = port;
 #ifdef __BIG_ENDIAN
 		port++;
+		ctl++;
 #endif
 		for (i = 1; i <= 7; i++)
 			hw.io_ports_array[i] =
 				port + (i << pdata->ioport_shift);
-		hw.io_ports.ctl_addr =
-			port + 0x10000 + (6 << pdata->ioport_shift);
+		hw.io_ports.ctl_addr = ctl;
 	} else
-		ide_std_init_ports(&hw, mapbase, mapbase + 0x10006);
+		ide_std_init_ports(&hw, mapbase, mapctl);
 	hw.irq = irq;
 	hw.dev = &pdev->dev;
 
-	pr_info("TX4938 IDE interface (base %#lx, irq %d)\n", mapbase, hw.irq);
+	pr_info("TX4938 IDE interface (base %#lx, ctl %#lx, irq %d)\n",
+		mapbase, mapctl, hw.irq);
 	if (pdata->gbus_clock)
 		tx4938ide_tune_ebusc(pdata->ebus_ch, pdata->gbus_clock, 0);
 	else
 		d.port_ops = NULL;
 	ret = ide_host_add(&d, hws, &host);
-	if (ret)
-		return ret;
-	platform_set_drvdata(pdev, host);
-	return 0;
+	if (!ret)
+		platform_set_drvdata(pdev, host);
+	return ret;
 }
 
 static int __exit tx4938ide_remove(struct platform_device *pdev)

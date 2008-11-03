@@ -65,7 +65,7 @@
 #ifdef CONFIG_ETRAX_AXISFLASHMAP
 
 #define ASSEMBLER_MACROS_ONLY
-#include <asm/arch/sv_addr_ag.h>
+#include <arch/sv_addr_ag.h>
 
 	;; The partitiontable is looked for at the first sector after the boot
 	;; sector. Sector size is 65536 bytes in all flashes we use.

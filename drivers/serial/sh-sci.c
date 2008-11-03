@@ -250,8 +250,7 @@ static inline void h8300_sci_disable(struct uart_port *port)
 }
 #endif
 
-#if defined(SCI_ONLY) || defined(SCI_AND_SCIF) && \
-    defined(__H8300H__) || defined(__H8300S__)
+#if defined(__H8300H__) || defined(__H8300S__)
 static void sci_init_pins_sci(struct uart_port* port, unsigned int cflag)
 {
 	int ch = (port->mapbase - SMR0) >> 3;
@@ -285,11 +284,6 @@ static void sci_init_pins_irda(struct uart_port *port, unsigned int cflag)
 #define sci_init_pins_irda NULL
 #endif
 
-#ifdef SCI_ONLY
-#define sci_init_pins_scif NULL
-#endif
-
-#if defined(SCIF_ONLY) || defined(SCI_AND_SCIF)
 #if defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
 static void sci_init_pins_scif(struct uart_port* port, unsigned int cflag)
 {
@@ -449,7 +443,6 @@ static inline int scif_rxroom(struct uart_port *port)
 	return sci_in(port, SCFDR) & SCIF_RFDC_MASK;
 }
 #endif
-#endif /* SCIF_ONLY || SCI_AND_SCIF */
 
 static inline int sci_txroom(struct uart_port *port)
 {
@@ -485,11 +478,9 @@ static void sci_transmit_chars(struct uart_port *port)
 		return;
 	}
 
-#ifndef SCI_ONLY
 	if (port->type == PORT_SCIF)
 		count = scif_txroom(port);
 	else
-#endif
 		count = sci_txroom(port);
 
 	do {
@@ -519,12 +510,10 @@ static void sci_transmit_chars(struct uart_port *port)
 	} else {
 		ctrl = sci_in(port, SCSCR);
 
-#if !defined(SCI_ONLY)
 		if (port->type == PORT_SCIF) {
 			sci_in(port, SCxSR); /* Dummy read */
 			sci_out(port, SCxSR, SCxSR_TDxE_CLEAR(port));
 		}
-#endif
 
 		ctrl |= SCI_CTRL_FLAGS_TIE;
 		sci_out(port, SCSCR, ctrl);
@@ -547,11 +536,9 @@ static inline void sci_receive_chars(struct uart_port *port)
 		return;
 
 	while (1) {
-#if !defined(SCI_ONLY)
 		if (port->type == PORT_SCIF)
 			count = scif_rxroom(port);
 		else
-#endif
 			count = sci_rxroom(port);
 
 		/* Don't copy more bytes than there is room for in the buffer */
@@ -810,26 +797,27 @@ static irqreturn_t sci_br_interrupt(int irq, void *ptr)
 
 static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 {
-        unsigned short ssr_status, scr_status;
-        struct uart_port *port = ptr;
+	unsigned short ssr_status, scr_status;
+	struct uart_port *port = ptr;
+	irqreturn_t ret = IRQ_NONE;
 
         ssr_status = sci_in(port,SCxSR);
         scr_status = sci_in(port,SCSCR);
 
 	/* Tx Interrupt */
-        if ((ssr_status & 0x0020) && (scr_status & 0x0080))
-                sci_tx_interrupt(irq, ptr);
+	if ((ssr_status & 0x0020) && (scr_status & SCI_CTRL_FLAGS_TIE))
+		ret = sci_tx_interrupt(irq, ptr);
 	/* Rx Interrupt */
-        if ((ssr_status & 0x0002) && (scr_status & 0x0040))
-                sci_rx_interrupt(irq, ptr);
+	if ((ssr_status & 0x0002) && (scr_status & SCI_CTRL_FLAGS_RIE))
+		ret = sci_rx_interrupt(irq, ptr);
 	/* Error Interrupt */
-        if ((ssr_status & 0x0080) && (scr_status & 0x0400))
-                sci_er_interrupt(irq, ptr);
+	if ((ssr_status & 0x0080) && (scr_status & SCI_CTRL_FLAGS_REIE))
+		ret = sci_er_interrupt(irq, ptr);
 	/* Break Interrupt */
-        if ((ssr_status & 0x0010) && (scr_status & 0x0200))
-                sci_br_interrupt(irq, ptr);
+	if ((ssr_status & 0x0010) && (scr_status & SCI_CTRL_FLAGS_REIE))
+		ret = sci_br_interrupt(irq, ptr);
 
-	return IRQ_HANDLED;
+	return ret;
 }
 
 #if defined(CONFIG_CPU_FREQ) && defined(CONFIG_HAVE_CLK)
@@ -1054,10 +1042,8 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	sci_out(port, SCSCR, 0x00);	/* TE=0, RE=0, CKE1=0 */
 
-#if !defined(SCI_ONLY)
 	if (port->type == PORT_SCIF)
 		sci_out(port, SCFCR, SCFCR_RFRST | SCFCR_TFRST);
-#endif
 
 	smr_val = sci_in(port, SCSMR) & 3;
 	if ((termios->c_cflag & CSIZE) == CS7)
