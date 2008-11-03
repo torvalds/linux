@@ -71,6 +71,12 @@ range, creating a permanent kernel-visible mapping to the resource. The
 map_atomic and map functions add the requested offset to the base of the
 virtual address returned by ioremap_wc.
 
-On 32-bit processors, io_mapping_map_atomic_wc uses io_map_atomic_prot_pfn,
-which uses the fixmaps to get us a mapping to a page using an atomic fashion.
-For io_mapping_map_wc, ioremap_wc() is used to get a mapping of the region.
+On 32-bit processors with HIGHMEM defined, io_mapping_map_atomic_wc uses
+kmap_atomic_pfn to map the specified page in an atomic fashion;
+kmap_atomic_pfn isn't really supposed to be used with device pages, but it
+provides an efficient mapping for this usage.
+
+On 32-bit processors without HIGHMEM defined, io_mapping_map_atomic_wc and
+io_mapping_map_wc both use ioremap_wc, a terribly inefficient function which
+performs an IPI to inform all processors about the new mapping. This results
+in a significant performance penalty.
