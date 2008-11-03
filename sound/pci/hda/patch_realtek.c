@@ -829,6 +829,7 @@ static void alc_sku_automute(struct hda_codec *codec)
 			    spec->jack_present ? 0 : PIN_OUT);
 }
 
+#if 0 /* it's broken in some acses -- temporarily disabled */
 static void alc_mic_automute(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -849,6 +850,9 @@ static void alc_mic_automute(struct hda_codec *codec)
 	snd_hda_codec_amp_stereo(codec, 0x0b, HDA_INPUT, capsrc_idx_fmic,
 			 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
 }
+#else
+#define alc_mic_automute(codec) /* NOP */
+#endif /* disabled */
 
 /* unsolicited event for HP jack sensing */
 static void alc_sku_unsol_event(struct hda_codec *codec, unsigned int res)
@@ -1058,12 +1062,14 @@ do_sku:
 			AC_VERB_SET_UNSOLICITED_ENABLE,
 			AC_USRSP_EN | ALC880_HP_EVENT);
 
+#if 0 /* it's broken in some acses -- temporarily disabled */
 	if (spec->autocfg.input_pins[AUTO_PIN_MIC] &&
 		spec->autocfg.input_pins[AUTO_PIN_FRONT_MIC])
 		snd_hda_codec_write(codec,
 			spec->autocfg.input_pins[AUTO_PIN_MIC], 0,
 			AC_VERB_SET_UNSOLICITED_ENABLE,
 			AC_USRSP_EN | ALC880_MIC_EVENT);
+#endif /* disabled */
 
 	spec->unsol_event = alc_sku_unsol_event;
 }
@@ -8408,6 +8414,7 @@ static const char *alc883_models[ALC883_MODEL_LAST] = {
 static struct snd_pci_quirk alc883_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1019, 0x6668, "ECS", ALC883_3ST_6ch_DIG),
 	SND_PCI_QUIRK(0x1025, 0x006c, "Acer Aspire 9810", ALC883_ACER_ASPIRE),
+	SND_PCI_QUIRK(0x1025, 0x0090, "Acer Aspire", ALC883_ACER_ASPIRE),
 	SND_PCI_QUIRK(0x1025, 0x0110, "Acer Aspire", ALC883_ACER_ASPIRE),
 	SND_PCI_QUIRK(0x1025, 0x0112, "Acer Aspire 9303", ALC883_ACER_ASPIRE),
 	SND_PCI_QUIRK(0x1025, 0x0121, "Acer Aspire 5920G", ALC883_ACER_ASPIRE),
@@ -12238,8 +12245,26 @@ static int alc269_auto_create_multi_out_ctls(struct alc_spec *spec,
 	return 0;
 }
 
-#define alc269_auto_create_analog_input_ctls \
-	alc880_auto_create_analog_input_ctls
+static int alc269_auto_create_analog_input_ctls(struct alc_spec *spec,
+						const struct auto_pin_cfg *cfg)
+{
+	int err;
+
+	err = alc880_auto_create_analog_input_ctls(spec, cfg);
+	if (err < 0)
+		return err;
+	/* digital-mic input pin is excluded in alc880_auto_create..()
+	 * because it's under 0x18
+	 */
+	if (cfg->input_pins[AUTO_PIN_MIC] == 0x12 ||
+	    cfg->input_pins[AUTO_PIN_FRONT_MIC] == 0x12) {
+		struct hda_input_mux *imux = &spec->private_imux;
+		imux->items[imux->num_items].label = "Int Mic";
+		imux->items[imux->num_items].index = 0x05;
+		imux->num_items++;
+	}
+	return 0;
+}
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 #define alc269_loopbacks	alc880_loopbacks
