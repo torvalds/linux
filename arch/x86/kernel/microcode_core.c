@@ -480,8 +480,8 @@ static int __init microcode_init(void)
 
 	printk(KERN_INFO
 	       "Microcode Update Driver: v" MICROCODE_VERSION
-	       " <tigran@aivazian.fsnet.co.uk>"
-	       " <peter.oruba@amd.com>\n");
+	       " <tigran@aivazian.fsnet.co.uk>,"
+	       " Peter Oruba\n");
 
 	return 0;
 }

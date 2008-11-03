@@ -2,9 +2,9 @@
 #include <linux/module.h>
 #include <linux/cpufreq.h>
 #include <hwregs/reg_map.h>
-#include <asm/arch/hwregs/reg_rdwr.h>
-#include <asm/arch/hwregs/config_defs.h>
-#include <asm/arch/hwregs/bif_core_defs.h>
+#include <arch/hwregs/reg_rdwr.h>
+#include <arch/hwregs/config_defs.h>
+#include <arch/hwregs/bif_core_defs.h>
 
 static int
 cris_sdram_freq_notifier(struct notifier_block *nb, unsigned long val,

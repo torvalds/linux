@@ -1262,8 +1262,8 @@ fb_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case FBIOPUT_CON2FBMAP:
 		arg = (unsigned long) compat_ptr(arg);
 	case FBIOBLANK:
-		ret = fb_ioctl(file, cmd, arg);
-		break;
+		mutex_unlock(&info->lock);
+		return fb_ioctl(file, cmd, arg);
 
 	case FBIOGET_FSCREENINFO:
 		ret = fb_get_fscreeninfo(inode, file, cmd, arg);

@@ -44,7 +44,7 @@
 #include "linux/virtio_console.h"
 #include "linux/virtio_rng.h"
 #include "linux/virtio_ring.h"
-#include "asm-x86/bootparam.h"
+#include "asm/bootparam.h"
 /*L:110 We can ignore the 39 include files we need for this program, but I do
  * want to draw attention to the use of kernel-style types.
  *
@@ -402,7 +402,7 @@ static unsigned long load_bzimage(int fd)
 	void *p = from_guest_phys(0x100000);
 
 	/* Go back to the start of the file and read the header.  It should be
-	 * a Linux boot header (see Documentation/i386/boot.txt) */
+	 * a Linux boot header (see Documentation/x86/i386/boot.txt) */
 	lseek(fd, 0, SEEK_SET);
 	read(fd, &boot, sizeof(boot));
 

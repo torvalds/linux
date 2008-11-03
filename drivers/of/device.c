@@ -105,7 +105,16 @@ EXPORT_SYMBOL(of_release_dev);
 int of_device_register(struct of_device *ofdev)
 {
 	BUG_ON(ofdev->node == NULL);
-	return device_register(&ofdev->dev);
+
+	device_initialize(&ofdev->dev);
+
+	/* device_add will assume that this device is on the same node as
+	 * the parent. If there is no parent defined, set the node
+	 * explicitly */
+	if (!ofdev->dev.parent)
+		set_dev_node(&ofdev->dev, of_node_to_nid(ofdev->node));
+
+	return device_add(&ofdev->dev);
 }
 EXPORT_SYMBOL(of_device_register);
 

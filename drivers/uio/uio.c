@@ -367,9 +367,6 @@ static int uio_release(struct inode *inode, struct file *filep)
 		ret = idev->info->release(idev->info, inode);
 
 	module_put(idev->owner);
-
-	if (filep->f_flags & FASYNC)
-		ret = uio_fasync(-1, filep, 0);
 	kfree(listener);
 	return ret;
 }

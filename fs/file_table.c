@@ -269,6 +269,10 @@ void __fput(struct file *file)
 	eventpoll_release(file);
 	locks_remove_flock(file);
 
+	if (unlikely(file->f_flags & FASYNC)) {
+		if (file->f_op && file->f_op->fasync)
+			file->f_op->fasync(-1, file, 0);
+	}
 	if (file->f_op && file->f_op->release)
 		file->f_op->release(inode, file);
 	security_file_free(file);

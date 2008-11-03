@@ -44,11 +44,6 @@ static inline bool should_send_signal(struct task_struct *p)
 	return !(p->flags & PF_FREEZER_NOSIG);
 }
 
-/*
- * Wake up a frozen process
- */
-extern int __thaw_process(struct task_struct *p);
-
 /* Takes and releases task alloc lock using task_lock() */
 extern int thaw_process(struct task_struct *p);
 

@@ -8,7 +8,6 @@ config NOP_TRACER
 
 config HAVE_FUNCTION_TRACER
 	bool
-	select NOP_TRACER
 
 config HAVE_DYNAMIC_FTRACE
 	bool
@@ -28,6 +27,7 @@ config TRACING
 	select RING_BUFFER
 	select STACKTRACE
 	select TRACEPOINTS
+	select NOP_TRACER
 
 menu "Tracers"
 

@@ -603,7 +603,7 @@ static ssize_t sq_write(struct file *file, const char __user *src, size_t uLeft,
 	while (uLeft) {
 		while (write_sq.count >= write_sq.max_active) {
 			sq_play();
-			if (write_sq.open_mode & O_NONBLOCK)
+			if (write_sq.non_blocking)
 				return uWritten > 0 ? uWritten : -EAGAIN;
 			SLEEP(write_sq.action_queue);
 			if (signal_pending(current))
@@ -718,7 +718,7 @@ static int sq_open2(struct sound_queue *sq, struct file *file, fmode_t mode,
 			return rc;
 		}
 
-		sq->open_mode = file->f_mode;
+		sq->non_blocking = file->f_flags & O_NONBLOCK;
 	}
 	return rc;
 }
