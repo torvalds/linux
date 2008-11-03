@@ -6107,8 +6107,6 @@ int ata_host_activate(struct ata_host *host, int irq,
 static void ata_port_detach(struct ata_port *ap)
 {
 	unsigned long flags;
-	struct ata_link *link;
-	struct ata_device *dev;
 
 	if (!ap->ops->error_handler)
 		goto skip_eh;
@@ -6116,28 +6114,15 @@ static void ata_port_detach(struct ata_port *ap)
 	/* tell EH we're leaving & flush EH */
 	spin_lock_irqsave(ap->lock, flags);
 	ap->pflags |= ATA_PFLAG_UNLOADING;
+	ata_port_schedule_eh(ap);
 	spin_unlock_irqrestore(ap->lock, flags);
 
+	/* wait till EH commits suicide */
 	ata_port_wait_eh(ap);
 
-	/* EH is now guaranteed to see UNLOADING - EH context belongs
-	 * to us.  Restore SControl and disable all existing devices.
-	 */
-	ata_for_each_link(link, ap, PMP_FIRST) {
-		sata_scr_write(link, SCR_CONTROL, link->saved_scontrol & 0xff0);
-		ata_for_each_dev(dev, link, ALL)
-			ata_dev_disable(dev);
-	}
+	/* it better be dead now */
+	WARN_ON(!(ap->pflags & ATA_PFLAG_UNLOADED));
 
-	/* Final freeze & EH.  All in-flight commands are aborted.  EH
-	 * will be skipped and retrials will be terminated with bad
-	 * target.
-	 */
-	spin_lock_irqsave(ap->lock, flags);
-	ata_port_freeze(ap);	/* won't be thawed */
-	spin_unlock_irqrestore(ap->lock, flags);
-
-	ata_port_wait_eh(ap);
 	cancel_rearming_delayed_work(&ap->hotplug_task);
 
  skip_eh:
