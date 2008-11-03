@@ -5936,7 +5936,7 @@ static void ata_port_detach(struct ata_port *ap)
 	 * to us.  Restore SControl and disable all existing devices.
 	 */
 	__ata_port_for_each_link(link, ap) {
-		sata_scr_write(link, SCR_CONTROL, link->saved_scontrol);
+		sata_scr_write(link, SCR_CONTROL, link->saved_scontrol & 0xff0);
 		ata_link_for_each_dev(dev, link)
 			ata_dev_disable(dev);
 	}
