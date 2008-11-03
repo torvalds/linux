@@ -1101,7 +1101,7 @@ out:
 }
 
 static struct notifier_block ip_netdev_notifier = {
-	.notifier_call =inetdev_event,
+	.notifier_call = inetdev_event,
 };
 
 static inline size_t inet_nlmsg_size(void)
@@ -1188,7 +1188,7 @@ done:
 	return skb->len;
 }
 
-static void rtmsg_ifa(int event, struct in_ifaddr* ifa, struct nlmsghdr *nlh,
+static void rtmsg_ifa(int event, struct in_ifaddr *ifa, struct nlmsghdr *nlh,
 		      u32 pid)
 {
 	struct sk_buff *skb;
@@ -1255,7 +1255,7 @@ static void inet_forward_change(struct net *net)
 }
 
 static int devinet_conf_proc(ctl_table *ctl, int write,
-			     struct file* filp, void __user *buffer,
+			     struct file *filp, void __user *buffer,
 			     size_t *lenp, loff_t *ppos)
 {
 	int ret = proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
@@ -1327,7 +1327,7 @@ static int devinet_conf_sysctl(ctl_table *table,
 }
 
 static int devinet_sysctl_forward(ctl_table *ctl, int write,
-				  struct file* filp, void __user *buffer,
+				  struct file *filp, void __user *buffer,
 				  size_t *lenp, loff_t *ppos)
 {
 	int *valp = ctl->data;
@@ -1356,7 +1356,7 @@ static int devinet_sysctl_forward(ctl_table *ctl, int write,
 }
 
 int ipv4_doint_and_flush(ctl_table *ctl, int write,
-			 struct file* filp, void __user *buffer,
+			 struct file *filp, void __user *buffer,
 			 size_t *lenp, loff_t *ppos)
 {
 	int *valp = ctl->data;
