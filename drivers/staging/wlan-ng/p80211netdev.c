@@ -814,13 +814,11 @@ int wlan_setup(wlandevice_t *wlandev)
 		     (unsigned long)wlandev);
 
 	/* Allocate and initialize the struct device */
-	dev = kmalloc(sizeof(netdevice_t), GFP_ATOMIC);
+	dev = alloc_netdev(0,"wlan%d",ether_setup);
 	if ( dev == NULL ) {
 		WLAN_LOG_ERROR("Failed to alloc netdev.\n");
 		result = 1;
 	} else {
-		memset( dev, 0, sizeof(netdevice_t));
-		ether_setup(dev);
 		wlandev->netdev = dev;
 		dev->ml_priv = wlandev;
 		dev->hard_start_xmit =	p80211knetdev_hard_start_xmit;
@@ -927,15 +925,9 @@ int register_wlandev(wlandevice_t *wlandev)
 
 	DBFENTER;
 
-	i = dev_alloc_name(wlandev->netdev, "wlan%d");
-	if (i >= 0) {
-		i = register_netdev(wlandev->netdev);
-	}
-	if (i != 0) {
-		return -EIO;
-	}
-
-	strcpy(wlandev->name, dev->name);
+	i = register_netdev(wlandev->netdev);
+	if (i)
+		return i;
 
 	DBFEXIT;
 	return 0;
