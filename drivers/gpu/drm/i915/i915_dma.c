@@ -852,8 +852,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	 * be lost or delayed
 	 */
 	if (!IS_I945G(dev) && !IS_I945GM(dev) && !IS_I965GM(dev))
-		if (pci_enable_msi(dev->pdev))
-			DRM_ERROR("failed to enable MSI\n");
+		pci_enable_msi(dev->pdev);
 
 	intel_opregion_init(dev);
 
