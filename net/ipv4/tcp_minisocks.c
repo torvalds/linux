@@ -491,7 +491,7 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
  *	as a request_sock.
  */
 
-struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
+struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 			   struct request_sock *req,
 			   struct request_sock **prev)
 {
