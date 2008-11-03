@@ -88,7 +88,7 @@ static inline void s3c6410_default_sdhci0(void)
 static inline void s3c6410_default_sdhci1(void)
 {
 	s3c_hsmmc1_def_platdata.clocks = s3c6410_hsmmc_clksrcs;
-	s3c_hsmmc1_def_platdata.cfg_gpio = s3c6410_setup_sdhci0_cfg_gpio;
+	s3c_hsmmc1_def_platdata.cfg_gpio = s3c6410_setup_sdhci1_cfg_gpio;
 	s3c_hsmmc1_def_platdata.cfg_card = s3c6410_setup_sdhci0_cfg_card;
 }
 #else
