@@ -307,7 +307,7 @@ struct ieee80211_tx_rate {
 	s8 idx;
 	u8 count;
 	u8 flags;
-};
+} __attribute__((packed));
 
 /**
  * struct ieee80211_tx_info - skb transmit information
