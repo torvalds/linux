@@ -25,13 +25,10 @@
 #include <asm/kmap_types.h>
 #include <asm/tlbflush.h>
 #include <asm/paravirt.h>
+#include <asm/fixmap.h>
 
 /* declarations for highmem.c */
 extern unsigned long highstart_pfn, highend_pfn;
-
-extern pte_t *kmap_pte;
-extern pgprot_t kmap_prot;
-extern pte_t *pkmap_page_table;
 
 /*
  * Right now we initialize only a single pte table. It can be extended

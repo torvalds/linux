@@ -193,35 +193,50 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-/*
- * Try to write quickly with an atomic kmap. Return true on success.
- *
- * If this fails (which includes a partial write), we'll redo the whole
- * thing with the slow version.
- *
- * This is a workaround for the low performance of iounmap (approximate
- * 10% cpu cost on normal 3D workloads).  kmap_atomic on HIGHMEM kernels
- * happens to let us map card memory without taking IPIs.  When the vmap
- * rework lands we should be able to dump this hack.
+/* This is the fast write path which cannot handle
+ * page faults in the source data
  */
-static inline int fast_user_write(unsigned long pfn, char __user *user_data,
-				  int l, int o)
-{
-#ifdef CONFIG_HIGHMEM
-	unsigned long unwritten;
-	char *vaddr_atomic;
 
-	vaddr_atomic = kmap_atomic_pfn(pfn, KM_USER0);
-#if WATCH_PWRITE
-	DRM_INFO("pwrite i %d o %d l %d pfn %ld vaddr %p\n",
-		 i, o, l, pfn, vaddr_atomic);
-#endif
-	unwritten = __copy_from_user_inatomic_nocache(vaddr_atomic + o, user_data, l);
-	kunmap_atomic(vaddr_atomic, KM_USER0);
-	return !unwritten;
-#else
+static inline int
+fast_user_write(struct io_mapping *mapping,
+		loff_t page_base, int page_offset,
+		char __user *user_data,
+		int length)
+{
+	char *vaddr_atomic;
+	unsigned long unwritten;
+
+	vaddr_atomic = io_mapping_map_atomic_wc(mapping, page_base);
+	unwritten = __copy_from_user_inatomic_nocache(vaddr_atomic + page_offset,
+						      user_data, length);
+	io_mapping_unmap_atomic(vaddr_atomic);
+	if (unwritten)
+		return -EFAULT;
 	return 0;
-#endif
+}
+
+/* Here's the write path which can sleep for
+ * page faults
+ */
+
+static inline int
+slow_user_write(struct io_mapping *mapping,
+		loff_t page_base, int page_offset,
+		char __user *user_data,
+		int length)
+{
+	char __iomem *vaddr;
+	unsigned long unwritten;
+
+	vaddr = io_mapping_map_wc(mapping, page_base);
+	if (vaddr == NULL)
+		return -EFAULT;
+	unwritten = __copy_from_user(vaddr + page_offset,
+				     user_data, length);
+	io_mapping_unmap(vaddr);
+	if (unwritten)
+		return -EFAULT;
+	return 0;
 }
 
 static int
@@ -230,10 +245,12 @@ i915_gem_gtt_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 		    struct drm_file *file_priv)
 {
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	ssize_t remain;
-	loff_t offset;
+	loff_t offset, page_base;
 	char __user *user_data;
-	int ret = 0;
+	int page_offset, page_length;
+	int ret;
 
 	user_data = (char __user *) (uintptr_t) args->data_ptr;
 	remain = args->size;
@@ -257,57 +274,37 @@ i915_gem_gtt_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 	obj_priv->dirty = 1;
 
 	while (remain > 0) {
-		unsigned long pfn;
-		int i, o, l;
-
 		/* Operation in this page
 		 *
-		 * i = page number
-		 * o = offset within page
-		 * l = bytes to copy
+		 * page_base = page offset within aperture
+		 * page_offset = offset within page
+		 * page_length = bytes to copy for this page
 		 */
-		i = offset >> PAGE_SHIFT;
-		o = offset & (PAGE_SIZE-1);
-		l = remain;
-		if ((o + l) > PAGE_SIZE)
-			l = PAGE_SIZE - o;
+		page_base = (offset & ~(PAGE_SIZE-1));
+		page_offset = offset & (PAGE_SIZE-1);
+		page_length = remain;
+		if ((page_offset + remain) > PAGE_SIZE)
+			page_length = PAGE_SIZE - page_offset;
 
-		pfn = (dev->agp->base >> PAGE_SHIFT) + i;
+		ret = fast_user_write (dev_priv->mm.gtt_mapping, page_base,
+				       page_offset, user_data, page_length);
 
-		if (!fast_user_write(pfn, user_data, l, o)) {
-			unsigned long unwritten;
-			char __iomem *vaddr;
-
-			vaddr = ioremap_wc(pfn << PAGE_SHIFT, PAGE_SIZE);
-#if WATCH_PWRITE
-			DRM_INFO("pwrite slow i %d o %d l %d "
-				 "pfn %ld vaddr %p\n",
-				 i, o, l, pfn, vaddr);
-#endif
-			if (vaddr == NULL) {
-				ret = -EFAULT;
+		/* If we get a fault while copying data, then (presumably) our
+		 * source page isn't available. In this case, use the
+		 * non-atomic function
+		 */
+		if (ret) {
+			ret = slow_user_write (dev_priv->mm.gtt_mapping,
+					       page_base, page_offset,
+					       user_data, page_length);
+			if (ret)
 				goto fail;
-			}
-			unwritten = __copy_from_user(vaddr + o, user_data, l);
-#if WATCH_PWRITE
-			DRM_INFO("unwritten %ld\n", unwritten);
-#endif
-			iounmap(vaddr);
-			if (unwritten) {
-				ret = -EFAULT;
-				goto fail;
-			}
 		}
 
-		remain -= l;
-		user_data += l;
-		offset += l;
+		remain -= page_length;
+		user_data += page_length;
+		offset += page_length;
 	}
-#if WATCH_PWRITE && 1
-	i915_gem_clflush_object(obj);
-	i915_gem_dump_object(obj, args->offset + args->size, __func__, ~0);
-	i915_gem_clflush_object(obj);
-#endif
 
 fail:
 	i915_gem_object_unpin(obj);
@@ -1525,12 +1522,12 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 				 struct drm_i915_gem_exec_object *entry)
 {
 	struct drm_device *dev = obj->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_relocation_entry reloc;
 	struct drm_i915_gem_relocation_entry __user *relocs;
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 	int i, ret;
-	uint32_t last_reloc_offset = -1;
-	void __iomem *reloc_page = NULL;
+	void __iomem *reloc_page;
 
 	/* Choose the GTT offset for our buffer and put it there. */
 	ret = i915_gem_object_pin(obj, (uint32_t) entry->alignment);
@@ -1653,26 +1650,11 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 		 * perform.
 		 */
 		reloc_offset = obj_priv->gtt_offset + reloc.offset;
-		if (reloc_page == NULL ||
-		    (last_reloc_offset & ~(PAGE_SIZE - 1)) !=
-		    (reloc_offset & ~(PAGE_SIZE - 1))) {
-			if (reloc_page != NULL)
-				iounmap(reloc_page);
-
-			reloc_page = ioremap_wc(dev->agp->base +
-						(reloc_offset &
-						 ~(PAGE_SIZE - 1)),
-						PAGE_SIZE);
-			last_reloc_offset = reloc_offset;
-			if (reloc_page == NULL) {
-				drm_gem_object_unreference(target_obj);
-				i915_gem_object_unpin(obj);
-				return -ENOMEM;
-			}
-		}
-
+		reloc_page = io_mapping_map_atomic_wc(dev_priv->mm.gtt_mapping,
+						      (reloc_offset &
+						       ~(PAGE_SIZE - 1)));
 		reloc_entry = (uint32_t __iomem *)(reloc_page +
-					   (reloc_offset & (PAGE_SIZE - 1)));
+						   (reloc_offset & (PAGE_SIZE - 1)));
 		reloc_val = target_obj_priv->gtt_offset + reloc.delta;
 
 #if WATCH_BUF
@@ -1681,6 +1663,7 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 			  readl(reloc_entry), reloc_val);
 #endif
 		writel(reloc_val, reloc_entry);
+		io_mapping_unmap_atomic(reloc_page);
 
 		/* Write the updated presumed offset for this entry back out
 		 * to the user.
@@ -1695,9 +1678,6 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 
 		drm_gem_object_unreference(target_obj);
 	}
-
-	if (reloc_page != NULL)
-		iounmap(reloc_page);
 
 #if WATCH_BUF
 	if (0)
@@ -2540,6 +2520,10 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 	if (ret != 0)
 		return ret;
 
+	dev_priv->mm.gtt_mapping = io_mapping_create_wc(dev->agp->base,
+							dev->agp->agp_info.aper_size
+							* 1024 * 1024);
+
 	mutex_lock(&dev->struct_mutex);
 	BUG_ON(!list_empty(&dev_priv->mm.active_list));
 	BUG_ON(!list_empty(&dev_priv->mm.flushing_list));
@@ -2557,11 +2541,13 @@ int
 i915_gem_leavevt_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
 
 	ret = i915_gem_idle(dev);
 	drm_irq_uninstall(dev);
 
+	io_mapping_free(dev_priv->mm.gtt_mapping);
 	return ret;
 }
 

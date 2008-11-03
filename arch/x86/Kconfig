@@ -1894,6 +1894,10 @@ config SYSVIPC_COMPAT
 endmenu
 
 
+config HAVE_ATOMIC_IOMAP
+	def_bool y
+	depends on X86_32
+
 source "net/Kconfig"
 
 source "drivers/Kconfig"
