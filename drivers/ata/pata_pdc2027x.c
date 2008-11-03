@@ -406,23 +406,20 @@ static int pdc2027x_set_mode(struct ata_link *link, struct ata_device **r_failed
 	if (rc < 0)
 		return rc;
 
-	ata_link_for_each_dev(dev, link) {
-		if (ata_dev_enabled(dev)) {
+	ata_for_each_dev(dev, link, ENABLED) {
+		pdc2027x_set_piomode(ap, dev);
 
-			pdc2027x_set_piomode(ap, dev);
+		/*
+		 * Enable prefetch if the device support PIO only.
+		 */
+		if (dev->xfer_shift == ATA_SHIFT_PIO) {
+			u32 ctcr1 = ioread32(dev_mmio(ap, dev, PDC_CTCR1));
+			ctcr1 |= (1 << 25);
+			iowrite32(ctcr1, dev_mmio(ap, dev, PDC_CTCR1));
 
-			/*
-			 * Enable prefetch if the device support PIO only.
-			 */
-			if (dev->xfer_shift == ATA_SHIFT_PIO) {
-				u32 ctcr1 = ioread32(dev_mmio(ap, dev, PDC_CTCR1));
-				ctcr1 |= (1 << 25);
-				iowrite32(ctcr1, dev_mmio(ap, dev, PDC_CTCR1));
-
-				PDPRINTK("Turn on prefetch\n");
-			} else {
-				pdc2027x_set_dmamode(ap, dev);
-			}
+			PDPRINTK("Turn on prefetch\n");
+		} else {
+			pdc2027x_set_dmamode(ap, dev);
 		}
 	}
 	return 0;

@@ -278,7 +278,7 @@ static int sil_set_mode(struct ata_link *link, struct ata_device **r_failed)
 	if (rc)
 		return rc;
 
-	ata_link_for_each_dev(dev, link) {
+	ata_for_each_dev(dev, link, ALL) {
 		if (!ata_dev_enabled(dev))
 			dev_mode[dev->devno] = 0;	/* PIO0/1/2 */
 		else if (dev->flags & ATA_DFLAG_PIO)
