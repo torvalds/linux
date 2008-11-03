@@ -548,10 +548,13 @@ static int p80211wext_giwencode(netdevice_t *dev,
 
 	DBFENTER;
 
+	i = (erq->flags & IW_ENCODE_INDEX) - 1;
+	erq->flags = 0;
+
 	if (wlandev->hostwep & HOSTWEP_PRIVACYINVOKED)
-		erq->flags = IW_ENCODE_ENABLED;
+		erq->flags |= IW_ENCODE_ENABLED;
 	else
-		erq->flags = IW_ENCODE_DISABLED;
+		erq->flags |= IW_ENCODE_DISABLED;
 
 	if (wlandev->hostwep & HOSTWEP_EXCLUDEUNENCRYPTED)
 		erq->flags |= IW_ENCODE_RESTRICTED;
@@ -614,17 +617,24 @@ static int p80211wext_siwencode(netdevice_t *dev,
 			err = -EFAULT;
 			goto exit;
 		}
-		else {
-			enable = 1;
+
+		/* Set current key number only if no keys are given */
+		if (erq->flags & IW_ENCODE_NOKEY) {
+			result = p80211wext_dorequest(wlandev, DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID, i);
+
+			if (result) {
+				err = -EFAULT;
+				goto exit;
+			}
 		}
 
-	}
-	else {
-		// Do not thing when no Key Index
+	} else {
+		// Use defaultkey if no Key Index
+		i = wlandev->hostwep & HOSTWEP_DEFAULTKEY_MASK;
 	}
 
 	/* Check if there is no key information in the iwconfig request */
-	if((erq->flags & IW_ENCODE_NOKEY) == 0 && enable == 1) {
+	if((erq->flags & IW_ENCODE_NOKEY) == 0 ) {
 
 		/*------------------------------------------------------------
 		 * If there is WEP Key for setting, check the Key Information
@@ -679,8 +689,7 @@ static int p80211wext_siwencode(netdevice_t *dev,
 	/* Check the PrivacyInvoked flag */
 	if (erq->flags & IW_ENCODE_DISABLED) {
 		result = p80211wext_dorequest(wlandev, DIDmib_dot11smt_dot11PrivacyTable_dot11PrivacyInvoked, P80211ENUM_truth_false);
-	}
-	else if((erq->flags & IW_ENCODE_ENABLED) || enable == 1) {
+	} else {
 		result = p80211wext_dorequest(wlandev, DIDmib_dot11smt_dot11PrivacyTable_dot11PrivacyInvoked, P80211ENUM_truth_true);
 	}
 
@@ -689,7 +698,13 @@ static int p80211wext_siwencode(netdevice_t *dev,
 		goto exit;
 	}
 
-	/* Check the ExcludeUnencrypted flag */
+	/*  The  security  mode  may  be open or restricted, and its meaning
+	    depends on the card used. With  most  cards,  in  open  mode  no
+	    authentication  is  used  and  the  card  may  also  accept non-
+	    encrypted sessions, whereas in restricted  mode  only  encrypted
+	    sessions  are  accepted  and the card will use authentication if
+	    available.
+	*/
 	if (erq->flags & IW_ENCODE_RESTRICTED) {
 		result = p80211wext_dorequest(wlandev, DIDmib_dot11smt_dot11PrivacyTable_dot11ExcludeUnencrypted, P80211ENUM_truth_true);
 	}
@@ -1746,8 +1761,6 @@ static iw_handler p80211wext_handlers[] =  {
 	(iw_handler) NULL,                  		/* SIOCGIWAPLIST */
 	(iw_handler) p80211wext_siwscan,		/* SIOCSIWSCAN */
 	(iw_handler) p80211wext_giwscan,		/* SIOCGIWSCAN */
-	(iw_handler) NULL,	/* null */		/* SIOCSIWSCAN */
-	(iw_handler) NULL,	/* null */		/* SIOCGIWSCAN */
 	(iw_handler) p80211wext_siwessid,  		/* SIOCSIWESSID */
 	(iw_handler) p80211wext_giwessid,      		/* SIOCGIWESSID */
 	(iw_handler) NULL,                 		/* SIOCSIWNICKN */
