@@ -3604,7 +3604,7 @@ static void hfa384x_usbin_callback(struct urb *urb)
 
 	if ( !wlandev ||
 	     !wlandev->netdev ||
-	     !netif_device_present(wlandev->netdev) )
+	     wlandev->hwremoved )
 		goto exit;
 
 	hw = wlandev->priv;
