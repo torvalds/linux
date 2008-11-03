@@ -377,6 +377,14 @@ int skb_p80211_to_ether( wlandevice_t *wlandev, u32 ethconv, struct sk_buff *skb
 	     (memcmp(saddr, e_hdr->saddr, WLAN_ETHADDR_LEN) == 0))) {
 		WLAN_LOG_DEBUG(3, "802.3 ENCAP len: %d\n", payload_length);
 		/* 802.3 Encapsulated */
+		/* Test for an overlength frame */
+		if ( payload_length > (netdev->mtu + WLAN_ETHHDR_LEN)) {
+			/* A bogus length ethfrm has been encap'd. */
+			/* Is someone trying an oflow attack? */
+			WLAN_LOG_ERROR("ENCAP frame too large (%d > %d)\n",
+				payload_length, netdev->mtu + WLAN_ETHHDR_LEN);
+			return 1;
+		}
 
 		/* Chop off the 802.11 header.  it's already sane. */
 		skb_pull(skb, payload_offset);
@@ -395,6 +403,15 @@ int skb_p80211_to_ether( wlandevice_t *wlandev, u32 ethconv, struct sk_buff *skb
 		WLAN_LOG_DEBUG(3, "SNAP+RFC1042 len: %d\n", payload_length);
 		/* it's a SNAP + RFC1042 frame && protocol is in STT */
 		/* build 802.3 + RFC1042 */
+
+		/* Test for an overlength frame */
+		if ( payload_length > netdev->mtu ) {
+			/* A bogus length ethfrm has been sent. */
+			/* Is someone trying an oflow attack? */
+			WLAN_LOG_ERROR("SNAP frame too large (%d > %d)\n",
+				payload_length, netdev->mtu);
+			return 1;
+		}
 
 		/* chop 802.11 header from skb. */
 		skb_pull(skb, payload_offset);
@@ -415,6 +432,18 @@ int skb_p80211_to_ether( wlandevice_t *wlandev, u32 ethconv, struct sk_buff *skb
 		WLAN_LOG_DEBUG(3, "802.1h/RFC1042 len: %d\n", payload_length);
 		/* it's an 802.1h frame || (an RFC1042 && protocol is not in STT) */
 		/* build a DIXII + RFC894 */
+
+		/* Test for an overlength frame */
+		if ((payload_length - sizeof(wlan_llc_t) - sizeof(wlan_snap_t))
+		    > netdev->mtu) {
+			/* A bogus length ethfrm has been sent. */
+			/* Is someone trying an oflow attack? */
+			WLAN_LOG_ERROR("DIXII frame too large (%ld > %d)\n",
+					(long int) (payload_length - sizeof(wlan_llc_t) -
+						    sizeof(wlan_snap_t)),
+					netdev->mtu);
+			return 1;
+		}
 
 		/* chop 802.11 header from skb. */
 		skb_pull(skb, payload_offset);
@@ -440,6 +469,16 @@ int skb_p80211_to_ether( wlandevice_t *wlandev, u32 ethconv, struct sk_buff *skb
 		/*  build an 802.3 frame */
 		/* allocate space and setup hostbuf */
 
+		/* Test for an overlength frame */
+		if ( payload_length > netdev->mtu ) {
+			/* A bogus length ethfrm has been sent. */
+			/* Is someone trying an oflow attack? */
+			WLAN_LOG_ERROR("OTHER frame too large (%d > %d)\n",
+				payload_length,
+				netdev->mtu);
+			return 1;
+		}
+
 		/* Chop off the 802.11 header. */
 		skb_pull(skb, payload_offset);
 
@@ -454,8 +493,16 @@ int skb_p80211_to_ether( wlandevice_t *wlandev, u32 ethconv, struct sk_buff *skb
 
 	}
 
+        /*
+         * Note that eth_type_trans() expects an skb w/ skb->data pointing
+         * at the MAC header, it then sets the following skb members:
+         * skb->mac_header,
+         * skb->data, and
+         * skb->pkt_type.
+         * It then _returns_ the value that _we're_ supposed to stuff in
+         * skb->protocol.  This is nuts.
+         */
 	skb->protocol = eth_type_trans(skb, netdev);
-	skb_reset_mac_header(skb);
 
         /* jkriegl: process signal and noise as set in hfa384x_int_rx() */
 	/* jkriegl: only process signal/noise if requested by iwspy */
