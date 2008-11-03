@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.28-rc3
-# Mon Nov  3 10:07:29 2008
+# Mon Nov  3 10:10:30 2008
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -651,7 +651,7 @@ CONFIG_SDIO_UART=y
 # MMC/SD/SDIO Host Controller Drivers
 #
 CONFIG_MMC_SDHCI=y
-# CONFIG_MMC_SDHCI_S3C is not set
+CONFIG_MMC_SDHCI_S3C=y
 # CONFIG_MEMSTICK is not set
 # CONFIG_ACCESSIBILITY is not set
 # CONFIG_NEW_LEDS is not set
