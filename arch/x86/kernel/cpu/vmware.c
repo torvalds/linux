@@ -36,7 +36,7 @@
 			"=a"(eax), "=c"(ecx), "=d"(edx), "=b"(ebx) :	\
 			"0"(VMWARE_HYPERVISOR_MAGIC),			\
 			"1"(VMWARE_PORT_CMD_##cmd),			\
-			"2"(VMWARE_HYPERVISOR_PORT), "3"(0) :		\
+			"2"(VMWARE_HYPERVISOR_PORT), "3"(UINT_MAX) :	\
 			"memory");
 
 static inline int __vmware_platform(void)
@@ -53,7 +53,7 @@ static unsigned long __vmware_get_tsc_khz(void)
 
         VMWARE_PORT(GETHZ, eax, ebx, ecx, edx);
 
-        if (eax == (uint32_t)-1)
+        if (ebx == UINT_MAX)
                 return 0;
         tsc_hz = eax | (((uint64_t)ebx) << 32);
         do_div(tsc_hz, 1000);
