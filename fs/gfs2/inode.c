@@ -286,7 +286,7 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	ip->i_inode.i_ctime.tv_nsec = be32_to_cpu(str->di_ctime_nsec);
 
 	ip->i_goal = be64_to_cpu(str->di_goal_meta);
-	di->di_generation = be64_to_cpu(str->di_generation);
+	ip->i_generation = be64_to_cpu(str->di_generation);
 
 	di->di_flags = be32_to_cpu(str->di_flags);
 	gfs2_set_inode_flags(&ip->i_inode);
@@ -1263,7 +1263,7 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 
 	str->di_goal_meta = cpu_to_be64(ip->i_goal);
 	str->di_goal_data = cpu_to_be64(ip->i_goal);
-	str->di_generation = cpu_to_be64(di->di_generation);
+	str->di_generation = cpu_to_be64(ip->i_generation);
 
 	str->di_flags = cpu_to_be32(di->di_flags);
 	str->di_height = cpu_to_be16(ip->i_height);
