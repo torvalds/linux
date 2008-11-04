@@ -17,8 +17,8 @@ static struct ctl_table atalk_table[] = {
 		.data		= &sysctl_aarp_expiry_time,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-		.strategy	= &sysctl_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
+		.strategy	= sysctl_jiffies,
 	},
 	{
 		.ctl_name	= NET_ATALK_AARP_TICK_TIME,
@@ -26,8 +26,8 @@ static struct ctl_table atalk_table[] = {
 		.data		= &sysctl_aarp_tick_time,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-		.strategy	= &sysctl_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
+		.strategy	= sysctl_jiffies,
 	},
 	{
 		.ctl_name	= NET_ATALK_AARP_RETRANSMIT_LIMIT,
@@ -35,7 +35,7 @@ static struct ctl_table atalk_table[] = {
 		.data		= &sysctl_aarp_retransmit_limit,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.ctl_name	= NET_ATALK_AARP_RESOLVE_TIME,
@@ -43,8 +43,8 @@ static struct ctl_table atalk_table[] = {
 		.data		= &sysctl_aarp_resolve_time,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-		.strategy	= &sysctl_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
+		.strategy	= sysctl_jiffies,
 	},
 	{ 0 },
 };

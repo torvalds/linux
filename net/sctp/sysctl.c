@@ -63,8 +63,8 @@ static ctl_table sctp_table[] = {
 		.data		= &sctp_rto_initial,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.strategy	= sysctl_intvec,
 		.extra1         = &one,
 		.extra2         = &timer_max
 	},
@@ -74,8 +74,8 @@ static ctl_table sctp_table[] = {
 		.data		= &sctp_rto_min,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.strategy	= sysctl_intvec,
 		.extra1         = &one,
 		.extra2         = &timer_max
 	},
@@ -85,8 +85,8 @@ static ctl_table sctp_table[] = {
 		.data		= &sctp_rto_max,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.strategy	= sysctl_intvec,
 		.extra1         = &one,
 		.extra2         = &timer_max
 	},
@@ -96,8 +96,8 @@ static ctl_table sctp_table[] = {
 		.data		= &sctp_valid_cookie_life,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.strategy	= sysctl_intvec,
 		.extra1         = &one,
 		.extra2         = &timer_max
 	},
@@ -107,8 +107,8 @@ static ctl_table sctp_table[] = {
 		.data		= &sctp_max_burst,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.strategy	= sysctl_intvec,
 		.extra1		= &zero,
 		.extra2		= &int_max
 	},
@@ -118,8 +118,8 @@ static ctl_table sctp_table[] = {
 		.data		= &sctp_max_retrans_association,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.strategy	= sysctl_intvec,
 		.extra1		= &one,
 		.extra2		= &int_max
 	},
@@ -129,8 +129,8 @@ static ctl_table sctp_table[] = {
 		.data		= &sctp_sndbuf_policy,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-		.strategy	= &sysctl_intvec
+		.proc_handler	= proc_dointvec,
+		.strategy	= sysctl_intvec
 	},
 	{
 		.ctl_name	= NET_SCTP_RCVBUF_POLICY,
@@ -138,8 +138,8 @@ static ctl_table sctp_table[] = {
 		.data		= &sctp_rcvbuf_policy,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-		.strategy	= &sysctl_intvec
+		.proc_handler	= proc_dointvec,
+		.strategy	= sysctl_intvec
 	},
 	{
 		.ctl_name	= NET_SCTP_PATH_MAX_RETRANS,
@@ -147,8 +147,8 @@ static ctl_table sctp_table[] = {
 		.data		= &sctp_max_retrans_path,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.strategy	= sysctl_intvec,
 		.extra1		= &one,
 		.extra2		= &int_max
 	},
@@ -158,8 +158,8 @@ static ctl_table sctp_table[] = {
 		.data		= &sctp_max_retrans_init,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.strategy	= sysctl_intvec,
 		.extra1		= &one,
 		.extra2		= &int_max
 	},
@@ -169,8 +169,8 @@ static ctl_table sctp_table[] = {
 		.data		= &sctp_hb_interval,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.strategy	= sysctl_intvec,
 		.extra1         = &one,
 		.extra2         = &timer_max
 	},
@@ -180,8 +180,8 @@ static ctl_table sctp_table[] = {
 		.data		= &sctp_cookie_preserve_enable,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-		.strategy	= &sysctl_intvec
+		.proc_handler	= proc_dointvec,
+		.strategy	= sysctl_intvec
 	},
 	{
 		.ctl_name	= NET_SCTP_RTO_ALPHA,
@@ -189,8 +189,8 @@ static ctl_table sctp_table[] = {
 		.data		= &sctp_rto_alpha,
 		.maxlen		= sizeof(int),
 		.mode		= 0444,
-		.proc_handler	= &proc_dointvec,
-		.strategy	= &sysctl_intvec
+		.proc_handler	= proc_dointvec,
+		.strategy	= sysctl_intvec
 	},
 	{
 		.ctl_name	= NET_SCTP_RTO_BETA,
@@ -198,8 +198,8 @@ static ctl_table sctp_table[] = {
 		.data		= &sctp_rto_beta,
 		.maxlen		= sizeof(int),
 		.mode		= 0444,
-		.proc_handler	= &proc_dointvec,
-		.strategy	= &sysctl_intvec
+		.proc_handler	= proc_dointvec,
+		.strategy	= sysctl_intvec
 	},
 	{
 		.ctl_name	= NET_SCTP_ADDIP_ENABLE,
@@ -207,8 +207,8 @@ static ctl_table sctp_table[] = {
 		.data		= &sctp_addip_enable,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-		.strategy	= &sysctl_intvec
+		.proc_handler	= proc_dointvec,
+		.strategy	= sysctl_intvec
 	},
 	{
 		.ctl_name	= NET_SCTP_PRSCTP_ENABLE,
@@ -216,8 +216,8 @@ static ctl_table sctp_table[] = {
 		.data		= &sctp_prsctp_enable,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-		.strategy	= &sysctl_intvec
+		.proc_handler	= proc_dointvec,
+		.strategy	= sysctl_intvec
 	},
 	{
 		.ctl_name	= NET_SCTP_SACK_TIMEOUT,
@@ -225,8 +225,8 @@ static ctl_table sctp_table[] = {
 		.data		= &sctp_sack_timeout,
 		.maxlen		= sizeof(long),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.strategy	= sysctl_intvec,
 		.extra1         = &sack_timer_min,
 		.extra2         = &sack_timer_max,
 	},
@@ -236,7 +236,7 @@ static ctl_table sctp_table[] = {
 		.data		= &sysctl_sctp_mem,
 		.maxlen		= sizeof(sysctl_sctp_mem),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.ctl_name	= CTL_UNNUMBERED,
@@ -244,7 +244,7 @@ static ctl_table sctp_table[] = {
 		.data		= &sysctl_sctp_rmem,
 		.maxlen		= sizeof(sysctl_sctp_rmem),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.ctl_name	= CTL_UNNUMBERED,
@@ -252,7 +252,7 @@ static ctl_table sctp_table[] = {
 		.data		= &sysctl_sctp_wmem,
 		.maxlen		= sizeof(sysctl_sctp_wmem),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.ctl_name	= CTL_UNNUMBERED,
@@ -260,8 +260,8 @@ static ctl_table sctp_table[] = {
 		.data		= &sctp_auth_enable,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-		.strategy	= &sysctl_intvec
+		.proc_handler	= proc_dointvec,
+		.strategy	= sysctl_intvec
 	},
 	{
 		.ctl_name	= CTL_UNNUMBERED,
@@ -269,8 +269,8 @@ static ctl_table sctp_table[] = {
 		.data		= &sctp_addip_noauth,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-		.strategy	= &sysctl_intvec
+		.proc_handler	= proc_dointvec,
+		.strategy	= sysctl_intvec
 	},
 	{ .ctl_name = 0 }
 };

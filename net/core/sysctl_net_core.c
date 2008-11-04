@@ -22,7 +22,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &sysctl_wmem_max,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.ctl_name	= NET_CORE_RMEM_MAX,
@@ -30,7 +30,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &sysctl_rmem_max,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.ctl_name	= NET_CORE_WMEM_DEFAULT,
@@ -38,7 +38,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &sysctl_wmem_default,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.ctl_name	= NET_CORE_RMEM_DEFAULT,
@@ -46,7 +46,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &sysctl_rmem_default,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.ctl_name	= NET_CORE_DEV_WEIGHT,
@@ -54,7 +54,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &weight_p,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.ctl_name	= NET_CORE_MAX_BACKLOG,
@@ -62,7 +62,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &netdev_max_backlog,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.ctl_name	= NET_CORE_MSG_COST,
@@ -70,8 +70,8 @@ static struct ctl_table net_core_table[] = {
 		.data		= &net_ratelimit_state.interval,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-		.strategy	= &sysctl_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
+		.strategy	= sysctl_jiffies,
 	},
 	{
 		.ctl_name	= NET_CORE_MSG_BURST,
@@ -79,7 +79,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &net_ratelimit_state.burst,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.ctl_name	= NET_CORE_OPTMEM_MAX,
@@ -87,7 +87,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &sysctl_optmem_max,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 #ifdef CONFIG_XFRM
 	{
@@ -96,7 +96,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &sysctl_xfrm_aevent_etime,
 		.maxlen		= sizeof(u32),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.ctl_name	= NET_CORE_AEVENT_RSEQTH,
@@ -104,7 +104,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &sysctl_xfrm_aevent_rseqth,
 		.maxlen		= sizeof(u32),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.ctl_name	= CTL_UNNUMBERED,
@@ -112,7 +112,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &sysctl_xfrm_larval_drop,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.ctl_name	= CTL_UNNUMBERED,
@@ -120,7 +120,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &sysctl_xfrm_acq_expires,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 #endif /* CONFIG_XFRM */
 #endif /* CONFIG_NET */
@@ -130,7 +130,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &netdev_budget,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.ctl_name	= NET_CORE_WARNINGS,
@@ -138,7 +138,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &net_msg_warn,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 	{ .ctl_name = 0 }
 };
@@ -150,7 +150,7 @@ static struct ctl_table netns_core_table[] = {
 		.data		= &init_net.core.sysctl_somaxconn,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 	{ .ctl_name = 0 }
 };

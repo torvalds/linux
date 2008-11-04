@@ -89,7 +89,7 @@ static struct ctl_table phonet_table[] = {
 		.data		= &local_port_range,
 		.maxlen		= sizeof(local_port_range),
 		.mode		= 0644,
-		.proc_handler	= &proc_local_port_range,
+		.proc_handler	= proc_local_port_range,
 		.strategy	= NULL,
 	},
 	{ .ctl_name = 0 }

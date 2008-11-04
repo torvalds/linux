@@ -3118,7 +3118,7 @@ static ctl_table ipv4_route_table[] = {
 		.data		= &ipv4_dst_ops.gc_thresh,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.ctl_name	= NET_IPV4_ROUTE_MAX_SIZE,
@@ -3126,7 +3126,7 @@ static ctl_table ipv4_route_table[] = {
 		.data		= &ip_rt_max_size,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		/*  Deprecated. Use gc_min_interval_ms */
@@ -3136,8 +3136,8 @@ static ctl_table ipv4_route_table[] = {
 		.data		= &ip_rt_gc_min_interval,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-		.strategy	= &sysctl_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
+		.strategy	= sysctl_jiffies,
 	},
 	{
 		.ctl_name	= NET_IPV4_ROUTE_GC_MIN_INTERVAL_MS,
@@ -3145,8 +3145,8 @@ static ctl_table ipv4_route_table[] = {
 		.data		= &ip_rt_gc_min_interval,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_ms_jiffies,
-		.strategy	= &sysctl_ms_jiffies,
+		.proc_handler	= proc_dointvec_ms_jiffies,
+		.strategy	= sysctl_ms_jiffies,
 	},
 	{
 		.ctl_name	= NET_IPV4_ROUTE_GC_TIMEOUT,
@@ -3154,8 +3154,8 @@ static ctl_table ipv4_route_table[] = {
 		.data		= &ip_rt_gc_timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-		.strategy	= &sysctl_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
+		.strategy	= sysctl_jiffies,
 	},
 	{
 		.ctl_name	= NET_IPV4_ROUTE_GC_INTERVAL,
@@ -3163,8 +3163,8 @@ static ctl_table ipv4_route_table[] = {
 		.data		= &ip_rt_gc_interval,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-		.strategy	= &sysctl_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
+		.strategy	= sysctl_jiffies,
 	},
 	{
 		.ctl_name	= NET_IPV4_ROUTE_REDIRECT_LOAD,
@@ -3172,7 +3172,7 @@ static ctl_table ipv4_route_table[] = {
 		.data		= &ip_rt_redirect_load,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.ctl_name	= NET_IPV4_ROUTE_REDIRECT_NUMBER,
@@ -3180,7 +3180,7 @@ static ctl_table ipv4_route_table[] = {
 		.data		= &ip_rt_redirect_number,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.ctl_name	= NET_IPV4_ROUTE_REDIRECT_SILENCE,
@@ -3188,7 +3188,7 @@ static ctl_table ipv4_route_table[] = {
 		.data		= &ip_rt_redirect_silence,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.ctl_name	= NET_IPV4_ROUTE_ERROR_COST,
@@ -3196,7 +3196,7 @@ static ctl_table ipv4_route_table[] = {
 		.data		= &ip_rt_error_cost,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.ctl_name	= NET_IPV4_ROUTE_ERROR_BURST,
@@ -3204,7 +3204,7 @@ static ctl_table ipv4_route_table[] = {
 		.data		= &ip_rt_error_burst,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.ctl_name	= NET_IPV4_ROUTE_GC_ELASTICITY,
@@ -3212,7 +3212,7 @@ static ctl_table ipv4_route_table[] = {
 		.data		= &ip_rt_gc_elasticity,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.ctl_name	= NET_IPV4_ROUTE_MTU_EXPIRES,
@@ -3220,8 +3220,8 @@ static ctl_table ipv4_route_table[] = {
 		.data		= &ip_rt_mtu_expires,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-		.strategy	= &sysctl_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
+		.strategy	= sysctl_jiffies,
 	},
 	{
 		.ctl_name	= NET_IPV4_ROUTE_MIN_PMTU,
@@ -3229,7 +3229,7 @@ static ctl_table ipv4_route_table[] = {
 		.data		= &ip_rt_min_pmtu,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.ctl_name	= NET_IPV4_ROUTE_MIN_ADVMSS,
@@ -3237,7 +3237,7 @@ static ctl_table ipv4_route_table[] = {
 		.data		= &ip_rt_min_advmss,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.ctl_name	= NET_IPV4_ROUTE_SECRET_INTERVAL,
@@ -3245,8 +3245,8 @@ static ctl_table ipv4_route_table[] = {
 		.data		= &ip_rt_secret_interval,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &ipv4_sysctl_rt_secret_interval,
-		.strategy	= &ipv4_sysctl_rt_secret_interval_strategy,
+		.proc_handler	= ipv4_sysctl_rt_secret_interval,
+		.strategy	= ipv4_sysctl_rt_secret_interval_strategy,
 	},
 	{ .ctl_name = 0 }
 };
@@ -3274,8 +3274,8 @@ static struct ctl_table ipv4_route_flush_table[] = {
 		.procname	= "flush",
 		.maxlen		= sizeof(int),
 		.mode		= 0200,
-		.proc_handler	= &ipv4_sysctl_rtcache_flush,
-		.strategy	= &ipv4_sysctl_rtcache_flush_strategy,
+		.proc_handler	= ipv4_sysctl_rtcache_flush,
+		.strategy	= ipv4_sysctl_rtcache_flush_strategy,
 	},
 	{ .ctl_name = 0 },
 };

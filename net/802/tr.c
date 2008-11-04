@@ -635,7 +635,7 @@ static struct ctl_table tr_table[] = {
 		.data		= &sysctl_tr_rif_timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 	{ 0 },
 };
