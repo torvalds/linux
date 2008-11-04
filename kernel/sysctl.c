@@ -487,7 +487,7 @@ static struct ctl_table kern_table[] = {
 #ifdef CONFIG_TRACING
 	{
 		.ctl_name	= CTL_UNNUMBERED,
-		.procname	= "ftrace_dump_on_opps",
+		.procname	= "ftrace_dump_on_oops",
 		.data		= &ftrace_dump_on_oops,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
