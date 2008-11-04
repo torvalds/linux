@@ -271,7 +271,9 @@ struct sock {
 	struct sk_buff		*sk_send_head;
 	__u32			sk_sndmsg_off;
 	int			sk_write_pending;
+#ifdef CONFIG_SECURITY
 	void			*sk_security;
+#endif
 	__u32			sk_mark;
 	/* XXX 4 bytes hole on 64 bit */
 	void			(*sk_state_change)(struct sock *sk);
