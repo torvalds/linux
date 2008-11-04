@@ -34,6 +34,7 @@ __xfrm6_init_tempsel(struct xfrm_state *x, struct flowi *fl,
 	x->sel.dport_mask = htons(0xffff);
 	x->sel.sport = xfrm_flowi_sport(fl);
 	x->sel.sport_mask = htons(0xffff);
+	x->sel.family = AF_INET6;
 	x->sel.prefixlen_d = 128;
 	x->sel.prefixlen_s = 128;
 	x->sel.proto = fl->proto;
