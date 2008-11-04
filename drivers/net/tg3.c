@@ -880,10 +880,45 @@ static int tg3_mdio_reset(struct mii_bus *bp)
 static void tg3_mdio_config_5785(struct tg3 *tp)
 {
 	u32 val;
+	struct phy_device *phydev;
 
-	if (tp->mdio_bus->phy_map[PHY_ADDR]->interface !=
-	    PHY_INTERFACE_MODE_RGMII)
+	phydev = tp->mdio_bus->phy_map[PHY_ADDR];
+	switch (phydev->drv->phy_id & phydev->drv->phy_id_mask) {
+	case TG3_PHY_ID_BCM50610:
+		val = MAC_PHYCFG2_50610_LED_MODES;
+		break;
+	case TG3_PHY_ID_BCMAC131:
+		val = MAC_PHYCFG2_AC131_LED_MODES;
+		break;
+	case TG3_PHY_ID_RTL8211C:
+		val = MAC_PHYCFG2_RTL8211C_LED_MODES;
+		break;
+	case TG3_PHY_ID_RTL8201E:
+		val = MAC_PHYCFG2_RTL8201E_LED_MODES;
+		break;
+	default:
 		return;
+	}
+
+	if (phydev->interface != PHY_INTERFACE_MODE_RGMII) {
+		tw32(MAC_PHYCFG2, val);
+
+		val = tr32(MAC_PHYCFG1);
+		val &= ~MAC_PHYCFG1_RGMII_INT;
+		tw32(MAC_PHYCFG1, val);
+
+		return;
+	}
+
+	if (!(tp->tg3_flags3 & TG3_FLG3_RGMII_STD_IBND_DISABLE))
+		val |= MAC_PHYCFG2_EMODE_MASK_MASK |
+		       MAC_PHYCFG2_FMODE_MASK_MASK |
+		       MAC_PHYCFG2_GMODE_MASK_MASK |
+		       MAC_PHYCFG2_ACT_MASK_MASK   |
+		       MAC_PHYCFG2_QUAL_MASK_MASK |
+		       MAC_PHYCFG2_INBAND_ENABLE;
+
+	tw32(MAC_PHYCFG2, val);
 
 	val = tr32(MAC_PHYCFG1) & ~(MAC_PHYCFG1_RGMII_EXT_RX_DEC |
 				    MAC_PHYCFG1_RGMII_SND_STAT_EN);
@@ -895,11 +930,6 @@ static void tg3_mdio_config_5785(struct tg3 *tp)
 	}
 	tw32(MAC_PHYCFG1, val | MAC_PHYCFG1_RGMII_INT | MAC_PHYCFG1_TXC_DRV);
 
-	val = tr32(MAC_PHYCFG2) & ~(MAC_PHYCFG2_INBAND_ENABLE);
-	if (!(tp->tg3_flags3 & TG3_FLG3_RGMII_STD_IBND_DISABLE))
-		val |= MAC_PHYCFG2_INBAND_ENABLE;
-	tw32(MAC_PHYCFG2, val);
-
 	val = tr32(MAC_EXT_RGMII_MODE);
 	val &= ~(MAC_RGMII_MODE_RX_INT_B |
 		 MAC_RGMII_MODE_RX_QUALITY |
@@ -908,7 +938,7 @@ static void tg3_mdio_config_5785(struct tg3 *tp)
 		 MAC_RGMII_MODE_TX_ENABLE |
 		 MAC_RGMII_MODE_TX_LOWPWR |
 		 MAC_RGMII_MODE_TX_RESET);
-	if (tp->tg3_flags3 & TG3_FLG3_RGMII_STD_IBND_DISABLE) {
+	if (!(tp->tg3_flags3 & TG3_FLG3_RGMII_STD_IBND_DISABLE)) {
 		if (tp->tg3_flags3 & TG3_FLG3_RGMII_EXT_IBND_RX_EN)
 			val |= MAC_RGMII_MODE_RX_INT_B |
 			       MAC_RGMII_MODE_RX_QUALITY |
@@ -1005,14 +1035,17 @@ static int tg3_mdio_init(struct tg3 *tp)
 
 	switch (phydev->drv->phy_id & phydev->drv->phy_id_mask) {
 	case TG3_PHY_ID_BCM50610:
-		phydev->interface = PHY_INTERFACE_MODE_RGMII;
 		if (tp->tg3_flags3 & TG3_FLG3_RGMII_STD_IBND_DISABLE)
 			phydev->dev_flags |= PHY_BRCM_STD_IBND_DISABLE;
 		if (tp->tg3_flags3 & TG3_FLG3_RGMII_EXT_IBND_RX_EN)
 			phydev->dev_flags |= PHY_BRCM_EXT_IBND_RX_ENABLE;
 		if (tp->tg3_flags3 & TG3_FLG3_RGMII_EXT_IBND_TX_EN)
 			phydev->dev_flags |= PHY_BRCM_EXT_IBND_TX_ENABLE;
+		/* fallthru */
+	case TG3_PHY_ID_RTL8211C:
+		phydev->interface = PHY_INTERFACE_MODE_RGMII;
 		break;
+	case TG3_PHY_ID_RTL8201E:
 	case TG3_PHY_ID_BCMAC131:
 		phydev->interface = PHY_INTERFACE_MODE_MII;
 		break;
@@ -1312,6 +1345,15 @@ static void tg3_adjust_link(struct net_device *dev)
 		tp->mac_mode = mac_mode;
 		tw32_f(MAC_MODE, tp->mac_mode);
 		udelay(40);
+	}
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785) {
+		if (phydev->speed == SPEED_10)
+			tw32(MAC_MI_STAT,
+			     MAC_MI_STAT_10MBPS_MODE |
+			     MAC_MI_STAT_LNKSTAT_ATTN_ENAB);
+		else
+			tw32(MAC_MI_STAT, MAC_MI_STAT_LNKSTAT_ATTN_ENAB);
 	}
 
 	if (phydev->speed == SPEED_1000 && phydev->duplex == DUPLEX_HALF)
@@ -5817,13 +5859,15 @@ static void tg3_restore_pci_state(struct tg3 *tp)
 
 	pci_write_config_word(tp->pdev, PCI_COMMAND, tp->pci_cmd);
 
-	if (tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS)
-		pcie_set_readrq(tp->pdev, 4096);
-	else {
-		pci_write_config_byte(tp->pdev, PCI_CACHE_LINE_SIZE,
-				      tp->pci_cacheline_sz);
-		pci_write_config_byte(tp->pdev, PCI_LATENCY_TIMER,
-				      tp->pci_lat_timer);
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5785) {
+		if (tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS)
+			pcie_set_readrq(tp->pdev, 4096);
+		else {
+			pci_write_config_byte(tp->pdev, PCI_CACHE_LINE_SIZE,
+					      tp->pci_cacheline_sz);
+			pci_write_config_byte(tp->pdev, PCI_LATENCY_TIMER,
+					      tp->pci_lat_timer);
+		}
 	}
 
 	/* Make sure PCI-X relaxed ordering bit is clear. */
@@ -5980,8 +6024,9 @@ static int tg3_chip_reset(struct tg3 *tp)
 			pci_write_config_dword(tp->pdev, 0xc4,
 					       cfg_val | (1 << 15));
 		}
-		/* Set PCIE max payload size and clear error status.  */
-		pci_write_config_dword(tp->pdev, 0xd8, 0xf5000);
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5785)
+			/* Set PCIE max payload size and clear error status.  */
+			pci_write_config_dword(tp->pdev, 0xd8, 0xf5000);
 	}
 
 	tg3_restore_pci_state(tp);
@@ -7149,8 +7194,7 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		return err;
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5784 &&
-	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5761 &&
-	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5785) {
+	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5761) {
 		/* This value is determined during the probe time DMA
 		 * engine test, tg3_test_dma.
 		 */
@@ -12156,7 +12200,8 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 			if (lnkctl & PCI_EXP_LNKCTL_CLKREQ_EN)
 				tp->tg3_flags2 &= ~TG3_FLG2_HW_TSO_2;
 		}
-	}
+	} else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785)
+		tp->tg3_flags2 |= TG3_FLG2_PCI_EXPRESS;
 
 	/* If we have an AMD 762 or VIA K8T800 chipset, write
 	 * reordering to the mailbox registers done by the host
