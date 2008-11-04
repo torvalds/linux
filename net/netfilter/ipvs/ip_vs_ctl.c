@@ -1168,15 +1168,9 @@ ip_vs_add_service(struct ip_vs_service_user_kern *u,
 	}
 
 #ifdef CONFIG_IP_VS_IPV6
-	if (u->af == AF_INET6) {
-		if (!sched->supports_ipv6) {
-			ret = -EAFNOSUPPORT;
-			goto out_err;
-		}
-		if ((u->netmask < 1) || (u->netmask > 128)) {
-			ret = -EINVAL;
-			goto out_err;
-		}
+	if (u->af == AF_INET6 && (u->netmask < 1 || u->netmask > 128)) {
+		ret = -EINVAL;
+		goto out_err;
 	}
 #endif
 
@@ -1272,15 +1266,9 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 	old_sched = sched;
 
 #ifdef CONFIG_IP_VS_IPV6
-	if (u->af == AF_INET6) {
-		if (!sched->supports_ipv6) {
-			ret = -EAFNOSUPPORT;
-			goto out;
-		}
-		if ((u->netmask < 1) || (u->netmask > 128)) {
-			ret = -EINVAL;
-			goto out;
-		}
+	if (u->af == AF_INET6 && (u->netmask < 1 || u->netmask > 128)) {
+		ret = -EINVAL;
+		goto out;
 	}
 #endif
 
