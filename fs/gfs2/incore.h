@@ -69,7 +69,6 @@ struct gfs2_bitmap {
 };
 
 struct gfs2_rgrp_host {
-	u32 rg_free;
 	u32 rg_dinodes;
 };
 
@@ -82,6 +81,7 @@ struct gfs2_rgrpd {
 	u32 rd_length;			/* length of rgrp header in fs blocks */
 	u32 rd_data;			/* num of data blocks in rgrp */
 	u32 rd_bitbytes;		/* number of bytes in data bitmaps */
+	u32 rd_free;
 	struct gfs2_rgrp_host rd_rg;
 	u64 rd_igeneration;
 	struct gfs2_bitmap *rd_bits;

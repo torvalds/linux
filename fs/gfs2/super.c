@@ -468,7 +468,7 @@ static int statfs_slow_fill(struct gfs2_rgrpd *rgd,
 {
 	gfs2_rgrp_verify(rgd);
 	sc->sc_total += rgd->rd_data;
-	sc->sc_free += rgd->rd_rg.rg_free;
+	sc->sc_free += rgd->rd_free;
 	sc->sc_dinodes += rgd->rd_rg.rg_dinodes;
 	return 0;
 }
