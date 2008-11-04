@@ -4,7 +4,10 @@
 #include <linux/list.h>
 #include <linux/netfilter.h>
 
+struct ebt_table;
+
 struct netns_xt {
 	struct list_head tables[NFPROTO_NUMPROTO];
+	struct ebt_table *broute_table;
 };
 #endif
