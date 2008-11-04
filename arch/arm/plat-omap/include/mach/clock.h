@@ -65,7 +65,6 @@ struct dpll_data {
 struct clk {
 	struct list_head	node;
 	const struct clkops	*ops;
-	struct module		*owner;
 	const char		*name;
 	int			id;
 	struct clk		*parent;
