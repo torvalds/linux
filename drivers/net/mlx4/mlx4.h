@@ -87,18 +87,15 @@ enum {
 
 #ifdef CONFIG_MLX4_DEBUG
 extern int mlx4_debug_level;
+#else /* CONFIG_MLX4_DEBUG */
+#define mlx4_debug_level	(0)
+#endif /* CONFIG_MLX4_DEBUG */
 
 #define mlx4_dbg(mdev, format, arg...)					\
 	do {								\
 		if (mlx4_debug_level)					\
 			dev_printk(KERN_DEBUG, &mdev->pdev->dev, format, ## arg); \
 	} while (0)
-
-#else /* CONFIG_MLX4_DEBUG */
-
-#define mlx4_dbg(mdev, format, arg...) do { (void) mdev; } while (0)
-
-#endif /* CONFIG_MLX4_DEBUG */
 
 #define mlx4_err(mdev, format, arg...) \
 	dev_err(&mdev->pdev->dev, format, ## arg)
