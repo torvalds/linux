@@ -472,6 +472,7 @@ static void zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *act)
 				   ZFCP_STATUS_ERP_TIMEDOUT)) {
 			act->fsf_req->status |= ZFCP_STATUS_FSFREQ_DISMISSED;
 			zfcp_rec_dbf_event_action(142, act);
+			act->fsf_req->erp_action = NULL;
 		}
 		if (act->status & ZFCP_STATUS_ERP_TIMEDOUT)
 			zfcp_rec_dbf_event_action(143, act);
