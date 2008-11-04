@@ -271,9 +271,6 @@ int _omap2_clk_enable(struct clk *clk)
 {
 	u32 regval32;
 
-	if (clk->flags & PARENT_CONTROLS_CLOCK)
-		return 0;
-
 	if (clk->ops && clk->ops->enable)
 		return clk->ops->enable(clk);
 
@@ -300,9 +297,6 @@ int _omap2_clk_enable(struct clk *clk)
 void _omap2_clk_disable(struct clk *clk)
 {
 	u32 regval32;
-
-	if (clk->flags & PARENT_CONTROLS_CLOCK)
-		return;
 
 	if (clk->ops && clk->ops->disable) {
 		clk->ops->disable(clk);

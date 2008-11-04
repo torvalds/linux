@@ -148,7 +148,6 @@ extern const struct clkops clkops_null;
 #define CLOCK_IN_OMAP242X	(1 << 25)
 #define CLOCK_IN_OMAP243X	(1 << 26)
 #define CLOCK_IN_OMAP343X	(1 << 27)	/* clocks common to all 343X */
-#define PARENT_CONTROLS_CLOCK	(1 << 28)
 #define CLOCK_IN_OMAP3430ES1	(1 << 29)	/* 3430ES1 clocks only */
 #define CLOCK_IN_OMAP3430ES2	(1 << 30)	/* 3430ES2 clocks only */
 

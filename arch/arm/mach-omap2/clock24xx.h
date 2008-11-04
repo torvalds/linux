@@ -742,9 +742,10 @@ static const struct clksel func_54m_clksel[] = {
 
 static struct clk func_54m_ck = {
 	.name		= "func_54m_ck",
+	.ops		= &clkops_null,
 	.parent		= &apll54_ck,	/* can also be alt_clk */
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
-				RATE_PROPAGATES | PARENT_CONTROLS_CLOCK,
+				RATE_PROPAGATES,
 	.clkdm_name	= "wkup_clkdm",
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKSEL1),
@@ -783,9 +784,10 @@ static const struct clksel func_96m_clksel[] = {
 /* The parent of this clock is not selectable on 2420. */
 static struct clk func_96m_ck = {
 	.name		= "func_96m_ck",
+	.ops		= &clkops_null,
 	.parent		= &apll96_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
-				RATE_PROPAGATES | PARENT_CONTROLS_CLOCK,
+				RATE_PROPAGATES,
 	.clkdm_name	= "wkup_clkdm",
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKSEL1),
@@ -816,9 +818,10 @@ static const struct clksel func_48m_clksel[] = {
 
 static struct clk func_48m_ck = {
 	.name		= "func_48m_ck",
+	.ops		= &clkops_null,
 	.parent		= &apll96_ck,	 /* 96M or Alt */
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
-				RATE_PROPAGATES | PARENT_CONTROLS_CLOCK,
+				RATE_PROPAGATES,
 	.clkdm_name	= "wkup_clkdm",
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKSEL1),
@@ -831,10 +834,11 @@ static struct clk func_48m_ck = {
 
 static struct clk func_12m_ck = {
 	.name		= "func_12m_ck",
+	.ops		= &clkops_null,
 	.parent		= &func_48m_ck,
 	.fixed_div	= 4,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
-				RATE_PROPAGATES | PARENT_CONTROLS_CLOCK,
+				RATE_PROPAGATES,
 	.clkdm_name	= "wkup_clkdm",
 	.recalc		= &omap2_fixed_divisor_recalc,
 };
@@ -917,9 +921,9 @@ static const struct clksel sys_clkout_clksel[] = {
 
 static struct clk sys_clkout = {
 	.name		= "sys_clkout",
+	.ops		= &clkops_null,
 	.parent		= &sys_clkout_src,
-	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
-				PARENT_CONTROLS_CLOCK,
+	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "wkup_clkdm",
 	.clksel_reg	= OMAP24XX_PRCM_CLKOUT_CTRL,
 	.clksel_mask	= OMAP24XX_CLKOUT_DIV_MASK,
@@ -954,8 +958,9 @@ static const struct clksel sys_clkout2_clksel[] = {
 /* In 2430, new in 2420 ES2 */
 static struct clk sys_clkout2 = {
 	.name		= "sys_clkout2",
+	.ops		= &clkops_null,
 	.parent		= &sys_clkout2_src,
-	.flags		= CLOCK_IN_OMAP242X | PARENT_CONTROLS_CLOCK,
+	.flags		= CLOCK_IN_OMAP242X,
 	.clkdm_name	= "wkup_clkdm",
 	.clksel_reg	= OMAP24XX_PRCM_CLKOUT_CTRL,
 	.clksel_mask	= OMAP2420_CLKOUT2_DIV_MASK,
@@ -1076,9 +1081,10 @@ static const struct clksel dsp_irate_ick_clksel[] = {
 /* This clock does not exist as such in the TRM. */
 static struct clk dsp_irate_ick = {
 	.name		= "dsp_irate_ick",
+	.ops		= &clkops_null,
 	.parent		= &dsp_fck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X | DELAYED_APP |
-				CONFIG_PARTICIPANT | PARENT_CONTROLS_CLOCK,
+				CONFIG_PARTICIPANT,
 	.clksel_reg	= OMAP_CM_REGADDR(OMAP24XX_DSP_MOD, CM_CLKSEL),
 	.clksel_mask	= OMAP24XX_CLKSEL_DSP_IF_MASK,
 	.clksel		= dsp_irate_ick_clksel,
