@@ -72,6 +72,11 @@ MODULE_LICENSE("GPL");
 #define USB_AMRADIO_VENDOR 0x07ca
 #define USB_AMRADIO_PRODUCT 0xb800
 
+/* dev_warn macro with driver name */
+#define MR800_DRIVER_NAME "radio-mr800"
+#define amradio_dev_warn(dev, fmt, arg...)				\
+		dev_warn(dev, MR800_DRIVER_NAME " - " fmt, ##arg)
+
 /* Probably USB_TIMEOUT should be modified in module parameter */
 #define BUFFER_LENGTH 8
 #define USB_TIMEOUT 500
@@ -154,7 +159,7 @@ MODULE_DEVICE_TABLE(usb, usb_amradio_device_table);
 
 /* USB subsystem interface */
 static struct usb_driver usb_amradio_driver = {
-	.name			= "radio-mr800",
+	.name			= MR800_DRIVER_NAME,
 	.probe			= usb_amradio_probe,
 	.disconnect		= usb_amradio_disconnect,
 	.suspend		= usb_amradio_suspend,
@@ -359,7 +364,8 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 
 	radio->curfreq = f->frequency;
 	if (amradio_setfreq(radio, radio->curfreq) < 0)
-		warn("Set frequency failed");
+		amradio_dev_warn(&radio->videodev->dev,
+			"set frequency failed\n");
 	return 0;
 }
 
@@ -382,8 +388,7 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 
 	for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
 		if (qc->id && qc->id == radio_qctrl[i].id) {
-			memcpy(qc, &(radio_qctrl[i]),
-						sizeof(*qc));
+			memcpy(qc, &(radio_qctrl[i]), sizeof(*qc));
 			return 0;
 		}
 	}
@@ -414,12 +419,14 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	case V4L2_CID_AUDIO_MUTE:
 		if (ctrl->value) {
 			if (amradio_stop(radio) < 0) {
-				warn("amradio_stop() failed");
+				amradio_dev_warn(&radio->videodev->dev,
+					"amradio_stop failed\n");
 				return -1;
 			}
 		} else {
 			if (amradio_start(radio) < 0) {
-				warn("amradio_start() failed");
+				amradio_dev_warn(&radio->videodev->dev,
+					"amradio_start failed\n");
 				return -1;
 			}
 		}
@@ -475,13 +482,15 @@ static int usb_amradio_open(struct inode *inode, struct file *file)
 	radio->muted = 1;
 
 	if (amradio_start(radio) < 0) {
-		warn("Radio did not start up properly");
+		amradio_dev_warn(&radio->videodev->dev,
+			"radio did not start up properly\n");
 		radio->users = 0;
 		unlock_kernel();
 		return -EIO;
 	}
 	if (amradio_setfreq(radio, radio->curfreq) < 0)
-		warn("Set frequency failed");
+		amradio_dev_warn(&radio->videodev->dev,
+			"set frequency failed\n");
 
 	unlock_kernel();
 	return 0;
@@ -508,9 +517,9 @@ static int usb_amradio_suspend(struct usb_interface *intf, pm_message_t message)
 	struct amradio_device *radio = usb_get_intfdata(intf);
 
 	if (amradio_stop(radio) < 0)
-		warn("amradio_stop() failed");
+		dev_warn(&intf->dev, "amradio_stop failed\n");
 
-	info("radio-mr800: Going into suspend..");
+	dev_info(&intf->dev, "going into suspend..\n");
 
 	return 0;
 }
@@ -521,9 +530,9 @@ static int usb_amradio_resume(struct usb_interface *intf)
 	struct amradio_device *radio = usb_get_intfdata(intf);
 
 	if (amradio_start(radio) < 0)
-		warn("amradio_start() failed");
+		dev_warn(&intf->dev, "amradio_start failed\n");
 
-	info("radio-mr800: Coming out of suspend..");
+	dev_info(&intf->dev, "coming out of suspend..\n");
 
 	return 0;
 }
@@ -602,7 +611,7 @@ static int usb_amradio_probe(struct usb_interface *intf,
 
 	video_set_drvdata(radio->videodev, radio);
 	if (video_register_device(radio->videodev, VFL_TYPE_RADIO, radio_nr)) {
-		warn("Could not register video device");
+		dev_warn(&intf->dev, "could not register video device\n");
 		video_device_release(radio->videodev);
 		kfree(radio->buffer);
 		kfree(radio);
@@ -617,9 +626,13 @@ static int __init amradio_init(void)
 {
 	int retval = usb_register(&usb_amradio_driver);
 
-	info(DRIVER_VERSION " " DRIVER_DESC);
+	pr_info(KBUILD_MODNAME
+		": version " DRIVER_VERSION " " DRIVER_DESC "\n");
+
 	if (retval)
-		err("usb_register failed. Error number %d", retval);
+		pr_err(KBUILD_MODNAME
+			": usb_register failed. Error number %d\n", retval);
+
 	return retval;
 }
 
