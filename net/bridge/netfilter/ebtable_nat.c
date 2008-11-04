@@ -102,7 +102,7 @@ static int __init ebtable_nat_init(void)
 {
 	int ret;
 
-	ret = ebt_register_table(&frame_nat);
+	ret = ebt_register_table(&init_net, &frame_nat);
 	if (ret < 0)
 		return ret;
 	ret = nf_register_hooks(ebt_ops_nat, ARRAY_SIZE(ebt_ops_nat));

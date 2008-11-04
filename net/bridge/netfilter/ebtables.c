@@ -55,7 +55,6 @@
 
 
 static DEFINE_MUTEX(ebt_mutex);
-static LIST_HEAD(ebt_tables);
 
 static struct xt_target ebt_standard_target = {
 	.name       = "standard",
@@ -315,9 +314,11 @@ find_inlist_lock(struct list_head *head, const char *name, const char *prefix,
 }
 
 static inline struct ebt_table *
-find_table_lock(const char *name, int *error, struct mutex *mutex)
+find_table_lock(struct net *net, const char *name, int *error,
+		struct mutex *mutex)
 {
-	return find_inlist_lock(&ebt_tables, name, "ebtable_", error, mutex);
+	return find_inlist_lock(&net->xt.tables[NFPROTO_BRIDGE], name,
+				"ebtable_", error, mutex);
 }
 
 static inline int
@@ -944,7 +945,7 @@ static void get_counters(struct ebt_counter *oldcounters,
 }
 
 /* replace the table */
-static int do_replace(void __user *user, unsigned int len)
+static int do_replace(struct net *net, void __user *user, unsigned int len)
 {
 	int ret, i, countersize;
 	struct ebt_table_info *newinfo;
@@ -1016,7 +1017,7 @@ static int do_replace(void __user *user, unsigned int len)
 	if (ret != 0)
 		goto free_counterstmp;
 
-	t = find_table_lock(tmp.name, &ret, &ebt_mutex);
+	t = find_table_lock(net, tmp.name, &ret, &ebt_mutex);
 	if (!t) {
 		ret = -ENOENT;
 		goto free_iterate;
@@ -1097,7 +1098,7 @@ free_newinfo:
 	return ret;
 }
 
-int ebt_register_table(struct ebt_table *table)
+int ebt_register_table(struct net *net, struct ebt_table *table)
 {
 	struct ebt_table_info *newinfo;
 	struct ebt_table *t;
@@ -1157,7 +1158,7 @@ int ebt_register_table(struct ebt_table *table)
 	if (ret != 0)
 		goto free_chainstack;
 
-	list_for_each_entry(t, &ebt_tables, list) {
+	list_for_each_entry(t, &net->xt.tables[NFPROTO_BRIDGE], list) {
 		if (strcmp(t->name, table->name) == 0) {
 			ret = -EEXIST;
 			BUGPRINT("Table name already exists\n");
@@ -1170,7 +1171,7 @@ int ebt_register_table(struct ebt_table *table)
 		ret = -ENOENT;
 		goto free_unlock;
 	}
-	list_add(&table->list, &ebt_tables);
+	list_add(&table->list, &net->xt.tables[NFPROTO_BRIDGE]);
 	mutex_unlock(&ebt_mutex);
 	return 0;
 free_unlock:
@@ -1208,7 +1209,7 @@ void ebt_unregister_table(struct ebt_table *table)
 }
 
 /* userspace just supplied us with counters */
-static int update_counters(void __user *user, unsigned int len)
+static int update_counters(struct net *net, void __user *user, unsigned int len)
 {
 	int i, ret;
 	struct ebt_counter *tmp;
@@ -1228,7 +1229,7 @@ static int update_counters(void __user *user, unsigned int len)
 		return -ENOMEM;
 	}
 
-	t = find_table_lock(hlp.name, &ret, &ebt_mutex);
+	t = find_table_lock(net, hlp.name, &ret, &ebt_mutex);
 	if (!t)
 		goto free_tmp;
 
@@ -1386,10 +1387,10 @@ static int do_ebt_set_ctl(struct sock *sk,
 
 	switch(cmd) {
 	case EBT_SO_SET_ENTRIES:
-		ret = do_replace(user, len);
+		ret = do_replace(sock_net(sk), user, len);
 		break;
 	case EBT_SO_SET_COUNTERS:
-		ret = update_counters(user, len);
+		ret = update_counters(sock_net(sk), user, len);
 		break;
 	default:
 		ret = -EINVAL;
@@ -1406,7 +1407,7 @@ static int do_ebt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 	if (copy_from_user(&tmp, user, sizeof(tmp)))
 		return -EFAULT;
 
-	t = find_table_lock(tmp.name, &ret, &ebt_mutex);
+	t = find_table_lock(sock_net(sk), tmp.name, &ret, &ebt_mutex);
 	if (!t)
 		return ret;
 

@@ -95,7 +95,7 @@ static int __init ebtable_filter_init(void)
 {
 	int ret;
 
-	ret = ebt_register_table(&frame_filter);
+	ret = ebt_register_table(&init_net, &frame_filter);
 	if (ret < 0)
 		return ret;
 	ret = nf_register_hooks(ebt_ops_filter, ARRAY_SIZE(ebt_ops_filter));

@@ -66,7 +66,7 @@ static int __init ebtable_broute_init(void)
 {
 	int ret;
 
-	ret = ebt_register_table(&broute_table);
+	ret = ebt_register_table(&init_net, &broute_table);
 	if (ret < 0)
 		return ret;
 	/* see br_input.c */
