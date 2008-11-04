@@ -1470,8 +1470,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			Valid arguments: on, off
 			Default: on
 
-	noirqbalance	[X86-32,SMP,KNL] Disable kernel irq balancing
-
 	noirqdebug	[X86-32] Disables the code which attempts to detect and
 			disable unhandled interrupt sources.
 
