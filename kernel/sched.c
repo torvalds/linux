@@ -7691,8 +7691,6 @@ static void detach_destroy_domains(const cpumask_t *cpu_map)
 	cpumask_t tmpmask;
 	int i;
 
-	unregister_sched_domain_sysctl();
-
 	for_each_cpu_mask_nr(i, *cpu_map)
 		cpu_attach_domain(NULL, &def_root_domain, i);
 	synchronize_sched();
