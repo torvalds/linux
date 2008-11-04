@@ -1697,6 +1697,8 @@ int snd_hda_create_spdif_out_ctls(struct hda_codec *codec, hda_nid_t nid)
 	}
 	for (dig_mix = dig_mixes; dig_mix->name; dig_mix++) {
 		kctl = snd_ctl_new1(dig_mix, codec);
+		if (!kctl)
+			return -ENOMEM;
 		kctl->id.index = idx;
 		kctl->private_value = nid;
 		err = snd_hda_ctl_add(codec, kctl);
@@ -2412,7 +2414,7 @@ snd_hda_attach_pcm(struct hda_codec *codec, struct hda_pcm *pcm)
 	struct hda_pcm_stream *info;
 	int stream, err;
 
-	if (!pcm->name)
+	if (snd_BUG_ON(!pcm->name))
 		return -EINVAL;
 	for (stream = 0; stream < 2; stream++) {
 		info = &pcm->stream[stream];
