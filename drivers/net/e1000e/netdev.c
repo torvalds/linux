@@ -103,8 +103,6 @@ static void e1000_receive_skb(struct e1000_adapter *adapter,
 					 le16_to_cpu(vlan));
 	else
 		netif_receive_skb(skb);
-
-	netdev->last_rx = jiffies;
 }
 
 /**

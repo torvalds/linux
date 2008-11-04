@@ -854,7 +854,6 @@ static void uli526x_rx_packet(struct net_device *dev, struct uli526x_board_info 
 
 				skb->protocol = eth_type_trans(skb, dev);
 				netif_rx(skb);
-				dev->last_rx = jiffies;
 				db->stats.rx_packets++;
 				db->stats.rx_bytes += rxlen;
 

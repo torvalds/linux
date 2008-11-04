@@ -741,7 +741,6 @@ static void bfin_mac_rx(struct net_device *dev)
 	blackfin_dcache_invalidate_range((unsigned long)skb->head,
 					 (unsigned long)skb->tail);
 
-	dev->last_rx = jiffies;
 	skb->protocol = eth_type_trans(skb, dev);
 #if defined(BFIN_MAC_CSUM_OFFLOAD)
 	skb->csum = current_rx_ptr->status.ip_payload_csum;

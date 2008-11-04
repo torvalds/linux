@@ -1451,7 +1451,6 @@ static void ql_process_mac_rx_intr(struct ql_adapter *qdev,
 			"Passing a normal packet upstream.\n");
 		netif_rx(skb);
 	}
-	ndev->last_rx = jiffies;
 }
 
 /* Process an outbound completion from an rx ring. */

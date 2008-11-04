@@ -970,7 +970,6 @@ static void ni52_rcv_int(struct net_device *dev)
 					memcpy_fromio(skb->data, p->base + readl(&rbd->buffer), totlen);
 					skb->protocol = eth_type_trans(skb, dev);
 					netif_rx(skb);
-					dev->last_rx = jiffies;
 					p->stats.rx_packets++;
 					p->stats.rx_bytes += totlen;
 				} else

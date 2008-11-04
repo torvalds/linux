@@ -788,7 +788,6 @@ static int tsi108_complete_rx(struct net_device *dev, int budget)
 		skb_put(skb, data->rxring[rx].len);
 		skb->protocol = eth_type_trans(skb, dev);
 		netif_receive_skb(skb);
-		dev->last_rx = jiffies;
 	}
 
 	return done;

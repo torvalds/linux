@@ -869,7 +869,6 @@ printk("cm0: IP identification: %02x%02x  fragment offset: %02x%02x\n", buffer[3
 	/* datagram completed: send to upper level */
 	skb_trim(skb, dlen);
 	netif_rx(skb);
-	dev->last_rx = jiffies;
 	stats->rx_bytes+=dlen;
 	stats->rx_packets++;
 	lp->rx_skb[ns] = NULL;

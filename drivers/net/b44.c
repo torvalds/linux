@@ -829,7 +829,6 @@ static int b44_rx(struct b44 *bp, int budget)
 		skb->ip_summed = CHECKSUM_NONE;
 		skb->protocol = eth_type_trans(skb, bp->dev);
 		netif_receive_skb(skb);
-		bp->dev->last_rx = jiffies;
 		received++;
 		budget--;
 	next_pkt:

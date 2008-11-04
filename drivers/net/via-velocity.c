@@ -1412,8 +1412,6 @@ static int velocity_rx_srv(struct velocity_info *vptr, int status)
 
 		rd->size |= RX_INTEN;
 
-		vptr->dev->last_rx = jiffies;
-
 		rd_curr++;
 		if (rd_curr >= vptr->options.numrx)
 			rd_curr = 0;

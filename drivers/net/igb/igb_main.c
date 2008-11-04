@@ -3940,8 +3940,6 @@ send_up:
 
 		igb_receive_skb(rx_ring, staterr, rx_desc, skb);
 
-		netdev->last_rx = jiffies;
-
 next_desc:
 		rx_desc->wb.upper.status_error = 0;
 

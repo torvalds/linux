@@ -1789,7 +1789,6 @@ static int sis900_rx(struct net_device *net_dev)
 			/* some network statistics */
 			if ((rx_status & BCAST) == MCAST)
 				net_dev->stats.multicast++;
-			net_dev->last_rx = jiffies;
 			net_dev->stats.rx_bytes += rx_size;
 			net_dev->stats.rx_packets++;
 			sis_priv->dirty_rx++;

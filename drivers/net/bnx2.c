@@ -3000,7 +3000,6 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 #endif
 			netif_receive_skb(skb);
 
-		bp->dev->last_rx = jiffies;
 		rx_pkt++;
 
 next_rx:

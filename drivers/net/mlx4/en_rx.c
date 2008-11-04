@@ -776,8 +776,6 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		} else
 			netif_receive_skb(skb);
 
-		dev->last_rx = jiffies;
-
 next:
 		++cq->mcq.cons_index;
 		index = (cq->mcq.cons_index) & ring->size_mask;

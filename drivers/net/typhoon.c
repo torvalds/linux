@@ -1729,7 +1729,6 @@ typhoon_rx(struct typhoon *tp, struct basic_ring *rxRing, volatile __le32 * read
 			netif_receive_skb(new_skb);
 		spin_unlock(&tp->state_lock);
 
-		tp->dev->last_rx = jiffies;
 		received++;
 		budget--;
 	}

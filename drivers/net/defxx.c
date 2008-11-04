@@ -3103,7 +3103,6 @@ static void dfx_rcv_queue_process(
 					netif_rx(skb);
 
 					/* Update the rcv counters */
-					bp->dev->last_rx = jiffies;
 					bp->rcv_total_frames++;
 					if (*(p_buff + RCV_BUFF_K_DA) & 0x01)
 						bp->rcv_multicast_frames++;

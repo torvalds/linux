@@ -1283,7 +1283,6 @@ static void rx_bh(struct work_struct *ugli_api)
 			memcpy(&data[1], priv->rx_buf[i], cb);
 			skb->protocol = ax25_type_trans(skb, priv->dev);
 			netif_rx(skb);
-			priv->dev->last_rx = jiffies;
 			priv->stats.rx_packets++;
 			priv->stats.rx_bytes += cb;
 		}

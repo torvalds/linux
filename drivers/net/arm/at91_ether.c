@@ -893,7 +893,6 @@ static void at91ether_rx(struct net_device *dev)
 			memcpy(skb_put(skb, pktlen), p_recv, pktlen);
 
 			skb->protocol = eth_type_trans(skb, dev);
-			dev->last_rx = jiffies;
 			dev->stats.rx_bytes += pktlen;
 			netif_rx(skb);
 		}

@@ -620,7 +620,6 @@ static int au1k_irda_rx(struct net_device *dev)
 		/* next descriptor */
 		prxd = aup->rx_ring[aup->rx_head];
 		flags = prxd->flags;
-		dev->last_rx = jiffies;
 
 	}
 	return 0;

@@ -328,7 +328,6 @@ static void zd1201_usbrx(struct urb *urb)
 			memcpy(skb_put(skb, 2), &data[datalen-24], 2);
 			memcpy(skb_put(skb, len), data, len);
 			skb->protocol = eth_type_trans(skb, zd->dev);
-			skb->dev->last_rx = jiffies;
 			zd->stats.rx_packets++;
 			zd->stats.rx_bytes += skb->len;
 			netif_rx(skb);
@@ -385,7 +384,6 @@ static void zd1201_usbrx(struct urb *urb)
 			memcpy(skb_put(skb, len), data+8, len);
 		}
 		skb->protocol = eth_type_trans(skb, zd->dev);
-		skb->dev->last_rx = jiffies;
 		zd->stats.rx_packets++;
 		zd->stats.rx_bytes += skb->len;
 		netif_rx(skb);

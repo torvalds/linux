@@ -3910,7 +3910,6 @@ static int smctr_process_rx_packet(MAC_HEADER *rmf, __u16 size,
                 /* Kick the packet on up. */
                 skb->protocol = tr_type_trans(skb, dev);
                 netif_rx(skb);
-		dev->last_rx = jiffies;
                 err = 0;
         }
 
@@ -4496,7 +4495,6 @@ static int smctr_rx_frame(struct net_device *dev)
                                 	/* Kick the packet on up. */
                                 	skb->protocol = tr_type_trans(skb, dev);
                                 	netif_rx(skb);
-					dev->last_rx = jiffies;
 				} else {
 				}
                         }

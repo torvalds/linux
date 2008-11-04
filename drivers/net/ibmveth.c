@@ -1014,7 +1014,6 @@ static int ibmveth_poll(struct napi_struct *napi, int budget)
 			netdev->stats.rx_packets++;
 			netdev->stats.rx_bytes += length;
 			frames_processed++;
-			netdev->last_rx = jiffies;
 		}
 	} while (frames_processed < budget);
 

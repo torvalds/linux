@@ -1980,7 +1980,6 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter, int *work_done, int work_to_do)
 		} else {
 			netif_receive_skb(skb);
 		}
-		netdev->last_rx = jiffies;
 
 rxdesc_done:
 		/* clean up descriptor, might be written over by hw */

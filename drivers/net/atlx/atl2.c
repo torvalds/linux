@@ -437,7 +437,6 @@ static void atl2_intr_rx(struct atl2_adapter *adapter)
 			netif_rx(skb);
 			netdev->stats.rx_bytes += rx_size;
 			netdev->stats.rx_packets++;
-			netdev->last_rx = jiffies;
 		} else {
 			netdev->stats.rx_errors++;
 

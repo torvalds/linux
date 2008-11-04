@@ -369,7 +369,6 @@ static void de600_rx_intr(struct net_device *dev)
 	netif_rx(skb);
 
 	/* update stats */
-	dev->last_rx = jiffies;
 	dev->stats.rx_packets++; /* count all receives */
 	dev->stats.rx_bytes += size; /* count all received bytes */
 

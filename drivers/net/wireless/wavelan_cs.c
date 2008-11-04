@@ -2878,7 +2878,6 @@ wv_packet_read(struct net_device *		dev,
   netif_rx(skb);
 
   /* Keep stats up to date */
-  dev->last_rx = jiffies;
   lp->stats.rx_packets++;
   lp->stats.rx_bytes += sksize;
 

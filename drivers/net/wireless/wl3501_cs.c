@@ -1013,7 +1013,6 @@ static inline void wl3501_md_ind_interrupt(struct net_device *dev,
 		wl3501_receive(this, skb->data, pkt_len);
 		skb_put(skb, pkt_len);
 		skb->protocol	= eth_type_trans(skb, dev);
-		dev->last_rx	= jiffies;
 		this->stats.rx_packets++;
 		this->stats.rx_bytes += skb->len;
 		netif_rx(skb);

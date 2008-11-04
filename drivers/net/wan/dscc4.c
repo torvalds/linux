@@ -659,7 +659,6 @@ static inline void dscc4_rx_skb(struct dscc4_dev_priv *dpriv,
 		skb_put(skb, pkt_len);
 		if (netif_running(dev))
 			skb->protocol = hdlc_type_trans(skb, dev);
-		skb->dev->last_rx = jiffies;
 		netif_rx(skb);
 	} else {
 		if (skb->data[pkt_len] & FrameRdo)

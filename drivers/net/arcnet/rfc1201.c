@@ -230,7 +230,6 @@ static void rx(struct net_device *dev, int bufnum,
 
 		skb->protocol = type_trans(skb, dev);
 		netif_rx(skb);
-		dev->last_rx = jiffies;
 	} else {		/* split packet */
 		/*
 		 * NOTE: MSDOS ARP packet correction should only need to apply to
@@ -366,7 +365,6 @@ static void rx(struct net_device *dev, int bufnum,
 
 			skb->protocol = type_trans(skb, dev);
 			netif_rx(skb);
-			dev->last_rx = jiffies;
 		}
 	}
 }

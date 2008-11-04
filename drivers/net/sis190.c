@@ -627,7 +627,6 @@ static int sis190_rx_interrupt(struct net_device *dev,
 
 			sis190_rx_skb(skb);
 
-			dev->last_rx = jiffies;
 			stats->rx_packets++;
 			stats->rx_bytes += pkt_size;
 			if ((status & BCAST) == MCAST)

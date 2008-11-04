@@ -151,7 +151,6 @@ static void rx(struct net_device *dev, int bufnum,
 	skb->protocol = __constant_htons(ETH_P_ARCNET);
 ;
 	netif_rx(skb);
-	dev->last_rx = jiffies;
 }
 
 

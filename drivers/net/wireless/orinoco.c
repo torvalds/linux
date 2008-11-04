@@ -1289,7 +1289,6 @@ static void orinoco_rx_monitor(struct net_device *dev, u16 rxfid,
 	skb->pkt_type = PACKET_OTHERHOST;
 	skb->protocol = __constant_htons(ETH_P_802_2);
 	
-	dev->last_rx = jiffies;
 	stats->rx_packets++;
 	stats->rx_bytes += skb->len;
 
@@ -1538,7 +1537,6 @@ static void orinoco_rx(struct net_device *dev,
 	else
 		memcpy(hdr->h_source, desc->addr2, ETH_ALEN);
 
-	dev->last_rx = jiffies;
 	skb->protocol = eth_type_trans(skb, dev);
 	skb->ip_summed = CHECKSUM_NONE;
 	if (fc & IEEE80211_FCTL_TODS)

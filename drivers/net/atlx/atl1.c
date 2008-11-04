@@ -2028,8 +2028,6 @@ rrd_ok:
 		buffer_info->skb = NULL;
 		buffer_info->alloced = 0;
 		rrd->xsz.valid = 0;
-
-		adapter->netdev->last_rx = jiffies;
 	}
 
 	atomic_set(&rrd_ring->next_to_clean, rrd_next_to_clean);

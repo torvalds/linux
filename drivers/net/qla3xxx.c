@@ -2136,7 +2136,6 @@ static void ql_process_mac_rx_intr(struct ql3_adapter *qdev,
 	skb->protocol = eth_type_trans(skb, qdev->ndev);
 
 	netif_receive_skb(skb);
-	qdev->ndev->last_rx = jiffies;
 	lrg_buf_cb2->skb = NULL;
 
 	if (qdev->device_id == QL3022_DEVICE_ID)
@@ -2210,7 +2209,6 @@ static void ql_process_macip_rx_intr(struct ql3_adapter *qdev,
 	netif_receive_skb(skb2);
 	ndev->stats.rx_packets++;
 	ndev->stats.rx_bytes += length;
-	ndev->last_rx = jiffies;
 	lrg_buf_cb2->skb = NULL;
 
 	if (qdev->device_id == QL3022_DEVICE_ID)

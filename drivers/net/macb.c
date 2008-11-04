@@ -435,7 +435,6 @@ static int macb_rx_frame(struct macb *bp, unsigned int first_frag,
 
 	bp->stats.rx_packets++;
 	bp->stats.rx_bytes += len;
-	bp->dev->last_rx = jiffies;
 	dev_dbg(&bp->pdev->dev, "received skb of length %u, csum: %08x\n",
 		skb->len, skb->csum);
 	netif_receive_skb(skb);

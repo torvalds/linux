@@ -841,7 +841,6 @@ static int handle_incoming_queue(struct net_device *dev,
 
 		/* Pass it up. */
 		netif_receive_skb(skb);
-		dev->last_rx = jiffies;
 	}
 
 	return packets_dropped;

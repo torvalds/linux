@@ -1334,7 +1334,6 @@ myri10ge_rx_done(struct myri10ge_slice_state *ss, struct myri10ge_rx_buf *rx,
 			myri10ge_vlan_ip_csum(skb, csum);
 	}
 	netif_receive_skb(skb);
-	dev->last_rx = jiffies;
 	return 1;
 }
 

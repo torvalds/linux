@@ -862,7 +862,6 @@ static void olympic_rx(struct net_device *dev)
 						skb->protocol = tr_type_trans(skb,dev);
 						netif_rx(skb) ; 
 					} 
-					dev->last_rx = jiffies ; 
 					olympic_priv->olympic_stats.rx_packets++ ; 
 					olympic_priv->olympic_stats.rx_bytes += length ; 
 				} /* if skb == null */
@@ -1441,7 +1440,6 @@ static void olympic_arb_cmd(struct net_device *dev)
 			       dev->name, mac_hdr->saddr);
 		}
 		netif_rx(mac_frame);
-		dev->last_rx = jiffies;
 
 drop_frame:
 		/* Now tell the card we have dealt with the received frame */

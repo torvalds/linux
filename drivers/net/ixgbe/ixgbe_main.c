@@ -668,7 +668,6 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_adapter *adapter,
 
 		skb->protocol = eth_type_trans(skb, adapter->netdev);
 		ixgbe_receive_skb(adapter, skb, staterr, rx_ring, rx_desc);
-		adapter->netdev->last_rx = jiffies;
 
 next_desc:
 		rx_desc->wb.upper.status_error = 0;

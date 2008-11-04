@@ -1113,7 +1113,6 @@ static void ni65_recv_intr(struct net_device *dev,int csr0)
 				p->stats.rx_bytes += len;
 				skb->protocol=eth_type_trans(skb,dev);
 				netif_rx(skb);
-				dev->last_rx = jiffies;
 			}
 			else
 			{

@@ -863,7 +863,6 @@ static int gem_rx(struct gem *gp, int work_to_do)
 
 		gp->net_stats.rx_packets++;
 		gp->net_stats.rx_bytes += len;
-		gp->dev->last_rx = jiffies;
 
 	next:
 		entry = NEXT_RX(entry);

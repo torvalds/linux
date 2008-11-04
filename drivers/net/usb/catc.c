@@ -271,8 +271,6 @@ static void catc_rx_done(struct urb *urb)
 
 	} while (pkt_start - (u8 *) urb->transfer_buffer < urb->actual_length);
 
-	catc->netdev->last_rx = jiffies;
-
 	if (catc->is_f5u011) {
 		if (atomic_read(&catc->recq_sz)) {
 			int status;

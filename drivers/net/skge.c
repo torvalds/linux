@@ -3186,7 +3186,6 @@ static int skge_poll(struct napi_struct *napi, int to_do)
 
 		skb = skge_rx_get(dev, e, control, rd->status, rd->csum2);
 		if (likely(skb)) {
-			dev->last_rx = jiffies;
 			netif_receive_skb(skb);
 
 			++work_done;

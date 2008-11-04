@@ -1240,7 +1240,6 @@ static int au1000_rx(struct net_device *dev)
 		/* next descriptor */
 		prxd = aup->rx_dma_ring[aup->rx_head];
 		buff_stat = prxd->buff_stat;
-		dev->last_rx = jiffies;
 	}
 	return 0;
 }

@@ -806,7 +806,6 @@ static void mcs_receive_irq(struct urb *urb)
 			mcs_unwrap_fir(mcs, urb->transfer_buffer,
 				urb->actual_length);
 		}
-		mcs->netdev->last_rx = jiffies;
 		do_gettimeofday(&mcs->rx_time);
 	}
 

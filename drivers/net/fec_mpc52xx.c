@@ -487,7 +487,6 @@ static irqreturn_t mpc52xx_fec_rx_interrupt(int irq, void *dev_id)
 			rskb->protocol = eth_type_trans(rskb, dev);
 
 			netif_rx(rskb);
-			dev->last_rx = jiffies;
 		} else {
 			/* Can't get a new one : reuse the same & drop pkt */
 			dev_notice(&dev->dev, "Memory squeeze, dropping packet.\n");

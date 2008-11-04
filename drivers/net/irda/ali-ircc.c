@@ -1931,7 +1931,6 @@ static int  ali_ircc_dma_receive_complete(struct ali_ircc_cb *self)
 			skb_reset_mac_header(skb);
 			skb->protocol = htons(ETH_P_IRDA);
 			netif_rx(skb);
-			self->netdev->last_rx = jiffies;
 		}
 	}
 	

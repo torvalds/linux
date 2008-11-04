@@ -1201,7 +1201,6 @@ static void investigate_read_descriptor(struct net_device *dev,struct xircom_pri
 			skb_put(skb, pkt_len);
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);
-			dev->last_rx = jiffies;
 			card->stats.rx_packets++;
 			card->stats.rx_bytes += pkt_len;
 

@@ -944,7 +944,6 @@ static void enc28j60_hw_rx(struct net_device *ndev)
 			/* update statistics */
 			ndev->stats.rx_packets++;
 			ndev->stats.rx_bytes += len;
-			ndev->last_rx = jiffies;
 			netif_rx(skb);
 		}
 	}

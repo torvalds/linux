@@ -728,7 +728,6 @@ static int ehea_proc_rwqes(struct net_device *dev,
 			}
 
 			ehea_proc_skb(pr, cqe, skb);
-			dev->last_rx = jiffies;
 		} else {
 			pr->p_stats.poll_receive_errors++;
 			port_reset = ehea_treat_poll_error(pr, rq, cqe,

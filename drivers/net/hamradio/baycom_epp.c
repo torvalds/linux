@@ -555,7 +555,6 @@ static void do_rxpacket(struct net_device *dev)
 	memcpy(cp, bc->hdlcrx.buf, pktlen - 1);
 	skb->protocol = ax25_type_trans(skb, dev);
 	netif_rx(skb);
-	dev->last_rx = jiffies;
 	bc->stats.rx_packets++;
 }
 

@@ -529,7 +529,6 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 	}
 
 	netif_rx_ni(skb);
-	tun->dev->last_rx = jiffies;
 
 	tun->dev->stats.rx_packets++;
 	tun->dev->stats.rx_bytes += len;

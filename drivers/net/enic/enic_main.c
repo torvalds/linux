@@ -951,7 +951,6 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 		}
 
 		skb->dev = enic->netdev;
-		enic->netdev->last_rx = jiffies;
 
 		if (enic->vlan_group && vlan_stripped) {
 

@@ -1649,8 +1649,6 @@ drop_and_reuse:
 		}
 	}
 
-	dev->last_rx = jiffies;
-
 	return ack;
 
 } /* TLan_HandleRxEOF */

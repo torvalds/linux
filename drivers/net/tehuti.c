@@ -1237,7 +1237,6 @@ static int bdx_rx_receive(struct bdx_priv *priv, struct rxd_fifo *f, int budget)
 	ENTER;
 	max_done = budget;
 
-	priv->ndev->last_rx = jiffies;
 	f->m.wptr = READ_REG(priv, f->m.reg_WPTR) & TXF_WPTR_WR_PTR;
 
 	size = f->m.wptr - f->m.rptr;

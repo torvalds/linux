@@ -824,7 +824,6 @@ static void stir_rcv_irq(struct urb *urb)
 		unwrap_chars(stir, urb->transfer_buffer,
 			     urb->actual_length);
 		
-		stir->netdev->last_rx = jiffies;
 		do_gettimeofday(&stir->rx_time);
 	}
 

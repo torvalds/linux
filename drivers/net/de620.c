@@ -686,7 +686,6 @@ static int de620_rx_intr(struct net_device *dev)
 			PRINTK(("Read %d bytes\n", size));
 			skb->protocol=eth_type_trans(skb,dev);
 			netif_rx(skb); /* deliver it "upstairs" */
-			dev->last_rx = jiffies;
 			/* count all receives */
 			dev->stats.rx_packets++;
 			dev->stats.rx_bytes += size;

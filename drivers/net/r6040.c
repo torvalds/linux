@@ -598,7 +598,6 @@ static int r6040_rx(struct net_device *dev, int limit)
 		
 		/* Send to upper layer */
 		netif_receive_skb(skb_ptr);
-		dev->last_rx = jiffies;
 		dev->stats.rx_packets++;
 		dev->stats.rx_bytes += descptr->len - 4;
 

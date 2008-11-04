@@ -621,7 +621,6 @@ static inline void ioc3_rx(struct ioc3_private *ip)
 			rxb = (struct ioc3_erxbuf *) new_skb->data;
 			skb_reserve(new_skb, RX_OFFSET);
 
-			priv_netdev(ip)->last_rx = jiffies;
 			ip->stats.rx_packets++;		/* Statistics */
 			ip->stats.rx_bytes += len;
 		} else {

@@ -1186,7 +1186,6 @@ static void mc32_rx_ring(struct net_device *dev)
 			}
 
 			skb->protocol=eth_type_trans(skb,dev);
-			dev->last_rx = jiffies;
  			dev->stats.rx_packets++;
  			dev->stats.rx_bytes += length;
 			netif_rx(skb);

@@ -284,7 +284,6 @@ static void sppp_input (struct net_device *dev, struct sk_buff *skb)
 					printk(KERN_DEBUG "Yow an IP frame.\n");
 				skb->protocol=htons(ETH_P_IP);
 				netif_rx(skb);
-				dev->last_rx = jiffies;
 				goto done;
 			}
 			break;
@@ -294,7 +293,6 @@ static void sppp_input (struct net_device *dev, struct sk_buff *skb)
 			if (sp->lcp.state == LCP_STATE_OPENED) {
 				skb->protocol=htons(ETH_P_IPX);
 				netif_rx(skb);
-				dev->last_rx = jiffies;
 				goto done;
 			}
 			break;
@@ -321,14 +319,12 @@ static void sppp_input (struct net_device *dev, struct sk_buff *skb)
 		case ETH_P_IP:
 			skb->protocol=htons(ETH_P_IP);
 			netif_rx(skb);
-			dev->last_rx = jiffies;
 			goto done;
 #endif
 #ifdef CONFIG_IPX
 		case ETH_P_IPX:
 			skb->protocol=htons(ETH_P_IPX);
 			netif_rx(skb);
-			dev->last_rx = jiffies;
 			goto done;
 #endif
 		}

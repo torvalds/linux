@@ -220,7 +220,6 @@ static inline void wanxl_rx_intr(card_t *card)
 #endif
 				dev->stats.rx_packets++;
 				dev->stats.rx_bytes += skb->len;
-				dev->last_rx = jiffies;
 				skb->protocol = hdlc_type_trans(skb, dev);
 				netif_rx(skb);
 				skb = NULL;

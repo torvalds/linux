@@ -1205,7 +1205,6 @@ static void eth16i_rx(struct net_device *dev)
 				printk(KERN_DEBUG ".\n");
 			}
 			netif_rx(skb);
-			dev->last_rx = jiffies;
 			dev->stats.rx_packets++;
 			dev->stats.rx_bytes += pkt_len;
 

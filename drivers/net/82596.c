@@ -841,7 +841,6 @@ memory_squeeze:
 						pkt_len);
 #endif
 				netif_rx(skb);
-				dev->last_rx = jiffies;
 				dev->stats.rx_packets++;
 				dev->stats.rx_bytes+=pkt_len;
 			}

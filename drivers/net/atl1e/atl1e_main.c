@@ -1460,7 +1460,6 @@ static void atl1e_clean_rx_irq(struct atl1e_adapter *adapter, u8 que,
 				netif_receive_skb(skb);
 			}
 
-			netdev->last_rx = jiffies;
 skip_pkt:
 	/* skip current packet whether it's ok or not. */
 			rx_page->read_offset +=

@@ -783,7 +783,6 @@ static int sendup_buffer (struct net_device *dev)
 
 	/* toss it onwards */
 	netif_rx(skb);
-	dev->last_rx = jiffies;
 	return 0;
 }
 

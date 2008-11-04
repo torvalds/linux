@@ -410,7 +410,6 @@ static void sa1100_irda_hpsir_irq(struct net_device *dev)
 					  Ser2UTDR);
 		} while (Ser2UTSR1 & UTSR1_RNE);
 
-		dev->last_rx = jiffies;
 	}
 
 	if (status & UTSR0_TFS && si->tx_buff.len) {
@@ -515,7 +514,6 @@ static void sa1100_irda_fir_error(struct sa1100_irda *si, struct net_device *dev
 		sa1100_irda_rx_alloc(si);
 
 		netif_rx(skb);
-		dev->last_rx = jiffies;
 	} else {
 		/*
 		 * Remap the buffer.

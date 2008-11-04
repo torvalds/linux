@@ -1009,7 +1009,6 @@ static void streamer_rx(struct net_device *dev)
 					/* send up to the protocol */
 					netif_rx(skb);
 				}
-				dev->last_rx = jiffies;
 				streamer_priv->streamer_stats.rx_packets++;
 				streamer_priv->streamer_stats.rx_bytes += length;
 			}	/* if skb == null */

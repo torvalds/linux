@@ -851,7 +851,6 @@ static void cops_rx(struct net_device *dev)
 
         /* Send packet to a higher place. */
         netif_rx(skb);
-	dev->last_rx = jiffies;
 }
 
 static void cops_timeout(struct net_device *dev)

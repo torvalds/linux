@@ -588,7 +588,6 @@ static int eth_poll(struct napi_struct *napi, int budget)
 		debug_pkt(dev, "eth_poll", skb->data, skb->len);
 
 		skb->protocol = eth_type_trans(skb, dev);
-		dev->last_rx = jiffies;
 		port->stat.rx_packets++;
 		port->stat.rx_bytes += skb->len;
 		netif_receive_skb(skb);

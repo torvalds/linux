@@ -600,7 +600,6 @@ static int vlsi_process_rx(struct vlsi_ring *r, struct ring_descr *rd)
 		netif_rx(skb);
 	else
 		netif_rx_ni(skb);
-	ndev->last_rx = jiffies;
 
 done:
 	rd_set_status(rd, 0);

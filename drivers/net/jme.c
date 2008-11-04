@@ -931,7 +931,6 @@ jme_alloc_and_feed_skb(struct jme_adapter *jme, int idx)
 				RXWBFLAG_DEST_MUL)
 			++(NET_STAT(jme).multicast);
 
-		jme->dev->last_rx = jiffies;
 		NET_STAT(jme).rx_bytes += framesize;
 		++(NET_STAT(jme).rx_packets);
 	}

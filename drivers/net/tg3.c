@@ -4288,7 +4288,6 @@ static int tg3_rx(struct tg3 *tp, int budget)
 #endif
 			netif_receive_skb(skb);
 
-		tp->dev->last_rx = jiffies;
 		received++;
 		budget--;
 

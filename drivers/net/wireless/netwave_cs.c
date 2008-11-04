@@ -1307,7 +1307,6 @@ static int netwave_rx(struct net_device *dev)
 	/* Queue packet for network layer */
 	netif_rx(skb);
 
-	dev->last_rx = jiffies;
 	priv->stats.rx_packets++;
 	priv->stats.rx_bytes += rcvLen;
 

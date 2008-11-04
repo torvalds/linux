@@ -1880,7 +1880,6 @@ static int e100_rx_indicate(struct nic *nic, struct rx *rx,
 	} else {
 		dev->stats.rx_packets++;
 		dev->stats.rx_bytes += actual_size;
-		nic->netdev->last_rx = jiffies;
 		netif_receive_skb(skb);
 		if(work_done)
 			(*work_done)++;

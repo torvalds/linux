@@ -4099,8 +4099,6 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 			netif_receive_skb(skb);
 		}
 
-		netdev->last_rx = jiffies;
-
 next_desc:
 		rx_desc->status = 0;
 

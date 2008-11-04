@@ -1328,7 +1328,6 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 			dev_kfree_skb(skb);
 		}
 
-		bp->dev->last_rx = jiffies;
 
 		/* put new skb in bin */
 		fp->tpa_pool[queue].skb = new_skb;
@@ -1557,7 +1556,6 @@ reuse_rx:
 #endif
 			netif_receive_skb(skb);
 
-		bp->dev->last_rx = jiffies;
 
 next_rx:
 		rx_buf->skb = NULL;
@@ -8767,7 +8765,6 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode, u8 link_up)
 	rc = 0;
 
 test_loopback_rx_exit:
-	bp->dev->last_rx = jiffies;
 
 	fp->rx_bd_cons = NEXT_RX_IDX(fp->rx_bd_cons);
 	fp->rx_bd_prod = NEXT_RX_IDX(fp->rx_bd_prod);

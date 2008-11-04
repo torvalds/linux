@@ -409,7 +409,6 @@ static int korina_rx(struct net_device *dev, int limit)
 
 				/* Pass the packet to upper layers */
 				netif_receive_skb(skb);
-				dev->last_rx = jiffies;
 				dev->stats.rx_packets++;
 				dev->stats.rx_bytes += pkt_len;
 

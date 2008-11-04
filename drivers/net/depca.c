@@ -1056,7 +1056,6 @@ static int depca_rx(struct net_device *dev)
 					/*
 					   ** Update stats
 					 */
-					dev->last_rx = jiffies;
 					dev->stats.rx_packets++;
 					dev->stats.rx_bytes += pkt_len;
 					for (i = 1; i < DEPCA_PKT_STAT_SZ - 1; i++) {

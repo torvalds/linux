@@ -67,7 +67,6 @@ int prism2_rx_80211(struct net_device *dev, struct sk_buff *skb,
 
 	iface = netdev_priv(dev);
 	local = iface->local;
-	dev->last_rx = jiffies;
 
 	if (dev->type == ARPHRD_IEEE80211_PRISM) {
 		if (local->monitor_type == PRISM2_MONITOR_PRISM) {
@@ -882,8 +881,6 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		stats = hostap_get_stats(dev);
 		from_assoc_ap = 1;
 	}
-
-	dev->last_rx = jiffies;
 
 	if ((local->iw_mode == IW_MODE_MASTER ||
 	     local->iw_mode == IW_MODE_REPEAT) &&

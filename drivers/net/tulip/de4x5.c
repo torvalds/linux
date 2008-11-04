@@ -1646,7 +1646,6 @@ de4x5_rx(struct net_device *dev)
 		    netif_rx(skb);
 
 		    /* Update stats */
-		    dev->last_rx = jiffies;
 		    lp->stats.rx_packets++;
  		    lp->stats.rx_bytes += pkt_len;
 		}

@@ -1822,7 +1822,6 @@ static void tr_rx(struct net_device *dev)
 		skb->ip_summed = CHECKSUM_COMPLETE;
 	}
 	netif_rx(skb);
-	dev->last_rx = jiffies;
 }				/*tr_rx */
 
 /*****************************************************************************/

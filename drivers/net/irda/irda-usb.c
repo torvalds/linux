@@ -929,7 +929,6 @@ static void irda_usb_receive(struct urb *urb)
 	/* Keep stats up to date */
 	self->stats.rx_bytes += len;
 	self->stats.rx_packets++;
-	self->netdev->last_rx = jiffies;
 
 done:
 	/* Note : at this point, the URB we've just received (urb)

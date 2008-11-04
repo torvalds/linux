@@ -2186,7 +2186,6 @@ static void tms380tr_rcv_status_irq(struct net_device *dev)
 				skb_trim(skb,Length);
 				skb->protocol = tr_type_trans(skb,dev);
 				netif_rx(skb);
-				dev->last_rx = jiffies;
 			}
 		}
 		else	/* Invalid frame */

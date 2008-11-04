@@ -1008,7 +1008,6 @@ static void dmfe_rx_packet(struct DEVICE *dev, struct dmfe_board_info * db)
 
 					skb->protocol = eth_type_trans(skb, dev);
 					netif_rx(skb);
-					dev->last_rx = jiffies;
 					db->stats.rx_packets++;
 					db->stats.rx_bytes += rxlen;
 				}

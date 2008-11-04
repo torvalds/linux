@@ -181,7 +181,6 @@ static void dlci_receive(struct sk_buff *skb, struct net_device *dev)
 		dlp->stats.rx_bytes += skb->len;
 		netif_rx(skb);
 		dlp->stats.rx_packets++;
-		dev->last_rx = jiffies;
 	}
 	else
 		dev_kfree_skb(skb);

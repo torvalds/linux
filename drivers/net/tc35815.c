@@ -1757,7 +1757,6 @@ tc35815_rx(struct net_device *dev)
 #else
 			netif_rx(skb);
 #endif
-			dev->last_rx = jiffies;
 			dev->stats.rx_packets++;
 			dev->stats.rx_bytes += pkt_len;
 		} else {

@@ -1246,7 +1246,6 @@ static void pcnet32_rx_entry(struct net_device *dev,
 	dev->stats.rx_bytes += skb->len;
 	skb->protocol = eth_type_trans(skb, dev);
 	netif_receive_skb(skb);
-	dev->last_rx = jiffies;
 	dev->stats.rx_packets++;
 	return;
 }

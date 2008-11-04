@@ -1026,7 +1026,6 @@ static int ewrk3_rx(struct net_device *dev)
 						/*
 						   ** Update stats
 						 */
-						dev->last_rx = jiffies;
 						dev->stats.rx_packets++;
 						dev->stats.rx_bytes += pkt_len;
 					} else {

@@ -557,8 +557,6 @@ static int rxq_process(struct rx_queue *rxq, int budget)
 			skb->protocol = eth_type_trans(skb, mp->dev);
 			netif_receive_skb(skb);
 		}
-
-		mp->dev->last_rx = jiffies;
 	}
 
 	if (rx < budget)

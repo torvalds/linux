@@ -303,7 +303,6 @@ static void ax_bump(struct mkiss *ax)
 	memcpy(skb_put(skb,count), ax->rbuff, count);
 	skb->protocol = ax25_type_trans(skb, ax->dev);
 	netif_rx(skb);
-	ax->dev->last_rx = jiffies;
 	ax->stats.rx_packets++;
 	ax->stats.rx_bytes += count;
 	spin_unlock_bh(&ax->buflock);

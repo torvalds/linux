@@ -84,7 +84,6 @@ static void macvlan_broadcast(struct sk_buff *skb,
 			dev->stats.rx_bytes += skb->len + ETH_HLEN;
 			dev->stats.rx_packets++;
 			dev->stats.multicast++;
-			dev->last_rx = jiffies;
 
 			nskb->dev = dev;
 			if (!compare_ether_addr(eth->h_dest, dev->broadcast))
@@ -133,7 +132,6 @@ static struct sk_buff *macvlan_handle_frame(struct sk_buff *skb)
 
 	dev->stats.rx_bytes += skb->len + ETH_HLEN;
 	dev->stats.rx_packets++;
-	dev->last_rx = jiffies;
 
 	skb->dev = dev;
 	skb->pkt_type = PACKET_HOST;

@@ -1693,8 +1693,6 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 			dev->stats.rx_bytes += pkt_len;
 		}
 
-		dev->last_rx = jiffies;
-
 		priv->rx_skbuff[priv->skb_currx] = newskb;
 
 		/* Setup the new bdp */

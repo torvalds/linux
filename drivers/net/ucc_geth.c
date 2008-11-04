@@ -3502,8 +3502,6 @@ static int ucc_geth_rx(struct ucc_geth_private *ugeth, u8 rxQ, int rx_work_limit
 			netif_receive_skb(skb);
 		}
 
-		ugeth->dev->last_rx = jiffies;
-
 		skb = get_new_skb(ugeth, bd);
 		if (!skb) {
 			if (netif_msg_rx_err(ugeth))

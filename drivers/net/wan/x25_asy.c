@@ -211,7 +211,6 @@ static void x25_asy_bump(struct x25_asy *sl)
 		printk(KERN_DEBUG "x25_asy: data received err - %d\n", err);
 	} else {
 		netif_rx(skb);
-		sl->dev->last_rx = jiffies;
 		sl->stats.rx_packets++;
 	}
 }
@@ -361,7 +360,6 @@ static int x25_asy_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static int x25_asy_data_indication(struct net_device *dev, struct sk_buff *skb)
 {
-	skb->dev->last_rx = jiffies;
 	return netif_rx(skb);
 }
 
@@ -413,7 +411,6 @@ static void x25_asy_connected(struct net_device *dev, int reason)
 
 	skb->protocol = x25_type_trans(skb, sl->dev);
 	netif_rx(skb);
-	sl->dev->last_rx = jiffies;
 }
 
 static void x25_asy_disconnected(struct net_device *dev, int reason)
@@ -433,7 +430,6 @@ static void x25_asy_disconnected(struct net_device *dev, int reason)
 
 	skb->protocol = x25_type_trans(skb, sl->dev);
 	netif_rx(skb);
-	sl->dev->last_rx = jiffies;
 }
 
 static struct lapb_register_struct x25_asy_callbacks = {

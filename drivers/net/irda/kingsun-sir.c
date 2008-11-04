@@ -235,7 +235,6 @@ static void kingsun_rcv_irq(struct urb *urb)
 						  &kingsun->stats,
 						  &kingsun->rx_buff, bytes[i]);
 			}
-			kingsun->netdev->last_rx = jiffies;
 			do_gettimeofday(&kingsun->rx_time);
 			kingsun->receiving =
 				(kingsun->rx_buff.state != OUTSIDE_FRAME)

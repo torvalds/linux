@@ -2284,7 +2284,6 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs, unsigned i
 
     skb->protocol = eth_type_trans(skb,dev);
     netif_rx(skb);
-    dev->last_rx = jiffies;
     local->stats.rx_packets++;
     local->stats.rx_bytes += total_len;
 

@@ -3366,7 +3366,6 @@ badrx:
 				skb->protocol = htons(ETH_P_802_2);
 			} else
 				skb->protocol = eth_type_trans(skb,dev);
-			skb->dev->last_rx = jiffies;
 			skb->ip_summed = CHECKSUM_NONE;
 
 			netif_rx( skb );
@@ -3596,7 +3595,6 @@ badmic:
 
 		skb->ip_summed = CHECKSUM_NONE;
 		skb->protocol = eth_type_trans(skb, ai->dev);
-		skb->dev->last_rx = jiffies;
 		netif_rx(skb);
 	}
 badrx:
@@ -3690,7 +3688,6 @@ void mpi_receive_802_11 (struct airo_info *ai)
 	skb->pkt_type = PACKET_OTHERHOST;
 	skb->dev = ai->wifidev;
 	skb->protocol = htons(ETH_P_802_2);
-	skb->dev->last_rx = jiffies;
 	skb->ip_summed = CHECKSUM_NONE;
 	netif_rx( skb );
 badrx:

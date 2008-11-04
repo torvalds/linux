@@ -532,7 +532,6 @@ am79c961_rx(struct net_device *dev, struct dev_priv *priv)
 			am_writeword(dev, hdraddr + 2, RMD_OWN);
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);
-			dev->last_rx = jiffies;
 			priv->stats.rx_bytes += len;
 			priv->stats.rx_packets ++;
 		} else {
