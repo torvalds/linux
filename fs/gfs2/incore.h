@@ -71,7 +71,6 @@ struct gfs2_bitmap {
 struct gfs2_rgrp_host {
 	u32 rg_free;
 	u32 rg_dinodes;
-	u64 rg_igeneration;
 };
 
 struct gfs2_rgrpd {
@@ -84,6 +83,7 @@ struct gfs2_rgrpd {
 	u32 rd_data;			/* num of data blocks in rgrp */
 	u32 rd_bitbytes;		/* number of bytes in data bitmaps */
 	struct gfs2_rgrp_host rd_rg;
+	u64 rd_igeneration;
 	struct gfs2_bitmap *rd_bits;
 	unsigned int rd_bh_count;
 	struct mutex rd_mutex;
