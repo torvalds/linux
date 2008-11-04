@@ -104,6 +104,10 @@ struct uwbd_event {
 /** Table of handlers for and properties of the UWBD Radio Control Events */
 static
 struct uwbd_event uwbd_events[] = {
+	[UWB_RC_EVT_IE_RCV] = {
+		.handler = uwbd_evt_handle_rc_ie_rcv,
+		.name = "IE_RECEIVED"
+	},
 	[UWB_RC_EVT_BEACON] = {
 		.handler = uwbd_evt_handle_rc_beacon,
 		.name = "BEACON_RECEIVED"

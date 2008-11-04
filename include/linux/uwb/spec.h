@@ -200,6 +200,12 @@ enum uwb_drp_reason {
 	UWB_DRP_REASON_MODIFIED,
 };
 
+/** Relinquish Request Reason Codes ([ECMA-368] table 113) */
+enum uwb_relinquish_req_reason {
+	UWB_RELINQUISH_REQ_REASON_NON_SPECIFIC = 0,
+	UWB_RELINQUISH_REQ_REASON_OVER_ALLOCATION,
+};
+
 /**
  *  DRP Notification Reason Codes (WHCI 0.95 [3.1.4.9])
  */
@@ -252,6 +258,7 @@ enum uwb_ie {
 	UWB_APP_SPEC_PROBE_IE = 15,
 	UWB_IDENTIFICATION_IE = 19,
 	UWB_MASTER_KEY_ID_IE = 20,
+	UWB_RELINQUISH_REQUEST_IE = 21,
 	UWB_IE_WLP = 250, /* WiMedia Logical Link Control Protocol WLP 0.99 */
 	UWB_APP_SPEC_IE = 255,
 };
@@ -364,6 +371,27 @@ struct uwb_ie_drp_avail {
 	struct uwb_ie_hdr	hdr;
 	DECLARE_BITMAP(bmp, UWB_NUM_MAS);
 } __attribute__((packed));
+
+/* Relinqish Request IE ([ECMA-368] section 16.8.19). */
+struct uwb_relinquish_request_ie {
+        struct uwb_ie_hdr       hdr;
+        __le16                  relinquish_req_control;
+        struct uwb_dev_addr     dev_addr;
+        struct uwb_drp_alloc    allocs[];
+} __attribute__((packed));
+
+static inline int uwb_ie_relinquish_req_reason_code(struct uwb_relinquish_request_ie *ie)
+{
+	return (le16_to_cpu(ie->relinquish_req_control) >> 0) & 0xf;
+}
+
+static inline void uwb_ie_relinquish_req_set_reason_code(struct uwb_relinquish_request_ie *ie,
+							 int reason_code)
+{
+	u16 ctrl = le16_to_cpu(ie->relinquish_req_control);
+	ctrl = (ctrl & ~(0xf << 0)) | (reason_code << 0);
+	ie->relinquish_req_control = cpu_to_le16(ctrl);
+}
 
 /**
  * The Vendor ID is set to an OUI that indicates the vendor of the device.

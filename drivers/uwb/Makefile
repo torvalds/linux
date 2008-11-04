@@ -13,6 +13,7 @@ uwb-objs :=		\
 	drp-ie.o	\
 	est.o		\
 	ie.o		\
+	ie-rcv.o	\
 	lc-dev.o	\
 	lc-rc.o		\
 	neh.o		\

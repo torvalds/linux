@@ -167,6 +167,7 @@ extern void uwbd_event_queue(struct uwb_event *);
 void uwbd_flush(struct uwb_rc *rc);
 
 /* UWB event handlers */
+extern int uwbd_evt_handle_rc_ie_rcv(struct uwb_event *);
 extern int uwbd_evt_handle_rc_beacon(struct uwb_event *);
 extern int uwbd_evt_handle_rc_beacon_size(struct uwb_event *);
 extern int uwbd_evt_handle_rc_bpoie_change(struct uwb_event *);
