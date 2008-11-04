@@ -770,13 +770,14 @@ static int zfcp_fsf_req_send(struct zfcp_fsf_req *req)
 {
 	struct zfcp_adapter *adapter = req->adapter;
 	struct zfcp_qdio_queue *req_q = &adapter->req_q;
+	unsigned long flags;
 	int idx;
 
 	/* put allocated FSF request into hash table */
-	spin_lock(&adapter->req_list_lock);
+	spin_lock_irqsave(&adapter->req_list_lock, flags);
 	idx = zfcp_reqlist_hash(req->req_id);
 	list_add_tail(&req->list, &adapter->req_list[idx]);
-	spin_unlock(&adapter->req_list_lock);
+	spin_unlock_irqrestore(&adapter->req_list_lock, flags);
 
 	req->qdio_outb_usage = atomic_read(&req_q->count);
 	req->issued = get_clock();
