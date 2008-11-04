@@ -414,6 +414,7 @@ struct efx_blinker {
  * @init_leds: Sets up board LEDs
  * @set_fault_led: Turns the fault LED on or off
  * @blink: Starts/stops blinking
+ * @monitor: Board-specific health check function
  * @fini: Cleanup function
  * @blinker: used to blink LEDs in software
  * @hwmon_client: I2C client for hardware monitor
@@ -428,6 +429,7 @@ struct efx_board {
 	 * have a separate init callback that happens later than
 	 * board init. */
 	int (*init_leds)(struct efx_nic *efx);
+	int (*monitor) (struct efx_nic *nic);
 	void (*set_fault_led) (struct efx_nic *efx, bool state);
 	void (*blink) (struct efx_nic *efx, bool start);
 	void (*fini) (struct efx_nic *nic);
@@ -525,11 +527,15 @@ struct efx_phy_operations {
  * @enum efx_phy_mode - PHY operating mode flags
  * @PHY_MODE_NORMAL: on and should pass traffic
  * @PHY_MODE_TX_DISABLED: on with TX disabled
+ * @PHY_MODE_LOW_POWER: set to low power through MDIO
+ * @PHY_MODE_OFF: switched off through external control
  * @PHY_MODE_SPECIAL: on but will not pass traffic
  */
 enum efx_phy_mode {
 	PHY_MODE_NORMAL		= 0,
 	PHY_MODE_TX_DISABLED	= 1,
+	PHY_MODE_LOW_POWER	= 2,
+	PHY_MODE_OFF		= 4,
 	PHY_MODE_SPECIAL	= 8,
 };
 

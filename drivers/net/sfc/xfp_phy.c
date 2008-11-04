@@ -128,6 +128,15 @@ static int xfp_phy_check_hw(struct efx_nic *efx)
 	if (link_up != efx->link_up)
 		falcon_xmac_sim_phy_event(efx);
 
+	rc = efx->board_info.monitor(efx);
+	if (rc) {
+		struct xfp_phy_data *phy_data = efx->phy_data;
+		EFX_ERR(efx, "XFP sensor alert; putting PHY into low power\n");
+		efx->phy_mode |= PHY_MODE_LOW_POWER;
+		mdio_clause45_set_mmds_lpower(efx, 1, XFP_REQUIRED_DEVS);
+		phy_data->phy_mode |= PHY_MODE_LOW_POWER;
+	}
+
 	return rc;
 }
 

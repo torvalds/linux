@@ -260,6 +260,41 @@ void mdio_clause45_phy_reconfigure(struct efx_nic *efx)
 				    MDIO_MMDREG_CTRL1, ctrl2);
 }
 
+static void mdio_clause45_set_mmd_lpower(struct efx_nic *efx,
+					 int lpower, int mmd)
+{
+	int phy = efx->mii.phy_id;
+	int stat = mdio_clause45_read(efx, phy, mmd, MDIO_MMDREG_STAT1);
+	int ctrl1, ctrl2;
+
+	EFX_TRACE(efx, "Setting low power mode for MMD %d to %d\n",
+		  mmd, lpower);
+
+	if (stat & (1 << MDIO_MMDREG_STAT1_LPABLE_LBN)) {
+		ctrl1 = ctrl2 = mdio_clause45_read(efx, phy,
+						   mmd, MDIO_MMDREG_CTRL1);
+		if (lpower)
+			ctrl2 |= (1 << MDIO_MMDREG_CTRL1_LPOWER_LBN);
+		else
+			ctrl2 &= ~(1 << MDIO_MMDREG_CTRL1_LPOWER_LBN);
+		if (ctrl1 != ctrl2)
+			mdio_clause45_write(efx, phy, mmd,
+					    MDIO_MMDREG_CTRL1, ctrl2);
+	}
+}
+
+void mdio_clause45_set_mmds_lpower(struct efx_nic *efx,
+				   int low_power, unsigned int mmd_mask)
+{
+	int mmd = 0;
+	while (mmd_mask) {
+		if (mmd_mask & 1)
+			mdio_clause45_set_mmd_lpower(efx, low_power, mmd);
+		mmd_mask = (mmd_mask >> 1);
+		mmd++;
+	}
+}
+
 /**
  * mdio_clause45_get_settings - Read (some of) the PHY settings over MDIO.
  * @efx:		Efx NIC
