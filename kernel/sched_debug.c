@@ -121,14 +121,9 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 
 #if defined(CONFIG_CGROUP_SCHED) && defined(CONFIG_FAIR_GROUP_SCHED)
 	char path[128] = "";
-	struct cgroup *cgroup = NULL;
 	struct task_group *tg = cfs_rq->tg;
 
-	if (tg)
-		cgroup = tg->css.cgroup;
-
-	if (cgroup)
-		cgroup_path(cgroup, path, sizeof(path));
+	cgroup_path(tg->css.cgroup, path, sizeof(path));
 
 	SEQ_printf(m, "\ncfs_rq[%d]:%s\n", cpu, path);
 #else
@@ -193,14 +188,9 @@ void print_rt_rq(struct seq_file *m, int cpu, struct rt_rq *rt_rq)
 {
 #if defined(CONFIG_CGROUP_SCHED) && defined(CONFIG_RT_GROUP_SCHED)
 	char path[128] = "";
-	struct cgroup *cgroup = NULL;
 	struct task_group *tg = rt_rq->tg;
 
-	if (tg)
-		cgroup = tg->css.cgroup;
-
-	if (cgroup)
-		cgroup_path(cgroup, path, sizeof(path));
+	cgroup_path(tg->css.cgroup, path, sizeof(path));
 
 	SEQ_printf(m, "\nrt_rq[%d]:%s\n", cpu, path);
 #else
