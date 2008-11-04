@@ -2485,6 +2485,11 @@ int snd_hda_build_pcms(struct hda_bus *bus)
 			struct hda_pcm *cpcm = &codec->pcm_info[pcm];
 			int type = cpcm->pcm_type;
 			int dev;
+
+			if (!cpcm->stream[0].substreams &&
+			    !cpcm->stream[1].substreams)
+				continue; /* no substreams assigned */
+
 			switch (type) {
 			case HDA_PCM_TYPE_AUDIO:
 				if (num_devs[type] >= ARRAY_SIZE(audio_idx)) {
