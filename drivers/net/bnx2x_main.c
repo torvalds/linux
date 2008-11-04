@@ -10206,8 +10206,6 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 		return -ENOMEM;
 	}
 
-	netif_carrier_off(dev);
-
 	bp = netdev_priv(dev);
 	bp->msglevel = debug;
 
@@ -10230,6 +10228,8 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 		unregister_netdev(dev);
 		goto init_one_exit;
 	}
+
+	netif_carrier_off(dev);
 
 	bp->common.name = board_info[ent->driver_data].name;
 	printk(KERN_INFO "%s: %s (%c%d) PCI-E x%d %s found at mem %lx,"
