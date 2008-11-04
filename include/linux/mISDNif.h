@@ -289,6 +289,23 @@ struct mISDN_devrename {
 	char			name[MISDN_MAX_IDLEN]; /* new name */
 };
 
+/* MPH_INFORMATION_REQ payload */
+struct ph_info_ch {
+        __u32 protocol;
+        __u64 Flags;
+};
+
+struct ph_info_dch {
+        struct ph_info_ch ch;
+        __u16 state;
+        __u16 num_bch;
+};
+
+struct ph_info {
+        struct ph_info_dch dch;
+        struct ph_info_ch  bch[];
+};
+
 /* timer device ioctl */
 #define IMADDTIMER	_IOR('I', 64, int)
 #define IMDELTIMER	_IOR('I', 65, int)
