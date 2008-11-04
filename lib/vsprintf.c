@@ -620,11 +620,15 @@ static char *ip4_addr_string(char *buf, char *end, u8 *addr, int field_width,
 			 int precision, int flags)
 {
 	char ip4_addr[4 * 4]; /* (4 * 3 decimal digits), 3 dots and trailing zero */
+	char temp[3];	/* hold each IP quad in reverse order */
 	char *p = ip4_addr;
-	int i;
+	int i, digits;
 
 	for (i = 0; i < 4; i++) {
-		p = put_dec_trunc(p, addr[i]);
+		digits = put_dec_trunc(temp, addr[i]) - temp;
+		/* reverse the digits in the quad */
+		while (digits--)
+			*p++ = temp[digits];
 		if (i != 3)
 			*p++ = '.';
 	}
