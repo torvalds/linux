@@ -160,8 +160,8 @@ struct uwb_event {
 	};
 };
 
-extern void uwbd_start(void);
-extern void uwbd_stop(void);
+extern void uwbd_start(struct uwb_rc *rc);
+extern void uwbd_stop(struct uwb_rc *rc);
 extern struct uwb_event *uwb_event_alloc(size_t, gfp_t gfp_mask);
 extern void uwbd_event_queue(struct uwb_event *);
 void uwbd_flush(struct uwb_rc *rc);
@@ -194,15 +194,6 @@ int uwbd_evt_handle_rc_dev_addr_conflict(struct uwb_event *evt);
 
 extern unsigned long beacon_timeout_ms;
 
-/** Beacon cache list */
-struct uwb_beca {
-	struct list_head list;
-	size_t entries;
-	struct mutex mutex;
-};
-
-extern struct uwb_beca uwb_beca;
-
 /**
  * Beacon cache entry
  *
@@ -229,9 +220,6 @@ struct uwb_beca_e {
 struct uwb_beacon_frame;
 extern ssize_t uwb_bce_print_IEs(struct uwb_dev *, struct uwb_beca_e *,
 				 char *, size_t);
-extern struct uwb_beca_e *__uwb_beca_add(struct uwb_rc_evt_beacon *,
-					 struct uwb_beacon_frame *,
-					 unsigned long);
 
 extern void uwb_bce_kfree(struct kref *_bce);
 static inline void uwb_bce_get(struct uwb_beca_e *bce)
@@ -242,8 +230,8 @@ static inline void uwb_bce_put(struct uwb_beca_e *bce)
 {
 	kref_put(&bce->refcnt, uwb_bce_kfree);
 }
-extern void uwb_beca_purge(void);
-extern void uwb_beca_release(void);
+extern void uwb_beca_purge(struct uwb_rc *rc);
+extern void uwb_beca_release(struct uwb_rc *rc);
 
 struct uwb_dev *uwb_dev_get_by_devaddr(struct uwb_rc *rc,
 				       const struct uwb_dev_addr *devaddr);

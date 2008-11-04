@@ -170,8 +170,6 @@ static const struct uwbd_event uwbd_message_handlers[] = {
 	},
 };
 
-static DEFINE_MUTEX(uwbd_event_mutex);
-
 /**
  * Handle an URC event passed to the UWB Daemon
  *
@@ -235,19 +233,10 @@ static void uwbd_event_handle_message(struct uwb_event *evt)
 		return;
 	}
 
-	/* If this is a reset event we need to drop the
-	 * uwbd_event_mutex or it deadlocks when the reset handler
-	 * attempts to flush the uwbd events. */
-	if (evt->message == UWB_EVT_MSG_RESET)
-		mutex_unlock(&uwbd_event_mutex);
-
 	result = uwbd_message_handlers[evt->message].handler(evt);
 	if (result < 0)
 		dev_err(&rc->uwb_dev.dev, "UWBD: '%s' message failed: %d\n",
 			uwbd_message_handlers[evt->message].name, result);
-
-	if (evt->message == UWB_EVT_MSG_RESET)
-		mutex_lock(&uwbd_event_mutex);
 }
 
 static void uwbd_event_handle(struct uwb_event *evt)
@@ -275,20 +264,6 @@ static void uwbd_event_handle(struct uwb_event *evt)
 
 	__uwb_rc_put(rc);	/* for the __uwb_rc_get() in uwb_rc_notif_cb() */
 }
-/* The UWB Daemon */
-
-
-/** Daemon's PID: used to decide if we can queue or not */
-static int uwbd_pid;
-/** Daemon's task struct for managing the kthread */
-static struct task_struct *uwbd_task;
-/** Daemon's waitqueue for waiting for new events */
-static DECLARE_WAIT_QUEUE_HEAD(uwbd_wq);
-/** Daemon's list of events; we queue/dequeue here */
-static struct list_head uwbd_event_list = LIST_HEAD_INIT(uwbd_event_list);
-/** Daemon's list lock to protect concurent access */
-static DEFINE_SPINLOCK(uwbd_event_list_lock);
-
 
 /**
  * UWB Daemon
@@ -302,65 +277,58 @@ static DEFINE_SPINLOCK(uwbd_event_list_lock);
  * FIXME: should change so we don't have a 1HZ timer all the time, but
  *        only if there are devices.
  */
-static int uwbd(void *unused)
+static int uwbd(void *param)
 {
+	struct uwb_rc *rc = param;
 	unsigned long flags;
-	struct list_head list = LIST_HEAD_INIT(list);
-	struct uwb_event *evt, *nxt;
+	struct uwb_event *evt;
 	int should_stop = 0;
+
 	while (1) {
 		wait_event_interruptible_timeout(
-			uwbd_wq,
-			!list_empty(&uwbd_event_list)
+			rc->uwbd.wq,
+			!list_empty(&rc->uwbd.event_list)
 			  || (should_stop = kthread_should_stop()),
 			HZ);
 		if (should_stop)
 			break;
 		try_to_freeze();
 
-		mutex_lock(&uwbd_event_mutex);
-		spin_lock_irqsave(&uwbd_event_list_lock, flags);
-		list_splice_init(&uwbd_event_list, &list);
-		spin_unlock_irqrestore(&uwbd_event_list_lock, flags);
-		list_for_each_entry_safe(evt, nxt, &list, list_node) {
+		spin_lock_irqsave(&rc->uwbd.event_list_lock, flags);
+		if (!list_empty(&rc->uwbd.event_list)) {
+			evt = list_first_entry(&rc->uwbd.event_list, struct uwb_event, list_node);
 			list_del(&evt->list_node);
+		} else
+			evt = NULL;
+		spin_unlock_irqrestore(&rc->uwbd.event_list_lock, flags);
+
+		if (evt) {
 			uwbd_event_handle(evt);
 			kfree(evt);
 		}
-		mutex_unlock(&uwbd_event_mutex);
 
-		uwb_beca_purge();	/* Purge devices that left */
+		uwb_beca_purge(rc);	/* Purge devices that left */
 	}
 	return 0;
 }
 
 
 /** Start the UWB daemon */
-void uwbd_start(void)
+void uwbd_start(struct uwb_rc *rc)
 {
-	uwbd_task = kthread_run(uwbd, NULL, "uwbd");
-	if (uwbd_task == NULL)
+	rc->uwbd.task = kthread_run(uwbd, rc, "uwbd");
+	if (rc->uwbd.task == NULL)
 		printk(KERN_ERR "UWB: Cannot start management daemon; "
 		       "UWB won't work\n");
 	else
-		uwbd_pid = uwbd_task->pid;
+		rc->uwbd.pid = rc->uwbd.task->pid;
 }
 
 /* Stop the UWB daemon and free any unprocessed events */
-void uwbd_stop(void)
+void uwbd_stop(struct uwb_rc *rc)
 {
-	unsigned long flags;
-	struct uwb_event *evt, *nxt;
-	kthread_stop(uwbd_task);
-	spin_lock_irqsave(&uwbd_event_list_lock, flags);
-	uwbd_pid = 0;
-	list_for_each_entry_safe(evt, nxt, &uwbd_event_list, list_node) {
-		if (evt->type == UWB_EVT_TYPE_NOTIF)
-			kfree(evt->notif.rceb);
-		kfree(evt);
-	}
-	spin_unlock_irqrestore(&uwbd_event_list_lock, flags);
-	uwb_beca_release();
+	kthread_stop(rc->uwbd.task);
+	uwbd_flush(rc);
 }
 
 /*
@@ -377,18 +345,20 @@ void uwbd_stop(void)
  */
 void uwbd_event_queue(struct uwb_event *evt)
 {
+	struct uwb_rc *rc = evt->rc;
 	unsigned long flags;
-	spin_lock_irqsave(&uwbd_event_list_lock, flags);
-	if (uwbd_pid != 0) {
-		list_add(&evt->list_node, &uwbd_event_list);
-		wake_up_all(&uwbd_wq);
+
+	spin_lock_irqsave(&rc->uwbd.event_list_lock, flags);
+	if (rc->uwbd.pid != 0) {
+		list_add(&evt->list_node, &rc->uwbd.event_list);
+		wake_up_all(&rc->uwbd.wq);
 	} else {
 		__uwb_rc_put(evt->rc);
 		if (evt->type == UWB_EVT_TYPE_NOTIF)
 			kfree(evt->notif.rceb);
 		kfree(evt);
 	}
-	spin_unlock_irqrestore(&uwbd_event_list_lock, flags);
+	spin_unlock_irqrestore(&rc->uwbd.event_list_lock, flags);
 	return;
 }
 
@@ -396,10 +366,8 @@ void uwbd_flush(struct uwb_rc *rc)
 {
 	struct uwb_event *evt, *nxt;
 
-	mutex_lock(&uwbd_event_mutex);
-
-	spin_lock_irq(&uwbd_event_list_lock);
-	list_for_each_entry_safe(evt, nxt, &uwbd_event_list, list_node) {
+	spin_lock_irq(&rc->uwbd.event_list_lock);
+	list_for_each_entry_safe(evt, nxt, &rc->uwbd.event_list, list_node) {
 		if (evt->rc == rc) {
 			__uwb_rc_put(rc);
 			list_del(&evt->list_node);
@@ -408,7 +376,5 @@ void uwbd_flush(struct uwb_rc *rc)
 			kfree(evt);
 		}
 	}
-	spin_unlock_irq(&uwbd_event_list_lock);
-
-	mutex_unlock(&uwbd_event_mutex);
+	spin_unlock_irq(&rc->uwbd.event_list_lock);
 }

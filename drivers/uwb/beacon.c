@@ -168,12 +168,6 @@ out_up:
  * FIXME: use something faster for search than a list
  */
 
-struct uwb_beca uwb_beca = {
-	.list = LIST_HEAD_INIT(uwb_beca.list),
-	.mutex = __MUTEX_INITIALIZER(uwb_beca.mutex)
-};
-
-
 void uwb_bce_kfree(struct kref *_bce)
 {
 	struct uwb_beca_e *bce = container_of(_bce, struct uwb_beca_e, refcnt);
@@ -185,10 +179,11 @@ void uwb_bce_kfree(struct kref *_bce)
 
 /* Find a beacon by dev addr in the cache */
 static
-struct uwb_beca_e *__uwb_beca_find_bydev(const struct uwb_dev_addr *dev_addr)
+struct uwb_beca_e *__uwb_beca_find_bydev(struct uwb_rc *rc,
+					 const struct uwb_dev_addr *dev_addr)
 {
 	struct uwb_beca_e *bce, *next;
-	list_for_each_entry_safe(bce, next, &uwb_beca.list, node) {
+	list_for_each_entry_safe(bce, next, &rc->uwb_beca.list, node) {
 		d_printf(6, NULL, "looking for addr %02x:%02x in %02x:%02x\n",
 			 dev_addr->data[0], dev_addr->data[1],
 			 bce->dev_addr.data[0], bce->dev_addr.data[1]);
@@ -202,10 +197,11 @@ out:
 
 /* Find a beacon by dev addr in the cache */
 static
-struct uwb_beca_e *__uwb_beca_find_bymac(const struct uwb_mac_addr *mac_addr)
+struct uwb_beca_e *__uwb_beca_find_bymac(struct uwb_rc *rc, 
+					 const struct uwb_mac_addr *mac_addr)
 {
 	struct uwb_beca_e *bce, *next;
-	list_for_each_entry_safe(bce, next, &uwb_beca.list, node) {
+	list_for_each_entry_safe(bce, next, &rc->uwb_beca.list, node) {
 		if (!memcmp(bce->mac_addr, mac_addr->data,
 			    sizeof(struct uwb_mac_addr)))
 			goto out;
@@ -229,11 +225,11 @@ struct uwb_dev *uwb_dev_get_by_devaddr(struct uwb_rc *rc,
 	struct uwb_dev *found = NULL;
 	struct uwb_beca_e *bce;
 
-	mutex_lock(&uwb_beca.mutex);
-	bce = __uwb_beca_find_bydev(devaddr);
+	mutex_lock(&rc->uwb_beca.mutex);
+	bce = __uwb_beca_find_bydev(rc, devaddr);
 	if (bce)
 		found = uwb_dev_try_get(rc, bce->uwb_dev);
-	mutex_unlock(&uwb_beca.mutex);
+	mutex_unlock(&rc->uwb_beca.mutex);
 
 	return found;
 }
@@ -249,11 +245,11 @@ struct uwb_dev *uwb_dev_get_by_macaddr(struct uwb_rc *rc,
 	struct uwb_dev *found = NULL;
 	struct uwb_beca_e *bce;
 
-	mutex_lock(&uwb_beca.mutex);
-	bce = __uwb_beca_find_bymac(macaddr);
+	mutex_lock(&rc->uwb_beca.mutex);
+	bce = __uwb_beca_find_bymac(rc, macaddr);
 	if (bce)
 		found = uwb_dev_try_get(rc, bce->uwb_dev);
-	mutex_unlock(&uwb_beca.mutex);
+	mutex_unlock(&rc->uwb_beca.mutex);
 
 	return found;
 }
@@ -274,7 +270,9 @@ static void uwb_beca_e_init(struct uwb_beca_e *bce)
  * @bf:         Beacon frame (part of b, really)
  * @ts_jiffies: Timestamp (in jiffies) when the beacon was received
  */
-struct uwb_beca_e *__uwb_beca_add(struct uwb_rc_evt_beacon *be,
+static
+struct uwb_beca_e *__uwb_beca_add(struct uwb_rc *rc,
+				  struct uwb_rc_evt_beacon *be,
 				  struct uwb_beacon_frame *bf,
 				  unsigned long ts_jiffies)
 {
@@ -286,7 +284,7 @@ struct uwb_beca_e *__uwb_beca_add(struct uwb_rc_evt_beacon *be,
 	uwb_beca_e_init(bce);
 	bce->ts_jiffies = ts_jiffies;
 	bce->uwb_dev = NULL;
-	list_add(&bce->node, &uwb_beca.list);
+	list_add(&bce->node, &rc->uwb_beca.list);
 	return bce;
 }
 
@@ -295,13 +293,13 @@ struct uwb_beca_e *__uwb_beca_add(struct uwb_rc_evt_beacon *be,
  *
  * Remove associated devicest too.
  */
-void uwb_beca_purge(void)
+void uwb_beca_purge(struct uwb_rc *rc)
 {
 	struct uwb_beca_e *bce, *next;
 	unsigned long expires;
 
-	mutex_lock(&uwb_beca.mutex);
-	list_for_each_entry_safe(bce, next, &uwb_beca.list, node) {
+	mutex_lock(&rc->uwb_beca.mutex);
+	list_for_each_entry_safe(bce, next, &rc->uwb_beca.list, node) {
 		expires = bce->ts_jiffies + msecs_to_jiffies(beacon_timeout_ms);
 		if (time_after(jiffies, expires)) {
 			uwbd_dev_offair(bce);
@@ -309,19 +307,20 @@ void uwb_beca_purge(void)
 			uwb_bce_put(bce);
 		}
 	}
-	mutex_unlock(&uwb_beca.mutex);
+	mutex_unlock(&rc->uwb_beca.mutex);
 }
 
 /* Clean up the whole beacon cache. Called on shutdown */
-void uwb_beca_release(void)
+void uwb_beca_release(struct uwb_rc *rc)
 {
 	struct uwb_beca_e *bce, *next;
-	mutex_lock(&uwb_beca.mutex);
-	list_for_each_entry_safe(bce, next, &uwb_beca.list, node) {
+
+	mutex_lock(&rc->uwb_beca.mutex);
+	list_for_each_entry_safe(bce, next, &rc->uwb_beca.list, node) {
 		list_del(&bce->node);
 		uwb_bce_put(bce);
 	}
-	mutex_unlock(&uwb_beca.mutex);
+	mutex_unlock(&rc->uwb_beca.mutex);
 }
 
 static void uwb_beacon_print(struct uwb_rc *rc, struct uwb_rc_evt_beacon *be,
@@ -437,18 +436,18 @@ int uwbd_evt_handle_rc_beacon(struct uwb_event *evt)
 	if (uwb_mac_addr_bcast(&bf->Device_Identifier))
 		return 0;
 
-	mutex_lock(&uwb_beca.mutex);
-	bce = __uwb_beca_find_bymac(&bf->Device_Identifier);
+	mutex_lock(&rc->uwb_beca.mutex);
+	bce = __uwb_beca_find_bymac(rc, &bf->Device_Identifier);
 	if (bce == NULL) {
 		/* Not in there, a new device is pinging */
 		uwb_beacon_print(evt->rc, be, bf);
-		bce = __uwb_beca_add(be, bf, evt->ts_jiffies);
+		bce = __uwb_beca_add(rc, be, bf, evt->ts_jiffies);
 		if (bce == NULL) {
-			mutex_unlock(&uwb_beca.mutex);
+			mutex_unlock(&rc->uwb_beca.mutex);
 			return -ENOMEM;
 		}
 	}
-	mutex_unlock(&uwb_beca.mutex);
+	mutex_unlock(&rc->uwb_beca.mutex);
 
 	mutex_lock(&bce->mutex);
 	/* purge old beacon data */

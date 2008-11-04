@@ -30,6 +30,7 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/timer.h>
+#include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <linux/uwb/spec.h>
 
@@ -84,6 +85,22 @@ enum { UWB_RC_CTX_MAX = 256 };
 struct uwb_notifs_chain {
 	struct list_head list;
 	struct mutex mutex;
+};
+
+/* Beacon cache list */
+struct uwb_beca {
+	struct list_head list;
+	size_t entries;
+	struct mutex mutex;
+};
+
+/* Event handling thread. */
+struct uwbd {
+	int pid;
+	struct task_struct *task;
+	wait_queue_head_t wq;
+	struct list_head event_list;
+	spinlock_t event_list_lock;
 };
 
 /**
@@ -342,6 +359,9 @@ struct uwb_rc {
 	enum uwb_scan_type scan_type:3;
 	unsigned ready:1;
 	struct uwb_notifs_chain notifs_chain;
+	struct uwb_beca uwb_beca;
+
+	struct uwbd uwbd;
 
 	struct uwb_drp_avail drp_avail;
 	struct list_head reservations;
