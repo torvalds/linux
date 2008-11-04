@@ -341,9 +341,6 @@ static void __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		cfs_rq->rb_leftmost = next_node;
 	}
 
-	if (cfs_rq->next == se)
-		cfs_rq->next = NULL;
-
 	rb_erase(&se->run_node, &cfs_rq->tasks_timeline);
 }
 
@@ -741,6 +738,12 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 #endif
 	}
 
+	if (cfs_rq->last == se)
+		cfs_rq->last = NULL;
+
+	if (cfs_rq->next == se)
+		cfs_rq->next = NULL;
+
 	if (se != cfs_rq->curr)
 		__dequeue_entity(cfs_rq, se);
 	account_entity_dequeue(cfs_rq, se);
@@ -798,10 +801,13 @@ static struct sched_entity *pick_next_entity(struct cfs_rq *cfs_rq)
 {
 	struct sched_entity *se = __pick_next_entity(cfs_rq);
 
-	if (!cfs_rq->next || wakeup_preempt_entity(cfs_rq->next, se) == 1)
-		return se;
+	if (cfs_rq->next && wakeup_preempt_entity(cfs_rq->next, se) < 1)
+		return cfs_rq->next;
 
-	return cfs_rq->next;
+	if (cfs_rq->last && wakeup_preempt_entity(cfs_rq->last, se) < 1)
+		return cfs_rq->last;
+
+	return se;
 }
 
 static void put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev)
@@ -1319,10 +1325,11 @@ wakeup_preempt_entity(struct sched_entity *curr, struct sched_entity *se)
 static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int sync)
 {
 	struct task_struct *curr = rq->curr;
-	struct cfs_rq *cfs_rq = task_cfs_rq(curr);
 	struct sched_entity *se = &curr->se, *pse = &p->se;
 
 	if (unlikely(rt_prio(p->prio))) {
+		struct cfs_rq *cfs_rq = task_cfs_rq(curr);
+
 		update_rq_clock(rq);
 		update_curr(cfs_rq);
 		resched_task(curr);
@@ -1335,6 +1342,17 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int sync)
 	if (unlikely(se == pse))
 		return;
 
+	/*
+	 * Only set the backward buddy when the current task is still on the
+	 * rq. This can happen when a wakeup gets interleaved with schedule on
+	 * the ->pre_schedule() or idle_balance() point, either of which can
+	 * drop the rq lock.
+	 *
+	 * Also, during early boot the idle thread is in the fair class, for
+	 * obvious reasons its a bad idea to schedule back to the idle thread.
+	 */
+	if (sched_feat(LAST_BUDDY) && likely(se->on_rq && curr != rq->idle))
+		cfs_rq_of(se)->last = se;
 	cfs_rq_of(pse)->next = pse;
 
 	/*
