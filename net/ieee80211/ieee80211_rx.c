@@ -533,8 +533,6 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	}
 #endif
 
-	dev->last_rx = jiffies;
-
 #ifdef NOT_YET
 	if ((ieee->iw_mode == IW_MODE_MASTER ||
 	     ieee->iw_mode == IW_MODE_REPEAT) && !from_assoc_ap) {

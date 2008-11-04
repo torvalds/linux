@@ -180,7 +180,6 @@ static int edsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	skb_push(skb, ETH_HLEN);
 	skb->protocol = eth_type_trans(skb, skb->dev);
 
-	skb->dev->last_rx = jiffies;
 	skb->dev->stats.rx_packets++;
 	skb->dev->stats.rx_bytes += skb->len;
 

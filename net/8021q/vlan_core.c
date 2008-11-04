@@ -24,7 +24,6 @@ int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 		 * due to congestion. */
 		return NET_RX_SUCCESS;
 	}
-	skb->dev->last_rx = jiffies;
 	skb->vlan_tci = 0;
 
 	stats = &skb->dev->stats;
