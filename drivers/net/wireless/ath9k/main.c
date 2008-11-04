@@ -37,6 +37,8 @@ static struct pci_device_id ath_pci_id_table[] __devinitdata = {
 	{ 0 }
 };
 
+static void ath_detach(struct ath_softc *sc);
+
 static int ath_get_channel(struct ath_softc *sc,
 			   struct ieee80211_channel *chan)
 {
@@ -813,7 +815,7 @@ static int ath_start_rfkill_poll(struct ath_softc *sc)
 			pci_iounmap(sc->pdev, sc->mem);
 			pci_release_region(sc->pdev, 0);
 			pci_disable_device(sc->pdev);
-			ieee80211_free_hw(hw);
+			ieee80211_free_hw(sc->hw);
 			return -EIO;
 		} else {
 			sc->sc_flags |= SC_OP_RFKILL_REGISTERED;
