@@ -168,69 +168,83 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	u32 iir;
-	u32 pipea_stats = 0, pipeb_stats = 0;
+	u32 iir, new_iir;
+	u32 pipea_stats, pipeb_stats;
 	int vblank = 0;
 	unsigned long irqflags;
 
-	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
 	atomic_inc(&dev_priv->irq_received);
 
-	if (dev->pdev->msi_enabled)
-		I915_WRITE(IMR, ~0);
 	iir = I915_READ(IIR);
 
-	if (iir == 0) {
-		if (dev->pdev->msi_enabled) {
-			I915_WRITE(IMR, dev_priv->irq_mask_reg);
-			(void) I915_READ(IMR);
-		}
-		spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
+	if (iir == 0)
 		return IRQ_NONE;
-	}
 
-	/*
-	 * Clear the PIPE(A|B)STAT regs before the IIR
-	 */
-	if (iir & I915_DISPLAY_PIPE_A_EVENT_INTERRUPT) {
-		pipea_stats = I915_READ(PIPEASTAT);
-		I915_WRITE(PIPEASTAT, pipea_stats);
-	}
+	do {
+		pipea_stats = 0;
+		pipeb_stats = 0;
+		/*
+		 * Clear the PIPE(A|B)STAT regs before the IIR
+		 */
+		if (iir & I915_DISPLAY_PIPE_A_EVENT_INTERRUPT) {
+			spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
+			pipea_stats = I915_READ(PIPEASTAT);
+			I915_WRITE(PIPEASTAT, pipea_stats);
+			spin_unlock_irqrestore(&dev_priv->user_irq_lock,
+					       irqflags);
+		}
 
-	if (iir & I915_DISPLAY_PIPE_B_EVENT_INTERRUPT) {
-		pipeb_stats = I915_READ(PIPEBSTAT);
-		I915_WRITE(PIPEBSTAT, pipeb_stats);
-	}
+		if (iir & I915_DISPLAY_PIPE_B_EVENT_INTERRUPT) {
+			spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
+			pipeb_stats = I915_READ(PIPEBSTAT);
+			I915_WRITE(PIPEBSTAT, pipeb_stats);
+			spin_unlock_irqrestore(&dev_priv->user_irq_lock,
+					       irqflags);
+		}
 
-	I915_WRITE(IIR, iir);
-	if (dev->pdev->msi_enabled)
-		I915_WRITE(IMR, dev_priv->irq_mask_reg);
-	(void) I915_READ(IIR); /* Flush posted writes */
+		I915_WRITE(IIR, iir);
+		new_iir = I915_READ(IIR); /* Flush posted writes */
 
-	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
+		if (dev_priv->sarea_priv)
+			dev_priv->sarea_priv->last_dispatch =
+				READ_BREADCRUMB(dev_priv);
 
-	if (dev_priv->sarea_priv)
-		dev_priv->sarea_priv->last_dispatch =
-			READ_BREADCRUMB(dev_priv);
+		if (iir & I915_USER_INTERRUPT) {
+			dev_priv->mm.irq_gem_seqno = i915_get_gem_seqno(dev);
+			DRM_WAKEUP(&dev_priv->irq_queue);
+		}
 
-	if (iir & I915_USER_INTERRUPT) {
-		dev_priv->mm.irq_gem_seqno = i915_get_gem_seqno(dev);
-		DRM_WAKEUP(&dev_priv->irq_queue);
-	}
+		if (pipea_stats & I915_VBLANK_INTERRUPT_STATUS) {
+			vblank++;
+			drm_handle_vblank(dev, 0);
+		}
 
-	if (pipea_stats & I915_VBLANK_INTERRUPT_STATUS) {
-		vblank++;
-		drm_handle_vblank(dev, 0);
-	}
+		if (pipeb_stats & I915_VBLANK_INTERRUPT_STATUS) {
+			vblank++;
+			drm_handle_vblank(dev, 1);
+		}
 
-	if (pipeb_stats & I915_VBLANK_INTERRUPT_STATUS) {
-		vblank++;
-		drm_handle_vblank(dev, 1);
-	}
+		if ((pipeb_stats & I915_LEGACY_BLC_EVENT_STATUS) ||
+		    (iir & I915_ASLE_INTERRUPT))
+			opregion_asle_intr(dev);
 
-	if ((pipeb_stats & I915_LEGACY_BLC_EVENT_STATUS) ||
-	    (iir & I915_ASLE_INTERRUPT))
-		opregion_asle_intr(dev);
+		/* With MSI, interrupts are only generated when iir
+		 * transitions from zero to nonzero.  If another bit got
+		 * set while we were handling the existing iir bits, then
+		 * we would never get another interrupt.
+		 *
+		 * This is fine on non-MSI as well, as if we hit this path
+		 * we avoid exiting the interrupt handler only to generate
+		 * another one.
+		 *
+		 * Note that for MSI this could cause a stray interrupt report
+		 * if an interrupt landed in the time between writing IIR and
+		 * the posting read.  This should be rare enough to never
+		 * trigger the 99% of 100,000 interrupts test for disabling
+		 * stray interrupts.
+		 */
+		iir = new_iir;
+	} while (iir != 0);
 
 	return IRQ_HANDLED;
 }
