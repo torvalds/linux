@@ -372,7 +372,7 @@
 
 /* External TWL4030 gpio interrupts are optional */
 #define TWL4030_GPIO_IRQ_BASE	TWL4030_PWR_IRQ_END
-#ifdef	CONFIG_TWL4030_GPIO
+#ifdef	CONFIG_GPIO_TWL4030
 #define TWL4030_GPIO_NR_IRQS	18
 #else
 #define	TWL4030_GPIO_NR_IRQS	0
