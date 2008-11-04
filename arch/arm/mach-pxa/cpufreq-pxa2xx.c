@@ -109,6 +109,10 @@ static struct cpufreq_frequency_table
 static struct cpufreq_frequency_table
 	pxa255_turbo_freq_table[NUM_PXA25x_TURBO_FREQS+1];
 
+static unsigned int pxa255_turbo_table;
+module_param(pxa255_turbo_table, uint, 0);
+MODULE_PARM_DESC(pxa255_turbo_table, "Selects the frequency table (0 = run table, !0 = turbo table)");
+
 /*
  * PXA270 definitions
  *
@@ -158,22 +162,16 @@ static struct cpufreq_frequency_table
 
 extern unsigned get_clk_frequency_khz(int info);
 
-static void find_freq_tables(struct cpufreq_policy *policy,
-			     struct cpufreq_frequency_table **freq_table,
+static void find_freq_tables(struct cpufreq_frequency_table **freq_table,
 			     pxa_freqs_t **pxa_freqs)
 {
 	if (cpu_is_pxa25x()) {
-		if (policy->policy == CPUFREQ_POLICY_PERFORMANCE) {
+		if (!pxa255_turbo_table) {
 			*pxa_freqs = pxa255_run_freqs;
 			*freq_table = pxa255_run_freq_table;
-		} else if (policy->policy == CPUFREQ_POLICY_POWERSAVE) {
+		} else {
 			*pxa_freqs = pxa255_turbo_freqs;
 			*freq_table = pxa255_turbo_freq_table;
-		} else {
-			printk("CPU PXA: Unknown policy found. "
-			       "Using CPUFREQ_POLICY_PERFORMANCE\n");
-			*pxa_freqs = pxa255_run_freqs;
-			*freq_table = pxa255_run_freq_table;
 		}
 	}
 	if (cpu_is_pxa27x()) {
@@ -212,7 +210,7 @@ static int pxa_verify_policy(struct cpufreq_policy *policy)
 	pxa_freqs_t *pxa_freqs;
 	int ret;
 
-	find_freq_tables(policy, &pxa_freqs_table, &pxa_freqs);
+	find_freq_tables(&pxa_freqs_table, &pxa_freqs);
 	ret = cpufreq_frequency_table_verify(policy, pxa_freqs_table);
 
 	if (freq_debug)
@@ -240,7 +238,7 @@ static int pxa_set_target(struct cpufreq_policy *policy,
 	unsigned int unused, preset_mdrefr, postset_mdrefr, cclkcfg;
 
 	/* Get the current policy */
-	find_freq_tables(policy, &pxa_freqs_table, &pxa_freq_settings);
+	find_freq_tables(&pxa_freqs_table, &pxa_freq_settings);
 
 	/* Lookup the next frequency */
 	if (cpufreq_frequency_table_target(policy, pxa_freqs_table,
@@ -329,6 +327,8 @@ static __init int pxa_cpufreq_init(struct cpufreq_policy *policy)
 {
 	int i;
 	unsigned int freq;
+	struct cpufreq_frequency_table *pxa255_freq_table;
+	pxa_freqs_t *pxa255_freqs;
 
 	/* try to guess pxa27x cpu */
 	if (cpu_is_pxa27x())
@@ -354,6 +354,8 @@ static __init int pxa_cpufreq_init(struct cpufreq_policy *policy)
 	}
 	pxa255_turbo_freq_table[i].frequency = CPUFREQ_TABLE_END;
 
+	pxa255_turbo_table = !!pxa255_turbo_table;
+
 	/* Generate the pxa27x cpufreq_frequency_table struct */
 	for (i = 0; i < NUM_PXA27x_FREQS; i++) {
 		freq = pxa27x_freqs[i].khz;
@@ -368,8 +370,12 @@ static __init int pxa_cpufreq_init(struct cpufreq_policy *policy)
 	 * Set the policy's minimum and maximum frequencies from the tables
 	 * just constructed.  This sets cpuinfo.mxx_freq, min and max.
 	 */
-	if (cpu_is_pxa25x())
-		cpufreq_frequency_table_cpuinfo(policy, pxa255_run_freq_table);
+	if (cpu_is_pxa25x()) {
+		find_freq_tables(&pxa255_freq_table, &pxa255_freqs);
+		pr_info("PXA255 cpufreq using %s frequency table\n",
+			pxa255_turbo_table ? "turbo" : "run");
+		cpufreq_frequency_table_cpuinfo(policy, pxa255_freq_table);
+	}
 	else if (cpu_is_pxa27x())
 		cpufreq_frequency_table_cpuinfo(policy, pxa27x_freq_table);
 
