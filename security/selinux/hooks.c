@@ -2268,7 +2268,9 @@ static void selinux_bprm_post_apply_creds(struct linux_binprm *bprm)
 	struct rlimit *rlim, *initrlim;
 	struct itimerval itimer;
 	struct bprm_security_struct *bsec;
+	struct sighand_struct *psig;
 	int rc, i;
+	unsigned long flags;
 
 	tsec = current->security;
 	bsec = bprm->security;
@@ -2335,7 +2337,12 @@ static void selinux_bprm_post_apply_creds(struct linux_binprm *bprm)
 
 	/* Wake up the parent if it is waiting so that it can
 	   recheck wait permission to the new task SID. */
+	read_lock_irq(&tasklist_lock);
+	psig = current->parent->sighand;
+	spin_lock_irqsave(&psig->siglock, flags);
 	wake_up_interruptible(&current->parent->signal->wait_chldexit);
+	spin_unlock_irqrestore(&psig->siglock, flags);
+	read_unlock_irq(&tasklist_lock);
 }
 
 /* superblock security operations */
