@@ -347,17 +347,17 @@ static void __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	rb_erase(&se->run_node, &cfs_rq->tasks_timeline);
 }
 
-static inline struct rb_node *first_fair(struct cfs_rq *cfs_rq)
-{
-	return cfs_rq->rb_leftmost;
-}
-
 static struct sched_entity *__pick_next_entity(struct cfs_rq *cfs_rq)
 {
-	return rb_entry(first_fair(cfs_rq), struct sched_entity, run_node);
+	struct rb_node *left = cfs_rq->rb_leftmost;
+
+	if (!left)
+		return NULL;
+
+	return rb_entry(left, struct sched_entity, run_node);
 }
 
-static inline struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
+static struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
 {
 	struct rb_node *last = rb_last(&cfs_rq->tasks_timeline);
 
@@ -794,26 +794,14 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 static int
 wakeup_preempt_entity(struct sched_entity *curr, struct sched_entity *se);
 
-static struct sched_entity *
-pick_next(struct cfs_rq *cfs_rq, struct sched_entity *se)
+static struct sched_entity *pick_next_entity(struct cfs_rq *cfs_rq)
 {
+	struct sched_entity *se = __pick_next_entity(cfs_rq);
+
 	if (!cfs_rq->next || wakeup_preempt_entity(cfs_rq->next, se) == 1)
 		return se;
 
 	return cfs_rq->next;
-}
-
-static struct sched_entity *pick_next_entity(struct cfs_rq *cfs_rq)
-{
-	struct sched_entity *se = NULL;
-
-	if (first_fair(cfs_rq)) {
-		se = __pick_next_entity(cfs_rq);
-		se = pick_next(cfs_rq, se);
-		set_next_entity(cfs_rq, se);
-	}
-
-	return se;
 }
 
 static void put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev)
@@ -1396,6 +1384,7 @@ static struct task_struct *pick_next_task_fair(struct rq *rq)
 
 	do {
 		se = pick_next_entity(cfs_rq);
+		set_next_entity(cfs_rq, se);
 		cfs_rq = group_cfs_rq(se);
 	} while (cfs_rq);
 
