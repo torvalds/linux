@@ -428,23 +428,23 @@ static int clk_debugfs_register_one(struct clk *c)
 	if (c->id != 0)
 		sprintf(p, ":%d", c->id);
 	d = debugfs_create_dir(s, pa ? pa->dent : clk_debugfs_root);
-	if (IS_ERR(d))
-		return PTR_ERR(d);
+	if (!d)
+		return -ENOMEM;
 	c->dent = d;
 
 	d = debugfs_create_u8("usecount", S_IRUGO, c->dent, (u8 *)&c->usecount);
-	if (IS_ERR(d)) {
-		err = PTR_ERR(d);
+	if (!d) {
+		err = -ENOMEM;
 		goto err_out;
 	}
 	d = debugfs_create_u32("rate", S_IRUGO, c->dent, (u32 *)&c->rate);
-	if (IS_ERR(d)) {
-		err = PTR_ERR(d);
+	if (!d) {
+		err = -ENOMEM;
 		goto err_out;
 	}
 	d = debugfs_create_x32("flags", S_IRUGO, c->dent, (u32 *)&c->flags);
-	if (IS_ERR(d)) {
-		err = PTR_ERR(d);
+	if (!d) {
+		err = -ENOMEM;
 		goto err_out;
 	}
 	return 0;
@@ -483,8 +483,8 @@ static int __init clk_debugfs_init(void)
 	int err;
 
 	d = debugfs_create_dir("clock", NULL);
-	if (IS_ERR(d))
-		return PTR_ERR(d);
+	if (!d)
+		return -ENOMEM;
 	clk_debugfs_root = d;
 
 	list_for_each_entry(c, &clocks, node) {
