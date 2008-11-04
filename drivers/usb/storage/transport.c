@@ -1173,10 +1173,9 @@ int usb_stor_Bulk_reset(struct us_data *us)
  */
 int usb_stor_port_reset(struct us_data *us)
 {
-	int result, rc_lock;
+	int result;
 
-	result = rc_lock =
-		usb_lock_device_for_reset(us->pusb_dev, us->pusb_intf);
+	result = usb_lock_device_for_reset(us->pusb_dev, us->pusb_intf);
 	if (result < 0)
 		US_DEBUGP("unable to lock device for reset: %d\n", result);
 	else {
@@ -1189,8 +1188,7 @@ int usb_stor_port_reset(struct us_data *us)
 			US_DEBUGP("usb_reset_device returns %d\n",
 					result);
 		}
-		if (rc_lock)
-			usb_unlock_device(us->pusb_dev);
+		usb_unlock_device(us->pusb_dev);
 	}
 	return result;
 }

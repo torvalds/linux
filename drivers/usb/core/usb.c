@@ -513,10 +513,7 @@ EXPORT_SYMBOL_GPL(usb_put_intf);
  * disconnect; in some drivers (such as usb-storage) the disconnect()
  * or suspend() method will block waiting for a device reset to complete.
  *
- * Returns a negative error code for failure, otherwise 1 or 0 to indicate
- * that the device will or will not have to be unlocked.  (0 can be
- * returned when an interface is given and is BINDING, because in that
- * case the driver already owns the device lock.)
+ * Returns a negative error code for failure, otherwise 0.
  */
 int usb_lock_device_for_reset(struct usb_device *udev,
 			      const struct usb_interface *iface)
@@ -527,16 +524,9 @@ int usb_lock_device_for_reset(struct usb_device *udev,
 		return -ENODEV;
 	if (udev->state == USB_STATE_SUSPENDED)
 		return -EHOSTUNREACH;
-	if (iface) {
-		switch (iface->condition) {
-		case USB_INTERFACE_BINDING:
-			return 0;
-		case USB_INTERFACE_BOUND:
-			break;
-		default:
-			return -EINTR;
-		}
-	}
+	if (iface && (iface->condition == USB_INTERFACE_UNBINDING ||
+			iface->condition == USB_INTERFACE_UNBOUND))
+		return -EINTR;
 
 	while (usb_trylock_device(udev) != 0) {
 
@@ -550,10 +540,11 @@ int usb_lock_device_for_reset(struct usb_device *udev,
 			return -ENODEV;
 		if (udev->state == USB_STATE_SUSPENDED)
 			return -EHOSTUNREACH;
-		if (iface && iface->condition != USB_INTERFACE_BOUND)
+		if (iface && (iface->condition == USB_INTERFACE_UNBINDING ||
+				iface->condition == USB_INTERFACE_UNBOUND))
 			return -EINTR;
 	}
-	return 1;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(usb_lock_device_for_reset);
 
