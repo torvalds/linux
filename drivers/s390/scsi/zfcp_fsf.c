@@ -683,6 +683,7 @@ static struct zfcp_fsf_req *zfcp_fsf_alloc_noqtcb(mempool_t *pool)
 	if (!req)
 		return NULL;
 	memset(req, 0, sizeof(*req));
+	req->pool = pool;
 	return req;
 }
 
