@@ -1652,7 +1652,7 @@ static const struct clksel ssi_ssr_clksel[] = {
 
 static struct clk ssi_ssr_fck = {
 	.name		= "ssi_ssr_fck",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.init		= &omap2_init_clksel_parent,
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_FCLKEN1),
 	.enable_bit	= OMAP3430_EN_SSI_SHIFT,
@@ -2064,7 +2064,7 @@ static struct clk ssi_l4_ick = {
 
 static struct clk ssi_ick = {
 	.name		= "ssi_ick",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.parent		= &ssi_l4_ick,
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_ICLKEN1),
 	.enable_bit	= OMAP3430_EN_SSI_SHIFT,
@@ -2156,7 +2156,7 @@ static const struct clksel dss1_alwon_fck_clksel[] = {
 
 static struct clk dss1_alwon_fck = {
 	.name		= "dss1_alwon_fck",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.parent		= &dpll4_m4x2_ck,
 	.init		= &omap2_init_clksel_parent,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_DSS_MOD, CM_FCLKEN),
@@ -2171,7 +2171,7 @@ static struct clk dss1_alwon_fck = {
 
 static struct clk dss_tv_fck = {
 	.name		= "dss_tv_fck",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.parent		= &omap_54m_fck,
 	.init		= &omap2_init_clk_clkdm,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_DSS_MOD, CM_FCLKEN),
@@ -2183,7 +2183,7 @@ static struct clk dss_tv_fck = {
 
 static struct clk dss_96m_fck = {
 	.name		= "dss_96m_fck",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.parent		= &omap_96m_fck,
 	.init		= &omap2_init_clk_clkdm,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_DSS_MOD, CM_FCLKEN),
@@ -2195,7 +2195,7 @@ static struct clk dss_96m_fck = {
 
 static struct clk dss2_alwon_fck = {
 	.name		= "dss2_alwon_fck",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.parent		= &sys_ck,
 	.init		= &omap2_init_clk_clkdm,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_DSS_MOD, CM_FCLKEN),
@@ -2208,7 +2208,7 @@ static struct clk dss2_alwon_fck = {
 static struct clk dss_ick = {
 	/* Handles both L3 and L4 clocks */
 	.name		= "dss_ick",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.parent		= &l4_ick,
 	.init		= &omap2_init_clk_clkdm,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_DSS_MOD, CM_ICLKEN),

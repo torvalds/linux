@@ -237,23 +237,6 @@ static void omap2_clk_wait_ready(struct clk *clk)
 	else
 		return;
 
-	/* REVISIT: What are the appropriate exclusions for 34XX? */
-	/* No check for DSS or cam clocks */
-	if (cpu_is_omap24xx() && ((u32)reg & 0x0f) == 0) { /* CM_{F,I}CLKEN1 */
-		if (clk->enable_bit == OMAP24XX_EN_DSS2_SHIFT ||
-		    clk->enable_bit == OMAP24XX_EN_DSS1_SHIFT ||
-		    clk->enable_bit == OMAP24XX_EN_CAM_SHIFT)
-			return;
-	}
-
-	/* REVISIT: What are the appropriate exclusions for 34XX? */
-	/* OMAP3: ignore DSS-mod clocks */
-	if (cpu_is_omap34xx() &&
-	    (((u32)reg & ~0xff) == (u32)OMAP_CM_REGADDR(OMAP3430_DSS_MOD, 0) ||
-	     ((((u32)reg & ~0xff) == (u32)OMAP_CM_REGADDR(CORE_MOD, 0)) &&
-	     clk->enable_bit == OMAP3430_EN_SSI_SHIFT)))
-		return;
-
 	/* Check if both functional and interface clocks
 	 * are running. */
 	bit = 1 << clk->enable_bit;
@@ -264,7 +247,7 @@ static void omap2_clk_wait_ready(struct clk *clk)
 	omap2_wait_clock_ready(st_reg, bit, clk->name);
 }
 
-static int omap2_dflt_clk_enable_wait(struct clk *clk)
+static int omap2_dflt_clk_enable(struct clk *clk)
 {
 	u32 regval32;
 
@@ -282,9 +265,23 @@ static int omap2_dflt_clk_enable_wait(struct clk *clk)
 	__raw_writel(regval32, clk->enable_reg);
 	wmb();
 
-	omap2_clk_wait_ready(clk);
-
 	return 0;
+}
+
+static int omap2_dflt_clk_enable_wait(struct clk *clk)
+{
+	int ret;
+
+	if (unlikely(clk->enable_reg == NULL)) {
+		printk(KERN_ERR "clock.c: Enable for %s without enable code\n",
+		       clk->name);
+		return 0; /* REVISIT: -EINVAL */
+	}
+
+	ret = omap2_dflt_clk_enable(clk);
+	if (ret == 0)
+		omap2_clk_wait_ready(clk);
+	return ret;
 }
 
 static void omap2_dflt_clk_disable(struct clk *clk)
@@ -312,6 +309,11 @@ static void omap2_dflt_clk_disable(struct clk *clk)
 
 const struct clkops clkops_omap2_dflt_wait = {
 	.enable		= omap2_dflt_clk_enable_wait,
+	.disable	= omap2_dflt_clk_disable,
+};
+
+const struct clkops clkops_omap2_dflt = {
+	.enable		= omap2_dflt_clk_enable,
 	.disable	= omap2_dflt_clk_disable,
 };
 

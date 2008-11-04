@@ -52,6 +52,7 @@ int omap2_wait_clock_ready(void __iomem *reg, u32 cval, const char *name);
 void omap2_clk_prepare_for_reboot(void);
 
 extern const struct clkops clkops_omap2_dflt_wait;
+extern const struct clkops clkops_omap2_dflt;
 
 extern u8 cpu_mask;
 
