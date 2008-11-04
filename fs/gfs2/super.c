@@ -206,14 +206,14 @@ int gfs2_jdesc_check(struct gfs2_jdesc *jd)
 	int ar;
 	int error;
 
-	if (ip->i_di.di_size < (8 << 20) || ip->i_di.di_size > (1 << 30) ||
-	    (ip->i_di.di_size & (sdp->sd_sb.sb_bsize - 1))) {
+	if (ip->i_disksize < (8 << 20) || ip->i_disksize > (1 << 30) ||
+	    (ip->i_disksize & (sdp->sd_sb.sb_bsize - 1))) {
 		gfs2_consist_inode(ip);
 		return -EIO;
 	}
-	jd->jd_blocks = ip->i_di.di_size >> sdp->sd_sb.sb_bsize_shift;
+	jd->jd_blocks = ip->i_disksize >> sdp->sd_sb.sb_bsize_shift;
 
-	error = gfs2_write_alloc_required(ip, 0, ip->i_di.di_size, &ar);
+	error = gfs2_write_alloc_required(ip, 0, ip->i_disksize, &ar);
 	if (!error && ar) {
 		gfs2_consist_inode(ip);
 		error = -EIO;

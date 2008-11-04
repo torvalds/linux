@@ -234,7 +234,6 @@ enum {
 };
 
 struct gfs2_dinode_host {
-	u64 di_size;		/* number of bytes in file */
 	u32 di_flags;		/* GFS2_DIF_... */
 };
 
@@ -244,6 +243,7 @@ struct gfs2_inode {
 	u64 i_no_formal_ino;
 	u64 i_generation;
 	u64 i_eattr;
+	loff_t i_disksize;
 	unsigned long i_flags;		/* GIF_... */
 
 	struct gfs2_dinode_host i_di; /* To be replaced by ref to block */

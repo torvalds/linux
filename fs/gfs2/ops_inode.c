@@ -371,7 +371,7 @@ static int gfs2_symlink(struct inode *dir, struct dentry *dentry,
 
 	ip = ghs[1].gh_gl->gl_object;
 
-	ip->i_di.di_size = size;
+	ip->i_disksize = size;
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 
@@ -425,7 +425,7 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	ip = ghs[1].gh_gl->gl_object;
 
 	ip->i_inode.i_nlink = 2;
-	ip->i_di.di_size = sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode);
+	ip->i_disksize = sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode);
 	ip->i_di.di_flags |= GFS2_DIF_JDATA;
 	ip->i_entries = 2;
 
@@ -990,7 +990,7 @@ static int setattr_size(struct inode *inode, struct iattr *attr)
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	int error;
 
-	if (attr->ia_size != ip->i_di.di_size) {
+	if (attr->ia_size != ip->i_disksize) {
 		error = gfs2_trans_begin(sdp, 0, sdp->sd_jdesc->jd_blocks);
 		if (error)
 			return error;
@@ -1001,8 +1001,8 @@ static int setattr_size(struct inode *inode, struct iattr *attr)
 	}
 
 	error = gfs2_truncatei(ip, attr->ia_size);
-	if (error && (inode->i_size != ip->i_di.di_size))
-		i_size_write(inode, ip->i_di.di_size);
+	if (error && (inode->i_size != ip->i_disksize))
+		i_size_write(inode, ip->i_disksize);
 
 	return error;
 }
