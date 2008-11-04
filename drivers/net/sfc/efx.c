@@ -77,11 +77,6 @@ static int napi_weight = 64;
  */
 unsigned int efx_monitor_interval = 1 * HZ;
 
-/* This controls whether or not the hardware monitor will trigger a
- * reset when it detects an error condition.
- */
-static unsigned int monitor_reset = true;
-
 /* This controls whether or not the driver will initialise devices
  * with invalid MAC addresses stored in the EEPROM or flash.  If true,
  * such devices will be initialised with a random locally-generated
@@ -1176,17 +1171,6 @@ static void efx_monitor(struct work_struct *data)
 		rc = falcon_check_xmac(efx);
 	mutex_unlock(&efx->mac_lock);
 
-	if (rc) {
-		if (monitor_reset) {
-			EFX_ERR(efx, "hardware monitor detected a fault: "
-				"triggering reset\n");
-			efx_schedule_reset(efx, RESET_TYPE_MONITOR);
-		} else {
-			EFX_ERR(efx, "hardware monitor detected a fault, "
-				"skipping reset\n");
-		}
-	}
-
 	queue_delayed_work(efx->workqueue, &efx->monitor_work,
 			   efx_monitor_interval);
 }
@@ -1358,12 +1342,11 @@ static void efx_watchdog(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
-	EFX_ERR(efx, "TX stuck with stop_count=%d port_enabled=%d: %s\n",
-		atomic_read(&efx->netif_stop_count), efx->port_enabled,
-		monitor_reset ? "resetting channels" : "skipping reset");
+	EFX_ERR(efx, "TX stuck with stop_count=%d port_enabled=%d:"
+		" resetting channels\n",
+		atomic_read(&efx->netif_stop_count), efx->port_enabled);
 
-	if (monitor_reset)
-		efx_schedule_reset(efx, RESET_TYPE_MONITOR);
+	efx_schedule_reset(efx, RESET_TYPE_TX_WATCHDOG);
 }
 
 
