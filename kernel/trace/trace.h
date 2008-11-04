@@ -415,6 +415,7 @@ enum trace_iterator_flags {
 	TRACE_ITER_STACKTRACE		= 0x100,
 	TRACE_ITER_SCHED_TREE		= 0x200,
 	TRACE_ITER_PRINTK		= 0x400,
+	TRACE_ITER_PREEMPTONLY		= 0x800,
 };
 
 extern struct tracer nop_trace;
