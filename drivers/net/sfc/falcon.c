@@ -2253,13 +2253,13 @@ int falcon_read_nvram(struct efx_nic *efx, struct falcon_nvconfig *nvconfig_out)
 	__le16 *word, *limit;
 	u32 csum;
 
-	region = kmalloc(NVCONFIG_END, GFP_KERNEL);
+	region = kmalloc(FALCON_NVCONFIG_END, GFP_KERNEL);
 	if (!region)
 		return -ENOMEM;
 	nvconfig = region + NVCONFIG_OFFSET;
 
 	spi = efx->spi_flash ? efx->spi_flash : efx->spi_eeprom;
-	rc = falcon_spi_read(spi, 0, NVCONFIG_END, NULL, region);
+	rc = falcon_spi_read(spi, 0, FALCON_NVCONFIG_END, NULL, region);
 	if (rc) {
 		EFX_ERR(efx, "Failed to read %s\n",
 			efx->spi_flash ? "flash" : "EEPROM");
@@ -2283,7 +2283,7 @@ int falcon_read_nvram(struct efx_nic *efx, struct falcon_nvconfig *nvconfig_out)
 		limit = (__le16 *) (nvconfig + 1);
 	} else {
 		word = region;
-		limit = region + NVCONFIG_END;
+		limit = region + FALCON_NVCONFIG_END;
 	}
 	for (csum = 0; word < limit; ++word)
 		csum += le16_to_cpu(*word);

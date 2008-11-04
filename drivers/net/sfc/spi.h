@@ -63,4 +63,21 @@ int falcon_spi_read(const struct efx_spi_device *spi, loff_t start,
 int falcon_spi_write(const struct efx_spi_device *spi, loff_t start,
 		     size_t len, size_t *retlen, const u8 *buffer);
 
+/*
+ * SFC4000 flash is partitioned into:
+ *     0-0x400       chip and board config (see falcon_hwdefs.h)
+ *     0x400-0x8000  unused (or may contain VPD if EEPROM not present)
+ *     0x8000-end    boot code (mapped to PCI expansion ROM)
+ * SFC4000 small EEPROM (size < 0x400) is used for VPD only.
+ * SFC4000 large EEPROM (size >= 0x400) is partitioned into:
+ *     0-0x400       chip and board config
+ *     configurable  VPD
+ *     0x800-0x1800  boot config
+ * Aside from the chip and board config, all of these are optional and may
+ * be absent or truncated depending on the devices used.
+ */
+#define FALCON_NVCONFIG_END 0x400U
+#define EFX_EEPROM_BOOTCONFIG_START 0x800U
+#define EFX_EEPROM_BOOTCONFIG_END 0x1800U
+
 #endif /* EFX_SPI_H */
