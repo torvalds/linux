@@ -2373,7 +2373,7 @@ EXPORT_SYMBOL(__napi_schedule);
 static void net_rx_action(struct softirq_action *h)
 {
 	struct list_head *list = &__get_cpu_var(softnet_data).poll_list;
-	unsigned long start_time = jiffies;
+	unsigned long time_limit = jiffies + 2;
 	int budget = netdev_budget;
 	void *have;
 
@@ -2384,13 +2384,10 @@ static void net_rx_action(struct softirq_action *h)
 		int work, weight;
 
 		/* If softirq window is exhuasted then punt.
-		 *
-		 * Note that this is a slight policy change from the
-		 * previous NAPI code, which would allow up to 2
-		 * jiffies to pass before breaking out.  The test
-		 * used to be "jiffies - start_time > 1".
+		 * Allow this to run for 2 jiffies since which will allow
+		 * an average latency of 1.5/HZ.
 		 */
-		if (unlikely(budget <= 0 || jiffies != start_time))
+		if (unlikely(budget <= 0 || time_after(jiffies, time_limit)))
 			goto softnet_break;
 
 		local_irq_enable();
