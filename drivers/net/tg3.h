@@ -1795,6 +1795,11 @@
 
 #define MII_TG3_AUX_CTRL		0x18 /* auxilliary control register */
 
+#define MII_TG3_AUXCTL_PCTL_100TX_LPWR	0x0010
+#define MII_TG3_AUXCTL_PCTL_SPR_ISOLATE	0x0020
+#define MII_TG3_AUXCTL_PCTL_VREG_11V	0x0180
+#define MII_TG3_AUXCTL_SHDWSEL_PWRCTL	0x0002
+
 #define MII_TG3_AUXCTL_MISC_WREN	0x8000
 #define MII_TG3_AUXCTL_MISC_FORCE_AMDIX	0x0200
 #define MII_TG3_AUXCTL_MISC_RDSEL_MISC	0x7000
@@ -2590,7 +2595,10 @@ struct tg3 {
 #define PHY_REV_BCM5411_X0		0x1 /* Found on Netgear GA302T */
 #define TG3_PHY_ID_BCM50610		0x143bd60
 #define TG3_PHY_ID_BCMAC131		0x143bc70
-
+#define TG3_PHY_OUI_MASK		0xfffffc00
+#define TG3_PHY_OUI_1			0x00206000
+#define TG3_PHY_OUI_2			0x0143bc00
+#define TG3_PHY_OUI_3			0x03625c00
 
 	u32				led_ctrl;
 	u32				phy_otp;

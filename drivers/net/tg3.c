@@ -1963,7 +1963,7 @@ static int tg3_halt_cpu(struct tg3 *, u32);
 static int tg3_nvram_lock(struct tg3 *);
 static void tg3_nvram_unlock(struct tg3 *);
 
-static void tg3_power_down_phy(struct tg3 *tp)
+static void tg3_power_down_phy(struct tg3 *tp, bool do_low_power)
 {
 	u32 val;
 
@@ -1986,10 +1986,15 @@ static void tg3_power_down_phy(struct tg3 *tp)
 		tw32_f(GRC_MISC_CFG, val | GRC_MISC_CFG_EPHY_IDDQ);
 		udelay(40);
 		return;
-	} else if (!(tp->tg3_flags3 & TG3_FLG3_USE_PHYLIB)) {
+	} else if (do_low_power) {
 		tg3_writephy(tp, MII_TG3_EXT_CTRL,
 			     MII_TG3_EXT_CTRL_FORCE_LED_OFF);
-		tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x01b2);
+
+		tg3_writephy(tp, MII_TG3_AUX_CTRL,
+			     MII_TG3_AUXCTL_SHDWSEL_PWRCTL |
+			     MII_TG3_AUXCTL_PCTL_100TX_LPWR |
+			     MII_TG3_AUXCTL_PCTL_SPR_ISOLATE |
+			     MII_TG3_AUXCTL_PCTL_VREG_11V);
 	}
 
 	/* The PHY should not be powered down on some chips because
@@ -2052,7 +2057,7 @@ static void __tg3_set_mac_addr(struct tg3 *tp, int skip_mac_1)
 static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 {
 	u32 misc_host_ctrl;
-	bool device_should_wake;
+	bool device_should_wake, do_low_power;
 
 	/* Make sure register accesses (indirect or otherwise)
 	 * will function correctly.
@@ -2091,10 +2096,11 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 			     (tp->tg3_flags & TG3_FLAG_WOL_ENABLE);
 
 	if (tp->tg3_flags3 & TG3_FLG3_USE_PHYLIB) {
+		do_low_power = false;
 		if ((tp->tg3_flags3 & TG3_FLG3_PHY_CONNECTED) &&
 		    !tp->link_config.phy_is_low_power) {
 			struct phy_device *phydev;
-			u32 advertising;
+			u32 phyid, advertising;
 
 			phydev = tp->mdio_bus->phy_map[PHY_ADDR];
 
@@ -2124,8 +2130,19 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 			phydev->advertising = advertising;
 
 			phy_start_aneg(phydev);
+
+			phyid = phydev->drv->phy_id & phydev->drv->phy_id_mask;
+			if (phyid != TG3_PHY_ID_BCMAC131) {
+				phyid &= TG3_PHY_OUI_MASK;
+				if (phyid == TG3_PHY_OUI_1 &&
+				    phyid == TG3_PHY_OUI_2 &&
+				    phyid == TG3_PHY_OUI_3)
+					do_low_power = true;
+			}
 		}
 	} else {
+		do_low_power = false;
+
 		if (tp->link_config.phy_is_low_power == 0) {
 			tp->link_config.phy_is_low_power = 1;
 			tp->link_config.orig_speed = tp->link_config.speed;
@@ -2169,7 +2186,7 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 		u32 mac_mode;
 
 		if (!(tp->tg3_flags2 & TG3_FLG2_PHY_SERDES)) {
-			if (!(tp->tg3_flags3 & TG3_FLG3_USE_PHYLIB)) {
+			if (do_low_power) {
 				tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x5a);
 				udelay(40);
 			}
@@ -2277,7 +2294,7 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 	if (!(device_should_wake) &&
 	    !(tp->tg3_flags & TG3_FLAG_ENABLE_ASF) &&
 	    !(tp->tg3_flags3 & TG3_FLG3_ENABLE_APE))
-		tg3_power_down_phy(tp);
+		tg3_power_down_phy(tp, do_low_power);
 
 	tg3_frob_aux_power(tp);
 
