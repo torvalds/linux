@@ -6273,6 +6273,14 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 	return;
 
  done:
+	/* can not perform scan make sure we clear scanning
+	 * bits from status so next scan request can be performed.
+	 * if we dont clear scanning status bit here all next scan
+	 * will fail
+	*/
+	clear_bit(STATUS_SCAN_HW, &priv->status);
+	clear_bit(STATUS_SCANNING, &priv->status);
+
 	/* inform mac80211 scan aborted */
 	queue_work(priv->workqueue, &priv->scan_completed);
 	mutex_unlock(&priv->mutex);
