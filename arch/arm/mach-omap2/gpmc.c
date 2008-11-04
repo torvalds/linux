@@ -429,17 +429,15 @@ void __init gpmc_init(void)
 	gpmc_l3_clk = clk_get(NULL, ck);
 	if (IS_ERR(gpmc_l3_clk)) {
 		printk(KERN_ERR "Could not get GPMC clock %s\n", ck);
-		return -ENODEV;
+		BUG();
 	}
 
 	gpmc_base = ioremap(l, SZ_4K);
 	if (!gpmc_base) {
 		clk_put(gpmc_l3_clk);
 		printk(KERN_ERR "Could not get GPMC register memory\n");
-		return -ENOMEM;
+		BUG();
 	}
-
-	BUG_ON(IS_ERR(gpmc_l3_clk));
 
 	l = gpmc_read_reg(GPMC_REVISION);
 	printk(KERN_INFO "GPMC revision %d.%d\n", (l >> 4) & 0x0f, l & 0x0f);
