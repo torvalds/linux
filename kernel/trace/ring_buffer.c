@@ -16,6 +16,8 @@
 #include <linux/list.h>
 #include <linux/fs.h>
 
+#include "trace.h"
+
 /* Up this if you want to test the TIME_EXTENTS and normalization */
 #define DEBUG_SHIFT 0
 
@@ -1122,8 +1124,7 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer,
 		return NULL;
 
 	/* If we are tracing schedule, we don't want to recurse */
-	resched = need_resched();
-	preempt_disable_notrace();
+	resched = ftrace_preempt_disable();
 
 	cpu = raw_smp_processor_id();
 
@@ -1154,10 +1155,7 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer,
 	return event;
 
  out:
-	if (resched)
-		preempt_enable_notrace();
-	else
-		preempt_enable_notrace();
+	ftrace_preempt_enable(resched);
 	return NULL;
 }
 
@@ -1199,12 +1197,9 @@ int ring_buffer_unlock_commit(struct ring_buffer *buffer,
 	/*
 	 * Only the last preempt count needs to restore preemption.
 	 */
-	if (preempt_count() == 1) {
-		if (per_cpu(rb_need_resched, cpu))
-			preempt_enable_no_resched_notrace();
-		else
-			preempt_enable_notrace();
-	} else
+	if (preempt_count() == 1)
+		ftrace_preempt_enable(per_cpu(rb_need_resched, cpu));
+	else
 		preempt_enable_no_resched_notrace();
 
 	return 0;
@@ -1237,8 +1232,7 @@ int ring_buffer_write(struct ring_buffer *buffer,
 	if (atomic_read(&buffer->record_disabled))
 		return -EBUSY;
 
-	resched = need_resched();
-	preempt_disable_notrace();
+	resched = ftrace_preempt_disable();
 
 	cpu = raw_smp_processor_id();
 
@@ -1264,10 +1258,7 @@ int ring_buffer_write(struct ring_buffer *buffer,
 
 	ret = 0;
  out:
-	if (resched)
-		preempt_enable_no_resched_notrace();
-	else
-		preempt_enable_notrace();
+	ftrace_preempt_enable(resched);
 
 	return ret;
 }

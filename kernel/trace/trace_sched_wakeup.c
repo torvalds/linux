@@ -50,8 +50,7 @@ wakeup_tracer_call(unsigned long ip, unsigned long parent_ip)
 		return;
 
 	pc = preempt_count();
-	resched = need_resched();
-	preempt_disable_notrace();
+	resched = ftrace_preempt_disable();
 
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
@@ -81,15 +80,7 @@ wakeup_tracer_call(unsigned long ip, unsigned long parent_ip)
  out:
 	atomic_dec(&data->disabled);
 
-	/*
-	 * To prevent recursion from the scheduler, if the
-	 * resched flag was set before we entered, then
-	 * don't reschedule.
-	 */
-	if (resched)
-		preempt_enable_no_resched_notrace();
-	else
-		preempt_enable_notrace();
+	ftrace_preempt_enable(resched);
 }
 
 static struct ftrace_ops trace_ops __read_mostly =
