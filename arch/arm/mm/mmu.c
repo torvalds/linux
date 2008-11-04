@@ -18,6 +18,7 @@
 #include <asm/cputype.h>
 #include <asm/mach-types.h>
 #include <asm/sections.h>
+#include <asm/cachetype.h>
 #include <asm/setup.h>
 #include <asm/sizes.h>
 #include <asm/tlb.h>
@@ -677,6 +678,10 @@ static void __init sanity_check_meminfo(void)
 		    bank->size > VMALLOC_MIN - __va(bank->start)) {
 			if (meminfo.nr_banks >= NR_BANKS) {
 				printk(KERN_CRIT "NR_BANKS too low, "
+						 "ignoring high memory\n");
+			} else if (cache_is_vipt_aliasing()) {
+				printk(KERN_CRIT "HIGHMEM is not yet supported "
+						 "with VIPT aliasing cache, "
 						 "ignoring high memory\n");
 			} else {
 				memmove(bank + 1, bank,
