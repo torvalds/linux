@@ -117,7 +117,6 @@ struct ext4_inode_info {
 	struct inode vfs_inode;
 	struct jbd2_inode jinode;
 
-	unsigned long i_ext_generation;
 	struct ext4_ext_cache i_cached_extent;
 	/*
 	 * File creation time. Its function is same as that of

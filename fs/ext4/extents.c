@@ -1621,7 +1621,6 @@ cleanup:
 		ext4_ext_drop_refs(npath);
 		kfree(npath);
 	}
-	ext4_ext_tree_changed(inode);
 	ext4_ext_invalidate_cache(inode);
 	return err;
 }
@@ -2232,7 +2231,6 @@ static int ext4_ext_remove_space(struct inode *inode, ext4_lblk_t start)
 		}
 	}
 out:
-	ext4_ext_tree_changed(inode);
 	ext4_ext_drop_refs(path);
 	kfree(path);
 	ext4_journal_stop(handle);
