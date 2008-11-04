@@ -50,28 +50,29 @@ static int check(const struct ebt_table_info *info, unsigned int valid_hooks)
 	return 0;
 }
 
-static struct ebt_table frame_nat =
+static struct ebt_table __frame_nat =
 {
 	.name		= "nat",
 	.table		= &initial_table,
 	.valid_hooks	= NAT_VALID_HOOKS,
-	.lock		= __RW_LOCK_UNLOCKED(frame_nat.lock),
+	.lock		= __RW_LOCK_UNLOCKED(__frame_nat.lock),
 	.check		= check,
 	.me		= THIS_MODULE,
 };
+static struct ebt_table *frame_nat;
 
 static unsigned int
 ebt_nat_dst(unsigned int hook, struct sk_buff *skb, const struct net_device *in
    , const struct net_device *out, int (*okfn)(struct sk_buff *))
 {
-	return ebt_do_table(hook, skb, in, out, &frame_nat);
+	return ebt_do_table(hook, skb, in, out, frame_nat);
 }
 
 static unsigned int
 ebt_nat_src(unsigned int hook, struct sk_buff *skb, const struct net_device *in
    , const struct net_device *out, int (*okfn)(struct sk_buff *))
 {
-	return ebt_do_table(hook, skb, in, out, &frame_nat);
+	return ebt_do_table(hook, skb, in, out, frame_nat);
 }
 
 static struct nf_hook_ops ebt_ops_nat[] __read_mostly = {
@@ -102,19 +103,19 @@ static int __init ebtable_nat_init(void)
 {
 	int ret;
 
-	ret = ebt_register_table(&init_net, &frame_nat);
-	if (ret < 0)
-		return ret;
+	frame_nat = ebt_register_table(&init_net, &__frame_nat);
+	if (IS_ERR(frame_nat))
+		return PTR_ERR(frame_nat);
 	ret = nf_register_hooks(ebt_ops_nat, ARRAY_SIZE(ebt_ops_nat));
 	if (ret < 0)
-		ebt_unregister_table(&frame_nat);
+		ebt_unregister_table(frame_nat);
 	return ret;
 }
 
 static void __exit ebtable_nat_fini(void)
 {
 	nf_unregister_hooks(ebt_ops_nat, ARRAY_SIZE(ebt_ops_nat));
-	ebt_unregister_table(&frame_nat);
+	ebt_unregister_table(frame_nat);
 }
 
 module_init(ebtable_nat_init);

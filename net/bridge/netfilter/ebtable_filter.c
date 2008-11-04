@@ -50,21 +50,22 @@ static int check(const struct ebt_table_info *info, unsigned int valid_hooks)
 	return 0;
 }
 
-static struct ebt_table frame_filter =
+static struct ebt_table __frame_filter =
 {
 	.name		= "filter",
 	.table		= &initial_table,
 	.valid_hooks	= FILTER_VALID_HOOKS,
-	.lock		= __RW_LOCK_UNLOCKED(frame_filter.lock),
+	.lock		= __RW_LOCK_UNLOCKED(__frame_filter.lock),
 	.check		= check,
 	.me		= THIS_MODULE,
 };
+static struct ebt_table *frame_filter;
 
 static unsigned int
 ebt_hook(unsigned int hook, struct sk_buff *skb, const struct net_device *in,
    const struct net_device *out, int (*okfn)(struct sk_buff *))
 {
-	return ebt_do_table(hook, skb, in, out, &frame_filter);
+	return ebt_do_table(hook, skb, in, out, frame_filter);
 }
 
 static struct nf_hook_ops ebt_ops_filter[] __read_mostly = {
@@ -95,19 +96,19 @@ static int __init ebtable_filter_init(void)
 {
 	int ret;
 
-	ret = ebt_register_table(&init_net, &frame_filter);
-	if (ret < 0)
-		return ret;
+	frame_filter = ebt_register_table(&init_net, &__frame_filter);
+	if (IS_ERR(frame_filter))
+		return PTR_ERR(frame_filter);
 	ret = nf_register_hooks(ebt_ops_filter, ARRAY_SIZE(ebt_ops_filter));
 	if (ret < 0)
-		ebt_unregister_table(&frame_filter);
+		ebt_unregister_table(frame_filter);
 	return ret;
 }
 
 static void __exit ebtable_filter_fini(void)
 {
 	nf_unregister_hooks(ebt_ops_filter, ARRAY_SIZE(ebt_ops_filter));
-	ebt_unregister_table(&frame_filter);
+	ebt_unregister_table(frame_filter);
 }
 
 module_init(ebtable_filter_init);

@@ -1098,7 +1098,7 @@ free_newinfo:
 	return ret;
 }
 
-int ebt_register_table(struct net *net, struct ebt_table *table)
+struct ebt_table *ebt_register_table(struct net *net, struct ebt_table *table)
 {
 	struct ebt_table_info *newinfo;
 	struct ebt_table *t;
@@ -1110,14 +1110,21 @@ int ebt_register_table(struct net *net, struct ebt_table *table)
 	    repl->entries_size == 0 ||
 	    repl->counters || table->private) {
 		BUGPRINT("Bad table data for ebt_register_table!!!\n");
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
+	}
+
+	/* Don't add one table to multiple lists. */
+	table = kmemdup(table, sizeof(struct ebt_table), GFP_KERNEL);
+	if (!table) {
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	countersize = COUNTER_OFFSET(repl->nentries) * nr_cpu_ids;
 	newinfo = vmalloc(sizeof(*newinfo) + countersize);
 	ret = -ENOMEM;
 	if (!newinfo)
-		return -ENOMEM;
+		goto free_table;
 
 	p = vmalloc(repl->entries_size);
 	if (!p)
@@ -1149,7 +1156,7 @@ int ebt_register_table(struct net *net, struct ebt_table *table)
 
 	if (table->check && table->check(newinfo, table->valid_hooks)) {
 		BUGPRINT("The table doesn't like its own initial data, lol\n");
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	table->private = newinfo;
@@ -1173,7 +1180,7 @@ int ebt_register_table(struct net *net, struct ebt_table *table)
 	}
 	list_add(&table->list, &net->xt.tables[NFPROTO_BRIDGE]);
 	mutex_unlock(&ebt_mutex);
-	return 0;
+	return table;
 free_unlock:
 	mutex_unlock(&ebt_mutex);
 free_chainstack:
@@ -1185,7 +1192,10 @@ free_chainstack:
 	vfree(newinfo->entries);
 free_newinfo:
 	vfree(newinfo);
-	return ret;
+free_table:
+	kfree(table);
+out:
+	return ERR_PTR(ret);
 }
 
 void ebt_unregister_table(struct ebt_table *table)
@@ -1206,6 +1216,7 @@ void ebt_unregister_table(struct ebt_table *table)
 		vfree(table->private->chainstack);
 	}
 	vfree(table->private);
+	kfree(table);
 }
 
 /* userspace just supplied us with counters */
