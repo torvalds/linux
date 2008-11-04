@@ -31,10 +31,6 @@ static void omap2_sys_clk_recalc(struct clk *clk);
 static void omap2_osc_clk_recalc(struct clk *clk);
 static void omap2_sys_clk_recalc(struct clk *clk);
 static void omap2_dpllcore_recalc(struct clk *clk);
-static int omap2_clk_fixed_enable(struct clk *clk);
-static void omap2_clk_fixed_disable(struct clk *clk);
-static int omap2_enable_osc_ck(struct clk *clk);
-static void omap2_disable_osc_ck(struct clk *clk);
 static int omap2_reprogram_dpllcore(struct clk *clk, unsigned long rate);
 
 /* Key dividers which make up a PRCM set. Ratio's for a PRCM are mandated.
@@ -633,11 +629,10 @@ static struct clk func_32k_ck = {
 /* Typical 12/13MHz in standalone mode, will be 26Mhz in chassis mode */
 static struct clk osc_ck = {		/* (*12, *13, 19.2, *26, 38.4)MHz */
 	.name		= "osc_ck",
+	.ops		= &clkops_oscck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
 				RATE_PROPAGATES,
 	.clkdm_name	= "wkup_clkdm",
-	.enable		= &omap2_enable_osc_ck,
-	.disable	= &omap2_disable_osc_ck,
 	.recalc		= &omap2_osc_clk_recalc,
 };
 
@@ -695,6 +690,7 @@ static struct clk dpll_ck = {
 
 static struct clk apll96_ck = {
 	.name		= "apll96_ck",
+	.ops		= &clkops_fixed,
 	.parent		= &sys_ck,
 	.rate		= 96000000,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
@@ -702,13 +698,12 @@ static struct clk apll96_ck = {
 	.clkdm_name	= "wkup_clkdm",
 	.enable_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKEN),
 	.enable_bit	= OMAP24XX_EN_96M_PLL_SHIFT,
-	.enable		= &omap2_clk_fixed_enable,
-	.disable	= &omap2_clk_fixed_disable,
 	.recalc		= &propagate_rate,
 };
 
 static struct clk apll54_ck = {
 	.name		= "apll54_ck",
+	.ops		= &clkops_fixed,
 	.parent		= &sys_ck,
 	.rate		= 54000000,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
@@ -716,8 +711,6 @@ static struct clk apll54_ck = {
 	.clkdm_name	= "wkup_clkdm",
 	.enable_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKEN),
 	.enable_bit	= OMAP24XX_EN_54M_PLL_SHIFT,
-	.enable		= &omap2_clk_fixed_enable,
-	.disable	= &omap2_clk_fixed_disable,
 	.recalc		= &propagate_rate,
 };
 

@@ -26,7 +26,16 @@
 #include <mach/clock.h>
 #include <mach/sram.h>
 
+static const struct clkops clkops_generic;
+static const struct clkops clkops_uart;
+static const struct clkops clkops_dspck;
+
 #include "clock.h"
+
+static int omap1_clk_enable_generic(struct clk * clk);
+static int omap1_clk_enable(struct clk *clk);
+static void omap1_clk_disable_generic(struct clk * clk);
+static void omap1_clk_disable(struct clk *clk);
 
 __u32 arm_idlect1_mask;
 
@@ -78,6 +87,11 @@ static void omap1_clk_disable_dsp_domain(struct clk *clk)
 	}
 }
 
+static const struct clkops clkops_dspck = {
+	.enable		= &omap1_clk_enable_dsp_domain,
+	.disable	= &omap1_clk_disable_dsp_domain,
+};
+
 static int omap1_clk_enable_uart_functional(struct clk *clk)
 {
 	int ret;
@@ -104,6 +118,11 @@ static void omap1_clk_disable_uart_functional(struct clk *clk)
 
 	omap1_clk_disable_generic(clk);
 }
+
+static const struct clkops clkops_uart = {
+	.enable		= &omap1_clk_enable_uart_functional,
+	.disable	= &omap1_clk_disable_uart_functional,
+};
 
 static void omap1_clk_allow_idle(struct clk *clk)
 {
@@ -468,7 +487,7 @@ static int omap1_clk_enable(struct clk *clk)
 				omap1_clk_deny_idle(clk->parent);
 		}
 
-		ret = clk->enable(clk);
+		ret = clk->ops->enable(clk);
 
 		if (unlikely(ret != 0) && clk->parent) {
 			omap1_clk_disable(clk->parent);
@@ -482,7 +501,7 @@ static int omap1_clk_enable(struct clk *clk)
 static void omap1_clk_disable(struct clk *clk)
 {
 	if (clk->usecount > 0 && !(--clk->usecount)) {
-		clk->disable(clk);
+		clk->ops->disable(clk);
 		if (likely(clk->parent)) {
 			omap1_clk_disable(clk->parent);
 			if (clk->flags & CLOCK_NO_IDLE_PARENT)
@@ -560,6 +579,11 @@ static void omap1_clk_disable_generic(struct clk *clk)
 		}
 	}
 }
+
+static const struct clkops clkops_generic = {
+	.enable		= &omap1_clk_enable_generic,
+	.disable	= &omap1_clk_disable_generic,
+};
 
 static long omap1_clk_round_rate(struct clk *clk, unsigned long rate)
 {
@@ -659,7 +683,7 @@ static void __init omap1_clk_disable_unused(struct clk *clk)
 	}
 
 	printk(KERN_INFO "Disabling unused clock \"%s\"... ", clk->name);
-	clk->disable(clk);
+	clk->ops->disable(clk);
 	printk(" done\n");
 }
 

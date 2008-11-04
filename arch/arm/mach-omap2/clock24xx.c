@@ -34,11 +34,15 @@
 
 #include "memory.h"
 #include "clock.h"
-#include "clock24xx.h"
 #include "prm.h"
 #include "prm-regbits-24xx.h"
 #include "cm.h"
 #include "cm-regbits-24xx.h"
+
+static const struct clkops clkops_oscck;
+static const struct clkops clkops_fixed;
+
+#include "clock24xx.h"
 
 /* CM_CLKEN_PLL.EN_{54,96}M_PLL options (24XX) */
 #define EN_APLL_STOPPED			0
@@ -96,6 +100,11 @@ static void omap2_disable_osc_ck(struct clk *clk)
 		      OMAP24XX_PRCM_CLKSRC_CTRL);
 }
 
+static const struct clkops clkops_oscck = {
+	.enable		= &omap2_enable_osc_ck,
+	.disable	= &omap2_disable_osc_ck,
+};
+
 #ifdef OLD_CK
 /* Recalculate SYST_CLK */
 static void omap2_sys_clk_recalc(struct clk * clk)
@@ -148,6 +157,11 @@ static void omap2_clk_fixed_disable(struct clk *clk)
 	cval &= ~(EN_APLL_LOCKED << clk->enable_bit);
 	cm_write_mod_reg(cval, PLL_MOD, CM_CLKEN);
 }
+
+static const struct clkops clkops_fixed = {
+	.enable		= &omap2_clk_fixed_enable,
+	.disable	= &omap2_clk_fixed_disable,
+};
 
 /*
  * Uses the current prcm set to tell if a rate is valid.

@@ -17,6 +17,11 @@ struct module;
 struct clk;
 struct clockdomain;
 
+struct clkops {
+	int			(*enable)(struct clk *);
+	void			(*disable)(struct clk *);
+};
+
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 
 struct clksel_rate {
@@ -59,6 +64,7 @@ struct dpll_data {
 
 struct clk {
 	struct list_head	node;
+	const struct clkops	*ops;
 	struct module		*owner;
 	const char		*name;
 	int			id;
@@ -72,8 +78,6 @@ struct clk {
 	int			(*set_rate)(struct clk *, unsigned long);
 	long			(*round_rate)(struct clk *, unsigned long);
 	void			(*init)(struct clk *);
-	int			(*enable)(struct clk *);
-	void			(*disable)(struct clk *);
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 	u8			fixed_div;
 	void __iomem		*clksel_reg;

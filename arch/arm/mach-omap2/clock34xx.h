@@ -32,8 +32,6 @@ static void omap3_clkoutx2_recalc(struct clk *clk);
 static void omap3_dpll_allow_idle(struct clk *clk);
 static void omap3_dpll_deny_idle(struct clk *clk);
 static u32 omap3_dpll_autoidle_read(struct clk *clk);
-static int omap3_noncore_dpll_enable(struct clk *clk);
-static void omap3_noncore_dpll_disable(struct clk *clk);
 
 /* Maximum DPLL multiplier, divider values for OMAP3 */
 #define OMAP3_MAX_DPLL_MULT		2048
@@ -347,11 +345,10 @@ static struct dpll_data dpll2_dd = {
 
 static struct clk dpll2_ck = {
 	.name		= "dpll2_ck",
+	.ops		= &clkops_noncore_dpll_ops,
 	.parent		= &sys_ck,
 	.dpll_data	= &dpll2_dd,
 	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES,
-	.enable		= &omap3_noncore_dpll_enable,
-	.disable	= &omap3_noncore_dpll_disable,
 	.round_rate	= &omap2_dpll_round_rate,
 	.recalc		= &omap3_dpll_recalc,
 };
@@ -582,11 +579,10 @@ static struct dpll_data dpll4_dd = {
 
 static struct clk dpll4_ck = {
 	.name		= "dpll4_ck",
+	.ops		= &clkops_noncore_dpll_ops,
 	.parent		= &sys_ck,
 	.dpll_data	= &dpll4_dd,
 	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES,
-	.enable		= &omap3_noncore_dpll_enable,
-	.disable	= &omap3_noncore_dpll_disable,
 	.round_rate	= &omap2_dpll_round_rate,
 	.recalc		= &omap3_dpll_recalc,
 };
@@ -884,11 +880,10 @@ static struct dpll_data dpll5_dd = {
 
 static struct clk dpll5_ck = {
 	.name		= "dpll5_ck",
+	.ops		= &clkops_noncore_dpll_ops,
 	.parent		= &sys_ck,
 	.dpll_data	= &dpll5_dd,
 	.flags		= CLOCK_IN_OMAP3430ES2 | RATE_PROPAGATES,
-	.enable		= &omap3_noncore_dpll_enable,
-	.disable	= &omap3_noncore_dpll_disable,
 	.round_rate	= &omap2_dpll_round_rate,
 	.recalc		= &omap3_dpll_recalc,
 };

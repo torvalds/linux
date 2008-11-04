@@ -33,11 +33,14 @@
 
 #include "memory.h"
 #include "clock.h"
-#include "clock34xx.h"
 #include "prm.h"
 #include "prm-regbits-34xx.h"
 #include "cm.h"
 #include "cm-regbits-34xx.h"
+
+static const struct clkops clkops_noncore_dpll_ops;
+
+#include "clock34xx.h"
 
 /* CM_AUTOIDLE_PLL*.AUTO_* bit values */
 #define DPLL_AUTOIDLE_DISABLE			0x0
@@ -269,6 +272,11 @@ static void omap3_noncore_dpll_disable(struct clk *clk)
 
 	_omap3_noncore_dpll_stop(clk);
 }
+
+static const struct clkops clkops_noncore_dpll_ops = {
+	.enable		= &omap3_noncore_dpll_enable,
+	.disable	= &omap3_noncore_dpll_disable,
+};
 
 /**
  * omap3_dpll_autoidle_read - read a DPLL's autoidle bits
