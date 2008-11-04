@@ -2156,8 +2156,14 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 			tw32(MAC_LED_CTRL, tp->led_ctrl);
 
 		if (pci_pme_capable(tp->pdev, state) &&
-		     (tp->tg3_flags & TG3_FLAG_WOL_ENABLE))
+		     (tp->tg3_flags & TG3_FLAG_WOL_ENABLE)) {
 			mac_mode |= MAC_MODE_MAGIC_PKT_ENABLE;
+			if (((tp->tg3_flags2 & TG3_FLG2_5705_PLUS) &&
+			    !(tp->tg3_flags2 & TG3_FLG2_5780_CLASS)) &&
+			    ((tp->tg3_flags & TG3_FLAG_ENABLE_ASF) ||
+			     (tp->tg3_flags3 & TG3_FLG3_ENABLE_APE)))
+				mac_mode |= MAC_MODE_KEEP_FRAME_IN_WOL;
+		}
 
 		if (tp->tg3_flags3 & TG3_FLG3_ENABLE_APE) {
 			mac_mode |= tp->mac_mode &
@@ -5562,6 +5568,13 @@ static void tg3_ape_driver_state_change(struct tg3 *tp, int kind)
 			event = APE_EVENT_STATUS_STATE_START;
 			break;
 		case RESET_KIND_SHUTDOWN:
+			/* With the interface we are currently using,
+			 * APE does not track driver state.  Wiping
+			 * out the HOST SEGMENT SIGNATURE forces
+			 * the APE to assume OS absent status.
+			 */
+			tg3_ape_write32(tp, TG3_APE_HOST_SEG_SIG, 0x0);
+
 			event = APE_EVENT_STATUS_STATE_UNLOAD;
 			break;
 		case RESET_KIND_SUSPEND:
