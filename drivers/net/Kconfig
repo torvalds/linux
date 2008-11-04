@@ -2010,9 +2010,13 @@ config IGB_LRO
 	  If in doubt, say N.
 
 config IGB_DCA
-	bool "Enable DCA"
+	bool "Direct Cache Access (DCA) Support"
 	default y
 	depends on IGB && DCA && !(IGB=y && DCA=m)
+	---help---
+	  Say Y here if you want to use Direct Cache Access (DCA) in the
+	  driver.  DCA is a method for warming the CPU cache before data
+	  is used, with the intent of lessening the impact of cache misses.
 
 source "drivers/net/ixp2000/Kconfig"
 
@@ -2437,9 +2441,13 @@ config IXGBE
 	  will be called ixgbe.
 
 config IXGBE_DCA
-	bool
+	bool "Direct Cache Access (DCA) Support"
 	default y
 	depends on IXGBE && DCA && !(IXGBE=y && DCA=m)
+	---help---
+	  Say Y here if you want to use Direct Cache Access (DCA) in the
+	  driver.  DCA is a method for warming the CPU cache before data
+	  is used, with the intent of lessening the impact of cache misses.
 
 config IXGB
 	tristate "Intel(R) PRO/10GbE support"
@@ -2489,9 +2497,13 @@ config MYRI10GE
 	  will be called myri10ge.
 
 config MYRI10GE_DCA
-	bool
+	bool "Direct Cache Access (DCA) Support"
 	default y
 	depends on MYRI10GE && DCA && !(MYRI10GE=y && DCA=m)
+	---help---
+	  Say Y here if you want to use Direct Cache Access (DCA) in the
+	  driver.  DCA is a method for warming the CPU cache before data
+	  is used, with the intent of lessening the impact of cache misses.
 
 config NETXEN_NIC
 	tristate "NetXen Multi port (1/10) Gigabit Ethernet NIC"
