@@ -116,9 +116,9 @@ void xscale_mc_copy_user_highpage(struct page *to, struct page *from,
 void
 xscale_mc_clear_user_highpage(struct page *page, unsigned long vaddr)
 {
-	void *kaddr = kmap_atomic(page, KM_USER0);
+	void *ptr, *kaddr = kmap_atomic(page, KM_USER0);
 	asm volatile(
-	"mov	r1, %1				\n\
+	"mov	r1, %2				\n\
 	mov	r2, #0				\n\
 	mov	r3, #0				\n\
 1:	mov	ip, %0				\n\
@@ -130,8 +130,8 @@ xscale_mc_clear_user_highpage(struct page *page, unsigned long vaddr)
 	subs	r1, r1, #1			\n\
 	mcr	p15, 0, ip, c7, c6, 1		@ invalidate D line\n\
 	bne	1b"
-	:
-	: "r" (kaddr), "I" (PAGE_SIZE / 32)
+	: "=r" (ptr)
+	: "0" (kaddr), "I" (PAGE_SIZE / 32)
 	: "r1", "r2", "r3", "ip");
 	kunmap_atomic(kaddr, KM_USER0);
 }

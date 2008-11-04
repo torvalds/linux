@@ -66,9 +66,9 @@ void v4wb_copy_user_highpage(struct page *to, struct page *from,
  */
 void v4wb_clear_user_highpage(struct page *page, unsigned long vaddr)
 {
-	void *kaddr = kmap_atomic(page, KM_USER0);
-	asm("\
-	mov	r1, %1				@ 1\n\
+	void *ptr, *kaddr = kmap_atomic(page, KM_USER0);
+	asm volatile("\
+	mov	r1, %2				@ 1\n\
 	mov	r2, #0				@ 1\n\
 	mov	r3, #0				@ 1\n\
 	mov	ip, #0				@ 1\n\
@@ -82,8 +82,8 @@ void v4wb_clear_user_highpage(struct page *page, unsigned long vaddr)
 	subs	r1, r1, #1			@ 1\n\
 	bne	1b				@ 1\n\
 	mcr	p15, 0, r1, c7, c10, 4		@ 1   drain WB"
-	:
-	: "r" (kaddr), "I" (PAGE_SIZE / 64)
+	: "=r" (ptr)
+	: "0" (kaddr), "I" (PAGE_SIZE / 64)
 	: "r1", "r2", "r3", "ip", "lr");
 	kunmap_atomic(kaddr, KM_USER0);
 }

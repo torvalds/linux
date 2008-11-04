@@ -81,9 +81,9 @@ void feroceon_copy_user_highpage(struct page *to, struct page *from,
 
 void feroceon_clear_user_highpage(struct page *page, unsigned long vaddr)
 {
-	void *kaddr = kmap_atomic(page, KM_USER0);
-	asm("\
-	mov	r1, %1				\n\
+	void *ptr, *kaddr = kmap_atomic(page, KM_USER0);
+	asm volatile ("\
+	mov	r1, %2				\n\
 	mov	r2, #0				\n\
 	mov	r3, #0				\n\
 	mov	r4, #0				\n\
@@ -95,11 +95,11 @@ void feroceon_clear_user_highpage(struct page *page, unsigned long vaddr)
 1:	stmia	%0, {r2-r7, ip, lr}		\n\
 	subs	r1, r1, #1			\n\
 	mcr	p15, 0, %0, c7, c14, 1		@ clean and invalidate D line\n\
-	add	r0, r0, #32			\n\
+	add	%0, %0, #32			\n\
 	bne	1b				\n\
 	mcr	p15, 0, r1, c7, c10, 4		@ drain WB"
-	:
-	: "r" (kaddr), "I" (PAGE_SIZE / 32)
+	: "=r" (ptr)
+	: "0" (kaddr), "I" (PAGE_SIZE / 32)
 	: "r1", "r2", "r3", "r4", "r5", "r6", "r7", "ip", "lr");
 	kunmap_atomic(kaddr, KM_USER0);
 }
