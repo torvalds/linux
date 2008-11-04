@@ -54,6 +54,9 @@
 #include <asm/prom.h>
 #endif
 
+#define BAR_0	0
+#define BAR_2	2
+
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 #define TG3_VLAN_TAG_USED 1
 #else
@@ -13247,8 +13250,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 				  const struct pci_device_id *ent)
 {
 	static int tg3_version_printed = 0;
-	resource_size_t tg3reg_base;
-	unsigned long tg3reg_len;
+	resource_size_t tg3reg_len;
 	struct net_device *dev;
 	struct tg3 *tp;
 	int err, pm_cap;
@@ -13265,7 +13267,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		return err;
 	}
 
-	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
+	if (!(pci_resource_flags(pdev, BAR_0) & IORESOURCE_MEM)) {
 		printk(KERN_ERR PFX "Cannot find proper PCI device "
 		       "base address, aborting.\n");
 		err = -ENODEV;
@@ -13289,9 +13291,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		err = -EIO;
 		goto err_out_free_res;
 	}
-
-	tg3reg_base = pci_resource_start(pdev, 0);
-	tg3reg_len = pci_resource_len(pdev, 0);
 
 	dev = alloc_etherdev(sizeof(*tp));
 	if (!dev) {
@@ -13344,7 +13343,11 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	spin_lock_init(&tp->indirect_lock);
 	INIT_WORK(&tp->reset_task, tg3_reset_task);
 
-	tp->regs = ioremap_nocache(tg3reg_base, tg3reg_len);
+	dev->mem_start = pci_resource_start(pdev, BAR_0);
+	tg3reg_len = pci_resource_len(pdev, BAR_0);
+	dev->mem_end = dev->mem_start + tg3reg_len;
+
+	tp->regs = ioremap_nocache(dev->mem_start, tg3reg_len);
 	if (!tp->regs) {
 		printk(KERN_ERR PFX "Cannot map device registers, "
 		       "aborting.\n");
@@ -13467,17 +13470,14 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	}
 
 	if (tp->tg3_flags3 & TG3_FLG3_ENABLE_APE) {
-		if (!(pci_resource_flags(pdev, 2) & IORESOURCE_MEM)) {
+		if (!(pci_resource_flags(pdev, BAR_2) & IORESOURCE_MEM)) {
 			printk(KERN_ERR PFX "Cannot find proper PCI device "
 			       "base address for APE, aborting.\n");
 			err = -ENODEV;
 			goto err_out_iounmap;
 		}
 
-		tg3reg_base = pci_resource_start(pdev, 2);
-		tg3reg_len = pci_resource_len(pdev, 2);
-
-		tp->aperegs = ioremap_nocache(tg3reg_base, tg3reg_len);
+		tp->aperegs = pci_ioremap_bar(pdev, BAR_2);
 		if (!tp->aperegs) {
 			printk(KERN_ERR PFX "Cannot map APE registers, "
 			       "aborting.\n");
