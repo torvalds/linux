@@ -2188,7 +2188,7 @@ static void hso_create_rfkill(struct hso_device *hso_dev,
 	char *rfkn;
 
 	hso_net->rfkill = rfkill_allocate(&interface_to_usbdev(interface)->dev,
-				 RFKILL_TYPE_WLAN);
+				 RFKILL_TYPE_WWAN);
 	if (!hso_net->rfkill) {
 		dev_err(dev, "%s - Out of memory", __func__);
 		return;
