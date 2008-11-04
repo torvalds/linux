@@ -228,14 +228,12 @@ static void omap2_clk_wait_ready(struct clk *clk)
 	 * it and pull it into struct clk itself somehow.
 	 */
 	reg = clk->enable_reg;
-	if ((((u32)reg & 0xff) >= CM_FCLKEN1) &&
-	    (((u32)reg & 0xff) <= OMAP24XX_CM_FCLKEN2))
-		other_reg = (void __iomem *)(((u32)reg & ~0xf0) | 0x10); /* CM_ICLKEN* */
-	else if ((((u32)reg & 0xff) >= CM_ICLKEN1) &&
-		 (((u32)reg & 0xff) <= OMAP24XX_CM_ICLKEN4))
-		other_reg = (void __iomem *)(((u32)reg & ~0xf0) | 0x00); /* CM_FCLKEN* */
-	else
-		return;
+
+	/*
+	 * Convert CM_ICLKEN* <-> CM_FCLKEN*.  This conversion assumes
+	 * it's just a matter of XORing the bits.
+	 */
+	other_reg = (void __iomem *)((u32)reg ^ (CM_FCLKEN ^ CM_ICLKEN));
 
 	/* Check if both functional and interface clocks
 	 * are running. */

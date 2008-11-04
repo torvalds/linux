@@ -216,7 +216,7 @@ static struct clk mcbsp_clks = {
 
 static struct clk sys_clkout1 = {
 	.name		= "sys_clkout1",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.parent		= &osc_sys_ck,
 	.enable_reg	= OMAP3430_PRM_CLKOUT_CTRL,
 	.enable_bit	= OMAP3430_CLKOUT_EN_SHIFT,
@@ -967,7 +967,7 @@ static const struct clksel clkout2_src_clksel[] = {
 
 static struct clk clkout2_src_ck = {
 	.name		= "clkout2_src_ck",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.init		= &omap2_init_clksel_parent,
 	.enable_reg	= OMAP3430_CM_CLKOUT_CTRL,
 	.enable_bit	= OMAP3430_CLKOUT2_EN_SHIFT,
@@ -1356,7 +1356,7 @@ static struct clk gpt11_fck = {
 
 static struct clk cpefuse_fck = {
 	.name		= "cpefuse_fck",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.parent		= &sys_ck,
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, OMAP3430ES2_CM_FCLKEN3),
 	.enable_bit	= OMAP3430ES2_EN_CPEFUSE_SHIFT,
@@ -1366,7 +1366,7 @@ static struct clk cpefuse_fck = {
 
 static struct clk ts_fck = {
 	.name		= "ts_fck",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.parent		= &omap_32k_fck,
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, OMAP3430ES2_CM_FCLKEN3),
 	.enable_bit	= OMAP3430ES2_EN_TS_SHIFT,
@@ -1376,7 +1376,7 @@ static struct clk ts_fck = {
 
 static struct clk usbtll_fck = {
 	.name		= "usbtll_fck",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.parent		= &omap_120m_fck,
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, OMAP3430ES2_CM_FCLKEN3),
 	.enable_bit	= OMAP3430ES2_EN_USBTLL_SHIFT,
@@ -2295,7 +2295,7 @@ static struct clk usbhost_ick = {
 
 static struct clk usbhost_sar_fck = {
 	.name		= "usbhost_sar_fck",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.parent		= &osc_sys_ck,
 	.init		= &omap2_init_clk_clkdm,
 	.enable_reg	= OMAP_PRM_REGADDR(OMAP3430ES2_USBHOST_MOD, PM_PWSTCTRL),

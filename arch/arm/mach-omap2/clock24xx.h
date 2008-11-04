@@ -890,7 +890,7 @@ static const struct clksel common_clkout_src_clksel[] = {
 
 static struct clk sys_clkout_src = {
 	.name		= "sys_clkout_src",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.parent		= &func_54m_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
 				RATE_PROPAGATES,
@@ -937,7 +937,7 @@ static struct clk sys_clkout = {
 /* In 2430, new in 2420 ES2 */
 static struct clk sys_clkout2_src = {
 	.name		= "sys_clkout2_src",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.parent		= &func_54m_ck,
 	.flags		= CLOCK_IN_OMAP242X | RATE_PROPAGATES,
 	.clkdm_name	= "wkup_clkdm",
@@ -974,7 +974,7 @@ static struct clk sys_clkout2 = {
 
 static struct clk emul_ck = {
 	.name		= "emul_ck",
-	.ops		= &clkops_omap2_dflt_wait,
+	.ops		= &clkops_omap2_dflt,
 	.parent		= &func_54m_ck,
 	.flags		= CLOCK_IN_OMAP242X,
 	.clkdm_name	= "wkup_clkdm",
