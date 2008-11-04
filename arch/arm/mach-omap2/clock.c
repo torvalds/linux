@@ -264,15 +264,9 @@ static void omap2_clk_wait_ready(struct clk *clk)
 	omap2_wait_clock_ready(st_reg, bit, clk->name);
 }
 
-/* Enables clock without considering parent dependencies or use count
- * REVISIT: Maybe change this to use clk->enable like on omap1?
- */
-int _omap2_clk_enable(struct clk *clk)
+static int omap2_dflt_clk_enable_wait(struct clk *clk)
 {
 	u32 regval32;
-
-	if (clk->ops && clk->ops->enable)
-		return clk->ops->enable(clk);
 
 	if (unlikely(clk->enable_reg == NULL)) {
 		printk(KERN_ERR "clock.c: Enable for %s without enable code\n",
@@ -293,15 +287,9 @@ int _omap2_clk_enable(struct clk *clk)
 	return 0;
 }
 
-/* Disables clock without considering parent dependencies or use count */
-void _omap2_clk_disable(struct clk *clk)
+static void omap2_dflt_clk_disable(struct clk *clk)
 {
 	u32 regval32;
-
-	if (clk->ops && clk->ops->disable) {
-		clk->ops->disable(clk);
-		return;
-	}
 
 	if (clk->enable_reg == NULL) {
 		/*
@@ -320,6 +308,25 @@ void _omap2_clk_disable(struct clk *clk)
 		regval32 &= ~(1 << clk->enable_bit);
 	__raw_writel(regval32, clk->enable_reg);
 	wmb();
+}
+
+const struct clkops clkops_omap2_dflt_wait = {
+	.enable		= omap2_dflt_clk_enable_wait,
+	.disable	= omap2_dflt_clk_disable,
+};
+
+/* Enables clock without considering parent dependencies or use count
+ * REVISIT: Maybe change this to use clk->enable like on omap1?
+ */
+static int _omap2_clk_enable(struct clk *clk)
+{
+	return clk->ops->enable(clk);
+}
+
+/* Disables clock without considering parent dependencies or use count */
+static void _omap2_clk_disable(struct clk *clk)
+{
+	clk->ops->disable(clk);
 }
 
 void omap2_clk_disable(struct clk *clk)

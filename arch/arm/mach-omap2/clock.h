@@ -51,6 +51,8 @@ u32 omap2_get_dpll_rate(struct clk *clk);
 int omap2_wait_clock_ready(void __iomem *reg, u32 cval, const char *name);
 void omap2_clk_prepare_for_reboot(void);
 
+extern const struct clkops clkops_omap2_dflt_wait;
+
 extern u8 cpu_mask;
 
 /* clksel_rate data common to 24xx/343x */

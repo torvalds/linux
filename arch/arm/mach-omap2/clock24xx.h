@@ -890,6 +890,7 @@ static const struct clksel common_clkout_src_clksel[] = {
 
 static struct clk sys_clkout_src = {
 	.name		= "sys_clkout_src",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_54m_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
 				RATE_PROPAGATES,
@@ -936,6 +937,7 @@ static struct clk sys_clkout = {
 /* In 2430, new in 2420 ES2 */
 static struct clk sys_clkout2_src = {
 	.name		= "sys_clkout2_src",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_54m_ck,
 	.flags		= CLOCK_IN_OMAP242X | RATE_PROPAGATES,
 	.clkdm_name	= "wkup_clkdm",
@@ -972,6 +974,7 @@ static struct clk sys_clkout2 = {
 
 static struct clk emul_ck = {
 	.name		= "emul_ck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_54m_ck,
 	.flags		= CLOCK_IN_OMAP242X,
 	.clkdm_name	= "wkup_clkdm",
@@ -1051,6 +1054,7 @@ static const struct clksel dsp_fck_clksel[] = {
 
 static struct clk dsp_fck = {
 	.name		= "dsp_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &core_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X | DELAYED_APP |
 				CONFIG_PARTICIPANT | RATE_PROPAGATES,
@@ -1096,6 +1100,7 @@ static struct clk dsp_irate_ick = {
 /* 2420 only */
 static struct clk dsp_ick = {
 	.name		= "dsp_ick",	 /* apparently ipi and isp */
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &dsp_irate_ick,
 	.flags		= CLOCK_IN_OMAP242X | DELAYED_APP | CONFIG_PARTICIPANT,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP24XX_DSP_MOD, CM_ICLKEN),
@@ -1105,6 +1110,7 @@ static struct clk dsp_ick = {
 /* 2430 only - EN_DSP controls both dsp fclk and iclk on 2430 */
 static struct clk iva2_1_ick = {
 	.name		= "iva2_1_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &dsp_irate_ick,
 	.flags		= CLOCK_IN_OMAP243X | DELAYED_APP | CONFIG_PARTICIPANT,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP24XX_DSP_MOD, CM_FCLKEN),
@@ -1118,6 +1124,7 @@ static struct clk iva2_1_ick = {
  */
 static struct clk iva1_ifck = {
 	.name		= "iva1_ifck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &core_ck,
 	.flags		= CLOCK_IN_OMAP242X | CONFIG_PARTICIPANT |
 				RATE_PROPAGATES | DELAYED_APP,
@@ -1135,6 +1142,7 @@ static struct clk iva1_ifck = {
 /* IVA1 mpu/int/i/f clocks are /2 of parent */
 static struct clk iva1_mpu_int_ifck = {
 	.name		= "iva1_mpu_int_ifck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &iva1_ifck,
 	.flags		= CLOCK_IN_OMAP242X,
 	.clkdm_name	= "iva1_clkdm",
@@ -1211,6 +1219,7 @@ static const struct clksel usb_l4_ick_clksel[] = {
 /* It is unclear from TRM whether usb_l4_ick is really in L3 or L4 clkdm */
 static struct clk usb_l4_ick = {	/* FS-USB interface clock */
 	.name		= "usb_l4_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &core_l3_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
 				DELAYED_APP | CONFIG_PARTICIPANT,
@@ -1284,6 +1293,7 @@ static const struct clksel ssi_ssr_sst_fck_clksel[] = {
 
 static struct clk ssi_ssr_sst_fck = {
 	.name		= "ssi_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &core_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
 				DELAYED_APP,
@@ -1320,6 +1330,7 @@ static const struct clksel gfx_fck_clksel[] = {
 
 static struct clk gfx_3d_fck = {
 	.name		= "gfx_3d_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &core_l3_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "gfx_clkdm",
@@ -1335,6 +1346,7 @@ static struct clk gfx_3d_fck = {
 
 static struct clk gfx_2d_fck = {
 	.name		= "gfx_2d_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &core_l3_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "gfx_clkdm",
@@ -1350,6 +1362,7 @@ static struct clk gfx_2d_fck = {
 
 static struct clk gfx_ick = {
 	.name		= "gfx_ick",		/* From l3 */
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &core_l3_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "gfx_clkdm",
@@ -1380,6 +1393,7 @@ static const struct clksel mdm_ick_clksel[] = {
 
 static struct clk mdm_ick = {		/* used both as a ick and fck */
 	.name		= "mdm_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &core_ck,
 	.flags		= CLOCK_IN_OMAP243X | DELAYED_APP | CONFIG_PARTICIPANT,
 	.clkdm_name	= "mdm_clkdm",
@@ -1395,6 +1409,7 @@ static struct clk mdm_ick = {		/* used both as a ick and fck */
 
 static struct clk mdm_osc_ck = {
 	.name		= "mdm_osc_ck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &osc_ck,
 	.flags		= CLOCK_IN_OMAP243X,
 	.clkdm_name	= "mdm_clkdm",
@@ -1440,6 +1455,7 @@ static const struct clksel dss1_fck_clksel[] = {
 
 static struct clk dss_ick = {		/* Enables both L3,L4 ICLK's */
 	.name		= "dss_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,	/* really both l3 and l4 */
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "dss_clkdm",
@@ -1450,6 +1466,7 @@ static struct clk dss_ick = {		/* Enables both L3,L4 ICLK's */
 
 static struct clk dss1_fck = {
 	.name		= "dss1_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &core_ck,		/* Core or sys */
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
 				DELAYED_APP,
@@ -1483,6 +1500,7 @@ static const struct clksel dss2_fck_clksel[] = {
 
 static struct clk dss2_fck = {		/* Alt clk used in power management */
 	.name		= "dss2_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &sys_ck,		/* fixed at sys_ck or 48MHz */
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
 				DELAYED_APP,
@@ -1498,6 +1516,7 @@ static struct clk dss2_fck = {		/* Alt clk used in power management */
 
 static struct clk dss_54m_fck = {	/* Alt clk used in power management */
 	.name		= "dss_54m_fck",	/* 54m tv clk */
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_54m_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "dss_clkdm",
@@ -1526,6 +1545,7 @@ static const struct clksel omap24xx_gpt_clksel[] = {
 
 static struct clk gpt1_ick = {
 	.name		= "gpt1_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1536,6 +1556,7 @@ static struct clk gpt1_ick = {
 
 static struct clk gpt1_fck = {
 	.name		= "gpt1_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_32k_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1552,6 +1573,7 @@ static struct clk gpt1_fck = {
 
 static struct clk gpt2_ick = {
 	.name		= "gpt2_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1562,6 +1584,7 @@ static struct clk gpt2_ick = {
 
 static struct clk gpt2_fck = {
 	.name		= "gpt2_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_32k_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1576,6 +1599,7 @@ static struct clk gpt2_fck = {
 
 static struct clk gpt3_ick = {
 	.name		= "gpt3_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1586,6 +1610,7 @@ static struct clk gpt3_ick = {
 
 static struct clk gpt3_fck = {
 	.name		= "gpt3_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_32k_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1600,6 +1625,7 @@ static struct clk gpt3_fck = {
 
 static struct clk gpt4_ick = {
 	.name		= "gpt4_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1610,6 +1636,7 @@ static struct clk gpt4_ick = {
 
 static struct clk gpt4_fck = {
 	.name		= "gpt4_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_32k_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1624,6 +1651,7 @@ static struct clk gpt4_fck = {
 
 static struct clk gpt5_ick = {
 	.name		= "gpt5_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1634,6 +1662,7 @@ static struct clk gpt5_ick = {
 
 static struct clk gpt5_fck = {
 	.name		= "gpt5_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_32k_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1648,6 +1677,7 @@ static struct clk gpt5_fck = {
 
 static struct clk gpt6_ick = {
 	.name		= "gpt6_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1658,6 +1688,7 @@ static struct clk gpt6_ick = {
 
 static struct clk gpt6_fck = {
 	.name		= "gpt6_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_32k_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1672,6 +1703,7 @@ static struct clk gpt6_fck = {
 
 static struct clk gpt7_ick = {
 	.name		= "gpt7_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_ICLKEN1),
@@ -1681,6 +1713,7 @@ static struct clk gpt7_ick = {
 
 static struct clk gpt7_fck = {
 	.name		= "gpt7_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_32k_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1695,6 +1728,7 @@ static struct clk gpt7_fck = {
 
 static struct clk gpt8_ick = {
 	.name		= "gpt8_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1705,6 +1739,7 @@ static struct clk gpt8_ick = {
 
 static struct clk gpt8_fck = {
 	.name		= "gpt8_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_32k_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1719,6 +1754,7 @@ static struct clk gpt8_fck = {
 
 static struct clk gpt9_ick = {
 	.name		= "gpt9_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1729,6 +1765,7 @@ static struct clk gpt9_ick = {
 
 static struct clk gpt9_fck = {
 	.name		= "gpt9_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_32k_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1743,6 +1780,7 @@ static struct clk gpt9_fck = {
 
 static struct clk gpt10_ick = {
 	.name		= "gpt10_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1753,6 +1791,7 @@ static struct clk gpt10_ick = {
 
 static struct clk gpt10_fck = {
 	.name		= "gpt10_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_32k_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1767,6 +1806,7 @@ static struct clk gpt10_fck = {
 
 static struct clk gpt11_ick = {
 	.name		= "gpt11_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1777,6 +1817,7 @@ static struct clk gpt11_ick = {
 
 static struct clk gpt11_fck = {
 	.name		= "gpt11_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_32k_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1791,6 +1832,7 @@ static struct clk gpt11_fck = {
 
 static struct clk gpt12_ick = {
 	.name		= "gpt12_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1801,6 +1843,7 @@ static struct clk gpt12_ick = {
 
 static struct clk gpt12_fck = {
 	.name		= "gpt12_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_32k_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1815,6 +1858,7 @@ static struct clk gpt12_fck = {
 
 static struct clk mcbsp1_ick = {
 	.name		= "mcbsp_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 1,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
@@ -1826,6 +1870,7 @@ static struct clk mcbsp1_ick = {
 
 static struct clk mcbsp1_fck = {
 	.name		= "mcbsp_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 1,
 	.parent		= &func_96m_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
@@ -1837,6 +1882,7 @@ static struct clk mcbsp1_fck = {
 
 static struct clk mcbsp2_ick = {
 	.name		= "mcbsp_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 2,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
@@ -1848,6 +1894,7 @@ static struct clk mcbsp2_ick = {
 
 static struct clk mcbsp2_fck = {
 	.name		= "mcbsp_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 2,
 	.parent		= &func_96m_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
@@ -1859,6 +1906,7 @@ static struct clk mcbsp2_fck = {
 
 static struct clk mcbsp3_ick = {
 	.name		= "mcbsp_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 3,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP243X,
@@ -1870,6 +1918,7 @@ static struct clk mcbsp3_ick = {
 
 static struct clk mcbsp3_fck = {
 	.name		= "mcbsp_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 3,
 	.parent		= &func_96m_ck,
 	.flags		= CLOCK_IN_OMAP243X,
@@ -1881,6 +1930,7 @@ static struct clk mcbsp3_fck = {
 
 static struct clk mcbsp4_ick = {
 	.name		= "mcbsp_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 4,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP243X,
@@ -1892,6 +1942,7 @@ static struct clk mcbsp4_ick = {
 
 static struct clk mcbsp4_fck = {
 	.name		= "mcbsp_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 4,
 	.parent		= &func_96m_ck,
 	.flags		= CLOCK_IN_OMAP243X,
@@ -1903,6 +1954,7 @@ static struct clk mcbsp4_fck = {
 
 static struct clk mcbsp5_ick = {
 	.name		= "mcbsp_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 5,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP243X,
@@ -1914,6 +1966,7 @@ static struct clk mcbsp5_ick = {
 
 static struct clk mcbsp5_fck = {
 	.name		= "mcbsp_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 5,
 	.parent		= &func_96m_ck,
 	.flags		= CLOCK_IN_OMAP243X,
@@ -1925,6 +1978,7 @@ static struct clk mcbsp5_fck = {
 
 static struct clk mcspi1_ick = {
 	.name		= "mcspi_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 1,
 	.parent		= &l4_ck,
 	.clkdm_name	= "core_l4_clkdm",
@@ -1936,6 +1990,7 @@ static struct clk mcspi1_ick = {
 
 static struct clk mcspi1_fck = {
 	.name		= "mcspi_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 1,
 	.parent		= &func_48m_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
@@ -1947,6 +2002,7 @@ static struct clk mcspi1_fck = {
 
 static struct clk mcspi2_ick = {
 	.name		= "mcspi_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 2,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
@@ -1958,6 +2014,7 @@ static struct clk mcspi2_ick = {
 
 static struct clk mcspi2_fck = {
 	.name		= "mcspi_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 2,
 	.parent		= &func_48m_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
@@ -1969,6 +2026,7 @@ static struct clk mcspi2_fck = {
 
 static struct clk mcspi3_ick = {
 	.name		= "mcspi_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 3,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP243X,
@@ -1980,6 +2038,7 @@ static struct clk mcspi3_ick = {
 
 static struct clk mcspi3_fck = {
 	.name		= "mcspi_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 3,
 	.parent		= &func_48m_ck,
 	.flags		= CLOCK_IN_OMAP243X,
@@ -1991,6 +2050,7 @@ static struct clk mcspi3_fck = {
 
 static struct clk uart1_ick = {
 	.name		= "uart1_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2001,6 +2061,7 @@ static struct clk uart1_ick = {
 
 static struct clk uart1_fck = {
 	.name		= "uart1_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_48m_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2011,6 +2072,7 @@ static struct clk uart1_fck = {
 
 static struct clk uart2_ick = {
 	.name		= "uart2_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2021,6 +2083,7 @@ static struct clk uart2_ick = {
 
 static struct clk uart2_fck = {
 	.name		= "uart2_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_48m_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2031,6 +2094,7 @@ static struct clk uart2_fck = {
 
 static struct clk uart3_ick = {
 	.name		= "uart3_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2041,6 +2105,7 @@ static struct clk uart3_ick = {
 
 static struct clk uart3_fck = {
 	.name		= "uart3_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_48m_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2051,6 +2116,7 @@ static struct clk uart3_fck = {
 
 static struct clk gpios_ick = {
 	.name		= "gpios_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2061,6 +2127,7 @@ static struct clk gpios_ick = {
 
 static struct clk gpios_fck = {
 	.name		= "gpios_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_32k_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "wkup_clkdm",
@@ -2071,6 +2138,7 @@ static struct clk gpios_fck = {
 
 static struct clk mpu_wdt_ick = {
 	.name		= "mpu_wdt_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2081,6 +2149,7 @@ static struct clk mpu_wdt_ick = {
 
 static struct clk mpu_wdt_fck = {
 	.name		= "mpu_wdt_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_32k_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "wkup_clkdm",
@@ -2091,6 +2160,7 @@ static struct clk mpu_wdt_fck = {
 
 static struct clk sync_32k_ick = {
 	.name		= "sync_32k_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
 				ENABLE_ON_INIT,
@@ -2102,6 +2172,7 @@ static struct clk sync_32k_ick = {
 
 static struct clk wdt1_ick = {
 	.name		= "wdt1_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2112,6 +2183,7 @@ static struct clk wdt1_ick = {
 
 static struct clk omapctrl_ick = {
 	.name		= "omapctrl_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
 				ENABLE_ON_INIT,
@@ -2123,6 +2195,7 @@ static struct clk omapctrl_ick = {
 
 static struct clk icr_ick = {
 	.name		= "icr_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2133,6 +2206,7 @@ static struct clk icr_ick = {
 
 static struct clk cam_ick = {
 	.name		= "cam_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2148,6 +2222,7 @@ static struct clk cam_ick = {
  */
 static struct clk cam_fck = {
 	.name		= "cam_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_96m_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l3_clkdm",
@@ -2158,6 +2233,7 @@ static struct clk cam_fck = {
 
 static struct clk mailboxes_ick = {
 	.name		= "mailboxes_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2168,6 +2244,7 @@ static struct clk mailboxes_ick = {
 
 static struct clk wdt4_ick = {
 	.name		= "wdt4_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2178,6 +2255,7 @@ static struct clk wdt4_ick = {
 
 static struct clk wdt4_fck = {
 	.name		= "wdt4_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_32k_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2188,6 +2266,7 @@ static struct clk wdt4_fck = {
 
 static struct clk wdt3_ick = {
 	.name		= "wdt3_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2198,6 +2277,7 @@ static struct clk wdt3_ick = {
 
 static struct clk wdt3_fck = {
 	.name		= "wdt3_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_32k_ck,
 	.flags		= CLOCK_IN_OMAP242X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2208,6 +2288,7 @@ static struct clk wdt3_fck = {
 
 static struct clk mspro_ick = {
 	.name		= "mspro_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2218,6 +2299,7 @@ static struct clk mspro_ick = {
 
 static struct clk mspro_fck = {
 	.name		= "mspro_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_96m_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2228,6 +2310,7 @@ static struct clk mspro_fck = {
 
 static struct clk mmc_ick = {
 	.name		= "mmc_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2238,6 +2321,7 @@ static struct clk mmc_ick = {
 
 static struct clk mmc_fck = {
 	.name		= "mmc_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_96m_ck,
 	.flags		= CLOCK_IN_OMAP242X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2248,6 +2332,7 @@ static struct clk mmc_fck = {
 
 static struct clk fac_ick = {
 	.name		= "fac_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2258,6 +2343,7 @@ static struct clk fac_ick = {
 
 static struct clk fac_fck = {
 	.name		= "fac_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_12m_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2268,6 +2354,7 @@ static struct clk fac_fck = {
 
 static struct clk eac_ick = {
 	.name		= "eac_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2278,6 +2365,7 @@ static struct clk eac_ick = {
 
 static struct clk eac_fck = {
 	.name		= "eac_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_96m_ck,
 	.flags		= CLOCK_IN_OMAP242X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2288,6 +2376,7 @@ static struct clk eac_fck = {
 
 static struct clk hdq_ick = {
 	.name		= "hdq_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2298,6 +2387,7 @@ static struct clk hdq_ick = {
 
 static struct clk hdq_fck = {
 	.name		= "hdq_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_12m_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2308,6 +2398,7 @@ static struct clk hdq_fck = {
 
 static struct clk i2c2_ick = {
 	.name		= "i2c_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 2,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
@@ -2319,6 +2410,7 @@ static struct clk i2c2_ick = {
 
 static struct clk i2c2_fck = {
 	.name		= "i2c_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 2,
 	.parent		= &func_12m_ck,
 	.flags		= CLOCK_IN_OMAP242X,
@@ -2330,6 +2422,7 @@ static struct clk i2c2_fck = {
 
 static struct clk i2chs2_fck = {
 	.name		= "i2c_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 2,
 	.parent		= &func_96m_ck,
 	.flags		= CLOCK_IN_OMAP243X,
@@ -2341,6 +2434,7 @@ static struct clk i2chs2_fck = {
 
 static struct clk i2c1_ick = {
 	.name		= "i2c_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 1,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
@@ -2352,6 +2446,7 @@ static struct clk i2c1_ick = {
 
 static struct clk i2c1_fck = {
 	.name		= "i2c_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 1,
 	.parent		= &func_12m_ck,
 	.flags		= CLOCK_IN_OMAP242X,
@@ -2363,6 +2458,7 @@ static struct clk i2c1_fck = {
 
 static struct clk i2chs1_fck = {
 	.name		= "i2c_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 1,
 	.parent		= &func_96m_ck,
 	.flags		= CLOCK_IN_OMAP243X,
@@ -2402,6 +2498,7 @@ static struct clk sdma_ick = {
 
 static struct clk vlynq_ick = {
 	.name		= "vlynq_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &core_l3_ck,
 	.flags		= CLOCK_IN_OMAP242X,
 	.clkdm_name	= "core_l3_clkdm",
@@ -2437,6 +2534,7 @@ static const struct clksel vlynq_fck_clksel[] = {
 
 static struct clk vlynq_fck = {
 	.name		= "vlynq_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_96m_ck,
 	.flags		= CLOCK_IN_OMAP242X | DELAYED_APP,
 	.clkdm_name	= "core_l3_clkdm",
@@ -2453,6 +2551,7 @@ static struct clk vlynq_fck = {
 
 static struct clk sdrc_ick = {
 	.name		= "sdrc_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP243X | ENABLE_ON_INIT,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2463,6 +2562,7 @@ static struct clk sdrc_ick = {
 
 static struct clk des_ick = {
 	.name		= "des_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP243X | CLOCK_IN_OMAP242X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2473,6 +2573,7 @@ static struct clk des_ick = {
 
 static struct clk sha_ick = {
 	.name		= "sha_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP243X | CLOCK_IN_OMAP242X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2483,6 +2584,7 @@ static struct clk sha_ick = {
 
 static struct clk rng_ick = {
 	.name		= "rng_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP243X | CLOCK_IN_OMAP242X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2493,6 +2595,7 @@ static struct clk rng_ick = {
 
 static struct clk aes_ick = {
 	.name		= "aes_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP243X | CLOCK_IN_OMAP242X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2503,6 +2606,7 @@ static struct clk aes_ick = {
 
 static struct clk pka_ick = {
 	.name		= "pka_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP243X | CLOCK_IN_OMAP242X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2513,6 +2617,7 @@ static struct clk pka_ick = {
 
 static struct clk usb_fck = {
 	.name		= "usb_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_48m_ck,
 	.flags		= CLOCK_IN_OMAP243X | CLOCK_IN_OMAP242X,
 	.clkdm_name	= "core_l3_clkdm",
@@ -2523,6 +2628,7 @@ static struct clk usb_fck = {
 
 static struct clk usbhs_ick = {
 	.name		= "usbhs_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &core_l3_ck,
 	.flags		= CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l3_clkdm",
@@ -2533,6 +2639,7 @@ static struct clk usbhs_ick = {
 
 static struct clk mmchs1_ick = {
 	.name		= "mmchs_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2543,6 +2650,7 @@ static struct clk mmchs1_ick = {
 
 static struct clk mmchs1_fck = {
 	.name		= "mmchs_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_96m_ck,
 	.flags		= CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l3_clkdm",
@@ -2553,6 +2661,7 @@ static struct clk mmchs1_fck = {
 
 static struct clk mmchs2_ick = {
 	.name		= "mmchs_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 1,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP243X,
@@ -2564,6 +2673,7 @@ static struct clk mmchs2_ick = {
 
 static struct clk mmchs2_fck = {
 	.name		= "mmchs_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 1,
 	.parent		= &func_96m_ck,
 	.flags		= CLOCK_IN_OMAP243X,
@@ -2574,6 +2684,7 @@ static struct clk mmchs2_fck = {
 
 static struct clk gpio5_ick = {
 	.name		= "gpio5_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2584,6 +2695,7 @@ static struct clk gpio5_ick = {
 
 static struct clk gpio5_fck = {
 	.name		= "gpio5_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_32k_ck,
 	.flags		= CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2594,6 +2706,7 @@ static struct clk gpio5_fck = {
 
 static struct clk mdm_intc_ick = {
 	.name		= "mdm_intc_ick",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2604,6 +2717,7 @@ static struct clk mdm_intc_ick = {
 
 static struct clk mmchsdb1_fck = {
 	.name		= "mmchsdb_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &func_32k_ck,
 	.flags		= CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -2614,6 +2728,7 @@ static struct clk mmchsdb1_fck = {
 
 static struct clk mmchsdb2_fck = {
 	.name		= "mmchsdb_fck",
+	.ops		= &clkops_omap2_dflt_wait,
 	.id		= 1,
 	.parent		= &func_32k_ck,
 	.flags		= CLOCK_IN_OMAP243X,
