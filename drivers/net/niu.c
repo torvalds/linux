@@ -8667,7 +8667,6 @@ static void __devinit niu_device_announce(struct niu *np)
 static int __devinit niu_pci_init_one(struct pci_dev *pdev,
 				      const struct pci_device_id *ent)
 {
-	unsigned long niureg_base, niureg_len;
 	union niu_parent_id parent_id;
 	struct net_device *dev;
 	struct niu *np;
@@ -8758,10 +8757,7 @@ static int __devinit niu_pci_init_one(struct pci_dev *pdev,
 
 	dev->features |= (NETIF_F_SG | NETIF_F_HW_CSUM);
 
-	niureg_base = pci_resource_start(pdev, 0);
-	niureg_len = pci_resource_len(pdev, 0);
-
-	np->regs = ioremap_nocache(niureg_base, niureg_len);
+	np->regs = pci_ioremap_bar(pdev, 0);
 	if (!np->regs) {
 		dev_err(&pdev->dev, PFX "Cannot map device registers, "
 			"aborting.\n");
