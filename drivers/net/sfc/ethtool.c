@@ -174,8 +174,8 @@ static struct efx_ethtool_stat efx_ethtool_stats[] = {
 
 /* EEPROM range with gPXE configuration */
 #define EFX_ETHTOOL_EEPROM_MAGIC 0xEFAB
-#define EFX_ETHTOOL_EEPROM_MIN 0x100U
-#define EFX_ETHTOOL_EEPROM_MAX 0x400U
+#define EFX_ETHTOOL_EEPROM_MIN 0x800U
+#define EFX_ETHTOOL_EEPROM_MAX 0x1800U
 
 /**************************************************************************
  *
