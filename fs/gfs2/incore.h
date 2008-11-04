@@ -68,10 +68,6 @@ struct gfs2_bitmap {
 	u32 bi_len;
 };
 
-struct gfs2_rgrp_host {
-	u32 rg_dinodes;
-};
-
 struct gfs2_rgrpd {
 	struct list_head rd_list;	/* Link with superblock */
 	struct list_head rd_list_mru;
@@ -82,15 +78,15 @@ struct gfs2_rgrpd {
 	u32 rd_data;			/* num of data blocks in rgrp */
 	u32 rd_bitbytes;		/* number of bytes in data bitmaps */
 	u32 rd_free;
-	struct gfs2_rgrp_host rd_rg;
+	u32 rd_free_clone;
+	u32 rd_dinodes;
 	u64 rd_igeneration;
 	struct gfs2_bitmap *rd_bits;
-	unsigned int rd_bh_count;
 	struct mutex rd_mutex;
-	u32 rd_free_clone;
 	struct gfs2_log_element rd_le;
-	u32 rd_last_alloc;
 	struct gfs2_sbd *rd_sbd;
+	unsigned int rd_bh_count;
+	u32 rd_last_alloc;
 	unsigned char rd_flags;
 #define GFS2_RDF_CHECK        0x01      /* Need to check for unlinked inodes */
 #define GFS2_RDF_NOALLOC      0x02      /* rg prohibits allocation */
