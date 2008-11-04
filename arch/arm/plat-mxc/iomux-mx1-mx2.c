@@ -110,12 +110,13 @@ void mxc_gpio_mode(int gpio_mode)
 EXPORT_SYMBOL(mxc_gpio_mode);
 
 int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
-				int alloc_mode, const char *label)
+		const char *label)
 {
 	const int *p = pin_list;
 	int i;
 	unsigned gpio;
 	unsigned mode;
+	int ret = -EINVAL;
 
 	for (i = 0; i < count; i++) {
 		gpio = *p & (GPIO_PIN_MASK | GPIO_PORT_MASK);
@@ -124,33 +125,33 @@ int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
 		if (gpio >= (GPIO_PORT_MAX + 1) * 32)
 			goto setup_error;
 
-		if (alloc_mode & MXC_GPIO_ALLOC_MODE_RELEASE)
-			gpio_free(gpio);
-		else if (!(alloc_mode & MXC_GPIO_ALLOC_MODE_NO_ALLOC))
-			if (gpio_request(gpio, label)
-			   && !(alloc_mode & MXC_GPIO_ALLOC_MODE_TRY_ALLOC))
-				goto setup_error;
+		ret = gpio_request(gpio, label);
+		if (ret)
+			goto setup_error;
 
-		if (!(alloc_mode & (MXC_GPIO_ALLOC_MODE_ALLOC_ONLY |
-				    MXC_GPIO_ALLOC_MODE_RELEASE)))
-			mxc_gpio_mode(gpio | mode);
+		mxc_gpio_mode(gpio | mode);
 
 		p++;
 	}
 	return 0;
 
 setup_error:
-	if (alloc_mode & (MXC_GPIO_ALLOC_MODE_NO_ALLOC |
-	    MXC_GPIO_ALLOC_MODE_TRY_ALLOC))
-		return -EINVAL;
-
-	while (p != pin_list) {
-		p--;
-		gpio = *p & (GPIO_PIN_MASK | GPIO_PORT_MASK);
-		gpio_free(gpio);
-	}
-
-	return -EINVAL;
+	mxc_gpio_release_multiple_pins(pin_list, i);
+	return ret;
 }
 EXPORT_SYMBOL(mxc_gpio_setup_multiple_pins);
+
+void mxc_gpio_release_multiple_pins(const int *pin_list, int count)
+{
+	const int *p = pin_list;
+	int i;
+
+	for (i = 0; i < count; i++) {
+		unsigned gpio = *p & (GPIO_PIN_MASK | GPIO_PORT_MASK);
+		gpio_free(gpio);
+		p++;
+	}
+
+}
+EXPORT_SYMBOL(mxc_gpio_release_multiple_pins);
 

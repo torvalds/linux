@@ -21,12 +21,6 @@
 
 #include <linux/io.h>
 
-#define MXC_GPIO_ALLOC_MODE_NORMAL	0
-#define MXC_GPIO_ALLOC_MODE_NO_ALLOC	1
-#define MXC_GPIO_ALLOC_MODE_TRY_ALLOC	2
-#define MXC_GPIO_ALLOC_MODE_ALLOC_ONLY	4
-#define MXC_GPIO_ALLOC_MODE_RELEASE	8
-
 /*
  *  GPIO Module and I/O Multiplexer
  *  x = 0..3 for reg_A, reg_B, reg_C, reg_D
@@ -103,7 +97,8 @@
 
 extern void mxc_gpio_mode(int gpio_mode);
 extern int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
-					int alloc_mode, const char *label);
+					const char *label);
+extern void mxc_gpio_release_multiple_pins(const int *pin_list, int count);
 
 /*-------------------------------------------------------------------------*/
 

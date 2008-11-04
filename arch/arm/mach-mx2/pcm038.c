@@ -64,15 +64,14 @@ static int mxc_uart0_pins[] = {
 static int uart_mxc_port0_init(struct platform_device *pdev)
 {
 	return mxc_gpio_setup_multiple_pins(mxc_uart0_pins,
-			ARRAY_SIZE(mxc_uart0_pins),
-			MXC_GPIO_ALLOC_MODE_NORMAL, "UART0");
+			ARRAY_SIZE(mxc_uart0_pins), "UART0");
 }
 
 static int uart_mxc_port0_exit(struct platform_device *pdev)
 {
-	return mxc_gpio_setup_multiple_pins(mxc_uart0_pins,
-			ARRAY_SIZE(mxc_uart0_pins),
-			MXC_GPIO_ALLOC_MODE_RELEASE, "UART0");
+	mxc_gpio_release_multiple_pins(mxc_uart0_pins,
+			ARRAY_SIZE(mxc_uart0_pins));
+	return 0;
 }
 
 static int mxc_uart1_pins[] = {
@@ -85,15 +84,14 @@ static int mxc_uart1_pins[] = {
 static int uart_mxc_port1_init(struct platform_device *pdev)
 {
 	return mxc_gpio_setup_multiple_pins(mxc_uart1_pins,
-			ARRAY_SIZE(mxc_uart1_pins),
-			MXC_GPIO_ALLOC_MODE_NORMAL, "UART1");
+			ARRAY_SIZE(mxc_uart1_pins), "UART1");
 }
 
 static int uart_mxc_port1_exit(struct platform_device *pdev)
 {
-	return mxc_gpio_setup_multiple_pins(mxc_uart1_pins,
-			ARRAY_SIZE(mxc_uart1_pins),
-			MXC_GPIO_ALLOC_MODE_RELEASE, "UART1");
+	mxc_gpio_release_multiple_pins(mxc_uart1_pins,
+			ARRAY_SIZE(mxc_uart1_pins));
+	return 0;
 }
 
 static int mxc_uart2_pins[] = { PE10_PF_UART3_CTS,
@@ -104,15 +102,14 @@ static int mxc_uart2_pins[] = { PE10_PF_UART3_CTS,
 static int uart_mxc_port2_init(struct platform_device *pdev)
 {
 	return mxc_gpio_setup_multiple_pins(mxc_uart2_pins,
-			ARRAY_SIZE(mxc_uart2_pins),
-			MXC_GPIO_ALLOC_MODE_NORMAL, "UART2");
+			ARRAY_SIZE(mxc_uart2_pins), "UART2");
 }
 
 static int uart_mxc_port2_exit(struct platform_device *pdev)
 {
-	return mxc_gpio_setup_multiple_pins(mxc_uart2_pins,
-			ARRAY_SIZE(mxc_uart2_pins),
-			MXC_GPIO_ALLOC_MODE_RELEASE, "UART2");
+	mxc_gpio_release_multiple_pins(mxc_uart2_pins,
+			ARRAY_SIZE(mxc_uart2_pins));
+	return 0;
 }
 
 static struct imxuart_platform_data uart_pdata[] = {
@@ -155,15 +152,13 @@ static int mxc_fec_pins[] = {
 static void gpio_fec_active(void)
 {
 	mxc_gpio_setup_multiple_pins(mxc_fec_pins,
-			ARRAY_SIZE(mxc_fec_pins),
-			MXC_GPIO_ALLOC_MODE_NORMAL, "FEC");
+			ARRAY_SIZE(mxc_fec_pins), "FEC");
 }
 
 static void gpio_fec_inactive(void)
 {
-	mxc_gpio_setup_multiple_pins(mxc_fec_pins,
-			ARRAY_SIZE(mxc_fec_pins),
-			MXC_GPIO_ALLOC_MODE_RELEASE, "FEC");
+	mxc_gpio_release_multiple_pins(mxc_fec_pins,
+			ARRAY_SIZE(mxc_fec_pins));
 }
 
 static struct platform_device *platform_devices[] __initdata = {
