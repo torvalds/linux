@@ -7767,7 +7767,7 @@ match1:
 		ndoms_cur = 0;
 		doms_new = &fallback_doms;
 		cpus_andnot(doms_new[0], cpu_online_map, cpu_isolated_map);
-		dattr_new = NULL;
+		WARN_ON_ONCE(dattr_new);
 	}
 
 	/* Build new domains */
