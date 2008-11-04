@@ -655,6 +655,7 @@ union efx_multicast_hash {
  *	This field will be %NULL if no flash device is present.
  * @spi_eeprom: SPI EEPROM device
  *	This field will be %NULL if no EEPROM device is present.
+ * @spi_lock: SPI bus lock
  * @n_rx_nodesc_drop_cnt: RX no descriptor drop count
  * @nic_data: Hardware dependant state
  * @mac_lock: MAC access lock. Protects @port_enabled, @phy_mode,
@@ -731,6 +732,7 @@ struct efx_nic {
 
 	struct efx_spi_device *spi_flash;
 	struct efx_spi_device *spi_eeprom;
+	struct mutex spi_lock;
 
 	unsigned n_rx_nodesc_drop_cnt;
 

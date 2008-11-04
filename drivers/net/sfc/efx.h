@@ -58,6 +58,16 @@ extern int efx_port_dummy_op_int(struct efx_nic *efx);
 extern void efx_port_dummy_op_void(struct efx_nic *efx);
 extern void efx_port_dummy_op_blink(struct efx_nic *efx, bool blink);
 
+/* MTD */
+#ifdef CONFIG_SFC_MTD
+extern int efx_mtd_probe(struct efx_nic *efx);
+extern void efx_mtd_rename(struct efx_nic *efx);
+extern void efx_mtd_remove(struct efx_nic *efx);
+#else
+static inline int efx_mtd_probe(struct efx_nic *efx) { return 0; }
+static inline void efx_mtd_rename(struct efx_nic *efx) {}
+static inline void efx_mtd_remove(struct efx_nic *efx) {}
+#endif
 
 extern unsigned int efx_monitor_interval;
 

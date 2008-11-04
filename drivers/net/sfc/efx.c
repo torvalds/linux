@@ -1459,6 +1459,7 @@ static int efx_netdev_event(struct notifier_block *this,
 		struct efx_nic *efx = netdev_priv(net_dev);
 
 		strcpy(efx->name, net_dev->name);
+		efx_mtd_rename(efx);
 	}
 
 	return NOTIFY_DONE;
@@ -1550,6 +1551,7 @@ void efx_reset_down(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 
 	efx_stop_all(efx);
 	mutex_lock(&efx->mac_lock);
+	mutex_lock(&efx->spi_lock);
 
 	rc = falcon_xmac_get_settings(efx, ecmd);
 	if (rc)
@@ -1582,6 +1584,7 @@ int efx_reset_up(struct efx_nic *efx, struct ethtool_cmd *ecmd, bool ok)
 			EFX_ERR(efx, "could not restore PHY settings\n");
 	}
 
+	mutex_unlock(&efx->spi_lock);
 	mutex_unlock(&efx->mac_lock);
 
 	if (ok) {
@@ -1777,6 +1780,7 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 	memset(efx, 0, sizeof(*efx));
 	spin_lock_init(&efx->biu_lock);
 	spin_lock_init(&efx->phy_lock);
+	mutex_init(&efx->spi_lock);
 	INIT_WORK(&efx->reset_work, efx_reset_work);
 	INIT_DELAYED_WORK(&efx->monitor_work, efx_monitor);
 	efx->pci_dev = pci_dev;
@@ -1910,6 +1914,8 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 	efx = pci_get_drvdata(pci_dev);
 	if (!efx)
 		return;
+
+	efx_mtd_remove(efx);
 
 	/* Mark the NIC as fini, then stop the interface */
 	rtnl_lock();
@@ -2077,6 +2083,7 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 
 	EFX_LOG(efx, "initialisation successful\n");
 
+	efx_mtd_probe(efx); /* allowed to fail */
 	return 0;
 
  fail5:
