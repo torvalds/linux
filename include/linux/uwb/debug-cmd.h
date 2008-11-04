@@ -32,6 +32,8 @@
 enum uwb_dbg_cmd_type {
 	UWB_DBG_CMD_RSV_ESTABLISH = 1,
 	UWB_DBG_CMD_RSV_TERMINATE = 2,
+	UWB_DBG_CMD_IE_ADD = 3,
+	UWB_DBG_CMD_IE_RM = 4,
 };
 
 struct uwb_dbg_cmd_rsv_establish {
@@ -46,11 +48,18 @@ struct uwb_dbg_cmd_rsv_terminate {
 	int index;
 };
 
+struct uwb_dbg_cmd_ie {
+	__u8 data[128];
+	int len;
+};
+
 struct uwb_dbg_cmd {
 	__u32 type;
 	union {
 		struct uwb_dbg_cmd_rsv_establish rsv_establish;
 		struct uwb_dbg_cmd_rsv_terminate rsv_terminate;
+		struct uwb_dbg_cmd_ie ie_add;
+		struct uwb_dbg_cmd_ie ie_rm;
 	};
 };
 

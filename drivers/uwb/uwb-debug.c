@@ -168,6 +168,18 @@ static int cmd_rsv_terminate(struct uwb_rc *rc,
 	return 0;
 }
 
+static int cmd_ie_add(struct uwb_rc *rc, struct uwb_dbg_cmd_ie *ie_to_add)
+{
+	return uwb_rc_ie_add(rc,
+			     (const struct uwb_ie_hdr *) ie_to_add->data,
+			     ie_to_add->len);
+}
+
+static int cmd_ie_rm(struct uwb_rc *rc, struct uwb_dbg_cmd_ie *ie_to_rm)
+{
+	return uwb_rc_ie_rm(rc, ie_to_rm->data[0]);
+}
+
 static int command_open(struct inode *inode, struct file *file)
 {
 	file->private_data = inode->i_private;
@@ -194,6 +206,12 @@ static ssize_t command_write(struct file *file, const char __user *buf,
 		break;
 	case UWB_DBG_CMD_RSV_TERMINATE:
 		ret = cmd_rsv_terminate(rc, &cmd.rsv_terminate);
+		break;
+	case UWB_DBG_CMD_IE_ADD:
+		ret = cmd_ie_add(rc, &cmd.ie_add);
+		break;
+	case UWB_DBG_CMD_IE_RM:
+		ret = cmd_ie_rm(rc, &cmd.ie_rm);
 		break;
 	default:
 		return -EINVAL;
@@ -332,7 +350,7 @@ void uwb_dbg_add_rc(struct uwb_rc *rc)
 }
 
 /**
- * uwb_dbg_add_rc - remove a radio controller's debug interface
+ * uwb_dbg_del_rc - remove a radio controller's debug interface
  * @rc: the radio controller
  */
 void uwb_dbg_del_rc(struct uwb_rc *rc)
