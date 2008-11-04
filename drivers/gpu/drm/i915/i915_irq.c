@@ -33,11 +33,23 @@
 
 #define MAX_NOPID ((u32)~0)
 
-/** These are the interrupts used by the driver */
-#define I915_INTERRUPT_ENABLE_MASK (I915_USER_INTERRUPT |		\
-				    I915_ASLE_INTERRUPT |		\
-				    I915_DISPLAY_PIPE_A_EVENT_INTERRUPT | \
-				    I915_DISPLAY_PIPE_B_EVENT_INTERRUPT)
+/**
+ * Interrupts that are always left unmasked.
+ *
+ * Since pipe events are edge-triggered from the PIPESTAT register to IIR,
+ * we leave them always unmasked in IMR and then control enabling them through
+ * PIPESTAT alone.
+ */
+#define I915_INTERRUPT_ENABLE_FIX (I915_ASLE_INTERRUPT | \
+				   I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |  \
+				   I915_DISPLAY_PIPE_B_EVENT_INTERRUPT)
+
+/** Interrupts that we mask and unmask at runtime. */
+#define I915_INTERRUPT_ENABLE_VAR (I915_USER_INTERRUPT)
+
+/** These are all of the interrupts used by the driver */
+#define I915_INTERRUPT_ENABLE_MASK (I915_INTERRUPT_ENABLE_FIX | \
+				    I915_INTERRUPT_ENABLE_VAR)
 
 void
 i915_enable_irq(drm_i915_private_t *dev_priv, u32 mask)
@@ -56,6 +68,41 @@ i915_disable_irq(drm_i915_private_t *dev_priv, u32 mask)
 		dev_priv->irq_mask_reg |= mask;
 		I915_WRITE(IMR, dev_priv->irq_mask_reg);
 		(void) I915_READ(IMR);
+	}
+}
+
+static inline u32
+i915_pipestat(int pipe)
+{
+	if (pipe == 0)
+		return PIPEASTAT;
+	if (pipe == 1)
+		return PIPEBSTAT;
+	BUG_ON(1);
+}
+
+void
+i915_enable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask)
+{
+	if ((dev_priv->pipestat[pipe] & mask) != mask) {
+		u32 reg = i915_pipestat(pipe);
+
+		dev_priv->pipestat[pipe] |= mask;
+		/* Enable the interrupt, clear any pending status */
+		I915_WRITE(reg, dev_priv->pipestat[pipe] | (mask >> 16));
+		(void) I915_READ(reg);
+	}
+}
+
+void
+i915_disable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask)
+{
+	if ((dev_priv->pipestat[pipe] & mask) != 0) {
+		u32 reg = i915_pipestat(pipe);
+
+		dev_priv->pipestat[pipe] &= ~mask;
+		I915_WRITE(reg, dev_priv->pipestat[pipe]);
+		(void) I915_READ(reg);
 	}
 }
 
@@ -122,9 +169,11 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u32 iir;
-	u32 pipea_stats, pipeb_stats;
+	u32 pipea_stats = 0, pipeb_stats = 0;
 	int vblank = 0;
+	unsigned long irqflags;
 
+	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
 	atomic_inc(&dev_priv->irq_received);
 
 	if (dev->pdev->msi_enabled)
@@ -136,44 +185,20 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 			I915_WRITE(IMR, dev_priv->irq_mask_reg);
 			(void) I915_READ(IMR);
 		}
+		spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
 		return IRQ_NONE;
 	}
 
 	/*
-	 * Clear the PIPE(A|B)STAT regs before the IIR otherwise
-	 * we may get extra interrupts.
+	 * Clear the PIPE(A|B)STAT regs before the IIR
 	 */
 	if (iir & I915_DISPLAY_PIPE_A_EVENT_INTERRUPT) {
 		pipea_stats = I915_READ(PIPEASTAT);
-		if (!(dev_priv->vblank_pipe & DRM_I915_VBLANK_PIPE_A))
-			pipea_stats &= ~(PIPE_START_VBLANK_INTERRUPT_ENABLE |
-					 PIPE_VBLANK_INTERRUPT_ENABLE);
-		else if (pipea_stats & (PIPE_START_VBLANK_INTERRUPT_STATUS|
-					PIPE_VBLANK_INTERRUPT_STATUS)) {
-			vblank++;
-			drm_handle_vblank(dev, 0);
-		}
-
 		I915_WRITE(PIPEASTAT, pipea_stats);
 	}
+
 	if (iir & I915_DISPLAY_PIPE_B_EVENT_INTERRUPT) {
 		pipeb_stats = I915_READ(PIPEBSTAT);
-		/* Ack the event */
-		I915_WRITE(PIPEBSTAT, pipeb_stats);
-
-		/* The vblank interrupt gets enabled even if we didn't ask for
-		   it, so make sure it's shut down again */
-		if (!(dev_priv->vblank_pipe & DRM_I915_VBLANK_PIPE_B))
-			pipeb_stats &= ~(PIPE_START_VBLANK_INTERRUPT_ENABLE |
-					 PIPE_VBLANK_INTERRUPT_ENABLE);
-		else if (pipeb_stats & (PIPE_START_VBLANK_INTERRUPT_STATUS|
-					PIPE_VBLANK_INTERRUPT_STATUS)) {
-			vblank++;
-			drm_handle_vblank(dev, 1);
-		}
-
-		if (pipeb_stats & I915_LEGACY_BLC_EVENT_STATUS)
-			opregion_asle_intr(dev);
 		I915_WRITE(PIPEBSTAT, pipeb_stats);
 	}
 
@@ -181,6 +206,8 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 	if (dev->pdev->msi_enabled)
 		I915_WRITE(IMR, dev_priv->irq_mask_reg);
 	(void) I915_READ(IIR); /* Flush posted writes */
+
+	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
 
 	if (dev_priv->sarea_priv)
 		dev_priv->sarea_priv->last_dispatch =
@@ -191,7 +218,18 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		DRM_WAKEUP(&dev_priv->irq_queue);
 	}
 
-	if (iir & I915_ASLE_INTERRUPT)
+	if (pipea_stats & I915_VBLANK_INTERRUPT_STATUS) {
+		vblank++;
+		drm_handle_vblank(dev, 0);
+	}
+
+	if (pipeb_stats & I915_VBLANK_INTERRUPT_STATUS) {
+		vblank++;
+		drm_handle_vblank(dev, 1);
+	}
+
+	if ((pipeb_stats & I915_LEGACY_BLC_EVENT_STATUS) ||
+	    (iir & I915_ASLE_INTERRUPT))
 		opregion_asle_intr(dev);
 
 	return IRQ_HANDLED;
@@ -330,48 +368,16 @@ int i915_irq_wait(struct drm_device *dev, void *data,
 int i915_enable_vblank(struct drm_device *dev, int pipe)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	u32	pipestat_reg = 0;
-	u32	pipestat;
-	u32	interrupt = 0;
 	unsigned long irqflags;
 
-	switch (pipe) {
-	case 0:
-		pipestat_reg = PIPEASTAT;
-		interrupt = I915_DISPLAY_PIPE_A_EVENT_INTERRUPT;
-		break;
-	case 1:
-		pipestat_reg = PIPEBSTAT;
-		interrupt = I915_DISPLAY_PIPE_B_EVENT_INTERRUPT;
-		break;
-	default:
-		DRM_ERROR("tried to enable vblank on non-existent pipe %d\n",
-			  pipe);
-		return 0;
-	}
-
 	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
-	/* Enabling vblank events in IMR comes before PIPESTAT write, or
-	 * there's a race where the PIPESTAT vblank bit gets set to 1, so
-	 * the OR of enabled PIPESTAT bits goes to 1, so the PIPExEVENT in
-	 * ISR flashes to 1, but the IIR bit doesn't get set to 1 because
-	 * IMR masks it.  It doesn't ever get set after we clear the masking
-	 * in IMR because the ISR bit is edge, not level-triggered, on the
-	 * OR of PIPESTAT bits.
-	 */
-	i915_enable_irq(dev_priv, interrupt);
-	pipestat = I915_READ(pipestat_reg);
 	if (IS_I965G(dev))
-		pipestat |= PIPE_START_VBLANK_INTERRUPT_ENABLE;
+		i915_enable_pipestat(dev_priv, pipe,
+				     PIPE_START_VBLANK_INTERRUPT_ENABLE);
 	else
-		pipestat |= PIPE_VBLANK_INTERRUPT_ENABLE;
-	/* Clear any stale interrupt status */
-	pipestat |= (PIPE_START_VBLANK_INTERRUPT_STATUS |
-		     PIPE_VBLANK_INTERRUPT_STATUS);
-	I915_WRITE(pipestat_reg, pipestat);
-	(void) I915_READ(pipestat_reg);	/* Posting read */
+		i915_enable_pipestat(dev_priv, pipe,
+				     PIPE_VBLANK_INTERRUPT_ENABLE);
 	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
-
 	return 0;
 }
 
@@ -381,37 +387,12 @@ int i915_enable_vblank(struct drm_device *dev, int pipe)
 void i915_disable_vblank(struct drm_device *dev, int pipe)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	u32	pipestat_reg = 0;
-	u32	pipestat;
-	u32	interrupt = 0;
 	unsigned long irqflags;
 
-	switch (pipe) {
-	case 0:
-		pipestat_reg = PIPEASTAT;
-		interrupt = I915_DISPLAY_PIPE_A_EVENT_INTERRUPT;
-		break;
-	case 1:
-		pipestat_reg = PIPEBSTAT;
-		interrupt = I915_DISPLAY_PIPE_B_EVENT_INTERRUPT;
-		break;
-	default:
-		DRM_ERROR("tried to disable vblank on non-existent pipe %d\n",
-			  pipe);
-		return;
-		break;
-	}
-
 	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
-	i915_disable_irq(dev_priv, interrupt);
-	pipestat = I915_READ(pipestat_reg);
-	pipestat &= ~(PIPE_START_VBLANK_INTERRUPT_ENABLE |
-		      PIPE_VBLANK_INTERRUPT_ENABLE);
-	/* Clear any stale interrupt status */
-	pipestat |= (PIPE_START_VBLANK_INTERRUPT_STATUS |
-		     PIPE_VBLANK_INTERRUPT_STATUS);
-	I915_WRITE(pipestat_reg, pipestat);
-	(void) I915_READ(pipestat_reg);	/* Posting read */
+	i915_disable_pipestat(dev_priv, pipe,
+			      PIPE_VBLANK_INTERRUPT_ENABLE |
+			      PIPE_START_VBLANK_INTERRUPT_ENABLE);
 	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
 }
 
@@ -476,8 +457,11 @@ void i915_driver_irq_preinstall(struct drm_device * dev)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 
 	I915_WRITE(HWSTAM, 0xeffe);
+	I915_WRITE(PIPEASTAT, 0);
+	I915_WRITE(PIPEBSTAT, 0);
 	I915_WRITE(IMR, 0xffffffff);
 	I915_WRITE(IER, 0x0);
+	(void) I915_READ(IER);
 }
 
 int i915_driver_irq_postinstall(struct drm_device *dev)
@@ -485,23 +469,28 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int ret, num_pipes = 2;
 
-	/* Set initial unmasked IRQs to just the selected vblank pipes. */
-	dev_priv->irq_mask_reg = ~0;
-
 	ret = drm_vblank_init(dev, num_pipes);
 	if (ret)
 		return ret;
 
 	dev_priv->vblank_pipe = DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B;
-	dev_priv->irq_mask_reg &= ~I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT;
-	dev_priv->irq_mask_reg &= ~I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
 
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
 
-	dev_priv->irq_mask_reg &= I915_INTERRUPT_ENABLE_MASK;
+	/* Unmask the interrupts that we always want on. */
+	dev_priv->irq_mask_reg = ~I915_INTERRUPT_ENABLE_FIX;
 
-	I915_WRITE(IMR, dev_priv->irq_mask_reg);
+	dev_priv->pipestat[0] = 0;
+	dev_priv->pipestat[1] = 0;
+
+	/* Disable pipe interrupt enables, clear pending pipe status */
+	I915_WRITE(PIPEASTAT, I915_READ(PIPEASTAT) & 0x8000ffff);
+	I915_WRITE(PIPEBSTAT, I915_READ(PIPEBSTAT) & 0x8000ffff);
+	/* Clear pending interrupt status */
+	I915_WRITE(IIR, I915_READ(IIR));
+
 	I915_WRITE(IER, I915_INTERRUPT_ENABLE_MASK);
+	I915_WRITE(IMR, dev_priv->irq_mask_reg);
 	(void) I915_READ(IER);
 
 	opregion_enable_asle(dev);
@@ -513,7 +502,6 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 void i915_driver_irq_uninstall(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	u32 temp;
 
 	if (!dev_priv)
 		return;
@@ -521,13 +509,12 @@ void i915_driver_irq_uninstall(struct drm_device * dev)
 	dev_priv->vblank_pipe = 0;
 
 	I915_WRITE(HWSTAM, 0xffffffff);
+	I915_WRITE(PIPEASTAT, 0);
+	I915_WRITE(PIPEBSTAT, 0);
 	I915_WRITE(IMR, 0xffffffff);
 	I915_WRITE(IER, 0x0);
 
-	temp = I915_READ(PIPEASTAT);
-	I915_WRITE(PIPEASTAT, temp);
-	temp = I915_READ(PIPEBSTAT);
-	I915_WRITE(PIPEBSTAT, temp);
-	temp = I915_READ(IIR);
-	I915_WRITE(IIR, temp);
+	I915_WRITE(PIPEASTAT, I915_READ(PIPEASTAT) & 0x8000ffff);
+	I915_WRITE(PIPEBSTAT, I915_READ(PIPEBSTAT) & 0x8000ffff);
+	I915_WRITE(IIR, I915_READ(IIR));
 }
