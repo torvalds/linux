@@ -620,6 +620,8 @@ static ssize_t bonding_store_arp_interval(struct device *d,
 	       ": %s: Setting ARP monitoring interval to %d.\n",
 	       bond->dev->name, new_value);
 	bond->params.arp_interval = new_value;
+	if (bond->params.arp_interval)
+		bond->dev->priv_flags |= IFF_MASTER_ARPMON;
 	if (bond->params.miimon) {
 		printk(KERN_INFO DRV_NAME
 		       ": %s: ARP monitoring cannot be used with MII monitoring. "
@@ -1039,6 +1041,7 @@ static ssize_t bonding_store_miimon(struct device *d,
 			       "ARP monitoring. Disabling ARP monitoring...\n",
 			       bond->dev->name);
 			bond->params.arp_interval = 0;
+			bond->dev->priv_flags &= ~IFF_MASTER_ARPMON;
 			if (bond->params.arp_validate) {
 				bond_unregister_arp(bond);
 				bond->params.arp_validate =
