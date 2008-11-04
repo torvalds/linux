@@ -233,9 +233,6 @@ enum {
 	GIF_USER                = 4, /* user inode, not metadata addr space */
 };
 
-struct gfs2_dinode_host {
-	u32 di_flags;		/* GFS2_DIF_... */
-};
 
 struct gfs2_inode {
 	struct inode i_inode;
@@ -245,9 +242,6 @@ struct gfs2_inode {
 	u64 i_eattr;
 	loff_t i_disksize;
 	unsigned long i_flags;		/* GIF_... */
-
-	struct gfs2_dinode_host i_di; /* To be replaced by ref to block */
-
 	struct gfs2_glock *i_gl; /* Move into i_gh? */
 	struct gfs2_holder i_iopen_gh;
 	struct gfs2_holder i_gh; /* for prepare/commit_write only */
@@ -255,6 +249,7 @@ struct gfs2_inode {
 	u64 i_goal;	/* goal block for allocations */
 	struct rw_semaphore i_rw_mutex;
 	u32 i_entries;
+	u32 i_diskflags;
 	u8 i_height;
 	u8 i_depth;
 };

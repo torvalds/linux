@@ -118,7 +118,7 @@ static int ea_foreach(struct gfs2_inode *ip, ea_call_t ea_call, void *data)
 	if (error)
 		return error;
 
-	if (!(ip->i_di.di_flags & GFS2_DIF_EA_INDIRECT)) {
+	if (!(ip->i_diskflags & GFS2_DIF_EA_INDIRECT)) {
 		error = ea_foreach_i(ip, bh, ea_call, data);
 		goto out;
 	}
@@ -935,7 +935,7 @@ static int ea_set_block(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 	int error;
 	int mh_size = sizeof(struct gfs2_meta_header);
 
-	if (ip->i_di.di_flags & GFS2_DIF_EA_INDIRECT) {
+	if (ip->i_diskflags & GFS2_DIF_EA_INDIRECT) {
 		__be64 *end;
 
 		error = gfs2_meta_read(ip->i_gl, ip->i_eattr, DIO_WAIT,
@@ -974,7 +974,7 @@ static int ea_set_block(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 		eablk = (__be64 *)(indbh->b_data + mh_size);
 		*eablk = cpu_to_be64(ip->i_eattr);
 		ip->i_eattr = blk;
-		ip->i_di.di_flags |= GFS2_DIF_EA_INDIRECT;
+		ip->i_diskflags |= GFS2_DIF_EA_INDIRECT;
 		gfs2_add_inode_blocks(&ip->i_inode, 1);
 
 		eablk++;
@@ -1015,7 +1015,7 @@ static int ea_set_i(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 	if (error)
 		return error;
 
-	if (!(ip->i_di.di_flags & GFS2_DIF_EA_INDIRECT))
+	if (!(ip->i_diskflags & GFS2_DIF_EA_INDIRECT))
 		blks++;
 	if (GFS2_EAREQ_SIZE_STUFFED(er) > GFS2_SB(&ip->i_inode)->sd_jbsize)
 		blks += DIV_ROUND_UP(er->er_data_len, GFS2_SB(&ip->i_inode)->sd_jbsize);
@@ -1051,7 +1051,7 @@ int gfs2_ea_set_i(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 		return error;
 
 	if (el.el_ea) {
-		if (ip->i_di.di_flags & GFS2_DIF_APPENDONLY) {
+		if (ip->i_diskflags & GFS2_DIF_APPENDONLY) {
 			brelse(el.el_bh);
 			return -EPERM;
 		}
@@ -1388,7 +1388,7 @@ static int ea_dealloc_indirect(struct gfs2_inode *ip)
 	if (bstart)
 		gfs2_free_meta(ip, bstart, blen);
 
-	ip->i_di.di_flags &= ~GFS2_DIF_EA_INDIRECT;
+	ip->i_diskflags &= ~GFS2_DIF_EA_INDIRECT;
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (!error) {
@@ -1479,7 +1479,7 @@ int gfs2_ea_dealloc(struct gfs2_inode *ip)
 	if (error)
 		goto out_rindex;
 
-	if (ip->i_di.di_flags & GFS2_DIF_EA_INDIRECT) {
+	if (ip->i_diskflags & GFS2_DIF_EA_INDIRECT) {
 		error = ea_dealloc_indirect(ip);
 		if (error)
 			goto out_rindex;

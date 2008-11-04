@@ -239,7 +239,7 @@ static int inode_go_lock(struct gfs2_holder *gh)
 			return error;
 	}
 
-	if ((ip->i_di.di_flags & GFS2_DIF_TRUNC_IN_PROG) &&
+	if ((ip->i_diskflags & GFS2_DIF_TRUNC_IN_PROG) &&
 	    (gl->gl_state == LM_ST_EXCLUSIVE) &&
 	    (gh->gh_state == LM_ST_EXCLUSIVE))
 		error = gfs2_truncatei_resume(ip);

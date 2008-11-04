@@ -36,7 +36,7 @@
  * the block.  In leaves, they begin at offset sizeof(struct gfs2_leaf) from the
  * beginning of the leaf block. The dirents reside in leaves when
  *
- * dip->i_di.di_flags & GFS2_DIF_EXHASH is true
+ * dip->i_diskflags & GFS2_DIF_EXHASH is true
  *
  * Otherwise, the dirents are "linear", within a single stuffed dinode block.
  *
@@ -755,7 +755,7 @@ static struct gfs2_dirent *gfs2_dirent_search(struct inode *inode,
 	struct gfs2_inode *ip = GFS2_I(inode);
 	int error;
 
-	if (ip->i_di.di_flags & GFS2_DIF_EXHASH) {
+	if (ip->i_diskflags & GFS2_DIF_EXHASH) {
 		struct gfs2_leaf *leaf;
 		unsigned hsize = 1 << ip->i_depth;
 		unsigned index;
@@ -907,7 +907,7 @@ static int dir_make_exhash(struct inode *inode)
 
 	dip->i_disksize = sdp->sd_sb.sb_bsize / 2;
 	gfs2_add_inode_blocks(&dip->i_inode, 1);
-	dip->i_di.di_flags |= GFS2_DIF_EXHASH;
+	dip->i_diskflags |= GFS2_DIF_EXHASH;
 
 	for (x = sdp->sd_hash_ptrs, y = -1; x; x >>= 1, y++) ;
 	dip->i_depth = y;
@@ -1429,7 +1429,7 @@ int gfs2_dir_read(struct inode *inode, u64 *offset, void *opaque,
 	if (!dip->i_entries)
 		return 0;
 
-	if (dip->i_di.di_flags & GFS2_DIF_EXHASH)
+	if (dip->i_diskflags & GFS2_DIF_EXHASH)
 		return dir_e_read(inode, offset, opaque, filldir);
 
 	if (!gfs2_is_stuffed(dip)) {
@@ -1612,7 +1612,7 @@ int gfs2_dir_add(struct inode *inode, const struct qstr *name,
 			dent = gfs2_init_dirent(inode, dent, name, bh);
 			gfs2_inum_out(nip, dent);
 			dent->de_type = cpu_to_be16(type);
-			if (ip->i_di.di_flags & GFS2_DIF_EXHASH) {
+			if (ip->i_diskflags & GFS2_DIF_EXHASH) {
 				leaf = (struct gfs2_leaf *)bh->b_data;
 				be16_add_cpu(&leaf->lf_entries, 1);
 			}
@@ -1628,7 +1628,7 @@ int gfs2_dir_add(struct inode *inode, const struct qstr *name,
 			error = 0;
 			break;
 		}
-		if (!(ip->i_di.di_flags & GFS2_DIF_EXHASH)) {
+		if (!(ip->i_diskflags & GFS2_DIF_EXHASH)) {
 			error = dir_make_exhash(inode);
 			if (error)
 				break;
@@ -1691,7 +1691,7 @@ int gfs2_dir_del(struct gfs2_inode *dip, const struct qstr *name)
 	}
 
 	dirent_del(dip, bh, prev, dent);
-	if (dip->i_di.di_flags & GFS2_DIF_EXHASH) {
+	if (dip->i_diskflags & GFS2_DIF_EXHASH) {
 		struct gfs2_leaf *leaf = (struct gfs2_leaf *)bh->b_data;
 		u16 entries = be16_to_cpu(leaf->lf_entries);
 		if (!entries)
@@ -1748,7 +1748,7 @@ int gfs2_dir_mvino(struct gfs2_inode *dip, const struct qstr *filename,
 	gfs2_inum_out(nip, dent);
 	dent->de_type = cpu_to_be16(new_type);
 
-	if (dip->i_di.di_flags & GFS2_DIF_EXHASH) {
+	if (dip->i_diskflags & GFS2_DIF_EXHASH) {
 		brelse(bh);
 		error = gfs2_meta_inode_buffer(dip, &bh);
 		if (error)

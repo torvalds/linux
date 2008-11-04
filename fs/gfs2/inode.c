@@ -247,7 +247,6 @@ fail:
 
 static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 {
-	struct gfs2_dinode_host *di = &ip->i_di;
 	const struct gfs2_dinode *str = buf;
 	struct timespec atime;
 	u16 height, depth;
@@ -288,7 +287,7 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	ip->i_goal = be64_to_cpu(str->di_goal_meta);
 	ip->i_generation = be64_to_cpu(str->di_generation);
 
-	di->di_flags = be32_to_cpu(str->di_flags);
+	ip->i_diskflags = be32_to_cpu(str->di_flags);
 	gfs2_set_inode_flags(&ip->i_inode);
 	height = be16_to_cpu(str->di_height);
 	if (unlikely(height > GFS2_MAX_META_HEIGHT))
@@ -789,11 +788,11 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 	di->di_flags = 0;
 
 	if (S_ISREG(mode)) {
-		if ((dip->i_di.di_flags & GFS2_DIF_INHERIT_JDATA) ||
+		if ((dip->i_diskflags & GFS2_DIF_INHERIT_JDATA) ||
 		    gfs2_tune_get(sdp, gt_new_files_jdata))
 			di->di_flags |= cpu_to_be32(GFS2_DIF_JDATA);
 	} else if (S_ISDIR(mode)) {
-		di->di_flags |= cpu_to_be32(dip->i_di.di_flags &
+		di->di_flags |= cpu_to_be32(dip->i_diskflags &
 					    GFS2_DIF_INHERIT_JDATA);
 	}
 
@@ -1241,7 +1240,6 @@ int gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr)
 
 void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 {
-	const struct gfs2_dinode_host *di = &ip->i_di;
 	struct gfs2_dinode *str = buf;
 
 	str->di_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
@@ -1265,10 +1263,10 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_goal_data = cpu_to_be64(ip->i_goal);
 	str->di_generation = cpu_to_be64(ip->i_generation);
 
-	str->di_flags = cpu_to_be32(di->di_flags);
+	str->di_flags = cpu_to_be32(ip->i_diskflags);
 	str->di_height = cpu_to_be16(ip->i_height);
 	str->di_payload_format = cpu_to_be32(S_ISDIR(ip->i_inode.i_mode) &&
-					     !(ip->i_di.di_flags & GFS2_DIF_EXHASH) ?
+					     !(ip->i_diskflags & GFS2_DIF_EXHASH) ?
 					     GFS2_FORMAT_DE : 0);
 	str->di_depth = cpu_to_be16(ip->i_depth);
 	str->di_entries = cpu_to_be32(ip->i_entries);
@@ -1281,8 +1279,6 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 
 void gfs2_dinode_print(const struct gfs2_inode *ip)
 {
-	const struct gfs2_dinode_host *di = &ip->i_di;
-
 	printk(KERN_INFO "  no_formal_ino = %llu\n",
 	       (unsigned long long)ip->i_no_formal_ino);
 	printk(KERN_INFO "  no_addr = %llu\n",
@@ -1293,7 +1289,7 @@ void gfs2_dinode_print(const struct gfs2_inode *ip)
 	       (unsigned long long)gfs2_get_inode_blocks(&ip->i_inode));
 	printk(KERN_INFO "  i_goal = %llu\n",
 	       (unsigned long long)ip->i_goal);
-	printk(KERN_INFO "  di_flags = 0x%.8X\n", di->di_flags);
+	printk(KERN_INFO "  i_diskflags = 0x%.8X\n", ip->i_diskflags);
 	printk(KERN_INFO "  i_height = %u\n", ip->i_height);
 	printk(KERN_INFO "  i_depth = %u\n", ip->i_depth);
 	printk(KERN_INFO "  i_entries = %u\n", ip->i_entries);

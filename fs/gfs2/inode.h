@@ -20,7 +20,7 @@ static inline int gfs2_is_stuffed(const struct gfs2_inode *ip)
 
 static inline int gfs2_is_jdata(const struct gfs2_inode *ip)
 {
-	return ip->i_di.di_flags & GFS2_DIF_JDATA;
+	return ip->i_diskflags & GFS2_DIF_JDATA;
 }
 
 static inline int gfs2_is_writeback(const struct gfs2_inode *ip)

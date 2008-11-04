@@ -1047,7 +1047,7 @@ static int trunc_start(struct gfs2_inode *ip, u64 size)
 		if (!error) {
 			ip->i_disksize = size;
 			ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
-			ip->i_di.di_flags |= GFS2_DIF_TRUNC_IN_PROG;
+			ip->i_diskflags |= GFS2_DIF_TRUNC_IN_PROG;
 			gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 			gfs2_dinode_out(ip, dibh->b_data);
 		}
@@ -1120,7 +1120,7 @@ static int trunc_end(struct gfs2_inode *ip)
 		gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 	}
 	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
-	ip->i_di.di_flags &= ~GFS2_DIF_TRUNC_IN_PROG;
+	ip->i_diskflags &= ~GFS2_DIF_TRUNC_IN_PROG;
 
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(ip, dibh->b_data);

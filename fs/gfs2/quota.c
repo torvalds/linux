@@ -1013,7 +1013,7 @@ void gfs2_quota_change(struct gfs2_inode *ip, s64 change,
 
 	if (gfs2_assert_warn(GFS2_SB(&ip->i_inode), change))
 		return;
-	if (ip->i_di.di_flags & GFS2_DIF_SYSTEM)
+	if (ip->i_diskflags & GFS2_DIF_SYSTEM)
 		return;
 
 	for (x = 0; x < al->al_qd_num; x++) {

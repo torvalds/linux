@@ -213,7 +213,7 @@ static struct dentry *gfs2_get_dentry(struct super_block *sb,
 	}
 
 	error = -EIO;
-	if (GFS2_I(inode)->i_di.di_flags & GFS2_DIF_SYSTEM) {
+	if (GFS2_I(inode)->i_diskflags & GFS2_DIF_SYSTEM) {
 		iput(inode);
 		goto fail;
 	}
