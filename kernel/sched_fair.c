@@ -1319,6 +1319,18 @@ wakeup_preempt_entity(struct sched_entity *curr, struct sched_entity *se)
 	return 0;
 }
 
+static void set_last_buddy(struct sched_entity *se)
+{
+	for_each_sched_entity(se)
+		cfs_rq_of(se)->last = se;
+}
+
+static void set_next_buddy(struct sched_entity *se)
+{
+	for_each_sched_entity(se)
+		cfs_rq_of(se)->next = se;
+}
+
 /*
  * Preempt the current task with a newly woken task if needed:
  */
@@ -1352,8 +1364,8 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int sync)
 	 * obvious reasons its a bad idea to schedule back to the idle thread.
 	 */
 	if (sched_feat(LAST_BUDDY) && likely(se->on_rq && curr != rq->idle))
-		cfs_rq_of(se)->last = se;
-	cfs_rq_of(pse)->next = pse;
+		set_last_buddy(se);
+	set_next_buddy(pse);
 
 	/*
 	 * We can come here with TIF_NEED_RESCHED already set from new task
