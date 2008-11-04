@@ -125,11 +125,13 @@ extern void clk_deny_idle(struct clk *clk);
 extern int clk_get_usecount(struct clk *clk);
 extern void clk_enable_init_clocks(void);
 
+extern const struct clkops clkops_null;
+
 /* Clock flags */
 #define RATE_CKCTL		(1 << 0)	/* Main fixed ratio clocks */
 #define RATE_FIXED		(1 << 1)	/* Fixed clock rate */
 #define RATE_PROPAGATES		(1 << 2)	/* Program children too */
-#define ALWAYS_ENABLED		(1 << 4)	/* Clock cannot be disabled */
+/* bits 3-4 are free */
 #define ENABLE_REG_32BIT	(1 << 5)	/* Use 32-bit access */
 #define VIRTUAL_IO_ADDRESS	(1 << 6)	/* Clock in virtual address */
 #define CLOCK_IDLE_CONTROL	(1 << 7)

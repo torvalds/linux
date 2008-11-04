@@ -515,9 +515,6 @@ static int omap1_clk_enable_generic(struct clk *clk)
 	__u16 regval16;
 	__u32 regval32;
 
-	if (clk->flags & ALWAYS_ENABLED)
-		return 0;
-
 	if (unlikely(clk->enable_reg == NULL)) {
 		printk(KERN_ERR "clock.c: Enable for %s without enable code\n",
 		       clk->name);

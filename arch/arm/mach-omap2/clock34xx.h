@@ -55,66 +55,66 @@ static u32 omap3_dpll_autoidle_read(struct clk *clk);
 /* According to timer32k.c, this is a 32768Hz clock, not a 32000Hz clock. */
 static struct clk omap_32k_fck = {
 	.name		= "omap_32k_fck",
+	.ops		= &clkops_null,
 	.rate		= 32768,
-	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES |
-				ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES,
 	.recalc		= &propagate_rate,
 };
 
 static struct clk secure_32k_fck = {
 	.name		= "secure_32k_fck",
+	.ops		= &clkops_null,
 	.rate		= 32768,
-	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES |
-				ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES,
 	.recalc		= &propagate_rate,
 };
 
 /* Virtual source clocks for osc_sys_ck */
 static struct clk virt_12m_ck = {
 	.name		= "virt_12m_ck",
+	.ops		= &clkops_null,
 	.rate		= 12000000,
-	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES |
-				ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES,
 	.recalc		= &propagate_rate,
 };
 
 static struct clk virt_13m_ck = {
 	.name		= "virt_13m_ck",
+	.ops		= &clkops_null,
 	.rate		= 13000000,
-	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES |
-				ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES,
 	.recalc		= &propagate_rate,
 };
 
 static struct clk virt_16_8m_ck = {
 	.name		= "virt_16_8m_ck",
+	.ops		= &clkops_null,
 	.rate		= 16800000,
-	.flags		= CLOCK_IN_OMAP3430ES2 | RATE_FIXED | RATE_PROPAGATES |
-				ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP3430ES2 | RATE_FIXED | RATE_PROPAGATES,
 	.recalc		= &propagate_rate,
 };
 
 static struct clk virt_19_2m_ck = {
 	.name		= "virt_19_2m_ck",
+	.ops		= &clkops_null,
 	.rate		= 19200000,
-	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES |
-				ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES,
 	.recalc		= &propagate_rate,
 };
 
 static struct clk virt_26m_ck = {
 	.name		= "virt_26m_ck",
+	.ops		= &clkops_null,
 	.rate		= 26000000,
-	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES |
-				ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES,
 	.recalc		= &propagate_rate,
 };
 
 static struct clk virt_38_4m_ck = {
 	.name		= "virt_38_4m_ck",
+	.ops		= &clkops_null,
 	.rate		= 38400000,
-	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES |
-				ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES,
 	.recalc		= &propagate_rate,
 };
 
@@ -162,13 +162,13 @@ static const struct clksel osc_sys_clksel[] = {
 /* 12, 13, 16.8, 19.2, 26, or 38.4 MHz */
 static struct clk osc_sys_ck = {
 	.name		= "osc_sys_ck",
+	.ops		= &clkops_null,
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP3430_PRM_CLKSEL,
 	.clksel_mask	= OMAP3430_SYS_CLKIN_SEL_MASK,
 	.clksel		= osc_sys_clksel,
 	/* REVISIT: deal with autoextclkmode? */
-	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES |
-				ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP343X | RATE_FIXED | RATE_PROPAGATES,
 	.recalc		= &omap2_clksel_recalc,
 };
 
@@ -187,25 +187,28 @@ static const struct clksel sys_clksel[] = {
 /* Feeds DPLLs - divided first by PRM_CLKSRC_CTRL.SYSCLKDIV? */
 static struct clk sys_ck = {
 	.name		= "sys_ck",
+	.ops		= &clkops_null,
 	.parent		= &osc_sys_ck,
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP3430_PRM_CLKSRC_CTRL,
 	.clksel_mask	= OMAP_SYSCLKDIV_MASK,
 	.clksel		= sys_clksel,
-	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES | ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES,
 	.recalc		= &omap2_clksel_recalc,
 };
 
 static struct clk sys_altclk = {
 	.name		= "sys_altclk",
-	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES | ALWAYS_ENABLED,
+	.ops		= &clkops_null,
+	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES,
 	.recalc		= &propagate_rate,
 };
 
 /* Optional external clock input for some McBSPs */
 static struct clk mcbsp_clks = {
 	.name		= "mcbsp_clks",
-	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES | ALWAYS_ENABLED,
+	.ops		= &clkops_null,
+	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES,
 	.recalc		= &propagate_rate,
 };
 
@@ -278,9 +281,10 @@ static struct dpll_data dpll1_dd = {
 
 static struct clk dpll1_ck = {
 	.name		= "dpll1_ck",
+	.ops		= &clkops_null,
 	.parent		= &sys_ck,
 	.dpll_data	= &dpll1_dd,
-	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES | ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES,
 	.round_rate	= &omap2_dpll_round_rate,
 	.recalc		= &omap3_dpll_recalc,
 };
@@ -398,9 +402,10 @@ static struct dpll_data dpll3_dd = {
 
 static struct clk dpll3_ck = {
 	.name		= "dpll3_ck",
+	.ops		= &clkops_null,
 	.parent		= &sys_ck,
 	.dpll_data	= &dpll3_dd,
-	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES | ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES,
 	.round_rate	= &omap2_dpll_round_rate,
 	.recalc		= &omap3_dpll_recalc,
 };
@@ -2266,9 +2271,10 @@ static struct clk gpt1_fck = {
 
 static struct clk wkup_32k_fck = {
 	.name		= "wkup_32k_fck",
+	.ops		= &clkops_null,
 	.init		= &omap2_init_clk_clkdm,
 	.parent		= &omap_32k_fck,
-	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES | ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES,
 	.clkdm_name	= "wkup_clkdm",
 	.recalc		= &followparent_recalc,
 };
@@ -2295,8 +2301,9 @@ static struct clk wdt2_fck = {
 
 static struct clk wkup_l4_ick = {
 	.name		= "wkup_l4_ick",
+	.ops		= &clkops_null,
 	.parent		= &sys_ck,
-	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES | ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES,
 	.clkdm_name	= "wkup_clkdm",
 	.recalc		= &followparent_recalc,
 };
@@ -2514,9 +2521,10 @@ static struct clk gpt9_fck = {
 
 static struct clk per_32k_alwon_fck = {
 	.name		= "per_32k_alwon_fck",
+	.ops		= &clkops_null,
 	.parent		= &omap_32k_fck,
 	.clkdm_name	= "per_clkdm",
-	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES | ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES,
 	.recalc		= &followparent_recalc,
 };
 
@@ -2859,11 +2867,12 @@ static const struct clksel emu_src_clksel[] = {
  */
 static struct clk emu_src_ck = {
 	.name		= "emu_src_ck",
+	.ops		= &clkops_null,
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(OMAP3430_EMU_MOD, CM_CLKSEL1),
 	.clksel_mask	= OMAP3430_MUX_CTRL_MASK,
 	.clksel		= emu_src_clksel,
-	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES | ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES,
 	.clkdm_name	= "emu_clkdm",
 	.recalc		= &omap2_clksel_recalc,
 };
@@ -2883,11 +2892,12 @@ static const struct clksel pclk_emu_clksel[] = {
 
 static struct clk pclk_fck = {
 	.name		= "pclk_fck",
+	.ops		= &clkops_null,
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(OMAP3430_EMU_MOD, CM_CLKSEL1),
 	.clksel_mask	= OMAP3430_CLKSEL_PCLK_MASK,
 	.clksel		= pclk_emu_clksel,
-	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES | ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES,
 	.clkdm_name	= "emu_clkdm",
 	.recalc		= &omap2_clksel_recalc,
 };
@@ -2906,11 +2916,12 @@ static const struct clksel pclkx2_emu_clksel[] = {
 
 static struct clk pclkx2_fck = {
 	.name		= "pclkx2_fck",
+	.ops		= &clkops_null,
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(OMAP3430_EMU_MOD, CM_CLKSEL1),
 	.clksel_mask	= OMAP3430_CLKSEL_PCLKX2_MASK,
 	.clksel		= pclkx2_emu_clksel,
-	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES | ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES,
 	.clkdm_name	= "emu_clkdm",
 	.recalc		= &omap2_clksel_recalc,
 };
@@ -2922,22 +2933,24 @@ static const struct clksel atclk_emu_clksel[] = {
 
 static struct clk atclk_fck = {
 	.name		= "atclk_fck",
+	.ops		= &clkops_null,
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(OMAP3430_EMU_MOD, CM_CLKSEL1),
 	.clksel_mask	= OMAP3430_CLKSEL_ATCLK_MASK,
 	.clksel		= atclk_emu_clksel,
-	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES | ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES,
 	.clkdm_name	= "emu_clkdm",
 	.recalc		= &omap2_clksel_recalc,
 };
 
 static struct clk traceclk_src_fck = {
 	.name		= "traceclk_src_fck",
+	.ops		= &clkops_null,
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(OMAP3430_EMU_MOD, CM_CLKSEL1),
 	.clksel_mask	= OMAP3430_TRACE_MUX_CTRL_MASK,
 	.clksel		= emu_src_clksel,
-	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES | ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP343X | RATE_PROPAGATES,
 	.clkdm_name	= "emu_clkdm",
 	.recalc		= &omap2_clksel_recalc,
 };
@@ -2956,11 +2969,12 @@ static const struct clksel traceclk_clksel[] = {
 
 static struct clk traceclk_fck = {
 	.name		= "traceclk_fck",
+	.ops		= &clkops_null,
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(OMAP3430_EMU_MOD, CM_CLKSEL1),
 	.clksel_mask	= OMAP3430_CLKSEL_TRACECLK_MASK,
 	.clksel		= traceclk_clksel,
-	.flags		= CLOCK_IN_OMAP343X | ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP343X,
 	.clkdm_name	= "emu_clkdm",
 	.recalc		= &omap2_clksel_recalc,
 };
@@ -2989,6 +3003,7 @@ static struct clk sr2_fck = {
 
 static struct clk sr_l4_ick = {
 	.name		= "sr_l4_ick",
+	.ops		= &clkops_null, /* RMK: missing? */
 	.parent		= &l4_ick,
 	.flags		= CLOCK_IN_OMAP343X,
 	.clkdm_name	= "core_l4_clkdm",
@@ -3000,15 +3015,17 @@ static struct clk sr_l4_ick = {
 /* XXX This clock no longer exists in 3430 TRM rev F */
 static struct clk gpt12_fck = {
 	.name		= "gpt12_fck",
+	.ops		= &clkops_null,
 	.parent		= &secure_32k_fck,
-	.flags		= CLOCK_IN_OMAP343X | ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP343X,
 	.recalc		= &followparent_recalc,
 };
 
 static struct clk wdt1_fck = {
 	.name		= "wdt1_fck",
+	.ops		= &clkops_null,
 	.parent		= &secure_32k_fck,
-	.flags		= CLOCK_IN_OMAP343X | ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP343X,
 	.recalc		= &followparent_recalc,
 };
 

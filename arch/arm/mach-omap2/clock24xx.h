@@ -619,9 +619,10 @@ static struct prcm_config rate_table[] = {
 /* Base external input clocks */
 static struct clk func_32k_ck = {
 	.name		= "func_32k_ck",
+	.ops		= &clkops_null,
 	.rate		= 32000,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
-				RATE_FIXED | ALWAYS_ENABLED | RATE_PROPAGATES,
+				RATE_FIXED | RATE_PROPAGATES,
 	.clkdm_name	= "wkup_clkdm",
 	.recalc		= &propagate_rate,
 };
@@ -639,18 +640,20 @@ static struct clk osc_ck = {		/* (*12, *13, 19.2, *26, 38.4)MHz */
 /* Without modem likely 12MHz, with modem likely 13MHz */
 static struct clk sys_ck = {		/* (*12, *13, 19.2, 26, 38.4)MHz */
 	.name		= "sys_ck",		/* ~ ref_clk also */
+	.ops		= &clkops_null,
 	.parent		= &osc_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
-				ALWAYS_ENABLED | RATE_PROPAGATES,
+				RATE_PROPAGATES,
 	.clkdm_name	= "wkup_clkdm",
 	.recalc		= &omap2_sys_clk_recalc,
 };
 
 static struct clk alt_ck = {		/* Typical 54M or 48M, may not exist */
 	.name		= "alt_ck",
+	.ops		= &clkops_null,
 	.rate		= 54000000,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
-				RATE_FIXED | ALWAYS_ENABLED | RATE_PROPAGATES,
+				RATE_FIXED | RATE_PROPAGATES,
 	.clkdm_name	= "wkup_clkdm",
 	.recalc		= &propagate_rate,
 };
@@ -679,10 +682,11 @@ static struct dpll_data dpll_dd = {
  */
 static struct clk dpll_ck = {
 	.name		= "dpll_ck",
+	.ops		= &clkops_null,
 	.parent		= &sys_ck,		/* Can be func_32k also */
 	.dpll_data	= &dpll_dd,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
-				RATE_PROPAGATES | ALWAYS_ENABLED,
+				RATE_PROPAGATES,
 	.clkdm_name	= "wkup_clkdm",
 	.recalc		= &omap2_dpllcore_recalc,
 	.set_rate	= &omap2_reprogram_dpllcore,
@@ -751,9 +755,10 @@ static struct clk func_54m_ck = {
 
 static struct clk core_ck = {
 	.name		= "core_ck",
+	.ops		= &clkops_null,
 	.parent		= &dpll_ck,		/* can also be 32k */
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
-				ALWAYS_ENABLED | RATE_PROPAGATES,
+				RATE_PROPAGATES,
 	.clkdm_name	= "wkup_clkdm",
 	.recalc		= &followparent_recalc,
 };
@@ -837,6 +842,7 @@ static struct clk func_12m_ck = {
 /* Secure timer, only available in secure mode */
 static struct clk wdt1_osc_ck = {
 	.name		= "ck_wdt1_osc",
+	.ops		= &clkops_null, /* RMK: missing? */
 	.parent		= &osc_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.recalc		= &followparent_recalc,
@@ -996,9 +1002,10 @@ static const struct clksel mpu_clksel[] = {
 
 static struct clk mpu_ck = {	/* Control cpu */
 	.name		= "mpu_ck",
+	.ops		= &clkops_null,
 	.parent		= &core_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
-				ALWAYS_ENABLED | DELAYED_APP |
+				DELAYED_APP |
 				CONFIG_PARTICIPANT | RATE_PROPAGATES,
 	.clkdm_name	= "mpu_clkdm",
 	.init		= &omap2_init_clksel_parent,
@@ -1168,9 +1175,10 @@ static const struct clksel core_l3_clksel[] = {
 
 static struct clk core_l3_ck = {	/* Used for ick and fck, interconnect */
 	.name		= "core_l3_ck",
+	.ops		= &clkops_null,
 	.parent		= &core_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
-				ALWAYS_ENABLED | DELAYED_APP |
+				DELAYED_APP |
 				CONFIG_PARTICIPANT | RATE_PROPAGATES,
 	.clkdm_name	= "core_l3_clkdm",
 	.clksel_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_CLKSEL1),
@@ -1231,9 +1239,10 @@ static const struct clksel l4_clksel[] = {
 
 static struct clk l4_ck = {		/* used both as an ick and fck */
 	.name		= "l4_ck",
+	.ops		= &clkops_null,
 	.parent		= &core_l3_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
-				ALWAYS_ENABLED | DELAYED_APP | RATE_PROPAGATES,
+				DELAYED_APP | RATE_PROPAGATES,
 	.clkdm_name	= "core_l4_clkdm",
 	.clksel_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_CLKSEL1),
 	.clksel_mask	= OMAP24XX_CLKSEL_L4_MASK,
@@ -2359,6 +2368,7 @@ static struct clk i2chs1_fck = {
 
 static struct clk gpmc_fck = {
 	.name		= "gpmc_fck",
+	.ops		= &clkops_null, /* RMK: missing? */
 	.parent		= &core_l3_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
 				ENABLE_ON_INIT,
@@ -2368,6 +2378,7 @@ static struct clk gpmc_fck = {
 
 static struct clk sdma_fck = {
 	.name		= "sdma_fck",
+	.ops		= &clkops_null, /* RMK: missing? */
 	.parent		= &core_l3_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l3_clkdm",
@@ -2376,6 +2387,7 @@ static struct clk sdma_fck = {
 
 static struct clk sdma_ick = {
 	.name		= "sdma_ick",
+	.ops		= &clkops_null, /* RMK: missing? */
 	.parent		= &l4_ck,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X,
 	.clkdm_name	= "core_l3_clkdm",
@@ -2621,8 +2633,9 @@ static struct clk mmchsdb2_fck = {
  */
 static struct clk virt_prcm_set = {
 	.name		= "virt_prcm_set",
+	.ops		= &clkops_null,
 	.flags		= CLOCK_IN_OMAP242X | CLOCK_IN_OMAP243X |
-				ALWAYS_ENABLED | DELAYED_APP,
+				DELAYED_APP,
 	.parent		= &mpu_ck,	/* Indexed by mpu speed, no parent */
 	.recalc		= &omap2_table_mpu_recalc,	/* sets are keyed on mpu rate */
 	.set_rate	= &omap2_select_table_rate,

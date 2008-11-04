@@ -358,6 +358,23 @@ void clk_enable_init_clocks(void)
 }
 EXPORT_SYMBOL(clk_enable_init_clocks);
 
+/*
+ * Low level helpers
+ */
+static int clkll_enable_null(struct clk *clk)
+{
+	return 0;
+}
+
+static void clkll_disable_null(struct clk *clk)
+{
+}
+
+const struct clkops clkops_null = {
+	.enable		= clkll_enable_null,
+	.disable	= clkll_disable_null,
+};
+
 #ifdef CONFIG_CPU_FREQ
 void clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
 {
@@ -383,8 +400,10 @@ static int __init clk_disable_unused(void)
 	unsigned long flags;
 
 	list_for_each_entry(ck, &clocks, node) {
-		if (ck->usecount > 0 || (ck->flags & ALWAYS_ENABLED) ||
-			ck->enable_reg == 0)
+		if (ck->ops == &clkops_null)
+			continue;
+
+		if (ck->usecount > 0 || ck->enable_reg == 0)
 			continue;
 
 		spin_lock_irqsave(&clockfw_lock, flags);

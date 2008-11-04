@@ -144,18 +144,18 @@ static struct mpu_rate rate_table[] = {
 
 static struct clk ck_ref = {
 	.name		= "ck_ref",
-	.ops		= &clkops_generic,
+	.ops		= &clkops_null,
 	.rate		= 12000000,
 	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
-			  CLOCK_IN_OMAP310 | ALWAYS_ENABLED,
+			  CLOCK_IN_OMAP310,
 };
 
 static struct clk ck_dpll1 = {
 	.name		= "ck_dpll1",
-	.ops		= &clkops_generic,
+	.ops		= &clkops_null,
 	.parent		= &ck_ref,
 	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
-			  CLOCK_IN_OMAP310 | RATE_PROPAGATES | ALWAYS_ENABLED,
+			  CLOCK_IN_OMAP310 | RATE_PROPAGATES,
 };
 
 static struct arm_idlect1_clk ck_dpll1out = {
@@ -186,11 +186,10 @@ static struct clk sossi_ck = {
 
 static struct clk arm_ck = {
 	.name		= "arm_ck",
-	.ops		= &clkops_generic,
+	.ops		= &clkops_null,
 	.parent		= &ck_dpll1,
 	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
-			  CLOCK_IN_OMAP310 | RATE_CKCTL | RATE_PROPAGATES |
-			  ALWAYS_ENABLED,
+			  CLOCK_IN_OMAP310 | RATE_CKCTL | RATE_PROPAGATES,
 	.rate_offset	= CKCTL_ARMDIV_OFFSET,
 	.recalc		= &omap1_ckctl_recalc,
 };
@@ -265,9 +264,9 @@ static struct arm_idlect1_clk armwdt_ck = {
 
 static struct clk arminth_ck16xx = {
 	.name		= "arminth_ck",
-	.ops		= &clkops_generic,
+	.ops		= &clkops_null,
 	.parent		= &arm_ck,
-	.flags		= CLOCK_IN_OMAP16XX | ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP16XX,
 	.recalc		= &followparent_recalc,
 	/* Note: On 16xx the frequency can be divided by 2 by programming
 	 * ARM_CKCTL:ARM_INTHCK_SEL(14) to 1
@@ -290,10 +289,10 @@ static struct clk dsp_ck = {
 
 static struct clk dspmmu_ck = {
 	.name		= "dspmmu_ck",
-	.ops		= &clkops_generic,
+	.ops		= &clkops_null,
 	.parent		= &ck_dpll1,
 	.flags		= CLOCK_IN_OMAP310 | CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
-			  RATE_CKCTL | ALWAYS_ENABLED,
+			  RATE_CKCTL,
 	.rate_offset	= CKCTL_DSPMMUDIV_OFFSET,
 	.recalc		= &omap1_ckctl_recalc,
 };
@@ -337,12 +336,12 @@ static struct clk dsptim_ck = {
 static struct arm_idlect1_clk tc_ck = {
 	.clk = {
 		.name		= "tc_ck",
-		.ops		= &clkops_generic,
+		.ops		= &clkops_null,
 		.parent		= &ck_dpll1,
 		.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
 				  CLOCK_IN_OMAP730 | CLOCK_IN_OMAP310 |
 				  RATE_CKCTL | RATE_PROPAGATES |
-				  ALWAYS_ENABLED | CLOCK_IDLE_CONTROL,
+				  CLOCK_IDLE_CONTROL,
 		.rate_offset	= CKCTL_TCDIV_OFFSET,
 		.recalc		= &omap1_ckctl_recalc,
 	},
@@ -351,10 +350,9 @@ static struct arm_idlect1_clk tc_ck = {
 
 static struct clk arminth_ck1510 = {
 	.name		= "arminth_ck",
-	.ops		= &clkops_generic,
+	.ops		= &clkops_null,
 	.parent		= &tc_ck.clk,
-	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP310 |
-			  ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP310,
 	.recalc		= &followparent_recalc,
 	/* Note: On 1510 the frequency follows TC_CK
 	 *
@@ -365,10 +363,9 @@ static struct clk arminth_ck1510 = {
 static struct clk tipb_ck = {
 	/* No-idle controlled by "tc_ck" */
 	.name		= "tipb_ck",
-	.ops		= &clkops_generic,
+	.ops		= &clkops_null,
 	.parent		= &tc_ck.clk,
-	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP310 |
-			  ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP310,
 	.recalc		= &followparent_recalc,
 };
 
@@ -406,18 +403,18 @@ static struct clk tc2_ck = {
 static struct clk dma_ck = {
 	/* No-idle controlled by "tc_ck" */
 	.name		= "dma_ck",
-	.ops		= &clkops_generic,
+	.ops		= &clkops_null,
 	.parent		= &tc_ck.clk,
 	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
-			  CLOCK_IN_OMAP310 | ALWAYS_ENABLED,
+			  CLOCK_IN_OMAP310,
 	.recalc		= &followparent_recalc,
 };
 
 static struct clk dma_lcdfree_ck = {
 	.name		= "dma_lcdfree_ck",
-	.ops		= &clkops_generic,
+	.ops		= &clkops_null,
 	.parent		= &tc_ck.clk,
-	.flags		= CLOCK_IN_OMAP16XX | ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP16XX,
 	.recalc		= &followparent_recalc,
 };
 
@@ -451,17 +448,17 @@ static struct arm_idlect1_clk lb_ck = {
 
 static struct clk rhea1_ck = {
 	.name		= "rhea1_ck",
-	.ops		= &clkops_generic,
+	.ops		= &clkops_null,
 	.parent		= &tc_ck.clk,
-	.flags		= CLOCK_IN_OMAP16XX | ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP16XX,
 	.recalc		= &followparent_recalc,
 };
 
 static struct clk rhea2_ck = {
 	.name		= "rhea2_ck",
-	.ops		= &clkops_generic,
+	.ops		= &clkops_null,
 	.parent		= &tc_ck.clk,
-	.flags		= CLOCK_IN_OMAP16XX | ALWAYS_ENABLED,
+	.flags		= CLOCK_IN_OMAP16XX,
 	.recalc		= &followparent_recalc,
 };
 
@@ -493,13 +490,12 @@ static struct arm_idlect1_clk lcd_ck_1510 = {
 
 static struct clk uart1_1510 = {
 	.name		= "uart1_ck",
-	.ops		= &clkops_generic,
+	.ops		= &clkops_null,
 	/* Direct from ULPD, no real parent */
 	.parent		= &armper_ck.clk,
 	.rate		= 12000000,
 	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP310 |
-			  ENABLE_REG_32BIT | ALWAYS_ENABLED |
-			  CLOCK_NO_IDLE_PARENT,
+			  ENABLE_REG_32BIT | CLOCK_NO_IDLE_PARENT,
 	.enable_reg	= (void __iomem *)MOD_CONF_CTRL_0,
 	.enable_bit	= 29,	/* Chooses between 12MHz and 48MHz */
 	.set_rate	= &omap1_set_uart_rate,
@@ -523,13 +519,13 @@ static struct uart_clk uart1_16xx = {
 
 static struct clk uart2_ck = {
 	.name		= "uart2_ck",
-	.ops		= &clkops_generic,
+	.ops		= &clkops_null,
 	/* Direct from ULPD, no real parent */
 	.parent		= &armper_ck.clk,
 	.rate		= 12000000,
 	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
 			  CLOCK_IN_OMAP310 | ENABLE_REG_32BIT |
-			  ALWAYS_ENABLED | CLOCK_NO_IDLE_PARENT,
+			  CLOCK_NO_IDLE_PARENT,
 	.enable_reg	= (void __iomem *)MOD_CONF_CTRL_0,
 	.enable_bit	= 30,	/* Chooses between 12MHz and 48MHz */
 	.set_rate	= &omap1_set_uart_rate,
@@ -538,13 +534,12 @@ static struct clk uart2_ck = {
 
 static struct clk uart3_1510 = {
 	.name		= "uart3_ck",
-	.ops		= &clkops_generic,
+	.ops		= &clkops_null,
 	/* Direct from ULPD, no real parent */
 	.parent		= &armper_ck.clk,
 	.rate		= 12000000,
 	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP310 |
-			  ENABLE_REG_32BIT | ALWAYS_ENABLED |
-			  CLOCK_NO_IDLE_PARENT,
+			  ENABLE_REG_32BIT | CLOCK_NO_IDLE_PARENT,
 	.enable_reg	= (void __iomem *)MOD_CONF_CTRL_0,
 	.enable_bit	= 31,	/* Chooses between 12MHz and 48MHz */
 	.set_rate	= &omap1_set_uart_rate,
@@ -680,9 +675,9 @@ static struct clk mmc2_ck = {
 
 static struct clk virtual_ck_mpu = {
 	.name		= "mpu",
-	.ops		= &clkops_generic,
+	.ops		= &clkops_null,
 	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
-			  CLOCK_IN_OMAP310 | ALWAYS_ENABLED,
+			  CLOCK_IN_OMAP310,
 	.parent		= &arm_ck, /* Is smarter alias for */
 	.recalc		= &followparent_recalc,
 	.set_rate	= &omap1_select_table_rate,
@@ -694,9 +689,9 @@ remains active during MPU idle whenever this is enabled */
 static struct clk i2c_fck = {
 	.name		= "i2c_fck",
 	.id		= 1,
-	.ops		= &clkops_generic,
+	.ops		= &clkops_null,
 	.flags		= CLOCK_IN_OMAP310 | CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
-			  CLOCK_NO_IDLE_PARENT | ALWAYS_ENABLED,
+			  CLOCK_NO_IDLE_PARENT,
 	.parent		= &armxor_ck.clk,
 	.recalc		= &followparent_recalc,
 };
@@ -704,9 +699,8 @@ static struct clk i2c_fck = {
 static struct clk i2c_ick = {
 	.name		= "i2c_ick",
 	.id		= 1,
-	.ops		= &clkops_generic,
-	.flags		= CLOCK_IN_OMAP16XX | CLOCK_NO_IDLE_PARENT |
-			  ALWAYS_ENABLED,
+	.ops		= &clkops_null,
+	.flags		= CLOCK_IN_OMAP16XX | CLOCK_NO_IDLE_PARENT,
 	.parent		= &armper_ck.clk,
 	.recalc		= &followparent_recalc,
 };
