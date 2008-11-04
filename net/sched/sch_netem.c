@@ -352,7 +352,7 @@ static int get_dist_table(struct Qdisc *sch, const struct nlattr *attr)
 	return 0;
 }
 
-static int get_correlation(struct Qdisc *sch, const struct nlattr *attr)
+static void get_correlation(struct Qdisc *sch, const struct nlattr *attr)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
 	const struct tc_netem_corr *c = nla_data(attr);
@@ -360,27 +360,24 @@ static int get_correlation(struct Qdisc *sch, const struct nlattr *attr)
 	init_crandom(&q->delay_cor, c->delay_corr);
 	init_crandom(&q->loss_cor, c->loss_corr);
 	init_crandom(&q->dup_cor, c->dup_corr);
-	return 0;
 }
 
-static int get_reorder(struct Qdisc *sch, const struct nlattr *attr)
+static void get_reorder(struct Qdisc *sch, const struct nlattr *attr)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
 	const struct tc_netem_reorder *r = nla_data(attr);
 
 	q->reorder = r->probability;
 	init_crandom(&q->reorder_cor, r->correlation);
-	return 0;
 }
 
-static int get_corrupt(struct Qdisc *sch, const struct nlattr *attr)
+static void get_corrupt(struct Qdisc *sch, const struct nlattr *attr)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
 	const struct tc_netem_corrupt *r = nla_data(attr);
 
 	q->corrupt = r->probability;
 	init_crandom(&q->corrupt_cor, r->correlation);
-	return 0;
 }
 
 static const struct nla_policy netem_policy[TCA_NETEM_MAX + 1] = {
@@ -439,11 +436,8 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt)
 	if (q->gap)
 		q->reorder = ~0;
 
-	if (tb[TCA_NETEM_CORR]) {
-		ret = get_correlation(sch, tb[TCA_NETEM_CORR]);
-		if (ret)
-			return ret;
-	}
+	if (tb[TCA_NETEM_CORR])
+		get_correlation(sch, tb[TCA_NETEM_CORR]);
 
 	if (tb[TCA_NETEM_DELAY_DIST]) {
 		ret = get_dist_table(sch, tb[TCA_NETEM_DELAY_DIST]);
@@ -451,17 +445,11 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt)
 			return ret;
 	}
 
-	if (tb[TCA_NETEM_REORDER]) {
-		ret = get_reorder(sch, tb[TCA_NETEM_REORDER]);
-		if (ret)
-			return ret;
-	}
+	if (tb[TCA_NETEM_REORDER])
+		get_reorder(sch, tb[TCA_NETEM_REORDER]);
 
-	if (tb[TCA_NETEM_CORRUPT]) {
-		ret = get_corrupt(sch, tb[TCA_NETEM_CORRUPT]);
-		if (ret)
-			return ret;
-	}
+	if (tb[TCA_NETEM_CORRUPT])
+		get_corrupt(sch, tb[TCA_NETEM_CORRUPT]);
 
 	return 0;
 }
