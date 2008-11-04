@@ -41,7 +41,6 @@
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
 #include <linux/mutex.h>
-#include <linux/highmem.h>
 #include <linux/list.h>
 #include <linux/sysdev.h>
 

@@ -12,7 +12,6 @@
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/types.h>
-#include <linux/pnp.h>
 #include <linux/stat.h>
 #include <linux/ctype.h>
 #include <linux/slab.h>
