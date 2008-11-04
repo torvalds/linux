@@ -610,7 +610,8 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 	atomic_set_mask(status | ZFCP_STATUS_COMMON_REMOVE, &port->status);
 	atomic_set(&port->refcount, 0);
 
-	dev_set_name(&port->sysfs_device, "0x%016llx", wwpn);
+	dev_set_name(&port->sysfs_device, "0x%016llx",
+		     (unsigned long long)wwpn);
 	port->sysfs_device.parent = &adapter->ccw_device->dev;
 
 	port->sysfs_device.release = zfcp_sysfs_port_release;
