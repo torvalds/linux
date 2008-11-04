@@ -25,8 +25,8 @@ struct clkops {
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 
 struct clksel_rate {
-	u8			div;
 	u32			val;
+	u8			div;
 	u8			flags;
 };
 
@@ -39,23 +39,23 @@ struct dpll_data {
 	void __iomem		*mult_div1_reg;
 	u32			mult_mask;
 	u32			div1_mask;
+	unsigned int		rate_tolerance;
+	unsigned long		last_rounded_rate;
 	u16			last_rounded_m;
 	u8			last_rounded_n;
-	unsigned long		last_rounded_rate;
-	unsigned int		rate_tolerance;
-	u16			max_multiplier;
 	u8			max_divider;
 	u32			max_tolerance;
+	u16			max_multiplier;
 #  if defined(CONFIG_ARCH_OMAP3)
 	u8			modes;
 	void __iomem		*control_reg;
+	void __iomem		*autoidle_reg;
+	void __iomem		*idlest_reg;
 	u32			enable_mask;
+	u32			autoidle_mask;
 	u8			auto_recal_bit;
 	u8			recal_en_bit;
 	u8			recal_st_bit;
-	void __iomem		*autoidle_reg;
-	u32			autoidle_mask;
-	void __iomem		*idlest_reg;
 	u8			idlest_bit;
 #  endif
 };
@@ -71,12 +71,12 @@ struct clk {
 	unsigned long		rate;
 	__u32			flags;
 	void __iomem		*enable_reg;
-	__u8			enable_bit;
-	__s8			usecount;
 	void			(*recalc)(struct clk *);
 	int			(*set_rate)(struct clk *, unsigned long);
 	long			(*round_rate)(struct clk *, unsigned long);
 	void			(*init)(struct clk *);
+	__u8			enable_bit;
+	__s8			usecount;
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 	u8			fixed_div;
 	void __iomem		*clksel_reg;
