@@ -125,7 +125,6 @@ extern void clk_enable_init_clocks(void);
 #define RATE_CKCTL		(1 << 0)	/* Main fixed ratio clocks */
 #define RATE_FIXED		(1 << 1)	/* Fixed clock rate */
 #define RATE_PROPAGATES		(1 << 2)	/* Program children too */
-#define VIRTUAL_CLOCK		(1 << 3)	/* Composite clock from table */
 #define ALWAYS_ENABLED		(1 << 4)	/* Clock cannot be disabled */
 #define ENABLE_REG_32BIT	(1 << 5)	/* Use 32-bit access */
 #define VIRTUAL_IO_ADDRESS	(1 << 6)	/* Clock in virtual address */
