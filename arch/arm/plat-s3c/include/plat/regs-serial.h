@@ -238,7 +238,7 @@ struct s3c2410_uartcfg {
  * or platform_add_device() before the console_initcall()
 */
 
-extern struct platform_device *s3c24xx_uart_devs[3];
+extern struct platform_device *s3c24xx_uart_devs[4];
 
 #endif /* __ASSEMBLY__ */
 

@@ -76,6 +76,19 @@ static struct resource s3c2410_uart2_resource[] = {
 	}
 };
 
+static struct resource s3c2410_uart3_resource[] = {
+	[0] = {
+		.start = S3C2443_PA_UART3,
+		.end   = S3C2443_PA_UART3 + 0x3fff,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_S3CUART_RX3,
+		.end   = IRQ_S3CUART_ERR3,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
 struct s3c24xx_uart_resources s3c2410_uart_resources[] __initdata = {
 	[0] = {
 		.resources	= s3c2410_uart0_resource,
@@ -88,6 +101,10 @@ struct s3c24xx_uart_resources s3c2410_uart_resources[] __initdata = {
 	[2] = {
 		.resources	= s3c2410_uart2_resource,
 		.nr_resources	= ARRAY_SIZE(s3c2410_uart2_resource),
+	},
+	[3] = {
+		.resources	= s3c2410_uart3_resource,
+		.nr_resources	= ARRAY_SIZE(s3c2410_uart3_resource),
 	},
 };
 
@@ -105,13 +122,18 @@ static struct platform_device s3c24xx_uart_device2 = {
 	.id		= 2,
 };
 
-struct platform_device *s3c24xx_uart_src[3] = {
+static struct platform_device s3c24xx_uart_device3 = {
+	.id		= 3,
+};
+
+struct platform_device *s3c24xx_uart_src[4] = {
 	&s3c24xx_uart_device0,
 	&s3c24xx_uart_device1,
 	&s3c24xx_uart_device2,
+	&s3c24xx_uart_device3,
 };
 
-struct platform_device *s3c24xx_uart_devs[3] = {
+struct platform_device *s3c24xx_uart_devs[4] = {
 };
 
 /* USB Host Controller */

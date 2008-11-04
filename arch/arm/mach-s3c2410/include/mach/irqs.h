@@ -162,6 +162,12 @@
 #define NR_IRQS (IRQ_S3C2440_AC97+1)
 #endif
 
+/* compatibility define. */
+#define IRQ_UART3		IRQ_S3C2443_UART3
+#define IRQ_S3CUART_RX3		IRQ_S3C2443_RX3
+#define IRQ_S3CUART_TX3		IRQ_S3C2443_TX3
+#define IRQ_S3CUART_ERR3	IRQ_S3C2443_ERR3
+
 /* Our FIQs are routable from IRQ_EINT0 to IRQ_ADCPARENT */
 #define FIQ_START		IRQ_EINT0
 
