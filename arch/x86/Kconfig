@@ -951,22 +951,26 @@ config ARCH_PHYS_ADDR_T_64BIT
 
 # Common NUMA Features
 config NUMA
-	bool "Numa Memory Allocation and Scheduler Support (EXPERIMENTAL)"
+	bool "Numa Memory Allocation and Scheduler Support"
 	depends on SMP
 	depends on X86_64 || (X86_32 && HIGHMEM64G && (X86_NUMAQ || X86_BIGSMP || X86_SUMMIT && ACPI) && EXPERIMENTAL)
 	default n if X86_PC
 	default y if (X86_NUMAQ || X86_SUMMIT || X86_BIGSMP)
 	help
 	  Enable NUMA (Non Uniform Memory Access) support.
+
 	  The kernel will try to allocate memory used by a CPU on the
 	  local memory controller of the CPU and add some more
 	  NUMA awareness to the kernel.
 
-	  For 32-bit this is currently highly experimental and should be only
-	  used for kernel development. It might also cause boot failures.
-	  For 64-bit this is recommended on all multiprocessor Opteron systems.
-	  If the system is EM64T, you should say N unless your system is
-	  EM64T NUMA.
+	  For 64-bit this is recommended if the system is Intel Core 7i
+	  (or later), AMD Opteron, or EM64T NUMA.
+
+	  For 32-bit this is only needed on (rare) 32-bit-only platforms
+	  that support NUMA topologies, such as NUMAQ / Summit, or if you
+	  boot a 32-bit kernel on a 64-bit NUMA platform.
+
+	  Otherwise, you should say N.
 
 comment "NUMA (Summit) requires SMP, 64GB highmem support, ACPI"
 	depends on X86_32 && X86_SUMMIT && (!HIGHMEM64G || !ACPI)
