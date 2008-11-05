@@ -29,8 +29,6 @@
 #include <asm/byteorder.h>
 #include <asm/kvm_ppc.h>
 
-#include "44x_tlb.h"
-
 /* Instruction decoding */
 static inline unsigned int get_op(u32 inst)
 {
@@ -87,96 +85,6 @@ static inline unsigned int get_d(u32 inst)
 	return inst & 0xffff;
 }
 
-static int tlbe_is_host_safe(const struct kvm_vcpu *vcpu,
-                             const struct tlbe *tlbe)
-{
-	gpa_t gpa;
-
-	if (!get_tlb_v(tlbe))
-		return 0;
-
-	/* Does it match current guest AS? */
-	/* XXX what about IS != DS? */
-	if (get_tlb_ts(tlbe) != !!(vcpu->arch.msr & MSR_IS))
-		return 0;
-
-	gpa = get_tlb_raddr(tlbe);
-	if (!gfn_to_memslot(vcpu->kvm, gpa >> PAGE_SHIFT))
-		/* Mapping is not for RAM. */
-		return 0;
-
-	return 1;
-}
-
-static int kvmppc_emul_tlbwe(struct kvm_vcpu *vcpu, u32 inst)
-{
-	u64 eaddr;
-	u64 raddr;
-	u64 asid;
-	u32 flags;
-	struct tlbe *tlbe;
-	unsigned int ra;
-	unsigned int rs;
-	unsigned int ws;
-	unsigned int index;
-
-	ra = get_ra(inst);
-	rs = get_rs(inst);
-	ws = get_ws(inst);
-
-	index = vcpu->arch.gpr[ra];
-	if (index > PPC44x_TLB_SIZE) {
-		printk("%s: index %d\n", __func__, index);
-		kvmppc_dump_vcpu(vcpu);
-		return EMULATE_FAIL;
-	}
-
-	tlbe = &vcpu->arch.guest_tlb[index];
-
-	/* Invalidate shadow mappings for the about-to-be-clobbered TLBE. */
-	if (tlbe->word0 & PPC44x_TLB_VALID) {
-		eaddr = get_tlb_eaddr(tlbe);
-		asid = (tlbe->word0 & PPC44x_TLB_TS) | tlbe->tid;
-		kvmppc_mmu_invalidate(vcpu, eaddr, get_tlb_end(tlbe), asid);
-	}
-
-	switch (ws) {
-	case PPC44x_TLB_PAGEID:
-		tlbe->tid = vcpu->arch.mmucr & 0xff;
-		tlbe->word0 = vcpu->arch.gpr[rs];
-		break;
-
-	case PPC44x_TLB_XLAT:
-		tlbe->word1 = vcpu->arch.gpr[rs];
-		break;
-
-	case PPC44x_TLB_ATTRIB:
-		tlbe->word2 = vcpu->arch.gpr[rs];
-		break;
-
-	default:
-		return EMULATE_FAIL;
-	}
-
-	if (tlbe_is_host_safe(vcpu, tlbe)) {
-		eaddr = get_tlb_eaddr(tlbe);
-		raddr = get_tlb_raddr(tlbe);
-		asid = (tlbe->word0 & PPC44x_TLB_TS) | tlbe->tid;
-		flags = tlbe->word2 & 0xffff;
-
-		/* Create a 4KB mapping on the host. If the guest wanted a
-		 * large page, only the first 4KB is mapped here and the rest
-		 * are mapped on the fly. */
-		kvmppc_mmu_map(vcpu, eaddr, raddr >> PAGE_SHIFT, asid, flags);
-	}
-
-	KVMTRACE_5D(GTLB_WRITE, vcpu, index,
-			tlbe->tid, tlbe->word0, tlbe->word1, tlbe->word2,
-			handler);
-
-	return EMULATE_DONE;
-}
-
 static void kvmppc_emulate_dec(struct kvm_vcpu *vcpu)
 {
 	if (vcpu->arch.tcr & TCR_DIE) {
@@ -222,6 +130,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	int rc;
 	int rs;
 	int rt;
+	int ws;
 	int sprn;
 	int dcrn;
 	enum emulation_result emulated = EMULATE_DONE;
@@ -630,33 +539,18 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			break;
 
 		case 978:                                       /* tlbwe */
-			emulated = kvmppc_emul_tlbwe(vcpu, inst);
+			ra = get_ra(inst);
+			rs = get_rs(inst);
+			ws = get_ws(inst);
+			emulated = kvmppc_emul_tlbwe(vcpu, ra, rs, ws);
 			break;
 
-		case 914:       {                               /* tlbsx */
-			int index;
-			unsigned int as = get_mmucr_sts(vcpu);
-			unsigned int pid = get_mmucr_stid(vcpu);
-
+		case 914:                                       /* tlbsx */
 			rt = get_rt(inst);
 			ra = get_ra(inst);
 			rb = get_rb(inst);
 			rc = get_rc(inst);
-
-			ea = vcpu->arch.gpr[rb];
-			if (ra)
-				ea += vcpu->arch.gpr[ra];
-
-			index = kvmppc_44x_tlb_index(vcpu, ea, pid, as);
-			if (rc) {
-				if (index < 0)
-					vcpu->arch.cr &= ~0x20000000;
-				else
-					vcpu->arch.cr |= 0x20000000;
-			}
-			vcpu->arch.gpr[rt] = index;
-
-			}
+			emulated = kvmppc_emul_tlbsx(vcpu, rt, ra, rb, rc);
 			break;
 
 		case 790:                                       /* lhbrx */

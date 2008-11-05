@@ -58,11 +58,11 @@ extern int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
 extern int kvmppc_emulate_instruction(struct kvm_run *run,
                                       struct kvm_vcpu *vcpu);
 extern int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu);
+extern int kvmppc_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws);
+extern int kvmppc_emul_tlbsx(struct kvm_vcpu *vcpu, u8 rt, u8 ra, u8 rb, u8 rc);
 
 extern void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn,
                            u64 asid, u32 flags);
-extern void kvmppc_mmu_invalidate(struct kvm_vcpu *vcpu, gva_t eaddr,
-                                  gva_t eend, u32 asid);
 extern void kvmppc_mmu_priv_switch(struct kvm_vcpu *vcpu, int usermode);
 extern void kvmppc_mmu_switch_pid(struct kvm_vcpu *vcpu, u32 pid);
 

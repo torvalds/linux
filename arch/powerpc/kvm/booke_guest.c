@@ -111,32 +111,6 @@ const unsigned char priority_exception[] = {
 };
 
 
-void kvmppc_dump_tlbs(struct kvm_vcpu *vcpu)
-{
-	struct tlbe *tlbe;
-	int i;
-
-	printk("vcpu %d TLB dump:\n", vcpu->vcpu_id);
-	printk("| %2s | %3s | %8s | %8s | %8s |\n",
-			"nr", "tid", "word0", "word1", "word2");
-
-	for (i = 0; i < PPC44x_TLB_SIZE; i++) {
-		tlbe = &vcpu->arch.guest_tlb[i];
-		if (tlbe->word0 & PPC44x_TLB_VALID)
-			printk(" G%2d |  %02X | %08X | %08X | %08X |\n",
-			       i, tlbe->tid, tlbe->word0, tlbe->word1,
-			       tlbe->word2);
-	}
-
-	for (i = 0; i < PPC44x_TLB_SIZE; i++) {
-		tlbe = &vcpu->arch.shadow_tlb[i];
-		if (tlbe->word0 & PPC44x_TLB_VALID)
-			printk(" S%2d | %02X | %08X | %08X | %08X |\n",
-			       i, tlbe->tid, tlbe->word0, tlbe->word1,
-			       tlbe->word2);
-	}
-}
-
 /* TODO: use vcpu_printf() */
 void kvmppc_dump_vcpu(struct kvm_vcpu *vcpu)
 {
