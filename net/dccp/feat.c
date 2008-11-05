@@ -90,6 +90,20 @@ static u8 dccp_feat_type(u8 feat_num)
 	return dccp_feat_table[idx].reconciliation;
 }
 
+/* copy constructor, fval must not already contain allocated memory */
+static int dccp_feat_clone_sp_val(dccp_feat_val *fval, u8 const *val, u8 len)
+{
+	fval->sp.len = len;
+	if (fval->sp.len > 0) {
+		fval->sp.vec = kmemdup(val, len, gfp_any());
+		if (fval->sp.vec == NULL) {
+			fval->sp.len = 0;
+			return -ENOBUFS;
+		}
+	}
+	return 0;
+}
+
 static void dccp_feat_val_destructor(u8 feat_num, dccp_feat_val *val)
 {
 	if (unlikely(val == NULL))
@@ -97,6 +111,28 @@ static void dccp_feat_val_destructor(u8 feat_num, dccp_feat_val *val)
 	if (dccp_feat_type(feat_num) == FEAT_SP)
 		kfree(val->sp.vec);
 	memset(val, 0, sizeof(*val));
+}
+
+static struct dccp_feat_entry *
+	      dccp_feat_clone_entry(struct dccp_feat_entry const *original)
+{
+	struct dccp_feat_entry *new;
+	u8 type = dccp_feat_type(original->feat_num);
+
+	if (type == FEAT_UNKNOWN)
+		return NULL;
+
+	new = kmemdup(original, sizeof(struct dccp_feat_entry), gfp_any());
+	if (new == NULL)
+		return NULL;
+
+	if (type == FEAT_SP && dccp_feat_clone_sp_val(&new->val,
+						      original->val.sp.vec,
+						      original->val.sp.len)) {
+		kfree(new);
+		return NULL;
+	}
+	return new;
 }
 
 static void dccp_feat_entry_destructor(struct dccp_feat_entry *entry)
@@ -132,6 +168,25 @@ void dccp_feat_list_purge(struct list_head *fn_list)
 	INIT_LIST_HEAD(fn_list);
 }
 EXPORT_SYMBOL_GPL(dccp_feat_list_purge);
+
+/* generate @to as full clone of @from - @to must not contain any nodes */
+int dccp_feat_clone_list(struct list_head const *from, struct list_head *to)
+{
+	struct dccp_feat_entry *entry, *new;
+
+	INIT_LIST_HEAD(to);
+	list_for_each_entry(entry, from, node) {
+		new = dccp_feat_clone_entry(entry);
+		if (new == NULL)
+			goto cloning_failed;
+		list_add_tail(&new->node, to);
+	}
+	return 0;
+
+cloning_failed:
+	dccp_feat_list_purge(to);
+	return -ENOMEM;
+}
 
 int dccp_feat_change(struct dccp_minisock *dmsk, u8 type, u8 feature,
 		     u8 *val, u8 len, gfp_t gfp)

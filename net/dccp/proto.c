@@ -193,6 +193,7 @@ int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
 
 	dccp_init_xmit_timers(sk);
 
+	INIT_LIST_HEAD(&dp->dccps_featneg);
 	/*
 	 * FIXME: We're hardcoding the CCID, and doing this at this point makes
 	 * the listening (master) sock get CCID control blocks, which is not
