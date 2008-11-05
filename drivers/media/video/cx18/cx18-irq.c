@@ -29,6 +29,20 @@
 #include "cx18-mailbox.h"
 #include "cx18-vbi.h"
 #include "cx18-scb.h"
+#include "cx18-dvb.h"
+
+void cx18_work_handler(struct work_struct *work)
+{
+	struct cx18 *cx = container_of(work, struct cx18, work);
+	if (test_and_clear_bit(CX18_F_I_WORK_INITED, &cx->i_flags)) {
+		struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
+		/* This thread must use the FIFO scheduler as it
+		 * is realtime sensitive. */
+		sched_setscheduler(current, SCHED_FIFO, &param);
+	}
+	if (test_and_clear_bit(CX18_F_I_WORK_HANDLER_DVB, &cx->i_flags))
+		cx18_dvb_work_handler(cx);
+}
 
 static void epu_dma_done(struct cx18 *cx, struct cx18_mailbox *mb)
 {
@@ -65,17 +79,11 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_mailbox *mb)
 	if (buf) {
 		cx18_buf_sync_for_cpu(s, buf);
 		if (s->type == CX18_ENC_STREAM_TYPE_TS && s->dvb.enabled) {
-			/* process the buffer here */
-			CX18_DEBUG_HI_DMA("TS recv and sent bytesused=%d\n",
+			CX18_DEBUG_HI_DMA("TS recv bytesused = %d\n",
 					buf->bytesused);
 
-			dvb_dmx_swfilter(&s->dvb.demux, buf->buf,
-					buf->bytesused);
-
-			cx18_buf_sync_for_device(s, buf);
-			cx18_vapi(cx, CX18_CPU_DE_SET_MDL, 5, s->handle,
-			    (void __iomem *)&cx->scb->cpu_mdl[buf->id] - cx->enc_mem,
-			    1, buf->id, s->buf_size);
+			set_bit(CX18_F_I_WORK_HANDLER_DVB, &cx->i_flags);
+			set_bit(CX18_F_I_HAVE_WORK, &cx->i_flags);
 		} else
 			set_bit(CX18_F_B_NEED_BUF_SWAP, &buf->b_flags);
 	} else {
@@ -184,6 +192,9 @@ irqreturn_t cx18_irq_handler(int irq, void *dev_id)
 
 	if (sw1)
 		epu_cmd(cx, sw1);
+
+	if (test_and_clear_bit(CX18_F_I_HAVE_WORK, &cx->i_flags))
+		queue_work(cx->work_queue, &cx->work);
 
 	return (sw1 || sw2 || hw2) ? IRQ_HANDLED : IRQ_NONE;
 }
