@@ -114,6 +114,7 @@ enum {
 	ALC268_3ST,
 	ALC268_TOSHIBA,
 	ALC268_ACER,
+	ALC268_ACER_DMIC,
 	ALC268_ACER_ASPIRE_ONE,
 	ALC268_DELL,
 	ALC268_ZEPTO,
@@ -10714,6 +10715,22 @@ static struct snd_kcontrol_new alc268_acer_mixer[] = {
 	{ }
 };
 
+static struct snd_kcontrol_new alc268_acer_dmic_mixer[] = {
+	/* output mixer control */
+	HDA_BIND_VOL("Master Playback Volume", &alc268_acer_bind_master_vol),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Master Playback Switch",
+		.info = snd_hda_mixer_amp_switch_info,
+		.get = snd_hda_mixer_amp_switch_get,
+		.put = alc268_acer_master_sw_put,
+		.private_value = HDA_COMPOSE_AMP_VAL(0x14, 3, 0, HDA_OUTPUT),
+	},
+	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line In Boost", 0x1a, 0, HDA_INPUT),
+	{ }
+};
+
 static struct hda_verb alc268_acer_aspire_one_verbs[] = {
 	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
 	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
@@ -11042,6 +11059,15 @@ static struct hda_input_mux alc268_acer_capture_source = {
 	.num_items = 3,
 	.items = {
 		{ "Mic", 0x0 },
+		{ "Internal Mic", 0x1 },
+		{ "Line", 0x2 },
+	},
+};
+
+static struct hda_input_mux alc268_acer_dmic_capture_source = {
+	.num_items = 3,
+	.items = {
+		{ "Mic", 0x0 },
 		{ "Internal Mic", 0x6 },
 		{ "Line", 0x2 },
 	},
@@ -11322,6 +11348,7 @@ static const char *alc268_models[ALC268_MODEL_LAST] = {
 	[ALC268_3ST]		= "3stack",
 	[ALC268_TOSHIBA]	= "toshiba",
 	[ALC268_ACER]		= "acer",
+	[ALC268_ACER_DMIC]	= "acer-dmic",
 	[ALC268_ACER_ASPIRE_ONE]	= "acer-aspire",
 	[ALC268_DELL]		= "dell",
 	[ALC268_ZEPTO]		= "zepto",
@@ -11414,6 +11441,23 @@ static struct alc_config_preset alc268_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc268_modes),
 		.channel_mode = alc268_modes,
 		.input_mux = &alc268_acer_capture_source,
+		.unsol_event = alc268_acer_unsol_event,
+		.init_hook = alc268_acer_init_hook,
+	},
+	[ALC268_ACER_DMIC] = {
+		.mixers = { alc268_acer_dmic_mixer, alc268_capture_alt_mixer,
+			    alc268_beep_mixer },
+		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
+				alc268_acer_verbs },
+		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
+		.dac_nids = alc268_dac_nids,
+		.num_adc_nids = ARRAY_SIZE(alc268_adc_nids_alt),
+		.adc_nids = alc268_adc_nids_alt,
+		.capsrc_nids = alc268_capsrc_nids,
+		.hp_nid = 0x02,
+		.num_channel_mode = ARRAY_SIZE(alc268_modes),
+		.channel_mode = alc268_modes,
+		.input_mux = &alc268_acer_dmic_capture_source,
 		.unsol_event = alc268_acer_unsol_event,
 		.init_hook = alc268_acer_init_hook,
 	},

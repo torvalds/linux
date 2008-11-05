@@ -844,6 +844,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack	3-stack model
 	  toshiba	Toshiba A205
 	  acer		Acer laptops
+	  acer-dmic	Acer laptops with digital-mic
 	  acer-aspire	Acer Aspire One
 	  dell		Dell OEM laptops (Vostro 1200)
 	  zepto		Zepto laptops
