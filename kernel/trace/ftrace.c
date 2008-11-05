@@ -47,6 +47,9 @@
 int ftrace_enabled __read_mostly;
 static int last_ftrace_enabled;
 
+/* Quick disabling of function tracer. */
+int function_trace_stop;
+
 /*
  * ftrace_disabled is set when an anomaly is discovered.
  * ftrace_disabled is much stronger than ftrace_enabled.
@@ -63,6 +66,7 @@ static struct ftrace_ops ftrace_list_end __read_mostly =
 
 static struct ftrace_ops *ftrace_list __read_mostly = &ftrace_list_end;
 ftrace_func_t ftrace_trace_function __read_mostly = ftrace_stub;
+ftrace_func_t __ftrace_trace_function __read_mostly = ftrace_stub;
 
 static void ftrace_list_func(unsigned long ip, unsigned long parent_ip)
 {
@@ -88,7 +92,22 @@ static void ftrace_list_func(unsigned long ip, unsigned long parent_ip)
 void clear_ftrace_function(void)
 {
 	ftrace_trace_function = ftrace_stub;
+	__ftrace_trace_function = ftrace_stub;
 }
+
+#ifndef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
+/*
+ * For those archs that do not test ftrace_trace_stop in their
+ * mcount call site, we need to do it from C.
+ */
+static void ftrace_test_stop_func(unsigned long ip, unsigned long parent_ip)
+{
+	if (function_trace_stop)
+		return;
+
+	__ftrace_trace_function(ip, parent_ip);
+}
+#endif
 
 static int __register_ftrace_function(struct ftrace_ops *ops)
 {
@@ -110,10 +129,18 @@ static int __register_ftrace_function(struct ftrace_ops *ops)
 		 * For one func, simply call it directly.
 		 * For more than one func, call the chain.
 		 */
+#ifdef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
 		if (ops->next == &ftrace_list_end)
 			ftrace_trace_function = ops->func;
 		else
 			ftrace_trace_function = ftrace_list_func;
+#else
+		if (ops->next == &ftrace_list_end)
+			__ftrace_trace_function = ops->func;
+		else
+			__ftrace_trace_function = ftrace_list_func;
+		ftrace_trace_function = ftrace_test_stop_func;
+#endif
 	}
 
 	spin_unlock(&ftrace_lock);
@@ -526,7 +553,7 @@ static void ftrace_run_update_code(int command)
 }
 
 static ftrace_func_t saved_ftrace_func;
-static int ftrace_start;
+static int ftrace_start_up;
 static DEFINE_MUTEX(ftrace_start_lock);
 
 static void ftrace_startup(void)
@@ -537,8 +564,8 @@ static void ftrace_startup(void)
 		return;
 
 	mutex_lock(&ftrace_start_lock);
-	ftrace_start++;
-	if (ftrace_start == 1)
+	ftrace_start_up++;
+	if (ftrace_start_up == 1)
 		command |= FTRACE_ENABLE_CALLS;
 
 	if (saved_ftrace_func != ftrace_trace_function) {
@@ -562,8 +589,8 @@ static void ftrace_shutdown(void)
 		return;
 
 	mutex_lock(&ftrace_start_lock);
-	ftrace_start--;
-	if (!ftrace_start)
+	ftrace_start_up--;
+	if (!ftrace_start_up)
 		command |= FTRACE_DISABLE_CALLS;
 
 	if (saved_ftrace_func != ftrace_trace_function) {
@@ -589,8 +616,8 @@ static void ftrace_startup_sysctl(void)
 	mutex_lock(&ftrace_start_lock);
 	/* Force update next time */
 	saved_ftrace_func = NULL;
-	/* ftrace_start is true if we want ftrace running */
-	if (ftrace_start)
+	/* ftrace_start_up is true if we want ftrace running */
+	if (ftrace_start_up)
 		command |= FTRACE_ENABLE_CALLS;
 
 	ftrace_run_update_code(command);
@@ -605,8 +632,8 @@ static void ftrace_shutdown_sysctl(void)
 		return;
 
 	mutex_lock(&ftrace_start_lock);
-	/* ftrace_start is true if ftrace is running */
-	if (ftrace_start)
+	/* ftrace_start_up is true if ftrace is running */
+	if (ftrace_start_up)
 		command |= FTRACE_DISABLE_CALLS;
 
 	ftrace_run_update_code(command);
@@ -1186,7 +1213,7 @@ ftrace_regex_release(struct inode *inode, struct file *file, int enable)
 
 	mutex_lock(&ftrace_sysctl_lock);
 	mutex_lock(&ftrace_start_lock);
-	if (iter->filtered && ftrace_start && ftrace_enabled)
+	if (iter->filtered && ftrace_start_up && ftrace_enabled)
 		ftrace_run_update_code(FTRACE_ENABLE_CALLS);
 	mutex_unlock(&ftrace_start_lock);
 	mutex_unlock(&ftrace_sysctl_lock);

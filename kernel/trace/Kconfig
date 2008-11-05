@@ -9,6 +9,13 @@ config NOP_TRACER
 config HAVE_FUNCTION_TRACER
 	bool
 
+config HAVE_FUNCTION_TRACE_MCOUNT_TEST
+	bool
+	help
+	 This gets selected when the arch tests the function_trace_stop
+	 variable at the mcount call site. Otherwise, this variable
+	 is tested by the called function.
+
 config HAVE_DYNAMIC_FTRACE
 	bool
 
