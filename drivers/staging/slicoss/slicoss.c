@@ -2832,9 +2832,8 @@ static u32 slic_card_locate(struct adapter *adapter)
 	}
 	if (!physcard) {
 		/* no structure allocated for this physical card yet */
-		physcard = kmalloc(sizeof(struct physcard *), GFP_ATOMIC);
+		physcard = kzalloc(sizeof(struct physcard *), GFP_ATOMIC);
 		ASSERT(physcard);
-		memset(physcard, 0, sizeof(struct physcard *));
 
 		DBG_MSG
 		    ("\n%s Allocate a PHYSICALcard:\n    PHYSICAL_Card[%p]\n\
