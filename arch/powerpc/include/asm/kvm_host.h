@@ -74,6 +74,9 @@ struct kvmppc_44x_tlbe {
 struct kvm_arch {
 };
 
+/* XXX Can't include mmu-44x.h because it redefines struct mm_context. */
+#define PPC44x_TLB_SIZE 64
+
 struct kvm_vcpu_arch {
 	/* Unmodified copy of the guest's TLB. */
 	struct kvmppc_44x_tlbe guest_tlb[PPC44x_TLB_SIZE];

@@ -61,23 +61,6 @@ extern void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn,
 extern void kvmppc_mmu_priv_switch(struct kvm_vcpu *vcpu, int usermode);
 extern void kvmppc_mmu_switch_pid(struct kvm_vcpu *vcpu, u32 pid);
 
-/* XXX Book E specific */
-extern void kvmppc_tlbe_set_modified(struct kvm_vcpu *vcpu, unsigned int i);
-
-extern void kvmppc_check_and_deliver_interrupts(struct kvm_vcpu *vcpu);
-
-static inline void kvmppc_queue_exception(struct kvm_vcpu *vcpu, int exception)
-{
-	unsigned int priority = exception_priority[exception];
-	set_bit(priority, &vcpu->arch.pending_exceptions);
-}
-
-static inline void kvmppc_clear_exception(struct kvm_vcpu *vcpu, int exception)
-{
-	unsigned int priority = exception_priority[exception];
-	clear_bit(priority, &vcpu->arch.pending_exceptions);
-}
-
 /* Helper function for "full" MSR writes. No need to call this if only EE is
  * changing. */
 static inline void kvmppc_set_msr(struct kvm_vcpu *vcpu, u32 new_msr)
@@ -98,6 +81,23 @@ static inline void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 new_pid)
 		vcpu->arch.swap_pid = 1;
 	}
 }
+
+/* Core-specific hooks */
+
+extern int kvmppc_core_check_processor_compat(void);
+
+extern void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
+extern void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu);
+
+extern void kvmppc_core_load_guest_debugstate(struct kvm_vcpu *vcpu);
+extern void kvmppc_core_load_host_debugstate(struct kvm_vcpu *vcpu);
+
+extern void kvmppc_core_deliver_interrupts(struct kvm_vcpu *vcpu);
+extern int kvmppc_core_pending_dec(struct kvm_vcpu *vcpu);
+extern void kvmppc_core_queue_program(struct kvm_vcpu *vcpu);
+extern void kvmppc_core_queue_dec(struct kvm_vcpu *vcpu);
+extern void kvmppc_core_queue_external(struct kvm_vcpu *vcpu,
+                                       struct kvm_interrupt *irq);
 
 extern void kvmppc_core_destroy_mmu(struct kvm_vcpu *vcpu);
 

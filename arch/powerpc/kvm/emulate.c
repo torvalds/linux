@@ -139,7 +139,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	switch (get_op(inst)) {
 	case 3:                                                 /* trap */
 		printk("trap!\n");
-		kvmppc_queue_exception(vcpu, BOOKE_INTERRUPT_PROGRAM);
+		kvmppc_core_queue_program(vcpu);
 		advance = 0;
 		break;
 
