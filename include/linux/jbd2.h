@@ -687,6 +687,8 @@ jbd2_time_diff(unsigned long start, unsigned long end)
 	return end + (MAX_JIFFY_OFFSET - start);
 }
 
+#define JBD2_NR_BATCH	64
+
 /**
  * struct journal_s - The journal_s type is the concrete type associated with
  *     journal_t.
@@ -830,6 +832,14 @@ struct journal_s
 	/* Semaphore for locking against concurrent checkpoints */
 	struct mutex		j_checkpoint_mutex;
 
+	/*
+	 * List of buffer heads used by the checkpoint routine.  This
+	 * was moved from jbd2_log_do_checkpoint() to reduce stack
+	 * usage.  Access to this array is controlled by the
+	 * j_checkpoint_mutex.  [j_checkpoint_mutex]
+	 */
+	struct buffer_head	*j_chkpt_bhs[JBD2_NR_BATCH];
+	
 	/*
 	 * Journal head: identifies the first unused block in the journal.
 	 * [j_state_lock]

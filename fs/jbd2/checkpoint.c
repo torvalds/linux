@@ -249,16 +249,14 @@ restart:
 	return ret;
 }
 
-#define NR_BATCH	64
-
 static void
-__flush_batch(journal_t *journal, struct buffer_head **bhs, int *batch_count)
+__flush_batch(journal_t *journal, int *batch_count)
 {
 	int i;
 
-	ll_rw_block(SWRITE, *batch_count, bhs);
+	ll_rw_block(SWRITE, *batch_count, journal->j_chkpt_bhs);
 	for (i = 0; i < *batch_count; i++) {
-		struct buffer_head *bh = bhs[i];
+		struct buffer_head *bh = journal->j_chkpt_bhs[i];
 		clear_buffer_jwrite(bh);
 		BUFFER_TRACE(bh, "brelse");
 		__brelse(bh);
@@ -277,8 +275,7 @@ __flush_batch(journal_t *journal, struct buffer_head **bhs, int *batch_count)
  * Called under jbd_lock_bh_state(jh2bh(jh)), and drops it
  */
 static int __process_buffer(journal_t *journal, struct journal_head *jh,
-			struct buffer_head **bhs, int *batch_count,
-			transaction_t *transaction)
+			    int *batch_count, transaction_t *transaction)
 {
 	struct buffer_head *bh = jh2bh(jh);
 	int ret = 0;
@@ -325,14 +322,14 @@ static int __process_buffer(journal_t *journal, struct journal_head *jh,
 		get_bh(bh);
 		J_ASSERT_BH(bh, !buffer_jwrite(bh));
 		set_buffer_jwrite(bh);
-		bhs[*batch_count] = bh;
+		journal->j_chkpt_bhs[*batch_count] = bh;
 		__buffer_relink_io(jh);
 		jbd_unlock_bh_state(bh);
 		transaction->t_chp_stats.cs_written++;
 		(*batch_count)++;
-		if (*batch_count == NR_BATCH) {
+		if (*batch_count == JBD2_NR_BATCH) {
 			spin_unlock(&journal->j_list_lock);
-			__flush_batch(journal, bhs, batch_count);
+			__flush_batch(journal, batch_count);
 			ret = 1;
 		}
 	}
@@ -388,7 +385,6 @@ restart:
 	if (journal->j_checkpoint_transactions == transaction &&
 			transaction->t_tid == this_tid) {
 		int batch_count = 0;
-		struct buffer_head *bhs[NR_BATCH];
 		struct journal_head *jh;
 		int retry = 0, err;
 
@@ -402,7 +398,7 @@ restart:
 				retry = 1;
 				break;
 			}
-			retry = __process_buffer(journal, jh, bhs, &batch_count,
+			retry = __process_buffer(journal, jh, &batch_count,
 						 transaction);
 			if (retry < 0 && !result)
 				result = retry;
@@ -419,7 +415,7 @@ restart:
 				spin_unlock(&journal->j_list_lock);
 				retry = 1;
 			}
-			__flush_batch(journal, bhs, &batch_count);
+			__flush_batch(journal, &batch_count);
 		}
 
 		if (retry) {

@@ -1477,7 +1477,9 @@ int jbd2_journal_destroy(journal_t *journal)
 	spin_lock(&journal->j_list_lock);
 	while (journal->j_checkpoint_transactions != NULL) {
 		spin_unlock(&journal->j_list_lock);
+		mutex_lock(&journal->j_checkpoint_mutex);
 		jbd2_log_do_checkpoint(journal);
+		mutex_unlock(&journal->j_checkpoint_mutex);
 		spin_lock(&journal->j_list_lock);
 	}
 
