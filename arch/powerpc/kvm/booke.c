@@ -528,7 +528,7 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	vcpu->arch.ctr = regs->ctr;
 	vcpu->arch.lr = regs->lr;
 	vcpu->arch.xer = regs->xer;
-	vcpu->arch.msr = regs->msr;
+	kvmppc_set_msr(vcpu, regs->msr);
 	vcpu->arch.srr0 = regs->srr0;
 	vcpu->arch.srr1 = regs->srr1;
 	vcpu->arch.sprg0 = regs->sprg0;
