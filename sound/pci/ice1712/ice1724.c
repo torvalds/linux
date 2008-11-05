@@ -395,8 +395,8 @@ static irqreturn_t snd_vt1724_interrupt(int irq, void *dev_id)
 			       "status = 0x%x\n", status);
 			if (status & VT1724_IRQ_MPU_TX) {
 				printk(KERN_ERR "ice1724: Disabling MPU_TX\n");
-				outb(inb(ICEREG1724(ice, IRQMASK)) &
-				     ~VT1724_IRQ_MPU_TX,
+				outb(inb(ICEREG1724(ice, IRQMASK)) |
+				     VT1724_IRQ_MPU_TX,
 				     ICEREG1724(ice, IRQMASK));
 			}
 			break;
@@ -2413,8 +2413,8 @@ static int __devinit snd_vt1724_create(struct snd_card *card,
 		return -EIO;
 	}
 
-	/* clear interrupts -- otherwise you'll get irq problems later */
-	outb(0, ICEREG1724(ice, IRQMASK));
+	/* MPU_RX and TX irq masks are cleared later dynamically */
+	outb(VT1724_IRQ_MPU_RX | VT1724_IRQ_MPU_TX , ICEREG1724(ice, IRQMASK));
 
 	/* don't handle FIFO overrun/underruns (just yet),
 	 * since they cause machine lockups
