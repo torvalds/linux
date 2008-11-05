@@ -30,8 +30,6 @@
 #include "cx18-vbi.h"
 #include "cx18-scb.h"
 
-#define DMA_MAGIC_COOKIE 0x000001fe
-
 static void epu_dma_done(struct cx18 *cx, struct cx18_mailbox *mb)
 {
 	u32 handle = mb->args[0];
@@ -109,7 +107,7 @@ static void epu_debug(struct cx18 *cx, struct cx18_mailbox *mb)
 		CX18_INFO("FW version: %s\n", p - 1);
 }
 
-static void hpu_cmd(struct cx18 *cx, u32 sw1)
+static void epu_cmd(struct cx18 *cx, u32 sw1)
 {
 	struct cx18_mailbox mb;
 
@@ -125,12 +123,31 @@ static void hpu_cmd(struct cx18 *cx, u32 sw1)
 			epu_debug(cx, &mb);
 			break;
 		default:
-			CX18_WARN("Unexpected mailbox command %08x\n", mb.cmd);
+			CX18_WARN("Unknown CPU_TO_EPU mailbox command %#08x\n",
+				  mb.cmd);
 			break;
 		}
 	}
-	if (sw1 & (IRQ_APU_TO_EPU | IRQ_HPU_TO_EPU))
-		CX18_WARN("Unexpected interrupt %08x\n", sw1);
+
+	if (sw1 & IRQ_APU_TO_EPU) {
+		cx18_memcpy_fromio(cx, &mb, &cx->scb->apu2epu_mb, sizeof(mb));
+		CX18_WARN("Unknown APU_TO_EPU mailbox command %#08x\n", mb.cmd);
+	}
+
+	if (sw1 & IRQ_HPU_TO_EPU) {
+		cx18_memcpy_fromio(cx, &mb, &cx->scb->hpu2epu_mb, sizeof(mb));
+		CX18_WARN("Unknown HPU_TO_EPU mailbox command %#08x\n", mb.cmd);
+	}
+}
+
+static void xpu_ack(struct cx18 *cx, u32 sw2)
+{
+	if (sw2 & IRQ_CPU_TO_EPU_ACK)
+		wake_up(&cx->mb_cpu_waitq);
+	if (sw2 & IRQ_APU_TO_EPU_ACK)
+		wake_up(&cx->mb_apu_waitq);
+	if (sw2 & IRQ_HPU_TO_EPU_ACK)
+		wake_up(&cx->mb_hpu_waitq);
 }
 
 irqreturn_t cx18_irq_handler(int irq, void *dev_id)
@@ -140,11 +157,9 @@ irqreturn_t cx18_irq_handler(int irq, void *dev_id)
 	u32 sw2, sw2_mask;
 	u32 hw2, hw2_mask;
 
-	spin_lock(&cx->dma_reg_lock);
-
-	sw1_mask = cx18_read_reg(cx, SW1_INT_ENABLE_PCI) | IRQ_EPU_TO_HPU;
+	sw1_mask = cx18_read_reg(cx, SW1_INT_ENABLE_PCI);
 	sw1 = cx18_read_reg(cx, SW1_INT_STATUS) & sw1_mask;
-	sw2_mask = cx18_read_reg(cx, SW2_INT_ENABLE_PCI) | IRQ_EPU_TO_HPU_ACK;
+	sw2_mask = cx18_read_reg(cx, SW2_INT_ENABLE_PCI);
 	sw2 = cx18_read_reg(cx, SW2_INT_STATUS) & sw2_mask;
 	hw2_mask = cx18_read_reg(cx, HW2_INT_MASK5_PCI);
 	hw2 = cx18_read_reg(cx, HW2_INT_CLR_STATUS) & hw2_mask;
@@ -160,26 +175,15 @@ irqreturn_t cx18_irq_handler(int irq, void *dev_id)
 		CX18_DEBUG_HI_IRQ("SW1: %x  SW2: %x  HW2: %x\n", sw1, sw2, hw2);
 
 	/* To do: interrupt-based I2C handling
-	if (hw2 & 0x00c00000) {
+	if (hw2 & (HW2_I2C1_INT|HW2_I2C2_INT)) {
 	}
 	*/
 
-	if (sw2) {
-		if (sw2 & (cx18_readl(cx, &cx->scb->cpu2hpu_irq_ack) |
-			   cx18_readl(cx, &cx->scb->cpu2epu_irq_ack)))
-			wake_up(&cx->mb_cpu_waitq);
-		if (sw2 & (cx18_readl(cx, &cx->scb->apu2hpu_irq_ack) |
-			   cx18_readl(cx, &cx->scb->apu2epu_irq_ack)))
-			wake_up(&cx->mb_apu_waitq);
-		if (sw2 & cx18_readl(cx, &cx->scb->epu2hpu_irq_ack))
-			wake_up(&cx->mb_epu_waitq);
-		if (sw2 & cx18_readl(cx, &cx->scb->hpu2epu_irq_ack))
-			wake_up(&cx->mb_hpu_waitq);
-	}
+	if (sw2)
+		xpu_ack(cx, sw2);
 
 	if (sw1)
-		hpu_cmd(cx, sw1);
-	spin_unlock(&cx->dma_reg_lock);
+		epu_cmd(cx, sw1);
 
 	return (sw1 || sw2 || hw2) ? IRQ_HANDLED : IRQ_NONE;
 }

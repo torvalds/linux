@@ -402,8 +402,6 @@ struct cx18 {
 	spinlock_t lock;        /* lock access to this struct */
 	int search_pack_header;
 
-	spinlock_t dma_reg_lock; /* lock access to DMA engine registers */
-
 	int open_id;		/* incremented each time an open occurs, used as
 				   unique ID. Starts at 1, so 0 can be used as
 				   uninitialized value in the stream->id. */
