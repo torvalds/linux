@@ -205,6 +205,7 @@ struct ib_mr *mlx4_ib_alloc_fast_reg_mr(struct ib_pd *pd,
 		goto err_mr;
 
 	mr->ibmr.rkey = mr->ibmr.lkey = mr->mmr.key;
+	mr->umem = NULL;
 
 	return &mr->ibmr;
 
