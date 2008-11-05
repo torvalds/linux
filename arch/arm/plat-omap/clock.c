@@ -316,34 +316,6 @@ void clk_unregister(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_unregister);
 
-void clk_deny_idle(struct clk *clk)
-{
-	unsigned long flags;
-
-	if (clk == NULL || IS_ERR(clk))
-		return;
-
-	spin_lock_irqsave(&clockfw_lock, flags);
-	if (arch_clock->clk_deny_idle)
-		arch_clock->clk_deny_idle(clk);
-	spin_unlock_irqrestore(&clockfw_lock, flags);
-}
-EXPORT_SYMBOL(clk_deny_idle);
-
-void clk_allow_idle(struct clk *clk)
-{
-	unsigned long flags;
-
-	if (clk == NULL || IS_ERR(clk))
-		return;
-
-	spin_lock_irqsave(&clockfw_lock, flags);
-	if (arch_clock->clk_allow_idle)
-		arch_clock->clk_allow_idle(clk);
-	spin_unlock_irqrestore(&clockfw_lock, flags);
-}
-EXPORT_SYMBOL(clk_allow_idle);
-
 void clk_enable_init_clocks(void)
 {
 	struct clk *clkp;

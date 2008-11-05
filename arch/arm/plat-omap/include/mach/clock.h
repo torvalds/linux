@@ -119,8 +119,6 @@ extern void clk_unregister(struct clk *clk);
 extern void propagate_rate(struct clk *clk);
 extern void recalculate_root_clocks(void);
 extern void followparent_recalc(struct clk * clk);
-extern void clk_allow_idle(struct clk *clk);
-extern void clk_deny_idle(struct clk *clk);
 extern int clk_get_usecount(struct clk *clk);
 extern void clk_enable_init_clocks(void);
 
