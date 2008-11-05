@@ -4395,7 +4395,7 @@ static int selinux_nlmsg_perm(struct sock *sk, struct sk_buff *skb)
 				  "SELinux:  unrecognized netlink message"
 				  " type=%hu for sclass=%hu\n",
 				  nlh->nlmsg_type, isec->sclass);
-			if (!selinux_enforcing)
+			if (!selinux_enforcing || security_get_allow_unknown())
 				err = 0;
 		}
 
