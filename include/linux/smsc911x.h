@@ -28,6 +28,7 @@
 struct smsc911x_platform_config {
 	unsigned int irq_polarity;
 	unsigned int irq_type;
+	unsigned int flags;
 	phy_interface_t phy_interface;
 };
 
@@ -38,5 +39,9 @@ struct smsc911x_platform_config {
 /* Constants for platform_device irq type configuration */
 #define SMSC911X_IRQ_TYPE_OPEN_DRAIN		0
 #define SMSC911X_IRQ_TYPE_PUSH_PULL		1
+
+/* Constants for flags */
+#define SMSC911X_USE_16BIT 			(BIT(0))
+#define SMSC911X_USE_32BIT 			(BIT(1))
 
 #endif /* __LINUX_SMSC911X_H__ */

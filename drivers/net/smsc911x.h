@@ -21,7 +21,6 @@
 #ifndef __SMSC911X_H__
 #define __SMSC911X_H__
 
-#define SMSC_CAN_USE_32BIT	1
 #define TX_FIFO_LOW_THRESHOLD	((u32)1600)
 #define SMSC911X_EEPROM_SIZE	((u32)7)
 #define USE_DEBUG		0
