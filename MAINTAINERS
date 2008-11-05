@@ -3853,6 +3853,12 @@ M:	mhoffman@lightlink.com
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
+SMSC911x ETHERNET DRIVER
+P:	Steve Glendinning
+M:	steve.glendinning@smsc.com
+L:	netdev@vger.kernel.org
+S:	Supported
+
 SMX UIO Interface
 P:	Ben Nizette
 M:	bn@niasdigital.com
