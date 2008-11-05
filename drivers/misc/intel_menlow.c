@@ -52,6 +52,11 @@ MODULE_LICENSE("GPL");
 #define MEMORY_ARG_CUR_BANDWIDTH 1
 #define MEMORY_ARG_MAX_BANDWIDTH 0
 
+/*
+ * GTHS returning 'n' would mean that [0,n-1] states are supported
+ * In that case max_cstate would be n-1
+ * GTHS returning '0' would mean that no bandwidth control states are supported
+ */
 static int memory_get_int_max_bandwidth(struct thermal_cooling_device *cdev,
 					unsigned long *max_state)
 {
