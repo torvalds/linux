@@ -74,8 +74,8 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	int advance = 1;
 
 	switch (get_op(inst)) {
-	case 3:                                                 /* trap */
-		printk("trap!\n");
+	case 3:                                             /* trap */
+		vcpu->arch.esr |= ESR_PTR;
 		kvmppc_core_queue_program(vcpu);
 		advance = 0;
 		break;
