@@ -262,6 +262,12 @@ out:
 	atomic_dec(&wakeup_trace->data[cpu]->disabled);
 }
 
+/*
+ * save_tracer_enabled is used to save the state of the tracer_enabled
+ * variable when we disable it when we open a trace output file.
+ */
+static int save_tracer_enabled;
+
 static void start_wakeup_tracer(struct trace_array *tr)
 {
 	int ret;
@@ -300,7 +306,13 @@ static void start_wakeup_tracer(struct trace_array *tr)
 
 	register_ftrace_function(&trace_ops);
 
-	tracer_enabled = 1;
+	if (tracing_is_enabled()) {
+		tracer_enabled = 1;
+		save_tracer_enabled = 1;
+	} else {
+		tracer_enabled = 0;
+		save_tracer_enabled = 0;
+	}
 
 	return;
 fail_deprobe_wake_new:
@@ -312,6 +324,7 @@ fail_deprobe:
 static void stop_wakeup_tracer(struct trace_array *tr)
 {
 	tracer_enabled = 0;
+	save_tracer_enabled = 0;
 	unregister_ftrace_function(&trace_ops);
 	unregister_trace_sched_switch(probe_wakeup_sched_switch);
 	unregister_trace_sched_wakeup_new(probe_wakeup);
@@ -343,18 +356,32 @@ static void wakeup_tracer_ctrl_update(struct trace_array *tr)
 		stop_wakeup_tracer(tr);
 }
 
+static void wakeup_tracer_start(struct trace_array *tr)
+{
+	wakeup_reset(tr);
+	tracer_enabled = 1;
+	save_tracer_enabled = 1;
+}
+
+static void wakeup_tracer_stop(struct trace_array *tr)
+{
+	tracer_enabled = 0;
+	save_tracer_enabled = 0;
+}
+
 static void wakeup_tracer_open(struct trace_iterator *iter)
 {
 	/* stop the trace while dumping */
-	if (iter->tr->ctrl)
-		stop_wakeup_tracer(iter->tr);
+	tracer_enabled = 0;
 }
 
 static void wakeup_tracer_close(struct trace_iterator *iter)
 {
 	/* forget about any processes we were recording */
-	if (iter->tr->ctrl)
-		start_wakeup_tracer(iter->tr);
+	if (save_tracer_enabled) {
+		wakeup_reset(iter->tr);
+		tracer_enabled = 1;
+	}
 }
 
 static struct tracer wakeup_tracer __read_mostly =
@@ -362,6 +389,8 @@ static struct tracer wakeup_tracer __read_mostly =
 	.name		= "wakeup",
 	.init		= wakeup_tracer_init,
 	.reset		= wakeup_tracer_reset,
+	.start		= wakeup_tracer_start,
+	.stop		= wakeup_tracer_stop,
 	.open		= wakeup_tracer_open,
 	.close		= wakeup_tracer_close,
 	.ctrl_update	= wakeup_tracer_ctrl_update,

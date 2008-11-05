@@ -150,6 +150,19 @@ static DEFINE_PER_CPU(struct trace_array_cpu, max_data);
 /* tracer_enabled is used to toggle activation of a tracer */
 static int			tracer_enabled = 1;
 
+/**
+ * tracing_is_enabled - return tracer_enabled status
+ *
+ * This function is used by other tracers to know the status
+ * of the tracer_enabled flag.  Tracers may use this function
+ * to know if it should enable their features when starting
+ * up. See irqsoff tracer for an example (start_irqsoff_tracer).
+ */
+int tracing_is_enabled(void)
+{
+	return tracer_enabled;
+}
+
 /* function tracing enabled */
 int				ftrace_function_enabled;
 
@@ -1041,8 +1054,7 @@ void tracing_start_function_trace(void)
 		trace_ops.func = function_trace_call;
 
 	register_ftrace_function(&trace_ops);
-	if (tracer_enabled)
-		ftrace_function_enabled = 1;
+	ftrace_function_enabled = 1;
 }
 
 void tracing_stop_function_trace(void)
@@ -1189,10 +1201,6 @@ static void *s_start(struct seq_file *m, loff_t *pos)
 
 	atomic_inc(&trace_record_cmdline_disabled);
 
-	/* let the tracer grab locks here if needed */
-	if (current_trace->start)
-		current_trace->start(iter);
-
 	if (*pos != iter->pos) {
 		iter->ent = NULL;
 		iter->cpu = 0;
@@ -1219,14 +1227,7 @@ static void *s_start(struct seq_file *m, loff_t *pos)
 
 static void s_stop(struct seq_file *m, void *p)
 {
-	struct trace_iterator *iter = m->private;
-
 	atomic_dec(&trace_record_cmdline_disabled);
-
-	/* let the tracer release locks here if needed */
-	if (current_trace && current_trace == iter->trace && iter->trace->stop)
-		iter->trace->stop(iter);
-
 	mutex_unlock(&trace_types_lock);
 }
 
@@ -2056,10 +2057,7 @@ __tracing_open(struct inode *inode, struct file *file, int *ret)
 	m->private = iter;
 
 	/* stop the trace while dumping */
-	if (iter->tr->ctrl) {
-		tracer_enabled = 0;
-		ftrace_function_enabled = 0;
-	}
+	tracing_stop();
 
 	if (iter->trace && iter->trace->open)
 			iter->trace->open(iter);
@@ -2104,14 +2102,7 @@ int tracing_release(struct inode *inode, struct file *file)
 		iter->trace->close(iter);
 
 	/* reenable tracing if it was previously enabled */
-	if (iter->tr->ctrl) {
-		tracer_enabled = 1;
-		/*
-		 * It is safe to enable function tracing even if it
-		 * isn't used
-		 */
-		ftrace_function_enabled = 1;
-	}
+	tracing_start();
 	mutex_unlock(&trace_types_lock);
 
 	seq_release(inode, file);
@@ -2449,11 +2440,10 @@ static ssize_t
 tracing_ctrl_read(struct file *filp, char __user *ubuf,
 		  size_t cnt, loff_t *ppos)
 {
-	struct trace_array *tr = filp->private_data;
 	char buf[64];
 	int r;
 
-	r = sprintf(buf, "%ld\n", tr->ctrl);
+	r = sprintf(buf, "%u\n", tracer_enabled);
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 
@@ -2481,16 +2471,18 @@ tracing_ctrl_write(struct file *filp, const char __user *ubuf,
 	val = !!val;
 
 	mutex_lock(&trace_types_lock);
-	if (tr->ctrl ^ val) {
-		if (val)
+	if (tracer_enabled ^ val) {
+		if (val) {
 			tracer_enabled = 1;
-		else
+			if (current_trace->start)
+				current_trace->start(tr);
+			tracing_start();
+		} else {
 			tracer_enabled = 0;
-
-		tr->ctrl = val;
-
-		if (current_trace && current_trace->ctrl_update)
-			current_trace->ctrl_update(tr);
+			tracing_stop();
+			if (current_trace->stop)
+				current_trace->stop(tr);
+		}
 	}
 	mutex_unlock(&trace_types_lock);
 
@@ -3372,7 +3364,7 @@ __init static int tracer_alloc_buffers(void)
 #endif
 
 	/* All seems OK, enable tracing */
-	global_trace.ctrl = tracer_enabled;
+	global_trace.ctrl = 1;
 	tracing_disabled = 0;
 
 	atomic_notifier_chain_register(&panic_notifier_list,

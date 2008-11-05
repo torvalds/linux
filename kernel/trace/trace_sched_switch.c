@@ -186,11 +186,24 @@ static void sched_switch_trace_ctrl_update(struct trace_array *tr)
 		stop_sched_trace(tr);
 }
 
+static void sched_switch_trace_start(struct trace_array *tr)
+{
+	sched_switch_reset(tr);
+	tracing_start_sched_switch();
+}
+
+static void sched_switch_trace_stop(struct trace_array *tr)
+{
+	tracing_stop_sched_switch();
+}
+
 struct tracer sched_switch_trace __read_mostly =
 {
 	.name		= "sched_switch",
 	.init		= sched_switch_trace_init,
 	.reset		= sched_switch_trace_reset,
+	.start		= sched_switch_trace_start,
+	.stop		= sched_switch_trace_stop,
 	.ctrl_update	= sched_switch_trace_ctrl_update,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_sched_switch,

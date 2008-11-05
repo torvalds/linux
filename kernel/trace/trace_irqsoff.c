@@ -353,15 +353,28 @@ void trace_preempt_off(unsigned long a0, unsigned long a1)
 }
 #endif /* CONFIG_PREEMPT_TRACER */
 
+/*
+ * save_tracer_enabled is used to save the state of the tracer_enabled
+ * variable when we disable it when we open a trace output file.
+ */
+static int save_tracer_enabled;
+
 static void start_irqsoff_tracer(struct trace_array *tr)
 {
 	register_ftrace_function(&trace_ops);
-	tracer_enabled = 1;
+	if (tracing_is_enabled()) {
+		tracer_enabled = 1;
+		save_tracer_enabled = 1;
+	} else {
+		tracer_enabled = 0;
+		save_tracer_enabled = 0;
+	}
 }
 
 static void stop_irqsoff_tracer(struct trace_array *tr)
 {
 	tracer_enabled = 0;
+	save_tracer_enabled = 0;
 	unregister_ftrace_function(&trace_ops);
 }
 
@@ -389,17 +402,29 @@ static void irqsoff_tracer_ctrl_update(struct trace_array *tr)
 		stop_irqsoff_tracer(tr);
 }
 
+static void irqsoff_tracer_start(struct trace_array *tr)
+{
+	irqsoff_tracer_reset(tr);
+	tracer_enabled = 1;
+	save_tracer_enabled = 1;
+}
+
+static void irqsoff_tracer_stop(struct trace_array *tr)
+{
+	tracer_enabled = 0;
+	save_tracer_enabled = 0;
+}
+
 static void irqsoff_tracer_open(struct trace_iterator *iter)
 {
 	/* stop the trace while dumping */
-	if (iter->tr->ctrl)
-		stop_irqsoff_tracer(iter->tr);
+	tracer_enabled = 0;
 }
 
 static void irqsoff_tracer_close(struct trace_iterator *iter)
 {
-	if (iter->tr->ctrl)
-		start_irqsoff_tracer(iter->tr);
+	/* restart tracing */
+	tracer_enabled = save_tracer_enabled;
 }
 
 #ifdef CONFIG_IRQSOFF_TRACER
@@ -414,6 +439,8 @@ static struct tracer irqsoff_tracer __read_mostly =
 	.name		= "irqsoff",
 	.init		= irqsoff_tracer_init,
 	.reset		= irqsoff_tracer_reset,
+	.start		= irqsoff_tracer_start,
+	.stop		= irqsoff_tracer_stop,
 	.open		= irqsoff_tracer_open,
 	.close		= irqsoff_tracer_close,
 	.ctrl_update	= irqsoff_tracer_ctrl_update,
@@ -440,6 +467,8 @@ static struct tracer preemptoff_tracer __read_mostly =
 	.name		= "preemptoff",
 	.init		= preemptoff_tracer_init,
 	.reset		= irqsoff_tracer_reset,
+	.start		= irqsoff_tracer_start,
+	.stop		= irqsoff_tracer_stop,
 	.open		= irqsoff_tracer_open,
 	.close		= irqsoff_tracer_close,
 	.ctrl_update	= irqsoff_tracer_ctrl_update,
@@ -468,6 +497,8 @@ static struct tracer preemptirqsoff_tracer __read_mostly =
 	.name		= "preemptirqsoff",
 	.init		= preemptirqsoff_tracer_init,
 	.reset		= irqsoff_tracer_reset,
+	.start		= irqsoff_tracer_start,
+	.stop		= irqsoff_tracer_stop,
 	.open		= irqsoff_tracer_open,
 	.close		= irqsoff_tracer_close,
 	.ctrl_update	= irqsoff_tracer_ctrl_update,

@@ -237,11 +237,11 @@ struct tracer {
 	const char		*name;
 	void			(*init)(struct trace_array *tr);
 	void			(*reset)(struct trace_array *tr);
+	void			(*start)(struct trace_array *tr);
+	void			(*stop)(struct trace_array *tr);
 	void			(*open)(struct trace_iterator *iter);
 	void			(*pipe_open)(struct trace_iterator *iter);
 	void			(*close)(struct trace_iterator *iter);
-	void			(*start)(struct trace_iterator *iter);
-	void			(*stop)(struct trace_iterator *iter);
 	ssize_t			(*read)(struct trace_iterator *iter,
 					struct file *filp, char __user *ubuf,
 					size_t cnt, loff_t *ppos);
@@ -282,6 +282,7 @@ struct trace_iterator {
 	long			idx;
 };
 
+int tracing_is_enabled(void);
 void trace_wake_up(void);
 void tracing_reset(struct trace_array *tr, int cpu);
 int tracing_open_generic(struct inode *inode, struct file *filp);
