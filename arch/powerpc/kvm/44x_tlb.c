@@ -301,7 +301,7 @@ static int tlbe_is_host_safe(const struct kvm_vcpu *vcpu,
 	return 1;
 }
 
-int kvmppc_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws)
+int kvmppc_44x_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws)
 {
 	u64 eaddr;
 	u64 raddr;
@@ -363,7 +363,7 @@ int kvmppc_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws)
 	return EMULATE_DONE;
 }
 
-int kvmppc_emul_tlbsx(struct kvm_vcpu *vcpu, u8 rt, u8 ra, u8 rb, u8 rc)
+int kvmppc_44x_emul_tlbsx(struct kvm_vcpu *vcpu, u8 rt, u8 ra, u8 rb, u8 rc)
 {
 	u32 ea;
 	int index;

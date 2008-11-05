@@ -31,6 +31,10 @@ extern struct kvmppc_44x_tlbe *kvmppc_44x_itlb_search(struct kvm_vcpu *vcpu,
                                                       gva_t eaddr);
 extern void kvmppc_tlbe_set_modified(struct kvm_vcpu *vcpu, unsigned int i);
 
+extern int kvmppc_44x_emul_tlbsx(struct kvm_vcpu *vcpu, u8 rt, u8 ra, u8 rb,
+                                 u8 rc);
+extern int kvmppc_44x_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws);
+
 /* TLB helper functions */
 static inline unsigned int get_tlb_size(const struct kvmppc_44x_tlbe *tlbe)
 {

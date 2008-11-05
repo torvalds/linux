@@ -29,6 +29,7 @@
 #include <asm/kvm_ppc.h>
 #include <asm/cacheflush.h>
 
+#include "booke.h"
 #include "44x_tlb.h"
 
 unsigned long kvmppc_booke_handlers;

@@ -53,34 +53,12 @@ extern int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
 extern int kvmppc_emulate_instruction(struct kvm_run *run,
                                       struct kvm_vcpu *vcpu);
 extern int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu);
-extern int kvmppc_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws);
-extern int kvmppc_emul_tlbsx(struct kvm_vcpu *vcpu, u8 rt, u8 ra, u8 rb, u8 rc);
+extern void kvmppc_emulate_dec(struct kvm_vcpu *vcpu);
 
 extern void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn,
                            u64 asid, u32 flags);
 extern void kvmppc_mmu_priv_switch(struct kvm_vcpu *vcpu, int usermode);
 extern void kvmppc_mmu_switch_pid(struct kvm_vcpu *vcpu, u32 pid);
-
-/* Helper function for "full" MSR writes. No need to call this if only EE is
- * changing. */
-static inline void kvmppc_set_msr(struct kvm_vcpu *vcpu, u32 new_msr)
-{
-	if ((new_msr & MSR_PR) != (vcpu->arch.msr & MSR_PR))
-		kvmppc_mmu_priv_switch(vcpu, new_msr & MSR_PR);
-
-	vcpu->arch.msr = new_msr;
-
-	if (vcpu->arch.msr & MSR_WE)
-		kvm_vcpu_block(vcpu);
-}
-
-static inline void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 new_pid)
-{
-	if (vcpu->arch.pid != new_pid) {
-		vcpu->arch.pid = new_pid;
-		vcpu->arch.swap_pid = 1;
-	}
-}
 
 /* Core-specific hooks */
 
@@ -98,6 +76,11 @@ extern void kvmppc_core_queue_program(struct kvm_vcpu *vcpu);
 extern void kvmppc_core_queue_dec(struct kvm_vcpu *vcpu);
 extern void kvmppc_core_queue_external(struct kvm_vcpu *vcpu,
                                        struct kvm_interrupt *irq);
+
+extern int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
+                                  unsigned int op, int *advance);
+extern int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs);
+extern int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt);
 
 extern void kvmppc_core_destroy_mmu(struct kvm_vcpu *vcpu);
 

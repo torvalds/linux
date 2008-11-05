@@ -13,5 +13,10 @@ obj-$(CONFIG_KVM) += kvm.o
 
 AFLAGS_booke_interrupts.o := -I$(obj)
 
-kvm-440-objs := booke.o booke_interrupts.o 44x.o 44x_tlb.o
+kvm-440-objs := \
+	booke.o \
+	booke_interrupts.o \
+	44x.o \
+	44x_tlb.o \
+	44x_emulate.o
 obj-$(CONFIG_KVM_440) += kvm-440.o
