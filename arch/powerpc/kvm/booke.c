@@ -222,7 +222,7 @@ void kvmppc_core_deliver_interrupts(struct kvm_vcpu *vcpu)
 	unsigned int exception;
 	unsigned int priority;
 
-	priority = find_first_bit(pending, BITS_PER_BYTE * sizeof(*pending));
+	priority = __ffs(*pending);
 	while (priority <= BOOKE_MAX_INTERRUPT) {
 		exception = priority_exception[priority];
 		if (kvmppc_can_deliver_interrupt(vcpu, exception)) {
