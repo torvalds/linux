@@ -722,8 +722,14 @@ long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	struct backing_dev_info *bdi;
 	loff_t size;
 
+	/*
+	 * O_NDELAY can be altered using fcntl(.., F_SETFL, ..), so we have
+	 * to updated it before every ioctl.
+	 */
 	if (file->f_flags & O_NDELAY)
-		mode |= FMODE_NDELAY_NOW;
+		mode |= FMODE_NDELAY;
+	else
+		mode &= ~FMODE_NDELAY;
 
 	switch (cmd) {
 	case HDIO_GETGEO:
