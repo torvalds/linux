@@ -277,7 +277,7 @@ static inline void __raw_read_unlock(raw_rwlock_t *rw)
 	bne-		1b"
 	: "=&r"(tmp)
 	: "r"(&rw->lock)
-	: "cr0", "memory");
+	: "cr0", "xer", "memory");
 }
 
 static inline void __raw_write_unlock(raw_rwlock_t *rw)

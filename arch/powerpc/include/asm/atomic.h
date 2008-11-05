@@ -111,7 +111,7 @@ static __inline__ void atomic_inc(atomic_t *v)
 	bne-	1b"
 	: "=&r" (t), "+m" (v->counter)
 	: "r" (&v->counter)
-	: "cc");
+	: "cc", "xer");
 }
 
 static __inline__ int atomic_inc_return(atomic_t *v)
@@ -128,7 +128,7 @@ static __inline__ int atomic_inc_return(atomic_t *v)
 	ISYNC_ON_SMP
 	: "=&r" (t)
 	: "r" (&v->counter)
-	: "cc", "memory");
+	: "cc", "xer", "memory");
 
 	return t;
 }
@@ -155,7 +155,7 @@ static __inline__ void atomic_dec(atomic_t *v)
 	bne-	1b"
 	: "=&r" (t), "+m" (v->counter)
 	: "r" (&v->counter)
-	: "cc");
+	: "cc", "xer");
 }
 
 static __inline__ int atomic_dec_return(atomic_t *v)
@@ -172,7 +172,7 @@ static __inline__ int atomic_dec_return(atomic_t *v)
 	ISYNC_ON_SMP
 	: "=&r" (t)
 	: "r" (&v->counter)
-	: "cc", "memory");
+	: "cc", "xer", "memory");
 
 	return t;
 }
@@ -346,7 +346,7 @@ static __inline__ void atomic64_inc(atomic64_t *v)
 	bne-	1b"
 	: "=&r" (t), "+m" (v->counter)
 	: "r" (&v->counter)
-	: "cc");
+	: "cc", "xer");
 }
 
 static __inline__ long atomic64_inc_return(atomic64_t *v)
@@ -362,7 +362,7 @@ static __inline__ long atomic64_inc_return(atomic64_t *v)
 	ISYNC_ON_SMP
 	: "=&r" (t)
 	: "r" (&v->counter)
-	: "cc", "memory");
+	: "cc", "xer", "memory");
 
 	return t;
 }
@@ -388,7 +388,7 @@ static __inline__ void atomic64_dec(atomic64_t *v)
 	bne-	1b"
 	: "=&r" (t), "+m" (v->counter)
 	: "r" (&v->counter)
-	: "cc");
+	: "cc", "xer");
 }
 
 static __inline__ long atomic64_dec_return(atomic64_t *v)
@@ -404,7 +404,7 @@ static __inline__ long atomic64_dec_return(atomic64_t *v)
 	ISYNC_ON_SMP
 	: "=&r" (t)
 	: "r" (&v->counter)
-	: "cc", "memory");
+	: "cc", "xer", "memory");
 
 	return t;
 }
@@ -431,7 +431,7 @@ static __inline__ long atomic64_dec_if_positive(atomic64_t *v)
 	"\n\
 2:"	: "=&r" (t)
 	: "r" (&v->counter)
-	: "cc", "memory");
+	: "cc", "xer", "memory");
 
 	return t;
 }
