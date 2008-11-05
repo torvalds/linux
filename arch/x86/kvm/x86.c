@@ -1246,6 +1246,7 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		int t, times = entry->eax & 0xff;
 
 		entry->flags |= KVM_CPUID_FLAG_STATEFUL_FUNC;
+		entry->flags |= KVM_CPUID_FLAG_STATE_READ_NEXT;
 		for (t = 1; t < times && *nent < maxnent; ++t) {
 			do_cpuid_1_ent(&entry[t], function, 0);
 			entry[t].flags |= KVM_CPUID_FLAG_STATEFUL_FUNC;
@@ -2801,7 +2802,7 @@ static int move_to_next_stateful_cpuid_entry(struct kvm_vcpu *vcpu, int i)
 
 	e->flags &= ~KVM_CPUID_FLAG_STATE_READ_NEXT;
 	/* when no next entry is found, the current entry[i] is reselected */
-	for (j = i + 1; j == i; j = (j + 1) % nent) {
+	for (j = i + 1; ; j = (j + 1) % nent) {
 		struct kvm_cpuid_entry2 *ej = &vcpu->arch.cpuid_entries[j];
 		if (ej->function == e->function) {
 			ej->flags |= KVM_CPUID_FLAG_STATE_READ_NEXT;
