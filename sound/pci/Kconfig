@@ -574,6 +574,14 @@ config SND_HDA_CODEC_NVHDMI
 	  Say Y here to include NVIDIA HDMI HD-audio codec support in
 	  snd-hda-intel driver, such as NVIDIA MCP78 HDMI.
 
+config SND_HDA_CODEC_INTELHDMI
+	bool "Build INTEL HDMI HD-audio codec support"
+	depends on SND_HDA_INTEL
+	default y
+	help
+	  Say Y here to include INTEL HDMI HD-audio codec support in
+	  snd-hda-intel driver, such as Eaglelake integrated HDMI.
+
 config SND_HDA_CODEC_CONEXANT
 	bool "Build Conexant HD-audio codec support"
 	depends on SND_HDA_INTEL
