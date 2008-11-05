@@ -43,6 +43,15 @@
 unsigned long __read_mostly	tracing_max_latency = (cycle_t)ULONG_MAX;
 unsigned long __read_mostly	tracing_thresh;
 
+
+/*
+ * Kill all tracing for good (never come back).
+ * It is initialized to 1 but will turn to zero if the initialization
+ * of the tracer is successful. But that is the only place that sets
+ * this back to zero.
+ */
+int tracing_disabled = 1;
+
 static DEFINE_PER_CPU(local_t, ftrace_cpu_disabled);
 
 static inline void ftrace_disable_cpu(void)
@@ -61,8 +70,6 @@ static cpumask_t __read_mostly		tracing_buffer_mask;
 
 #define for_each_tracing_cpu(cpu)	\
 	for_each_cpu_mask(cpu, tracing_buffer_mask)
-
-static int tracing_disabled = 1;
 
 /*
  * ftrace_dump_on_oops - variable to dump ftrace buffer on oops
@@ -611,6 +618,76 @@ static void trace_init_cmdlines(void)
 	memset(&map_pid_to_cmdline, -1, sizeof(map_pid_to_cmdline));
 	memset(&map_cmdline_to_pid, -1, sizeof(map_cmdline_to_pid));
 	cmdline_idx = 0;
+}
+
+static int trace_stop_count;
+static DEFINE_SPINLOCK(tracing_start_lock);
+
+/**
+ * tracing_start - quick start of the tracer
+ *
+ * If tracing is enabled but was stopped by tracing_stop,
+ * this will start the tracer back up.
+ */
+void tracing_start(void)
+{
+	struct ring_buffer *buffer;
+	unsigned long flags;
+
+	if (tracing_disabled)
+		return;
+
+	spin_lock_irqsave(&tracing_start_lock, flags);
+	if (--trace_stop_count)
+		goto out;
+
+	if (trace_stop_count < 0) {
+		/* Someone screwed up their debugging */
+		WARN_ON_ONCE(1);
+		trace_stop_count = 0;
+		goto out;
+	}
+
+
+	buffer = global_trace.buffer;
+	if (buffer)
+		ring_buffer_record_enable(buffer);
+
+	buffer = max_tr.buffer;
+	if (buffer)
+		ring_buffer_record_enable(buffer);
+
+	ftrace_start();
+ out:
+	spin_unlock_irqrestore(&tracing_start_lock, flags);
+}
+
+/**
+ * tracing_stop - quick stop of the tracer
+ *
+ * Light weight way to stop tracing. Use in conjunction with
+ * tracing_start.
+ */
+void tracing_stop(void)
+{
+	struct ring_buffer *buffer;
+	unsigned long flags;
+
+	ftrace_stop();
+	spin_lock_irqsave(&tracing_start_lock, flags);
+	if (trace_stop_count++)
+		goto out;
+
+	buffer = global_trace.buffer;
+	if (buffer)
+		ring_buffer_record_disable(buffer);
+
+	buffer = max_tr.buffer;
+	if (buffer)
+		ring_buffer_record_disable(buffer);
+
+ out:
+	spin_unlock_irqrestore(&tracing_start_lock, flags);
 }
 
 void trace_stop_cmdline_recording(void);
