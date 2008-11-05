@@ -324,14 +324,6 @@ config ACPI_DEBUG_FUNC_TRACE
 	  ACPI Debug Statements slow down ACPI processing. Function trace
 	  is about half of the penalty and is rarely useful.
 
-config ACPI_EC
-	bool
-	default y
-	help
-	  This driver is required on some systems for the proper operation of
-	  the battery and thermal drivers.  If you are compiling for a 
-	  mobile system, say Y.
-
 config ACPI_PCI_SLOT
 	tristate "PCI slot detection driver"
 	default n

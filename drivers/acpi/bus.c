@@ -774,7 +774,7 @@ static int __init acpi_bus_init(void)
 		       "Unable to initialize ACPI OS objects\n");
 		goto error1;
 	}
-#ifdef CONFIG_ACPI_EC
+
 	/*
 	 * ACPI 2.0 requires the EC driver to be loaded and work before
 	 * the EC device is found in the namespace (i.e. before acpi_initialize_objects()
@@ -785,7 +785,6 @@ static int __init acpi_bus_init(void)
 	 */
 	status = acpi_ec_ecdt_probe();
 	/* Ignore result. Not having an ECDT is not fatal. */
-#endif
 
 	status = acpi_initialize_objects(ACPI_FULL_INITIALIZATION);
 	if (ACPI_FAILURE(status)) {

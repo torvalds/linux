@@ -230,7 +230,7 @@ config HP_WMI
 config MSI_LAPTOP
         tristate "MSI Laptop Extras"
         depends on X86
-        depends on ACPI_EC
+        depends on ACPI
         depends on BACKLIGHT_CLASS_DEVICE
         ---help---
 	  This is a driver for laptops built by MSI (MICRO-STAR
@@ -260,7 +260,7 @@ config PANASONIC_LAPTOP
 config COMPAL_LAPTOP
 	tristate "Compal Laptop Extras"
 	depends on X86
-	depends on ACPI_EC
+	depends on ACPI
 	depends on BACKLIGHT_CLASS_DEVICE
 	---help---
 	  This is a driver for laptops built by Compal:

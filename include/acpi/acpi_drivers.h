@@ -97,10 +97,8 @@ extern int acpi_power_nocheck;
 /* --------------------------------------------------------------------------
                                   Embedded Controller
    -------------------------------------------------------------------------- */
-#ifdef CONFIG_ACPI_EC
 int acpi_ec_ecdt_probe(void);
 int acpi_boot_ec_enable(void);
-#endif
 
 /* --------------------------------------------------------------------------
                                     Processor

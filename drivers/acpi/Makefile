@@ -39,7 +39,7 @@ obj-y				+= sleep/
 obj-y				+= bus.o glue.o
 obj-y				+= scan.o
 # Keep EC driver first. Initialization of others depend on it.
-obj-$(CONFIG_ACPI_EC)		+= ec.o
+obj-y				+= ec.o
 obj-$(CONFIG_ACPI_AC) 		+= ac.o
 obj-$(CONFIG_ACPI_BATTERY)	+= battery.o
 obj-$(CONFIG_ACPI_BUTTON)	+= button.o
