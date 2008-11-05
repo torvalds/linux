@@ -20,7 +20,7 @@ config KVM
 	select PREEMPT_NOTIFIERS
 	select ANON_INODES
 	# We can only run on Book E hosts so far
-	select KVM_BOOKE_HOST
+	select KVM_BOOKE
 	---help---
 	  Support hosting virtualized guest machines. You will also
 	  need to select one or more of the processor modules below.
@@ -30,8 +30,8 @@ config KVM
 
 	  If unsure, say N.
 
-config KVM_BOOKE_HOST
-	bool "KVM host support for Book E PowerPC processors"
+config KVM_BOOKE
+	bool "KVM support for Book E PowerPC processors"
 	depends on KVM && 44x
 	---help---
 	  Provides host support for KVM on Book E PowerPC processors. Currently
