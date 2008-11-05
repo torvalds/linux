@@ -1276,7 +1276,7 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
 		/* read more entries until level_type is zero */
 		for (i = 1; *nent < maxnent; ++i) {
-			level_type = entry[i - 1].ecx & 0xff;
+			level_type = entry[i - 1].ecx & 0xff00;
 			if (!level_type)
 				break;
 			do_cpuid_1_ent(&entry[i], function, i);
