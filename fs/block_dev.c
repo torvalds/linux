@@ -1135,12 +1135,15 @@ static int blkdev_open(struct inode * inode, struct file * filp)
 	if (res)
 		return res;
 
-	if (!(filp->f_mode & FMODE_EXCL))
-		return 0;
+	if (filp->f_mode & FMODE_EXCL) {
+		res = bd_claim(bdev, filp);
+		if (res)
+			goto out_blkdev_put;
+	}
 
-	if (!(res = bd_claim(bdev, filp)))
-		return 0;
+	return 0;
 
+ out_blkdev_put:
 	blkdev_put(bdev, filp->f_mode);
 	return res;
 }
