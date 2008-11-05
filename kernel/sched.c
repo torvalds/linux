@@ -2825,7 +2825,7 @@ static int double_lock_balance(struct rq *this_rq, struct rq *busiest)
 	return ret;
 }
 
-static void double_unlock_balance(struct rq *this_rq, struct rq *busiest)
+static inline void double_unlock_balance(struct rq *this_rq, struct rq *busiest)
 	__releases(busiest->lock)
 {
 	spin_unlock(&busiest->lock);
