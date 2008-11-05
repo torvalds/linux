@@ -19,3 +19,4 @@ obj-$(CONFIG_OTUS)		+= otus/
 obj-$(CONFIG_RT2860)		+= rt2860/
 obj-$(CONFIG_BENET)		+= benet/
 obj-$(CONFIG_COMEDI)		+= comedi/
+obj-$(CONFIG_ASUS_OLED)		+= asus_oled/

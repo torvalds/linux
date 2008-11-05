@@ -73,5 +73,7 @@ source "drivers/staging/benet/Kconfig"
 
 source "drivers/staging/comedi/Kconfig"
 
+source "drivers/staging/asus_oled/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
