@@ -94,9 +94,9 @@ struct ext4_allocation_request {
 	/* phys. block for ^^^ */
 	ext4_fsblk_t pright;
 	/* how many blocks we want to allocate */
-	unsigned long len;
+	unsigned int len;
 	/* flags. see above EXT4_MB_HINT_* */
-	unsigned long flags;
+	unsigned int flags;
 };
 
 /*
@@ -997,6 +997,9 @@ do {									\
 # define ATTRIB_NORET	__attribute__((noreturn))
 # define NORET_AND	noreturn,
 
+/* bitmap.c */
+extern unsigned int ext4_count_free(struct buffer_head *, unsigned);
+
 /* balloc.c */
 extern unsigned int ext4_block_group(struct super_block *sb,
 			ext4_fsblk_t blocknr);
@@ -1024,7 +1027,7 @@ extern int ext4_should_retry_alloc(struct super_block *sb, int *retries);
 /* dir.c */
 extern int ext4_check_dir_entry(const char *, struct inode *,
 				struct ext4_dir_entry_2 *,
-				struct buffer_head *, unsigned long);
+				struct buffer_head *, unsigned int);
 extern int ext4_htree_store_dirent(struct file *dir_file, __u32 hash,
 				    __u32 minor_hash,
 				    struct ext4_dir_entry_2 *dirent);
@@ -1044,7 +1047,6 @@ extern struct inode * ext4_orphan_get(struct super_block *, unsigned long);
 extern unsigned long ext4_count_free_inodes(struct super_block *);
 extern unsigned long ext4_count_dirs(struct super_block *);
 extern void ext4_check_inodes_bitmap(struct super_block *);
-extern unsigned long ext4_count_free(struct buffer_head *, unsigned);
 
 /* mballoc.c */
 extern long ext4_mb_stats;
@@ -1074,10 +1076,6 @@ struct buffer_head *ext4_bread(handle_t *, struct inode *,
 						ext4_lblk_t, int, int *);
 int ext4_get_block(struct inode *inode, sector_t iblock,
 				struct buffer_head *bh_result, int create);
-int ext4_get_blocks_handle(handle_t *handle, struct inode *inode,
-				ext4_lblk_t iblock, unsigned long maxblocks,
-				struct buffer_head *bh_result,
-				int create, int extend_disksize);
 
 extern struct inode *ext4_iget(struct super_block *, unsigned long);
 extern int  ext4_write_inode(struct inode *, int);
@@ -1276,16 +1274,16 @@ extern int ext4_ext_writepage_trans_blocks(struct inode *, int);
 extern int ext4_ext_index_trans_blocks(struct inode *inode, int nrblocks,
 				       int chunk);
 extern int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
-			ext4_lblk_t iblock,
-			unsigned long max_blocks, struct buffer_head *bh_result,
-			int create, int extend_disksize);
+			       ext4_lblk_t iblock, unsigned int max_blocks,
+			       struct buffer_head *bh_result,
+			       int create, int extend_disksize);
 extern void ext4_ext_truncate(struct inode *);
 extern void ext4_ext_init(struct super_block *);
 extern void ext4_ext_release(struct super_block *);
 extern long ext4_fallocate(struct inode *inode, int mode, loff_t offset,
 			  loff_t len);
 extern int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode,
-			sector_t block, unsigned long max_blocks,
+			sector_t block, unsigned int max_blocks,
 			struct buffer_head *bh, int create,
 			int extend_disksize, int flag);
 #endif	/* __KERNEL__ */

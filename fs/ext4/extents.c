@@ -2377,7 +2377,7 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 						struct inode *inode,
 						struct ext4_ext_path *path,
 						ext4_lblk_t iblock,
-						unsigned long max_blocks)
+						unsigned int max_blocks)
 {
 	struct ext4_extent *ex, newex, orig_ex;
 	struct ext4_extent *ex1 = NULL;
@@ -2675,26 +2675,26 @@ fix_extent_len:
  */
 int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 			ext4_lblk_t iblock,
-			unsigned long max_blocks, struct buffer_head *bh_result,
+			unsigned int max_blocks, struct buffer_head *bh_result,
 			int create, int extend_disksize)
 {
 	struct ext4_ext_path *path = NULL;
 	struct ext4_extent_header *eh;
 	struct ext4_extent newex, *ex;
-	ext4_fsblk_t goal, newblock;
-	int err = 0, depth, ret;
-	unsigned long allocated = 0;
+	ext4_fsblk_t newblock;
+	int err = 0, depth, ret, cache_type;
+	unsigned int allocated = 0;
 	struct ext4_allocation_request ar;
 	loff_t disksize;
 
 	__clear_bit(BH_New, &bh_result->b_state);
-	ext_debug("blocks %u/%lu requested for inode %u\n",
+	ext_debug("blocks %u/%u requested for inode %u\n",
 			iblock, max_blocks, inode->i_ino);
 
 	/* check in cache */
-	goal = ext4_ext_in_cache(inode, iblock, &newex);
-	if (goal) {
-		if (goal == EXT4_EXT_CACHE_GAP) {
+	cache_type = ext4_ext_in_cache(inode, iblock, &newex);
+	if (cache_type) {
+		if (cache_type == EXT4_EXT_CACHE_GAP) {
 			if (!create) {
 				/*
 				 * block isn't allocated yet and
@@ -2703,7 +2703,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 				goto out2;
 			}
 			/* we should allocate requested block */
-		} else if (goal == EXT4_EXT_CACHE_EXTENT) {
+		} else if (cache_type == EXT4_EXT_CACHE_EXTENT) {
 			/* block is already allocated */
 			newblock = iblock
 				   - le32_to_cpu(newex.ee_block)
@@ -2851,7 +2851,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	if (!newblock)
 		goto out2;
 	ext_debug("allocate new block: goal %llu, found %llu/%lu\n",
-			goal, newblock, allocated);
+		  ar.goal, newblock, allocated);
 
 	/* try to insert new extent into found leaf and return */
 	ext4_ext_store_pblock(&newex, newblock);
@@ -3001,7 +3001,7 @@ long ext4_fallocate(struct inode *inode, int mode, loff_t offset, loff_t len)
 	handle_t *handle;
 	ext4_lblk_t block;
 	loff_t new_size;
-	unsigned long max_blocks;
+	unsigned int max_blocks;
 	int ret = 0;
 	int ret2 = 0;
 	int retries = 0;

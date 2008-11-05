@@ -100,9 +100,6 @@ struct ext4_inode_info {
 	 */
 	loff_t	i_disksize;
 
-	/* on-disk additional length */
-	__u16 i_extra_isize;
-
 	/*
 	 * i_data_sem is for serialising ext4_truncate() against
 	 * ext4_getblock().  In the 2.4 ext2 design, great chunks of inode's
@@ -129,10 +126,14 @@ struct ext4_inode_info {
 	spinlock_t i_prealloc_lock;
 
 	/* allocation reservation info for delalloc */
-	unsigned long i_reserved_data_blocks;
-	unsigned long i_reserved_meta_blocks;
-	unsigned long i_allocated_meta_blocks;
+	unsigned int i_reserved_data_blocks;
+	unsigned int i_reserved_meta_blocks;
+	unsigned int i_allocated_meta_blocks;
 	unsigned short i_delalloc_reserved_flag;
+
+	/* on-disk additional length */
+	__u16 i_extra_isize;
+
 	spinlock_t i_block_reservation_lock;
 };
 

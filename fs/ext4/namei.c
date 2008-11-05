@@ -811,7 +811,7 @@ static inline int ext4_match (int len, const char * const name,
 static inline int search_dirblock(struct buffer_head *bh,
 				  struct inode *dir,
 				  const struct qstr *d_name,
-				  unsigned long offset,
+				  unsigned int offset,
 				  struct ext4_dir_entry_2 ** res_dir)
 {
 	struct ext4_dir_entry_2 * de;
@@ -1048,11 +1048,11 @@ static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, stru
 	bh = ext4_find_entry(dir, &dentry->d_name, &de);
 	inode = NULL;
 	if (bh) {
-		unsigned long ino = le32_to_cpu(de->inode);
+		__u32 ino = le32_to_cpu(de->inode);
 		brelse(bh);
 		if (!ext4_valid_inum(dir->i_sb, ino)) {
 			ext4_error(dir->i_sb, "ext4_lookup",
-				   "bad inode number: %lu", ino);
+				   "bad inode number: %u", ino);
 			return ERR_PTR(-EIO);
 		}
 		inode = ext4_iget(dir->i_sb, ino);
@@ -1065,7 +1065,7 @@ static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, stru
 
 struct dentry *ext4_get_parent(struct dentry *child)
 {
-	unsigned long ino;
+	__u32 ino;
 	struct inode *inode;
 	static const struct qstr dotdot = {
 		.name = "..",
@@ -1083,7 +1083,7 @@ struct dentry *ext4_get_parent(struct dentry *child)
 
 	if (!ext4_valid_inum(child->d_inode->i_sb, ino)) {
 		ext4_error(child->d_inode->i_sb, "ext4_get_parent",
-			   "bad inode number: %lu", ino);
+			   "bad inode number: %u", ino);
 		return ERR_PTR(-EIO);
 	}
 
@@ -1271,7 +1271,7 @@ static int add_dirent_to_buf(handle_t *handle, struct dentry *dentry,
 	struct inode	*dir = dentry->d_parent->d_inode;
 	const char	*name = dentry->d_name.name;
 	int		namelen = dentry->d_name.len;
-	unsigned long	offset = 0;
+	unsigned int	offset = 0;
 	unsigned short	reclen;
 	int		nlen, rlen, err;
 	char		*top;
@@ -1444,7 +1444,6 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 			  struct inode *inode)
 {
 	struct inode *dir = dentry->d_parent->d_inode;
-	unsigned long offset;
 	struct buffer_head *bh;
 	struct ext4_dir_entry_2 *de;
 	struct super_block *sb;
@@ -1466,7 +1465,7 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 		ext4_mark_inode_dirty(handle, dir);
 	}
 	blocks = dir->i_size >> sb->s_blocksize_bits;
-	for (block = 0, offset = 0; block < blocks; block++) {
+	for (block = 0; block < blocks; block++) {
 		bh = ext4_bread(handle, dir, block, 0, &retval);
 		if(!bh)
 			return retval;
@@ -1861,7 +1860,7 @@ out_stop:
  */
 static int empty_dir(struct inode *inode)
 {
-	unsigned long offset;
+	unsigned int offset;
 	struct buffer_head *bh;
 	struct ext4_dir_entry_2 *de, *de1;
 	struct super_block *sb;
@@ -1906,7 +1905,7 @@ static int empty_dir(struct inode *inode)
 				if (err)
 					ext4_error(sb, __func__,
 						   "error %d reading directory"
-						   " #%lu offset %lu",
+						   " #%lu offset %u",
 						   err, inode->i_ino, offset);
 				offset += sb->s_blocksize;
 				continue;
@@ -2009,7 +2008,7 @@ int ext4_orphan_del(handle_t *handle, struct inode *inode)
 	struct list_head *prev;
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	struct ext4_sb_info *sbi;
-	unsigned long ino_next;
+	__u32 ino_next;
 	struct ext4_iloc iloc;
 	int err = 0;
 
@@ -2042,7 +2041,7 @@ int ext4_orphan_del(handle_t *handle, struct inode *inode)
 		goto out_err;
 
 	if (prev == &sbi->s_orphan) {
-		jbd_debug(4, "superblock will point to %lu\n", ino_next);
+		jbd_debug(4, "superblock will point to %u\n", ino_next);
 		BUFFER_TRACE(sbi->s_sbh, "get_write_access");
 		err = ext4_journal_get_write_access(handle, sbi->s_sbh);
 		if (err)
@@ -2054,7 +2053,7 @@ int ext4_orphan_del(handle_t *handle, struct inode *inode)
 		struct inode *i_prev =
 			&list_entry(prev, struct ext4_inode_info, i_orphan)->vfs_inode;
 
-		jbd_debug(4, "orphan inode %lu will point to %lu\n",
+		jbd_debug(4, "orphan inode %lu will point to %u\n",
 			  i_prev->i_ino, ino_next);
 		err = ext4_reserve_inode_write(handle, i_prev, &iloc2);
 		if (err)

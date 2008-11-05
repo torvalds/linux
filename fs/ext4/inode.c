@@ -514,10 +514,10 @@ static ext4_fsblk_t ext4_find_goal(struct inode *inode, ext4_lblk_t block,
  *	return the total number of blocks to be allocate, including the
  *	direct and indirect blocks.
  */
-static int ext4_blks_to_allocate(Indirect *branch, int k, unsigned long blks,
+static int ext4_blks_to_allocate(Indirect *branch, int k, unsigned int blks,
 		int blocks_to_boundary)
 {
-	unsigned long count = 0;
+	unsigned int count = 0;
 
 	/*
 	 * Simple case, [t,d]Indirect block(s) has not allocated yet
@@ -856,10 +856,10 @@ err_out:
  * down_read(&EXT4_I(inode)->i_data_sem) if not allocating file system block
  * (ie, create is zero). Otherwise down_write(&EXT4_I(inode)->i_data_sem)
  */
-int ext4_get_blocks_handle(handle_t *handle, struct inode *inode,
-		ext4_lblk_t iblock, unsigned long maxblocks,
-		struct buffer_head *bh_result,
-		int create, int extend_disksize)
+static int ext4_get_blocks_handle(handle_t *handle, struct inode *inode,
+				  ext4_lblk_t iblock, unsigned int maxblocks,
+				  struct buffer_head *bh_result,
+				  int create, int extend_disksize)
 {
 	int err = -EIO;
 	ext4_lblk_t offsets[4];
@@ -1061,7 +1061,7 @@ static void ext4_da_update_reserve_space(struct inode *inode, int used)
  * It returns the error in case of allocation failure.
  */
 int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
-			unsigned long max_blocks, struct buffer_head *bh,
+			unsigned int max_blocks, struct buffer_head *bh,
 			int create, int extend_disksize, int flag)
 {
 	int retval;
@@ -1641,7 +1641,7 @@ struct mpage_da_data {
 	get_block_t *get_block;
 	struct writeback_control *wbc;
 	int io_done;
-	long pages_written;
+	int pages_written;
 	int retval;
 };
 
@@ -1855,9 +1855,9 @@ static void ext4_print_free_blocks(struct inode *inode)
 	printk(KERN_EMERG "dirty_blocks=%lld\n",
 			(long long)percpu_counter_sum(&sbi->s_dirtyblocks_counter));
 	printk(KERN_EMERG "Block reservation details\n");
-	printk(KERN_EMERG "i_reserved_data_blocks=%lu\n",
+	printk(KERN_EMERG "i_reserved_data_blocks=%u\n",
 			EXT4_I(inode)->i_reserved_data_blocks);
-	printk(KERN_EMERG "i_reserved_meta_blocks=%lu\n",
+	printk(KERN_EMERG "i_reserved_meta_blocks=%u\n",
 			EXT4_I(inode)->i_reserved_meta_blocks);
 	return;
 }
@@ -2307,7 +2307,7 @@ static int ext4_da_writepage(struct page *page,
 {
 	int ret = 0;
 	loff_t size;
-	unsigned long len;
+	unsigned int len;
 	struct buffer_head *page_bufs;
 	struct inode *inode = page->mapping->host;
 
@@ -2416,7 +2416,8 @@ static int ext4_da_writepages(struct address_space *mapping,
 	struct mpage_da_data mpd;
 	struct inode *inode = mapping->host;
 	int no_nrwrite_index_update;
-	long pages_written = 0, pages_skipped;
+	int pages_written = 0;
+	long pages_skipped;
 	int needed_blocks, ret = 0, nr_to_writebump = 0;
 	struct ext4_sb_info *sbi = EXT4_SB(mapping->host->i_sb);
 

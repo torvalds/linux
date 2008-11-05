@@ -205,8 +205,8 @@ struct ext4_group_desc * ext4_get_group_desc(struct super_block *sb,
 					     ext4_group_t block_group,
 					     struct buffer_head **bh)
 {
-	unsigned long group_desc;
-	unsigned long offset;
+	unsigned int group_desc;
+	unsigned int offset;
 	struct ext4_group_desc *desc;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
@@ -225,7 +225,7 @@ struct ext4_group_desc * ext4_get_group_desc(struct super_block *sb,
 	if (!sbi->s_group_desc[group_desc]) {
 		ext4_error(sb, "ext4_get_group_desc",
 			   "Group descriptor not loaded - "
-			   "block_group = %u, group_desc = %lu, desc = %lu",
+			   "block_group = %u, group_desc = %u, desc = %u",
 			   block_group, group_desc, offset);
 		return NULL;
 	}
@@ -372,8 +372,8 @@ void ext4_free_blocks_sb(handle_t *handle, struct super_block *sb,
 	struct buffer_head *gd_bh;
 	ext4_group_t block_group;
 	ext4_grpblk_t bit;
-	unsigned long i;
-	unsigned long overflow;
+	unsigned int i;
+	unsigned int overflow;
 	struct ext4_group_desc *desc;
 	struct ext4_super_block *es;
 	struct ext4_sb_info *sbi;
@@ -720,7 +720,7 @@ ext4_fsblk_t ext4_count_free_blocks(struct super_block *sb)
 #ifdef EXT4FS_DEBUG
 	struct ext4_super_block *es;
 	ext4_fsblk_t bitmap_count;
-	unsigned long x;
+	unsigned int x;
 	struct buffer_head *bitmap_bh = NULL;
 
 	es = EXT4_SB(sb)->s_es;
@@ -740,7 +740,7 @@ ext4_fsblk_t ext4_count_free_blocks(struct super_block *sb)
 			continue;
 
 		x = ext4_count_free(bitmap_bh, sb->s_blocksize);
-		printk(KERN_DEBUG "group %lu: stored = %d, counted = %lu\n",
+		printk(KERN_DEBUG "group %lu: stored = %d, counted = %u\n",
 			i, le16_to_cpu(gdp->bg_free_blocks_count), x);
 		bitmap_count += x;
 	}

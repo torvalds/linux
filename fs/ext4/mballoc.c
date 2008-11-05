@@ -2796,7 +2796,7 @@ void exit_ext4_mballoc(void)
  */
 static noinline_for_stack int
 ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
-				handle_t *handle, unsigned long reserv_blks)
+				handle_t *handle, unsigned int reserv_blks)
 {
 	struct buffer_head *bitmap_bh = NULL;
 	struct ext4_super_block *es;
@@ -3036,7 +3036,7 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
 	/* check we don't cross already preallocated blocks */
 	rcu_read_lock();
 	list_for_each_entry_rcu(pa, &ei->i_prealloc_list, pa_inode_list) {
-		unsigned long pa_end;
+		ext4_lblk_t pa_end;
 
 		if (pa->pa_deleted)
 			continue;
@@ -3080,7 +3080,7 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
 	/* XXX: extra loop to check we really don't overlap preallocations */
 	rcu_read_lock();
 	list_for_each_entry_rcu(pa, &ei->i_prealloc_list, pa_inode_list) {
-		unsigned long pa_end;
+		ext4_lblk_t pa_end;
 		spin_lock(&pa->pa_lock);
 		if (pa->pa_deleted == 0) {
 			pa_end = pa->pa_lstart + pa->pa_len;
@@ -3584,8 +3584,8 @@ ext4_mb_release_inode_pa(struct ext4_buddy *e4b, struct buffer_head *bitmap_bh,
 {
 	struct super_block *sb = e4b->bd_sb;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	unsigned long end;
-	unsigned long next;
+	unsigned int end;
+	unsigned int next;
 	ext4_group_t group;
 	ext4_grpblk_t bit;
 	sector_t start;
@@ -4029,8 +4029,8 @@ ext4_mb_initialize_context(struct ext4_allocation_context *ac,
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_super_block *es = sbi->s_es;
 	ext4_group_t group;
-	unsigned long len;
-	unsigned long goal;
+	unsigned int len;
+	ext4_fsblk_t goal;
 	ext4_grpblk_t block;
 
 	/* we can't allocate > group size */
@@ -4291,8 +4291,8 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 	struct ext4_sb_info *sbi;
 	struct super_block *sb;
 	ext4_fsblk_t block = 0;
-	unsigned long inquota;
-	unsigned long reserv_blks = 0;
+	unsigned int inquota;
+	unsigned int reserv_blks = 0;
 
 	sb = ar->inode->i_sb;
 	sbi = EXT4_SB(sb);
@@ -4504,7 +4504,7 @@ void ext4_mb_free_blocks(handle_t *handle, struct inode *inode,
 	struct ext4_allocation_context *ac = NULL;
 	struct ext4_group_desc *gdp;
 	struct ext4_super_block *es;
-	unsigned long overflow;
+	unsigned int overflow;
 	ext4_grpblk_t bit;
 	struct buffer_head *gd_bh;
 	ext4_group_t block_group;
