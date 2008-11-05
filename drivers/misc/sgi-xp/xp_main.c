@@ -51,6 +51,13 @@ EXPORT_SYMBOL_GPL(xp_remote_memcpy);
 int (*xp_cpu_to_nasid) (int cpuid);
 EXPORT_SYMBOL_GPL(xp_cpu_to_nasid);
 
+enum xp_retval (*xp_expand_memprotect) (unsigned long phys_addr,
+					unsigned long size);
+EXPORT_SYMBOL_GPL(xp_expand_memprotect);
+enum xp_retval (*xp_restrict_memprotect) (unsigned long phys_addr,
+					  unsigned long size);
+EXPORT_SYMBOL_GPL(xp_restrict_memprotect);
+
 /*
  * xpc_registrations[] keeps track of xpc_connect()'s done by the kernel-level
  * users of XPC.
