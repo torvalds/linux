@@ -940,6 +940,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  lenovo	Lenovo 3000 C200
 	  dallas	Dallas laptops
 	  hp		HP TX1000
+	  asus-v1s	ASUS V1Sn
 	  auto		auto-config reading BIOS (default)
 
 	CMI9880
