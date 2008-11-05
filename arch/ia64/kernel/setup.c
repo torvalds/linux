@@ -561,8 +561,12 @@ setup_arch (char **cmdline_p)
 #ifdef CONFIG_ACPI
 	/* Initialize the ACPI boot-time table parser */
 	acpi_table_init();
+	early_acpi_boot_init();
 # ifdef CONFIG_ACPI_NUMA
 	acpi_numa_init();
+#ifdef CONFIG_ACPI_HOTPLUG_CPU
+	prefill_possible_map();
+#endif
 	per_cpu_scan_finalize((cpus_weight(early_cpu_possible_map) == 0 ?
 		32 : cpus_weight(early_cpu_possible_map)),
 		additional_cpus > 0 ? additional_cpus : 0);
@@ -853,9 +857,6 @@ void __init
 setup_per_cpu_areas (void)
 {
 	/* start_kernel() requires this... */
-#ifdef CONFIG_ACPI_HOTPLUG_CPU
-	prefill_possible_map();
-#endif
 }
 
 /*
