@@ -551,6 +551,16 @@ num_grat_arp
 	affects only the active-backup mode.  This option was added for
 	bonding version 3.3.0.
 
+num_unsol_na
+
+	Specifies the number of unsolicited IPv6 Neighbor Advertisements
+	to be issued after a failover event.  One unsolicited NA is issued
+	immediately after the failover.
+
+	The valid range is 0 - 255; the default value is 1.  This option
+	affects only the active-backup mode.  This option was added for
+	bonding version 3.4.0.
+
 primary
 
 	A string (eth0, eth2, etc) specifying which slave is the
