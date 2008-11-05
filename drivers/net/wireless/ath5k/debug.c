@@ -58,8 +58,8 @@
  * THE POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include "debug.h"
 #include "base.h"
+#include "debug.h"
 
 static unsigned int ath5k_debug;
 module_param_named(debug, ath5k_debug, uint, 0);
@@ -339,7 +339,7 @@ static struct {
 	{ ATH5K_DEBUG_BEACON,	"beacon",	"beacon handling" },
 	{ ATH5K_DEBUG_CALIBRATE, "calib",	"periodic calibration" },
 	{ ATH5K_DEBUG_TXPOWER,	"txpower",	"transmit power setting" },
-	{ ATH5K_DEBUG_LED,	"led",		"LED mamagement" },
+	{ ATH5K_DEBUG_LED,	"led",		"LED management" },
 	{ ATH5K_DEBUG_DUMP_RX,	"dumprx",	"print received skb content" },
 	{ ATH5K_DEBUG_DUMP_TX,	"dumptx",	"print transmit skb content" },
 	{ ATH5K_DEBUG_DUMPBANDS, "dumpbands",	"dump bands" },
@@ -525,7 +525,7 @@ ath5k_debug_printrxbuffs(struct ath5k_softc *sc, struct ath5k_hw *ah)
 		return;
 
 	printk(KERN_DEBUG "rx queue %x, link %p\n",
-		ath5k_hw_get_rx_buf(ah), sc->rxlink);
+		ath5k_hw_get_rxdp(ah), sc->rxlink);
 
 	spin_lock_bh(&sc->rxbuflock);
 	list_for_each_entry(bf, &sc->rxbuf, list) {

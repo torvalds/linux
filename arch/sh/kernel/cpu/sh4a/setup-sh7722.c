@@ -1,7 +1,7 @@
 /*
  * SH7722 Setup
  *
- *  Copyright (C) 2006 - 2007  Paul Mundt
+ *  Copyright (C) 2006 - 2008  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -15,6 +15,36 @@
 #include <linux/uio_driver.h>
 #include <asm/clock.h>
 #include <asm/mmzone.h>
+
+static struct resource rtc_resources[] = {
+	[0] = {
+		.start	= 0xa465fec0,
+		.end	= 0xa465fec0 + 0x58 - 1,
+		.flags	= IORESOURCE_IO,
+	},
+	[1] = {
+		/* Period IRQ */
+		.start	= 45,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		/* Carry IRQ */
+		.start	= 46,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[3] = {
+		/* Alarm IRQ */
+		.start	= 44,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device rtc_device = {
+	.name		= "sh-rtc",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(rtc_resources),
+	.resource	= rtc_resources,
+};
 
 static struct resource usbf_resources[] = {
 	[0] = {
@@ -150,6 +180,7 @@ static struct platform_device sci_device = {
 };
 
 static struct platform_device *sh7722_devices[] __initdata = {
+	&rtc_device,
 	&usbf_device,
 	&iic_device,
 	&sci_device,
@@ -202,7 +233,6 @@ enum {
 	IRDA, JPU, LCDC,
 
 	/* interrupt groups */
-
 	SIM, RTC, DMAC0123, VIOVOU, USB, DMAC45, FLCTL, I2C, SDHI,
 };
 

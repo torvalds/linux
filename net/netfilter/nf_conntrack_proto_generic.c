@@ -45,7 +45,7 @@ static int packet(struct nf_conn *ct,
 		  const struct sk_buff *skb,
 		  unsigned int dataoff,
 		  enum ip_conntrack_info ctinfo,
-		  int pf,
+		  u_int8_t pf,
 		  unsigned int hooknum)
 {
 	nf_ct_refresh_acct(ct, ctinfo, skb, nf_ct_generic_timeout);

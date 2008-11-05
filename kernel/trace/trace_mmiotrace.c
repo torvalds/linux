@@ -27,7 +27,7 @@ static void mmio_reset_data(struct trace_array *tr)
 	tr->time_start = ftrace_now(tr->cpu);
 
 	for_each_online_cpu(cpu)
-		tracing_reset(tr->data[cpu]);
+		tracing_reset(tr, cpu);
 }
 
 static void mmio_trace_init(struct trace_array *tr)
@@ -130,10 +130,14 @@ static unsigned long count_overruns(struct trace_iterator *iter)
 {
 	int cpu;
 	unsigned long cnt = 0;
+/* FIXME: */
+#if 0
 	for_each_online_cpu(cpu) {
 		cnt += iter->overrun[cpu];
 		iter->overrun[cpu] = 0;
 	}
+#endif
+	(void)cpu;
 	return cnt;
 }
 
@@ -171,17 +175,21 @@ print_out:
 	return (ret == -EBUSY) ? 0 : ret;
 }
 
-static int mmio_print_rw(struct trace_iterator *iter)
+static enum print_line_t mmio_print_rw(struct trace_iterator *iter)
 {
 	struct trace_entry *entry = iter->ent;
-	struct mmiotrace_rw *rw	= &entry->mmiorw;
+	struct trace_mmiotrace_rw *field;
+	struct mmiotrace_rw *rw;
 	struct trace_seq *s	= &iter->seq;
-	unsigned long long t	= ns2usecs(entry->t);
+	unsigned long long t	= ns2usecs(iter->ts);
 	unsigned long usec_rem	= do_div(t, 1000000ULL);
 	unsigned secs		= (unsigned long)t;
 	int ret = 1;
 
-	switch (entry->mmiorw.opcode) {
+	trace_assign_type(field, entry);
+	rw = &field->rw;
+
+	switch (rw->opcode) {
 	case MMIO_READ:
 		ret = trace_seq_printf(s,
 			"R %d %lu.%06lu %d 0x%llx 0x%lx 0x%lx %d\n",
@@ -209,21 +217,25 @@ static int mmio_print_rw(struct trace_iterator *iter)
 		break;
 	}
 	if (ret)
-		return 1;
-	return 0;
+		return TRACE_TYPE_HANDLED;
+	return TRACE_TYPE_PARTIAL_LINE;
 }
 
-static int mmio_print_map(struct trace_iterator *iter)
+static enum print_line_t mmio_print_map(struct trace_iterator *iter)
 {
 	struct trace_entry *entry = iter->ent;
-	struct mmiotrace_map *m	= &entry->mmiomap;
+	struct trace_mmiotrace_map *field;
+	struct mmiotrace_map *m;
 	struct trace_seq *s	= &iter->seq;
-	unsigned long long t	= ns2usecs(entry->t);
+	unsigned long long t	= ns2usecs(iter->ts);
 	unsigned long usec_rem	= do_div(t, 1000000ULL);
 	unsigned secs		= (unsigned long)t;
-	int ret = 1;
+	int ret;
 
-	switch (entry->mmiorw.opcode) {
+	trace_assign_type(field, entry);
+	m = &field->map;
+
+	switch (m->opcode) {
 	case MMIO_PROBE:
 		ret = trace_seq_printf(s,
 			"MAP %lu.%06lu %d 0x%llx 0x%lx 0x%lx 0x%lx %d\n",
@@ -241,20 +253,43 @@ static int mmio_print_map(struct trace_iterator *iter)
 		break;
 	}
 	if (ret)
-		return 1;
-	return 0;
+		return TRACE_TYPE_HANDLED;
+	return TRACE_TYPE_PARTIAL_LINE;
 }
 
-/* return 0 to abort printing without consuming current entry in pipe mode */
-static int mmio_print_line(struct trace_iterator *iter)
+static enum print_line_t mmio_print_mark(struct trace_iterator *iter)
+{
+	struct trace_entry *entry = iter->ent;
+	struct print_entry *print = (struct print_entry *)entry;
+	const char *msg		= print->buf;
+	struct trace_seq *s	= &iter->seq;
+	unsigned long long t	= ns2usecs(iter->ts);
+	unsigned long usec_rem	= do_div(t, 1000000ULL);
+	unsigned secs		= (unsigned long)t;
+	int ret;
+
+	/* The trailing newline must be in the message. */
+	ret = trace_seq_printf(s, "MARK %lu.%06lu %s", secs, usec_rem, msg);
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	if (entry->flags & TRACE_FLAG_CONT)
+		trace_seq_print_cont(s, iter);
+
+	return TRACE_TYPE_HANDLED;
+}
+
+static enum print_line_t mmio_print_line(struct trace_iterator *iter)
 {
 	switch (iter->ent->type) {
 	case TRACE_MMIO_RW:
 		return mmio_print_rw(iter);
 	case TRACE_MMIO_MAP:
 		return mmio_print_map(iter);
+	case TRACE_PRINT:
+		return mmio_print_mark(iter);
 	default:
-		return 1; /* ignore unknown entries */
+		return TRACE_TYPE_HANDLED; /* ignore unknown entries */
 	}
 }
 
@@ -276,11 +311,53 @@ __init static int init_mmio_trace(void)
 }
 device_initcall(init_mmio_trace);
 
+static void __trace_mmiotrace_rw(struct trace_array *tr,
+				struct trace_array_cpu *data,
+				struct mmiotrace_rw *rw)
+{
+	struct ring_buffer_event *event;
+	struct trace_mmiotrace_rw *entry;
+	unsigned long irq_flags;
+
+	event	= ring_buffer_lock_reserve(tr->buffer, sizeof(*entry),
+					   &irq_flags);
+	if (!event)
+		return;
+	entry	= ring_buffer_event_data(event);
+	tracing_generic_entry_update(&entry->ent, 0, preempt_count());
+	entry->ent.type			= TRACE_MMIO_RW;
+	entry->rw			= *rw;
+	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
+
+	trace_wake_up();
+}
+
 void mmio_trace_rw(struct mmiotrace_rw *rw)
 {
 	struct trace_array *tr = mmio_trace_array;
 	struct trace_array_cpu *data = tr->data[smp_processor_id()];
 	__trace_mmiotrace_rw(tr, data, rw);
+}
+
+static void __trace_mmiotrace_map(struct trace_array *tr,
+				struct trace_array_cpu *data,
+				struct mmiotrace_map *map)
+{
+	struct ring_buffer_event *event;
+	struct trace_mmiotrace_map *entry;
+	unsigned long irq_flags;
+
+	event	= ring_buffer_lock_reserve(tr->buffer, sizeof(*entry),
+					   &irq_flags);
+	if (!event)
+		return;
+	entry	= ring_buffer_event_data(event);
+	tracing_generic_entry_update(&entry->ent, 0, preempt_count());
+	entry->ent.type			= TRACE_MMIO_MAP;
+	entry->map			= *map;
+	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
+
+	trace_wake_up();
 }
 
 void mmio_trace_mapping(struct mmiotrace_map *map)
@@ -292,4 +369,9 @@ void mmio_trace_mapping(struct mmiotrace_map *map)
 	data = tr->data[smp_processor_id()];
 	__trace_mmiotrace_map(tr, data, map);
 	preempt_enable();
+}
+
+int mmio_trace_printk(const char *fmt, va_list args)
+{
+	return trace_vprintk(0, fmt, args);
 }

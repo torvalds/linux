@@ -51,6 +51,17 @@ VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic7xxx.reg#40 $"
  */
 
 /*
+ * Registers marked "dont_generate_debug_code" are not (yet) referenced
+ * from the driver code, and this keyword inhibit generation
+ * of debug code for them.
+ *
+ * REG_PRETTY_PRINT config will complain if dont_generate_debug_code
+ * is added to the register which is referenced in the driver.
+ * Unreferenced register with no dont_generate_debug_code will result
+ * in dead code. No warning is issued.
+ */
+
+/*
  * SCSI Sequence Control (p. 3-11).
  * Each bit, when set starts a specific SCSI sequence on the bus
  */
@@ -97,6 +108,7 @@ register SXFRCTL1 {
 	field	ENSTIMER	0x04
 	field	ACTNEGEN	0x02
 	field	STPWEN		0x01	/* Powered Termination */
+	dont_generate_debug_code
 }
 
 /*
@@ -155,6 +167,7 @@ register SCSISIGO {
 	mask	P_MESGOUT	CDI|MSGI
 	mask	P_STATUS	CDI|IOI
 	mask	P_MESGIN	CDI|IOI|MSGI
+	dont_generate_debug_code
 }
 
 /* 
@@ -194,6 +207,7 @@ register SCSIID	{
 	 */
 	alias	SCSIOFFSET
 	mask	SOFS_ULTRA2	0x7f		/* Sync offset U2 chips */
+	dont_generate_debug_code
 }
 
 /*
@@ -205,6 +219,7 @@ register SCSIID	{
 register SCSIDATL {
 	address			0x006
 	access_mode RW
+	dont_generate_debug_code
 }
 
 register SCSIDATH {
@@ -223,6 +238,7 @@ register STCNT {
 	address			0x008
 	size	3
 	access_mode RW
+	dont_generate_debug_code
 }
 
 /* ALT_MODE registers (Ultra2 and Ultra160 chips) */
@@ -248,6 +264,7 @@ register OPTIONMODE {
 	field	AUTO_MSGOUT_DE		0x02
 	field	DIS_MSGIN_DUALEDGE	0x01
 	mask	OPTIONMODE_DEFAULTS	AUTO_MSGOUT_DE|DIS_MSGIN_DUALEDGE
+	dont_generate_debug_code
 }
 
 /* ALT_MODE register on Ultra160 chips */
@@ -256,6 +273,7 @@ register TARGCRCCNT {
 	size	2
 	access_mode RW
 	count		2
+	dont_generate_debug_code
 }
 
 /*
@@ -271,6 +289,7 @@ register CLRSINT0 {
 	field	CLRSWRAP	0x08
 	field	CLRIOERR	0x08	/* Ultra2 Only */
 	field	CLRSPIORDY	0x02
+	dont_generate_debug_code
 }
 
 /*
@@ -306,6 +325,7 @@ register CLRSINT1 {
 	field	CLRSCSIPERR	0x04
 	field	CLRPHASECHG	0x02
 	field	CLRREQINIT	0x01
+	dont_generate_debug_code
 }
 
 /*
@@ -360,6 +380,7 @@ register SCSIID_ULTRA2 {
 	access_mode RW
 	mask	TID		0xf0		/* Target ID mask */
 	mask	OID		0x0f		/* Our ID mask */
+	dont_generate_debug_code
 }
 
 /*
@@ -425,6 +446,7 @@ register SHADDR {
 	address			0x014
 	size	4
 	access_mode RO
+	dont_generate_debug_code
 }
 
 /*
@@ -441,6 +463,7 @@ register SELTIMER {
 	field	STAGE2		0x02
 	field	STAGE1		0x01
 	alias	TARGIDIN
+	dont_generate_debug_code
 }
 
 /*
@@ -453,6 +476,7 @@ register SELID {
 	access_mode RW
 	mask	SELID_MASK	0xf0
 	field	ONEBIT		0x08
+	dont_generate_debug_code
 }
 
 register SCAMCTL {
@@ -473,6 +497,7 @@ register TARGID {
 	size			2
 	access_mode RW
 	count		14
+	dont_generate_debug_code
 }
 
 /*
@@ -495,6 +520,7 @@ register SPIOCAP {
 	field	EEPROM		0x04	/* Writable external BIOS ROM */
 	field	ROM		0x02	/* Logic for accessing external ROM */
 	field	SSPIOCPS	0x01	/* Termination and cable detection */
+	dont_generate_debug_code
 }
 
 register BRDCTL	{
@@ -514,6 +540,7 @@ register BRDCTL	{
 	field	BRDDAT2		0x04
 	field	BRDRW_ULTRA2	0x02
 	field	BRDSTB_ULTRA2	0x01
+	dont_generate_debug_code
 }
 
 /*
@@ -551,6 +578,7 @@ register SEECTL {
 	field	SEECK		0x04
 	field	SEEDO		0x02
 	field	SEEDI		0x01
+	dont_generate_debug_code
 }
 /*
  * SCSI Block Control (p. 3-32)
@@ -601,6 +629,7 @@ register SEQRAM {
 	address			0x061
 	access_mode RW
 	count		2
+	dont_generate_debug_code
 }
 
 /*
@@ -610,6 +639,7 @@ register SEQRAM {
 register SEQADDR0 {
 	address			0x062
 	access_mode RW
+	dont_generate_debug_code
 }
 
 register SEQADDR1 {
@@ -617,6 +647,7 @@ register SEQADDR1 {
 	access_mode RW
 	count		8
 	mask	SEQADDR1_MASK	0x01
+	dont_generate_debug_code
 }
 
 /*
@@ -627,35 +658,41 @@ register ACCUM {
 	address			0x064
 	access_mode RW
 	accumulator
+	dont_generate_debug_code
 }
 
 register SINDEX	{
 	address			0x065
 	access_mode RW
 	sindex
+	dont_generate_debug_code
 }
 
 register DINDEX {
 	address			0x066
 	access_mode RW
+	dont_generate_debug_code
 }
 
 register ALLONES {
 	address			0x069
 	access_mode RO
 	allones
+	dont_generate_debug_code
 }
 
 register ALLZEROS {
 	address			0x06a
 	access_mode RO
 	allzeros
+	dont_generate_debug_code
 }
 
 register NONE {
 	address			0x06a
 	access_mode WO
 	none
+	dont_generate_debug_code
 }
 
 register FLAGS {
@@ -664,16 +701,19 @@ register FLAGS {
 	count		18
 	field	ZERO		0x02
 	field	CARRY		0x01
+	dont_generate_debug_code
 }
 
 register SINDIR	{
 	address			0x06c
 	access_mode RO
+	dont_generate_debug_code
 }
 
 register DINDIR	 {
 	address			0x06d
 	access_mode WO
+	dont_generate_debug_code
 }
 
 register FUNCTION1 {
@@ -685,6 +725,7 @@ register STACK {
 	address			0x06f
 	access_mode RO
 	count		5
+	dont_generate_debug_code
 }
 
 const	STACK_SIZE	4
@@ -716,6 +757,7 @@ register DSCOMMAND0 {
 	field	RAMPS		0x04	/* External SCB RAM Present */
 	field	USCBSIZE32	0x02	/* Use 32byte SCB Page Size */
 	field	CIOPARCKEN	0x01	/* Internal bus parity error enable */
+	dont_generate_debug_code
 }
 
 register DSCOMMAND1 {
@@ -724,6 +766,7 @@ register DSCOMMAND1 {
 	mask	DSLATT		0xfc	/* PCI latency timer (non-ultra2) */
 	field	HADDLDSEL1	0x02	/* Host Address Load Select Bits */
 	field	HADDLDSEL0	0x01
+	dont_generate_debug_code
 }
 
 /*
@@ -735,6 +778,7 @@ register BUSTIME {
 	count		2
 	mask	BOFF		0xf0
 	mask	BON		0x0f
+	dont_generate_debug_code
 }
 
 /*
@@ -749,6 +793,7 @@ register BUSSPD {
 	mask	STBON		0x07
 	mask	DFTHRSH_100	0xc0
 	mask	DFTHRSH_75	0x80
+	dont_generate_debug_code
 }
 
 /* aic7850/55/60/70/80/95 only */
@@ -756,6 +801,7 @@ register DSPCISTATUS {
 	address			0x086
 	count		4
 	mask	DFTHRSH_100	0xc0
+	dont_generate_debug_code
 }
 
 /* aic7890/91/96/97 only */
@@ -764,6 +810,7 @@ register HS_MAILBOX {
 	mask	HOST_MAILBOX	0xF0
 	mask	SEQ_MAILBOX	0x0F
 	mask	HOST_TQINPOS	0x80	/* Boundary at either 0 or 128 */
+	dont_generate_debug_code
 }
 
 const	HOST_MAILBOX_SHIFT	4
@@ -784,6 +831,7 @@ register HCNTRL {
 	field	INTEN		0x02
 	field	CHIPRST		0x01
 	field	CHIPRSTACK	0x01
+	dont_generate_debug_code
 }
 
 /*
@@ -795,12 +843,14 @@ register HADDR {
 	address			0x088
 	size	4
 	access_mode RW
+	dont_generate_debug_code
 }
 
 register HCNT {
 	address			0x08c
 	size	3
 	access_mode RW
+	dont_generate_debug_code
 }
 
 /*
@@ -810,6 +860,7 @@ register HCNT {
 register SCBPTR {
 	address			0x090
 	access_mode RW
+	dont_generate_debug_code
 }
 
 /*
@@ -878,6 +929,7 @@ register INTSTAT {
 
 	mask	SEQINT_MASK	0xf0|SEQINT	/* SEQINT Status Codes */
 	mask	INT_PEND  (BRKADRINT|SEQINT|SCSIINT|CMDCMPLT)
+	dont_generate_debug_code
 }
 
 /*
@@ -911,6 +963,7 @@ register CLRINT {
 	field	CLRSCSIINT      0x04
 	field	CLRCMDINT 	0x02
 	field	CLRSEQINT 	0x01
+	dont_generate_debug_code
 }
 
 register DFCNTRL {
@@ -944,6 +997,7 @@ register DFSTATUS {
 register DFWADDR {
 	address			0x95
 	access_mode RW
+	dont_generate_debug_code
 }
 
 register DFRADDR {
@@ -954,6 +1008,7 @@ register DFRADDR {
 register DFDAT {
 	address			0x099
 	access_mode RW
+	dont_generate_debug_code
 }
 
 /*
@@ -967,6 +1022,7 @@ register SCBCNT {
 	count		1
 	field	SCBAUTO		0x80
 	mask	SCBCNT_MASK	0x1f
+	dont_generate_debug_code
 }
 
 /*
@@ -977,6 +1033,7 @@ register QINFIFO {
 	address			0x09b
 	access_mode RW
 	count		12
+	dont_generate_debug_code
 }
 
 /*
@@ -996,6 +1053,7 @@ register QOUTFIFO {
 	address			0x09d
 	access_mode WO
 	count		7
+	dont_generate_debug_code
 }
 
 register CRCCONTROL1 {
@@ -1008,6 +1066,7 @@ register CRCCONTROL1 {
 	field	CRCREQCHKEN		0x10
 	field	TARGCRCENDEN		0x08
 	field	TARGCRCCNTEN		0x04
+	dont_generate_debug_code
 }
 
 
@@ -1040,6 +1099,7 @@ register SFUNCT {
 	access_mode RW
 	count	    4
 	field	ALT_MODE	0x80
+	dont_generate_debug_code
 }
 
 /*
@@ -1053,24 +1113,31 @@ scb {
 		size	4
 		alias	SCB_RESIDUAL_DATACNT
 		alias	SCB_CDB_STORE
+		dont_generate_debug_code
 	}
 	SCB_RESIDUAL_SGPTR {
 		size	4
+		dont_generate_debug_code
 	}
 	SCB_SCSI_STATUS {
 		size	1
+		dont_generate_debug_code
 	}
 	SCB_TARGET_PHASES {
 		size	1
+		dont_generate_debug_code
 	}
 	SCB_TARGET_DATA_DIR {
 		size	1
+		dont_generate_debug_code
 	}
 	SCB_TARGET_ITAG {
 		size	1
+		dont_generate_debug_code
 	}
 	SCB_DATAPTR {
 		size	4
+		dont_generate_debug_code
 	}
 	SCB_DATACNT {
 		/*
@@ -1080,12 +1147,14 @@ scb {
 		size	4
 		field	SG_LAST_SEG		0x80	/* In the fourth byte */
 		mask	SG_HIGH_ADDR_BITS	0x7F	/* In the fourth byte */
+		dont_generate_debug_code
 	}
 	SCB_SGPTR {
 		size	4
 		field	SG_RESID_VALID	0x04	/* In the first byte */
 		field	SG_FULL_RESID	0x02	/* In the first byte */
 		field	SG_LIST_NULL	0x01	/* In the first byte */
+		dont_generate_debug_code
 	}
 	SCB_CONTROL {
 		size	1
@@ -1115,22 +1184,27 @@ scb {
 	}
 	SCB_CDB_LEN {
 		size	1
+		dont_generate_debug_code
 	}
 	SCB_SCSIRATE {
 		size	1
+		dont_generate_debug_code
 	}
 	SCB_SCSIOFFSET {
 		size	1
 		count	1
+		dont_generate_debug_code
 	}
 	SCB_NEXT {
 		size	1
+		dont_generate_debug_code
 	}
 	SCB_64_SPARE {
 		size	16
 	}
 	SCB_64_BTT {
 		size	16
+		dont_generate_debug_code
 	}
 }
 
@@ -1149,6 +1223,7 @@ register SEECTL_2840 {
 	field	CS_2840		0x04
 	field	CK_2840		0x02
 	field	DO_2840		0x01
+	dont_generate_debug_code
 }
 
 register STATUS_2840 {
@@ -1159,6 +1234,7 @@ register STATUS_2840 {
 	mask	BIOS_SEL	0x60
 	mask	ADSEL		0x1e
 	field	DI_2840		0x01
+	dont_generate_debug_code
 }
 
 /* --------------------- AIC-7870-only definitions -------------------- */
@@ -1166,18 +1242,22 @@ register STATUS_2840 {
 register CCHADDR {
 	address			0x0E0
 	size 8
+	dont_generate_debug_code
 }
 
 register CCHCNT {
 	address			0x0E8
+	dont_generate_debug_code
 }
 
 register CCSGRAM {
 	address			0x0E9
+	dont_generate_debug_code
 }
 
 register CCSGADDR {
 	address			0x0EA
+	dont_generate_debug_code
 }
 
 register CCSGCTL {
@@ -1186,11 +1266,13 @@ register CCSGCTL {
 	field	CCSGEN		0x08
 	field	SG_FETCH_NEEDED 0x02	/* Bit used for software state */
 	field	CCSGRESET	0x01
+	dont_generate_debug_code
 }
 
 register CCSCBCNT {
 	address			0xEF
 	count		1
+	dont_generate_debug_code
 }
 
 register CCSCBCTL {
@@ -1201,14 +1283,17 @@ register CCSCBCTL {
 	field	CCSCBEN		0x08
 	field	CCSCBDIR	0x04
 	field	CCSCBRESET	0x01
+	dont_generate_debug_code
 }
 
 register CCSCBADDR {
 	address			0x0ED
+	dont_generate_debug_code
 }
 
 register CCSCBRAM {
 	address			0xEC
+	dont_generate_debug_code
 }
 
 /*
@@ -1218,23 +1303,28 @@ register SCBBADDR {
 	address			0x0F0
 	access_mode RW
 	count		3
+	dont_generate_debug_code
 }
 
 register CCSCBPTR {
 	address			0x0F1
+	dont_generate_debug_code
 }
 
 register HNSCB_QOFF {
 	address			0x0F4
 	count		4
+	dont_generate_debug_code
 }
 
 register SNSCB_QOFF {
 	address			0x0F6
+	dont_generate_debug_code
 }
 
 register SDSCB_QOFF {
 	address			0x0F8
+	dont_generate_debug_code
 }
 
 register QOFF_CTLSTA {
@@ -1244,6 +1334,7 @@ register QOFF_CTLSTA {
 	field	SDSCB_ROLLOVER	0x10
 	mask	SCB_QSIZE	0x07
 	mask	SCB_QSIZE_256	0x06
+	dont_generate_debug_code
 }
 
 register DFF_THRSH {
@@ -1267,6 +1358,7 @@ register DFF_THRSH {
 	mask	WR_DFTHRSH_90	0x60
 	mask	WR_DFTHRSH_MAX	0x70
 	count	4
+	dont_generate_debug_code
 }
 
 register SG_CACHE_PRE {
@@ -1275,6 +1367,7 @@ register SG_CACHE_PRE {
 	mask	SG_ADDR_MASK	0xf8
 	field	LAST_SEG	0x02
 	field	LAST_SEG_DONE	0x01
+	dont_generate_debug_code
 }
 
 register SG_CACHE_SHADOW {
@@ -1283,6 +1376,7 @@ register SG_CACHE_SHADOW {
 	mask	SG_ADDR_MASK	0xf8
 	field	LAST_SEG	0x02
 	field	LAST_SEG_DONE	0x01
+	dont_generate_debug_code
 }
 /* ---------------------- Scratch RAM Offsets ------------------------- */
 /* These offsets are either to values that are initialized by the board's
@@ -1309,6 +1403,7 @@ scratch_ram {
 	BUSY_TARGETS {
 		alias		TARG_SCSIRATE
 		size		16
+		dont_generate_debug_code
 	}
 	/*
 	 * Bit vector of targets that have ULTRA enabled as set by
@@ -1321,6 +1416,7 @@ scratch_ram {
 		alias		CMDSIZE_TABLE
 		size		2
 		count		2
+		dont_generate_debug_code
 	}
 	/*
 	 * Bit vector of targets that have disconnection disabled as set by
@@ -1331,6 +1427,7 @@ scratch_ram {
 	DISC_DSB {
 		size		2
 		count		6
+		dont_generate_debug_code
 	}
 	CMDSIZE_TABLE_TAIL {
 		size		4
@@ -1341,12 +1438,14 @@ scratch_ram {
 	 */
 	MWI_RESIDUAL {
 		size		1
+		dont_generate_debug_code
 	}
 	/*
 	 * SCBID of the next SCB to be started by the controller.
 	 */
 	NEXT_QUEUED_SCB {
 		size		1
+		dont_generate_debug_code
 	}
 	/*
 	 * Single byte buffer used to designate the type or message
@@ -1354,6 +1453,7 @@ scratch_ram {
 	 */
 	MSG_OUT {
 		size		1
+		dont_generate_debug_code
 	}
 	/* Parameters for DMA Logic */
 	DMAPARAMS {
@@ -1369,6 +1469,7 @@ scratch_ram {
 		field	DIRECTION	0x04	/* Set indicates PCI->SCSI */
 		field	FIFOFLUSH	0x02
 		field	FIFORESET	0x01
+		dont_generate_debug_code
 	}
 	SEQ_FLAGS {
 		size		1
@@ -1390,9 +1491,11 @@ scratch_ram {
 	 */
 	SAVED_SCSIID {
 		size		1
+		dont_generate_debug_code
 	}
 	SAVED_LUN {
 		size		1
+		dont_generate_debug_code
 	}
 	/*
 	 * The last bus phase as seen by the sequencer. 
@@ -1417,6 +1520,7 @@ scratch_ram {
 	 */
 	WAITING_SCBH {
 		size		1
+		dont_generate_debug_code
 	}
 	/*
 	 * head of list of SCBs that are
@@ -1425,6 +1529,7 @@ scratch_ram {
 	 */
 	DISCONNECTED_SCBH {
 		size		1
+		dont_generate_debug_code
 	}
 	/*
 	 * head of list of SCBs that are
@@ -1432,6 +1537,7 @@ scratch_ram {
 	 */
 	FREE_SCBH {
 		size		1
+		dont_generate_debug_code
 	}
 	/*
 	 * head of list of SCBs that have
@@ -1446,6 +1552,7 @@ scratch_ram {
 	 */
 	HSCB_ADDR {
 		size		4
+		dont_generate_debug_code
 	}
 	/*
 	 * Base address of our shared data with the kernel driver in host
@@ -1454,15 +1561,19 @@ scratch_ram {
 	 */
 	SHARED_DATA_ADDR {
 		size		4
+		dont_generate_debug_code
 	}
 	KERNEL_QINPOS {
 		size		1
+		dont_generate_debug_code
 	}
 	QINPOS {
 		size		1
+		dont_generate_debug_code
 	}
 	QOUTPOS {
 		size		1
+		dont_generate_debug_code
 	}
 	/*
 	 * Kernel and sequencer offsets into the queue of
@@ -1471,9 +1582,11 @@ scratch_ram {
 	 */
 	KERNEL_TQINPOS {
 		size		1
+		dont_generate_debug_code
 	}
 	TQINPOS {
 		size		1
+		dont_generate_debug_code
 	}
 	ARG_1 {
 		size		1
@@ -1486,10 +1599,12 @@ scratch_ram {
 		mask	CONT_MSG_LOOP		0x04
 		mask	CONT_TARG_SESSION	0x02
 		alias	RETURN_1
+		dont_generate_debug_code
 	}
 	ARG_2 {
 		size		1
 		alias	RETURN_2
+		dont_generate_debug_code
 	}
 
 	/*
@@ -1498,6 +1613,7 @@ scratch_ram {
 	LAST_MSG {
 		size		1
 		alias	TARG_IMMEDIATE_SCB
+		dont_generate_debug_code
 	}
 
 	/*
@@ -1513,6 +1629,7 @@ scratch_ram {
 		field	ENAUTOATNO	0x08
 		field	ENAUTOATNI	0x04
 		field	ENAUTOATNP	0x02
+		dont_generate_debug_code
 	}
 }
 
@@ -1533,12 +1650,14 @@ scratch_ram {
 		field	HA_274_EXTENDED_TRANS	0x01
 		alias	INITIATOR_TAG
 		count		1
+		dont_generate_debug_code
 	}
 
 	SEQ_FLAGS2 {
 		size	1
 		field	SCB_DMA			0x01
 		field	TARGET_MSG_PENDING	0x02
+		dont_generate_debug_code
 	}
 }
 
@@ -1562,6 +1681,7 @@ scratch_ram {
 		field	ENSPCHK		0x20
 		mask	HSCSIID		0x07	/* our SCSI ID */
 		mask	HWSCSIID	0x0f	/* our SCSI ID if Wide Bus */
+		dont_generate_debug_code
 	}
 	INTDEF {
 		address		0x05c
@@ -1569,11 +1689,13 @@ scratch_ram {
 		count		1
 		field	EDGE_TRIG	0x80
 		mask	VECTOR		0x0f
+		dont_generate_debug_code
 	}
 	HOSTCONF {
 		address		0x05d
 		size		1
 		count		1
+		dont_generate_debug_code
 	}
 	HA_274_BIOSCTRL	{
 		address		0x05f
@@ -1582,6 +1704,7 @@ scratch_ram {
 		mask	BIOSMODE		0x30
 		mask	BIOSDISABLED		0x30	
 		field	CHANNEL_B_PRIMARY	0x08
+		dont_generate_debug_code
 	}
 }
 
@@ -1595,6 +1718,7 @@ scratch_ram {
 	TARG_OFFSET {
 		size		16
 		count		1
+		dont_generate_debug_code
 	}
 }
 

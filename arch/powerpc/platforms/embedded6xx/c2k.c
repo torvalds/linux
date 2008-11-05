@@ -116,10 +116,7 @@ static void c2k_restart(char *cmd)
 
 void c2k_show_cpuinfo(struct seq_file *m)
 {
-	uint memsize = total_memory;
-
 	seq_printf(m, "Vendor\t\t: GEFanuc\n");
-	seq_printf(m, "Memory\t\t: %d MB\n", memsize / (1024 * 1024));
 	seq_printf(m, "coherency\t: %s\n", COHERENCY_SETTING);
 }
 

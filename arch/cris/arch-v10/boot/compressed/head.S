@@ -9,7 +9,7 @@
  */
 
 #define ASSEMBLER_MACROS_ONLY
-#include <asm/arch/sv_addr_ag.h>
+#include <arch/sv_addr_ag.h>
 
 #define RAM_INIT_MAGIC 0x56902387
 #define COMMAND_LINE_MAGIC 0x87109563

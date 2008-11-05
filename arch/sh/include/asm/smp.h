@@ -21,25 +21,29 @@ extern int __cpu_number_map[NR_CPUS];
 extern int __cpu_logical_map[NR_CPUS];
 #define cpu_logical_map(cpu)  __cpu_logical_map[cpu]
 
-/* I've no idea what the real meaning of this is */
-#define PROC_CHANGE_PENALTY	20
+enum {
+	SMP_MSG_FUNCTION,
+	SMP_MSG_RESCHEDULE,
+	SMP_MSG_FUNCTION_SINGLE,
+	SMP_MSG_TIMER,
 
-#define NO_PROC_ID	(-1)
+	SMP_MSG_NR,	/* must be last */
+};
 
-#define SMP_MSG_FUNCTION	0
-#define SMP_MSG_RESCHEDULE	1
-#define SMP_MSG_FUNCTION_SINGLE	2
-#define SMP_MSG_NR		3
+void smp_message_recv(unsigned int msg);
+void smp_timer_broadcast(cpumask_t mask);
+
+void local_timer_interrupt(void);
+void local_timer_setup(unsigned int cpu);
 
 void plat_smp_setup(void);
 void plat_prepare_cpus(unsigned int max_cpus);
 int plat_smp_processor_id(void);
 void plat_start_cpu(unsigned int cpu, unsigned long entry_point);
 void plat_send_ipi(unsigned int cpu, unsigned int message);
-int plat_register_ipi_handler(unsigned int message,
-			      void (*handler)(void *), void *arg);
-extern void arch_send_call_function_single_ipi(int cpu);
-extern void arch_send_call_function_ipi(cpumask_t mask);
+
+void arch_send_call_function_single_ipi(int cpu);
+void arch_send_call_function_ipi(cpumask_t mask);
 
 #else
 

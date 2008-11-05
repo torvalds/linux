@@ -39,7 +39,7 @@ struct psmouse {
 	void *private;
 	struct input_dev *dev;
 	struct ps2dev ps2dev;
-	struct work_struct resync_work;
+	struct delayed_work resync_work;
 	char *vendor;
 	char *name;
 	unsigned char packet[8];
@@ -89,13 +89,17 @@ enum psmouse_type {
 	PSMOUSE_TRACKPOINT,
 	PSMOUSE_TOUCHKIT_PS2,
 	PSMOUSE_CORTRON,
+	PSMOUSE_HGPK,
+	PSMOUSE_ELANTECH,
 	PSMOUSE_AUTO		/* This one should always be last */
 };
 
+void psmouse_queue_work(struct psmouse *psmouse, struct delayed_work *work,
+		unsigned long delay);
 int psmouse_sliced_command(struct psmouse *psmouse, unsigned char command);
 int psmouse_reset(struct psmouse *psmouse);
+void psmouse_set_state(struct psmouse *psmouse, enum psmouse_state new_state);
 void psmouse_set_resolution(struct psmouse *psmouse, unsigned int resolution);
-
 
 struct psmouse_attribute {
 	struct device_attribute dattr;
@@ -103,6 +107,7 @@ struct psmouse_attribute {
 	ssize_t (*show)(struct psmouse *psmouse, void *data, char *buf);
 	ssize_t (*set)(struct psmouse *psmouse, void *data,
 			const char *buf, size_t count);
+	int protect;
 };
 #define to_psmouse_attr(a)	container_of((a), struct psmouse_attribute, dattr)
 
@@ -111,7 +116,7 @@ ssize_t psmouse_attr_show_helper(struct device *dev, struct device_attribute *at
 ssize_t psmouse_attr_set_helper(struct device *dev, struct device_attribute *attr,
 				const char *buf, size_t count);
 
-#define PSMOUSE_DEFINE_ATTR(_name, _mode, _data, _show, _set)			\
+#define __PSMOUSE_DEFINE_ATTR(_name, _mode, _data, _show, _set, _protect)	\
 static ssize_t _show(struct psmouse *, void *data, char *);			\
 static ssize_t _set(struct psmouse *, void *data, const char *, size_t);	\
 static struct psmouse_attribute psmouse_attr_##_name = {			\
@@ -126,6 +131,10 @@ static struct psmouse_attribute psmouse_attr_##_name = {			\
 	.data	= _data,							\
 	.show	= _show,							\
 	.set	= _set,								\
+	.protect = _protect,							\
 }
+
+#define PSMOUSE_DEFINE_ATTR(_name, _mode, _data, _show, _set)	\
+		__PSMOUSE_DEFINE_ATTR(_name, _mode, _data, _show, _set, 1)
 
 #endif /* _PSMOUSE_H */

@@ -157,7 +157,7 @@ static int adfs_show_options(struct seq_file *seq, struct vfsmount *mnt)
 
 enum {Opt_uid, Opt_gid, Opt_ownmask, Opt_othmask, Opt_err};
 
-static match_table_t tokens = {
+static const match_table_t tokens = {
 	{Opt_uid, "uid=%u"},
 	{Opt_gid, "gid=%u"},
 	{Opt_ownmask, "ownmask=%o"},

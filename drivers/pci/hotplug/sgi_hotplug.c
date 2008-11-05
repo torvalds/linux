@@ -161,7 +161,8 @@ static int sn_pci_bus_valid(struct pci_bus *pci_bus)
 }
 
 static int sn_hp_slot_private_alloc(struct hotplug_slot *bss_hotplug_slot,
-				    struct pci_bus *pci_bus, int device)
+				    struct pci_bus *pci_bus, int device,
+				    char *name)
 {
 	struct pcibus_info *pcibus_info;
 	struct slot *slot;
@@ -173,15 +174,9 @@ static int sn_hp_slot_private_alloc(struct hotplug_slot *bss_hotplug_slot,
 		return -ENOMEM;
 	bss_hotplug_slot->private = slot;
 
-	bss_hotplug_slot->name = kmalloc(SN_SLOT_NAME_SIZE, GFP_KERNEL);
-	if (!bss_hotplug_slot->name) {
-		kfree(bss_hotplug_slot->private);
-		return -ENOMEM;
-	}
-
 	slot->device_num = device;
 	slot->pci_bus = pci_bus;
-	sprintf(bss_hotplug_slot->name, "%04x:%02x:%02x",
+	sprintf(name, "%04x:%02x:%02x",
 		pci_domain_nr(pci_bus),
 		((u16)pcibus_info->pbi_buscommon.bs_persist_busnum),
 		device + 1);
@@ -418,7 +413,7 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 	/*
 	 * Add the slot's devices to the ACPI infrastructure */
 	if (SN_ACPI_BASE_SUPPORT() && ssdt) {
-		unsigned long adr;
+		unsigned long long adr;
 		struct acpi_device *pdevice;
 		struct acpi_device *device;
 		acpi_handle phandle;
@@ -510,7 +505,7 @@ static int disable_slot(struct hotplug_slot *bss_hotplug_slot)
 	/* free the ACPI resources for the slot */
 	if (SN_ACPI_BASE_SUPPORT() &&
             PCI_CONTROLLER(slot->pci_bus)->acpi_handle) {
-		unsigned long adr;
+		unsigned long long adr;
 		struct acpi_device *device;
 		acpi_handle phandle;
 		acpi_handle chandle = NULL;
@@ -608,7 +603,6 @@ static inline int get_power_status(struct hotplug_slot *bss_hotplug_slot,
 static void sn_release_slot(struct hotplug_slot *bss_hotplug_slot)
 {
 	kfree(bss_hotplug_slot->info);
-	kfree(bss_hotplug_slot->name);
 	kfree(bss_hotplug_slot->private);
 	kfree(bss_hotplug_slot);
 }
@@ -618,6 +612,7 @@ static int sn_hotplug_slot_register(struct pci_bus *pci_bus)
 	int device;
 	struct pci_slot *pci_slot;
 	struct hotplug_slot *bss_hotplug_slot;
+	char name[SN_SLOT_NAME_SIZE];
 	int rc = 0;
 
 	/*
@@ -645,15 +640,14 @@ static int sn_hotplug_slot_register(struct pci_bus *pci_bus)
 		}
 
 		if (sn_hp_slot_private_alloc(bss_hotplug_slot,
-					     pci_bus, device)) {
+					     pci_bus, device, name)) {
 			rc = -ENOMEM;
 			goto alloc_err;
 		}
-
 		bss_hotplug_slot->ops = &sn_hotplug_slot_ops;
 		bss_hotplug_slot->release = &sn_release_slot;
 
-		rc = pci_hp_register(bss_hotplug_slot, pci_bus, device);
+		rc = pci_hp_register(bss_hotplug_slot, pci_bus, device, name);
 		if (rc)
 			goto register_err;
 

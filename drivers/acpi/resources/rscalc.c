@@ -43,7 +43,6 @@
 
 #include <acpi/acpi.h>
 #include <acpi/acresrc.h>
-#include <acpi/amlcode.h>
 #include <acpi/acnamesp.h>
 
 #define _COMPONENT          ACPI_RESOURCES
@@ -560,8 +559,8 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 			      ACPI_GET_OBJECT_TYPE(*sub_object_list)) ||
 			     ((ACPI_TYPE_LOCAL_REFERENCE ==
 			       ACPI_GET_OBJECT_TYPE(*sub_object_list)) &&
-			      ((*sub_object_list)->reference.opcode ==
-			       AML_INT_NAMEPATH_OP)))) {
+			      ((*sub_object_list)->reference.class ==
+			       ACPI_REFCLASS_NAME)))) {
 				name_found = TRUE;
 			} else {
 				/* Look at the next element */

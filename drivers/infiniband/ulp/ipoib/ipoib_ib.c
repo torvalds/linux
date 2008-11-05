@@ -685,10 +685,6 @@ int ipoib_ib_dev_open(struct net_device *dev)
 	queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task,
 			   round_jiffies_relative(HZ));
 
-	init_timer(&priv->poll_timer);
-	priv->poll_timer.function = ipoib_ib_tx_timer_func;
-	priv->poll_timer.data = (unsigned long)dev;
-
 	set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
 
 	return 0;
@@ -905,6 +901,9 @@ int ipoib_ib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
 		printk(KERN_WARNING "%s: ipoib_transport_dev_init failed\n", ca->name);
 		return -ENODEV;
 	}
+
+	setup_timer(&priv->poll_timer, ipoib_ib_tx_timer_func,
+		    (unsigned long) dev);
 
 	if (dev->flags & IFF_UP) {
 		if (ipoib_ib_dev_open(dev)) {

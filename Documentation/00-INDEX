@@ -21,6 +21,9 @@ Changes
 	- list of changes that break older software packages.
 CodingStyle
 	- how the boss likes the C code in the kernel to look.
+development-process/
+	- An extended tutorial on how to work with the kernel development
+	  process.
 DMA-API.txt
 	- DMA API, pci_ API & extensions for non-consistent memory machines.
 DMA-ISA-LPC.txt
@@ -159,8 +162,6 @@ hayes-esp.txt
 	- info on using the Hayes ESP serial driver.
 highuid.txt
 	- notes on the change from 16 bit to 32 bit user/group IDs.
-hpet.txt
-	- High Precision Event Timer Driver for Linux.
 timers/
 	- info on the timer related topics
 hw_random.txt
@@ -171,7 +172,7 @@ i2c/
 	- directory with info about the I2C bus/protocol (2 wire, kHz speed).
 i2o/
 	- directory with info about the Linux I2O subsystem.
-i386/
+x86/i386/
 	- directory with info about Linux on Intel 32 bit architecture.
 ia64/
 	- directory with info about Linux on Intel 64 bit architecture.
@@ -381,7 +382,7 @@ w1/
 	- directory with documents regarding the 1-wire (w1) subsystem.
 watchdog/
 	- how to auto-reboot Linux if it has "fallen and can't get up". ;-)
-x86_64/
+x86/x86_64/
 	- directory with info on Linux support for AMD x86-64 (Hammer) machines.
 zorro.txt
 	- info on writing drivers for Zorro bus devices found on Amigas.

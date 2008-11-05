@@ -141,8 +141,6 @@ void blk_queue_make_request(struct request_queue *q, make_request_fn *mfn)
 	if (q->unplug_delay == 0)
 		q->unplug_delay = 1;
 
-	INIT_WORK(&q->unplug_work, blk_unplug_work);
-
 	q->unplug_timer.function = blk_unplug_timeout;
 	q->unplug_timer.data = (unsigned long)q;
 

@@ -317,7 +317,7 @@ static void sctp_ulpq_store_reasm(struct sctp_ulpq *ulpq,
 	}
 
 	/* Insert before pos. */
-	__skb_insert(sctp_event2skb(event), pos->prev, pos, &ulpq->reasm);
+	__skb_queue_before(&ulpq->reasm, pos, sctp_event2skb(event));
 
 }
 
@@ -825,8 +825,7 @@ static void sctp_ulpq_store_ordered(struct sctp_ulpq *ulpq,
 
 
 	/* Insert before pos. */
-	__skb_insert(sctp_event2skb(event), pos->prev, pos, &ulpq->lobby);
-
+	__skb_queue_before(&ulpq->lobby, pos, sctp_event2skb(event));
 }
 
 static struct sctp_ulpevent *sctp_ulpq_order(struct sctp_ulpq *ulpq,

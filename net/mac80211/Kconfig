@@ -22,6 +22,11 @@ config MAC80211_RC_PID
 	  mac80211 that uses a PID controller to select the TX
 	  rate.
 
+config MAC80211_RC_MINSTREL
+	bool "Minstrel"
+	---help---
+	  This option enables the 'minstrel' TX rate control algorithm
+
 choice
 	prompt "Default rate control algorithm"
 	default MAC80211_RC_DEFAULT_PID
@@ -39,11 +44,19 @@ config MAC80211_RC_DEFAULT_PID
 	  default rate control algorithm. You should choose
 	  this unless you know what you are doing.
 
+config MAC80211_RC_DEFAULT_MINSTREL
+	bool "Minstrel"
+	depends on MAC80211_RC_MINSTREL
+	---help---
+	  Select Minstrel as the default rate control algorithm.
+
+
 endchoice
 
 config MAC80211_RC_DEFAULT
 	string
 	default "pid" if MAC80211_RC_DEFAULT_PID
+	default "minstrel" if MAC80211_RC_DEFAULT_MINSTREL
 	default ""
 
 endmenu
@@ -178,19 +191,6 @@ config MAC80211_VERBOSE_MPL_DEBUG
 	  messages are remotely triggerable.
 
 	  Do not select this option.
-
-config MAC80211_LOWTX_FRAME_DUMP
-	bool "Debug frame dumping"
-	depends on MAC80211_DEBUG_MENU
-	---help---
-	  Selecting this option will cause the stack to
-	  print a message for each frame that is handed
-	  to the lowlevel driver for transmission. This
-	  message includes all MAC addresses and the
-	  frame control field.
-
-	  If unsure, say N and insert the debugging code
-	  you require into the driver you are debugging.
 
 config MAC80211_DEBUG_COUNTERS
 	bool "Extra statistics for TX/RX debugging"

@@ -703,7 +703,7 @@ CONFIG_HWMON=y
 #
 # CONFIG_VIDEO_DEV is not set
 # CONFIG_DVB_CORE is not set
-CONFIG_DAB=y
+# CONFIG_DAB is not set
 
 #
 # Graphics support

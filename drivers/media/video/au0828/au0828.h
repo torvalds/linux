@@ -103,7 +103,8 @@ extern int au0828_debug;
 extern struct au0828_board au0828_boards[];
 extern struct usb_device_id au0828_usb_id_table[];
 extern void au0828_gpio_setup(struct au0828_dev *dev);
-extern int au0828_tuner_callback(void *priv, int command, int arg);
+extern int au0828_tuner_callback(void *priv, int component,
+				 int command, int arg);
 extern void au0828_card_setup(struct au0828_dev *dev);
 
 /* ----------------------------------------------------------- */

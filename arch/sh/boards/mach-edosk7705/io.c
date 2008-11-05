@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <asm/io.h>
-#include <asm/edosk7705/io.h>
+#include <mach/edosk7705.h>
 #include <asm/addrspace.h>
 
 #define SMC_IOADDR	0xA2000000

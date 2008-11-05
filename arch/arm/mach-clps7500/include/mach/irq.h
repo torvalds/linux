@@ -10,8 +10,8 @@
  *   11-08-1999	PJB	Created ARM7500 version, derived from RiscPC code
  */
 
+#include <linux/io.h>
 #include <asm/hardware/iomd.h>
-#include <asm/io.h>
 
 static inline int fixup_irq(unsigned int irq)
 {

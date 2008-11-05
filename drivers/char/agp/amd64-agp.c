@@ -224,7 +224,9 @@ static const struct agp_bridge_driver amd_8151_driver = {
 	.alloc_by_type		= agp_generic_alloc_by_type,
 	.free_by_type		= agp_generic_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,
+	.agp_alloc_pages	= agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages	= agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
@@ -770,6 +772,6 @@ module_init(agp_amd64_init);
 module_exit(agp_amd64_cleanup);
 #endif
 
-MODULE_AUTHOR("Dave Jones <davej@codemonkey.org.uk>, Andi Kleen");
+MODULE_AUTHOR("Dave Jones <davej@redhat.com>, Andi Kleen");
 module_param(agp_try_unsupported, bool, 0);
 MODULE_LICENSE("GPL");

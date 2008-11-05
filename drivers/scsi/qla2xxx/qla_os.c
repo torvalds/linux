@@ -394,10 +394,8 @@ qla2x00_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 	}
 
 	/* Close window on fcport/rport state-transitioning. */
-	if (fcport->drport) {
-		cmd->result = DID_IMM_RETRY << 16;
-		goto qc_fail_command;
-	}
+	if (fcport->drport)
+		goto qc_target_busy;
 
 	if (atomic_read(&fcport->state) != FCS_ONLINE) {
 		if (atomic_read(&fcport->state) == FCS_DEVICE_DEAD ||
@@ -405,7 +403,7 @@ qla2x00_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 			cmd->result = DID_NO_CONNECT << 16;
 			goto qc_fail_command;
 		}
-		goto qc_host_busy;
+		goto qc_target_busy;
 	}
 
 	spin_unlock_irq(ha->host->host_lock);
@@ -428,9 +426,10 @@ qc_host_busy_free_sp:
 
 qc_host_busy_lock:
 	spin_lock_irq(ha->host->host_lock);
-
-qc_host_busy:
 	return SCSI_MLQUEUE_HOST_BUSY;
+
+qc_target_busy:
+	return SCSI_MLQUEUE_TARGET_BUSY;
 
 qc_fail_command:
 	done(cmd);
@@ -461,10 +460,8 @@ qla24xx_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 	}
 
 	/* Close window on fcport/rport state-transitioning. */
-	if (fcport->drport) {
-		cmd->result = DID_IMM_RETRY << 16;
-		goto qc24_fail_command;
-	}
+	if (fcport->drport)
+		goto qc24_target_busy;
 
 	if (atomic_read(&fcport->state) != FCS_ONLINE) {
 		if (atomic_read(&fcport->state) == FCS_DEVICE_DEAD ||
@@ -472,7 +469,7 @@ qla24xx_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 			cmd->result = DID_NO_CONNECT << 16;
 			goto qc24_fail_command;
 		}
-		goto qc24_host_busy;
+		goto qc24_target_busy;
 	}
 
 	spin_unlock_irq(ha->host->host_lock);
@@ -495,9 +492,10 @@ qc24_host_busy_free_sp:
 
 qc24_host_busy_lock:
 	spin_lock_irq(ha->host->host_lock);
-
-qc24_host_busy:
 	return SCSI_MLQUEUE_HOST_BUSY;
+
+qc24_target_busy:
+	return SCSI_MLQUEUE_TARGET_BUSY;
 
 qc24_fail_command:
 	done(cmd);
@@ -1568,9 +1566,8 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 			goto probe_out;
 	}
 
-	if (pci_find_aer_capability(pdev))
-		if (pci_enable_pcie_error_reporting(pdev))
-			goto probe_out;
+	/* This may fail but that's ok */
+	pci_enable_pcie_error_reporting(pdev);
 
 	host = scsi_host_alloc(sht, sizeof(scsi_qla_host_t));
 	if (host == NULL) {

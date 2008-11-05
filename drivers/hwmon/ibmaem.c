@@ -1118,3 +1118,10 @@ MODULE_LICENSE("GPL");
 
 module_init(aem_init);
 module_exit(aem_exit);
+
+MODULE_ALIAS("dmi:bvnIBM:*:pnIBMSystemx3350-*");
+MODULE_ALIAS("dmi:bvnIBM:*:pnIBMSystemx3550-*");
+MODULE_ALIAS("dmi:bvnIBM:*:pnIBMSystemx3650-*");
+MODULE_ALIAS("dmi:bvnIBM:*:pnIBMSystemx3655-*");
+MODULE_ALIAS("dmi:bvnIBM:*:pnIBMSystemx3755-*");
+MODULE_ALIAS("dmi:bvnIBM:*:pnIBM3850M2/x3950M2-*");

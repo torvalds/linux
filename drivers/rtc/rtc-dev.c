@@ -432,16 +432,19 @@ static int rtc_dev_release(struct inode *inode, struct file *file)
 {
 	struct rtc_device *rtc = file->private_data;
 
-#ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
-	clear_uie(rtc);
-#endif
+	/* We shut down the repeating IRQs that userspace enabled,
+	 * since nothing is listening to them.
+	 *  - Update (UIE) ... currently only managed through ioctls
+	 *  - Periodic (PIE) ... also used through rtc_*() interface calls
+	 *
+	 * Leave the alarm alone; it may be set to trigger a system wakeup
+	 * later, or be used by kernel code, and is a one-shot event anyway.
+	 */
+	rtc_dev_ioctl(file, RTC_UIE_OFF, 0);
 	rtc_irq_set_state(rtc, NULL, 0);
 
 	if (rtc->ops->release)
 		rtc->ops->release(rtc->dev.parent);
-
-	if (file->f_flags & FASYNC)
-		rtc_dev_fasync(-1, file, 0);
 
 	clear_bit_unlock(RTC_DEV_BUSY, &rtc->flags);
 	return 0;

@@ -60,10 +60,6 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
 
-#ifdef CONFIG_KMOD
-#include <linux/kmod.h>
-#endif
-
 #include <linux/videodev2.h>
 
 MODULE_AUTHOR("Bill Dirks, Justin Schoeman, Gerd Knorr");
@@ -187,9 +183,11 @@ const char **v4l2_ctrl_get_menu(u32 id)
 		NULL
 	};
 	static const char *mpeg_audio_encoding[] = {
-		"Layer I",
-		"Layer II",
-		"Layer III",
+		"MPEG-1/2 Layer I",
+		"MPEG-1/2 Layer II",
+		"MPEG-1/2 Layer III",
+		"MPEG-2/4 AAC",
+		"AC-3",
 		NULL
 	};
 	static const char *mpeg_audio_l1_bitrate[] = {
@@ -243,6 +241,28 @@ const char **v4l2_ctrl_get_menu(u32 id)
 		"320 kbps",
 		NULL
 	};
+	static const char *mpeg_audio_ac3_bitrate[] = {
+		"32 kbps",
+		"40 kbps",
+		"48 kbps",
+		"56 kbps",
+		"64 kbps",
+		"80 kbps",
+		"96 kbps",
+		"112 kbps",
+		"128 kbps",
+		"160 kbps",
+		"192 kbps",
+		"224 kbps",
+		"256 kbps",
+		"320 kbps",
+		"384 kbps",
+		"448 kbps",
+		"512 kbps",
+		"576 kbps",
+		"640 kbps",
+		NULL
+	};
 	static const char *mpeg_audio_mode[] = {
 		"Stereo",
 		"Joint Stereo",
@@ -271,6 +291,7 @@ const char **v4l2_ctrl_get_menu(u32 id)
 	static const char *mpeg_video_encoding[] = {
 		"MPEG-1",
 		"MPEG-2",
+		"MPEG-4 AVC",
 		NULL
 	};
 	static const char *mpeg_video_aspect[] = {
@@ -311,6 +332,8 @@ const char **v4l2_ctrl_get_menu(u32 id)
 			return mpeg_audio_l2_bitrate;
 		case V4L2_CID_MPEG_AUDIO_L3_BITRATE:
 			return mpeg_audio_l3_bitrate;
+		case V4L2_CID_MPEG_AUDIO_AC3_BITRATE:
+			return mpeg_audio_ac3_bitrate;
 		case V4L2_CID_MPEG_AUDIO_MODE:
 			return mpeg_audio_mode;
 		case V4L2_CID_MPEG_AUDIO_MODE_EXTENSION:
@@ -335,62 +358,73 @@ const char **v4l2_ctrl_get_menu(u32 id)
 }
 EXPORT_SYMBOL(v4l2_ctrl_get_menu);
 
+/* Return the control name. */
+const char *v4l2_ctrl_get_name(u32 id)
+{
+	switch (id) {
+	/* USER controls */
+	case V4L2_CID_USER_CLASS: 	return "User Controls";
+	case V4L2_CID_AUDIO_VOLUME: 	return "Volume";
+	case V4L2_CID_AUDIO_MUTE: 	return "Mute";
+	case V4L2_CID_AUDIO_BALANCE: 	return "Balance";
+	case V4L2_CID_AUDIO_BASS: 	return "Bass";
+	case V4L2_CID_AUDIO_TREBLE: 	return "Treble";
+	case V4L2_CID_AUDIO_LOUDNESS: 	return "Loudness";
+	case V4L2_CID_BRIGHTNESS: 	return "Brightness";
+	case V4L2_CID_CONTRAST: 	return "Contrast";
+	case V4L2_CID_SATURATION: 	return "Saturation";
+	case V4L2_CID_HUE: 		return "Hue";
+
+	/* MPEG controls */
+	case V4L2_CID_MPEG_CLASS: 		return "MPEG Encoder Controls";
+	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ: return "Audio Sampling Frequency";
+	case V4L2_CID_MPEG_AUDIO_ENCODING: 	return "Audio Encoding";
+	case V4L2_CID_MPEG_AUDIO_L1_BITRATE: 	return "Audio Layer I Bitrate";
+	case V4L2_CID_MPEG_AUDIO_L2_BITRATE: 	return "Audio Layer II Bitrate";
+	case V4L2_CID_MPEG_AUDIO_L3_BITRATE: 	return "Audio Layer III Bitrate";
+	case V4L2_CID_MPEG_AUDIO_AAC_BITRATE: 	return "Audio AAC Bitrate";
+	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE: 	return "Audio AC-3 Bitrate";
+	case V4L2_CID_MPEG_AUDIO_MODE: 		return "Audio Stereo Mode";
+	case V4L2_CID_MPEG_AUDIO_MODE_EXTENSION: return "Audio Stereo Mode Extension";
+	case V4L2_CID_MPEG_AUDIO_EMPHASIS: 	return "Audio Emphasis";
+	case V4L2_CID_MPEG_AUDIO_CRC: 		return "Audio CRC";
+	case V4L2_CID_MPEG_AUDIO_MUTE: 		return "Audio Mute";
+	case V4L2_CID_MPEG_VIDEO_ENCODING: 	return "Video Encoding";
+	case V4L2_CID_MPEG_VIDEO_ASPECT: 	return "Video Aspect";
+	case V4L2_CID_MPEG_VIDEO_B_FRAMES: 	return "Video B Frames";
+	case V4L2_CID_MPEG_VIDEO_GOP_SIZE: 	return "Video GOP Size";
+	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE: 	return "Video GOP Closure";
+	case V4L2_CID_MPEG_VIDEO_PULLDOWN: 	return "Video Pulldown";
+	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE: 	return "Video Bitrate Mode";
+	case V4L2_CID_MPEG_VIDEO_BITRATE: 	return "Video Bitrate";
+	case V4L2_CID_MPEG_VIDEO_BITRATE_PEAK: 	return "Video Peak Bitrate";
+	case V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION: return "Video Temporal Decimation";
+	case V4L2_CID_MPEG_VIDEO_MUTE: 		return "Video Mute";
+	case V4L2_CID_MPEG_VIDEO_MUTE_YUV:	return "Video Mute YUV";
+	case V4L2_CID_MPEG_STREAM_TYPE: 	return "Stream Type";
+	case V4L2_CID_MPEG_STREAM_PID_PMT: 	return "Stream PMT Program ID";
+	case V4L2_CID_MPEG_STREAM_PID_AUDIO: 	return "Stream Audio Program ID";
+	case V4L2_CID_MPEG_STREAM_PID_VIDEO: 	return "Stream Video Program ID";
+	case V4L2_CID_MPEG_STREAM_PID_PCR: 	return "Stream PCR Program ID";
+	case V4L2_CID_MPEG_STREAM_PES_ID_AUDIO: return "Stream PES Audio ID";
+	case V4L2_CID_MPEG_STREAM_PES_ID_VIDEO: return "Stream PES Video ID";
+	case V4L2_CID_MPEG_STREAM_VBI_FMT:	return "Stream VBI Format";
+
+	default:
+		return NULL;
+	}
+}
+EXPORT_SYMBOL(v4l2_ctrl_get_name);
+
 /* Fill in a struct v4l2_queryctrl */
 int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 step, s32 def)
 {
-	const char *name;
+	const char *name = v4l2_ctrl_get_name(qctrl->id);
 
 	qctrl->flags = 0;
-	switch (qctrl->id) {
-	/* USER controls */
-	case V4L2_CID_USER_CLASS: 	name = "User Controls"; break;
-	case V4L2_CID_AUDIO_VOLUME: 	name = "Volume"; break;
-	case V4L2_CID_AUDIO_MUTE: 	name = "Mute"; break;
-	case V4L2_CID_AUDIO_BALANCE: 	name = "Balance"; break;
-	case V4L2_CID_AUDIO_BASS: 	name = "Bass"; break;
-	case V4L2_CID_AUDIO_TREBLE: 	name = "Treble"; break;
-	case V4L2_CID_AUDIO_LOUDNESS: 	name = "Loudness"; break;
-	case V4L2_CID_BRIGHTNESS: 	name = "Brightness"; break;
-	case V4L2_CID_CONTRAST: 	name = "Contrast"; break;
-	case V4L2_CID_SATURATION: 	name = "Saturation"; break;
-	case V4L2_CID_HUE: 		name = "Hue"; break;
-
-	/* MPEG controls */
-	case V4L2_CID_MPEG_CLASS: 		name = "MPEG Encoder Controls"; break;
-	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ: name = "Audio Sampling Frequency"; break;
-	case V4L2_CID_MPEG_AUDIO_ENCODING: 	name = "Audio Encoding Layer"; break;
-	case V4L2_CID_MPEG_AUDIO_L1_BITRATE: 	name = "Audio Layer I Bitrate"; break;
-	case V4L2_CID_MPEG_AUDIO_L2_BITRATE: 	name = "Audio Layer II Bitrate"; break;
-	case V4L2_CID_MPEG_AUDIO_L3_BITRATE: 	name = "Audio Layer III Bitrate"; break;
-	case V4L2_CID_MPEG_AUDIO_MODE: 		name = "Audio Stereo Mode"; break;
-	case V4L2_CID_MPEG_AUDIO_MODE_EXTENSION: name = "Audio Stereo Mode Extension"; break;
-	case V4L2_CID_MPEG_AUDIO_EMPHASIS: 	name = "Audio Emphasis"; break;
-	case V4L2_CID_MPEG_AUDIO_CRC: 		name = "Audio CRC"; break;
-	case V4L2_CID_MPEG_AUDIO_MUTE: 		name = "Audio Mute"; break;
-	case V4L2_CID_MPEG_VIDEO_ENCODING: 	name = "Video Encoding"; break;
-	case V4L2_CID_MPEG_VIDEO_ASPECT: 	name = "Video Aspect"; break;
-	case V4L2_CID_MPEG_VIDEO_B_FRAMES: 	name = "Video B Frames"; break;
-	case V4L2_CID_MPEG_VIDEO_GOP_SIZE: 	name = "Video GOP Size"; break;
-	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE: 	name = "Video GOP Closure"; break;
-	case V4L2_CID_MPEG_VIDEO_PULLDOWN: 	name = "Video Pulldown"; break;
-	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE: 	name = "Video Bitrate Mode"; break;
-	case V4L2_CID_MPEG_VIDEO_BITRATE: 	name = "Video Bitrate"; break;
-	case V4L2_CID_MPEG_VIDEO_BITRATE_PEAK: 	name = "Video Peak Bitrate"; break;
-	case V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION: name = "Video Temporal Decimation"; break;
-	case V4L2_CID_MPEG_VIDEO_MUTE: 		name = "Video Mute"; break;
-	case V4L2_CID_MPEG_VIDEO_MUTE_YUV:	name = "Video Mute YUV"; break;
-	case V4L2_CID_MPEG_STREAM_TYPE: 	name = "Stream Type"; break;
-	case V4L2_CID_MPEG_STREAM_PID_PMT: 	name = "Stream PMT Program ID"; break;
-	case V4L2_CID_MPEG_STREAM_PID_AUDIO: 	name = "Stream Audio Program ID"; break;
-	case V4L2_CID_MPEG_STREAM_PID_VIDEO: 	name = "Stream Video Program ID"; break;
-	case V4L2_CID_MPEG_STREAM_PID_PCR: 	name = "Stream PCR Program ID"; break;
-	case V4L2_CID_MPEG_STREAM_PES_ID_AUDIO: name = "Stream PES Audio ID"; break;
-	case V4L2_CID_MPEG_STREAM_PES_ID_VIDEO: name = "Stream PES Video ID"; break;
-	case V4L2_CID_MPEG_STREAM_VBI_FMT:	name = "Stream VBI Format"; break;
-
-	default:
+	if (name == NULL)
 		return -EINVAL;
-	}
+
 	switch (qctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
 	case V4L2_CID_AUDIO_LOUDNESS:
@@ -407,6 +441,7 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	case V4L2_CID_MPEG_AUDIO_L1_BITRATE:
 	case V4L2_CID_MPEG_AUDIO_L2_BITRATE:
 	case V4L2_CID_MPEG_AUDIO_L3_BITRATE:
+	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE:
 	case V4L2_CID_MPEG_AUDIO_MODE:
 	case V4L2_CID_MPEG_AUDIO_MODE_EXTENSION:
 	case V4L2_CID_MPEG_AUDIO_EMPHASIS:
@@ -493,7 +528,7 @@ int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl)
 	case V4L2_CID_MPEG_AUDIO_ENCODING:
 		return v4l2_ctrl_query_fill(qctrl,
 				V4L2_MPEG_AUDIO_ENCODING_LAYER_1,
-				V4L2_MPEG_AUDIO_ENCODING_LAYER_3, 1,
+				V4L2_MPEG_AUDIO_ENCODING_AC3, 1,
 				V4L2_MPEG_AUDIO_ENCODING_LAYER_2);
 	case V4L2_CID_MPEG_AUDIO_L1_BITRATE:
 		return v4l2_ctrl_query_fill(qctrl,
@@ -510,6 +545,13 @@ int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl)
 				V4L2_MPEG_AUDIO_L3_BITRATE_32K,
 				V4L2_MPEG_AUDIO_L3_BITRATE_320K, 1,
 				V4L2_MPEG_AUDIO_L3_BITRATE_192K);
+	case V4L2_CID_MPEG_AUDIO_AAC_BITRATE:
+		return v4l2_ctrl_query_fill(qctrl, 0, 6400, 1, 3200000);
+	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE:
+		return v4l2_ctrl_query_fill(qctrl,
+				V4L2_MPEG_AUDIO_AC3_BITRATE_32K,
+				V4L2_MPEG_AUDIO_AC3_BITRATE_640K, 1,
+				V4L2_MPEG_AUDIO_AC3_BITRATE_384K);
 	case V4L2_CID_MPEG_AUDIO_MODE:
 		return v4l2_ctrl_query_fill(qctrl,
 				V4L2_MPEG_AUDIO_MODE_STEREO,
@@ -535,7 +577,7 @@ int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl)
 	case V4L2_CID_MPEG_VIDEO_ENCODING:
 		return v4l2_ctrl_query_fill(qctrl,
 				V4L2_MPEG_VIDEO_ENCODING_MPEG_1,
-				V4L2_MPEG_VIDEO_ENCODING_MPEG_2, 1,
+				V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC, 1,
 				V4L2_MPEG_VIDEO_ENCODING_MPEG_2);
 	case V4L2_CID_MPEG_VIDEO_ASPECT:
 		return v4l2_ctrl_query_fill(qctrl,
@@ -594,12 +636,17 @@ int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl)
 EXPORT_SYMBOL(v4l2_ctrl_query_fill_std);
 
 /* Fill in a struct v4l2_querymenu based on the struct v4l2_queryctrl and
-   the menu. The qctrl pointer may be NULL, in which case it is ignored. */
+   the menu. The qctrl pointer may be NULL, in which case it is ignored.
+   If menu_items is NULL, then the menu items are retrieved using
+   v4l2_ctrl_get_menu. */
 int v4l2_ctrl_query_menu(struct v4l2_querymenu *qmenu, struct v4l2_queryctrl *qctrl,
 	       const char **menu_items)
 {
 	int i;
 
+	qmenu->reserved = 0;
+	if (menu_items == NULL)
+		menu_items = v4l2_ctrl_get_menu(qmenu->id);
 	if (menu_items == NULL ||
 	    (qctrl && (qmenu->index < qctrl->minimum || qmenu->index > qctrl->maximum)))
 		return -EINVAL;
@@ -607,10 +654,30 @@ int v4l2_ctrl_query_menu(struct v4l2_querymenu *qmenu, struct v4l2_queryctrl *qc
 	if (menu_items[i] == NULL || menu_items[i][0] == '\0')
 		return -EINVAL;
 	snprintf(qmenu->name, sizeof(qmenu->name), menu_items[qmenu->index]);
-	qmenu->reserved = 0;
 	return 0;
 }
 EXPORT_SYMBOL(v4l2_ctrl_query_menu);
+
+/* Fill in a struct v4l2_querymenu based on the specified array of valid
+   menu items (terminated by V4L2_CTRL_MENU_IDS_END).
+   Use this if there are 'holes' in the list of valid menu items. */
+int v4l2_ctrl_query_menu_valid_items(struct v4l2_querymenu *qmenu, const u32 *ids)
+{
+	const char **menu_items = v4l2_ctrl_get_menu(qmenu->id);
+
+	qmenu->reserved = 0;
+	if (menu_items == NULL || ids == NULL)
+		return -EINVAL;
+	while (*ids != V4L2_CTRL_MENU_IDS_END) {
+		if (*ids++ == qmenu->index) {
+			snprintf(qmenu->name, sizeof(qmenu->name),
+				       menu_items[qmenu->index]);
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+EXPORT_SYMBOL(v4l2_ctrl_query_menu_valid_items);
 
 /* ctrl_classes points to an array of u32 pointers, the last element is
    a NULL pointer. Each u32 array is a 0-terminated array of control IDs.

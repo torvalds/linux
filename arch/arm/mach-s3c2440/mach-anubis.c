@@ -19,7 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
 #include <linux/i2c.h>
-
+#include <linux/io.h>
 #include <linux/sm501.h>
 #include <linux/sm501-regs.h>
 
@@ -32,11 +32,10 @@
 #include <mach/anubis-cpld.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <asm/plat-s3c/regs-serial.h>
+#include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-mem.h>
 #include <mach/regs-lcd.h>
@@ -49,9 +48,9 @@
 
 #include <net/ax88796.h>
 
-#include <asm/plat-s3c24xx/clock.h>
-#include <asm/plat-s3c24xx/devs.h>
-#include <asm/plat-s3c24xx/cpu.h>
+#include <plat/clock.h>
+#include <plat/devs.h>
+#include <plat/cpu.h>
 
 #define COPYRIGHT ", (c) 2005 Simtec Electronics"
 

@@ -49,6 +49,7 @@
 #include "symlink.h"
 #include "sysfile.h"
 #include "uptodate.h"
+#include "xattr.h"
 
 #include "buffer_head_io.h"
 
@@ -219,12 +220,17 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 	struct super_block *sb;
 	struct ocfs2_super *osb;
 	int status = -EINVAL;
+	int use_plocks = 1;
 
 	mlog_entry("(0x%p, size:%llu)\n", inode,
 		   (unsigned long long)le64_to_cpu(fe->i_size));
 
 	sb = inode->i_sb;
 	osb = OCFS2_SB(sb);
+
+	if ((osb->s_mount_opt & OCFS2_MOUNT_LOCALFLOCKS) ||
+	    ocfs2_mount_local(osb) || !ocfs2_stack_supports_plocks())
+		use_plocks = 0;
 
 	/* this means that read_inode cannot create a superblock inode
 	 * today.  change if needed. */
@@ -295,13 +301,19 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 
 	switch (inode->i_mode & S_IFMT) {
 	    case S_IFREG:
-		    inode->i_fop = &ocfs2_fops;
+		    if (use_plocks)
+			    inode->i_fop = &ocfs2_fops;
+		    else
+			    inode->i_fop = &ocfs2_fops_no_plocks;
 		    inode->i_op = &ocfs2_file_iops;
 		    i_size_write(inode, le64_to_cpu(fe->i_size));
 		    break;
 	    case S_IFDIR:
 		    inode->i_op = &ocfs2_dir_iops;
-		    inode->i_fop = &ocfs2_dops;
+		    if (use_plocks)
+			    inode->i_fop = &ocfs2_dops;
+		    else
+			    inode->i_fop = &ocfs2_dops_no_plocks;
 		    i_size_write(inode, le64_to_cpu(fe->i_size));
 		    break;
 	    case S_IFLNK:
@@ -448,8 +460,11 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 		}
 	}
 
-	status = ocfs2_read_block(osb, args->fi_blkno, &bh, 0,
-				  can_lock ? inode : NULL);
+	if (can_lock)
+		status = ocfs2_read_blocks(inode, args->fi_blkno, 1, &bh,
+					   OCFS2_BH_IGNORE_CACHE);
+	else
+		status = ocfs2_read_blocks_sync(osb, args->fi_blkno, 1, &bh);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -522,6 +537,9 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 	 * data and fast symlinks.
 	 */
 	if (fe->i_clusters) {
+		if (ocfs2_should_order_data(inode))
+			ocfs2_begin_ordered_truncate(inode, 0);
+
 		handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
 		if (IS_ERR(handle)) {
 			status = PTR_ERR(handle);
@@ -725,6 +743,13 @@ static int ocfs2_wipe_inode(struct inode *inode,
 	 * inode delete underneath us -- this will result in two nodes
 	 * truncating the same file! */
 	status = ocfs2_truncate_for_delete(osb, inode, di_bh);
+	if (status < 0) {
+		mlog_errno(status);
+		goto bail_unlock_dir;
+	}
+
+	/*Free extended attribute resources associated with this inode.*/
+	status = ocfs2_xattr_remove(inode, di_bh);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail_unlock_dir;
@@ -1081,6 +1106,8 @@ void ocfs2_clear_inode(struct inode *inode)
 	oi->ip_last_trans = 0;
 	oi->ip_dir_start_lookup = 0;
 	oi->ip_blkno = 0ULL;
+	jbd2_journal_release_jbd_inode(OCFS2_SB(inode->i_sb)->journal->j_journal,
+				       &oi->ip_jinode);
 
 bail:
 	mlog_exit_void();
@@ -1104,58 +1131,6 @@ void ocfs2_drop_inode(struct inode *inode)
 		generic_drop_inode(inode);
 
 	mlog_exit_void();
-}
-
-/*
- * TODO: this should probably be merged into ocfs2_get_block
- *
- * However, you now need to pay attention to the cont_prepare_write()
- * stuff in ocfs2_get_block (that is, ocfs2_get_block pretty much
- * expects never to extend).
- */
-struct buffer_head *ocfs2_bread(struct inode *inode,
-				int block, int *err, int reada)
-{
-	struct buffer_head *bh = NULL;
-	int tmperr;
-	u64 p_blkno;
-	int readflags = OCFS2_BH_CACHED;
-
-	if (reada)
-		readflags |= OCFS2_BH_READAHEAD;
-
-	if (((u64)block << inode->i_sb->s_blocksize_bits) >=
-	    i_size_read(inode)) {
-		BUG_ON(!reada);
-		return NULL;
-	}
-
-	down_read(&OCFS2_I(inode)->ip_alloc_sem);
-	tmperr = ocfs2_extent_map_get_blocks(inode, block, &p_blkno, NULL,
-					     NULL);
-	up_read(&OCFS2_I(inode)->ip_alloc_sem);
-	if (tmperr < 0) {
-		mlog_errno(tmperr);
-		goto fail;
-	}
-
-	tmperr = ocfs2_read_block(OCFS2_SB(inode->i_sb), p_blkno, &bh,
-				  readflags, inode);
-	if (tmperr < 0)
-		goto fail;
-
-	tmperr = 0;
-
-	*err = 0;
-	return bh;
-
-fail:
-	if (bh) {
-		brelse(bh);
-		bh = NULL;
-	}
-	*err = -EIO;
-	return NULL;
 }
 
 /*

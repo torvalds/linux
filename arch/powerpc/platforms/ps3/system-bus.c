@@ -555,18 +555,19 @@ static void ps3_free_coherent(struct device *_dev, size_t size, void *vaddr,
 }
 
 /* Creates TCEs for a user provided buffer.  The user buffer must be
- * contiguous real kernel storage (not vmalloc).  The address of the buffer
- * passed here is the kernel (virtual) address of the buffer.  The buffer
- * need not be page aligned, the dma_addr_t returned will point to the same
- * byte within the page as vaddr.
+ * contiguous real kernel storage (not vmalloc).  The address passed here
+ * comprises a page address and offset into that page. The dma_addr_t
+ * returned will point to the same byte within the page as was passed in.
  */
 
-static dma_addr_t ps3_sb_map_single(struct device *_dev, void *ptr, size_t size,
-	enum dma_data_direction direction, struct dma_attrs *attrs)
+static dma_addr_t ps3_sb_map_page(struct device *_dev, struct page *page,
+	unsigned long offset, size_t size, enum dma_data_direction direction,
+	struct dma_attrs *attrs)
 {
 	struct ps3_system_bus_device *dev = ps3_dev_to_system_bus_dev(_dev);
 	int result;
 	unsigned long bus_addr;
+	void *ptr = page_address(page) + offset;
 
 	result = ps3_dma_map(dev->d_region, (unsigned long)ptr, size,
 			     &bus_addr,
@@ -580,15 +581,16 @@ static dma_addr_t ps3_sb_map_single(struct device *_dev, void *ptr, size_t size,
 	return bus_addr;
 }
 
-static dma_addr_t ps3_ioc0_map_single(struct device *_dev, void *ptr,
-				      size_t size,
-				      enum dma_data_direction direction,
-				      struct dma_attrs *attrs)
+static dma_addr_t ps3_ioc0_map_page(struct device *_dev, struct page *page,
+				    unsigned long offset, size_t size,
+				    enum dma_data_direction direction,
+				    struct dma_attrs *attrs)
 {
 	struct ps3_system_bus_device *dev = ps3_dev_to_system_bus_dev(_dev);
 	int result;
 	unsigned long bus_addr;
 	u64 iopte_flag;
+	void *ptr = page_address(page) + offset;
 
 	iopte_flag = IOPTE_M;
 	switch (direction) {
@@ -615,7 +617,7 @@ static dma_addr_t ps3_ioc0_map_single(struct device *_dev, void *ptr,
 	return bus_addr;
 }
 
-static void ps3_unmap_single(struct device *_dev, dma_addr_t dma_addr,
+static void ps3_unmap_page(struct device *_dev, dma_addr_t dma_addr,
 	size_t size, enum dma_data_direction direction, struct dma_attrs *attrs)
 {
 	struct ps3_system_bus_device *dev = ps3_dev_to_system_bus_dev(_dev);
@@ -689,21 +691,21 @@ static int ps3_dma_supported(struct device *_dev, u64 mask)
 static struct dma_mapping_ops ps3_sb_dma_ops = {
 	.alloc_coherent = ps3_alloc_coherent,
 	.free_coherent = ps3_free_coherent,
-	.map_single = ps3_sb_map_single,
-	.unmap_single = ps3_unmap_single,
 	.map_sg = ps3_sb_map_sg,
 	.unmap_sg = ps3_sb_unmap_sg,
-	.dma_supported = ps3_dma_supported
+	.dma_supported = ps3_dma_supported,
+	.map_page = ps3_sb_map_page,
+	.unmap_page = ps3_unmap_page,
 };
 
 static struct dma_mapping_ops ps3_ioc0_dma_ops = {
 	.alloc_coherent = ps3_alloc_coherent,
 	.free_coherent = ps3_free_coherent,
-	.map_single = ps3_ioc0_map_single,
-	.unmap_single = ps3_unmap_single,
 	.map_sg = ps3_ioc0_map_sg,
 	.unmap_sg = ps3_ioc0_unmap_sg,
-	.dma_supported = ps3_dma_supported
+	.dma_supported = ps3_dma_supported,
+	.map_page = ps3_ioc0_map_page,
+	.unmap_page = ps3_unmap_page,
 };
 
 /**
@@ -762,7 +764,7 @@ int ps3_system_bus_device_register(struct ps3_system_bus_device *dev)
 	};
 
 	dev->core.archdata.of_node = NULL;
-	dev->core.archdata.numa_node = 0;
+	set_dev_node(&dev->core, 0);
 
 	pr_debug("%s:%d add %s\n", __func__, __LINE__, dev->core.bus_id);
 

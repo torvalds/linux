@@ -2,6 +2,7 @@
  * Driver for the MPC5200 Fast Ethernet Controller - MDIO bus driver
  *
  * Copyright (C) 2007  Domen Puncer, Telargo, Inc.
+ * Copyright (C) 2008  Wolfram Sang, Pengutronix
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2. This program is licensed "as is" without any warranty of any
@@ -21,58 +22,45 @@ struct mpc52xx_fec_mdio_priv {
 	struct mpc52xx_fec __iomem *regs;
 };
 
-static int mpc52xx_fec_mdio_read(struct mii_bus *bus, int phy_id, int reg)
+static int mpc52xx_fec_mdio_transfer(struct mii_bus *bus, int phy_id,
+		int reg, u32 value)
 {
 	struct mpc52xx_fec_mdio_priv *priv = bus->priv;
 	struct mpc52xx_fec __iomem *fec;
 	int tries = 100;
-	u32 request = FEC_MII_READ_FRAME;
+
+	value |= (phy_id << FEC_MII_DATA_PA_SHIFT) & FEC_MII_DATA_PA_MSK;
+	value |= (reg << FEC_MII_DATA_RA_SHIFT) & FEC_MII_DATA_RA_MSK;
 
 	fec = priv->regs;
 	out_be32(&fec->ievent, FEC_IEVENT_MII);
-
-	request |= (phy_id << FEC_MII_DATA_PA_SHIFT) & FEC_MII_DATA_PA_MSK;
-	request |= (reg << FEC_MII_DATA_RA_SHIFT) & FEC_MII_DATA_RA_MSK;
-
-	out_be32(&priv->regs->mii_data, request);
+	out_be32(&priv->regs->mii_data, value);
 
 	/* wait for it to finish, this takes about 23 us on lite5200b */
 	while (!(in_be32(&fec->ievent) & FEC_IEVENT_MII) && --tries)
 		udelay(5);
 
-	if (tries == 0)
+	if (!tries)
 		return -ETIMEDOUT;
 
-	return in_be32(&priv->regs->mii_data) & FEC_MII_DATA_DATAMSK;
+	return value & FEC_MII_DATA_OP_RD ?
+		in_be32(&priv->regs->mii_data) & FEC_MII_DATA_DATAMSK : 0;
 }
 
-static int mpc52xx_fec_mdio_write(struct mii_bus *bus, int phy_id, int reg, u16 data)
+static int mpc52xx_fec_mdio_read(struct mii_bus *bus, int phy_id, int reg)
 {
-	struct mpc52xx_fec_mdio_priv *priv = bus->priv;
-	struct mpc52xx_fec __iomem *fec;
-	u32 value = data;
-	int tries = 100;
-
-	fec = priv->regs;
-	out_be32(&fec->ievent, FEC_IEVENT_MII);
-
-	value |= FEC_MII_WRITE_FRAME;
-	value |= (phy_id << FEC_MII_DATA_PA_SHIFT) & FEC_MII_DATA_PA_MSK;
-	value |= (reg << FEC_MII_DATA_RA_SHIFT) & FEC_MII_DATA_RA_MSK;
-
-	out_be32(&priv->regs->mii_data, value);
-
-	/* wait for request to finish */
-	while (!(in_be32(&fec->ievent) & FEC_IEVENT_MII) && --tries)
-		udelay(5);
-
-	if (tries == 0)
-		return -ETIMEDOUT;
-
-	return 0;
+	return mpc52xx_fec_mdio_transfer(bus, phy_id, reg, FEC_MII_READ_FRAME);
 }
 
-static int mpc52xx_fec_mdio_probe(struct of_device *of, const struct of_device_id *match)
+static int mpc52xx_fec_mdio_write(struct mii_bus *bus, int phy_id, int reg,
+		u16 data)
+{
+	return mpc52xx_fec_mdio_transfer(bus, phy_id, reg,
+		data | FEC_MII_WRITE_FRAME);
+}
+
+static int mpc52xx_fec_mdio_probe(struct of_device *of,
+		const struct of_device_id *match)
 {
 	struct device *dev = &of->dev;
 	struct device_node *np = of->node;
@@ -83,7 +71,7 @@ static int mpc52xx_fec_mdio_probe(struct of_device *of, const struct of_device_i
 	int err;
 	int i;
 
-	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
+	bus = mdiobus_alloc();
 	if (bus == NULL)
 		return -ENOMEM;
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
@@ -127,11 +115,12 @@ static int mpc52xx_fec_mdio_probe(struct of_device *of, const struct of_device_i
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%x", res.start);
 	bus->priv = priv;
 
-	bus->dev = dev;
+	bus->parent = dev;
 	dev_set_drvdata(dev, bus);
 
 	/* set MII speed */
-	out_be32(&priv->regs->mii_speed, ((mpc52xx_find_ipb_freq(of->node) >> 20) / 5) << 1);
+	out_be32(&priv->regs->mii_speed,
+		((mpc52xx_find_ipb_freq(of->node) >> 20) / 5) << 1);
 
 	/* enable MII interrupt */
 	out_be32(&priv->regs->imask, in_be32(&priv->regs->imask) | FEC_IMASK_MII);
@@ -150,7 +139,7 @@ static int mpc52xx_fec_mdio_probe(struct of_device *of, const struct of_device_i
 			irq_dispose_mapping(bus->irq[i]);
 	kfree(bus->irq);
 	kfree(priv);
-	kfree(bus);
+	mdiobus_free(bus);
 
 	return err;
 }
@@ -171,7 +160,7 @@ static int mpc52xx_fec_mdio_remove(struct of_device *of)
 			irq_dispose_mapping(bus->irq[i]);
 	kfree(priv);
 	kfree(bus->irq);
-	kfree(bus);
+	mdiobus_free(bus);
 
 	return 0;
 }

@@ -198,6 +198,7 @@ static int __devinit virtcons_probe(struct virtio_device *dev)
 	virtio_cons.put_chars = put_chars;
 	virtio_cons.notifier_add = notifier_add_vio;
 	virtio_cons.notifier_del = notifier_del_vio;
+	virtio_cons.notifier_hangup = notifier_del_vio;
 
 	/* The first argument of hvc_alloc() is the virtual console number, so
 	 * we use zero.  The second argument is the parameter for the

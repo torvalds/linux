@@ -52,7 +52,7 @@
  * this single "physical" link to be used by multiple virtual links.)
  */
 
-#define DRIVER_VERSION	"29-May-2008"
+#define UETH__VERSION	"29-May-2008"
 
 struct eth_dev {
 	/* lock is held while accessing port_usb
@@ -170,7 +170,7 @@ static void eth_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *p)
 	struct eth_dev	*dev = netdev_priv(net);
 
 	strlcpy(p->driver, "g_ether", sizeof p->driver);
-	strlcpy(p->version, DRIVER_VERSION, sizeof p->version);
+	strlcpy(p->version, UETH__VERSION, sizeof p->version);
 	strlcpy(p->fw_version, dev->gadget->name, sizeof p->fw_version);
 	strlcpy(p->bus_info, dev_name(&dev->gadget->dev), sizeof p->bus_info);
 }
@@ -873,6 +873,13 @@ struct net_device *gether_connect(struct gether *link)
 		spin_lock(&dev->lock);
 		dev->port_usb = link;
 		link->ioport = dev;
+		if (netif_running(dev->net)) {
+			if (link->open)
+				link->open(link);
+		} else {
+			if (link->close)
+				link->close(link);
+		}
 		spin_unlock(&dev->lock);
 
 		netif_carrier_on(dev->net);

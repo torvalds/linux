@@ -2,7 +2,7 @@
 # Makefile for some libs needed in the kernel.
 #
 
-ifdef CONFIG_FTRACE
+ifdef CONFIG_FUNCTION_TRACER
 ORIG_CFLAGS := $(KBUILD_CFLAGS)
 KBUILD_CFLAGS = $(subst -pg,,$(ORIG_CFLAGS))
 endif
@@ -80,6 +80,8 @@ lib-$(CONFIG_GENERIC_BUG) += bug.o
 obj-$(CONFIG_HAVE_LMB) += lmb.o
 
 obj-$(CONFIG_HAVE_ARCH_TRACEHOOK) += syscall.o
+
+obj-$(CONFIG_DYNAMIC_PRINTK_DEBUG) += dynamic_printk.o
 
 hostprogs-y	:= gen_crc32table
 clean-files	:= crc32table.h

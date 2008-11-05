@@ -70,13 +70,13 @@ SEDFLAGS	= s/TEXT_START/$(ZTEXTADDR)/;s/BSS_START/$(ZBSSADDR)/
 targets       := vmlinux vmlinux.lds piggy.gz piggy.o font.o font.c \
 		 head.o misc.o $(OBJS)
 
-ifeq ($(CONFIG_FTRACE),y)
+ifeq ($(CONFIG_FUNCTION_TRACER),y)
 ORIG_CFLAGS := $(KBUILD_CFLAGS)
 KBUILD_CFLAGS = $(subst -pg, , $(ORIG_CFLAGS))
 endif
 
 EXTRA_CFLAGS  := -fpic -fno-builtin
-EXTRA_AFLAGS  :=
+EXTRA_AFLAGS  := -Wa,-march=all
 
 # Supply ZRELADDR, INITRD_PHYS and PARAMS_PHYS to the decompressor via
 # linker symbols.  We only define initrd_phys and params_phys if the

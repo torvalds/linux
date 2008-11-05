@@ -55,6 +55,7 @@ config HZ
 	default 100
 
 source "init/Kconfig"
+source "kernel/Kconfig.freezer"
 
 menu "Processor type and features"
 
@@ -63,7 +64,12 @@ choice
 	default XTENSA_VARIANT_FSF
 
 config XTENSA_VARIANT_FSF
-	bool "fsf"
+	bool "fsf - default (not generic) configuration"
+
+config XTENSA_VARIANT_DC232B
+	bool "dc232b - Diamond 232L Standard Core Rev.B (LE)"
+	help
+	This variant refers to Tensilica's Diamond 232L Standard core Rev.B (LE).
 endchoice
 
 config MMU

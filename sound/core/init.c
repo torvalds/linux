@@ -264,8 +264,11 @@ static int snd_disconnect_release(struct inode *inode, struct file *file)
 	}
 	spin_unlock(&shutdown_lock);
 
-	if (likely(df))
+	if (likely(df)) {
+		if ((file->f_flags & FASYNC) && df->disconnected_f_op->fasync)
+			df->disconnected_f_op->fasync(-1, file, 0);
 		return df->disconnected_f_op->release(inode, file);
+	}
 
 	panic("%s(%p, %p) failed!", __func__, inode, file);
 }
@@ -545,12 +548,13 @@ int snd_card_register(struct snd_card *card)
 {
 	int err;
 
-	snd_assert(card != NULL, return -EINVAL);
+	if (snd_BUG_ON(!card))
+		return -EINVAL;
 #ifndef CONFIG_SYSFS_DEPRECATED
 	if (!card->card_dev) {
-		card->card_dev = device_create_drvdata(sound_class, card->dev,
-						       MKDEV(0, 0), NULL,
-						       "card%i", card->number);
+		card->card_dev = device_create(sound_class, card->dev,
+					       MKDEV(0, 0), NULL,
+					       "card%i", card->number);
 		if (IS_ERR(card->card_dev))
 			card->card_dev = NULL;
 	}

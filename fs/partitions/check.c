@@ -195,6 +195,14 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 	return ERR_PTR(res);
 }
 
+static ssize_t part_partition_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct hd_struct *p = dev_to_part(dev);
+
+	return sprintf(buf, "%d\n", p->partno);
+}
+
 static ssize_t part_start_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
@@ -260,6 +268,7 @@ ssize_t part_fail_store(struct device *dev,
 }
 #endif
 
+static DEVICE_ATTR(partition, S_IRUGO, part_partition_show, NULL);
 static DEVICE_ATTR(start, S_IRUGO, part_start_show, NULL);
 static DEVICE_ATTR(size, S_IRUGO, part_size_show, NULL);
 static DEVICE_ATTR(stat, S_IRUGO, part_stat_show, NULL);
@@ -269,6 +278,7 @@ static struct device_attribute dev_attr_fail =
 #endif
 
 static struct attribute *part_attrs[] = {
+	&dev_attr_partition.attr,
 	&dev_attr_start.attr,
 	&dev_attr_size.attr,
 	&dev_attr_stat.attr,
@@ -475,10 +485,10 @@ void register_disk(struct gendisk *disk)
 		goto exit;
 
 	bdev->bd_invalidated = 1;
-	err = blkdev_get(bdev, FMODE_READ, 0);
+	err = blkdev_get(bdev, FMODE_READ);
 	if (err < 0)
 		goto exit;
-	blkdev_put(bdev);
+	blkdev_put(bdev, FMODE_READ);
 
 exit:
 	/* announce disk after possible partitions are created */
@@ -538,10 +548,23 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 		sector_t from = state->parts[p].from;
 		if (!size)
 			continue;
-		if (from + size > get_capacity(disk)) {
+		if (from >= get_capacity(disk)) {
 			printk(KERN_WARNING
-				"%s: p%d exceeds device capacity\n",
-				disk->disk_name, p);
+			       "%s: p%d ignored, start %llu is behind the end of the disk\n",
+			       disk->disk_name, p, (unsigned long long) from);
+			continue;
+		}
+		if (from + size > get_capacity(disk)) {
+			/*
+			 * we can not ignore partitions of broken tables
+			 * created by for example camera firmware, but we
+			 * limit them to the end of the disk to avoid
+			 * creating invalid block devices
+			 */
+			printk(KERN_WARNING
+			       "%s: p%d size %llu limited to end of disk\n",
+			       disk->disk_name, p, (unsigned long long) size);
+			size = get_capacity(disk) - from;
 		}
 		res = add_partition(disk, p, from, size, state->parts[p].flags);
 		if (res) {

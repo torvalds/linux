@@ -737,6 +737,10 @@ asmlinkage long sys_shmctl(int shmid, int cmd, struct shmid_ds __user *buf)
 	case SHM_LOCK:
 	case SHM_UNLOCK:
 	{
+		struct file *uninitialized_var(shm_file);
+
+		lru_add_drain_all();  /* drain pagevecs to lru lists */
+
 		shp = shm_lock_check(ns, shmid);
 		if (IS_ERR(shp)) {
 			err = PTR_ERR(shp);
@@ -813,7 +817,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr)
 	struct ipc_namespace *ns;
 	struct shm_file_data *sfd;
 	struct path path;
-	mode_t f_mode;
+	fmode_t f_mode;
 
 	err = -EINVAL;
 	if (shmid < 0)

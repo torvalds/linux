@@ -76,47 +76,12 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 	return ((unsigned long *)tsk->thread.sp)[3];
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-#include <asm/nmi.h>
-
-static void cpu_exit_clear(void)
-{
-	int cpu = raw_smp_processor_id();
-
-	idle_task_exit();
-
-	cpu_uninit();
-	irq_ctx_exit(cpu);
-
-	cpu_clear(cpu, cpu_callout_map);
-	cpu_clear(cpu, cpu_callin_map);
-
-	numa_remove_cpu(cpu);
-	c1e_remove_cpu(cpu);
-}
-
-/* We don't actually take CPU down, just spin without interrupts. */
-static inline void play_dead(void)
-{
-	/* This must be done before dead CPU ack */
-	cpu_exit_clear();
-	mb();
-	/* Ack it */
-	__get_cpu_var(cpu_state) = CPU_DEAD;
-
-	/*
-	 * With physical CPU hotplug, we should halt the cpu
-	 */
-	local_irq_disable();
-	/* mask all interrupts, flush any and all caches, and halt */
-	wbinvd_halt();
-}
-#else
+#ifndef CONFIG_SMP
 static inline void play_dead(void)
 {
 	BUG();
 }
-#endif /* CONFIG_HOTPLUG_CPU */
+#endif
 
 /*
  * The idle thread. There's no useful work to be
@@ -158,7 +123,7 @@ void cpu_idle(void)
 	}
 }
 
-void __show_registers(struct pt_regs *regs, int all)
+void __show_regs(struct pt_regs *regs, int all)
 {
 	unsigned long cr0 = 0L, cr2 = 0L, cr3 = 0L, cr4 = 0L;
 	unsigned long d0, d1, d2, d3, d6, d7;
@@ -224,7 +189,7 @@ void __show_registers(struct pt_regs *regs, int all)
 
 void show_regs(struct pt_regs *regs)
 {
-	__show_registers(regs, 1);
+	__show_regs(regs, 1);
 	show_trace(NULL, regs, &regs->sp, regs->bp);
 }
 

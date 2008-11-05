@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 #
 # headers_check.pl execute a number of trivial consistency checks
 #
@@ -17,7 +17,6 @@
 # 2) TODO: check for leaked CONFIG_ symbols
 
 use strict;
-use warnings;
 
 my ($dir, $arch, @files) = @ARGV;
 
@@ -27,14 +26,15 @@ my $lineno = 0;
 my $filename;
 
 foreach my $file (@files) {
+	local *FH;
 	$filename = $file;
-	open(my $fh, '<', "$filename") or die "$filename: $!\n";
+	open(FH, "<$filename") or die "$filename: $!\n";
 	$lineno = 0;
-	while ($line = <$fh>) {
+	while ($line = <FH>) {
 		$lineno++;
 		check_include();
 	}
-	close $fh;
+	close FH;
 }
 exit $ret;
 

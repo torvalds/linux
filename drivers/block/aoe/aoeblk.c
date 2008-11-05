@@ -90,7 +90,7 @@ static DEVICE_ATTR(state, S_IRUGO, aoedisk_show_state, NULL);
 static DEVICE_ATTR(mac, S_IRUGO, aoedisk_show_mac, NULL);
 static DEVICE_ATTR(netif, S_IRUGO, aoedisk_show_netif, NULL);
 static struct device_attribute dev_attr_firmware_version = {
-	.attr = { .name = "firmware-version", .mode = S_IRUGO, .owner = THIS_MODULE },
+	.attr = { .name = "firmware-version", .mode = S_IRUGO },
 	.show = aoedisk_show_fwver,
 };
 
@@ -118,12 +118,10 @@ aoedisk_rm_sysfs(struct aoedev *d)
 }
 
 static int
-aoeblk_open(struct inode *inode, struct file *filp)
+aoeblk_open(struct block_device *bdev, fmode_t mode)
 {
-	struct aoedev *d;
+	struct aoedev *d = bdev->bd_disk->private_data;
 	ulong flags;
-
-	d = inode->i_bdev->bd_disk->private_data;
 
 	spin_lock_irqsave(&d->lock, flags);
 	if (d->flags & DEVFL_UP) {
@@ -136,12 +134,10 @@ aoeblk_open(struct inode *inode, struct file *filp)
 }
 
 static int
-aoeblk_release(struct inode *inode, struct file *filp)
+aoeblk_release(struct gendisk *disk, fmode_t mode)
 {
-	struct aoedev *d;
+	struct aoedev *d = disk->private_data;
 	ulong flags;
-
-	d = inode->i_bdev->bd_disk->private_data;
 
 	spin_lock_irqsave(&d->lock, flags);
 
@@ -158,9 +154,9 @@ aoeblk_release(struct inode *inode, struct file *filp)
 static int
 aoeblk_make_request(struct request_queue *q, struct bio *bio)
 {
+	struct sk_buff_head queue;
 	struct aoedev *d;
 	struct buf *buf;
-	struct sk_buff *sl;
 	ulong flags;
 
 	blk_queue_bounce(q, &bio);
@@ -213,11 +209,11 @@ aoeblk_make_request(struct request_queue *q, struct bio *bio)
 	list_add_tail(&buf->bufs, &d->bufq);
 
 	aoecmd_work(d);
-	sl = d->sendq_hd;
-	d->sendq_hd = d->sendq_tl = NULL;
+	__skb_queue_head_init(&queue);
+	skb_queue_splice_init(&d->sendq, &queue);
 
 	spin_unlock_irqrestore(&d->lock, flags);
-	aoenet_xmit(sl);
+	aoenet_xmit(&queue);
 
 	return 0;
 }

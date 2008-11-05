@@ -87,7 +87,9 @@ enum {
  */
 enum rq_flag_bits {
 	__REQ_RW,		/* not set, read. set, write */
-	__REQ_FAILFAST,		/* no low level driver retries */
+	__REQ_FAILFAST_DEV,	/* no driver retries of device errors */
+	__REQ_FAILFAST_TRANSPORT, /* no driver retries of transport errors */
+	__REQ_FAILFAST_DRIVER,	/* no driver retries of driver errors */
 	__REQ_DISCARD,		/* request to discard sectors */
 	__REQ_SORTED,		/* elevator knows about this request */
 	__REQ_SOFTBARRIER,	/* may not be passed by ioscheduler */
@@ -111,8 +113,10 @@ enum rq_flag_bits {
 };
 
 #define REQ_RW		(1 << __REQ_RW)
+#define REQ_FAILFAST_DEV	(1 << __REQ_FAILFAST_DEV)
+#define REQ_FAILFAST_TRANSPORT	(1 << __REQ_FAILFAST_TRANSPORT)
+#define REQ_FAILFAST_DRIVER	(1 << __REQ_FAILFAST_DRIVER)
 #define REQ_DISCARD	(1 << __REQ_DISCARD)
-#define REQ_FAILFAST	(1 << __REQ_FAILFAST)
 #define REQ_SORTED	(1 << __REQ_SORTED)
 #define REQ_SOFTBARRIER	(1 << __REQ_SOFTBARRIER)
 #define REQ_HARDBARRIER	(1 << __REQ_HARDBARRIER)
@@ -560,7 +564,12 @@ enum {
 #define blk_special_request(rq)	((rq)->cmd_type == REQ_TYPE_SPECIAL)
 #define blk_sense_request(rq)	((rq)->cmd_type == REQ_TYPE_SENSE)
 
-#define blk_noretry_request(rq)	((rq)->cmd_flags & REQ_FAILFAST)
+#define blk_failfast_dev(rq)	((rq)->cmd_flags & REQ_FAILFAST_DEV)
+#define blk_failfast_transport(rq) ((rq)->cmd_flags & REQ_FAILFAST_TRANSPORT)
+#define blk_failfast_driver(rq)	((rq)->cmd_flags & REQ_FAILFAST_DRIVER)
+#define blk_noretry_request(rq)	(blk_failfast_dev(rq) ||	\
+				 blk_failfast_transport(rq) ||	\
+				 blk_failfast_driver(rq))
 #define blk_rq_started(rq)	((rq)->cmd_flags & REQ_STARTED)
 
 #define blk_account_rq(rq)	(blk_rq_started(rq) && (blk_fs_request(rq) || blk_discard_rq(rq))) 
@@ -708,10 +717,10 @@ extern void blk_plug_device(struct request_queue *);
 extern void blk_plug_device_unlocked(struct request_queue *);
 extern int blk_remove_plug(struct request_queue *);
 extern void blk_recount_segments(struct request_queue *, struct bio *);
-extern int scsi_cmd_ioctl(struct file *, struct request_queue *,
-			  struct gendisk *, unsigned int, void __user *);
-extern int sg_scsi_ioctl(struct file *, struct request_queue *,
-		struct gendisk *, struct scsi_ioctl_command __user *);
+extern int scsi_cmd_ioctl(struct request_queue *, struct gendisk *, fmode_t,
+			  unsigned int, void __user *);
+extern int sg_scsi_ioctl(struct request_queue *, struct gendisk *, fmode_t,
+			 struct scsi_ioctl_command __user *);
 
 /*
  * Temporary export, until SCSI gets fixed up.
@@ -856,7 +865,6 @@ extern void blk_ordered_complete_seq(struct request_queue *, unsigned, int);
 extern int blk_rq_map_sg(struct request_queue *, struct request *, struct scatterlist *);
 extern void blk_dump_rq_flags(struct request *, char *);
 extern void generic_unplug_device(struct request_queue *);
-extern void __generic_unplug_device(struct request_queue *);
 extern long nr_blockdev_pages(void);
 
 int blk_get_queue(struct request_queue *);
@@ -902,7 +910,8 @@ static inline int sb_issue_discard(struct super_block *sb,
 * command filter functions
 */
 extern int blk_verify_command(struct blk_cmd_filter *filter,
-			      unsigned char *cmd, int has_write_perm);
+			      unsigned char *cmd, fmode_t has_write_perm);
+extern void blk_unregister_filter(struct gendisk *disk);
 extern void blk_set_cmd_filter_defaults(struct blk_cmd_filter *filter);
 
 #define MAX_PHYS_SEGMENTS 128
@@ -1048,6 +1057,22 @@ static inline int blk_integrity_rq(struct request *rq)
 
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
 
+struct block_device_operations {
+	int (*open) (struct block_device *, fmode_t);
+	int (*release) (struct gendisk *, fmode_t);
+	int (*locked_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+	int (*ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+	int (*compat_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+	int (*direct_access) (struct block_device *, sector_t,
+						void **, unsigned long *);
+	int (*media_changed) (struct gendisk *);
+	int (*revalidate_disk) (struct gendisk *);
+	int (*getgeo)(struct block_device *, struct hd_geometry *);
+	struct module *owner;
+};
+
+extern int __blkdev_driver_ioctl(struct block_device *, fmode_t, unsigned int,
+				 unsigned long);
 #else /* CONFIG_BLOCK */
 /*
  * stubs for when the block layer is configured out

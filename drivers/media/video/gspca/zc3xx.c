@@ -7178,7 +7178,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-static void sd_start(struct gspca_dev *gspca_dev)
+static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct usb_device *dev = gspca_dev->dev;
@@ -7331,6 +7331,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		reg_w(dev, 0x02, 0x0008);
 		break;
 	}
+	return 0;
 }
 
 static void sd_stop0(struct gspca_dev *gspca_dev)

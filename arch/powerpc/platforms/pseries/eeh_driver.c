@@ -41,7 +41,7 @@ static inline const char * pcid_name (struct pci_dev *pdev)
 	return "";
 }
 
-#ifdef DEBUG
+#if 0
 static void print_device_node_tree(struct pci_dn *pdn, int dent)
 {
 	int i;

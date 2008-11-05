@@ -162,8 +162,6 @@ static int ipmi_release(struct inode *inode, struct file *file)
 	if (rv)
 		return rv;
 
-	ipmi_fasync (-1, file, 0);
-
 	/* FIXME - free the messages in the list. */
 	kfree(priv);
 
@@ -871,7 +869,7 @@ static void ipmi_new_smi(int if_num, struct device *device)
 	entry->dev = dev;
 
 	mutex_lock(&reg_list_mutex);
-	device_create_drvdata(ipmi_class, device, dev, NULL, "ipmi%d", if_num);
+	device_create(ipmi_class, device, dev, NULL, "ipmi%d", if_num);
 	list_add(&entry->link, &reg_list);
 	mutex_unlock(&reg_list_mutex);
 }
@@ -957,3 +955,4 @@ module_exit(cleanup_ipmi);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Corey Minyard <minyard@mvista.com>");
 MODULE_DESCRIPTION("Linux device interface for the IPMI message handler.");
+MODULE_ALIAS("platform:ipmi_si");

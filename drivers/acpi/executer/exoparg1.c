@@ -825,16 +825,16 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 				 *
 				 * Must resolve/dereference the local/arg reference first
 				 */
-				switch (operand[0]->reference.opcode) {
-				case AML_LOCAL_OP:
-				case AML_ARG_OP:
+				switch (operand[0]->reference.class) {
+				case ACPI_REFCLASS_LOCAL:
+				case ACPI_REFCLASS_ARG:
 
 					/* Set Operand[0] to the value of the local/arg */
 
 					status =
 					    acpi_ds_method_data_get_value
-					    (operand[0]->reference.opcode,
-					     operand[0]->reference.offset,
+					    (operand[0]->reference.class,
+					     operand[0]->reference.value,
 					     walk_state, &temp_desc);
 					if (ACPI_FAILURE(status)) {
 						goto cleanup;
@@ -848,7 +848,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 					operand[0] = temp_desc;
 					break;
 
-				case AML_REF_OF_OP:
+				case ACPI_REFCLASS_REFOF:
 
 					/* Get the object to which the reference refers */
 
@@ -928,8 +928,8 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 			 * This must be a reference object produced by either the
 			 * Index() or ref_of() operator
 			 */
-			switch (operand[0]->reference.opcode) {
-			case AML_INDEX_OP:
+			switch (operand[0]->reference.class) {
+			case ACPI_REFCLASS_INDEX:
 
 				/*
 				 * The target type for the Index operator must be
@@ -965,7 +965,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 					return_desc->integer.value =
 					    temp_desc->buffer.
 					    pointer[operand[0]->reference.
-						    offset];
+						    value];
 					break;
 
 				case ACPI_TYPE_PACKAGE:
@@ -985,7 +985,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 				default:
 
 					ACPI_ERROR((AE_INFO,
-						    "Unknown Index TargetType %X in obj %p",
+						    "Unknown Index TargetType %X in reference object %p",
 						    operand[0]->reference.
 						    target_type, operand[0]));
 					status = AE_AML_OPERAND_TYPE;
@@ -993,7 +993,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 				}
 				break;
 
-			case AML_REF_OF_OP:
+			case ACPI_REFCLASS_REFOF:
 
 				return_desc = operand[0]->reference.object;
 
@@ -1013,9 +1013,9 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 			default:
 				ACPI_ERROR((AE_INFO,
-					    "Unknown opcode in reference(%p) - %X",
+					    "Unknown class in reference(%p) - %2.2X",
 					    operand[0],
-					    operand[0]->reference.opcode));
+					    operand[0]->reference.class));
 
 				status = AE_TYPE;
 				goto cleanup;

@@ -90,6 +90,9 @@ int __must_check bus_for_each_drv(struct bus_type *bus,
 				  struct device_driver *start, void *data,
 				  int (*fn)(struct device_driver *, void *));
 
+void bus_sort_breadthfirst(struct bus_type *bus,
+			   int (*compare)(const struct device *a,
+					  const struct device *b));
 /*
  * Bus notifiers: Get notified of addition/removal of devices
  * and binding/unbinding of drivers to devices.
@@ -447,7 +450,7 @@ static inline void set_dev_node(struct device *dev, int node)
 }
 #endif
 
-static inline void *dev_get_drvdata(struct device *dev)
+static inline void *dev_get_drvdata(const struct device *dev)
 {
 	return dev->driver_data;
 }
@@ -502,7 +505,6 @@ extern struct device *device_create(struct class *cls, struct device *parent,
 				    dev_t devt, void *drvdata,
 				    const char *fmt, ...)
 				    __attribute__((format(printf, 5, 6)));
-#define device_create_drvdata	device_create
 extern void device_destroy(struct class *cls, dev_t devt);
 
 /*
@@ -551,7 +553,11 @@ extern const char *dev_driver_string(const struct device *dev);
 #define dev_info(dev, format, arg...)		\
 	dev_printk(KERN_INFO , dev , format , ## arg)
 
-#ifdef DEBUG
+#if defined(CONFIG_DYNAMIC_PRINTK_DEBUG)
+#define dev_dbg(dev, format, ...) do { \
+	dynamic_dev_dbg(dev, format, ##__VA_ARGS__); \
+	} while (0)
+#elif defined(DEBUG)
 #define dev_dbg(dev, format, arg...)		\
 	dev_printk(KERN_DEBUG , dev , format , ## arg)
 #else
@@ -566,6 +572,14 @@ extern const char *dev_driver_string(const struct device *dev);
 #define dev_vdbg(dev, format, arg...)		\
 	({ if (0) dev_printk(KERN_DEBUG, dev, format, ##arg); 0; })
 #endif
+
+/*
+ * dev_WARN() acts like dev_printk(), but with the key difference
+ * of using a WARN/WARN_ON to get the message out, including the
+ * file/line information and a backtrace.
+ */
+#define dev_WARN(dev, format, arg...) \
+	WARN(1, "Device: %s\n" format, dev_driver_string(dev), ## arg);
 
 /* Create alias, so I can be autoloaded. */
 #define MODULE_ALIAS_CHARDEV(major,minor) \

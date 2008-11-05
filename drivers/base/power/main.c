@@ -83,7 +83,7 @@ void device_pm_add(struct device *dev)
 		 * transition is in progress in order to avoid leaving them
 		 * unhandled down the road
 		 */
-		WARN_ON(true);
+		dev_WARN(dev, "Parentless device registered during a PM transaction\n");
 	}
 
 	list_add_tail(&dev->power.entry, &dpm_list);
@@ -778,10 +778,7 @@ EXPORT_SYMBOL_GPL(device_suspend);
 
 void __suspend_report_result(const char *function, void *fn, int ret)
 {
-	if (ret) {
-		printk(KERN_ERR "%s(): ", function);
-		print_fn_descriptor_symbol("%s returns ", fn);
-		printk("%d\n", ret);
-	}
+	if (ret)
+		printk(KERN_ERR "%s(): %pF returns %d\n", function, fn, ret);
 }
 EXPORT_SYMBOL_GPL(__suspend_report_result);

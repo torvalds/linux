@@ -612,7 +612,7 @@ void elv_insert(struct request_queue *q, struct request *rq, int where)
 		 *   processing.
 		 */
 		blk_remove_plug(q);
-		q->request_fn(q);
+		blk_start_queueing(q);
 		break;
 
 	case ELEVATOR_INSERT_SORT:
@@ -950,7 +950,7 @@ void elv_completed_request(struct request_queue *q, struct request *rq)
 		    blk_ordered_cur_seq(q) == QUEUE_ORDSEQ_DRAIN &&
 		    blk_ordered_req_seq(first_rq) > QUEUE_ORDSEQ_DRAIN) {
 			blk_ordered_complete_seq(q, QUEUE_ORDSEQ_DRAIN, 0);
-			q->request_fn(q);
+			blk_start_queueing(q);
 		}
 	}
 }
@@ -1109,8 +1109,7 @@ static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 	elv_drain_elevator(q);
 
 	while (q->rq.elvpriv) {
-		blk_remove_plug(q);
-		q->request_fn(q);
+		blk_start_queueing(q);
 		spin_unlock_irq(q->queue_lock);
 		msleep(10);
 		spin_lock_irq(q->queue_lock);
@@ -1166,15 +1165,10 @@ ssize_t elv_iosched_store(struct request_queue *q, const char *name,
 			  size_t count)
 {
 	char elevator_name[ELV_NAME_MAX];
-	size_t len;
 	struct elevator_type *e;
 
-	elevator_name[sizeof(elevator_name) - 1] = '\0';
-	strncpy(elevator_name, name, sizeof(elevator_name) - 1);
-	len = strlen(elevator_name);
-
-	if (len && elevator_name[len - 1] == '\n')
-		elevator_name[len - 1] = '\0';
+	strlcpy(elevator_name, name, sizeof(elevator_name));
+	strstrip(elevator_name);
 
 	e = elevator_get(elevator_name);
 	if (!e) {

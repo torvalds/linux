@@ -326,8 +326,8 @@ exit:
 	usb_mark_last_busy(acm->dev);
 	retval = usb_submit_urb (urb, GFP_ATOMIC);
 	if (retval)
-		err ("%s - usb_submit_urb failed with result %d",
-		     __func__, retval);
+		dev_err(&urb->dev->dev, "%s - usb_submit_urb failed with "
+			"result %d", __func__, retval);
 }
 
 /* data interface returns incoming bytes, or we got unthrottled */
@@ -514,7 +514,7 @@ static void acm_waker(struct work_struct *waker)
 
 	rv = usb_autopm_get_interface(acm->control);
 	if (rv < 0) {
-		err("Autopm failure in %s", __func__);
+		dev_err(&acm->dev->dev, "Autopm failure in %s\n", __func__);
 		return;
 	}
 	if (acm->delayed_wb) {
@@ -849,9 +849,10 @@ static void acm_write_buffers_free(struct acm *acm)
 {
 	int i;
 	struct acm_wb *wb;
+	struct usb_device *usb_dev = interface_to_usbdev(acm->control);
 
 	for (wb = &acm->wb[0], i = 0; i < ACM_NW; i++, wb++) {
-		usb_buffer_free(acm->dev, acm->writesize, wb->buf, wb->dmah);
+		usb_buffer_free(usb_dev, acm->writesize, wb->buf, wb->dmah);
 	}
 }
 
@@ -924,7 +925,7 @@ static int acm_probe (struct usb_interface *intf,
 	
 	/* normal probing*/
 	if (!buffer) {
-		err("Weird descriptor references\n");
+		dev_err(&intf->dev, "Weird descriptor references\n");
 		return -EINVAL;
 	}
 
@@ -934,21 +935,24 @@ static int acm_probe (struct usb_interface *intf,
 			buflen = intf->cur_altsetting->endpoint->extralen;
 			buffer = intf->cur_altsetting->endpoint->extra;
 		} else {
-			err("Zero length descriptor references\n");
+			dev_err(&intf->dev,
+				"Zero length descriptor references\n");
 			return -EINVAL;
 		}
 	}
 
 	while (buflen > 0) {
 		if (buffer [1] != USB_DT_CS_INTERFACE) {
-			err("skipping garbage\n");
+			dev_err(&intf->dev, "skipping garbage\n");
 			goto next_desc;
 		}
 
 		switch (buffer [2]) {
 			case USB_CDC_UNION_TYPE: /* we've found it */
 				if (union_header) {
-					err("More than one union descriptor, skipping ...");
+					dev_err(&intf->dev, "More than one "
+						"union descriptor, "
+						"skipping ...\n");
 					goto next_desc;
 				}
 				union_header = (struct usb_cdc_union_desc *)
@@ -966,7 +970,9 @@ static int acm_probe (struct usb_interface *intf,
 				call_management_function = buffer[3];
 				call_interface_num = buffer[4];
 				if ((call_management_function & 3) != 3)
-					err("This device cannot do calls on its own. It is no modem.");
+					dev_err(&intf->dev, "This device "
+						"cannot do calls on its own. "
+						"It is no modem.\n");
 				break;
 			default:
 				/* there are LOTS more CDC descriptors that
@@ -1051,7 +1057,7 @@ skip_normal_probe:
 	for (minor = 0; minor < ACM_TTY_MINORS && acm_table[minor]; minor++);
 
 	if (minor == ACM_TTY_MINORS) {
-		err("no more free acm devices");
+		dev_err(&intf->dev, "no more free acm devices\n");
 		return -ENODEV;
 	}
 
@@ -1454,7 +1460,8 @@ static int __init acm_init(void)
 		return retval;
 	}
 
-	info(DRIVER_VERSION ":" DRIVER_DESC);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 
 	return 0;
 }

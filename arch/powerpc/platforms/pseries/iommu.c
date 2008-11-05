@@ -32,6 +32,7 @@
 #include <linux/string.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
+#include <linux/crash_dump.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/rtas.h>
@@ -291,9 +292,8 @@ static void iommu_table_setparms(struct pci_controller *phb,
 
 	tbl->it_base = (unsigned long)__va(*basep);
 
-#ifndef CONFIG_CRASH_DUMP
-	memset((void *)tbl->it_base, 0, *sizep);
-#endif
+	if (!is_kdump_kernel())
+		memset((void *)tbl->it_base, 0, *sizep);
 
 	tbl->it_busno = phb->bus->number;
 

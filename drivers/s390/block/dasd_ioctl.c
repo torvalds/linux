@@ -366,10 +366,9 @@ static int dasd_ioctl_readall_cmb(struct dasd_block *block, unsigned int cmd,
 }
 
 int
-dasd_ioctl(struct inode *inode, struct file *file,
+dasd_ioctl(struct block_device *bdev, fmode_t mode,
 	   unsigned int cmd, unsigned long arg)
 {
-	struct block_device *bdev = inode->i_bdev;
 	struct dasd_block *block = bdev->bd_disk->private_data;
 	void __user *argp = (void __user *)arg;
 
@@ -420,16 +419,4 @@ dasd_ioctl(struct inode *inode, struct file *file,
 
 		return -EINVAL;
 	}
-}
-
-long
-dasd_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
-{
-	int rval;
-
-	lock_kernel();
-	rval = dasd_ioctl(filp->f_path.dentry->d_inode, filp, cmd, arg);
-	unlock_kernel();
-
-	return (rval == -EINVAL) ? -ENOIOCTLCMD : rval;
 }

@@ -40,7 +40,7 @@
 		v1.14 10/15/97 Avoided waiting..discard message for fast machines -djb
 		v1.15 1/31/98 Faster recovery for Tx errors. -djb
 		v1.16 2/3/98 Different ID port handling to avoid sound cards. -djb
-		v1.18 12Mar2001 Andrew Morton <andrewm@uow.edu.au>
+		v1.18 12Mar2001 Andrew Morton
 			- Avoid bogus detect of 3c590's (Andrzej Krzysztofowicz)
 			- Reviewed against 1.18 from scyld.com
 		v1.18a 17Nov2001 Jeff Garzik <jgarzik@pobox.com>
@@ -94,7 +94,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-static char version[] __initdata = DRV_NAME ".c:" DRV_VERSION " " DRV_RELDATE " becker@scyld.com\n";
+static char version[] __devinitdata = DRV_NAME ".c:" DRV_VERSION " " DRV_RELDATE " becker@scyld.com\n";
 
 #ifdef EL3_DEBUG
 static int el3_debug = EL3_DEBUG;
@@ -186,7 +186,7 @@ static int max_interrupt_work = 10;
 static int nopnp;
 #endif
 
-static int __init el3_common_init(struct net_device *dev);
+static int __devinit el3_common_init(struct net_device *dev);
 static void el3_common_remove(struct net_device *dev);
 static ushort id_read_eeprom(int index);
 static ushort read_eeprom(int ioaddr, int index);
@@ -537,7 +537,7 @@ static struct mca_driver el3_mca_driver = {
 static int mca_registered;
 #endif /* CONFIG_MCA */
 
-static int __init el3_common_init(struct net_device *dev)
+static int __devinit el3_common_init(struct net_device *dev)
 {
 	struct el3_private *lp = netdev_priv(dev);
 	int err;

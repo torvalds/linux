@@ -507,6 +507,7 @@ int ipoib_pkey_dev_delay_open(struct net_device *dev);
 void ipoib_drain_cq(struct net_device *dev);
 
 void ipoib_set_ethtool_ops(struct net_device *dev);
+int ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca);
 
 #ifdef CONFIG_INFINIBAND_IPOIB_CM
 

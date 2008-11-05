@@ -29,7 +29,7 @@
  * Note: the saa7126 is identical to the saa7127, and the saa7128 is
  * identical to the saa7129, except that the saa7126 and saa7128 have
  * macrovision anti-taping support. This driver will almost certainly
- * work find for those chips, except of course for the missing anti-taping
+ * work fine for those chips, except of course for the missing anti-taping
  * support.
  *
  * This program is free software; you can redistribute it and/or modify

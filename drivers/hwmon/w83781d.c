@@ -4,7 +4,7 @@
     Copyright (c) 1998 - 2001  Frodo Looijaard <frodol@dds.nl>,
                                Philip Edelbrock <phil@netroedge.com>,
                                and Mark Studebaker <mdsxyz123@yahoo.com>
-    Copyright (c) 2007         Jean Delvare <khali@linux-fr.org>
+    Copyright (c) 2007 - 2008  Jean Delvare <khali@linux-fr.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -38,25 +38,24 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/platform_device.h>
-#include <linux/ioport.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-vid.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/sysfs.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
-#include <asm/io.h>
-#include "lm75.h"
 
-/* ISA device, if found */
-static struct platform_device *pdev;
+#ifdef CONFIG_ISA
+#include <linux/platform_device.h>
+#include <linux/ioport.h>
+#include <asm/io.h>
+#endif
+
+#include "lm75.h"
 
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 						0x2e, 0x2f, I2C_CLIENT_END };
-static unsigned short isa_address = 0x290;
-
 /* Insmod parameters */
 I2C_CLIENT_INSMOD_4(w83781d, w83782d, w83783s, as99127f);
 I2C_CLIENT_MODULE_PARM(force_subclients, "List of subclient addresses: "
@@ -178,9 +177,9 @@ FAN_FROM_REG(u8 val, int div)
 #define TEMP_FROM_REG(val)		((val) * 1000)
 
 #define BEEP_MASK_FROM_REG(val,type)	((type) == as99127f ? \
-					 (val) ^ 0x7fff : (val))
+					 (~(val)) & 0x7fff : (val) & 0xff7fff)
 #define BEEP_MASK_TO_REG(val,type)	((type) == as99127f ? \
-					 (~(val)) & 0x7fff : (val) & 0xffffff)
+					 (~(val)) & 0x7fff : (val) & 0xff7fff)
 
 #define DIV_FROM_REG(val)		(1 << (val))
 
@@ -199,24 +198,15 @@ DIV_TO_REG(long val, enum chips type)
 	return i;
 }
 
-/* There are some complications in a module like this. First off, W83781D chips
-   may be both present on the SMBus and the ISA bus, and we have to handle
-   those cases separately at some places. Second, there might be several
-   W83781D chips available (well, actually, that is probably never done; but
-   it is a clean illustration of how to handle a case like that). Finally,
-   a specific chip may be attached to *both* ISA and SMBus, and we would
-   not like to detect it double. Fortunately, in the case of the W83781D at
-   least, a register tells us what SMBus address we are on, so that helps
-   a bit - except if there could be more than one SMBus. Groan. No solution
-   for this yet. */
-
-/* For ISA chips, we abuse the i2c_client addr and name fields. We also use
-   the driver field to differentiate between I2C and ISA chips. */
 struct w83781d_data {
-	struct i2c_client client;
+	struct i2c_client *client;
 	struct device *hwmon_dev;
 	struct mutex lock;
 	enum chips type;
+
+	/* For ISA device only */
+	const char *name;
+	int isa_addr;
 
 	struct mutex update_lock;
 	char valid;		/* !=0 if following fields are valid */
@@ -240,7 +230,6 @@ struct w83781d_data {
 	u8 vid;			/* Register encoding, combined */
 	u32 alarms;		/* Register encoding, combined */
 	u32 beep_mask;		/* Register encoding, combined */
-	u8 beep_enable;		/* Boolean */
 	u8 pwm[4];		/* Register value */
 	u8 pwm2_enable;		/* Boolean */
 	u16 sens[3];		/* 782D/783S only.
@@ -249,35 +238,13 @@ struct w83781d_data {
 	u8 vrm;
 };
 
-static int w83781d_attach_adapter(struct i2c_adapter *adapter);
-static int w83781d_detect(struct i2c_adapter *adapter, int address, int kind);
-static int w83781d_detach_client(struct i2c_client *client);
-
-static int __devinit w83781d_isa_probe(struct platform_device *pdev);
-static int __devexit w83781d_isa_remove(struct platform_device *pdev);
+static struct w83781d_data *w83781d_data_if_isa(void);
+static int w83781d_alias_detect(struct i2c_client *client, u8 chipid);
 
 static int w83781d_read_value(struct w83781d_data *data, u16 reg);
 static int w83781d_write_value(struct w83781d_data *data, u16 reg, u16 value);
 static struct w83781d_data *w83781d_update_device(struct device *dev);
 static void w83781d_init_device(struct device *dev);
-
-static struct i2c_driver w83781d_driver = {
-	.driver = {
-		.name = "w83781d",
-	},
-	.attach_adapter = w83781d_attach_adapter,
-	.detach_client = w83781d_detach_client,
-};
-
-static struct platform_driver w83781d_isa_driver = {
-	.driver = {
-		.owner = THIS_MODULE,
-		.name = "w83781d",
-	},
-	.probe = w83781d_isa_probe,
-	.remove = w83781d_isa_remove,
-};
-
 
 /* following are the sysfs callback functions */
 #define show_in_reg(reg) \
@@ -513,11 +480,6 @@ static ssize_t show_beep_mask (struct device *dev, struct device_attribute *attr
 	return sprintf(buf, "%ld\n",
 		       (long)BEEP_MASK_FROM_REG(data->beep_mask, data->type));
 }
-static ssize_t show_beep_enable (struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct w83781d_data *data = w83781d_update_device(dev);
-	return sprintf(buf, "%ld\n", (long)data->beep_enable);
-}
 
 static ssize_t
 store_beep_mask(struct device *dev, struct device_attribute *attr,
@@ -529,12 +491,12 @@ store_beep_mask(struct device *dev, struct device_attribute *attr,
 	val = simple_strtoul(buf, NULL, 10);
 
 	mutex_lock(&data->update_lock);
-	data->beep_mask = BEEP_MASK_TO_REG(val, data->type);
+	data->beep_mask &= 0x8000; /* preserve beep enable */
+	data->beep_mask |= BEEP_MASK_TO_REG(val, data->type);
 	w83781d_write_value(data, W83781D_REG_BEEP_INTS1,
 			    data->beep_mask & 0xff);
 	w83781d_write_value(data, W83781D_REG_BEEP_INTS2,
-			    ((data->beep_mask >> 8) & 0x7f)
-			    | data->beep_enable << 7);
+			    (data->beep_mask >> 8) & 0xff);
 	if (data->type != w83781d && data->type != as99127f) {
 		w83781d_write_value(data, W83781D_REG_BEEP_INTS3,
 				    ((data->beep_mask) >> 16) & 0xff);
@@ -544,31 +506,8 @@ store_beep_mask(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t
-store_beep_enable(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
-{
-	struct w83781d_data *data = dev_get_drvdata(dev);
-	u32 val;
-
-	val = simple_strtoul(buf, NULL, 10);
-	if (val != 0 && val != 1)
-		return -EINVAL;
-
-	mutex_lock(&data->update_lock);
-	data->beep_enable = val;
-	val = w83781d_read_value(data, W83781D_REG_BEEP_INTS2) & 0x7f;
-	val |= data->beep_enable << 7;
-	w83781d_write_value(data, W83781D_REG_BEEP_INTS2, val);
-	mutex_unlock(&data->update_lock);
-
-	return count;
-}
-
 static DEVICE_ATTR(beep_mask, S_IRUGO | S_IWUSR,
 		show_beep_mask, store_beep_mask);
-static DEVICE_ATTR(beep_enable, S_IRUGO | S_IWUSR,
-		show_beep_enable, store_beep_enable);
 
 static ssize_t show_beep(struct device *dev, struct device_attribute *attr,
 		char *buf)
@@ -663,6 +602,8 @@ static SENSOR_DEVICE_ATTR(temp2_beep, S_IRUGO | S_IWUSR,
 			show_beep, store_beep, 5);
 static SENSOR_DEVICE_ATTR(temp3_beep, S_IRUGO,
 			show_temp3_beep, store_beep, 13);
+static SENSOR_DEVICE_ATTR(beep_enable, S_IRUGO | S_IWUSR,
+			show_beep, store_beep, 15);
 
 static ssize_t
 show_fan_div(struct device *dev, struct device_attribute *da, char *buf)
@@ -866,45 +807,19 @@ static SENSOR_DEVICE_ATTR(temp2_type, S_IRUGO | S_IWUSR,
 static SENSOR_DEVICE_ATTR(temp3_type, S_IRUGO | S_IWUSR,
 	show_sensor, store_sensor, 2);
 
-/* I2C devices get this name attribute automatically, but for ISA devices
-   we must create it by ourselves. */
-static ssize_t
-show_name(struct device *dev, struct device_attribute *devattr, char *buf)
-{
-	struct w83781d_data *data = dev_get_drvdata(dev);
-	return sprintf(buf, "%s\n", data->client.name);
-}
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
-
-/* This function is called when:
-     * w83781d_driver is inserted (when this module is loaded), for each
-       available adapter
-     * when a new adapter is inserted (and w83781d_driver is still present) */
-static int
-w83781d_attach_adapter(struct i2c_adapter *adapter)
-{
-	if (!(adapter->class & I2C_CLASS_HWMON))
-		return 0;
-	return i2c_probe(adapter, &addr_data, w83781d_detect);
-}
-
 /* Assumes that adapter is of I2C, not ISA variety.
  * OTHERWISE DON'T CALL THIS
  */
 static int
-w83781d_detect_subclients(struct i2c_adapter *adapter, int address, int kind,
-		struct i2c_client *new_client)
+w83781d_detect_subclients(struct i2c_client *new_client)
 {
 	int i, val1 = 0, id;
 	int err;
-	const char *client_name = "";
+	int address = new_client->addr;
+	unsigned short sc_addr[2];
+	struct i2c_adapter *adapter = new_client->adapter;
 	struct w83781d_data *data = i2c_get_clientdata(new_client);
-
-	data->lm75[0] = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (!(data->lm75[0])) {
-		err = -ENOMEM;
-		goto ERROR_SC_0;
-	}
+	enum chips kind = data->type;
 
 	id = i2c_adapter_id(adapter);
 
@@ -922,55 +837,35 @@ w83781d_detect_subclients(struct i2c_adapter *adapter, int address, int kind,
 		w83781d_write_value(data, W83781D_REG_I2C_SUBADDR,
 				(force_subclients[2] & 0x07) |
 				((force_subclients[3] & 0x07) << 4));
-		data->lm75[0]->addr = force_subclients[2];
+		sc_addr[0] = force_subclients[2];
 	} else {
 		val1 = w83781d_read_value(data, W83781D_REG_I2C_SUBADDR);
-		data->lm75[0]->addr = 0x48 + (val1 & 0x07);
+		sc_addr[0] = 0x48 + (val1 & 0x07);
 	}
 
 	if (kind != w83783s) {
-		data->lm75[1] = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
-		if (!(data->lm75[1])) {
-			err = -ENOMEM;
-			goto ERROR_SC_1;
-		}
-
 		if (force_subclients[0] == id &&
 		    force_subclients[1] == address) {
-			data->lm75[1]->addr = force_subclients[3];
+			sc_addr[1] = force_subclients[3];
 		} else {
-			data->lm75[1]->addr = 0x48 + ((val1 >> 4) & 0x07);
+			sc_addr[1] = 0x48 + ((val1 >> 4) & 0x07);
 		}
-		if (data->lm75[0]->addr == data->lm75[1]->addr) {
+		if (sc_addr[0] == sc_addr[1]) {
 			dev_err(&new_client->dev,
 			       "Duplicate addresses 0x%x for subclients.\n",
-			       data->lm75[0]->addr);
+			       sc_addr[0]);
 			err = -EBUSY;
 			goto ERROR_SC_2;
 		}
 	}
 
-	if (kind == w83781d)
-		client_name = "w83781d subclient";
-	else if (kind == w83782d)
-		client_name = "w83782d subclient";
-	else if (kind == w83783s)
-		client_name = "w83783s subclient";
-	else if (kind == as99127f)
-		client_name = "as99127f subclient";
-
 	for (i = 0; i <= 1; i++) {
-		/* store all data in w83781d */
-		i2c_set_clientdata(data->lm75[i], NULL);
-		data->lm75[i]->adapter = adapter;
-		data->lm75[i]->driver = &w83781d_driver;
-		data->lm75[i]->flags = 0;
-		strlcpy(data->lm75[i]->name, client_name,
-			I2C_NAME_SIZE);
-		if ((err = i2c_attach_client(data->lm75[i]))) {
+		data->lm75[i] = i2c_new_dummy(adapter, sc_addr[i]);
+		if (!data->lm75[i]) {
 			dev_err(&new_client->dev, "Subclient %d "
 				"registration at address 0x%x "
-				"failed.\n", i, data->lm75[i]->addr);
+				"failed.\n", i, sc_addr[i]);
+			err = -ENOMEM;
 			if (i == 1)
 				goto ERROR_SC_3;
 			goto ERROR_SC_2;
@@ -983,12 +878,9 @@ w83781d_detect_subclients(struct i2c_adapter *adapter, int address, int kind,
 
 /* Undo inits in case of errors */
 ERROR_SC_3:
-	i2c_detach_client(data->lm75[0]);
+	i2c_unregister_device(data->lm75[0]);
 ERROR_SC_2:
-	kfree(data->lm75[1]);
 ERROR_SC_1:
-	kfree(data->lm75[0]);
-ERROR_SC_0:
 	return err;
 }
 
@@ -1029,7 +921,7 @@ static struct attribute* w83781d_attributes[] = {
 	&dev_attr_vrm.attr,
 	&dev_attr_alarms.attr,
 	&dev_attr_beep_mask.attr,
-	&dev_attr_beep_enable.attr,
+	&sensor_dev_attr_beep_enable.dev_attr.attr,
 	NULL
 };
 static const struct attribute_group w83781d_group = {
@@ -1151,96 +1043,74 @@ w83781d_create_files(struct device *dev, int kind, int is_isa)
 		}
 	}
 
-	if (is_isa) {
-		err = device_create_file(&pdev->dev, &dev_attr_name);
-		if (err)
-			return err;
-	}
-
 	return 0;
 }
 
+/* Return 0 if detection is successful, -ENODEV otherwise */
 static int
-w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
+w83781d_detect(struct i2c_client *client, int kind,
+	       struct i2c_board_info *info)
 {
 	int val1 = 0, val2;
-	struct i2c_client *client;
-	struct device *dev;
-	struct w83781d_data *data;
-	int err;
+	struct w83781d_data *isa = w83781d_data_if_isa();
+	struct i2c_adapter *adapter = client->adapter;
+	int address = client->addr;
 	const char *client_name = "";
 	enum vendor { winbond, asus } vendid;
 
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
-		err = -EINVAL;
-		goto ERROR1;
-	}
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
+		return -ENODEV;
 
-	/* OK. For now, we presume we have a valid client. We now create the
-	   client structure, even though we cannot fill it completely yet.
-	   But it allows us to access w83781d_{read,write}_value. */
-
-	if (!(data = kzalloc(sizeof(struct w83781d_data), GFP_KERNEL))) {
-		err = -ENOMEM;
-		goto ERROR1;
-	}
-
-	client = &data->client;
-	i2c_set_clientdata(client, data);
-	client->addr = address;
-	mutex_init(&data->lock);
-	client->adapter = adapter;
-	client->driver = &w83781d_driver;
-	dev = &client->dev;
-
-	/* Now, we do the remaining detection. */
+	/* We block updates of the ISA device to minimize the risk of
+	   concurrent access to the same W83781D chip through different
+	   interfaces. */
+	if (isa)
+		mutex_lock(&isa->update_lock);
 
 	/* The w8378?d may be stuck in some other bank than bank 0. This may
 	   make reading other information impossible. Specify a force=... or
 	   force_*=... parameter, and the Winbond will be reset to the right
 	   bank. */
 	if (kind < 0) {
-		if (w83781d_read_value(data, W83781D_REG_CONFIG) & 0x80) {
+		if (i2c_smbus_read_byte_data
+		    (client, W83781D_REG_CONFIG) & 0x80) {
 			dev_dbg(&adapter->dev, "Detection of w83781d chip "
 				"failed at step 3\n");
-			err = -ENODEV;
-			goto ERROR2;
+			goto err_nodev;
 		}
-		val1 = w83781d_read_value(data, W83781D_REG_BANK);
-		val2 = w83781d_read_value(data, W83781D_REG_CHIPMAN);
+		val1 = i2c_smbus_read_byte_data(client, W83781D_REG_BANK);
+		val2 = i2c_smbus_read_byte_data(client, W83781D_REG_CHIPMAN);
 		/* Check for Winbond or Asus ID if in bank 0 */
 		if ((!(val1 & 0x07)) &&
 		    (((!(val1 & 0x80)) && (val2 != 0xa3) && (val2 != 0xc3))
 		     || ((val1 & 0x80) && (val2 != 0x5c) && (val2 != 0x12)))) {
 			dev_dbg(&adapter->dev, "Detection of w83781d chip "
 				"failed at step 4\n");
-			err = -ENODEV;
-			goto ERROR2;
+			goto err_nodev;
 		}
 		/* If Winbond SMBus, check address at 0x48.
 		   Asus doesn't support, except for as99127f rev.2 */
 		if ((!(val1 & 0x80) && (val2 == 0xa3)) ||
 		    ((val1 & 0x80) && (val2 == 0x5c))) {
-			if (w83781d_read_value
-			    (data, W83781D_REG_I2C_ADDR) != address) {
+			if (i2c_smbus_read_byte_data
+			    (client, W83781D_REG_I2C_ADDR) != address) {
 				dev_dbg(&adapter->dev, "Detection of w83781d "
 					"chip failed at step 5\n");
-				err = -ENODEV;
-				goto ERROR2;
+				goto err_nodev;
 			}
 		}
 	}
 
 	/* We have either had a force parameter, or we have already detected the
 	   Winbond. Put it now into bank 0 and Vendor ID High Byte */
-	w83781d_write_value(data, W83781D_REG_BANK,
-			    (w83781d_read_value(data, W83781D_REG_BANK)
-			     & 0x78) | 0x80);
+	i2c_smbus_write_byte_data(client, W83781D_REG_BANK,
+		(i2c_smbus_read_byte_data(client, W83781D_REG_BANK)
+		 & 0x78) | 0x80);
 
 	/* Determine the chip type. */
 	if (kind <= 0) {
 		/* get vendor ID */
-		val2 = w83781d_read_value(data, W83781D_REG_CHIPMAN);
+		val2 = i2c_smbus_read_byte_data(client, W83781D_REG_CHIPMAN);
 		if (val2 == 0x5c)
 			vendid = winbond;
 		else if (val2 == 0x12)
@@ -1248,11 +1118,10 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 		else {
 			dev_dbg(&adapter->dev, "w83781d chip vendor is "
 				"neither Winbond nor Asus\n");
-			err = -ENODEV;
-			goto ERROR2;
+			goto err_nodev;
 		}
 
-		val1 = w83781d_read_value(data, W83781D_REG_WCHIPID);
+		val1 = i2c_smbus_read_byte_data(client, W83781D_REG_WCHIPID);
 		if ((val1 == 0x10 || val1 == 0x11) && vendid == winbond)
 			kind = w83781d;
 		else if (val1 == 0x30 && vendid == winbond)
@@ -1266,10 +1135,19 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 				dev_warn(&adapter->dev, "Ignoring 'force' "
 					 "parameter for unknown chip at "
 					 "address 0x%02x\n", address);
-			err = -EINVAL;
-			goto ERROR2;
+			goto err_nodev;
+		}
+
+		if ((kind == w83781d || kind == w83782d)
+		 && w83781d_alias_detect(client, val1)) {
+			dev_dbg(&adapter->dev, "Device at 0x%02x appears to "
+				"be the same as ISA device\n", address);
+			goto err_nodev;
 		}
 	}
+
+	if (isa)
+		mutex_unlock(&isa->update_lock);
 
 	if (kind == w83781d) {
 		client_name = "w83781d";
@@ -1281,24 +1159,46 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 		client_name = "as99127f";
 	}
 
-	/* Fill in the remaining client fields and put into the global list */
-	strlcpy(client->name, client_name, I2C_NAME_SIZE);
-	data->type = kind;
+	strlcpy(info->type, client_name, I2C_NAME_SIZE);
 
-	/* Tell the I2C layer a new client has arrived */
-	if ((err = i2c_attach_client(client)))
-		goto ERROR2;
+	return 0;
+
+ err_nodev:
+	if (isa)
+		mutex_unlock(&isa->update_lock);
+	return -ENODEV;
+}
+
+static int
+w83781d_probe(struct i2c_client *client, const struct i2c_device_id *id)
+{
+	struct device *dev = &client->dev;
+	struct w83781d_data *data;
+	int err;
+
+	data = kzalloc(sizeof(struct w83781d_data), GFP_KERNEL);
+	if (!data) {
+		err = -ENOMEM;
+		goto ERROR1;
+	}
+
+	i2c_set_clientdata(client, data);
+	mutex_init(&data->lock);
+	mutex_init(&data->update_lock);
+
+	data->type = id->driver_data;
+	data->client = client;
 
 	/* attach secondary i2c lm75-like clients */
-	if ((err = w83781d_detect_subclients(adapter, address,
-			kind, client)))
+	err = w83781d_detect_subclients(client);
+	if (err)
 		goto ERROR3;
 
 	/* Initialize the chip */
 	w83781d_init_device(dev);
 
 	/* Register sysfs hooks */
-	err = w83781d_create_files(dev, kind, 0);
+	err = w83781d_create_files(dev, data->type, 0);
 	if (err)
 		goto ERROR4;
 
@@ -1314,264 +1214,113 @@ ERROR4:
 	sysfs_remove_group(&dev->kobj, &w83781d_group);
 	sysfs_remove_group(&dev->kobj, &w83781d_group_opt);
 
-	if (data->lm75[1]) {
-		i2c_detach_client(data->lm75[1]);
-		kfree(data->lm75[1]);
-	}
-	if (data->lm75[0]) {
-		i2c_detach_client(data->lm75[0]);
-		kfree(data->lm75[0]);
-	}
+	if (data->lm75[0])
+		i2c_unregister_device(data->lm75[0]);
+	if (data->lm75[1])
+		i2c_unregister_device(data->lm75[1]);
 ERROR3:
-	i2c_detach_client(client);
-ERROR2:
+	i2c_set_clientdata(client, NULL);
 	kfree(data);
 ERROR1:
 	return err;
 }
 
 static int
-w83781d_detach_client(struct i2c_client *client)
+w83781d_remove(struct i2c_client *client)
 {
 	struct w83781d_data *data = i2c_get_clientdata(client);
-	int err;
-
-	/* main client */
-	if (data) {
-		hwmon_device_unregister(data->hwmon_dev);
-		sysfs_remove_group(&client->dev.kobj, &w83781d_group);
-		sysfs_remove_group(&client->dev.kobj, &w83781d_group_opt);
-	}
-
-	if ((err = i2c_detach_client(client)))
-		return err;
-
-	/* main client */
-	if (data)
-		kfree(data);
-
-	/* subclient */
-	else
-		kfree(client);
-
-	return 0;
-}
-
-static int __devinit
-w83781d_isa_probe(struct platform_device *pdev)
-{
-	int err, reg;
-	struct w83781d_data *data;
-	struct resource *res;
-	const char *name;
-
-	/* Reserve the ISA region */
-	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	if (!request_region(res->start + W83781D_ADDR_REG_OFFSET, 2,
-			    "w83781d")) {
-		err = -EBUSY;
-		goto exit;
-	}
-
-	if (!(data = kzalloc(sizeof(struct w83781d_data), GFP_KERNEL))) {
-		err = -ENOMEM;
-		goto exit_release_region;
-	}
-	mutex_init(&data->lock);
-	data->client.addr = res->start;
-	i2c_set_clientdata(&data->client, data);
-	platform_set_drvdata(pdev, data);
-
-	reg = w83781d_read_value(data, W83781D_REG_WCHIPID);
-	switch (reg) {
-	case 0x30:
-		data->type = w83782d;
-		name = "w83782d";
-		break;
-	default:
-		data->type = w83781d;
-		name = "w83781d";
-	}
-	strlcpy(data->client.name, name, I2C_NAME_SIZE);
-
-	/* Initialize the W83781D chip */
-	w83781d_init_device(&pdev->dev);
-
-	/* Register sysfs hooks */
-	err = w83781d_create_files(&pdev->dev, data->type, 1);
-	if (err)
-		goto exit_remove_files;
-
-	data->hwmon_dev = hwmon_device_register(&pdev->dev);
-	if (IS_ERR(data->hwmon_dev)) {
-		err = PTR_ERR(data->hwmon_dev);
-		goto exit_remove_files;
-	}
-
-	return 0;
-
- exit_remove_files:
-	sysfs_remove_group(&pdev->dev.kobj, &w83781d_group);
-	sysfs_remove_group(&pdev->dev.kobj, &w83781d_group_opt);
-	device_remove_file(&pdev->dev, &dev_attr_name);
-	kfree(data);
- exit_release_region:
-	release_region(res->start + W83781D_ADDR_REG_OFFSET, 2);
- exit:
-	return err;
-}
-
-static int __devexit
-w83781d_isa_remove(struct platform_device *pdev)
-{
-	struct w83781d_data *data = platform_get_drvdata(pdev);
+	struct device *dev = &client->dev;
 
 	hwmon_device_unregister(data->hwmon_dev);
-	sysfs_remove_group(&pdev->dev.kobj, &w83781d_group);
-	sysfs_remove_group(&pdev->dev.kobj, &w83781d_group_opt);
-	device_remove_file(&pdev->dev, &dev_attr_name);
-	release_region(data->client.addr + W83781D_ADDR_REG_OFFSET, 2);
+
+	sysfs_remove_group(&dev->kobj, &w83781d_group);
+	sysfs_remove_group(&dev->kobj, &w83781d_group_opt);
+
+	if (data->lm75[0])
+		i2c_unregister_device(data->lm75[0]);
+	if (data->lm75[1])
+		i2c_unregister_device(data->lm75[1]);
+
+	i2c_set_clientdata(client, NULL);
 	kfree(data);
 
 	return 0;
 }
 
-/* The SMBus locks itself, usually, but nothing may access the Winbond between
-   bank switches. ISA access must always be locked explicitly!
-   We ignore the W83781D BUSY flag at this moment - it could lead to deadlocks,
-   would slow down the W83781D access and should not be necessary.
-   There are some ugly typecasts here, but the good news is - they should
-   nowhere else be necessary! */
 static int
-w83781d_read_value(struct w83781d_data *data, u16 reg)
+w83781d_read_value_i2c(struct w83781d_data *data, u16 reg)
 {
-	struct i2c_client *client = &data->client;
-	int res, word_sized, bank;
+	struct i2c_client *client = data->client;
+	int res, bank;
 	struct i2c_client *cl;
 
-	mutex_lock(&data->lock);
-	if (!client->driver) { /* ISA device */
-		word_sized = (((reg & 0xff00) == 0x100)
-			      || ((reg & 0xff00) == 0x200))
-		    && (((reg & 0x00ff) == 0x50)
-			|| ((reg & 0x00ff) == 0x53)
-			|| ((reg & 0x00ff) == 0x55));
-		if (reg & 0xff00) {
-			outb_p(W83781D_REG_BANK,
-			       client->addr + W83781D_ADDR_REG_OFFSET);
-			outb_p(reg >> 8,
-			       client->addr + W83781D_DATA_REG_OFFSET);
-		}
-		outb_p(reg & 0xff, client->addr + W83781D_ADDR_REG_OFFSET);
-		res = inb_p(client->addr + W83781D_DATA_REG_OFFSET);
-		if (word_sized) {
-			outb_p((reg & 0xff) + 1,
-			       client->addr + W83781D_ADDR_REG_OFFSET);
-			res =
-			    (res << 8) + inb_p(client->addr +
-					       W83781D_DATA_REG_OFFSET);
-		}
-		if (reg & 0xff00) {
-			outb_p(W83781D_REG_BANK,
-			       client->addr + W83781D_ADDR_REG_OFFSET);
-			outb_p(0, client->addr + W83781D_DATA_REG_OFFSET);
-		}
+	bank = (reg >> 8) & 0x0f;
+	if (bank > 2)
+		/* switch banks */
+		i2c_smbus_write_byte_data(client, W83781D_REG_BANK,
+					  bank);
+	if (bank == 0 || bank > 2) {
+		res = i2c_smbus_read_byte_data(client, reg & 0xff);
 	} else {
-		bank = (reg >> 8) & 0x0f;
-		if (bank > 2)
-			/* switch banks */
-			i2c_smbus_write_byte_data(client, W83781D_REG_BANK,
-						  bank);
-		if (bank == 0 || bank > 2) {
-			res = i2c_smbus_read_byte_data(client, reg & 0xff);
-		} else {
-			/* switch to subclient */
-			cl = data->lm75[bank - 1];
-			/* convert from ISA to LM75 I2C addresses */
-			switch (reg & 0xff) {
-			case 0x50:	/* TEMP */
-				res = swab16(i2c_smbus_read_word_data(cl, 0));
-				break;
-			case 0x52:	/* CONFIG */
-				res = i2c_smbus_read_byte_data(cl, 1);
-				break;
-			case 0x53:	/* HYST */
-				res = swab16(i2c_smbus_read_word_data(cl, 2));
-				break;
-			case 0x55:	/* OVER */
-			default:
-				res = swab16(i2c_smbus_read_word_data(cl, 3));
-				break;
-			}
+		/* switch to subclient */
+		cl = data->lm75[bank - 1];
+		/* convert from ISA to LM75 I2C addresses */
+		switch (reg & 0xff) {
+		case 0x50:	/* TEMP */
+			res = swab16(i2c_smbus_read_word_data(cl, 0));
+			break;
+		case 0x52:	/* CONFIG */
+			res = i2c_smbus_read_byte_data(cl, 1);
+			break;
+		case 0x53:	/* HYST */
+			res = swab16(i2c_smbus_read_word_data(cl, 2));
+			break;
+		case 0x55:	/* OVER */
+		default:
+			res = swab16(i2c_smbus_read_word_data(cl, 3));
+			break;
 		}
-		if (bank > 2)
-			i2c_smbus_write_byte_data(client, W83781D_REG_BANK, 0);
 	}
-	mutex_unlock(&data->lock);
+	if (bank > 2)
+		i2c_smbus_write_byte_data(client, W83781D_REG_BANK, 0);
+
 	return res;
 }
 
 static int
-w83781d_write_value(struct w83781d_data *data, u16 reg, u16 value)
+w83781d_write_value_i2c(struct w83781d_data *data, u16 reg, u16 value)
 {
-	struct i2c_client *client = &data->client;
-	int word_sized, bank;
+	struct i2c_client *client = data->client;
+	int bank;
 	struct i2c_client *cl;
 
-	mutex_lock(&data->lock);
-	if (!client->driver) { /* ISA device */
-		word_sized = (((reg & 0xff00) == 0x100)
-			      || ((reg & 0xff00) == 0x200))
-		    && (((reg & 0x00ff) == 0x53)
-			|| ((reg & 0x00ff) == 0x55));
-		if (reg & 0xff00) {
-			outb_p(W83781D_REG_BANK,
-			       client->addr + W83781D_ADDR_REG_OFFSET);
-			outb_p(reg >> 8,
-			       client->addr + W83781D_DATA_REG_OFFSET);
-		}
-		outb_p(reg & 0xff, client->addr + W83781D_ADDR_REG_OFFSET);
-		if (word_sized) {
-			outb_p(value >> 8,
-			       client->addr + W83781D_DATA_REG_OFFSET);
-			outb_p((reg & 0xff) + 1,
-			       client->addr + W83781D_ADDR_REG_OFFSET);
-		}
-		outb_p(value & 0xff, client->addr + W83781D_DATA_REG_OFFSET);
-		if (reg & 0xff00) {
-			outb_p(W83781D_REG_BANK,
-			       client->addr + W83781D_ADDR_REG_OFFSET);
-			outb_p(0, client->addr + W83781D_DATA_REG_OFFSET);
-		}
+	bank = (reg >> 8) & 0x0f;
+	if (bank > 2)
+		/* switch banks */
+		i2c_smbus_write_byte_data(client, W83781D_REG_BANK,
+					  bank);
+	if (bank == 0 || bank > 2) {
+		i2c_smbus_write_byte_data(client, reg & 0xff,
+					  value & 0xff);
 	} else {
-		bank = (reg >> 8) & 0x0f;
-		if (bank > 2)
-			/* switch banks */
-			i2c_smbus_write_byte_data(client, W83781D_REG_BANK,
-						  bank);
-		if (bank == 0 || bank > 2) {
-			i2c_smbus_write_byte_data(client, reg & 0xff,
-						  value & 0xff);
-		} else {
-			/* switch to subclient */
-			cl = data->lm75[bank - 1];
-			/* convert from ISA to LM75 I2C addresses */
-			switch (reg & 0xff) {
-			case 0x52:	/* CONFIG */
-				i2c_smbus_write_byte_data(cl, 1, value & 0xff);
-				break;
-			case 0x53:	/* HYST */
-				i2c_smbus_write_word_data(cl, 2, swab16(value));
-				break;
-			case 0x55:	/* OVER */
-				i2c_smbus_write_word_data(cl, 3, swab16(value));
-				break;
-			}
+		/* switch to subclient */
+		cl = data->lm75[bank - 1];
+		/* convert from ISA to LM75 I2C addresses */
+		switch (reg & 0xff) {
+		case 0x52:	/* CONFIG */
+			i2c_smbus_write_byte_data(cl, 1, value & 0xff);
+			break;
+		case 0x53:	/* HYST */
+			i2c_smbus_write_word_data(cl, 2, swab16(value));
+			break;
+		case 0x55:	/* OVER */
+			i2c_smbus_write_word_data(cl, 3, swab16(value));
+			break;
 		}
-		if (bank > 2)
-			i2c_smbus_write_byte_data(client, W83781D_REG_BANK, 0);
 	}
-	mutex_unlock(&data->lock);
+	if (bank > 2)
+		i2c_smbus_write_byte_data(client, W83781D_REG_BANK, 0);
+
 	return 0;
 }
 
@@ -1678,7 +1427,7 @@ w83781d_init_device(struct device *dev)
 static struct w83781d_data *w83781d_update_device(struct device *dev)
 {
 	struct w83781d_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = &data->client;
+	struct i2c_client *client = data->client;
 	int i;
 
 	mutex_lock(&data->update_lock);
@@ -1775,8 +1524,7 @@ static struct w83781d_data *w83781d_update_device(struct device *dev)
 						W83781D_REG_ALARM2) << 8);
 		}
 		i = w83781d_read_value(data, W83781D_REG_BEEP_INTS2);
-		data->beep_enable = i >> 7;
-		data->beep_mask = ((i & 0x7f) << 8) +
+		data->beep_mask = (i << 8) +
 		    w83781d_read_value(data, W83781D_REG_BEEP_INTS1);
 		if ((data->type != w83781d) && (data->type != as99127f)) {
 			data->beep_mask |=
@@ -1791,6 +1539,275 @@ static struct w83781d_data *w83781d_update_device(struct device *dev)
 
 	return data;
 }
+
+static const struct i2c_device_id w83781d_ids[] = {
+	{ "w83781d", w83781d, },
+	{ "w83782d", w83782d, },
+	{ "w83783s", w83783s, },
+	{ "as99127f", as99127f },
+	{ /* LIST END */ }
+};
+MODULE_DEVICE_TABLE(i2c, w83781d_ids);
+
+static struct i2c_driver w83781d_driver = {
+	.class		= I2C_CLASS_HWMON,
+	.driver = {
+		.name = "w83781d",
+	},
+	.probe		= w83781d_probe,
+	.remove		= w83781d_remove,
+	.id_table	= w83781d_ids,
+	.detect		= w83781d_detect,
+	.address_data	= &addr_data,
+};
+
+/*
+ * ISA related code
+ */
+#ifdef CONFIG_ISA
+
+/* ISA device, if found */
+static struct platform_device *pdev;
+
+static unsigned short isa_address = 0x290;
+
+/* I2C devices get this name attribute automatically, but for ISA devices
+   we must create it by ourselves. */
+static ssize_t
+show_name(struct device *dev, struct device_attribute *devattr, char *buf)
+{
+	struct w83781d_data *data = dev_get_drvdata(dev);
+	return sprintf(buf, "%s\n", data->name);
+}
+static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+
+static struct w83781d_data *w83781d_data_if_isa(void)
+{
+	return pdev ? platform_get_drvdata(pdev) : NULL;
+}
+
+/* Returns 1 if the I2C chip appears to be an alias of the ISA chip */
+static int w83781d_alias_detect(struct i2c_client *client, u8 chipid)
+{
+	struct w83781d_data *isa;
+	int i;
+
+	if (!pdev)	/* No ISA chip */
+		return 0;
+
+	isa = platform_get_drvdata(pdev);
+
+	if (w83781d_read_value(isa, W83781D_REG_I2C_ADDR) != client->addr)
+		return 0;	/* Address doesn't match */
+	if (w83781d_read_value(isa, W83781D_REG_WCHIPID) != chipid)
+		return 0;	/* Chip type doesn't match */
+
+	/* We compare all the limit registers, the config register and the
+	 * interrupt mask registers */
+	for (i = 0x2b; i <= 0x3d; i++) {
+		if (w83781d_read_value(isa, i) !=
+		    i2c_smbus_read_byte_data(client, i))
+			return 0;
+	}
+	if (w83781d_read_value(isa, W83781D_REG_CONFIG) !=
+	    i2c_smbus_read_byte_data(client, W83781D_REG_CONFIG))
+		return 0;
+	for (i = 0x43; i <= 0x46; i++) {
+		if (w83781d_read_value(isa, i) !=
+		    i2c_smbus_read_byte_data(client, i))
+			return 0;
+	}
+
+	return 1;
+}
+
+static int
+w83781d_read_value_isa(struct w83781d_data *data, u16 reg)
+{
+	int word_sized, res;
+
+	word_sized = (((reg & 0xff00) == 0x100)
+		      || ((reg & 0xff00) == 0x200))
+	    && (((reg & 0x00ff) == 0x50)
+		|| ((reg & 0x00ff) == 0x53)
+		|| ((reg & 0x00ff) == 0x55));
+	if (reg & 0xff00) {
+		outb_p(W83781D_REG_BANK,
+		       data->isa_addr + W83781D_ADDR_REG_OFFSET);
+		outb_p(reg >> 8,
+		       data->isa_addr + W83781D_DATA_REG_OFFSET);
+	}
+	outb_p(reg & 0xff, data->isa_addr + W83781D_ADDR_REG_OFFSET);
+	res = inb_p(data->isa_addr + W83781D_DATA_REG_OFFSET);
+	if (word_sized) {
+		outb_p((reg & 0xff) + 1,
+		       data->isa_addr + W83781D_ADDR_REG_OFFSET);
+		res =
+		    (res << 8) + inb_p(data->isa_addr +
+				       W83781D_DATA_REG_OFFSET);
+	}
+	if (reg & 0xff00) {
+		outb_p(W83781D_REG_BANK,
+		       data->isa_addr + W83781D_ADDR_REG_OFFSET);
+		outb_p(0, data->isa_addr + W83781D_DATA_REG_OFFSET);
+	}
+	return res;
+}
+
+static void
+w83781d_write_value_isa(struct w83781d_data *data, u16 reg, u16 value)
+{
+	int word_sized;
+
+	word_sized = (((reg & 0xff00) == 0x100)
+		      || ((reg & 0xff00) == 0x200))
+	    && (((reg & 0x00ff) == 0x53)
+		|| ((reg & 0x00ff) == 0x55));
+	if (reg & 0xff00) {
+		outb_p(W83781D_REG_BANK,
+		       data->isa_addr + W83781D_ADDR_REG_OFFSET);
+		outb_p(reg >> 8,
+		       data->isa_addr + W83781D_DATA_REG_OFFSET);
+	}
+	outb_p(reg & 0xff, data->isa_addr + W83781D_ADDR_REG_OFFSET);
+	if (word_sized) {
+		outb_p(value >> 8,
+		       data->isa_addr + W83781D_DATA_REG_OFFSET);
+		outb_p((reg & 0xff) + 1,
+		       data->isa_addr + W83781D_ADDR_REG_OFFSET);
+	}
+	outb_p(value & 0xff, data->isa_addr + W83781D_DATA_REG_OFFSET);
+	if (reg & 0xff00) {
+		outb_p(W83781D_REG_BANK,
+		       data->isa_addr + W83781D_ADDR_REG_OFFSET);
+		outb_p(0, data->isa_addr + W83781D_DATA_REG_OFFSET);
+	}
+}
+
+/* The SMBus locks itself, usually, but nothing may access the Winbond between
+   bank switches. ISA access must always be locked explicitly!
+   We ignore the W83781D BUSY flag at this moment - it could lead to deadlocks,
+   would slow down the W83781D access and should not be necessary.
+   There are some ugly typecasts here, but the good news is - they should
+   nowhere else be necessary! */
+static int
+w83781d_read_value(struct w83781d_data *data, u16 reg)
+{
+	struct i2c_client *client = data->client;
+	int res;
+
+	mutex_lock(&data->lock);
+	if (client)
+		res = w83781d_read_value_i2c(data, reg);
+	else
+		res = w83781d_read_value_isa(data, reg);
+	mutex_unlock(&data->lock);
+	return res;
+}
+
+static int
+w83781d_write_value(struct w83781d_data *data, u16 reg, u16 value)
+{
+	struct i2c_client *client = data->client;
+
+	mutex_lock(&data->lock);
+	if (client)
+		w83781d_write_value_i2c(data, reg, value);
+	else
+		w83781d_write_value_isa(data, reg, value);
+	mutex_unlock(&data->lock);
+	return 0;
+}
+
+static int __devinit
+w83781d_isa_probe(struct platform_device *pdev)
+{
+	int err, reg;
+	struct w83781d_data *data;
+	struct resource *res;
+
+	/* Reserve the ISA region */
+	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	if (!request_region(res->start + W83781D_ADDR_REG_OFFSET, 2,
+			    "w83781d")) {
+		err = -EBUSY;
+		goto exit;
+	}
+
+	data = kzalloc(sizeof(struct w83781d_data), GFP_KERNEL);
+	if (!data) {
+		err = -ENOMEM;
+		goto exit_release_region;
+	}
+	mutex_init(&data->lock);
+	data->isa_addr = res->start;
+	platform_set_drvdata(pdev, data);
+
+	reg = w83781d_read_value(data, W83781D_REG_WCHIPID);
+	switch (reg) {
+	case 0x30:
+		data->type = w83782d;
+		data->name = "w83782d";
+		break;
+	default:
+		data->type = w83781d;
+		data->name = "w83781d";
+	}
+
+	/* Initialize the W83781D chip */
+	w83781d_init_device(&pdev->dev);
+
+	/* Register sysfs hooks */
+	err = w83781d_create_files(&pdev->dev, data->type, 1);
+	if (err)
+		goto exit_remove_files;
+
+	err = device_create_file(&pdev->dev, &dev_attr_name);
+	if (err)
+		goto exit_remove_files;
+
+	data->hwmon_dev = hwmon_device_register(&pdev->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
+		goto exit_remove_files;
+	}
+
+	return 0;
+
+ exit_remove_files:
+	sysfs_remove_group(&pdev->dev.kobj, &w83781d_group);
+	sysfs_remove_group(&pdev->dev.kobj, &w83781d_group_opt);
+	device_remove_file(&pdev->dev, &dev_attr_name);
+	kfree(data);
+ exit_release_region:
+	release_region(res->start + W83781D_ADDR_REG_OFFSET, 2);
+ exit:
+	return err;
+}
+
+static int __devexit
+w83781d_isa_remove(struct platform_device *pdev)
+{
+	struct w83781d_data *data = platform_get_drvdata(pdev);
+
+	hwmon_device_unregister(data->hwmon_dev);
+	sysfs_remove_group(&pdev->dev.kobj, &w83781d_group);
+	sysfs_remove_group(&pdev->dev.kobj, &w83781d_group_opt);
+	device_remove_file(&pdev->dev, &dev_attr_name);
+	release_region(data->isa_addr + W83781D_ADDR_REG_OFFSET, 2);
+	kfree(data);
+
+	return 0;
+}
+
+static struct platform_driver w83781d_isa_driver = {
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = "w83781d",
+	},
+	.probe = w83781d_isa_probe,
+	.remove = __devexit_p(w83781d_isa_remove),
+};
 
 /* return 1 if a supported chip is found, 0 otherwise */
 static int __init
@@ -1928,18 +1945,14 @@ w83781d_isa_device_add(unsigned short address)
 }
 
 static int __init
-sensors_w83781d_init(void)
+w83781d_isa_register(void)
 {
 	int res;
-
-	res = i2c_add_driver(&w83781d_driver);
-	if (res)
-		goto exit;
 
 	if (w83781d_isa_found(isa_address)) {
 		res = platform_driver_register(&w83781d_isa_driver);
 		if (res)
-			goto exit_unreg_i2c_driver;
+			goto exit;
 
 		/* Sets global pdev as a side effect */
 		res = w83781d_isa_device_add(isa_address);
@@ -1949,10 +1962,86 @@ sensors_w83781d_init(void)
 
 	return 0;
 
- exit_unreg_isa_driver:
+exit_unreg_isa_driver:
 	platform_driver_unregister(&w83781d_isa_driver);
- exit_unreg_i2c_driver:
-	i2c_del_driver(&w83781d_driver);
+exit:
+	return res;
+}
+
+static void
+w83781d_isa_unregister(void)
+{
+	if (pdev) {
+		platform_device_unregister(pdev);
+		platform_driver_unregister(&w83781d_isa_driver);
+	}
+}
+#else /* !CONFIG_ISA */
+
+static struct w83781d_data *w83781d_data_if_isa(void)
+{
+	return NULL;
+}
+
+static int
+w83781d_alias_detect(struct i2c_client *client, u8 chipid)
+{
+	return 0;
+}
+
+static int
+w83781d_read_value(struct w83781d_data *data, u16 reg)
+{
+	int res;
+
+	mutex_lock(&data->lock);
+	res = w83781d_read_value_i2c(data, reg);
+	mutex_unlock(&data->lock);
+
+	return res;
+}
+
+static int
+w83781d_write_value(struct w83781d_data *data, u16 reg, u16 value)
+{
+	mutex_lock(&data->lock);
+	w83781d_write_value_i2c(data, reg, value);
+	mutex_unlock(&data->lock);
+
+	return 0;
+}
+
+static int __init
+w83781d_isa_register(void)
+{
+	return 0;
+}
+
+static void
+w83781d_isa_unregister(void)
+{
+}
+#endif /* CONFIG_ISA */
+
+static int __init
+sensors_w83781d_init(void)
+{
+	int res;
+
+	/* We register the ISA device first, so that we can skip the
+	 * registration of an I2C interface to the same device. */
+	res = w83781d_isa_register();
+	if (res)
+		goto exit;
+
+	res = i2c_add_driver(&w83781d_driver);
+	if (res)
+		goto exit_unreg_isa;
+
+	return 0;
+
+ exit_unreg_isa:
+	w83781d_isa_unregister();
  exit:
 	return res;
 }
@@ -1960,10 +2049,7 @@ sensors_w83781d_init(void)
 static void __exit
 sensors_w83781d_exit(void)
 {
-	if (pdev) {
-		platform_device_unregister(pdev);
-		platform_driver_unregister(&w83781d_isa_driver);
-	}
+	w83781d_isa_unregister();
 	i2c_del_driver(&w83781d_driver);
 }
 

@@ -223,12 +223,14 @@ static int amd_irongate_configure(void)
 
 	current_size = A_SIZE_LVL2(agp_bridge->current_size);
 
-	/* Get the memory mapped registers */
-	pci_read_config_dword(agp_bridge->dev, AMD_MMBASE, &temp);
-	temp = (temp & PCI_BASE_ADDRESS_MEM_MASK);
-	amd_irongate_private.registers = (volatile u8 __iomem *) ioremap(temp, 4096);
-	if (!amd_irongate_private.registers)
-		return -ENOMEM;
+	if (!amd_irongate_private.registers) {
+		/* Get the memory mapped registers */
+		pci_read_config_dword(agp_bridge->dev, AMD_MMBASE, &temp);
+		temp = (temp & PCI_BASE_ADDRESS_MEM_MASK);
+		amd_irongate_private.registers = (volatile u8 __iomem *) ioremap(temp, 4096);
+		if (!amd_irongate_private.registers)
+			return -ENOMEM;
+	}
 
 	/* Write out the address of the gatt table */
 	writel(agp_bridge->gatt_bus_addr, amd_irongate_private.registers+AMD_ATTBASE);
@@ -386,7 +388,9 @@ static const struct agp_bridge_driver amd_irongate_driver = {
 	.alloc_by_type		= agp_generic_alloc_by_type,
 	.free_by_type		= agp_generic_free_by_type,
 	.agp_alloc_page		= agp_generic_alloc_page,
+	.agp_alloc_pages	= agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages	= agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
@@ -490,6 +494,26 @@ static void __devexit agp_amdk7_remove(struct pci_dev *pdev)
 	agp_put_bridge(bridge);
 }
 
+#ifdef CONFIG_PM
+
+static int agp_amdk7_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	pci_save_state(pdev);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+
+	return 0;
+}
+
+static int agp_amdk7_resume(struct pci_dev *pdev)
+{
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+
+	return amd_irongate_driver.configure();
+}
+
+#endif /* CONFIG_PM */
+
 /* must be the same order as name table above */
 static struct pci_device_id agp_amdk7_pci_table[] = {
 	{
@@ -526,6 +550,10 @@ static struct pci_driver agp_amdk7_pci_driver = {
 	.id_table	= agp_amdk7_pci_table,
 	.probe		= agp_amdk7_probe,
 	.remove		= agp_amdk7_remove,
+#ifdef CONFIG_PM
+	.suspend	= agp_amdk7_suspend,
+	.resume		= agp_amdk7_resume,
+#endif
 };
 
 static int __init agp_amdk7_init(void)

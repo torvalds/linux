@@ -1,7 +1,7 @@
 Acer Laptop WMI Extras Driver
 http://code.google.com/p/aceracpi
-Version 0.1
-9th February 2008
+Version 0.2
+18th August 2008
 
 Copyright 2007-2008 Carlos Corbacho <carlos@strangeworlds.co.uk>
 
@@ -87,17 +87,7 @@ acer-wmi come with built-in wireless. However, should you feel so inclined to
 ever wish to remove the card, or swap it out at some point, please get in touch
 with me, as we may well be able to gain some data on wireless card detection.
 
-To read the status of the wireless radio (0=off, 1=on):
-cat /sys/devices/platform/acer-wmi/wireless
-
-To enable the wireless radio:
-echo 1 > /sys/devices/platform/acer-wmi/wireless
-
-To disable the wireless radio:
-echo 0 > /sys/devices/platform/acer-wmi/wireless
-
-To set the state of the wireless radio when loading acer-wmi, pass:
-wireless=X (where X is 0 or 1)
+The wireless radio is exposed through rfkill.
 
 Bluetooth
 *********
@@ -117,17 +107,7 @@ For the adventurously minded - if you want to buy an internal bluetooth
 module off the internet that is compatible with your laptop and fit it, then
 it will work just fine with acer-wmi.
 
-To read the status of the bluetooth module (0=off, 1=on):
-cat /sys/devices/platform/acer-wmi/wireless
-
-To enable the bluetooth module:
-echo 1 > /sys/devices/platform/acer-wmi/bluetooth
-
-To disable the bluetooth module:
-echo 0 > /sys/devices/platform/acer-wmi/bluetooth
-
-To set the state of the bluetooth module when loading acer-wmi, pass:
-bluetooth=X (where X is 0 or 1)
+Bluetooth is exposed through rfkill.
 
 3G
 **

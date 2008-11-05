@@ -6,7 +6,7 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_FREEZER
 /*
  * Check if a process has been frozen
  */
@@ -39,28 +39,13 @@ static inline void clear_freeze_flag(struct task_struct *p)
 	clear_tsk_thread_flag(p, TIF_FREEZE);
 }
 
-/*
- * Wake up a frozen process
- *
- * task_lock() is taken to prevent the race with refrigerator() which may
- * occur if the freezing of tasks fails.  Namely, without the lock, if the
- * freezing of tasks failed, thaw_tasks() might have run before a task in
- * refrigerator() could call frozen_process(), in which case the task would be
- * frozen and no one would thaw it.
- */
-static inline int thaw_process(struct task_struct *p)
+static inline bool should_send_signal(struct task_struct *p)
 {
-	task_lock(p);
-	if (frozen(p)) {
-		p->flags &= ~PF_FROZEN;
-		task_unlock(p);
-		wake_up_process(p);
-		return 1;
-	}
-	clear_freeze_flag(p);
-	task_unlock(p);
-	return 0;
+	return !(p->flags & PF_FREEZER_NOSIG);
 }
+
+/* Takes and releases task alloc lock using task_lock() */
+extern int thaw_process(struct task_struct *p);
 
 extern void refrigerator(void);
 extern int freeze_processes(void);
@@ -74,6 +59,15 @@ static inline int try_to_freeze(void)
 	} else
 		return 0;
 }
+
+extern bool freeze_task(struct task_struct *p, bool sig_only);
+extern void cancel_freezing(struct task_struct *p);
+
+#ifdef CONFIG_CGROUP_FREEZER
+extern int cgroup_frozen(struct task_struct *task);
+#else /* !CONFIG_CGROUP_FREEZER */
+static inline int cgroup_frozen(struct task_struct *task) { return 0; }
+#endif /* !CONFIG_CGROUP_FREEZER */
 
 /*
  * The PF_FREEZER_SKIP flag should be set by a vfork parent right before it
@@ -166,7 +160,7 @@ static inline void set_freezable_with_signal(void)
 	} while (try_to_freeze());					\
 	__retval;							\
 })
-#else /* !CONFIG_PM_SLEEP */
+#else /* !CONFIG_FREEZER */
 static inline int frozen(struct task_struct *p) { return 0; }
 static inline int freezing(struct task_struct *p) { return 0; }
 static inline void set_freeze_flag(struct task_struct *p) {}
@@ -191,6 +185,6 @@ static inline void set_freezable_with_signal(void) {}
 #define wait_event_freezable_timeout(wq, condition, timeout)		\
 		wait_event_interruptible_timeout(wq, condition, timeout)
 
-#endif /* !CONFIG_PM_SLEEP */
+#endif /* !CONFIG_FREEZER */
 
 #endif	/* FREEZER_H_INCLUDED */

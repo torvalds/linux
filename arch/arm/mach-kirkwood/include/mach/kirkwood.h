@@ -68,6 +68,20 @@
 #define   L2_WRITETHROUGH	0x00000010
 
 /*
+ * Supported devices and revisions.
+ */
+#define MV88F6281_DEV_ID	0x6281
+#define MV88F6281_REV_Z0	0
+#define MV88F6281_REV_A0	2
+
+#define MV88F6192_DEV_ID	0x6192
+#define MV88F6192_REV_Z0	0
+#define MV88F6192_REV_A0	2
+
+#define MV88F6180_DEV_ID	0x6180
+#define MV88F6180_REV_A0	2
+
+/*
  * Register Map
  */
 #define DDR_VIRT_BASE		(KIRKWOOD_REGS_VIRT_BASE | 0x00000)

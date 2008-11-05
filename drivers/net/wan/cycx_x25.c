@@ -874,7 +874,7 @@ static void cycx_x25_irq_connect(struct cycx_device *card,
 		nibble_to_byte(d + (sizeloc >> 1), rem, sizerem, sizeloc & 1);
 
 	dprintk(1, KERN_INFO "%s:lcn=%d, local=%s, remote=%s\n",
-			  __FUNCTION__, lcn, loc, rem);
+			  __func__, lcn, loc, rem);
 
 	dev = cycx_x25_get_dev_by_dte_addr(wandev, rem);
 	if (!dev) {
@@ -902,7 +902,7 @@ static void cycx_x25_irq_connect_confirm(struct cycx_device *card,
 	cycx_peek(&card->hw, cmd->buf, &lcn, sizeof(lcn));
 	cycx_peek(&card->hw, cmd->buf + 1, &key, sizeof(key));
 	dprintk(1, KERN_INFO "%s: %s:lcn=%d, key=%d\n",
-			  card->devname, __FUNCTION__, lcn, key);
+			  card->devname, __func__, lcn, key);
 
 	dev = cycx_x25_get_dev_by_lcn(wandev, -key);
 	if (!dev) {
@@ -929,7 +929,7 @@ static void cycx_x25_irq_disconnect_confirm(struct cycx_device *card,
 
 	cycx_peek(&card->hw, cmd->buf, &lcn, sizeof(lcn));
 	dprintk(1, KERN_INFO "%s: %s:lcn=%d\n",
-			  card->devname, __FUNCTION__, lcn);
+			  card->devname, __func__, lcn);
 	dev = cycx_x25_get_dev_by_lcn(wandev, lcn);
 	if (!dev) {
 		/* Invalid channel, discard packet */
@@ -950,7 +950,7 @@ static void cycx_x25_irq_disconnect(struct cycx_device *card,
 	u8 lcn;
 
 	cycx_peek(&card->hw, cmd->buf, &lcn, sizeof(lcn));
-	dprintk(1, KERN_INFO "%s:lcn=%d\n", __FUNCTION__, lcn);
+	dprintk(1, KERN_INFO "%s:lcn=%d\n", __func__, lcn);
 
 	dev = cycx_x25_get_dev_by_lcn(wandev, lcn);
 	if (dev) {
@@ -1381,7 +1381,7 @@ static void cycx_x25_chan_timer(unsigned long d)
 		cycx_x25_chan_disconnect(dev);
 	else
 		printk(KERN_ERR "%s: %s for svc (%s) not connected!\n",
-				chan->card->devname, __FUNCTION__, dev->name);
+				chan->card->devname, __func__, dev->name);
 }
 
 /* Set logical channel state. */
@@ -1485,7 +1485,7 @@ static void cycx_x25_chan_send_event(struct net_device *dev, u8 event)
 	unsigned char *ptr;
 
 	if ((skb = dev_alloc_skb(1)) == NULL) {
-		printk(KERN_ERR "%s: out of memory\n", __FUNCTION__);
+		printk(KERN_ERR "%s: out of memory\n", __func__);
 		return;
 	}
 

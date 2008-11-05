@@ -27,7 +27,7 @@
 #include <linux/wait.h>
 #include <linux/moduleparam.h>
 #include <sound/core.h>
-#include <sound/cs4231.h>
+#include <sound/wss.h>
 #include <sound/mpu401.h>
 #include <sound/initval.h>
 
@@ -74,15 +74,15 @@ static int __devinit snd_cs4231_match(struct device *dev, unsigned int n)
 		return 0;
 
 	if (port[n] == SNDRV_AUTO_PORT) {
-		snd_printk(KERN_ERR "%s: please specify port\n", dev->bus_id);
+		dev_err(dev, "please specify port\n");
 		return 0;
 	}
 	if (irq[n] == SNDRV_AUTO_IRQ) {
-		snd_printk(KERN_ERR "%s: please specify irq\n", dev->bus_id);
+		dev_err(dev, "please specify irq\n");
 		return 0;
 	}
 	if (dma1[n] == SNDRV_AUTO_DMA) {
-		snd_printk(KERN_ERR "%s: please specify dma1\n", dev->bus_id);
+		dev_err(dev, "please specify dma1\n");
 		return 0;
 	}
 	return 1;
@@ -91,7 +91,7 @@ static int __devinit snd_cs4231_match(struct device *dev, unsigned int n)
 static int __devinit snd_cs4231_probe(struct device *dev, unsigned int n)
 {
 	struct snd_card *card;
-	struct snd_cs4231 *chip;
+	struct snd_wss *chip;
 	struct snd_pcm *pcm;
 	int error;
 
@@ -99,14 +99,14 @@ static int __devinit snd_cs4231_probe(struct device *dev, unsigned int n)
 	if (!card)
 		return -EINVAL;
 
-	error = snd_cs4231_create(card, port[n], -1, irq[n], dma1[n], dma2[n],
-			CS4231_HW_DETECT, 0, &chip);
+	error = snd_wss_create(card, port[n], -1, irq[n], dma1[n], dma2[n],
+			WSS_HW_DETECT, 0, &chip);
 	if (error < 0)
 		goto out;
 
 	card->private_data = chip;
 
-	error = snd_cs4231_pcm(chip, 0, &pcm);
+	error = snd_wss_pcm(chip, 0, &pcm);
 	if (error < 0)
 		goto out;
 
@@ -118,11 +118,11 @@ static int __devinit snd_cs4231_probe(struct device *dev, unsigned int n)
 	if (dma2[n] >= 0)
 		sprintf(card->longname + strlen(card->longname), "&%d", dma2[n]);
 
-	error = snd_cs4231_mixer(chip);
+	error = snd_wss_mixer(chip);
 	if (error < 0)
 		goto out;
 
-	error = snd_cs4231_timer(chip, 0, NULL);
+	error = snd_wss_timer(chip, 0, NULL);
 	if (error < 0)
 		goto out;
 
@@ -133,7 +133,7 @@ static int __devinit snd_cs4231_probe(struct device *dev, unsigned int n)
 					mpu_port[n], 0, mpu_irq[n],
 					mpu_irq[n] >= 0 ? IRQF_DISABLED : 0,
 					NULL) < 0)
-			printk(KERN_WARNING "%s: MPU401 not detected\n", dev->bus_id);
+			dev_warn(dev, "MPU401 not detected\n");
 	}
 
 	snd_card_set_dev(card, dev);
@@ -160,7 +160,7 @@ static int __devexit snd_cs4231_remove(struct device *dev, unsigned int n)
 static int snd_cs4231_suspend(struct device *dev, unsigned int n, pm_message_t state)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
-	struct snd_cs4231 *chip = card->private_data;
+	struct snd_wss *chip = card->private_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	chip->suspend(chip);
@@ -170,7 +170,7 @@ static int snd_cs4231_suspend(struct device *dev, unsigned int n, pm_message_t s
 static int snd_cs4231_resume(struct device *dev, unsigned int n)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
-	struct snd_cs4231 *chip = card->private_data;
+	struct snd_wss *chip = card->private_data;
 
 	chip->resume(chip);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);

@@ -10,6 +10,7 @@
 #include <linux/blkdev.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
+#include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/kmod.h>
@@ -358,7 +359,6 @@ static int blk_mangle_minor(int minor)
 /**
  * blk_alloc_devt - allocate a dev_t for a partition
  * @part: partition to allocate dev_t for
- * @gfp_mask: memory allocation flag
  * @devt: out parameter for resulting dev_t
  *
  * Allocate a dev_t for block device.
@@ -535,7 +535,7 @@ void unlink_gendisk(struct gendisk *disk)
 /**
  * get_gendisk - get partitioning information for a given device
  * @devt: device to get partitioning information for
- * @part: returned partition index
+ * @partno: returned partition index
  *
  * This function gets the structure containing partitioning
  * information for the given device @devt.
@@ -728,11 +728,23 @@ static int show_partition(struct seq_file *seqf, void *v)
 	return 0;
 }
 
-const struct seq_operations partitions_op = {
+static const struct seq_operations partitions_op = {
 	.start	= show_partition_start,
 	.next	= disk_seqf_next,
 	.stop	= disk_seqf_stop,
 	.show	= show_partition
+};
+
+static int partitions_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &partitions_op);
+}
+
+static const struct file_operations proc_partitions_operations = {
+	.open		= partitions_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
 };
 #endif
 
@@ -993,12 +1005,32 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 	return 0;
 }
 
-const struct seq_operations diskstats_op = {
+static const struct seq_operations diskstats_op = {
 	.start	= disk_seqf_start,
 	.next	= disk_seqf_next,
 	.stop	= disk_seqf_stop,
 	.show	= diskstats_show
 };
+
+static int diskstats_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &diskstats_op);
+}
+
+static const struct file_operations proc_diskstats_operations = {
+	.open		= diskstats_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
+static int __init proc_genhd_init(void)
+{
+	proc_create("diskstats", 0, NULL, &proc_diskstats_operations);
+	proc_create("partitions", 0, NULL, &proc_partitions_operations);
+	return 0;
+}
+module_init(proc_genhd_init);
 #endif /* CONFIG_PROC_FS */
 
 static void media_change_notify_thread(struct work_struct *work)

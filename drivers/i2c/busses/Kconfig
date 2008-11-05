@@ -55,7 +55,7 @@ config I2C_AMD756
 
 config I2C_AMD756_S4882
 	tristate "SMBus multiplexing on the Tyan S4882"
-	depends on I2C_AMD756 && EXPERIMENTAL
+	depends on I2C_AMD756 && X86 && EXPERIMENTAL
 	help
 	  Enabling this option will add specific SMBus support for the Tyan
 	  S4882 motherboard.  On this 4-CPU board, the SMBus is multiplexed
@@ -97,6 +97,7 @@ config I2C_I801
 	    ICH9
 	    Tolapai
 	    ICH10
+	    PCH
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -148,7 +149,7 @@ config I2C_NFORCE2
 
 config I2C_NFORCE2_S4985
 	tristate "SMBus multiplexing on the Tyan S4985"
-	depends on I2C_NFORCE2 && EXPERIMENTAL
+	depends on I2C_NFORCE2 && X86 && EXPERIMENTAL
 	help
 	  Enabling this option will add specific SMBus support for the Tyan
 	  S4985 motherboard.  On this 4-CPU board, the SMBus is multiplexed
@@ -209,7 +210,7 @@ config I2C_VIA
 	  will be called i2c-via.
 
 config I2C_VIAPRO
-	tristate "VIA VT82C596/82C686/82xx and CX700"
+	tristate "VIA VT82C596/82C686/82xx and CX700/VX800/VX820"
 	depends on PCI
 	help
 	  If you say yes to this option, support will be included for the VIA
@@ -223,6 +224,8 @@ config I2C_VIAPRO
 	    VT8237R/A/S
 	    VT8251
 	    CX700
+	    VX800
+	    VX820
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-viapro.
@@ -329,6 +332,18 @@ config I2C_GPIO
 	help
 	  This is a very simple bitbanging I2C driver utilizing the
 	  arch-neutral GPIO API to control the SCL and SDA lines.
+
+config I2C_HIGHLANDER
+	tristate "Highlander FPGA SMBus interface"
+	depends on SH_HIGHLANDER
+	help
+	  If you say yes to this option, support will be included for
+	  the SMBus interface located in the FPGA on various Highlander
+	  boards, particularly the R0P7780LC0011RL and R0P7785LC0011RL
+	  FPGAs. This is wholly unrelated to the SoC I2C.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-highlander.
 
 config I2C_IBM_IIC
 	tristate "IBM PPC 4xx on-chip I2C interface"

@@ -173,6 +173,22 @@ struct serial_icounter_struct {
 	int reserved[9];
 };
 
+/*
+ * Serial interface for controlling RS485 settings on chips with suitable
+ * support. Set with TIOCSRS485 and get with TIOCGRS485 if supported by your
+ * platform. The set function returns the new state, with any unsupported bits
+ * reverted appropriately.
+ */
+
+struct serial_rs485 {
+	__u32	flags;			/* RS485 feature flags */
+#define SER_RS485_ENABLED		(1 << 0)
+#define SER_RS485_RTS_ON_SEND		(1 << 1)
+#define SER_RS485_RTS_AFTER_SEND	(1 << 2)
+	__u32	delay_rts_before_send;	/* Milliseconds */
+	__u32	padding[6];		/* Memory is cheap, new structs
+					   are a royal PITA .. */
+};
 
 #ifdef __KERNEL__
 #include <linux/compiler.h>

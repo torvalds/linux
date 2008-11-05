@@ -1,6 +1,6 @@
 /*
  *  ata_generic.c - Generic PATA/SATA controller driver.
- *  Copyright 2005 Red Hat Inc <alan@redhat.com>, all rights reserved.
+ *  Copyright 2005 Red Hat Inc, all rights reserved.
  *
  *  Elements from ide/pci/generic.c
  *	    Copyright (C) 2001-2002	Andre Hedrick <andre@linux-ide.org>

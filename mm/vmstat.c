@@ -8,7 +8,7 @@
  *  Copyright (C) 2006 Silicon Graphics, Inc.,
  *		Christoph Lameter <christoph@lameter.com>
  */
-
+#include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/err.h>
 #include <linux/module.h>
@@ -384,7 +384,7 @@ void zone_statistics(struct zone *preferred_zone, struct zone *z)
 #endif
 
 #ifdef CONFIG_PROC_FS
-
+#include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
 static char * const migratetype_names[MIGRATE_TYPES] = {
@@ -581,18 +581,42 @@ static int pagetypeinfo_show(struct seq_file *m, void *arg)
 	return 0;
 }
 
-const struct seq_operations fragmentation_op = {
+static const struct seq_operations fragmentation_op = {
 	.start	= frag_start,
 	.next	= frag_next,
 	.stop	= frag_stop,
 	.show	= frag_show,
 };
 
-const struct seq_operations pagetypeinfo_op = {
+static int fragmentation_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &fragmentation_op);
+}
+
+static const struct file_operations fragmentation_file_operations = {
+	.open		= fragmentation_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
+static const struct seq_operations pagetypeinfo_op = {
 	.start	= frag_start,
 	.next	= frag_next,
 	.stop	= frag_stop,
 	.show	= pagetypeinfo_show,
+};
+
+static int pagetypeinfo_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &pagetypeinfo_op);
+}
+
+static const struct file_operations pagetypeinfo_file_ops = {
+	.open		= pagetypeinfo_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
 };
 
 #ifdef CONFIG_ZONE_DMA
@@ -619,8 +643,14 @@ const struct seq_operations pagetypeinfo_op = {
 static const char * const vmstat_text[] = {
 	/* Zoned VM counters */
 	"nr_free_pages",
-	"nr_inactive",
-	"nr_active",
+	"nr_inactive_anon",
+	"nr_active_anon",
+	"nr_inactive_file",
+	"nr_active_file",
+#ifdef CONFIG_UNEVICTABLE_LRU
+	"nr_unevictable",
+	"nr_mlock",
+#endif
 	"nr_anon_pages",
 	"nr_mapped",
 	"nr_file_pages",
@@ -675,6 +705,16 @@ static const char * const vmstat_text[] = {
 	"htlb_buddy_alloc_success",
 	"htlb_buddy_alloc_fail",
 #endif
+#ifdef CONFIG_UNEVICTABLE_LRU
+	"unevictable_pgs_culled",
+	"unevictable_pgs_scanned",
+	"unevictable_pgs_rescued",
+	"unevictable_pgs_mlocked",
+	"unevictable_pgs_munlocked",
+	"unevictable_pgs_cleared",
+	"unevictable_pgs_stranded",
+	"unevictable_pgs_mlockfreed",
+#endif
 #endif
 };
 
@@ -688,7 +728,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		   "\n        min      %lu"
 		   "\n        low      %lu"
 		   "\n        high     %lu"
-		   "\n        scanned  %lu (a: %lu i: %lu)"
+		   "\n        scanned  %lu (aa: %lu ia: %lu af: %lu if: %lu)"
 		   "\n        spanned  %lu"
 		   "\n        present  %lu",
 		   zone_page_state(zone, NR_FREE_PAGES),
@@ -696,7 +736,10 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		   zone->pages_low,
 		   zone->pages_high,
 		   zone->pages_scanned,
-		   zone->nr_scan_active, zone->nr_scan_inactive,
+		   zone->lru[LRU_ACTIVE_ANON].nr_scan,
+		   zone->lru[LRU_INACTIVE_ANON].nr_scan,
+		   zone->lru[LRU_ACTIVE_FILE].nr_scan,
+		   zone->lru[LRU_INACTIVE_FILE].nr_scan,
 		   zone->spanned_pages,
 		   zone->present_pages);
 
@@ -733,10 +776,12 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 	seq_printf(m,
 		   "\n  all_unreclaimable: %u"
 		   "\n  prev_priority:     %i"
-		   "\n  start_pfn:         %lu",
+		   "\n  start_pfn:         %lu"
+		   "\n  inactive_ratio:    %u",
 			   zone_is_all_unreclaimable(zone),
 		   zone->prev_priority,
-		   zone->zone_start_pfn);
+		   zone->zone_start_pfn,
+		   zone->inactive_ratio);
 	seq_putc(m, '\n');
 }
 
@@ -750,12 +795,24 @@ static int zoneinfo_show(struct seq_file *m, void *arg)
 	return 0;
 }
 
-const struct seq_operations zoneinfo_op = {
+static const struct seq_operations zoneinfo_op = {
 	.start	= frag_start, /* iterate over all zones. The same as in
 			       * fragmentation. */
 	.next	= frag_next,
 	.stop	= frag_stop,
 	.show	= zoneinfo_show,
+};
+
+static int zoneinfo_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &zoneinfo_op);
+}
+
+static const struct file_operations proc_zoneinfo_file_operations = {
+	.open		= zoneinfo_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
 };
 
 static void *vmstat_start(struct seq_file *m, loff_t *pos)
@@ -813,13 +870,24 @@ static void vmstat_stop(struct seq_file *m, void *arg)
 	m->private = NULL;
 }
 
-const struct seq_operations vmstat_op = {
+static const struct seq_operations vmstat_op = {
 	.start	= vmstat_start,
 	.next	= vmstat_next,
 	.stop	= vmstat_stop,
 	.show	= vmstat_show,
 };
 
+static int vmstat_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &vmstat_op);
+}
+
+static const struct file_operations proc_vmstat_file_operations = {
+	.open		= vmstat_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
 #endif /* CONFIG_PROC_FS */
 
 #ifdef CONFIG_SMP
@@ -877,9 +945,11 @@ static int __cpuinit vmstat_cpuup_callback(struct notifier_block *nfb,
 
 static struct notifier_block __cpuinitdata vmstat_notifier =
 	{ &vmstat_cpuup_callback, NULL, 0 };
+#endif
 
 static int __init setup_vmstat(void)
 {
+#ifdef CONFIG_SMP
 	int cpu;
 
 	refresh_zone_stat_thresholds();
@@ -887,7 +957,13 @@ static int __init setup_vmstat(void)
 
 	for_each_online_cpu(cpu)
 		start_cpu_timer(cpu);
+#endif
+#ifdef CONFIG_PROC_FS
+	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
+	proc_create("pagetypeinfo", S_IRUGO, NULL, &pagetypeinfo_file_ops);
+	proc_create("vmstat", S_IRUGO, NULL, &proc_vmstat_file_operations);
+	proc_create("zoneinfo", S_IRUGO, NULL, &proc_zoneinfo_file_operations);
+#endif
 	return 0;
 }
 module_init(setup_vmstat)
-#endif

@@ -118,7 +118,6 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/module.h>
 #include <linux/kref.h>
 #include <linux/usb.h>
 #include <linux/device.h>
@@ -801,7 +800,8 @@ static int ks959_probe(struct usb_interface *intf,
 	if (ret != 0)
 		goto free_mem;
 
-	info("IrDA: Registered KingSun KS-959 device %s", net->name);
+	dev_info(&net->dev, "IrDA: Registered KingSun KS-959 device %s\n",
+		 net->name);
 
 	usb_set_intfdata(intf, kingsun);
 

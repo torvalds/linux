@@ -30,6 +30,7 @@
 #include <linux/pm.h>
 #include <linux/cpu.h>
 #include <linux/console.h>
+#include <linux/vmalloc.h>
 
 #include <asm/page.h>
 #include <asm/uaccess.h>
@@ -1371,6 +1372,7 @@ static int __init crash_save_vmcoreinfo_init(void)
 	VMCOREINFO_SYMBOL(node_online_map);
 	VMCOREINFO_SYMBOL(swapper_pg_dir);
 	VMCOREINFO_SYMBOL(_stext);
+	VMCOREINFO_SYMBOL(vmlist);
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 	VMCOREINFO_SYMBOL(mem_map);
@@ -1406,6 +1408,7 @@ static int __init crash_save_vmcoreinfo_init(void)
 	VMCOREINFO_OFFSET(free_area, free_list);
 	VMCOREINFO_OFFSET(list_head, next);
 	VMCOREINFO_OFFSET(list_head, prev);
+	VMCOREINFO_OFFSET(vm_struct, addr);
 	VMCOREINFO_LENGTH(zone.free_area, MAX_ORDER);
 	VMCOREINFO_LENGTH(free_area.free_list, MIGRATE_TYPES);
 	VMCOREINFO_NUMBER(NR_FREE_PAGES);

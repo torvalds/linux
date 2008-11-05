@@ -327,7 +327,6 @@ sg_release(struct inode *inode, struct file *filp)
 	if ((!(sfp = (Sg_fd *) filp->private_data)) || (!(sdp = sfp->parentdp)))
 		return -ENXIO;
 	SCSI_LOG_TIMEOUT(3, printk("sg_release: %s\n", sdp->disk->disk_name));
-	sg_fasync(-1, filp, 0);	/* remove filp from async notification list */
 	if (0 == sg_remove_sfp(sdp, sfp)) {	/* Returns 1 when sdp gone */
 		if (!sdp->detached) {
 			scsi_device_put(sdp->device);
@@ -1059,7 +1058,7 @@ sg_ioctl(struct inode *inode, struct file *filp,
 			if (sg_allow_access(filp, &opcode))
 				return -EPERM;
 		}
-		return sg_scsi_ioctl(filp, sdp->device->request_queue, NULL, p);
+		return sg_scsi_ioctl(sdp->device->request_queue, NULL, filp->f_mode, p);
 	case SG_SET_DEBUG:
 		result = get_user(val, ip);
 		if (result)
@@ -1450,12 +1449,10 @@ sg_add(struct device *cl_dev, struct class_interface *cl_intf)
 	if (sg_sysfs_valid) {
 		struct device *sg_class_member;
 
-		sg_class_member = device_create_drvdata(sg_sysfs_class,
-							cl_dev->parent,
-							MKDEV(SCSI_GENERIC_MAJOR,
-							      sdp->index),
-							sdp,
-							"%s", disk->disk_name);
+		sg_class_member = device_create(sg_sysfs_class, cl_dev->parent,
+						MKDEV(SCSI_GENERIC_MAJOR,
+						      sdp->index),
+						sdp, "%s", disk->disk_name);
 		if (IS_ERR(sg_class_member)) {
 			printk(KERN_ERR "sg_add: "
 			       "device_create failed\n");

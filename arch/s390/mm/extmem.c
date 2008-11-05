@@ -43,20 +43,40 @@
 #define DCSS_FINDSEG    0x0c
 #define DCSS_LOADNOLY   0x10
 #define DCSS_SEGEXT     0x18
+#define DCSS_LOADSHRX	0x20
+#define DCSS_LOADNSRX	0x24
+#define DCSS_FINDSEGX	0x2c
+#define DCSS_SEGEXTX	0x38
 #define DCSS_FINDSEGA   0x0c
 
 struct qrange {
-	unsigned int  start; // 3byte start address, 1 byte type
-	unsigned int  end;   // 3byte end address, 1 byte reserved
+	unsigned long  start; /* last byte type */
+	unsigned long  end;   /* last byte reserved */
 };
 
 struct qout64 {
-	int segstart;
-	int segend;
+	unsigned long segstart;
+	unsigned long segend;
 	int segcnt;
 	int segrcnt;
 	struct qrange range[6];
 };
+
+#ifdef CONFIG_64BIT
+struct qrange_old {
+	unsigned int start; /* last byte type */
+	unsigned int end;   /* last byte reserved */
+};
+
+/* output area format for the Diag x'64' old subcode x'18' */
+struct qout64_old {
+	int segstart;
+	int segend;
+	int segcnt;
+	int segrcnt;
+	struct qrange_old range[6];
+};
+#endif
 
 struct qin64 {
 	char qopcode;
@@ -86,6 +106,55 @@ static DEFINE_MUTEX(dcss_lock);
 static LIST_HEAD(dcss_list);
 static char *segtype_string[] = { "SW", "EW", "SR", "ER", "SN", "EN", "SC",
 					"EW/EN-MIXED" };
+static int loadshr_scode, loadnsr_scode, findseg_scode;
+static int segext_scode, purgeseg_scode;
+static int scode_set;
+
+/* set correct Diag x'64' subcodes. */
+static int
+dcss_set_subcodes(void)
+{
+#ifdef CONFIG_64BIT
+	char *name = kmalloc(8 * sizeof(char), GFP_DMA);
+	unsigned long rx, ry;
+	int rc;
+
+	if (name == NULL)
+		return -ENOMEM;
+
+	rx = (unsigned long) name;
+	ry = DCSS_FINDSEGX;
+
+	strcpy(name, "dummy");
+	asm volatile(
+		"	diag	%0,%1,0x64\n"
+		"0:	ipm	%2\n"
+		"	srl	%2,28\n"
+		"	j	2f\n"
+		"1:	la	%2,3\n"
+		"2:\n"
+		EX_TABLE(0b, 1b)
+		: "+d" (rx), "+d" (ry), "=d" (rc) : : "cc");
+
+	kfree(name);
+	/* Diag x'64' new subcodes are supported, set to new subcodes */
+	if (rc != 3) {
+		loadshr_scode = DCSS_LOADSHRX;
+		loadnsr_scode = DCSS_LOADNSRX;
+		purgeseg_scode = DCSS_PURGESEG;
+		findseg_scode = DCSS_FINDSEGX;
+		segext_scode = DCSS_SEGEXTX;
+		return 0;
+	}
+#endif
+	/* Diag x'64' new subcodes are not supported, set to old subcodes */
+	loadshr_scode = DCSS_LOADNOLY;
+	loadnsr_scode = DCSS_LOADNSR;
+	purgeseg_scode = DCSS_PURGESEG;
+	findseg_scode = DCSS_FINDSEG;
+	segext_scode = DCSS_SEGEXT;
+	return 0;
+}
 
 /*
  * Create the 8 bytes, ebcdic VM segment name from
@@ -135,25 +204,45 @@ segment_by_name (char *name)
  * Perform a function on a dcss segment.
  */
 static inline int
-dcss_diag (__u8 func, void *parameter,
+dcss_diag(int *func, void *parameter,
            unsigned long *ret1, unsigned long *ret2)
 {
 	unsigned long rx, ry;
 	int rc;
 
+	if (scode_set == 0) {
+		rc = dcss_set_subcodes();
+		if (rc < 0)
+			return rc;
+		scode_set = 1;
+	}
 	rx = (unsigned long) parameter;
-	ry = (unsigned long) func;
-	asm volatile(
+	ry = (unsigned long) *func;
+
 #ifdef CONFIG_64BIT
-		"	sam31\n"
-		"	diag	%0,%1,0x64\n"
-		"	sam64\n"
+	/* 64-bit Diag x'64' new subcode, keep in 64-bit addressing mode */
+	if (*func > DCSS_SEGEXT)
+		asm volatile(
+			"	diag	%0,%1,0x64\n"
+			"	ipm	%2\n"
+			"	srl	%2,28\n"
+			: "+d" (rx), "+d" (ry), "=d" (rc) : : "cc");
+	/* 31-bit Diag x'64' old subcode, switch to 31-bit addressing mode */
+	else
+		asm volatile(
+			"	sam31\n"
+			"	diag	%0,%1,0x64\n"
+			"	sam64\n"
+			"	ipm	%2\n"
+			"	srl	%2,28\n"
+			: "+d" (rx), "+d" (ry), "=d" (rc) : : "cc");
 #else
+	asm volatile(
 		"	diag	%0,%1,0x64\n"
-#endif
 		"	ipm	%2\n"
 		"	srl	%2,28\n"
 		: "+d" (rx), "+d" (ry), "=d" (rc) : : "cc");
+#endif
 	*ret1 = rx;
 	*ret2 = ry;
 	return rc;
@@ -190,14 +279,45 @@ query_segment_type (struct dcss_segment *seg)
 	qin->qoutlen = sizeof(struct qout64);
 	memcpy (qin->qname, seg->dcss_name, 8);
 
-	diag_cc = dcss_diag (DCSS_SEGEXT, qin, &dummy, &vmrc);
+	diag_cc = dcss_diag(&segext_scode, qin, &dummy, &vmrc);
 
+	if (diag_cc < 0) {
+		rc = diag_cc;
+		goto out_free;
+	}
 	if (diag_cc > 1) {
 		PRINT_WARN ("segment_type: diag returned error %ld\n", vmrc);
 		rc = dcss_diag_translate_rc (vmrc);
 		goto out_free;
 	}
 
+#ifdef CONFIG_64BIT
+	/* Only old format of output area of Diagnose x'64' is supported,
+	   copy data for the new format. */
+	if (segext_scode == DCSS_SEGEXT) {
+		struct qout64_old *qout_old;
+		qout_old = kzalloc(sizeof(struct qout64_old), GFP_DMA);
+		if (qout_old == NULL) {
+			rc = -ENOMEM;
+			goto out_free;
+		}
+		memcpy(qout_old, qout, sizeof(struct qout64_old));
+		qout->segstart = (unsigned long) qout_old->segstart;
+		qout->segend = (unsigned long) qout_old->segend;
+		qout->segcnt = qout_old->segcnt;
+		qout->segrcnt = qout_old->segrcnt;
+
+		if (qout->segcnt > 6)
+			qout->segrcnt = 6;
+		for (i = 0; i < qout->segrcnt; i++) {
+			qout->range[i].start =
+				(unsigned long) qout_old->range[i].start;
+			qout->range[i].end =
+				(unsigned long) qout_old->range[i].end;
+		}
+		kfree(qout_old);
+	}
+#endif
 	if (qout->segcnt > 6) {
 		rc = -ENOTSUPP;
 		goto out_free;
@@ -269,6 +389,30 @@ segment_type (char* name)
 }
 
 /*
+ * check if segment collides with other segments that are currently loaded
+ * returns 1 if this is the case, 0 if no collision was found
+ */
+static int
+segment_overlaps_others (struct dcss_segment *seg)
+{
+	struct list_head *l;
+	struct dcss_segment *tmp;
+
+	BUG_ON(!mutex_is_locked(&dcss_lock));
+	list_for_each(l, &dcss_list) {
+		tmp = list_entry(l, struct dcss_segment, list);
+		if ((tmp->start_addr >> 20) > (seg->end >> 20))
+			continue;
+		if ((tmp->end >> 20) < (seg->start_addr >> 20))
+			continue;
+		if (seg == tmp)
+			continue;
+		return 1;
+	}
+	return 0;
+}
+
+/*
  * real segment loading function, called from segment_load
  */
 static int
@@ -276,7 +420,8 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 {
 	struct dcss_segment *seg = kmalloc(sizeof(struct dcss_segment),
 			GFP_DMA);
-	int dcss_command, rc, diag_cc;
+	int rc, diag_cc;
+	unsigned long start_addr, end_addr, dummy;
 
 	if (seg == NULL) {
 		rc = -ENOMEM;
@@ -286,6 +431,13 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 	rc = query_segment_type (seg);
 	if (rc < 0)
 		goto out_free;
+
+	if (loadshr_scode == DCSS_LOADSHRX) {
+		if (segment_overlaps_others(seg)) {
+			rc = -EBUSY;
+			goto out_free;
+		}
+	}
 
 	rc = vmem_add_mapping(seg->start_addr, seg->end - seg->start_addr + 1);
 
@@ -316,20 +468,28 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 	}
 
 	if (do_nonshared)
-		dcss_command = DCSS_LOADNSR;
+		diag_cc = dcss_diag(&loadnsr_scode, seg->dcss_name,
+				&start_addr, &end_addr);
 	else
-		dcss_command = DCSS_LOADNOLY;
-
-	diag_cc = dcss_diag(dcss_command, seg->dcss_name,
-			&seg->start_addr, &seg->end);
-	if (diag_cc > 1) {
-		PRINT_WARN ("segment_load: could not load segment %s - "
-				"diag returned error (%ld)\n",name,seg->end);
-		rc = dcss_diag_translate_rc (seg->end);
-		dcss_diag(DCSS_PURGESEG, seg->dcss_name,
-				&seg->start_addr, &seg->end);
+		diag_cc = dcss_diag(&loadshr_scode, seg->dcss_name,
+				&start_addr, &end_addr);
+	if (diag_cc < 0) {
+		dcss_diag(&purgeseg_scode, seg->dcss_name,
+				&dummy, &dummy);
+		rc = diag_cc;
 		goto out_resource;
 	}
+	if (diag_cc > 1) {
+		PRINT_WARN ("segment_load: could not load segment %s - "
+				"diag returned error (%ld)\n",
+				name, end_addr);
+		rc = dcss_diag_translate_rc(end_addr);
+		dcss_diag(&purgeseg_scode, seg->dcss_name,
+				&dummy, &dummy);
+		goto out_resource;
+	}
+	seg->start_addr = start_addr;
+	seg->end = end_addr;
 	seg->do_nonshared = do_nonshared;
 	atomic_set(&seg->ref_count, 1);
 	list_add(&seg->list, &dcss_list);
@@ -423,8 +583,8 @@ int
 segment_modify_shared (char *name, int do_nonshared)
 {
 	struct dcss_segment *seg;
-	unsigned long dummy;
-	int dcss_command, rc, diag_cc;
+	unsigned long start_addr, end_addr, dummy;
+	int rc, diag_cc;
 
 	mutex_lock(&dcss_lock);
 	seg = segment_by_name (name);
@@ -445,38 +605,51 @@ segment_modify_shared (char *name, int do_nonshared)
 		goto out_unlock;
 	}
 	release_resource(seg->res);
-	if (do_nonshared) {
-		dcss_command = DCSS_LOADNSR;
+	if (do_nonshared)
 		seg->res->flags &= ~IORESOURCE_READONLY;
-	} else {
-		dcss_command = DCSS_LOADNOLY;
+	else
 		if (seg->vm_segtype == SEG_TYPE_SR ||
 		    seg->vm_segtype == SEG_TYPE_ER)
 			seg->res->flags |= IORESOURCE_READONLY;
-	}
+
 	if (request_resource(&iomem_resource, seg->res)) {
 		PRINT_WARN("segment_modify_shared: could not reload segment %s"
 			   " - overlapping resources\n", name);
 		rc = -EBUSY;
 		kfree(seg->res);
-		goto out_del;
+		goto out_del_mem;
 	}
-	dcss_diag(DCSS_PURGESEG, seg->dcss_name, &dummy, &dummy);
-	diag_cc = dcss_diag(dcss_command, seg->dcss_name,
-			&seg->start_addr, &seg->end);
+
+	dcss_diag(&purgeseg_scode, seg->dcss_name, &dummy, &dummy);
+	if (do_nonshared)
+		diag_cc = dcss_diag(&loadnsr_scode, seg->dcss_name,
+				&start_addr, &end_addr);
+	else
+		diag_cc = dcss_diag(&loadshr_scode, seg->dcss_name,
+				&start_addr, &end_addr);
+	if (diag_cc < 0) {
+		rc = diag_cc;
+		goto out_del_res;
+	}
 	if (diag_cc > 1) {
 		PRINT_WARN ("segment_modify_shared: could not reload segment %s"
-				" - diag returned error (%ld)\n",name,seg->end);
-		rc = dcss_diag_translate_rc (seg->end);
-		goto out_del;
+				" - diag returned error (%ld)\n",
+				name, end_addr);
+		rc = dcss_diag_translate_rc(end_addr);
+		goto out_del_res;
 	}
+	seg->start_addr = start_addr;
+	seg->end = end_addr;
 	seg->do_nonshared = do_nonshared;
 	rc = 0;
 	goto out_unlock;
- out_del:
+ out_del_res:
+	release_resource(seg->res);
+	kfree(seg->res);
+ out_del_mem:
 	vmem_remove_mapping(seg->start_addr, seg->end - seg->start_addr + 1);
 	list_del(&seg->list);
-	dcss_diag(DCSS_PURGESEG, seg->dcss_name, &dummy, &dummy);
+	dcss_diag(&purgeseg_scode, seg->dcss_name, &dummy, &dummy);
 	kfree(seg);
  out_unlock:
 	mutex_unlock(&dcss_lock);
@@ -510,7 +683,7 @@ segment_unload(char *name)
 	kfree(seg->res);
 	vmem_remove_mapping(seg->start_addr, seg->end - seg->start_addr + 1);
 	list_del(&seg->list);
-	dcss_diag(DCSS_PURGESEG, seg->dcss_name, &dummy, &dummy);
+	dcss_diag(&purgeseg_scode, seg->dcss_name, &dummy, &dummy);
 	kfree(seg);
 out_unlock:
 	mutex_unlock(&dcss_lock);
@@ -545,7 +718,7 @@ segment_save(char *name)
 	endpfn = (seg->end) >> PAGE_SHIFT;
 	sprintf(cmd1, "DEFSEG %s", name);
 	for (i=0; i<seg->segcnt; i++) {
-		sprintf(cmd1+strlen(cmd1), " %X-%X %s",
+		sprintf(cmd1+strlen(cmd1), " %lX-%lX %s",
 			seg->range[i].start >> PAGE_SHIFT,
 			seg->range[i].end >> PAGE_SHIFT,
 			segtype_string[seg->range[i].start & 0xff]);

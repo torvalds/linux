@@ -25,29 +25,6 @@ EXPORT_PER_CPU_SYMBOL(irq_stat);
 DEFINE_PER_CPU(struct pt_regs *, irq_regs);
 EXPORT_PER_CPU_SYMBOL(irq_regs);
 
-/*
- * 'what should we do if we get a hw irq event on an illegal vector'.
- * each architecture has to answer this themselves.
- */
-void ack_bad_irq(unsigned int irq)
-{
-	printk(KERN_ERR "unexpected IRQ trap at vector %02x\n", irq);
-
-#ifdef CONFIG_X86_LOCAL_APIC
-	/*
-	 * Currently unexpected vectors happen only on SMP and APIC.
-	 * We _must_ ack these because every local APIC has only N
-	 * irq slots per priority level, and a 'hanging, unacked' IRQ
-	 * holds up an irq slot - in excessive cases (when multiple
-	 * unexpected vectors occur) that might lock up the APIC
-	 * completely.
-	 * But only ack when the APIC is enabled -AK
-	 */
-	if (cpu_has_apic)
-		ack_APIC_irq();
-#endif
-}
-
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 /* Debugging check for stack overflow: is there less than 1KB free? */
 static int check_stack_overflow(void)
@@ -223,19 +200,24 @@ unsigned int do_IRQ(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs;
 	/* high bit used in ret_from_ code */
-	int overflow, irq = ~regs->orig_ax;
-	struct irq_desc *desc = irq_desc + irq;
+	int overflow;
+	unsigned vector = ~regs->orig_ax;
+	struct irq_desc *desc;
+	unsigned irq;
 
-	if (unlikely((unsigned)irq >= NR_IRQS)) {
-		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
-					__func__, irq);
-		BUG();
-	}
 
 	old_regs = set_irq_regs(regs);
 	irq_enter();
+	irq = __get_cpu_var(vector_irq)[vector];
 
 	overflow = check_stack_overflow();
+
+	desc = irq_to_desc(irq);
+	if (unlikely(!desc)) {
+		printk(KERN_EMERG "%s: cannot handle IRQ %d vector %#x cpu %d\n",
+					__func__, irq, vector, smp_processor_id());
+		BUG();
+	}
 
 	if (!execute_on_irq_stack(overflow, desc, irq)) {
 		if (unlikely(overflow))
@@ -248,146 +230,6 @@ unsigned int do_IRQ(struct pt_regs *regs)
 	return 1;
 }
 
-/*
- * Interrupt statistics:
- */
-
-atomic_t irq_err_count;
-
-/*
- * /proc/interrupts printing:
- */
-
-int show_interrupts(struct seq_file *p, void *v)
-{
-	int i = *(loff_t *) v, j;
-	struct irqaction * action;
-	unsigned long flags;
-
-	if (i == 0) {
-		seq_printf(p, "           ");
-		for_each_online_cpu(j)
-			seq_printf(p, "CPU%-8d",j);
-		seq_putc(p, '\n');
-	}
-
-	if (i < NR_IRQS) {
-		unsigned any_count = 0;
-
-		spin_lock_irqsave(&irq_desc[i].lock, flags);
-#ifndef CONFIG_SMP
-		any_count = kstat_irqs(i);
-#else
-		for_each_online_cpu(j)
-			any_count |= kstat_cpu(j).irqs[i];
-#endif
-		action = irq_desc[i].action;
-		if (!action && !any_count)
-			goto skip;
-		seq_printf(p, "%3d: ",i);
-#ifndef CONFIG_SMP
-		seq_printf(p, "%10u ", kstat_irqs(i));
-#else
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
-#endif
-		seq_printf(p, " %8s", irq_desc[i].chip->name);
-		seq_printf(p, "-%-8s", irq_desc[i].name);
-
-		if (action) {
-			seq_printf(p, "  %s", action->name);
-			while ((action = action->next) != NULL)
-				seq_printf(p, ", %s", action->name);
-		}
-
-		seq_putc(p, '\n');
-skip:
-		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
-	} else if (i == NR_IRQS) {
-		seq_printf(p, "NMI: ");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", nmi_count(j));
-		seq_printf(p, "  Non-maskable interrupts\n");
-#ifdef CONFIG_X86_LOCAL_APIC
-		seq_printf(p, "LOC: ");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ",
-				per_cpu(irq_stat,j).apic_timer_irqs);
-		seq_printf(p, "  Local timer interrupts\n");
-#endif
-#ifdef CONFIG_SMP
-		seq_printf(p, "RES: ");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ",
-				per_cpu(irq_stat,j).irq_resched_count);
-		seq_printf(p, "  Rescheduling interrupts\n");
-		seq_printf(p, "CAL: ");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ",
-				per_cpu(irq_stat,j).irq_call_count);
-		seq_printf(p, "  Function call interrupts\n");
-		seq_printf(p, "TLB: ");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ",
-				per_cpu(irq_stat,j).irq_tlb_count);
-		seq_printf(p, "  TLB shootdowns\n");
-#endif
-#ifdef CONFIG_X86_MCE
-		seq_printf(p, "TRM: ");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ",
-				per_cpu(irq_stat,j).irq_thermal_count);
-		seq_printf(p, "  Thermal event interrupts\n");
-#endif
-#ifdef CONFIG_X86_LOCAL_APIC
-		seq_printf(p, "SPU: ");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ",
-				per_cpu(irq_stat,j).irq_spurious_count);
-		seq_printf(p, "  Spurious interrupts\n");
-#endif
-		seq_printf(p, "ERR: %10u\n", atomic_read(&irq_err_count));
-#if defined(CONFIG_X86_IO_APIC)
-		seq_printf(p, "MIS: %10u\n", atomic_read(&irq_mis_count));
-#endif
-	}
-	return 0;
-}
-
-/*
- * /proc/stat helpers
- */
-u64 arch_irq_stat_cpu(unsigned int cpu)
-{
-	u64 sum = nmi_count(cpu);
-
-#ifdef CONFIG_X86_LOCAL_APIC
-	sum += per_cpu(irq_stat, cpu).apic_timer_irqs;
-#endif
-#ifdef CONFIG_SMP
-	sum += per_cpu(irq_stat, cpu).irq_resched_count;
-	sum += per_cpu(irq_stat, cpu).irq_call_count;
-	sum += per_cpu(irq_stat, cpu).irq_tlb_count;
-#endif
-#ifdef CONFIG_X86_MCE
-	sum += per_cpu(irq_stat, cpu).irq_thermal_count;
-#endif
-#ifdef CONFIG_X86_LOCAL_APIC
-	sum += per_cpu(irq_stat, cpu).irq_spurious_count;
-#endif
-	return sum;
-}
-
-u64 arch_irq_stat(void)
-{
-	u64 sum = atomic_read(&irq_err_count);
-
-#ifdef CONFIG_X86_IO_APIC
-	sum += atomic_read(&irq_mis_count);
-#endif
-	return sum;
-}
-
 #ifdef CONFIG_HOTPLUG_CPU
 #include <mach_apic.h>
 
@@ -395,20 +237,22 @@ void fixup_irqs(cpumask_t map)
 {
 	unsigned int irq;
 	static int warned;
+	struct irq_desc *desc;
 
-	for (irq = 0; irq < NR_IRQS; irq++) {
+	for_each_irq_desc(irq, desc) {
 		cpumask_t mask;
+
 		if (irq == 2)
 			continue;
 
-		cpus_and(mask, irq_desc[irq].affinity, map);
+		cpus_and(mask, desc->affinity, map);
 		if (any_online_cpu(mask) == NR_CPUS) {
 			printk("Breaking affinity for irq %i\n", irq);
 			mask = map;
 		}
-		if (irq_desc[irq].chip->set_affinity)
-			irq_desc[irq].chip->set_affinity(irq, mask);
-		else if (irq_desc[irq].action && !(warned++))
+		if (desc->chip->set_affinity)
+			desc->chip->set_affinity(irq, mask);
+		else if (desc->action && !(warned++))
 			printk("Cannot set affinity for irq %i\n", irq);
 	}
 

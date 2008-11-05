@@ -21,6 +21,17 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+/* NOTE: the full version of this header is in the v4l-dvb repository
+ * and allows v4l i2c drivers to be compiled on older kernels as well.
+ * The version of this header as it appears in the kernel is a stripped
+ * version (without all the backwards compatibility stuff) and so it
+ * looks a bit odd.
+ *
+ * If you look at the full version then you will understand the reason
+ * for introducing this header since you really don't want to have all
+ * the tricky backwards compatibility code in each and every i2c driver.
+ */
+
 #ifndef __V4L2_I2C_DRV_H__
 #define __V4L2_I2C_DRV_H__
 

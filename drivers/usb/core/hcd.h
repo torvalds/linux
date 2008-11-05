@@ -232,6 +232,7 @@ extern void usb_hcd_flush_endpoint(struct usb_device *udev,
 		struct usb_host_endpoint *ep);
 extern void usb_hcd_disable_endpoint(struct usb_device *udev,
 		struct usb_host_endpoint *ep);
+extern void usb_hcd_synchronize_unlinks(struct usb_device *udev);
 extern int usb_hcd_get_frame_number(struct usb_device *udev);
 
 extern struct usb_hcd *usb_create_hcd(const struct hc_driver *driver,
@@ -481,5 +482,11 @@ static inline void usbmon_urb_complete(struct usb_bus *bus, struct urb *urb,
  * Nobody else should touch it.
  */
 extern struct rw_semaphore ehci_cf_port_reset_rwsem;
+
+/* Keep track of which host controller drivers are loaded */
+#define USB_UHCI_LOADED		0
+#define USB_OHCI_LOADED		1
+#define USB_EHCI_LOADED		2
+extern unsigned long usb_hcds_loaded;
 
 #endif /* __KERNEL__ */

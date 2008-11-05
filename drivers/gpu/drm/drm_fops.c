@@ -246,7 +246,7 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 	memset(priv, 0, sizeof(*priv));
 	filp->private_data = priv;
 	priv->filp = filp;
-	priv->uid = current->euid;
+	priv->uid = current_euid();
 	priv->pid = task_pid_nr(current);
 	priv->minor = idr_find(&drm_minors_idr, minor_id);
 	priv->ioctl_count = 0;
@@ -255,6 +255,9 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 	priv->lock_count = 0;
 
 	INIT_LIST_HEAD(&priv->lhead);
+
+	if (dev->driver->driver_features & DRIVER_GEM)
+		drm_gem_open(dev, priv);
 
 	if (dev->driver->open) {
 		ret = dev->driver->open(dev, priv);
@@ -400,7 +403,8 @@ int drm_release(struct inode *inode, struct file *filp)
 		dev->driver->reclaim_buffers(dev, file_priv);
 	}
 
-	drm_fasync(-1, filp, 0);
+	if (dev->driver->driver_features & DRIVER_GEM)
+		drm_gem_release(dev, file_priv);
 
 	mutex_lock(&dev->ctxlist_mutex);
 	if (!list_empty(&dev->ctxlist)) {

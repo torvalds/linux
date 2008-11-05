@@ -344,7 +344,7 @@ static void usbatm_extract_one_cell(struct usbatm_data *instance, unsigned char 
 				__func__, sarb->len, vcc);
 		/* discard cells already received */
 		skb_trim(sarb, 0);
-		UDSL_ASSERT(sarb->tail + ATM_CELL_PAYLOAD <= sarb->end);
+		UDSL_ASSERT(instance, sarb->tail + ATM_CELL_PAYLOAD <= sarb->end);
 	}
 
 	memcpy(skb_tail_pointer(sarb), source + ATM_CELL_HEADER, ATM_CELL_PAYLOAD);
@@ -432,7 +432,7 @@ static void usbatm_extract_cells(struct usbatm_data *instance,
 		unsigned char *cell_buf = instance->cell_buf;
 		unsigned int space_left = stride - buf_usage;
 
-		UDSL_ASSERT(buf_usage <= stride);
+		UDSL_ASSERT(instance, buf_usage <= stride);
 
 		if (avail_data >= space_left) {
 			/* add new data and process cell */
@@ -475,7 +475,7 @@ static unsigned int usbatm_write_cells(struct usbatm_data *instance,
 	unsigned int stride = instance->tx_channel.stride;
 
 	vdbg("%s: skb->len=%d, avail_space=%u", __func__, skb->len, avail_space);
-	UDSL_ASSERT(!(avail_space % stride));
+	UDSL_ASSERT(instance, !(avail_space % stride));
 
 	for (bytes_written = 0; bytes_written < avail_space && ctrl->len;
 	     bytes_written += stride, target += stride) {
@@ -547,7 +547,7 @@ static void usbatm_rx_process(unsigned long data)
 				if (!urb->iso_frame_desc[i].status) {
 					unsigned int actual_length = urb->iso_frame_desc[i].actual_length;
 
-					UDSL_ASSERT(actual_length <= packet_size);
+					UDSL_ASSERT(instance, actual_length <= packet_size);
 
 					if (!merge_length)
 						merge_start = (unsigned char *)urb->transfer_buffer + urb->iso_frame_desc[i].offset;
@@ -640,14 +640,13 @@ static void usbatm_cancel_send(struct usbatm_data *instance,
 
 	atm_dbg(instance, "%s entered\n", __func__);
 	spin_lock_irq(&instance->sndqueue.lock);
-	for (skb = instance->sndqueue.next, n = skb->next;
-	     skb != (struct sk_buff *)&instance->sndqueue;
-	     skb = n, n = skb->next)
+	skb_queue_walk_safe(&instance->sndqueue, skb, n) {
 		if (UDSL_SKB(skb)->atm.vcc == vcc) {
 			atm_dbg(instance, "%s: popping skb 0x%p\n", __func__, skb);
 			__skb_unlink(skb, &instance->sndqueue);
 			usbatm_pop(vcc, skb);
 		}
+	}
 	spin_unlock_irq(&instance->sndqueue.lock);
 
 	tasklet_disable(&instance->tx_channel.tasklet);
@@ -1189,7 +1188,7 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 		struct urb *urb;
 		unsigned int iso_packets = usb_pipeisoc(channel->endpoint) ? channel->buf_size / channel->packet_size : 0;
 
-		UDSL_ASSERT(!usb_pipeisoc(channel->endpoint) || usb_pipein(channel->endpoint));
+		UDSL_ASSERT(instance, !usb_pipeisoc(channel->endpoint) || usb_pipein(channel->endpoint));
 
 		urb = usb_alloc_urb(iso_packets, GFP_KERNEL);
 		if (!urb) {

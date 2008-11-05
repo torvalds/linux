@@ -623,8 +623,8 @@ unsigned long sm501_set_clock(struct device *dev,
 
 	sm501_sync_regs(sm);
 
-	dev_info(sm->dev, "gate %08lx, clock %08lx, mode %08lx\n",
-		 gate, clock, mode);
+	dev_dbg(sm->dev, "gate %08lx, clock %08lx, mode %08lx\n",
+		gate, clock, mode);
 
 	sm501_mdelay(sm, 16);
 	mutex_unlock(&sm->clock_lock);
@@ -742,7 +742,7 @@ static int sm501_register_device(struct sm501_devdata *sm,
 	int ret;
 
 	for (ptr = 0; ptr < pdev->num_resources; ptr++) {
-		printk("%s[%d] flags %08lx: %08llx..%08llx\n",
+		printk(KERN_DEBUG "%s[%d] flags %08lx: %08llx..%08llx\n",
 		       pdev->name, ptr,
 		       pdev->resource[ptr].flags,
 		       (unsigned long long)pdev->resource[ptr].start,
@@ -1374,31 +1374,31 @@ static int sm501_init_dev(struct sm501_devdata *sm)
 static int sm501_plat_probe(struct platform_device *dev)
 {
 	struct sm501_devdata *sm;
-	int err;
+	int ret;
 
 	sm = kzalloc(sizeof(struct sm501_devdata), GFP_KERNEL);
 	if (sm == NULL) {
 		dev_err(&dev->dev, "no memory for device data\n");
-		err = -ENOMEM;
+		ret = -ENOMEM;
 		goto err1;
 	}
 
 	sm->dev = &dev->dev;
 	sm->pdev_id = dev->id;
-	sm->irq = platform_get_irq(dev, 0);
-	sm->io_res = platform_get_resource(dev, IORESOURCE_MEM, 1);
-	sm->mem_res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	sm->platdata = dev->dev.platform_data;
 
-	if (sm->irq < 0) {
+	ret = platform_get_irq(dev, 0);
+	if (ret < 0) {
 		dev_err(&dev->dev, "failed to get irq resource\n");
-		err = sm->irq;
 		goto err_res;
 	}
+	sm->irq = ret;
 
+	sm->io_res = platform_get_resource(dev, IORESOURCE_MEM, 1);
+	sm->mem_res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (sm->io_res == NULL || sm->mem_res == NULL) {
 		dev_err(&dev->dev, "failed to get IO resource\n");
-		err = -ENOENT;
+		ret = -ENOENT;
 		goto err_res;
 	}
 
@@ -1407,7 +1407,7 @@ static int sm501_plat_probe(struct platform_device *dev)
 
 	if (sm->regs_claim == NULL) {
 		dev_err(&dev->dev, "cannot claim registers\n");
-		err= -EBUSY;
+		ret = -EBUSY;
 		goto err_res;
 	}
 
@@ -1418,7 +1418,7 @@ static int sm501_plat_probe(struct platform_device *dev)
 
 	if (sm->regs == NULL) {
 		dev_err(&dev->dev, "cannot remap registers\n");
-		err = -EIO;
+		ret = -EIO;
 		goto err_claim;
 	}
 
@@ -1430,7 +1430,7 @@ static int sm501_plat_probe(struct platform_device *dev)
  err_res:
 	kfree(sm);
  err1:
-	return err;
+	return ret;
 
 }
 
@@ -1625,8 +1625,7 @@ static int sm501_pci_probe(struct pci_dev *dev,
 		goto err3;
 	}
 
-	sm->regs = ioremap(pci_resource_start(dev, 1),
-			   pci_resource_len(dev, 1));
+	sm->regs = pci_ioremap_bar(dev, 1);
 
 	if (sm->regs == NULL) {
 		dev_err(&dev->dev, "cannot remap registers\n");

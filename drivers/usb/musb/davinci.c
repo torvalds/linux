@@ -30,6 +30,7 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
 
 #include <asm/arch/hardware.h>
 #include <asm/arch/memory.h>
@@ -39,7 +40,7 @@
 #include "musb_core.h"
 
 #ifdef CONFIG_MACH_DAVINCI_EVM
-#include <asm/arch/i2c-client.h>
+#define GPIO_nVBUS_DRV		87
 #endif
 
 #include "davinci.h"
@@ -138,7 +139,6 @@ static int vbus_state = -1;
 /* VBUS SWITCHING IS BOARD-SPECIFIC */
 
 #ifdef CONFIG_MACH_DAVINCI_EVM
-#ifndef CONFIG_MACH_DAVINCI_EVM_OTG
 
 /* I2C operations are always synchronous, and require a task context.
  * With unloaded systems, using the shared workqueue seems to suffice
@@ -146,12 +146,11 @@ static int vbus_state = -1;
  */
 static void evm_deferred_drvvbus(struct work_struct *ignored)
 {
-	davinci_i2c_expander_op(0x3a, USB_DRVVBUS, vbus_state);
+	gpio_set_value_cansleep(GPIO_nVBUS_DRV, vbus_state);
 	vbus_state = !vbus_state;
 }
 static DECLARE_WORK(evm_vbus_work, evm_deferred_drvvbus);
 
-#endif	/* modified board */
 #endif	/* EVM */
 
 static void davinci_source_power(struct musb *musb, int is_on, int immediate)
@@ -165,21 +164,10 @@ static void davinci_source_power(struct musb *musb, int is_on, int immediate)
 
 #ifdef CONFIG_MACH_DAVINCI_EVM
 	if (machine_is_davinci_evm()) {
-#ifdef CONFIG_MACH_DAVINCI_EVM_OTG
-		/* modified EVM board switching VBUS with GPIO(6) not I2C
-		 * NOTE:  PINMUX0.RGB888 (bit23) must be clear
-		 */
-		if (is_on)
-			gpio_set(GPIO(6));
-		else
-			gpio_clear(GPIO(6));
-		immediate = 1;
-#else
 		if (immediate)
-			davinci_i2c_expander_op(0x3a, USB_DRVVBUS, !is_on);
+			gpio_set_value_cansleep(GPIO_nVBUS_DRV, vbus_state);
 		else
 			schedule_work(&evm_vbus_work);
-#endif
 	}
 #endif
 	if (immediate)

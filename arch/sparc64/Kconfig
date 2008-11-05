@@ -11,13 +11,19 @@ config SPARC
 config SPARC64
 	bool
 	default y
-	select HAVE_DYNAMIC_FTRACE
-	select HAVE_FTRACE
+	select HAVE_FUNCTION_TRACER
 	select HAVE_IDE
 	select HAVE_LMB
 	select HAVE_ARCH_KGDB
 	select USE_GENERIC_SMP_HELPERS if SMP
 	select HAVE_ARCH_TRACEHOOK
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select RTC_CLASS
+	select RTC_DRV_M48T59
+	select RTC_DRV_CMOS
+	select RTC_DRV_BQ4802
+	select RTC_DRV_SUN4V
+	select RTC_DRV_STARFIRE
 
 config GENERIC_TIME
 	bool
@@ -30,6 +36,11 @@ config GENERIC_CMOS_UPDATE
 config GENERIC_CLOCKEVENTS
 	bool
 	default y
+
+config GENERIC_GPIO
+	bool
+	help
+	  Generic GPIO API support
 
 config 64BIT
 	def_bool y
@@ -84,6 +95,7 @@ config GENERIC_HARDIRQS_NO__DO_IRQ
 	def_bool y
 
 source "init/Kconfig"
+source "kernel/Kconfig.freezer"
 
 menu "Processor type and features"
 
@@ -184,6 +196,17 @@ config US2E_FREQ
 	  For details, take a look at <file:Documentation/cpu-freq>.
 
 	  If in doubt, say N.
+
+config US3_MC
+	tristate "UltraSPARC-III Memory Controller driver"
+	default y
+	help
+	  This adds a driver for the UltraSPARC-III memory controller.
+	  Loading this driver allows exact mnemonic strings to be
+	  printed in the event of a memory error, so that the faulty DIMM
+	  on the motherboard can be matched to the error.
+
+	  If in doubt, say Y, as this information can be very useful.
 
 # Global things across all Sun machines.
 config GENERIC_LOCKBREAK

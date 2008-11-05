@@ -248,6 +248,7 @@ struct nand_hw_control {
  * @read_page_raw:	function to read a raw page without ECC
  * @write_page_raw:	function to write a raw page without ECC
  * @read_page:	function to read a page according to the ecc generator requirements
+ * @read_subpage:	function to read parts of the page covered by ECC.
  * @write_page:	function to write a page according to the ecc generator requirements
  * @read_oob:	function to read chip OOB data
  * @write_oob:	function to write chip OOB data

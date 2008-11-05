@@ -1341,18 +1341,24 @@ static int bond_compute_features(struct bonding *bond)
 	int i;
 
 	features &= ~(NETIF_F_ALL_CSUM | BOND_VLAN_FEATURES);
-	features |= NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
-		    NETIF_F_GSO_MASK | NETIF_F_NO_CSUM;
+	features |=  NETIF_F_GSO_MASK | NETIF_F_NO_CSUM;
+
+	if (!bond->first_slave)
+		goto done;
+
+	features &= ~NETIF_F_ONE_FOR_ALL;
 
 	bond_for_each_slave(bond, slave, i) {
-		features = netdev_compute_features(features,
-						   slave->dev->features);
+		features = netdev_increment_features(features,
+						     slave->dev->features,
+						     NETIF_F_ONE_FOR_ALL);
 		if (slave->dev->hard_header_len > max_hard_header_len)
 			max_hard_header_len = slave->dev->hard_header_len;
 	}
 
+done:
 	features |= (bond_dev->features & BOND_VLAN_FEATURES);
-	bond_dev->features = features;
+	bond_dev->features = netdev_fix_features(features, NULL);
 	bond_dev->hard_header_len = max_hard_header_len;
 
 	return 0;
@@ -1973,6 +1979,20 @@ void bond_destroy(struct bonding *bond)
 	unregister_netdevice(bond->dev);
 }
 
+static void bond_destructor(struct net_device *bond_dev)
+{
+	struct bonding *bond = bond_dev->priv;
+
+	if (bond->wq)
+		destroy_workqueue(bond->wq);
+
+	netif_addr_lock_bh(bond_dev);
+	bond_mc_list_destroy(bond);
+	netif_addr_unlock_bh(bond_dev);
+
+	free_netdev(bond_dev);
+}
+
 /*
 * First release a slave and than destroy the bond if no more slaves iare left.
 * Must be under rtnl_lock when this function is called.
@@ -2370,6 +2390,9 @@ static void bond_miimon_commit(struct bonding *bond)
 			continue;
 
 		case BOND_LINK_DOWN:
+			if (slave->link_failure_count < UINT_MAX)
+				slave->link_failure_count++;
+
 			slave->link = BOND_LINK_DOWN;
 
 			if (bond->params.mode == BOND_MODE_ACTIVEBACKUP ||
@@ -3702,7 +3725,7 @@ static int bond_xmit_hash_policy_l23(struct sk_buff *skb,
 	struct ethhdr *data = (struct ethhdr *)skb->data;
 	struct iphdr *iph = ip_hdr(skb);
 
-	if (skb->protocol == __constant_htons(ETH_P_IP)) {
+	if (skb->protocol == htons(ETH_P_IP)) {
 		return ((ntohl(iph->saddr ^ iph->daddr) & 0xffff) ^
 			(data->h_dest[5] ^ bond_dev->dev_addr[5])) % count;
 	}
@@ -3723,8 +3746,8 @@ static int bond_xmit_hash_policy_l34(struct sk_buff *skb,
 	__be16 *layer4hdr = (__be16 *)((u32 *)iph + iph->ihl);
 	int layer4_xor = 0;
 
-	if (skb->protocol == __constant_htons(ETH_P_IP)) {
-		if (!(iph->frag_off & __constant_htons(IP_MF|IP_OFFSET)) &&
+	if (skb->protocol == htons(ETH_P_IP)) {
+		if (!(iph->frag_off & htons(IP_MF|IP_OFFSET)) &&
 		    (iph->protocol == IPPROTO_TCP ||
 		     iph->protocol == IPPROTO_UDP)) {
 			layer4_xor = ntohs((*layer4hdr ^ *(layer4hdr + 1)));
@@ -4493,6 +4516,12 @@ static void bond_ethtool_get_drvinfo(struct net_device *bond_dev,
 
 static const struct ethtool_ops bond_ethtool_ops = {
 	.get_drvinfo		= bond_ethtool_get_drvinfo,
+	.get_link		= ethtool_op_get_link,
+	.get_tx_csum		= ethtool_op_get_tx_csum,
+	.get_sg			= ethtool_op_get_sg,
+	.get_tso		= ethtool_op_get_tso,
+	.get_ufo		= ethtool_op_get_ufo,
+	.get_flags		= ethtool_op_get_flags,
 };
 
 /*
@@ -4538,7 +4567,7 @@ static int bond_init(struct net_device *bond_dev, struct bond_params *params)
 
 	bond_set_mode_ops(bond, bond->params.mode);
 
-	bond_dev->destructor = free_netdev;
+	bond_dev->destructor = bond_destructor;
 
 	/* Initialize the device options */
 	bond_dev->tx_queue_len = 0;
@@ -4577,20 +4606,6 @@ static int bond_init(struct net_device *bond_dev, struct bond_params *params)
 	return 0;
 }
 
-/* De-initialize device specific data.
- * Caller must hold rtnl_lock.
- */
-static void bond_deinit(struct net_device *bond_dev)
-{
-	struct bonding *bond = bond_dev->priv;
-
-	list_del(&bond->bond_list);
-
-#ifdef CONFIG_PROC_FS
-	bond_remove_proc_entry(bond);
-#endif
-}
-
 static void bond_work_cancel_all(struct bonding *bond)
 {
 	write_lock_bh(&bond->lock);
@@ -4612,6 +4627,22 @@ static void bond_work_cancel_all(struct bonding *bond)
 		cancel_delayed_work(&bond->ad_work);
 }
 
+/* De-initialize device specific data.
+ * Caller must hold rtnl_lock.
+ */
+static void bond_deinit(struct net_device *bond_dev)
+{
+	struct bonding *bond = bond_dev->priv;
+
+	list_del(&bond->bond_list);
+
+	bond_work_cancel_all(bond);
+
+#ifdef CONFIG_PROC_FS
+	bond_remove_proc_entry(bond);
+#endif
+}
+
 /* Unregister and free all bond devices.
  * Caller must hold rtnl_lock.
  */
@@ -4623,9 +4654,6 @@ static void bond_free_all(void)
 		struct net_device *bond_dev = bond->dev;
 
 		bond_work_cancel_all(bond);
-		netif_addr_lock_bh(bond_dev);
-		bond_mc_list_destroy(bond);
-		netif_addr_unlock_bh(bond_dev);
 		/* Release the bonded slaves */
 		bond_release_all(bond_dev);
 		bond_destroy(bond);

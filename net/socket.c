@@ -990,7 +990,6 @@ static int sock_close(struct inode *inode, struct file *filp)
 		printk(KERN_DEBUG "sock_close: NULL inode\n");
 		return 0;
 	}
-	sock_fasync(-1, filp, 0);
 	sock_release(SOCKET_I(inode));
 	return 0;
 }
@@ -1142,7 +1141,7 @@ static int __sock_create(struct net *net, int family, int type, int protocol,
 
 	sock->type = type;
 
-#if defined(CONFIG_KMOD)
+#ifdef CONFIG_MODULES
 	/* Attempt to load a protocol module if the find failed.
 	 *
 	 * 12/09/1996 Marcin: But! this makes REALLY only sense, if the user

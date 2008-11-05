@@ -14,7 +14,7 @@
  *
  *  Copyright (C) 1998-1999 Andrzej Krzysztofowicz, Author and Maintainer
  *  Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
- *  Copyright (C) 2003 Red Hat Inc <alan@redhat.com>
+ *  Copyright (C) 2003 Red Hat Inc
  *
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -738,7 +738,6 @@ static void piix_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	do_pata_set_dmamode - Initialize host controller PATA PIO timings
  *	@ap: Port whose timings we are configuring
  *	@adev: Drive in question
- *	@udma: udma mode, 0 - 6
  *	@isich: set if the chip is an ICH device
  *
  *	Set UDMA mode for device, in host controller PCI config space.

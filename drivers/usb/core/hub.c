@@ -77,6 +77,7 @@ struct usb_hub {
 	unsigned		has_indicators:1;
 	u8			indicator[USB_MAXCHILDREN];
 	struct delayed_work	leds;
+	struct delayed_work	init_work;
 };
 
 
@@ -98,6 +99,15 @@ static struct task_struct *khubd_task;
 static int blinkenlights = 0;
 module_param (blinkenlights, bool, S_IRUGO);
 MODULE_PARM_DESC (blinkenlights, "true to cycle leds on hubs");
+
+/*
+ * Device SATA8000 FW1.0 from DATAST0R Technology Corp requires about
+ * 10 seconds to send reply for the initial 64-byte descriptor request.
+ */
+/* define initial 64-byte descriptor request timeout in milliseconds */
+static int initial_descriptor_timeout = USB_CTRL_GET_TIMEOUT;
+module_param(initial_descriptor_timeout, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(initial_descriptor_timeout, "initial 64-byte descriptor request timeout in milliseconds (default 5000 - 5.0 seconds)");
 
 /*
  * As of 2.6.10 we introduce a new USB device initialization scheme which
@@ -515,10 +525,14 @@ void usb_hub_tt_clear_buffer (struct usb_device *udev, int pipe)
 }
 EXPORT_SYMBOL_GPL(usb_hub_tt_clear_buffer);
 
-static void hub_power_on(struct usb_hub *hub)
+/* If do_delay is false, return the number of milliseconds the caller
+ * needs to delay.
+ */
+static unsigned hub_power_on(struct usb_hub *hub, bool do_delay)
 {
 	int port1;
 	unsigned pgood_delay = hub->descriptor->bPwrOn2PwrGood * 2;
+	unsigned delay;
 	u16 wHubCharacteristics =
 			le16_to_cpu(hub->descriptor->wHubCharacteristics);
 
@@ -537,7 +551,10 @@ static void hub_power_on(struct usb_hub *hub)
 		set_port_feature(hub->hdev, port1, USB_PORT_FEAT_POWER);
 
 	/* Wait at least 100 msec for power to become stable */
-	msleep(max(pgood_delay, (unsigned) 100));
+	delay = max(pgood_delay, (unsigned) 100);
+	if (do_delay)
+		msleep(delay);
+	return delay;
 }
 
 static int hub_hub_status(struct usb_hub *hub,
@@ -599,8 +616,12 @@ static void hub_port_logical_disconnect(struct usb_hub *hub, int port1)
 }
 
 enum hub_activation_type {
-	HUB_INIT, HUB_POST_RESET, HUB_RESUME, HUB_RESET_RESUME
+	HUB_INIT, HUB_INIT2, HUB_INIT3,
+	HUB_POST_RESET, HUB_RESUME, HUB_RESET_RESUME,
 };
+
+static void hub_init_func2(struct work_struct *ws);
+static void hub_init_func3(struct work_struct *ws);
 
 static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 {
@@ -608,12 +629,45 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 	int port1;
 	int status;
 	bool need_debounce_delay = false;
+	unsigned delay;
+
+	/* Continue a partial initialization */
+	if (type == HUB_INIT2)
+		goto init2;
+	if (type == HUB_INIT3)
+		goto init3;
 
 	/* After a resume, port power should still be on.
 	 * For any other type of activation, turn it on.
 	 */
-	if (type != HUB_RESUME)
-		hub_power_on(hub);
+	if (type != HUB_RESUME) {
+
+		/* Speed up system boot by using a delayed_work for the
+		 * hub's initial power-up delays.  This is pretty awkward
+		 * and the implementation looks like a home-brewed sort of
+		 * setjmp/longjmp, but it saves at least 100 ms for each
+		 * root hub (assuming usbcore is compiled into the kernel
+		 * rather than as a module).  It adds up.
+		 *
+		 * This can't be done for HUB_RESUME or HUB_RESET_RESUME
+		 * because for those activation types the ports have to be
+		 * operational when we return.  In theory this could be done
+		 * for HUB_POST_RESET, but it's easier not to.
+		 */
+		if (type == HUB_INIT) {
+			delay = hub_power_on(hub, false);
+			PREPARE_DELAYED_WORK(&hub->init_work, hub_init_func2);
+			schedule_delayed_work(&hub->init_work,
+					msecs_to_jiffies(delay));
+
+			/* Suppress autosuspend until init is done */
+			to_usb_interface(hub->intfdev)->pm_usage_cnt = 1;
+			return;		/* Continues at init2: below */
+		} else {
+			hub_power_on(hub, true);
+		}
+	}
+ init2:
 
 	/* Check each port and set hub->change_bits to let khubd know
 	 * which ports need attention.
@@ -692,9 +746,20 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 	 * If any port-status changes do occur during this delay, khubd
 	 * will see them later and handle them normally.
 	 */
-	if (need_debounce_delay)
-		msleep(HUB_DEBOUNCE_STABLE);
+	if (need_debounce_delay) {
+		delay = HUB_DEBOUNCE_STABLE;
 
+		/* Don't do a long sleep inside a workqueue routine */
+		if (type == HUB_INIT2) {
+			PREPARE_DELAYED_WORK(&hub->init_work, hub_init_func3);
+			schedule_delayed_work(&hub->init_work,
+					msecs_to_jiffies(delay));
+			return;		/* Continues at init3: below */
+		} else {
+			msleep(delay);
+		}
+	}
+ init3:
 	hub->quiescing = 0;
 
 	status = usb_submit_urb(hub->urb, GFP_NOIO);
@@ -707,6 +772,21 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 	kick_khubd(hub);
 }
 
+/* Implement the continuations for the delays above */
+static void hub_init_func2(struct work_struct *ws)
+{
+	struct usb_hub *hub = container_of(ws, struct usb_hub, init_work.work);
+
+	hub_activate(hub, HUB_INIT2);
+}
+
+static void hub_init_func3(struct work_struct *ws)
+{
+	struct usb_hub *hub = container_of(ws, struct usb_hub, init_work.work);
+
+	hub_activate(hub, HUB_INIT3);
+}
+
 enum hub_quiescing_type {
 	HUB_DISCONNECT, HUB_PRE_RESET, HUB_SUSPEND
 };
@@ -715,6 +795,8 @@ static void hub_quiesce(struct usb_hub *hub, enum hub_quiescing_type type)
 {
 	struct usb_device *hdev = hub->hdev;
 	int i;
+
+	cancel_delayed_work_sync(&hub->init_work);
 
 	/* khubd and related activity won't re-trigger */
 	hub->quiescing = 1;
@@ -1099,6 +1181,7 @@ descriptor_error:
 	hub->intfdev = &intf->dev;
 	hub->hdev = hdev;
 	INIT_DELAYED_WORK(&hub->leds, led_work);
+	INIT_DELAYED_WORK(&hub->init_work, NULL);
 	usb_get_intf(intf);
 
 	usb_set_intfdata (intf, hub);
@@ -1349,6 +1432,7 @@ void usb_disconnect(struct usb_device **pdev)
 	 */
 	dev_dbg (&udev->dev, "unregistering device\n");
 	usb_disable_device(udev, 0);
+	usb_hcd_synchronize_unlinks(udev);
 
 	usb_unlock_device(udev);
 
@@ -2467,7 +2551,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 					USB_REQ_GET_DESCRIPTOR, USB_DIR_IN,
 					USB_DT_DEVICE << 8, 0,
 					buf, GET_DESCRIPTOR_BUFSIZE,
-					USB_CTRL_GET_TIMEOUT);
+					initial_descriptor_timeout);
 				switch (buf->bMaxPacketSize0) {
 				case 8: case 16: case 32: case 64: case 255:
 					if (buf->bDescriptorType ==
@@ -3035,7 +3119,7 @@ static void hub_events(void)
 					i);
 				clear_port_feature(hdev, i,
 					USB_PORT_FEAT_C_OVER_CURRENT);
-				hub_power_on(hub);
+				hub_power_on(hub, true);
 			}
 
 			if (portchange & USB_PORT_STAT_C_RESET) {
@@ -3070,7 +3154,7 @@ static void hub_events(void)
 				dev_dbg (hub_dev, "overcurrent change\n");
 				msleep(500);	/* Cool down */
 				clear_hub_feature(hdev, C_HUB_OVER_CURRENT);
-                        	hub_power_on(hub);
+                        	hub_power_on(hub, true);
 			}
 		}
 
@@ -3424,7 +3508,7 @@ int usb_reset_device(struct usb_device *udev)
 						USB_INTERFACE_BOUND)
 					rebind = 1;
 			}
-			if (rebind)
+			if (ret == 0 && rebind)
 				usb_rebind_intf(cintf);
 		}
 	}

@@ -56,7 +56,7 @@ static pfm_buffer_fmt_t oprofile_fmt = {
 };
 
 
-static char * get_cpu_type(void)
+static char *get_cpu_type(void)
 {
 	__u8 family = local_cpu_data->family;
 
@@ -75,7 +75,7 @@ static char * get_cpu_type(void)
 
 static int using_perfmon;
 
-int perfmon_init(struct oprofile_operations * ops)
+int perfmon_init(struct oprofile_operations *ops)
 {
 	int ret = pfm_register_buffer_fmt(&oprofile_fmt);
 	if (ret)

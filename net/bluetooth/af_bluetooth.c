@@ -37,10 +37,7 @@
 #include <linux/poll.h>
 #include <net/sock.h>
 #include <asm/ioctls.h>
-
-#if defined(CONFIG_KMOD)
 #include <linux/kmod.h>
-#endif
 
 #include <net/bluetooth/bluetooth.h>
 
@@ -145,11 +142,8 @@ static int bt_sock_create(struct net *net, struct socket *sock, int proto)
 	if (proto < 0 || proto >= BT_MAX_PROTO)
 		return -EINVAL;
 
-#if defined(CONFIG_KMOD)
-	if (!bt_proto[proto]) {
+	if (!bt_proto[proto])
 		request_module("bt-proto-%d", proto);
-	}
-#endif
 
 	err = -EPROTONOSUPPORT;
 

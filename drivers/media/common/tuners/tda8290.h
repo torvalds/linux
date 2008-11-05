@@ -22,7 +22,6 @@
 
 struct tda829x_config {
 	unsigned int lna_cfg;
-	int (*tuner_callback) (void *dev, int command, int arg);
 
 	unsigned int probe_tuner:1;
 #define TDA829X_PROBE_TUNER 0

@@ -33,6 +33,7 @@
 
 #include "drmP.h"
 #include <linux/module.h>
+#include <asm/agp.h>
 
 #if __OS_HAS_AGP
 
@@ -452,4 +453,53 @@ int drm_agp_unbind_memory(DRM_AGP_MEM * handle)
 	return agp_unbind_memory(handle);
 }
 
-#endif				/* __OS_HAS_AGP */
+/**
+ * Binds a collection of pages into AGP memory at the given offset, returning
+ * the AGP memory structure containing them.
+ *
+ * No reference is held on the pages during this time -- it is up to the
+ * caller to handle that.
+ */
+DRM_AGP_MEM *
+drm_agp_bind_pages(struct drm_device *dev,
+		   struct page **pages,
+		   unsigned long num_pages,
+		   uint32_t gtt_offset,
+		   u32 type)
+{
+	DRM_AGP_MEM *mem;
+	int ret, i;
+
+	DRM_DEBUG("\n");
+
+	mem = drm_agp_allocate_memory(dev->agp->bridge, num_pages,
+				      type);
+	if (mem == NULL) {
+		DRM_ERROR("Failed to allocate memory for %ld pages\n",
+			  num_pages);
+		return NULL;
+	}
+
+	for (i = 0; i < num_pages; i++)
+		mem->memory[i] = phys_to_gart(page_to_phys(pages[i]));
+	mem->page_count = num_pages;
+
+	mem->is_flushed = true;
+	ret = drm_agp_bind_memory(mem, gtt_offset / PAGE_SIZE);
+	if (ret != 0) {
+		DRM_ERROR("Failed to bind AGP memory: %d\n", ret);
+		agp_free_memory(mem);
+		return NULL;
+	}
+
+	return mem;
+}
+EXPORT_SYMBOL(drm_agp_bind_pages);
+
+void drm_agp_chipset_flush(struct drm_device *dev)
+{
+	agp_flush_chipset(dev->agp->bridge);
+}
+EXPORT_SYMBOL(drm_agp_chipset_flush);
+
+#endif /* __OS_HAS_AGP */

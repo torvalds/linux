@@ -98,9 +98,9 @@ static inline void ubd_set_bit(__u64 bit, unsigned char *data)
 
 static DEFINE_MUTEX(ubd_lock);
 
-static int ubd_open(struct inode * inode, struct file * filp);
-static int ubd_release(struct inode * inode, struct file * file);
-static int ubd_ioctl(struct inode * inode, struct file * file,
+static int ubd_open(struct block_device *bdev, fmode_t mode);
+static int ubd_release(struct gendisk *disk, fmode_t mode);
+static int ubd_ioctl(struct block_device *bdev, fmode_t mode,
 		     unsigned int cmd, unsigned long arg);
 static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
@@ -1112,9 +1112,9 @@ static int __init ubd_driver_init(void){
 
 device_initcall(ubd_driver_init);
 
-static int ubd_open(struct inode *inode, struct file *filp)
+static int ubd_open(struct block_device *bdev, fmode_t mode)
 {
-	struct gendisk *disk = inode->i_bdev->bd_disk;
+	struct gendisk *disk = bdev->bd_disk;
 	struct ubd *ubd_dev = disk->private_data;
 	int err = 0;
 
@@ -1131,7 +1131,7 @@ static int ubd_open(struct inode *inode, struct file *filp)
 
 	/* This should no more be needed. And it didn't work anyway to exclude
 	 * read-write remounting of filesystems.*/
-	/*if((filp->f_mode & FMODE_WRITE) && !ubd_dev->openflags.w){
+	/*if((mode & FMODE_WRITE) && !ubd_dev->openflags.w){
 	        if(--ubd_dev->count == 0) ubd_close_dev(ubd_dev);
 	        err = -EROFS;
 	}*/
@@ -1139,9 +1139,8 @@ static int ubd_open(struct inode *inode, struct file *filp)
 	return err;
 }
 
-static int ubd_release(struct inode * inode, struct file * file)
+static int ubd_release(struct gendisk *disk, fmode_t mode)
 {
-	struct gendisk *disk = inode->i_bdev->bd_disk;
 	struct ubd *ubd_dev = disk->private_data;
 
 	if(--ubd_dev->count == 0)
@@ -1306,10 +1305,10 @@ static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static int ubd_ioctl(struct inode * inode, struct file * file,
+static int ubd_ioctl(struct block_device *bdev, fmode_t mode,
 		     unsigned int cmd, unsigned long arg)
 {
-	struct ubd *ubd_dev = inode->i_bdev->bd_disk->private_data;
+	struct ubd *ubd_dev = bdev->bd_disk->private_data;
 	struct hd_driveid ubd_id = {
 		.cyls		= 0,
 		.heads		= 128,

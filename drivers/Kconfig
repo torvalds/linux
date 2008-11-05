@@ -68,6 +68,8 @@ source "drivers/ssb/Kconfig"
 
 source "drivers/mfd/Kconfig"
 
+source "drivers/regulator/Kconfig"
+
 source "drivers/media/Kconfig"
 
 source "drivers/video/Kconfig"
@@ -77,6 +79,8 @@ source "sound/Kconfig"
 source "drivers/hid/Kconfig"
 
 source "drivers/usb/Kconfig"
+
+source "drivers/uwb/Kconfig"
 
 source "drivers/mmc/Kconfig"
 
@@ -101,4 +105,6 @@ source "drivers/auxdisplay/Kconfig"
 source "drivers/uio/Kconfig"
 
 source "drivers/xen/Kconfig"
+
+source "drivers/staging/Kconfig"
 endmenu
