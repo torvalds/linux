@@ -105,9 +105,3 @@ void acpi_unlock_battery_dir(struct proc_dir_entry *acpi_battery_dir_param)
 	return;
 }
 EXPORT_SYMBOL(acpi_unlock_battery_dir);
-
-static int __init acpi_cm_sbs_init(void)
-{
-	return 0;
-}
-subsys_initcall(acpi_cm_sbs_init);
