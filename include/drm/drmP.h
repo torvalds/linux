@@ -528,6 +528,7 @@ struct drm_map_list {
 	struct drm_map *map;			/**< mapping */
 	uint64_t user_token;
 	struct drm_master *master;
+	struct drm_mm_node *file_offset_node;	/**< fake offset */
 };
 
 typedef struct drm_map drm_local_map_t;
@@ -568,6 +569,14 @@ struct drm_ati_pcigart_info {
 };
 
 /**
+ * GEM specific mm private for tracking GEM objects
+ */
+struct drm_gem_mm {
+	struct drm_mm offset_manager;	/**< Offset mgmt for buffer objects */
+	struct drm_open_hash offset_hash; /**< User token hash table for maps */
+};
+
+/**
  * This structure defines the drm_mm memory object, which will be used by the
  * DRM for its buffer objects.
  */
@@ -583,6 +592,9 @@ struct drm_gem_object {
 
 	/** File representing the shmem storage */
 	struct file *filp;
+
+	/* Mapping info for this object */
+	struct drm_map_list map_list;
 
 	/**
 	 * Size of the object, in bytes.  Immutable over the object's
@@ -758,6 +770,9 @@ struct drm_driver {
 	int (*gem_init_object) (struct drm_gem_object *obj);
 	void (*gem_free_object) (struct drm_gem_object *obj);
 
+	/* Driver private ops for this object */
+	struct vm_operations_struct *gem_vm_ops;
+
 	int major;
 	int minor;
 	int patchlevel;
@@ -910,6 +925,8 @@ struct drm_device {
 	struct drm_sg_mem *sg;	/**< Scatter gather memory */
 	int num_crtcs;                  /**< Number of CRTCs on this device */
 	void *dev_private;		/**< device private data */
+	void *mm_private;
+	struct address_space *dev_mapping;
 	struct drm_sigdata sigdata;	   /**< For block_all_signals */
 	sigset_t sigmask;
 
@@ -1026,6 +1043,8 @@ extern int drm_release(struct inode *inode, struct file *filp);
 
 				/* Mapping support (drm_vm.h) */
 extern int drm_mmap(struct file *filp, struct vm_area_struct *vma);
+extern int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma);
+extern void drm_vm_open_locked(struct vm_area_struct *vma);
 extern unsigned long drm_core_get_map_ofs(struct drm_map * map);
 extern unsigned long drm_core_get_reg_ofs(struct drm_device *dev);
 extern unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait);
@@ -1287,10 +1306,12 @@ extern int drm_mm_add_space_to_tail(struct drm_mm *mm, unsigned long size);
 
 /* Graphics Execution Manager library functions (drm_gem.c) */
 int drm_gem_init(struct drm_device *dev);
+void drm_gem_destroy(struct drm_device *dev);
 void drm_gem_object_free(struct kref *kref);
 struct drm_gem_object *drm_gem_object_alloc(struct drm_device *dev,
 					    size_t size);
 void drm_gem_object_handle_free(struct kref *kref);
+int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
 
 static inline void
 drm_gem_object_reference(struct drm_gem_object *obj)

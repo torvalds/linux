@@ -133,10 +133,20 @@ int drm_open(struct inode *inode, struct file *filp)
 		spin_lock(&dev->count_lock);
 		if (!dev->open_count++) {
 			spin_unlock(&dev->count_lock);
-			return drm_setup(dev);
+			retcode = drm_setup(dev);
+			goto out;
 		}
 		spin_unlock(&dev->count_lock);
 	}
+
+out:
+	mutex_lock(&dev->struct_mutex);
+	if (dev->dev_mapping == NULL)
+		dev->dev_mapping = inode->i_mapping;
+	else if (dev->dev_mapping != inode->i_mapping)
+		WARN(1, "dev->dev_mapping not inode mapping (%p expected %p)\n",
+		     dev->dev_mapping, inode->i_mapping);
+	mutex_unlock(&dev->struct_mutex);
 
 	return retcode;
 }

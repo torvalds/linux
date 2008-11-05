@@ -262,6 +262,9 @@ static int drm_addmap_core(struct drm_device * dev, unsigned int offset,
 		DRM_DEBUG("AGP offset = 0x%08lx, size = 0x%08lx\n", map->offset, map->size);
 
 		break;
+	case _DRM_GEM:
+		DRM_ERROR("tried to rmmap GEM object\n");
+		break;
 	}
 	case _DRM_SCATTER_GATHER:
 		if (!dev->sg) {
@@ -428,6 +431,9 @@ int drm_rmmap_locked(struct drm_device *dev, drm_local_map_t *map)
 		dmah.busaddr = map->offset;
 		dmah.size = map->size;
 		__drm_pci_free(dev, &dmah);
+		break;
+	case _DRM_GEM:
+		DRM_ERROR("tried to rmmap GEM object\n");
 		break;
 	}
 	drm_free(map, sizeof(*map), DRM_MEM_MAPS);

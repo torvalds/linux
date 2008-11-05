@@ -209,6 +209,7 @@ int drm_lastclose(struct drm_device * dev)
 	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA))
 		drm_dma_takedown(dev);
 
+	dev->dev_mapping = NULL;
 	mutex_unlock(&dev->struct_mutex);
 
 	DRM_DEBUG("lastclose completed\n");
@@ -273,6 +274,8 @@ EXPORT_SYMBOL(drm_init);
  */
 static void drm_cleanup(struct drm_device * dev)
 {
+	struct drm_driver *driver = dev->driver;
+
 	DRM_DEBUG("\n");
 
 	if (!dev) {
@@ -303,6 +306,9 @@ static void drm_cleanup(struct drm_device * dev)
 
 	drm_ht_remove(&dev->map_hash);
 	drm_ctxbitmap_cleanup(dev);
+
+	if (driver->driver_features & DRIVER_GEM)
+		drm_gem_destroy(dev);
 
 	drm_put_minor(&dev->primary);
 	if (drm_put_dev(dev))
