@@ -281,6 +281,9 @@ static int get_file_caps(struct linux_binprm *bprm)
 
 	bprm_clear_caps(bprm);
 
+	if (!file_caps_enabled)
+		return 0;
+
 	if (bprm->file->f_vfsmnt->mnt_flags & MNT_NOSUID)
 		return 0;
 
