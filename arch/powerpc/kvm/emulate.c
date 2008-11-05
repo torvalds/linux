@@ -380,7 +380,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		}
 	}
 
-	KVMTRACE_3D(PPC_INSTR, vcpu, inst, vcpu->arch.pc, emulated, entryexit);
+	KVMTRACE_3D(PPC_INSTR, vcpu, inst, (int)vcpu->arch.pc, emulated, entryexit);
 
 	if (advance)
 		vcpu->arch.pc += 4; /* Advance past emulated instruction. */

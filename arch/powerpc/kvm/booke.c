@@ -120,14 +120,14 @@ void kvmppc_dump_vcpu(struct kvm_vcpu *vcpu)
 {
 	int i;
 
-	printk("pc:   %08x msr:  %08x\n", vcpu->arch.pc, vcpu->arch.msr);
-	printk("lr:   %08x ctr:  %08x\n", vcpu->arch.lr, vcpu->arch.ctr);
-	printk("srr0: %08x srr1: %08x\n", vcpu->arch.srr0, vcpu->arch.srr1);
+	printk("pc:   %08lx msr:  %08lx\n", vcpu->arch.pc, vcpu->arch.msr);
+	printk("lr:   %08lx ctr:  %08lx\n", vcpu->arch.lr, vcpu->arch.ctr);
+	printk("srr0: %08lx srr1: %08lx\n", vcpu->arch.srr0, vcpu->arch.srr1);
 
 	printk("exceptions: %08lx\n", vcpu->arch.pending_exceptions);
 
 	for (i = 0; i < 32; i += 4) {
-		printk("gpr%02d: %08x %08x %08x %08x\n", i,
+		printk("gpr%02d: %08lx %08lx %08lx %08lx\n", i,
 		       vcpu->arch.gpr[i],
 		       vcpu->arch.gpr[i+1],
 		       vcpu->arch.gpr[i+2],
@@ -305,7 +305,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			break;
 		case EMULATE_FAIL:
 			/* XXX Deliver Program interrupt to guest. */
-			printk(KERN_CRIT "%s: emulation at %x failed (%08x)\n",
+			printk(KERN_CRIT "%s: emulation at %lx failed (%08x)\n",
 			       __func__, vcpu->arch.pc, vcpu->arch.last_inst);
 			/* For debugging, encode the failing instruction and
 			 * report it to userspace. */

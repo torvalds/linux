@@ -256,14 +256,14 @@ int kvm_arch_vcpu_ioctl_debug_guest(struct kvm_vcpu *vcpu,
 static void kvmppc_complete_dcr_load(struct kvm_vcpu *vcpu,
                                      struct kvm_run *run)
 {
-	u32 *gpr = &vcpu->arch.gpr[vcpu->arch.io_gpr];
+	ulong *gpr = &vcpu->arch.gpr[vcpu->arch.io_gpr];
 	*gpr = run->dcr.data;
 }
 
 static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
                                       struct kvm_run *run)
 {
-	u32 *gpr = &vcpu->arch.gpr[vcpu->arch.io_gpr];
+	ulong *gpr = &vcpu->arch.gpr[vcpu->arch.io_gpr];
 
 	if (run->mmio.len > sizeof(*gpr)) {
 		printk(KERN_ERR "bad MMIO length: %d\n", run->mmio.len);
