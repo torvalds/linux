@@ -64,7 +64,7 @@ struct kvm_vcpu_stat {
 	u32 halt_wakeup;
 };
 
-struct tlbe {
+struct kvmppc_44x_tlbe {
 	u32 tid; /* Only the low 8 bits are used. */
 	u32 word0;
 	u32 word1;
@@ -76,9 +76,9 @@ struct kvm_arch {
 
 struct kvm_vcpu_arch {
 	/* Unmodified copy of the guest's TLB. */
-	struct tlbe guest_tlb[PPC44x_TLB_SIZE];
+	struct kvmppc_44x_tlbe guest_tlb[PPC44x_TLB_SIZE];
 	/* TLB that's actually used when the guest is running. */
-	struct tlbe shadow_tlb[PPC44x_TLB_SIZE];
+	struct kvmppc_44x_tlbe shadow_tlb[PPC44x_TLB_SIZE];
 	/* Pages which are referenced in the shadow TLB. */
 	struct page *shadow_pages[PPC44x_TLB_SIZE];
 

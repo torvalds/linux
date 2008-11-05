@@ -86,7 +86,7 @@ int kvmppc_44x_tlb_index(struct kvm_vcpu *vcpu, gva_t eaddr, unsigned int pid,
 
 	/* XXX Replace loop with fancy data structures. */
 	for (i = 0; i < PPC44x_TLB_SIZE; i++) {
-		struct tlbe *tlbe = &vcpu->arch.guest_tlb[i];
+		struct kvmppc_44x_tlbe *tlbe = &vcpu->arch.guest_tlb[i];
 		unsigned int tid;
 
 		if (eaddr < get_tlb_eaddr(tlbe))
@@ -111,7 +111,8 @@ int kvmppc_44x_tlb_index(struct kvm_vcpu *vcpu, gva_t eaddr, unsigned int pid,
 	return -1;
 }
 
-struct tlbe *kvmppc_44x_itlb_search(struct kvm_vcpu *vcpu, gva_t eaddr)
+struct kvmppc_44x_tlbe *kvmppc_44x_itlb_search(struct kvm_vcpu *vcpu,
+                                               gva_t eaddr)
 {
 	unsigned int as = !!(vcpu->arch.msr & MSR_IS);
 	unsigned int index;
@@ -122,7 +123,8 @@ struct tlbe *kvmppc_44x_itlb_search(struct kvm_vcpu *vcpu, gva_t eaddr)
 	return &vcpu->arch.guest_tlb[index];
 }
 
-struct tlbe *kvmppc_44x_dtlb_search(struct kvm_vcpu *vcpu, gva_t eaddr)
+struct kvmppc_44x_tlbe *kvmppc_44x_dtlb_search(struct kvm_vcpu *vcpu,
+                                               gva_t eaddr)
 {
 	unsigned int as = !!(vcpu->arch.msr & MSR_DS);
 	unsigned int index;
@@ -133,7 +135,7 @@ struct tlbe *kvmppc_44x_dtlb_search(struct kvm_vcpu *vcpu, gva_t eaddr)
 	return &vcpu->arch.guest_tlb[index];
 }
 
-static int kvmppc_44x_tlbe_is_writable(struct tlbe *tlbe)
+static int kvmppc_44x_tlbe_is_writable(struct kvmppc_44x_tlbe *tlbe)
 {
 	return tlbe->word2 & (PPC44x_TLB_SW|PPC44x_TLB_UW);
 }
@@ -141,7 +143,7 @@ static int kvmppc_44x_tlbe_is_writable(struct tlbe *tlbe)
 static void kvmppc_44x_shadow_release(struct kvm_vcpu *vcpu,
                                       unsigned int index)
 {
-	struct tlbe *stlbe = &vcpu->arch.shadow_tlb[index];
+	struct kvmppc_44x_tlbe *stlbe = &vcpu->arch.shadow_tlb[index];
 	struct page *page = vcpu->arch.shadow_pages[index];
 
 	if (get_tlb_v(stlbe)) {
@@ -171,7 +173,7 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn, u64 asid,
                     u32 flags)
 {
 	struct page *new_page;
-	struct tlbe *stlbe;
+	struct kvmppc_44x_tlbe *stlbe;
 	hpa_t hpaddr;
 	unsigned int victim;
 
@@ -227,7 +229,7 @@ static void kvmppc_mmu_invalidate(struct kvm_vcpu *vcpu, gva_t eaddr,
 
 	/* XXX Replace loop with fancy data structures. */
 	for (i = 0; i <= tlb_44x_hwater; i++) {
-		struct tlbe *stlbe = &vcpu->arch.shadow_tlb[i];
+		struct kvmppc_44x_tlbe *stlbe = &vcpu->arch.shadow_tlb[i];
 		unsigned int tid;
 
 		if (!get_tlb_v(stlbe))
@@ -262,7 +264,7 @@ void kvmppc_mmu_priv_switch(struct kvm_vcpu *vcpu, int usermode)
 	if (vcpu->arch.swap_pid) {
 		/* XXX Replace loop with fancy data structures. */
 		for (i = 0; i <= tlb_44x_hwater; i++) {
-			struct tlbe *stlbe = &vcpu->arch.shadow_tlb[i];
+			struct kvmppc_44x_tlbe *stlbe = &vcpu->arch.shadow_tlb[i];
 
 			/* Future optimization: clear only userspace mappings. */
 			kvmppc_44x_shadow_release(vcpu, i);
@@ -279,7 +281,7 @@ void kvmppc_mmu_priv_switch(struct kvm_vcpu *vcpu, int usermode)
 }
 
 static int tlbe_is_host_safe(const struct kvm_vcpu *vcpu,
-                             const struct tlbe *tlbe)
+                             const struct kvmppc_44x_tlbe *tlbe)
 {
 	gpa_t gpa;
 
@@ -305,7 +307,7 @@ int kvmppc_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws)
 	u64 raddr;
 	u64 asid;
 	u32 flags;
-	struct tlbe *tlbe;
+	struct kvmppc_44x_tlbe *tlbe;
 	unsigned int index;
 
 	index = vcpu->arch.gpr[ra];

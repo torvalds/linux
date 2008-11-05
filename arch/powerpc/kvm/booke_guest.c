@@ -307,7 +307,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		break;
 
 	case BOOKE_INTERRUPT_DTLB_MISS: {
-		struct tlbe *gtlbe;
+		struct kvmppc_44x_tlbe *gtlbe;
 		unsigned long eaddr = vcpu->arch.fault_dear;
 		gfn_t gfn;
 
@@ -347,7 +347,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	}
 
 	case BOOKE_INTERRUPT_ITLB_MISS: {
-		struct tlbe *gtlbe;
+		struct kvmppc_44x_tlbe *gtlbe;
 		unsigned long eaddr = vcpu->arch.pc;
 		gfn_t gfn;
 
@@ -442,7 +442,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 /* Initial guest state: 16MB mapping 0 -> 0, PC = 0, MSR = 0, R1 = 16MB */
 int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 {
-	struct tlbe *tlbe = &vcpu->arch.guest_tlb[0];
+	struct kvmppc_44x_tlbe *tlbe = &vcpu->arch.guest_tlb[0];
 
 	tlbe->tid = 0;
 	tlbe->word0 = PPC44x_TLB_16M | PPC44x_TLB_VALID;
@@ -553,7 +553,7 @@ int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
                                   struct kvm_translation *tr)
 {
-	struct tlbe *gtlbe;
+	struct kvmppc_44x_tlbe *gtlbe;
 	int index;
 	gva_t eaddr;
 	u8 pid;

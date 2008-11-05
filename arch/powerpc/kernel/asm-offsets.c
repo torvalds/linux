@@ -357,7 +357,7 @@ int main(void)
 	DEFINE(PTE_SIZE, sizeof(pte_t));
 
 #ifdef CONFIG_KVM
-	DEFINE(TLBE_BYTES, sizeof(struct tlbe));
+	DEFINE(TLBE_BYTES, sizeof(struct kvmppc_44x_tlbe));
 
 	DEFINE(VCPU_HOST_STACK, offsetof(struct kvm_vcpu, arch.host_stack));
 	DEFINE(VCPU_HOST_PID, offsetof(struct kvm_vcpu, arch.host_pid));

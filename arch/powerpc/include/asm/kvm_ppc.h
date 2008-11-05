@@ -29,11 +29,6 @@
 #include <linux/kvm_types.h>
 #include <linux/kvm_host.h>
 
-struct kvm_tlb {
-	struct tlbe guest_tlb[PPC44x_TLB_SIZE];
-	struct tlbe shadow_tlb[PPC44x_TLB_SIZE];
-};
-
 enum emulation_result {
 	EMULATE_DONE,         /* no further processing */
 	EMULATE_DO_MMIO,      /* kvm_run filled with MMIO request */
