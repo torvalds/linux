@@ -78,7 +78,8 @@ struct s3c24xx_runtime_data {
  * place a dma buffer onto the queue for the dma system
  * to handle.
 */
-static void s3c24xx_pcm_enqueue(struct snd_pcm_substream *substream)
+static void s3c24xx_pcm_enqueue(struct snd_pcm_substream *substream,
+				int dma_max)
 {
 	struct s3c24xx_runtime_data *prtd = substream->runtime->private_data;
 	dma_addr_t pos = prtd->dma_pos;
@@ -86,7 +87,10 @@ static void s3c24xx_pcm_enqueue(struct snd_pcm_substream *substream)
 
 	DBG("Entered %s\n", __func__);
 
-	while (prtd->dma_loaded < prtd->dma_limit) {
+	if (!dma_max)
+		dma_max = prtd->dma_limit;
+
+	while (prtd->dma_loaded < dma_max) {
 		unsigned long len = prtd->dma_period;
 
 		DBG("dma_loaded: %d\n", prtd->dma_loaded);
@@ -132,7 +136,7 @@ static void s3c24xx_audio_buffdone(struct s3c2410_dma_chan *channel,
 	spin_lock(&prtd->lock);
 	if (prtd->state & ST_RUNNING) {
 		prtd->dma_loaded--;
-		s3c24xx_pcm_enqueue(substream);
+		s3c24xx_pcm_enqueue(substream, 0);
 	}
 
 	spin_unlock(&prtd->lock);
@@ -249,7 +253,7 @@ static int s3c24xx_pcm_prepare(struct snd_pcm_substream *substream)
 	prtd->dma_pos = prtd->dma_start;
 
 	/* enqueue dma buffers */
-	s3c24xx_pcm_enqueue(substream);
+	s3c24xx_pcm_enqueue(substream, 1);
 
 	return ret;
 }
