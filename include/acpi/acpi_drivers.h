@@ -86,7 +86,6 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_device *device, int domain,
                                   Power Resource
    -------------------------------------------------------------------------- */
 
-#ifdef CONFIG_ACPI_POWER
 int acpi_device_sleep_wake(struct acpi_device *dev,
                            int enable, int sleep_state, int dev_state);
 int acpi_enable_wakeup_device_power(struct acpi_device *dev, int sleep_state);
@@ -94,7 +93,6 @@ int acpi_disable_wakeup_device_power(struct acpi_device *dev);
 int acpi_power_get_inferred_state(struct acpi_device *device);
 int acpi_power_transition(struct acpi_device *device, int state);
 extern int acpi_power_nocheck;
-#endif
 
 /* --------------------------------------------------------------------------
                                   Embedded Controller
