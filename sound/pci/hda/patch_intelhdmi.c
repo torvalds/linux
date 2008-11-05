@@ -281,6 +281,7 @@ static int hdmi_get_eld_size(struct hda_codec *codec, hda_nid_t nid)
 						 AC_DIPSIZE_ELD_BUF);
 }
 
+#ifdef BE_PARANOID
 static void hdmi_get_dip_index(struct hda_codec *codec, hda_nid_t nid,
 				int *packet_index, int *byte_index)
 {
@@ -291,6 +292,7 @@ static void hdmi_get_dip_index(struct hda_codec *codec, hda_nid_t nid,
 	*packet_index = val >> 5;
 	*byte_index = val & 0x1f;
 }
+#endif
 
 static void hdmi_set_dip_index(struct hda_codec *codec, hda_nid_t nid,
 				int packet_index, int byte_index)
