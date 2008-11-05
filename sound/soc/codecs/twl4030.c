@@ -469,11 +469,11 @@ static int twl4030_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
 		format &= ~(TWL4030_AIF_SLAVE_EN);
-		format |= TWL4030_CLK256FS_EN;
+		format &= ~(TWL4030_CLK256FS_EN);
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
-		format &= ~(TWL4030_CLK256FS_EN);
 		format |= TWL4030_AIF_SLAVE_EN;
+		format |= TWL4030_CLK256FS_EN;
 		break;
 	default:
 		return -EINVAL;
