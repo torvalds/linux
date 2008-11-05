@@ -38,11 +38,9 @@ unsigned long kvmppc_booke_handlers;
 #define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
 
 struct kvm_stats_debugfs_item debugfs_entries[] = {
-	{ "exits",      VCPU_STAT(sum_exits) },
 	{ "mmio",       VCPU_STAT(mmio_exits) },
 	{ "dcr",        VCPU_STAT(dcr_exits) },
 	{ "sig",        VCPU_STAT(signal_exits) },
-	{ "light",      VCPU_STAT(light_exits) },
 	{ "itlb_r",     VCPU_STAT(itlb_real_miss_exits) },
 	{ "itlb_v",     VCPU_STAT(itlb_virt_miss_exits) },
 	{ "dtlb_r",     VCPU_STAT(dtlb_real_miss_exits) },
@@ -263,6 +261,12 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		break;
 
 	case BOOKE_INTERRUPT_EXTERNAL:
+		vcpu->stat.ext_intr_exits++;
+		if (need_resched())
+			cond_resched();
+		r = RESUME_GUEST;
+		break;
+
 	case BOOKE_INTERRUPT_DECREMENTER:
 		/* Since we switched IVPR back to the host's value, the host
 		 * handled this interrupt the moment we enabled interrupts.
@@ -272,12 +276,9 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		 * we do reschedule the host will fault over it. Perhaps we
 		 * should politely restore the host's entries to minimize
 		 * misses before ceding control. */
+		vcpu->stat.dec_exits++;
 		if (need_resched())
 			cond_resched();
-		if (exit_nr == BOOKE_INTERRUPT_DECREMENTER)
-			vcpu->stat.dec_exits++;
-		else
-			vcpu->stat.ext_intr_exits++;
 		r = RESUME_GUEST;
 		break;
 
@@ -301,6 +302,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			break;
 		case EMULATE_DO_DCR:
 			run->exit_reason = KVM_EXIT_DCR;
+			vcpu->stat.dcr_exits++;
 			r = RESUME_HOST;
 			break;
 		case EMULATE_FAIL:
@@ -379,6 +381,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			/* Guest has mapped and accessed a page which is not
 			 * actually RAM. */
 			r = kvmppc_emulate_mmio(run, vcpu);
+			vcpu->stat.mmio_exits++;
 		}
 
 		break;
@@ -445,8 +448,6 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	kvmppc_core_deliver_interrupts(vcpu);
 
-	/* Do some exit accounting. */
-	vcpu->stat.sum_exits++;
 	if (!(r & RESUME_HOST)) {
 		/* To avoid clobbering exit_reason, only check for signals if
 		 * we aren't already exiting to userspace for some other
@@ -454,22 +455,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		if (signal_pending(current)) {
 			run->exit_reason = KVM_EXIT_INTR;
 			r = (-EINTR << 2) | RESUME_HOST | (r & RESUME_FLAG_NV);
-
 			vcpu->stat.signal_exits++;
-		} else {
-			vcpu->stat.light_exits++;
-		}
-	} else {
-		switch (run->exit_reason) {
-		case KVM_EXIT_MMIO:
-			vcpu->stat.mmio_exits++;
-			break;
-		case KVM_EXIT_DCR:
-			vcpu->stat.dcr_exits++;
-			break;
-		case KVM_EXIT_INTR:
-			vcpu->stat.signal_exits++;
-			break;
 		}
 	}
 
