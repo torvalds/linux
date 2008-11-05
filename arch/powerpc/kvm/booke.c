@@ -573,7 +573,7 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
 	return kvmppc_core_vcpu_translate(vcpu, tr);
 }
 
-static int kvmppc_booke_init(void)
+int kvmppc_booke_init(void)
 {
 	unsigned long ivor[16];
 	unsigned long max_ivor = 0;
@@ -618,14 +618,11 @@ static int kvmppc_booke_init(void)
 	flush_icache_range(kvmppc_booke_handlers,
 	                   kvmppc_booke_handlers + max_ivor + kvmppc_handler_len);
 
-	return kvm_init(NULL, sizeof(struct kvm_vcpu), THIS_MODULE);
+	return 0;
 }
 
-static void __exit kvmppc_booke_exit(void)
+void __exit kvmppc_booke_exit(void)
 {
 	free_pages(kvmppc_booke_handlers, VCPU_SIZE_ORDER);
 	kvm_exit();
 }
-
-module_init(kvmppc_booke_init)
-module_exit(kvmppc_booke_exit)

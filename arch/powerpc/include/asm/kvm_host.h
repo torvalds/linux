@@ -74,20 +74,7 @@ struct kvmppc_44x_tlbe {
 struct kvm_arch {
 };
 
-/* XXX Can't include mmu-44x.h because it redefines struct mm_context. */
-#define PPC44x_TLB_SIZE 64
-
 struct kvm_vcpu_arch {
-	/* Unmodified copy of the guest's TLB. */
-	struct kvmppc_44x_tlbe guest_tlb[PPC44x_TLB_SIZE];
-	/* TLB that's actually used when the guest is running. */
-	struct kvmppc_44x_tlbe shadow_tlb[PPC44x_TLB_SIZE];
-	/* Pages which are referenced in the shadow TLB. */
-	struct page *shadow_pages[PPC44x_TLB_SIZE];
-
-	/* Track which TLB entries we've modified in the current exit. */
-	u8 shadow_tlb_mod[PPC44x_TLB_SIZE];
-
 	u32 host_stack;
 	u32 host_pid;
 	u32 host_dbcr0;

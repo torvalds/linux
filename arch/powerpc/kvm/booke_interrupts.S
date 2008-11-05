@@ -349,8 +349,8 @@ lightweight_exit:
 	lis	r5, tlb_44x_hwater@ha
 	lwz	r5, tlb_44x_hwater@l(r5)
 	mtctr	r5
-	addi	r9, r4, VCPU_SHADOW_TLB
-	addi	r5, r4, VCPU_SHADOW_MOD
+	addi	r9, r4, -VCPU_TO_44X + VCPU44x_SHADOW_TLB
+	addi	r5, r4, -VCPU_TO_44X + VCPU44x_SHADOW_MOD
 	li	r3, 0
 1:
 	lbzx	r7, r3, r5
@@ -377,7 +377,7 @@ lightweight_exit:
 	/* Clear bitmap of modified TLB entries */
 	li	r5, PPC44x_TLB_SIZE>>2
 	mtctr	r5
-	addi	r5, r4, VCPU_SHADOW_MOD - 4
+	addi	r5, r4, -VCPU_TO_44X + VCPU44x_SHADOW_MOD - 4
 	li	r6, 0
 1:
 	stwu	r6, 4(r5)

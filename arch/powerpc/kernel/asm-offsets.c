@@ -23,9 +23,6 @@
 #include <linux/mm.h>
 #include <linux/suspend.h>
 #include <linux/hrtimer.h>
-#ifdef CONFIG_KVM
-#include <linux/kvm_host.h>
-#endif
 #ifdef CONFIG_PPC64
 #include <linux/time.h>
 #include <linux/hardirq.h>
@@ -50,6 +47,9 @@
 #endif
 #ifdef CONFIG_PPC_ISERIES
 #include <asm/iseries/alpaca.h>
+#endif
+#ifdef CONFIG_KVM
+#include <asm/kvm_44x.h>
 #endif
 
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
@@ -359,10 +359,14 @@ int main(void)
 #ifdef CONFIG_KVM
 	DEFINE(TLBE_BYTES, sizeof(struct kvmppc_44x_tlbe));
 
+	DEFINE(VCPU_TO_44X, offsetof(struct kvmppc_vcpu_44x, vcpu));
+	DEFINE(VCPU44x_SHADOW_TLB,
+	       offsetof(struct kvmppc_vcpu_44x, shadow_tlb));
+	DEFINE(VCPU44x_SHADOW_MOD,
+	       offsetof(struct kvmppc_vcpu_44x, shadow_tlb_mod));
+
 	DEFINE(VCPU_HOST_STACK, offsetof(struct kvm_vcpu, arch.host_stack));
 	DEFINE(VCPU_HOST_PID, offsetof(struct kvm_vcpu, arch.host_pid));
-	DEFINE(VCPU_SHADOW_TLB, offsetof(struct kvm_vcpu, arch.shadow_tlb));
-	DEFINE(VCPU_SHADOW_MOD, offsetof(struct kvm_vcpu, arch.shadow_tlb_mod));
 	DEFINE(VCPU_GPRS, offsetof(struct kvm_vcpu, arch.gpr));
 	DEFINE(VCPU_LR, offsetof(struct kvm_vcpu, arch.lr));
 	DEFINE(VCPU_CR, offsetof(struct kvm_vcpu, arch.cr));

@@ -18,9 +18,13 @@
  */
 
 #include <linux/kvm_host.h>
+#include <linux/err.h>
+
 #include <asm/reg.h>
 #include <asm/cputable.h>
 #include <asm/tlbflush.h>
+#include <asm/kvm_44x.h>
+#include <asm/kvm_ppc.h>
 
 #include "44x_tlb.h"
 
@@ -124,7 +128,8 @@ int kvmppc_core_check_processor_compat(void)
 
 int kvmppc_core_vcpu_setup(struct kvm_vcpu *vcpu)
 {
-	struct kvmppc_44x_tlbe *tlbe = &vcpu->arch.guest_tlb[0];
+	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
+	struct kvmppc_44x_tlbe *tlbe = &vcpu_44x->guest_tlb[0];
 
 	tlbe->tid = 0;
 	tlbe->word0 = PPC44x_TLB_16M | PPC44x_TLB_VALID;
@@ -150,6 +155,7 @@ int kvmppc_core_vcpu_setup(struct kvm_vcpu *vcpu)
 int kvmppc_core_vcpu_translate(struct kvm_vcpu *vcpu,
                                struct kvm_translation *tr)
 {
+	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
 	struct kvmppc_44x_tlbe *gtlbe;
 	int index;
 	gva_t eaddr;
@@ -166,7 +172,7 @@ int kvmppc_core_vcpu_translate(struct kvm_vcpu *vcpu,
 		return 0;
 	}
 
-	gtlbe = &vcpu->arch.guest_tlb[index];
+	gtlbe = &vcpu_44x->guest_tlb[index];
 
 	tr->physical_address = tlb_xlate(gtlbe, eaddr);
 	/* XXX what does "writeable" and "usermode" even mean? */
@@ -174,3 +180,55 @@ int kvmppc_core_vcpu_translate(struct kvm_vcpu *vcpu,
 
 	return 0;
 }
+
+struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
+{
+	struct kvmppc_vcpu_44x *vcpu_44x;
+	struct kvm_vcpu *vcpu;
+	int err;
+
+	vcpu_44x = kmem_cache_zalloc(kvm_vcpu_cache, GFP_KERNEL);
+	if (!vcpu_44x) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	vcpu = &vcpu_44x->vcpu;
+	err = kvm_vcpu_init(vcpu, kvm, id);
+	if (err)
+		goto free_vcpu;
+
+	return vcpu;
+
+free_vcpu:
+	kmem_cache_free(kvm_vcpu_cache, vcpu_44x);
+out:
+	return ERR_PTR(err);
+}
+
+void kvmppc_core_vcpu_free(struct kvm_vcpu *vcpu)
+{
+	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
+
+	kvm_vcpu_uninit(vcpu);
+	kmem_cache_free(kvm_vcpu_cache, vcpu_44x);
+}
+
+static int kvmppc_44x_init(void)
+{
+	int r;
+
+	r = kvmppc_booke_init();
+	if (r)
+		return r;
+
+	return kvm_init(NULL, sizeof(struct kvmppc_vcpu_44x), THIS_MODULE);
+}
+
+static void kvmppc_44x_exit(void)
+{
+	kvmppc_booke_exit();
+}
+
+module_init(kvmppc_44x_init);
+module_exit(kvmppc_44x_exit);

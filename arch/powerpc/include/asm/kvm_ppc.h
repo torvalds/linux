@@ -62,6 +62,9 @@ extern void kvmppc_mmu_switch_pid(struct kvm_vcpu *vcpu, u32 pid);
 
 /* Core-specific hooks */
 
+extern struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm,
+                                                unsigned int id);
+extern void kvmppc_core_vcpu_free(struct kvm_vcpu *vcpu);
 extern int kvmppc_core_vcpu_setup(struct kvm_vcpu *vcpu);
 extern int kvmppc_core_check_processor_compat(void);
 extern int kvmppc_core_vcpu_translate(struct kvm_vcpu *vcpu,
@@ -84,6 +87,9 @@ extern int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
                                   unsigned int op, int *advance);
 extern int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs);
 extern int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt);
+
+extern int kvmppc_booke_init(void);
+extern void kvmppc_booke_exit(void);
 
 extern void kvmppc_core_destroy_mmu(struct kvm_vcpu *vcpu);
 

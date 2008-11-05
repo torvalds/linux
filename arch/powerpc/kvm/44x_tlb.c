@@ -24,6 +24,7 @@
 #include <linux/highmem.h>
 #include <asm/mmu-44x.h>
 #include <asm/kvm_ppc.h>
+#include <asm/kvm_44x.h>
 
 #include "44x_tlb.h"
 
@@ -43,7 +44,7 @@ void kvmppc_dump_tlbs(struct kvm_vcpu *vcpu)
 			"nr", "tid", "word0", "word1", "word2");
 
 	for (i = 0; i < PPC44x_TLB_SIZE; i++) {
-		tlbe = &vcpu->arch.guest_tlb[i];
+		tlbe = &vcpu_44x->guest_tlb[i];
 		if (tlbe->word0 & PPC44x_TLB_VALID)
 			printk(" G%2d |  %02X | %08X | %08X | %08X |\n",
 			       i, tlbe->tid, tlbe->word0, tlbe->word1,
@@ -51,7 +52,7 @@ void kvmppc_dump_tlbs(struct kvm_vcpu *vcpu)
 	}
 
 	for (i = 0; i < PPC44x_TLB_SIZE; i++) {
-		tlbe = &vcpu->arch.shadow_tlb[i];
+		tlbe = &vcpu_44x->shadow_tlb[i];
 		if (tlbe->word0 & PPC44x_TLB_VALID)
 			printk(" S%2d | %02X | %08X | %08X | %08X |\n",
 			       i, tlbe->tid, tlbe->word0, tlbe->word1,
@@ -82,11 +83,12 @@ static u32 kvmppc_44x_tlb_shadow_attrib(u32 attrib, int usermode)
 int kvmppc_44x_tlb_index(struct kvm_vcpu *vcpu, gva_t eaddr, unsigned int pid,
                          unsigned int as)
 {
+	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
 	int i;
 
 	/* XXX Replace loop with fancy data structures. */
 	for (i = 0; i < PPC44x_TLB_SIZE; i++) {
-		struct kvmppc_44x_tlbe *tlbe = &vcpu->arch.guest_tlb[i];
+		struct kvmppc_44x_tlbe *tlbe = &vcpu_44x->guest_tlb[i];
 		unsigned int tid;
 
 		if (eaddr < get_tlb_eaddr(tlbe))
@@ -114,25 +116,27 @@ int kvmppc_44x_tlb_index(struct kvm_vcpu *vcpu, gva_t eaddr, unsigned int pid,
 struct kvmppc_44x_tlbe *kvmppc_44x_itlb_search(struct kvm_vcpu *vcpu,
                                                gva_t eaddr)
 {
+	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
 	unsigned int as = !!(vcpu->arch.msr & MSR_IS);
 	unsigned int index;
 
 	index = kvmppc_44x_tlb_index(vcpu, eaddr, vcpu->arch.pid, as);
 	if (index == -1)
 		return NULL;
-	return &vcpu->arch.guest_tlb[index];
+	return &vcpu_44x->guest_tlb[index];
 }
 
 struct kvmppc_44x_tlbe *kvmppc_44x_dtlb_search(struct kvm_vcpu *vcpu,
                                                gva_t eaddr)
 {
+	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
 	unsigned int as = !!(vcpu->arch.msr & MSR_DS);
 	unsigned int index;
 
 	index = kvmppc_44x_tlb_index(vcpu, eaddr, vcpu->arch.pid, as);
 	if (index == -1)
 		return NULL;
-	return &vcpu->arch.guest_tlb[index];
+	return &vcpu_44x->guest_tlb[index];
 }
 
 static int kvmppc_44x_tlbe_is_writable(struct kvmppc_44x_tlbe *tlbe)
@@ -143,8 +147,9 @@ static int kvmppc_44x_tlbe_is_writable(struct kvmppc_44x_tlbe *tlbe)
 static void kvmppc_44x_shadow_release(struct kvm_vcpu *vcpu,
                                       unsigned int index)
 {
-	struct kvmppc_44x_tlbe *stlbe = &vcpu->arch.shadow_tlb[index];
-	struct page *page = vcpu->arch.shadow_pages[index];
+	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
+	struct kvmppc_44x_tlbe *stlbe = &vcpu_44x->shadow_tlb[index];
+	struct page *page = vcpu_44x->shadow_pages[index];
 
 	if (get_tlb_v(stlbe)) {
 		if (kvmppc_44x_tlbe_is_writable(stlbe))
@@ -164,7 +169,9 @@ void kvmppc_core_destroy_mmu(struct kvm_vcpu *vcpu)
 
 void kvmppc_tlbe_set_modified(struct kvm_vcpu *vcpu, unsigned int i)
 {
-    vcpu->arch.shadow_tlb_mod[i] = 1;
+	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
+
+	vcpu_44x->shadow_tlb_mod[i] = 1;
 }
 
 /* Caller must ensure that the specified guest TLB entry is safe to insert into
@@ -172,6 +179,7 @@ void kvmppc_tlbe_set_modified(struct kvm_vcpu *vcpu, unsigned int i)
 void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn, u64 asid,
                     u32 flags)
 {
+	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
 	struct page *new_page;
 	struct kvmppc_44x_tlbe *stlbe;
 	hpa_t hpaddr;
@@ -182,7 +190,7 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn, u64 asid,
 	victim = kvmppc_tlb_44x_pos++;
 	if (kvmppc_tlb_44x_pos > tlb_44x_hwater)
 		kvmppc_tlb_44x_pos = 0;
-	stlbe = &vcpu->arch.shadow_tlb[victim];
+	stlbe = &vcpu_44x->shadow_tlb[victim];
 
 	/* Get reference to new page. */
 	new_page = gfn_to_page(vcpu->kvm, gfn);
@@ -196,7 +204,7 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn, u64 asid,
 	/* Drop reference to old page. */
 	kvmppc_44x_shadow_release(vcpu, victim);
 
-	vcpu->arch.shadow_pages[victim] = new_page;
+	vcpu_44x->shadow_pages[victim] = new_page;
 
 	/* XXX Make sure (va, size) doesn't overlap any other
 	 * entries. 440x6 user manual says the result would be
@@ -224,12 +232,13 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn, u64 asid,
 static void kvmppc_mmu_invalidate(struct kvm_vcpu *vcpu, gva_t eaddr,
                                   gva_t eend, u32 asid)
 {
+	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
 	unsigned int pid = !(asid & 0xff);
 	int i;
 
 	/* XXX Replace loop with fancy data structures. */
 	for (i = 0; i <= tlb_44x_hwater; i++) {
-		struct kvmppc_44x_tlbe *stlbe = &vcpu->arch.shadow_tlb[i];
+		struct kvmppc_44x_tlbe *stlbe = &vcpu_44x->shadow_tlb[i];
 		unsigned int tid;
 
 		if (!get_tlb_v(stlbe))
@@ -259,12 +268,13 @@ static void kvmppc_mmu_invalidate(struct kvm_vcpu *vcpu, gva_t eaddr,
  * switching address spaces. */
 void kvmppc_mmu_priv_switch(struct kvm_vcpu *vcpu, int usermode)
 {
+	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
 	int i;
 
 	if (vcpu->arch.swap_pid) {
 		/* XXX Replace loop with fancy data structures. */
 		for (i = 0; i <= tlb_44x_hwater; i++) {
-			struct kvmppc_44x_tlbe *stlbe = &vcpu->arch.shadow_tlb[i];
+			struct kvmppc_44x_tlbe *stlbe = &vcpu_44x->shadow_tlb[i];
 
 			/* Future optimization: clear only userspace mappings. */
 			kvmppc_44x_shadow_release(vcpu, i);
@@ -303,6 +313,7 @@ static int tlbe_is_host_safe(const struct kvm_vcpu *vcpu,
 
 int kvmppc_44x_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws)
 {
+	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
 	u64 eaddr;
 	u64 raddr;
 	u64 asid;
@@ -317,7 +328,7 @@ int kvmppc_44x_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws)
 		return EMULATE_FAIL;
 	}
 
-	tlbe = &vcpu->arch.guest_tlb[index];
+	tlbe = &vcpu_44x->guest_tlb[index];
 
 	/* Invalidate shadow mappings for the about-to-be-clobbered TLBE. */
 	if (tlbe->word0 & PPC44x_TLB_VALID) {
