@@ -27,6 +27,7 @@
 #include <linux/netdevice.h>
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
+#include <linux/etherdevice.h>
 #include <linux/if_bonding.h>
 #include <linux/pkt_sched.h>
 #include <net/net_namespace.h>
@@ -236,6 +237,17 @@ static inline struct aggregator *__get_next_agg(struct aggregator *aggregator)
 	return &(SLAVE_AD_INFO(slave->next).aggregator);
 }
 
+/*
+ * __agg_has_partner
+ *
+ * Return nonzero if aggregator has a partner (denoted by a non-zero ether
+ * address for the partner).  Return 0 if not.
+ */
+static inline int __agg_has_partner(struct aggregator *agg)
+{
+	return !is_zero_ether_addr(agg->partner_system.mac_addr_value);
+}
+
 /**
  * __disable_port - disable the port's slave
  * @port: the port we're looking at
@@ -274,14 +286,14 @@ static inline int __port_is_enabled(struct port *port)
  * __get_agg_selection_mode - get the aggregator selection mode
  * @port: the port we're looking at
  *
- * Get the aggregator selection mode. Can be %BANDWIDTH or %COUNT.
+ * Get the aggregator selection mode. Can be %STABLE, %BANDWIDTH or %COUNT.
  */
 static inline u32 __get_agg_selection_mode(struct port *port)
 {
 	struct bonding *bond = __get_bond_by_port(port);
 
 	if (bond == NULL) {
-		return AD_BANDWIDTH;
+		return BOND_AD_STABLE;
 	}
 
 	return BOND_AD_INFO(bond).agg_select_mode;
@@ -1414,9 +1426,82 @@ static void ad_port_selection_logic(struct port *port)
 	// else set ready=FALSE in all aggregator's ports
 	__set_agg_ports_ready(port->aggregator, __agg_ports_are_ready(port->aggregator));
 
-	if (!__check_agg_selection_timer(port) && (aggregator = __get_first_agg(port))) {
-		ad_agg_selection_logic(aggregator);
+	aggregator = __get_first_agg(port);
+	ad_agg_selection_logic(aggregator);
+}
+
+/*
+ * Decide if "agg" is a better choice for the new active aggregator that
+ * the current best, according to the ad_select policy.
+ */
+static struct aggregator *ad_agg_selection_test(struct aggregator *best,
+						struct aggregator *curr)
+{
+	/*
+	 * 0. If no best, select current.
+	 *
+	 * 1. If the current agg is not individual, and the best is
+	 *    individual, select current.
+	 *
+	 * 2. If current agg is individual and the best is not, keep best.
+	 *
+	 * 3. Therefore, current and best are both individual or both not
+	 *    individual, so:
+	 *
+	 * 3a. If current agg partner replied, and best agg partner did not,
+	 *     select current.
+	 *
+	 * 3b. If current agg partner did not reply and best agg partner
+	 *     did reply, keep best.
+	 *
+	 * 4.  Therefore, current and best both have partner replies or
+	 *     both do not, so perform selection policy:
+	 *
+	 * BOND_AD_COUNT: Select by count of ports.  If count is equal,
+	 *     select by bandwidth.
+	 *
+	 * BOND_AD_STABLE, BOND_AD_BANDWIDTH: Select by bandwidth.
+	 */
+	if (!best)
+		return curr;
+
+	if (!curr->is_individual && best->is_individual)
+		return curr;
+
+	if (curr->is_individual && !best->is_individual)
+		return best;
+
+	if (__agg_has_partner(curr) && !__agg_has_partner(best))
+		return curr;
+
+	if (!__agg_has_partner(curr) && __agg_has_partner(best))
+		return best;
+
+	switch (__get_agg_selection_mode(curr->lag_ports)) {
+	case BOND_AD_COUNT:
+		if (curr->num_of_ports > best->num_of_ports)
+			return curr;
+
+		if (curr->num_of_ports < best->num_of_ports)
+			return best;
+
+		/*FALLTHROUGH*/
+	case BOND_AD_STABLE:
+	case BOND_AD_BANDWIDTH:
+		if (__get_agg_bandwidth(curr) > __get_agg_bandwidth(best))
+			return curr;
+
+		break;
+
+	default:
+		printk(KERN_WARNING DRV_NAME
+		       ": %s: Impossible agg select mode %d\n",
+		       curr->slave->dev->master->name,
+		       __get_agg_selection_mode(curr->lag_ports));
+		break;
 	}
+
+	return best;
 }
 
 /**
@@ -1424,155 +1509,137 @@ static void ad_port_selection_logic(struct port *port)
  * @aggregator: the aggregator we're looking at
  *
  * It is assumed that only one aggregator may be selected for a team.
- * The logic of this function is to select (at first time) the aggregator with
- * the most ports attached to it, and to reselect the active aggregator only if
- * the previous aggregator has no more ports related to it.
+ *
+ * The logic of this function is to select the aggregator according to
+ * the ad_select policy:
+ *
+ * BOND_AD_STABLE: select the aggregator with the most ports attached to
+ * it, and to reselect the active aggregator only if the previous
+ * aggregator has no more ports related to it.
+ *
+ * BOND_AD_BANDWIDTH: select the aggregator with the highest total
+ * bandwidth, and reselect whenever a link state change takes place or the
+ * set of slaves in the bond changes.
+ *
+ * BOND_AD_COUNT: select the aggregator with largest number of ports
+ * (slaves), and reselect whenever a link state change takes place or the
+ * set of slaves in the bond changes.
  *
  * FIXME: this function MUST be called with the first agg in the bond, or
  * __get_active_agg() won't work correctly. This function should be better
  * called with the bond itself, and retrieve the first agg from it.
  */
-static void ad_agg_selection_logic(struct aggregator *aggregator)
+static void ad_agg_selection_logic(struct aggregator *agg)
 {
-	struct aggregator *best_aggregator = NULL, *active_aggregator = NULL;
-	struct aggregator *last_active_aggregator = NULL, *origin_aggregator;
+	struct aggregator *best, *active, *origin;
 	struct port *port;
-	u16 num_of_aggs=0;
 
-	origin_aggregator = aggregator;
+	origin = agg;
 
-	//get current active aggregator
-	last_active_aggregator = __get_active_agg(aggregator);
+	active = __get_active_agg(agg);
+	best = active;
 
-	// search for the aggregator with the most ports attached to it.
 	do {
-		// count how many candidate lag's we have
-		if (aggregator->lag_ports) {
-			num_of_aggs++;
-		}
-		if (aggregator->is_active && !aggregator->is_individual &&   // if current aggregator is the active aggregator
-		    MAC_ADDRESS_COMPARE(&(aggregator->partner_system), &(null_mac_addr))) {   // and partner answers to 802.3ad PDUs
-			if (aggregator->num_of_ports) {	// if any ports attached to the current aggregator
-				best_aggregator=NULL;	 // disregard the best aggregator that was chosen by now
-				break;		 // stop the selection of other aggregator if there are any ports attached to this active aggregator
-			} else { // no ports attached to this active aggregator
-				aggregator->is_active = 0; // mark this aggregator as not active anymore
-			}
-		}
-		if (aggregator->num_of_ports) {	// if any ports attached
-			if (best_aggregator) {	// if there is a candidte aggregator
-				//The reasons for choosing new best aggregator:
-				// 1. if current agg is NOT individual and the best agg chosen so far is individual OR
-				// current and best aggs are both individual or both not individual, AND
-				// 2a.  current agg partner reply but best agg partner do not reply OR
-				// 2b.  current agg partner reply OR current agg partner do not reply AND best agg partner also do not reply AND
-				//      current has more ports/bandwidth, or same amount of ports but current has faster ports, THEN
-				//      current agg become best agg so far
+		agg->is_active = 0;
 
-				//if current agg is NOT individual and the best agg chosen so far is individual change best_aggregator
-				if (!aggregator->is_individual && best_aggregator->is_individual) {
-					best_aggregator=aggregator;
-				}
-				// current and best aggs are both individual or both not individual
-				else if ((aggregator->is_individual && best_aggregator->is_individual) ||
-					 (!aggregator->is_individual && !best_aggregator->is_individual)) {
-					//  current and best aggs are both individual or both not individual AND
-					//  current agg partner reply but best agg partner do not reply
-					if ((MAC_ADDRESS_COMPARE(&(aggregator->partner_system), &(null_mac_addr)) &&
-					     !MAC_ADDRESS_COMPARE(&(best_aggregator->partner_system), &(null_mac_addr)))) {
-						best_aggregator=aggregator;
-					}
-					//  current agg partner reply OR current agg partner do not reply AND best agg partner also do not reply
-					else if (! (!MAC_ADDRESS_COMPARE(&(aggregator->partner_system), &(null_mac_addr)) &&
-						    MAC_ADDRESS_COMPARE(&(best_aggregator->partner_system), &(null_mac_addr)))) {
-						if ((__get_agg_selection_mode(aggregator->lag_ports) == AD_BANDWIDTH)&&
-						    (__get_agg_bandwidth(aggregator) > __get_agg_bandwidth(best_aggregator))) {
-							best_aggregator=aggregator;
-						} else if (__get_agg_selection_mode(aggregator->lag_ports) == AD_COUNT) {
-							if (((aggregator->num_of_ports > best_aggregator->num_of_ports) &&
-							     (aggregator->actor_oper_aggregator_key & AD_SPEED_KEY_BITS))||
-							    ((aggregator->num_of_ports == best_aggregator->num_of_ports) &&
-							     ((u16)(aggregator->actor_oper_aggregator_key & AD_SPEED_KEY_BITS) >
-							      (u16)(best_aggregator->actor_oper_aggregator_key & AD_SPEED_KEY_BITS)))) {
-								best_aggregator=aggregator;
-							}
-						}
-					}
-				}
-			} else {
-				best_aggregator=aggregator;
-			}
-		}
-		aggregator->is_active = 0; // mark all aggregators as not active anymore
-	} while ((aggregator = __get_next_agg(aggregator)));
+		if (agg->num_of_ports)
+			best = ad_agg_selection_test(best, agg);
 
-	// if we have new aggregator selected, don't replace the old aggregator if it has an answering partner,
-	// or if both old aggregator and new aggregator don't have answering partner
-	if (best_aggregator) {
-		if (last_active_aggregator && last_active_aggregator->lag_ports && last_active_aggregator->lag_ports->is_enabled &&
-		    (MAC_ADDRESS_COMPARE(&(last_active_aggregator->partner_system), &(null_mac_addr)) ||   // partner answers OR
-		     (!MAC_ADDRESS_COMPARE(&(last_active_aggregator->partner_system), &(null_mac_addr)) &&	// both old and new
-		      !MAC_ADDRESS_COMPARE(&(best_aggregator->partner_system), &(null_mac_addr))))     // partner do not answer
-		   ) {
-			// if new aggregator has link, and old aggregator does not, replace old aggregator.(do nothing)
-			// -> don't replace otherwise.
-			if (!(!last_active_aggregator->actor_oper_aggregator_key && best_aggregator->actor_oper_aggregator_key)) {
-				best_aggregator=NULL;
-				last_active_aggregator->is_active = 1; // don't replace good old aggregator
+	} while ((agg = __get_next_agg(agg)));
 
+	if (best &&
+	    __get_agg_selection_mode(best->lag_ports) == BOND_AD_STABLE) {
+		/*
+		 * For the STABLE policy, don't replace the old active
+		 * aggregator if it's still active (it has an answering
+		 * partner) or if both the best and active don't have an
+		 * answering partner.
+		 */
+		if (active && active->lag_ports &&
+		    active->lag_ports->is_enabled &&
+		    (__agg_has_partner(active) ||
+		     (!__agg_has_partner(active) && !__agg_has_partner(best)))) {
+			if (!(!active->actor_oper_aggregator_key &&
+			      best->actor_oper_aggregator_key)) {
+				best = NULL;
+				active->is_active = 1;
 			}
 		}
 	}
 
-	// if there is new best aggregator, activate it
-	if (best_aggregator) {
-		for (aggregator = __get_first_agg(best_aggregator->lag_ports);
-		    aggregator;
-		    aggregator = __get_next_agg(aggregator)) {
+	if (best && (best == active)) {
+		best = NULL;
+		active->is_active = 1;
+	}
 
-			dprintk("Agg=%d; Ports=%d; a key=%d; p key=%d; Indiv=%d; Active=%d\n",
-					aggregator->aggregator_identifier, aggregator->num_of_ports,
-					aggregator->actor_oper_aggregator_key, aggregator->partner_oper_aggregator_key,
-					aggregator->is_individual, aggregator->is_active);
+	// if there is new best aggregator, activate it
+	if (best) {
+		dprintk("best Agg=%d; P=%d; a k=%d; p k=%d; Ind=%d; Act=%d\n",
+		       best->aggregator_identifier, best->num_of_ports,
+		       best->actor_oper_aggregator_key,
+		       best->partner_oper_aggregator_key,
+		       best->is_individual, best->is_active);
+		dprintk("best ports %p slave %p %s\n",
+		       best->lag_ports, best->slave,
+		       best->slave ? best->slave->dev->name : "NULL");
+
+		for (agg = __get_first_agg(best->lag_ports); agg;
+		     agg = __get_next_agg(agg)) {
+
+			dprintk("Agg=%d; P=%d; a k=%d; p k=%d; Ind=%d; Act=%d\n",
+				agg->aggregator_identifier, agg->num_of_ports,
+				agg->actor_oper_aggregator_key,
+				agg->partner_oper_aggregator_key,
+				agg->is_individual, agg->is_active);
 		}
 
 		// check if any partner replys
-		if (best_aggregator->is_individual) {
-			printk(KERN_WARNING DRV_NAME ": %s: Warning: No 802.3ad response from "
-			       "the link partner for any adapters in the bond\n",
-			       best_aggregator->slave->dev->master->name);
+		if (best->is_individual) {
+			printk(KERN_WARNING DRV_NAME ": %s: Warning: No 802.3ad"
+			       " response from the link partner for any"
+			       " adapters in the bond\n",
+			       best->slave->dev->master->name);
 		}
 
-		// check if there are more than one aggregator
-		if (num_of_aggs > 1) {
-			dprintk("Warning: More than one Link Aggregation Group was "
-				"found in the bond. Only one group will function in the bond\n");
-		}
-
-		best_aggregator->is_active = 1;
-		dprintk("LAG %d choosed as the active LAG\n", best_aggregator->aggregator_identifier);
-		dprintk("Agg=%d; Ports=%d; a key=%d; p key=%d; Indiv=%d; Active=%d\n",
-				best_aggregator->aggregator_identifier, best_aggregator->num_of_ports,
-				best_aggregator->actor_oper_aggregator_key, best_aggregator->partner_oper_aggregator_key,
-				best_aggregator->is_individual, best_aggregator->is_active);
+		best->is_active = 1;
+		dprintk("LAG %d chosen as the active LAG\n",
+			best->aggregator_identifier);
+		dprintk("Agg=%d; P=%d; a k=%d; p k=%d; Ind=%d; Act=%d\n",
+			best->aggregator_identifier, best->num_of_ports,
+			best->actor_oper_aggregator_key,
+			best->partner_oper_aggregator_key,
+			best->is_individual, best->is_active);
 
 		// disable the ports that were related to the former active_aggregator
-		if (last_active_aggregator) {
-			for (port=last_active_aggregator->lag_ports; port; port=port->next_port_in_aggregator) {
+		if (active) {
+			for (port = active->lag_ports; port;
+			     port = port->next_port_in_aggregator) {
 				__disable_port(port);
 			}
 		}
 	}
 
-	// if the selected aggregator is of join individuals(partner_system is NULL), enable their ports
-	active_aggregator = __get_active_agg(origin_aggregator);
+	/*
+	 * if the selected aggregator is of join individuals
+	 * (partner_system is NULL), enable their ports
+	 */
+	active = __get_active_agg(origin);
 
-	if (active_aggregator) {
-		if (!MAC_ADDRESS_COMPARE(&(active_aggregator->partner_system), &(null_mac_addr))) {
-			for (port=active_aggregator->lag_ports; port; port=port->next_port_in_aggregator) {
+	if (active) {
+		if (!__agg_has_partner(active)) {
+			for (port = active->lag_ports; port;
+			     port = port->next_port_in_aggregator) {
 				__enable_port(port);
 			}
 		}
+	}
+
+	if (origin->slave) {
+		struct bonding *bond;
+
+		bond = bond_get_bond_by_slave(origin->slave);
+		if (bond)
+			bond_3ad_set_carrier(bond);
 	}
 }
 
@@ -1830,6 +1897,19 @@ static void ad_initialize_lacpdu(struct lacpdu *lacpdu)
 // Check aggregators status in team every T seconds
 #define AD_AGGREGATOR_SELECTION_TIMER  8
 
+/*
+ * bond_3ad_initiate_agg_selection(struct bonding *bond)
+ *
+ * Set the aggregation selection timer, to initiate an agg selection in
+ * the very near future.  Called during first initialization, and during
+ * any down to up transitions of the bond.
+ */
+void bond_3ad_initiate_agg_selection(struct bonding *bond, int timeout)
+{
+	BOND_AD_INFO(bond).agg_select_timer = timeout;
+	BOND_AD_INFO(bond).agg_select_mode = bond->params.ad_select;
+}
+
 static u16 aggregator_identifier;
 
 /**
@@ -1854,9 +1934,9 @@ void bond_3ad_initialize(struct bonding *bond, u16 tick_resolution, int lacp_fas
 		// initialize how many times this module is called in one second(should be about every 100ms)
 		ad_ticks_per_sec = tick_resolution;
 
-		// initialize the aggregator selection timer(to activate an aggregation selection after initialize)
-		BOND_AD_INFO(bond).agg_select_timer = (AD_AGGREGATOR_SELECTION_TIMER * ad_ticks_per_sec);
-		BOND_AD_INFO(bond).agg_select_mode = AD_BANDWIDTH;
+		bond_3ad_initiate_agg_selection(bond,
+						AD_AGGREGATOR_SELECTION_TIMER *
+						ad_ticks_per_sec);
 	}
 }
 
