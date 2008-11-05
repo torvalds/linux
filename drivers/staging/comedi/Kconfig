@@ -1,0 +1,13 @@
+config COMEDI
+	tristate "Data Acquision support (comedi)"
+	default N
+	---help---
+	  Enable support a wide range of data acquision devices
+	  for Linux.
+
+config COMEDI_RT
+	tristate "Comedi Real-time support"
+	depends on COMEDI && RT
+	default N
+	---help---
+	  Enable Real time support for the Comedi core.
