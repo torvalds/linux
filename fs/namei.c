@@ -247,7 +247,6 @@ int inode_permission(struct inode *inode, int mask)
 			return -EACCES;
 	}
 
-	/* Ordinary permission routines do not understand MAY_APPEND. */
 	if (inode->i_op && inode->i_op->permission)
 		retval = inode->i_op->permission(inode, mask);
 	else
