@@ -60,6 +60,79 @@ static const struct {
 };
 #define DCCP_FEAT_SUPPORTED_MAX		ARRAY_SIZE(dccp_feat_table)
 
+/**
+ * dccp_feat_index  -  Hash function to map feature number into array position
+ * Returns consecutive array index or -1 if the feature is not understood.
+ */
+static int dccp_feat_index(u8 feat_num)
+{
+	/* The first 9 entries are occupied by the types from RFC 4340, 6.4 */
+	if (feat_num > DCCPF_RESERVED && feat_num <= DCCPF_DATA_CHECKSUM)
+		return feat_num - 1;
+
+	/*
+	 * Other features: add cases for new feature types here after adding
+	 * them to the above table.
+	 */
+	switch (feat_num) {
+	case DCCPF_SEND_LEV_RATE:
+			return DCCP_FEAT_SUPPORTED_MAX - 1;
+	}
+	return -1;
+}
+
+static u8 dccp_feat_type(u8 feat_num)
+{
+	int idx = dccp_feat_index(feat_num);
+
+	if (idx < 0)
+		return FEAT_UNKNOWN;
+	return dccp_feat_table[idx].reconciliation;
+}
+
+static void dccp_feat_val_destructor(u8 feat_num, dccp_feat_val *val)
+{
+	if (unlikely(val == NULL))
+		return;
+	if (dccp_feat_type(feat_num) == FEAT_SP)
+		kfree(val->sp.vec);
+	memset(val, 0, sizeof(*val));
+}
+
+static void dccp_feat_entry_destructor(struct dccp_feat_entry *entry)
+{
+	if (entry != NULL) {
+		dccp_feat_val_destructor(entry->feat_num, &entry->val);
+		kfree(entry);
+	}
+}
+
+/*
+ * List management functions
+ *
+ * Feature negotiation lists rely on and maintain the following invariants:
+ * - each feat_num in the list is known, i.e. we know its type and default value
+ * - each feat_num/is_local combination is unique (old entries are overwritten)
+ * - SP values are always freshly allocated
+ * - list is sorted in increasing order of feature number (faster lookup)
+ */
+
+static inline void dccp_feat_list_pop(struct dccp_feat_entry *entry)
+{
+	list_del(&entry->node);
+	dccp_feat_entry_destructor(entry);
+}
+
+void dccp_feat_list_purge(struct list_head *fn_list)
+{
+	struct dccp_feat_entry *entry, *next;
+
+	list_for_each_entry_safe(entry, next, fn_list, node)
+		dccp_feat_entry_destructor(entry);
+	INIT_LIST_HEAD(fn_list);
+}
+EXPORT_SYMBOL_GPL(dccp_feat_list_purge);
+
 int dccp_feat_change(struct dccp_minisock *dmsk, u8 type, u8 feature,
 		     u8 *val, u8 len, gfp_t gfp)
 {
