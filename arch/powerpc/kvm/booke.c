@@ -55,64 +55,6 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ NULL }
 };
 
-static const u32 interrupt_msr_mask[16] = {
-	[BOOKE_INTERRUPT_CRITICAL]      = MSR_ME,
-	[BOOKE_INTERRUPT_MACHINE_CHECK] = 0,
-	[BOOKE_INTERRUPT_DATA_STORAGE]  = MSR_CE|MSR_ME|MSR_DE,
-	[BOOKE_INTERRUPT_INST_STORAGE]  = MSR_CE|MSR_ME|MSR_DE,
-	[BOOKE_INTERRUPT_EXTERNAL]      = MSR_CE|MSR_ME|MSR_DE,
-	[BOOKE_INTERRUPT_ALIGNMENT]     = MSR_CE|MSR_ME|MSR_DE,
-	[BOOKE_INTERRUPT_PROGRAM]       = MSR_CE|MSR_ME|MSR_DE,
-	[BOOKE_INTERRUPT_FP_UNAVAIL]    = MSR_CE|MSR_ME|MSR_DE,
-	[BOOKE_INTERRUPT_SYSCALL]       = MSR_CE|MSR_ME|MSR_DE,
-	[BOOKE_INTERRUPT_AP_UNAVAIL]    = MSR_CE|MSR_ME|MSR_DE,
-	[BOOKE_INTERRUPT_DECREMENTER]   = MSR_CE|MSR_ME|MSR_DE,
-	[BOOKE_INTERRUPT_FIT]           = MSR_CE|MSR_ME|MSR_DE,
-	[BOOKE_INTERRUPT_WATCHDOG]      = MSR_ME,
-	[BOOKE_INTERRUPT_DTLB_MISS]     = MSR_CE|MSR_ME|MSR_DE,
-	[BOOKE_INTERRUPT_ITLB_MISS]     = MSR_CE|MSR_ME|MSR_DE,
-	[BOOKE_INTERRUPT_DEBUG]         = MSR_ME,
-};
-
-const unsigned char exception_priority[] = {
-	[BOOKE_INTERRUPT_DATA_STORAGE] = 0,
-	[BOOKE_INTERRUPT_INST_STORAGE] = 1,
-	[BOOKE_INTERRUPT_ALIGNMENT] = 2,
-	[BOOKE_INTERRUPT_PROGRAM] = 3,
-	[BOOKE_INTERRUPT_FP_UNAVAIL] = 4,
-	[BOOKE_INTERRUPT_SYSCALL] = 5,
-	[BOOKE_INTERRUPT_AP_UNAVAIL] = 6,
-	[BOOKE_INTERRUPT_DTLB_MISS] = 7,
-	[BOOKE_INTERRUPT_ITLB_MISS] = 8,
-	[BOOKE_INTERRUPT_MACHINE_CHECK] = 9,
-	[BOOKE_INTERRUPT_DEBUG] = 10,
-	[BOOKE_INTERRUPT_CRITICAL] = 11,
-	[BOOKE_INTERRUPT_WATCHDOG] = 12,
-	[BOOKE_INTERRUPT_EXTERNAL] = 13,
-	[BOOKE_INTERRUPT_FIT] = 14,
-	[BOOKE_INTERRUPT_DECREMENTER] = 15,
-};
-
-const unsigned char priority_exception[] = {
-	BOOKE_INTERRUPT_DATA_STORAGE,
-	BOOKE_INTERRUPT_INST_STORAGE,
-	BOOKE_INTERRUPT_ALIGNMENT,
-	BOOKE_INTERRUPT_PROGRAM,
-	BOOKE_INTERRUPT_FP_UNAVAIL,
-	BOOKE_INTERRUPT_SYSCALL,
-	BOOKE_INTERRUPT_AP_UNAVAIL,
-	BOOKE_INTERRUPT_DTLB_MISS,
-	BOOKE_INTERRUPT_ITLB_MISS,
-	BOOKE_INTERRUPT_MACHINE_CHECK,
-	BOOKE_INTERRUPT_DEBUG,
-	BOOKE_INTERRUPT_CRITICAL,
-	BOOKE_INTERRUPT_WATCHDOG,
-	BOOKE_INTERRUPT_EXTERNAL,
-	BOOKE_INTERRUPT_FIT,
-	BOOKE_INTERRUPT_DECREMENTER,
-};
-
-
 /* TODO: use vcpu_printf() */
 void kvmppc_dump_vcpu(struct kvm_vcpu *vcpu)
 {
@@ -133,103 +75,96 @@ void kvmppc_dump_vcpu(struct kvm_vcpu *vcpu)
 	}
 }
 
-static void kvmppc_booke_queue_exception(struct kvm_vcpu *vcpu, int exception)
+static void kvmppc_booke_queue_irqprio(struct kvm_vcpu *vcpu,
+                                       unsigned int priority)
 {
-	unsigned int priority = exception_priority[exception];
 	set_bit(priority, &vcpu->arch.pending_exceptions);
-}
-
-static void kvmppc_booke_clear_exception(struct kvm_vcpu *vcpu, int exception)
-{
-	unsigned int priority = exception_priority[exception];
-	clear_bit(priority, &vcpu->arch.pending_exceptions);
 }
 
 void kvmppc_core_queue_program(struct kvm_vcpu *vcpu)
 {
-	kvmppc_booke_queue_exception(vcpu, BOOKE_INTERRUPT_PROGRAM);
+	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_PROGRAM);
 }
 
 void kvmppc_core_queue_dec(struct kvm_vcpu *vcpu)
 {
-	kvmppc_booke_queue_exception(vcpu, BOOKE_INTERRUPT_DECREMENTER);
+	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_DECREMENTER);
 }
 
 int kvmppc_core_pending_dec(struct kvm_vcpu *vcpu)
 {
-	unsigned int priority = exception_priority[BOOKE_INTERRUPT_DECREMENTER];
-	return test_bit(priority, &vcpu->arch.pending_exceptions);
+	return test_bit(BOOKE_IRQPRIO_DECREMENTER, &vcpu->arch.pending_exceptions);
 }
 
 void kvmppc_core_queue_external(struct kvm_vcpu *vcpu,
                                 struct kvm_interrupt *irq)
 {
-	kvmppc_booke_queue_exception(vcpu, BOOKE_INTERRUPT_EXTERNAL);
+	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_EXTERNAL);
 }
 
-/* Check if we are ready to deliver the interrupt */
-static int kvmppc_can_deliver_interrupt(struct kvm_vcpu *vcpu, int interrupt)
+/* Deliver the interrupt of the corresponding priority, if possible. */
+static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
+                                        unsigned int priority)
 {
-	int r;
+	int allowed = 0;
+	ulong msr_mask;
 
-	switch (interrupt) {
-	case BOOKE_INTERRUPT_CRITICAL:
-		r = vcpu->arch.msr & MSR_CE;
+	switch (priority) {
+	case BOOKE_IRQPRIO_PROGRAM:
+	case BOOKE_IRQPRIO_DTLB_MISS:
+	case BOOKE_IRQPRIO_ITLB_MISS:
+	case BOOKE_IRQPRIO_SYSCALL:
+	case BOOKE_IRQPRIO_DATA_STORAGE:
+	case BOOKE_IRQPRIO_INST_STORAGE:
+	case BOOKE_IRQPRIO_FP_UNAVAIL:
+	case BOOKE_IRQPRIO_AP_UNAVAIL:
+	case BOOKE_IRQPRIO_ALIGNMENT:
+		allowed = 1;
+		msr_mask = MSR_CE|MSR_ME|MSR_DE;
 		break;
-	case BOOKE_INTERRUPT_MACHINE_CHECK:
-		r = vcpu->arch.msr & MSR_ME;
+	case BOOKE_IRQPRIO_CRITICAL:
+	case BOOKE_IRQPRIO_WATCHDOG:
+		allowed = vcpu->arch.msr & MSR_CE;
+		msr_mask = MSR_ME;
 		break;
-	case BOOKE_INTERRUPT_EXTERNAL:
-		r = vcpu->arch.msr & MSR_EE;
+	case BOOKE_IRQPRIO_MACHINE_CHECK:
+		allowed = vcpu->arch.msr & MSR_ME;
+		msr_mask = 0;
 		break;
-	case BOOKE_INTERRUPT_DECREMENTER:
-		r = vcpu->arch.msr & MSR_EE;
+	case BOOKE_IRQPRIO_EXTERNAL:
+	case BOOKE_IRQPRIO_DECREMENTER:
+	case BOOKE_IRQPRIO_FIT:
+		allowed = vcpu->arch.msr & MSR_EE;
+		msr_mask = MSR_CE|MSR_ME|MSR_DE;
 		break;
-	case BOOKE_INTERRUPT_FIT:
-		r = vcpu->arch.msr & MSR_EE;
+	case BOOKE_IRQPRIO_DEBUG:
+		allowed = vcpu->arch.msr & MSR_DE;
+		msr_mask = MSR_ME;
 		break;
-	case BOOKE_INTERRUPT_WATCHDOG:
-		r = vcpu->arch.msr & MSR_CE;
-		break;
-	case BOOKE_INTERRUPT_DEBUG:
-		r = vcpu->arch.msr & MSR_DE;
-		break;
-	default:
-		r = 1;
 	}
 
-	return r;
-}
+	if (allowed) {
+		vcpu->arch.srr0 = vcpu->arch.pc;
+		vcpu->arch.srr1 = vcpu->arch.msr;
+		vcpu->arch.pc = vcpu->arch.ivpr | vcpu->arch.ivor[priority];
+		kvmppc_set_msr(vcpu, vcpu->arch.msr & msr_mask);
 
-static void kvmppc_booke_deliver_interrupt(struct kvm_vcpu *vcpu, int interrupt)
-{
-	switch (interrupt) {
-	case BOOKE_INTERRUPT_DECREMENTER:
-		vcpu->arch.tsr |= TSR_DIS;
-		break;
+		clear_bit(priority, &vcpu->arch.pending_exceptions);
 	}
 
-	vcpu->arch.srr0 = vcpu->arch.pc;
-	vcpu->arch.srr1 = vcpu->arch.msr;
-	vcpu->arch.pc = vcpu->arch.ivpr | vcpu->arch.ivor[interrupt];
-	kvmppc_set_msr(vcpu, vcpu->arch.msr & interrupt_msr_mask[interrupt]);
+	return allowed;
 }
 
 /* Check pending exceptions and deliver one, if possible. */
 void kvmppc_core_deliver_interrupts(struct kvm_vcpu *vcpu)
 {
 	unsigned long *pending = &vcpu->arch.pending_exceptions;
-	unsigned int exception;
 	unsigned int priority;
 
 	priority = __ffs(*pending);
 	while (priority <= BOOKE_MAX_INTERRUPT) {
-		exception = priority_exception[priority];
-		if (kvmppc_can_deliver_interrupt(vcpu, exception)) {
-			kvmppc_booke_clear_exception(vcpu, exception);
-			kvmppc_booke_deliver_interrupt(vcpu, exception);
+		if (kvmppc_booke_irqprio_deliver(vcpu, priority))
 			break;
-		}
 
 		priority = find_next_bit(pending,
 		                         BITS_PER_BYTE * sizeof(*pending),
@@ -287,7 +222,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			/* Program traps generated by user-level software must be handled
 			 * by the guest kernel. */
 			vcpu->arch.esr = vcpu->arch.fault_esr;
-			kvmppc_booke_queue_exception(vcpu, BOOKE_INTERRUPT_PROGRAM);
+			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_PROGRAM);
 			r = RESUME_GUEST;
 			break;
 		}
@@ -321,27 +256,27 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		break;
 
 	case BOOKE_INTERRUPT_FP_UNAVAIL:
-		kvmppc_booke_queue_exception(vcpu, exit_nr);
+		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_FP_UNAVAIL);
 		r = RESUME_GUEST;
 		break;
 
 	case BOOKE_INTERRUPT_DATA_STORAGE:
 		vcpu->arch.dear = vcpu->arch.fault_dear;
 		vcpu->arch.esr = vcpu->arch.fault_esr;
-		kvmppc_booke_queue_exception(vcpu, exit_nr);
+		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_DATA_STORAGE);
 		vcpu->stat.dsi_exits++;
 		r = RESUME_GUEST;
 		break;
 
 	case BOOKE_INTERRUPT_INST_STORAGE:
 		vcpu->arch.esr = vcpu->arch.fault_esr;
-		kvmppc_booke_queue_exception(vcpu, exit_nr);
+		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_INST_STORAGE);
 		vcpu->stat.isi_exits++;
 		r = RESUME_GUEST;
 		break;
 
 	case BOOKE_INTERRUPT_SYSCALL:
-		kvmppc_booke_queue_exception(vcpu, exit_nr);
+		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_SYSCALL);
 		vcpu->stat.syscall_exits++;
 		r = RESUME_GUEST;
 		break;
@@ -355,7 +290,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		gtlbe = kvmppc_44x_dtlb_search(vcpu, eaddr);
 		if (!gtlbe) {
 			/* The guest didn't have a mapping for it. */
-			kvmppc_booke_queue_exception(vcpu, exit_nr);
+			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_DTLB_MISS);
 			vcpu->arch.dear = vcpu->arch.fault_dear;
 			vcpu->arch.esr = vcpu->arch.fault_esr;
 			vcpu->stat.dtlb_real_miss_exits++;
@@ -398,7 +333,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		gtlbe = kvmppc_44x_itlb_search(vcpu, eaddr);
 		if (!gtlbe) {
 			/* The guest didn't have a mapping for it. */
-			kvmppc_booke_queue_exception(vcpu, exit_nr);
+			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_ITLB_MISS);
 			vcpu->stat.itlb_real_miss_exits++;
 			break;
 		}
@@ -418,7 +353,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			               gtlbe->word2);
 		} else {
 			/* Guest mapped and leaped at non-RAM! */
-			kvmppc_booke_queue_exception(vcpu, BOOKE_INTERRUPT_MACHINE_CHECK);
+			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_MACHINE_CHECK);
 		}
 
 		break;

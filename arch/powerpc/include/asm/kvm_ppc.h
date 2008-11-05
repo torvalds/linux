@@ -36,9 +36,6 @@ enum emulation_result {
 	EMULATE_FAIL,         /* can't emulate this instruction */
 };
 
-extern const unsigned char exception_priority[];
-extern const unsigned char priority_exception[];
-
 extern int __kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu);
 extern char kvmppc_handlers_start[];
 extern unsigned long kvmppc_handler_len;

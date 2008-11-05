@@ -228,39 +228,56 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 		vcpu->arch.sprg7 = vcpu->arch.gpr[rs]; break;
 
 	case SPRN_IVPR:
-		vcpu->arch.ivpr = vcpu->arch.gpr[rs]; break;
+		vcpu->arch.ivpr = vcpu->arch.gpr[rs];
+		break;
 	case SPRN_IVOR0:
-		vcpu->arch.ivor[0] = vcpu->arch.gpr[rs]; break;
+		vcpu->arch.ivor[BOOKE_IRQPRIO_CRITICAL] = vcpu->arch.gpr[rs];
+		break;
 	case SPRN_IVOR1:
-		vcpu->arch.ivor[1] = vcpu->arch.gpr[rs]; break;
+		vcpu->arch.ivor[BOOKE_IRQPRIO_MACHINE_CHECK] = vcpu->arch.gpr[rs];
+		break;
 	case SPRN_IVOR2:
-		vcpu->arch.ivor[2] = vcpu->arch.gpr[rs]; break;
+		vcpu->arch.ivor[BOOKE_IRQPRIO_DATA_STORAGE] = vcpu->arch.gpr[rs];
+		break;
 	case SPRN_IVOR3:
-		vcpu->arch.ivor[3] = vcpu->arch.gpr[rs]; break;
+		vcpu->arch.ivor[BOOKE_IRQPRIO_INST_STORAGE] = vcpu->arch.gpr[rs];
+		break;
 	case SPRN_IVOR4:
-		vcpu->arch.ivor[4] = vcpu->arch.gpr[rs]; break;
+		vcpu->arch.ivor[BOOKE_IRQPRIO_EXTERNAL] = vcpu->arch.gpr[rs];
+		break;
 	case SPRN_IVOR5:
-		vcpu->arch.ivor[5] = vcpu->arch.gpr[rs]; break;
+		vcpu->arch.ivor[BOOKE_IRQPRIO_ALIGNMENT] = vcpu->arch.gpr[rs];
+		break;
 	case SPRN_IVOR6:
-		vcpu->arch.ivor[6] = vcpu->arch.gpr[rs]; break;
+		vcpu->arch.ivor[BOOKE_IRQPRIO_PROGRAM] = vcpu->arch.gpr[rs];
+		break;
 	case SPRN_IVOR7:
-		vcpu->arch.ivor[7] = vcpu->arch.gpr[rs]; break;
+		vcpu->arch.ivor[BOOKE_IRQPRIO_FP_UNAVAIL] = vcpu->arch.gpr[rs];
+		break;
 	case SPRN_IVOR8:
-		vcpu->arch.ivor[8] = vcpu->arch.gpr[rs]; break;
+		vcpu->arch.ivor[BOOKE_IRQPRIO_SYSCALL] = vcpu->arch.gpr[rs];
+		break;
 	case SPRN_IVOR9:
-		vcpu->arch.ivor[9] = vcpu->arch.gpr[rs]; break;
+		vcpu->arch.ivor[BOOKE_IRQPRIO_AP_UNAVAIL] = vcpu->arch.gpr[rs];
+		break;
 	case SPRN_IVOR10:
-		vcpu->arch.ivor[10] = vcpu->arch.gpr[rs]; break;
+		vcpu->arch.ivor[BOOKE_IRQPRIO_DECREMENTER] = vcpu->arch.gpr[rs];
+		break;
 	case SPRN_IVOR11:
-		vcpu->arch.ivor[11] = vcpu->arch.gpr[rs]; break;
+		vcpu->arch.ivor[BOOKE_IRQPRIO_FIT] = vcpu->arch.gpr[rs];
+		break;
 	case SPRN_IVOR12:
-		vcpu->arch.ivor[12] = vcpu->arch.gpr[rs]; break;
+		vcpu->arch.ivor[BOOKE_IRQPRIO_WATCHDOG] = vcpu->arch.gpr[rs];
+		break;
 	case SPRN_IVOR13:
-		vcpu->arch.ivor[13] = vcpu->arch.gpr[rs]; break;
+		vcpu->arch.ivor[BOOKE_IRQPRIO_DTLB_MISS] = vcpu->arch.gpr[rs];
+		break;
 	case SPRN_IVOR14:
-		vcpu->arch.ivor[14] = vcpu->arch.gpr[rs]; break;
+		vcpu->arch.ivor[BOOKE_IRQPRIO_ITLB_MISS] = vcpu->arch.gpr[rs];
+		break;
 	case SPRN_IVOR15:
-		vcpu->arch.ivor[15] = vcpu->arch.gpr[rs]; break;
+		vcpu->arch.ivor[BOOKE_IRQPRIO_DEBUG] = vcpu->arch.gpr[rs];
+		break;
 
 	default:
 		return EMULATE_FAIL;
@@ -295,37 +312,54 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 		vcpu->arch.gpr[rt] = vcpu->arch.dbcr1; break;
 
 	case SPRN_IVOR0:
-		vcpu->arch.gpr[rt] = vcpu->arch.ivor[0]; break;
+		vcpu->arch.gpr[rt] = vcpu->arch.ivor[BOOKE_IRQPRIO_CRITICAL];
+		break;
 	case SPRN_IVOR1:
-		vcpu->arch.gpr[rt] = vcpu->arch.ivor[1]; break;
+		vcpu->arch.gpr[rt] = vcpu->arch.ivor[BOOKE_IRQPRIO_MACHINE_CHECK];
+		break;
 	case SPRN_IVOR2:
-		vcpu->arch.gpr[rt] = vcpu->arch.ivor[2]; break;
+		vcpu->arch.gpr[rt] = vcpu->arch.ivor[BOOKE_IRQPRIO_DATA_STORAGE];
+		break;
 	case SPRN_IVOR3:
-		vcpu->arch.gpr[rt] = vcpu->arch.ivor[3]; break;
+		vcpu->arch.gpr[rt] = vcpu->arch.ivor[BOOKE_IRQPRIO_INST_STORAGE];
+		break;
 	case SPRN_IVOR4:
-		vcpu->arch.gpr[rt] = vcpu->arch.ivor[4]; break;
+		vcpu->arch.gpr[rt] = vcpu->arch.ivor[BOOKE_IRQPRIO_EXTERNAL];
+		break;
 	case SPRN_IVOR5:
-		vcpu->arch.gpr[rt] = vcpu->arch.ivor[5]; break;
+		vcpu->arch.gpr[rt] = vcpu->arch.ivor[BOOKE_IRQPRIO_ALIGNMENT];
+		break;
 	case SPRN_IVOR6:
-		vcpu->arch.gpr[rt] = vcpu->arch.ivor[6]; break;
+		vcpu->arch.gpr[rt] = vcpu->arch.ivor[BOOKE_IRQPRIO_PROGRAM];
+		break;
 	case SPRN_IVOR7:
-		vcpu->arch.gpr[rt] = vcpu->arch.ivor[7]; break;
+		vcpu->arch.gpr[rt] = vcpu->arch.ivor[BOOKE_IRQPRIO_FP_UNAVAIL];
+		break;
 	case SPRN_IVOR8:
-		vcpu->arch.gpr[rt] = vcpu->arch.ivor[8]; break;
+		vcpu->arch.gpr[rt] = vcpu->arch.ivor[BOOKE_IRQPRIO_SYSCALL];
+		break;
 	case SPRN_IVOR9:
-		vcpu->arch.gpr[rt] = vcpu->arch.ivor[9]; break;
+		vcpu->arch.gpr[rt] = vcpu->arch.ivor[BOOKE_IRQPRIO_AP_UNAVAIL];
+		break;
 	case SPRN_IVOR10:
-		vcpu->arch.gpr[rt] = vcpu->arch.ivor[10]; break;
+		vcpu->arch.gpr[rt] = vcpu->arch.ivor[BOOKE_IRQPRIO_DECREMENTER];
+		break;
 	case SPRN_IVOR11:
-		vcpu->arch.gpr[rt] = vcpu->arch.ivor[11]; break;
+		vcpu->arch.gpr[rt] = vcpu->arch.ivor[BOOKE_IRQPRIO_FIT];
+		break;
 	case SPRN_IVOR12:
-		vcpu->arch.gpr[rt] = vcpu->arch.ivor[12]; break;
+		vcpu->arch.gpr[rt] = vcpu->arch.ivor[BOOKE_IRQPRIO_WATCHDOG];
+		break;
 	case SPRN_IVOR13:
-		vcpu->arch.gpr[rt] = vcpu->arch.ivor[13]; break;
+		vcpu->arch.gpr[rt] = vcpu->arch.ivor[BOOKE_IRQPRIO_DTLB_MISS];
+		break;
 	case SPRN_IVOR14:
-		vcpu->arch.gpr[rt] = vcpu->arch.ivor[14]; break;
+		vcpu->arch.gpr[rt] = vcpu->arch.ivor[BOOKE_IRQPRIO_ITLB_MISS];
+		break;
 	case SPRN_IVOR15:
-		vcpu->arch.gpr[rt] = vcpu->arch.ivor[15]; break;
+		vcpu->arch.gpr[rt] = vcpu->arch.ivor[BOOKE_IRQPRIO_DEBUG];
+		break;
+
 	default:
 		return EMULATE_FAIL;
 	}
