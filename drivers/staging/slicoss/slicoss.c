@@ -323,7 +323,7 @@ static void slic_init_adapter(struct net_device *netdev,
 	index, pslic_handle, adapter->pfree_slic_handles, pslic_handle->next);*/
 	adapter->pshmem = (struct slic_shmem *)
 					pci_alloc_consistent(adapter->pcidev,
-					sizeof(struct slic_shmem *),
+					sizeof(struct slic_shmem),
 					&adapter->
 					phys_shmem);
 /*
@@ -1431,7 +1431,7 @@ static void slic_init_cleanup(struct adapter *adapter)
 		DBG_MSG("adapter[%p] port %d pshmem[%p] FreeShmem ",
 			adapter, adapter->port, (void *) adapter->pshmem);
 		pci_free_consistent(adapter->pcidev,
-				    sizeof(struct slic_shmem *),
+				    sizeof(struct slic_shmem),
 				    adapter->pshmem, adapter->phys_shmem);
 		adapter->pshmem = NULL;
 		adapter->phys_shmem = (dma_addr_t) NULL;
@@ -2832,7 +2832,7 @@ static u32 slic_card_locate(struct adapter *adapter)
 	}
 	if (!physcard) {
 		/* no structure allocated for this physical card yet */
-		physcard = kzalloc(sizeof(struct physcard *), GFP_ATOMIC);
+		physcard = kzalloc(sizeof(struct physcard), GFP_ATOMIC);
 		ASSERT(physcard);
 
 		DBG_MSG
