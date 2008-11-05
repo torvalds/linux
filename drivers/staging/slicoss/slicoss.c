@@ -94,6 +94,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 
+#include <linux/firmware.h>
 #include <linux/types.h>
 #include <linux/dma-mapping.h>
 #include <linux/mii.h>
@@ -105,15 +106,6 @@
 
 #include <linux/uaccess.h>
 #include "slicinc.h"
-#include "gbdownload.h"
-#include "gbrcvucode.h"
-#include "oasisrcvucode.h"
-
-#ifdef DEBUG_MICROCODE
-#include "oasisdbgdownload.h"
-#else
-#include "oasisdownload.h"
-#endif
 
 #if SLIC_DUMP_ENABLED
 #include "slicdump.h"
@@ -2186,6 +2178,9 @@ static void slic_card_cleanup(struct sliccard *card)
 
 static int slic_card_download_gbrcv(struct adapter *adapter)
 {
+	const struct firmware *fw;
+	const char *file = "";
+	int ret;
 	__iomem struct slic_regs *slic_regs = adapter->slic_regs;
 	u32 codeaddr;
 	unsigned char *instruction = NULL;
@@ -2193,12 +2188,32 @@ static int slic_card_download_gbrcv(struct adapter *adapter)
 
 	switch (adapter->devid) {
 	case SLIC_2GB_DEVICE_ID:
-		instruction = (unsigned char *)&OasisRcvUCode[0];
-		rcvucodelen = OasisRcvUCodeLen;
+		file = "oasis_rcv.bin";
 		break;
 	case SLIC_1GB_DEVICE_ID:
-		instruction = (unsigned char *)&GBRcvUCode[0];
-		rcvucodelen = GBRcvUCodeLen;
+		file = "gb_rcv.bin";
+		break;
+	default:
+		ASSERT(0);
+		break;
+	}
+
+	ret = request_firmware(&fw, file, &adapter->pcidev->dev);
+	if (ret) {
+		printk(KERN_ERR "SLICOSS: Failed to load firmware %s\n", file);
+		return ret;
+	}
+
+	instruction = (unsigned char *)fw->data;
+	rcvucodelen = fw->size;
+	switch (adapter->devid) {
+	case SLIC_2GB_DEVICE_ID:
+		if (rcvucodelen != OasisRcvUCodeLen)
+			return -EINVAL;
+		break;
+	case SLIC_1GB_DEVICE_ID:
+		if (rcvucodelen != GBRcvUCodeLen)
+			return -EINVAL;
 		break;
 	default:
 		ASSERT(0);
@@ -2225,13 +2240,16 @@ static int slic_card_download_gbrcv(struct adapter *adapter)
 	}
 
 	/* download finished */
+	release_firmware(fw);
 	WRITE_REG(slic_regs->slic_rcv_wcs, SLIC_RCVWCS_FINISH, FLUSH);
-
 	return 0;
 }
 
 static int slic_card_download(struct adapter *adapter)
 {
+	const struct firmware *fw;
+	const char *file = "";
+	int ret;
 	u32 section;
 	int thissectionsize;
 	int codeaddr;
@@ -2255,6 +2273,7 @@ static int slic_card_download(struct adapter *adapter)
 	case SLIC_2GB_DEVICE_ID:
 /*      DBG_MSG ("slicoss: %s devid==SLIC_2GB_DEVICE_ID sections[%x]\n",
 	__func__, (uint) ONumSections); */
+		file = "slic_oasis.bin";
 		numsects = ONumSections;
 		for (i = 0; i < numsects; i++) {
 			sectsize[i] = OSectionSize[i];
@@ -2264,6 +2283,7 @@ static int slic_card_download(struct adapter *adapter)
 	case SLIC_1GB_DEVICE_ID:
 /*              DBG_MSG ("slicoss: %s devid==SLIC_1GB_DEVICE_ID sections[%x]\n",
 		__func__, (uint) MNumSections); */
+		file = "slic_mojave.bin";
 		numsects = MNumSections;
 		for (i = 0; i < numsects; i++) {
 			sectsize[i] = MSectionSize[i];
@@ -2274,26 +2294,33 @@ static int slic_card_download(struct adapter *adapter)
 		ASSERT(0);
 		break;
 	}
+	ret = request_firmware(&fw, file, &adapter->pcidev->dev);
+	if (ret) {
+		printk(KERN_ERR "SLICOSS: Failed to load firmware %s\n", file);
+		return ret;
+	}
 
 	ASSERT(numsects <= 3);
 
 	for (section = 0; section < numsects; section++) {
 		switch (adapter->devid) {
 		case SLIC_2GB_DEVICE_ID:
-			instruction = (u32 *) &OasisUCode[section][0];
+			instruction = (u32 *)(fw->data + (SECTION_SIZE *
+								section));
 			baseaddress = sectstart[section];
 			thissectionsize = sectsize[section] >> 3;
 			lastinstruct =
-			    (u32 *) &OasisUCode[section][sectsize[section] -
-							     8];
+			    (u32 *)(fw->data + (SECTION_SIZE * section) +
+					sectsize[section] - 8);
 			break;
 		case SLIC_1GB_DEVICE_ID:
-			instruction = (u32 *) &MojaveUCode[section][0];
+			instruction = (u32 *)(fw->data + (SECTION_SIZE *
+								section));
 			baseaddress = sectstart[section];
 			thissectionsize = sectsize[section] >> 3;
 			lastinstruct =
-			    (u32 *) &MojaveUCode[section][sectsize[section]
-							      - 8];
+			    (u32 *)(fw->data + (SECTION_SIZE * section) +
+					sectsize[section] - 8);
 			break;
 		default:
 			ASSERT(0);
@@ -2329,10 +2356,12 @@ static int slic_card_download(struct adapter *adapter)
 	for (section = 0; section < numsects; section++) {
 		switch (adapter->devid) {
 		case SLIC_2GB_DEVICE_ID:
-			instruction = (u32 *)&OasisUCode[section][0];
+			instruction = (u32 *)fw->data + (SECTION_SIZE *
+								section);
 			break;
 		case SLIC_1GB_DEVICE_ID:
-			instruction = (u32 *)&MojaveUCode[section][0];
+			instruction = (u32 *)fw->data + (SECTION_SIZE *
+								section);
 			break;
 		default:
 			ASSERT(0);
@@ -2374,13 +2403,13 @@ static int slic_card_download(struct adapter *adapter)
 				    thissectionsize[%x] failure[%x]\n",
 				     __func__, codeaddr, thissectionsize,
 				     failure);
-
+				release_firmware(fw);
 				return -EIO;
 			}
 		}
 	}
 /*    DBG_MSG ("slicoss: Compare done\n");*/
-
+	release_firmware(fw);
 	/* Everything OK, kick off the card */
 	mdelay(10);
 	WRITE_REG(slic_regs->slic_wcs, SLIC_WCS_START, FLUSH);
