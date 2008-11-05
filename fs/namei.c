@@ -526,18 +526,6 @@ out_unlock:
 	return result;
 }
 
-/* SMP-safe */
-static __always_inline void
-walk_init_root(const char *name, struct nameidata *nd)
-{
-	struct fs_struct *fs = current->fs;
-
-	read_lock(&fs->lock);
-	nd->path = fs->root;
-	path_get(&fs->root);
-	read_unlock(&fs->lock);
-}
-
 /*
  * Wrapper to retry pathname resolution whenever the underlying
  * file system returns an ESTALE.
@@ -575,9 +563,16 @@ static __always_inline int __vfs_follow_link(struct nameidata *nd, const char *l
 		goto fail;
 
 	if (*link == '/') {
+		struct fs_struct *fs = current->fs;
+
 		path_put(&nd->path);
-		walk_init_root(link, nd);
+
+		read_lock(&fs->lock);
+		nd->path = fs->root;
+		path_get(&fs->root);
+		read_unlock(&fs->lock);
 	}
+
 	res = link_path_walk(link, nd);
 	if (nd->depth || res || nd->last_type!=LAST_NORM)
 		return res;
