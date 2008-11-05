@@ -260,6 +260,9 @@ static int snd_cs5535audio_hw_params(struct snd_pcm_substream *substream,
 	err = cs5535audio_build_dma_packets(cs5535au, dma, substream,
 					    params_periods(hw_params),
 					    params_period_bytes(hw_params));
+	if (!err)
+		dma->pcm_open_flag = 1;
+
 	return err;
 }
 
@@ -268,6 +271,15 @@ static int snd_cs5535audio_hw_free(struct snd_pcm_substream *substream)
 	struct cs5535audio *cs5535au = snd_pcm_substream_chip(substream);
 	struct cs5535audio_dma *dma = substream->runtime->private_data;
 
+	if (dma->pcm_open_flag) {
+		if (substream == cs5535au->playback_substream)
+			snd_ac97_update_power(cs5535au->ac97,
+					AC97_PCM_FRONT_DAC_RATE, 0);
+		else
+			snd_ac97_update_power(cs5535au->ac97,
+					AC97_PCM_LR_ADC_RATE, 0);
+		dma->pcm_open_flag = 0;
+	}
 	cs5535audio_clear_dma_packets(cs5535au, dma, substream);
 	return snd_pcm_lib_free_pages(substream);
 }

@@ -159,7 +159,8 @@ static int __devinit snd_cs5535audio_mixer(struct cs5535audio *cs5535au)
 		return err;
 
 	memset(&ac97, 0, sizeof(ac97));
-	ac97.scaps = AC97_SCAP_AUDIO|AC97_SCAP_SKIP_MODEM;
+	ac97.scaps = AC97_SCAP_AUDIO | AC97_SCAP_SKIP_MODEM
+			| AC97_SCAP_POWER_SAVE;
 	ac97.private_data = cs5535au;
 	ac97.pci = cs5535au->pci;
 

@@ -78,6 +78,7 @@ struct cs5535audio_dma {
 	unsigned int buf_addr, buf_bytes;
 	unsigned int period_bytes, periods;
 	u32 saved_prd;
+	int pcm_open_flag;
 };
 
 struct cs5535audio {
