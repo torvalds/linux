@@ -1965,7 +1965,6 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_digital_mute);
 
 static int __devinit snd_soc_init(void)
 {
-	printk(KERN_INFO "ASoC version %s\n", SND_SOC_VERSION);
 	return platform_driver_register(&soc_driver);
 }
 
