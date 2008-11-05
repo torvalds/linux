@@ -119,8 +119,8 @@ xp_init_uv(void)
 	BUG_ON(!is_uv());
 
 	xp_max_npartitions = XP_MAX_NPARTITIONS_UV;
-	xp_partition_id = 0;	/* !!! not correct value */
-	xp_region_size = 0;	/* !!! not correct value */
+	xp_partition_id = sn_partition_id;
+	xp_region_size = sn_region_size;
 
 	xp_pa = xp_pa_uv;
 	xp_remote_memcpy = xp_remote_memcpy_uv;
