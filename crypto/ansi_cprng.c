@@ -349,15 +349,25 @@ static int cprng_get_random(struct crypto_rng *tfm, u8 *rdata,
 	return get_prng_bytes(rdata, dlen, prng);
 }
 
+/*
+ *  This is the cprng_registered reset method the seed value is
+ *  interpreted as the tuple { V KEY DT}
+ *  V and KEY are required during reset, and DT is optional, detected
+ *  as being present by testing the length of the seed
+ */
 static int cprng_reset(struct crypto_rng *tfm, u8 *seed, unsigned int slen)
 {
 	struct prng_context *prng = crypto_rng_ctx(tfm);
-	u8 *key = seed + DEFAULT_PRNG_KSZ;
+	u8 *key = seed + DEFAULT_BLK_SZ;
+	u8 *dt = NULL;
 
 	if (slen < DEFAULT_PRNG_KSZ + DEFAULT_BLK_SZ)
 		return -EINVAL;
 
-	reset_prng_context(prng, key, DEFAULT_PRNG_KSZ, seed, NULL);
+	if (slen >= (2 * DEFAULT_BLK_SZ + DEFAULT_PRNG_KSZ))
+		dt = key + DEFAULT_PRNG_KSZ;
+
+	reset_prng_context(prng, key, DEFAULT_PRNG_KSZ, seed, dt);
 
 	if (prng->flags & PRNG_NEED_RESET)
 		return -EINVAL;
@@ -379,7 +389,7 @@ static struct crypto_alg rng_alg = {
 		.rng = {
 			.rng_make_random	= cprng_get_random,
 			.rng_reset		= cprng_reset,
-			.seedsize = DEFAULT_PRNG_KSZ + DEFAULT_BLK_SZ,
+			.seedsize = DEFAULT_PRNG_KSZ + 2*DEFAULT_BLK_SZ,
 		}
 	}
 };
