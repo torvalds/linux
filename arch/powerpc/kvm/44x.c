@@ -121,3 +121,56 @@ int kvmppc_core_check_processor_compat(void)
 
 	return r;
 }
+
+int kvmppc_core_vcpu_setup(struct kvm_vcpu *vcpu)
+{
+	struct kvmppc_44x_tlbe *tlbe = &vcpu->arch.guest_tlb[0];
+
+	tlbe->tid = 0;
+	tlbe->word0 = PPC44x_TLB_16M | PPC44x_TLB_VALID;
+	tlbe->word1 = 0;
+	tlbe->word2 = PPC44x_TLB_SX | PPC44x_TLB_SW | PPC44x_TLB_SR;
+
+	tlbe++;
+	tlbe->tid = 0;
+	tlbe->word0 = 0xef600000 | PPC44x_TLB_4K | PPC44x_TLB_VALID;
+	tlbe->word1 = 0xef600000;
+	tlbe->word2 = PPC44x_TLB_SX | PPC44x_TLB_SW | PPC44x_TLB_SR
+	              | PPC44x_TLB_I | PPC44x_TLB_G;
+
+	/* Since the guest can directly access the timebase, it must know the
+	 * real timebase frequency. Accordingly, it must see the state of
+	 * CCR1[TCS]. */
+	vcpu->arch.ccr1 = mfspr(SPRN_CCR1);
+
+	return 0;
+}
+
+/* 'linear_address' is actually an encoding of AS|PID|EADDR . */
+int kvmppc_core_vcpu_translate(struct kvm_vcpu *vcpu,
+                               struct kvm_translation *tr)
+{
+	struct kvmppc_44x_tlbe *gtlbe;
+	int index;
+	gva_t eaddr;
+	u8 pid;
+	u8 as;
+
+	eaddr = tr->linear_address;
+	pid = (tr->linear_address >> 32) & 0xff;
+	as = (tr->linear_address >> 40) & 0x1;
+
+	index = kvmppc_44x_tlb_index(vcpu, eaddr, pid, as);
+	if (index == -1) {
+		tr->valid = 0;
+		return 0;
+	}
+
+	gtlbe = &vcpu->arch.guest_tlb[index];
+
+	tr->physical_address = tlb_xlate(gtlbe, eaddr);
+	/* XXX what does "writeable" and "usermode" even mean? */
+	tr->valid = 1;
+
+	return 0;
+}
