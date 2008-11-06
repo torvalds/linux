@@ -442,8 +442,12 @@ static inline struct sk_buff *qdisc_peek_head(struct Qdisc *sch)
 static inline struct sk_buff *qdisc_peek_dequeued(struct Qdisc *sch)
 {
 	/* we can reuse ->gso_skb because peek isn't called for root qdiscs */
-	if (!sch->gso_skb)
+	if (!sch->gso_skb) {
 		sch->gso_skb = sch->dequeue(sch);
+		if (sch->gso_skb)
+			/* it's still part of the queue */
+			sch->q.qlen++;
+	}
 
 	return sch->gso_skb;
 }
@@ -453,10 +457,12 @@ static inline struct sk_buff *qdisc_dequeue_peeked(struct Qdisc *sch)
 {
 	struct sk_buff *skb = sch->gso_skb;
 
-	if (skb)
+	if (skb) {
 		sch->gso_skb = NULL;
-	else
+		sch->q.qlen--;
+	} else {
 		skb = sch->dequeue(sch);
+	}
 
 	return skb;
 }
