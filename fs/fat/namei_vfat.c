@@ -683,7 +683,7 @@ static struct dentry *vfat_lookup(struct inode *dir, struct dentry *dentry,
 {
 	struct super_block *sb = dir->i_sb;
 	struct fat_slot_info sinfo;
-	struct inode *inode = NULL;
+	struct inode *inode;
 	struct dentry *alias;
 	int err, table;
 
@@ -693,14 +693,18 @@ static struct dentry *vfat_lookup(struct inode *dir, struct dentry *dentry,
 
 	err = vfat_find(dir, &dentry->d_name, &sinfo);
 	if (err) {
-		table++;
+		if (err == -ENOENT) {
+			table++;
+			inode = NULL;
+			goto out;
+		}
 		goto error;
 	}
 	inode = fat_build_inode(sb, sinfo.de, sinfo.i_pos);
 	brelse(sinfo.bh);
 	if (IS_ERR(inode)) {
-		unlock_super(sb);
-		return ERR_CAST(inode);
+		err = PTR_ERR(inode);
+		goto error;
 	}
 	alias = d_find_alias(inode);
 	if (alias) {
@@ -713,7 +717,7 @@ static struct dentry *vfat_lookup(struct inode *dir, struct dentry *dentry,
 		}
 
 	}
-error:
+out:
 	unlock_super(sb);
 	dentry->d_op = &vfat_dentry_ops[table];
 	dentry->d_time = dentry->d_parent->d_inode->i_version;
@@ -723,6 +727,10 @@ error:
 		dentry->d_time = dentry->d_parent->d_inode->i_version;
 	}
 	return dentry;
+
+error:
+	unlock_super(sb);
+	return ERR_PTR(err);
 }
 
 static int vfat_create(struct inode *dir, struct dentry *dentry, int mode,
