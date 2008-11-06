@@ -303,11 +303,7 @@ setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
 	err |= __put_user(regs->sp, &sc->sp_at_signal);
 	err |= __put_user(regs->ss, (unsigned int __user *)&sc->ss);
 
-	tmp = save_i387_xstate(fpstate);
-	if (tmp < 0)
-		err = 1;
-	else
-		err |= __put_user(tmp ? fpstate : NULL, &sc->fpstate);
+	err |= __put_user(fpstate, &sc->fpstate);
 
 	/* non-iBCS2 extensions.. */
 	err |= __put_user(mask, &sc->oldmask);
@@ -350,6 +346,8 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 	if (used_math()) {
 		sp = sp - sig_xstate_size;
 		*fpstate = (struct _fpstate *) sp;
+		if (save_i387_xstate(*fpstate) < 0)
+			return (void __user *)-1L;
 	}
 
 	sp -= frame_size;
