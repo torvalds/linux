@@ -34,7 +34,8 @@ enum uv_bios_cmd {
 	UV_BIOS_GET_SN_INFO,
 	UV_BIOS_FREQ_BASE,
 	UV_BIOS_WATCHLIST_ALLOC,
-	UV_BIOS_WATCHLIST_FREE
+	UV_BIOS_WATCHLIST_FREE,
+	UV_BIOS_MEMPROTECT
 };
 
 /*
@@ -82,6 +83,12 @@ union uv_watchlist_u {
 	};
 };
 
+enum uv_memprotect {
+	UV_MEMPROT_RESTRICT_ACCESS,
+	UV_MEMPROT_ALLOW_AMO,
+	UV_MEMPROT_ALLOW_RW
+};
+
 /*
  * bios calls have 6 parameters
  */
@@ -94,6 +101,7 @@ extern s64 uv_bios_freq_base(u64, u64 *);
 extern int uv_bios_mq_watchlist_alloc(int, void *, unsigned int,
 					unsigned long *);
 extern int uv_bios_mq_watchlist_free(int, int);
+extern s64 uv_bios_change_memprotect(u64, u64, enum uv_memprotect);
 
 extern void uv_bios_init(void);
 

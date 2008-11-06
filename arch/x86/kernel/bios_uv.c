@@ -134,6 +134,14 @@ uv_bios_mq_watchlist_free(int blade, int watchlist_num)
 }
 EXPORT_SYMBOL_GPL(uv_bios_mq_watchlist_free);
 
+s64
+uv_bios_change_memprotect(u64 paddr, u64 len, enum uv_memprotect perms)
+{
+	return uv_bios_call_irqsave(UV_BIOS_MEMPROTECT, paddr, len,
+					perms, 0, 0);
+}
+EXPORT_SYMBOL_GPL(uv_bios_change_memprotect);
+
 s64 uv_bios_freq_base(u64 clock_type, u64 *ticks_per_second)
 {
 	return uv_bios_call(UV_BIOS_FREQ_BASE, clock_type,
