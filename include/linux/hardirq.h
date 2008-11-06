@@ -4,7 +4,7 @@
 #include <linux/preempt.h>
 #include <linux/smp_lock.h>
 #include <linux/lockdep.h>
-#include <linux/ftrace.h>
+#include <linux/ftrace_irq.h>
 #include <asm/hardirq.h>
 #include <asm/system.h>
 
