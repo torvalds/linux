@@ -18,6 +18,7 @@
 
 #include <linux/nl80211.h>
 #include "core.h"
+#include "reg.h"
 
 #define ATH_PCI_VERSION "0.1"
 
@@ -1519,15 +1520,74 @@ static struct ieee80211_ops ath9k_ops = {
 	.set_frag_threshold = ath9k_no_fragmentation,
 };
 
+static struct {
+	u32 version;
+	const char * name;
+} ath_mac_bb_names[] = {
+	{ AR_SREV_VERSION_5416_PCI,	"5416" },
+	{ AR_SREV_VERSION_5416_PCIE,	"5418" },
+	{ AR_SREV_VERSION_9100,		"9100" },
+	{ AR_SREV_VERSION_9160,		"9160" },
+	{ AR_SREV_VERSION_9280,		"9280" },
+	{ AR_SREV_VERSION_9285,		"9285" }
+};
+
+static struct {
+	u16 version;
+	const char * name;
+} ath_rf_names[] = {
+	{ 0,				"5133" },
+	{ AR_RAD5133_SREV_MAJOR,	"5133" },
+	{ AR_RAD5122_SREV_MAJOR,	"5122" },
+	{ AR_RAD2133_SREV_MAJOR,	"2133" },
+	{ AR_RAD2122_SREV_MAJOR,	"2122" }
+};
+
+/*
+ * Return the MAC/BB name. "????" is returned if the MAC/BB is unknown.
+ */
+
+static const char *
+ath_mac_bb_name(u32 mac_bb_version)
+{
+	int i;
+
+	for (i=0; i<ARRAY_SIZE(ath_mac_bb_names); i++) {
+		if (ath_mac_bb_names[i].version == mac_bb_version) {
+			return ath_mac_bb_names[i].name;
+		}
+	}
+
+	return "????";
+}
+
+/*
+ * Return the RF name. "????" is returned if the RF is unknown.
+ */
+
+static const char *
+ath_rf_name(u16 rf_version)
+{
+	int i;
+
+	for (i=0; i<ARRAY_SIZE(ath_rf_names); i++) {
+		if (ath_rf_names[i].version == rf_version) {
+			return ath_rf_names[i].name;
+		}
+	}
+
+	return "????";
+}
+
 static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	void __iomem *mem;
 	struct ath_softc *sc;
 	struct ieee80211_hw *hw;
-	const char *athname;
 	u8 csz;
 	u32 val;
 	int ret = 0;
+	struct ath_hal *ah;
 
 	if (pci_enable_device(pdev))
 		return -EIO;
@@ -1614,11 +1674,15 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto bad4;
 	}
 
-	athname = ath9k_hw_probe(id->vendor, id->device);
-
-	printk(KERN_INFO "%s: %s: mem=0x%lx, irq=%d\n",
+	ah = sc->sc_ah;
+	printk(KERN_INFO
+	       "%s: Atheros AR%s MAC/BB Rev:%x "
+	       "AR%s RF Rev:%x: mem=0x%lx, irq=%d\n",
 	       wiphy_name(hw->wiphy),
-	       athname ? athname : "Atheros ???",
+	       ath_mac_bb_name(ah->ah_macVersion),
+	       ah->ah_macRev,
+	       ath_rf_name((ah->ah_analog5GhzRev & AR_RADIO_SREV_MAJOR)),
+	       ah->ah_phyRev,
 	       (unsigned long)mem, pdev->irq);
 
 	return 0;
