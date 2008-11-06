@@ -43,7 +43,6 @@ struct fat_mount_options {
 
 #define FAT_HASH_BITS	8
 #define FAT_HASH_SIZE	(1UL << FAT_HASH_BITS)
-#define FAT_HASH_MASK	(FAT_HASH_SIZE-1)
 
 /*
  * MS-DOS file system in-core superblock data

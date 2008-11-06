@@ -26,6 +26,7 @@
 #include <linux/uio.h>
 #include <linux/writeback.h>
 #include <linux/log2.h>
+#include <linux/hash.h>
 #include <asm/unaligned.h>
 #include "fat.h"
 
@@ -247,25 +248,21 @@ static void fat_hash_init(struct super_block *sb)
 		INIT_HLIST_HEAD(&sbi->inode_hashtable[i]);
 }
 
-static inline unsigned long fat_hash(struct super_block *sb, loff_t i_pos)
+static inline unsigned long fat_hash(loff_t i_pos)
 {
-	unsigned long tmp = (unsigned long)i_pos | (unsigned long) sb;
-	tmp = tmp + (tmp >> FAT_HASH_BITS) + (tmp >> FAT_HASH_BITS * 2);
-	return tmp & FAT_HASH_MASK;
+	return hash_32(i_pos, FAT_HASH_BITS);
 }
 
 void fat_attach(struct inode *inode, loff_t i_pos)
 {
-	struct super_block *sb = inode->i_sb;
-	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
+	struct hlist_head *head = sbi->inode_hashtable + fat_hash(i_pos);
 
 	spin_lock(&sbi->inode_hash_lock);
 	MSDOS_I(inode)->i_pos = i_pos;
-	hlist_add_head(&MSDOS_I(inode)->i_fat_hash,
-			sbi->inode_hashtable + fat_hash(sb, i_pos));
+	hlist_add_head(&MSDOS_I(inode)->i_fat_hash, head);
 	spin_unlock(&sbi->inode_hash_lock);
 }
-
 EXPORT_SYMBOL_GPL(fat_attach);
 
 void fat_detach(struct inode *inode)
@@ -276,13 +273,12 @@ void fat_detach(struct inode *inode)
 	hlist_del_init(&MSDOS_I(inode)->i_fat_hash);
 	spin_unlock(&sbi->inode_hash_lock);
 }
-
 EXPORT_SYMBOL_GPL(fat_detach);
 
 struct inode *fat_iget(struct super_block *sb, loff_t i_pos)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
-	struct hlist_head *head = sbi->inode_hashtable + fat_hash(sb, i_pos);
+	struct hlist_head *head = sbi->inode_hashtable + fat_hash(i_pos);
 	struct hlist_node *_p;
 	struct msdos_inode_info *i;
 	struct inode *inode = NULL;
