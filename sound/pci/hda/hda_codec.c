@@ -901,6 +901,7 @@ static struct hda_cache_head  *get_alloc_hash(struct hda_cache_rec *cache,
 	info = snd_array_new(&cache->buf);
 	if (!info)
 		return NULL;
+	cur = cache->buf.used - 1; /* the last entry */
 	info->key = key;
 	info->val = 0;
 	info->next = cache->hash[idx];
