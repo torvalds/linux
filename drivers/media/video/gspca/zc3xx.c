@@ -2266,7 +2266,7 @@ static const struct usb_action hdcs2020b_NoFliker[] = {
 	{}
 };
 
-static const struct usb_action hv7131bxx_Initial[] = {
+static const struct usb_action hv7131bxx_Initial[] = {		/* 320x240 */
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x10, ZC3XX_R002_CLOCKSELECT},
 	{0xa0, 0x00, ZC3XX_R010_CMOSSENSORSELECT},
@@ -2309,7 +2309,7 @@ static const struct usb_action hv7131bxx_Initial[] = {
 	{0xa0, 0x13, ZC3XX_R1CB_SHARPNESS05},
 	{0xa0, 0x08, ZC3XX_R250_DEADPIXELSMODE},
 	{0xa0, 0x08, ZC3XX_R301_EEPROMACCESS},
-	{0xaa, 0x02, 0x0080},	/* {0xaa, 0x02, 0x0090}; */
+	{0xaa, 0x02, 0x0090},			/* {0xaa, 0x02, 0x0080}; */
 	{0xa1, 0x01, 0x0002},
 	{0xa0, 0x00, ZC3XX_R092_I2CADDRESSSELECT},
 	{0xa0, 0x02, ZC3XX_R090_I2CCOMMAND},
@@ -2374,7 +2374,7 @@ static const struct usb_action hv7131bxx_Initial[] = {
 	{}
 };
 
-static const struct usb_action hv7131bxx_InitialScale[] = {
+static const struct usb_action hv7131bxx_InitialScale[] = {	/* 640x480*/
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x00, ZC3XX_R002_CLOCKSELECT},
 	{0xa0, 0x00, ZC3XX_R010_CMOSSENSORSELECT},
