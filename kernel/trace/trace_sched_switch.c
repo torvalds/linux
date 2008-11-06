@@ -16,7 +16,8 @@
 
 static struct trace_array	*ctx_trace;
 static int __read_mostly	tracer_enabled;
-static atomic_t			sched_ref;
+static int			sched_ref;
+static DEFINE_MUTEX(sched_register_mutex);
 
 static void
 probe_sched_switch(struct rq *__rq, struct task_struct *prev,
@@ -27,7 +28,7 @@ probe_sched_switch(struct rq *__rq, struct task_struct *prev,
 	int cpu;
 	int pc;
 
-	if (!atomic_read(&sched_ref))
+	if (!sched_ref)
 		return;
 
 	tracing_record_cmdline(prev);
@@ -123,20 +124,22 @@ static void tracing_sched_unregister(void)
 
 static void tracing_start_sched_switch(void)
 {
-	long ref;
-
-	ref = atomic_inc_return(&sched_ref);
-	if (ref == 1)
+	mutex_lock(&sched_register_mutex);
+	if (!(sched_ref++)) {
+		tracer_enabled = 1;
 		tracing_sched_register();
+	}
+	mutex_unlock(&sched_register_mutex);
 }
 
 static void tracing_stop_sched_switch(void)
 {
-	long ref;
-
-	ref = atomic_dec_and_test(&sched_ref);
-	if (ref)
+	mutex_lock(&sched_register_mutex);
+	if (!(--sched_ref)) {
 		tracing_sched_unregister();
+		tracer_enabled = 0;
+	}
+	mutex_unlock(&sched_register_mutex);
 }
 
 void tracing_start_cmdline_record(void)
@@ -153,12 +156,10 @@ static void start_sched_trace(struct trace_array *tr)
 {
 	sched_switch_reset(tr);
 	tracing_start_cmdline_record();
-	tracer_enabled = 1;
 }
 
 static void stop_sched_trace(struct trace_array *tr)
 {
-	tracer_enabled = 0;
 	tracing_stop_cmdline_record();
 }
 
@@ -172,7 +173,7 @@ static void sched_switch_trace_init(struct trace_array *tr)
 
 static void sched_switch_trace_reset(struct trace_array *tr)
 {
-	if (tr->ctrl)
+	if (tr->ctrl && sched_ref)
 		stop_sched_trace(tr);
 }
 
@@ -185,7 +186,7 @@ static void sched_switch_trace_ctrl_update(struct trace_array *tr)
 		stop_sched_trace(tr);
 }
 
-static struct tracer sched_switch_trace __read_mostly =
+struct tracer sched_switch_trace __read_mostly =
 {
 	.name		= "sched_switch",
 	.init		= sched_switch_trace_init,
@@ -198,14 +199,6 @@ static struct tracer sched_switch_trace __read_mostly =
 
 __init static int init_sched_switch_trace(void)
 {
-	int ret = 0;
-
-	if (atomic_read(&sched_ref))
-		ret = tracing_sched_register();
-	if (ret) {
-		pr_info("error registering scheduler trace\n");
-		return ret;
-	}
 	return register_tracer(&sched_switch_trace);
 }
 device_initcall(init_sched_switch_trace);

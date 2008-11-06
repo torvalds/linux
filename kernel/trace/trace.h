@@ -49,6 +49,7 @@ struct ftrace_entry {
 	unsigned long		parent_ip;
 };
 extern struct tracer boot_tracer;
+extern struct tracer sched_switch_trace; /* Used by the boot tracer */
 
 /*
  * Context switch trace entry - which task (and prio) we switched from/to:

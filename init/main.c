@@ -711,6 +711,7 @@ int do_one_initcall(initcall_t fn)
 		it.caller = task_pid_nr(current);
 		printk("calling  %pF @ %i\n", fn, it.caller);
 		it.calltime = ktime_get();
+		enable_boot_trace();
 	}
 
 	it.result = fn();
@@ -722,6 +723,7 @@ int do_one_initcall(initcall_t fn)
 		printk("initcall %pF returned %d after %Ld usecs\n", fn,
 			it.result, it.duration);
 		trace_boot(&it, fn);
+		disable_boot_trace();
 	}
 
 	msgbuf[0] = 0;
@@ -882,7 +884,7 @@ static int __init kernel_init(void * unused)
 	 * we're essentially up and running. Get rid of the
 	 * initmem segments and start the user-mode stuff..
 	 */
-	stop_boot_trace();
+
 	init_post();
 	return 0;
 }
