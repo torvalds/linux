@@ -26,6 +26,9 @@ void olpc_analog_input(struct snd_ac97 *ac97, int on)
 {
 	int err;
 
+	if (!machine_is_olpc())
+		return;
+
 	/* update the High Pass Filter (via AC97_AD_TEST2) */
 	err = snd_ac97_update_bits(ac97, AC97_AD_TEST2,
 			1 << AC97_AD_HPFD_SHIFT, on << AC97_AD_HPFD_SHIFT);
@@ -47,6 +50,9 @@ void olpc_analog_input(struct snd_ac97 *ac97, int on)
 void olpc_mic_bias(struct snd_ac97 *ac97, int on)
 {
 	int err;
+
+	if (!machine_is_olpc())
+		return;
 
 	on = on ? 0 : 1;
 	err = snd_ac97_update_bits(ac97, AC97_AD_MISC,
