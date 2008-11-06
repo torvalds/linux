@@ -219,8 +219,10 @@ static int ocfs2_init_xattr_bucket(struct ocfs2_xattr_bucket *bucket,
 			break;
 		}
 
-		ocfs2_set_new_buffer_uptodate(bucket->bu_inode,
-					      bucket->bu_bhs[i]);
+		if (!ocfs2_buffer_uptodate(bucket->bu_inode,
+					   bucket->bu_bhs[i]))
+			ocfs2_set_new_buffer_uptodate(bucket->bu_inode,
+						      bucket->bu_bhs[i]);
 	}
 
 	if (rc)
