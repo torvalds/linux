@@ -159,8 +159,9 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
  */
 
 static inline int
-setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
-		unsigned long mask, struct task_struct *me)
+setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
+		 struct pt_regs *regs,
+		 unsigned long mask, struct task_struct *me)
 {
 	int err = 0;
 
@@ -188,6 +189,7 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 	err |= __put_user(me->thread.error_code, &sc->err);
 	err |= __put_user(regs->ip, &sc->ip);
 	err |= __put_user(regs->flags, &sc->flags);
+	err |= __put_user(fpstate, &sc->fpstate);
 	err |= __put_user(mask, &sc->oldmask);
 	err |= __put_user(me->thread.cr2, &sc->cr2);
 
@@ -249,8 +251,8 @@ static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	err |= __put_user(sas_ss_flags(regs->sp),
 			  &frame->uc.uc_stack.ss_flags);
 	err |= __put_user(me->sas_ss_size, &frame->uc.uc_stack.ss_size);
-	err |= setup_sigcontext(&frame->uc.uc_mcontext, regs, set->sig[0], me);
-	err |= __put_user(fp, &frame->uc.uc_mcontext.fpstate);
+	err |= setup_sigcontext(&frame->uc.uc_mcontext, fp,
+				regs, set->sig[0], me);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 
 	/* Set up to return from userspace.  If provided, use a stub
