@@ -108,12 +108,16 @@ void olpc_mic_bias(struct snd_ac97 *ac97, int on);
 
 static inline void olpc_capture_open(struct snd_ac97 *ac97)
 {
+	/* default to Analog Input off */
+	olpc_analog_input(ac97, 0);
 	/* enable MIC Bias for recording */
 	olpc_mic_bias(ac97, 1);
 }
 
 static inline void olpc_capture_close(struct snd_ac97 *ac97)
 {
+	/* disable Analog Input */
+	olpc_analog_input(ac97, 0);
 	/* disable the MIC Bias (so the recording LED turns off) */
 	olpc_mic_bias(ac97, 0);
 }
