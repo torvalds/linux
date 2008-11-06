@@ -72,7 +72,10 @@ extern int qla2x00_post_hwe_work(struct scsi_qla_host *, uint16_t , uint16_t,
     uint16_t, uint16_t);
 
 extern void qla2x00_abort_fcport_cmds(fc_port_t *);
-
+extern struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *,
+	struct qla_hw_data *);
+extern void qla2x00_free_host(struct scsi_qla_host *);
+extern void qla2x00_relogin(struct scsi_qla_host *);
 /*
  * Global Functions in qla_mid.c source file.
  */
@@ -105,10 +108,10 @@ extern struct fw_blob *qla2x00_request_firmware(scsi_qla_host_t *);
 
 extern int qla2x00_wait_for_hba_online(scsi_qla_host_t *);
 
-extern void qla2xxx_wake_dpc(scsi_qla_host_t *);
-extern void qla2x00_alert_all_vps(scsi_qla_host_t *, uint16_t *);
+extern void qla2xxx_wake_dpc(struct scsi_qla_host *);
+extern void qla2x00_alert_all_vps(struct qla_hw_data *, uint16_t *);
 extern void qla2x00_async_event(scsi_qla_host_t *, uint16_t *);
-extern void qla2x00_vp_abort_isp(scsi_qla_host_t *);
+extern int  qla2x00_vp_abort_isp(scsi_qla_host_t *);
 
 /*
  * Global Function Prototypes in qla_iocb.c source file.
@@ -267,7 +270,7 @@ extern irqreturn_t qla24xx_intr_handler(int, void *);
 extern void qla2x00_process_response_queue(struct scsi_qla_host *);
 extern void qla24xx_process_response_queue(struct scsi_qla_host *);
 
-extern int qla2x00_request_irqs(scsi_qla_host_t *);
+extern int qla2x00_request_irqs(struct qla_hw_data *);
 extern void qla2x00_free_irqs(scsi_qla_host_t *);
 
 /*

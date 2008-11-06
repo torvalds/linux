@@ -5,6 +5,7 @@
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
 #include "qla_def.h"
+#include "qla_gbl.h"
 
 #include <linux/moduleparam.h>
 #include <linux/vmalloc.h>
@@ -18,7 +19,7 @@
 void
 qla2x00_vp_stop_timer(scsi_qla_host_t *vha)
 {
-	if (vha->parent && vha->timer_active) {
+	if (vha->vp_idx && vha->timer_active) {
 		del_timer_sync(&vha->timer);
 		vha->timer_active = 0;
 	}
@@ -28,7 +29,7 @@ static uint32_t
 qla24xx_allocate_vp_id(scsi_qla_host_t *vha)
 {
 	uint32_t vp_id;
-	scsi_qla_host_t *ha = vha->parent;
+	struct qla_hw_data *ha = vha->hw;
 
 	/* Find an empty slot and assign an vp_id */
 	mutex_lock(&ha->vport_lock);
@@ -44,7 +45,7 @@ qla24xx_allocate_vp_id(scsi_qla_host_t *vha)
 	ha->num_vhosts++;
 	ha->cur_vport_count++;
 	vha->vp_idx = vp_id;
-	list_add_tail(&vha->vp_list, &ha->vp_list);
+	list_add_tail(&vha->list, &ha->vp_list);
 	mutex_unlock(&ha->vport_lock);
 	return vp_id;
 }
@@ -53,24 +54,24 @@ void
 qla24xx_deallocate_vp_id(scsi_qla_host_t *vha)
 {
 	uint16_t vp_id;
-	scsi_qla_host_t *ha = vha->parent;
+	struct qla_hw_data *ha = vha->hw;
 
 	mutex_lock(&ha->vport_lock);
 	vp_id = vha->vp_idx;
 	ha->num_vhosts--;
 	ha->cur_vport_count--;
 	clear_bit(vp_id, ha->vp_idx_map);
-	list_del(&vha->vp_list);
+	list_del(&vha->list);
 	mutex_unlock(&ha->vport_lock);
 }
 
 static scsi_qla_host_t *
-qla24xx_find_vhost_by_name(scsi_qla_host_t *ha, uint8_t *port_name)
+qla24xx_find_vhost_by_name(struct qla_hw_data *ha, uint8_t *port_name)
 {
 	scsi_qla_host_t *vha;
 
 	/* Locate matching device in database. */
-	list_for_each_entry(vha, &ha->vp_list, vp_list) {
+	list_for_each_entry(vha, &ha->vp_list, list) {
 		if (!memcmp(port_name, vha->port_name, WWN_SIZE))
 			return vha;
 	}
@@ -94,12 +95,8 @@ static void
 qla2x00_mark_vp_devices_dead(scsi_qla_host_t *vha)
 {
 	fc_port_t *fcport;
-	scsi_qla_host_t *pha = to_qla_parent(vha);
 
-	list_for_each_entry(fcport, &pha->fcports, list) {
-		if (fcport->vp_idx != vha->vp_idx)
-			continue;
-
+	list_for_each_entry(fcport, &vha->vp_fcports, list) {
 		DEBUG15(printk("scsi(%ld): Marking port dead, "
 		    "loop_id=0x%04x :%x\n",
 		    vha->host_no, fcport->loop_id, fcport->vp_idx));
@@ -118,7 +115,6 @@ qla24xx_disable_vp(scsi_qla_host_t *vha)
 	atomic_set(&vha->loop_state, LOOP_DOWN);
 	atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
 
-	/* Delete all vp's fcports from parent's list */
 	qla2x00_mark_vp_devices_dead(vha);
 	atomic_set(&vha->vp_state, VP_FAILED);
 	vha->flags.management_server_logged_in = 0;
@@ -135,11 +131,12 @@ int
 qla24xx_enable_vp(scsi_qla_host_t *vha)
 {
 	int ret;
-	scsi_qla_host_t *ha = vha->parent;
+	struct qla_hw_data *ha = vha->hw;
+	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
 
 	/* Check if physical ha port is Up */
-	if (atomic_read(&ha->loop_state) == LOOP_DOWN  ||
-		atomic_read(&ha->loop_state) == LOOP_DEAD ) {
+	if (atomic_read(&base_vha->loop_state) == LOOP_DOWN  ||
+		atomic_read(&base_vha->loop_state) == LOOP_DEAD) {
 		vha->vp_err_state =  VP_ERR_PORTDWN;
 		fc_vport_set_state(vha->fc_vport, FC_VPORT_LINKDOWN);
 		goto enable_failed;
@@ -177,8 +174,8 @@ qla24xx_configure_vp(scsi_qla_host_t *vha)
 	    vha->host_no, __func__));
 	ret = qla2x00_send_change_request(vha, 0x3, vha->vp_idx);
 	if (ret != QLA_SUCCESS) {
-		DEBUG15(qla_printk(KERN_ERR, vha, "Failed to enable receiving"
-		    " of RSCN requests: 0x%x\n", ret));
+		DEBUG15(qla_printk(KERN_ERR, vha->hw, "Failed to enable "
+		    "receiving of RSCN requests: 0x%x\n", ret));
 		return;
 	} else {
 		/* Corresponds to SCR enabled */
@@ -194,25 +191,13 @@ qla24xx_configure_vp(scsi_qla_host_t *vha)
 }
 
 void
-qla2x00_alert_all_vps(scsi_qla_host_t *ha, uint16_t *mb)
+qla2x00_alert_all_vps(struct qla_hw_data *ha, uint16_t *mb)
 {
-	int i, vp_idx_matched;
 	scsi_qla_host_t *vha;
+	int i = 0;
 
-	if (ha->parent)
-		return;
-
-	for_each_mapped_vp_idx(ha, i) {
-		vp_idx_matched = 0;
-
-		list_for_each_entry(vha, &ha->vp_list, vp_list) {
-			if (i == vha->vp_idx) {
-				vp_idx_matched = 1;
-				break;
-			}
-		}
-
-		if (vp_idx_matched) {
+	list_for_each_entry(vha, &ha->vp_list, list) {
+		if (vha->vp_idx) {
 			switch (mb[0]) {
 			case MBA_LIP_OCCURRED:
 			case MBA_LOOP_UP:
@@ -223,16 +208,17 @@ qla2x00_alert_all_vps(scsi_qla_host_t *ha, uint16_t *mb)
 			case MBA_PORT_UPDATE:
 			case MBA_RSCN_UPDATE:
 				DEBUG15(printk("scsi(%ld)%s: Async_event for"
-				    " VP[%d], mb = 0x%x, vha=%p\n",
-				    vha->host_no, __func__,i, *mb, vha));
+				" VP[%d], mb = 0x%x, vha=%p\n",
+				vha->host_no, __func__, i, *mb, vha));
 				qla2x00_async_event(vha, mb);
 				break;
 			}
 		}
+		i++;
 	}
 }
 
-void
+int
 qla2x00_vp_abort_isp(scsi_qla_host_t *vha)
 {
 	/*
@@ -247,30 +233,49 @@ qla2x00_vp_abort_isp(scsi_qla_host_t *vha)
 			atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
 	}
 
+	/* To exclusively reset vport, we need to log it out first.*/
+	if (!test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags))
+		qla24xx_control_vp(vha, VCE_COMMAND_DISABLE_VPS_LOGO_ALL);
+
 	DEBUG15(printk("scsi(%ld): Scheduling enable of Vport %d...\n",
 	    vha->host_no, vha->vp_idx));
-	qla24xx_enable_vp(vha);
+	return qla24xx_enable_vp(vha);
 }
 
 static int
 qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 {
-	scsi_qla_host_t *ha = vha->parent;
+	struct qla_hw_data *ha = vha->hw;
+	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
 
 	if (test_and_clear_bit(VP_IDX_ACQUIRED, &vha->vp_flags)) {
 		/* VP acquired. complete port configuration */
-		if (atomic_read(&ha->loop_state) == LOOP_READY) {
+		if (atomic_read(&base_vha->loop_state) == LOOP_READY) {
 			qla24xx_configure_vp(vha);
 		} else {
 			set_bit(VP_IDX_ACQUIRED, &vha->vp_flags);
-			set_bit(VP_DPC_NEEDED, &ha->dpc_flags);
+			set_bit(VP_DPC_NEEDED, &base_vha->dpc_flags);
 		}
 
 		return 0;
 	}
 
-	if (test_and_clear_bit(ISP_ABORT_NEEDED, &vha->dpc_flags))
-		qla2x00_vp_abort_isp(vha);
+	if (test_bit(FCPORT_UPDATE_NEEDED, &vha->dpc_flags)) {
+		qla2x00_update_fcports(vha);
+		clear_bit(FCPORT_UPDATE_NEEDED, &vha->dpc_flags);
+	}
+
+	if ((test_and_clear_bit(RELOGIN_NEEDED, &vha->dpc_flags)) &&
+		!test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags) &&
+		atomic_read(&vha->loop_state) != LOOP_DOWN) {
+
+		DEBUG(printk("scsi(%ld): qla2x00_port_login()\n",
+						vha->host_no));
+		qla2x00_relogin(vha);
+
+		DEBUG(printk("scsi(%ld): qla2x00_port_login - end\n",
+							vha->host_no));
+	}
 
 	if (test_and_clear_bit(RESET_MARKER_NEEDED, &vha->dpc_flags) &&
 	    (!(test_and_set_bit(RESET_ACTIVE, &vha->dpc_flags)))) {
@@ -289,38 +294,30 @@ qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 }
 
 void
-qla2x00_do_dpc_all_vps(scsi_qla_host_t *ha)
+qla2x00_do_dpc_all_vps(scsi_qla_host_t *vha)
 {
 	int ret;
-	int i, vp_idx_matched;
-	scsi_qla_host_t *vha;
+	struct qla_hw_data *ha = vha->hw;
+	scsi_qla_host_t *vp;
 
-	if (ha->parent)
+	if (vha->vp_idx)
 		return;
 	if (list_empty(&ha->vp_list))
 		return;
 
-	clear_bit(VP_DPC_NEEDED, &ha->dpc_flags);
+	clear_bit(VP_DPC_NEEDED, &vha->dpc_flags);
 
-	for_each_mapped_vp_idx(ha, i) {
-		vp_idx_matched = 0;
-
-		list_for_each_entry(vha, &ha->vp_list, vp_list) {
-			if (i == vha->vp_idx) {
-				vp_idx_matched = 1;
-				break;
-			}
-		}
-
-		if (vp_idx_matched)
-			ret = qla2x00_do_dpc_vp(vha);
+	list_for_each_entry(vp, &ha->vp_list, list) {
+		if (vp->vp_idx)
+			ret = qla2x00_do_dpc_vp(vp);
 	}
 }
 
 int
 qla24xx_vport_create_req_sanity_check(struct fc_vport *fc_vport)
 {
-	scsi_qla_host_t *ha = shost_priv(fc_vport->shost);
+	scsi_qla_host_t *base_vha = shost_priv(fc_vport->shost);
+	struct qla_hw_data *ha = base_vha->hw;
 	scsi_qla_host_t *vha;
 	uint8_t port_name[WWN_SIZE];
 
@@ -337,7 +334,7 @@ qla24xx_vport_create_req_sanity_check(struct fc_vport *fc_vport)
 
 	/* Check up unique WWPN */
 	u64_to_wwn(fc_vport->port_name, port_name);
-	if (!memcmp(port_name, ha->port_name, WWN_SIZE))
+	if (!memcmp(port_name, base_vha->port_name, WWN_SIZE))
 		return VPCERR_BAD_WWN;
 	vha = qla24xx_find_vhost_by_name(ha, port_name);
 	if (vha)
@@ -346,7 +343,7 @@ qla24xx_vport_create_req_sanity_check(struct fc_vport *fc_vport)
 	/* Check up max-npiv-supports */
 	if (ha->num_vhosts > ha->max_npiv_vports) {
 		DEBUG15(printk("scsi(%ld): num_vhosts %ud is bigger than "
-		    "max_npv_vports %ud.\n", ha->host_no,
+		    "max_npv_vports %ud.\n", base_vha->host_no,
 		    ha->num_vhosts, ha->max_npiv_vports));
 		return VPCERR_UNSUPPORTED;
 	}
@@ -356,58 +353,34 @@ qla24xx_vport_create_req_sanity_check(struct fc_vport *fc_vport)
 scsi_qla_host_t *
 qla24xx_create_vhost(struct fc_vport *fc_vport)
 {
-	scsi_qla_host_t *ha = shost_priv(fc_vport->shost);
+	scsi_qla_host_t *base_vha = shost_priv(fc_vport->shost);
+	struct qla_hw_data *ha = base_vha->hw;
 	scsi_qla_host_t *vha;
+	struct scsi_host_template *sht = &qla24xx_driver_template;
 	struct Scsi_Host *host;
 
-	host = scsi_host_alloc(&qla24xx_driver_template,
-	    sizeof(scsi_qla_host_t));
-	if (!host) {
-		printk(KERN_WARNING
-		    "qla2xxx: scsi_host_alloc() failed for vport\n");
+	vha = qla2x00_create_host(sht, ha);
+	if (!vha) {
+		DEBUG(printk("qla2xxx: scsi_host_alloc() failed for vport\n"));
 		return(NULL);
 	}
 
-	vha = shost_priv(host);
-
-	/* clone the parent hba */
-	memcpy(vha, ha, sizeof (scsi_qla_host_t));
-
+	host = vha->host;
 	fc_vport->dd_data = vha;
-
-	vha->node_name = kmalloc(WWN_SIZE * sizeof(char), GFP_KERNEL);
-	if (!vha->node_name)
-		goto create_vhost_failed_1;
-
-	vha->port_name = kmalloc(WWN_SIZE * sizeof(char), GFP_KERNEL);
-	if (!vha->port_name)
-		goto create_vhost_failed_2;
 
 	/* New host info */
 	u64_to_wwn(fc_vport->node_name, vha->node_name);
 	u64_to_wwn(fc_vport->port_name, vha->port_name);
 
-	vha->host = host;
-	vha->host_no = host->host_no;
-	vha->parent = ha;
 	vha->fc_vport = fc_vport;
 	vha->device_flags = 0;
 	vha->vp_idx = qla24xx_allocate_vp_id(vha);
 	if (vha->vp_idx > ha->max_npiv_vports) {
 		DEBUG15(printk("scsi(%ld): Couldn't allocate vp_id.\n",
 			vha->host_no));
-		goto create_vhost_failed_3;
+		goto create_vhost_failed;
 	}
 	vha->mgmt_svr_loop_id = 10 + vha->vp_idx;
-
-	init_completion(&vha->mbx_cmd_comp);
-	complete(&vha->mbx_cmd_comp);
-	init_completion(&vha->mbx_intr_comp);
-
-	INIT_LIST_HEAD(&vha->list);
-	INIT_LIST_HEAD(&vha->fcports);
-	INIT_LIST_HEAD(&vha->vp_fcports);
-	INIT_LIST_HEAD(&vha->work_list);
 
 	vha->dpc_flags = 0L;
 	set_bit(REGISTER_FDMI_NEEDED, &vha->dpc_flags);
@@ -423,7 +396,7 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 
 	qla2x00_start_timer(vha, qla2x00_timer, WATCH_INTERVAL);
 
-	host->can_queue = vha->request_q_length + 128;
+	host->can_queue = ha->req->length + 128;
 	host->this_id = 255;
 	host->cmd_per_lun = 3;
 	host->max_cmd_len = MAX_CMDSZ;
@@ -440,12 +413,6 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 
 	return vha;
 
-create_vhost_failed_3:
-	kfree(vha->port_name);
-
-create_vhost_failed_2:
-	kfree(vha->node_name);
-
-create_vhost_failed_1:
+create_vhost_failed:
 	return NULL;
 }
