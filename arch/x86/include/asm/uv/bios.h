@@ -35,13 +35,15 @@ enum uv_bios_cmd {
 	UV_BIOS_FREQ_BASE,
 	UV_BIOS_WATCHLIST_ALLOC,
 	UV_BIOS_WATCHLIST_FREE,
-	UV_BIOS_MEMPROTECT
+	UV_BIOS_MEMPROTECT,
+	UV_BIOS_GET_PARTITION_ADDR
 };
 
 /*
  * Status values returned from a BIOS call.
  */
 enum {
+	BIOS_STATUS_MORE_PASSES		=  1,
 	BIOS_STATUS_SUCCESS		=  0,
 	BIOS_STATUS_UNIMPLEMENTED	= -ENOSYS,
 	BIOS_STATUS_EINVAL		= -EINVAL,
@@ -102,6 +104,7 @@ extern int uv_bios_mq_watchlist_alloc(int, void *, unsigned int,
 					unsigned long *);
 extern int uv_bios_mq_watchlist_free(int, int);
 extern s64 uv_bios_change_memprotect(u64, u64, enum uv_memprotect);
+extern s64 uv_bios_reserved_page_pa(u64, u64 *, u64 *, u64 *);
 
 extern void uv_bios_init(void);
 
