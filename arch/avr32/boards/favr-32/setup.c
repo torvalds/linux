@@ -327,8 +327,6 @@ static int __init favr32_init(void)
 
 	at32_select_gpio(GPIO_PIN_PB(3), 0);	/* IRQ from ADS7843 */
 
-	at32_add_system_devices();
-
 	at32_add_device_usart(0);
 
 	set_hw_addr(at32_add_device_eth(0, &eth_data[0]));
