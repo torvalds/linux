@@ -556,17 +556,17 @@ typedef u16 hda_nid_t;
 /* bus operators */
 struct hda_bus_ops {
 	/* send a single command */
-	int (*command)(struct hda_codec *codec, hda_nid_t nid, int direct,
-		       unsigned int verb, unsigned int parm);
+	int (*command)(struct hda_bus *bus, unsigned int cmd);
 	/* get a response from the last command */
-	unsigned int (*get_response)(struct hda_codec *codec);
+	unsigned int (*get_response)(struct hda_bus *bus);
 	/* free the private data */
 	void (*private_free)(struct hda_bus *);
 	/* attach a PCM stream */
-	int (*attach_pcm)(struct hda_codec *codec, struct hda_pcm *pcm);
+	int (*attach_pcm)(struct hda_bus *bus, struct hda_codec *codec,
+			  struct hda_pcm *pcm);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	/* notify power-up/down from codec to controller */
-	void (*pm_notify)(struct hda_codec *codec);
+	void (*pm_notify)(struct hda_bus *bus);
 #endif
 };
 

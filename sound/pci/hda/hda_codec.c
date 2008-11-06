@@ -157,6 +157,23 @@ const char *snd_hda_get_jack_type(u32 cfg)
 				>> AC_DEFCFG_DEVICE_SHIFT];
 }
 
+/*
+ * Compose a 32bit command word to be sent to the HD-audio controller
+ */
+static inline unsigned int
+make_codec_cmd(struct hda_codec *codec, hda_nid_t nid, int direct,
+	       unsigned int verb, unsigned int parm)
+{
+	u32 val;
+
+	val = (u32)(codec->addr & 0x0f) << 28;
+	val |= (u32)direct << 27;
+	val |= (u32)nid << 20;
+	val |= verb << 8;
+	val |= parm;
+	return val;
+}
+
 /**
  * snd_hda_codec_read - send a command and get the response
  * @codec: the HDA codec
@@ -173,14 +190,17 @@ unsigned int snd_hda_codec_read(struct hda_codec *codec, hda_nid_t nid,
 				int direct,
 				unsigned int verb, unsigned int parm)
 {
+	struct hda_bus *bus = codec->bus;
 	unsigned int res;
+
+	res = make_codec_cmd(codec, nid, direct, verb, parm);
 	snd_hda_power_up(codec);
-	mutex_lock(&codec->bus->cmd_mutex);
-	if (!codec->bus->ops.command(codec, nid, direct, verb, parm))
-		res = codec->bus->ops.get_response(codec);
+	mutex_lock(&bus->cmd_mutex);
+	if (!bus->ops.command(bus, res))
+		res = bus->ops.get_response(bus);
 	else
 		res = (unsigned int)-1;
-	mutex_unlock(&codec->bus->cmd_mutex);
+	mutex_unlock(&bus->cmd_mutex);
 	snd_hda_power_down(codec);
 	return res;
 }
@@ -200,11 +220,15 @@ unsigned int snd_hda_codec_read(struct hda_codec *codec, hda_nid_t nid,
 int snd_hda_codec_write(struct hda_codec *codec, hda_nid_t nid, int direct,
 			 unsigned int verb, unsigned int parm)
 {
+	struct hda_bus *bus = codec->bus;
+	unsigned int res;
 	int err;
+
+	res = make_codec_cmd(codec, nid, direct, verb, parm);
 	snd_hda_power_up(codec);
-	mutex_lock(&codec->bus->cmd_mutex);
-	err = codec->bus->ops.command(codec, nid, direct, verb, parm);
-	mutex_unlock(&codec->bus->cmd_mutex);
+	mutex_lock(&bus->cmd_mutex);
+	err = bus->ops.command(bus, res);
+	mutex_unlock(&bus->cmd_mutex);
 	snd_hda_power_down(codec);
 	return err;
 }
@@ -1886,10 +1910,14 @@ int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid)
 int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
 			      int direct, unsigned int verb, unsigned int parm)
 {
+	struct hda_bus *bus = codec->bus;
+	unsigned int res;
 	int err;
+
+	res = make_codec_cmd(codec, nid, direct, verb, parm);
 	snd_hda_power_up(codec);
-	mutex_lock(&codec->bus->cmd_mutex);
-	err = codec->bus->ops.command(codec, nid, direct, verb, parm);
+	mutex_lock(&bus->cmd_mutex);
+	err = bus->ops.command(bus, res);
 	if (!err) {
 		struct hda_cache_head *c;
 		u32 key = build_cmd_cache_key(nid, verb);
@@ -1897,7 +1925,7 @@ int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
 		if (c)
 			c->val = parm;
 	}
-	mutex_unlock(&codec->bus->cmd_mutex);
+	mutex_unlock(&bus->cmd_mutex);
 	snd_hda_power_down(codec);
 	return err;
 }
@@ -2414,6 +2442,7 @@ static int set_pcm_default_values(struct hda_codec *codec,
 static int __devinit
 snd_hda_attach_pcm(struct hda_codec *codec, struct hda_pcm *pcm)
 {
+	struct hda_bus *bus = codec->bus;
 	struct hda_pcm_stream *info;
 	int stream, err;
 
@@ -2427,7 +2456,7 @@ snd_hda_attach_pcm(struct hda_codec *codec, struct hda_pcm *pcm)
 				return err;
 		}
 	}
-	return codec->bus->ops.attach_pcm(codec, pcm);
+	return bus->ops.attach_pcm(bus, codec, pcm);
 }
 
 /**
@@ -2628,6 +2657,7 @@ static void hda_power_work(struct work_struct *work)
 {
 	struct hda_codec *codec =
 		container_of(work, struct hda_codec, power_work.work);
+	struct hda_bus *bus = codec->bus;
 
 	if (!codec->power_on || codec->power_count) {
 		codec->power_transition = 0;
@@ -2635,8 +2665,8 @@ static void hda_power_work(struct work_struct *work)
 	}
 
 	hda_call_codec_suspend(codec);
-	if (codec->bus->ops.pm_notify)
-		codec->bus->ops.pm_notify(codec);
+	if (bus->ops.pm_notify)
+		bus->ops.pm_notify(bus);
 }
 
 static void hda_keep_power_on(struct hda_codec *codec)
@@ -2647,13 +2677,15 @@ static void hda_keep_power_on(struct hda_codec *codec)
 
 void snd_hda_power_up(struct hda_codec *codec)
 {
+	struct hda_bus *bus = codec->bus;
+
 	codec->power_count++;
 	if (codec->power_on || codec->power_transition)
 		return;
 
 	codec->power_on = 1;
-	if (codec->bus->ops.pm_notify)
-		codec->bus->ops.pm_notify(codec);
+	if (bus->ops.pm_notify)
+		bus->ops.pm_notify(bus);
 	hda_call_codec_resume(codec);
 	cancel_delayed_work(&codec->power_work);
 	codec->power_transition = 0;
