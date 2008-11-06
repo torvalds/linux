@@ -10,13 +10,13 @@
 #include <linux/module.h>
 #include <linux/mount.h>
 #include <linux/time.h>
-#include <linux/msdos_fs.h>
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
 #include <linux/backing-dev.h>
 #include <linux/blkdev.h>
 #include <linux/fsnotify.h>
 #include <linux/security.h>
+#include "fat.h"
 
 int fat_generic_ioctl(struct inode *inode, struct file *filp,
 		      unsigned int cmd, unsigned long arg)

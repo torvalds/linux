@@ -9,8 +9,8 @@
  */
 
 #include <linux/fs.h>
-#include <linux/msdos_fs.h>
 #include <linux/buffer_head.h>
+#include "fat.h"
 
 /* this must be > 0. */
 #define FAT_MAX_CACHE	8

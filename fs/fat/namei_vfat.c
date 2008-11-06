@@ -16,14 +16,13 @@
  */
 
 #include <linux/module.h>
-
 #include <linux/jiffies.h>
-#include <linux/msdos_fs.h>
 #include <linux/ctype.h>
 #include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include <linux/namei.h>
+#include "fat.h"
 
 static int vfat_revalidate(struct dentry *dentry, struct nameidata *nd)
 {

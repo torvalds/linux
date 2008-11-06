@@ -7,6 +7,7 @@
 #include <linux/fs.h>
 #include <linux/msdos_fs.h>
 #include <linux/blkdev.h>
+#include "fat.h"
 
 struct fatent_operations {
 	void (*ent_blocknr)(struct super_block *, int, int *, sector_t *);

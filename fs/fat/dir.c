@@ -16,11 +16,11 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/time.h>
-#include <linux/msdos_fs.h>
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include <linux/compat.h>
 #include <asm/uaccess.h>
+#include "fat.h"
 
 static inline loff_t fat_make_i_pos(struct super_block *sb,
 				    struct buffer_head *bh,

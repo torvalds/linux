@@ -8,8 +8,8 @@
 
 #include <linux/module.h>
 #include <linux/fs.h>
-#include <linux/msdos_fs.h>
 #include <linux/buffer_head.h>
+#include "fat.h"
 
 /*
  * fat_fs_panic reports a severe file system problem and sets the file system

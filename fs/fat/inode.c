@@ -16,7 +16,6 @@
 #include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/seq_file.h>
-#include <linux/msdos_fs.h>
 #include <linux/pagemap.h>
 #include <linux/mpage.h>
 #include <linux/buffer_head.h>
@@ -28,6 +27,7 @@
 #include <linux/writeback.h>
 #include <linux/log2.h>
 #include <asm/unaligned.h>
+#include "fat.h"
 
 #ifndef CONFIG_FAT_DEFAULT_IOCHARSET
 /* if user don't select VFAT, this is undefined. */

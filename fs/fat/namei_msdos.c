@@ -9,8 +9,8 @@
 #include <linux/module.h>
 #include <linux/time.h>
 #include <linux/buffer_head.h>
-#include <linux/msdos_fs.h>
 #include <linux/smp_lock.h>
+#include "fat.h"
 
 /* Characters that are undesirable in an MS-DOS file name */
 static unsigned char bad_chars[] = "*?<>|\"";
