@@ -383,6 +383,20 @@ more details, with real examples.
 	to prerequisites are referenced with $(src) (because they are not
 	generated files).
 
+    $(kecho)
+	echoing information to user in a rule is often a good practice
+	but when execution "make -s" one does not expect to see any output
+	except for warnings/errors.
+	To support this kbuild define $(kecho) which will echo out the
+	text following $(kecho) to stdout except if "make -s" is used.
+
+	Example:
+		#arch/blackfin/boot/Makefile
+		$(obj)/vmImage: $(obj)/vmlinux.gz
+			$(call if_changed,uimage)
+			@$(kecho) 'Kernel: $@ is ready'
+
+
 --- 3.11 $(CC) support functions
 
 	The kernel may be built with several different versions of
