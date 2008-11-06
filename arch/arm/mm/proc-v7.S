@@ -175,7 +175,6 @@ __v7_setup:
 	mcr	p15, 0, r10, c8, c7, 0		@ invalidate I + D TLBs
 	mcr	p15, 0, r10, c2, c0, 2		@ TTB control register
 	orr	r4, r4, #TTB_RGN_OC_WB		@ mark PTWs outer cacheable, WB
-	mcr	p15, 0, r4, c2, c0, 0		@ load TTB0
 	mcr	p15, 0, r4, c2, c0, 1		@ load TTB1
 	mov	r10, #0x1f			@ domains 0, 1 = manager
 	mcr	p15, 0, r10, c3, c0, 0		@ load domain access register
