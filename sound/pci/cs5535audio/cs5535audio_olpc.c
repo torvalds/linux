@@ -43,13 +43,8 @@ static int olpc_dc_info(struct snd_kcontrol *kctl,
 
 static int olpc_dc_get(struct snd_kcontrol *kctl, struct snd_ctl_elem_value *v)
 {
-	struct cs5535audio *cs5535au = snd_kcontrol_chip(kctl);
-	u8 val;
-
-	val = snd_ac97_read(cs5535au->ac97, AC97_AD_TEST2);
-	val >>= AC97_AD_HPFD_SHIFT;
-	v->value.integer.value[0] = val & 0x1;
-
+	v->value.integer.value[0] = geode_gpio_isset(OLPC_GPIO_MIC_AC,
+			GPIO_OUTPUT_VAL);
 	return 0;
 }
 
