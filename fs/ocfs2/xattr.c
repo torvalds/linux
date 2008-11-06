@@ -2898,7 +2898,6 @@ static int ocfs2_defrag_xattr_bucket(struct inode *inode,
 	size_t blocksize = inode->i_sb->s_blocksize;
 	handle_t *handle;
 	struct ocfs2_xattr_entry *xe;
-	struct ocfs2_xattr_bucket *wb = NULL;
 
 	/*
 	 * In order to make the operation more efficient and generic,
@@ -2912,21 +2911,11 @@ static int ocfs2_defrag_xattr_bucket(struct inode *inode,
 		goto out;
 	}
 
-	wb = ocfs2_xattr_bucket_new(inode);
-	if (!wb) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	ret = ocfs2_read_xattr_bucket(wb, blkno);
-	if (ret)
-		goto out;
-
 	buf = bucket_buf;
-	for (i = 0; i < wb->bu_blocks; i++, buf += blocksize)
-		memcpy(buf, bucket_block(wb, i), blocksize);
+	for (i = 0; i < bucket->bu_blocks; i++, buf += blocksize)
+		memcpy(buf, bucket_block(bucket, i), blocksize);
 
-	handle = ocfs2_start_trans((OCFS2_SB(inode->i_sb)), wb->bu_blocks);
+	handle = ocfs2_start_trans((OCFS2_SB(inode->i_sb)), bucket->bu_blocks);
 	if (IS_ERR(handle)) {
 		ret = PTR_ERR(handle);
 		handle = NULL;
@@ -2934,7 +2923,7 @@ static int ocfs2_defrag_xattr_bucket(struct inode *inode,
 		goto out;
 	}
 
-	ret = ocfs2_xattr_bucket_journal_access(handle, wb,
+	ret = ocfs2_xattr_bucket_journal_access(handle, bucket,
 						OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret < 0) {
 		mlog_errno(ret);
@@ -3007,14 +2996,13 @@ static int ocfs2_defrag_xattr_bucket(struct inode *inode,
 	     cmp_xe, swap_xe);
 
 	buf = bucket_buf;
-	for (i = 0; i < wb->bu_blocks; i++, buf += blocksize)
-		memcpy(bucket_block(wb, i), buf, blocksize);
-	ocfs2_xattr_bucket_journal_dirty(handle, wb);
+	for (i = 0; i < bucket->bu_blocks; i++, buf += blocksize)
+		memcpy(bucket_block(bucket, i), buf, blocksize);
+	ocfs2_xattr_bucket_journal_dirty(handle, bucket);
 
 commit:
 	ocfs2_commit_trans(OCFS2_SB(inode->i_sb), handle);
 out:
-	ocfs2_xattr_bucket_free(wb);
 	kfree(bucket_buf);
 	return ret;
 }
