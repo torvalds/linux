@@ -323,4 +323,7 @@ extern int fat_sync_bhs(struct buffer_head **bhs, int nr_bhs);
 int fat_cache_init(void);
 void fat_cache_destroy(void);
 
+/* helper for printk */
+typedef unsigned long long	llu;
+
 #endif /* !_FAT_H */
