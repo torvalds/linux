@@ -7,12 +7,29 @@
 #include <asm/olpc.h>
 #include "cs5535audio.h"
 
-/* OLPC has an additional feature on top of regular AD1888 codec
-features. This is support for an analog input mode. This is a
-2 step process. First, to turn off the AD1888 codec bias voltage
-and high pass filter. Second, to tell the embedded controller to
-reroute from a capacitive trace to a direct trace using an analog
-switch. The *_ec()s are what talk to that controller */
+/*
+ * OLPC has an additional feature on top of the regular AD1888 codec features.
+ * It has an Analog Input mode that is switched into (after disabling the
+ * High Pass Filter) via GPIO.  It is supported on B2 and later models.
+ */
+void olpc_analog_input(struct snd_ac97 *ac97, int on)
+{
+	int err;
+
+	/* update the High Pass Filter (via AC97_AD_TEST2) */
+	err = snd_ac97_update_bits(ac97, AC97_AD_TEST2,
+			1 << AC97_AD_HPFD_SHIFT, on << AC97_AD_HPFD_SHIFT);
+	if (err < 0) {
+		snd_printk(KERN_ERR "setting High Pass Filter - %d\n", err);
+		return;
+	}
+
+	/* set Analog Input through GPIO */
+	if (on)
+		geode_gpio_set(OLPC_GPIO_MIC_AC, GPIO_OUTPUT_VAL);
+	else
+		geode_gpio_clear(OLPC_GPIO_MIC_AC, GPIO_OUTPUT_VAL);
+}
 
 static int snd_cs5535audio_ctl_info(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_info *uinfo)
@@ -24,8 +41,6 @@ static int snd_cs5535audio_ctl_info(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#define AD1888_VREFOUT_EN_BIT (1 << 2)
-#define AD1888_HPF_EN_BIT (1 << 12)
 static int snd_cs5535audio_ctl_get(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
@@ -42,30 +57,9 @@ static int snd_cs5535audio_ctl_get(struct snd_kcontrol *kcontrol,
 static int snd_cs5535audio_ctl_put(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
-	int err;
 	struct cs5535audio *cs5535au = snd_kcontrol_chip(kcontrol);
-	u8 value;
-	struct snd_ac97 *ac97 = cs5535au->ac97;
 
-	/* value is 1 if analog input is desired */
-	value = ucontrol->value.integer.value[0];
-
-	/* turns off High Pass Filter if 1 */
-	if (value)
-		err = snd_ac97_update_bits(ac97, AC97_AD_TEST2,
-				AD1888_HPF_EN_BIT, AD1888_HPF_EN_BIT);
-	else
-		err = snd_ac97_update_bits(ac97, AC97_AD_TEST2,
-				AD1888_HPF_EN_BIT, 0);
-	if (err < 0)
-		snd_printk(KERN_ERR "Error updating AD_TEST2 %d\n", err);
-
-	/* B2 and newer writes directly to a GPIO pin */
-	if (value)
-		geode_gpio_set(OLPC_GPIO_MIC_AC, GPIO_OUTPUT_VAL);
-	else
-		geode_gpio_clear(OLPC_GPIO_MIC_AC, GPIO_OUTPUT_VAL);
-
+	olpc_analog_input(cs5535au->ac97, ucontrol->value.integer.value[0]);
 	return 1;
 }
 
