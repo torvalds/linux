@@ -373,9 +373,10 @@ parse_record:
 		if (de->attr == ATTR_EXT) {
 			int status = fat_parse_long(inode, &cpos, &bh, &de,
 						    &unicode, &nr_slots);
-			if (status < 0)
-				return status;
-			else if (status == PARSE_INVALID)
+			if (status < 0) {
+				err = status;
+				goto end_of_dir;
+			} else if (status == PARSE_INVALID)
 				continue;
 			else if (status == PARSE_NOT_LONGNAME)
 				goto parse_record;
