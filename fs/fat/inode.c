@@ -381,22 +381,12 @@ static int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 	MSDOS_I(inode)->i_attrs = de->attr & ATTR_UNUSED;
 	inode->i_blocks = ((inode->i_size + (sbi->cluster_size - 1))
 			   & ~((loff_t)sbi->cluster_size - 1)) >> 9;
-	inode->i_mtime.tv_sec =
-		date_dos2unix(le16_to_cpu(de->time), le16_to_cpu(de->date),
-			      sbi->options.tz_utc);
-	inode->i_mtime.tv_nsec = 0;
+
+	fat_time_fat2unix(sbi, &inode->i_mtime, de->time, de->date, 0);
 	if (sbi->options.isvfat) {
-		int secs = de->ctime_cs / 100;
-		int csecs = de->ctime_cs % 100;
-		inode->i_ctime.tv_sec  =
-			date_dos2unix(le16_to_cpu(de->ctime),
-				      le16_to_cpu(de->cdate),
-				      sbi->options.tz_utc) + secs;
-		inode->i_ctime.tv_nsec = csecs * 10000000;
-		inode->i_atime.tv_sec =
-			date_dos2unix(0, le16_to_cpu(de->adate),
-				      sbi->options.tz_utc);
-		inode->i_atime.tv_nsec = 0;
+		fat_time_fat2unix(sbi, &inode->i_ctime, de->ctime,
+				  de->cdate, de->ctime_cs);
+		fat_time_fat2unix(sbi, &inode->i_atime, 0, de->adate, 0);
 	} else
 		inode->i_ctime = inode->i_atime = inode->i_mtime;
 
@@ -591,16 +581,14 @@ retry:
 	raw_entry->attr = fat_attr(inode);
 	raw_entry->start = cpu_to_le16(MSDOS_I(inode)->i_logstart);
 	raw_entry->starthi = cpu_to_le16(MSDOS_I(inode)->i_logstart >> 16);
-	fat_date_unix2dos(inode->i_mtime.tv_sec, &raw_entry->time,
-			  &raw_entry->date, sbi->options.tz_utc);
+	fat_time_unix2fat(sbi, &inode->i_mtime, &raw_entry->time,
+			  &raw_entry->date, NULL);
 	if (sbi->options.isvfat) {
 		__le16 atime;
-		fat_date_unix2dos(inode->i_ctime.tv_sec, &raw_entry->ctime,
-				  &raw_entry->cdate, sbi->options.tz_utc);
-		fat_date_unix2dos(inode->i_atime.tv_sec, &atime,
-				  &raw_entry->adate, sbi->options.tz_utc);
-		raw_entry->ctime_cs = (inode->i_ctime.tv_sec & 1) * 100 +
-			inode->i_ctime.tv_nsec / 10000000;
+		fat_time_unix2fat(sbi, &inode->i_ctime, &raw_entry->ctime,
+				  &raw_entry->cdate, &raw_entry->ctime_cs);
+		fat_time_unix2fat(sbi, &inode->i_atime, &atime,
+				  &raw_entry->adate, NULL);
 	}
 	spin_unlock(&sbi->inode_hash_lock);
 	mark_buffer_dirty(bh);

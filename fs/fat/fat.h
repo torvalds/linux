@@ -263,9 +263,10 @@ extern int fat_flush_inodes(struct super_block *sb, struct inode *i1,
 extern void fat_fs_panic(struct super_block *s, const char *fmt, ...);
 extern void fat_clusters_flush(struct super_block *sb);
 extern int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster);
-extern int date_dos2unix(unsigned short time, unsigned short date, int tz_utc);
-extern void fat_date_unix2dos(int unix_date, __le16 *time, __le16 *date,
-			      int tz_utc);
+extern void fat_time_fat2unix(struct msdos_sb_info *sbi, struct timespec *ts,
+			      __le16 __time, __le16 __date, u8 time_cs);
+extern void fat_time_unix2fat(struct msdos_sb_info *sbi, struct timespec *ts,
+			      __le16 *time, __le16 *date, u8 *time_cs);
 extern int fat_sync_bhs(struct buffer_head **bhs, int nr_bhs);
 
 int fat_cache_init(void);

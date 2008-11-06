@@ -568,6 +568,7 @@ static int vfat_build_slots(struct inode *dir, const unsigned char *name,
 	unsigned char msdos_name[MSDOS_NAME];
 	wchar_t *uname;
 	__le16 time, date;
+	u8 time_cs;
 	int err, ulen, usize, i;
 	loff_t offset;
 
@@ -620,10 +621,10 @@ shortname:
 	memcpy(de->name, msdos_name, MSDOS_NAME);
 	de->attr = is_dir ? ATTR_DIR : ATTR_ARCH;
 	de->lcase = lcase;
-	fat_date_unix2dos(ts->tv_sec, &time, &date, sbi->options.tz_utc);
+	fat_time_unix2fat(sbi, ts, &time, &date, &time_cs);
 	de->time = de->ctime = time;
 	de->date = de->cdate = de->adate = date;
-	de->ctime_cs = 0;
+	de->ctime_cs = time_cs;
 	de->start = cpu_to_le16(cluster);
 	de->starthi = cpu_to_le16(cluster >> 16);
 	de->size = 0;

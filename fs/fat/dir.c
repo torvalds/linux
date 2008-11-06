@@ -1089,6 +1089,7 @@ int fat_alloc_new_dir(struct inode *dir, struct timespec *ts)
 	struct msdos_dir_entry *de;
 	sector_t blknr;
 	__le16 date, time;
+	u8 time_cs;
 	int err, cluster;
 
 	err = fat_alloc_clusters(dir, &cluster, 1);
@@ -1102,7 +1103,7 @@ int fat_alloc_new_dir(struct inode *dir, struct timespec *ts)
 		goto error_free;
 	}
 
-	fat_date_unix2dos(ts->tv_sec, &time, &date, sbi->options.tz_utc);
+	fat_time_unix2fat(sbi, ts, &time, &date, &time_cs);
 
 	de = (struct msdos_dir_entry *)bhs[0]->b_data;
 	/* filling the new directory slots ("." and ".." entries) */
@@ -1112,13 +1113,14 @@ int fat_alloc_new_dir(struct inode *dir, struct timespec *ts)
 	de[0].lcase = de[1].lcase = 0;
 	de[0].time = de[1].time = time;
 	de[0].date = de[1].date = date;
-	de[0].ctime_cs = de[1].ctime_cs = 0;
 	if (sbi->options.isvfat) {
 		/* extra timestamps */
 		de[0].ctime = de[1].ctime = time;
+		de[0].ctime_cs = de[1].ctime_cs = time_cs;
 		de[0].adate = de[0].cdate = de[1].adate = de[1].cdate = date;
 	} else {
 		de[0].ctime = de[1].ctime = 0;
+		de[0].ctime_cs = de[1].ctime_cs = 0;
 		de[0].adate = de[0].cdate = de[1].adate = de[1].cdate = 0;
 	}
 	de[0].start = cpu_to_le16(cluster);
