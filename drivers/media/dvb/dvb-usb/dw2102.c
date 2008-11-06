@@ -26,6 +26,10 @@
 #define USB_PID_DW2104 0x2104
 #endif
 
+#ifndef USB_PID_CINERGY_S
+#define USB_PID_CINERGY_S 0x0064
+#endif
+
 #define DW210X_READ_MSG 0
 #define DW210X_WRITE_MSG 1
 
@@ -577,6 +581,7 @@ static struct usb_device_id dw2102_table[] = {
 	{USB_DEVICE(USB_VID_CYPRESS, 0x2101)},
 	{USB_DEVICE(USB_VID_CYPRESS, 0x2104)},
 	{USB_DEVICE(0x9022, 0xd650)},
+	{USB_DEVICE(USB_VID_TERRATEC, USB_PID_CINERGY_S)},
 	{ }
 };
 
@@ -646,6 +651,7 @@ static int dw2102_load_firmware(struct usb_device *dev,
 			dw210x_op_rw(dev, 0xbf, 0x0040, 0, &reset, 0,
 					DW210X_WRITE_MSG);
 			break;
+		case USB_PID_CINERGY_S:
 		case USB_PID_DW2102:
 			dw210x_op_rw(dev, 0xbf, 0x0040, 0, &reset, 0,
 					DW210X_WRITE_MSG);
@@ -725,7 +731,7 @@ static struct dvb_usb_device_properties dw2102_properties = {
 			},
 		}
 	},
-	.num_device_descs = 2,
+	.num_device_descs = 3,
 	.devices = {
 		{"DVBWorld DVB-S 2102 USB2.0",
 			{&dw2102_table[0], NULL},
@@ -733,6 +739,10 @@ static struct dvb_usb_device_properties dw2102_properties = {
 		},
 		{"DVBWorld DVB-S 2101 USB2.0",
 			{&dw2102_table[1], NULL},
+			{NULL},
+		},
+		{"TerraTec Cinergy S USB",
+			{&dw2102_table[4], NULL},
 			{NULL},
 		},
 	}
