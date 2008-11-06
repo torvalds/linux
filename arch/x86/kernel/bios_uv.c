@@ -100,6 +100,39 @@ s64 uv_bios_get_sn_info(int fc, int *uvtype, long *partid, long *coher,
 	return ret;
 }
 
+int
+uv_bios_mq_watchlist_alloc(int blade, void *mq, unsigned int mq_size,
+			   unsigned long *intr_mmr_offset)
+{
+	union uv_watchlist_u size_blade;
+	unsigned long addr;
+	u64 watchlist;
+	s64 ret;
+
+	addr = (unsigned long)mq;
+	size_blade.size = mq_size;
+	size_blade.blade = blade;
+
+	/*
+	 * bios returns watchlist number or negative error number.
+	 */
+	ret = (int)uv_bios_call_irqsave(UV_BIOS_WATCHLIST_ALLOC, addr,
+			size_blade.val, (u64)intr_mmr_offset,
+			(u64)&watchlist, 0);
+	if (ret < BIOS_STATUS_SUCCESS)
+		return ret;
+
+	return watchlist;
+}
+EXPORT_SYMBOL_GPL(uv_bios_mq_watchlist_alloc);
+
+int
+uv_bios_mq_watchlist_free(int blade, int watchlist_num)
+{
+	return (int)uv_bios_call_irqsave(UV_BIOS_WATCHLIST_FREE,
+				blade, watchlist_num, 0, 0, 0);
+}
+EXPORT_SYMBOL_GPL(uv_bios_mq_watchlist_free);
 
 s64 uv_bios_freq_base(u64 clock_type, u64 *ticks_per_second)
 {

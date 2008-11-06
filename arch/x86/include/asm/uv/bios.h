@@ -32,7 +32,9 @@
 enum uv_bios_cmd {
 	UV_BIOS_COMMON,
 	UV_BIOS_GET_SN_INFO,
-	UV_BIOS_FREQ_BASE
+	UV_BIOS_FREQ_BASE,
+	UV_BIOS_WATCHLIST_ALLOC,
+	UV_BIOS_WATCHLIST_FREE
 };
 
 /*
@@ -71,6 +73,15 @@ union partition_info_u {
 	};
 };
 
+union uv_watchlist_u {
+	u64	val;
+	struct {
+		u64	blade	: 16,
+			size	: 32,
+			filler	: 16;
+	};
+};
+
 /*
  * bios calls have 6 parameters
  */
@@ -80,9 +91,13 @@ extern s64 uv_bios_call_reentrant(enum uv_bios_cmd, u64, u64, u64, u64, u64);
 
 extern s64 uv_bios_get_sn_info(int, int *, long *, long *, long *);
 extern s64 uv_bios_freq_base(u64, u64 *);
+extern int uv_bios_mq_watchlist_alloc(int, void *, unsigned int,
+					unsigned long *);
+extern int uv_bios_mq_watchlist_free(int, int);
 
 extern void uv_bios_init(void);
 
+extern unsigned long sn_rtc_cycles_per_second;
 extern int uv_type;
 extern long sn_partition_id;
 extern long sn_coherency_id;
