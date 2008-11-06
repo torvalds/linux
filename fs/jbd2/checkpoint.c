@@ -682,6 +682,7 @@ int __jbd2_journal_remove_checkpoint(struct journal_head *jh)
 	   safely remove this transaction from the log */
 
 	__jbd2_journal_drop_transaction(journal, transaction);
+	kfree(transaction);
 
 	/* Just in case anybody was waiting for more transactions to be
            checkpointed... */
@@ -756,5 +757,4 @@ void __jbd2_journal_drop_transaction(journal_t *journal, transaction_t *transact
 	J_ASSERT(journal->j_running_transaction != transaction);
 
 	jbd_debug(1, "Dropping transaction %d, all done\n", transaction->t_tid);
-	kfree(transaction);
 }

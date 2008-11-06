@@ -1179,8 +1179,8 @@ int jbd2_log_wait_commit(journal_t *journal, tid_t tid);
 int jbd2_log_do_checkpoint(journal_t *journal);
 
 void __jbd2_log_wait_for_space(journal_t *journal);
-extern void	__jbd2_journal_drop_transaction(journal_t *, transaction_t *);
-extern int	jbd2_cleanup_journal_tail(journal_t *);
+extern void __jbd2_journal_drop_transaction(journal_t *, transaction_t *);
+extern int jbd2_cleanup_journal_tail(journal_t *);
 
 /* Debugging code only: */
 
