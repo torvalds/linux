@@ -26,6 +26,8 @@ This driver is known to work with the following cards:
 	* SA P410i
 	* SA P411
 	* SA P812
+	* SA P712m
+	* SA P711m
 
 Detecting drive failures:
 -------------------------
