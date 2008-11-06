@@ -178,7 +178,7 @@ static int vmap_page_range(unsigned long addr, unsigned long end,
 static inline int is_vmalloc_or_module_addr(const void *x)
 {
 	/*
-	 * x86-64 and sparc64 put modules in a special place,
+	 * ARM, x86-64 and sparc64 put modules in a special place,
 	 * and fall back on vmalloc() if that fails. Others
 	 * just put it in the vmalloc space.
 	 */
