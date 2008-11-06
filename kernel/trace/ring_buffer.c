@@ -154,7 +154,7 @@ static inline int test_time_stamp(u64 delta)
 struct ring_buffer_per_cpu {
 	int				cpu;
 	struct ring_buffer		*buffer;
-	spinlock_t			lock;
+	raw_spinlock_t			lock;
 	struct lock_class_key		lock_key;
 	struct list_head		pages;
 	struct buffer_page		*head_page;	/* read from head */
@@ -291,7 +291,7 @@ rb_allocate_cpu_buffer(struct ring_buffer *buffer, int cpu)
 
 	cpu_buffer->cpu = cpu;
 	cpu_buffer->buffer = buffer;
-	spin_lock_init(&cpu_buffer->lock);
+	cpu_buffer->lock = (raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
 	INIT_LIST_HEAD(&cpu_buffer->pages);
 
 	page = kzalloc_node(ALIGN(sizeof(*page), cache_line_size()),
@@ -854,7 +854,8 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	if (write > BUF_PAGE_SIZE) {
 		struct buffer_page *next_page = tail_page;
 
-		spin_lock_irqsave(&cpu_buffer->lock, flags);
+		local_irq_save(flags);
+		__raw_spin_lock(&cpu_buffer->lock);
 
 		rb_inc_page(cpu_buffer, &next_page);
 
@@ -930,7 +931,8 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 			rb_set_commit_to_write(cpu_buffer);
 		}
 
-		spin_unlock_irqrestore(&cpu_buffer->lock, flags);
+		__raw_spin_unlock(&cpu_buffer->lock);
+		local_irq_restore(flags);
 
 		/* fail and let the caller try again */
 		return ERR_PTR(-EAGAIN);
@@ -953,7 +955,8 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	return event;
 
  out_unlock:
-	spin_unlock_irqrestore(&cpu_buffer->lock, flags);
+	__raw_spin_unlock(&cpu_buffer->lock);
+	local_irq_restore(flags);
 	return NULL;
 }
 
@@ -1524,7 +1527,8 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	struct buffer_page *reader = NULL;
 	unsigned long flags;
 
-	spin_lock_irqsave(&cpu_buffer->lock, flags);
+	local_irq_save(flags);
+	__raw_spin_lock(&cpu_buffer->lock);
 
  again:
 	reader = cpu_buffer->reader_page;
@@ -1574,7 +1578,8 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	goto again;
 
  out:
-	spin_unlock_irqrestore(&cpu_buffer->lock, flags);
+	__raw_spin_unlock(&cpu_buffer->lock);
+	local_irq_restore(flags);
 
 	return reader;
 }
@@ -1815,9 +1820,11 @@ ring_buffer_read_start(struct ring_buffer *buffer, int cpu)
 	atomic_inc(&cpu_buffer->record_disabled);
 	synchronize_sched();
 
-	spin_lock_irqsave(&cpu_buffer->lock, flags);
+	local_irq_save(flags);
+	__raw_spin_lock(&cpu_buffer->lock);
 	ring_buffer_iter_reset(iter);
-	spin_unlock_irqrestore(&cpu_buffer->lock, flags);
+	__raw_spin_unlock(&cpu_buffer->lock);
+	local_irq_restore(flags);
 
 	return iter;
 }
@@ -1903,11 +1910,13 @@ void ring_buffer_reset_cpu(struct ring_buffer *buffer, int cpu)
 	if (!cpu_isset(cpu, buffer->cpumask))
 		return;
 
-	spin_lock_irqsave(&cpu_buffer->lock, flags);
+	local_irq_save(flags);
+	__raw_spin_lock(&cpu_buffer->lock);
 
 	rb_reset_cpu(cpu_buffer);
 
-	spin_unlock_irqrestore(&cpu_buffer->lock, flags);
+	__raw_spin_unlock(&cpu_buffer->lock);
+	local_irq_restore(flags);
 }
 
 /**
