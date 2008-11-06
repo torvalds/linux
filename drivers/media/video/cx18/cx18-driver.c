@@ -446,6 +446,8 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 	mutex_init(&cx->i2c_bus_lock[0]);
 	mutex_init(&cx->i2c_bus_lock[1]);
 	mutex_init(&cx->gpio_lock);
+	mutex_init(&cx->epu2apu_mb_lock);
+	mutex_init(&cx->epu2cpu_mb_lock);
 
 	spin_lock_init(&cx->lock);
 
@@ -466,8 +468,6 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 	init_waitqueue_head(&cx->cap_w);
 	init_waitqueue_head(&cx->mb_apu_waitq);
 	init_waitqueue_head(&cx->mb_cpu_waitq);
-	init_waitqueue_head(&cx->mb_epu_waitq);
-	init_waitqueue_head(&cx->mb_hpu_waitq);
 	init_waitqueue_head(&cx->dma_waitq);
 
 	/* VBI */

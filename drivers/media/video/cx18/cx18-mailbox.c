@@ -30,11 +30,6 @@
 #define API_FAST (1 << 2) /* Short timeout */
 #define API_SLOW (1 << 3) /* Additional 300ms timeout */
 
-#define APU 0
-#define CPU 1
-#define EPU 2
-#define HPU 3
-
 struct cx18_api_info {
 	u32 cmd;
 	u8 flags;		/* Flags, see above */
@@ -117,10 +112,7 @@ static struct cx18_mailbox __iomem *cx18_mb_is_complete(struct cx18 *cx, int rpu
 		*irq = cx18_readl(cx, &cx->scb->epu2cpu_irq);
 		break;
 
-	case HPU:
-		mb = &cx->scb->epu2hpu_mb;
-		*state = cx18_readl(cx, &cx->scb->hpu_state);
-		*irq = cx18_readl(cx, &cx->scb->epu2hpu_irq);
+	default:
 		break;
 	}
 
@@ -142,25 +134,12 @@ static struct cx18_mailbox __iomem *cx18_mb_is_complete(struct cx18 *cx, int rpu
 	return NULL;
 }
 
-long cx18_mb_ack(struct cx18 *cx, const struct cx18_mailbox *mb)
+long cx18_mb_ack(struct cx18 *cx, const struct cx18_mailbox *mb, int rpu)
 {
-	const struct cx18_api_info *info = find_api_info(mb->cmd);
 	struct cx18_mailbox __iomem *ack_mb;
 	u32 ack_irq;
-	u8 rpu = CPU;
-
-	if (info == NULL && mb->cmd) {
-		CX18_WARN("Cannot ack unknown command %x\n", mb->cmd);
-		return -EINVAL;
-	}
-	if (info)
-		rpu = info->rpu;
 
 	switch (rpu) {
-	case HPU:
-		ack_irq = IRQ_EPU_TO_HPU_ACK;
-		ack_mb = &cx->scb->hpu2epu_mb;
-		break;
 	case APU:
 		ack_irq = IRQ_EPU_TO_APU_ACK;
 		ack_mb = &cx->scb->apu2epu_mb;
@@ -170,7 +149,8 @@ long cx18_mb_ack(struct cx18 *cx, const struct cx18_mailbox *mb)
 		ack_mb = &cx->scb->cpu2epu_mb;
 		break;
 	default:
-		CX18_WARN("Unknown RPU for command %x\n", mb->cmd);
+		CX18_WARN("Unhandled RPU (%d) for command %x ack\n",
+			  rpu, mb->cmd);
 		return -EINVAL;
 	}
 
@@ -187,8 +167,8 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	u32 state = 0, irq = 0, req, oldreq, err;
 	struct cx18_mailbox __iomem *mb;
 	wait_queue_head_t *waitq;
+	struct mutex *mb_lock;
 	int timeout = 100;
-	int cnt = 0;
 	int sig = 0;
 	int i;
 
@@ -201,10 +181,27 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 		CX18_DEBUG_HI_API("%s\n", info->name);
 	else
 		CX18_DEBUG_API("%s\n", info->name);
+
+	switch (info->rpu) {
+	case APU:
+		waitq = &cx->mb_apu_waitq;
+		mb_lock = &cx->epu2apu_mb_lock;
+		break;
+	case CPU:
+		waitq = &cx->mb_cpu_waitq;
+		mb_lock = &cx->epu2cpu_mb_lock;
+		break;
+	default:
+		CX18_WARN("Unknown RPU (%d) for API call\n", info->rpu);
+		return -EINVAL;
+	}
+
+	mutex_lock(mb_lock);
 	cx18_setup_page(cx, SCB_OFFSET);
 	mb = cx18_mb_is_complete(cx, info->rpu, &state, &irq, &req);
 
 	if (mb == NULL) {
+		mutex_unlock(mb_lock);
 		CX18_ERR("mb %s busy\n", info->name);
 		return -EBUSY;
 	}
@@ -216,34 +213,35 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	cx18_writel(cx, 0, &mb->error);
 	cx18_writel(cx, req, &mb->request);
 
-	switch (info->rpu) {
-	case APU: waitq = &cx->mb_apu_waitq; break;
-	case CPU: waitq = &cx->mb_cpu_waitq; break;
-	case EPU: waitq = &cx->mb_epu_waitq; break;
-	case HPU: waitq = &cx->mb_hpu_waitq; break;
-	default: return -EINVAL;
-	}
 	if (info->flags & API_FAST)
 		timeout /= 2;
 	cx18_write_reg_expect(cx, irq, SW1_INT_SET, irq, irq);
 
-	while (!sig && cx18_readl(cx, &mb->ack) != cx18_readl(cx, &mb->request)
-	       && cnt < 660) {
-		if (cnt > 200 && !in_atomic())
-			sig = cx18_msleep_timeout(10, 1);
-		cnt++;
-	}
-	if (sig)
-		return -EINTR;
-	if (cnt == 660) {
+	sig = wait_event_interruptible_timeout(
+		       *waitq,
+		       cx18_readl(cx, &mb->ack) == cx18_readl(cx, &mb->request),
+		       msecs_to_jiffies(timeout));
+	if (sig == 0) {
+		/* Timed out */
 		cx18_writel(cx, oldreq, &mb->request);
-		CX18_ERR("mb %s failed\n", info->name);
+		mutex_unlock(mb_lock);
+		CX18_ERR("sending %s timed out waiting for RPU to respond\n",
+			 info->name);
 		return -EINVAL;
+	} else if (sig < 0) {
+		/* Interrupted */
+		cx18_writel(cx, oldreq, &mb->request);
+		mutex_unlock(mb_lock);
+		CX18_WARN("sending %s interrupted waiting for RPU to respond\n",
+			  info->name);
+		return -EINTR;
 	}
+
 	for (i = 0; i < MAX_MB_ARGUMENTS; i++)
 		data[i] = cx18_readl(cx, &mb->args[i]);
 	err = cx18_readl(cx, &mb->error);
-	if (!in_atomic() && (info->flags & API_SLOW))
+	mutex_unlock(mb_lock);
+	if (info->flags & API_SLOW)
 		cx18_msleep_timeout(300, 0);
 	if (err)
 		CX18_DEBUG_API("mailbox error %08x for command %s\n", err,

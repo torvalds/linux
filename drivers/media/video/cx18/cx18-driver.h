@@ -378,7 +378,10 @@ struct cx18 {
 	u32 v4l2_cap;		/* V4L2 capabilities of card */
 	u32 hw_flags; 		/* Hardware description of the board */
 	unsigned mdl_offset;
-	struct cx18_scb __iomem *scb;   /* pointer to SCB */
+	struct cx18_scb __iomem *scb; /* pointer to SCB */
+	struct mutex epu2apu_mb_lock; /* protect driver to chip mailbox in SCB*/
+	struct mutex epu2cpu_mb_lock; /* protect driver to chip mailbox in SCB*/
+
 
 	struct cx18_av_state av_state;
 
@@ -428,8 +431,6 @@ struct cx18 {
 
 	wait_queue_head_t mb_apu_waitq;
 	wait_queue_head_t mb_cpu_waitq;
-	wait_queue_head_t mb_epu_waitq;
-	wait_queue_head_t mb_hpu_waitq;
 	wait_queue_head_t cap_w;
 	/* when the current DMA is finished this queue is woken up */
 	wait_queue_head_t dma_waitq;

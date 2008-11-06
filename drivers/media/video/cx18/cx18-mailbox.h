@@ -30,6 +30,11 @@
 #define MB_RESERVED_HANDLE_0 0
 #define MB_RESERVED_HANDLE_1 0xFFFFFFFF
 
+#define APU 0
+#define CPU 1
+#define EPU 2
+#define HPU 3
+
 struct cx18;
 
 /* The cx18_mailbox struct is the mailbox structure which is used for passing
@@ -68,6 +73,6 @@ int cx18_vapi_result(struct cx18 *cx, u32 data[MAX_MB_ARGUMENTS], u32 cmd,
 int cx18_vapi(struct cx18 *cx, u32 cmd, int args, ...);
 int cx18_api_func(void *priv, u32 cmd, int in, int out,
 		u32 data[CX2341X_MBOX_MAX_DATA]);
-long cx18_mb_ack(struct cx18 *cx, const struct cx18_mailbox *mb);
+long cx18_mb_ack(struct cx18 *cx, const struct cx18_mailbox *mb, int rpu);
 
 #endif

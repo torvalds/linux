@@ -38,7 +38,7 @@ void cx18_work_handler(struct work_struct *work)
 		cx18_dvb_work_handler(cx);
 }
 
-static void epu_dma_done(struct cx18 *cx, struct cx18_mailbox *mb)
+static void epu_dma_done(struct cx18 *cx, struct cx18_mailbox *mb, int rpu)
 {
 	u32 handle = mb->args[0];
 	struct cx18_stream *s = NULL;
@@ -59,7 +59,7 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_mailbox *mb)
 			  " handle %d\n", handle);
 		mb->error = CXERR_NOT_OPEN;
 		mb->cmd = 0;
-		cx18_mb_ack(cx, mb);
+		cx18_mb_ack(cx, mb, rpu);
 		return;
 	}
 
@@ -86,13 +86,13 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_mailbox *mb)
 	}
 	mb->error = 0;
 	mb->cmd = 0;
-	cx18_mb_ack(cx, mb);
+	cx18_mb_ack(cx, mb, rpu);
 	wake_up(&cx->dma_waitq);
 	if (s->id != -1)
 		wake_up(&s->waitq);
 }
 
-static void epu_debug(struct cx18 *cx, struct cx18_mailbox *mb)
+static void epu_debug(struct cx18 *cx, struct cx18_mailbox *mb, int rpu)
 {
 	char str[256] = { 0 };
 	char *p;
@@ -102,7 +102,7 @@ static void epu_debug(struct cx18 *cx, struct cx18_mailbox *mb)
 		cx18_memcpy_fromio(cx, str, cx->enc_mem + mb->args[1], 252);
 		str[252] = 0;
 	}
-	cx18_mb_ack(cx, mb);
+	cx18_mb_ack(cx, mb, rpu);
 	CX18_DEBUG_INFO("%x %s\n", mb->args[0], str);
 	p = strchr(str, '.');
 	if (!test_bit(CX18_F_I_LOADED_FW, &cx->i_flags) && p && p > str)
@@ -119,10 +119,10 @@ static void epu_cmd(struct cx18 *cx, u32 sw1)
 
 		switch (mb.cmd) {
 		case CX18_EPU_DMA_DONE:
-			epu_dma_done(cx, &mb);
+			epu_dma_done(cx, &mb, CPU);
 			break;
 		case CX18_EPU_DEBUG:
-			epu_debug(cx, &mb);
+			epu_debug(cx, &mb, CPU);
 			break;
 		default:
 			CX18_WARN("Unknown CPU_TO_EPU mailbox command %#08x\n",
@@ -135,11 +135,6 @@ static void epu_cmd(struct cx18 *cx, u32 sw1)
 		cx18_memcpy_fromio(cx, &mb, &cx->scb->apu2epu_mb, sizeof(mb));
 		CX18_WARN("Unknown APU_TO_EPU mailbox command %#08x\n", mb.cmd);
 	}
-
-	if (sw1 & IRQ_HPU_TO_EPU) {
-		cx18_memcpy_fromio(cx, &mb, &cx->scb->hpu2epu_mb, sizeof(mb));
-		CX18_WARN("Unknown HPU_TO_EPU mailbox command %#08x\n", mb.cmd);
-	}
 }
 
 static void xpu_ack(struct cx18 *cx, u32 sw2)
@@ -148,8 +143,6 @@ static void xpu_ack(struct cx18 *cx, u32 sw2)
 		wake_up(&cx->mb_cpu_waitq);
 	if (sw2 & IRQ_APU_TO_EPU_ACK)
 		wake_up(&cx->mb_apu_waitq);
-	if (sw2 & IRQ_HPU_TO_EPU_ACK)
-		wake_up(&cx->mb_hpu_waitq);
 }
 
 irqreturn_t cx18_irq_handler(int irq, void *dev_id)
