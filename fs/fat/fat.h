@@ -38,7 +38,8 @@ struct fat_mount_options {
 		 flush:1,	  /* write things quickly */
 		 nocase:1,	  /* Does this need case conversion? 0=need case conversion*/
 		 usefree:1,	  /* Use free_clusters for FAT32 */
-		 tz_utc:1;	  /* Filesystem timestamps are in UTC */
+		 tz_utc:1,	  /* Filesystem timestamps are in UTC */
+		 rodir:1;	  /* allow ATTR_RO for directory */
 };
 
 #define FAT_HASH_BITS	8
@@ -120,15 +121,20 @@ static inline struct msdos_inode_info *MSDOS_I(struct inode *inode)
 /*
  * If ->i_mode can't hold S_IWUGO (i.e. ATTR_RO), we use ->i_attrs to
  * save ATTR_RO instead of ->i_mode.
+ *
+ * If it's directory and !sbi->options.rodir, ATTR_RO isn't read-only
+ * bit, it's just used as flag for app.
  */
 static inline int fat_mode_can_hold_ro(struct inode *inode)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
 	mode_t mask;
 
-	if (S_ISDIR(inode->i_mode))
+	if (S_ISDIR(inode->i_mode)) {
+		if (!sbi->options.rodir)
+			return 0;
 		mask = ~sbi->options.fs_dmask;
-	else
+	} else
 		mask = ~sbi->options.fs_fmask;
 
 	if (!(mask & S_IWUGO))
@@ -140,7 +146,7 @@ static inline int fat_mode_can_hold_ro(struct inode *inode)
 static inline mode_t fat_make_mode(struct msdos_sb_info *sbi,
 				   u8 attrs, mode_t mode)
 {
-	if (attrs & ATTR_RO)
+	if (attrs & ATTR_RO && !((attrs & ATTR_DIR) && !sbi->options.rodir))
 		mode &= ~S_IWUGO;
 
 	if (attrs & ATTR_DIR)

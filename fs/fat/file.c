@@ -282,11 +282,18 @@ static int fat_sanitize_mode(const struct msdos_sb_info *sbi,
 	/*
 	 * Of the r and x bits, all (subject to umask) must be present. Of the
 	 * w bits, either all (subject to umask) or none must be present.
+	 *
+	 * If fat_mode_can_hold_ro(inode) is false, can't change w bits.
 	 */
 	if ((perm & (S_IRUGO | S_IXUGO)) != (inode->i_mode & (S_IRUGO|S_IXUGO)))
 		return -EPERM;
-	if ((perm & S_IWUGO) && ((perm & S_IWUGO) != (S_IWUGO & ~mask)))
-		return -EPERM;
+	if (fat_mode_can_hold_ro(inode)) {
+		if ((perm & S_IWUGO) && ((perm & S_IWUGO) != (S_IWUGO & ~mask)))
+			return -EPERM;
+	} else {
+		if ((perm & S_IWUGO) != (S_IWUGO & ~mask))
+			return -EPERM;
+	}
 
 	*mode_ptr &= S_IFMT | perm;
 
@@ -316,8 +323,8 @@ int fat_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(dentry->d_sb);
 	struct inode *inode = dentry->d_inode;
-	int error = 0;
 	unsigned int ia_valid;
+	int error;
 
 	/*
 	 * Expand the file. Since inode_setattr() updates ->i_size
@@ -371,7 +378,8 @@ int fat_setattr(struct dentry *dentry, struct iattr *attr)
 			attr->ia_valid &= ~ATTR_MODE;
 	}
 
-	error = inode_setattr(inode, attr);
+	if (attr->ia_valid)
+		error = inode_setattr(inode, attr);
 out:
 	return error;
 }
