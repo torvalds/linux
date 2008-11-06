@@ -30,18 +30,11 @@ static int snd_cs5535audio_ctl_get(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
 	struct cs5535audio *cs5535au = snd_kcontrol_chip(kcontrol);
-	u16 reg1, reg2;
+	u8 val;
 
-	/* if either AD1888 VRef Bias and High Pass Filter are enabled
-	or the EC is not in analog mode then flag as not in analog mode.
-	No EC command to read current analog state so we cache that. */
-	reg1 = snd_ac97_read(cs5535au->ac97, AC97_AD_MISC);
-	reg2 = snd_ac97_read(cs5535au->ac97, AC97_AD_TEST2);
-
-	if ((reg1 & AD1888_VREFOUT_EN_BIT) && (reg2 & AD1888_HPF_EN_BIT))
-		ucontrol->value.integer.value[0] = 1;
-	else
-		ucontrol->value.integer.value[0] = 0;
+	val = snd_ac97_read(cs5535au->ac97, AC97_AD_TEST2);
+	val >>= AC97_AD_HPFD_SHIFT;
+	ucontrol->value.integer.value[0] = val & 0x1;
 
 	return 0;
 }
@@ -56,16 +49,6 @@ static int snd_cs5535audio_ctl_put(struct snd_kcontrol *kcontrol,
 
 	/* value is 1 if analog input is desired */
 	value = ucontrol->value.integer.value[0];
-
-	/* sets High Z on VREF Bias if 1 */
-	if (value)
-		err = snd_ac97_update_bits(ac97, AC97_AD_MISC,
-				AD1888_VREFOUT_EN_BIT, AD1888_VREFOUT_EN_BIT);
-	else
-		err = snd_ac97_update_bits(ac97, AC97_AD_MISC,
-				AD1888_VREFOUT_EN_BIT, 0);
-	if (err < 0)
-		snd_printk(KERN_ERR "Error updating AD_MISC %d\n", err);
 
 	/* turns off High Pass Filter if 1 */
 	if (value)
