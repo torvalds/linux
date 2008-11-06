@@ -491,6 +491,8 @@ static void update_and_free_page(struct hstate *h, struct page *page)
 {
 	int i;
 
+	VM_BUG_ON(h->order >= MAX_ORDER);
+
 	h->nr_huge_pages--;
 	h->nr_huge_pages_node[page_to_nid(page)]--;
 	for (i = 0; i < pages_per_huge_page(h); i++) {
@@ -1005,6 +1007,14 @@ found:
 	return 1;
 }
 
+static void prep_compound_huge_page(struct page *page, int order)
+{
+	if (unlikely(order > (MAX_ORDER - 1)))
+		prep_compound_gigantic_page(page, order);
+	else
+		prep_compound_page(page, order);
+}
+
 /* Put bootmem huge pages into the standard lists after mem_map is up */
 static void __init gather_bootmem_prealloc(void)
 {
@@ -1015,7 +1025,7 @@ static void __init gather_bootmem_prealloc(void)
 		struct hstate *h = m->hstate;
 		__ClearPageReserved(page);
 		WARN_ON(page_count(page) != 1);
-		prep_compound_page(page, h->order);
+		prep_compound_huge_page(page, h->order);
 		prep_new_huge_page(h, page, page_to_nid(page));
 	}
 }
