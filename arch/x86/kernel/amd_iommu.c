@@ -526,6 +526,9 @@ static void dma_ops_free_addresses(struct dma_ops_domain *dom,
 {
 	address >>= PAGE_SHIFT;
 	iommu_area_free(dom->bitmap, address, pages);
+
+	if (address + pages >= dom->next_bit)
+		dom->need_flush = true;
 }
 
 /****************************************************************************
@@ -981,8 +984,10 @@ static void __unmap_single(struct amd_iommu *iommu,
 
 	dma_ops_free_addresses(dma_dom, dma_addr, pages);
 
-	if (amd_iommu_unmap_flush)
+	if (amd_iommu_unmap_flush || dma_dom->need_flush) {
 		iommu_flush_pages(iommu, dma_dom->domain.id, dma_addr, size);
+		dma_dom->need_flush = false;
+	}
 }
 
 /*
