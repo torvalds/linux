@@ -1,9 +1,10 @@
-#include <linux/olpc.h>
 #include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/info.h>
 #include <sound/control.h>
 #include <sound/ac97_codec.h>
+
+#include <asm/olpc.h>
 #include "cs5535audio.h"
 
 /* OLPC has an additional feature on top of regular AD1888 codec
@@ -81,13 +82,11 @@ static int snd_cs5535audio_ctl_put(struct snd_kcontrol *kcontrol,
 	if (err < 0)
 		snd_printk(KERN_ERR "Error updating AD_TEST2 %d\n", err);
 
+	/* B2 and newer writes directly to a GPIO pin */
 	if (value)
-		err = write_ec_command(0x01); /* activate MIC_AC_OFF */
+		geode_gpio_set(OLPC_GPIO_MIC_AC, GPIO_OUTPUT_VAL);
 	else
-		err = write_ec_command(0x02); /* deactivates MIC_AC_OFF */
-
-	if (err < 0)
-		snd_printk(KERN_ERR "Error talking to EC %d\n", err);
+		geode_gpio_clear(OLPC_GPIO_MIC_AC, GPIO_OUTPUT_VAL);
 
 	cs5535au->ec_analog_input_mode = value;
 
@@ -106,6 +105,9 @@ static struct snd_kcontrol_new snd_cs5535audio_controls __devinitdata =
 
 int __devinit olpc_quirks(struct snd_card *card, struct snd_ac97 *ac97)
 {
+	if (!machine_is_olpc())
+		return 0;
+
 	/* setup callback for mixer control that does analog input mode */
 	return snd_ctl_add(card, snd_ctl_new1(&snd_cs5535audio_controls,
 						ac97->private_data));
