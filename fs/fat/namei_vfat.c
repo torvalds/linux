@@ -745,13 +745,12 @@ static struct dentry *vfat_lookup(struct inode *dir, struct dentry *dentry,
 		 *
 		 * Switch to new one for reason of locality if possible.
 		 */
-		if (d_invalidate(alias) == 0)
-			dput(alias);
-		else {
-			iput(inode);
-			unlock_super(sb);
-			return alias;
-		}
+		BUG_ON(d_unhashed(alias));
+		if (!S_ISDIR(inode->i_mode))
+			d_move(alias, dentry);
+		iput(inode);
+		unlock_super(sb);
+		return alias;
 	}
 out:
 	unlock_super(sb);
