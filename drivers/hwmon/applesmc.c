@@ -125,6 +125,9 @@ static const char* temperature_sensors_sets[][36] = {
 	{ "TB0T", "TB1T", "TB2T", "TB3T", "TC0D", "TC0F", "TC0P", "TG0D",
 	  "TG0F", "TG0H", "TG0P", "TG0T", "TG1H", "TN0D", "TN0P", "TTF0",
 	  "Th2H", "Tm0P", "Ts0P", "Ts0S", NULL },
+/* Set 13: iMac 8,1 */
+	{ "TA0P", "TC0D", "TC0H", "TC0P", "TG0D", "TG0H", "TG0P", "TH0P",
+	  "TL0P", "TO0P", "TW0P", "Tm0P", "Tp0P", NULL },
 };
 
 /* List of keys used to read/write fan speeds */
@@ -1291,6 +1294,8 @@ static __initdata struct dmi_match_data applesmc_dmi_data[] = {
 	{ .accelerometer = 1, .light = 1, .temperature_set = 11 },
 /* MacBook Pro 5: accelerometer, backlight and temperature set 12 */
 	{ .accelerometer = 1, .light = 1, .temperature_set = 12 },
+/* iMac 8: light sensor only, temperature set 13 */
+	{ .accelerometer = 0, .light = 0, .temperature_set = 13 },
 };
 
 /* Note that DMI_MATCH(...,"MacBook") will match "MacBookPro1,1".
@@ -1340,6 +1345,10 @@ static __initdata struct dmi_system_id applesmc_whitelist[] = {
 	  DMI_MATCH(DMI_BOARD_VENDOR,"Apple"),
 	  DMI_MATCH(DMI_PRODUCT_NAME,"MacPro2") },
 		&applesmc_dmi_data[4]},
+	{ applesmc_dmi_match, "Apple iMac 8", {
+	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
+	  DMI_MATCH(DMI_PRODUCT_NAME, "iMac8") },
+		&applesmc_dmi_data[13]},
 	{ applesmc_dmi_match, "Apple iMac 5", {
 	  DMI_MATCH(DMI_BOARD_VENDOR, "Apple"),
 	  DMI_MATCH(DMI_PRODUCT_NAME, "iMac5") },
