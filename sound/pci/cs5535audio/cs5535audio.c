@@ -171,6 +171,13 @@ static int __devinit snd_cs5535audio_mixer(struct cs5535audio *cs5535au)
 
 	snd_ac97_tune_hardware(cs5535au->ac97, ac97_quirks, ac97_quirk);
 
+	/* olpc_quirks is dummied out if not olpc */
+	err = olpc_quirks(card, cs5535au->ac97);
+	if (err < 0) {
+		snd_printk(KERN_ERR "olpc quirks failed\n");
+		return err;
+	}
+
 	return 0;
 }
 

@@ -92,11 +92,20 @@ struct cs5535audio {
 	struct snd_pcm_substream *playback_substream;
 	struct snd_pcm_substream *capture_substream;
 	struct cs5535audio_dma dmas[NUM_CS5535AUDIO_DMAS];
+#ifdef CONFIG_OLPC
+	int ec_analog_input_mode;
+#endif
 };
 
 #ifdef CONFIG_PM
 int snd_cs5535audio_suspend(struct pci_dev *pci, pm_message_t state);
 int snd_cs5535audio_resume(struct pci_dev *pci);
+#endif
+
+#ifdef CONFIG_OLPC
+int olpc_quirks(struct snd_card *card, struct snd_ac97 *ac97);
+#else
+#define olpc_quirks(arg, arg2) (0)
 #endif
 
 int __devinit snd_cs5535audio_pcm(struct cs5535audio *cs5535audio);
