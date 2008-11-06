@@ -157,6 +157,8 @@ int __devinit olpc_quirks(struct snd_card *card, struct snd_ac97 *ac97)
 			return err;
 	}
 
+	/* turn off the mic by default */
+	olpc_mic_bias(ac97, 0);
 	return 0;
 }
 
