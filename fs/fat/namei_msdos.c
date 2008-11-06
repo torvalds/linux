@@ -203,33 +203,37 @@ static struct dentry *msdos_lookup(struct inode *dir, struct dentry *dentry,
 {
 	struct super_block *sb = dir->i_sb;
 	struct fat_slot_info sinfo;
-	struct inode *inode = NULL;
-	int res;
-
-	dentry->d_op = &msdos_dentry_operations;
+	struct inode *inode;
+	int err;
 
 	lock_super(sb);
-	res = msdos_find(dir, dentry->d_name.name, dentry->d_name.len, &sinfo);
-	if (res == -ENOENT)
-		goto add;
-	if (res < 0)
-		goto out;
+
+	err = msdos_find(dir, dentry->d_name.name, dentry->d_name.len, &sinfo);
+	if (err) {
+		if (err == -ENOENT) {
+			inode = NULL;
+			goto out;
+		}
+		goto error;
+	}
+
 	inode = fat_build_inode(sb, sinfo.de, sinfo.i_pos);
 	brelse(sinfo.bh);
 	if (IS_ERR(inode)) {
-		res = PTR_ERR(inode);
-		goto out;
+		err = PTR_ERR(inode);
+		goto error;
 	}
-add:
-	res = 0;
+out:
+	unlock_super(sb);
+	dentry->d_op = &msdos_dentry_operations;
 	dentry = d_splice_alias(inode, dentry);
 	if (dentry)
 		dentry->d_op = &msdos_dentry_operations;
-out:
+	return dentry;
+
+error:
 	unlock_super(sb);
-	if (!res)
-		return dentry;
-	return ERR_PTR(res);
+	return ERR_PTR(err);
 }
 
 /***** Creates a directory entry (name is already formatted). */
