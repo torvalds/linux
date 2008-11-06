@@ -199,7 +199,14 @@ static ssize_t fat_direct_IO(int rw, struct kiocb *iocb,
 
 static sector_t _fat_bmap(struct address_space *mapping, sector_t block)
 {
-	return generic_block_bmap(mapping, block, fat_get_block);
+	sector_t blocknr;
+
+	/* fat_get_cluster() assumes the requested blocknr isn't truncated. */
+	mutex_lock(&mapping->host->i_mutex);
+	blocknr = generic_block_bmap(mapping, block, fat_get_block);
+	mutex_unlock(&mapping->host->i_mutex);
+
+	return blocknr;
 }
 
 static const struct address_space_operations fat_aops = {
