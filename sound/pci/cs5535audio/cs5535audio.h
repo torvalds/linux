@@ -92,9 +92,6 @@ struct cs5535audio {
 	struct snd_pcm_substream *playback_substream;
 	struct snd_pcm_substream *capture_substream;
 	struct cs5535audio_dma dmas[NUM_CS5535AUDIO_DMAS];
-#ifdef CONFIG_OLPC
-	int ec_analog_input_mode;
-#endif
 };
 
 #ifdef CONFIG_PM

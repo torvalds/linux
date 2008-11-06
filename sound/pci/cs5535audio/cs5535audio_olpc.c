@@ -38,8 +38,7 @@ static int snd_cs5535audio_ctl_get(struct snd_kcontrol *kcontrol,
 	reg1 = snd_ac97_read(cs5535au->ac97, AC97_AD_MISC);
 	reg2 = snd_ac97_read(cs5535au->ac97, AC97_AD_TEST2);
 
-	if ((reg1 & AD1888_VREFOUT_EN_BIT) && (reg2 & AD1888_HPF_EN_BIT) &&
-		cs5535au->ec_analog_input_mode)
+	if ((reg1 & AD1888_VREFOUT_EN_BIT) && (reg2 & AD1888_HPF_EN_BIT))
 		ucontrol->value.integer.value[0] = 1;
 	else
 		ucontrol->value.integer.value[0] = 0;
@@ -57,10 +56,6 @@ static int snd_cs5535audio_ctl_put(struct snd_kcontrol *kcontrol,
 
 	/* value is 1 if analog input is desired */
 	value = ucontrol->value.integer.value[0];
-
-	/* use ec mode as flag to determine if any change needed */
-	if (cs5535au->ec_analog_input_mode == value)
-		return 0;
 
 	/* sets High Z on VREF Bias if 1 */
 	if (value)
@@ -87,8 +82,6 @@ static int snd_cs5535audio_ctl_put(struct snd_kcontrol *kcontrol,
 		geode_gpio_set(OLPC_GPIO_MIC_AC, GPIO_OUTPUT_VAL);
 	else
 		geode_gpio_clear(OLPC_GPIO_MIC_AC, GPIO_OUTPUT_VAL);
-
-	cs5535au->ec_analog_input_mode = value;
 
 	return 1;
 }
