@@ -27,7 +27,12 @@ int fat_generic_ioctl(struct inode *inode, struct file *filp,
 	switch (cmd) {
 	case FAT_IOCTL_GET_ATTRIBUTES:
 	{
-		u32 attr = fat_make_attrs(inode);
+		u32 attr;
+
+		mutex_lock(&inode->i_mutex);
+		attr = fat_make_attrs(inode);
+		mutex_unlock(&inode->i_mutex);
+
 		return put_user(attr, user_attr);
 	}
 	case FAT_IOCTL_SET_ATTRIBUTES:

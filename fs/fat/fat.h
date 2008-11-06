@@ -117,6 +117,25 @@ static inline struct msdos_inode_info *MSDOS_I(struct inode *inode)
 	return container_of(inode, struct msdos_inode_info, vfs_inode);
 }
 
+/*
+ * If ->i_mode can't hold S_IWUGO (i.e. ATTR_RO), we use ->i_attrs to
+ * save ATTR_RO instead of ->i_mode.
+ */
+static inline int fat_mode_can_hold_ro(struct inode *inode)
+{
+	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
+	mode_t mask;
+
+	if (S_ISDIR(inode->i_mode))
+		mask = ~sbi->options.fs_dmask;
+	else
+		mask = ~sbi->options.fs_fmask;
+
+	if (!(mask & S_IWUGO))
+		return 0;
+	return 1;
+}
+
 /* Convert attribute bits and a mask to the UNIX mode. */
 static inline mode_t fat_make_mode(struct msdos_sb_info *sbi,
 				   u8 attrs, mode_t mode)
@@ -133,14 +152,20 @@ static inline mode_t fat_make_mode(struct msdos_sb_info *sbi,
 /* Return the FAT attribute byte for this inode */
 static inline u8 fat_make_attrs(struct inode *inode)
 {
-	return ((inode->i_mode & S_IWUGO) ? ATTR_NONE : ATTR_RO) |
-		(S_ISDIR(inode->i_mode) ? ATTR_DIR : ATTR_NONE) |
-		MSDOS_I(inode)->i_attrs;
+	u8 attrs = MSDOS_I(inode)->i_attrs;
+	if (S_ISDIR(inode->i_mode))
+		attrs |= ATTR_DIR;
+	if (fat_mode_can_hold_ro(inode) && !(inode->i_mode & S_IWUGO))
+		attrs |= ATTR_RO;
+	return attrs;
 }
 
 static inline void fat_save_attrs(struct inode *inode, u8 attrs)
 {
-	MSDOS_I(inode)->i_attrs = attrs & ATTR_UNUSED;
+	if (fat_mode_can_hold_ro(inode))
+		MSDOS_I(inode)->i_attrs = attrs & ATTR_UNUSED;
+	else
+		MSDOS_I(inode)->i_attrs = attrs & (ATTR_UNUSED | ATTR_RO);
 }
 
 static inline unsigned char fat_checksum(const __u8 *name)
