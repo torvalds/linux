@@ -1766,6 +1766,7 @@ static inline int skb_bond_should_drop(struct sk_buff *skb)
 	return 0;
 }
 
+extern struct pernet_operations __net_initdata loopback_net_ops;
 #endif /* __KERNEL__ */
 
 #endif	/* _LINUX_DEV_H */
