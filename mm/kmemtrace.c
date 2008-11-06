@@ -319,7 +319,7 @@ void kmemtrace_init(void)
 	if (!kmemtrace_enabled) {
 		printk(KERN_INFO "kmemtrace: disabled. Pass "
 			"kemtrace.enable=yes as kernel parameter for "
-			"boot-time tracing.");
+			"boot-time tracing.\n");
 		return;
 	}
 	if (kmemtrace_start_probes()) {
