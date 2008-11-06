@@ -207,7 +207,6 @@ struct cx18_options {
 #define CX18_F_I_WORK_HANDLER_DVB	18   	/* work to be done for DVB */
 #define CX18_F_I_INITED			21 	/* set after first open */
 #define CX18_F_I_FAILED			22 	/* set if first open failed */
-#define CX18_F_I_WORK_INITED		23	/* worker thread initialized */
 
 /* These are the VBI types as they appear in the embedded VBI private packets. */
 #define CX18_SLICED_TYPE_TELETEXT_B     (1)
@@ -435,7 +434,6 @@ struct cx18 {
 	/* when the current DMA is finished this queue is woken up */
 	wait_queue_head_t dma_waitq;
 
-	struct workqueue_struct *work_queue;
 	struct work_struct work;
 
 	/* i2c */

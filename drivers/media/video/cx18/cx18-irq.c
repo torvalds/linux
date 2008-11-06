@@ -34,12 +34,6 @@
 void cx18_work_handler(struct work_struct *work)
 {
 	struct cx18 *cx = container_of(work, struct cx18, work);
-	if (test_and_clear_bit(CX18_F_I_WORK_INITED, &cx->i_flags)) {
-		struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
-		/* This thread must use the FIFO scheduler as it
-		 * is realtime sensitive. */
-		sched_setscheduler(current, SCHED_FIFO, &param);
-	}
 	if (test_and_clear_bit(CX18_F_I_WORK_HANDLER_DVB, &cx->i_flags))
 		cx18_dvb_work_handler(cx);
 }
@@ -194,7 +188,7 @@ irqreturn_t cx18_irq_handler(int irq, void *dev_id)
 		epu_cmd(cx, sw1);
 
 	if (test_and_clear_bit(CX18_F_I_HAVE_WORK, &cx->i_flags))
-		queue_work(cx->work_queue, &cx->work);
+		schedule_work(&cx->work);
 
 	return (sw1 || sw2 || hw2) ? IRQ_HANDLED : IRQ_NONE;
 }

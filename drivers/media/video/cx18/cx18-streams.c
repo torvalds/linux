@@ -560,15 +560,15 @@ int cx18_stop_v4l2_encode_stream(struct cx18_stream *s, int gop_end)
 		CX18_INFO("ignoring gop_end: not (yet?) supported by the firmware\n");
 	}
 
-	/* Tell the CX23418 it can't use our buffers anymore */
-	cx18_vapi(cx, CX18_CPU_DE_RELEASE_MDL, 1, s->handle);
-
 	if (s->type != CX18_ENC_STREAM_TYPE_TS)
 		atomic_dec(&cx->ana_capturing);
 	atomic_dec(&cx->tot_capturing);
 
 	/* Clear capture and no-read bits */
 	clear_bit(CX18_F_S_STREAMING, &s->s_flags);
+
+	/* Tell the CX23418 it can't use our buffers anymore */
+	cx18_vapi(cx, CX18_CPU_DE_RELEASE_MDL, 1, s->handle);
 
 	cx18_vapi(cx, CX18_DESTROY_TASK, 1, s->handle);
 	s->handle = CX18_INVALID_TASK_HANDLE;

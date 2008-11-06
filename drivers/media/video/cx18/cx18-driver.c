@@ -449,12 +449,6 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 
 	spin_lock_init(&cx->lock);
 
-	cx->work_queue = create_singlethread_workqueue(cx->name);
-	if (cx->work_queue == NULL) {
-		CX18_ERR("Could not create work queue\n");
-		return -1;
-	}
-
 	INIT_WORK(&cx->work, cx18_work_handler);
 
 	/* start counting open_id at 1 */
@@ -837,7 +831,6 @@ free_map:
 free_mem:
 	release_mem_region(cx->base_addr, CX18_MEM_SIZE);
 free_workqueue:
-	destroy_workqueue(cx->work_queue);
 err:
 	if (retval == 0)
 		retval = -ENODEV;
@@ -938,8 +931,7 @@ static void cx18_remove(struct pci_dev *pci_dev)
 
 	cx18_halt_firmware(cx);
 
-	flush_workqueue(cx->work_queue);
-	destroy_workqueue(cx->work_queue);
+	flush_scheduled_work();
 
 	cx18_streams_cleanup(cx, 1);
 

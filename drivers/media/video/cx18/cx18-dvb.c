@@ -109,20 +109,23 @@ static int cx18_dvb_start_feed(struct dvb_demux_feed *feed)
 	if (!demux->dmx.frontend)
 		return -EINVAL;
 
-	if (stream) {
-		mutex_lock(&stream->dvb.feedlock);
-		if (stream->dvb.feeding++ == 0) {
-			CX18_DEBUG_INFO("Starting Transport DMA\n");
-			ret = cx18_start_v4l2_encode_stream(stream);
-			if (ret < 0) {
-				CX18_DEBUG_INFO(
-					"Failed to start Transport DMA\n");
-				stream->dvb.feeding--;
-			}
-		} else
-			ret = 0;
-		mutex_unlock(&stream->dvb.feedlock);
-	}
+	if (!stream)
+		return -EINVAL;
+
+	mutex_lock(&stream->dvb.feedlock);
+	if (stream->dvb.feeding++ == 0) {
+		CX18_DEBUG_INFO("Starting Transport DMA\n");
+		set_bit(CX18_F_S_STREAMING, &stream->s_flags);
+		ret = cx18_start_v4l2_encode_stream(stream);
+		if (ret < 0) {
+			CX18_DEBUG_INFO("Failed to start Transport DMA\n");
+			stream->dvb.feeding--;
+			if (stream->dvb.feeding == 0)
+				clear_bit(CX18_F_S_STREAMING, &stream->s_flags);
+		}
+	} else
+		ret = 0;
+	mutex_unlock(&stream->dvb.feedlock);
 
 	return ret;
 }
@@ -313,9 +316,11 @@ void cx18_dvb_work_handler(struct cx18 *cx)
 			dvb_dmx_swfilter(&s->dvb.demux, buf->buf,
 					 buf->bytesused);
 
-		cx18_enqueue(s, buf, &s->q_free);
 		cx18_buf_sync_for_device(s, buf);
-		if (s->handle == CX18_INVALID_TASK_HANDLE) /* FIXME: improve */
+		cx18_enqueue(s, buf, &s->q_free);
+
+		if (s->handle == CX18_INVALID_TASK_HANDLE ||
+		    !test_bit(CX18_F_S_STREAMING, &s->s_flags))
 			continue;
 
 		cx18_vapi(cx, CX18_CPU_DE_SET_MDL, 5, s->handle,
