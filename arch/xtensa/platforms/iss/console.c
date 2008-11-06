@@ -24,7 +24,7 @@
 #include <asm/uaccess.h>
 #include <asm/irq.h>
 
-#include <asm/platform/simcall.h>
+#include <platform/platform-iss/simcall.h>
 
 #include <linux/tty.h>
 #include <linux/tty_flip.h>

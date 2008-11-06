@@ -1,6 +1,4 @@
 /*
- * include/asm-xtensa/platform.h
- *
  * Platform specific functions
  *
  * This file is subject to the terms and conditions of the GNU General

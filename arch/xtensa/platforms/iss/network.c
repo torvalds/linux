@@ -33,7 +33,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/platform_device.h>
 
-#include <asm/platform/simcall.h>
+#include <platform/platform-iss/simcall.h>
 
 #define DRIVER_NAME "iss-netdev"
 #define ETH_MAX_PACKET 1500

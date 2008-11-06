@@ -11,8 +11,8 @@
 #ifndef _XTENSA_IRQ_H
 #define _XTENSA_IRQ_H
 
-#include <asm/platform/hardware.h>
-#include <asm/variant/core.h>
+#include <platform/hardware.h>
+#include <variant/core.h>
 
 #ifndef PLATFORM_NR_IRQS
 # define PLATFORM_NR_IRQS 0

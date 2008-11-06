@@ -13,6 +13,6 @@
 #ifndef _XTENSA_SERIAL_H
 #define _XTENSA_SERIAL_H
 
-#include <asm/platform/serial.h>
+#include <platform/serial.h>
 
 #endif	/* _XTENSA_SERIAL_H */
