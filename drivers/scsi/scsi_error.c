@@ -1406,8 +1406,9 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 		return ADD_TO_MLQUEUE;
 	case GOOD:
 	case COMMAND_TERMINATED:
-	case TASK_ABORTED:
 		return SUCCESS;
+	case TASK_ABORTED:
+		goto maybe_retry;
 	case CHECK_CONDITION:
 		rtn = scsi_check_sense(scmd);
 		if (rtn == NEEDS_RETRY)
