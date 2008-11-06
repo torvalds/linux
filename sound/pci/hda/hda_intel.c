@@ -392,6 +392,7 @@ struct azx {
 	unsigned int msi :1;
 	unsigned int irq_pending_warned :1;
 	unsigned int via_dmapos_patch :1; /* enable DMA-position fix for VIA */
+	unsigned int probing :1; /* codec probing phase */
 
 	/* for debugging */
 	unsigned int last_cmd;	/* last issued command (to sync) */
@@ -622,6 +623,14 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus)
 			   chip->last_cmd);
 		chip->polling_mode = 1;
 		goto again;
+	}
+
+	if (chip->probing) {
+		/* If this critical timeout happens during the codec probing
+		 * phase, this is likely an access to a non-existing codec
+		 * slot.  Better to return an error and reset the system.
+		 */
+		return -1;
 	}
 
 	snd_printk(KERN_ERR "hda_intel: azx_get_response timeout, "
@@ -1175,8 +1184,28 @@ static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
 	return 0;
 }
 
+/*
+ * Probe the given codec address
+ */
+static int probe_codec(struct azx *chip, int addr)
+{
+	unsigned int cmd = (addr << 28) | (AC_NODE_ROOT << 20) |
+		(AC_VERB_PARAMETERS << 8) | AC_PAR_VENDOR_ID;
+	unsigned int res;
+
+	chip->probing = 1;
+	azx_send_cmd(chip->bus, cmd);
+	res = azx_get_response(chip->bus);
+	chip->probing = 0;
+	if (res == -1)
+		return -EIO;
+	snd_printdd("hda_intel: codec #%d probed OK\n", addr);
+	return 0;
+}
+
 static int azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
 				 struct hda_pcm *cpcm);
+static void azx_stop_chip(struct azx *chip);
 
 /*
  * Codec initialization
@@ -1216,6 +1245,32 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model,
 	max_slots = azx_max_codecs[chip->driver_type];
 	if (!max_slots)
 		max_slots = AZX_MAX_CODECS;
+
+	/* First try to probe all given codec slots */
+	for (c = 0; c < max_slots; c++) {
+		if ((chip->codec_mask & (1 << c)) & codec_probe_mask) {
+			if (probe_codec(chip, c) < 0) {
+				/* Some BIOSen give you wrong codec addresses
+				 * that don't exist
+				 */
+				snd_printk(KERN_WARNING
+					   "hda_intel: Codec #%d probe error; "
+					   "disabling it...\n", c);
+				chip->codec_mask &= ~(1 << c);
+				/* More badly, accessing to a non-existing
+				 * codec often screws up the controller chip,
+				 * and distrubs the further communications.
+				 * Thus if an error occurs during probing,
+				 * better to reset the controller chip to
+				 * get back to the sanity state.
+				 */
+				azx_stop_chip(chip);
+				azx_init_chip(chip);
+			}
+		}
+	}
+
+	/* Then create codec instances */
 	for (c = 0; c < max_slots; c++) {
 		if ((chip->codec_mask & (1 << c)) & codec_probe_mask) {
 			struct hda_codec *codec;
