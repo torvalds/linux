@@ -371,6 +371,15 @@ static int __init vfp_init(void)
 		 * in place; report VFP support to userspace.
 		 */
 		elf_hwcap |= HWCAP_VFP;
+#ifdef CONFIG_NEON
+		/*
+		 * Check for the presence of the Advanced SIMD
+		 * load/store instructions, integer and single
+		 * precision floating point operations.
+		 */
+		if ((fmrx(MVFR1) & 0x000fff00) == 0x00011100)
+			elf_hwcap |= HWCAP_NEON;
+#endif
 	}
 	return 0;
 }

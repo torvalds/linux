@@ -773,6 +773,7 @@ static const char *hwcap_str[] = {
 	"iwmmxt",
 	"crunch",
 	"thumbee",
+	"neon",
 	NULL
 };
 
