@@ -27,13 +27,7 @@ int fat_generic_ioctl(struct inode *inode, struct file *filp,
 	switch (cmd) {
 	case FAT_IOCTL_GET_ATTRIBUTES:
 	{
-		u32 attr;
-
-		if (inode->i_ino == MSDOS_ROOT_INO)
-			attr = ATTR_DIR;
-		else
-			attr = fat_attr(inode);
-
+		u32 attr = fat_make_attrs(inode);
 		return put_user(attr, user_attr);
 	}
 	case FAT_IOCTL_SET_ATTRIBUTES:
@@ -62,20 +56,16 @@ int fat_generic_ioctl(struct inode *inode, struct file *filp,
 		/* Merge in ATTR_VOLUME and ATTR_DIR */
 		attr |= (MSDOS_I(inode)->i_attrs & ATTR_VOLUME) |
 			(is_dir ? ATTR_DIR : 0);
-		oldattr = fat_attr(inode);
+		oldattr = fat_make_attrs(inode);
 
 		/* Equivalent to a chmod() */
 		ia.ia_valid = ATTR_MODE | ATTR_CTIME;
 		ia.ia_ctime = current_fs_time(inode->i_sb);
-		if (is_dir) {
-			ia.ia_mode = MSDOS_MKMODE(attr,
-				S_IRWXUGO & ~sbi->options.fs_dmask)
-				| S_IFDIR;
-		} else {
-			ia.ia_mode = MSDOS_MKMODE(attr,
-				(S_IRUGO | S_IWUGO | (inode->i_mode & S_IXUGO))
-				& ~sbi->options.fs_fmask)
-				| S_IFREG;
+		if (is_dir)
+			ia.ia_mode = fat_make_mode(sbi, attr, S_IRWXUGO);
+		else {
+			ia.ia_mode = fat_make_mode(sbi, attr,
+				S_IRUGO | S_IWUGO | (inode->i_mode & S_IXUGO));
 		}
 
 		/* The root directory has no attributes */
@@ -115,7 +105,7 @@ int fat_generic_ioctl(struct inode *inode, struct file *filp,
 				inode->i_flags &= S_IMMUTABLE;
 		}
 
-		MSDOS_I(inode)->i_attrs = attr & ATTR_UNUSED;
+		fat_save_attrs(inode, attr);
 		mark_inode_dirty(inode);
 up:
 		mnt_drop_write(filp->f_path.mnt);
@@ -274,7 +264,7 @@ static int fat_sanitize_mode(const struct msdos_sb_info *sbi,
 
 	/*
 	 * Note, the basic check is already done by a caller of
-	 * (attr->ia_mode & ~MSDOS_VALID_MODE)
+	 * (attr->ia_mode & ~FAT_VALID_MODE)
 	 */
 
 	if (S_ISREG(inode->i_mode))
@@ -314,6 +304,8 @@ static int fat_allow_set_time(struct msdos_sb_info *sbi, struct inode *inode)
 }
 
 #define TIMES_SET_FLAGS	(ATTR_MTIME_SET | ATTR_ATIME_SET | ATTR_TIMES_SET)
+/* valid file mode bits */
+#define FAT_VALID_MODE	(S_IFREG | S_IFDIR | S_IRWXUGO)
 
 int fat_setattr(struct dentry *dentry, struct iattr *attr)
 {
@@ -356,7 +348,7 @@ int fat_setattr(struct dentry *dentry, struct iattr *attr)
 	    ((attr->ia_valid & ATTR_GID) &&
 	     (attr->ia_gid != sbi->options.fs_gid)) ||
 	    ((attr->ia_valid & ATTR_MODE) &&
-	     (attr->ia_mode & ~MSDOS_VALID_MODE)))
+	     (attr->ia_mode & ~FAT_VALID_MODE)))
 		error = -EPERM;
 
 	if (error) {

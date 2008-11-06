@@ -46,11 +46,6 @@
 #define DELETED_FLAG	0xe5	/* marks file as deleted when in name[0] */
 #define IS_FREE(n)	(!*(n) || *(n) == DELETED_FLAG)
 
-/* valid file mode bits */
-#define MSDOS_VALID_MODE (S_IFREG | S_IFDIR | S_IRWXU | S_IRWXG | S_IRWXO)
-/* Convert attribute bits and a mask to the UNIX mode. */
-#define MSDOS_MKMODE(a, m) (m & (a & ATTR_RO ? S_IRUGO|S_IXUGO : S_IRWXUGO))
-
 #define MSDOS_NAME	11	/* maximum name length */
 #define MSDOS_LONGNAME	256	/* maximum name length */
 #define MSDOS_SLOTS	21	/* max # of slots for short and long names */

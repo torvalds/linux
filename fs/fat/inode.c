@@ -337,8 +337,7 @@ static int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 
 	if ((de->attr & ATTR_DIR) && !IS_FREE(de->name)) {
 		inode->i_generation &= ~1;
-		inode->i_mode = MSDOS_MKMODE(de->attr,
-			S_IRWXUGO & ~sbi->options.fs_dmask) | S_IFDIR;
+		inode->i_mode = fat_make_mode(sbi, de->attr, S_IRWXUGO);
 		inode->i_op = sbi->dir_ops;
 		inode->i_fop = &fat_dir_operations;
 
@@ -355,10 +354,9 @@ static int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 		inode->i_nlink = fat_subdirs(inode);
 	} else { /* not a directory */
 		inode->i_generation |= 1;
-		inode->i_mode = MSDOS_MKMODE(de->attr,
-		    ((sbi->options.showexec && !is_exec(de->name + 8))
-			? S_IRUGO|S_IWUGO : S_IRWXUGO)
-		    & ~sbi->options.fs_fmask) | S_IFREG;
+		inode->i_mode = fat_make_mode(sbi, de->attr,
+			((sbi->options.showexec && !is_exec(de->name + 8))
+			 ? S_IRUGO|S_IWUGO : S_IRWXUGO));
 		MSDOS_I(inode)->i_start = le16_to_cpu(de->start);
 		if (sbi->fat_bits == 32)
 			MSDOS_I(inode)->i_start |= (le16_to_cpu(de->starthi) << 16);
@@ -374,7 +372,8 @@ static int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 		if (sbi->options.sys_immutable)
 			inode->i_flags |= S_IMMUTABLE;
 	}
-	MSDOS_I(inode)->i_attrs = de->attr & ATTR_UNUSED;
+	fat_save_attrs(inode, de->attr);
+
 	inode->i_blocks = ((inode->i_size + (sbi->cluster_size - 1))
 			   & ~((loff_t)sbi->cluster_size - 1)) >> 9;
 
@@ -569,7 +568,7 @@ retry:
 		raw_entry->size = 0;
 	else
 		raw_entry->size = cpu_to_le32(inode->i_size);
-	raw_entry->attr = fat_attr(inode);
+	raw_entry->attr = fat_make_attrs(inode);
 	raw_entry->start = cpu_to_le16(MSDOS_I(inode)->i_logstart);
 	raw_entry->starthi = cpu_to_le16(MSDOS_I(inode)->i_logstart >> 16);
 	fat_time_unix2fat(sbi, &inode->i_mtime, &raw_entry->time,
@@ -1105,7 +1104,7 @@ static int fat_read_root(struct inode *inode)
 	inode->i_gid = sbi->options.fs_gid;
 	inode->i_version++;
 	inode->i_generation = 0;
-	inode->i_mode = (S_IRWXUGO & ~sbi->options.fs_dmask) | S_IFDIR;
+	inode->i_mode = fat_make_mode(sbi, ATTR_DIR, S_IRWXUGO);
 	inode->i_op = sbi->dir_ops;
 	inode->i_fop = &fat_dir_operations;
 	if (sbi->fat_bits == 32) {
@@ -1122,7 +1121,7 @@ static int fat_read_root(struct inode *inode)
 	MSDOS_I(inode)->i_logstart = 0;
 	MSDOS_I(inode)->mmu_private = inode->i_size;
 
-	MSDOS_I(inode)->i_attrs = ATTR_NONE;
+	fat_save_attrs(inode, ATTR_DIR);
 	inode->i_mtime.tv_sec = inode->i_atime.tv_sec = inode->i_ctime.tv_sec = 0;
 	inode->i_mtime.tv_nsec = inode->i_atime.tv_nsec = inode->i_ctime.tv_nsec = 0;
 	inode->i_nlink = fat_subdirs(inode)+2;

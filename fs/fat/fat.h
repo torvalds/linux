@@ -117,12 +117,30 @@ static inline struct msdos_inode_info *MSDOS_I(struct inode *inode)
 	return container_of(inode, struct msdos_inode_info, vfs_inode);
 }
 
+/* Convert attribute bits and a mask to the UNIX mode. */
+static inline mode_t fat_make_mode(struct msdos_sb_info *sbi,
+				   u8 attrs, mode_t mode)
+{
+	if (attrs & ATTR_RO)
+		mode &= ~S_IWUGO;
+
+	if (attrs & ATTR_DIR)
+		return (mode & ~sbi->options.fs_dmask) | S_IFDIR;
+	else
+		return (mode & ~sbi->options.fs_fmask) | S_IFREG;
+}
+
 /* Return the FAT attribute byte for this inode */
-static inline u8 fat_attr(struct inode *inode)
+static inline u8 fat_make_attrs(struct inode *inode)
 {
 	return ((inode->i_mode & S_IWUGO) ? ATTR_NONE : ATTR_RO) |
 		(S_ISDIR(inode->i_mode) ? ATTR_DIR : ATTR_NONE) |
 		MSDOS_I(inode)->i_attrs;
+}
+
+static inline void fat_save_attrs(struct inode *inode, u8 attrs)
+{
+	MSDOS_I(inode)->i_attrs = attrs & ATTR_UNUSED;
 }
 
 static inline unsigned char fat_checksum(const __u8 *name)
