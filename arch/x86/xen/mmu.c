@@ -874,7 +874,7 @@ static void __xen_pgd_pin(struct mm_struct *mm, pgd_t *pgd)
 #else /* CONFIG_X86_32 */
 #ifdef CONFIG_X86_PAE
 	/* Need to make sure unshared kernel PMD is pinnable */
-	xen_pin_page(mm, virt_to_page(pgd_page(pgd[pgd_index(TASK_SIZE)])),
+	xen_pin_page(mm, pgd_page(pgd[pgd_index(TASK_SIZE)]),
 		     PT_PMD);
 #endif
 	xen_do_pin(MMUEXT_PIN_L3_TABLE, PFN_DOWN(__pa(pgd)));
@@ -991,7 +991,7 @@ static void __xen_pgd_unpin(struct mm_struct *mm, pgd_t *pgd)
 
 #ifdef CONFIG_X86_PAE
 	/* Need to make sure unshared kernel PMD is unpinned */
-	xen_unpin_page(mm, virt_to_page(pgd_page(pgd[pgd_index(TASK_SIZE)])),
+	xen_unpin_page(mm, pgd_page(pgd[pgd_index(TASK_SIZE)]),
 		       PT_PMD);
 #endif
 
