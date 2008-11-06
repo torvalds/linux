@@ -654,7 +654,7 @@ static inline void prepare_page_table(struct meminfo *mi)
 	/*
 	 * Clear out all the mappings below the kernel image.
 	 */
-	for (addr = 0; addr < MODULE_START; addr += PGDIR_SIZE)
+	for (addr = 0; addr < MODULES_VADDR; addr += PGDIR_SIZE)
 		pmd_clear(pmd_off_k(addr));
 
 #ifdef CONFIG_XIP_KERNEL
@@ -766,7 +766,7 @@ static void __init devicemaps_init(struct machine_desc *mdesc)
 	 */
 #ifdef CONFIG_XIP_KERNEL
 	map.pfn = __phys_to_pfn(CONFIG_XIP_PHYS_ADDR & SECTION_MASK);
-	map.virtual = MODULE_START;
+	map.virtual = MODULES_VADDR;
 	map.length = ((unsigned long)&_etext - map.virtual + ~SECTION_MASK) & SECTION_MASK;
 	map.type = MT_ROM;
 	create_mapping(&map);
