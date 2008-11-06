@@ -3399,7 +3399,10 @@ void *snd_array_new(struct snd_array *array)
 {
 	if (array->used >= array->alloced) {
 		int num = array->alloced + array->alloc_align;
-		void *nlist = kcalloc(num + 1, array->elem_size, GFP_KERNEL);
+		void *nlist;
+		if (snd_BUG_ON(num >= 4096))
+			return NULL;
+		nlist = kcalloc(num + 1, array->elem_size, GFP_KERNEL);
 		if (!nlist)
 			return NULL;
 		if (array->list) {
