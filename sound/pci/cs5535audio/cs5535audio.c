@@ -164,6 +164,9 @@ static int __devinit snd_cs5535audio_mixer(struct cs5535audio *cs5535au)
 	ac97.private_data = cs5535au;
 	ac97.pci = cs5535au->pci;
 
+	/* set any OLPC-specific scaps */
+	olpc_prequirks(card, &ac97);
+
 	if ((err = snd_ac97_mixer(pbus, &ac97, &cs5535au->ac97)) < 0) {
 		snd_printk(KERN_ERR "mixer failed\n");
 		return err;

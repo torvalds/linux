@@ -103,9 +103,16 @@ int snd_cs5535audio_resume(struct pci_dev *pci);
 #endif
 
 #ifdef CONFIG_OLPC
-int olpc_quirks(struct snd_card *card, struct snd_ac97 *ac97);
+void __devinit olpc_prequirks(struct snd_card *card,
+		struct snd_ac97_template *ac97);
+int __devinit olpc_quirks(struct snd_card *card, struct snd_ac97 *ac97);
 #else
-#define olpc_quirks(arg, arg2) (0)
+static inline void olpc_prequirks(struct snd_card *card,
+		struct snd_ac97_template *ac97) { }
+static inline int olpc_quirks(struct snd_card *card, struct snd_ac97 *ac97)
+{
+	return 0;
+}
 #endif
 
 int __devinit snd_cs5535audio_pcm(struct cs5535audio *cs5535audio);

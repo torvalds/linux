@@ -103,6 +103,17 @@ static struct snd_kcontrol_new snd_cs5535audio_controls __devinitdata =
 	.private_value = 0
 };
 
+void __devinit olpc_prequirks(struct snd_card *card,
+		struct snd_ac97_template *ac97)
+{
+	if (!machine_is_olpc())
+		return;
+
+	/* invert EAPD if on an OLPC B3 or higher */
+	if (olpc_board_at_least(olpc_board_pre(0xb3)))
+		ac97->scaps |= AC97_SCAP_INV_EAPD;
+}
+
 int __devinit olpc_quirks(struct snd_card *card, struct snd_ac97 *ac97)
 {
 	if (!machine_is_olpc())
