@@ -363,11 +363,27 @@ static int snd_cs5535audio_capture_open(struct snd_pcm_substream *substream)
 	if ((err = snd_pcm_hw_constraint_integer(runtime,
 					 SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
 		return err;
+
+#ifdef CONFIG_OLPC
+	/* Enable the V_ref bias only while recording. */
+	err = snd_ac97_update_bits(cs5535au->ac97, AC97_AD_MISC,
+			1 << AC97_AD_VREFD_SHIFT, 0);
+	if (err < 0)
+		snd_printk(KERN_ERR "Error updating AD_MISC %d\n", err);
+#endif
 	return 0;
 }
 
 static int snd_cs5535audio_capture_close(struct snd_pcm_substream *substream)
 {
+	int err;
+	struct cs5535audio *cs5535au = snd_pcm_substream_chip(substream);
+
+#ifdef CONFIG_OLPC
+	/* Disable V_ref bias. */
+	err = snd_ac97_update_bits(cs5535au->ac97, AC97_AD_MISC,
+			1 << AC97_AD_VREFD_SHIFT, 1 << AC97_AD_VREFD_SHIFT);
+#endif
 	return 0;
 }
 
