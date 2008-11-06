@@ -101,18 +101,18 @@
 #define LAST_VM86_IRQ		15
 #define invalid_vm86_irq(irq)	((irq) < 3 || (irq) > 15)
 
-#if defined(CONFIG_X86_IO_APIC) && !defined(CONFIG_PARAVIRT) && !defined(CONFIG_X86_VISWS) && !defined(CONFIG_X86_VOYAGER)
+#if defined(CONFIG_X86_IO_APIC) && !defined(CONFIG_X86_VOYAGER)
 # if NR_CPUS < MAX_IO_APICS
 #  define NR_IRQS (NR_VECTORS + (32 * NR_CPUS))
 # else
 #  define NR_IRQS (NR_VECTORS + (32 * MAX_IO_APICS))
 # endif
 
-#elif defined(CONFIG_PARAVIRT) || defined(CONFIG_X86_VISWS) || defined(CONFIG_X86_VOYAGER)
+#elif defined(CONFIG_X86_VOYAGER)
 
 # define NR_IRQS		224
 
-#else /* IO_APIC || PARAVIRT */
+#else /* IO_APIC || VOYAGER */
 
 # define NR_IRQS		16
 
