@@ -91,7 +91,9 @@ struct msdos_inode_info {
 	/* for avoiding the race between fat_free() and fat_get_cluster() */
 	unsigned int cache_valid_id;
 
-	loff_t mmu_private;
+	/* NOTE: mmu_private is 64bits, so must hold ->i_mutex to access */
+	loff_t mmu_private;	/* physically allocated size */
+
 	int i_start;		/* first cluster or 0 */
 	int i_logstart;		/* logical first cluster */
 	int i_attrs;		/* unused attribute bits */
@@ -222,7 +224,7 @@ extern void fat_cache_inval_inode(struct inode *inode);
 extern int fat_get_cluster(struct inode *inode, int cluster,
 			   int *fclus, int *dclus);
 extern int fat_bmap(struct inode *inode, sector_t sector, sector_t *phys,
-		    unsigned long *mapped_blocks);
+		    unsigned long *mapped_blocks, int create);
 
 /* fat/dir.c */
 extern const struct file_operations fat_dir_operations;
