@@ -31,8 +31,8 @@ void olpc_analog_input(struct snd_ac97 *ac97, int on)
 		geode_gpio_clear(OLPC_GPIO_MIC_AC, GPIO_OUTPUT_VAL);
 }
 
-static int snd_cs5535audio_ctl_info(struct snd_kcontrol *kcontrol,
-					struct snd_ctl_elem_info *uinfo)
+static int olpc_dc_info(struct snd_kcontrol *kctl,
+		struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 1;
@@ -41,35 +41,33 @@ static int snd_cs5535audio_ctl_info(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int snd_cs5535audio_ctl_get(struct snd_kcontrol *kcontrol,
-					struct snd_ctl_elem_value *ucontrol)
+static int olpc_dc_get(struct snd_kcontrol *kctl, struct snd_ctl_elem_value *v)
 {
-	struct cs5535audio *cs5535au = snd_kcontrol_chip(kcontrol);
+	struct cs5535audio *cs5535au = snd_kcontrol_chip(kctl);
 	u8 val;
 
 	val = snd_ac97_read(cs5535au->ac97, AC97_AD_TEST2);
 	val >>= AC97_AD_HPFD_SHIFT;
-	ucontrol->value.integer.value[0] = val & 0x1;
+	v->value.integer.value[0] = val & 0x1;
 
 	return 0;
 }
 
-static int snd_cs5535audio_ctl_put(struct snd_kcontrol *kcontrol,
-					struct snd_ctl_elem_value *ucontrol)
+static int olpc_dc_put(struct snd_kcontrol *kctl, struct snd_ctl_elem_value *v)
 {
-	struct cs5535audio *cs5535au = snd_kcontrol_chip(kcontrol);
+	struct cs5535audio *cs5535au = snd_kcontrol_chip(kctl);
 
-	olpc_analog_input(cs5535au->ac97, ucontrol->value.integer.value[0]);
+	olpc_analog_input(cs5535au->ac97, v->value.integer.value[0]);
 	return 1;
 }
 
 static struct snd_kcontrol_new snd_cs5535audio_controls __devinitdata =
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "Analog Input Switch",
-	.info = snd_cs5535audio_ctl_info,
-	.get = snd_cs5535audio_ctl_get,
-	.put = snd_cs5535audio_ctl_put,
+	.name = "DC Mode Enable",
+	.info = olpc_dc_info,
+	.get = olpc_dc_get,
+	.put = olpc_dc_put,
 	.private_value = 0
 };
 
@@ -86,10 +84,18 @@ void __devinit olpc_prequirks(struct snd_card *card,
 
 int __devinit olpc_quirks(struct snd_card *card, struct snd_ac97 *ac97)
 {
+	struct snd_ctl_elem_id elem;
+
 	if (!machine_is_olpc())
 		return 0;
 
-	/* setup callback for mixer control that does analog input mode */
+	/* drop the original AD1888 HPF control */
+	memset(&elem, 0, sizeof(elem));
+	elem.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+	strncpy(elem.name, "High Pass Filter Enable", sizeof(elem.name));
+	snd_ctl_remove_id(card, &elem);
+
+	/* add the override for OLPC's HPF */
 	return snd_ctl_add(card, snd_ctl_new1(&snd_cs5535audio_controls,
 						ac97->private_data));
 }
