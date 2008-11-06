@@ -441,6 +441,7 @@ static void lapic_timer_setup(enum clock_event_mode mode,
 		v = apic_read(APIC_LVTT);
 		v |= (APIC_LVT_MASKED | LOCAL_TIMER_VECTOR);
 		apic_write(APIC_LVTT, v);
+		apic_write(APIC_TMICT, 0xffffffff);
 		break;
 	case CLOCK_EVT_MODE_RESUME:
 		/* Nothing to do here */
