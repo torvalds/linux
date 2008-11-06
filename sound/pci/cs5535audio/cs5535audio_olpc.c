@@ -1,4 +1,14 @@
-#include <sound/driver.h>
+/*
+ * OLPC XO-1 additional sound features
+ *
+ * Copyright © 2006  Jaya Kumar <jayakumar.lkml@gmail.com>
+ * Copyright © 2007-2008  Andres Salomon <dilinger@debian.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ */
 #include <sound/core.h>
 #include <sound/info.h>
 #include <sound/control.h>
@@ -106,7 +116,7 @@ static struct snd_kcontrol_new olpc_cs5535audio_ctls[] __devinitdata = {
 	.info = olpc_dc_info,
 	.get = olpc_dc_get,
 	.put = olpc_dc_put,
-	.private_value = 0
+	.private_value = 0,
 },
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -161,4 +171,3 @@ int __devinit olpc_quirks(struct snd_card *card, struct snd_ac97 *ac97)
 	olpc_mic_bias(ac97, 0);
 	return 0;
 }
-
