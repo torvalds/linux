@@ -359,7 +359,7 @@ reserve_memory (void)
 	}
 #endif
 
-#ifdef CONFIG_CRASH_KERNEL
+#ifdef CONFIG_CRASH_DUMP
 	if (reserve_elfcorehdr(&rsvd_region[n].start,
 			       &rsvd_region[n].end) == 0)
 		n++;
