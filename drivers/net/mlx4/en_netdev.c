@@ -706,7 +706,7 @@ tx_err:
 	mlx4_en_release_rss_steer(priv);
 rx_err:
 	for (i = 0; i < priv->rx_ring_num; i++)
-		mlx4_en_deactivate_rx_ring(priv, &priv->rx_ring[rx_index]);
+		mlx4_en_deactivate_rx_ring(priv, &priv->rx_ring[i]);
 cq_err:
 	while (rx_index--)
 		mlx4_en_deactivate_cq(priv, &priv->rx_cq[rx_index]);
