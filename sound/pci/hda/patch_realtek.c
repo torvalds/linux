@@ -4272,13 +4272,13 @@ static void alc260_hp_master_update(struct hda_codec *codec,
 	struct alc_spec *spec = codec->spec;
 	unsigned int val = spec->master_sw ? PIN_HP : 0;
 	/* change HP and line-out pins */
-	snd_hda_codec_write(codec, 0x0f, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+	snd_hda_codec_write(codec, hp, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
 			    val);
-	snd_hda_codec_write(codec, 0x10, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+	snd_hda_codec_write(codec, line, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
 			    val);
 	/* mono (speaker) depending on the HP jack sense */
 	val = (val && !spec->jack_present) ? PIN_OUT : 0;
-	snd_hda_codec_write(codec, 0x11, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+	snd_hda_codec_write(codec, mono, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
 			    val);
 }
 
@@ -4357,7 +4357,7 @@ static struct snd_kcontrol_new alc260_hp_3013_mixer[] = {
 		.info = snd_ctl_boolean_mono_info,
 		.get = alc260_hp_master_sw_get,
 		.put = alc260_hp_master_sw_put,
-		.private_value = (0x10 << 16) | (0x15 << 8) | 0x11
+		.private_value = (0x15 << 16) | (0x10 << 8) | 0x11
 	},
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x09, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Front Playback Switch", 0x10, 0x0, HDA_OUTPUT),
@@ -4410,7 +4410,7 @@ static void alc260_hp_3013_automute(struct hda_codec *codec)
 	present = snd_hda_codec_read(codec, 0x15, 0,
 				     AC_VERB_GET_PIN_SENSE, 0);
 	spec->jack_present = (present & AC_PINSENSE_PRESENCE) != 0;
-	alc260_hp_master_update(codec, 0x10, 0x15, 0x11);
+	alc260_hp_master_update(codec, 0x15, 0x10, 0x11);
 }
 
 static void alc260_hp_3013_unsol_event(struct hda_codec *codec,
