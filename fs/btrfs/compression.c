@@ -314,6 +314,13 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 		    PAGE_CACHE_SIZE) {
 			bio_get(bio);
 
+			/*
+			 * inc the count before we submit the bio so
+			 * we know the end IO handler won't happen before
+			 * we inc the count.  Otherwise, the cb might get
+			 * freed before we're done setting it up
+			 */
+			atomic_inc(&cb->pending_bios);
 			ret = btrfs_bio_wq_end_io(root->fs_info, bio, 0);
 			BUG_ON(ret);
 
@@ -323,7 +330,6 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 			bio_put(bio);
 
 			bio = compressed_bio_alloc(bdev, first_byte, GFP_NOFS);
-			atomic_inc(&cb->pending_bios);
 			bio->bi_private = cb;
 			bio->bi_end_io = end_compressed_bio_write;
 			bio_add_page(bio, page, PAGE_CACHE_SIZE, 0);
@@ -573,6 +579,14 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 			ret = btrfs_bio_wq_end_io(root->fs_info, comp_bio, 0);
 			BUG_ON(ret);
 
+			/*
+			 * inc the count before we submit the bio so
+			 * we know the end IO handler won't happen before
+			 * we inc the count.  Otherwise, the cb might get
+			 * freed before we're done setting it up
+			 */
+			atomic_inc(&cb->pending_bios);
+
 			ret = btrfs_map_bio(root, READ, comp_bio, 0, 0);
 			BUG_ON(ret);
 
@@ -580,7 +594,6 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 
 			comp_bio = compressed_bio_alloc(bdev, cur_disk_byte,
 							GFP_NOFS);
-			atomic_inc(&cb->pending_bios);
 			comp_bio->bi_private = cb;
 			comp_bio->bi_end_io = end_compressed_bio_read;
 
