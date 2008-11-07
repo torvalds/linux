@@ -190,7 +190,7 @@ static ssize_t ata_scsi_park_show(struct device *device,
 	struct ata_port *ap;
 	struct ata_link *link;
 	struct ata_device *dev;
-	unsigned long flags;
+	unsigned long flags, now;
 	unsigned int uninitialized_var(msecs);
 	int rc = 0;
 
@@ -208,10 +208,11 @@ static ssize_t ata_scsi_park_show(struct device *device,
 	}
 
 	link = dev->link;
+	now = jiffies;
 	if (ap->pflags & ATA_PFLAG_EH_IN_PROGRESS &&
 	    link->eh_context.unloaded_mask & (1 << dev->devno) &&
-	    time_after(dev->unpark_deadline, jiffies))
-		msecs = jiffies_to_msecs(dev->unpark_deadline - jiffies);
+	    time_after(dev->unpark_deadline, now))
+		msecs = jiffies_to_msecs(dev->unpark_deadline - now);
 	else
 		msecs = 0;
 

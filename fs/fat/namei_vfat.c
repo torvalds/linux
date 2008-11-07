@@ -16,34 +16,73 @@
  */
 
 #include <linux/module.h>
-
 #include <linux/jiffies.h>
-#include <linux/msdos_fs.h>
 #include <linux/ctype.h>
 #include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include <linux/namei.h>
+#include "fat.h"
+
+/*
+ * If new entry was created in the parent, it could create the 8.3
+ * alias (the shortname of logname).  So, the parent may have the
+ * negative-dentry which matches the created 8.3 alias.
+ *
+ * If it happened, the negative dentry isn't actually negative
+ * anymore.  So, drop it.
+ */
+static int vfat_revalidate_shortname(struct dentry *dentry)
+{
+	int ret = 1;
+	spin_lock(&dentry->d_lock);
+	if (dentry->d_time != dentry->d_parent->d_inode->i_version)
+		ret = 0;
+	spin_unlock(&dentry->d_lock);
+	return ret;
+}
 
 static int vfat_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	int ret = 1;
+	/* This is not negative dentry. Always valid. */
+	if (dentry->d_inode)
+		return 1;
+	return vfat_revalidate_shortname(dentry);
+}
 
-	if (!dentry->d_inode &&
-	    nd && !(nd->flags & LOOKUP_CONTINUE) && (nd->flags & LOOKUP_CREATE))
-		/*
-		 * negative dentry is dropped, in order to make sure
-		 * to use the name which a user desires if this is
-		 * create path.
-		 */
-		ret = 0;
-	else {
-		spin_lock(&dentry->d_lock);
-		if (dentry->d_time != dentry->d_parent->d_inode->i_version)
-			ret = 0;
-		spin_unlock(&dentry->d_lock);
+static int vfat_revalidate_ci(struct dentry *dentry, struct nameidata *nd)
+{
+	/*
+	 * This is not negative dentry. Always valid.
+	 *
+	 * Note, rename() to existing directory entry will have ->d_inode,
+	 * and will use existing name which isn't specified name by user.
+	 *
+	 * We may be able to drop this positive dentry here. But dropping
+	 * positive dentry isn't good idea. So it's unsupported like
+	 * rename("filename", "FILENAME") for now.
+	 */
+	if (dentry->d_inode)
+		return 1;
+
+	/*
+	 * This may be nfsd (or something), anyway, we can't see the
+	 * intent of this. So, since this can be for creation, drop it.
+	 */
+	if (!nd)
+		return 0;
+
+	/*
+	 * Drop the negative dentry, in order to make sure to use the
+	 * case sensitive name which is specified by user if this is
+	 * for creation.
+	 */
+	if (!(nd->flags & (LOOKUP_CONTINUE | LOOKUP_PARENT))) {
+		if (nd->flags & LOOKUP_CREATE)
+			return 0;
 	}
-	return ret;
+
+	return vfat_revalidate_shortname(dentry);
 }
 
 /* returns the length of a struct qstr, ignoring trailing dots */
@@ -127,25 +166,16 @@ static int vfat_cmp(struct dentry *dentry, struct qstr *a, struct qstr *b)
 	return 1;
 }
 
-static struct dentry_operations vfat_dentry_ops[4] = {
-	{
-		.d_hash		= vfat_hashi,
-		.d_compare	= vfat_cmpi,
-	},
-	{
-		.d_revalidate	= vfat_revalidate,
-		.d_hash		= vfat_hashi,
-		.d_compare	= vfat_cmpi,
-	},
-	{
-		.d_hash		= vfat_hash,
-		.d_compare	= vfat_cmp,
-	},
-	{
-		.d_revalidate	= vfat_revalidate,
-		.d_hash		= vfat_hash,
-		.d_compare	= vfat_cmp,
-	}
+static struct dentry_operations vfat_ci_dentry_ops = {
+	.d_revalidate	= vfat_revalidate_ci,
+	.d_hash		= vfat_hashi,
+	.d_compare	= vfat_cmpi,
+};
+
+static struct dentry_operations vfat_dentry_ops = {
+	.d_revalidate	= vfat_revalidate,
+	.d_hash		= vfat_hash,
+	.d_compare	= vfat_cmp,
 };
 
 /* Characters that are undesirable in an MS-DOS file name */
@@ -569,6 +599,7 @@ static int vfat_build_slots(struct inode *dir, const unsigned char *name,
 	unsigned char msdos_name[MSDOS_NAME];
 	wchar_t *uname;
 	__le16 time, date;
+	u8 time_cs;
 	int err, ulen, usize, i;
 	loff_t offset;
 
@@ -621,10 +652,10 @@ shortname:
 	memcpy(de->name, msdos_name, MSDOS_NAME);
 	de->attr = is_dir ? ATTR_DIR : ATTR_ARCH;
 	de->lcase = lcase;
-	fat_date_unix2dos(ts->tv_sec, &time, &date, sbi->options.tz_utc);
+	fat_time_unix2fat(sbi, ts, &time, &date, &time_cs);
 	de->time = de->ctime = time;
 	de->date = de->cdate = de->adate = date;
-	de->ctime_cs = 0;
+	de->ctime_cs = time_cs;
 	de->start = cpu_to_le16(cluster);
 	de->starthi = cpu_to_le16(cluster >> 16);
 	de->size = 0;
@@ -683,46 +714,58 @@ static struct dentry *vfat_lookup(struct inode *dir, struct dentry *dentry,
 {
 	struct super_block *sb = dir->i_sb;
 	struct fat_slot_info sinfo;
-	struct inode *inode = NULL;
+	struct inode *inode;
 	struct dentry *alias;
-	int err, table;
+	int err;
 
 	lock_super(sb);
-	table = (MSDOS_SB(sb)->options.name_check == 's') ? 2 : 0;
-	dentry->d_op = &vfat_dentry_ops[table];
 
 	err = vfat_find(dir, &dentry->d_name, &sinfo);
 	if (err) {
-		table++;
+		if (err == -ENOENT) {
+			inode = NULL;
+			goto out;
+		}
 		goto error;
 	}
+
 	inode = fat_build_inode(sb, sinfo.de, sinfo.i_pos);
 	brelse(sinfo.bh);
 	if (IS_ERR(inode)) {
-		unlock_super(sb);
-		return ERR_CAST(inode);
+		err = PTR_ERR(inode);
+		goto error;
 	}
-	alias = d_find_alias(inode);
-	if (alias) {
-		if (d_invalidate(alias) == 0)
-			dput(alias);
-		else {
-			iput(inode);
-			unlock_super(sb);
-			return alias;
-		}
 
+	alias = d_find_alias(inode);
+	if (alias && !(alias->d_flags & DCACHE_DISCONNECTED)) {
+		/*
+		 * This inode has non DCACHE_DISCONNECTED dentry. This
+		 * means, the user did ->lookup() by an another name
+		 * (longname vs 8.3 alias of it) in past.
+		 *
+		 * Switch to new one for reason of locality if possible.
+		 */
+		BUG_ON(d_unhashed(alias));
+		if (!S_ISDIR(inode->i_mode))
+			d_move(alias, dentry);
+		iput(inode);
+		unlock_super(sb);
+		return alias;
 	}
-error:
+out:
 	unlock_super(sb);
-	dentry->d_op = &vfat_dentry_ops[table];
+	dentry->d_op = sb->s_root->d_op;
 	dentry->d_time = dentry->d_parent->d_inode->i_version;
 	dentry = d_splice_alias(inode, dentry);
 	if (dentry) {
-		dentry->d_op = &vfat_dentry_ops[table];
+		dentry->d_op = sb->s_root->d_op;
 		dentry->d_time = dentry->d_parent->d_inode->i_version;
 	}
 	return dentry;
+
+error:
+	unlock_super(sb);
+	return ERR_PTR(err);
 }
 
 static int vfat_create(struct inode *dir, struct dentry *dentry, int mode,
@@ -1014,9 +1057,9 @@ static int vfat_fill_super(struct super_block *sb, void *data, int silent)
 		return res;
 
 	if (MSDOS_SB(sb)->options.name_check != 's')
-		sb->s_root->d_op = &vfat_dentry_ops[0];
+		sb->s_root->d_op = &vfat_ci_dentry_ops;
 	else
-		sb->s_root->d_op = &vfat_dentry_ops[2];
+		sb->s_root->d_op = &vfat_dentry_ops;
 
 	return 0;
 }

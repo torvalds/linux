@@ -9,8 +9,8 @@
 #include <linux/module.h>
 #include <linux/time.h>
 #include <linux/buffer_head.h>
-#include <linux/msdos_fs.h>
 #include <linux/smp_lock.h>
+#include "fat.h"
 
 /* Characters that are undesirable in an MS-DOS file name */
 static unsigned char bad_chars[] = "*?<>|\"";
@@ -203,33 +203,37 @@ static struct dentry *msdos_lookup(struct inode *dir, struct dentry *dentry,
 {
 	struct super_block *sb = dir->i_sb;
 	struct fat_slot_info sinfo;
-	struct inode *inode = NULL;
-	int res;
-
-	dentry->d_op = &msdos_dentry_operations;
+	struct inode *inode;
+	int err;
 
 	lock_super(sb);
-	res = msdos_find(dir, dentry->d_name.name, dentry->d_name.len, &sinfo);
-	if (res == -ENOENT)
-		goto add;
-	if (res < 0)
-		goto out;
+
+	err = msdos_find(dir, dentry->d_name.name, dentry->d_name.len, &sinfo);
+	if (err) {
+		if (err == -ENOENT) {
+			inode = NULL;
+			goto out;
+		}
+		goto error;
+	}
+
 	inode = fat_build_inode(sb, sinfo.de, sinfo.i_pos);
 	brelse(sinfo.bh);
 	if (IS_ERR(inode)) {
-		res = PTR_ERR(inode);
-		goto out;
+		err = PTR_ERR(inode);
+		goto error;
 	}
-add:
-	res = 0;
+out:
+	unlock_super(sb);
+	dentry->d_op = &msdos_dentry_operations;
 	dentry = d_splice_alias(inode, dentry);
 	if (dentry)
 		dentry->d_op = &msdos_dentry_operations;
-out:
+	return dentry;
+
+error:
 	unlock_super(sb);
-	if (!res)
-		return dentry;
-	return ERR_PTR(res);
+	return ERR_PTR(err);
 }
 
 /***** Creates a directory entry (name is already formatted). */
@@ -247,7 +251,7 @@ static int msdos_add_entry(struct inode *dir, const unsigned char *name,
 	if (is_hid)
 		de.attr |= ATTR_HIDDEN;
 	de.lcase = 0;
-	fat_date_unix2dos(ts->tv_sec, &time, &date, sbi->options.tz_utc);
+	fat_time_unix2fat(sbi, ts, &time, &date, NULL);
 	de.cdate = de.adate = 0;
 	de.ctime = 0;
 	de.ctime_cs = 0;

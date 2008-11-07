@@ -602,8 +602,10 @@ static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rc = vt8251_prepare_host(pdev, &host);
 		break;
 	default:
-		return -EINVAL;
+		rc = -EINVAL;
 	}
+	if (rc)
+		return rc;
 
 	svia_configure(pdev);
 

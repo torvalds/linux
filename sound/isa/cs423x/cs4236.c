@@ -488,19 +488,19 @@ static int __devinit snd_cs423x_isa_match(struct device *pdev,
 		return 0;
 
 	if (port[dev] == SNDRV_AUTO_PORT) {
-		snd_printk(KERN_ERR "%s: please specify port\n", pdev->bus_id);
+		dev_err(pdev, "please specify port\n");
 		return 0;
 	}
 	if (cport[dev] == SNDRV_AUTO_PORT) {
-		snd_printk(KERN_ERR "%s: please specify cport\n", pdev->bus_id);
+		dev_err(pdev, "please specify cport\n");
 		return 0;
 	}
 	if (irq[dev] == SNDRV_AUTO_IRQ) {
-		snd_printk(KERN_ERR "%s: please specify irq\n", pdev->bus_id);
+		dev_err(pdev, "please specify irq\n");
 		return 0;
 	}
 	if (dma1[dev] == SNDRV_AUTO_DMA) {
-		snd_printk(KERN_ERR "%s: please specify dma1\n", pdev->bus_id);
+		dev_err(pdev, "please specify dma1\n");
 		return 0;
 	}
 	return 1;

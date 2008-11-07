@@ -239,7 +239,7 @@ static inline void hrtimer_add_expires(struct hrtimer *timer, ktime_t time)
 	timer->_softexpires = ktime_add_safe(timer->_softexpires, time);
 }
 
-static inline void hrtimer_add_expires_ns(struct hrtimer *timer, unsigned long ns)
+static inline void hrtimer_add_expires_ns(struct hrtimer *timer, u64 ns)
 {
 	timer->_expires = ktime_add_ns(timer->_expires, ns);
 	timer->_softexpires = ktime_add_ns(timer->_softexpires, ns);

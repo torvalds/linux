@@ -39,7 +39,6 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/system.h>
-#include <asm/uaccess.h>
 
 /* Include-File for the Meilhaus ME-4000 I/O board */
 #include "me4000.h"
