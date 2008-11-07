@@ -2195,6 +2195,23 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 			if (search_start + num_bytes > end)
 				goto new_group;
 
+			if (last_ptr && *last_ptr && search_start != *last_ptr) {
+				total_needed += empty_cluster;
+				*last_ptr = 0;
+				/*
+				 * if search_start is still in this block group
+				 * then we just re-search this block group
+				 */
+				if (search_start >= start &&
+				    search_start < end) {
+					mutex_unlock(&block_group->alloc_mutex);
+					continue;
+				}
+
+				/* else we go to the next block group */
+				goto new_group;
+			}
+
 			if (exclude_nr > 0 &&
 			    (search_start + num_bytes > exclude_start &&
 			     search_start < exclude_start + exclude_nr)) {
