@@ -30,6 +30,7 @@
 #include "i915_drm.h"
 #include "i915_drv.h"
 #include <linux/swap.h>
+#include <linux/pci.h>
 
 #define I915_GEM_GPU_DOMAINS	(~(I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT))
 
@@ -40,8 +41,6 @@ i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj,
 static void i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj);
 static void i915_gem_object_flush_gtt_write_domain(struct drm_gem_object *obj);
 static void i915_gem_object_flush_cpu_write_domain(struct drm_gem_object *obj);
-static int i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj,
-					     int write);
 static int i915_gem_object_set_to_cpu_domain(struct drm_gem_object *obj,
 					     int write);
 static int i915_gem_object_set_cpu_read_domain_range(struct drm_gem_object *obj,
@@ -57,33 +56,37 @@ static void i915_gem_object_get_fence_reg(struct drm_gem_object *obj);
 static void i915_gem_clear_fence_reg(struct drm_gem_object *obj);
 static int i915_gem_evict_something(struct drm_device *dev);
 
-static void
-i915_gem_cleanup_ringbuffer(struct drm_device *dev);
+int i915_gem_do_init(struct drm_device *dev, unsigned long start,
+		     unsigned long end)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	if (start >= end ||
+	    (start & (PAGE_SIZE - 1)) != 0 ||
+	    (end & (PAGE_SIZE - 1)) != 0) {
+		return -EINVAL;
+	}
+
+	drm_mm_init(&dev_priv->mm.gtt_space, start,
+		    end - start);
+
+	dev->gtt_total = (uint32_t) (end - start);
+
+	return 0;
+}
 
 int
 i915_gem_init_ioctl(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_init *args = data;
+	int ret;
 
 	mutex_lock(&dev->struct_mutex);
-
-	if (args->gtt_start >= args->gtt_end ||
-	    (args->gtt_start & (PAGE_SIZE - 1)) != 0 ||
-	    (args->gtt_end & (PAGE_SIZE - 1)) != 0) {
-		mutex_unlock(&dev->struct_mutex);
-		return -EINVAL;
-	}
-
-	drm_mm_init(&dev_priv->mm.gtt_space, args->gtt_start,
-	    args->gtt_end - args->gtt_start);
-
-	dev->gtt_total = (uint32_t) (args->gtt_end - args->gtt_start);
-
+	ret = i915_gem_do_init(dev, args->gtt_start, args->gtt_end);
 	mutex_unlock(&dev->struct_mutex);
 
-	return 0;
+	return ret;
 }
 
 int
@@ -1246,7 +1249,8 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 
 	/* blow away mappings if mapped through GTT */
 	offset = ((loff_t) obj->map_list.hash.key) << PAGE_SHIFT;
-	unmap_mapping_range(dev->dev_mapping, offset, obj->size, 1);
+	if (dev->dev_mapping)
+		unmap_mapping_range(dev->dev_mapping, offset, obj->size, 1);
 
 	if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
 		i915_gem_clear_fence_reg(obj);
@@ -1508,7 +1512,7 @@ static void
 i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 	struct drm_i915_fence_reg *reg = NULL;
 	int i, ret;
@@ -1567,8 +1571,9 @@ try_again:
 		 * for this object next time we need it.
 		 */
 		offset = ((loff_t) reg->obj->map_list.hash.key) << PAGE_SHIFT;
-		unmap_mapping_range(dev->dev_mapping, offset,
-				    reg->obj->size, 1);
+		if (dev->dev_mapping)
+			unmap_mapping_range(dev->dev_mapping, offset,
+					    reg->obj->size, 1);
 		old_obj_priv->fence_reg = I915_FENCE_REG_NONE;
 	}
 
@@ -1594,7 +1599,7 @@ static void
 i915_gem_clear_fence_reg(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 
 	if (IS_I965G(dev))
@@ -1764,7 +1769,7 @@ i915_gem_object_flush_cpu_write_domain(struct drm_gem_object *obj)
  * This function returns when the move is complete, including waiting on
  * flushes to occur.
  */
-static int
+int
 i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj, int write)
 {
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
@@ -2706,11 +2711,22 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 	}
 	obj_priv = obj->driver_private;
 
-	ret = i915_gem_object_pin(obj, args->alignment);
-	if (ret != 0) {
-		drm_gem_object_unreference(obj);
+	if (obj_priv->pin_filp != NULL && obj_priv->pin_filp != file_priv) {
+		DRM_ERROR("Already pinned in i915_gem_pin_ioctl(): %d\n",
+			  args->handle);
 		mutex_unlock(&dev->struct_mutex);
-		return ret;
+		return -EINVAL;
+	}
+
+	obj_priv->user_pin_count++;
+	obj_priv->pin_filp = file_priv;
+	if (obj_priv->user_pin_count == 1) {
+		ret = i915_gem_object_pin(obj, args->alignment);
+		if (ret != 0) {
+			drm_gem_object_unreference(obj);
+			mutex_unlock(&dev->struct_mutex);
+			return ret;
+		}
 	}
 
 	/* XXX - flush the CPU caches for pinned objects
@@ -2730,6 +2746,7 @@ i915_gem_unpin_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_gem_pin *args = data;
 	struct drm_gem_object *obj;
+	struct drm_i915_gem_object *obj_priv;
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -2741,7 +2758,19 @@ i915_gem_unpin_ioctl(struct drm_device *dev, void *data,
 		return -EBADF;
 	}
 
-	i915_gem_object_unpin(obj);
+	obj_priv = obj->driver_private;
+	if (obj_priv->pin_filp != file_priv) {
+		DRM_ERROR("Not pinned by caller in i915_gem_pin_ioctl(): %d\n",
+			  args->handle);
+		drm_gem_object_unreference(obj);
+		mutex_unlock(&dev->struct_mutex);
+		return -EINVAL;
+	}
+	obj_priv->user_pin_count--;
+	if (obj_priv->user_pin_count == 0) {
+		obj_priv->pin_filp = NULL;
+		i915_gem_object_unpin(obj);
+	}
 
 	drm_gem_object_unreference(obj);
 	mutex_unlock(&dev->struct_mutex);
@@ -3036,12 +3065,13 @@ i915_gem_init_hws(struct drm_device *dev)
 	return 0;
 }
 
-static int
+int
 i915_gem_init_ringbuffer(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_gem_object *obj;
 	struct drm_i915_gem_object *obj_priv;
+	drm_i915_ring_buffer_t *ring = &dev_priv->ring;
 	int ret;
 	u32 head;
 
@@ -3063,24 +3093,24 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 	}
 
 	/* Set up the kernel mapping for the ring. */
-	dev_priv->ring.Size = obj->size;
-	dev_priv->ring.tail_mask = obj->size - 1;
+	ring->Size = obj->size;
+	ring->tail_mask = obj->size - 1;
 
-	dev_priv->ring.map.offset = dev->agp->base + obj_priv->gtt_offset;
-	dev_priv->ring.map.size = obj->size;
-	dev_priv->ring.map.type = 0;
-	dev_priv->ring.map.flags = 0;
-	dev_priv->ring.map.mtrr = 0;
+	ring->map.offset = dev->agp->base + obj_priv->gtt_offset;
+	ring->map.size = obj->size;
+	ring->map.type = 0;
+	ring->map.flags = 0;
+	ring->map.mtrr = 0;
 
-	drm_core_ioremap_wc(&dev_priv->ring.map, dev);
-	if (dev_priv->ring.map.handle == NULL) {
+	drm_core_ioremap_wc(&ring->map, dev);
+	if (ring->map.handle == NULL) {
 		DRM_ERROR("Failed to map ringbuffer.\n");
 		memset(&dev_priv->ring, 0, sizeof(dev_priv->ring));
 		drm_gem_object_unreference(obj);
 		return -EINVAL;
 	}
-	dev_priv->ring.ring_obj = obj;
-	dev_priv->ring.virtual_start = dev_priv->ring.map.handle;
+	ring->ring_obj = obj;
+	ring->virtual_start = ring->map.handle;
 
 	/* Stop the ring if it's running. */
 	I915_WRITE(PRB0_CTL, 0);
@@ -3128,12 +3158,20 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 	}
 
 	/* Update our cache of the ring state */
-	i915_kernel_lost_context(dev);
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		i915_kernel_lost_context(dev);
+	else {
+		ring->head = I915_READ(PRB0_HEAD) & HEAD_ADDR;
+		ring->tail = I915_READ(PRB0_TAIL) & TAIL_ADDR;
+		ring->space = ring->head - (ring->tail + 8);
+		if (ring->space < 0)
+			ring->space += ring->Size;
+	}
 
 	return 0;
 }
 
-static void
+void
 i915_gem_cleanup_ringbuffer(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -3171,6 +3209,9 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return 0;
+
 	if (dev_priv->mm.wedged) {
 		DRM_ERROR("Reenabling wedged hardware, good luck\n");
 		dev_priv->mm.wedged = 0;
@@ -3203,6 +3244,9 @@ i915_gem_leavevt_ioctl(struct drm_device *dev, void *data,
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return 0;
 
 	ret = i915_gem_idle(dev);
 	drm_irq_uninstall(dev);

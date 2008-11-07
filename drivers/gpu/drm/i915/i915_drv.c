@@ -33,10 +33,21 @@
 #include "i915_drv.h"
 
 #include "drm_pciids.h"
+#include <linux/console.h>
+
+unsigned int i915_modeset = -1;
+module_param_named(modeset, i915_modeset, int, 0400);
+
+unsigned int i915_fbpercrtc = 0;
+module_param_named(fbpercrtc, i915_fbpercrtc, int, 0400);
 
 static struct pci_device_id pciidlist[] = {
 	i915_PCI_IDS
 };
+
+#if defined(CONFIG_DRM_I915_KMS)
+MODULE_DEVICE_TABLE(pci, pciidlist);
+#endif
 
 static int i915_suspend(struct drm_device *dev, pm_message_t state)
 {
@@ -148,6 +159,28 @@ static struct drm_driver driver = {
 static int __init i915_init(void)
 {
 	driver.num_ioctls = i915_max_ioctl;
+
+	/*
+	 * If CONFIG_DRM_I915_KMS is set, default to KMS unless
+	 * explicitly disabled with the module pararmeter.
+	 *
+	 * Otherwise, just follow the parameter (defaulting to off).
+	 *
+	 * Allow optional vga_text_mode_force boot option to override
+	 * the default behavior.
+	 */
+#if defined(CONFIG_DRM_I915_KMS)
+	if (i915_modeset != 0)
+		driver.driver_features |= DRIVER_MODESET;
+#endif
+	if (i915_modeset == 1)
+		driver.driver_features |= DRIVER_MODESET;
+
+#ifdef CONFIG_VGA_CONSOLE
+	if (vgacon_text_force() && i915_modeset == -1)
+		driver.driver_features &= ~DRIVER_MODESET;
+#endif
+
 	return drm_init(&driver);
 }
 

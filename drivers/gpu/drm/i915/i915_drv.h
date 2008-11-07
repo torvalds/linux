@@ -31,6 +31,7 @@
 #define _I915_DRV_H_
 
 #include "i915_reg.h"
+#include "intel_bios.h"
 #include <linux/io-mapping.h>
 
 /* General customization:
@@ -152,7 +153,25 @@ typedef struct drm_i915_private {
 	unsigned int sr01, adpa, ppcr, dvob, dvoc, lvds;
 	int vblank_pipe;
 
+	bool cursor_needs_physical;
+
+	struct drm_mm vram;
+
+	int irq_enabled;
+
 	struct intel_opregion opregion;
+
+	/* LVDS info */
+	int backlight_duty_cycle;  /* restore backlight to this value */
+	bool panel_wants_dither;
+	struct drm_display_mode *panel_fixed_mode;
+	struct drm_display_mode *vbt_mode; /* if any */
+
+	/* Feature bits from the VBIOS */
+	int int_tv_support:1;
+	int lvds_dither:1;
+	int lvds_vbt:1;
+	int int_crt_support:1;
 
 	struct drm_i915_fence_reg fence_regs[16]; /* assume 965 */
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
@@ -413,6 +432,10 @@ struct drm_i915_gem_object {
 	 * flags which individual pages are valid.
 	 */
 	uint8_t *page_cpu_valid;
+
+	/** User space pin count and filp owning the pin */
+	uint32_t user_pin_count;
+	struct drm_file *pin_filp;
 };
 
 /**
@@ -442,8 +465,16 @@ struct drm_i915_file_private {
 	} mm;
 };
 
+enum intel_chip_family {
+	CHIP_I8XX = 0x01,
+	CHIP_I9XX = 0x02,
+	CHIP_I915 = 0x04,
+	CHIP_I965 = 0x08,
+};
+
 extern struct drm_ioctl_desc i915_ioctls[];
 extern int i915_max_ioctl;
+extern unsigned int i915_fbpercrtc;
 
 extern int i915_master_create(struct drm_device *dev, struct drm_master *master);
 extern void i915_master_destroy(struct drm_device *dev, struct drm_master *master);
@@ -472,6 +503,7 @@ extern int i915_irq_wait(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 void i915_user_irq_get(struct drm_device *dev);
 void i915_user_irq_put(struct drm_device *dev);
+extern void i915_enable_interrupt (struct drm_device *dev);
 
 extern irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS);
 extern void i915_driver_irq_preinstall(struct drm_device * dev);
@@ -556,7 +588,16 @@ uint32_t i915_get_gem_seqno(struct drm_device *dev);
 void i915_gem_retire_requests(struct drm_device *dev);
 void i915_gem_retire_work_handler(struct work_struct *work);
 void i915_gem_clflush_object(struct drm_gem_object *obj);
+int i915_gem_object_set_domain(struct drm_gem_object *obj,
+			       uint32_t read_domains,
+			       uint32_t write_domain);
+int i915_gem_init_ringbuffer(struct drm_device *dev);
+void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
+int i915_gem_do_init(struct drm_device *dev, unsigned long start,
+		     unsigned long end);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
+int i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj,
+				      int write);
 
 /* i915_gem_tiling.c */
 void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
@@ -594,6 +635,10 @@ static inline void intel_opregion_free(struct drm_device *dev) { return; }
 static inline void opregion_asle_intr(struct drm_device *dev) { return; }
 static inline void opregion_enable_asle(struct drm_device *dev) { return; }
 #endif
+
+/* modesetting */
+extern void intel_modeset_init(struct drm_device *dev);
+extern void intel_modeset_cleanup(struct drm_device *dev);
 
 /**
  * Lock test for when it's just for synchronization of ring access.

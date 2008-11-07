@@ -30,6 +30,7 @@
 #include "drm.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
+#include "intel_drv.h"
 
 #define MAX_NOPID ((u32)~0)
 
@@ -50,6 +51,15 @@
 /** These are all of the interrupts used by the driver */
 #define I915_INTERRUPT_ENABLE_MASK (I915_INTERRUPT_ENABLE_FIX | \
 				    I915_INTERRUPT_ENABLE_VAR)
+
+#define I915_PIPE_VBLANK_STATUS	(PIPE_START_VBLANK_INTERRUPT_STATUS |\
+				 PIPE_VBLANK_INTERRUPT_STATUS)
+
+#define I915_PIPE_VBLANK_ENABLE	(PIPE_START_VBLANK_INTERRUPT_ENABLE |\
+				 PIPE_VBLANK_INTERRUPT_ENABLE)
+
+#define DRM_I915_VBLANK_PIPE_ALL	(DRM_I915_VBLANK_PIPE_A | \
+					 DRM_I915_VBLANK_PIPE_B)
 
 void
 i915_enable_irq(drm_i915_private_t *dev_priv, u32 mask)
@@ -201,6 +211,7 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
 		pipea_stats = I915_READ(PIPEASTAT);
 		pipeb_stats = I915_READ(PIPEBSTAT);
+
 		/*
 		 * Clear the PIPE(A|B)STAT regs before the IIR
 		 */
@@ -427,6 +438,14 @@ void i915_disable_vblank(struct drm_device *dev, int pipe)
 	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
 }
 
+void i915_enable_interrupt (struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	opregion_enable_asle(dev);
+	dev_priv->irq_enabled = 1;
+}
+
+
 /* Set the vblank monitor pipe
  */
 int i915_vblank_pipe_set(struct drm_device *dev, void *data,
@@ -486,6 +505,8 @@ int i915_vblank_swap(struct drm_device *dev, void *data,
 void i915_driver_irq_preinstall(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+
+	atomic_set(&dev_priv->irq_received, 0);
 
 	I915_WRITE(HWSTAM, 0xeffe);
 	I915_WRITE(PIPEASTAT, 0);

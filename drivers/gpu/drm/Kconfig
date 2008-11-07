@@ -76,6 +76,17 @@ config DRM_I915
 
 endchoice
 
+config DRM_I915_KMS
+	bool "Enable modesetting on intel by default"
+	depends on DRM_I915
+	help
+	Choose this option if you want kernel modesetting enabled by default,
+	and you have a new enough userspace to support this. Running old
+	userspaces with this enabled will cause pain.  Note that this causes
+	the driver to bind to PCI devices, which precludes loading things
+	like intelfb.
+
+
 config DRM_MGA
 	tristate "Matrox g200/g400"
 	depends on DRM
