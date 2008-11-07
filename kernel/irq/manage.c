@@ -123,7 +123,7 @@ int do_irq_select_affinity(unsigned int irq, struct irq_desc *desc)
 	 * Preserve an userspace affinity setup, but make sure that
 	 * one of the targets is online.
 	 */
-	if (desc->status & IRQ_AFFINITY_SET) {
+	if (desc->status & (IRQ_AFFINITY_SET | IRQ_NO_BALANCING)) {
 		if (cpus_intersects(desc->affinity, cpu_online_map))
 			mask = desc->affinity;
 		else
@@ -483,6 +483,10 @@ __setup_irq(unsigned int irq, struct irq_desc * desc, struct irqaction *new)
 			/* Undo nested disables: */
 			desc->depth = 1;
 
+		/* Exclude IRQ from balancing if requested */
+		if (new->flags & IRQF_NOBALANCING)
+			desc->status |= IRQ_NO_BALANCING;
+
 		/* Set default affinity mask once everything is setup */
 		do_irq_select_affinity(irq, desc);
 
@@ -496,10 +500,6 @@ __setup_irq(unsigned int irq, struct irq_desc * desc, struct irqaction *new)
 	}
 
 	*p = new;
-
-	/* Exclude IRQ from balancing */
-	if (new->flags & IRQF_NOBALANCING)
-		desc->status |= IRQ_NO_BALANCING;
 
 	/* Reset broken irq detection when installing new handler */
 	desc->irq_count = 0;
