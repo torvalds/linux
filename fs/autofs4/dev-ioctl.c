@@ -128,9 +128,10 @@ static inline void free_dev_ioctl(struct autofs_dev_ioctl *param)
  */
 static int validate_dev_ioctl(int cmd, struct autofs_dev_ioctl *param)
 {
-	int err = -EINVAL;
+	int err;
 
-	if (check_dev_ioctl_version(cmd, param)) {
+	err = check_dev_ioctl_version(cmd, param);
+	if (err) {
 		AUTOFS_WARN("invalid device control module version "
 		     "supplied for cmd(0x%08x)", cmd);
 		goto out;

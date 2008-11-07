@@ -65,7 +65,8 @@
 #include <mach/omap34xx.h>
 #endif
 
-#define INTCPS_SIR_IRQ_OFFSET	0x0040		/* Active interrupt number */
+#define INTCPS_SIR_IRQ_OFFSET	0x0040		/* Active interrupt offset */
+#define	ACTIVEIRQ_MASK		0x7f		/* Active interrupt bits */
 
 		.macro	disable_fiq
 		.endm
@@ -88,6 +89,7 @@
 		cmp	\irqnr, #0x0
 2222:
 		ldrne	\irqnr, [\base, #INTCPS_SIR_IRQ_OFFSET]
+		and	\irqnr, \irqnr, #ACTIVEIRQ_MASK /* Clear spurious bits */
 
 		.endm
 

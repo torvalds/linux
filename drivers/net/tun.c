@@ -1068,8 +1068,6 @@ static int tun_chr_close(struct inode *inode, struct file *file)
 
 	DBG(KERN_INFO "%s: tun_chr_close\n", tun->dev->name);
 
-	tun_chr_fasync(-1, file, 0);
-
 	rtnl_lock();
 
 	/* Detach from net device */

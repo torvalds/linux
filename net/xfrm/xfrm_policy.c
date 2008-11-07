@@ -315,9 +315,9 @@ static void xfrm_policy_kill(struct xfrm_policy *policy)
 		return;
 	}
 
-	spin_lock(&xfrm_policy_gc_lock);
+	spin_lock_bh(&xfrm_policy_gc_lock);
 	hlist_add_head(&policy->bydst, &xfrm_policy_gc_list);
-	spin_unlock(&xfrm_policy_gc_lock);
+	spin_unlock_bh(&xfrm_policy_gc_lock);
 
 	schedule_work(&xfrm_policy_gc_work);
 }

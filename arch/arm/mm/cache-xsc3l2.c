@@ -98,7 +98,7 @@ static void xsc3_l2_inv_range(unsigned long start, unsigned long end)
 	/*
 	 * Clean and invalidate partial last cache line.
 	 */
-	if (end & (CACHE_LINE_SIZE - 1)) {
+	if (start < end && (end & (CACHE_LINE_SIZE - 1))) {
 		xsc3_l2_clean_pa(end & ~(CACHE_LINE_SIZE - 1));
 		xsc3_l2_inv_pa(end & ~(CACHE_LINE_SIZE - 1));
 		end &= ~(CACHE_LINE_SIZE - 1);
@@ -107,7 +107,7 @@ static void xsc3_l2_inv_range(unsigned long start, unsigned long end)
 	/*
 	 * Invalidate all full cache lines between 'start' and 'end'.
 	 */
-	while (start != end) {
+	while (start < end) {
 		xsc3_l2_inv_pa(start);
 		start += CACHE_LINE_SIZE;
 	}

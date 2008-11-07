@@ -35,7 +35,7 @@ config EP405
 config HCU4
 	bool "Hcu4"
 	depends on 40x
-	default y
+	default n
 	select 405GPR
 	help
 	  This option enables support for the Nestal Maschinen HCU4 board.

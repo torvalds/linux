@@ -32,14 +32,14 @@
 #include <linux/skbuff.h>
 #include <linux/ethtool.h>
 
-#include <asm/arch/svinto.h>/* DMA and register descriptions */
+#include <arch/svinto.h>/* DMA and register descriptions */
 #include <asm/io.h>         /* CRIS_LED_* I/O functions */
 #include <asm/irq.h>
 #include <asm/dma.h>
 #include <asm/system.h>
 #include <asm/ethernet.h>
 #include <asm/cache.h>
-#include <asm/arch/io_interface_mux.h>
+#include <arch/io_interface_mux.h>
 
 //#define ETHDEBUG
 #define D(x)

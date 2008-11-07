@@ -20,7 +20,7 @@
 
 
 #include <linux/types.h>
-#include <asm/arch/svinto.h>
+#include <arch/svinto.h>
 
 /*
  * gzip declarations

@@ -119,35 +119,16 @@ static unsigned char mostek_read_byte(struct device *dev, u32 ofs)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct m48t59_plat_data *pdata = pdev->dev.platform_data;
-	void __iomem *regs = pdata->ioaddr;
-	unsigned char val = readb(regs + ofs);
 
-	/* the year 0 is 1968 */
-	if (ofs == pdata->offset + M48T59_YEAR) {
-		val += 0x68;
-		if ((val & 0xf) > 9)
-			val += 6;
-	}
-	return val;
+	return readb(pdata->ioaddr + ofs);
 }
 
 static void mostek_write_byte(struct device *dev, u32 ofs, u8 val)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct m48t59_plat_data *pdata = pdev->dev.platform_data;
-	void __iomem *regs = pdata->ioaddr;
 
-	if (ofs == pdata->offset + M48T59_YEAR) {
-		if (val < 0x68)
-			val += 0x32;
-		else
-			val -= 0x68;
-		if ((val & 0xf) > 9)
-			val += 6;
-		if ((val & 0xf0) > 0x9A)
-			val += 0x60;
-	}
-	writeb(val, regs + ofs);
+	writeb(val, pdata->ioaddr + ofs);
 }
 
 static struct m48t59_plat_data m48t59_data = {

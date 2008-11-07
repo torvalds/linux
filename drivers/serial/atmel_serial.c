@@ -1258,6 +1258,8 @@ static void __devinit atmel_init_port(struct atmel_uart_port *atmel_port,
 		atmel_port->clk = clk_get(&pdev->dev, "usart");
 		clk_enable(atmel_port->clk);
 		port->uartclk = clk_get_rate(atmel_port->clk);
+		clk_disable(atmel_port->clk);
+		/* only enable clock when USART is in use */
 	}
 
 	atmel_port->use_dma_rx = data->use_dma_rx;
@@ -1379,6 +1381,8 @@ static int __init atmel_console_setup(struct console *co, char *options)
 		return -ENODEV;
 	}
 
+	clk_enable(atmel_ports[co->index].clk);
+
 	UART_PUT_IDR(port, -1);
 	UART_PUT_CR(port, ATMEL_US_RSTSTA | ATMEL_US_RSTRX);
 	UART_PUT_CR(port, ATMEL_US_TXEN | ATMEL_US_RXEN);
@@ -1403,7 +1407,7 @@ static struct console atmel_console = {
 	.data		= &atmel_uart,
 };
 
-#define ATMEL_CONSOLE_DEVICE	&atmel_console
+#define ATMEL_CONSOLE_DEVICE	(&atmel_console)
 
 /*
  * Early console initialization (before VM subsystem initialized).
@@ -1534,6 +1538,15 @@ static int __devinit atmel_serial_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_add_port;
 
+	if (atmel_is_console_port(&port->uart)
+			&& ATMEL_CONSOLE_DEVICE->flags & CON_ENABLED) {
+		/*
+		 * The serial core enabled the clock for us, so undo
+		 * the clk_enable() in atmel_console_setup()
+		 */
+		clk_disable(port->clk);
+	}
+
 	device_init_wakeup(&pdev->dev, 1);
 	platform_set_drvdata(pdev, port);
 
@@ -1544,7 +1557,6 @@ err_add_port:
 	port->rx_ring.buf = NULL;
 err_alloc_ring:
 	if (!atmel_is_console_port(&port->uart)) {
-		clk_disable(port->clk);
 		clk_put(port->clk);
 		port->clk = NULL;
 	}
@@ -1568,7 +1580,6 @@ static int __devexit atmel_serial_remove(struct platform_device *pdev)
 
 	/* "port" is allocated statically, so we shouldn't free it */
 
-	clk_disable(atmel_port->clk);
 	clk_put(atmel_port->clk);
 
 	return ret;

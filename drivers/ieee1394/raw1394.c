@@ -2268,7 +2268,8 @@ static ssize_t raw1394_write(struct file *file, const char __user * buffer,
 		return -EFAULT;
 	}
 
-	mutex_lock(&fi->state_mutex);
+	if (!mutex_trylock(&fi->state_mutex))
+		return -EAGAIN;
 
 	switch (fi->state) {
 	case opened:
@@ -2548,7 +2549,8 @@ static int raw1394_mmap(struct file *file, struct vm_area_struct *vma)
 	struct file_info *fi = file->private_data;
 	int ret;
 
-	mutex_lock(&fi->state_mutex);
+	if (!mutex_trylock(&fi->state_mutex))
+		return -EAGAIN;
 
 	if (fi->iso_state == RAW1394_ISO_INACTIVE)
 		ret = -EINVAL;
@@ -2669,7 +2671,8 @@ static long raw1394_ioctl(struct file *file, unsigned int cmd,
 		break;
 	}
 
-	mutex_lock(&fi->state_mutex);
+	if (!mutex_trylock(&fi->state_mutex))
+		return -EAGAIN;
 
 	switch (fi->iso_state) {
 	case RAW1394_ISO_INACTIVE:

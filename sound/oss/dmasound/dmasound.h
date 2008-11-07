@@ -235,7 +235,7 @@ struct sound_queue {
      */
     int active;
     wait_queue_head_t action_queue, open_queue, sync_queue;
-    fmode_t open_mode;
+    int non_blocking;
     int busy, syncing, xruns, died;
 };
 

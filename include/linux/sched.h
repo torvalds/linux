@@ -1349,6 +1349,8 @@ struct task_struct {
 	 */
 	unsigned long timer_slack_ns;
 	unsigned long default_timer_slack_ns;
+
+	struct list_head	*scm_work_list;
 };
 
 /*
