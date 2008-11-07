@@ -881,6 +881,24 @@ static void hwarc_disconnect(struct usb_interface *iface)
 	uwb_rc_put(uwb_rc);	/* when creating the device, refcount = 1 */
 }
 
+static int hwarc_pre_reset(struct usb_interface *iface)
+{
+	struct hwarc *hwarc = usb_get_intfdata(iface);
+	struct uwb_rc *uwb_rc = hwarc->uwb_rc;
+
+	uwb_rc_pre_reset(uwb_rc);
+	return 0;
+}
+
+static int hwarc_post_reset(struct usb_interface *iface)
+{
+	struct hwarc *hwarc = usb_get_intfdata(iface);
+	struct uwb_rc *uwb_rc = hwarc->uwb_rc;
+
+	uwb_rc_post_reset(uwb_rc);
+	return 0;
+}
+
 /** USB device ID's that we handle */
 static struct usb_device_id hwarc_id_table[] = {
 	/* D-Link DUB-1210 */
@@ -897,9 +915,11 @@ MODULE_DEVICE_TABLE(usb, hwarc_id_table);
 
 static struct usb_driver hwarc_driver = {
 	.name =		"hwa-rc",
+	.id_table =	hwarc_id_table,
 	.probe =	hwarc_probe,
 	.disconnect =	hwarc_disconnect,
-	.id_table =	hwarc_id_table,
+	.pre_reset =    hwarc_pre_reset,
+	.post_reset =   hwarc_post_reset,
 };
 
 static int __init hwarc_driver_init(void)

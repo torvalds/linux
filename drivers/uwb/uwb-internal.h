@@ -248,6 +248,7 @@ extern struct device_attribute dev_attr_scan;
 void uwb_rsv_init(struct uwb_rc *rc);
 int uwb_rsv_setup(struct uwb_rc *rc);
 void uwb_rsv_cleanup(struct uwb_rc *rc);
+void uwb_rsv_remove_all(struct uwb_rc *rc);
 
 void uwb_rsv_set_state(struct uwb_rsv *rsv, enum uwb_rsv_state new_state);
 void uwb_rsv_remove(struct uwb_rsv *rsv);

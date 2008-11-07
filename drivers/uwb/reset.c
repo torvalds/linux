@@ -323,17 +323,16 @@ int uwbd_msg_handle_reset(struct uwb_event *evt)
 	struct uwb_rc *rc = evt->rc;
 	int ret;
 
-	/* Need to prevent the RC hardware module going away while in
-	   the rc->reset() call. */
-	if (!try_module_get(rc->owner))
-		return 0;
-
 	dev_info(&rc->uwb_dev.dev, "resetting radio controller\n");
 	ret = rc->reset(rc);
-	if (ret)
+	if (ret) {
 		dev_err(&rc->uwb_dev.dev, "failed to reset hardware: %d\n", ret);
-
-	module_put(rc->owner);
+		goto error;
+	}
+	return 0;
+error:
+	/* Nothing can be done except try the reset again. */
+	uwb_rc_reset_all(rc);
 	return ret;
 }
 
@@ -360,3 +359,37 @@ void uwb_rc_reset_all(struct uwb_rc *rc)
 	uwbd_event_queue(evt);
 }
 EXPORT_SYMBOL_GPL(uwb_rc_reset_all);
+
+void uwb_rc_pre_reset(struct uwb_rc *rc)
+{
+	rc->stop(rc);
+	uwbd_flush(rc);
+
+	mutex_lock(&rc->uwb_dev.mutex);
+	rc->beaconing = -1;
+	rc->scanning = -1;
+	mutex_unlock(&rc->uwb_dev.mutex);
+
+	uwb_rsv_remove_all(rc);
+}
+EXPORT_SYMBOL_GPL(uwb_rc_pre_reset);
+
+void uwb_rc_post_reset(struct uwb_rc *rc)
+{
+	int ret;
+
+	ret = rc->start(rc);
+	if (ret)
+		goto error;
+	ret = uwb_rc_mac_addr_set(rc, &rc->uwb_dev.mac_addr);
+	if (ret)
+		goto error;
+	ret = uwb_rc_dev_addr_set(rc, &rc->uwb_dev.dev_addr);
+	if (ret)
+		goto error;
+	return;
+error:
+	/* Nothing can be done except try the reset again. */
+	uwb_rc_reset_all(rc);
+}
+EXPORT_SYMBOL_GPL(uwb_rc_post_reset);

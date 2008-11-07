@@ -394,7 +394,7 @@ void whcrc_stop_rc(struct uwb_rc *rc)
 
 	le_writel(0, whcrc->rc_base + URCCMD);
 	whci_wait_for(&umc_dev->dev, whcrc->rc_base + URCSTS,
-		      URCSTS_HALTED, 0, 40, "URCSTS.HALTED");
+		      URCSTS_HALTED, URCSTS_HALTED, 100, "URCSTS.HALTED");
 }
 
 static void whcrc_init(struct whcrc *whcrc)
@@ -488,6 +488,24 @@ static void whcrc_remove(struct umc_dev *umc_dev)
 	d_printf(1, &umc_dev->dev, "freed whcrc %p\n", whcrc);
 }
 
+static int whcrc_pre_reset(struct umc_dev *umc)
+{
+	struct whcrc *whcrc = umc_get_drvdata(umc);
+	struct uwb_rc *uwb_rc = whcrc->uwb_rc;
+
+	uwb_rc_pre_reset(uwb_rc);
+	return 0;
+}
+
+static int whcrc_post_reset(struct umc_dev *umc)
+{
+	struct whcrc *whcrc = umc_get_drvdata(umc);
+	struct uwb_rc *uwb_rc = whcrc->uwb_rc;
+
+	uwb_rc_post_reset(uwb_rc);
+	return 0;
+}
+
 /* PCI device ID's that we handle [so it gets loaded] */
 static struct pci_device_id whcrc_id_table[] = {
 	{ PCI_DEVICE_CLASS(PCI_CLASS_WIRELESS_WHCI, ~0) },
@@ -496,10 +514,12 @@ static struct pci_device_id whcrc_id_table[] = {
 MODULE_DEVICE_TABLE(pci, whcrc_id_table);
 
 static struct umc_driver whcrc_driver = {
-	.name   = "whc-rc",
-	.cap_id = UMC_CAP_ID_WHCI_RC,
-	.probe  = whcrc_probe,
-	.remove = whcrc_remove,
+	.name       = "whc-rc",
+	.cap_id     = UMC_CAP_ID_WHCI_RC,
+	.probe      = whcrc_probe,
+	.remove     = whcrc_remove,
+	.pre_reset  = whcrc_pre_reset,
+	.post_reset = whcrc_post_reset,
 };
 
 static int __init whcrc_driver_init(void)

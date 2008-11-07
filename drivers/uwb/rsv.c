@@ -659,6 +659,25 @@ static void uwb_rsv_timer(unsigned long arg)
 	uwb_rsv_sched_update(rsv->rc);
 }
 
+/**
+ * uwb_rsv_remove_all - remove all reservations
+ * @rc: the radio controller
+ *
+ * A DRP IE update is not done.
+ */
+void uwb_rsv_remove_all(struct uwb_rc *rc)
+{
+	struct uwb_rsv *rsv, *t;
+
+	mutex_lock(&rc->rsvs_mutex);
+	list_for_each_entry_safe(rsv, t, &rc->reservations, rc_node) {
+		uwb_rsv_remove(rsv);
+	}
+	mutex_unlock(&rc->rsvs_mutex);
+
+	cancel_work_sync(&rc->rsv_update_work);
+}
+
 void uwb_rsv_init(struct uwb_rc *rc)
 {
 	INIT_LIST_HEAD(&rc->reservations);
@@ -682,14 +701,6 @@ int uwb_rsv_setup(struct uwb_rc *rc)
 
 void uwb_rsv_cleanup(struct uwb_rc *rc)
 {
-	struct uwb_rsv *rsv, *t;
-
-	mutex_lock(&rc->rsvs_mutex);
-	list_for_each_entry_safe(rsv, t, &rc->reservations, rc_node) {
-		uwb_rsv_remove(rsv);
-	}
-	mutex_unlock(&rc->rsvs_mutex);
-
-	cancel_work_sync(&rc->rsv_update_work);
+	uwb_rsv_remove_all(rc);
 	destroy_workqueue(rc->rsv_workq);
 }
