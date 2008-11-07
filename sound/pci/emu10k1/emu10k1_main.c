@@ -1470,6 +1470,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0151_chip = 1,
 	 .spk71 = 1,
 	 .spdif_bug = 1,
+	 .invert_shared_spdif = 1,	/* digital/analog switch swapped */
 	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x20021102,
 	 .driver = "Audigy2", .name = "SB Audigy 2 ZS [SB0350]",
@@ -1479,6 +1480,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0151_chip = 1,
 	 .spk71 = 1,
 	 .spdif_bug = 1,
+	 .invert_shared_spdif = 1,	/* digital/analog switch swapped */
 	 .ac97_chip = 1} ,
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x20011102,
 	 .driver = "Audigy2", .name = "SB Audigy 2 ZS [SB0360]",
@@ -1488,6 +1490,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0151_chip = 1,
 	 .spk71 = 1,
 	 .spdif_bug = 1,
+	 .invert_shared_spdif = 1,	/* digital/analog switch swapped */
 	 .ac97_chip = 1} ,
 	/* Audigy 2 */
 	/* Tested by James@superbug.co.uk 3rd July 2005 */
