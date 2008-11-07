@@ -307,7 +307,7 @@ void flow_cache_flush(void)
 	put_online_cpus();
 }
 
-static void __devinit flow_cache_cpu_prepare(int cpu)
+static void __init flow_cache_cpu_prepare(int cpu)
 {
 	struct tasklet_struct *tasklet;
 	unsigned long order;
