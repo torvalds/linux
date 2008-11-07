@@ -289,6 +289,14 @@ int iwl_send_calib_results(struct iwl_priv *priv);
 int iwl_calib_set(struct iwl_calib_result *res, const u8 *buf, int len);
 void iwl_calib_free_results(struct iwl_priv *priv);
 
+/*******************************************************************************
+ * Spectrum Measureemtns in  iwl-spectrum.c
+ ******************************************************************************/
+#ifdef CONFIG_IWLAGN_SPECTRUM_MEASUREMENT
+void iwl_setup_spectrum_handlers(struct iwl_priv *priv);
+#else
+static inline void iwl_setup_spectrum_handlers(struct iwl_priv *priv) {}
+#endif
 /*****************************************************
  *   S e n d i n g     H o s t     C o m m a n d s   *
  *****************************************************/

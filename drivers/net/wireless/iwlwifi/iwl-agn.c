@@ -871,138 +871,6 @@ static void iwl_set_rate(struct iwl_priv *priv)
 		   (IWL_OFDM_BASIC_RATES_MASK >> IWL_FIRST_OFDM_RATE) & 0xFF;
 }
 
-#ifdef CONFIG_IWLAGN_SPECTRUM_MEASUREMENT
-
-#include "iwl-spectrum.h"
-
-#define BEACON_TIME_MASK_LOW	0x00FFFFFF
-#define BEACON_TIME_MASK_HIGH	0xFF000000
-#define TIME_UNIT		1024
-
-/*
- * extended beacon time format
- * time in usec will be changed into a 32-bit value in 8:24 format
- * the high 1 byte is the beacon counts
- * the lower 3 bytes is the time in usec within one beacon interval
- */
-
-static u32 iwl_usecs_to_beacons(u32 usec, u32 beacon_interval)
-{
-	u32 quot;
-	u32 rem;
-	u32 interval = beacon_interval * 1024;
-
-	if (!interval || !usec)
-		return 0;
-
-	quot = (usec / interval) & (BEACON_TIME_MASK_HIGH >> 24);
-	rem = (usec % interval) & BEACON_TIME_MASK_LOW;
-
-	return (quot << 24) + rem;
-}
-
-/* base is usually what we get from ucode with each received frame,
- * the same as HW timer counter counting down
- */
-
-static __le32 iwl_add_beacon_time(u32 base, u32 addon, u32 beacon_interval)
-{
-	u32 base_low = base & BEACON_TIME_MASK_LOW;
-	u32 addon_low = addon & BEACON_TIME_MASK_LOW;
-	u32 interval = beacon_interval * TIME_UNIT;
-	u32 res = (base & BEACON_TIME_MASK_HIGH) +
-	    (addon & BEACON_TIME_MASK_HIGH);
-
-	if (base_low > addon_low)
-		res += base_low - addon_low;
-	else if (base_low < addon_low) {
-		res += interval + base_low - addon_low;
-		res += (1 << 24);
-	} else
-		res += (1 << 24);
-
-	return cpu_to_le32(res);
-}
-
-static int iwl_get_measurement(struct iwl_priv *priv,
-			       struct ieee80211_measurement_params *params,
-			       u8 type)
-{
-	struct iwl4965_spectrum_cmd spectrum;
-	struct iwl_rx_packet *res;
-	struct iwl_host_cmd cmd = {
-		.id = REPLY_SPECTRUM_MEASUREMENT_CMD,
-		.data = (void *)&spectrum,
-		.meta.flags = CMD_WANT_SKB,
-	};
-	u32 add_time = le64_to_cpu(params->start_time);
-	int rc;
-	int spectrum_resp_status;
-	int duration = le16_to_cpu(params->duration);
-
-	if (iwl_is_associated(priv))
-		add_time =
-		    iwl_usecs_to_beacons(
-			le64_to_cpu(params->start_time) - priv->last_tsf,
-			le16_to_cpu(priv->rxon_timing.beacon_interval));
-
-	memset(&spectrum, 0, sizeof(spectrum));
-
-	spectrum.channel_count = cpu_to_le16(1);
-	spectrum.flags =
-	    RXON_FLG_TSF2HOST_MSK | RXON_FLG_ANT_A_MSK | RXON_FLG_DIS_DIV_MSK;
-	spectrum.filter_flags = MEASUREMENT_FILTER_FLAG;
-	cmd.len = sizeof(spectrum);
-	spectrum.len = cpu_to_le16(cmd.len - sizeof(spectrum.len));
-
-	if (iwl_is_associated(priv))
-		spectrum.start_time =
-		    iwl_add_beacon_time(priv->last_beacon_time,
-				add_time,
-				le16_to_cpu(priv->rxon_timing.beacon_interval));
-	else
-		spectrum.start_time = 0;
-
-	spectrum.channels[0].duration = cpu_to_le32(duration * TIME_UNIT);
-	spectrum.channels[0].channel = params->channel;
-	spectrum.channels[0].type = type;
-	if (priv->active_rxon.flags & RXON_FLG_BAND_24G_MSK)
-		spectrum.flags |= RXON_FLG_BAND_24G_MSK |
-		    RXON_FLG_AUTO_DETECT_MSK | RXON_FLG_TGG_PROTECT_MSK;
-
-	rc = iwl_send_cmd_sync(priv, &cmd);
-	if (rc)
-		return rc;
-
-	res = (struct iwl_rx_packet *)cmd.meta.u.skb->data;
-	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERROR("Bad return from REPLY_RX_ON_ASSOC command\n");
-		rc = -EIO;
-	}
-
-	spectrum_resp_status = le16_to_cpu(res->u.spectrum.status);
-	switch (spectrum_resp_status) {
-	case 0:		/* Command will be handled */
-		if (res->u.spectrum.id != 0xff) {
-			IWL_DEBUG_INFO
-			    ("Replaced existing measurement: %d\n",
-			     res->u.spectrum.id);
-			priv->measurement_status &= ~MEASUREMENT_READY;
-		}
-		priv->measurement_status |= MEASUREMENT_ACTIVE;
-		rc = 0;
-		break;
-
-	case 1:		/* Command will not be handled */
-		rc = -EAGAIN;
-		break;
-	}
-
-	dev_kfree_skb_any(cmd.meta.u.skb);
-
-	return rc;
-}
-#endif
 
 /******************************************************************************
  *
@@ -1070,24 +938,6 @@ static void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 		      le16_to_cpu(csa->channel), le32_to_cpu(csa->status));
 	rxon->channel = csa->channel;
 	priv->staging_rxon.channel = csa->channel;
-}
-
-static void iwl_rx_spectrum_measure_notif(struct iwl_priv *priv,
-					  struct iwl_rx_mem_buffer *rxb)
-{
-#ifdef CONFIG_IWLAGN_SPECTRUM_MEASUREMENT
-	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
-	struct iwl4965_spectrum_notification *report = &(pkt->u.spectrum_notif);
-
-	if (!report->state) {
-		IWL_DEBUG(IWL_DL_11H,
-			"Spectrum Measure Notification: Start\n");
-		return;
-	}
-
-	memcpy(&priv->measure_report, report, sizeof(*report));
-	priv->measurement_status |= MEASUREMENT_READY;
-#endif
 }
 
 static void iwl_rx_pm_sleep_notif(struct iwl_priv *priv,
@@ -1298,8 +1148,6 @@ static void iwl_setup_rx_handlers(struct iwl_priv *priv)
 	priv->rx_handlers[REPLY_ALIVE] = iwl_rx_reply_alive;
 	priv->rx_handlers[REPLY_ERROR] = iwl_rx_reply_error;
 	priv->rx_handlers[CHANNEL_SWITCH_NOTIFICATION] = iwl_rx_csa;
-	priv->rx_handlers[SPECTRUM_MEASURE_NOTIFICATION] =
-	    iwl_rx_spectrum_measure_notif;
 	priv->rx_handlers[PM_SLEEP_NOTIFICATION] = iwl_rx_pm_sleep_notif;
 	priv->rx_handlers[PM_DEBUG_STATISTIC_NOTIFIC] =
 	    iwl_rx_pm_debug_statistics_notif;
@@ -1313,6 +1161,7 @@ static void iwl_setup_rx_handlers(struct iwl_priv *priv)
 	priv->rx_handlers[REPLY_STATISTICS_CMD] = iwl_rx_statistics;
 	priv->rx_handlers[STATISTICS_NOTIFICATION] = iwl_rx_statistics;
 
+	iwl_setup_spectrum_handlers(priv);
 	iwl_setup_rx_scan_handlers(priv);
 
 	/* status change handler */
@@ -3767,79 +3616,6 @@ static ssize_t store_filter_flags(struct device *d,
 static DEVICE_ATTR(filter_flags, S_IWUSR | S_IRUGO, show_filter_flags,
 		   store_filter_flags);
 
-#ifdef CONFIG_IWLAGN_SPECTRUM_MEASUREMENT
-
-static ssize_t show_measurement(struct device *d,
-				struct device_attribute *attr, char *buf)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	struct iwl4965_spectrum_notification measure_report;
-	u32 size = sizeof(measure_report), len = 0, ofs = 0;
-	u8 *data = (u8 *)&measure_report;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	if (!(priv->measurement_status & MEASUREMENT_READY)) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return 0;
-	}
-	memcpy(&measure_report, &priv->measure_report, size);
-	priv->measurement_status = 0;
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	while (size && (PAGE_SIZE - len)) {
-		hex_dump_to_buffer(data + ofs, size, 16, 1, buf + len,
-				   PAGE_SIZE - len, 1);
-		len = strlen(buf);
-		if (PAGE_SIZE - len)
-			buf[len++] = '\n';
-
-		ofs += 16;
-		size -= min(size, 16U);
-	}
-
-	return len;
-}
-
-static ssize_t store_measurement(struct device *d,
-				 struct device_attribute *attr,
-				 const char *buf, size_t count)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	struct ieee80211_measurement_params params = {
-		.channel = le16_to_cpu(priv->active_rxon.channel),
-		.start_time = cpu_to_le64(priv->last_tsf),
-		.duration = cpu_to_le16(1),
-	};
-	u8 type = IWL_MEASURE_BASIC;
-	u8 buffer[32];
-	u8 channel;
-
-	if (count) {
-		char *p = buffer;
-		strncpy(buffer, buf, min(sizeof(buffer), count));
-		channel = simple_strtoul(p, NULL, 0);
-		if (channel)
-			params.channel = channel;
-
-		p = buffer;
-		while (*p && *p != ' ')
-			p++;
-		if (*p)
-			type = simple_strtoul(p + 1, NULL, 0);
-	}
-
-	IWL_DEBUG_INFO("Invoking measurement of type %d on "
-		       "channel %d (for '%s')\n", type, params.channel, buf);
-	iwl_get_measurement(priv, &params, type);
-
-	return count;
-}
-
-static DEVICE_ATTR(measurement, S_IRUSR | S_IWUSR,
-		   show_measurement, store_measurement);
-#endif /* CONFIG_IWLAGN_SPECTRUM_MEASUREMENT */
-
 static ssize_t store_retry_rate(struct device *d,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
@@ -4092,9 +3868,6 @@ static struct attribute *iwl_sysfs_entries[] = {
 	&dev_attr_channels.attr,
 	&dev_attr_flags.attr,
 	&dev_attr_filter_flags.attr,
-#ifdef CONFIG_IWLAGN_SPECTRUM_MEASUREMENT
-	&dev_attr_measurement.attr,
-#endif
 	&dev_attr_power_level.attr,
 	&dev_attr_retry_rate.attr,
 	&dev_attr_statistics.attr,
