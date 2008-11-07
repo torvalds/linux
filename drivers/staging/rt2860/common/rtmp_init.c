@@ -39,6 +39,7 @@
 */
 #include "../rt_config.h"
 #include 	"firmware.h"
+#include <linux/bitrev.h>
 
 UCHAR    BIT8[] = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
 ULONG    BIT32[] = {0x00000001, 0x00000002, 0x00000004, 0x00000008,
@@ -88,20 +89,6 @@ const unsigned short ccitt_16Table[] = {
 };
 #define ByteCRC16(v, crc) \
 	(unsigned short)((crc << 8) ^  ccitt_16Table[((crc >> 8) ^ (v)) & 255])
-
-unsigned char BitReverse(unsigned char x)
-{
-	int i;
-	unsigned char Temp=0;
-	for(i=0; ; i++)
-	{
-		if(x & 0x80)	Temp |= 0x80;
-		if(i==7)		break;
-		x	<<= 1;
-		Temp >>= 1;
-	}
-	return Temp;
-}
 
 //
 // BBP register initialization set
@@ -2648,13 +2635,13 @@ NDIS_STATUS NICLoadFirmware(
 
 				/* calculate firmware CRC */
 				for(i=0; i<(MAX_FIRMWARE_IMAGE_SIZE-2); i++, ptr++)
-					crc = ByteCRC16(BitReverse(*ptr), crc);
+					crc = ByteCRC16(bitrev8(*ptr), crc);
 				/* End of for */
 
 				if ((pFirmwareImage[MAX_FIRMWARE_IMAGE_SIZE-2] != \
-								(UCHAR)BitReverse((UCHAR)(crc>>8))) ||
+								(UCHAR)bitrev8((UCHAR)(crc>>8))) ||
 					(pFirmwareImage[MAX_FIRMWARE_IMAGE_SIZE-1] != \
-								(UCHAR)BitReverse((UCHAR)crc)))
+								(UCHAR)bitrev8((UCHAR)crc)))
 				{
 					/* CRC fail */
 					printk("%s: CRC = 0x%02x 0x%02x "
