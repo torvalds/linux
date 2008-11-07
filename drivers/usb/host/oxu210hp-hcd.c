@@ -3825,7 +3825,7 @@ static int oxu_drv_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
 		dev_err(&pdev->dev,
-			"no IRQ! Check %s setup!\n", pdev->dev.bus_id);
+			"no IRQ! Check %s setup!\n", dev_name(&pdev->dev));
 		return -ENODEV;
 	}
 	irq = res->start;
@@ -3834,7 +3834,7 @@ static int oxu_drv_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "no registers address! Check %s setup!\n",
-			pdev->dev.bus_id);
+			dev_name(&pdev->dev));
 		return -ENODEV;
 	}
 	memstart = res->start;
@@ -3893,7 +3893,7 @@ error_set_irq_type:
 error_ioremap:
 	release_mem_region(memstart, memlen);
 
-	dev_err(&pdev->dev, "init %s fail, %d\n", pdev->dev.bus_id, ret);
+	dev_err(&pdev->dev, "init %s fail, %d\n", dev_name(&pdev->dev), ret);
 	return ret;
 }
 
