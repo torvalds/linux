@@ -98,6 +98,12 @@
 			interrupt-parent = <&mpic>;
 
 		};
+		gef_gpio: gpio@7,14000 {
+			#gpio-cells = <2>;
+			compatible = "gef,sbc610-gpio";
+			reg = <0x7 0x14000 0x24>;
+			gpio-controller;
+		};
 	};
 
 	soc@fef00000 {

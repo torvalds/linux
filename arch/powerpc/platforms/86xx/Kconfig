@@ -34,6 +34,8 @@ config MPC8610_HPCD
 config GEF_SBC610
 	bool "GE Fanuc SBC610"
 	select DEFAULT_UIMAGE
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
 	select HAS_RAPIDIO
 	help
 	  This option enables support for GE Fanuc's SBC610.
