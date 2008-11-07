@@ -79,7 +79,6 @@ static void uwb_rc_sys_release(struct device *dev)
 	struct uwb_dev *uwb_dev = container_of(dev, struct uwb_dev, dev);
 	struct uwb_rc *rc = container_of(uwb_dev, struct uwb_rc, uwb_dev);
 
-	uwb_rc_neh_destroy(rc);
 	uwb_rc_ie_release(rc);
 	kfree(rc);
 }
@@ -311,7 +310,7 @@ void uwb_rc_rm(struct uwb_rc *rc)
 	rc->ready = 0;
 
 	uwb_dbg_del_rc(rc);
-	uwb_rsv_cleanup(rc);
+	uwb_rsv_remove_all(rc);
 	uwb_rc_ie_rm(rc, UWB_IDENTIFICATION_IE);
 	if (rc->beaconing >= 0)
 		uwb_rc_beacon(rc, -1, 0);
@@ -322,6 +321,7 @@ void uwb_rc_rm(struct uwb_rc *rc)
 	rc->stop(rc);
 
 	uwbd_stop(rc);
+	uwb_rc_neh_destroy(rc);
 
 	uwb_dev_lock(&rc->uwb_dev);
 	rc->priv = NULL;
@@ -331,6 +331,7 @@ void uwb_rc_rm(struct uwb_rc *rc)
 	uwb_dev_for_each(rc, uwb_dev_offair_helper, NULL);
 	__uwb_rc_sys_rm(rc);
 	mutex_unlock(&rc->uwb_beca.mutex);
+	uwb_rsv_cleanup(rc);
  	uwb_beca_release(rc);
 	uwb_dev_rm(&rc->uwb_dev);
 }
