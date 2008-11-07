@@ -423,8 +423,9 @@ int btrfs_zlib_decompress_biovec(struct page **pages_in,
 			/* we didn't make progress in this inflate
 			 * call, we're done
 			 */
-			if (ret != Z_STREAM_END)
+			if (ret != Z_STREAM_END) {
 				ret = -1;
+			}
 			break;
 		}
 

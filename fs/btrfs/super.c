@@ -375,6 +375,10 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 		filemap_flush(root->fs_info->btree_inode->i_mapping);
 		return 0;
 	}
+
+	btrfs_start_delalloc_inodes(root);
+	btrfs_wait_ordered_extents(root, 0);
+
 	btrfs_clean_old_snapshots(root);
 	trans = btrfs_start_transaction(root, 1);
 	ret = btrfs_commit_transaction(trans, root);

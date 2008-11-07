@@ -625,8 +625,8 @@ struct btrfs_fs_info {
 	struct btrfs_transaction *running_transaction;
 	wait_queue_head_t transaction_throttle;
 	wait_queue_head_t transaction_wait;
-	wait_queue_head_t async_submit_wait;
 
+	wait_queue_head_t async_submit_wait;
 	wait_queue_head_t tree_log_wait;
 
 	struct btrfs_super_block super_copy;
@@ -653,6 +653,7 @@ struct btrfs_fs_info {
 	atomic_t nr_async_submits;
 	atomic_t async_submit_draining;
 	atomic_t nr_async_bios;
+	atomic_t async_delalloc_pages;
 	atomic_t tree_log_writers;
 	atomic_t tree_log_commit;
 	unsigned long tree_log_batch;
@@ -677,6 +678,7 @@ struct btrfs_fs_info {
 	 * two
 	 */
 	struct btrfs_workers workers;
+	struct btrfs_workers delalloc_workers;
 	struct btrfs_workers endio_workers;
 	struct btrfs_workers endio_write_workers;
 	struct btrfs_workers submit_workers;

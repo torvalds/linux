@@ -368,6 +368,8 @@ int noinline btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	u64 search_start = start;
 	u64 leaf_start;
 	u64 ram_bytes = 0;
+	u64 orig_parent = 0;
+	u64 disk_bytenr = 0;
 	u8 compression;
 	u8 encryption;
 	u16 other_encoding = 0;
@@ -500,17 +502,31 @@ next_slot:
 				keep = 1;
 		}
 
-		if (bookend && found_extent && locked_end < extent_end) {
-			ret = try_lock_extent(&BTRFS_I(inode)->io_tree,
-					locked_end, extent_end - 1, GFP_NOFS);
-			if (!ret) {
-				btrfs_release_path(root, path);
-				lock_extent(&BTRFS_I(inode)->io_tree,
-					locked_end, extent_end - 1, GFP_NOFS);
+		if (bookend && found_extent) {
+			if (locked_end < extent_end) {
+				ret = try_lock_extent(&BTRFS_I(inode)->io_tree,
+						locked_end, extent_end - 1,
+						GFP_NOFS);
+				if (!ret) {
+					btrfs_release_path(root, path);
+					lock_extent(&BTRFS_I(inode)->io_tree,
+						locked_end, extent_end - 1,
+						GFP_NOFS);
+					locked_end = extent_end;
+					continue;
+				}
 				locked_end = extent_end;
-				continue;
 			}
-			locked_end = extent_end;
+			orig_parent = path->nodes[0]->start;
+			disk_bytenr = le64_to_cpu(old.disk_bytenr);
+			if (disk_bytenr != 0) {
+				ret = btrfs_inc_extent_ref(trans, root,
+					   disk_bytenr,
+					   le64_to_cpu(old.disk_num_bytes),
+					   orig_parent, root->root_key.objectid,
+					   trans->transid, inode->i_ino);
+				BUG_ON(ret);
+			}
 		}
 
 		if (found_inline) {
@@ -537,8 +553,12 @@ next_slot:
 					inode_sub_bytes(inode, old_num -
 							new_num);
 				}
-				btrfs_set_file_extent_num_bytes(leaf, extent,
-								new_num);
+				if (!compression && !encryption) {
+					btrfs_set_file_extent_ram_bytes(leaf,
+							extent, new_num);
+				}
+				btrfs_set_file_extent_num_bytes(leaf,
+							extent, new_num);
 				btrfs_mark_buffer_dirty(leaf);
 			} else if (key.offset < inline_limit &&
 				   (end > extent_end) &&
@@ -582,11 +602,11 @@ next_slot:
 		}
 		/* create bookend, splitting the extent in two */
 		if (bookend && found_extent) {
-			u64 disk_bytenr;
 			struct btrfs_key ins;
 			ins.objectid = inode->i_ino;
 			ins.offset = end;
 			btrfs_set_key_type(&ins, BTRFS_EXTENT_DATA_KEY);
+
 			btrfs_release_path(root, path);
 			ret = btrfs_insert_empty_item(trans, root, path, &ins,
 						      sizeof(*extent));
@@ -623,14 +643,13 @@ next_slot:
 
 			btrfs_mark_buffer_dirty(path->nodes[0]);
 
-			disk_bytenr = le64_to_cpu(old.disk_bytenr);
 			if (disk_bytenr != 0) {
-				ret = btrfs_inc_extent_ref(trans, root,
-						disk_bytenr,
-						le64_to_cpu(old.disk_num_bytes),
-						leaf->start,
+				ret = btrfs_update_extent_ref(trans, root,
+						disk_bytenr, orig_parent,
+					        leaf->start,
 						root->root_key.objectid,
 						trans->transid, ins.objectid);
+
 				BUG_ON(ret);
 			}
 			btrfs_release_path(root, path);

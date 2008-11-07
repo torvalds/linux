@@ -35,7 +35,8 @@ typedef	int (extent_submit_bio_hook_t)(struct inode *inode, int rw,
 				       unsigned long bio_flags);
 struct extent_io_ops {
 	int (*fill_delalloc)(struct inode *inode, struct page *locked_page,
-			     u64 start, u64 end, int *page_started);
+			     u64 start, u64 end, int *page_started,
+			     unsigned long *nr_written);
 	int (*writepage_start_hook)(struct page *page, u64 start, u64 end);
 	int (*writepage_io_hook)(struct page *page, u64 start, u64 end);
 	extent_submit_bio_hook_t *submit_bio_hook;
@@ -172,6 +173,9 @@ int extent_invalidatepage(struct extent_io_tree *tree,
 int extent_write_full_page(struct extent_io_tree *tree, struct page *page,
 			  get_extent_t *get_extent,
 			  struct writeback_control *wbc);
+int extent_write_locked_range(struct extent_io_tree *tree, struct inode *inode,
+			      u64 start, u64 end, get_extent_t *get_extent,
+			      int mode);
 int extent_writepages(struct extent_io_tree *tree,
 		      struct address_space *mapping,
 		      get_extent_t *get_extent,
@@ -256,6 +260,9 @@ int extent_range_uptodate(struct extent_io_tree *tree,
 int extent_clear_unlock_delalloc(struct inode *inode,
 				struct extent_io_tree *tree,
 				u64 start, u64 end, struct page *locked_page,
-				int clear_dirty, int set_writeback,
-				int clear_writeback);
+				int unlock_page,
+				int clear_unlock,
+				int clear_delalloc, int clear_dirty,
+				int set_writeback,
+				int end_writeback);
 #endif

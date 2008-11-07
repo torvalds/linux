@@ -539,6 +539,13 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 			   (atomic_read(&fs_info->nr_async_bios) < limit),
 			   HZ/10);
 	}
+
+	while(atomic_read(&fs_info->async_submit_draining) &&
+	      atomic_read(&fs_info->nr_async_submits)) {
+		wait_event(fs_info->async_submit_wait,
+			   (atomic_read(&fs_info->nr_async_submits) == 0));
+	}
+
 	return 0;
 }
 
@@ -1437,6 +1444,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	INIT_LIST_HEAD(&fs_info->space_info);
 	btrfs_mapping_init(&fs_info->mapping_tree);
 	atomic_set(&fs_info->nr_async_submits, 0);
+	atomic_set(&fs_info->async_delalloc_pages, 0);
 	atomic_set(&fs_info->async_submit_draining, 0);
 	atomic_set(&fs_info->nr_async_bios, 0);
 	atomic_set(&fs_info->throttles, 0);
@@ -1550,6 +1558,9 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	btrfs_init_workers(&fs_info->workers, "worker",
 			   fs_info->thread_pool_size);
 
+	btrfs_init_workers(&fs_info->delalloc_workers, "delalloc",
+			   fs_info->thread_pool_size);
+
 	btrfs_init_workers(&fs_info->submit_workers, "submit",
 			   min_t(u64, fs_devices->num_devices,
 			   fs_info->thread_pool_size));
@@ -1560,14 +1571,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	 */
 	fs_info->submit_workers.idle_thresh = 64;
 
-	/* fs_info->workers is responsible for checksumming file data
-	 * blocks and metadata.  Using a larger idle thresh allows each
-	 * worker thread to operate on things in roughly the order they
-	 * were sent by the writeback daemons, improving overall locality
-	 * of the IO going down the pipe.
-	 */
-	fs_info->workers.idle_thresh = 8;
+	fs_info->workers.idle_thresh = 16;
 	fs_info->workers.ordered = 1;
+
+	fs_info->delalloc_workers.idle_thresh = 2;
+	fs_info->delalloc_workers.ordered = 1;
 
 	btrfs_init_workers(&fs_info->fixup_workers, "fixup", 1);
 	btrfs_init_workers(&fs_info->endio_workers, "endio",
@@ -1584,6 +1592,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	btrfs_start_workers(&fs_info->workers, 1);
 	btrfs_start_workers(&fs_info->submit_workers, 1);
+	btrfs_start_workers(&fs_info->delalloc_workers, 1);
 	btrfs_start_workers(&fs_info->fixup_workers, 1);
 	btrfs_start_workers(&fs_info->endio_workers, fs_info->thread_pool_size);
 	btrfs_start_workers(&fs_info->endio_write_workers,
@@ -1732,6 +1741,7 @@ fail_tree_root:
 fail_sys_array:
 fail_sb_buffer:
 	btrfs_stop_workers(&fs_info->fixup_workers);
+	btrfs_stop_workers(&fs_info->delalloc_workers);
 	btrfs_stop_workers(&fs_info->workers);
 	btrfs_stop_workers(&fs_info->endio_workers);
 	btrfs_stop_workers(&fs_info->endio_write_workers);
@@ -1988,6 +1998,7 @@ int close_ctree(struct btrfs_root *root)
 	truncate_inode_pages(fs_info->btree_inode->i_mapping, 0);
 
 	btrfs_stop_workers(&fs_info->fixup_workers);
+	btrfs_stop_workers(&fs_info->delalloc_workers);
 	btrfs_stop_workers(&fs_info->workers);
 	btrfs_stop_workers(&fs_info->endio_workers);
 	btrfs_stop_workers(&fs_info->endio_write_workers);
@@ -2062,7 +2073,7 @@ void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)
 	struct extent_io_tree *tree;
 	u64 num_dirty;
 	u64 start = 0;
-	unsigned long thresh = 96 * 1024 * 1024;
+	unsigned long thresh = 32 * 1024 * 1024;
 	tree = &BTRFS_I(root->fs_info->btree_inode)->io_tree;
 
 	if (current_is_pdflush() || current->flags & PF_MEMALLOC)

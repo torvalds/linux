@@ -768,7 +768,11 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 	l = path->nodes[0];
 
 	btrfs_item_key_to_cpu(l, &key, path->slots[0]);
-	BUG_ON(key.objectid != bytenr);
+	if (key.objectid != bytenr) {
+		btrfs_print_leaf(root->fs_info->extent_root, path->nodes[0]);
+		printk("wanted %Lu found %Lu\n", bytenr, key.objectid);
+		BUG();
+	}
 	BUG_ON(key.type != BTRFS_EXTENT_ITEM_KEY);
 
 	item = btrfs_item_ptr(l, path->slots[0], struct btrfs_extent_item);

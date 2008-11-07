@@ -390,7 +390,7 @@ void btrfs_start_ordered_extent(struct inode *inode,
 	 * start IO on any dirty ones so the wait doesn't stall waiting
 	 * for pdflush to find them
 	 */
-	btrfs_fdatawrite_range(inode->i_mapping, start, end, WB_SYNC_NONE);
+	btrfs_fdatawrite_range(inode->i_mapping, start, end, WB_SYNC_ALL);
 	if (wait) {
 		wait_event(entry->wait, test_bit(BTRFS_ORDERED_COMPLETE,
 						 &entry->flags));
@@ -421,6 +421,12 @@ again:
 	 */
 	btrfs_fdatawrite_range(inode->i_mapping, start, orig_end, WB_SYNC_NONE);
 
+	/* The compression code will leave pages locked but return from
+	 * writepage without setting the page writeback.  Starting again
+	 * with WB_SYNC_ALL will end up waiting for the IO to actually start.
+	 */
+	btrfs_fdatawrite_range(inode->i_mapping, start, orig_end, WB_SYNC_ALL);
+
 	btrfs_wait_on_page_writeback_range(inode->i_mapping,
 					   start >> PAGE_CACHE_SHIFT,
 					   orig_end >> PAGE_CACHE_SHIFT);
@@ -448,10 +454,7 @@ again:
 	}
 	if (test_range_bit(&BTRFS_I(inode)->io_tree, start, orig_end,
 			   EXTENT_ORDERED | EXTENT_DELALLOC, 0)) {
-		printk("inode %lu still ordered or delalloc after wait "
-		       "%llu %llu\n", inode->i_ino,
-		       (unsigned long long)start,
-		       (unsigned long long)orig_end);
+		schedule_timeout(1);
 		goto again;
 	}
 	return 0;
