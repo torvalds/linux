@@ -287,7 +287,7 @@ static const iw_handler usbdrv_private_handler[] =
     NULL,               /* SIOCIWFIRSTPRIV */
 };
 
-struct iw_handler_def p80211wext_handler_def = {
+static struct iw_handler_def p80211wext_handler_def = {
     .num_standard = sizeof(usbdrvwext_handler) / sizeof(iw_handler),
     .num_private = sizeof(usbdrv_private_handler)/sizeof(iw_handler),
     .num_private_args = sizeof(usbdrv_private_args)/sizeof(struct iw_priv_args),
@@ -948,7 +948,6 @@ int zfLnxUnregisterVapDev(struct net_device* parentDev, u16_t vapId)
 #endif
 
 //extern void zfiWlanQueryMacAddress(zdev_t* dev, u8_t* addr);
-extern struct iw_handler_def p80211wext_handler_def;
 
 extern int usbdrv_open(struct net_device *dev);
 extern int usbdrv_close(struct net_device *dev);
