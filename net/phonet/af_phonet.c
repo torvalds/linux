@@ -35,7 +35,11 @@
 
 static struct net_proto_family phonet_proto_family;
 static struct phonet_protocol *phonet_proto_get(int protocol);
-static inline void phonet_proto_put(struct phonet_protocol *pp);
+
+static inline void phonet_proto_put(struct phonet_protocol *pp)
+{
+	module_put(pp->prot->owner);
+}
 
 /* protocol family functions */
 
@@ -426,11 +430,6 @@ static struct phonet_protocol *phonet_proto_get(int protocol)
 	spin_unlock(&proto_tab_lock);
 
 	return pp;
-}
-
-static inline void phonet_proto_put(struct phonet_protocol *pp)
-{
-	module_put(pp->prot->owner);
 }
 
 /* Module registration */

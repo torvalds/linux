@@ -49,14 +49,14 @@ struct gprs_dev {
 	unsigned		tx_max;
 };
 
-static int gprs_type_trans(struct sk_buff *skb)
+static __be16 gprs_type_trans(struct sk_buff *skb)
 {
 	const u8 *pvfc;
 	u8 buf;
 
 	pvfc = skb_header_pointer(skb, 0, 1, &buf);
 	if (!pvfc)
-		return 0;
+		return htons(0);
 	/* Look at IP version field */
 	switch (*pvfc >> 4) {
 	case 4:
@@ -64,7 +64,7 @@ static int gprs_type_trans(struct sk_buff *skb)
 	case 6:
 		return htons(ETH_P_IPV6);
 	}
-	return 0;
+	return htons(0);
 }
 
 /*
@@ -84,7 +84,7 @@ static void gprs_state_change(struct sock *sk)
 static int gprs_recv(struct gprs_dev *dev, struct sk_buff *skb)
 {
 	int err = 0;
-	u16 protocol = gprs_type_trans(skb);
+	__be16 protocol = gprs_type_trans(skb);
 
 	if (!protocol) {
 		err = -EINVAL;
