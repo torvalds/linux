@@ -12,13 +12,11 @@
 #include <asm/machvec.h>
 #include <linux/dma-mapping.h>
 
-#include <asm/machvec.h>
 #include <asm/system.h>
 
 #ifdef CONFIG_DMAR
 
 #include <linux/kernel.h>
-#include <linux/string.h>
 
 #include <asm/page.h>
 #include <asm/iommu.h>
