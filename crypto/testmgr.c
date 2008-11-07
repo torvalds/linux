@@ -1010,6 +1010,55 @@ static int alg_test_hash(const struct alg_test_desc *desc, const char *driver,
 	return err;
 }
 
+static int alg_test_crc32c(const struct alg_test_desc *desc,
+			   const char *driver, u32 type, u32 mask)
+{
+	struct crypto_shash *tfm;
+	u32 val;
+	int err;
+
+	err = alg_test_hash(desc, driver, type, mask);
+	if (err)
+		goto out;
+
+	tfm = crypto_alloc_shash(driver, type, mask);
+	if (IS_ERR(tfm)) {
+		printk(KERN_ERR "alg: crc32c: Failed to load transform for %s: "
+		       "%ld\n", driver, PTR_ERR(tfm));
+		err = PTR_ERR(tfm);
+		goto out;
+	}
+
+	do {
+		struct {
+			struct shash_desc shash;
+			char ctx[crypto_shash_descsize(tfm)];
+		} sdesc;
+
+		sdesc.shash.tfm = tfm;
+		sdesc.shash.flags = 0;
+
+		*(u32 *)sdesc.ctx = le32_to_cpu(420553207);
+		err = crypto_shash_final(&sdesc.shash, (u8 *)&val);
+		if (err) {
+			printk(KERN_ERR "alg: crc32c: Operation failed for "
+			       "%s: %d\n", driver, err);
+			break;
+		}
+
+		if (val != ~420553207) {
+			printk(KERN_ERR "alg: crc32c: Test failed for %s: "
+			       "%d\n", driver, val);
+			err = -EINVAL;
+		}
+	} while (0);
+
+	crypto_free_shash(tfm);
+
+out:
+	return err;
+}
+
 /* Please keep this list sorted by algorithm name. */
 static const struct alg_test_desc alg_test_descs[] = {
 	{
@@ -1134,7 +1183,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "crc32c",
-		.test = alg_test_hash,
+		.test = alg_test_crc32c,
 		.suite = {
 			.hash = {
 				.vecs = crc32c_tv_template,
