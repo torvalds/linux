@@ -2152,11 +2152,13 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 	}
 	search_start = max(search_start, first_logical_byte(root, 0));
 	search_start = max(search_start, hint_byte);
-	total_needed += empty_size;
 
-	if (search_start != last_wanted)
+	if (last_wanted && search_start != last_wanted) {
 		last_wanted = 0;
+		empty_size += empty_cluster;
+	}
 
+	total_needed += empty_size;
 	block_group = btrfs_lookup_block_group(root->fs_info, search_start);
 	if (!block_group)
 		block_group = btrfs_lookup_first_block_group(root->fs_info,
@@ -2171,7 +2173,9 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 		 * group thats not of the proper type, while looping this
 		 * should never happen
 		 */
-		WARN_ON(!block_group);
+		if (!block_group)
+			goto new_group_no_lock;
+
 		mutex_lock(&block_group->alloc_mutex);
 		if (unlikely(!block_group_bits(block_group, data)))
 			goto new_group;
@@ -2248,12 +2252,13 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 			break;
 		}
 new_group:
+		mutex_unlock(&block_group->alloc_mutex);
+new_group_no_lock:
 		last_wanted = 0;
-		if (loop > 0) {
+		if (!allowed_chunk_alloc && loop > 0) {
 			total_needed -= empty_cluster;
 			empty_cluster = 0;
 		}
-		mutex_unlock(&block_group->alloc_mutex);
 		/*
 		 * Here's how this works.
 		 * loop == 0: we were searching a block group via a hint
@@ -2271,6 +2276,10 @@ new_group:
 			cur = head->next;
 			loop++;
 		} else if (loop == 1 && cur == head) {
+
+			total_needed -= empty_cluster;
+			empty_cluster = 0;
+
 			if (allowed_chunk_alloc && !chunk_alloc_done) {
 				up_read(&space_info->groups_sem);
 				ret = do_chunk_alloc(trans, root, num_bytes +
