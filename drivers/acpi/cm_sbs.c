@@ -34,7 +34,6 @@
 ACPI_MODULE_NAME("cm_sbs");
 #define ACPI_AC_CLASS		"ac_adapter"
 #define ACPI_BATTERY_CLASS	"battery"
-#define ACPI_SBS_COMPONENT	0x00080000
 #define _COMPONENT		ACPI_SBS_COMPONENT
 static struct proc_dir_entry *acpi_ac_dir;
 static struct proc_dir_entry *acpi_battery_dir;

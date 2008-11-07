@@ -44,9 +44,8 @@
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 
-#define _COMPONENT		ACPI_POWER_COMPONENT
+#define _COMPONENT			ACPI_POWER_COMPONENT
 ACPI_MODULE_NAME("power");
-#define ACPI_POWER_COMPONENT		0x00800000
 #define ACPI_POWER_CLASS		"power_resource"
 #define ACPI_POWER_DEVICE_NAME		"Power Resource"
 #define ACPI_POWER_FILE_INFO		"info"
