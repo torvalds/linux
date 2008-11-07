@@ -2116,6 +2116,7 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_root * root = orig_root->fs_info->extent_root;
 	u64 total_needed = num_bytes;
 	u64 *last_ptr = NULL;
+	u64 last_wanted = 0;
 	struct btrfs_block_group_cache *block_group = NULL;
 	int chunk_alloc_done = 0;
 	int empty_cluster = 2 * 1024 * 1024;
@@ -2134,21 +2135,27 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 
 	if (data & BTRFS_BLOCK_GROUP_METADATA) {
 		last_ptr = &root->fs_info->last_alloc;
-		empty_cluster = 256 * 1024;
+		empty_cluster = 64 * 1024;
 	}
 
 	if ((data & BTRFS_BLOCK_GROUP_DATA) && btrfs_test_opt(root, SSD))
 		last_ptr = &root->fs_info->last_data_alloc;
 
 	if (last_ptr) {
-		if (*last_ptr)
+		if (*last_ptr) {
 			hint_byte = *last_ptr;
-		else
+			last_wanted = *last_ptr;
+		} else
 			empty_size += empty_cluster;
+	} else {
+		empty_cluster = 0;
 	}
 	search_start = max(search_start, first_logical_byte(root, 0));
 	search_start = max(search_start, hint_byte);
 	total_needed += empty_size;
+
+	if (search_start != last_wanted)
+		last_wanted = 0;
 
 	block_group = btrfs_lookup_block_group(root->fs_info, search_start);
 	if (!block_group)
@@ -2195,9 +2202,9 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 			if (search_start + num_bytes > end)
 				goto new_group;
 
-			if (last_ptr && *last_ptr && search_start != *last_ptr) {
+			if (last_wanted && search_start != last_wanted) {
 				total_needed += empty_cluster;
-				*last_ptr = 0;
+				last_wanted = 0;
 				/*
 				 * if search_start is still in this block group
 				 * then we just re-search this block group
@@ -2223,6 +2230,7 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 				if (search_start >= start &&
 				    search_start < end) {
 					mutex_unlock(&block_group->alloc_mutex);
+					last_wanted = 0;
 					continue;
 				}
 
@@ -2240,6 +2248,11 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 			break;
 		}
 new_group:
+		last_wanted = 0;
+		if (loop > 0) {
+			total_needed -= empty_cluster;
+			empty_cluster = 0;
+		}
 		mutex_unlock(&block_group->alloc_mutex);
 		/*
 		 * Here's how this works.
@@ -2256,11 +2269,6 @@ new_group:
 		if (loop == 0) {
 			head = &space_info->block_groups;
 			cur = head->next;
-
-			if (last_ptr && *last_ptr) {
-				total_needed += empty_cluster;
-				*last_ptr = 0;
-			}
 			loop++;
 		} else if (loop == 1 && cur == head) {
 			if (allowed_chunk_alloc && !chunk_alloc_done) {
