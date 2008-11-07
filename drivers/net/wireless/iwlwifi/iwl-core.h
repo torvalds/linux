@@ -102,9 +102,6 @@ struct iwl_hcmd_utils_ops {
 struct iwl_lib_ops {
 	/* set hw dependent parameters */
 	int (*set_hw_params)(struct iwl_priv *priv);
-	/* ucode shared memory */
-	int (*alloc_shared_mem)(struct iwl_priv *priv);
-	void (*free_shared_mem)(struct iwl_priv *priv);
 	/* Handling TX */
 	void (*txq_update_byte_cnt_tbl)(struct iwl_priv *priv,
 					struct iwl_tx_queue *txq,
@@ -197,10 +194,6 @@ int iwl_setup_mac(struct iwl_priv *priv);
 int iwl_set_hw_params(struct iwl_priv *priv);
 int iwl_init_drv(struct iwl_priv *priv);
 void iwl_uninit_drv(struct iwl_priv *priv);
-/* "keep warm" functions */
-int iwl_kw_init(struct iwl_priv *priv);
-int iwl_kw_alloc(struct iwl_priv *priv);
-void iwl_kw_free(struct iwl_priv *priv);
 
 /*****************************************************
 * RX

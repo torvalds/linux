@@ -90,16 +90,10 @@
  * @tfd_offset  0-12 - tx command byte count
  *	       12-16 - station index
  */
-struct iwl5000_schedq_bc_tbl {
+struct iwl5000_scd_bc_tbl {
 	__le16 tfd_offset[TFD_QUEUE_BC_SIZE];
 } __attribute__ ((packed));
 
-/**
- * struct iwl5000_shared
- */
-struct iwl5000_shared {
-	struct iwl5000_schedq_bc_tbl queues_bc_tbls[IWL50_NUM_QUEUES];
-} __attribute__ ((packed));
 
 #endif /* __iwl_5000_hw_h__ */
 
