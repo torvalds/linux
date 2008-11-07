@@ -79,8 +79,7 @@ int
 xfs_setattr(
 	struct xfs_inode	*ip,
 	struct iattr		*iattr,
-	int			flags,
-	cred_t			*credp)
+	int			flags)
 {
 	xfs_mount_t		*mp = ip->i_mount;
 	struct inode		*inode = VFS_I(ip);
@@ -233,10 +232,6 @@ xfs_setattr(
 
 	/*
 	 * Change file ownership.  Must be the owner or privileged.
-	 * If the system was configured with the "restricted_chown"
-	 * option, the owner is not permitted to give away the file,
-	 * and can change the group id only to a group of which he
-	 * or she is a member.
 	 */
 	if (mask & (ATTR_UID|ATTR_GID)) {
 		/*
@@ -260,9 +255,8 @@ xfs_setattr(
 		 * shall be equal to either the group ID or one of the
 		 * supplementary group IDs of the calling process.
 		 */
-		if (restricted_chown &&
-		    (iuid != uid || (igid != gid &&
-				     !in_group_p((gid_t)gid))) &&
+		if ((iuid != uid ||
+		     (igid != gid && !in_group_p((gid_t)gid))) &&
 		    !capable(CAP_CHOWN)) {
 			code = XFS_ERROR(EPERM);
 			goto error_return;
@@ -456,10 +450,6 @@ xfs_setattr(
 
 	/*
 	 * Change file ownership.  Must be the owner or privileged.
-	 * If the system was configured with the "restricted_chown"
-	 * option, the owner is not permitted to give away the file,
-	 * and can change the group id only to a group of which he
-	 * or she is a member.
 	 */
 	if (mask & (ATTR_UID|ATTR_GID)) {
 		/*
@@ -2009,7 +1999,7 @@ xfs_remove(
 			goto out_bmap_cancel;
 
 		/*
-		 * Drop the link from dp to ip.
+		 * Drop the "." link from ip to self.
 		 */
 		error = xfs_droplink(tp, ip);
 		if (error)
@@ -2024,7 +2014,7 @@ xfs_remove(
 	}
 
 	/*
-	 * Drop the "." link from ip to self.
+	 * Drop the link from dp to ip.
 	 */
 	error = xfs_droplink(tp, ip);
 	if (error)
@@ -2833,122 +2823,10 @@ xfs_reclaim(
 	if (!ip->i_update_core && (ip->i_itemp == NULL)) {
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		xfs_iflock(ip);
-		return xfs_finish_reclaim(ip, 1, XFS_IFLUSH_DELWRI_ELSE_SYNC);
-	} else {
-		xfs_mount_t	*mp = ip->i_mount;
-
-		/* Protect sync and unpin from us */
-		XFS_MOUNT_ILOCK(mp);
-		spin_lock(&ip->i_flags_lock);
-		__xfs_iflags_set(ip, XFS_IRECLAIMABLE);
-		VFS_I(ip)->i_private = NULL;
-		ip->i_vnode = NULL;
-		spin_unlock(&ip->i_flags_lock);
-		list_add_tail(&ip->i_reclaim, &mp->m_del_inodes);
-		XFS_MOUNT_IUNLOCK(mp);
+		xfs_iflags_set(ip, XFS_IRECLAIMABLE);
+		return xfs_reclaim_inode(ip, 1, XFS_IFLUSH_DELWRI_ELSE_SYNC);
 	}
-	return 0;
-}
-
-int
-xfs_finish_reclaim(
-	xfs_inode_t	*ip,
-	int		locked,
-	int		sync_mode)
-{
-	xfs_perag_t	*pag = xfs_get_perag(ip->i_mount, ip->i_ino);
-	struct inode	*vp = VFS_I(ip);
-
-	if (vp && VN_BAD(vp))
-		goto reclaim;
-
-	/* The hash lock here protects a thread in xfs_iget_core from
-	 * racing with us on linking the inode back with a vnode.
-	 * Once we have the XFS_IRECLAIM flag set it will not touch
-	 * us.
-	 */
-	write_lock(&pag->pag_ici_lock);
-	spin_lock(&ip->i_flags_lock);
-	if (__xfs_iflags_test(ip, XFS_IRECLAIM) ||
-	    (!__xfs_iflags_test(ip, XFS_IRECLAIMABLE) && vp == NULL)) {
-		spin_unlock(&ip->i_flags_lock);
-		write_unlock(&pag->pag_ici_lock);
-		if (locked) {
-			xfs_ifunlock(ip);
-			xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		}
-		return 1;
-	}
-	__xfs_iflags_set(ip, XFS_IRECLAIM);
-	spin_unlock(&ip->i_flags_lock);
-	write_unlock(&pag->pag_ici_lock);
-	xfs_put_perag(ip->i_mount, pag);
-
-	/*
-	 * If the inode is still dirty, then flush it out.  If the inode
-	 * is not in the AIL, then it will be OK to flush it delwri as
-	 * long as xfs_iflush() does not keep any references to the inode.
-	 * We leave that decision up to xfs_iflush() since it has the
-	 * knowledge of whether it's OK to simply do a delwri flush of
-	 * the inode or whether we need to wait until the inode is
-	 * pulled from the AIL.
-	 * We get the flush lock regardless, though, just to make sure
-	 * we don't free it while it is being flushed.
-	 */
-	if (!locked) {
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		xfs_iflock(ip);
-	}
-
-	/*
-	 * In the case of a forced shutdown we rely on xfs_iflush() to
-	 * wait for the inode to be unpinned before returning an error.
-	 */
-	if (xfs_iflush(ip, sync_mode) == 0) {
-		/* synchronize with xfs_iflush_done */
-		xfs_iflock(ip);
-		xfs_ifunlock(ip);
-	}
-
-	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-
- reclaim:
-	xfs_ireclaim(ip);
-	return 0;
-}
-
-int
-xfs_finish_reclaim_all(xfs_mount_t *mp, int noblock)
-{
-	int		purged;
-	xfs_inode_t	*ip, *n;
-	int		done = 0;
-
-	while (!done) {
-		purged = 0;
-		XFS_MOUNT_ILOCK(mp);
-		list_for_each_entry_safe(ip, n, &mp->m_del_inodes, i_reclaim) {
-			if (noblock) {
-				if (xfs_ilock_nowait(ip, XFS_ILOCK_EXCL) == 0)
-					continue;
-				if (xfs_ipincount(ip) ||
-				    !xfs_iflock_nowait(ip)) {
-					xfs_iunlock(ip, XFS_ILOCK_EXCL);
-					continue;
-				}
-			}
-			XFS_MOUNT_IUNLOCK(mp);
-			if (xfs_finish_reclaim(ip, noblock,
-					XFS_IFLUSH_DELWRI_ELSE_ASYNC))
-				delay(1);
-			purged = 1;
-			break;
-		}
-
-		done = !purged;
-	}
-
-	XFS_MOUNT_IUNLOCK(mp);
+	xfs_inode_set_reclaim_tag(ip);
 	return 0;
 }
 
@@ -3474,7 +3352,6 @@ xfs_change_file_space(
 	int		cmd,
 	xfs_flock64_t	*bf,
 	xfs_off_t	offset,
-	cred_t		*credp,
 	int		attr_flags)
 {
 	xfs_mount_t	*mp = ip->i_mount;
@@ -3562,7 +3439,7 @@ xfs_change_file_space(
 		iattr.ia_valid = ATTR_SIZE;
 		iattr.ia_size = startoffset;
 
-		error = xfs_setattr(ip, &iattr, attr_flags, credp);
+		error = xfs_setattr(ip, &iattr, attr_flags);
 
 		if (error)
 			return error;

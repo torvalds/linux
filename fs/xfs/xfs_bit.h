@@ -61,8 +61,7 @@ static inline int xfs_highbit64(__uint64_t v)
 /* Get low bit set out of 32-bit argument, -1 if none set */
 static inline int xfs_lowbit32(__uint32_t v)
 {
-	unsigned long	t = v;
-	return (v) ? find_first_bit(&t, 32) : -1;
+	return ffs(v) - 1;
 }
 
 /* Get low bit set out of 64-bit argument, -1 if none set */

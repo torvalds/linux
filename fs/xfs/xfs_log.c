@@ -567,12 +567,12 @@ xfs_log_mount(
 	/*
 	 * Initialize the AIL now we have a log.
 	 */
-	spin_lock_init(&mp->m_ail_lock);
 	error = xfs_trans_ail_init(mp);
 	if (error) {
 		cmn_err(CE_WARN, "XFS: AIL initialisation failed: error %d", error);
 		goto error;
 	}
+	mp->m_log->l_ailp = mp->m_ail;
 
 	/*
 	 * skip log recovery on a norecovery mount.  pretend it all
@@ -900,7 +900,7 @@ xfs_log_move_tail(xfs_mount_t	*mp,
 int
 xfs_log_need_covered(xfs_mount_t *mp)
 {
-	int		needed = 0, gen;
+	int		needed = 0;
 	xlog_t		*log = mp->m_log;
 
 	if (!xfs_fs_writable(mp))
@@ -909,7 +909,7 @@ xfs_log_need_covered(xfs_mount_t *mp)
 	spin_lock(&log->l_icloglock);
 	if (((log->l_covered_state == XLOG_STATE_COVER_NEED) ||
 		(log->l_covered_state == XLOG_STATE_COVER_NEED2))
-			&& !xfs_trans_first_ail(mp, &gen)
+			&& !xfs_trans_ail_tail(log->l_ailp)
 			&& xlog_iclogs_empty(log)) {
 		if (log->l_covered_state == XLOG_STATE_COVER_NEED)
 			log->l_covered_state = XLOG_STATE_COVER_DONE;
@@ -946,7 +946,7 @@ xlog_assign_tail_lsn(xfs_mount_t *mp)
 	xfs_lsn_t tail_lsn;
 	xlog_t	  *log = mp->m_log;
 
-	tail_lsn = xfs_trans_tail_ail(mp);
+	tail_lsn = xfs_trans_ail_tail(mp->m_ail);
 	spin_lock(&log->l_grant_lock);
 	if (tail_lsn != 0) {
 		log->l_tail_lsn = tail_lsn;
@@ -1413,7 +1413,7 @@ xlog_grant_push_ail(xfs_mount_t	*mp,
      */
     if (threshold_lsn &&
 	!XLOG_FORCED_SHUTDOWN(log))
-	    xfs_trans_push_ail(mp, threshold_lsn);
+	    xfs_trans_ail_push(log->l_ailp, threshold_lsn);
 }	/* xlog_grant_push_ail */
 
 

@@ -20,7 +20,6 @@
 #include "xfs_bit.h"
 #include "xfs_log.h"
 #include "xfs_inum.h"
-#include "xfs_clnt.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
@@ -987,14 +986,10 @@ xfs_qm_dqdetach(
 }
 
 /*
- * This is called by VFS_SYNC and flags arg determines the caller,
- * and its motives, as done in xfs_sync.
- *
- * vfs_sync: SYNC_FSDATA|SYNC_ATTR|SYNC_BDFLUSH 0x31
- * syscall sync: SYNC_FSDATA|SYNC_ATTR|SYNC_DELWRI 0x25
- * umountroot : SYNC_WAIT | SYNC_CLOSE | SYNC_ATTR | SYNC_FSDATA
+ * This is called to sync quotas. We can be told to use non-blocking
+ * semantics by either the SYNC_BDFLUSH flag or the absence of the
+ * SYNC_WAIT flag.
  */
-
 int
 xfs_qm_sync(
 	xfs_mount_t	*mp,
@@ -1137,7 +1132,6 @@ xfs_qm_init_quotainfo(
 		return error;
 	}
 
-	spin_lock_init(&qinf->qi_pinlock);
 	xfs_qm_list_init(&qinf->qi_dqlist, "mpdqlist", 0);
 	qinf->qi_dqreclaims = 0;
 
@@ -1234,7 +1228,6 @@ xfs_qm_destroy_quotainfo(
 	 */
 	xfs_qm_rele_quotafs_ref(mp);
 
-	spinlock_destroy(&qi->qi_pinlock);
 	xfs_qm_list_destroy(&qi->qi_dqlist);
 
 	if (qi->qi_uquotaip) {

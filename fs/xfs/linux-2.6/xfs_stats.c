@@ -53,6 +53,10 @@ xfs_read_xfsstats(
 		{ "icluster",		XFSSTAT_END_INODE_CLUSTER	},
 		{ "vnodes",		XFSSTAT_END_VNODE_OPS		},
 		{ "buf",		XFSSTAT_END_BUF			},
+		{ "abtb2",		XFSSTAT_END_ABTB_V2		},
+		{ "abtc2",		XFSSTAT_END_ABTC_V2		},
+		{ "bmbt2",		XFSSTAT_END_BMBT_V2		},
+		{ "ibt2",		XFSSTAT_END_IBT_V2		},
 	};
 
 	/* Loop over all stats groups */

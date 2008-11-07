@@ -101,9 +101,6 @@ struct block_device;
 
 extern __uint64_t xfs_max_file_offset(unsigned int);
 
-extern void xfs_flush_inode(struct xfs_inode *);
-extern void xfs_flush_device(struct xfs_inode *);
-
 extern void xfs_blkdev_issue_flush(struct xfs_buftarg *);
 
 extern const struct export_operations xfs_export_operations;

@@ -78,8 +78,7 @@ typedef struct xfs_dinode
 	xfs_dinode_core_t	di_core;
 	/*
 	 * In adding anything between the core and the union, be
-	 * sure to update the macros like XFS_LITINO below and
-	 * XFS_BMAP_RBLOCK_DSIZE in xfs_bmap_btree.h.
+	 * sure to update the macros like XFS_LITINO below.
 	 */
 	__be32			di_next_unlinked;/* agi unlinked list ptr */
 	union {
@@ -166,7 +165,7 @@ typedef enum xfs_dinode_fmt
  */
 #define	XFS_LITINO(mp)	((mp)->m_litino)
 #define	XFS_BROOT_SIZE_ADJ	\
-	(sizeof(xfs_bmbt_block_t) - sizeof(xfs_bmdr_block_t))
+	(XFS_BTREE_LBLOCK_LEN - sizeof(xfs_bmdr_block_t))
 
 /*
  * Inode data & attribute fork sizes, per inode.

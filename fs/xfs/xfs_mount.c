@@ -567,8 +567,6 @@ xfs_readsb(xfs_mount_t *mp, int flags)
 STATIC void
 xfs_mount_common(xfs_mount_t *mp, xfs_sb_t *sbp)
 {
-	int	i;
-
 	mp->m_agfrotor = mp->m_agirotor = 0;
 	spin_lock_init(&mp->m_agirotor_lock);
 	mp->m_maxagi = mp->m_sb.sb_agcount;
@@ -582,7 +580,6 @@ xfs_mount_common(xfs_mount_t *mp, xfs_sb_t *sbp)
 	mp->m_blockmask = sbp->sb_blocksize - 1;
 	mp->m_blockwsize = sbp->sb_blocksize >> XFS_WORDLOG;
 	mp->m_blockwmask = mp->m_blockwsize - 1;
-	INIT_LIST_HEAD(&mp->m_del_inodes);
 
 	/*
 	 * Setup for attributes, in case they get created.
@@ -605,24 +602,20 @@ xfs_mount_common(xfs_mount_t *mp, xfs_sb_t *sbp)
 	}
 	ASSERT(mp->m_attroffset < XFS_LITINO(mp));
 
-	for (i = 0; i < 2; i++) {
-		mp->m_alloc_mxr[i] = XFS_BTREE_BLOCK_MAXRECS(sbp->sb_blocksize,
-			xfs_alloc, i == 0);
-		mp->m_alloc_mnr[i] = XFS_BTREE_BLOCK_MINRECS(sbp->sb_blocksize,
-			xfs_alloc, i == 0);
-	}
-	for (i = 0; i < 2; i++) {
-		mp->m_bmap_dmxr[i] = XFS_BTREE_BLOCK_MAXRECS(sbp->sb_blocksize,
-			xfs_bmbt, i == 0);
-		mp->m_bmap_dmnr[i] = XFS_BTREE_BLOCK_MINRECS(sbp->sb_blocksize,
-			xfs_bmbt, i == 0);
-	}
-	for (i = 0; i < 2; i++) {
-		mp->m_inobt_mxr[i] = XFS_BTREE_BLOCK_MAXRECS(sbp->sb_blocksize,
-			xfs_inobt, i == 0);
-		mp->m_inobt_mnr[i] = XFS_BTREE_BLOCK_MINRECS(sbp->sb_blocksize,
-			xfs_inobt, i == 0);
-	}
+	mp->m_alloc_mxr[0] = xfs_allocbt_maxrecs(mp, sbp->sb_blocksize, 1);
+	mp->m_alloc_mxr[1] = xfs_allocbt_maxrecs(mp, sbp->sb_blocksize, 0);
+	mp->m_alloc_mnr[0] = mp->m_alloc_mxr[0] / 2;
+	mp->m_alloc_mnr[1] = mp->m_alloc_mxr[1] / 2;
+
+	mp->m_inobt_mxr[0] = xfs_inobt_maxrecs(mp, sbp->sb_blocksize, 1);
+	mp->m_inobt_mxr[1] = xfs_inobt_maxrecs(mp, sbp->sb_blocksize, 0);
+	mp->m_inobt_mnr[0] = mp->m_inobt_mxr[0] / 2;
+	mp->m_inobt_mnr[1] = mp->m_inobt_mxr[1] / 2;
+
+	mp->m_bmap_dmxr[0] = xfs_bmbt_maxrecs(mp, sbp->sb_blocksize, 1);
+	mp->m_bmap_dmxr[1] = xfs_bmbt_maxrecs(mp, sbp->sb_blocksize, 0);
+	mp->m_bmap_dmnr[0] = mp->m_bmap_dmxr[0] / 2;
+	mp->m_bmap_dmnr[1] = mp->m_bmap_dmxr[1] / 2;
 
 	mp->m_bsize = XFS_FSB_TO_BB(mp, 1);
 	mp->m_ialloc_inos = (int)MAX((__uint16_t)XFS_INODES_PER_CHUNK,
@@ -1241,9 +1234,12 @@ xfs_unmountfs(
 	 * need to force the log first.
 	 */
 	xfs_log_force(mp, (xfs_lsn_t)0, XFS_LOG_FORCE | XFS_LOG_SYNC);
-	xfs_iflush_all(mp);
+	xfs_reclaim_inodes(mp, 0, XFS_IFLUSH_ASYNC);
 
 	XFS_QM_DQPURGEALL(mp, XFS_QMOPT_QUOTALL | XFS_QMOPT_UMOUNTING);
+
+	if (mp->m_quotainfo)
+		XFS_QM_DONE(mp);
 
 	/*
 	 * Flush out the log synchronously so that we know for sure
@@ -1285,11 +1281,6 @@ xfs_unmountfs(
 	xfs_unmountfs_wait(mp); 		/* wait for async bufs */
 	xfs_log_unmount(mp);			/* Done! No more fs ops. */
 
-	/*
-	 * All inodes from this mount point should be freed.
-	 */
-	ASSERT(mp->m_inodes == NULL);
-
 	if ((mp->m_flags & XFS_MOUNT_NOUUID) == 0)
 		uuid_table_remove(&mp->m_sb.sb_uuid);
 
@@ -1297,8 +1288,6 @@ xfs_unmountfs(
 	xfs_errortag_clearall(mp, 0);
 #endif
 	xfs_free_perag(mp);
-	if (mp->m_quotainfo)
-		XFS_QM_DONE(mp);
 }
 
 STATIC void

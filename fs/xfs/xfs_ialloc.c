@@ -119,6 +119,102 @@ xfs_ialloc_cluster_alignment(
 }
 
 /*
+ * Lookup the record equal to ino in the btree given by cur.
+ */
+STATIC int				/* error */
+xfs_inobt_lookup_eq(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	xfs_agino_t		ino,	/* starting inode of chunk */
+	__int32_t		fcnt,	/* free inode count */
+	xfs_inofree_t		free,	/* free inode mask */
+	int			*stat)	/* success/failure */
+{
+	cur->bc_rec.i.ir_startino = ino;
+	cur->bc_rec.i.ir_freecount = fcnt;
+	cur->bc_rec.i.ir_free = free;
+	return xfs_btree_lookup(cur, XFS_LOOKUP_EQ, stat);
+}
+
+/*
+ * Lookup the first record greater than or equal to ino
+ * in the btree given by cur.
+ */
+int					/* error */
+xfs_inobt_lookup_ge(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	xfs_agino_t		ino,	/* starting inode of chunk */
+	__int32_t		fcnt,	/* free inode count */
+	xfs_inofree_t		free,	/* free inode mask */
+	int			*stat)	/* success/failure */
+{
+	cur->bc_rec.i.ir_startino = ino;
+	cur->bc_rec.i.ir_freecount = fcnt;
+	cur->bc_rec.i.ir_free = free;
+	return xfs_btree_lookup(cur, XFS_LOOKUP_GE, stat);
+}
+
+/*
+ * Lookup the first record less than or equal to ino
+ * in the btree given by cur.
+ */
+int					/* error */
+xfs_inobt_lookup_le(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	xfs_agino_t		ino,	/* starting inode of chunk */
+	__int32_t		fcnt,	/* free inode count */
+	xfs_inofree_t		free,	/* free inode mask */
+	int			*stat)	/* success/failure */
+{
+	cur->bc_rec.i.ir_startino = ino;
+	cur->bc_rec.i.ir_freecount = fcnt;
+	cur->bc_rec.i.ir_free = free;
+	return xfs_btree_lookup(cur, XFS_LOOKUP_LE, stat);
+}
+
+/*
+ * Update the record referred to by cur to the value given
+ * by [ino, fcnt, free].
+ * This either works (return 0) or gets an EFSCORRUPTED error.
+ */
+STATIC int				/* error */
+xfs_inobt_update(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	xfs_agino_t		ino,	/* starting inode of chunk */
+	__int32_t		fcnt,	/* free inode count */
+	xfs_inofree_t		free)	/* free inode mask */
+{
+	union xfs_btree_rec	rec;
+
+	rec.inobt.ir_startino = cpu_to_be32(ino);
+	rec.inobt.ir_freecount = cpu_to_be32(fcnt);
+	rec.inobt.ir_free = cpu_to_be64(free);
+	return xfs_btree_update(cur, &rec);
+}
+
+/*
+ * Get the data from the pointed-to record.
+ */
+int					/* error */
+xfs_inobt_get_rec(
+	struct xfs_btree_cur	*cur,	/* btree cursor */
+	xfs_agino_t		*ino,	/* output: starting inode of chunk */
+	__int32_t		*fcnt,	/* output: number of free inodes */
+	xfs_inofree_t		*free,	/* output: free inode mask */
+	int			*stat)	/* output: success/failure */
+{
+	union xfs_btree_rec	*rec;
+	int			error;
+
+	error = xfs_btree_get_rec(cur, &rec, stat);
+	if (!error && *stat == 1) {
+		*ino = be32_to_cpu(rec->inobt.ir_startino);
+		*fcnt = be32_to_cpu(rec->inobt.ir_freecount);
+		*free = be64_to_cpu(rec->inobt.ir_free);
+	}
+	return error;
+}
+
+/*
  * Allocate new inodes in the allocation group specified by agbp.
  * Return 0 for success, else error code.
  */
@@ -335,8 +431,7 @@ xfs_ialloc_ag_alloc(
 	/*
 	 * Insert records describing the new inode chunk into the btree.
 	 */
-	cur = xfs_btree_init_cursor(args.mp, tp, agbp, agno,
-			XFS_BTNUM_INO, (xfs_inode_t *)0, 0);
+	cur = xfs_inobt_init_cursor(args.mp, tp, agbp, agno);
 	for (thisino = newino;
 	     thisino < newino + newlen;
 	     thisino += XFS_INODES_PER_CHUNK) {
@@ -346,7 +441,7 @@ xfs_ialloc_ag_alloc(
 			return error;
 		}
 		ASSERT(i == 0);
-		if ((error = xfs_inobt_insert(cur, &i))) {
+		if ((error = xfs_btree_insert(cur, &i))) {
 			xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
 			return error;
 		}
@@ -676,8 +771,7 @@ nextag:
 	 */
 	agno = tagno;
 	*IO_agbp = NULL;
-	cur = xfs_btree_init_cursor(mp, tp, agbp, be32_to_cpu(agi->agi_seqno),
-				    XFS_BTNUM_INO, (xfs_inode_t *)0, 0);
+	cur = xfs_inobt_init_cursor(mp, tp, agbp, be32_to_cpu(agi->agi_seqno));
 	/*
 	 * If pagino is 0 (this is the root inode allocation) use newino.
 	 * This must work because we've just allocated some.
@@ -697,7 +791,7 @@ nextag:
 				goto error0;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
 			freecount += rec.ir_freecount;
-			if ((error = xfs_inobt_increment(cur, 0, &i)))
+			if ((error = xfs_btree_increment(cur, 0, &i)))
 				goto error0;
 		} while (i == 1);
 
@@ -741,7 +835,7 @@ nextag:
 			/*
 			 * Search left with tcur, back up 1 record.
 			 */
-			if ((error = xfs_inobt_decrement(tcur, 0, &i)))
+			if ((error = xfs_btree_decrement(tcur, 0, &i)))
 				goto error1;
 			doneleft = !i;
 			if (!doneleft) {
@@ -755,7 +849,7 @@ nextag:
 			/*
 			 * Search right with cur, go forward 1 record.
 			 */
-			if ((error = xfs_inobt_increment(cur, 0, &i)))
+			if ((error = xfs_btree_increment(cur, 0, &i)))
 				goto error1;
 			doneright = !i;
 			if (!doneright) {
@@ -817,7 +911,7 @@ nextag:
 				 * further left.
 				 */
 				if (useleft) {
-					if ((error = xfs_inobt_decrement(tcur, 0,
+					if ((error = xfs_btree_decrement(tcur, 0,
 							&i)))
 						goto error1;
 					doneleft = !i;
@@ -837,7 +931,7 @@ nextag:
 				 * further right.
 				 */
 				else {
-					if ((error = xfs_inobt_increment(cur, 0,
+					if ((error = xfs_btree_increment(cur, 0,
 							&i)))
 						goto error1;
 					doneright = !i;
@@ -892,7 +986,7 @@ nextag:
 				XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
 				if (rec.ir_freecount > 0)
 					break;
-				if ((error = xfs_inobt_increment(cur, 0, &i)))
+				if ((error = xfs_btree_increment(cur, 0, &i)))
 					goto error0;
 				XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
 			}
@@ -926,7 +1020,7 @@ nextag:
 				goto error0;
 			XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
 			freecount += rec.ir_freecount;
-			if ((error = xfs_inobt_increment(cur, 0, &i)))
+			if ((error = xfs_btree_increment(cur, 0, &i)))
 				goto error0;
 		} while (i == 1);
 		ASSERT(freecount == be32_to_cpu(agi->agi_freecount) ||
@@ -1022,8 +1116,7 @@ xfs_difree(
 	/*
 	 * Initialize the cursor.
 	 */
-	cur = xfs_btree_init_cursor(mp, tp, agbp, agno, XFS_BTNUM_INO,
-		(xfs_inode_t *)0, 0);
+	cur = xfs_inobt_init_cursor(mp, tp, agbp, agno);
 #ifdef DEBUG
 	if (cur->bc_nlevels == 1) {
 		int freecount = 0;
@@ -1036,7 +1129,7 @@ xfs_difree(
 				goto error0;
 			if (i) {
 				freecount += rec.ir_freecount;
-				if ((error = xfs_inobt_increment(cur, 0, &i)))
+				if ((error = xfs_btree_increment(cur, 0, &i)))
 					goto error0;
 			}
 		} while (i == 1);
@@ -1098,8 +1191,8 @@ xfs_difree(
 		xfs_trans_mod_sb(tp, XFS_TRANS_SB_ICOUNT, -ilen);
 		xfs_trans_mod_sb(tp, XFS_TRANS_SB_IFREE, -(ilen - 1));
 
-		if ((error = xfs_inobt_delete(cur, &i))) {
-			cmn_err(CE_WARN, "xfs_difree: xfs_inobt_delete returned an error %d on %s.\n",
+		if ((error = xfs_btree_delete(cur, &i))) {
+			cmn_err(CE_WARN, "xfs_difree: xfs_btree_delete returned an error %d on %s.\n",
 				error, mp->m_fsname);
 			goto error0;
 		}
@@ -1141,7 +1234,7 @@ xfs_difree(
 				goto error0;
 			if (i) {
 				freecount += rec.ir_freecount;
-				if ((error = xfs_inobt_increment(cur, 0, &i)))
+				if ((error = xfs_btree_increment(cur, 0, &i)))
 					goto error0;
 			}
 		} while (i == 1);
@@ -1259,8 +1352,7 @@ xfs_dilocate(
 #endif /* DEBUG */
 			return error;
 		}
-		cur = xfs_btree_init_cursor(mp, tp, agbp, agno, XFS_BTNUM_INO,
-			(xfs_inode_t *)0, 0);
+		cur = xfs_inobt_init_cursor(mp, tp, agbp, agno);
 		if ((error = xfs_inobt_lookup_le(cur, agino, 0, 0, &i))) {
 #ifdef DEBUG
 			xfs_fs_cmn_err(CE_ALERT, mp, "xfs_dilocate: "

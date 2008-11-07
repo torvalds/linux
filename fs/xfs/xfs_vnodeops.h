@@ -15,8 +15,7 @@ struct xfs_iomap;
 
 
 int xfs_open(struct xfs_inode *ip);
-int xfs_setattr(struct xfs_inode *ip, struct iattr *vap, int flags,
-		struct cred *credp);
+int xfs_setattr(struct xfs_inode *ip, struct iattr *vap, int flags);
 #define	XFS_ATTR_DMI		0x01	/* invocation from a DMI function */
 #define	XFS_ATTR_NONBLOCK	0x02	/* return EAGAIN if operation would block */
 #define XFS_ATTR_NOLOCK		0x04	/* Don't grab any conflicting locks */
@@ -44,8 +43,7 @@ int xfs_inode_flush(struct xfs_inode *ip, int flags);
 int xfs_set_dmattrs(struct xfs_inode *ip, u_int evmask, u_int16_t state);
 int xfs_reclaim(struct xfs_inode *ip);
 int xfs_change_file_space(struct xfs_inode *ip, int cmd,
-		xfs_flock64_t *bf, xfs_off_t offset,
-		struct cred *credp, int	attr_flags);
+		xfs_flock64_t *bf, xfs_off_t offset, int attr_flags);
 int xfs_rename(struct xfs_inode *src_dp, struct xfs_name *src_name,
 		struct xfs_inode *src_ip, struct xfs_inode *target_dp,
 		struct xfs_name *target_name, struct xfs_inode *target_ip);

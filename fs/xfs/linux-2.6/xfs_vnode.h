@@ -80,11 +80,6 @@ do { \
 	iput(VFS_I(ip)); \
 } while (0)
 
-static inline struct inode *vn_grab(struct inode *vp)
-{
-	return igrab(vp);
-}
-
 /*
  * Dealing with bad inodes
  */

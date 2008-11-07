@@ -932,6 +932,7 @@ xfs_inode_item_init(
 	iip->ili_item.li_type = XFS_LI_INODE;
 	iip->ili_item.li_ops = &xfs_inode_item_ops;
 	iip->ili_item.li_mountp = mp;
+	iip->ili_item.li_ailp = mp->m_ail;
 	iip->ili_inode = ip;
 
 	/*
@@ -976,9 +977,8 @@ xfs_iflush_done(
 	xfs_buf_t		*bp,
 	xfs_inode_log_item_t	*iip)
 {
-	xfs_inode_t	*ip;
-
-	ip = iip->ili_inode;
+	xfs_inode_t		*ip = iip->ili_inode;
+	struct xfs_ail		*ailp = iip->ili_item.li_ailp;
 
 	/*
 	 * We only want to pull the item from the AIL if it is
@@ -991,15 +991,12 @@ xfs_iflush_done(
 	 */
 	if (iip->ili_logged &&
 	    (iip->ili_item.li_lsn == iip->ili_flush_lsn)) {
-		spin_lock(&ip->i_mount->m_ail_lock);
+		spin_lock(&ailp->xa_lock);
 		if (iip->ili_item.li_lsn == iip->ili_flush_lsn) {
-			/*
-			 * xfs_trans_delete_ail() drops the AIL lock.
-			 */
-			xfs_trans_delete_ail(ip->i_mount,
-					     (xfs_log_item_t*)iip);
+			/* xfs_trans_ail_delete() drops the AIL lock. */
+			xfs_trans_ail_delete(ailp, (xfs_log_item_t*)iip);
 		} else {
-			spin_unlock(&ip->i_mount->m_ail_lock);
+			spin_unlock(&ailp->xa_lock);
 		}
 	}
 
@@ -1031,21 +1028,20 @@ void
 xfs_iflush_abort(
 	xfs_inode_t		*ip)
 {
-	xfs_inode_log_item_t	*iip;
+	xfs_inode_log_item_t	*iip = ip->i_itemp;
 	xfs_mount_t		*mp;
 
 	iip = ip->i_itemp;
 	mp = ip->i_mount;
 	if (iip) {
+		struct xfs_ail	*ailp = iip->ili_item.li_ailp;
 		if (iip->ili_item.li_flags & XFS_LI_IN_AIL) {
-			spin_lock(&mp->m_ail_lock);
+			spin_lock(&ailp->xa_lock);
 			if (iip->ili_item.li_flags & XFS_LI_IN_AIL) {
-				/*
-				 * xfs_trans_delete_ail() drops the AIL lock.
-				 */
-				xfs_trans_delete_ail(mp, (xfs_log_item_t *)iip);
+				/* xfs_trans_ail_delete() drops the AIL lock. */
+				xfs_trans_ail_delete(ailp, (xfs_log_item_t *)iip);
 			} else
-				spin_unlock(&mp->m_ail_lock);
+				spin_unlock(&ailp->xa_lock);
 		}
 		iip->ili_logged = 0;
 		/*
