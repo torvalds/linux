@@ -299,6 +299,13 @@ int wm8350_block_write(struct wm8350 *wm8350, int start_reg, int regs,
 }
 EXPORT_SYMBOL_GPL(wm8350_block_write);
 
+/**
+ * wm8350_reg_lock()
+ *
+ * The WM8350 has a hardware lock which can be used to prevent writes to
+ * some registers (generally those which can cause particularly serious
+ * problems if misused).  This function enables that lock.
+ */
 int wm8350_reg_lock(struct wm8350 *wm8350)
 {
 	u16 key = WM8350_LOCK_KEY;
@@ -314,6 +321,15 @@ int wm8350_reg_lock(struct wm8350 *wm8350)
 }
 EXPORT_SYMBOL_GPL(wm8350_reg_lock);
 
+/**
+ * wm8350_reg_unlock()
+ *
+ * The WM8350 has a hardware lock which can be used to prevent writes to
+ * some registers (generally those which can cause particularly serious
+ * problems if misused).  This function disables that lock so updates
+ * can be performed.  For maximum safety this should be done only when
+ * required.
+ */
 int wm8350_reg_unlock(struct wm8350 *wm8350)
 {
 	u16 key = WM8350_UNLOCK_KEY;
