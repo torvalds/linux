@@ -7279,13 +7279,21 @@ struct allmasks {
 };
 
 #if	NR_CPUS > 128
-#define	SCHED_CPUMASK_ALLOC		1
-#define	SCHED_CPUMASK_FREE(v)		kfree(v)
-#define	SCHED_CPUMASK_DECLARE(v)	struct allmasks *v
+#define SCHED_CPUMASK_DECLARE(v)	struct allmasks *v
+static inline void sched_cpumask_alloc(struct allmasks **masks)
+{
+	*masks = kmalloc(sizeof(**masks), GFP_KERNEL);
+}
+static inline void sched_cpumask_free(struct allmasks *masks)
+{
+	kfree(masks);
+}
 #else
-#define	SCHED_CPUMASK_ALLOC		0
-#define	SCHED_CPUMASK_FREE(v)
-#define	SCHED_CPUMASK_DECLARE(v)	struct allmasks _v, *v = &_v
+#define SCHED_CPUMASK_DECLARE(v)	struct allmasks _v, *v = &_v
+static inline void sched_cpumask_alloc(struct allmasks **masks)
+{ }
+static inline void sched_cpumask_free(struct allmasks *masks)
+{ }
 #endif
 
 #define	SCHED_CPUMASK_VAR(v, a) 	cpumask_t *v = (cpumask_t *) \
@@ -7361,9 +7369,8 @@ static int __build_sched_domains(const cpumask_t *cpu_map,
 		return -ENOMEM;
 	}
 
-#if SCHED_CPUMASK_ALLOC
 	/* get space for all scratch cpumask variables */
-	allmasks = kmalloc(sizeof(*allmasks), GFP_KERNEL);
+	sched_cpumask_alloc(&allmasks);
 	if (!allmasks) {
 		printk(KERN_WARNING "Cannot alloc cpumask array\n");
 		kfree(rd);
@@ -7372,7 +7379,7 @@ static int __build_sched_domains(const cpumask_t *cpu_map,
 #endif
 		return -ENOMEM;
 	}
-#endif
+
 	tmpmask = (cpumask_t *)allmasks;
 
 
@@ -7626,13 +7633,13 @@ static int __build_sched_domains(const cpumask_t *cpu_map,
 		cpu_attach_domain(sd, rd, i);
 	}
 
-	SCHED_CPUMASK_FREE((void *)allmasks);
+	sched_cpumask_free(allmasks);
 	return 0;
 
 #ifdef CONFIG_NUMA
 error:
 	free_sched_groups(cpu_map, tmpmask);
-	SCHED_CPUMASK_FREE((void *)allmasks);
+	sched_cpumask_free(allmasks);
 	kfree(rd);
 	return -ENOMEM;
 #endif
