@@ -312,9 +312,13 @@ config ACPI_DEBUG
 	bool "Debug Statements"
 	default n
 	help
-	  The ACPI driver can optionally report errors with a great deal
-	  of verbosity. Saying Y enables these statements. This will increase
-	  your kernel size by around 50K.
+	  The ACPI subsystem can produce debug output.  Saying Y enables this
+	  output and increases the kernel size by around 50K.
+
+	  Use the acpi.debug_layer and acpi.debug_level kernel command-line
+	  parameters documented in Documentation/acpi/debug.txt and
+	  Documentation/kernel-parameters.txt to control the type and
+	  amount of debug output.
 
 config ACPI_DEBUG_FUNC_TRACE
 	bool "Additionally enable ACPI function tracing"
