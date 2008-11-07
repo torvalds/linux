@@ -54,6 +54,9 @@
 /* Loopback bit for WIS, PCS, PHYSX and DTEXS */
 #define MDIO_MMDREG_CTRL1_LBACK_LBN	(14)
 #define MDIO_MMDREG_CTRL1_LBACK_WIDTH	(1)
+/* Low power */
+#define MDIO_MMDREG_CTRL1_LPOWER_LBN	(11)
+#define MDIO_MMDREG_CTRL1_LPOWER_WIDTH	(1)
 
 /* Bits in MMDREG_STAT1 */
 #define MDIO_MMDREG_STAT1_FAULT_LBN	(7)
@@ -239,6 +242,10 @@ extern void mdio_clause45_transmit_disable(struct efx_nic *efx);
 
 /* Generic part of reconfigure: set/clear loopback bits */
 extern void mdio_clause45_phy_reconfigure(struct efx_nic *efx);
+
+/* Set the power state of the specified MMDs */
+extern void mdio_clause45_set_mmds_lpower(struct efx_nic *efx,
+					  int low_power, unsigned int mmd_mask);
 
 /* Read (some of) the PHY settings over MDIO */
 extern void mdio_clause45_get_settings(struct efx_nic *efx,

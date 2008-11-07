@@ -437,38 +437,20 @@ static void pndisc_destructor(struct pneigh_entry *n)
 	ipv6_dev_mc_dec(dev, &maddr);
 }
 
-/*
- *	Send a Neighbour Advertisement
- */
-static void __ndisc_send(struct net_device *dev,
-			 struct neighbour *neigh,
-			 const struct in6_addr *daddr,
-			 const struct in6_addr *saddr,
-			 struct icmp6hdr *icmp6h, const struct in6_addr *target,
-			 int llinfo)
+struct sk_buff *ndisc_build_skb(struct net_device *dev,
+				const struct in6_addr *daddr,
+				const struct in6_addr *saddr,
+				struct icmp6hdr *icmp6h,
+				const struct in6_addr *target,
+				int llinfo)
 {
-	struct flowi fl;
-	struct dst_entry *dst;
 	struct net *net = dev_net(dev);
 	struct sock *sk = net->ipv6.ndisc_sk;
 	struct sk_buff *skb;
 	struct icmp6hdr *hdr;
-	struct inet6_dev *idev;
 	int len;
 	int err;
-	u8 *opt, type;
-
-	type = icmp6h->icmp6_type;
-
-	icmpv6_flow_init(sk, &fl, type, saddr, daddr, dev->ifindex);
-
-	dst = icmp6_dst_alloc(dev, neigh, daddr);
-	if (!dst)
-		return;
-
-	err = xfrm_lookup(&dst, &fl, NULL, 0);
-	if (err < 0)
-		return;
+	u8 *opt;
 
 	if (!dev->addr_len)
 		llinfo = 0;
@@ -485,8 +467,7 @@ static void __ndisc_send(struct net_device *dev,
 		ND_PRINTK0(KERN_ERR
 			   "ICMPv6 ND: %s() failed to allocate an skb.\n",
 			   __func__);
-		dst_release(dst);
-		return;
+		return NULL;
 	}
 
 	skb_reserve(skb, LL_RESERVED_SPACE(dev));
@@ -513,6 +494,42 @@ static void __ndisc_send(struct net_device *dev,
 					   csum_partial((__u8 *) hdr,
 							len, 0));
 
+	return skb;
+}
+
+EXPORT_SYMBOL(ndisc_build_skb);
+
+void ndisc_send_skb(struct sk_buff *skb,
+		    struct net_device *dev,
+		    struct neighbour *neigh,
+		    const struct in6_addr *daddr,
+		    const struct in6_addr *saddr,
+		    struct icmp6hdr *icmp6h)
+{
+	struct flowi fl;
+	struct dst_entry *dst;
+	struct net *net = dev_net(dev);
+	struct sock *sk = net->ipv6.ndisc_sk;
+	struct inet6_dev *idev;
+	int err;
+	u8 type;
+
+	type = icmp6h->icmp6_type;
+
+	icmpv6_flow_init(sk, &fl, type, saddr, daddr, dev->ifindex);
+
+	dst = icmp6_dst_alloc(dev, neigh, daddr);
+	if (!dst) {
+		kfree_skb(skb);
+		return;
+	}
+
+	err = xfrm_lookup(&dst, &fl, NULL, 0);
+	if (err < 0) {
+		kfree_skb(skb);
+		return;
+	}
+
 	skb->dst = dst;
 
 	idev = in6_dev_get(dst->dev);
@@ -527,6 +544,27 @@ static void __ndisc_send(struct net_device *dev,
 
 	if (likely(idev != NULL))
 		in6_dev_put(idev);
+}
+
+EXPORT_SYMBOL(ndisc_send_skb);
+
+/*
+ *	Send a Neighbour Discover packet
+ */
+static void __ndisc_send(struct net_device *dev,
+			 struct neighbour *neigh,
+			 const struct in6_addr *daddr,
+			 const struct in6_addr *saddr,
+			 struct icmp6hdr *icmp6h, const struct in6_addr *target,
+			 int llinfo)
+{
+	struct sk_buff *skb;
+
+	skb = ndisc_build_skb(dev, daddr, saddr, icmp6h, target, llinfo);
+	if (!skb)
+		return;
+
+	ndisc_send_skb(skb, dev, neigh, daddr, saddr, icmp6h);
 }
 
 static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,

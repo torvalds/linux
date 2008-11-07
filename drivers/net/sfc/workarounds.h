@@ -22,6 +22,8 @@
 #define EFX_WORKAROUND_5147 EFX_WORKAROUND_ALWAYS
 /* RX PCIe double split performance issue */
 #define EFX_WORKAROUND_7575 EFX_WORKAROUND_ALWAYS
+/* Bit-bashed I2C reads cause performance drop */
+#define EFX_WORKAROUND_7884 EFX_WORKAROUND_ALWAYS
 /* TX pkt parser problem with <= 16 byte TXes */
 #define EFX_WORKAROUND_9141 EFX_WORKAROUND_ALWAYS
 /* Low rate CRC errors require XAUI reset */

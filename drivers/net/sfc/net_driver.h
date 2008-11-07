@@ -414,6 +414,7 @@ struct efx_blinker {
  * @init_leds: Sets up board LEDs
  * @set_fault_led: Turns the fault LED on or off
  * @blink: Starts/stops blinking
+ * @monitor: Board-specific health check function
  * @fini: Cleanup function
  * @blinker: used to blink LEDs in software
  * @hwmon_client: I2C client for hardware monitor
@@ -428,6 +429,7 @@ struct efx_board {
 	 * have a separate init callback that happens later than
 	 * board init. */
 	int (*init_leds)(struct efx_nic *efx);
+	int (*monitor) (struct efx_nic *nic);
 	void (*set_fault_led) (struct efx_nic *efx, bool state);
 	void (*blink) (struct efx_nic *efx, bool start);
 	void (*fini) (struct efx_nic *nic);
@@ -525,11 +527,15 @@ struct efx_phy_operations {
  * @enum efx_phy_mode - PHY operating mode flags
  * @PHY_MODE_NORMAL: on and should pass traffic
  * @PHY_MODE_TX_DISABLED: on with TX disabled
+ * @PHY_MODE_LOW_POWER: set to low power through MDIO
+ * @PHY_MODE_OFF: switched off through external control
  * @PHY_MODE_SPECIAL: on but will not pass traffic
  */
 enum efx_phy_mode {
 	PHY_MODE_NORMAL		= 0,
 	PHY_MODE_TX_DISABLED	= 1,
+	PHY_MODE_LOW_POWER	= 2,
+	PHY_MODE_OFF		= 4,
 	PHY_MODE_SPECIAL	= 8,
 };
 
@@ -655,6 +661,7 @@ union efx_multicast_hash {
  *	This field will be %NULL if no flash device is present.
  * @spi_eeprom: SPI EEPROM device
  *	This field will be %NULL if no EEPROM device is present.
+ * @spi_lock: SPI bus lock
  * @n_rx_nodesc_drop_cnt: RX no descriptor drop count
  * @nic_data: Hardware dependant state
  * @mac_lock: MAC access lock. Protects @port_enabled, @phy_mode,
@@ -731,6 +738,7 @@ struct efx_nic {
 
 	struct efx_spi_device *spi_flash;
 	struct efx_spi_device *spi_eeprom;
+	struct mutex spi_lock;
 
 	unsigned n_rx_nodesc_drop_cnt;
 

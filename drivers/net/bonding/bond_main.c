@@ -89,6 +89,7 @@
 
 static int max_bonds	= BOND_DEFAULT_MAX_BONDS;
 static int num_grat_arp = 1;
+static int num_unsol_na = 1;
 static int miimon	= BOND_LINK_MON_INTERV;
 static int updelay	= 0;
 static int downdelay	= 0;
@@ -96,6 +97,7 @@ static int use_carrier	= 1;
 static char *mode	= NULL;
 static char *primary	= NULL;
 static char *lacp_rate	= NULL;
+static char *ad_select  = NULL;
 static char *xmit_hash_policy = NULL;
 static int arp_interval = BOND_LINK_ARP_INTERV;
 static char *arp_ip_target[BOND_MAX_ARP_TARGETS] = { NULL, };
@@ -107,6 +109,8 @@ module_param(max_bonds, int, 0);
 MODULE_PARM_DESC(max_bonds, "Max number of bonded devices");
 module_param(num_grat_arp, int, 0644);
 MODULE_PARM_DESC(num_grat_arp, "Number of gratuitous ARP packets to send on failover event");
+module_param(num_unsol_na, int, 0644);
+MODULE_PARM_DESC(num_unsol_na, "Number of unsolicited IPv6 Neighbor Advertisements packets to send on failover event");
 module_param(miimon, int, 0);
 MODULE_PARM_DESC(miimon, "Link check interval in milliseconds");
 module_param(updelay, int, 0);
@@ -127,6 +131,8 @@ MODULE_PARM_DESC(primary, "Primary network device to use");
 module_param(lacp_rate, charp, 0);
 MODULE_PARM_DESC(lacp_rate, "LACPDU tx rate to request from 802.3ad partner "
 			    "(slow/fast)");
+module_param(ad_select, charp, 0);
+MODULE_PARM_DESC(ad_select, "803.ad aggregation selection logic: stable (0, default), bandwidth (1), count (2)");
 module_param(xmit_hash_policy, charp, 0);
 MODULE_PARM_DESC(xmit_hash_policy, "XOR hashing method: 0 for layer 2 (default)"
 				   ", 1 for layer 3+4");
@@ -197,6 +203,13 @@ struct bond_parm_tbl fail_over_mac_tbl[] = {
 {	NULL,			-1},
 };
 
+struct bond_parm_tbl ad_select_tbl[] = {
+{	"stable",	BOND_AD_STABLE},
+{	"bandwidth",	BOND_AD_BANDWIDTH},
+{	"count",	BOND_AD_COUNT},
+{	NULL,		-1},
+};
+
 /*-------------------------- Forward declarations ---------------------------*/
 
 static void bond_send_gratuitous_arp(struct bonding *bond);
@@ -242,14 +255,13 @@ static int bond_add_vlan(struct bonding *bond, unsigned short vlan_id)
 	dprintk("bond: %s, vlan id %d\n",
 		(bond ? bond->dev->name: "None"), vlan_id);
 
-	vlan = kmalloc(sizeof(struct vlan_entry), GFP_KERNEL);
+	vlan = kzalloc(sizeof(struct vlan_entry), GFP_KERNEL);
 	if (!vlan) {
 		return -ENOMEM;
 	}
 
 	INIT_LIST_HEAD(&vlan->vlan_list);
 	vlan->vlan_id = vlan_id;
-	vlan->vlan_ip = 0;
 
 	write_lock_bh(&bond->lock);
 
@@ -1207,6 +1219,9 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 
 			bond->send_grat_arp = bond->params.num_grat_arp;
 			bond_send_gratuitous_arp(bond);
+
+			bond->send_unsol_na = bond->params.num_unsol_na;
+			bond_send_unsolicited_na(bond);
 
 			write_unlock_bh(&bond->curr_slave_lock);
 			read_unlock(&bond->lock);
@@ -2463,6 +2478,12 @@ void bond_mii_monitor(struct work_struct *work)
 		read_unlock(&bond->curr_slave_lock);
 	}
 
+	if (bond->send_unsol_na) {
+		read_lock(&bond->curr_slave_lock);
+		bond_send_unsolicited_na(bond);
+		read_unlock(&bond->curr_slave_lock);
+	}
+
 	if (bond_miimon_inspect(bond)) {
 		read_unlock(&bond->lock);
 		rtnl_lock();
@@ -3158,6 +3179,12 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 		read_unlock(&bond->curr_slave_lock);
 	}
 
+	if (bond->send_unsol_na) {
+		read_lock(&bond->curr_slave_lock);
+		bond_send_unsolicited_na(bond);
+		read_unlock(&bond->curr_slave_lock);
+	}
+
 	if (bond_ab_arp_inspect(bond, delta_in_ticks)) {
 		read_unlock(&bond->lock);
 		rtnl_lock();
@@ -3301,6 +3328,8 @@ static void bond_info_show_master(struct seq_file *seq)
 		seq_puts(seq, "\n802.3ad info\n");
 		seq_printf(seq, "LACP rate: %s\n",
 			   (bond->params.lacp_fast) ? "fast" : "slow");
+		seq_printf(seq, "Aggregator selection policy (ad_select): %s\n",
+			   ad_select_tbl[bond->params.ad_select].modename);
 
 		if (bond_3ad_get_active_agg_info(bond, &ad_info)) {
 			seq_printf(seq, "bond %s has no active aggregator\n",
@@ -3807,6 +3836,7 @@ static int bond_open(struct net_device *bond_dev)
 		queue_delayed_work(bond->wq, &bond->ad_work, 0);
 		/* register to receive LACPDUs */
 		bond_register_lacpdu(bond);
+		bond_3ad_initiate_agg_selection(bond, 1);
 	}
 
 	return 0;
@@ -3827,6 +3857,7 @@ static int bond_close(struct net_device *bond_dev)
 	write_lock_bh(&bond->lock);
 
 	bond->send_grat_arp = 0;
+	bond->send_unsol_na = 0;
 
 	/* signal timers not to re-arm */
 	bond->kill_timers = 1;
@@ -4542,6 +4573,7 @@ static int bond_init(struct net_device *bond_dev, struct bond_params *params)
 	bond->primary_slave = NULL;
 	bond->dev = bond_dev;
 	bond->send_grat_arp = 0;
+	bond->send_unsol_na = 0;
 	bond->setup_by_slave = 0;
 	INIT_LIST_HEAD(&bond->vlan_list);
 
@@ -4744,6 +4776,23 @@ static int bond_check_params(struct bond_params *params)
 		}
 	}
 
+	if (ad_select) {
+		params->ad_select = bond_parse_parm(ad_select, ad_select_tbl);
+		if (params->ad_select == -1) {
+			printk(KERN_ERR DRV_NAME
+			       ": Error: Invalid ad_select \"%s\"\n",
+			       ad_select == NULL ? "NULL" : ad_select);
+			return -EINVAL;
+		}
+
+		if (bond_mode != BOND_MODE_8023AD) {
+			printk(KERN_WARNING DRV_NAME
+			       ": ad_select param only affects 802.3ad mode\n");
+		}
+	} else {
+		params->ad_select = BOND_AD_STABLE;
+	}
+
 	if (max_bonds < 0 || max_bonds > INT_MAX) {
 		printk(KERN_WARNING DRV_NAME
 		       ": Warning: max_bonds (%d) not in range %d-%d, so it "
@@ -4789,6 +4838,13 @@ static int bond_check_params(struct bond_params *params)
 		       ": Warning: num_grat_arp (%d) not in range 0-255 so it "
 		       "was reset to 1 \n", num_grat_arp);
 		num_grat_arp = 1;
+	}
+
+	if (num_unsol_na < 0 || num_unsol_na > 255) {
+		printk(KERN_WARNING DRV_NAME
+		       ": Warning: num_unsol_na (%d) not in range 0-255 so it "
+		       "was reset to 1 \n", num_unsol_na);
+		num_unsol_na = 1;
 	}
 
 	/* reset values for 802.3ad */
@@ -4992,6 +5048,7 @@ static int bond_check_params(struct bond_params *params)
 	params->xmit_policy = xmit_hashtype;
 	params->miimon = miimon;
 	params->num_grat_arp = num_grat_arp;
+	params->num_unsol_na = num_unsol_na;
 	params->arp_interval = arp_interval;
 	params->arp_validate = arp_validate_value;
 	params->updelay = updelay;
@@ -5144,6 +5201,7 @@ static int __init bonding_init(void)
 
 	register_netdevice_notifier(&bond_netdev_notifier);
 	register_inetaddr_notifier(&bond_inetaddr_notifier);
+	bond_register_ipv6_notifier();
 
 	goto out;
 err:
@@ -5166,6 +5224,7 @@ static void __exit bonding_exit(void)
 {
 	unregister_netdevice_notifier(&bond_netdev_notifier);
 	unregister_inetaddr_notifier(&bond_inetaddr_notifier);
+	bond_unregister_ipv6_notifier();
 
 	bond_destroy_sysfs();
 

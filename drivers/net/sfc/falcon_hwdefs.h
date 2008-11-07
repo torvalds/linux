@@ -1150,7 +1150,6 @@ struct falcon_nvconfig_board_v3 {
 	(((type) >> EFX_LOW_BIT(field)) & EFX_MASK32(EFX_WIDTH(field)))
 
 #define NVCONFIG_OFFSET 0x300
-#define NVCONFIG_END 0x400
 
 #define NVCONFIG_BOARD_MAGIC_NUM 0xFA1C
 struct falcon_nvconfig {

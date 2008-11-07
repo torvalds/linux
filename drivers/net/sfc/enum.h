@@ -72,7 +72,7 @@ extern const char *efx_loopback_mode_names[];
  * @RESET_TYPE_ALL: reset everything but PCI core blocks
  * @RESET_TYPE_WORLD: reset everything, save & restore PCI config
  * @RESET_TYPE_DISABLE: disable NIC
- * @RESET_TYPE_MONITOR: reset due to hardware monitor
+ * @RESET_TYPE_TX_WATCHDOG: reset due to TX watchdog
  * @RESET_TYPE_INT_ERROR: reset due to internal error
  * @RESET_TYPE_RX_RECOVERY: reset to recover from RX datapath errors
  * @RESET_TYPE_RX_DESC_FETCH: pcie error during rx descriptor fetch
@@ -86,7 +86,7 @@ enum reset_type {
 	RESET_TYPE_WORLD = 2,
 	RESET_TYPE_DISABLE = 3,
 	RESET_TYPE_MAX_METHOD,
-	RESET_TYPE_MONITOR,
+	RESET_TYPE_TX_WATCHDOG,
 	RESET_TYPE_INT_ERROR,
 	RESET_TYPE_RX_RECOVERY,
 	RESET_TYPE_RX_DESC_FETCH,

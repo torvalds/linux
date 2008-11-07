@@ -172,10 +172,7 @@ static struct efx_ethtool_stat efx_ethtool_stats[] = {
 /* Number of ethtool statistics */
 #define EFX_ETHTOOL_NUM_STATS ARRAY_SIZE(efx_ethtool_stats)
 
-/* EEPROM range with gPXE configuration */
 #define EFX_ETHTOOL_EEPROM_MAGIC 0xEFAB
-#define EFX_ETHTOOL_EEPROM_MIN 0x100U
-#define EFX_ETHTOOL_EEPROM_MAX 0x400U
 
 /**************************************************************************
  *
@@ -545,8 +542,8 @@ static int efx_ethtool_get_eeprom_len(struct net_device *net_dev)
 
 	if (!spi)
 		return 0;
-	return min(spi->size, EFX_ETHTOOL_EEPROM_MAX) -
-		min(spi->size, EFX_ETHTOOL_EEPROM_MIN);
+	return min(spi->size, EFX_EEPROM_BOOTCONFIG_END) -
+		min(spi->size, EFX_EEPROM_BOOTCONFIG_START);
 }
 
 static int efx_ethtool_get_eeprom(struct net_device *net_dev,
@@ -557,8 +554,10 @@ static int efx_ethtool_get_eeprom(struct net_device *net_dev,
 	size_t len;
 	int rc;
 
-	rc = falcon_spi_read(spi, eeprom->offset + EFX_ETHTOOL_EEPROM_MIN,
+	mutex_lock(&efx->spi_lock);
+	rc = falcon_spi_read(spi, eeprom->offset + EFX_EEPROM_BOOTCONFIG_START,
 			     eeprom->len, &len, buf);
+	mutex_unlock(&efx->spi_lock);
 	eeprom->magic = EFX_ETHTOOL_EEPROM_MAGIC;
 	eeprom->len = len;
 	return rc;
@@ -575,8 +574,10 @@ static int efx_ethtool_set_eeprom(struct net_device *net_dev,
 	if (eeprom->magic != EFX_ETHTOOL_EEPROM_MAGIC)
 		return -EINVAL;
 
-	rc = falcon_spi_write(spi, eeprom->offset + EFX_ETHTOOL_EEPROM_MIN,
+	mutex_lock(&efx->spi_lock);
+	rc = falcon_spi_write(spi, eeprom->offset + EFX_EEPROM_BOOTCONFIG_START,
 			      eeprom->len, &len, buf);
+	mutex_unlock(&efx->spi_lock);
 	eeprom->len = len;
 	return rc;
 }

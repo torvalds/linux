@@ -48,6 +48,7 @@ extern struct list_head bond_dev_list;
 extern struct bond_params bonding_defaults;
 extern struct bond_parm_tbl bond_mode_tbl[];
 extern struct bond_parm_tbl bond_lacp_tbl[];
+extern struct bond_parm_tbl ad_select_tbl[];
 extern struct bond_parm_tbl xmit_hashtype_tbl[];
 extern struct bond_parm_tbl arp_validate_tbl[];
 extern struct bond_parm_tbl fail_over_mac_tbl[];
@@ -944,6 +945,53 @@ out:
 }
 static DEVICE_ATTR(lacp_rate, S_IRUGO | S_IWUSR, bonding_show_lacp, bonding_store_lacp);
 
+static ssize_t bonding_show_ad_select(struct device *d,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct bonding *bond = to_bond(d);
+
+	return sprintf(buf, "%s %d\n",
+		ad_select_tbl[bond->params.ad_select].modename,
+		bond->params.ad_select);
+}
+
+
+static ssize_t bonding_store_ad_select(struct device *d,
+				       struct device_attribute *attr,
+				       const char *buf, size_t count)
+{
+	int new_value, ret = count;
+	struct bonding *bond = to_bond(d);
+
+	if (bond->dev->flags & IFF_UP) {
+		printk(KERN_ERR DRV_NAME
+		       ": %s: Unable to update ad_select because interface "
+		       "is up.\n", bond->dev->name);
+		ret = -EPERM;
+		goto out;
+	}
+
+	new_value = bond_parse_parm(buf, ad_select_tbl);
+
+	if (new_value != -1) {
+		bond->params.ad_select = new_value;
+		printk(KERN_INFO DRV_NAME
+		       ": %s: Setting ad_select to %s (%d).\n",
+		       bond->dev->name, ad_select_tbl[new_value].modename,
+		       new_value);
+	} else {
+		printk(KERN_ERR DRV_NAME
+		       ": %s: Ignoring invalid ad_select value %.*s.\n",
+		       bond->dev->name, (int)strlen(buf) - 1, buf);
+		ret = -EINVAL;
+	}
+out:
+	return ret;
+}
+
+static DEVICE_ATTR(ad_select, S_IRUGO | S_IWUSR, bonding_show_ad_select, bonding_store_ad_select);
+
 /*
  * Show and set the number of grat ARP to send after a failover event.
  */
@@ -983,6 +1031,47 @@ out:
 	return ret;
 }
 static DEVICE_ATTR(num_grat_arp, S_IRUGO | S_IWUSR, bonding_show_n_grat_arp, bonding_store_n_grat_arp);
+
+/*
+ * Show and set the number of unsolicted NA's to send after a failover event.
+ */
+static ssize_t bonding_show_n_unsol_na(struct device *d,
+				       struct device_attribute *attr,
+				       char *buf)
+{
+	struct bonding *bond = to_bond(d);
+
+	return sprintf(buf, "%d\n", bond->params.num_unsol_na);
+}
+
+static ssize_t bonding_store_n_unsol_na(struct device *d,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	int new_value, ret = count;
+	struct bonding *bond = to_bond(d);
+
+	if (sscanf(buf, "%d", &new_value) != 1) {
+		printk(KERN_ERR DRV_NAME
+		       ": %s: no num_unsol_na value specified.\n",
+		       bond->dev->name);
+		ret = -EINVAL;
+		goto out;
+	}
+	if (new_value < 0 || new_value > 255) {
+		printk(KERN_ERR DRV_NAME
+		       ": %s: Invalid num_unsol_na value %d not in range 0-255; rejected.\n",
+		       bond->dev->name, new_value);
+		ret = -EINVAL;
+		goto out;
+	} else {
+		bond->params.num_unsol_na = new_value;
+	}
+out:
+	return ret;
+}
+static DEVICE_ATTR(num_unsol_na, S_IRUGO | S_IWUSR, bonding_show_n_unsol_na, bonding_store_n_unsol_na);
+
 /*
  * Show and set the MII monitor interval.  There are two tricky bits
  * here.  First, if MII monitoring is activated, then we must disable
@@ -1418,8 +1507,10 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_downdelay.attr,
 	&dev_attr_updelay.attr,
 	&dev_attr_lacp_rate.attr,
+	&dev_attr_ad_select.attr,
 	&dev_attr_xmit_hash_policy.attr,
 	&dev_attr_num_grat_arp.attr,
+	&dev_attr_num_unsol_na.attr,
 	&dev_attr_miimon.attr,
 	&dev_attr_primary.attr,
 	&dev_attr_use_carrier.attr,

@@ -21,6 +21,7 @@
 #include "falcon_hwdefs.h"
 #include "falcon_io.h"
 #include "mac.h"
+#include "workarounds.h"
 
 /**************************************************************************
  *
@@ -65,48 +66,9 @@
 #define	P1_SPARE_LBN 4
 #define	P1_SPARE_WIDTH 4
 
-
-/**************************************************************************
- *
- * Temperature Sensor
- *
- **************************************************************************/
-#define	MAX6647	0x4e
-
-#define	RLTS	0x00
-#define	RLTE	0x01
-#define	RSL	0x02
-#define	RCL	0x03
-#define	RCRA	0x04
-#define	RLHN	0x05
-#define	RLLI	0x06
-#define	RRHI	0x07
-#define	RRLS	0x08
-#define	WCRW	0x0a
-#define	WLHO	0x0b
-#define	WRHA	0x0c
-#define	WRLN	0x0e
-#define	OSHT	0x0f
-#define	REET	0x10
-#define	RIET	0x11
-#define	RWOE	0x19
-#define	RWOI	0x20
-#define	HYS	0x21
-#define	QUEUE	0x22
-#define	MFID	0xfe
-#define	REVID	0xff
-
-/* Status bits */
-#define MAX6647_BUSY	(1 << 7)	/* ADC is converting */
-#define MAX6647_LHIGH	(1 << 6)	/* Local high temp. alarm */
-#define MAX6647_LLOW	(1 << 5)	/* Local low temp. alarm */
-#define MAX6647_RHIGH	(1 << 4)	/* Remote high temp. alarm */
-#define MAX6647_RLOW	(1 << 3)	/* Remote low temp. alarm */
-#define MAX6647_FAULT	(1 << 2)	/* DXN/DXP short/open circuit */
-#define MAX6647_EOT	(1 << 1)	/* Remote junction overtemp. */
-#define MAX6647_IOT	(1 << 0)	/* Local junction overtemp. */
-
-static const u8 xgphy_max_temperature = 90;
+/* Temperature Sensor */
+#define MAX664X_REG_RSL		0x02
+#define MAX664X_REG_WLHO	0x0B
 
 static void sfe4001_poweroff(struct efx_nic *efx)
 {
@@ -119,7 +81,7 @@ static void sfe4001_poweroff(struct efx_nic *efx)
 	i2c_smbus_write_byte_data(ioexp_client, P0_CONFIG, 0xff);
 
 	/* Clear any over-temperature alert */
-	i2c_smbus_read_byte_data(hwmon_client, RSL);
+	i2c_smbus_read_byte_data(hwmon_client, MAX664X_REG_RSL);
 }
 
 static int sfe4001_poweron(struct efx_nic *efx)
@@ -131,7 +93,7 @@ static int sfe4001_poweron(struct efx_nic *efx)
 	u8 out;
 
 	/* Clear any previous over-temperature alert */
-	rc = i2c_smbus_read_byte_data(hwmon_client, RSL);
+	rc = i2c_smbus_read_byte_data(hwmon_client, MAX664X_REG_RSL);
 	if (rc < 0)
 		return rc;
 
@@ -209,6 +171,34 @@ fail_on:
 	return rc;
 }
 
+static int sfe4001_check_hw(struct efx_nic *efx)
+{
+	s32 status;
+
+	/* If XAUI link is up then do not monitor */
+	if (EFX_WORKAROUND_7884(efx) && falcon_xaui_link_ok(efx))
+		return 0;
+
+	/* Check the powered status of the PHY. Lack of power implies that
+	 * the MAX6647 has shut down power to it, probably due to a temp.
+	 * alarm. Reading the power status rather than the MAX6647 status
+	 * directly because the later is read-to-clear and would thus
+	 * start to power up the PHY again when polled, causing us to blip
+	 * the power undesirably.
+	 * We know we can read from the IO expander because we did
+	 * it during power-on. Assume failure now is bad news. */
+	status = i2c_smbus_read_byte_data(efx->board_info.ioexp_client, P1_IN);
+	if (status >= 0 &&
+	    (status & ((1 << P1_AFE_PWD_LBN) | (1 << P1_DSP_PWD25_LBN))) != 0)
+		return 0;
+
+	/* Use board power control, not PHY power control */
+	sfe4001_poweroff(efx);
+	efx->phy_mode = PHY_MODE_OFF;
+
+	return (status < 0) ? -EIO : -ERANGE;
+}
+
 /* On SFE4001 rev A2 and later, we can control the FLASH_CFG_1 pin
  * using the 3V3X output of the IO-expander.  Allow the user to set
  * this when the device is stopped, and keep it stopped then.
@@ -261,35 +251,34 @@ static void sfe4001_fini(struct efx_nic *efx)
 	i2c_unregister_device(efx->board_info.hwmon_client);
 }
 
+static struct i2c_board_info sfe4001_hwmon_info = {
+	I2C_BOARD_INFO("max6647", 0x4e),
+	.irq		= -1,
+};
+
 /* This board uses an I2C expander to provider power to the PHY, which needs to
  * be turned on before the PHY can be used.
  * Context: Process context, rtnl lock held
  */
 int sfe4001_init(struct efx_nic *efx)
 {
-	struct i2c_client *hwmon_client;
 	int rc;
 
-	hwmon_client = i2c_new_dummy(&efx->i2c_adap, MAX6647);
-	if (!hwmon_client)
+#if defined(CONFIG_SENSORS_LM90) || defined(CONFIG_SENSORS_LM90_MODULE)
+	efx->board_info.hwmon_client =
+		i2c_new_device(&efx->i2c_adap, &sfe4001_hwmon_info);
+#else
+	efx->board_info.hwmon_client =
+		i2c_new_dummy(&efx->i2c_adap, sfe4001_hwmon_info.addr);
+#endif
+	if (!efx->board_info.hwmon_client)
 		return -EIO;
-	efx->board_info.hwmon_client = hwmon_client;
 
-	/* Set DSP over-temperature alert threshold */
-	EFX_INFO(efx, "DSP cut-out at %dC\n", xgphy_max_temperature);
-	rc = i2c_smbus_write_byte_data(hwmon_client, WLHO,
-				       xgphy_max_temperature);
+	/* Raise board/PHY high limit from 85 to 90 degrees Celsius */
+	rc = i2c_smbus_write_byte_data(efx->board_info.hwmon_client,
+				       MAX664X_REG_WLHO, 90);
 	if (rc)
-		goto fail_ioexp;
-
-	/* Read it back and verify */
-	rc = i2c_smbus_read_byte_data(hwmon_client, RLHN);
-	if (rc < 0)
-		goto fail_ioexp;
-	if (rc != xgphy_max_temperature) {
-		rc = -EFAULT;
-		goto fail_ioexp;
-	}
+		goto fail_hwmon;
 
 	efx->board_info.ioexp_client = i2c_new_dummy(&efx->i2c_adap, PCA9539);
 	if (!efx->board_info.ioexp_client) {
@@ -301,6 +290,7 @@ int sfe4001_init(struct efx_nic *efx)
 	 * blink code. */
 	efx->board_info.blink = tenxpress_phy_blink;
 
+	efx->board_info.monitor = sfe4001_check_hw;
 	efx->board_info.fini = sfe4001_fini;
 
 	rc = sfe4001_poweron(efx);
@@ -319,6 +309,6 @@ fail_on:
 fail_ioexp:
 	i2c_unregister_device(efx->board_info.ioexp_client);
 fail_hwmon:
-	i2c_unregister_device(hwmon_client);
+	i2c_unregister_device(efx->board_info.hwmon_client);
 	return rc;
 }

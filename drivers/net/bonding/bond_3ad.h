@@ -42,10 +42,11 @@ typedef struct mac_addr {
 	u8 mac_addr_value[ETH_ALEN];
 } mac_addr_t;
 
-typedef enum {
-	AD_BANDWIDTH = 0,
-	AD_COUNT
-} agg_selection_t;
+enum {
+	BOND_AD_STABLE = 0,
+	BOND_AD_BANDWIDTH = 1,
+	BOND_AD_COUNT = 2,
+};
 
 // rx machine states(43.4.11 in the 802.3ad standard)
 typedef enum {
@@ -277,6 +278,7 @@ void bond_3ad_initialize(struct bonding *bond, u16 tick_resolution, int lacp_fas
 int  bond_3ad_bind_slave(struct slave *slave);
 void bond_3ad_unbind_slave(struct slave *slave);
 void bond_3ad_state_machine_handler(struct work_struct *);
+void bond_3ad_initiate_agg_selection(struct bonding *bond, int timeout);
 void bond_3ad_adapter_speed_changed(struct slave *slave);
 void bond_3ad_adapter_duplex_changed(struct slave *slave);
 void bond_3ad_handle_link_change(struct slave *slave, char link);
