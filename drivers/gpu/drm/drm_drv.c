@@ -126,6 +126,26 @@ static struct drm_ioctl_desc drm_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_GEM_CLOSE, drm_gem_close_ioctl, 0),
 	DRM_IOCTL_DEF(DRM_IOCTL_GEM_FLINK, drm_gem_flink_ioctl, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_IOCTL_GEM_OPEN, drm_gem_open_ioctl, DRM_AUTH),
+
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_GETRESOURCES, drm_mode_getresources, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_GETCRTC, drm_mode_getcrtc, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_GETCONNECTOR, drm_mode_getconnector, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_SETCRTC, drm_mode_setcrtc, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_CURSOR, drm_mode_cursor_ioctl, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_ADDFB, drm_mode_addfb, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_RMFB, drm_mode_rmfb, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_GETFB, drm_mode_getfb, DRM_MASTER|DRM_CONTROL_ALLOW),
+
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_SETPROPERTY, drm_mode_connector_property_set_ioctl, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_GETPROPBLOB, drm_mode_getblob_ioctl, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_ATTACHMODE, drm_mode_attachmode_ioctl, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_DETACHMODE, drm_mode_detachmode_ioctl, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_GETPROPERTY, drm_mode_getproperty_ioctl, DRM_MASTER | DRM_CONTROL_ALLOW),
+
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_REPLACEFB, drm_mode_replacefb, DRM_MASTER|DRM_ROOT_ONLY|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_GETENCODER, drm_mode_getencoder, DRM_MASTER|DRM_CONTROL_ALLOW),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_GETGAMMA, drm_mode_gamma_get_ioctl, DRM_MASTER),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_SETGAMMA, drm_mode_gamma_set_ioctl, DRM_MASTER),
 };
 
 #define DRM_CORE_IOCTL_COUNT	ARRAY_SIZE( drm_ioctls )
@@ -150,7 +170,7 @@ int drm_lastclose(struct drm_device * dev)
 		dev->driver->lastclose(dev);
 	DRM_DEBUG("driver lastclose completed\n");
 
-	if (dev->irq_enabled)
+	if (dev->irq_enabled && !drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_irq_uninstall(dev);
 
 	mutex_lock(&dev->struct_mutex);
@@ -160,7 +180,8 @@ int drm_lastclose(struct drm_device * dev)
 	del_timer(&dev->timer);
 
 	/* Clear AGP information */
-	if (drm_core_has_AGP(dev) && dev->agp) {
+	if (drm_core_has_AGP(dev) && dev->agp &&
+	    !drm_core_check_feature(dev, DRIVER_MODESET)) {
 		struct drm_agp_mem *entry, *tempe;
 
 		/* Remove AGP resources, but leave dev->agp
@@ -179,7 +200,8 @@ int drm_lastclose(struct drm_device * dev)
 		dev->agp->acquired = 0;
 		dev->agp->enabled = 0;
 	}
-	if (drm_core_check_feature(dev, DRIVER_SG) && dev->sg) {
+	if (drm_core_check_feature(dev, DRIVER_SG) && dev->sg &&
+	    !drm_core_check_feature(dev, DRIVER_MODESET)) {
 		drm_sg_cleanup(dev->sg);
 		dev->sg = NULL;
 	}
@@ -206,7 +228,8 @@ int drm_lastclose(struct drm_device * dev)
 	}
 	dev->queue_count = 0;
 
-	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA))
+	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA) &&
+	    !drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_dma_takedown(dev);
 
 	dev->dev_mapping = NULL;
@@ -306,6 +329,9 @@ static void drm_cleanup(struct drm_device * dev)
 
 	drm_ht_remove(&dev->map_hash);
 	drm_ctxbitmap_cleanup(dev);
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		drm_put_minor(&dev->control);
 
 	if (driver->driver_features & DRIVER_GEM)
 		drm_gem_destroy(dev);

@@ -57,6 +57,14 @@ static int drm_minor_get_id(struct drm_device *dev, int type)
 	int ret;
 	int base = 0, limit = 63;
 
+	if (type == DRM_MINOR_CONTROL) {
+                base += 64;
+                limit = base + 127;
+        } else if (type == DRM_MINOR_RENDER) {
+                base += 128;
+                limit = base + 255;
+        }
+
 again:
 	if (idr_pre_get(&drm_minors_idr, GFP_KERNEL) == 0) {
 		DRM_ERROR("Out of memory expanding drawable idr\n");
@@ -362,12 +370,28 @@ int drm_get_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 		printk(KERN_ERR "DRM: Fill_in_dev failed.\n");
 		goto err_g2;
 	}
-	if ((ret = drm_get_minor(dev, &dev->primary, DRM_MINOR_LEGACY)))
-		goto err_g2;
 
-	if (dev->driver->load)
-		if ((ret = dev->driver->load(dev, ent->driver_data)))
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		ret = drm_get_minor(dev, &dev->control, DRM_MINOR_CONTROL);
+		if (ret)
+			goto err_g2;
+	}
+
+	if ((ret = drm_get_minor(dev, &dev->primary, DRM_MINOR_LEGACY)))
+		goto err_g3;
+
+	if (dev->driver->load) {
+		ret = dev->driver->load(dev, ent->driver_data);
+		if (ret)
 			goto err_g3;
+	}
+
+        /* setup the grouping for the legacy output */
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		ret = drm_mode_group_init_legacy_group(dev, &dev->primary->mode_group);
+		if (ret)
+			goto err_g3;
+	}
 
 	list_add_tail(&dev->driver_item, &driver->device_list);
 

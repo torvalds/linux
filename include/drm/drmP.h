@@ -105,6 +105,7 @@ struct drm_device;
 #define DRIVER_FB_DMA      0x400
 #define DRIVER_IRQ_VBL2    0x800
 #define DRIVER_GEM         0x1000
+#define DRIVER_MODESET     0x2000
 
 /***********************************************************************/
 /** \name Begin the DRM... */
@@ -276,6 +277,7 @@ typedef int drm_ioctl_compat_t(struct file *filp, unsigned int cmd,
 #define DRM_AUTH	0x1
 #define	DRM_MASTER	0x2
 #define DRM_ROOT_ONLY	0x4
+#define DRM_CONTROL_ALLOW 0x8
 
 struct drm_ioctl_desc {
 	unsigned int cmd;
@@ -398,6 +400,7 @@ struct drm_file {
 	int is_master; /* this file private is a master for a minor */
 	struct drm_master *master; /* master this node is currently associated with
 				      N.B. not always minor->master */
+	struct list_head fbs;
 };
 
 /** Wait queue */
@@ -629,6 +632,8 @@ struct drm_gem_object {
 	void *driver_private;
 };
 
+#include "drm_crtc.h"
+
 /* per-master structure */
 struct drm_master {
 
@@ -792,6 +797,8 @@ struct drm_driver {
 
 #define DRM_MINOR_UNASSIGNED 0
 #define DRM_MINOR_LEGACY 1
+#define DRM_MINOR_CONTROL 2
+#define DRM_MINOR_RENDER 3
 
 /**
  * DRM minor structure. This structure represents a drm minor number.
@@ -805,6 +812,7 @@ struct drm_minor {
 	struct proc_dir_entry *dev_root;  /**< proc directory entry */
 	struct drm_master *master; /* currently active master for this node */
 	struct list_head master_list;
+	struct drm_mode_group mode_group;
 };
 
 /**
@@ -855,6 +863,7 @@ struct drm_device {
 	struct idr ctx_idr;
 
 	struct list_head vmalist;	/**< List of vmas (for debugging) */
+
 	/*@} */
 
 	/** \name DMA queues (contexts) */
@@ -933,6 +942,7 @@ struct drm_device {
 	struct drm_driver *driver;
 	drm_local_map_t *agp_buffer_map;
 	unsigned int agp_buffer_token;
+	struct drm_minor *control;		/**< Control node for card */
 	struct drm_minor *primary;		/**< render type primary screen head */
 
 	/** \name Drawable information */
@@ -940,6 +950,8 @@ struct drm_device {
 	spinlock_t drw_lock;
 	struct idr drw_idr;
 	/*@} */
+
+        struct drm_mode_config mode_config;	/**< Current mode config */
 
 	/** \name GEM information */
 	/*@{ */
@@ -1201,6 +1213,8 @@ extern int drm_vblank_get(struct drm_device *dev, int crtc);
 extern void drm_vblank_put(struct drm_device *dev, int crtc);
 extern void drm_vblank_cleanup(struct drm_device *dev);
 /* Modesetting support */
+extern void drm_vblank_pre_modeset(struct drm_device *dev, int crtc);
+extern void drm_vblank_post_modeset(struct drm_device *dev, int crtc);
 extern int drm_modeset_ctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);
 
@@ -1286,7 +1300,11 @@ struct drm_sysfs_class;
 extern struct class *drm_sysfs_create(struct module *owner, char *name);
 extern void drm_sysfs_destroy(void);
 extern int drm_sysfs_device_add(struct drm_minor *minor);
+extern void drm_sysfs_hotplug_event(struct drm_device *dev);
 extern void drm_sysfs_device_remove(struct drm_minor *minor);
+extern char *drm_get_connector_status_name(enum drm_connector_status status);
+extern int drm_sysfs_connector_add(struct drm_connector *connector);
+extern void drm_sysfs_connector_remove(struct drm_connector *connector);
 
 /*
  * Basic memory manager support (drm_mm.c)

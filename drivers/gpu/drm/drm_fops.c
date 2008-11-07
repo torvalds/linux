@@ -35,7 +35,6 @@
  */
 
 #include "drmP.h"
-#include "drm_sarea.h"
 #include <linux/poll.h>
 #include <linux/smp_lock.h>
 
@@ -55,10 +54,12 @@ static int drm_setup(struct drm_device * dev)
 
 	atomic_set(&dev->ioctl_count, 0);
 	atomic_set(&dev->vma_count, 0);
-	dev->buf_use = 0;
-	atomic_set(&dev->buf_alloc, 0);
 
-	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA)) {
+	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA) &&
+	    !drm_core_check_feature(dev, DRIVER_MODESET)) {
+		dev->buf_use = 0;
+		atomic_set(&dev->buf_alloc, 0);
+
 		i = drm_dma_setup(dev);
 		if (i < 0)
 			return i;
@@ -138,14 +139,14 @@ int drm_open(struct inode *inode, struct file *filp)
 		}
 		spin_unlock(&dev->count_lock);
 	}
-
 out:
 	mutex_lock(&dev->struct_mutex);
-	if (dev->dev_mapping == NULL)
-		dev->dev_mapping = inode->i_mapping;
-	else if (dev->dev_mapping != inode->i_mapping)
-		WARN(1, "dev->dev_mapping not inode mapping (%p expected %p)\n",
-		     dev->dev_mapping, inode->i_mapping);
+	if (minor->type == DRM_MINOR_LEGACY) {
+		BUG_ON((dev->dev_mapping != NULL) &&
+			(dev->dev_mapping != inode->i_mapping));
+		if (dev->dev_mapping == NULL)
+			dev->dev_mapping = inode->i_mapping;
+	}
 	mutex_unlock(&dev->struct_mutex);
 
 	return retcode;
@@ -251,6 +252,7 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 	priv->lock_count = 0;
 
 	INIT_LIST_HEAD(&priv->lhead);
+	INIT_LIST_HEAD(&priv->fbs);
 
 	if (dev->driver->driver_features & DRIVER_GEM)
 		drm_gem_open(dev, priv);
