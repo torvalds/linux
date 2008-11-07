@@ -850,13 +850,16 @@ static int xen_pin_page(struct mm_struct *mm, struct page *page,
    read-only, and can be pinned. */
 static void __xen_pgd_pin(struct mm_struct *mm, pgd_t *pgd)
 {
+	vm_unmap_aliases();
+
 	xen_mc_batch();
 
-	if (xen_pgd_walk(mm, xen_pin_page, USER_LIMIT)) {
-		/* re-enable interrupts for kmap_flush_unused */
+	 if (xen_pgd_walk(mm, xen_pin_page, USER_LIMIT)) {
+		/* re-enable interrupts for flushing */
 		xen_mc_issue(0);
+
 		kmap_flush_unused();
-		vm_unmap_aliases();
+
 		xen_mc_batch();
 	}
 
