@@ -881,7 +881,7 @@ int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
  * At IO completion time the cums attached on the ordered extent record
  * are inserted into the btree
  */
-int __btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
+int __btrfs_submit_bio_start(struct inode *inode, int rw, struct bio *bio,
 			  int mirror_num, unsigned long bio_flags)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -889,7 +889,21 @@ int __btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 
 	ret = btrfs_csum_one_bio(root, inode, bio);
 	BUG_ON(ret);
+	return 0;
+}
 
+/*
+ * in order to insert checksums into the metadata in large chunks,
+ * we wait until bio submission time.   All the pages in the bio are
+ * checksummed and sums are attached onto the ordered extent record.
+ *
+ * At IO completion time the cums attached on the ordered extent record
+ * are inserted into the btree
+ */
+int __btrfs_submit_bio_done(struct inode *inode, int rw, struct bio *bio,
+			  int mirror_num, unsigned long bio_flags)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
 	return btrfs_map_bio(root, rw, bio, mirror_num, 1);
 }
 
@@ -922,7 +936,8 @@ int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 		/* we're doing a write, do the async checksumming */
 		return btrfs_wq_submit_bio(BTRFS_I(inode)->root->fs_info,
 				   inode, rw, bio, mirror_num,
-				   bio_flags, __btrfs_submit_bio_hook);
+				   bio_flags, __btrfs_submit_bio_start,
+				   __btrfs_submit_bio_done);
 	}
 
 mapit:

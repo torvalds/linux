@@ -80,7 +80,8 @@ struct async_submit_bio {
 	struct inode *inode;
 	struct bio *bio;
 	struct list_head list;
-	extent_submit_bio_hook_t *submit_bio_hook;
+	extent_submit_bio_hook_t *submit_bio_start;
+	extent_submit_bio_hook_t *submit_bio_done;
 	int rw;
 	int mirror_num;
 	unsigned long bio_flags;
@@ -452,7 +453,18 @@ int btrfs_congested_async(struct btrfs_fs_info *info, int iodone)
 		btrfs_async_submit_limit(info);
 }
 
-static void run_one_async_submit(struct btrfs_work *work)
+static void run_one_async_start(struct btrfs_work *work)
+{
+	struct btrfs_fs_info *fs_info;
+	struct async_submit_bio *async;
+
+	async = container_of(work, struct  async_submit_bio, work);
+	fs_info = BTRFS_I(async->inode)->root->fs_info;
+	async->submit_bio_start(async->inode, async->rw, async->bio,
+			       async->mirror_num, async->bio_flags);
+}
+
+static void run_one_async_done(struct btrfs_work *work)
 {
 	struct btrfs_fs_info *fs_info;
 	struct async_submit_bio *async;
@@ -470,15 +482,23 @@ static void run_one_async_submit(struct btrfs_work *work)
 	    waitqueue_active(&fs_info->async_submit_wait))
 		wake_up(&fs_info->async_submit_wait);
 
-	async->submit_bio_hook(async->inode, async->rw, async->bio,
+	async->submit_bio_done(async->inode, async->rw, async->bio,
 			       async->mirror_num, async->bio_flags);
+}
+
+static void run_one_async_free(struct btrfs_work *work)
+{
+	struct async_submit_bio *async;
+
+	async = container_of(work, struct  async_submit_bio, work);
 	kfree(async);
 }
 
 int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 			int rw, struct bio *bio, int mirror_num,
 			unsigned long bio_flags,
-			extent_submit_bio_hook_t *submit_bio_hook)
+			extent_submit_bio_hook_t *submit_bio_start,
+			extent_submit_bio_hook_t *submit_bio_done)
 {
 	struct async_submit_bio *async;
 	int limit = btrfs_async_submit_limit(fs_info);
@@ -491,8 +511,13 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 	async->rw = rw;
 	async->bio = bio;
 	async->mirror_num = mirror_num;
-	async->submit_bio_hook = submit_bio_hook;
-	async->work.func = run_one_async_submit;
+	async->submit_bio_start = submit_bio_start;
+	async->submit_bio_done = submit_bio_done;
+
+	async->work.func = run_one_async_start;
+	async->work.ordered_func = run_one_async_done;
+	async->work.ordered_free = run_one_async_free;
+
 	async->work.flags = 0;
 	async->bio_flags = bio_flags;
 
@@ -533,29 +558,25 @@ static int btree_csum_one_bio(struct bio *bio)
 	return 0;
 }
 
-static int __btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
-				 int mirror_num, unsigned long bio_flags)
+static int __btree_submit_bio_start(struct inode *inode, int rw,
+				    struct bio *bio, int mirror_num,
+				    unsigned long bio_flags)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	int ret;
-
 	/*
 	 * when we're called for a write, we're already in the async
 	 * submission context.  Just jump into btrfs_map_bio
 	 */
-	if (rw & (1 << BIO_RW)) {
-		btree_csum_one_bio(bio);
-		return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio,
-				     mirror_num, 1);
-	}
+	btree_csum_one_bio(bio);
+	return 0;
+}
 
+static int __btree_submit_bio_done(struct inode *inode, int rw, struct bio *bio,
+				 int mirror_num, unsigned long bio_flags)
+{
 	/*
-	 * called for a read, do the setup so that checksum validation
-	 * can happen in the async kernel threads
+	 * when we're called for a write, we're already in the async
+	 * submission context.  Just jump into btrfs_map_bio
 	 */
-	ret = btrfs_bio_wq_end_io(root->fs_info, bio, 1);
-	BUG_ON(ret);
-
 	return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio, mirror_num, 1);
 }
 
@@ -567,11 +588,22 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 	 * can happen in parallel across all CPUs
 	 */
 	if (!(rw & (1 << BIO_RW))) {
-		return __btree_submit_bio_hook(inode, rw, bio, mirror_num, 0);
+		int ret;
+		/*
+		 * called for a read, do the setup so that checksum validation
+		 * can happen in the async kernel threads
+		 */
+		ret = btrfs_bio_wq_end_io(BTRFS_I(inode)->root->fs_info,
+					  bio, 1);
+		BUG_ON(ret);
+
+		return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio,
+				     mirror_num, 1);
 	}
 	return btrfs_wq_submit_bio(BTRFS_I(inode)->root->fs_info,
 				   inode, rw, bio, mirror_num, 0,
-				   __btree_submit_bio_hook);
+				   __btree_submit_bio_start,
+				   __btree_submit_bio_done);
 }
 
 static int btree_writepage(struct page *page, struct writeback_control *wbc)
@@ -1534,7 +1566,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	 * were sent by the writeback daemons, improving overall locality
 	 * of the IO going down the pipe.
 	 */
-	fs_info->workers.idle_thresh = 128;
+	fs_info->workers.idle_thresh = 8;
+	fs_info->workers.ordered = 1;
 
 	btrfs_init_workers(&fs_info->fixup_workers, "fixup", 1);
 	btrfs_init_workers(&fs_info->endio_workers, "endio",

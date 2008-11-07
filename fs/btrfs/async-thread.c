@@ -23,6 +23,10 @@
 # include <linux/freezer.h>
 #include "async-thread.h"
 
+#define WORK_QUEUED_BIT 0
+#define WORK_DONE_BIT 1
+#define WORK_ORDER_DONE_BIT 2
+
 /*
  * container for the kthread task pointer and the list of pending work
  * One of these is allocated per thread.
@@ -88,6 +92,47 @@ static void check_busy_worker(struct btrfs_worker_thread *worker)
 	}
 }
 
+static noinline int run_ordered_completions(struct btrfs_workers *workers,
+					    struct btrfs_work *work)
+{
+	unsigned long flags;
+
+	if (!workers->ordered)
+		return 0;
+
+	set_bit(WORK_DONE_BIT, &work->flags);
+
+	spin_lock_irqsave(&workers->lock, flags);
+
+	while(!list_empty(&workers->order_list)) {
+		work = list_entry(workers->order_list.next,
+				  struct btrfs_work, order_list);
+
+		if (!test_bit(WORK_DONE_BIT, &work->flags))
+			break;
+
+		/* we are going to call the ordered done function, but
+		 * we leave the work item on the list as a barrier so
+		 * that later work items that are done don't have their
+		 * functions called before this one returns
+		 */
+		if (test_and_set_bit(WORK_ORDER_DONE_BIT, &work->flags))
+			break;
+
+		spin_unlock_irqrestore(&workers->lock, flags);
+
+		work->ordered_func(work);
+
+		/* now take the lock again and call the freeing code */
+		spin_lock_irqsave(&workers->lock, flags);
+		list_del(&work->order_list);
+		work->ordered_free(work);
+	}
+
+	spin_unlock_irqrestore(&workers->lock, flags);
+	return 0;
+}
+
 /*
  * main loop for servicing work items
  */
@@ -102,7 +147,7 @@ static int worker_loop(void *arg)
 			cur = worker->pending.next;
 			work = list_entry(cur, struct btrfs_work, list);
 			list_del(&work->list);
-			clear_bit(0, &work->flags);
+			clear_bit(WORK_QUEUED_BIT, &work->flags);
 
 			work->worker = worker;
 			spin_unlock_irq(&worker->lock);
@@ -110,8 +155,15 @@ static int worker_loop(void *arg)
 			work->func(work);
 
 			atomic_dec(&worker->num_pending);
+			/*
+			 * unless this is an ordered work queue,
+			 * 'work' was probably freed by func above.
+			 */
+			run_ordered_completions(worker->workers, work);
+
 			spin_lock_irq(&worker->lock);
 			check_idle_worker(worker);
+
 		}
 		worker->working = 0;
 		if (freezing(current)) {
@@ -154,10 +206,12 @@ void btrfs_init_workers(struct btrfs_workers *workers, char *name, int max)
 	workers->num_workers = 0;
 	INIT_LIST_HEAD(&workers->worker_list);
 	INIT_LIST_HEAD(&workers->idle_list);
+	INIT_LIST_HEAD(&workers->order_list);
 	spin_lock_init(&workers->lock);
 	workers->max_workers = max;
 	workers->idle_thresh = 32;
 	workers->name = name;
+	workers->ordered = 0;
 }
 
 /*
@@ -296,7 +350,7 @@ int btrfs_requeue_work(struct btrfs_work *work)
 	struct btrfs_worker_thread *worker = work->worker;
 	unsigned long flags;
 
-	if (test_and_set_bit(0, &work->flags))
+	if (test_and_set_bit(WORK_QUEUED_BIT, &work->flags))
 		goto out;
 
 	spin_lock_irqsave(&worker->lock, flags);
@@ -330,10 +384,17 @@ int btrfs_queue_worker(struct btrfs_workers *workers, struct btrfs_work *work)
 	int wake = 0;
 
 	/* don't requeue something already on a list */
-	if (test_and_set_bit(0, &work->flags))
+	if (test_and_set_bit(WORK_QUEUED_BIT, &work->flags))
 		goto out;
 
 	worker = find_worker(workers);
+	if (workers->ordered) {
+		spin_lock_irqsave(&workers->lock, flags);
+		list_add_tail(&work->order_list, &workers->order_list);
+		spin_unlock_irqrestore(&workers->lock, flags);
+	} else {
+		INIT_LIST_HEAD(&work->order_list);
+	}
 
 	spin_lock_irqsave(&worker->lock, flags);
 	atomic_inc(&worker->num_pending);
