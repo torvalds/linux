@@ -244,6 +244,10 @@ typedef struct drm_i915_private {
 		 * List of objects currently involved in rendering from the
 		 * ringbuffer.
 		 *
+		 * Includes buffers having the contents of their GPU caches
+		 * flushed, not necessarily primitives.  last_rendering_seqno
+		 * represents when the rendering involved will be completed.
+		 *
 		 * A reference is held on the buffer while on this list.
 		 */
 		struct list_head active_list;
@@ -253,6 +257,8 @@ typedef struct drm_i915_private {
 		 * still have a write_domain which needs to be flushed before
 		 * unbinding.
 		 *
+		 * last_rendering_seqno is 0 while an object is in this list.
+		 *
 		 * A reference is held on the buffer while on this list.
 		 */
 		struct list_head flushing_list;
@@ -260,6 +266,8 @@ typedef struct drm_i915_private {
 		/**
 		 * LRU list of objects which are not in the ringbuffer and
 		 * are ready to unbind, but are still in the GTT.
+		 *
+		 * last_rendering_seqno is 0 while an object is in this list.
 		 *
 		 * A reference is not held on the buffer while on this list,
 		 * as merely being GTT-bound shouldn't prevent its being
@@ -393,9 +401,6 @@ struct drm_i915_gem_request {
 
 	/** Time at which this request was emitted, in jiffies. */
 	unsigned long emitted_jiffies;
-
-	/** Cache domains that were flushed at the start of the request. */
-	uint32_t flush_domains;
 
 	struct list_head list;
 };

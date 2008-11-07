@@ -532,7 +532,7 @@ i915_gem_object_free_page_list(struct drm_gem_object *obj)
 }
 
 static void
-i915_gem_object_move_to_active(struct drm_gem_object *obj)
+i915_gem_object_move_to_active(struct drm_gem_object *obj, uint32_t seqno)
 {
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -546,8 +546,20 @@ i915_gem_object_move_to_active(struct drm_gem_object *obj)
 	/* Move from whatever list we were on to the tail of execution. */
 	list_move_tail(&obj_priv->list,
 		       &dev_priv->mm.active_list);
+	obj_priv->last_rendering_seqno = seqno;
 }
 
+static void
+i915_gem_object_move_to_flushing(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+
+	BUG_ON(!obj_priv->active);
+	list_move_tail(&obj_priv->list, &dev_priv->mm.flushing_list);
+	obj_priv->last_rendering_seqno = 0;
+}
 
 static void
 i915_gem_object_move_to_inactive(struct drm_gem_object *obj)
@@ -562,6 +574,7 @@ i915_gem_object_move_to_inactive(struct drm_gem_object *obj)
 	else
 		list_move_tail(&obj_priv->list, &dev_priv->mm.inactive_list);
 
+	obj_priv->last_rendering_seqno = 0;
 	if (obj_priv->active) {
 		obj_priv->active = 0;
 		drm_gem_object_unreference(obj);
@@ -610,9 +623,27 @@ i915_add_request(struct drm_device *dev, uint32_t flush_domains)
 
 	request->seqno = seqno;
 	request->emitted_jiffies = jiffies;
-	request->flush_domains = flush_domains;
 	was_empty = list_empty(&dev_priv->mm.request_list);
 	list_add_tail(&request->list, &dev_priv->mm.request_list);
+
+	/* Associate any objects on the flushing list matching the write
+	 * domain we're flushing with our flush.
+	 */
+	if (flush_domains != 0) {
+		struct drm_i915_gem_object *obj_priv, *next;
+
+		list_for_each_entry_safe(obj_priv, next,
+					 &dev_priv->mm.flushing_list, list) {
+			struct drm_gem_object *obj = obj_priv->obj;
+
+			if ((obj->write_domain & flush_domains) ==
+			    obj->write_domain) {
+				obj->write_domain = 0;
+				i915_gem_object_move_to_active(obj, seqno);
+			}
+		}
+
+	}
 
 	if (was_empty && !dev_priv->mm.suspended)
 		schedule_delayed_work(&dev_priv->mm.retire_work, HZ);
@@ -676,30 +707,10 @@ i915_gem_retire_request(struct drm_device *dev,
 			 __func__, request->seqno, obj);
 #endif
 
-		if (obj->write_domain != 0) {
-			list_move_tail(&obj_priv->list,
-				       &dev_priv->mm.flushing_list);
-		} else {
+		if (obj->write_domain != 0)
+			i915_gem_object_move_to_flushing(obj);
+		else
 			i915_gem_object_move_to_inactive(obj);
-		}
-	}
-
-	if (request->flush_domains != 0) {
-		struct drm_i915_gem_object *obj_priv, *next;
-
-		/* Clear the write domain and activity from any buffers
-		 * that are just waiting for a flush matching the one retired.
-		 */
-		list_for_each_entry_safe(obj_priv, next,
-					 &dev_priv->mm.flushing_list, list) {
-			struct drm_gem_object *obj = obj_priv->obj;
-
-			if (obj->write_domain & request->flush_domains) {
-				obj->write_domain = 0;
-				i915_gem_object_move_to_inactive(obj);
-			}
-		}
-
 	}
 }
 
@@ -896,17 +907,15 @@ i915_gem_object_wait_rendering(struct drm_gem_object *obj)
 	 * create a new seqno to wait for.
 	 */
 	if (obj->write_domain & ~(I915_GEM_DOMAIN_CPU|I915_GEM_DOMAIN_GTT)) {
-		uint32_t write_domain = obj->write_domain;
+		uint32_t seqno, write_domain = obj->write_domain;
 #if WATCH_BUF
 		DRM_INFO("%s: flushing object %p from write domain %08x\n",
 			  __func__, obj, write_domain);
 #endif
 		i915_gem_flush(dev, 0, write_domain);
 
-		i915_gem_object_move_to_active(obj);
-		obj_priv->last_rendering_seqno = i915_add_request(dev,
-								  write_domain);
-		BUG_ON(obj_priv->last_rendering_seqno == 0);
+		seqno = i915_add_request(dev, write_domain);
+		i915_gem_object_move_to_active(obj, seqno);
 #if WATCH_LRU
 		DRM_INFO("%s: flush moves to exec list %p\n", __func__, obj);
 #endif
@@ -1927,10 +1936,8 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 	i915_file_priv->mm.last_gem_seqno = seqno;
 	for (i = 0; i < args->buffer_count; i++) {
 		struct drm_gem_object *obj = object_list[i];
-		struct drm_i915_gem_object *obj_priv = obj->driver_private;
 
-		i915_gem_object_move_to_active(obj);
-		obj_priv->last_rendering_seqno = seqno;
+		i915_gem_object_move_to_active(obj, seqno);
 #if WATCH_LRU
 		DRM_INFO("%s: move to exec list %p\n", __func__, obj);
 #endif
