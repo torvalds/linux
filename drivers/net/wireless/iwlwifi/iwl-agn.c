@@ -2002,6 +2002,10 @@ static int iwl_read_ucode(struct iwl_priv *priv)
 	return ret;
 }
 
+/* temporary */
+static int iwl_mac_beacon_update(struct ieee80211_hw *hw,
+				 struct sk_buff *skb);
+
 /**
  * iwl_alive_start - called after REPLY_ALIVE notification received
  *                   from protocol/runtime uCode (initialization uCode's
@@ -2083,6 +2087,15 @@ static void iwl_alive_start(struct iwl_priv *priv)
 		iwl_error_recovery(priv);
 
 	iwl_power_update_mode(priv, 1);
+
+	/* reassociate for ADHOC mode */
+	if (priv->vif && (priv->iw_mode == NL80211_IFTYPE_ADHOC)) {
+		struct sk_buff *beacon = ieee80211_beacon_get(priv->hw,
+								priv->vif);
+		if (beacon)
+			iwl_mac_beacon_update(priv->hw, beacon);
+	}
+
 
 	if (test_and_clear_bit(STATUS_MODE_PENDING, &priv->status))
 		iwl_set_mode(priv, priv->iw_mode);
@@ -2930,8 +2943,6 @@ static void iwl_config_ap(struct iwl_priv *priv)
 	 * clear sta table, add BCAST sta... */
 }
 
-/* temporary */
-static int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb);
 
 static int iwl_mac_config_interface(struct ieee80211_hw *hw,
 					struct ieee80211_vif *vif,
@@ -2953,7 +2964,9 @@ static int iwl_mac_config_interface(struct ieee80211_hw *hw,
 		struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
 		if (!beacon)
 			return -ENOMEM;
+		mutex_lock(&priv->mutex);
 		rc = iwl_mac_beacon_update(hw, beacon);
+		mutex_unlock(&priv->mutex);
 		if (rc)
 			return rc;
 	}
@@ -3529,18 +3542,15 @@ static int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 	unsigned long flags;
 	__le64 timestamp;
 
-	mutex_lock(&priv->mutex);
 	IWL_DEBUG_MAC80211("enter\n");
 
 	if (!iwl_is_ready_rf(priv)) {
 		IWL_DEBUG_MAC80211("leave - RF not ready\n");
-		mutex_unlock(&priv->mutex);
 		return -EIO;
 	}
 
 	if (priv->iw_mode != NL80211_IFTYPE_ADHOC) {
 		IWL_DEBUG_MAC80211("leave - not IBSS\n");
-		mutex_unlock(&priv->mutex);
 		return -EIO;
 	}
 
@@ -3562,7 +3572,6 @@ static int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	iwl_post_associate(priv);
 
-	mutex_unlock(&priv->mutex);
 
 	return 0;
 }
