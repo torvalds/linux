@@ -1631,12 +1631,6 @@ static int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 }
 #endif
 
-static int iwl4965_shared_mem_rx_idx(struct iwl_priv *priv)
-{
-	struct iwl4965_shared *s = priv->shared_virt;
-	return le32_to_cpu(s->rb_closed) & 0xFFF;
-}
-
 static int iwl4965_alloc_shared_mem(struct iwl_priv *priv)
 {
 	priv->shared_virt = pci_alloc_consistent(priv->pci_dev,
@@ -1646,8 +1640,6 @@ static int iwl4965_alloc_shared_mem(struct iwl_priv *priv)
 		return -ENOMEM;
 
 	memset(priv->shared_virt, 0, sizeof(struct iwl4965_shared));
-
-	priv->rb_closed_offset = offsetof(struct iwl4965_shared, rb_closed);
 
 	return 0;
 }
@@ -2306,7 +2298,6 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.set_hw_params = iwl4965_hw_set_hw_params,
 	.alloc_shared_mem = iwl4965_alloc_shared_mem,
 	.free_shared_mem = iwl4965_free_shared_mem,
-	.shared_mem_rx_idx = iwl4965_shared_mem_rx_idx,
 	.txq_update_byte_cnt_tbl = iwl4965_txq_update_byte_cnt_tbl,
 	.txq_set_sched = iwl4965_txq_set_sched,
 	.txq_agg_enable = iwl4965_txq_agg_enable,

@@ -301,7 +301,6 @@ struct iwl_host_cmd {
 
 /**
  * struct iwl_rx_queue - Rx queue
- * @processed: Internal index to last handled Rx packet
  * @read: Shared index to newest available Rx buffer
  * @write: Shared index to oldest written Rx packet
  * @free_count: Number of pre-allocated buffers in rx_free
@@ -316,13 +315,14 @@ struct iwl_rx_queue {
 	dma_addr_t dma_addr;
 	struct iwl_rx_mem_buffer pool[RX_QUEUE_SIZE + RX_FREE_BUFFERS];
 	struct iwl_rx_mem_buffer *queue[RX_QUEUE_SIZE];
-	u32 processed;
 	u32 read;
 	u32 write;
 	u32 free_count;
 	struct list_head rx_free;
 	struct list_head rx_used;
 	int need_update;
+	struct iwl_rb_status *rb_stts;
+	dma_addr_t rb_stts_dma;
 	spinlock_t lock;
 };
 
@@ -967,10 +967,9 @@ struct iwl_priv {
 	struct ieee80211_vif *vif;
 
 	struct iwl_hw_params hw_params;
-	/* driver/uCode shared Tx Byte Counts and Rx status */
+	/* driver/uCode shared Tx Byte Counts */
 	void *shared_virt;
-	int rb_closed_offset;
-	/* Physical Pointer to Tx Byte Counts and Rx status */
+	/* Physical Pointer to Tx Byte Counts */
 	dma_addr_t shared_phys;
 
 	/* Current association information needed to configure the

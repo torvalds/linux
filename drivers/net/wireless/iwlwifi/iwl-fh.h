@@ -403,5 +403,21 @@
 #define TFD_QUEUE_SIZE_BC_DUP	(64)
 #define TFD_QUEUE_BC_SIZE	(TFD_QUEUE_SIZE_MAX + TFD_QUEUE_SIZE_BC_DUP)
 
+/**
+ * struct iwl_rb_status - reseve buffer status
+ * 	host memory mapped FH registers
+ * @closed_rb_num [0:11] - Indicates the index of the RB which was closed
+ * @closed_fr_num [0:11] - Indicates the index of the RX Frame which was closed
+ * @finished_rb_num [0:11] - Indicates the index of the current RB
+ * 	in which the last frame was written to
+ * @finished_fr_num [0:11] - Indicates the index of the RX Frame
+ * 	which was transfered
+ */
+struct iwl_rb_status {
+	__le16 closed_rb_num;
+	__le16 closed_fr_num;
+	__le16 finished_rb_num;
+	__le16 finished_fr_nam;
+} __attribute__ ((packed));
 
 #endif /* !__iwl_fh_h__ */

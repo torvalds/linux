@@ -927,33 +927,6 @@ struct iwl4965_schedq_bc_tbl {
  */
 struct iwl4965_shared {
 	struct iwl4965_schedq_bc_tbl queues_bc_tbls[IWL49_NUM_QUEUES];
-	__le32 rb_closed;
-
-	/* __le32 rb_closed_stts_rb_num:12; */
-#define IWL_rb_closed_stts_rb_num_POS 0
-#define IWL_rb_closed_stts_rb_num_LEN 12
-#define IWL_rb_closed_stts_rb_num_SYM rb_closed
-	/* __le32 rsrv1:4; */
-	/* __le32 rb_closed_stts_rx_frame_num:12; */
-#define IWL_rb_closed_stts_rx_frame_num_POS 16
-#define IWL_rb_closed_stts_rx_frame_num_LEN 12
-#define IWL_rb_closed_stts_rx_frame_num_SYM rb_closed
-	/* __le32 rsrv2:4; */
-
-	__le32 frm_finished;
-	/* __le32 frame_finished_stts_rb_num:12; */
-#define IWL_frame_finished_stts_rb_num_POS 0
-#define IWL_frame_finished_stts_rb_num_LEN 12
-#define IWL_frame_finished_stts_rb_num_SYM frm_finished
-	/* __le32 rsrv3:4; */
-	/* __le32 frame_finished_stts_rx_frame_num:12; */
-#define IWL_frame_finished_stts_rx_frame_num_POS 16
-#define IWL_frame_finished_stts_rx_frame_num_LEN 12
-#define IWL_frame_finished_stts_rx_frame_num_SYM frm_finished
-	/* __le32 rsrv4:4; */
-
-	__le32 padding1;  /* so that allocation will be aligned to 16B */
-	__le32 padding2;
 } __attribute__ ((packed));
 
 #endif /* __iwl4965_4965_hw_h__ */
