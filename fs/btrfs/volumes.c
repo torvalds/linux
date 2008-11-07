@@ -200,7 +200,8 @@ loop:
 		 * is now congested.  Back off and let other work structs
 		 * run instead
 		 */
-		if (pending && bdi_write_congested(bdi)) {
+		if (pending && bdi_write_congested(bdi) &&
+		    fs_info->fs_devices->open_devices > 1) {
 			struct bio *old_head;
 
 			spin_lock(&device->io_lock);
