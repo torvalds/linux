@@ -15,24 +15,22 @@ menuconfig VIRTUALIZATION
 if VIRTUALIZATION
 
 config KVM
-	bool "Kernel-based Virtual Machine (KVM) support"
-	depends on EXPERIMENTAL
+	bool
 	select PREEMPT_NOTIFIERS
 	select ANON_INODES
+
+config KVM_440
+	bool "KVM support for PowerPC 440 processors"
+	depends on EXPERIMENTAL && 44x
+	select KVM
 	---help---
-	  Support hosting virtualized guest machines. You will also
-	  need to select one or more of the processor modules below.
+	  Support running unmodified 440 guest kernels in virtual machines on
+	  440 host processors.
 
 	  This module provides access to the hardware capabilities through
 	  a character device node named /dev/kvm.
 
 	  If unsure, say N.
-
-config KVM_440
-	bool "KVM support for PowerPC 440 processors"
-	depends on KVM && 44x
-	---help---
-	  KVM can run unmodified 440 guest kernels on 440 host processors.
 
 config KVM_TRACE
 	bool "KVM trace support"
