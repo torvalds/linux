@@ -894,6 +894,12 @@ static inline void cpumask_copy(struct cpumask *dstp,
 #define cpumask_any_and(mask1, mask2) cpumask_first_and((mask1), (mask2))
 
 /**
+ * cpumask_of - the cpumask containing just a given cpu
+ * @cpu: the cpu (<= nr_cpu_ids)
+ */
+#define cpumask_of(cpu) (get_cpu_mask(cpu))
+
+/**
  * to_cpumask - convert an NR_CPUS bitmap to a struct cpumask *
  * @bitmap: the bitmap
  *
@@ -946,6 +952,7 @@ typedef struct cpumask *cpumask_var_t;
 bool alloc_cpumask_var(cpumask_var_t *mask, gfp_t flags);
 void alloc_bootmem_cpumask_var(cpumask_var_t *mask);
 void free_cpumask_var(cpumask_var_t mask);
+void free_bootmem_cpumask_var(cpumask_var_t mask);
 
 #else
 typedef struct cpumask cpumask_var_t[1];
@@ -960,6 +967,10 @@ static inline void alloc_bootmem_cpumask_var(cpumask_var_t *mask)
 }
 
 static inline void free_cpumask_var(cpumask_var_t mask)
+{
+}
+
+static inline void free_bootmem_cpumask_var(cpumask_var_t mask)
 {
 }
 #endif /* CONFIG_CPUMASK_OFFSTACK */
