@@ -44,11 +44,7 @@ static __always_inline cycles_t vget_cycles(void)
 	if (!cpu_has_tsc)
 		return 0;
 #endif
-	rdtsc_barrier();
-	cycles = (cycles_t)__native_read_tsc();
-	rdtsc_barrier();
-
-	return cycles;
+	return (cycles_t)__native_read_tsc();
 }
 
 extern void tsc_init(void);
