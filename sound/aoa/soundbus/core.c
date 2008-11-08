@@ -176,7 +176,7 @@ int soundbus_add_one(struct soundbus_dev *dev)
 		return -EINVAL;
 	}
 
-	snprintf(dev->ofdev.dev.bus_id, BUS_ID_SIZE, "soundbus:%x", ++devcount);
+	dev_set_name(&dev->ofdev.dev, "soundbus:%x", ++devcount);
 	dev->ofdev.dev.bus = &soundbus_bus_type;
 	return of_device_register(&dev->ofdev);
 }

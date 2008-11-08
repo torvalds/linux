@@ -74,7 +74,6 @@ static inline void ftrace_start(void) { }
 #endif /* CONFIG_FUNCTION_TRACER */
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-
 enum {
 	FTRACE_FL_FREE		= (1 << 0),
 	FTRACE_FL_FAILED	= (1 << 1),
@@ -135,7 +134,6 @@ extern void ftrace_release(void *start, unsigned long size);
 
 extern void ftrace_disable_daemon(void);
 extern void ftrace_enable_daemon(void);
-
 #else
 # define skip_trace(ip)				({ 0; })
 # define ftrace_force_update()			({ 0; })
