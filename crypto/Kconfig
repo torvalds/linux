@@ -310,7 +310,7 @@ config CRYPTO_RMD128
 
 config CRYPTO_RMD160
 	tristate "RIPEMD-160 digest algorithm"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  RIPEMD-160 (ISO/IEC 10118-3:2004).
 
