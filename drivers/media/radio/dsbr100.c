@@ -93,8 +93,8 @@
  */
 #include <linux/version.h>	/* for KERNEL_VERSION MACRO	*/
 
-#define DRIVER_VERSION "v0.41"
-#define RADIO_VERSION KERNEL_VERSION(0,4,1)
+#define DRIVER_VERSION "v0.43"
+#define RADIO_VERSION KERNEL_VERSION(0, 4, 3)
 
 static struct v4l2_queryctrl radio_qctrl[] = {
 	{
@@ -104,7 +104,27 @@ static struct v4l2_queryctrl radio_qctrl[] = {
 		.maximum       = 1,
 		.default_value = 1,
 		.type          = V4L2_CTRL_TYPE_BOOLEAN,
-	}
+	},
+/* HINT: the disabled controls are only here to satify kradio and such apps */
+	{       .id             = V4L2_CID_AUDIO_VOLUME,
+		.flags          = V4L2_CTRL_FLAG_DISABLED,
+	},
+	{
+		.id             = V4L2_CID_AUDIO_BALANCE,
+		.flags          = V4L2_CTRL_FLAG_DISABLED,
+	},
+	{
+		.id             = V4L2_CID_AUDIO_BASS,
+		.flags          = V4L2_CTRL_FLAG_DISABLED,
+	},
+	{
+		.id             = V4L2_CID_AUDIO_TREBLE,
+		.flags          = V4L2_CTRL_FLAG_DISABLED,
+	},
+	{
+		.id             = V4L2_CID_AUDIO_LOUDNESS,
+		.flags          = V4L2_CTRL_FLAG_DISABLED,
+	},
 };
 
 #define DRIVER_AUTHOR "Markus Demleitner <msdemlei@tucana.harvard.edu>"
