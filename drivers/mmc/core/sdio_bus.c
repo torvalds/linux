@@ -239,8 +239,7 @@ int sdio_add_func(struct sdio_func *func)
 {
 	int ret;
 
-	snprintf(func->dev.bus_id, sizeof(func->dev.bus_id),
-		 "%s:%d", mmc_card_id(func->card), func->num);
+	dev_set_name(&func->dev, "%s:%d", mmc_card_id(func->card), func->num);
 
 	ret = device_add(&func->dev);
 	if (ret == 0)
