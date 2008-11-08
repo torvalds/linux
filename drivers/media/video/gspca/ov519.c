@@ -1499,8 +1499,8 @@ static int ov519_mode_init_regs(struct sd *sd)
 	switch (sd->sensor) {
 	case SEN_OV7640:
 		switch (sd->frame_rate) {
-/*fixme: default was 30 fps */
-		case 30:
+		default:
+/*		case 30: */
 			reg_w(sd, 0xa4, 0x0c);
 			reg_w(sd, 0x23, 0xff);
 			break;
@@ -1512,8 +1512,7 @@ static int ov519_mode_init_regs(struct sd *sd)
 			reg_w(sd, 0xa4, 0x0c);
 			reg_w(sd, 0x23, 0x1b);
 			break;
-		default:
-/*		case 15: */
+		case 15:
 			reg_w(sd, 0xa4, 0x04);
 			reg_w(sd, 0x23, 0xff);
 			sd->clockdiv = 1;
