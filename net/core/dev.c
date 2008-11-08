@@ -4909,18 +4909,6 @@ static int __init net_dev_init(void)
 	if (register_pernet_subsys(&netdev_net_ops))
 		goto out;
 
-	/* The loopback device is special if any other network devices
-	 * is present in a network namespace the loopback device must
-	 * be present. Since we now dynamically allocate and free the
-	 * loopback device ensure this invariant is maintained by
-	 * keeping the loopback device as the first device on the
-	 * list of network devices.  Ensuring the loopback devices
-	 * is the first device that appears and the last network device
-	 * that disappears.
-	 */
-	if (register_pernet_device(&loopback_net_ops))
-		goto out;
-
 	if (register_pernet_device(&default_device_ops))
 		goto out;
 
