@@ -261,10 +261,17 @@ static int s3c24xx_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S8:
+		iismod &= ~S3C2410_IISMOD_16BIT;
+		((struct s3c24xx_pcm_dma_params *)
+		  rtd->dai->cpu_dai->dma_data)->dma_size = 1;
 		break;
 	case SNDRV_PCM_FORMAT_S16_LE:
 		iismod |= S3C2410_IISMOD_16BIT;
+		((struct s3c24xx_pcm_dma_params *)
+		  rtd->dai->cpu_dai->dma_data)->dma_size = 2;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	writel(iismod, s3c24xx_i2s.regs + S3C2410_IISMOD);
