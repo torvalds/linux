@@ -404,7 +404,6 @@ static void irqsoff_tracer_ctrl_update(struct trace_array *tr)
 
 static void irqsoff_tracer_start(struct trace_array *tr)
 {
-	irqsoff_tracer_reset(tr);
 	tracer_enabled = 1;
 	save_tracer_enabled = 1;
 }
