@@ -403,11 +403,11 @@ static void *rate_control_pid_alloc(struct ieee80211_hw *hw,
 						 S_IRUSR | S_IWUSR, debugfsdir,
 						 &pinfo->sampling_period);
 	de->coeff_p = debugfs_create_u32("coeff_p", S_IRUSR | S_IWUSR,
-					 debugfsdir, &pinfo->coeff_p);
+					 debugfsdir, (u32 *)&pinfo->coeff_p);
 	de->coeff_i = debugfs_create_u32("coeff_i", S_IRUSR | S_IWUSR,
-					 debugfsdir, &pinfo->coeff_i);
+					 debugfsdir, (u32 *)&pinfo->coeff_i);
 	de->coeff_d = debugfs_create_u32("coeff_d", S_IRUSR | S_IWUSR,
-					 debugfsdir, &pinfo->coeff_d);
+					 debugfsdir, (u32 *)&pinfo->coeff_d);
 	de->smoothing_shift = debugfs_create_u32("smoothing_shift",
 						 S_IRUSR | S_IWUSR, debugfsdir,
 						 &pinfo->smoothing_shift);
