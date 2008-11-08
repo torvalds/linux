@@ -205,7 +205,7 @@ static DEFINE_MUTEX(trace_types_lock);
 static DECLARE_WAIT_QUEUE_HEAD(trace_wait);
 
 /* trace_flags holds iter_ctrl options */
-unsigned long trace_flags = TRACE_ITER_PRINT_PARENT;
+unsigned long trace_flags = TRACE_ITER_PRINT_PARENT | TRACE_ITER_PRINTK;
 
 /**
  * trace_wake_up - wake up tasks waiting for trace input
