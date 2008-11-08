@@ -564,12 +564,36 @@ static inline unsigned int cpumask_check(unsigned int cpu)
 }
 
 #if NR_CPUS == 1
-/* Uniprocesor. */
-#define cpumask_first(src)		({ (void)(src); 0; })
-#define cpumask_next(n, src)		({ (void)(src); 1; })
-#define cpumask_next_zero(n, src)	({ (void)(src); 1; })
-#define cpumask_next_and(n, srcp, andp)	({ (void)(srcp), (void)(andp); 1; })
-#define cpumask_any_but(mask, cpu)	({ (void)(mask); (void)(cpu); 0; })
+/* Uniprocessor.  Assume all masks are "1". */
+static inline unsigned int cpumask_first(const struct cpumask *srcp)
+{
+	return 0;
+}
+
+/* Valid inputs for n are -1 and 0. */
+static inline unsigned int cpumask_next(int n, const struct cpumask *srcp)
+{
+	return n+1;
+}
+
+static inline unsigned int cpumask_next_zero(int n, const struct cpumask *srcp)
+{
+	return n+1;
+}
+
+static inline unsigned int cpumask_next_and(int n,
+					    const struct cpumask *srcp,
+					    const struct cpumask *andp)
+{
+	return n+1;
+}
+
+/* cpu must be a valid cpu, ie 0, so there's no other choice. */
+static inline unsigned int cpumask_any_but(const struct cpumask *mask,
+					   unsigned int cpu)
+{
+	return 1;
+}
 
 #define for_each_cpu(cpu, mask)			\
 	for ((cpu) = 0; (cpu) < 1; (cpu)++, (void)mask)
@@ -620,10 +644,32 @@ static inline unsigned int cpumask_next_zero(int n, const struct cpumask *srcp)
 int cpumask_next_and(int n, const struct cpumask *, const struct cpumask *);
 int cpumask_any_but(const struct cpumask *mask, unsigned int cpu);
 
+/**
+ * for_each_cpu - iterate over every cpu in a mask
+ * @cpu: the (optionally unsigned) integer iterator
+ * @mask: the cpumask pointer
+ *
+ * After the loop, cpu is >= nr_cpu_ids.
+ */
 #define for_each_cpu(cpu, mask)				\
 	for ((cpu) = -1;				\
 		(cpu) = cpumask_next((cpu), (mask)),	\
 		(cpu) < nr_cpu_ids;)
+
+/**
+ * for_each_cpu_and - iterate over every cpu in both masks
+ * @cpu: the (optionally unsigned) integer iterator
+ * @mask: the first cpumask pointer
+ * @and: the second cpumask pointer
+ *
+ * This saves a temporary CPU mask in many places.  It is equivalent to:
+ *	struct cpumask tmp;
+ *	cpumask_and(&tmp, &mask, &and);
+ *	for_each_cpu(cpu, &tmp)
+ *		...
+ *
+ * After the loop, cpu is >= nr_cpu_ids.
+ */
 #define for_each_cpu_and(cpu, mask, and)				\
 	for ((cpu) = -1;						\
 		(cpu) = cpumask_next_and((cpu), (mask), (and)),		\

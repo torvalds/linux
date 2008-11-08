@@ -67,6 +67,7 @@ int cpumask_any_but(const struct cpumask *mask, unsigned int cpu)
 {
 	unsigned int i;
 
+	cpumask_check(cpu);
 	for_each_cpu(i, mask)
 		if (i != cpu)
 			break;
@@ -108,7 +109,7 @@ void free_cpumask_var(cpumask_var_t mask)
 }
 EXPORT_SYMBOL(free_cpumask_var);
 
-void free_bootmem_cpumask_var(cpumask_var_t mask)
+void __init free_bootmem_cpumask_var(cpumask_var_t mask)
 {
 	free_bootmem((unsigned long)mask, cpumask_size());
 }
