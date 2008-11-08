@@ -13,6 +13,7 @@
 #ifndef __ASM_ARCH_AT91RM9200_GPIO_H
 #define __ASM_ARCH_AT91RM9200_GPIO_H
 
+#include <linux/kernel.h>
 #include <asm/irq.h>
 
 #define PIN_BASE		NR_AIC_IRQS
@@ -220,6 +221,7 @@ static inline int gpio_request(unsigned gpio, const char *label)
 
 static inline void gpio_free(unsigned gpio)
 {
+	might_sleep();
 }
 
 extern int gpio_direction_input(unsigned gpio);

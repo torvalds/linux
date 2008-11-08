@@ -35,6 +35,8 @@
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 
+#include "devices.h"
+
 /*!
  * @file mx31ads.c
  *

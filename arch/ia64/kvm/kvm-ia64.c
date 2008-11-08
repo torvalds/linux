@@ -385,6 +385,7 @@ static int handle_global_purge(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	struct kvm *kvm = vcpu->kvm;
 	struct call_data call_data;
 	int i;
+
 	call_data.ptc_g_data = p->u.ptc_g_data;
 
 	for (i = 0; i < KVM_MAX_VCPUS; i++) {
@@ -418,32 +419,40 @@ int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 	ktime_t kt;
 	long itc_diff;
 	unsigned long vcpu_now_itc;
-
 	unsigned long expires;
 	struct hrtimer *p_ht = &vcpu->arch.hlt_timer;
 	unsigned long cyc_per_usec = local_cpu_data->cyc_per_usec;
 	struct vpd *vpd = to_host(vcpu->kvm, vcpu->arch.vpd);
 
-	vcpu_now_itc = ia64_getreg(_IA64_REG_AR_ITC) + vcpu->arch.itc_offset;
-
-	if (time_after(vcpu_now_itc, vpd->itm)) {
-		vcpu->arch.timer_check = 1;
-		return 1;
-	}
-	itc_diff = vpd->itm - vcpu_now_itc;
-	if (itc_diff < 0)
-		itc_diff = -itc_diff;
-
-	expires = div64_u64(itc_diff, cyc_per_usec);
-	kt = ktime_set(0, 1000 * expires);
-	vcpu->arch.ht_active = 1;
-	hrtimer_start(p_ht, kt, HRTIMER_MODE_ABS);
-
 	if (irqchip_in_kernel(vcpu->kvm)) {
+
+		vcpu_now_itc = ia64_getreg(_IA64_REG_AR_ITC) + vcpu->arch.itc_offset;
+
+		if (time_after(vcpu_now_itc, vpd->itm)) {
+			vcpu->arch.timer_check = 1;
+			return 1;
+		}
+		itc_diff = vpd->itm - vcpu_now_itc;
+		if (itc_diff < 0)
+			itc_diff = -itc_diff;
+
+		expires = div64_u64(itc_diff, cyc_per_usec);
+		kt = ktime_set(0, 1000 * expires);
+
+		down_read(&vcpu->kvm->slots_lock);
+		vcpu->arch.ht_active = 1;
+		hrtimer_start(p_ht, kt, HRTIMER_MODE_ABS);
+
 		vcpu->arch.mp_state = KVM_MP_STATE_HALTED;
 		kvm_vcpu_block(vcpu);
 		hrtimer_cancel(p_ht);
 		vcpu->arch.ht_active = 0;
+
+		if (test_and_clear_bit(KVM_REQ_UNHALT, &vcpu->requests))
+			if (vcpu->arch.mp_state == KVM_MP_STATE_HALTED)
+				vcpu->arch.mp_state =
+					KVM_MP_STATE_RUNNABLE;
+		up_read(&vcpu->kvm->slots_lock);
 
 		if (vcpu->arch.mp_state != KVM_MP_STATE_RUNNABLE)
 			return -EINTR;
@@ -483,10 +492,6 @@ static int (*kvm_vti_exit_handlers[])(struct kvm_vcpu *vcpu,
 
 static const int kvm_vti_max_exit_handlers =
 		sizeof(kvm_vti_exit_handlers)/sizeof(*kvm_vti_exit_handlers);
-
-static void kvm_prepare_guest_switch(struct kvm_vcpu *vcpu)
-{
-}
 
 static uint32_t kvm_get_exit_reason(struct kvm_vcpu *vcpu)
 {
@@ -600,8 +605,6 @@ static int __vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 again:
 	preempt_disable();
-
-	kvm_prepare_guest_switch(vcpu);
 	local_irq_disable();
 
 	if (signal_pending(current)) {
@@ -614,7 +617,7 @@ again:
 
 	vcpu->guest_mode = 1;
 	kvm_guest_enter();
-
+	down_read(&vcpu->kvm->slots_lock);
 	r = vti_vcpu_run(vcpu, kvm_run);
 	if (r < 0) {
 		local_irq_enable();
@@ -634,9 +637,8 @@ again:
 	 * But we need to prevent reordering, hence this barrier():
 	 */
 	barrier();
-
 	kvm_guest_exit();
-
+	up_read(&vcpu->kvm->slots_lock);
 	preempt_enable();
 
 	r = kvm_handle_exit(kvm_run, vcpu);
@@ -673,6 +675,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	if (unlikely(vcpu->arch.mp_state == KVM_MP_STATE_UNINITIALIZED)) {
 		kvm_vcpu_block(vcpu);
+		clear_bit(KVM_REQ_UNHALT, &vcpu->requests);
 		vcpu_put(vcpu);
 		return -EAGAIN;
 	}
@@ -778,6 +781,9 @@ static void kvm_init_vm(struct kvm *kvm)
 	kvm_build_io_pmt(kvm);
 
 	INIT_LIST_HEAD(&kvm->arch.assigned_dev_head);
+
+	/* Reserve bit 0 of irq_sources_bitmap for userspace irq source */
+	set_bit(KVM_USERSPACE_IRQ_SOURCE_ID, &kvm->arch.irq_sources_bitmap);
 }
 
 struct  kvm *kvm_arch_create_vm(void)
@@ -941,9 +947,8 @@ long kvm_arch_vm_ioctl(struct file *filp,
 			goto out;
 		if (irqchip_in_kernel(kvm)) {
 			mutex_lock(&kvm->lock);
-			kvm_ioapic_set_irq(kvm->arch.vioapic,
-						irq_event.irq,
-						irq_event.level);
+			kvm_set_irq(kvm, KVM_USERSPACE_IRQ_SOURCE_ID,
+				    irq_event.irq, irq_event.level);
 			mutex_unlock(&kvm->lock);
 			r = 0;
 		}
@@ -1123,15 +1128,16 @@ static enum hrtimer_restart hlt_timer_fn(struct hrtimer *data)
 	wait_queue_head_t *q;
 
 	vcpu  = container_of(data, struct kvm_vcpu, arch.hlt_timer);
+	q = &vcpu->wq;
+
 	if (vcpu->arch.mp_state != KVM_MP_STATE_HALTED)
 		goto out;
 
-	q = &vcpu->wq;
-	if (waitqueue_active(q)) {
-		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
+	if (waitqueue_active(q))
 		wake_up_interruptible(q);
-	}
+
 out:
+	vcpu->arch.timer_fired = 1;
 	vcpu->arch.timer_check = 1;
 	return HRTIMER_NORESTART;
 }
@@ -1700,12 +1706,14 @@ static void vcpu_kick_intr(void *info)
 void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
 {
 	int ipi_pcpu = vcpu->cpu;
+	int cpu = get_cpu();
 
 	if (waitqueue_active(&vcpu->wq))
 		wake_up_interruptible(&vcpu->wq);
 
-	if (vcpu->guest_mode)
+	if (vcpu->guest_mode && cpu != ipi_pcpu)
 		smp_call_function_single(ipi_pcpu, vcpu_kick_intr, vcpu, 0);
+	put_cpu();
 }
 
 int kvm_apic_set_irq(struct kvm_vcpu *vcpu, u8 vec, u8 trig)
@@ -1715,13 +1723,7 @@ int kvm_apic_set_irq(struct kvm_vcpu *vcpu, u8 vec, u8 trig)
 
 	if (!test_and_set_bit(vec, &vpd->irr[0])) {
 		vcpu->arch.irq_new_pending = 1;
-		 if (vcpu->arch.mp_state == KVM_MP_STATE_RUNNABLE)
-			kvm_vcpu_kick(vcpu);
-		else if (vcpu->arch.mp_state == KVM_MP_STATE_HALTED) {
-			vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
-			if (waitqueue_active(&vcpu->wq))
-				wake_up_interruptible(&vcpu->wq);
-		}
+		kvm_vcpu_kick(vcpu);
 		return 1;
 	}
 	return 0;
@@ -1791,7 +1793,7 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
 
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 {
-	return 0;
+	return vcpu->arch.timer_fired;
 }
 
 gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)

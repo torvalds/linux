@@ -50,7 +50,7 @@ static int dma_ops_unity_map(struct dma_ops_domain *dma_dom,
 /* returns !0 if the IOMMU is caching non-present entries in its TLB */
 static int iommu_has_npcache(struct amd_iommu *iommu)
 {
-	return iommu->cap & IOMMU_CAP_NPCACHE;
+	return iommu->cap & (1UL << IOMMU_CAP_NPCACHE);
 }
 
 /****************************************************************************
@@ -536,6 +536,9 @@ static void dma_ops_free_addresses(struct dma_ops_domain *dom,
 {
 	address >>= PAGE_SHIFT;
 	iommu_area_free(dom->bitmap, address, pages);
+
+	if (address + pages >= dom->next_bit)
+		dom->need_flush = true;
 }
 
 /****************************************************************************
@@ -992,8 +995,10 @@ static void __unmap_single(struct amd_iommu *iommu,
 
 	dma_ops_free_addresses(dma_dom, dma_addr, pages);
 
-	if (amd_iommu_unmap_flush)
+	if (amd_iommu_unmap_flush || dma_dom->need_flush) {
 		iommu_flush_pages(iommu, dma_dom->domain.id, dma_addr, size);
+		dma_dom->need_flush = false;
+	}
 }
 
 /*

@@ -34,6 +34,7 @@
 #include <asm/mc146818-time.h>
 #include <asm/time.h>
 #include <asm/wbflush.h>
+#include <asm/mach-lemote/pci.h>
 
 #ifdef CONFIG_VT
 #include <linux/console.h>
@@ -41,12 +42,6 @@
 #endif
 
 extern void mips_reboot_setup(void);
-
-#ifdef CONFIG_64BIT
-#define PTR_PAD(p) ((0xffffffff00000000)|((unsigned long long)(p)))
-#else
-#define PTR_PAD(p) (p)
-#endif
 
 unsigned long cpu_clock_freq;
 unsigned long bus_clock;
@@ -80,8 +75,8 @@ static void wbflush_loongson2e(void)
 
 void __init plat_mem_setup(void)
 {
-	set_io_port_base(PTR_PAD(0xbfd00000));
-
+	set_io_port_base((unsigned long)ioremap(LOONGSON2E_IO_PORT_BASE,
+				IO_SPACE_LIMIT - LOONGSON2E_PCI_IO_START + 1));
 	mips_reboot_setup();
 
 	__wbflush = wbflush_loongson2e;

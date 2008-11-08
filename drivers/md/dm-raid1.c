@@ -656,9 +656,10 @@ static void do_failures(struct mirror_set *ms, struct bio_list *failures)
 		return;
 
 	if (!ms->log_failure) {
-		while ((bio = bio_list_pop(failures)))
+		while ((bio = bio_list_pop(failures))) {
 			ms->in_sync = 0;
 			dm_rh_mark_nosync(ms->rh, bio, bio->bi_size, 0);
+		}
 		return;
 	}
 

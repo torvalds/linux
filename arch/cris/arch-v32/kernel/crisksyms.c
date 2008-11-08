@@ -1,9 +1,9 @@
 #include <linux/module.h>
 #include <linux/irq.h>
-#include <asm/arch/dma.h>
-#include <asm/arch/intmem.h>
-#include <asm/arch/mach/pinmux.h>
-#include <asm/arch/io.h>
+#include <arch/dma.h>
+#include <arch/intmem.h>
+#include <mach/pinmux.h>
+#include <arch/io.h>
 
 /* Functions for allocating DMA channels */
 EXPORT_SYMBOL(crisv32_request_dma);
