@@ -172,7 +172,6 @@ struct trace_iterator;
 struct trace_array {
 	struct ring_buffer	*buffer;
 	unsigned long		entries;
-	long			ctrl;
 	int			cpu;
 	cycle_t			time_start;
 	struct task_struct	*waiter;

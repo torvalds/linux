@@ -334,18 +334,14 @@ static void stop_wakeup_tracer(struct trace_array *tr)
 static void wakeup_tracer_init(struct trace_array *tr)
 {
 	wakeup_trace = tr;
-
-	if (tr->ctrl)
-		start_wakeup_tracer(tr);
+	start_wakeup_tracer(tr);
 }
 
 static void wakeup_tracer_reset(struct trace_array *tr)
 {
-	if (tr->ctrl) {
-		stop_wakeup_tracer(tr);
-		/* make sure we put back any tasks we are tracing */
-		wakeup_reset(tr);
-	}
+	stop_wakeup_tracer(tr);
+	/* make sure we put back any tasks we are tracing */
+	wakeup_reset(tr);
 }
 
 static void wakeup_tracer_start(struct trace_array *tr)

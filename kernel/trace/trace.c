@@ -537,7 +537,6 @@ int register_tracer(struct tracer *type)
 	if (type->selftest) {
 		struct tracer *saved_tracer = current_trace;
 		struct trace_array *tr = &global_trace;
-		int saved_ctrl = tr->ctrl;
 		int i;
 		/*
 		 * Run a selftest on this tracer.
@@ -550,13 +549,11 @@ int register_tracer(struct tracer *type)
 			tracing_reset(tr, i);
 		}
 		current_trace = type;
-		tr->ctrl = 0;
 		/* the test is responsible for initializing and enabling */
 		pr_info("Testing tracer %s: ", type->name);
 		ret = type->selftest(type, tr);
 		/* the test is responsible for resetting too */
 		current_trace = saved_tracer;
-		tr->ctrl = saved_ctrl;
 		if (ret) {
 			printk(KERN_CONT "FAILED!\n");
 			goto out;
@@ -966,7 +963,7 @@ ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3)
 	int cpu;
 	int pc;
 
-	if (tracing_disabled || !tr->ctrl)
+	if (tracing_disabled)
 		return;
 
 	pc = preempt_count();
@@ -2820,7 +2817,6 @@ tracing_entries_write(struct file *filp, const char __user *ubuf,
 	unsigned long val;
 	char buf[64];
 	int ret;
-	struct trace_array *tr = filp->private_data;
 
 	if (cnt >= sizeof(buf))
 		return -EINVAL;
@@ -2840,12 +2836,7 @@ tracing_entries_write(struct file *filp, const char __user *ubuf,
 
 	mutex_lock(&trace_types_lock);
 
-	if (tr->ctrl) {
-		cnt = -EBUSY;
-		pr_info("ftrace: please disable tracing"
-			" before modifying buffer size\n");
-		goto out;
-	}
+	tracing_stop();
 
 	if (val != global_trace.entries) {
 		ret = ring_buffer_resize(global_trace.buffer, val);
@@ -2878,6 +2869,7 @@ tracing_entries_write(struct file *filp, const char __user *ubuf,
 	if (tracing_disabled)
 		cnt = -ENOMEM;
  out:
+	tracing_start();
 	max_tr.entries = global_trace.entries;
 	mutex_unlock(&trace_types_lock);
 
@@ -2900,9 +2892,8 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 {
 	char *buf;
 	char *end;
-	struct trace_array *tr = &global_trace;
 
-	if (!tr->ctrl || tracing_disabled)
+	if (tracing_disabled)
 		return -EINVAL;
 
 	if (cnt > TRACE_BUF_SIZE)
@@ -3131,7 +3122,7 @@ int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
 	unsigned long flags, irq_flags;
 	int cpu, len = 0, size, pc;
 
-	if (!tr->ctrl || tracing_disabled)
+	if (tracing_disabled)
 		return 0;
 
 	pc = preempt_count();
@@ -3365,7 +3356,6 @@ __init static int tracer_alloc_buffers(void)
 #endif
 
 	/* All seems OK, enable tracing */
-	global_trace.ctrl = 1;
 	tracing_disabled = 0;
 
 	atomic_notifier_chain_register(&panic_notifier_list,

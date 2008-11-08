@@ -209,14 +209,12 @@ static void stop_sched_trace(struct trace_array *tr)
 static void sched_switch_trace_init(struct trace_array *tr)
 {
 	ctx_trace = tr;
-
-	if (tr->ctrl)
-		start_sched_trace(tr);
+	start_sched_trace(tr);
 }
 
 static void sched_switch_trace_reset(struct trace_array *tr)
 {
-	if (tr->ctrl && sched_ref)
+	if (sched_ref)
 		stop_sched_trace(tr);
 }
 

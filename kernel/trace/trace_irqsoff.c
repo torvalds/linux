@@ -383,15 +383,12 @@ static void __irqsoff_tracer_init(struct trace_array *tr)
 	irqsoff_trace = tr;
 	/* make sure that the tracer is visible */
 	smp_wmb();
-
-	if (tr->ctrl)
-		start_irqsoff_tracer(tr);
+	start_irqsoff_tracer(tr);
 }
 
 static void irqsoff_tracer_reset(struct trace_array *tr)
 {
-	if (tr->ctrl)
-		stop_irqsoff_tracer(tr);
+	stop_irqsoff_tracer(tr);
 }
 
 static void irqsoff_tracer_start(struct trace_array *tr)

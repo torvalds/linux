@@ -44,14 +44,12 @@ static void stop_function_trace(struct trace_array *tr)
 
 static void function_trace_init(struct trace_array *tr)
 {
-	if (tr->ctrl)
-		start_function_trace(tr);
+	start_function_trace(tr);
 }
 
 static void function_trace_reset(struct trace_array *tr)
 {
-	if (tr->ctrl)
-		stop_function_trace(tr);
+	stop_function_trace(tr);
 }
 
 static void function_trace_start(struct trace_array *tr)

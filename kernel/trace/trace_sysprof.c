@@ -265,14 +265,12 @@ static void stack_trace_init(struct trace_array *tr)
 {
 	sysprof_trace = tr;
 
-	if (tr->ctrl)
-		start_stack_trace(tr);
+	start_stack_trace(tr);
 }
 
 static void stack_trace_reset(struct trace_array *tr)
 {
-	if (tr->ctrl)
-		stop_stack_trace(tr);
+	stop_stack_trace(tr);
 }
 
 static struct tracer stack_trace __read_mostly =

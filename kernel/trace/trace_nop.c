@@ -32,14 +32,12 @@ static void nop_trace_init(struct trace_array *tr)
 	for_each_online_cpu(cpu)
 		tracing_reset(tr, cpu);
 
-	if (tr->ctrl)
-		start_nop_trace(tr);
+	start_nop_trace(tr);
 }
 
 static void nop_trace_reset(struct trace_array *tr)
 {
-	if (tr->ctrl)
-		stop_nop_trace(tr);
+	stop_nop_trace(tr);
 }
 
 struct tracer nop_trace __read_mostly =

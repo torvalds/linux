@@ -34,17 +34,16 @@ static void mmio_trace_init(struct trace_array *tr)
 {
 	pr_debug("in %s\n", __func__);
 	mmio_trace_array = tr;
-	if (tr->ctrl) {
-		mmio_reset_data(tr);
-		enable_mmiotrace();
-	}
+
+	mmio_reset_data(tr);
+	enable_mmiotrace();
 }
 
 static void mmio_trace_reset(struct trace_array *tr)
 {
 	pr_debug("in %s\n", __func__);
-	if (tr->ctrl)
-		disable_mmiotrace();
+
+	disable_mmiotrace();
 	mmio_reset_data(tr);
 	mmio_trace_array = NULL;
 }
