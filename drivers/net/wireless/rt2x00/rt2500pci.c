@@ -722,32 +722,43 @@ dynamic_cca_tune:
 /*
  * Initialization functions.
  */
-static void rt2500pci_init_rxentry(struct rt2x00_dev *rt2x00dev,
-				   struct queue_entry *entry)
+static bool rt2500pci_get_entry_state(struct queue_entry *entry)
+{
+	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
+	u32 word;
+
+	if (entry->queue->qid == QID_RX) {
+		rt2x00_desc_read(entry_priv->desc, 0, &word);
+
+		return rt2x00_get_field32(word, RXD_W0_OWNER_NIC);
+	} else {
+		rt2x00_desc_read(entry_priv->desc, 0, &word);
+
+		return (rt2x00_get_field32(word, TXD_W0_OWNER_NIC) ||
+		        rt2x00_get_field32(word, TXD_W0_VALID));
+	}
+}
+
+static void rt2500pci_clear_entry(struct queue_entry *entry)
 {
 	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	u32 word;
 
-	rt2x00_desc_read(entry_priv->desc, 1, &word);
-	rt2x00_set_field32(&word, RXD_W1_BUFFER_ADDRESS, skbdesc->skb_dma);
-	rt2x00_desc_write(entry_priv->desc, 1, word);
+	if (entry->queue->qid == QID_RX) {
+		rt2x00_desc_read(entry_priv->desc, 1, &word);
+		rt2x00_set_field32(&word, RXD_W1_BUFFER_ADDRESS, skbdesc->skb_dma);
+		rt2x00_desc_write(entry_priv->desc, 1, word);
 
-	rt2x00_desc_read(entry_priv->desc, 0, &word);
-	rt2x00_set_field32(&word, RXD_W0_OWNER_NIC, 1);
-	rt2x00_desc_write(entry_priv->desc, 0, word);
-}
-
-static void rt2500pci_init_txentry(struct rt2x00_dev *rt2x00dev,
-				   struct queue_entry *entry)
-{
-	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
-	u32 word;
-
-	rt2x00_desc_read(entry_priv->desc, 0, &word);
-	rt2x00_set_field32(&word, TXD_W0_VALID, 0);
-	rt2x00_set_field32(&word, TXD_W0_OWNER_NIC, 0);
-	rt2x00_desc_write(entry_priv->desc, 0, word);
+		rt2x00_desc_read(entry_priv->desc, 0, &word);
+		rt2x00_set_field32(&word, RXD_W0_OWNER_NIC, 1);
+		rt2x00_desc_write(entry_priv->desc, 0, word);
+	} else {
+		rt2x00_desc_read(entry_priv->desc, 0, &word);
+		rt2x00_set_field32(&word, TXD_W0_VALID, 0);
+		rt2x00_set_field32(&word, TXD_W0_OWNER_NIC, 0);
+		rt2x00_desc_write(entry_priv->desc, 0, word);
+	}
 }
 
 static int rt2500pci_init_queues(struct rt2x00_dev *rt2x00dev)
@@ -1871,8 +1882,8 @@ static const struct rt2x00lib_ops rt2500pci_rt2x00_ops = {
 	.probe_hw		= rt2500pci_probe_hw,
 	.initialize		= rt2x00pci_initialize,
 	.uninitialize		= rt2x00pci_uninitialize,
-	.init_rxentry		= rt2500pci_init_rxentry,
-	.init_txentry		= rt2500pci_init_txentry,
+	.get_entry_state	= rt2500pci_get_entry_state,
+	.clear_entry		= rt2500pci_clear_entry,
 	.set_device_state	= rt2500pci_set_device_state,
 	.rfkill_poll		= rt2500pci_rfkill_poll,
 	.link_stats		= rt2500pci_link_stats,

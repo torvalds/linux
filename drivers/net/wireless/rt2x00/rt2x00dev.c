@@ -101,8 +101,7 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize all data queues.
 	 */
-	rt2x00queue_init_rx(rt2x00dev);
-	rt2x00queue_init_tx(rt2x00dev);
+	rt2x00queue_init_queues(rt2x00dev);
 
 	/*
 	 * Enable radio.
@@ -576,7 +575,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	entry->skb = NULL;
 	entry->flags = 0;
 
-	rt2x00dev->ops->lib->init_txentry(rt2x00dev, entry);
+	rt2x00dev->ops->lib->clear_entry(entry);
 
 	clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
 	rt2x00queue_index_inc(entry->queue, Q_INDEX_DONE);
@@ -708,7 +707,7 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	entry->skb = skb;
 	entry->flags = 0;
 
-	rt2x00dev->ops->lib->init_rxentry(rt2x00dev, entry);
+	rt2x00dev->ops->lib->clear_entry(entry);
 
 	rt2x00queue_index_inc(entry->queue, Q_INDEX);
 }

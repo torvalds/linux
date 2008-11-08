@@ -1261,33 +1261,44 @@ static int rt61pci_load_firmware(struct rt2x00_dev *rt2x00dev, const void *data,
 /*
  * Initialization functions.
  */
-static void rt61pci_init_rxentry(struct rt2x00_dev *rt2x00dev,
-				 struct queue_entry *entry)
+static bool rt61pci_get_entry_state(struct queue_entry *entry)
+{
+	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
+	u32 word;
+
+	if (entry->queue->qid == QID_RX) {
+		rt2x00_desc_read(entry_priv->desc, 0, &word);
+
+		return rt2x00_get_field32(word, RXD_W0_OWNER_NIC);
+	} else {
+		rt2x00_desc_read(entry_priv->desc, 0, &word);
+
+		return (rt2x00_get_field32(word, TXD_W0_OWNER_NIC) ||
+		        rt2x00_get_field32(word, TXD_W0_VALID));
+	}
+}
+
+static void rt61pci_clear_entry(struct queue_entry *entry)
 {
 	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	u32 word;
 
-	rt2x00_desc_read(entry_priv->desc, 5, &word);
-	rt2x00_set_field32(&word, RXD_W5_BUFFER_PHYSICAL_ADDRESS,
-			   skbdesc->skb_dma);
-	rt2x00_desc_write(entry_priv->desc, 5, word);
+	if (entry->queue->qid == QID_RX) {
+		rt2x00_desc_read(entry_priv->desc, 5, &word);
+		rt2x00_set_field32(&word, RXD_W5_BUFFER_PHYSICAL_ADDRESS,
+				   skbdesc->skb_dma);
+		rt2x00_desc_write(entry_priv->desc, 5, word);
 
-	rt2x00_desc_read(entry_priv->desc, 0, &word);
-	rt2x00_set_field32(&word, RXD_W0_OWNER_NIC, 1);
-	rt2x00_desc_write(entry_priv->desc, 0, word);
-}
-
-static void rt61pci_init_txentry(struct rt2x00_dev *rt2x00dev,
-				 struct queue_entry *entry)
-{
-	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
-	u32 word;
-
-	rt2x00_desc_read(entry_priv->desc, 0, &word);
-	rt2x00_set_field32(&word, TXD_W0_VALID, 0);
-	rt2x00_set_field32(&word, TXD_W0_OWNER_NIC, 0);
-	rt2x00_desc_write(entry_priv->desc, 0, word);
+		rt2x00_desc_read(entry_priv->desc, 0, &word);
+		rt2x00_set_field32(&word, RXD_W0_OWNER_NIC, 1);
+		rt2x00_desc_write(entry_priv->desc, 0, word);
+	} else {
+		rt2x00_desc_read(entry_priv->desc, 0, &word);
+		rt2x00_set_field32(&word, TXD_W0_VALID, 0);
+		rt2x00_set_field32(&word, TXD_W0_OWNER_NIC, 0);
+		rt2x00_desc_write(entry_priv->desc, 0, word);
+	}
 }
 
 static int rt61pci_init_queues(struct rt2x00_dev *rt2x00dev)
@@ -2722,8 +2733,8 @@ static const struct rt2x00lib_ops rt61pci_rt2x00_ops = {
 	.load_firmware		= rt61pci_load_firmware,
 	.initialize		= rt2x00pci_initialize,
 	.uninitialize		= rt2x00pci_uninitialize,
-	.init_rxentry		= rt61pci_init_rxentry,
-	.init_txentry		= rt61pci_init_txentry,
+	.get_entry_state	= rt61pci_get_entry_state,
+	.clear_entry		= rt61pci_clear_entry,
 	.set_device_state	= rt61pci_set_device_state,
 	.rfkill_poll		= rt61pci_rfkill_poll,
 	.link_stats		= rt61pci_link_stats,

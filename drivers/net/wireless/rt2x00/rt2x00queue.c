@@ -589,40 +589,18 @@ static void rt2x00queue_reset(struct data_queue *queue)
 	spin_unlock_irqrestore(&queue->lock, irqflags);
 }
 
-void rt2x00queue_init_rx(struct rt2x00_dev *rt2x00dev)
-{
-	struct data_queue *queue = rt2x00dev->rx;
-	unsigned int i;
-
-	rt2x00queue_reset(queue);
-
-	if (!rt2x00dev->ops->lib->init_rxentry)
-		return;
-
-	for (i = 0; i < queue->limit; i++) {
-		queue->entries[i].flags = 0;
-
-		rt2x00dev->ops->lib->init_rxentry(rt2x00dev,
-						  &queue->entries[i]);
-	}
-}
-
-void rt2x00queue_init_tx(struct rt2x00_dev *rt2x00dev)
+void rt2x00queue_init_queues(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
 	unsigned int i;
 
-	txall_queue_for_each(rt2x00dev, queue) {
+	queue_for_each(rt2x00dev, queue) {
 		rt2x00queue_reset(queue);
-
-		if (!rt2x00dev->ops->lib->init_txentry)
-			continue;
 
 		for (i = 0; i < queue->limit; i++) {
 			queue->entries[i].flags = 0;
 
-			rt2x00dev->ops->lib->init_txentry(rt2x00dev,
-							  &queue->entries[i]);
+			rt2x00dev->ops->lib->clear_entry(&queue->entries[i]);
 		}
 	}
 }

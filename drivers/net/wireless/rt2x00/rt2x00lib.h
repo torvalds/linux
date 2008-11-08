@@ -150,8 +150,16 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
  */
 void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index);
 
-void rt2x00queue_init_rx(struct rt2x00_dev *rt2x00dev);
-void rt2x00queue_init_tx(struct rt2x00_dev *rt2x00dev);
+/**
+ * rt2x00queue_init_queues - Initialize all data queues
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ *
+ * This function will loop through all available queues to clear all
+ * index numbers and set the queue entry to the correct initialization
+ * state.
+ */
+void rt2x00queue_init_queues(struct rt2x00_dev *rt2x00dev);
+
 int rt2x00queue_initialize(struct rt2x00_dev *rt2x00dev);
 void rt2x00queue_uninitialize(struct rt2x00_dev *rt2x00dev);
 int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev);

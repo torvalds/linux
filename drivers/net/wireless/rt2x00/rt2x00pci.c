@@ -36,20 +36,17 @@
  */
 int rt2x00pci_write_tx_data(struct queue_entry *entry)
 {
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	struct skb_frame_desc *skbdesc;
-	u32 word;
-
-	rt2x00_desc_read(entry_priv->desc, 0, &word);
 
 	/*
 	 * This should not happen, we already checked the entry
 	 * was ours. When the hardware disagrees there has been
 	 * a queue corruption!
 	 */
-	if (unlikely(rt2x00_get_field32(word, TXD_ENTRY_OWNER_NIC) ||
-		     rt2x00_get_field32(word, TXD_ENTRY_VALID))) {
-		ERROR(entry->queue->rt2x00dev,
+	if (unlikely(rt2x00dev->ops->lib->get_entry_state(entry))) {
+		ERROR(rt2x00dev,
 		      "Corrupt queue %d, accessing entry which is not ours.\n"
 		      "Please file bug report to %s.\n",
 		      entry->queue->qid, DRV_PROJECT);
@@ -76,14 +73,12 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 	struct queue_entry *entry;
 	struct queue_entry_priv_pci *entry_priv;
 	struct skb_frame_desc *skbdesc;
-	u32 word;
 
 	while (1) {
 		entry = rt2x00queue_get_entry(queue, Q_INDEX);
 		entry_priv = entry->priv_data;
-		rt2x00_desc_read(entry_priv->desc, 0, &word);
 
-		if (rt2x00_get_field32(word, RXD_ENTRY_OWNER_NIC))
+		if (rt2x00dev->ops->lib->get_entry_state(entry))
 			break;
 
 		/*

@@ -44,17 +44,6 @@
 #define REGISTER_BUSY_DELAY	100
 
 /*
- * Descriptor availability flags.
- * All PCI device descriptors have these 2 flags
- * with the exact same definition.
- * By storing them here we can use them inside rt2x00pci
- * for some simple entry availability checking.
- */
-#define TXD_ENTRY_OWNER_NIC	FIELD32(0x00000001)
-#define TXD_ENTRY_VALID		FIELD32(0x00000002)
-#define RXD_ENTRY_OWNER_NIC	FIELD32(0x00000001)
-
-/*
  * Register access.
  */
 static inline void rt2x00pci_register_read(struct rt2x00_dev *rt2x00dev,
