@@ -608,8 +608,9 @@ static inline void opregion_enable_asle(struct drm_device *dev) { return; }
  * The area from dword 0x20 to 0x3ff is available for driver usage.
  */
 #define READ_HWSP(dev_priv, reg)  (((volatile u32*)(dev_priv->hw_status_page))[reg])
-#define READ_BREADCRUMB(dev_priv) READ_HWSP(dev_priv, 5)
+#define READ_BREADCRUMB(dev_priv) READ_HWSP(dev_priv, I915_BREADCRUMB_INDEX)
 #define I915_GEM_HWS_INDEX		0x20
+#define I915_BREADCRUMB_INDEX		0x21
 
 extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 

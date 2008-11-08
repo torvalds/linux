@@ -445,7 +445,7 @@ static void i915_emit_breadcrumb(struct drm_device *dev)
 
 	BEGIN_LP_RING(4);
 	OUT_RING(MI_STORE_DWORD_INDEX);
-	OUT_RING(5 << MI_STORE_DWORD_INDEX_SHIFT);
+	OUT_RING(I915_BREADCRUMB_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
 	OUT_RING(dev_priv->counter);
 	OUT_RING(0);
 	ADVANCE_LP_RING();
@@ -576,7 +576,7 @@ static int i915_dispatch_flip(struct drm_device * dev)
 
 	BEGIN_LP_RING(4);
 	OUT_RING(MI_STORE_DWORD_INDEX);
-	OUT_RING(5 << MI_STORE_DWORD_INDEX_SHIFT);
+	OUT_RING(I915_BREADCRUMB_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
 	OUT_RING(dev_priv->counter);
 	OUT_RING(0);
 	ADVANCE_LP_RING();
@@ -611,7 +611,6 @@ static int i915_batchbuffer(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	u32 *hw_status = dev_priv->hw_status_page;
 	drm_i915_sarea_t *sarea_priv = (drm_i915_sarea_t *)
 	    dev_priv->sarea_priv;
 	drm_i915_batchbuffer_t *batch = data;
@@ -637,7 +636,7 @@ static int i915_batchbuffer(struct drm_device *dev, void *data,
 	mutex_unlock(&dev->struct_mutex);
 
 	if (sarea_priv)
-		sarea_priv->last_dispatch = (int)hw_status[5];
+		sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
 	return ret;
 }
 
@@ -645,7 +644,6 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	u32 *hw_status = dev_priv->hw_status_page;
 	drm_i915_sarea_t *sarea_priv = (drm_i915_sarea_t *)
 	    dev_priv->sarea_priv;
 	drm_i915_cmdbuffer_t *cmdbuf = data;
@@ -673,7 +671,7 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 	}
 
 	if (sarea_priv)
-		sarea_priv->last_dispatch = (int)hw_status[5];
+		sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
 	return 0;
 }
 
