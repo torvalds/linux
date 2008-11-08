@@ -63,7 +63,6 @@
  */
 static DEFINE_MUTEX(io_mutex);
 static DEFINE_MUTEX(reg_lock_mutex);
-static DEFINE_MUTEX(auxadc_mutex);
 
 /* Perform a physical read from the device.
  */
@@ -1082,6 +1081,55 @@ int wm8350_unmask_irq(struct wm8350 *wm8350, int irq)
 }
 EXPORT_SYMBOL_GPL(wm8350_unmask_irq);
 
+int wm8350_read_auxadc(struct wm8350 *wm8350, int channel, int scale, int vref)
+{
+	u16 reg, result = 0;
+	int tries = 5;
+
+	if (channel < WM8350_AUXADC_AUX1 || channel > WM8350_AUXADC_TEMP)
+		return -EINVAL;
+	if (channel >= WM8350_AUXADC_USB && channel <= WM8350_AUXADC_TEMP
+	    && (scale != 0 || vref != 0))
+		return -EINVAL;
+
+	mutex_lock(&wm8350->auxadc_mutex);
+
+	/* Turn on the ADC */
+	reg = wm8350_reg_read(wm8350, WM8350_POWER_MGMT_5);
+	wm8350_reg_write(wm8350, WM8350_POWER_MGMT_5, reg | WM8350_AUXADC_ENA);
+
+	if (scale || vref) {
+		reg = scale << 13;
+		reg |= vref << 12;
+		wm8350_reg_write(wm8350, WM8350_AUX1_READBACK + channel, reg);
+	}
+
+	reg = wm8350_reg_read(wm8350, WM8350_DIGITISER_CONTROL_1);
+	reg |= 1 << channel | WM8350_AUXADC_POLL;
+	wm8350_reg_write(wm8350, WM8350_DIGITISER_CONTROL_1, reg);
+
+	do {
+		schedule_timeout_interruptible(1);
+		reg = wm8350_reg_read(wm8350, WM8350_DIGITISER_CONTROL_1);
+	} while (tries-- && (reg & WM8350_AUXADC_POLL));
+
+	if (!tries)
+		dev_err(wm8350->dev, "adc chn %d read timeout\n", channel);
+	else
+		result = wm8350_reg_read(wm8350,
+					 WM8350_AUX1_READBACK + channel);
+
+	/* Turn off the ADC */
+	reg = wm8350_reg_read(wm8350, WM8350_POWER_MGMT_5);
+	wm8350_reg_write(wm8350, WM8350_POWER_MGMT_5,
+			 reg & ~WM8350_AUXADC_ENA);
+
+	mutex_unlock(&wm8350->auxadc_mutex);
+
+	return result & WM8350_AUXADC_DATA1_MASK;
+}
+EXPORT_SYMBOL_GPL(wm8350_read_auxadc);
+
 /*
  * Cache is always host endian.
  */
@@ -1239,6 +1287,7 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 		}
 	}
 
+	mutex_init(&wm8350->auxadc_mutex);
 	mutex_init(&wm8350->irq_mutex);
 	INIT_WORK(&wm8350->irq_work, wm8350_irq_worker);
 	if (irq) {

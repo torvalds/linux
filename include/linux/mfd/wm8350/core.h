@@ -573,6 +573,8 @@ struct wm8350 {
 			 void *src);
 	u16 *reg_cache;
 
+	struct mutex auxadc_mutex;
+
 	/* Interrupt handling */
 	struct work_struct irq_work;
 	struct mutex irq_mutex; /* IRQ table mutex */
