@@ -78,8 +78,8 @@ int twl4030_i2c_read_u8(u8 mod_no, u8 *val, u8 reg);
  * IMPORTANT:  For twl4030_i2c_write(), allocate num_bytes + 1
  * for the value, and populate your data starting at offset 1.
  */
-int twl4030_i2c_write(u8 mod_no, u8 *value, u8 reg, u8 num_bytes);
-int twl4030_i2c_read(u8 mod_no, u8 *value, u8 reg, u8 num_bytes);
+int twl4030_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
+int twl4030_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
 
 /*----------------------------------------------------------------------*/
 
