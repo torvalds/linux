@@ -394,6 +394,20 @@ enum
 
 #define TCA_BASIC_MAX (__TCA_BASIC_MAX - 1)
 
+
+/* Cgroup classifier */
+
+enum
+{
+	TCA_CGROUP_UNSPEC,
+	TCA_CGROUP_ACT,
+	TCA_CGROUP_POLICE,
+	TCA_CGROUP_EMATCHES,
+	__TCA_CGROUP_MAX,
+};
+
+#define TCA_CGROUP_MAX (__TCA_CGROUP_MAX - 1)
+
 /* Extended Matches */
 
 struct tcf_ematch_tree_hdr
