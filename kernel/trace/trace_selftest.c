@@ -257,6 +257,19 @@ trace_selftest_startup_preemptoff(struct tracer *trace, struct trace_array *tr)
 	unsigned long count;
 	int ret;
 
+	/*
+	 * Now that the big kernel lock is no longer preemptable,
+	 * and this is called with the BKL held, it will always
+	 * fail. If preemption is already disabled, simply
+	 * pass the test. When the BKL is removed, or becomes
+	 * preemptible again, we will once again test this,
+	 * so keep it in.
+	 */
+	if (preempt_count()) {
+		printk(KERN_CONT "can not test ... force ");
+		return 0;
+	}
+
 	/* start the tracing */
 	trace->init(tr);
 	/* reset the max latency */
@@ -292,6 +305,19 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	unsigned long save_max = tracing_max_latency;
 	unsigned long count;
 	int ret;
+
+	/*
+	 * Now that the big kernel lock is no longer preemptable,
+	 * and this is called with the BKL held, it will always
+	 * fail. If preemption is already disabled, simply
+	 * pass the test. When the BKL is removed, or becomes
+	 * preemptible again, we will once again test this,
+	 * so keep it in.
+	 */
+	if (preempt_count()) {
+		printk(KERN_CONT "can not test ... force ");
+		return 0;
+	}
 
 	/* start the tracing */
 	trace->init(tr);
