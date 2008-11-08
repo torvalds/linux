@@ -152,6 +152,19 @@ void tracing_stop_cmdline_record(void)
 	tracing_stop_sched_switch();
 }
 
+/**
+ * tracing_cmdline_assign_trace - assign a trace array for ctx switch
+ * @tr: trace array pointer to assign
+ *
+ * Some tracers might want to record the context switches in their
+ * trace. This function lets those tracers assign the trace array
+ * to use.
+ */
+void tracing_cmdline_assign_trace(struct trace_array *tr)
+{
+	ctx_trace = tr;
+}
+
 static void start_sched_trace(struct trace_array *tr)
 {
 	sched_switch_reset(tr);
@@ -197,7 +210,7 @@ static void sched_switch_trace_stop(struct trace_array *tr)
 	tracing_stop_sched_switch();
 }
 
-struct tracer sched_switch_trace __read_mostly =
+static struct tracer sched_switch_trace __read_mostly =
 {
 	.name		= "sched_switch",
 	.init		= sched_switch_trace_init,

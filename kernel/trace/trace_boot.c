@@ -39,7 +39,12 @@ void disable_boot_trace(void)
 
 static void reset_boot_trace(struct trace_array *tr)
 {
-	sched_switch_trace.reset(tr);
+	int cpu;
+
+	tr->time_start = ftrace_now(tr->cpu);
+
+	for_each_online_cpu(cpu)
+		tracing_reset(tr, cpu);
 }
 
 static void boot_trace_init(struct trace_array *tr)
@@ -50,7 +55,7 @@ static void boot_trace_init(struct trace_array *tr)
 	for_each_cpu_mask(cpu, cpu_possible_map)
 		tracing_reset(tr, cpu);
 
-	sched_switch_trace.init(tr);
+	tracing_cmdline_assign_trace(tr);
 }
 
 static void boot_trace_ctrl_update(struct trace_array *tr)
