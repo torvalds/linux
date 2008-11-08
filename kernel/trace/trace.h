@@ -277,6 +277,8 @@ struct trace_iterator {
 	unsigned long		iter_flags;
 	loff_t			pos;
 	long			idx;
+
+	cpumask_t		started;
 };
 
 int tracing_is_enabled(void);

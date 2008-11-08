@@ -1478,6 +1478,17 @@ void trace_seq_print_cont(struct trace_seq *s, struct trace_iterator *iter)
 		trace_seq_putc(s, '\n');
 }
 
+static void test_cpu_buff_start(struct trace_iterator *iter)
+{
+	struct trace_seq *s = &iter->seq;
+
+	if (cpu_isset(iter->cpu, iter->started))
+		return;
+
+	cpu_set(iter->cpu, iter->started);
+	trace_seq_printf(s, "##### CPU %u buffer started ####\n", iter->cpu);
+}
+
 static enum print_line_t
 print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 {
@@ -1496,6 +1507,8 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 
 	if (entry->type == TRACE_CONT)
 		return TRACE_TYPE_HANDLED;
+
+	test_cpu_buff_start(iter);
 
 	next_entry = find_next_entry(iter, NULL, &next_ts);
 	if (!next_entry)
@@ -1611,6 +1624,8 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 
 	if (entry->type == TRACE_CONT)
 		return TRACE_TYPE_HANDLED;
+
+	test_cpu_buff_start(iter);
 
 	comm = trace_find_cmdline(iter->ent->pid);
 
@@ -2631,6 +2646,10 @@ static int tracing_open_pipe(struct inode *inode, struct file *filp)
 		return -ENOMEM;
 
 	mutex_lock(&trace_types_lock);
+
+	/* trace pipe does not show start of buffer */
+	cpus_setall(iter->started);
+
 	iter->tr = &global_trace;
 	iter->trace = current_trace;
 	filp->private_data = iter;
