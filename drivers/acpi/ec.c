@@ -102,6 +102,7 @@ struct transaction {
 	u8 command;
 	u8 wlen;
 	u8 rlen;
+	bool done;
 };
 
 static struct acpi_ec {
@@ -178,7 +179,7 @@ static int ec_transaction_done(struct acpi_ec *ec)
 	unsigned long flags;
 	int ret = 0;
 	spin_lock_irqsave(&ec->curr_lock, flags);
-	if (!ec->curr || (!ec->curr->wlen && !ec->curr->rlen))
+	if (!ec->curr || ec->curr->done)
 		ret = 1;
 	spin_unlock_irqrestore(&ec->curr_lock, flags);
 	return ret;
@@ -195,17 +196,20 @@ static void gpe_transaction(struct acpi_ec *ec, u8 status)
 			acpi_ec_write_data(ec, *(ec->curr->wdata++));
 			--ec->curr->wlen;
 		} else
-			/* false interrupt, state didn't change */
-			++ec->curr->irq_count;
-
+			goto err;
 	} else if (ec->curr->rlen > 0) {
 		if ((status & ACPI_EC_FLAG_OBF) == 1) {
 			*(ec->curr->rdata++) = acpi_ec_read_data(ec);
-			--ec->curr->rlen;
+			if (--ec->curr->rlen == 0)
+				ec->curr->done = true;
 		} else
-			/* false interrupt, state didn't change */
-			++ec->curr->irq_count;
-	}
+			goto err;
+	} else if (ec->curr->wlen == 0 && (status & ACPI_EC_FLAG_IBF) == 0)
+		ec->curr->done = true;
+	goto unlock;
+err:
+	/* false interrupt, state didn't change */
+	++ec->curr->irq_count;
 unlock:
 	spin_unlock_irqrestore(&ec->curr_lock, flags);
 }
@@ -265,6 +269,7 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec,
 	spin_lock_irqsave(&ec->curr_lock, tmp);
 	/* following two actions should be kept atomic */
 	t->irq_count = 0;
+	t->done = false;
 	ec->curr = t;
 	acpi_ec_write_cmd(ec, ec->curr->command);
 	if (ec->curr->command == ACPI_EC_COMMAND_QUERY)
