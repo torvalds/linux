@@ -1269,8 +1269,6 @@ enum ieee80211_ampdu_mlme_action {
  *	This is needed only for IBSS mode and the result of this function is
  *	used to determine whether to reply to Probe Requests.
  *
- * @conf_ht: Configures low level driver with 802.11n HT data. Must be atomic.
- *
  * @ampdu_action: Perform a certain A-MPDU action
  * 	The RA/TID combination determines the destination and TID we want
  * 	the ampdu action to be performed for. The action is defined through

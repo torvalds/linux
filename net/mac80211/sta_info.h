@@ -169,9 +169,6 @@ struct sta_ampdu_mlme {
  * @lock: used for locking all fields that require locking, see comments
  *	in the header file.
  * @flaglock: spinlock for flags accesses
- * @addr: MAC address of this STA
- * @aid: STA's unique AID (1..2007, 0 = not assigned yet),
- *	only used in AP (and IBSS?) mode
  * @listen_interval: listen interval of this station, when we're acting as AP
  * @pin_status: used internally for pinning a STA struct into memory
  * @flags: STA flags, see &enum ieee80211_sta_info_flags
