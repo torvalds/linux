@@ -144,40 +144,59 @@ static const struct clkops clk_pxa27x_lcd_ops = {
 	.getrate	= clk_pxa27x_lcd_getrate,
 };
 
-static struct clk pxa27x_clks[] = {
-	INIT_CK("LCDCLK", LCD,    &clk_pxa27x_lcd_ops, &pxa_device_fb.dev),
-	INIT_CK("CAMCLK", CAMERA, &clk_pxa27x_lcd_ops, NULL),
+static DEFINE_CK(pxa27x_lcd, LCD, &clk_pxa27x_lcd_ops);
+static DEFINE_CK(pxa27x_camera, CAMERA, &clk_pxa27x_lcd_ops);
+static DEFINE_CKEN(pxa27x_ffuart, FFUART, 14857000, 1);
+static DEFINE_CKEN(pxa27x_btuart, BTUART, 14857000, 1);
+static DEFINE_CKEN(pxa27x_stuart, STUART, 14857000, 1);
+static DEFINE_CKEN(pxa27x_i2s, I2S, 14682000, 0);
+static DEFINE_CKEN(pxa27x_i2c, I2C, 32842000, 0);
+static DEFINE_CKEN(pxa27x_usb, USB, 48000000, 5);
+static DEFINE_CKEN(pxa27x_mmc, MMC, 19500000, 0);
+static DEFINE_CKEN(pxa27x_ficp, FICP, 48000000, 0);
+static DEFINE_CKEN(pxa27x_usbhost, USBHOST, 48000000, 0);
+static DEFINE_CKEN(pxa27x_pwri2c, PWRI2C, 13000000, 0);
+static DEFINE_CKEN(pxa27x_keypad, KEYPAD, 32768, 0);
+static DEFINE_CKEN(pxa27x_ssp1, SSP1, 13000000, 0);
+static DEFINE_CKEN(pxa27x_ssp2, SSP2, 13000000, 0);
+static DEFINE_CKEN(pxa27x_ssp3, SSP3, 13000000, 0);
+static DEFINE_CKEN(pxa27x_pwm0, PWM0, 13000000, 0);
+static DEFINE_CKEN(pxa27x_pwm1, PWM1, 13000000, 0);
+static DEFINE_CKEN(pxa27x_ac97, AC97, 24576000, 0);
+static DEFINE_CKEN(pxa27x_ac97conf, AC97CONF, 24576000, 0);
+static DEFINE_CKEN(pxa27x_msl, MSL, 48000000, 0);
+static DEFINE_CKEN(pxa27x_usim, USIM, 48000000, 0);
+static DEFINE_CKEN(pxa27x_memstk, MEMSTK, 19500000, 0);
+static DEFINE_CKEN(pxa27x_im, IM, 0, 0);
+static DEFINE_CKEN(pxa27x_memc, MEMC, 0, 0);
 
-	INIT_CKEN("UARTCLK", FFUART, 14857000, 1, &pxa_device_ffuart.dev),
-	INIT_CKEN("UARTCLK", BTUART, 14857000, 1, &pxa_device_btuart.dev),
-	INIT_CKEN("UARTCLK", STUART, 14857000, 1, NULL),
-
-	INIT_CKEN("I2SCLK",  I2S,  14682000, 0, &pxa_device_i2s.dev),
-	INIT_CKEN("I2CCLK",  I2C,  32842000, 0, &pxa_device_i2c.dev),
-	INIT_CKEN("UDCCLK",  USB,  48000000, 5, &pxa27x_device_udc.dev),
-	INIT_CKEN("MMCCLK",  MMC,  19500000, 0, &pxa_device_mci.dev),
-	INIT_CKEN("FICPCLK", FICP, 48000000, 0, &pxa_device_ficp.dev),
-
-	INIT_CKEN("USBCLK", USBHOST, 48000000, 0, &pxa27x_device_ohci.dev),
-	INIT_CKEN("I2CCLK", PWRI2C, 13000000, 0, &pxa27x_device_i2c_power.dev),
-	INIT_CKEN("KBDCLK", KEYPAD, 32768, 0, &pxa27x_device_keypad.dev),
-
-	INIT_CKEN("SSPCLK", SSP1, 13000000, 0, &pxa27x_device_ssp1.dev),
-	INIT_CKEN("SSPCLK", SSP2, 13000000, 0, &pxa27x_device_ssp2.dev),
-	INIT_CKEN("SSPCLK", SSP3, 13000000, 0, &pxa27x_device_ssp3.dev),
-	INIT_CKEN("PWMCLK", PWM0, 13000000, 0, &pxa27x_device_pwm0.dev),
-	INIT_CKEN("PWMCLK", PWM1, 13000000, 0, &pxa27x_device_pwm1.dev),
-
-	INIT_CKEN("AC97CLK",     AC97,     24576000, 0, NULL),
-	INIT_CKEN("AC97CONFCLK", AC97CONF, 24576000, 0, NULL),
-
-	/*
-	INIT_CKEN("MSLCLK",  MSL,  48000000, 0, NULL),
-	INIT_CKEN("USIMCLK", USIM, 48000000, 0, NULL),
-	INIT_CKEN("MSTKCLK", MEMSTK, 19500000, 0, NULL),
-	INIT_CKEN("IMCLK",   IM,   0, 0, NULL),
-	INIT_CKEN("MEMCLK",  MEMC, 0, 0, NULL),
-	*/
+static struct clk_lookup pxa27x_clkregs[] = {
+	INIT_CLKREG(&clk_pxa27x_lcd, "pxa2xx-fb", NULL),
+	INIT_CLKREG(&clk_pxa27x_camera, "pxa27x-camera.0", NULL),
+	INIT_CLKREG(&clk_pxa27x_ffuart, "pxa2xx-uart.0", NULL),
+	INIT_CLKREG(&clk_pxa27x_btuart, "pxa2xx-uart.1", NULL),
+	INIT_CLKREG(&clk_pxa27x_stuart, "pxa2xx-uart.2", NULL),
+	INIT_CLKREG(&clk_pxa27x_i2s, "pxa2xx-i2s", NULL),
+	INIT_CLKREG(&clk_pxa27x_i2c, "pxa2xx-i2c.0", NULL),
+	INIT_CLKREG(&clk_pxa27x_usb, "pxa27x-udc", NULL),
+	INIT_CLKREG(&clk_pxa27x_mmc, "pxa2xx-mci.0", NULL),
+	INIT_CLKREG(&clk_pxa27x_stuart, "pxa2xx-ir", "UARTCLK"),
+	INIT_CLKREG(&clk_pxa27x_ficp, "pxa2xx-ir", "FICPCLK"),
+	INIT_CLKREG(&clk_pxa27x_usbhost, "pxa27x-ohci", NULL),
+	INIT_CLKREG(&clk_pxa27x_pwri2c, "pxa2xx-i2c.1", NULL),
+	INIT_CLKREG(&clk_pxa27x_keypad, "pxa27x-keypad", NULL),
+	INIT_CLKREG(&clk_pxa27x_ssp1, "pxa27x-ssp.0", NULL),
+	INIT_CLKREG(&clk_pxa27x_ssp2, "pxa27x-ssp.1", NULL),
+	INIT_CLKREG(&clk_pxa27x_ssp3, "pxa27x-ssp.2", NULL),
+	INIT_CLKREG(&clk_pxa27x_pwm0, "pxa27x-pwm.0", NULL),
+	INIT_CLKREG(&clk_pxa27x_pwm1, "pxa27x-pwm.1", NULL),
+	INIT_CLKREG(&clk_pxa27x_ac97, NULL, "AC97CLK"),
+	INIT_CLKREG(&clk_pxa27x_ac97conf, NULL, "AC97CONFCLK"),
+	INIT_CLKREG(&clk_pxa27x_msl, NULL, "MSLCLK"),
+	INIT_CLKREG(&clk_pxa27x_usim, NULL, "USIMCLK"),
+	INIT_CLKREG(&clk_pxa27x_memstk, NULL, "MSTKCLK"),
+	INIT_CLKREG(&clk_pxa27x_im, NULL, "IMCLK"),
+	INIT_CLKREG(&clk_pxa27x_memc, NULL, "MEMCLK"),
 };
 
 #ifdef CONFIG_PM
@@ -380,7 +399,7 @@ static int __init pxa27x_init(void)
 
 		reset_status = RCSR;
 
-		clks_register(pxa27x_clks, ARRAY_SIZE(pxa27x_clks));
+		clks_register(pxa27x_clkregs, ARRAY_SIZE(pxa27x_clkregs));
 
 		if ((ret = pxa_init_dma(32)))
 			return ret;

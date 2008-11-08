@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 
+#include <asm/clkdev.h>
 #include <mach/pxa2xx-regs.h>
 #include <mach/pxa2xx-gpio.h>
 #include <mach/hardware.h>
@@ -20,44 +21,7 @@
 #include "generic.h"
 #include "clock.h"
 
-static LIST_HEAD(clocks);
-static DEFINE_MUTEX(clocks_mutex);
 static DEFINE_SPINLOCK(clocks_lock);
-
-static struct clk *clk_lookup(struct device *dev, const char *id)
-{
-	struct clk *p;
-
-	list_for_each_entry(p, &clocks, node)
-		if (strcmp(id, p->name) == 0 && p->dev == dev)
-			return p;
-
-	return NULL;
-}
-
-struct clk *clk_get(struct device *dev, const char *id)
-{
-	struct clk *p, *clk = ERR_PTR(-ENOENT);
-
-	mutex_lock(&clocks_mutex);
-	p = clk_lookup(dev, id);
-	if (!p)
-		p = clk_lookup(NULL, id);
-	if (p)
-		clk = p;
-	mutex_unlock(&clocks_mutex);
-
-	if (!IS_ERR(clk) && clk->ops == NULL)
-		clk = clk->other;
-
-	return clk;
-}
-EXPORT_SYMBOL(clk_get);
-
-void clk_put(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(clk_put);
 
 int clk_enable(struct clk *clk)
 {
@@ -116,37 +80,27 @@ const struct clkops clk_cken_ops = {
 	.disable	= clk_cken_disable,
 };
 
-void clks_register(struct clk *clks, size_t num)
+void clks_register(struct clk_lookup *clks, size_t num)
 {
 	int i;
 
-	mutex_lock(&clocks_mutex);
 	for (i = 0; i < num; i++)
-		list_add(&clks[i].node, &clocks);
-	mutex_unlock(&clocks_mutex);
+		clkdev_add(&clks[i]);
 }
 
 int clk_add_alias(char *alias, struct device *alias_dev, char *id,
 	struct device *dev)
 {
-	struct clk *r = clk_lookup(dev, id);
-	struct clk *new;
+	struct clk *r = clk_get(dev, id);
+	struct clk_lookup *l;
 
 	if (!r)
 		return -ENODEV;
 
-	new = kzalloc(sizeof(struct clk), GFP_KERNEL);
-
-	if (!new)
-		return -ENOMEM;
-
-	new->name = alias;
-	new->dev = alias_dev;
-	new->other = r;
-
-	mutex_lock(&clocks_mutex);
-	list_add(&new->node, &clocks);
-	mutex_unlock(&clocks_mutex);
-
+	l = clkdev_alloc(r, alias, alias_dev ? dev_name(alias_dev) : NULL);
+	clk_put(r);
+	if (!l)
+		return -ENODEV;
+	clkdev_add(l);
 	return 0;
 }

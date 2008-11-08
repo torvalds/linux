@@ -80,8 +80,10 @@ static struct pxa3xx_mfp_addr_map pxa320_mfp_addr_map[] __initdata = {
 	MFP_ADDR_END,
 };
 
-static struct clk pxa320_clks[] = {
-	PXA3xx_CKEN("NANDCLK", NAND, 104000000, 0, &pxa3xx_device_nand.dev),
+static DEFINE_PXA3_CKEN(pxa320_nand, NAND, 104000000, 0);
+
+static struct clk_lookup pxa320_clkregs[] = {
+	INIT_CLKREG(&clk_pxa320_nand, "pxa3xx-nand", "NANDCLK"),
 };
 
 static int __init pxa320_init(void)
@@ -89,7 +91,7 @@ static int __init pxa320_init(void)
 	if (cpu_is_pxa320()) {
 		pxa3xx_init_mfp();
 		pxa3xx_mfp_init_addr(pxa320_mfp_addr_map);
-		clks_register(ARRAY_AND_SIZE(pxa320_clks));
+		clks_register(ARRAY_AND_SIZE(pxa320_clkregs));
 	}
 
 	return 0;
