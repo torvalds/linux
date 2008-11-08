@@ -159,7 +159,7 @@ int irq_select_affinity_usr(unsigned int irq)
 }
 
 #else
-static inline int do_select_irq_affinity(int irq, struct irq_desc *desc)
+static inline int do_irq_select_affinity(int irq, struct irq_desc *desc)
 {
 	return 0;
 }
