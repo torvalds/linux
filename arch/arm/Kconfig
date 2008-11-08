@@ -210,6 +210,7 @@ config ARCH_INTEGRATOR
 	bool "ARM Ltd. Integrator family"
 	select ARM_AMBA
 	select HAVE_CLK
+	select COMMON_CLKDEV
 	select ICST525
 	help
 	  Support for ARM's Integrator platform.

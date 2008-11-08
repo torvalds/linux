@@ -21,6 +21,8 @@
 #include <linux/amba/clcd.h>
 #include <linux/io.h>
 
+#include <asm/clkdev.h>
+#include <mach/clkdev.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/setup.h>
@@ -38,7 +40,6 @@
 #include <asm/mach/time.h>
 
 #include "common.h"
-#include "clock.h"
 
 #define INTCP_PA_MMC_BASE		0x1c000000
 #define INTCP_PA_AACI_BASE		0x1d000000
@@ -289,15 +290,16 @@ static void cp_auxvco_set(struct clk *clk, struct icst525_vco vco)
 	writel(0, CM_LOCK);
 }
 
-static struct clk cp_clcd_clk = {
-	.name	= "CLCDCLK",
+static struct clk cp_auxclk = {
 	.params	= &cp_auxvco_params,
 	.setvco = cp_auxvco_set,
 };
 
-static struct clk cp_mmci_clk = {
-	.name	= "MCLK",
-	.rate	= 14745600,
+static struct clk_lookup cp_lookups[] = {
+	{	/* CLCD */
+		.dev_id		= "mb:c0",
+		.clk		= &cp_auxclk,
+	},
 };
 
 /*
@@ -554,8 +556,8 @@ static void __init intcp_init(void)
 {
 	int i;
 
-	clk_register(&cp_clcd_clk);
-	clk_register(&cp_mmci_clk);
+	for (i = 0; i < ARRAY_SIZE(cp_lookups); i++)
+		clkdev_add(&cp_lookups[i]);
 
 	platform_add_devices(intcp_devs, ARRAY_SIZE(intcp_devs));
 
