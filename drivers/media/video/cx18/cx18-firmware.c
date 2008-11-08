@@ -134,7 +134,8 @@ static int load_cpu_fw_direct(const char *fn, u8 __iomem *mem, struct cx18 *cx)
 	return size;
 }
 
-static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx)
+static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx,
+				u32 *entry_addr)
 {
 	const struct firmware *fw = NULL;
 	int i, j;
@@ -152,6 +153,7 @@ static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx)
 		return -ENOMEM;
 	}
 
+	*entry_addr = 0xffffffff;
 	src = (const u32 *)fw->data;
 	vers = fw->data + sizeof(seghdr);
 	sz = fw->size;
@@ -168,10 +170,12 @@ static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx)
 		}
 		CX18_DEBUG_INFO("load segment %x-%x\n", seghdr.addr,
 				seghdr.addr + seghdr.size - 1);
+		if (*entry_addr == 0xffffffff)
+			*entry_addr = seghdr.addr;
 		if (offset + seghdr.size > sz)
 			break;
 		for (i = 0; i < seghdr.size; i += 4096) {
-			cx18_setup_page(cx, offset + i);
+			cx18_setup_page(cx, seghdr.addr + i);
 			for (j = i; j < seghdr.size && j < i + 4096; j += 4) {
 				/* no need for endianness conversion on the ppc */
 				cx18_raw_writel(cx, src[(offset + j) / 4],
@@ -192,8 +196,6 @@ static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx)
 				fn, apu_version, fw->size);
 	size = fw->size;
 	release_firmware(fw);
-	/* Clear bit0 for APU to start from 0 */
-	cx18_write_reg(cx, cx18_read_reg(cx, 0xc72030) & ~1, 0xc72030);
 	return size;
 }
 
@@ -338,11 +340,16 @@ int cx18_firmware_init(struct cx18 *cx)
 
 	/* Only if the processor is not running */
 	if (cx18_read_reg(cx, CX18_PROC_SOFT_RESET) & 8) {
+		u32 fw_entry_addr;
 		int sz = load_apu_fw_direct("v4l-cx23418-apu.fw",
-			       cx->enc_mem, cx);
+			       cx->enc_mem, cx, &fw_entry_addr);
 
-		cx18_write_enc(cx, 0xE51FF004, 0);
-		cx18_write_enc(cx, 0xa00000, 4);  /* todo: not hardcoded */
+		/* Clear bit0 for APU to start from 0 */
+		cx18_write_reg(cx, cx18_read_reg(cx, 0xc72030) & ~1, 0xc72030);
+
+		cx18_write_enc(cx, 0xE51FF004, 0);    /* ldr pc, [pc, #-4] */
+		cx18_write_enc(cx, fw_entry_addr, 4);
+
 		/* Start APU */
 		cx18_write_reg_expect(cx, 0x00010000, CX18_PROC_SOFT_RESET,
 					  0x00000000, 0x00010001);
