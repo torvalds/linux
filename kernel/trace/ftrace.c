@@ -765,6 +765,9 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 		    ((iter->flags & FTRACE_ITER_FAILURES) &&
 		     !(rec->flags & FTRACE_FL_FAILED)) ||
 
+		    ((iter->flags & FTRACE_ITER_FILTER) &&
+		     !(rec->flags & FTRACE_FL_FILTER)) ||
+
 		    ((iter->flags & FTRACE_ITER_NOTRACE) &&
 		     !(rec->flags & FTRACE_FL_NOTRACE))) {
 			rec = NULL;
