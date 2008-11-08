@@ -327,7 +327,7 @@ config CRYPTO_RMD160
 
 config CRYPTO_RMD256
 	tristate "RIPEMD-256 digest algorithm"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  RIPEMD-256 is an optional extension of RIPEMD-128 with a
 	  256 bit hash. It is intended for applications that require
