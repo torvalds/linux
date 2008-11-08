@@ -963,7 +963,7 @@ config NUMA
 	  local memory controller of the CPU and add some more
 	  NUMA awareness to the kernel.
 
-	  For 64-bit this is recommended if the system is Intel Core 7i
+	  For 64-bit this is recommended if the system is Intel Core i7
 	  (or later), AMD Opteron, or EM64T NUMA.
 
 	  For 32-bit this is only needed on (rare) 32-bit-only platforms
