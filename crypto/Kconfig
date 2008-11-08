@@ -102,6 +102,7 @@ config CRYPTO_NULL
 	tristate "Null algorithms"
 	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_HASH
 	help
 	  These are 'Null' algorithms, used by IPsec, which do nothing.
 
