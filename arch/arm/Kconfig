@@ -231,6 +231,7 @@ config ARCH_VERSATILE
 	select ARM_AMBA
 	select ARM_VIC
 	select HAVE_CLK
+	select COMMON_CLKDEV
 	select ICST307
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
