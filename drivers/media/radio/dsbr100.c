@@ -131,6 +131,9 @@ static int usb_dsbr100_probe(struct usb_interface *intf,
 static void usb_dsbr100_disconnect(struct usb_interface *intf);
 static int usb_dsbr100_open(struct inode *inode, struct file *file);
 static int usb_dsbr100_close(struct inode *inode, struct file *file);
+static int usb_dsbr100_suspend(struct usb_interface *intf,
+						pm_message_t message);
+static int usb_dsbr100_resume(struct usb_interface *intf);
 
 static int radio_nr = -1;
 module_param(radio_nr, int, 0);
@@ -157,10 +160,14 @@ MODULE_DEVICE_TABLE (usb, usb_dsbr100_device_table);
 
 /* USB subsystem interface */
 static struct usb_driver usb_dsbr100_driver = {
-	.name =		"dsbr100",
-	.probe =	usb_dsbr100_probe,
-	.disconnect =	usb_dsbr100_disconnect,
-	.id_table =	usb_dsbr100_device_table,
+	.name			= "dsbr100",
+	.probe			= usb_dsbr100_probe,
+	.disconnect		= usb_dsbr100_disconnect,
+	.id_table		= usb_dsbr100_device_table,
+	.suspend		= usb_dsbr100_suspend,
+	.resume			= usb_dsbr100_resume,
+	.reset_resume		= usb_dsbr100_resume,
+	.supports_autosuspend	= 0,
 };
 
 /* Low-level device interface begins here */
@@ -445,6 +452,36 @@ static int usb_dsbr100_close(struct inode *inode, struct file *file)
 		kfree(radio->transfer_buffer);
 		kfree(radio);
 	}
+	return 0;
+}
+
+/* Suspend device - stop device. */
+static int usb_dsbr100_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct dsbr100_device *radio = usb_get_intfdata(intf);
+	int retval;
+
+	retval = dsbr100_stop(radio);
+	if (retval == -1)
+		dev_warn(&intf->dev, "dsbr100_stop failed\n");
+
+	dev_info(&intf->dev, "going into suspend..\n");
+
+	return 0;
+}
+
+/* Resume device - start device. */
+static int usb_dsbr100_resume(struct usb_interface *intf)
+{
+	struct dsbr100_device *radio = usb_get_intfdata(intf);
+	int retval;
+
+	retval = dsbr100_start(radio);
+	if (retval == -1)
+		dev_warn(&intf->dev, "dsbr100_start failed\n");
+
+	dev_info(&intf->dev, "coming out of suspend..\n");
+
 	return 0;
 }
 
