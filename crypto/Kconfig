@@ -339,7 +339,7 @@ config CRYPTO_RMD256
 
 config CRYPTO_RMD320
 	tristate "RIPEMD-320 digest algorithm"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  RIPEMD-320 is an optional extension of RIPEMD-160 with a
 	  320 bit hash. It is intended for applications that require
