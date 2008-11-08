@@ -48,7 +48,6 @@ extern struct platform_device realview_flash_device;
 extern struct platform_device realview_i2c_device;
 extern struct mmc_platform_data realview_mmc0_plat_data;
 extern struct mmc_platform_data realview_mmc1_plat_data;
-extern struct clk realview_clcd_clk;
 extern struct clcd_board clcd_plat_data;
 extern void __iomem *gic_cpu_base_addr;
 #ifdef CONFIG_LOCAL_TIMERS

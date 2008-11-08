@@ -372,8 +372,6 @@ static void __init realview_eb_init(void)
 #endif
 	}
 
-	clk_register(&realview_clcd_clk);
-
 	realview_flash_register(&realview_eb_flash_resource, 1);
 	platform_device_register(&realview_i2c_device);
 	eth_device_register();

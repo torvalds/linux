@@ -265,8 +265,6 @@ static void __init realview_pb1176_init(void)
 	l2x0_init(__io_address(REALVIEW_PB1176_L220_BASE), 0x00730000, 0xfe000fff);
 #endif
 
-	clk_register(&realview_clcd_clk);
-
 	realview_flash_register(&realview_pb1176_flash_resource, 1);
 	platform_device_register(&realview_pb1176_smsc911x_device);
 

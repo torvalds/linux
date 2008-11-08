@@ -218,6 +218,7 @@ config ARCH_REALVIEW
 	bool "ARM Ltd. RealView family"
 	select ARM_AMBA
 	select HAVE_CLK
+	select COMMON_CLKDEV
 	select ICST307
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
