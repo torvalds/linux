@@ -125,20 +125,16 @@ static void tracing_sched_unregister(void)
 static void tracing_start_sched_switch(void)
 {
 	mutex_lock(&sched_register_mutex);
-	if (!(sched_ref++)) {
-		tracer_enabled = 1;
+	if (!(sched_ref++))
 		tracing_sched_register();
-	}
 	mutex_unlock(&sched_register_mutex);
 }
 
 static void tracing_stop_sched_switch(void)
 {
 	mutex_lock(&sched_register_mutex);
-	if (!(--sched_ref)) {
+	if (!(--sched_ref))
 		tracing_sched_unregister();
-		tracer_enabled = 0;
-	}
 	mutex_unlock(&sched_register_mutex);
 }
 
@@ -153,14 +149,48 @@ void tracing_stop_cmdline_record(void)
 }
 
 /**
- * tracing_cmdline_assign_trace - assign a trace array for ctx switch
+ * tracing_start_sched_switch_record - start tracing context switches
+ *
+ * Turns on context switch tracing for a tracer.
+ */
+void tracing_start_sched_switch_record(void)
+{
+	if (unlikely(!ctx_trace)) {
+		WARN_ON(1);
+		return;
+	}
+
+	tracing_start_sched_switch();
+
+	mutex_lock(&sched_register_mutex);
+	tracer_enabled++;
+	mutex_unlock(&sched_register_mutex);
+}
+
+/**
+ * tracing_stop_sched_switch_record - start tracing context switches
+ *
+ * Turns off context switch tracing for a tracer.
+ */
+void tracing_stop_sched_switch_record(void)
+{
+	mutex_lock(&sched_register_mutex);
+	tracer_enabled--;
+	WARN_ON(tracer_enabled < 0);
+	mutex_unlock(&sched_register_mutex);
+
+	tracing_stop_sched_switch();
+}
+
+/**
+ * tracing_sched_switch_assign_trace - assign a trace array for ctx switch
  * @tr: trace array pointer to assign
  *
  * Some tracers might want to record the context switches in their
  * trace. This function lets those tracers assign the trace array
  * to use.
  */
-void tracing_cmdline_assign_trace(struct trace_array *tr)
+void tracing_sched_switch_assign_trace(struct trace_array *tr)
 {
 	ctx_trace = tr;
 }
@@ -168,12 +198,12 @@ void tracing_cmdline_assign_trace(struct trace_array *tr)
 static void start_sched_trace(struct trace_array *tr)
 {
 	sched_switch_reset(tr);
-	tracing_start_cmdline_record();
+	tracing_start_sched_switch_record();
 }
 
 static void stop_sched_trace(struct trace_array *tr)
 {
-	tracing_stop_cmdline_record();
+	tracing_stop_sched_switch_record();
 }
 
 static void sched_switch_trace_init(struct trace_array *tr)
