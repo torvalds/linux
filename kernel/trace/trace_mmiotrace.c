@@ -49,15 +49,10 @@ static void mmio_trace_reset(struct trace_array *tr)
 	mmio_trace_array = NULL;
 }
 
-static void mmio_trace_ctrl_update(struct trace_array *tr)
+static void mmio_trace_start(struct trace_array *tr)
 {
 	pr_debug("in %s\n", __func__);
-	if (tr->ctrl) {
-		mmio_reset_data(tr);
-		enable_mmiotrace();
-	} else {
-		disable_mmiotrace();
-	}
+	mmio_reset_data(tr);
 }
 
 static int mmio_print_pcidev(struct trace_seq *s, const struct pci_dev *dev)
@@ -298,10 +293,10 @@ static struct tracer mmio_tracer __read_mostly =
 	.name		= "mmiotrace",
 	.init		= mmio_trace_init,
 	.reset		= mmio_trace_reset,
+	.start		= mmio_trace_start,
 	.pipe_open	= mmio_pipe_open,
 	.close		= mmio_close,
 	.read		= mmio_read,
-	.ctrl_update	= mmio_trace_ctrl_update,
 	.print_line	= mmio_print_line,
 };
 

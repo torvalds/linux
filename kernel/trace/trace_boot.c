@@ -58,14 +58,6 @@ static void boot_trace_init(struct trace_array *tr)
 	tracing_sched_switch_assign_trace(tr);
 }
 
-static void boot_trace_ctrl_update(struct trace_array *tr)
-{
-	if (tr->ctrl)
-		enable_boot_trace();
-	else
-		disable_boot_trace();
-}
-
 static enum print_line_t initcall_print_line(struct trace_iterator *iter)
 {
 	int ret;
@@ -102,7 +94,6 @@ struct tracer boot_tracer __read_mostly =
 	.name		= "initcall",
 	.init		= boot_trace_init,
 	.reset		= reset_boot_trace,
-	.ctrl_update	= boot_trace_ctrl_update,
 	.print_line	= initcall_print_line,
 };
 

@@ -275,21 +275,11 @@ static void stack_trace_reset(struct trace_array *tr)
 		stop_stack_trace(tr);
 }
 
-static void stack_trace_ctrl_update(struct trace_array *tr)
-{
-	/* When starting a new trace, reset the buffers */
-	if (tr->ctrl)
-		start_stack_trace(tr);
-	else
-		stop_stack_trace(tr);
-}
-
 static struct tracer stack_trace __read_mostly =
 {
 	.name		= "sysprof",
 	.init		= stack_trace_init,
 	.reset		= stack_trace_reset,
-	.ctrl_update	= stack_trace_ctrl_update,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_sysprof,
 #endif

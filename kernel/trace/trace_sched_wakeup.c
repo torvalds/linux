@@ -348,14 +348,6 @@ static void wakeup_tracer_reset(struct trace_array *tr)
 	}
 }
 
-static void wakeup_tracer_ctrl_update(struct trace_array *tr)
-{
-	if (tr->ctrl)
-		start_wakeup_tracer(tr);
-	else
-		stop_wakeup_tracer(tr);
-}
-
 static void wakeup_tracer_start(struct trace_array *tr)
 {
 	wakeup_reset(tr);
@@ -393,7 +385,6 @@ static struct tracer wakeup_tracer __read_mostly =
 	.stop		= wakeup_tracer_stop,
 	.open		= wakeup_tracer_open,
 	.close		= wakeup_tracer_close,
-	.ctrl_update	= wakeup_tracer_ctrl_update,
 	.print_max	= 1,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_wakeup,

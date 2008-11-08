@@ -220,15 +220,6 @@ static void sched_switch_trace_reset(struct trace_array *tr)
 		stop_sched_trace(tr);
 }
 
-static void sched_switch_trace_ctrl_update(struct trace_array *tr)
-{
-	/* When starting a new trace, reset the buffers */
-	if (tr->ctrl)
-		start_sched_trace(tr);
-	else
-		stop_sched_trace(tr);
-}
-
 static void sched_switch_trace_start(struct trace_array *tr)
 {
 	sched_switch_reset(tr);
@@ -247,7 +238,6 @@ static struct tracer sched_switch_trace __read_mostly =
 	.reset		= sched_switch_trace_reset,
 	.start		= sched_switch_trace_start,
 	.stop		= sched_switch_trace_stop,
-	.ctrl_update	= sched_switch_trace_ctrl_update,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_sched_switch,
 #endif

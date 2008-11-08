@@ -42,21 +42,11 @@ static void nop_trace_reset(struct trace_array *tr)
 		stop_nop_trace(tr);
 }
 
-static void nop_trace_ctrl_update(struct trace_array *tr)
-{
-	/* When starting a new trace, reset the buffers */
-	if (tr->ctrl)
-		start_nop_trace(tr);
-	else
-		stop_nop_trace(tr);
-}
-
 struct tracer nop_trace __read_mostly =
 {
 	.name		= "nop",
 	.init		= nop_trace_init,
 	.reset		= nop_trace_reset,
-	.ctrl_update	= nop_trace_ctrl_update,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest	= trace_selftest_startup_nop,
 #endif

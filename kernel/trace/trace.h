@@ -244,7 +244,6 @@ struct tracer {
 	ssize_t			(*read)(struct trace_iterator *iter,
 					struct file *filp, char __user *ubuf,
 					size_t cnt, loff_t *ppos);
-	void			(*ctrl_update)(struct trace_array *tr);
 #ifdef CONFIG_FTRACE_STARTUP_TEST
 	int			(*selftest)(struct tracer *trace,
 					    struct trace_array *tr);
