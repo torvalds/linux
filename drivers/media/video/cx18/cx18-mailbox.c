@@ -92,48 +92,6 @@ static const struct cx18_api_info *find_api_info(u32 cmd)
 	return NULL;
 }
 
-static struct cx18_mailbox __iomem *cx18_mb_is_complete(struct cx18 *cx, int rpu,
-		u32 *state, u32 *irq, u32 *req)
-{
-	struct cx18_mailbox __iomem *mb = NULL;
-	int wait_count = 0;
-	u32 ack;
-
-	switch (rpu) {
-	case APU:
-		mb = &cx->scb->epu2apu_mb;
-		*state = cx18_readl(cx, &cx->scb->apu_state);
-		*irq = cx18_readl(cx, &cx->scb->epu2apu_irq);
-		break;
-
-	case CPU:
-		mb = &cx->scb->epu2cpu_mb;
-		*state = cx18_readl(cx, &cx->scb->cpu_state);
-		*irq = cx18_readl(cx, &cx->scb->epu2cpu_irq);
-		break;
-
-	default:
-		break;
-	}
-
-	if (mb == NULL)
-		return mb;
-
-	do {
-		*req = cx18_readl(cx, &mb->request);
-		ack = cx18_readl(cx, &mb->ack);
-		wait_count++;
-	} while (*req != ack && wait_count < 600);
-
-	if (*req == ack) {
-		(*req)++;
-		if (*req == 0 || *req == 0xffffffff)
-			*req = 1;
-		return mb;
-	}
-	return NULL;
-}
-
 long cx18_mb_ack(struct cx18 *cx, const struct cx18_mailbox *mb, int rpu)
 {
 	struct cx18_mailbox __iomem *ack_mb;
@@ -164,12 +122,13 @@ long cx18_mb_ack(struct cx18 *cx, const struct cx18_mailbox *mb, int rpu)
 static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 {
 	const struct cx18_api_info *info = find_api_info(cmd);
-	u32 state = 0, irq = 0, req, oldreq, err;
+	u32 state, irq, req, ack, err;
 	struct cx18_mailbox __iomem *mb;
+	u32 __iomem *xpu_state;
 	wait_queue_head_t *waitq;
 	struct mutex *mb_lock;
 	int timeout = 100;
-	int sig = 0;
+	long unsigned int j, ret;
 	int i;
 
 	if (info == NULL) {
@@ -186,10 +145,16 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	case APU:
 		waitq = &cx->mb_apu_waitq;
 		mb_lock = &cx->epu2apu_mb_lock;
+		irq = IRQ_EPU_TO_APU;
+		mb = &cx->scb->epu2apu_mb;
+		xpu_state = &cx->scb->apu_state;
 		break;
 	case CPU:
 		waitq = &cx->mb_cpu_waitq;
 		mb_lock = &cx->epu2cpu_mb_lock;
+		irq = IRQ_EPU_TO_CPU;
+		mb = &cx->scb->epu2cpu_mb;
+		xpu_state = &cx->scb->cpu_state;
 		break;
 	default:
 		CX18_WARN("Unknown RPU (%d) for API call\n", info->rpu);
@@ -198,51 +163,85 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 
 	mutex_lock(mb_lock);
 	cx18_setup_page(cx, SCB_OFFSET);
-	mb = cx18_mb_is_complete(cx, info->rpu, &state, &irq, &req);
 
-	if (mb == NULL) {
-		mutex_unlock(mb_lock);
-		CX18_ERR("mb %s busy\n", info->name);
-		return -EBUSY;
-	}
+	/*
+	 * Wait for an in-use mailbox to complete
+	 *
+	 * If the XPU is responding with Ack's, the mailbox shouldn't be in
+	 * a busy state, since we serialize access to it on our end.
+	 *
+	 * If the wait for ack after sending a previous command was interrupted
+	 * by a signal, we may get here and find a busy mailbox.  After waiting,
+	 * mark it "not busy" from our end, if the XPU hasn't ack'ed it still.
+	 */
+	state = cx18_readl(cx, xpu_state);
+	req = cx18_readl(cx, &mb->request);
+	j = msecs_to_jiffies(timeout);
+	ret = wait_event_timeout(*waitq,
+				 (ack = cx18_readl(cx, &mb->ack)) == req,
+				 j);
+	if (req != ack) {
+		/* waited long enough, make the mbox "not busy" from our end */
+		cx18_writel(cx, req, &mb->ack);
+		CX18_ERR("mbox was found stuck busy when setting up for %s; "
+			 "clearing busy and trying to proceed\n", info->name);
+	} else if (ret != j)
+		CX18_DEBUG_API("waited %u usecs for busy mbox to be acked\n",
+			       jiffies_to_usecs(j-ret));
 
-	oldreq = req - 1;
+	/* Build the outgoing mailbox */
+	req = ((req & 0xfffffffe) == 0xfffffffe) ? 1 : req + 1;
+
 	cx18_writel(cx, cmd, &mb->cmd);
 	for (i = 0; i < args; i++)
 		cx18_writel(cx, data[i], &mb->args[i]);
 	cx18_writel(cx, 0, &mb->error);
 	cx18_writel(cx, req, &mb->request);
+	cx18_writel(cx, req - 1, &mb->ack); /* ensure ack & req are distinct */
 
+	/* Notify the XPU and wait for it to send an Ack back */
 	if (info->flags & API_FAST)
 		timeout /= 2;
+	j = msecs_to_jiffies(timeout);
+
+	CX18_DEBUG_HI_IRQ("sending interrupt SW1: %x to send %s\n",
+			  irq, info->name);
 	cx18_write_reg_expect(cx, irq, SW1_INT_SET, irq, irq);
 
-	sig = wait_event_interruptible_timeout(
+	ret = wait_event_interruptible_timeout(
 		       *waitq,
 		       cx18_readl(cx, &mb->ack) == cx18_readl(cx, &mb->request),
-		       msecs_to_jiffies(timeout));
-	if (sig == 0) {
+		       j);
+	if (ret == 0) {
 		/* Timed out */
-		cx18_writel(cx, oldreq, &mb->request);
 		mutex_unlock(mb_lock);
-		CX18_ERR("sending %s timed out waiting for RPU to respond\n",
-			 info->name);
+		CX18_ERR("sending %s timed out waiting for RPU "
+			 "acknowledgement\n", info->name);
 		return -EINVAL;
-	} else if (sig < 0) {
+	} else if (ret < 0) {
 		/* Interrupted */
-		cx18_writel(cx, oldreq, &mb->request);
 		mutex_unlock(mb_lock);
-		CX18_WARN("sending %s interrupted waiting for RPU to respond\n",
-			  info->name);
+		CX18_WARN("sending %s was interrupted waiting for RPU"
+			  "acknowledgement\n", info->name);
 		return -EINTR;
-	}
+	} else if (ret != j)
+		CX18_DEBUG_HI_API("waited %u usecs for %s to be acked\n",
+				  jiffies_to_usecs(j-ret), info->name);
 
+	/* Collect data returned by the XPU */
 	for (i = 0; i < MAX_MB_ARGUMENTS; i++)
 		data[i] = cx18_readl(cx, &mb->args[i]);
 	err = cx18_readl(cx, &mb->error);
 	mutex_unlock(mb_lock);
+
+	/*
+	 * Wait for XPU to perform extra actions for the caller in some cases.
+	 * e.g. CX18_CPU_DE_RELEASE_MDL will cause the CPU to send all buffers
+	 * back in a burst shortly thereafter
+	 */
 	if (info->flags & API_SLOW)
 		cx18_msleep_timeout(300, 0);
+
 	if (err)
 		CX18_DEBUG_API("mailbox error %08x for command %s\n", err,
 				info->name);
@@ -251,12 +250,7 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 
 int cx18_api(struct cx18 *cx, u32 cmd, int args, u32 data[])
 {
-	int res = cx18_api_call(cx, cmd, args, data);
-
-	/* Allow a single retry, probably already too late though.
-	   If there is no free mailbox then that is usually an indication
-	   of a more serious problem. */
-	return (res == -EBUSY) ? cx18_api_call(cx, cmd, args, data) : res;
+	return cx18_api_call(cx, cmd, args, data);
 }
 
 static int cx18_set_filter_param(struct cx18_stream *s)

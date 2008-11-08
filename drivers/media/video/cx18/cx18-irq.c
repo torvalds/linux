@@ -167,7 +167,8 @@ irqreturn_t cx18_irq_handler(int irq, void *dev_id)
 		cx18_write_reg_expect(cx, hw2, HW2_INT_CLR_STATUS, ~hw2, hw2);
 
 	if (sw1 || sw2 || hw2)
-		CX18_DEBUG_HI_IRQ("SW1: %x  SW2: %x  HW2: %x\n", sw1, sw2, hw2);
+		CX18_DEBUG_HI_IRQ("received interrupts "
+				  "SW1: %x  SW2: %x  HW2: %x\n", sw1, sw2, hw2);
 
 	/* To do: interrupt-based I2C handling
 	if (hw2 & (HW2_I2C1_INT|HW2_I2C2_INT)) {
