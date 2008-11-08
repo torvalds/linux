@@ -360,6 +360,12 @@ struct cx18_mmio_stats {
 	atomic_t retried_read[CX18_MAX_MMIO_RD_RETRIES+1];
 };
 
+#define CX18_MAX_MB_ACK_DELAY 100
+
+struct cx18_mbox_stats {
+	atomic_t mb_ack_delay[CX18_MAX_MB_ACK_DELAY+1];
+};
+
 /* Struct to hold info about cx18 cards */
 struct cx18 {
 	int num;		/* board number, -1 during init! */
@@ -452,6 +458,7 @@ struct cx18 {
 
 	/* Statistics */
 	struct cx18_mmio_stats mmio_stats;
+	struct cx18_mbox_stats mbox_stats;
 
 	/* v4l2 and User settings */
 

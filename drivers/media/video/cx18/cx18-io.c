@@ -37,6 +37,10 @@ void cx18_log_statistics(struct cx18 *cx)
 	for (i = 0; i <= CX18_MAX_MMIO_RD_RETRIES; i++)
 		CX18_DEBUG_INFO("retried_read[%d] = %d\n", i,
 				atomic_read(&cx->mmio_stats.retried_read[i]));
+	for (i = 0; i <= CX18_MAX_MB_ACK_DELAY; i++)
+		if (atomic_read(&cx->mbox_stats.mb_ack_delay[i]))
+			CX18_DEBUG_INFO("mb_ack_delay[%d] = %d\n", i,
+				  atomic_read(&cx->mbox_stats.mb_ack_delay[i]));
 	return;
 }
 

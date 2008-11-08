@@ -187,7 +187,7 @@ MODULE_VERSION(CX18_VERSION);
 /* Generic utility functions */
 int cx18_msleep_timeout(unsigned int msecs, int intr)
 {
-	int timeout = msecs_to_jiffies(msecs);
+	long int timeout = msecs_to_jiffies(msecs);
 	int sig;
 
 	do {

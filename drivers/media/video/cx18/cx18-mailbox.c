@@ -118,6 +118,12 @@ long cx18_mb_ack(struct cx18 *cx, const struct cx18_mailbox *mb, int rpu)
 	return 0;
 }
 
+static void cx18_api_log_ack_delay(struct cx18 *cx, int msecs)
+{
+	if (msecs > CX18_MAX_MB_ACK_DELAY)
+		msecs = CX18_MAX_MB_ACK_DELAY;
+	atomic_inc(&cx->mbox_stats.mb_ack_delay[msecs]);
+}
 
 static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 {
@@ -127,8 +133,7 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	u32 __iomem *xpu_state;
 	wait_queue_head_t *waitq;
 	struct mutex *mb_lock;
-	int timeout = 100;
-	long unsigned int j, ret;
+	long int timeout, ret;
 	int i;
 
 	if (info == NULL) {
@@ -176,18 +181,18 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	 */
 	state = cx18_readl(cx, xpu_state);
 	req = cx18_readl(cx, &mb->request);
-	j = msecs_to_jiffies(timeout);
+	timeout = msecs_to_jiffies(20); /* 1 field at 50 Hz vertical refresh */
 	ret = wait_event_timeout(*waitq,
 				 (ack = cx18_readl(cx, &mb->ack)) == req,
-				 j);
+				 timeout);
 	if (req != ack) {
 		/* waited long enough, make the mbox "not busy" from our end */
 		cx18_writel(cx, req, &mb->ack);
 		CX18_ERR("mbox was found stuck busy when setting up for %s; "
 			 "clearing busy and trying to proceed\n", info->name);
-	} else if (ret != j)
+	} else if (ret != timeout)
 		CX18_DEBUG_API("waited %u usecs for busy mbox to be acked\n",
-			       jiffies_to_usecs(j-ret));
+			       jiffies_to_usecs(timeout-ret));
 
 	/* Build the outgoing mailbox */
 	req = ((req & 0xfffffffe) == 0xfffffffe) ? 1 : req + 1;
@@ -199,24 +204,28 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 	cx18_writel(cx, req, &mb->request);
 	cx18_writel(cx, req - 1, &mb->ack); /* ensure ack & req are distinct */
 
-	/* Notify the XPU and wait for it to send an Ack back */
-	if (info->flags & API_FAST)
-		timeout /= 2;
-	j = msecs_to_jiffies(timeout);
+	/*
+	 * Notify the XPU and wait for it to send an Ack back
+	 * 21 ms = ~ 0.5 frames at a frame rate of 24 fps
+	 * 42 ms = ~ 1 frame at a frame rate of 24 fps
+	 */
+	timeout = msecs_to_jiffies((info->flags & API_FAST) ? 21 : 42);
 
 	CX18_DEBUG_HI_IRQ("sending interrupt SW1: %x to send %s\n",
 			  irq, info->name);
 	cx18_write_reg_expect(cx, irq, SW1_INT_SET, irq, irq);
 
-	ret = wait_event_interruptible_timeout(
+	ret = wait_event_timeout(
 		       *waitq,
 		       cx18_readl(cx, &mb->ack) == cx18_readl(cx, &mb->request),
-		       j);
+		       timeout);
 	if (ret == 0) {
 		/* Timed out */
 		mutex_unlock(mb_lock);
-		CX18_ERR("sending %s timed out waiting for RPU "
-			 "acknowledgement\n", info->name);
+		i = jiffies_to_msecs(timeout);
+		cx18_api_log_ack_delay(cx, i);
+		CX18_WARN("sending %s timed out waiting %d msecs for RPU "
+			  "acknowledgement\n", info->name, i);
 		return -EINVAL;
 	} else if (ret < 0) {
 		/* Interrupted */
@@ -224,9 +233,13 @@ static int cx18_api_call(struct cx18 *cx, u32 cmd, int args, u32 data[])
 		CX18_WARN("sending %s was interrupted waiting for RPU"
 			  "acknowledgement\n", info->name);
 		return -EINTR;
-	} else if (ret != j)
-		CX18_DEBUG_HI_API("waited %u usecs for %s to be acked\n",
-				  jiffies_to_usecs(j-ret), info->name);
+	}
+
+	i = jiffies_to_msecs(timeout-ret);
+	cx18_api_log_ack_delay(cx, i);
+	if (ret != timeout)
+		CX18_DEBUG_HI_API("waited %u msecs for %s to be acked\n",
+				  i, info->name);
 
 	/* Collect data returned by the XPU */
 	for (i = 0; i < MAX_MB_ARGUMENTS; i++)
