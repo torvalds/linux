@@ -617,6 +617,7 @@ enum uvc_device_state {
 struct uvc_device {
 	struct usb_device *udev;
 	struct usb_interface *intf;
+	unsigned long warnings;
 	__u32 quirks;
 	int intfnum;
 	char name[32];
@@ -679,12 +680,21 @@ struct uvc_driver {
 #define UVC_TRACE_SUSPEND	(1 << 8)
 #define UVC_TRACE_STATUS	(1 << 9)
 
+#define UVC_WARN_MINMAX		0
+#define UVC_WARN_PROBE_DEF	1
+
 extern unsigned int uvc_trace_param;
 
 #define uvc_trace(flag, msg...) \
 	do { \
 		if (uvc_trace_param & flag) \
 			printk(KERN_DEBUG "uvcvideo: " msg); \
+	} while (0)
+
+#define uvc_warn_once(dev, warn, msg...) \
+	do { \
+		if (!test_and_set_bit(warn, &dev->warnings)) \
+			printk(KERN_INFO "uvcvideo: " msg); \
 	} while (0)
 
 #define uvc_printk(level, msg...) \
@@ -740,10 +750,10 @@ extern int uvc_video_resume(struct uvc_video_device *video);
 extern int uvc_video_enable(struct uvc_video_device *video, int enable);
 extern int uvc_probe_video(struct uvc_video_device *video,
 		struct uvc_streaming_control *probe);
+extern int uvc_commit_video(struct uvc_video_device *video,
+		struct uvc_streaming_control *ctrl);
 extern int uvc_query_ctrl(struct uvc_device *dev, __u8 query, __u8 unit,
 		__u8 intfnum, __u8 cs, void *data, __u16 size);
-extern int uvc_set_video_ctrl(struct uvc_video_device *video,
-		struct uvc_streaming_control *ctrl, int probe);
 
 /* Status */
 extern int uvc_status_init(struct uvc_device *dev);

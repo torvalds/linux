@@ -36,15 +36,22 @@ static int __uvc_query_ctrl(struct uvc_device *dev, __u8 query, __u8 unit,
 {
 	__u8 type = USB_TYPE_CLASS | USB_RECIP_INTERFACE;
 	unsigned int pipe;
-	int ret;
 
 	pipe = (query & 0x80) ? usb_rcvctrlpipe(dev->udev, 0)
 			      : usb_sndctrlpipe(dev->udev, 0);
 	type |= (query & 0x80) ? USB_DIR_IN : USB_DIR_OUT;
 
-	ret = usb_control_msg(dev->udev, pipe, query, type, cs << 8,
+	return usb_control_msg(dev->udev, pipe, query, type, cs << 8,
 			unit << 8 | intfnum, data, size, timeout);
+}
 
+int uvc_query_ctrl(struct uvc_device *dev, __u8 query, __u8 unit,
+			__u8 intfnum, __u8 cs, void *data, __u16 size)
+{
+	int ret;
+
+	ret = __uvc_query_ctrl(dev, query, unit, intfnum, cs, data, size,
+				UVC_CTRL_CONTROL_TIMEOUT);
 	if (ret != size) {
 		uvc_printk(KERN_ERR, "Failed to query (%u) UVC control %u "
 			"(unit %u) : %d (exp. %u).\n", query, cs, unit, ret,
@@ -53,13 +60,6 @@ static int __uvc_query_ctrl(struct uvc_device *dev, __u8 query, __u8 unit,
 	}
 
 	return 0;
-}
-
-int uvc_query_ctrl(struct uvc_device *dev, __u8 query, __u8 unit,
-			__u8 intfnum, __u8 cs, void *data, __u16 size)
-{
-	return __uvc_query_ctrl(dev, query, unit, intfnum, cs, data, size,
-				UVC_CTRL_CONTROL_TIMEOUT);
 }
 
 static void uvc_fixup_buffer_size(struct uvc_video_device *video,
@@ -102,8 +102,36 @@ static int uvc_get_video_ctrl(struct uvc_video_device *video,
 	ret = __uvc_query_ctrl(video->dev, query, 0, video->streaming->intfnum,
 		probe ? VS_PROBE_CONTROL : VS_COMMIT_CONTROL, data, size,
 		UVC_CTRL_STREAMING_TIMEOUT);
-	if (ret < 0)
+
+	if ((query == GET_MIN || query == GET_MAX) && ret == 2) {
+		/* Some cameras, mostly based on Bison Electronics chipsets,
+		 * answer a GET_MIN or GET_MAX request with the wCompQuality
+		 * field only.
+		 */
+		uvc_warn_once(video->dev, UVC_WARN_MINMAX, "UVC non "
+			"compliance - GET_MIN/MAX(PROBE) incorrectly "
+			"supported. Enabling workaround.\n");
+		memset(ctrl, 0, sizeof ctrl);
+		ctrl->wCompQuality = le16_to_cpup((__le16 *)data);
+		ret = 0;
 		goto out;
+	} else if (query == GET_DEF && probe == 1) {
+		/* Many cameras don't support the GET_DEF request on their
+		 * video probe control. Warn once and return, the caller will
+		 * fall back to GET_CUR.
+		 */
+		uvc_warn_once(video->dev, UVC_WARN_PROBE_DEF, "UVC non "
+			"compliance - GET_DEF(PROBE) not supported. "
+			"Enabling workaround.\n");
+		ret = -EIO;
+		goto out;
+	} else if (ret != size) {
+		uvc_printk(KERN_ERR, "Failed to query (%u) UVC %s control : "
+			"%d (exp. %u).\n", query, probe ? "probe" : "commit",
+			ret, size);
+		ret = -EIO;
+		goto out;
+	}
 
 	ctrl->bmHint = le16_to_cpup((__le16 *)&data[0]);
 	ctrl->bFormatIndex = data[2];
@@ -138,13 +166,14 @@ static int uvc_get_video_ctrl(struct uvc_video_device *video,
 	 * Try to get the value from the format and frame descriptor.
 	 */
 	uvc_fixup_buffer_size(video, ctrl);
+	ret = 0;
 
 out:
 	kfree(data);
 	return ret;
 }
 
-int uvc_set_video_ctrl(struct uvc_video_device *video,
+static int uvc_set_video_ctrl(struct uvc_video_device *video,
 	struct uvc_streaming_control *ctrl, int probe)
 {
 	__u8 *data;
@@ -186,6 +215,12 @@ int uvc_set_video_ctrl(struct uvc_video_device *video,
 		video->streaming->intfnum,
 		probe ? VS_PROBE_CONTROL : VS_COMMIT_CONTROL, data, size,
 		UVC_CTRL_STREAMING_TIMEOUT);
+	if (ret != size) {
+		uvc_printk(KERN_ERR, "Failed to set UVC %s control : "
+			"%d (exp. %u).\n", probe ? "probe" : "commit",
+			ret, size);
+		ret = -EIO;
+	}
 
 	kfree(data);
 	return ret;
@@ -250,6 +285,12 @@ int uvc_probe_video(struct uvc_video_device *video,
 done:
 	mutex_unlock(&video->streaming->mutex);
 	return ret;
+}
+
+int uvc_commit_video(struct uvc_video_device *video,
+	struct uvc_streaming_control *probe)
+{
+	return uvc_set_video_ctrl(video, probe, 0);
 }
 
 /* ------------------------------------------------------------------------
