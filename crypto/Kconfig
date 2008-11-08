@@ -297,7 +297,7 @@ config CRYPTO_MICHAEL_MIC
 
 config CRYPTO_RMD128
 	tristate "RIPEMD-128 digest algorithm"
-	select CRYPTO_ALGAPI
+	select CRYPTO_HASH
 	help
 	  RIPEMD-128 (ISO/IEC 10118-3:2004).
 
