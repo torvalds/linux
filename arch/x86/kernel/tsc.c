@@ -55,7 +55,7 @@ u64 native_sched_clock(void)
 	rdtscll(this_offset);
 
 	/* return the value in ns */
-	return cycles_2_ns(this_offset);
+	return __cycles_2_ns(this_offset);
 }
 
 /* We need to define a real function for sched_clock, to override the
