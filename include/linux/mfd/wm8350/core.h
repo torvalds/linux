@@ -536,6 +536,7 @@
 #define WM8350_REV_E				0x4
 #define WM8350_REV_F				0x5
 #define WM8350_REV_G				0x6
+#define WM8350_REV_H				0x7
 
 #define WM8350_NUM_IRQ				63
 

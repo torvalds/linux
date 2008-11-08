@@ -1202,9 +1202,14 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 			dev_info(wm8350->dev, "Found Rev G device\n");
 			wm8350->rev = WM8350_REV_G;
 			break;
+		case WM8350_REV_H:
+			dev_info(wm8350->dev, "Found Rev H device\n");
+			wm8350->rev = WM8350_REV_H;
+			break;
 		default:
 			/* For safety we refuse to run on unknown hardware */
-			dev_info(wm8350->dev, "Found unknown rev\n");
+			dev_info(wm8350->dev, "Found unknown rev %x\n",
+				 (id2 & WM8350_CHIP_REV_MASK) >> 12);
 			ret = -ENODEV;
 			goto err;
 		}
