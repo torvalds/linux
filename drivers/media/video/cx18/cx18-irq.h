@@ -28,6 +28,7 @@
 #define SW1_INT_ENABLE_PCI              0xc7311c
 #define SW2_INT_SET                     0xc73140
 #define SW2_INT_STATUS                  0xc73144
+#define SW2_INT_ENABLE_CPU              0xc73158
 #define SW2_INT_ENABLE_PCI              0xc7315c
 
 irqreturn_t cx18_irq_handler(int irq, void *dev_id);

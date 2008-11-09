@@ -380,6 +380,17 @@ int cx18_firmware_init(struct cx18 *cx)
 		if (sz <= 0)
 			return -EIO;
 	}
+
+	/*
+	 * The CPU firmware apparently sets up to receive an interrupt for it's
+	 * outgoing IRQ_CPU_TO_EPU_ACK to us (*boggle*).  We get an interrupt
+	 * when it sends us an ack, but by the time we process it, that flag in
+	 * the SW2 status register has been cleared by the CPU firmware.
+	 * We'll prevent that not so useful behavior by clearing the CPU's
+	 * interrupt enables for Ack IRQ's we want to process.
+	 */
+	cx18_sw2_irq_disable_cpu(cx, IRQ_CPU_TO_EPU_ACK | IRQ_APU_TO_EPU_ACK);
+
 	/* initialize GPIO */
 	cx18_write_reg_expect(cx, 0x14001400, 0xc78110, 0x00001400, 0x14001400);
 	return 0;

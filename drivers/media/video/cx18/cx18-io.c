@@ -262,6 +262,13 @@ void cx18_sw2_irq_disable(struct cx18 *cx, u32 val)
 	cx18_write_reg(cx, r & ~val, SW2_INT_ENABLE_PCI);
 }
 
+void cx18_sw2_irq_disable_cpu(struct cx18 *cx, u32 val)
+{
+	u32 r;
+	r = cx18_read_reg(cx, SW2_INT_ENABLE_CPU);
+	cx18_write_reg(cx, r & ~val, SW2_INT_ENABLE_CPU);
+}
+
 void cx18_setup_page(struct cx18 *cx, u32 addr)
 {
 	u32 val;
