@@ -153,7 +153,7 @@ static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx,
 		return -ENOMEM;
 	}
 
-	*entry_addr = 0xffffffff;
+	*entry_addr = 0;
 	src = (const u32 *)fw->data;
 	vers = fw->data + sizeof(seghdr);
 	sz = fw->size;
@@ -170,7 +170,7 @@ static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx,
 		}
 		CX18_DEBUG_INFO("load segment %x-%x\n", seghdr.addr,
 				seghdr.addr + seghdr.size - 1);
-		if (*entry_addr == 0xffffffff)
+		if (*entry_addr == 0)
 			*entry_addr = seghdr.addr;
 		if (offset + seghdr.size > sz)
 			break;
@@ -340,9 +340,12 @@ int cx18_firmware_init(struct cx18 *cx)
 
 	/* Only if the processor is not running */
 	if (cx18_read_reg(cx, CX18_PROC_SOFT_RESET) & 8) {
-		u32 fw_entry_addr;
+		u32 fw_entry_addr = 0;
 		int sz = load_apu_fw_direct("v4l-cx23418-apu.fw",
 			       cx->enc_mem, cx, &fw_entry_addr);
+
+		if (sz <= 0)
+			return sz;
 
 		/* Clear bit0 for APU to start from 0 */
 		cx18_write_reg(cx, cx18_read_reg(cx, 0xc72030) & ~1, 0xc72030);
