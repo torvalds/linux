@@ -91,6 +91,7 @@ ohci_hcd_ppc_of_probe(struct of_device *op, const struct of_device_id *match)
 
 	int rv;
 	int is_bigendian;
+	struct device_node *np;
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -146,6 +147,30 @@ ohci_hcd_ppc_of_probe(struct of_device *op, const struct of_device_id *match)
 	rv = usb_add_hcd(hcd, irq, IRQF_DISABLED);
 	if (rv == 0)
 		return 0;
+
+	/* by now, 440epx is known to show usb_23 erratum */
+	np = of_find_compatible_node(NULL, NULL, "ibm,usb-ehci-440epx");
+
+	/* Work around - At this point ohci_run has executed, the
+	* controller is running, everything, the root ports, etc., is
+	* set up.  If the ehci driver is loaded, put the ohci core in
+	* the suspended state.  The ehci driver will bring it out of
+	* suspended state when / if a non-high speed USB device is
+	* attached to the USB Host port.  If the ehci driver is not
+	* loaded, do nothing. request_mem_region is used to test if
+	* the ehci driver is loaded.
+	*/
+	if (np !=  NULL) {
+		if (!of_address_to_resource(np, 0, &res)) {
+			if (!request_mem_region(res.start, 0x4, hcd_name)) {
+				writel_be((readl_be(&ohci->regs->control) |
+					OHCI_USB_SUSPEND), &ohci->regs->control);
+					(void) readl_be(&ohci->regs->control);
+			} else
+				release_mem_region(res.start, 0x4);
+		} else
+		    pr_debug(__FILE__ ": cannot get ehci offset from fdt\n");
+	}
 
 	iounmap(hcd->regs);
 err_ioremap:

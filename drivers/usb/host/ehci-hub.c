@@ -434,8 +434,15 @@ static int check_reset_complete (
 		port_status &= ~PORT_RWC_BITS;
 		ehci_writel(ehci, port_status, status_reg);
 
-	} else
+		/* ensure 440EPX ohci controller state is operational */
+		if (ehci->has_amcc_usb23)
+			set_ohci_hcfs(ehci, 1);
+	} else {
 		ehci_dbg (ehci, "port %d high speed\n", index + 1);
+		/* ensure 440EPx ohci controller state is suspended */
+		if (ehci->has_amcc_usb23)
+			set_ohci_hcfs(ehci, 0);
+	}
 
 	return port_status;
 }
