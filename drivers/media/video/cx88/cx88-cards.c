@@ -1237,7 +1237,6 @@ static const struct cx88_board cx88_boards[] = {
 		},
 	},
 	[CX88_BOARD_WINFAST_DTV2000H] = {
-		/* video inputs and radio still in testing */
 		.name           = "WinFast DTV2000 H",
 		.tuner_type     = TUNER_PHILIPS_FMD1216ME_MK3,
 		.radio_type     = UNSET,
@@ -1251,7 +1250,35 @@ static const struct cx88_board cx88_boards[] = {
 			.gpio1  = 0x00008203,
 			.gpio2  = 0x00017304,
 			.gpio3  = 0x02000000,
+		}, {
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x0001d701,
+			.gpio1  = 0x0000b207,
+			.gpio2  = 0x0001d701,
+			.gpio3  = 0x02000000,
+		}, {
+			.type   = CX88_VMUX_COMPOSITE2,
+			.vmux   = 2,
+			.gpio0  = 0x0001d503,
+			.gpio1  = 0x0000b207,
+			.gpio2  = 0x0001d503,
+			.gpio3  = 0x02000000,
+		}, {
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 3,
+			.gpio0  = 0x0001d701,
+			.gpio1  = 0x0000b207,
+			.gpio2  = 0x0001d701,
+			.gpio3  = 0x02000000,
 		}},
+		.radio = {
+			 .type  = CX88_RADIO,
+			 .gpio0 = 0x00015702,
+			 .gpio1 = 0x0000f207,
+			 .gpio2 = 0x00015702,
+			 .gpio3 = 0x02000000,
+		},
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_GENIATECH_DVBS] = {
