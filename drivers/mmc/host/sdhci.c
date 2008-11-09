@@ -1733,7 +1733,7 @@ int sdhci_add_host(struct sdhci_host *host)
 	mmc_add_host(mmc);
 
 	printk(KERN_INFO "%s: SDHCI controller on %s [%s] using %s%s\n",
-		mmc_hostname(mmc), host->hw_name, mmc_dev(mmc)->bus_id,
+		mmc_hostname(mmc), host->hw_name, dev_name(mmc_dev(mmc)),
 		(host->flags & SDHCI_USE_ADMA)?"A":"",
 		(host->flags & SDHCI_USE_DMA)?"DMA":"PIO");
 
