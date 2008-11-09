@@ -5045,6 +5045,10 @@ static int __devinit snd_hdsp_create(struct snd_card *card,
 		/* we wait 2 seconds to let freshly inserted cardbus cards do their hardware init */
 		ssleep(2);
 
+		err = hdsp_check_for_iobox(hdsp);
+		if (err < 0)
+			return err;
+
 		if ((hdsp_read (hdsp, HDSP_statusRegister) & HDSP_DllError) != 0) {
 #ifdef HDSP_FW_LOADER
 			if ((err = hdsp_request_fw_loader(hdsp)) < 0)
@@ -5057,7 +5061,7 @@ static int __devinit snd_hdsp_create(struct snd_card *card,
 				/* init is complete, we return */
 				return 0;
 #endif
-			/* no iobox connected, we defer initialization */
+			/* we defer initialization */
 			snd_printk(KERN_INFO "Hammerfall-DSP: card initialization pending : waiting for firmware\n");
 			if ((err = snd_hdsp_create_hwdep(card, hdsp)) < 0)
 				return err;
