@@ -319,8 +319,8 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 		/*
 		 * Convert length to microseconds.
 		 */
-		residual = get_duration_res(data_length, hwrate->bitrate);
-		duration = get_duration(data_length, hwrate->bitrate);
+		residual = GET_DURATION_RES(data_length, hwrate->bitrate);
+		duration = GET_DURATION(data_length, hwrate->bitrate);
 
 		if (residual != 0) {
 			duration++;

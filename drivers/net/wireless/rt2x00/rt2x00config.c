@@ -92,8 +92,8 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 	erp.difs = bss_conf->use_short_slot ? SHORT_DIFS : DIFS;
 	erp.eifs = bss_conf->use_short_slot ? SHORT_EIFS : EIFS;
 
-	erp.ack_timeout = PLCP + erp.difs + get_duration(ACK_SIZE, 10);
-	erp.ack_consume_time = SIFS + PLCP + get_duration(ACK_SIZE, 10);
+	erp.ack_timeout = PLCP + erp.difs + GET_DURATION(ACK_SIZE, 10);
+	erp.ack_consume_time = SIFS + PLCP + GET_DURATION(ACK_SIZE, 10);
 
 	if (bss_conf->use_short_preamble) {
 		erp.ack_timeout += SHORT_PREAMBLE;
