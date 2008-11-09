@@ -3404,14 +3404,8 @@ static void atl1_get_wol(struct net_device *netdev,
 {
 	struct atl1_adapter *adapter = netdev_priv(netdev);
 
-	wol->supported = WAKE_UCAST | WAKE_MCAST | WAKE_BCAST | WAKE_MAGIC;
+	wol->supported = WAKE_MAGIC;
 	wol->wolopts = 0;
-	if (adapter->wol & ATLX_WUFC_EX)
-		wol->wolopts |= WAKE_UCAST;
-	if (adapter->wol & ATLX_WUFC_MC)
-		wol->wolopts |= WAKE_MCAST;
-	if (adapter->wol & ATLX_WUFC_BC)
-		wol->wolopts |= WAKE_BCAST;
 	if (adapter->wol & ATLX_WUFC_MAG)
 		wol->wolopts |= WAKE_MAGIC;
 	return;
@@ -3422,15 +3416,10 @@ static int atl1_set_wol(struct net_device *netdev,
 {
 	struct atl1_adapter *adapter = netdev_priv(netdev);
 
-	if (wol->wolopts & (WAKE_PHY | WAKE_ARP | WAKE_MAGICSECURE))
+	if (wol->wolopts & (WAKE_PHY | WAKE_UCAST | WAKE_MCAST | WAKE_BCAST |
+		WAKE_ARP | WAKE_MAGICSECURE))
 		return -EOPNOTSUPP;
 	adapter->wol = 0;
-	if (wol->wolopts & WAKE_UCAST)
-		adapter->wol |= ATLX_WUFC_EX;
-	if (wol->wolopts & WAKE_MCAST)
-		adapter->wol |= ATLX_WUFC_MC;
-	if (wol->wolopts & WAKE_BCAST)
-		adapter->wol |= ATLX_WUFC_BC;
 	if (wol->wolopts & WAKE_MAGIC)
 		adapter->wol |= ATLX_WUFC_MAG;
 	return 0;
