@@ -47,7 +47,7 @@
  * between each attampt. When the busy bit is still set at that time,
  * the access attempt is considered to have failed,
  * and we will print an error.
- * If the usb_cache_mutex is already held then the _lock variants must
+ * If the csr_mutex is already held then the _lock variants must
  * be used instead.
  */
 static inline void rt2500usb_register_read(struct rt2x00_dev *rt2x00dev,
@@ -132,7 +132,7 @@ static void rt2500usb_bbp_write(struct rt2x00_dev *rt2x00dev,
 {
 	u16 reg;
 
-	mutex_lock(&rt2x00dev->usb_cache_mutex);
+	mutex_lock(&rt2x00dev->csr_mutex);
 
 	/*
 	 * Wait until the BBP becomes ready.
@@ -151,12 +151,12 @@ static void rt2500usb_bbp_write(struct rt2x00_dev *rt2x00dev,
 
 	rt2500usb_register_write_lock(rt2x00dev, PHY_CSR7, reg);
 
-	mutex_unlock(&rt2x00dev->usb_cache_mutex);
+	mutex_unlock(&rt2x00dev->csr_mutex);
 
 	return;
 
 exit_fail:
-	mutex_unlock(&rt2x00dev->usb_cache_mutex);
+	mutex_unlock(&rt2x00dev->csr_mutex);
 
 	ERROR(rt2x00dev, "PHY_CSR8 register busy. Write failed.\n");
 }
@@ -166,7 +166,7 @@ static void rt2500usb_bbp_read(struct rt2x00_dev *rt2x00dev,
 {
 	u16 reg;
 
-	mutex_lock(&rt2x00dev->usb_cache_mutex);
+	mutex_lock(&rt2x00dev->csr_mutex);
 
 	/*
 	 * Wait until the BBP becomes ready.
@@ -194,12 +194,12 @@ static void rt2500usb_bbp_read(struct rt2x00_dev *rt2x00dev,
 	rt2500usb_register_read_lock(rt2x00dev, PHY_CSR7, &reg);
 	*value = rt2x00_get_field16(reg, PHY_CSR7_DATA);
 
-	mutex_unlock(&rt2x00dev->usb_cache_mutex);
+	mutex_unlock(&rt2x00dev->csr_mutex);
 
 	return;
 
 exit_fail:
-	mutex_unlock(&rt2x00dev->usb_cache_mutex);
+	mutex_unlock(&rt2x00dev->csr_mutex);
 
 	ERROR(rt2x00dev, "PHY_CSR8 register busy. Read failed.\n");
 	*value = 0xff;
@@ -214,7 +214,7 @@ static void rt2500usb_rf_write(struct rt2x00_dev *rt2x00dev,
 	if (!word)
 		return;
 
-	mutex_lock(&rt2x00dev->usb_cache_mutex);
+	mutex_lock(&rt2x00dev->csr_mutex);
 
 	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
 		rt2500usb_register_read_lock(rt2x00dev, PHY_CSR10, &reg);
@@ -223,7 +223,7 @@ static void rt2500usb_rf_write(struct rt2x00_dev *rt2x00dev,
 		udelay(REGISTER_BUSY_DELAY);
 	}
 
-	mutex_unlock(&rt2x00dev->usb_cache_mutex);
+	mutex_unlock(&rt2x00dev->csr_mutex);
 	ERROR(rt2x00dev, "PHY_CSR10 register busy. Write failed.\n");
 	return;
 
@@ -241,7 +241,7 @@ rf_write:
 	rt2500usb_register_write_lock(rt2x00dev, PHY_CSR10, reg);
 	rt2x00_rf_write(rt2x00dev, word, value);
 
-	mutex_unlock(&rt2x00dev->usb_cache_mutex);
+	mutex_unlock(&rt2x00dev->csr_mutex);
 }
 
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS

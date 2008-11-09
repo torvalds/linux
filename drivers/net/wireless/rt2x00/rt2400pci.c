@@ -69,14 +69,14 @@ static void rt2400pci_bbp_write(struct rt2x00_dev *rt2x00dev,
 {
 	u32 reg;
 
+	mutex_lock(&rt2x00dev->csr_mutex);
+
 	/*
 	 * Wait until the BBP becomes ready.
 	 */
 	reg = rt2400pci_bbp_check(rt2x00dev);
-	if (rt2x00_get_field32(reg, BBPCSR_BUSY)) {
-		ERROR(rt2x00dev, "BBPCSR register busy. Write failed.\n");
-		return;
-	}
+	if (rt2x00_get_field32(reg, BBPCSR_BUSY))
+		goto exit_fail;
 
 	/*
 	 * Write the data into the BBP.
@@ -88,6 +88,15 @@ static void rt2400pci_bbp_write(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&reg, BBPCSR_WRITE_CONTROL, 1);
 
 	rt2x00pci_register_write(rt2x00dev, BBPCSR, reg);
+
+	mutex_unlock(&rt2x00dev->csr_mutex);
+
+	return;
+
+exit_fail:
+	mutex_unlock(&rt2x00dev->csr_mutex);
+
+	ERROR(rt2x00dev, "BBPCSR register busy. Write failed.\n");
 }
 
 static void rt2400pci_bbp_read(struct rt2x00_dev *rt2x00dev,
@@ -95,14 +104,14 @@ static void rt2400pci_bbp_read(struct rt2x00_dev *rt2x00dev,
 {
 	u32 reg;
 
+	mutex_lock(&rt2x00dev->csr_mutex);
+
 	/*
 	 * Wait until the BBP becomes ready.
 	 */
 	reg = rt2400pci_bbp_check(rt2x00dev);
-	if (rt2x00_get_field32(reg, BBPCSR_BUSY)) {
-		ERROR(rt2x00dev, "BBPCSR register busy. Read failed.\n");
-		return;
-	}
+	if (rt2x00_get_field32(reg, BBPCSR_BUSY))
+		goto exit_fail;
 
 	/*
 	 * Write the request into the BBP.
@@ -118,13 +127,20 @@ static void rt2400pci_bbp_read(struct rt2x00_dev *rt2x00dev,
 	 * Wait until the BBP becomes ready.
 	 */
 	reg = rt2400pci_bbp_check(rt2x00dev);
-	if (rt2x00_get_field32(reg, BBPCSR_BUSY)) {
-		ERROR(rt2x00dev, "BBPCSR register busy. Read failed.\n");
-		*value = 0xff;
-		return;
-	}
+	if (rt2x00_get_field32(reg, BBPCSR_BUSY))
+		goto exit_fail;
 
 	*value = rt2x00_get_field32(reg, BBPCSR_VALUE);
+
+	mutex_unlock(&rt2x00dev->csr_mutex);
+
+	return;
+
+exit_fail:
+	mutex_unlock(&rt2x00dev->csr_mutex);
+
+	ERROR(rt2x00dev, "BBPCSR register busy. Read failed.\n");
+	*value = 0xff;
 }
 
 static void rt2400pci_rf_write(struct rt2x00_dev *rt2x00dev,
@@ -136,6 +152,8 @@ static void rt2400pci_rf_write(struct rt2x00_dev *rt2x00dev,
 	if (!word)
 		return;
 
+	mutex_lock(&rt2x00dev->csr_mutex);
+
 	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
 		rt2x00pci_register_read(rt2x00dev, RFCSR, &reg);
 		if (!rt2x00_get_field32(reg, RFCSR_BUSY))
@@ -143,6 +161,7 @@ static void rt2400pci_rf_write(struct rt2x00_dev *rt2x00dev,
 		udelay(REGISTER_BUSY_DELAY);
 	}
 
+	mutex_unlock(&rt2x00dev->csr_mutex);
 	ERROR(rt2x00dev, "RFCSR register busy. Write failed.\n");
 	return;
 
@@ -155,6 +174,8 @@ rf_write:
 
 	rt2x00pci_register_write(rt2x00dev, RFCSR, reg);
 	rt2x00_rf_write(rt2x00dev, word, value);
+
+	mutex_unlock(&rt2x00dev->csr_mutex);
 }
 
 static void rt2400pci_eepromregister_read(struct eeprom_93cx6 *eeprom)

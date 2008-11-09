@@ -746,16 +746,15 @@ struct rt2x00_dev {
 	} csr;
 
 	/*
-	 * Mutex to protect register accesses on USB devices.
-	 * There are 2 reasons this is needed, one is to ensure
-	 * use of the csr_cache (for USB devices) by one thread
-	 * isn't corrupted by another thread trying to access it.
-	 * The other is that access to BBP and RF registers
-	 * require multiple BUS transactions and if another thread
-	 * attempted to access one of those registers at the same
-	 * time one of the writes could silently fail.
+	 * Mutex to protect register accesses.
+	 * For PCI and USB devices it protects against concurrent indirect
+	 * register access (BBP, RF, MCU) since accessing those
+	 * registers require multiple calls to the CSR registers.
+	 * For USB devices it also protects the csr_cache since that
+	 * field is used for normal CSR access and it cannot support
+	 * multiple callers simultaneously.
 	 */
-	struct mutex usb_cache_mutex;
+	struct mutex csr_mutex;
 
 	/*
 	 * Current packet filter configuration for the device.

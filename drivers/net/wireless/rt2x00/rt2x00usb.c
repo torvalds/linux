@@ -79,7 +79,7 @@ int rt2x00usb_vendor_req_buff_lock(struct rt2x00_dev *rt2x00dev,
 {
 	int status;
 
-	BUG_ON(!mutex_is_locked(&rt2x00dev->usb_cache_mutex));
+	BUG_ON(!mutex_is_locked(&rt2x00dev->csr_mutex));
 
 	/*
 	 * Check for Cache availability.
@@ -110,13 +110,13 @@ int rt2x00usb_vendor_request_buff(struct rt2x00_dev *rt2x00dev,
 {
 	int status;
 
-	mutex_lock(&rt2x00dev->usb_cache_mutex);
+	mutex_lock(&rt2x00dev->csr_mutex);
 
 	status = rt2x00usb_vendor_req_buff_lock(rt2x00dev, request,
 						requesttype, offset, buffer,
 						buffer_length, timeout);
 
-	mutex_unlock(&rt2x00dev->usb_cache_mutex);
+	mutex_unlock(&rt2x00dev->csr_mutex);
 
 	return status;
 }
@@ -132,7 +132,7 @@ int rt2x00usb_vendor_request_large_buff(struct rt2x00_dev *rt2x00dev,
 	unsigned char *tb;
 	u16 off, len, bsize;
 
-	mutex_lock(&rt2x00dev->usb_cache_mutex);
+	mutex_lock(&rt2x00dev->csr_mutex);
 
 	tb  = (char *)buffer;
 	off = offset;
@@ -148,7 +148,7 @@ int rt2x00usb_vendor_request_large_buff(struct rt2x00_dev *rt2x00dev,
 		off += bsize;
 	}
 
-	mutex_unlock(&rt2x00dev->usb_cache_mutex);
+	mutex_unlock(&rt2x00dev->csr_mutex);
 
 	return status;
 }
@@ -531,7 +531,6 @@ int rt2x00usb_probe(struct usb_interface *usb_intf,
 	rt2x00dev->dev = &usb_intf->dev;
 	rt2x00dev->ops = ops;
 	rt2x00dev->hw = hw;
-	mutex_init(&rt2x00dev->usb_cache_mutex);
 
 	rt2x00dev->usb_maxpacket =
 	    usb_maxpacket(usb_dev, usb_sndbulkpipe(usb_dev, 1), 1);
