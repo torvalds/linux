@@ -1847,6 +1847,18 @@ static const struct cx88_board cx88_boards[] = {
 		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
+	[CX88_BOARD_TBS_8910] = {
+		.name           = "TBS 8910 DVB-S",
+		.tuner_type     = UNSET,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_DVB,
+			.vmux   = 0,
+		} },
+		.mpeg           = CX88_MPEG_DVB,
+	},
 	[CX88_BOARD_TBS_8920] = {
 		.name           = "TBS 8920 DVB-S/S2",
 		.tuner_type     = TUNER_ABSENT,
@@ -1861,6 +1873,18 @@ static const struct cx88_board cx88_boards[] = {
 	},
 	[CX88_BOARD_PROF_7300] = {
 		.name           = "PROF 7300 DVB-S/S2",
+		.tuner_type     = UNSET,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_DVB,
+			.vmux   = 0,
+		} },
+		.mpeg           = CX88_MPEG_DVB,
+	},
+	[CX88_BOARD_SATTRADE_ST4200] = {
+		.name           = "SATTRADE ST4200 DVB-S/S2",
 		.tuner_type     = UNSET,
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
@@ -2261,6 +2285,10 @@ static const struct cx88_subid cx88_subids[] = {
 		.subdevice = 0x2011,
 		.card      = CX88_BOARD_OMICOM_SS4_PCI,
 	}, {
+		.subvendor = 0x8910,
+		.subdevice = 0x8888,
+		.card      = CX88_BOARD_TBS_8910,
+	}, {
 		.subvendor = 0x8920,
 		.subdevice = 0x8888,
 		.card      = CX88_BOARD_TBS_8920,
@@ -2268,6 +2296,10 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0xB033,
 		.subdevice = 0x3033,
 		.card      = CX88_BOARD_PROF_7300,
+	}, {
+		.subvendor = 0xb200,
+		.subdevice = 0x4200,
+		.card      = CX88_BOARD_SATTRADE_ST4200,
 	},
 };
 
@@ -2878,8 +2910,10 @@ static void cx88_card_setup(struct cx88_core *core)
 	case  CX88_BOARD_TEVII_S420:
 	case  CX88_BOARD_TEVII_S460:
 	case  CX88_BOARD_OMICOM_SS4_PCI:
+	case  CX88_BOARD_TBS_8910:
 	case  CX88_BOARD_TBS_8920:
 	case  CX88_BOARD_PROF_7300:
+	case  CX88_BOARD_SATTRADE_ST4200:
 		cx_write(MO_SRST_IO, 0);
 		msleep(100);
 		cx_write(MO_SRST_IO, 1);

@@ -1042,6 +1042,7 @@ static int dvb_register(struct cx8802_dev *dev)
 				0x08, ISL6421_DCL, 0x00);
 		}
 		break;
+	case CX88_BOARD_TBS_8910:
 	case CX88_BOARD_TEVII_S420:
 		fe0->dvb.frontend = dvb_attach(stv0299_attach,
 						&tevii_tuner_sharp_config,
@@ -1078,6 +1079,7 @@ static int dvb_register(struct cx8802_dev *dev)
 	case CX88_BOARD_OMICOM_SS4_PCI:
 	case CX88_BOARD_TBS_8920:
 	case CX88_BOARD_PROF_7300:
+	case CX88_BOARD_SATTRADE_ST4200:
 		fe0->dvb.frontend = dvb_attach(cx24116_attach,
 					       &hauppauge_hvr4000_config,
 					       &core->i2c_adap);

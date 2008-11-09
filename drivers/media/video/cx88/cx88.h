@@ -228,6 +228,8 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_TEVII_S420              73
 #define CX88_BOARD_PROLINK_PV_GLOBAL_XTREME 74
 #define CX88_BOARD_PROF_7300               75
+#define CX88_BOARD_SATTRADE_ST4200         76
+#define CX88_BOARD_TBS_8910                77
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,
