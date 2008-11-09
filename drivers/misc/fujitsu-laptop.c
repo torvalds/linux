@@ -464,6 +464,14 @@ static int dmi_check_cb_s6410(const struct dmi_system_id *id)
 	return 0;
 }
 
+static int dmi_check_cb_s6420(const struct dmi_system_id *id)
+{
+	dmi_check_cb_common(id);
+	fujitsu->keycode1 = KEY_SCREENLOCK;	/* "Lock" */
+	fujitsu->keycode2 = KEY_HELP;	/* "Mobility Center" */
+	return 0;
+}
+
 static int dmi_check_cb_p8010(const struct dmi_system_id *id)
 {
 	dmi_check_cb_common(id);
@@ -481,6 +489,13 @@ static struct dmi_system_id fujitsu_dmi_table[] = {
 		     DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK S6410"),
 		     },
 	 .callback = dmi_check_cb_s6410},
+	{
+	 .ident = "Fujitsu Siemens S6420",
+	 .matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK S6420"),
+		     },
+	 .callback = dmi_check_cb_s6420},
 	{
 	 .ident = "Fujitsu LifeBook P8010",
 	 .matches = {
