@@ -1937,6 +1937,11 @@ open_dchannel(struct hfc_pci *hc, struct mISDNchannel *ch,
 		if (rq->protocol != ch->protocol) {
 			if (hc->hw.protocol == ISDN_P_TE_S0)
 				l1_event(hc->dch.l1, CLOSE_CHANNEL);
+			if (rq->protocol == ISDN_P_TE_S0) {
+				err = create_l1(&hc->dch, hfc_l1callback);
+				if (err)
+					return err;
+			}
 			hc->hw.protocol = rq->protocol;
 			ch->protocol = rq->protocol;
 			hfcpci_setmode(hc);
