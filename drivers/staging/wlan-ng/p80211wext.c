@@ -122,7 +122,7 @@ static const long p80211wext_channel_freq[] = {
 	2412, 2417, 2422, 2427, 2432, 2437, 2442,
 	2447, 2452, 2457, 2462, 2467, 2472, 2484
 };
-#define NUM_CHANNELS (sizeof(p80211wext_channel_freq) / sizeof(p80211wext_channel_freq[0]))
+#define NUM_CHANNELS ARRAY_SIZE(p80211wext_channel_freq)
 
 /* steal a spare bit to store the shared/opensystems state. should default to open if not set */
 #define HOSTWEP_SHAREDKEY BIT3
@@ -1787,7 +1787,7 @@ static iw_handler p80211wext_handlers[] =  {
 };
 
 struct iw_handler_def p80211wext_handler_def = {
-	.num_standard = sizeof(p80211wext_handlers) / sizeof(iw_handler),
+	.num_standard = ARRAY_SIZE(p80211wext_handlers),
 	.num_private = 0,
 	.num_private_args = 0,
         .standard = p80211wext_handlers,
