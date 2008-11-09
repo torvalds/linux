@@ -1042,6 +1042,7 @@ static int dvb_register(struct cx8802_dev *dev)
 				0x08, ISL6421_DCL, 0x00);
 		}
 		break;
+	case CX88_BOARD_PROF_6200:
 	case CX88_BOARD_TBS_8910:
 	case CX88_BOARD_TEVII_S420:
 		fe0->dvb.frontend = dvb_attach(stv0299_attach,
