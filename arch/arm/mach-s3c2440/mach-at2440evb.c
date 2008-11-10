@@ -45,6 +45,7 @@
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
+#include <asm/plat-s3c24xx/mci.h>
 
 static struct map_desc at2440evb_iodesc[] __initdata = {
 	/* Nothing here */
@@ -162,6 +163,10 @@ static struct platform_device at2440evb_device_eth = {
 	},
 };
 
+static struct s3c24xx_mci_pdata at2440evb_mci_pdata = {
+	.gpio_detect	= S3C2410_GPG10,
+};
+
 static struct platform_device *at2440evb_devices[] __initdata = {
 	&s3c_device_usb,
 	&s3c_device_wdt,
@@ -169,12 +174,15 @@ static struct platform_device *at2440evb_devices[] __initdata = {
 	&s3c_device_i2c,
 	&s3c_device_rtc,
 	&s3c_device_nand,
+	&s3c_device_sdi,
 	&at2440evb_device_eth,
 };
 
 static void __init at2440evb_map_io(void)
 {
 	s3c_device_nand.dev.platform_data = &at2440evb_nand_info;
+	s3c_device_sdi.name = "s3c2440-sdi";
+	s3c_device_sdi.dev.platform_data = &at2440evb_mci_pdata;
 
 	s3c24xx_init_io(at2440evb_iodesc, ARRAY_SIZE(at2440evb_iodesc));
 	s3c24xx_init_clocks(16934400);
