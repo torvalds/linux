@@ -2255,9 +2255,9 @@ new_group:
 		mutex_unlock(&block_group->alloc_mutex);
 new_group_no_lock:
 		last_wanted = 0;
-		if (!allowed_chunk_alloc && loop > 0) {
-			total_needed -= empty_cluster;
-			empty_cluster = 0;
+		if (!allowed_chunk_alloc) {
+			total_needed -= empty_size;
+			empty_size = 0;
 		}
 		/*
 		 * Here's how this works.
@@ -2277,8 +2277,8 @@ new_group_no_lock:
 			loop++;
 		} else if (loop == 1 && cur == head) {
 
-			total_needed -= empty_cluster;
-			empty_cluster = 0;
+			total_needed -= empty_size;
+			empty_size = 0;
 
 			if (allowed_chunk_alloc && !chunk_alloc_done) {
 				up_read(&space_info->groups_sem);
