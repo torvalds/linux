@@ -347,6 +347,9 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	/* Indicate support for various _OSC capabilities. */
 	if (pci_ext_cfg_avail(root->bus->self))
 		flags |= OSC_EXT_PCI_CONFIG_SUPPORT;
+	if (pcie_aspm_enabled())
+		flags |= OSC_ACTIVE_STATE_PWR_SUPPORT |
+			OSC_CLOCK_PWR_CAPABILITY_SUPPORT;
 	if (flags != base_flags)
 		pci_acpi_osc_support(device->handle, flags);
 

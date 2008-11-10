@@ -857,24 +857,15 @@ void pcie_no_aspm(void)
 		aspm_disabled = 1;
 }
 
-#ifdef CONFIG_ACPI
-#include <acpi/acpi_bus.h>
-#include <linux/pci-acpi.h>
-static void pcie_aspm_platform_init(void)
+/**
+ * pcie_aspm_enabled - is PCIe ASPM enabled?
+ *
+ * Returns true if ASPM has not been disabled by the command-line option
+ * pcie_aspm=off.
+ **/
+int pcie_aspm_enabled(void)
 {
-	pcie_osc_support_set(OSC_ACTIVE_STATE_PWR_SUPPORT|
-		OSC_CLOCK_PWR_CAPABILITY_SUPPORT);
+       return !aspm_disabled;
 }
-#else
-static inline void pcie_aspm_platform_init(void) { }
-#endif
+EXPORT_SYMBOL(pcie_aspm_enabled);
 
-static int __init pcie_aspm_init(void)
-{
-	if (aspm_disabled)
-		return 0;
-	pcie_aspm_platform_init();
-	return 0;
-}
-
-fs_initcall(pcie_aspm_init);
