@@ -48,6 +48,8 @@ i915_gem_set_domain(struct drm_gem_object *obj,
 		    struct drm_file *file_priv,
 		    uint32_t read_domains,
 		    uint32_t write_domain);
+static int i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj,
+					     int write);
 static int i915_gem_object_get_page_list(struct drm_gem_object *obj);
 static void i915_gem_object_free_page_list(struct drm_gem_object *obj);
 static int i915_gem_object_wait_rendering(struct drm_gem_object *obj);
@@ -260,8 +262,7 @@ i915_gem_gtt_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
-	ret = i915_gem_set_domain(obj, file_priv,
-				  I915_GEM_DOMAIN_GTT, I915_GEM_DOMAIN_GTT);
+	ret = i915_gem_object_set_to_gtt_domain(obj, 1);
 	if (ret)
 		goto fail;
 
@@ -397,7 +398,8 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 }
 
 /**
- * Called when user space prepares to use an object
+ * Called when user space prepares to use an object with the CPU, either
+ * through the mmap ioctl's mapping or a GTT mapping.
  */
 int
 i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
@@ -405,10 +407,25 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_gem_set_domain *args = data;
 	struct drm_gem_object *obj;
+	uint32_t read_domains = args->read_domains;
+	uint32_t write_domain = args->write_domain;
 	int ret;
 
 	if (!(dev->driver->driver_features & DRIVER_GEM))
 		return -ENODEV;
+
+	/* Only handle setting domains to types used by the CPU. */
+	if (write_domain & ~(I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT))
+		return -EINVAL;
+
+	if (read_domains & ~(I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT))
+		return -EINVAL;
+
+	/* Having something in the write domain implies it's in the read
+	 * domain, and only that read domain.  Enforce that in the request.
+	 */
+	if (write_domain != 0 && read_domains != write_domain)
+		return -EINVAL;
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
@@ -417,10 +434,15 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	mutex_lock(&dev->struct_mutex);
 #if WATCH_BUF
 	DRM_INFO("set_domain_ioctl %p(%d), %08x %08x\n",
-		 obj, obj->size, args->read_domains, args->write_domain);
+		 obj, obj->size, read_domains, write_domain);
 #endif
-	ret = i915_gem_set_domain(obj, file_priv,
-				  args->read_domains, args->write_domain);
+	if (read_domains & I915_GEM_DOMAIN_GTT) {
+		ret = i915_gem_object_set_to_gtt_domain(obj, write_domain != 0);
+	} else {
+		ret = i915_gem_set_domain(obj, file_priv,
+					  read_domains, write_domain);
+	}
+
 	drm_gem_object_unreference(obj);
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
@@ -1237,6 +1259,69 @@ i915_gem_clflush_object(struct drm_gem_object *obj)
 	drm_clflush_pages(obj_priv->page_list, obj->size / PAGE_SIZE);
 }
 
+/**
+ * Moves a single object to the GTT read, and possibly write domain.
+ *
+ * This function returns when the move is complete, including waiting on
+ * flushes to occur.
+ */
+static int
+i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj, int write)
+{
+	struct drm_device *dev = obj->dev;
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	uint32_t flush_domains;
+
+	/* Figure out what GPU domains we need to flush or invalidate for
+	 * moving to GTT.
+	 */
+	flush_domains = obj->write_domain & I915_GEM_GPU_DOMAINS;
+
+	/* Queue the GPU write cache flushing we need. */
+	if (flush_domains != 0) {
+		uint32_t seqno;
+
+		obj->write_domain &= ~I915_GEM_GPU_DOMAINS;
+		i915_gem_flush(dev, 0, flush_domains);
+		seqno = i915_add_request(dev, flush_domains);
+		i915_gem_object_move_to_active(obj, seqno);
+	}
+
+	/* Wait on any GPU rendering and flushing to occur. */
+	if (obj_priv->active) {
+		int ret;
+
+		ret = i915_wait_request(dev, obj_priv->last_rendering_seqno);
+		if (ret != 0)
+			return ret;
+	}
+
+	/* If we're writing through the GTT domain, then CPU and GPU caches
+	 * will need to be invalidated at next use.
+	 */
+	if (write)
+		obj->read_domains &= ~(I915_GEM_GPU_DOMAINS |
+					    I915_GEM_DOMAIN_CPU);
+
+	/* Flush the CPU domain if it's dirty. */
+	if (obj->write_domain & I915_GEM_DOMAIN_CPU) {
+		i915_gem_clflush_object(obj);
+		drm_agp_chipset_flush(dev);
+
+		obj->write_domain &= ~I915_GEM_DOMAIN_CPU;
+	}
+
+	/* It should now be out of any other write domains, and we can update
+	 * the domain values for our changes.
+	 */
+	BUG_ON((obj->write_domain & ~I915_GEM_DOMAIN_GTT) != 0);
+	obj->read_domains |= I915_GEM_DOMAIN_GTT;
+	if (write)
+		obj->write_domain = I915_GEM_DOMAIN_GTT;
+
+	return 0;
+}
+
 /*
  * Set the next domain for the specified object. This
  * may not actually perform the necessary flushing/invaliding though,
@@ -1634,19 +1719,11 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 			continue;
 		}
 
-		/* Now that we're going to actually write some data in,
-		 * make sure that any rendering using this buffer's contents
-		 * is completed.
-		 */
-		i915_gem_object_wait_rendering(obj);
-
-		/* As we're writing through the gtt, flush
-		 * any CPU writes before we write the relocations
-		 */
-		if (obj->write_domain & I915_GEM_DOMAIN_CPU) {
-			i915_gem_clflush_object(obj);
-			drm_agp_chipset_flush(dev);
-			obj->write_domain = 0;
+		ret = i915_gem_object_set_to_gtt_domain(obj, 1);
+		if (ret != 0) {
+			drm_gem_object_unreference(target_obj);
+			i915_gem_object_unpin(obj);
+			return -EINVAL;
 		}
 
 		/* Map the page containing the relocation we're going to
