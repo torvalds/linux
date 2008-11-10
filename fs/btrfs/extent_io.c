@@ -30,7 +30,7 @@ static struct kmem_cache *extent_buffer_cache;
 static LIST_HEAD(buffers);
 static LIST_HEAD(states);
 
-#define LEAK_DEBUG 1
+#define LEAK_DEBUG 0
 #ifdef LEAK_DEBUG
 static spinlock_t leak_lock = SPIN_LOCK_UNLOCKED;
 #endif
