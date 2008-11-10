@@ -5444,7 +5444,7 @@ static inline char *orinoco_translate_scan(struct net_device *dev,
 					   char *current_ev,
 					   char *end_buf,
 					   union hermes_scan_info *bss,
-					   unsigned int last_scanned)
+					   unsigned long last_scanned)
 {
 	struct orinoco_private *priv = netdev_priv(dev);
 	u16			capabilities;
@@ -5591,7 +5591,7 @@ static inline char *orinoco_translate_ext_scan(struct net_device *dev,
 					       char *current_ev,
 					       char *end_buf,
 					       struct agere_ext_scan_info *bss,
-					       unsigned int last_scanned)
+					       unsigned long last_scanned)
 {
 	u16			capabilities;
 	u16			channel;
