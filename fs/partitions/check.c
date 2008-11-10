@@ -348,8 +348,8 @@ static ssize_t whole_disk_show(struct device *dev,
 static DEVICE_ATTR(whole_disk, S_IRUSR | S_IRGRP | S_IROTH,
 		   whole_disk_show, NULL);
 
-int add_partition(struct gendisk *disk, int partno,
-		  sector_t start, sector_t len, int flags)
+struct hd_struct *add_partition(struct gendisk *disk, int partno,
+				sector_t start, sector_t len, int flags)
 {
 	struct hd_struct *p;
 	dev_t devt = MKDEV(0, 0);
@@ -361,15 +361,15 @@ int add_partition(struct gendisk *disk, int partno,
 
 	err = disk_expand_part_tbl(disk, partno);
 	if (err)
-		return err;
+		return ERR_PTR(err);
 	ptbl = disk->part_tbl;
 
 	if (ptbl->part[partno])
-		return -EBUSY;
+		return ERR_PTR(-EBUSY);
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
-		return -ENOMEM;
+		return ERR_PTR(-EBUSY);
 
 	if (!init_part_stats(p)) {
 		err = -ENOMEM;
@@ -424,20 +424,20 @@ int add_partition(struct gendisk *disk, int partno,
 	if (!ddev->uevent_suppress)
 		kobject_uevent(&pdev->kobj, KOBJ_ADD);
 
-	return 0;
+	return p;
 
 out_free_stats:
 	free_part_stats(p);
 out_free:
 	kfree(p);
-	return err;
+	return ERR_PTR(err);
 out_del:
 	kobject_put(p->holder_dir);
 	device_del(pdev);
 out_put:
 	put_device(pdev);
 	blk_free_devt(devt);
-	return err;
+	return ERR_PTR(err);
 }
 
 /* Not exported, helper to add_disk(). */
@@ -568,10 +568,11 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 			       disk->disk_name, p, (unsigned long long) size);
 			size = get_capacity(disk) - from;
 		}
-		res = add_partition(disk, p, from, size, state->parts[p].flags);
-		if (res) {
-			printk(KERN_ERR " %s: p%d could not be added: %d\n",
-				disk->disk_name, p, -res);
+		part = add_partition(disk, p, from, size,
+				     state->parts[p].flags);
+		if (IS_ERR(part)) {
+			printk(KERN_ERR " %s: p%d could not be added: %ld\n",
+			       disk->disk_name, p, -PTR_ERR(part));
 			continue;
 		}
 #ifdef CONFIG_BLK_DEV_MD
