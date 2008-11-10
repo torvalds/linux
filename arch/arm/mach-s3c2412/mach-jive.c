@@ -398,11 +398,12 @@ static struct s3c2410_spigpio_info jive_lcd_spi = {
 	.bus_num	= 1,
 	.pin_clk	= S3C2410_GPG8,
 	.pin_mosi	= S3C2410_GPB8,
+	.num_chipselect	= 1,
 	.chip_select	= jive_lcd_spi_chipselect,
 };
 
 static struct platform_device jive_device_lcdspi = {
-	.name		= "s3c24xx-spi-gpio",
+	.name		= "spi_s3c24xx_gpio",
 	.id		= 1,
 	.num_resources  = 0,
 	.dev.platform_data = &jive_lcd_spi,
@@ -419,11 +420,12 @@ static struct s3c2410_spigpio_info jive_wm8750_spi = {
 	.bus_num	= 2,
 	.pin_clk	= S3C2410_GPB4,
 	.pin_mosi	= S3C2410_GPB9,
+	.num_chipselect	= 1,
 	.chip_select	= jive_wm8750_chipselect,
 };
 
 static struct platform_device jive_device_wm8750 = {
-	.name		= "s3c24xx-spi-gpio",
+	.name		= "spi_s3c24xx_gpio",
 	.id		= 2,
 	.num_resources  = 0,
 	.dev.platform_data = &jive_wm8750_spi,
