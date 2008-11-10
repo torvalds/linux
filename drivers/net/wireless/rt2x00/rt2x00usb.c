@@ -154,6 +154,28 @@ int rt2x00usb_vendor_request_large_buff(struct rt2x00_dev *rt2x00dev,
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_vendor_request_large_buff);
 
+int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
+			   const unsigned int offset,
+			   struct rt2x00_field32 field,
+			   u32 *reg)
+{
+	unsigned int i;
+
+	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
+		rt2x00usb_register_read_lock(rt2x00dev, offset, reg);
+		if (!rt2x00_get_field32(*reg, field))
+			return 1;
+		udelay(REGISTER_BUSY_DELAY);
+	}
+
+	ERROR(rt2x00dev, "Indirect register access failed: "
+	      "offset=0x%.08x, value=0x%.08x\n", offset, *reg);
+	*reg = ~0;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rt2x00usb_regbusy_read);
+
 /*
  * TX data handlers.
  */
