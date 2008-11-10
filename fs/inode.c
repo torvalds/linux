@@ -1334,6 +1334,7 @@ int inode_wait(void *word)
 	schedule();
 	return 0;
 }
+EXPORT_SYMBOL(inode_wait);
 
 /*
  * If we try to find an inode in the inode hash while it is being
