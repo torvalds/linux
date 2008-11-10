@@ -28,6 +28,8 @@
 
 #include "44x_tlb.h"
 
+#define PPC44x_TLB_UATTR_MASK \
+	(PPC44x_TLB_U0|PPC44x_TLB_U1|PPC44x_TLB_U2|PPC44x_TLB_U3)
 #define PPC44x_TLB_USER_PERM_MASK (PPC44x_TLB_UX|PPC44x_TLB_UR|PPC44x_TLB_UW)
 #define PPC44x_TLB_SUPER_PERM_MASK (PPC44x_TLB_SX|PPC44x_TLB_SR|PPC44x_TLB_SW)
 
@@ -63,8 +65,8 @@ void kvmppc_dump_tlbs(struct kvm_vcpu *vcpu)
 
 static u32 kvmppc_44x_tlb_shadow_attrib(u32 attrib, int usermode)
 {
-	/* Mask off reserved bits. */
-	attrib &= PPC44x_TLB_PERM_MASK|PPC44x_TLB_ATTR_MASK;
+	/* We only care about the guest's permission and user bits. */
+	attrib &= PPC44x_TLB_PERM_MASK|PPC44x_TLB_UATTR_MASK;
 
 	if (!usermode) {
 		/* Guest is in supervisor mode, so we need to translate guest
@@ -75,6 +77,9 @@ static u32 kvmppc_44x_tlb_shadow_attrib(u32 attrib, int usermode)
 
 	/* Make sure host can always access this memory. */
 	attrib |= PPC44x_TLB_SX|PPC44x_TLB_SR|PPC44x_TLB_SW;
+
+	/* WIMGE = 0b00100 */
+	attrib |= PPC44x_TLB_M;
 
 	return attrib;
 }
